@@ -1,0 +1,247 @@
+# Commands covered:  none
+#
+# This file contains a collection of tests for Tcl's dynamic string
+# library procedures.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) dstring.test 1.8 96/02/16 08:55:46
+
+if {[info commands testdstring] == {}} {
+    puts "This application hasn't been compiled with the \"testdstring\""
+    puts "command, so I can't test Tcl_DStringAppend et al."
+    return
+}
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test dstring-1.1 {appending and retrieving} {
+    testdstring free
+    testdstring append "abc" -1
+    list [testdstring get] [testdstring length]
+} {abc 3}
+test dstring-1.2 {appending and retrieving} {
+    testdstring free
+    testdstring append "abc" -1
+    testdstring append " xyzzy" 3
+    testdstring append " 12345" -1
+    list [testdstring get] [testdstring length]
+} {{abc xy 12345} 12}
+test dstring-1.3 {appending and retrieving} {
+    testdstring free
+    foreach l {a b c d e f g h i j k l m n o p} {
+	testdstring append $l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l\n -1
+    }
+    list [testdstring get] [testdstring length]
+} {{aaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbb
+ccccccccccccccccccccc
+ddddddddddddddddddddd
+eeeeeeeeeeeeeeeeeeeee
+fffffffffffffffffffff
+ggggggggggggggggggggg
+hhhhhhhhhhhhhhhhhhhhh
+iiiiiiiiiiiiiiiiiiiii
+jjjjjjjjjjjjjjjjjjjjj
+kkkkkkkkkkkkkkkkkkkkk
+lllllllllllllllllllll
+mmmmmmmmmmmmmmmmmmmmm
+nnnnnnnnnnnnnnnnnnnnn
+ooooooooooooooooooooo
+ppppppppppppppppppppp
+} 352}
+
+test dstring-2.1 {appending list elements} {
+    testdstring free
+    testdstring element "abc"
+    testdstring element "d e f"
+    list [testdstring get] [testdstring length]
+} {{abc {d e f}} 11}
+test dstring-2.2 {appending list elements} {
+    testdstring free
+    testdstring element "x"
+    testdstring element "\{"
+    testdstring element "ab\}"
+    testdstring get
+} {x \{ ab\}}
+test dstring-2.3 {appending list elements} {
+    testdstring free
+    foreach l {a b c d e f g h i j k l m n o p} {
+	testdstring element $l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l
+    }
+    testdstring get
+} {aaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbb ccccccccccccccccccccc ddddddddddddddddddddd eeeeeeeeeeeeeeeeeeeee fffffffffffffffffffff ggggggggggggggggggggg hhhhhhhhhhhhhhhhhhhhh iiiiiiiiiiiiiiiiiiiii jjjjjjjjjjjjjjjjjjjjj kkkkkkkkkkkkkkkkkkkkk lllllllllllllllllllll mmmmmmmmmmmmmmmmmmmmm nnnnnnnnnnnnnnnnnnnnn ooooooooooooooooooooo ppppppppppppppppppppp}
+test dstring-2.4 {appending list elements} {
+    testdstring free
+    testdstring append "a\{" -1
+    testdstring element abc
+    testdstring append "	\{" -1
+    testdstring element xyzzy
+    testdstring get
+} "a{ abc	{xyzzy"
+test dstring-2.5 {appending list elements} {
+    testdstring free
+    testdstring append " \{" -1
+    testdstring element abc
+    testdstring get
+} " {abc"
+test dstring-2.6 {appending list elements} {
+    testdstring free
+    testdstring append " " -1
+    testdstring element abc
+    testdstring get
+} { abc}
+test dstring-2.7 {appending list elements} {
+    testdstring free
+    testdstring append "\\ " -1
+    testdstring element abc
+    testdstring get
+} "\\  abc"
+test dstring-2.8 {appending list elements} {
+    testdstring free
+    testdstring append "x " -1
+    testdstring element abc
+    testdstring get
+} {x abc}
+
+test dstring-3.1 {nested sublists} {
+    testdstring free
+    testdstring start
+    testdstring element foo
+    testdstring element bar
+    testdstring end
+    testdstring element another
+    testdstring get
+} {{foo bar} another}
+test dstring-3.2 {nested sublists} {
+    testdstring free
+    testdstring start
+    testdstring start
+    testdstring element abc
+    testdstring element def
+    testdstring end
+    testdstring end
+    testdstring element ghi
+    testdstring get
+} {{{abc def}} ghi}
+test dstring-3.3 {nested sublists} {
+    testdstring free
+    testdstring start
+    testdstring start
+    testdstring start
+    testdstring element foo
+    testdstring element foo2
+    testdstring end
+    testdstring end
+    testdstring element foo3
+    testdstring end
+    testdstring element foo4
+    testdstring get
+} {{{{foo foo2}} foo3} foo4}
+test dstring-3.4 {nested sublists} {
+    testdstring free
+    testdstring element before
+    testdstring start
+    testdstring element during
+    testdstring element more
+    testdstring end
+    testdstring element last
+    testdstring get
+} {before {during more} last}
+test dstring-3.4 {nested sublists} {
+    testdstring free
+    testdstring element "\{"
+    testdstring start
+    testdstring element first
+    testdstring element second
+    testdstring end
+    testdstring get
+} {\{ {first second}}
+
+test dstring-4.1 {truncation} {
+    testdstring free
+    testdstring append "abcdefg" -1
+    testdstring trunc 3
+    list [testdstring get] [testdstring length]
+} {abc 3}
+test dstring-4.2 {truncation} {
+    testdstring free
+    testdstring append "xyzzy" -1
+    testdstring trunc 0
+    list [testdstring get] [testdstring length]
+} {{} 0}
+
+test dstring-5.1 {copying to result} {
+    testdstring free
+    testdstring append xyz -1
+    testdstring result
+} xyz
+test dstring-5.2 {copying to result} {
+    testdstring free
+    foreach l {a b c d e f g h i j k l m n o p} {
+	testdstring append $l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l\n -1
+    }
+    set a [testdstring result]
+    testdstring append abc -1
+    list $a [testdstring get]
+} {{aaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbb
+ccccccccccccccccccccc
+ddddddddddddddddddddd
+eeeeeeeeeeeeeeeeeeeee
+fffffffffffffffffffff
+ggggggggggggggggggggg
+hhhhhhhhhhhhhhhhhhhhh
+iiiiiiiiiiiiiiiiiiiii
+jjjjjjjjjjjjjjjjjjjjj
+kkkkkkkkkkkkkkkkkkkkk
+lllllllllllllllllllll
+mmmmmmmmmmmmmmmmmmmmm
+nnnnnnnnnnnnnnnnnnnnn
+ooooooooooooooooooooo
+ppppppppppppppppppppp
+} abc}
+
+test dstring-6.1 {Tcl_DStringGetResult} {
+    testdstring free
+    list [testdstring gresult staticsmall] [testdstring get]
+} {{} short}
+test dstring-6.2 {Tcl_DStringGetResult} {
+    testdstring free
+    foreach l {a b c d e f g h i j k l m n o p} {
+	testdstring append $l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l\n -1
+    }
+    list [testdstring gresult staticsmall] [testdstring get]
+} {{} short}
+test dstring-6.3 {Tcl_DStringGetResult} {
+    set result {}
+    lappend result [testdstring gresult staticlarge]
+    testdstring append x 1
+    lappend result [testdstring get]
+} {{} {first0 first1 first2 first3 first4 first5 first6 first7 first8 first9
+second0 second1 second2 second3 second4 second5 second6 second7 second8 second9
+third0 third1 third2 third3 third4 third5 third6 third7 third8 third9
+fourth0 fourth1 fourth2 fourth3 fourth4 fourth5 fourth6 fourth7 fourth8 fourth9
+fifth0 fifth1 fifth2 fifth3 fifth4 fifth5 fifth6 fifth7 fifth8 fifth9
+sixth0 sixth1 sixth2 sixth3 sixth4 sixth5 sixth6 sixth7 sixth8 sixth9
+seventh0 seventh1 seventh2 seventh3 seventh4 seventh5 seventh6 seventh7 seventh8 seventh9
+x}}
+test dstring-6.4 {Tcl_DStringGetResult} {
+    set result {}
+    lappend result [testdstring gresult free]
+    testdstring append y 1
+    lappend result [testdstring get]
+} {{} {This is a malloc-ed stringy}}
+test dstring-6.5 {Tcl_DStringGetResult} {
+    set result {}
+    lappend result [testdstring gresult special]
+    testdstring append z 1
+    lappend result [testdstring get]
+} {{} {This is a specially-allocated stringz}}
+
+testdstring free

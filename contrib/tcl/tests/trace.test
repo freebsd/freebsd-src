@@ -1,0 +1,930 @@
+# Commands covered:  trace
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) trace.test 1.24 96/02/16 08:56:32
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+proc traceScalar {name1 name2 op} {
+    global info
+    set info [list $name1 $name2 $op [catch {uplevel set $name1} msg] $msg]
+}
+proc traceScalarAppend {name1 name2 op} {
+    global info
+    lappend info $name1 $name2 $op [catch {uplevel set $name1} msg] $msg
+}
+proc traceArray {name1 name2 op} {
+    global info
+    set info [list $name1 $name2 $op [catch {uplevel set [set name1]($name2)} msg] $msg]
+}
+proc traceProc {name1 name2 op} {
+    global info
+    set info [concat $info [list $name1 $name2 $op]]
+}
+proc traceTag {tag args} {
+    global info
+    set info [concat $info $tag]
+}
+proc traceError {args} {
+    error "trace returned error"
+}
+proc traceCheck {cmd args} {
+    global info
+    set info [list [catch $cmd msg] $msg]
+}
+proc traceCrtElement {value name1 name2 op} {
+    uplevel set ${name1}($name2) $value
+}
+
+# Read-tracing on variables
+
+test trace-1.1 {trace variable reads} {
+    catch {unset x}
+    set info {}
+    trace var x r traceScalar
+    list [catch {set x} msg] $msg $info
+} {1 {can't read "x": no such variable} {x {} r 1 {can't read "x": no such variable}}}
+test trace-1.2 {trace variable reads} {
+    catch {unset x}
+    set x 123
+    set info {}
+    trace var x r traceScalar
+    list [catch {set x} msg] $msg $info
+} {0 123 {x {} r 0 123}}
+test trace-1.3 {trace variable reads} {
+    catch {unset x}
+    set info {}
+    trace var x r traceScalar
+    set x 123
+    set info
+} {}
+test trace-1.4 {trace array element reads} {
+    catch {unset x}
+    set info {}
+    trace var x(2) r traceArray
+    list [catch {set x(2)} msg] $msg $info
+} {1 {can't read "x(2)": no such element in array} {x 2 r 1 {can't read "x(2)": no such element in array}}}
+test trace-1.5 {trace array element reads} {
+    catch {unset x}
+    set x(2) zzz
+    set info {}
+    trace var x(2) r traceArray
+    list [catch {set x(2)} msg] $msg $info
+} {0 zzz {x 2 r 0 zzz}}
+test trace-1.6 {trace reads on whole arrays} {
+    catch {unset x}
+    set info {}
+    trace var x r traceArray
+    list [catch {set x(2)} msg] $msg $info
+} {1 {can't read "x(2)": no such variable} {}}
+test trace-1.7 {trace reads on whole arrays} {
+    catch {unset x}
+    set x(2) zzz
+    set info {}
+    trace var x r traceArray
+    list [catch {set x(2)} msg] $msg $info
+} {0 zzz {x 2 r 0 zzz}}
+test trace-1.8 {trace variable reads} {
+    catch {unset x}
+    set x 444
+    set info {}
+    trace var x r traceScalar
+    unset x
+    set info
+} {}
+
+# Basic write-tracing on variables
+
+test trace-2.1 {trace variable writes} {
+    catch {unset x}
+    set info {}
+    trace var x w traceScalar
+    set x 123
+    set info
+} {x {} w 0 123}
+test trace-2.2 {trace writes to array elements} {
+    catch {unset x}
+    set info {}
+    trace var x(33) w traceArray
+    set x(33) 444
+    set info
+} {x 33 w 0 444}
+test trace-2.3 {trace writes on whole arrays} {
+    catch {unset x}
+    set info {}
+    trace var x w traceArray
+    set x(abc) qq
+    set info
+} {x abc w 0 qq}
+test trace-2.4 {trace variable writes} {
+    catch {unset x}
+    set x 1234
+    set info {}
+    trace var x w traceScalar
+    set x
+    set info
+} {}
+test trace-2.5 {trace variable writes} {
+    catch {unset x}
+    set x 1234
+    set info {}
+    trace var x w traceScalar
+    unset x
+    set info
+} {}
+
+test trace-3.1 {trace variable read-modify-writes} {
+    catch {unset x}
+    set info {}
+    trace var x r traceScalarAppend
+    append x 123
+    append x 456
+    lappend x 789
+    set info
+} {x {} r 1 {can't read "x": no such variable} x {} r 0 123 x {} r 0 123456}
+test trace-3.2 {trace variable read-modify-writes} {
+    catch {unset x}
+    set info {}
+    trace var x rw traceScalarAppend
+    append x 123
+    lappend x 456
+    set info
+} {x {} r 1 {can't read "x": no such variable} x {} w 0 123 x {} r 0 123 x {} w 0 {123 456}}
+
+# Basic unset-tracing on variables
+
+test trace-4.1 {trace variable unsets} {
+    catch {unset x}
+    set info {}
+    trace var x u traceScalar
+    catch {unset x}
+    set info
+} {x {} u 1 {can't read "x": no such variable}}
+test trace-4.2 {variable mustn't exist during unset trace} {
+    catch {unset x}
+    set x 1234
+    set info {}
+    trace var x u traceScalar
+    unset x
+    set info
+} {x {} u 1 {can't read "x": no such variable}}
+test trace-4.3 {unset traces mustn't be called during reads and writes} {
+    catch {unset x}
+    set info {}
+    trace var x u traceScalar
+    set x 44
+    set x
+    set info
+} {}
+test trace-4.4 {trace unsets on array elements} {
+    catch {unset x}
+    set x(0) 18
+    set info {}
+    trace var x(1) u traceArray
+    catch {unset x(1)}
+    set info
+} {x 1 u 1 {can't read "x(1)": no such element in array}}
+test trace-4.5 {trace unsets on array elements} {
+    catch {unset x}
+    set x(1) 18
+    set info {}
+    trace var x(1) u traceArray
+    unset x(1)
+    set info
+} {x 1 u 1 {can't read "x(1)": no such element in array}}
+test trace-4.6 {trace unsets on array elements} {
+    catch {unset x}
+    set x(1) 18
+    set info {}
+    trace var x(1) u traceArray
+    unset x
+    set info
+} {x 1 u 1 {can't read "x(1)": no such variable}}
+test trace-4.7 {trace unsets on whole arrays} {
+    catch {unset x}
+    set x(1) 18
+    set info {}
+    trace var x u traceProc
+    catch {unset x(0)}
+    set info
+} {}
+test trace-4.8 {trace unsets on whole arrays} {
+    catch {unset x}
+    set x(1) 18
+    set x(2) 144
+    set x(3) 14
+    set info {}
+    trace var x u traceProc
+    unset x(1)
+    set info
+} {x 1 u}
+test trace-4.9 {trace unsets on whole arrays} {
+    catch {unset x}
+    set x(1) 18
+    set x(2) 144
+    set x(3) 14
+    set info {}
+    trace var x u traceProc
+    unset x
+    set info
+} {x {} u}
+
+# Trace multiple trace types at once.
+
+test trace-5.1 {multiple ops traced at once} {
+    catch {unset x}
+    set info {}
+    trace var x rwu traceProc
+    catch {set x}
+    set x 22
+    set x
+    set x 33
+    unset x
+    set info
+} {x {} r x {} w x {} r x {} w x {} u}
+test trace-5.2 {multiple ops traced on array element} {
+    catch {unset x}
+    set info {}
+    trace var x(0) rwu traceProc
+    catch {set x(0)}
+    set x(0) 22
+    set x(0)
+    set x(0) 33
+    unset x(0)
+    unset x
+    set info
+} {x 0 r x 0 w x 0 r x 0 w x 0 u}
+test trace-5.3 {multiple ops traced on whole array} {
+    catch {unset x}
+    set info {}
+    trace var x rwu traceProc
+    catch {set x(0)}
+    set x(0) 22
+    set x(0)
+    set x(0) 33
+    unset x(0)
+    unset x
+    set info
+} {x 0 w x 0 r x 0 w x 0 u x {} u}
+
+# Check order of invocation of traces
+
+test trace-6.1 {order of invocation of traces} {
+    catch {unset x}
+    set info {}
+    trace var x r "traceTag 1"
+    trace var x r "traceTag 2"
+    trace var x r "traceTag 3"
+    catch {set x}
+    set x 22
+    set x
+    set info
+} {3 2 1 3 2 1}
+test trace-6.2 {order of invocation of traces} {
+    catch {unset x}
+    set x(0) 44
+    set info {}
+    trace var x(0) r "traceTag 1"
+    trace var x(0) r "traceTag 2"
+    trace var x(0) r "traceTag 3"
+    set x(0)
+    set info
+} {3 2 1}
+test trace-6.3 {order of invocation of traces} {
+    catch {unset x}
+    set x(0) 44
+    set info {}
+    trace var x(0) r "traceTag 1"
+    trace var x r "traceTag A1"
+    trace var x(0) r "traceTag 2"
+    trace var x r "traceTag A2"
+    trace var x(0) r "traceTag 3"
+    trace var x r "traceTag A3"
+    set x(0)
+    set info
+} {A3 A2 A1 3 2 1}
+
+# Check effects of errors in trace procedures
+
+test trace-7.1 {error returns from traces} {
+    catch {unset x}
+    set x 123
+    set info {}
+    trace var x r "traceTag 1"
+    trace var x r traceError
+    list [catch {set x} msg] $msg $info
+} {1 {can't read "x": trace returned error} {}}
+test trace-7.2 {error returns from traces} {
+    catch {unset x}
+    set x 123
+    set info {}
+    trace var x w "traceTag 1"
+    trace var x w traceError
+    list [catch {set x 44} msg] $msg $info
+} {1 {can't set "x": trace returned error} {}}
+test trace-7.3 {error returns from traces} {
+    catch {unset x}
+    set x 123
+    set info {}
+    trace var x r traceError
+    trace var x w traceScalar
+    list [catch {append x 44} msg] $msg $info
+} {1 {can't read "x": trace returned error} {}}
+test trace-7.4 {error returns from traces} {
+    catch {unset x}
+    set x 123
+    set info {}
+    trace var x u "traceTag 1"
+    trace var x u traceError
+    list [catch {unset x} msg] $msg $info
+} {0 {} 1}
+test trace-7.5 {error returns from traces} {
+    catch {unset x}
+    set x(0) 123
+    set info {}
+    trace var x(0) r "traceTag 1"
+    trace var x r "traceTag 2"
+    trace var x r traceError
+    trace var x r "traceTag 3"
+    list [catch {set x(0)} msg] $msg $info
+} {1 {can't read "x(0)": trace returned error} 3}
+test trace-7.6 {error returns from traces} {
+    catch {unset x}
+    set x 123
+    trace var x u traceError
+    list [catch {unset x} msg] $msg
+} {0 {}}
+test trace-7.7 {error returns from traces} {
+    # This test just makes sure that the memory for the error message
+    # gets deallocated correctly when the trace is invoked again or
+    # when the trace is deleted.
+    catch {unset x}
+    set x 123
+    trace var x r traceError
+    catch {set x}
+    catch {set x}
+    trace vdelete x r traceError
+} {}
+
+# Check to see that variables are expunged before trace
+# procedures are invoked, so trace procedure can even manipulate
+# a new copy of the variables.
+
+test trace-8.1 {be sure variable is unset before trace is called} {
+    catch {unset x}
+    set x 33
+    set info {}
+    trace var x u {traceCheck {uplevel set x}}
+    unset x
+    set info
+} {1 {can't read "x": no such variable}}
+test trace-8.2 {be sure variable is unset before trace is called} {
+    catch {unset x}
+    set x 33
+    set info {}
+    trace var x u {traceCheck {uplevel set x 22}}
+    unset x
+    concat $info [list [catch {set x} msg] $msg]
+} {0 22 0 22}
+test trace-8.3 {be sure traces are cleared before unset trace called} {
+    catch {unset x}
+    set x 33
+    set info {}
+    trace var x u {traceCheck {uplevel trace vinfo x}}
+    unset x
+    set info
+} {0 {}}
+test trace-8.4 {set new trace during unset trace} {
+    catch {unset x}
+    set x 33
+    set info {}
+    trace var x u {traceCheck {global x; trace var x u traceProc}}
+    unset x
+    concat $info [trace vinfo x]
+} {0 {} {u traceProc}}
+
+test trace-9.1 {make sure array elements are unset before traces are called} {
+    catch {unset x}
+    set x(0) 33
+    set info {}
+    trace var x(0) u {traceCheck {uplevel set x(0)}}
+    unset x(0)
+    set info
+} {1 {can't read "x(0)": no such element in array}}
+test trace-9.2 {make sure array elements are unset before traces are called} {
+    catch {unset x}
+    set x(0) 33
+    set info {}
+    trace var x(0) u {traceCheck {uplevel set x(0) zzz}}
+    unset x(0)
+    concat $info [list [catch {set x(0)} msg] $msg]
+} {0 zzz 0 zzz}
+test trace-9.3 {array elements are unset before traces are called} {
+    catch {unset x}
+    set x(0) 33
+    set info {}
+    trace var x(0) u {traceCheck {global x; trace vinfo x(0)}}
+    unset x(0)
+    set info
+} {0 {}}
+test trace-9.4 {set new array element trace during unset trace} {
+    catch {unset x}
+    set x(0) 33
+    set info {}
+    trace var x(0) u {traceCheck {uplevel {trace variable x(0) r {}}}}
+    catch {unset x(0)}
+    concat $info [trace vinfo x(0)]
+} {0 {} {r {}}}
+
+test trace-10.1 {make sure arrays are unset before traces are called} {
+    catch {unset x}
+    set x(0) 33
+    set info {}
+    trace var x u {traceCheck {uplevel set x(0)}}
+    unset x
+    set info
+} {1 {can't read "x(0)": no such variable}}
+test trace-10.2 {make sure arrays are unset before traces are called} {
+    catch {unset x}
+    set x(y) 33
+    set info {}
+    trace var x u {traceCheck {uplevel set x(y) 22}}
+    unset x
+    concat $info [list [catch {set x(y)} msg] $msg]
+} {0 22 0 22}
+test trace-10.3 {make sure arrays are unset before traces are called} {
+    catch {unset x}
+    set x(y) 33
+    set info {}
+    trace var x u {traceCheck {uplevel array exists x}}
+    unset x
+    set info
+} {0 0}
+test trace-10.4 {make sure arrays are unset before traces are called} {
+    catch {unset x}
+    set x(y) 33
+    set info {}
+    set cmd {traceCheck {uplevel {trace vinfo x}}}
+    trace var x u $cmd
+    unset x
+    set info
+} {0 {}}
+test trace-10.5 {set new array trace during unset trace} {
+    catch {unset x}
+    set x(y) 33
+    set info {}
+    trace var x u {traceCheck {global x; trace var x r {}}}
+    unset x
+    concat $info [trace vinfo x]
+} {0 {} {r {}}}
+test trace-10.6 {create scalar during array unset trace} {
+    catch {unset x}
+    set x(y) 33
+    set info {}
+    trace var x u {traceCheck {global x; set x 44}}
+    unset x
+    concat $info [list [catch {set x} msg] $msg]
+} {0 44 0 44}
+
+# Check special conditions (e.g. errors) in Tcl_TraceVar2.
+
+test trace-11.1 {creating array when setting variable traces} {
+    catch {unset x}
+    set info {}
+    trace var x(0) w traceProc
+    list [catch {set x 22} msg] $msg
+} {1 {can't set "x": variable is array}}
+test trace-11.2 {creating array when setting variable traces} {
+    catch {unset x}
+    set info {}
+    trace var x(0) w traceProc
+    list [catch {set x(0)} msg] $msg
+} {1 {can't read "x(0)": no such element in array}}
+test trace-11.3 {creating array when setting variable traces} {
+    catch {unset x}
+    set info {}
+    trace var x(0) w traceProc
+    set x(0) 22
+    set info
+} {x 0 w}
+test trace-11.4 {creating variable when setting variable traces} {
+    catch {unset x}
+    set info {}
+    trace var x w traceProc
+    list [catch {set x} msg] $msg
+} {1 {can't read "x": no such variable}}
+test trace-11.5 {creating variable when setting variable traces} {
+    catch {unset x}
+    set info {}
+    trace var x w traceProc
+    set x 22
+    set info
+} {x {} w}
+test trace-11.6 {creating variable when setting variable traces} {
+    catch {unset x}
+    set info {}
+    trace var x w traceProc
+    set x(0) 22
+    set info
+} {x 0 w}
+test trace-11.7 {create array element during read trace} {
+    catch {unset x}
+    set x(2) zzz
+    trace var x r {traceCrtElement xyzzy}
+    list [catch {set x(3)} msg] $msg
+} {0 xyzzy}
+test trace-11.8 {errors when setting variable traces} {
+    catch {unset x}
+    set x 44
+    list [catch {trace var x(0) w traceProc} msg] $msg
+} {1 {can't trace "x(0)": variable isn't array}}
+
+# Check deleting one trace from another.
+
+test trace-12.1 {delete one trace from another} {
+    proc delTraces {args} {
+	global x
+	trace vdel x r {traceTag 2}
+	trace vdel x r {traceTag 3}
+	trace vdel x r {traceTag 4}
+    }
+    catch {unset x}
+    set x 44
+    set info {}
+    trace var x r {traceTag 1}
+    trace var x r {traceTag 2}
+    trace var x r {traceTag 3}
+    trace var x r {traceTag 4}
+    trace var x r delTraces 
+    trace var x r {traceTag 5}
+    set x
+    set info
+} {5 1}
+
+# Check operation and syntax of "trace" command.
+
+test trace-13.1 {trace command (overall)} {
+    list [catch {trace} msg] $msg
+} {1 {too few args: should be "trace option [arg arg ...]"}}
+test trace-13.2 {trace command (overall)} {
+    list [catch {trace gorp} msg] $msg
+} {1 {bad option "gorp": should be variable, vdelete, or vinfo}}
+test trace-13.3 {trace command ("variable" option)} {
+    list [catch {trace variable x y} msg] $msg
+} {1 {wrong # args: should be "trace variable name ops command"}}
+test trace-13.4 {trace command ("variable" option)} {
+    list [catch {trace var x y z z2} msg] $msg
+} {1 {wrong # args: should be "trace variable name ops command"}}
+test trace-13.5 {trace command ("variable" option)} {
+    list [catch {trace var x y z} msg] $msg
+} {1 {bad operations "y": should be one or more of rwu}}
+test trace-13.6 {trace command ("vdelete" option)} {
+    list [catch {trace vdelete x y} msg] $msg
+} {1 {wrong # args: should be "trace vdelete name ops command"}}
+test trace-13.7 {trace command ("vdelete" option)} {
+    list [catch {trace vdelete x y z foo} msg] $msg
+} {1 {wrong # args: should be "trace vdelete name ops command"}}
+test trace-13.8 {trace command ("vdelete" option)} {
+    list [catch {trace vdelete x y z} msg] $msg
+} {1 {bad operations "y": should be one or more of rwu}}
+test trace-13.9 {trace command ("vdelete" option)} {
+    catch {unset x}
+    set info {}
+    trace var x w traceProc
+    trace vdelete x w traceProc
+} {}
+test trace-13.10 {trace command ("vdelete" option)} {
+    catch {unset x}
+    set info {}
+    trace var x w traceProc
+    trace vdelete x w traceProc
+    set x 12345
+    set info
+} {}
+test trace-13.11 {trace command ("vdelete" option)} {
+    catch {unset x}
+    set info {}
+    trace var x w {traceTag 1}
+    trace var x w traceProc
+    trace var x w {traceTag 2}
+    set x yy
+    trace vdelete x w traceProc
+    set x 12345
+    trace vdelete x w {traceTag 1}
+    set x foo
+    trace vdelete x w {traceTag 2}
+    set x gorp
+    set info
+} {2 x {} w 1 2 1 2}
+test trace-13.12 {trace command ("vdelete" option)} {
+    catch {unset x}
+    set info {}
+    trace var x w {traceTag 1}
+    trace vdelete x w non_existent
+    set x 12345
+    set info
+} {1}
+test trace-13.13 {trace command ("vinfo" option)} {
+    list [catch {trace vinfo} msg] $msg]
+} {1 {wrong # args: should be "trace vinfo name"]}}
+test trace-13.14 {trace command ("vinfo" option)} {
+    list [catch {trace vinfo x y} msg] $msg]
+} {1 {wrong # args: should be "trace vinfo name"]}}
+test trace-13.15 {trace command ("vinfo" option)} {
+    catch {unset x}
+    trace var x w {traceTag 1}
+    trace var x w traceProc
+    trace var x w {traceTag 2}
+    trace vinfo x
+} {{w {traceTag 2}} {w traceProc} {w {traceTag 1}}}
+test trace-13.16 {trace command ("vinfo" option)} {
+    catch {unset x}
+    trace vinfo x
+} {}
+test trace-13.17 {trace command ("vinfo" option)} {
+    catch {unset x}
+    trace vinfo x(0)
+} {}
+test trace-13.18 {trace command ("vinfo" option)} {
+    catch {unset x}
+    set x 44
+    trace vinfo x(0)
+} {}
+test trace-13.19 {trace command ("vinfo" option)} {
+    catch {unset x}
+    set x 44
+    trace var x w {traceTag 1}
+    proc check {} {global x; trace vinfo x}
+    check
+} {{w {traceTag 1}}}
+
+# Check fancy trace commands (long ones, weird arguments, etc.)
+
+test trace-14.1 {long trace command} {
+    catch {unset x}
+    set info {}
+    trace var x w {traceTag {This is a very very long argument.  It's \
+	designed to test out the facilities of TraceVarProc for dealing \
+	with such long arguments by malloc-ing space.  One possibility \
+	is that space doesn't get freed properly.  If this happens, then \
+	invoking this test over and over again will eventually leak memory.}}
+    set x 44
+    set info
+} {This is a very very long argument.  It's \
+	designed to test out the facilities of TraceVarProc for dealing \
+	with such long arguments by malloc-ing space.  One possibility \
+	is that space doesn't get freed properly.  If this happens, then \
+	invoking this test over and over again will eventually leak memory.}
+test trace-14.2 {long trace command result to ignore} {
+    proc longResult {args} {return "quite a bit of text, designed to
+	generate a core leak if this command file is invoked over and over again
+	and memory isn't being recycled correctly"}
+    catch {unset x}
+    trace var x w longResult
+    set x 44
+    set x 5
+    set x abcde
+} abcde
+test trace-14.3 {special list-handling in trace commands} {
+    catch {unset "x y z"}
+    set "x y z(a\n\{)" 44
+    set info {}
+    trace var "x y z(a\n\{)" w traceProc
+    set "x y z(a\n\{)" 33
+    set info
+} "{x y z} a\\n\\{ w"
+
+# Check for proper handling of unsets during traces.
+
+proc traceUnset {unsetName args} {
+    global info
+    upvar $unsetName x
+    lappend info [catch {unset x} msg] $msg [catch {set x} msg] $msg
+}
+proc traceReset {unsetName resetName args} {
+    global info
+    upvar $unsetName x $resetName y
+    lappend info [catch {unset x} msg] $msg [catch {set y xyzzy} msg] $msg
+}
+proc traceReset2 {unsetName resetName args} {
+    global info
+    lappend info [catch {uplevel unset $unsetName} msg] $msg \
+	    [catch {uplevel set $resetName xyzzy} msg] $msg
+}
+proc traceAppend {string name1 name2 op} {
+    global info
+    lappend info $string
+}
+
+test trace-15.1 {unsets during read traces} {
+    catch {unset y}
+    set y 1234
+    set info {}
+    trace var y r {traceUnset y}
+    trace var y u {traceAppend unset}
+    lappend info [catch {set y} msg] $msg
+} {unset 0 {} 1 {can't read "x": no such variable} 1 {can't read "y": no such variable}}
+test trace-15.2 {unsets during read traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) r {traceUnset y(0)}
+    lappend info [catch {set y(0)} msg] $msg
+} {0 {} 1 {can't read "x": no such variable} 1 {can't read "y(0)": no such element in array}}
+test trace-15.3 {unsets during read traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) r {traceUnset y}
+    lappend info [catch {set y(0)} msg] $msg
+} {0 {} 1 {can't read "x": no such variable} 1 {can't read "y(0)": no such variable}}
+test trace-15.4 {unsets during read traces} {
+    catch {unset y}
+    set y 1234
+    set info {}
+    trace var y r {traceReset y y}
+    lappend info [catch {set y} msg] $msg
+} {0 {} 0 xyzzy 0 xyzzy}
+test trace-15.5 {unsets during read traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) r {traceReset y(0) y(0)}
+    lappend info [catch {set y(0)} msg] $msg
+} {0 {} 0 xyzzy 0 xyzzy}
+test trace-15.6 {unsets during read traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) r {traceReset y y(0)}
+    lappend info [catch {set y(0)} msg] $msg [catch {set y(0)} msg] $msg
+} {0 {} 1 {can't set "y": upvar refers to element in deleted array} 1 {can't read "y(0)": no such variable} 1 {can't read "y(0)": no such variable}}
+test trace-15.7 {unsets during read traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) r {traceReset2 y y(0)}
+    lappend info [catch {set y(0)} msg] $msg [catch {set y(0)} msg] $msg
+} {0 {} 0 xyzzy 1 {can't read "y(0)": no such element in array} 0 xyzzy}
+test trace-15.8 {unsets during write traces} {
+    catch {unset y}
+    set y 1234
+    set info {}
+    trace var y w {traceUnset y}
+    trace var y u {traceAppend unset}
+    lappend info [catch {set y xxx} msg] $msg
+} {unset 0 {} 1 {can't read "x": no such variable} 0 {}}
+test trace-15.9 {unsets during write traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) w {traceUnset y(0)}
+    lappend info [catch {set y(0) xxx} msg] $msg
+} {0 {} 1 {can't read "x": no such variable} 0 {}}
+test trace-15.10 {unsets during write traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) w {traceUnset y}
+    lappend info [catch {set y(0) xxx} msg] $msg
+} {0 {} 1 {can't read "x": no such variable} 0 {}}
+test trace-15.11 {unsets during write traces} {
+    catch {unset y}
+    set y 1234
+    set info {}
+    trace var y w {traceReset y y}
+    lappend info [catch {set y xxx} msg] $msg
+} {0 {} 0 xyzzy 0 xyzzy}
+test trace-15.12 {unsets during write traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) w {traceReset y(0) y(0)}
+    lappend info [catch {set y(0) xxx} msg] $msg
+} {0 {} 0 xyzzy 0 xyzzy}
+test trace-15.13 {unsets during write traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) w {traceReset y y(0)}
+    lappend info [catch {set y(0) xxx} msg] $msg [catch {set y(0)} msg] $msg
+} {0 {} 1 {can't set "y": upvar refers to element in deleted array} 0 {} 1 {can't read "y(0)": no such variable}}
+test trace-15.14 {unsets during write traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) w {traceReset2 y y(0)}
+    lappend info [catch {set y(0) xxx} msg] $msg [catch {set y(0)} msg] $msg
+} {0 {} 0 xyzzy 0 {} 0 xyzzy}
+test trace-15.15 {unsets during unset traces} {
+    catch {unset y}
+    set y 1234
+    set info {}
+    trace var y u {traceUnset y}
+    lappend info [catch {unset y} msg] $msg [catch {set y} msg] $msg
+} {1 {can't unset "x": no such variable} 1 {can't read "x": no such variable} 0 {} 1 {can't read "y": no such variable}}
+test trace-15.16 {unsets during unset traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) u {traceUnset y(0)}
+    lappend info [catch {unset y(0)} msg] $msg [catch {set y(0)} msg] $msg
+} {1 {can't unset "x": no such variable} 1 {can't read "x": no such variable} 0 {} 1 {can't read "y(0)": no such element in array}}
+test trace-15.17 {unsets during unset traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) u {traceUnset y}
+    lappend info [catch {unset y(0)} msg] $msg [catch {set y(0)} msg] $msg
+} {0 {} 1 {can't read "x": no such variable} 0 {} 1 {can't read "y(0)": no such variable}}
+test trace-15.18 {unsets during unset traces} {
+    catch {unset y}
+    set y 1234
+    set info {}
+    trace var y u {traceReset2 y y}
+    lappend info [catch {unset y} msg] $msg [catch {set y} msg] $msg
+} {1 {can't unset "y": no such variable} 0 xyzzy 0 {} 0 xyzzy}
+test trace-15.19 {unsets during unset traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) u {traceReset2 y(0) y(0)}
+    lappend info [catch {unset y(0)} msg] $msg [catch {set y(0)} msg] $msg
+} {1 {can't unset "y(0)": no such element in array} 0 xyzzy 0 {} 0 xyzzy}
+test trace-15.20 {unsets during unset traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) u {traceReset2 y y(0)}
+    lappend info [catch {unset y(0)} msg] $msg [catch {set y(0)} msg] $msg
+} {0 {} 0 xyzzy 0 {} 0 xyzzy}
+test trace-15.21 {unsets cancelling traces} {
+    catch {unset y}
+    set y 1234
+    set info {}
+    trace var y r {traceAppend first}
+    trace var y r {traceUnset y}
+    trace var y r {traceAppend third}
+    trace var y u {traceAppend unset}
+    lappend info [catch {set y} msg] $msg
+} {third unset 0 {} 1 {can't read "x": no such variable} 1 {can't read "y": no such variable}}
+test trace-15.22 {unsets cancelling traces} {
+    catch {unset y}
+    set y(0) 1234
+    set info {}
+    trace var y(0) r {traceAppend first}
+    trace var y(0) r {traceUnset y}
+    trace var y(0) r {traceAppend third}
+    trace var y(0) u {traceAppend unset}
+    lappend info [catch {set y(0)} msg] $msg
+} {third unset 0 {} 1 {can't read "x": no such variable} 1 {can't read "y(0)": no such variable}}
+
+# Check various non-interference between traces and other things.
+
+test trace-16.1 {trace doesn't prevent unset errors} {
+    catch {unset x}
+    set info {}
+    trace var x u {traceProc}
+    list [catch {unset x} msg] $msg $info
+} {1 {can't unset "x": no such variable} {x {} u}}
+test trace-16.2 {traced variables must survive procedure exits} {
+    catch {unset x}
+    proc p1 {} {global x; trace var x w traceProc}
+    p1
+    trace vinfo x
+} {{w traceProc}}
+test trace-16.3 {traced variables must survive procedure exits} {
+    catch {unset x}
+    set info {}
+    proc p1 {} {global x; trace var x w traceProc}
+    p1
+    set x 44
+    set info
+} {x {} w}
+
+# Be sure that procedure frames are released before unset traces
+# are invoked.
+
+test trace-17.1 {unset traces on procedure returns} {
+    proc p1 {x y} {set a 44; p2 14}
+    proc p2 {z} {trace var z u {traceCheck {lsort [uplevel {info vars}]}}}
+    set info {}
+    p1 foo bar
+    set info
+} {0 {a x y}}
+
+# Delete arrays when done, so they can be re-used as scalars
+# elsewhere.
+
+catch {unset x}
+catch {unset y}
+concat {}

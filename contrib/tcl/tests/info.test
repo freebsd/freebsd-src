@@ -1,0 +1,555 @@
+# Commands covered:  info
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1994 The Regents of the University of California.
+# Copyright (c) 1994-1995 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) info.test 1.33 96/03/22 12:12:48
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test info-1.1 {info args option} {
+    proc t1 {a bbb c} {return foo}
+    info args t1
+} {a bbb c}
+test info-1.2 {info args option} {
+    proc t1 {{a default1} {bbb default2} {c default3} args} {return foo}
+    info a t1
+} {a bbb c args}
+test info-1.3 {info args option} {
+    proc t1 "" {return foo}
+    info args t1
+} {}
+test info-1.4 {info args option} {
+    catch {rename t1 {}}
+    list [catch {info args t1} msg] $msg
+} {1 {"t1" isn't a procedure}}
+test info-1.5 {info args option} {
+    list [catch {info args set} msg] $msg
+} {1 {"set" isn't a procedure}}
+
+test info-2.1 {info body option} {
+    proc t1 {} {body of t1}
+    info body t1
+} {body of t1}
+test info-2.2 {info body option} {
+    list [catch {info body set} msg] $msg
+} {1 {"set" isn't a procedure}}
+test info-2.3 {info body option} {
+    list [catch {info args set 1} msg] $msg
+} {1 {wrong # args: should be "info args procname"}}
+
+test info-3.1 {info cmdcount option} {
+    set x [info cmdcount]
+    set y 12345
+    set z [info cm]
+    expr $z-$x
+} 3
+test info-3.2 {info body option} {
+    list [catch {info cmdcount 1} msg] $msg
+} {1 {wrong # args: should be "info cmdcount"}}
+
+test info-4.1 {info commands option} {
+    proc t1 {} {}
+    proc t2 {} {}
+    set x " [info commands] "
+    list [string match {* t1 *} $x] [string match {* t2 *} $x] \
+            [string match {* set *} $x] [string match {* list *} $x]
+} {1 1 1 1}
+test info-4.2 {info commands option} {
+    proc t1 {} {}
+    rename t1 {}
+    set x [info comm]
+    string match {* t1 *} $x
+} 0
+test info-4.3 {info commands option} {
+    proc _t1_ {} {}
+    proc _t2_ {} {}
+    info commands _t1_
+} _t1_
+test info-4.4 {info commands option} {
+    proc _t1_ {} {}
+    proc _t2_ {} {}
+    lsort [info commands _t*]
+} {_t1_ _t2_}
+catch {rename _t1_ {}}
+catch {rename _t2_ {}}
+test info-4.5 {info commands option} {
+    list [catch {info commands a b} msg] $msg
+} {1 {wrong # args: should be "info commands ?pattern?"}}
+
+test info-5.1 {info complete option} {
+    info complete ""
+} 1
+test info-5.2 {info complete option} {
+    info complete "  \n"
+} 1
+test info-5.3 {info complete option} {
+    info complete "abc def"
+} 1
+test info-5.4 {info complete option} {
+    info complete "a b c d e f \t\n"
+} 1
+test info-5.5 {info complete option} {
+    info complete {a b c"d}
+} 1
+test info-5.6 {info complete option} {
+    info complete {a b "c d" e}
+} 1
+test info-5.7 {info complete option} {
+    info complete {a b "c d"}
+} 1
+test info-5.8 {info complete option} {
+    info complete {a b "c d"}
+} 1
+test info-5.9 {info complete option} {
+    info complete {a b "c d}
+} 0
+test info-5.10 {info complete option} {
+    info complete {a b "}
+} 0
+test info-5.11 {info complete option} {
+    info complete {a b "cd"xyz}
+} 1
+test info-5.12 {info complete option} {
+    info complete {a b "c $d() d"}
+} 1
+test info-5.13 {info complete option} {
+    info complete {a b "c $dd("}
+} 0
+test info-5.14 {info complete option} {
+    info complete {a b "c \"}
+} 0
+test info-5.15 {info complete option} {
+    info complete {a b "c [d e f]"}
+} 1
+test info-5.16 {info complete option} {
+    info complete {a b "c [d e f] g"}
+} 1
+test info-5.17 {info complete option} {
+    info complete {a b "c [d e f"}
+} 0
+test info-5.18 {info complete option} {
+    info complete {a {b c d} e}
+} 1
+test info-5.19 {info complete option} {
+    info complete {a {b c d}}
+} 1
+test info-5.20 {info complete option} {
+    info complete "a b\{c d"
+} 1
+test info-5.21 {info complete option} {
+    info complete "a b \{c"
+} 0
+test info-5.22 {info complete option} {
+    info complete "a b \{c{ }"
+} 0
+test info-5.23 {info complete option} {
+    info complete "a b {c d e}xxx"
+} 1
+test info-5.24 {info complete option} {
+    info complete "a b {c \\\{d e}xxx"
+} 1
+test info-5.25 {info complete option} {
+    info complete {a b [ab cd ef]}
+} 1
+test info-5.26 {info complete option} {
+    info complete {a b x[ab][cd][ef] gh}
+} 1
+test info-5.27 {info complete option} {
+    info complete {a b x[ab][cd[ef] gh}
+} 0
+test info-5.28 {info complete option} {
+    info complete {a b x[ gh}
+} 0
+test info-5.29 {info complete option} {
+    info complete {[]]]}
+} 1
+test info-5.30 {info complete option} {
+    info complete {abc x$yyy}
+} 1
+test info-5.31 {info complete option} {
+    info complete "abc x\${abc\[\\d} xyz"
+} 1
+test info-5.32 {info complete option} {
+    info complete "abc x\$\{ xyz"
+} 0
+test info-5.33 {info complete option} {
+    info complete {word $a(xyz)}
+} 1
+test info-5.34 {info complete option} {
+    info complete {word $a(}
+} 0
+test info-5.35 {info complete option} {
+    info complete "set a \\\n"
+} 0
+test info-5.36 {info complete option} {
+    info complete "set a \\n "
+} 1
+test info-5.37 {info complete option} {
+    info complete "set a \\"
+} 1
+test info-5.38 {info complete option} {
+    info complete "foo \\\n\{"
+} 0
+test info-5.39 {info complete option} {
+    info complete " # \{"
+} 1
+test info-5.40 {info complete option} {
+    info complete "foo bar;# \{"
+} 1
+test info-5.41 {info complete option} {
+    info complete "a\nb\n# \{\n# \{\nc\n"
+} 1
+test info-5.42 {info complete option} {
+    info complete "#Incomplete comment\\\n"
+} 0
+test info-5.43 {info complete option} {
+    info complete "#Incomplete comment\\\nBut now it's complete.\n"
+} 1
+test info-5.44 {info complete option} {
+    info complete "# Complete comment\\\\\n"
+} 1
+test info-5.45 {info complete option} {
+    info complete "abc\\\n def"
+} 1
+test info-5.46 {info complete option} {
+    info complete "abc\\\n "
+} 1
+test info-5.47 {info complete option} {
+    info complete "abc\\\n"
+} 0
+
+test info-6.1 {info default option} {
+    proc t1 {a b {c d} {e "long default value"}} {}
+    info default t1 a value
+} 0
+test info-6.2 {info default option} {
+    proc t1 {a b {c d} {e "long default value"}} {}
+    set value 12345
+    info d t1 a value
+    set value
+} {}
+test info-6.3 {info default option} {
+    proc t1 {a b {c d} {e "long default value"}} {}
+    info default t1 c value
+} 1
+test info-6.4 {info default option} {
+    proc t1 {a b {c d} {e "long default value"}} {}
+    set value 12345
+    info default t1 c value
+    set value
+} d
+test info-6.5 {info default option} {
+    proc t1 {a b {c d} {e "long default value"}} {}
+    set value 12345
+    set x [info default t1 e value]
+    list $x $value
+} {1 {long default value}}
+test info-6.6 {info default option} {
+    list [catch {info default a b} msg] $msg
+} {1 {wrong # args: should be "info default procname arg varname"}}
+test info-6.7 {info default option} {
+    list [catch {info default _nonexistent_ a b} msg] $msg
+} {1 {"_nonexistent_" isn't a procedure}}
+test info-6.8 {info default option} {
+    proc t1 {a b} {}
+    list [catch {info default t1 x value} msg] $msg
+} {1 {procedure "t1" doesn't have an argument "x"}}
+test info-6.9 {info default option} {
+    catch {unset a}
+    set a(0) 88
+    proc t1 {a b} {}
+    list [catch {info default t1 a a} msg] $msg
+} {1 {couldn't store default value in variable "a"}}
+test info-6.10 {info default option} {
+    catch {unset a}
+    set a(0) 88
+    proc t1 {{a 18} b} {}
+    list [catch {info default t1 a a} msg] $msg
+} {1 {couldn't store default value in variable "a"}}
+catch {unset a}
+
+test info-7.1 {info exists option} {
+    set value foo
+    info exists value
+} 1
+catch {unset _nonexistent_}
+test info-7.2 {info exists option} {
+    info exists _nonexistent_
+} 0
+test info-7.3 {info exists option} {
+    proc t1 {x} {return [info exists x]}
+    t1 2
+} 1
+test info-7.4 {info exists option} {
+    proc t1 {x} {
+        global _nonexistent_
+        return [info exists _nonexistent_]
+    }
+    t1 2
+} 0
+test info-7.5 {info exists option} {
+    proc t1 {x} {
+        set y 47
+        return [info exists y]
+    }
+    t1 2
+} 1
+test info-7.6 {info exists option} {
+    proc t1 {x} {return [info exists value]}
+    t1 2
+} 0
+test info-7.7 {info exists option} {
+    catch {unset x}
+    set x(2) 44
+    list [info exists x] [info exists x(1)] [info exists x(2)]
+} {1 0 1}
+catch {unset x}
+test info-7.8 {info exists option} {
+    list [catch {info exists} msg] $msg
+} {1 {wrong # args: should be "info exists varName"}}
+test info-7.9 {info exists option} {
+    list [catch {info exists 1 2} msg] $msg
+} {1 {wrong # args: should be "info exists varName"}}
+
+test info-8.1 {info globals option} {
+    set x 1
+    set y 2
+    set value 23
+    set a " [info globals] "
+    list [string match {* x *} $a] [string match {* y *} $a] \
+            [string match {* value *} $a] [string match {* _foobar_ *} $a]
+} {1 1 1 0}
+test info-8.2 {info globals option} {
+    set _xxx1 1
+    set _xxx2 2
+    lsort [info g _xxx*]
+} {_xxx1 _xxx2}
+test info-8.3 {info globals option} {
+    list [catch {info globals 1 2} msg] $msg
+} {1 {wrong # args: should be "info globals ?pattern?"}}
+
+test info-9.1 {info level option} {
+    info level
+} 0
+test info-9.2 {info level option} {
+    proc t1 {a b} {
+        set x [info le]
+        set y [info level 1]
+        list $x $y
+    }
+    t1 146 testString
+} {1 {t1 146 testString}}
+test info-9.3 {info level option} {
+    proc t1 {a b} {
+        t2 [expr $a*2] $b
+    }
+    proc t2 {x y} {
+        list [info level] [info level 1] [info level 2] [info level -1] \
+                [info level 0]
+    }
+    t1 146 {a {b c} {{{c}}}}
+} {2 {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}} {t1 146 {a {b c} {{{c}}}}} {t2 292 {a {b c} {{{c}}}}}}
+test info-9.4 {info level option} {
+    proc t1 {} {
+        set x [info level]
+        set y [info level 1]
+        list $x $y
+    }
+    t1
+} {1 t1}
+test info-9.5 {info level option} {
+    list [catch {info level 1 2} msg] $msg
+} {1 {wrong # args: should be "info level [number]"}}
+test info-9.6 {info level option} {
+    list [catch {info level 123a} msg] $msg
+} {1 {expected integer but got "123a"}}
+test info-9.7 {info level option} {
+    list [catch {info level 0} msg] $msg
+} {1 {bad level "0"}}
+test info-9.8 {info level option} {
+    proc t1 {} {info level -1}
+    list [catch {t1} msg] $msg
+} {1 {bad level "-1"}}
+test info-9.9 {info level option} {
+    proc t1 {x} {info level $x}
+    list [catch {t1 -3} msg] $msg
+} {1 {bad level "-3"}}
+
+set savedLibrary tcl_library
+test info-10.1 {info library option} {
+    list [catch {info library x} msg] $msg
+} {1 {wrong # args: should be "info library"}}
+test info-10.2 {info library option} {
+    set tcl_library 12345
+    info library
+} {12345}
+test info-10.3 {info library option} {
+    unset tcl_library
+    list [catch {info library} msg] $msg
+} {1 {no library has been specified for Tcl}}
+set tcl_library $savedLibrary
+
+test info-11.1 {info loaded option} {
+    list [catch {info loaded a b} msg] $msg
+} {1 {wrong # args: should be "info loaded ?interp?"}}
+test info-11.2 {info loaded option} {
+    list [catch {info loaded {}}] [catch {info loaded gorp} msg] $msg
+} {0 1 {couldn't find slave interpreter named "gorp"}}
+
+test info-12.1 {info locals option} {
+    set a 22
+    proc t1 {x y} {
+        set b 13
+        set c testing
+        global a
+        return [info locals]
+    }
+    lsort [t1 23 24]
+} {b c x y}
+test info-12.2 {info locals option} {
+    proc t1 {x y} {
+        set xx1 2
+        set xx2 3
+        set y 4
+        return [info loc x*]
+    }
+    lsort [t1 2 3]
+} {x xx1 xx2}
+test info-12.3 {info locals option} {
+    list [catch {info locals 1 2} msg] $msg
+} {1 {wrong # args: should be "info locals ?pattern?"}}
+test info-12.4 {info locals option} {
+    info locals
+} {}
+test info-12.5 {info locals option} {
+    proc t1 {} {return [info locals]}
+    t1
+} {}
+
+test info-13.1 {info nameofexecutable option} {
+    list [catch {info nameofexecutable foo} msg] $msg
+} {1 {wrong # args: should be "info nameofexecutable"}}
+
+test info-14.1 {info patchlevel option} {
+    set a [info patchlevel]
+    regexp {[0-9]+\.[0-9]+([p[0-9]+)?} $a
+} 1
+test info-14.2 {info patchlevel option} {
+    list [catch {info patchlevel a} msg] $msg
+} {1 {wrong # args: should be "info patchlevel"}}
+test info-14.3 {info patchlevel option} {
+    set t $tcl_patchLevel
+    unset tcl_patchLevel
+    set result [list [catch {info patchlevel} msg] $msg]
+    set tcl_patchLevel $t
+    set result
+} {1 {can't read "tcl_patchLevel": no such variable}}
+
+test info-15.1 {info procs option} {
+    proc t1 {} {}
+    proc t2 {} {}
+    set x " [info procs] "
+    list [string match {* t1 *} $x] [string match {* t2 *} $x] \
+            [string match {* _undefined_ *} $x]
+} {1 1 0}
+test info-15.2 {info procs option} {
+    proc _tt1 {} {}
+    proc _tt2 {} {}
+    lsort [info pr _tt*]
+} {_tt1 _tt2}
+catch {rename _tt1 {}}
+catch {rename _tt2 {}}
+test info-15.3 {info procs option} {
+    list [catch {info procs 2 3} msg] $msg
+} {1 {wrong # args: should be "info procs ?pattern?"}}
+
+test info-16.1 {info script option} {
+    list [catch {info script x} msg] $msg
+} {1 {wrong # args: should be "info script"}}
+test info-16.2 {info script option} {
+    file tail [info sc]
+} info.test
+removeFile gorp.info
+makeFile "info script\n" gorp.info
+test info-16.3 {info script option} {
+    list [source gorp.info] [file tail [info script]]
+} {gorp.info info.test}
+test info-16.4 {resetting "info script" after errors} {
+    catch {source ~_nobody_/foo}
+    file tail [info script]
+} {info.test}
+test info-16.5 {resetting "info script" after errors} {
+    catch {source _nonexistent_}
+    file tail [info script]
+} {info.test}
+removeFile gorp.info
+
+test info-17.1 {info sharedlibextension option} {
+    list [catch {info sharedlibextension foo} msg] $msg
+} {1 {wrong # args: should be "info sharedlibextension"}}
+
+test info-18.1 {info tclversion option} {
+    set x [info tclversion]
+    scan $x "%d.%d%c" a b c
+} 2
+test info-18.2 {info tclversion option} {
+    list [catch {info t 2} msg] $msg
+} {1 {wrong # args: should be "info tclversion"}}
+test info-18.3 {info tclversion option} {
+    set t $tcl_version
+    unset tcl_version
+    set result [list [catch {info tclversion} msg] $msg]
+    set tcl_version $t
+    set result
+} {1 {can't read "tcl_version": no such variable}}
+
+test info-19.1 {info vars option} {
+    set a 1
+    set b 2
+    proc t1 {x y} {
+        global a b
+        set c 33
+        return [info vars]
+    }
+    lsort [t1 18 19]
+} {a b c x y}
+test info-19.2 {info vars option} {
+    set xxx1 1
+    set xxx2 2
+    proc t1 {xxa y} {
+        global xxx1 xxx2
+        set c 33
+        return [info vars x*]
+    }
+    lsort [t1 18 19]
+} {xxa xxx1 xxx2}
+test info-19.3 {info vars option} {
+    lsort [info vars]
+} [lsort [info globals]]
+test info-19.4 {info vars option} {
+    list [catch {info vars a b} msg] $msg
+} {1 {wrong # args: should be "info vars ?pattern?"}}
+
+test info-20.1 {miscellaneous error conditions} {
+    list [catch {info} msg] $msg
+} {1 {wrong # args: should be "info option ?arg arg ...?"}}
+test info-20.2 {miscellaneous error conditions} {
+    list [catch {info gorp} msg] $msg
+} {1 {bad option "gorp": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
+test info-20.3 {miscellaneous error conditions} {
+    list [catch {info c} msg] $msg
+} {1 {bad option "c": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
+test info-20.4 {miscellaneous error conditions} {
+    list [catch {info l} msg] $msg
+} {1 {bad option "l": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
+test info-20.5 {miscellaneous error conditions} {
+    list [catch {info s} msg] $msg
+} {1 {bad option "s": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}

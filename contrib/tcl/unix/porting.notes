@@ -1,0 +1,357 @@
+This file contains a collection of notes that various people have
+provided about porting Tcl to various machines and operating systems.
+I don't have personal access to any of these machines, so I make
+no guarantees that the notes are correct, complete, or up-to-date.
+If you see the word "I" in any explanations, it refers to the person
+who contributed the information, not to me;  this means that I
+probably can't answer any questions about any of this stuff.  In
+some cases, a person has volunteered to act as a contact point for
+questions about porting Tcl to a particular machine;  in these
+cases the person's name and e-mail address are listed.  I'm
+interested in getting new porting information to add to the file;
+please mail updates to "john.ousterhout@eng.sun.com".
+
+This file reflects information provided for Tcl 7.4 and later releases.
+If there is no information for your configuration in this file, check
+the file "porting.old" too;  it contains information that was
+submitted for Tcl 7.3 and earlier releases, and some of that information
+may still be valid.
+
+A new porting database has recently become available on the Web at
+the following URL:
+    http://www.sunlabs.com/cgi-bin/tcl/info.4.0
+This page provides information about the platforms on which Tcl 7.4
+and Tk 4.0 have been compiled and what changes were needed to get Tcl
+and Tk to compile.  You can also add new entries to that database
+when you install Tcl and Tk on a new platform.  The Web database is
+likely to be more up-to-date than this file.
+
+sccsid = SCCS: @(#) porting.notes 1.16 96/04/17 10:32:35
+
+--------------------------------------------
+Solaris, various versions
+--------------------------------------------
+
+1. If typing "make test" results in an error message saying that
+there are no "*.test" files, or you get lots of globbing errors,
+it's probably because your system doesn't have cc installed and
+you used gcc.  In order for this to work, you have to set your
+CC environment variable to gcc and your CPP environment variable
+to "gcc -E" before running the configure script.
+
+2. Make sure that /usr/ucb is not in your PATH or LD_LIBRARY_PATH
+environment variables;  this will cause confusion between the new
+Solaris libraries and older UCB versions (Tcl will expect one version
+and get another).
+
+3. There have been several reports of problems with the "glob" command.
+So far these reports have all been for older versions of Tcl, but
+if you run into problems, edit the Makefile after "configure" is
+run and add "-DNO_DIRENT_H=1" to the definitions of DEFS.  Do this
+before compiling.
+
+--------------------------------------------
+Pyramid DC/OSx SVr4, DC/OSx version 94c079
+--------------------------------------------
+
+Tcl seems to dump core in cmdinfo.test when compiled with the
+optimiser turned on in TclEval which calls 'free'.  To get around
+this, turn the optimiser off.
+
+--------------------------------------------
+SGI machines, IRIX 5.2, 5.3, IRIX64 6.0.1
+--------------------------------------------
+
+1. If you compile with gcc-2.6.3 under some versions of IRIX (e.g.
+   4.0.5), DBL_MAX is defined too large for gcc and Tcl complains
+   about all floating-point values being too large to represent.
+   If this happens, redefining DBL_MAX to 9.99e299.
+
+2. Add "-D_BSD_TIME" to CFLAGS in Makefile.  This avoids type conflicts
+in the prototype for the gettimeofday procedure.
+
+2. If you're running under Irix 6.x and tclsh dumps core, try
+removing -O from the CFLAGS in Makefile and recompiling;  compiler
+optimizations seem to cause problems on some machines.
+
+--------------------------------------------
+IBM RTs, AOS
+--------------------------------------------
+
+1. Steal fmod from 4.4BSD
+2. Add a #define to tclExpr such that:
+extern double fmod(); 
+is defined conditionally on ibm032
+
+--------------------------------------------
+QNX 4.22
+--------------------------------------------
+
+tclPort.h
+	- commented out 2 lines containing #include <sys/param.h>
+
+tcl.h
+	- changed  #define VARARGS ()
+	- to       #ifndef __QNX__
+	             #define VARARGS ()
+	           #else
+	             #define VARARGS (void *, ...)
+	           #endif
+
+--------------------------------------------
+Interactive UNIX
+--------------------------------------------
+
+Add the switch -Xp to LIBS in Makefile;  otherwise strftime will not
+be found when linking.
+
+--------------------------------------------
+Motorola SVR4 V4.2 (m88k)
+--------------------------------------------
+
+For Motorola Unix R40V4.2 (m88k architechure), use /usr/ucb/cc instead of
+/usr/bin/cc.  Otherwise, the compile will fail because of conflicts over
+the gettimeofday() call.
+
+Also, -DNO_DIRENT_H=1 is required for the "glob" command to work.
+
+--------------------------------------------
+NeXTSTEP 3.x
+--------------------------------------------
+
+Here's the set of changes I made to make 7.5b3 compile cleanly on
+NeXTSTEP3.x.
+
+Here are a couple lines from unix/Makefile:
+
+# Added utsname.o, which implements a uname() emulation for NeXTSTEP.
+COMPAT_OBJS =		 getcwd.o strtod.o tmpnam.o utsname.o
+
+TCL_NAMES=\
+	-Dstrtod=tcl_strtod -Dtmpnam=tcl_tmpnam -Dgetcwd=tcl_getcwd \
+	-Dpanic=tcl_panic -Dmatherr=tcl_matherr \
+	-Duname=tcl_uname -Dutsname=tcl_utsname
+
+# Added mode_t, pid_t, and O_NONBLOCK definitions.
+AC_FLAGS =		 -DNO_DIRENT_H=1 -DHAVE_UNISTD_H=1 -DHAVE_SYS_TIME_H=1  
+-DTIME_WITH_SYS_TIME=1 -DHAVE_TM_ZONE=1 -DHAVE_TM_GMTOFF=1 -DHAVE_TIMEZONE_VAR=1  
+-DSTDC_HEADERS=1 -Dmode_t=int -Dpid_t=int -DO_NONBLOCK=O_NDELAY ${TCL_NAMES}
+
+
+Here are diffs for other files.  utsname.[hc] are a couple files I added
+to compat/  I'm not clear whether that's where they legitimately belong
+- I considered stashing them in tclLoadNext.c instead.  The tclIO.c
+change was a bug, I believe, which I reported on comp.lang.tcl and
+has apparently been noted and fixed.  The objc_loadModules() change
+allows "load" to load object code containing Objective-C code in
+addition to plain C code.
+
+---
+scott hess <shess@winternet.com> (WWW to "http://www.winternet.com/~shess/")
+Work: 12550 Portland Avenue South #121, Burnsville, MN  55337  (612)895-1208
+
+
+diff -rc tcl7.5b3.orig/compat/utsname.c tcl7.5b3/compat/utsname.c
+*** tcl7.5b3.orig/compat/utsname.c	Tue Apr  2 13:57:23 1996
+--- tcl7.5b3/compat/utsname.c	Mon Mar 18 11:05:54 1996
+***************
+*** 0 ****
+--- 1,27 ----
++ /*
++  * utsname.c --
++  *
++  *	This file is an emulation of the POSIX uname() function
++  *	under NeXTSTEP 3.x.
++  *
++  */
++ 
+
++ #include "utsname.h"
++ #include <mach-o/arch.h>
++ #include <stdio.h>
++ 
+
++ int uname( struct utsname *name)
++ {
++     const NXArchInfo *arch;
++     if( gethostname( name->nodename, sizeof( name->nodename))==-1) {
++ 	return -1;
++     }
++     if( (arch=NXGetLocalArchInfo())==NULL) {
++ 	return -1;
++     }
++     strncpy( name->machine, arch->description, sizeof( name->machine));
++     strcpy( name->sysname, "NEXTSTEP");
++     strcpy( name->release, "0");
++     strcpy( name->version, "3");
++     return 0;
++ }
+diff -rc tcl7.5b3.orig/compat/utsname.h tcl7.5b3/compat/utsname.h
+*** tcl7.5b3.orig/compat/utsname.h	Tue Apr  2 13:57:26 1996
+--- tcl7.5b3/compat/utsname.h	Mon Mar 18 10:34:05 1996
+***************
+*** 0 ****
+--- 1,22 ----
++ /*
++  * utsname.h --
++  *
++  *	This file is an emulation of the POSIX uname() function
++  *	under NeXTSTEP.
++  *
++  */
++ 
+
++ #ifndef _UTSNAME
++ #define _UTSNAME
++ 
+
++ struct utsname {
++     char sysname[ 32];
++     char nodename[ 32];
++     char release[ 32];
++     char version[ 32];
++     char machine[ 32];
++ };
++ 
+
++ extern int uname( struct utsname *name);
++ 
+
++ #endif /* _UTSNAME */
+diff -rc tcl7.5b3.orig/generic/tclIO.c tcl7.5b3/generic/tclIO.c
+*** tcl7.5b3.orig/generic/tclIO.c	Fri Mar  8 12:59:53 1996
+--- tcl7.5b3/generic/tclIO.c	Mon Mar 18 11:38:57 1996
+***************
+*** 2542,2548 ****
+              }
+              result = GetInput(chanPtr);
+              if (result != 0) {
+!                 if (result == EWOULDBLOCK) {
+                      chanPtr->flags |= CHANNEL_BLOCKED;
+                      return copied;
+                  }
+--- 2542,2548 ----
+              }
+              result = GetInput(chanPtr);
+              if (result != 0) {
+!                 if (result == EAGAIN) {
+                      chanPtr->flags |= CHANNEL_BLOCKED;
+                      return copied;
+                  }
+diff -rc tcl7.5b3.orig/unix/tclLoadNext.c tcl7.5b3/unix/tclLoadNext.c
+*** tcl7.5b3.orig/unix/tclLoadNext.c	Sat Feb 17 16:16:42 1996
+--- tcl7.5b3/unix/tclLoadNext.c	Mon Mar 18 10:02:36 1996
+***************
+*** 55,61 ****
+    char *files[]={fileName,NULL};
+    NXStream *errorStream=NXOpenMemory(0,0,NX_READWRITE);
+  
+
+!   if(!rld_load(errorStream,&header,files,NULL)) {
+      NXGetMemoryBuffer(errorStream,&data,&len,&maxlen);
+      Tcl_AppendResult(interp,"couldn't load file \"",fileName,"\": ",data,NULL);
+      NXCloseMemory(errorStream,NX_FREEBUFFER);
+--- 55,61 ----
+    char *files[]={fileName,NULL};
+    NXStream *errorStream=NXOpenMemory(0,0,NX_READWRITE);
+  
+
+!   if(objc_loadModules(files,errorStream,NULL,&header,NULL)) {
+      NXGetMemoryBuffer(errorStream,&data,&len,&maxlen);
+      Tcl_AppendResult(interp,"couldn't load file \"",fileName,"\": ",data,NULL);
+      NXCloseMemory(errorStream,NX_FREEBUFFER);
+diff -rc tcl7.5b3.orig/unix/tclUnixFile.c tcl7.5b3/unix/tclUnixFile.c
+*** tcl7.5b3.orig/unix/tclUnixFile.c	Thu Mar  7 18:16:34 1996
+--- tcl7.5b3/unix/tclUnixFile.c	Mon Mar 18 11:10:03 1996
+***************
+*** 31,37 ****
+--- 31,41 ----
+  
+
+  static int executableNameExitHandlerSet = 0;
+  
+
++ #if NeXT
++ #define waitpid( p, s, o) wait4( p, s, o, NULL)
++ #else
+  extern pid_t waitpid _ANSI_ARGS_((pid_t pid, int *stat_loc, int options));
++ #endif
+  
+
+  /*
+   * Static routines for this file:
+diff -rc tcl7.5b3.orig/unix/tclUnixInit.c tcl7.5b3/unix/tclUnixInit.c
+*** tcl7.5b3.orig/unix/tclUnixInit.c	Sat Feb 17 16:16:39 1996
+--- tcl7.5b3/unix/tclUnixInit.c	Mon Mar 18 11:50:28 1996
+***************
+*** 14,20 ****
+  #include "tclInt.h"
+  #include "tclPort.h"
+  #ifndef NO_UNAME
+! #   include <sys/utsname.h>
+  #endif
+  #if defined(__FreeBSD__)
+  #include <floatingpoint.h>
+--- 14,24 ----
+  #include "tclInt.h"
+  #include "tclPort.h"
+  #ifndef NO_UNAME
+! #    if NeXT
+! #        include "../compat/utsname.h"
+! #    else
+! #        include <sys/utsname.h>
+! #    endif
+  #endif
+  #if defined(__FreeBSD__)
+  #include <floatingpoint.h>
+diff -rc tcl7.5b3.orig/unix/tclUnixPort.h tcl7.5b3/unix/tclUnixPort.h
+*** tcl7.5b3.orig/unix/tclUnixPort.h	Thu Mar  7 18:16:31 1996
+--- tcl7.5b3/unix/tclUnixPort.h	Mon Mar 18 11:53:14 1996
+***************
+*** 76,82 ****
+   */
+  
+
+  #include <sys/socket.h>		/* struct sockaddr, SOCK_STREAM, ... */
+! #include <sys/utsname.h>	/* uname system call. */
+  #include <netinet/in.h>		/* struct in_addr, struct sockaddr_in */
+  #include <arpa/inet.h>		/* inet_ntoa() */
+  #include <netdb.h>		/* gethostbyname() */
+--- 76,88 ----
+   */
+  
+
+  #include <sys/socket.h>		/* struct sockaddr, SOCK_STREAM, ... */
+! #ifndef NO_UNAME
+! #    if NeXT
+! #        include "../compat/utsname.h"
+! #    else
+! #        include <sys/utsname.h>	/* uname system call. */
+! #    endif
+! #endif
+  #include <netinet/in.h>		/* struct in_addr, struct sockaddr_in */
+  #include <arpa/inet.h>		/* inet_ntoa() */
+  #include <netdb.h>		/* gethostbyname() */
+
+--------------------------------------------
+SCO Unix 3.2.4 (ODT 3.0)
+--------------------------------------------
+ 
+The macro va_start in /usr/include/stdarg.h is incorrectly terminated by
+a semi-colon.  This causes compile of generic/tclBasic.c to fail.  The
+best solution is to edit the definition of va_start to remove the `;'.
+This will fix this file for anything you want to compile.  If you don't have
+permission to edit /usr/include/stdarg.h in place, copy it to the tcl unix
+directory and change it there.
+ 
+Contact me directly if you have problems on SCO systems.
+Mark Diekhans <markd@sco.com>
+ 
+--------------------------------------------
+SCO Unix 3.2.5 (ODT 5.0)
+--------------------------------------------
+
+Expect failures from socket tests 2.9 and 3.1.
+
+Contact me directly if you have problems on SCO systems.
+Mark Diekhans <markd@sco.com>

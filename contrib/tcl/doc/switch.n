@@ -1,0 +1,107 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) switch.n 1.8 96/03/25 20:24:31
+'\" 
+.so man.macros
+.TH switch n 7.0 Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+switch \- Evaluate one of several scripts, depending on a given value
+.SH SYNOPSIS
+\fBswitch\fI \fR?\fIoptions\fR?\fI string \fIpattern body \fR?\fIpattern body \fR...?
+.sp
+\fBswitch\fI \fR?\fIoptions\fR?\fI string \fR{\fIpattern body \fR?\fIpattern body \fR...?}
+.BE
+
+.SH DESCRIPTION
+.PP
+The \fBswitch\fR command matches its \fIstring\fR argument against each of
+the \fIpattern\fR arguments in order.
+As soon as it finds a \fIpattern\fR that matches \fIstring\fR it
+evaluates the following \fIbody\fR argument by passing it recursively
+to the Tcl interpreter and returns the result of that evaluation.
+If the last \fIpattern\fR argument is \fBdefault\fR then it matches
+anything.
+If no \fIpattern\fR argument
+matches \fIstring\fR and no default is given, then the \fBswitch\fR
+command returns an empty string.
+.PP
+If the initial arguments to \fBswitch\fR start with \fB\-\fR then
+they are treated as options.  The following options are
+currently supported:
+.TP 10
+\fB\-exact\fR
+Use exact matching when comparing \fIstring\fR to a pattern.  This
+is the default.
+.TP 10
+\fB\-glob\fR
+When matching \fIstring\fR to the patterns, use glob-style matching
+(i.e. the same as implemented by the \fBstring match\fR command).
+.TP 10
+\fB\-regexp\fR
+When matching \fIstring\fR to the patterns, use regular
+expression matching
+(i.e. the same as implemented by the \fBregexp\fR command).
+.TP 10
+\fB\-\|\-\fR
+Marks the end of options.  The argument following this one will
+be treated as \fIstring\fR even if it starts with a \fB\-\fR.
+.PP
+Two syntaxes are provided for the \fIpattern\fR and \fIbody\fR arguments.
+The first uses a separate argument for each of the patterns and commands;
+this form is convenient if substitutions are desired on some of the
+patterns or commands.
+The second form places all of the patterns and commands together into
+a single argument; the argument must have proper list structure, with
+the elements of the list being the patterns and commands.
+The second form makes it easy to construct multi-line switch commands,
+since the braces around the whole list make it unnecessary to include a
+backslash at the end of each line.
+Since the \fIpattern\fR arguments are in braces in the second form,
+no command or variable substitutions are performed on them;  this makes
+the behavior of the second form different than the first form in some
+cases.
+.PP
+If a \fIbody\fR is specified as ``\fB\-\fR'' it means that the \fIbody\fR
+for the next pattern should also be used as the body for this
+pattern (if the next pattern also has a body of ``\fB\-\fR''
+then the body after that is used, and so on).
+This feature makes it possible to share a single \fIbody\fR among
+several patterns.
+.PP
+Below are some examples of \fBswitch\fR commands:
+.CS
+\fBswitch\0abc\0a\0\-\0b\0{format 1}\0abc\0{format 2}\0default\0{format 3}\fR
+.CE
+will return \fB2\fR, 
+.CS
+\fBswitch\0\-regexp\0aaab {
+	^a.*b$\0\-
+	b\0{format 1}
+	a*\0{format 2}
+	default\0{format 3}
+}\fR
+.CE
+will return \fB1\fR, and
+.CS
+\fBswitch\0xyz {
+	a
+		\-
+	b
+		{format 1}
+	a*
+		{format 2}
+	default
+		{format 3}
+}\fR
+.CE
+will return \fB3\fR.
+
+.SH KEYWORDS
+switch, match, regular expression

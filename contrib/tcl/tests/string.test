@@ -1,0 +1,375 @@
+# Commands covered:  string
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) string.test 1.12 96/02/16 08:56:29
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test string-1.1 {string compare} {
+    string compare abcde abdef
+} -1
+test string-1.2 {string compare} {
+    string c abcde ABCDE
+} 1
+test string-1.3 {string compare} {
+    string compare abcde abcde
+} 0
+test string-1.4 {string compare} {
+    list [catch {string compare a} msg] $msg
+} {1 {wrong # args: should be "string compare string1 string2"}}
+test string-1.5 {string compare} {
+    list [catch {string compare a b c} msg] $msg
+} {1 {wrong # args: should be "string compare string1 string2"}}
+
+test string-2.1 {string first} {
+    string first bq abcdefgbcefgbqrs
+} 12
+test string-2.2 {string first} {
+    string fir bcd abcdefgbcefgbqrs
+} 1
+test string-2.3 {string first} {
+    string f b abcdefgbcefgbqrs
+} 1
+test string-2.4 {string first} {
+    string first xxx x123xx345xxx789xxx012
+} 9
+test string-2.5 {string first} {
+    list [catch {string first a} msg] $msg
+} {1 {wrong # args: should be "string first string1 string2"}}
+test string-2.6 {string first} {
+    list [catch {string first a b c} msg] $msg
+} {1 {wrong # args: should be "string first string1 string2"}}
+
+test string-3.1 {string index} {
+    string index abcde 0
+} a
+test string-3.2 {string index} {
+    string i abcde 4
+} e
+test string-3.3 {string index} {
+    string index abcde 5
+} {}
+test string-3.4 {string index} {
+    list [catch {string index abcde -10} msg] $msg
+} {0 {}}
+test string-3.5 {string index} {
+    list [catch {string index} msg] $msg
+} {1 {wrong # args: should be "string index string charIndex"}}
+test string-3.6 {string index} {
+    list [catch {string index a b c} msg] $msg
+} {1 {wrong # args: should be "string index string charIndex"}}
+test string-3.7 {string index} {
+    list [catch {string index a xyz} msg] $msg
+} {1 {expected integer but got "xyz"}}
+
+test string-4.1 {string last} {
+    string la xxx xxxx123xx345x678
+} 1
+test string-4.2 {string last} {
+    string last xx xxxx123xx345x678
+} 7
+test string-4.3 {string last} {
+    string las x xxxx123xx345x678
+} 12
+test string-4.4 {string last} {
+    list [catch {string last a} msg] $msg
+} {1 {wrong # args: should be "string last string1 string2"}}
+test string-4.5 {string last} {
+    list [catch {string last a b c} msg] $msg
+} {1 {wrong # args: should be "string last string1 string2"}}
+
+test string-5.1 {string length} {
+    string length "a little string"
+} 15
+test string-5.2 {string length} {
+    string le ""
+} 0
+test string-5.3 {string length} {
+    list [catch {string length} msg] $msg
+} {1 {wrong # args: should be "string length string"}}
+test string-5.4 {string length} {
+    list [catch {string length a b} msg] $msg
+} {1 {wrong # args: should be "string length string"}}
+
+test string-6.1 {string match} {
+    string match abc abc
+} 1
+test string-6.2 {string match} {
+    string m abc abd
+} 0
+test string-6.3 {string match} {
+    string match ab*c abc
+} 1
+test string-6.4 {string match} {
+    string match ab**c abc
+} 1
+test string-6.5 {string match} {
+    string match ab* abcdef
+} 1
+test string-6.6 {string match} {
+    string match *c abc
+} 1
+test string-6.7 {string match} {
+    string match *3*6*9 0123456789
+} 1
+test string-6.8 {string match} {
+    string match *3*6*9 01234567890
+} 0
+test string-6.9 {string match} {
+    string match a?c abc
+} 1
+test string-6.10 {string match} {
+    string match a??c abc
+} 0
+test string-6.11 {string match} {
+    string match ?1??4???8? 0123456789
+} 1
+test string-6.12 {string match} {
+    string match {[abc]bc} abc
+} 1
+test string-6.13 {string match} {
+    string match {a[abc]c} abc
+} 1
+test string-6.14 {string match} {
+    string match {a[xyz]c} abc
+} 0
+test string-6.15 {string match} {
+    string match {12[2-7]45} 12345
+} 1
+test string-6.16 {string match} {
+    string match {12[ab2-4cd]45} 12345
+} 1
+test string-6.17 {string match} {
+    string match {12[ab2-4cd]45} 12b45
+} 1
+test string-6.18 {string match} {
+    string match {12[ab2-4cd]45} 12d45
+} 1
+test string-6.19 {string match} {
+    string match {12[ab2-4cd]45} 12145
+} 0
+test string-6.20 {string match} {
+    string match {12[ab2-4cd]45} 12545
+} 0
+test string-6.21 {string match} {
+    string match {a\*b} a*b
+} 1
+test string-6.22 {string match} {
+    string match {a\*b} ab
+} 0
+test string-6.23 {string match} {
+    string match {a\*\?\[\]\\\x} "a*?\[\]\\x"
+} 1
+test string-6.24 {string match} {
+    string match ** ""
+} 1
+test string-6.25 {string match} {
+    string match *. ""
+} 0
+test string-6.26 {string match} {
+    string match "" ""
+} 1
+test string-6.27 {string match} {
+    string match \[a a
+} 1
+test string-6.28 {string match} {
+    list [catch {string match a} msg] $msg
+} {1 {wrong # args: should be "string match pattern string"}}
+test string-6.29 {string match} {
+    list [catch {string match a b c} msg] $msg
+} {1 {wrong # args: should be "string match pattern string"}}
+
+test string-7.1 {string range} {
+    string range abcdefghijklmnop 2 14
+} {cdefghijklmno}
+test string-7.2 {string range} {
+    string range abcdefghijklmnop 7 1000
+} {hijklmnop}
+test string-7.3 {string range} {
+    string range abcdefghijklmnop 10 e
+} {klmnop}
+test string-7.4 {string range} {
+    string range abcdefghijklmnop 10 9
+} {}
+test string-7.5 {string range} {
+    string range abcdefghijklmnop -3 2
+} {abc}
+test string-7.6 {string range} {
+    string range abcdefghijklmnop -3 -2
+} {}
+test string-7.7 {string range} {
+    string range abcdefghijklmnop 1000 1010
+} {}
+test string-7.8 {string range} {
+    string range abcdefghijklmnop -100 end
+} {abcdefghijklmnop}
+test string-7.9 {string range} {
+    list [catch {string range} msg] $msg
+} {1 {wrong # args: should be "string range string first last"}}
+test string-7.10 {string range} {
+    list [catch {string range a 1} msg] $msg
+} {1 {wrong # args: should be "string range string first last"}}
+test string-7.11 {string range} {
+    list [catch {string range a 1 2 3} msg] $msg
+} {1 {wrong # args: should be "string range string first last"}}
+test string-7.12 {string range} {
+    list [catch {string range abc abc 1} msg] $msg
+} {1 {expected integer but got "abc"}}
+test string-7.13 {string range} {
+    list [catch {string range abc 1 eof} msg] $msg
+} {1 {expected integer or "end" but got "eof"}}
+
+test string-8.1 {string trim} {
+    string trim "    XYZ      "
+} {XYZ}
+test string-8.2 {string trim} {
+    string trim "\t\nXYZ\t\n\r\n"
+} {XYZ}
+test string-8.3 {string trim} {
+    string trim "  A XYZ A    "
+} {A XYZ A}
+test string-8.4 {string trim} {
+    string trim "XXYYZZABC XXYYZZ" ZYX
+} {ABC }
+test string-8.5 {string trim} {
+    string trim "    \t\r      "
+} {}
+test string-8.6 {string trim} {
+    string trim {abcdefg} {}
+} {abcdefg}
+test string-8.7 {string trim} {
+    string trim {}
+} {}
+test string-8.8 {string trim} {
+    string trim ABC DEF
+} {ABC}
+test string-8.9 {string trim} {
+    list [catch {string trim} msg] $msg
+} {1 {wrong # args: should be "string trim string ?chars?"}}
+test string-8.10 {string trim} {
+    list [catch {string trim a b c} msg] $msg
+} {1 {wrong # args: should be "string trim string ?chars?"}}
+
+test string-9.1 {string trimleft} {
+    string trimleft "    XYZ      "
+} {XYZ      }
+test string-9.2 {string trimleft} {
+    list [catch {string triml} msg] $msg
+} {1 {wrong # args: should be "string trimleft string ?chars?"}}
+
+test string-10.1 {string trimright} {
+    string trimright "    XYZ      "
+} {    XYZ}
+test string-10.2 {string trimright} {
+    string trimright "   "
+} {}
+test string-10.3 {string trimright} {
+    string trimright ""
+} {}
+test string-10.4 {string trimright errors} {
+    list [catch {string trimr} msg] $msg
+} {1 {wrong # args: should be "string trimright string ?chars?"}}
+test string-10.5 {string trimright errors} {
+    list [catch {string trimg a} msg] $msg
+} {1 {bad option "trimg": should be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
+
+test string-11.1 {string tolower} {
+    string tolower ABCDeF
+} {abcdef}
+test string-11.2 {string tolower} {
+    string tolower "ABC  XyZ"
+} {abc  xyz}
+test string-11.3 {string tolower} {
+    string tolower {123#$&*()}
+} {123#$&*()}
+test string-11.4 {string tolower} {
+    list [catch {string tolower} msg] $msg
+} {1 {wrong # args: should be "string tolower string"}}
+test string-11.5 {string tolower} {
+    list [catch {string tolower a b} msg] $msg
+} {1 {wrong # args: should be "string tolower string"}}
+
+test string-12.1 {string toupper} {
+    string toupper abCDEf
+} {ABCDEF}
+test string-12.2 {string toupper} {
+    string toupper "abc xYz"
+} {ABC XYZ}
+test string-12.3 {string toupper} {
+    string toupper {123#$&*()}
+} {123#$&*()}
+test string-12.4 {string toupper} {
+    list [catch {string toupper} msg] $msg
+} {1 {wrong # args: should be "string toupper string"}}
+test string-12.5 {string toupper} {
+    list [catch {string toupper a b} msg] $msg
+} {1 {wrong # args: should be "string toupper string"}}
+
+test string-13.1 {string wordend} {
+    list [catch {string wordend a} msg] $msg
+} {1 {wrong # args: should be "string wordend string index"}}
+test string-13.2 {string wordend} {
+    list [catch {string wordend a b c} msg] $msg
+} {1 {wrong # args: should be "string wordend string index"}}
+test string-13.3 {string wordend} {
+    list [catch {string wordend a gorp} msg] $msg
+} {1 {expected integer but got "gorp"}}
+test string-13.4 {string wordend} {
+    string wordend abc. -1
+} 3
+test string-13.5 {string wordend} {
+    string wordend abc. 100
+} 4
+test string-13.6 {string wordend} {
+    string wordend "word_one two three" 2
+} 8
+test string-13.7 {string wordend} {
+    string wordend "one .&# three" 5
+} 6
+test string-13.8 {string wordend} {
+    string worde "x.y" 0
+} 1
+
+test string-14.1 {string wordstart} {
+    list [catch {string word a} msg] $msg
+} {1 {bad option "word": should be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
+test string-14.2 {string wordstart} {
+    list [catch {string wordstart a} msg] $msg
+} {1 {wrong # args: should be "string wordstart string index"}}
+test string-14.3 {string wordstart} {
+    list [catch {string wordstart a b c} msg] $msg
+} {1 {wrong # args: should be "string wordstart string index"}}
+test string-14.4 {string wordstart} {
+    list [catch {string wordstart a gorp} msg] $msg
+} {1 {expected integer but got "gorp"}}
+test string-14.5 {string wordstart} {
+    string wordstart "one two three_words" 400
+} 8
+test string-14.6 {string wordstart} {
+    string wordstart "one two three_words" 2
+} 0
+test string-14.7 {string wordend} {
+    string wordstart "one two three_words" -2
+} 0
+test string-14.8 {string wordend} {
+    string wordstart "one .*&^ three" 6
+} 6
+test string-14.9 {string wordend} {
+    string wordstart "one two three" 4
+} 4
+
+test string-15.1 {error conditions} {
+    list [catch {string gorp a b} msg] $msg
+} {1 {bad option "gorp": should be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
+test string-15.2 {error conditions} {
+    list [catch {string} msg] $msg
+} {1 {wrong # args: should be "string option arg ?arg ...?"}}

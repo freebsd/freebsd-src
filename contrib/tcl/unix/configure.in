@@ -1,0 +1,943 @@
+dnl	This file is an input file used by the GNU "autoconf" program to
+dnl	generate the file "configure", which is run during Tcl installation
+dnl	to configure the system for the local environment.
+AC_INIT(../generic/tcl.h)
+# SCCS: @(#) configure.in 1.102 96/04/17 10:46:25
+
+TCL_VERSION=7.5
+TCL_MAJOR_VERSION=7
+TCL_MINOR_VERSION=5
+VERSION=${TCL_VERSION}
+
+if test "${prefix}" = "NONE"; then
+    prefix=/usr/local
+fi
+if test "${exec_prefix}" = "NONE"; then
+    exec_prefix=$prefix
+fi
+
+AC_PROG_RANLIB
+AC_ARG_ENABLE(gcc, [  --enable-gcc            allow use of gcc if available],
+    [tcl_ok=$enableval], [tcl_ok=no])
+if test "$tcl_ok" = "yes"; then
+    AC_PROG_CC
+else
+    CC=${CC-cc}
+AC_SUBST(CC)
+fi
+AC_C_CROSS
+
+#--------------------------------------------------------------------
+#	Supply substitutes for missing POSIX library procedures, or
+#	set flags so Tcl uses alternate procedures.
+#--------------------------------------------------------------------
+
+AC_REPLACE_FUNCS(getcwd opendir strstr)
+AC_REPLACE_FUNCS(strtol tmpnam waitpid)
+AC_CHECK_FUNC(strerror, , AC_DEFINE(NO_STRERROR))
+AC_CHECK_FUNC(getwd, , AC_DEFINE(NO_GETWD))
+AC_CHECK_FUNC(wait3, , AC_DEFINE(NO_WAIT3))
+AC_CHECK_FUNC(uname, , AC_DEFINE(NO_UNAME))
+
+#--------------------------------------------------------------------
+#	On a few very rare systems, all of the libm.a stuff is
+#	already in libc.a.  Set compiler flags accordingly.
+#	Also, Linux requires the "ieee" library for math to work
+#	right (and it must appear before "-lm").
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(sin, MATH_LIBS="", MATH_LIBS="-lm")
+AC_CHECK_LIB(ieee, main, [MATH_LIBS="-lieee $MATH_LIBS"])
+
+#--------------------------------------------------------------------
+#	Supply substitutes for missing POSIX header files.  Special
+#	notes:
+#	    - stdlib.h doesn't define strtol, strtoul, or
+#	      strtod insome versions of SunOS
+#	    - some versions of string.h don't declare procedures such
+#	      as strstr
+#--------------------------------------------------------------------
+
+AC_MSG_CHECKING(dirent.h)
+AC_TRY_LINK([#include <sys/types.h>
+#include <dirent.h>], [
+#ifndef _POSIX_SOURCE
+#   ifdef __Lynx__
+	/*
+	 * Generate compilation error to make the test fail:  Lynx headers
+	 * are only valid if really in the POSIX environment.
+	 */
+
+	missing_procedure();
+#   endif
+#endif
+DIR *d;
+struct dirent *entryPtr;
+char *p;
+d = opendir("foobar");
+entryPtr = readdir(d);
+p = entryPtr->d_name;
+closedir(d);
+], tcl_ok=yes, tcl_ok=no)
+if test $tcl_ok = no; then
+    AC_DEFINE(NO_DIRENT_H)
+fi
+AC_MSG_RESULT($tcl_ok)
+AC_CHECK_HEADER(errno.h, , AC_DEFINE(NO_ERRNO_H))
+AC_CHECK_HEADER(float.h, , AC_DEFINE(NO_FLOAT_H))
+AC_CHECK_HEADER(limits.h, , AC_DEFINE(NO_LIMITS_H))
+AC_CHECK_HEADER(stdlib.h, tcl_ok=1, tcl_ok=0)
+AC_EGREP_HEADER(strtol, stdlib.h, , tcl_ok=0)
+AC_EGREP_HEADER(strtoul, stdlib.h, , tcl_ok=0)
+AC_EGREP_HEADER(strtod, stdlib.h, , tcl_ok=0)
+if test $tcl_ok = 0; then
+    AC_DEFINE(NO_STDLIB_H)
+fi
+AC_CHECK_HEADER(string.h, tcl_ok=1, tcl_ok=0)
+AC_EGREP_HEADER(strstr, string.h, , tcl_ok=0)
+AC_EGREP_HEADER(strerror, string.h, , tcl_ok=0)
+if test $tcl_ok = 0; then
+    AC_DEFINE(NO_STRING_H)
+fi
+AC_CHECK_HEADER(sys/wait.h, , AC_DEFINE(NO_SYS_WAIT_H))
+AC_HAVE_HEADERS(unistd.h)
+
+#--------------------------------------------------------------------
+#	Include sys/select.h if it exists and if it supplies things
+#	that appear to be useful and aren't already in sys/types.h.
+#	This appears to be true only on the RS/6000 under AIX.  Some
+#	systems like OSF/1 have a sys/select.h that's of no use, and
+#	other systems like SCO UNIX have a sys/select.h that's
+#	pernicious.  If "fd_set" isn't defined anywhere then set a
+#	special flag.
+#--------------------------------------------------------------------
+
+AC_MSG_CHECKING([fd_set and sys/select])
+AC_TRY_COMPILE([#include <sys/types.h>],
+	[fd_set readMask, writeMask;], tk_ok=yes, tk_ok=no)
+if test $tk_ok = no; then
+    AC_HEADER_EGREP(fd_mask, sys/select.h, tk_ok=yes)
+    if test $tk_ok = yes; then
+	AC_DEFINE(HAVE_SYS_SELECT_H)
+    fi
+fi
+AC_MSG_RESULT($tk_ok)
+if test $tk_ok = no; then
+    AC_DEFINE(NO_FD_SET)
+fi
+
+#------------------------------------------------------------------------------
+#       Find out all about time handling differences.
+#------------------------------------------------------------------------------
+
+AC_CHECK_HEADERS(sys/time.h)
+AC_HEADER_TIME
+AC_STRUCT_TIMEZONE
+
+AC_MSG_CHECKING([tm_tzadj in struct tm])
+AC_TRY_COMPILE([#include <time.h>], [struct tm tm; tm.tm_tzadj;],
+        [AC_DEFINE(HAVE_TM_TZADJ)
+         AC_MSG_RESULT(yes)],
+        AC_MSG_RESULT(no))
+
+AC_MSG_CHECKING([tm_gmtoff in struct tm])
+AC_TRY_COMPILE([#include <time.h>], [struct tm tm; tm.tm_gmtoff;],
+        [AC_DEFINE(HAVE_TM_GMTOFF)
+         AC_MSG_RESULT(yes)],
+        AC_MSG_RESULT(no))
+
+#
+# Its important to include time.h in this check, as some systems (like convex)
+# have timezone functions, etc.
+#
+AC_MSG_CHECKING([timezone variable])
+AC_TRY_COMPILE([#include <time.h>],
+        [extern long timezone;
+         timezone += 1;
+         exit (0);],
+        [AC_DEFINE(HAVE_TIMEZONE_VAR)
+         AC_MSG_RESULT(yes)],
+        AC_MSG_RESULT(no))
+
+#--------------------------------------------------------------------
+#	On some systems strstr is broken: it returns a pointer even
+#	even if the original string is empty.
+#--------------------------------------------------------------------
+
+AC_MSG_CHECKING([proper strstr implementation])
+AC_TRY_RUN([
+extern int strstr();
+int main()
+{
+    exit(strstr("\0test", "test") ? 1 : 0);
+}
+], tcl_ok=yes, tcl_ok=no, tcl_ok=no)
+if test $tcl_ok = yes; then
+    AC_MSG_RESULT(yes)
+else
+    AC_MSG_RESULT([broken, using substitute])
+    LIBOBJS="$LIBOBJS strstr.o"
+fi
+
+#--------------------------------------------------------------------
+#	Check for strtoul function.  This is tricky because under some
+#	versions of AIX strtoul returns an incorrect terminator
+#	pointer for the string "0".
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(strtoul, tcl_ok=1, tcl_ok=0)
+AC_TRY_RUN([
+extern int strtoul();
+int main()
+{
+    char *string = "0";
+    char *term;
+    int value;
+    value = strtoul(string, &term, 0);
+    if ((value != 0) || (term != (string+1))) {
+        exit(1);
+    }
+    exit(0);
+}], , tcl_ok=0, tcl_ok=0)
+if test "$tcl_ok" = 0; then
+    test -n "$verbose" && echo "	Adding strtoul.o."
+    LIBOBJS="$LIBOBJS strtoul.o"
+fi
+
+#--------------------------------------------------------------------
+#	Check for the strtod function.  This is tricky because in some
+#	versions of Linux strtod mis-parses strings starting with "+".
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(strtod, tcl_ok=1, tcl_ok=0)
+AC_TRY_RUN([
+extern double strtod();
+int main()
+{
+    char *string = " +69";
+    char *term;
+    double value;
+    value = strtod(string, &term);
+    if ((value != 69) || (term != (string+4))) {
+	exit(1);
+    }
+    exit(0);
+}], , tcl_ok=0, tcl_ok=0)
+if test "$tcl_ok" = 0; then
+    test -n "$verbose" && echo "	Adding strtod.o."
+    LIBOBJS="$LIBOBJS strtod.o"
+fi
+
+#--------------------------------------------------------------------
+#	Under Solaris 2.4, strtod returns the wrong value for the
+#	terminating character under some conditions.  Check for this
+#	and if the problem exists use a substitute procedure
+#	"fixstrtod" that corrects the error.
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(strtod, tcl_strtod=1, tcl_strtod=0)
+if test "$tcl_strtod" = 1; then
+    AC_MSG_CHECKING([for Solaris strtod bug])
+    AC_TRY_RUN([
+	extern double strtod();
+	int main()
+	{
+	    char *string = "NaN";
+	    char *term;
+	    strtod(string, &term);
+	    if ((term != string) && (term[-1] == 0)) {
+		exit(1);
+	    }
+	    exit(0);
+	}], tcl_ok=1, tcl_ok=0, tcl_ok=0)
+    if test $tcl_ok = 1; then
+	AC_MSG_RESULT(ok)
+    else
+	AC_MSG_RESULT(buggy)
+	LIBOBJS="$LIBOBJS fixstrtod.o"
+	AC_DEFINE(strtod, fixstrtod)
+    fi
+fi
+
+#--------------------------------------------------------------------
+#	Check for various typedefs and provide substitutes if
+#	they don't exist.
+#--------------------------------------------------------------------
+
+AC_TYPE_MODE_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_UID_T
+
+#--------------------------------------------------------------------
+#	If a system doesn't have an opendir function (man, that's old!)
+#	then we have to supply a different version of dirent.h which
+#	is compatible with the substitute version of opendir that's
+#	provided.  This version only works with V7-style directories.
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(opendir, , AC_DEFINE(USE_DIRENT2_H))
+
+#--------------------------------------------------------------------
+#	The check below checks whether <sys/wait.h> defines the type
+#	"union wait" correctly.  It's needed because of weirdness in
+#	HP-UX where "union wait" is defined in both the BSD and SYS-V
+#	environments.  Checking the usability of WIFEXITED seems to do
+#	the trick.
+#--------------------------------------------------------------------
+
+AC_MSG_CHECKING([union wait])
+AC_TRY_LINK([#include <sys/types.h> 
+#include <sys/wait.h>], [
+union wait x;
+WIFEXITED(x);		/* Generates compiler error if WIFEXITED
+			 * uses an int. */
+], tcl_ok=yes, tcl_ok=no)
+AC_MSG_RESULT($tcl_ok)
+if test $tcl_ok = no; then
+    AC_DEFINE(NO_UNION_WAIT)
+fi
+
+#--------------------------------------------------------------------
+#	Check to see whether the system supports the matherr function
+#	and its associated type "struct exception".
+#--------------------------------------------------------------------
+
+AC_MSG_CHECKING([matherr support])
+AC_TRY_COMPILE([#include <math.h>], [
+struct exception x;
+x.type = DOMAIN;
+x.type = SING;
+], tcl_ok=yes, tcl_ok=no)
+AC_MSG_RESULT($tcl_ok)
+if test $tcl_ok = yes; then
+    AC_DEFINE(NEED_MATHERR)
+fi
+
+#--------------------------------------------------------------------
+#	Check to see whether the system provides a vfork kernel call.
+#	If not, then use fork instead.  Also, check for a problem with
+#	vforks and signals that can cause core dumps if a vforked child
+#	resets a signal handler.  If the problem exists, then use fork
+#	instead of vfork.
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(vfork, tcl_ok=1, tcl_ok=0)
+if test "$tcl_ok" = 1; then
+    AC_MSG_CHECKING([vfork/signal bug]);
+    AC_TRY_RUN([
+	#include <stdio.h>
+	#include <signal.h>
+	#include <sys/wait.h>
+	int gotSignal = 0;
+	sigProc(sig)
+	    int sig;
+	{
+	    gotSignal = 1;
+	}
+	main()
+	{
+	    int pid, sts;
+	    (void) signal(SIGCHLD, sigProc);
+	    pid = vfork();
+	    if (pid <  0) {
+		exit(1);
+	    } else if (pid == 0) {
+		(void) signal(SIGCHLD, SIG_DFL);
+		_exit(0);
+	    } else {
+		(void) wait(&sts);
+	    }
+	    exit((gotSignal) ? 0 : 1);
+	}], tcl_ok=1, tcl_ok=0, tcl_ok=0)
+    if test "$tcl_ok" = 1; then
+	AC_MSG_RESULT(ok)
+    else
+	AC_MSG_RESULT([buggy, using fork instead])
+    fi
+fi
+rm -f core
+if test "$tcl_ok" = 0; then
+    AC_DEFINE(vfork, fork)
+fi
+
+#--------------------------------------------------------------------
+#	Check whether there is an strncasecmp function on this system.
+#	This is a bit tricky because under SCO it's in -lsocket and
+#	under Sequent Dynix it's in -linet.
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(strncasecmp, tcl_ok=1, tcl_ok=0)
+if test "$tcl_ok" = 0; then
+    AC_CHECK_LIB(socket, strncasecmp, tcl_ok=1, tcl_ok=0)
+fi
+if test "$tcl_ok" = 0; then
+    AC_CHECK_LIB(inet, strncasecmp, tcl_ok=1, tcl_ok=0)
+fi
+if test "$tcl_ok" = 0; then
+    LIBOBJS="$LIBOBJS strncasecmp.o"
+fi
+
+#--------------------------------------------------------------------
+#	The code below deals with several issues related to gettimeofday:
+#	1. Some systems don't provide a gettimeofday function at all
+#	   (set NO_GETTOD if this is the case).
+#	2. SGI systems don't use the BSD form of the gettimeofday function,
+#	   but they have a BSDgettimeofday function that can be used instead.
+#	3. See if gettimeofday is declared in the <sys/time.h> header file.
+#	   if not, set the GETTOD_NOT_DECLARED flag so that tclPort.h can
+#	   declare it.
+#--------------------------------------------------------------------
+
+AC_CHECK_FUNC(BSDgettimeofday, AC_DEFINE(HAVE_BSDGETTIMEOFDAY),
+	AC_CHECK_FUNC(gettimeofday, , AC_DEFINE(NO_GETTOD)))
+AC_MSG_CHECKING([for gettimeofday declaration])
+AC_EGREP_HEADER(gettimeofday, sys/time.h, AC_MSG_RESULT(present), [
+    AC_MSG_RESULT(missing)
+    AC_DEFINE(GETTOD_NOT_DECLARED)
+])
+
+#--------------------------------------------------------------------
+#	Interactive UNIX requires -linet instead of -lsocket, plus it
+#	needs net/errno.h to define the socket-related error codes.
+#--------------------------------------------------------------------
+
+AC_CHECK_LIB(inet, main, [LIBS="$LIBS -linet"])
+AC_CHECK_HEADER(net/errno.h, AC_DEFINE(HAVE_NET_ERRNO_H))
+
+#--------------------------------------------------------------------
+#	Check for the existence of the -lsocket and -lnsl libraries.
+#	The order here is important, so that they end up in the right
+#	order in the command line generated by make.  Here are some
+#	special considerations:
+#	1. Use "connect" and "accept" to check for -lsocket, and
+#	   "gethostbyname" to check for -lnsl.
+#	2. Use each function name only once:  can't redo a check because
+#	   autoconf caches the results of the last check and won't redo it.
+#	3. Use -lnsl and -lsocket only if they supply procedures that
+#	   aren't already present in the normal libraries.  This is because
+#	   IRIX 5.2 has libraries, but they aren't needed and they're
+#	   bogus:  they goof up name resolution if used.
+#	4. On some SVR4 systems, can't use -lsocket without -lnsl too.
+#	   To get around this problem, check for both libraries together
+#	   if -lsocket doesn't work by itself.
+#--------------------------------------------------------------------
+
+tcl_checkBoth=0
+AC_CHECK_FUNC(connect, tcl_checkSocket=0, tcl_checkSocket=1)
+if test "$tcl_checkSocket" = 1; then
+    AC_CHECK_LIB(socket, main, LIBS="$LIBS -lsocket", tcl_checkBoth=1)
+fi
+if test "$tcl_checkBoth" = 1; then
+    tk_oldLibs=$LIBS
+    LIBS="$LIBS -lsocket -lnsl"
+    AC_CHECK_FUNC(accept, tcl_checkNsl=0, [LIBS=$tk_oldLibs])
+fi
+AC_CHECK_FUNC(gethostbyname, , AC_CHECK_LIB(nsl, main, [LIBS="$LIBS -lnsl"]))
+
+#--------------------------------------------------------------------
+#	The statements below define a collection of symbols related to
+#	dynamic loading and shared libraries:
+#
+#	DL_OBJS -	Name of the object file that implements dynamic
+#			loading for Tcl on this system.
+#	DL_LIBS -	Library file(s) to include in tclsh and other base
+#			applications in order for the "load" command to work.
+#	LD_FLAGS -	Flags to pass to the compiler when linking object
+#			files into an executable application binary such
+#			as tclsh.
+#	LD_SEARCH_FLAGS-Flags to pass to ld, such as "-R /usr/local/tcl/lib",
+#			that tell the run-time dynamic linker where to look
+#			for shared libraries such as libtcl.so.  Depends on
+#			the variable LIB_INSTALL_DIR in the Makefile.
+#	MAKE_LIB -	Command to execute to build the Tcl library;
+#			differs depending on whether or not Tcl is being
+#			compiled as a shared library.
+#	SHLIB_CFLAGS -	Flags to pass to cc when compiling the components
+#			of a shared library (may request position-independent
+#			code, among other things).
+#	SHLIB_LD -	Base command to use for combining object files
+#			into a shared library.
+#	SHLIB_LD_LIBS -	Dependent libraries for the linker to scan when
+#			creating shared libraries.  This symbol typically
+#			goes at the end of the "ld" commands that build
+#			shared libraries. The value of the symbol is
+#			"${LIBS}" if all of the dependent libraries should
+#			be specified when creating a shared library.  If
+#			dependent libraries should not be specified (as on
+#			SunOS 4.x, where they cause the link to fail, or in
+#			general if Tcl and Tk aren't themselves shared
+#			libraries), then this symbol has an empty string
+#			as its value.
+#	SHLIB_SUFFIX -	Suffix to use for the names of dynamically loadable
+#			extensions.  An empty string means we don't know how
+#			to use shared libraries on this platform.
+#	TCL_LIB_FILE -	Name of the file that contains the Tcl library, such
+#			as libtcl7.5.so or libtcl7.5.a.
+#	TCL_LIB_SUFFIX -Specifies everything that comes after the "libtcl"
+#			in the shared library name, using the $VERSION variable
+#			to put the version in the right place.  This is used
+#			by platforms that need non-standard library names.
+#			Examples:  ${VERSION}.so.1.1 on NetBSD, since it needs
+#			to have a version after the .so, and ${VERSION}.a
+#			on AIX, since the Tcl shared library needs to have
+#			a .a extension whereas shared objects for loadable
+#			extensions have a .so extension.  Defaults to
+#			${VERSION}${SHLIB_SUFFIX}.
+#--------------------------------------------------------------------
+
+# Step 1: set the variable "system" to hold the name and version number
+# for the system.  This can usually be done via the "uname" command, but
+# there are a few systems, like Next, where this doesn't work.
+
+AC_MSG_CHECKING([system version (for dynamic loading)])
+if test -f /usr/lib/NextStep/software_version; then
+    system=NEXTSTEP-`awk '/3/,/3/' /usr/lib/NextStep/software_version`
+else
+    system=`uname -s`-`uname -r`
+    if test "$?" -ne 0 ; then
+	AC_MSG_RESULT([unknown (can't find uname command)])
+	system=unknown
+    else
+	# Special check for weird MP-RAS system (uname returns weird
+	# results, and the version is kept in special file).
+    
+	if test -r /etc/.relid -a "X`uname -n`" = "X`uname -s`" ; then
+	    system=MP-RAS-`awk '{print $3}' /etc/.relid'`
+	fi
+	if test "`uname -s`" = "AIX" ; then
+	    system=AIX-`uname -v`.`uname -r`
+	fi
+	AC_MSG_RESULT($system)
+    fi
+fi
+
+# Step 2: check for existence of -ldl library.  This is needed because
+# Linux can use either -ldl or -ldld for dynamic loading.
+
+AC_CHECK_LIB(dl, dlopen, have_dl=yes, have_dl=no)
+
+# Step 3: disable dynamic loading if requested via a command-line switch.
+
+AC_ARG_ENABLE(load, [  --disable-load          disallow dynamic loading and "load" command],
+    [tcl_ok=$enableval], [tcl_ok=yes])
+if test "$tcl_ok" = "no"; then
+    system=unknown
+fi
+
+# Step 4: set configuration options based on system name and version.
+
+fullSrcDir=`cd $srcdir; pwd`
+AIX=no
+TCL_SHARED_LIB_SUFFIX=""
+TCL_UNSHARED_LIB_SUFFIX=""
+TCL_LIB_VERSIONS_OK=ok
+case $system in
+    AIX-*)
+	SHLIB_CFLAGS=""
+	SHLIB_LD="$fullSrcDir/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512"
+	SHLIB_LD_LIBS='${LIBS}'
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o tclLoadAix.o"
+	DL_LIBS="-lld"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS='-L${LIB_INSTALL_DIR}'
+	AC_DEFINE(NO_DLFCN_H)
+	AIX=yes
+	TCL_SHARED_LIB_SUFFIX='${VERSION}.a'
+	;;
+    HP-UX-*.08.*|HP-UX-*.09.*|HP-UX-*.10.*)
+	SHLIB_CFLAGS="+z"
+	SHLIB_LD="ld -b"
+	SHLIB_LD_LIBS='${LIBS}'
+	SHLIB_SUFFIX=".sl"
+	DL_OBJS="tclLoadShl.o"
+	DL_LIBS="-ldld"
+	LD_FLAGS="-Wl,-E"
+	LD_SEARCH_FLAGS='-Wl,+b,${LIB_INSTALL_DIR}:.'
+	;;
+    IRIX-4.*)
+	SHLIB_CFLAGS="-G 0"
+	SHLIB_SUFFIX="..o"
+	SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
+	SHLIB_LD_LIBS=""
+	DL_OBJS="tclLoadAout.o"
+	DL_LIBS=""
+	LD_FLAGS="-Wl,-D,08000000"
+	LD_SEARCH_FLAGS=""
+	;;
+    IRIX-5.*)
+	SHLIB_CFLAGS=""
+	SHLIB_LD="ld -shared -rdata_shared"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS=""
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_INSTALL_DIR}'
+	;;
+    Linux*)
+	SHLIB_CFLAGS="-fPIC"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	if test "$have_dl" = yes; then
+	    SHLIB_LD="${CC} -shared"
+	    DL_OBJS="tclLoadDl.o"
+	    DL_LIBS="-ldl"
+	    LD_FLAGS="-rdynamic"
+	    LD_SEARCH_FLAGS=""
+	else
+	    AC_CHECK_HEADER(dld.h, [
+		SHLIB_LD="ld -shared"
+		DL_OBJS="tclLoadDld.o"
+		DL_LIBS="-ldld"
+		LD_FLAGS=""
+		LD_SEARCH_FLAGS=""])
+	fi
+	;;
+    MP-RAS-02*)
+	SHLIB_CFLAGS="-K PIC"
+	SHLIB_LD="cc -G"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS=""
+	;;
+    MP-RAS-*)
+	SHLIB_CFLAGS="-K PIC"
+	SHLIB_LD="cc -G"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS="-Wl,-Bexport"
+	LD_SEARCH_FLAGS=""
+	;;
+    NetBSD-*|FreeBSD-*)
+	# Not available on all versions:  check for include file.
+	AC_CHECK_HEADER(dlfcn.h, [
+	    SHLIB_CFLAGS="-fpic"
+	    SHLIB_LD="ld -Bshareable"
+	    SHLIB_LD_LIBS=""
+	    SHLIB_SUFFIX=".so"
+	    DL_OBJS="tclLoadDl2.o"
+	    DL_LIBS=""
+	    LD_FLAGS=""
+	    LD_SEARCH_FLAGS=""
+	], [
+	    SHLIB_CFLAGS=""
+	    SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
+	    SHLIB_LD_LIBS=""
+	    SHLIB_SUFFIX="..o"
+	    DL_OBJS="tclLoadAout.o"
+	    DL_LIBS=""
+	    LD_FLAGS=""
+	    LD_SEARCH_FLAGS=""
+	])
+
+	# FreeBSD doesn't handle version numbers with dots.  Also, have to
+	# append a dummy version number to .so file names.
+
+	TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.0'
+	TCL_UNSHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.a'
+	TCL_LIB_VERSIONS_OK=nodots
+	;;
+    NEXTSTEP-*)
+	SHLIB_CFLAGS=""
+	SHLIB_LD="cc -nostdlib -r"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadNext.o"
+	DL_LIBS=""
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS=""
+	;;
+    OSF1-1.[012])
+	# OSF/1 1.[012] from OSF, and derivatives, including Paragon OSF/1
+	SHLIB_CFLAGS=""
+	# Hack: make package name same as library name
+	SHLIB_LD='ld -R -export $@:'
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadOSF.o"
+	DL_LIBS=""
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS=""
+	;;
+    OSF1-1.*)
+	# OSF/1 1.3 from OSF using ELF, and derivatives, including AD2
+	SHLIB_CFLAGS="-fpic"
+	SHLIB_LD="ld -shared"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS=""
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS=""
+	;;
+    OSF1-V*)
+        # Digital OSF/1
+	SHLIB_CFLAGS=""
+	SHLIB_LD='ld -shared -expect_unresolved "*"'
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS=""
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_INSTALL_DIR}'
+	;;
+    RISCos-*)
+	SHLIB_CFLAGS="-G 0"
+	SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX="..o"
+	DL_OBJS="tclLoadAout.o"
+	DL_LIBS=""
+	LD_FLAGS="-Wl,-D,08000000"
+	LD_SEARCH_FLAGS=""
+	;;
+    SCO_SV-3.2*)
+        # Note, dlopen is available only on SCO 3.2.5 and greater.  However,
+        # this test works, since "uname -s" was non-standard in 3.2.4 and
+        # below.
+	SHLIB_CFLAGS="-Kpic -belf"
+	SHLIB_LD="ld -G"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS=""
+	LD_FLAGS="-belf -Wl,-Bexport"
+	LD_SEARCH_FLAGS=""
+	;;
+     SINIX*5.4*)
+	SHLIB_CFLAGS="-K PIC"
+	SHLIB_LD="cc -G"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS=""
+	;;
+    SunOS-4*)
+	SHLIB_CFLAGS="-PIC"
+	SHLIB_LD="ld"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS='-L${LIB_INSTALL_DIR}'
+
+	# SunOS can't handle version numbers with dots in them in library
+	# specs, like -ltcl7.5, so use -ltcl75 instead.  Also, it
+	# requires an extra version number at the end of .so file names.
+	# So, the library has to have a name like libtcl75.so.1.0
+
+	TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.0'
+	TCL_UNSHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.a'
+	TCL_LIB_VERSIONS_OK=nodots
+	;;
+    SunOS-5*)
+	SHLIB_CFLAGS="-K PIC"
+	SHLIB_LD="/usr/ccs/bin/ld -G -z text"
+	SHLIB_LD_LIBS='${LIBS}'
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS='-R ${LIB_INSTALL_DIR}'
+	;;
+    ULTRIX-4.*)
+	SHLIB_CFLAGS="-G 0"
+	SHLIB_SUFFIX="..o"
+	SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
+	SHLIB_LD_LIBS=""
+	DL_OBJS="tclLoadAout.o"
+	DL_LIBS=""
+	LD_FLAGS="-Wl,-D,08000000"
+	LD_SEARCH_FLAGS=""
+	;;
+    UNIX_SV*)
+	SHLIB_CFLAGS="-K PIC"
+	SHLIB_LD="cc -G"
+	SHLIB_LD_LIBS=""
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS="-Wl,-Bexport"
+	LD_SEARCH_FLAGS=""
+	;;
+esac
+
+# If pseudo-static linking is in use (see K. B. Kenny, "Dynamic Loading for
+# Tcl -- What Became of It?".  Proc. 2nd Tcl/Tk Workshop, New Orleans, LA,
+# Computerized Processes Unlimited, 1994), then we need to determine which
+# of several header files defines the a.out file format (a.out.h, sys/exec.h,
+# or sys/exec_aout.h).  At present, we support only a file format that
+# is more or less version-7-compatible.  In particular,
+#	- a.out files must begin with `struct exec'.
+#	- the N_TXTOFF on the `struct exec' must compute the seek address
+#	  of the text segment
+#	- The `struct exec' must contain a_magic, a_text, a_data, a_bss
+#	  and a_entry fields.
+# The following compilation should succeed if and only if either sys/exec.h
+# or a.out.h is usable for the purpose.
+#
+# Note that the modified COFF format used on MIPS Ultrix 4.x is usable; the
+# `struct exec' includes a second header that contains information that
+# duplicates the v7 fields that are needed.
+
+if test "x$DL_OBJS" = "xtclLoadAout.o" ; then
+    AC_MSG_CHECKING(sys/exec.h)
+    AC_TRY_COMPILE([#include <sys/exec.h>],[
+	struct exec foo;
+	unsigned long seek;
+	int flag;
+#if defined(__mips) || defined(mips)
+	seek = N_TXTOFF (foo.ex_f, foo.ex_o);
+#else
+	seek = N_TXTOFF (foo);
+#endif
+	flag = (foo.a_magic == OMAGIC);
+	return foo.a_text + foo.a_data + foo.a_bss + foo.a_entry;
+], tcl_ok=usable, tcl_ok=unusable)
+    AC_MSG_RESULT($tcl_ok)
+    if test $tcl_ok = usable; then
+	AC_DEFINE(USE_SYS_EXEC_H)
+    else
+	AC_MSG_CHECKING(a.out.h)
+	AC_TRY_COMPILE([#include <a.out.h>],[
+	    struct exec foo;
+	    unsigned long seek;
+	    int flag;
+#if defined(__mips) || defined(mips)
+	    seek = N_TXTOFF (foo.ex_f, foo.ex_o);
+#else
+	    seek = N_TXTOFF (foo);
+#endif
+	    flag = (foo.a_magic == OMAGIC);
+	    return foo.a_text + foo.a_data + foo.a_bss + foo.a_entry;
+	], tcl_ok=usable, tcl_ok=unusable)
+	AC_MSG_RESULT($tcl_ok)
+	if test $tcl_ok = usable; then
+	    AC_DEFINE(USE_A_OUT_H)
+	else
+	    AC_MSG_CHECKING(sys/exec_aout.h)
+	    AC_TRY_COMPILE([#include <sys/exec_aout.h>],[
+		struct exec foo;
+		unsigned long seek;
+		int flag;
+#if defined(__mips) || defined(mips)
+		seek = N_TXTOFF (foo.ex_f, foo.ex_o);
+#else
+		seek = N_TXTOFF (foo);
+#endif
+		flag = (foo.a_midmag == OMAGIC);
+		return foo.a_text + foo.a_data + foo.a_bss + foo.a_entry;
+	    ], tcl_ok=usable, tcl_ok=unusable)
+	    AC_MSG_RESULT($tcl_ok)
+	    if test $tcl_ok = usable; then
+		AC_DEFINE(USE_SYS_EXEC_AOUT_H)
+	    else
+		DL_OBJS=""
+	    fi
+	fi
+    fi
+fi
+
+if test "x$DL_OBJS" != "x" ; then
+    BUILD_DLTEST="\$(DLTEST_TARGETS)"
+else
+    echo "Can't figure out how to do dynamic loading or shared libraries"
+    echo "on this system."
+    SHLIB_CFLAGS=""
+    SHLIB_LD=""
+    SHLIB_SUFFIX=""
+    DL_OBJS="tclLoadNone.o"
+    DL_LIBS=""
+    LD_FLAGS=""
+    LD_SEARCH_FLAGS=""
+    BUILD_DLTEST=""
+fi
+
+# If we're running gcc, then change the C flags for compiling shared
+# libraries to the right flags for gcc, instead of those for the
+# standard manufacturer compiler.
+
+if test "$DL_OBJS" != "tclLoadNone.o" ; then
+    if test "$CC" = "gcc" -o `$CC -v 2>&1 | grep -c gcc` != "0" ; then
+	SHLIB_CFLAGS="-fPIC"
+    fi
+fi
+
+#--------------------------------------------------------------------
+#	The statements below define a collection of symbols related to
+#	building libtcl as a shared library instead of a static library.
+#--------------------------------------------------------------------
+
+realRanlib=$RANLIB
+if test "$TCL_SHARED_LIB_SUFFIX" = "" ; then
+    TCL_SHARED_LIB_SUFFIX='${VERSION}${SHLIB_SUFFIX}'
+fi
+if test "$TCL_UNSHARED_LIB_SUFFIX" = "" ; then
+    TCL_UNSHARED_LIB_SUFFIX='${VERSION}.a'
+fi
+AC_ARG_ENABLE(shared,
+    [  --enable-shared         build libtcl as a shared library],
+    [tcl_ok=$enableval], [tcl_ok=no])
+if test "$tcl_ok" = "yes" -a "${SHLIB_SUFFIX}" != "" \
+	-a "${DL_OBJS}" != "tclLoadAout.o" ; then
+    TCL_SHLIB_CFLAGS="${SHLIB_CFLAGS}"
+    TCL_LD_SEARCH_FLAGS="${LD_SEARCH_FLAGS}"
+    eval "TCL_LIB_FILE=libtcl${TCL_SHARED_LIB_SUFFIX}"
+    MAKE_LIB="\${SHLIB_LD} -o ${TCL_LIB_FILE} \${OBJS} ${SHLIB_LD_LIBS}"
+    RANLIB=":"
+else
+    if test "$AIX" = "no" ; then
+	SHLIB_LD_LIBS=""
+    fi
+    TCL_SHLIB_CFLAGS=""
+    TCL_LD_SEARCH_FLAGS=""
+    eval "TCL_LIB_FILE=libtcl${TCL_UNSHARED_LIB_SUFFIX}"
+    MAKE_LIB="ar cr ${TCL_LIB_FILE} \${OBJS}"
+fi
+
+# Note:  in the following variable, it's important to use the absolute
+# path name of the Tcl directory rather than "..":  this is because
+# AIX remembers this path and will attempt to use it at run-time to look
+# up the Tcl library.
+
+if test "${TCL_LIB_VERSIONS_OK}" = "ok"; then
+    TCL_BUILD_LIB_SPEC="-L`pwd` -ltcl${VERSION}"
+    TCL_LIB_SPEC="-L${exec_prefix}/lib -ltcl${VERSION}"
+else
+    TCL_BUILD_LIB_SPEC="-L`pwd` -ltcl`echo ${VERSION} | tr -d .`"
+    TCL_LIB_SPEC="-L${exec_prefix}/lib -ltcl`echo ${VERSION} | tr -d .`"
+fi
+
+AC_SUBST(BUILD_DLTEST)
+AC_SUBST(DL_LIBS)
+AC_SUBST(DL_OBJS)
+AC_SUBST(LD_FLAGS)
+AC_SUBST(MAKE_LIB)
+AC_SUBST(MATH_LIBS)
+AC_SUBST(SHLIB_CFLAGS)
+AC_SUBST(SHLIB_LD)
+AC_SUBST(SHLIB_LD_LIBS)
+AC_SUBST(SHLIB_SUFFIX)
+AC_SUBST(TCL_BUILD_LIB_SPEC)
+AC_SUBST(TCL_LD_SEARCH_FLAGS)
+AC_SUBST(TCL_LIB_FILE)
+AC_SUBST(TCL_LIB_SPEC)
+AC_SUBST(TCL_LIB_VERSIONS_OK)
+AC_SUBST(TCL_MAJOR_VERSION)
+AC_SUBST(TCL_MINOR_VERSION)
+AC_SUBST(TCL_SHARED_LIB_SUFFIX)
+AC_SUBST(TCL_SHLIB_CFLAGS)
+AC_SUBST(TCL_UNSHARED_LIB_SUFFIX)
+AC_SUBST(TCL_VERSION)
+
+AC_OUTPUT(Makefile tclConfig.sh)

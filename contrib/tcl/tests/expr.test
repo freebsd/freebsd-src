@@ -1,0 +1,890 @@
+# Commands covered:  expr
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1994 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) expr.test 1.48 96/02/16 08:55:51
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+if {([catch {expr T1()} msg] == 1) && ($msg == {unknown math function "T1"})} {
+    set gotT1 0
+    puts "This application hasn't been compiled with the \"T1\" and"
+    puts "\"T2\" math functions, so I'll skip some of the expr tests."
+} else {
+    set gotT1 1
+}
+
+# First, test all of the integer operators individually.
+
+test expr-1.1 {integer operators} {expr -4} -4
+test expr-1.2 {integer operators} {expr -(1+4)} -5
+test expr-1.3 {integer operators} {expr ~3} -4
+test expr-1.4 {integer operators} {expr !2} 0
+test expr-1.5 {integer operators} {expr !0} 1
+test expr-1.6 {integer operators} {expr 4*6} 24
+test expr-1.7 {integer operators} {expr 36/12} 3
+test expr-1.8 {integer operators} {expr 27/4} 6
+test expr-1.9 {integer operators} {expr 27%4} 3
+test expr-1.10 {integer operators} {expr 2+2} 4
+test expr-1.11 {integer operators} {expr 2-6} -4
+test expr-1.12 {integer operators} {expr 1<<3} 8
+test expr-1.13 {integer operators} {expr 0xff>>2} 63
+test expr-1.14 {integer operators} {expr -1>>2} -1
+test expr-1.15 {integer operators} {expr 3>2} 1
+test expr-1.16 {integer operators} {expr 2>2} 0
+test expr-1.17 {integer operators} {expr 1>2} 0
+test expr-1.18 {integer operators} {expr 3<2} 0
+test expr-1.19 {integer operators} {expr 2<2} 0
+test expr-1.20 {integer operators} {expr 1<2} 1
+test expr-1.21 {integer operators} {expr 3>=2} 1
+test expr-1.22 {integer operators} {expr 2>=2} 1
+test expr-1.23 {integer operators} {expr 1>=2} 0
+test expr-1.24 {integer operators} {expr 3<=2} 0
+test expr-1.25 {integer operators} {expr 2<=2} 1
+test expr-1.26 {integer operators} {expr 1<=2} 1
+test expr-1.27 {integer operators} {expr 3==2} 0
+test expr-1.28 {integer operators} {expr 2==2} 1
+test expr-1.29 {integer operators} {expr 3!=2} 1
+test expr-1.30 {integer operators} {expr 2!=2} 0
+test expr-1.31 {integer operators} {expr 7&0x13} 3
+test expr-1.32 {integer operators} {expr 7^0x13} 20
+test expr-1.33 {integer operators} {expr 7|0x13} 23
+test expr-1.34 {integer operators} {expr 0&&1} 0
+test expr-1.35 {integer operators} {expr 0&&0} 0
+test expr-1.36 {integer operators} {expr 1&&3} 1
+test expr-1.37 {integer operators} {expr 0||1} 1
+test expr-1.38 {integer operators} {expr 3||0} 1
+test expr-1.39 {integer operators} {expr 0||0} 0
+test expr-1.40 {integer operators} {expr 3>2?44:66} 44
+test expr-1.41 {integer operators} {expr 2>3?44:66} 66
+test expr-1.42 {integer operators} {expr 36/5} 7
+test expr-1.43 {integer operators} {expr 36%5} 1
+test expr-1.44 {integer operators} {expr -36/5} -8
+test expr-1.45 {integer operators} {expr -36%5} 4
+test expr-1.46 {integer operators} {expr 36/-5} -8
+test expr-1.47 {integer operators} {expr 36%-5} -4
+test expr-1.48 {integer operators} {expr -36/-5} 7
+test expr-1.49 {integer operators} {expr -36%-5} -1
+test expr-1.50 {integer operators} {expr +36} 36
+test expr-1.51 {integer operators} {expr +--++36} 36
+test expr-1.52 {integer operators} {expr +36%+5} 1
+
+# Check the floating-point operators individually, along with
+# automatic conversion to integers where needed.
+
+test expr-2.1 {floating-point operators} {expr -4.2} -4.2
+test expr-2.2 {floating-point operators} {expr -(1.1+4.2)} -5.3
+test expr-2.3 {floating-point operators} {expr +5.7} 5.7
+test expr-2.4 {floating-point operators} {expr +--+-62.0} -62.0
+test expr-2.5 {floating-point operators} {expr !2.1} 0
+test expr-2.6 {floating-point operators} {expr !0.0} 1
+test expr-2.7 {floating-point operators} {expr 4.2*6.3} 26.46
+test expr-2.8 {floating-point operators} {expr 36.0/12.0} 3.0
+test expr-2.9 {floating-point operators} {expr 27/4.0} 6.75
+test expr-2.10 {floating-point operators} {expr 2.3+2.1} 4.4
+test expr-2.11 {floating-point operators} {expr 2.3-6.5} -4.2
+test expr-2.12 {floating-point operators} {expr 3.1>2.1} 1
+test expr-2.13 {floating-point operators} {expr {2.1 > 2.1}} 0
+test expr-2.14 {floating-point operators} {expr 1.23>2.34e+1} 0
+test expr-2.15 {floating-point operators} {expr 3.45<2.34} 0
+test expr-2.16 {floating-point operators} {expr 0.002e3<--200e-2} 0
+test expr-2.17 {floating-point operators} {expr 1.1<2.1} 1
+test expr-2.18 {floating-point operators} {expr 3.1>=2.2} 1
+test expr-2.19 {floating-point operators} {expr 2.345>=2.345} 1
+test expr-2.20 {floating-point operators} {expr 1.1>=2.2} 0
+test expr-2.21 {floating-point operators} {expr 3.0<=2.0} 0
+test expr-2.22 {floating-point operators} {expr 2.2<=2.2} 1
+test expr-2.23 {floating-point operators} {expr 2.2<=2.2001} 1
+test expr-2.24 {floating-point operators} {expr 3.2==2.2} 0
+test expr-2.25 {floating-point operators} {expr 2.2==2.2} 1
+test expr-2.26 {floating-point operators} {expr 3.2!=2.2} 1
+test expr-2.27 {floating-point operators} {expr 2.2!=2.2} 0
+test expr-2.28 {floating-point operators} {expr 0.0&&0.0} 0
+test expr-2.29 {floating-point operators} {expr 0.0&&1.3} 0
+test expr-2.30 {floating-point operators} {expr 1.3&&0.0} 0
+test expr-2.31 {floating-point operators} {expr 1.3&&3.3} 1
+test expr-2.32 {floating-point operators} {expr 0.0||0.0} 0
+test expr-2.33 {floating-point operators} {expr 0.0||1.3} 1
+test expr-2.34 {floating-point operators} {expr 1.3||0.0} 1
+test expr-2.35 {floating-point operators} {expr 3.3||0.0} 1
+test expr-2.36 {floating-point operators} {expr 3.3>2.3?44.3:66.3} 44.3
+test expr-2.37 {floating-point operators} {expr 2.3>3.3?44.3:66.3} 66.3
+test expr-2.38 {floating-point operators} {
+    list [catch {expr 028.1 + 09.2} msg] $msg
+} {0 37.3}
+
+# Operators that aren't legal on floating-point numbers
+
+test expr-3.1 {illegal floating-point operations} {
+    list [catch {expr ~4.0} msg] $msg
+} {1 {can't use floating-point value as operand of "~"}}
+test expr-3.2 {illegal floating-point operations} {
+    list [catch {expr 27%4.0} msg] $msg
+} {1 {can't use floating-point value as operand of "%"}}
+test expr-3.3 {illegal floating-point operations} {
+    list [catch {expr 27.0%4} msg] $msg
+} {1 {can't use floating-point value as operand of "%"}}
+test expr-3.4 {illegal floating-point operations} {
+    list [catch {expr 1.0<<3} msg] $msg
+} {1 {can't use floating-point value as operand of "<<"}}
+test expr-3.5 {illegal floating-point operations} {
+    list [catch {expr 3<<1.0} msg] $msg
+} {1 {can't use floating-point value as operand of "<<"}}
+test expr-3.6 {illegal floating-point operations} {
+    list [catch {expr 24.0>>3} msg] $msg
+} {1 {can't use floating-point value as operand of ">>"}}
+test expr-3.7 {illegal floating-point operations} {
+    list [catch {expr 24>>3.0} msg] $msg
+} {1 {can't use floating-point value as operand of ">>"}}
+test expr-3.8 {illegal floating-point operations} {
+    list [catch {expr 24&3.0} msg] $msg
+} {1 {can't use floating-point value as operand of "&"}}
+test expr-3.9 {illegal floating-point operations} {
+    list [catch {expr 24.0|3} msg] $msg
+} {1 {can't use floating-point value as operand of "|"}}
+test expr-3.10 {illegal floating-point operations} {
+    list [catch {expr 24.0^3} msg] $msg
+} {1 {can't use floating-point value as operand of "^"}}
+
+# Check the string operators individually.
+
+test expr-4.1 {string operators} {expr {"abc" > "def"}} 0
+test expr-4.2 {string operators} {expr {"def" > "def"}} 0
+test expr-4.3 {string operators} {expr {"g" > "def"}} 1
+test expr-4.4 {string operators} {expr {"abc" < "abd"}} 1
+test expr-4.5 {string operators} {expr {"abd" < "abd"}} 0
+test expr-4.6 {string operators} {expr {"abe" < "abd"}} 0
+test expr-4.7 {string operators} {expr {"abc" >= "def"}} 0
+test expr-4.8 {string operators} {expr {"def" >= "def"}} 1
+test expr-4.9 {string operators} {expr {"g" >= "def"}} 1
+test expr-4.10 {string operators} {expr {"abc" <= "abd"}} 1
+test expr-4.11 {string operators} {expr {"abd" <= "abd"}} 1
+test expr-4.12 {string operators} {expr {"abe" <= "abd"}} 0
+test expr-4.13 {string operators} {expr {"abc" == "abd"}} 0
+test expr-4.14 {string operators} {expr {"abd" == "abd"}} 1
+test expr-4.15 {string operators} {expr {"abc" != "abd"}} 1
+test expr-4.16 {string operators} {expr {"abd" != "abd"}} 0
+test expr-4.17 {string operators} {expr {"0y" < "0x12"}} 1
+test expr-4.18 {string operators} {expr {"." < " "}} 0
+
+# The following tests are non-portable because on some systems "+"
+# and "-" can be parsed as numbers.
+
+test expr-4.19 {string operators} {nonPortable} {expr {"0" == "+"}} 0
+test expr-4.20 {string operators} {nonPortable} {expr {"0" == "-"}} 0
+test expr-4.21 {string operators} {expr {1?"foo":"bar"}} foo
+test expr-4.22 {string operators} {expr {0?"foo":"bar"}} bar
+
+# Operators that aren't legal on string operands.
+
+test expr-5.1 {illegal string operations} {
+    list [catch {expr {-"a"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "-"}}
+test expr-5.2 {illegal string operations} {
+    list [catch {expr {+"a"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "+"}}
+test expr-5.3 {illegal string operations} {
+    list [catch {expr {~"a"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "~"}}
+test expr-5.4 {illegal string operations} {
+    list [catch {expr {!"a"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "!"}}
+test expr-5.5 {illegal string operations} {
+    list [catch {expr {"a"*"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "*"}}
+test expr-5.6 {illegal string operations} {
+    list [catch {expr {"a"/"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "/"}}
+test expr-5.7 {illegal string operations} {
+    list [catch {expr {"a"%"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "%"}}
+test expr-5.8 {illegal string operations} {
+    list [catch {expr {"a"+"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "+"}}
+test expr-5.9 {illegal string operations} {
+    list [catch {expr {"a"-"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "-"}}
+test expr-5.10 {illegal string operations} {
+    list [catch {expr {"a"<<"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "<<"}}
+test expr-5.11 {illegal string operations} {
+    list [catch {expr {"a">>"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of ">>"}}
+test expr-5.12 {illegal string operations} {
+    list [catch {expr {"a"&"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "&"}}
+test expr-5.13 {illegal string operations} {
+    list [catch {expr {"a"^"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "^"}}
+test expr-5.14 {illegal string operations} {
+    list [catch {expr {"a"|"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "|"}}
+test expr-5.15 {illegal string operations} {
+    list [catch {expr {"a"&&"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "&&"}}
+test expr-5.16 {illegal string operations} {
+    list [catch {expr {"a"||"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "||"}}
+test expr-5.17 {illegal string operations} {
+    list [catch {expr {"a"?4:2}} msg] $msg
+} {1 {can't use non-numeric string as operand of "?"}}
+
+# Check precedence pairwise.
+
+test expr-6.1 {precedence checks} {expr -~3} 4
+test expr-6.2 {precedence checks} {expr -!3} 0
+test expr-6.3 {precedence checks} {expr -~0} 1
+
+test expr-7.1 {precedence checks} {expr 2*4/6} 1
+test expr-7.2 {precedence checks} {expr 24/6*3} 12
+test expr-7.3 {precedence checks} {expr 24/6/2} 2
+
+test expr-8.1 {precedence checks} {expr -2+4} 2
+test expr-8.2 {precedence checks} {expr -2-4} -6
+test expr-8.3 {precedence checks} {expr +2-4} -2
+
+test expr-9.1 {precedence checks} {expr 2*3+4} 10
+test expr-9.2 {precedence checks} {expr 8/2+4} 8
+test expr-9.3 {precedence checks} {expr 8%3+4} 6
+test expr-9.4 {precedence checks} {expr 2*3-1} 5
+test expr-9.5 {precedence checks} {expr 8/2-1} 3
+test expr-9.6 {precedence checks} {expr 8%3-1} 1
+
+test expr-10.1 {precedence checks} {expr 6-3-2} 1
+
+test expr-11.1 {precedence checks} {expr 7+1>>2} 2
+test expr-11.2 {precedence checks} {expr 7+1<<2} 32
+test expr-11.3 {precedence checks} {expr 7>>3-2} 3
+test expr-11.4 {precedence checks} {expr 7<<3-2} 14
+
+test expr-12.1 {precedence checks} {expr 6>>1>4} 0
+test expr-12.2 {precedence checks} {expr 6>>1<2} 0
+test expr-12.3 {precedence checks} {expr 6>>1>=3} 1
+test expr-12.4 {precedence checks} {expr 6>>1<=2} 0
+test expr-12.5 {precedence checks} {expr 6<<1>5} 1
+test expr-12.6 {precedence checks} {expr 6<<1<5} 0
+test expr-12.7 {precedence checks} {expr 5<=6<<1} 1
+test expr-12.8 {precedence checks} {expr 5>=6<<1} 0
+
+test expr-13.1 {precedence checks} {expr 2<3<4} 1
+test expr-13.2 {precedence checks} {expr 0<4>2} 0
+test expr-13.3 {precedence checks} {expr 4>2<1} 0
+test expr-13.4 {precedence checks} {expr 4>3>2} 0
+test expr-13.5 {precedence checks} {expr 4>3>=2} 0
+test expr-13.6 {precedence checks} {expr 4>=3>2} 0
+test expr-13.7 {precedence checks} {expr 4>=3>=2} 0
+test expr-13.8 {precedence checks} {expr 0<=4>=2} 0
+test expr-13.9 {precedence checks} {expr 4>=2<=0} 0
+test expr-13.10 {precedence checks} {expr 2<=3<=4} 1
+
+test expr-14.1 {precedence checks} {expr 1==4>3} 1
+test expr-14.2 {precedence checks} {expr 0!=4>3} 1
+test expr-14.3 {precedence checks} {expr 1==3<4} 1
+test expr-14.4 {precedence checks} {expr 0!=3<4} 1
+test expr-14.5 {precedence checks} {expr 1==4>=3} 1
+test expr-14.6 {precedence checks} {expr 0!=4>=3} 1
+test expr-14.7 {precedence checks} {expr 1==3<=4} 1
+test expr-14.8 {precedence checks} {expr 0!=3<=4} 1
+
+test expr-15.1 {precedence checks} {expr 1==3==3} 0
+test expr-15.2 {precedence checks} {expr 3==3!=2} 1
+test expr-15.3 {precedence checks} {expr 2!=3==3} 0
+test expr-15.4 {precedence checks} {expr 2!=1!=1} 0
+
+test expr-16.1 {precedence checks} {expr 2&3==2} 0
+test expr-16.2 {precedence checks} {expr 1&3!=3} 0
+
+test expr-17.1 {precedence checks} {expr 7&3^0x10} 19
+test expr-17.2 {precedence checks} {expr 7^0x10&3} 7
+
+test expr-18.1 {precedence checks} {expr 7^0x10|3} 23
+test expr-18.2 {precedence checks} {expr 7|0x10^3} 23
+
+test expr-19.1 {precedence checks} {expr 7|3&&1} 1
+test expr-19.2 {precedence checks} {expr 1&&3|7} 1
+test expr-19.3 {precedence checks} {expr 0&&1||1} 1
+test expr-19.4 {precedence checks} {expr 1||1&&0} 1
+
+test expr-20.1 {precedence checks} {expr 1||0?3:4} 3
+test expr-20.2 {precedence checks} {expr 1?0:4||1} 0
+test expr-20.3 {precedence checks} {expr 1?2:0?3:4} 2
+test expr-20.4 {precedence checks} {expr 0?2:0?3:4} 4
+test expr-20.5 {precedence checks} {expr 1?2?3:4:0} 3
+test expr-20.6 {precedence checks} {expr 0?2?3:4:0} 0
+
+# Parentheses.
+
+test expr-21.1 {parenthesization} {expr (2+4)*6} 36
+test expr-21.2 {parenthesization} {expr (1?0:4)||1} 1
+test expr-21.3 {parenthesization} {expr +(3-4)} -1
+
+# Embedded commands and variable names.
+
+set a 16
+test expr-22.1 {embedded variables} {expr {2*$a}} 32
+test expr-22.2 {embedded variables} {
+    set x -5
+    set y 10
+    expr {$x + $y}
+} {5}
+test expr-22.3 {embedded variables} {
+    set x "  -5"
+    set y "  +10"
+    expr {$x + $y}
+} {5}
+test expr-22.4 {embedded commands and variables} {expr {[set a] - 14}} 2
+test expr-22.5 {embedded commands and variables} {
+    list [catch {expr {12 - [bad_command_name]}} msg] $msg
+} {1 {invalid command name "bad_command_name"}}
+
+# Double-quotes and things inside them.
+
+test expr-23.1 {double quotes} {expr {"abc"}} abc
+test expr-23.2 {double quotes} {
+    set a 189
+    expr {"$a.bc"}
+} 189.bc
+test expr-23.3 {double quotes} {
+    set b2 xyx
+    expr {"$b2$b2$b2.[set b2].[set b2]"}
+} xyxxyxxyx.xyx.xyx
+test expr-23.4 {double quotes} {expr {"11\}\}22"}} 11}}22
+test expr-23.5 {double quotes} {expr {"\*bc"}} {*bc}
+test expr-23.6 {double quotes} {
+    catch {unset bogus__}
+    list [catch {expr {"$bogus__"}} msg] $msg
+} {1 {can't read "bogus__": no such variable}}
+test expr-23.7 {double quotes} {
+    list [catch {expr {"a[error Testing]bc"}} msg] $msg
+} {1 Testing}
+test expr-23.8 {double quotes} {
+    list [catch {expr {"12398712938788234-1298379" != ""}} msg] $msg
+} {0 1}
+
+# Numbers in various bases.
+
+test expr-24.1 {numbers in different bases} {expr 0x20} 32
+test expr-24.2 {numbers in different bases} {expr 015} 13
+
+# Conversions between various data types.
+
+test expr-25.1 {type conversions} {expr 2+2.5} 4.5
+test expr-25.2 {type conversions} {expr 2.5+2} 4.5
+test expr-25.3 {type conversions} {expr 2-2.5} -0.5
+test expr-25.4 {type conversions} {expr 2/2.5} 0.8
+test expr-25.5 {type conversions} {expr 2>2.5} 0
+test expr-25.6 {type conversions} {expr 2.5>2} 1
+test expr-25.7 {type conversions} {expr 2<2.5} 1
+test expr-25.8 {type conversions} {expr 2>=2.5} 0
+test expr-25.9 {type conversions} {expr 2<=2.5} 1
+test expr-25.10 {type conversions} {expr 2==2.5} 0
+test expr-25.11 {type conversions} {expr 2!=2.5} 1
+test expr-25.12 {type conversions} {expr 2>"ab"} 0
+test expr-25.13 {type conversions} {expr {2>" "}} 1
+test expr-25.14 {type conversions} {expr {"24.1a" > 24.1}} 1
+test expr-25.15 {type conversions} {expr {24.1 > "24.1a"}} 0
+test expr-25.16 {type conversions} {expr 2+2.5} 4.5
+test expr-25.17 {type conversions} {expr 2+2.5} 4.5
+test expr-25.18 {type conversions} {expr 2.0e2} 200.0
+test expr-25.19 {type conversions} {expr 2.0e15} 2e+15
+test expr-25.20 {type conversions} {expr 10.0} 10.0
+
+# Various error conditions.
+
+test expr-26.1 {error conditions} {
+    list [catch {expr 2+"a"} msg] $msg
+} {1 {can't use non-numeric string as operand of "+"}}
+test expr-26.2 {error conditions} {
+    list [catch {expr 2+4*} msg] $msg
+} {1 {syntax error in expression "2+4*"}}
+test expr-26.3 {error conditions} {
+    list [catch {expr 2+4*(} msg] $msg
+} {1 {syntax error in expression "2+4*("}}
+catch {unset _non_existent_}
+test expr-26.4 {error conditions} {
+    list [catch {expr 2+$_non_existent_} msg] $msg
+} {1 {can't read "_non_existent_": no such variable}}
+set a xx
+test expr-26.5 {error conditions} {
+    list [catch {expr {2+$a}} msg] $msg
+} {1 {can't use non-numeric string as operand of "+"}}
+test expr-26.6 {error conditions} {
+    list [catch {expr {2+[set a]}} msg] $msg
+} {1 {can't use non-numeric string as operand of "+"}}
+test expr-26.7 {error conditions} {
+    list [catch {expr {2+(4}} msg] $msg
+} {1 {unmatched parentheses in expression "2+(4"}}
+test expr-26.8 {error conditions} {
+    list [catch {expr 2/0} msg] $msg $errorCode
+} {1 {divide by zero} {ARITH DIVZERO {divide by zero}}}
+test expr-26.9 {error conditions} {
+    list [catch {expr 2%0} msg] $msg $errorCode
+} {1 {divide by zero} {ARITH DIVZERO {divide by zero}}}
+test expr-26.10 {error conditions} {
+    list [catch {expr 2.0/0.0} msg] $msg $errorCode
+} {1 {divide by zero} {ARITH DIVZERO {divide by zero}}}
+test expr-26.11 {error conditions} {
+    list [catch {expr 2#} msg] $msg
+} {1 {syntax error in expression "2#"}}
+test expr-26.12 {error conditions} {
+    list [catch {expr a.b} msg] $msg
+} {1 {syntax error in expression "a.b"}}
+test expr-26.13 {error conditions} {
+    list [catch {expr {"a"/"b"}} msg] $msg
+} {1 {can't use non-numeric string as operand of "/"}}
+test expr-26.14 {error conditions} {
+    list [catch {expr 2:3} msg] $msg
+} {1 {can't have : operator without ? first}}
+test expr-26.15 {error conditions} {
+    list [catch {expr a@b} msg] $msg
+} {1 {syntax error in expression "a@b"}}
+test expr-26.16 {error conditions} {
+    list [catch {expr a[b} msg] $msg
+} {1 {missing close-bracket}}
+test expr-26.17 {error conditions} {
+    list [catch {expr a`b} msg] $msg
+} {1 {syntax error in expression "a`b"}}
+test expr-26.18 {error conditions} {
+    list [catch {expr \"a\"\{b} msg] $msg
+} {1 {missing close-brace}}
+test expr-26.19 {error conditions} {
+    list [catch {expr a} msg] $msg
+} {1 {syntax error in expression "a"}}
+test expr-26.20 {error conditions} {
+    list [catch expr msg] $msg
+} {1 {wrong # args: should be "expr arg ?arg ...?"}}
+
+# Cancelled evaluation.
+
+test expr-27.1 {cancelled evaluation} {
+    set a 1
+    expr {0&&[set a 2]}
+    set a
+} 1
+test expr-27.2 {cancelled evaluation} {
+    set a 1
+    expr {1||[set a 2]}
+    set a
+} 1
+test expr-27.3 {cancelled evaluation} {
+    set a 1
+    expr {0?[set a 2]:1}
+    set a
+} 1
+test expr-27.4 {cancelled evaluation} {
+    set a 1
+    expr {1?2:[set a 2]}
+    set a
+} 1
+catch {unset x}
+test expr-27.5 {cancelled evaluation} {
+    list [catch {expr {[info exists x] && $x}} msg] $msg
+} {0 0}
+test expr-27.6 {cancelled evaluation} {
+    list [catch {expr {0 && [concat $x]}} msg] $msg
+} {0 0}
+test expr-27.7 {cancelled evaluation} {
+    set one 1
+    list [catch {expr {1 || 1/$one}} msg] $msg
+} {0 1}
+test expr-27.8 {cancelled evaluation} {
+    list [catch {expr {1 || -"string"}} msg] $msg
+} {0 1}
+test expr-27.9 {cancelled evaluation} {
+    list [catch {expr {1 || ("string" * ("x" && "y"))}} msg] $msg
+} {0 1}
+test expr-27.10 {cancelled evaluation} {
+    set x -1.0
+    list [catch {expr {($x > 0) ? round(log($x)) : 0}} msg] $msg
+} {0 0}
+
+# Tcl_ExprBool as used in "if" statements
+
+test expr-28.1 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {2} {set a 2}
+    set a
+} 2
+test expr-28.2 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {0} {set a 2}
+    set a
+} 1
+test expr-28.3 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {1.2} {set a 2}
+    set a
+} 2
+test expr-28.4 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {-1.1} {set a 2}
+    set a
+} 2
+test expr-28.5 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {0.0} {set a 2}
+    set a
+} 1
+test expr-28.6 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {"YES"} {set a 2}
+    set a
+} 2
+test expr-28.7 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {"no"} {set a 2}
+    set a
+} 1
+test expr-28.8 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {"true"} {set a 2}
+    set a
+} 2
+test expr-28.9 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {"fAlse"} {set a 2}
+    set a
+} 1
+test expr-28.10 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {"on"} {set a 2}
+    set a
+} 2
+test expr-28.11 {Tcl_ExprBoolean usage} {
+    set a 1
+    if {"Off"} {set a 2}
+    set a
+} 1
+test expr-28.12 {Tcl_ExprBool usage} {
+    list [catch {if {"abc"} {}} msg] $msg
+} {1 {expected boolean value but got "abc"}}
+test expr-28.13 {Tcl_ExprBool usage} {
+    list [catch {if {"ogle"} {}} msg] $msg
+} {1 {expected boolean value but got "ogle"}}
+test expr-28.14 {Tcl_ExprBool usage} {
+    list [catch {if {"o"} {}} msg] $msg
+} {1 {expected boolean value but got "o"}}
+
+# Operands enclosed in braces
+
+test expr-29.1 {braces} {expr {{abc}}} abc
+test expr-29.2 {braces} {expr {{00010}}} 8
+test expr-29.3 {braces} {expr {{3.1200000}}} 3.12
+test expr-29.4 {braces} {expr {{a{b}{1 {2 3}}c}}} "a{b}{1 {2 3}}c"
+test expr-29.5 {braces} {
+    list [catch {expr "\{abc"} msg] $msg
+} {1 {missing close-brace}}
+
+# Very long values
+
+test expr-30.1 {long values} {
+    set a "0000 1111 2222 3333 4444"
+    set a "$a | $a | $a | $a | $a"
+    set a "$a || $a || $a || $a || $a"
+    expr {$a}
+} {0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 || 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 || 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 || 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 || 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444 | 0000 1111 2222 3333 4444}
+test expr-30.2 {long values} {
+    set a "000000000000000000000000000000"
+    set a "$a$a$a$a$a$a$a$a$a$a$a$a$a$a$a$a${a}5"
+    expr $a
+} 5
+
+# Expressions spanning multiple arguments
+
+test expr-31.1 {multiple arguments to expr command} {
+    expr 4 + ( 6 *12) -3
+} 73
+test expr-31.2 {multiple arguments to expr command} {
+    list [catch {expr 2 + (3 + 4} msg] $msg
+} {1 {unmatched parentheses in expression "2 + (3 + 4"}}
+test expr-31.3 {multiple arguments to expr command} {
+    list [catch {expr 2 + 3 +} msg] $msg
+} {1 {syntax error in expression "2 + 3 +"}}
+test expr-31.4 {multiple arguments to expr command} {
+    list [catch {expr 2 + 3 )} msg] $msg
+} {1 {syntax error in expression "2 + 3 )"}}
+
+# Math functions
+
+test expr-32.1 {math functions in expressions} {
+    expr acos(0.5)
+} {1.0472}
+test expr-32.2 {math functions in expressions} {
+    expr asin(0.5)
+} {0.523599}
+test expr-32.3 {math functions in expressions} {
+    expr atan(1.0)
+} {0.785398}
+test expr-32.4 {math functions in expressions} {
+    expr atan2(2.0, 2.0)
+} {0.785398}
+test expr-32.5 {math functions in expressions} {
+    expr ceil(1.999)
+} {2.0}
+test expr-32.6 {math functions in expressions} {
+    expr cos(.1)
+} {0.995004}
+test expr-32.7 {math functions in expressions} {
+    expr cosh(.1)
+} {1.005}
+test expr-32.8 {math functions in expressions} {
+    expr exp(1.0)
+} {2.71828}
+test expr-32.9 {math functions in expressions} {
+    expr floor(2.000)
+} {2.0}
+test expr-32.10 {math functions in expressions} {
+    expr floor(2.001)
+} {2.0}
+test expr-32.11 {math functions in expressions} {
+    expr fmod(7.3, 3.2)
+} {0.9}
+test expr-32.12 {math functions in expressions} {
+    expr hypot(3.0, 4.0)
+} {5.0}
+test expr-32.13 {math functions in expressions} {
+    expr log(2.8)
+} {1.02962}
+test expr-32.14 {math functions in expressions} {
+    expr log10(2.8)
+} {0.447158}
+test expr-32.15 {math functions in expressions} {
+    expr pow(2.1, 3.1)
+} {9.97424}
+test expr-32.16 {math functions in expressions} {
+    expr sin(.1)
+} {0.0998334}
+test expr-32.17 {math functions in expressions} {
+    expr sinh(.1)
+} {0.100167}
+test expr-32.18 {math functions in expressions} {
+    expr sqrt(2.0)
+} {1.41421}
+test expr-32.19 {math functions in expressions} {
+    expr tan(0.8)
+} {1.02964}
+test expr-32.20 {math functions in expressions} {
+    expr tanh(0.8)
+} {0.664037}
+test expr-32.21 {math functions in expressions} {
+    expr abs(-1.8)
+} {1.8}
+test expr-32.22 {math functions in expressions} {
+    expr abs(10.0)
+} {10.0}
+test expr-32.23 {math functions in expressions} {
+    expr abs(-4)
+} {4}
+test expr-32.24 {math functions in expressions} {
+    expr abs(66)
+} {66}
+test expr-32.25 {math functions in expressions} {nonPortable} {
+    list [catch {expr abs(0x80000000)} msg] $msg
+} {1 {integer value too large to represent}}
+test expr-32.26 {math functions in expressions} {
+    expr double(1)
+} {1.0}
+test expr-32.27 {math functions in expressions} {
+    expr double(1.1)
+} {1.1}
+test expr-32.28 {math functions in expressions} {
+    expr int(1)
+} {1}
+test expr-32.29 {math functions in expressions} {
+    expr int(1.4)
+} {1}
+test expr-32.30 {math functions in expressions} {
+    expr int(1.6)
+} {1}
+test expr-32.31 {math functions in expressions} {
+    expr int(-1.4)
+} {-1}
+test expr-32.32 {math functions in expressions} {
+    expr int(-1.6)
+} {-1}
+test expr-32.33 {math functions in expressions} {
+    list [catch {expr int(1e60)} msg] $msg
+} {1 {integer value too large to represent}}
+test expr-32.34 {math functions in expressions} {
+    list [catch {expr int(-1e60)} msg] $msg
+} {1 {integer value too large to represent}}
+test expr-32.35 {math functions in expressions} {
+    expr round(1.49)
+} {1}
+test expr-32.36 {math functions in expressions} {
+    expr round(1.51)
+} {2}
+test expr-32.37 {math functions in expressions} {
+    expr round(-1.49)
+} {-1}
+test expr-32.38 {math functions in expressions} {
+    expr round(-1.51)
+} {-2}
+test expr-32.39 {math functions in expressions} {
+    list [catch {expr round(1e60)} msg] $msg
+} {1 {integer value too large to represent}}
+test expr-32.40 {math functions in expressions} {
+    list [catch {expr round(-1e60)} msg] $msg
+} {1 {integer value too large to represent}}
+test expr-32.41 {math functions in expressions} {
+    list [catch {expr pow(1.0 + 3.0 - 2, .8 * 5)} msg] $msg
+} {0 16.0}
+test expr-32.42 {math functions in expressions} {
+    list [catch {expr hypot(5*.8,3)} msg] $msg
+} {0 5.0}
+if $gotT1 {
+    test expr-32.43 {math functions in expressions} {
+	expr 2*T1()
+    } 246
+    test expr-32.44 {math functions in expressions} {
+	expr T2()*3
+    } 1035
+}
+
+test expr-33.1 {conversions and fancy args to math functions} {
+    expr hypot ( 3 , 4 )
+} 5.0
+test expr-33.2 {conversions and fancy args to math functions} {
+    expr hypot ( (2.0+1.0) , 4 )
+} 5.0
+test expr-33.3 {conversions and fancy args to math functions} {
+    expr hypot ( 3 , (3.0 + 1.0) )
+} 5.0
+test expr-33.4 {conversions and fancy args to math functions} {
+    expr cos(acos(0.1))
+} 0.1
+
+test expr-34.1 {errors in math functions} {
+    list [catch {expr func_2(1.0)} msg] $msg
+} {1 {unknown math function "func_2"}}
+test expr-34.2 {errors in math functions} {
+    list [catch {expr func|(1.0)} msg] $msg
+} {1 {syntax error in expression "func|(1.0)"}}
+test expr-34.3 {errors in math functions} {
+    list [catch {expr {hypot("a b", 2.0)}} msg] $msg
+} {1 {argument to math function didn't have numeric value}}
+test expr-34.4 {errors in math functions} {
+    list [catch {expr hypot(1.0 2.0)} msg] $msg
+} {1 {syntax error in expression "hypot(1.0 2.0)"}}
+test expr-34.5 {errors in math functions} {
+    list [catch {expr hypot(1.0, 2.0} msg] $msg
+} {1 {syntax error in expression "hypot(1.0, 2.0"}}
+test expr-34.6 {errors in math functions} {
+    list [catch {expr hypot(1.0 ,} msg] $msg
+} {1 {syntax error in expression "hypot(1.0 ,"}}
+test expr-34.7 {errors in math functions} {
+    list [catch {expr hypot(1.0)} msg] $msg
+} {1 {too few arguments for math function}}
+test expr-34.8 {errors in math functions} {
+    list [catch {expr hypot(1.0, 2.0, 3.0)} msg] $msg
+} {1 {too many arguments for math function}}
+test expr-34.9 {errors in math functions} {
+    list [catch {expr acos(-2.0)} msg] $msg $errorCode
+} {1 {domain error: argument not in valid range} {ARITH DOMAIN {domain error: argument not in valid range}}}
+test expr-34.10 {errors in math functions} {nonPortable} {
+    list [catch {expr pow(-3, 1000001)} msg] $msg $errorCode
+} {1 {floating-point value too large to represent} {ARITH OVERFLOW {floating-point value too large to represent}}}
+test expr-34.11 {errors in math functions} {
+    list [catch {expr pow(3, 1000001)} msg] $msg $errorCode
+} {1 {floating-point value too large to represent} {ARITH OVERFLOW {floating-point value too large to represent}}}
+test expr-34.12 {errors in math functions} {
+    list [catch {expr -14.0*exp(100000)} msg] $msg $errorCode
+} {1 {floating-point value too large to represent} {ARITH OVERFLOW {floating-point value too large to represent}}}
+test expr-34.13 {errors in math functions} {
+    list [catch {expr int(1.0e30)} msg] $msg $errorCode
+} {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+test expr-34.14 {errors in math functions} {
+    list [catch {expr int(-1.0e30)} msg] $msg $errorCode
+} {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+test expr-34.15 {errors in math functions} {
+    list [catch {expr round(1.0e30)} msg] $msg $errorCode
+} {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+test expr-34.16 {errors in math functions} {
+    list [catch {expr round(-1.0e30)} msg] $msg $errorCode
+} {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+if $gotT1 {
+    test expr-34.17 {errors in math functions} {
+	list [catch {expr T1(4)} msg] $msg
+    } {1 {syntax error in expression "T1(4)"}}
+}
+
+catch {unset tcl_precision}
+test expr-35.1 {tcl_precision variable} {
+    expr 2.0/3
+} 0.666667
+set tcl_precision 1
+test expr-35.2 {tcl_precision variable} {
+    expr 2.0/3
+} 0.7
+test expr-35.3 {tcl_precision variable} {
+    expr 2.0/3
+} 0.7
+test expr-35.4 {tcl_precision variable} {
+    list [catch {set tcl_precision 0} msg] $msg [expr 2.0/3]
+} {1 {can't set "tcl_precision": improper value for precision} 0.7}
+test expr-35.5 {tcl_precision variable} {
+    list [catch {set tcl_precision 101} msg] $msg [expr 2.0/3]
+} {1 {can't set "tcl_precision": improper value for precision} 0.7}
+test expr-35.6 {tcl_precision variable} {
+    list [catch {set tcl_precision {}} msg] $msg [expr 2.0/3]
+} {1 {can't set "tcl_precision": improper value for precision} 0.7}
+test expr-35.7 {tcl_precision variable} {
+    list [catch {set tcl_precision {1 2 3}} msg] $msg [expr 2.0/3]
+} {1 {can't set "tcl_precision": improper value for precision} 0.7}
+catch {unset tcl_precision}
+test expr-35.8 {tcl_precision variable} {
+    expr 2.0/3
+} 0.666667
+
+test expr-36.1 {ExprLooksLikeInt procedure} {
+    list [catch {expr 0289} msg] $msg
+} {1 {syntax error in expression "0289"}}
+test expr-36.2 {ExprLooksLikeInt procedure} {
+    set x 0289
+    list [catch {expr {$x+1}} msg] $msg
+} {1 {can't use non-numeric string as operand of "+"}}
+test expr-36.3 {ExprLooksLikeInt procedure} {
+    list [catch {expr 0289.1} msg] $msg
+} {0 289.1}
+test expr-36.4 {ExprLooksLikeInt procedure} {
+    set x 0289.1
+    list [catch {expr {$x+1}} msg] $msg
+} {0 290.1}
+test expr-36.5 {ExprLooksLikeInt procedure} {
+    set x {  +22}
+    list [catch {expr {$x+1}} msg] $msg
+} {0 23}
+test expr-36.6 {ExprLooksLikeInt procedure} {
+    set x {	-22}
+    list [catch {expr {$x+1}} msg] $msg
+} {0 -21}
+test expr-36.7 {ExprLooksLikeInt procedure} {nonPortable unixOnly} {
+    list [catch {expr nan} msg] $msg
+} {1 {domain error: argument not in valid range}}
+test expr-36.8 {ExprLooksLikeInt procedure} {
+    list [catch {expr 78e1} msg] $msg
+} {0 780.0}
+test expr-36.9 {ExprLooksLikeInt procedure} {
+    list [catch {expr 24E1} msg] $msg
+} {0 240.0}
+test expr-36.10 {ExprLooksLikeInt procedure} {nonPortable unixOnly} {
+    list [catch {expr 78e} msg] $msg
+} {1 {syntax error in expression "78e"}}
+
+
+# Special test for Pentium arithmetic bug of 1994:
+
+if {(4195835.0 - (4195835.0/3145727.0)*3145727.0) == 256.0} {
+    puts "Warning: this machine contains a defective Pentium processor"
+    puts "that performs arithmetic incorrectly.  I recommend that you"
+    puts "call Intel customer service immediately at 1-800-628-8686"
+    puts "to request a replacement processor."
+}
