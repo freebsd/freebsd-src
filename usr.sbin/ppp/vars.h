@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: vars.h,v 1.10 1997/02/22 16:11:02 peter Exp $
  *
  *	TODO:
  */
@@ -63,6 +63,7 @@ struct pppvars {
   int	 lqr_timeout;		/* LQR timeout value */
   int    retry_timeout;		/* Retry timeout value */
   int    redial_timeout;	/* Redial timeout value */
+  int    redial_next_timeout;	/* Redial next timeout value */
   int    dial_tries;		/* Dial attempts before giving up, 0 == forever */
   char   modem_dev[20];		/* Name of device */
   int	 open_mode;		/* LCP open mode */
@@ -101,6 +102,7 @@ struct pppvars {
 #define VarNextPhone    pppVars.next_phone
 #define	VarShortHost	pppVars.shostname
 #define VarRedialTimeout pppVars.redial_timeout
+#define VarRedialNextTimeout pppVars.redial_next_timeout
 #define VarDialTries	pppVars.dial_tries
 
 #define	DEV_IS_SYNC	(VarSpeed == 0)

@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.27 1997/04/12 22:58:41 brian Exp $
+.\" $Id: ppp.8,v 1.28 1997/04/13 00:54:45 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -402,11 +402,19 @@ If the connect fails, the default behavior is to wait 30 seconds
 and then attempt to connect when another outgoing packet is detected.
 This behavior can be changed with
 .Bd -literal -offset indent
-set redial seconds|random [dial_attempts]
+set redial seconds|random[.nseconds|random] [dial_attempts]
 .Ed
 .Pp
-Seconds is the number of seconds to wait before attempting
+.Sq Seconds
+is the number of seconds to wait before attempting
 to connect again. If the argument is
+.Sq random ,
+the delay period is a random value between 0 and 30 seconds.
+.Sq Nseconds
+is the number of seconds to wait before attempting
+to dial the next number in a list of numbers (see the
+.Dq set phone
+command).  The default is 3 seconds.  Again, if the argument is
 .Sq random ,
 the delay period is a random value between 0 and 30 seconds.
 .Sq dial_attempts
@@ -417,13 +425,14 @@ is omitted.  If a value of zero is specified for
 .Nm ppp
 will keep trying until a connection is made.
 .Bd -literal -offset indent
-set redial 10 4
+set redial 10.3 4
 .Ed
 .Pp
 will attempt to connect 4 times for each outgoing packet that is
-detected with a 10 second delay between each attempt.  If multiple
-phone numbers are specified, the total number of attempts is still
-4 (it does not attempt each number 4 times).
+detected with a 3 second delay between each number and a 10 second
+delay after all numbers have been tried.  If multiple phone numbers
+are specified, the total number of attempts is still 4 (it does not
+attempt each number 4 times).
 
 Modifying the dial delay is very useful when running
 .Nm
@@ -432,12 +441,13 @@ dial mode on both ends of the link. If each end has the same timeout,
 both ends wind up calling each other at the same time if the link
 drops and both ends have packets queued.
 
-The 
-.Dq set redial
-command is ineffective if the
+If the
 .Fl background
-flag is specified.  For background mode, all phone numbers are dialed
-at most once until a connection is made.
+flag is specified, all phone numbers are dialed at most once until
+a connection is made.  The next number redial period specified with
+the
+.Dq set redial
+command is honoured.
 
 To terminate the program, type
 
@@ -793,9 +803,8 @@ set phone "1234567:2345678"
 .Ed
 .Pp
 Here, the first number is attempted.  If the connection fails, the second
-number is attempted immediately.  The redial timeout is ignored (although
-the value of dial_attempts is not - see above).  If the second number
-also fails, the first is tried again after the redial timeout has expired.
+number is attempted after the next number redial period.  If the second number
+also fails, the first is tried again after the redial period has expired.
 The selected phone number is substituted for the \\T string in the
 .Dq set dial
 command (see below).
