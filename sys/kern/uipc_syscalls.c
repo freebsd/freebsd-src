@@ -1608,7 +1608,7 @@ getsockaddr(namp, uaddr, len)
 	if (len > SOCK_MAXADDRLEN)
 		return (ENAMETOOLONG);
 	if (len < offsetof(struct sockaddr, sa_data[0]))
-		return EINVAL;
+		return (EINVAL);
 	MALLOC(sa, struct sockaddr *, len, M_SONAME, M_WAITOK);
 	error = copyin(uaddr, sa, len);
 	if (error) {
