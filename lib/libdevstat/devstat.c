@@ -246,60 +246,45 @@ devstat_getversion(kvm_t *kd)
 int
 devstat_checkversion(kvm_t *kd)
 {
-	int retval = 0;
-	int errlen = 0;
 	char *func_name = "devstat_checkversion";
-	int version;
+	int buflen, res, retval = 0, version;
 
 	version = devstat_getversion(kd);
 
 	if (version != DEVSTAT_VERSION) {
-		int buflen = 0;
-		char tmpstr[256];
-
 		/*
-		 * This is really pretty silly, but basically the idea is
-		 * that if getversion() returns an error (i.e. -1), then it
+		 * If getversion() returns an error (i.e. -1), then it
 		 * has printed an error message in the buffer.  Therefore,
 		 * we need to add a \n to the end of that message before we
 		 * print our own message in the buffer.
 		 */
-		if (version == -1) {
+		if (version == -1)
 			buflen = strlen(devstat_errbuf);
-			errlen = snprintf(tmpstr, sizeof(tmpstr), "\n");
-			strncat(devstat_errbuf, tmpstr,
-				DEVSTAT_ERRBUF_SIZE - buflen - 1);
-			if (errlen > 0)
-				buflen += errlen;
-		}
+		else
+			buflen = 0;
 
-		errlen = snprintf(tmpstr, sizeof(tmpstr),
-				  "%s: userland devstat version %d is not "
-				  "the same as the kernel\n%s: devstat "
-				  "version %d\n", func_name, DEVSTAT_VERSION,
-				  func_name, version);
+		res = snprintf(devstat_errbuf + buflen,
+		    DEVSTAT_ERRBUF_SIZE - buflen,
+		    "%s%s: userland devstat version %d is not "
+		    "the same as the kernel\n%s: devstat version %d\n",
+		    version == -1 ? "\n" : "", func_name, DEVSTAT_VERSION,
+		    func_name, version);
 
-		if (version == -1) {
-			strncat(devstat_errbuf, tmpstr,
-				DEVSTAT_ERRBUF_SIZE - buflen - 1);
-			if (errlen > 0)
-				buflen += errlen;
-		} else {
-			strncpy(devstat_errbuf, tmpstr, DEVSTAT_ERRBUF_SIZE);
-			devstat_errbuf[DEVSTAT_ERRBUF_SIZE - 1] = '\0';
-		}
+		if (res < 0)
+			devstat_errbuf[buflen] = '\0';
 
+		buflen = strlen(devstat_errbuf);
                 if (version < DEVSTAT_VERSION)
-			snprintf(tmpstr, sizeof(tmpstr),
-				 "%s: libdevstat newer than kernel\n",
-				 func_name);
+			res = snprintf(devstat_errbuf + buflen,
+			    DEVSTAT_ERRBUF_SIZE - buflen,
+			    "%s: libdevstat newer than kernel\n", func_name);
                 else
-			snprintf(tmpstr, sizeof(tmpstr),
-				 "%s: kernel newer than libdevstat\n",
-				 func_name);
+			res = snprintf(devstat_errbuf + buflen,
+			    DEVSTAT_ERRBUF_SIZE - buflen,
+			    "%s: kernel newer than libdevstat\n", func_name);
 
-		strncat(devstat_errbuf, tmpstr,
-			DEVSTAT_ERRBUF_SIZE - buflen - 1);
+		if (res < 0)
+			devstat_errbuf[buflen] = '\0';
 
 		retval = -1;
 	}
