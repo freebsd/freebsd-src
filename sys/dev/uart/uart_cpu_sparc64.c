@@ -238,9 +238,3 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	    (par == 'o') ? UART_PARITY_ODD : UART_PARITY_EVEN;
 	return (0);
 }
-
-void
-uart_cpu_identify(driver_t *driver, device_t parent)
-{
-
-}
