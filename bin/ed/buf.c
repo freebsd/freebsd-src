@@ -193,7 +193,7 @@ char sfn[15] = "";				/* scratch file name */
 int
 open_sbuf(void)
 {
-	int fd = -1;
+	int fd;
 	int u;
 
 	isbinary = newline_added = 0;
