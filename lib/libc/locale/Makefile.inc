@@ -12,8 +12,8 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
 	tolower.c toupper.c utf2.c utf8.c wcrtomb.c wcsrtombs.c wcsftime.c \
-	wcstod.c \
-	wcstoimax.c wcstol.c wcstoll.c \
+	wcstof.c wcstod.c \
+	wcstoimax.c wcstol.c wcstold.c wcstoll.c \
 	wcstombs.c \
 	wcstoul.c wcstoull.c wcstoumax.c wctob.c wctomb.c wctrans.c wctype.c \
 	wcwidth.c
@@ -50,6 +50,7 @@ MLINKS+=rune.3 fgetrune.3 rune.3 fputrune.3 rune.3 fungetrune.3 \
 	rune.3 setinvalidrune.3 rune.3 setrunelocale.3 rune.3 sgetrune.3 \
 	rune.3 sputrune.3
 MLINKS+=setlocale.3 localeconv.3
+MLINKS+=wcstod.3 wcstof.3 wcstod.3 wcstold.3
 MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \
 	wcstol.3 wcstoimax.3 wcstol.3 wcstoumax.3
 MLINKS+=wctrans.3 towctrans.3

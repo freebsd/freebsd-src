@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Tim J. Robbins
+.\" Copyright (c) 2002, 2003 Tim J. Robbins
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,31 +24,47 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2002
+.Dd February 22, 2003
 .Dt WCSTOD 3
 .Os
 .Sh NAME
-.Nm wcstod
-.Nd "convert string to double"
+.Nm wcstof ,
+.Nm wcstod ,
+.Nm wcstold
+.Nd "convert string to float, double or long double"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In wchar.h
+.Ft float
+.Fn wcstof "const wchar_t * restrict nptr" "wchar_t ** restrict endptr"
+.Ft long double
+.Fn wcstold "const wchar_t * restrict nptr" "wchar_t ** restrict endptr"
 .Ft double
 .Fn wcstod "const wchar_t * restrict nptr" "wchar_t ** restrict endptr"
 .Sh DESCRIPTION
 The
+.Fn wcstof ,
 .Fn wcstod
-function is the wide-character version of the
+and
+.Fn wcstold
+functions are the wide-character versions of the
+.Fn strtof ,
 .Fn strtod
-function.
+and
+.Fn strtold
+functios.
 Refer to
 .Xr strtod 3
 for details.
 .Sh SEE ALSO
-.Xr strtod 3
+.Xr strtod 3 ,
+.Xr wcstol 3 ,
 .Sh STANDARDS
 The
+.Fn wcstof ,
 .Fn wcstod
-function conforms to
+and
+.Fn wcstold
+functions conform to
 .St -isoC-99 .
