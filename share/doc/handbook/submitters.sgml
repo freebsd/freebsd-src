@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.44 1997/04/10 05:20:19 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.45 1997/04/11 04:32:44 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -519,7 +519,8 @@ like to publically thank them here!
 
 	<item><url url="mailto:ulf@Alameda.net" name="Ulf Zimmermann">
 	of <url url="http://www.Alameda.net" name="Alameda Networks">
-	donated <bf>128MB of memory</bf> and a <bf>4 Gb disk drive</bf>.
+	donated <bf>128MB of memory</bf>, a <bf>4 Gb disk drive
+	and the case.</bf>
    </itemize>
 
 <item><bf>Direct funding:</bf>
