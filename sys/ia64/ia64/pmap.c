@@ -104,6 +104,7 @@
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -229,8 +230,8 @@ static u_int64_t pmap_ptc_e_stride2 = 0x100000000;
 /*
  * Data for the RID allocator
  */
-static int pmap_nextrid;
-static int pmap_ridbits = 18;
+static u_int64_t *pmap_ridbusy;
+static int pmap_ridmax, pmap_ridcount;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -251,6 +252,21 @@ static vm_zone_t ptezone;
 static struct vm_zone ptezone_store;
 static struct vm_object ptezone_obj;
 static struct ia64_lpte *pteinit;
+
+/*
+ * VHPT instrumentation.
+ */
+static int pmap_vhpt_inserts;
+static int pmap_vhpt_collisions;
+static int pmap_vhpt_resident;
+SYSCTL_DECL(_vm_stats);
+SYSCTL_NODE(_vm_stats, OID_AUTO, vhpt, CTLFLAG_RD, 0, "");
+SYSCTL_INT(_vm_stats_vhpt, OID_AUTO, inserts, CTLFLAG_RD,
+	   &pmap_vhpt_inserts, 0, "");
+SYSCTL_INT(_vm_stats_vhpt, OID_AUTO, collisions, CTLFLAG_RD,
+	   &pmap_vhpt_collisions, 0, "");
+SYSCTL_INT(_vm_stats_vhpt, OID_AUTO, resident, CTLFLAG_RD,
+	   &pmap_vhpt_resident, 0, "");
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
@@ -296,7 +312,8 @@ pmap_steal_memory(vm_size_t size)
 void
 pmap_bootstrap()
 {
-	int i;
+	int i, j, count, ridbits;
+	vm_offset_t vhpt_size, vhpt_base;
 	struct ia64_pal_result res;
 
 	/*
@@ -321,11 +338,25 @@ pmap_bootstrap()
 		       pmap_ptc_e_stride2);
 
 	/*
-	 * Setup RIDs. We use the bits above pmap_ridbits for a
-	 * generation counter, saving generation zero for
-	 * 'invalid'. RIDs 0..7 are reserved for the kernel.
+	 * Setup RIDs. RIDs 0..7 are reserved for the kernel.
 	 */
-	pmap_nextrid = (1 << pmap_ridbits) + 8;
+	res = ia64_call_pal_static(PAL_VM_SUMMARY, 0, 0, 0);
+	if (res.pal_status != 0) {
+		if (bootverbose)
+			printf("Can't read VM Summary - assuming 18 Region ID bits\n");
+		ridbits = 18; /* guaranteed minimum */
+	} else {
+		ridbits = (res.pal_result[1] >> 8) & 0xff;
+		if (bootverbose)
+			printf("Processor supports %d Region ID bits\n",
+			       ridbits);
+	}
+	pmap_ridmax = (1 << ridbits);
+	pmap_ridcount = 8;
+	pmap_ridbusy = (u_int64_t *)
+		pmap_steal_memory(pmap_ridmax / 8);
+	bzero(pmap_ridbusy, pmap_ridmax / 8);
+	pmap_ridbusy[0] |= 0xff;
 
 	/*
 	 * Allocate some memory for initial kernel 'page tables'.
@@ -339,6 +370,72 @@ pmap_bootstrap()
 	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i+2]; i+= 2) ;
 	avail_end = phys_avail[i+1];
+	count = i+2;
+
+	/*
+	 * Figure out a useful size for the VHPT, based on the size of
+	 * physical memory and try to locate a region which is large
+	 * enough to contain the VHPT (which must be a power of two in
+	 * size and aligned to a natural boundary).
+	 */
+	vhpt_size = 15;
+	while ((1<<vhpt_size) < ia64_btop(avail_end - avail_start) * 32)
+		vhpt_size++;
+
+	vhpt_base = 0;
+	while (!vhpt_base) {
+		vm_offset_t mask;
+		if (bootverbose)
+			printf("Trying VHPT size 0x%lx\n", (1L<<vhpt_size));
+		mask = (1L << vhpt_size) - 1;
+		for (i = 0; i < count; i += 2) {
+			vm_offset_t base, limit;
+			base = (phys_avail[i] + mask) & ~mask;
+			limit = base + (1L << vhpt_size);
+			if (limit <= phys_avail[i+1])
+				/*
+				 * VHPT can fit in this region
+				 */
+				break;
+		}
+		if (!phys_avail[i]) {
+			/*
+			 * Can't fit, try next smaller size.
+			 */
+			vhpt_size--;
+		} else {
+			vhpt_base = (phys_avail[i] + mask) & ~mask;
+		}
+	}
+	if (vhpt_size < 15)
+		panic("Can't find space for VHPT");
+
+	if (bootverbose)
+		printf("Putting VHPT at %p\n", (void *) vhpt_base);
+	if (vhpt_base != phys_avail[i]) {
+		/*
+		 * Split this region.
+		 */
+		if (bootverbose)
+			printf("Splitting [%p-%p]\n",
+			       (void *) phys_avail[i],
+			       (void *) phys_avail[i+1]);
+		for (j = count; j > i; j -= 2) {
+			phys_avail[j] = phys_avail[j-2];
+			phys_avail[j+1] = phys_avail[j-2+1];
+		}
+		phys_avail[count+2] = 0;
+		phys_avail[count+3] = 0;
+		phys_avail[i+1] = vhpt_base;
+		phys_avail[i+2] = vhpt_base + (1L << vhpt_size);
+	} else {
+		phys_avail[i] = vhpt_base + (1L << vhpt_size);
+	}
+
+	vhpt_base = IA64_PHYS_TO_RR7(vhpt_base);
+	bzero((void *) vhpt_base, (1L << vhpt_size));
+	__asm __volatile("mov cr.pta=%0;; srlz.i;;"
+			 :: "r" (vhpt_base + (1<<8) + (vhpt_size<<2) + 1));
 
 	virtual_avail = IA64_RR_BASE(5);
 	virtual_end = IA64_RR_BASE(6)-1;
@@ -354,7 +451,8 @@ pmap_bootstrap()
 	 * the boot sequence (XXX and which no longer exists).
 	 */
 	kernel_pmap = &kernel_pmap_store;
-	kernel_pmap->pm_rid = 0;
+	for (i = 0; i < 5; i++)
+		kernel_pmap->pm_rid[i] = 0;
 	kernel_pmap->pm_count = 1;
 	kernel_pmap->pm_active = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
@@ -407,8 +505,7 @@ pmap_bootstrap()
  *	way, discontiguous physical memory.
  */
 void
-pmap_init(phys_start, phys_end)
-	vm_offset_t phys_start, phys_end;
+pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 {
 	int i;
 	int initial_pvs;
@@ -478,17 +575,6 @@ pmap_init2()
  ***************************************************/
 
 static void
-pmap_invalidate_rid(pmap_t pmap)
-{
-	KASSERT(pmap != kernel_pmap,
-		("changing kernel_pmap's RID"));
-	KASSERT(pmap == PCPU_GET(current_pmap),
-		("invalidating RID of non-current pmap"));
-	pmap_remove_pages(pmap, IA64_RR_BASE(0), IA64_RR_BASE(5));
-	pmap->pm_rid = 0;
-}
-
-static void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
@@ -518,29 +604,43 @@ pmap_invalidate_all(pmap_t pmap)
 	critical_exit(psr);
 }
 
-static void
-pmap_get_rid(pmap_t pmap)
+static u_int32_t
+pmap_allocate_rid(void)
 {
-	if ((pmap_nextrid & ((1 << pmap_ridbits) - 1)) == 0) {
-		/*
-		 * Start a new ASN generation.
-		 *
-		 * Invalidate all per-process mappings and I-cache
-		 */
-		pmap_nextrid += 8;
+	int rid;
 
-		/*
-		 * Since we are about to start re-using ASNs, we must
-		 * clear out the TLB.
-		 * with the ASN.
-		 */
-#if 0
-		IA64_TBIAP();
-		ia64_pal_imb();	/* XXX overkill? */
-#endif
-	}
-	pmap->pm_rid = pmap_nextrid;
-	pmap_nextrid += 8;
+	if (pmap_ridcount == pmap_ridmax)
+		panic("pmap_allocate_rid: All Region IDs used");
+
+	do {
+		rid = arc4random() & (pmap_ridmax - 1);
+	} while (pmap_ridbusy[rid / 64] & (1L << (rid & 63)));
+	pmap_ridbusy[rid / 64] |= (1L << (rid & 63));
+	pmap_ridcount++;
+
+	return rid;
+}
+
+static void
+pmap_free_rid(u_int32_t rid)
+{
+	pmap_ridbusy[rid / 64] &= ~(1L << (rid & 63));
+	pmap_ridcount--;
+}
+
+static void
+pmap_ensure_rid(pmap_t pmap, vm_offset_t va)
+{
+	int rr;
+
+	rr = va >> 61;
+	if (pmap->pm_rid[rr])
+		return;
+	pmap->pm_rid[rr] = pmap_allocate_rid();
+
+	if (pmap == PCPU_GET(current_pmap))
+		ia64_set_rr(IA64_RR_BASE(rr),
+			    (pmap->pm_rid[rr] << 8)|(PAGE_SHIFT << 2)|1);
 }
 
 /***************************************************
@@ -622,8 +722,7 @@ pmap_new_proc(struct proc *p)
  * This routine directly impacts the exit perf of a process.
  */
 void
-pmap_dispose_proc(p)
-	struct proc *p;
+pmap_dispose_proc(struct proc *p)
 {
 	contigfree(p->p_md.md_uservirt, UAREA_PAGES * PAGE_SIZE, M_PMAP);
 	p->p_md.md_uservirt = 0;
@@ -634,8 +733,7 @@ pmap_dispose_proc(p)
  * Allow the U area for a process to be prejudicially paged out.
  */
 void
-pmap_swapout_proc(p)
-	struct proc *p;
+pmap_swapout_proc(struct proc *p)
 {
 }
 
@@ -643,8 +741,7 @@ pmap_swapout_proc(p)
  * Bring the U area for a specified process back in.
  */
 void
-pmap_swapin_proc(p)
-	struct proc *p;
+pmap_swapin_proc(struct proc *p)
 {
 }
 
@@ -678,8 +775,7 @@ pmap_new_thread(struct thread *td)
  * This routine directly impacts the exit perf of a process/thread.
  */
 void
-pmap_dispose_thread(td)
-	struct thread *td;
+pmap_dispose_thread(struct thread *td)
 {
 	contigfree(td->td_md.md_kstackvirt, KSTACK_PAGES * PAGE_SIZE, M_PMAP);
 	td->td_md.md_kstackvirt = 0;
@@ -690,8 +786,7 @@ pmap_dispose_thread(td)
  * Allow the KSTACK for a thread to be prejudicially paged out.
  */
 void
-pmap_swapout_thread(td)
-	struct thread *td;
+pmap_swapout_thread(struct thread *td)
 {
 }
 
@@ -699,24 +794,26 @@ pmap_swapout_thread(td)
  * Bring the KSTACK for a specified thread back in.
  */
 void
-pmap_swapin_thread(td)
-	struct thread *td;
+pmap_swapin_thread(struct thread *td)
 {
 }
+
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
 
 void
-pmap_pinit0(pmap)
-	struct pmap *pmap;
+pmap_pinit0(struct pmap *pmap)
 {
+	int i;
+
 	/*
 	 * kernel_pmap is the same as any other pmap.
 	 */
 	pmap_pinit(pmap);
 	pmap->pm_flags = 0;
-	pmap->pm_rid = 0;
+	for (i = 0; i < 5; i++)
+		pmap->pm_rid[i] = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
@@ -729,11 +826,13 @@ pmap_pinit0(pmap)
  * such as one in a vmspace structure.
  */
 void
-pmap_pinit(pmap)
-	register struct pmap *pmap;
+pmap_pinit(struct pmap *pmap)
 {
+	int i;
+
 	pmap->pm_flags = 0;
-	pmap->pm_rid = 0;
+	for (i = 0; i < 5; i++)
+		pmap->pm_rid[i] = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
@@ -748,8 +847,7 @@ pmap_pinit(pmap)
  * but before this pmap is activated.
  */
 void
-pmap_pinit2(pmap)
-	struct pmap *pmap;
+pmap_pinit2(struct pmap *pmap)
 {
 }
 
@@ -765,10 +863,16 @@ pmap_pinit2(pmap)
 void
 pmap_release(pmap_t pmap)
 {
+	int i;
+
 #if defined(DIAGNOSTIC)
 	if (object->ref_count != 1)
 		panic("pmap_release: pteobj reference count != 1");
 #endif
+
+	for (i = 0; i < 5; i++)
+		if (pmap->pm_rid[i])
+			pmap_free_rid(pmap->pm_rid[i]);
 }
 
 /*
@@ -890,7 +994,13 @@ pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 	struct ia64_lpte *vhpte;
 	critical_t c = critical_enter();
 
+	pmap_vhpt_inserts++;
+	pmap_vhpt_resident++;
+
 	vhpte = (struct ia64_lpte *) ia64_thash(va);
+
+	if (vhpte->pte_chain)
+		pmap_vhpt_collisions++;
 
 	pte->pte_chain = vhpte->pte_chain;
 	vhpte->pte_chain = ia64_tpa((vm_offset_t) pte);
@@ -980,6 +1090,7 @@ pmap_remove_vhpt(vm_offset_t va)
 		}
 	}
 
+	pmap_vhpt_resident--;
 	error = 0;
  done:
 	critical_exit(c);
@@ -1577,6 +1688,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap == NULL)
 		return;
 
+	pmap_ensure_rid(pmap, va);
+
 	oldpmap = pmap_install(pmap);
 
 	va &= ~PAGE_MASK;
@@ -1693,6 +1806,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
 
+	pmap_ensure_rid(pmap, va);
+
 	oldpmap = pmap_install(pmap);
 
 	pte = pmap_find_pte(va);
@@ -1700,7 +1815,20 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		return;
 
 	PMAP_DEBUG_VA(va);
+
+	/*
+	 * Enter on the PV list since its part of our managed memory.
+	 */
 	pmap_insert_entry(pmap, va, m);
+
+	/*
+	 * Increment counters
+	 */
+	pmap->pm_stats.resident_count++;
+
+	/*
+	 * Initialise PTE with read-only protection and enter into VHPT.
+	 */
 	pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m),
 		     PTE_IG_MANAGED,
 		     PTE_PL_USER, PTE_AR_R);
@@ -1877,7 +2005,7 @@ pmap_prefault(pmap, addra, entry)
 			continue;
 
 		pte = pmap_find_vhpt(addr);
-		if (!pte)
+		if (pte && pte->pte_p)
 			continue;
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
@@ -2034,10 +2162,8 @@ pmap_copy_page(vm_offset_t src, vm_offset_t dst)
  *		down (or not) as appropriate.
  */
 void
-pmap_pageable(pmap, sva, eva, pageable)
-	pmap_t pmap;
-	vm_offset_t sva, eva;
-	boolean_t pageable;
+pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+	      boolean_t pageable)
 {
 }
 
@@ -2046,9 +2172,7 @@ pmap_pageable(pmap, sva, eva, pageable)
  * in the given pmap.
  */
 boolean_t
-pmap_page_exists(pmap, m)
-	pmap_t pmap;
-	vm_page_t m;
+pmap_page_exists(pmap_t pmap, vm_page_t m)
 {
 	register pv_entry_t pv;
 	int s;
@@ -2083,9 +2207,7 @@ pmap_page_exists(pmap, m)
  * in the case of running down an entire address space.
  */
 void
-pmap_remove_pages(pmap, sva, eva)
-	pmap_t pmap;
-	vm_offset_t sva, eva;
+pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	pv_entry_t pv, npv;
 	int s;
@@ -2159,8 +2281,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 }
 
 vm_offset_t
-pmap_phys_address(ppn)
-	int ppn;
+pmap_phys_address(int ppn)
 {
 	return (ia64_ptob(ppn));
 }
@@ -2370,9 +2491,7 @@ ia64_protection_init()
  * NOT real memory.
  */
 void *
-pmap_mapdev(pa, size)
-	vm_offset_t pa;
-	vm_size_t size;
+pmap_mapdev(vm_offset_t pa, vm_size_t size)
 {
 	return (void*) IA64_PHYS_TO_RR6(pa);
 }
@@ -2390,9 +2509,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
  * perform the pmap work for mincore
  */
 int
-pmap_mincore(pmap, addr)
-	pmap_t pmap;
-	vm_offset_t addr;
+pmap_mincore(pmap_t pmap, vm_offset_t addr)
 {
 	pmap_t oldpmap;
 	struct ia64_lpte *pte;
@@ -2454,7 +2571,7 @@ pmap_t
 pmap_install(pmap_t pmap)
 {
 	pmap_t oldpmap;
-	int rid;
+	int i;
 
 	oldpmap = PCPU_GET(current_pmap);
 
@@ -2477,27 +2594,9 @@ pmap_install(pmap_t pmap)
 
 	pmap->pm_active = 1;	/* XXX use bitmap for SMP */
 
- reinstall:
-	rid = pmap->pm_rid & ((1 << pmap_ridbits) - 1);
-	ia64_set_rr(IA64_RR_BASE(0), ((rid + 0) << 8)|(PAGE_SHIFT << 2)|1);
-	ia64_set_rr(IA64_RR_BASE(1), ((rid + 1) << 8)|(PAGE_SHIFT << 2)|1);
-	ia64_set_rr(IA64_RR_BASE(2), ((rid + 2) << 8)|(PAGE_SHIFT << 2)|1);
-	ia64_set_rr(IA64_RR_BASE(3), ((rid + 3) << 8)|(PAGE_SHIFT << 2)|1);
-	ia64_set_rr(IA64_RR_BASE(4), ((rid + 4) << 8)|(PAGE_SHIFT << 2)|1);
-
-	/*
-	 * If we need a new RID, get it now. Note that we need to
-	 * remove our old mappings (if any) from the VHPT, so we will
-	 * run on the old RID for a moment while we invalidate the old 
-	 * one. XXX maybe we should just clear out the VHPT when the
-	 * RID generation rolls over.
-	 */
-	if ((pmap->pm_rid>>pmap_ridbits) != (pmap_nextrid>>pmap_ridbits)) {
-		if (pmap->pm_rid)
-			pmap_invalidate_rid(pmap);
-		pmap_get_rid(pmap);
-		goto reinstall;
-	}
+	for (i = 0; i < 5; i++)
+		ia64_set_rr(IA64_RR_BASE(i),
+			    (pmap->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
 
 	return oldpmap;
 }
@@ -2509,115 +2608,123 @@ pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
 	return addr;
 }
 
-#if 0
-#if defined(PMAP_DEBUG)
-pmap_pid_dump(int pid)
-{
-	pmap_t pmap;
-	struct proc *p;
-	int npte = 0;
-	int index;
+#include "opt_ddb.h"
 
-	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
-		if (p->p_pid != pid)
-			continue;
+#ifdef DDB
 
-		if (p->p_vmspace) {
-			int i,j;
-			index = 0;
-			pmap = vmspace_pmap(p->p_vmspace);
-			for(i = 0; i < 1024; i++) {
-				pd_entry_t *pde;
-				pt_entry_t *pte;
-				unsigned base = i << PDRSHIFT;
-				
-				pde = &pmap->pm_pdir[i];
-				if (pde && pmap_pde_v(pde)) {
-					for(j = 0; j < 1024; j++) {
-						unsigned va = base + (j << PAGE_SHIFT);
-						if (va >= (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
-							if (index) {
-								index = 0;
-								printf("\n");
-							}
-							sx_sunlock(&allproc_lock);
-							return npte;
-						}
-						pte = pmap_pte_quick( pmap, va);
-						if (pte && pmap_pte_v(pte)) {
-							vm_offset_t pa;
-							vm_page_t m;
-							pa = *(int *)pte;
-							m = PHYS_TO_VM_PAGE(pa);
-							printf("va: 0x%x, pt: 0x%x, h: %d, w: %d, f: 0x%x",
-								va, pa, m->hold_count, m->wire_count, m->flags);
-							npte++;
-							index++;
-							if (index >= 2) {
-								index = 0;
-								printf("\n");
-							} else {
-								printf(" ");
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	sx_sunlock(&allproc_lock);
-	return npte;
-}
-#endif
+#include <ddb/ddb.h>
 
-#if defined(DEBUG)
+static const char*	psnames[] = {
+	"1B",	"2B",	"4B",	"8B",
+	"16B",	"32B",	"64B",	"128B",
+	"256B",	"512B",	"1K",	"2K",
+	"4K",	"8K",	"16K",	"32K",
+	"64K",	"128K",	"256K",	"512K",
+	"1M",	"2M",	"4M",	"8M",
+	"16M",	"32M",	"64M",	"128M",
+	"256M",	"512M",	"1G",	"2G"
+};
 
-static void	pads __P((pmap_t pm));
-static void	pmap_pvdump __P((vm_page_t m));
-
-/* print address space of pmap*/
 static void
-pads(pm)
-	pmap_t pm;
+print_trs(int type)
 {
-        int i, j;
-	vm_offset_t va;
-	pt_entry_t *ptep;
+	struct ia64_pal_result	res;
+	int			i, maxtr;
+	struct {
+		struct ia64_pte	pte;
+		struct ia64_itir itir;
+		struct ia64_ifa ifa;
+		struct ia64_rr	rr;
+	}			buf;
+	static const char*	manames[] = {
+		"WB",	"bad",	"bad",	"bad",
+		"UC",	"UCE",	"WC",	"NaT",
+		
+	};
 
-	if (pm == kernel_pmap)
+	res = ia64_call_pal_static(PAL_VM_SUMMARY, 0, 0, 0);
+	if (res.pal_status != 0) {
+		db_printf("Can't get VM summary\n");
 		return;
-	for (i = 0; i < 1024; i++)
-		if (pm->pm_pdir[i])
-			for (j = 0; j < 1024; j++) {
-				va = (i << PDRSHIFT) + (j << PAGE_SHIFT);
-				if (pm == kernel_pmap && va < KERNBASE)
-					continue;
-				if (pm != kernel_pmap && va > UPT_MAX_ADDRESS)
-					continue;
-				ptep = pmap_pte_quick(pm, va);
-				if (pmap_pte_v(ptep))
-					printf("%x:%x ", va, *(int *) ptep);
-			};
-
-}
-
-static void
-pmap_pvdump(pa)
-	vm_offset_t pa;
-{
-	pv_entry_t pv;
-
-	printf("pa %x", pa);
-	m = PHYS_TO_VM_PAGE(pa);
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
-		printf(" -> pmap %x, va %x",
-		    pv->pv_pmap, pv->pv_va);
-		pads(pv->pv_pmap);
 	}
-	printf(" ");
+
+	if (type == 0)
+		maxtr = (res.pal_result[0] >> 40) & 0xff;
+	else
+		maxtr = (res.pal_result[0] >> 32) & 0xff;
+
+	db_printf("V RID    Virtual Page  Physical Page PgSz ED AR PL D A MA  P KEY\n");
+	for (i = 0; i <= maxtr; i++) {
+		bzero(&buf, sizeof(buf));
+		res = ia64_call_pal_stacked_physical
+			(PAL_VM_TR_READ, i, type, ia64_tpa((u_int64_t) &buf));
+		if (!(res.pal_result[0] & 1))
+			buf.pte.pte_ar = 0;
+		if (!(res.pal_result[0] & 2))
+			buf.pte.pte_pl = 0;
+		if (!(res.pal_result[0] & 4))
+			buf.pte.pte_d = 0;
+		if (!(res.pal_result[0] & 8))
+			buf.pte.pte_ma = 0;
+		db_printf(
+			"%d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s %d %06x\n",
+			buf.ifa.ifa_ig & 1,
+			buf.rr.rr_rid,
+			buf.ifa.ifa_vpn,
+			buf.pte.pte_ppn,
+			psnames[buf.itir.itir_ps],
+			buf.pte.pte_ed,
+			buf.pte.pte_ar,
+			buf.pte.pte_pl,
+			buf.pte.pte_d,
+			buf.pte.pte_a,
+			manames[buf.pte.pte_ma],
+			buf.pte.pte_p,
+			buf.itir.itir_key);
+	}
 }
-#endif
+
+DB_COMMAND(itr, db_itr)
+{
+	print_trs(0);
+}
+
+DB_COMMAND(dtr, db_dtr)
+{
+	print_trs(1);
+}
+
+DB_COMMAND(rr, db_rr)
+{
+	int i;
+	u_int64_t t;
+	struct ia64_rr rr;
+
+	printf("RR RID    PgSz VE\n");
+	for (i = 0; i < 8; i++) {
+		__asm __volatile ("mov %0=rr[%1]"
+				  : "=r"(t)
+				  : "r"(IA64_RR_BASE(i)));
+		*(u_int64_t *) &rr = t;
+		printf("%d  %06x %4s %d\n",
+		       i, rr.rr_rid, psnames[rr.rr_ps], rr.rr_ve);
+	}
+}
+
+DB_COMMAND(thash, db_thash)
+{
+	if (!have_addr)
+		return;
+
+	db_printf("%p\n", (void *) ia64_thash(addr));
+}
+
+DB_COMMAND(ttag, db_ttag)
+{
+	if (!have_addr)
+		return;
+
+	db_printf("0x%lx\n", ia64_ttag(addr));
+}
+
 #endif
