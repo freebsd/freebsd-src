@@ -287,16 +287,28 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 	device_printf(pcib, "device has no routed interrupt and no _PRS on PCI interrupt link device\n");
 	goto out;
     }
-    if (ACPI_FAILURE(acpi_FindIndexedResource(&prsbuf, prt->SourceIndex, &prsres))) {
-	device_printf(pcib, "_PRS buffer corrupt, cannot route interrupt\n");
-	goto out;
-    }
 
-    /* type-check the resource we've got */
-    if (prsres->Id != ACPI_RSTYPE_IRQ && prsres->Id != ACPI_RSTYPE_EXT_IRQ) {
-	device_printf(pcib, "_PRS resource entry has unsupported type %d\n",
-	    prsres->Id);
-	goto out;
+    /*
+     * Search through the _PRS resources, looking for an IRQ or extended
+     * IRQ resource.  Skip dependent function resources for now.  In the
+     * future, we might use these for priority but this is good enough for
+     * now until BIOS vendors actually mean something by using them.
+     */
+    for (i = prt->SourceIndex; ; i++) {
+	if (ACPI_FAILURE(acpi_FindIndexedResource(&prsbuf, i, &prsres))) {
+	    device_printf(pcib, "_PRS lacks IRQ resource, routing failed\n");
+	    goto out;
+	}
+	switch (prsres->Id) {
+	case ACPI_RSTYPE_IRQ:
+	case ACPI_RSTYPE_EXT_IRQ:
+	    break;
+	case ACPI_RSTYPE_START_DPF:
+	    continue;
+	default:
+	    device_printf(pcib, "_PRS has invalid type %d\n", prsres->Id);
+	    goto out;
+	}
     }
 
     /* set variables based on resource type */
@@ -373,4 +385,3 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /* XXX APIC_IO interrupt mapping? */
     return_VALUE(interrupt);
 }
-
