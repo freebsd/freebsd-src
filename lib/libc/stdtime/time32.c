@@ -15,7 +15,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/time.h>
+#include <timeconv.h>
 
 /*
  * Convert a 32 bit representation of time_t into time_t.  XXX needs to
