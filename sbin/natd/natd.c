@@ -1021,7 +1021,7 @@ static struct OptionInfo optionTable[] = {
 	{ RedirectPort,
 		0,
 		String,
-	        "tcp|udp local_addr:local_port_range [public_addr:]public_port_range"
+	        "tcp|udp local_addr:local_port_range[,...] [public_addr:]public_port_range"
 	 	" [remote_addr[:remote_port_range]]",
 		"redirect a port (or ports) for incoming traffic",
 		"redirect_port",
@@ -1030,7 +1030,7 @@ static struct OptionInfo optionTable[] = {
 	{ RedirectAddress,
 		0,
 		String,
-	        "local_addr public_addr",
+	        "local_addr[,...] public_addr",
 		"define mapping between local and public addresses",
 		"redirect_address",
 		NULL },
@@ -1348,6 +1348,7 @@ void SetupPortRedirect (const char* parms)
 {
 	char		buf[128];
 	char*		ptr;
+	char*		serverPool;
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
 	struct in_addr	remoteAddr;
@@ -1362,6 +1363,7 @@ void SetupPortRedirect (const char* parms)
 	char*		protoName;
 	char*		separator;
 	int             i;
+	struct alias_link *link = NULL;
 
 	strcpy (buf, parms);
 /*
@@ -1379,11 +1381,20 @@ void SetupPortRedirect (const char* parms)
 	if (!ptr)
 		errx (1, "redirect_port: missing local address");
 
-	if ( StrToAddrAndPortRange (ptr, &localAddr, protoName, &portRange) != 0 )
-	        errx (1, "redirect_port: invalid local port range");
+	separator = strchr(ptr, ',');
+	if (separator) {		/* LSNAT redirection syntax. */
+		localAddr.s_addr = INADDR_NONE;
+		localPort = ~0;
+		numLocalPorts = 1;
+		serverPool = ptr;
+	} else {
+		if ( StrToAddrAndPortRange (ptr, &localAddr, protoName, &portRange) != 0 )
+			errx (1, "redirect_port: invalid local port range");
 
-	localPort     = GETLOPORT(portRange);
-	numLocalPorts = GETNUMPORTS(portRange);
+		localPort     = GETLOPORT(portRange);
+		numLocalPorts = GETNUMPORTS(portRange);
+		serverPool = NULL;
+	}
 
 /*
  * Extract public port and optionally address.
@@ -1446,13 +1457,30 @@ void SetupPortRedirect (const char* parms)
 	        if (numRemotePorts == 1 && remotePort == 0)
 		        remotePortCopy = 0;
 
-	        PacketAliasRedirectPort (localAddr,
-					 htons(localPort + i),
-					 remoteAddr,
-					 htons(remotePortCopy),
-					 publicAddr,
-					 htons(publicPort + i),
-					 proto);
+		link = PacketAliasRedirectPort (localAddr,
+						htons(localPort + i),
+						remoteAddr,
+						htons(remotePortCopy),
+						publicAddr,
+						htons(publicPort + i),
+						proto);
+	}
+
+/*
+ * Setup LSNAT server pool.
+ */
+	if (serverPool != NULL && link != NULL) {
+		ptr = strtok(serverPool, ",");
+		while (ptr != NULL) {
+			if (StrToAddrAndPortRange(ptr, &localAddr, protoName, &portRange) != 0)
+				errx(1, "redirect_port: invalid local port range");
+
+			localPort = GETLOPORT(portRange);
+			if (GETNUMPORTS(portRange) != 1)
+				errx(1, "redirect_port: local port must be single in this context");
+			PacketAliasAddServer(link, localAddr, htons(localPort));
+			ptr = strtok(NULL, ",");
+		}
 	}
 }
 
@@ -1460,8 +1488,11 @@ void SetupAddressRedirect (const char* parms)
 {
 	char		buf[128];
 	char*		ptr;
+	char*		separator;
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
+	char*		serverPool;
+	struct alias_link *link;
 
 	strcpy (buf, parms);
 /*
@@ -1471,7 +1502,14 @@ void SetupAddressRedirect (const char* parms)
 	if (!ptr)
 		errx (1, "redirect_address: missing local address");
 
-	StrToAddr (ptr, &localAddr);
+	separator = strchr(ptr, ',');
+	if (separator) {		/* LSNAT redirection syntax. */
+		localAddr.s_addr = INADDR_NONE;
+		serverPool = ptr;
+	} else {
+		StrToAddr (ptr, &localAddr);
+		serverPool = NULL;
+	}
 /*
  * Extract public address.
  */
@@ -1480,7 +1518,19 @@ void SetupAddressRedirect (const char* parms)
 		errx (1, "redirect_address: missing public address");
 
 	StrToAddr (ptr, &publicAddr);
-	PacketAliasRedirectAddr (localAddr, publicAddr);
+	link = PacketAliasRedirectAddr(localAddr, publicAddr);
+
+/*
+ * Setup LSNAT server pool.
+ */
+	if (serverPool != NULL && link != NULL) {
+		ptr = strtok(serverPool, ",");
+		while (ptr != NULL) {
+			StrToAddr(ptr, &localAddr);
+			PacketAliasAddServer(link, localAddr, htons(~0));
+			ptr = strtok(NULL, ",");
+		}
+	}
 }
 
 void StrToAddr (const char* str, struct in_addr* addr)
