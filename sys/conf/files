@@ -6,12 +6,12 @@
 #
 aicasm				optional ahc				   \
 	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
-	compile-with	"${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
+	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm* y.tab.h"
 aicasm				optional ahd				   \
 	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
-	compile-with	"${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
+	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm* y.tab.h"
 aic7xxx_{seq.h,reg.h,reg_print.c}       optional ahc                       \
