@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id$
+.\" $Id: login_cap.3,v 1.1 1997/01/04 16:50:00 davidn Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -175,7 +175,7 @@ If the second
 .Ar dir
 parameter is NULL, then only the system login class database is
 used, but when not NULL, the named directory is searched for
-a login database file called ".login.conf", and capability records
+a login database file called ".login_conf", and capability records
 contained within it may override the system defaults.
 This scheme allows users to override some login settings from
 those in the system login class database by creating class records
@@ -195,7 +195,7 @@ Typically, these are limited purely to the user's default login
 environment which might otherwise have been overridden in shell
 startup scripts in any case.
 The user's
-.Pa .login.conf
+.Pa .login_conf
 merely provides a convenient way for a user to set up their preferred
 login environment before the shell is invoked on login.
 .Pp
@@ -217,7 +217,7 @@ On failure, NULL is returned.
 The difference between the two functions is that
 .Fn login_getuserclass
 includes the user's overriding
-.Pa .login.conf
+.Pa .login_conf
 that exists in the user's home directory, while
 .Fn login_getclass
 restricts itself only to the system login class database in
