@@ -150,7 +150,7 @@ settime(now)
 		cumdays = daytab[0];
 	}
 	/* Friday displays Monday's events */
-	offset = tp->tm_wday == 5 ? 3 : 1;
+	offset = tp->tm_wday == Friday ? 3 : 1;
 	header[5].iov_base = dayname;
 
 	oldl = NULL;
