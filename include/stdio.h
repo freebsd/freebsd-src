@@ -43,16 +43,23 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
+typedef	__off_t		fpos_t;
+
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#ifndef _VA_LIST_DECLARED
+typedef	__va_list	va_list;
+#define	_VA_LIST_DECLARED
+#endif
+#endif
+
 #ifndef NULL
 #define	NULL	0
 #endif
-
-typedef	__off_t		fpos_t;
 
 #define	_FSTDIO			/* Define for new stdio with functions. */
 
@@ -211,6 +218,10 @@ __END_DECLS
 __BEGIN_DECLS
 /*
  * Functions defined in ANSI C standard.
+ *
+ * XXX fgetpos(), fgets(), fopen(), fputs(), fread(), freopen(), fscanf(),
+ * fwrite(), scanf(), sscanf(), vscanf(), and vsscanf() are missing the
+ * restrict type-qualifier.
  */
 void	 clearerr(FILE *);
 int	 fclose(FILE *);
@@ -259,17 +270,31 @@ int	 vsprintf(char * __restrict, const char * __restrict,
 #if __ISO_C_VISIBLE >= 1999
 int	 snprintf(char * __restrict, size_t, const char * __restrict,
 	    ...) __printflike(3, 4);
+int	 vscanf(const char *, __va_list) __scanflike(1, 0);
 int	 vsnprintf(char * __restrict, size_t, const char * __restrict,
 	    __va_list) __printflike(3, 0);
+int	 vsscanf(const char *, const char *, __va_list)
+	    __scanflike(2, 0);
+
+/*
+ * This is a #define because the function is used internally and
+ * (unlike vfscanf) the name __vfscanf is guaranteed not to collide
+ * with a user function when _ANSI_SOURCE or _POSIX_SOURCE is defined.
+ *
+ * XXX missing a backing function (weak alias?) for this.
+ */
+#define	 vfscanf	__vfscanf
 #endif
 
 /*
  * Functions defined in all versions of POSIX 1003.1.
  */
-#if __POSIX_VISIBLE
+#if __BSD_VISIBLE || __POSIX_VISIBLE <= 199506
 /* size for cuserid(3); UT_NAMESIZE + 1, see <utmp.h> */
-#define	L_cuserid	17
+#define	L_cuserid	17	/* legacy */
+#endif
 
+#if __POSIX_VISIBLE
 #define	L_ctermid	1024	/* size for ctermid(3); PATH_MAX */
 
 char	*ctermid(char *);
@@ -329,9 +354,6 @@ void	 setbuffer(FILE *, char *, int);
 int	 setlinebuf(FILE *);
 int	 vasprintf(char **, const char *, __va_list)
 	    __printflike(2, 0);
-int	 vscanf(const char *, __va_list) __scanflike(1, 0);
-int	 vsscanf(const char *, const char *, __va_list)
-	    __scanflike(2, 0);
 
 /*
  * The system error table contains messages for the first sys_nerr
@@ -340,13 +362,6 @@ int	 vsscanf(const char *, const char *, __va_list)
  */
 extern __const int sys_nerr;
 extern __const char *__const sys_errlist[];
-
-/*
- * This is a #define because the function is used internally and
- * (unlike vfscanf) the name __vfscanf is guaranteed not to collide
- * with a user function when _ANSI_SOURCE or _POSIX_SOURCE is defined.
- */
-#define	 vfscanf	__vfscanf
 
 /*
  * Stdio function-access interface.
@@ -419,6 +434,7 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
 #define	__sfileno(p)	((p)->_file)
 
+#if __BSD_VISIBLE
 /*
  * See ISO/IEC 9945-1 ANSI/IEEE Std 1003.1 Second Edition 1996-07-12
  * B.8.2.7 for the rationale behind the *_unlocked() macros.
@@ -427,11 +443,14 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	ferror_unlocked(p)	__sferror(p)
 #define	clearerr_unlocked(p)	__sclearerr(p)
 #define	fileno_unlocked(p)	__sfileno(p)
+#endif
+#if __POSIX_VISIBLE >= 199506
 #define	getc_unlocked(fp)	__sgetc(fp)
 #define	putc_unlocked(x, fp)	__sputc(x, fp)
 
 #define	getchar_unlocked()	getc_unlocked(stdin)
 #define	putchar_unlocked(x)	putc_unlocked(x, stdout)
+#endif
 
 __END_DECLS
 #endif /* !_STDIO_H_ */
