@@ -36,13 +36,15 @@
 
 static char    *progname = "pw";
 
-const char     *Modes[] = {"add", "del", "mod", "show", NULL};
+const char     *Modes[] = {"add", "del", "mod", "show", "next", NULL};
 const char     *Which[] = {"user", "group", NULL};
-static const char *Combo1[] = {"useradd", "userdel", "usermod", "usershow",
-	"groupadd", "groupdel", "groupmod", "groupshow",
-NULL};
-static const char *Combo2[] = {"adduser", "deluser", "moduser", "showuser",
-	"addgroup", "delgroup", "modgroup", "showgroup",
+static const char *Combo1[] = {
+  "useradd", "userdel", "usermod", "usershow", "usernext",
+  "groupadd", "groupdel", "groupmod", "groupshow", "groupnext",
+  NULL};
+static const char *Combo2[] = {
+  "adduser", "deluser", "moduser", "showuser", "nextuser",
+  "addgroup", "delgroup", "modgroup", "showgroup", "nextgroup",
 NULL};
 
 static struct cargs arglist;
@@ -61,8 +63,20 @@ main(int argc, char *argv[])
 
 	static const char *opts[W_NUM][M_NUM] =
 	{
-	 /* user */ {"C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db", "C:qn:u:r", "C:qn:u:c:d:e:p:g:G:mk:s:L:h:F", "C:qn:u:Fpa"},
-	 /* grp  */ {"C:qn:g:h:p", "C:qn:g:", "C:qn:g:l:h:F", "C:qn:g:Fpa"}
+		{ /* user */
+			"C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NP",
+			"C:qn:u:r",
+			"C:qn:u:c:d:e:p:g:G:mk:s:w:L:h:FNP",
+			"C:qn:u:FPa",
+			"C:q"
+		},
+		{ /* grp  */
+			"C:qn:g:h:M:pNP",
+			"C:qn:g:",
+			"C:qn:g:l:h:FM:m:NP",
+			"C:qn:g:FPa",
+			"C:q"
+		 }
 	};
 
 	static int      (*funcs[W_NUM]) (struct userconf * _cnf, int _mode, struct cargs * _args) =
@@ -99,7 +113,7 @@ main(int argc, char *argv[])
 		else if (which != -1 && mode != -1 && arglist.lh_first == NULL)
 			addarg(&arglist, 'n', argv[1]);
 		else
-			cmderr(X_CMDERR, "Unknown keyword `%s'\n", argv[1]);
+			cmderr(EX_USAGE, "Unknown keyword `%s'\n", argv[1]);
 		++argv;
 		--argc;
 	}
@@ -111,12 +125,6 @@ main(int argc, char *argv[])
 		cmdhelp(mode, which);
 
 	/*
-	 * Must be root to attempt an update
-	 */
-	if (getuid() != 0 && mode != M_PRINT)
-		cmderr(X_PERMERR, "you must be root to run this program\n");
-
-	/*
 	 * We know which mode we're in and what we're about to do, so now
 	 * let's dispatch the remaining command line args in a genric way.
 	 */
@@ -125,11 +133,17 @@ main(int argc, char *argv[])
 
 	while ((ch = getopt(argc, argv, opts[which][mode])) != -1) {
 		if (ch == '?')
-			cmderr(X_CMDERR, NULL);
+			cmderr(EX_USAGE, NULL);
 		else
 			addarg(&arglist, ch, optarg);
 		optarg = NULL;
 	}
+
+	/*
+	 * Must be root to attempt an update
+	 */
+	if (getuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
+		cmderr(EX_NOPERM, "you must be root to run this program\n");
 
 	/*
 	 * We should immediately look for the -q 'quiet' switch so that we
@@ -138,19 +152,11 @@ main(int argc, char *argv[])
 	if (getarg(&arglist, 'q') != NULL)
 		freopen("/dev/null", "w", stderr);
 
-	ch = X_CMDERR;
-
 	/*
 	 * Now, let's do the common initialisation
 	 */
 	cnf = read_userconfig(getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL);
-
-	if (funcs[which])
-		ch = funcs[which] (cnf, mode, &arglist);
-	else
-		fprintf(stderr, "%s: %s[%s] not yet implemented.\n", progname, Which[which], Modes[mode]);
-
-	return ch;
+	return funcs[which] (cnf, mode, &arglist);
 }
 
 static int
@@ -197,9 +203,9 @@ cmdhelp(int mode, int which)
 {
 	banner();
 	if (which == -1)
-		fprintf(stderr, "usage: %s [user|group] [add|del|mod|show] [ help | switches/values ]\n", progname);
+		fprintf(stderr, "usage: %s [user|group] [add|del|mod|show|next] [ help | switches/values ]\n", progname);
 	else if (mode == -1)
-		fprintf(stderr, "usage: %s %s [add|del|mod] [ help | switches/values ]\n", progname, Which[which]);
+		fprintf(stderr, "usage: %s %s [add|del|mod|show|next] [ help | switches/values ]\n", progname, Which[which]);
 	else {
 
 		/*
@@ -225,6 +231,7 @@ cmdhelp(int mode, int which)
 				"\t-o             duplicate uid ok\n"
 				"\t-L class       user class\n"
 				"\t-h fd          read password on fd\n"
+				"\t-N             no update\n"
 				"  Setting defaults:\n"
 				"\t-D             set user defaults\n"
 				"\t-b dir         default home root dir\n"
@@ -258,13 +265,17 @@ cmdhelp(int mode, int which)
 				"\t-L class       user class\n"
 				"\t-m [ -k dir ]  create and set up home\n"
 				"\t-s shell       name of login shell\n"
-				"\t-h fd          read password on fd\n",
+				"\t-w method      set new password using method\n"
+				"\t-h fd          read password on fd\n"
+				"\t-N             no update\n",
 				"usage: %s usershow [uid|name] [switches]\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-F             force print\n"
-				"\t-p             prettier format\n"
-				"\t-a             print all users\n"
+				"\t-P             prettier format\n"
+				"\t-a             print all users\n",
+				"usage: %s usernext [switches]\n"
+				"\t-C config      configuration file\n"
 			},
 			{
 				"usage: %s groupadd [group|gid] [switches]\n"
@@ -272,7 +283,9 @@ cmdhelp(int mode, int which)
 				"\t-q             quiet operation\n"
 				"\t-n group       group name\n"
 				"\t-g gid         group id\n"
-				"\t-o             duplicate gid ok\n",
+				"\t-M usr1,usr2   add users as group members\n"
+				"\t-o             duplicate gid ok\n"
+				"\t-N             no update\n",
 				"usage: %s groupdel [group|gid] [switches]\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n",
@@ -282,19 +295,24 @@ cmdhelp(int mode, int which)
 				"\t-F             force add if not exists\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
-				"\t-l name        new group name\n",
+				"\t-M usr1,usr2   replaces users as group members\n"
+				"\t-m usr1,usr2   add users as group members\n"
+				"\t-l name        new group name\n"
+				"\t-N             no update\n",
 				"usage: %s groupshow [group|gid] [switches]\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-F             force print\n"
-				"\t-p             prettier format\n"
-				"\t-a             print all accounting groups\n"
+				"\t-P             prettier format\n"
+				"\t-a             print all accounting groups\n",
+				"usage: %s groupnext [switches]\n"
+				"\t-C config      configuration file\n"
 			}
 		};
 
 		fprintf(stderr, help[which][mode], progname);
 	}
-	exit(X_CMDERR);
+	exit(EXIT_FAILURE);
 }
 
 struct carg    *
@@ -313,7 +331,7 @@ addarg(struct cargs * _args, int ch, char *argstr)
 	struct carg    *ca = malloc(sizeof(struct carg));
 
 	if (ca == NULL)
-		cmderr(X_MEMERR, "Abort - out of memory\n");
+		cmderr(EX_OSERR, "Abort - out of memory\n");
 	ca->ch = ch;
 	ca->val = argstr;
 	LIST_INSERT_HEAD(_args, ca, list);
