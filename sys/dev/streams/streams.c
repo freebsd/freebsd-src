@@ -207,8 +207,12 @@ streamsopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	int error;
 	int family;
 	
-	if (p->p_dupfd >= 0)
+	PROC_LOCK(p);
+	if (p->p_dupfd >= 0) {
+	  PROC_UNLOCK(p);
 	  return ENODEV;
+	}
+	PROC_UNLOCK(p);
 
 	switch (minor(dev)) {
 	case dev_udp:
@@ -271,7 +275,9 @@ streamsopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	fp->f_type = DTYPE_SOCKET;
 
 	(void)svr4_stream_get(fp);
+	PROC_LOCK(p);
 	p->p_dupfd = fd;
+	PROC_UNLOCK(p);
 	return ENXIO;
 }
 
@@ -318,7 +324,9 @@ svr4_ptm_alloc(p)
 		case ENXIO:
 			return error;
 		case 0:
+			PROC_LOCK(p);
 			p->p_dupfd = p->p_retval[0];
+			PROC_UNLOCK(p);
 			return ENXIO;
 		default:
 			if (ttynumbers[++n] == '\0') {
@@ -367,13 +375,15 @@ svr4_delete_socket(p, fp)
 	struct svr4_sockcache_entry *e;
 	void *cookie = ((struct socket *) fp->f_data)->so_emuldata;
 
-	if (!svr4_str_initialized) {
-		TAILQ_INIT(&svr4_head);
-		svr4_str_initialized = 1;
+	while (svr4_str_initialized != 2) {
+		if (atomic_cmpset_acq_int(&svr4_str_initialized, 0, 1)) {
+			TAILQ_INIT(&svr4_head);
+			atomic_store_rel_int(&svr4_str_initialized, 2);
+		}
 		return;
 	}
 
-	for (e = svr4_head.tqh_first; e != NULL; e = e->entries.tqe_next)
+	TAILQ_FOREACH(e, &svr4_head, entries)
 		if (e->p == p && e->cookie == cookie) {
 			TAILQ_REMOVE(&svr4_head, e, entries);
 			DPRINTF(("svr4_delete_socket: %s [%p,%d,%d]\n",
