@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.199 1996/01/06 20:13:48 joerg Exp $
+#	$Id: Makefile,v 1.200 1996/01/08 22:13:48 phk Exp $
 #
 # How to roll a release:
 #
@@ -142,6 +142,7 @@ release.1:
 	mkdir ${RD}/floppies
 	mkdir ${RD}/trees
 	mkdir ${RD}/dists
+	mkdir ${RD}/kernels
 	for i in ${ALL_DISTS} ; do \
 		mkdir ${RD}/trees/$$i && \
 		mkdir ${RD}/dists/$$i && \
