@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: aha_isa.c,v 1.1 1998/09/15 07:39:55 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -41,8 +41,6 @@
 #include <dev/aha/ahareg.h>
 
 #include <cam/scsi/scsi_all.h>
-
-#include "ioconf.h"
 
 static	int aha_isa_probe __P((struct isa_device *dev));
 static	int aha_isa_attach __P((struct isa_device *dev));
