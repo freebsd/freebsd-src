@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.8 1994/11/08 02:25:20 jkh Exp $
+ *      $Id: userconfig.c,v 1.9 1994/11/10 23:14:55 ats Exp $
  */
 
 #include <sys/param.h>
@@ -257,7 +257,7 @@ set_device_ioaddr(CmdParm *parms)
 static int
 set_device_irq(CmdParm *parms)
 {
-    parms[0].parm.dparm->id_irq = parms[1].parm.iparm;
+    parms[0].parm.dparm->id_irq = 1 << parms[1].parm.iparm;
     return 0;
 }
 
@@ -316,12 +316,12 @@ static void
 lsdevtab(struct isa_device *dt)
 {
     int i;
-    static int lineno = 0;
+    int lineno = 0;
 
     for (i = 0; dt->id_id != 0; dt++) {
-	if (lineno > 22) {
+	if (lineno++ > 22) {
 		lineno = 0;
-		printf("<hit any key> ");
+		printf("<More> ");
 		(void)cngetc();
 		printf("\n");
 	}
