@@ -1,4 +1,4 @@
-/* authdes.c.export,v 3.1 1993/07/06 01:07:48 jbj Exp
+/*
  * authdes.c -  dummy encryption routines for destinations outside the USA.
  *
  * Sorry, folks; I hate this, too. Send me your e-mail address in an

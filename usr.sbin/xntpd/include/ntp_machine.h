@@ -1,4 +1,4 @@
-/* ntp_machine.h,v 3.1 1993/07/06 01:06:49 jbj Exp
+/*
  * Collect all machine dependent idiosyncrasies in one place.
  */
 
@@ -181,6 +181,7 @@ in this file.
 #define	RETSIGTYPE	void
 #define	NTP_SYSCALL_GET	132
 #define	NTP_SYSCALL_ADJ	147
+#define HAVE_MODEM_CONTROL
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/SunOS 4.x"
 #endif
@@ -219,6 +220,7 @@ in this file.
 #define HAVE_ATT_SETPGRP
 #define HAVE_ATT_NICE
 #define UDP_WILDCARD_DELIVERY
+#define HAVE_MODEM_CONTROL
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/Solaris 2.x"
 #endif
@@ -277,6 +279,7 @@ in this file.
 #define HAVE_BSD_NICE
 #define	RETSIGTYPE	void
 #define	NTP_SYSCALLS_STD
+#define HAVE_MODEM_CONTROL
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/Ultrix"
 #endif
@@ -365,6 +368,26 @@ in this file.
 #endif
 
 /*
+ * 4.4 bsd
+ */
+#if defined(SYS_44BSD)
+#define HAVE_SIGNALED_IO
+#define HAVE_LIBKVM
+#define NTP_POSIX_SOURCE
+#define HAVE_BSD_NICE
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/4.4BSD"
+#endif
+#ifdef SYS_FREEBSD
+#define HAVE_TERMIOS
+#define HAVE_UNAME
+#define HAVE_SYS_TIMEX_H
+#define NTP_SYSCALLS_LIBC
+#define KERNEL_PLL
+#endif
+#endif
+
+/*
  * Linux
  */
 #if defined(SYS_LINUX)
@@ -386,14 +409,13 @@ in this file.
  * 386BSD and any variants 8-) - should really have only ONE define
  * for this bunch.
  */
-#if defined(SYS_386BSD) || defined(SYS_FREEBSD) || defined(SYS_NETBSD)
+#if defined(SYS_386BSD) || defined(SYS_NETBSD)
 #define HAVE_SIGNALED_IO
 #define HAVE_READKMEM
 #define NTP_POSIX_SOURCE
 #define HAVE_BSD_NICE
 #ifndef STR_SYSTEM
-#define STR_SYSTEM "UNIX/*BSD"
-#endif
+#define STR_SYSTEM "UNIX/\052BSD"
 #endif
 #ifdef SYS_FREEBSD
 #define HAVE_TERMIOS
@@ -401,6 +423,7 @@ in this file.
 #define HAVE_SYS_TIMEX_H
 #define NTP_SYSCALLS_LIBC
 #define KERNEL_PLL
+#endif
 #endif
 
 /*
@@ -412,9 +435,39 @@ in this file.
 #define NTP_POSIX_SOURCE
 #define	NTP_SYSCALLS_STD
 #define	HAVE_BSD_NICE
+#define HAVE_MODEM_CONTROL
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/DECOSF1"
 #endif
+#endif
+
+/*
+ * Intel x86 OSF/1
+ */
+#if defined(SYS_IX86OSF1)
+#define HAVE_SIGNALED_IO
+#define HAVE_READKMEM
+#define NTP_POSIX_SOURCE
+#define NTP_SYSCALLS_STD
+#define HAVE_BSD_NICE
+#define HAVE_MODEM_CONTROL
+#define SYS_DECOSF1
+#ifndef STR_SYSTEM
+#define STR_SYSTEM "UNIX/IX86OSF1"
+#endif
+#endif
+
+/*
+ * ISI
+ */
+#if defined(SYS_BSD)
+#define NO_SIGNED_CHAR_DECL
+#define HAVE_BSD_NICE
+#define HAVE_BSD_TTYS
+#define HAVE_READKMEM
+#define HAVE_SIGNALED_IO
+#define NEED_VSPRINTF
+#undef NTP_POSIX_SOURCE
 #endif
 
 /*
