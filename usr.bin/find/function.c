@@ -71,6 +71,8 @@ static char rcsid[] = "$FreeBSD$";
 	}								\
 }
 
+u_long	setflags __P((char **, u_long *, u_long *));
+
 static PLAN *palloc __P((enum ntype, int (*) __P((PLAN *, FTSENT *))));
 
 /*

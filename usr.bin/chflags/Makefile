@@ -5,5 +5,7 @@ NOSHARED?=yes
 
 PROG=	chflags
 CFLAGS+=-Wall
+.PATH:	${.CURDIR}/../../lib/libc/gen
+SRCS=	chflags.c setflags.c
 
 .include <bsd.prog.mk>
