@@ -121,9 +121,6 @@ static struct isa_pnp_id pcic_ids[] = {
 static	u_char		pcic98_last_reg1;
 #endif /* MECIA_SUPPORT */
 
-#define GET_UNIT(d)	*(int *)device_get_softc(d)
-#define SET_UNIT(d,u)	*(int *)device_get_softc(d) = (u)
-
 static char *bridges[] =
 {
 	"Intel i82365",
