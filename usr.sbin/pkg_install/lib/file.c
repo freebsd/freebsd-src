@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.12 1995/07/30 01:44:44 ache Exp $";
+static const char *rcsid = "$Id: file.c,v 1.13 1995/07/30 09:33:26 jkh Exp $";
 #endif
 
 /*
@@ -208,8 +208,7 @@ fileGetURL(char *fname)
 	printf("Trying to fetch %s from %s.\n", file, host);
 
     FtpOpen(ftp, host, uname, pword);
-    /* XXX - Currently undocumented - XXX */
-    if (getenv("FTP_PASSIVE"))
+    if (getenv("FTP_PASSIVE_MODE"))
 	FtpPassive(ftp, TRUE);
 
     strcpy(dir, file);
