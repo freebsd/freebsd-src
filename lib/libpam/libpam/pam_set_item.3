@@ -1,0 +1,156 @@
+.\"-
+.\" Copyright (c) 2001 Networks Associates Technologies, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by ThinkSec AS and
+.\" NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 27, 2001
+.Dt PAM_SET_ITEM 3
+.Os
+.Sh NAME
+.Nm pam_set_item ,
+.Nm pam_get_item
+.Nd setting authentication parameters
+.Sh LIBRARY
+.Lb libpam
+.Sh SYNOPSIS
+.In security/pam_modules.h
+.Ft int
+.Fn pam_set_item "pam_handle_t *pamh" "int type" "const void *item"
+.Ft int
+.Fn pam_get_item "pam_handle_t *pamh" "int type" "const void **item"
+.Sh DESCRIPTION
+The
+.Fn pam_set_item
+and
+.Fn pam_get_item
+allow applications and modules to store and retrieve a variety of
+authentication parameters, or
+.Dq items .
+Each item is identified by an integer constant.
+The following items are defined:
+.Bl -tag -width ".Dv PAM_USER_PROMPT"
+.It Dv PAM_SERVICE
+(string)
+The name of the requesting service.
+.It Dv PAM_USER
+(string)
+The name of the user the application wants to authenticate.
+.It Dv PAM_USER_PROMPT
+(string)
+The string which will be used to prompt the user for an authentication
+token.
+.It Dv PAM_TTY
+(string)
+The name of the current terminal (for terminal-oriented applications)
+or display (for X11 applications).
+.It Dv PAM_RUSER
+(string)
+The name of the requesting user.
+.It Dv PAM_RHOST
+(string)
+The name of the host the requesting user is logging in from.
+.It Dv PAM_AUTHTOK
+(opaque)
+The current authentication token.
+This item is only accessible from PAM modules.
+.It Dv PAM_OLDAUTHTOK
+(opaque)
+The expired authentication token.
+This item is only accessible from PAM modules.
+.It Dv PAM_CONV
+.Pq Vt "struct pam_conv"
+The current conversation function.
+The
+.Vt pam_conv
+structure is defined as follows:
+.Bd -literal
+struct pam_conv {
+    int (*conv)(int num_msg,
+        const struct pam_message **msg,
+        struct pam_response **resp,
+        void *appdata_ptr);
+    void *appdata_ptr;
+};
+.Ed
+.It Dv PAM_FAIL_DELAY
+.Pq Vt delay_fn
+A pointer to a callback function that should be called when a module
+wants to introduce a delay after a failed authentication to discourage
+brute-force attacks.
+.El
+.Sh RETURN VALUES
+The
+.Fn pam_set_item
+and
+.Fn pam_get_item
+functions return one of the following values:
+.Bl -tag -width ".Dv PAM_SYSTEM_ERR"
+.It Dv PAM_SUCCESS
+The operation succeeded.
+.It Dv PAM_SYSTEM_ERR
+The
+.Fa pamh
+argument was invalid.
+.It Dv PAM_BUF_ERR
+A call to
+.Xr malloc 3
+failed, or the
+.Fa item
+argument to
+.Fn pam_get_item
+was
+.Dv NULL .
+.It Dv PAM_BAD_ITEM
+The specified
+.Fa item
+does not exist or is not accessible to the caller.
+.El
+.Pp
+The
+.Xr pam_strerror 3
+function can be used to translate these return codes to descriptive
+messages.
+.Sh SEE ALSO
+.Xr pam_start 3 ,
+.Xr pam_strerror 3 ,
+.Xr pam 8
+.Sh STANDARDS
+.Rs
+.%T "DCE-RFC 86.0"
+.%D "October 1995"
+.Re
+.Pp
+Note: the
+.Dv PAM_USER_PROMPT
+and
+.Dv PAM_FAIL_DELAY
+items are non-standard extensions.
