@@ -66,6 +66,7 @@
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet/icmp6.h>
 #include <netinet6/ip6protosw.h>
@@ -990,6 +991,7 @@ ah6_ctlinput(cmd, sa, d)
 	} else {
 		m = NULL;
 		ip6 = NULL;
+		off = 0;	/* calm gcc */
 	}
 
 	if (ip6) {
