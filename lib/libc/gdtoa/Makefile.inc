@@ -3,7 +3,7 @@
 # netlib gdtoa sources
 .PATH: ${.CURDIR}/gdtoa
 
-MISRCS+=glue.c
+MISRCS+=_ldtoa.c glue.c
 GDTOASRCS=dmisc.c dtoa.c gdtoa.c gethex.c gmisc.c \
 	hd_init.c hexnan.c misc.c smisc.c \
 	strtoIg.c strtod.c strtodg.c strtof.c strtord.c sum.c ulp.c
