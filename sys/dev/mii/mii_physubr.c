@@ -231,7 +231,7 @@ mii_phy_tick(struct mii_softc *sc)
 	 * Only retry autonegotiation every N seconds.
 	 */
 	if (sc->mii_anegticks == 0)
-		sc->mii_anegticks = 5;
+		sc->mii_anegticks = 17;
 	if (++sc->mii_ticks != sc->mii_anegticks)
 		return (EJUSTRETURN);
 
@@ -469,14 +469,14 @@ mii_phy_add_media(struct mii_softc *sc)
 		 * all the gigabit media types.
 		 */
 		if (sc->mii_extcapabilities & EXTSR_1000XHDX) {
-			sc->mii_anegticks = 10;
+			sc->mii_anegticks = 17;
 			sc->mii_flags |= MIIF_IS_1000X;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0,
 			    sc->mii_inst), MII_MEDIA_1000_X);
 			PRINT("1000baseSX");
 		}
 		if (sc->mii_extcapabilities & EXTSR_1000XFDX) {
-			sc->mii_anegticks = 10;
+			sc->mii_anegticks = 17;
 			sc->mii_flags |= MIIF_IS_1000X;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX,
 			    sc->mii_inst), MII_MEDIA_1000_X_FDX);
@@ -492,7 +492,7 @@ mii_phy_add_media(struct mii_softc *sc)
 		 * All 1000baseT PHYs have a 1000baseT control register.
 		 */
 		if (sc->mii_extcapabilities & EXTSR_1000THDX) {
-			sc->mii_anegticks = 10;
+			sc->mii_anegticks = 17;
 			sc->mii_flags |= MIIF_HAVE_GTCR;
 			mii->mii_media.ifm_mask |= IFM_ETH_MASTER;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0,
@@ -500,7 +500,7 @@ mii_phy_add_media(struct mii_softc *sc)
 			PRINT("1000baseT");
 		}
 		if (sc->mii_extcapabilities & EXTSR_1000TFDX) {
-			sc->mii_anegticks = 10;
+			sc->mii_anegticks = 17;
 			sc->mii_flags |= MIIF_HAVE_GTCR;
 			mii->mii_media.ifm_mask |= IFM_ETH_MASTER;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX,
