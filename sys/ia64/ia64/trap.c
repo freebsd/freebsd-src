@@ -85,7 +85,7 @@ static void break_syscall(struct trapframe *tf);
 static void ia32_syscall(struct trapframe *framep);
 
 /*
- * EFI-Provided FPSWA interface (Floating Point SoftWare Assist
+ * EFI-Provided FPSWA interface (Floating Point SoftWare Assist)
  */
 
 /* The function entry address */
@@ -401,27 +401,31 @@ trap(int vector, struct trapframe *framep)
 		goto dopanic;
 	}
 
-	case IA64_VEC_FLOATING_POINT_FAULT: {
+	case IA64_VEC_FLOATING_POINT_FAULT:
+		/* FALLTHROUGH */
+
+	case IA64_VEC_FLOATING_POINT_TRAP: {
 		FP_STATE fp_state;
 		FPSWA_RET fpswa_ret;
 		FPSWA_BUNDLE bundle;
 
-		/* Always fatal in kernel.  Should never happen. */
+		/* Always fatal in kernel. Should never happen. */
 		if (!user)
 			goto dopanic;
+
 		if (fpswa_interface == NULL) {
 			i = SIGFPE;
 			ucode = 0;
 			break;
 		}
-		mtx_lock(&Giant);
+
 		i = copyin((void *)(framep->tf_special.iip), &bundle, 16);
-		mtx_unlock(&Giant);
 		if (i) {
-			i = SIGBUS;		/* EFAULT, basically */
-			ucode = /*a0*/ 0;	/* exception summary */
+			i = SIGBUS;	/* EFAULT, basically */
+			ucode = 0;	/* exception summary */
 			break;
 		}
+
 		/* f6-f15 are saved in exception_save */
 		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
 		fp_state.bitmask_high64 = 0x0;
@@ -429,11 +433,21 @@ trap(int vector, struct trapframe *framep)
 		fp_state.fp_low_volatile = &framep->tf_scratch_fp.fr6;
 		fp_state.fp_high_preserved = NULL;
 		fp_state.fp_high_volatile = NULL;
+
+		/*
+		 * We have the high FP registers disabled while in the
+		 * kernel. Enable them for the FPSWA handler only.
+		 */
+		ia64_enable_highfp();
+
 		/* The docs are unclear.  Is Fpswa reentrant? */
 		fpswa_ret = fpswa_interface->Fpswa(1, &bundle,
 		    &framep->tf_special.psr, &framep->tf_special.fpsr,
 		    &framep->tf_special.isr, &framep->tf_special.pr,
 		    &framep->tf_special.cfm, &fp_state);
+
+		ia64_disable_highfp();
+
 		if (fpswa_ret.status == 0) {
 			/* fixed.  update ipsr and iip to next insn */
 			int ei;
@@ -464,70 +478,15 @@ trap(int vector, struct trapframe *framep)
 				 * & 4 -> SIMD caused the exception
 				 */
 				i = SIGFPE;
-				ucode = /*a0*/ 0;	/* exception summary */
+				ucode = 0;		/* exception summary */
 				break;
 			}
 #endif
 			i = SIGFPE;
-			ucode = /*a0*/ 0;		/* exception summary */
+			ucode = 0;			/* exception summary */
 			break;
-		} else {
+		} else
 			panic("bad fpswa return code %lx", fpswa_ret.status);
-		}
-	}
-
-	case IA64_VEC_FLOATING_POINT_TRAP: {
-		FP_STATE fp_state;
-		FPSWA_RET fpswa_ret;
-		FPSWA_BUNDLE bundle;
-
-		/* Always fatal in kernel.  Should never happen. */
-		if (!user)
-			goto dopanic;
-		if (fpswa_interface == NULL) {
-			i = SIGFPE;
-			ucode = 0;
-			break;
-		}
-		mtx_lock(&Giant);
-		i = copyin((void *)(framep->tf_special.iip), &bundle, 16);
-		mtx_unlock(&Giant);
-		if (i) {
-			i = SIGBUS;			/* EFAULT, basically */
-			ucode = /*a0*/ 0;		/* exception summary */
-			break;
-		}
-		/* f6-f15 are saved in exception_save */
-		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
-		fp_state.bitmask_high64 = 0x0;
-		fp_state.fp_low_preserved = NULL;
-		fp_state.fp_low_volatile = &framep->tf_scratch_fp.fr6;
-		fp_state.fp_high_preserved = NULL;
-		fp_state.fp_high_volatile = NULL;
-		/* The docs are unclear.  Is Fpswa reentrant? */
-		fpswa_ret = fpswa_interface->Fpswa(0, &bundle,
-		    &framep->tf_special.psr, &framep->tf_special.fpsr,
-		    &framep->tf_special.isr, &framep->tf_special.pr,
-		    &framep->tf_special.cfm, &fp_state);
-		if (fpswa_ret.status == 0) {
-			/* fixed */
-			/*
-			 * should we increment iip like the fault case?
-			 * or has fpswa done something like normalizing a
-			 * register so that we should just rerun it?
-			 */
-			goto out;
-		} else if (fpswa_ret.status == -1) {
-			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
-			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
-			panic("fpswa fatal error on fp trap");
-		} else if (fpswa_ret.status > 0) {
-			i = SIGFPE;
-			ucode = /*a0*/ 0;		/* exception summary */
-			break;
-		} else {
-			panic("bad fpswa return code %lx", fpswa_ret.status);
-		}
 	}
 
 	case IA64_VEC_DISABLED_FP: {	/* High FP registers are disabled. */
