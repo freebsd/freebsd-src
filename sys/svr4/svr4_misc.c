@@ -82,6 +82,10 @@
 #include <vm/vm_param.h>
 #include <vm/vm_map.h>
 
+#if defined(__FreeBSD__)
+#include <vm/vm_extern.h>
+#endif
+
 #if defined(NetBSD)
 # if defined(UVM)
 #  include <uvm/uvm_extern.h>
