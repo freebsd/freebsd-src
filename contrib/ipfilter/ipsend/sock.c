@@ -19,6 +19,7 @@ static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.1 2000/12/16 21:05:44 darre
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/stat.h>
 #ifndef	ultrix
 #include <fcntl.h>
