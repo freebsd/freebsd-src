@@ -39,6 +39,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -58,6 +59,9 @@
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -663,6 +667,14 @@ mi_switch()
 		    (new_switchtime.tv_sec - PCPU_GET(switchtime.tv_sec)) *
 		    (int64_t)1000000;
 	}
+
+#ifdef DDB
+	/*
+	 * Don't perform context switches from the debugger.
+	 */
+	if (db_active)
+		db_error("Context switches not allowed in the debugger.");
+#endif
 
 #if 0
 	/*
