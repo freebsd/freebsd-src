@@ -483,10 +483,10 @@ bge_miibus_readreg(dev, phy, reg)
 	ifp = &sc->arpcom.ac_if;
 
 	if (phy != 1)
-		switch(sc->bge_asicrev) {
-		case BGE_ASICREV_BCM5701_B5:
-		case BGE_ASICREV_BCM5703_A2:
-		case BGE_ASICREV_BCM5704_A0:
+		switch(sc->bge_chipid) {
+		case BGE_CHIPID_BCM5701_B5:
+		case BGE_CHIPID_BCM5703_A2:
+		case BGE_CHIPID_BCM5704_A0:
 			return(0);
 		}
 
@@ -937,12 +937,12 @@ bge_init_tx_ring(sc)
 
 	CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, 0);
 	/* 5700 b2 errata */
-	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
+	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
 		CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, 0);
 
 	CSR_WRITE_4(sc, BGE_MBX_TX_NIC_PROD0_LO, 0);
 	/* 5700 b2 errata */
-	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
+	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
 		CSR_WRITE_4(sc, BGE_MBX_TX_NIC_PROD0_LO, 0);
 
 	return(0);
@@ -1061,7 +1061,7 @@ bge_chipinit(sc)
 		 * The 5704 uses a different encoding of read/write
 		 * watermarks.
 		 */
-		if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5704)
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
 			dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
 			    (0x7 << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
 			    (0x3 << BGE_PCIDMARWCTL_WR_WAT_SHIFT);
@@ -1075,8 +1075,8 @@ bge_chipinit(sc)
 		 * 5703 and 5704 need ONEDMA_AT_ONCE as a workaround
 		 * for hardware bugs.
 		 */
-		if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5703 ||
-		    BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5704) {
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5703 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 			u_int32_t tmp;
 
 			tmp = CSR_READ_4(sc, BGE_PCI_CLKCTL) & 0x1f;
@@ -1085,8 +1085,8 @@ bge_chipinit(sc)
 		}
 	}
 
-	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5703 ||
-	    BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5704)
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5703 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5704)
 		dma_rw_ctl &= ~BGE_PCIDMARWCTL_MINDMA;
 	pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL, dma_rw_ctl, 4);
 
@@ -1442,9 +1442,6 @@ bge_blockinit(sc)
 	CSR_WRITE_4(sc, BGE_SDI_STATS_CTL,
 	    BGE_SDISTATSCTL_ENABLE|BGE_SDISTATSCTL_FASTER);
 
-	/* init LED register */
-	CSR_WRITE_4(sc, BGE_MAC_LED_CTL, 0x00000000);
-
 	/* ack/clear link change events */
 	CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
 	    BGE_MACSTAT_CFG_CHANGED);
@@ -1455,7 +1452,7 @@ bge_blockinit(sc)
 		CSR_WRITE_4(sc, BGE_MI_STS, BGE_MISTS_LINK);
  	} else {
 		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL|10<<16);
-		if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5700)
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
 			    BGE_EVTENB_MI_INTERRUPT);
 	}
@@ -1656,9 +1653,11 @@ bge_attach(dev)
 
 	/* Save ASIC rev. */
 
-	sc->bge_asicrev =
+	sc->bge_chipid =
 	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 	    BGE_PCIMISCCTL_ASICREV;
+	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
+	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
 	/*
 	 * Figure out what sort of media we have by checking the
@@ -1714,11 +1713,11 @@ bge_attach(dev)
 	 * which do not support unaligned accesses, we will realign the
 	 * payloads by copying the received packets.
 	 */
-	switch (sc->bge_asicrev) {
-	case BGE_ASICREV_BCM5701_A0:
-	case BGE_ASICREV_BCM5701_B0:
-	case BGE_ASICREV_BCM5701_B2:
-	case BGE_ASICREV_BCM5701_B5:
+	switch (sc->bge_chipid) {
+	case BGE_CHIPID_BCM5701_A0:
+	case BGE_CHIPID_BCM5701_B0:
+	case BGE_CHIPID_BCM5701_B2:
+	case BGE_CHIPID_BCM5701_B5:
 		/* If in PCI-X mode, work around the alignment bug. */
 		if ((pci_read_config(dev, BGE_PCI_PCISTATE, 4) &
 		    (BGE_PCISTATE_PCI_BUSMODE | BGE_PCISTATE_PCI_BUSSPEED)) ==
@@ -2073,7 +2072,7 @@ bge_intr(xsc)
 	 * the interrupt handler.
 	 */
 
-	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700) {
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
 		u_int32_t		status;
 
 		status = CSR_READ_4(sc, BGE_MAC_STS);
@@ -2353,7 +2352,7 @@ bge_start(ifp)
 	/* Transmit */
 	CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 	/* 5700 b2 errata */
-	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
+	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
 		CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 
 	/*
