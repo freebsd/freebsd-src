@@ -639,7 +639,7 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
-.if exists(${.CURDIR}/secure) && !defined(NOCRYPT)
+.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 .if exists(${.CURDIR}/secure/lib/libcrypto)
 	cd ${.CURDIR}/secure/lib/libcrypto;	${MAKE} beforeinstall
 .endif
