@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_forw.c,v 1.3 1995/08/20 21:18:36 peter Exp $";
+static char rcsid[] = "$Id: ns_forw.c,v 1.4 1995/10/23 11:11:44 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -119,7 +119,7 @@ ns_forw(nsp, msg, msglen, fp, qsp, dfd, qpp, dname, np)
 	}
 
 	qp = qnew();
-#ifdef LAME_DELEGATION
+#if defined(LAME_DELEGATION) || defined(VALIDATE)
 	getname(np, qp->q_domain, sizeof qp->q_domain);
 #endif
 	qp->q_from = *fp;	/* nslookup wants to know this */
@@ -127,7 +127,7 @@ ns_forw(nsp, msg, msglen, fp, qsp, dfd, qpp, dname, np)
 		dprintf(2, (ddt, "forw: nslookup reports danger\n"));
 		qfree(qp);
 		return (FW_SERVFAIL);
-	} else if (n == 0 && !(forward_only && fwdtab)) {
+	} else if (n == 0 && !fwdtab) {
 		dprintf(2, (ddt, "forw: no nameservers found\n"));
 		qfree(qp);
 		return (FW_NOSERVER);
@@ -139,9 +139,9 @@ ns_forw(nsp, msg, msglen, fp, qsp, dfd, qpp, dname, np)
 	qp->q_id = id;
 	qp->q_expire = tt.tv_sec + RETRY_TIMEOUT*2;
 	hp->id = qp->q_nsid = htons(nsid_next());
-	hp->ancount = 0;
-	hp->nscount = 0;
-	hp->arcount = 0;
+	hp->ancount = htons(0);
+	hp->nscount = htons(0);
+	hp->arcount = htons(0);
 	if ((qp->q_msg = (u_char *)malloc((unsigned)msglen)) == NULL) {
 		syslog(LOG_NOTICE, "forw: malloc: %m");
 		qfree(qp);
@@ -251,16 +251,18 @@ haveComplained(tag1, tag2)
 	}
 	if (!r) {
 		cur = (struct complaint *)malloc(sizeof(struct complaint));
-		cur->tag1 = tag1;
-		cur->tag2 = tag2;
-		cur->expire = tt.tv_sec + INIT_REFRESH;	/* "10 minutes" */
-		cur->next = NULL;
-		if (prev)
-			prev->next = cur;
-		else
-			List = cur;
+		if (cur) {
+			cur->tag1 = tag1;
+			cur->tag2 = tag2;
+			cur->expire = tt.tv_sec + INIT_REFRESH;	/* "10:00" */
+			cur->next = NULL;
+			if (prev)
+				prev->next = cur;
+			else
+				List = cur;
+		}
 	}
-	return r;
+	return (r);
 }
 
 /* void
@@ -272,21 +274,52 @@ haveComplained(tag1, tag2)
  *	complaint is a string describing what is wrong.
  *	dname and a_rr are the problematic other name server.
  */
-void
-nslookupComplain(sysloginfo, queryname, complaint, dname, a_rr)
+static void
+nslookupComplain(sysloginfo, queryname, complaint, dname, a_rr, nsdp)
 	const char *sysloginfo, *queryname, *complaint, *dname;
-	const struct databuf *a_rr;
+	const struct databuf *a_rr, *nsdp;
 {
+#ifdef STATS
+	char nsbuf[20];
+	char abuf[20];
+#endif
+	char *a, *ns;
+
 	dprintf(2, (ddt, "NS '%s' %s\n", dname, complaint));
 	if (sysloginfo && queryname && !haveComplained(queryname, complaint))
 	{
 		char buf[999];
 
+		a = ns = (char *)NULL;
+#ifdef STATS
+		if (nsdp) {
+			if (nsdp->d_ns) {
+				strcpy(nsbuf, inet_ntoa(nsdp->d_ns->addr));
+				ns = nsbuf;
+			} else {
+				ns = zones[nsdp->d_zone].z_origin;
+			}
+		}
+		if (a_rr->d_ns) {
+			strcpy(abuf, inet_ntoa(a_rr->d_ns->addr));
+			a = abuf;
+		} else {
+			a = zones[a_rr->d_zone].z_origin;
+		}
+#endif
 		/* syslog only takes 5 params */
-		sprintf(buf, "%s: query(%s) %s (%s:%s)",
-			sysloginfo, queryname,
-			complaint, dname,
-			inet_ntoa(data_inaddr(a_rr->d_data)));
+		if ( a != NULL || ns != NULL)
+			sprintf(buf, "%s: query(%s) %s (%s:%s) learnt (A=%s:NS=%s)",
+				sysloginfo, queryname,
+				complaint, dname,
+				inet_ntoa(data_inaddr(a_rr->d_data)),
+				a ? a : "<Not Available>",
+				ns ? ns : "<Not Available>" );
+		else
+			sprintf(buf, "%s: query(%s) %s (%s:%s)",
+				sysloginfo, queryname,
+				complaint, dname,
+				inet_ntoa(data_inaddr(a_rr->d_data)));
 		syslog(LOG_INFO, buf);
 	}
 }
@@ -370,30 +403,34 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 			if (dp->d_type != T_A || dp->d_class != class)
 				continue;
 			if (data_inaddr(dp->d_data).s_addr == INADDR_ANY) {
-				syslog(LOG_INFO, "Bogus (0.0.0.0) A RR for %s",
-				       dname);
+				static char *complaint = "Bogus (0.0.0.0) A RR";
+				nslookupComplain(sysloginfo, syslogdname,
+						complaint, dname, dp, nsdp);
 				continue;
 			}
 #ifdef INADDR_LOOPBACK
 			if (ntohl(data_inaddr(dp->d_data).s_addr) ==
 					INADDR_LOOPBACK) {
-				syslog(LOG_INFO, "Bogus LOOPBACK A RR for %s",
-				       dname);
+				static char *complaint = "Bogus LOOPBACK A RR";
+				nslookupComplain(sysloginfo, syslogdname,
+						complaint, dname, dp, nsdp);
 				continue;
 			}
 #endif
 #ifdef INADDR_BROADCAST
 			if (ntohl(data_inaddr(dp->d_data).s_addr) == 
 					INADDR_BROADCAST) {
-				syslog(LOG_INFO, "Bogus BROADCAST A RR for %s",
-				       dname);
+				static char *complaint = "Bogus BROADCAST A RR";
+				nslookupComplain(sysloginfo, syslogdname,
+						complaint, dname, dp, nsdp);
 				continue;
 			}
 #endif
 #ifdef IN_MULTICAST
 			if (IN_MULTICAST(ntohl(data_inaddr(dp->d_data).s_addr))) {
-				syslog(LOG_INFO, "Bogus MULTICAST A RR for %s",
-				       dname);
+				static char *complaint = "Bogus MULTICAST A RR";
+				nslookupComplain(sysloginfo, syslogdname,
+						complaint, dname, dp, nsdp);
 				continue;
 			}
 #endif
@@ -461,7 +498,7 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 			if (aIsUs(nsa)) {
 			    static char *complaint = "contains our address";
 			    nslookupComplain(sysloginfo, syslogdname,
-					     complaint, dname, dp);
+					     complaint, dname, dp, nsdp);
 			    return (-1);
 			}
 			/*
@@ -475,7 +512,7 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 			{
 			    static char *complaint = "forwarding loop";
 			    nslookupComplain(sysloginfo, syslogdname,
-					     complaint, dname, dp);
+					     complaint, dname, dp, nsdp);
 			    return (-1);
 			}
 #ifdef BOGUSNS
