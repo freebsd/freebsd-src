@@ -694,8 +694,6 @@ g_bsd_start(struct bio *bp)
 		    sizeof(ms->labelsum)))
 			return (1);
 		break;
-	case BIO_SETATTR:
-		break;
 	default:
 		KASSERT(0 == 1, ("Unknown bio_cmd in g_bsd_start (%d)",
 		    bp->bio_cmd));

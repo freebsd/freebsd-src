@@ -217,7 +217,6 @@ g_slice_start(struct bio *bp)
 		g_io_request(bp2, cp);
 		return;
 	case BIO_GETATTR:
-	case BIO_SETATTR:
 		/* Give the real method a chance to override */
 		if (gsp->start(bp))
 			return;

@@ -368,7 +368,6 @@ g_md_start(struct bio *bp)
 
 	switch(bp->bio_cmd) {
 	case BIO_GETATTR:
-	case BIO_SETATTR:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
