@@ -331,8 +331,8 @@ route_output(m, so)
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
 	 */
-	if (rtm->rtm_type != RTM_GET && suser_xxx(so->so_cred, NULL, 0) != 0)
-		senderr(EPERM);
+	if (rtm->rtm_type != RTM_GET && (error = suser(curproc)) != 0)
+		senderr(error);
 
 	switch (rtm->rtm_type) {
 
