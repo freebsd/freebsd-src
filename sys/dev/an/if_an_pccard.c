@@ -64,6 +64,11 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
+#ifndef lint
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
+
 #include <dev/an/if_aironet_ieee.h>
 #include <dev/an/if_anreg.h>
 
@@ -149,6 +154,7 @@ an_pccard_attach(device_t dev)
 	      
 	sc->an_bhandle = rman_get_bushandle(sc->port_res);
 	sc->an_btag = rman_get_bustag(sc->port_res);
+	sc->an_dev = dev;
 
 	error = an_attach(sc, device_get_unit(dev), flags);
 	return (error);
