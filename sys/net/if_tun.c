@@ -105,7 +105,7 @@ static d_poll_t		tunpoll;
 
 static struct cdevsw tun_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_PSEUDO | D_NEEDGIANT,
 	.d_open =	tunopen,
 	.d_close =	tunclose,
 	.d_read =	tunread,
@@ -113,7 +113,6 @@ static struct cdevsw tun_cdevsw = {
 	.d_ioctl =	tunioctl,
 	.d_poll =	tunpoll,
 	.d_name =	TUNNAME,
-	.d_flags =	D_PSEUDO,
 };
 
 static void
