@@ -244,6 +244,7 @@ z8530_getc(struct uart_bas *bas)
 struct z8530_softc {
 	struct uart_softc base;
 	uint8_t	tpc;
+	uint8_t	txidle;
 };
 
 static int z8530_bus_attach(struct uart_softc *);
@@ -305,6 +306,7 @@ z8530_bus_attach(struct uart_softc *sc)
 		z8530->tpc = z8530_setup(bas, 9600, 8, 1, UART_PARITY_NONE);
 		z8530->tpc &= ~(TPC_DTR|TPC_RTS);
 	}
+	z8530->txidle = 1;	/* Report UART_IPEND_TXIDLE. */
 
 	sc->sc_rxfifosz = 3;
 	sc->sc_txfifosz = 1;
@@ -385,6 +387,7 @@ z8530_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 static int
 z8530_bus_ipend(struct uart_softc *sc)
 {
+	struct z8530_softc *z8530 = (struct z8530_softc*)sc;
 	struct uart_bas *bas;
 	int ipend;
 	uint32_t sig;
@@ -400,9 +403,10 @@ z8530_bus_ipend(struct uart_softc *sc)
 		uart_setreg(bas, REG_CTRL, CR_RSTXSI);
 		ipend |= UART_IPEND_BREAK;
 	}
-	if (bes & BES_TXE) {
+	if (bes & BES_TXE && z8530->txidle) {
 		uart_setreg(bas, REG_CTRL, CR_RSTTXI);
 		ipend |= UART_IPEND_TXIDLE;
+		z8530->txidle = 0;	/* Suppress UART_IPEND_TXIDLE. */
 	}
 	if (bes & BES_RXA)
 		ipend |= UART_IPEND_RXREADY;
@@ -533,6 +537,7 @@ z8530_bus_setsig(struct uart_softc *sc, int sig)
 static int
 z8530_bus_transmit(struct uart_softc *sc)
 {
+	struct z8530_softc *z8530 = (struct z8530_softc*)sc;
 	struct uart_bas *bas;
 
 	bas = &sc->sc_bas;
@@ -542,6 +547,7 @@ z8530_bus_transmit(struct uart_softc *sc)
 	uart_setreg(bas, REG_DATA, sc->sc_txbuf[0]);
 	uart_barrier(bas);
 	sc->sc_txbusy = 1;
+	z8530->txidle = 1;	/* Report UART_IPEND_TXIDLE again. */
 	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (0);
 }
