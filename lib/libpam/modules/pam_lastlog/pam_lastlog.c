@@ -5,6 +5,8 @@
  * All rights reserved.
  * Copyright (c) 2001 Networks Associates Technology, Inc.
  * All rights reserved.
+ * Copyright (c) 2004 Joe R. Doupnik
+ * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
  * ThinkSec AS and NAI Labs, the Security Research Division of Network
@@ -168,8 +170,18 @@ PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
+        const void *tty;
 
-	return (PAM_SUCCESS);
+        pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		tty = (const char *)tty + strlen(_PATH_DEV);
+	if (*(const char *)tty == '\0')
+		return (PAM_SERVICE_ERR);
+        if (logout(tty) != 1)
+                syslog(LOG_ERR, "%s(): no utmp record for %s",
+		    __func__, (const char *)tty);
+        logwtmp(tty, "", "");
+        return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_lastlog");
