@@ -156,7 +156,7 @@ chn_dmaupdate(struct pcm_channel *c)
 	DEB(
 	if (delta >= ((sndbuf_getsize(b) * 15) / 16)) {
 		if (!(c->flags & (CHN_F_CLOSING | CHN_F_ABORTING)))
-			device_printf(c->parentsnddev->dev, "hwptr went backwards %d -> %d\n", old, hwptr);
+			device_printf(c->dev, "hwptr went backwards %d -> %d\n", old, hwptr);
 	}
 	);
 
@@ -257,13 +257,13 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 	 * the write operation avoids blocking.
 	 */
 	if ((c->flags & CHN_F_NBIO) && buf->uio_resid > sndbuf_getblksz(bs)) {
-		DEB(device_printf(c->parentsnddev->dev, "broken app, nbio and tried to write %d bytes with fragsz %d\n",
+		DEB(device_printf(c->dev, "broken app, nbio and tried to write %d bytes with fragsz %d\n",
 			buf->uio_resid, sndbuf_getblksz(bs)));
 		newsize = 16;
 		while (newsize < min(buf->uio_resid, CHN_2NDBUFMAXSIZE / 2))
 			newsize <<= 1;
 		chn_setblocksize(c, sndbuf_getblkcnt(bs), newsize);
-		DEB(device_printf(c->parentsnddev->dev, "frags reset to %d x %d\n", sndbuf_getblkcnt(bs), sndbuf_getblksz(bs)));
+		DEB(device_printf(c->dev, "frags reset to %d x %d\n", sndbuf_getblkcnt(bs), sndbuf_getblksz(bs)));
 	}
 
 	ret = 0;

@@ -379,6 +379,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 	ch->pid = -1;
 	ch->parentsnddev = d;
 	ch->parentchannel = parent;
+	ch->dev = d->dev;
 	snprintf(ch->name, 32, "%s:%s:%d", device_get_nameunit(d->dev), dirs, ch->num);
 
 	err = chn_init(ch, devinfo, dir);
