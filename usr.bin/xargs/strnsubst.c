@@ -48,7 +48,7 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 		if (this == NULL)
 			break;
 		if ((strlen(s2) + ((uintptr_t)this - (uintptr_t)s1) +
-		    (strlen(replstr) - 1)) > maxsize) {
+		    (strlen(replstr) - 1)) > maxsize && *replstr != '\0') {
 			strlcat(s2, s1, maxsize);
 			goto done;
 		}
