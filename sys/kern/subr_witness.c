@@ -1301,7 +1301,8 @@ witness_list_locks(struct lock_list_entry **lock_list)
 			    lock->lo_class->lc_name, lock->lo_name);
 			if (lock->lo_type != lock->lo_name)
 				printf(" (%s)", lock->lo_type);
-			printf(" (%p) locked @ %s:%d\n", lock,
+			printf(" r = %d (%p) locked @ %s:%d\n",
+			    instance->li_flags & LI_RECURSEMASK, lock,
 			    instance->li_file, instance->li_line);
 			nheld++;
 		}
