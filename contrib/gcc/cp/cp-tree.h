@@ -1251,6 +1251,7 @@ struct lang_type
   unsigned java_interface : 1;
 
   unsigned non_zero_init : 1;
+  unsigned contains_empty_class_p : 1;
 
   /* When adding a flag here, consider whether or not it ought to
      apply to a template instance if it applies to the template.  If
@@ -1259,7 +1260,7 @@ struct lang_type
   /* There are some bits left to fill out a 32-bit word.  Keep track
      of this by updating the size of this bitfield whenever you add or
      remove a flag.  */
-  unsigned dummy : 7;
+  unsigned dummy : 6;
 
   int vsize;
 
@@ -1520,6 +1521,10 @@ struct lang_type
 #define CLASSTYPE_NEARLY_EMPTY_P(NODE) \
   (TYPE_LANG_SPECIFIC (NODE)->nearly_empty_p)
 
+/* Nonzero if this class contains an empty subobject.  */
+#define CLASSTYPE_CONTAINS_EMPTY_CLASS_P(NODE) \
+  (TYPE_LANG_SPECIFIC (NODE)->contains_empty_class_p)
+
 /* A list of class types of which this type is a friend.  The
    TREE_VALUE is normally a TYPE, but will be a TEMPLATE_DECL in the
    case of a template friend.  */
@@ -1534,13 +1539,21 @@ struct lang_type
 #define CLASSTYPE_DECLARED_CLASS(NODE) \
   (TYPE_LANG_SPECIFIC (NODE)->declared_class)
 
-/* Nonzero if this class has const members which have no specified initialization.  */
-#define CLASSTYPE_READONLY_FIELDS_NEED_INIT(NODE) \
-  (TYPE_LANG_SPECIFIC (NODE)->const_needs_init)
+/* Nonzero if this class has const members
+   which have no specified initialization.  */
+#define CLASSTYPE_READONLY_FIELDS_NEED_INIT(NODE)	\
+  (TYPE_LANG_SPECIFIC (NODE)				\
+   ? TYPE_LANG_SPECIFIC (NODE)->const_needs_init : 0)
+#define SET_CLASSTYPE_READONLY_FIELDS_NEED_INIT(NODE, VALUE) \
+  (TYPE_LANG_SPECIFIC (NODE)->const_needs_init = (VALUE))
 
-/* Nonzero if this class has ref members which have no specified initialization.  */
-#define CLASSTYPE_REF_FIELDS_NEED_INIT(NODE) \
-  (TYPE_LANG_SPECIFIC (NODE)->ref_needs_init)
+/* Nonzero if this class has ref members
+   which have no specified initialization.  */
+#define CLASSTYPE_REF_FIELDS_NEED_INIT(NODE)		\
+  (TYPE_LANG_SPECIFIC (NODE)				\
+   ? TYPE_LANG_SPECIFIC (NODE)->ref_needs_init : 0)
+#define SET_CLASSTYPE_REF_FIELDS_NEED_INIT(NODE, VALUE) \
+  (TYPE_LANG_SPECIFIC (NODE)->ref_needs_init = (VALUE))
 
 /* Nonzero if this class is included from a header file which employs
    `#pragma interface', and it is not included in its implementation file.  */
