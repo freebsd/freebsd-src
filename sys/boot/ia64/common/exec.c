@@ -129,7 +129,7 @@ enter_kernel(u_int64_t start, struct bootinfo *bi)
 	__asm __volatile("mov cr.iip=%0" :: "r"(start));
 	__asm __volatile("mov cr.ifs=r0;;");
 	__asm __volatile("mov ar.rsc=0;; flushrs;;");
-
+	__asm __volatile("mov r8=%0" :: "r" (bi));
 	__asm __volatile("rfi;;");
 }
 
