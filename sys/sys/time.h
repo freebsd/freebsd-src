@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.36 1999/03/08 12:36:14 phk Exp $
+ * $Id: time.h,v 1.37 1999/03/11 15:09:41 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -280,6 +280,7 @@ void	set_timecounter __P((struct timespec *ts));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
 int	tvtohz __P((struct timeval *));
+void	update_timecounter __P((struct timecounter *tc));
 #else /* !KERNEL */
 #include <time.h>
 
