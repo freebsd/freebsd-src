@@ -19,7 +19,7 @@ sed	-e '/	pty	/d' \
 	-e '/	gif	/d' \
 	-e '/	faith	/d' \
 	-e '/	random	/d' \
-	-e '/	splash$/d' \
+	-e '/	splash	/d' \
 	-e '/PROCFS/d' \
 	-e '/PSEUDOFS/d' \
 	-e '/KTRACE/d' \
@@ -48,9 +48,13 @@ sed	-e '/	pty	/d' \
 	-e '/	ses	/d' \
 	-e '/	pcm/d' \
 	-e '/	atapist	/d' \
+	-e '/	ppc$/d' \
+	-e '/	ppbus	/d' \
 	-e '/	lpt	/d' \
+	-e '/	plip	/d' \
 	-e '/	ppi	/d' \
 	-e '/	de	/d' \
+	-e '/	em	/d' \
 	-e '/	txp	/d' \
 	-e '/	vx	/d' \
 	-e '/	dc	/d' \
@@ -83,7 +87,7 @@ sed	-e '/	pty	/d' \
 	-e '/	gif	/d' \
 	-e '/	faith	/d' \
 	-e '/	random	/d' \
-	-e '/	splash$/d' \
+	-e '/	splash	/d' \
 	-e '/PROCFS/d' \
 	-e '/PSEUDOFS/d' \
 	-e '/KTRACE/d' \
@@ -101,8 +105,9 @@ sed	-e '/	pty	/d' \
 	-e '/AHC_REG_PRETTY_PRINT/d' \
 	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/	ncr	/d' \
+	-e '/	ch	/d' \
+	-e '/	sa	/d' \
 	-e '/	pcm/d' \
-	-e '/	agp	/d' \
 	-e '/	atapist	/d' \
 	-e '/	lpt	/d' \
 	-e '/	ppi	/d' \
