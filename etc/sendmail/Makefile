@@ -116,9 +116,9 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DEST_CF}
 .endif
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.mc \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.mc \
 	    ${DESTDIR}/etc/mail/freebsd.submit.mc
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
 	    ${DESTDIR}/etc/mail/freebsd.submit.cf
 .ifndef SENDMAIL_SET_USER_ID
 .if defined(INSTALL_SUBMIT_CF)
@@ -127,13 +127,13 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 		${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
 .endif
 .else
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
 	    ${DEST_SUBMIT_CF}
 .endif
 .endif
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
 	    ${DESTDIR}/etc/mail/helpfile
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
 	    ${DESTDIR}/var/log/sendmail.st
 
 .include <bsd.prog.mk>

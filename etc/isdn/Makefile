@@ -18,9 +18,9 @@ I4BETCFILE=	holidays.D		\
 
 install:
 		for i in ${I4BETCPROG} ; do \
-		  ${INSTALL} -c -o root -g wheel -m 700 $$i ${DESTDIR}/etc/isdn ; \
+		  ${INSTALL} ${COPY} -o root -g wheel -m 700 $$i ${DESTDIR}/etc/isdn ; \
 		done ; \
 		for i in ${I4BETCFILE} ; do \
-		  ${INSTALL} -c -o root -g wheel -m 600 $$i ${DESTDIR}/etc/isdn ; \
+		  ${INSTALL} ${COPY} -o root -g wheel -m 600 $$i ${DESTDIR}/etc/isdn ; \
 		done
 

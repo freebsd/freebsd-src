@@ -13,7 +13,7 @@ HIDEGAME=hidegame
 
 beforeinstall:
 .if !exists(${DESTDIR}/var/games/battlestar.log)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/battlestar.log
 .endif
 

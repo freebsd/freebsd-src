@@ -29,7 +29,7 @@ send-pr.el:	send-pr-el.in Makefile
 
 # called from /usr/src/etc/Makefile 
 etc-gnats-freefall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 0644 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 0644 \
 		${.CURDIR}/categories  ${DESTDIR}/etc/gnats/freefall
 
 .include <bsd.prog.mk>
