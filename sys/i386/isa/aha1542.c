@@ -21,6 +21,11 @@
 /*
  * HISTORY
  * $Log: aha1542.c,v $
+ * Revision 1.4  1993/08/06  11:58:59  rgrimes
+ * Fixed **probing for scsi devices** message to have a controller and unit
+ * message on the begining of it:
+ * aha0: **probing for scsi devices**
+ *
  * Revision 1.3  1993/07/29  11:55:31  nate
  * Syncing our sources back with Julian's, and removing PATCHKIT headers.
  *
@@ -957,6 +962,7 @@ int	unit;
 	printf("aha%d:",unit);
 #define	PRNT(x) printf(x)
 #endif	__386BSD__
+	DELAY(1000);	/* for Bustek 545 */
 	aha_cmd(unit,0, sizeof(conf), 0 ,&conf, AHA_CONF_GET);
 	switch(conf.chan)
 	{
