@@ -667,9 +667,10 @@ If the amount of free and cache memory falls below this value, the
 pageout daemon will enter "memory conserving mode" to avoid deadlock.
 .El
 .Sh RETURN VALUES
-If the call to
 .Fn sysctl
-is successful, the number of bytes copied out is returned.
+and
+.Fn sysctlbyname
+return 0 when successful.
 Otherwise \-1 is returned and
 .Va errno
 is set appropriately.
