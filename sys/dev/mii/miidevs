@@ -98,6 +98,7 @@ oui xxDAVICOM			0x006040	Davicom Semiconductor
 
 /* Altima Communications PHYs */
 model xxALTIMA AC101		0x0021 AC101 10/100 media interface
+model xxALTIMA AC101L		0x0012 AC101L 10/100 media interface
 
 /* Advanced Micro Devices PHYs */
 model xxAMD 79C873		0x0000 Am79C873 10/100 media interface
