@@ -40,8 +40,8 @@ fi
 home_dir=`dirname $0`
 
 # check out the XFree86 and XFree86-contrib ports and set them up
-if ! ( cd $home_dir && cvs -R -d ${CVSROOT} co -P XFree86 XFree86-contrib && \
-		cd XFree86 && patch < ../XF86.patch ); then
+if ! ( cd $home_dir && \
+		cvs -R -d ${CVSROOT} co -P XFree86 XFree86-contrib ); then
 	echo "Could not checkout the XFree86 port!"
 	echo
 	usage
@@ -49,8 +49,8 @@ fi
 
 # actually build X
 if ! ( cd $home_dir/XFree86 && \
-		make DISTDIR=/usr/ports/distfiles DESTDIR=${output_dir} \
-		NO_PKG_REGISTER=yes all install ); then
+		make BUILD_XDIST=yes DISTDIR=/usr/ports/distfiles \
+		DESTDIR=${output_dir} NO_PKG_REGISTER=yes all install ); then
 	echo "Could not build XFree86!"
 	echo
 	usage
