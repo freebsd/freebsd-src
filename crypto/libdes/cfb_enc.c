@@ -1,9 +1,9 @@
 /* crypto/des/cfb_enc.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -64,14 +64,8 @@
  * the second.  The second 12 bits will come from the 3rd and half the 4th
  * byte.
  */
-void des_cfb_encrypt(in, out, numbits, length, schedule, ivec, encrypt)
-unsigned char *in;
-unsigned char *out;
-int numbits;
-long length;
-des_key_schedule schedule;
-des_cblock (*ivec);
-int encrypt;
+void des_cfb_encrypt(const unsigned char *in, unsigned char *out, int numbits,
+	     long length, des_key_schedule schedule, des_cblock *ivec, int enc)
 	{
 	register DES_LONG d0,d1,v0,v1,n=(numbits+7)/8;
 	register DES_LONG mask0,mask1;
@@ -93,13 +87,13 @@ int encrypt;
 		if (num == 32)
 			mask0=0xffffffffL;
 		else	mask0=(1L<<num)-1;
-		mask1=0x00000000;
+		mask1=0x00000000L;
 		}
 
-	iv=(unsigned char *)ivec;
+	iv = &(*ivec)[0];
 	c2l(iv,v0);
 	c2l(iv,v1);
-	if (encrypt)
+	if (enc)
 		{
 		while (l >= n)
 			{
@@ -163,7 +157,7 @@ int encrypt;
 			out+=n;
 			}
 		}
-	iv=(unsigned char *)ivec;
+	iv = &(*ivec)[0];
 	l2c(v0,iv);
 	l2c(v1,iv);
 	v0=v1=d0=d1=ti[0]=ti[1]=0;

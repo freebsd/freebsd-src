@@ -1,9 +1,9 @@
 /* crypto/des/speed.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -59,87 +59,71 @@
 /* 11-Sep-92 Andrew Daviel   Support for Silicon Graphics IRIX added */
 /* 06-Apr-92 Luke Brennan    Support for VMS and add extra signal calls */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#if !defined(MSDOS) && !defined(WIN32)
+#if !defined(MSDOS) && (!defined(VMS) || defined(__DECC))
 #define TIMES
 #endif
 
 #include <stdio.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
+
+#include <openssl/e_os2.h>
+#include OPENSSL_UNISTD_IO
+OPENSSL_DECLARE_EXIT
+
 #include <signal.h>
-#ifdef HAVE_TIME_H
+#ifndef _IRIX
 #include <time.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
+#ifdef TIMES
 #include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_TIMES_H
 #include <sys/times.h>
 #endif
 
-#ifdef VMS
-#include <types.h>
-struct tms {
-	time_t tms_utime;
-	time_t tms_stime;
-	time_t tms_uchild;	/* I dunno...  */
-	time_t tms_uchildsys;	/* so these names are a guess :-) */
-	}
+/* Depending on the VMS version, the tms structure is perhaps defined.
+   The __TMS macro will show if it was.  If it wasn't defined, we should
+   undefine TIMES, since that tells the rest of the program how things
+   should be handled.				-- Richard Levitte */
+#if defined(VMS) && defined(__DECC) && !defined(__TMS)
+#undef TIMES
 #endif
 
-#ifdef HAVE_SYS_TIMEB_H
+#ifndef TIMES
 #include <sys/timeb.h>
 #endif
 
+#if defined(sun) || defined(__ultrix)
+#define _POSIX_SOURCE
 #include <limits.h>
-#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 
-#include "des.h"
+#include <openssl/des.h>
 
 /* The following if from times(3) man page.  It may need to be changed */
 #ifndef HZ
-#ifndef CLK_TCK
-#ifndef VMS
-#define HZ	100.0
-#else /* VMS */
-#define HZ	100.0
-#endif
-#else /* CLK_TCK */
-#define HZ ((double)CLK_TCK)
-#endif
+# ifndef CLK_TCK
+#  ifndef _BSD_CLK_TCK_ /* FreeBSD fix */
+#   define HZ	100.0
+#  else /* _BSD_CLK_TCK_ */
+#   define HZ ((double)_BSD_CLK_TCK_)
+#  endif
+# else /* CLK_TCK */
+#  define HZ ((double)CLK_TCK)
+# endif
 #endif
 
 #define BUFSIZE	((long)1024)
 long run=0;
 
-#ifndef NOPROTO
 double Time_F(int s);
-#else
-double Time_F();
-#endif
-
 #ifdef SIGALRM
-#if defined(__STDC__) || defined(sgi)
+#if defined(__STDC__) || defined(sgi) || defined(_AIX)
 #define SIGRETTYPE void
 #else
 #define SIGRETTYPE int
 #endif
 
-#ifndef NOPROTO
 SIGRETTYPE sig_done(int sig);
-#else
-SIGRETTYPE sig_done();
-#endif
-
-SIGRETTYPE sig_done(sig)
-int sig;
+SIGRETTYPE sig_done(int sig)
 	{
 	signal(SIGALRM,sig_done);
 	run=0;
@@ -152,8 +136,7 @@ int sig;
 #define START	0
 #define STOP	1
 
-double Time_F(s)
-int s;
+double Time_F(int s)
 	{
 	double ret;
 #ifdef TIMES
@@ -183,15 +166,13 @@ int s;
 		{
 		ftime(&tend);
 		i=(long)tend.millitm-(long)tstart.millitm;
-		ret=((double)(tend.time-tstart.time))+((double)i)/1000.0;
+		ret=((double)(tend.time-tstart.time))+((double)i)/1e3;
 		return((ret == 0.0)?1e-6:ret);
 		}
 #endif
 	}
 
-int main(argc,argv)
-int argc;
-char **argv;
+int main(int argc, char **argv)
 	{
 	long count;
 	static unsigned char buf[BUFSIZE];
@@ -209,12 +190,12 @@ char **argv;
 	printf("program when this computer is idle.\n");
 #endif
 
-	des_set_key((C_Block *)key2,sch2);
-	des_set_key((C_Block *)key3,sch3);
+	des_set_key(&key2,sch2);
+	des_set_key(&key3,sch3);
 
 #ifndef SIGALRM
 	printf("First we calculate the approximate speed ...\n");
-	des_set_key((C_Block *)key,sch);
+	des_set_key(&key,sch);
 	count=10;
 	do	{
 		long i;
@@ -244,7 +225,7 @@ char **argv;
 
 	Time_F(START);
 	for (count=0,run=1; COND(ca); count++)
-		des_set_key((C_Block *)key,sch);
+		des_set_key(&key,sch);
 	d=Time_F(STOP);
 	printf("%ld set_key's in %.2f seconds\n",count,d);
 	a=((double)COUNT(ca))/d;
@@ -276,8 +257,8 @@ char **argv;
 #endif
 	Time_F(START);
 	for (count=0,run=1; COND(cc); count++)
-		des_ncbc_encrypt((C_Block *)buf,(C_Block *)buf,BUFSIZE,&(sch[0]),
-			(C_Block *)&(key[0]),DES_ENCRYPT);
+		des_ncbc_encrypt(buf,buf,BUFSIZE,&(sch[0]),
+			&key,DES_ENCRYPT);
 	d=Time_F(STOP);
 	printf("%ld des_cbc_encrypt's of %ld byte blocks in %.2f second\n",
 		count,BUFSIZE,d);
@@ -293,11 +274,11 @@ char **argv;
 #endif
 	Time_F(START);
 	for (count=0,run=1; COND(cd); count++)
-		des_ede3_cbc_encrypt((C_Block *)buf,(C_Block *)buf,BUFSIZE,
+		des_ede3_cbc_encrypt(buf,buf,BUFSIZE,
 			&(sch[0]),
 			&(sch2[0]),
 			&(sch3[0]),
-			(C_Block *)&(key[0]),
+			&key,
 			DES_ENCRYPT);
 	d=Time_F(STOP);
 	printf("%ld des_ede_cbc_encrypt's of %ld byte blocks in %.2f second\n",
@@ -317,11 +298,11 @@ char **argv;
 	printf("%ld crypts in %.2f second\n",count,e);
 	e=((double)COUNT(ce))/e;
 
-	printf("set_key            per sec = %12.2f (%5.1fuS)\n",a,1.0e6/a);
-	printf("DES raw ecb bytes  per sec = %12.2f (%5.1fuS)\n",b,8.0e6/b);
-	printf("DES cbc bytes      per sec = %12.2f (%5.1fuS)\n",c,8.0e6/c);
-	printf("DES ede cbc bytes  per sec = %12.2f (%5.1fuS)\n",d,8.0e6/d);
-	printf("crypt              per sec = %12.2f (%5.1fuS)\n",e,1.0e6/e);
+	printf("set_key            per sec = %12.2f (%9.3fuS)\n",a,1.0e6/a);
+	printf("DES raw ecb bytes  per sec = %12.2f (%9.3fuS)\n",b,8.0e6/b);
+	printf("DES cbc bytes      per sec = %12.2f (%9.3fuS)\n",c,8.0e6/c);
+	printf("DES ede cbc bytes  per sec = %12.2f (%9.3fuS)\n",d,8.0e6/d);
+	printf("crypt              per sec = %12.2f (%9.3fuS)\n",e,1.0e6/e);
 	exit(0);
 #if defined(LINT) || defined(MSDOS)
 	return(0);

@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl
-# des.pl - eric young 22/11/1991 eay@mincom.oz.au or eay@psych.psy.uq.oz.au
+# des.pl - eric young 22/11/1991 eay@cryptsoft.com
 #
 # Copyright (C) 1993 Eric Young
 #
@@ -34,7 +34,7 @@
                  
 package des;
 
-eval("usr integer;") if (int($]) > 4);
+eval("use integer;") if (int($]) > 4);
 
 # The following 8 arrays are used in des_set_key
 @skb0=(

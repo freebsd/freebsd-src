@@ -1,9 +1,9 @@
 /* crypto/des/ecb_enc.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -58,20 +58,20 @@
 
 #include "des_locl.h"
 #include "spr.h"
+#include <openssl/opensslv.h>
 
-char *libdes_version="libdes v 4.01 - 13-Jan-1997 - eay";
-char *DES_version="DES part of SSLeay 0.6.6 14-Jan-1997";
+OPENSSL_GLOBAL const char *libdes_version="libdes" OPENSSL_VERSION_PTEXT;
+OPENSSL_GLOBAL const char *DES_version="DES" OPENSSL_VERSION_PTEXT;
 
-char *des_options()
+const char *des_options(void)
 	{
 	static int init=1;
 	static char buf[32];
 
 	if (init)
 		{
-		char *ptr,*unroll,*risc,*size;
+		const char *ptr,*unroll,*risc,*size;
 
-		init=0;
 #ifdef DES_PTR
 		ptr="ptr";
 #else
@@ -97,26 +97,24 @@ char *des_options()
 		else
 			size="long";
 		sprintf(buf,"des(%s,%s,%s,%s)",ptr,risc,unroll,size);
+		init=0;
 		}
 	return(buf);
 	}
 		
 
-void des_ecb_encrypt(input, output, ks, encrypt)
-des_cblock (*input);
-des_cblock (*output);
-des_key_schedule ks;
-int encrypt;
+void des_ecb_encrypt(const_des_cblock *input, des_cblock *output,
+	     des_key_schedule ks,
+	     int enc)
 	{
 	register DES_LONG l;
-	register unsigned char *in,*out;
 	DES_LONG ll[2];
+	const unsigned char *in = &(*input)[0];
+	unsigned char *out = &(*output)[0];
 
-	in=(unsigned char *)input;
-	out=(unsigned char *)output;
 	c2l(in,l); ll[0]=l;
 	c2l(in,l); ll[1]=l;
-	des_encrypt(ll,ks,encrypt);
+	des_encrypt(ll,ks,enc);
 	l=ll[0]; l2c(l,out);
 	l=ll[1]; l2c(l,out);
 	l=ll[0]=ll[1]=0;
