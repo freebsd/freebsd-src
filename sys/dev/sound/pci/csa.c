@@ -226,7 +226,7 @@ csa_probe(device_t dev)
 	card = csa_findcard(dev);
 	if (card) {
 		device_set_desc(dev, card->name);
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

@@ -213,7 +213,7 @@ sbsh_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Granch SBNI16 G.SHDSL Modem");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

@@ -290,7 +290,7 @@ ua_probe(device_t dev)
 	s = "USB Audio";
 
 	device_set_desc(dev, s);
-	return 0;
+	return BUS_PROBE_DEFAULT;
 }
 
 static int

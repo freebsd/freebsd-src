@@ -60,7 +60,7 @@ sx_pci_probe(
 	}
 	if (desc) {
 		device_set_desc(dev, desc);
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

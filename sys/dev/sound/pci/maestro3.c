@@ -1070,7 +1070,7 @@ m3_pci_probe(device_t dev)
 	for (card = m3_card_types ; card->pci_id ; card++) {
 		if (pci_get_devid(dev) == card->pci_id) {
 			device_set_desc(dev, card->name);
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		}
 	}
 	return ENXIO;

@@ -757,74 +757,74 @@ es_pci_probe(device_t dev)
 	switch(pci_get_devid(dev)) {
 	case ES1370_PCI_ID:
 		device_set_desc(dev, "AudioPCI ES1370");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case ES1371_PCI_ID:
 		switch(pci_get_revid(dev)) {
 		case ES1371REV_ES1371_A:
 			device_set_desc(dev, "AudioPCI ES1371-A");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		case ES1371REV_ES1371_B:
 			device_set_desc(dev, "AudioPCI ES1371-B");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		case ES1371REV_ES1373_A:
 			device_set_desc(dev, "AudioPCI ES1373-A");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		case ES1371REV_ES1373_B:
 			device_set_desc(dev, "AudioPCI ES1373-B");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		case ES1371REV_ES1373_8:
 			device_set_desc(dev, "AudioPCI ES1373-8");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		case ES1371REV_CT5880_A:
 			device_set_desc(dev, "Creative CT5880-A");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		default:
 			device_set_desc(dev, "AudioPCI ES1371-?");
 			device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		}
 
 	case ES1371_PCI_ID2:
 		device_set_desc(dev, "Strange AudioPCI ES1371-? (vid=3274)");
 		device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case CT4730_PCI_ID:
 		switch(pci_get_revid(dev)) {
 		case CT4730REV_CT4730_A:
 			device_set_desc(dev, "Creative SB AudioPCI CT4730");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		default:
 			device_set_desc(dev, "Creative SB AudioPCI CT4730-?");
 			device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		}
 
 	case CT5880_PCI_ID:
 		switch(pci_get_revid(dev)) {
 		case CT5880REV_CT5880_C:
 			device_set_desc(dev, "Creative CT5880-C");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		case CT5880REV_CT5880_D:
 			device_set_desc(dev, "Creative CT5880-D");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		case CT5880REV_CT5880_E:
 			device_set_desc(dev, "Creative CT5880-E");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 
 		default:
 			device_set_desc(dev, "Creative CT5880-?");
 			device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		}
 
 	default:
