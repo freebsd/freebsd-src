@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.1 (Berkeley) 6/2/93
- * $Id: socketvar.h,v 1.2 1994/08/02 07:53:36 davidg Exp $
+ * $Id: socketvar.h,v 1.3 1994/08/18 22:35:45 wollman Exp $
  */
+
+#ifndef _SYS_SOCKETVAR_H_
+#define _SYS_SOCKETVAR_H_
 
 #include <sys/select.h>			/* for struct selinfo */
 
@@ -205,4 +208,6 @@ int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int	soo_ioctl __P((struct file *fp, int com, caddr_t data, struct proc *p));
 int	soo_select __P((struct file *fp, int which, struct proc *p));
 int 	soo_close __P((struct file *fp, struct proc *p));
+#endif
+
 #endif

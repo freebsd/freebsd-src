@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kernel.h,v 1.3 1994/08/02 07:53:08 davidg Exp $
  */
+
+#ifndef _SYS_KERNEL_H_
+#define _SYS_KERNEL_H_
 
 /* Global variables for the kernel. */
 
@@ -82,3 +85,4 @@ struct linker_set {
 	caddr_t ls_items[1];	/* really ls_length of them, trailing NULL */
 };
 
+#endif

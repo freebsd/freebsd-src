@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: disklabel.h,v 1.3 1994/08/02 07:52:49 davidg Exp $
  */
+
+#ifndef _SYS_DISKLABEL_H_
+#define _SYS_DISKLABEL_H_
 
 /*
  * Disk description table, see disktab(5)
@@ -361,5 +364,7 @@ extern struct dos_partition dos_partitions[NDOSPART];
 __BEGIN_DECLS
 struct disklabel *getdiskbyname __P((const char *));
 __END_DECLS
+
+#endif
 
 #endif

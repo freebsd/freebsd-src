@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
- * $Id: lockf.h,v 1.2 1994/08/02 07:54:50 davidg Exp $
+ * $Id: lockf.h,v 1.1 1994/08/08 17:30:58 davidg Exp $
  */
+
+#ifndef _SYS_LOCKF_H_
+#define _SYS_LOCKF_H_
 
 /*
  * The lockf structure is a kernel structure which contains the information
@@ -78,4 +81,6 @@ __BEGIN_DECLS
 void	lf_print __P((char *, struct lockf *));
 void	lf_printlist __P((char *, struct lockf *));
 __END_DECLS
+#endif
+
 #endif

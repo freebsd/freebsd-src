@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ttydefaults.h,v 1.2 1994/08/02 07:53:57 davidg Exp $
  */
+
+#ifndef _SYS_TTYDEFAULTS_H_
+#define _SYS_TTYDEFAULTS_H_
 
 /*
  * System wide defaults for terminal state.
@@ -94,4 +97,6 @@ cc_t	ttydefchars[NCCS] = {
 	CDISCARD, CMIN,	CTIME,  CSTATUS, _POSIX_VDISABLE
 };
 #undef TTYDEFCHARS
+#endif
+
 #endif

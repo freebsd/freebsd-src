@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: vmmeter.h,v 1.3 1994/08/02 07:54:12 davidg Exp $
  */
+
+#ifndef _SYS_VMMETER_H_
+#define _SYS_VMMETER_H_
 
 /*
  * System wide statistics counters.
@@ -147,4 +150,6 @@ int	rres;
 
 unsigned rectime;		/* accumulator for reclaim times */
 unsigned pgintime;		/* accumulator for page in times */
+#endif
+
 #endif

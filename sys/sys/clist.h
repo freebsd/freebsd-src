@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)clist.h	8.1 (Berkeley) 6/4/93
- * $Id$
+ * $Id: clist.h,v 1.3 1994/08/02 07:52:43 davidg Exp $
  */
+
+#ifndef _SYS_CLIST_H_
+#define _SYS_CLIST_H_
 
 struct cblock {
 	struct cblock *c_next;			/* next cblock in queue */
@@ -43,4 +46,6 @@ struct cblock {
 #ifdef KERNEL
 extern	struct cblock *cfree, *cfreelist;
 extern	int cfreecount, nclist;
+#endif
+
 #endif

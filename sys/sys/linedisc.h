@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: conf.h,v 1.2 1994/08/02 07:52:44 davidg Exp $
  */
+
+#ifndef _SYS_CONF_H_
+#define _SYS_CONF_H_
 
 /*
  * Definitions of device driver entry switches
@@ -121,4 +124,6 @@ struct swdevt {
 
 #ifdef KERNEL
 extern struct swdevt swdevt[];
+#endif
+
 #endif

@@ -41,8 +41,11 @@
  *
  *	@(#)disk.h	8.1 (Berkeley) 6/2/93
  *
- * $Id$
+ * $Id: disk.h,v 1.2 1994/08/02 07:52:48 davidg Exp $
  */
+
+#ifndef _SYS_DISK_H_
+#define _SYS_DISK_H_
 
 /*
  * Disk device structures.
@@ -109,4 +112,6 @@ char	*readdisklabel __P((struct dkdevice *, int));
 int	setdisklabel __P((struct dkdevice *, struct disklabel *));
 int	writedisklabel __P((struct dkdevice *, int));
 int	diskerr __P((struct dkdevice *, struct buf *, char *, int, int));
+#endif
+
 #endif
