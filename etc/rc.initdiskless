@@ -100,15 +100,13 @@ chkerr $? "MFS mount on /etc"
 /bin/cp -Rp /conf/default/etc/* /etc
 chkerr $? "cp /conf/default/etc to /etc MFS"
 
-# Allow for override files to replace files in /etc.  Use /conf/*/etc
-# to find the override files.  First choice is default files that
-# always override, then files that from the directory that matches the
-# client's broadcast address, finally followed by overrides that match
-# the client's IP address.
+# Allow for override files to replace files in /etc.  Use /conf/*/etc to find
+# the override files.  First choice is default files that # always override,
+# then files that from the directory that matches the client's broadcast
+# address, finally followed by overrides that match the client's IP address.
 #
-# This way we have some flexibility to handle clusters of machines
-# on separate subnets.
-#
+# This way we have some flexibility to handle clusters of machines on
+# separate subnets.
 
 for i in ${bootp_ipbca} ${bootp_ipa} ; do
 	if [ -d /conf/${i}/etc ]; then
@@ -116,14 +114,11 @@ for i in ${bootp_ipbca} ${bootp_ipa} ; do
 	fi
 done
 
-# Tell /etc/rc to run the specified script after
-# it does its mounts but before it does anything
-# else.
+# Tell /etc/rc to run the specified script after it does its mounts but
+# before it does anything else.
 #
-# This script is responsible for setting up the
-# diskless mount environment.  This can be
-# overriden by /conf/ME/rc.conf.local if, for
-# example, you do not want to run the standard
-# system /etc/rc.diskless2
+# This script is responsible for setting up the diskless mount environment.
+# This can be overriden by /conf/ME/rc.conf.local if, for example, you do not
+# want to run the standard system /etc/rc.diskless2
 
 diskless_mount="/etc/rc.diskless2"
