@@ -5379,8 +5379,8 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 					free(scan_info, M_TEMP);
 					request_ccb->ccb_h.status = CAM_REQ_CMP;
 					xpt_done(request_ccb);
-					break;
 				}
+				break;
 			}
 			xpt_setup_ccb(&request_ccb->ccb_h, path,
 				      request_ccb->ccb_h.pinfo.priority);
