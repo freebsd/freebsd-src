@@ -22,6 +22,7 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>
@@ -51,9 +52,6 @@
 #include <net/if_tun.h>
 
 static MALLOC_DEFINE(M_TUN, "tun", "Tunnel Interface");
-
-static void tunattach __P((void *));
-PSEUDO_SET(tunattach, if_tun);
 
 static void tuncreate __P((dev_t dev));
 
@@ -113,14 +111,28 @@ tun_clone(arg, name, namelen, dev)
 
 }
 
-static void
-tunattach(dummy)
-	void *dummy;
-{
+static int
+tun_modevent(module_t mod, int type, void *data) 
+{ 
+	switch (type) { 
+	case MOD_LOAD: 
+		EVENTHANDLER_REGISTER(dev_clone, tun_clone, 0, 1000);
+		cdevsw_add(&tun_cdevsw);
+		break; 
+	case MOD_UNLOAD: 
+		printf("if_tun module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
 
-	EVENTHANDLER_REGISTER(dev_clone, tun_clone, 0, 1000);
-	cdevsw_add(&tun_cdevsw);
-}
+static moduledata_t tun_mod = { 
+	"if_tun", 
+	tun_modevent, 
+	0
+}; 
+
+DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static void
 tunstart(ifp)

@@ -61,6 +61,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -105,7 +106,8 @@ static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
  * later by the upper protocol layers. Unfortunately, there's no way
  * to avoid this: there really is only one physical interface.
  */
-static int vlan_setmulti(struct ifnet *ifp)
+static int
+vlan_setmulti(struct ifnet *ifp)
 {
 	struct ifnet		*ifp_p;
 	struct ifmultiaddr	*ifma, *rifma = NULL;
@@ -150,7 +152,7 @@ static int vlan_setmulti(struct ifnet *ifp)
 }
 
 static void
-vlaninit(void *dummy)
+vlaninit(void)
 {
 	int i;
 
@@ -177,7 +179,28 @@ vlaninit(void *dummy)
 		ifp->if_resolvemulti = 0;
 	}
 }
-PSEUDO_SET(vlaninit, if_vlan);
+
+static int
+vlan_modevent(module_t mod, int type, void *data) 
+{ 
+	switch (type) { 
+	case MOD_LOAD: 
+		vlaninit();
+		break; 
+	case MOD_UNLOAD: 
+		printf("if_vlan module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
+
+static moduledata_t vlan_mod = { 
+	"if_vlan", 
+	vlan_modevent, 
+	0
+}; 
+
+DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static void
 vlan_ifinit(void *foo)

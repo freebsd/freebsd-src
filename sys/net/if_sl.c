@@ -81,6 +81,7 @@
 #include <sys/clist.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/module.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -102,9 +103,6 @@
 #include <net/bpf.h>
 
 static MALLOC_DEFINE(M_SL, "sl", "SLIP Interface");
-
-static void slattach __P((void *));
-PSEUDO_SET(slattach, if_sl);
 
 /*
  * SLRMAX is a hard limit on input packet size.  To simplify the code
@@ -198,20 +196,34 @@ static struct linesw slipdisc = {
 /*
  * Called from boot code to establish sl interfaces.
  */
-static void
-slattach(dummy)
-	void *dummy;
-{
-	linesw[SLIPDISC] = slipdisc;
+static int
+sl_modevent(module_t mod, int type, void *data) 
+{ 
+	switch (type) { 
+	case MOD_LOAD: 
+		linesw[SLIPDISC] = slipdisc;
+		LIST_INIT(&sl_list);
+		break; 
+	case MOD_UNLOAD: 
+		printf("if_sl module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
 
-	LIST_INIT(&sl_list);
-}
+static moduledata_t sl_mod = { 
+	"if_sl", 
+	sl_modevent, 
+	0
+}; 
+
+DECLARE_MODULE(if_sl, sl_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int *st_unit_list;
 static size_t st_unit_max = 0;
 
-static
-int slisstatic(unit)
+static int
+slisstatic(unit)
 	int unit;
 {
 	size_t i;
@@ -222,8 +234,8 @@ int slisstatic(unit)
 	return 0;
 }
 
-static
-void slmarkstatic(unit)
+static void
+slmarkstatic(unit)
 	int unit;
 {
 	int *t;
@@ -367,7 +379,8 @@ slopen(dev, tp)
 }
 
 void
-sldestroy(struct sl_softc *sc) {
+sldestroy(struct sl_softc *sc)
+{
 	bpfdetach(&sc->sc_if);
 	if_detach(&sc->sc_if);
 	LIST_REMOVE(sc, sl_next);
