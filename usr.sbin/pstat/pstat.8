@@ -136,19 +136,22 @@ of the statistics will be reported in the final line of the report.
 Print table for terminals
 with these headings:
 .Bl -tag -width indent
+.It LINE
+Device name.
 .It RAW
 Number of characters in raw input queue.
 .It CAN
 Number of characters in canonicalized input queue.
 .It OUT
 Number of characters in output queue.
-.It MODE
-See
-.Xr tty 4 .
-.It ADDR
-Physical device address.
-.It DEL
-Number of delimiters (newlines) in canonicalized input queue.
+.It IHIWT
+High water mark for input.
+.It ILOWT
+Low water mark for input.
+.It OHWT
+High water mark for output.
+.It LWT
+Low water mark for output.
 .It COL
 Calculated column position of terminal.
 .It STATE
@@ -211,7 +214,7 @@ connection lost
 .It SESS
 Kernel address of the session structure.
 .It PGID
-Process group for which this is controlling terminal.
+Process group for which this is the controlling terminal.
 .It DISC
 Line discipline;
 .Ql term
@@ -221,10 +224,6 @@ or
 .Ql ntty
 for
 NTTYDISC
-or
-.Ql tab
-for
-TABLDISC
 or
 .Ql slip
 for
