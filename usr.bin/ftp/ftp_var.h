@@ -1,3 +1,6 @@
+/*	$Id$ */
+/*	$NetBSD: ftp_var.h,v 1.16 1997/04/14 09:09:23 lukem Exp $	*/
+
 /*
  * Copyright (c) 1985, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -30,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ftp_var.h	8.3 (Berkeley) 4/2/94
+ *	@(#)ftp_var.h	8.4 (Berkeley) 10/9/94
  */
 
 /*
@@ -39,19 +42,36 @@
 
 #include <sys/param.h>
 #include <setjmp.h>
+#include <stringlist.h>
+
+#ifndef SMALL
+#include <histedit.h>
+#endif /* !SMALL */
 
 #include "extern.h"
+
+#define HASHBYTES	1024
+#define FTPBUFLEN	MAXPATHLEN + 200
+
+#define STALLTIME	5	/* # of seconds of no xfer before "stalling" */
+
+#define	FTP_PORT	21	/* default if getservbyname("ftp/tcp") fails */
+#define	HTTP_PORT	80	/* default if getservbyname("http/tcp") fails */
+
+#define PAGER		"less"	/* default pager if $PAGER isn't set */
 
 /*
  * Options and other state info.
  */
 int	trace;			/* trace packets exchanged */
 int	hash;			/* print # for each buffer transferred */
+int	mark;			/* number of bytes between hashes */
 int	sendport;		/* use PORT cmd for each data connection */
 int	verbose;		/* print messages coming back from server */
-int	connected;		/* connected to server */
+int	connected;		/* 1 = connected to server, -1 = logged in */
 int	fromatty;		/* input is from a terminal */
 int	interactive;		/* interactively prompt on m* cmds */
+int	confirmrest;		/* confirm rest of current m* cmd */
 int	debug;			/* debugging level */
 int	bell;			/* ring bell on cmd completion */
 int	doglob;			/* glob local file names */
@@ -63,6 +83,8 @@ int	runique;		/* store local files with unique name */
 int	mcase;			/* map upper to lower case for mget names */
 int	ntflag;			/* use ntin ntout tables for name translation */
 int	mapflag;		/* use mapin mapout templates on file names */
+int	preserve;		/* preserve modification time on files */
+int	progress;		/* display transfer progress bar */
 int	code;			/* return/reply code for ftp command */
 int	crflag;			/* if 1, strip car. rets. on ascii gets */
 char	pasv[64];		/* passive port for proxy data connection */
@@ -84,21 +106,38 @@ char	modename[32];		/* name of file transfer mode */
 int	mode;			/* file transfer mode */
 char	bytename[32];		/* local byte size in ascii */
 int	bytesize;		/* local byte size in binary */
+int	anonftp;		/* automatic anonymous login */
+int	dirchange;		/* remote directory changed by cd command */
+int	ttywidth;		/* width of tty */
+
+#ifndef SMALL
+int	  editing;		/* command line editing enabled */
+EditLine *el;			/* editline(3) status structure */
+History  *hist;			/* editline(3) history structure */
+char	 *cursor_pos;		/* cursor position we're looking for */
+int	  cursor_argc;		/* location of cursor in margv */
+int	  cursor_argo;		/* offset of cursor in margv[cursor_argc] */
+#endif /* !SMALL */
+
+off_t	bytes;			/* current # of bytes read */
+off_t	filesize;		/* size of file being transferred */
+char   *direction;		/* direction transfer is occurring */
 
 char	*hostname;		/* name of host connected to */
 int	unix_server;		/* server is unix, can use binary for ascii */
 int	unix_proxy;		/* proxy is unix, can use binary for ascii */
-
-struct	servent *sp;		/* service spec for tcp/ftp */
+int	ftpport;		/* port number to use for ftp connections */
+int	httpport;		/* port number to use for http connections */
 
 jmp_buf	toplevel;		/* non-local goto stuff for cmd scanner */
 
-char	line[200];		/* input line buffer */
+char	line[FTPBUFLEN];	/* input line buffer */
 char	*stringbase;		/* current scan point in line buffer */
-char	argbuf[200];		/* argument storage buffer */
+char	argbuf[FTPBUFLEN];	/* argument storage buffer */
 char	*argbase;		/* current storage point in arg buffer */
+StringList *marg_sl;		/* stringlist containing margv */
 int	margc;			/* count of arguments on input line */
-char	*margv[20];		/* args parsed from input line */
+#define margv (marg_sl->sl_str)	/* args parsed from input line */
 int     cpend;                  /* flag: if != 0, then pending server reply */
 int	mflag;			/* flag: if != 0, then active multi command */
 
@@ -110,9 +149,12 @@ int	options;		/* used during socket creation */
 struct cmd {
 	char	*c_name;	/* name of command */
 	char	*c_help;	/* help string */
-	char	c_bell;		/* give bell when command completes */
-	char	c_conn;		/* must be connected to use command */
-	char	c_proxy;	/* proxy server may execute */
+	char	 c_bell;	/* give bell when command completes */
+	char	 c_conn;	/* must be connected to use command */
+	char	 c_proxy;	/* proxy server may execute */
+#ifndef SMALL
+	char	*c_complete;	/* context sensitive completion list */
+#endif /* !SMALL */
 	void	(*c_handler) __P((int, char **)); /* function to call */
 };
 
