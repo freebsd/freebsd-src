@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.22 1995/07/21 22:52:01 bde Exp $
+ * $Id: tty.h,v 1.23 1995/07/22 01:30:45 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -198,6 +198,13 @@ struct speedtab {
 /* Is p in background of tp? */
 #define	isbackground(p, tp)						\
 	(isctty((p), (tp)) && (p)->p_pgrp != (tp)->t_pgrp)
+
+/* Unique sleep addresses. */
+#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)	/* XXX overloaded */
+#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)	/* XXX overloaded */
+#define	TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)
+#define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
+#define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
 #ifdef KERNEL
 extern	struct tty *constty;	/* Temporary virtual console. */
