@@ -3,6 +3,7 @@
 #
 # See the IPFILTER.LICENCE file for details on licencing.
 #
+# $FreeBSD$
 # $Id: Makefile,v 2.11.2.15 2002/12/02 04:22:56 darrenr Exp $
 #
 BINDEST=/usr/local/bin
@@ -29,7 +30,7 @@ IPFLOG=-DIPFILTER_LOG
 #
 # The facility you wish to log messages from ipmon to syslogd with.
 #
-LOGFAC=-DLOGFAC=LOG_LOCAL0
+LOGFAC=-DLOGFAC=LOG_SECURITY
 
 #
 # Uncomment the next 3 lines if you want to view the state table a la top(1)
