@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.10 1996/05/24 19:33:31 jfieber Exp $
+     $Id: dialup.sgml,v 1.11 1996/06/07 15:56:37 alex Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -310,7 +310,7 @@ device special files for <tt/COM1:/ (port 0), <tt/cd/ to <tt>/dev</tt>
 and issue the command <tt/MAKEDEV ttyd0/.  Likewise, to make dialup
 device special files for <tt/COM2:/ (port 1), use <tt/MAKEDEV ttyd1/.
 
-<tt/MAKDEV/ not only creates the <tt>/dev/ttyd?</tt> device special
+<tt/MAKEDEV/ not only creates the <tt>/dev/ttyd?</tt> device special
 files, but also creates the <tt>/dev/cua0?</tt> (and all of the
 initializing and locking special files under FreeBSD 1.1.5 and up) and
 removes the hardwired terminal special file <tt>/dev/tty0?</tt>, if it
@@ -336,7 +336,7 @@ These permissions allow the user <tt/uucp/ and users in the group
 <p>
 
 There are three system configuration files in the <tt>/etc</tt>
-directory that yo will probably need to edit to allow dialup access to
+directory that you will probably need to edit to allow dialup access to
 your FreeBSD system.  The first, <tt>/etc/gettytab</tt>, contains
 configuration information for the <tt>/usr/libexec/getty</tt> daemon.
 Second, <tt>/etc/ttys</tt> holds information that tells
@@ -417,7 +417,7 @@ D2400|d2400|Fast-Dial-2400:\
 
 If you have a higher speed modem, you will probably need to add an entry
 in <tt>/etc/gettytab</tt>; here is an entry you could use for a 14.4
-Kbps modem with a top interface speed of 19.2 Kpbs:
+Kbps modem with a top interface speed of 19.2 Kbps:
 
 <tscreen><verb>
 #
@@ -451,12 +451,12 @@ rate.
 If you have a 28.8 Kbps modem and/or you want to take advantage of
 compression on a 14.4 Kbps modem, you need to use a higher
 communications rate than 19.2 Kbps.  Here is an example of a
-<tt/gettytab/ entry starting a 57.6 Kpbs:
+<tt/gettytab/ entry starting a 57.6 Kbps:
 
 <tscreen><verb>
 #
 # Additions for a V.32bis or V.34 Modem
-# Starting at 57.6 Kpbs
+# Starting at 57.6 Kbps
 #
 vm|VH300|Very High Speed Modem at 300,8-bit:\
         :nx=VH57600:tc=std.300:
@@ -470,7 +470,7 @@ vq|VH57600|Very High Speed Modem at 57600,8-bit:\
         :nx=VH9600:tc=std.57600:
 </verb></tscreen>
 
-If you have a slow CPU or a heavily loaded system and you dobnot have
+If you have a slow CPU or a heavily loaded system and you do not have
 16550A-based serial ports, you may receive sio ``silo'' errors at 57.6
 Kbps.
 
@@ -793,7 +793,7 @@ the <tt/DTR/ line is asserted by checking the modem's indicator lights
 If you have gone over everything several times and it still does not work,
 take a break and come back to it later.  If it still does not work,
 perhaps you can send an electronic mail message to the &a.questions
-describing your modem and youer problem, and the good folks on the list will
+describing your modem and your problem, and the good folks on the list will
 try to help.
 
 <sect1><heading>Acknowledgments</heading>
