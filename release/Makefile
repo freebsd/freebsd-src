@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.97 1995/01/30 07:01:56 jkh Exp $
+#	$Id: Makefile,v 1.98 1995/02/01 11:19:24 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -111,6 +111,7 @@ boot.flp: kernel.BOOTFLP
 	dd if=/dev/r${FLOPPY} of=boot.tmp bs=${DDBS} count=${DDCOUNT}
 	mv boot.tmp boot.flp
 	od -x boot.flp | head -3
+	gzip -9 -c < boot.flp > boot.flp.gz
 
 cpio.flp: kernel
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
