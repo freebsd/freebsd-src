@@ -33,11 +33,10 @@
 .Nm BUF_LOCKFREE
 .Nd "Destroys the buffers lock"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/buf.h>
 .Ft void
-.Fo BUF_LOCKFREE
-.Fa "struct buf *bp"
-.Fc
+.Fn BUF_LOCKFREE "struct buf *bp"
 .Sh DESCRIPTION
 The
 .Nm

@@ -33,11 +33,10 @@
 .Nm lockmgr_printinfo
 .Nd "Prints information about the lock."
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/lockmgr.h>
 .Ft void
-.Fo lockmgr_printinfo
-.Fa "struct lock *lkp"
-.Fc
+.Fn lockmgr_printinfo "struct lock *lkp"
 .Sh DESCRIPTION
 The
 .Nm
