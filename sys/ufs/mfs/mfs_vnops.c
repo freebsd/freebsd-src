@@ -104,10 +104,8 @@ mfs_open(ap)
 	} */ *ap;
 {
 
-	if (ap->a_vp->v_type != VBLK) {
-		panic("mfs_open not VBLK");
-		/* NOTREACHED */
-	}
+	if (ap->a_vp->v_type != VCHR)
+		panic("mfs_open not VCHR");
 	return (0);
 }
 
@@ -141,7 +139,7 @@ mfs_freeblks(ap)
 	struct buf *bp;
 	struct vnode *vp;
 
-	if (!vfinddev(ap->a_vp->v_rdev, VBLK, &vp) || vp->v_usecount == 0)
+	if (!vfinddev(ap->a_vp->v_rdev, VCHR, &vp) || vp->v_usecount == 0)
 		panic("mfs_freeblks: bad dev");
 
 	bp = geteblk(ap->a_length);
@@ -172,7 +170,7 @@ mfs_strategy(ap)
 	struct proc *p = curproc;		/* XXX */
 	int s;
 
-	if (!vfinddev(bp->b_dev, VBLK, &vp) || vp->v_usecount == 0)
+	if (!vfinddev(bp->b_dev, VCHR, &vp) || vp->v_usecount == 0)
 		panic("mfs_strategy: bad dev");
 	mfsp = VTOMFS(vp);
 
