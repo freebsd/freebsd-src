@@ -1023,9 +1023,14 @@ int
 set_mcontext(struct thread *td, const mcontext_t *mc)
 {
 	struct trapframe *tf;
+	uint64_t psr;
 
 	tf = td->td_frame;
+	/* Only copy the user mask from the new context. */
+	psr = tf->tf_special.psr & ~0x1f;
+	psr |= mc->mc_special.psr & 0x1f;
 	tf->tf_special = mc->mc_special;
+	tf->tf_special.psr = psr;
 	restore_callee_saved(&mc->mc_preserved);
 	restore_callee_saved_fp(&mc->mc_preserved_fp);
 	return (0);
