@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: atof-ieee.c,v 1.3 1995/05/30 04:46:46 rgrimes Exp $";
+static char rcsid[] = "$Id: atof-ieee.c,v 1.4 1996/09/22 00:55:46 pst Exp $";
 #endif
 
 #include "as.h"
@@ -128,12 +128,13 @@ static void
 LITTLENUM_TYPE *words;
 {
 	as_bad("cannot create floating-point number");
-	words[0] = LITTLENUM_MASK >> 1; /* Zero the leftmost bit */
-	words[1] = -1;
-	words[2] = -1;
-	words[3] = -1;
-	words[4] = -1;
-	words[5] = -1;
+	/* Zero the leftmost bit */
+	words[0] = (LITTLENUM_TYPE) ((unsigned) -1) >> 1;
+	words[1] = (LITTLENUM_TYPE) -1;
+	words[2] = (LITTLENUM_TYPE) -1;
+	words[3] = (LITTLENUM_TYPE) -1;
+	words[4] = (LITTLENUM_TYPE) -1;
+	words[5] = (LITTLENUM_TYPE) -1;
 }
 
 /***********************************************************************\
