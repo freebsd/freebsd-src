@@ -61,21 +61,21 @@ The controller attaches to a physical bus
 The
 .Nm
 bus attaches to the controller.
-And the additional driver can be attached to the bus.
+Additional drivers can be attached to the bus.
 .Pp
 Up to 63 devices, including the host itself, can be attached to
 a
 .Nm
 bus.
-The root node is dynamically assigned with PHY device function.
+The root node is dynamically assigned with a PHY device function.
 Also, the other
 .Nm
 bus specific parameters,
 e.g., node ID, cycle master, isochronous resource manager and bus
 manager, are dynamically assigned, after bus reset is initiated.
-On
+On the
 .Nm
-bus, every device is identified with EUI 64 address.
+bus, every device is identified by a EUI 64 address.
 .Sh FILES
 .Bl -tag -compact
 .It Pa /dev/fw0.0
