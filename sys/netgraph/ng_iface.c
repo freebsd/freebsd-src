@@ -765,6 +765,7 @@ ng_iface_rmnode(node_p node)
 
 	ng_cutlinks(node);
 	ng_unname(node);
+	bpfdetach(priv->ifp);
 	if_detach(priv->ifp);
 	priv->ifp = NULL;
 	ng_iface_free_unit(priv->unit);
