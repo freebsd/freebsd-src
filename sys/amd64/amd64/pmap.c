@@ -1892,14 +1892,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (mpte)
 			mpte->hold_count--;
 
-		if ((prot & VM_PROT_WRITE) && (origpte & PG_V)) {
-			if ((origpte & PG_RW) == 0) {
-				pte_store(pte, origpte | PG_RW);
-				pmap_invalidate_page(pmap, va);
-			}
-			return;
-		}
-
 		/*
 		 * We might be turning off write access to the page,
 		 * so we go ahead and sense modify status.
