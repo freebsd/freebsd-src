@@ -1480,7 +1480,7 @@
 	<title>sendmail</title>
 
 	<para><application>sendmail</application> has been upgraded from
-	version 8.9.3 to version 8.11.3.  Important changes include: new
+	version 8.9.3 to version 8.11.4.  Important changes include: new
 	default file locations (see
 	<filename>/usr/src/contrib/sendmail/cf/README</filename>);
 	&man.newaliases.1; is limited to <username>root</username> and
