@@ -162,20 +162,22 @@ struct bpb {
     u_int bkbs; 		/* backup boot sector */
 };
 
+#define BPBGAP 0, 0, 0, 0, 0, 0
+
 static struct {
     const char *name;
     struct bpb bpb;
 } stdfmt[] = {
-    {"160",  {512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1}},
-    {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1}},
-    {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2}},
-    {"360",  {512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2}},
-    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2}},    
-    {"720",  {512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2}},
-    {"1200", {512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2}},
-    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2}},    
-    {"1440", {512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2}},
-    {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2}}
+    {"160",  {512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1, BPBGAP}},
+    {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1, BPBGAP}},
+    {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2, BPBGAP}},
+    {"360",  {512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2, BPBGAP}},
+    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2, BPBGAP}},    
+    {"720",  {512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2, BPBGAP}},
+    {"1200", {512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2, BPBGAP}},
+    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2, BPBGAP}},    
+    {"1440", {512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2, BPBGAP}},
+    {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2, BPBGAP}}
 };
 
 static u_int8_t bootcode[] = {
@@ -565,7 +567,7 @@ main(int argc, char *argv[])
 	    if (opt_B && x < bss) {
 		if ((n = read(fd1, img, bpb.bps)) == -1)
 		    err(1, "%s", bname);
-		if (n != bpb.bps)
+		if ((unsigned)n != bpb.bps)
 		    errx(1, "%s: can't read sector %u", bname, x);
 	    } else
 		memset(img, 0, bpb.bps);
@@ -653,7 +655,7 @@ main(int argc, char *argv[])
 	    }
 	    if ((n = write(fd, img, bpb.bps)) == -1)
 		err(1, "%s", fname);
-	    if (n != bpb.bps)
+	    if ((unsigned)n != bpb.bps)
 		errx(1, "%s: can't write sector %u", fname, lsn);
 	}
     }
@@ -707,19 +709,18 @@ getstdfmt(const char *fmt, struct bpb *bpb)
  * Get disk slice, partition, and geometry information.
  */
 static void
-getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
+getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	    struct bpb *bpb)
 {
     struct disklabel *lp, dlp;
     struct fd_type type;
-    off_t ms, hs;
+    off_t ms, hs = 0;
 
     lp = NULL;
 
     /* If the user specified a disk type, try to use that */
     if (dtype != NULL) {
 	lp = getdiskbyname(dtype);
-	hs = 0;
     }
 
     /* Maybe it's a floppy drive */
@@ -732,7 +733,6 @@ getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
 	    dlp.d_ntracks = type.heads;
 	    dlp.d_secperunit = ms / dlp.d_secsize;
 	    lp = &dlp;
-	    hs = 0;
 	}
     }
 
