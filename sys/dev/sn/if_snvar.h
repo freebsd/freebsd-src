@@ -52,6 +52,7 @@ struct sn_softc {
 
 int	sn_probe(device_t, int);
 int	sn_attach(device_t);
+int	sn_detach(device_t);
 void	sn_intr(void *);
 
 int	sn_activate(device_t);
