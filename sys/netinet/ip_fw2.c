@@ -107,7 +107,6 @@ static struct ip_fw *layer3_chain;
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
 static int fw_debug = 1;
-int fw_one_pass = 1;
 static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
 
 #ifdef SYSCTL_NODE
