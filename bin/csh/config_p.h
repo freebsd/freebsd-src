@@ -129,6 +129,7 @@
 #define NLS_BUGS
 /* we want to use the system malloc when we install as /bin/csh */
 #define SYSMALLOC
+#define BSD_STYLE_COLORLS
 #endif
 
 #if defined(__bsdi__)
