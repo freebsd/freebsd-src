@@ -299,7 +299,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 
 	default:
 		if (cp->provider->geom->ioctl != NULL) {
-			error = cp->provider->geom->ioctl(cp->provider, cmd, data, td);
+			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);
 		} else {
 			error = ENOIOCTL;
 		}

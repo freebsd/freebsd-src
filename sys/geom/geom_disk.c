@@ -65,7 +65,7 @@ static g_start_t g_disk_start;
 static g_ioctl_t g_disk_ioctl;
 static g_dumpconf_t g_disk_dumpconf;
 
-struct g_class g_disk_class = {
+static struct g_class g_disk_class = {
 	.name = "DISK",
 	.version = G_VERSION,
 	.init = g_disk_init,
@@ -214,7 +214,7 @@ g_disk_done(struct bio *bp)
 }
 
 static int
-g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, struct thread *td)
+g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct thread *td)
 {
 	struct g_geom *gp;
 	struct disk *dp;
@@ -226,7 +226,7 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, struct thread *td)
 	if (dp->d_ioctl == NULL)
 		return (ENOIOCTL);
 	g_disk_lock_giant(dp);
-	error = dp->d_ioctl(dp, cmd, data, 0, td);
+	error = dp->d_ioctl(dp, cmd, data, fflag, td);
 	g_disk_unlock_giant(dp);
 	return(error);
 }

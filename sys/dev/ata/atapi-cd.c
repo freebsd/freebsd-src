@@ -63,7 +63,7 @@ static void acd_describe(struct acd_softc *);
 static void lba2msf(u_int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static u_int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
 static int acd_geom_access(struct g_provider *, int, int, int);
-static int acd_geom_ioctl(struct g_provider *, u_long, void *, struct thread *);
+static g_ioctl_t acd_geom_ioctl;
 static void acd_geom_start(struct bio *);
 static void acd_done(struct ata_request *);
 static void acd_read_toc(struct acd_softc *);
@@ -550,7 +550,7 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static int 
-acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, struct thread *td)
+acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct thread *td)
 {
     struct acd_softc *cdp = pp->geom->softc;
     int error = 0;

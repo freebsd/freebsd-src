@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
@@ -165,7 +166,7 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 }
 
 static int
-g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
+g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_mbr_softc *ms;
@@ -179,6 +180,8 @@ g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 
 	switch(cmd) {
 	case DIOCSMBR: {
+		if (!(fflag & FWRITE))
+			return (EPERM);
 		DROP_GIANT();
 		g_topology_lock();
 		/* Validate and modify our slicer instance to match. */

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
@@ -317,7 +318,7 @@ g_bsd_hotwrite(void *arg, int flag)
  *    * Don't call biowait, g_getattr(), g_setattr() or g_read_data()
  */
 static int
-g_bsd_ioctl(struct g_provider *pp, u_long cmd, void * data, struct thread *td)
+g_bsd_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_bsd_softc *ms;
@@ -341,6 +342,8 @@ g_bsd_ioctl(struct g_provider *pp, u_long cmd, void * data, struct thread *td)
 		int error, i;
 		uint64_t sum;
 
+		if (!(fflag & FWRITE))
+			return (EPERM);
 		/* The disklabel to set is the ioctl argument. */
 		buf = g_malloc(BBSIZE, M_WAITOK);
 		p = *(void **)data;
@@ -371,6 +374,8 @@ g_bsd_ioctl(struct g_provider *pp, u_long cmd, void * data, struct thread *td)
 	case DIOCWDINFO: {
 		label = g_malloc(LABELSIZE, M_WAITOK);
 
+		if (!(fflag & FWRITE))
+			return (EPERM);
 		/* The disklabel to set is the ioctl argument. */
 		bsd_disklabel_le_enc(label, data);
 

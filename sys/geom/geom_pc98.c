@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
@@ -135,7 +136,7 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 }
 
 static int
-g_pc98_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
+g_pc98_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_pc98_softc *ms;
@@ -149,6 +150,8 @@ g_pc98_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 
 	switch(cmd) {
 	case DIOCSPC98: {
+		if (!(fflag & FWRITE))
+			return (EPERM);
 		DROP_GIANT();
 		g_topology_lock();
 		/* Validate and modify our slicer instance to match. */

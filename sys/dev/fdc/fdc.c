@@ -1392,7 +1392,7 @@ fd_start(struct bio *bp)
 }
 
 static int
-fd_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
+fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
 {
 	struct fd_data *fd;
 	struct fdc_status *fsp;
@@ -1407,6 +1407,8 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 		return (0);
 
 	case FD_STYPE:                  /* set drive type */
+		if (!(fflag & FWRITE))
+			return (EPERM);
 		/*
 		 * Allow setting drive type temporarily iff
 		 * currently unset.  Used for fdformat so any
@@ -1428,6 +1430,8 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 		return (0);
 
 	case FD_SOPTS:			/* set drive options */
+		if (!(fflag & FWRITE))
+			return (EPERM);
 		fd->options = *(int *)data;
 		return (0);
 
@@ -1449,6 +1453,8 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 		return (0);
 
 	case FD_FORM:
+		if (!(fflag & FWRITE))
+			return (EPERM);
 		if (((struct fd_formb *)data)->format_version !=
 		    FD_FORMAT_VERSION)
 			return (EINVAL); /* wrong version of formatting prog */
