@@ -31,12 +31,15 @@
 #define	_SYS_SX_H_
 
 #ifndef	LOCORE
-#include <sys/mutex.h>
-#include <sys/condvar.h>
+#include <sys/lock.h>		/* XXX */
+#include <sys/mutex.h>		/* XXX */
+#include <sys/condvar.h>	/* XXX */
+
+struct lock_object;
 
 struct sx {
+	struct lock_object sx_object;	/* Common lock properties. */
 	struct mtx	sx_lock;	/* General protection lock. */
-	const char	*sx_descr;	/* sx lock description. */
 	int		sx_cnt;		/* -1: xlock, > 0: slock count. */
 	struct cv	sx_shrd_cv;	/* slock waiters. */
 	int		sx_shrd_wcnt;	/* Number of slock waiters. */
@@ -48,10 +51,15 @@ struct sx {
 #ifdef _KERNEL
 void	sx_init(struct sx *sx, const char *description);
 void	sx_destroy(struct sx *sx);
-void	sx_slock(struct sx *sx);
-void	sx_xlock(struct sx *sx);
-void	sx_sunlock(struct sx *sx);
-void	sx_xunlock(struct sx *sx);
+void	_sx_slock(struct sx *sx, const char *file, int line);
+void	_sx_xlock(struct sx *sx, const char *file, int line);
+void	_sx_sunlock(struct sx *sx, const char *file, int line);
+void	_sx_xunlock(struct sx *sx, const char *file, int line);
+
+#define	sx_slock(sx)	_sx_slock((sx), __FILE__, __LINE__)
+#define	sx_xlock(sx)	_sx_xlock((sx), __FILE__, __LINE__)
+#define	sx_sunlock(sx)	_sx_sunlock((sx), __FILE__, __LINE__)
+#define	sx_xunlock(sx)	_sx_xunlock((sx), __FILE__, __LINE__)
 
 #ifdef INVARIANTS
 /*
@@ -65,7 +73,7 @@ void	sx_xunlock(struct sx *sx);
 } while (0)
 #define	_SX_ASSERT_SLOCKED(sx) do {					\
 	KASSERT(((sx)->sx_cnt > 0), ("%s: lacking slock %s\n",		\
-	    __FUNCTION__, (sx)->sx_descr));				\
+	    __FUNCTION__, (sx)->sx_object.lo_name));			\
 } while (0)
 
 /*
@@ -79,7 +87,7 @@ void	sx_xunlock(struct sx *sx);
 #define	_SX_ASSERT_XLOCKED(sx) do {					\
 	KASSERT(((sx)->sx_xholder == curproc),				\
 	    ("%s: thread %p lacking xlock %s\n", __FUNCTION__,		\
-	    curproc, (sx)->sx_descr));					\
+	    curproc, (sx)->sx_object.lo_name));				\
 } while (0)
 
 #else	/* INVARIANTS */

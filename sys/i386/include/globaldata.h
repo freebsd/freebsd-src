@@ -65,6 +65,7 @@ struct globaldata {
 	u_int		gd_other_cpus;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	int		gd_witness_spin_check;
+	struct lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
 #ifdef KTR
 	volatile int	gd_ktr_idx;

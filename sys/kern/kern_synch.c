@@ -382,7 +382,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
-	WITNESS_SLEEP(0, mtx);
+	WITNESS_SLEEP(0, &mtx->mtx_object);
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
@@ -401,7 +401,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-		WITNESS_SAVE(mtx, mtx);
+		WITNESS_SAVE(&mtx->mtx_object, mtx);
 		mtx_unlock_flags(mtx, MTX_NOSWITCH);
 		if (priority & PDROP)
 			mtx = NULL;
@@ -498,7 +498,7 @@ out:
 	PICKUP_GIANT();
 	if (mtx != NULL) {
 		mtx_lock(mtx);
-		WITNESS_RESTORE(mtx, mtx);
+		WITNESS_RESTORE(&mtx->mtx_object, mtx);
 	}
 	return (rval);
 }
@@ -573,12 +573,12 @@ mawait(struct mtx *mtx, int priority, int timo)
 	int s;
 	WITNESS_SAVE_DECL(mtx);
 
-	WITNESS_SLEEP(0, mtx);
+	WITNESS_SLEEP(0, &mtx->mtx_object);
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-		WITNESS_SAVE(mtx, mtx);
+		WITNESS_SAVE(&mtx->mtx_object, mtx);
 		mtx_unlock_flags(mtx, MTX_NOSWITCH);
 		if (priority & PDROP)
 			mtx = NULL;
@@ -691,7 +691,7 @@ out:
 	PICKUP_GIANT();
 	if (mtx != NULL) {
 		mtx_lock(mtx);
-		WITNESS_RESTORE(mtx, mtx);
+		WITNESS_RESTORE(&mtx->mtx_object, mtx);
 	}
 	return (rval);
 }
