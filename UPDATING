@@ -5,6 +5,10 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000907:
+	The SMPNG commit has happened.  It should work, but if it
+	doesn't, fallback to the PRE_SMPNG CVS tag.
+
 20000906:
 	nsswitch has been imported from NetBSD.  Among other things,
 	this means that /etc/host.conf is no longer used.  See
