@@ -28,14 +28,22 @@ extern PKG_info	p_inf;
  */
 
 void
-main(void)
+main(int argc, char **argv)
 {
     init_dialog();
 
     p_inf.Nitems = 0;	/* Initialize p_inf */
 
     get_pkginfo();
-    run_menu();
+
+    /* start in the pkg add menu when giving the -add option */
+    if (argc > 1) {
+        if (strcmp(argv[1], "-add") == 0) {
+	    install_pkgs_indir();
+	}
+    } else {
+	run_menu();
+    }
 
     if (p_inf.Nitems > 0) {
 	FreeInfo();
