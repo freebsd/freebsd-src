@@ -50,6 +50,7 @@ SYMLINKS+=	${LSCRYPTBASE}.so ${SHLIBDIR}/${LCRYPTBASE}.so
 .include <bsd.lib.mk>
 
 afterinstall:
+.if !defined(NODESCRYPTLINKS)
 .if !defined(NOPIC)
 	@cd ${DESTDIR}${SHLIBDIR}; \
 	rm -f ${LCRYPTSO}; \
@@ -67,4 +68,5 @@ afterinstall:
 	@cd  ${DESTDIR}${LIBDIR}; \
 	rm -f ${LCRYPTBASE}_p.a; \
 	ln -sf ${LSCRYPTBASE}_p.a libcrypt_p.a
+.endif
 .endif
