@@ -1,3 +1,33 @@
+Sun Aug 20 15:12:36 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Released version 1.06.1.
+
+	* uux.c (main): Make sure that the grade is between '0' and '9',
+	or 'a' and 'z', or 'A' and 'Z', in case isalnum accepts other
+	characters.
+	* uucp.c (main): Likewise.
+
+Sat Aug 19 23:15:21 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* configure.in: Check for seteuid.
+	* configure: Rebuild.
+	* config.h.in (HAVE_SETEUID): Define.
+	* unix/uid.c: If HAVE_SETEUID is defined, use seteuid rather than
+	setuid.
+	* policy.h: Change HAVE_BROKEN_SETREUID comment to mention that it
+	does not work on 4.4BSD-Lite and NetBSD.
+
+	* Andrey A. Chernov: uuconf.h (UUCONF_GRADE_LEGAL): Use BUCHAR.
+
+Wed Aug 16 21:23:39 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* uucico.c (flogin_prompt): Add pzsystem parameter, and pass it to
+	faccept_call.  Change all callers.
+
+	* trans.c (qtransalc): Clear zlog field.
+
+	* Makefile.in (VERSION): Change to 1.06.1.
+
 Thu Aug 10 22:42:53 1995  Ian Lance Taylor  <ian@airs.com>
 
 	* Released version 1.06.
