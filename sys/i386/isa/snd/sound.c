@@ -50,7 +50,13 @@
  *
  */
 
+#include "opt_devfs.h"
+
 #include <i386/isa/snd/sound.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
+
 
 #if NPCM > 0	/* from "snd.h" */
 
@@ -114,7 +120,7 @@ static snddev_info *sb_devs[] = {	/* all SB clones	 */
     NULL,
 } ;
 
-static snddev_info *mss_devs[] = {	/* all WSS clones	*/
+static snddev_info *mss_devs[] = {	/* all MSS clones	*/
     &mss_op_desc,
     NULL,
 } ;
@@ -214,6 +220,29 @@ pcmattach(struct isa_device * dev)
 
     isadev = makedev(CDEV_MAJOR, 0);
     cdevsw_add(&isadev, &snd_cdevsw, NULL);
+
+#ifdef DEVFS
+    /*
+     * XXX remember to store the returned tokens if you want to
+     * be able to remove the device later
+     */
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dsp%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dspW%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "audio%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "mixer%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "sndstat%n", dev->id_unit);
+#if 0 /* these two are still unsupported... */
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "midi%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SYNTH,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "sequencer%n", dev->id_unit);
+#endif
+#endif /* DEVFS */
 
     /*
      * should try and find a suitable value for id_id, otherwise
@@ -688,7 +717,7 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	    snd_chan_param *p = (snd_chan_param *)arg;
 	    d->play_speed = p->play_rate;
 	    d->rec_speed = p->play_rate; /* XXX one speed allowed */
-	    if (p->play_format & SND_F_STEREO)
+	    if (p->play_format & AFMT_STEREO)
 		d->flags |= SND_F_STEREO ;
 	    else
 		d->flags &= ~SND_F_STEREO ;
@@ -999,10 +1028,11 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 }
 
 /*
- * select
+ * we use the name 'select', but the new "poll" interface this is
+ * really sndpoll. Second arg for poll is not "rw" but "events"
  */
 int
-sndselect(dev_t i_dev, int rw, struct proc *p)
+sndselect(dev_t i_dev, int rw, struct proc * p)
 {
     int dev, unit, c = 1 /* default: success */ ;
     snddev_info *d ;
@@ -1014,7 +1044,11 @@ sndselect(dev_t i_dev, int rw, struct proc *p)
     if (d == NULL ) /* should not happen! */
 	return (ENXIO) ;
     if (d->select == NULL)
+#if __FreeBSD__ >= 3
+        return ( (rw & (POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM)) | POLLHUP);
+#else
 	return 1 ; /* always success ? */
+#endif
     else if (d->select != sndselect )
 	return d->select(i_dev, rw, p);
     else {
@@ -1027,7 +1061,12 @@ sndselect(dev_t i_dev, int rw, struct proc *p)
 	 */
 	int lim = 1;
 
+#if __FreeBSD__ >= 3
+	int revents = 0 ;
+	if (rw & (POLLOUT | POLLWRNORM) ) {
+#else
 	if (rw == FWRITE) {
+#endif
 	    if ( d->flags & SND_F_HAS_SIZE )
 		lim = d->play_blocksize ;
 	    /* XXX fix the test here for half duplex devices */
@@ -1038,10 +1077,19 @@ sndselect(dev_t i_dev, int rw, struct proc *p)
 		c = d->dbuf_out.fl ;
 		if (c < lim) /* no space available */
 		    selrecord(p, & (d->wsel));
+#if __FreeBSD__ >= 3
+		else
+		    revents |= rw & (POLLOUT | POLLWRNORM);
+#endif
 		splx(flags);
 	    }
+#if __FreeBSD__ >= 3
+        }
+        if (rw & (POLLIN | POLLRDNORM)) {
+#else
 	    return c < lim ? 0 : 1 ;
         } else if (rw == FREAD) {
+#endif
 	    if ( d->flags & SND_F_HAS_SIZE )
 		lim = d->rec_blocksize ;
 	    /* XXX fix the test here */
@@ -1054,15 +1102,24 @@ sndselect(dev_t i_dev, int rw, struct proc *p)
 		c = d->dbuf_in.rl ;
 		if (c < lim) /* no data available */
 		    selrecord(p, & (d->rsel));
+#if __FreeBSD__ >= 3
+		else
+		    revents |= rw & (POLLIN | POLLRDNORM);
+#endif
 		splx(flags);
 	    }
 	    DEB(printf("sndselect on read: %d >= %d flags 0x%08x\n",
 		c, lim, d->flags));
 	    return c < lim ? 0 : 1 ;
+#if __FreeBSD__ >= 3
+	}
+	return revents;
+#else
 	} else {
 	    DDB(printf("select on exceptions, unimplemented\n"));
 	    return 1;
 	}
+#endif
     }
     return ENXIO ; /* notreached */
 }

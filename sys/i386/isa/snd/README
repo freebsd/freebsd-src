@@ -20,6 +20,21 @@ set of ioctl(), to support some functions which were not easy to
 express with the existing software interface (e.g. full duplex on
 the SB16). To make an effective use of the new functionalities you
 need to recompile applications by replacing the audio module(s).
+Such modified driver modules are present in the misc/ directory
+for several applications.
+
+This file gives quick information on how to install the driver. For
+more info you are invited to look at the doc/ directory where you
+can find more documentation (in Latex and Postscript) on the driver
+and how to extend it. I am afraid there is not yet a complete set of
+manual pages for using the driver. The files in doc/ should give a
+good idea of what the driver is supposed to do and how, the Voxware
+documentation should be of some help, and the various driver modules
+in misc/ should also give some help.
+
+Also note that you might need the PnP code (pnp971020.tgz), which
+as of January 1998 has been incorporated in -current and -stable
+versions of FreeBSD.
 
 Updated versions of this code will available at the following URL:
 
@@ -29,6 +44,21 @@ Please READ CAREFULLY this file (and possibly the LaTeX documentation)
 to build a working kernel. The configuration is DIFFERENT (and
 hopefully much simpler) from the original Voxware driver.  The
 relevant steps are indicated at "---INSTALLATION---".
+
+This code (and the associated patches) should work unmodified on
+2.2.5 and in general on 2.2.X versions of FreeBSD. Minor modifications
+will be necessary to make the code work on 2.1.X. The code assumes
+that, if you are using FreeBSD 3.0, your system uses poll(2) instead
+of select(2) -- this change happened around late 1997. The code which
+deals with this is mostly in sound.c, and conditioned by 
+
+	#if __FreeBSD__ >= 3
+
+This archive includes:
+* the main files for the driver, in this directory, which must be
+  moved to /sys/i386/isa/snd;
+* miscellaneous, but important, files in the "misc" subdirectory;
+* documentation, in the "doc" subdirectory;
 
 CARDS:
 
@@ -49,10 +79,55 @@ APPLICATIONS:
   - xanim
   - various mpeg players (mpg123, amp, ...);
 
+  WITH SPECIAL DRIVER MODULE (supplied)
+  - speak_freely, full duplex (requires removing the definition of
+    HALF_DUPLEX in the Makefile);
+  - the realaudio player (3.0, dynamically linked);
+  - vat, full duplex (driver included);
+  - nas, full duplex (driver included);
+  - timidity, a software midi-to-pcm converter;
+
   NOT WORKING
   - xquake (we do not support mmapped buffers yet);
 
-                    ---INSTALLATION---
+
+		    ---INSTALLATION---
+
+In order to use this driver, you need FreeBSD 2.2 or above (I have
+tested this code on 2.2.1 and 2.2.5, and have many reports of the
+driver working on various vintages of 3.0 ). The enclosed patch
+file refers to FreeBSD 2.2.5. Your mileage may vary -- e.g. both
+-stable and -current at the time of this writing (Jan.98) have
+included the modifications to isa.c .
+
+Installation requires the following steps:
+
+  * install the PnP support files (pnp971020.tgz). This is optional,
+    in case you don't you might need to do some simple modifications
+    to the file because pnp.h might not exist.
+
+  * unpack the content of this archive in /sys/i386/isa/snd/
+
+  * if you are running a version of 2.2 earlies than 2.2.5-RELEASE,
+    apply the patches in "patches.22x" to isa.c
+
+  * patch the following system files using the patches in
+    "patches.225" :
+
+	/sys/i386/isa/isa.c
+		a couple of new functions have been added;
+
+	/sys/i386/conf/files.i386
+		lines related to this audio driver have been added;
+
+  * update file soundcard.h by copying the one in this directory into:
+
+	  /sys/i386/include/soundcard.h
+	  /usr/include/machine/soundcard.h
+
+    The new file should be compatible with the old one, but has
+    the definition of new ioctl() calls which are implemented by
+    this driver.
 
   * add the following lines to your kernel configuration file:
 
