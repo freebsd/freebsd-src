@@ -74,12 +74,12 @@ static struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static gid_t	a_gid __P((char *));
-static uid_t	a_uid __P((char *));
-static mode_t	a_mask __P((char *));
-static void	usage __P((void)) __dead2;
-static void     load_u2wtable __P((struct msdosfs_args *, char *));
-static void     load_ultable __P((struct msdosfs_args *, char *));
+static gid_t	a_gid(char *);
+static uid_t	a_uid(char *);
+static mode_t	a_mask(char *);
+static void	usage(void) __dead2;
+static void     load_u2wtable(struct msdosfs_args *, char *);
+static void     load_ultable(struct msdosfs_args *, char *);
 
 int
 main(argc, argv)

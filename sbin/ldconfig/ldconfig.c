@@ -87,13 +87,13 @@ struct shlib_list {
 static struct shlib_list	*shlib_head = NULL, **shlib_tail = &shlib_head;
 static char			*dir_list;
 
-static int		buildhints __P((void));
-static int		dodir __P((char *, int));
-int			dofile __P((char *, int));
-static void		enter __P((char *, char *, char *, int *, int));
-static void		listhints __P((void));
-static int		readhints __P((void));
-static void		usage __P((void));
+static int		buildhints(void);
+static int		dodir(char *, int);
+int			dofile(char *, int);
+static void		enter(char *, char *, char *, int *, int);
+static void		listhints(void);
+static int		readhints(void);
+static void		usage(void);
 
 int
 main(argc, argv)

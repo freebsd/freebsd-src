@@ -63,7 +63,7 @@ static struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static void	usage __P((void)) __dead2;
+static void	usage(void) __dead2;
 static const char *fsname;
 
 int
