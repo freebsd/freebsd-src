@@ -861,7 +861,7 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	if (!unprivileged_read_msgbuf) {
-		error = suser_td(req->td);
+		error = suser(req->td);
 		if (error)
 			return (error);
 	}

@@ -194,7 +194,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			if (suser_td(td)) {
+			if (suser(td)) {
 				devvp = pmp->pm_devvp;
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 				error = VOP_ACCESS(devvp, VREAD | VWRITE,
@@ -241,7 +241,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	if (suser_td(td)) {
+	if (suser(td)) {
 		accessmode = VREAD;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;

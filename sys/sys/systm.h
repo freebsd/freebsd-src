@@ -47,7 +47,7 @@
 #include <sys/callout.h>
 
 extern int securelevel;		/* system security level (see init(8)) */
-extern int suser_enabled;	/* suser_xxx() is permitted to return 0 */
+extern int suser_enabled;	/* suser() is permitted to return 0 */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern const char *panicstr;	/* panic message */
@@ -188,13 +188,11 @@ void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);
 void	setstatclockrate(int hzrate);
 
-/* flags for suser_xxx() */
+/* flags for suser() and suser_cred() */
 #define PRISON_ROOT	1
 
-int	suser(struct proc *);
-int	suser_td(struct thread *);
-int	suser_xxx(struct ucred *cred, struct proc *proc, int flag);
-int	suser_xxx_td(struct ucred *cred, struct thread *thread, int flag);
+int	suser(struct thread *td);
+int	suser_cred(struct ucred *cred, int flag);
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
 

@@ -99,7 +99,7 @@ ipx_pcbbind(ipxp, nam, td)
 		int error;
 
 		if (aport < IPXPORT_RESERVED &&
-		    td != NULL && (error = suser_td(td)) != 0)
+		    td != NULL && (error = suser(td)) != 0)
 			return (error);
 		if (ipx_pcblookup(&zeroipx_addr, lport, 0))
 			return (EADDRINUSE);

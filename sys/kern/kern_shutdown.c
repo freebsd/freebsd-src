@@ -148,7 +148,7 @@ reboot(struct thread *td, struct reboot_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = suser_td(td)) == 0)
+	if ((error = suser(td)) == 0)
 		boot(uap->opt);
 	mtx_unlock(&Giant);
 	return (error);

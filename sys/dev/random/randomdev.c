@@ -147,7 +147,7 @@ random_open(dev_t dev __unused, int flags, int fmt __unused, struct thread *td)
 	int error;
 
 	if (flags & FWRITE) {
-		error = suser(td->td_proc);
+		error = suser(td);
 		if (error)
 			return (error);
 		error = securelevel_gt(td->td_ucred, 0);
@@ -162,7 +162,7 @@ static int
 random_close(dev_t dev __unused, int flags, int fmt __unused, struct thread *td)
 {
 	if (flags & FWRITE) {
-		if (!(suser(td->td_proc) ||
+		if (!(suser(td) ||
 		    securelevel_gt(td->td_ucred, 0)))
 			random_reseed();
 	}

@@ -1062,7 +1062,7 @@ osf1_setuid(td, uap)
 	uid = SCARG(uap, uid);
 	oldcred = p->p_ucred;
 
-	if ((error = suser_xxx(p->p_ucred, NULL, PRISON_ROOT)) != 0 &&
+	if ((error = suser_cred(p->p_ucred, PRISON_ROOT)) != 0 &&
 	    uid != oldcred->cr_ruid && uid != oldcred->cr_svuid)
 		return (error);
 
@@ -1108,7 +1108,7 @@ osf1_setgid(td, uap)
 	gid = SCARG(uap, gid);
 	oldcred = p->p_ucred;
 
-	if (((error = suser_xxx(p->p_ucred, NULL, PRISON_ROOT)) != 0 ) &&
+	if (((error = suser_cred(p->p_ucred, PRISON_ROOT)) != 0 ) &&
 	    gid != oldcred->cr_rgid && gid != oldcred->cr_svgid)
 		return (error);
 

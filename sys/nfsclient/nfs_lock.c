@@ -241,7 +241,7 @@ nfslockdans(struct thread *td, struct lockd_ans *ansp)
 	 *
 	 * XXX This authorization check is probably not right.
 	 */
-	if ((error = suser(td->td_proc)) != 0 &&
+	if ((error = suser(td)) != 0 &&
 	    td->td_ucred->cr_svuid != 0)
 		return (error);
 

@@ -84,7 +84,7 @@
 
 #define checkbad(fn) {error=(fn);if(error) goto bad;}
 
-#define	ncp_suser(cred)	suser_xxx(cred, NULL, 0)
+#define	ncp_suser(cred)	suser_cred(cred, 0)
 
 #define ncp_isowner(conn,cred) ((cred)->cr_uid == (conn)->nc_owner->cr_uid)
 

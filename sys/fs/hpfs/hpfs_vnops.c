@@ -529,7 +529,7 @@ hpfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != hp->h_uid &&
-		    (error = suser_xxx(cred, td->td_proc, PRISON_ROOT)) &&
+		    (error = suser_cred(cred, PRISON_ROOT)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
 			return (error);

@@ -463,7 +463,7 @@ sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-	error = suser(req->td->td_proc);
+	error = suser(req->td);
 	if (error)
 		return error;
 	sysctl_sysctl_debug_dump_node(&sysctl__children, 0);
@@ -1084,7 +1084,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 			flags = PRISON_ROOT;
 		else
 			flags = 0;
-		error = suser_xxx(NULL, req->td->td_proc, flags);
+		error = suser_cred(req->td->td_ucred, flags);
 		if (error)
 			return (error);
 	}

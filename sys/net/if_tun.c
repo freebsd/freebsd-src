@@ -533,7 +533,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
  		if (tp->tun_if.if_mtu != tunp->mtu
-		&& (error = suser_td(td)) != 0)
+		&& (error = suser(td)) != 0)
 			return (error);
  		tp->tun_if.if_mtu = tunp->mtu;
  		tp->tun_if.if_type = tunp->type;

@@ -79,6 +79,10 @@
  *		struct proc *p;
  *		if (p && !suser(p))
  *			privileged;
+ *	FreeBSD 5
+ *		struct thread *td;
+ *		if (suser(td))
+ *			privileged;
  *	OpenBSD, BSDI [34], FreeBSD 2
  *		struct socket *so;
  *		if (so->so_state & SS_PRIV)

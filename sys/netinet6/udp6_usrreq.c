@@ -466,7 +466,7 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error, s;
 
-	error = suser(req->td->td_proc);
+	error = suser(req->td);
 	if (error)
 		return (error);
 

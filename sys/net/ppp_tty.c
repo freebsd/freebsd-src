@@ -175,7 +175,7 @@ pppopen(dev, tp)
     register struct ppp_softc *sc;
     int error, s;
 
-    if ((error = suser_td(td)) != 0)
+    if ((error = suser(td)) != 0)
 	return (error);
 
     s = spltty();
@@ -444,7 +444,7 @@ ppptioctl(tp, cmd, data, flag, td)
     error = 0;
     switch (cmd) {
     case PPPIOCSASYNCMAP:
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	sc->sc_asyncmap[0] = *(u_int *)data;
 	break;
@@ -454,7 +454,7 @@ ppptioctl(tp, cmd, data, flag, td)
 	break;
 
     case PPPIOCSRASYNCMAP:
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	sc->sc_rasyncmap = *(u_int *)data;
 	break;
@@ -464,7 +464,7 @@ ppptioctl(tp, cmd, data, flag, td)
 	break;
 
     case PPPIOCSXASYNCMAP:
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	s = spltty();
 	bcopy(data, sc->sc_asyncmap, sizeof(sc->sc_asyncmap));

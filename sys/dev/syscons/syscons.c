@@ -479,7 +479,7 @@ scopen(dev_t dev, int flag, int mode, struct thread *td)
 	(*linesw[tp->t_line].l_modem)(tp, 1);
     }
     else
-	if (tp->t_state & TS_XCLUDE && suser_td(td))
+	if (tp->t_state & TS_XCLUDE && suser(td))
 	    return(EBUSY);
 
     error = (*linesw[tp->t_line].l_open)(dev, tp);
@@ -976,7 +976,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	return 0;
 
     case KDENABIO:      	/* allow io operations */
-	error = suser_td(td);
+	error = suser(td);
 	if (error != 0)
 	    return error;
 	error = securelevel_gt(td->td_ucred, 0);

@@ -197,7 +197,7 @@ swapon(td, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		goto done2;
 

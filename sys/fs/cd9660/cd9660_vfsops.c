@@ -238,7 +238,7 @@ cd9660_mount(mp, path, data, ndp, td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
 	if (error) 
-		error = suser_td(td);
+		error = suser(td);
 	if (error) {
 		vput(devvp);
 		return (error);

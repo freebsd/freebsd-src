@@ -3217,7 +3217,7 @@ vaccess(type, file_mode, file_uid, file_gid, acc_mode, cred, privused)
 		return (0);
 
 privcheck:
-	if (!suser_xxx(cred, NULL, PRISON_ROOT)) {
+	if (!suser_cred(cred, PRISON_ROOT)) {
 		/* XXX audit: privilege used */
 		if (privused != NULL)
 			*privused = 1;

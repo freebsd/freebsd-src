@@ -150,7 +150,7 @@ chkdq(ip, change, cred, flags)
 		}
 		return (0);
 	}
-	if ((flags & FORCE) == 0 && suser_xxx(cred, NULL, 0)) {
+	if ((flags & FORCE) == 0 && suser_cred(cred, 0)) {
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;
@@ -271,7 +271,7 @@ chkiq(ip, change, cred, flags)
 		}
 		return (0);
 	}
-	if ((flags & FORCE) == 0 && suser_xxx(cred, NULL, 0)) {
+	if ((flags & FORCE) == 0 && suser_cred(cred, 0)) {
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;

@@ -353,7 +353,7 @@ interpret:
 		 * we do not regain any tracing during a possible block.
 		 */
 		setsugid(p);
-		if (p->p_tracep && suser_xxx(oldcred, NULL, PRISON_ROOT)) {
+		if (p->p_tracep && suser_cred(oldcred, PRISON_ROOT)) {
 			struct vnode *vtmp;
 
 			if ((vtmp = p->p_tracep) != NULL) {

@@ -421,7 +421,7 @@ msgctl(td, uap)
 		if ((error = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
 			goto done2;
 		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
-			error = suser_td(td);
+			error = suser(td);
 			if (error)
 				goto done2;
 		}

@@ -484,7 +484,7 @@ ufs_setattr(ap)
 		 * Privileged non-jail processes may not modify system flags
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
-		if (!suser_xxx(cred, NULL, PRISON_ROOT)) {
+		if (!suser_cred(cred, PRISON_ROOT)) {
 			if (ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
@@ -616,7 +616,7 @@ ufs_chmod(vp, mode, cred, td)
 	 * as well as set the setgid bit on a file with a group that the
 	 * process is not a member of.
 	 */
-	if (suser_xxx(cred, NULL, PRISON_ROOT)) {
+	if (suser_cred(cred, PRISON_ROOT)) {
 		if (vp->v_type != VDIR && (mode & S_ISTXT))
 			return (EFTYPE);
 		if (!groupmember(ip->i_gid, cred) && (mode & ISGID))
@@ -666,7 +666,7 @@ ufs_chown(vp, uid, gid, cred, td)
 	 */
 	if ((uid != ip->i_uid || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
-	    (error = suser_xxx(cred, td->td_proc, PRISON_ROOT)))
+	    (error = suser_cred(cred, PRISON_ROOT)))
 		return (error);
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
@@ -733,7 +733,7 @@ good:
 		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
-	if (suser_xxx(cred, NULL, PRISON_ROOT) && (ouid != uid || ogid != gid))
+	if (suser_cred(cred, PRISON_ROOT) && (ouid != uid || ogid != gid))
 		ip->i_mode &= ~(ISUID | ISGID);
 	return (0);
 }
@@ -2370,7 +2370,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if (DOINGSOFTDEP(tvp))
 		softdep_change_linkcnt(ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser_xxx(cnp->cn_cred, NULL, PRISON_ROOT))
+	    suser_cred(cnp->cn_cred, PRISON_ROOT))
 		ip->i_mode &= ~ISGID;
 
 	if (cnp->cn_flags & ISWHITEOUT)

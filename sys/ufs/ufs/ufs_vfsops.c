@@ -119,7 +119,7 @@ ufs_quotactl(mp, cmds, uid, arg, td)
 			break;
 		/* fall through */
 	default:
-		if ((error = suser_xxx(0, td->td_proc, PRISON_ROOT)) != 0)
+		if ((error = suser_cred(td->td_ucred, PRISON_ROOT)) != 0)
 			return (error);
 	}
 

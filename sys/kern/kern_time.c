@@ -187,7 +187,7 @@ clock_settime(td, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 		goto done2;
 	if (SCARG(uap, clock_id) != CLOCK_REALTIME) {
 		error = EINVAL;
@@ -370,7 +370,7 @@ settimeofday(td, uap)
 
 	mtx_lock(&Giant);
 
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 		goto done2;
 	/* Verify all parameters before changing time. */
 	if (uap->tv) {
@@ -421,7 +421,7 @@ adjtime(td, uap)
 
 	mtx_lock(&Giant);
 
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 		goto done2;
 	error = copyin((caddr_t)uap->delta, (caddr_t)&atv,
 		    sizeof(struct timeval));

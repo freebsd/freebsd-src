@@ -348,7 +348,7 @@ mmap(td, uap)
 			if (securelevel_ge(td->td_ucred, 1))
 				disablexworkaround = 1;
 			else
-				disablexworkaround = suser_td(td);
+				disablexworkaround = suser(td);
 			if (vp->v_type == VCHR && disablexworkaround &&
 			    (flags & (MAP_PRIVATE|MAP_COPY))) {
 				error = EINVAL;
@@ -1019,7 +1019,7 @@ mlock(td, uap)
 	    td->td_proc->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
 		return (ENOMEM);
 #else
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		return (error);
 #endif
@@ -1100,7 +1100,7 @@ munlock(td, uap)
 		return (EINVAL);
 
 #ifndef pmap_wired_count
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		return (error);
 #endif
