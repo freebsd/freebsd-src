@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 41 $
+ *              $Revision: 45 $
  *
  ******************************************************************************/
 
@@ -129,7 +129,7 @@
 #ifdef ENABLE_DEBUGGER
 
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbdisply")
 
 
@@ -300,8 +300,8 @@ AcpiDbDecodeAndDisplayObject (
                 return;
             }
 
-            AcpiCmDumpBuffer (ObjPtr, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
-            AcpiAmlDumpObjectDescriptor (ObjPtr, 1);
+            AcpiUtDumpBuffer (ObjPtr, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
+            AcpiExDumpObjectDescriptor (ObjPtr, 1);
         }
 
         else if (VALID_DESCRIPTOR_TYPE ((ObjPtr), ACPI_DESC_TYPE_PARSER))
@@ -315,7 +315,7 @@ AcpiDbDecodeAndDisplayObject (
             }
 
 
-            AcpiCmDumpBuffer (ObjPtr, sizeof (ACPI_PARSE_OBJECT), Display, ACPI_UINT32_MAX);
+            AcpiUtDumpBuffer (ObjPtr, sizeof (ACPI_PARSE_OBJECT), Display, ACPI_UINT32_MAX);
             AcpiDbDumpParserDescriptor ((ACPI_PARSE_OBJECT *) ObjPtr);
         }
 
@@ -329,7 +329,7 @@ AcpiDbDecodeAndDisplayObject (
 
             /* Just dump some memory */
 
-            AcpiCmDumpBuffer (ObjPtr, Size, Display, ACPI_UINT32_MAX);
+            AcpiUtDumpBuffer (ObjPtr, Size, Display, ACPI_UINT32_MAX);
         }
 
         return;
@@ -365,8 +365,8 @@ DumpNte:
         return;
     }
 
-    AcpiCmDumpBuffer ((void *) Node, sizeof (ACPI_NAMESPACE_NODE), Display, ACPI_UINT32_MAX);
-    AcpiAmlDumpNode (Node, 1);
+    AcpiUtDumpBuffer ((void *) Node, sizeof (ACPI_NAMESPACE_NODE), Display, ACPI_UINT32_MAX);
+    AcpiExDumpNode (Node, 1);
 
     if (Node->Object)
     {
@@ -377,8 +377,8 @@ DumpNte:
             return;
         }
 
-        AcpiCmDumpBuffer (Node->Object, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
-        AcpiAmlDumpObjectDescriptor (Node->Object, 1);
+        AcpiUtDumpBuffer (Node->Object, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
+        AcpiExDumpObjectDescriptor (Node->Object, 1);
     }
 }
 
@@ -407,7 +407,7 @@ AcpiDbDecodeInternalObject (
         return;
     }
 
-    AcpiOsPrintf (" %s", AcpiCmGetTypeName (ObjDesc->Common.Type));
+    AcpiOsPrintf (" %s", AcpiUtGetTypeName (ObjDesc->Common.Type));
 
     switch (ObjDesc->Common.Type)
     {
@@ -472,7 +472,7 @@ AcpiDbDisplayInternalObject (
     {
         AcpiOsPrintf ("<Node>            Name %4.4s Type-%s",
                         &((ACPI_NAMESPACE_NODE *)ObjDesc)->Name,
-                        AcpiCmGetTypeName (((ACPI_NAMESPACE_NODE *) ObjDesc)->Type));
+                        AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) ObjDesc)->Type));
         if (((ACPI_NAMESPACE_NODE *) ObjDesc)->Flags & ANOBJ_METHOD_ARG)
         {
             AcpiOsPrintf (" [Method Arg]");
@@ -498,7 +498,7 @@ AcpiDbDisplayInternalObject (
         switch (ObjDesc->Common.Type)
         {
         case INTERNAL_TYPE_REFERENCE:
-            switch (ObjDesc->Reference.OpCode)
+            switch (ObjDesc->Reference.Opcode)
             {
             case AML_ZERO_OP:
                 AcpiOsPrintf ("[Const]     Number %.8X", 0);
@@ -835,7 +835,6 @@ AcpiDbDisplayCallingTree (void)
 {
     UINT32                  i;
     ACPI_WALK_STATE         *WalkState;
-    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *Node;
 
 
@@ -846,14 +845,12 @@ AcpiDbDisplayCallingTree (void)
         return;
     }
 
-    ObjDesc = WalkState->MethodDesc;
     Node = WalkState->MethodNode;
 
     AcpiOsPrintf ("Current Control Method Call Tree\n");
 
     for (i = 0; WalkState; i++)
     {
-        ObjDesc = WalkState->MethodDesc;
         Node = WalkState->MethodNode;
 
         AcpiOsPrintf ("    [%4.4s]\n", &Node->Name);

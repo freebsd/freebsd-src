@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psscope - Parser scope stack management routines
- *              $Revision: 24 $
+ *              $Revision: 27 $
  *
  *****************************************************************************/
 
@@ -118,7 +118,7 @@
 #include "acpi.h"
 #include "acparser.h"
 
-#define _COMPONENT          PARSER
+#define _COMPONENT          ACPI_PARSER
         MODULE_NAME         ("psscope")
 
 
@@ -189,7 +189,7 @@ AcpiPsInitScope (
     FUNCTION_TRACE_PTR ("PsInitScope", RootOp);
 
 
-    Scope = AcpiCmCreateGenericState ();
+    Scope = AcpiUtCreateGenericState ();
     if (!Scope)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -235,7 +235,7 @@ AcpiPsPushScope (
     FUNCTION_TRACE_PTR ("PsPushScope", Op);
 
 
-    Scope = AcpiCmCreateGenericState ();
+    Scope = AcpiUtCreateGenericState ();
     if (!Scope)
     {
         return (AE_NO_MEMORY);
@@ -249,7 +249,7 @@ AcpiPsPushScope (
 
     /* Push onto scope stack */
 
-    AcpiCmPushGenericState (&ParserState->Scope, Scope);
+    AcpiUtPushGenericState (&ParserState->Scope, Scope);
 
 
     if (ArgCount == ACPI_VAR_ARGS)
@@ -303,7 +303,7 @@ AcpiPsPopScope (
      */
     if (Scope->Common.Next)
     {
-        Scope = AcpiCmPopGenericState (&ParserState->Scope);
+        Scope = AcpiUtPopGenericState (&ParserState->Scope);
 
 
         /* return to parsing previous op */
@@ -315,7 +315,7 @@ AcpiPsPopScope (
 
         /* All done with this scope state structure */
 
-        AcpiCmDeleteGenericState (Scope);
+        AcpiUtDeleteGenericState (Scope);
     }
 
     else
@@ -328,8 +328,7 @@ AcpiPsPopScope (
     }
 
 
-    DEBUG_PRINT (TRACE_PARSE,
-        ("PsPopScope:  Popped Op %p Args %X\n", *Op, *ArgCount));
+    DEBUG_PRINTP (TRACE_PARSE, ("Popped Op %p Args %X\n", *Op, *ArgCount));
     return_VOID;
 }
 
@@ -366,8 +365,8 @@ AcpiPsCleanupScope (
 
     while (ParserState->Scope)
     {
-        Scope = AcpiCmPopGenericState (&ParserState->Scope);
-        AcpiCmDeleteGenericState (Scope);
+        Scope = AcpiUtPopGenericState (&ParserState->Scope);
+        AcpiUtDeleteGenericState (Scope);
     }
 
     return_VOID;

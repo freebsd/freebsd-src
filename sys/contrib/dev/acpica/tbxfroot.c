@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbxfroot - Find the root ACPI table (RSDT)
- *              $Revision: 35 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,7 @@
 #include "actables.h"
 
 
-#define _COMPONENT          TABLE_MANAGER
+#define _COMPONENT          ACPI_TABLES
         MODULE_NAME         ("tbxfroot")
 
 #define RSDP_CHECKSUM_LENGTH 20
@@ -155,7 +155,7 @@ AcpiFindRootPointer (
     Status = AcpiTbFindRsdp (&TableInfo);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_ERROR, ("RSDP structure not found\n"));
+        DEBUG_PRINTP (ACPI_ERROR, ("RSDP structure not found\n"));
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 

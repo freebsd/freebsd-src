@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: cmdebug - Debug print routines
- *              $Revision: 64 $
+ * Module Name: utdebug - Debug print routines
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -114,13 +114,15 @@
  *
  *****************************************************************************/
 
-#define __CMDEBUG_C__
+#define __UTDEBUG_C__
 
 #include "acpi.h"
 
-#define _COMPONENT          MISCELLANEOUS
-        MODULE_NAME         ("cmdebug")
+#define _COMPONENT          ACPI_UTILITIES
+        MODULE_NAME         ("utdebug")
 
+
+UINT32          PrevThreadId = 0xFFFFFFFF;
 
 /*****************************************************************************
  *
@@ -344,7 +346,7 @@ FunctionStatusExit (
         " %2.2ld Exiting Function: %s, %s\n",
         AcpiGbl_NestingLevel,
         FunctionName,
-        AcpiCmFormatException (Status));
+        AcpiUtFormatException (Status));
 
     AcpiGbl_NestingLevel--;
 }
@@ -446,6 +448,10 @@ DebugPrint (
     ...)
 {
     va_list                 args;
+    UINT32                  ThreadId;
+
+
+    ThreadId = AcpiOsGetThreadId ();
 
 
     /* Both the level and the component must be enabled */
@@ -455,7 +461,26 @@ DebugPrint (
     {
         va_start (args, Format);
 
-        AcpiOsPrintf ("%8s-%04d: ", ModuleName, LineNumber);
+        if (ThreadId != PrevThreadId)
+        {
+            if (TRACE_THREADS & AcpiDbgLevel)
+            {
+                AcpiOsPrintf ("\n**** Context Switch from TID %X to TID %X ****\n\n",
+                    PrevThreadId, ThreadId);
+            }
+
+            PrevThreadId = ThreadId;
+        }
+
+        if (TRACE_THREADS & AcpiDbgLevel)
+        {
+            AcpiOsPrintf ("%8s-%04d[%04X]: ", ModuleName, LineNumber, ThreadId);
+        }
+        else
+        {
+            AcpiOsPrintf ("%8s-%04d: ", ModuleName, LineNumber);
+        }
+
         AcpiOsVprintf (Format, args);
     }
 }
@@ -481,9 +506,31 @@ DebugPrintPrefix (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber)
 {
+    UINT32                  ThreadId;
 
 
-    AcpiOsPrintf ("%8s-%04d: ", ModuleName, LineNumber);
+    ThreadId = AcpiOsGetThreadId ();
+
+    if (ThreadId != PrevThreadId)
+    {
+        if (TRACE_THREADS & AcpiDbgLevel)
+        {
+            AcpiOsPrintf ("\n**** Context Switch from TID %X to TID %X ****\n\n",
+                PrevThreadId, ThreadId);
+        }
+
+        PrevThreadId = ThreadId;
+    }
+
+    if (TRACE_THREADS & AcpiDbgLevel)
+    {
+        AcpiOsPrintf ("%8s-%04d[%04X]: ", ModuleName, LineNumber, ThreadId);
+    }
+    else
+    {
+        AcpiOsPrintf ("%8s-%04d: ", ModuleName, LineNumber);
+    }
+
 }
 
 
@@ -518,7 +565,7 @@ DebugPrintRaw (
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiCmDumpBuffer
+ * FUNCTION:    AcpiUtDumpBuffer
  *
  * PARAMETERS:  Buffer              - Buffer to dump
  *              Count               - Amount to dump, in bytes
@@ -531,7 +578,7 @@ DebugPrintRaw (
  ****************************************************************************/
 
 void
-AcpiCmDumpBuffer (
+AcpiUtDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
     UINT32                  Display,

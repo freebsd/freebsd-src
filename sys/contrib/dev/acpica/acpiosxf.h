@@ -1,9 +1,9 @@
 
 /******************************************************************************
  *
- * Name: acpiosxf.h - All interfaces to the OS-dependent layer.  These
- *                    interfaces must be implemented by the OS-dependent
- *                    front-end to the ACPI subsystem.
+ * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL).  These
+ *                    interfaces must be implemented by OSL to interface the
+ *                    ACPI components to the host operating system.
  *
  *****************************************************************************/
 
@@ -117,26 +117,26 @@
  *
  *****************************************************************************/
 
-#ifndef __ACPIOSD_H__
-#define __ACPIOSD_H__
+#ifndef __ACPIOSXF_H__
+#define __ACPIOSXF_H__
 
-#include "acenv.h"
+#include "platform/acenv.h"
 #include "actypes.h"
 
 
 /* Priorities for AcpiOsQueueForExecution */
 
-#define OSD_PRIORITY_GPE    1
-#define OSD_PRIORITY_HIGH   2
-#define OSD_PRIORITY_MED    3
-#define OSD_PRIORITY_LO     4
+#define OSD_PRIORITY_GPE            1
+#define OSD_PRIORITY_HIGH           2
+#define OSD_PRIORITY_MED            3
+#define OSD_PRIORITY_LO             4
 
-#define ACPI_NO_UNIT_LIMIT  ((UINT32) -1)
-#define ACPI_MUTEX_SEM      1
+#define ACPI_NO_UNIT_LIMIT          ((UINT32) -1)
+#define ACPI_MUTEX_SEM              1
 
 
 /*
- * Types specific to the OS-dependent layer interfaces
+ * Types specific to the OS service interfaces
  */
 
 typedef
@@ -149,7 +149,7 @@ void (*OSD_EXECUTION_CALLBACK) (
 
 
 /*
- * Initialization and shutdown primitives  (Optional)
+ * OSL Initialization and shutdown primitives
  */
 
 ACPI_STATUS
@@ -159,6 +159,7 @@ AcpiOsInitialize (
 ACPI_STATUS
 AcpiOsTerminate (
     void);
+
 
 /*
  * Synchronization primitives
@@ -184,6 +185,7 @@ ACPI_STATUS
 AcpiOsSignalSemaphore (
     ACPI_HANDLE             Handle,
     UINT32                  Units);
+
 
 /*
  * Memory allocation and mapping
@@ -217,6 +219,7 @@ AcpiOsGetPhysicalAddress (
     void                    *LogicalAddress,
     ACPI_PHYSICAL_ADDRESS   *PhysicalAddress);
 
+
 /*
  * Interrupt handlers
  */
@@ -234,8 +237,12 @@ AcpiOsRemoveInterruptHandler (
 
 
 /*
- * Scheduling
+ * Threads and Scheduling
  */
+
+UINT32
+AcpiOsGetThreadId (
+    void);
 
 ACPI_STATUS
 AcpiOsQueueForExecution (
@@ -251,6 +258,7 @@ AcpiOsSleep (
 void
 AcpiOsSleepUsec (
     UINT32                  Microseconds);
+
 
 /*
  * Platform/Hardware independent I/O interfaces
@@ -283,6 +291,7 @@ void
 AcpiOsOut32 (
     ACPI_IO_ADDRESS         OutPort,
     UINT32                  Value);
+
 
 /*
  * Platform/Hardware independent physical memory interfaces
@@ -398,6 +407,7 @@ AcpiOsVprintf (
     const NATIVE_CHAR       *Format,
     va_list                 Args);
 
+
 /*
  * Debug input
  */
@@ -419,4 +429,4 @@ AcpiOsDbgAssert(
     NATIVE_CHAR             *Message);
 
 
-#endif /* __ACPIOSD_H__ */
+#endif /* __ACPIOSXF_H__ */

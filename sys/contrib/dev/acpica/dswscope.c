@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswscope - Scope stack manipulation
- *              $Revision: 42 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,7 @@
 #include "acdispat.h"
 
 
-#define _COMPONENT          NAMESPACE
+#define _COMPONENT          ACPI_DISPATCHER
         MODULE_NAME         ("dswscope")
 
 
@@ -155,7 +155,7 @@ AcpiDsScopeStackClear (
 
         DEBUG_PRINT (TRACE_EXEC,
             ("Popped object type %X\n", ScopeInfo->Common.Value));
-        AcpiCmDeleteGenericState (ScopeInfo);
+        AcpiUtDeleteGenericState (ScopeInfo);
     }
 }
 
@@ -175,7 +175,7 @@ AcpiDsScopeStackClear (
 ACPI_STATUS
 AcpiDsScopeStackPush (
     ACPI_NAMESPACE_NODE     *Node,
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_GENERIC_STATE      *ScopeInfo;
@@ -194,7 +194,7 @@ AcpiDsScopeStackPush (
 
     /* Make sure object type is valid */
 
-    if (!AcpiAmlValidateObjectType (Type))
+    if (!AcpiExValidateObjectType (Type))
     {
         REPORT_WARNING (("DsScopeStackPush: type code out of range\n"));
     }
@@ -202,7 +202,7 @@ AcpiDsScopeStackPush (
 
     /* Allocate a new scope object */
 
-    ScopeInfo = AcpiCmCreateGenericState ();
+    ScopeInfo = AcpiUtCreateGenericState ();
     if (!ScopeInfo)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -215,7 +215,7 @@ AcpiDsScopeStackPush (
 
     /* Push new scope object onto stack */
 
-    AcpiCmPushGenericState (&WalkState->ScopeInfo, ScopeInfo);
+    AcpiUtPushGenericState (&WalkState->ScopeInfo, ScopeInfo);
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -251,7 +251,7 @@ AcpiDsScopeStackPop (
      * Pop scope info object off the stack.
      */
 
-    ScopeInfo = AcpiCmPopGenericState (&WalkState->ScopeInfo);
+    ScopeInfo = AcpiUtPopGenericState (&WalkState->ScopeInfo);
     if (!ScopeInfo)
     {
         return_ACPI_STATUS (AE_STACK_UNDERFLOW);
@@ -260,7 +260,7 @@ AcpiDsScopeStackPop (
     DEBUG_PRINT (TRACE_EXEC,
         ("Popped object type %X\n", ScopeInfo->Common.Value));
 
-    AcpiCmDeleteGenericState (ScopeInfo);
+    AcpiUtDeleteGenericState (ScopeInfo);
 
     return_ACPI_STATUS (AE_OK);
 }

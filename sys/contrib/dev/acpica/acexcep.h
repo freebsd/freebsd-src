@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 41 $
+ *       $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -159,8 +159,14 @@
 #define AE_LIMIT                        (ACPI_STATUS) (0x0012 | AE_CODE_ENVIRONMENTAL)
 #define AE_TIME                         (ACPI_STATUS) (0x0013 | AE_CODE_ENVIRONMENTAL)
 #define AE_UNKNOWN_STATUS               (ACPI_STATUS) (0x0014 | AE_CODE_ENVIRONMENTAL)
+#define AE_ACQUIRE_DEADLOCK             (ACPI_STATUS) (0x0015 | AE_CODE_ENVIRONMENTAL)
+#define AE_RELEASE_DEADLOCK             (ACPI_STATUS) (0x0016 | AE_CODE_ENVIRONMENTAL)
+#define AE_NOT_ACQUIRED                 (ACPI_STATUS) (0x0017 | AE_CODE_ENVIRONMENTAL)
+#define AE_ALREADY_ACQUIRED             (ACPI_STATUS) (0x0018 | AE_CODE_ENVIRONMENTAL)
+#define AE_NO_HARDWARE_RESPONSE         (ACPI_STATUS) (0x0019 | AE_CODE_ENVIRONMENTAL)
+#define AE_NO_GLOBAL_LOCK               (ACPI_STATUS) (0x001A | AE_CODE_ENVIRONMENTAL)
 
-#define AE_CODE_ENV_MAX                 0x0014
+#define AE_CODE_ENV_MAX                 0x001A
 
 /*
  * Programmer exceptions
@@ -209,8 +215,13 @@
 #define AE_AML_INVALID_SPACE_ID         (ACPI_STATUS) (0x0012 | AE_CODE_AML)
 #define AE_AML_STRING_LIMIT             (ACPI_STATUS) (0x0013 | AE_CODE_AML)
 #define AE_AML_NO_RETURN_VALUE          (ACPI_STATUS) (0x0014 | AE_CODE_AML)
+#define AE_AML_METHOD_LIMIT             (ACPI_STATUS) (0x0015 | AE_CODE_AML)
+#define AE_AML_NOT_OWNER                (ACPI_STATUS) (0x0016 | AE_CODE_AML)
+#define AE_AML_MUTEX_ORDER              (ACPI_STATUS) (0x0017 | AE_CODE_AML)
+#define AE_AML_MUTEX_NOT_ACQUIRED       (ACPI_STATUS) (0x0018 | AE_CODE_AML)
+#define AE_AML_INVALID_RESOURCE_TYPE    (ACPI_STATUS) (0x0019 | AE_CODE_AML)
 
-#define AE_CODE_AML_MAX                 0x0014
+#define AE_CODE_AML_MAX                 0x0019
 
 /*
  * Internal exceptions used for control
@@ -256,6 +267,12 @@ static NATIVE_CHAR          *AcpiGbl_ExceptionNames_Env[] =
     "AE_LIMIT",
     "AE_TIME",
     "AE_UNKNOWN_STATUS",
+    "AE_ACQUIRE_DEADLOCK",
+    "AE_RELEASE_DEADLOCK",
+    "AE_NOT_ACQUIRED",
+    "AE_ALREADY_ACQUIRED",
+    "AE_NO_HARDWARE_RESPONSE",
+    "AE_NO_GLOBAL_LOCK",
 };
 
 static NATIVE_CHAR          *AcpiGbl_ExceptionNames_Pgm[] =
@@ -297,6 +314,11 @@ static NATIVE_CHAR          *AcpiGbl_ExceptionNames_Aml[] =
     "AE_AML_INVALID_SPACE_ID",
     "AE_AML_STRING_LIMIT",
     "AE_AML_NO_RETURN_VALUE",
+    "AE_AML_METHOD_LIMIT",
+    "AE_AML_NOT_OWNER",
+    "AE_AML_MUTEX_ORDER",
+    "AE_AML_MUTEX_NOT_ACQUIRED",
+    "AE_AML_INVALID_RESOURCE_TYPE",
 };
 
 static NATIVE_CHAR          *AcpiGbl_ExceptionNames_Ctrl[] =

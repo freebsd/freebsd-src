@@ -2,7 +2,7 @@
  *
  * Module Name: evevent - Fixed and General Purpose AcpiEvent
  *                          handling and dispatch
- *              $Revision: 34 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -119,13 +119,12 @@
 #include "achware.h"
 #include "acevents.h"
 #include "acnamesp.h"
-#include "accommon.h"
 
-#define _COMPONENT          EVENT_HANDLING
+#define _COMPONENT          ACPI_EVENTS
         MODULE_NAME         ("evevent")
 
 
-/**************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvInitialize
  *
@@ -137,7 +136,7 @@
  *              configured, disables SCI event sources, installs the SCI
  *              handler
  *
- *************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiEvInitialize (
@@ -153,7 +152,7 @@ AcpiEvInitialize (
 
     if (!AcpiGbl_DSDT)
     {
-        DEBUG_PRINT (ACPI_WARN, ("EvInitialize: No ACPI tables present!\n"));
+        DEBUG_PRINTP (ACPI_WARN, ("No ACPI tables present!\n"));
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
@@ -162,8 +161,7 @@ AcpiEvInitialize (
 
     if (SYS_MODE_LEGACY == AcpiHwGetModeCapabilities())
     {
-        DEBUG_PRINT (ACPI_WARN,
-            ("EvInitialize: Only legacy mode supported!\n"));
+        DEBUG_PRINTP (ACPI_WARN, ("ACPI Mode is not supported!\n"));
         return_ACPI_STATUS (AE_ERROR);
     }
 
@@ -179,16 +177,14 @@ AcpiEvInitialize (
     Status = AcpiEvFixedEventInitialize ();
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_FATAL,
-            ("EvInitialize: Unable to initialize fixed events.\n"));
+        DEBUG_PRINTP (ACPI_FATAL, ("Unable to initialize fixed events.\n"));
         return_ACPI_STATUS (Status);
     }
 
     Status = AcpiEvGpeInitialize ();
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_FATAL,
-            ("EvInitialize: Unable to initialize general purpose events.\n"));
+        DEBUG_PRINTP (ACPI_FATAL, ("Unable to initialize general purpose events.\n"));
         return_ACPI_STATUS (Status);
     }
 
@@ -197,8 +193,7 @@ AcpiEvInitialize (
     Status = AcpiEvInstallSciHandler ();
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_FATAL,
-            ("EvInitialize: Unable to install System Control Interrupt Handler\n"));
+        DEBUG_PRINTP (ACPI_FATAL, ("Unable to install System Control Interrupt Handler\n"));
         return_ACPI_STATUS (Status);
     }
 
@@ -208,8 +203,7 @@ AcpiEvInitialize (
     Status = AcpiEvInitGpeControlMethods ();
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_FATAL,
-            ("EvInitialize: Unable to initialize Gpe control methods\n"));
+        DEBUG_PRINTP (ACPI_FATAL, ("Unable to initialize Gpe control methods\n"));
         return_ACPI_STATUS (Status);
     }
 
@@ -218,8 +212,7 @@ AcpiEvInitialize (
     Status = AcpiEvInitGlobalLockHandler ();
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_FATAL,
-            ("EvInitialize: Unable to initialize Global Lock handler\n"));
+        DEBUG_PRINTP (ACPI_FATAL, ("Unable to initialize Global Lock handler\n"));
         return_ACPI_STATUS (Status);
     }
 
@@ -228,7 +221,7 @@ AcpiEvInitialize (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvFixedEventInitialize
  *
@@ -247,7 +240,7 @@ AcpiEvFixedEventInitialize(void)
 
     /* Initialize the structure that keeps track of fixed event handlers */
 
-    for (i = 0; i < NUM_FIXED_EVENTS; i++)
+    for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++)
     {
         AcpiGbl_FixedEventHandlers[i].Handler = NULL;
         AcpiGbl_FixedEventHandlers[i].Context = NULL;
@@ -263,7 +256,7 @@ AcpiEvFixedEventInitialize(void)
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvFixedEventDetect
  *
@@ -303,7 +296,7 @@ AcpiEvFixedEventDetect(void)
         IntStatus |= AcpiEvFixedEventDispatch (ACPI_EVENT_PMTIMER);
     }
 
-    /* global event (BIOS want's the global lock) */
+    /* global event (BIOS wants the global lock) */
 
     if ((StatusRegister & ACPI_STATUS_GLOBAL) &&
         (EnableRegister & ACPI_ENABLE_GLOBAL))
@@ -331,7 +324,7 @@ AcpiEvFixedEventDetect(void)
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvFixedEventDispatch
  *
@@ -406,7 +399,7 @@ AcpiEvFixedEventDispatch (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvGpeInitialize
  *
@@ -462,11 +455,11 @@ AcpiEvGpeInitialize (void)
      * Allocate the Gpe information block
      */
 
-    AcpiGbl_GpeRegisters = AcpiCmCallocate (AcpiGbl_GpeRegisterCount *
+    AcpiGbl_GpeRegisters = AcpiUtCallocate (AcpiGbl_GpeRegisterCount *
                             sizeof (ACPI_GPE_REGISTERS));
     if (!AcpiGbl_GpeRegisters)
     {
-        DEBUG_PRINT (ACPI_ERROR,
+        DEBUG_PRINTP (ACPI_ERROR,
             ("Could not allocate the GpeRegisters block\n"));
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
@@ -477,18 +470,18 @@ AcpiEvGpeInitialize (void)
      * Initialization to zeros is sufficient
      */
 
-    AcpiGbl_GpeInfo = AcpiCmCallocate (MUL_8 (AcpiGbl_GpeRegisterCount) *
+    AcpiGbl_GpeInfo = AcpiUtCallocate (MUL_8 (AcpiGbl_GpeRegisterCount) *
                                         sizeof (ACPI_GPE_LEVEL_INFO));
     if (!AcpiGbl_GpeInfo)
     {
-        AcpiCmFree (AcpiGbl_GpeRegisters);
-        DEBUG_PRINT (ACPI_ERROR, ("Could not allocate the GpeInfo block\n"));
+        AcpiUtFree (AcpiGbl_GpeRegisters);
+        DEBUG_PRINTP (ACPI_ERROR, ("Could not allocate the GpeInfo block\n"));
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     /* Set the Gpe validation table to GPE_INVALID */
 
-    MEMSET (AcpiGbl_GpeValid, (int) ACPI_GPE_INVALID, NUM_GPE);
+    MEMSET (AcpiGbl_GpeValid, (int) ACPI_GPE_INVALID, ACPI_NUM_GPE);
 
     /*
      * Initialize the Gpe information and validation blocks.  A goal of these
@@ -558,8 +551,7 @@ AcpiEvGpeInitialize (void)
         RegisterIndex++;
     }
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("GPE registers: %X@%p (Blk0) %X@%p (Blk1)\n",
+    DEBUG_PRINTP (ACPI_INFO, ("GPE registers: %X@%p (Blk0) %X@%p (Blk1)\n",
         Gpe0RegisterCount, AcpiGbl_FADT->XGpe0Blk.Address, Gpe1RegisterCount,
         AcpiGbl_FADT->XGpe1Blk.Address));
 
@@ -567,7 +559,7 @@ AcpiEvGpeInitialize (void)
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvSaveMethodInfo
  *
@@ -601,6 +593,9 @@ AcpiEvSaveMethodInfo (
     UINT8                   Type;
 
 
+    PROC_NAME ("EvSaveMethodInfo");
+
+
     /* Extract the name from the object and convert to a string */
 
     MOVE_UNALIGNED32_TO_32 (Name, &((ACPI_NAMESPACE_NODE *) ObjHandle)->Name);
@@ -621,8 +616,8 @@ AcpiEvSaveMethodInfo (
     {
         /* Unknown method type, just ignore it! */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("EvSaveMethodInfo: Unknown GPE method type: %s (name not of form _Lnn or _Enn)\n",
+        DEBUG_PRINTP (ACPI_ERROR,
+            ("Unknown GPE method type: %s (name not of form _Lnn or _Enn)\n",
             Name));
         return (AE_OK);
     }
@@ -634,8 +629,8 @@ AcpiEvSaveMethodInfo (
     {
         /* Conversion failed; invalid method, just ignore it */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("EvSaveMethodInfo: Could not extract GPE number from name: %s (name not of form _Lnn or _Enn)\n",
+        DEBUG_PRINTP (ACPI_ERROR,
+            ("Could not extract GPE number from name: %s (name not of form _Lnn or _Enn)\n",
             Name));
         return (AE_OK);
     }
@@ -664,14 +659,13 @@ AcpiEvSaveMethodInfo (
 
     AcpiHwEnableGpe (GpeNumber);
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("EvSaveMethodInfo: Registered GPE method %s as GPE number %X\n",
+    DEBUG_PRINTP (ACPI_INFO, ("Registered GPE method %s as GPE number %X\n",
         Name, GpeNumber));
     return (AE_OK);
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvInitGpeControlMethods
  *
@@ -712,7 +706,7 @@ AcpiEvInitGpeControlMethods (void)
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvGpeDetect
  *
@@ -786,7 +780,7 @@ AcpiEvGpeDetect (void)
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvAsynchExecuteGpeMethod
  *
@@ -815,9 +809,9 @@ AcpiEvAsynchExecuteGpeMethod (
     /*
      * Take a snapshot of the GPE info for this level
      */
-    AcpiCmAcquireMutex (ACPI_MTX_EVENTS);
+    AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
     GpeInfo = AcpiGbl_GpeInfo [GpeNumber];
-    AcpiCmReleaseMutex (ACPI_MTX_EVENTS);
+    AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
 
     /*
      * Method Handler (_Lxx, _Exx):
@@ -848,7 +842,7 @@ AcpiEvAsynchExecuteGpeMethod (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiEvGpeDispatch
  *
@@ -875,14 +869,13 @@ AcpiEvGpeDispatch (
 
     FUNCTION_TRACE ("EvGpeDispatch");
 
-    /*DEBUG_INCREMENT_EVENT_COUNT (EVENT_GENERAL);*/
 
     /*
      * Valid GPE number?
      */
     if (AcpiGbl_GpeValid[GpeNumber] == ACPI_GPE_INVALID)
     {
-        DEBUG_PRINT (ACPI_ERROR, ("Invalid GPE bit [%X].\n", GpeNumber));
+        DEBUG_PRINTP (ACPI_ERROR, ("Invalid GPE bit [%X].\n", GpeNumber));
         return_VALUE (INTERRUPT_NOT_HANDLED);
     }
 
@@ -926,7 +919,7 @@ AcpiEvGpeDispatch (
     else if (GpeInfo.MethodHandle)
     {
         if (ACPI_FAILURE(AcpiOsQueueForExecution (OSD_PRIORITY_GPE,
-            AcpiEvAsynchExecuteGpeMethod, (void*)(NATIVE_UINT)GpeNumber)))
+            AcpiEvAsynchExecuteGpeMethod, (void*) GpeNumber)))
         {
             /*
              * Shoudn't occur, but if it does report an error. Note that
