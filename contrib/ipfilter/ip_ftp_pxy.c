@@ -36,8 +36,6 @@ int ippr_ftp_server __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
 int ippr_ftp_valid __P((char *, size_t));
 u_short ippr_ftp_atoi __P((char **));
 
-u_short ipf_ftp_atoi __P((char **));
-
 static	frentry_t	natfr;
 int	ippr_ftp_pasvonly = 0;
 int	ippr_ftp_insecure = 0;

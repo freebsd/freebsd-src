@@ -65,13 +65,6 @@ extern	char	flagset[];
 extern	u_char	flags[];
 
 
-void initparse()
-{
-	gethostname(thishost, sizeof(thishost));
-	thishost[sizeof(thishost) - 1] = '\0';
-}
-
-
 /* parse()
  *
  * parse a line read from the input filter rule file
