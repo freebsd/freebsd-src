@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33 1996/10/09 09:53:35 jkh Exp $
+ * $Id: installUpgrade.c,v 1.34 1996/12/08 12:27:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,23 +56,31 @@ typedef struct _hitList {
 static void
 doByHand(HitList *h)
 {
+    FILE *fp;
+
+    fp = fopen("/etc/update-by-hand", "a");
     msgConfirm("/etc/%s is one of those files that this upgrade procedure just isn't\n"
 	       "smart enough to deal with right now.  You'll need to merge the old and\n"
 	       "new versions by hand when the option to do so manually is later\n"
-	       "presented (in the meantime, you might want to write the name of\n"
-	       "this file down! - the holographic shell on VTY4 is a good place for\n"
-	       "this).", h->name);
+	       "presented.  This has also been noted in the file /etc/update-by-hand.", h->name);
+    fprintf(fp, "/etc/%s\n", h->name);
+    fclose(fp);
 }
 
 static void
 yellSysconfig(HitList *h)
 {
+    FILE *fp;
+
+    fp = fopen("/etc/update-by-hand", "a");
+    fprintf(fp, "/etc/sysconfig\n");
     msgConfirm("/etc/sysconfig is one of those files that this upgrade procedure just isn't\n"
 	       "smart enough to deal with right now.  Unfortunately, your system\n"
 	       "will also come up with a very different \"personality\" than it had\n"
 	       "before if you do not merge at LEAST the hostname and ifconfig lines\n"
 	       "from the old one!  This is very important, so please do this merge\n"
 	       "even if you do no others before the system is allowed to reboot.");
+    fclose(fp);
 }
 
 /* These are the only meaningful files I know about */
@@ -200,7 +208,7 @@ installUpgrade(dialogMenuItem *self)
     /* No bin selected?  Not much of an upgrade.. */
     if (!(Dists & DIST_BIN)) {
 	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
-		     "This one is pretty vital to a successful 2.1 upgrade.  Are you SURE you don't\n"
+		     "This one is pretty vital to a successful upgrade.  Are you SURE you don't\n"
 		     "want to select the bin distribution?  Chose _No_ to bring up the Distributions\n"
 		     "menu.") != 0) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
@@ -249,7 +257,7 @@ installUpgrade(dialogMenuItem *self)
 		   "step.");
 
 	if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
-	    msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
+	    msgConfirm("The disk label editor returned an error status.  Upgrade operation\n"
 		       "aborted.");
 	    return DITEM_FAILURE | DITEM_RECREATE;
 	}
