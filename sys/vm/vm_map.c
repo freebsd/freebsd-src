@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.165 1999/05/28 03:39:43 alc Exp $
+ * $Id: vm_map.c,v 1.166 1999/06/12 23:10:38 alc Exp $
  */
 
 /*
@@ -133,13 +133,10 @@
  *	maps and requires map entries.
  */
 
-extern char kstack[];
-extern int inmprotect;
-
 static struct vm_zone kmapentzone_store, mapentzone_store, mapzone_store;
 static vm_zone_t mapentzone, kmapentzone, mapzone, vmspace_zone;
 static struct vm_object kmapentobj, mapentobj, mapobj;
-#define MAP_ENTRY_INIT	128
+
 static struct vm_map_entry map_entry_init[MAX_MAPENT];
 static struct vm_map_entry kmap_entry_init[MAX_KMAPENT];
 static struct vm_map map_init[MAX_KMAP];
@@ -180,7 +177,6 @@ vmspace_alloc(min, max)
 	struct vmspace *vm;
 
 	vm = zalloc(vmspace_zone);
-	bzero(&vm->vm_map, sizeof vm->vm_map);
 	vm_map_init(&vm->vm_map, min, max);
 	pmap_pinit(vmspace_pmap(vm));
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
