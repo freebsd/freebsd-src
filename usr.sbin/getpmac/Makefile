@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=   getpmac
-NOMAN=	#true
+MAN=	getpmac.8
 SRCS=   getpmac.c
 
 WARNS?=	2
