@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_state.c,v 2.0.1.2 1997/01/09 15:22:45 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_state.c,v 2.0.1.3 1997/02/16 06:18:36 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL)
@@ -411,13 +411,16 @@ void fr_stateunload()
 {
 	register int i;
 	register ipstate_t *is, **isp;
+	int s;
 
 	MUTEX_ENTER(&ipf_state);
+	SPLNET(s);
 	for (i = 0; i < IPSTATE_SIZE; i++)
 		for (isp = &ips_table[i]; (is = *isp); ) {
 			*isp = is->is_next;
 			KFREE(is);
 		}
+	SPLX(s);
 	MUTEX_EXIT(&ipf_state);
 }
 
@@ -430,8 +433,10 @@ void fr_timeoutstate()
 {
 	register int i;
 	register ipstate_t *is, **isp;
+	int s;
 
 	MUTEX_ENTER(&ipf_state);
+	SPLNET(s);
 	for (i = 0; i < IPSTATE_SIZE; i++)
 		for (isp = &ips_table[i]; (is = *isp); )
 			if (is->is_age && !--is->is_age) {
@@ -444,6 +449,7 @@ void fr_timeoutstate()
 				ips_num--;
 			} else
 				isp = &is->is_next;
+	SPLX(s);
 	MUTEX_EXIT(&ipf_state);
 }
 
