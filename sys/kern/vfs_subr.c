@@ -772,6 +772,8 @@ getnewvnode(tag, mp, vops, vpp)
 				panic("getnewvnode: free vnode isn't");
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 
+			if (vn_lock(vp, LK_EXCLUSIVE, td) != 0)
+				continue;
 			/*
 			 * Don't recycle if we still have cached pages or if
 			 * we cannot get the interlock.
@@ -783,8 +785,10 @@ getnewvnode(tag, mp, vops, vpp)
 				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
 						    v_freelist);
 				vp = NULL;
+				VOP_UNLOCK(vp, 0, td);
 				continue;
 			}
+			VOP_UNLOCK(vp, 0, td);
 			if (LIST_FIRST(&vp->v_cache_src)) {
 				/*
 				 * note: nameileafonly sysctl is temporary,
@@ -890,8 +894,6 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_data = 0;
 
 	splx(s);
-
-	vfs_object_create(vp, td, td->td_ucred);
 
 #if 0
 	vnodeallocs++;
