@@ -1,6 +1,18 @@
-Sun Mar 14 02:38:07 PST 1999 Jeff Law  (law@cygnus.com)
+Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
 
-	* egcs-1.1.2 Released.
+	* gcc-2.95.1 Released.
+
+Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Sun Jul 25 23:40:51 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Wed Nov 25 01:00:07 1998  Marc Espie <espie@quatramaran.ens.fr>
+
+	* Makefile.in (just-check): Ignore errors.
 
 Sun Jun 28 00:00:10 1998   Carlo Wood  <carlo@runaway.xs4all.nl>
 
