@@ -22,11 +22,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	[id for your version control system, if any]
+.\" $FreeBSD$
+.\" Note: All FreeBSD man pages should have a FreeBSD revision
+.\" control id to make it easier for translation teams to track
+.\" changes.
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd January 8, 1997
+.Dd December 8, 1999
 .Dt EXAMPLE 3
 .\" Note: Only specify the operating system when the command
 .\" is FreeBSD specific, otherwise use the .Os macro with no
@@ -71,6 +74,10 @@ as follows:
 #define EXAMPLE_ONE  1
 #define EXAMPLE_TWO  2
 .Ed
+.Sh IMPLEMENTATION NOTES
+The
+.Fn example
+function is not actually implemented.
 .Sh RETURN VALUES
 .Rv -std example
 .Sh ENVIRONMENT
@@ -86,35 +93,12 @@ Example of a file in the
 .Sx FILES
 section.
 .El
-.Sh SEE ALSO
-.Xr example 1 ,
-.Xr example 4 ,
-.Xr mdoc 7 ,
-.Xr mdoc.samples 7
-.Rs
-.%A A. B. Author
-.%T Example RFC Title
-.%O RFC0000
-.Re
-.Rs
-.%A A. B. Author
-.%B Example Book Title
-.%O ISBN-0-000-00000-0
-.Re
-.Rs
-.%A A. B. Author
-.%D January 1997
-.%J Example Journal Name
-.%T Example Article Title
-.Re
-.Sh STANDARDS
-If the command conforms to some standard, such as
-.St -p1003.2
-or
-.St -ansiC ,
-it should be noted here.
 .Sh DIAGNOSTICS
 None.
+.Sh COMPATIBILITY
+The
+.Fn example
+function has no known compatibility issues.
 .Sh ERRORS
 .\" Delete any errno's that are not returned by your
 .\" function or system call and then tailor the
@@ -285,6 +269,33 @@ Authentication error.
 .It Bq Er ENEEDAUTH
 Need authenticator.
 .El
+.Sh SEE ALSO
+.Xr example 1 ,
+.Xr example 4 ,
+.Xr mdoc 7 ,
+.Xr mdoc.samples 7
+.Rs
+.%A A. B. Author
+.%T Example RFC Title
+.%O RFC0000
+.Re
+.Rs
+.%A A. B. Author
+.%B Example Book Title
+.%O ISBN-0-000-00000-0
+.Re
+.Rs
+.%A A. B. Author
+.%D January 1997
+.%J Example Journal Name
+.%T Example Article Title
+.Re
+.Sh STANDARDS
+If the command conforms to some standard, such as
+.St -p1003.2
+or
+.St -ansiC ,
+it should be noted here.
 .Sh HISTORY
 The
 .Nm
