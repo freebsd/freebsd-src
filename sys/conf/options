@@ -495,7 +495,6 @@ KTR_MASK		opt_ktr.h
 KTR_CPUMASK		opt_ktr.h
 KTR_COMPILE		opt_global.h
 KTR_ENTRIES		opt_global.h
-KTR_EXTEND		opt_global.h
 KTR_VERBOSE		opt_ktr.h
 MUTEX_DEBUG		opt_global.h
 WITNESS			opt_global.h
