@@ -106,7 +106,7 @@ char	**argv;
 	register char	c;		/* non-descript character storage */
 
 	/* revoke privs */
-	setegid(getgid());
+	setgid(getgid());
 
 	/* initialization */
 	bflag = 2;					/* default no board */
