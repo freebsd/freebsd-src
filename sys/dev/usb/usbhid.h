@@ -54,10 +54,6 @@
 #define UR_GET_PROTOCOL		0x03
 #define UR_SET_PROTOCOL		0x0b
 
-#if defined(__FreeBSD__)
-#define UPACKED __attribute__ ((packed))
-#endif
-
 typedef struct usb_hid_descriptor {
 	uByte		bLength;
 	uByte		bDescriptorType;
