@@ -34,7 +34,6 @@
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/tty.h>
-#include <machine/clock.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -68,7 +67,7 @@ static device_method_t sio_pccard_methods[] = {
 static driver_t sio_pccard_driver = {
 	sio_driver_name,
 	sio_pccard_methods,
-	sizeof(struct com_s),
+	0,
 };
 
 static int
