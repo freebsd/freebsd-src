@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131 1998/01/27 23:14:49 brian Exp $
+ * $Id: command.c,v 1.132 1998/03/12 02:23:35 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -210,15 +210,15 @@ DialCommand(struct cmdargs const *arg)
 static int
 SetLoopback(struct cmdargs const *arg)
 {
-  if (arg->argc == 1)
+  if (arg->argc == 1) {
     if (!strcasecmp(*arg->argv, "on")) {
       VarLoopback = 1;
       return 0;
-    }
-    else if (!strcasecmp(*arg->argv, "off")) {
+    } else if (!strcasecmp(*arg->argv, "off")) {
       VarLoopback = 0;
       return 0;
     }
+  }
   return -1;
 }
 
@@ -249,7 +249,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
   }
 #endif
 
-  if (arg->argc == 0)
+  if (arg->argc == 0) {
     if (!(mode & MODE_INTER)) {
       if (VarTerm)
         LogPrintf(LogWARN, "Can't start an interactive shell from"
@@ -263,6 +263,8 @@ ShellCommand(struct cmdargs const *arg, int bg)
 		" the foreground mode\n");
       return 1;
     }
+  }
+
   if ((shell = getenv("SHELL")) == 0)
     shell = _PATH_BSHELL;
 
@@ -533,11 +535,12 @@ ShowInitialMRU(struct cmdargs const *arg)
 static int
 ShowPreferredMTU(struct cmdargs const *arg)
 {
-  if (VarTerm)
+  if (VarTerm) {
     if (VarPrefMTU)
       fprintf(VarTerm, " Preferred MTU: %d\n", VarPrefMTU);
     else
       fprintf(VarTerm, " Preferred MTU: unspecified\n");
+  }
   return 0;
 }
 
@@ -1001,7 +1004,7 @@ SetServer(struct cmdargs const *arg)
 
     /* What's what ? */
     port = arg->argv[0];
-    if (arg->argc == 2)
+    if (arg->argc == 2) {
       if (ismask(arg->argv[1])) {
         passwd = NULL;
         mask = arg->argv[1];
@@ -1009,7 +1012,7 @@ SetServer(struct cmdargs const *arg)
         passwd = arg->argv[1];
         mask = NULL;
       }
-    else if (arg->argc == 3) {
+    } else if (arg->argc == 3) {
       passwd = arg->argv[1];
       mask = arg->argv[2];
       if (!ismask(mask))
@@ -1513,14 +1516,14 @@ AddCommand(struct cmdargs const *arg)
   if (arg->argc != 3 && arg->argc != 2)
     return -1;
 
-  if (arg->argc == 2)
+  if (arg->argc == 2) {
     if (strcasecmp(arg->argv[0], "default"))
       return -1;
     else {
       dest.s_addr = netmask.s_addr = INADDR_ANY;
       gw = 1;
     }
-  else {
+  } else {
     if (strcasecmp(arg->argv[0], "MYADDR") == 0)
       dest = IpcpInfo.want_ipaddr;
     else if (strcasecmp(arg->argv[0], "HISADDR") == 0)
@@ -1545,7 +1548,7 @@ DeleteCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, none;
 
-  if (arg->argc == 1)
+  if (arg->argc == 1) {
     if(strcasecmp(arg->argv[0], "all") == 0)
       DeleteIfRoutes(0);
     else {
@@ -1558,7 +1561,7 @@ DeleteCommand(struct cmdargs const *arg)
       none.s_addr = INADDR_ANY;
       OsSetRoute(RTM_DELETE, dest, none, none, arg->data ? 1 : 0);
     }
-  else
+  } else
     return -1;
 
   return 0;
