@@ -460,7 +460,7 @@ acpi_print_fadt(struct FADTbody *fadt)
 		       fadt->gpe1_base);
 	if (fadt->cst_cnt != 0)
 		printf("\tCST_CNT=0x%x\n", fadt->cst_cnt);
-	printf("\tP_LVL2_LAT=%dms, P_LVL3_LAT=%dms\n",
+	printf("\tP_LVL2_LAT=%d us, P_LVL3_LAT=%d us\n",
 	       fadt->p_lvl2_lat, fadt->p_lvl3_lat);
 	printf("\tFLUSH_SIZE=%d, FLUSH_STRIDE=%d\n",
 	       fadt->flush_size, fadt->flush_stride);
