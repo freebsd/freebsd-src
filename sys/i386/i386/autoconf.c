@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.30 1995/05/12 19:17:11 wollman Exp $
+ *	$Id: autoconf.c,v 1.31 1995/05/14 02:59:51 davidg Exp $
  */
 
 /*
@@ -212,27 +212,34 @@ configure()
 }
 
 int
-setdumpdev(dev_t dev)
+setdumpdev(dev)
+	dev_t dev;
 {
-	long newdumplo, psize;
-	if (dev != NODEV && bdevsw[major(dev)].d_psize) {
-		psize = bdevsw[major(dev)].d_psize(dev);
-		newdumplo = bdevsw[major(dev)].d_psize(dev) - Maxmem*NBPG/512;
-		if (newdumplo >= 0) {
-			dumpdev = dev;
-			dumplo = newdumplo;
-			return 0;
-		}
-		return ENOSPC;
-	} else {
+	int maj, psize;
+	long newdumplo;
+
+	if (dev == NODEV) {
 		dumpdev = dev;
 		dumplo = 0;
-		return 0;
+		return (0);
 	}
-	/*NOTREACHED*/
+	maj = major(dev);
+	if (maj >= nblkdev)
+		return (ENXIO);
+	if (bdevsw[maj].d_psize == NULL)
+		return (ENXIO);		/* XXX should sometimes be ENODEV */
+	psize = bdevsw[maj].d_psize(dev);
+	if (psize == -1)
+		return (ENXIO);		/* XXX should sometimes be ENODEV */
+	newdumplo = psize - Maxmem * NBPG / DEV_BSIZE;
+	if (newdumplo < 0)
+		return (ENOSPC);
+	dumpdev = dev;
+	dumplo = newdumplo;
+	return (0);
 }	
 
-u_long	bootdev = 0;		/* should be dev_t, but not until 32 bits */
+u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
 static	char devname[][2] = {
       {'w','d'},      /* 0 = wd */
