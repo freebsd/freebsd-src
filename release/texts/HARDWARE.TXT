@@ -706,11 +706,13 @@ MacAlly iKey keyboard.
 Microsoft IntelliMouse (3 buttons).
 Microsoft keyboard.
 
+Microtech USB-SCSI-HD 50 USB to SCSI cable.
+
 NEC hub.
 
 Trust Ami Mouse (3 buttons).
 
-Y-E Data floppy drive (720/1.44/2.88Mb)
+Y-E Data floppy drive (720/1.44/2.88Mb).
 
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
