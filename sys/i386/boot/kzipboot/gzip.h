@@ -7,9 +7,6 @@
  */
 
 typedef unsigned char  uchar;
-#ifndef USE_KERNEL_INFLATE
-typedef unsigned short ushort;
-#endif
 typedef unsigned long  ulong;
 
 #define NULL 0
@@ -45,9 +42,9 @@ typedef unsigned long  ulong;
 
 extern int method;      /* compression method */
 
-extern uchar inbuf[];   /* input buffer */
-extern uchar outbuf[];  /* output buffer */
-extern uchar window[];  /* Sliding window and suffix table (unlzw) */
+extern uchar *inbuf;   /* input buffer */
+extern uchar *outbuf;  /* output buffer */
+extern uchar *window;  /* Sliding window and suffix table (unlzw) */
 
 extern unsigned insize; /* valid bytes in inbuf */
 extern unsigned inptr;  /* index of next byte to be processed in inbuf */
@@ -65,9 +62,6 @@ extern void clear_bufs (void);
 extern void fill_inbuf (void);
 extern void flush_window (void);
 extern void error (char *m);
-#ifndef USE_KERNEL_INFLATE
-extern int inflate (void);
-#endif
 
 static inline uchar get_byte ()
 {

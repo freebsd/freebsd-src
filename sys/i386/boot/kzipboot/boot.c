@@ -16,20 +16,12 @@ unsigned int port;
 unsigned char bios[0x100];
 
 extern int end, edata;
+void *storage;
+void *inbuf;
+void *outbuf;
+void *window;
 
 void decompress_kernel (void *dest);
-
-#if 0
-inline void outb (unsigned short x, unsigned char y)
-{
-	asm volatile ("outb %0, %1" : : "a" (y) , "d" (x));
-}
-
-inline unsigned char inb (unsigned short x, unsigned char y)
-{
-	asm volatile ("inb %0, %1" : : "a" (y) , "d" (x));
-}
-#endif
 
 int memcmp (const void *arg1, const void *arg2, unsigned len)
 {
@@ -107,6 +99,11 @@ void boot (int howto)
 	/* clear bss */
 	for (p = &edata; p < &end; ++p)
 		*p = 0;
+
+	inbuf   = (void *)0x20000;
+	outbuf  = (void *)0x30000;
+	window  = (void *)0x40000;
+	storage = (void *)0x50000;
 
 	if (!(use_serial = (howto & RB_SERIAL))) {
 		/* Test for monochrome video adapter */

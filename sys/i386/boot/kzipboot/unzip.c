@@ -20,10 +20,8 @@
 
 #include "gzip.h"
 
-#ifdef USE_KERNEL_INFLATE
 #include <sys/types.h>
 #include <sys/inflate.h>
-#endif
 
 /* PKZIP header definitions */
 #define LOCSIG  0x04034b50L     /* four-byte lead-in (lsb first) */
@@ -74,7 +72,6 @@ void check_zipfile()
 	pkzip = 1;
 }
 
-#ifdef USE_KERNEL_INFLATE
 int
 Flush (void *nu, u_char *buf, u_long cnt)
 {
@@ -91,8 +88,6 @@ NextByte (void *nu)
 
 struct inflate infl; /* put it into the BSS */
 
-#endif
-
 /*
  * Unzip in to out.  This routine works on both gzip and pkzip files.
  *
@@ -106,7 +101,7 @@ void unzip()
 	ulong orig_crc = 0;     /* original crc */
 	ulong orig_len = 0;     /* original uncompressed length */
 	uchar buf[EXTHDR];      /* extended local header */
-	int n;
+	int n, res;
 
 	crc = 0xffffffffL;      /* initialize crc */
 
@@ -115,31 +110,16 @@ void unzip()
 		orig_len = LG(inbuf + LOCLEN);
 	}
 
-	/* Decompress */
-	if (method == DEFLATED)  {
-#ifdef USE_KERNEL_INFLATE
-		int res;
-		infl.gz_input = NextByte;
-		infl.gz_output = Flush;
-		infl.gz_slide = window;
-		res = inflate (&infl);
-#else
-		int res = inflate();
-#endif
-		if (res == 3)
-			error("out of memory");
-		else if (res != 0)
-			error("invalid compressed format");
-
-	} else if (pkzip && method == STORED) {
-		register ulong n = LG(inbuf + LOCLEN);
-
-		if (n != LG(inbuf + LOCSIZ))
-			error("length mismatch");
-		while (n--)
-			put_char(get_byte());
-	} else
+	if (method != DEFLATED) 
 		error("internal error, invalid method");
+	infl.gz_input = NextByte;
+	infl.gz_output = Flush;
+	infl.gz_slide = window;
+	res = inflate (&infl);
+	if (res == 3)
+		error("out of memory");
+	else if (res != 0)
+		error("invalid compressed format");
 
 	/* Get the crc and original length */
 	if (!pkzip) {
