@@ -54,8 +54,9 @@
 .Op Fl v
 .Fl a
 .Sh DESCRIPTION
-.Nm Quotacheck
-examines each filesystem,
+The
+.Nm
+utility examines each filesystem,
 builds a table of current disk usage,
 and compares this table against that recorded
 in the disk quota file for the filesystem.
@@ -85,8 +86,7 @@ Only user quotas listed in
 .Pa /etc/fstab
 are to be checked.
 .It Fl v
-.Nm Quotacheck
-reports discrepancies between the
+Report discrepancies between the
 calculated and recorded disk quotas and other additional diagnostic messages.
 .El
 .Pp
@@ -105,8 +105,9 @@ Normally,
 .Nm
 operates silently.
 .Pp
-.Nm Quotacheck
-expects each filesystem to be checked to have a
+The
+.Nm
+utility expects each filesystem to be checked to have a
 quota files named
 .Pa quota.user
 and
@@ -121,8 +122,9 @@ These files should be edited with the
 .Xr edquota 8
 utility.
 .Pp
-.Nm Quotacheck
-is normally run at boot time from the
+The
+.Nm
+utility is normally run at boot time from the
 .Pa /etc/rc
 file.
 The rc startup procedure is controlled by the
@@ -137,8 +139,9 @@ with the variable
 in
 .Pa /etc/rc.conf .
 .Pp
-.Nm Quotacheck
-accesses the raw device in calculating the actual
+The
+.Nm
+utility accesses the raw device in calculating the actual
 disk usage for each user.
 Thus, the filesystems
 checked should be quiescent while
@@ -164,5 +167,5 @@ default filesystems
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .

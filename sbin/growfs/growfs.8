@@ -49,8 +49,9 @@
 .Op Fl s Ar size
 .Ar special
 .Sh DESCRIPTION
+The
 .Nm
-extends the
+utility extends the
 .Xr newfs 8
 program.
 Before starting
@@ -59,8 +60,9 @@ the disk must be labeled to a bigger size using
 .Xr disklabel 8 .
 If you are using volumes you must enlarge them by using
 .Xr vinum 8 .
+The
 .Nm
-extends the size of the filesystem on the specified special file.
+utility extends the size of the filesystem on the specified special file.
 Currently
 .Nm
 can only enlarge unmounted filesystems.
@@ -110,8 +112,9 @@ will enlarge
 up to 2GB if there is enough space in
 .Pa /dev/vinum/testvol .
 .Sh BUGS
+The
 .Nm
-works starting with
+utility works starting with
 .Fx
 3.x.
 There may be cases on
@@ -182,5 +185,5 @@ mode.
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 4.4 .
