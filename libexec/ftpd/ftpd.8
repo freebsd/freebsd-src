@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.19 1997/11/21 07:38:42 charnier Exp $
+.\"	$Id: ftpd.8,v 1.20 1997/12/04 03:58:02 steve Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -154,7 +154,10 @@ If the file
 .Pa /etc/ftpmotd
 exists,
 .Nm
-prints it after a successful login.
+prints it after a successful login.  Note the motd file used is the one
+relative to the login environment.  This means the one in
+.Pa ~ftp/etc
+in the anonymous user's case.
 .Pp
 The ftp server currently supports the following ftp requests.
 The case of the requests is ignored.
@@ -424,6 +427,8 @@ or in the shell's environment.
 List of unwelcome/restricted users.
 .It Pa /etc/ftpchroot
 List of normal users who should be chroot'd.
+.It Pa /etc/ftphosts
+Virtual hosting configuration file.
 .It Pa /etc/ftpwelcome
 Welcome notice.
 .It Pa /etc/ftpmotd
