@@ -175,7 +175,7 @@ option and allows
 .Xr ldd 1
 to be operated as a filter more conveniently.
 The following conversions can be used:
-.Bl -tag -indent "LD_TRACE_LOADED_OBJECTS_FMT1 " -width "xxxx"
+.Bl -tag -width "xxxx"
 .It \&%a
 The main program's name
 .Po also known as
