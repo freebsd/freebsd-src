@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.15 1997/10/06 20:37:01 joerg Exp $
+ * $Id: syslog.h,v 1.16 1998/07/13 06:45:17 bde Exp $
  */
 
 #ifndef _SYS_SYSLOG_H_
@@ -94,18 +94,19 @@ CODE prioritynames[] = {
 #define	LOG_USER	(1<<3)	/* random user-level messages */
 #define	LOG_MAIL	(2<<3)	/* mail system */
 #define	LOG_DAEMON	(3<<3)	/* system daemons */
-#define	LOG_AUTH	(4<<3)	/* security/authorization messages */
+#define	LOG_AUTH	(4<<3)	/* authorization messages */
 #define	LOG_SYSLOG	(5<<3)	/* messages generated internally by syslogd */
 #define	LOG_LPR		(6<<3)	/* line printer subsystem */
 #define	LOG_NEWS	(7<<3)	/* network news subsystem */
 #define	LOG_UUCP	(8<<3)	/* UUCP subsystem */
 #define	LOG_CRON	(9<<3)	/* clock daemon */
-#define	LOG_AUTHPRIV	(10<<3)	/* security/authorization messages (private) */
+#define	LOG_AUTHPRIV	(10<<3)	/* authorization messages (private) */
 				/* Facility #10 clashes in DEC UNIX, where */
 				/* it's defined as LOG_MEGASAFE for AdvFS  */
 				/* event logging.                          */
 #define	LOG_FTP		(11<<3)	/* ftp daemon */
 #define	LOG_NTP		(12<<3)	/* NTP subsystem */
+#define	LOG_SECURITY	(13<<3) /* security subsystems (firewalling, etc.) */
 
 	/* other codes through 15 reserved for system use */
 #define	LOG_LOCAL0	(16<<3)	/* reserved for local use */
@@ -135,7 +136,7 @@ CODE facilitynames[] = {
 	{ "mark", 	INTERNAL_MARK,	},	/* INTERNAL */
 	{ "news",	LOG_NEWS,	},
 	{ "ntp",	LOG_NTP,	},
-	{ "security",	LOG_AUTH,	},	/* DEPRECATED */
+	{ "security",	LOG_SECURITY,	},
 	{ "syslog",	LOG_SYSLOG,	},
 	{ "user",	LOG_USER,	},
 	{ "uucp",	LOG_UUCP,	},
