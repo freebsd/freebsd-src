@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.46 1997/05/04 02:39:03 ache Exp $
+ * $Id: main.c,v 1.22.2.8 1997/05/09 17:36:21 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -61,13 +61,12 @@
 #endif
 
 extern void VjInit(), AsyncInit();
-extern void AsyncInput(), IpOutput();
+extern void AsyncInput();
 extern int  SelectSystem();
 
 extern void DecodeCommand(), Prompt();
 extern int aft_cmd;
 extern int IsInteractive();
-extern struct in_addr ifnetmask;
 static void DoLoop(void);
 static void TerminalStop();
 
@@ -87,8 +86,10 @@ TtyInit()
   int stat;
 
   stat = fcntl(0, F_GETFL, 0);
-  stat |= O_NONBLOCK;
-  fcntl(0, F_SETFL, stat);
+  if (stat > 0) {
+	 stat |= O_NONBLOCK;
+	 (void)fcntl(0, F_SETFL, stat);
+  }
   newtio = oldtio;
   newtio.c_lflag &= ~(ECHO|ISIG|ICANON);
   newtio.c_iflag = 0;
@@ -120,10 +121,12 @@ int prompt;
   newtio.c_oflag |= OPOST;
   tcsetattr(0, TCSADRAIN, &newtio);
   stat = fcntl(0, F_GETFL, 0);
-  stat |= O_NONBLOCK;
-  fcntl(0, F_SETFL, stat);
+  if (stat > 0) {
+	 stat |= O_NONBLOCK;
+	 (void)fcntl(0, F_SETFL, stat);
+  }
   TermMode = 0;
-  if(prompt) Prompt(0);
+  if(prompt) Prompt();
 }
 
 /*
@@ -136,8 +139,10 @@ TtyTermMode()
 
   tcsetattr(0, TCSADRAIN, &comtio);
   stat = fcntl(0, F_GETFL, 0);
-  stat &= ~O_NONBLOCK;
-  fcntl(0, F_SETFL, stat);
+  if (stat > 0) {
+	 stat &= ~O_NONBLOCK;
+	 (void)fcntl(0, F_SETFL, stat);
+  }
   TermMode = 1;
 }
 
@@ -147,8 +152,10 @@ TtyOldMode()
   int stat;
 
   stat = fcntl(0, F_GETFL, 0);
-  stat &= ~O_NONBLOCK;
-  fcntl(0, F_SETFL, stat);
+  if (stat > 0) {
+	  stat &= ~O_NONBLOCK;
+	  (void)fcntl(0, F_SETFL, stat);
+  }
   tcsetattr(0, TCSANOW, &oldtio);
 }
 
@@ -390,12 +397,6 @@ char **argv;
   if (mode & MODE_DIRECT)
     printf("Packet mode enabled.\n");
 
-#ifdef notdef
-  if (mode & MODE_AUTO) {
-    OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr, ifnetmask);
-  }
-#endif
-
   if (!(mode & MODE_INTER)) {
     int port = SERVER_PORT + tunno;
     if (mode & MODE_BACKGROUND) {
@@ -422,7 +423,9 @@ char **argv;
 	  fprintf(stderr, "Wait for a while, then try again.\n");
 	Cleanup(EX_SOCK);
       }
-      listen(server, 5);
+      if (listen(server, 5) != 0) {
+	fprintf(stderr, "Unable to listen to socket - OS overload?\n");
+      }
     }
 
     DupLog();
@@ -927,7 +930,7 @@ DoLoop()
 	    break;
       }
       (void) IsInteractive();
-      Prompt(0);
+      Prompt();
     }
 
     if ((mode & MODE_INTER) && (netfd >= 0 && FD_ISSET(netfd, &rfds)) &&
@@ -963,18 +966,12 @@ DoLoop()
 	        write(1, "\r\n", 2);
 	      }
 	      PacketMode();
-#ifdef notdef
-	      AsyncInput(cp, n - (cp - rbuff));
-#endif
 	    } else
 	      write(1, rbuff, n);
 	  }
 	} else {
 	  if (n > 0)
 	    AsyncInput(rbuff, n);
-#ifdef notdef
-	  continue;			/* THIS LINE RESULT AS POOR PERFORMANCE */
-#endif
 	}
       }
     }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.5 1997/05/09 17:36:12 brian Exp $
+ * $Id: command.c,v 1.24.2.6 1997/05/09 23:36:27 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -34,7 +34,8 @@
 #include "command.h"
 #include "hdlc.h"
 #include "vars.h"
-#include "auth.h"
+#include "systems.h"
+#include "chat.h"
 #include <netdb.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -223,10 +224,10 @@ char **argv;
            argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
          }
        }
-       execvp(argv[0], argv);
+       (void)execvp(argv[0], argv);
      }
      else
-       execl(shell, shell, NULL);
+       (void)execl(shell, shell, NULL);
 
      fprintf(stdout, "exec() of %s failed\n", argc > 0? argv[0]: shell);
      exit(255);
@@ -563,7 +564,7 @@ int prompt;
     }
   }
   if (val && prompt)
-    Prompt(0);
+    Prompt();
 }
 
 static int
@@ -876,19 +877,30 @@ char **argv;
 {
 
   DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
+  if (argc > 4) {
+     printf("set ifaddr: too many arguments (%d > 4)\n", argc);
+     return(0);
+  }
   if (argc > 0) {
-    ParseAddr(argc, argv++,
-      &DefMyAddress.ipaddr, &DefMyAddress.mask, &DefMyAddress.width);
+    if (ParseAddr(argc, argv++,
+            &DefMyAddress.ipaddr,
+	    &DefMyAddress.mask,
+	    &DefMyAddress.width) == 0)
+       return(0);
     if (--argc > 0) {
-      ParseAddr(argc, argv++,
-	&DefHisAddress.ipaddr, &DefHisAddress.mask, &DefHisAddress.width);
+      if (ParseAddr(argc, argv++,
+		    &DefHisAddress.ipaddr,
+		    &DefHisAddress.mask,
+		    &DefHisAddress.width) == 0)
+	 return(0);
       if (--argc > 0) {
         ifnetmask = GetIpAddr(*argv);
     	if (--argc > 0) {
-      		ParseAddr(argc, argv++,
-		        &DefTriggerAddress.ipaddr,
-			&DefTriggerAddress.mask,
-			&DefTriggerAddress.width);
+	   if (ParseAddr(argc, argv++,
+			 &DefTriggerAddress.ipaddr,
+			 &DefTriggerAddress.mask,
+			 &DefTriggerAddress.width) == 0)
+	      return(0);
 	}
       }
     }
@@ -907,7 +919,8 @@ char **argv;
 
   if ((mode & MODE_AUTO) ||
 	((mode & MODE_DEDICATED) && dstsystem)) {
-    OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask);
+    if (OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask) < 0)
+       return(0);
   }
   return(1);
 }

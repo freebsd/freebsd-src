@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.23 1997/05/07 23:01:23 brian Exp $
+ * $Id: chat.c,v 1.11.2.6 1997/05/09 17:36:09 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -38,6 +38,7 @@
 #include <sys/wait.h>
 #include "timeout.h"
 #include "vars.h"
+#include "chat.h"
 #include "sig.h"
 #include "chat.h"
 
@@ -255,8 +256,8 @@ char *estr;
   char *s, *str, ch;
   char *inp;
   fd_set rfds;
-  int i, nfds, nb, msg;
-  char buff[200];
+  int i, nfds, nb;
+  char buff[IBSIZE];
 
 
 #ifdef SIGALRM
@@ -270,13 +271,12 @@ char *estr;
   inp = inbuff;
 
   if (strlen(str)>=IBSIZE){
-    str[IBSIZE]=0;
+    str[IBSIZE-1]=0;
     LogPrintf(LOG_CHAT_BIT, "Truncating String to %d character: %s\n", IBSIZE, str);
   }
 
   nfds = modem + 1;
   s = str;
-  msg = FALSE;
   for (;;) {
     FD_ZERO(&rfds);
     FD_SET(modem, &rfds);
@@ -302,7 +302,7 @@ char *estr;
     } else if (i == 0) { 	/* Timeout reached! */
       *inp = 0;
       if (inp != inbuff)
-      LogPrintf(LOG_CHAT_BIT, "got: %s\n", inbuff);
+	LogPrintf(LOG_CHAT_BIT, "got: %s\n", inbuff);
       LogPrintf(LOG_CHAT_BIT, "can't get (%d).\n", timeout.tv_sec);
 #ifdef SIGALRM
       sigsetmask(omask);
@@ -337,7 +337,11 @@ char *estr;
 	  }
 	}
       } else {
-        read(modem, &ch, 1);
+        if (read(modem, &ch, 1) < 0) {
+	   perror("read error");
+	   *inp = '\0';
+	   return(NOMATCH);
+	}
 	connect_log(&ch,1);
         *inp++ = ch;
         if (ch == *s) {
@@ -376,9 +380,6 @@ char *estr;
       }
     }
   }
-#ifdef SIGALRM
-  sigsetmask(omask);
-#endif
 }
 
 void
@@ -401,10 +402,19 @@ char *command, *out;
     }
     cp--;
   }
-  snprintf(tmp, sizeof tmp, "%s %s", command, cp);
+  if (snprintf(tmp, sizeof tmp, "%s %s", command, cp) >= sizeof tmp) {
+    LogPrintf(LOG_CHAT_BIT, "Too long string to ExecStr: \"%s\"\n",
+	      command);
+    return;
+  }
   (void) MakeArgs(tmp, vector, VECSIZE(vector));
 
-  pipe(fids);
+  if (pipe(fids) < 0) {
+    LogPrintf(LOG_CHAT_BIT, "Unable to create pipe in ExecStr: %s\n",
+	      strerror(errno));
+    return;
+  }
+
   pid = fork();
   if (pid == 0) {
     TermTimerService();
@@ -414,10 +424,18 @@ char *command, *out;
     signal(SIGHUP, SIG_DFL);
     signal(SIGALRM, SIG_DFL);
     close(fids[0]);
-    dup2(fids[1], 1);
+    if (dup2(fids[1], 1) < 0) {
+      LogPrintf(LOG_CHAT_BIT, "dup2(fids[1], 1) in ExecStr: %s\n",
+		strerror(errno));
+      return;
+    }
     close(fids[1]);
     nb = open("/dev/tty", O_RDWR);
-    dup2(nb, 0);
+    if (dup2(nb, 0) < 0) {
+      LogPrintf(LOG_CHAT_BIT, "dup2(nb, 0) in ExecStr: %s\n",
+		strerror(errno));
+      return;
+    }
     LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
     /* switch back to original privileges */
     if (setgid(getgid()) < 0) {
@@ -451,7 +469,7 @@ SendString(str)
 char *str;
 {
   char *cp;
-  int nb, on;
+  int on;
   char buff[200];
 
   if (abort_next) {
@@ -481,7 +499,7 @@ char *str;
     else
       cp += 2;
     on = strlen(cp);
-    nb = write(modem, cp, on);
+    write(modem, cp, on);
   }
 }
 

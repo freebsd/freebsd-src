@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.8 1996/11/19 11:08:27 phk Exp $
+ * $Id: chap.c,v 1.7.2.2 1996/12/23 18:13:27 jkh Exp $
  *
  *	TODO:
  */
@@ -148,6 +148,10 @@ struct mbuf *bp;
     name = VarAuthName;
     namelen = strlen(VarAuthName);
     argp = malloc(1 + valsize + namelen + 16);
+    if (argp == NULL) {
+      ChapOutput(CHAP_FAILURE, chp->id, "Out of memory!", 14);
+      return;
+    }
     digest = argp;
     *digest++ = 16;		/* value size */
     ap = answer;

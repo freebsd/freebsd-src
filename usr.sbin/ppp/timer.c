@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.14 1997/03/13 12:45:26 brian Exp $
+ * $Id: timer.c,v 1.5.2.3 1997/05/09 17:36:33 brian Exp $
  *
  *  TODO:
  */
@@ -274,7 +274,9 @@ void InitTimerService( void ) {
   pending_signal(SIGALRM, (void (*)(int))TimerService);
   itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
   itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
-  setitimer(ITIMER_REAL, &itimer, NULL);
+  if (setitimer(ITIMER_REAL, &itimer, NULL) == -1) {
+    logprintf("Unable to set itimer.\n");
+  }
 }
 
 void TermTimerService( void ) {
@@ -282,7 +284,9 @@ void TermTimerService( void ) {
 
   itimer.it_interval.tv_usec = itimer.it_interval.tv_sec = 0;
   itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
-  setitimer(ITIMER_REAL, &itimer, NULL);
+  if (setitimer(ITIMER_REAL, &itimer, NULL) == -1) {
+    logprintf("Unable to set itimer.\n");
+  }
   pending_signal(SIGALRM, SIG_IGN);
 }
 #endif

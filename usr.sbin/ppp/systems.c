@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.7 1996/12/15 20:39:30 pst Exp $
+ * $Id: systems.c,v 1.6.2.2 1996/12/23 18:13:48 jkh Exp $
  *
  *  TODO:
  */
@@ -47,8 +47,14 @@ static void
 SetUserId()
 {
   if (!usermode) {
-    setreuid(euid, uid);
-    setregid(egid, gid);
+    if (setreuid(euid, uid) == -1) {
+      logprintf("unable to setreuid!\n");
+      exit(1);
+    }
+    if (setregid(egid, gid) == -1) {
+      logprintf("unable to setregid!\n");
+      exit(1);
+    }
     usermode = 1;
   }
 }
@@ -57,8 +63,14 @@ static void
 SetPppId()
 {
   if (usermode) {
-    setreuid(uid, euid);
-    setregid(gid, egid);
+    if (setreuid(uid, euid) == -1) {
+      logprintf("unable to setreuid!\n");
+      exit(1);
+    }
+    if (setregid(gid, egid) == -1) {
+      logprintf("unable to setregid!\n");
+      exit(1);
+    }
     usermode = 0;
   }
 }
@@ -110,30 +122,35 @@ char *file;
   int val = -1;
   u_char  olauth;
   char line[200];
+  char filename[200];
+  int linenum;
 
   fp = NULL;
   cp = getenv("HOME");
   if (cp) {
     SetUserId();
-    snprintf(line, sizeof line, "%s/.%s", cp, file);
-    fp = fopen(line, "r");
+    snprintf(filename, sizeof filename, "%s/.%s", cp, file);
+    fp = fopen(filename, "r");
   }
   if (fp == NULL) {
     SetPppId();		/* fix from pdp@ark.jr3uom.iijnet.or.jp */
-    snprintf(line, sizeof line, "%s/%s", _PATH_PPP, file);
-    fp = fopen(line, "r");
+    snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
+    fp = fopen(filename, "r");
   }
   if (fp == NULL) {
 #ifdef DEBUG
-    fprintf(stderr, "can't open %s.\n", line);
+    fprintf(stderr, "can't open %s.\n", filename);
 #endif
     SetPppId();
     return(-1);
   }
 #ifdef DEBUG
-  fprintf(stderr, "checking %s (%s).\n", name, line);
+  fprintf(stderr, "checking %s (%s).\n", name, filename);
 #endif
+
+  linenum = 0;
   while (fgets(line, sizeof(line), fp)) {
+    linenum++;
     cp = line;
     switch (*cp) {
     case '#':		/* comment */
@@ -143,6 +160,11 @@ char *file;
       break;
     default:
       wp = strpbrk(cp, ":\n");
+      if (wp == NULL) {
+	fprintf(stderr, "Bad rule in %s (line %d) - missing colon.\n",
+		filename, linenum);
+	exit(1);
+      }
       *wp = '\0';
       if (strcmp(cp, name) == 0) {
 	while (fgets(line, sizeof(line), fp)) {
@@ -195,8 +217,6 @@ char **argv;
   }
   return(1);
 }
-
-extern struct in_addr ifnetmask;
 
 int
 SaveCommand(list, argc, argv)

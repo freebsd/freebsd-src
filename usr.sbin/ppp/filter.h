@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.3 1995/03/11 15:18:41 amurai Exp $
+ * $Id: filter.h,v 1.4 1996/01/11 17:48:43 phk Exp $
  *
  *	TODO:
  */
@@ -80,4 +80,4 @@ struct filterent dfilters[MAXFILTERS];
 struct filterent afilters[MAXFILTERS];	/* keep Alive packet filter */
 
 extern int ParseAddr __P((int, char **, struct in_addr *, struct in_addr *, int*));
-#endif	_FILTER_H_
+#endif	/* _FILTER_H_ */

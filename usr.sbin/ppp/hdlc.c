@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.13 1997/04/19 11:31:38 ache Exp $
+ * $Id: hdlc.c,v 1.9.2.1 1997/05/09 17:36:15 brian Exp $
  *
  *	TODO:
  */
@@ -108,10 +108,7 @@ HdlcInit()
  *  2.27 for further details.
  */
 inline u_short 
-HdlcFcs(fcs, cp, len)
-u_short fcs;
-u_char *cp;
-int len;
+HdlcFcs(u_short fcs, u_char *cp, int len)
 {
   while (len--)
     fcs = (fcs >> 8) ^ fcstab[(fcs ^ *cp++) & 0xff];
@@ -200,9 +197,7 @@ HdlcOutput(int pri, u_short proto, struct mbuf *bp)
 }
 
 void
-DecodePacket(proto, bp)
-u_short proto;
-struct mbuf *bp;
+DecodePacket(u_short proto, struct mbuf *bp)
 {
 #ifdef DEBUG
   logprintf("proto = %04x\n", proto);
