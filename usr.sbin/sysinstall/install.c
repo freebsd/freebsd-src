@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.222 1999/01/20 11:56:39 jkh Exp $
+ * $Id: install.c,v 1.223 1999/01/20 12:31:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1065,7 +1065,7 @@ void
 installEnvironment(void)
 {
     if (file_readable("/etc/rc.conf"))
-	configEnvironmentRC_conf("/etc/rc.conf");
+	configEnvironmentRC_conf();
     if (file_readable("/etc/resolv.conf"))
 	configEnvironmentResolv("/etc/resolv.conf");
 }
