@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.5 1998/11/03 06:39:39 grog Exp $
+ * $Id: list.c,v 1.6 1998/12/28 16:32:39 peter Exp $
  */
 
 #include <ctype.h>
@@ -629,9 +629,11 @@ vinum_info(int argc, char *argv[], char *argv0[])
 {
     struct meminfo meminfo;
     struct mc malloced;
-    struct rqinfo rq;
     int i;
-
+#if VINUMDEBUG
+    struct rqinfo rq;
+#endif
+    
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
 	perror("Can't get vinum config");
 	return;
@@ -664,6 +666,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		malloced.line,
 		(char *) &malloced.file);
 	}
+#if VINUMDEBUG
     if (Verbose) {
 	printf("\nTime\t\t Event\t     Buf\tSD\tDev\tOffset\tBytes\tDoffset\tGoffset\n\n");
 	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
@@ -751,6 +754,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	    }
 	}
     }
+#endif
 }
 
 /* Print config file to a file.  This is a userland version
