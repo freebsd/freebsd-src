@@ -76,7 +76,9 @@ main(argc, argv)
 
     srandomdev();
 
+#if 0
     umask(0117);		/* only owner can read/write created files */
+#endif
 
     /* try to create data files */
     filename = &files[0];
@@ -98,7 +100,7 @@ main(argc, argv)
 		/*NOTREACHED*/
 	    }
 
-	if ((fd = creat(*filename, 0660)) < 0)
+	if ((fd = creat(*filename, 0666)) < 0)
 	    Error("Cannot create %s.\n", *filename);
 	    /*NOTREACHED*/
 
