@@ -128,6 +128,7 @@ if (hfile)
 if (cfile) {
 	printc(common_head \
 	    "#include <sys/param.h>\n" \
+	    "#include <sys/systm.h>\n" \
 	    "#include <sys/vnode.h>\n" \
 	    "\n" \
 	    "struct vnodeop_desc vop_default_desc = {\n" \
