@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.171 1999/07/01 19:53:41 peter Exp $
+ * $Id: vm_map.c,v 1.172 1999/07/11 18:30:31 alc Exp $
  */
 
 /*
@@ -2351,6 +2351,7 @@ vmspace_exec(struct proc *p) {
 	 */
 	vmspace_free(oldvmspace);
 	p->p_vmspace = newvmspace;
+	pmap_pinit2(vmspace_pmap(newvmspace));
 	if (p == curproc)
 		pmap_activate(p);
 }
@@ -2370,6 +2371,7 @@ vmspace_unshare(struct proc *p) {
 	newvmspace = vmspace_fork(oldvmspace);
 	vmspace_free(oldvmspace);
 	p->p_vmspace = newvmspace;
+	pmap_pinit2(vmspace_pmap(newvmspace));
 	if (p == curproc)
 		pmap_activate(p);
 }
