@@ -60,8 +60,6 @@ _pthread_mutexattr_getprioceiling(pthread_mutexattr_t *mattr, int *prioceiling)
 int
 _pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
 {
-	return (EINVAL);
-#if 0
 	int ret = 0;
 
 	if ((mattr == NULL) || (*mattr == NULL))
@@ -72,34 +70,28 @@ _pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
 		(*mattr)->m_ceiling = prioceiling;
 
 	return (ret);
-#endif
 }
 
 int
 _pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 			      int *prioceiling)
 {
-	return (EINVAL);
-#if 0
 	int ret;
 
 	if ((mutex == NULL) || (*mutex == NULL))
 		ret = EINVAL;
-	else if ((*mutex)->m_attr.m_protocol != PTHREAD_PRIO_PROTECT)
+	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
 	else
-		ret = (*mutex)->m_attr.m_prio;
+		ret = (*mutex)->m_prio;
 
 	return (ret);
-#endif
 }
 
 int
 _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 			      int prioceiling, int *old_ceiling)
 {
-	return (EINVAL);
-#if 0
 	int ret = 0;
 
 	if ((mutex == NULL) || (*mutex == NULL))
@@ -118,5 +110,4 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 		}
 	}
 	return(ret);
-#endif
 }
