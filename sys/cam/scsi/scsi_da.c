@@ -227,13 +227,9 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * Sony Memory Stick adapter MSAC-US1,
-		 * does not support READ_6 commands only READ_10. It also does
-		 * not support sync cache (0x35).
-		 * Sony PCG-C1VJ Internal Memory Stick Slot (MSC-U01) also
-		 * has this quirk.  Make all sony MS* products use this
-		 * quirk.  Reported by: TERAMOTO Masahiro
-		 * <teramoto@comm.eng.osaka-u.ac.jp> (PR 23378).
+		 * Sony Memory Stick adapter MSAC-US1 and
+		 * Sony PCG-C1VJ Internal Memory Stick Slot (MSC-U01).
+		 * Make all sony MS* products use this quirk.
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "MS*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
@@ -241,7 +237,6 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * Sony DSC cameras (DSC-S30, DSC-S50, DSC-S70)
-		 * do not support READ_6 commands, only READ_10. 
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
@@ -252,8 +247,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * the Microtech USB CameraMate does not like
-		 * the sync-cache command, or READ_6.
+		 * Microtech USB CameraMate
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*", "Compact Flash*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
@@ -270,11 +264,17 @@ static struct da_quirk_entry da_quirk_table[] =
         {
 		/*
 		 * Olympus digital cameras (C-3040ZOOM, C-2040ZOOM, C-1)
-		 * do not support READ_6 commands, only READ_10.
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C-*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
-	}
+	},
+        {
+		/*
+		 * KingByte Pen Drives
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NO BRAND", "PEN DRIVE", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+        }
 };
 
 static	d_open_t	daopen;
