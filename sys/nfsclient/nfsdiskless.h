@@ -37,9 +37,8 @@
  * $FreeBSD$
  */
 
-
-#ifndef _NFS_NFSDISKLESS_H_
-#define _NFS_NFSDISKLESS_H_
+#ifndef _NFSCLIENT_NFSDISKLESS_H_
+#define _NFSCLIENT_NFSDISKLESS_H_
 
 /*
  * Structure that must be initialized for a diskless nfs client.
@@ -120,5 +119,11 @@ struct nfs_diskless {
 	long		root_time;		/* Timestamp of root fs */
 	char		my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
 };
+
+#ifdef _KERNEL
+extern struct nfsv3_diskless nfsv3_diskless;
+extern struct nfs_diskless nfs_diskless;
+extern int	nfs_diskless_valid;
+#endif
 
 #endif

@@ -1,5 +1,3 @@
-/* $FreeBSD$	*/
-
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
  * Copyright (c) 1992 Regents of the University of California.
@@ -42,6 +40,9 @@
  *	$NetBSD: krpc_subr.c,v 1.10 1995/08/08 20:43:43 gwr Exp $
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_bootp.h"
 
 #include <sys/param.h>
@@ -64,9 +65,9 @@
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsdiskless.h>
-#include <nfs/krpc.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsdiskless.h>
+#include <nfsclient/krpc.h>
 #include <nfs/xdr_subs.h>
 
 
@@ -207,38 +208,31 @@ struct bootpc_globalcontext {
 #define DHCP_REQUEST  3
 #define DHCP_ACK      5
 
-extern int nfs_diskless_valid;
-extern struct nfsv3_diskless nfsv3_diskless;
-
 /* mountd RPC */
-static int md_mount(struct sockaddr_in *mdsin, char *path,
-		    u_char *fhp, int *fhsizep,
-		    struct nfs_args *args,struct thread *td);
-static int md_lookup_swap(struct sockaddr_in *mdsin,char *path,
-			  u_char *fhp, int *fhsizep,
-			  struct nfs_args *args,
-			  struct thread *td);
-static int setfs(struct sockaddr_in *addr, char *path, char *p);
-static int getdec(char **ptr);
-static char *substr(char *a,char *b);
-static void mountopts(struct nfs_args *args, char *p);
-static int xdr_opaque_decode(struct mbuf **ptr, u_char *buf, int len);
-static int xdr_int_decode(struct mbuf **ptr, int *iptr);
-static void print_in_addr(struct in_addr addr);
-static void print_sin_addr(struct sockaddr_in *addr);
-static void clear_sinaddr(struct sockaddr_in *sin);
-static
-struct bootpc_ifcontext *allocifctx(struct bootpc_globalcontext *gctx);
-static void bootpc_compose_query(struct bootpc_ifcontext *ifctx,
-				 struct bootpc_globalcontext *gctx,
-				 struct thread *td);
+static int	md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp,
+		    int *fhsizep, struct nfs_args *args, struct thread *td);
+static int	md_lookup_swap(struct sockaddr_in *mdsin, char *path,
+		    u_char *fhp, int *fhsizep, struct nfs_args *args,
+		    struct thread *td);
+static int	setfs(struct sockaddr_in *addr, char *path, char *p);
+static int	getdec(char **ptr);
+static char	*substr(char *a, char *b);
+static void	mountopts(struct nfs_args *args, char *p);
+static int	xdr_opaque_decode(struct mbuf **ptr, u_char *buf, int len);
+static int	xdr_int_decode(struct mbuf **ptr, int *iptr);
+static void	print_in_addr(struct in_addr addr);
+static void	print_sin_addr(struct sockaddr_in *addr);
+static void	clear_sinaddr(struct sockaddr_in *sin);
+static struct bootpc_ifcontext *allocifctx(struct bootpc_globalcontext *gctx);
+static void	bootpc_compose_query(struct bootpc_ifcontext *ifctx,
+		    struct bootpc_globalcontext *gctx, struct thread *td);
 static unsigned char *bootpc_tag(struct bootpc_tagcontext *tctx,
-				 struct bootp_packet *bp, int len, int tag);
+		    struct bootp_packet *bp, int len, int tag);
 static void bootpc_tag_helper(struct bootpc_tagcontext *tctx,
-			      unsigned char *start, int len, int tag);
+		    unsigned char *start, int len, int tag);
 
 #ifdef BOOTP_DEBUG
-void bootpboot_p_sa(struct sockaddr *sa,struct sockaddr *ma);
+void bootpboot_p_sa(struct sockaddr *sa, struct sockaddr *ma);
 void bootpboot_p_ma(struct sockaddr *ma);
 void bootpboot_p_rtentry(struct rtentry *rt);
 void bootpboot_p_tree(struct radix_node *rn);
@@ -247,23 +241,21 @@ void bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa);
 void bootpboot_p_iflist(void);
 #endif
 
-static int  bootpc_call(struct bootpc_globalcontext *gctx,
-			struct thread *td);
+static int	bootpc_call(struct bootpc_globalcontext *gctx,
+		    struct thread *td);
 
-static int bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
-				   struct bootpc_globalcontext *gctx,
-				   struct thread *td);
+static int	bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
+		    struct bootpc_globalcontext *gctx, struct thread *td);
 
-static int bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
-				   struct bootpc_globalcontext *gctx,
-				   struct thread *td);
+static int	bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
+		    struct bootpc_globalcontext *gctx, struct thread *td);
 
-static void bootpc_decode_reply(struct nfsv3_diskless *nd,
-				struct bootpc_ifcontext *ifctx,
-				struct bootpc_globalcontext *gctx);
+static void	bootpc_decode_reply(struct nfsv3_diskless *nd,
+		    struct bootpc_ifcontext *ifctx,
+		    struct bootpc_globalcontext *gctx);
 
-static int bootpc_received(struct bootpc_globalcontext *gctx,
-			   struct bootpc_ifcontext *ifctx);
+static int	bootpc_received(struct bootpc_globalcontext *gctx,
+		    struct bootpc_ifcontext *ifctx);
 
 static __inline int bootpc_ifctx_isresolved(struct bootpc_ifcontext *ifctx);
 static __inline int bootpc_ifctx_isunresolved(struct bootpc_ifcontext *ifctx);
@@ -275,7 +267,7 @@ void bootpc_init(void);
  * In order to have multiple active interfaces with address 0.0.0.0
  * and be able to send data to a selected interface, we perform
  * some tricks:
- * 
+ *
  *  - The 'broadcast' address is different for each interface.
  *
  *  - We temporarily add routing pointing 255.255.255.255 to the
@@ -285,9 +277,9 @@ void bootpc_init(void);
 
 #ifdef BOOTP_DEBUG
 void
-bootpboot_p_sa(struct sockaddr *sa,
-	       struct sockaddr *ma)
+bootpboot_p_sa(struct sockaddr *sa, struct sockaddr *ma)
 {
+
 	if (sa == NULL) {
 		printf("(sockaddr *) <null>");
 		return;
@@ -296,7 +288,7 @@ bootpboot_p_sa(struct sockaddr *sa,
 	case AF_INET:
 	{
 		struct sockaddr_in *sin;
-		
+
 		sin = (struct sockaddr_in *) sa;
 		printf("inet ");
 		print_sin_addr(sin);
@@ -311,7 +303,7 @@ bootpboot_p_sa(struct sockaddr *sa,
 	{
 		struct sockaddr_dl *sli;
 		int i;
-		
+
 		sli = (struct sockaddr_dl *) sa;
 		printf("link %.*s ", sli->sdl_nlen, sli->sdl_data);
 		for (i = 0; i < sli->sdl_alen; i++) {
@@ -326,10 +318,10 @@ bootpboot_p_sa(struct sockaddr *sa,
 	}
 }
 
-
 void
 bootpboot_p_ma(struct sockaddr *ma)
 {
+
 	if (ma == NULL) {
 		printf("<null>");
 		return;
@@ -337,10 +329,10 @@ bootpboot_p_ma(struct sockaddr *ma)
 	printf("%x", *(int *)ma);
 }
 
-
 void
 bootpboot_p_rtentry(struct rtentry *rt)
 {
+
 	bootpboot_p_sa(rt_key(rt), rt_mask(rt));
 	printf(" ");
 	bootpboot_p_ma(rt->rt_genmask);
@@ -352,10 +344,10 @@ bootpboot_p_rtentry(struct rtentry *rt)
 	printf(" %s%d\n", rt->rt_ifp->if_name, rt->rt_ifp->if_unit);
 }
 
-
 void
 bootpboot_p_tree(struct radix_node *rn)
 {
+
 	while (rn != NULL) {
 		if (rn->rn_bit < 0) {
 			if ((rn->rn_flags & RNF_ROOT) != 0) {
@@ -371,18 +363,18 @@ bootpboot_p_tree(struct radix_node *rn)
 	}
 }
 
-
 void
 bootpboot_p_rtlist(void)
 {
+
 	printf("Routing table:\n");
 	bootpboot_p_tree(rt_tables[AF_INET]->rnh_treetop);
 }
 
-
 void
 bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 {
+
 	printf("%s%d flags %x, addr ",
 	       ifp->if_name,
 	       ifp->if_unit,
@@ -395,13 +387,12 @@ bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 	printf("\n");
 }
 
-
 void
 bootpboot_p_iflist(void)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
-	
+
 	printf("Interface list:\n");
 	for (ifp = TAILQ_FIRST(&ifnet);
 	     ifp != NULL;
@@ -415,17 +406,16 @@ bootpboot_p_iflist(void)
 }
 #endif /* defined(BOOTP_DEBUG) */
 
-
 static void
 clear_sinaddr(struct sockaddr_in *sin)
 {
+
 	bzero(sin, sizeof(*sin));
 	sin->sin_len = sizeof(*sin);
 	sin->sin_family = AF_INET;
 	sin->sin_addr.s_addr = INADDR_ANY; /* XXX: htonl(INAADDR_ANY) ? */
 	sin->sin_port = 0;
 }
-
 
 static struct bootpc_ifcontext *
 allocifctx(struct bootpc_globalcontext *gctx)
@@ -435,7 +425,7 @@ allocifctx(struct bootpc_globalcontext *gctx)
 						   M_TEMP, M_WAITOK);
 	if (ifctx == NULL)
 		panic("Failed to allocate bootp interface context structure");
-	
+
 	bzero(ifctx, sizeof(*ifctx));
 	ifctx->xid = gctx->xid;
 #ifdef BOOTP_NO_DHCP
@@ -447,48 +437,47 @@ allocifctx(struct bootpc_globalcontext *gctx)
 	return ifctx;
 }
 
-
 static __inline int
 bootpc_ifctx_isresolved(struct bootpc_ifcontext *ifctx)
 {
+
 	if (ifctx->state == IF_BOOTP_RESOLVED ||
 	    ifctx->state == IF_DHCP_RESOLVED)
 		return 1;
 	return 0;
 }
 
-
 static __inline int
 bootpc_ifctx_isunresolved(struct bootpc_ifcontext *ifctx)
 {
+
 	if (ifctx->state == IF_BOOTP_UNRESOLVED ||
 	    ifctx->state == IF_DHCP_UNRESOLVED)
 		return 1;
 	return 0;
 }
 
-
 static __inline int
 bootpc_ifctx_isfailed(struct bootpc_ifcontext *ifctx)
 {
+
 	if (ifctx->state == IF_BOOTP_FAILED ||
 	    ifctx->state == IF_DHCP_FAILED)
 		return 1;
 	return 0;
 }
 
-
 static int
 bootpc_received(struct bootpc_globalcontext *gctx,
-		struct bootpc_ifcontext *ifctx)
+    struct bootpc_ifcontext *ifctx)
 {
 	unsigned char dhcpreplytype;
 	char *p;
+
 	/*
 	 * Need timeout for fallback to less
 	 * desirable alternative.
 	 */
-
 
 	/* This call used for the side effect (badopt flag) */
 	(void) bootpc_tag(&gctx->tmptag, &gctx->reply,
@@ -498,14 +487,14 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 	/* If packet is invalid, ignore it */
 	if (gctx->tmptag.badopt != 0)
 		return 0;
-	
+
 	p = bootpc_tag(&gctx->tmptag, &gctx->reply,
 		       gctx->replylen, TAG_DHCP_MSGTYPE);
 	if (p != NULL)
 		dhcpreplytype = *p;
 	else
 		dhcpreplytype = DHCP_NOMSG;
-	
+
 	switch (ifctx->dhcpquerytype) {
 	case DHCP_DISCOVER:
 		if (dhcpreplytype != DHCP_OFFER 	/* Normal DHCP offer */
@@ -520,10 +509,9 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 			return 0;
 	case DHCP_NOMSG:
 	}
-		
-	
+
 	/* Ignore packet unless it gives us a root tag we didn't have */
-	
+
 	if ((ifctx->state == IF_BOOTP_RESOLVED ||
 	     (ifctx->dhcpquerytype == DHCP_DISCOVER &&
 	      (ifctx->state == IF_DHCP_OFFERED ||
@@ -535,12 +523,10 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 			gctx->replylen,
 			TAG_ROOT) == NULL))
 		return 0;
-	
-	bcopy(&gctx->reply,
-	      &ifctx->reply,
-	      gctx->replylen);
+
+	bcopy(&gctx->reply, &ifctx->reply, gctx->replylen);
 	ifctx->replylen = gctx->replylen;
-	
+
 	/* XXX: Only reset if 'perfect' response */
 	if (ifctx->state == IF_BOOTP_UNRESOLVED)
 		ifctx->state = IF_BOOTP_RESOLVED;
@@ -553,8 +539,8 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 	} else if (ifctx->state == IF_DHCP_OFFERED &&
 		   ifctx->dhcpquerytype == DHCP_REQUEST)
 		ifctx->state = IF_DHCP_RESOLVED;
-	
-	
+
+
 	if (ifctx->dhcpquerytype == DHCP_DISCOVER &&
 	    ifctx->state != IF_BOOTP_RESOLVED) {
 		p = bootpc_tag(&gctx->tmptag, &ifctx->reply,
@@ -566,7 +552,7 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 			ifctx->gotdhcpserver = 0;
 		return 1;
 	}
-	
+
 	ifctx->gotrootpath = (bootpc_tag(&gctx->tmptag, &ifctx->reply,
 					 ifctx->replylen,
 					 TAG_ROOT) != NULL);
@@ -580,8 +566,7 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 }
 
 static int
-bootpc_call(struct bootpc_globalcontext *gctx,
-	    struct thread *td)
+bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 {
 	struct socket *so;
 	struct sockaddr_in *sin, dst;
@@ -597,14 +582,14 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	int gotrootpath;
 	int retry;
 	const char *s;
-	
+
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
 	error = socreate(AF_INET, &so, SOCK_DGRAM, 0, td);
 	if (error != 0)
 		goto out;
-	
+
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	bzero(&sopt, sizeof(sopt));
@@ -612,11 +597,11 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	sopt.sopt_name = SO_RCVTIMEO;
 	sopt.sopt_val = &tv;
 	sopt.sopt_valsize = sizeof tv;
-	
+
 	error = sosetopt(so, &sopt);
 	if (error != 0)
 		goto out;
-	
+
 	/*
 	 * Enable broadcast.
 	 */
@@ -641,7 +626,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	error = sosetopt(so, &sopt);
 	if (error != 0)
 		goto out;
-	
+
 	/*
 	 * Bind the local endpoint to a bootp client port.
 	 */
@@ -653,7 +638,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 		printf("bind failed\n");
 		goto out;
 	}
-	
+
 	/*
 	 * Setup socket address for the server.
 	 */
@@ -661,7 +646,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	clear_sinaddr(sin);
 	sin->sin_addr.s_addr = INADDR_BROADCAST;
 	sin->sin_port = htons(IPPORT_BOOTPS);
-	
+
 	/*
 	 * Send it, repeatedly, until a reply is received,
 	 * but delay each re-send by an increasing amount.
@@ -670,7 +655,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 	timo = 0;
 	rtimo = 0;
 	for (;;) {
-		
+
 		outstanding = 0;
 		gotrootpath = 0;
 
@@ -683,7 +668,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 				       TAG_ROOT) != NULL)
 				gotrootpath = 1;
 		}
-		
+
 		for (ifctx = gctx->interfaces;
 		     ifctx != NULL;
 		     ifctx = ifctx->next) {
@@ -708,9 +693,9 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 				ifctx->sentmsg = 0;
 				bootpc_compose_query(ifctx, gctx, td);
 			}
-			
+
 			/* Send BOOTP request (or re-send). */
-		
+
 			if (ifctx->sentmsg == 0) {
 				switch(ifctx->dhcpquerytype) {
 				case DHCP_DISCOVER:
@@ -736,7 +721,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 
 			aio.iov_base = (caddr_t) &ifctx->call;
 			aio.iov_len = sizeof(ifctx->call);
-			
+
 			auio.uio_iov = &aio;
 			auio.uio_iovcnt = 1;
 			auio.uio_segflg = UIO_SYSSPACE;
@@ -744,9 +729,9 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 			auio.uio_offset = 0;
 			auio.uio_resid = sizeof(ifctx->call);
 			auio.uio_td = td;
-			
+
 			/* Set netmask to 0.0.0.0 */
-			
+
 			sin = (struct sockaddr_in *) &ifctx->ireq.ifr_addr;
 			clear_sinaddr(sin);
 			error = ifioctl(ifctx->so, SIOCSIFNETMASK,
@@ -755,7 +740,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 				panic("bootpc_call:"
 				      "set if netmask, error=%d",
 				      error);
-	
+
 			error = sosend(so, (struct sockaddr *) &dst,
 				       &auio, NULL, NULL, 0, td);
 			if (error != 0) {
@@ -765,9 +750,9 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 
 			/* XXX: Is this needed ? */
 			tsleep(&error, PZERO + 8, "bootpw", 10);
-			
+
 			/* Set netmask to 255.0.0.0 */
-			
+
 			sin = (struct sockaddr_in *) &ifctx->ireq.ifr_addr;
 			clear_sinaddr(sin);
 			sin->sin_addr.s_addr = htonl(0xff000000u);
@@ -777,15 +762,15 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 				panic("bootpc_call:"
 				      "set if netmask, error=%d",
 				      error);
-			
+
 		}
-		
+
 		if (outstanding == 0 &&
 		    (rtimo == 0 || time_second >= rtimo)) {
 			error = 0;
 			goto gotreply;
 		}
-		
+
 		/* Determine new timeout. */
 		if (timo < MAX_RESEND_DELAY)
 			timo++;
@@ -794,7 +779,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 			print_sin_addr(&dst);
 			printf("\n");
 		}
-		
+
 		/*
 		 * Wait for up to timo seconds for a reply.
 		 * The socket receive timeout was set to 1 second.
@@ -803,7 +788,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 		while (time_second < atimo) {
 			aio.iov_base = (caddr_t) &gctx->reply;
 			aio.iov_len = sizeof(gctx->reply);
-			
+
 			auio.uio_iov = &aio;
 			auio.uio_iovcnt = 1;
 			auio.uio_segflg = UIO_SYSSPACE;
@@ -811,7 +796,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 			auio.uio_offset = 0;
 			auio.uio_resid = sizeof(gctx->reply);
 			auio.uio_td = td;
-			
+
 			rcvflg = 0;
 			error = soreceive(so, NULL, &auio,
 					  NULL, NULL, &rcvflg);
@@ -822,7 +807,7 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 				if (bootpc_ifctx_isresolved(ifctx) != 0 ||
 				    bootpc_ifctx_isfailed(ifctx) != 0)
 					continue;
-				
+
 				ifctx->call.secs = htons(gctx->secs);
 			}
 			if (error == EWOULDBLOCK)
@@ -830,27 +815,27 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 			if (error != 0)
 				goto out;
 			len = sizeof(gctx->reply) - auio.uio_resid;
-			
+
 			/* Do we have the required number of bytes ? */
 			if (len < BOOTP_MIN_LEN)
 				continue;
 			gctx->replylen = len;
-			
+
 			/* Is it a reply? */
 			if (gctx->reply.op != BOOTP_REPLY)
 				continue;
-			
+
 			/* Is this an answer to our query */
 			for (ifctx = gctx->interfaces;
 			     ifctx != NULL;
 			     ifctx = ifctx->next) {
 				if (gctx->reply.xid != ifctx->call.xid)
 					continue;
-				
+
 				/* Same HW address size ? */
 				if (gctx->reply.hlen != ifctx->call.hlen)
 					continue;
-				
+
 				/* Correct HW address ? */
 				if (bcmp(gctx->reply.chaddr,
 					 ifctx->call.chaddr,
@@ -927,18 +912,18 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 					ifctx->state = IF_DHCP_UNRESOLVED;
 			}
 		}
-		
+
 		if (retry != 0)
 			continue;
-		
+
 		if (gotrootpath != 0) {
 			gctx->gotrootpath = gotrootpath;
 			if (rtimo != 0 && time_second >= rtimo)
 				break;
 		}
 	} /* forever send/receive */
-	
-	/* 
+
+	/*
 	 * XXX: These are errors of varying seriousness being silently
 	 * ignored
 	 */
@@ -968,22 +953,19 @@ bootpc_call(struct bootpc_globalcontext *gctx,
 #endif
 	error = ETIMEDOUT;
 	goto out;
-	
+
 gotreply:
 out:
 	soclose(so);
 	return error;
 }
 
-
 static int
 bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
-			struct bootpc_globalcontext *gctx,
-			struct thread *td)
+    struct bootpc_globalcontext *gctx, struct thread *td)
 {
 	struct sockaddr_in *sin;
 	int error;
-	
 	struct ifreq *ireq;
 	struct socket *so;
 	struct ifaddr *ifa;
@@ -992,7 +974,7 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	error = socreate(AF_INET, &ifctx->so, SOCK_DGRAM, 0, td);
 	if (error != 0)
 		panic("nfs_boot: socreate, error=%d", error);
-	
+
 	ireq = &ifctx->ireq;
 	so = ifctx->so;
 
@@ -1009,23 +991,23 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	error = ifioctl(so, SIOCSIFFLAGS, (caddr_t)ireq, td);
 	if (error != 0)
 		panic("bootpc_fakeup_interface: SIFFLAGS, error=%d", error);
-	
+
 	/*
 	 * Do enough of ifconfig(8) so that the chosen interface
 	 * can talk to the servers.  (just set the address)
 	 */
-	
+
 	/* addr is 0.0.0.0 */
-	
+
 	sin = (struct sockaddr_in *) &ireq->ifr_addr;
 	clear_sinaddr(sin);
 	error = ifioctl(so, SIOCSIFADDR, (caddr_t) ireq, td);
 	if (error != 0 && (error != EEXIST || ifctx == gctx->interfaces))
 		panic("bootpc_fakeup_interface: "
 		      "set if addr, error=%d", error);
-	
+
 	/* netmask is 255.0.0.0 */
-	
+
 	sin = (struct sockaddr_in *) &ireq->ifr_addr;
 	clear_sinaddr(sin);
 	sin->sin_addr.s_addr = htonl(0xff000000u);
@@ -1033,51 +1015,49 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	if (error != 0)
 		panic("bootpc_fakeup_interface: set if netmask, error=%d",
 		      error);
-	
+
 	/* Broadcast is 255.255.255.255 */
-	
+
 	sin = (struct sockaddr_in *)&ireq->ifr_addr;
 	clear_sinaddr(sin);
 	clear_sinaddr(&ifctx->broadcast);
 	sin->sin_addr.s_addr = htonl(INADDR_BROADCAST);
 	ifctx->broadcast.sin_addr.s_addr = sin->sin_addr.s_addr;
-	
+
 	error = ifioctl(so, SIOCSIFBRDADDR, (caddr_t)ireq, td);
 	if (error != 0)
 		panic("bootpc_fakeup_interface: "
 		      "set if broadcast addr, error=%d",
 		      error);
-	
+
 	/* Get HW address */
-	
+
 	sdl = NULL;
 	for (ifa = TAILQ_FIRST(&ifctx->ifp->if_addrhead);
 	     ifa != NULL;
-	     ifa = TAILQ_NEXT(ifa,ifa_link))
+	     ifa = TAILQ_NEXT(ifa, ifa_link))
 		if (ifa->ifa_addr->sa_family == AF_LINK &&
 		    (sdl = ((struct sockaddr_dl *) ifa->ifa_addr)) != NULL &&
 		    sdl->sdl_type == IFT_ETHER)
 			break;
-	
+
 	if (sdl == NULL)
 		panic("bootpc: Unable to find HW address for %s",
 		      ifctx->ireq.ifr_name);
 	ifctx->sdl = sdl;
-	
+
 	return error;
 }
 
 
 static int
 bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
-			struct bootpc_globalcontext *gctx,
-			struct thread *td)
+    struct bootpc_globalcontext *gctx, struct thread *td)
 {
 	int error;
 	struct sockaddr_in defdst;
 	struct sockaddr_in defmask;
 	struct sockaddr_in *sin;
-	
 	struct ifreq *ireq;
 	struct socket *so;
 	struct sockaddr_in *myaddr;
@@ -1093,7 +1073,7 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	if (bootpc_ifctx_isresolved(ifctx) == 0) {
 
 		/* Shutdown interfaces where BOOTP failed */
-		
+
 		printf("Shutdown interface %s\n", ifctx->ireq.ifr_name);
 		error = ifioctl(so, SIOCGIFFLAGS, (caddr_t)ireq, td);
 		if (error != 0)
@@ -1104,7 +1084,7 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 		if (error != 0)
 			panic("bootpc_adjust_interface: "
 			      "SIOCSIFFLAGS, error=%d", error);
-		
+
 		sin = (struct sockaddr_in *) &ireq->ifr_addr;
 		clear_sinaddr(sin);
 		error = ifioctl(so, SIOCDIFADDR, (caddr_t) ireq, td);
@@ -1112,7 +1092,7 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 				   ifctx == gctx->interfaces))
 			panic("bootpc_adjust_interface: "
 			      "SIOCDIFADDR, error=%d", error);
-		
+
 		return 0;
 	}
 
@@ -1126,9 +1106,9 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	if (error != 0)
 		panic("bootpc_adjust_interface: "
 		      "set if netmask, error=%d", error);
-	
+
 	/* Broadcast is with host part of IP address all 1's */
-	
+
 	sin = (struct sockaddr_in *) &ireq->ifr_addr;
 	clear_sinaddr(sin);
 	sin->sin_addr.s_addr = myaddr->sin_addr.s_addr |
@@ -1137,13 +1117,13 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	if (error != 0)
 		panic("bootpc_adjust_interface: "
 		      "set if broadcast addr, error=%d", error);
-	
+
 	bcopy(myaddr, &ireq->ifr_addr, sizeof(*myaddr));
 	error = ifioctl(so, SIOCSIFADDR, (caddr_t) ireq, td);
 	if (error != 0 && (error != EEXIST || ifctx == gctx->interfaces))
 		panic("bootpc_adjust_interface: "
 		      "set if addr, error=%d", error);
-	
+
 	/* Add new default route */
 
 	if (ifctx->gotgw != 0 || gctx->gotgw == 0) {
@@ -1160,17 +1140,16 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 			return error;
 		}
 	}
-	
+
 	return 0;
 }
-
 
 static int
 setfs(struct sockaddr_in *addr, char *path, char *p)
 {
 	unsigned int ip;
 	int val;
-	
+
 	ip = 0;
 	if (((val = getdec(&p)) < 0) || (val > 255))
 		return 0;
@@ -1196,15 +1175,14 @@ setfs(struct sockaddr_in *addr, char *path, char *p)
 	if (*p != ':')
 		return 0;
 	p++;
-	
+
 	addr->sin_addr.s_addr = htonl(ip);
 	addr->sin_len = sizeof(struct sockaddr_in);
 	addr->sin_family = AF_INET;
-	
+
 	strncpy(path, p, MNAMELEN - 1);
 	return 1;
 }
-
 
 static int
 getdec(char **ptr)
@@ -1224,13 +1202,12 @@ getdec(char **ptr)
 	return ret;
 }
 
-
 static char *
 substr(char *a, char *b)
 {
 	char *loc1;
 	char *loc2;
-	
+
         while (*a != '\0') {
                 loc1 = a;
                 loc2 = b;
@@ -1246,12 +1223,11 @@ substr(char *a, char *b)
         return 0;
 }
 
-
 static void
 mountopts(struct nfs_args *args, char *p)
 {
 	char *tmp;
-	
+
 	args->version = NFS_ARGSVERSION;
 	args->rsize = 8192;
 	args->wsize = 8192;
@@ -1273,16 +1249,15 @@ mountopts(struct nfs_args *args, char *p)
 		args->sotype = SOCK_STREAM;
 }
 
-
 static int
 xdr_opaque_decode(struct mbuf **mptr, u_char *buf, int len)
 {
 	struct mbuf *m;
 	int alignedlen;
-	
+
 	m = *mptr;
 	alignedlen = ( len + 3 ) & ~3;
-	
+
 	if (m->m_len < alignedlen) {
 		m = m_pullup(m, alignedlen);
 		if (m == NULL) {
@@ -1296,40 +1271,37 @@ xdr_opaque_decode(struct mbuf **mptr, u_char *buf, int len)
 	return 0;
 }
 
-
 static int
 xdr_int_decode(struct mbuf **mptr, int *iptr)
 {
 	u_int32_t i;
+
 	if (xdr_opaque_decode(mptr, (u_char *) &i, sizeof(u_int32_t)) != 0)
 		return EBADRPC;
 	*iptr = fxdr_unsigned(u_int32_t, i);
 	return 0;
 }
 
-
 static void
 print_sin_addr(struct sockaddr_in *sin)
 {
+
 	print_in_addr(sin->sin_addr);
 }
-
 
 static void
 print_in_addr(struct in_addr addr)
 {
 	unsigned int ip;
-	
+
 	ip = ntohl(addr.s_addr);
 	printf("%d.%d.%d.%d",
 	       ip >> 24, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
 }
 
 static void
-bootpc_compose_query(ifctx, gctx, td)
-	struct bootpc_ifcontext *ifctx;
-	struct bootpc_globalcontext *gctx;
-	struct thread *td;
+bootpc_compose_query(struct bootpc_ifcontext *ifctx,
+    struct bootpc_globalcontext *gctx, struct thread *td)
 {
 	unsigned char *vendp;
 	uint32_t leasetime;
@@ -1337,7 +1309,7 @@ bootpc_compose_query(ifctx, gctx, td)
 	ifctx->gotrootpath = 0;
 
 	bzero((caddr_t) &ifctx->call, sizeof(ifctx->call));
-	
+
 	/* bootpc part */
 	ifctx->call.op = BOOTP_REQUEST; 	/* BOOTREQUEST */
 	ifctx->call.htype = 1;			/* 10mb ethernet */
@@ -1347,7 +1319,7 @@ bootpc_compose_query(ifctx, gctx, td)
 		ifctx->xid++;
 	ifctx->call.xid = txdr_unsigned(ifctx->xid);
 	bcopy(LLADDR(ifctx->sdl), &ifctx->call.chaddr, ifctx->sdl->sdl_alen);
-	
+
 	vendp = ifctx->call.vend;
 	*vendp++ = 99;		/* RFC1048 cookie */
 	*vendp++ = 130;
@@ -1390,25 +1362,22 @@ bootpc_compose_query(ifctx, gctx, td)
 		;
 	}
 	*vendp = TAG_END;
-	
+
 	ifctx->call.secs = 0;
 	ifctx->call.flags = htons(0x8000); /* We need an broadcast answer */
 }
 
-
 static int
 bootpc_hascookie(struct bootp_packet *bp)
 {
+
 	return (bp->vend[0] == 99 && bp->vend[1] == 130 &&
 		bp->vend[2] == 83 && bp->vend[3] == 99);
 }
 
-
 static void
 bootpc_tag_helper(struct bootpc_tagcontext *tctx,
-		  unsigned char *start,
-		  int len,
-		  int tag)
+    unsigned char *start, int len, int tag)
 {
 	unsigned char *j;
 	unsigned char *ej;
@@ -1416,10 +1385,10 @@ bootpc_tag_helper(struct bootpc_tagcontext *tctx,
 
 	if (tctx->badtag != 0 || tctx->badopt != 0)
 		return;
-	
+
 	j = start;
 	ej = j + len;
-	
+
 	while (j < ej) {
 		code = *j++;
 		if (code == TAG_PAD)
@@ -1444,17 +1413,14 @@ bootpc_tag_helper(struct bootpc_tagcontext *tctx,
 		}
 		if (code == TAG_OVERLOAD)
 			tctx->overload = *j;
-		
+
 		j += len;
 	}
 }
 
-
 static unsigned char *
 bootpc_tag(struct bootpc_tagcontext *tctx,
-	   struct bootp_packet *bp,
-	   int len,
-	   int tag)
+    struct bootp_packet *bp, int len, int tag)
 {
 	unsigned char *j;
 	unsigned char *ej;
@@ -1467,13 +1433,13 @@ bootpc_tag(struct bootpc_tagcontext *tctx,
 
 	if (bootpc_hascookie(bp) == 0)
 		return NULL;
-	
+
 	j = &bp->vend[4];
 	ej = (unsigned char *) bp + len;
 
 	bootpc_tag_helper(tctx, &bp->vend[4],
 			  (unsigned char *) bp + len - &bp->vend[4], tag);
-	
+
 	if ((tctx->overload & OVERLOAD_FILE) != 0)
 		bootpc_tag_helper(tctx,
 				  (unsigned char *) bp->file,
@@ -1484,19 +1450,16 @@ bootpc_tag(struct bootpc_tagcontext *tctx,
 				  (unsigned char *) bp->sname,
 				  sizeof(bp->sname),
 				  tag);
-	
+
 	if (tctx->badopt != 0 || tctx->badtag != 0 || tctx->foundopt == 0)
 		return NULL;
 	tctx->buf[tctx->taglen] = '\0';
 	return tctx->buf;
 }
 
-
 static void
-bootpc_decode_reply(nd, ifctx, gctx)
-	struct nfsv3_diskless *nd;
-	struct bootpc_ifcontext *ifctx;
-	struct bootpc_globalcontext *gctx;
+bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
+    struct bootpc_globalcontext *gctx)
 {
 	char *p;
 	unsigned int ip;
@@ -1507,19 +1470,19 @@ bootpc_decode_reply(nd, ifctx, gctx)
 	clear_sinaddr(&ifctx->myaddr);
 	clear_sinaddr(&ifctx->netmask);
 	clear_sinaddr(&ifctx->gw);
-	
+
 	ifctx->myaddr.sin_addr = ifctx->reply.yiaddr;
-	
+
 	ip = ntohl(ifctx->myaddr.sin_addr.s_addr);
 	snprintf(gctx->lookup_path, sizeof(gctx->lookup_path),
 		 "swap.%d.%d.%d.%d",
 		 ip >> 24, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
-	
+
 	printf("%s at ", ifctx->ireq.ifr_name);
 	print_sin_addr(&ifctx->myaddr);
 	printf(" server ");
 	print_in_addr(ifctx->reply.siaddr);
-	
+
 	ifctx->gw.sin_addr = ifctx->reply.giaddr;
 	if (ifctx->reply.giaddr.s_addr != htonl(INADDR_ANY)) {
 		printf(" via gateway ");
@@ -1529,14 +1492,14 @@ bootpc_decode_reply(nd, ifctx, gctx)
 	/* This call used for the side effect (overload flag) */
 	(void) bootpc_tag(&gctx->tmptag,
 			  &ifctx->reply, ifctx->replylen, TAG_END);
-	
+
 	if ((gctx->tmptag.overload & OVERLOAD_SNAME) == 0)
 		if (ifctx->reply.sname[0] != '\0')
 			printf(" server name %s", ifctx->reply.sname);
 	if ((gctx->tmptag.overload & OVERLOAD_FILE) == 0)
 		if (ifctx->reply.file[0] != '\0')
 			printf(" boot file %s", ifctx->reply.file);
-	
+
 	printf("\n");
 
 	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
@@ -1551,7 +1514,7 @@ bootpc_decode_reply(nd, ifctx, gctx)
 		print_sin_addr(&ifctx->netmask);
 		printf(" ");
 	}
-	
+
 	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
 		       TAG_ROUTERS);
 	if (p != NULL) {
@@ -1567,7 +1530,7 @@ bootpc_decode_reply(nd, ifctx, gctx)
 			gctx->gotgw = 1;
 		}
 	}
-	
+
 	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
 		       TAG_ROOT);
 	if (p != NULL) {
@@ -1575,11 +1538,11 @@ bootpc_decode_reply(nd, ifctx, gctx)
 			printf("rootfs %s (ignored) ", p);
 		} else 	if (setfs(&nd->root_saddr,
 				  nd->root_hostnam, p)) {
-			printf("rootfs %s ",p);
+			printf("rootfs %s ", p);
 			gctx->gotrootpath = 1;
 			ifctx->gotrootpath = 1;
 			gctx->setrootfs = ifctx;
-			
+
 			p = bootpc_tag(&gctx->tag, &ifctx->reply,
 				       ifctx->replylen,
 				       TAG_ROOTOPTS);
@@ -1588,7 +1551,7 @@ bootpc_decode_reply(nd, ifctx, gctx)
 				printf("rootopts %s ", p);
 			}
 		} else
-			panic("Failed to set rootfs to %s",p);
+			panic("Failed to set rootfs to %s", p);
 	}
 
 	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
@@ -1610,7 +1573,7 @@ bootpc_decode_reply(nd, ifctx, gctx)
 				mountopts(&nd->swap_args, p);
 				printf("swapopts %s ", p);
 			}
-			
+
 			p = bootpc_tag(&gctx->tag, &ifctx->reply,
 				       ifctx->replylen,
 				       TAG_SWAPSIZE);
@@ -1641,13 +1604,13 @@ bootpc_decode_reply(nd, ifctx, gctx)
 		} else {
 			strcpy(nd->my_hostnam, p);
 			strcpy(hostname, p);
-			printf("hostname %s ",hostname);
+			printf("hostname %s ", hostname);
 			gctx->sethostname = ifctx;
 		}
 	}
 
 	printf("\n");
-	
+
 	if (ifctx->gotnetmask == 0) {
 		if (IN_CLASSA(ntohl(ifctx->myaddr.sin_addr.s_addr)))
 			ifctx->netmask.sin_addr.s_addr = htonl(IN_CLASSA_NET);
@@ -1674,7 +1637,7 @@ bootpc_init(void)
 
 	nd = &nfsv3_diskless;
 	td = curthread;
-	
+
 	/*
 	 * If already filled in, don't touch it here
 	 */
@@ -1686,15 +1649,15 @@ bootpc_init(void)
 	 */
 	while (time_second == 0)
 		tsleep(&time_second, PZERO + 8, "arpkludge", 10);
-	
+
 	gctx = malloc(sizeof(*gctx), M_TEMP, M_WAITOK);
 	if (gctx == NULL)
 		panic("Failed to allocate bootp global context structure");
-	
+
 	bzero(gctx, sizeof(*gctx));
 	gctx->xid = ~0xFFFF;
 	gctx->starttime = time_second;
-	
+
 	ifctx = allocifctx(gctx);
 
 	/*
@@ -1729,7 +1692,7 @@ bootpc_init(void)
 		ifctx = allocifctx(gctx);
 	}
 	free(ifctx, M_TEMP);
-	
+
 	if (gctx->interfaces == NULL) {
 #ifdef BOOTP_WIRED_TO
 		panic("bootpc_init: Could not find interface specified "
@@ -1739,20 +1702,20 @@ bootpc_init(void)
 		panic("bootpc_init: no suitable interface");
 #endif
 	}
-		
+
 	gctx->gotrootpath = 0;
 	gctx->gotswappath = 0;
 	gctx->gotgw = 0;
-	
+
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
 		bootpc_fakeup_interface(ifctx, gctx, td);
-	
+
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
 		bootpc_compose_query(ifctx, gctx, td);
-	
+
 	ifctx = gctx->interfaces;
 	error = bootpc_call(gctx, td);
-	
+
 	if (error != 0) {
 #ifdef BOOTP_NFSROOT
 		panic("BOOTP call failed");
@@ -1760,25 +1723,25 @@ bootpc_init(void)
 		printf("BOOTP call failed\n");
 #endif
 	}
-	
+
 	mountopts(&nd->root_args, NULL);
-	
+
 	mountopts(&nd->swap_args, NULL);
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
 		if (bootpc_ifctx_isresolved(ifctx) != 0)
 			bootpc_decode_reply(nd, ifctx, gctx);
-	
+
 	if (gctx->gotswappath == 0)
 		nd->swap_nblks = 0;
 #ifdef BOOTP_NFSROOT
 	if (gctx->gotrootpath == 0)
 		panic("bootpc: No root path offered");
 #endif
-	
+
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
 		bootpc_adjust_interface(ifctx, gctx, td);
-		
+
 		soclose(ifctx->so);
 	}
 
@@ -1794,17 +1757,17 @@ bootpc_init(void)
 	}
 	if (ifctx == NULL)
 		goto out;
-	
+
 	if (gctx->gotrootpath != 0) {
-		
+
 		error = md_mount(&nd->root_saddr, nd->root_hostnam,
 				 nd->root_fh, &nd->root_fhsize,
 				 &nd->root_args, td);
 		if (error != 0)
 			panic("nfs_boot: mountd root, error=%d", error);
-    
+
 		if (gctx->gotswappath != 0) {
-			
+
 			error = md_mount(&nd->swap_saddr,
 					 nd->swap_hostnam,
 					 nd->swap_fh, &nd->swap_fhsize,
@@ -1812,7 +1775,7 @@ bootpc_init(void)
 			if (error != 0)
 				panic("nfs_boot: mountd swap, error=%d",
 				      error);
-			
+
 			error = md_lookup_swap(&nd->swap_saddr,
 					       gctx->lookup_path,
 					       nd->swap_fh, &nd->swap_fhsize,
@@ -1823,7 +1786,7 @@ bootpc_init(void)
 		}
 		nfs_diskless_valid = 3;
 	}
-	
+
 	strcpy(nd->myif.ifra_name, ifctx->ireq.ifr_name);
 	bcopy(&ifctx->myaddr, &nd->myif.ifra_addr, sizeof(ifctx->myaddr));
 	bcopy(&ifctx->myaddr, &nd->myif.ifra_broadaddr, sizeof(ifctx->myaddr));
@@ -1831,7 +1794,7 @@ bootpc_init(void)
 		ifctx->myaddr.sin_addr.s_addr |
 		~ ifctx->netmask.sin_addr.s_addr;
 	bcopy(&ifctx->netmask, &nd->myif.ifra_mask, sizeof(ifctx->netmask));
-	
+
 out:
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = nctx) {
 		nctx = ifctx->next;
@@ -1840,26 +1803,21 @@ out:
 	free(gctx, M_TEMP);
 }
 
-
 /*
  * RPC: mountd/mount
  * Given a server pathname, get an NFS file handle.
  * Also, sets sin->sin_port to the NFS service port.
  */
 static int
-md_mount(struct sockaddr_in *mdsin,		/* mountd server address */
-	 char *path,
-	 u_char *fhp,
-	 int *fhsizep,
-	 struct nfs_args *args,
-	 struct thread *td)
+md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
+    struct nfs_args *args, struct thread *td)
 {
 	struct mbuf *m;
 	int error;
 	int authunixok;
 	int authcount;
 	int authver;
-	
+
 #ifdef BOOTP_NFSV3
 	/* First try NFS v3 */
 	/* Get port number for MOUNTD. */
@@ -1867,7 +1825,7 @@ md_mount(struct sockaddr_in *mdsin,		/* mountd server address */
 			     &mdsin->sin_port, td);
 	if (error == 0) {
 		m = xdr_string_encode(path, strlen(path));
-		
+
 		/* Do RPC to mountd. */
 		error = krpc_call(mdsin, RPCPROG_MNT, RPCMNT_VER3,
 				  RPCMNT_MOUNT, &m, NULL, td);
@@ -1877,28 +1835,28 @@ md_mount(struct sockaddr_in *mdsin,		/* mountd server address */
 	} else {
 #endif
 		/* Fallback to NFS v2 */
-		
+
 		/* Get port number for MOUNTD. */
 		error = krpc_portmap(mdsin, RPCPROG_MNT, RPCMNT_VER1,
 				     &mdsin->sin_port, td);
 		if (error != 0)
 			return error;
-		
+
 		m = xdr_string_encode(path, strlen(path));
-		
+
 		/* Do RPC to mountd. */
 		error = krpc_call(mdsin, RPCPROG_MNT, RPCMNT_VER1,
 				  RPCMNT_MOUNT, &m, NULL, td);
 		if (error != 0)
 			return error;	/* message already freed */
-		
+
 #ifdef BOOTP_NFSV3
 	}
 #endif
 
 	if (xdr_int_decode(&m, &error) != 0 || error != 0)
 		goto bad;
-	
+
 	if ((args->flags & NFSMNT_NFSV3) != 0) {
 		if (xdr_int_decode(&m, fhsizep) != 0 ||
 		    *fhsizep > NFSX_V3FHMAX ||
@@ -1926,31 +1884,26 @@ md_mount(struct sockaddr_in *mdsin,		/* mountd server address */
 		if (authunixok == 0)
 			goto bad;
 	}
-	  
+
 	/* Set port number for NFS use. */
 	error = krpc_portmap(mdsin, NFS_PROG,
 			     (args->flags &
 			      NFSMNT_NFSV3) ? NFS_VER3 : NFS_VER2,
 			     &mdsin->sin_port, td);
-	
+
 	goto out;
-	
+
 bad:
 	error = EBADRPC;
-	
+
 out:
 	m_freem(m);
 	return error;
 }
 
-
 static int
-md_lookup_swap(struct sockaddr_in *mdsin,	/* mountd server address */
-	       char *path,
-	       u_char *fhp,
-	       int *fhsizep,
-	       struct nfs_args *args,
-	       struct thread *td)
+md_lookup_swap(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
+    struct nfs_args *args, struct thread *td)
 {
 	struct mbuf *m;
 	int error;
@@ -1961,11 +1914,11 @@ md_lookup_swap(struct sockaddr_in *mdsin,	/* mountd server address */
 		u_int32_t v2[17];
 		u_int32_t v3[21];
 	} fattribs;
-	
-	m = m_get(M_TRYWAIT,MT_DATA);
+
+	m = m_get(M_TRYWAIT, MT_DATA);
 	if (m == NULL)
 	  	return ENOBUFS;
-	
+
 	if ((args->flags & NFSMNT_NFSV3) != 0) {
 		*mtod(m, u_int32_t *) = txdr_unsigned(*fhsizep);
 		bcopy(fhp, mtod(m, u_char *) + sizeof(u_int32_t), *fhsizep);
@@ -1974,7 +1927,7 @@ md_lookup_swap(struct sockaddr_in *mdsin,	/* mountd server address */
 		bcopy(fhp, mtod(m, u_char *), NFSX_V2FH);
 		m->m_len = NFSX_V2FH;
 	}
-	
+
 	m->m_next = xdr_string_encode(path, strlen(path));
 	if (m->m_next == NULL) {
 		error = ENOBUFS;
@@ -1997,7 +1950,7 @@ md_lookup_swap(struct sockaddr_in *mdsin,	/* mountd server address */
 		error = ENOENT;
 		goto out;
 	}
-	
+
 	if ((args->flags & NFSMNT_NFSV3) != 0) {
 		if (xdr_int_decode(&m, fhsizep) != 0 ||
 		    *fhsizep > NFSX_V3FHMAX ||
@@ -2005,10 +1958,10 @@ md_lookup_swap(struct sockaddr_in *mdsin,	/* mountd server address */
 			goto bad;
 	} else
 		*fhsizep = NFSX_V2FH;
-	
+
 	if (xdr_opaque_decode(&m, fhp, *fhsizep) != 0)
 		goto bad;
-	
+
 	if ((args->flags & NFSMNT_NFSV3) != 0) {
 		if (xdr_int_decode(&m, &attribs_present) != 0)
 			goto bad;
@@ -2024,18 +1977,18 @@ md_lookup_swap(struct sockaddr_in *mdsin,	/* mountd server address */
 			goto bad;
 		size = fxdr_unsigned(u_int32_t, fattribs.v2[5]);
 	}
-	  
+
 	if (nfsv3_diskless.swap_nblks == 0 && size != -1) {
 		nfsv3_diskless.swap_nblks = size / 1024;
 		printf("md_lookup_swap: Swap size is %d KB\n",
 		       nfsv3_diskless.swap_nblks);
 	}
-	
+
 	goto out;
-	
+
 bad:
 	error = EBADRPC;
-	
+
 out:
 	m_freem(m);
 	return error;

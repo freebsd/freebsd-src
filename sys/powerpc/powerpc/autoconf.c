@@ -61,8 +61,6 @@ static const char rcsid[] =
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
-extern int nfs_diskless_valid;
-
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;
 

@@ -63,6 +63,20 @@
 #include <sys/mount.h>
 #include <sys/cons.h>
 
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
+#include <net/ethernet.h>
+#include <netinet/in.h>
+#include <nfs/rpcv2.h>
+#include <nfs/nfsproto.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsdiskless.h>
+#endif
+
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
 #ifdef APIC_IO
@@ -81,7 +95,7 @@ static void	configure_first __P((void *));
 static void	configure __P((void *));
 static void	configure_final __P((void *));
 
-#if defined(NFS) && defined(NFS_ROOT)
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
 static void	pxe_setup_nfsdiskless(void);
 #endif
 
@@ -217,7 +231,7 @@ cpu_rootconf()
 #ifdef BOOTP
         bootpc_init();
 #endif
-#if defined(NFS) && defined(NFS_ROOT)
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
 #if !defined(BOOTP_NFSROOT)
 	pxe_setup_nfsdiskless();
 	if (nfs_diskless_valid)
@@ -229,21 +243,7 @@ SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
-#if defined(NFS) && defined(NFS_ROOT)
-
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
-#include <net/if_var.h>
-#include <net/ethernet.h>
-#include <netinet/in.h>
-#include <nfs/rpcv2.h>
-#include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsdiskless.h>
-
-extern struct nfs_diskless	nfs_diskless;
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
 
 static int
 inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa)
@@ -325,7 +325,7 @@ decode_nfshandle(char *ev, u_char *fh)
  * boot.nfsroot.nfshandle	NFS handle for root filesystem on server
  */
 static void
-pxe_setup_nfsdiskless()
+pxe_setup_nfsdiskless(void)
 {
 	struct nfs_diskless	*nd = &nfs_diskless;
 	struct ifnet		*ifp;

@@ -34,9 +34,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,21 +55,23 @@
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsnode.h>
-#include <nfs/nfsmount.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsnode.h>
+#include <nfsclient/nfsmount.h>
 
 static vm_zone_t nfsnode_zone;
 static LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
 static u_long nfsnodehash;
+static int nfs_node_hash_lock;
 
 #define TRUE	1
 #define	FALSE	0
 
+SYSCTL_DECL(_debug_hashstat);
+
 /*
  * Grab an atomic snapshot of the nfsnode hash chain lengths
  */
-SYSCTL_DECL(_debug_hashstat);
 static int
 sysctl_debug_hashstat_rawnfsnode(SYSCTL_HANDLER_ARGS)
 {
@@ -94,8 +97,8 @@ sysctl_debug_hashstat_rawnfsnode(SYSCTL_HANDLER_ARGS)
 	}
 	return (0);
 }
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnfsnode, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_rawnfsnode, "S,int", "nfsnode chain lengths");
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnfsnode, CTLTYPE_INT|CTLFLAG_RD, 0, 0,
+	    sysctl_debug_hashstat_rawnfsnode, "S,int", "nfsnode chain lengths");
 
 static int
 sysctl_debug_hashstat_nfsnode(SYSCTL_HANDLER_ARGS)
@@ -148,8 +151,9 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nfsnode, CTLTYPE_INT|CTLFLAG_RD,
  * and build nfsnode free list.
  */
 void
-nfs_nhinit()
+nfs_nhinit(void)
 {
+
 	nfsnode_zone = zinit("NFSNODE", sizeof(struct nfsnode), 0, 0, 1);
 	nfsnodehashtbl = hashinit(desiredvnodes, M_NFSHASH, &nfsnodehash);
 }
@@ -160,19 +164,13 @@ nfs_nhinit()
  * In all cases, a pointer to a
  * nfsnode structure is returned.
  */
-static int nfs_node_hash_lock;
-
 int
-nfs_nget(mntp, fhp, fhsize, npp)
-	struct mount *mntp;
-	register nfsfh_t *fhp;
-	int fhsize;
-	struct nfsnode **npp;
+nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct nfsnode *np, *np2;
 	struct nfsnodehashhead *nhpp;
-	register struct vnode *vp;
+	struct vnode *vp;
 	struct vnode *nvp;
 	int error;
 	int rsflags;
@@ -191,7 +189,7 @@ nfs_nget(mntp, fhp, fhsize, npp)
 retry:
 	nhpp = NFSNOHASH(fnv_32_buf(fhp->fh_bytes, fhsize, FNV1_32_INIT));
 loop:
-	for (np = nhpp->lh_first; np != 0; np = np->n_hash.le_next) {
+	LIST_FOREACH(np, nhpp, n_hash) {
 		if (mntp != NFSTOV(np)->v_mount || np->n_fhsize != fhsize ||
 		    bcmp((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize))
 			continue;
@@ -220,7 +218,7 @@ loop:
 	 * elsewhere if zalloc should block.
 	 */
 	np = zalloc(nfsnode_zone);
-		
+
 	error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp);
 	if (error) {
 		if (nfs_node_hash_lock < 0)
@@ -237,7 +235,7 @@ loop:
 	/*
 	 * Insert the nfsnode in the hash queue for its new file handle
 	 */
-	for (np2 = nhpp->lh_first; np2 != 0; np2 = np2->n_hash.le_next) {
+	LIST_FOREACH(np2, nhpp, n_hash) {
 		if (mntp != NFSTOV(np2)->v_mount || np2->n_fhsize != fhsize ||
 		    bcmp((caddr_t)fhp, (caddr_t)np2->n_fhp, fhsize))
 			continue;
@@ -272,14 +270,10 @@ loop:
 }
 
 int
-nfs_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+nfs_inactive(struct vop_inactive_args *ap)
 {
-	register struct nfsnode *np;
-	register struct sillyrename *sp;
+	struct nfsnode *np;
+	struct sillyrename *sp;
 	struct thread *td = curthread;	/* XXX */
 
 	np = VTONFS(ap->a_vp);
@@ -314,8 +308,7 @@ nfs_inactive(ap)
 		vrele(sp->s_dvp);
 		FREE((caddr_t)sp, M_NFSREQ);
 	}
-	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT | NQNFSEVICTED |
-		NQNFSNONCACHE | NQNFSWRITE);
+	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT);
 	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	return (0);
 }
@@ -324,28 +317,17 @@ nfs_inactive(ap)
  * Reclaim an nfsnode so that it can be used for other purposes.
  */
 int
-nfs_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+nfs_reclaim(struct vop_reclaim_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct nfsnode *np = VTONFS(vp);
-	register struct nfsmount *nmp = VFSTONFS(vp->v_mount);
-	register struct nfsdmap *dp, *dp2;
+	struct vnode *vp = ap->a_vp;
+	struct nfsnode *np = VTONFS(vp);
+	struct nfsdmap *dp, *dp2;
 
 	if (prtactive && vp->v_usecount != 0)
 		vprint("nfs_reclaim: pushing active", vp);
 
-	if (np->n_hash.le_prev != NULL)
+	if (np->n_hash.le_prev != NULL)		/* XXX beware */
 		LIST_REMOVE(np, n_hash);
-
-	/*
-	 * For nqnfs, take it off the timer queue as required.
-	 */
-	if ((nmp->nm_flag & NFSMNT_NQNFS) && TAILQ_NEXT(np, n_timer) != 0) {
-		TAILQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
-	}
 
 	/*
 	 * Free up any directory cookie structures and
@@ -353,10 +335,10 @@ nfs_reclaim(ap)
 	 * this nfs node.
 	 */
 	if (vp->v_type == VDIR) {
-		dp = np->n_cookies.lh_first;
+		dp = LIST_FIRST(&np->n_cookies);
 		while (dp) {
 			dp2 = dp;
-			dp = dp->ndm_list.le_next;
+			dp = LIST_NEXT(dp, ndm_list);
 			FREE((caddr_t)dp2, M_NFSDIROFF);
 		}
 	}
@@ -377,12 +359,9 @@ nfs_reclaim(ap)
  * Lock an nfsnode
  */
 int
-nfs_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+nfs_lock(struct vop_lock_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 
 	/*
 	 * Ugh, another place where interruptible mounts will get hung.
@@ -429,10 +408,7 @@ nfs_lock(ap)
  * Unlock an nfsnode
  */
 int
-nfs_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+nfs_unlock(struct vop_unlock_args *ap)
 {
 #if 0
 	struct vnode* vp = ap->a_vp;
@@ -456,12 +432,9 @@ nfs_unlock(ap)
  * Check for a locked nfsnode
  */
 int
-nfs_islocked(ap)
-	struct vop_islocked_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+nfs_islocked(struct vop_islocked_args *ap)
 {
+
 	return VTONFS(ap->a_vp)->n_flag & NLOCKED ? 1 : 0;
 }
 #endif

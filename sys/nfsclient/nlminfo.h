@@ -41,5 +41,4 @@ struct  nlminfo {
         struct  timeval pid_start;      /* process starting time */
 };
 
-extern void nlminfo_release __P((struct proc *p));
-
+extern void nlminfo_release(struct proc *p);
