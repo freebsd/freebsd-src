@@ -904,7 +904,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	 * NetBSD-style generic packet filter, pfil(9), hooks.
 	 * Enables ipf(8) in bridging.
 	 */
-	if (m0->m_pkthdr.len >= sizeof(struct ip) &&
+	if (pfh != NULL && m0->m_pkthdr.len >= sizeof(struct ip) &&
 		ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
 	    /*
 	     * before calling the firewall, swap fields the same as IP does.
@@ -915,7 +915,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    ip->ip_len = ntohs(ip->ip_len);
 	    ip->ip_off = ntohs(ip->ip_off);
 
-	    for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
+	    do {
 		if (pfh->pfil_func) {
 		    rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
 		    if (m0 == NULL) {
@@ -928,6 +928,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 		    }
 		    ip = mtod(m0, struct ip *);
 		}
+	    } while (pfh = TAILQ_NEXT(pfh, pfil_link));
 	    /*
 	     * If we get here, the firewall has passed the pkt, but the mbuf
 	     * pointer might have changed. Restore ip and the fields ntohs()'d.
