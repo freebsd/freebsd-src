@@ -189,6 +189,8 @@ struct fdc_data
 #endif
 };
 
+#define BIO_FORMAT	BIO_CMD2
+
 typedef int	fdu_t;
 typedef int	fdcu_t;
 typedef int	fdsu_t;
@@ -235,6 +237,17 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 #define FDC_DMAOV_MAX	25
 
 /*
+ * Timeout value for the PIO loops to wait until the FDC main status
+ * register matches our expectations (request for master, direction
+ * bit).  This is supposed to be a number of microseconds, although
+ * timing might actually not be very accurate.
+ *
+ * Timeouts of 100 msec are believed to be required for some broken
+ * (old) hardware.
+ */
+#define	FDSTS_TIMEOUT	100000
+
+/*
  * Number of subdevices that can be used for different density types.
  * By now, the lower 6 bit of the minor number are reserved for this,
  * allowing for up to 64 subdevices, but we only use 16 out of this.
@@ -251,7 +264,6 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 #endif
 
 #define BIO_RDSECTID	BIO_CMD1
-#define BIO_FORMAT	BIO_CMD2
 
 /*
  * List of native drive densities.  Order must match enum fd_drivetype
@@ -482,7 +494,9 @@ static void fdctl_wr_isa(fdc_p, u_int8_t);
 #if NCARD > 0
 static void fdctl_wr_pcmcia(fdc_p, u_int8_t);
 #endif
+#if 0
 static u_int8_t fdin_rd(fdc_p);
+#endif
 #endif /* PC98 */
 static int fdc_err(struct fdc_data *, const char *);
 static int fd_cmd(struct fdc_data *, int, ...);
@@ -703,13 +717,15 @@ enable_fifo(fdc_p fdc)
 			return fdc_err(fdc, "Enable FIFO failed\n");
 		
 		/* If command is invalid, return */
-		j = 100000;
+		j = FDSTS_TIMEOUT;
 		while ((i = fdsts_rd(fdc) & (NE7_DIO | NE7_RQM))
-		       != NE7_RQM && j-- > 0)
+		       != NE7_RQM && j-- > 0) {
 			if (i == (NE7_DIO | NE7_RQM)) {
 				fdc_reset(fdc);
 				return FD_FAILED;
 			}
+			DELAY(1);
+		}
 		if (j<0 || 
 		    fd_cmd(fdc, 3,
 			   0, (fifo_threshold - 1) & 0xf, 0, 0) < 0) {
@@ -1887,23 +1903,33 @@ fdc_reset(fdc_p fdc)
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
-	int i, j = 100000;
+	int i, j = FDSTS_TIMEOUT;
 	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0)
+		!= (NE7_DIO|NE7_RQM) && j-- > 0) {
 		if (i == NE7_RQM)
-			return fdc_err(fdc, "ready for output in input\n");
+			return (fdc_err(fdc, "ready for output in input\n"));
+		/*
+		 * After (maybe) 1 msec of waiting, back off to larger
+		 * stepping to get the timing more accurate.
+		 */
+		if (FDSTS_TIMEOUT - j > 1000) {
+			DELAY(1000);
+			j -= 999;
+		} else
+			DELAY(1);
+	}
 	if (j <= 0)
-		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
+		return (fdc_err(fdc, bootverbose? "input ready timeout\n": 0));
 #ifdef	FDC_DEBUG
 	i = fddata_rd(fdc);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	*ptr = i;
-	return 0;
+	return (0);
 #else	/* !FDC_DEBUG */
 	i = fddata_rd(fdc);
 	if (ptr)
 		*ptr = i;
-	return 0;
+	return (0);
 #endif	/* FDC_DEBUG */
 }
 
@@ -1913,15 +1939,34 @@ out_fdc(struct fdc_data *fdc, int x)
 	int i;
 
 	/* Check that the direction bit is set */
-	i = 100000;
-	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0);
-	if (i <= 0) return fdc_err(fdc, "direction bit not set\n");
+	i = FDSTS_TIMEOUT;
+	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0)
+		/*
+		 * After (maybe) 1 msec of waiting, back off to larger
+		 * stepping to get the timing more accurate.
+		 */
+		if (FDSTS_TIMEOUT - i > 1000) {
+			DELAY(1000);
+			i -= 999;
+		} else
+			DELAY(1);
+	if (i <= 0)
+		return (fdc_err(fdc, "direction bit not set\n"));
 
 	/* Check that the floppy controller is ready for a command */
-	i = 100000;
-	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0);
+	i = FDSTS_TIMEOUT;
+	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0)
+		/*
+		 * After (maybe) 1 msec of waiting, back off to larger
+		 * stepping to get the timing more accurate.
+		 */
+		if (FDSTS_TIMEOUT - i > 1000) {
+			DELAY(1000);
+			i -= 999;
+		} else
+			DELAY(1);
 	if (i <= 0)
-		return fdc_err(fdc, bootverbose? "output ready timeout\n": 0);
+		return (fdc_err(fdc, bootverbose? "output ready timeout\n": 0));
 
 	/* Send the command and return */
 	fddata_wr(fdc, x);
@@ -2332,12 +2377,14 @@ fdautoselect(dev_t dev)
 
 	fd->options = oopts;
 	if (i == n) {
-		device_printf(fd->dev, "autoselection failed\n");
+		if (bootverbose)
+			device_printf(fd->dev, "autoselection failed\n");
 		fd->ft = 0;
 		return (EIO);
 	} else {
-		device_printf(fd->dev, "autoselected %d KB medium\n",
-			      fd->ft->size / 2);
+		if (bootverbose)
+			device_printf(fd->dev, "autoselected %d KB medium\n",
+				      fd->ft->size / 2);
 		return (0);
 	}
 }
