@@ -162,7 +162,7 @@ device		rl		# RealTek 8129/8139
 #device		tl		# Texas Instruments ThunderLAN
 #device		vr		# VIA Rhine, Rhine II
 #device		wb		# Winbond W89C840F
-#device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
