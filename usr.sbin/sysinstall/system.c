@@ -72,12 +72,15 @@ expand(char *fname)
 void
 systemInitialize(int argc, char **argv)
 {
-#ifdef __alpha__
-    int i;
-#endif
+    int i, boothowto;
 
     signal(SIGINT, SIG_IGN);
     globalsInit();
+
+    i = sizeof(boothowto);
+    if (!sysctlbyname("debug.boothowto", &boothowto, &i, NULL, NULL) &&
+        (i == sizeof(boothowto)) && (boothowto & RB_VERBOSE))
+	variable_set2(VAR_DEBUG, "YES", 0);
 
     /* Are we running as init? */
     if (getpid() == 1) {
@@ -243,7 +246,8 @@ systemHelpFile(char *file, char *buf)
 {
     if (!file)
 	return NULL;
-
+    if (file[0] == '/')
+	return file;
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.hlp.gz", file);
     if (file_readable(buf)) 
 	return expand(buf);

@@ -165,24 +165,36 @@ deviceTry(struct _devname dev, char *try, int i)
 
     snprintf(unit, sizeof unit, dev.name, i);
     snprintf(try, FILENAME_MAX, "/dev/%s", unit);
+    if (isDebug())
+	msgDebug("deviceTry: attempting to open %s\n", try);
     fd = open(try, O_RDONLY);
-    if (fd >= 0)
+    if (fd >= 0) {
+	if (isDebug())
+	    msgDebug("deviceTry: open of %s succeeded on first try.\n", try);
 	return fd;
+    }
     m = 0640;
     if (dev.dev_type == 'c')
 	m |= S_IFCHR;
     else
 	m |= S_IFBLK;
     d = makedev(dev.major, dev.minor + (i * dev.delta));
+    if (isDebug())
+	msgDebug("deviceTry: Making %s device for %s [%d, %d]\n", m & S_IFCHR ? "raw" : "block", try, dev.major, dev.minor + (i * dev.delta));
     fail = mknod(try, m, d);
     fd = open(try, O_RDONLY);
-    if (fd >= 0)
+    if (fd >= 0) {
+	if (isDebug())
+	    msgDebug("deviceTry: open of %s succeeded on second try.\n", try);
 	return fd;
+    }
     else if (!fail)
 	(void)unlink(try);
     /* Don't try a "make-under" here since we're using a fixit floppy in this case */
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", unit);
     fd = open(try, O_RDONLY);
+    if (isDebug())
+	msgDebug("deviceTry: final attempt for %s returns %d\n", try, fd);
     return fd;
 }
 
@@ -291,7 +303,8 @@ deviceGetAll(void)
 
 	deviceRegister(ifptr->ifr_name, descr, strdup(ifptr->ifr_name), DEVICE_TYPE_NETWORK, TRUE,
 		       mediaInitNetwork, NULL, mediaShutdownNetwork, NULL);
-	msgDebug("Found a network device named %s\n", ifptr->ifr_name);
+	if (isDebug())
+	    msgDebug("Found a network device named %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	    continue;
@@ -320,7 +333,8 @@ skipif:
 		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
 					 DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
 					 mediaShutdownCDROM, NULL);
-		    msgDebug("Found a CDROM device for %s\n", try);
+		    if (isDebug())
+			msgDebug("Found a CDROM device for %s\n", try);
 		}
 		break;
 
@@ -333,7 +347,8 @@ skipif:
 		    snprintf(n, sizeof n, device_names[i].name, j);
 		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
 				   DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
-		    msgDebug("Found a TAPE device for %s\n", try);
+		    if (isDebug())
+			msgDebug("Found a TAPE device for %s\n", try);
 		}
 		break;
 
@@ -377,7 +392,8 @@ skipif:
 		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
 				   DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 				   mediaShutdownFloppy, NULL);
-		    msgDebug("Found a floppy device for %s\n", try);
+		    if (isDebug())
+			msgDebug("Found a floppy device for %s\n", try);
 		}
 		break;
 
@@ -399,7 +415,8 @@ skipif:
 		    sprintf(newdesc, cp, "PPP interface", try, j + 1);
 		    deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
 				   NULL, mediaShutdownNetwork, NULL);
-		    msgDebug("Add mapping for %s to ppp0\n", try);
+		    if (isDebug())
+			msgDebug("Add mapping for %s to ppp0\n", try);
 		}
 		break;
 
@@ -423,7 +440,8 @@ skipif:
 
 	    deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE,
 			   dummyInit, dummyGet, dummyShutdown, d);
-	    msgDebug("Found a disk device named %s\n", names[i]);
+	    if (isDebug())
+		msgDebug("Found a disk device named %s\n", names[i]);
 
 	    /* Look for existing DOS partitions to register as "DOS media devices" */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
@@ -436,7 +454,8 @@ skipif:
 		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS, TRUE,
 					 mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
 		    dev->private = c1;
-		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
+		    if (isDebug())
+			msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
 		}
 	    }
 	}
