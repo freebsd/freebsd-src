@@ -362,7 +362,7 @@ static driver_t tl_driver = {
 static devclass_t tl_devclass;
 
 DRIVER_MODULE(if_tl, pci, tl_driver, tl_devclass, 0, 0);
-DRIVER_MODULE(miibus, tl, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, if_tl, miibus_driver, miibus_devclass, 0, 0);
 
 static u_int8_t tl_dio_read8(sc, reg)
 	struct tl_softc		*sc;
