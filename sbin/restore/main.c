@@ -294,11 +294,11 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
-	  "restore -i [-chkmuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -r [-ckuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -R [-ckuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -x [-chkmuvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
-	  "restore -t [-chkuvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
+	  "restore -i [-cdhkmNuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -r [-cdkNuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -R [-cdkNuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -x [-cdhkmNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
+	  "restore -t [-cdhkNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
 	done(1);
 }
 
