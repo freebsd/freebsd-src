@@ -43,6 +43,8 @@ static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
 #include "pthread_private.h"
 #endif
 
+#define ITIMERMAX 100000000
+
 #ifndef _THREAD_SAFE
 static void
 sleephandler()
@@ -56,6 +58,7 @@ sleep(seconds)
 	unsigned int seconds;
 {
 #ifdef _THREAD_SAFE
+	unsigned int rest = 0;
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;
 
@@ -64,19 +67,22 @@ sleep(seconds)
 		 * XXX
 		 * Hack to work around itimerfix(9) gratuitously limiting
 		 * the acceptable range for a struct timeval.tv_sec to
-		 * <= 100000000.
+		 * <= ITIMERMAX.
 		 */
-		if (seconds > 100000000)
-			seconds = 100000000;
+		if (seconds > ITIMERMAX) {
+			rest = seconds - ITIMERMAX;
+			seconds = ITIMERMAX;
+		}
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
 		nanosleep(&time_to_sleep, &time_remaining);
-		seconds = time_remaining.tv_sec;
+		rest += time_remaining.tv_sec;
 		if (time_remaining.tv_nsec > 0)
-			seconds++;	/* round up */
+			rest++;      /* round up */
 	}
-	return (seconds);
+	return (rest);
 #else
+	unsigned int rest = 0;
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;
 	struct sigaction act, oact;
@@ -87,10 +93,12 @@ sleep(seconds)
 		 * XXX
 		 * Hack to work around itimerfix(9) gratuitously limiting
 		 * the acceptable range for a struct timeval.tv_sec to
-		 * <= 100000000.
+		 * <= ITIMERMAX
 		 */
-		if (seconds > 100000000)
-			seconds = 100000000;
+		if (seconds > ITIMERMAX) {
+			rest = seconds - ITIMERMAX;
+			seconds = ITIMERMAX;
+		}
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
 
@@ -120,10 +128,10 @@ sleep(seconds)
 		sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
 
 		/* return how long is left */
-		seconds = time_remaining.tv_sec;
+		rest += time_remaining.tv_sec;
 		if (time_remaining.tv_nsec > 0)
-			seconds++;	/* round up */
+			rest++;      /* round up */
 	}
-	return (seconds);
+	return (rest);
 #endif	/* _THREAD_SAFE */
 }
