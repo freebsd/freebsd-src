@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.42 1995/08/23 23:03:25 gibbs Exp $
+**  $Id: ncr.c,v 1.43 1995/09/05 22:37:59 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define __NCR_C__ "pl22 95/07/07"
+#define NCR_DATE "pl23 95/09/07"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -111,7 +111,7 @@
 **    #7 .. is myself.
 */
 
-#define MAX_TARGET  (7)
+#define MAX_TARGET  (16)
 
 /*
 **    Number of logic units supported by the driver.
@@ -125,10 +125,11 @@
 /*
 **    The maximum number of jobs scheduled for starting.
 **    There should be one slot per target, and one slot
-**    for each tag of each target.
+**    for each tag of each target in use.
+**    The calculation below is actually quite silly ...
 */
 
-#define MAX_START   (7 * SCSI_NCR_MAX_TAGS)
+#define MAX_START   (MAX_TARGET + 7 * SCSI_NCR_MAX_TAGS)
 
 /*
 **    The maximum number of segments a transfer is split into.
@@ -170,8 +171,12 @@
 #include <sys/kernel.h>
 #ifndef __NetBSD__
 #include <machine/clock.h>
+#include <machine/cpu.h> /* bootverbose */
+#else
+#define bootverbose	1
 #endif
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #endif /* KERNEL */
 
 
@@ -1188,7 +1193,7 @@ static	void	ncr_negotiate	(struct ncb* np, struct tcb* tp);
 static	void	ncr_opennings	(ncb_p np, lcb_p lp, struct scsi_xfer * xp);
 static	void	ncb_profile	(ncb_p np, ccb_p cp);
 static	void	ncr_script_copy_and_bind
-				(ncb_p np);
+				(struct script * script, ncb_p np);
 static  void    ncr_script_fill (struct script * scr);
 static	int	ncr_scatter	(struct dsb* phys,u_long vaddr,u_long datalen);
 static	void	ncr_setmaxtags	(tcb_p tp, u_long usrtags);
@@ -1223,13 +1228,13 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.42 1995/08/23 23:03:25 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.43 1995/09/05 22:37:59 se Exp $\n";
 
-u_long	ncr_version = NCR_VERSION
-	+ (u_long) sizeof (struct ncb)
-	* (u_long) sizeof (struct ccb)
-	* (u_long) sizeof (struct lcb)
-	* (u_long) sizeof (struct tcb);
+u_long	ncr_version = NCR_VERSION	* 11
+	+ (u_long) sizeof (struct ncb)	*  7
+	+ (u_long) sizeof (struct ccb)	*  5
+	+ (u_long) sizeof (struct lcb)	*  3
+	+ (u_long) sizeof (struct tcb)	*  2;
 
 #ifdef KERNEL
 
@@ -2937,57 +2942,26 @@ void ncr_script_fill (struct script * scr)
 **==========================================================
 */
 
-static ncrcmd *src = (ncrcmd *)&script0;
-
-static void ncr_script_copy_and_bind (ncb_p np)
+static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 {
 	ncrcmd  opcode, new, old;
-	ncrcmd	*dst, *start, *end;
-	int	relocs;
-	u_long	p_script;
+	ncrcmd	*src, *dst, *start, *end;
+	int relocs;
 
-	/* 
-	 * Test whether last byte of script is at the right 
-	 * PHYSICAL address, since the NCR uses phys. addresses only.
-	 * Assumes that the script fits into two 4KB pages ...
-	 */
-	assert (sizeof(struct script) <= 8192);
+	np->script = (struct script*) vm_page_alloc_contig 
+	(round_page(sizeof (struct script)), 0x100000, 0xffffffff, PAGE_SIZE);
 
-	while ((p_script = vtophys (src)) + sizeof (struct script) !=
-			vtophys ((char *)src + sizeof (struct script))) {
+	np->p_script = vtophys(np->script);
 
-		struct script *newsrc = (struct script *)
-			malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
-		memcpy (newsrc, src, sizeof(struct script));
-		src = (ncrcmd *) newsrc;
-
-		printf ("%s: NCR script not physically contigous, retrying\n", 
-			ncr_name(np));
-	}
-
-	np->script = (struct script*) src;
-	np->p_script = p_script;
-
-	dst = (ncrcmd *) malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
-
-	/*
-	 * Copy the script to keep an unmodified version 
-	 * to bind for another NCR chip, if present.
-	 */
-	memcpy (dst, src, sizeof(struct script));
-
-	/* 
-	 * Patch the "src" of the memcpy to become the script to execute.
-	 * The copy in the malloc()ed memory at "dst" will be the src of 
-	 * the script for the next NCR, if there are multiple chips.
-	 */
+	src = script->start;
+	dst = np->script->start;
 
 	start = src;
-	end = src + (sizeof(struct script) / 4);
+	end = src + (sizeof (struct script) / 4);
 
 	while (src < end) {
 
-		opcode = *src++;
+		*dst++ = opcode = *src++;
 
 		/*
 		**	If we forget to change the length
@@ -3055,7 +3029,7 @@ static void ncr_script_copy_and_bind (ncb_p np)
 
 		if (relocs) {
 			while (relocs--) {
-				old = *src;
+				old = *src++;
 
 				switch (old & RELOC_MASK) {
 				case RELOC_REGISTER:
@@ -3079,17 +3053,12 @@ static void ncr_script_copy_and_bind (ncb_p np)
 					break;
 				}
 
-				*src++ = new;
+				*dst++ = new;
 			}
 		} else
-			src++;
+			*dst++ = *src++;
 
 	};
-
-	/*
-	 * next time use the (unmodified) copy of the script as "src"
-	 */
-	src = dst;
 }
 
 /*==========================================================
@@ -3305,7 +3274,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	ncr_script_fill (&script0);
-	ncr_script_copy_and_bind (np);
+	ncr_script_copy_and_bind (&script0, np);
 
 	/*
 	**	init data structure
@@ -3341,6 +3310,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	OUTB (nc_istat,  SRST);
+	DELAY (1000);
 	OUTB (nc_istat,  0   );
 
 #ifdef NCR_DUMP_REG
@@ -3364,6 +3334,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	OUTB (nc_istat,  SRST);
+	DELAY (1000);
 	OUTB (nc_istat,  0   );
 
 #endif /* NCR_DUMP_REG */
@@ -3396,15 +3367,12 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	DELAY (1000);
 
 	/*
-	**	process the reset exception,
+	**	Process the reset exception,
 	**	if interrupts are not enabled yet.
-	**	than enable disconnects.
+	**	Then enable disconnects.
 	*/
 	ncr_exception (np);
 	np->disc = 1;
-
-	printf ("%s scanning for targets 0..%d (V%d " __NCR_C__ ")\n",
-		ncr_name (np), MAX_TARGET-1, NCR_VERSION);
 
 	/*
 	**	Now let the generic SCSI driver
@@ -3419,6 +3387,8 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	np->sc_link.adapter_targ = np->myaddr;
 	np->sc_link.adapter      = &ncr_switch;
 	np->sc_link.device       = &ncr_dev;
+	np->sc_link.flags	 = 0;
+	np->sc_link.fordriver	 = 0;
 
 #ifdef __NetBSD__
 	config_found(self, &np->sc_link, ncr_print);
@@ -3427,8 +3397,27 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	scbus = scsi_alloc_bus();
 	if(!scbus)
 		return;
-	/* XXX scbus->maxtarg should be adjusted based on bus width */
 	scbus->adapter_link = &np->sc_link;
+
+	if(np->maxwide)
+		scbus->maxtarg = 15;
+
+	if (bootverbose) {
+		unsigned t_from = 0;
+		unsigned t_to   = scbus->maxtarg;
+		unsigned myaddr = np->myaddr;
+
+		char *txt_and = "";
+		printf ("%s scanning for targets ", ncr_name (np));
+		if (t_from < myaddr) {
+			printf ("%d..%d ", t_from, myaddr -1);
+			txt_and = "and ";
+		}
+		if (myaddr < t_to)
+			printf ("%s%d..%d ", txt_and, myaddr +1, t_to);
+		printf ("(V%d " NCR_DATE ")\n", NCR_VERSION);
+	}
+		
 	scsi_attachdevs (scbus);
 	scbus = NULL;   /* Upper-level SCSI code owns this now */
 #else
@@ -4316,7 +4305,8 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	**	Reset chip.
 	*/
 
-	OUTB (nc_istat,  SRST	);
+	OUTB (nc_istat,  SRST);
+	DELAY (1000);
 
 	/*
 	**	Message.
@@ -4354,18 +4344,18 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 		burstlen = tbl[pci_max_burst_len];
 	} else burstlen = 0xc0;
 
-	OUTB (nc_istat,  0      );      /*  Remove Reset, abort ...	  */
+	OUTB (nc_istat,  0      );      /*  Remove Reset, abort ...	     */
 	OUTB (nc_scntl0, 0xca   );      /*  full arb., ena parity, par->ATN  */
 	OUTB (nc_scntl1, 0x00	);	/*  odd parity, and remove CRST!!    */
-	OUTB (nc_scntl3, np->rv_scntl3);/*  timing prescaler		 */
+	OUTB (nc_scntl3, np->rv_scntl3);/*  timing prescaler		     */
 	OUTB (nc_scid  , RRE|np->myaddr);/*  host adapter SCSI address       */
-	OUTW (nc_respid, 1ul<<np->myaddr);/*  id to respond to	       */
-	OUTB (nc_istat , SIGP	);	/*  Signal Process		   */
+	OUTW (nc_respid, 1ul<<np->myaddr);/*  id to respond to		     */
+	OUTB (nc_istat , SIGP	);	/*  Signal Process		     */
 	OUTB (nc_dmode , burstlen);	/*  Burst length = 2 .. 16 transfers */
 	OUTB (nc_dcntl , NOCOM  );      /*  no single step mode, protect SFBR*/
 	OUTB (nc_ctest4, 0x08	);	/*  enable master parity checking    */
 	OUTB (nc_stest2, EXT    );	/*  Extended Sreq/Sack filtering     */
-	OUTB (nc_stest3, TE     );	/*  TolerANT enable		  */
+	OUTB (nc_stest3, TE     );	/*  TolerANT enable		     */
 	OUTB (nc_stime0, 0xfb	);	/*  HTH = 1.6sec  STO = 0.1 sec.     */
 
 	/*
@@ -4775,23 +4765,21 @@ static void ncr_timeout (ncb_p np)
 			OUTB (nc_istat, SIGP);
 		};
 
-		if (np->latetime>10) {
+		if (np->latetime>4) {
 			/*
-			**	Although we tried to wakeup it,
-			**	the script processor didn't answer.
+			**	Although we tried to wake it up,
+			**	the script processor didn't respond.
 			**
 			**	May be a target is hanging,
 			**	or another initator lets a tape device
-			**	rewind with disabled disconnect :-(
+			**	rewind with disconnect disabled :-(
 			**
 			**	We won't accept that.
 			*/
-			printf ("%s: reset by timeout.\n", ncr_name (np));
-			OUTB (nc_istat, SRST);
-			OUTB (nc_istat, 0);
 			if (INB (nc_sbcl) & CBSY)
 				OUTB (nc_scntl1, CRST);
-			ncr_init (np, NULL, HS_TIMEOUT);
+			DELAY (1000);
+			ncr_init (np, "ncr dead ?", HS_TIMEOUT);
 			np->heartbeat = thistime;
 		};
 
@@ -4921,7 +4909,7 @@ void ncr_exception (ncb_p np)
 	*/
 
 	if (sist & RST) {
-		ncr_init (np, "scsi reset", HS_RESET);
+		ncr_init (np, bootverbose ? "scsi reset" : NULL, HS_RESET);
 		return;
 	};
 
@@ -5029,31 +5017,24 @@ void ncr_exception (ncb_p np)
 	dsp = (unsigned) INL (nc_dsp);
 	dsa = (unsigned) INL (nc_dsa);
 
-	script_ofs = dsp - (unsigned) np->p_script,
+	script_ofs = dsp - vtophys(np->script);
 
-	printf ("%s targ %d?: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%x:%08x).\n",
-		ncr_name (np), INB (nc_ctest0)&7, dstat, sist,
+	printf ("%s:%d: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%x:%08x).\n",
+		ncr_name (np), INB (nc_ctest0)&0x0f, dstat, sist,
 		INB (nc_socl), INB (nc_sbcl), INB (nc_sbdl),
 		INB (nc_sxfer),INB (nc_scntl3), script_ofs,
 		(unsigned) INL (nc_dbc));
 
+	if (((script_ofs & 3) == 0) &&
+	    (unsigned)script_ofs < sizeof(struct script)) {
+		printf ("\tscript cmd = %08x\n", 
+			*(ncrcmd *)((char*)np->script +script_ofs));
+	}
+
 	printf ("\treg:\t");
 	for (i=0; i<16;i++)
-		printf (" %x", ((u_char*)np->reg)[i]);
+		printf (" %02x", ((u_char*)np->reg)[i]);
 	printf (".\n");
-
-	if (script_ofs < sizeof(*np->script))
-	{
-		u_long vpci;
-		u_long vpc = ((u_long) np->script) + script_ofs;
-
-		for (vpci = vpc; vpci >= 4; vpci -= 4);
-		while (vpci <= vpc) {
-			printf ("\tvirt.addr: 0x%08lx instr: 0x%08lx\n", 
-				vpci, *(ncrcmd *)(vpci));
-			vpci += 4;
-		}
-	}
 
 	/*----------------------------------------
 	**	clean up the dma fifo
@@ -5067,6 +5048,21 @@ void ncr_exception (ncb_p np)
 		printf ("%s: have to clear fifos.\n", ncr_name (np));
 		OUTB (nc_stest3, TE|CSF);	/* clear scsi fifo */
 		OUTB (nc_ctest3, CLF);		/* clear dma fifo  */
+	}
+
+	/*----------------------------------------
+	**	handshake timeout
+	**----------------------------------------
+	*/
+
+	if (sist & HTH) {
+		printf ("%s: handshake timeout\n", ncr_name(np));
+		OUTB (nc_scntl1, CRST);
+		DELAY (1000);
+		OUTB (nc_scntl1, 0x00);
+		OUTB (nc_scr0, HS_FAIL);
+		OUTL (nc_dsp, vtophys(&np->script->cleanup));
+		return;
 	}
 
 	/*----------------------------------------
@@ -5107,8 +5103,8 @@ void ncr_exception (ncb_p np)
 				ncr_name (np));
 			return;
 		};
-		printf ("%s: target %d? doesn't release the bus.\n",
-			ncr_name (np), INB (nc_ctest0)&7);
+		printf ("%s: target %d doesn't release the bus.\n",
+			ncr_name (np), INB (nc_ctest0)&0x0f);
 		/*
 		**	return without restarting the NCR.
 		**	timeout will do the real work.
@@ -5338,7 +5334,7 @@ static void ncr_int_ma (ncb_p np)
 	**	log the information
 	*/
 	if (DEBUG_FLAGS & (DEBUG_TINY|DEBUG_PHASE)) {
-		printf ("P%d%d ",cmd&7, sbcl&7);
+		printf ("P%x%x ",cmd&7, sbcl&7);
 		printf ("RL=%d D=%d SS0=%x ",
 			(unsigned) rest, (unsigned) delta, ss0);
 	};
@@ -5379,13 +5375,13 @@ static void ncr_int_ma (ncb_p np)
 	if (cmd != (vdsp[0] >> 24)) {
 		PRINT_ADDR(cp->xfer);
 		printf ("internal error: cmd=%02x != %02x=(vdsp[0] >> 24)\n",
-			cmd, vdsp[0] >> 24);
+			(unsigned)cmd, (unsigned)vdsp[0] >> 24);
 		
 		return;
 	}
 	if (cmd & 0x06) {
 		PRINT_ADDR(cp->xfer);
-		printf ("phase change %d-%d %d@%x resid=%d.\n",
+		printf ("phase change %x-%x %d@%08x resid=%d.\n",
 			cmd&7, sbcl&7, (unsigned)olen,
 			(unsigned)oadr, (unsigned)rest);
 
@@ -5543,7 +5539,7 @@ void ncr_int_sir (ncb_p np)
 		if (DEBUG_FLAGS & DEBUG_RESTART) {
 			PRINT_ADDR(cp->xfer);
 			printf ("in getcc reselect by t%d.\n",
-				INB(nc_ssid)&7);
+				INB(nc_ssid) & 0x0f);
 		}
 
 		/*
@@ -6492,6 +6488,7 @@ static int ncr_snooptest (struct ncb* np)
 	**	Reset ncr chip
 	*/
 	OUTB (nc_istat,  SRST);
+	DELAY (1000);
 	OUTB (nc_istat,  0   );
 	/*
 	**	check for timeout
