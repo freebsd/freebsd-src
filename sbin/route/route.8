@@ -51,7 +51,7 @@ The
 .Nm
 utility is used to manually manipulate the network
 routing tables.  It normally is not needed, as a
-system routing table management daemon such as
+system routing table management daemon, such as
 .Xr routed 8 ,
 should tend to this task.
 .Pp
@@ -65,6 +65,8 @@ programmatic interface discussed in
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl d
+Run in debug-only mode, i.e., do not actually modify the routing table.
 .It Fl n
 Bypass attempts to print host and network names symbolically
 when reporting actions.  (The process of translating between symbolic
