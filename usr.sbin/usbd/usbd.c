@@ -902,9 +902,8 @@ main(int argc, char **argv)
 	int itimeout = TIMEOUT;	/* timeout for select */
 	struct timeval tv;
 
-	if (modfind(USB_OHCI) < 0 && modfind(USB_UHCI) < 0) {
-		if (kldload(USB_KLD) < 0 || 
-		    (modfind(USB_OHCI) < 0 && modfind(USB_UHCI) < 0)) {
+	if (modfind(USB_UHUB) < 0) {
+		if (kldload(USB_KLD) < 0 || modfind(USB_UHUB) < 0) {
 			perror(USB_KLD ": Kernel module not available");
 			return 1;
 		}
