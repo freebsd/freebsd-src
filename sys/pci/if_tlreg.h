@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.3 1998/08/02 23:54:37 root Exp $
+ *	$Id: if_tlreg.h,v 1.12 1998/09/17 21:16:31 wpaul Exp $
  */
 
 
@@ -108,16 +108,19 @@ struct tl_chain_data {
 	struct tl_chain		*tl_tx_free;
 };
 
-struct tl_iflist;
-
 struct tl_softc {
 	struct arpcom		arpcom;		/* interface info */
 	struct ifmedia		ifmedia;	/* media info */
-	volatile struct tl_csr	*csr;		/* pointer to register map */
+#ifdef TL_USEIOSPACE
+	u_int32_t		iobase;
+#else
+	volatile caddr_t	csr;		/* pointer to register map */
+#endif
 	struct tl_type		*tl_dinfo;	/* ThunderLAN adapter info */
 	struct tl_type		*tl_pinfo;	/* PHY info struct */
 	u_int8_t		tl_ctlr;	/* chip number */
 	u_int8_t		tl_unit;	/* interface number */
+	u_int8_t		tl_eeaddr;
 	u_int8_t		tl_phy_addr;	/* PHY address */
 	u_int8_t		tl_tx_pend;	/* TX pending */
 	u_int8_t		tl_want_auto;	/* autoneg scheduled */
@@ -125,11 +128,13 @@ struct tl_softc {
 	u_int16_t		tl_phy_sts;	/* PHY status */
 	u_int16_t		tl_phy_vid;	/* PHY vendor ID */
 	u_int16_t		tl_phy_did;	/* PHY device ID */
-	struct tl_iflist	*tl_iflist;	/* Pointer to controller list */
 	caddr_t			tl_ldata_ptr;
 	struct tl_list_data	*tl_ldata;	/* TX/RX lists and mbufs */
 	struct tl_chain_data	tl_cdata;
 	int			tl_txeoc;
+#ifdef TL_DEBUG
+	u_int8_t		tl_event[20];
+#endif
 	struct callout_handle	tl_stat_ch;
 };
 
@@ -149,17 +154,6 @@ struct tl_softc {
 #define TL_PHYADDR_MAX		0x1F
 
 #define PHY_UNKNOWN	6
-
-struct tl_iflist {
-	volatile struct tl_csr	*csr;			/* Register map */
-	struct tl_type		*tl_dinfo;
-	int			tl_active_phy;		/* # of active PHY */
-	int			tlc_unit;		/* TLAN chip # */
-	struct tl_softc		*tl_sc[TL_PHYADDR_MAX];	/* pointers to PHYs */
-	pcici_t			tl_config_id;
-	u_int8_t		tl_eeaddr;
-	struct tl_iflist	*tl_next;
-};
 
 #define TL_PHYS_IDLE	-1
 
@@ -239,6 +233,7 @@ struct tl_iflist {
  */
 #define COMPAQ_VENDORID				0x0E11
 #define COMPAQ_DEVICEID_NETEL_10_100		0xAE32
+#define COMPAQ_DEVICEID_NETEL_UNKNOWN		0xAE33
 #define COMPAQ_DEVICEID_NETEL_10		0xAE34
 #define COMPAQ_DEVICEID_NETFLEX_3P_INTEGRATED	0xAE35
 #define COMPAQ_DEVICEID_NETEL_10_100_DUAL	0xAE40
@@ -249,6 +244,10 @@ struct tl_iflist {
 #define COMPAQ_DEVICEID_NETFLEX_3P		0xF130
 #define COMPAQ_DEVICEID_NETFLEX_3P_BNC		0xF150
 
+/*
+ * These are the PCI vendor and device IDs for Olicom
+ * adapters based on the ThunderLAN controller.
+ */
 #define OLICOM_VENDORID				0x108D
 #define OLICOM_DEVICEID_OC2183			0x0013
 #define OLICOM_DEVICEID_OC2325			0x0012
@@ -261,221 +260,10 @@ struct tl_iflist {
 #define TL_PCI_LOMEM		0x14
 
 /*
- * ThunderLAN host register layout
+ * PCI latency timer (it's actually 0x0D, but we want a value
+ * that's longword aligned).
  */
-struct tl_regbytes {
-	volatile u_int8_t	byte0;
-	volatile u_int8_t	byte1;
-	volatile u_int8_t	byte2;
-	volatile u_int8_t	byte3;
-};
-
-struct tl_regwords {
-	volatile u_int16_t	word0;
-	volatile u_int16_t	word1;
-};
-
-struct tl_csr {
-	volatile	u_int32_t	tl_host_cmd;
-	volatile	u_int32_t	tl_ch_parm;
-	volatile	u_int16_t	tl_dio_addr;
-	volatile	u_int16_t	tl_host_int;
-	union {
-		volatile	u_int32_t		tl_dio_data;
-		volatile	struct tl_regwords	tl_dio_words;
-		volatile	struct tl_regbytes	tl_dio_bytes;
-	} u;
-};
-
-/*
- * The DIO access macros allow us to read and write the ThunderLAN's
- * internal registers. The ThunderLAN manual gives examples using PIO.
- * This driver uses memory mapped I/O, which allows us to totally avoid
- * the use of inb/outb & friends. Memory mapped registers are keen.
- *
- * Note that the set/clr macros go to the trouble of reading the registers
- * back after they've been written. During initial development of this
- * driver, I discovered that the EEPROM access routines wouldn't work
- * properly unless I did this. I'm not sure why, though I suspect it
- * may have something to do with defeating the cache on the processor.
- */
-
-
-/* Select a register */
-#define DIO_SEL(x)	csr->tl_dio_addr = (u_int16_t)x
-
-/*
- * Set/clear/get a bit in the selected byte register
- */
-#define DIO_BYTE0_SET(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte0 |=	\
-							(u_int8_t)x;	\
-					f = csr->u.tl_dio_bytes.byte0;	\
-				}
-#define DIO_BYTE0_CLR(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte0 &=	\
-							(u_int8_t)~x;	\
-					f = csr->u.tl_dio_bytes.byte0;	\
-				}
-#define DIO_BYTE0_GET(x)	csr->u.tl_dio_bytes.byte0 & (u_int8_t)x
-
-#define DIO_BYTE1_SET(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte1 |=	\
-							(u_int8_t)x;	\
-					f = csr->u.tl_dio_bytes.byte1;	\
-				}
-#define DIO_BYTE1_CLR(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte1 &=	\
-							(u_int8_t)~x;	\
-					f = csr->u.tl_dio_bytes.byte1;	\
-				}
-#define DIO_BYTE1_GET(x)	csr->u.tl_dio_bytes.byte1 & (u_int8_t)x
-
-#define DIO_BYTE2_SET(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte2 |=	\
-							(u_int8_t)x;	\
-					f = csr->u.tl_dio_bytes.byte2;	\
-				}
-#define DIO_BYTE2_CLR(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte2 &=	\
-							(u_int8_t)~x;	\
-					f = csr->u.tl_dio_bytes.byte2;	\
-				}
-#define DIO_BYTE2_GET(x)	csr->u.tl_dio_bytes.byte2 & (u_int8_t)x
-
-#define DIO_BYTE3_SET(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte3 |=	\
-							(u_int8_t)x;	\
-					f = csr->u.tl_dio_bytes.byte3;	\
-				}
-#define DIO_BYTE3_CLR(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_bytes.byte3 &=	\
-							(u_int8_t)~x;	\
-					f = csr->u.tl_dio_bytes.byte3;	\
-				}
-#define DIO_BYTE3_GET(x)	csr->u.tl_dio_bytes.byte3 & (u_int8_t)x
-/*
- * Read/write 16-bit word
- */
-#define DIO_WORD0_SET(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_words.word0 |=	\
-							(u_int16_t)x;	\
-					f = csr->u.tl_dio_words.word0;	\
-				}
-#define DIO_WORD0_CLR(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_words.word0 &=	\
-							~(u_int16_t)x;	\
-					f = csr->u.tl_dio_words.word0;	\
-				}
-#define DIO_WORD0_GET(x)	(csr->u.tl_dio_words.word0 & x)
-
-#define DIO_WORD1_SET(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_words.word1 |=	\
-							(u_int16_t)x;	\
-					f = csr->u.tl_dio_words.word1;	\
-				}
-#define DIO_WORD1_CLR(x)	{					\
-					int			f;	\
-					csr->u.tl_dio_words.word1 &=	\
-							~(u_int16_t)x;	\
-					f = csr->u.tl_dio_words.word1;	\
-				}
-#define DIO_WORD1_GET(x)	(csr->u.tl_dio_words.word1 & x)
-
-/*
- * Read/write 32-bit word
- */
-#define DIO_LONG_GET(x)	x = csr->u.tl_dio_data
-#define DIO_LONG_PUT(x)	csr->u.tl_dio_data = (u_int32_t)x
-
-#define CMD_PUT(c, x)	c->tl_host_cmd = (u_int32_t)x
-#define CMD_SET(c, x)	c->tl_host_cmd |= (u_int32_t)x
-#define CMD_CLR(c, x)	c->tl_host_cmd &= ~(u_int32_t)x
-
-/*
- * ThunderLAN adapters typically have a serial EEPROM containing
- * configuration information. The main reason we're interested in
- * it is because it also contains the adapters's station address.
- *
- * Access to the EEPROM is a bit goofy since it is a serial device:
- * you have to do reads and writes one bit at a time. The state of
- * the DATA bit can only change while the CLOCK line is held low.
- * Transactions work basically like this:
- *
- * 1) Send the EEPROM_START sequence to prepare the EEPROM for
- *    accepting commands. This pulls the clock high, sets
- *    the data bit to 0, enables transmission to the EEPROM,
- *    pulls the data bit up to 1, then pulls the clock low.
- *    The idea is to do a 0 to 1 transition of the data bit
- *    while the clock pin is held high.
- *
- * 2) To write a bit to the EEPROM, set the TXENABLE bit, then
- *    set the EDATA bit to send a 1 or clear it to send a 0.
- *    Finally, set and then clear ECLOK. Strobing the clock
- *    transmits the bit. After 8 bits have been written, the
- *    EEPROM should respond with an ACK, which should be read.
- *
- * 3) To read a bit from the EEPROM, clear the TXENABLE bit,
- *    then set ECLOK. The bit can then be read by reading EDATA.
- *    ECLOCK should then be cleared again. This can be repeated
- *    8 times to read a whole byte, after which the 
- *
- * 4) We need to send the address byte to the EEPROM. For this
- *    we have to send the write control byte to the EEPROM to
- *    tell it to accept data. The byte is 0xA0. The EEPROM should
- *    ack this. The address byte can be send after that.
- *
- * 5) Now we have to tell the EEPROM to send us data. For that we
- *    have to transmit the read control byte, which is 0xA1. This
- *    byte should also be acked. We can then read the data bits
- *    from the EEPROM.
- *
- * 6) When we're all finished, send the EEPROM_STOP sequence.
- *
- * Note that we use the ThunderLAN's NetSio register to access the
- * EEPROM, however there is an alternate method. There is a PCI NVRAM
- * register at PCI offset 0xB4 which can also be used with minor changes.
- * The difference is that access to PCI registers via pci_conf_read()
- * and pci_conf_write() is done using programmed I/O, which we want to
- * avoid.
- */
-
-/*
- * Note that EEPROM_START leaves transmission enabled.
- */
-#define EEPROM_START							\
-	DIO_SEL(TL_NETSIO);						\
-	DIO_BYTE1_SET(TL_SIO_ECLOK); /* Pull clock pin high */		\
-	DIO_BYTE1_SET(TL_SIO_EDATA); /* Set DATA bit to 1 */		\
-	DIO_BYTE1_SET(TL_SIO_ETXEN); /* Enable xmit to write bit */	\
-	DIO_BYTE1_CLR(TL_SIO_EDATA); /* Pull DATA bit to 0 again */	\
-	DIO_BYTE1_CLR(TL_SIO_ECLOK); /* Pull clock low again */
-
-/*
- * EEPROM_STOP ends access to the EEPROM and clears the ETXEN bit so
- * that no further data can be written to the EEPROM I/O pin.
- */
-#define EEPROM_STOP							\
-	DIO_SEL(TL_NETSIO);						\
-	DIO_BYTE1_CLR(TL_SIO_ETXEN); /* Disable xmit */			\
-	DIO_BYTE1_CLR(TL_SIO_EDATA); /* Pull DATA to 0 */		\
-	DIO_BYTE1_SET(TL_SIO_ECLOK); /* Pull clock high */		\
-	DIO_BYTE1_SET(TL_SIO_ETXEN); /* Enable xmit */			\
-	DIO_BYTE1_SET(TL_SIO_EDATA); /* Toggle DATA to 1 */		\
-	DIO_BYTE1_CLR(TL_SIO_ETXEN); /* Disable xmit. */		\
-	DIO_BYTE1_CLR(TL_SIO_ECLOK); /* Pull clock low again */
-
+#define TL_PCI_LATENCY_TIMER	0x0C
 
 #define	TL_DIO_ADDR_INC		0x8000	/* Increment addr on each read */
 #define TL_DIO_RAM_SEL		0x4000	/* RAM address select */
@@ -744,6 +532,118 @@ struct tl_stats {
 };
 
 /*
+ * register space access macros
+ */
+#ifdef TL_USEIOSPACE
+#define CSR_WRITE_4(sc, reg, val)	\
+	outl(sc->iobase + (u_int32_t)(reg), val)
+#define CSR_WRITE_2(sc, reg, val)	\
+	outw(sc->iobase + (u_int32_t)(reg), val)
+#define CSR_WRITE_1(sc, reg, val)	\
+	outb(sc->iobase + (u_int32_t)(reg), val)
+
+#define CSR_READ_4(sc, reg)	\
+	inl(sc->iobase + (u_int32_t)(reg))
+#define CSR_READ_2(sc, reg)	\
+	inw(sc->iobase + (u_int32_t)(reg))
+#define CSR_READ_1(sc, reg)	\
+	inb(sc->iobase + (u_int32_t)(reg))
+#else
+#define CSR_WRITE_4(sc, reg, val)	\
+	((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
+#define CSR_WRITE_2(sc, reg, val)	\
+	((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
+#define CSR_WRITE_1(sc, reg, val)	\
+	((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
+
+#define CSR_READ_4(sc, reg)	\
+	(*(u_int32_t *)((sc)->csr + (u_int32_t)(reg)))
+#define CSR_READ_2(sc, reg)	\
+	(*(u_int16_t *)((sc)->csr + (u_int32_t)(reg)))
+#define CSR_READ_1(sc, reg)	\
+	(*(u_int8_t *)((sc)->csr + (u_int32_t)(reg)))
+#endif
+
+
+#define CMD_PUT(sc, x) CSR_WRITE_4(sc, TL_HOSTCMD, x)
+#define CMD_SET(sc, x)	\
+	CSR_WRITE_4(sc, TL_HOSTCMD, CSR_READ_4(sc, TL_HOSTCMD) | (x))
+#define CMD_CLR(sc, x)	\
+	CSR_WRITE_4(sc, TL_HOSTCMD, CSR_READ_4(sc, TL_HOSTCMD) & ~(x))
+
+/*
+ * ThunderLAN adapters typically have a serial EEPROM containing
+ * configuration information. The main reason we're interested in
+ * it is because it also contains the adapters's station address.
+ *
+ * Access to the EEPROM is a bit goofy since it is a serial device:
+ * you have to do reads and writes one bit at a time. The state of
+ * the DATA bit can only change while the CLOCK line is held low.
+ * Transactions work basically like this:
+ *
+ * 1) Send the EEPROM_START sequence to prepare the EEPROM for
+ *    accepting commands. This pulls the clock high, sets
+ *    the data bit to 0, enables transmission to the EEPROM,
+ *    pulls the data bit up to 1, then pulls the clock low.
+ *    The idea is to do a 0 to 1 transition of the data bit
+ *    while the clock pin is held high.
+ *
+ * 2) To write a bit to the EEPROM, set the TXENABLE bit, then
+ *    set the EDATA bit to send a 1 or clear it to send a 0.
+ *    Finally, set and then clear ECLOK. Strobing the clock
+ *    transmits the bit. After 8 bits have been written, the
+ *    EEPROM should respond with an ACK, which should be read.
+ *
+ * 3) To read a bit from the EEPROM, clear the TXENABLE bit,
+ *    then set ECLOK. The bit can then be read by reading EDATA.
+ *    ECLOCK should then be cleared again. This can be repeated
+ *    8 times to read a whole byte, after which the 
+ *
+ * 4) We need to send the address byte to the EEPROM. For this
+ *    we have to send the write control byte to the EEPROM to
+ *    tell it to accept data. The byte is 0xA0. The EEPROM should
+ *    ack this. The address byte can be send after that.
+ *
+ * 5) Now we have to tell the EEPROM to send us data. For that we
+ *    have to transmit the read control byte, which is 0xA1. This
+ *    byte should also be acked. We can then read the data bits
+ *    from the EEPROM.
+ *
+ * 6) When we're all finished, send the EEPROM_STOP sequence.
+ *
+ * Note that we use the ThunderLAN's NetSio register to access the
+ * EEPROM, however there is an alternate method. There is a PCI NVRAM
+ * register at PCI offset 0xB4 which can also be used with minor changes.
+ * The difference is that access to PCI registers via pci_conf_read()
+ * and pci_conf_write() is done using programmed I/O, which we want to
+ * avoid.
+ */
+
+/*
+ * Note that EEPROM_START leaves transmission enabled.
+ */
+#define EEPROM_START							\
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ECLOK); /* Pull clock pin high */\
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_EDATA); /* Set DATA bit to 1 */	\
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ETXEN); /* Enable xmit to write bit */\
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_EDATA); /* Pull DATA bit to 0 again */\
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ECLOK); /* Pull clock low again */
+
+/*
+ * EEPROM_STOP ends access to the EEPROM and clears the ETXEN bit so
+ * that no further data can be written to the EEPROM I/O pin.
+ */
+#define EEPROM_STOP							\
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ETXEN); /* Disable xmit */	\
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_EDATA); /* Pull DATA to 0 */	\
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ECLOK); /* Pull clock high */	\
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ETXEN); /* Enable xmit */	\
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_EDATA); /* Toggle DATA to 1 */	\
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ETXEN); /* Disable xmit. */	\
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ECLOK); /* Pull clock low again */
+
+
+/*
  * These are the register definitions for the PHY (physical layer
  * interface chip).
  * The ThunderLAN chip has a built-in 10Mb/sec PHY which may be used
@@ -763,6 +663,7 @@ struct tl_stats {
 #define PHY_BMCR_SPEEDSEL		0x2000
 #define PHY_BMCR_AUTONEGENBL		0x1000
 #define PHY_BMCR_RSVD0			0x0800	/* write as zero */
+#define PHY_BMCR_PWRDOWN		0x0800	/* tlan internal PHY only */
 #define PHY_BMCR_ISOLATE		0x0400
 #define PHY_BMCR_AUTONEGRSTR		0x0200
 #define PHY_BMCR_DUPLEX			0x0100
