@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syslimits.h>
 #include <sys/ioctl.h>
 #include <sys/mac.h>
 
@@ -685,6 +686,7 @@ display(FTSENT *p, FTSENT *list, int options)
 					flen = 0;
 				labelstr = NULL;
 				if (f_label) {
+					char name[PATH_MAX + 1];
 					mac_t label;
 					int error;
 
@@ -696,12 +698,20 @@ display(FTSENT *p, FTSENT *list, int options)
 						goto label_out;
 					}
 
-					if (options & FTS_LOGICAL)
-						error = mac_get_file(
-						    cur->fts_path, label);
+					if (cur->fts_level == FTS_ROOTLEVEL)
+						snprintf(name, sizeof(name),
+						    "%s", cur->fts_name);
 					else
-						error = mac_get_link(
-						    cur->fts_name, label);
+						snprintf(name, sizeof(name),
+						    "%s/%s", cur->fts_parent->fts_accpath,
+						    cur->fts_name);
+
+					if (options & FTS_LOGICAL)
+						error = mac_get_file(name,
+						    label);
+					else
+						error = mac_get_link(name,
+						    label);
 					if (error == -1) {
 						perror(cur->fts_name);
 						mac_free(label);
