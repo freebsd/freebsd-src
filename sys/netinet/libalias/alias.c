@@ -95,6 +95,8 @@
 
 #ifndef IPPROTO_GRE
 #define IPPROTO_GRE 47
+#define IPPROTO_ESP 50
+#define IPPROTO_AH  51
 #endif
 
 #include "alias_local.h"
@@ -1206,6 +1208,8 @@ PacketAliasIn(char *ptr, int maxpacketsize)
                 iresult = TcpAliasIn(pip);
                 break;
             case IPPROTO_GRE:
+            case IPPROTO_ESP:
+            case IPPROTO_AH:
 		iresult = PptpAliasIn(pip);
                 break;
         }
@@ -1312,6 +1316,8 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
                 iresult = TcpAliasOut(pip, maxpacketsize);
                 break;
             case IPPROTO_GRE:
+            case IPPROTO_ESP:
+            case IPPROTO_AH:
 		iresult = PptpAliasOut(pip);
                 break;
         }
