@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2003
+.Dd September 12, 2004
 .Dt HIFN 4
 .Os
 .Sh NAME
@@ -40,8 +40,32 @@
 The
 .Nm
 driver supports various cards containing the Hifn 7751, 7951,
+7811, 7955, and 7956 chipsets.
+.Pp
+The
+.Nm
+driver registers itself to accelerate DES, Triple-DES,
+AES (7955 and 7956 only), ARC4, MD5,
+MD5-HMAC, SHA1, and SHA1-HMAC operations for
+.Xr ipsec 4
+and
+.Xr crypto 4 .
+.Pp
+The Hifn
+.Tn 7951 ,
+.Tn 7811 ,
+.Tn 7955 ,
+and
+.Tn 7956
+will also supply data to the kernel
+.Xr random 4
+subsystem.
+.Sh HARDWARE
+The
+.Nm
+driver supports various cards containing the Hifn 7751, 7951,
 7811, 7955, and 7956
-chipsets, such as
+chipsets, such as:
 .Bl -tag -width namenamenamena -offset indent
 .It Invertex AEON
 No longer being made.
@@ -70,25 +94,6 @@ See
 .Pa http://www.soekris.com/ .
 Contains a 7955 and supports symmetric and random number operations.
 .El
-.Pp
-The
-.Nm
-driver registers itself to accelerate DES, Triple-DES,
-AES (7955 and 7956 only), ARC4, MD5,
-MD5-HMAC, SHA1, and SHA1-HMAC operations for
-.Xr ipsec 4
-and
-.Xr crypto 4 .
-.Pp
-The Hifn
-.Tn 7951 ,
-.Tn 7811 ,
-.Tn 7955 ,
-and
-.Tn 7956
-will also supply data to the kernel
-.Xr random 4
-subsystem.
 .Sh BUGS
 The 7751 chip starts out at initialization by only supporting compression.
 A proprietary algorithm, which has been reverse engineered, is required to
