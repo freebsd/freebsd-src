@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)date.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: date.c,v 1.27 1999/03/09 09:38:54 brian Exp $";
+	"$Id: date.c,v 1.28 1999/05/14 00:28:41 jmg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -191,8 +191,7 @@ setthetime(fmt, p, jflag, nflag)
 		if (t == NULL) {
 			fprintf(stderr, "Failed conversion of ``%s''"
 				" using format ``%s''\n", p, fmt);
-			lt = localtime(&tval);
-			return;
+			badformat();
 		} else if (*t != '\0')
 			fprintf(stderr, "Warning: Ignoring %ld extraneous"
 				" characters in date string (%s)\n",
