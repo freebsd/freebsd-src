@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <net/if.h>
+#include <net/bpf.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
@@ -2899,6 +2900,17 @@ atm_cm_cpcs_upper(cmd, tok, arg1, arg2)
 			break;
 
 		case ATM_ENC_LLC:
+			/*
+			 * Send the packet to the interface's bpf if this
+			 * vc has one.
+			 */
+			if (cvp->cvc_vcc != NULL &&
+			    cvp->cvc_vcc->vc_nif != NULL) {
+				struct ifnet *ifp =
+				    (struct ifnet *)cvp->cvc_vcc->vc_nif;
+
+				BPF_MTAP(ifp, m);
+			}
 			/*
 			 * Find connection with matching LLC header
 			 */
