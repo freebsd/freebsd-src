@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.23 1996/05/12 07:48:47 phk Exp $
+ * $Id: uipc_mbuf.c,v 1.24 1996/08/19 03:32:02 julian Exp $
  */
 
 #include <sys/param.h>
@@ -150,11 +150,11 @@ m_clalloc(ncl, nowait)
 	 * to get any more (nothing is ever freed back to the
 	 * map).
 	 */
-	if (mcl_map_full)
+	if (mb_map_full)
 		return (0);
 
 	npg = ncl;
-	p = (caddr_t)kmem_malloc(mcl_map, ctob(npg),
+	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
 				 nowait ? M_NOWAIT : M_WAITOK);
 	/*
 	 * Either the map is now full, or this is nowait and there

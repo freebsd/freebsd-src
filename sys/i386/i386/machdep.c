@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.6 1996/12/15 19:25:41 bde Exp $
+ *	$Id: machdep.c,v 1.209.2.7 1996/12/21 18:16:18 bde Exp $
  */
 
 #include "npx.h"
@@ -344,16 +344,15 @@ again:
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
 	 * we use the more space efficient malloc in place of kmem_alloc.
 	 */
-	mclrefcnt = (char *)malloc(nmbclusters+PAGE_SIZE/MCLBYTES,
-				   M_MBUF, M_NOWAIT);
-	bzero(mclrefcnt, nmbclusters+PAGE_SIZE/MCLBYTES);
-	mcl_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
-			       nmbclusters * MCLBYTES, FALSE);
 	{
-		vm_size_t mb_map_size;
-		mb_map_size = nmbufs * MSIZE;
-		mb_map = kmem_suballoc(kmem_map, &minaddr, &maxaddr, 
-				       round_page(mb_map_size), FALSE);
+		vm_offset_t mb_map_size;
+
+		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES;
+		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
+		mclrefcnt = malloc(mb_map_size / MCLBYTES, M_MBUF, M_NOWAIT);
+		bzero(mclrefcnt, mb_map_size / MCLBYTES);
+		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
+			mb_map_size, FALSE);
 	}
 
 	/*
