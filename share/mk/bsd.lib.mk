@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.85 1999/01/22 12:41:26 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.86 1999/03/23 03:06:25 bde Exp $
 #
 
 .if !target(__initialized__)
@@ -262,7 +262,7 @@ _EXTRADEPEND:
 beforeinstall:
 .endif
 
-.if defined(PRECIOUSLIB)
+.if defined(PRECIOUSLIB) && !defined(NOFSCHG)
 SHLINSTALLFLAGS+= -fschg
 .endif
 
@@ -276,7 +276,7 @@ realinstall: beforeinstall
 .endif
 .endif
 .if defined(SHLIB_NAME)
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${COPY} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} ${SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
 .if defined(SHLIB_LINK)
