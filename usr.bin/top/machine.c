@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.10 1998/05/28 09:29:48 phk Exp $
+ * $Id: machine.c,v 1.11 1998/06/21 18:00:34 dt Exp $
  */
 
 
@@ -565,7 +565,8 @@ char *(*get_userid)();
     /* This does not produce the correct results */
     cputime = PP(pp, p_uticks) + PP(pp, p_sticks) + PP(pp, p_iticks);
 #endif
-    cputime = PP(pp, p_runtime) / 1000000; /* This does not count interrupts */
+    /* This does not count interrupts */
+    cputime = (PP(pp, p_runtime) / 1000 + 500) / 1000;
 
     /* calculate the base for cpu percentages */
     pct = pctdouble(PP(pp, p_pctcpu));
