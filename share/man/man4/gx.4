@@ -1,5 +1,5 @@
 .\" Copyright (c) 2001
-.\"	Jonathan Lemon <jlemon@freebsd.org>. All rights reserved.
+.\"	Jonathan Lemon <jlemon@FreeBSD.org>. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 17, 2001
+.Dd October 17, 2001
 .Dt GX 4
 .Os
 .Sh NAME
@@ -40,7 +40,8 @@
 The
 .Nm
 driver provides support for NICs based on the Intel 82542 and 82543
-gigabit ethernet controller chips.  Both fiber and copper variants of
+gigabit ethernet controller chips.
+Both fiber and copper variants of
 the cards are supported.
 .Pp
 The 82542 supports TBI (ten bit interface), while the 82543 supports the
@@ -64,17 +65,17 @@ such as file transfers and data streaming.
 The
 .Nm
 driver supports the following media types:
-.Bl -tag -width 10baseTXUTP
+.Bl -tag -width ".Cm 10baseT/UTP"
 .It Cm autoselect
 Enable autoselection of the media type and options.
-The user can manually override
+User can manually override
 the autoselected mode by adding media options to
 .Xr rc.conf 5 .
 .It Cm 10baseT/UTP
 Set 10Mbps operation.
 The
-.Xr ifconfig 8
-.Ic mediaopt
+.Xr ifconfig 8 Ns 's
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
@@ -83,8 +84,8 @@ modes.
 .It Cm 100baseTX
 Set 100Mbps (fast ethernet) operation.
 The
-.Xr ifconfig 8
-.Ic mediaopt
+.Xr ifconfig 8 Ns 's
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
@@ -100,7 +101,7 @@ mode is supported.
 The
 .Nm
 driver supports the following media options:
-.Bl -tag -width full-duplex
+.Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
 .It Cm half-duplex
@@ -110,7 +111,7 @@ Force half duplex operation.
 The
 .Nm
 driver also supports one special link option for 1000baseTX cards:
-.Bl -tag -width link0
+.Bl -tag -width ".Cm link0"
 .It Cm link0
 With 1000baseTX cards, establishing a link between two ports requires
 that one port be configured as a master and the other a slave.
@@ -171,4 +172,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Jonathan Lemon Aq jlemon@freebsd.org .
+.An Jonathan Lemon Aq jlemon@FreeBSD.org .
