@@ -23,14 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.8 1999/05/10 15:46:38 peter Exp $
+ *	$Id: lca.c,v 1.9 1999/05/20 15:33:23 gallatin Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
 
 #include <alpha/pci/lcareg.h>
 #include <alpha/pci/lcavar.h>
@@ -40,6 +43,11 @@
 #include <machine/resource.h>
 #include <machine/cpuconf.h>
 #include <machine/swiz.h>
+#include <machine/sgmap.h>
+
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_page.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
@@ -363,6 +371,67 @@ static driver_t lca_driver = {
 	sizeof(struct lca_softc),
 };
 
+#define LCA_SGMAP_BASE		(8*1024*1024)
+#define LCA_SGMAP_SIZE		(8*1024*1024)
+
+static void
+lca_sgmap_invalidate(void)
+{
+	alpha_mb();
+	REGVAL(LCA_IOC_TBIA) = 0;
+	alpha_mb();
+}
+
+static void
+lca_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+{
+	u_int64_t *sgtable = arg;
+	int index = alpha_btop(ba - LCA_SGMAP_BASE);
+
+	if (pa) {
+		if (pa > (1L<<32))
+			panic("lca_sgmap_map: can't map address 0x%lx", pa);
+		sgtable[index] = ((pa >> 13) << 1) | 1;
+	} else {
+		sgtable[index] = 0;
+	}
+	alpha_mb();
+	lca_sgmap_invalidate();
+}
+
+static void
+lca_init_sgmap(void)
+{
+	void *sgtable;
+
+	/*
+	 * First setup Window 0 to map 8Mb to 16Mb with an
+	 * sgmap. Allocate the map aligned to a 32 boundary.
+	 */
+	REGVAL64(LCA_IOC_W_BASE0) = LCA_SGMAP_BASE |
+		IOC_W_BASE_SG | IOC_W_BASE_WEN;
+	alpha_mb();
+
+	REGVAL64(LCA_IOC_W_MASK0) = IOC_W_MASK_8M;
+	alpha_mb();
+
+	sgtable = contigmalloc(8192, M_DEVBUF, M_NOWAIT,
+			       0, (1L<<34),
+			       32*1024, (1L<<34));
+	if (!sgtable)
+		panic("lca_init_sgmap: can't allocate page table");
+	chipset.sgmap = sgmap_map_create(LCA_SGMAP_BASE,
+					 LCA_SGMAP_BASE + LCA_SGMAP_SIZE,
+					 lca_sgmap_map, sgtable);
+
+	
+	REGVAL64(LCA_IOC_W_T_BASE0) = pmap_kextract((vm_offset_t) sgtable);
+	alpha_mb();
+	REGVAL64(LCA_IOC_TB_ENA) = IOC_TB_ENA_TEN;
+	alpha_mb();
+	lca_sgmap_invalidate();
+}
+
 void
 lca_init()
 {
@@ -390,6 +459,7 @@ lca_probe(device_t dev)
 
 	pci_init_resources();
 	isa_init_intr();
+	lca_init_sgmap();
 
 	device_add_child(dev, "pcib", 0, 0);
 
