@@ -76,6 +76,16 @@ when they are mmap(2)ed.
 Added support for PCI ethernet adapters based on the National Semiconductor
 DP83815 chipset, including the NetGear FA312-TX.
 
+The tap driver, a virtual Ethernet device driver for bridged 
+configurations, has been added.  [MERGED]
+
+accept_filters, a kernel feature to reduce overheads when accepting
+and reading new connections on listening sockets, has been added.
+[MERGED]
+
+The ata(4) driver now has experimental support for ATA100 controllers.
+
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -128,6 +138,22 @@ trusted users; and the MSA port (587) is turned on by default.  See
 
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
+
+routed(8) has been updated to version 2.22.
+
+The truncate(1) utility, which truncates or extends the length
+of files, has been added.  [MERGED]
+
+syslogd(8) can take a -n option to disable DNS queries for every
+request. [MERGED]
+
+kenv(1), a command to dump the kernel environment, has been added. 
+[MERGED]
+
+The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf    
+and /etc/periodic.conf. [MERGED]
+
+logger(1) can now send messages directly to a remote syslog. [MERGED]
 
 
 2. Supported Configurations
