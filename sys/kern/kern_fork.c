@@ -406,6 +406,10 @@ again:
 	if (p1->p_sflag & PS_PROFIL)
 		startprofclock(p2);
 	mtx_unlock_spin(&sched_lock);
+	/*
+	 * We start off holding one spinlock after fork: sched_lock.
+	 */
+	p2->p_spinlocks = 1;
 	PROC_UNLOCK(p2);
 	MALLOC(p2->p_cred, struct pcred *, sizeof(struct pcred),
 	    M_SUBPROC, M_WAITOK);
