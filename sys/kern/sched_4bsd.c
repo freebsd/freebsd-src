@@ -73,7 +73,7 @@ struct p_sched *proc0_sched = NULL;
 struct td_sched *thread0_sched = NULL;
 
 static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
-#define	SCHED_QUANTUM	(hz / 10);	/* Default sched quantum */
+#define	SCHED_QUANTUM	(hz / 10)	/* Default sched quantum */
 
 static struct callout schedcpu_callout;
 static struct callout roundrobin_callout;
