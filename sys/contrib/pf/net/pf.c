@@ -5605,7 +5605,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 				sum = in_pseudo(ip->ip_src.s_addr,
 					ip->ip_dst.s_addr,
 					htonl(m->m_pkthdr.csum_data +
-					    IPPROTO_TCP) + ip->ip_len);
+					    IPPROTO_TCP + ntohs(ip->ip_len)));
 			}
 			sum ^= 0xffff;
 			++hw_assist;
