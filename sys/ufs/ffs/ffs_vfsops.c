@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.65 1998/01/17 09:16:43 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.66 1998/01/22 17:30:17 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -849,6 +849,7 @@ ffs_sync(mp, waitfor, cred, p)
 	struct fs *fs;
 	struct timeval tv;
 	int error, allerror = 0;
+	u_long fmask;
 
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
@@ -858,6 +859,11 @@ ffs_sync(mp, waitfor, cred, p)
 	/*
 	 * Write back each (modified) inode.
 	 */
+
+	fmask = (mp->mnt_flag & MNT_NOATIME)?
+			(IN_CHANGE | IN_MODIFIED | IN_UPDATE) :
+			(IN_CHANGE | IN_MODIFIED | IN_UPDATE | IN_ACCESS);
+
 	simple_lock(&mntvnode_slock);
 loop:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
@@ -870,8 +876,7 @@ loop:
 		simple_lock(&vp->v_interlock);
 		nvp = vp->v_mntvnodes.le_next;
 		ip = VTOI(vp);
-		if (((ip->i_flag &
-		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
+		if (((ip->i_flag & fmask) == 0) &&
 		    vp->v_dirtyblkhd.lh_first == NULL) {
 			simple_unlock(&vp->v_interlock);
 			continue;
@@ -895,7 +900,6 @@ loop:
 			simple_unlock(&mntvnode_slock);
 			simple_unlock(&vp->v_interlock);
 			gettime(&tv);
-			/* UFS_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
 			UFS_UPDATE(vp, &tv, &tv, 0);
 			simple_lock(&mntvnode_slock);
 		}
