@@ -197,6 +197,8 @@ quotactl(td, uap)
 	vrele(nd.ni_vp);
 	if (error)
 		return (error);
+	if (mp == NULL)
+		return (EOPNOTSUPP);
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
 	vn_finished_write(mp);
 	return (error);
