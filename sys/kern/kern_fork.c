@@ -68,9 +68,6 @@
 
 static MALLOC_DEFINE(M_ATFORK, "atfork", "atfork callback");
 
-static int	fast_vfork = 1;
-SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
-
 /*
  * These are the stuctures used to create a callout list for things to do
  * when forking a process
