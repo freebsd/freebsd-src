@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm_bios.h,v 1.2 1994/10/01 05:13:36 davidg Exp $
  */
 
 #ifndef _MACHINE_APM_BIOS_H_
@@ -173,22 +173,13 @@ typedef struct apm_info {
 	u_int	ai_batt_life;	/* Remaining battery life */
 } *apm_info_t;
 
-typedef struct apm_eqv_event {
-	u_int	aee_event;	/* Event ID */
-	u_int	aee_equiv;	/* Equivalent event ID */
-	u_int	aee_resume;	/* Equivalent event ID when system resumes */
-} *apm_eqv_event_t;
 
 #define APMIO_SUSPEND		_IO('P', 1)
 #define APMIO_GETINFO		_IOR('P', 2, struct apm_info)
-#define APMIO_DEFEQV		_IOW('P', 3, struct apm_eqv_event)
-#define APMIO_FLUSHEQV		_IO('P', 4)
 #define APMIO_ENABLE		_IO('P', 5)
 #define APMIO_DISABLE		_IO('P', 6)
 #define APMIO_HALTCPU		_IO('P', 7)
 #define APMIO_NOTHALTCPU	_IO('P', 8)
-
-#define APM_MAX_EQUIV_EVENTS	16
 
 #endif /* !ASM && !INITIALIZER */
 
