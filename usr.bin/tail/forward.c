@@ -177,11 +177,7 @@ forward(fp, style, off, sbp)
 		if (!fflag)
 			break;
 
-		interval.tv_sec = 0;
-		interval.tv_usec = 250000;
-		if (select(0, NULL, NULL, NULL, &interval) == -1)
-			if (errno != EINTR)
-				err(1, "select");
+		(void) usleep(250000);
 		clearerr(fp);
 	}
 }
