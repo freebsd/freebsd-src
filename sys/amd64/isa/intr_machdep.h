@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intr_machdep.h,v 1.14 1999/04/21 07:26:27 peter Exp $
+ *	$Id: intr_machdep.h,v 1.15 1999/06/03 20:41:00 peter Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -112,6 +112,9 @@
 #define XCPUCHECKSTATE_OFFSET	(ICU_OFFSET + 113)
 #endif
 
+/* inter-CPU rendezvous */
+#define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 114)
+
 /* IPI to generate an additional software trap at the target CPU */
 #define XCPUAST_OFFSET		(ICU_OFFSET +  48)
 
@@ -178,7 +181,8 @@ inthand_t
 	Xcpuast,	/* Additional software trap on other cpu */ 
 	Xforward_irq,	/* Forward irq to cpu holding ISR lock */
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
-	Xspuriousint;	/* handle APIC "spurious INTs" */
+	Xspuriousint,	/* handle APIC "spurious INTs" */
+	Xrendezvous;	/* handle CPU rendezvous */
 
 #ifdef TEST_TEST1
 inthand_t
