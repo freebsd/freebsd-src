@@ -1,6 +1,6 @@
-<!-- $Id: ports.sgml,v 1.1.1.1 1996/11/15 05:14:40 asami Exp $ -->
+<!-- $Id: ports.sgml,v 1.2 1996/12/21 11:56:32 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.18 -->
+<!-- Original revision: 1.20 -->
 
 <sect><heading>ports コレクション <label id="ports"></heading>
 
