@@ -66,5 +66,7 @@ extern struct pcb *curpcb;
 extern struct pmap *curpm;
 extern struct proc *fpuproc;
 
+void	makectx(struct trapframe *, struct pcb *);
+
 #endif
 #endif	/* _MACHINE_PCB_H_ */
