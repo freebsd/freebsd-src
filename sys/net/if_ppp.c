@@ -758,7 +758,6 @@ pppoutput(ifp, m0, dst, rtp)
     struct ifqueue *ifq;
     enum NPmode mode;
     int len;
-    struct mbuf *m;
 
 #ifdef MAC
     error = mac_check_ifnet_transmit(ifp, m0);
@@ -851,9 +850,7 @@ pppoutput(ifp, m0, dst, rtp)
     *cp++ = protocol & 0xff;
     m0->m_len += PPP_HDRLEN;
 
-    len = 0;
-    for (m = m0; m != 0; m = m->m_next)
-	len += m->m_len;
+    len = m_length(m0, NULL);
 
     if (sc->sc_flags & SC_LOG_OUTPKT) {
 	printf("ppp%d output: ", ifp->if_unit);
@@ -1087,9 +1084,7 @@ ppp_dequeue(sc)
 	struct mbuf *mcomp = NULL;
 	int slen, clen;
 
-	slen = 0;
-	for (mp = m; mp != NULL; mp = mp->m_next)
-	    slen += mp->m_len;
+	slen = m_length(m, NULL);
 	clen = (*sc->sc_xcomp->compress)
 	    (sc->sc_xc_state, &mcomp, m, slen, sc->sc_if.if_mtu + PPP_HDRLEN);
 	if (mcomp != NULL) {
@@ -1324,9 +1319,7 @@ ppp_inproc(sc, m)
     sc->sc_stats.ppp_ipackets++;
 
     if (sc->sc_flags & SC_LOG_INPKT) {
-	ilen = 0;
-	for (mp = m; mp != NULL; mp = mp->m_next)
-	    ilen += mp->m_len;
+	ilen = m_length(m, NULL);
 	printf("ppp%d: got %d bytes\n", ifp->if_unit, ilen);
 	pppdumpm(m);
     }
@@ -1389,9 +1382,7 @@ ppp_inproc(sc, m)
     }
 #endif
 
-    ilen = 0;
-    for (mp = m; mp != NULL; mp = mp->m_next)
-	ilen += mp->m_len;
+    ilen = m_length(m, NULL);
 
 #ifdef VJC
     if (sc->sc_flags & SC_VJ_RESET) {
