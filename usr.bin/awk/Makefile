@@ -6,7 +6,7 @@ AWKSRC=	${.CURDIR}/../../contrib/one-true-awk
 PROG=	nawk
 SRCS=	awkgram.y b.c lex.c lib.c main.c parse.c proctab.c run.c tran.c ytab.h
 
-CFLAGS+= -I. -I${AWKSRC}
+CFLAGS+= -DHAS_ISBLANK -I. -I${AWKSRC}
 
 DPADD=	${LIBM}
 LDADD=	-lm
