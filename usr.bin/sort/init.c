@@ -312,7 +312,7 @@ settables(gflags)
 		if (islower(i)) {
 			Ftable[i] = Ftable[toupper(i)];
 			RFtable[i] = RFtable[toupper(i)];
-		} else if (REC_D>= 'A' && REC_D < 'Z' && i < 'a' && i > REC_D) {
+		} else if (REC_D >= 'A' && REC_D <= 'Z' && i < 'a' && i > REC_D) {
 			Ftable[i] = i + 1;
 			RFtable[i] = Rascii[i] - 1;
 		} else {
@@ -326,7 +326,11 @@ settables(gflags)
 		else
 			itable[i] = 0;
 
-		if (i == '\n' || i == '\t' || i == ' ' || isalnum(i))
+		if (   isalnum(i)
+		    || (   isspace(i)
+			&& (i == '\n' || i == '\t' || isprint(i))
+		       )
+		   )
 			dtable[i] = 1;
 		else
 			dtable[i] = 0;
