@@ -951,7 +951,7 @@ yylex()
 			upper(cbuf);
 			p = lookup(cmdtab, cbuf);
 			cbuf[cpos] = c;
-			if (guest != 0 && p != 0) {
+			if (p != 0) {
 				if (p->implemented == 0) {
 					nack(p->name);
 					longjmp(errcatch,0);
