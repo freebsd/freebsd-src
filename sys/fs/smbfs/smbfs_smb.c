@@ -1101,7 +1101,7 @@ smbfs_findnextLM2(struct smbfs_fctx *ctx, int limit)
 		md_get_int64le(mbp, &lint);	/* file size */
 		ctx->f_attr.fa_size = lint;
 		md_get_int64(mbp, NULL);	/* real size (should use) */
-		md_get_uint32(mbp, &dattr);	/* EA */
+		md_get_uint32le(mbp, &dattr);	/* EA */
 		ctx->f_attr.fa_attr = dattr;
 		md_get_uint32le(mbp, &size);	/* name len */
 		fxsz = 64;
