@@ -183,15 +183,6 @@ SYSCTL_INT(_hw_pci, OID_AUTO, do_powerstate, CTLFLAG_RW,
     "Power down devices into D3 state when no driver attaches to them.\n\
 Otherwise, leave the device in D0 state when no driver attaches.");
 
-/*
- * Enable restoring all the registers, even the ones that are nominally
- * read-only.  If this causes problems for you, please report them to
- * imp@freebsd.org and remove this line in your local tree.  The problems
- * would be seen if the device is transitioning from D3 to D0 or has ever
- * made that transition under FreeBSD this boot.
- */
-#define PCI_RESTORE_EXTRA
-
 /* Find a device_t by bus/slot/function */
 
 device_t
@@ -1845,12 +1836,6 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
 		pci_write_config(dev, PCIR_MAPS + i * 4, dinfo->cfg.bar[i], 4);
 	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);
-#ifdef PCI_RESTORE_EXTRA
-	pci_write_config(dev, PCIR_SUBVEND_0, dinfo->cfg.subvendor, 2);
-	pci_write_config(dev, PCIR_SUBDEV_0, dinfo->cfg.subdevice, 2);
-	pci_write_config(dev, PCIR_VENDOR, dinfo->cfg.vendor, 2);
-	pci_write_config(dev, PCIR_DEVICE, dinfo->cfg.device, 2);
-#endif
 	pci_write_config(dev, PCIR_COMMAND, dinfo->cfg.cmdreg, 2);
 	pci_write_config(dev, PCIR_INTLINE, dinfo->cfg.intline, 1);
 	pci_write_config(dev, PCIR_INTPIN, dinfo->cfg.intpin, 1);
@@ -1858,11 +1843,7 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	pci_write_config(dev, PCIR_MAXLAT, dinfo->cfg.maxlat, 1);
 	pci_write_config(dev, PCIR_CACHELNSZ, dinfo->cfg.cachelnsz, 1);
 	pci_write_config(dev, PCIR_LATTIMER, dinfo->cfg.lattimer, 1);
-#ifdef PCI_RESTORE_EXTRA
-	pci_write_config(dev, PCIR_CLASS, dinfo->cfg.baseclass, 1);
-	pci_write_config(dev, PCIR_SUBCLASS, dinfo->cfg.subclass, 1);
 	pci_write_config(dev, PCIR_PROGIF, dinfo->cfg.progif, 1);
-#endif
 	pci_write_config(dev, PCIR_REVID, dinfo->cfg.revid, 1);
 }
 
