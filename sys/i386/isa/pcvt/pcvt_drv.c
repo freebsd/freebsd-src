@@ -153,6 +153,13 @@ pcprobe(struct isa_device *dev)
 {
 #ifdef _I386_ISA_KBDIO_H_
 	kbdc = kbdc_open(IO_KBD);
+
+	if(kbdc == NULL)
+	{
+		reset_keyboard = 0;
+		return 1;
+	}
+		
 	reset_keyboard = 1;		/* it's now safe to do kbd reset */
 #endif /* _I386_ISA_KBDIO_H_ */
 
@@ -851,6 +858,25 @@ pcrint(int unit)
 #else /* !PCVT_KBD_FIFO */
 	u_char	*cp;
 #endif /* PCVT_KBD_FIFO */
+
+	/*
+	 * in case the keyboard was not plugged in while booting, kbdc
+	 * was set to NULL at that time. When a keyboard IRQ occurs and
+	 * kbdc is NULL, the keyboard was probably reconnected to the
+	 * keyboard controller and we have to initialize the keyboard.
+	 */
+	 
+	if(kbdc == NULL)
+	{
+		kbdc = kbdc_open(IO_KBD);
+		if(kbdc == NULL)
+		{
+			reset_keyboard = 0;
+			return;
+		}
+		reset_keyboard = 1;
+		kbd_code_init();
+	}
 
 #if PCVT_SCREENSAVER
 	pcvt_scrnsv_reset();
