@@ -99,6 +99,14 @@ The ncv, nsp, and stg drivers have been ported from NetBSD/pc98.
 They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
 based PC-Card/ISA SCSI controllers.
 
+The mly(4) driver, for Mylex PCI to SCSI AccelRAID and eXtremeRAID
+controllers with firmware 6.x and later, has been added.
+
+The twe(4) driver for 3ware controllers has been updated, with
+improved queueing, error handling and reporting, and user interface
+for the 3ware-supplied '3dm' monitoring tool.
+
+
 1.2. SECURITY FIXES
 -------------------
 
