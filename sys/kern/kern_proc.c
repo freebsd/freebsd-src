@@ -432,6 +432,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_mtxname[MTXNAMELEN] = 0;
 	}
 	kp->ki_stat = p->p_stat;
+	kp->ki_sflag = p->p_sflag;
 	kp->ki_pctcpu = p->p_pctcpu;
 	kp->ki_estcpu = p->p_estcpu;
 	kp->ki_slptime = p->p_slptime;
