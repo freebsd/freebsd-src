@@ -8,6 +8,7 @@ sed	\
 	-e '/DEC_3000_500/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
+	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
 	-e '/PROCFS/d' \
@@ -69,6 +70,5 @@ sed	\
 # reset maxusers to something lower
 echo "maxusers	5"
 
-echo "options  NFS_NOSERVER" 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
