@@ -207,6 +207,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 int
 spigot_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
+int			error;
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 struct	trapframe	*fp;
 struct	spigot_info	*info;
@@ -218,6 +219,9 @@ struct	spigot_info	*info;
 		ss->signal_num = *((int *)data);
 		break;
 	case	SPIGOT_IOPL_ON:	/* allow access to the IO PAGE */
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error != 0)
+			return error;
 		fp=(struct trapframe *)p->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
 		break;
