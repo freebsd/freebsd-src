@@ -246,9 +246,7 @@ static int
 ngfrm_newhook(node_p node, hook_p hook, const char *name)
 {
 	const sc_p  sc = node->private;
-	const char *cp;
-	char	    c = '\0';
-	int	    digits = 0;
+	const char *cp, *eptr;
 	int	    dlci = 0;
 	int	    ctxnum;
 
@@ -285,13 +283,12 @@ ngfrm_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Must be a dlci hook at this point */
 	cp = name + strlen(NG_FRAMERELAY_HOOK_DLCI);
-	while ((digits < 5) && ((c = *cp++) >= '0') && (c <= '9')) {
-		dlci *= 10;
-		dlci += c - '0';
-		digits++;
-	}
-	if ((c != 0) || (digits == 5) || (dlci < 0) || (dlci > 1023))
+	if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
 		return (EINVAL);
+	dlci = (int)strtoul(cp, &eptr, 10);
+	if (*eptr != '\0' || dlci < 0 || dlci > 1023)
+		return (EINVAL);
+
 	/*
 	 * We have a dlci, now either find it, or allocate it. It's possible
 	 * that we might have seen packets for it already and made an entry

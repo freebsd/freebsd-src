@@ -176,17 +176,17 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 	 * hooks start with 'dlci' and have a decimal trailing channel
 	 * number up to 4 digits Use the leadin defined int he associated .h
 	 * file. */
-	if (strncmp(name, NG_XXX_HOOK_DLCI_LEADIN, 4) == 0) {
+	if (strncmp(name,
+	    NG_XXX_HOOK_DLCI_LEADIN, strlen(NG_XXX_HOOK_DLCI_LEADIN)) == 0) {
+		const char *eptr;
+
 		cp = name + sizeof(NG_XXX_HOOK_DLCI_LEADIN);
-		while ((digits < 5)
-		       && ((c = *cp++) > '0') && (c < '9')) {
-			dlci *= 10;
-			dlci += c - '0';
-			digits++;
-		}
-		if ((c != 0) || (digits == 5)
-		    || (dlci <= 0) || (dlci > 1023))
+		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
 			return (EINVAL);
+		dlci = (int)strtoul(cp, &eptr, 10);
+		if (*eptr != '\0' || dlci < 0 || dlci > 1023)
+			return (EINVAL);
+
 		/* We have a dlci, now either find it, or allocate it */
 		for (chan = 0; chan < XXX_NUM_DLCIS; chan++)
 			if (xxxp->channel[chan].dlci == dlci)
