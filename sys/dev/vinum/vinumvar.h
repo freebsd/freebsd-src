@@ -56,7 +56,7 @@ enum constants {
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
 
     CDEV_MAJOR = 91,					    /* major number for character device */
-    BDEV_MAJOR = 25,					    /* and block device */
+    BDEV_MAJOR = 25,					    /* and legacy major number for block device */
 
     ROUND_ROBIN_READPOL = -1,				    /* round robin read policy */
 
@@ -106,26 +106,15 @@ enum constants {
 			      | (s << VINUM_SD_SHIFT) 		\
 			      | (t << VINUM_TYPE_SHIFT) )
 
-/* Create block and character device minor numbers */
-#define VINUMBDEV(v,p,s,t)  makedev (BDEV_MAJOR, VINUMMINOR (v, p, s, t))
-#define VINUMCDEV(v,p,s,t)  makedev (CDEV_MAJOR, VINUMMINOR (v, p, s, t))
+/* Create device minor numbers */
+#define VINUMDEV(v,p,s,t)  makedev (CDEV_MAJOR, VINUMMINOR (v, p, s, t))
 
-#define VINUM_BLOCK_PLEX(p)	makedev (BDEV_MAJOR,				\
+#define VINUM_PLEX(p)	makedev (CDEV_MAJOR,				\
 					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
 					 | (p & 0xff)				\
 					 | ((p & ~0xff) << 8) )
 
-#define VINUM_CHAR_PLEX(p)	makedev (CDEV_MAJOR,				\
-					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
-					 | (p & 0xff)				\
-					 | ((p & ~0xff) << 8) )
-
-#define VINUM_BLOCK_SD(s)	makedev (BDEV_MAJOR,				\
-					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
-					 | (s & 0xff)				\
-					 | ((s & ~0xff) << 8) )
-
-#define VINUM_CHAR_SD(s)	makedev (CDEV_MAJOR,				\
+#define VINUM_SD(s)	makedev (CDEV_MAJOR,				\
 					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
 					 | (s & 0xff)				\
 					 | ((s & ~0xff) << 8) )
@@ -225,7 +214,6 @@ struct devcode {
 };
 
 #define VINUM_DIR   "/dev/vinum"
-#define VINUM_RDIR   "/dev/rvinum"
 
 /*
  * These definitions help catch
@@ -296,7 +284,7 @@ struct _vinum_conf {
     int active;						    /* current number of requests outstanding */
     int maxactive;					    /* maximum number of requests ever outstanding */
 #if VINUMDEBUG
-    int lastrq;
+    struct request *lastrq;
     struct buf *lastbuf;
 #endif
 };
@@ -360,7 +348,7 @@ struct vinum_label {
 };
 
 struct vinum_hdr {
-    long long magic;					    /* we're long on magic numbers */
+    uint64_t magic;					    /* we're long on magic numbers */
 #define VINUM_MAGIC    22322600044678729LL		    /* should be this */
 #define VINUM_NOMAGIC  22322600044678990LL		    /* becomes this after obliteration */
     /*
@@ -453,6 +441,7 @@ struct sd {
     u_int64_t revived;					    /* block number of current revive request */
     int revive_blocksize;				    /* revive block size (bytes) */
     int revive_interval;				    /* and time to wait between transfers */
+    pid_t reviver;					    /* PID of reviving process */
     struct request *waitlist;				    /* list of requests waiting on revive op */
     /* init parameters */
     u_int64_t initialized;				    /* block number of current init request */
@@ -644,7 +633,9 @@ enum debugflags {
 };
 
 #ifdef _KERNEL
+#ifdef __i386__
 #define longjmp LongJmp					    /* test our longjmps */
+#endif
 #endif
 #endif
 /* Local Variables: */
