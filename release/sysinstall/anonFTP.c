@@ -4,10 +4,12 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.14 1996/04/28 03:26:42 jkh Exp $
+ * $Id: anonFTP.c,v 1.15 1996/08/03 10:10:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
+ * Copyright (c) 1996
+ *	Jordan K. Hubbard.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -20,10 +22,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY CORANTH GRYPHON ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL CORANTH GRYPHON OR HIS PETS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR THEIR PETS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, LIFE OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -325,26 +327,8 @@ anonftpOpenDialog(void)
 		   awkward for the user to go back and correct screw up's
 		   in the per-interface section */
 	      
-	    case KEY_UP:
-		if (obj->prev !=NULL ) {
-		    obj = obj->prev;
-		    --n;
-		} else {
-		    obj = last;
-		    n = max;
-		}
-		break;
-	      
 	    case KEY_DOWN:
-		if (obj->next != NULL) {
-		    obj = obj->next;
-		    ++n;
-		} else {
-		    obj = first;
-		    n = 0;
-		}
-		break;
-		
+	    case SEL_CR:
 	    case SEL_TAB:
 		if (n < max)
 		    ++n;
@@ -359,14 +343,7 @@ anonftpOpenDialog(void)
 		    cancel = TRUE;
 		break;
 	      
-		/* Generic CR handler */
-	    case SEL_CR:
-		if (n < max)
-		    ++n;
-		else
-		    n = 0;
-		break;
-	      
+	    case KEY_UP:
 	    case SEL_BACKTAB:
 		if (n)
 		    --n;
