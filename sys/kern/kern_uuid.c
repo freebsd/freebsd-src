@@ -222,3 +222,83 @@ sbuf_printf_uuid(struct sbuf *sb, struct uuid *uuid)
 	snprintf_uuid(buf, sizeof(buf), uuid);
 	return (sbuf_printf(sb, "%s", buf));
 }
+
+/*
+ * Encode/Decode UUID into byte-stream.
+ *   http://www.opengroup.org/dce/info/draft-leach-uuids-guids-01.txt
+ *
+ * 0                   1                   2                   3
+ *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                          time_low                             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |       time_mid                |         time_hi_and_version   |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |clk_seq_hi_res |  clk_seq_low  |         node (0-1)            |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                         node (2-5)                            |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
+void
+le_uuid_enc(void *buf, struct uuid const *uuid)
+{
+	u_char *p;
+	int i;
+
+	p = buf;
+	le32enc(p, uuid->time_low);
+	le16enc(p + 4, uuid->time_mid);
+	le16enc(p + 6, uuid->time_hi_and_version);
+	p[8] = uuid->clock_seq_hi_and_reserved;
+	p[9] = uuid->clock_seq_low;
+	for (i = 0; i < _UUID_NODE_LEN; i++)
+		p[10 + i] = uuid->node[i];
+}
+
+void
+le_uuid_dec(void const *buf, struct uuid *uuid)
+{
+	u_char const *p;
+	int i;
+
+	p = buf;
+	uuid->time_low = le32dec(p);
+	uuid->time_mid = le16dec(p + 4);
+	uuid->time_hi_and_version = le16dec(p + 6);
+	uuid->clock_seq_hi_and_reserved = p[8];
+	uuid->clock_seq_low = p[9];
+	for (i = 0; i < _UUID_NODE_LEN; i++)
+		uuid->node[i] = p[10 + i];
+}
+void
+be_uuid_enc(void *buf, struct uuid const *uuid)
+{
+	u_char *p;
+	int i;
+
+	p = buf;
+	be32enc(p, uuid->time_low);
+	be16enc(p + 4, uuid->time_mid);
+	be16enc(p + 6, uuid->time_hi_and_version);
+	p[8] = uuid->clock_seq_hi_and_reserved;
+	p[9] = uuid->clock_seq_low;
+	for (i = 0; i < _UUID_NODE_LEN; i++)
+		p[10 + i] = uuid->node[i];
+}
+
+void
+be_uuid_dec(void const *buf, struct uuid *uuid)
+{
+	u_char const *p;
+	int i;
+
+	p = buf;
+	uuid->time_low = be32dec(p);
+	uuid->time_mid = le16dec(p + 4);
+	uuid->time_hi_and_version = be16dec(p + 6);
+	uuid->clock_seq_hi_and_reserved = p[8];
+	uuid->clock_seq_low = p[9];
+	for (i = 0; i < _UUID_NODE_LEN; i++)
+		uuid->node[i] = p[10 + i];
+}
