@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.3 1995/02/27 10:57:54 amurai Exp $
+ * $Id: modem.c,v 1.4 1995/03/11 15:18:48 amurai Exp $
  * 
  *  TODO:
  */
@@ -208,6 +208,7 @@ DownConnection()
 {
   LogPrintf(LOG_PHASE, "Disconnected!\n");
   LogPrintf(LOG_PHASE, "Connect time: %d secs\n", time(NULL) - uptime);
+  CloseModem();
   LcpDown();
   connect_time = 0;
 }
@@ -381,6 +382,7 @@ int mode;
       modem = open(VarDevice, O_RDWR|O_NONBLOCK);
       if (modem < 0) {
         LogPrintf(LOG_PHASE, "Open Failed %s\n", VarDevice);
+        (void) uu_unlock(uucplock);
         return(modem);
       }
     } else {
@@ -403,8 +405,20 @@ int mode;
     }
   }
 
+  /* This code gets around the problem of closing descriptor 0
+   * when it should not have been closed and closing descriptor 1
+   * when the telnet connection dies.  Since this program always
+   * opens a descriptor for the modem in auto and direct mode,
+   * having to dup the descriptor here is a fatal error.
+   *
+   * With the other changes I have made this should no longer happen.
+   * JC
+  */
   while (modem < 3)
+  {
+    logprintf("Duping modem fd %d\n", modem);
     modem = dup(modem);
+  }
 
   /*
    * If we are working on tty device, change it's mode into
@@ -562,9 +576,16 @@ int flag;
   if (modem && (flag || !(mode & MODE_DEDICATED))) {
     ModemTimeout();			/* XXX */
     StopTimer(&ModemTimer);		/* XXX */
-    tcflush(modem, TIOCFLUSH);
-    UnrawModem(modem);
-    close(modem);
+
+    /* ModemTimeout() may call DownConection() to close the modem
+     * resulting in modem == 0.
+    */
+    if (modem)
+    {
+	tcflush(modem, TIOCFLUSH);
+	UnrawModem(modem);
+	close(modem);
+    }
     (void) uu_unlock(uucplock);
     modem = 0;			/* Mark as modem has closed */
   } else if (modem) {
@@ -581,8 +602,11 @@ int flag;
 
 CloseModem()
 {
-  close(modem);
-  modem = 0;
+  if (modem >= 3)
+  {
+      close(modem);
+      modem = 0;
+  }
   (void) uu_unlock(uucplock);
 }
 
