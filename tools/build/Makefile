@@ -51,6 +51,18 @@ SRCS+=		progname.c
 SRCS+=		strtofflags.c
 .endif
 
+# Lot of tools need <getopt.h> and getopt_long(3).
+.if !exists(/usr/include/getopt.h)
+INCS+=		getopt.h
+.PATH: ${.CURDIR}/../../lib/libc/stdlib
+SRCS+=		getopt_long.c
+.endif
+
+# Some tools depend on a new <regex.h> not requiring <sys/types.h>.
+.if ${BOOTSTRAPPING} < 500042
+INCS+=		regex.h
+.endif
+
 .if empty(SRCS)
 SRCS=		dummy.c
 .endif
