@@ -115,7 +115,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		       opieaccessfile((char *)rhost) &&
 		       opiealways(pwd->pw_dir);
 	} else
-		pwok = 1;
+		PAM_RETURN(PAM_AUTH_ERR);
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
 		retval = pam_get_pass(pamh, &response, prompt, &options);
