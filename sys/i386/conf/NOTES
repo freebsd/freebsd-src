@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.244 1996/03/12 05:44:16 nate Exp $
+#	$Id: LINT,v 1.245 1996/03/17 08:39:51 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -392,8 +392,12 @@ controller	isa0
 #
 # Options for `isa':
 #
+# AUTO_EOI_1 enables the `automatic EOI' feature for the master 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# This option breaks suspend/resume on some portables.
+#
 # AUTO_EOI_2 enables the `automatic EOI' feature for the slave 8259A
-# interrupt controller.  This saves about 1.25 usec for each interrupt.
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
 # Automatic EOI is documented not to work for for the slave with the
 # original i8259A, but it works for some clones and some integrated
 # versions.
@@ -402,10 +406,6 @@ controller	isa0
 # than 16 megabytes of memory.  It doesn't hurt on other machines.
 # Some broken EISA and VLB hardware may need this, too.
 #
-# DUMMY_NOPS disables extra delays for some bus operations.  The delays
-# are mostly for older systems and aren't used consistently.  Probably
-# works OK on most EISA bus machines.
-#
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
 #
@@ -413,9 +413,9 @@ controller	isa0
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
 #
+options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
-#options	DUMMY_NOPS
 #options        "TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET
 
@@ -854,5 +854,6 @@ options		DEBUG
 options		"EXT2FS"
 options		"IBCS2"
 options		LINUX
+options		PERFMON
 options		"SCSI_2_DEF"
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
