@@ -1,10 +1,10 @@
    -----------------------------------------
-       FreeBSD 4.0  ---  SNAPSHOT Version              ,        ,
+       FreeBSD 5.0  ---  SNAPSHOT Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a binary snapshot of 4.0-current, the         /- _  `-/  '
+This is a binary snapshot of 5.0-current, the         /- _  `-/  '
 (HEAD) branch which is currently moving towards      (/\/ \ \   /\
-the release of 4.0.                                  / /   | `    \
+the release of 5.0.                                  / /   | `    \
                                                      O O   ) /    |
                                                      `-^--'`<     '
                                                     (_.)  _  )   /
