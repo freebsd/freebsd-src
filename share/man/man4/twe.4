@@ -24,37 +24,70 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2004
+.Dd August 15, 2004
 .Dt TWE 4
 .Os
 .Sh NAME
 .Nm twe
-.Nd 3ware Escalade ATA RAID adapter driver
+.Nd 3ware 5000/6000/7000/8000 series ATA RAID adapter driver
 .Sh SYNOPSIS
 .Cd device pci
 .Cd device twe
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for 3ware Escalade ATA RAID adapters.
+driver provides support for AMCC's 3ware 5000/6000/7000/8000 series
+ATA RAID adapters.
+These adapters were formerly know as
+.Dq 3ware Escalade .
 .Pp
-These devices support 2, 4 or 8 ATA disk drives
+These devices support 2, 4, 8, or 12 ATA disk drives
 and provide RAID0 (striping) and RAID1 (mirroring) functionality.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following series of 3ware ATA RAID
+driver supports the following ATA RAID
 controllers:
 .Pp
 .Bl -bullet -compact
 .It
-Escalade 3W-5x00
+AMCC's 3ware 5000 series
 .It
-Escalade 3W-6x00
+AMCC's 3ware 6000 series
 .It
-Escalade 3W-7x00
+AMCC's 3ware 7000-2
 .It
-Escalade 3W-8x00
+AMCC's 3ware 7006-2
+.It
+AMCC's 3ware 7500-4LP
+.It
+AMCC's 3ware 7500-8
+.It
+AMCC's 3ware 7500-12
+.It
+AMCC's 3ware 7506-4LP
+.It
+AMCC's 3ware 7506-8
+.It
+AMCC's 3ware 7506-12
+.It
+AMCC's 3ware 8006-2LP
+.It
+AMCC's 3ware 8500-4LP
+.It
+AMCC's 3ware 8500-8
+.It
+AMCC's 3ware 8500-12
+.It
+AMCC's 3ware 8506-4LP
+.It
+AMCC's 3ware 8506-8
+.It
+AMCC's 3ware 8506-8MI
+.It
+AMCC's 3ware 8506-12
+.It
+AMCC's 3ware 8506-12MI
 .El
 .Sh DIAGNOSTICS
 .Ss Controller initialisation phase

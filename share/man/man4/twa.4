@@ -25,18 +25,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2004
+.Dd August 15, 2004
 .Dt TWA 4
 .Os
 .Sh NAME
 .Nm twa
-.Nd 3ware driver for 9000 series PATA/SATA RAID controllers
+.Nd 3ware 9000 series PATA/SATA RAID controllers driver
 .Sh SYNOPSIS
 .Cd "device twa"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the 3ware 9000 series PATA/SATA controllers.
+driver provides support for the AMCC's 3ware 9000 series PATA/SATA controllers.
 .Pp
 These controllers are available in 4, 8 or 12-port configurations,
 and support the following RAID levels: 0, 1, 10, 5, 50.
@@ -55,19 +55,19 @@ is the logical unit number.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following 3ware PATA/SATA RAID controllers:
+driver supports the following PATA/SATA RAID controllers:
 .Pp
 .Bl -bullet -compact
 .It
-9500S-4LP
+AMCC's 3ware 9500S-4LP
 .It
-9500S-8
+AMCC's 3ware 9500S-8
 .It
-9500S-8MI
+AMCC's 3ware 9500S-8MI
 .It
-9500S-12
+AMCC's 3ware 9500S-12
 .It
-9500S-12MI
+AMCC's 3ware 9500S-12MI
 .El
 .Sh DIAGNOSTICS
 Whenever the driver encounters a command failure, it prints out an error code in
