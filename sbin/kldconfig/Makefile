@@ -28,5 +28,6 @@
 
 PROG=		kldconfig
 MAN=		kldconfig.8
+WARNS?=		5
 
 .include <bsd.prog.mk>
