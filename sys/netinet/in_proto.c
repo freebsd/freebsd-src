@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: in_proto.c,v 1.11 1995/02/09 23:13:20 wollman Exp $
+ * $Id: in_proto.c,v 1.12 1995/02/16 00:55:38 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/radix.h>

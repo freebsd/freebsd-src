@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.8 1995/03/06 02:49:24 nate Exp $
+ * $Id: tcp_subr.c,v 1.9 1995/03/16 18:15:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
+#include <sys/queue.h>
 
 #include <net/route.h>
 #include <net/if.h>
@@ -71,7 +72,13 @@ int	tcp_do_rfc1323 = 1;
 int	tcp_do_rfc1644 = 1;
 static	void tcp_cleartaocache(void);
 
-extern	struct inpcb *tcp_last_inpcb;
+/*
+ * Target size of TCP PCB hash table. Will be rounded down to a prime
+ * number.
+ */
+#ifndef TCBHASHSIZE
+#define TCBHASHSIZE	128
+#endif
 
 /*
  * Tcp initialization
@@ -83,7 +90,9 @@ tcp_init()
 	tcp_iss = 1;		/* wrong */
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
-	tcb.inp_next = tcb.inp_prev = &tcb;
+	LIST_INIT(&tcb);
+	tcbinfo.listhead = &tcb;
+	tcbinfo.hashbase = phashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashsize);
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
 	if (max_linkhdr + sizeof(struct tcpiphdr) > MHLEN)
@@ -373,9 +382,6 @@ tcp_close(tp)
 	free(tp, M_PCB);
 	inp->inp_ppcb = 0;
 	soisdisconnected(so);
-	/* clobber input pcb cache if we're closing the cached connection */
-	if (inp == tcp_last_inpcb)
-		tcp_last_inpcb = &tcb;
 	in_pcbdetach(inp);
 	tcpstat.tcps_closed++;
 	return ((struct tcpcb *)0);

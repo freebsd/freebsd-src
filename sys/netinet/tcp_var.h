@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.9 1995/02/16 00:55:44 wollman Exp $
+ * $Id: tcp_var.h,v 1.10 1995/03/16 18:15:07 bde Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -307,13 +307,15 @@ struct	tcpstat {
 }
 
 #ifdef KERNEL
-extern	struct inpcb tcb;	/* head of queue of active tcpcb's */
+extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
+extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
 extern	int tcp_do_rfc1323;	/* XXX */
 extern	int tcp_do_rfc1644;	/* XXX */
 extern	int tcp_mssdflt;	/* XXX */
 extern	u_long tcp_now;		/* for RFC 1323 timestamps */
 extern	int tcp_rttdflt;	/* XXX */
+extern  u_short tcp_lastport;	/* last assigned port */
 
 int	 tcp_attach __P((struct socket *));
 void	 tcp_canceltimers __P((struct tcpcb *));

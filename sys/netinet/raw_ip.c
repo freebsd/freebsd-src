@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.15 1995/02/14 06:24:40 phk Exp $
+ * $Id: raw_ip.c,v 1.16 1995/03/16 16:25:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/systm.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -55,7 +56,8 @@
 
 #include <netinet/ip_fw.h>
 
-struct inpcb rawinpcb;
+struct inpcbhead ripcb;
+struct inpcbinfo ripcbinfo;
 
 /*
  * Nominal space allocated to a raw ip socket.
@@ -73,8 +75,14 @@ struct inpcb rawinpcb;
 void
 rip_init()
 {
-
-	rawinpcb.inp_next = rawinpcb.inp_prev = &rawinpcb;
+	LIST_INIT(&ripcb);
+	ripcbinfo.listhead = &ripcb;
+	/*
+	 * XXX We don't use the hash list for raw IP, but it's easier
+	 * to allocate a one entry hash list than it is to check all
+	 * over the place for hashbase == NULL.
+	 */
+	ripcbinfo.hashbase = phashinit(1, M_PCB, &ripcbinfo.hashsize);
 }
 
 struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
@@ -92,7 +100,7 @@ rip_input(m)
 	struct socket *last = 0;
 
 	ripsrc.sin_addr = ip->ip_src;
-	for (inp = rawinpcb.inp_next; inp != &rawinpcb; inp = inp->inp_next) {
+	for (inp = ripcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
 		if (inp->inp_ip.ip_p && inp->inp_ip.ip_p != ip->ip_p)
 			continue;
 		if (inp->inp_laddr.s_addr &&
@@ -317,7 +325,7 @@ rip_usrreq(so, req, m, nam, control)
 			break;
 		}
 		if ((error = soreserve(so, rip_sendspace, rip_recvspace)) ||
-		    (error = in_pcballoc(so, &rawinpcb)))
+		    (error = in_pcballoc(so, &ripcbinfo)))
 			break;
 		inp = (struct inpcb *)so->so_pcb;
 		inp->inp_ip.ip_p = (int)nam;

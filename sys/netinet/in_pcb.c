@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.7 1995/03/14 21:50:55 davidg Exp $
+ * $Id: in_pcb.c,v 1.8 1995/03/16 18:14:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -59,9 +60,9 @@
 struct	in_addr zeroin_addr;
 
 int
-in_pcballoc(so, head)
+in_pcballoc(so, pcbinfo)
 	struct socket *so;
-	struct inpcb *head;
+	struct inpcbinfo *pcbinfo;
 {
 	register struct inpcb *inp;
 
@@ -69,9 +70,10 @@ in_pcballoc(so, head)
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
-	inp->inp_head = head;
+	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
-	insque(inp, head);
+	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
+	in_pcbinshash(inp);
 	so->so_pcb = (caddr_t)inp;
 	return (0);
 }
@@ -82,8 +84,9 @@ in_pcbbind(inp, nam)
 	struct mbuf *nam;
 {
 	register struct socket *so = inp->inp_socket;
-	register struct inpcb *head = inp->inp_head;
-	register struct sockaddr_in *sin;
+	struct inpcbhead *head = inp->inp_pcbinfo->listhead;
+	unsigned short *lastport = &inp->inp_pcbinfo->lastport;
+	struct sockaddr_in *sin;
 	struct proc *p = curproc;		/* XXX */
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
@@ -141,13 +144,15 @@ in_pcbbind(inp, nam)
 	}
 	if (lport == 0)
 		do {
-			if (head->inp_lport++ < IPPORT_RESERVED ||
-			    head->inp_lport > IPPORT_USERRESERVED)
-				head->inp_lport = IPPORT_RESERVED;
-			lport = htons(head->inp_lport);
+			++*lastport;
+			if (*lastport < IPPORT_RESERVED ||
+			    *lastport > IPPORT_USERRESERVED)
+				*lastport = IPPORT_RESERVED;
+			lport = htons(*lastport);
 		} while (in_pcblookup(head,
 			    zeroin_addr, 0, inp->inp_laddr, lport, wild));
 	inp->inp_lport = lport;
+	in_pcbrehash(inp);
 	return (0);
 }
 
@@ -295,7 +300,7 @@ in_pcbconnect(inp, nam)
 	if (error = in_pcbladdr(inp, nam, &ifaddr))
 		return(error);
 
-	if (in_pcblookup(inp->inp_head,
+	if (in_pcblookup(inp->inp_pcbinfo->listhead,
 	    sin->sin_addr,
 	    sin->sin_port,
 	    inp->inp_laddr.s_addr ? inp->inp_laddr : ifaddr->sin_addr,
@@ -309,6 +314,7 @@ in_pcbconnect(inp, nam)
 	}
 	inp->inp_faddr = sin->sin_addr;
 	inp->inp_fport = sin->sin_port;
+	in_pcbrehash(inp);
 	return (0);
 }
 
@@ -319,6 +325,7 @@ in_pcbdisconnect(inp)
 
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
+	in_pcbrehash(inp);
 	if (inp->inp_socket->so_state & SS_NOFDREF)
 		in_pcbdetach(inp);
 }
@@ -336,7 +343,8 @@ in_pcbdetach(inp)
 	if (inp->inp_route.ro_rt)
 		rtfree(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
-	remque(inp);
+	LIST_REMOVE(inp, inp_hash);
+	LIST_REMOVE(inp, inp_list);
 	FREE(inp, M_PCB);
 }
 
@@ -385,7 +393,7 @@ in_setpeeraddr(inp, nam)
  */
 void
 in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
-	struct inpcb *head;
+	struct inpcbhead *head;
 	struct sockaddr *dst;
 	u_int fport_arg, lport_arg;
 	struct in_addr laddr;
@@ -418,17 +426,17 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 			notify = in_rtchange;
 	}
 	errno = inetctlerrmap[cmd];
-	for (inp = head->inp_next; inp != head;) {
+	for (inp = head->lh_first; inp != NULL;) {
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
 		    inp->inp_socket == 0 ||
 		    (lport && inp->inp_lport != lport) ||
 		    (laddr.s_addr && inp->inp_laddr.s_addr != laddr.s_addr) ||
 		    (fport && inp->inp_fport != fport)) {
-			inp = inp->inp_next;
+			inp = inp->inp_list.le_next;
 			continue;
 		}
 		oinp = inp;
-		inp = inp->inp_next;
+		inp = inp->inp_list.le_next;
 		if (notify)
 			(*notify)(oinp, errno);
 	}
@@ -489,7 +497,7 @@ in_rtchange(inp, errno)
 
 struct inpcb *
 in_pcblookup(head, faddr, fport_arg, laddr, lport_arg, flags)
-	struct inpcb *head;
+	struct inpcbhead *head;
 	struct in_addr faddr, laddr;
 	u_int fport_arg, lport_arg;
 	int flags;
@@ -498,19 +506,10 @@ in_pcblookup(head, faddr, fport_arg, laddr, lport_arg, flags)
 	int matchwild = 3, wildcard;
 	u_short fport = fport_arg, lport = lport_arg;
 
-	for (inp = head->inp_next; inp != head; inp = inp->inp_next) {
+	for (inp = head->lh_first; inp != NULL; inp = inp->inp_list.le_next) {
 		if (inp->inp_lport != lport)
 			continue;
 		wildcard = 0;
-		if (inp->inp_laddr.s_addr != INADDR_ANY) {
-			if (laddr.s_addr == INADDR_ANY)
-				wildcard++;
-			else if (inp->inp_laddr.s_addr != laddr.s_addr)
-				continue;
-		} else {
-			if (laddr.s_addr != INADDR_ANY)
-				wildcard++;
-		}
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			if (faddr.s_addr == INADDR_ANY)
 				wildcard++;
@@ -521,19 +520,93 @@ in_pcblookup(head, faddr, fport_arg, laddr, lport_arg, flags)
 			if (faddr.s_addr != INADDR_ANY)
 				wildcard++;
 		}
+		if (inp->inp_laddr.s_addr != INADDR_ANY) {
+			if (laddr.s_addr == INADDR_ANY)
+				wildcard++;
+			else if (inp->inp_laddr.s_addr != laddr.s_addr)
+				continue;
+		} else {
+			if (laddr.s_addr != INADDR_ANY)
+				wildcard++;
+		}
 		if (wildcard && (flags & INPLOOKUP_WILDCARD) == 0)
 			continue;
 		if (wildcard < matchwild) {
 			match = inp;
 			matchwild = wildcard;
 			if (matchwild == 0) {
-				if (match->inp_prev != head) {
-					remque(match);
-					insque(match, head);
-				}
 				break;
 			}
 		}
 	}
 	return (match);
+}
+
+/*
+ * Lookup PCB in hash list.
+ */
+struct inpcb *
+in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg)
+	struct inpcbinfo *pcbinfo;
+	struct in_addr faddr, laddr;
+	u_int fport_arg, lport_arg;
+{
+	struct inpcbhead *head;
+	register struct inpcb *inp;
+	u_short fport = fport_arg, lport = lport_arg;
+
+	/*
+	 * First look for an exact match.
+	 */
+	head = &pcbinfo->hashbase[(faddr.s_addr + lport + fport) % pcbinfo->hashsize];
+
+	for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+		if (inp->inp_faddr.s_addr != faddr.s_addr ||
+		    inp->inp_fport != fport ||
+		    inp->inp_lport != lport ||
+		    inp->inp_laddr.s_addr != laddr.s_addr)
+			continue;
+		/*
+		 * Move PCB to head of this hash chain so that it can be
+		 * found more quickly in the future.
+		 */
+		if (inp != head->lh_first) {
+			LIST_REMOVE(inp, inp_hash);
+			LIST_INSERT_HEAD(head, inp, inp_hash);
+		}
+		return (inp);
+	}
+
+	/*
+	 * Didn't find an exact match, so try again looking for a matching
+	 * wildcard PCB.
+	 */
+	return (in_pcblookup(pcbinfo->listhead, faddr, fport_arg, laddr,
+	    lport_arg, INPLOOKUP_WILDCARD));
+}
+
+void
+in_pcbinshash(inp)
+	struct inpcb *inp;
+{
+	struct inpcbhead *head;
+
+	head = &inp->inp_pcbinfo->hashbase[(inp->inp_faddr.s_addr +
+		inp->inp_lport + inp->inp_fport) % inp->inp_pcbinfo->hashsize];
+
+	LIST_INSERT_HEAD(head, inp, inp_hash);
+}
+
+void
+in_pcbrehash(inp)
+	struct inpcb *inp;
+{
+	struct inpcbhead *head;
+
+	LIST_REMOVE(inp, inp_hash);
+
+	head = &inp->inp_pcbinfo->hashbase[(inp->inp_faddr.s_addr +
+		inp->inp_lport + inp->inp_fport) % inp->inp_pcbinfo->hashsize];
+
+	LIST_INSERT_HEAD(head, inp, inp_hash);
 }
