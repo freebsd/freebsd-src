@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)symtab.c	8.3 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -213,7 +217,7 @@ myname(ep)
 }
 
 /*
- * Unused symbol table entries are linked together on a freelist
+ * Unused symbol table entries are linked together on a free list
  * headed by the following pointer.
  */
 static struct entry *freelist = NULL;
@@ -257,7 +261,7 @@ addentry(name, inum, type)
 	if (type & LINK) {
 		ep = lookupino(inum);
 		if (ep == NULL)
-			panic("link to non-existant name\n");
+			panic("link to non-existent name\n");
 		np->e_ino = inum;
 		np->e_links = ep->e_links;
 		ep->e_links = np;
@@ -374,7 +378,7 @@ removeentry(ep)
  * of similar lengths can use the same entry. The value of STRTBLINCR
  * is chosen so that every entry has at least enough space to hold
  * a "struct strtbl" header. Thus every entry can be linked onto an
- * apprpriate free list.
+ * appropriate free list.
  *
  * NB. The macro "allocsize" below assumes that "struct strhdr"
  *     has a size that is a power of two.
@@ -470,7 +474,7 @@ dumpsymtable(filename, checkpt)
 	}
 	clearerr(fd);
 	/*
-	 * Assign indicies to each entry
+	 * Assign indices to each entry
 	 * Write out the string entries
 	 */
 	for (i = WINO; i <= maxino; i++) {
