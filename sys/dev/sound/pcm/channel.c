@@ -715,7 +715,7 @@ chn_setblocksize(pcm_channel *c, int blksz)
 	if (CANCHANGE(c)) {
 		c->flags &= ~CHN_F_HAS_SIZE;
 		if (blksz >= 2) c->flags |= CHN_F_HAS_SIZE;
-		blksz = abs(blksz);
+		if (blksz < 0) blksz = -blksz;
 		if (blksz < 2) blksz = (c->buffer.sample_size * c->speed) >> 2;
 		RANGE(blksz, 1024, c->buffer.bufsize / 4);
 		blksz &= ~3;

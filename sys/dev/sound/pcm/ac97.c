@@ -178,7 +178,7 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 {
 	struct ac97mixtable_entry *e = &codec->mix[channel];
 	if (e->reg != 0) {
-		int max, val;
+		int max, val, reg = (e->reg >= 0)? e->reg : -e->reg;
 
 		if (!e->stereo) right = left;
 		if (e->reg > 0) {
@@ -209,7 +209,7 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 			}
 		}
 		if (left == 0 && right == 0 && e->mute == 1) val = AC97_MUTE;
-		codec->write(codec->devinfo, abs(e->reg), val);
+		codec->write(codec->devinfo, reg, val);
 		return left | (right << 8);
 	} else return -1;
 }
