@@ -120,11 +120,15 @@
 /****************** local defines *********************/
 /****************** configurable hacks ****************/
 
+#include <stdlib.h>
+
 /* have been moved to config_f.h */
 #include "config_f.h"
 
 #if defined(__FreeBSD__)
 #define NLS_BUGS
+/* we want to use the system malloc when we install as /bin/csh */
+#define SYSMALLOC
 #endif
 
 #if defined(__bsdi__)
