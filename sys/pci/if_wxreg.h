@@ -1,6 +1,7 @@
 /* $FreeBSD$ */
 /*
- * Copyright (c) 1999, Traakan Software
+ * Principal Author: Matthew Jacob
+ * Copyright (c) 1999, 2001 by Traakan Software
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,12 +26,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Additional Copyright (c) 2001 by Parag Patel
+ * under same licence for MII PHY code.
  */
 
-#define WX_VENDOR_INTEL		0x8086
-#define WX_PRODUCT_82452	0x1000
-#define WX_PRODUCT_LIVENGOOD	0x1001
-#define	WX_PRODUCT_82452_SC	0x1003
+#define WX_VENDOR_INTEL			0x8086
+#define WX_PRODUCT_82452		0x1000
+#define WX_PRODUCT_LIVENGOOD		0x1001
+#define	WX_PRODUCT_82452_SC		0x1003
+#define	WX_PRODUCT_82543		0x1004
 #define	WX_MMBA			0x10
 #define	MWI			0x10	/* Memory Write Invalidate */
 #define	WX_CACHELINE_SIZE	0x20
@@ -40,9 +44,11 @@
 #define	WX_WISEMAN_2_0		0x10000002
 #define	WX_WISEMAN_2_1		0x10000003
 #define	WX_LIVENGOOD		0x10010000
+#define	WX_LIVENGOOD_CU		0x10040002
 
 #define	IS_WISEMAN(sc)		((sc)->wx_idnrev < WX_LIVENGOOD)
-#define	IS_LIVENGOOD(sc)	(!IS_WISEMAN(sc))
+#define	IS_LIVENGOOD(sc)	((sc)->wx_idnrev >= WX_LIVENGOOD)
+#define	IS_LIVENGOOD_CU(sc)	((sc)->wx_idnrev == WX_LIVENGOOD_CU)
 
 /*
  * Information about this chipset gathered from a released Intel Linux driver,
@@ -111,8 +117,13 @@ typedef struct {
 /*
  * This device can only be accessed via memory space.
  */
+
 /*
  * Register access via offsets.
+ *
+ * Our brilliant friends at Intel decided to move registers offsets
+ * around from chip version to chip version. It's amazing that some
+ * deity doesn't zap these suckers. Really.
  */
 
 #define	WXREG_DCR		0x00000000
@@ -133,11 +144,17 @@ typedef struct {
 #define	WXREG_IMCLR		0x000000d8
 #define	WXREG_RCTL		0x00000100
 #define	WXREG_RDTR0		0x00000108
+#define		WXREG_RDTR0_LIVENGOOD		0x00002820
 #define	WXREG_RDBA0_LO		0x00000110
+#define		WXREG_RDBA0_LO_LIVENGOOD	0x00002800
 #define	WXREG_RDBA0_HI		0x00000114
+#define		WXREG_RDBA0_HI_LIVENGOOD	0x00002804
 #define	WXREG_RDLEN0		0x00000118
+#define		WXREG_RDLEN0_LIVENGOOD		0x00002808
 #define	WXREG_RDH0		0x00000120
+#define		WXREG_RDH0_LIVENGOOD		0x00002810
 #define	WXREG_RDT0		0x00000128
+#define		WXREG_RDT0_LIVENGOOD		0x00002818
 #define	WXREG_RDTR1		0x00000130
 #define	WXREG_RDBA1_LO		0x00000138
 #define	WXREG_RDBA1_HI		0x0000013C
@@ -145,7 +162,9 @@ typedef struct {
 #define	WXREG_RDH1		0x00000148
 #define	WXREG_RDT1		0x00000150
 #define	WXREG_FLOW_RCV_HI	0x00000160
+#define		WXREG_FLOW_RCV_HI_LIVENGOOD	0x00002168
 #define	WXREG_FLOW_RCV_LO	0x00000168
+#define		WXREG_FLOW_RCV_LO_LIVENGOOD	0x00002160
 #define	WXREG_FLOW_XTIMER	0x00000170
 #define	WXREG_XMIT_CFGW		0x00000178
 #define	WXREG_RECV_CFGW		0x00000180
@@ -156,11 +175,17 @@ typedef struct {
 #define	WXREG_TIPG		0x00000410
 #define	WXREG_TQC		0x00000418
 #define	WXREG_TDBA_LO		0x00000420
+#define		WXREG_TDBA_LO_LIVENGOOD		0x00003800
 #define	WXREG_TDBA_HI		0x00000424
+#define		WXREG_TDBA_HI_LIVENGOOD		0x00003804
 #define	WXREG_TDLEN		0x00000428
+#define		WXREG_TDLEN_LIVENGOOD		0x00003808
 #define	WXREG_TDH		0x00000430
+#define		WXREG_TDH_LIVENGOOD		0x00003810
 #define	WXREG_TDT		0x00000438
+#define		WXREG_TDT_LIVENGOOD		0x00003818
 #define	WXREG_TIDV		0x00000440
+#define		WXREG_TIDV_LIVENGOOD		0x00003820
 #define	WXREG_VFTA		0x00000600
 
 #define	WX_RAL_TAB_SIZE		16
@@ -176,10 +201,14 @@ typedef struct {
 #define	WXDCR_BEM	0x2		/* big endian mode */
 #define	WXDCR_FAIR	0x4		/* 1->Fairness, 0->Receive Priority */
 #define	WXDCR_LRST	0x8		/* Link Reset */
+#define	WXDCR_ASDE	0x20		/* ??? */
+#define	WXDCR_SLE	0x20		/* ??? */
 #define	WXDCR_SLU	0x40		/* Set Link Up */
 #define	WXDCR_ILOS	0x80		/* Invert Loss-of-Signal */
+#define	WXDCR_10BT	0x000		/* set 10BaseT */
 #define	WXDCR_100BT	0x100		/* LIVENGOOD: Set 100BaseT */
 #define	WXDCR_1000BT	0x200		/* LIVENGOOD: Set 1000BaseT */
+#define	WXDCR_SPEED_MASK	0x300
 #define	WXDCR_BEM32	0x400		/* LIVENGOOD: Set Big Endian 32 (?) */
 #define	WXDCR_FRCSPD	0x800		/* LIVENGOOD: Force Speed (?) */
 #define	WXDCR_FRCDPX	0x1000		/* LIVENGOOD: Force Full Duplex */
@@ -193,16 +222,16 @@ typedef struct {
  */
 #define	WXDCR_SWDPINS_SHIFT	18
 #define	WXDCR_SWDPINS_MASK	0xf
-#define		WXDCR_SWDPIN0	(1 << 18)
-#define		WXDCR_SWDPIN1	(1 << 19)
-#define		WXDCR_SWDPIN2	(1 << 20)
-#define		WXDCR_SWDPIN3	(1 << 21)
+#define		WXDCR_SWDPIN0	(1 << 18)	/* 0x00040000 - PHY reset */
+#define		WXDCR_SWDPIN1	(1 << 19)	/* 0x00080000 */
+#define		WXDCR_SWDPIN2	(1 << 20)	/* 0x00100000 - PHY data */
+#define		WXDCR_SWDPIN3	(1 << 21)	/* 0x00200000 - PHY clk */
 #define	WXDCR_SWDPIO_SHIFT	22
 #define	WXDCR_SWDPIO_MASK	0xf
-#define		WXDCR_SWDPIO0	(1 << 22)
-#define		WXDCR_SWDPIO1	(1 << 23)
-#define		WXDCR_SWDPIO2	(1 << 24)
-#define		WXDCR_SWDPIO3	(1 << 25)
+#define		WXDCR_SWDPIO0	(1 << 22)	/* 0x00400000 - PHY rst dir */
+#define		WXDCR_SWDPIO1	(1 << 23)	/* 0x00800000 */
+#define		WXDCR_SWDPIO2	(1 << 24)	/* 0x01000000 - PHY data dir */
+#define		WXDCR_SWDPIO3	(1 << 25)	/* 0x02000000 - PHY clk dir */
 
 
 #define	WXDCR_RST	0x04000000	/* Device Reset (self clearing) */
@@ -266,9 +295,16 @@ typedef struct {
 #define	WXISR_RXT0	0x80		/* ring 0 receiver timer interrupt */
 #define	WXISR_RXT1	0x100		/* ring 1 receiver timer interrupt */
 #define	WXISR_PCIE	0x200		/* ?? Probably PCI interface error... */
+#define WXISR_MDIAC	0x200
+#define WXISR_RXCFG	0x400
+#define WXISR_GPI_EN0	0x800
+#define WXISR_GPI_EN1	0x1000		/* appears to be PHY intr line */
+#define WXISR_GPI_EN2	0x2000
+#define WXISR_GPI_EN3	0x4000
 
 #define	WXIENABLE_DEFAULT	\
-	 (WXISR_RXO|WXISR_RXT0|WXISR_RXDMT0|WXISR_RXSEQ|WXISR_LSC|WXISR_PCIE)
+	 (WXISR_RXO | WXISR_RXT0 | WXISR_RXDMT0 | WXISR_RXSEQ |	\
+		    WXISR_LSC | WXISR_PCIE | WXISR_GPI_EN1)
 
 #define	WXDISABLE	0xffffffff
 
@@ -323,16 +359,60 @@ typedef struct {
 #define	WX_HDX_COLLISION_DX	512
 
 /*
- * Receive Configuration Word defines
+ * MDI control register bits - (best-guess)
  */
+#define WXMDIC_WRITE		0x04000000
+#define WXMDIC_READ		0x08000000
+#define WXMDIC_READY		0x10000000
+#define WXMDIC_INTR		0x20000000
+#define WXMDIC_ERR		0x40000000
+#define WXMDIC_REGADDR_MASK	0x001F0000
+#define WXMDIC_REGADDR_SHIFT	16
+#define WXMDIC_PHYADDR_MASK	0x03E00000
+#define WXMDIC_PHYADDR_SHIFT	21
+#define WXMDIC_DATA_MASK	0x0000FFFF
 
-#define	WXRXCW_CWMASK	0x0000ffff
-#define	WXRXCW_NC	0x04000000
-#define	WXRXCW_IV	0x08000000
-#define	WXRXCW_CC	0x10000000
-#define	WXRXCW_C	0x20000000
-#define	WXRXCW_SYNCH	0x40000000
-#define	WXRXCW_ANC	0x80000000
+/*
+ * EXCT control register bits
+ */
+#define WXEXCT_GPI_EN0		0x00000001
+#define WXEXCT_GPI_EN1		0x00000002
+#define WXEXCT_GPI_EN2		0x00000004
+#define WXEXCT_GPI_EN3		0x00000008
+#define WXEXCT_SWDPIN4		0x00000010
+#define WXEXCT_SWDPIN5		0x00000020
+#define WXEXCT_SWDPIN6		0x00000040
+#define WXEXCT_SWDPIN7		0x00000080
+#define WXEXCT_SWDPIO4		0x00000100
+#define WXEXCT_SWDPIO5		0x00000200
+#define WXEXCT_SWDPIO6		0x00000400
+#define WXEXCT_SWDPIO7		0x00000800
+#define WXEXCT_ASDCHK		0x00001000
+#define WXEXCT_EE_RST		0x00002000
+#define WXEXCT_IPS		0x00004000
+#define WXEXCT_SPD_BYPS		0x00008000
+
+/*
+ * PHY access using GPIO pins
+ */
+#define WXPHY_RESET_DIR		WXDCR_SWDPIO0
+#define WXPHY_RESET		WXDCR_SWDPIN0
+#define WXPHY_MDIO_DIR		WXDCR_SWDPIO2
+#define WXPHY_MDIO		WXDCR_SWDPIN2
+#define WXPHY_MDC_DIR		WXDCR_SWDPIO3
+#define WXPHY_MDC		WXDCR_SWDPIN3
+#define WXPHY_RESET_DIR4	WXEXCT_SWDPIO4
+#define WXPHY_RESET4		WXEXCT_SWDPIN4
+
+/*
+ * PHY commands
+ */
+#define WXPHYC_PREAMBLE		0xFFFFFFFF
+#define WXPHYC_PREAMBLE_LEN	32
+#define WXPHYC_SOF		0x01
+#define WXPHYC_READ		0x02
+#define WXPHYC_WRITE		0x01
+#define WXPHYC_TURNAROUND	0x02
 
 /*
  * Receive Configuration Word defines
@@ -370,6 +450,7 @@ typedef struct {
 
 #define	WX_WISEMAN_TIPG_DFLT		(10 | (2 << 10) | (10 << 20))
 #define	WX_LIVENGOOD_TIPG_DFLT		(6 | (8 << 10) | (6 << 20))
+#define	WX_LIVENGOOD_CU_TIPG_DFLT	(8 | (8 << 10) | (6 << 20))
 
 #define	WX_CRC_LENGTH		4
 
