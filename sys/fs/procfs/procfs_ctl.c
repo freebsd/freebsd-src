@@ -37,7 +37,7 @@
  *	@(#)procfs_ctl.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_ctl.c,v 1.14 1997/03/24 11:24:40 bde Exp $
+ *	$Id: procfs_ctl.c,v 1.15 1997/04/27 19:02:37 alex Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,6 @@
 #include <sys/signal.h>
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
-#include <sys/systm.h>
 #include <miscfs/procfs/procfs.h>
 
 #include <vm/vm.h>
