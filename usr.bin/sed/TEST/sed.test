@@ -43,9 +43,9 @@
 
 main()
 {
-	BASE=/usr/old/bin/sed
+	BASE=/usr/bin/sed
 	BASELOG=sed.out
-	TEST=../obj/sed
+	TEST=`cd ..; make whereobj`/sed
 	TESTLOG=nsed.out
 	DICT=/usr/share/dict/words
 
