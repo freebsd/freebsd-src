@@ -55,7 +55,7 @@ struct spxhdr {
 	u_short	spx_seq;	/* sequence number */
 	u_short	spx_ack;	/* acknowledge number */
 	u_short	spx_alo;	/* allocation number */
-};
+} __packed;
 
 /*
  * Definitions for NS(tm) Internet Datagram Protocol
@@ -64,7 +64,7 @@ struct spxhdr {
 struct spx {
 	struct ipx	si_i;
 	struct spxhdr 	si_s;
-};
+} __packed;
 struct spx_q {
 	struct spx_q	*si_next;
 	struct spx_q	*si_prev;
