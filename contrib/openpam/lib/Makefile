@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2002 Networks Associates Technology, Inc.
+# Copyright (c) 2002-2003 Networks Associates Technology, Inc.
 # All rights reserved.
 #
 # This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,17 +31,20 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/lib/Makefile#16 $
+# $P4: //depot/projects/openpam/lib/Makefile#21 $
 #
 
 LIB		 = pam
-SHLIB_MAJOR	 = 2
-SHLIB_MINOR	 = 0
 
 WARNS		?= 4
 NO_WERROR	 = yes
 CFLAGS		+= -I${.CURDIR}/../include
 CFLAGS		+= -DLIB_MAJ=${SHLIB_MAJOR}
+
+OSNAME		!= uname -s
+.if ${OSNAME} == "Linux"
+LDADD		+= -ldl
+.endif
 
 SRCS		 =
 SRCS		+= openpam_borrow_cred.c
@@ -54,6 +57,7 @@ SRCS		+= openpam_get_option.c
 SRCS		+= openpam_load.c
 SRCS		+= openpam_log.c
 SRCS		+= openpam_nullconv.c
+SRCS		+= openpam_readline.c
 SRCS		+= openpam_restore_cred.c
 SRCS		+= openpam_set_option.c
 SRCS		+= openpam_static.c

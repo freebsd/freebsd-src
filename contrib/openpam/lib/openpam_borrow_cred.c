@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,11 +31,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#4 $
+ * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#9 $
  */
 
 #include <sys/param.h>
 
+#include <grp.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -75,20 +76,20 @@ openpam_borrow_cred(pam_handle_t *pamh,
 	scred->euid = geteuid();
 	scred->egid = getegid();
 	r = getgroups(NGROUPS_MAX, scred->groups);
-	if (r == -1) {
-		free(scred);
+	if (r < 0) {
+		FREE(scred);
 		RETURNC(PAM_SYSTEM_ERR);
 	}
 	scred->ngroups = r;
 	r = pam_set_data(pamh, PAM_SAVED_CRED, scred, &openpam_free_data);
 	if (r != PAM_SUCCESS) {
-		free(scred);
+		FREE(scred);
 		RETURNC(r);
 	}
 	if (geteuid() == pwd->pw_uid)
 		RETURNC(PAM_SUCCESS);
-	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1 ||
-	      setegid(pwd->pw_gid) == -1 || seteuid(pwd->pw_uid) == -1) {
+	if (initgroups(pwd->pw_name, pwd->pw_gid) < 0 ||
+	      setegid(pwd->pw_gid) < 0 || seteuid(pwd->pw_uid) < 0) {
 		openpam_restore_cred(pamh);
 		RETURNC(PAM_SYSTEM_ERR);
 	}
