@@ -54,7 +54,6 @@ static int	twe_set_param(struct twe_softc *sc, int table_id, int param_id, int p
 static int	twe_init_connection(struct twe_softc *sc, int mode);
 static int	twe_wait_request(struct twe_request *tr);
 static int	twe_immediate_request(struct twe_request *tr);
-static void	twe_startio(struct twe_softc *sc);
 static void	twe_completeio(struct twe_request *tr);
 static void	twe_reset(struct twe_softc *sc);
 
@@ -96,6 +95,7 @@ static void	twe_release_request(struct twe_request *tr);
  * Debugging.
  */
 static char 	*twe_format_aen(struct twe_softc *sc, u_int16_t aen);
+static int	twe_report_request(struct twe_request *tr);
 static int	twe_request_qlen(struct twe_request *tr);
 static void	twe_panic(struct twe_softc *sc, char *reason);
 
@@ -320,20 +320,113 @@ twe_intr(struct twe_softc *sc)
 	twe_done(sc);
 };
 
-/*******************************************************************************
- * Receive a bio structure from a child device and queue it on a particular
- * controller, then poke the controller to start as much work as it can.
+/********************************************************************************
+ * Pull as much work off the softc's work queue as possible and give it to the
+ * controller.
  */
-int
-twe_submit_bio(struct twe_softc *sc, twe_bio *bp)
+void
+twe_startio(struct twe_softc *sc)
 {
-    
+    struct twe_request	*tr;
+    TWE_Command		*cmd;
+    twe_bio		*bp;
+    int			error;
+
     debug_called(4);
 
-    twe_enqueue_bio(sc, bp);
+    /* spin until something prevents us from doing any work */
+    for (;;) {
 
-    twe_startio(sc);
-    return(0);
+	/* try to get a command that's already ready to go */
+	tr = twe_dequeue_ready(sc);
+
+	/* build a command from an outstanding bio */
+	if (tr == NULL) {
+	    
+	    /* see if there's work to be done */
+	    if ((bp = twe_dequeue_bio(sc)) == NULL)
+		break;
+
+	    /* get a command to handle the bio with */
+	    if (twe_get_request(sc, &tr)) {
+		twe_enqueue_bio(sc, bp);	/* failed, put the bio back */
+		break;
+	    }
+
+	    /* connect the bio to the command */
+	    tr->tr_complete = twe_completeio;
+	    tr->tr_private = bp;
+	    tr->tr_data = TWE_BIO_DATA(bp);
+	    tr->tr_length = TWE_BIO_LENGTH(bp);
+	    cmd = &tr->tr_command;
+	    if (TWE_BIO_IS_READ(bp)) {
+		tr->tr_flags |= TWE_CMD_DATAIN;
+		cmd->io.opcode = TWE_OP_READ;
+	    } else {
+		tr->tr_flags |= TWE_CMD_DATAOUT;
+		cmd->io.opcode = TWE_OP_WRITE;
+	    }
+	
+	    /* build a suitable I/O command (assumes 512-byte rounded transfers) */
+	    cmd->io.size = 3;
+	    cmd->io.unit = TWE_BIO_UNIT(bp);
+	    cmd->io.block_count = (tr->tr_length + TWE_BLOCK_SIZE - 1) / TWE_BLOCK_SIZE;
+	    cmd->io.lba = TWE_BIO_LBA(bp);
+
+	    /* map the command so the controller can work with it */
+	    twe_map_request(tr);
+	}
+	
+	/* did we find something to do? */
+	if (tr == NULL)
+	    break;
+	
+	/* try to give command to controller */
+	error = twe_start(tr);
+
+	if (error != 0) {
+	    if (error == EBUSY) {
+		twe_requeue_ready(tr);		/* try it again later */
+		break;				/* don't try anything more for now */
+	    }
+	    /* we don't support any other return from twe_start */
+	    twe_panic(sc, "twe_start returned nonsense");
+	}
+    }
+}
+
+/********************************************************************************
+ * Write blocks from memory to disk, for system crash dumps.
+ */
+int
+twe_dump_blocks(struct twe_softc *sc, int unit,	u_int32_t lba, void *data, int nblks)
+{
+    struct twe_request	*tr;
+    TWE_Command		*cmd;
+    int			error;
+
+    if (twe_get_request(sc, &tr))
+	return(ENOMEM);
+
+    tr->tr_data = data;
+    tr->tr_status = TWE_CMD_SETUP;
+    tr->tr_length = nblks * TWE_BLOCK_SIZE;
+    tr->tr_flags = TWE_CMD_DATAOUT;
+
+    cmd = &tr->tr_command;
+    cmd->io.opcode = TWE_OP_WRITE;
+    cmd->io.size = 3;
+    cmd->io.unit = unit;
+    cmd->io.block_count = nblks;
+    cmd->io.lba = lba;
+
+    twe_map_request(tr);
+    error = twe_immediate_request(tr);
+    if (error == 0)
+	if (twe_report_request(tr))
+	    error = EIO;
+    twe_release_request(tr);
+    return(error);
 }
 
 /********************************************************************************
@@ -349,6 +442,7 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
     void			*data;
     int				*arg = (int *)addr;
     struct twe_request		*tr;
+    u_int8_t			srid;
     int				s, error;
 
     error = 0;
@@ -361,8 +455,13 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	    goto cmd_done;
 	}
 
-	/* copy the user-supplied command */
+	/*
+	 * Save the command's request ID, copy the user-supplied command in,
+	 * restore the request ID.
+	 */
+	srid = tr->tr_command.generic.request_id;
 	bcopy(&tu->tu_command, &tr->tr_command, sizeof(TWE_Command));
+	tr->tr_command.generic.request_id = srid;
 
 	/* if there's a data buffer, allocate and copy it in */
 	tr->tr_length = tu->tu_size;
@@ -377,6 +476,7 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	}
 
 	/* run the command */
+	twe_map_request(tr);
 	twe_wait_request(tr);
 
 	/* copy the command out again */
@@ -590,21 +690,8 @@ twe_get_param(struct twe_softc *sc, int table_id, int param_id, size_t param_siz
 	/* XXX could use twe_wait_request here if interrupts were enabled? */
 	error = twe_immediate_request(tr);
 	if (error == 0) {
-	    switch (cmd->generic.flags) {
-	    case TWE_FLAGS_SUCCESS:
-		break;
-	    case TWE_FLAGS_INFORMATIONAL:
-	    case TWE_FLAGS_WARNING:
-		twe_printf(sc, "command completed - %s\n", 
-			   twe_describe_code(twe_table_status, cmd->generic.status));
-		break;
-
-	    case TWE_FLAGS_FATAL:
-	    default:
-		twe_printf(sc, "command failed - %s\n", 
-			   twe_describe_code(twe_table_status, cmd->generic.status));
+	    if (twe_report_request(tr))
 		goto err;
-	    }
 	}
 	twe_release_request(tr);
 	return(param);
@@ -693,22 +780,8 @@ twe_set_param(struct twe_softc *sc, int table_id, int param_id, int param_size, 
     /* XXX could use twe_wait_request here if interrupts were enabled? */
     error = twe_immediate_request(tr);
     if (error == 0) {
-	switch (cmd->generic.flags) {
-	case TWE_FLAGS_SUCCESS:
-	    break;
-	case TWE_FLAGS_INFORMATIONAL:
-	case TWE_FLAGS_WARNING:
-	    twe_printf(sc, "command completed - %s\n", 
-		       twe_describe_code(twe_table_status, cmd->generic.status));
-	    break;
-
-	case TWE_FLAGS_FATAL:
-	default:
-	    twe_printf(sc, "command failed - %s\n", 
-		       twe_describe_code(twe_table_status, cmd->generic.status));
+	if (twe_report_request(tr))
 	    error = EIO;
-	    break;
-	}
     }
 
 out:
@@ -806,86 +879,11 @@ twe_immediate_request(struct twe_request *tr)
 }
 
 /********************************************************************************
- * Pull as much work off the softc's work queue as possible and give it to the
- * controller.
- */
-static void
-twe_startio(struct twe_softc *sc)
-{
-    struct twe_request	*tr;
-    TWE_Command		*cmd;
-    twe_bio		*bp;
-    int			error;
-
-    debug_called(4);
-
-    /* spin until something prevents us from doing any work */
-    for (;;) {
-
-	/* try to get a command that's already ready to go */
-	tr = twe_dequeue_ready(sc);
-
-	/* build a command from an outstanding bio */
-	if (tr == NULL) {
-	    /* see if there's work to be done */
-	    if ((bp = twe_dequeue_bio(sc)) == NULL)
-		break;
-	    /* get a command */
-	    if (twe_get_request(sc, &tr)) {
-		twe_enqueue_bio(sc, bp);
-		break;
-	    }
-
-	    /* connect the bio to the command */
-	    tr->tr_complete = twe_completeio;
-	    tr->tr_private = bp;
-	    tr->tr_data = TWE_BIO_DATA(bp);
-	    tr->tr_length = TWE_BIO_LENGTH(bp);
-	    cmd = &tr->tr_command;
-	    if (TWE_BIO_IS_READ(bp)) {
-		tr->tr_flags |= TWE_CMD_DATAIN;
-		cmd->io.opcode = TWE_OP_READ;
-	    } else {
-		tr->tr_flags |= TWE_CMD_DATAOUT;
-		cmd->io.opcode = TWE_OP_WRITE;
-	    }
-	
-	    /* build a suitable I/O command (assumes 512-byte rounded transfers) */
-	    cmd->io.size = 3;
-	    cmd->io.unit = TWE_BIO_UNIT(bp);
-	    cmd->io.block_count = (tr->tr_length + TWE_BLOCK_SIZE - 1) / TWE_BLOCK_SIZE;
-	    cmd->io.lba = TWE_BIO_LBA(bp);
-
-	    /* map the command so the controller can work with it */
-	    twe_map_request(tr);
-	}
-	
-	/* did we find something to do? */
-	if (tr == NULL)
-	    break;
-	
-	/* try to give command to controller */
-	error = twe_start(tr);
-
-	if (error != 0) {
-	    if (error == EBUSY) {
-		twe_requeue_ready(tr);		/* try it again later */
-		break;				/* don't try anything more for now */
-	    }
-	    /* otherwise, fail the command */
-	    tr->tr_status = TWE_CMD_FAILED;
-	    twe_completeio(tr);
-	}
-    }
-}
-
-/********************************************************************************
  * Handle completion of an I/O command.
  */
 static void
 twe_completeio(struct twe_request *tr)
 {
-    TWE_Command		*cmd = &tr->tr_command;
     struct twe_softc	*sc = tr->tr_sc;
     twe_bio		*bp = (twe_bio *)tr->tr_private;
 
@@ -893,36 +891,15 @@ twe_completeio(struct twe_request *tr)
 
     if (tr->tr_status == TWE_CMD_COMPLETE) {
 
-	switch (cmd->generic.flags) {
-	case TWE_FLAGS_SUCCESS:
-	    break;
-	case TWE_FLAGS_INFORMATIONAL:
-	case TWE_FLAGS_WARNING:
-	    twe_printf(sc, "command completed - %s\n", 
-		       twe_describe_code(twe_table_status, cmd->generic.status));
-	    break;
-
-	case TWE_FLAGS_FATAL:
-	default:
-	    twe_printf(sc, "command failed - %s\n", 
-		       twe_describe_code(twe_table_status, cmd->generic.status));
+	if (twe_report_request(tr))
 	    TWE_BIO_SET_ERROR(bp, EIO);
 
-	    /* 
-	     * XXX some status values suggest that the controller should be reset and all outstanding
-	     * commands retried.  This might be a good place for that.
-	     */
-	    break;
-	}
-    } else if (tr->tr_status == TWE_CMD_FAILED) {	/* could be more verbose here? */
-	TWE_BIO_SET_ERROR(bp, EIO);
-	twe_printf(sc, "command failed submission - controller wedged\n");
-	/*
-	 * XXX reset controller and retry?
-	 */
+    } else {
+	twe_panic(sc, "twe_completeio on incomplete command");
     }
-    twe_release_request(tr);
+    tr->tr_private = NULL;
     twed_intr(bp);
+    twe_release_request(tr);
 }
 
 /********************************************************************************
@@ -935,7 +912,7 @@ twe_reset(struct twe_softc *sc)
     struct twe_request	*tr;
     int			i, s;
 
-    twe_printf(sc, "Controller reset in progress...\n");
+    twe_printf(sc, "controller reset in progress...\n");
 
     /*
      * Disable interrupts from the controller, and mask any accidental entry
@@ -1075,15 +1052,14 @@ twe_done(struct twe_softc *sc)
 	    found = 1;
 	    rq = TWE_RESPONSE_QUEUE(sc);
 	    tr = sc->twe_lookup[rq.u.response_id];	/* find command */
-	    if (tr != NULL) {				/* paranoia */
-		debug(3, "completed request id %d with status %d", 
-		      tr->tr_command.generic.request_id, tr->tr_command.generic.status);
-		/* move to completed queue */
-		twe_remove_busy(tr);
-		twe_enqueue_complete(tr);
-	    } else {
-		debug(2, "done event for nonbusy id %d\n", rq.u.response_id);
-	    }
+	    if (tr->tr_status != TWE_CMD_BUSY)
+		twe_printf(sc, "completion event for nonbusy command\n");
+	    tr->tr_status = TWE_CMD_COMPLETE;
+	    debug(3, "completed request id %d with status %d", 
+		  tr->tr_command.generic.request_id, tr->tr_command.generic.status);
+	    /* move to completed queue */
+	    twe_remove_busy(tr);
+	    twe_enqueue_complete(tr);
 	} else {
 	    break;					/* no response ready */
 	}
@@ -1118,9 +1094,6 @@ twe_complete(struct twe_softc *sc)
 
 	/* unmap the command's data buffer */
 	twe_unmap_request(tr);
-
-	/* mark command as complete */
-	tr->tr_status = TWE_CMD_COMPLETE;
 
 	/* dispatch to suit command originator */
 	if (tr->tr_complete != NULL) {		/* completion callback */
@@ -1483,6 +1456,7 @@ twe_get_request(struct twe_softc *sc, struct twe_request **tr)
     /* initialise some fields to their defaults */
     if (*tr != NULL) {
 	(*tr)->tr_data = NULL;
+	(*tr)->tr_private = NULL;
 	(*tr)->tr_status = TWE_CMD_SETUP;		/* command is in setup phase */
 	(*tr)->tr_flags = 0;
 	(*tr)->tr_complete = NULL;
@@ -1501,6 +1475,8 @@ twe_release_request(struct twe_request *tr)
 {
     debug_called(4);
 
+    if (tr->tr_private != NULL)
+	twe_panic(tr->tr_sc, "tr_private != NULL");
     twe_enqueue_free(tr);
 }
 
@@ -1653,18 +1629,47 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
     return(buf);
 }
 
+/********************************************************************************
+ * Print a diagnostic if the status of the command warrants it, and return
+ * either zero (command was ok) or nonzero (command failed).
+ */
 static int
-twe_request_qlen(struct twe_request *tr)
+twe_report_request(struct twe_request *tr)
 {
-    int len = 0;
+    struct twe_softc	*sc = tr->tr_sc;
+    TWE_Command		*cmd = &tr->tr_command;
+    int			result;
 
-    while (tr != NULL) {
-	tr = TAILQ_NEXT(tr, tr_link);
-	len++;
+    switch (cmd->generic.flags) {
+    case TWE_FLAGS_SUCCESS:
+	result = 0;
+	break;
+    case TWE_FLAGS_INFORMATIONAL:
+    case TWE_FLAGS_WARNING:
+	twe_printf(sc, "command completed - %s\n", 
+		   twe_describe_code(twe_table_status, cmd->generic.status));
+	result = 0;
+	break;
+
+    case TWE_FLAGS_FATAL:
+    default:
+	twe_printf(sc, "command failed - %s\n", 
+		   twe_describe_code(twe_table_status, cmd->generic.status));
+	result = 1;
+
+	/*
+	 * The status code 0xff requests a controller reset
+	 */
+	if (cmd->generic.status == 0xff)
+	    twe_reset(sc);
+	break;
     }
-    return(len);
+    return(result);
 }
 
+/********************************************************************************
+ * Print some controller state to aid in debugging error/panic conditions
+ */
 void
 twe_print_controller(struct twe_softc *sc)
 {
@@ -1672,10 +1677,12 @@ twe_print_controller(struct twe_softc *sc)
 
     status_reg = TWE_STATUS(sc);
     twe_printf(sc, "status   %b\n", status_reg, TWE_STATUS_BITS_DESCRIPTION);
-    twe_printf(sc, "free     %d\n", twe_request_qlen(TAILQ_FIRST(&sc->twe_free)));
-    twe_printf(sc, "ready    %d\n", twe_request_qlen(TAILQ_FIRST(&sc->twe_ready)));
-    twe_printf(sc, "busy     %d\n", twe_request_qlen(TAILQ_FIRST(&sc->twe_busy)));
-    twe_printf(sc, "complete %d\n", twe_request_qlen(TAILQ_FIRST(&sc->twe_complete)));
+    twe_printf(sc, "          current  max\n");
+    twe_printf(sc, "free      %04d     %04d\n", sc->twe_qstat[TWEQ_FREE].q_length, sc->twe_qstat[TWEQ_FREE].q_max);
+    twe_printf(sc, "ready     %04d     %04d\n", sc->twe_qstat[TWEQ_READY].q_length, sc->twe_qstat[TWEQ_READY].q_max);
+    twe_printf(sc, "busy      %04d     %04d\n", sc->twe_qstat[TWEQ_BUSY].q_length, sc->twe_qstat[TWEQ_BUSY].q_max);
+    twe_printf(sc, "complete  %04d     %04d\n", sc->twe_qstat[TWEQ_COMPLETE].q_length, sc->twe_qstat[TWEQ_COMPLETE].q_max);
+    twe_printf(sc, "bioq      %04d     %04d\n", sc->twe_qstat[TWEQ_BIO].q_length, sc->twe_qstat[TWEQ_BIO].q_max);
     twe_printf(sc, "AEN queue head %d  tail %d\n", sc->twe_aen_head, sc->twe_aen_tail);
 }	
 
