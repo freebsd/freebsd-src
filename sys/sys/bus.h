@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.15 1999/05/09 13:00:49 phk Exp $
+ *	$Id: bus.h,v 1.16 1999/05/14 11:22:47 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -85,6 +85,74 @@ typedef enum device_state {
 } device_state_t;
 
 /*
+ * Definitions for drivers which need to keep simple lists of resources
+ * for their child devices.
+ */
+struct	resource;
+
+struct resource_list_entry {
+    SLIST_ENTRY(resource_list_entry) link;
+    int			type;		/* type argument to alloc_resource */
+    int			rid;		/* resource identifier */
+    struct resource	*res;		/* the real resource when allocated */
+    u_long		start;		/* start of resource range */
+    u_long		end;		/* end of resource range */
+    u_long		count;		/* count within range */
+};
+SLIST_HEAD(resource_list, resource_list_entry);
+
+/*
+ * Initialise a resource list.
+ */
+void	resource_list_init(struct resource_list *rl);
+
+/*
+ * Reclaim memory used by a resource list.
+ */
+void	resource_list_free(struct resource_list *rl);
+
+/*
+ * Add a resource entry or modify an existing entry if one exists with 
+ * the same type and rid.
+ */
+void	resource_list_add(struct resource_list *rl,
+			  int type, int rid,
+			  u_long start, u_long end, u_long count);
+
+/*
+ * Find a resource entry by type and rid.
+ */
+struct resource_list_entry*
+	resource_list_find(struct resource_list *rl,
+			   int type, int rid);
+
+/*
+ * Remove a resource entry.
+ */
+void	resource_list_remove(struct resource_list *rl,
+			     int type, int rid);
+
+/*
+ * Implement BUS_ALLOC_RESOURCE by looking up a resource from the list 
+ * and passing the allocation up to the parent of bus. This assumes
+ * that the first entry of device_get_ivars(child) is a struct
+ * resource_list. This also handles 'passthrough' allocations where a
+ * child is a remote descendant of bus by passing the allocation up to 
+ * the parent of bus.
+ */
+struct resource *
+	resource_list_alloc(device_t bus, device_t child,
+			    int type, int *rid,
+			    u_long start, u_long end,
+			    u_long count, u_int flags);
+
+/*
+ * Implement BUS_RELEASE_RESOURCE.
+ */
+int	resource_list_release(device_t bus, device_t child,
+			      int type, int rid, struct resource *res);
+
+/*
  * The root bus, to which all top-level busses are attached.
  */
 extern device_t root_bus;
@@ -94,7 +162,6 @@ void	root_bus_configure(void);
 /*
  * Useful functions for implementing busses.
  */
-struct	resource;
 
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
