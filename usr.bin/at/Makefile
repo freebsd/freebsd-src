@@ -4,7 +4,7 @@
 
 PROG=	at
 CFLAGS+=-Wall
-SRCS=   at.c panic.c parsetime.c perm.c
+SRCS=	at.c panic.c parsetime.c perm.c
 LINKS=	${BINDIR}/at ${BINDIR}/atq \
 	${BINDIR}/at ${BINDIR}/atrm \
 	${BINDIR}/at ${BINDIR}/batch
@@ -13,9 +13,7 @@ MLINKS=	at.1 batch.1 \
 	at.1 atrm.1
 
 BINMODE= 4555
-MANSRC= .
 CLEANFILES += ${MAN1}
-MANDEPEND = ${MAN1}
 
 .include <bsd.prog.mk>
 
@@ -29,5 +27,4 @@ ${MAN1}: at.man
 		s@_LOADAVG_MX@$(LOADAVG_MX)@g; \
 		s@_PERM_PATH@$(PERM_PATH)@g; \
 		s@_LOCKFILE@$(LOCKFILE)@g" \
-		< ${.OODATE} > ${.TARGET}
-
+		< ${.ALLSRC} > ${.TARGET}
