@@ -594,7 +594,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - oszsigcode;
+	regs->tf_eip = PS_STRINGS - szosigcode;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
