@@ -60,13 +60,25 @@
 #include <machine/smp.h>
 #endif /* APIC_IO */
 
+/* map register information */
+#define PCI_MAPMEM	0x01	/* memory map */
+#define PCI_MAPMEMP	0x02	/* prefetchable memory map */
+#define PCI_MAPPORT	0x04	/* port map */
+
+struct pci_devinfo {
+    	STAILQ_ENTRY(pci_devinfo) pci_links;
+	struct resource_list resources;
+	pcicfgregs		cfg;
+	struct pci_conf		conf;
+};
+
 static STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
 u_int32_t pci_numdevs = 0;
 static u_int32_t pci_generation = 0;
 
 /* return base address of memory or port map */
 
-static int
+static u_int32_t
 pci_mapbase(unsigned mapreg)
 {
 	int mask = 0x03;
@@ -133,91 +145,6 @@ pci_maprange(unsigned mapreg)
 		break;
 	}
 	return (ln2range);
-}
-
-/* extract map parameters into newly allocated array of pcimap structures */
-
-static pcimap *
-pci_readmaps(pcicfgregs *cfg, int maxmaps)
-{
-	int i, j = 0;
-	pcimap *map;
-	int map64 = 0;
-	int reg = PCIR_MAPS;
-
-	for (i = 0; i < maxmaps; i++) {
-		int reg = PCIR_MAPS + i*4;
-		u_int32_t base;
-		u_int32_t ln2range;
-
-		base = pci_cfgread(cfg, reg, 4);
-		ln2range = pci_maprange(base);
-
-		if (base == 0 || ln2range == 0 || base == 0xffffffff)
-			continue; /* skip invalid entry */
-		else {
-			j++;
-			if (ln2range > 32) {
-				i++;
-				j++;
-			}
-		}
-	}
-
-	map = malloc(j * sizeof (pcimap), M_DEVBUF, M_WAITOK);
-	if (map != NULL) {
-		bzero(map, sizeof(pcimap) * j);
-		cfg->nummaps = j;
-
-		for (i = 0, j = 0; i < maxmaps; i++, reg += 4) {
-			u_int32_t base;
-			u_int32_t testval;
-
-			base = pci_cfgread(cfg, reg, 4);
-
-			if (map64 == 0) {
-				if (base == 0 || base == 0xffffffff)
-					continue; /* skip invalid entry */
-
-				pci_cfgwrite(cfg, reg, 0xffffffff, 4);
-				testval = pci_cfgread(cfg, reg, 4);
-				pci_cfgwrite(cfg, reg, base, 4);
-
-				map[j].reg	= reg;
-				map[j].base     = pci_mapbase(base);
-				map[j].type     = pci_maptype(base);
-				map[j].ln2size  = pci_mapsize(testval);
-				map[j].ln2range = pci_maprange(testval);
-				map64 = map[j].ln2range == 64;
-			} else {
-				/* only fill in base, other fields are 0 */
-				map[j].base     = base;
-				map64 = 0;
-			}
-#ifdef __alpha__
-			/* 
-			 *  XXX: encode hose number in the base addr,
-			 *  This will go away once the bus_space functions
-			 *  can deal with multiple hoses 
-			 */
-
-			if(cfg->hose){
-				if(map[j].base & 0x80000000){
-					printf("base   addr = 0x%x\n", map[j].base);
-					printf("hacked addr = 0x%x\n",
-					       map[j].base | (cfg->hose << 31));
-					
-					panic("hose encoding hack would clobber base addr");
-				}
-				if(cfg->hose > 1 )
-					panic("only one hose supported!");
-				map[j].base |=  (cfg->hose << 31);
-			}
-#endif
-			j++;
-		}
-	}
-	return (map);
 }
 
 /* adjust some values from PCI 1.0 devices to match 2.0 standards ... */
@@ -312,14 +239,14 @@ pci_hdrtypedata(pcicfgregs *cfg)
 	case 0:
 		cfg->subvendor      = pci_cfgread(cfg, PCIR_SUBVEND_0, 2);
 		cfg->subdevice      = pci_cfgread(cfg, PCIR_SUBDEV_0, 2);
-		cfg->map            = pci_readmaps(cfg, PCI_MAXMAPS_0);
+		cfg->nummaps	    = PCI_MAXMAPS_0;
 		break;
 	case 1:
 		cfg->subvendor      = pci_cfgread(cfg, PCIR_SUBVEND_1, 2);
 		cfg->subdevice      = pci_cfgread(cfg, PCIR_SUBDEV_1, 2);
 		cfg->secondarybus   = pci_cfgread(cfg, PCIR_SECBUS_1, 1);
 		cfg->subordinatebus = pci_cfgread(cfg, PCIR_SUBBUS_1, 1);
-		cfg->map            = pci_readmaps(cfg, PCI_MAXMAPS_1);
+		cfg->nummaps	    = PCI_MAXMAPS_1;
 		cfg->hdrspec        = pci_readppb(cfg);
 		break;
 	case 2:
@@ -327,7 +254,7 @@ pci_hdrtypedata(pcicfgregs *cfg)
 		cfg->subdevice      = pci_cfgread(cfg, PCIR_SUBDEV_2, 2);
 		cfg->secondarybus   = pci_cfgread(cfg, PCIR_SECBUS_2, 1);
 		cfg->subordinatebus = pci_cfgread(cfg, PCIR_SUBBUS_2, 1);
-		cfg->map            = pci_readmaps(cfg, PCI_MAXMAPS_2);
+		cfg->nummaps	    = PCI_MAXMAPS_2;
 		cfg->hdrspec        = pci_readpcb(cfg);
 		break;
 	}
@@ -1010,7 +937,6 @@ static void
 pci_print_verbose(struct pci_devinfo *dinfo)
 {
 	if (bootverbose) {
-		int i;
 		pcicfgregs *cfg = &dinfo->cfg;
 
 		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
@@ -1029,20 +955,105 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 #endif /* PCI_DEBUG */
 		if (cfg->intpin > 0)
 			printf("\tintpin=%c, irq=%d\n", cfg->intpin +'a' -1, cfg->intline);
-
-		for (i = 0; i < cfg->nummaps; i++) {
-			pcimap *m = &cfg->map[i];
-			printf("\tmap[%d]: type %x, range %2d, base %08x, size %2d\n",
-			       i, m->type, m->ln2range, m->base, m->ln2size);
-		}
 	}
 }
 
 static int
+pci_porten(pcicfgregs *cfg)
+{
+	return ((cfg->cmdreg & PCIM_CMD_PORTEN) != 0);
+}
+
+static int
+pci_memen(pcicfgregs *cfg)
+{
+	return ((cfg->cmdreg & PCIM_CMD_MEMEN) != 0);
+}
+
+static void
+pci_add_resources(device_t dev, pcicfgregs* cfg)
+{
+
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct resource_list *rl = &dinfo->resources;
+	int i;
+
+	for (i = 0; i < cfg->nummaps; i++) {
+		int reg = PCIR_MAPS + i*4;
+		u_int32_t map;
+		u_int64_t base;
+		u_int8_t ln2size;
+		u_int8_t ln2range;
+		u_int32_t testval;
+		
+		int type;
+
+		map = pci_cfgread(cfg, reg, 4);
+
+		if (map == 0 || map == 0xffffffff)
+			continue; /* skip invalid entry */
+
+		pci_cfgwrite(cfg, reg, 0xffffffff, 4);
+		testval = pci_cfgread(cfg, reg, 4);
+		pci_cfgwrite(cfg, reg, map, 4);
+
+		base = pci_mapbase(map);
+		if (pci_maptype(map) & PCI_MAPMEM)
+		    type = SYS_RES_MEMORY;
+		else
+		    type = SYS_RES_IOPORT;
+		ln2size = pci_mapsize(testval);
+		ln2range = pci_maprange(testval);
+		if (ln2range == 64) {
+			/* Read the other half of a 64bit map register */
+			base |= (u_int64_t) pci_cfgread(cfg, reg + 4, 4) << 32;
+			i++;
+		}
+
+#ifdef __alpha__
+		/* 
+		 *  XXX: encode hose number in the base addr,
+		 *  This will go away once the bus_space functions
+		 *  can deal with multiple hoses 
+		 */
+
+		if(cfg->hose){
+			if (base & 0x80000000) {
+				printf("base   addr = 0x%x\n", base);
+				printf("hacked addr = 0x%x\n",
+				       base | (cfg->hose << 31));
+					
+				panic("hose encoding hack would clobber base addr");
+			}
+			if (cfg->hose > 1)
+				panic("only one hose supported!");
+			base |= (cfg->hose << 31);
+		}
+#endif
+		if (type == SYS_RES_IOPORT && !pci_porten(cfg))
+			continue;
+		if (type == SYS_RES_IOPORT && !pci_memen(cfg))
+			continue;
+
+		resource_list_add(rl, type, reg,
+				  base, base + (1 << ln2size) - 1,
+				  (1 << ln2size));
+
+		if (bootverbose) {
+			printf("\tmap[%d]: type %x, range %2d, base %08x, size %2d\n",
+			       i, pci_maptype(base), ln2range,
+			       (unsigned int) base, ln2size);
+		}
+	}
+	if (cfg->intline)
+		resource_list_add(rl, SYS_RES_IRQ, 0,
+				  cfg->intline, cfg->intline, 1);
+}
+
+static void
 pci_add_children(device_t dev, int busno)
 {
 	pcicfgregs probe;
-	int bushigh = busno;
 
 #ifdef SIMOS
 #undef PCI_SLOTMAX
@@ -1069,16 +1080,10 @@ pci_add_children(device_t dev, int busno)
 				pci_print_verbose(dinfo);
 				dinfo->cfg.dev =
 					device_add_child(dev, NULL, -1, dinfo);
-
-				if (bushigh < dinfo->cfg.subordinatebus)
-					bushigh = dinfo->cfg.subordinatebus;
-				if (bushigh < dinfo->cfg.secondarybus)
-					bushigh = dinfo->cfg.secondarybus;
+				pci_add_resources(dinfo->cfg.dev, &dinfo->cfg);
 			}
 		}
 	}
-
-	return bushigh;
 }
 
 static int
@@ -1248,181 +1253,58 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	return 0;
 }
 
-static int
-pci_mapno(pcicfgregs *cfg, int reg)
-{
-	int i, nummaps;
-	pcimap *map;
-
-	nummaps = cfg->nummaps;
-	map = cfg->map;
-
-	for (i = 0; i < nummaps; i++)
-		if (map[i].reg == reg)
-			return (i);
-	return (-1);
-}
-
-static int
-pci_porten(pcicfgregs *cfg)
-{
-	return ((cfg->cmdreg & PCIM_CMD_PORTEN) != 0);
-}
-
-static int
-pci_isportmap(pcicfgregs *cfg, int map)
-
-{
-	return ((unsigned)map < cfg->nummaps 
-		&& (cfg->map[map].type & PCI_MAPPORT) != 0);
-}
-
-static int
-pci_memen(pcicfgregs *cfg)
-{
-	return ((cfg->cmdreg & PCIM_CMD_MEMEN) != 0);
-}
-
-static int
-pci_ismemmap(pcicfgregs *cfg, int map)
-{
-	return ((unsigned)map < cfg->nummaps 
-		&& (cfg->map[map].type & PCI_MAPMEM) != 0);
-}
-
 static struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		   u_long start, u_long end, u_long count, u_int flags)
 {
-	int isdefault;
 	struct pci_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->cfg;
-	struct resource *rv, **rvp = 0;
-	int map;
+	struct resource_list *rl = &dinfo->resources;
 
-	isdefault = (device_get_parent(child) == dev
-		     && start == 0UL && end == ~0UL);
-
-	switch (type) {
-	case SYS_RES_IRQ:
-		if (*rid != 0)
-			return 0;
-		if (isdefault && cfg->intline != 255) {
-			start = cfg->intline;
-			end = cfg->intline;
-			count = 1;
-		}
-		break;
-
-	case SYS_RES_DRQ:		/* passthru for child isa */
-		break;
-
-#ifdef __alpha__
-	case SYS_RES_DENSE:
-	case SYS_RES_BWX:
-#endif
-	case SYS_RES_MEMORY:
-		if (isdefault) {
-			map = pci_mapno(cfg, *rid);
-			if (pci_memen(cfg) && pci_ismemmap(cfg, map)) {
-				start = cfg->map[map].base;
-				count = 1 << cfg->map[map].ln2size;
-				end = start + count;
-				rvp = &cfg->map[map].res;
-			} else
-				return 0;
-		}
-		break;
-
-	case SYS_RES_IOPORT:
-		if (isdefault) {
-			map = pci_mapno(cfg, *rid);
-			if (pci_porten(cfg) && pci_isportmap(cfg, map)) {
-				start = cfg->map[map].base;
-				count = 1 << cfg->map[map].ln2size;
-				end = start + count;
-				rvp = &cfg->map[map].res;
-			} else
-				return 0;
-		}
-		break;
-
-	default:
-		return 0;
-	}
-
-	rv = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-				 type, rid, start, end, count, flags);
-	if (rvp)
-		*rvp = rv;
-
-	return rv;
+	return resource_list_alloc(rl, dev, child, type, rid,
+				   start, end, count, flags);
 }
 
 static int
 pci_release_resource(device_t dev, device_t child, int type, int rid,
 		     struct resource *r)
 {
-	int rv;
 	struct pci_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->cfg;
-	int map = 0;
-	int passthrough = (device_get_parent(child) != dev);
+	struct resource_list *rl = &dinfo->resources;
 
-	switch (type) {
-	case SYS_RES_IRQ:
-		if (rid != 0)
-			return EINVAL;
-		break;
+	return resource_list_release(rl, dev, child, type, rid, r);
+}
 
-	case SYS_RES_DRQ:		/* passthru for child isa */
-		break;
+static int
+pci_set_resource(device_t dev, device_t child, int type, int rid,
+		 u_long start, u_long count)
+{
+	printf("pci_set_resource: PCI resources can not be changed\n");
+	return EINVAL;
+}
 
-#ifdef __alpha__
-	case SYS_RES_DENSE:
-	case SYS_RES_BWX:
-#endif
-	case SYS_RES_MEMORY:
-	case SYS_RES_IOPORT:
-		/*
-		 * Only check the map registers if this is a direct
-		 * descendant.
-		 */
-		map = passthrough ? -1 : pci_mapno(cfg, rid);
-		break;
+static int
+pci_get_resource(device_t dev, device_t child, int type, int rid,
+		 u_long *startp, u_long *countp)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	struct resource_list *rl = &dinfo->resources;
+	struct resource_list_entry *rle;
 
-	default:
-		return (ENOENT);
-	}
+	rle = resource_list_find(rl, type, rid);
+	if (!rle)
+		return ENOENT;
+	
+	*startp = rle->start;
+	*countp = rle->count;
 
-	rv = BUS_RELEASE_RESOURCE(device_get_parent(dev), child, type, rid, r);
+	return 0;
+}
 
-	if (rv == 0) {
-		switch (type) {
-		case SYS_RES_IRQ:
-			if (!passthrough)
-				cfg->irqres = 0;
-			break;
-
-		case SYS_RES_DRQ:	/* passthru for child isa */
-			break;
-
-#ifdef __alpha__
-		case SYS_RES_DENSE:
-		case SYS_RES_BWX:
-#endif
-		case SYS_RES_MEMORY:
-		case SYS_RES_IOPORT:
-			if (map != -1)
-				cfg->map[map].res = 0;
-			break;
-
-		default:
-			return ENOENT;
-		}
-	}
-
-	return rv;
+static void
+pci_delete_resource(device_t dev, device_t child, int type, int rid)
+{
+	printf("pci_set_resource: PCI resources can not be deleted\n");
+	return EINVAL;
 }
 
 static u_int32_t
@@ -1477,6 +1359,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_set_resource,	pci_set_resource),
+	DEVMETHOD(bus_get_resource,	pci_get_resource),
+	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
