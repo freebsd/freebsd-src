@@ -171,7 +171,7 @@ cv_waitq_add(struct cv *cvp, struct proc *p)
 	p->p_wchan = cvp;
 	p->p_wmesg = cvp->cv_description;
 	p->p_slptime = 0;
-	p->p_nativepri = p->p_priority;
+	p->p_pri.pri_native = p->p_pri.pri_level;
 	CTR3(KTR_PROC, "cv_waitq_add: proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	TAILQ_INSERT_TAIL(&cvp->cv_waitq, p, p_slpq);
@@ -217,7 +217,6 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 
 	cv_waitq_add(cvp, p);
 	cv_switch(p);
-	curpriority = p->p_usrpri;
 
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
@@ -271,7 +270,6 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	cv_waitq_add(cvp, p);
 	sig = cv_switch_catch(p);
-	curpriority = p->p_usrpri;
 
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
@@ -338,7 +336,6 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	cv_waitq_add(cvp, p);
 	callout_reset(&p->p_slpcallout, timo, cv_timedwait_end, p);
 	cv_switch(p);
-	curpriority = p->p_usrpri;
 
 	if (p->p_sflag & PS_TIMEOUT) {
 		p->p_sflag &= ~PS_TIMEOUT;
@@ -401,7 +398,6 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	cv_waitq_add(cvp, p);
 	callout_reset(&p->p_slpcallout, timo, cv_timedwait_end, p);
 	sig = cv_switch_catch(p);
-	curpriority = p->p_usrpri;
 
 	if (p->p_sflag & PS_TIMEOUT) {
 		p->p_sflag &= ~PS_TIMEOUT;

@@ -88,10 +88,8 @@ ASSYM(P_WCHAN, offsetof(struct proc, p_wchan));
 ASSYM(PS_ASTPENDING, PS_ASTPENDING);
 ASSYM(PS_NEEDRESCHED, PS_NEEDRESCHED);
 
-#ifdef SMP
 ASSYM(P_ONCPU, offsetof(struct proc, p_oncpu));
 ASSYM(P_LASTCPU, offsetof(struct proc, p_lastcpu));
-#endif
 
 ASSYM(SSLEEP, SSLEEP);
 ASSYM(SRUN, SRUN);
@@ -198,9 +196,9 @@ ASSYM(GD_KTR_BUF, offsetof(struct globaldata, gd_ktr_buf));
 ASSYM(GD_KTR_BUF_DATA, offsetof(struct globaldata, gd_ktr_buf_data));
 #endif
 
-#ifdef SMP
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
 
+#ifdef SMP
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
 ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
 ASSYM(LA_EOI, offsetof(struct LAPIC, eoi));

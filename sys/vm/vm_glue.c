@@ -477,7 +477,7 @@ retry:
 			/*
 			 * do not swapout a realtime process
 			 */
-			if (RTP_PRIO_IS_REALTIME(p->p_rtprio.type)) {
+			if (PRI_IS_REALTIME(p->p_pri.pri_class)) {
 				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
@@ -487,7 +487,7 @@ retry:
 			 * event of some kind.  Also guarantee swap_idle_threshold1
 			 * time in memory.
 			 */
-			if (((p->p_priority & 0x7f) < PSOCK) ||
+			if (((p->p_pri.pri_level) < PSOCK) ||
 				(p->p_slptime < swap_idle_threshold1)) {
 				mtx_unlock_spin(&sched_lock);
 				continue;

@@ -132,7 +132,7 @@ AcpiOsSleep (UINT32 Seconds, UINT32 Milliseconds)
     timo = (Seconds * hz) + Milliseconds / (1000 * hz);
     if (timo == 0)
 	timo = 1;
-    tsleep(NULL, 0, "acpislp", timo);
+    tsleep(NULL, PZERO, "acpislp", timo);
     return_VOID;
 }
 

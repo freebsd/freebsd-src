@@ -46,7 +46,9 @@
 #include <sys/event.h>			/* For struct klist. */
 #include <sys/filedesc.h>
 #include <sys/queue.h>
-#include <sys/rtprio.h>			/* For struct rtprio. */
+#include <sys/priority.h>
+#include <sys/rtprio.h>			/* XXX */
+#include <sys/runq.h>
 #include <sys/signal.h>
 #ifndef _KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
@@ -251,15 +253,12 @@ struct	proc {
 	stack_t	p_sigstk;	/* (c) Stack pointer and on-stack flag. */
 
 	int	p_magic;	/* (b) Magic number. */
-	u_char	p_priority;	/* (j) Process priority. */
-	u_char	p_usrpri; /* (j) User priority based on p_cpu and p_nice. */
-	u_char	p_nativepri;	/* (j) Priority before propagation. */
+	struct	priority p_pri;	/* (j) Process priority. */
 	char	p_nice;		/* (j?/k?) Process "nice" value. */
 	char	p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
 
 	struct 	pgrp *p_pgrp;	/* (e?/c?) Pointer to process group. */
 	struct 	sysentvec *p_sysent; /* (b) System call dispatch information. */
-	struct	rtprio p_rtprio;	/* (j) Realtime priority. */
 	struct	prison *p_prison;	/* (b?) jail(4). */
 	struct	pargs *p_args;		/* (b?) Process arguments. */
 
@@ -497,18 +496,12 @@ extern int ps_showallprocs;
 extern int sched_quantum;		/* Scheduling quantum in ticks. */
 
 LIST_HEAD(proclist, proc);
+TAILQ_HEAD(procqueue, proc);
 extern struct proclist allproc;		/* List of all processes. */
 extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
-#define	NQS	32			/* 32 run queues. */
-
-TAILQ_HEAD(rq, proc);
-extern struct rq itqueues[];
-extern struct rq rtqueues[];
-extern struct rq queues[];
-extern struct rq idqueues[];
 extern struct vm_zone *proc_zone;
 
 /*
@@ -519,10 +512,9 @@ extern struct vm_zone *proc_zone;
  */
 #define	ESTCPULIM(e) \
     min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) - \
-	     PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
+	     RQ_PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #define	NICE_WEIGHT	1		/* Priorities per nice level. */
-#define	PPQ		(128 / NQS)	/* Priorities per queue. */
 
 struct mtx;
 struct trapframe;
@@ -547,7 +539,7 @@ int	p_can __P((const struct proc *p1, const struct proc *p2, int operation,
 int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	procinit __P((void));
 void	proc_reparent __P((struct proc *child, struct proc *newparent));
-u_int32_t procrunnable __P((void));
+int	procrunnable __P((void));
 void	remrunqueue __P((struct proc *));
 void	resetpriority __P((struct proc *));
 int	roundrobin_interval __P((void));
