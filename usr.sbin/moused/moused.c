@@ -1718,8 +1718,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    return 0;
 	}
 
-	act->dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
-	act->dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
+	act->dx = (signed char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
+	act->dy = (signed char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
 	break;
 
     case MOUSE_PROTO_GLIDEPOINT:	/* GlidePoint */
@@ -1728,8 +1728,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 					   MouseMan+ */
 	act->button = (act->obutton & (MOUSE_BUTTON2DOWN | MOUSE_BUTTON4DOWN))
             | butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
-	act->dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
-	act->dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
+	act->dx = (signed char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
+	act->dy = (signed char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
 	break;
       
     case MOUSE_PROTO_MSC:		/* MouseSystems Corp */
@@ -1737,15 +1737,15 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     case MOUSE_PROTO_MARIQUA:		/* Mariqua */
 #endif
 	act->button = butmapmsc[(~pBuf[0]) & MOUSE_MSC_BUTTONS];
-	act->dx =    (char)(pBuf[1]) + (char)(pBuf[3]);
-	act->dy = - ((char)(pBuf[2]) + (char)(pBuf[4]));
+	act->dx =    (signed char)(pBuf[1]) + (signed char)(pBuf[3]);
+	act->dy = - ((signed char)(pBuf[2]) + (signed char)(pBuf[4]));
 	break;
 
     case MOUSE_PROTO_JOGDIAL:		/* JogDial */
 	    if (rBuf == 0x6c)
-	      act->dz=-1;
+	      act->dz = -1;
 	    if (rBuf == 0x72)
-	      act->dz=1;
+	      act->dz = 1;
 	    if (rBuf == 0x64)
 	      act->button = MOUSE_BUTTON1DOWN;
 	    if (rBuf == 0x75)
@@ -1792,8 +1792,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     case MOUSE_PROTO_BUS:		/* Bus */
     case MOUSE_PROTO_INPORT:		/* InPort */
 	act->button = butmapmsc[(~pBuf[0]) & MOUSE_MSC_BUTTONS];
-	act->dx =   (char)pBuf[1];
-	act->dy = - (char)pBuf[2];
+	act->dx =   (signed char)pBuf[1];
+	act->dy = - (signed char)pBuf[2];
 	break;
 
     case MOUSE_PROTO_PS2:		/* PS/2 */
@@ -1822,7 +1822,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	case MOUSE_MODEL_INTELLI:
 	case MOUSE_MODEL_NET:
 	    /* wheel data is in the fourth byte */
-	    act->dz = (char)pBuf[3];
+	    act->dz = (signed char)pBuf[3];
 	    if ((act->dz >= 7) || (act->dz <= -7))
 		act->dz = 0;
 	    /* some compatible mice may have additional buttons */
@@ -1969,10 +1969,10 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 
     case MOUSE_PROTO_SYSMOUSE:		/* sysmouse */
 	act->button = butmapmsc[(~pBuf[0]) & MOUSE_SYS_STDBUTTONS];
-	act->dx =    (char)(pBuf[1]) + (char)(pBuf[3]);
-	act->dy = - ((char)(pBuf[2]) + (char)(pBuf[4]));
+	act->dx =    (signed char)(pBuf[1]) + (signed char)(pBuf[3]);
+	act->dy = - ((signed char)(pBuf[2]) + (signed char)(pBuf[4]));
 	if (rodent.level == 1) {
-	    act->dz = ((char)(pBuf[5] << 1) + (char)(pBuf[6] << 1))/2;
+	    act->dz = ((signed char)(pBuf[5] << 1) + (signed char)(pBuf[6] << 1)) >> 1;
 	    act->button |= ((~pBuf[7] & MOUSE_SYS_EXTBUTTONS) << 3);
 	}
 	break;
