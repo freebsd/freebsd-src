@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.23 1995/05/20 10:33:02 jkh Exp $
+ * $Id: disks.c,v 1.24 1995/05/20 19:22:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,6 +81,7 @@ print_chunks(Disk *d)
 
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
+    clrtobot();
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
     attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
@@ -92,7 +93,7 @@ print_chunks(Disk *d)
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
 	    attrset(A_REVERSE);
-	mvprintw(row, 2, "%10lu %10lu %10lu %8s %8d %8s %8d %6lx",
+	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d %6lx",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
 		 chunk_info[i]->type, chunk_n[chunk_info[i]->type],
