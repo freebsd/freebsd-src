@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.37 1995/04/08 17:48:00 nate Exp $
+#	$Id: BSD.usr.dist,v 1.38 1995/04/30 14:45:00 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -92,6 +92,16 @@
         ..
 	info
 	..
+        sgml
+            FreeBSD
+                dtd
+                ..
+                lib
+                ..
+                rep
+                ..
+            ..
+        ..
 	locale
 		ja_JP.EUC
 		..
