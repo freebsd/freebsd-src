@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.7 1997/09/05 20:20:31 smp Exp smp $
+ *	$Id: lock.h,v 1.4 1997/09/07 22:01:39 fsmp Exp $
  */
 
 
@@ -224,6 +224,8 @@ int	s_lock_try		__P((struct simplelock *));
 void	s_unlock		__P((struct simplelock *));
 void	ss_lock			__P((struct simplelock *));
 void	ss_unlock		__P((struct simplelock *));
+void	s_lock_np		__P((struct simplelock *));
+void	s_unlock_np		__P((struct simplelock *));
 
 /* global data in mp_machdep.c */
 extern struct simplelock	imen_lock;
@@ -233,6 +235,7 @@ extern struct simplelock	intr_lock;
 extern struct simplelock	clock_lock;
 extern struct simplelock	com_lock;
 extern struct simplelock	mpintr_lock;
+extern struct simplelock	mcount_lock;
 
 #if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
 /*

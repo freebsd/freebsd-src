@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.9 1997/08/31 03:05:56 smp Exp smp $
+ *	$Id: simplelock.s,v 1.6 1997/08/31 03:17:48 fsmp Exp $
  */
 
 /*
@@ -286,3 +286,33 @@ ENTRY(ss_unlock)
 	movl	_ss_tpr, %eax
 	movl	%eax, lapic_tpr		/* restore the old task priority */
 	ret
+
+/* 
+ * These versions of simple_lock does not contain calls to profiling code.
+ * Thus they can be called from the profiling code. 
+ */
+		
+/*
+ * void s_lock_np(struct simplelock *lkp)
+ */
+NON_GPROF_ENTRY(s_lock_np)
+	movl	4(%esp), %eax		/* get the address of the lock */
+	movl	$1, %ecx
+1:
+	xchgl	%ecx, (%eax)
+	testl	%ecx, %ecx
+	jz	3f
+2:
+	cmpl	$0, (%eax)		/* wait to empty */
+	jne	2b			/* still set... */
+	jmp	1b			/* empty again, try once more */
+3:
+	NON_GPROF_RET
+
+/*
+ * void s_unlock_np(struct simplelock *lkp)
+ */
+NON_GPROF_ENTRY(s_unlock_np)
+	movl	4(%esp), %eax		/* get the address of the lock */
+	movl	$0, (%eax)
+	NON_GPROF_RET
