@@ -74,41 +74,43 @@ static int
 dpt_pci_attach (device_t dev)
 {
 	dpt_softc_t *	dpt;
-	struct resource *io = 0;
-	struct resource *irq = 0;
 	int		s;
-	int		rid;
-	void *		ih;
 	int		error = 0;
 
-	int		iotype = 0;
 	u_int32_t	command;
+
+	dpt = device_get_softc(dev);
 
 	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
 
 #ifdef DPT_ALLOW_MMIO
 	if ((command & PCIM_CMD_MEMEN) != 0) {
-		rid = DPT_PCI_MEMADDR;
-		iotype = SYS_RES_MEMORY;
-		io = bus_alloc_resource(dev, iotype, &rid, 0, ~0, 1, RF_ACTIVE);
+		dpt->io_rid = DPT_PCI_MEMADDR;
+		dpt->io_type = SYS_RES_MEMORY;
+		dpt->io_res = bus_alloc_resource(dev, dpt->io_type,
+						 &dpt->io_rid,
+						 0, ~0, 1, RF_ACTIVE);
 	}
 #endif
-	if (io == NULL && (command &  PCIM_CMD_PORTEN) != 0) {
-		rid = DPT_PCI_IOADDR;
-		iotype = SYS_RES_IOPORT;
-		io = bus_alloc_resource(dev, iotype, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (dpt->io_res == NULL && (command &  PCIM_CMD_PORTEN) != 0) {
+		dpt->io_rid = DPT_PCI_IOADDR;
+		dpt->io_type = SYS_RES_IOPORT;
+		dpt->io_res = bus_alloc_resource(dev, dpt->io_type,
+						 &dpt->io_rid,
+						 0, ~0, 1, RF_ACTIVE);
 	}
 
-	if (io == NULL) {
+	if (dpt->io_res == NULL) {
 		device_printf(dev, "can't allocate register resources\n");
 		error = ENOMEM;
 		goto bad;
 	}
+	dpt->io_offset = 0x10;
 
-	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				 RF_ACTIVE | RF_SHAREABLE);
-	if (!irq) {
+	dpt->irq_rid = 0;
+	dpt->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &dpt->irq_rid,
+					  0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	if (dpt->irq_res == NULL) {
 		device_printf(dev, "No irq?!\n");
 		error = ENOMEM;
 		goto bad;
@@ -118,7 +120,7 @@ dpt_pci_attach (device_t dev)
 	command |= PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, command, /*bytes*/1);
 
-	if (rman_get_start(io) == (ISA_PRIMARY_WD_ADDRESS - 0x10)) {
+	if (rman_get_start(dpt->io_res) == (ISA_PRIMARY_WD_ADDRESS - 0x10)) {
 #ifdef DPT_DEBUG_WARN
 		device_printf(dev, "Mapped as an IDE controller.  "
 				   "Disabling SCSI setup\n");
@@ -127,12 +129,7 @@ dpt_pci_attach (device_t dev)
 		goto bad;
 	}
 
-	/* Device registers are offset 0x10 into the register window.  FEH */
-	dpt = dpt_alloc(dev, rman_get_bustag(io), rman_get_bushandle(io) + 0x10);
-	if (dpt == NULL) {
-		error = ENXIO;
-		goto bad;
-	}
+	dpt_alloc(dev);
 
 	/* Allocate a dmatag representing the capabilities of this attachment */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -166,8 +163,8 @@ dpt_pci_attach (device_t dev)
 
 	splx(s);
 
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_ENTROPY, dpt_intr,
-		 	   dpt, &ih)) {
+	if (bus_setup_intr(dev, dpt->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
+			   dpt_intr, dpt, &dpt->ih)) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		error = ENXIO;
 		goto bad;
@@ -176,10 +173,10 @@ dpt_pci_attach (device_t dev)
 	return (error);
 
 bad:
-	if (io)
-		bus_release_resource(dev, iotype, 0, io);
-	if (irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+	dpt_release_resources(dev);
+
+	if (dpt)
+		dpt_free(dpt);
 
 	return (error);
 }
@@ -188,6 +185,7 @@ static device_method_t dpt_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,         dpt_pci_probe),
 	DEVMETHOD(device_attach,        dpt_pci_attach),
+	DEVMETHOD(device_detach,        dpt_detach),
 
 	{ 0, 0 }
 };
@@ -197,7 +195,5 @@ static driver_t dpt_pci_driver = {
 	dpt_pci_methods,
 	sizeof(dpt_softc_t),
 };
-
-static devclass_t dpt_devclass;
 
 DRIVER_MODULE(dpt, pci, dpt_pci_driver, dpt_devclass, 0, 0);
