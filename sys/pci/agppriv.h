@@ -76,7 +76,7 @@ struct agp_softc {
 	int			as_nextid;	/* next memory block id */
 	int			as_isopen;	/* user device is open */
 	dev_t			as_devnode;	/* from make_dev */
-	struct lock		as_lock;	/* lock for access to GATT */
+	struct mtx		as_lock;	/* lock for access to GATT */
 };
 
 struct agp_gatt {
