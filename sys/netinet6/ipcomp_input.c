@@ -100,7 +100,6 @@ ipcomp4_input(m, off)
 	int error;
 	size_t newlen, olen;
 	struct secasvar *sav = NULL;
-	int proto;
 
 	if (m->m_pkthdr.len < off + sizeof(struct ipcomp)) {
 		ipseclog((LOG_DEBUG, "IPv4 IPComp input: assumption failed "
@@ -110,7 +109,7 @@ ipcomp4_input(m, off)
 	}
 
 	md = m_pulldown(m, off, sizeof(*ipcomp), NULL);
-	if (!m) {
+	if (!md) {
 		m = NULL;	/* already freed */
 		ipseclog((LOG_DEBUG, "IPv4 IPComp input: assumption failed "
 		    "(pulldown failure)\n"));
@@ -119,7 +118,6 @@ ipcomp4_input(m, off)
 	}
 	ipcomp = mtod(md, struct ipcomp *);
 	ip = mtod(m, struct ip *);
-	proto = ip->ip_p;
 	nxt = ipcomp->comp_nxt;
 #ifdef _IP_VHL
 	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
@@ -254,7 +252,7 @@ ipcomp6_input(mp, offp, proto)
 	int error;
 	size_t newlen;
 	struct secasvar *sav = NULL;
-	char *prvnxtp;
+	u_int8_t *prvnxtp;
 
 	m = *mp;
 	off = *offp;
