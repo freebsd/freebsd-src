@@ -382,6 +382,8 @@ mkfs(struct partition *pp, char *fsys)
 	if (fscs == NULL)
 		errx(31, "calloc failed");
 	sblock.fs_sbsize = fragroundup(&sblock, sizeof(struct fs));
+	if (sblock.fs_sbsize > SBLOCKSIZE)
+		sblock.fs_sbsize = SBLOCKSIZE;
 	sblock.fs_minfree = minfree;
 	sblock.fs_maxbpg = maxbpg;
 	sblock.fs_optim = opt;
