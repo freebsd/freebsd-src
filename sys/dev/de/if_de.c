@@ -112,27 +112,33 @@ __FBSDID("$FreeBSD$");
  *	the DEC 21041 PCI Ethernet Controller.
  *	the DEC 21140 PCI Fast Ethernet Controller.
  */
-static void tulip_mii_autonegotiate(tulip_softc_t * const sc, const unsigned phyaddr);
-static void tulip_intr_shared(void *arg);
-static void tulip_intr_normal(void *arg);
-static void tulip_init(tulip_softc_t * const sc);
-static void tulip_ifinit(void *);
-static void tulip_reset(tulip_softc_t * const sc);
-static void tulip_ifstart_one(struct ifnet *ifp);
-static void tulip_ifstart(struct ifnet *ifp);
-static struct mbuf *tulip_txput(tulip_softc_t * const sc, struct mbuf *m);
-static void tulip_txput_setup(tulip_softc_t * const sc);
-static void tulip_rx_intr(tulip_softc_t * const sc);
-static void tulip_addr_filter(tulip_softc_t * const sc);
-static unsigned tulip_mii_readreg(tulip_softc_t * const sc, unsigned devaddr, unsigned regno);
-static void tulip_mii_writereg(tulip_softc_t * const sc, unsigned devaddr, unsigned regno, unsigned data);
-static int tulip_mii_map_abilities(tulip_softc_t * const sc, unsigned abilities);
-static tulip_media_t tulip_mii_phy_readspecific(tulip_softc_t * const sc);
-static int tulip_srom_decode(tulip_softc_t * const sc);
-static int tulip_ifmedia_change(struct ifnet * const ifp);
-static void tulip_ifmedia_status(struct ifnet * const ifp, struct ifmediareq *req);
-/* static void tulip_21140_map_media(tulip_softc_t *sc); */
-
+static void	tulip_addr_filter(tulip_softc_t * const sc);
+static void	tulip_ifinit(void *);
+static int	tulip_ifmedia_change(struct ifnet * const ifp);
+static void	tulip_ifmedia_status(struct ifnet * const ifp,
+		    struct ifmediareq *req);
+static void	tulip_ifstart_one(struct ifnet *ifp);
+static void	tulip_ifstart(struct ifnet *ifp);
+static void	tulip_init(tulip_softc_t * const sc);
+static void	tulip_intr_shared(void *arg);
+static void	tulip_intr_normal(void *arg);
+static void	tulip_mii_autonegotiate(tulip_softc_t * const sc,
+		    const unsigned phyaddr);
+static int	tulip_mii_map_abilities(tulip_softc_t * const sc,
+		    unsigned abilities);
+static tulip_media_t
+		tulip_mii_phy_readspecific(tulip_softc_t * const sc);
+static unsigned	tulip_mii_readreg(tulip_softc_t * const sc, unsigned devaddr,
+		    unsigned regno);
+static void	tulip_mii_writereg(tulip_softc_t * const sc, unsigned devaddr,
+		    unsigned regno, unsigned data);
+static void	tulip_reset(tulip_softc_t * const sc);
+static void	tulip_rx_intr(tulip_softc_t * const sc);
+static int	tulip_srom_decode(tulip_softc_t * const sc);
+static struct mbuf *
+		tulip_txput(tulip_softc_t * const sc, struct mbuf *m);
+static void	tulip_txput_setup(tulip_softc_t * const sc);
+
 static void
 tulip_timeout_callback(
     void *arg)
