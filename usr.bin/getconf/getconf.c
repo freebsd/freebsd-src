@@ -49,20 +49,19 @@ static void
 usage(void)
 {
 	fprintf(stderr, "usage:\n"
-		"\tgetconf [-v prog_model] system_var\n"
-		"\tgetconf [-v prog_model] path_var pathname\n");
+		"\tgetconf [-v prog_env] system_var\n"
+		"\tgetconf [-v prog_env] path_var pathname\n");
 	exit(EX_USAGE);
 }
 
 int
 main(int argc, char **argv)
 {
-	int c;
-	const char *name, *vflag;
-	int key;
+	int c, key, valid;
+	const char *name, *vflag, *alt_path;
+	intmax_t limitval;
 
-	vflag = 0;
-
+	vflag = NULL;
 	while ((c = getopt(argc, argv, "v:")) != -1) {
 		switch (c) {
 		case 'v':
@@ -74,31 +73,61 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (vflag)
-		warnx("-v %s ignored", vflag);
-
-	/* No arguments... */
-	if ((name = argv[optind]) == 0)
+	if ((name = argv[optind]) == NULL)
 		usage();
 
-	if (argv[optind + 1] == 0) { /* confstr or sysconf */
-		key = find_confstr(name);
-		if (key >= 0) {
-			do_confstr(name, key);
+	if (vflag != NULL) {
+		if ((valid = find_progenv(vflag, &alt_path)) == 0)
+			errx(EX_USAGE, "invalid programming environment %s",
+			     vflag);
+		if (valid > 0 && alt_path != NULL) {
+			if (argv[optind + 1] == NULL)
+				execl(alt_path, "getconf", argv[optind],
+				      (char *)NULL);
+			else
+				execl(alt_path, "getconf", argv[optind],
+				      argv[optind + 1], (char *)NULL);
+
+			err(EX_OSERR, "execl: %s", alt_path);
+		}
+		if (valid < 0)
+			errx(EX_UNAVAILABLE, "environment %s is not available",
+			     vflag);
+	}
+
+	if (argv[optind + 1] == NULL) { /* confstr or sysconf */
+		if ((valid = find_limit(name, &limitval)) != 0) {
+			if (valid > 0)
+				printf("%jd\n", limitval);
+			else
+				printf("undefined\n");
+
+			return 0;
+		}
+		if ((valid = find_confstr(name, &key)) != 0) {
+			if (valid > 0)
+				do_confstr(name, key);
+			else
+				printf("undefined\n");
 		} else {		
-			key = find_sysconf(name);
-			if (key >= 0)
+			valid = find_sysconf(name, &key);
+			if (valid > 0) {
 				do_sysconf(name, key);
-			else 
+			} else if (valid < 0) {
+				printf("undefined\n");
+			} else 
 				errx(EX_USAGE,
 				     "no such configuration parameter `%s'",
 				     name);
 		}
 	} else {
-		key = find_pathconf(name);
-		if (key >= 0)
-			do_pathconf(name, key, argv[optind + 1]);
-		else
+		valid = find_pathconf(name, &key);
+		if (valid != 0) {
+			if (valid > 0)
+				do_pathconf(name, key, argv[optind + 1]);
+			else
+				printf("undefined\n");
+		} else
 			errx(EX_USAGE,
 			     "no such path configuration parameter `%s'",
 			     name);
@@ -154,3 +183,4 @@ do_pathconf(const char *name, int key, const char *path)
 	else
 		printf("%ld\n", value);
 }
+
