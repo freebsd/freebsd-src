@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.12 1995/12/06 23:37:06 bde Exp $
+ *	$Id: kern_devconf.c,v 1.13 1995/12/14 08:31:17 phk Exp $
  */
 
 /*
@@ -151,7 +151,15 @@ sysctl_hw_devconfig SYSCTL_HANDLER_ARGS
 
 	make_devconf(kdc, &dc);
 
-	rv = SYSCTL_OUT(req, &dc, (sizeof dc) -1);
+	/*
+	 * Let the device specific externalization routines
+	 * handle the variable length data at the end of the
+	 * dc.  Since the compiler may optimize alignment and
+	 * perform padding, we must do the subtraction to
+	 * determine the proper length. (dc_datalen includes the
+	 * externalized data so it can't be used)
+	 */
+	rv = SYSCTL_OUT(req, &dc, (void *)&dc.dc_data - (void *)&dc);
 	if(rv)
 		return rv;
 
