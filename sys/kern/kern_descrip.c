@@ -116,6 +116,9 @@ struct getdtablesize_args {
 	int	dummy;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getdtablesize(p, uap)
@@ -123,8 +126,10 @@ getdtablesize(p, uap)
 	struct getdtablesize_args *uap;
 {
 
+	mtx_lock(&Giant);
 	p->p_retval[0] = 
 	    min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -140,6 +145,9 @@ struct dup2_args {
 	u_int	to;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 dup2(p, uap)
@@ -150,20 +158,23 @@ dup2(p, uap)
 	register u_int old = uap->from, new = uap->to;
 	int i, error;
 
+	mtx_lock(&Giant);
 retry:
 	if (old >= fdp->fd_nfiles ||
 	    fdp->fd_ofiles[old] == NULL ||
 	    new >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
 	    new >= maxfilesperproc) {
-		return (EBADF);
+		error = EBADF;
+		goto done2;
 	}
 	if (old == new) {
 		p->p_retval[0] = new;
-		return (0);
+		error = 0;
+		goto done2;
 	}
 	if (new >= fdp->fd_nfiles) {
 		if ((error = fdalloc(p, new, &i)))
-			return (error);
+			goto done2;
 		if (new != i)
 			panic("dup2: fdalloc");
 		/*
@@ -171,7 +182,10 @@ retry:
 		 */
 		goto retry;
 	}
-	return (do_dup(fdp, (int)old, (int)new, p->p_retval, p));
+	error = do_dup(fdp, (int)old, (int)new, p->p_retval, p);
+done2:
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 /*
@@ -182,6 +196,9 @@ struct dup_args {
 	u_int	fd;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 dup(p, uap)
@@ -192,13 +209,19 @@ dup(p, uap)
 	u_int old;
 	int new, error;
 
+	mtx_lock(&Giant);
 	old = uap->fd;
 	fdp = p->p_fd;
-	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL)
-		return (EBADF);
+	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 	if ((error = fdalloc(p, 0, &new)))
-		return (error);
-	return (do_dup(fdp, (int)old, new, p->p_retval, p));
+		goto done2;
+	error = do_dup(fdp, (int)old, new, p->p_retval, p);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -211,46 +234,57 @@ struct fcntl_args {
 	long	arg;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 fcntl(p, uap)
 	struct proc *p;
 	register struct fcntl_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp;
 	register struct file *fp;
 	register char *pop;
 	struct vnode *vp;
-	int i, tmp, error, flg = F_POSIX;
+	int i, tmp, error = 0, flg = F_POSIX;
 	struct flock fl;
 	u_int newmin;
 
+	mtx_lock(&Giant);
+
+	fdp = p->p_fd;
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 	pop = &fdp->fd_ofileflags[uap->fd];
 
 	switch (uap->cmd) {
 	case F_DUPFD:
 		newmin = uap->arg;
 		if (newmin >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
-		    newmin >= maxfilesperproc)
-			return (EINVAL);
+		    newmin >= maxfilesperproc) {
+			error = EINVAL;
+			break;
+		}
 		if ((error = fdalloc(p, newmin, &i)))
-			return (error);
-		return (do_dup(fdp, uap->fd, i, p->p_retval, p));
+			break;
+		error = do_dup(fdp, uap->fd, i, p->p_retval, p);
+		break;
 
 	case F_GETFD:
 		p->p_retval[0] = *pop & 1;
-		return (0);
+		break;
 
 	case F_SETFD:
 		*pop = (*pop &~ 1) | (uap->arg & 1);
-		return (0);
+		break;
 
 	case F_GETFL:
 		p->p_retval[0] = OFLAGS(fp->f_flag);
-		return (0);
+		break;
 
 	case F_SETFL:
 		fhold(fp);
@@ -260,39 +294,41 @@ fcntl(p, uap)
 		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
 		if (error) {
 			fdrop(fp, p);
-			return (error);
+			break;
 		}
 		tmp = fp->f_flag & FASYNC;
 		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, p);
 		if (!error) {
 			fdrop(fp, p);
-			return (0);
+			break;
 		}
 		fp->f_flag &= ~FNONBLOCK;
 		tmp = 0;
 		(void)fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
 		fdrop(fp, p);
-		return (error);
+		break;
 
 	case F_GETOWN:
 		fhold(fp);
 		error = fo_ioctl(fp, FIOGETOWN, (caddr_t)p->p_retval, p);
 		fdrop(fp, p);
-		return(error);
+		break;
 
 	case F_SETOWN:
 		fhold(fp);
 		error = fo_ioctl(fp, FIOSETOWN, (caddr_t)&uap->arg, p);
 		fdrop(fp, p);
-		return(error);
+		break;
 
 	case F_SETLKW:
 		flg |= F_WAIT;
 		/* Fall into F_SETLK */
 
 	case F_SETLK:
-		if (fp->f_type != DTYPE_VNODE)
-			return (EBADF);
+		if (fp->f_type != DTYPE_VNODE) {
+			error = EBADF;
+			break;
+		}
 		vp = (struct vnode *)fp->f_data;
 
 		/*
@@ -304,14 +340,15 @@ fcntl(p, uap)
 		    sizeof(fl));
 		if (error) {
 			fdrop(fp, p);
-			return (error);
+			break;
 		}
 		if (fl.l_whence == SEEK_CUR) {
 			if (fp->f_offset < 0 ||
 			    (fl.l_start > 0 &&
 			     fp->f_offset > OFF_MAX - fl.l_start)) {
 				fdrop(fp, p);
-				return (EOVERFLOW);
+				error = EOVERFLOW;
+				break;
 			}
 			fl.l_start += fp->f_offset;
 		}
@@ -344,11 +381,12 @@ fcntl(p, uap)
 			break;
 		}
 		fdrop(fp, p);
-		return(error);
-
+		break;
 	case F_GETLK:
-		if (fp->f_type != DTYPE_VNODE)
-			return (EBADF);
+		if (fp->f_type != DTYPE_VNODE) {
+			error = EBADF;
+			break;
+		}
 		vp = (struct vnode *)fp->f_data;
 		/*
 		 * copyin/lockop may block
@@ -359,12 +397,13 @@ fcntl(p, uap)
 		    sizeof(fl));
 		if (error) {
 			fdrop(fp, p);
-			return (error);
+			break;
 		}
 		if (fl.l_type != F_RDLCK && fl.l_type != F_WRLCK &&
 		    fl.l_type != F_UNLCK) {
 			fdrop(fp, p);
-			return (EINVAL);
+			error = EINVAL;
+			break;
 		}
 		if (fl.l_whence == SEEK_CUR) {
 			if ((fl.l_start > 0 &&
@@ -372,7 +411,8 @@ fcntl(p, uap)
 			    (fl.l_start < 0 &&
 			     fp->f_offset < OFF_MIN - fl.l_start)) {
 				fdrop(fp, p);
-				return (EOVERFLOW);
+				error = EOVERFLOW;
+				break;
 			}
 			fl.l_start += fp->f_offset;
 		}
@@ -383,11 +423,14 @@ fcntl(p, uap)
 			error = copyout((caddr_t)&fl,
 				    (caddr_t)(intptr_t)uap->arg, sizeof(fl));
 		}
-		return(error);
+		break;
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
-	/* NOTREACHED */
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -568,19 +611,27 @@ struct close_args {
         int     fd;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 close(p, uap)
 	struct proc *p;
 	struct close_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp;
 	register struct file *fp;
 	register int fd = uap->fd;
+	int error = 0;
 
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
 	if ((unsigned)fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL)
-		return (EBADF);
+	    (fp = fdp->fd_ofiles[fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 #if 0
 	if (fdp->fd_ofileflags[fd] & UF_MAPPED)
 		(void) munmapfd(p, fd);
@@ -598,7 +649,10 @@ close(p, uap)
 		fdp->fd_freefile = fd;
 	if (fd < fdp->fd_knlistsize)
 		knote_fdclose(p, fd);
-	return (closef(fp, p));
+	error = closef(fp, p);
+done2:
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -611,6 +665,9 @@ struct ofstat_args {
 	struct	ostat *sb;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 ofstat(p, uap)
@@ -623,9 +680,13 @@ ofstat(p, uap)
 	struct ostat oub;
 	int error;
 
+	mtx_lock(&Giant);
+
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 	fhold(fp);
 	error = fo_stat(fp, &ub, p);
 	if (error == 0) {
@@ -633,6 +694,8 @@ ofstat(p, uap)
 		error = copyout((caddr_t)&oub, (caddr_t)uap->sb, sizeof (oub));
 	}
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -646,25 +709,35 @@ struct fstat_args {
 	struct	stat *sb;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 fstat(p, uap)
 	struct proc *p;
 	register struct fstat_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp;
 	register struct file *fp;
 	struct stat ub;
 	int error;
 
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
+
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 	fhold(fp);
 	error = fo_stat(fp, &ub, p);
 	if (error == 0)
 		error = copyout((caddr_t)&ub, (caddr_t)uap->sb, sizeof (ub));
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -677,21 +750,29 @@ struct nfstat_args {
 	struct	nstat *sb;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 nfstat(p, uap)
 	struct proc *p;
 	register struct nfstat_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp;
 	register struct file *fp;
 	struct stat ub;
 	struct nstat nub;
 	int error;
 
+	mtx_lock(&Giant);
+
+	fdp = p->p_fd;
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 	fhold(fp);
 	error = fo_stat(fp, &ub, p);
 	if (error == 0) {
@@ -699,6 +780,8 @@ nfstat(p, uap)
 		error = copyout((caddr_t)&nub, (caddr_t)uap->sb, sizeof (nub));
 	}
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -711,28 +794,38 @@ struct fpathconf_args {
 	int	name;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 fpathconf(p, uap)
 	struct proc *p;
 	register struct fpathconf_args *uap;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp;
 	struct file *fp;
 	struct vnode *vp;
 	int error = 0;
 
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
+
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
 
 	fhold(fp);
 
 	switch (fp->f_type) {
 	case DTYPE_PIPE:
 	case DTYPE_SOCKET:
-		if (uap->name != _PC_PIPE_BUF)
-			return (EINVAL);
+		if (uap->name != _PC_PIPE_BUF) {
+			error = EINVAL;
+			goto done2;
+		}
 		p->p_retval[0] = PIPE_BUF;
 		error = 0;
 		break;
@@ -746,6 +839,8 @@ fpathconf(p, uap)
 		break;
 	}
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -1274,6 +1369,9 @@ struct flock_args {
 	int	how;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 flock(p, uap)
@@ -1284,12 +1382,19 @@ flock(p, uap)
 	register struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
+	int error;
+
+	mtx_lock(&Giant);
 
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
-		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE)
-		return (EOPNOTSUPP);
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		error = EBADF;
+		goto done2;
+	}
+	if (fp->f_type != DTYPE_VNODE) {
+		error = EOPNOTSUPP;
+		goto done2;
+	}
 	vp = (struct vnode *)fp->f_data;
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
@@ -1297,18 +1402,25 @@ flock(p, uap)
 	if (uap->how & LOCK_UN) {
 		lf.l_type = F_UNLCK;
 		fp->f_flag &= ~FHASLOCK;
-		return (VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK));
+		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
+		goto done2;
 	}
 	if (uap->how & LOCK_EX)
 		lf.l_type = F_WRLCK;
 	else if (uap->how & LOCK_SH)
 		lf.l_type = F_RDLCK;
-	else
-		return (EBADF);
+	else {
+		error = EBADF;
+		goto done2;
+	}
 	fp->f_flag |= FHASLOCK;
 	if (uap->how & LOCK_NB)
-		return (VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, F_FLOCK));
-	return (VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, F_FLOCK|F_WAIT));
+		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, F_FLOCK);
+	else
+		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, F_FLOCK|F_WAIT);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*

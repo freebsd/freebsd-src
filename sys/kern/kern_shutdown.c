@@ -131,21 +131,23 @@ shutdown_conf(void *unused)
 
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL)
 
-/* ARGSUSED */
-
 /*
  * The system call that results in a reboot
+ *
+ * MPSAFE
  */
+/* ARGSUSED */
 int
 reboot(struct proc *p, struct reboot_args *uap)
 {
 	int error;
 
-	if ((error = suser(p)))
-		return (error);
-
-	boot(uap->opt);
-	return (0);
+	mtx_lock(&Giant);
+	if ((error = suser(p)) == 0) {
+		boot(uap->opt);
+	}
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -565,13 +567,26 @@ static u_int panic_cpu = NOCPU;
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
  * the disks as this often leads to recursive panics.
+ *
+ * MPSAFE
  */
 void
 panic(const char *fmt, ...)
 {
 	int bootopt;
+	int holding_giant = 0;
 	va_list ap;
 	static char buf[256];
+
+#if 0
+	/*
+	 * We must hold Giant when entering a panic
+	 */
+	if (!mtx_owned(&Giant)) {
+		mtx_lock(&Giant);
+		holding_giant = 1;
+	}
+#endif
 
 #ifdef SMP
 	/*
@@ -580,11 +595,13 @@ panic(const char *fmt, ...)
 	 * panic_cpu if we are spinning in case the panic on the first
 	 * CPU is canceled.
 	 */
-	if (panic_cpu != PCPU_GET(cpuid))
+	if (panic_cpu != PCPU_GET(cpuid)) {
 		while (atomic_cmpset_int(&panic_cpu, NOCPU,
-		    PCPU_GET(cpuid)) == 0)
+		    PCPU_GET(cpuid)) == 0) {
 			while (panic_cpu != NOCPU)
 				; /* nothing */
+		}
+	}
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;
@@ -616,6 +633,8 @@ panic(const char *fmt, ...)
 #ifdef SMP
 		atomic_store_rel_int(&panic_cpu, NOCPU);
 #endif
+		if (holding_giant)
+			mtx_unlock(&Giant);
 		return;
 	}
 #endif
