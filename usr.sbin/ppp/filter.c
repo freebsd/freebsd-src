@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.29 1999/05/31 23:57:36 brian Exp $
+ * $Id: filter.c,v 1.30 1999/06/23 16:48:21 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -306,7 +306,7 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   struct filterent filterdata;
 
   val = strtol(*argv, &wp, 0);
-  if (*argv == wp || val > MAXFILTERS) {
+  if (*argv == wp || val >= MAXFILTERS) {
     log_Printf(LogWARN, "Parse: invalid filter number.\n");
     return (0);
   }
