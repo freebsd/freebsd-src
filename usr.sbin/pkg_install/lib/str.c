@@ -44,7 +44,7 @@ get_dash_string(char **str)
     if (*s == '-')
 	*str = copy_string(s + 1);
     else
-	*str = get_file_contents(s);
+	*str = fileGetContents(s);
     return *str;
 }
 
