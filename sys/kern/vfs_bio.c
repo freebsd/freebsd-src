@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.221 1999/07/08 06:05:52 mckusick Exp $
+ * $Id: vfs_bio.c,v 1.222 1999/07/08 17:58:55 mckusick Exp $
  */
 
 /*
@@ -286,8 +286,8 @@ bd_wakeup(int dirtybuflevel)
  * Initialize buffer headers and related structures. 
  */
 
-vm_offset_t
-bufhashinit(vm_offset_t vaddr)
+caddr_t
+bufhashinit(caddr_t vaddr)
 {
 	/* first, make a null hash table */
 	for (bufhashmask = 8; bufhashmask < nbuf / 4; bufhashmask <<= 1)
