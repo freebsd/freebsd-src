@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.48 1996/10/16 00:19:38 julian Exp $
+ *	$Id: cons.c,v 1.49 1996/10/30 21:40:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -86,25 +86,26 @@ static struct cdevsw cn_cdevsw =
 
 struct	tty *constty = 0;	/* virtual console output device */
 
-static dev_t	cn_dev_t;
+static dev_t	cn_dev_t; 	/* seems to be never really used */
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	&cn_dev_t, sizeof cn_dev_t, "T,dev_t", "");
+
 static int cn_mute;
-SYSCTL_INT(_kern, OID_AUTO, consmute, CTLFLAG_RW, &cn_mute, 0, "");
 
 int	cons_unavail = 0;	/* XXX:
 				 * physical console not available for
 				 * input (i.e., it is in graphics mode)
 				 */
 
-static u_char cn_is_open;	/* nonzero if logical console is open */
-static u_char cn_phys_is_open;	/* nonzero if physical console is open */
+static u_char cn_is_open;		/* nonzero if logical console is open */
+static int openmode, openflag;		/* how /dev/console was openned */
+static u_char cn_phys_is_open;		/* nonzero if physical device is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
-static d_open_t *cn_phys_open;	/* physical device open function */
-static struct consdev *cn_tab;	/* physical console device info */
-static struct tty *cn_tp;	/* physical console tty struct */
+static d_open_t *cn_phys_open;		/* physical device open function */
+static struct consdev *cn_tab;		/* physical console device info */
+static struct tty *cn_tp;		/* physical console tty struct */
 #ifdef DEVFS
-void *cn_devfs_token;		/* represents the devfs entry */
+static void *cn_devfs_token;		/* represents the devfs entry */
 #endif /* DEVFS */
 
 void
@@ -158,7 +159,7 @@ cninit_finish()
 {
 	struct cdevsw *cdp;
 
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return;
 
 	/*
@@ -173,6 +174,74 @@ cninit_finish()
 	cn_dev_t = cn_tp->t_dev;
 }
 
+static void
+cnuninit(void)
+{
+	struct cdevsw *cdp;
+
+	if (cn_tab == NULL)
+		return;
+
+	/*
+	 * Unhook the open and close functions.
+	 */
+	cdp = cdevsw[major(cn_tab->cn_dev)];
+	cdp->d_close = cn_phys_close;
+	cn_phys_close = NULL;
+	cdp->d_open = cn_phys_open;
+	cn_phys_open = NULL;
+	cn_tp = NULL;
+	cn_dev_t = 0;
+}
+
+/*
+ * User has changed the state of the console muting.
+ * This may require us to open or close the device in question.
+ */
+static int
+sysctl_kern_consmute SYSCTL_HANDLER_ARGS
+{
+	int error;
+	int ocn_mute;
+
+	ocn_mute = cn_mute;
+	error = sysctl_handle_int(oidp, &cn_mute, 0, req);
+	if((error == 0) && (cn_tab != NULL) && (req->newptr != NULL)) {
+		if(ocn_mute && !cn_mute) {
+			/*
+			 * going from muted to unmuted.. open the physical dev 
+			 * if the console has been openned
+			 */
+			cninit_finish();
+			if(cn_is_open)
+				/* XXX curproc is not what we want really */
+				error = cnopen(cn_dev_t, openflag,
+					openmode, curproc);
+			/* if it failed, back it out */
+			if ( error != 0) cnuninit();
+		} else if (!ocn_mute && cn_mute) {
+			/*
+			 * going from unmuted to muted.. close the physical dev 
+			 * if it's only open via /dev/console
+			 */
+			if(cn_is_open)
+				error = cnclose(cn_dev_t, openflag,
+					openmode, curproc);
+			if ( error == 0) cnuninit();
+		}
+		if (error != 0) {
+			/* 
+	 		 * back out the change if there was an error
+			 */
+			cn_mute = ocn_mute;
+		}
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
+	0, sizeof cn_mute, sysctl_kern_consmute, "I", "");
+
 static int
 cnopen(dev, flag, mode, p)
 	dev_t dev;
@@ -180,18 +249,31 @@ cnopen(dev, flag, mode, p)
 	struct proc *p;
 {
 	dev_t cndev, physdev;
-	int retval;
+	int retval = 0;
 
 	if (cn_tab == NULL)
 		return (0);
 	cndev = cn_tab->cn_dev;
 	physdev = (major(dev) == major(cndev) ? dev : cndev);
-	retval = (*cn_phys_open)(physdev, flag, mode, p);
+	/*
+	 * If mute is active, then non console opens don't get here
+	 * so we don't need to check for that. They 
+	 * bypass this and go straight to the device.
+	 */
+	if(!cn_mute)
+		retval = (*cn_phys_open)(physdev, flag, mode, p);
 	if (retval == 0) {
+		/* 
+		 * check if we openned it via /dev/console or 
+		 * via the physical entry (e.g. /dev/sio0).
+		 */
 		if (dev == cndev)
 			cn_phys_is_open = 1;
-		else if (physdev == cndev)
+		else if (physdev == cndev) {
+			openmode = mode;
+			openflag = flag;
 			cn_is_open = 1;
+		}
 	}
 	return (retval);
 }
@@ -207,6 +289,12 @@ cnclose(dev, flag, mode, p)
 	if (cn_tab == NULL)
 		return (0);
 	cndev = cn_tab->cn_dev;
+	/*
+	 * act appropriatly depending on whether it's /dev/console
+	 * or the pysical device (e.g. /dev/sio) that's being closed.
+	 * in either case, don't actually close the device unless
+	 * both are closed.
+	 */
 	if (dev == cndev) {
 		/* the physical device is about to be closed */
 		cn_phys_is_open = 0;
@@ -226,7 +314,9 @@ cnclose(dev, flag, mode, p)
 			return (0);
 		dev = cndev;
 	}
-	return ((*cn_phys_close)(dev, flag, mode, p));
+	if(cn_phys_close)
+		return ((*cn_phys_close)(dev, flag, mode, p));
+	return (0);
 }
 
 static int
@@ -247,8 +337,10 @@ cnwrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	if ((cn_tab == NULL) || cn_mute)
+	if ((cn_tab == NULL) || cn_mute) {
+		uio->uio_resid = 0; /* dump the data */
 		return (0);
+	}
 	if (constty)
 		dev = constty->t_dev;
 	else
