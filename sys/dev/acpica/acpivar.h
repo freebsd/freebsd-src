@@ -175,10 +175,12 @@ extern BOOLEAN		acpi_MatchHid(device_t dev, char *hid);
 extern ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
 					      ACPI_HANDLE *result);
 extern ACPI_BUFFER	*acpi_AllocBuffer(int size);
-extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path,
-					     int *number);
 extern ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp,
-						    int *number);
+						   int *number);
+extern ACPI_STATUS	acpi_GetInteger(ACPI_HANDLE handle, char *path,
+					int *number);
+extern ACPI_STATUS	acpi_SetInteger(ACPI_HANDLE handle, char *path,
+					int number);
 extern ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj, 
 				void (*func)(ACPI_OBJECT *comp, void *arg),
 				void *arg);
