@@ -36,10 +36,6 @@ SUBDIR+=named-xfer
 SUBDIR+=mail.local smrsh
 .endif
 
-.if !defined(NOUUCP)
-SUBDIR+=uucpd
-.endif
-
 .if ${OBJFORMAT} == aout
 SUBDIR+=rtld-aout
 .endif
