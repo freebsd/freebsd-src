@@ -178,7 +178,7 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 			return (freq - 2407) / 5;
 		else
 			return 15 + ((freq - 2512) / 20);
-	} else if (IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
+	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
 		return (freq - 5000) / 5;
 	} else {				/* either, guess */
 		if (freq == 2484)
