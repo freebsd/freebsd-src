@@ -47,6 +47,7 @@
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
+#include <sys/proc.h>
 #include <sys/uio.h>
 
 #include <machine/cpu.h>
