@@ -7,9 +7,7 @@ CFLAGS+=-I${KRB5DIR}/lib/sl \
 	-I${.OBJDIR}
 SRCS=	sl.c roken.h
 
-NOPIC=	yes
 INTERNALLIB= yes
-INTERNALSTATICLIB= yes
 
 .include <bsd.lib.mk>
 
