@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.23 1995/10/09 11:14:53 jkh Exp $
+ * $Id: install.c,v 1.71.2.24 1995/10/11 00:53:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -120,17 +120,13 @@ checkLabels(Chunk **rdev)
 	msgConfirm("No root device found - you must label a partition as /\n in the label editor.");
 	return FALSE;
     }
-    else if (rootdev->name[strlen(rootdev->name) - 1] != 'a') {
-	msgConfirm("Invalid placement of root partition.  For now, we only support\nmounting root partitions on \"a\" partitions due to limitations\nin the FreeBSD boot code.  Please correct this and\ntry again.");
-	return FALSE;
-    }
     *rdev = rootdev;
     if (!swapdev) {
 	msgConfirm("No swap devices found - you must create at least one\nswap partition.");
 	return FALSE;
     }
     if (!usrdev)
-	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\nan error if your root filesystem is big enough (or you later\nintend to get your /usr filesystem over NFS), but it may otherwise\ncause you trouble and is not recommended procedure!");
+	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\nan error if your root filesystem is big enough (or you later\nintend to get your /usr filesystem over NFS), but it may otherwise\ncause you trouble and is not recommended procedure if you don't know what you are doing!");
     return TRUE;
 }
 
@@ -236,6 +232,7 @@ installFixit(char *str)
 	(void)waitpid(child, &waitstatus, 0);
     else {
 	int i, fd;
+	extern int login_tty(int);
 
 	for (i = 0; i < 64; i++)
 	    close(i);
@@ -397,42 +394,18 @@ installFixup(void)
     Device **devs;
     int i;
 
-    if (!file_readable("/kernel")) {
-	if (file_readable("/kernel.GENERIC")) {
-	    if (file_readable("/kernel.ATAPI")) {
-		dialog_clear();
-		if (msgYesNo("There are two kernels available - one for ATAPI (IDE CDROM)\n"
-			     "systems and a GENERIC kernel for all other systems.  The\n"
-			     "IDE CDROM driver was still in BETA test at the time of this\n"
-			     "release and therefore got a copy of the generic kernel image\n"
-			     "all for itself.\n\n"
-			     "Would you like to install the GENERIC kernel image?  Otherwise\n"
-			     "the ATAPI image will be used.")) {
-		    if (vsystem("ln -f /kernel.GENERIC /kernel")) {
-			msgConfirm("Unable to link /kernel into place!");
-			return RET_FAIL;
-		    }
-		}
-		else
-		    if (vsystem("ln -f /kernel.ATAPI /kernel")) {
-			msgConfirm("Unable to link /kernel into place!");
-			return RET_FAIL;
-		    }
-	    }
-	    else
-		if (vsystem("ln -f /kernel.GENERIC /kernel")) {
-		    msgConfirm("Unable to link /kernel into place!");
-		    return RET_FAIL;
-		}
-	}
-	else {
-	    msgConfirm("Can't find a kernel image to link to on the root filesystem!\n"
-		       "You're going to have a hard time getting this system to\n"
-		       "boot from the hard disk, I'm afraid!");
+    if (!file_readable("/kernel") && file_readable("/kernel.GENERIC")) {
+	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
+	    msgConfirm("Unable to link /kernel into place!");
 	    return RET_FAIL;
 	}
     }
-
+    else {
+	msgConfirm("Can't find a kernel image to link to on the root file system!\n"
+		   "You're going to have a hard time getting this system to\n"
+		   "boot from the hard disk, I'm afraid!");
+	return RET_FAIL;
+    }
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
 	msgNotify("Remaking all devices.. Please wait!");
@@ -484,9 +457,9 @@ installFilesystems(void)
     Disk *disk;
     Chunk *c1, *c2, *rootdev;
     Device **devs;
-    char dname[40];
     PartInfo *p;
     Boolean RootReadOnly;
+    char dname[40];
 
     if (!checkLabels(&rootdev))
 	return FALSE;
@@ -500,9 +473,8 @@ installFilesystems(void)
     if (p->newfs) {
 	int i;
 
-	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
-	msgNotify("Making a new root filesystem on %s", dname);
-	i = vsystem("%s %s", p->newfs_cmd, dname);
+	msgNotify("Making a new root filesystem on %s", rootdev->name);
+	i = vsystem("%s /dev/%s", p->newfs_cmd, rootdev->name);
 	if (i) {
 	    msgConfirm("Unable to make new root filesystem!  Command returned status %d", i);
 	    return FALSE;
@@ -512,15 +484,14 @@ installFilesystems(void)
     else {
 	RootReadOnly = TRUE;
 	msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
-	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
-	msgNotify("Checking integrity of existing %s filesystem", dname);
-	i = vsystem("fsck -y %s", dname);
+	msgNotify("Checking integrity of existing %s filesystem", rootdev->name);
+	i = vsystem("fsck -y /dev/%s", rootdev->name);
 	if (i)
 	    msgConfirm("Warning: fsck returned status off %d - this partition may be\nunsafe to use.", i);
     }
-    sprintf(dname, "/dev/%sa", rootdev->disk->name);
+    sprintf(dname, "/dev/%s", rootdev->name);
     if (Mount("/mnt", dname)) {
-	msgConfirm("Unable to mount the root file system!  Giving up.");
+	msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
 	return FALSE;
     }
 
