@@ -8,11 +8,11 @@
 .\" $FreeBSD$
 .\"
 .Dd June 04, 2003
-.Dt SBREAD 3
+.Dt LIBUFS 3
 .Os
 .Sh NAME
 .Nm libufs
-.Nd operate on UFS disks from userland
+.Nd operate on UFS filesystems from userland
 .Sh LIBRARY
 .Lb libufs
 .Sh SYNOPSIS
@@ -35,7 +35,7 @@ and
 .Xr dumpfs 8 .
 The
 .Nm
-library is designed to be simple, and provide functions that are
+library is designed to be simple, and to provide functions that are
 traditionally useful to have.
 .Pp
 A disk is represented as the type
@@ -50,14 +50,14 @@ Functions provided by
 return -1 in every functional error situation.
 They also set the
 .Fa d_error
-field to a string describing the error.
+field of
+.Dq struct uufsd
+to a string describing the error.
 .Sh SEE ALSO
 .Xr bread 3 ,
 .Xr bwrite 3 ,
 .Xr cgread 3 ,
 .Xr cgread1 3 ,
-.Xr getino 3 ,
-.Xr putino 3 ,
 .Xr sbread 3 ,
 .Xr sbwrite 3 ,
 .Xr ufs_disk_close 3 ,
