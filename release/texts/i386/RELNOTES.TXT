@@ -2,10 +2,10 @@
                             FreeBSD Release 4.0-SNAP
 
 This is a 4.0-CURRENT release SNAPshot of FreeBSD, an active
-development branch which is not expected to produce a release for
-some time.  This line of development branched from the 3.x line
-on January 20, 1999; that branch will see continuing releases and
-some features of 4.0 will be back-ported.
+development branch which will produce its first release in early
+March 2000.  Those features which have also been back-ported to
+the 3.x-stable branch (the next release for which will be 3.5)
+are marked [MERGED].
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
