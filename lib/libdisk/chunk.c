@@ -44,40 +44,40 @@ Chunk_Inside(const struct chunk *c1, const struct chunk *c2)
 }
 
 static struct chunk *
-Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
+Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end,
+		  chunk_e type)
 {
-	struct chunk *c1,*c2,ct;
+	struct chunk *c1, *c2, ct;
 
 	ct.offset = offset;
 	ct.end = end;
 	switch (type) {
-		case whole:
-			if (Chunk_Inside(chunks, &ct))
-				return chunks;
-		case extended:
-			for(c1 = chunks->part; c1; c1 = c1->next) {
-				if (c1->type != type)
-					continue;
+	case whole:
+		if (Chunk_Inside(chunks, &ct))
+			return chunks;
+	case extended:
+		for (c1 = chunks->part; c1; c1 = c1->next) {
+			if (c1->type != type)
+				continue;
+			if (Chunk_Inside(c1, &ct))
+				return c1;
+		}
+		return 0;
+	case freebsd:
+		for (c1 = chunks->part; c1; c1 = c1->next) {
+			if (c1->type == type)
 				if (Chunk_Inside(c1, &ct))
 					return c1;
-			}
-			return 0;
-		case freebsd:
-			for(c1 = chunks->part; c1; c1 = c1->next) {
-				if (c1->type == type)
-					if (Chunk_Inside(c1, &ct))
-						return c1;
-				if (c1->type != extended)
-					continue;
-				for(c2 = c1->part; c2; c2 = c2->next)
-					if (c2->type == type
-					    && Chunk_Inside(c2, &ct))
-						return c2;
-			}
-			return 0;
-		default:
-			warn("Unsupported mother type in Find_Mother_Chunk");
-			return 0;
+			if (c1->type != extended)
+				continue;
+			for (c2 = c1->part; c2; c2 = c2->next)
+				if (c2->type == type && Chunk_Inside(c2, &ct))
+					return c2;
+		}
+		return 0;
+	default:
+		warn("Unsupported mother type in Find_Mother_Chunk");
+		return 0;
 	}
 }
 
@@ -149,7 +149,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 		return __LINE__;
 	}
 
-	if(type==freebsd || type==extended) {
+	if (type == freebsd || type == extended) {
 		cs = New_Chunk();
 		if (cs == NULL)
 			return __LINE__;
@@ -173,9 +173,9 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 		cs->disk = c2->disk;
 		cs->offset = ct->end + 1;
 		cs->size = c2->end - ct->end;
-		if(c2->sname != NULL)
+		if (c2->sname != NULL)
 			cs->sname = strdup(c2->sname);
-		if(c2->name)
+		if (c2->name)
 			cs->name = strdup(c2->name);
 		c2->next = cs;
 		c2->size -= c2->end - ct->end;
@@ -205,9 +205,9 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 
 int
 Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
-	chunk_e type, int subtype, u_long flags, const char *sname)
+	  chunk_e type, int subtype, u_long flags, const char *sname)
 {
-	struct chunk *c1,*c2,ct;
+	struct chunk *c1, *c2, ct;
 	u_long end = offset + size - 1;
 	ct.offset = offset;
 	ct.end = end;
@@ -322,8 +322,8 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 				break;
 			if (!(flags & CHUNK_ALIGN))
 				break;
-			if (offset == d->chunks->offset
-			   && end == d->chunks->end)
+			if (offset == d->chunks->offset &&
+			    end == d->chunks->end)
 				break;
 
 			/* Round down to prev cylinder */
@@ -355,20 +355,24 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 	}
 	if (c2 == NULL)
 		return (__LINE__);
-	return Insert_Chunk(c2, offset, size, name,
-		type, subtype, flags, sname);
+	return Insert_Chunk(c2, offset, size, name, type, subtype, flags,
+			    sname);
 }
 
 char *
 ShowChunkFlags(struct chunk *c)
 {
 	static char ret[10];
+	int i = 0;
 
-	int i=0;
-	if (c->flags & CHUNK_ACTIVE)		ret[i++] = 'A';
-	if (c->flags & CHUNK_ALIGN)		ret[i++] = '=';
-	if (c->flags & CHUNK_IS_ROOT)		ret[i++] = 'R';
+	if (c->flags & CHUNK_ACTIVE)
+		ret[i++] = 'A';
+	if (c->flags & CHUNK_ALIGN)
+		ret[i++] = '=';
+	if (c->flags & CHUNK_IS_ROOT)
+		ret[i++] = 'R';
 	ret[i++] = '\0';
+
 	return ret;
 }
 
@@ -376,11 +380,16 @@ static void
 Print_Chunk(struct chunk *c1,int offset)
 {
 	int i;
-	if(!c1) return;
-	for(i = 0; i < offset - 2; i++) putchar(' ');
-	for(; i < offset; i++) putchar('-');
+
+	if (!c1)
+		return;
+	for (i = 0; i < offset - 2; i++)
+		putchar(' ');
+	for (; i < offset; i++)
+		putchar('-');
 	putchar('>');
-	for(; i < 10; i++) putchar(' ');
+	for (; i < 10; i++)
+		putchar(' ');
 	printf("%p %8ld %8lu %8lu %-8s %-16s %-8s 0x%02x %s",
 		c1, c1->offset, c1->size, c1->end, c1->name, c1->sname,
 		chunk_name(c1->type), c1->subtype,
@@ -393,39 +402,41 @@ Print_Chunk(struct chunk *c1,int offset)
 void
 Debug_Chunk(struct chunk *c1)
 {
+
 	Print_Chunk(c1,2);
 }
 
 int
 Delete_Chunk(struct disk *d, struct chunk *c)
 {
+
     return(Delete_Chunk2(d, c, 0));
 }
 
 int
 Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 {
-	struct chunk *c1=0, *c2, *c3;
+	struct chunk *c1 = 0, *c2, *c3;
 	chunk_e type = c->type;
 	u_long offset = c->offset;
 
 	if(type == whole)
 		return 1;
 #ifndef PC98
-	if(!c1 && (type == freebsd || type == fat || type == unknown))
+	if (!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, extended);
 #endif
-	if(!c1 && (type == freebsd || type == fat || type == unknown))
+	if (!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, whole);
 #ifndef PC98
-	if(!c1 && type == extended)
+	if (!c1 && type == extended)
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, whole);
 #endif
-	if(!c1 && type == part)
+	if (!c1 && type == part)
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, freebsd);
-	if(!c1)
+	if (!c1)
 		return 1;
-	for(c2 = c1->part; c2; c2 = c2->next) {
+	for (c2 = c1->part; c2; c2 = c2->next) {
 		if (c2 == c) {
 			c2->type = unused;
 			c2->subtype = 0;
@@ -441,7 +452,7 @@ Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 		}
 	}
 	return 1;
-    scan:
+scan:
 	/*
 	 * Collapse multiple unused elements together, and attempt
 	 * to extend the previous chunk into the freed chunk.
@@ -450,7 +461,7 @@ Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 	 * for newfs (we can't extend working filesystems), and
 	 * only if we are called with DELCHUNK_RECOVER.
 	 */
-	for(c2 = c1->part; c2; c2 = c2->next) {
+	for (c2 = c1->part; c2; c2 = c2->next) {
 		if (c2->type != unused) {
 			if (c2->offset + c2->size != offset ||
 			    (rflags & DELCHUNK_RECOVER) == 0 ||
@@ -481,10 +492,10 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 {
 	struct chunk *c2, *c3;
 
-	if(c1->next && Collapse_Chunk(d, c1->next))
+	if (c1->next && Collapse_Chunk(d, c1->next))
 		return 1;
 
-	if(c1->type == unused && c1->next && c1->next->type == unused) {
+	if (c1->type == unused && c1->next && c1->next->type == unused) {
 		c3 = c1->next;
 		c1->size += c3->size;
 		c1->end = c3->end;
@@ -494,7 +505,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 		return 1;
 	}
 	c3 = c1->part;
-	if(!c3)
+	if (!c3)
 		return 0;
 	if (Collapse_Chunk(d, c1->part))
 		return 1;
@@ -502,11 +513,11 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 	if (c1->type == whole)
 		return 0;
 
-	if(c3->type == unused && c3->size == c1->size) {
+	if (c3->type == unused && c3->size == c1->size) {
 		Delete_Chunk(d, c1);
 		return 1;
 	}
-	if(c3->type == unused) {
+	if (c3->type == unused) {
 		c2 = New_Chunk();
 		if (c2 == NULL)
 			barfout(1, "malloc failed");
@@ -528,7 +539,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 		Free_Chunk(c3);
 		return 1;
 	}
-	for(c2=c3;c2->next;c2 = c2->next)
+	for (c2 = c3; c2->next; c2 = c2->next)
 		c3 = c2;
 	if (c2 && c2->type == unused) {
 		c3->next = 0;

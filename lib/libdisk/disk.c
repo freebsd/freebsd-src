@@ -90,6 +90,7 @@ uuid_type(uuid_t *uuid)
 struct disk *
 Open_Disk(const char *name)
 {
+
 	return Int_Open_Disk(name);
 }
 
@@ -153,11 +154,17 @@ Int_Open_Disk(const char *name)
 
 	a = strsep(&p, " ");	/* length in bytes */
 	len = strtoimax(a, &r, 0);
-	if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
+	if (*r) {
+		printf("BARF %d <%d>\n", __LINE__, *r);
+		exit (0);
+	}
 
 	a = strsep(&p, " ");	/* sectorsize */
 	s = strtoul(a, &r, 0);
-	if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
+	if (*r) {
+		printf("BARF %d <%d>\n", __LINE__, *r);
+		exit (0);
+	}
 
 	d->sector_size = s;
 	len /= s;	/* media size in number of sectors. */
@@ -171,7 +178,10 @@ Int_Open_Disk(const char *name)
 			break;
 		b = strsep(&p, " ");
 		o = strtoul(b, &r, 0);
-		if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
+		if (*r) {
+			printf("BARF %d <%d>\n", __LINE__, *r);
+			exit (0);
+		}
 		if (!strcmp(a, "hd"))
 			d->bios_hd = o;
 		else if (!strcmp(a, "sc"))
@@ -198,15 +208,24 @@ Int_Open_Disk(const char *name)
 		if (!strcmp(a, "0"))
 			break;
 		l = strtoimax(a, &r, 0);
-		if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
+		if (*r) {
+			printf("BARF %d <%d>\n", __LINE__, *r);
+			exit (0);
+		}
 		t = strsep(&p, " ");	/* Type {SUN, BSD, MBR, GPT} */
 		n = strsep(&p, " ");	/* name */
 		a = strsep(&p, " ");	/* len */
 		len = strtoimax(a, &r, 0);
-		if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
+		if (*r) {
+			printf("BARF %d <%d>\n", __LINE__, *r);
+			exit (0);
+		}
 		a = strsep(&p, " ");	/* secsize */
 		s = strtoimax(a, &r, 0);
-		if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
+		if (*r) {
+			printf("BARF %d <%d>\n", __LINE__, *r);
+			exit (0);
+		}
 		for (;;) {
 			a = strsep(&p, " ");
 			if (a == NULL)
@@ -237,7 +256,7 @@ Int_Open_Disk(const char *name)
 				alt = o;
 		}
 
-		/* PLATFORM POLICY BEGIN ------------------------------------- */
+		/* PLATFORM POLICY BEGIN ----------------------------------- */
 		if (platform == p_sparc64 && !strcmp(t, "SUN") && i == 2)
 			continue;
 		if (platform == p_sparc64 && !strcmp(t, "SUN") &&
@@ -252,12 +271,13 @@ Int_Open_Disk(const char *name)
 		}
 		if (platform == p_alpha && !strcmp(t, "BSD") &&
 		    d->chunks->part->part == NULL) {
-			if (Add_Chunk(d, 0, d->chunks->size, name, freebsd, 0, 0, "-"))
+			if (Add_Chunk(d, 0, d->chunks->size, name, freebsd,
+				      0, 0, "-"))
 				DPRINT(("Failed to add 'freebsd' chunk"));
 		}
 		if (!strcmp(t, "BSD") && i == RAW_PART)
 			continue;
-		/* PLATFORM POLICY END --------------------------------------- */
+		/* PLATFORM POLICY END ------------------------------------- */
 
 		off /= s;
 		len /= s;
@@ -305,8 +325,10 @@ Int_Open_Disk(const char *name)
 			}
 		} else if (!strcmp(t, "GPT"))
 			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
-		else
-			{ printf("BARF %d\n", __LINE__); exit(0); }
+		else {
+			printf("BARF %d\n", __LINE__);
+			exit(0);
+		}
 	}
 	/* PLATFORM POLICY BEGIN ------------------------------------- */
 	/* We have a chance to do things on a blank disk here */
@@ -328,9 +350,11 @@ Int_Open_Disk(const char *name)
 void
 Debug_Disk(struct disk *d)
 {
+
 	printf("Debug_Disk(%s)", d->name);
 #if 0
-	printf("  real_geom=%lu/%lu/%lu", d->real_cyl, d->real_hd, d->real_sect);
+	printf("  real_geom=%lu/%lu/%lu",
+	       d->real_cyl, d->real_hd, d->real_sect);
 #endif
 	printf("  bios_geom=%lu/%lu/%lu = %lu\n",
 		d->bios_cyl, d->bios_hd, d->bios_sect,
@@ -355,21 +379,28 @@ Debug_Disk(struct disk *d)
 void
 Free_Disk(struct disk *d)
 {
-	if(d->chunks) Free_Chunk(d->chunks);
-	if(d->name) free(d->name);
+	if (d->chunks)
+		Free_Chunk(d->chunks);
+	if (d->name)
+		free(d->name);
 #ifdef PC98
-	if(d->bootipl) free(d->bootipl);
-	if(d->bootmenu) free(d->bootmenu);
+	if (d->bootipl)
+		free(d->bootipl);
+	if (d->bootmenu)
+		free(d->bootmenu);
 #else
 #if !defined(__ia64__)
-	if(d->bootmgr) free(d->bootmgr);
+	if (d->bootmgr)
+		free(d->bootmgr);
 #endif
 #endif
 #if !defined(__ia64__)
-	if(d->boot1) free(d->boot1);
+	if (d->boot1)
+		free(d->boot1);
 #endif
 #if defined(__i386__)
-	if(d->boot2) free(d->boot2);
+	if (d->boot2)
+		free(d->boot2);
 #endif
 	free(d);
 }
@@ -379,7 +410,7 @@ void
 Collapse_Disk(struct disk *d)
 {
 
-	while(Collapse_Chunk(d, d->chunks))
+	while (Collapse_Chunk(d, d->chunks))
 		;
 }
 #endif
@@ -387,9 +418,9 @@ Collapse_Disk(struct disk *d)
 static int
 qstrcmp(const void* a, const void* b)
 {
-
 	char *str1 = *(char**)a;
 	char *str2 = *(char**)b;
+
 	return strcmp(str1, str2);
 }
 
@@ -428,7 +459,7 @@ Disk_Names()
 		disks[disk_cnt] = strsep(&disklist, " ");
 		if (disks[disk_cnt] == NULL)
 			break;
-											}
+	}
 	qsort(disks, disk_cnt, sizeof(char*), qstrcmp);
 	return disks;
 }
@@ -453,7 +484,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootipl_size = bootipl_size;
 		d->bootipl = malloc(bootipl_size);
-		if(!d->bootipl) return;
+		if (!d->bootipl)
+			return;
 		memcpy(d->bootipl, bootipl, bootipl_size);
 	}
 
@@ -466,7 +498,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmenu_size = bootmenu_size;
 		d->bootmenu = malloc(bootmenu_size);
-		if(!d->bootmenu) return;
+		if (!d->bootmenu)
+			return;
 		memcpy(d->bootmenu, bootmenu, bootmenu_size);
 	}
 #else
@@ -479,7 +512,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmgr_size = s;
 		d->bootmgr = malloc(s);
-		if(!d->bootmgr) return;
+		if (!d->bootmgr)
+			return;
 		memcpy(d->bootmgr, b, s);
 	}
 #endif
@@ -490,18 +524,24 @@ int
 Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 {
 #if defined(__i386__)
-	if (d->boot1) free(d->boot1);
+	if (d->boot1)
+		free(d->boot1);
 	d->boot1 = malloc(512);
-	if(!d->boot1) return -1;
+	if (!d->boot1)
+		return -1;
 	memcpy(d->boot1, b1, 512);
-	if (d->boot2) free(d->boot2);
+	if (d->boot2)
+		free(d->boot2);
 	d->boot2 = malloc(15 * 512);
-	if(!d->boot2) return -1;
+	if (!d->boot2)
+		return -1;
 	memcpy(d->boot2, b2, 15 * 512);
 #elif defined(__alpha__)
-	if (d->boot1) free(d->boot1);
+	if (d->boot1)
+		free(d->boot1);
 	d->boot1 = malloc(15 * 512);
-	if(!d->boot1) return -1;
+	if (!d->boot1)
+		return -1;
 	memcpy(d->boot1, b1, 15 * 512);
 #elif defined(__sparc64__)
 	if (d->boot1 != NULL)
