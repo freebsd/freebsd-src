@@ -216,7 +216,7 @@ static d_ioctl_t	ciss_ioctl;
 static struct cdevsw ciss_cdevsw = {
     ciss_open, ciss_close, noread, nowrite, ciss_ioctl,
     nopoll, nommap, nostrategy, "ciss", CISS_CDEV_MAJOR,
-    nodump, nopsize, 0, -1
+    nodump, nopsize, 0, nokqfilter
 };
 
 /************************************************************************
@@ -3210,7 +3210,7 @@ ciss_name_command_status(int status)
  * Handle an open on the control device.
  */
 static int
-ciss_open(dev_t dev, int flags, int fmt, struct proc *p)
+ciss_open(dev_t dev, int flags, int fmt, d_thread_t *p)
 {
     struct ciss_softc	*sc;
 
@@ -3228,7 +3228,7 @@ ciss_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle the last close on the control device.
  */
 static int
-ciss_close(dev_t dev, int flags, int fmt, struct proc *p)
+ciss_close(dev_t dev, int flags, int fmt, d_thread_t *p)
 {
     struct ciss_softc	*sc;
 
@@ -3247,7 +3247,7 @@ ciss_close(dev_t dev, int flags, int fmt, struct proc *p)
  * simplify the porting of Compaq's userland tools.
  */
 static int
-ciss_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+ciss_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *p)
 {
     struct ciss_softc		*sc;
     int				error;
