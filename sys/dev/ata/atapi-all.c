@@ -95,29 +95,27 @@ atapi_attach(struct ata_device *atadev)
 #ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
 	if (acdattach(atadev))
-	    goto notfound;
+	    return;
 	break; 
 #endif
 #ifdef DEV_ATAPIFD
     case ATAPI_TYPE_DIRECT:
 	if (afdattach(atadev))
-	    goto notfound;
-	break; 
+	    return; 
+	break;
 #endif
 #ifdef DEV_ATAPIST
     case ATAPI_TYPE_TAPE:
 	if (astattach(atadev))
-	    goto notfound;
-	break; 
+	    return; 
+	break;
 #endif
-notfound:
-    default:
-	ata_prtdev(atadev, "<%.40s/%.8s> %s device - NO DRIVER!\n",
-		   atadev->param->model, atadev->param->revision, 
-		   atapi_type(atadev->param->type));
-	free(atadev->result, M_ATAPI);
-	atadev->driver = NULL;
     }
+    ata_prtdev(atadev, "<%.40s/%.8s> %s device - NO DRIVER!\n",
+	       atadev->param->model, atadev->param->revision, 
+	       atapi_type(atadev->param->type));
+    free(atadev->result, M_ATAPI);
+    atadev->driver = NULL;
 }
 
 void
