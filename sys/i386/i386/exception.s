@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.31 1997/07/01 01:02:03 bde Exp $
+ *	$Id: exception.s,v 1.2 1997/07/23 20:24:21 smp Exp smp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -41,14 +41,31 @@
 #include <machine/asmacros.h>			/* miscellaneous macros */
 
 #ifdef SMP
+
 #include <machine/apic.h>			/* for apic_vector.s */
 #define GET_MPLOCK		call _get_mplock
 #define REL_MPLOCK		call _rel_mplock
 #define	MP_INSTR_LOCK		lock
+
+/* protects the IO APIC and apic_imen as a critical region */
+#define IMASK_LOCK							\
+	pushl	$_imen_lock ;			/* address of lock */	\
+	call	_s_lock ;			/* MP-safe */		\
+	addl	$4,%esp
+
+#define IMASK_UNLOCK							\
+	pushl	$_imen_lock ;			/* address of lock */	\
+	call	_s_unlock ;			/* MP-safe */		\
+	addl	$4,%esp
+
 #else
+
 #define GET_MPLOCK		/* NOP get Kernel Mutex */
 #define REL_MPLOCK		/* NOP release mutex */
 #define	MP_INSTR_LOCK		/* NOP instruction lock */
+#define IMASK_LOCK		/* NOP IO APIC & apic_imen lock */
+#define IMASK_UNLOCK		/* NOP IO APIC & apic_imen lock */
+
 #endif  /* SMP */
 
 #define	KCSEL		0x08			/* kernel code selector */

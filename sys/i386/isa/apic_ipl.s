@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.16 1997/07/23 05:40:55 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.18 1997/07/23 20:18:14 smp Exp smp $
  */
 
 
@@ -66,6 +66,26 @@ _vec:
 	.long	 vec8,  vec9, vec10, vec11, vec12, vec13, vec14, vec15
 	.long	vec16, vec17, vec18, vec19, vec20, vec21, vec22, vec23
 
+	.align 4				/* MUST be 32bit aligned */
+	.globl _imen_lock
+_imen_lock:
+	.long	0
+
+/*
+ * Note:
+ *	This is the UP equivilant of _imen.
+ *	It is OPAQUE, and must NOT be accessed directly.
+ *	It MUST be accessed along with the IO APIC as a 'critical region'.
+ *	Accessed by:
+ *		INTREN()
+ *		INTRDIS()
+ *		MAYBE_MASK_IRQ
+ *		MAYBE_UNMASK_IRQ
+ *		imen_dump()
+ */
+	.globl _apic_imen
+_apic_imen:
+	.long	HWI_MASK
 
 /*
  * 
@@ -92,9 +112,10 @@ _vec8254:
 	pushfl
 	pushl	$KCSEL
 	pushl	%eax
-	cli
 	movl	_mask8254, %eax		/* lazy masking */
 	notl	%eax
+	cli
+	lock				/* MP-safe */
 	andl	%eax, iactive
 	MEXITCOUNT
 	movl	_Xintr8254, %eax
@@ -109,7 +130,8 @@ vec0:
 	pushl	$KCSEL
 	pushl	%eax
 	cli
-	andl	$~IRQ_BIT(0), iactive ;	/* lazy masking */
+	lock				/* MP-safe */
+	andl	$~IRQ_BIT(0), iactive	/* lazy masking */
 	MEXITCOUNT
 	jmp	_Xintr0			/* XXX might need _Xfastintr0 */
 #else
@@ -119,9 +141,10 @@ _vec8254:
 	pushfl
 	pushl	$KCSEL
 	pushl	%eax
-	cli
 	movl	_mask8254, %eax		/* lazy masking */
 	notl	%eax
+	cli
+	lock				/* MP-safe */
 	andl	%eax, iactive
 	MEXITCOUNT
 	movl	_Xintr8254, %eax
@@ -141,7 +164,8 @@ vec8:
 	pushl	$KCSEL
 	pushl	%eax
 	cli
-	andl	$~IRQ_BIT(8), iactive ;	/* lazy masking */
+	lock				/* MP-safe */
+	andl	$~IRQ_BIT(8), iactive	/* lazy masking */
 	MEXITCOUNT
 	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
 
@@ -157,6 +181,7 @@ __CONCAT(vec,irq_num): ;						\
 	pushl	$KCSEL ;						\
 	pushl	%eax ;							\
 	cli ;								\
+	lock ;					/* MP-safe */		\
 	andl	$~IRQ_BIT(irq_num), iactive ;	/* lazy masking */	\
 	MEXITCOUNT ;							\
 	jmp	__CONCAT(_Xintr,irq_num)
@@ -203,15 +228,15 @@ __CONCAT(vec,irq_num): ;						\
  */
 
 /* this nonsense is to verify that masks ALWAYS have 1 and only 1 bit set */
-#define QUALIFY_MASKS
+#define QUALIFY_MASKS_NOT
 
 #ifdef QUALIFY_MASKS
 #define QUALIFY_MASK		\
-	btrl %ecx, %eax ;	\
-	andl %eax, %eax ;	\
-	jz 1f ;			\
-	pushl $bad_mask ;	\
-	call _panic ;		\
+	btrl	%ecx, %eax ;	\
+	andl	%eax, %eax ;	\
+	jz	1f ;		\
+	pushl	$bad_mask ;	\
+	call	_panic ;	\
 1:
 
 bad_mask:	.asciz	"bad mask"
@@ -223,77 +248,68 @@ bad_mask:	.asciz	"bad mask"
  * MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following function.
  * (soon to be) MP-safe function to clear ONE INT mask bit.
  * The passed arg is a 32bit u_int MASK.
- * It sets the associated bit in imen.
+ * It sets the associated bit in _apic_imen.
  * It sets the mask bit of the associated IO APIC register.
  */
 	ALIGN_TEXT
 	.globl _INTREN
 _INTREN:
-	movl 4(%esp), %eax		/* mask into %eax */
-	bsfl %eax, %ecx			/* get pin index */
-	btrl %ecx, _imen		/* update imen */
+	IMASK_LOCK			/* enter critical reg */
+
+	movl	4(%esp), %eax		/* mask into %eax */
+	bsfl	%eax, %ecx		/* get pin index */
+	btrl	%ecx, _apic_imen	/* update _apic_imen */
 
 	QUALIFY_MASK
 
-	leal 16(,%ecx,2), %ecx		/* calculate register index */
+	leal	16(,%ecx,2), %ecx	/* calculate register index */
 
-	movl $0, %edx			/* XXX FIXME: APIC # */
-	movl _ioapic(,%edx,4), %edx	/* %edx holds APIC base address */
+	movl	$0, %edx		/* XXX FIXME: APIC # */
+	movl	_ioapic(,%edx,4), %edx	/* %edx holds APIC base address */
 
-	movl %ecx, (%edx)		/* write the target register index */
-	movl 16(%edx), %eax		/* read the target register data */
-	andl $~IOART_INTMASK, %eax	/* clear mask bit */
-	movl %eax, 16(%edx)		/* write the APIC register data */
+	movl	%ecx, (%edx)		/* write the target register index */
+	movl	16(%edx), %eax		/* read the target register data */
+	andl	$~IOART_INTMASK, %eax	/* clear mask bit */
+	movl	%eax, 16(%edx)		/* write the APIC register data */
 
+	IMASK_UNLOCK			/* exit critical reg */
 	ret
 
 /*
  * MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following function.
  * (soon to be) MP-safe function to set ONE INT mask bit.
  * The passed arg is a 32bit u_int MASK.
- * It clears the associated bit in imen.
+ * It clears the associated bit in _apic_imen.
  * It clears the mask bit of the associated IO APIC register.
  */
 	ALIGN_TEXT
 	.globl _INTRDIS
 _INTRDIS:
-	movl 4(%esp), %eax		/* mask into %eax */
-	bsfl %eax, %ecx			/* get pin index */
-	btsl %ecx, _imen		/* update imen */
+	IMASK_LOCK			/* enter critical reg */
+
+	movl	4(%esp), %eax		/* mask into %eax */
+	bsfl	%eax, %ecx		/* get pin index */
+	btsl	%ecx, _apic_imen	/* update _apic_imen */
 
 	QUALIFY_MASK
 
-	leal 16(,%ecx,2), %ecx		/* calculate register index */
+	leal	16(,%ecx,2), %ecx	/* calculate register index */
 
-	movl $0, %edx			/* XXX FIXME: APIC # */
-	movl _ioapic(,%edx,4), %edx	/* %edx holds APIC base address */
+	movl	$0, %edx		/* XXX FIXME: APIC # */
+	movl	_ioapic(,%edx,4), %edx	/* %edx holds APIC base address */
 
-	movl %ecx, (%edx)		/* write the target register index */
-	movl 16(%edx), %eax		/* read the target register data */
-	orl $IOART_INTMASK, %eax	/* set mask bit */
-	movl %eax, 16(%edx)		/* write the APIC register data */
+	movl	%ecx, (%edx)		/* write the target register index */
+	movl	16(%edx), %eax		/* read the target register data */
+	orl	$IOART_INTMASK, %eax	/* set mask bit */
+	movl	%eax, 16(%edx)		/* write the APIC register data */
 
+	IMASK_UNLOCK			/* exit critical reg */
 	ret
 
 
 /******************************************************************************
  *
  */
-
-
-/*
- * void clr_ioapic_maskbit(int apic, int bit); 
- */
-	.align 2
-clr_ioapic_maskbit:
-	ret
-
-/*
- * void set_ioapic_maskbit(int apic, int bit); 
- */
-	.align 2
-set_ioapic_maskbit:
-	ret
 
 
 /*
@@ -314,37 +330,37 @@ write_ioapic_mask:
 	pushl %ebx			/* scratch */
 	pushl %esi			/* scratch */
 
-	movl _imen, %ebx
-	xorl _MASK, %ebx		/* %ebx = imen ^ mask */
-	andl $_PIN_MASK, %ebx		/* %ebx = imen & 0x00ffffff */
-	jz all_done			/* no change, return */
+	movl	_apic_imen, %ebx
+	xorl	_MASK, %ebx		/* %ebx = _apic_imen ^ mask */
+	andl	$_PIN_MASK, %ebx	/* %ebx = _apic_imen & 0x00ffffff */
+	jz	all_done		/* no change, return */
 
-	movl _APIC, %esi		/* APIC # */
-	movl _ioapic(,%esi,4), %esi	/* %esi holds APIC base address */
+	movl	_APIC, %esi		/* APIC # */
+	movl	_ioapic(,%esi,4), %esi	/* %esi holds APIC base address */
 
 next_loop:				/* %ebx = diffs, %esi = APIC base */
-	bsfl %ebx, %ecx			/* %ecx = index if 1st/next set bit */
-	jz all_done
+	bsfl	%ebx, %ecx		/* %ecx = index if 1st/next set bit */
+	jz	all_done
 
-	btrl %ecx, %ebx			/* clear this bit in diffs */
-	leal 16(,%ecx,2), %edx		/* calculate register index */
+	btrl	%ecx, %ebx		/* clear this bit in diffs */
+	leal	16(,%ecx,2), %edx	/* calculate register index */
 
-	movl %edx, (%esi)		/* write the target register index */
-	movl 16(%esi), %eax		/* read the target register data */
+	movl	%edx, (%esi)		/* write the target register index */
+	movl	16(%esi), %eax		/* read the target register data */
 
-	btl %ecx, _MASK			/* test for mask or unmask */
-	jnc clear			/* bit is clear */
-	orl $_INT_MASK, %eax		/* set mask bit */
-	jmp write
-clear:	andl $~_INT_MASK, %eax		/* clear mask bit */
+	btl	%ecx, _MASK		/* test for mask or unmask */
+	jnc	clear			/* bit is clear */
+	orl	$_INT_MASK, %eax	/* set mask bit */
+	jmp	write
+clear:	andl	$~_INT_MASK, %eax	/* clear mask bit */
 
-write:	movl %eax, 16(%esi)		/* write the APIC register data */
+write:	movl	%eax, 16(%esi)		/* write the APIC register data */
 
-	jmp next_loop			/* try another pass */
+	jmp	next_loop		/* try another pass */
 
 all_done:
-	popl %esi
-	popl %ebx
+	popl	%esi
+	popl	%ebx
 	ret
 
 #undef _OLD_ESI
@@ -359,28 +375,28 @@ all_done:
 #ifdef oldcode
 
 _INTREN:
-	movl _imen, %eax
+	movl _apic_imen, %eax
 	notl %eax			/* mask = ~mask */
-	andl _imen, %eax		/* %eax = imen & ~mask */
+	andl _apic_imen, %eax		/* %eax = _apic_imen & ~mask */
 
-	pushl %eax			/* new (future) imen value */
+	pushl %eax			/* new (future) _apic_imen value */
 	pushl $0			/* APIC# arg */
 	call write_ioapic_mask		/* modify the APIC registers */
 
 	addl $4, %esp			/* remove APIC# arg from stack */
-	popl _imen			/* imen |= mask */
+	popl _apic_imen			/* _apic_imen |= mask */
 	ret
 
 _INTRDIS:
-	movl _imen, %eax
-	orl 4(%esp), %eax		/* %eax = imen | mask */
+	movl _apic_imen, %eax
+	orl 4(%esp), %eax		/* %eax = _apic_imen | mask */
 
-	pushl %eax			/* new (future) imen value */
+	pushl %eax			/* new (future) _apic_imen value */
 	pushl $0			/* APIC# arg */
 	call write_ioapic_mask		/* modify the APIC registers */
 
 	addl $4, %esp			/* remove APIC# arg from stack */
-	popl _imen			/* imen |= mask */
+	popl _apic_imen			/* _apic_imen |= mask */
 	ret
 
 #endif /* oldcode */
@@ -398,30 +414,35 @@ read_io_apic_mask:
 /*
  * Set INT mask bit for each bit set in 'mask'.
  * Ignore INT mask bit for all others.
- * Only consider lower 24 bits in mask.
  *
- * void set_io_apic_mask24(apic, u_int32_t bits); 
+ * void set_io_apic_mask(apic, u_int32_t bits); 
  */
 	.align 2
 set_io_apic_mask:
 	ret
 
 /*
- * Clear INT mask bit for each bit set in 'mask'.
- * Ignore INT mask bit for all others.
- * Only consider lower 24 bits in mask.
- *
- * void clr_io_apic_mask24(int apic, u_int32_t bits); 
+ * void set_ioapic_maskbit(int apic, int bit); 
  */
 	.align 2
-clr_io_apic_mask24:
+set_ioapic_maskbit:
 	ret
 
 /*
- * 
+ * Clear INT mask bit for each bit set in 'mask'.
+ * Ignore INT mask bit for all others.
+ *
+ * void clr_io_apic_mask(int apic, u_int32_t bits); 
  */
 	.align 2
+clr_io_apic_mask:
+	ret
 
+/*
+ * void clr_ioapic_maskbit(int apic, int bit); 
+ */
+	.align 2
+clr_ioapic_maskbit:
 	ret
 
 #endif /** ready */
@@ -436,11 +457,11 @@ clr_io_apic_mask24:
 	.align 2
 	.globl _io_apic_read
 _io_apic_read:
-	movl 4(%esp), %ecx		/* APIC # */
-	movl _ioapic(,%ecx,4), %edx	/* APIC base register address */
-	movl 8(%esp), %eax		/* target register index */
-	movl %eax, (%edx)		/* write the target register index */
-	movl 16(%edx), %eax		/* read the APIC register data */
+	movl	4(%esp), %ecx		/* APIC # */
+	movl	_ioapic(,%ecx,4), %edx	/* APIC base register address */
+	movl	8(%esp), %eax		/* target register index */
+	movl	%eax, (%edx)		/* write the target register index */
+	movl	16(%edx), %eax		/* read the APIC register data */
 	ret				/* %eax = register value */
 
 /*
@@ -449,12 +470,12 @@ _io_apic_read:
 	.align 2
 	.globl _io_apic_write
 _io_apic_write:
-	movl 4(%esp), %ecx		/* APIC # */
-	movl _ioapic(,%ecx,4), %edx	/* APIC base register address */
-	movl 8(%esp), %eax		/* target register index */
-	movl %eax, (%edx)		/* write the target register index */
-	movl 12(%esp), %eax		/* target register value */
-	movl %eax, 16(%edx)		/* write the APIC register data */
+	movl	4(%esp), %ecx		/* APIC # */
+	movl	_ioapic(,%ecx,4), %edx	/* APIC base register address */
+	movl	8(%esp), %eax		/* target register index */
+	movl	%eax, (%edx)		/* write the target register index */
+	movl	12(%esp), %eax		/* target register value */
+	movl	%eax, 16(%edx)		/* write the APIC register data */
 	ret				/* %eax = void */
 
 /*
@@ -463,7 +484,7 @@ _io_apic_write:
 	.align 2
 	.globl _apic_eoi
 _apic_eoi:
-	movl $0, _lapic+0xb0
+	movl	$0, _lapic+0xb0
 	ret
 
 
@@ -477,11 +498,11 @@ _apic_eoi:
 	.align 2
 	.globl _test_and_set
 _test_and_set:
-	movl 4(%esp), %eax		/* get the address of the lock */
+	movl	4(%esp), %eax		/* get the address of the lock */
 	lock				/* do it atomically */
-	btsl $0, (%eax)			/* set 0th bit, old value in CF */
-	setc %al			/* previous value into %al */
-	movzbl %al, %eax		/* return as an int */
+	btsl	$0, (%eax)		/* set 0th bit, old value in CF */
+	setc	%al			/* previous value into %al */
+	movzbl	%al, %eax		/* return as an int */
 	ret
 
 /******************************************************************************
@@ -511,9 +532,13 @@ _test_and_set:
 	.align 2
 	.globl _s_lock_init
 _s_lock_init:
-	movl 4(%esp), %eax		/* get the address of the lock */
-	xorl %ecx, %ecx			/* cheap clear */
-	xchgl %ecx, (%eax)		/* in case its not 32bit aligned */
+	movl	4(%esp), %eax		/* get the address of the lock */
+#ifdef ANAL_SIMPLE_LOCK
+	xorl	%ecx, %ecx		/* cheap clear */
+	xchgl	%ecx, (%eax)		/* in case its not 32bit aligned */
+#else
+	movl	$0, (%eax)
+#endif /* ANAL_SIMPLE_LOCK */
 	ret
 
 
@@ -524,15 +549,26 @@ _s_lock_init:
  * 	while (test_and_set(&lkp->lock_data))
  * 		continue;
  * }
+ *
+ * Note:
+ *	If the acquire fails we do a loop of reads waiting for the lock to
+ *	become free instead of continually beating on the lock with btsl.
+ *	The theory here is that the CPU will stay within its cache until
+ *	a write by the other CPU updates it, instead of continually updating
+ *	the local cache (and thus causing external bus writes) with repeated
+ *	writes to the lock.
  */
 	.align 2
 	.globl _s_lock
 _s_lock:
-	movl 4(%esp), %eax		/* get the address of the lock */
+	movl	4(%esp), %eax		/* get the address of the lock */
 1:	lock				/* do it atomically */
-	btsl $0, (%eax)			/* set 0th bit, old value in CF */
-	jc 1b				/* already set, try again */
-	ret
+	btsl	$0, (%eax)		/* set 0th bit, old value in CF */
+	jnc	3f			/* it was clear, return */
+2:	btl	$0, (%eax)		/* wait to empty */
+	jc	2b			/* still set... */
+	jmp	1b			/* empty again, try once more */
+3:	ret
 
 
 /*
@@ -545,11 +581,11 @@ _s_lock:
 	.align 2
 	.globl _s_lock_try
 _s_lock_try:
-	movl 4(%esp), %eax		/* get the address of the lock */
+	movl	4(%esp), %eax		/* get the address of the lock */
 	lock				/* do it atomically */
-	btsl $0, (%eax)			/* set 0th bit, old value in CF */
-	setnc %al			/* 1 if previous value was 0 */
-	movzbl %al, %eax		/* convert to an int */
+	btsl	$0, (%eax)		/* set 0th bit, old value in CF */
+	setnc	%al			/* 1 if previous value was 0 */
+	movzbl	%al, %eax		/* convert to an int */
 	ret
 
 
@@ -563,7 +599,11 @@ _s_lock_try:
 	.align 2
 	.globl _s_unlock
 _s_unlock:
-	movl 4(%esp), %eax		/* get the address of the lock */
-	xorl %ecx, %ecx			/* cheap clear */
-	xchgl %ecx, (%eax)		/* in case its not 32bit aligned */
+	movl	4(%esp), %eax		/* get the address of the lock */
+#ifdef ANAL_SIMPLE_LOCK
+	xorl	%ecx, %ecx		/* cheap clear */
+	xchgl	%ecx, (%eax)		/* in case its not 32bit aligned */
+#else
+	movl	$0, (%eax)
+#endif /* ANAL_SIMPLE_LOCK */
 	ret
