@@ -1,1 +1,2 @@
-#define PATCHLEVEL 4
+#define PATCHLEVEL 5
+#define BETA "beta12"

@@ -1,8 +1,8 @@
                              TOP
-                         Version 3.4
+                         Version 3.5
 
                        William LeFebvre
-		     and a cast of dozens
+		      and a cast of many
 
 INSTALLATION
 
@@ -97,8 +97,9 @@ HINTS FOR CHOOSING THE CORRECT MODULE:
 
 SOLARIS 2.x
 
-For Solaris versions 2.0 thru 2.3, use the module sunos5.  For Solaris
-versions 2.4 and higher (including 2.5 and 2.5.1) use the module sunos54.
+All versions of Solaris will now work with the module sunos5.  Version
+specific modules (such as sunos54) no longer exist.
+
 
 SUNOS 4.x AND MULTIPROCESSOR ARCHITECTURES
 

@@ -4,13 +4,14 @@
 # top's Configure script to build .desc files and the SYNOPSIS file.
 # Configure then uses these files to ask appropriate questions.
 
-# Written by William LeFebvre, Argonne National Laboratory
+# Written by William LeFebvre, Group sys Consulting
 #	     (formerly of Northwestern University and Rice University)
 
 # DO NOT EDIT "Make.desc"!!!  Make changes to "Make.desc.X",
 # then "make veryclean", then run "Configure".
 
-DESCS=%descs%
+# The list of .desc files will be inserted after this next line:
+DESCS=\
 
 .SUFFIXES: .desc
 

@@ -2,7 +2,7 @@
 #
 # This makefile is for top, version 3
 #
-# Written by William LeFebvre, Argonne National Laboratory
+# Written by William LeFebvre, Group sys Consulting
 #		(formerly of Northwestern University and Rice University)
 
 # DO NOT EDIT "Makefile"!!!!  Make changes to "Makefile.X" and rerun
@@ -45,15 +45,6 @@ SIGNAL = %signal%
 TOPN = %topn%
 DELAY = %delay%
 
-TARFILES = README INSTALL DISCLAIMER FAQ ADVERTISEMENT \
-	   Changes Configure Porting \
-	   Makefile.X Make.desc.X getans install \
-	   top.c commands.c display.c screen.c username.c \
-	   utils.c version.c getopt.c prime.c \
-	   boolean.h display.h layout.h loadavg.h screen.h \
-	   machine.h patchlevel.h top.h top.local.H os.h utils.h \
-	   sigconv.awk top.X m-template metatop \
-	   machine
 CFILES = top.c commands.c display.c screen.c username.c \
 	 utils.c version.c getopt.c machine.c
 OBJS = top.o commands.o display.o screen.o username.o \
@@ -62,6 +53,7 @@ OBJS = top.o commands.o display.o screen.o username.o \
 CDEFS = %cdefs%
 LIBS = %libs%
 TERMCAP = %termcap%
+MATH = %math%
 
 CFLAGS = %cflgs% $(CDEFS)
 LINTFLAGS = -x $(CDEFS)
@@ -78,32 +70,27 @@ top.local.h: top.local.H
 
 top: $(OBJS)
 	rm -f top
-	$(CC) -o top $(OBJS) $(TERMCAP) -lm $(LIBS)
+	$(CC) $(CDEFS) -o top $(OBJS) $(TERMCAP) $(MATH) $(LIBS)
 
 lint: sigdesc.h
 	$(LINT) $(LINTFLAGS) $(CFILES)
 
 # include file dependencies
 top.o: boolean.h display.h screen.h top.h top.local.h utils.h machine.h 
-commands.o: boolean.h sigdesc.h utils.h
+commands.o: boolean.h sigdesc.h top.h utils.h
 display.o: boolean.h display.h layout.h screen.h top.h top.local.h utils.h
-machine.o: top.h machine.h utils.h
 screen.o: boolean.h screen.h
 utils.o: top.h
 version.o: top.h patchlevel.h
 username.o: top.local.h utils.h
 
+# when compiling machine.c, include os revision definition
+machine.o: machine.c top.h machine.h utils.h
+	$(CC) "%osrev%" $(CFLAGS) -c machine.c
+
 # automatically built include file
 sigdesc.h: sigconv.awk $(SIGNAL)
 	$(AWK) -f sigconv.awk $(SIGNAL) >sigdesc.h
-
-tar:
-	rm -f top.tar machine/*.desc machine/*~
-	tar cvf top.tar $(TARFILES)
-
-shar:
-	rm -f top.shar* machine/*.desc
-	makekit -ntop.shar. -t"Now read README and INSTALL, then run Configure" machine $(TARFILES)/*
 
 clean:
 	rm -f *.o top core core.* sigdesc.h

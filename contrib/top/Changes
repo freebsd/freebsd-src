@@ -1,3 +1,132 @@
+Thu Mar 30 2000 - wnl (3.5beta12)
+	Updated modules: m_aix41.c, m_aix43.c, m_mtxinu.c, m_sco5.c,
+	and m_ultrix4.c.
+	Included m_irixsgi.c from some source that's been floating around
+	SGI.  Don't yet know how it compares to m_irix62.
+
+Fri Mar 10 2000 - wnl (3.5beta11)
+	top.c: avoid potential loop if stdout gets closed, use macro
+	for p_active to avoid collision with system macros.
+	m_sunos5: widened some fields to accomodate 5.8.
+	m_decosf1: added ordering support
+	m_irix62_64: provides 64-bit module based on m_irix62.
+	m_irix62: skip bogus files in /proc directory
+	m_svr42MP and m_svr5: complete replacement with updated copies
+	m_mtxinu: complete replacement with updated copies
+	m_aix43: new module for 4.3
+	getans: replaced with a Bourne shell script
+
+Mon Mar  6 2000 - wnl (3.5beta10)
+	m_sunos5.c: workaround for curses bug: ensure that TERMINFO has
+	a value.
+
+Fri Jan 15 1999 - wnl (3.5beta10)
+	top.c: now check return code from read to avoid looping on eof.
+	top.c: delay of 0 now only valid for root.
+	decosf1.c: patches from Rainer Orth should fix most of the
+	problems with this module (including the display of certain
+	processes and runtime errors).
+	sunos5.c: Rainer insisted on putting the slash back in the
+	state field ("run/4") and widened the field to accomodate it.
+	aix.c: widened PID field for 6-digit pids (shortened NICE field)
+	module macosx added, thanks to Andrew Townley.
+
+Fri Dec 18 1998 - wnl (3.5beta9)
+	Configure checks status of "make" and complains if it fails.
+
+Thu Dec 17 1998 - wnl (3.5beta9)
+	Added module sco5 from Mike Hopkirk.
+	Added module netbsd132 from moto kawasaki.
+
+Sun Oct 25 1998 - wnl (3.5beta9)
+	Added Casper's patches for sunos5 for the following:
+	produce same results as swap -s (5.5 and higher),
+	don't use system_pages kstat when /dev/kmem can be opened,
+	skip . and .. when reading /proc, replace use of SOLARIS24
+	with OSREV.
+
+Fri Sep 11 1998 - wnl (3.5beta9)
+	Added workaround to getans for the absence of $< in SCO Unix.
+
+Wed Jul  1 1998 - wnl (3.5beta9)
+	Changed structure member "errno" to "errnum" in commands.c.
+	Replaced hpux10 module with one from John Haxby.
+
+Fri Apr 17 1998 - wnl (3.5beta8)
+	Moved definition of _KMEMUSER earlier in m_sunos5.c.  This should
+	fix the compilation problem with gnu 2.7.2.3, obviating the need
+	for the fixinc.svr4 patch, but hopefully will not affect anything
+	else.
+	Added -DORDER to m_sunos4mp.c
+
+Tue Nov 18 1997 - wnl (3.5beta7)
+	Added gcc 2.7.2.3 patch for fixinc.svr4 and changed INSTALL and
+	FAQ to refer to it.
+	Added NetBSD HP9000 fix.  Hopefully it doesn't break other 
+	NetBSD platforms.
+
+Fri Oct 24 1997 - wnl (3.5beta7)
+	Modified m_dcosx.c to change uses of procdir to xprocdir, avoiding
+	a name clash with an include file (Bryn Parrott)
+
+Sat Oct 11 1997 - wnl (3.5beta6)
+	Incorporated Casper's patches for Solaris 2.6 and for the multi-
+	processor bug ("kstat finds too many cpus").
+
+Sun Jan 20 1996 - wnl (3.5beta5)
+	Fixed Casper's m_sunos5 module: there was a poor interaction with 
+	his use of OSREV and SunOS 5.5.1.
+
+Fri Dec 20 1996 - wnl (3.5beta4)
+	Replaced m_sunos5 with a reworked version by Casper Dik.  This one
+	should work under 2.6 and may not require that top be run setuid
+	to root under 2.5 or 2.6.  This also fixed a bug in m_sunos5 that
+	was introduced in beta3.
+	Fixed calculation of OSREV in Configure.
+
+Wed Nov 20 1996 - wnl (3.5beta3)
+	Incorporated contributed fixes to:  bsdos2, irix62, freebsd20,
+	ultrix4, sunos5.  Changed calculation of swap area in sunos5 (now
+	uses swapctl).  sunos5 now understands idled processors.  Changed
+	Configure to determine os revision using uname (when available)
+	and adding it to machine.c compiliation in Makefile as -DOSREV.
+	Changed calls to "exit" in modules to use "quit" instead.
+
+Oct 20 1996 - wnl (3.5beta3)
+	Removed "time" from list of ordering choices:  there's no easy way
+	to get cpu time for all processes (it's in the u area).
+
+Fri Oct 18 1996 - wnl (3.5beta3)
+	hpux10 and hpux9: using a better means for determining when a
+	process is idle.
+	decosf1 now includes utils.h.
+
+Fri Sep 13 1996 - wnl (3.5beta2)
+	Fixed Configure to build Make.desc in such a way that doesn't
+	require a long argument to sed.
+
+Thu Sep 12 1996 - wnl (3.5beta2)
+	Fixed bug in display.c that affected empty cpustate names.
+	Created hpux1010 module - a variant of hpux10 that does not use
+	struct proc or struct user (suitable for HP/UX 10.10).
+
+Wed Sep 11 1996 - wnl (3.5beta2)
+	Changes to sunos5 module:  Removed WCPU column since it is meaningless
+	on a SVR4-based system.  Added THR column to show number of threads
+	for each process.  This was not straightforward: the information is
+	not stored in prpsinfo but rather in prstatus.
+
+Tue Sep 10 1996 - wnl (3.5beta1)
+	Added patches for sunos4mp to provide order support.
+	Added irix62 module.
+	Changed prime.c to include stdio.h for printf prototype.
+	Added conditional code to os.h and utils.c to handle systems
+	where sys_errlist is defined in stdio.h (such as NetBSD).
+
+Mon Sep 09 1996 - wnl (3.5beta1)
+	Removed tar and shar rules from Makefile.X -- don't need them anymore.
+	Added -v option to display version number.  Updated man page.
+
 Thu Aug 29 1996 - wnl (3.4)
 	Replaced modules (from Tim Pugh): next 32, next40.
 	Fixed bug in username.c: hashing negative uids.
