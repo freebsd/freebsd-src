@@ -933,7 +933,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		tf->tf_special.iip = ia64_get_k5() +
 		    ((uint64_t)break_sigtramp - (uint64_t)ia64_gateway_page);
 	} else
-		tf->tf_special.rp = ia64_get_k5() +
+		tf->tf_special.iip = ia64_get_k5() +
 		    ((uint64_t)epc_sigtramp - (uint64_t)ia64_gateway_page);
 
 	/*
@@ -1095,9 +1095,6 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 		s.bspstore = (uintptr_t)ustk;
 	}
 	if (tf->tf_flags & FRAME_SYSCALL) {
-		s.pfs = s.cfm;
-		s.rp = s.iip;
-		s.cfm = s.iip = 0;
 		/*
 		 * Put the syscall return values in the context. We need this
 		 * for swapcontext() to work. Note that we don't use gr11 in
@@ -1152,10 +1149,8 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 		/* XXX High FP */
 	} else {
 		KASSERT((tf->tf_flags & FRAME_SYSCALL) != 0, ("foo"));
-		s.cfm = s.pfs;
-		s.pfs = tf->tf_special.pfs;
-		s.iip = s.rp;
-		s.rp = tf->tf_special.rp;
+		s.cfm = tf->tf_special.cfm;
+		s.iip = tf->tf_special.iip;
 		if ((mc->mc_flags & _MC_FLAGS_SCRATCH_VALID) == 0) {
 			if (mc->mc_flags & _MC_FLAGS_RETURN_VALID) {
 				tf->tf_scratch.gr8 = mc->mc_scratch.gr8;
@@ -1204,7 +1199,6 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	if ((tf->tf_flags & FRAME_SYSCALL) == 0) {	/* break syscalls. */
 		bzero(&tf->tf_scratch, sizeof(tf->tf_scratch));
 		bzero(&tf->tf_scratch_fp, sizeof(tf->tf_scratch_fp));
-		tf->tf_special.iip = entry;
 		tf->tf_special.cfm = (1UL<<63) | (3UL<<7) | 3UL;
 		tf->tf_special.bspstore = td->td_md.md_bspstore;
 		/*
@@ -1224,8 +1218,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		*kst = stack;
 		tf->tf_special.ndirty = (ksttop - kst) << 3;
 	} else {				/* epc syscalls (default). */
-		tf->tf_special.rp = entry;
-		tf->tf_special.pfs = (3UL<<62) | (3UL<<7) | 3UL;
+		tf->tf_special.cfm = (3UL<<62) | (3UL<<7) | 3UL;
 		tf->tf_special.bspstore = td->td_md.md_bspstore + 24;
 		/*
 		 * Write values for out0, out1 and out2 to the user's backing
@@ -1238,6 +1231,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		suword((caddr_t)tf->tf_special.bspstore -  8, 0);
 	}
 
+	tf->tf_special.iip = entry;
 	tf->tf_special.sp = (stack & ~15) - 16;
 	tf->tf_special.rsc = 0xf;
 	tf->tf_special.fpsr = IA64_FPSR_DEFAULT;
