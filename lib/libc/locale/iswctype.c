@@ -211,3 +211,13 @@ towupper(wc)
 {
         return (__toupper(wc));
 }
+
+#undef wcwidth
+int
+wcwidth(wc)
+        wchar_t wc;
+{
+	int width = (unsigned)__maskrune((wc), _CTYPE_SWM) >> _CTYPE_SWS;
+	return width ? width : iswprint(wc);
+}
+
