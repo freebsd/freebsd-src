@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1996/12/23 21:47:28 jkh Exp $
+# $Id: Makefile,v 1.3 1996/12/28 17:42:48 peter Exp $
 
 DISTRIBUTION=	compat21
 
@@ -14,7 +14,7 @@ ${lib}:	${lib}.gz.uu
 .endfor
 
 install:
-	${INSTALL} ${COPY} -o ${LIBMODE} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}
 
 # Get all the fruit, even though we don't set PROG.
