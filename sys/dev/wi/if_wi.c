@@ -129,55 +129,53 @@ static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
  */
 #define LE16TOH(a)	((a) = le16toh((a)))
 
-static void wi_intr		__P((void *));
-static void wi_reset		__P((struct wi_softc *));
-static int wi_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void wi_init		__P((void *));
-static void wi_start		__P((struct ifnet *));
-static void wi_stop		__P((struct wi_softc *));
-static void wi_watchdog		__P((struct ifnet *));
-static void wi_rxeof		__P((struct wi_softc *));
-static void wi_txeof		__P((struct wi_softc *, int));
-static void wi_update_stats	__P((struct wi_softc *));
-static void wi_setmulti		__P((struct wi_softc *));
+static void wi_intr(void *);
+static void wi_reset(struct wi_softc *);
+static int wi_ioctl(struct ifnet *, u_long, caddr_t);
+static void wi_init(void *);
+static void wi_start(struct ifnet *);
+static void wi_stop(struct wi_softc *);
+static void wi_watchdog(struct ifnet *);
+static void wi_rxeof(struct wi_softc *);
+static void wi_txeof(struct wi_softc *, int);
+static void wi_update_stats(struct wi_softc *);
+static void wi_setmulti(struct wi_softc *);
 
-static int wi_cmd		__P((struct wi_softc *, int, int));
-static int wi_read_record	__P((struct wi_softc *, struct wi_ltv_gen *));
-static int wi_write_record	__P((struct wi_softc *, struct wi_ltv_gen *));
-static int wi_read_data		__P((struct wi_softc *, int,
-					int, caddr_t, int));
-static int wi_write_data	__P((struct wi_softc *, int,
-					int, caddr_t, int));
-static int wi_seek		__P((struct wi_softc *, int, int, int));
-static int wi_alloc_nicmem	__P((struct wi_softc *, int, int *));
-static void wi_inquire		__P((void *));
-static void wi_setdef		__P((struct wi_softc *, struct wi_req *));
-static int wi_mgmt_xmit		__P((struct wi_softc *, caddr_t, int));
+static int wi_cmd(struct wi_softc *, int, int);
+static int wi_read_record(struct wi_softc *, struct wi_ltv_gen *);
+static int wi_write_record(struct wi_softc *, struct wi_ltv_gen *);
+static int wi_read_data(struct wi_softc *, int, int, caddr_t, int);
+static int wi_write_data(struct wi_softc *, int, int, caddr_t, int);
+static int wi_seek(struct wi_softc *, int, int, int);
+static int wi_alloc_nicmem(struct wi_softc *, int, int *);
+static void wi_inquire(void *);
+static void wi_setdef(struct wi_softc *, struct wi_req *);
+static int wi_mgmt_xmit(struct wi_softc *, caddr_t, int);
 
 #ifdef WICACHE
 static
-void wi_cache_store __P((struct wi_softc *, struct ether_header *,
-	struct mbuf *, unsigned short));
+void wi_cache_store(struct wi_softc *, struct ether_header *,
+	struct mbuf *, unsigned short);
 #endif
 
-static int wi_generic_attach	__P((device_t));
-static int wi_pccard_match	__P((device_t));
-static int wi_pccard_probe	__P((device_t));
-static int wi_pccard_attach	__P((device_t));
+static int wi_generic_attach(device_t);
+static int wi_pccard_match(device_t);
+static int wi_pccard_probe(device_t);
+static int wi_pccard_attach(device_t);
 #if NPCI > 0
-static int wi_pci_probe		__P((device_t));
-static int wi_pci_attach	__P((device_t));
+static int wi_pci_probe(device_t);
+static int wi_pci_attach(device_t);
 #endif
-static int wi_pccard_detach	__P((device_t));
-static void wi_shutdown		__P((device_t));
+static int wi_pccard_detach(device_t);
+static void wi_shutdown(device_t);
 
-static int wi_alloc		__P((device_t, int));
-static void wi_free		__P((device_t));
+static int wi_alloc(device_t, int);
+static void wi_free(device_t);
 
-static int wi_get_cur_ssid	__P((struct wi_softc *, char *, int *));
-static void wi_get_id		__P((struct wi_softc *, device_t));
-static int wi_media_change	__P((struct ifnet *));
-static void wi_media_status	__P((struct ifnet *, struct ifmediareq *));
+static int wi_get_cur_ssid(struct wi_softc *, char *, int *);
+static void wi_get_id(struct wi_softc *, device_t);
+static int wi_media_change(struct ifnet *);
+static void wi_media_status(struct ifnet *, struct ifmediareq *);
 
 static device_method_t wi_pccard_methods[] = {
 	/* Device interface */
