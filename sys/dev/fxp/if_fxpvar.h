@@ -185,11 +185,10 @@ struct fxp_softc {
 	int tunable_int_delay;		/* interrupt delay value for ucode */
 	int tunable_bundle_max;		/* max # frames per interrupt (ucode) */
 	int eeprom_size;		/* size of serial EEPROM */
-	int suspended;			/* 0 = normal  1 = suspended (APM) */
+	int suspended;			/* 0 = normal  1 = suspended or dead */
 	int cu_resume_bug;
 	int revision;
 	int flags;
-	int gone;
 	u_int32_t saved_maps[5];	/* pci data */
 	u_int32_t saved_biosaddr;
 	u_int8_t saved_intline;
