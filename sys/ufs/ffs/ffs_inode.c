@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.29 1997/10/16 20:32:34 phk Exp $
+ * $Id: ffs_inode.c,v 1.30 1998/01/06 05:23:36 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -87,9 +87,15 @@ ffs_update(vp, access, modify, waitfor)
 		    ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 		return (0);
 	}
+
+	if (vp->v_mount->mnt_flag & MNT_NOATIME) {
+		ip->i_flag &=~ IN_ACCESS;
+	}
+
 	if ((ip->i_flag &
 	    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)
 		return (0);
+
 	/*
 	 * Use a copy of the current time to get consistent timestamps
 	 * (a_access and a_modify are sometimes aliases for &time).
