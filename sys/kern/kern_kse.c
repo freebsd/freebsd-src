@@ -518,15 +518,9 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	struct thread *newtd;
 
 	p = td->td_proc;
+	kg = td->td_ksegrp;
 	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
 		return (err);
-
-	/*
-	 * Processes using the other threading model can't
-	 * suddenly start calling this one
-	 */
-	if ((p->p_flag & (P_SA|P_HADTHREADS)) == P_HADTHREADS)
-		 return (EINVAL);
 
 	ncpus = mp_ncpus;
 	if (virtual_cpu != 0)
@@ -547,10 +541,31 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	}
 
 	PROC_LOCK(p);
+	/*
+	 * Processes using the other threading model can't
+	 * suddenly start calling this one
+	 */
+	if ((p->p_flag & (P_SA|P_HADTHREADS)) == P_HADTHREADS) {
+		PROC_UNLOCK(p);
+		return (EINVAL);
+	}
+
+	/*
+	 * Limit it to NCPU upcall contexts per ksegrp in any case.
+	 * There is a small race here as we don't hold proclock
+	 * until we inc the ksegrp count, but it's not really a big problem
+	 * if we get one too many, but we save a proc lock.
+	 */
+	if ((!uap->newgroup) && (kg->kg_numupcalls >= ncpus)) {
+		PROC_UNLOCK(p);
+		return (EPROCLIM);
+	}
+
 	if (!(p->p_flag & P_SA)) {
 		first = 1;
 		p->p_flag |= P_SA|P_HADTHREADS;
 	}
+
 	PROC_UNLOCK(p);
 	/*
 	 * Now pay attention!
@@ -565,22 +580,21 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	if (!sa && !(uap->newgroup || first))
 		return (EINVAL);
 
-	kg = td->td_ksegrp;
 	if (uap->newgroup) {
 		newkg = ksegrp_alloc();
 		bzero(&newkg->kg_startzero, RANGEOF(struct ksegrp,
 		      kg_startzero, kg_endzero));
 		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
 		      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
+		sched_init_concurrency(newkg);
 		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
 		if (p->p_numksegrps >= max_groups_per_proc) {
-			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
 			ksegrp_free(newkg);
 			return (EPROCLIM);
 		}
 		ksegrp_link(newkg, p);
+		mtx_lock_spin(&sched_lock);
 		sched_fork_ksegrp(td, newkg);
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
@@ -595,9 +609,9 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 */
 		if (!first && ((td->td_pflags & TDP_SA) != sa))
 			return (EINVAL);
+
 		newkg = kg;
 	}
-
 
 	/* 
 	 * This test is a bit "indirect".
@@ -647,10 +661,6 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	if (td->td_standin == NULL)
 		thread_alloc_spare(td);
 
-	/*
-	 * Creating upcalls more than number of physical cpu does
-	 * not help performance.
-	 */
 	PROC_LOCK(p);
 	if (newkg->kg_numupcalls >= ncpus) {
 		PROC_UNLOCK(p);
@@ -991,6 +1001,8 @@ error:
  * for upcall. Initialize thread's large data area outside sched_lock
  * for thread_schedule_upcall(). The crhold is also here to get it out
  * from the schedlock as it has a mutex op itself.
+ * XXX BUG.. we need to get the cr ref after the thread has 
+ * checked and chenged its own, not 6 months before...  
  */
 void
 thread_alloc_spare(struct thread *td)
