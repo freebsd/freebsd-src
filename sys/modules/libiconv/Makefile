@@ -9,4 +9,10 @@ SRCS+=	iconv_converter_if.c iconv_converter_if.h
 MFILES=	libkern/iconv_converter_if.m
 NOMAN=	true
 
+EXPORT_SYMS=	iconv_open	\
+		iconv_close	\
+		iconv_conv	\
+		iconv_convstr	\
+		iconv_convmem
+
 .include <bsd.kmod.mk>
