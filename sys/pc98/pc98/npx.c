@@ -32,12 +32,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.7 1996/10/09 21:46:29 asami Exp $
+ *	$Id: npx.c,v 1.8 1996/10/29 08:36:22 asami Exp $
  */
 
 #include "npx.h"
 #if NNPX > 0
 
+#include "opt_cpu.h"
 #include "opt_math_emulate.h"
 
 #include <sys/param.h>
@@ -70,6 +71,22 @@
 /*
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
  */
+
+/* Configuration flags. */
+#define	NPX_DISABLE_I586_OPTIMIZED_BCOPY	(1 << 0)
+#define	NPX_DISABLE_I586_OPTIMIZED_BZERO	(1 << 1)
+#define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
+
+/* XXX - should be in header file. */
+extern void (*bcopy_vector) __P((const void *from, void *to, size_t len));
+extern void (*ovbcopy_vector) __P((const void *from, void *to, size_t len));
+extern int (*copyin_vector) __P((const void *udaddr, void *kaddr, size_t len));
+extern int (*copyout_vector) __P((const void *kaddr, void *udaddr, size_t len));
+
+void	i586_bcopy __P((const void *from, void *to, size_t len));
+void	i586_bzero __P((void *buf, size_t len));
+int	i586_copyin __P((const void *udaddr, void *kaddr, size_t len));
+int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
 
 #ifdef	__GNUC__
 
@@ -366,22 +383,39 @@ int
 npxattach(dvp)
 	struct isa_device *dvp;
 {
-	if (npx_ex16)
-		printf("npx%d: INT 16 interface\n", dvp->id_unit);
-	else if (npx_irq13)
-		;		/* higher level has printed "irq 13" */
+	/* The caller has printed "irq 13" for the npx_irq13 case. */
+	if (!npx_irq13) {
+		printf("npx%d: ", dvp->id_unit);
+		if (npx_ex16)
+			printf("INT 16 interface\n");
 #if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
-	else if (npx_exists) {
-		printf("npx%d: error reporting broken; using 387 emulator\n",
-			dvp->id_unit);
-		npx_exists = 0;
-	} else
-		printf("npx%d: 387 emulator\n",dvp->id_unit);
+		else if (npx_exists) {
+			printf("error reporting broken; using 387 emulator\n");
+			hw_float = npx_exists = 0;
+		} else
+			printf("387 emulator\n");
 #else
-	else
-		printf("npx%d: no 387 emulator in kernel!\n", dvp->id_unit);
+		else
+			printf("no 387 emulator in kernel!\n");
 #endif
+	}
 	npxinit(__INITIAL_NPXCW__);
+
+#ifdef I586_CPU
+	if (cpu_class == CPUCLASS_586 && npx_ex16) {
+		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY)) {
+			bcopy_vector = i586_bcopy;
+			ovbcopy_vector = i586_bcopy;
+		}
+		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BZERO))
+			bzero = i586_bzero;
+		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_COPYIO)) {
+			copyin_vector = i586_copyin;
+			copyout_vector = i586_copyout;
+		}
+	}
+#endif
+
 	return (1);		/* XXX unused */
 }
 

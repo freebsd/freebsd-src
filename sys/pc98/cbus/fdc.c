@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.8 1996/11/02 10:39:13 asami Exp $
+ *	$Id: fd.c,v 1.9 1996/11/09 00:39:52 asami Exp $
  *
  */
 
@@ -352,6 +352,7 @@ static int volatile fd_debug = 0;
 #endif /* DEBUG */
 
 /* autoconfig structure */
+
 struct	isa_driver fdcdriver = {
 	fdprobe, fdattach, "fdc",
 };
@@ -1140,10 +1141,9 @@ in_fdc(fdcu_t fdcu)
 	int baseport = fdc_data[fdcu].baseport;
 	int i, j = 1000000;
 	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0) {
+		!= (NE7_DIO|NE7_RQM) && j-- > 0)
 		if (i == NE7_RQM)
 			return fdc_err(fdcu, "ready for output in input\n");
-	}
 	if (j <= 0)
 		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
 #ifdef	DEBUG

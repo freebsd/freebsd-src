@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.6 1996/10/29 08:36:28 asami Exp $
+ *	$Id: syscons.h,v 1.7 1996/10/30 22:40:17 asami Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -70,6 +70,7 @@
 #define BLINK_CURSOR	0x00002
 #define CHAR_CURSOR	0x00004
 #define DETECT_KBD	0x00008
+#define XT_KEYBD	0x00010
 
 /* attribute flags */
 #define NORMAL_ATTR             0x00
