@@ -54,6 +54,20 @@ struct ucred {
 #define NOCRED ((struct ucred *)0)	/* no credential available */
 #define FSCRED ((struct ucred *)-1)	/* filesystem credential */
 
+/*
+ * This is the external representation of struct ucred, based upon the
+ * size of a 4.2-RELEASE struct ucred.  There will probably never be
+ * any need to change the size of this or layout of its used fields.
+ */
+struct xucred {
+	u_int	cr_version;		/* structure layout version */
+	uid_t	cr_uid;			/* effective user id */
+	short	cr_ngroups;		/* number of groups */
+	gid_t	cr_groups[NGROUPS];	/* groups */
+	void	*_cr_unused1;		/* compatibility with old ucred */
+};
+#define	XUCRED_VERSION	0
+
 #ifdef _KERNEL
 
 struct proc;
@@ -65,6 +79,7 @@ struct ucred	*crdup __P((struct ucred *cr));
 void		crfree __P((struct ucred *cr));
 struct ucred	*crget __P((void));
 void		crhold __P((struct ucred *cr));
+void		cru2x __P((struct ucred *cr, struct xucred *xcr));
 int		groupmember __P((gid_t gid, struct ucred *cred));
 #endif /* _KERNEL */
 
