@@ -1,5 +1,0 @@
-[1mchmod[m	change file modes
-
-	Usage:
-
-	chmod [-R [-H | -L | -P]] mode file ...

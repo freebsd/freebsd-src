@@ -1,3 +1,0 @@
-@set UPDATED 28 September 1999
-@set EDITION 4.0
-@set VERSION 4.0

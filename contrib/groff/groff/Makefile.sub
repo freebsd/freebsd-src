@@ -1,8 +1,0 @@
-PROG=groff
-MAN1=groff.n
-XLIBS=$(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=groff.o pipeline.o
-CCSRCS=groff.cc
-CSRCS=pipeline.c
-HDRS=pipeline.h
