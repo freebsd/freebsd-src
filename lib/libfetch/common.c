@@ -262,7 +262,7 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 	    }
 	    r = select(fd+1, &readfds, NULL, NULL, &wait);
 	    if (r == -1) {
-		if (errno == EINTR)
+		if (errno == EINTR && fetchRestartCalls)
 		    continue;
 		/* EBADF or EINVAL: shouldn't happen */
 		return -1;
@@ -274,7 +274,7 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 	if (r == 0)
 	    break;
 	if (r == -1) {
-	    if (errno == EINTR)
+	    if (errno == EINTR && fetchRestartCalls)
 		continue;
 	    /* any other error is bad news */
 	    return -1;
