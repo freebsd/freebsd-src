@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
-.\"	$Id: cp.1,v 1.11 1998/10/13 08:52:29 jkoshy Exp $
+.\"	$Id: cp.1,v 1.12 1999/05/08 10:19:25 kris Exp $
 .\"
 .Dd April 18, 1994
 .Dt CP 1
@@ -49,6 +49,7 @@
 .Oc
 .Op Fl f | i
 .Op Fl p
+.Op Fl v
 .Ar source_file target_file
 .Nm cp
 .Oo
@@ -57,6 +58,7 @@
 .Oc
 .Op Fl f | i
 .Op Fl p
+.Op Fl v
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -145,6 +147,10 @@ If the source file has both its set user ID and set group ID bits on,
 and either the user ID or group ID cannot be preserved, neither
 the set user ID nor set group ID bits are preserved in the copy's
 permissions.
+.It Fl v
+Cause
+.Nm
+to be verbose, showing files as they are copied.
 .El
 .Pp
 For each destination file that already exists, its contents are
