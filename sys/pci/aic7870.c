@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.33 1996/05/12 16:25:32 gibbs Exp $
+ *	$Id: aic7870.c,v 1.34 1996/05/21 18:38:41 gibbs Exp $
  */
 
 #include <pci.h>
@@ -528,7 +528,7 @@ load_seeprom(ahc)
 		int i;
 		int max_targ = sc.max_targets & CFMAXTARG;
 
-	        for(i = 0; i <= max_targ; i++){
+	        for(i = 0; i < max_targ; i++){
 	                u_char target_settings;
 			target_settings = (sc.device_flags[i] & CFXFER) << 4;
 			if (sc.device_flags[i] & CFSYNCH)
