@@ -128,8 +128,10 @@ exit1(p, rv)
 	aio_proc_rundown(p);
 
 	/* are we a task leader? */
+	PROC_LOCK(p);
 	if(p == p->p_leader) {
         	struct kill_args killArgs;
+
 		killArgs.signum = SIGKILL;
 		q = p->p_peers;
 		while(q) {
@@ -138,13 +140,16 @@ exit1(p, rv)
 		         * The interface for kill is better
 			 * than the internal signal
 			 */
+			PROC_UNLOCK(p);
 			kill(p, &killArgs);
+			PROC_LOCK(p);
 			nq = q;
 			q = q->p_peers;
 		}
 		while (p->p_peers) 
-		  tsleep((caddr_t)p, PWAIT, "exit1", 0);
-	} 
+			msleep((caddr_t)p, &p->p_mtx, PWAIT, "exit1", 0);
+	}
+	PROC_UNLOCK(p);
 
 #ifdef PGINPROF
 	vmsizmon();
@@ -160,17 +165,19 @@ exit1(p, rv)
 	TAILQ_FOREACH(ep, &exit_list, next) 
 		(*ep->function)(p);
 
-	if (p->p_flag & P_PROFIL)
-		stopprofclock(p);
+	stopprofclock(p);
+
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
 		M_ZOMBIE, M_WAITOK);
 	/*
 	 * If parent is waiting for us to exit or exec,
 	 * P_PPWAIT is set; we will wakeup the parent below.
 	 */
+	PROC_LOCK(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	p->p_flag |= P_WEXIT;
 	SIGEMPTYSET(p->p_siglist);
+	PROC_UNLOCK(p);
 	if (timevalisset(&p->p_realtimer.it_value))
 		callout_stop(&p->p_itcallout);
 
@@ -186,6 +193,10 @@ exit1(p, rv)
 	 */
 	fdfree(p);
 
+	/*
+	 * Remove ourself from our leader's peer list and wake our leader.
+	 */
+	PROC_LOCK(p);
 	if(p->p_leader->p_peers) {
 		q = p->p_leader;
 		while(q->p_peers != p)
@@ -193,6 +204,7 @@ exit1(p, rv)
 		q->p_peers = p->p_peers;
 		wakeup((caddr_t)p->p_leader);
 	}
+	PROC_UNLOCK(p);
 
 	/*
 	 * XXX Shutdown SYSV semaphores
@@ -218,9 +230,11 @@ exit1(p, rv)
 		    VM_MAXUSER_ADDRESS);
 	}
 
+	PROC_LOCK(p);
 	if (SESS_LEADER(p)) {
 		register struct session *sp = p->p_session;
 
+		PROC_UNLOCK(p);
 		if (sp->s_ttyvp) {
 			/*
 			 * Controlling process.
@@ -249,7 +263,8 @@ exit1(p, rv)
 			 */
 		}
 		sp->s_leader = NULL;
-	}
+	} else
+		PROC_UNLOCK(p);
 	fixjobc(p, p->p_pgrp, 0);
 	(void)acct_process(p);
 #ifdef KTRACE
@@ -272,13 +287,14 @@ exit1(p, rv)
 
 	PROCTREE_LOCK(PT_EXCLUSIVE);
 	q = LIST_FIRST(&p->p_children);
-	if (q)		/* only need this if any child is S_ZOMB */
+	if (q != NULL)		/* only need this if any child is S_ZOMB */
 		wakeup((caddr_t) initproc);
-	for (; q != 0; q = nq) {
+	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
 		LIST_REMOVE(q, p_sibling);
 		LIST_INSERT_HEAD(&initproc->p_children, q, p_sibling);
 		q->p_pptr = initproc;
+		PROC_LOCK(q);
 		q->p_sigparent = SIGCHLD;
 		/*
 		 * Traced processes are killed
@@ -286,8 +302,10 @@ exit1(p, rv)
 		 */
 		if (q->p_flag & P_TRACED) {
 			q->p_flag &= ~P_TRACED;
+			PROC_UNLOCK(q);
 			psignal(q, SIGKILL);
-		}
+		} else
+			PROC_UNLOCK(q);
 	}
 
 	/*
@@ -296,7 +314,9 @@ exit1(p, rv)
 	 */
 	p->p_xstat = rv;
 	*p->p_ru = p->p_stats->p_ru;
+	mtx_enter(&sched_lock, MTX_SPIN);
 	calcru(p, &p->p_ru->ru_utime, &p->p_ru->ru_stime, NULL);
+	mtx_exit(&sched_lock, MTX_SPIN);
 	ruadd(p->p_ru, &p->p_stats->p_cru);
 
 	/*
@@ -311,7 +331,9 @@ exit1(p, rv)
 	/*
 	 * notify interested parties of our demise.
 	 */
+	PROC_LOCK(p);
 	KNOTE(&p->p_klist, NOTE_EXIT);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
@@ -347,6 +369,7 @@ exit1(p, rv)
 	 *
 	 * Other substructures are freed from wait().
 	 */
+	mtx_assert(&Giant, MA_OWNED);
 	if (--p->p_limit->p_refcnt == 0) {
 		FREE(p->p_limit, M_SUBPROC);
 		p->p_limit = NULL;
@@ -426,14 +449,18 @@ loop:
 		 * p_sigparent is not SIGCHLD, and the WLINUXCLONE option
 		 * signifies we want to wait for threads and not processes.
 		 */
+		PROC_LOCK(p);
 		if ((p->p_sigparent != SIGCHLD) ^
-		    ((uap->options & WLINUXCLONE) != 0))
+		    ((uap->options & WLINUXCLONE) != 0)) {
+			PROC_UNLOCK(p);
 			continue;
+		}
 
 		nfound++;
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SZOMB) {
 			mtx_exit(&sched_lock, MTX_SPIN);
+			PROC_UNLOCK(p);
 			PROCTREE_LOCK(PT_RELEASE);
 
 			/* charge childs scheduling cpu usage to parent */
@@ -492,6 +519,7 @@ loop:
 			/*
 			 * Free up credentials.
 			 */
+			PROC_LOCK(p);
 			if (--p->p_cred->p_refcnt == 0) {
 				crfree(p->p_ucred);
 				uifree(p->p_cred->p_uidinfo);
@@ -513,6 +541,7 @@ loop:
 			 */
 			if (p->p_args && --p->p_args->ar_ref == 0)
 				FREE(p->p_args, M_PARGS);
+			PROC_UNLOCK(p);
 
 			/*
 			 * Finally finished with old proc entry.
@@ -528,12 +557,14 @@ loop:
 			LIST_REMOVE(p, p_sibling);
 			PROCTREE_LOCK(PT_RELEASE);
 
+			PROC_LOCK(p);
 			if (--p->p_procsig->ps_refcnt == 0) {
 				if (p->p_sigacts != &p->p_addr->u_sigacts)
 					FREE(p->p_sigacts, M_SUBPROC);
 			        FREE(p->p_procsig, M_SUBPROC);
 				p->p_procsig = NULL;
 			}
+			PROC_UNLOCK(p);
 
 			/*
 			 * Give machine-dependent layer a chance
@@ -549,8 +580,9 @@ loop:
 		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			mtx_exit(&sched_lock, MTX_SPIN);
-			PROCTREE_LOCK(PT_RELEASE);
 			p->p_flag |= P_WAITED;
+			PROC_UNLOCK(p);
+			PROCTREE_LOCK(PT_RELEASE);
 			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat) {
@@ -567,6 +599,7 @@ loop:
 			return (error);
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
+		PROC_UNLOCK(p);
 	}
 	PROCTREE_LOCK(PT_RELEASE);
 	if (nfound == 0)
@@ -655,6 +688,7 @@ void check_sigacts (void)
 	struct sigacts *pss;
 	int s;
 
+	PROC_LOCK(p);
 	if (p->p_procsig->ps_refcnt == 1 &&
 	    p->p_sigacts != &p->p_addr->u_sigacts) {
 		pss = p->p_sigacts;
@@ -664,5 +698,6 @@ void check_sigacts (void)
 		splx(s);
 		FREE(pss, M_SUBPROC);
 	}
+	PROC_UNLOCK(p);
 }
 
