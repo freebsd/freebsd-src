@@ -341,8 +341,6 @@ mirror_metadata_dump(const struct g_mirror_metadata *md)
 	else {
 		if ((md->md_dflags & G_MIRROR_DISK_FLAG_DIRTY) != 0)
 			printf(" DIRTY");
-		if ((md->md_dflags & G_MIRROR_DISK_FLAG_HARDCODED) != 0)
-			printf(" HARDCODED");
 		if ((md->md_dflags & G_MIRROR_DISK_FLAG_SYNCHRONIZING) != 0)
 			printf(" SYNCHRONIZING");
 		if ((md->md_dflags & G_MIRROR_DISK_FLAG_FORCE_SYNC) != 0)
