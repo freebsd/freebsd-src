@@ -32,7 +32,7 @@
 
 /*
  * $FreeBSD$
- * $Id: if_tap.c,v 0.19 2000/07/20 02:32:27 max Exp $
+ * $Id: if_tap.c,v 0.21 2000/07/23 21:46:02 max Exp $
  */
 
 #include "opt_inet.h"
@@ -163,10 +163,14 @@ tapmodevent(mod, type, data)
 			if (ifp != NULL) {
 				struct tap_softc	*tp = ifp->if_softc;
 
-				TAPDEBUG("detaching %s%d. taplastunit = %d\n",
-					ifp->if_name, unit, taplastunit);
+				TAPDEBUG("detaching %s%d. minor = %#x, " \
+					"taplastunit = %d\n",
+					ifp->if_name, unit, minor(tp->tap_dev),
+					taplastunit);
 
+				s = splimp();
 				ether_ifdetach(ifp, 1);
+				splx(s);
 				destroy_dev(tp->tap_dev);
 				FREE(tp, M_TAP);
 			}
@@ -197,7 +201,7 @@ tapcreate(dev)
 	struct ifnet		*ifp = NULL;
 	struct tap_softc	*tp = NULL;
 	unsigned short		 macaddr_hi;
-	int			 unit;
+	int			 unit, s;
 	char			*name = NULL;
 
 	/* allocate driver storage and create device */
@@ -208,13 +212,14 @@ tapcreate(dev)
 	if (minor(dev) & VMNET_DEV_MASK) {
 		name = VMNET;
 		unit = lminor(dev) & 0xff;
+		tp->tap_flags |= TAP_VMNET;
 	}
 	else {
 		name = TAP;
 		unit = lminor(dev);
 	}
 
-	tp->tap_dev = make_dev(&tap_cdevsw, minor(dev), UID_UUCP, GID_DIALER, 
+	tp->tap_dev = make_dev(&tap_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 
 						0600, "%s%d", name, unit);
 	tp->tap_dev->si_drv1 = dev->si_drv1 = tp;
 
@@ -241,9 +246,14 @@ tapcreate(dev)
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
+	s = splimp();
 	ether_ifattach(ifp, 1);
+	splx(s);
 
-	tp->tap_flags = TAP_INITED;
+	tp->tap_flags |= TAP_INITED;
+
+	TAPDEBUG("interface %s%d created. minor = %#x\n",
+			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
 } /* tapcreate */
 
 
@@ -278,8 +288,9 @@ tapopen(dev, flag, mode, p)
 	tp->tap_flags |= TAP_OPEN;
 	taprefcnt ++;
 
-	TAPDEBUG("%s%d is open. refcnt = %d, taplastunit = %d\n",
-		tp->tap_if.if_name, tp->tap_if.if_unit, taprefcnt, taplastunit);
+	TAPDEBUG("%s%d is open. minor = %#x, refcnt = %d, taplastunit = %d\n",
+		tp->tap_if.if_name, tp->tap_if.if_unit,
+		minor(tp->tap_dev), taprefcnt, taplastunit);
 
 	return (0);
 } /* tapopen */
@@ -312,15 +323,19 @@ tapclose(dev, foo, bar, p)
 	} while (m != NULL);
 	splx(s);
 
-	if (ifp->if_flags & IFF_UP) {
+	/*
+	 * do not bring the interface down, and do not anything with
+	 * interface, if we are in VMnet mode. just close the device.
+	 */
+
+	if (((tp->tap_flags & TAP_VMNET) == 0) && (ifp->if_flags & IFF_UP)) {
 		s = splimp();
 		if_down(ifp);
 		if (ifp->if_flags & IFF_RUNNING) {
 			/* find internet addresses and delete routes */
 			struct ifaddr	*ifa = NULL;
 
-			for (ifa = ifp->if_addrhead.tqh_first; ifa;
-						ifa = ifa->ifa_link.tqe_next) {
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family == AF_INET) {
 					rtinit(ifa, (int)RTM_DELETE, 0);
 
@@ -348,12 +363,14 @@ tapclose(dev, foo, bar, p)
 	taprefcnt --;
 	if (taprefcnt < 0) {
 		taprefcnt = 0;
-		printf("%s%d refcnt = %d is out of sync. set refcnt to 0\n", 
-				ifp->if_name, ifp->if_unit, taprefcnt);
+		printf("%s%d minor = %#x, refcnt = %d is out of sync. " \
+			"set refcnt to 0\n", ifp->if_name, ifp->if_unit, 
+			minor(tp->tap_dev), taprefcnt);
 	}
 
-	TAPDEBUG("%s%d is closed. refcnt = %d, taplastunit = %d\n", 
-			ifp->if_name, ifp->if_unit, taprefcnt, taplastunit);
+	TAPDEBUG("%s%d is closed. minor = %#x, refcnt = %d, taplastunit = %d\n",
+			ifp->if_name, ifp->if_unit, minor(tp->tap_dev),
+			taprefcnt, taplastunit);
 
 	return (0);
 } /* tapclose */
@@ -371,7 +388,8 @@ tapifinit(xtp)
 	struct tap_softc	*tp = (struct tap_softc *)xtp;
 	struct ifnet		*ifp = &tp->tap_if;
 
-	TAPDEBUG("initializing %s%d\n", ifp->if_name, ifp->if_unit);
+	TAPDEBUG("initializing %s%d, minor = %#x\n",
+			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -441,13 +459,21 @@ tapifstart(ifp)
 	struct tap_softc	*tp = ifp->if_softc;
 	int			 s;
 
-	TAPDEBUG("%s%d starting\n", ifp->if_name, ifp->if_unit);
+	TAPDEBUG("%s%d starting, minor = %#x\n", 
+			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
 
-	if ((tp->tap_flags & TAP_READY) != TAP_READY) {
+	/*
+	 * do not junk pending output if we are in VMnet mode.
+	 * XXX: can this do any harm because of queue overflow?
+	 */
+
+	if (((tp->tap_flags & TAP_VMNET) == 0) && 
+	    ((tp->tap_flags & TAP_READY) != TAP_READY)) {
 		struct mbuf	*m = NULL;
 
-		TAPDEBUG("%s%d not ready. tap_flags = 0x%x\n",
-				ifp->if_name, ifp->if_unit, tp->tap_flags);
+		TAPDEBUG("%s%d not ready. minor = %#x, tap_flags = 0x%x\n",
+			ifp->if_name, ifp->if_unit,
+			minor(tp->tap_dev), tp->tap_flags);
 
 		s = splimp();
 		do {
@@ -529,10 +555,12 @@ tapioctl(dev, cmd, data, flag, p)
 		break;
 
 		case FIOASYNC:
+			s = splimp();
 			if (*(int *)data)
 				tp->tap_flags |= TAP_ASYNC;
 			else
 				tp->tap_flags &= ~TAP_ASYNC;
+			splx(s);
 		break;
 
 		case FIONREAD:
@@ -540,7 +568,7 @@ tapioctl(dev, cmd, data, flag, p)
 			if (ifp->if_snd.ifq_head) {
 				struct mbuf	*mb = ifp->if_snd.ifq_head;
 
-				for(*(int *)data = 0; mb != 0; mb = mb->m_next) 
+				for(*(int *)data = 0;mb != NULL;mb = mb->m_next)
 					*(int *)data += mb->m_len;
 			} 
 			else
@@ -617,11 +645,14 @@ tapread(dev, uio, flag)
 	struct mbuf		*m = NULL, *m0 = NULL;
 	int			 error = 0, len, s;
 
-	TAPDEBUG("%s%d reading\n", ifp->if_name, ifp->if_unit);
+	TAPDEBUG("%s%d reading, minor = %#x\n",
+			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
 
 	if ((tp->tap_flags & TAP_READY) != TAP_READY) {
-		TAPDEBUG("%s%d not ready. tap_flags = 0x%x\n",
-				ifp->if_name, ifp->if_unit, tp->tap_flags);
+		TAPDEBUG("%s%d not ready. minor = %#x, tap_flags = 0x%x\n",
+				ifp->if_name, ifp->if_unit, 
+				minor(tp->tap_dev), tp->tap_flags);
+
 		return (EHOSTDOWN);
 	}
 
@@ -642,7 +673,7 @@ tapread(dev, uio, flag)
 			if (error)
 				return (error);
 		}
-	} while (m0 == 0);
+	} while (m0 == NULL);
 
 	/* feed packet to bpf */
 	if (ifp->if_bpf != NULL)
@@ -660,7 +691,8 @@ tapread(dev, uio, flag)
 	}
 
 	if (m0 != NULL) {
-		TAPDEBUG("%s%d dropping mbuf\n", ifp->if_name, ifp->if_unit);
+		TAPDEBUG("%s%d dropping mbuf, minor = %#x\n",
+				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
 		m_freem(m0);
 	}
 
@@ -685,14 +717,17 @@ tapwrite(dev, uio, flag)
 	struct ether_header	*eh = NULL;
 	int		 	 error = 0, tlen, mlen;
 
-	TAPDEBUG("%s%d writting\n", ifp->if_name, ifp->if_unit);
+	TAPDEBUG("%s%d writting, minor = %#x\n",
+				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
 
 	if (uio->uio_resid == 0)
 		return (0);
 
 	if ((uio->uio_resid < 0) || (uio->uio_resid > TAPMRU)) {
-		TAPDEBUG("%s%d invalid packet len = %d\n",
-				ifp->if_name, ifp->if_unit, uio->uio_resid);
+		TAPDEBUG("%s%d invalid packet len = %d, minor = %#x\n",
+				ifp->if_name, ifp->if_unit, 
+				uio->uio_resid, minor(tp->tap_dev));
+
 		return (EIO);
 	}
 	tlen = uio->uio_resid;
@@ -712,7 +747,7 @@ tapwrite(dev, uio, flag)
 		mp = &m->m_next;
 		if (uio->uio_resid > 0) {
 			MGET(m, M_DONTWAIT, MT_DATA);
-			if (m == 0) {
+			if (m == NULL) {
 				error = ENOBUFS;
 				break;
 			}
@@ -761,18 +796,22 @@ tappoll(dev, events, p)
 	struct ifnet		*ifp = &tp->tap_if;
 	int		 	 s, revents = 0;
 
-	TAPDEBUG("%s%d polling\n", ifp->if_name, ifp->if_unit);
+	TAPDEBUG("%s%d polling, minor = %#x\n",
+				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
 
 	s = splimp();
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (ifp->if_snd.ifq_len > 0) {
-			TAPDEBUG("%s%d have data in queue. len = %d\n",
-				ifp->if_name,ifp->if_unit, ifp->if_snd.ifq_len);
+			TAPDEBUG("%s%d have data in queue. len = %d, " \
+				"minor = %#x\n", ifp->if_name, ifp->if_unit,
+				ifp->if_snd.ifq_len, minor(tp->tap_dev));
+
 			revents |= (events & (POLLIN | POLLRDNORM));
 		} 
 		else {
-			TAPDEBUG("%s%d waiting for data\n",
-						ifp->if_name, ifp->if_unit);
+			TAPDEBUG("%s%d waiting for data, minor = %#x\n",
+				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+
 			selrecord(p, &tp->tap_rsel);
 		}
 	}
