@@ -264,7 +264,7 @@ cpu_reset_real()
 	printf("Keyboard reset did not work, attempting CPU shutdown\n");
 	DELAY(1000000);	/* wait 1 sec for printf to complete */
 	/* force a shutdown by unmapping entire address space ! */
-	bzero((caddr_t)PTD, NBPTD);
+	bzero((caddr_t)PML4map, PAGE_SIZE);
 
 	/* "good night, sweet prince .... <THUNK!>" */
 	invltlb();

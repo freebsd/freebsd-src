@@ -83,13 +83,6 @@
 #define PGEX_U		0x04	/* access from User mode (UPL) */
 
 /*
- * Size of Kernel address space.  This is the number of level 4 (top)
- * entries.  We use half of them for the kernel due to the 48 bit
- * virtual address sign extension.
- */
-#define KVA_PAGES	1536
-  
-/*
  * Pte related macros.  This is complicated by having to deal with
  * the sign extension of the 48th bit.
  */
@@ -105,15 +98,26 @@
 #ifndef NKPT
 #define	NKPT		120	/* initial number of kernel page tables */
 #endif
-#ifndef	NKPDE
-#define	NKPDE	(KVA_PAGES)	/* number of page tables/pde's */
-#endif
+
+#define NKPML4E		1		/* number of kernel PML4 slots */
+#define NKPDPE		1		/* number of kernel PDP slots */
+#define	NKPDE		(NKPDPE*NPDEPG)	/* number of kernel PD slots */
+
+#define	NUPML4E		1		/* number of userland PML4 pages */
+#define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
+#define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
+
+#define	NDMPML4E	1		/* number of dmap PML4 slots */
 
 /*
- * The *PTDI values control the layout of virtual memory
+ * The *PDI values control the layout of virtual memory
  */
-#define	KPTDI		(NPDEPTD-NKPDE)	/* start of kernel virtual pde's */
-#define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
+#define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
+
+#define	KPML4I		(NPML4EPG-1)
+#define DMPML4I		(KPML4I-1)
+
+#define	KPDPI		(NPDPEPG-1)
 
 /*
  * XXX doesn't really belong here I guess...
@@ -145,13 +149,18 @@ typedef u_int64_t pml4_entry_t;
  * in the page tables and the evil overlapping.
  */
 #ifdef _KERNEL
-#define	PTmap	((pt_entry_t *)(VADDR(0, 0, PTDPTDI, 0)))
-#define	PTD	((pd_entry_t *)(VADDR(0, 0, PTDPTDI, PTDPTDI)))
-#define	PTDpde	((pd_entry_t *)(VADDR(0, 0, PTDPTDI, PTDPTDI) + (PTDPTDI * sizeof(pd_entry_t))))
+#define	addr_PTmap	(VADDR(PML4PML4I, 0, 0, 0))
+#define	addr_PDmap	(VADDR(PML4PML4I, PML4PML4I, 0, 0))
+#define	addr_PDPmap	(VADDR(PML4PML4I, PML4PML4I, PML4PML4I, 0))
+#define	addr_PML4map	(VADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I))
+#define	addr_PML4pml4e	(addr_PML4map + (PML4PML4I * sizeof(pml4_entry_t)))
+#define	PTmap		((pt_entry_t *)(addr_PTmap))
+#define	PDmap		((pd_entry_t *)(addr_PDmap))
+#define	PDPmap		((pd_entry_t *)(addr_PDPmap))
+#define	PML4map		((pd_entry_t *)(addr_PML4map))
+#define	PML4pml4e	((pd_entry_t *)(addr_PML4pml4e))
 
-extern u_int64_t IdlePML4;	/* physical address of "Idle" state directory */
-extern u_int64_t IdlePDP;	/* physical address of "Idle" state directory */
-extern u_int64_t IdlePTD;	/* physical address of "Idle" state directory */
+extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 #endif
 
 #ifdef _KERNEL
@@ -161,28 +170,8 @@ extern u_int64_t IdlePTD;	/* physical address of "Idle" state directory */
  * Note: these work recursively, thus vtopte of a pte will give
  * the corresponding pde that in turn maps it.
  */
-#define	vtopte(va)	(PTmap + amd64_btop(va))
-
-/*
- *	Routine:	pmap_kextract
- *	Function:
- *		Extract the physical page address associated
- *		kernel virtual address.
- */
-static __inline vm_paddr_t
-pmap_kextract(vm_offset_t va)
-{
-	vm_paddr_t pa;
-
-	pa = PTD[va >> PDRSHIFT];
-	if (pa & PG_PS) {
-		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
-	} else {
-		pa = *vtopte(va);
-		pa = (pa & PG_FRAME) | (va & PAGE_MASK);
-	}
-	return pa;
-}
+pt_entry_t *vtopte(vm_offset_t);
+vm_paddr_t pmap_kextract(vm_offset_t);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
@@ -225,14 +214,12 @@ struct md_page {
 };
 
 struct pmap {
-	pd_entry_t		*pm_pdir;	/* KVA of page directory */
+	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	u_long			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
-	pdp_entry_t		*pm_pdp;	/* KVA of level 3 page table */
-	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 };
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
@@ -278,7 +265,7 @@ extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap(vm_paddr_t, vm_paddr_t);
+void	pmap_bootstrap(vm_paddr_t *);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
