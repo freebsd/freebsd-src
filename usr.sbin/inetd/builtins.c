@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.4 1999/07/23 03:51:52 green Exp $
+ * $Id: builtins.c,v 1.5 1999/07/23 15:00:07 sheldonh Exp $
  *
  */
 
@@ -45,6 +45,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "inetd.h"
@@ -285,10 +287,12 @@ iderror(lport, fport, s, er)
 {
 	char *p;
 
-	er = asprintf(&p, "%d , %d : ERROR : %s\r\n", lport, fport, 
+	asprintf(&p, "%d , %d : ERROR : %s\r\n", lport, fport, 
 	    er == -1 ? "HIDDEN-USER" : er ? strerror(er) : "UNKNOWN-ERROR");
-	if (er == -1)
-		exit(0);
+	if (p == NULL) {
+		syslog(LOG_ERR, "Out of memory.");
+		exit(EX_OSERR);
+	}
 	write(s, p, strlen(p));
 	free(p);
 
@@ -301,6 +305,9 @@ ident_stream(s, sep)		/* Ident service */
 	int s;
 	struct servtab *sep;
 {
+	FILE *fakeid = NULL;
+	struct stat sb;
+	struct utsname un;
 	struct sockaddr_in sin[2];
 	struct ucred uc;
 	struct passwd *pw;
@@ -309,7 +316,9 @@ ident_stream(s, sep)		/* Ident service */
 		0
 	};
 	fd_set fdset;
+	char fakeid_path[PATH_MAX];
 	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL;
+	int sec, usec;
 	int len, c, rflag = 0, fflag = 0, argc = 0;
 	u_short lport, fport;
 
@@ -331,29 +340,22 @@ ident_stream(s, sep)		/* Ident service */
 				osname = optarg;
 				break;
 			case 't':
-				do {
-					int sec, usec;
-
-					switch (sscanf(optarg, "%d.%d", &sec,
-					    &usec)) {
-					case 2:
-						tv.tv_usec = usec;
-					case 1:
-						tv.tv_sec = sec;
-						break;
-					default:
-						if (debug)
-							warnx("bad argument to -t option");
-						break;
-					}
-				} while (0);
+				switch (sscanf(optarg, "%d.%d", &sec, &usec)) {
+				case 2:
+					tv.tv_usec = usec;
+				case 1:
+					tv.tv_sec = sec;
+					break;
+				default:
+					if (debug)
+						warnx("bad -t argument");
+					break;
+				}
 			default:
 				break;
 			}
 	}
 	if (osname == NULL) {
-		struct utsname un;
-
 		if (uname(&un))
 			iderror(0, 0, s, errno);
 		osname = un.sysname;
@@ -390,9 +392,6 @@ ident_stream(s, sep)		/* Ident service */
 	if (pw == NULL)
 		iderror(lport, fport, s, errno);
 	if (fflag) {
-		FILE *fakeid = NULL;
-		char fakeid_path[PATH_MAX];
-		struct stat sb;
 		seteuid(pw->pw_uid);
 		setegid(pw->pw_gid);
 		snprintf(fakeid_path, sizeof(fakeid_path), "%s/.fakeid",
