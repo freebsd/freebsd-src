@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)deck.h	8.1 (Berkeley) 5/31/93
+ * $FreeBSD$
  */
 
 /*
@@ -81,5 +82,5 @@ typedef		struct  {
 			int		suit;
 		}		CARD;
 
-typedef		char		BOOLEAN;
+typedef		bool		BOOLEAN;
 
