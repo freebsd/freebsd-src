@@ -709,6 +709,7 @@ obsolete(int *argcp, char **argvp[])
 		case 'd':
 		case 'f':
 		case 'D':
+		case 'C':
 		case 'h':
 		case 's':
 		case 'T':
