@@ -174,6 +174,7 @@ umodem_attach(device_t self)
         usb_device_set_desc(self, devinfo);
         printf("%s%d", device_get_name(self), device_get_unit(self));
 #endif
+	sc->sc_dev = self;
 
 	printf(": %s, iclass %d/%d\n", devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
 
