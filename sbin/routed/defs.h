@@ -36,7 +36,7 @@
  */
 
 #ifndef  __NetBSD__
-#ident "$Revision: 1.19 $"
+#ident "$Revision: 1.21 $"
 #endif
 
 /* Definitions for RIPv2 routing process.
@@ -77,6 +77,7 @@
 #include <stdarg.h>
 #include <syslog.h>
 #include <time.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -94,10 +95,6 @@
 #include <arpa/inet.h>
 #define RIPVERSION RIPv2
 #include <protocols/routed.h>
-
-#ifdef sgi
-#define USE_PASSIFNAME
-#endif
 
 
 /* Type of an IP address.

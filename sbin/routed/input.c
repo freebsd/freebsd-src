@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.19 $"
+#ident "$Revision: 1.20 $"
 
 #include "defs.h"
 
@@ -103,26 +103,20 @@ read_rip(int sock,
 		if (aifp == 0) {
 			aifp = ifwithname(inbuf.ifname, 0);
 			if (aifp == 0) {
-				/* maybe it is a new interface */
-				ifinit();
-				aifp = ifwithname(inbuf.ifname, 0);
-				if (aifp == 0) {
-					msglim(&bad_name, from.sin_addr.s_addr,
-					       "impossible interface name"
-					       " %.*s", IFNAMSIZ,
-					       inbuf.ifname);
-				}
-			}
-
-			/* If it came via the wrong interface, do not
-			 * trust it.
-			 */
-			if (((aifp->int_if_flags & IFF_POINTOPOINT)
-			     && aifp->int_dstaddr != from.sin_addr.s_addr)
-			    || (!(aifp->int_if_flags & IFF_POINTOPOINT)
-				&& !on_net(from.sin_addr.s_addr,
-					   aifp->int_net, aifp->int_mask)))
+				msglim(&bad_name, from.sin_addr.s_addr,
+				       "impossible interface name %.*s",
+				       IFNAMSIZ, inbuf.ifname);
+			} else if (((aifp->int_if_flags & IFF_POINTOPOINT)
+				    && aifp->int_dstaddr!=from.sin_addr.s_addr)
+				   || (!(aifp->int_if_flags & IFF_POINTOPOINT)
+				       && !on_net(from.sin_addr.s_addr,
+						  aifp->int_net,
+						  aifp->int_mask))) {
+				/* If it came via the wrong interface, do not
+				 * trust it.
+				 */
 				aifp = 0;
+			}
 		}
 #else
 		aifp = iflookup(from.sin_addr.s_addr);

@@ -22,10 +22,10 @@
  * documentation and/or software.
  */
 
-#ident "$Revision: 1.3 $"
+#ident "$Revision: 1.4 $"
 
-#ifdef sgi
 #include <strings.h>
+#ifdef sgi
 #include <bstring.h>
 #endif
 #include <sys/types.h>

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.19 $"
+#ident "$Revision: 1.20 $"
 
 #include "defs.h"
 #include <netinet/in_systm.h>
@@ -916,10 +916,12 @@ void
 read_d(void)
 {
 	static struct msg_limit bad_asize, bad_len;
+#ifdef USE_PASSIFNAME
+	static struct msg_limit  bad_name;
+#endif
 	struct sockaddr_in from;
 	int n, fromlen, cc, hlen;
 	struct {
-#undef USE_PASSIFNAME /* it is too bad it does not work on raw sockets */
 #ifdef USE_PASSIFNAME
 		char	ifname[IFNAMSIZ];
 #endif
@@ -961,16 +963,10 @@ read_d(void)
 
 #ifdef USE_PASSIFNAME
 		ifp = ifwithname(buf.ifname, 0);
-		if (ifp == 0) {
-			/* maybe it is a new interface */
-			ifinit();
-			ifp = ifwithname(buf.ifname, 0);
-			if (ifp == 0) {
-				msglim(&bad_name, from.sin_addr.s_addr,
-				       "impossible rdisc if_ name %.*s",
-				       IFNAMSIZ, buf.ifname);
-			}
-		}
+		if (ifp == 0)
+			msglim(&bad_name, from.sin_addr.s_addr,
+			       "impossible rdisc if_ name %.*s",
+			       IFNAMSIZ, buf.ifname);
 #else
 		/* If we could tell the interface on which a packet from
 		 * address 0 arrived, we could deal with such solicitations.
@@ -978,15 +974,13 @@ read_d(void)
 		ifp = ((from.sin_addr.s_addr == 0)
 		       ? 0 : iflookup(from.sin_addr.s_addr));
 #endif
-		ifp = ck_icmp("Recv",
-			      from.sin_addr.s_addr, ifp,
-			      buf.pkt.ip.ip_dst.s_addr,
-			      p, cc);
+		ifp = ck_icmp("Recv", from.sin_addr.s_addr, ifp,
+			      buf.pkt.ip.ip_dst.s_addr, p, cc);
 		if (ifp == 0)
 			continue;
 		if (ifwithaddr(from.sin_addr.s_addr, 0, 0)) {
-			trace_pkt("    discard our own Router Discovery"
-				  " message");
+			trace_pkt("    "
+				  "discard our own Router Discovery message");
 			continue;
 		}
 
