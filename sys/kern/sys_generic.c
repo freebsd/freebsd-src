@@ -848,8 +848,8 @@ poll(td, uap)
 	struct thread *td;
 	struct poll_args *uap;
 {
-	caddr_t bits;
-	char smallbits[32 * sizeof(struct pollfd)];
+	struct pollfd *bits;
+	struct pollfd smallbits[32];
 	struct timeval atv, rtv, ttv;
 	int error = 0, timo;
 	u_int ncoll, nfds;
@@ -908,7 +908,7 @@ retry:
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&sellock);
 
-	error = pollscan(td, (struct pollfd *)bits, nfds);
+	error = pollscan(td, bits, nfds);
 	mtx_lock(&sellock);
 	if (error || td->td_retval[0])
 		goto done;
