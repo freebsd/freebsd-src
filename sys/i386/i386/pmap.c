@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.63 1995/10/23 00:47:10 davidg Exp $
+ *	$Id: pmap.c,v 1.64 1995/10/23 02:31:29 davidg Exp $
  */
 
 /*
@@ -816,7 +816,6 @@ pmap_remove(pmap, sva, eva)
 	vm_offset_t pa;
 	register pv_entry_t pv;
 	vm_offset_t va;
-	vm_page_t m;
 	pt_entry_t oldpte;
 
 	if (pmap == NULL)
@@ -1426,7 +1425,6 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 {
 	vm_offset_t tmpoff;
 	vm_page_t p;
-	int bits;
 	int objbytes;
 
 	if (!pmap || ((size > MAX_INIT_PT) &&
