@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: if_lnc.c,v 1.41 1998/05/27 09:59:13 paul Exp $
  */
 
 /*
@@ -257,7 +257,7 @@ lnc_setladrf(struct lnc_softc *sc)
 	     ifma = ifma->ifma_link.le_next) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = ether_crc(enm->enm_addrlo) >> 26;
+		index = ether_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) >> 26;
 		sc->init_block->ladrf[index >> 3] |= 1 << (index & 7);
 	}
 }
