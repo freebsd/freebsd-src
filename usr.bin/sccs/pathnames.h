@@ -42,7 +42,7 @@
 #define	_PATH_SCCSDELTA	"/usr/local/bin/delta"
 #define	_PATH_SCCSDIFF	"/usr/local/bin/sccsdiff"
 #define	_PATH_SCCSGET	"/usr/local/bin/get"
-#define	_PATH_SCCSHELP	"/usr/local/bin/help"
+#define	_PATH_SCCSHELP	"/usr/bin/help"
 #define	_PATH_SCCSPRS	"/usr/local/bin/prs"
 #define	_PATH_SCCSPRT	"/usr/local/bin/prt"
 #define	_PATH_SCCSRMDEL	"/usr/local/bin/rmdel"
