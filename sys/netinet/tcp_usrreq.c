@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.36 1997/12/18 09:50:38 davidg Exp $
+ *	$Id: tcp_usrreq.c,v 1.37 1998/01/27 09:15:11 davidg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -560,104 +560,107 @@ tcp_connect(tp, nam, p)
 	return 0;
 }
 
+/*
+ * The new sockopt interface makes it possible for us to block in the
+ * copyin/out step (if we take a page fault).  Taking a page fault at
+ * splnet() is probably a Bad Thing.  (Since sockets and pcbs both now
+ * use TSM, there probably isn't any need for this function to run at
+ * splnet() any more.  This needs more examination.)
+ */
 int
-tcp_ctloutput(op, so, level, optname, mp, p)
-	int op;
+tcp_ctloutput(so, sopt)
 	struct socket *so;
-	int level, optname;
-	struct mbuf **mp;
-	struct proc *p;
+	struct sockopt *sopt;
 {
-	int error = 0, s;
-	struct inpcb *inp;
-	register struct tcpcb *tp;
-	register struct mbuf *m;
-	register int i;
+	int	error, opt, optval, s;
+	struct	inpcb *inp;
+	struct	tcpcb *tp;
+	struct	mbuf *m;
 
-	s = splnet();
+	error = 0;
+	s = splnet();		/* XXX */
 	inp = sotoinpcb(so);
 	if (inp == NULL) {
 		splx(s);
-		if (op == PRCO_SETOPT && *mp)
-			(void) m_free(*mp);
 		return (ECONNRESET);
 	}
-	if (level != IPPROTO_TCP) {
-		error = ip_ctloutput(op, so, level, optname, mp, p);
+	if (sopt->sopt_level != IPPROTO_TCP) {
+		error = ip_ctloutput(so, sopt);
 		splx(s);
 		return (error);
 	}
 	tp = intotcpcb(inp);
 
-	switch (op) {
-
-	case PRCO_SETOPT:
-		m = *mp;
-		switch (optname) {
-
+	switch (sopt->sopt_dir) {
+	case SOPT_SET:
+		switch (sopt->sopt_name) {
 		case TCP_NODELAY:
-			if (m == NULL || m->m_len < sizeof (int))
-				error = EINVAL;
-			else if (*mtod(m, int *))
-				tp->t_flags |= TF_NODELAY;
+		case TCP_NOOPT:
+		case TCP_NOPUSH:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
+
+			switch (sopt->sopt_name) {
+			case TCP_NODELAY:
+				opt = TF_NODELAY;
+				break;
+			case TCP_NOOPT:
+				opt = TF_NOOPT;
+				break;
+			case TCP_NOPUSH:
+				opt = TF_NOPUSH;
+				break;
+			default:
+				opt = 0; /* dead code to fool gcc */
+				break;
+			}
+
+			if (optval)
+				tp->t_flags |= opt;
 			else
-				tp->t_flags &= ~TF_NODELAY;
+				tp->t_flags &= ~opt;
 			break;
 
 		case TCP_MAXSEG:
-			if (m && (i = *mtod(m, int *)) > 0 && i <= tp->t_maxseg)
-				tp->t_maxseg = i;
-			else
-				error = EINVAL;
-			break;
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
 
-		case TCP_NOOPT:
-			if (m == NULL || m->m_len < sizeof (int))
-				error = EINVAL;
-			else if (*mtod(m, int *))
-				tp->t_flags |= TF_NOOPT;
+			if (optval > 0 && optval <= tp->t_maxseg)
+				tp->t_maxseg = optval;
 			else
-				tp->t_flags &= ~TF_NOOPT;
-			break;
-
-		case TCP_NOPUSH:
-			if (m == NULL || m->m_len < sizeof (int))
 				error = EINVAL;
-			else if (*mtod(m, int *))
-				tp->t_flags |= TF_NOPUSH;
-			else
-				tp->t_flags &= ~TF_NOPUSH;
 			break;
 
 		default:
 			error = ENOPROTOOPT;
 			break;
 		}
-		if (m)
-			(void) m_free(m);
 		break;
 
-	case PRCO_GETOPT:
-		*mp = m = m_get(M_WAIT, MT_SOOPTS);
-		m->m_len = sizeof(int);
-
-		switch (optname) {
+	case SOPT_GET:
+		switch (sopt->sopt_name) {
 		case TCP_NODELAY:
-			*mtod(m, int *) = tp->t_flags & TF_NODELAY;
+			optval = tp->t_flags & TF_NODELAY;
 			break;
 		case TCP_MAXSEG:
-			*mtod(m, int *) = tp->t_maxseg;
+			optval = tp->t_maxseg;
 			break;
 		case TCP_NOOPT:
-			*mtod(m, int *) = tp->t_flags & TF_NOOPT;
+			optval = tp->t_flags & TF_NOOPT;
 			break;
 		case TCP_NOPUSH:
-			*mtod(m, int *) = tp->t_flags & TF_NOPUSH;
+			optval = tp->t_flags & TF_NOPUSH;
 			break;
 		default:
 			error = ENOPROTOOPT;
 			break;
 		}
+		if (error == 0)
+			error = sooptcopyout(sopt, &optval, sizeof optval);
 		break;
 	}
 	splx(s);

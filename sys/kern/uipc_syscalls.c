@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.39 1998/04/14 06:24:43 phk Exp $
+ * $Id: uipc_syscalls.c,v 1.40 1998/06/10 10:30:23 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -981,34 +981,26 @@ setsockopt(p, uap)
 	} */ *uap;
 {
 	struct file *fp;
-	struct mbuf *m = NULL;
+	struct sockopt sopt;
 	int error;
+
+	if (uap->val == 0 && uap->valsize != 0)
+		return (EFAULT);
+	if (uap->valsize < 0)
+		return (EINVAL);
 
 	error = getsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
-	if (uap->valsize > MCLBYTES)
-		return (EINVAL);
-	if (uap->val) {
-		m = m_get(M_WAIT, MT_SOOPTS);
-		if (m == NULL)
-			return (ENOBUFS);
-		if (uap->valsize > MLEN) {
-			MCLGET(m, M_WAIT);
-			if(!(m->m_flags & M_EXT)) {
-				m_free(m);
-				return (ENOBUFS);
-			}
-		}
-		error = copyin(uap->val, mtod(m, caddr_t), (u_int)uap->valsize);
-		if (error) {
-			(void) m_free(m);
-			return (error);
-		}
-		m->m_len = uap->valsize;
-	}
-	return (sosetopt((struct socket *)fp->f_data, uap->level,
-	    uap->name, m, p));
+
+	sopt.sopt_dir = SOPT_SET;
+	sopt.sopt_level = uap->level;
+	sopt.sopt_name = uap->name;
+	sopt.sopt_val = uap->val;
+	sopt.sopt_valsize = uap->valsize;
+	sopt.sopt_p = p;
+
+	return (sosetopt((struct socket *)fp->f_data, &sopt));
 }
 
 /* ARGSUSED */
@@ -1023,9 +1015,9 @@ getsockopt(p, uap)
 		int	*avalsize;
 	} */ *uap;
 {
-	struct file *fp;
-	struct mbuf *m = NULL, *m0;
-	int op, i, valsize, error;
+	int	valsize, error;
+	struct	file *fp;
+	struct	sockopt sopt;
 
 	error = getsock(p->p_fd, uap->s, &fp);
 	if (error)
@@ -1035,26 +1027,24 @@ getsockopt(p, uap)
 		    sizeof (valsize));
 		if (error)
 			return (error);
+		if (valsize < 0)
+			return (EINVAL);
 	} else
 		valsize = 0;
-	if ((error = sogetopt((struct socket *)fp->f_data, uap->level,
-	    uap->name, &m, p)) == 0 && uap->val && valsize && m != NULL) {
-		op = 0;
-		while (m && !error && op < valsize) {
-			i = min(m->m_len, (valsize - op));
-			error = copyout(mtod(m, caddr_t), uap->val, (u_int)i);
-			op += i;
-			uap->val += i;
-			m0 = m;
-			MFREE(m0,m);
-		}
-		valsize = op;
-		if (error == 0)
-			error = copyout((caddr_t)&valsize,
-			    (caddr_t)uap->avalsize, sizeof (valsize));
+
+	sopt.sopt_dir = SOPT_GET;
+	sopt.sopt_level = uap->level;
+	sopt.sopt_name = uap->name;
+	sopt.sopt_val = uap->val;
+	sopt.sopt_valsize = (size_t)valsize; /* checked non-negative above */
+	sopt.sopt_p = p;
+
+	error = sogetopt((struct socket *)fp->f_data, &sopt);
+	if (error == 0) {
+		valsize = sopt.sopt_valsize;
+		error = copyout((caddr_t)&valsize,
+				(caddr_t)uap->avalsize, sizeof (valsize));
 	}
-	if (m != NULL)
-		(void) m_free(m);
 	return (error);
 }
 

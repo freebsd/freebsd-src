@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.35 1998/06/06 20:45:25 julian Exp $
+ * $Id: in.h,v 1.36 1998/07/06 03:20:12 julian Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -428,21 +428,6 @@ int	 in_canforward __P((struct in_addr));
 int	 in_cksum __P((struct mbuf *, int));
 int	 in_localaddr __P((struct in_addr));
 char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
-
-/* Firewall hooks */
-struct ip;
-typedef	int ip_fw_chk_t __P((struct ip**, int, struct ifnet*, u_int16_t*, struct mbuf**, struct sockaddr_in**));
-typedef	int ip_fw_ctl_t __P((int, struct mbuf**));
-extern	ip_fw_chk_t *ip_fw_chk_ptr;
-extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
-
-/* IP NAT hooks */
-typedef	int ip_nat_t __P((struct ip**, struct mbuf**, struct ifnet*, int));
-typedef	int ip_nat_ctl_t __P((int, struct mbuf**));
-extern	ip_nat_t *ip_nat_ptr;
-extern	ip_nat_ctl_t *ip_nat_ctl_ptr;
-#define	IP_NAT_IN	0x00000001
-#define	IP_NAT_OUT	0x00000002
 
 #endif /* KERNEL */
 

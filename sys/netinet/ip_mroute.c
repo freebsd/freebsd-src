@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.47 1998/06/30 10:56:31 phk Exp $
+ * $Id: ip_mroute.c,v 1.48 1998/08/17 01:05:24 bde Exp $
  */
 
 #include "opt_mrouting.h"
@@ -54,10 +54,8 @@ extern u_long	_ip_mcast_src __P((int vifi));
 extern int	_ip_mforward __P((struct ip *ip, struct ifnet *ifp,
 				  struct mbuf *m, struct ip_moptions *imo));
 extern int	_ip_mrouter_done __P((void));
-extern int	_ip_mrouter_get __P((int cmd, struct socket *so,
-				     struct mbuf **m));
-extern int	_ip_mrouter_set __P((int cmd, struct socket *so,
-				     struct mbuf *m));
+extern int	_ip_mrouter_get __P((struct socket *so, struct sockopt *sopt));
+extern int	_ip_mrouter_set __P((struct socket *so, struct sockopt *sopt));
 extern int	_mrt_ioctl __P((int req, caddr_t data, struct proc *p));
 
 /*
@@ -70,27 +68,25 @@ static struct mrtstat	mrtstat;
 u_int		rsvpdebug = 0;
 
 int
-_ip_mrouter_set(cmd, so, m)
-	int cmd;
+_ip_mrouter_set(so, sopt)
 	struct socket *so;
-	struct mbuf *m;
+	struct sockopt *sopt;
 {
 	return(EOPNOTSUPP);
 }
 
-int (*ip_mrouter_set)(int, struct socket *, struct mbuf *) = _ip_mrouter_set;
+int (*ip_mrouter_set)(struct socket *, struct sockopt *) = _ip_mrouter_set;
 
 
 int
-_ip_mrouter_get(cmd, so, m)
-	int cmd;
+_ip_mrouter_get(so, sopt)
 	struct socket *so;
-	struct mbuf **m;
+	struct sockopt *sopt;
 {
 	return(EOPNOTSUPP);
 }
 
-int (*ip_mrouter_get)(int, struct socket *, struct mbuf **) = _ip_mrouter_get;
+int (*ip_mrouter_get)(struct socket *, struct sockopt *) = _ip_mrouter_get;
 
 int
 _ip_mrouter_done()
@@ -161,17 +157,17 @@ _ip_mcast_src(int vifi) { return INADDR_ANY; }
 u_long (*ip_mcast_src)(int) = _ip_mcast_src;
 
 int
-ip_rsvp_vif_init(so, m)
+ip_rsvp_vif_init(so, sopt)
     struct socket *so;
-    struct mbuf *m;
+    struct sockopt *sopt;
 {
     return(EINVAL);
 }
 
 int
-ip_rsvp_vif_done(so, m)
+ip_rsvp_vif_done(so, sopt)
     struct socket *so;
-    struct mbuf *m;
+    struct sockopt *sopt;
 {
     return(EINVAL);
 }
@@ -279,22 +275,20 @@ static struct vif *last_encap_vif;
 static u_long	X_ip_mcast_src __P((int vifi));
 static int	X_ip_mforward __P((struct ip *ip, struct ifnet *ifp, struct mbuf *m, struct ip_moptions *imo));
 static int	X_ip_mrouter_done __P((void));
-static int	X_ip_mrouter_get __P((int cmd, struct socket *so, struct mbuf **m));
-static int	X_ip_mrouter_set __P((int cmd, struct socket *so, struct mbuf *m));
+static int	X_ip_mrouter_get __P((struct socket *so, struct sockopt *m));
+static int	X_ip_mrouter_set __P((struct socket *so, struct sockopt *m));
 static int	X_legal_vif_num __P((int vif));
 static int	X_mrt_ioctl __P((int cmd, caddr_t data));
 
 static int get_sg_cnt(struct sioc_sg_req *);
 static int get_vif_cnt(struct sioc_vif_req *);
-static int ip_mrouter_init(struct socket *, struct mbuf *);
+static int ip_mrouter_init(struct socket *, int);
 static int add_vif(struct vifctl *);
-static int del_vif(vifi_t *);
+static int del_vif(vifi_t);
 static int add_mfc(struct mfcctl *);
 static int del_mfc(struct mfcctl *);
 static int socket_send(struct socket *, struct mbuf *, struct sockaddr_in *);
-static int get_version(struct mbuf *);
-static int get_assert(struct mbuf *);
-static int set_assert(int *);
+static int set_assert(int);
 static void expire_upcalls(void *);
 static int ip_mdq(struct mbuf *, struct ifnet *, struct mfc *,
 		  vifi_t);
@@ -386,53 +380,102 @@ static void collate(struct timeval *);
  * Handle MRT setsockopt commands to modify the multicast routing tables.
  */
 static int
-X_ip_mrouter_set(cmd, so, m)
-    int cmd;
-    struct socket *so;
-    struct mbuf *m;
+X_ip_mrouter_set(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
 {
-   if (cmd != MRT_INIT && so != ip_mrouter) return EACCES;
+	int	error, optval;
+	vifi_t	vifi;
+	struct	vifctl vifc;
+	struct	mfcctl mfc;
 
-    switch (cmd) {
-	case MRT_INIT:     return ip_mrouter_init(so, m);
-	case MRT_DONE:     return ip_mrouter_done();
-	case MRT_ADD_VIF:  return add_vif (mtod(m, struct vifctl *));
-	case MRT_DEL_VIF:  return del_vif (mtod(m, vifi_t *));
-	case MRT_ADD_MFC:  return add_mfc (mtod(m, struct mfcctl *));
-	case MRT_DEL_MFC:  return del_mfc (mtod(m, struct mfcctl *));
-	case MRT_ASSERT:   return set_assert(mtod(m, int *));
-	default:             return EOPNOTSUPP;
-    }
+	if (so != ip_mrouter && sopt->sopt_name != MRT_INIT)
+		return (EPERM);
+
+	error = 0;
+	switch (sopt->sopt_name) {
+	case MRT_INIT:
+		error = sooptcopyin(sopt, &optval, sizeof optval, 
+				    sizeof optval);
+		if (error)
+			break;
+		error = ip_mrouter_init(so, optval);
+		break;
+
+	case MRT_DONE:
+		error = ip_mrouter_done();
+		break;
+
+	case MRT_ADD_VIF:
+		error = sooptcopyin(sopt, &vifc, sizeof vifc, sizeof vifc);
+		if (error)
+			break;
+		error = add_vif(&vifc);
+		break;
+
+	case MRT_DEL_VIF:
+		error = sooptcopyin(sopt, &vifi, sizeof vifi, sizeof vifi);
+		if (error)
+			break;
+		error = del_vif(vifi);
+		break;
+
+	case MRT_ADD_MFC:
+	case MRT_DEL_MFC:
+		error = sooptcopyin(sopt, &mfc, sizeof mfc, sizeof mfc);
+		if (error)
+			break;
+		if (sopt->sopt_name == MRT_ADD_MFC)
+			error = add_mfc(&mfc);
+		else
+			error = del_mfc(&mfc);
+
+	case MRT_ASSERT:
+		error = sooptcopyin(sopt, &optval, sizeof optval, 
+				    sizeof optval);
+		if (error)
+			break;
+		set_assert(optval);
+
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
 }
 
 #ifndef MROUTE_LKM
-int (*ip_mrouter_set)(int, struct socket *, struct mbuf *) = X_ip_mrouter_set;
+int (*ip_mrouter_set)(struct socket *, struct sockopt *) = X_ip_mrouter_set;
 #endif
 
 /*
  * Handle MRT getsockopt commands
  */
 static int
-X_ip_mrouter_get(cmd, so, m)
-    int cmd;
-    struct socket *so;
-    struct mbuf **m;
+X_ip_mrouter_get(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
 {
-    struct mbuf *mb;
+	int error;
+	static int version = 0x0305; /* !!! why is this here? XXX */
 
-    if (so != ip_mrouter) return EACCES;
+	switch (sopt->sopt_name) {
+	case MRT_VERSION:
+		error = sooptcopyout(sopt, &version, sizeof version);
+		break;
 
-    *m = mb = m_get(M_WAIT, MT_SOOPTS);
-  
-    switch (cmd) {
-	case MRT_VERSION:   return get_version(mb);
-	case MRT_ASSERT:    return get_assert(mb);
-	default:            return EOPNOTSUPP;
-    }
+	case MRT_ASSERT:
+		error = sooptcopyout(sopt, &pim_assert, sizeof pim_assert);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
 }
 
 #ifndef MROUTE_LKM
-int (*ip_mrouter_get)(int, struct socket *, struct mbuf **) = X_ip_mrouter_get;
+int (*ip_mrouter_get)(struct socket *, struct sockopt *) = X_ip_mrouter_get;
 #endif
 
 /*
@@ -509,9 +552,9 @@ get_vif_cnt(req)
  * Enable multicast routing
  */
 static int
-ip_mrouter_init(so, m)
+ip_mrouter_init(so, version)
 	struct socket *so;
-	struct mbuf *m;
+	int version;
 {
     int *v;
 
@@ -522,11 +565,7 @@ ip_mrouter_init(so, m)
     if (so->so_type != SOCK_RAW ||
 	so->so_proto->pr_protocol != IPPROTO_IGMP) return EOPNOTSUPP;
 
-    if (!m || (m->m_len != sizeof(int *)))
-	return ENOPROTOOPT;
-
-    v = mtod(m, int *);
-    if (*v != 1)
+    if (version != 1)
 	return ENOPROTOOPT;
 
     if (ip_mrouter != NULL) return EADDRINUSE;
@@ -626,47 +665,17 @@ X_ip_mrouter_done()
 int (*ip_mrouter_done)(void) = X_ip_mrouter_done;
 #endif
 
-static int
-get_version(mb)
-    struct mbuf *mb;
-{
-    int *v;
-
-    v = mtod(mb, int *);
-
-    *v = 0x0305;	/* XXX !!!! */
-    mb->m_len = sizeof(int);
-
-    return 0;
-}
-
 /*
  * Set PIM assert processing global
  */
 static int
 set_assert(i)
-    int *i;
+	int i;
 {
-    if ((*i != 1) && (*i != 0))
+    if ((i != 1) && (i != 0))
 	return EINVAL;
 
-    pim_assert = *i;
-
-    return 0;
-}
-
-/*
- * Get PIM assert processing global
- */
-static int
-get_assert(m)
-    struct mbuf *m;
-{
-    int *i;
-
-    i = mtod(m, int *);
-
-    *i = pim_assert;
+    pim_assert = i;
 
     return 0;
 }
@@ -777,17 +786,16 @@ add_vif(vifcp)
  * Delete a vif from the vif table
  */
 static int
-del_vif(vifip)
-    vifi_t *vifip;
+del_vif(vifi)
+	vifi_t vifi;
 {
-    register struct vif *vifp = viftable + *vifip;
-    register vifi_t vifi;
+    register struct vif *vifp = &viftable[vifi];
     register struct mbuf *m;
     struct ifnet *ifp;
     struct ifreq ifr;
     int s;
 
-    if (*vifip >= numvifs) return EINVAL;
+    if (vifi >= numvifs) return EINVAL;
     if (vifp->v_lcl_addr.s_addr == 0) return EADDRNOTAVAIL;
 
     s = splnet();
@@ -816,15 +824,15 @@ del_vif(vifip)
     bzero((caddr_t)vifp->v_tbf, sizeof(*(vifp->v_tbf)));
     bzero((caddr_t)vifp, sizeof (*vifp));
 
+    if (mrtdebug)
+      log(LOG_DEBUG, "del_vif %d, numvifs %d\n", vifi, numvifs);
+
     /* Adjust numvifs down */
     for (vifi = numvifs; vifi > 0; vifi--)
 	if (viftable[vifi-1].v_lcl_addr.s_addr != 0) break;
     numvifs = vifi;
 
     splx(s);
-
-    if (mrtdebug)
-      log(LOG_DEBUG, "del_vif %d, numvifs %d\n", *vifip, numvifs);
 
     return 0;
 }
@@ -2009,12 +2017,11 @@ priority(vifp, ip)
  */
 
 int
-ip_rsvp_vif_init(so, m)
-    struct socket *so;
-    struct mbuf *m;
+ip_rsvp_vif_init(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
 {
-    int i;
-    register int s;
+    int error, i, s;
 
     if (rsvpdebug)
 	printf("ip_rsvp_vif_init: so_type = %d, pr_protocol = %d\n",
@@ -2024,13 +2031,12 @@ ip_rsvp_vif_init(so, m)
 	return EOPNOTSUPP;
 
     /* Check mbuf. */
-    if (m == NULL || m->m_len != sizeof(int)) {
-	return EINVAL;
-    }
-    i = *(mtod(m, int *));
+    error = sooptcopyin(sopt, &i, sizeof i, sizeof i);
+    if (error)
+	    return (error);
  
     if (rsvpdebug)
-	printf("ip_rsvp_vif_init: vif = %d rsvp_on = %d\n",i,rsvp_on);
+	printf("ip_rsvp_vif_init: vif = %d rsvp_on = %d\n", i, rsvp_on);
  
     s = splnet();
 
@@ -2060,49 +2066,48 @@ ip_rsvp_vif_init(so, m)
 }
 
 int
-ip_rsvp_vif_done(so, m)
-    struct socket *so;
-    struct mbuf *m;
+ip_rsvp_vif_done(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
 {
-	int i;
-	register int s;
+	int error, i, s;
  
-    if (rsvpdebug)
-	printf("ip_rsvp_vif_done: so_type = %d, pr_protocol = %d\n",
-	       so->so_type, so->so_proto->pr_protocol);
+	if (rsvpdebug)
+		printf("ip_rsvp_vif_done: so_type = %d, pr_protocol = %d\n",
+		       so->so_type, so->so_proto->pr_protocol);
  
-    if (so->so_type != SOCK_RAW || so->so_proto->pr_protocol != IPPROTO_RSVP)
-	return EOPNOTSUPP;
+	if (so->so_type != SOCK_RAW || 
+	    so->so_proto->pr_protocol != IPPROTO_RSVP)
+		return EOPNOTSUPP;
  
-    /* Check mbuf. */
-    if (m == NULL || m->m_len != sizeof(int)) {
-	    return EINVAL;
-    }
-    i = *(mtod(m, int *));
+	error = sooptcopyin(sopt, &i, sizeof i, sizeof i);
+	if (error)
+		return (error);
  
-    s = splnet();
+	s = splnet();
  
-    /* Check vif. */
-    if (!legal_vif_num(i)) {
+	/* Check vif. */
+	if (!legal_vif_num(i)) {
+		splx(s);
+		return EADDRNOTAVAIL;
+	}
+
+	if (rsvpdebug)
+		printf("ip_rsvp_vif_done: v_rsvpd = %p so = %p\n",
+		       viftable[i].v_rsvpd, so);
+
+	viftable[i].v_rsvpd = NULL;
+	/*
+	 * This may seem silly, but we need to be sure we don't over-decrement
+	 * the RSVP counter, in case something slips up.
+	 */
+	if (viftable[i].v_rsvp_on) {
+		viftable[i].v_rsvp_on = 0;
+		rsvp_on--;
+	}
+
 	splx(s);
-        return EADDRNOTAVAIL;
-    }
-
-    if (rsvpdebug)
-	printf("ip_rsvp_vif_done: v_rsvpd = %p so = %p\n",
-	       viftable[i].v_rsvpd, so);
-
-    viftable[i].v_rsvpd = NULL;
-    /* This may seem silly, but we need to be sure we don't over-decrement
-     * the RSVP counter, in case something slips up.
-     */
-    if (viftable[i].v_rsvp_on) {
-	viftable[i].v_rsvp_on = 0;
-	rsvp_on--;
-    }
-
-    splx(s);
-    return 0;
+	return 0;
 }
 
 void

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.53 1998/03/28 10:18:24 bde Exp $
+ *	$Id: raw_ip.c,v 1.54 1998/05/15 20:11:34 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -225,101 +225,127 @@ rip_output(m, so, dst)
  * Raw IP socket option processing.
  */
 int
-rip_ctloutput(op, so, level, optname, m, p)
-	int op;
+rip_ctloutput(so, sopt)
 	struct socket *so;
-	int level, optname;
-	struct mbuf **m;
-	struct proc *p;
+	struct sockopt *sopt;
 {
-	register struct inpcb *inp = sotoinpcb(so);
-	register int error;
+	struct	inpcb *inp = sotoinpcb(so);
+	int	error, optval;
 
-	if (level != IPPROTO_IP) {
-		if (op == PRCO_SETOPT && *m)
-			(void)m_free(*m);
+	if (sopt->sopt_level != IPPROTO_IP)
 		return (EINVAL);
-	}
 
-	switch (optname) {
+	error = 0;
 
-	case IP_HDRINCL:
-		error = 0;
-		if (op == PRCO_SETOPT) {
-			if (m == 0 || *m == 0 || (*m)->m_len < sizeof (int))
-				error = EINVAL;
-			else if (*mtod(*m, int *))
+	switch (sopt->sopt_dir) {
+	case SOPT_GET:
+		switch (sopt->sopt_name) {
+		case IP_HDRINCL:
+			optval = inp->inp_flags & INP_HDRINCL;
+			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
+
+#ifdef COMPAT_IPFW
+		case IP_FW_GET:
+			if (ip_fw_ctl_ptr == 0)
+				error = ENOPROTOOPT;
+			else
+				error = ip_fw_ctl_ptr(sopt);
+			break;
+
+		case IP_NAT:
+			if (ip_nat_ctl_ptr == 0)
+				error = ENOPROTOOPT;
+			else
+				error = ip_nat_ctl_ptr(sopt);
+			break;
+#endif /* COMPAT_IPFW */
+
+		case MRT_INIT:
+		case MRT_DONE:
+		case MRT_ADD_VIF:
+		case MRT_DEL_VIF:
+		case MRT_ADD_MFC:
+		case MRT_DEL_MFC:
+		case MRT_VERSION:
+		case MRT_ASSERT:
+			error = ip_mrouter_get(so, sopt);
+			break;
+
+		default:
+			error = ip_ctloutput(so, sopt);
+			break;
+		}
+		break;
+
+	case SOPT_SET:
+		switch (sopt->sopt_name) {
+		case IP_HDRINCL:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
+			if (optval)
 				inp->inp_flags |= INP_HDRINCL;
 			else
 				inp->inp_flags &= ~INP_HDRINCL;
-			if (*m)
-				(void)m_free(*m);
-		} else {
-			*m = m_get(M_WAIT, MT_SOOPTS);
-			(*m)->m_len = sizeof (int);
-			*mtod(*m, int *) = inp->inp_flags & INP_HDRINCL;
-		}
-		return (error);
+			break;
 
 #ifdef COMPAT_IPFW
-	case IP_FW_GET:
-		if (ip_fw_ctl_ptr == NULL || op == PRCO_SETOPT) {
-			if (*m) (void)m_free(*m);
-			return(EINVAL);
-		}
-		return (*ip_fw_ctl_ptr)(optname, m); 
+		case IP_FW_ADD:
+		case IP_FW_DEL:
+		case IP_FW_FLUSH:
+		case IP_FW_ZERO:
+			if (ip_fw_ctl_ptr == 0)
+				error = ENOPROTOOPT;
+			else
+				error = ip_fw_ctl_ptr(sopt);
+			break;
 
-	case IP_FW_ADD:
-	case IP_FW_DEL:
-	case IP_FW_FLUSH:
-	case IP_FW_ZERO:
-		if (ip_fw_ctl_ptr == NULL || op != PRCO_SETOPT) {
-			if (*m) (void)m_free(*m);
-			return(EINVAL);
-		}
-		return (*ip_fw_ctl_ptr)(optname, m); 
+		case IP_NAT:
+			if (ip_nat_ctl_ptr == 0)
+				error = ENOPROTOOPT;
+			else
+				error = ip_nat_ctl_ptr(sopt);
+			break;
+#endif /* COMPAT_IPFW */
 
-	case IP_NAT:
-		if (ip_nat_ctl_ptr == NULL) {
-			if (*m) (void)m_free(*m);
-			return(EINVAL);
-		}
-		return (*ip_nat_ctl_ptr)(op, m); 
+		case IP_RSVP_ON:
+			error = ip_rsvp_init(so);
+			break;
 
-#endif
-	case IP_RSVP_ON:
-		return ip_rsvp_init(so);
+		case IP_RSVP_OFF:
+			error = ip_rsvp_done();
+			break;
+
+			/* XXX - should be combined */
+		case IP_RSVP_VIF_ON:
+			error = ip_rsvp_vif_init(so, sopt);
+			break;
+			
+		case IP_RSVP_VIF_OFF:
+			error = ip_rsvp_vif_done(so, sopt);
+			break;
+
+		case MRT_INIT:
+		case MRT_DONE:
+		case MRT_ADD_VIF:
+		case MRT_DEL_VIF:
+		case MRT_ADD_MFC:
+		case MRT_DEL_MFC:
+		case MRT_VERSION:
+		case MRT_ASSERT:
+			error = ip_mrouter_set(so, sopt);
+			break;
+
+		default:
+			error = ip_ctloutput(so, sopt);
+			break;
+		}
 		break;
-
-	case IP_RSVP_OFF:
-		return ip_rsvp_done();
-		break;
-
-	case IP_RSVP_VIF_ON:
-		return ip_rsvp_vif_init(so, *m);
-
-	case IP_RSVP_VIF_OFF:
-		return ip_rsvp_vif_done(so, *m);
-
-	case MRT_INIT:
-	case MRT_DONE:
-	case MRT_ADD_VIF:
-	case MRT_DEL_VIF:
-	case MRT_ADD_MFC:
-	case MRT_DEL_MFC:
-	case MRT_VERSION:
-	case MRT_ASSERT:
-		if (op == PRCO_SETOPT) {
-			error = ip_mrouter_set(optname, so, *m);
-			if (*m)
-				(void)m_free(*m);
-		} else if (op == PRCO_GETOPT) {
-			error = ip_mrouter_get(optname, so, m);
-		} else
-			error = EINVAL;
-		return (error);
 	}
-	return (ip_ctloutput(op, so, level, optname, m, p));
+
+	return (error);
 }
 
 /*
@@ -340,7 +366,7 @@ rip_ctlinput(cmd, sa, vip)
 	int err;
 	int flags;
 
-	switch(cmd) {
+	switch (cmd) {
 	case PRC_IFDOWN:
 		for (ia = in_ifaddrhead.tqh_first; ia;
 		     ia = ia->ia_link.tqe_next) {

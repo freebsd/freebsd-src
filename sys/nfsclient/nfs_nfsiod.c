@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.40 1998/05/31 18:46:06 peter Exp $
+ * $Id: nfs_syscalls.c,v 1.41 1998/05/31 20:08:55 peter Exp $
  */
 
 #include <sys/param.h>
@@ -400,17 +400,29 @@ nfssvc_addsock(fp, mynam, p)
 	 * repeatedly for the same socket, but that isn't harmful.
 	 */
 	if (so->so_type == SOCK_STREAM) {
-		MGET(m, M_WAIT, MT_SOOPTS);
-		*mtod(m, int32_t *) = 1;
-		m->m_len = sizeof(int32_t);
-		sosetopt(so, SOL_SOCKET, SO_KEEPALIVE, m, p);
+		struct sockopt sopt;
+		int val;
+
+		bzero(&sopt, sizeof sopt);
+		sopt.sopt_level = SOL_SOCKET;
+		sopt.sopt_name = SO_KEEPALIVE;
+		sopt.sopt_val = &val;
+		sopt.sopt_valsize = sizeof val;
+		val = 1;
+		sosetopt(so, &sopt);
 	}
 	if (so->so_proto->pr_domain->dom_family == AF_INET &&
 	    so->so_proto->pr_protocol == IPPROTO_TCP) {
-		MGET(m, M_WAIT, MT_SOOPTS);
-		*mtod(m, int32_t *) = 1;
-		m->m_len = sizeof(int32_t);
-		sosetopt(so, IPPROTO_TCP, TCP_NODELAY, m, p);
+		struct sockopt sopt;
+		int val;
+
+		bzero(&sopt, sizeof sopt);
+		sopt.sopt_level = IPPROTO_TCP;
+		sopt.sopt_name = TCP_NODELAY;
+		sopt.sopt_val = &val;
+		sopt.sopt_valsize = sizeof val;
+		val = 1;
+		sosetopt(so, &sopt);
 	}
 	so->so_rcv.sb_flags &= ~SB_NOINTR;
 	so->so_rcv.sb_timeo = 0;
