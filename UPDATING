@@ -19,6 +19,13 @@ the common items quick how-tos, followed by entries for versions of
 20011102:
 	ipfw/bridge/dummynet features merged from current.
 
+20011018:
+	The kernel Makefile was enhanced to pass -g to modules builds
+	when it is used for kernel building (eg, when the config file
+	has DEBUG=-g).  People that have enabled debugging kernels
+	will find they need significantly more disk space in their
+	slash (/) partition.
+
 20010914:
 	4.4 Released.
 
