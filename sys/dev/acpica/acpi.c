@@ -1429,26 +1429,25 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
     ACPI_ASSERTLOCK;
 
+    /* Avoid reentry if already attempting to suspend. */
     if (sc->acpi_sstate != ACPI_STATE_S0)
-	return_ACPI_STATUS (AE_BAD_PARAMETER);	/* avoid reentry */
+	return_ACPI_STATUS (AE_BAD_PARAMETER);
 
+    /* We recently woke up so don't suspend again for a while. */
     if (sc->acpi_sleep_disabled)
-	return_ACPI_STATUS(AE_OK);
+	return_ACPI_STATUS (AE_OK);
 
     switch (state) {
-    case ACPI_STATE_S0:	/* XXX only for testing */
-	status = AcpiEnterSleepState((UINT8)state);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
-			  AcpiFormatException(status));
-	}
-	break;
     case ACPI_STATE_S1:
     case ACPI_STATE_S2:
     case ACPI_STATE_S3:
     case ACPI_STATE_S4:
 	status = AcpiGetSleepTypeData((UINT8)state, &TypeA, &TypeB);
-	if (ACPI_FAILURE(status)) {
+	if (status == AE_NOT_FOUND) {
+	    device_printf(sc->acpi_dev,
+			  "Sleep state S%d not supported by BIOS\n", state);
+	    break;
+	} else if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiGetSleepTypeData failed - %s\n",
 			  AcpiFormatException(status));
 	    break;
@@ -1513,11 +1512,13 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	 */
 	shutdown_nice(RB_POWEROFF);
 	break;
+    case ACPI_STATE_S0:
     default:
 	status = AE_BAD_PARAMETER;
 	break;
     }
 
+    /* Disable a second sleep request for a short period */
     if (sc->acpi_sleep_disabled)
 	timeout(acpi_sleep_enable, (caddr_t)sc, hz * ACPI_MINIMUM_AWAKETIME);
 
