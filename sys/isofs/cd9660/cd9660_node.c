@@ -138,7 +138,7 @@ cd9660_ihashins(ip)
 	*ipp = ip;
 	simple_unlock(&cd9660_ihash_slock);
 
-	lockmgr(&ip->i_lock, LK_EXCLUSIVE, (struct simplelock *)0, p);
+	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct simplelock *)0, p);
 }
 
 /*

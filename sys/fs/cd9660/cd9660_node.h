@@ -61,7 +61,6 @@ typedef	struct	{
 
 
 struct iso_node {
-	struct	lock i_lock;	/* node lock > Keep this first< */
 	struct	iso_node *i_next, **i_prev;	/* hash chain */
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
 	struct	vnode *i_devvp;	/* vnode for block I/O */
