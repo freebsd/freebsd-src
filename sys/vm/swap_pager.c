@@ -312,6 +312,8 @@ swap_pager_swap_init()
 	    ZONE_INTERRUPT, 
 	    1
 	);
+	if (swap_zone == NULL)
+		panic("swap_pager_swap_init: swap_zone == NULL");
 
 	/*
 	 * Initialize our meta-data hash table.  The swapper does not need to
