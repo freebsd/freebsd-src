@@ -213,7 +213,6 @@ i386/isa/isa.c			optional	isa
 pc98/pc98/isa_compat.c		optional	isa
 pc98/pc98/isa_dma.c		optional	isa
 i386/isa/istallion.c		optional	stli
-i386/isa/joy.c			optional	joy
 i386/isa/labpc.c		optional	labpc
 i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		optional	matcd
