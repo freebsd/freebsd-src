@@ -378,8 +378,6 @@ copy(argv, type, fts_options)
 				if (mkdir(to.p_path,
 				    curr->fts_statp->st_mode | S_IRWXU) < 0)
 					err(1, "%s", to.p_path);
-				if (vflag)
-					printf("%s -> %s\n", curr->fts_path, to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
 				err(1, "%s", to.p_path);
@@ -420,6 +418,8 @@ copy(argv, type, fts_options)
 				rval = 1;
 			break;
 		}
+		if (!rval && vflag)
+			(void)printf("%s -> %s\n", curr->fts_path, to.p_path);
 	}
 	if (errno)
 		err(1, "fts_read");
