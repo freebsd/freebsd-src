@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.8 1997/02/22 09:36:46 peter Exp $
+ * $Id: kbdio.c,v 1.9 1997/03/06 22:34:10 joerg Exp $
  */
 
 #include "sc.h"
@@ -1027,10 +1027,6 @@ set_controller_command_byte(KBDC p, int mask, int command)
 	return FALSE;
 
     command = (kbdcp(p)->command_byte & ~mask) | (command & mask);
-#if 0
-    if (command == kbdcp(p)->command_byte)
-	return TRUE;
-#endif
     if (command & KBD_DISABLE_KBD_PORT) {
 	if (!write_controller_command(p, KBDC_DISABLE_KBD_PORT))
 	    return FALSE;
@@ -1041,7 +1037,7 @@ set_controller_command_byte(KBDC p, int mask, int command)
 	return FALSE;
     kbdcp(p)->command_byte = command;
 
-    if (verbose || bootverbose)
+    if (verbose)
         log(LOG_DEBUG, "kbdio: new command byte:%04x (set_controller...)\n",
 	    command);
 
