@@ -187,6 +187,8 @@ static struct dc_type dc_devs[] = {
 		"Accton EN2242 MiniPCI 10/100BaseTX" },
 	{ DC_VENDORID_CONEXANT, DC_DEVICEID_RS7112,
 		"Conexant LANfinity MiniPCI 10/100BaseTX" },
+	{ DC_VENDORID_3COM, DC_DEVICEID_3CSOHOB,
+		"3Com OfficeConnect 10/100B" },
 	{ 0, 0, NULL }
 };
 
@@ -1867,6 +1869,7 @@ static int dc_attach(dev)
 		break;
 	case DC_DEVICEID_AN985:
 	case DC_DEVICEID_EN2242:
+	case DC_DEVICEID_3CSOHOB:
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
