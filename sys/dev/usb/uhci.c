@@ -314,6 +314,9 @@ uhci_init(sc)
 	uhci_run(sc, 0);			/* stop the controller */
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
 
+	/* PR1 The VIA 823C572 reset FLBASEADDR as well */
+	uhci_busreset(sc);
+	
 	/* Allocate and initialize real frame array. */
 	r = usb_allocmem(sc->sc_dmatag, 
 			 UHCI_FRAMELIST_COUNT * sizeof(uhci_physaddr_t),
@@ -324,18 +327,12 @@ uhci_init(sc)
 	UWRITE2(sc, UHCI_FRNUM, 0);		/* set frame number to 0 */
 	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&dma)); /* set frame list */
 
+	/* PR1 moved uhci_busreset up */
+	
 #ifdef USB_DEBUG
 	/* PR1 */
-	if ( UREAD4(sc, UHCI_FLBASEADDR) != DMAADDR(&dma) )
-		printf("PR1:before busreset: FLBASEADDR = 0x%08x != DMADDR(&dma) = 0x%08x\n",
-			UREAD4(sc, UHCI_FLBASEADDR), DMAADDR(&dma));
-#endif
-	uhci_busreset(sc);
-#ifdef USB_DEBUG
-	/* PR1 */
-	if ( UREAD4(sc, UHCI_FLBASEADDR) != DMAADDR(&dma) )
-		printf("PR1:after busreset: FLBASEADDR = 0x%08x != DMADDR(&dma) = 0x%08x\n",
-			UREAD4(sc, UHCI_FLBASEADDR), DMAADDR(&dma));
+	printf("PR1:after busreset: FLBASEADDR=0x%08x, DMADDR(&dma)=0x%08x\n",
+		UREAD4(sc, UHCI_FLBASEADDR), DMAADDR(&dma));
 #endif
 	/* Allocate the dummy QH where bulk traffic will be queued. */
 	bsqh = uhci_alloc_sqh(sc);
@@ -888,7 +885,7 @@ uhci_waitintr(sc, reqh)
 	int usecs;
 	uhci_intr_info_t *ii;
 
-	DPRINTFN(10,("uhci_waitintr: timeout = %ds\n", timo));
+	DPRINTFN(15,("uhci_waitintr: timeout = %ds\n", timo));
 
 	reqh->status = USBD_IN_PROGRESS;
 	for (usecs = timo * 1000000 / hz; usecs > 0; usecs -= 1000) {
