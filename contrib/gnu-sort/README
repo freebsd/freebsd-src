@@ -4,8 +4,8 @@ their Unix counterparts, such as greater speed, additional options,
 and fewer arbitrary limits.
 
 The programs that can be built with this package are: cat, cksum, comm,
-csplit, cut, expand, fmt, fold, head, join, md5sum, nl, od, paste, pr,
-ptx, sort, split, sum, tac, tail, tr, tsort, unexpand, uniq, and wc.
+csplit, cut, expand, fmt, fold, head, join, md5sum, nl, od, paste, pr, ptx
+sha1sum, sort, split, sum, tac, tail, tr, tsort, unexpand, uniq, and wc.
 
 See the file NEWS for a list of major changes in the current release.
 
