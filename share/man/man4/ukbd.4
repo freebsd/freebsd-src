@@ -89,7 +89,7 @@ to be used as the console.
 .Pp
 If you want to use a USB keyboard as your default and not use an AT keyboard at
 all, you will have to remove the
-.Nm atkbd0
+.Nm atkbd
 from the kernel configuration file.
 Because of the order of the device 
 initialisation, the USB keyboard will be detected AFTER the console driver
@@ -138,7 +138,7 @@ also has effect on the AT keyboard driver `atkbd'.
 blocking device nodes
 .Sh EXAMPLE
 .Bd -literal -offset indent
-device ukbd0
+device ukbd
 .Ed
 .Pp
 Add the
