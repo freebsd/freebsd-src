@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)fly.c	8.1 (Berkeley) 5/31/93";
 #include "externs.h"
 #undef UP
 #include <curses.h>
+#include <string.h>
 
 #define abs(a)	((a) < 0 ? -(a) : (a))
 #define MIDR  (LINES/2 - 1)
