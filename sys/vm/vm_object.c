@@ -1464,7 +1464,8 @@ vm_object_qcollapse(vm_object_t object)
 {
 	vm_object_t backing_object = object->backing_object;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(backing_object, MA_OWNED);
 
 	if (backing_object->ref_count != 1)
 		return;
@@ -1524,7 +1525,6 @@ vm_object_collapse(vm_object_t object)
 			VM_OBJECT_UNLOCK(backing_object);
 			break;
 		}
-/* XXX */	VM_OBJECT_UNLOCK(object);
 		/*
 		 * We know that we can either collapse the backing object (if
 		 * the parent is the only reference to it) or (perhaps) have
@@ -1536,6 +1536,7 @@ vm_object_collapse(vm_object_t object)
 		 * case.
 		 */
 		if (backing_object->ref_count == 1) {
+/* XXX */		VM_OBJECT_UNLOCK(object);
 			/*
 			 * If there is exactly one reference to the backing
 			 * object, we can collapse it into the parent.  
@@ -1633,7 +1634,6 @@ vm_object_collapse(vm_object_t object)
 			 */
 			if (vm_object_backing_scan(object, OBSC_TEST_ALL_SHADOWED) == 0) {
 				VM_OBJECT_UNLOCK(backing_object);
-/* XXX */			VM_OBJECT_LOCK(object);
 				break;
 			}
 
@@ -1646,6 +1646,7 @@ vm_object_collapse(vm_object_t object)
 			backing_object->shadow_count--;
 			backing_object->generation++;
 			VM_OBJECT_UNLOCK(backing_object);
+/* XXX */		VM_OBJECT_UNLOCK(object);
 
 			new_backing_object = backing_object->backing_object;
 			if ((object->backing_object = new_backing_object) != NULL) {
