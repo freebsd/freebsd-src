@@ -95,7 +95,7 @@ struct cfdriver uhci_cd = {
 #ifdef UHCI_DEBUG
 #define DPRINTF(x)	if (uhcidebug) printf x
 #define DPRINTFN(n,x)	if (uhcidebug>(n)) printf x
-int uhcidebug = 0;
+int uhcidebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -427,8 +427,8 @@ uhci_init(sc)
 	sc->sc_bus.pipe_size = sizeof(struct uhci_pipe);
 
 	sc->sc_suspend = PWR_RESUME;
+#if defined(__NetBSD__)
 	sc->sc_powerhook = powerhook_establish(uhci_power, sc);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 	sc->sc_shutdownhook = shutdownhook_establish(uhci_shutdown, sc);
 #endif
 	DPRINTFN(1,("uhci_init: enabling\n"));
@@ -476,8 +476,10 @@ uhci_detach(sc, flags)
 	if (rv != 0)
 		return (rv);
 
+#if defined(__NetBSD__)
 	powerhook_disestablish(sc->sc_powerhook);
 	shutdownhook_disestablish(sc->sc_shutdownhook);
+#endif
 
 	/* Free all xfers associated with this HC. */
 	for (;;) {
