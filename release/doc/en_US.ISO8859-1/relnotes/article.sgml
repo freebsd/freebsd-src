@@ -354,6 +354,12 @@
     and installed with debugging kernels will now occupy more space on
     disk than they did previously. &merged;</para>
 
+    <para>The kernel dump device can now be set via the
+    <varname>dumpdev</varname> loader tunable.  As a result, it is now
+    possible to obtain crash dumps from panics during the late stages
+    of kernel initialization (before the system enters into
+    single-user mode).</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -915,6 +921,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       densities of various subdevices.</para>
 
       <para>The ida disk driver now has crashdump support. &merged;</para>
+
+      <para arch="i386">The iir driver has been added to support the
+      Intel Integrated RAID controllers, as well as prior ICP Vortex
+      controllers.</para>
 
       <para arch="alpha">A bug that made certain CDROM drives fail to
       attach when connected to a SCSI card driven by &man.isp.4; has
