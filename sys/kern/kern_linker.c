@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.4 1997/11/20 20:07:45 bde Exp $
+ *	$Id: kern_linker.c,v 1.5 1997/12/12 04:00:59 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/linker.h>
 #include <sys/unistd.h>
 
+MALLOC_DEFINE(M_LINKER, "kld", "kernel linker");
 linker_file_t linker_current_file;
 
 static struct lock lock;	/* lock for the file list */
