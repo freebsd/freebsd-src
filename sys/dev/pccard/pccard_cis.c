@@ -52,8 +52,8 @@ extern int	pccard_cis_debug;
 
 #define PCCARDCISDEBUG
 #ifdef PCCARDCISDEBUG
-#define	DPRINTF(arg) if (pccard_cis_debug) printf arg
-#define	DEVPRINTF(arg) if (pccard_cis_debug) device_printf arg
+#define	DPRINTF(arg) do { if (pccard_cis_debug) printf arg; } while (0)
+#define	DEVPRINTF(arg) do { if (pccard_cis_debug) device_printf arg; } while (0)
 #else
 #define	DPRINTF(arg)
 #define	DEVPRINTF(arg)
@@ -112,6 +112,9 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 	u_long longlink_addr;		/* Type suspect */
 	int mfc_count;
 	int mfc_index;
+#ifdef PCCARDCISDEBUG
+	int cis_none_cnt = 10;	/* Only report 10 CIS_NONEs */
+#endif
 	struct {
 		int	common;
 		u_long	addr;
@@ -169,7 +172,13 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 			/* two special-case tuples */
 
 			if (tuple.code == PCCARD_CISTPL_NULL) {
-				DPRINTF(("CISTPL_NONE\n 00\n"));
+#ifdef PCCARDCISDEBUG
+				if (cis_none_cnt > 0)
+					DPRINTF(("CISTPL_NONE\n 00\n"));
+				else if (cis_none_cnt == 0)
+					DPRINTF(("TOO MANY CIS_NONE\n"));
+				cis_none_cnt--;
+#endif
 				tuple.ptr++;
 				continue;
 			} else if (tuple.code == PCCARD_CISTPL_END) {
