@@ -1,0 +1,27 @@
+#
+# sh io functions
+#
+if [ "`echo -n`" = "-n" ]; then
+  echon () { echo "$@\\c"; }
+else
+  echon () { echo -n "$@"; }
+fi
+
+query() {
+  _Q="$1"
+  _A="$2"
+  echon "$_Q (y/n) [$_A] ? "
+  X=""
+  read X
+  if [ "$X" = "" ]; then
+    X="$_A"
+  fi
+  case "$X" in
+    [yY]*) return 0;;
+	*) return 1;;
+  esac
+}
+
+check () {
+  `echo "$1" | awk '{ if ( '"$2"' ) { print ":"; } else { print "false"; } exit; }'`;
+}

@@ -1,0 +1,13 @@
+README file for directory ./authstuff of the NTP Version 3 distribution
+
+This directory contains the sources for miscellaneous programs to test,
+validate and calibreate cryptographic routines used by NTP. These include
+
+authcert.c	used to certify the DES and MD5 message digest algorithms
+		work properly. See the source for directions for use.
+
+authspeed.c	used to determing the running time for DES and MD5
+		messge digest algorithms. See the source for directions
+		for use.
+
+For other programs, see the source files.

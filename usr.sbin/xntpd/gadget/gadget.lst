@@ -1,0 +1,332 @@
+
+
+
+---------------------------------------------------------------------------
+  DESIGN RULE CHECK            Tue Sep 15 01:23:56 1992          PAGE  1
+  1-PPS/RS232 CONVERTER  100-0001-001  REV 1A    26 JUNE 1992        
+---------------------------------------------------------------------------
+
+
+
+FLOATING INPUTS:
+     NONE FOUND
+
+NETS WITH NO DRIVING SOURCE:
+     NONE FOUND
+
+NETS WITH MULTIPLE DRIVING SOURCES:
+     NONE FOUND
+
+NETS WITH MORE THAN ONE LABEL:
+     NONE FOUND
+
+NETS WITH A SINGLE PIN:
+     NONE FOUND
+
+REFERENCE DESIGNATORS USED TWO OR MORE TIMES:
+     NONE FOUND
+
+
+
+---------------------------------------------------------------------------
+  REPORT  REF. DES.            Tue Sep 15 01:23:56 1992          PAGE  1
+  1-PPS/RS232 CONVERTER  100-0001-001  REV 1A    26 JUNE 1992        
+---------------------------------------------------------------------------
+
+
+C1                  DCAP                A/01
+C10                 DCAP                A/01
+C11                 DCAP                A/01
+C12                 DCAPE               A/01
+C13                 DCAP                A/01
+C14                 DCAP                A/01
+C15                 DCAP                A/01
+C16                 DCAPE               A/01
+C17                 DCAPE               A/01
+C18                 DCAPE               A/01
+C2                  DCAP                A/01
+C3                  DCAPE               A/01
+C4                  DCAP                A/01
+C5                  DCAP                A/01
+C6                  DCAP                A/01
+C7                  DCAP                A/01
+C8                  DCAP                A/01
+C9                  DCAPE               A/01
+D1                  DDIODE              A/01
+D2                  DDIODE              A/01
+J1                  DB25                A/01
+J2                  DBNC                A/01
+J3                  DBNC                A/01
+J4                  DBNC                A/01
+LED1                DLED                A/01
+LED2                DLED                A/01
+LED3                DLED                A/01
+Q1                  DPNP                A/01
+R1                  DRES                A/01
+R10                 DRES                A/01
+R11                 DRES                A/01
+R12                 DRES                A/01
+R13                 DRES                A/01
+R14                 DRES                A/01
+R2                  DRES                A/01
+R3                  DRES                A/01
+R4                  DRES                A/01
+R5                  DRES                A/01
+R6                  DRES                A/01
+R7                  DPOT                A/01
+R8                  DPOT                A/01
+R9                  DRES                A/01
+U1                  ICL232              A/01
+U2                  MC145443            A/01
+U3A                 74LS123             A/01
+U3B                 74LS123             B/01
+U4A                 LM324               A/01
+U4B                 LM324               B/01
+
+
+
+---------------------------------------------------------------------------
+  REPORT  REF. DES.            Tue Sep 15 01:23:57 1992          PAGE  2
+  1-PPS/RS232 CONVERTER  100-0001-001  REV 1A    26 JUNE 1992        
+---------------------------------------------------------------------------
+
+
+U5                  LM7805              A/01
+X1                  DXTAL               A/01
+
+
+
+---------------------------------------------------------------------------
+  REPORT LABEL                 Tue Sep 15 01:23:57 1992          PAGE  1
+  1-PPS/RS232 CONVERTER  100-0001-001  REV 1A    26 JUNE 1992        
+---------------------------------------------------------------------------
+
+
++12              01
++5               01
+AGND             01
+CGND             01
+GND              01
+VCC              01
+
+
+
+---------------------------------------------------------------------------
+  WIRE LIST                    Tue Sep 15 01:23:57 1992          PAGE  1
+  1-PPS/RS232 CONVERTER  100-0001-001  REV 1A    26 JUNE 1992        
+---------------------------------------------------------------------------
+
+
+1        +12            C18-T          D1-C           D2-C           
+                        U5-1           
+
+2        +5             C1-T           C13-T          C2-T           
+                        C3-B           C7-T           R11-T          
+                        R12-L          R2-T           R7-1           
+                        R7-2           R9-L           U1-16          
+                        U2-13          U2-14          U2-6           
+                        U3A-16         U3B-16         U5-3           
+
+3        01007018       J2-1           R8-1           
+
+4        01007039       J3-1           R13-T          U3A-2          
+
+5        01011019       C15-L          R8-2           
+
+6        01013019       C15-R          R3-T           U4A-3          
+
+7        01013024       C5-T           C6-B           C7-B           
+                        C8-B           R3-B           U2-18          
+                        U2-19          
+
+8        01015020       U4A-1          U4A-2          U4B-5          
+
+9        01017033       C14-T          R7-3           U3A-15         
+
+10       01019043       R11-B          U3A-3          U3B-11         
+
+11       01020035       C14-B          U3A-14         
+
+12       01022016       C11-L          R6-L           U4B-6          
+
+13       01022039       U3A-13         U3B-10         
+
+14       01022040       U1-11          U3A-4          
+
+15       01024023       C10-L          C11-R          R5-T           
+
+16       01027016       C10-R          R4-L           R6-R           
+                        U4B-7          
+
+17       01029043       C17-T          R9-R           U3B-7          
+
+18       01030057       D2-A           J4-1           
+
+19       01031045       C17-B          U3B-6          
+
+20       01033049       R10-L          U3B-5          
+
+21       01036049       LED3-A         R10-R          
+
+
+
+
+---------------------------------------------------------------------------
+  WIRE LIST                    Tue Sep 15 01:23:57 1992          PAGE  2
+  1-PPS/RS232 CONVERTER  100-0001-001  REV 1A    26 JUNE 1992        
+---------------------------------------------------------------------------
+
+
+22       01037023       U2-9           X1-L           
+
+23       01038014       Q1-E           R2-B           
+
+24       01038017       LED1-A         Q1-C           
+
+25       01040015       Q1-B           R14-L          
+
+26       01041023       U2-8           X1-R           
+
+27       01042022       C8-T           U2-7           
+
+28       01045015       C4-B           U2-4           
+
+29       01045018       R14-R          U2-3           
+
+30       01045020       U1-10          U2-5           
+
+31       01046010       R1-L           R4-R           U2-16          
+
+32       01046025       C6-T           U2-10          
+
+33       01047042       C9-T           U1-1           
+
+34       01047044       C9-B           U1-3           
+
+35       01048033       J1-2           U1-8           
+
+36       01049034       J1-11          U1-13          
+
+37       01051047       C3-T           U1-2           
+
+38       01052057       LED2-A         R12-R          
+
+39       01054021       R1-R           U2-15          
+
+40       01054025       U1-9           U2-11          
+
+41       01054047       C16-T          U1-6           
+
+42       01055053       D1-A           J1-20          J1-6           
+                        J1-8           
+
+43       01057040       J1-12          U1-14          
+
+44       01057041       J1-3           U1-7           
+
+45       01057042       C12-T          U1-4           
+
+46       01057044       C12-B          U1-5           
+
+
+
+
+---------------------------------------------------------------------------
+  WIRE LIST                    Tue Sep 15 01:23:57 1992          PAGE  3
+  1-PPS/RS232 CONVERTER  100-0001-001  REV 1A    26 JUNE 1992        
+---------------------------------------------------------------------------
+
+
+47       01068042       J1-4           J1-5           
+
+48       AGND           C4-T           C5-B           LED1-C         
+                        R5-B           R8-3           U2-2           
+                        U4A-11         U4B-11         
+
+49       CGND           J2-2           J3-2           J4-2           
+
+50       GND            C1-B           C13-B          C16-B          
+                        C18-B          C2-B           J1-1           
+                        J1-7           LED2-C         LED3-C         
+                        R13-B          U1-15          U2-12          
+                        U3A-1          U3A-8          U3B-8          
+                        U3B-9          U5-2           
+
+51       VCC            U4A-4          U4B-4          
+
+
+
+
+---------------------------------------------------------------------------------------------------------------
+BILL OF MATERIALS    XYZ COMPUTER CORP.   LORAN       150-0001-001 REV 1A Tue Sep 15 01:23:57 1992    PAGE   1
+---------------------------------------------------------------------------------------------------------------
+
+
+     ITEM   QUAN.    PART NUMBER           DESCRIPTION                                        REF. DES.        
+
+       1       7                  CAPACITOR,100N,                                             C1,C13,C2,C5,C6 
+                                                                                              C7,C8
+
+       2       1                  CAPACITOR,100U                                              C18             
+
+       3       5                  CAPACITOR,10N,                                              C10,C11,C14,C15 
+                                                                                              C4
+
+       4       5                  CAPACITOR,22U                                               C12,C16,C17,C3  
+                                                                                              C9
+
+       5       1                  CRYSTAL, 3.59MHZ                                            X1              
+
+       6       2                  DIODE, 1N4002                                               D1,D2           
+
+       7       1                  LIGHT EMITTING DIODE, AMBER                                 LED3            
+
+       8       1                  LIGHT EMITTING DIODE, GRN                                   LED1            
+
+       9       1                  LIGHT EMITTING DIODE, RED                                   LED2            
+
+      10       1                  PNP TRANSISTOR, 2N2907                                      Q1              
+
+      11       1                  POTENTIOMETER, 10K                                          R8              
+
+      12       1                  POTENTIOMETER, 20K                                          R7              
+
+      13       2                  RESISTOR,100K,                                              R13,R3          
+
+      14       1                  RESISTOR,10K,                                               R1              
+
+      15       1                  RESISTOR,1MEG,                                              R4              
+
+      16       2                  RESISTOR,3.3K,                                              R11,R14         
+
+      17       3                  RESISTOR,330,                                               R10,R12,R2      
+
+      18       1                  RESISTOR,33K,                                               R9              
+
+      19       1                  RESISTOR,680,                                               R5              
+
+      20       1                  RESISTOR,68K,                                               R6              
+
+      21       3    010-0002-001  CONNECTOR, BNC CHASSIS                                      J2,J3,J4        
+
+      22       1    010-DB25-001  DB25 - 25-PIN CONNECTOR                                     J1              
+
+      23       2    300-0123-001  74LS123 - LS TTL RETRIG MONOSTABLE MULTIVIBRATORS           U3A,U3B         
+
+
+
+---------------------------------------------------------------------------------------------------------------
+BILL OF MATERIALS    XYZ COMPUTER CORP.   LORAN       150-0001-001 REV 1A Tue Sep 15 01:23:57 1992    PAGE   2
+---------------------------------------------------------------------------------------------------------------
+
+
+     ITEM   QUAN.    PART NUMBER           DESCRIPTION                                        REF. DES.        
+
+      24       2    302-0324-001  LM324A - LOW POWER QUAD OP-AMP                              U4A,U4B         
+
+      25       1    302-7805-001  LM7805C - VOLTAGE REGULATOR, +5VDC                          U5              
+
+      26       1    306-5443-001  MC145443 - 300-BPS MODEM                                    U2              
+
+      27       1    310-0232-001  ICL232 - POWERED RS232 TRANSMITTER/RECEIVER                 U1              
+

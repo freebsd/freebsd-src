@@ -1,0 +1,6 @@
+Notes on the DELL SVR4.
+
+You should use -DSETTIMEOFDAY_BROKEN.
+
+Philip.Gladstone@mail.citicorp.com
+

@@ -1,0 +1,6 @@
+README file for directory ./include of the NTP Version 3 distribution
+
+This directory contains the include files used by most programs in this
+distribution.  The ./sys directory in this directory contains system
+header files used by the clock discipline and STREAMS modules in the
+../kernel directory.

@@ -1,0 +1,1352 @@
+''' $Header
+''' 
+.de Sh
+.br
+.ne 5
+.PP
+\fB\\$1\fR
+.PP
+..
+.de Sp
+.if t .sp .5v
+.if n .sp
+..
+.de Ip
+.br
+.ie \\n.$>=3 .ne \\$3
+.el .ne 3
+.IP "\\$1" \\$2
+..
+'''
+'''     Set up \*(-- to give an unbreakable dash;
+'''     string Tr holds user defined translation string.
+'''     Bell System Logo is used as a dummy character.
+'''
+.tr \(bs-|\(bv\*(Tr
+.ie n \{\
+.ds -- \(bs-
+.if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+.if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+.ds L" ""
+.ds R" ""
+.ds L' '
+.ds R' '
+'br\}
+.el\{\
+.ds -- \(em\|
+.tr \*(Tr
+.ds L" ``
+.ds R" ''
+.ds L' `
+.ds R' '
+'br\}
+.TH XNTPD 8 LOCAL
+.SH NAME
+xntpd - Network Time Protocol daemon
+.SH SYNOPSIS
+.B xntpd
+[
+.B -ab
+] [
+.B -c 
+.I conffile
+] [
+.B -e
+.I authdelay
+] [
+.B -f
+.I driftfile
+] [
+.B -k
+.I keyfile
+] [
+.B -l
+.I loopfile
+] [
+.B -p
+.I pidfile
+] [
+.B -r
+.I broaddelay
+] [
+.B -s
+.I statsdir
+] [
+.B -t
+.I trustedkey
+]
+.SH DESCRIPTION
+.I Xntpd
+is a daemon which maintains a Unix system's time\-of\-day in agreement
+with Internet standard time servers.
+.I Xntpd
+is a complete implementation of the Network Time Protocol (NTP) version
+3 standard as defined by RFC 1305 and also retains
+compatability with version 1 and 2 servers as defined
+by RFC 1059 and RFC 1119, respectively.
+.I Xntpd
+does all computations in fixed point arithmetic and is entirely free of
+floating point code.  The computations done in the protocol and clock
+adjustment code are carried out with high precision and with attention
+to the details which might introduce systematic bias into the integrations,
+to try to maintain an accuracy suitable for synchronizing with even the
+most precise external time source.
+.PP
+Ordinarily,
+.I xntpd
+reads its configuration from a file at startup time.  The default configuration
+file is
+.I /etc/ntp.conf,
+though this may be overridden from the command line.  It is also possible to
+specify a working, though limited,
+.I xntpd
+configuration entirely on the command line, obviating the need for a
+configuration file.  This may be particularly appropriate when xntpd is
+to be configured as a broadcast client, with all peers being determined
+by listening to broadcasts at run time.  Various internal
+.I xntpd
+variables can be displayed, and configuration options altered, while the
+daemon is running through use of the
+.IR ntpq (8)
+and
+.IR xntpdc (8)
+programs.
+.PP
+The following command line arguments are understood by
+.I xntpd
+(see the configuration file description for a more complete functional
+description):
+.Ip -a 8
+run in \*(L"authenticate\*(R" mode
+.Ip -b 8
+listen for broadcast NTP and sync to this if available
+.Ip -c 8
+specify an alternate configuration file
+.Ip -d 8
+specify debugging options
+.Ip -e 8
+specify the time (in seconds) it takes to compute the NTP encryption field
+on this computer
+.Ip -f 8
+specify the location of the drift file
+.Ip -k 8
+specify the location of the file which contains the NTP authentication keys
+.Ip -p 8
+specify the name of the file to record the daemon's process id
+.Ip -r 8
+specify the default round trip delay (in seconds)
+to be used when synchronizing to broadcasts
+.Ip -s 8
+specify a directory to be used for creating statistics files
+.Ip -t 8
+add a key number to the trusted key list
+.SH "CONFIGURATION FILE OPTIONS"
+.IR Xntpd 's
+configuration file is relatively free format.  Comments, which may be
+freely inserted, begin with a \*(L"#\*(R" character
+and extend to the end of the line.  Blank lines are ignored.  Configuration
+statements include an initial keyword followed by white space separated
+arguments, some of which may be optional.  Configuration statements
+may not be continued over multiple lines.  Arguments may be network
+numbers (which must be written in numeric, dotted\-quad form), integers,
+floating point numbers (when specifying times in seconds) and text
+strings.  Optional arguments are delimited by \*(L"[]\*(R" in the following
+descriptions, while alternatives are separated by \*(L"|\*(R".
+.PP
+.B peer
+.I host_address
+[
+.B key
+.I #
+] [
+.B version
+.I #
+] [
+.B prefer
+]
+.br
+.B server
+.I host_address
+[
+.B key
+.I #
+] [
+.B version
+.I #
+] [
+.B prefer
+]
+.br
+.B broadcast
+.I host_address
+[
+.B key
+.I #
+] [
+.B version
+.I #
+] [
+.B prefer
+]
+.PP
+These three statements specify various time servers to be used and/or
+time services to be provided.  The
+.B peer
+statement specifies that the given host is to be polled in
+\*(L"symmetric active\*(R" mode, i.e. that the host is requested to
+provide time which you might synchronize to and, in addition, indicates
+that you are willing to have to remote host synchronize to your time
+if need be.  The
+.B server
+statement specifies that the given host is to be polled in
+\*(L"client\*(R" mode, i.e. that the host is requested to provide
+time which you might synchronize with but that you are unwilling to have
+the remote host synchronize to your own time.  The
+.B broadcast
+statement requests your local daemon to transmit broadcast NTP to
+the specified address.  The latter is usually the broadcast address
+on [one of] your local network[s].
+.PP
+The
+.B key
+option, when included, indicates that all packets sent to the address
+are to include authentication fields encrypted using the specified key
+number (the range of which is that of an unsigned 32 bit integer).  The
+default is to not include an encryption field.  The
+.B version
+option allows one to specify the version number to be used for outgoing
+NTP packets.  Versions 1, 2, and 3 are the choices, version 3 is the default.
+The
+.B prefer
+option marks the host as a preferred host. All other things being equal, this
+host will be chosen for synchronization among a set of correctly operating
+hosts.
+.PP
+.B precision
+.I #
+.PP
+Indicates the precision of local timekeeping.  The value is an integer
+which is approximately the base 2 logarithm of the local timekeeping
+precision in seconds.  By default this value is set to -6.
+.PP
+The precision declared by an implementation can affect several aspects
+of server operation, and can be used as a tuning parameter for your
+synchronization subnet.  It should probably not be changed from the
+default value, however, unless there is a good reason to do so.
+.PP
+.B logfile
+.I filename
+.PP
+Gives the file which is to be used instead of syslog output. This
+configuration option is also a compile time option (SYSLOG_FILE).
+So in order to be able to use this xntpd must be compiled with
+-DSYSLOG_FILE.
+.PP
+.B driftfile
+.I filename
+.PP
+Specifies the name of the file used to record the \*(L"drift\*(R" (or
+frequency error) value
+.I xntpd
+has computed.  If the file exists on startup, it is read and the value
+used to initialize
+.IR xntpd 's
+internal value of the frequency error.  The file is then updated once
+every hour by replacing the old file with a new one containing the
+current value of the frequency error.  Note that the file is updated
+by first writing the current drift value into a temporary file and
+then using
+.IR rename (3)
+to replace the old version.  This implies that
+.I xntpd
+must have write permission for the directory the drift file is located
+in, and that file system links, symbolic or otherwise, should probably
+be avoided.
+.PP
+.B "monitor yes|no"
+.PP
+Indicates whether the
+.I xntpd
+traffic monitoring function should be enabled or not.  When enabled,
+this causes the origin address of each packet received by the server
+to be recorded along with a limited amount of additional information, such
+as the mode of the request and whether it originated from an NTP server port
+or not.  Traffic monitoring data may be inspected using the
+.IR xntpdc (8)
+.I monlist
+command.  The default is \*(L"no\*(R", i.e. traffic monitoring should not
+be done.
+.PP
+Note that the traffic monitoring facility will increase the CPU used
+by
+.IR xntpd ,
+as well as increasing the daemon's memory utilization by as much as
+8.5 kilobytes.  This facility is normally useful for the detection of
+peers with malfunctioning software or which are sending bogus data.  It
+is primarily intended for very popular servers which exchange time with
+large numbers of peers, though it may also be useful for access monitoring
+of local servers if you are willing to accept the overhead.
+.PP
+.B "broadcastclient yes|no"
+.PP
+This indicates whether the local server should listen for, and attempt to
+synchonize to, broadcast NTP.  The default is \*(L"no\*(R".
+.PP
+.B broadcastdelay
+.I seconds
+.PP
+Specifies the default round trip delay to the host whose broadcasts
+are being synchronized to.  The value is specified in seconds and is
+typically (for ethernet) a number between 0.007 and 0.015 seconds.  This
+initial estimate may be improved by polling each server to determine a
+more accurate value.  Defaults to 0.008 seconds.
+.PP
+.B "authenticate yes|no"
+.PP
+Indicates whether the local server should operate in authenticate mode
+or not.  If \*(L"yes\*(R", only peers which include an authentication field
+encrypted with one of our trusted keys (see below) will be considered
+as candidates for synchonizing to.  The default is \*(L"no\*(R".
+.PP
+.B authdelay
+.I seconds
+.PP
+Indicates the amount of time it takes to encrypt an NTP authentication
+field on the local computer.  This value is used to correct transmit
+timestamps when the authentication is used on outgoing packets.  The
+value usually lies somewhere in the range 0.0001 seconds to 0.003 seconds,
+though it is very dependent on the CPU speed of the host computer.  The
+value is usually computed using the
+.I authspeed
+program included with the distribution.
+.PP
+.B keys
+.I filename
+.PP
+Specifies the name of a file which contains the encryption keys which
+are to be used by
+.IR xntpd .
+The format of this file is described below.
+.PP
+.B trustedkey
+.I #
+[
+.I "# ..."
+]
+.PP
+Allows the specification of the encryption key numbers which are trusted
+for the purposes of determining peers suitable for time sychonization,
+when authentication is enabled.  Only peers using one of these keys for
+encryption of the authentication field, and whose authenticity can be
+verified by successful decryption, will be considered as synchonization
+candidates.  The arguments are 32 bit unsigned integers.  Note, however,
+that NTP key 0 is fixed and globally known.  If meaningful authentication
+is to be performed the 0 key should not be trusted.
+.PP
+.B requestkey
+.I #
+.PP
+.I Xntpd
+allows run time reconfiguration to be performed using the
+.IR xntpdc (8)
+program.  Such requests must be authenticated.  The
+.B requestkey
+statement allows the specification of a 32 bit unsigned integer
+key number to be used for authenticating such requests.  Note that
+if no
+.B requestkey
+statement is included in the configuration file the run time reconfiguration
+facility will be disabled.
+.PP
+.B controlkey
+.I #
+.PP
+Certain changes can be made to the
+.I xntpd
+server via mode 6 control messages, in particular the setting of
+leap second indications in a server with a radio clock.  The
+.B controlkey
+statement specifies an encription key number to be used for authenticating
+such messages.  Omitting this statement will cause control messages
+which would change the state of the server to be ignored.
+.PP
+.B restrict
+.I address
+[
+.B mask
+.I numeric_mask
+] [
+.I flag
+] [
+.I ...
+]
+.PP
+.I Xntpd
+implements a general purpose address\-and\-mask based restriction
+list.  The list is sorted by address and by mask, and the list is
+searched in this order for matches, with the last match found defining
+the restriction flags associated with the incoming packets.  The source
+address of incoming packets is used for the match, with the 32 bit address
+being and'ed with the mask associated with the restriction entry and
+then compared with the entry's address (which has also been and'ed with
+the mask) to look for a match.  The \*(L"mask\*(R" argument defaults
+to 255.255.255.255, meaning that the \*(L"address\*(R" is treated as the
+address of an individual host.  A default entry (address 0.0.0.0, mask
+0.0.0.0) is always included and, given the sort algorithm, is always the
+first entry in the list.  Note that, while \*(L"address\*(R" is normally
+given as a dotted\-quad address, the text string \*(L"default\*(R", with
+no mask option, may be used to indicate the default entry.
+.PP
+In the current implementation flags always restrict access, i.e. an entry
+with no flags indicates that free access to the server is to be given.  The
+flags are not orthogonal, in that more restrictive flags will often make
+less restrictive ones redundant.  The flags can generally be classed into
+two catagories, those which restrict time service and those which restrict
+informational queries and attempts to do run time reconfiguration of the
+server.  One or more of the following flags may be specified:
+.Ip ignore 10
+Ignore all packets from hosts which match this entry.  If this flag
+is specified neither queries nor time server polls will be responded
+to.
+.Ip noquery 10
+Ignore all NTP mode 6 and 7 packets (i.e. information queries and configuration
+requests) from the source.  Time service is not affected.
+.Ip nomodify 10
+Ignore all NTP mode 6 and 7 packets which attempt to modify the state of the
+server (i.e. run time reconfiguration).  Queries which return information
+are permitted.
+.Ip notrap 10
+Decline to provide mode 6 control message trap service to matching
+hosts.  The trap service is a subsystem of the mode 6 control message
+protocol which is intended for use by remote event logging programs.
+.Ip lowpriotrap 10
+Declare traps set by matching hosts to be low priority.  The number
+of traps a server can maintain is limited (the current limit is 3).
+Traps are usually assigned on a first come, first served basis, with
+later trap requestors being denied service.  This flag modifies the
+assignment algorithm by allowing low priority traps to be overridden
+by later requests for normal priority traps.
+.Ip noserve 10
+Ignore NTP packets whose mode is other than 6 or 7.  In effect, time service is
+denied, though queries may still be permitted.
+.Ip nopeer 10
+Provide stateless time service to polling hosts, but do not allocate peer
+memory resources to these hosts even if they otherwise might be considered
+useful as future synchronization partners.
+.Ip notrust 10
+Treat these hosts normally in other respects, but never use them as
+synchronization sources.
+.Ip ntpport 10
+This is actually a match algorithm modifier, rather than a restriction
+flag.  Its presence causes the restriction entry to be matched only if
+the source port in the packet is the standard NTP UDP port (123).  Both
+\*(L"ntpport\*(R" and non\-\*(L"ntpport\*(R" may be specified.  The
+\*(L"ntpport\*(R" is considered more specific and is sorted later in the
+list.
+.PP
+Default restriction list entries, with the flags \*(L"ignore, ntpport\*(R",
+for each of the local host's interface addresses are inserted into the
+table at startup to prevent the server from attempting to synchronize to
+its own time.  A default entry is also always present, though if it is
+otherwise unconfigured no flags are associated with the default entry (i.e.
+everything besides your own NTP server is unrestricted).
+.PP
+The restriction facility was added to allow the current access policies
+of the time servers running on the NSFnet backbone to be implemented with
+.I xntpd
+as well.  While this facility may be otherwise useful for keeping unwanted or
+broken remote time servers from affecting your own, it should not be
+considered an alternative to the standard NTP authentication facility.  Source
+address based restrictions are easily circumvented by a determined cracker.
+.PP
+.B trap
+.I host_address
+[
+.B port
+.I port_number
+] [
+.B interface
+.I interface_addess
+]
+.PP
+Configures a trap receiver at the given host address and port number, 
+sending messages with the specified local interface address.  If the
+port number is unspecified a value of 18447 is used.  If the interface
+address is not specified the message is sent with a source address
+which is that of the local interface the message is sent through.  Note
+that on a multihomed host the interface used may vary from time to time
+with routing changes.
+.PP
+The trap receiver will generally log event messages and other information
+from the server in a log file.  While such monitor programs may also
+request their own trap dynamically, configuring a trap receiver will
+ensure that no messages are lost when the server is started.
+.PP
+.B maxskew
+.I seconds
+.PP
+This command is obsolete and not available in this version of
+.I xntpd.
+.PP
+.B select
+.I algorithm_number
+.PP
+This command is obsolete and not available in this version of
+.I xntpd.
+.PP
+.B resolver
+.I /path/xntpres
+.PP
+Normally, names requiring resolution (rather than numeric addresses)
+in the configuration file are resolved by code internal to
+.I xntpd;
+However, in those cases that require it, the code can be installed
+in a standalone program called
+.I xntpres.
+In these cases the full path to the
+.I xntpres
+program is given as the argument the command.
+As
+.I xntpres
+makes use of mode 7 runtime reconfiguration, this facility must also be
+enabled if the procedure is to exceed (see the
+.B requestkey
+and
+.B keys
+statements above).
+.PP
+.B statsdir
+.I /directory path/
+.PP
+Indicates the full path of a directory where statistics files should
+be created (see below). This keyword allows the (otherwise constant) filegen
+filename prefix to be modified for file generation sets used for
+handling statistics logs (see
+.B filegen
+statement below).
+.PP
+.B statistics
+.IR name \.\.\.
+.PP
+Enables writing of statistics records.
+Currently, three kinds of statistics are supported.
+.Ip loopstats 10
+enables recording of loop filter statistics information.
+Each update of the local clock outputs a line of the
+following form to the file generation set named \*(L"loopstats\*(R": 
+.PP
+.RS 5
+48773 10847.650 0.0001307 17.3478 2
+.RE
+
+.RS 10
+The first two fields show the date (Modified Julian Day) and time (seconds
+and fraction past UTC midnight). The next three fields show time offset
+in seconds, frequency offset in parts-per-million and time constant of
+the clock-discipline algorithm at each update of the clock.
+.RE
+.Ip peerstats 10
+enables recording of peer statistics information. This includes
+statistics records of all peers of a NTP server and of the 1-pps signal,
+where present and configured. Each
+valid update appends a line of the following form to the current
+element of a file generation set named \*(L"peerstats\*(R":
+.PP
+.RS 5
+48773 10847.650 127.127.4.1 9714 -0.001605 0.00000 0.00142
+.RE
+
+.RS 10
+The first two fields show the date (Modified Julian Day) and time (seconds
+and fraction past UTC midnight). The next two fields show the peer
+address in dotted-quad notation and status,
+respectively. The status field is encoded in hex in the format described
+in Appendix A of the NTP specification RFC 1305. The final three fields
+show the offset, delay and dispersion, all in seconds.
+.RE
+.Ip clockstats 10
+enables recording of clock driver statistics information. Each update
+received from a clock driver outputs a line of the following form to the
+file generation set named \*(L"clockstats\*(R":
+.PP
+.RS 5
+49213 525.624 127.127.4.1   93 226 00:08:29.606  D
+.RE
+
+.RS 10
+The first two fields show the date (Modified Julian Day) and time (seconds
+and fraction past UTC midnight). The next field shows the clock
+address in dotted-quad notation, The final field shows the last timecode
+received from the clock in decoded ASCII format, where meaningful. In
+some clock drivers a good deal of additional information can be gathered
+and displayed as well. See information specific to each clock
+for further details.
+.RE
+.PP
+Statistic files are managed using file generation sets (see 
+.B filegen
+below). The information obtained by enabling statistics recording
+allows analysis of temporal properties of a
+.I xntpd
+server. It is usually only useful to primary servers or maybe main
+campus servers.
+.PP
+.B filegen
+.I name
+[
+.B file
+.I filename
+] [
+.B type
+.I typename
+] [
+.B flag
+.I flagval
+] [
+.BR link \| nolink
+] [
+.BR enable \| disable
+]
+.PP
+Configures setting of generation file set
+.IR name .
+Generation file sets provide a means for handling files that are
+continously growing during the lifetime of a server. Server statistics
+are a typical example for such files. Generation file sets provide
+access to a set of files used to store the actual data. At any time at
+most one element of the set is being written to. The 
+.I type
+given specifies when and how data will be directed to a new element
+of the set. This way, information stored in elements of a file set
+that are currently unused are available for administrational
+operations
+without the risc of desturbing the operation of
+.IR xntpd .
+(Most important: they can be removed to free space for new data
+produced.)
+Filenames of set members are built from three elements.
+.Ip prefix 10
+This is a constant filename path. It is not subject to modifications
+via the 
+.B filegen
+statement. It is defined by the server, usually specified as a compile
+time constant. It may, however, be configurable for individual file
+generation sets via other commands. For example, the prefix used with
+"loopstats" and  "peerstats" filegens can be configured using the
+.B statsdir 
+statement explained above.
+.Ip filename 10
+This string is directly concatenated to the
+.I prefix
+mentioned above (no intervening \*(L'/\*(R' (slash)). This can be
+modified using the \*(L"file\*(R" argument to the \*(L"filegen\*(R"
+statement. No  \*(L"..\*(R" elements are allowed in this component to
+prevent filenames referring to parts outside the filesystem hierarchy
+denoted by  \*(L"prefix\*(R".
+.Ip suffix 10
+This part is reflects individual elements of a file set. It is generated
+according to the 
+.I type
+of a file set as explained below.
+.PP
+A file generation set is characterized by its type.
+The following types are supported:
+.Ip none 10
+The file set is actually a single plain file.
+.Ip pid 10
+One element of file set is used per incarnation of a
+.I xntpd
+server. This type does not perform any changes to file set members
+during runtime, however it provides an easy way of seperating files
+belonging to different 
+.I xntpd
+server incarnations.
+The set member filename is built by appending a dot (\*(L'.\*(R') to
+concatentated \*(L"prefix\*(R" and \*(L"filename\*(R" strings, and
+appending the decimal representation of the process id of the 
+.I xntpd
+server process.
+.Ip day 10
+One file generation set element is created per day. The term
+.I day
+is based on 
+.IR UTC .
+A day is defined as the period between 00:00 and 24:00 UTC.
+The file set member suffix consists of a dot \*(L".\*(R"
+and a day specification in the form 
+.RI < YYYYMMDD >.
+.I YYYY
+is a 4 digit year number (e.g. 1992).
+.I MM
+is a two digit month number.
+.I DD
+is a two digit day number.
+Thus, all information written at December 10th, 1992 would end up
+in a file named
+\*(L"<prefix><filename>.19921210\*(R".
+.Ip week 10
+Any file set member contains data related to a certain week of a year.
+The term
+.I week
+is definied by computing \*(L"day of year\*(R" modulo 7. Elements of
+such a file generation set are distinguished by appending the
+following suffix to the file set  filename base: 
+A dot, a four digit year number, the letter \*(L"W\*(R",
+and a two digit week number. For example, information from Jamuary,
+10th 1992 would end up in a file with suffix \*(L".1992W1\*(R". 
+.Ip month 10
+One generation file set element is generated per month. The file name
+suffix consists of a dot, a four digit year number, and a two digit
+month.
+.Ip year 10
+One generation file elment is generated per year. The filename suffix
+consists of a dot and a 4 digit year number.
+.Ip age 10
+This type of file generation sets changes to a new element of the file
+set every 24 hours of server operation. The filename suffix consists
+of a dot, the letter \*(L"a\*(R", and an eight digit number. This
+number is taken to be the number of seconds the server is running at
+the start of the corresponding 24 hour period. 
+.PP
+Information is only written to a file generation set when this set is
+\*(L"enabled\*(R". Output is prevented by specifying
+\*(L"disabled\*(R". 
+.PP
+It is convenient to be able to access the 
+.I current
+element of a file generation set by a fixed name. This feature is
+enabled by specifying \*(L"link\*(R" and disabled using
+\*(L"nolink\*(R". If \*(L"link\*(R" is specified, a hard link from the
+current file set element to a file without suffix is created. When
+there is already a file with this name and the number of links of this
+file is one, it is renamed appending a dot, the letter \*(L"C\*(R",
+and the pid of the
+.I xntpd
+server process. When the number of links is greater than one, the file
+is unlinked. This allows the current file to be accessed by a constant
+name. 
+.SH "AUTHENTICATION KEY FILE FORMAT"
+.PP
+The NTP standard specifies an extension allowing
+verification of the authenticity of received NTP packets, and to provide
+an indication of authenticity in outgoing packets.  This is implemented
+in
+.I xntpd
+using the DES encryption algorithm.  The specification
+allows any one of a possible 4 billion keys, numbered with 32 bit unsigned
+integers, to be used to
+authenticate an association.  The servers involved in an association
+must agree on the value of the key used to authenticate their data, though
+they must each learn the key independently.  The keys are standard 56 bit
+DES keys.
+.PP
+Addionally, a new experimental authentication algorithm is available which
+uses an MD5 message digest to compute an authenticator.  Currently the length
+of the key or password is limited to 8 characters, but this will eventually
+be changed to accomodate an effectively unlimited password phrase.
+.I Xntpd
+reads its keys from a file specified using the
+.B -k
+command line option or the
+.B keys
+statement in the configuration file.  While key number 0 is fixed by the
+NTP standard (as 56 zero bits) and may not be changed, one or more of
+the keys numbered 1 through 15 may be arbitrarily set in the keys file.
+.PP
+The key file uses the same comment conventions as the configuration
+file.  Key entries use a fixed format of the form
+.Ip "" 5
+.I "keyno  type  key"
+.PP
+where \*(L"keyno\*(R" is a positive integer,
+\*(L"type\*(R" is a single character which defines the format the key
+is given in, and \*(L"key\*(R" is the key itself.
+.PP
+The key may be given in one of three different formats, controlled by
+the \*(L"type\*(R" character.  The three key types, and corresponding
+formats, are listed following.
+.Ip "S" 5
+The \*(L"key\*(R" is a 64 bit hexadecimal number in the format specified
+in the DES document, that is the high order 7 bits of each octet are used
+to form the 56 bit key while the low order bit of each octet is given a
+value such that odd parity is maintained for the octet.  Leading zeroes
+must be specified (i.e. the key must be exactly 16 hex digits long) and
+odd parity must be maintained.  Hence a zero key, in standard format,
+would be given as
+.I 0101010101010101 .
+.Ip "N" 5
+The \*(L"key\*(R" is a 64 bit hexadecimal number in the format specified
+in the NTP standard.  This is the same as the DES format except the bits
+in each octet have been rotated one bit right so that the parity bit is
+now the high order bit of the octet.  Leading zeroes must be specified
+and odd parity must be maintained.  A zero key in NTP format would be specified
+as
+.I 8080808080808080
+.Ip "A" 5
+The \*(L"key\*(R" is a 1\-to\-8 character ASCII string.  A key is formed
+from this by using the lower order 7 bits of the ASCII representation
+of each character in the string, with zeroes being added on the right
+when necessary to form a full width 56 bit key, in the same way that
+encryption keys are formed from Unix passwords.
+.Ip "M" 5
+The \*(L"key\*(R" is a 1\-to\-8 character ASCII string, using the MD5
+authentication scheme.  Note that both the keys and the authentication
+schemes (DES or MD5) must be identical between a set of peers sharing 
+the same key number.
+.PP
+One of the keys may be chosen,
+by way of the configuration file
+.B requestkey
+statement, to authenticate run time configuration
+requests made using the
+.IR xntpdc (8)
+program.  The latter program obtains the key from the terminal as
+a password, so it is generally appropriate to specify the key chosen
+to be used for this purpose in ASCII format.
+.SH PRIMARY CLOCK SUPPORT
+.PP
+.I Xntpd
+can be optionally compiled to include support for a number of types
+of reference clocks.  A reference clock will generally (though
+not always) be a radio timecode receiver which is synchronized to a
+source of standard time such as the services offered by the NRC in
+Canada and NIST in the U.S.  The interface between the computer and
+the timecode receiver is device dependent and will vary, but is
+often a serial port.
+.PP
+For the purposes of configuration,
+.I xntpd
+treats reference clocks in a manner analogous to normal NTP peers
+as much as possible.  Reference clocks are referred to by address,
+much as a normal peer is, though an invalid IP address is used to
+distinguish them from normal peers.  Reference clock addresses are
+of the form
+.I 127.127.t.u
+where
+.I t
+is an integer denoting the clock type and
+.I u
+indicates the type\-specific unit number.  Reference clocks are normally
+enabled by configuring the clock as a server using a
+.B server
+statement in the configuration file which references the clock's
+address (configuring a reference clock with a
+.B peer
+statement can also be done, though with some clock drivers this may cause
+the clock to be treated somewhat differently and by convention is used
+for debugging purposes).  Clock addresses may generally
+be used anywhere else in the configuration file a normal IP address
+can be used, for example in
+.B restrict
+statements.
+.PP
+There is one additional configuration statement which becomes valid
+when reference clock support has been compiled in.  Its format is:
+.PP
+.B fudge
+.I 127.127.t.u
+[
+.B time1
+.I secs
+] [
+.B time2
+.I secs
+] [
+.B value1
+.I int
+] [
+.B value2
+.I int
+] [
+.B flag1
+.I 0|1
+] [
+.B flag2
+.I 0|1
+]
+.PP
+There are two times (whose values are specified in fixed point seconds),
+two integral values and two binary flags available for customizing
+the operation of a clock.  The interpretation of these values, and
+whether they are used at all, is a function of the needs of the particular
+clock driver.
+.PP
+.I Xntpd
+on Unix machines currently supports several different types of clock hardware
+plus a special pseudo\-clock used for backup or when no other clock
+source is available.  In the case of most of the clock drivers, support
+for a 1-pps precision timing signal is available as described in the
+pps.txt file in the doc directory of the xntp3 distribution. 
+The clock drivers, and the addresses used to configure
+them, are described following:
+.PP
+.B 127.127.1.u
+\- Local synchronization clock driver
+.PP
+This driver doesn't support an actual clock, but rather allows the
+server to synchronize to its own clock, in essence to free run without
+its stratum increasing to infinity.  This can be used to run an
+isolated NTP synchronization network where no standard time source is
+available, by allowing a free running clock to appear as if it has
+external synchronization to other servers.  By running the local clock
+at an elevated stratum it can also be used to prevent a server's stratum
+from rising above a fixed value, this allowing a synchronization subnet
+to synchonize to a single local server for periods when connectivity
+to the primary servers is lost.
+.PP
+The unit number of the clock (the least significant octet in the address)
+must lie in the range 0 through 15 inclusive and is used as the stratum
+the local clock will run at.  Note that the server, when synchronized
+to the local clock, will advertise a stratum one greater than the clock
+peer's stratum.  More than one local clock may be configured (indeed all
+16 units may be active at once), though this hardly seems useful.
+.PP
+The local clock driver uses only the fudge time1 parameter.  This parameter
+provides read and write access to the local clock drift compensation
+register.  This value, which actually provides a fine resolution speed
+adjustment for the local clock, is settable but will remain unchanged
+from any set value
+when the clock is free running without external synchronization.  The
+fudge time1 parameter thus provides a way to manually adjust the speed of the
+clock to maintain reasonable synchronization with, say, a voice
+time announcement.  It is actually more useful to manipulate this value
+with the
+.IR xntpdc (8)
+program.
+.PP
+.B 127.127.3.u
+\- Precision Standard Time/Traconex 1010/1020 WWV/H Receiver
+.PP
+This driver can be used with a PST/Traconex Time Source 1010 or 1020 WWV/WWVH
+Synchronized Clock connected via a serial port.  Up to
+four units, with unit numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/pst%d (i.e. unit 1, at 127.127.3.1, opens the clock at
+/dev/pst1) and that the clock is configured for 9600-baud operation.
+.PP
+The fudge time1 and time2 parameters are configured directly into the receiver
+as nominal propagation delays when synchronized to WWV and WWVH,
+respectively; the internal DIPswitches ordinarily used for that purpose
+are disabled. The default values are 0.0075 and 0.0265 seconds,
+respectively, which are about right for Toronto.  Values for other
+locations can be calculated using the
+.I propdelay
+program in the util directory of the xntp3 distribution or equivalent
+means described in the user's manual.
+.PP
+The fudge value1 parameter can be used to set the stratum at which
+the peer operates.  The default is 0, which is correct if you want the
+clock to be considered for synchonization whenever it is operating, though
+higher values may be assigned if you only want the clock to provide backup
+service when all other primary sources have failed.  The value2 parameter
+is set to the number of minutes which the daemon will allow the clock to go
+without synchronization before it starts disbelieving it.  The default
+is 20, which is suitable if you have good quality backup NTP peers.  If
+your network is isolated or your network connections are poor it might
+be advantageous to increase this value substantially.
+.PP
+The fudge flag1 can be used to modifiy the averaging algorithm used
+to smooth the clock indications. Ordinarily, the algorithm picks the
+median of a set of samples, which is appropriate under conditions
+of poor to fair radio propagation conditions. If the clock is located
+relatively close to the WWV or WWVH transmitters, setting this flag
+will cause the algorithm to average the set of samples, which can
+reduce the residual jitter and improve accuracy.
+.PP
+The fudge flag2 can be used to force the driver to send to
+the clock the commands required to reprogram the current WWV and WWVH fudge
+delays into it.  This is normally done only when the values are to be changed,
+such as during inital setup and calibration.  Setting
+the (otherwise undocumented) fudge flag3 will cause the driver to reset
+the clock.  The latter two flags are generally useful primarily for debugging.
+.PP
+127.127.4.u
+\- Spectracom 8170 and Netclock/2 WWVB Synchronized Clocks
+.PP
+This driver can be used with a Spectracom 8170 or Netclock/2 WWVB
+Synchronized Clock connected via a serial port.  Up to
+four units, with unit numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/wwvb%d (i.e., unit 1 at 127.127.4.1 opens the clock at
+/dev/wwvb1) and that the clock is configured for 9600-baud operation.
+.PP
+The fudge time1 parameter can be used to compensate for inherent
+latencies in the serial port hardware and operating system.
+The value, which defaults to zero, is in addition to the value
+programmed by the propagation switches on the receiver. The
+fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+.PP
+.B 127.127.5.u
+\- Kinemetrics/TrueTime Timing Receivers
+.PP
+This driver can be used with at least two models of Kinemetrics/TrueTime
+Timing Receivers, the 468-DC MK III GOES Synchronized Clock and GPS-DC
+MK III GPS Synchronized Clock and very likely others in the same model
+family that use the same timecode formats. The clocks are connected
+via a serial port.  Up to
+four units, with unit numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/goes%d (i.e., unit 1 at 127.127.5.1 opens the clock at
+/dev/goes1) and that the clock is configured for 9600-baud operation.
+.PP
+The fudge time1 parameter can be used to compensate for inherent
+latencies in the serial port hardware and operating system in the same
+way as described above for the WWVB clock 127.127.4.u.
+The fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+.PP
+.B 127.127.6.0
+\- IRIG-B Audio Decoder
+.PP
+This driver can be used in conjuction with the Inter-Range Instrumentation
+Group standard time-distribution signal IRIG-B. This signal is generated
+by several radio clocks, including those made by Austron, TrueTime, Odetics
+and Spectracom, among others, although it is generally an add-on option.
+The signal is connected via an attenuator box and cable to the audio
+codec input on a Sun SPARCstation and requires a specially modified
+kernel audio driver. Details are in the irig.txt file in the doc
+directory of the xntp3 distribution.  As only a single audio codec
+is built into a workstation, the driver assumes the device name is /dev/irig.
+.PP
+Timing jitter using the decoder and a Sun IPC is in the order of a few 
+microseconds, although the overal timing accuracy is limited by the
+wander of the CPU oscillator used for timing purposes to a few hundred
+microseconds.  These figures are comparable with what can be achieved
+using the 1-pps signal described in the pps.txt file in the doc 
+directory of the xntp3 distribution. 
+.PP
+.B 127.127.7.u
+\- CHU Modem Decoder
+.PP
+This driver can be used with a shortwave receiver and special modem
+circuitry described in the gadget directory of the xntp3 distribution.
+It requires the chu-clk line discipline or chu_clk STREAMS module
+described in the kernel directory of that distribution. It is connected
+via a serial port operating at 300 baud.  Up to
+four units, with unit numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/chu%d (i.e., unit 1 at 127.127.7.1 opens the clock at
+/dev/chu1).
+.PP
+Unlike the NIST time services, whose timecode requires quite specialized
+hardware to interpret, the CHU timecode can be received directly via
+a serial port after demodulation.  While there are currently no commercial
+CHU receivers, the hardware required to receive the CHU timecode is fairly
+simple to build.  While it is possible to configure several CHU units
+simultaneously this is not recommended as the character interrupts from all
+units will be occuring at the same time and will interfere with each other.
+.PP
+The fudge time1 parameter is used to specify the propagation delay between
+the CHU transmitter at Ottawa, Ontario, and the receiver. The default
+value is 0.0025 seconds, which is about right for Toronto.  Values for other
+locations can be calculated using the
+.I propdelay
+program in the util directory of the xntp3 distribution or equivalent
+means.
+The fudge time2
+parameter is used to compensate for inherent latencies in the modem,
+serial port hardware and operating system in the same way as described
+above for the WWVB clock 127.127.4.u. The default value is
+0.0002 seconds, which is about right for typical telephone modem chips.
+The fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+The fudge flag1 can be used to modify the averaging algorithm in the
+same way as described for that clock.
+.PP
+.B 127.127.8.u
+\- Synchronisation to several receivers (DCF77, GPS)
+.PP
+The timecode of
+the receivers will be sampled via a STREAMS module in the kernel (The STREAMS module
+has been designed for use with SUN Systems under SunOS 4.1.x. It can be
+linked directly into the kernel or loaded via the loadable driver mechanism)
+This STREAMS module can be adepted to be able to convert different time code
+formats.
+If the daemon is compiled without the STREAM definition synchronisation
+will work without the Sun streams module, though accuracy is significantly
+degraded.
+.br
+The actual receiver status is mapped into various synchronisation
+states generally used by receivers. The STREAMS module is configured to
+interpret the time codes of DCF U/A 31, PZF535, GPS166, Trimble SV6 GPS, ELV DCF7000,
+Schmid and low cost receivers (see list below).
+.br
+The reference clock support in xntp contains the necessary configuration tables
+for those receivers. In addition to supporting up to 32 different clock types and
+4 devices the generation a a PPS signal is also provided as an configuration
+option. The PPS configuration option uses the receiver generated time stamps
+for feeding the PPS loopfilter control for much finer clock synchronisation.
+.br
+CAUTION: The PPS configuration option is different from the hardware PPS signal,
+which is also supported (see below), as it controls the way xntpd is synchronised
+to the reference clock, while the hardware PPS signal controls the way time
+offsets are determined.
+.br
+The use of the PPS option requires receivers with an accuracy of better than 1ms.
+.PP
+Fudge factors
+.PP
+Only two fudge factors are utilized. The
+.I time1
+fudge factor defines the phase offset of the sychnronisation character to the actual
+time.
+On the availability of PPS information the
+.I time2
+fudge factor show the difference betwteen the PPS time stamp and the reception
+time stamp of the serial signal. This parameter is read only attempts to
+set this parameter will be ignored.
+The
+.I flag0
+enables input filtering. This a median filter with continuous sampling. The
+.I flag1
+selects averaging of the samples remaining after the filtering. Leap second
+handling is controlled with the
+.I flag2.
+When set a leap second will be deleted on receipt of a leap second indication
+from the receiver. Otherwise the leap second will be added (which is the default).
+.PP
+.I ntpq
+timecode variable
+.PP
+The timecode variable in the ntpq read clock variable command contains several
+fields. The first field is the local time in Unix format. The second field is
+the offset to UTC (format HHMM). The currently active receiver flags are listed
+next. Additional feature flags of the receiver are optionally listed in paranthesis.
+The actual time code is enclosed in angle brackets < >. A qualification of the
+decoded time code format is following the time code. The last piece of information
+is the overall running time and the accumulated times for the clock event states.
+.PP
+Unit encoding
+.PP
+The unit field <u> encodes the device, clock type and the PPS generation option.
+There are 4 possible devices which are encoded in the lower 2 bits of the <u>
+field. The devices are named
+.IR /dev/refclock-0
+through
+.IR /dev/refclock-3 .
+Bits 2 thru 6 encode the clock type. The fudge factors
+of the clock type are take from a table
+.I clockinfo
+in refclock_parse.c. The generation of PPS information for disciplining the
+local NTP clock is encoded in bit 7 of <u>.
+.PP
+Currently nine clock types (devices /dev/refclock-0 - /dev/refclock-3) are supported.
+.Ip 127.127.8.0-3 16
+Meinberg PZF535 receiver (FM demodulation/TCXO / 50us)
+.Ip 127.127.8.4-7 16
+Meinberg PZF535 receiver (FM demodulation/OCXO / 50us)
+.Ip 127.127.8.8-11 16
+Meinberg DCF U/A 31 receiver (AM demodulation / 4ms)
+.Ip 127.127.8.12-15 16
+ELV DCF7000 (sloppy AM demodulation / 50ms)
+.Ip 127.127.8.16-19 16
+Walter Schmid DCF receiver Kit (AM demodulation / 1ms)
+.Ip 127.127.8.20-23 16
+RAW DCF77 100/200ms pulses (Conrad DCF77 receiver module / 5ms)
+.Ip 127.127.8.24-27 16
+RAW DCF77 100/200ms pulses (TimeBrick DCF77 receiver module / 5ms)
+.Ip 127.127.8.28-31 16
+Meinberg GPS166 receiver (GPS / <<1us)
+.Ip 127.127.8.32-35 16
+Trimble SV6 GPS receiver (GPS / <<1us)
+.PP
+The reference clock support carefully monitors the state transitions of
+the receiver. All state changes and exceptional events such as loss of time code
+transmission are logged via the
+.I syslog
+facility.
+Every hour a summary of the accumulated times for the clock states is
+listed via syslog.
+.PP
+PPS support is only available when the receiver is completely
+synchronised. The receiver is believed to deliver correct time for an additional
+period of time after losing sychronisation unless a disruption in time code
+transmission is detected (possible power loss). The trust period is dependent
+on the receiver oscillator and thus a function of clock type. This is one of
+the parameters in the
+.I clockinfo
+field of the reference clock implementation. This parameter cannot be
+configured by xntpdc.
+.PP
+In addition to the PPS loopfilter control a true PPS hardware signal can be applied
+on Sun Sparc stations via the CPU serial ports on the CD pin. This signal is
+automatically detected and will be used for offset calculation. The input signal
+must be the time mark for the following time code. (The edge sensitivity can be
+selected - look into the appropriate kernel/parsestreams.c for details).
+Meinberg receivers can be connected by feeding the PPS pulse of the receiver via
+a 1488 level converter to Pin 8 (CD) of a Sun serial zs\-port.
+.PP
+There exists a special firmware release for the PZF535 Meinberg receivers.
+This release (PZFUERL 4.6 (or higher - The UERL is important)) is absolutely
+recommended for XNTP use, as it provides LEAP warning, time code time zone information
+and alternate antenna indication. Please check with Meinberg for this
+firmware release.
+For the Meinberg GPS166 receiver is also a special firmaware release available
+(Uni-Erlangen). This release must be used for proper operation.
+.PP
+The raw DCF77 pulses can be fed via a level converter directly into Pin 3 (Rx)
+of the Sun. The telegrams will be decoded an used for synchronisation.
+AM DCF77 receivers are running as low as $25. The accuracy is dependent on
+the receiver and is somewhere between 2ms (expensive) to 10ms (cheap).
+Upon bad signal reception of DCF77 sychronisation will cease as no backup
+oscillator is available as usually found in other reference clock receivers.
+So it is important to have a good place for the DCF77 antenna. For transmitter
+shutdowns you are out of luck unless you have other NTP servers with alternate
+time sources available.
+.PP
+127.127.9.u
+\- Magnavox MX4200 Navigation Receiver used as GPS Synchronized Clocks
+.PP
+This driver can be used with a Magnavox MX4200 Navigation Receiver
+adapted to precision timing applications. This requires an interface
+box described in the ppsclock directory of the xntp3 distribution.
+It is connected via a serial port and requires the ppsclock STREAMS
+module described in the same directory.  Up to
+four units, with unit numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/gps%d (i.e., unit 1 at 127.127.9.1 opens the clock at
+/dev/gps1) and that the clock is configured for 9600-baud operation.
+.PP
+The fudge time1 parameter can be used to compensate for inherent
+latencies in the serial port hardware and operating system in the
+same way described above for the WWVB clock 127.127.4.u.  The
+fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+.PP
+127.127.10.u
+\- Austron 2200A/2201A GPS/LORAN Synchronized Clock and Timing Receiver
+.PP
+This driver can be used with an Austron 2200A/2201A GPS/LORAN Synchronized
+Clock and Timing Receiver connected via a serial port.  It supports
+several special features of the clock, including the Input Burffer Module,
+Output Buffer Module, IRIG-B Interface Module and LORAN Assist Module. It
+requires the RS232 Serial Interface module for communication with
+the driver. Up to four units (which hardly seems affordable), with unit
+numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/gps%d (i.e., unit 1 at 127.127.10.1 opens the clock at
+/dev/gps1) and that the clock is configured for 9600-baud operation.
+.PP
+The fudge time1 parameter can be used to compensate for inherent
+latencies in the serial port hardware and operating system in the
+same way described above for the WWVB clock 127.127.4.u.  The
+fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+.PP
+This receiver is capable of a comprehensive and large volume of
+statistics and operational data. The specific data-collection
+commands and attributes are embedded in the driver source code;
+however, the collection process can be enabled or disabled
+using the flag4 flag. If set, collection is enabled; if not,
+which is the default, it is disabled. A comprehensive suite of data reduction
+and summary scripts is in the ./scripts/stats directory of the xntp
+distribution.
+.PP
+127.127.11.u
+\- Kinemetrics/TrueTime OMEGA-DC OMEGA Synchronized Clock
+.PP
+This driver can be used with a Kinemetrics/TrueTime OMEGA-DC OMEGA
+Synchronized Clock connected via a serial port.  This clock is
+sufficiently different than other Kinemetrics/TrueTime models
+to require a separate driver. Up to
+four units, with unit numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/omega%d (i.e., unit 1 at 127.127.11.1 opens the clock at
+/dev/omega1) and that the clock is configured for 9600-baud operation.
+.PP
+The fudge time1 parameter can be used to compensate for inherent
+latencies in the serial port hardware and operating system in the
+same way described above for the WWVB clock 127.127.4.u.  The
+fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+.PP
+127.127.12.0
+\- KSI/Odeteics TPRO IRIG-B Decoder
+.PP
+This driver can be used with a KSI/Odeteics TPRO or TPRO-SAT IRIG-B
+Decoder, which is a module connected directly to the SBus of a
+Sun workstation.  The module works with the IRIG-B signal generated
+by several radio clocks, including those made by Austron, TrueTime, Odetics
+and Spectracom, among others, although it is generally an add-on option.
+In the case of the TPRO-SAT, the module is an integral part of a GPS
+receiver, which serves as the primary timing source. 
+As only a single module of this type can be
+used on a single workstation, only the unit number 0 is acceptable.
+The driver assumes the device name is /dev/tpro0.
+.PP
+The fudge time1 parameter can be used to compensate for inherent
+latencies in the serial port hardware and operating system in the
+same way described above for the WWVB clock 127.127.4.u.  The
+fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+.PP
+127.127.13.u
+\- Leitch CSD 500 Controller with HP 5061A Atomic Clock
+.PP
+This driver can be used with a Leitch CSD 500 Controller
+connected to an HP 5061A Atomic Clock or equivalent primary timing source
+and connected via a serial port.  Up to
+four units, with unit numbers in the range 0 through 3, can be
+configured.  The driver assumes the serial port device name is
+/dev/leitch%d (i.e., unit 1 at 127.127.13.1 opens the clock at
+/dev/leitch1) and that the clock is configured for 300-baud operation.
+.PP
+The fudge time1 parameter can be used to compensate for inherent
+latencies in the serial port hardware and operating system in the
+same way described above for the WWVB clock 127.127.4.u.  The
+fudge value1 parameter can be used to specify the stratum of the clock
+in the same way described above for the WWV/WWVH clock 127.127.3.u.
+.PP
+127.127.14.u
+\- EES M201 MSF receiver
+.PP
+This driver can be used with an EES M201 MSF receiver connected
+to a Sun running SunOS 4.x with the "ppsclock" STREAMS module.
+.PP
+The fudge time1 and time2 parameters can be used to compensate for
+inherent latencies in the serial port hardware and operating system
+respectively in the same way described above for the WWVB clock 127.127.4.u.
+The bottom 4 bits of fudge value1 parameter can be used to specify
+the stratum of the clock in the same way described above for the
+WWV/WWVH clock 127.127.3.u.
+The fudge value2 parameter can be used to specify the debug mask.
+bit 0x1 causes logging of smoothing processing.
+bit 0x4 causes the clock buffer to be dumped.
+If flag1 is set, then the system clock is assumed to be sloppy
+(e.g. Sun4 with 20ms clock), so samples are averaged.
+If flag2 is set, then leaphold is set.
+If flag3 is set, then the sample information is dumped.
+If flag4 is set, then the input data is smoothed, and all data
+points are used.
+.SH FILES
+.Ip /etc/ntp.conf 20
+the default name of the configuration file
+.Ip /etc/ntp.drift 20
+the conventional name of the drift file
+.Ip /etc/ntp.keys 20
+the conventional name of the key file
+.SH SEE ALSO
+.PP
+.IR xntpdc (8),
+.IR ntpq (8),
+.IR ntpdate (8)
+.SH HISTORY
+.PP
+Written by Dennis Ferguson at the University of Toronto.
+Text amended by David Mills at the University of Delaware.
+.SH BUGS
+.PP
+.I Xntpd
+has gotten rather fat.  While not huge, it has gotten larger
+than might be desireable for an elevated\-priority daemon running on a
+workstation, particularly since many of the fancy features which
+consume the space were designed more with a busy primary server, rather
+than a high stratum workstation, in mind.  This will eventually be corrected
+either by adopting the
+.I ntpd
+daemon as an alternative when it becomes able to match
+.IR xntpd 's
+performance, or if not than by producing a stripped down version of
+.I xntpd
+specifically for workstation use.
