@@ -178,13 +178,13 @@ tapmodevent(mod, type, data)
 			goto bail2;
 		}
 
-		if (!devfs_present) {
-			error = cdevsw_add(&tap_cdevsw);
-			if (error != 0) {
-				EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-				goto bail2;
-			}
+#ifdef NODEVFS
+		error = cdevsw_add(&tap_cdevsw);
+		if (error != 0) {
+			EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
+			goto bail2;
 		}
+#endif
 
 		return (0);
 bail2:
@@ -229,8 +229,9 @@ bail:
  		if (tapbasedev != NOUDEV)
 			destroy_dev(udev2dev(tapbasedev, 0));
 
-                if (!devfs_present)
-                        cdevsw_remove(&tap_cdevsw);
+#ifdef NODEVFS
+		cdevsw_remove(&tap_cdevsw);
+#endif
 
 		break;
 
