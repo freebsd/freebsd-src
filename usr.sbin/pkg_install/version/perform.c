@@ -132,7 +132,7 @@ pkg_do(char *pkg)
     snprintf(tmp, PATH_MAX, "%s/%s/%s", LOG_DIR, pkg, CONTENTS_FNAME);
     fp = fopen(tmp, "r");
     if (!fp) {
-	warnx("unable to open %s file", CONTENTS_FNAME);
+	warnx("the package info for package '%s' is corrupt", pkg);
 	return 1;
     }
     read_plist(&plist, fp);

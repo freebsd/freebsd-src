@@ -307,8 +307,9 @@ matchbyorigin(const char *origin, int *retval)
 }
 
 /*
- * Return TRUE if the specified package is installed,
- * or FALSE otherwise.
+ * 
+ * Return 1 if the specified package is installed,
+ * 0 if not, and -1 if an error occured.
  */
 int
 isinstalledpkg(const char *name)
@@ -318,13 +319,13 @@ isinstalledpkg(const char *name)
 
     snprintf(buf, sizeof(buf), "%s/%s", LOG_DIR, name);
     if (!isdir(buf) || access(buf, R_OK) == FAIL)
-	return FALSE;
+	return 0;
 
     snprintf(buf2, sizeof(buf2), "%s/%s", buf, CONTENTS_FNAME);
     if (!isfile(buf2) || access(buf2, R_OK) == FAIL)
-	return FALSE;
+	return -1;
 
-    return TRUE;
+    return 1;
 }
 
 /*

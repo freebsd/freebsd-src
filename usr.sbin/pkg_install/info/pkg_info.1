@@ -17,7 +17,7 @@
 .\"     @(#)pkg_info.1
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2001
+.Dd June 29, 2004
 .Dt PKG_INFO 1
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl bcdDEfgGiIkLmopPqQrRsvVxX
+.Op Fl bcdDEfgGijIkLmopPqQrRsvVxX
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -99,10 +99,12 @@ Show the install script (if any) for each package.
 .It Fl I
 Show an index line for each package.  This option takes
 precedence over all other package formatting options.
+.It Fl j
+Show the requirements script (if any) for each package.
 .It Fl k
 Show the de-install script (if any) for each package.
 .It Fl r
-Show the requirements script (if any) for each package.
+Show the list of packages on which each package depends.
 .It Fl R
 Show the list of installed packages which require each package.
 .It Fl m
