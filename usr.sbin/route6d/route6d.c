@@ -3261,9 +3261,15 @@ char *
 allocopy(p)
 	char *p;
 {
-	char *q = (char *)malloc(strlen(p) + 1);
+	int len = strlen(p) + 1;
+	char *q = (char *)malloc(len);
 
-	strcpy(q, p);
+	if (!q) {
+		fatal("malloc");
+		/*NOTREACHED*/
+	}
+
+	strlcpy(q, p, len);
 	return q;
 }
 
