@@ -1,4 +1,3 @@
-.\"	$NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\"
 .\" Copyright (c) 1996 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -34,6 +33,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
 .Dd June 16, 1996
@@ -65,7 +65,7 @@ releases memory at address
 .Fa addr
 that was previously allocated by
 .Fn malloc
-for re-use.
+for re-use.  The memory is not zeroed.
 The
 .Fn MALLOC
 macro variant is functionally equivalent to
@@ -124,7 +124,7 @@ that
 .Fn malloc
 queued.
 .It Dv M_WAITOK
-indicates that it is Ok to wait for resources.  It is unconveniently
+Indicates that it is Ok to wait for resources.  It is unconveniently
 defined as 0 so care should be taken never to compare against this value
 directly or try to AND it as a flag.  The default operation is to block
 until the memory allocation succeeds. 
@@ -134,6 +134,12 @@ can only return
 if 
 .Dv M_NOWAIT 
 is specified.
+.It Dv M_USE_RESERVE
+Indicates that the system can dig into its reserve in order to obtain the
+requested memory.  This option used to be called M_KERNEL but has been 
+renamed to something more obvious.  This option has been depreciated and is
+slowly being removed from the kernel, and so should not be used with any new
+programming.
 .El
 .Pp
 The
@@ -147,18 +153,19 @@ A
 .Fa type
 is defined using the
 .Va malloc_type_t
-typedef like this:
+typedef via the
+.Fn MALLOC_DECLARE
+and
+.Fn MALLOC_DEFINE
+macros.
 .Bd -literal -offset indent
 /* sys/something/foo_extern.h */
 
-extern malloc_type_t M_FOOBUF;
+MALLOC_DECLARE(M_FOOBUF);
 
 /* sys/something/foo_main.c */
 
-malloc_type_t M_FOOBUF = {
-	"Foo Buffers",
-	"Buffers for foo data in transit to the InfImpDrive"
-};
+MALLOC_DEFINE(M_FOOBUF, "foobuffers", "Buffers to foo data into the ether");
 
 /* sys/something/foo_subr.c */
 
