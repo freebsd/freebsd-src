@@ -941,12 +941,13 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
-	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	INP_UNLOCK(inp);
 outunlocked:
 	INP_INFO_RUNLOCK(&tcbinfo);
 	splx(s);
+	if (error == 0)
+		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
 }
 
@@ -1002,12 +1003,13 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
-	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	INP_UNLOCK(inp);
 outunlocked:
 	INP_INFO_RUNLOCK(&tcbinfo);
 	splx(s);
+	if (error == 0)
+		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
 }
 
