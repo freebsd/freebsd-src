@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.c,v 1.4 1995/11/20 12:14:02 phk Exp $
+ *      $Id: 93cx6.c,v 1.5 1996/05/30 07:19:54 gibbs Exp $
  */
 
 /*
@@ -90,13 +90,14 @@ read_seeprom(sd, buf, start_addr, count)
 	u_int16_t *buf;
 #if defined(__FreeBSD__)
 	u_int start_addr;
-	int count;
+	u_int count;
 #elif defined(__NetBSD__)
 	bus_io_size_t start_addr;
 	bus_io_size_t count;
 #endif
 {
-	int i = 0, k = 0;
+	int i = 0;
+	u_int k = 0;
 	u_int16_t v;
 	u_int8_t temp;
 
