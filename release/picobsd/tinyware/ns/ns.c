@@ -383,7 +383,7 @@ print_routing(char *proto)
 		free(if_buf);
 		free(if_table);
 		free(ifm_table);
-		return (0);
+		return;
 	}
 
 	/* Now dump the routing table */
@@ -439,7 +439,7 @@ print_routing(char *proto)
 	free(if_buf);
 	free(if_table);
 	free(ifm_table);
-	return (0);
+	return;
 
 }
 
