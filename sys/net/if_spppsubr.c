@@ -17,12 +17,12 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.48 1998/12/16 18:42:30 phk Exp $
+ * $Id: if_spppsubr.c,v 1.49 1998/12/26 12:14:31 phk Exp $
  */
 
 #include <sys/param.h>
 
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #endif
@@ -52,7 +52,7 @@
 #include <net/netisr.h>
 #include <net/if_types.h>
 
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <machine/random.h>
 #endif
 #if defined (__NetBSD__) || defined (__OpenBSD__)
@@ -94,7 +94,7 @@
 
 #include <net/if_sppp.h>
 
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 # define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg, handle)
 # define TIMEOUT(fun, arg1, arg2, handle) handle = timeout(fun, arg1, arg2)
 #else
@@ -250,11 +250,11 @@ struct cp {
 };
 
 static struct sppp *spppq;
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 static struct callout_handle keepalive_ch;
 #endif
 
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #define	SPP_FMT		"%s%d: "
 #define	SPP_ARGS(ifp)	(ifp)->if_name, (ifp)->if_unit
 #else
@@ -1046,7 +1046,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 			++sp->pp_loopcnt;
 
 			/* Generate new local sequence number */
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 			sp->pp_seq = random();
 #else
 			sp->pp_seq ^= time.tv_sec ^ time.tv_usec;
@@ -1078,13 +1078,13 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	struct ppp_header *h;
 	struct cisco_packet *ch;
 	struct mbuf *m;
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	struct timeval tv;
 #else
 	u_long t = (time.tv_sec - boottime.tv_sec) * 1000;
 #endif
 
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	getmicrouptime(&tv);
 #endif
 	
@@ -1105,7 +1105,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	ch->par2 = htonl (par2);
 	ch->rel = -1;
 
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	ch->time0 = htons ((u_short) (tv.tv_sec >> 16));
 	ch->time1 = htons ((u_short) tv.tv_sec);
 #else
@@ -1782,7 +1782,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	callout_handle_init(&sp->ch[IDX_LCP]);
 #endif
 }
@@ -2192,7 +2192,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				if (magic == ~sp->lcp.magic) {
 					if (debug)
 						addlog("magic glitch ");
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 					sp->lcp.magic = random();
 #else
 					sp->lcp.magic = time.tv_sec + time.tv_usec;
@@ -2360,7 +2360,7 @@ sppp_lcp_scr(struct sppp *sp)
 
 	if (sp->lcp.opts & (1 << LCP_OPT_MAGIC)) {
 		if (! sp->lcp.magic)
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 			sp->lcp.magic = random();
 #else
 			sp->lcp.magic = time.tv_sec + time.tv_usec;
@@ -2440,7 +2440,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->ipcp.flags = 0;
 	sp->state[IDX_IPCP] = STATE_INITIAL;
 	sp->fail_counter[IDX_IPCP] = 0;
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	callout_handle_init(&sp->ch[IDX_IPCP]);
 #endif
 }
@@ -3162,7 +3162,7 @@ sppp_chap_init(struct sppp *sp)
 	/* Chap doesn't have STATE_INITIAL at all. */
 	sp->state[IDX_CHAP] = STATE_CLOSED;
 	sp->fail_counter[IDX_CHAP] = 0;
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	callout_handle_init(&sp->ch[IDX_CHAP]);
 #endif
 }
@@ -3308,7 +3308,7 @@ sppp_chap_scr(struct sppp *sp)
 
 	/* Compute random challenge. */
 	ch = (u_long *)sp->myauth.challenge;
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	read_random(&seed, sizeof seed);
 #else
 	microtime(&tv);
@@ -3494,7 +3494,7 @@ sppp_pap_init(struct sppp *sp)
 	/* PAP doesn't have STATE_INITIAL at all. */
 	sp->state[IDX_PAP] = STATE_CLOSED;
 	sp->fail_counter[IDX_PAP] = 0;
-#if defined (__FreeBSD__)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	callout_handle_init(&sp->ch[IDX_PAP]);
 	callout_handle_init(&sp->pap_my_to_ch);
 #endif
@@ -3808,12 +3808,11 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-#if defined (__FreeBSD__)
-	for (ifa = ifp->if_addrhead.tqh_first, si = 0;
-	     ifa;
-	     ifa = ifa->ifa_link.tqe_next)
+	si = 0;
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 #else
-	for (ifa = ifp->if_addrlist.tqh_first, si = 0;
+	for (ifa = ifp->if_addrlist.tqh_first;
 	     ifa;
 	     ifa = ifa->ifa_list.tqe_next)
 #endif
@@ -3854,12 +3853,11 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
 
-#if defined (__FreeBSD__)
-	for (ifa = ifp->if_addrhead.tqh_first, si = 0;
-	     ifa;
-	     ifa = ifa->ifa_link.tqe_next)
+	si = 0;
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 #else
-	for (ifa = ifp->if_addrlist.tqh_first, si = 0;
+	for (ifa = ifp->if_addrlist.tqh_first;
 	     ifa;
 	     ifa = ifa->ifa_list.tqe_next)
 #endif
