@@ -289,11 +289,6 @@ Intel EtherExpress Pro/100B PCI Fast Ethernet
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
-Novell NE1000, NE2000, and NE2100 Ethernet interface.
-
-PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
-Winbond W89C940, Surecom NE-34, VIA VT86C926.
-
 3Com 3C501 cards
 
 3Com 3C503 Etherlink II
