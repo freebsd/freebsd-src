@@ -214,6 +214,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "mouse 29UO",
 	},
 	{
+	    USB_VENDOR_IOMEGA, USB_PRODUCT_IOMEGA_ZIP100,
+	    0,
+	    "Iomega",
+	    "Zip 100",
+	},
+	{
 	    USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U002,
 	    0,
 	    "Belkin",
@@ -415,6 +421,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_AGILER, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Agiler",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_IOMEGA, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Iomega",
 	    NULL,
 	},
 	{
