@@ -117,6 +117,12 @@ main(argc, argv)
 	char *autolabel = NULL;
 	char *s;
 
+	fprintf(stderr,
+"WARNING: vnconfig and the vn driver is being phased out.\n"
+"WARNING: You should use mdconfig and the md driver instead.\n"
+"WARNING: Continuing in 15 seconds...\n");
+       sleep(15);
+
 	configfile = _PATH_VNTAB;
 	while ((i = getopt(argc, argv, "acdef:gr:s:S:TZL:uv")) != -1)
 		switch (i) {
