@@ -40,5 +40,5 @@
 #ifndef YPPUSH_RESPONSE_TIMEOUT
 #define YPPUSH_RESPONSE_TIMEOUT 5*60
 #endif
-extern int	_rpc_dtablesize __P((void));
-extern void	yppush_xfrrespprog_1 __P(( struct svc_req *, SVCXPRT * ));
+extern int	_rpc_dtablesize(void);
+extern void	yppush_xfrrespprog_1(struct svc_req *, SVCXPRT *);

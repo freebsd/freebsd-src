@@ -310,20 +310,20 @@ struct yppushresp_xfr {
 
 struct inaddr;
 __BEGIN_DECLS
-bool_t	xdr_datum __P((XDR *, datum *));
-bool_t	xdr_ypreq_key __P((XDR *, struct ypreq_key *));
-bool_t	xdr_ypreq_nokey __P((XDR *, struct ypreq_nokey *));
-bool_t	xdr_ypreq_xfr __P((XDR *, struct ypreq_xfr *));
-bool_t	xdr_ypresp_val __P((XDR *, struct ypresp_val *));
-bool_t	xdr_ypresp_key_val __P((XDR *, struct ypresp_key_val *));
-bool_t	xdr_ypbind_resp __P((XDR *, struct ypbind_resp *));
-bool_t	xdr_ypbind_setdom __P((XDR *, struct ypbind_setdom *));
-bool_t	xdr_yp_inaddr __P((XDR *, struct inaddr *));
-bool_t	xdr_ypmap_parms __P((XDR *, struct ypmap_parms *));
-bool_t	xdr_yppushresp_xfr __P((XDR *, struct yppushresp_xfr *));
-bool_t	xdr_ypresp_order __P((XDR *, struct ypresp_order *));
-bool_t	xdr_ypresp_master __P((XDR *, struct ypresp_master *));
-bool_t	xdr_ypresp_maplist __P((XDR *, struct ypresp_maplist *));
+bool_t	xdr_datum(XDR *, datum *);
+bool_t	xdr_ypreq_key(XDR *, struct ypreq_key *);
+bool_t	xdr_ypreq_nokey(XDR *, struct ypreq_nokey *);
+bool_t	xdr_ypreq_xfr(XDR *, struct ypreq_xfr *);
+bool_t	xdr_ypresp_val(XDR *, struct ypresp_val *);
+bool_t	xdr_ypresp_key_val(XDR *, struct ypresp_key_val *);
+bool_t	xdr_ypbind_resp(XDR *, struct ypbind_resp *);
+bool_t	xdr_ypbind_setdom(XDR *, struct ypbind_setdom *);
+bool_t	xdr_yp_inaddr(XDR *, struct inaddr *);
+bool_t	xdr_ypmap_parms(XDR *, struct ypmap_parms *);
+bool_t	xdr_yppushresp_xfr(XDR *, struct yppushresp_xfr *);
+bool_t	xdr_ypresp_order(XDR *, struct ypresp_order *);
+bool_t	xdr_ypresp_master(XDR *, struct ypresp_master *);
+bool_t	xdr_ypresp_maplist(XDR *, struct ypresp_maplist *);
 __END_DECLS
 
 #endif /* _RPCSVC_YP_PROT_H_ */

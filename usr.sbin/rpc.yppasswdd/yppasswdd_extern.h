@@ -57,14 +57,14 @@
 
 extern char	*yp_dir;
 extern char	*progname;
-extern void	do_master __P(( void ));
-extern void	yppasswdprog_1 __P(( struct svc_req *, register SVCXPRT * ));
-extern void     master_yppasswdprog_1 __P(( struct svc_req *,
-						register SVCXPRT * ));
-extern void	reaper __P(( int ));
-extern void	install_reaper __P(( int ));
-extern int	pw_copy __P(( int, int, struct passwd * ));
-extern char	*ok_shell __P (( char * ));
+extern void	do_master(void);
+extern void	yppasswdprog_1(struct svc_req *, register SVCXPRT *);
+extern void     master_yppasswdprog_1 __P((struct svc_req *,
+						register SVCXPRT *));
+extern void	reaper(int);
+extern void	install_reaper(int);
+extern int	pw_copy(int, int, struct passwd *);
+extern char	*ok_shell __P ((char *));
 extern char	*passfile;
 extern char	*passfile_default;
 extern char	*tempname;
@@ -76,4 +76,4 @@ extern int	multidomain;
 extern int	resvport;
 extern int	inplace;
 extern int	verbose;
-extern int	_rpc_dtablesize __P((void));
+extern int	_rpc_dtablesize(void);

@@ -67,8 +67,8 @@ char **argv;
 
         yp_get_default_domain(&domainname);
 
-	while( (c=getopt(argc, argv, "h:d:")) != -1)
-		switch(c) {
+	while ((c = getopt(argc, argv, "h:d:")) != -1)
+		switch (c) {
 		case 'd':
                         domainname = optarg;
 			break;
@@ -80,7 +80,7 @@ char **argv;
                         /*NOTREACHED*/
 		}
 
-	if(optind + 1 != argc )
+	if (optind + 1 != argc)
 		usage();
 
 	inmap = argv[optind];

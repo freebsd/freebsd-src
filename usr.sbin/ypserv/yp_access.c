@@ -74,7 +74,7 @@ char *yp_procs[] = {	"ypoldproc_null",
 			"badproc3", /* placeholder */
 
 			/* NIS v2 */
-			"ypproc_null" ,
+			"ypproc_null",
 			"ypproc_domain",
 			"ypproc_domain_nonack",
 			"ypproc_match",
@@ -121,7 +121,7 @@ void load_securenets()
 	 * the list; free the existing list before re-reading the
 	 * securenets file.
 	 */
-	while(securenets) {
+	while (securenets) {
 		tmp = securenets->next;
 		free(securenets);
 		securenets = tmp;
@@ -144,7 +144,7 @@ void load_securenets()
 
 	securenets = NULL;
 
-	while(fgets(linebuf, LINEBUFSZ, fp)) {
+	while (fgets(linebuf, LINEBUFSZ, fp)) {
 		char addr1[20], addr2[20];
 
 		if ((linebuf[0] == '#')
@@ -175,7 +175,7 @@ void load_securenets()
 	}
 
 	fclose(fp);
-	
+
 }
 #endif
 
@@ -280,7 +280,7 @@ not privileged", map, inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
 			   inet_ntoa(rqhost->sin_addr), "");
 #else
 	tmp = securenets;
-	while(tmp) {
+	while (tmp) {
 		if (((rqhost->sin_addr.s_addr & ~tmp->mask.s_addr)
 		    | tmp->net.s_addr) == rqhost->sin_addr.s_addr) {
 			status = 1;

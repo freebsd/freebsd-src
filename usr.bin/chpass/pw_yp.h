@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * NIS interface routines for chpass
- * 
+ *
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
@@ -54,12 +54,12 @@ extern	int		_use_yp;
 extern	int		suser_override;
 extern	struct passwd	local_password;
 extern	struct passwd	yp_password;
-extern	void		copy_yp_pass __P(( char *, int, int ));
+extern	void		copy_yp_pass(char *, int, int);
 extern	char		*yp_domain;
 extern	char		*yp_server;
-extern	void		yp_submit	__P(( struct passwd * ));
-extern	int		use_yp		__P(( char * , uid_t , int ));
-extern	char		*get_yp_master	__P(( int ));
+extern	void		yp_submit(struct passwd *);
+extern	int		use_yp(char *, uid_t, int);
+extern	char		*get_yp_master(int);
 extern	int		yp_in_pw_file;
 
 /*

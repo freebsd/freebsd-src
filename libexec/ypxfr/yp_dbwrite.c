@@ -75,7 +75,7 @@ DB *yp_open_db_rw(domain, map, flags)
 	dbp = dbopen(buf,flags ? flags : FLAGS,PERM_SECURE,DB_HASH,&openinfo);
 
 	if (dbp == NULL) {
-		switch(errno) {
+		switch (errno) {
 		case ENOENT:
 			yp_errno = YP_NOMAP;
 			break;
@@ -101,7 +101,7 @@ int yp_put_record(dbp,key,data,allow_overwrite)
 
 	if ((rval = (dbp->put)(dbp,key,data, allow_overwrite ? 0 :
 							R_NOOVERWRITE))) {
-		switch(rval) {
+		switch (rval) {
 		case 1:
 			return(YP_FALSE);
 			break;
