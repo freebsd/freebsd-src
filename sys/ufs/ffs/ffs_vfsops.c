@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.87 1998/09/14 19:56:41 sos Exp $
+ * $Id: ffs_vfsops.c,v 1.88 1998/09/26 04:59:42 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -576,12 +576,10 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	register struct ufsmount *ump;
 	struct buf *bp;
 	register struct fs *fs;
-	struct cg *cgp;
 	dev_t dev;
 	struct partinfo dpart;
-	struct csum cstotal;
 	caddr_t base, space;
-	int error, i, cyl, blks, size, ronly;
+	int error, i, blks, size, ronly;
 	int32_t *lp;
 	struct ucred *cred;
 	u_int64_t maxfilesize;					/* XXX */

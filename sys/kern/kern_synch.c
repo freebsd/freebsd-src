@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.61 1998/07/15 02:32:10 bde Exp $
+ * $Id: kern_synch.c,v 1.62 1998/08/26 05:27:42 dillon Exp $
  */
 
 #include "opt_ktrace.h"
@@ -138,7 +138,6 @@ static void
 roundrobin(arg)
 	void *arg;
 {
- 	struct proc *p = curproc; /* XXX */
  
 #ifdef SMP
 	need_resched();
@@ -223,8 +222,8 @@ roundrobin(arg)
 static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
 SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
-/* kernel uses `FSCALE', user uses `fscale' */
-static int	fscale = FSCALE;
+/* kernel uses `FSCALE', userland (SHOULD) use kern.fscale */
+static int	fscale __unused = FSCALE;
 SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.57 1998/05/17 20:13:01 bde Exp $
+ * $Id: kern_time.c,v 1.58 1998/06/09 13:10:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,6 @@ settime(tv)
 {
 	struct timeval delta, tv1;
 	struct timespec ts;
-	struct proc *p;
 	int s;
 
 	s = splclock();

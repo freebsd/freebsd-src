@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.5 1998/09/25 17:38:32 rvb Exp $
+ *  $Id: coda_vnops.c,v 1.6 1998/09/28 20:52:58 rvb Exp $
  * 
  */
 
@@ -48,6 +48,9 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.6  1998/09/28 20:52:58  rvb
+ * Cleanup and fix THE bug
+ *
  * Revision 1.5  1998/09/25 17:38:32  rvb
  * Put "stray" printouts under DIAGNOSTIC.  Make everything build
  * with DEBUG on.  Add support for lkm.  (The macro's don't work
@@ -1511,8 +1514,6 @@ coda_link(v)
     VTOC(vp)->c_flags &= ~C_VATTR;
 
     CODADEBUG(CODA_LINK,	myprintf(("in link result %d\n",error)); )
-
-exit:
 
     /* Drop the name buffer if we don't need to SAVESTART */
     if ((cnp->cn_flags & SAVESTART) == 0) {
