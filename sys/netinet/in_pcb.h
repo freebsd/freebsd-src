@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.19 1997/03/03 09:23:34 davidg Exp $
+ * $Id: in_pcb.h,v 1.20 1997/04/03 05:14:41 davidg Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -101,9 +101,9 @@ struct inpcbinfo {
 
 #ifdef KERNEL
 void	 in_losing __P((struct inpcb *));
-int	 in_pcballoc __P((struct socket *, struct inpcbinfo *));
-int	 in_pcbbind __P((struct inpcb *, struct mbuf *));
-int	 in_pcbconnect __P((struct inpcb *, struct mbuf *));
+int	 in_pcballoc __P((struct socket *, struct inpcbinfo *, struct proc *));
+int	 in_pcbbind __P((struct inpcb *, struct mbuf *, struct proc *));
+int	 in_pcbconnect __P((struct inpcb *, struct mbuf *, struct proc *));
 void	 in_pcbdetach __P((struct inpcb *));
 void	 in_pcbdisconnect __P((struct inpcb *));
 int	 in_pcbladdr __P((struct inpcb *, struct mbuf *,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.3 (Berkeley) 2/19/95
- * $Id$
+ * $Id: un.h,v 1.11 1997/02/22 09:46:20 peter Exp $
  */
 
 #ifndef _SYS_UN_H_
@@ -58,6 +58,7 @@ int	uipc_usrreq __P((struct socket *so, int req, struct mbuf *m,
 int	unp_connect2 __P((struct socket *so, struct socket *so2));
 void	unp_dispose __P((struct mbuf *m));
 int	unp_externalize __P((struct mbuf *rights));
+extern	struct pr_usrreqs uipc_usrreqs;
 #else /* !KERNEL */
 
 /* actual length of an initialized sockaddr_un */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id$
+ * $Id: uipc_domain.c,v 1.16 1997/02/22 09:39:27 peter Exp $
  */
 
 #include <sys/param.h>
@@ -108,6 +108,11 @@ domaininit(dummy)
 			/* See comments in uipc_socket2.c. */
 			if (pr->pr_usrreqs == 0 && pr->pr_ousrreq)
 				pr->pr_usrreqs = &pru_oldstyle;
+#else
+			if (pr->pr_usrreqs == 0)
+				panic("domaininit: %ssw[%d] has no usrreqs!",
+				      dp->dom_name, 
+				      (int)(pr - dp->dom_protosw));
 #endif
 			if (pr->pr_init)
 				(*pr->pr_init)();

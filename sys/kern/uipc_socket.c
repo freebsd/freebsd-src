@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.24 1997/02/24 20:30:56 wollman Exp $
+ *	$Id: uipc_socket.c,v 1.25 1997/03/23 03:36:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ socreate(dom, aso, type, proto, p)
 		prp = pffindproto(dom, proto, type);
 	else
 		prp = pffindtype(dom, type);
-	if (prp == 0 || prp->pr_usrreqs == 0)
+	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
 		return (EPROTONOSUPPORT);
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
@@ -87,10 +87,8 @@ socreate(dom, aso, type, proto, p)
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
-	if (p->p_ucred->cr_uid == 0)
-		so->so_state = SS_PRIV;
 	so->so_proto = prp;
-	error = (*prp->pr_usrreqs->pru_attach)(so, proto);
+	error = (*prp->pr_usrreqs->pru_attach)(so, proto, p);
 	if (error) {
 		so->so_state |= SS_NOFDREF;
 		sofree(so);
@@ -101,26 +99,28 @@ socreate(dom, aso, type, proto, p)
 }
 
 int
-sobind(so, nam)
+sobind(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	int s = splnet();
 	int error;
 
-	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam);
+	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, p);
 	splx(s);
 	return (error);
 }
 
 int
-solisten(so, backlog)
+solisten(so, backlog, p)
 	register struct socket *so;
 	int backlog;
+	struct proc *p;
 {
 	int s = splnet(), error;
 
-	error = (*so->so_proto->pr_usrreqs->pru_listen)(so);
+	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, p);
 	if (error) {
 		splx(s);
 		return (error);
@@ -247,9 +247,10 @@ soaccept(so, nam)
 }
 
 int
-soconnect(so, nam)
+soconnect(so, nam, p)
 	register struct socket *so;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	int s;
 	int error;
@@ -268,7 +269,7 @@ soconnect(so, nam)
 	    (error = sodisconnect(so))))
 		error = EISCONN;
 	else
-		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam);
+		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, p);
 	splx(s);
 	return (error);
 }
@@ -471,7 +472,7 @@ nopages:
 			 (so->so_proto->pr_flags & PR_IMPLOPCL) &&
 			 (resid <= 0)) ?
 				PRUS_EOF : 0,
-			top, addr, control);
+			top, addr, control, p);
 		    splx(s);
 		    if (dontroute)
 			    so->so_options &= ~SO_DONTROUTE;
@@ -847,10 +848,11 @@ sorflush(so)
 }
 
 int
-sosetopt(so, level, optname, m0)
+sosetopt(so, level, optname, m0, p)
 	register struct socket *so;
 	int level, optname;
 	struct mbuf *m0;
+	struct proc *p;
 {
 	int error = 0;
 	register struct mbuf *m = m0;
@@ -858,7 +860,7 @@ sosetopt(so, level, optname, m0)
 	if (level != SOL_SOCKET) {
 		if (so->so_proto && so->so_proto->pr_ctloutput)
 			return ((*so->so_proto->pr_ctloutput)
-				  (PRCO_SETOPT, so, level, optname, &m0));
+				  (PRCO_SETOPT, so, level, optname, &m0, p));
 		error = ENOPROTOOPT;
 	} else {
 		switch (optname) {
@@ -948,18 +950,13 @@ sosetopt(so, level, optname, m0)
 			break;
 		    }
 
-		case SO_PRIVSTATE:
-			/* we don't care what the parameter is... */
-			so->so_state &= ~SS_PRIV;
-			break;
-
 		default:
 			error = ENOPROTOOPT;
 			break;
 		}
 		if (error == 0 && so->so_proto && so->so_proto->pr_ctloutput) {
 			(void) ((*so->so_proto->pr_ctloutput)
-				  (PRCO_SETOPT, so, level, optname, &m0));
+				  (PRCO_SETOPT, so, level, optname, &m0, p));
 			m = NULL;	/* freed by protocol */
 		}
 	}
@@ -970,17 +967,18 @@ bad:
 }
 
 int
-sogetopt(so, level, optname, mp)
+sogetopt(so, level, optname, mp, p)
 	register struct socket *so;
 	int level, optname;
 	struct mbuf **mp;
+	struct proc *p;
 {
 	register struct mbuf *m;
 
 	if (level != SOL_SOCKET) {
 		if (so->so_proto && so->so_proto->pr_ctloutput) {
 			return ((*so->so_proto->pr_ctloutput)
-				  (PRCO_GETOPT, so, level, optname, mp));
+				  (PRCO_GETOPT, so, level, optname, mp, p));
 		} else
 			return (ENOPROTOOPT);
 	} else {
@@ -1006,10 +1004,6 @@ sogetopt(so, level, optname, mp)
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
 			*mtod(m, int *) = so->so_options & optname;
-			break;
-
-		case SO_PRIVSTATE:
-			*mtod(m, int *) = so->so_state & SS_PRIV;
 			break;
 
 		case SO_TYPE:
@@ -1070,4 +1064,41 @@ sohasoutofband(so)
 	else if (so->so_pgid > 0 && (p = pfind(so->so_pgid)) != 0)
 		psignal(p, SIGURG);
 	selwakeup(&so->so_rcv.sb_sel);
+}
+
+int
+soselect(struct socket *so, int which, struct proc *p)
+{
+	int s = splnet();
+	switch (which) {
+
+	case FREAD:
+		if (soreadable(so)) {
+			splx(s);
+			return (1);
+		}
+		selrecord(p, &so->so_rcv.sb_sel);
+		so->so_rcv.sb_flags |= SB_SEL;
+		break;
+
+	case FWRITE:
+		if (sowriteable(so)) {
+			splx(s);
+			return (1);
+		}
+		selrecord(p, &so->so_snd.sb_sel);
+		so->so_snd.sb_flags |= SB_SEL;
+		break;
+
+	case 0:
+		if (so->so_oobmark || (so->so_state & SS_RCVATMARK)) {
+			splx(s);
+			return (1);
+		}
+		selrecord(p, &so->so_rcv.sb_sel);
+		so->so_rcv.sb_flags |= SB_SEL;
+		break;
+	}
+	splx(s);
+	return (0);
 }
