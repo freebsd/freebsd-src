@@ -13,10 +13,10 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.5 1998/11/08 15:36:35 rnordier Exp $
+#	$Id: boot1.s,v 1.6 1998/11/11 08:56:17 rnordier Exp $
 
-		.set MEM_REL,0x600		# Relocation address
-		.set MEM_ARG,0x800		# Arguments
+		.set MEM_REL,0x700		# Relocation address
+		.set MEM_ARG,0x900		# Arguments
 		.set MEM_ORG,0x7c00		# Origin
 		.set MEM_BUF,0x8c00		# Load area
 		.set MEM_BTX,0x9000		# BTX start

@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.15 1998/11/08 18:29:29 rnordier Exp $
+ *	$Id: boot2.c,v 1.16 1998/11/08 18:37:28 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,7 @@
 #define PATH_KERNEL	"/kernel"
 #define PATH_HELP	"boot.help"
 
-#define ARGS		0x800
+#define ARGS		0x900
 #define NOPT		11
 #define BSIZEMAX	8192
 #define NDEV		5
@@ -736,7 +736,7 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 
     printf("%c\b", c = c << 8 | c >> 24);
     v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
-    v86.addr = 0x604;
+    v86.addr = 0x704;		/* call to xread in boot1 */
     v86.es = VTOPSEG(buf);
     v86.eax = lba;
     v86.ebx = VTOPOFF(buf);
