@@ -2486,7 +2486,6 @@ ti_rxeof(sc)
 	while(sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
 		struct ti_rx_desc	*cur_rx;
 		u_int32_t		rxidx;
-		struct ether_header	*eh;
 		struct mbuf		*m = NULL;
 		u_int16_t		vlan_tag = 0;
 		int			have_tag = 0;
@@ -2561,7 +2560,6 @@ ti_rxeof(sc)
 
 		m->m_pkthdr.len = cur_rx->ti_len;
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 
 		if (ifp->if_hwassist) {
