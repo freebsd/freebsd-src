@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.26 1999/05/04 19:42:01 ghelmer Exp $
+.\"	$Id: ftpd.8,v 1.27 1999/06/28 10:50:47 mpp Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -408,24 +408,15 @@ value is to be used.
 As with any anonymous login configuration, due care must be given
 to setup and maintenance to guard against security related problems.
 .Pp
-If compiled with the
-.Em INTERNAL_LS
-option,
 .Nm
-will have internal support for handling remote requests to list
+has internal support for handling remote requests to list
 files, and will not execute
 .Pa /bin/ls
-in either a chrooted or non-chrooted environment.
-In this case, the
+in either a chrooted or non-chrooted environment.  The
 .Pa ~/bin/ls
 executable need not be placed into the chrooted tree, nor need the
 .Pa ~/bin
 directory exist.
-This support may be added by making ftpd with the
-.Em FTPD_INTERNAL_LS
-variable set either in
-.Pa /etc/make.conf
-or in the shell's environment.
 .Sh FILES
 .Bl -tag -width /etc/ftpwelcome -compact
 .It Pa /etc/ftpusers
