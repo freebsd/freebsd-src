@@ -403,7 +403,6 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
 #include <math.h>
 #include "floatio.h"
 
-#define	BUF		((MAXEXP*2)+MAXFRACT+1)		/* + decimal point */
 #define	DEFPREC		6
 
 extern char *__dtoa(double, int, int, int *, int *, char **);
@@ -412,11 +411,16 @@ extern void __freedtoa(char *s);
 static wchar_t *cvt(double, int, int, char *, int *, wchar_t, int *);
 static int exponent(wchar_t *, int, wchar_t);
 
-#else /* no FLOATING_POINT */
-
-#define	BUF		136
-
 #endif /* FLOATING_POINT */
+
+/*
+ * The size of the buffer we use as scratch space for integer
+ * conversions, among other things.  Technically, we would need the
+ * most space for base 10 conversions with thousands' grouping
+ * characters between each pair of digits.  100 bytes is a
+ * conservative overestimate even for a 128-bit uintmax_t.
+ */
+#define	BUF	100
 
 #define STATIC_ARG_TBL_SIZE 8           /* Size of static argument table. */
 
@@ -474,7 +478,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	int size;		/* size of converted field or string */
 	int prsize;             /* max size of printed field */
 	wchar_t *xdigs;		/* digits for [xX] conversion */
-	wchar_t buf[BUF];	/* space for %c, %[diouxX], %[eEfFgG] */
+	wchar_t buf[BUF];	/* buffer with space for digits of uintmax_t */
 	wchar_t ox[2];		/* space for 0x hex-prefix */
 	union arg *argtable;	/* args, built due to positional arg */
 	union arg statargtable [STATIC_ARG_TBL_SIZE];
@@ -988,6 +992,8 @@ number:			if ((dprec = prec) >= 0)
 					    grouping);
 			}
 			size = buf + BUF - cp;
+			if (size > BUF)	/* should never happen */
+				abort();
 			break;
 		default:	/* "%?" prints ?, unless ? is NUL */
 			if (ch == '\0')
@@ -1524,7 +1530,7 @@ static int
 exponent(wchar_t *p0, int exp, wchar_t fmtch)
 {
 	wchar_t *p, *t;
-	wchar_t expbuf[MAXEXP];
+	wchar_t expbuf[MAXEXPDIG];
 
 	p = p0;
 	*p++ = fmtch;
@@ -1534,13 +1540,13 @@ exponent(wchar_t *p0, int exp, wchar_t fmtch)
 	}
 	else
 		*p++ = '+';
-	t = expbuf + MAXEXP;
+	t = expbuf + MAXEXPDIG;
 	if (exp > 9) {
 		do {
 			*--t = to_char(exp % 10);
 		} while ((exp /= 10) > 9);
 		*--t = to_char(exp);
-		for (; t < expbuf + MAXEXP; *p++ = *t++);
+		for (; t < expbuf + MAXEXPDIG; *p++ = *t++);
 	}
 	else {
 		*p++ = '0';
