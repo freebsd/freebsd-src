@@ -118,10 +118,13 @@ feepout(char *msg)
 
 /* Verify IP address integrity */
 static int
-verifyIP(char *ip, unsigned long *out)
+verifyIP(char *ip, unsigned long *mask, unsigned long *out)
 {
     long a, b, c, d;
     char *endptr;
+
+    unsigned long parsedip;
+    unsigned long max_addr = (255 << 24) | (255 << 16) | (255 << 8) | 255;
 
     if (ip == NULL)
 	return 0;
@@ -137,14 +140,17 @@ verifyIP(char *ip, unsigned long *out)
     d = strtol(endptr, &endptr, 10);
     if (*endptr != '\0')
 	return 0;
-    /* Both 0 and 255 are technically valid in nets that are larger
-       than class C, but at least MS' TCP/IP stacks freak out if they see
-       them. */
-    if (!_validByte(a) || !_validByte(b) || !_validByte(c) ||
-	!_validByte(d) || (d == 0) || (d == 255))
+    if (!_validByte(a) || !_validByte(b) || !_validByte(c) || !_validByte(d))
 	return 0;
+    parsedip = (a << 24) | (b << 16) | (c << 8) | d;
     if (out) 
-	*out = (a << 24) | (b << 16) | (c << 8) | d;
+	*out = parsedip;
+    /*
+     * The ip address must not be network or broadcast address.
+     */
+    if (mask && ((parsedip == (parsedip & *mask)) || 
+	(parsedip == ((parsedip & *mask) + max_addr - *mask))))
+	return 0;
     return 1;
 }
 
@@ -209,7 +215,7 @@ verifyGW(char *gw, unsigned long *ip, unsigned long *mask)
 {
     unsigned long parsedgw;
 
-    if (!verifyIP(gw, &parsedgw))
+    if (!verifyIP(gw, mask, &parsedgw))
 	return 0;
     /* Gateway needs to be within the set of IPs reachable through the
        interface */
@@ -228,13 +234,13 @@ verifySettings(void)
 
     if (!hostname[0])
 	feepout("Must specify a host name of some sort!");
-    else if (nameserver[0] && !verifyIP(nameserver, NULL) &&
-		    !verifyIP6(nameserver))
-	feepout("Invalid name server IP address specified");
-    else if (ipaddr[0] && !verifyIP(ipaddr, &parsedip))
-	feepout("Invalid IPv4 address");
     else if (netmask[0] && !verifyNetmask(netmask, &parsednetmask))
 	feepout("Invalid netmask value");
+    else if (nameserver[0] && !verifyIP(nameserver, NULL, NULL) &&
+		    !verifyIP6(nameserver))
+	feepout("Invalid name server IP address specified");
+    else if (ipaddr[0] && !verifyIP(ipaddr, &parsednetmask, &parsedip))
+	feepout("Invalid IPv4 address");
     else if (gateway[0] && strcmp(gateway, "NO") &&
 	     !verifyGW(gateway, ipaddr[0] ? &parsedip : NULL,
 		     netmask[0] ? &parsednetmask : NULL))
