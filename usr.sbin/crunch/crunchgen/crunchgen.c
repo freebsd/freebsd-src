@@ -927,10 +927,10 @@ void top_makefile_rules(FILE *outmk)
 
 	if (makeobj) {
 		fprintf(outmk, "MAKEOBJDIRPREFIX?=%s\n", objprefix);
-		fprintf(outmk, "MAKE=env MAKEOBJDIRPREFIX=$(MAKEOBJDIRPREFIX) "
-		    "make\n");
+		fprintf(outmk, "MAKEENV=env MAKEOBJDIRPREFIX=$(MAKEOBJDIRPREFIX)\n");
+		fprintf(outmk, "CRUNCHMAKE=$(MAKEENV) $(MAKE)\n");
 	} else {
-		fprintf(outmk, "MAKE=make\n");
+		fprintf(outmk, "CRUNCHMAKE=$(MAKE)\n");
 	}
 
 	if (buildopts) {
@@ -990,17 +990,17 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 		fprintf(outmk, "%s_make:\n", p->ident);
 		fprintf(outmk, "\t(cd $(%s_SRCDIR) && ", p->ident);
 		if (makeobj)
-			fprintf(outmk, "$(MAKE) obj && ");
+			fprintf(outmk, "$(CRUNCHMAKE) obj && ");
 		fprintf(outmk, "\\\n");
-		fprintf(outmk, "\t\t$(MAKE) $(BUILDOPTS) $(%s_OPTS) depend &&",
+		fprintf(outmk, "\t\t$(CRUNCHMAKE) $(BUILDOPTS) $(%s_OPTS) depend &&",
 		    p->ident);
 		fprintf(outmk, "\\\n");
-		fprintf(outmk, "\t\t$(MAKE) $(BUILDOPTS) $(%s_OPTS) "
+		fprintf(outmk, "\t\t$(CRUNCHMAKE) $(BUILDOPTS) $(%s_OPTS) "
 		    "$(%s_OBJS))",
 		    p->ident, p->ident);
 		fprintf(outmk, "\n");
 		fprintf(outmk, "%s_clean:\n", p->ident);
-		fprintf(outmk, "\t(cd $(%s_SRCDIR) && $(MAKE) $(BUILDOPTS) clean cleandepend)\n\n",
+		fprintf(outmk, "\t(cd $(%s_SRCDIR) && $(CRUNCHMAKE) $(BUILDOPTS) clean cleandepend)\n\n",
 		    p->ident);
 	} else {
 		fprintf(outmk, "%s_make:\n", p->ident);
