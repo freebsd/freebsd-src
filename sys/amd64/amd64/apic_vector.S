@@ -42,10 +42,10 @@ IDTVEC(vec_name) ;							\
 	MAYBE_PUSHL_ES ;						\
 	pushl	%fs ;							\
 	movl	$KDSEL,%eax ;						\
-	movl	%ax,%ds ;						\
+	mov	%ax,%ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
 	movl	$KPSEL,%eax ;						\
-	movl	%ax,%fs ;						\
+	mov	%ax,%fs ;						\
 	FAKE_MCOUNT((5+ACTUALLY_PUSHED)*4(%esp)) ;			\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	GET_FAST_INTR_LOCK ;						\
@@ -221,10 +221,10 @@ log_intr_event:
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
-	movl	%ax, %ds ;						\
-	movl	%ax, %es ;						\
+	mov	%ax, %ds ;						\
+	mov	%ax, %es ;						\
 	movl	$KPSEL, %eax ;						\
-	movl	%ax, %fs ;						\
+	mov	%ax, %fs ;						\
 ;									\
 	maybe_extra_ipending ;						\
 ;									\
@@ -340,7 +340,7 @@ _Xinvltlb:
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
 	movl	$KPSEL, %eax
-	movl	%ax, %fs
+	mov	%ax, %fs
 	movl	_cpuid, %eax
 	popl	%fs
 	ss
@@ -384,9 +384,9 @@ _Xcpucheckstate:
 	pushl	%fs
 
 	movl	$KDSEL, %eax
-	movl	%ax, %ds		/* use KERNEL data segment */
+	mov	%ax, %ds		/* use KERNEL data segment */
 	movl	$KPSEL, %eax
-	movl	%ax, %fs
+	mov	%ax, %fs
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
@@ -431,10 +431,10 @@ _Xcpucheckstate:
 _Xcpuast:
 	PUSH_FRAME
 	movl	$KDSEL, %eax
-	movl	%ax, %ds		/* use KERNEL data segment */
-	movl	%ax, %es
+	mov	%ax, %ds		/* use KERNEL data segment */
+	mov	%ax, %es
 	movl	$KPSEL, %eax
-	movl	%ax, %fs
+	mov	%ax, %fs
 
 	movl	_cpuid, %eax
 	lock				/* checkstate_need_ast &= ~(1<<id) */
@@ -491,10 +491,10 @@ _Xcpuast:
 _Xforward_irq:
 	PUSH_FRAME
 	movl	$KDSEL, %eax
-	movl	%ax, %ds		/* use KERNEL data segment */
-	movl	%ax, %es
+	mov	%ax, %ds		/* use KERNEL data segment */
+	mov	%ax, %es
 	movl	$KPSEL, %eax
-	movl	%ax, %fs
+	mov	%ax, %fs
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
@@ -594,9 +594,9 @@ _Xcpustop:
 	pushl	%fs
 
 	movl	$KDSEL, %eax
-	movl	%ax, %ds		/* use KERNEL data segment */
+	mov	%ax, %ds		/* use KERNEL data segment */
 	movl	$KPSEL, %eax
-	movl	%ax, %fs
+	mov	%ax, %fs
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
@@ -629,7 +629,7 @@ _Xcpustop:
 	jz	2f
 	movl	$0, CNAME(cpustop_restartfunc)	/* One-shot */
 
-	call	%eax
+	call	*%eax
 2:
 	popl	%fs
 	popl	%ds			/* restore previous data segment */
@@ -704,10 +704,10 @@ MCOUNT_LABEL(eintr)
 _Xrendezvous:
 	PUSH_FRAME
 	movl	$KDSEL, %eax
-	movl	%ax, %ds		/* use KERNEL data segment */
-	movl	%ax, %es
+	mov	%ax, %ds		/* use KERNEL data segment */
+	mov	%ax, %es
 	movl	$KPSEL, %eax
-	movl	%ax, %fs
+	mov	%ax, %fs
 
 	call	_smp_rendezvous_action
 
