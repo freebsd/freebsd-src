@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.46 1997/06/05 09:47:58 jkh Exp $
+ * $Id: main.c,v 1.47 1997/09/16 18:57:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -110,10 +110,9 @@ main(int argc, char **argv)
     status = setjmp(BailOut);
     if (status) {
 	msgConfirm("A signal %d was caught - I'm saving what I can and shutting\n"
-		   "this thing down!  Please report this unfortunate incident\n"
-		   "to jkh@FreeBSD.org.  If you can reproduce the problem, please\n"
-		   "also turn Debug on in the Options menu for the extra information\n"
-		   "it provides in debugging problems like this.  Thanks!", status);
+		   "If you can reproduce the problem, please turn Debug on in\n"
+		   "the Options menu for the extra information it provides in\n"
+		   "debugging problems like this.", status);
 	systemShutdown(status);
     }
 
