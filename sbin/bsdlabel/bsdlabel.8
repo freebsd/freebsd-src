@@ -61,9 +61,6 @@
 .Op Fl r
 .Op Fl n
 .Ar disk Ar protofile
-.Nm
-.Op Fl NW
-.Ar disk
 .Pp
 .Nm
 .Fl B
@@ -311,27 +308,6 @@ If
 is used, no data will be written to the device, and instead the
 disklabel that would have been written will be printed to stdout.  This is
 useful to see how a partitioning scheme will work out for a specific disk.
-.Ss Enabling and disabling writing to the disk label area
-.Pp
-By default, it is not possible to write to the disk label area at the beginning
-of a disk.  The disk driver arranges for
-.Xr write 2
-and similar system calls
-to return
-.Er EROFS
-on any attempt to do so.  If you need
-to write to this area (for example, to obliterate the label), use the form
-.Pp
-.Nm
-.Fl W
-.Ar disk
-.Pp
-To disallow writing to the label area after previously allowing it, use the
-command
-.Pp
-.Nm
-.Fl N
-.Ar disk
 .Ss Installing bootstraps
 .Pp
 The final three forms of
