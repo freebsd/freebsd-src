@@ -107,6 +107,7 @@ typedef void (*usbd_callback) __P((usbd_request_handle, usbd_private_handle,
 /* Open flags */
 #define USBD_EXCLUSIVE_USE	0x01
 
+/* XXX broken, should not use the same value */
 /* Request flags */
 #define USBD_XFER_OUT		0x01
 #define USBD_XFER_IN		0x02

@@ -812,7 +812,7 @@ ohci_ctrl_done(sc, reqh)
 			memcpy(reqh->buffer, KERNADDR(dma), len);
 		usb_freemem(sc->sc_dmatag, dma);
 	}
-	usb_untimeout(ohci_timeout, reqh, reqh->timo_handle);
+	usb_untimeout(ohci_timeout, reqh, reqh->timeout_handle);
 }
 
 void
@@ -880,7 +880,7 @@ ohci_bulk_done(sc, reqh)
 	if (reqh->request.bmRequestType & UT_READ)
 		memcpy(reqh->buffer, KERNADDR(dma), reqh->actlen);
 	usb_freemem(sc->sc_dmatag, dma);
-	usb_untimeout(ohci_timeout, reqh, reqh->timo_handle);
+	usb_untimeout(ohci_timeout, reqh, reqh->timeout_handle);
 }
 
 void
@@ -1091,7 +1091,7 @@ ohci_device_request(reqh)
 	OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
 	if (reqh->timeout && !sc->sc_bus.use_polling) {
                 usb_timeout(ohci_timeout, reqh,
-			    MS_TO_TICKS(reqh->timeout), reqh->timo_handle);
+			    MS_TO_TICKS(reqh->timeout), reqh->timeout_handle);
 	}
 	splx(s);
 
@@ -1968,7 +1968,7 @@ ohci_device_bulk_start(reqh)
 	OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
 	if (reqh->timeout && !sc->sc_bus.use_polling) {
                 usb_timeout(ohci_timeout, reqh,
-			    MS_TO_TICKS(reqh->timeout), reqh->timo_handle);
+			    MS_TO_TICKS(reqh->timeout), reqh->timeout_handle);
 	}
 	splx(s);
 
@@ -2099,7 +2099,7 @@ ohci_device_intr_start(reqh)
 #if 0
 	if (reqh->timeout && !sc->sc_bus.use_polling) {
                 usb_timeout(ohci_timeout, reqh,
-			    MS_TO_TICKS(reqh->timeout), reqh->timo_handle);
+			    MS_TO_TICKS(reqh->timeout), reqh->timeout_handle);
 	}
 #endif
 	sed->ed->ed_flags &= LE(~OHCI_ED_SKIP);

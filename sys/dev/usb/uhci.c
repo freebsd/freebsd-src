@@ -97,7 +97,7 @@ int uhcidebug = 1;
 struct uhci_pipe {
 	struct usbd_pipe pipe;
 	uhci_intr_info_t *iinfo;
-	int newtoggle;
+	int nexttoggle;
 	/* Info needed for different pipe kinds. */
 	union {
 		/* Control pipe */
@@ -507,7 +507,7 @@ uhci_timo(addr)
 		reqh->xfercb(reqh);
 	}
 	if (reqh->pipe->intrreqh == reqh) {
-		usb_timeout(uhci_timo, reqh, sc->sc_ival, reqh->timo_handle);
+		usb_timeout(uhci_timo, reqh, sc->sc_ival, reqh->timeout_handle);
 	} else {
 		usb_freemem(sc->sc_dmatag, &upipe->u.intr.datadma);
 		usb_start_next(reqh->pipe);
@@ -759,7 +759,7 @@ uhci_check_intr(sc, ii)
  done:
 	usb_untimeout(uhci_timeout, ii, ii->timeout_handle);
 	upipe = (struct uhci_pipe *)ii->reqh->pipe;
-	upipe->pipe.endpoint->toggle = upipe->newtoggle;
+	upipe->pipe.endpoint->toggle = upipe->nexttoggle;
 	uhci_ii_done(ii, 0);
 }
 
@@ -1143,7 +1143,7 @@ uhci_alloc_std_chain(upipe, sc, len, rd, spd, dma, sp, ep)
 	tog = upipe->pipe.endpoint->toggle;
 	if (ntd % 2 == 0)
 		tog ^= 1;
-	upipe->newtoggle = tog ^ 1;
+	upipe->nexttoggle = tog ^ 1;
 	lastp = 0;
 	lastlink = UHCI_PTR_T;
 	ntd--;
@@ -1179,7 +1179,7 @@ uhci_alloc_std_chain(upipe, sc, len, rd, spd, dma, sp, ep)
 	*sp = lastp;
 	/*upipe->pipe.endpoint->toggle = tog;*/
 	DPRINTFN(10, ("uhci_alloc_std_chain: oldtog=%d newtog=%d\n", 
-		      upipe->pipe.endpoint->toggle, upipe->newtoggle));
+		      upipe->pipe.endpoint->toggle, upipe->nexttoggle));
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -2570,7 +2570,7 @@ void
 uhci_root_ctrl_close(pipe)
 	usbd_pipe_handle pipe;
 {
-	usb_untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->timo_handle);
+	usb_untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->timeout_handle);
 	DPRINTF(("uhci_root_ctrl_close\n"));
 }
 
@@ -2579,7 +2579,7 @@ void
 uhci_root_intr_abort(reqh)
 	usbd_request_handle reqh;
 {
-	usb_untimeout(uhci_timo, reqh, reqh->timo_handle);
+	usb_untimeout(uhci_timo, reqh, reqh->timeout_handle);
 }
 
 usbd_status
@@ -2624,7 +2624,7 @@ uhci_root_intr_start(reqh)
 		return (r);
 
 	sc->sc_ival = MS_TO_TICKS(reqh->pipe->endpoint->edesc->bInterval);
-	usb_timeout(uhci_timo, reqh, sc->sc_ival, reqh->timo_handle);
+	usb_timeout(uhci_timo, reqh, sc->sc_ival, reqh->timeout_handle);
 	return (USBD_IN_PROGRESS);
 }
 
@@ -2633,6 +2633,6 @@ void
 uhci_root_intr_close(pipe)
 	usbd_pipe_handle pipe;
 {
-	usb_untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->timo_handle);
+	usb_untimeout(uhci_timo, pipe->intrreqh, pipe->intrreqh->timeout_handle);
 	DPRINTF(("uhci_root_intr_close\n"));
 }

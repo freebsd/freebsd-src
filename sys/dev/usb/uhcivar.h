@@ -39,17 +39,21 @@
  */
 
 /*
- * To avoid having 1024 TDs for each isochronous transfer we introduce
- * a virtual frame list.  Every UHCI_VFRAMELIST_COUNT entries in the real
- * frame list points to a non-active TD.  These, in turn, which form the 
- * starts of the virtual frame list.  This also has the advantage that it 
- * simplifies linking in/out TD/QH in the schedule.
- * Furthermore, initially each of the inactive TDs point to an inactive
- * QH that forms the start of the interrupt traffic for that slot.
- * Each of these QHs point to the same QH that is the start of control
- * traffic.
+ * The framelist:
  *
- * UHCI_VFRAMELIST_COUNT should be a power of 2 and <= UHCI_FRAMELIST_COUNT.
+ * To avoid having 1024 TDs for each isochronous transfer we introduce
+ * a virtual frame list. Every UHCI_VFRAMELIST_COUNT'th entry in the real
+ * frame list points to a non-active TD. This TD is
+ * UHCI_FRAMELIST_COUNT/UHCI_VFRAMELIST_COUNT times the start of the
+ * virtual frame list for a queue of isochroneous transfers.
+ *
+ * The last isochroneous transfer in the list points to a QH for the 
+ * interrupt transfer in that timeslot. The QHs for interrupt transfers
+ * all point to the single QH for control transfers, which in turn 
+ * points at the QH for control transfers.
+ *
+ * UHCI_VFRAMELIST_COUNT should be a power of 2 and UHCI_FRAMELIST_COUNT
+ * should be a multiple of UHCI_VFRAMELIST_COUNT.
  */
 #define UHCI_VFRAMELIST_COUNT 128
 

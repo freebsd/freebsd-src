@@ -161,12 +161,12 @@ typedef struct {
 #define UHCI_TD_SET_ENDPT(e)	(((e)&0xf) << 15)
 #define UHCI_TD_GET_ENDPT(s)	(((s) >> 15) & 0xf)
 #define UHCI_TD_SET_DT(t)	((t) << 19)
-#define UHCI_TD_GET_DT(s)	(((s) >> 19) & 1)
+#define UHCI_TD_GET_DT(t)	(((t) >> 19) & 1)
 #define UHCI_TD_SET_MAXLEN(l)	(((l)-1) << 21)
 #define UHCI_TD_GET_MAXLEN(s)	((((s) >> 21) + 1) & 0x7ff)
 #define UHCI_TD_MAXLEN_MASK	0xffe00000
 	u_int32_t td_buffer;
-	uhci_soft_td_qh_t link; /* soft version of the td_link field */
+	uhci_soft_td_qh_t link; /* link to next TD (points to soft version of TD */
 	/* padding to 32 bytes */
 } uhci_td_t;
 #define UHCI_TD_SIZE 32
