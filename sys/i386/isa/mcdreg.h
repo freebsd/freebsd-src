@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.7 1995/01/30 06:44:40 ache Exp $
+ *	$Id: mcdreg.h,v 1.8 1995/05/30 08:02:45 rgrimes Exp $
  */
 
 #ifndef MCD_H
@@ -178,7 +178,8 @@ struct mcd_volinfo {
 };
 
 struct mcd_qchninfo {
-	u_char	ctrl_adr;
+	u_char  control:4;
+	u_char  addr_type:4;
 	u_char	trk_no;
 	u_char	idx_no;
 	bcd_t	trk_size_msf[3];
