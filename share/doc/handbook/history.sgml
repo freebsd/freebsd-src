@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.7 1995/09/27 00:46:19 jmz Exp $ -->
+<!-- $Id: history.sgml,v 1.1.4.2 1995/10/12 03:16:00 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -58,7 +58,7 @@ Novell's "blessing" that the 4.4 Lite release, when it was finally
 released, would be declared unencumbered and all existing Net/2 users
 would be strongly encouraged to switch.  This included us, and we were
 given until the end of July 1994 to stop shipping our own Net/2 based
-product.  Under the terms of that agreement, were were allowed one
+product.  Under the terms of that agreement, we were allowed one
 last release before the deadline and that became FreeBSD 1.1.5.1, the
 culmination of our year's work with Net/2 and generally considered by
 many to be a significant project milestone for stability and general
