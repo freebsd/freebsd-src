@@ -498,19 +498,21 @@ startagain:
 
     if (EP_FTST(sc, F_ACCESS_32_BITS)) {
         for (top = m; m != 0; m = m->m_next) {
-	    outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
-		  m->m_len / 4);
+	    if (m->m_len > 3)
+	    	outsl(BASE + EP_W1_TX_PIO_WR_1,
+			mtod(m, caddr_t), m->m_len / 4);
 	    if (m->m_len & 3)
 		outsb(BASE + EP_W1_TX_PIO_WR_1,
-		      mtod(m, caddr_t) + (m->m_len & (~3)),
-		      m->m_len & 3);
+			mtod(m, caddr_t) + (m->m_len & (~3)), m->m_len & 3);
 	}
     } else {
         for (top = m; m != 0; m = m->m_next) {
-	    outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len / 2);
+	    if (m->m_len > 3)
+	    	outsw(BASE + EP_W1_TX_PIO_WR_1,
+			mtod(m, caddr_t), m->m_len / 2);
 	    if (m->m_len & 1)
 		outb(BASE + EP_W1_TX_PIO_WR_1,
-		     *(mtod(m, caddr_t) + m->m_len - 1));
+			*(mtod(m, caddr_t) + m->m_len - 1));
 	}
     }
 
