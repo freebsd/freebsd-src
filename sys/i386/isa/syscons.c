@@ -1723,6 +1723,16 @@ scan_esc(scr_stat *scp, u_char c)
     if (scp->term.esc == 1) {
 	switch (c) {
 
+	case '7':   /* Save cursor position */
+	    scp->saved_xpos = scp->xpos;
+	    scp->saved_ypos = scp->ypos;
+	    break;
+
+	case '8':   /* Restore saved cursor position */
+	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
+		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
+	    break;
+
 	case '[':   /* Start ESC [ sequence */
 	    scp->term.esc = 2;
 	    scp->term.last_param = -1;
@@ -1831,6 +1841,7 @@ scan_esc(scr_stat *scp, u_char c)
 		      scp->scr_buf + scp->xsize * scp->ysize - scp->cursor_pos);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
     		mark_for_update(scp, scp->xsize * scp->ysize);
+		remove_cutmarking(scp);
 		break;
 	    case 1: /* clear from beginning of display to cursor */
 		fillw(scp->term.cur_color | scr_map[0x20],
@@ -1838,9 +1849,13 @@ scan_esc(scr_stat *scp, u_char c)
 		      scp->cursor_pos - scp->scr_buf);
     		mark_for_update(scp, 0);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
+		remove_cutmarking(scp);
 		break;
 	    case 2: /* clear entire display */
-		clear_screen(scp);
+		fillw(scp->term.cur_color | scr_map[0x20], scp->scr_buf,
+		      scp->xsize * scp->ysize);
+		mark_all(scp);
+		remove_cutmarking(scp);
 		break;
 	    }
 	    break;
@@ -2047,6 +2062,16 @@ scan_esc(scr_stat *scp, u_char c)
 		    break;
 		}
 	    }
+	    break;
+
+	case 's':   /* Save cursor position */
+	    scp->saved_xpos = scp->xpos;
+	    scp->saved_ypos = scp->ypos;
+	    break;
+
+	case 'u':   /* Restore saved cursor position */
+	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
+		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
 	    break;
 
 	case 'x':
@@ -2494,6 +2519,8 @@ init_scp(scr_stat *scp)
     scp->font_size = FONT_16;
     scp->xsize = COL;
     scp->ysize = ROW;
+    scp->xpos = scp->ypos = 0;
+    scp->saved_xpos = scp->saved_ypos = -1;
     scp->start = scp->xsize * scp->ysize;
     scp->end = 0;
     scp->term.esc = 0;
