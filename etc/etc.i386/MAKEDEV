@@ -49,8 +49,8 @@
 #	psm*	PS/2 mouse
 #
 # Terminal ports:
-#       ttyd*   dialin ports/hardwired terminals
-#       cuaa*   dialout ports
+#       tty*    general purpose serial ports
+#       cua*    dialout serial ports
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
@@ -70,11 +70,26 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.55 1994/12/04 23:48:38 ache Exp $
+#	$Id: MAKEDEV,v 1.56 1994/12/04 23:50:40 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
 umask 77
+
+# Convert the last character of a tty name to a minor number.
+ttyminor()
+{
+	case $unit in
+	[0-9]) m=$unit;;
+	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
+	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
+	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
+	v) m=31;;
+	default) m="?";;
+	esac
+	echo $m
+}
+
 for i
 do
 case $i in
@@ -84,9 +99,11 @@ all)
 	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3 	# bdev, disk
 	sh MAKEDEV cd0 mcd0					# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0 					# bdev, tape
-	sh MAKEDEV pty0 ttyd0 ttyd1 ttyd2 ttyd3 lpt0            # cdev
-	sh MAKEDEV ch0 tw0 bpf0 				# cdev
-	sh MAKEDEV speaker pcaudio psm0 mse0                    # cdev
+	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
+	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
+	sh MAKEDEV lpt0 lpt1 lpt2				# cdev, printer
+	sh MAKEDEV pty0 ch0 tw0 bpf0 				# cdev
+	sh MAKEDEV speaker pcaudio psm0 mse0			# cdev
 	sh MAKEDEV vty4						# cdev
 	;;
 std)
@@ -431,12 +448,11 @@ tw*)
 vty*)
 	chr=12
 	units=`expr $i : 'vty\(.*\)'`
-	umask 0
 	eval `echo ${chr} ${units} | awk ' { c=$1; n=$2 } END {
 		for (i = 0; i < n; i++)
 			printf("rm -f ttyv%01x; mknod ttyv%01x c %d %d;", \
 				i, i, c, i); }'`
-	umask 77
+	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
 	;;
 
 bpf*)
@@ -452,25 +468,25 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-cuaa?|ttyd?)
-	unit=`expr $i : '...[ad]*\(.\)$'`
-	rm -f cua*a$unit tty*d$unit
-	case $unit in
-	[0-9]) m=$unit;;
-	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
-	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
-	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
-	v) m=31;;
-	*) echo too many devices; exit 1;;
-	esac
-	mknod ttyd$unit c 28 $m
-	mknod ttyid$unit c 28 `expr $m + 32`
-	mknod ttyld$unit c 28 `expr $m + 64`
+cuaa?|cua?)
+	umask 7
+	unit=`expr $i : 'cuaa*\(.\)$'`
+	rm -f cua*a$unit
+	m=`ttyminor $unit`
 	mknod cuaa$unit c 28 `expr $m + 128`
 	mknod cuaia$unit c 28 `expr $m + 32 + 128`
 	mknod cuala$unit c 28 `expr $m + 64 + 128`
 	chown uucp.dialer cua*a$unit
-	chmod 660 cua*a$unit
+	umask 77
+	;;
+
+ttyd?|tty?)
+	unit=`expr $i : 'ttyd*\(.\)$'`
+	rm -f tty*d$unit
+	m=`ttyminor $unit`
+	mknod ttyd$unit c 28 $m
+	mknod ttyid$unit c 28 `expr $m + 32`
+	mknod ttyld$unit c 28 `expr $m + 64`
 	;;
 
 mse*)
