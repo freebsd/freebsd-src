@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.c,v 1.1.1.1.2.2 1996/12/11 00:14:14 joerg Exp $
+ *	$Id: pw.c,v 1.1.1.1.2.3 1997/02/07 11:21:45 davidn Exp $
  */
 
 #include "pw.h"
@@ -136,7 +136,7 @@ main(int argc, char *argv[])
 	/*
 	 * Must be root to attempt an update
 	 */
-	if (getuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
+	if (geteuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
 		cmderr(EX_NOPERM, "you must be root to run this program\n");
 
 	/*
