@@ -41,18 +41,19 @@ static const char rcsid[] =
 
 #include "externs.h"
 
+void
 writedes()
 {
 	int compass;
 	const char *p;
-	int c;
+	unsigned int c;
 
 	printf("\n\t%s\n", location[position].name);
 	if (beenthere[position] < 3) {
 		compass = NORTH;
-		for (p = location[position].desc; c = *p++;)
+		for ((p = location[position].desc); (c = *p++);)
 			if (c != '-' && c != '*' && c != '+')
-				putchar(c);
+				putchar((int)c);
 			else {
 				if (c != '*')
 					printf(truedirec(compass, c));
@@ -61,9 +62,10 @@ writedes()
 	}
 }
 
+void
 printobjs()
 {
-	int *p = location[position].objects;
+	unsigned int *p = location[position].objects;
 	int n;
 
 	printf("\n");
@@ -72,6 +74,7 @@ printobjs()
 			puts(objdes[n]);
 }
 
+void
 whichway(here)
 struct room here;
 {
@@ -111,7 +114,7 @@ struct room here;
 const char *
 truedirec(way, option)
 int way;
-char option;
+unsigned int option;
 {
 	switch(way) {
 
@@ -169,6 +172,7 @@ char option;
       }
 }
 
+void
 newway(thisway)
 int thisway;
 {

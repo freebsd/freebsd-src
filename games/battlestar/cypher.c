@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include "externs.h"
 
+int
 cypher()
 {
 	int n;
@@ -57,7 +58,7 @@ cypher()
 				if (location[position].access || wiz || tempwiz) {
 					if (!location[position].access)
 						puts("Zap!  A gust of wind lifts you up.");
-					if (!move(location[position].up, AHEAD))
+					if (!battlestar_move(location[position].up, AHEAD))
 						return(-1);
 				} else {
 					puts("There is no way up");
@@ -67,31 +68,32 @@ cypher()
 				break;
 
 			 case DOWN:
-				if (!move(location[position].down, AHEAD))
+				if (!battlestar_move(location[position].down,
+				     AHEAD))
 					return(-1);
 				lflag = 0;
 				break;
 
 			 case LEFT:
-				if (!move(left, LEFT))
+				if (!battlestar_move(left, LEFT))
 					return(-1);
 				lflag = 0;
 				break;
 
 			 case RIGHT:
-				if (!move(right, RIGHT))
+				if (!battlestar_move(right, RIGHT))
 					return(-1);
 				lflag = 0;
 				break;
 
 			 case AHEAD:
-				if (!move(ahead, AHEAD))
+				if (!battlestar_move(ahead, AHEAD))
 					return(-1);
 				lflag = 0;
 				break;
 
 			 case BACK:
-				if (!move(back, BACK))
+				if (!battlestar_move(back, BACK))
 					return(-1);
 				lflag = 0;
 				break;
@@ -144,8 +146,8 @@ cypher()
 			 case THROW:
 				if (wordnumber < wordcount && wordvalue[wordnumber+1] == EVERYTHING){
 					for (n=0; n < NUMOFOBJECTS; n++)
-						if (testbit(inven,n) ||
-						  testbit(location[position].objects, n) && objsht[n]){
+						if ((testbit(inven,n) ||
+						  testbit(location[position].objects, n)) && objsht[n]){
 							wordvalue[wordnumber+1] = n;
 							wordnumber = throw(wordvalue[wordnumber] == KICK ? "Kicked" : "Thrown");
 						}
@@ -417,7 +419,7 @@ cypher()
 				break;
 
 			 case QUIT:
-				die();
+				die(0);
 
 			 default:
 				puts("How's that?");

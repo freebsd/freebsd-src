@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "externs.h"
 
+int
 take(from)
 unsigned int from[];
 {
@@ -73,7 +74,7 @@ unsigned int from[];
 					printf("Zap! Taken from thin air.\n");
 				clearbit(from,value);
 				if (value == MEDALION)
-					win--;
+					bs_win--;
 			}
 			else if (testbit(inven,value))
 				printf("You're already holding%s%s.\n", (objsht[value][n-1] == 's' ? " " : " a "),objsht[value]);
@@ -186,6 +187,7 @@ unsigned int from[];
 	return(firstnumber);
 }
 
+int
 throw(name)
 	const char *name;
 {
@@ -254,7 +256,7 @@ throw(name)
 			}
 			else if (value == GRENADE && testbit(location[position].objects,value)){
 				puts("You are blown into shreds when your grenade explodes.");
-				die();
+				die(0);
 			}
 			if (wordnumber < wordcount - 1 && wordvalue[++wordnumber] == AND)
 				wordnumber++;
@@ -266,6 +268,7 @@ throw(name)
 	return(first);
 }
 
+int
 drop(name)
 const char *name;
 {
@@ -284,7 +287,7 @@ const char *name;
 			encumber -= objcumber[value];
 			if (value == BOMB){
 				puts("The bomb explodes.  A blinding white light and immense concussion obliterate us.");
-				die();
+				die(0);
 			}
 			if (value != AMULET && value != MEDALION && value != TALISMAN)
 				setbit(location[position].objects,value);
@@ -317,18 +320,21 @@ const char *name;
 	return(-1);
 }
 
+int
 takeoff()
 {
 	wordnumber = take(wear);
 	return(drop("Dropped"));
 }
 
+int
 puton()
 {
 	wordnumber = take(location[position].objects);
 	return(wearit());
 }
 
+int
 eat()
 {
 	int firstnumber, value;

@@ -138,5 +138,5 @@ const struct objs dayobjs[] = {
 	{ 130,	BRACELET },
 	{ 93,	GIRL },
 	{ 268,	LAMPON },
-	0
+	{ 0 , 0 }
 };
