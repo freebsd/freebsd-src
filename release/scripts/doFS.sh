@@ -15,7 +15,7 @@ do
 	rm -f fs-image
 
 	if [ ! -b /dev/${VNDEVICE} -o ! -c /dev/r${VNDEVICE} ] ; then 
-		cd /dev && sh MAKEDEV ${VNDEVICE} 
+		( cd /dev && sh MAKEDEV ${VNDEVICE} )
 	fi
 
 	umount /dev/${VNDEVICE} 2>/dev/null || true
