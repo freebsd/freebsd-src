@@ -63,10 +63,10 @@
 #include <sys/namei.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
+#include <geom/geom.h>
 #include <geom/geom_disk.h>
 
 #include <sys/ccdvar.h>
@@ -1264,3 +1264,58 @@ ccdunlock(struct ccd_s *cs)
 		wakeup(cs);
 	}
 }
+
+static struct sbuf *
+g_ccd_list(int verbose)
+{
+	struct sbuf *sb;
+	struct ccd_s *cs;
+	int i;
+
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_clear(sb);
+	LIST_FOREACH(cs, &ccd_softc_list, list) {
+		if (!IS_INITED(cs))
+			continue;
+		if (verbose) {
+			sbuf_printf(sb,
+			    "# ccd\t\tileave\tflags\tcomponent devices\n");
+			verbose = 0;
+		}
+		sbuf_printf(sb, "ccd%d\t\t%d\t%d\t",
+		    cs->sc_unit, cs->sc_ileave, cs->sc_cflags & CCDF_USERMASK);
+			
+		for (i = 0; i < cs->sc_nccdisks; ++i) {
+			sbuf_printf(sb, "%s%s", i == 0 ? "" : " ",
+			    cs->sc_cinfo[i].ci_path);
+		}
+		sbuf_printf(sb, "\n");
+	}
+	sbuf_finish(sb);
+	return (sb);
+}
+
+static void
+g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
+{
+	struct sbuf *sb;
+
+	g_topology_assert();
+	if (!strcmp(verb, "create geom")) {
+		gctl_error(req, "TBD");
+	} else if (!strcmp(verb, "destroy geom")) {
+		gctl_error(req, "TBD");
+	} else if (!strcmp(verb, "list")) {
+		sb = g_ccd_list(gctl_get_param(req, "verbose", NULL) ? 1 : 0);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+	} else {
+		gctl_error(req, "unknown verb");
+	}
+}
+
+static struct g_class g_ccd_class = {
+	.name = "CCD",
+	.ctlreq = g_ccd_config,
+};
+
+DECLARE_GEOM_CLASS(g_ccd_class, g_ccd);
