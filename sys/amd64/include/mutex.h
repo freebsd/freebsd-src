@@ -261,6 +261,36 @@ extern char STR_SIEN[];
  * Simple assembly macros to get and release spin locks.
  */
 
+#ifdef WITNESS
+#define	WITNESS_ENTER(lck, reg)						\
+	movl	lck+MTX_DEBUG,reg;					\
+	cmpl	$0,MTXD_WITNESS(reg);					\
+	jz	1f;							\
+	pushl	$0;							\
+	pushl	$0;							\
+	pushl	$MTX_SPIN;						\
+	pushl	$lck;							\
+	call	witness_enter;						\
+	addl	$0x10,%esp;						\
+1:
+
+#define	WITNESS_EXIT(lck, reg)						\
+	movl	lck+MTX_DEBUG,reg;					\
+	cmpl	$0,MTXD_WITNESS(reg);					\
+	jz	1f;							\
+	pushl	$0;							\
+	pushl	$0;							\
+	pushl	$MTX_SPIN;						\
+	pushl	$lck;							\
+	call	witness_exit;						\
+	addl	$0x10,%esp;						\
+1:
+
+#else
+#define	WITNESS_ENTER(lck, reg)
+#define	WITNESS_EXIT(lck, reg)
+#endif
+
 #if defined(I386_CPU)
 
 #define	MTX_ENTER(lck, reg)						\
@@ -268,9 +298,11 @@ extern char STR_SIEN[];
 	pushfl;								\
 	cli;								\
 	movl	reg,lck+MTX_LOCK;					\
-	popl	lck+MTX_SAVEINTR;
+	popl	lck+MTX_SAVEINTR;					\
+	WITNESS_ENTER(lck, reg)
 
 #define	MTX_EXIT(lck, reg)						\
+	WITNESS_EXIT(lck, reg)						\
 	pushl	lck+MTX_SAVEINTR;					\
 	movl	$ MTX_UNOWNED,lck+MTX_LOCK;				\
 	popfl;
@@ -285,10 +317,12 @@ extern char STR_SIEN[];
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
 	jnz	9b;							\
-	popl	lck+MTX_SAVEINTR;
+	popl	lck+MTX_SAVEINTR;					\
+	WITNESS_ENTER(lck, reg)
 
 /* Must use locked bus op (cmpxchg) when setting to unowned (barrier) */
 #define	MTX_EXIT(lck, reg)						\
+	WITNESS_EXIT(lck, reg)						\
 	pushl	lck+MTX_SAVEINTR;					\
 	movl	lck+MTX_LOCK,%eax;					\
 	movl	$ MTX_UNOWNED,reg;					\
@@ -311,9 +345,10 @@ extern char STR_SIEN[];
 	popl	lck+MTX_SAVEINTR;					\
 	jmp	9f;							\
 8:	add	$4,%esp;						\
-9:
+9:	WITNESS_ENTER(lck, reg)
 
 #define	MTX_EXIT_WITH_RECURSION(lck, reg)				\
+	WITNESS_EXIT(lck, reg)						\
 	movl	lck+MTX_RECURSE,%eax;					\
 	decl	%eax;							\
 	js	8f;							\
