@@ -160,7 +160,7 @@ _thr_stack_alloc(struct pthread_attr *attr)
 	 * If the stack and guard sizes are default, try to allocate a stack
 	 * from the default-size stack cache:
 	 */
-	if ((stacksize == THR_STACK_DEFAULT) &&
+	if ((stacksize == _thr_stack_default) &&
 	    (guardsize == _thr_guard_default)) {
 		if ((spare_stack = LIST_FIRST(&dstackq)) != NULL) {
 			/* Use the spare stack. */
@@ -191,7 +191,7 @@ _thr_stack_alloc(struct pthread_attr *attr)
 	else {
 		/* Allocate a stack from usrstack. */
 		if (last_stack == NULL)
-			last_stack = _usrstack - THR_STACK_INITIAL -
+			last_stack = _usrstack - _thr_stack_initial -
 			    _thr_guard_default;
 
 		/* Allocate a new stack. */
@@ -245,7 +245,7 @@ _thr_stack_free(struct pthread_attr *attr)
 		spare_stack->guardsize = round_up(attr->guardsize_attr);
 		spare_stack->stackaddr = attr->stackaddr_attr;
 
-		if (spare_stack->stacksize == THR_STACK_DEFAULT &&
+		if (spare_stack->stacksize == _thr_stack_default &&
 		    spare_stack->guardsize == _thr_guard_default) {
 			/* Default stack/guard size. */
 			LIST_INSERT_HEAD(&dstackq, spare_stack, qe);
