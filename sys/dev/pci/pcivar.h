@@ -182,20 +182,8 @@ enum pci_device_ivars {
 /*
  * Simplified accessors for pci devices
  */
-#define PCI_ACCESSOR(A, B, T)						\
-									\
-static __inline T pci_get_ ## A(device_t dev)				\
-{									\
-    uintptr_t v;							\
-    BUS_READ_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, &v);	\
-    return (T) v;							\
-}									\
-									\
-static __inline void pci_set_ ## A(device_t dev, T t)			\
-{									\
-    uintptr_t v = (uintptr_t) t;					\
-    BUS_WRITE_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, v);	\
-}
+#define PCI_ACCESSOR(var, ivar, type)						\
+	__BUS_ACCESSOR(pci, var, PCI, ivar, type)
 
 PCI_ACCESSOR(subvendor,		SUBVENDOR,	u_int16_t)
 PCI_ACCESSOR(subdevice,		SUBDEVICE,	u_int16_t)
