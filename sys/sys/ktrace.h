@@ -159,7 +159,7 @@ struct ktr_csw {
 #ifdef	KERNEL
 void	ktrnamei __P((struct vnode *,char *));
 void	ktrcsw __P((struct vnode *,int,int));
-void	ktrpsig __P((struct vnode *,int, sig_t, int, int));
+void	ktrpsig __P((struct vnode *, int, sig_t, sigset_t *, int));
 void	ktrgenio __P((struct vnode *,int, enum uio_rw,struct iovec *,int,int));
 void	ktrsyscall __P((struct vnode *, int, int narg, register_t args[]));
 void	ktrsysret __P((struct vnode *, int, int, register_t));
