@@ -1,25 +1,19 @@
 .TH FILE 1 "Copyright but distributable"
-.\# $Id: file.man,v 1.23 1993/09/24 18:50:48 christos Exp $
+.\# $Id: file.1,v 1.2 1994/09/03 19:31:15 csgr Exp $
 .SH NAME
-.I file
+file
 \- determine file type
 .SH SYNOPSIS
 .B file
 [
-.B \-c
-]
-[
-.B \-z
-]
-[
-.B \-L
+.B \-vczL
 ]
 [
 .B \-f
 namefile ]
 [
 .B \-m 
-magicfile ]
+magicfiles ]
 file ...
 .SH DESCRIPTION
 .I File
@@ -101,42 +95,45 @@ The language test routines also test for some miscellany
 .I tar
 archives) and determine whether an unknown file should be
 labelled as `ascii text' or `data'. 
-.PP
-Use
-.B \-m
-.I file
-to specify an alternate file of magic numbers.
-.PP
-The
+.SH OPTIONS
+.TP 8
+.B \-v
+Print the version of the program and exit.
+.TP 8
+.B \-m list
+Specify an alternate list of files containing magic numbers.
+This can be a single file, or a colon-separated list of files.
+.TP 8
 .B \-z
-tries to look inside compressed files.
-.PP
-The
+Try to look inside compressed files.
+.TP 8
 .B \-c
-option causes a checking printout of the parsed form of the magic file.
+Cause a checking printout of the parsed form of the magic file.
 This is usually used in conjunction with 
 .B \-m
 to debug a new magic file before installing it.
-.PP
-The 
-.B \-f
+.TP 8
+.B \-f namefile
+Read the names of the files to be examined from 
 .I namefile
-option specifies that the names of the files to be examined
-are to be read (one per line) from 
-.I namefile
+(one per line) 
 before the argument list.
 Either 
 .I namefile
 or at least one filename argument must be present;
 to test the standard input, use ``-'' as a filename argument.
-.PP
-The 
+.TP 8
 .B \-L
 option causes symlinks to be followed, as the like-named option in
 .IR ls (1).
+(on systems that support symbolic links).
 .SH FILES
 .I /etc/magic
 \- default list of magic numbers
+.SH ENVIRONMENT
+The environment variable
+.B MAGIC
+can be used to set the default magic number files.
 .SH SEE ALSO
 .IR magic (5)
 \- description of magic file format.
