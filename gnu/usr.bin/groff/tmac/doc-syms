@@ -229,12 +229,32 @@
 .       \}
 .       if "\\*(A\\n(aP"-ansiC" \{\
 .		ie \\n(sT==1 \{\
-.			ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
-.			as b1 (``\\*(tNANSI C\\*(aa'')
+.			ds b1 \&\\*(tNISO \\*(aa9899:\ 1990\\*(sV
+.			as b1 (``\\*(tNISO C\\*(aa'')
 .		\}
 .		el \{\
-.			ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
-.			as b1 (``\\*(tNANSI C\\*(aa'')
+.			ds b1 \&\\*(tNISO \\*(aa9899:\ 1990\\*(sV
+.			as b1 (``\\*(tNISO C\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-isoC" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNISO \\*(aa9899:\ 1990\\*(sV
+.			as b1 (``\\*(tNISO C\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNISO \\*(aa9899:\ 1990\\*(sV
+.			as b1 (``\\*(tNISO C\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-iso9899" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNISO \\*(aa9899: 1990\\*(sV
+.			as b1 (``\\*(tNISO C\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNISO \\*(aa9899: 1990\\*(sV
+.			as b1 (``\\*(tNISO C\\*(aa'')
 .		\}
 .       \}
 .       if "\\*(A\\n(aP"-ansiC-89" \{\
