@@ -45,12 +45,11 @@
 #define AAC_ADAPTER_FIBS	8
 
 /*
- * FIBs are allocated up-front, and the pool isn't grown.  We should allocate
- * enough here to let us keep the adapter busy without wasting large amounts
- * of kernel memory.  The current interface implementation limits us to 512
- * FIBs queued for the adapter at any one time.
+ * FIBs are allocated in page-size chunks and can grow up to the 512
+ * limit imposed by the hardware.
  */
-#define AAC_FIB_COUNT		128
+#define AAC_FIB_COUNT		8
+#define AAC_MAX_FIBS		512
 
 /*
  * The controller reports status events in AIFs.  We hang on to a number of
@@ -179,6 +178,13 @@ struct aac_command
 	void			*cm_private;
 	time_t			cm_timestamp;	/* command creation time */
 	int			cm_queue;
+};
+
+struct aac_fibmap {
+	TAILQ_ENTRY(aac_fibmap) fm_link;	/* list linkage */
+	struct aac_fib		*aac_fibs;
+	bus_dmamap_t		aac_fibmap;
+	struct aac_command	*aac_commands;
 };
 
 /*
@@ -324,10 +330,9 @@ struct aac_softc
 
 	/* command/fib resources */
 	bus_dma_tag_t		aac_fib_dmat;	/* DMA tag for allocing FIBs */
-	struct aac_fib		*aac_fibs;
-	bus_dmamap_t		aac_fibmap;
-	u_int32_t		aac_fibphys;
-	struct aac_command	aac_command[AAC_FIB_COUNT];
+	TAILQ_HEAD(,aac_fibmap)	aac_fibmap_tqh;
+	uint			total_fibs;
+	struct aac_command	*aac_commands;
 
 	/* command management */
 	TAILQ_HEAD(,aac_command) aac_free;	/* command structures 
