@@ -2,6 +2,7 @@
 #define _FTP_H_INCLUDE
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <time.h>
 
 /*
@@ -20,12 +21,12 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.h,v 1.2.2.2 1996/06/26 20:33:57 gpalmer Exp $
+ * $FreeBSD$
  */
 
 /* Internal housekeeping data structure for FTP sessions */
 typedef struct {
-    enum { init, isopen } con_state;
+    enum { init, isopen, quit } con_state;
     int		fd_ctrl;
     int		addrtype;
     char	*host;
@@ -36,19 +37,28 @@ typedef struct {
     int		is_verbose;
 } *FTP_t;
 
+/* Structure we use to match FTP error codes with readable strings */
+struct ftperr {
+  const int	num;
+  const char	*string;
+};
+extern struct	ftperr ftpErrList[];
+extern int	const ftpErrListLength;
+
 /* Exported routines - deal only with FILE* type */
-extern FILE	*ftpLogin(char *host, char *user, char *passwd, int port);
+extern FILE	*ftpLogin(char *host, char *user, char *passwd,	int port, int verbose, int *retcode);
 extern int	ftpChdir(FILE *fp, char *dir);
 extern int	ftpErrno(FILE *fp);
-extern size_t	ftpGetSize(FILE *fp, char *file);
-extern FILE	*ftpGet(FILE *fp, char *file, int *seekto);
+extern off_t	ftpGetSize(FILE *fp, char *file);
+extern FILE	*ftpGet(FILE *fp, char *file, off_t *seekto);
 extern FILE	*ftpPut(FILE *fp, char *file);
 extern int	ftpAscii(FILE *fp);
 extern int	ftpBinary(FILE *fp);
 extern int	ftpPassive(FILE *fp, int status);
 extern void	ftpVerbose(FILE *fp, int status);
-extern FILE	*ftpGetURL(char *url, char *user, char *passwd);
-extern FILE	*ftpPutURL(char *url, char *user, char *passwd);
+extern FILE	*ftpGetURL(char	*url, char *user, char *passwd,	int *retcode);
+extern FILE	*ftpPutURL(char	*url, char *user, char *passwd,	int *retcode);
 extern time_t	ftpGetModtime(FILE *fp, char *s);
+extern const	char *ftpErrString(int errno);
 
 #endif	/* _FTP_H_INCLUDE */

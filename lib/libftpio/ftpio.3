@@ -22,6 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\"	$Id$
 .\"
 .Dd June 17, 1996
 .Dt ftpio 3
@@ -43,11 +44,13 @@
 .Sh SYNOPSIS
 .Fd #include <ftpio.h>
 .Ft FILE *
-.Fn ftpLogin "char *host, char *user, char *passwd, int ftp_port"
+.Fn ftpLogin "char *host" "char *user" "char *passwd" "int ftp_port" "int verbose" "int *retcode"
 .Ft int
 .Fn ftpChdir "FILE *stream, char *dirname"
 .Ft int
 .Fn ftpErrno "FILE *stream"
+.Ft const char *
+.Fn ftpErrString "int errno"
 .Ft time_t
 .Fn ftpGetModtime "FILE *stream, char *file"
 .Ft size_t
@@ -65,9 +68,9 @@
 .Ft void
 .Fn ftpVerbose "FILE *stream, int status"
 .Ft FILE *
-.Fn ftpGetURL "char *url, char *user, char *passwd"
+.Fn ftpGetURL "char *url, char *user, char *passwd, int *retcode"
 .Ft FILE *
-.Fn ftpPutURL "char *url, char *user, char *passwd"
+.Fn ftpPutURL "char *url, char *user, char *passwd, int *retcode"
 
 .Sh DESCRIPTION
 These functions implement a high-level library for managing FTP connections.
@@ -75,25 +78,28 @@ These functions implement a high-level library for managing FTP connections.
 .Fn ftpLogin
 attempts to log in using the supplied
 .Fa user ,
-.Fa passwd
-and
+.Fa passwd,
 .Fa ftp_port
-fields (if passed as 0,
+(if passed as 0,
 .Fa ftp_port
-defaults to the standard ftp port of 21).  If it is successful, a
+defaults to the standard ftp port of 21) and
+.Fa verbose
+fields.  If it is successful, a
 standard stream descriptor is returned which should be passed to
 subsequent FTP operations. On failure, NULL is returned and
-.Fn ftpErrno
-will return the error code returned by the foreign server.
+.Fa retcode
+will have the error code returned by the foreign server.
 .Pp
 .Fn ftpChdir
-attempts to issue a server CD command to the the directory named in
+attempts to issue a server CD command to the directory named in
 .Fa dir.
 On success, zero is returned.  On failure, the error code from the server.
 .Pp
 .Fn ftpErrno
 returns the server failure code for the last operation (useful for seeing
 more about what happened if you're familiar with FTP error codes).
+.Fn ftpErrString
+returns a human readable version of the supplied server failure code.
 .Pp
 .Fn ftpGet
 attempts to retreive the file named by the
@@ -108,7 +114,7 @@ as a restart point for the file, that is to say that the stream
 returned will point
 .Fa *seekto
 bytes into the file gotten (this is handy for restarting failed
-transfers efficiently).  If the seek operation succeeds, the value
+transfers efficiently).  If the seek operation fails, the value
 of
 .Fa *seekto
 will be zero'd.
@@ -186,8 +192,7 @@ all my tests.
 .Sh HISTORY
 Started life as Poul-Henning Kamp's ftp driver for the system installation
 utility, later significantly mutated into a more general form as an
-extension of stdio and given a TCL interface (not enabled by default)
-by Jordan Hubbard.  Also incorporates some ideas and extensions from
-Jean-Marc Zucconi.
+extension of stdio by Jordan Hubbard.  Also incorporates some ideas and
+extensions from Jean-Marc Zucconi.
 .Sh AUTHORS
 Jordan Hubbard, Poul-Henning Kamp and Jean-Marc Zucconi
