@@ -66,7 +66,9 @@ are always checked one at a time.
 .Pp
 If not in preen mode, the remaining entries are checked in order of
 increasing pass number one at a time.
-This is needed when interaction with fsck is required.
+This is needed when interaction with
+.Nm
+is required.
 .Pp
 In preen mode, after pass 1 completes, all remaining filesystems are checked,
 in pass number order running one process per disk drive in parallel for each
