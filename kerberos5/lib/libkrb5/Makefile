@@ -8,8 +8,7 @@ CFLAGS+=-I${KRB5DIR}/lib/krb5 \
 	-I${KRB5DIR}/include \
 	-I${KRB5OBJDIR} \
 	-I${ASN1OBJDIR}
-.if defined(MAKE_KERBEROS4) && \
-	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+.if defined(MAKE_KERBEROS4)
 CFLAGS+=-I${KRB4DIR}/include
 .endif
 SRCS=	\

@@ -21,6 +21,9 @@ FSPROTO=$1 ; shift
 FSINODE=$1 ; shift
 FSLABEL=$1 ; shift
 
+BOOT1=${RD}/trees/base/boot/boot1
+BOOT2=${RD}/trees/base/boot/boot2
+
 deadlock=20
 
 dofs_vn () {
@@ -47,7 +50,7 @@ dofs_vn () {
 	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
-	disklabel -Brw ${VNDEVICE} ${FSLABEL}
+	disklabel -w -B -b ${BOOT1} -s ${BOOT2} ${VNDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 1 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
@@ -98,7 +101,7 @@ dofs_md () {
 			exit 1
 		fi
 	fi
-	disklabel -Brw ${MDDEVICE} ${FSLABEL}
+	disklabel -w -B -b ${BOOT1} -s ${BOOT2} ${MDDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}

@@ -46,8 +46,6 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 .endif
 .endif
 
-KERNCONF?=GENERIC
-
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
@@ -129,11 +127,10 @@ COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
 .else
 COMPAT_DISTS?=	compat4x
 .endif
-OTHER_DISTS?=	catpages manpages games proflibs dict info doc
+OTHER_DISTS?=	games catpages manpages proflibs dict info doc
 CRYPTO_DISTS?=	crypto krb4 krb5
 BASE_DISTS?=	base
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
-KERNELS?=	GENERIC
 
 BOOT1=	etc/defaults/rc.conf
 
@@ -184,6 +181,10 @@ BIGBOOTLABEL=		minimum2
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
+
+# Things that need to be recompiled with Kerberos support.
+K4PROGS!=	cd ${.CURDIR}/../kerberosIV; ${MAKE} -V KPROGS
+K5PROGS!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
@@ -244,6 +245,9 @@ MAKEREADMES=	make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 MAKEREADMES=	true
 .endif
 
+WMAKEENV!=	cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V WMAKEENV
+WMAKE=		${WMAKEENV} ${MAKE}
+
 rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
@@ -263,13 +267,12 @@ rerelease release:
 .endif
 	mkdir -p ${CHROOTDIR}
 	@echo ">>> make release started on `LC_ALL=C TZ=GMT date`"
-	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/.. && ${MAKE} -DNOGAMES -DNOHTML -DNOINFO -DNOMAN \
+	    -DNOPROFILE installworld DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
 	fi
-	cd ${.CURDIR}/.. && ${MAKE} -DNOHTML -DNOINFO -DNOMAN installworld \
-	    DESTDIR=${CHROOTDIR}
 	mkdir ${CHROOTDIR}/${BOOTSTRAPDIR}
 	for i in ${BOOTSTRAPUTILS} ; do \
 		cp -p ${CHROOTDIR}$$i ${CHROOTDIR}/${BOOTSTRAPDIR} ; \
@@ -316,7 +319,7 @@ rerelease release:
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d
+	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d -A
 .else
 	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d -r ${RELEASETAG}
 .endif
@@ -381,6 +384,9 @@ rerelease release:
 .if defined(BOOT_CONFIG)
 	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
 .endif
+.if defined(WORLD_FLAGS)
+	echo "export WORLD_FLAGS=\"${WORLD_FLAGS}\""	>> ${CHROOTDIR}/mk
+.endif
 .if defined(KERNEL_FLAGS)
 	echo "export KERNEL_FLAGS=\"${KERNEL_FLAGS}\"" >> ${CHROOTDIR}/mk
 .endif
@@ -393,11 +399,10 @@ rerelease release:
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
-	echo "	(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
-	echo "	make ${WORLD_FLAGS} world && \\"	>> ${CHROOTDIR}/mk
+	echo "	make ${WORLD_FLAGS} buildworld && \\" >> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
-	echo "	make ${WORLD_FLAGS} -DNOCLEAN world && \\" >> ${CHROOTDIR}/mk
+	echo "	make ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
 .endif
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
@@ -420,11 +425,9 @@ release.1:
 	mkdir ${RD}
 	mkdir ${RD}/floppies
 	mkdir ${RD}/trees
-	mkdir ${RD}/dists
 	mkdir ${RD}/kernels
 	for i in ${DISTRIBUTIONS} ; do \
 		mkdir ${RD}/trees/$$i && \
-		mkdir ${RD}/dists/$$i && \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
 		    -p ${RD}/trees/$$i > /dev/null && \
 		mtree -deU -f ${MTREEFILES}/BSD.usr.dist \
@@ -440,19 +443,22 @@ release.1:
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && make distribworld DISTDIR=${RD}/trees
+	# Handle some grief caused by the munition braindeadness.
+	cd ${.CURDIR}/..; \
+	${MAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DNOCRYPT \
+	    SUBDIR_OVERRIDE="${FIXCRYPTO}" \
+	    buildworld distribworld DISTDIR=${RD}/trees
 .if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
-	cd ${.CURDIR}/../kerberosIV && ( \
-		make bootstrap &&\
-		make obj all help-distribute DISTDIR=${RD}/trees &&\
-		make kprog \
-	)
+	cd ${.CURDIR}/..; \
+	${MAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS4 \
+	    SUBDIR_OVERRIDE="kerberosIV ${K4PROGS}" \
+	    buildworld distribworld DISTDIR=${RD}/trees
 .endif
 .if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
-	cd ${.CURDIR}/../kerberos5 && ( \
-		make bootstrap &&\
-		make obj all help-distribute DISTDIR=${RD}/trees &&\
-		make kprog \
-	)
+	cd ${.CURDIR}/..; \
+	${MAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS5 \
+	    SUBDIR_OVERRIDE="kerberos5 ${K5PROGS}" \
+	    buildworld distribworld DISTDIR=${RD}/trees
 .endif
 	-chflags -R noschg ${RD}/trees
 	touch release.2
@@ -460,23 +466,25 @@ release.2:
 # Make and install the generic kernel(s).
 release.3:
 .for kernel in ${KERNELS}
-	-chflags -R noschg ${RD}/kernels/${kernel}
-	rm -rf ${RD}/kernels/${kernel}
-	rm -rf ${.CURDIR}/../sys/${MACHINE}/compile/${kernel}
-	cd ${.CURDIR} && ${MAKE} doSTDKERNEL KERNEL=${kernel} KODIR=/${kernel}
-	rm -rf ${.CURDIR}/../sys/${MACHINE}/compile/${kernel}
-	-mkdir ${RD}/trees/base/boot/${kernel}
-	cp -p ${RD}/kernels/${kernel}/kernel ${RD}/trees/base/boot/${kernel}
+	cd ${.CURDIR}/..; \
+	${MAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES \
+	    KERNCONF=${kernel} INSTKERNNAME=${kernel} kernel \
+	    DESTDIR=${RD}/trees/base
 .endfor
-	# Install a standard boot kernel+modules
-	mkdir -p ${RD}/trees/base/boot/kernel
-	cp -Rp ${RD}/kernels/GENERIC/* ${RD}/trees/base/boot/kernel
+	# Install a standard boot kernel+modules.
+	cd ${.CURDIR}/..; \
+	${MAKE} ${KERNEL_FLAGS} -DNO_WERROR \
+	    kernel \
+	    DESTDIR=${RD}/trees/base; \
+	cd ${.CURDIR}/..; \
+	${MAKE} ${KERNEL_FLAGS} -DNO_MODULES \
+	    reinstallkernel -DINSTALL_DEBUG \
+	    DESTDIR=${RD}/trees/base
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
 release.4:
-	@mkdir -p /stand
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	for j in ${CRUNCH_TARGETS} ; do \
@@ -486,7 +494,7 @@ release.4:
 		  ( ( [ -f ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ] && \
 		    crunchgen ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ) || \
 		    ( crunchgen ${.CURDIR}/$${j}_crunch.conf ) ) && \
-		  ${MAKE} -f $${j}_crunch.mk subclean all ) && \
+		  ${WMAKE} -f $${j}_crunch.mk subclean all ) && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done
@@ -496,12 +504,6 @@ release.4:
 # --==## Fix up the distributions. ##==--
 #
 release.5:
-	# Handle some grief caused by the munition braindeadness.
-	for i in ${FIXCRYPTO}; do \
-		( cd ${.CURDIR}/../$$i; \
-		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
-	done
-
 	# Create any "synthetic dists" now.
 	@for i in ${DISTRIBUTIONS}; do \
 		if [ -f ${.CURDIR}/scripts/$${i}-make.sh ]; then \
@@ -624,12 +626,12 @@ release.8:
 		${RD}/trees/base/etc/$$F > ${RD}/mfsfd/stand/etc/$$F ; \
 	  done )
 	grep -E '^(ftp|nameserver|domain|sunrpc|cmd|nfsd)[^-\w]' \
-	    ${.CURDIR}/../etc/services | \
+	    ${RD}/trees/base/etc/services | \
 	    sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
 	    > ${RD}/mfsfd/stand/etc/services
 	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
 	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
-	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
+	gzip -9c ${RD}/trees/base/COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
 	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
@@ -641,28 +643,30 @@ release.8:
 .endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
-	@cp /boot/boot* ${RD}/mfsfd/boot
+	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
 .if ${MACHINE} == "i386"
-	@cp /boot/mbr ${RD}/mfsfd/boot
+	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
-	@cp /boot/loader.help ${RD}/mfsfd/boot
-	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
+	@cp ${RD}/trees/base/boot/loader.help ${RD}/mfsfd/boot
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
+	    sh ${.CURDIR}/${MACHINE_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
+	    [ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
 .if exists(${.CURDIR}/${MACHINE}/drivers.conf)
-	@cd ${.CURDIR} && ${MAKE} doMODULES KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
+	@perl ${.CURDIR}/scripts/driver-remove.pl \
+		${.CURDIR}/${MACHINE}/drivers.conf \
+		${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
+	@mkdir -p ${RD}/mfsfd/stand/modules
+	@perl ${.CURDIR}/scripts/driver-copy2.pl \
+	    ${.CURDIR}/${MACHINE}/drivers.conf \
+	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
 .endif
 	@echo "Making the regular boot floppy."
-	@tar --exclude CVS -cf - -C /usr/src/usr.sbin/sysinstall help | \
+	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 .if ${MACHINE_ARCH} == "alpha"
 	rm -rf ${RD}/mfsfd/stand/help/*
-.endif
-.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
-	@mkdir -p ${RD}/mfsfd/stand/modules
-	@perl ${.CURDIR}/scripts/driver-copy2.pl \
-		${.CURDIR}/${MACHINE}/drivers.conf \
-		${RD}/kernels ${RD}/mfsfd/stand/modules
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
@@ -923,70 +927,21 @@ installCRUNCH:
 	fi
 
 #
-# --==## BOOTMFS config file ##==--
-#
-
-createBOOTMFS:
-	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
-	  sh ${.CURDIR}/${MACHINE_ARCH}/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS && \
-	  [ -r ${KERNCONF}.hints ] && cp ${KERNCONF}.hints BOOTMFS.hints
-.if 0 && ${MACHINE_ARCH} == "i386"
-	@echo "options  INTRO_USERCONFIG" >> \
-	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
-.endif
-.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
-	@perl ${.CURDIR}/scripts/driver-remove.pl \
-		${.CURDIR}/${MACHINE}/drivers.conf \
-		${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
-.endif
-
-#
-# --==## Compile a kernel by name ${KERNEL} ##==--
-#
-# We don't erase the sys/${MACHINE}/compile/${KERNEL} directory, since somebody
-# may want to reuse it (release.8 presently)
-#
-doKERNEL:
-	@rm -f ${RD}/kernels/${KERNEL}
-	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
-	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
-			make kernel-depend && \
-			make -DNO_WERROR ${KERNEL_FLAGS} ${KERNEL_KO} && \
-			make kernel-reinstall DESTDIR=${RD}/kernels && \
-			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
-			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
-
-doMODULES:
-	@rm -f ${RD}/kernels/*.ko
-	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
-	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
-			make modules-depend && \
-			make -DNO_WERROR ${KERNEL_FLAGS} modules && \
-			make modules-reinstall DESTDIR=${RD}/kernels && \
-
-doSTDKERNEL:
-	@rm -f ${RD}/kernels/${KERNEL}
-	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
-	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
-			make depend && \
-			make -DNO_WERROR ${KERNEL_FLAGS} KERNEL=${KERNEL} && \
-			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels install && \
-			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
-			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
-	@-cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
-			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels \
-				kernel-reinstall.debug
-
-#
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 doMFSKERN:
-	@echo "Running doMFSKERN for ${FSIMAGE}"
-	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
-	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
+	@echo "Running ${.TARGET} for ${FSIMAGE}"
+	@rm -f ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	cd ${.CURDIR}/..; \
+	KERNEL_KO=BOOTMFS KODIR= \
+	    ${MAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES -DNO_KERNELCLEAN \
+	    KERNCONF=BOOTMFS buildkernel reinstallkernel \
+	    DESTDIR=${RD}/kernels
+.if exists(${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS.hints)
+	cp ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS.hints ${RD}/kernels
+.endif
 	@rm -rf ${RD}/image.${FSIMAGE}
-	@mkdir  ${RD}/image.${FSIMAGE}
+	@mkdir ${RD}/image.${FSIMAGE}
 	@cd ${RD}/kernels && \
 	  (chflags noschg BOOTMFS || true) && \
 	  strip BOOTMFS && \

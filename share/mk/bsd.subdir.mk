@@ -24,7 +24,7 @@
 # 		This is a variant of install, which will
 # 		put the stuff into the right "distribution".
 #
-#	afterdistribute, afterinstall, all, all-man, beforeinstall, checkdpadd,
+#	afterinstall, all, all-man, beforeinstall, checkdpadd,
 #	clean, cleandepend, cleandir, depend, install, lint,
 #	obj, objlink, realinstall, regress, tags
 #
@@ -57,7 +57,8 @@ ${SUBDIR}::
 	${MAKE} all
 
 
-.for __target in all all-man checkdpadd clean cleandepend cleandir depend lint \
+.for __target in all all-man checkdpadd clean cleandepend cleandir \
+    depend distribute lint \
     obj objlink realinstall regress tags
 ${__target}: _SUBDIR
 .endfor
@@ -72,15 +73,4 @@ afterinstall:
 install: afterinstall
 afterinstall: realinstall
 realinstall: beforeinstall
-.endif
-
-DISTRIBUTION?=	base
-.if !target(afterdistribute)
-afterdistribute:
-.endif
-.if !target(distribute)
-distribute: _SUBDIR
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${dist}
-.endfor
 .endif
