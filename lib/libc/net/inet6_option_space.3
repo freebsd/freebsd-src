@@ -46,15 +46,16 @@
 .Nd IPv6 Hop-by-Hop and Destination Options manipulation
 .\"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Ft "int"
-.Fn inet6_options_space "int nbytes"
+.Fn inet6_option_space "int nbytes"
 .Ft "int"
 .Fn inet6_option_init "void *bp" "struct cmsghdr **cmsgp" "int type"
 .Ft "int"
 .Fn inet6_option_append "struct cmsghdr *cmsg" "const u_int8_t *typep" "int multx" "int plusy"
 .Ft "u_int8_t *"
-.Fn inet6_option_alloc "struct cmsghdr *cmsg" "int datalen" "int multx" "int plusy";
+.Fn inet6_option_alloc "struct cmsghdr *cmsg" "int datalen" "int multx" "int plusy"
 .Ft "int"
 .Fn inet6_option_next "const struct cmsghdr *cmsg" "u_int8_t **tptrp"
 .Ft "int"
