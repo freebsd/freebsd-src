@@ -243,7 +243,7 @@ acd_detach(struct ata_device *atadev)
 	free(entry, M_ACD);
     }
     destroy_dev(cdp->dev);
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
     EVENTHANDLER_DEREGISTER(dev_clone, cdp->clone_evh);
 #endif
     devstat_remove_entry(cdp->stats);
@@ -276,7 +276,7 @@ acd_init_lun(struct ata_device *atadev)
     return cdp;
 }
 
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 static void
 acd_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -305,7 +305,7 @@ acd_make_dev(struct acd_softc *cdp)
     dev->si_drv1 = cdp;
     cdp->dev = dev;
     cdp->device->flags |= ATA_D_MEDIA_CHANGED;
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
     cdp->clone_evh = EVENTHANDLER_REGISTER(dev_clone, acd_clone, cdp, 1000);
 #endif
     acd_set_ioparm(cdp);
