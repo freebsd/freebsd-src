@@ -1867,17 +1867,8 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm)
 	struct mbuf *m;
 	struct fxp_rfa *rfa, *p_rfa;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m != NULL) {
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_freem(m);
-			if (oldm == NULL)
-				return 1;
-			m = oldm;
-			m->m_data = m->m_ext.ext_buf;
-		}
-	} else {
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL) { /* try to recycle the old mbuf instead */
 		if (oldm == NULL)
 			return 1;
 		m = oldm;
