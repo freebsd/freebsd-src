@@ -180,9 +180,11 @@ void g_trace(int level, char *, ...);
 
 
 /* geom_event.c */
+typedef void g_call_me_t(void *);
+int g_call_me(g_call_me_t *func, void *arg);
 void g_orphan_provider(struct g_provider *pp, int error);
-void g_waitidle(void);
 void g_silence(void);
+void g_waitidle(void);
 
 /* geom_subr.c */
 int g_access_abs(struct g_consumer *cp, int read, int write, int exclusive);
