@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.13 1997/10/31 23:33:44 ache Exp $
+ *	$Id: http.c,v 1.14 1997/11/01 05:47:41 ache Exp $
  */
 
 #include <sys/types.h>
@@ -345,7 +345,7 @@ http_redirect(struct fetch_state *fs, char *new, int permanent)
 	int rv;
 
 	if (num_redirects > 5) {
-		warnx("%s: HTTP redirection limit exceeded");
+		warnx("%s: HTTP redirection limit exceeded", out);
 		return EX_PROTOCOL;
 	}
 
@@ -1067,7 +1067,8 @@ http_suck_chunked(struct fetch_state *fs, FILE *remote, FILE *local,
 		if (errno || *line == 0
 		    || (*ep && !isspace(*ep) && *ep != ';')) {
 			warnx("%s: error processing chunked encoding: "
-			      "uninterpretable length: %s", line);
+			      "uninterpretable length: %s", fs->fs_outputfile,
+			      line);
 			return EX_PROTOCOL;
 		}
 		if (chunklen == 0)
