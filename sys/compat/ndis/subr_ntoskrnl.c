@@ -147,6 +147,7 @@ __stdcall static ndis_status ntoskrnl_unicode_to_int(ndis_unicode_string *,
 	uint32_t, uint32_t *);
 static int atoi (const char *);
 static long atol (const char *);
+static int rand(void);
 static void ntoskrnl_time(uint64_t *);
 __stdcall static uint8_t ntoskrnl_wdmver(uint8_t, uint8_t);
 static void ntoskrnl_thrfunc(void *);
@@ -1355,6 +1356,16 @@ atol(str)
 	return strtol(str, (char **)NULL, 10);
 }
 
+static int
+rand(void)
+{
+	struct timeval		tv;
+
+	microtime(&tv);
+	srandom(tv.tv_usec);
+	return((int)random());
+}
+
 __stdcall static uint8_t
 ntoskrnl_wdmver(major, minor)
 	uint8_t			major;
@@ -1908,6 +1919,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "_aullshl",			(FUNC)_aullshl },
 	{ "atoi",			(FUNC)atoi },
 	{ "atol",			(FUNC)atol },
+	{ "rand",			(FUNC)rand },
 	{ "WRITE_REGISTER_USHORT",	(FUNC)ntoskrnl_writereg_ushort },
 	{ "READ_REGISTER_USHORT",	(FUNC)ntoskrnl_readreg_ushort },
 	{ "WRITE_REGISTER_ULONG",	(FUNC)ntoskrnl_writereg_ulong },
