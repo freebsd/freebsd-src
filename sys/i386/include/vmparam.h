@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.29 1998/02/23 07:42:40 dyson Exp $
+ *	$Id: vmparam.h,v 1.30 1998/06/12 09:10:22 dg Exp $
  */
 
 
@@ -133,7 +133,7 @@
  * Ceiling on amount of kmem_map kva space.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(80 * 1024 * 1024)
+#define	VM_KMEM_SIZE_MAX	(200 * 1024 * 1024)
 #endif
 
 /* initial pagein size of beginning of executable file */
