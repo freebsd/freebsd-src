@@ -1248,7 +1248,7 @@ print_scsp_dump()
 	/*
 	 * Build a file name
 	 */
-	UM_ZERO(fname, sizeof(fname));
+	bzero(fname, sizeof(fname));
 	sprintf(fname, "/tmp/scspd.%d.%03d.out", getpid(), dump_no++);
 
 	/*

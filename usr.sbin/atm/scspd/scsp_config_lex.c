@@ -406,8 +406,8 @@ yylex()
 	if (class_tbl['A'] != CHAR_HEX_DIGIT)
 		init_class_tbl(class_tbl);
 	state = TS_INIT;
-	UM_ZERO(token_buffer, sizeof(token_buffer));
-	UM_ZERO(&yylval, sizeof(yylval));
+	bzero(token_buffer, sizeof(token_buffer));
+	bzero(&yylval, sizeof(yylval));
 
 	/*
 	 * Handle a character at a time until a token is built
@@ -463,7 +463,7 @@ yylex()
 			/*
 			 * Clear the token buffer
 			 */
-			UM_ZERO(token_buffer, sizeof(token_buffer));
+			bzero(token_buffer, sizeof(token_buffer));
 			break;
 		case 5:
 			/*
