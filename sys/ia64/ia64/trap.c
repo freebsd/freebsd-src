@@ -85,10 +85,12 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 	int sig;
 
 	/* take pending signals */
+	PROC_LOCK(p);
 	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
 
 	mtx_lock_spin(&sched_lock);
+	PROC_UNLOCK_NOSWITCH();
 	p->p_pri.pri_level = p->p_pri.pri_user;
 	if (resched_wanted(p)) {
 		/*
@@ -105,9 +107,11 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
+		PROC_LOCK(p);
 		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
 		mtx_lock_spin(&sched_lock);
+		PROC_UNLOCK_NOSWITCH(p);
 	}
 
 	/*
@@ -115,8 +119,6 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 	 */
 	if (p->p_sflag & PS_PROFIL) {
 		mtx_unlock_spin(&sched_lock);
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		addupc_task(p, TRAPF_PC(frame),
 		    (int)(p->p_sticks - oticks) * psratio);
 	} else
