@@ -31,7 +31,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2004
+.Dd August 15, 2004
 .Dt DD 1
 .Os
 .Sh NAME
@@ -89,8 +89,10 @@ When padding a block in conversion mode or due to use of
 .Cm noerror
 and
 .Cm sync
-modes, fill with the specified ASCII character, rather than using a space
-or nul.
+modes, fill with the specified
+.Tn ASCII
+character, rather than using a space or
+.Dv NUL .
 .It Cm ibs Ns = Ns Ar n
 Set the input block size to
 .Ar n
@@ -255,8 +257,9 @@ bytes (or with spaces if a block oriented conversion value was
 specified) and processed as a normal input buffer.
 If the
 .Cm fillchar
-option is specified, the fill char provided on the command line will override
-the automatic selection of fill character.
+option is specified, the fill character provided on the command line
+will override
+the automatic selection of the fill character.
 If the
 .Cm sync
 conversion is not specified, the input block is omitted from the output.
