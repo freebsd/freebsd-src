@@ -51,8 +51,6 @@ extern struct target_ops child_ops; /* target vector for inftarg.c */
 
 extern void _initialize_freebsd_uthread PARAMS ((void));
 
-static int main_pid = -1;	/* Real process ID */
-
 /* Set to true while we are part-way through attaching */
 static int freebsd_uthread_attaching;
 
@@ -60,60 +58,17 @@ static int freebsd_uthread_active = 0;
 static CORE_ADDR P_thread_list;
 static CORE_ADDR P_thread_run;
 
-static struct cleanup * save_inferior_pid PARAMS ((void));
+/* Pointer to the next function on the objfile event chain.  */
+static void (*target_new_objfile_chain) (struct objfile *objfile);
 
-static void restore_inferior_pid PARAMS ((int pid));
-
-static void freebsd_uthread_resume PARAMS ((int pid, int step,
+static void freebsd_uthread_resume PARAMS ((ptid_t pid, int step,
 					enum target_signal signo));
 
 static void init_freebsd_uthread_ops PARAMS ((void));
 
 static struct target_ops freebsd_uthread_ops;
-static struct target_thread_vector freebsd_uthread_vec;
 
-/*
-
-LOCAL FUNCTION
-
-	save_inferior_pid - Save inferior_pid on the cleanup list
-	restore_inferior_pid - Restore inferior_pid from the cleanup list
-
-SYNOPSIS
-
-	struct cleanup *save_inferior_pid ()
-	void restore_inferior_pid (int pid)
-
-DESCRIPTION
-
-	These two functions act in unison to restore inferior_pid in
-	case of an error.
-
-NOTES
-
-	inferior_pid is a global variable that needs to be changed by many of
-	these routines before calling functions in procfs.c.  In order to
-	guarantee that inferior_pid gets restored (in case of errors), you
-	need to call save_inferior_pid before changing it.  At the end of the
-	function, you should invoke do_cleanups to restore it.
-
- */
-
-static struct cleanup *
-save_inferior_pid ()
-{
-  return make_cleanup ((make_cleanup_func) restore_inferior_pid,
-		       (void *)(intptr_t) inferior_pid);
-}
-
-static void
-restore_inferior_pid (pid)
-     int pid;
-{
-  inferior_pid = pid;
-}
-
-static int find_active_thread PARAMS ((void));
+static ptid_t find_active_ptid PARAMS ((void));
 
 struct cached_pthread {
   u_int64_t		uniqueid;
@@ -125,12 +80,9 @@ struct cached_pthread {
   }			ctx;
 };
 
-static int cached_thread;
+static ptid_t cached_ptid;
 static struct cached_pthread cached_pthread;
 static CORE_ADDR cached_pthread_addr;
-
-#define THREADID_TID(id)	((id) >> 17)
-#define THREADID_PID(id)	((id) & ((1 << 17) - 1))
 
 LIST_HEAD(idmaplist, idmap);
 
@@ -171,8 +123,7 @@ static int PS_DEAD_value;
 #define IS_TID_FREE(tid)	(tid_to_hash[tid] == -1)
 
 static int
-get_new_tid(h)
-     int h;
+get_new_tid(int h)
 {
   int tid = next_free_tid;
 
@@ -199,30 +150,28 @@ get_new_tid(h)
   return tid;
 }
 
-static int
-find_pid(uniqueid)
-     u_int64_t uniqueid;
+static ptid_t
+find_ptid(u_int64_t uniqueid)
 {
   int h = UNIQUEID_HASH(uniqueid);
   struct idmap *im;
 
   LIST_FOREACH(im, &map_hash[h], link)
     if (im->uniqueid == uniqueid)
-      return (im->tid << 17) + main_pid;
+      return MERGEPID(PIDGET(inferior_ptid), im->tid);
 
   im = xmalloc(sizeof(struct idmap));
   im->uniqueid = uniqueid;
   im->tid = get_new_tid(h);
   LIST_INSERT_HEAD(&map_hash[h], im, link);
 
-  return (im->tid << 17) + main_pid;
+  return MERGEPID(PIDGET(inferior_ptid), im->tid);
 }
 
 static void
-free_pid(pid)
-	int pid;
+free_ptid(ptid_t ptid)
 {
-  int tid = THREADID_TID(pid);
+  int tid = TIDGET(ptid);
   int h = tid_to_hash[tid];
   struct idmap *im;
 
@@ -248,7 +197,7 @@ free_pid(pid)
 				     sizeof(name##_value))
 
 static void
-read_thread_offsets ()
+read_thread_offsets (void)
 {
   READ_OFFSET(next);
   READ_OFFSET(uniqueid);
@@ -264,8 +213,7 @@ read_thread_offsets ()
   read_memory ((ptr) + field##_offset, (char *) &(result), sizeof result)
 
 static u_int64_t
-read_pthread_uniqueid (ptr)
-     CORE_ADDR ptr;
+read_pthread_uniqueid (CORE_ADDR ptr)
 {
   u_int64_t uniqueid;
   READ_FIELD(ptr, u_int64_t, uniqueid, uniqueid);
@@ -273,8 +221,7 @@ read_pthread_uniqueid (ptr)
 }
 
 static CORE_ADDR
-read_pthread_next (ptr)
-     CORE_ADDR ptr;
+read_pthread_next (CORE_ADDR ptr)
 {
   CORE_ADDR next;
   READ_FIELD(ptr, CORE_ADDR, next, next);
@@ -282,9 +229,7 @@ read_pthread_next (ptr)
 }
 
 static void
-read_cached_pthread (ptr, cache)
-     CORE_ADDR ptr;
-     struct cached_pthread *cache;
+read_cached_pthread (CORE_ADDR ptr, struct cached_pthread *cache)
 {
   READ_FIELD(ptr, u_int64_t,	uniqueid,	cache->uniqueid);
   READ_FIELD(ptr, int,		state,		cache->state);
@@ -292,31 +237,27 @@ read_cached_pthread (ptr, cache)
   READ_FIELD(ptr, ucontext_t,	ctx,		cache->ctx);
 }
 
-static int
-find_active_thread ()
+static ptid_t
+find_active_ptid (void)
 {
   CORE_ADDR ptr;
-
-  if (main_pid == -1)
-    return -1;
 
   read_memory ((CORE_ADDR)P_thread_run,
 	       (char *)&ptr,
 	       sizeof ptr);
 
-  return find_pid(read_pthread_uniqueid(ptr));
+  return find_ptid(read_pthread_uniqueid(ptr));
 }
 
-static CORE_ADDR find_pthread_addr PARAMS ((int thread));
-static struct cached_pthread * find_pthread PARAMS ((int thread));
+static CORE_ADDR find_pthread_addr PARAMS ((ptid_t ptid));
+static struct cached_pthread * find_pthread PARAMS ((ptid_t ptid));
 
 static CORE_ADDR
-find_pthread_addr (thread)
-     int thread;
+find_pthread_addr (ptid_t ptid)
 {
   CORE_ADDR ptr;
 
-  if (thread == cached_thread)
+  if (ptid_equal(ptid, cached_ptid))
     return cached_pthread_addr;
 
   read_memory ((CORE_ADDR)P_thread_list,
@@ -325,9 +266,9 @@ find_pthread_addr (thread)
 
   while (ptr != 0)
     {
-      if (find_pid(read_pthread_uniqueid(ptr)) == thread)
+      if (ptid_equal(find_ptid(read_pthread_uniqueid(ptr)), ptid))
 	{
-	  cached_thread = thread;
+	  cached_ptid = ptid;
 	  cached_pthread_addr = ptr;
 	  read_cached_pthread(ptr, &cached_pthread);
 	  return ptr;
@@ -339,12 +280,11 @@ find_pthread_addr (thread)
 }
 
 static struct cached_pthread *
-find_pthread (thread)
-     int thread;
+find_pthread (ptid_t ptid)
 {
   CORE_ADDR ptr;
 
-  if (thread == cached_thread)
+  if (ptid_equal(ptid, cached_ptid))
     return &cached_pthread;
 
   read_memory ((CORE_ADDR)P_thread_list,
@@ -353,9 +293,9 @@ find_pthread (thread)
 
   while (ptr != 0)
     {
-      if (find_pid(read_pthread_uniqueid(ptr)) == thread)
+      if (ptid_equal(find_ptid(read_pthread_uniqueid(ptr)), ptid))
 	{
-	  cached_thread = thread;
+	  cached_ptid = ptid;
 	  cached_pthread_addr = ptr;
 	  read_cached_pthread(ptr, &cached_pthread);
 	  return &cached_pthread;
@@ -364,8 +304,7 @@ find_pthread (thread)
     }
 
 #if 0
-  error ("Can't find pthread %d,%d",
-	 THREADID_TID(thread), THREADID_PID(thread));
+  error ("Can't find pthread %d,%d", PIDGET(ptid), TIDGET(ptid));
 #endif
   return NULL;
 }
@@ -376,9 +315,7 @@ find_pthread (thread)
 
 /* ARGSUSED */
 static void
-freebsd_uthread_open (arg, from_tty)
-     char *arg;
-     int from_tty;
+freebsd_uthread_open (char *arg, int from_tty)
 {
   child_ops.to_open (arg, from_tty);
 }
@@ -387,9 +324,7 @@ freebsd_uthread_open (arg, from_tty)
    and wait for the trace-trap that results from attaching.  */
 
 static void
-freebsd_uthread_attach (args, from_tty)
-     char *args;
-     int from_tty;
+freebsd_uthread_attach (char *args, int from_tty)
 {
   child_ops.to_attach (args, from_tty);
   push_target (&freebsd_uthread_ops);
@@ -399,20 +334,13 @@ freebsd_uthread_attach (args, from_tty)
 /* After an attach, see if the target is threaded */
 
 static void
-freebsd_uthread_post_attach (pid)
-     int pid;
+freebsd_uthread_post_attach (int pid)
 {
   if (freebsd_uthread_active)
     {
       read_thread_offsets ();
-
-      main_pid = pid;
-
-      bind_target_thread_vector (&freebsd_uthread_vec);
-
-      inferior_pid = find_active_thread ();
-
-      add_thread (inferior_pid);
+      inferior_ptid = find_active_ptid ();
+      add_thread (inferior_ptid);
     }
   else
     {
@@ -432,9 +360,7 @@ freebsd_uthread_post_attach (pid)
    started via the normal ptrace (PTRACE_TRACEME).  */
 
 static void
-freebsd_uthread_detach (args, from_tty)
-     char *args;
-     int from_tty;
+freebsd_uthread_detach (char *args, int from_tty)
 {
   child_ops.to_detach (args, from_tty);
 }
@@ -445,70 +371,46 @@ freebsd_uthread_detach (args, from_tty)
    for procfs.  */
 
 static void
-freebsd_uthread_resume (pid, step, signo)
-     int pid;
-     int step;
-     enum target_signal signo;
+freebsd_uthread_resume (ptid_t ptid, int step, enum target_signal signo)
 {
-  struct cleanup *old_chain;
-
   if (freebsd_uthread_attaching)
     {
-      child_ops.to_resume (pid, step, signo);
+      child_ops.to_resume (ptid, step, signo);
       return;
     }
 
-  old_chain = save_inferior_pid ();
-
-  pid = inferior_pid = main_pid;
-
-  child_ops.to_resume (pid, step, signo);
-
-  cached_thread = 0;
-
-  do_cleanups (old_chain);
+  child_ops.to_resume (ptid, step, signo);
+  cached_ptid = MERGEPID(0, 0);
 }
 
 /* Wait for any threads to stop.  We may have to convert PID from a thread id
    to a LWP id, and vice versa on the way out.  */
 
-static int
-freebsd_uthread_wait (pid, ourstatus)
-     int pid;
-     struct target_waitstatus *ourstatus;
+static ptid_t
+freebsd_uthread_wait (ptid_t ptid, struct target_waitstatus *ourstatus)
 {
-  int rtnval;
-  struct cleanup *old_chain;
+  ptid_t rtnval;
 
   if (freebsd_uthread_attaching)
     {
-      return child_ops.to_wait (pid, ourstatus);
+      return child_ops.to_wait (ptid, ourstatus);
     }
 
-  old_chain = save_inferior_pid ();
+  rtnval = child_ops.to_wait (ptid, ourstatus);
 
-  inferior_pid = main_pid;
-
-  if (pid != -1)
-    pid = main_pid;
-
-  rtnval = child_ops.to_wait (pid, ourstatus);
-
-  if (rtnval >= 0)
+  if (PIDGET(rtnval) >= 0)
     {
-      rtnval = find_active_thread ();
+      rtnval = find_active_ptid ();
       if (!in_thread_list (rtnval))
 	add_thread (rtnval);
     }
-
-  do_cleanups (old_chain);
 
   return rtnval;
 }
 
 #ifdef __i386__
 
-static char sigmap[NUM_REGS] =	/* map reg to sigcontext  */
+static char sigmap[MAX_NUM_REGS] = /* map reg to sigcontext  */
 {
   12,				/* eax */
   11,				/* ecx */
@@ -526,9 +428,13 @@ static char sigmap[NUM_REGS] =	/* map reg to sigcontext  */
   3,				/* es */
   2,				/* fs */
   1,				/* gs */
+  -1, -1, -1, -1, -1, -1, -1,	/* st0-st7 */
+  -1, -1, -1, -1, -1, -1, -1,	/* fctrl-fop */
+  -1, -1, -1, -1, -1, -1, -1,	/* xmm0-xmm7 */
+  -1,				/* mxcsr */
 };
 
-static char jmpmap[NUM_REGS] = /* map reg to jmp_buf */
+static char jmpmap[MAX_NUM_REGS] = /* map reg to jmp_buf */
 {
   6,				/* eax */
   -1,				/* ecx */
@@ -546,6 +452,10 @@ static char jmpmap[NUM_REGS] = /* map reg to jmp_buf */
   -1,				/* es */
   -1,				/* fs */
   -1,				/* gs */
+  -1, -1, -1, -1, -1, -1, -1,	/* st0-st7 */
+  -1, -1, -1, -1, -1, -1, -1,	/* fctrl-fop */
+  -1, -1, -1, -1, -1, -1, -1,	/* xmm0-xmm7 */
+  -1,				/* mxcsr */
 };
 
 #endif
@@ -579,36 +489,26 @@ static char jmpmap[NUM_REGS] = {
 #endif
 
 static void
-freebsd_uthread_fetch_registers (regno)
-     int regno;
+freebsd_uthread_fetch_registers (int regno)
 {
   struct cached_pthread *thread;
-  struct cleanup *old_chain;
   int active;
   int first_regno, last_regno;
   register_t *regbase;
   char *regmap;
 
-  if (freebsd_uthread_attaching)
+  if (freebsd_uthread_attaching || TIDGET(inferior_ptid) == 0)
     {
       child_ops.to_fetch_registers (regno);
       return;
     }
 
-  thread = find_pthread (inferior_pid);
-
-  old_chain = save_inferior_pid ();
-
-  active = (inferior_pid == find_active_thread());
-
-  inferior_pid = main_pid;
+  thread = find_pthread (inferior_ptid);
+  active = (ptid_equal(inferior_ptid, find_active_ptid()));
 
   if (active)
     {
       child_ops.to_fetch_registers (regno);
-
-      do_cleanups (old_chain);
-
       return;
     }
 
@@ -631,19 +531,18 @@ freebsd_uthread_fetch_registers (regno)
       if (regmap[regno] == -1)
 	child_ops.to_fetch_registers (regno);
       else
-	supply_register (regno, (char*) &regbase[regmap[regno]]);
+	if (thread)
+	  supply_register (regno, (char*) &regbase[regmap[regno]]);
+	else
+	  supply_register (regno, NULL);
     }
-
-  do_cleanups (old_chain);
 }
 
 static void
-freebsd_uthread_store_registers (regno)
-     int regno;
+freebsd_uthread_store_registers (int regno)
 {
   struct cached_pthread *thread;
   CORE_ADDR ptr;
-  struct cleanup *old_chain;
   int first_regno, last_regno;
   u_int32_t *regbase;
   char *regmap;
@@ -654,18 +553,11 @@ freebsd_uthread_store_registers (regno)
       return;
     }
 
-  thread = find_pthread (inferior_pid);
-
-  old_chain = save_inferior_pid ();
-
-  inferior_pid = main_pid;
+  thread = find_pthread (inferior_ptid);
 
   if (thread->state == PS_RUNNING_value)
     {
       child_ops.to_store_registers (regno);
-
-      do_cleanups (old_chain);
-
       return;
     }
 
@@ -683,7 +575,7 @@ freebsd_uthread_store_registers (regno)
   regbase = (u_int32_t*) &thread->ctx.jb[0];
   regmap = jmpmap;
 
-  ptr = find_pthread_addr (inferior_pid);
+  ptr = find_pthread_addr (inferior_ptid);
   for (regno = first_regno; regno <= last_regno; regno++)
     {
       if (regmap[regno] == -1)
@@ -704,8 +596,6 @@ freebsd_uthread_store_registers (regno)
 			REGISTER_RAW_SIZE (regno));
 	}
     }
-
-  do_cleanups (old_chain);
 }
 
 /* Get ready to modify the registers array.  On machines which store
@@ -715,102 +605,53 @@ freebsd_uthread_store_registers (regno)
    debugged.  */
 
 static void
-freebsd_uthread_prepare_to_store ()
+freebsd_uthread_prepare_to_store (void)
 {
-  struct cleanup *old_chain;
-
-  if (freebsd_uthread_attaching)
-    {
-      child_ops.to_prepare_to_store ();
-      return;
-    }
-
-  old_chain = save_inferior_pid ();
-  inferior_pid = main_pid;
-
   child_ops.to_prepare_to_store ();
-
-  do_cleanups (old_chain);
 }
 
 static int
-freebsd_uthread_xfer_memory (memaddr, myaddr, len, dowrite, target)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
-     int dowrite;
-     struct target_ops *target; /* ignored */
+freebsd_uthread_xfer_memory (CORE_ADDR memaddr, char *myaddr, int len,
+			     int dowrite, struct mem_attrib *attrib,
+			     struct target_ops *target)
 {
-  int retval;
-  struct cleanup *old_chain;
-
-  if (freebsd_uthread_attaching)
-    {
-      return child_ops.to_xfer_memory (memaddr, myaddr, len, dowrite, target);
-    }
-
-  old_chain = save_inferior_pid ();
-
-  inferior_pid = main_pid;
-
-  retval = child_ops.to_xfer_memory (memaddr, myaddr, len, dowrite, target);
-
-  do_cleanups (old_chain);
-
-  return retval;
+  return child_ops.to_xfer_memory (memaddr, myaddr, len, dowrite,
+				   attrib, target);
 }
 
 /* Print status information about what we're accessing.  */
 
 static void
-freebsd_uthread_files_info (ignore)
-     struct target_ops *ignore;
+freebsd_uthread_files_info (struct target_ops *ignore)
 {
   child_ops.to_files_info (ignore);
 }
 
 static void
-freebsd_uthread_kill_inferior ()
+freebsd_uthread_kill_inferior (void)
 {
-  inferior_pid = main_pid;
   child_ops.to_kill ();
 }
 
 static void
-freebsd_uthread_notice_signals (pid)
-     int pid;
+freebsd_uthread_notice_signals (ptid_t ptid)
 {
-  struct cleanup *old_chain;
-  old_chain = save_inferior_pid ();
-  inferior_pid = main_pid;
-
-  child_ops.to_notice_signals (pid);
-
-  do_cleanups (old_chain);
+  child_ops.to_notice_signals (ptid);
 }
 
 /* Fork an inferior process, and start debugging it with /proc.  */
 
 static void
-freebsd_uthread_create_inferior (exec_file, allargs, env)
-     char *exec_file;
-     char *allargs;
-     char **env;
+freebsd_uthread_create_inferior (char *exec_file, char *allargs, char **env)
 {
   child_ops.to_create_inferior (exec_file, allargs, env);
 
-  if (inferior_pid && freebsd_uthread_active)
+  if (PIDGET(inferior_ptid) && freebsd_uthread_active)
     {
       read_thread_offsets ();
-
-      main_pid = inferior_pid;
-
       push_target (&freebsd_uthread_ops);
-      bind_target_thread_vector (&freebsd_uthread_vec);
-
-      inferior_pid = find_active_thread ();
-
-      add_thread (inferior_pid);
+      inferior_ptid = find_active_ptid ();
+      add_thread (inferior_ptid);
     }
 }
 
@@ -818,8 +659,7 @@ freebsd_uthread_create_inferior (exec_file, allargs, env)
    We check for the _thread_run and _thread_list globals. */
 
 void
-freebsd_uthread_new_objfile (objfile)
-     struct objfile *objfile;
+freebsd_uthread_new_objfile (struct objfile *objfile)
 {
   struct minimal_symbol *ms;
 
@@ -873,24 +713,11 @@ freebsd_uthread_new_objfile (objfile)
   freebsd_uthread_active = 1;
 }
 
-int
-freebsd_uthread_has_exited (pid, wait_status, exit_status)
-  int  pid;
-  int  wait_status;
-  int *  exit_status;
-{
-  int t = child_ops.to_has_exited (pid, wait_status, exit_status);
-  if (t)
-    main_pid = -1;
-  return t;
-}
-
 /* Clean up after the inferior dies.  */
 
 static void
 freebsd_uthread_mourn_inferior ()
 {
-  inferior_pid = main_pid;	/* don't bother to restore inferior_pid */
   child_ops.to_mourn_inferior ();
   unpush_target (&freebsd_uthread_ops);
 }
@@ -904,10 +731,8 @@ freebsd_uthread_can_run ()
 }
 
 static int
-freebsd_uthread_thread_alive (pid)
-     int pid;
+freebsd_uthread_thread_alive (ptid_t ptid)
 {
-  struct cleanup *old_chain;
   struct cached_pthread *thread;
   int ret = 0;
 
@@ -918,48 +743,33 @@ freebsd_uthread_thread_alive (pid)
    * We can get called from child_ops.to_wait() which passes the underlying
    * pid (without a thread number).
    */
-  if (THREADID_TID(pid) == 0)
+  if (TIDGET(ptid) == 0)
     return 1;
 
-  old_chain = save_inferior_pid ();
-  inferior_pid = main_pid;
-
-  if (find_pthread_addr (pid) != 0)
+  if (find_pthread_addr (ptid) != 0)
     {
-      thread = find_pthread (pid);
+      thread = find_pthread (ptid);
       ret = (thread->state != PS_DEAD_value);
     }
 
-  do_cleanups (old_chain);
-
   if (!ret)
-    free_pid(pid);
+    free_ptid(ptid);
 
   return ret;
 }
 
 static void
-freebsd_uthread_stop ()
+freebsd_uthread_stop (void)
 {
-  struct cleanup *old_chain;
-  old_chain = save_inferior_pid ();
-  inferior_pid = main_pid;
-
   child_ops.to_stop ();
-
-  do_cleanups (old_chain);
 }
 
-static int
-freebsd_uthread_find_new_threads ()
+static void
+freebsd_uthread_find_new_threads (void)
 {
   CORE_ADDR ptr;
   int state;
   u_int64_t uniqueid;
-  struct cleanup *old_chain;
-
-  old_chain = save_inferior_pid ();
-  inferior_pid = main_pid;
 
   read_memory ((CORE_ADDR)P_thread_list,
 	       (char *)&ptr,
@@ -970,14 +780,10 @@ freebsd_uthread_find_new_threads ()
       READ_FIELD(ptr, int, state, state);
       READ_FIELD(ptr, u_int64_t, uniqueid, uniqueid);
       if (state != PS_DEAD_value &&
-	  !in_thread_list (find_pid(uniqueid)))
-	add_thread (find_pid(uniqueid));
+	  !in_thread_list (find_ptid(uniqueid)))
+	add_thread (find_ptid(uniqueid));
       ptr = read_pthread_next(ptr);
     }
-
-  do_cleanups (old_chain);
-
-  return 0;
 }
 
 /* MUST MATCH enum pthread_state */
@@ -1003,6 +809,8 @@ static const char *statenames[] = {
   "DEAD",
   "DEADLOCK",
 };
+
+#if 0
 
 static int
 freebsd_uthread_get_thread_info (ref, selection, info)
@@ -1031,17 +839,18 @@ freebsd_uthread_get_thread_info (ref, selection, info)
   return (0);
 }
 
+#endif
+
 char *
-freebsd_uthread_pid_to_str (pid)
-     int pid;
+freebsd_uthread_pid_to_str (ptid_t ptid)
 {
   static char buf[30];
 
   if (STREQ (current_target.to_shortname, "freebsd-uthreads"))
-    sprintf (buf, "process %d, thread %d\0",
-	     THREADID_PID(pid), THREADID_TID(pid));
+    sprintf (buf, "Process %d, Thread %ld",
+	     PIDGET(ptid), TIDGET(ptid));
   else
-    sprintf (buf, "process %d\0", pid);
+    sprintf (buf, "Process %d", PIDGET(ptid));
 
   return buf;
 }
@@ -1073,7 +882,6 @@ init_freebsd_uthread_ops ()
   freebsd_uthread_ops.to_terminal_info = child_terminal_info;
   freebsd_uthread_ops.to_kill = freebsd_uthread_kill_inferior;
   freebsd_uthread_ops.to_create_inferior = freebsd_uthread_create_inferior;
-  freebsd_uthread_ops.to_has_exited = freebsd_uthread_has_exited;
   freebsd_uthread_ops.to_mourn_inferior = freebsd_uthread_mourn_inferior;
   freebsd_uthread_ops.to_can_run = freebsd_uthread_can_run;
   freebsd_uthread_ops.to_notice_signals = freebsd_uthread_notice_signals;
@@ -1087,9 +895,11 @@ init_freebsd_uthread_ops ()
   freebsd_uthread_ops.to_has_execution = 1;
   freebsd_uthread_ops.to_has_thread_control = 0;
   freebsd_uthread_ops.to_magic = OPS_MAGIC;
-
-  freebsd_uthread_vec.find_new_threads = freebsd_uthread_find_new_threads;
+  freebsd_uthread_ops.to_find_new_threads = freebsd_uthread_find_new_threads;
+  freebsd_uthread_ops.to_pid_to_str = freebsd_uthread_pid_to_str;
+#if 0
   freebsd_uthread_vec.get_thread_info = freebsd_uthread_get_thread_info;
+#endif
 }
 
 void
@@ -1097,6 +907,9 @@ _initialize_freebsd_uthread ()
 {
   init_freebsd_uthread_ops ();
   add_target (&freebsd_uthread_ops);
+
+  target_new_objfile_chain = target_new_objfile_hook;
+  target_new_objfile_hook = freebsd_uthread_new_objfile;
 
   child_suppress_run = 1;
 }

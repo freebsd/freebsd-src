@@ -170,22 +170,22 @@
 #define USE_INCLUDED_REGEX 1
 
 /* BFD's default architecture. */
-#define DEFAULT_BFD_ARCH bfd_i386_arch
+/* #define DEFAULT_BFD_ARCH bfd_alpha_arch */
 
 /* BFD's default target vector. */
-#define DEFAULT_BFD_VEC bfd_elf32_i386_vec
+/* #define DEFAULT_BFD_VEC bfd_elf64_alpha_vec */
 
 /* Multi-arch enabled. */
 /* #undef GDB_MULTI_ARCH */
 
 /* hostfile */
-#define GDB_XM_FILE config/i386/xm-i386.h
+/* #define GDB_XM_FILE 1 */
 
 /* targetfile */
-#define GDB_TM_FILE config/i386/tm-fbsd.h
+#define GDB_TM_FILE 1
 
 /* nativefile */
-#define GDB_NM_FILE config/i386/nm-fbsd.h
+#define GDB_NM_FILE 1
 
 /* Define if you have the __argz_count function.  */
 /* #undef HAVE___ARGZ_COUNT */
@@ -503,4 +503,3 @@
 
 /* Define if <sys/procfs.h> has pr_siginfo64_t. */
 /* #undef HAVE_PR_SIGINFO64_T */
-
