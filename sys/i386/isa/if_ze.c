@@ -82,9 +82,6 @@
 #include "i386/isa/icu.h"
 #include "i386/isa/if_zereg.h"
 
-#ifdef APM
-#include "i386/include/apm_bios.h"
-#endif /* APM */
  
 
 /*****************************************************************************
@@ -759,26 +756,6 @@ ze_probe(isa_dev)
 	sc->last_up = 0;
 	return 32;
 }
-
-#ifdef APM
-#define ZEDEVS 4
-static apm_hook_func_t ze_hook;
-struct isa_device* ze_devs[ZEDEVS] = {NULL};
-
-static int 
-ze_resume(void)
-{
-	int i;
-
-	for (i = 0; i < ZEDEVS; i++) {
-		if (ze_devs[i] != NULL) {
-			reconfig_isadev(ze_devs[i], &net_imask);
-		}
-	}
-	
-	return 0;
-}
-#endif /* APM */
  
 /*
  * Install interface into kernel networking data structures
@@ -886,10 +863,6 @@ ze_attach(isa_dev)
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
-#ifdef APM
-	ze_devs[isa_dev->id_unit] = isa_dev;
-	ze_hook = apm_resume_hook_init(ze_resume, "IBM PCMCIA Ethernet", APM_MID_ORDER);
-#endif /* APM */
 	return 1;
 }
  
