@@ -1,12 +1,8 @@
 /*
  * Copyright (c) 1992, 2000 Hellmuth Michaelis
- *
  * Copyright (c) 1992, 1995 Joerg Wunsch.
- *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore and Holger Veit.
- *
  * Copyright (C) 1992, 1993 Soeren Schmidt.
- *
  * All rights reserved.
  *
  * For the sake of compatibility, portions of this code regarding the
