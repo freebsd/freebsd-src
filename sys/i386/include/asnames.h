@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.7 1997/09/08 00:25:05 peter Exp $
+ * $Id: asnames.h,v 1.8 1997/09/13 16:00:30 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -263,6 +263,7 @@
 #define _mp_ncpus			mp_ncpus
 #define _mul64				mul64
 #define _my_idlePTD			my_idlePTD
+#define _my_tr				my_tr
 #define _net_imask			net_imask
 #define _netisr				netisr
 #define _netisrs			netisrs

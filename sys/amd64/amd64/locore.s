@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.97 1997/09/07 22:03:46 fsmp Exp $
+ *	$Id: locore.s,v 1.98 1997/09/21 05:49:56 dyson Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -121,6 +121,15 @@
 	.set	_prv_CMAP3,_SMP_prvpage+48	/* [12] */
 	.set	_inside_intr,_SMP_prvpage+52	/* [13] */
 	.set	_common_tss,_SMP_prvpage+56	/* 102 (ie: 104) bytes long */
+
+#ifdef VM86
+	.globl	_common_tssd
+	.set	_common_tssd,_common_tss+104	/* 8 bytes long */
+	.globl	_private_tss
+	.set	_private_tss,_common_tss+112
+	.globl	_my_tr
+	.set	_my_tr,_common_tss+116
+#endif
 
 /* Fetch the .set's for the local apic */
 #include "i386/i386/mp_apicdefs.s"
