@@ -223,6 +223,8 @@ Dir_Init ()
      */
     Dir_AddDir (openDirectories, ".");
     dot = (Path *) Lst_DeQueue (openDirectories);
+    if (dot == (Path *) NULL)
+	err(1, "cannot open current directory");
 
     /*
      * We always need to have dot around, so we increment its reference count
