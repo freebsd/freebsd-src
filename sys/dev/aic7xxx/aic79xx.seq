@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#93 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#94 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -872,7 +872,8 @@ mesgin_ign_wide_residue:
 	mvi	REG0	call inb_next;
 	cmp	REG0, 0x01 jne mesgin_reject;
 	test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jz . + 2;
-	test	DATA_COUNT_ODD, 0x1	jz mesgin_done;
+	test	SCB_TASK_ATTRIBUTE, SCB_XFERLEN_ODD jnz mesgin_done;
+	SET_SEQINTCODE(IGN_WIDE_RES)
 	jmp	mesgin_done;
 
 mesgin_proto_violation:
@@ -1317,8 +1318,6 @@ idle_sg_avail:
 		bmov 	HADDR, CCSGRAM, 4;
 	}
 	bmov	HCNT, CCSGRAM, 3;
-	test	HCNT[0], 0x1 jz . + 2;
-	xor	DATA_COUNT_ODD, 0x1;
 	bmov	SCB_RESIDUAL_DATACNT[3], CCSGRAM, 1;
 	if ((ahd->flags & AHD_39BIT_ADDRESSING) != 0) {
 		and	HADDR[4], SG_HIGH_ADDR_BITS, SCB_RESIDUAL_DATACNT[3];
@@ -1334,8 +1333,6 @@ sg_advance:
 	adc	SCB_RESIDUAL_SGPTR[2],A;
 	adc	SCB_RESIDUAL_SGPTR[3],A;
 	mov	SINDEX, SCB_RESIDUAL_SGPTR[0];
-	test	DATA_COUNT_ODD, 0x1 jz . + 2;
-	or	SINDEX, ODD_SEG;
 	test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jz . + 3;
 	or	SINDEX, LAST_SEG;
 	clr	SG_STATE;
@@ -1361,12 +1358,9 @@ sg_advance:
  */
 load_first_seg:
 	bmov	HADDR, SCB_DATAPTR, 11;
-	and	DATA_COUNT_ODD, 0x1, SCB_DATACNT[0];
 	and	REG_ISR, ~SG_FULL_RESID, SCB_SGPTR[0];
 	test	SCB_DATACNT[3], SG_LAST_SEG jz . + 2;
 	or	REG_ISR, LAST_SEG;
-	test	DATA_COUNT_ODD, 0x1 jz . + 2;
-	or	REG_ISR, ODD_SEG;
 	mov	SG_CACHE_PRE, REG_ISR;
 	mvi	DFCNTRL, (PRELOADEN|SCSIEN|HDMAEN);
 	/*
@@ -1516,7 +1510,7 @@ data_phase_done:
 		 * send Ignore Wide Residue messages for data-in phases.
 		test	DFCNTRL, DIRECTION jz target_ITloop;
 		test	SSTAT1, REQINIT	jnz .;
-		test	DATA_COUNT_ODD, 0x1 jz target_ITloop;
+		test	SCB_TASK_ATTRIBUTE, SCB_XFERLEN_ODD jz target_ITloop;
 		SET_MODE(M_SCSI, M_SCSI)
 		test	NEGCONOPTS, WIDEXFER jz target_ITloop;
 		 */
@@ -1586,9 +1580,6 @@ sgptr_fixup:
 	adc	SCB_RESIDUAL_SGPTR[3], -1;
 sgptr_fixup_done:
 	and	SCB_RESIDUAL_SGPTR[0], SG_ADDR_MASK, SG_CACHE_SHADOW;
-	clr	DATA_COUNT_ODD;
-	test	SG_CACHE_SHADOW, ODD_SEG jz . + 2;
-	or	DATA_COUNT_ODD, 0x1;
 	clr	SCB_RESIDUAL_DATACNT[3]; /* We are not the last seg */
 	bmov	SCB_RESIDUAL_DATACNT, SHCNT, 3 ret;
 
