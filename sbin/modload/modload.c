@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.9 1995/10/28 13:06:11 peter Exp $
+ *	$Id: modload.c,v 1.10 1995/10/28 17:06:05 peter Exp $
  */
 
 #include <stdio.h>
@@ -225,7 +225,7 @@ main(argc, argv)
 		err(3, _PATH_LKM);
 	fileopen |= DEV_OPEN;
 
-	p = strchr(modobj, '.');
+	p = strrchr(modobj, '.');
 	if (!p || strcmp(p, ".o"))
 		errx(2, "module object must end in .o");
 
