@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.3 1998/02/10 03:22:05 brian Exp $
+ *	$Id: server.c,v 1.16.2.4 1998/02/10 03:23:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@ server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
   struct server *s = descriptor2server(d);
 
   LogPrintf(LogDEBUG, "descriptor2server; %p -> %p\n", d, s);
-  if (s->fd >= 0) {
+  if (r && s->fd >= 0) {
     if (*n < s->fd + 1)
       *n = s->fd + 1;
     FD_SET(s->fd, r);

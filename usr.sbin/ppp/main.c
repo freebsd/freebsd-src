@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.19 1998/02/10 03:23:28 brian Exp $
+ * $Id: main.c,v 1.121.2.20 1998/02/10 22:28:51 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -79,6 +79,7 @@
 #include "physical.h"
 #include "server.h"
 #include "prompt.h"
+#include "chat.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -88,7 +89,8 @@
 
 static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
-static int dial_up;
+int dial_up;
+int dialing;
 
 static void DoLoop(struct bundle *);
 static void TerminalStop(int);
@@ -603,7 +605,7 @@ DoLoop(struct bundle *bundle)
      * If we lost carrier and want to re-establish the connection due to the
      * "set reconnect" value, we'd better bring the line back up.
      */
-    if (LcpInfo.fsm.state <= ST_CLOSED) {
+    if (!dialing && LcpInfo.fsm.state <= ST_CLOSED) {
       if (!dial_up && reconnectState == RECON_TRUE) {
 	if (++reconnectCount <= VarReconnectTries) {
 	  LogPrintf(LogPHASE, "Connection lost, re-establish (%d/%d)\n",
@@ -626,7 +628,7 @@ DoLoop(struct bundle *bundle)
     /*
      * If Ip packet for output is enqueued and require dial up, Just do it!
      */
-    if (dial_up && RedialTimer.state != TIMER_RUNNING) {
+    if (dial_up && !dialing && RedialTimer.state != TIMER_RUNNING) {
       LogPrintf(LogDEBUG, "going to dial: modem = %d\n",
 		Physical_GetFD(bundle->physical));
       if (modem_Open(bundle->physical, bundle) < 0) {
@@ -654,33 +656,9 @@ DoLoop(struct bundle *bundle)
 	else
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
-	if ((res = modem_Dial(bundle->physical, bundle)) == EX_DONE) {
-	  PacketMode(bundle, VarOpenMode);
-	  dial_up = 0;
-	  reconnectState = RECON_UNKNOWN;
-	  tries = 0;
-	} else {
-	  if (mode & MODE_BACKGROUND) {
-	    if (VarNextPhone == NULL || res == EX_SIG)
-	      Cleanup(EX_DIAL);	/* Tried all numbers - no luck */
-	    else
-	      /* Try all numbers in background mode */
-	      StartRedialTimer(VarRedialNextTimeout);
-	  } else if (!(mode & MODE_DDIAL) &&
-		     ((VarDialTries && tries >= VarDialTries) ||
-		      res == EX_SIG)) {
-	    /* I give up !  Can't get through :( */
-	    StartRedialTimer(VarRedialTimeout);
-	    dial_up = 0;
-	    reconnectState = RECON_UNKNOWN;
-	    reconnectCount = 0;
-	    tries = 0;
-	  } else if (VarNextPhone == NULL)
-	    /* Dial failed. Keep quite during redial wait period. */
-	    StartRedialTimer(VarRedialTimeout);
-	  else
-	    StartRedialTimer(VarRedialNextTimeout);
-	}
+        chat_Init(&chat, bundle->physical, VarDialScript, 1);
+        dialing = 1;
+        dial_up = 0;
       }
     }
 
@@ -692,7 +670,54 @@ DoLoop(struct bundle *bundle)
 
     handle_signals();
 
-    descriptor_UpdateSet(&bundle->physical->desc, &rfds, &wfds, &efds, &nfds);
+    if (dialing) {
+      descriptor_UpdateSet(&chat.desc, &rfds, &wfds, &efds, &nfds);
+      if (dialing == -1) {
+        if (chat.state == CHAT_DONE || chat.state == CHAT_FAILED) {
+          dialing = 0;
+          modem_Close(bundle->physical);
+          if (mode & MODE_BACKGROUND) {
+            if (VarNextPhone == NULL || res == EX_SIG)
+              Cleanup(EX_DIAL);	/* Tried all numbers - no luck */
+            else
+              /* Try all numbers in background mode */
+              StartRedialTimer(VarRedialNextTimeout);
+          } else if (!(mode & MODE_DDIAL) &&
+      	             ((VarDialTries && tries >= VarDialTries) ||
+      	              res == EX_SIG)) {
+            /* I give up !  Can't get through :( */
+            StartRedialTimer(VarRedialTimeout);
+            dial_up = 0;
+            reconnectState = RECON_UNKNOWN;
+            reconnectCount = 0;
+            tries = 0;
+          } else if (VarNextPhone == NULL)
+            /* Dial failed. Keep quite during redial wait period. */
+            StartRedialTimer(VarRedialTimeout);
+          else
+            StartRedialTimer(VarRedialNextTimeout);
+          continue;
+        }
+      } else if (chat.state == CHAT_DONE) {
+        if (dialing == 1) {
+          chat_Init(&chat, bundle->physical, VarLoginScript, 0);
+          dialing++;
+          continue;
+        } else {
+          PacketMode(bundle, VarOpenMode);
+          reconnectState = RECON_UNKNOWN;
+          tries = 0;
+          dialing = 0;
+        }
+      } else if (chat.state == CHAT_FAILED) {
+        chat_Init(&chat, bundle->physical, VarHangupScript, 0);
+        dialing = -1;
+        continue;
+      }
+    }
+
+    if (!dialing)
+      descriptor_UpdateSet(&bundle->physical->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
 
 #ifndef SIGALRM
@@ -761,15 +786,22 @@ DoLoop(struct bundle *bundle)
     if (descriptor_IsSet(&prompt.desc, &rfds))
       descriptor_Read(&prompt.desc, bundle, &rfds);
 
-    if (descriptor_IsSet(&bundle->physical->desc, &wfds)) {
-      /* ready to write into modem */
-      descriptor_Write(&bundle->physical->desc, &wfds);
-      if (!link_IsActive(physical2link(bundle->physical)))
-        dial_up = 1;
-    }
+    if (dialing) {
+      if (descriptor_IsSet(&chat.desc, &wfds))
+        descriptor_Write(&chat.desc, &wfds);
+      if (descriptor_IsSet(&chat.desc, &rfds))
+        descriptor_Read(&chat.desc, bundle, &rfds);
+    } else {
+      if (descriptor_IsSet(&bundle->physical->desc, &wfds)) {
+        /* ready to write into modem */
+        descriptor_Write(&bundle->physical->desc, &wfds);
+        if (!link_IsActive(physical2link(bundle->physical)))
+          dial_up = 1;
+      }
 
-    if (descriptor_IsSet(&bundle->physical->desc, &rfds))
-      descriptor_Read(&bundle->physical->desc, bundle, &rfds);
+      if (descriptor_IsSet(&bundle->physical->desc, &rfds))
+        descriptor_Read(&bundle->physical->desc, bundle, &rfds);
+    }
 
     if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {
       /* something to read from tun */

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.6 1998/02/09 19:21:07 brian Exp $
+ *  $Id: physical.c,v 1.1.2.7 1998/02/10 03:22:02 brian Exp $
  *
  */
 
@@ -179,25 +179,30 @@ Physical_ReportProtocolStatus(struct cmdargs const *arg)
 
 int
 Physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
-                   int *n)
+                   int *n, int force)
 {
   struct physical *p = descriptor2physical(d);
   int sets;
 
   LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
 
+  sets = 0;
   if (p->fd >= 0) {
-    if (*n < p->fd + 1)
-      *n = p->fd + 1;
-    FD_SET(p->fd, r);
-    FD_SET(p->fd, e);
-    if (link_QueueLen(&p->link)) {
+    if (r) {
+      FD_SET(p->fd, r);
+      sets++;
+    }
+    if (e) {
+      FD_SET(p->fd, e);
+      sets++;
+    }
+    if (w && (force || link_QueueLen(&p->link))) {
       FD_SET(p->fd, w);
-      sets = 3;
-    } else
-      sets = 2;
-  } else
-    sets = 0;
+      sets++;
+    }
+    if (sets && *n < p->fd + 1)
+      *n = p->fd + 1;
+  }
 
   return sets;
 }

@@ -23,12 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.1.2.3 1998/02/10 03:21:55 brian Exp $
+ *	$Id: descriptor.h,v 1.1.2.4 1998/02/10 03:23:17 brian Exp $
  */
 
 #define PHYSICAL_DESCRIPTOR (1)
 #define SERVER_DESCRIPTOR (2)
 #define PROMPT_DESCRIPTOR (3)
+#define CHAT_DESCRIPTOR (4)
 
 struct descriptor {
   int type;

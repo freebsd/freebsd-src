@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: prompt.c,v 1.1.2.1 1998/02/10 03:23:38 brian Exp $
  */
 
 #include <sys/param.h>
@@ -59,18 +59,25 @@ static int
 prompt_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct prompt *p = descriptor2prompt(d);
+  int sets;
 
   LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);
 
+  sets = 0;
   if (p->fd_in >= 0) {
-    if (*n < p->fd_in + 1)
+    if (r) {
+      FD_SET(p->fd_in, r);
+      sets++;
+    }
+    if (e) {
+      FD_SET(p->fd_in, e);
+      sets++;
+    }
+    if (sets && *n < p->fd_in + 1)
       *n = p->fd_in + 1;
-    FD_SET(p->fd_in, r);
-    FD_SET(p->fd_in, e);
-    return 2;
   }
 
-  return 0;
+  return sets;
 }
 
 static int

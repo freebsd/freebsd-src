@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.14 1998/02/10 03:21:39 brian Exp $
+ * $Id: command.c,v 1.131.2.15 1998/02/10 03:23:09 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -64,7 +64,6 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "systems.h"
-#include "chat.h"
 #include "bundle.h"
 #include "main.h"
 #include "route.h"
@@ -78,6 +77,7 @@
 #include "physical.h"
 #include "server.h"
 #include "prompt.h"
+#include "chat.h"
 
 struct in_addr ifnetmask;
 static const char *HIDDEN = "********";
@@ -169,6 +169,11 @@ DialCommand(struct cmdargs const *arg)
   int tries;
   int res;
 
+  if (dialing) {
+    prompt_Printf(&prompt, "A dial is already in progress\n");
+    return 0;
+  }
+
   if (LcpInfo.fsm.state > ST_CLOSED) {
     prompt_Printf(&prompt, "LCP state is [%s]\n",
                   StateNames[LcpInfo.fsm.state]);
@@ -184,24 +189,7 @@ DialCommand(struct cmdargs const *arg)
   if (arg->argc > 0 && (res = LoadCommand(arg)) != 0)
     return res;
 
-  tries = 0;
-  do {
-    if (tries) {
-      LogPrintf(LogPHASE, "Enter pause (%d) for redialing.\n",
-                VarRedialNextTimeout);
-      nointr_sleep(VarRedialNextTimeout);
-    }
-    prompt_Printf(&prompt, "Dial attempt %u of %d\n", ++tries, VarDialTries);
-    if (modem_Open(arg->bundle->physical, arg->bundle) < 0) {
-      prompt_Printf(&prompt, "Failed to open modem.\n");
-      break;
-    }
-    if ((res = modem_Dial(arg->bundle->physical, arg->bundle)) == EX_DONE) {
-      PacketMode(arg->bundle, VarOpenMode);
-      break;
-    } else if (res == EX_SIG)
-      return 1;
-  } while (VarDialTries == 0 || tries < VarDialTries);
+  dial_up = 1;
 
   return 0;
 }

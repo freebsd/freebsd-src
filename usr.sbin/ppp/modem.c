@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.13 1998/02/10 03:22:00 brian Exp $
+ * $Id: modem.c,v 1.77.2.14 1998/02/10 03:23:35 brian Exp $
  *
  *  TODO:
  */
@@ -57,7 +57,6 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "main.h"
-#include "chat.h"
 #include "throughput.h"
 #include "async.h"
 #include "bundle.h"
@@ -65,6 +64,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "prompt.h"
+#include "chat.h"
 
 
 #ifndef O_NONBLOCK
@@ -79,6 +79,8 @@ static void modem_Hangup(struct link *, int);
 static void modem_Destroy(struct link *);
 static void modem_DescriptorRead(struct descriptor *, struct bundle *,
                                  const fd_set *);
+static int modem_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
+                           int *);
 
 struct physical *
 modem_Create(const char *name)
@@ -101,7 +103,7 @@ modem_Create(const char *name)
   p->speed = MODEM_SPEED;
   p->parity = CS8;
   p->desc.type = PHYSICAL_DESCRIPTOR;
-  p->desc.UpdateSet = Physical_UpdateSet;
+  p->desc.UpdateSet = modem_UpdateSet;
   p->desc.IsSet = Physical_IsSet;
   p->desc.Read = modem_DescriptorRead;
   p->desc.Write = Physical_DescriptorWrite;
@@ -727,23 +729,37 @@ modem_PhysicalClose(struct physical *modem)
   throughput_log(&modem->link.throughput, LogPHASE, "Modem");
 }
 
+static int force_hack;
+
 static void
 modem_Hangup(struct link *l, int dedicated_force)
 {
-  struct termios tio;
   struct physical *modem = (struct physical *)l;
+
+  force_hack = dedicated_force;
+  if (modem->fd >= 0 && dialing != -1) {
+    StopTimer(&modem->link.Timer);
+    throughput_stop(&modem->link.throughput);
+
+    if (prompt_IsTermMode(&prompt))
+      prompt_TtyCommandMode(&prompt);
+
+    dialing = -1;
+    dial_up = 0;
+    chat_Init(&chat, modem, VarHangupScript, 1);
+  }
+}
+
+void
+modem_Close(struct physical *modem)
+{
+  struct termios tio;
 
   LogPrintf(LogDEBUG, "Hangup modem (%s)\n",
             modem->fd >= 0 ? "open" : "closed");
 
   if (modem->fd < 0)
     return;
-
-  StopTimer(&modem->link.Timer);
-  throughput_stop(&modem->link.throughput);
-
-  if (prompt_IsTermMode(&prompt))
-    prompt_TtyCommandMode(&prompt);
 
   if (!isatty(modem->fd)) {
     modem->mbits &= ~TIOCM_DTR;
@@ -762,19 +778,13 @@ modem_Hangup(struct link *l, int dedicated_force)
   }
 
   if (modem->fd >= 0) {
-    char ScriptBuffer[SCRIPT_LEN];
-
-    strncpy(ScriptBuffer, VarHangupScript, sizeof ScriptBuffer - 1);
-    ScriptBuffer[sizeof ScriptBuffer - 1] = '\0';
-    LogPrintf(LogDEBUG, "modem_Hangup: Script: %s\n", ScriptBuffer);
-    if (dedicated_force ||
+    if (force_hack ||
 #ifdef notyet
 	!modem->is_dedicated
 #else
 	!(mode & MODE_DEDICATED)
 #endif
 	) {
-      DoChat(modem, ScriptBuffer);
       tcflush(modem->fd, TCIOFLUSH);
       modem_Unraw(modem);
       modem_LogicalClose(modem);
@@ -785,7 +795,6 @@ modem_Hangup(struct link *l, int dedicated_force)
        */
       modem->mbits |= TIOCM_DTR;
       ioctl(modem->fd, TIOCMSET, &modem->mbits);
-      DoChat(modem, ScriptBuffer);
     }
   }
 }
@@ -865,43 +874,6 @@ static int
 modem_IsActive(struct link *l)
 {
   return ((struct physical *)l)->fd >= 0;
-}
-
-int
-modem_Dial(struct physical *modem, struct bundle *bundle)
-{
-  char ScriptBuffer[SCRIPT_LEN];
-  int excode;
-
-  strncpy(ScriptBuffer, VarDialScript, sizeof ScriptBuffer - 1);
-  ScriptBuffer[sizeof ScriptBuffer - 1] = '\0';
-  if ((excode = DoChat(modem, ScriptBuffer)) > 0) {
-    prompt_Printf(&prompt, "dial OK!\n");
-    strncpy(ScriptBuffer, VarLoginScript, sizeof ScriptBuffer - 1);
-    if ((excode = DoChat(modem, ScriptBuffer)) > 0) {
-      struct timeoutArg to;
-
-      VarAltPhone = NULL;
-      prompt_Printf(&prompt, "login OK!\n");
-      to.modem = modem;
-      to.bundle = bundle;
-      modem_Timeout(&to);
-      return EX_DONE;
-    } else if (excode == -1)
-      excode = EX_SIG;
-    else {
-      LogPrintf(LogWARN, "modem_Dial: login failed.\n");
-      excode = EX_NOLOGIN;
-    }
-    modem_Timeout(modem);		/* Dummy call to check modem status */
-  } else if (excode == -1)
-    excode = EX_SIG;
-  else {
-    LogPrintf(LogWARN, "modem_Dial: dial failed.\n");
-    excode = EX_NODIAL;
-  }
-  modem_Hangup(&modem->link, 0);
-  return (excode);
 }
 
 int
@@ -1014,4 +986,10 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     }
   } else if (n > 0)
     async_Input(bundle, rbuff, n, p);
+}
+
+static int
+modem_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+{
+  return Physical_UpdateSet(d, r, w, e, n, 0);
 }

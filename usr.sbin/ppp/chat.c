@@ -1,30 +1,31 @@
-/*
- *	    Written by Toshiharu OHNO (tony-o@iij.ad.jp)
+/*-
+ * Copyright (c) 1998 Brian Somers <brian@Awfulhak.org>
+ * All rights reserved.
  *
- *   Copyright (C) 1993, Internet Initiative Japan, Inc. All rights reserverd.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- *  Most of codes are derived from chat.c by Karl Fox (karl@MorningStar.Com).
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- *	Chat -- a program for automatic session establishment (i.e. dial
- *		the phone and log in).
- *
- *	This software is in the public domain.
- *
- *	Please send all bug reports, requests for information, etc. to:
- *
- *		Karl Fox <karl@MorningStar.Com>
- *		Morning Star Technologies, Inc.
- *		1760 Zollinger Road
- *		Columbus, OH  43221
- *		(614)451-1883
- *
- * $Id: chat.c,v 1.44.2.5 1998/02/09 19:20:36 brian Exp $
- *
- *  TODO:
- *	o Support more UUCP compatible control sequences.
- *	o Dialing shoud not block monitor process.
- *	o Reading modem by select should be unified into main.c
+ *	$Id$
  */
+
 #include <sys/param.h>
 #include <netinet/in.h>
 
@@ -60,6 +61,10 @@
 #include "chat.h"
 #include "prompt.h"
 
+#define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
+
+struct chat chat;
+
 #ifndef isblank
 #define	isblank(c)	((c) == '\t' || (c) == ' ')
 #endif
@@ -77,6 +82,425 @@ static jmp_buf ChatEnv;
 #define	MATCH	1
 #define	NOMATCH	0
 #define	ABORT	-1
+
+static void ExecStr(struct physical *, char *, char *, int);
+
+static void
+chat_PauseTimer(void *v)
+{
+  struct chat *c = (struct chat *)v;
+  StopTimer(&c->pause);
+  c->pause.state = TIMER_STOPPED;
+  c->pause.load = 0;
+}
+
+static void
+chat_Pause(struct chat *c, u_long load)
+{
+  StopTimer(&c->pause);
+  c->pause.state = TIMER_STOPPED;
+  c->pause.load += load;
+  c->pause.func = chat_PauseTimer;
+  c->pause.arg = c;
+  StartTimer(&c->pause);
+}
+
+static void
+chat_TimeoutTimer(void *v)
+{
+  struct chat *c = (struct chat *)v;
+  StopTimer(&c->timeout);
+  c->TimedOut = 1;
+}
+
+static void
+chat_SetTimeout(struct chat *c)
+{
+  StopTimer(&c->timeout);
+  c->timeout.state = TIMER_STOPPED;
+  if (c->TimeoutSec > 0) {
+    c->timeout.load = SECTICKS * c->TimeoutSec;
+    c->timeout.func = chat_TimeoutTimer;
+    c->timeout.arg = c;
+    StartTimer(&c->timeout);
+  }
+}
+
+static char *
+chat_NextChar(char *ptr, char ch)
+{
+  for (; *ptr; ptr++)
+    if (*ptr == ch)
+      return ptr;
+    else if (*ptr == '\\')
+      if (*++ptr == '\0')
+        return NULL;
+
+  return NULL;
+}
+
+static int
+chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+{
+  struct chat *c = descriptor2chat(d);
+  int special, gotabort, gottimeout, needcr;
+
+  if (c->pause.state == TIMER_RUNNING)
+    return 0;
+
+  if (c->TimedOut) {
+    LogPrintf(LogCHAT, "Expect timeout\n");
+    if ( c->nargptr == NULL)
+      c->state = CHAT_FAILED;
+    else {
+      c->state = CHAT_EXPECT;
+      c->argptr = "";
+    }
+  }
+
+  if (c->state != CHAT_EXPECT && c->state != CHAT_SEND)
+    return 0;
+
+  gottimeout = gotabort = 0;
+
+  if (c->arg < c->argc && (c->arg < 0 || *c->argptr == '\0')) {
+    /* Go get the next string */
+    if (c->arg < 0 || c->state == CHAT_SEND)
+      c->state = CHAT_EXPECT;
+    else
+      c->state = CHAT_SEND;
+
+    special = 1;
+    while (special && (c->nargptr || c->arg < c->argc - 1)) {
+      if (c->arg < 0 || !c->TimedOut)
+        c->nargptr = NULL;
+
+      if (c->nargptr != NULL) {
+        /* We're doing expect-send-expect.... */
+        c->argptr = c->nargptr;
+        /* Put the '-' back in case we ever want to rerun our script */
+        c->nargptr[-1] = '-';
+        c->nargptr = chat_NextChar(c->nargptr, '-');
+        if (c->nargptr != NULL)
+          *c->nargptr++ = '\0';
+      } else {
+        int minus;
+
+        c->argptr = c->argv[++c->arg];
+
+        if (c->state == CHAT_EXPECT) {
+          /* Look for expect-send-expect sequence */
+          c->nargptr = c->argptr;
+          minus = 0;
+          while ((c->nargptr = chat_NextChar(c->nargptr, '-'))) {
+            c->nargptr++;
+            minus++;
+          }
+
+          if (minus % 2)
+            LogPrintf(LogWARN, "chat_UpdateSet: \"%s\": Uneven number of"
+                      " '-' chars, all ignored\n", c->argptr);
+          else if (minus) {
+            c->nargptr = chat_NextChar(c->argptr, '-');
+            *c->nargptr++ = '\0';
+          }
+        }
+      }
+
+      /*
+       * c->argptr now temporarily points into c->script (via c->argv)
+       * If it's an expect-send-expect sequence, we've just got the correct
+       * portion of that sequence.
+       */
+
+      needcr = c->state == CHAT_SEND && *c->argptr != '!';
+
+      /* We leave room for a potential HDLC header in the target string */
+      chat_ExpandString(c, c->argptr, c->exp + 2, sizeof c->exp - 2, needcr);
+
+      if (gotabort) {
+        if (c->numaborts < sizeof c->AbortStrings / sizeof c->AbortStrings[0])
+          c->AbortStrings[c->numaborts++] = strdup(c->exp+2);
+        else
+          LogPrintf(LogERROR, "chat_UpdateSet: AbortStrings overflow\n");
+        gotabort = 0;
+      } else if (gottimeout) {
+        c->TimeoutSec = atoi(c->exp + 2);
+        if (c->TimeoutSec <= 0)
+          c->TimeoutSec = 30;
+        gottimeout = 0;
+      } else if (c->nargptr == NULL && !strcmp(c->exp+2, "ABORT"))
+        gotabort = 1;
+      else if (c->nargptr == NULL && !strcmp(c->exp+2, "TIMEOUT"))
+        gottimeout = 1;
+      else {
+        if (c->exp[2] == '!')
+          ExecStr(c->physical, c->exp + 3, c->exp + 2, sizeof c->exp - 2);
+
+        if (c->exp[2] == '\0')
+          /* Empty string, reparse (this may be better as a `goto start') */
+          return chat_UpdateSet(d, r, w, e, n);
+
+        special = 0;
+      }
+    }
+
+    if (special) {
+      if (gottimeout)
+        LogPrintf(LogWARN, "chat_UpdateSet: TIMEOUT: Argument expected\n");
+      else if (gotabort)
+        LogPrintf(LogWARN, "chat_UpdateSet: ABORT: Argument expected\n");
+
+      /* End of script - all ok */
+      c->state = CHAT_DONE;
+      return 0;
+    }
+
+    /* set c->argptr to point in the right place */
+    c->argptr = c->exp + 2;
+    c->arglen = strlen(c->argptr);
+
+    if (c->state == CHAT_EXPECT) {
+      /* We must check to see if the string's already been found ! */
+      char *begin, *end;
+
+      end = c->bufend - c->arglen + 1;
+      if (end < c->bufstart)
+        end = c->bufstart;
+      for (begin = c->bufstart; begin < end; begin++)
+        if (!strncmp(begin, c->argptr, c->arglen)) {
+          c->bufstart = begin + c->arglen;
+          c->argptr += c->arglen;
+          c->arglen = 0;
+          /* Continue - we've already read our expect string */
+          return chat_UpdateSet(d, r, w, e, n);
+        }
+
+      c->TimedOut = 0;
+      LogPrintf(LogCHAT, "Expect(%d): %s\n", c->TimeoutSec, c->argptr);
+      chat_SetTimeout(c);
+    }
+  }
+
+  /*
+   * We now have c->argptr pointing at what we want to expect/send and
+   * c->state saying what we want to do... we now know what to put in
+   * the fd_set :-)
+   */
+
+  if (c->state == CHAT_EXPECT)
+    return Physical_UpdateSet(&c->physical->desc, r, NULL, e, n, 1);
+  else
+    return Physical_UpdateSet(&c->physical->desc, NULL, w, e, n, 1);
+}
+
+static int
+chat_IsSet(struct descriptor *d, fd_set *fdset)
+{
+  struct chat *c = descriptor2chat(d);
+  return Physical_IsSet(&c->physical->desc, fdset);
+}
+
+static void
+chat_UpdateLog(struct chat *c, int in)
+{
+  if (LogIsKept(LogCHAT) || LogIsKept(LogCONNECT)) {
+    /*
+     * If a linefeed appears in the last `in' characters of `c's input
+     * buffer, output from there, all the way back to the last linefeed.
+     * This is called for every read of `in' bytes.
+     */
+    char *ptr, *end, *stop;
+    int level;
+
+    level = LogIsKept(LogCHAT) ? LogCHAT : LogCONNECT;
+    ptr = c->bufend - in;
+
+    for (end = c->bufend - 1; end >= ptr; end--)
+      if (*end == '\n')
+        break;
+
+    if (end >= ptr) {
+      for (ptr = c->bufend - in - 1; ptr >= c->bufstart; ptr--)
+        if (*ptr == '\n')
+          break;
+      ptr++;
+      stop = NULL;
+      while (stop != end && (stop = strchr(ptr, '\n'))) {
+        *stop = '\0';
+        if (level == LogCHAT || strstr(ptr, "CONNECT"))
+          LogPrintf(level, "Received: %s\n", ptr);
+        *stop = '\n';
+        ptr = stop + 1;
+      }
+    }
+  }
+}
+
+static void
+chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+{
+  struct chat *c = descriptor2chat(d);
+
+  if (c->state == CHAT_EXPECT) {
+    ssize_t in;
+    char *begin, *end;
+
+    /*
+     * XXX - should this read only 1 byte to guarantee that we don't
+     * swallow any ppp talk from the peer ?
+     */
+    in = BUFLEFT(c);
+    if (in > sizeof c->buf / 2)
+      in = sizeof c->buf / 2;
+
+    in = Physical_Read(c->physical, c->bufend, in);
+    if (in <= 0)
+      return;
+
+    /* `begin' and `end' delimit where we're going to strncmp() from */
+    begin = c->bufend - c->arglen + 1;
+    end = begin + in;
+    if (begin < c->bufstart)
+      begin = c->bufstart;
+    c->bufend += in;
+
+    chat_UpdateLog(c, in);
+
+    if (c->bufend > c->buf + sizeof c->buf / 2) {
+      /* Shuffle our receive buffer back a bit */
+      int chop;
+
+      for (chop = begin - c->buf; chop; chop--)
+        if (c->buf[chop] == '\n')
+          /* found some already-logged garbage to remove :-) */
+          break;
+      if (!chop) {
+        chop = begin - c->buf;
+      }
+      if (chop) {
+        char *from, *to;
+
+        to = c->buf;
+        from = to + chop;
+        while (from < c->bufend)
+          *to++ = *from++;
+        c->bufstart -= chop;
+        c->bufend -= chop;
+        begin -= chop;
+        end -= chop;
+      }
+    }
+
+    for (; begin < end; begin++)
+      if (!strncmp(begin, c->argptr, c->arglen)) {
+        /* Got it ! */
+        if (begin[c->arglen - 1] != '\n') {
+          /* Now coerce chat_UpdateLog() into logging it.... */
+          char ch;
+
+          end = c->bufend;
+          c->bufend = begin + c->arglen;
+          ch = *c->bufend;
+          *c->bufend++ = '\n';
+          chat_UpdateLog(c, 1);
+          *--c->bufend = ch;
+          c->bufend = end;
+        }
+        c->bufstart = begin + c->arglen;
+        c->argptr += c->arglen;
+        c->arglen = 0;
+        break;
+      }
+  }
+}
+
+static void
+chat_Write(struct descriptor *d, const fd_set *fdset)
+{
+  struct chat *c = descriptor2chat(d);
+
+  if (c->state == CHAT_SEND) {
+    int wrote;
+
+    if (strstr(c->argv[c->arg], "\\P"))            /* Don't log the password */
+      LogPrintf(LogCHAT, "Send: %s\n", c->argv[c->arg]);
+    else {
+      int sz;
+
+      sz = c->arglen - 1;
+      while (sz >= 0 && c->argptr[sz] == '\n')
+        sz--;
+      LogPrintf(LogCHAT, "Send: %.*s\n", sz + 1, c->argptr);
+    }
+
+    if (Physical_IsSync(c->physical)) {
+      /* There's always room for the HDLC header */
+      c->argptr -= 2;
+      c->arglen += 2;
+      memcpy(c->argptr, "\377\003", 2);	/* Prepend HDLC header */
+    }
+
+    wrote = Physical_Write(c->physical, c->argptr, c->arglen);
+    if (wrote == -1) {
+      if (errno != EINTR)
+        LogPrintf(LogERROR, "chat_Write: %s\n", strerror(errno));
+      if (Physical_IsSync(c->physical)) {
+        c->argptr += 2;
+        c->arglen -= 2;
+      }
+    } else if (wrote < 2 && Physical_IsSync(c->physical)) {
+      /* Oops - didn't even write our HDLC header ! */
+      c->argptr += 2;
+      c->arglen -= 2;
+    } else {
+      c->argptr += wrote;
+      c->arglen -= wrote;
+    }
+  }
+}
+
+void
+chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf)
+{
+  c->desc.type = CHAT_DESCRIPTOR;
+  c->desc.next = NULL;
+  c->desc.UpdateSet = chat_UpdateSet;
+  c->desc.IsSet = chat_IsSet;
+  c->desc.Read = chat_Read;
+  c->desc.Write = chat_Write;
+  c->physical = p;
+
+  c->state = CHAT_EXPECT;
+
+  strncpy(c->script, data, sizeof c->script - 1);
+  c->script[sizeof c->script - 1] = '\0';
+  c->argc =  MakeArgs(c->script, c->argv, VECSIZE(c->argv));
+
+  c->arg = -1;
+  c->argptr = NULL;
+  c->nargptr = NULL;
+
+  if (emptybuf)
+    c->bufstart = c->bufend = c->buf;
+
+  c->TimeoutSec = 30;
+  c->TimedOut = 0;
+  c->numaborts = 0;
+
+  StopTimer(&c->pause);
+  c->pause.state = TIMER_STOPPED;
+
+  StopTimer(&c->timeout);
+  c->timeout.state = TIMER_STOPPED;
+}
+
+void
+chat_Destroy(struct chat *c)
+{
+  while (c->numaborts)
+    free(c->AbortStrings[--c->numaborts]);
+}
 
 static char *
 findblank(char *p, int instring)
@@ -146,7 +570,8 @@ MakeArgs(char *script, char **pvect, int maxargs)
  *  \U  Auth User
  */
 char *
-ExpandString(const char *str, char *result, int reslen, int sendmode)
+chat_ExpandString(struct chat *c, const char *str, char *result, int reslen,
+                  int sendmode)
 {
   int addcr = 0;
   char *phone;
@@ -164,10 +589,12 @@ ExpandString(const char *str, char *result, int reslen, int sendmode)
 	  addcr = 0;
 	break;
       case 'd':		/* Delay 2 seconds */
-	nointr_sleep(2);
+        if (c != NULL)
+          chat_Pause(c, 2 * SECTICKS);
 	break;
       case 'p':
-	nointr_usleep(250000);
+        if (c != NULL)
+          chat_Pause(c, SECTICKS / 4);
 	break;			/* Pause 0.25 sec */
       case 'n':
 	*result++ = '\n';
@@ -239,46 +666,6 @@ ExpandString(const char *str, char *result, int reslen, int sendmode)
   if (--reslen > 0)
     *result++ = '\0';
   return (result);
-}
-
-#define MAXLOGBUFF LINE_LEN
-static char logbuff[MAXLOGBUFF];
-static int loglen = 0;
-
-static void
-clear_log(void)
-{
-  memset(logbuff, 0, MAXLOGBUFF);
-  loglen = 0;
-}
-
-static void
-flush_log(void)
-{
-  if (LogIsKept(LogCONNECT))
-    LogPrintf(LogCONNECT, "%s\n", logbuff);
-  else if (LogIsKept(LogCARRIER) && strstr(logbuff, "CARRIER"))
-    LogPrintf(LogCARRIER, "%s\n", logbuff);
-
-  clear_log();
-}
-
-static void
-connect_log(const char *str, int single_p)
-{
-  int space = MAXLOGBUFF - loglen - 1;
-
-  while (space--) {
-    if (*str == '\n') {
-      flush_log();
-    } else {
-      logbuff[loglen++] = *str;
-    }
-    if (single_p || !*++str)
-      break;
-  }
-  if (!space)
-    flush_log();
 }
 
 static void
@@ -363,326 +750,4 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
       longjmp(ChatEnv, 6);
     }
   }
-}
-
-static int
-WaitforString(struct physical *physical, const char *estr)
-{
-  struct timeval timeout;
-  char *s, *str, ch;
-  char *inp;
-  fd_set rfds;
-  int i, nfds, nb;
-  char buff[IBSIZE];
-#ifdef SIGALRM
-  int omask;
-
-  omask = sigblock(sigmask(SIGALRM));
-#endif
-  clear_log();
-  if (*estr == '!') {
-    ExpandString(estr + 1, buff, sizeof buff, 0);
-    ExecStr(physical, buff, buff, sizeof buff);
-  } else {
-    ExpandString(estr, buff, sizeof buff, 0);
-  }
-  if (LogIsKept(LogCHAT)) {
-    s = buff + strlen(buff) - 1;
-    while (s >= buff && *s == '\n')
-      s--;
-    if (!strcmp(estr, buff))
-      LogPrintf(LogCHAT, "Wait for (%d): %.*s\n",
-                TimeoutSec, s - buff + 1, buff);
-    else
-      LogPrintf(LogCHAT, "Wait for (%d): %s --> %.*s\n",
-                TimeoutSec, estr, s - buff + 1, buff);
-  }
-
-  if (buff[0] == '\0')
-    return (MATCH);
-
-  str = buff;
-  inp = inbuff;
-
-  if (strlen(str) >= IBSIZE) {
-    str[IBSIZE - 1] = 0;
-    LogPrintf(LogCHAT, "Truncating String to %d character: %s\n", IBSIZE, str);
-  }
-  /* XXX-ML - this look REALLY fishy.  */
-  nfds = Physical_GetFD(physical) + 1;
-  s = str;
-  for (;;) {
-    FD_ZERO(&rfds);
-    FD_SET(Physical_GetFD(physical), &rfds);
-
-    /*
-     * Because it is not clear whether select() modifies timeout value, it is
-     * better to initialize timeout values everytime.
-     */
-    timeout.tv_sec = TimeoutSec;
-    timeout.tv_usec = 0;
-    i = select(nfds, &rfds, NULL, NULL, &timeout);
-#ifdef notdef
-    TimerService();
-#endif
-    if (i < 0) {
-#ifdef SIGALRM
-      if (errno == EINTR)
-	continue;
-      sigsetmask(omask);
-#endif
-      LogPrintf(LogERROR, "WaitForString: select(): %s\n", strerror(errno));
-      *inp = 0;
-      return (NOMATCH);
-    } else if (i == 0) {	/* Timeout reached! */
-      *inp = 0;
-      if (inp != inbuff)
-	LogPrintf(LogCHAT, "Got: %s\n", inbuff);
-      LogPrintf(LogCHAT, "Can't get (%d).\n", timeout.tv_sec);
-#ifdef SIGALRM
-      sigsetmask(omask);
-#endif
-      return (NOMATCH);
-    }
-    if (Physical_FD_ISSET(physical, &rfds)) {	/* got something */
-      if (Physical_IsSync(physical)) {
-	int length;
-
-	if ((length = strlen(inbuff)) > IBSIZE) {
-	  /* shuffle down next part */
-	  memcpy(inbuff, &(inbuff[IBSIZE]), IBSIZE + 1);
-	  length = strlen(inbuff);
-	}
-	if (length + IBSIZE > sizeof(inbuff))
-	    abort();		/* Bug & security problem */
-	nb = Physical_Read(physical, &(inbuff[length]), IBSIZE);
-	inbuff[nb + length] = 0;
-	connect_log(inbuff, 0);
-	if (strstr(inbuff, str)) {
-#ifdef SIGALRM
-	  sigsetmask(omask);
-#endif
-	  flush_log();
-	  return (MATCH);
-	}
-	for (i = 0; i < numaborts; i++) {
-	  if (strstr(inbuff, AbortStrings[i])) {
-	    LogPrintf(LogCHAT, "Abort: %s\n", AbortStrings[i]);
-#ifdef SIGALRM
-	    sigsetmask(omask);
-#endif
-	    flush_log();
-	    return (ABORT);
-	  }
-	}
-      } else {
-	if (Physical_Read(physical, &ch, 1) < 0) {
-	  LogPrintf(LogERROR, "read error: %s\n", strerror(errno));
-	  *inp = '\0';
-	  return (NOMATCH);
-	}
-	connect_log(&ch, 1);
-	*inp++ = ch;
-	if (ch == *s) {
-	  s++;
-	  if (*s == '\0') {
-#ifdef SIGALRM
-	    sigsetmask(omask);
-#endif
-	    *inp = 0;
-	    flush_log();
-	    return (MATCH);
-	  }
-	} else
-	  s = str;
-	if (inp == inbuff + IBSIZE) {
-	  memcpy(inbuff, inp - 100, 100);
-	  inp = inbuff + 100;
-	}
-	if (s == str) {
-	  for (i = 0; i < numaborts; i++) {	/* Look for Abort strings */
-	    int len;
-	    char *s1;
-
-	    s1 = AbortStrings[i];
-	    len = strlen(s1);
-	    if ((len <= inp - inbuff) && (strncmp(inp - len, s1, len) == 0)) {
-	      LogPrintf(LogCHAT, "Abort: %s\n", s1);
-	      *inp = 0;
-#ifdef SIGALRM
-	      sigsetmask(omask);
-#endif
-	      flush_log();
-	      return (ABORT);
-	    }
-	  }
-	}
-      }
-    }
-  }
-}
-
-static void
-SendString(struct physical *physical, const char *str)
-{
-  char *cp;
-  int on;
-  char buff[LINE_LEN];
-
-  if (abort_next) {
-    abort_next = 0;
-    ExpandString(str, buff, sizeof buff, 0);
-    AbortStrings[numaborts++] = strdup(buff);
-  } else if (timeout_next) {
-    timeout_next = 0;
-    TimeoutSec = atoi(str);
-    if (TimeoutSec <= 0)
-      TimeoutSec = 30;
-  } else {
-    if (*str == '!') {
-      ExpandString(str + 1, buff + 2, sizeof buff - 2, 0);
-      ExecStr(physical, buff + 2, buff + 2, sizeof buff - 2);
-    } else {
-      ExpandString(str, buff + 2, sizeof buff - 2, 1);
-    }
-    if (strstr(str, "\\P"))	/* Do not log the password itself. */
-      LogPrintf(LogCHAT, "Sending: %s", str);
-    else {
-      cp = buff + strlen(buff + 2) + 1;
-      while (cp >= buff + 2 && *cp == '\n')
-        cp--;
-      LogPrintf(LogCHAT, "Sending: %.*s\n", cp - buff - 1, buff + 2);
-    }
-    cp = buff;
-    if (Physical_IsSync(physical))
-      memcpy(buff, "\377\003", 2);	/* Prepend HDLC header */
-    else
-      cp += 2;
-    on = strlen(cp);
-    /* XXX - missing return value check */
-    Physical_Write(physical, cp, on);
-  }
-}
-
-static int
-ExpectString(struct physical *physical, char *str)
-{
-  char *minus;
-  int state;
-
-  if (strcmp(str, "ABORT") == 0) {
-    ++abort_next;
-    return (MATCH);
-  }
-  if (strcmp(str, "TIMEOUT") == 0) {
-    ++timeout_next;
-    return (MATCH);
-  }
-  LogPrintf(LogCHAT, "Expecting: %s\n", str);
-  while (*str) {
-    /*
-     * Check whether if string contains sub-send-expect.
-     */
-    for (minus = str; *minus; minus++) {
-      if (*minus == '-') {
-	if (minus == str || minus[-1] != '\\')
-	  break;
-      }
-    }
-    if (*minus == '-') {	/* We have sub-send-expect. */
-      *minus = '\0';	/* XXX: Cheat with the const string */
-      state = WaitforString(physical, str);
-      *minus = '-';	/* XXX: Cheat with the const string */
-      minus++;
-      if (state != NOMATCH)
-	return (state);
-
-      /*
-       * Can't get expect string. Sendout send part.
-       */
-      str = minus;
-      for (minus = str; *minus; minus++) {
-	if (*minus == '-') {
-	  if (minus == str || minus[-1] != '\\')
-	    break;
-	}
-      }
-      if (*minus == '-') {
-        *minus = '\0';	/* XXX: Cheat with the const string */
-	SendString(physical, str);
-        *minus = '-';	/* XXX: Cheat with the const string */
-	str = ++minus;
-      } else {
-	SendString(physical, str);
-	return (MATCH);
-      }
-    } else {
-      /*
-       * Simple case. Wait for string.
-       */
-      return (WaitforString(physical, str));
-    }
-  }
-  return (MATCH);
-}
-
-static void (*oint) (int);
-
-static void
-StopDial(int sig)
-{
-  LogPrintf(LogPHASE, "DoChat: Caught signal %d, abort connect\n", sig);
-  longjmp(ChatEnv, 1);
-}
-
-int
-DoChat(struct physical *physical, char *script)
-{
-  char *vector[MAXARGS];
-  char *const *argv;
-  int argc, n, state, err;
-
-  if (!script || !*script)
-    return MATCH;
-
-  if ((err = setjmp(ChatEnv))) {
-    signal(SIGINT, oint);
-    if (err == 1)
-      /* Caught a SIGINT during chat */
-      return (-1);
-    return (NOMATCH);
-  }
-  oint = signal(SIGINT, StopDial);
-
-  timeout_next = abort_next = 0;
-  for (n = 0; AbortStrings[n]; n++) {
-    free(AbortStrings[n]);
-    AbortStrings[n] = NULL;
-  }
-  numaborts = 0;
-
-  memset(vector, '\0', sizeof vector);
-  argc = MakeArgs(script, vector, VECSIZE(vector));
-  argv = vector;
-  TimeoutSec = 30;
-  while (*argv) {
-    if (strcmp(*argv, "P_ZERO") == 0 ||
-	strcmp(*argv, "P_ODD") == 0 || strcmp(*argv, "P_EVEN") == 0) {
-      modem_SetParity(physical, *argv++);
-      continue;
-    }
-    state = ExpectString(physical, *argv++);
-    switch (state) {
-    case MATCH:
-      if (*argv)
-	SendString(physical, *argv++);
-      break;
-    case ABORT:
-    case NOMATCH:
-      signal(SIGINT, oint);
-      return (NOMATCH);
-    }
-  }
-  signal(SIGINT, oint);
-  return (MATCH);
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.6 1998/02/07 20:49:18 brian Exp $
+ * $Id: auth.c,v 1.27.2.7 1998/02/09 19:20:32 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -42,7 +42,6 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
-#include "chat.h"
 #include "systems.h"
 #include "lcp.h"
 #include "hdlc.h"
@@ -50,6 +49,7 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "chat.h"
 #include "lcpproto.h"
 
 const char *
@@ -145,7 +145,7 @@ AuthValidate(struct bundle *bundle, const char *fname, const char *system,
     if (n < 2)
       continue;
     if (strcmp(vector[0], system) == 0) {
-      ExpandString(vector[1], passwd, sizeof passwd, 0);
+      chat_ExpandString(NULL, vector[1], passwd, sizeof passwd, 0);
       if (strcmp(passwd, key) == 0) {
 	CloseSecret(fp);
 	if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
@@ -184,7 +184,7 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
-      ExpandString(vector[1], passwd, sizeof passwd, 0);
+      chat_ExpandString(NULL, vector[1], passwd, sizeof passwd, 0);
       if (setaddr)
 	memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
       if (n > 2 && setaddr)
