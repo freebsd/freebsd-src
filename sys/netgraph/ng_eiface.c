@@ -57,6 +57,23 @@
 #include <net/if_arp.h>
 
 
+static const struct ng_parse_type ng_eiface_par_type = {
+	&ng_parse_struct_type,
+	&ng_eiface_par_fields
+};
+
+static const struct ng_cmdlist ng_eiface_cmdlist[] = {
+	{
+	  NGM_EIFACE_COOKIE,
+	  NGM_EIFACE_SET,
+	  "set",
+	  &ng_eiface_par_type,
+	  NULL
+	},
+	{ 0 }
+};
+
+
 /* Node private data */
 struct ng_eiface_private {
 	struct ifnet   *ifp;	/* This interface */
@@ -86,7 +103,7 @@ static ng_disconnect_t ng_eiface_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_EIFACE_NODE_TYPE,
 	NULL,
 	ng_eiface_constructor,
@@ -268,12 +285,14 @@ ng_eiface_init(void *xsc)
 }
 
 /*
- * This routine is called to deliver a packet out the interface. We simply
- * relay the packet to the ether hook, if it is connected.
+ * We simply relay the packet to the ether hook, if it is connected.
+ * We have been throughthe netgraph locking an are guaranteed to 
+ * be the only code running in this node at this time.
  */
 static void
-ng_eiface_start(struct ifnet *ifp)
+ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 {
+	struct ifnet *ifp = arg1;
 	const priv_p priv = (priv_p) ifp->if_softc;
 	int		len, error = 0;
 	struct mbuf    *m;
@@ -301,6 +320,7 @@ ng_eiface_start(struct ifnet *ifp)
 
 	/* Berkeley packet filter
 	 * Pass packet to bpf if there is a listener.
+	 * XXX is this safe? locking?
 	 */
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m);
@@ -321,6 +341,28 @@ ng_eiface_start(struct ifnet *ifp)
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 	return;
+}
+
+/*
+ * This routine is called to deliver a packet out the interface.
+ * We simply queue the netgraph version to be called when netgraph locking
+ * allows it to happen.
+ * Until we know what the rest of the networking code is doing for
+ * locking, we don't know how we will interact with it.
+ * Take comfort from the fact that the ifnet struct is part of our
+ * private info and can't go away while we are queued.
+ * [Though we don't know it is still there now....]
+ * it is possible we don't gain anything from this because
+ * we would like to get the mbuf and queue it as data
+ * somehow, but we can't and if we did would we solve anything?
+ */
+static void
+ng_eiface_start(struct ifnet *ifp)
+{
+	
+	const priv_p priv = (priv_p) ifp->if_softc;
+
+	ng_send_fn(priv->node, NULL, &ng_eiface_start2, ifp, 0);
 }
 
 #ifdef DEBUG
