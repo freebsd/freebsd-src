@@ -1,5 +1,5 @@
 /* DWARF 2 support.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    Adapted from gdb/dwarf2read.c by Gavin Koch of Cygnus Solutions
@@ -396,7 +396,7 @@ read_indirect_string (unit, buf, bytes_read_ptr)
   if (offset >= stash->dwarf_str_size)
     {
       (*_bfd_error_handler) (_("Dwarf Error: DW_FORM_strp offset (%u) greater than or equal to .debug_str size (%u)."),
-			     offset, stash->dwarf_str_size );
+			     offset, stash->dwarf_str_size);
       bfd_set_error (bfd_error_bad_value);
       return NULL;
     }
@@ -556,8 +556,8 @@ read_abbrevs (abfd, offset, stash)
 
   if (offset >= stash->dwarf_abbrev_size)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Abbrev offset (%u) greater than or equal to abbrev size (%u)."),
-			     offset, stash->dwarf_abbrev_size );
+      (*_bfd_error_handler) (_("Dwarf Error: Abbrev offset (%u) greater than or equal to .debug_abbrev size (%u)."),
+			     offset, stash->dwarf_abbrev_size);
       bfd_set_error (bfd_error_bad_value);
       return 0;
     }
@@ -949,7 +949,7 @@ decode_line_info (unit, stash)
      below.  */
   if (unit->line_offset >= stash->dwarf_line_size)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Line offset (%u) greater than or equal to line size (%u)."),
+      (*_bfd_error_handler) (_("Dwarf Error: Line offset (%u) greater than or equal to .debug_line size (%u)."),
 			     unit->line_offset, stash->dwarf_line_size);
       bfd_set_error (bfd_error_bad_value);
       return 0;
@@ -1456,16 +1456,13 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
      unsigned int offset_size;
 {
   struct comp_unit* unit;
-
   unsigned short version;
   unsigned int abbrev_offset = 0;
   unsigned char addr_size;
   struct abbrev_info** abbrevs;
-
   unsigned int abbrev_number, bytes_read, i;
   struct abbrev_info *abbrev;
   struct attribute attr;
-
   char *info_ptr = stash->info_ptr;
   char *end_ptr = info_ptr + unit_length;
   bfd_size_type amt;
@@ -1490,7 +1487,7 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
 
   if (version != 2)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: found dwarf version '%hu', this reader only handles version 2 information."), version );
+      (*_bfd_error_handler) (_("Dwarf Error: found dwarf version '%hu', this reader only handles version 2 information."), version);
       bfd_set_error (bfd_error_bad_value);
       return 0;
     }
@@ -1506,7 +1503,7 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
 
   if (addr_size != 2 && addr_size != 4 && addr_size != 8)
     {
-      (*_bfd_error_handler) ("Dwarf Error: found address size '%u', this reader can only handle address sizes '2', '4' and '8'.", addr_size );
+      (*_bfd_error_handler) ("Dwarf Error: found address size '%u', this reader can only handle address sizes '2', '4' and '8'.", addr_size);
       bfd_set_error (bfd_error_bad_value);
       return 0;
     }

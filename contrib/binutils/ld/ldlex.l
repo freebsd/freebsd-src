@@ -116,7 +116,7 @@ WHITE		[ \t\n\r]+
 NOCFILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\$\:\[\]\\\~]
 
 V_TAG [.$_a-zA-Z][._a-zA-Z0-9]*
-V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
+V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 
 %s SCRIPT
 %s EXPRESSION

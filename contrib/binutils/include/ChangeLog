@@ -1,7 +1,38 @@
-2002-01-15  Richard Earnshaw  <rearnsha@arm.com>
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
 
-	* coff/arm.h (F_VFP_FLOAT): Define.
-	* elf/arm.h (F_VFP_FLOAT, EF_ARM_VFP_FLOAT): Define.
+	Contribute sh64-elf.
+	2000-11-25  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* dis-asm.h (print_insn_sh64): New prototype.
+	(print_insn_sh64l): New prototype.
+	(print_insn_sh64x_media): New prototype.
+
+2002-02-05  Frank Ch. Eigler  <fche@redhat.com>
+
+	* dis-asm.h (disassemble_info): New field `insn_sets'.
+	(INIT_DISASSEMBLE_INFO): Clear it.
+
+2002-02-05  Jason Merrill  <jason@redhat.com>
+
+	* demangle.h (cplus_demangle_v3): Add "options" parm.
+	(cplus_demangle_v3_type): Remove prototype.
+	(DMGL_VERBOSE): New macro.
+	(DMGL_TYPES): New macro.
+
+2002-02-02  H.J. Lu  (hjl@gnu.org)
+
+	* demangle.h (cplus_demangle_v3_type): New prototype.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* dis-asm.h : Add support for or32 targets
+
+2002-01-28  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (C_alloca): Add ATTRIBUTE_MALLOC.
+
+2002-01-27  David O'Brien  <obrien@FreeBSD.org>
+
+	* cgen.h (BFD_VERSION): Use BFD_VERSION_DATE instead.
 
 2001-12-14  Nick Clifton  <nickc@cambridge.redhat.com>
 
@@ -10,7 +41,6 @@
 
 2001-12-13  Jakub Jelinek  <jakub@redhat.com>
 
-	* elf/common.h (PT_GNU_EH_FRAME): Define.
 	* bfdlink.h (struct bfd_link_info): Add eh_frame_hdr field.
 
 2001-12-07  Geoffrey Keating  <geoffk@redhat.com>
@@ -36,7 +66,7 @@
 
 2001-10-24  Neil Booth  <neil@daikokuya.demon.co.uk>
 
-	* include/safe-ctype.h (_sch_isbasic, IS_ISOBASIC): New.
+	* safe-ctype.h (_sch_isbasic, IS_ISOBASIC): New.
 
 2001-10-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
@@ -75,11 +105,6 @@
 
 	* libiberty.h (concat_length, concat_copy, concat_copy2,
 	libiberty_concat_ptr, ACONCAT): New.
-
-	* libiberty.h (ASTRDUP): New macro.
-	libiberty_optr, libiberty_nptr, libiberty_len): Declare.
-
-2001-09-17  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* libiberty.h (ASTRDUP): New macro.
 	libiberty_optr, libiberty_nptr, libiberty_len): Declare.
@@ -143,16 +168,10 @@
 
 	* hashtab.h (htab_hash_string): Declare.
 
-2001-06-13  Andrew Cagney  <ac131313@redhat.com>
+2001-08-10  Andrew Cagney  <ac131313@redhat.com>
 
 	* libiberty.h (lbasename): Change function declaration to return a
 	const char pointer.
-
-2001-08-10  Richard Sandiford  <rsandifo@redhat.com>
-
-	* opcode/mips.h (INSN_GP32): Remove.
-	(OPCODE_IS_MEMBER): Remove gp32 parameter.
-	(M_MOVE): New macro identifier.
 
 2001-08-02  Mark Kettenis  <kettenis@gnu.org>
 
@@ -165,18 +184,9 @@
         * bfdlink.h (struct bfd_link_info): add new boolean
         field pei386_auto_import.
 
-2001-08-01  Aldy Hernandez  <aldyh@redhat.com>
-
-	* opcode/mips.h (INSN_ISA_MASK): Nuke bits 12-15.
-
 2001-07-18  Andreas Jaeger  <aj@suse.de>
 
 	* xregex2.h: Place under LGPL version 2.1.
-
-2001-07-12  Jeff Johnston  <jjohnstn@redhat.com>
-
-        * opcode/cgen.h (CGEN_INSN): Add regex support.
-        (build_insn_regex): Declare.
 
 2001-07-10  Jeff Johnston  <jjohnstn@redhat.com>
 
@@ -194,11 +204,6 @@
 2001-05-10  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* ansidecl.h (NULL_PTR): Delete.
-
-2001-05-11  Jakub Jelinek  <jakub@redhat.com>
-
-	* elf/ia64.h (ELF_STRING_ia64_unwind_once): Define.
-	(ELF_STRING_ia64_unwind_info_once): Define.
 
 2001-05-07  Zack Weinberg  <zackw@stanford.edu>
 
@@ -312,11 +317,11 @@
 
 	* getopt.h obstack.h: Standarize copyright statement.
 
-2000-12-05  Richard Henderson  <rth@redhat.com>
+2000-12-04  Richard Henderson  <rth@redhat.com>
 
 	* demangle.h: Change "new_abi" to "v3" everywhere.
 
-2000-11-29  Zack Weinberg  <zack@wolery.stanford.edu>
+2000-11-22  Zack Weinberg  <zack@wolery.stanford.edu>
 
 	* libiberty.h: Move #includes to top.  Prototype xmalloc_failed.
 

@@ -1438,7 +1438,7 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	      && (input_section->flags & SEC_ALLOC))
 	    {
 	      Elf_Internal_Rela outrel;
-	      boolean skip;
+	      boolean skip, relocate = false;
 
 	      /* When generating a shared object, these relocations
                  are copied into the output file to be resolved at run
@@ -1471,6 +1471,8 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 					 rel->r_offset);
 	      if (outrel.r_offset == (bfd_vma) -1)
 		skip = true;
+	      else if (outrel.r_offset == (bfd_vma) -2)
+		skip = true, relocate = true;
 	      outrel.r_offset += (input_section->output_section->vma
 				  + input_section->output_offset);
 
@@ -1571,7 +1573,8 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 
 	      /* This reloc will be computed at runtime, so there's no
                  need to do anything now.  */
-	      continue;
+	      if (! relocate)
+		continue;
 	    }
 	  break;
 

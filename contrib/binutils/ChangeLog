@@ -1,3 +1,35 @@
+2002-02-09  Alexandre Oliva  <aoliva@redhat.com>
+
+	Contribute sh64-elf.
+	2000-12-01  Alexandre Oliva  <aoliva@redhat.com>
+	* configure.in: Added sh64-*-*.
+
+2002-02-04  Jeff Johnston  <jjohnstn@redhat.com>
+
+        * COPYING.NEWLIB: Remove advertising clause from
+        Berkeley and Red Hat licenses.
+
+2002-02-01  Mo DeJong  <supermo@bayarea.net>
+
+	* Makefile.in: Add all-tix to deps for all-snavigator
+	so that tix is built when building snavigator.
+
+2002-02-01  Ben Elliston  <bje@redhat.com>
+
+	* config.guess: Import from master sources, rev 1.229.
+	* config.sub: Import from master sources, rev 1.240.
+
+2002-01-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	From Steve Ellcey <sje@cup.hp.com>:
+	* libtool.m4 (HPUX_IA64_MODE): Set to 32 or 64 based on ABI.
+	(lt_cv_deplibs_check_method, lt_cv_file_magic_cmd,
+	lt_cv_file_magic_test_file): Set to appropriate values for HP-UX
+	IA64.
+	* ltcf-c.sh (archive_cmds, hardcode_*): Ditto.
+	* ltconfig (shlibpath_*, dynamic_linker, library_names_spec,
+	soname_spec, sys_lib_search_path_spec): Ditto.
+
 2002-01-26  Jason Thorpe  <thorpej@wasabisystems.com>
 
 	* configure.in (*-*-netbsd*): New.  Skip target-newlib,

@@ -323,6 +323,11 @@ print_insn_shx (memaddr, info)
     case bfd_mach_sh4:
       target_arch = arch_sh4;
       break;
+    case bfd_mach_sh5:
+      /* When we get here for sh64, it's because we want to disassemble
+	 SHcompact, i.e. arch_sh4.  */
+      target_arch = arch_sh4;
+      break;
     default:
       abort ();
     }
