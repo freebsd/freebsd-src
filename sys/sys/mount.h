@@ -75,7 +75,7 @@ struct fid {
 #if defined(__i386__) || defined(__powerpc__)
 #define	MNAMELEN	80	/* length of buffer for returned name */
 #endif
-#if defined(__alpha__) || defined(__ia64__)
+#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
 #define	MNAMELEN	72	/* length of buffer for returned name */
 #endif
 

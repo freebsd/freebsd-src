@@ -85,6 +85,9 @@
 #ifdef  __powerpc__
 #define	KINFO_PROC_SIZE	656
 #endif
+#ifdef	__sparc64__
+#define	KINFO_PROC_SIZE 888
+#endif
 #ifndef	KINFO_PROC_SIZE
 #error	"Unknown architecture"
 #endif
