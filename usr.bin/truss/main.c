@@ -40,6 +40,10 @@ static const char rcsid[] =
  * do a lot of the work :).
  */
 
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/pioctl.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -48,8 +52,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
 
 extern int setup_and_wait(char **);
 extern int start_tracing(int, int);
@@ -71,7 +73,7 @@ extern void i386_linux_syscall_exit(int, int);
 
 int pid = 0;
 int nosigs = 0;
-FILE *outfile = stderr;
+FILE *outfile;
 int Procfd;
 char progtype[50];	/* OS and type of executable */
 
@@ -149,6 +151,7 @@ main(int ac, char **av) {
   char *fname = NULL;
   int sigexit = 0;
 
+  outfile = stdout;
   while ((c = getopt(ac, av, "p:o:S")) != -1) {
     switch (c) {
     case 'p':	/* specified pid */

@@ -42,6 +42,14 @@ static const char rcsid[] =
  * names used for the various structures are confusing, I sadly admit.
  */
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/pioctl.h>
+#include <sys/syscall.h>
+
+#include <machine/reg.h>
+#include <machine/psl.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -49,11 +57,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
-#include <machine/reg.h>
-#include <machine/psl.h>
-#include <sys/syscall.h>
 
 #include "syscall.h"
 

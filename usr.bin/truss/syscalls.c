@@ -39,13 +39,19 @@ static const char rcsid[] =
  * arguments.
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <err.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <signal.h>
+
 #include "syscall.h"
 
 /*
@@ -83,6 +89,16 @@ struct syscall syscalls[] = {
 	{ "access", 1, 2, { { String | IN, 0 }, { Int, 1 }}},
 	{ "sigaction", 1, 3,
 	  { { Signal, 0 }, { Ptr | IN, 1 }, { Ptr | OUT, 2 }}},
+	{ "accept", 1, 3,
+	  { { Hex, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
+	{ "bind", 1, 3,
+	  { { Hex, 0 }, { Sockaddr | IN, 1 }, { Int, 2 } } },
+	{ "connect", 1, 3,
+	  { { Hex, 0 }, { Sockaddr | IN, 1 }, { Int, 2 } } },
+	{ "getpeername", 1, 3,
+	  { { Hex, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
+	{ "getsockname", 1, 3,
+	  { { Hex, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
@@ -103,6 +119,32 @@ get_syscall(const char *name) {
 		sc++;
 	}
 	return NULL;
+}
+
+/*
+ * get_struct
+ *
+ * Copy a fixed amount of bytes from the process.
+ */
+
+int
+get_struct(int procfd, void *offset, void *buf, int len) {
+	char *pos;
+	FILE *p;
+	int c, fd;
+
+	if ((fd = dup(procfd)) == -1)
+		err(1, "dup");
+	if ((p = fdopen(fd, "r")) == NULL)
+		err(1, "fdopen");
+	fseek(p, (long)offset, SEEK_SET);
+	for (pos = (char *)buf; len--; pos++) {
+		if ((c = fgetc(p)) == EOF)
+			return -1;
+		*pos = c;
+	}
+	fclose(p);
+	return 0;
 }
 
 /*
@@ -241,6 +283,43 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
       } else {
         sprintf(tmp, "%ld", sig);
       }
+    }
+    break;
+  case Sockaddr:
+    {
+      struct sockaddr *sa;
+      char addr[64];
+      u_char sa_len;
+      char *p, *q;
+      int i, len;
+
+      /* yuck: get sa_len */
+      get_struct(fd, (void *)args[sc->offset], (void *)&sa_len, sizeof sa_len);
+      sa = malloc(sa_len);
+      get_struct(fd, (void *)args[sc->offset], (void *)sa, sa_len);
+
+      tmp = malloc(100);
+      if (sa->sa_family == AF_INET) {
+	struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+	inet_ntop(AF_INET, &sin->sin_addr, addr, sizeof addr);
+	sprintf(tmp, "{ AF_INET %s:%d }", addr, htons(sin->sin_port));
+      } else if (sa->sa_family == AF_INET6) {
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+	inet_ntop(AF_INET6, &sin6->sin6_addr, addr, sizeof addr);
+	sprintf(tmp, "{ AF_INET6 [%s]:%d }", addr, htons(sin6->sin6_port));
+      } else if (sa->sa_family == AF_UNIX) {
+        struct sockaddr_un *sun = (struct sockaddr_un *)sa;
+        sprintf(tmp, "{ AF_UNIX \"%s\" }", sun->sun_path);
+      } else {
+        p = tmp;
+        p += sprintf(p, "{ sa_len = %d, sa_family = %d, sa_data = {",
+                sa->sa_len, sa->sa_family);
+        for (q = sa->sa_data; q < ((char *)sa) + sa_len; q++)
+          p += sprintf(p, " 0x%02x,", *q);
+        p--;
+        p += sprintf(p, "} }");
+      }
+      free(sa);
     }
     break;
   }
