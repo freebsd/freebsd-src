@@ -80,6 +80,7 @@ typedef	int fo_kqfilter_t(struct file *fp, struct knote *kn);
 typedef	int fo_stat_t(struct file *fp, struct stat *sb,
 		    struct ucred *active_cred, struct thread *td);
 typedef	int fo_close_t(struct file *fp, struct thread *td);
+typedef	int fo_flags_t;
 
 struct fileops {
 	fo_rdwr_t	*fo_read;
@@ -89,7 +90,10 @@ struct fileops {
 	fo_kqfilter_t	*fo_kqfilter;
 	fo_stat_t	*fo_stat;
 	fo_close_t	*fo_close;
+	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
+
+#define DFLAG_PASSABLE	0x01	/* may be passed via unix sockets. */
 
 /*
  * Kernel descriptor table.
