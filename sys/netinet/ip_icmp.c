@@ -482,7 +482,6 @@ icmp_input(m, off, proto)
 			goto reflect;
 
 	case ICMP_MASKREQ:
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
 		if (icmpmaskrepl == 0)
 			break;
 		/*
@@ -605,8 +604,9 @@ static void
 icmp_reflect(m)
 	struct mbuf *m;
 {
-	register struct ip *ip = mtod(m, struct ip *);
-	register struct in_ifaddr *ia;
+	struct ip *ip = mtod(m, struct ip *);
+	struct ifaddr *ifa;
+	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct mbuf *opts = 0;
 	int optlen = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof(struct ip);
@@ -627,12 +627,19 @@ icmp_reflect(m)
 	 * or anonymous), use the address which corresponds
 	 * to the incoming interface.
 	 */
-	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
+	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash)
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			goto match;
-		if (ia->ia_ifp && (ia->ia_ifp->if_flags & IFF_BROADCAST) &&
-		    t.s_addr == satosin(&ia->ia_broadaddr)->sin_addr.s_addr)
-			goto match;
+	KASSERT(m->m_pkthdr.rcvif != NULL, ("icmp_reflect: NULL rcvif"));
+	if (m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
+		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			ia = ifatoia(ifa);
+			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
+			    t.s_addr)
+				goto match;
+		}
 	}
 	ro = &rt;
 	bzero(ro, sizeof(*ro));
@@ -769,7 +776,7 @@ iptime()
 	struct timeval atv;
 	u_long t;
 
-	microtime(&atv);
+	getmicrotime(&atv);
 	t = (atv.tv_sec % (24*60*60)) * 1000 + atv.tv_usec / 1000;
 	return (htonl(t));
 }
