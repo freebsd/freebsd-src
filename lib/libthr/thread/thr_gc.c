@@ -75,19 +75,17 @@ _thread_gc(pthread_addr_t arg)
 			_thread_dump_info();
 
 		/*
-		 * Lock the garbage collector mutex which ensures that
+		 * Lock the list of dead threads which ensures that
 		 * this thread sees another thread exit:
 		 */
-		if (pthread_mutex_lock(&_gc_mutex) != 0)
-			PANIC("Cannot lock gc mutex");
+		DEAD_LIST_LOCK;
 
 		/* No stack or thread structure to free yet. */
 		p_stack = NULL;
 		pthread_cln = NULL;
 
-		GIANT_LOCK(curthread);
-
 		/* Check if this is the last running thread. */
+		THREAD_LIST_LOCK;
 		if (TAILQ_FIRST(&_thread_list) == curthread &&
 		    TAILQ_NEXT(curthread, tle) == NULL)
 			/*
@@ -95,6 +93,7 @@ _thread_gc(pthread_addr_t arg)
 			 * now.
 			 */
 			f_done = 1;
+		THREAD_LIST_UNLOCK;
 
 		/*
 		 * Enter a loop to search for the first dead thread that
@@ -106,57 +105,43 @@ _thread_gc(pthread_addr_t arg)
 			/* Don't destroy the initial thread. */
 			if (pthread == _thread_initial) 
 				continue;
+
+			_SPINLOCK(&pthread->lock);
+
 			/*
-			 * Check if this thread has detached:
+			 * Check if the stack was not specified by
+			 * the caller to pthread_create() and has not
+			 * been destroyed yet: 
 			 */
-			if ((pthread->attr.flags &
-			    PTHREAD_DETACHED) != 0) {
-				/* Remove this thread from the dead list: */
-				TAILQ_REMOVE(&_dead_list, pthread, dle);
-
-				/*
-				 * Check if the stack was not specified by
-				 * the caller to pthread_create() and has not
-				 * been destroyed yet: 
-				 */
-				if (pthread->attr.stackaddr_attr == NULL &&
-				    pthread->stack != NULL) {
-					_thread_stack_free(pthread->stack,
-					    pthread->attr.stacksize_attr,
-					    pthread->attr.guardsize_attr);
-				}
-
-				/*
-				 * Point to the thread structure that must
-				 * be freed outside the locks:
-				 */
-				pthread_cln = pthread;
-
-			} else {
-				/*
-				 * This thread has not detached, so do
-				 * not destroy it.
-				 *
-				 * Check if the stack was not specified by
-				 * the caller to pthread_create() and has not
-				 * been destroyed yet: 
-				 */
-				if (pthread->attr.stackaddr_attr == NULL &&
-				    pthread->stack != NULL) {
-					_thread_stack_free(pthread->stack,
-					    pthread->attr.stacksize_attr,
-					    pthread->attr.guardsize_attr);
-
-					/*
-					 * NULL the stack pointer now that the
-					 * memory has been freed:
-					 */
-					pthread->stack = NULL;
-				}
+			if (pthread->attr.stackaddr_attr == NULL &&
+			    pthread->stack != NULL) {
+				_thread_stack_free(pthread->stack,
+				    pthread->attr.stacksize_attr,
+				    pthread->attr.guardsize_attr);
+				pthread->stack = NULL;
 			}
+
+			/*
+			 * If the thread has not been detached, leave
+			 * it on the dead thread list.
+			 */
+			if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
+				_SPINUNLOCK(&pthread->lock);
+				continue;
+			}
+
+			/* Remove this thread from the dead list: */
+			TAILQ_REMOVE(&_dead_list, pthread, dle);
+
+			/*
+			 * Point to the thread structure that must
+			 * be freed outside the locks:
+			 */
+			pthread_cln = pthread;
+
+			_SPINUNLOCK(&pthread->lock);
 		}
 
-		GIANT_UNLOCK(curthread);
 		/*
 		 * Check if this is not the last thread and there is no
 		 * memory to free this time around.
@@ -177,15 +162,14 @@ _thread_gc(pthread_addr_t arg)
 			 * timeout (for a backup poll).
 			 */
 			if ((ret = pthread_cond_timedwait(&_gc_cond,
-			    &_gc_mutex, &abstime)) != 0 && ret != ETIMEDOUT) {
+			    &dead_list_lock, &abstime)) != 0 && ret != ETIMEDOUT) {
 				_thread_printf(STDERR_FILENO, "ret = %d", ret);
 				PANIC("gc cannot wait for a signal");
 			}
 		}
 
 		/* Unlock the garbage collector mutex: */
-		if (pthread_mutex_unlock(&_gc_mutex) != 0)
-			PANIC("Cannot unlock gc mutex");
+		DEAD_LIST_UNLOCK;
 
 		/*
 		 * If there is memory to free, do it now. The call to

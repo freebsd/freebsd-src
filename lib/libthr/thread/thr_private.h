@@ -594,6 +594,34 @@ SCLASS TAILQ_HEAD(, pthread) _dead_list
 ;
 #endif
 
+/*
+ * These two locks protect the global active threads list and
+ * the global dead threads list, respectively. Combining these
+ * into one lock for both lists doesn't seem wise, since it
+ * would likely increase contention during busy thread creation
+ * and destruction for very little savings in space.
+ *
+ * The lock for the "dead threads list" must be a pthread mutex
+ * because it is used with condition variables to synchronize
+ * the gc thread with active threads in the process of exiting or
+ * dead threads who have just been joined.
+ */
+SCLASS spinlock_t thread_list_lock
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= _SPINLOCK_INITIALIZER
+#endif 
+;
+SCLASS pthread_mutex_t dead_list_lock
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= NULL
+#endif
+;
+
+#define THREAD_LIST_LOCK	_SPINLOCK(&thread_list_lock)
+#define THREAD_LIST_UNLOCK	_SPINUNLOCK(&thread_list_lock)
+#define DEAD_LIST_LOCK		_pthread_mutex_lock(&dead_list_lock)
+#define DEAD_LIST_UNLOCK	_pthread_mutex_unlock(&dead_list_lock)
+
 /* Initial thread: */
 SCLASS struct pthread *_thread_initial
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -644,12 +672,7 @@ SCLASS struct umtx _giant_mutex
 
 SCLASS int _giant_count;
 
-/* Garbage collector mutex and condition variable. */
-SCLASS	pthread_mutex_t _gc_mutex
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL
-#endif
-;
+/* Garbage collector condition variable. */
 SCLASS	pthread_cond_t  _gc_cond
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = NULL
