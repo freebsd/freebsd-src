@@ -14,5 +14,5 @@ if [ X"${EXTRACT_TARGET}" = X"" ]; then
 fi
 
 cd $SOURCEDIR
-cat bin_tgz.* | gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
+cat bin_tgz.* | gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
 #NO_EXPORT#cat des_tgz.* | gunzip | tar --directory ${EXTRACT_TARGET} -xpf -

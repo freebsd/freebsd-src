@@ -10,5 +10,5 @@ fi
 
 cd $SOURCEDIR
 
-cat des_tgz.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat libcrypt.aa	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
+cat des_tgz.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat libcrypt.aa	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
