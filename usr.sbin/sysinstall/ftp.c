@@ -114,11 +114,12 @@ int
 FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
 {
 
-	struct hostent *he, hdef;
-	struct servent *se, sdef;
-	struct sockaddr_in sin;
-	int s;
-	char a,*p,buf[BUFSIZ];
+	struct hostent 		*he, hdef;
+	struct servent 		*se, sdef;
+	struct sockaddr_in 	sin;
+	int 			s;
+	char 			a,*p,buf[BUFSIZ];
+	unsigned long 		temp;
 
 	if (!user)
 		user = "ftp";
@@ -126,17 +127,28 @@ FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
 	if (!passwd)
 		passwd = "??@??(FreeBSD:libftp)";	/* XXX */
 
-	he = gethostbyname(host);
-	if (!he)
-		return ENOENT;
+	msgDebug("FtpOpen(ftp, %s, %s, %s)\n", host, user, passwd);
 
-	se = getservbyname("ftp","tcp");
-	if (!se)
+	temp = inet_addr(host);
+	if (temp != INADDR_NONE)
+	{
+	    msgDebug("Using dotted IP address `%s'\n", host);
+	    ftp->addrtype = sin.sin_family = AF_INET;
+	    sin.sin_addr.s_addr = temp;
+	} else {
+	    msgDebug("Trying to resolve `%s'\n", host);
+	    he = gethostbyname(host);
+	    if (!he)
+	    {
+		msgDebug("Lookup of `%s' failed!\n", host);
 		return ENOENT;
+	    }
+	    ftp->addrtype = sin.sin_family = he->h_addrtype;
+	    bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
+	}
 
-        ftp->addrtype = sin.sin_family = he->h_addrtype;
-        bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
-        sin.sin_port = se->s_port;
+        sin.sin_port = htons(21);
+
         if ((s = socket(he->h_addrtype, SOCK_STREAM, 0)) < 0) 
                 return s;
 
