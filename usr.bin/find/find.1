@@ -82,9 +82,6 @@ If the referenced file does not exist, the file information and type will
 be for the link itself.
 File information of all symbolic links not on
 the command line is that of the link itself.
-This is a suitable replacement for the archaic
-.Ic -follow
-option.
 .It Fl L
 Cause the file information and file type (see
 .Xr stat 2 )
@@ -92,6 +89,10 @@ returned for each symbolic link to be those of the file referenced by the
 link, not the link itself.
 If the referenced file does not exist, the file information and type will
 be for the link itself.
+.Pp
+This option is equivalent to the deprecated
+.Ic -follow
+primary.
 .It Fl P
 Cause the file information and file type (see
 .Xr stat 2 )
@@ -131,6 +132,10 @@ visits directories in pre\-order, i.e., before their contents.
 Note, the default is
 .Em not
 a breadth\-first traversal.
+.Pp
+This option is equivalent to the deprecated
+.Ic -depth
+primary.
 .It Fl f
 Specify a file hierarchy for
 .Nm
@@ -152,6 +157,10 @@ Prevent
 .Nm
 from descending into directories that have a device number different
 than that of the file from which the descent began.
+.Pp
+This option is equivalent to the deprecated
+.Ic -xdev
+primary.
 .El
 .Sh PRIMARIES
 .Bl -tag -width indent
@@ -747,9 +756,12 @@ command to print out a list of all the files.
 .Sh COMPATIBILITY
 The
 .Ic -follow
-option has been deprecated;
-.Fl H
-is considered to be a suitable replacement.
+primary is deprecated; the
+.Fl L
+option should be used instead.
+See the
+.Sx STANDARDS
+section below for details.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
@@ -781,7 +793,7 @@ primaries are extensions to
 .St -p1003.2 .
 .Pp
 Historically, the
-.Fl d , H
+.Fl d , L
 and
 .Fl x
 options were implemented using the primaries
@@ -823,10 +835,11 @@ it appears.
 .Pp
 The
 .Fl E
-option was implemented on the analogy of
+option was inspired by the equivalent
 .Xr grep 1
 and
-.Xr sed 1 .
+.Xr sed 1
+options.
 .Sh BUGS
 The special characters used by
 .Nm
