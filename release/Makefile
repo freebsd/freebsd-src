@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.383 1998/09/14 11:39:38 jkh Exp $
+#	$Id: Makefile,v 1.384 1998/09/14 18:42:59 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -674,6 +674,7 @@ doMFSKERN:
 	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	@cd ${.CURDIR}/../sys/i386/conf && \
 	  sed	-e '/pty/d' \
+		-e '/pass0/d' \
 		-e '/PROCFS/d' \
 		-e '/SYSVSHM/d' \
 		-e '/KTRACE/d' \
@@ -683,6 +684,8 @@ doMFSKERN:
 	  echo "options  MFS" >> BOOTMFS && \
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
 	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
+	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
+	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS && \
 	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
 	@echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
