@@ -36,10 +36,8 @@
  *	from: FreeBSD: src/lib/libc/i386/sys/cerror.S,v 1.11 2001/08/13
  */
 
-#if defined(SYSLIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* SYSLIBC_RCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 

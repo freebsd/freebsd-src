@@ -24,12 +24,9 @@
  * SUCH DAMAGE.
  */
 
-#if defined(SYSLIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* SYSLIBC_RCS and not lint */
-
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 #include <machine/utrap.h>
 
 ENTRY(__sparc_utrap_fp_disabled)
