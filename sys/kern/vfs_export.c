@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.159 1998/07/12 16:45:39 dfr Exp $
+ * $Id: vfs_subr.c,v 1.160 1998/08/12 20:17:42 bde Exp $
  */
 
 /*
@@ -1992,7 +1992,7 @@ vfs_sysctl SYSCTL_HANDLER_ARGS
 	u_int namelen = arg2 + 1;	/* XXX */
 	struct vfsconf *vfsp;
 
-#ifdef COMPAT_PRELITE2
+#if 1 || defined(COMPAT_PRELITE2)
 	/* Resolve ambiguity between VFS_VFSCONF and VFS_GENERIC. */
 	if (namelen == 1)
 		return (sysctl_ovfs_conf(oidp, arg1, arg2, req));
@@ -2033,7 +2033,7 @@ vfs_sysctl SYSCTL_HANDLER_ARGS
 SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD, vfs_sysctl,
 	"Generic filesystem");
 
-#ifdef COMPAT_PRELITE2
+#if 1 || defined(COMPAT_PRELITE2)
 
 static int
 sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
@@ -2055,7 +2055,7 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 	return 0;
 }
 
-#endif /* COMPAT_PRELITE2 */
+#endif /* 1 || COMPAT_PRELITE2 */
 
 static volatile int kinfo_vdebug = 1;
 
