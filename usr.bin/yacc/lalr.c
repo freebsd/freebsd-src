@@ -81,7 +81,7 @@ static void set_reduction_table(void);
 static void set_shift_table(void);
 static void set_state_table(void);
 static short **transpose(short **, int);
-static void traverse(int);
+static void traverse(int, short **);
 
 static int infinity;
 static int maxrhs;
@@ -89,7 +89,6 @@ static int ngotos;
 static unsigned *F;
 static short **includes;
 static shorts **lookback;
-static short **R;
 static short *INDEX;
 static short *VERTICES;
 static int top;
@@ -529,12 +528,12 @@ int stateno, ruleno, gotono;
 
 
 static short **
-transpose(r, n)
-short **r;
+transpose(R, n)
+short **R;
 int n;
 {
-  short **new_r;
-  short **temp_r;
+  short **new_R;
+  short **temp_R;
   short *nedges;
   short *sp;
   int i;
@@ -544,7 +543,7 @@ int n;
 
   for (i = 0; i < n; i++)
     {
-      sp = r[i];
+      sp = R[i];
       if (sp)
 	{
 	  while (*sp >= 0)
@@ -552,8 +551,8 @@ int n;
 	}
     }
 
-  new_r = NEW2(n, short *);
-  temp_r = NEW2(n, short *);
+  new_R = NEW2(n, short *);
+  temp_R = NEW2(n, short *);
 
   for (i = 0; i < n; i++)
     {
@@ -561,8 +560,8 @@ int n;
       if (k > 0)
 	{
 	  sp = NEW2(k + 1, short);
-	  new_r[i] = sp;
-	  temp_r[i] = sp;
+	  new_R[i] = sp;
+	  temp_R[i] = sp;
 	  sp[k] = -1;
 	}
     }
@@ -571,17 +570,17 @@ int n;
 
   for (i = 0; i < n; i++)
     {
-      sp = r[i];
+      sp = R[i];
       if (sp)
 	{
 	  while (*sp >= 0)
-	    *temp_r[*sp++]++ = i;
+	    *temp_R[*sp++]++ = i;
 	}
     }
 
-  FREE(temp_r);
+  FREE(temp_R);
 
-  return (new_r);
+  return (new_R);
 }
 
 
@@ -639,15 +638,13 @@ short **relation;
   VERTICES = NEW2(ngotos + 1, short);
   top = 0;
 
-  R = relation;
-
   for (i = 0; i < ngotos; i++)
     INDEX[i] = 0;
 
   for (i = 0; i < ngotos; i++)
     {
-      if (INDEX[i] == 0 && R[i])
-	traverse(i);
+      if (INDEX[i] == 0 && relation[i])
+	traverse(i, relation);
     }
 
   FREE(INDEX);
@@ -657,8 +654,9 @@ short **relation;
 
 
 static void
-traverse(i)
+traverse(i, R)
 int i;
+short **R;
 {
   unsigned *fp1;
   unsigned *fp2;
@@ -681,7 +679,7 @@ int i;
       while ((j = *rp++) >= 0)
 	{
 	  if (INDEX[j] == 0)
-	    traverse(j);
+	    traverse(j, R);
 
 	  if (INDEX[i] > INDEX[j])
 	    INDEX[i] = INDEX[j];
