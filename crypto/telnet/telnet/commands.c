@@ -86,13 +86,13 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 typedef int (*intrtn_t)(int, char **);
 
 #ifdef	AUTHENTICATION
-extern int auth_togdebug P((int));
+extern int auth_togdebug(int);
 #endif
 #ifdef	ENCRYPTION
-extern int EncryptAutoEnc P((int));
-extern int EncryptAutoDec P((int));
-extern int EncryptDebug P((int));
-extern int EncryptVerbose P((int));
+extern int EncryptAutoEnc(int);
+extern int EncryptAutoDec(int);
+extern int EncryptDebug(int);
+extern int EncryptVerbose(int);
 #endif	/* ENCRYPTION */
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -289,12 +289,12 @@ struct sendlist {
 
 
 static int
-	send_esc P((void)),
-	send_help P((void)),
-	send_docmd P((char *)),
-	send_dontcmd P((char *)),
-	send_willcmd P((char *)),
-	send_wontcmd P((char *));
+	send_esc(void),
+	send_help(void),
+	send_docmd(char *),
+	send_dontcmd(char *),
+	send_willcmd(char *),
+	send_wontcmd(char *);
 
 static struct sendlist Sendlist[] = {
     { "ao",	"Send Telnet Abort output",	1, 0, NULL, 2, AO },
@@ -1514,18 +1514,18 @@ struct envlist {
 };
 
 extern struct env_lst *
-	env_define P((const unsigned char *, unsigned char *));
+	env_define(const unsigned char *, unsigned char *);
 extern void
-	env_undefine P((unsigned char *)),
-	env_export P((const unsigned char *)),
-	env_unexport P((const unsigned char *)),
-	env_send P((unsigned char *)),
+	env_undefine(unsigned char *),
+	env_export(const unsigned char *),
+	env_unexport(const unsigned char *),
+	env_send(unsigned char *),
 #if defined(OLD_ENVIRON) && defined(ENV_HACK)
-	env_varval P((unsigned char *)),
+	env_varval(unsigned char *),
 #endif
-	env_list P((void));
+	env_list(void);
 static void
-	env_help P((void));
+	env_help(void);
 
 struct envlist EnvList[] = {
     { "define",	"Define an environment variable",
@@ -1847,11 +1847,11 @@ struct authlist {
 };
 
 extern int
-	auth_enable P((char *)),
-	auth_disable P((char *)),
-	auth_status P((void));
+	auth_enable(char *),
+	auth_disable(char *),
+	auth_status(void);
 static int
-	auth_help P((void));
+	auth_help(void);
 
 struct authlist AuthList[] = {
     { "status",	"Display current status of authentication information",
@@ -1930,18 +1930,18 @@ struct encryptlist {
 };
 
 extern int
-	EncryptEnable P((char *, char *)),
-	EncryptDisable P((char *, char *)),
-	EncryptType P((char *, char *)),
-	EncryptStart P((char *)),
-	EncryptStartInput P((void)),
-	EncryptStartOutput P((void)),
-	EncryptStop P((char *)),
-	EncryptStopInput P((void)),
-	EncryptStopOutput P((void)),
-	EncryptStatus P((void));
+	EncryptEnable(char *, char *),
+	EncryptDisable(char *, char *),
+	EncryptType(char *, char *),
+	EncryptStart(char *),
+	EncryptStartInput(void),
+	EncryptStartOutput(void),
+	EncryptStop(char *),
+	EncryptStopInput(void),
+	EncryptStopOutput(void),
+	EncryptStatus(void);
 static int
-	EncryptHelp P((void));
+	EncryptHelp(void);
 
 struct encryptlist EncryptList[] = {
     { "enable", "Enable encryption. ('encrypt enable ?' for more)",
