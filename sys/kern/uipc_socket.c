@@ -961,6 +961,10 @@ sorflush(so)
 	sbunlock(sb);
 	asb = *sb;
 	bzero((caddr_t)sb, sizeof (*sb));
+	if (asb.sb_flags & SB_KNOTE) {
+		sb->sb_sel.si_note = asb.sb_sel.si_note;
+		sb->sb_flags = SB_KNOTE;
+	}
 	splx(s);
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
