@@ -285,7 +285,8 @@ vm_page_flag_set(vm_page_t m, unsigned short bits)
 void
 vm_page_flag_clear(vm_page_t m, unsigned short bits)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->flags &= ~bits;
 }
 
