@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.10 1995/09/18 15:51:35 wollman Exp $
+ * $Id: ip_icmp.c,v 1.11 1995/11/14 20:34:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -194,7 +194,7 @@ icmp_input(m, hlen)
 	int icmplen = ip->ip_len;
 	register int i;
 	struct in_ifaddr *ia;
-	void (*ctlfunc) __P((int, struct sockaddr *, struct ip *));
+	void (*ctlfunc) __P((int, struct sockaddr *, caddr_t));
 	int code;
 
 	/*
@@ -353,7 +353,7 @@ icmp_input(m, hlen)
 		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
 		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
-			    &icp->icmp_ip);
+			    (caddr_t)&icp->icmp_ip);
 		break;
 
 	badcode:
