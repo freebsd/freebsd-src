@@ -418,13 +418,37 @@ print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
 {
 	u_int16_t *p = cmd->ports;
 	int i;
-	char *sep= " ";
+	char *sep;
 
 	if (cmd->o.len & F_NOT)
 		printf(" not");
-	if (opcode != 0)
-		printf ("%s", opcode == O_MAC_TYPE ? " mac-type" :
-		    (opcode == O_IP_DSTPORT ? " dst-port" : " src-port"));
+	if (opcode != 0) {
+		switch (opcode) {
+		case O_IP_DSTPORT:
+			sep = "dst-port";
+			break;
+		case O_IP_SRCPORT:
+			sep = "src-port";
+			break;
+		case O_IPID:
+			sep = "ipid";
+			break;
+		case O_IPLEN:
+			sep = "iplen";
+			break;
+		case O_IPTTL:
+			sep = "ipttl";
+			break;
+		case O_MAC_TYPE:
+			sep = "mac-type";
+			break;
+		default:
+			sep = "???";
+			break;
+		}
+		printf (" %s", sep);
+	}
+	sep = " ";
 	for (i = F_LEN((ipfw_insn *)cmd) - 1; i > 0; i--, p += 2) {
 		printf(sep);
 		print_port(proto, p[0]);
@@ -1096,11 +1120,19 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			case O_IPID:
-				printf(" ipid %u", cmd->arg1 );
+				if (F_LEN(cmd) == 1)
+				    printf(" ipid %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_IPID);
 				break;
 
 			case O_IPTTL:
-				printf(" ipttl %u", cmd->arg1 );
+				if (F_LEN(cmd) == 1)
+				    printf(" ipttl %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_IPTTL);
 				break;
 
 			case O_IPVER:
@@ -1112,7 +1144,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			case O_IPLEN:
-				printf(" iplen %u", cmd->arg1 );
+				if (F_LEN(cmd) == 1)
+				    printf(" iplen %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_IPLEN);
 				break;
 
 			case O_IPOPT:
@@ -2971,19 +3007,31 @@ read_options:
 
 		case TOK_IPTTL:
 			NEED1("ipttl requires TTL");
-			fill_cmd(cmd, O_IPTTL, 0, strtoul(*av, NULL, 0));
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_IPTTL))
+				errx(EX_DATAERR, "invalid ipttl %s", *av);
+			} else
+			    fill_cmd(cmd, O_IPTTL, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
 			break;
 
 		case TOK_IPID:
-			NEED1("ipid requires length");
-			fill_cmd(cmd, O_IPID, 0, strtoul(*av, NULL, 0));
+			NEED1("ipid requires id");
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_IPID))
+				errx(EX_DATAERR, "invalid ipid %s", *av);
+			} else
+			    fill_cmd(cmd, O_IPID, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
 			break;
 
 		case TOK_IPLEN:
 			NEED1("iplen requires length");
-			fill_cmd(cmd, O_IPLEN, 0, strtoul(*av, NULL, 0));
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_IPLEN))
+				errx(EX_DATAERR, "invalid ip len %s", *av);
+			} else
+			    fill_cmd(cmd, O_IPLEN, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
 			break;
 
