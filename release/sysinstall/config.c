@@ -599,7 +599,7 @@ configXDesktop(dialogMenuItem *self)
     else if (!strcmp(desk, "gnome")) {
 	ret = package_add("gnomecore");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
-	    ret = package_add("sawfish");
+	    ret = package_add("sawfish-gnome");
 	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("sawfish"))
 		write_root_xprofile("exec gnome-session\n");
 	}
