@@ -46,7 +46,14 @@ struct gpt_hdr {
 	uint32_t	hdr_entries;
 	uint32_t	hdr_entsz;
 	uint32_t	hdr_crc_table;
-	char		padding[];	/* XXX: struct not a multiple of 8. */
+	/*
+	 * The header as defined in the EFI spec is not a multiple of 8 bytes
+	 * and given that the alignment requirement is on an 8 byte boundary,
+	 * padding will happen. We make the padding explicit so that we can
+	 * correct the value returned by sizeof() when we put the size of the
+	 * header in field hdr_size, or otherwise use offsetof().
+	 */
+	uint32_t	padding;
 };
 
 struct gpt_ent {
