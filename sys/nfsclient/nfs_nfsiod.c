@@ -198,19 +198,6 @@ SYSINIT(nfsiod, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, nfsiod_setup, NULL);
 static int nfs_defect = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0, "");
 
-int
-nfsclnt(struct thread *td, struct nfsclnt_args *uap)
-{
-	struct lockd_ans la;
-	int error;
-
-	if ((uap->flag & NFSCLNT_LOCKDANS) != 0) {
-		error = copyin(uap->argp, &la, sizeof(la));
-		return (error != 0 ? error : nfslockdans(td, &la));
-	}
-	return EINVAL;
-}
-
 /*
  * Asynchronous I/O daemons for client nfs.
  * They do read-ahead and write-behind operations on the block I/O cache.

@@ -44,7 +44,7 @@
  * and where lockd reads these requests.
  *
  */
-#define	_PATH_LCKFIFO	"/var/run/lock"
+#define	_PATH_NFSLCKDEV	"nfslock"
 
 /*
  * This structure is used to uniquely identify the process which originated
@@ -58,12 +58,13 @@ struct lockd_msg_ident {
 	int		msg_seq;	/* Sequence number of message */
 };
 
-#define LOCKD_MSG_VERSION	2
+#define LOCKD_MSG_VERSION	3
 
 /*
  * The structure that the kernel hands us for each lock request.
  */
 typedef struct __lock_msg {
+	TAILQ_ENTRY(__lock_msg)	lm_link;	/* internal linkage */
 	int			lm_version;	/* which version is this */
 	struct lockd_msg_ident	lm_msg_ident;	/* originator of the message */
 	struct flock		lm_fl;             /* The lock request. */
@@ -88,5 +89,4 @@ struct lockd_ans {
 
 #ifdef _KERNEL
 int	nfs_dolock(struct vop_advlock_args *ap);
-int	nfslockdans(struct thread *td, struct lockd_ans *ansp);
 #endif
