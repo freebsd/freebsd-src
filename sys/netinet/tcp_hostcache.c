@@ -351,16 +351,16 @@ tcp_hc_insert(struct in_conninfo *inc)
 		 * At first we were dropping the last element, just to
 		 * reaquire it in the next two lines again which ain't
 		 * very efficient. Instead just reuse the least used element.
-		 * maybe we drop something that is still "in-use" but we can
+		 * Maybe we drop something that is still "in-use" but we can
 		 * be "lossy".
 		 */
-#if 0
 		TAILQ_REMOVE(&hc_head->hch_bucket, hc_entry, rmx_q);
-		uma_zfree(tcp_hostcache.zone, hc_entry);
 		tcp_hostcache.hashbase[hash].hch_length--;
 		tcp_hostcache.cache_count--;
-#endif
 		tcpstat.tcps_hc_bucketoverflow++;
+#if 0
+		uma_zfree(tcp_hostcache.zone, hc_entry);
+#endif
 	} else {
 		/*
 		 * Allocate a new entry, or balk if not possible
