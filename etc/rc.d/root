@@ -37,7 +37,9 @@ root_start()
 
 		# If we booted a special kernel remove the record
 		# so we will boot the default kernel next time.
-		[ -e /boot/nextkernel ] && rm -f /boot/nextkernel
+		if [ -e /boot/nextkernel ]; then
+			rm -f /boot/nextkernel
+		fi
 		;;
 	NetBSD)
 		umount -a >/dev/null 2>&1
