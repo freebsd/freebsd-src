@@ -311,53 +311,6 @@ again:
 	return (0);
 }
 
-#ifdef vax	/* unused except by ct.c, other oddities XXX */
-/*
- * Get next character written in by user from uio.
- */
-int
-uwritec(uio)
-	struct uio *uio;
-{
-	register struct iovec *iov;
-	register int c;
-
-	if (uio->uio_resid <= 0)
-		return (-1);
-again:
-	if (uio->uio_iovcnt <= 0)
-		panic("uwritec");
-	iov = uio->uio_iov;
-	if (iov->iov_len == 0) {
-		uio->uio_iov++;
-		if (--uio->uio_iovcnt == 0)
-			return (-1);
-		goto again;
-	}
-	switch (uio->uio_segflg) {
-
-	case UIO_USERSPACE:
-		c = fubyte(iov->iov_base);
-		break;
-
-	case UIO_SYSSPACE:
-		c = *(u_char *) iov->iov_base;
-		break;
-
-	case UIO_USERISPACE:
-		c = fuibyte(iov->iov_base);
-		break;
-	}
-	if (c < 0)
-		return (-1);
-	iov->iov_base++;
-	iov->iov_len--;
-	uio->uio_resid--;
-	uio->uio_offset++;
-	return (c);
-}
-#endif /* vax */
-
 /*
  * General routine to allocate a hash table.
  */
