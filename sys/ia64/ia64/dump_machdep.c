@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <vm/vm.h>
@@ -120,7 +121,7 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 	vm_offset_t pa;
 	uint64_t pgs;
 	size_t counter, sz;
-	int error, twiddle;
+	int c, error, twiddle;
 
 	error = 0;	/* catch case in which mdp->NumberOfPages is 0 */
 	counter = 0;	/* Update twiddle every 16MB */
@@ -144,6 +145,13 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 		dumplo += sz;
 		pgs -= sz >> EFI_PAGE_SHIFT;
 		pa += sz;
+
+		/* Check for user abort. */
+		c = cncheckc();
+		if (c == 0x03)
+			return (ECANCELED);
+		if (c != -1)
+			printf("(CTRL-C to abort)  ");
 	}
 	printf("... %s\n", (error) ? "fail" : "ok");
 	return (error);
@@ -295,6 +303,9 @@ dumpsys(struct dumperinfo *di)
  fail:
 	if (error < 0)
 		error = -error;
-	/* XXX It should look more like VMS :-) */
-	printf("** DUMP FAILED (ERROR %d) **\n", error);
+
+	if (error == ECANCELED)
+		printf("\nDump aborted\n");
+	else
+		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 }
