@@ -41,6 +41,8 @@
 .Nm cftime
 .Nm ascftime
 .Nd convert date and time to string
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Fd #include <time.h>
 .Ft int
@@ -49,22 +51,25 @@
 .Fn ascftime "char *s" "const char *format" "const struct tm *tmptr"
 .Sh DESCRIPTION
 .Bf -symbolic
-The cftime and ascftime functions are made obsolete by strftime(3).
-.br
-They are available from the compatibility library, libcompat.
+The
+.Fn cftime
+and
+.Fn ascftime
+functions are made obsolete by
+.Xr strftime 3 .
 .Ef
 .Pp
 Use of the functions
-.Nm cftime
+.Fn cftime
 and
-.Nm ascftime
+.Fn ascftime
 is strongly deprecated, since there is no way to check for a buffer
 overflow condition.
 Use
 .Xr strftime 3
 instead.
 
-.Nm Ascftime
+.Fn Ascftime
 is almost identical with
 .Xr strftime 3 ,
 with the only exception there's no parameter to tell about the
@@ -76,7 +81,7 @@ if a
 .Em NULL
 pointer is given.
 
-.Nm Cftime
+.Fn Cftime
 does the same job, but it first invokes
 .Xr localtime 3
 in order to convert the given
@@ -87,9 +92,9 @@ argument.
 
 .Sh RETURN VALUES
 The
-.Nm cftime
+.Fn cftime
 and
-.Nm ascftime
+.Fn ascftime
 functions return the number of characters written to the output
 buffer
 .Fa s ,
@@ -97,4 +102,4 @@ not counting the trailing null character.
 
 .Sh SEE ALSO
 .Xr localtime 3 ,
-.Xr strftime 3 .
+.Xr strftime 3

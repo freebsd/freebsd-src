@@ -39,6 +39,8 @@
 .Nm insque ,
 .Nm remque
 .Nd insert/remove element from a queue
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Bd -literal
 struct qelem {
@@ -55,8 +57,6 @@ struct qelem {
 .Sh DESCRIPTION
 .Bf -symbolic
 The insque and remque functions are considered obsolete.
-.br
-They are available from the compatibility library, libcompat.
 .Ef
 .Pp
 The

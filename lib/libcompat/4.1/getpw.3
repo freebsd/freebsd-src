@@ -38,6 +38,8 @@
 .Sh NAME
 .Nm getpw
 .Nd get name from uid
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Ft int
@@ -45,8 +47,6 @@
 .Sh DESCRIPTION
 .Bf -symbolic
 The getpw function is made obsolete by getpwuid(3).
-.br
-It is available from the compatibility library, libcompat.
 .Ef
 .Pp
 The
