@@ -427,7 +427,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrela + reloff);
 
     where = (Elf_Addr *) (obj->relocbase + rel->r_offset);
-    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
+    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true, NULL);
     if (def == NULL)
 	die();
 
@@ -821,13 +821,24 @@ find_library(const char *name, const Obj_Entry *refobj)
  */
 const Elf_Sym *
 find_symdef(unsigned long symnum, const Obj_Entry *refobj,
-    const Obj_Entry **defobj_out, bool in_plt)
+    const Obj_Entry **defobj_out, bool in_plt, SymCache *cache)
 {
     const Elf_Sym *ref;
     const Elf_Sym *def;
     const Obj_Entry *defobj;
     const char *name;
     unsigned long hash;
+
+    /*
+     * If we have already found this symbol, get the information from
+     * the cache.
+     */
+    if (symnum >= refobj->nchains)
+	return NULL;	/* Bad object */
+    if (cache != NULL && cache[symnum].sym != NULL) {
+	*defobj_out = cache[symnum].obj;
+	return cache[symnum].sym;
+    }
 
     ref = refobj->symtab + symnum;
     name = refobj->strtab + ref->st_name;
@@ -845,9 +856,14 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 	defobj = obj_main;
     }
 
-    if (def != NULL)
+    if (def != NULL) {
 	*defobj_out = defobj;
-    else
+	/* Record the information in the cache to avoid subsequent lookups. */
+	if (cache != NULL) {
+	    cache[symnum].sym = def;
+	    cache[symnum].obj = defobj;
+	}
+    } else
 	_rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
     return def;
 }
@@ -1926,7 +1942,7 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 	    symp = obj->symtab + symnum;
 	    strp = obj->strtab + symp->st_name;
 
-	    if (strcmp(name, strp) == 0)
+	    if (name[0] == strp[0] && strcmp(name, strp) == 0)
 		return symp->st_shndx != SHN_UNDEF ||
 		  (!in_plt && symp->st_value != 0 &&
 		  ELF_ST_TYPE(symp->st_info) == STT_FUNC) ? symp : NULL;

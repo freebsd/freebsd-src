@@ -71,6 +71,11 @@ static int
 reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela)
 {
 	Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
+	SymCache *cache;
+
+	cache = (SymCache *)alloca(obj->nchains * sizeof(SymCache));
+	if (cache != NULL)
+	    memset(cache, 0, obj->nchains * sizeof(SymCache));
 
 	switch (ELF_R_TYPE(rela->r_info)) {
 
@@ -82,7 +87,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela)
 			const Obj_Entry *defobj;
 
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
-			    &defobj, false);
+			    &defobj, false, cache);
 			if (def == NULL)
 				return -1;
 			store64(where,
@@ -97,7 +102,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela)
 			Elf_Addr val;
 
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
-			    &defobj, false);
+			    &defobj, false, cache);
 			if (def == NULL)
 				return -1;
 			val = (Elf_Addr) (defobj->relocbase + def->st_value +
@@ -228,7 +233,8 @@ reloc_jmpslots(Obj_Entry *obj)
 
 	    assert(ELF_R_TYPE(rel->r_info) == R_ALPHA_JMP_SLOT);
 	    where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
-	    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
+	    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true,
+	        NULL);
 	    if (def == NULL)
 		return -1;
 	    reloc_jmpslot(where,
@@ -246,7 +252,8 @@ reloc_jmpslots(Obj_Entry *obj)
 
 	    assert(ELF_R_TYPE(rela->r_info) == R_ALPHA_JMP_SLOT);
 	    where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
-	    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true);
+	    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true,
+	        NULL);
 	    if (def == NULL)
 		return -1;
 	    reloc_jmpslot(where,

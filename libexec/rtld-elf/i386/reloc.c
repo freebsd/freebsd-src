@@ -114,6 +114,11 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 {
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
+	SymCache *cache;
+
+	cache = (SymCache *)alloca(obj->nchains * sizeof(SymCache));
+	if (cache != NULL)
+	    memset(cache, 0, obj->nchains * sizeof(SymCache));
 
 	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
 	for (rel = obj->rel;  rel < rellim;  rel++) {
@@ -130,7 +135,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      false);
+		      false, cache);
 		    if (def == NULL)
 			return -1;
 
@@ -149,7 +154,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      false);
+		      false, cache);
 		    if (def == NULL)
 			return -1;
 
@@ -179,7 +184,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      false);
+		      false, cache);
 		    if (def == NULL)
 			return -1;
 
@@ -238,7 +243,7 @@ reloc_jmpslots(Obj_Entry *obj)
 
 	assert(ELF_R_TYPE(rel->r_info) == R_386_JMP_SLOT);
 	where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
-	def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
+	def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true, NULL);
 	if (def == NULL)
 	    return -1;
 	reloc_jmpslot(where, (Elf_Addr)(defobj->relocbase + def->st_value));
