@@ -1564,6 +1564,7 @@ again:
 	}
 
 	ifc->ifc_len = valid_len;
+	sbuf_finish(sb);
 	error = copyout(sbuf_data(sb), ifc->ifc_req, ifc->ifc_len);
 	sbuf_delete(sb);
 	return (error);
