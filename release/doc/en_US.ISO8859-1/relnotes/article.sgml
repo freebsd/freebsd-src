@@ -536,6 +536,12 @@
     <sect3>
       <title>Disks and Storage</title>
 
+      <para arch="i386">The &man.asr.4; driver now supports the Adaptec
+      2000S and 2005S Zero-Channel RAID controllers. &merged;</para>
+
+      <para arch="i386">The &man.aac.4; driver now supports the Adaptec
+      SCSI RAID 5400S controller. &merged;</para>
+
       <para arch="i386">The &man.twe.4; 3ware ATA RAID driver has added. &merged;</para>
 
       <para>The &man.ata.4; driver now has support for ATA100
