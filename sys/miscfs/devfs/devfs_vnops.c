@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.8 1995/09/04 00:20:30 dyson Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.9 1995/09/06 09:29:18 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -65,12 +65,12 @@
  *
  * NOTE: (LOOKUP | LOCKPARENT) currently returns the parent devfs_front unlocked.
  */
-int devfs_lookup(ap)
-        struct vop_lookup_args /* {
+int devfs_lookup(struct vop_lookup_args *ap) /*proto*/
+        /*struct vop_lookup_args {
                 struct vnode * a_dvp; directory vnode ptr
                 struct vnode ** a_vpp; where to put the result
                 struct componentname * a_cnp; the name we want
-        } */ *ap;
+        };*/
 {
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dir_vnode = ap->a_dvp;
@@ -362,25 +362,25 @@ DBPRINT(("GOT\n"));
  *
  *  Always  error... no such thing in this FS
  */
-int devfs_create(ap)
-        struct vop_mknod_args /* {
+int devfs_create(struct vop_mknod_args  *ap) /*proto*/
+        /*struct vop_mknod_args  {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
                 struct componentname *a_cnp;
                 struct vattr *a_vap;
-        } */ *ap;
+        } */
 {
 DBPRINT(("create\n"));
         return EINVAL;
 }
 
-int devfs_mknod(ap)
-        struct vop_mknod_args /* {
+int devfs_mknod( struct vop_mknod_args *ap) /*proto*/
+        /*struct vop_mknod_args  {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
                 struct componentname *a_cnp;
                 struct vattr *a_vap;
-        } */ *ap;
+        } */
 {
         int error;
 
@@ -415,37 +415,37 @@ DBPRINT(("mknod\n"));
 	return error;
 }
 
-int devfs_open(ap)
-        struct vop_open_args /* {
+int devfs_open(struct vop_open_args *ap) /*proto*/
+        /*struct vop_open_args  {
                 struct vnode *a_vp;
                 int  a_mode;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */
 {
 DBPRINT(("open\n"));
 	return 0;
 }
 
-int devfs_close(ap)
-        struct vop_close_args /* {
+int devfs_close( struct vop_close_args *ap) /*proto*/
+        /*struct vop_close_args  {
                 struct vnode *a_vp;
                 int  a_fflag;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */ 
 {
 DBPRINT(("close\n"));
 	return 0;
 }
 
-int devfs_access(ap)
-        struct vop_access_args /* {
+int devfs_access(struct vop_access_args *ap) /*proto*/
+        /*struct vop_access_args  {
                 struct vnode *a_vp;
                 int  a_mode;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */ 
 {
 	/*
  	 *  mode is filled with a combination of VREAD, VWRITE,
@@ -500,13 +500,13 @@ found:
 	return (EACCES);
 }
 
-int devfs_getattr(ap)
-        struct vop_getattr_args /* {
+int devfs_getattr(struct vop_getattr_args *ap) /*proto*/
+        /*struct vop_getattr_args {
                 struct vnode *a_vp;
                 struct vattr *a_vap;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */ 
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
@@ -580,13 +580,13 @@ DBPRINT(("getattr\n"));
 	return 0;
 }
 
-int devfs_setattr(ap)
-        struct vop_setattr_args /* {
+int devfs_setattr(struct vop_setattr_args *ap) /*proto*/
+        /*struct vop_setattr_args  {
                 struct vnode *a_vp;
                 struct vattr *a_vap;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */ 
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
@@ -659,13 +659,13 @@ DBPRINT(("setattr\n"));
 }
 
 
-int devfs_read(ap)
-        struct vop_read_args /* {
+int devfs_read(struct vop_read_args *ap) /*proto*/
+        /*struct vop_read_args {
                 struct vnode *a_vp;
                 struct uio *a_uio;
                 int  a_ioflag;
                 struct ucred *a_cred;
-        } */ *ap;
+        } */
 {
 	int	eof;
 	int	error = 0;
@@ -699,13 +699,13 @@ DBPRINT(("read\n"));
 /*
  *  Write data to a file or directory.
  */
-int devfs_write(ap)
-        struct vop_write_args /* {
+int devfs_write(struct vop_write_args *ap) /*proto*/
+        /*struct vop_write_args  {
                 struct vnode *a_vp;
                 struct uio *a_uio;
                 int  a_ioflag;
                 struct ucred *a_cred;
-        } */ *ap;
+        } */
 {
 	dn_p	file_node;
 	int	error;
@@ -735,40 +735,40 @@ DBPRINT(("write\n"));
 	}
 }
 
-int devfs_ioctl(ap)
-        struct vop_ioctl_args /* {
+int devfs_ioctl(struct vop_ioctl_args *ap) /*proto*/
+        /*struct vop_ioctl_args  {
                 struct vnode *a_vp;
                 int  a_command;
                 caddr_t  a_data;
                 int  a_fflag;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */ 
 {
 DBPRINT(("ioctl\n"));
 	return ENOTTY;
 }
 
-int devfs_select(ap)
-        struct vop_select_args /* {
+int devfs_select(struct vop_select_args *ap) /*proto*/
+        /*struct vop_select_args {
                 struct vnode *a_vp;
                 int  a_which;
                 int  a_fflags;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */
 {
 DBPRINT(("select\n"));
 	return 1;		/* DOS filesystems never block? */
 }
 
-int devfs_mmap(ap)
-        struct vop_mmap_args /* {
+int devfs_mmap(struct vop_mmap_args *ap) /*proto*/
+        /*struct vop_mmap_args  {
                 struct vnode *a_vp;
                 int  a_fflags;
                 struct ucred *a_cred;
                 struct proc *a_p;
-        } */ *ap;
+        } */
 {
 DBPRINT(("mmap\n"));
 	return EINVAL;
@@ -777,37 +777,37 @@ DBPRINT(("mmap\n"));
 /*
  *  Flush the blocks of a file to disk.
  */
-int devfs_fsync(ap)
-        struct vop_fsync_args /* {
+int devfs_fsync(struct vop_fsync_args *ap) /*proto*/
+        /*struct vop_fsync_args {
                 struct vnode *a_vp;
                 struct ucred *a_cred;
                 int  a_waitfor;
                 struct proc *a_p;
-        } */ *ap;
+        } */ 
 {
 DBPRINT(("fsync\n"));
 	return(0);
 }
 
-int devfs_seek(ap)
-        struct vop_seek_args /* {
+int devfs_seek(struct vop_seek_args *ap) /*proto*/
+        /*struct vop_seek_args  {
                 struct vnode *a_vp;
                 off_t  a_oldoff;
                 off_t  a_newoff;
                 struct ucred *a_cred;
-        } */ *ap;
+        } */
 {
 	int error = 0;
 DBPRINT(("seek\n"));
 	return 0;
 }
 
-int devfs_remove(ap)
-        struct vop_remove_args /* {
+int devfs_remove(struct vop_remove_args *ap) /*proto*/
+        /*struct vop_remove_args  {
                 struct vnode *a_dvp;
                 struct vnode *a_vp;
                 struct componentname *a_cnp;
-        } */ *ap;
+        } */ 
 {
 	int error = 0;
 	/*vrele(DETOV(dep));*/
@@ -817,63 +817,63 @@ DBPRINT(("remove\n"));
 
 /*
  */
-int devfs_link(ap)
-        struct vop_link_args /* {
+int devfs_link(struct vop_link_args *ap) /*proto*/
+        /*struct vop_link_args  {
                 struct vnode *a_tdvp;
                 struct vnode *a_vp;
                 struct componentname *a_cnp;
-        } */ *ap;
+        } */ 
 {
 DBPRINT(("link\n"));
 	return 0;
 }
 
-int devfs_rename(ap)
-        struct vop_rename_args  /* {
+int devfs_rename(struct vop_rename_args *ap) /*proto*/
+        /*struct vop_rename_args  {
                 struct vnode *a_fdvp;
                 struct vnode *a_fvp;
                 struct componentname *a_fcnp;
                 struct vnode *a_tdvp;
                 struct vnode *a_tvp;
                 struct componentname *a_tcnp;
-        } */ *ap;
+        } */
 {
 DBPRINT(("rename\n"));
 	return 0;
 }
 
 
-int devfs_mkdir(ap)
-        struct vop_mkdir_args /* {
+int devfs_mkdir(struct vop_mkdir_args *ap) /*proto*/
+        /*struct vop_mkdir_args {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
                 struct componentname *a_cnp;
                 struct vattr *a_vap;
-        } */ *ap;
+        } */ 
 {
 DBPRINT(("mkdir\n"));
 	return EINVAL;
 }
 
-int devfs_rmdir(ap)
-        struct vop_rmdir_args /* {
+int devfs_rmdir(struct vop_rmdir_args *ap) /*proto*/
+        /*struct vop_rmdir_args {
                 struct vnode *a_dvp;
                 struct vnode *a_vp;
                 struct componentname *a_cnp;
-        } */ *ap;
+        } */ 
 {
 DBPRINT(("rmdir\n"));
 	return 0;
 }
 
-int devfs_symlink(ap)
-        struct vop_symlink_args /* {
+int devfs_symlink(struct vop_symlink_args *ap) /*proto*/
+        /*struct vop_symlink_args {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
                 struct componentname *a_cnp;
                 struct vattr *a_vap;
                 char *a_target;
-        } */ *ap;
+        } */
 {
 	return EINVAL;
 DBPRINT(("symlink\n"));
@@ -882,12 +882,12 @@ DBPRINT(("symlink\n"));
 /*
  * Vnode op for readdir
  */
-int devfs_readdir(ap)
-        struct vop_readdir_args /* {
+int devfs_readdir(struct vop_readdir_args *ap) /*proto*/
+        /*struct vop_readdir_args {
                 struct vnode *a_vp;
                 struct uio *a_uio;
                 struct ucred *a_cred;
-        } */ *ap;
+        } */
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
@@ -985,76 +985,74 @@ DBPRINT(("readdir\n"));
 
 /*
  */
-int devfs_readlink(ap)
-        struct vop_readlink_args /* {
+int devfs_readlink(struct vop_readlink_args *ap) /*proto*/
+        /*struct vop_readlink_args {
                 struct vnode *a_vp;
                 struct uio *a_uio;
                 struct ucred *a_cred;
-        } */ *ap;
+        } */
 {
 DBPRINT(("readlink\n"));
 	return 0;
 }
 
-int devfs_abortop(ap)
-        struct vop_abortop_args /* {
+int devfs_abortop(struct vop_abortop_args *ap) /*proto*/
+        /*struct vop_abortop_args {
                 struct vnode *a_dvp;
                 struct componentname *a_cnp;
-        } */ *ap;
+        } */
 {
 DBPRINT(("abortop\n"));
 	return 0;
 }
 
-int devfs_inactive(ap)
-        struct vop_inactive_args /* {
+int devfs_inactive(struct vop_inactive_args *ap) /*proto*/
+        /*struct vop_inactive_args {
                 struct vnode *a_vp;
-        } */ *ap;
+        } */
 {
 DBPRINT(("inactive\n"));
 	return 0;
 }
-int devfs_lock(ap)
-        struct vop_lock_args *ap;
+int devfs_lock(struct vop_lock_args *ap) /*proto*/
 {
 DBPRINT(("lock\n"));
 	return 0;
 }
 
-int devfs_unlock(ap)
-        struct vop_unlock_args *ap;
+int devfs_unlock( struct vop_unlock_args *ap) /*proto*/
 {
 DBPRINT(("unlock\n"));
 	return 0;
 }
 
-int devfs_islocked(ap)
-        struct vop_islocked_args /* {
+int devfs_islocked(struct vop_islocked_args *ap) /*proto*/
+        /*struct vop_islocked_args {
                 struct vnode *a_vp;
-        } */ *ap;
+        } */
 {
 DBPRINT(("islocked\n"));
 	return 0;
 }
 
-int devfs_bmap(ap)
-        struct vop_bmap_args /* {
+int devfs_bmap(struct vop_bmap_args *ap) /*proto*/
+        /*struct vop_bmap_args {
                 struct vnode *a_vp;
                 daddr_t  a_bn;
                 struct vnode **a_vpp;
                 daddr_t *a_bnp;
                 int *a_runp;
                 int *a_runb;
-        } */ *ap;
+        } */
 {
 DBPRINT(("bmap\n"));
 		return 0;
 }
 
-int devfs_strategy(ap)
-        struct vop_strategy_args /* {
+int devfs_strategy(struct vop_strategy_args *ap) /*proto*/
+        /*struct vop_strategy_args {
                 struct buf *a_bp;
-        } */ *ap;
+        } */
 {
 	struct vnode *vp;
 	int error;
@@ -1066,23 +1064,23 @@ DBPRINT(("strategy\n"));
 }
 
 
-int devfs_advlock(ap)
-        struct vop_advlock_args /* {
+int devfs_advlock(struct vop_advlock_args *ap) /*proto*/
+        /*struct vop_advlock_args {
                 struct vnode *a_vp;
                 caddr_t  a_id;
                 int  a_op;
                 struct flock *a_fl;
                 int  a_flags;
-        } */ *ap;
+        } */
 {
 DBPRINT(("advlock\n"));
 	return EINVAL;		/* we don't do locking yet		*/
 }
 
-int	devfs_reclaim(ap)
-        struct vop_reclaim_args /* {
+int	devfs_reclaim(struct vop_reclaim_args *ap) /*proto*/
+        /*struct vop_reclaim_args {
 		struct vnode *a_vp;
-        } */ *ap;
+        } */
 {
 	dn_p	file_node;
 	int	error;
@@ -1102,13 +1100,12 @@ DBPRINT(("reclaim\n"));
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
-int
-devfs_pathconf(ap)
-        struct vop_pathconf_args /* {
+int devfs_pathconf(struct vop_pathconf_args *ap) /*proto*/
+        /*struct vop_pathconf_args {
                 struct vnode *a_vp;
                 int a_name;
                 int *a_retval;
-        } */ *ap;
+        } */
 {
 
         switch (ap->a_name) {
@@ -1141,25 +1138,22 @@ devfs_pathconf(ap)
  * Print out the contents of a /devfs vnode.
  */
 /* ARGSUSED */
-int
-devfs_print(ap)
-	struct vop_print_args /* {
+int devfs_print(struct vop_print_args *ap) /*proto*/
+	/*struct vop_print_args {
 		struct vnode *a_vp;
-	} */ *ap;
+	} */
 {
 
 	printf("tag VT_DEVFS, devfs vnode\n");
 	return (0);
 }
 
-/*void*/
-int
-devfs_vfree(ap)
-	struct vop_vfree_args /* {
+int devfs_vfree(struct vop_vfree_args *ap) /*proto*/
+	/*struct vop_vfree_args {
 		struct vnode *a_pvp;
 		ino_t a_ino;
 		int a_mode;
-	} */ *ap;
+	} */
 {
 
 	return (0);
@@ -1172,8 +1166,7 @@ devfs_vfree(ap)
 /*
  * /devfs vnode unsupported operation
  */
-int
-devfs_enotsupp()
+int devfs_enotsupp(void *junk) /*proto*/
 {
 
 	return (EOPNOTSUPP);
@@ -1182,8 +1175,7 @@ devfs_enotsupp()
 /*
  * /devfs "should never get here" operation
  */
-int
-devfs_badop()
+int devfs_badop(void *junk) /*proto*/
 {
 
 	panic("devfs: bad op");
@@ -1193,8 +1185,7 @@ devfs_badop()
 /*
  * devfs vnode null operation
  */
-int
-devfs_nullop()
+int devfs_nullop(void *junk) /*proto*/
 {
 
 	return (0);
@@ -1261,7 +1252,7 @@ void	devfs_dropvnode(dn_p dnp) /*proto*/
 
 /* These are the operations used by directories etc in a devfs */
 
-int (**devfs_vnodeop_p)();
+int (**devfs_vnodeop_p)(void *);
 struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, devfs_lookup },	/* lookup */
@@ -1304,7 +1295,7 @@ struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_truncate_desc, devfs_truncate },	/* truncate */
 	{ &vop_update_desc, devfs_update },	/* update */
 	{ &vop_bwrite_desc, devfs_bwrite },	/* bwrite */
-	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
+	{ (struct vnodeop_desc*)NULL, (int(*)(void *))NULL }
 };
 struct vnodeopv_desc devfs_vnodeop_opv_desc =
 	{ &devfs_vnodeop_p, devfs_vnodeop_entries };
@@ -1351,7 +1342,7 @@ VNODEOP_SET(devfs_vnodeop_opv_desc);
  */
 
 
-int (**dev_spec_vnodeop_p)();
+int (**dev_spec_vnodeop_p)(void *);
 struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, spec_lookup },		/* lookup */
@@ -1394,7 +1385,7 @@ struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_truncate_desc, spec_truncate },		/* truncate */
 	{ &vop_update_desc, spec_update },		/* update */
 	{ &vop_bwrite_desc, spec_bwrite },		/* bwrite */
-	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
+	{ (struct vnodeop_desc*)NULL, (int(*)(void *))NULL }
 };
 struct vnodeopv_desc dev_spec_vnodeop_opv_desc =
 	{ &dev_spec_vnodeop_p, dev_spec_vnodeop_entries };

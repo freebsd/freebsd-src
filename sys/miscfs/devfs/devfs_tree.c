@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.1 1995/09/06 08:26:51 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.2 1995/09/06 09:29:16 julian Exp $
  */
 
 #include "param.h"
@@ -32,7 +32,7 @@ int devfs_up_and_going;
  * Notice that the ops are by indirection.. as they haven't
  * been set up yet!
  */
-void  devfs_sinit() /*proto*/
+void  devfs_sinit(caddr_t junk) /*proto*/
 {
 	int retval; /* we will discard this */
 	devnm_p new;
