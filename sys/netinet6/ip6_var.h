@@ -285,6 +285,10 @@ extern int   ip6_lowportmax;		/* maximum reserved port */
 
 extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
 
+#ifdef PFIL_HOOKS
+extern	struct pfil_head inet6_pfil_hook;
+#endif
+
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;
 

@@ -173,11 +173,6 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int needipsec = 0;
-#ifdef PFIL_HOOKS
-	struct packet_filter_hook *pfh;
-	struct mbuf *m1;
-	int rv;
-#endif /* PFIL_HOOKS */
 #ifdef IPSEC
 	int needipsectun = 0;
 	struct secpolicy *sp = NULL;
@@ -931,20 +926,13 @@ skip_ipsec2:;
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	m1 = m;
-	pfh = pfil_hook_get(PFIL_OUT, &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
-	for (; pfh; pfh = pfh->pfil_link.tqe_next)
-		if (pfh->pfil_func) {
-			rv = pfh->pfil_func(ip6, sizeof(*ip6), ifp, 1, &m1);
-			if (rv) {
-				error = EHOSTUNREACH;
-				goto done;
-			}
-			m = m1;
-			if (m == NULL)
-				goto done;
-			ip6 = mtod(m, struct ip6_hdr *);
-		}
+	if (pfil_run_hooks(&inet6_pfil_hook, &m, ifp, PFIL_OUT) != 0) {
+		error = EHOSTUNREACH;
+		goto done;
+	}
+	if (m == NULL)
+		goto done;
+	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* PFIL_HOOKS */
 	/*
 	 * Send the packet to the outgoing interface.

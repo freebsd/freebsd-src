@@ -87,6 +87,7 @@
  *  - be very careful when bridging VLANs
  *  - loop detection is still not very robust.
  */
+#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
@@ -98,7 +99,6 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <net/pfil.h>	/* for ipfilter */
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
@@ -108,6 +108,11 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h> /* for struct arpcom */
+
+#ifdef PFIL_HOOKS
+#include <net/pfil.h>
+#include <netinet/ip_var.h>
+#endif
 
 #include <net/route.h>
 #include <netinet/ip_fw.h>
@@ -160,7 +165,6 @@ struct cluster_softc {
 
 
 extern struct protosw inetsw[];			/* from netinet/ip_input.c */
-extern u_char ip_protox[];			/* from netinet/ip_input.c */
 
 static int n_clusters;				/* number of clusters */
 static struct cluster_softc *clusters;
@@ -715,6 +719,7 @@ bridge_dst_lookup(struct ether_header *eh, struct cluster_softc *c)
      * Lookup local addresses in case one matches.  We optimize
      * for the common case of two interfaces.
      */
+    KASSERT(c->ports != 0, ("lookup with no ports!"));
     switch (c->ports) {
 	int i;
     default:
@@ -914,10 +919,6 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
     int shared = bdg_copy;		/* someone else is using the mbuf */
     struct ifnet *real_dst = dst;	/* real dst from ether_output */
     struct ip_fw_args args;
-#ifdef PFIL_HOOKS
-    struct packet_filter_hook *pfh;
-    int rv;
-#endif /* PFIL_HOOKS */
     struct ether_header save_eh;
     struct mbuf *m;
 
@@ -969,7 +970,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
      */
     if (src != NULL && (
 #ifdef PFIL_HOOKS
-	((pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh)) != NULL && bdg_ipf !=0) ||
+	(inet_pfil_hook.ph_busy_count >= 0 && bdg_ipf != 0) ||
 #endif
 	(IPFW_LOADED && bdg_ipfw != 0))) {
 
@@ -1006,8 +1007,9 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	 * NetBSD-style generic packet filter, pfil(9), hooks.
 	 * Enables ipf(8) in bridging.
 	 */
-	if (pfh != NULL && m0->m_pkthdr.len >= sizeof(struct ip) &&
-		ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
+	if (inet_pfil_hook.ph_busy_count >= 0 &&
+	    m0->m_pkthdr.len >= sizeof(struct ip) &&
+	    ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
 	    /*
 	     * before calling the firewall, swap fields the same as IP does.
 	     * here we assume the pkt is an IP one and the header is contiguous
@@ -1017,20 +1019,14 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    ip->ip_len = ntohs(ip->ip_len);
 	    ip->ip_off = ntohs(ip->ip_off);
 
-	    do {
-		if (pfh->pfil_func) {
-		    rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
-		    if (m0 == NULL) {
-			bdg_dropped++;
-			return NULL;
-		    }
-		    if (rv != 0) {
-			EH_RESTORE(m0);		/* restore Ethernet header */
-			return m0;
-		    }
-		    ip = mtod(m0, struct ip *);
-		}
-	    } while ((pfh = TAILQ_NEXT(pfh, pfil_link)) != NULL);
+	    if (pfil_run_hooks(&inet_pfil_hook, &m0, src, PFIL_IN) != 0) {
+		EH_RESTORE(m0);		/* restore Ethernet header */
+		return m0;
+	    }
+	    if (m0 == NULL) {
+		bdg_dropped++;
+		return NULL;
+	    }
 	    /*
 	     * If we get here, the firewall has passed the pkt, but the mbuf
 	     * pointer might have changed. Restore ip and the fields ntohs()'d.
