@@ -30,13 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.41.2.4 1996/11/29 19:52:12 phk Exp $
+ *	$Id: support.s,v 1.41.2.5 1997/01/14 16:17:21 bde Exp $
  */
 
 #include "opt_cpu.h"
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
+#include <machine/pmap.h>
 #include <machine/specialreg.h>
 
 #include "assym.s"
@@ -674,12 +675,19 @@ ENTRY(generic_copyout)
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
 
-1:	/* check PTE for each page */
+1:
+	/* check PTE for each page */
+	leal	_PTmap(%edx),%eax
+	shrl	$IDXSHIFT,%eax
+	andb	$0xfc,%al
+	testb	$PG_V,_PTmap(%eax)		/* PTE page must be valid */
+	je	4f
 	movb	_PTmap(%edx),%al
-	andb	$0x07,%al			/* Pages must be VALID + USERACC + WRITABLE */
-	cmpb	$0x07,%al
+	andb	$PG_V|PG_RW|PG_U,%al		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%al
 	je	2f
 
+4:
 	/* simulate a trap */
 	pushl	%edx
 	pushl	%ecx
@@ -999,7 +1007,7 @@ fastmove_loop:
 	addl	%eax,%ecx
 	cmpl	$64,%ecx
 	jae	4b
-	
+
 /* curpcb->pcb_savefpu = tmp; */
 	movl	%ecx,-12(%ebp)
 	movl	%esi,-8(%ebp)
@@ -1021,7 +1029,7 @@ fastmove_loop:
 	lmsw	%ax
 /* npxproc = NULL; */
 	movl	$0,_npxproc
-	
+
 	ALIGN_TEXT
 fastmove_tail:
 	movl	_curpcb,%eax
@@ -1146,29 +1154,36 @@ ENTRY(suword)
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
+
+	leal	_PTmap(%edx),%ecx
+	shrl	$IDXSHIFT,%ecx
+	andb	$0xfc,%cl
+	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
+	je	4f
 	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
+	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
 
+4:
 	/* simulate a trap */
 	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
-	movl	_curpcb,%ecx			/* restore trashed register */
 	testl	%eax,%eax
 	jnz	fusufault
 1:
 	movl	4(%esp),%edx
 #endif
 
-2:	
+2:
 	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address validity */
 	ja	fusufault
 
 	movl	8(%esp),%eax
 	movl	%eax,(%edx)
 	xorl	%eax,%eax
+	movl	_curpcb,%ecx
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1188,16 +1203,22 @@ ENTRY(susword)
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
+
+	leal	_PTmap(%edx),%ecx
+	shrl	$IDXSHIFT,%ecx
+	andb	$0xfc,%cl
+	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
+	je	4f
 	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
+	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
 
+4:
 	/* simulate a trap */
 	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
-	movl	_curpcb,%ecx			/* restore trashed register */
 	testl	%eax,%eax
 	jnz	fusufault
 1:
@@ -1211,6 +1232,7 @@ ENTRY(susword)
 	movw	8(%esp),%ax
 	movw	%ax,(%edx)
 	xorl	%eax,%eax
+	movl	_curpcb,%ecx			/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1230,16 +1252,22 @@ ENTRY(subyte)
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
+
+	leal	_PTmap(%edx),%ecx
+	shrl	$IDXSHIFT,%ecx
+	andb	$0xfc,%cl
+	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
+	je	4f
 	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
+	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
 
+4:
 	/* simulate a trap */
 	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
-	movl	_curpcb,%ecx			/* restore trashed register */
 	testl	%eax,%eax
 	jnz	fusufault
 1:
@@ -1253,6 +1281,7 @@ ENTRY(subyte)
 	movb	8(%esp),%al
 	movb	%al,(%edx)
 	xorl	%eax,%eax
+	movl	_curpcb,%ecx			/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
