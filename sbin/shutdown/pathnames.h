@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
+ * $FreeBSD$
  */
 
 #include <paths.h>
@@ -38,4 +39,3 @@
 #define	_PATH_FASTBOOT	"/fastboot"
 #define	_PATH_HALT	"/sbin/halt"
 #define	_PATH_REBOOT	"/sbin/reboot"
-#define	_PATH_WALL	"/usr/bin/wall"
