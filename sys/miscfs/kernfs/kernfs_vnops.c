@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.5 1994/09/21 03:47:00 wollman Exp $
+ * $Id: kernfs_vnops.c,v 1.6 1994/10/02 17:48:09 phk Exp $
  */
 
 /*
@@ -73,6 +73,7 @@ struct kern_target {
 #define KTT_INT	17
 #define	KTT_STRING 31
 #define KTT_HOSTNAME 47
+#define KTT_BOOTFILE 49
 #define KTT_AVENRUN 53
 	int kt_tag;
 	int kt_rw;
@@ -85,6 +86,7 @@ struct kern_target {
 	{ "boottime",	&boottime.tv_sec, KTT_INT,	VREAD,		VREG },
 	{ "copyright",	copyright,	KTT_STRING,	VREAD,		VREG },
 	{ "hostname",	0,		KTT_HOSTNAME,	VREAD|VWRITE,	VREG },
+	{ "bootfile",	0,		KTT_BOOTFILE,	VREAD,		VREG },
 	{ "hz",		&hz,		KTT_INT,	VREAD,		VREG },
 	{ "loadavg",	0,		KTT_AVENRUN,	VREAD,		VREG },
 	{ "pagesize",	&cnt.v_page_size, KTT_INT,	VREAD,		VREG },
@@ -135,6 +137,19 @@ kernfs_xread(kt, buf, len, lenp)
 	case KTT_HOSTNAME: {
 		char *cp = hostname;
 		int xlen = hostnamelen;
+
+		if (xlen >= (len-2))
+			return (EINVAL);
+
+		bcopy(cp, buf, xlen);
+		buf[xlen] = '\n';
+		buf[xlen+1] = '\0';
+		break;
+	}
+
+	case KTT_BOOTFILE: {
+		char *cp = kernelname;
+		int xlen = strlen(cp) + 1;
 
 		if (xlen >= (len-2))
 			return (EINVAL);
