@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $ -->
+<!-- $Id: porting.sgml,v 1.22 1996/07/30 05:51:14 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -115,9 +115,11 @@ the ports collection.
 2.0-RELEASE:                    199411
 2.1-current's:                  199501, 199503
 2.0.5-RELEASE:                  199504
-2.1.0-RELEASE:                  199511
 2.2-current before 2.1:         199508
-2.2-current as 10 Jan 1996:     199512  (will certainly be bumped)
+2.1.0-RELEASE:                  199511
+2.2-current before 2.1.5:       199512
+2.1.5-RELEASE:                  199607
+2.2-current as 12 Jul 1996:     199608  (will certainly be bumped)
 </verb></tscreen>
 The pattern is the year followed by the month.
 
@@ -156,7 +158,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
+ # $Id: porting.sgml,v 1.22 1996/07/30 05:51:14 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -255,23 +257,26 @@ lib/X11/oneko/mouse.xpm
 	  and works correctly.
 
       <sect3>
-	<heading>Submitting the port</heading>
+	<heading><label id="porting:submitting">Submitting the
+	  port</heading>
 
 	<p>Now that you are happy with your port, the only thing
 	  remaining is to put it in the main FreeBSD ports tree and
 	  make everybody else happy about it too.  To accomplish this,
 	  pack the necessary files (everything described in this
 	  section -- in particular do <em>not</em> include the
-	  original source tarball or the `<tt>work</tt>' subdirectory)
-	  into a <tt>.tar.gz</tt> file, stick it in the directory
+	  original source tarball, the `<tt>work</tt>' subdirectory or
+	  the package) into a <tt>.tar.gz</tt> file, stick it in the
+	  directory
 <tscreen><verb>
 ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming/
 </verb></tscreen>
-	  and send mail to the &a.ports;.  We will take a
-	  look, get back to you if necessary, and put it in the tree.
-	  Your name will also appear in the list of `Additional
-	  FreeBSD contributors' on the FreeBSD Handbook and other
-	  files.  Isn't that great?!? <tt>:)</tt>
+	  and send mail to us using <tt>send-pr(1)</tt> (please
+	  classify it as category `ports' and class `change-request').
+	  We will take a look, get back to you if necessary, and put
+	  it in the tree.  Your name will also appear in the list of
+	  `Additional FreeBSD contributors' on the FreeBSD Handbook
+	  and other files.  Isn't that great?!? <tt>:)</tt>
 
     <sect2>
       <heading>Slow Porting</heading>
@@ -687,6 +692,33 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  addition, the author of the original port should be shot.
 
     <sect2>
+      <heading>Ports that require Motif</heading>
+      <p>There are many programs that require a Motif library
+	(available from several commercial vendors, while there is (at
+	least) one effort to create a free clone) to compile.  Since
+	it is a popular toolkit and their licenses usually permit
+	redistribution of statically linked binaries, we have made
+	special provisions for handling ports that require Motif in a
+	way that we can easily compile binaries linked either
+	dynamically or statically.
+
+      <sect3>
+	<heading>REQUIRES_MOTIF</heading>
+	<p>If your port requires Motif, define this variable in the
+	  Makefile.  This will prevent people who don't own a copy of
+	  Motif from even attempting to build it.
+
+      <sect3>
+	<heading>&dollar;{MOTIFLIB}</heading>
+	<p>This variable will be set by <tt>bsd.port.mk</tt> to be the
+	  appropriate reference to the Motif library.  Please patch
+	  the source to use this wherever the Motif library is
+	  referenced in the Makefile or Imakefile.  (Note that this
+	  variable (usually) expands to `<tt>-L/usr/X11R6/lib
+	  -lXm</tt>' or `<tt>/usr/X11R6/lib/libXm.a</tt>', so there is
+	  no need to add `<tt>-L</tt>' or `<tt>-l</tt>' in front.)
+
+    <sect2>
       <heading>Licensing Problems</heading>
       <p>Some software packages have restrictive licenses or are in
         violation to the law (PKP's patent on public key crypto,
@@ -700,11 +732,22 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	redistributing the source or compiled binaries either via ftp
 	or CD-ROM.  If in doubt, please contact the &a.ports;.
 
-      <p>We usually get around this problem by setting
-	<tt>&dollar;{NO_PACKAGE}</tt> in the Makefile, and not putting
-	the distfile up for ftp.  However, for most cases, you should
-	at least be able to make a port, so do not let the license
-	scare you away!
+      <p>There are two variables you can set in the Makefile to handle 
+	the situations that arise frequently:
+
+      <enum>
+	<item>If the port has a `do not sell for profit' type of
+	  license, set the variable <tt>NO_CDROM</tt>.  We will make
+	  sure such ports won't go into the CD-ROM come release time.
+	  The distfile and package will still be available via ftp.
+
+	<item>If the port has legal restrictions on who can use it
+	  (e.g., crypto stuff) or has a `no commercial use' license,
+	  set the variable <tt>RESTRICTED</tt> to be the string
+	  describing the reason why.  For such ports, the
+	  distfiles/packages will not be available even from our ftp
+	  sites.
+      </enum>
 
       <p>Note: The GNU General Public License (GPL), both version 1
 	and 2, should not be a problem for ports.
@@ -713,8 +756,29 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	<tt>ports/LEGAL</tt> file too.
 
     <sect2>
-      <heading>* Upgrading</heading>
-      <p>This section is still under construction, sorry.
+      <heading>Upgrading</heading>
+      <p>When you notice that a port is out of date compared to the
+	latest version from the original authors, first make sure you
+	have the latest port.  You can find them in the
+	<tt>ports-current</tt> directory of the ftp mirror sites.
+
+      <p>The next step is to send a mail to the maintainer, if one is
+	listed in the port's Makefile.  That person may already be
+	working on an upgrade, or have a reason to not upgrade the
+	port right now (because of, for example, stability problems
+	of the new version).
+
+      <p>If the maintainer asks you to do the upgrade or there isn't
+	any such person to begin with, please make the upgrade and
+	send the recursive diff of the new and old ports directories
+	to us (i.e., if your modified ports directory is called
+	`<tt>superedit</tt>' and the original as in our tree is
+	`<tt>superedit.bak</tt>', then send us the result of `<tt>diff
+	-ru superedit.bak superedit</tt>'.)  If the port has changed
+	so much that the diff is larger than the new port itself, you
+	can <ref id="porting:submitting" name="upload"> the port
+	following the procedure described above.  Either way, don't
+	forget to send us a message using <tt>send-pr(1)</tt>!
 
     <sect2>
       <heading>Do's and Dont's</heading>
@@ -976,7 +1040,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
+ # $Id: porting.sgml,v 1.22 1996/07/30 05:51:14 asami Exp $
  [ ^^^^ do not worry about this...it will be automatically filled in by CVS 
   when it is committed to our repository]
  #
