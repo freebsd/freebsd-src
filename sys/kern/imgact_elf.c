@@ -644,7 +644,7 @@ exec_elf_imgact(struct image_params *imgp)
 	imgp->proc->p_sysent = brand_info->sysvec;
 	if (interp != NULL) {
 		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	        snprintf(path, sizeof(path), "%s%s",
+	        snprintf(path, MAXPATHLEN, "%s%s",
 			 brand_info->emul_path, interp);
 		if ((error = elf_load_file(imgp->proc, path, &addr,
 					   &imgp->entry_addr)) != 0) {
