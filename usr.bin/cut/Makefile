@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	cut
-WARNS?=	2
 
 .include <bsd.prog.mk>
