@@ -1018,6 +1018,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	 * Handle the case where someone closed the file (via its file
 	 * descriptor) while we were blocked.  The end result should look
 	 * like opening the file succeeded but it was immediately closed.
+	 * We call vn_close() manually because we haven't yet hooked up
+	 * the various 'struct file' fields.
 	 */
 	FILEDESC_LOCK(fdp);
 	FILE_LOCK(fp);
