@@ -85,7 +85,9 @@ is non-zero, it specifies a value to be used in reloading
 when the timer expires.
 Setting 
 .Fa it_value
-to 0 disables a timer.  Setting 
+to 0 disables a timer, regardless of the value of
+.Fa it_interval .
+Setting
 .Fa it_interval
 to 0 causes a timer to be disabled after its next expiration (assuming
 .Fa it_value
