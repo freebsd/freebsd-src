@@ -94,11 +94,13 @@ struct ess_info {
     	void *ih;
     	bus_dma_tag_t parent_dmat;
 
+	unsigned int bufsize;
     	int type, duplex:1, newspeed:1;
     	u_long bd_flags;       /* board-specific flags */
     	struct ess_chinfo pch, rch;
 };
 
+#if 0
 static int ess_rd(struct ess_info *sc, int reg);
 static void ess_wr(struct ess_info *sc, int reg, u_int8_t val);
 static int ess_dspready(struct ess_info *sc);
@@ -116,6 +118,7 @@ static void ess_intr(void *arg);
 static int ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int len);
 static int ess_start(struct ess_chinfo *ch);
 static int ess_stop(struct ess_chinfo *ch);
+#endif
 
 /*
  * Common code for the midi and pcm functions
@@ -284,10 +287,12 @@ ess_release_resources(struct ess_info *sc, device_t dev)
 		sc->irq = 0;
     	}
     	if (sc->drq1) {
+		isa_dma_release(rman_get_start(sc->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, 0, sc->drq1);
 		sc->drq1 = 0;
     	}
     	if (sc->drq2) {
+		isa_dma_release(rman_get_start(sc->drq2));
 		bus_release_resource(dev, SYS_RES_DRQ, 1, sc->drq2);
 		sc->drq2 = 0;
     	}
@@ -330,11 +335,11 @@ ess_alloc_resources(struct ess_info *sc, device_t dev)
 
     	if (sc->io_base && sc->drq1 && sc->irq) {
   		isa_dma_acquire(rman_get_start(sc->drq1));
-		isa_dmainit(rman_get_start(sc->drq1), ESS_BUFFSIZE);
+		isa_dmainit(rman_get_start(sc->drq1), sc->bufsize);
 
 		if (sc->drq2) {
 			isa_dma_acquire(rman_get_start(sc->drq2));
-			isa_dmainit(rman_get_start(sc->drq2), ESS_BUFFSIZE);
+			isa_dmainit(rman_get_start(sc->drq2), sc->bufsize);
 		}
 
 		return 0;
@@ -554,7 +559,7 @@ esschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, ESS_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsize) == -1)
 		return NULL;
 	ch->dir = dir;
 	ch->hwch = 1;
@@ -804,6 +809,7 @@ ess_attach(device_t dev)
 		return ENXIO;
 
 	sc->parent_dev = device_get_parent(dev);
+	sc->bufsize = pcm_getbuffersize(dev, 4096, ESS_BUFFSIZE, 65536);
     	if (ess_alloc_resources(sc, dev))
 		goto no;
     	if (ess_reset_dsp(sc))
@@ -845,19 +851,21 @@ ess_attach(device_t dev)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/ESS_BUFFSIZE, /*nsegments*/1,
+			/*maxsize*/sc->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
-    	     	rman_get_start(sc->io_base), rman_get_start(sc->irq),
-		rman_get_start(sc->drq1));
     	if (sc->drq2)
-		snprintf(status + strlen(status), SND_STATUSLEN - strlen(status),
-			":%ld", rman_get_start(sc->drq2));
+		snprintf(buf, SND_STATUSLEN, ":%ld", rman_get_start(sc->drq2));
+	else
+		buf[0] = '\0';
+
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u",
+    	     	rman_get_start(sc->io_base), rman_get_start(sc->irq),
+		rman_get_start(sc->drq1), buf, sc->bufsize);
 
     	if (pcm_register(dev, sc, 1, 1))
 		goto no;
