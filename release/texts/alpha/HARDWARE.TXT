@@ -1721,6 +1721,8 @@ Intel 8255x ethernet chips as driven by the FreeBSD 'fxp' driver. But beware:
 the 'fxp' driver is reported not to work correctly with FreeBSD/alpha (although
 it works excellently on FreeBSD/x86).
 
+- FDDI: DEC DEFPA PCI FDDI network adapters are supported on alpha.
+
 - graphics console/keyboard/mouse: in general the SRM console emulates 
 a VGA-compatibility mode on PCI VGA cards. This is, however, not guaranteed 
 to work by Compaq/DEC for each and every card type out there. When the SRM 
