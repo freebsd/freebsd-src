@@ -6,12 +6,13 @@ SRCS+=	module.c panic.c
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 SRCS+=	load_elf32.c load_elf64.c
+SRCS+=	reloc_elf32.c reloc_elf64.c
 .endif
 .if ${MACHINE_ARCH} == "powerpc"
-SRCS+=	load_elf32.c
+SRCS+=	load_elf32.c reloc_elf32.c
 .endif
 .if ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "alpha"
-SRCS+=	load_elf64.c
+SRCS+=	load_elf64.c reloc_elf64.c
 .endif
 
 .if defined(LOADER_NET_SUPPORT)
