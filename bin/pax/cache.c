@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cache.c,v 1.2 1994/09/24 02:56:14 davidg Exp $
+ *	$Id: cache.c,v 1.3 1995/10/23 21:23:02 ache Exp $
  */
 
 #ifndef lint
@@ -255,7 +255,7 @@ name_uid(uid, frc)
 		if (ptr == NULL)
 			return(pw->pw_name);
 		ptr->uid = uid;
-		(void)strncpy(ptr->name, pw->pw_name, UNMLEN);
+		(void)strncpy(ptr->name, pw->pw_name, UNMLEN - 1);
 		ptr->name[UNMLEN-1] = '\0';
 		ptr->valid = VALID;
 	}
@@ -332,7 +332,7 @@ name_gid(gid, frc)
 		if (ptr == NULL)
 			return(gr->gr_name);
 		ptr->gid = gid;
-		(void)strncpy(ptr->name, gr->gr_name, GNMLEN);
+		(void)strncpy(ptr->name, gr->gr_name, GNMLEN - 1);
 		ptr->name[GNMLEN-1] = '\0';
 		ptr->valid = VALID;
 	}
@@ -398,7 +398,7 @@ uid_name(name, uid)
 		*uid = pw->pw_uid;
 		return(0);
 	}
-	(void)strncpy(ptr->name, name, UNMLEN);
+	(void)strncpy(ptr->name, name, UNMLEN - 1);
 	ptr->name[UNMLEN-1] = '\0';
 	if ((pw = getpwnam(name)) == NULL) {
 		ptr->valid = INVALID;
@@ -468,7 +468,7 @@ gid_name(name, gid)
 		return(0);
 	}
 
-	(void)strncpy(ptr->name, name, GNMLEN);
+	(void)strncpy(ptr->name, name, GNMLEN - 1);
 	ptr->name[GNMLEN-1] = '\0';
 	if ((gr = getgrnam(name)) == NULL) {
 		ptr->valid = INVALID;
