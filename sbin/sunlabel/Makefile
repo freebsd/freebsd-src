@@ -2,7 +2,6 @@
 
 PROG=sunlabel
 SRCS=sunlabel.c geom_sunlabel_enc.c
-LINKS=${BINDIR}/sunlabel ${BINDIR}/disklabel
 NOMAN=
 WARNS=5
 
