@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <errno.h>
@@ -38,12 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "pathnames.h"
+
 extern char **environ;
 
 int
 main(int argc __unused, char *argv[])
 {
-	char path[PATH_MAX];
+	char path[PATH_MAX], *cp;
 	const char *cmd, *p, *q, *self;
 	size_t len;
 
@@ -52,6 +55,23 @@ main(int argc __unused, char *argv[])
 		cmd = self;
 	else
 		cmd++;
+	/* If null path (e. g. in mailfilter scripts), use default path. */
+	if ((p = getenv("PATH")) == NULL) {
+		if (sysctlbyname("user.cs_path", (void *)NULL, &len,
+		    (void *)NULL, 0) == -1)
+			err(1, "sysctlbyname(\"user.cs_path\")");
+                if ((cp = malloc(len + 1)) == NULL)
+			err(1, "malloc() failed");
+		if (sysctlbyname("user.cs_path", cp, &len, (void *)NULL, 0) == -1)
+			err(1, "sysctlbyname(\"user.cs_path\")");
+		setenv("PATH", cp, 1);
+	}
+	/* If default package bindir not there, append it. */
+	p = getenv("PATH");
+	if (strstr(p, PATH_PKG_BINDIR) == NULL) {
+		snprintf(path, sizeof path, "%s:%s", p, PATH_PKG_BINDIR);
+		setenv("PATH", path, 1);
+	}
 	argv[0] = path;
 	for (p = q = getenv("PATH"); p && *p && *q; p = q + 1) {
 		for (q = p; *q && *q != ':'; ++q)
