@@ -982,8 +982,14 @@ esac
 # Start background fsck checks if necessary
 case ${background_fsck} in
 [Yy][Ee][Ss])
-	echo 'Starting background filesystem checks'
-	nice -4 fsck -B -p 2>&1 | logger -p daemon.notice &
+	bgfsck_msg='Starting background file system checks'
+	if [ ${background_fsck_delay:=0} -gt 0 ]; then
+		bgfsck_msg="${bgfsck_msg} in ${background_fsck_delay} seconds"
+	fi
+	echo "${bgfsck_msg}."
+
+	(sleep ${background_fsck_delay}; nice -4 fsck -B -p) 2>&1 | \
+	    logger -p daemon.notice &
 	;;
 esac
 
