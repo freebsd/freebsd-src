@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.45 1994/10/03 22:32:12 phk Exp $
+#	$Id: GENERICBT,v 1.46 1994/10/14 23:16:29 phk Exp $
 #
 
 machine		"i386"
@@ -71,9 +71,10 @@ device          lpt0    at isa? port? tty irq 7 vector lptintr
 device          lpt1    at isa? port? tty
 device          lpt2    at isa? port? tty
 
-device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
-device ed1 at isa? port 0x300 net irq 5 iomem 0xd8000 vector edintr
-device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
+device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
+device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
+device ed2 at isa? port 0x300 net irq 10 iomem 0xcc000 vector edintr
+device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 
 pseudo-device	loop
