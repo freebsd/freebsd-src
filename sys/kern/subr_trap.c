@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.12 1993/12/19 00:50:09 wollman Exp $
+ *	$Id: trap.c,v 1.13 1994/01/03 07:55:24 davidg Exp $
  */
 
 /*
@@ -60,6 +60,7 @@
 #include "vm/pmap.h"
 #include "vm/vm_map.h"
 #include "vm/vm_user.h"
+#include "vm/vm_page.h"
 #include "sys/vmmeter.h"
 
 #include "machine/trap.h"
@@ -152,7 +153,8 @@ trap(frame)
 /*pg("trap type %d code = %x eip = %x cs = %x eva = %x esp %x",
 			frame.tf_trapno, frame.tf_err, frame.tf_eip,
 			frame.tf_cs, rcr2(), frame.tf_esp);*/
-if(curpcb == 0 || curproc == 0) goto we_re_toast;
+	if (curpcb == 0 || curproc == 0)
+		goto skiptoswitch;
 	if (curpcb->pcb_onfault && frame.tf_trapno != T_PAGEFLT) {
 		extern int _udatasel;
 
@@ -181,9 +183,14 @@ copyfault:
 		p->p_regs = (int *)&frame;
 	}
 
+skiptoswitch:
 	ucode=0;
 	eva = rcr2();
 	code = frame.tf_err;
+
+	if ((type & ~T_USER) == T_PAGEFLT)
+		goto pfault;
+
 	switch (type) {
 
 	default:
@@ -280,17 +287,18 @@ copyfault:
 		if (code & PGEX_P) goto we_re_toast;
 #endif
 
+	pfault:
 		/* fall into */
 	case T_PAGEFLT|T_USER:		/* page fault */
 	    {
 		register vm_offset_t va;
-		register struct vmspace *vm = p->p_vmspace;
+		register struct vmspace *vm;
 		register vm_map_t map;
-		int rv = 0;
+		int rv=0;
 		vm_prot_t ftype;
 		extern vm_map_t kernel_map;
-		unsigned nss;
-		char *v;
+		unsigned nss,v;
+		int oldflags;
 
 		va = trunc_page((vm_offset_t)eva);
 		/*
@@ -301,10 +309,15 @@ copyfault:
 		 * The last can occur during an exec() copyin where the
 		 * argument space is lazy-allocated.
 		 */
-		if (type == T_PAGEFLT && va >= KERNBASE)
+
+		if ((p == 0) || (type == T_PAGEFLT && va >= KERNBASE)) {
+			vm = 0;
 			map = kernel_map;
-		else
+		} else {
+			vm = p->p_vmspace;
 			map = &vm->vm_map;
+		}
+
 		if (code & PGEX_W)
 			ftype = VM_PROT_READ | VM_PROT_WRITE;
 		else
@@ -317,16 +330,27 @@ copyfault:
 		}
 #endif
 
+/*
+ * keep swapout from messing with us during this
+ * critical time.
+ */
+		oldflags = p->p_flag;
+		if (map != kernel_map) {
+				p->p_flag |= SLOCK;
+		}
 		/*
 		 * XXX: rude hack to make stack limits "work"
 		 */
+
 		nss = 0;
-		if ((caddr_t)va >= vm->vm_maxsaddr
-			&& (caddr_t)va < (caddr_t)USRSTACK
-			&& map != kernel_map) {
+		if (map != kernel_map && (caddr_t)va >= vm->vm_maxsaddr
+			&& (caddr_t)va < (caddr_t)USRSTACK) {
+			caddr_t v;
 			nss = roundup(USRSTACK - (unsigned)va, PAGE_SIZE);
 			if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur) {
 				rv = KERN_FAILURE;
+				p->p_flag &= ~SLOCK;
+				p->p_flag |= (oldflags & SLOCK);
 				goto nogo;
 			}
 
@@ -341,7 +365,7 @@ copyfault:
 				 * Grow the VM by the amount requested rounded up to
 				 * the nearest DFLSSIZ to provide for some hysteresis.
 				 */
-				grow_amount = roundup(nss, DFLSSIZ);
+				grow_amount = roundup((nss - (vm->vm_ssize << PGSHIFT)), DFLSSIZ);
 				v = (char *)USRSTACK - roundup(vm->vm_ssize << PGSHIFT,
 				    DFLSSIZ) - grow_amount;
 				/*
@@ -355,42 +379,57 @@ copyfault:
 				if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
 						grow_amount, FALSE) !=
 				    KERN_SUCCESS) {
+					p->p_flag &= ~SLOCK;
+					p->p_flag |= (oldflags & SLOCK);
 					goto nogo;
 				}
 			}
 		}
 
+
 		/* check if page table is mapped, if not, fault it first */
-		if (!pde_v(va)) {
-			v = (char *)trunc_page(vtopte(va));
-			rv = vm_fault(map, (vm_offset_t)v, ftype, FALSE);
-			if (rv != KERN_SUCCESS) goto nogo;
-			/* check if page table fault, increment wiring */
-			vm_map_pageable(map, (vm_offset_t)v,
-					round_page(v+1), FALSE);
-		} else v=0;
-		rv = vm_fault(map, va, ftype, FALSE);
+#define pde_v(v) (PTD[((v)>>PD_SHIFT)&1023].pd_v)
+		{
+			vm_offset_t v = trunc_page(vtopte(va));
+
+			if (map != kernel_map) {
+				vm_offset_t pa;
+
+				/* Fault the pte only if needed: */
+				*(volatile char *)v += 0;	
+
+				/* Get the physical address: */
+				pa = pmap_extract(vm_map_pmap(map), v);
+
+				/* And wire the page at system vm level: */
+				vm_page_wire(PHYS_TO_VM_PAGE(pa));
+
+				/* Fault in the user page: */
+				rv = vm_fault(map, va, ftype, FALSE);
+
+				/* Unwire the pte page */
+				vm_page_unwire(PHYS_TO_VM_PAGE(pa));
+
+			} else {
+				rv = vm_fault(map, va, ftype, FALSE);
+			}
+
+		}
+		if (map != kernel_map) {
+			p->p_flag &= ~SLOCK;
+			p->p_flag |= (oldflags & SLOCK);
+		}
 		if (rv == KERN_SUCCESS) {
 			/*
 			 * XXX: continuation of rude stack hack
 			 */
 			nss = nss >> PGSHIFT;
-			if (nss > vm->vm_ssize)
+			if (vm && nss > vm->vm_ssize) {
 				vm->vm_ssize = nss;
+			}
  			/* 
  			 * va could be a page table address, if the fault
- 			 * occurred from within copyout.  In that case,
- 			 * we have to wire it. (EWS 12/11/93)
- 			 */
- 			if (ispt(va))
- 				vm_map_pageable(map, va, round_page(va+1), FALSE);
-			va = trunc_page(vtopte(va));
-			/*
-			 * for page table, increment wiring
-			 * as long as not a page table fault as well
 			 */
-			if (!v && type != T_PAGEFLT)
-				vm_map_pageable(map, va, round_page(va+1), FALSE);
 			if (type == T_PAGEFLT)
 				return;
 			goto out;
@@ -439,7 +478,7 @@ nogo:
 			return;
 #endif
 		/* machine/parity/power fail/"kitchen sink" faults */
-		if(isa_nmi(code) == 0) return;
+		if (isa_nmi(code) == 0) return;
 		else goto we_re_toast;
 #endif
 	}
@@ -501,7 +540,8 @@ int trapwrite(addr)
 	struct proc *p;
 	vm_offset_t va;
 	struct vmspace *vm;
-	char *v;
+	int oldflags;
+	int rv;
 
 	va = trunc_page((vm_offset_t)addr);
 	/*
@@ -515,14 +555,22 @@ int trapwrite(addr)
 	nss = 0;
 	p = curproc;
 	vm = p->p_vmspace;
+
+	oldflags = p->p_flag;
+	p->p_flag |= SLOCK;
+
 	if ((caddr_t)va >= vm->vm_maxsaddr
 	    && (caddr_t)va < (caddr_t)USRSTACK) {
-		nss = roundup(USRSTACK - (unsigned)va, PAGE_SIZE);
-		if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
+		nss = roundup(((unsigned)USRSTACK - (unsigned)va), PAGE_SIZE);
+		if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur) {
+			p->p_flag &= ~SLOCK;
+			p->p_flag |= (oldflags & SLOCK);
 			return (1);
+		}
 	
 		if (vm->vm_ssize && roundup(vm->vm_ssize << PGSHIFT,
 			DFLSSIZ) < nss) {
+			caddr_t v;
 			int grow_amount;
 			/*
 			 * If necessary, grow the VM that the stack occupies
@@ -532,7 +580,7 @@ int trapwrite(addr)
 			 * Grow the VM by the amount requested rounded up to
 			 * the nearest DFLSSIZ to provide for some hysteresis.
 			 */
-			grow_amount = roundup(nss, DFLSSIZ);
+			grow_amount = roundup((nss - (vm->vm_ssize << PGSHIFT)), DFLSSIZ);
 			v = (char *)USRSTACK - roundup(vm->vm_ssize << PGSHIFT, DFLSSIZ) -
 				grow_amount;
 			/*
@@ -546,22 +594,38 @@ int trapwrite(addr)
 			if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
 					grow_amount, FALSE)
 			    != KERN_SUCCESS) {
+				p->p_flag &= ~SLOCK;
+				p->p_flag |= (oldflags & SLOCK);
 				return(1);
 			}
+				printf("new stack growth: %lx, %d\n", v, grow_amount);
 		}
 	}
 
-	if (vm_fault(&vm->vm_map, va, VM_PROT_READ | VM_PROT_WRITE, FALSE)
-	    != KERN_SUCCESS)
-		return (1);
 
+	{
+		vm_offset_t v;
+		v = trunc_page(vtopte(va));
+		if (va < USRSTACK) {
+			vm_map_pageable(&vm->vm_map, v, round_page(v+1), FALSE);
+		}
+		rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, FALSE);
+		if (va < USRSTACK) {
+			vm_map_pageable(&vm->vm_map, v, round_page(v+1), TRUE);
+		}
+	}
+	p->p_flag &= ~SLOCK;
+	p->p_flag |= (oldflags & SLOCK);
+
+	if (rv != KERN_SUCCESS)
+		return 1;
 	/*
 	 * XXX: continuation of rude stack hack
 	 */
-	nss = nss >> PGSHIFT;
-	if (nss > vm->vm_ssize)
+	nss >>= PGSHIFT;
+	if (nss > vm->vm_ssize) {
 		vm->vm_ssize = nss;
-
+	}
 	return (0);
 }
 

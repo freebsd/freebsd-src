@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
+ * Copyright (c) 1994 John S. Dyson
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * William Jolitz.
@@ -34,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.9 1993/12/19 00:50:19 wollman Exp $
+ *	$Id: vmparam.h,v 1.10 1994/01/03 16:00:52 davidg Exp $
  */
 
 
@@ -57,7 +59,7 @@
  * kernal address space.
  */
 #define	USRTEXT		0UL
-#define	USRSTACK	0xFDBFE000UL
+/* #define	USRSTACK	0xFDBFE000UL */
 #define	BTOPUSRSTACK	(0xFDC00-(UPAGES))	/* btop(USRSTACK) */
 #define	LOWPAGES	0UL
 #define HIGHPAGES	UPAGES
@@ -104,7 +106,7 @@
 /*
  * Size of User Raw I/O map
  */
-#define	USRIOSIZE 	300
+#define	USRIOSIZE 	1024
 
 /*
  * The size of the clock loop.
@@ -210,16 +212,23 @@
  */
 
 /* user/kernel map constants */
+#define	KERNBASE (0-(NKPDE+1)*(NBPG*NPTEPG))
+#define KERNSIZE (NKPDE*NBPG*NPTEPG)
+
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
-#define VM_MAXUSER_ADDRESS	((vm_offset_t)0xFDBFE000UL)
-#define UPT_MIN_ADDRESS		((vm_offset_t)0xFDC00000UL)
-#define UPT_MAX_ADDRESS		((vm_offset_t)0xFDFF7000UL)
+#define VM_MAXUSER_ADDRESS	((vm_offset_t)KERNBASE - (NBPG*(NPTEPG+UPAGES)))
+#define USRSTACK VM_MAXUSER_ADDRESS
+#define UPT_MIN_ADDRESS		((vm_offset_t)KERNBASE - (NBPG*NPTEPG))
+#define UPT_MAX_ADDRESS		((vm_offset_t)KERNBASE - (NBPG*(NKPDE+2)))
 #define VM_MAX_ADDRESS		UPT_MAX_ADDRESS
-#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)0xFDFF7000UL)
+#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNBASE - (NBPG*(NKPDE+2)))
 #define UPDT			VM_MIN_KERNEL_ADDRESS
-#define KPT_MIN_ADDRESS		((vm_offset_t)0xFDFF8000UL)
-#define KPT_MAX_ADDRESS		((vm_offset_t)0xFDFFF000UL)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)0xFF7FF000UL)
+#define KPT_MIN_ADDRESS		((vm_offset_t)(KERNBASE) - (NBPG*(NKPDE+1)))
+#define KPT_MAX_ADDRESS		((vm_offset_t)(KERNBASE) - NBPG)
+#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)ALT_MIN_ADDRESS - NBPG)
+#define ALT_MIN_ADDRESS		((vm_offset_t)((APTDPTDI) << 22))
+#define HIGHPAGES UPAGES
+
 
 /* virtual sizes (bytes) for various kernel submaps */
 #define VM_MBUF_SIZE		(NMBCLUSTERS*MCLBYTES)
