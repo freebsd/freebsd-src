@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.22 1999/05/10 16:36:38 peter Exp $
+ *	$Id: autoconf.c,v 1.23 1999/05/10 17:12:38 peter Exp $
  */
 
 #include "opt_bootp.h"
@@ -272,7 +272,7 @@ cpu_rootconf()
 		}
 
 		rootdevs[0] = rootdev;
-		rootname[2] += dkunit(minor(rootdev));
+		rootname[2] += dkunit(rootdev);
 		rootdevnames[0] = rootname;
 	}
 #endif
