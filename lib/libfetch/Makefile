@@ -10,7 +10,7 @@ MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
 
 .if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
-CFLAGS+=	-DWITH_SSL -DOPENSSL_NO_KRB5
+CFLAGS+=	-DWITH_SSL
 DPADD=		${LIBSSL} ${LIBCRYPTO}
 LDADD=		-lssl -lcrypto
 WARNS?=		2
