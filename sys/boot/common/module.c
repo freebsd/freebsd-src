@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.3 1998/09/03 02:10:08 msmith Exp $
+ *	$Id: module.c,v 1.4 1998/09/14 18:27:04 msmith Exp $
  */
 
 /*
@@ -145,8 +145,8 @@ command_lsmod(int argc, char *argv[])
 
     pager_open();
     for (am = loaded_modules; (am != NULL); am = am->m_next) {
-	sprintf(lbuf, " %x: %s (%s, 0x%x)\n", 
-		am->m_addr, am->m_name, am->m_type, am->m_size);
+	sprintf(lbuf, " %p: %s (%s, 0x%lx)\n", 
+		(void *) am->m_addr, am->m_name, am->m_type, (long) am->m_size);
 	pager_output(lbuf);
 	if (am->m_args != NULL) {
 	    pager_output("    args: ");
@@ -156,7 +156,7 @@ command_lsmod(int argc, char *argv[])
 	if (verbose)
 	    /* XXX could add some formatting smarts here to display some better */
 	    for (md = am->m_metadata; md != NULL; md = md->md_next) {
-		sprintf(lbuf, "      0x%04x, 0x%x\n", md->md_type, md->md_size);
+		sprintf(lbuf, "      0x%04x, 0x%lx\n", md->md_type, (long) md->md_size);
 		pager_output(lbuf);
 	    }
     }
@@ -444,8 +444,8 @@ static char *
 mod_searchfile(char *name)
 {
     static char		*result = NULL;
-    char		*path;
-    char		*cp, *sp;
+    char		*path, *sp;
+    const char		*cp;
     struct stat		sb;
 
     /* Don't look for nothing */
@@ -501,7 +501,7 @@ mod_searchmodule(char *name)
     char	*tn, *result;
     
     /* Look for (name).ko */
-    tn = malloc(strlen(name) + 3);
+    tn = malloc(strlen(name) + 3 + 1);
     strcpy(tn, name);
     strcat(tn, ".ko");
     result = mod_searchfile(tn);

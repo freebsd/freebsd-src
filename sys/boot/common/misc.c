@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
+ *	$Id: misc.c,v 1.3 1998/09/19 01:31:28 msmith Exp $
  */
 
 #include <string.h>
@@ -101,7 +101,7 @@ hexdump(caddr_t region, size_t len)
 
     pager_open();
     for (line = region; line < (region + len); line += 16) {
-	emit("%08x  ", line);
+	emit("%08lx  ", (long) line);
 	
 	for (x = 0; x < 16; x++) {
 	    if ((line + x) < (region + len)) {

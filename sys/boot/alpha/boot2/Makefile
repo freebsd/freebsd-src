@@ -15,6 +15,7 @@ SRCS+=		main.c conf.c
 .include	<${.CURDIR}/../../common/Makefile.inc>
 CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
+CFLAGS+=	-I${.OBJDIR}
 # Verbose ls causes extra heap usage
 CFLAGS+=	-DVERBOSE_LS
 
@@ -24,11 +25,7 @@ CLEANFILES+=	${BASE} ${BASE}.sym ${BASE}.list
 
 CFLAGS+=	-Wall
 
-# XXX fix to use "standard" versions
-LIBSTANDDIR=	/home/dfr/FreeBSD/alpha/src/lib/libstand
-LIBSTAND=	-lstand
 CFLAGS+=	-I${LIBSTANDDIR}
-LIBALPHA=	${.OBJDIR}/../libalpha/libalpha.a
 CFLAGS+=	-I${.CURDIR}/..
 CRT=		start.o
 STRIP=

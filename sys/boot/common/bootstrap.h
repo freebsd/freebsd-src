@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.6 1998/09/19 01:31:28 msmith Exp $
+ *	$Id: bootstrap.h,v 1.7 1998/09/20 21:46:19 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -219,6 +219,7 @@ extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 	__asm(".previous")
 #else
 #define MAKE_SET(set, sym)			\
+	static void const * const __set_##set##_sym_##sym = &sym; \
 	__asm(".section .set." #set ",\"aw\"");	\
 	__asm(".long " #sym);			\
 	__asm(".previous")
@@ -280,7 +281,7 @@ struct arch_switch
     /* Automatically load modules as required by detected hardware */
     int			(* arch_autoload)();
     /* Locate the device for (name), return pointer to tail in (*path) */
-    int			(*arch_getdev)(void **dev, char *name, char **path);
+    int			(*arch_getdev)(void **dev, const char *name, const char **path);
     /* Copy from local address space to module address space, similar to bcopy() */
     int			(*arch_copyin)(void *src, vm_offset_t dest, size_t len);
     /* Copy to local address space from module address space, similar to bcopy() */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devopen.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 
@@ -33,7 +33,7 @@
 #include "bootstrap.h"
 
 int
-devopen(struct open_file *f, const char *fname, char **file) 
+devopen(struct open_file *f, const char *fname, const char **file) 
 {
     struct devdesc	*dev;
     int			result;
