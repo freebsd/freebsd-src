@@ -90,6 +90,13 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
 
+	if (us->want == 0 && ((ch = (unsigned char)*s) & ~0x7f) == 0) {
+		/* Fast path for plain ASCII characters. */
+		if (pwc != NULL)
+			*pwc = ch;
+		return (ch != '\0' ? 1 : 0);
+	}
+
 	if (us->want == 0) {
 		/*
 		 * Determine the number of octets that make up this character
@@ -197,6 +204,12 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */
 		return (1);
+
+	if ((wc & ~0x7f) == 0) {
+		/* Fast path for plain ASCII characters. */
+		*s = (char)wc;
+		return (1);
+	}
 
 	/*
 	 * Determine the number of octets needed to represent this character.
