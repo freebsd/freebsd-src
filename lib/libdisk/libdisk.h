@@ -10,7 +10,7 @@
 *
 */
 
-#define DEBUG 1
+/* #define DEBUG 1 */
 /* You can define a particular architecture here if you are debugging. */
 /* #define P_DEBUG p_sparc64 */
 
