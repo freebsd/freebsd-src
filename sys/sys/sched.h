@@ -86,7 +86,6 @@ static __inline void sched_pin(void);
 void	sched_unbind(struct thread *td);
 static __inline void sched_unpin(void);
 
-
 /*
  * These procedures tell the process data structure allocation code how
  * many bytes to actually allocate.
