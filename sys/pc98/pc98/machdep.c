@@ -66,6 +66,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
+#include <sys/smp.h>
 #include <sys/callout.h>
 #include <sys/msgbuf.h>
 #include <sys/sysent.h>
@@ -104,9 +105,6 @@
 #include <machine/globaldata.h>
 #include <machine/globals.h>
 #include <machine/intrcnt.h>
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -454,9 +452,10 @@ again:
 
 #ifdef SMP
 	globaldata_register(GLOBALDATA);
-#endif
-
+#else
+	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
+#endif
 }
 
 /*
@@ -1924,7 +1923,7 @@ physmap_done:
 	physmap[1] = mp_bootaddress(physmap[1] / 1024);
 
 	/* look for the MP hardware - needed for apic addresses */
-	mp_probe();
+	i386_mp_probe();
 #endif
 
 	/*
