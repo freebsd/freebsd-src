@@ -3021,3 +3021,38 @@ options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
+
+# Yet more undocumented options for linting.
+options 	AAC_DEBUG
+options 	ACD_DEBUG
+options 	ACPI_MAX_THREADS=1
+#!options 	ACPI_NO_SEMAPHORES
+# Broken:
+##options 	ASR_MEASURE_PERFORMANCE
+options 	AST_DEBUG
+options 	ATAPI_DEBUG
+options 	ATA_DEBUG
+# BKTR_ALLOC_PAGES has no effect except to cause warnings, and
+# BROOKTREE_ALLOC_PAGES hasn't actually been superseded by it, since the
+# driver still mostly spells this option BROOKTREE_ALLOC_PAGES.
+##options 	BKTR_ALLOC_PAGES="(217*4+1)"
+options 	BROOKTREE_ALLOC_PAGES="(217*4+1)"
+# Broken:
+##options 	CAPABILITIES
+options 	COMPAT_SUNOS
+options 	CV_DEBUG
+options 	MAXFILES=999
+# METEOR_TEST_VIDEO has no effect since meteor is broken.
+options 	METEOR_TEST_VIDEO
+options 	NDEVFSINO=1025
+options 	NDEVFSOVERFLOW=32769
+options 	NETGRAPH_BRIDGE
+options 	NETSMB
+options 	NETSMBCRYPTO
+# PFIL_HOOKS has no effect here since it is a subset of IPFILTER.
+options 	PFIL_HOOKS
+# SIMOS is broken since it is alpha-only but not ifdefed.
+##options 	SIMOS
+options 	SMBFS
+options 	VESA_DEBUG
+options 	VGA_DEBUG

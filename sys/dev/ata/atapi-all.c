@@ -587,7 +587,7 @@ static void
 atapi_finish(struct atapi_request *request)
 {
 #ifdef ATAPI_DEBUG
-    ata_prtdev(atadev->device->device, "finished %s%s\n",
+    ata_prtdev(request->device, "finished %s%s\n",
 	       request->callback ? "callback " : "",
 	       atapi_cmd2str(request->ccb[0]));
 #endif
