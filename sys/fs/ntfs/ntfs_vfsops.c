@@ -107,37 +107,9 @@ ntfs_omount (
 {
 	size_t		size;
 	int		err = 0;
-	struct vnode	*devvp, *rootvp;
+	struct vnode	*devvp;
 	struct ntfs_args args;
 	struct nameidata ndp;
-
-	if (mp->mnt_flag & MNT_ROOTFS) {
-		/*
-		 ***
-		 * Mounting root filesystem
-		 ***
-		 */
-	
-		/* Get vnode for root device*/
-		if( bdevvp( rootdev, &rootvp))
-			panic("ntfs_mountroot: can't setup bdevvp for root");
-
-		/*
-		 * FS specific handling
-		 */
-		mp->mnt_flag |= MNT_RDONLY;	/* XXX globally applicable?*/
-
-		/*
-		 * Attempt mount
-		 */
-		if( ( err = ntfs_mountfs(rootvp, mp, &args, td)) != 0) {
-			/* fs specific cleanup (if any)*/
-			goto error_1;
-		}
-
-		goto dostatfs;		/* success*/
-
-	}
 
 	/*
 	 ***
@@ -238,7 +210,6 @@ ntfs_omount (
 		goto error_2;
 	}
 
-dostatfs:
 	/*
 	 * Initialize FS stat information in mount struct; uses both
 	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
