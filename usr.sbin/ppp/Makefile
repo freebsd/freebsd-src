@@ -15,6 +15,7 @@ NODES=		true
 NOI4B=		true
 NONAT=		true
 NOKLDLOAD=	true
+NOPAM=		true
 NORADIUS=	true
 NOSUID=		true
 .endif
@@ -103,6 +104,13 @@ DPADD+= ${LIBNETGRAPH}
 CFLAGS+=-DEXPERIMENTAL_NETGRAPH
 SRCS+=	netgraph.c
 .endif
+.endif
+
+.if defined(NOPAM)
+CFLAGS+=-DNOPAM
+.else
+LDADD+=	${MINUSLPAM}
+DPADD+=	${LIBPAM}
 .endif
 
 .include <bsd.prog.mk>
