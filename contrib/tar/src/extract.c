@@ -1140,8 +1140,12 @@ extract_archive (void)
       else if (typeflag == GNUTYPE_DUMPDIR)
 	skip_member ();
 
-      if (! prepare_to_extract (CURRENT_FILE_NAME))
-	break;
+      {
+	struct stat st;
+	if (stat (CURRENT_FILE_NAME, &st) != 0 || !S_ISDIR (st.st_mode))
+	  if (! prepare_to_extract (CURRENT_FILE_NAME))
+	    break;
+      }
 
       mode = ((current_stat.st_mode
 	       | (we_are_root ? 0 : MODE_WXUSR))
