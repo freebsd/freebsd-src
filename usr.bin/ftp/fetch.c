@@ -217,6 +217,7 @@ url_get(origline, proxyenv)
 
 	while (1)
       {
+	ai_unmapped(res);
 	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (s == -1) {
 		res = res->ai_next;
