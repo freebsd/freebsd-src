@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.8 1995/05/30 03:47:24 rgrimes Exp $
+ * $Id: ctm_pass2.c,v 1.9 1995/07/12 09:16:10 phk Exp $
  *
  */
 
@@ -116,9 +116,11 @@ Pass2(FILE *fd)
 		case CTM_F_MD5:
 		    if(!name) WRONG
 		    if(j & CTM_Q_MD5_Before) {
+		        char *tmp;
 			GETFIELD(p,sep);
 			if((st.st_mode & S_IFMT) == S_IFREG &&
-			  strcmp(MD5File(name,md5_1),p)) {
+			  (tmp = MD5File(name,md5_1)) != NULL &&
+			  strcmp(tmp,p)) {
 			    fprintf(stderr,"  %s: %s md5 mismatch.\n",
 				sp->Key,name);
 			    if(j & CTM_Q_MD5_Force) {
