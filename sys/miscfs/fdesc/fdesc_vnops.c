@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.18 1996/09/03 14:22:12 bde Exp $
+ * $Id: fdesc_vnops.c,v 1.19 1996/09/20 05:56:36 nate Exp $
  */
 
 /*
@@ -397,6 +397,7 @@ fdesc_attr(fd, vap, cred, p)
 		return (EBADF);
 
 	switch (fp->f_type) {
+	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		error = VOP_GETATTR((struct vnode *) fp->f_data, vap, cred, p);
 		if (error == 0 && vap->va_type == VDIR) {
@@ -551,6 +552,7 @@ fdesc_setattr(ap)
 	 * Can setattr the underlying vnode, but not sockets!
 	 */
 	switch (fp->f_type) {
+	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		error = VOP_SETATTR((struct vnode *) fp->f_data, ap->a_vap, ap->a_cred, ap->a_p);
 		break;
