@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.53 1998/05/28 09:29:54 phk Exp $
+ *	$Id: exception.s,v 1.54 1998/07/28 17:55:37 bde Exp $
  */
 
 #include "npx.h"
@@ -209,55 +209,24 @@ calltrap:
 	ALIGN_LOCK
 	ECPL_LOCK
 #ifdef CPL_AND_CML
-	orl	$SWI_AST_MASK,_cml
+	movl	_cml,%eax
+	movl	%eax,%ebx		/* keep orig. cml here during trap() */
+	orl	$SWI_AST_MASK,%eax
+	movl	%eax,_cml
 #else
-	orl	$SWI_AST_MASK,_cpl
+	movl	_cpl,%eax
+	movl	%eax,%ebx		/* keep orig. cpl here during trap() */
+	orl	$SWI_AST_MASK,%eax
+	movl	%eax,_cpl
 #endif
 	ECPL_UNLOCK
 	call	_trap
 
 	/*
-	 * There was no place to save the cpl so we have to recover it
-	 * indirectly.  For traps from user mode it was 0, and for traps
-	 * from kernel mode Oring SWI_AST_MASK into it didn't change it.
-	 */
-#ifndef SMP
-	subl	%eax,%eax
-#endif
-#ifdef VM86
-	cmpl	$1,_in_vm86call
-	je	2f			/* keep kernel cpl */
-#endif
-	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
-	jne	1f
-#ifdef VM86
-	testl	$PSL_VM,TF_EFLAGS(%esp)
-	jne	1f
-#endif /* VM86 */
-
-2:
-#ifdef SMP
-	ECPL_LOCK
-#ifdef CPL_AND_CML
-	pushl	_cml			/* XXX will this work??? */
-#else
-	pushl	_cpl
-#endif
-	ECPL_UNLOCK
-	jmp	2f
-1:
-	pushl	$0			/* cpl to restore */
-2:
-#else /* SMP */
-	movl	_cpl,%eax
-1:
-	pushl	%eax
-#endif /* SMP */
-
-	/*
 	 * Return via _doreti to handle ASTs.  Have to change trap frame
 	 * to interrupt frame.
 	 */
+	pushl	%ebx			/* cpl to restore */
 	subl	$4,%esp			/* dummy unit to finish intr frame */
 	MPLOCKED incb _intr_nesting_level
 	MEXITCOUNT
