@@ -320,7 +320,14 @@ typedef struct {
 	u_int32_t	ct_resid;	/* residual length */
 	u_int16_t	ct_timeout;
 	u_int16_t	ct_seg_count;
-	ispds_t		ct_dataseg[ISP_RQDSEG];
+	/*
+	 * This is so we can share tag name space with
+	 * CTIO{2,3,4} with the minimum of pain.
+	 */
+	union {
+		ispds_t		ct_a[ISP_RQDSEG];
+	} _u;
+#define	ct_dataseg	_u.ct_a
 } ct_entry_t;
 
 /*
@@ -413,7 +420,7 @@ typedef struct {
 	union {
 		/*
 		 * The three different modes that the target driver
-		 * can set the CTIO2 up as.
+		 * can set the CTIO{2,3,4} up as.
 		 *
 		 * The first is for sending FCP_DATA_IUs as well as
 		 * (optionally) sending a terminal SCSI status FCP_RSP_IU.
@@ -429,15 +436,14 @@ typedef struct {
 			u_int16_t _reserved2;
 			u_int16_t ct_scsi_status;
 			u_int32_t ct_xfrlen;
-			ispds_t ct_dataseg[ISP_RQDSEG_T2];
-			/*
-			 * For CTIO3, an ispds64_t would go here, padded
-			 * to the end of the request.
-			 */
-			/*
-			 * For CTIO4, an ispdlist_t would go here, padded
-			 * to the end of the request.
-			 */
+			union {
+				ispds_t ct_a[ISP_RQDSEG_T2];	/* CTIO2 */
+				ispds64_t ct_b[ISP_RQDSEG_T3];	/* CTIO3 */
+				ispdslist_t ct_c;		/* CTIO4 */
+			} _u;
+#define	ct_dataseg	_u.ct_a
+#define	ct_dataseg64	_u.ct_b
+#define	ct_dslist	_u.ct_c
 		} m0;
 		struct {
 			u_int16_t _reserved;
@@ -495,195 +501,16 @@ typedef struct {
 #define	CT2_DATA_UNDER		0x0800
 
 /*
- * Macros for packing/unpacking the above structures
- */
-
-#ifdef	__sparc__
-#define	ISP_SBUS_SWOZZLE(isp, src, dst, taga, tagb)	\
-	if (isp->isp_bustype == ISP_BT_SBUS) {	\
-		u_int8_t tmp = src -> taga;	\
-		dst -> taga =  dst -> tagb;	\
-		src -> tagb =  tmp;		\
-	} else { \
-		dst -> taga =  src -> taga;	\
-		dst -> tagb =  src -> taga;	\
-	}
-#else
-#define	ISP_SBUS_SWOZZLE(isp, src, dst, taga, tagb)	\
-		dst -> taga =  src -> taga;	\
-		dst -> tagb =  src -> taga
-#endif
-
-#define	MCIDF(d, s)	if ((void *) d != (void *)s) MEMCPY(d, s, QENTRY_LEN)
-
-/* This is really only for SBus cards on a sparc */
-#ifdef	__sparc__
-#define	ISP_SWIZ_ATIO(isp, vdst, vsrc)					\
-{									\
-	at_entry_t *src = (at_entry_t *) vsrc;				\
-	at_entry_t *dst = (at_entry_t *) vdst;				\
-	dst->at_header = src->at_header;				\
-	dst->at_reserved = src->at_reserved;				\
-	dst->at_handle = src->at_handle;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, at_lun, at_iid);		\
-	ISP_SBUS_SWOZZLE(isp, src, dst, at_cdblen, at_tgt);		\
-	dst->at_flags = src->at_flags;					\
-	ISP_SBUS_SWOZZLE(isp, src, dst, at_status, at_scsi_status);	\
-	ISP_SBUS_SWOZZLE(isp, src, dst, at_tag_val, at_tag_type);	\
-	MEMCPY(dst->at_cdb, src->at_cdb, ATIO_CDBLEN);			\
-	MEMCPY(dst->at_sense, src->at_sense, QLTM_SENSELEN);		\
-}
-#define	ISP_SWIZ_ATIO2(isp, vdst, vsrc)					\
-{									\
-	at2_entry_t *src = (at2_entry_t *) vsrc;			\
-	at2_entry_t *dst = (at2_entry_t *) vdst;			\
-	dst->at_reserved = src->at_reserved;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, at_lun, at_iid);		\
-	dst->at_rxid = src->at_rxid;					\
-	dst->at_flags = src->at_flags;					\
-	dst->at_status = src->at_status;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, at_reserved1, at_taskcodes);	\
-	ISP_SBUS_SWOZZLE(isp, src, dst, at_taskflags, at_execodes);	\
-	MEMCPY(dst->at_cdb, src->at_cdb, ATIO2_CDBLEN);			\
-	dst->at_datalen = src->at_datalen;				\
-	dst->at_scclun = src->at_scclun;				\
-	MEMCPY(dst->at_reserved2, src->at_reserved2, sizeof dst->at_reserved2);\
-	dst->at_oxid = src->at_oxid;					\
-}
-#define	ISP_SWIZ_CTIO(isp, vdst, vsrc)					\
-{									\
-	ct_entry_t *src = (ct_entry_t *) vsrc;				\
-	ct_entry_t *dst = (ct_entry_t *) vdst;				\
-	dst->ct_header = src->ct_header;				\
-	dst->ct_syshandle = src->ct_syshandle;				\
-	dst->ct_fwhandle = src->ct_fwhandle;				\
-	dst->ct_fwhandle = src->ct_fwhandle;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, ct_lun, ct_iid);		\
-	ISP_SBUS_SWOZZLE(isp, src, dst, ct_reserved2, ct_tgt);		\
-	dst->ct_flags = src->ct_flags;					\
-	ISP_SBUS_SWOZZLE(isp, src, dst, ct_status, ct_scsi_status);	\
-	ISP_SBUS_SWOZZLE(isp, src, dst, ct_tag_val, ct_tag_type);	\
-	dst->ct_xfrlen = src->ct_xfrlen;				\
-	dst->ct_resid = src->ct_resid;					\
-	dst->ct_timeout = src->ct_timeout;				\
-	dst->ct_seg_count = src->ct_seg_count;				\
-	MEMCPY(dst->ct_dataseg, src->ct_dataseg, sizeof (dst->ct_dataseg)); \
-}
-#define	ISP_SWIZ_CTIO2(isp, vdst, vsrc)					\
-{									\
-	ct2_entry_t *src = (ct2_entry_t *) vsrc;			\
-	ct2_entry_t *dst = (ct2_entry_t *) vdst;			\
-	dst->ct_header = src->ct_header;				\
-	dst->ct_syshandle = src->ct_syshandle;				\
-	dst->ct_fwhandle = src->ct_fwhandle;				\
-	dst->ct_fwhandle = src->ct_fwhandle;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, ct_lun, ct_iid);		\
-	dst->ct_rxid = src->ct_rxid;					\
-	dst->ct_flags = src->ct_flags;					\
-	dst->ct_status = src->ct_status;				\
-	dst->ct_timeout = src->ct_timeout;				\
-	dst->ct_seg_count = src->ct_seg_count;				\
-	dst->ct_reloff = src->ct_reloff;				\
-	dst->ct_resid = src->ct_resid;					\
-	dst->rsp = src->rsp;						\
-}
-#define	ISP_SWIZ_ENABLE_LUN(isp, vdst, vsrc)				\
-{									\
-	lun_entry_t *src = (lun_entry_t *)vsrc;				\
-	lun_entry_t *dst = (lun_entry_t *)vdst;				\
-	dst->le_header = src->le_header;				\
-	dst->le_reserved2 = src->le_reserved2;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, le_lun, le_rsvd);		\
-	ISP_SBUS_SWOZZLE(isp, src, dst, le_ops, le_tgt);		\
-	dst->le_flags = src->le_flags;					\
-	ISP_SBUS_SWOZZLE(isp, src, dst, le_status, le_reserved2);	\
-	ISP_SBUS_SWOZZLE(isp, src, dst, le_cmd_count, le_in_count);	\
-	ISP_SBUS_SWOZZLE(isp, src, dst, le_cdb6len, le_cdb7len);	\
-	dst->le_timeout = src->le_timeout;				\
-	dst->le_reserved = src->le_reserved;				\
-}
-#define	ISP_SWIZ_NOTIFY(isp, vdst, vsrc)				\
-{									\
-	in_entry_type *src = (in_entry_t *)vsrc;			\
-	in_entry_type *dst = (in_entry_t *)vdst;			\
-	dst->in_header = src->in_header;				\
-	dst->in_reserved2 = src->in_reserved2;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, in_lun, in_iid);		\
-	ISP_SBUS_SWOZZLE(isp, src, dst, in_reserved2, in_tgt);		\
-	dst->in_flags = src->in_flags;					\
-	ISP_SBUS_SWOZZLE(isp, src, dst, in_status, in_rsvd2);		\
-	ISP_SBUS_SWOZZLE(isp, src, dst, in_tag_val, in_tag_type);	\
-	dst->in_seqid = src->in_seqid;					\
-	MEMCPY(dst->in_msg, src->in_msg, IN_MSGLEN);			\
-	MEMCPY(dst->in_reserved, src->in_reserved, IN_RESERVED);	\
-	MEMCPY(dst->in_sense, src->in_sense, QLTM_SENSELEN);		\
-}
-#define	ISP_SWIZ_NOTIFY_FC(isp, vdst, vsrc)				\
-{									\
-	in_fcentry_type *src = (in_fcentry_t *)vsrc;			\
-	in_fcentry_type *dst = (in_fcentry_t *)vdst;			\
-	dst->in_header = src->in_header;				\
-	dst->in_reserved2 = src->in_reserved2;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, in_lun, in_iid);		\
-	dst->in_scclun = src->in_scclun;				\
-	dst->in_reserved2 = src->in_reserved2;				\
-	dst->in_status = src->in_status;				\
-	dst->in_task_flags = src->in_task_flags;			\
-	dst->in_seqid = src->in_seqid;					\
-}
-#define	ISP_SWIZ_NOT_ACK(isp, vdst, vsrc)				\
-{									\
-	na_entry_t *src = (na_entry_t *)vsrc;				\
-	na_entry_t *dst = (na_entry_t *)vdst;				\
-	dst->na_header = src->na_header;				\
-	dst->na_reserved = src->na_reserved;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, na_lun, na_iid);		\
-	dst->na_reserved2 = src->na_reserved2;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, na_reserved, na_tgt);		\
-	dst->na_flags = src->na_flags;					\
-	ISP_SBUS_SWOZZLE(isp, src, dst, na_status, na_event);		\
-	dst->na_seqid = src->na_seqid;					\
-	MEMCPY(dst->na_reserved3, src->na_reserved3, NA_RSVDLEN);	\
-}
-#define	ISP_SWIZ_NOT_ACK_FC(isp, vdst, vsrc)				\
-{									\
-	na_fcentry_t *src = (na_fcentry_t *)vsrc;			\
-	na_fcentry_t *dst = (na_fcentry_t *)vdst;			\
-	dst->na_header = src->na_header;				\
-	dst->na_reserved = src->na_reserved;				\
-	ISP_SBUS_SWOZZLE(isp, src, dst, na_lun, na_iid);		\
-	dst->na_scclun = src->na_scclun;				\
-	dst->na_flags = src->na_flags;					\
-	dst->na_reserved2 = src->na_reserved2;				\
-	dst->na_status = src->na_status;				\
-	dst->na_task_flags = src->na_task_flags;			\
-	dst->na_seqid = src->na_seqid;					\
-	MEMCPY(dst->na_reserved3, src->na_reserved3, NA2_RSVDLEN);	\
-}
-#else
-#define	ISP_SWIZ_ATIO(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_ATIO2(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_CTIO(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_CTIO2(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_ENABLE_LUN(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_ATIO2(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_CTIO2(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_NOTIFY(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_NOTIFY_FC(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_NOT_ACK(isp, d, s)	MCIDF(d, s)
-#define	ISP_SWIZ_NOT_ACK_FC(isp, d, s)	MCIDF(d, s)
-#endif
-
-/*
  * Debug macros
  */
 
 #define	ISP_TDQE(isp, msg, idx, arg)	\
     if (isp->isp_dblev & ISP_LOGTDEBUG2) isp_print_qentry(isp, msg, idx, arg)
 
+#ifdef	ISP_TARGET_FUNCTIONS
 /*
- * The functions below are target mode functions that
- * are generally internal to the Qlogic driver.
+ * The functions below are for the publicly available
+ * target mode functions that are internal to the Qlogic driver.
  */
 
 /*
@@ -724,5 +551,5 @@ int isp_endcmd(struct ispsoftc *, void *, u_int32_t, u_int16_t);
  */
 
 void isp_target_async(struct ispsoftc *, int, int);
-
+#endif
 #endif	/* _ISP_TARGET_H */
