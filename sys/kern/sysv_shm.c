@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.20 1996/05/03 21:01:24 phk Exp $ */
+/*	$Id: sysv_shm.c,v 1.21 1996/05/05 13:53:48 joerg Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -49,6 +49,7 @@
 #include <vm/vm_prot.h>
 #include <vm/lock.h>
 #include <vm/pmap.h>
+#include <vm/vm_object.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
@@ -84,12 +85,12 @@ sy_call_t *shmcalls[] = {
 #define	SHMSEG_ALLOCATED	0x0800
 #define	SHMSEG_WANTED		0x1000
 
-static vm_map_t sysvshm_map;
 static int shm_last_free, shm_nused, shm_committed;
 struct shmid_ds	*shmsegs;
 
 struct shm_handle {
-	vm_offset_t kva;
+	/* vm_offset_t kva; */
+	vm_object_t shm_object;
 };
 
 struct shmmap_state {
@@ -141,10 +142,10 @@ shm_deallocate_segment(shmseg)
 	size_t size;
 
 	shm_handle = shmseg->shm_internal;
-	size = round_page(shmseg->shm_segsz);
-	(void) vm_map_remove(sysvshm_map, shm_handle->kva, shm_handle->kva + size);
+	vm_object_deallocate(shm_handle->shm_object);
 	free((caddr_t)shm_handle, M_SHM);
 	shmseg->shm_internal = NULL;
+	size = round_page(shmseg->shm_segsz);
 	shm_committed -= btoc(size);
 	shm_nused--;
 	shmseg->shm_perm.mode = SHMSEG_FREE;
@@ -220,9 +221,11 @@ shmat(p, uap, retval)
 	struct ucred *cred = p->p_ucred;
 	struct shmid_ds *shmseg;
 	struct shmmap_state *shmmap_s = NULL;
+	struct shm_handle *shm_handle;
 	vm_offset_t attach_va;
 	vm_prot_t prot;
 	vm_size_t size;
+	int rv;
 
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
@@ -260,13 +263,17 @@ shmat(p, uap, retval)
 		else
 			return EINVAL;
 	} else {
-		/* This is just a hint to vm_mmap() about where to put it. */
+		/* This is just a hint to vm_map_find() about where to put it. */
 		attach_va = round_page(p->p_vmspace->vm_taddr + MAXTSIZ + MAXDSIZ);
 	}
-	error = vm_mmap(&p->p_vmspace->vm_map, &attach_va, size, prot,
-	    VM_PROT_DEFAULT, flags, (caddr_t) uap->shmid, 0);
-	if (error)
-		return error;
+
+	shm_handle = shmseg->shm_internal;
+	vm_object_reference(shm_handle->shm_object);
+	rv = vm_map_find(&p->p_vmspace->vm_map, shm_handle->shm_object,
+		0, &attach_va, size, (flags & MAP_FIXED)?0:1, prot, prot, 0);
+	if (rv != KERN_SUCCESS) {
+		return ENOMEM;
+	}
 	shmmap_s->va = attach_va;
 	shmmap_s->shmid = uap->shmid;
 	shmseg->shm_lpid = p->p_pid;
@@ -454,7 +461,7 @@ shmget_allocate_segment(p, uap, mode, retval)
 	int mode;
 	int *retval;
 {
-	int i, segnum, result, shmid, size;
+	int i, segnum, shmid, size;
 	struct ucred *cred = p->p_ucred;
 	struct shmid_ds *shmseg;
 	struct shm_handle *shm_handle;
@@ -488,16 +495,9 @@ shmget_allocate_segment(p, uap, mode, retval)
 	shm_handle = (struct shm_handle *)
 	    malloc(sizeof(struct shm_handle), M_SHM, M_WAITOK);
 	shmid = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
-	result = vm_mmap(sysvshm_map, &shm_handle->kva, size, VM_PROT_ALL,
-	    VM_PROT_DEFAULT, MAP_ANON, (caddr_t) shmid, 0);
-	if (result != KERN_SUCCESS) {
-		shmseg->shm_perm.mode = SHMSEG_FREE;
-		shm_last_free = segnum;
-		free((caddr_t)shm_handle, M_SHM);
-		/* Just in case. */
-		wakeup((caddr_t)shmseg);
-		return ENOMEM;
-	}
+	
+	shm_handle->shm_object =
+		vm_object_allocate(OBJT_DEFAULT, round_page(size)/PAGE_SIZE);
 	shmseg->shm_internal = shm_handle;
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;
 	shmseg->shm_perm.cgid = shmseg->shm_perm.gid = cred->cr_gid;
@@ -601,11 +601,6 @@ shminit(dummy)
 	void *dummy;
 {
 	int i;
-	vm_offset_t garbage1, garbage2;
-
-	/* actually this *should* be pageable.  SHM_{LOCK,UNLOCK} */
-	sysvshm_map = kmem_suballoc(kernel_map, &garbage1, &garbage2,
-				    shminfo.shmall * PAGE_SIZE, TRUE);
 	for (i = 0; i < shminfo.shmmni; i++) {
 		shmsegs[i].shm_perm.mode = SHMSEG_FREE;
 		shmsegs[i].shm_perm.seq = 0;
