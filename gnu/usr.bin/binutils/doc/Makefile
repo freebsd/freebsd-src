@@ -26,7 +26,10 @@ CLEANFILES=	gdb-cfg.texi GDBvn.texi inc-hist.texinfo inc-hist.texinfo.orig \
 		gasver.texi ldver.texi
 
 as.info:	as.texinfo asconfig.texi c-i386.texi gasver.texi
-ld.info:	ld.texinfo bfdsumm.texi ldver.texi
+ld.info:	ld.texinfo bfdsumm.texi ldver.texi configdoc.texi
+
+configdoc.texi: gen-doc.texi
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi annotate.texi \
 	  fdl.texi gpl.texi gdbmi.texinfo \
@@ -40,10 +43,10 @@ gdb-cfg.texi: all-cfg.texi
 GDBvn.texi: ${GDBDIR}/gdb/version.in
 	echo "@set GDBVN `sed q ${.ALLSRC}`" > ${.TARGET}
 
-.PATH: ${SRCDIR}/binutils
+.PATH: ${SRCDIR}/binutils/doc
 binutils.info: binutils.texi config.texi
 
-gasver.texi ldver.texi:
+config.texi gasver.texi ldver.texi:
 	echo "@set VERSION ${VERSION}" > ${.TARGET}
 
 .PATH: ${CONTRIBDIR}/libreadline/doc
