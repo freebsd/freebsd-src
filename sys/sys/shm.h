@@ -98,18 +98,18 @@ struct shm_info {
 struct thread;
 struct proc;
 
-void	shmexit __P((struct proc *));
-void	shmfork __P((struct proc *, struct proc *));
+void	shmexit(struct proc *);
+void	shmfork(struct proc *, struct proc *);
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int shmsys __P((int, ...));
-void *shmat  __P((int, void *, int));
-int shmget __P((key_t, int, int));
-int shmctl __P((int, int, struct shmid_ds *));
-int shmdt  __P((void *));
+int shmsys(int, ...);
+void *shmat(int, void *, int);
+int shmget(key_t, int, int);
+int shmctl(int, int, struct shmid_ds *);
+int shmdt(void *);
 __END_DECLS
 
 #endif /* !_KERNEL */

@@ -54,7 +54,7 @@ struct callout {
 	} c_links;
 	int	c_time;				/* ticks to the event */
 	void	*c_arg;				/* function argument */
-	void	(*c_func) __P((void *));	/* function to call */
+	void	(*c_func)(void *);	/* function to call */
 	int	c_flags;			/* state of this entry */
 };
 
@@ -77,10 +77,10 @@ extern struct mtx callout_lock;
 
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
-void	callout_init __P((struct callout *, int));
+void	callout_init(struct callout *, int);
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-void	callout_reset __P((struct callout *, int, void (*)(void *), void *));
-int	callout_stop __P((struct callout *));
+void	callout_reset(struct callout *, int, void (*)(void *), void *);
+int	callout_stop(struct callout *);
 
 #endif
 

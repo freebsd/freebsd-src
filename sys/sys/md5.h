@@ -45,7 +45,7 @@ char * MD5File(const char *, char *);
 char * MD5FileChunk(const char *, char *, off_t, off_t);
 char * MD5Data(const unsigned char *, unsigned int, char *);
 #ifdef _KERNEL
-void MD5Transform __P((u_int32_t [4], const unsigned char [64]));
+void MD5Transform(u_int32_t [4], const unsigned char [64]);
 #endif
 __END_DECLS
 #endif /* _SYS_MD5_H_ */

@@ -65,9 +65,9 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
-int	elf_brand_inuse        __P((Elf32_Brandinfo *entry));
-int	elf_insert_brand_entry __P((Elf32_Brandinfo *entry));
-int	elf_remove_brand_entry __P((Elf32_Brandinfo *entry));
+int	elf_brand_inuse(Elf32_Brandinfo *entry);
+int	elf_insert_brand_entry(Elf32_Brandinfo *entry);
+int	elf_remove_brand_entry(Elf32_Brandinfo *entry);
 
 #else /* !(ELF_TARG_CLASS == ELFCLASS32) */
 
@@ -97,15 +97,15 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
-int	elf_brand_inuse        __P((Elf64_Brandinfo *entry));
-int	elf_insert_brand_entry __P((Elf64_Brandinfo *entry));
-int	elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
+int	elf_brand_inuse(Elf64_Brandinfo *entry);
+int	elf_insert_brand_entry(Elf64_Brandinfo *entry);
+int	elf_remove_brand_entry(Elf64_Brandinfo *entry);
 
 #endif /* ELF_TARG_CLASS == ELFCLASS32 */
 
 struct thread;
 
-int	elf_coredump __P((struct thread *, struct vnode *, off_t));
+int	elf_coredump(struct thread *, struct vnode *, off_t);
 
 #endif /* _KERNEL */
 

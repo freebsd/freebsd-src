@@ -106,23 +106,23 @@ struct thread;
 struct kse;
 struct proc;
 
-void	 addupc_intr __P((struct kse *ke, uintptr_t pc, u_int ticks));
-void	 addupc_task __P((struct kse *ke, uintptr_t pc, u_int ticks));
-void	 calcru __P((struct proc *p, struct timeval *up, struct timeval *sp,
-	    struct timeval *ip));
-int	 chgproccnt __P((struct uidinfo *uip, int diff, int max));
-int	 chgsbsize __P((struct uidinfo *uip, u_long *hiwat, u_long to,
-	    rlim_t max));
-int	 fuswintr __P((void *base));
+void	 addupc_intr(struct kse *ke, uintptr_t pc, u_int ticks);
+void	 addupc_task(struct kse *ke, uintptr_t pc, u_int ticks);
+void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp,
+	    struct timeval *ip);
+int	 chgproccnt(struct uidinfo *uip, int diff, int max);
+int	 chgsbsize(struct uidinfo *uip, u_long *hiwat, u_long to,
+	    rlim_t max);
+int	 fuswintr(void *base);
 struct plimit
-	*limcopy __P((struct plimit *lim));
-void	 ruadd __P((struct rusage *ru, struct rusage *ru2));
-int	 suswintr __P((void *base, int word));
+	*limcopy(struct plimit *lim);
+void	 ruadd(struct rusage *ru, struct rusage *ru2);
+int	 suswintr(void *base, int word);
 struct uidinfo
-	*uifind __P((uid_t uid));
-void	 uihold __P((struct uidinfo *uip));
-void	 uifree __P((struct uidinfo *uip));
-void	uihashinit __P((void));
+	*uifind(uid_t uid);
+void	 uihold(struct uidinfo *uip);
+void	 uifree(struct uidinfo *uip);
+void	uihashinit(void);
 #endif
 
 #endif	/* !_SYS_RESOURCEVAR_H_ */

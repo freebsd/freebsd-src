@@ -135,17 +135,17 @@ struct loadavg {
 #ifdef _KERNEL
 extern struct loadavg averunnable;
 
-int	dosetrlimit __P((struct thread *, u_int, struct rlimit *));
+int	dosetrlimit(struct thread *, u_int, struct rlimit *);
 
 #else
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	getpriority __P((int, int));
-int	getrlimit __P((int, struct rlimit *));
-int	getrusage __P((int, struct rusage *));
-int	setpriority __P((int, int, int));
-int	setrlimit __P((int, const struct rlimit *));
+int	getpriority(int, int);
+int	getrlimit(int, struct rlimit *);
+int	getrusage(int, struct rusage *);
+int	setpriority(int, int, int);
+int	setrlimit(int, const struct rlimit *);
 __END_DECLS
 
 #endif	/* _KERNEL */

@@ -204,8 +204,8 @@ enum sysinit_elem_order {
  * modifiable or not.
  */
 
-typedef void (*sysinit_nfunc_t) __P((void *));
-typedef void (*sysinit_cfunc_t) __P((const void *));
+typedef void (*sysinit_nfunc_t)(void *);
+typedef void (*sysinit_cfunc_t)(const void *);
 
 struct sysinit {
 	enum sysinit_sub_id	subsystem;	/* subsystem identifier*/
@@ -255,7 +255,7 @@ struct sysinit {
 	C_SYSUNINIT(uniquifier, subsystem, order,		\
 	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
 
-void	sysinit_add __P((struct sysinit **set, struct sysinit **set_end));
+void	sysinit_add(struct sysinit **set, struct sysinit **set_end);
 
 /*
  * Infrastructure for tunable 'constants'.  Value may be specified at compile
@@ -328,11 +328,11 @@ struct tunable_str {
 
 struct intr_config_hook {
 	TAILQ_ENTRY(intr_config_hook) ich_links;
-	void	(*ich_func) __P((void *arg));
+	void	(*ich_func)(void *arg);
 	void	*ich_arg;
 };
 
-int	config_intrhook_establish __P((struct intr_config_hook *hook));
-void	config_intrhook_disestablish __P((struct intr_config_hook *hook));
+int	config_intrhook_establish(struct intr_config_hook *hook);
+void	config_intrhook_disestablish(struct intr_config_hook *hook);
 
 #endif /* !_SYS_KERNEL_H_*/

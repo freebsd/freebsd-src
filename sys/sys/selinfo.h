@@ -56,8 +56,8 @@ struct selinfo {
 
 #ifdef _KERNEL
 void	clear_selinfo_list(struct thread *td);
-void	selrecord __P((struct thread *selector, struct selinfo *sip));
-void	selwakeup __P((struct selinfo *sip));
+void	selrecord(struct thread *selector, struct selinfo *sip);
+void	selwakeup(struct selinfo *sip);
 #endif
 
 #endif /* !_SYS_SELINFO_H_ */

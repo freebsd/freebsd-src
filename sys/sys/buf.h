@@ -62,16 +62,16 @@ LIST_HEAD(workhead, worklist);
  * to each buffer.
  */
 extern struct bio_ops {
-	void	(*io_start) __P((struct buf *));
-	void	(*io_complete) __P((struct buf *));
-	void	(*io_deallocate) __P((struct buf *));
-	void	(*io_movedeps) __P((struct buf *, struct buf *));
-	int	(*io_countdeps) __P((struct buf *, int));
+	void	(*io_start)(struct buf *);
+	void	(*io_complete)(struct buf *);
+	void	(*io_deallocate)(struct buf *);
+	void	(*io_movedeps)(struct buf *, struct buf *);
+	int	(*io_countdeps)(struct buf *, int);
 } bioops;
 
 struct buf_ops {
 	char	*bop_name;
-	int	(*bop_write) __P((struct buf *));
+	int	(*bop_write)(struct buf *);
 };
 
 extern struct buf_ops buf_ops_bio;
@@ -113,7 +113,7 @@ struct buf {
 	unsigned		b_magic;
 #define B_MAGIC_BIO	0x10b10b10
 #define B_MAGIC_NFS	0x67238234
-	void	(*b_iodone) __P((struct buf *));
+	void	(*b_iodone)(struct buf *);
 	off_t	b_offset;		/* Offset into file. */
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
@@ -268,7 +268,7 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  *
  * Get a lock sleeping non-interruptably until it becomes available.
  */
-static __inline int BUF_LOCK __P((struct buf *, int));
+static __inline int BUF_LOCK(struct buf *, int);
 static __inline int
 BUF_LOCK(struct buf *bp, int locktype)
 {
@@ -286,7 +286,7 @@ BUF_LOCK(struct buf *bp, int locktype)
 /*
  * Get a lock sleeping with specified interruptably and timeout.
  */
-static __inline int BUF_TIMELOCK __P((struct buf *, int, char *, int, int));
+static __inline int BUF_TIMELOCK(struct buf *, int, char *, int, int);
 static __inline int
 BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
 {
@@ -306,7 +306,7 @@ BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
  * Release a lock. Only the acquiring process may free the lock unless
  * it has been handed off to biodone.
  */
-static __inline void BUF_UNLOCK __P((struct buf *));
+static __inline void BUF_UNLOCK(struct buf *);
 static __inline void
 BUF_UNLOCK(struct buf *bp)
 {
@@ -334,7 +334,7 @@ do {						\
  * original owning process can no longer acquire it recursively, but must
  * wait until the I/O is completed and the lock has been freed by biodone.
  */
-static __inline void BUF_KERNPROC __P((struct buf *));
+static __inline void BUF_KERNPROC(struct buf *);
 static __inline void
 BUF_KERNPROC(struct buf *bp)
 {
@@ -349,7 +349,7 @@ BUF_KERNPROC(struct buf *bp)
 /*
  * Find out the number of references to a lock.
  */
-static __inline int BUF_REFCNT __P((struct buf *));
+static __inline int BUF_REFCNT(struct buf *);
 static __inline int
 BUF_REFCNT(struct buf *bp)
 {
@@ -459,54 +459,53 @@ extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 
 struct uio;
 
-caddr_t	kern_vfs_bio_buffer_alloc __P((caddr_t v, int physmem_est));
-void	bufinit __P((void));
-void	bwillwrite __P((void));
-int	buf_dirty_count_severe __P((void));
-void	bremfree __P((struct buf *));
-int	bread __P((struct vnode *, daddr_t, int,
-	    struct ucred *, struct buf **));
-int	breadn __P((struct vnode *, daddr_t, int, daddr_t *, int *, int,
-	    struct ucred *, struct buf **));
-int	bwrite __P((struct buf *));
-void	bdwrite __P((struct buf *));
-void	bawrite __P((struct buf *));
-void	bdirty __P((struct buf *));
-void	bundirty __P((struct buf *));
-void	brelse __P((struct buf *));
-void	bqrelse __P((struct buf *));
-int	vfs_bio_awrite __P((struct buf *));
-struct buf *     getpbuf __P((int *));
-struct buf *incore __P((struct vnode *, daddr_t));
-struct buf *gbincore __P((struct vnode *, daddr_t));
-int	inmem __P((struct vnode *, daddr_t));
-struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
-struct buf *geteblk __P((int));
-int	bufwait __P((struct buf *));
-void	bufdone __P((struct buf *));
-void	bufdonebio __P((struct bio *));
+caddr_t	kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est);
+void	bufinit(void);
+void	bwillwrite(void);
+int	buf_dirty_count_severe(void);
+void	bremfree(struct buf *);
+int	bread(struct vnode *, daddr_t, int, struct ucred *, struct buf **);
+int	breadn(struct vnode *, daddr_t, int, daddr_t *, int *, int,
+	    struct ucred *, struct buf **);
+int	bwrite(struct buf *);
+void	bdwrite(struct buf *);
+void	bawrite(struct buf *);
+void	bdirty(struct buf *);
+void	bundirty(struct buf *);
+void	brelse(struct buf *);
+void	bqrelse(struct buf *);
+int	vfs_bio_awrite(struct buf *);
+struct buf *     getpbuf(int *);
+struct buf *incore(struct vnode *, daddr_t);
+struct buf *gbincore(struct vnode *, daddr_t);
+int	inmem(struct vnode *, daddr_t);
+struct buf *getblk(struct vnode *, daddr_t, int, int, int);
+struct buf *geteblk(int);
+int	bufwait(struct buf *);
+void	bufdone(struct buf *);
+void	bufdonebio(struct bio *);
 
-void	cluster_callback __P((struct buf *));
-int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
-	    struct ucred *, long, int, struct buf **));
-int	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
-void	cluster_write __P((struct buf *, u_quad_t, int));
-void	vfs_bio_set_validclean __P((struct buf *, int base, int size));
-void	vfs_bio_clrbuf __P((struct buf *));
-void	vfs_busy_pages __P((struct buf *, int clear_modify));
-void	vfs_unbusy_pages __P((struct buf *));
-void	vwakeup __P((struct buf *));
-void	vmapbuf __P((struct buf *));
-void	vunmapbuf __P((struct buf *));
-void	relpbuf __P((struct buf *, int *));
-void	brelvp __P((struct buf *));
-void	bgetvp __P((struct vnode *, struct buf *));
-void	pbgetvp __P((struct vnode *, struct buf *));
-void	pbrelvp __P((struct buf *));
-int	allocbuf __P((struct buf *bp, int size));
-void	reassignbuf __P((struct buf *, struct vnode *));
-void	pbreassignbuf __P((struct buf *, struct vnode *));
-struct	buf *trypbuf __P((int *));
+void	cluster_callback(struct buf *);
+int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
+	    struct ucred *, long, int, struct buf **);
+int	cluster_wbuild(struct vnode *, long, daddr_t, int);
+void	cluster_write(struct buf *, u_quad_t, int);
+void	vfs_bio_set_validclean(struct buf *, int base, int size);
+void	vfs_bio_clrbuf(struct buf *);
+void	vfs_busy_pages(struct buf *, int clear_modify);
+void	vfs_unbusy_pages(struct buf *);
+void	vwakeup(struct buf *);
+void	vmapbuf(struct buf *);
+void	vunmapbuf(struct buf *);
+void	relpbuf(struct buf *, int *);
+void	brelvp(struct buf *);
+void	bgetvp(struct vnode *, struct buf *);
+void	pbgetvp(struct vnode *, struct buf *);
+void	pbrelvp(struct buf *);
+int	allocbuf(struct buf *bp, int size);
+void	reassignbuf(struct buf *, struct vnode *);
+void	pbreassignbuf(struct buf *, struct vnode *);
+struct	buf *trypbuf(int *);
 
 #endif /* _KERNEL */
 
