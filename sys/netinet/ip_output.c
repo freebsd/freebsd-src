@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.44 1996/10/22 22:26:02 sos Exp $
+ *	$Id: ip_output.c,v 1.44.2.1 1996/11/11 23:40:49 phk Exp $
  */
 
 #define _IP_VHL
@@ -355,6 +355,7 @@ sendit:
 		action = (*ip_fw_chk_ptr)(&ip,
 				hlen, ifp, (~0 << 16) | ip_divert_ignore, &m);
 #else
+		ip_divert_ignore = 0;
 		action = (*ip_fw_chk_ptr)(&ip, hlen, ifp, (~0 << 16), &m);
 #endif
 		if (action == -1) {
