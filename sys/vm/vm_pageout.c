@@ -803,6 +803,21 @@ rescan0:
 		 */
 		if (m->dirty == 0) {
 			vm_page_test_dirty(m);
+			/*
+			 * Avoid a race condition: Unless write access is
+			 * removed from the page, another processor could
+			 * modify it before all access is removed by the call
+			 * to vm_page_cache() below.  If vm_page_cache() finds
+			 * that the page has been modified when it removes all
+			 * access, it panics because it cannot cache dirty
+			 * pages.  In principle, we could eliminate just write
+			 * access here rather than all access.  In the expected
+			 * case, when there are no last instant modifications
+			 * to the page, removing all access will be cheaper
+			 * overall.
+			 */
+			if (m->dirty == 0 && (m->flags & PG_WRITEABLE) != 0)
+				pmap_remove_all(m);
 		} else {
 			vm_page_dirty(m);
 		}
