@@ -31,5 +31,6 @@
 #include <sys/bus.h>
 
 void OF_getetheraddr(device_t dev, u_char *addr);
+int mem_valid(vm_offset_t addr, int len);
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */
