@@ -101,7 +101,9 @@
 #define	IPPROTO_INLSP		52		/* Integ. Net Layer Security */
 #define	IPPROTO_SWIPE		53		/* IP with encryption */
 #define	IPPROTO_NHRP		54		/* Next Hop Resolution */
-/* 55-57: Unassigned */
+#define	IPPROTO_MOBILE		55		/* IP Mobility */
+#define	IPPROTO_TLSP		56		/* Transport Layer Security */
+#define	IPPROTO_SKIP		57		/* SKIP */
 #define	IPPROTO_ICMPV6		58		/* ICMP6 */
 #define	IPPROTO_NONE		59		/* IP6 no next header */
 #define	IPPROTO_DSTOPTS		60		/* IP6 destination option */
@@ -477,6 +479,9 @@ char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 
 int	prison_ip __P((struct proc *p, int flag, u_int32_t *ip));
 void	prison_remote_ip __P((struct proc *p, int flag, u_int32_t *ip));
+
+#define in_hosteq(s, t)	((s).s_addr == (t).s_addr)
+#define in_nullhost(x)	((x).s_addr == INADDR_ANY)
 
 #define satosin(sa)	((struct sockaddr_in *)(sa))
 #define sintosa(sin)	((struct sockaddr *)(sin))

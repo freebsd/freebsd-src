@@ -495,6 +495,8 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  The `gif' pseudo-device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
+#  The `gre' device implements two types of IP4 over IP4 tunneling:
+#  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
 #  The `faith' pseudo-device captures packets sent to it and diverts them
 #  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
@@ -518,6 +520,7 @@ pseudo-device	bpf			#Berkeley packet filter
 pseudo-device	disc			#Discard device (ds0, ds1, etc)
 pseudo-device	tun			#Tunnel driver (ppp(8), nos-tun(8))
 pseudo-device	sl	2		#Serial Line IP
+pseudo-device	gre			#IP over IP tunneling
 pseudo-device	ppp	2		#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support

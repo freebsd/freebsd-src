@@ -54,7 +54,10 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -90,19 +93,21 @@
 #define GREMTU	1476
 
 #define GRENAME	"gre"
+#define GRE_MAXUNIT 0x7fff
 
 static MALLOC_DEFINE(M_GRE, GRENAME, "Generic Routing Encapsulation");
+static struct rman greunits[1];
 
 struct gre_softc_head gre_softc_list;
 
-static int	gre_clone_create(struct if_clone *, int);
+static int	gre_clone_create(struct if_clone *, int *);
 static void	gre_clone_destroy(struct ifnet *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *rt);
 
 static struct if_clone gre_cloner =
-    IF_CLONE_INITIALIZER("gre", gre_clone_create, gre_clone_destroy, 0, IF_MAXUNIT);
+    IF_CLONE_INITIALIZER("gre", gre_clone_create, gre_clone_destroy);
 
 static int gre_compute_route(struct gre_softc *sc);
 
@@ -112,14 +117,14 @@ static void	greattach(void);
 extern struct domain inetdomain;
 static const struct protosw in_gre_protosw =
 { SOCK_RAW,     &inetdomain,    IPPROTO_GRE,    PR_ATOMIC|PR_ADDR,
-  (pr_input_t*)gre_input, (pr_output_t*)rip_output, rip_ctlinput, rip_ctloutput,
+  gre_input,	rip_output,     rip_ctlinput,   rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
 };
 static const struct protosw in_mobile_protosw =
 { SOCK_RAW,     &inetdomain,    IPPROTO_MOBILE, PR_ATOMIC|PR_ADDR,
-  (pr_input_t*)gre_mobile_input, (pr_output_t*)rip_output, rip_ctlinput, rip_ctloutput,
+  gre_mobile_input, rip_output, rip_ctlinput,   rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
@@ -156,16 +161,33 @@ greattach(void)
 static int
 gre_clone_create(ifc, unit)
 	struct if_clone *ifc;
-	int unit;
+	int *unit;
 {
+	struct resource *r;
 	struct gre_softc *sc;
+
+	if (*unit > GRE_MAXUNIT)
+		return (ENXIO);
+
+	if (*unit < 0) {
+		r = rman_reserve_resource(greunits, 0, GRE_MAXUNIT, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		if (r == NULL)
+			return (ENOSPC);
+		*unit = rman_get_start(r);
+	} else {
+		r = rman_reserve_resource(greunits, *unit, *unit, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		if (r == NULL)
+			return (EEXIST);
+	}
 
 	sc = malloc(sizeof(struct gre_softc), M_GRE, M_WAITOK);
 	memset(sc, 0, sizeof(struct gre_softc));
 
 	sc->sc_if.if_name = GRENAME;
 	sc->sc_if.if_softc = sc;
-	sc->sc_if.if_unit = unit;
+	sc->sc_if.if_unit = *unit;
 	sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_if.if_type = IFT_OTHER;
 	sc->sc_if.if_addrlen = 0;
@@ -179,6 +201,7 @@ gre_clone_create(ifc, unit)
 	sc->sc_if.if_flags |= IFF_LINK0;
 	sc->encap = NULL;
 	sc->called = 0;
+	sc->r_unit = r;
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int32_t));
 	LIST_INSERT_HEAD(&gre_softc_list, sc, sc_list);
@@ -189,6 +212,7 @@ static void
 gre_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
+	int err;
 	struct gre_softc *sc = ifp->if_softc;
 
 #ifdef INET
@@ -198,6 +222,10 @@ gre_clone_destroy(ifp)
 	LIST_REMOVE(sc, sc_list);
 	bpfdetach(ifp);
 	if_detach(ifp);
+
+	err = rman_release_resource(sc->r_unit);
+	KASSERT(err == 0, ("Unexpected error freeing resource"));
+
 	free(sc, M_GRE);
 }
 
@@ -249,7 +277,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		BPF_MTAP(ifp, &m0);
+		bpf_mtap(ifp, &m0);
 	}
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
@@ -266,7 +294,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			 * be encapsulated.
 			 */
 			if ((ip->ip_off & IP_MF) != 0) {
-				_IF_DROP(&ifp->if_snd);
+				IF_DROP(&ifp->if_snd);
 				m_freem(m);
 				error = EINVAL;    /* is there better errno? */
 				goto end;
@@ -296,7 +324,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				/* need new mbuf */
 				MGETHDR(m0, M_DONTWAIT, MT_HEADER);
 				if (m0 == NULL) {
-					_IF_DROP(&ifp->if_snd);
+					IF_DROP(&ifp->if_snd);
 					m_freem(m);
 					error = ENOBUFS;
 					goto end;
@@ -321,7 +349,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			memcpy((caddr_t)(ip + 1), &mob_h, (unsigned)msiz);
 			ip->ip_len = ntohs(ip->ip_len) + msiz;
 		} else {  /* AF_INET */
-			_IF_DROP(&ifp->if_snd);
+			IF_DROP(&ifp->if_snd);
 			m_freem(m);
 			error = EINVAL;
 			goto end;
@@ -343,21 +371,21 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			break;
 #endif
 		default:
-			_IF_DROP(&ifp->if_snd);
+			IF_DROP(&ifp->if_snd);
 			m_freem(m);
 			error = EAFNOSUPPORT;
 			goto end;
 		}
 		M_PREPEND(m, sizeof(struct greip), M_DONTWAIT);
 	} else {
-		_IF_DROP(&ifp->if_snd);
+		IF_DROP(&ifp->if_snd);
 		m_freem(m);
 		error = EINVAL;
 		goto end;
 	}
 
 	if (m == NULL) {	/* impossible */
-		_IF_DROP(&ifp->if_snd);
+		IF_DROP(&ifp->if_snd);
 		error = ENOBUFS;
 		goto end;
 	}
@@ -384,7 +412,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
 	/* send it off */
-	error = ip_output(m, NULL, &sc->route, 0, NULL, NULL);
+	error = ip_output(m, NULL, &sc->route, 0, NULL);
   end:
 	sc->called = 0;
 	if (error)
@@ -415,7 +443,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFDSTADDR: 
 		break;
 	case SIOCSIFFLAGS:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		if ((ifr->ifr_flags & IFF_LINK0) != 0)
 			sc->g_proto = IPPROTO_GRE;
@@ -423,7 +451,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->g_proto = IPPROTO_MOBILE;
 		goto recompute;
 	case SIOCSIFMTU:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		if (ifr->ifr_mtu < 576) {
 			error = EINVAL;
@@ -436,7 +464,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		if (ifr == 0) {
 			error = EAFNOSUPPORT;
@@ -453,7 +481,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case GRESPROTO:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		sc->g_proto = ifr->ifr_flags;
 		switch (sc->g_proto) {
@@ -473,7 +501,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case GRESADDRS:
 	case GRESADDRD:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		/*
 		 * set tunnel endpoints, compute a less specific route
@@ -539,7 +567,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifr->ifr_addr = *sa;
 		break;
 	case SIOCSIFPHYADDR:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		if (aifr->ifra_addr.sin_family != AF_INET ||
 		    aifr->ifra_dstaddr.sin_family != AF_INET) {
@@ -555,7 +583,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->g_dst = aifr->ifra_dstaddr.sin_addr;
 		goto recompute;
 	case SIOCSLIFPHYADDR:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		if (lifr->addr.ss_family != AF_INET ||
 		    lifr->dstaddr.ss_family != AF_INET) {
@@ -572,7 +600,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    (satosin((struct sockadrr *)&lifr->dstaddr))->sin_addr;
 		goto recompute;
 	case SIOCDIFPHYADDR:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		sc->g_src.s_addr = INADDR_ANY;
 		sc->g_dst.s_addr = INADDR_ANY;
@@ -731,9 +759,22 @@ gre_in_cksum(u_short *p, u_int len)
 static int
 gremodevent(module_t mod, int type, void *data)
 {
+	int err;
 
 	switch (type) {
 	case MOD_LOAD:
+		greunits->rm_type = RMAN_ARRAY;
+		greunits->rm_descr = "configurable if_gre units";
+		err = rman_init(greunits);
+		if (err != 0)
+			return (err);
+		err = rman_manage_region(greunits, 0, GRE_MAXUNIT);
+		if (err != 0) {
+			printf("%s: greunits: rman_manage_region: Failed %d\n",
+			    GRENAME, err);
+			rman_fini(greunits);
+			return (err);
+		}
 		greattach();
 		break;
 	case MOD_UNLOAD:
@@ -741,6 +782,11 @@ gremodevent(module_t mod, int type, void *data)
 
 		while (!LIST_EMPTY(&gre_softc_list))
 			gre_clone_destroy(&LIST_FIRST(&gre_softc_list)->sc_if);
+
+		err = rman_fini(greunits);
+		if (err != 0)
+			return (err);
+
 		break;
 	}
 	return 0;
