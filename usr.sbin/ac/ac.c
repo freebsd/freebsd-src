@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ac.c,v 1.2 1994/11/14 20:26:52 ache Exp $";
+static char rcsid[] = "$Id: ac.c,v 1.3 1995/05/30 03:45:34 rgrimes Exp $";
 #endif
 
 #include <sys/types.h>
@@ -28,6 +28,7 @@ static char rcsid[] = "$Id: ac.c,v 1.2 1994/11/14 20:26:52 ache Exp $";
 #include <string.h>
 #include <utmp.h>
 #include <unistd.h>
+#include <locale.h>
 
 /*
  * this is for our list of currently logged in sessions
@@ -224,6 +225,8 @@ main(argc, argv)
 {
 	FILE *fp;
 	int c;
+
+	(void) setlocale(LC_TIME, "");
 
 	fp = NULL;
 	while ((c = getopt(argc, argv, "Dc:dpt:w:")) != EOF) {
