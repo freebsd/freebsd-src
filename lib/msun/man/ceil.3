@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm ceil ,
 .Nm ceilf
-.Nd round to smallest integral value >= x
+.Nd smallest integral value greater than or equal to x
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -53,9 +53,9 @@ The
 and the
 .Fn ceilf
 functions return the smallest integral value
-(represented as a double precision number)
 greater than or equal to
-.Fa x .
+.Fa x ,
+expressed as a floating-point number.
 .Sh SEE ALSO
 .Xr abs 3 ,
 .Xr fabs 3 ,
