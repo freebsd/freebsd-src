@@ -503,13 +503,15 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	if (bp->bio_cmd == BIO_READ) {
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 		error = VOP_READ(sc->vnode, &auio, IO_DIRECT, sc->cred);
+		VOP_UNLOCK(sc->vnode, 0, curthread);
 	} else {
 		(void) vn_start_write(sc->vnode, &mp, V_WAIT);
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-		error = VOP_WRITE(sc->vnode, &auio, 0, sc->cred);
+		error = VOP_WRITE(sc->vnode, &auio,
+		    sc->flags & MD_ASYNC ? 0 : IO_SYNC, sc->cred);
+		VOP_UNLOCK(sc->vnode, 0, curthread);
 		vn_finished_write(mp);
 	}
-	VOP_UNLOCK(sc->vnode, 0, curthread);
 	bp->bio_resid = auio.uio_resid;
 	return (error);
 }
@@ -938,7 +940,7 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
 	sc->type = MD_VNODE;
-	sc->flags = mdio->md_options & MD_FORCE;
+	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
 	sc->secsize = DEV_BSIZE;
