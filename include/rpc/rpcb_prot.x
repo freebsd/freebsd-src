@@ -233,7 +233,7 @@ struct rpcb_rmtcallres {
 %	} results;
 %	xdrproc_t	xdr_res;	/* decodes results */
 %};
-#endif RPC_HDR
+#endif /* RPC_HDR */
 %
 %/*
 % * rpcb_entry contains a merged address of a service on a particular
