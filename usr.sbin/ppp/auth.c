@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.39 1999/02/18 00:52:12 brian Exp $
+ * $Id: auth.c,v 1.40 1999/02/19 10:48:42 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -327,11 +327,14 @@ auth_ReadHeader(struct authinfo *authp, struct mbuf *bp)
     bp = mbuf_Read(bp, (u_char *)&authp->in.hdr, sizeof authp->in.hdr);
     if (len >= ntohs(authp->in.hdr.length))
       return bp;
+    authp->in.hdr.length = htons(0);
     log_Printf(LogWARN, "auth_ReadHeader: Short packet (%d > %d) !\n",
                ntohs(authp->in.hdr.length), len);
-  } else
+  } else {
+    authp->in.hdr.length = htons(0);
     log_Printf(LogWARN, "auth_ReadHeader: Short packet header (%d > %d) !\n",
                sizeof authp->in.hdr, len);
+  }
 
   mbuf_Free(bp);
   return NULL;
