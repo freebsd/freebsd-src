@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 1.2 1998/03/21 11:34:14 peter Exp $
+ * $Id: ip_log.c,v 1.3 1998/03/21 14:42:45 peter Exp $
  */
 #include "opt_ipfilter.h"
 
@@ -76,6 +76,7 @@
 # endif
 # if __FreeBSD_version >= 300000
 #  include <sys/malloc.h>
+#  include <machine/random.h>
 # endif
 # include <net/route.h>
 # include <netinet/in.h>
@@ -142,12 +143,16 @@ void ipflog_init()
 		iplh[i] = &iplt[i];
 		iplused[i] = 0;
 	}
-# if BSD >= 199306 || defined(__FreeBSD__) || defined(__sgi)
+# if defined(__FreeBSD__) &&  __FreeBSD_version >= 300000
+	read_random(&iplcrcinit, sizeof iplcrcinit);
+# else
+#if BSD >= 199306 || defined(__FreeBSD__) || defined(__sgi)
 	microtime(&tv);
 # else
 	uniqtime(&tv);
 # endif
 	iplcrcinit = tv.tv_sec ^ (tv.tv_usec << 8) ^ tv.tv_usec;
+# endif
 }
 
 
