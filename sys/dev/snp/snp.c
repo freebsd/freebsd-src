@@ -633,6 +633,8 @@ snp_modevent(mod, type, data)
 		cdevsw_add(&snp_cdevsw);
 		break;
 	case MOD_UNLOAD:
+		/* XXX: temporarily prevent unload due to bugs in unloading. */
+		return (EBUSY);
 		if (!LIST_EMPTY(&snp_sclist))
 			return (EBUSY);
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
