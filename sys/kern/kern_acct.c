@@ -152,6 +152,7 @@ acct(td, uap)
 #ifdef MAC
 		error = mac_check_system_acct(td->td_ucred, nd.ni_vp);
 		if (error) {
+			VOP_UNLOCK(nd.ni_vp, 0, td);
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
 			goto done2;
 		}
