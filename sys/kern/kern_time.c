@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.45 1998/04/04 13:25:25 phk Exp $
+ * $Id: kern_time.c,v 1.46 1998/04/04 18:46:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -235,7 +235,7 @@ nanosleep1(p, rqt, rmt)
 		*rmt = ts;
 		timespecsub(rmt, &ts2);
 	}
-	return(error);
+	return (error == EWOULDBLOCK ? 0 : error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
