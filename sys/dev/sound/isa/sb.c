@@ -412,7 +412,7 @@ sb_alloc_resources(struct sb_info *sb, device_t dev)
 					      &rid, 0, ~0, 1,
 					      RF_ACTIVE);
 	rid = 1;
-	if (!sb->drq2)
+	if (!sb->drq2 && !(sb->bd_flags & BD_F_ESS))
         	sb->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ,
 					      &rid, 0, ~0, 1,
 					      RF_ACTIVE);
@@ -707,8 +707,8 @@ ess_format(struct sb_chinfo *ch, u_int32_t format)
 	u_char c;
 	ch->fmt = format;
 	sb_reset_dsp(sb);
-	/* normal DMA mode */
-	ess_write(sb, 0xb8, play ? 0x00 : 0x0a);
+	/* auto-init DMA mode */
+	ess_write(sb, 0xb8, play ? 0x04 : 0x0e);
 	/* mono/stereo */
 	c = (ess_read(sb, 0xa8) & ~0x03) | 1;
 	if (!stereo) c++;
@@ -761,7 +761,7 @@ ess_start(struct sb_chinfo *ch)
 	 * clear bit 0 of register B8h
 	 */
 #if 1
-	c1 = play ? 0x00 : 0x0a;
+	c1 = play ? 0x04 : 0x0e;
 	ess_write(sb, 0xb8, c1++);
 #else
 	c1 = ess_read(sb, 0xb8) & 0xfe;
