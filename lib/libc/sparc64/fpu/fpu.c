@@ -187,7 +187,7 @@ __fpu_exception(struct utrapframe *uf)
 		goto fatal;
 	}
 
-	fe.fe_fsr = fsr;
+	fe.fe_fsr = fsr & ~FSR_FTT_MASK;
 	insn = *(u_int32_t *)uf->uf_pc;
 	if (IF_OP(insn) != IOP_MISC || (IF_F3_OP3(insn) != INS2_FPop1 &&
 	    IF_F3_OP3(insn) != INS2_FPop2))
@@ -268,7 +268,8 @@ __fpu_ccmov(struct fpemu *fe, int type, int rd, int rs1, int rs2,
 static int
 __fpu_cmpck(struct fpemu *fe)
 {
-	int cx, fsr;
+	u_long fsr;
+	int cx;
 
 	/*
 	 * The only possible exception here is NV; catch it
@@ -391,12 +392,12 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 	case FOP(INS2_FPop2, INSFP2_FCMP):
 		__fpu_explode(fe, &fe->fe_f1, type, rs1);
 		__fpu_explode(fe, &fe->fe_f2, type, rs2);
-		__fpu_compare(fe, 0);
+		__fpu_compare(fe, 0, IF_F3_CC(insn));
 		return (__fpu_cmpck(fe));
 	case FOP(INS2_FPop2, INSFP2_FCMPE):
 		__fpu_explode(fe, &fe->fe_f1, type, rs1);
 		__fpu_explode(fe, &fe->fe_f2, type, rs2);
-		__fpu_compare(fe, 1);
+		__fpu_compare(fe, 1, IF_F3_CC(insn));
 		return (__fpu_cmpck(fe));
 	case FOP(INS2_FPop1, INSFP1_FMOV):	/* these should all be pretty obvious */
 		__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);

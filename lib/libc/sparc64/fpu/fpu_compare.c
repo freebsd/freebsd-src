@@ -62,6 +62,21 @@
 #include "fpu_emu.h"
 #include "fpu_extern.h"
 
+static u_long fcc_nmask[] = {
+	~FSR_FCC0_MASK,
+	~FSR_FCC1_MASK,
+	~FSR_FCC2_MASK,
+	~FSR_FCC3_MASK
+};
+
+/* XXX: we don't use the FSR_FCCx macros here; it's much easier this way. */
+static int fcc_shift[] = {
+	FSR_FCC0_SHIFT,
+	FSR_FCC1_SHIFT,
+	FSR_FCC2_SHIFT,
+	FSR_FCC3_SHIFT
+};
+
 /*
  * Perform a compare instruction (with or without unordered exception).
  * This updates the fcc field in the fsr.
@@ -78,7 +93,7 @@
  * complete).
  */
 void
-__fpu_compare(struct fpemu *fe, int cmpe)
+__fpu_compare(struct fpemu *fe, int cmpe, int fcc)
 {
 	register struct fpn *a, *b;
 	register int cc;
@@ -160,5 +175,6 @@ __fpu_compare(struct fpemu *fe, int cmpe)
 		cc = diff(FSR_CC_GT);
 
 done:
-	fe->fe_fsr = (fe->fe_fsr & ~FSR_FCC0_MASK) | FSR_FCC0(cc);
+	fe->fe_fsr = (fe->fe_fsr & fcc_nmask[fcc]) |
+	    ((u_long)cc << fcc_shift[fcc]);
 }
