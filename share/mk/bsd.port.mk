@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.252 1997/02/17 08:20:36 obrien Exp $
+#	$Id: bsd.port.mk,v 1.253 1997/02/23 13:24:45 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -415,11 +415,13 @@ SCRIPTS_ENV+=	${INSTALL_MACROS}
 .undef NO_PACKAGE
 .endif
 
+COMMENT?=	${PKGDIR}/COMMENT
+DESCR?=		${PKGDIR}/DESCR
 PLIST?=		${PKGDIR}/PLIST
 
 PKG_CMD?=		/usr/sbin/pkg_create
 .if !defined(PKG_ARGS)
-PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PLIST} -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
+PKG_ARGS=		-v -c ${COMMENT} -d ${DESCR} -f ${PLIST} -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
 .if exists(${PKGDIR}/INSTALL)
 PKG_ARGS+=		-i ${PKGDIR}/INSTALL
 .endif
@@ -1538,13 +1540,13 @@ depends-list:
 describe:
 	@${ECHO} -n "${PKGNAME}|${.CURDIR}|"
 	@${ECHO} -n "${PREFIX}|"
-	@if [ -f ${PKGDIR}/COMMENT ]; then \
-		${ECHO} -n "`${CAT} ${PKGDIR}/COMMENT`"; \
+	@if [ -f ${COMMENT} ]; then \
+		${ECHO} -n "`${CAT} ${COMMENT}`"; \
 	else \
 		${ECHO} -n "** No Description"; \
 	fi
-	@if [ -f ${PKGDIR}/DESCR ]; then \
-		${ECHO} -n "|${PKGDIR}/DESCR"; \
+	@if [ -f ${DESCR} ]; then \
+		${ECHO} -n "|${DESCR}"; \
 	else \
 		${ECHO} -n "|/dev/null"; \
 	fi
@@ -1601,7 +1603,7 @@ print-package-depends:
 
 .if !target(fake-pkg)
 fake-pkg:
-	@if [ ! -f ${PLIST} -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then ${ECHO} "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
+	@if [ ! -f ${PLIST} -o ! -f ${COMMENT} -o ! -f ${DESCR} ]; then ${ECHO} "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
 	@if [ ! -d ${PKG_DBDIR} ]; then ${RM} -f ${PKG_DBDIR}; ${MKDIR} ${PKG_DBDIR}; fi
 .if defined(FORCE_PKG_REGISTER)
 	@${RM} -rf ${PKG_DBDIR}/${PKGNAME}
@@ -1610,8 +1612,8 @@ fake-pkg:
 		${ECHO_MSG} "===>  Registering installation for ${PKGNAME}"; \
 		${MKDIR} ${PKG_DBDIR}/${PKGNAME}; \
 		${PKG_CMD} ${PKG_ARGS} -O ${PKGFILE} > ${PKG_DBDIR}/${PKGNAME}/+CONTENTS; \
-		${CP} ${PKGDIR}/DESCR ${PKG_DBDIR}/${PKGNAME}/+DESC; \
-		${CP} ${PKGDIR}/COMMENT ${PKG_DBDIR}/${PKGNAME}/+COMMENT; \
+		${CP} ${DESCR} ${PKG_DBDIR}/${PKGNAME}/+DESC; \
+		${CP} ${COMMENT} ${PKG_DBDIR}/${PKGNAME}/+COMMENT; \
 		if [ -f ${PKGDIR}/INSTALL ]; then \
 			${CP} ${PKGDIR}/INSTALL ${PKG_DBDIR}/${PKGNAME}/+INSTALL; \
 		fi; \
