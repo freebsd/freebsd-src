@@ -4,7 +4,7 @@ define(`confREQUIRE_LIBSM', `true')
 bldPRODUCT_START(`executable', `sendmail')
 define(`bldBIN_TYPE', `G')
 define(`bldINSTALL_DIR', `')
-define(`bldSOURCES', `main.c alias.c arpadate.c bf.c collect.c conf.c control.c convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c map.c mci.c milter.c mime.c parseaddr.c queue.c readcf.c recipient.c savemail.c sasl.c sfsasl.c shmticklib.c sm_resolve.c srvrsmtp.c stab.c stats.c sysexits.c timers.c tls.c trace.c udb.c usersmtp.c util.c version.c ')
+define(`bldSOURCES', `main.c alias.c arpadate.c bf.c collect.c conf.c control.c convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c map.c mci.c milter.c mime.c parseaddr.c queue.c readcf.c recipient.c sasl.c savemail.c sfsasl.c shmticklib.c sm_resolve.c srvrsmtp.c stab.c stats.c sysexits.c timers.c tls.c trace.c udb.c usersmtp.c util.c version.c ')
 PREPENDDEF(`confENVDEF', `confMAPDEF')
 bldPUSH_SMLIB(`sm')
 bldPUSH_SMLIB(`smutil')
@@ -35,6 +35,7 @@ bldPUSH_TARGET(`statistics')
 divert(bldTARGETS_SECTION)
 statistics:
 	${CP} /dev/null statistics
+	chmod ifdef(`confSTMODE', `confSTMODE', `0600') statistics
 
 ${DESTDIR}/etc/mail/submit.cf:
 	@echo "Please read INSTALL if anything fails while installing the binary."
@@ -81,7 +82,7 @@ install-hf:
 
 install-st: statistics
 	if [ ! -d ${DESTDIR}${STDIR} ]; then mkdir -p ${DESTDIR}${STDIR}; else :; fi
-	${INSTALL} -c -o ${SBINOWN} -g ${UBINGRP} -m 644 statistics ${DESTDIR}${STFILE}
+	${INSTALL} -c -o ${SBINOWN} -g ${UBINGRP} -m ifdef(`confSTMODE', `confSTMODE', `0600') statistics ${DESTDIR}${STFILE}
 divert(0)
 bldPRODUCT_END
 

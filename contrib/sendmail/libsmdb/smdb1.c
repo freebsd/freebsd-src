@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb1.c,v 8.56 2002/01/21 04:10:44 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smdb1.c,v 8.58 2002/05/24 23:09:11 gshapiro Exp $")
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -446,14 +446,14 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 	BTREEINFO btree_info;
 	DBTYPE db_type;
 	struct stat stat_info;
-	char db_file_name[SMDB_MAX_NAME_LEN];
+	char db_file_name[MAXPATHLEN];
 
 	if (type == NULL ||
 	    (strncmp(SMDB_TYPE_HASH, type, SMDB_TYPE_HASH_LEN) != 0 &&
 	     strncmp(SMDB_TYPE_BTREE, type, SMDB_TYPE_BTREE_LEN) != 0))
 		return SMDBE_UNKNOWN_DB_TYPE;
 
-	result = smdb_add_extension(db_file_name, SMDB_MAX_NAME_LEN,
+	result = smdb_add_extension(db_file_name, sizeof db_file_name,
 				    db_name, SMDB1_FILE_EXTENSION);
 	if (result != SMDBE_OK)
 		return result;
@@ -508,7 +508,7 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 	}
 
 	db_type = smdb_type_to_db1_type(type);
-	db = dbopen(db_file_name, mode, 0644, db_type, params);
+	db = dbopen(db_file_name, mode, DBMMODE, db_type, params);
 	if (db != NULL)
 	{
 		db_fd = db->fd(db);

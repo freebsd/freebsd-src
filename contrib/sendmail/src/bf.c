@@ -18,7 +18,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: bf.c,v 8.51 2002/03/04 21:51:25 gshapiro Exp $")
+SM_RCSID("@(#)$Id: bf.c,v 8.54 2002/04/20 18:03:42 gshapiro Exp $")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -202,12 +202,24 @@ sm_bfopen(fp, info, flags, rpool)
 **		any value of errno specified by sm_io_setinfo()
 */
 
+#ifdef __STDC__
+/*
+**  XXX This is a temporary hack since MODE_T on HP-UX 10.x is short.
+**	If we use K&R here, the compiler will complain about
+**	Inconsistent parameter list declaration
+**	due to the change from short to int.
+*/
+
+SM_FILE_T *
+bfopen(char *filename, MODE_T fmode, size_t bsize, long flags)
+#else /* __STDC__ */
 SM_FILE_T *
 bfopen(filename, fmode, bsize, flags)
 	char *filename;
 	MODE_T fmode;
 	size_t bsize;
 	long flags;
+#endif /* __STDC__ */
 {
 	MODE_T omask;
 	SM_FILE_T SM_IO_SET_TYPE(vector, BF_FILE_TYPE, sm_bfopen, sm_bfclose,
@@ -613,8 +625,8 @@ finished:
 **		0 on success, -1 on error
 **
 **	Side Effects:
-**		rewinds the SM_FILE_T * and puts it into read mode. Normally one
-**		would bfopen() a file, write to it, then bfrewind() and
+**		rewinds the SM_FILE_T * and puts it into read mode. Normally
+**		one would bfopen() a file, write to it, then bfrewind() and
 **		fread(). If fp is not a buffered file, this is equivalent to
 **		rewind().
 **
@@ -786,8 +798,7 @@ sm_bftruncate(fp)
 		return ftruncate(bfp->bf_disk_fd, 0);
 #endif /* NOFTRUNCATE */
 	}
-	else
-		return 0;
+	return 0;
 }
 
 /*

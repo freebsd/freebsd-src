@@ -9,13 +9,12 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sasl.c,v 8.12 2002/01/21 02:28:05 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sasl.c,v 8.18 2002/05/25 00:26:42 gshapiro Exp $")
 
 #if SASL
 # include <stdlib.h>
 # include <sendmail.h>
 # include <errno.h>
-# include <sasl.h>
 
 /*
 **  In order to ensure that storage leaks are tracked, and to prevent
@@ -31,12 +30,12 @@ static void *sm_sasl_realloc __P((void *, unsigned long));
 void sm_sasl_free __P((void *));
 
 /*
+**  SASLv1:
 **  We can't use an rpool for Cyrus-SASL memory management routines,
 **	since the encryption/decryption routines in Cyrus-SASL
 **	allocate/deallocate a buffer each time. Since rpool
 **	don't release memory until the very end, memory consumption is
 **	proportional to the size of an e-mail, which is unacceptable.
-**
 */
 
 /*
@@ -206,4 +205,79 @@ intersect(s1, s2, rpool)
 	}
 	return res;
 }
+# if SASL >= 20000
+/*
+**  IPTOSTRING -- create string for SASL_IP*PORT property
+**                (borrowed from lib/iptostring.c in Cyrus-IMAP)
+**
+**	Parameters:
+**		addr -- (pointer to) socket address
+**		addrlen -- length of socket address
+**		out -- output string (result)
+**		outlen -- maximum length of output string
+**
+**	Returns:
+**		true iff successful.
+**
+**	Side Effects:
+**		creates output string if successful.
+**		sets errno if unsuccessful.
+*/
+
+#  include <arpa/inet.h>
+
+#  ifndef NI_WITHSCOPEID
+#   define NI_WITHSCOPEID	0
+#  endif
+#  ifndef NI_MAXHOST
+#   define NI_MAXHOST	1025
+#  endif
+#  ifndef NI_MAXSERV
+#   define NI_MAXSERV	32
+#  endif
+
+bool
+iptostring(addr, addrlen, out, outlen)
+	SOCKADDR *addr;
+	SOCKADDR_LEN_T addrlen;
+	char *out;
+	unsigned outlen;
+{
+	char hbuf[NI_MAXHOST], pbuf[NI_MAXSERV];
+
+	if (addr == NULL || out == NULL)
+	{
+		errno = EINVAL;
+		return false;
+	}
+
+#  if NETINET6
+	if (getnameinfo((struct sockaddr *) addr, addrlen,
+			hbuf, sizeof hbuf, pbuf, sizeof pbuf,
+			NI_NUMERICHOST | NI_WITHSCOPEID | NI_NUMERICSERV) != 0)
+		return false;
+#  else /* NETINET6 */
+	if (addr->sa.sa_family != AF_INET)
+	{
+		errno = EINVAL;
+		return false;
+	}
+	if (inet_ntop(AF_INET, &(addr->sin.sin_addr),
+		      hbuf, sizeof hbuf) == NULL)
+	{
+		errno = EINVAL;
+		return false;
+	}
+	sm_snprintf(pbuf, sizeof pbuf, "%d", ntohs(addr->sin.sin_port));
+#  endif /* NETINET6 */
+
+	if (outlen < strlen(hbuf) + strlen(pbuf) + 2)
+	{
+		errno = ENOMEM;
+		return false;
+	}
+	sm_snprintf(out, outlen, "%s;%s", hbuf, pbuf);
+	return true;
+}
+# endif /* SASL >= 20000 */
 #endif /* SASL */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: recipient.c,v 8.327 2001/11/20 13:59:53 ca Exp $")
+SM_RCSID("@(#)$Id: recipient.c,v 8.330 2002/05/29 18:20:03 gshapiro Exp $")
 
 static void	includetimeout __P((void));
 static ADDRESS	*self_reference __P((ADDRESS *));
@@ -1419,7 +1419,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 
 	if (forwarding)
 	{
-		sfflags |= SFF_MUSTOWN|SFF_ROOTOK|SFF_NOWLINK;
+		sfflags |= SFF_MUSTOWN|SFF_ROOTOK;
 		if (!bitnset(DBS_GROUPWRITABLEFORWARDFILE, DontBlameSendmail))
 			sfflags |= SFF_NOGWFILES;
 		if (!bitnset(DBS_WORLDWRITABLEFORWARDFILE, DontBlameSendmail))
@@ -1502,7 +1502,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 			{
 				rval = EAGAIN;
 				syserr("seteuid(%d) failure (real=%d, eff=%d)",
-					uid, getuid(), geteuid());
+					uid, (int) getuid(), (int) geteuid());
 				goto resetuid;
 			}
 # endif /* MAILER_SETUID_METHOD == USE_SETEUID */
@@ -1511,7 +1511,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 			{
 				rval = EAGAIN;
 				syserr("setreuid(0, %d) failure (real=%d, eff=%d)",
-					uid, getuid(), geteuid());
+					uid, (int) getuid(), (int) geteuid());
 				goto resetuid;
 			}
 # endif /* MAILER_SETUID_METHOD == USE_SETREUID */
@@ -1831,7 +1831,7 @@ resetuid:
 #endif /* 0 */
 
 			syserr("Attempt to forward to more than %d addresses (in %s)!",
-				MaxForwardEntries,fname);
+				MaxForwardEntries, fname);
 			maxreached = true;
 		}
 	}

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.63 2002/02/07 01:16:13 msk Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.64 2002/04/30 22:22:02 msk Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
 
@@ -267,6 +267,7 @@ smfi_quarantine(ctx, reason)
 **	Side Effects:
 **		none.
 */
+
 static int
 myisenhsc(s, delim)
 	const char *s;

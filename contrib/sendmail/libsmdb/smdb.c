@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb.c,v 8.54 2002/04/04 21:32:14 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smdb.c,v 8.57 2002/05/24 23:09:11 gshapiro Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -319,14 +319,14 @@ smdb_lock_file(lock_fd, db_name, mode, sff, extension)
 	char *extension;
 {
 	int result;
-	char file_name[SMDB_MAX_NAME_LEN];
+	char file_name[MAXPATHLEN];
 
-	result = smdb_add_extension(file_name, SMDB_MAX_NAME_LEN, db_name,
+	result = smdb_add_extension(file_name, sizeof file_name, db_name,
 				    extension);
 	if (result != SMDBE_OK)
 		return result;
 
-	*lock_fd = safeopen(file_name, mode & ~O_TRUNC, 0644, sff);
+	*lock_fd = safeopen(file_name, mode & ~O_TRUNC, DBMMODE, sff);
 	if (*lock_fd < 0)
 		return errno;
 
@@ -435,9 +435,9 @@ smdb_setup_file(db_name, extension, mode_mask, sff, user_info, stat_info)
 {
 	int st;
 	int result;
-	char db_file_name[SMDB_MAX_NAME_LEN];
+	char db_file_name[MAXPATHLEN];
 
-	result = smdb_add_extension(db_file_name, SMDB_MAX_NAME_LEN, db_name,
+	result = smdb_add_extension(db_file_name, sizeof db_file_name, db_name,
 				    extension);
 	if (result != SMDBE_OK)
 		return result;
@@ -474,9 +474,9 @@ smdb_filechanged(db_name, extension, db_fd, stat_info)
 	struct stat *stat_info;
 {
 	int result;
-	char db_file_name[SMDB_MAX_NAME_LEN];
+	char db_file_name[MAXPATHLEN];
 
-	result = smdb_add_extension(db_file_name, SMDB_MAX_NAME_LEN, db_name,
+	result = smdb_add_extension(db_file_name, sizeof db_file_name, db_name,
 				    extension);
 	if (result != SMDBE_OK)
 		return result;

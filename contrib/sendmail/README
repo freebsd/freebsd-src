@@ -106,6 +106,54 @@ a "chmod go-w $FILE" on each.  Also, do a "chmod go-w $DIR" for
 each directory in the file's path.
 
 
++--------------------------+
+| FILE AND MAP PERMISSIONS |
++--------------------------+
+
+Any application which uses either flock() or fcntl() style locking or
+other APIs that use one of these locking methods (such as open() with
+O_EXLOCK and O_SHLOCK) on files readable by other local untrusted users
+may be susceptible to local denial of service attacks.
+
+File locking is used throughout sendmail for a variety of files
+including aliases, maps, statistics, and the pid file.  Any user who
+can open one of these files can prevent sendmail or it's associated
+utilities, e.g., makemap or newaliases, from operating properly.  This
+can also affect sendmail's ability to update status files such as
+statistics files.  For system which use flock() for file locking, a
+user's ability to obtain an exclusive lock prevents other sendmail
+processes from reading certain files such as alias or map databases.
+
+A workaround for this problem is to protect all sendmail files such
+that they can't be opened by untrusted users.  As long as users can
+not open a file, they can not lock it.  Since queue files should
+already have restricted permissions, the only files that need
+adjustment are alias, map, statistics, and pid files.  These files
+should be owned by root or the trusted user specified in the
+TrustedUser option.  Changing the permissions to be only readable and
+writable by that user is sufficient to avoid the denial of service.
+For example, depending on the paths you use, these commands would be
+used:
+
+	chmod 0640 /etc/mail/aliases /etc/mail/aliases.{db,pag,dir}
+	chmod 0640 /etc/mail/*.{db,pag,dir}
+	chmod 0640 /etc/mail/statistics /var/log/sendmail.st
+	chmod 0600 /var/run/sendmail.pid /etc/mail/sendmail.pid
+
+If the permissions 0640 are used, be sure that only trusted users belong
+to the group assigned to those files.  Otherwise, files should not even
+be group readable.  As of sendmail 8.12.4, the permissions shown above
+are the default permissions for newly created files.
+
+Note that the denial of service on the plain text aliases file
+(/etc/mail/aliases) only prevents newaliases from rebuilding the
+aliases file.  The same is true for the database files on systems which
+use fcntl() style locking.  Since it does not interfere with normal
+operations, sites may chose to leave these files readable.  Also, it is
+not necessary to protect the text files associated with map databases
+as makemap does not lock those files.
+
+
 +-----------------------+
 | RELATED DOCUMENTATION |
 +-----------------------+
@@ -400,4 +448,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.81 $, Last updated $Date: 2001/09/26 16:22:19 $
+$Revision: 8.90 $, Last updated $Date: 2002/05/25 02:55:59 $

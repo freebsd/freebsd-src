@@ -379,6 +379,22 @@ elsif (lc($command) eq "help")
 {
 	$status = &help($control);
 }
+elsif (lc($command) eq "mstat")
+{
+	$status = &do_command($control, "mstat");
+	if (not defined $status)
+	{
+		# Not responding on control channel, query via SMTP
+		if (&sendmail_running)
+		{
+			$daemonStatus = "Sendmail is running but not answering status queries.";
+		}
+		else
+		{
+			$daemonStatus = "Sendmail does not appear to be running.";
+		}
+	}
+}
 else
 {
 	die "Unrecognized command $command\n";

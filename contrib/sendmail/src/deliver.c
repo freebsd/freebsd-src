@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.935 2002/03/23 18:30:40 gshapiro Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.939 2002/05/25 00:46:00 gshapiro Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -1284,6 +1284,7 @@ deliver(e, firstto)
 	char *mxhosts[MAXMXHOSTS + 1];
 	char *pv[MAXPV + 1];
 	char buf[MAXNAME + 1];
+	char cbuf[MAXPATHLEN];
 
 	errno = 0;
 	if (!QS_IS_OK(to->q_state))
@@ -2450,14 +2451,14 @@ tryhost:
 			/* change root to some "safe" directory */
 			if (m->m_rootdir != NULL)
 			{
-				expand(m->m_rootdir, buf, sizeof buf, e);
+				expand(m->m_rootdir, cbuf, sizeof cbuf, e);
 				if (tTd(11, 20))
 					sm_dprintf("openmailer: chroot %s\n",
-						   buf);
-				if (chroot(buf) < 0)
+						   cbuf);
+				if (chroot(cbuf) < 0)
 				{
 					syserr("openmailer: Cannot chroot(%s)",
-						buf);
+					       cbuf);
 					exit(EX_TEMPFAIL);
 				}
 				if (chdir("/") < 0)
@@ -2584,13 +2585,14 @@ tryhost:
 					q = strchr(p, ':');
 					if (q != NULL)
 						*q = '\0';
-					expand(p, buf, sizeof buf, e);
+					expand(p, cbuf, sizeof cbuf, e);
 					if (q != NULL)
 						*q++ = ':';
 					if (tTd(11, 20))
 						sm_dprintf("openmailer: trydir %s\n",
-							   buf);
-					if (buf[0] != '\0' && chdir(buf) >= 0)
+							   cbuf);
+					if (cbuf[0] != '\0' &&
+					    chdir(cbuf) >= 0)
 						break;
 				}
 			}
@@ -3029,7 +3031,11 @@ reconnect:	/* after switching to an encrypted connection */
 
 				/* Get security strength (features) */
 				result = sasl_getprop(mci->mci_conn, SASL_SSF,
+# if SASL >= 20000
+						      (const void **) &ssf);
+# else /* SASL >= 20000 */
 						      (void **) &ssf);
+# endif /* SASL >= 20000 */
 
 				/* XXX authid? */
 				if (LogLevel > 9)
@@ -4974,8 +4980,8 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 	char *p;
 	char *volatile realfile;
 	SM_EVENT *ev;
-	char buf[MAXLINE + 1];
-	char targetfile[MAXPATHLEN + 1];
+	char buf[MAXPATHLEN];
+	char targetfile[MAXPATHLEN];
 
 	if (tTd(11, 1))
 	{

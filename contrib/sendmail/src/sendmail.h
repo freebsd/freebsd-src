@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.912 2002/04/02 16:43:26 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.918 2002/05/23 20:01:56 gshapiro Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -124,18 +124,26 @@ SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.912 2002/04/02 16:43
 #endif /* STARTTLS */
 
 #if SASL  /* include the sasl include files if we have them */
-# include <sasl.h>
+
+
+# if SASL == 2 || SASL >= 20000
+#  include <sasl/sasl.h>
+#  include <sasl/saslutil.h>
+# else /* SASL == 2 || SASL >= 20000 */
+#  include <sasl.h>
+#  include <saslutil.h>
+# endif /* SASL == 2 || SASL >= 20000 */
 # if defined(SASL_VERSION_MAJOR) && defined(SASL_VERSION_MINOR) && defined(SASL_VERSION_STEP)
 #  define SASL_VERSION (SASL_VERSION_MAJOR * 10000)  + (SASL_VERSION_MINOR * 100) + SASL_VERSION_STEP
-#  if SASL == 1
+#  if SASL == 1 || SASL == 2
 #   undef SASL
 #   define SASL SASL_VERSION
-#  else /* SASL == 1 */
+#  else /* SASL == 1 || SASL == 2 */
 #   if SASL != SASL_VERSION
   ERROR README: -DSASL (SASL) does not agree with the version of the CYRUS_SASL library (SASL_VERSION)
   ERROR README: see README!
 #   endif /* SASL != SASL_VERSION */
-#  endif /* SASL == 1 */
+#  endif /* SASL == 1 || SASL == 2 */
 # else /* defined(SASL_VERSION_MAJOR) && defined(SASL_VERSION_MINOR) && defined(SASL_VERSION_STEP) */
 #  if SASL == 1
   ERROR README: please set -DSASL to the version of the CYRUS_SASL library
@@ -559,8 +567,11 @@ extern bool	filesys_free __P((long));
 
 /* SASL options */
 # define SASL_AUTH_AUTH	0x1000		/* use auth= only if authenticated */
-# define SASL_SEC_MASK	0x0fff		/* mask for SASL_SEC_* values: sasl.h */
-# if (SASL_SEC_NOPLAINTEXT & SASL_SEC_MASK) == 0 || \
+# if SASL >= 20101
+#  define SASL_SEC_MASK	SASL_SEC_MAXIMUM /* mask for SASL_SEC_* values: sasl.h */
+# else /* SASL >= 20101 */
+#  define SASL_SEC_MASK	0x0fff		/* mask for SASL_SEC_* values: sasl.h */
+#  if (SASL_SEC_NOPLAINTEXT & SASL_SEC_MASK) == 0 || \
 	(SASL_SEC_NOACTIVE & SASL_SEC_MASK) == 0 || \
 	(SASL_SEC_NODICTIONARY & SASL_SEC_MASK) == 0 || \
 	(SASL_SEC_FORWARD_SECRECY & SASL_SEC_MASK) == 0 || \
@@ -568,19 +579,23 @@ extern bool	filesys_free __P((long));
 	(SASL_SEC_PASS_CREDENTIALS & SASL_SEC_MASK) == 0
 ERROR: change SASL_SEC_MASK_ notify sendmail.org!
 #  endif /* SASL_SEC_NOPLAINTEXT & SASL_SEC_MASK) == 0 ... */
+# endif /* SASL >= 20101 */
 # define MAXOUTLEN 1024			/* length of output buffer */
 
 /* functions */
 extern char	*intersect __P((char *, char *, SM_RPOOL_T *));
 extern char	*iteminlist __P((char *, char *, char *));
+# if SASL >= 20000
+extern int	proxy_policy __P((sasl_conn_t *, void *, const char *, unsigned, const char *, unsigned, const char *, unsigned, struct propctx *));
+extern int	safesaslfile __P((void *, const char *, sasl_verify_type_t));
+# else /* SASL >= 20000 */
 extern int	proxy_policy __P((void *, const char *, const char *, const char **, const char **));
-# if SASL > 10515
+#  if SASL > 10515
 extern int	safesaslfile __P((void *, char *, int));
-# else /* SASL > 10515 */
+#  else /* SASL > 10515 */
 extern int	safesaslfile __P((void *, char *));
-# endif /* SASL > 10515 */
-extern int	sasl_decode64 __P((const char *, unsigned, char *, unsigned *));
-extern int	sasl_encode64 __P((const char *, unsigned, char *, unsigned, unsigned *));
+#  endif /* SASL > 10515 */
+# endif /* SASL >= 20000 */
 extern void	stop_sasl_client __P((void));
 
 /* structure to store authinfo */
@@ -1611,6 +1626,9 @@ extern int	anynet_pton __P((int, const char *, void *));
 # endif /* NETINET6 */
 extern char	*hostnamebyanyaddr __P((SOCKADDR *));
 extern char	*validate_connection __P((SOCKADDR *, char *, ENVELOPE *));
+# if SASL >= 20000
+extern bool	iptostring __P((SOCKADDR *, SOCKADDR_LEN_T, char *, unsigned));
+# endif /* SASL >= 20000 */
 
 #endif /* NETINET || NETINET6 || NETUNIX || NETISO || NETNS || NETX25 */
 

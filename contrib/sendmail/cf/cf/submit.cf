@@ -32,7 +32,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.639 2002/04/02 23:42:42 gshapiro Exp $  #####
+#####  $Id: proto.m4,v 8.646 2002/05/19 21:22:40 gshapiro Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -110,7 +110,7 @@ D{MTAHost}[localhost]
 
 
 # Configuration version number
-DZ8.12.3/Submit
+DZ8.12.4/Submit
 
 
 ###############
@@ -949,7 +949,7 @@ R$* $| $* $| $*		$@ $>"Basic_check_relay" $1 $| $2
 
 SBasic_check_relay
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -968,7 +968,7 @@ R$* $| $*		$@ $>"Basic_check_mail" $1
 
 SBasic_check_mail
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -1001,6 +1001,7 @@ R$*			$: <?> $>CanonAddr $1		canonify sender address and mark it
 R<?> $* < @ $+ . >	<?> $1 < @ $2 >			strip trailing dots
 # handle non-DNS hostnames (*.bitnet, *.decnet, *.uucp, etc)
 R<?> $* < @ $* $=P >	$: <OK> $1 < @ $2 $3 >
+R<?> $* < @ $j >	$: <OK> $1 < @ $j >
 R<?> $* < @ $+ >	$: <? $(resolve $2 $: $2 <PERM> $) > $1 < @ $2 >
 R<? $* <$->> $* < @ $+ >
 			$: <$2> $3 < @ $4 >
@@ -1035,7 +1036,7 @@ SBasic_check_rcpt
 R<>			$#error $@ nouser $: "553 User address required"
 R$@			$#error $@ nouser $: "553 User address required"
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 

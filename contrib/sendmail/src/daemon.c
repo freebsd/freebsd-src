@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.611 2002/03/18 23:08:50 gshapiro Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.612 2002/05/02 19:40:52 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -2956,6 +2956,9 @@ restart_daemon()
 			  reason == NULL ? "implicit call" : reason);
 
 	closecontrolsocket(true);
+#if SM_CONF_SHM
+	cleanup_shm(DaemonPid == getpid());
+#endif /* SM_CONF_SHM */
 
 	/*
 	**  Want to drop to the user who started the process in all cases
@@ -2985,9 +2988,6 @@ restart_daemon()
 		if ((j = fcntl(i, F_GETFD, 0)) != -1)
 			(void) fcntl(i, F_SETFD, j | FD_CLOEXEC);
 	}
-#if SM_CONF_SHM
-	cleanup_shm(DaemonPid == getpid());
-#endif /* SM_CONF_SHM */
 
 	/*
 	**  Need to allow signals before execve() to make them "harmless".
