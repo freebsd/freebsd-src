@@ -20,6 +20,9 @@ SRCS=	bio_ssl.c s23_clnt.c s23_lib.c s23_meth.c s23_pkt.c s23_srvr.c \
 INCS=	kssl.h ssl.h ssl2.h ssl23.h ssl3.h tls1.h
 INCSDIR=${INCLUDEDIR}/openssl
 
+DPADD=	${LIBCRYPTO}
+LDADD=	-lcrypto
+
 .include <bsd.lib.mk>
 
 .PATH:	${LCRYPTO_SRC}/ssl \
