@@ -362,9 +362,10 @@ add_track(char *name, int block_size, int block_type, int nogap)
 		if (tracks[notracks].file_size / tracks[notracks].block_size !=
 		    roundup_blocks(&tracks[notracks]))
 			pad = 1;
-		fprintf(stderr, 
-			"adding type 0x%02x file %s size %d KB %d blocks %s\n",
-			tracks[notracks].block_type, name, (int)sb.st_size/1024,
+		fprintf(stderr,
+			"adding type 0x%02x file %s size %jd KB %d blocks %s\n",
+			tracks[notracks].block_type, name,
+			(intmax_t)sb.st_size/1024,
 			roundup_blocks(&tracks[notracks]),
 			pad ? "(0 padded)" : "");
 	}
