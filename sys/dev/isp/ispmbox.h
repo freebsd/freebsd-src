@@ -141,6 +141,9 @@
 #define	MBOX_FABRIC_LOGOUT		0x0071
 #define	MBOX_INIT_LIP_LOGIN		0x0072
 
+#define	MBOX_DRIVER_HEARTBEAT		0x005B
+#define	MBOX_FW_HEARTBEAT		0x005C
+
 #define	MBOX_GET_SET_DATA_RATE		0x005D	/* 23XX only */
 #define		MBGSD_GET_RATE	0
 #define		MBGSD_SET_RATE	1
@@ -800,6 +803,7 @@ typedef struct {
 
 #define	FC4_IP		5 /* ISO/EEC 8802-2 LLC/SNAP "Out of Order Delivery" */
 #define	FC4_SCSI	8 /* SCSI-3 via Fivre Channel Protocol (FCP) */
+#define	FC4_FC_SVC	0x20	/* Fibre Channel Services */
 
 #define	SNS_GA_NXT	0x100
 #define	SNS_GPN_ID	0x112
