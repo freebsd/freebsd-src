@@ -34,8 +34,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <dev/acpi/acpireg.h>
-
 #include "acpidump.h"
 
 static void
@@ -72,7 +70,8 @@ usage(const char *progname)
 {
 
 	printf("usage:\t%s [-o dsdt_file_for_output]\n", progname);
-	printf("or\t%s [-f dsdt_file_for_input]\n", progname);
+	printf("\t%s [-f dsdt_file_for_input]\n", progname);
+	printf("\t%s [-h]\n", progname);
 	exit(1);
 }
 

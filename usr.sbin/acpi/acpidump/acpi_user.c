@@ -39,8 +39,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <dev/acpi/acpireg.h>
-
 #include "acpidump.h"
 
 static int      acpi_mem_fd = -1;
