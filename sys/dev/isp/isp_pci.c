@@ -1057,7 +1057,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	caddr_t base;
 	u_int32_t len;
 	int i, error, ns;
-	bus_size_t bl;
+	bus_size_t alim, slim;
 	struct imush im;
 
 	/*
@@ -1067,16 +1067,20 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		return (0);
 	}
 
+#ifdef	ISP_DAC_SUPPORTED
+	alim = BUS_SPACE_UNRESTRICTED;
+#else
+	alim = BUS_SPACE_MAXADDR_32BIT;
+#endif
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
-		bl = BUS_SPACE_UNRESTRICTED;
+		slim = BUS_SPACE_MAXADDR_32BIT;
 	} else {
-		bl = BUS_SPACE_MAXADDR_24BIT;
+		slim = BUS_SPACE_MAXADDR_24BIT;
 	}
 
 	ISP_UNLOCK(isp);
-	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
-	    ISP_NSEGS, bl, 0, &pcs->dmat)) {
+	if (bus_dma_tag_create(NULL, 1, slim+1, alim, alim,
+	    NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &pcs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
 		ISP_LOCK(isp);
 		return(1);
@@ -1109,8 +1113,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, len, ns, bl, 0, &isp->isp_cdmat)) {
+	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, alim, alim,
+	    NULL, NULL, len, ns, slim, 0, &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot create a dma tag for control spaces");
 		free(pcs->dmaps, M_DEVBUF);
