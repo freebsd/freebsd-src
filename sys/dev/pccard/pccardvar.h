@@ -378,4 +378,9 @@ enum {
 #define PCMCIA_CARD2(v1, p1, p2, f) \
 		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
 		  f, PCMCIA_CIS_ ## p2}
+#define PCMCIA_CARD_ND(v, p, f) { NULL, PCMCIA_VENDOR_ ## v, \
+		PCCARD_P(v, p), f, PCCARD_C(v, p) }
+#define PCMCIA_CARD2_ND(v1, p1, p2, f) \
+		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
+		  f, PCMCIA_CIS_ ## p2}
 
