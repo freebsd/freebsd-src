@@ -1,0 +1,1588 @@
+
+                                                            Mark Foster 
+Internet Draft                                              Tom McGarry 
+Document: <draft-ietf-enum-e164-gstn-np-05.txt>                James Yu 
+                                                          NeuStar, Inc. 
+Category: Informational                                   June 24, 2002 
+ 
+ 
+              Number Portability in the GSTN: An Overview 
+ 
+ 
+Status of this Memo 
+ 
+   This document is an Internet-Draft and is in full conformance with 
+   all provisions of Section 10 of RFC2026 [RFC].  
+ 
+   Internet-Drafts are working documents of the Internet Engineering 
+   Task Force (IETF), its areas, and its working groups. Note that 
+   other groups may also distribute working documents as Internet-
+   Drafts. Internet-Drafts are draft documents valid for a maximum of 
+   six months and may be updated, replaced, or obsoleted by other 
+   documents at any time. It is inappropriate to use Internet- Drafts 
+   as reference material or to cite them other than as "work in 
+   progress."  
+    
+   The list of current Internet-Drafts can be accessed at 
+   http://www.ietf.org/ietf/1id-abstracts.txt. 
+     
+   The list of Internet-Draft Shadow Directories can be accessed at 
+   http://www.ietf.org/shadow.html. 
+    
+ 
+   Copyright Notice 
+ 
+      Copyright (C) The Internet Society (2002).  All rights reserved. 
+    
+    
+   Abstract 
+    
+   This document provides an overview of E.164 telephone number 
+   portability (NP) in the Global Switched Telephone Network (GSTN).    
+   NP is a regulatory imperative seeking to liberalize local telephony 
+   service competition, by enabling end-users to retain telephone 
+   numbers while changing service providers.  NP changes the 
+   fundamental nature of a dialed E.164 number from a hierarchical 
+   physical routing address to a virtual address, thereby requiring the 
+   transparent translation of the later to the former.  In addition, 
+   there are various regulatory constraints that establish relevant 
+   parameters for NP implementation, most of which are not network 
+   technology specific.  Consequently, the implementation of NP 
+   behavior consistent with applicable regulatory constraints, as well 
+   as the need for interoperation with the existing GSTN NP 
+   implementations, are relevant topics for numerous areas of IP 
+   telephony work-in-progress at IETF. 
+  
+Foster,McGarry,Yu         Expired on December 23, 2002        [Page 1] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+    
+   Table of Contents 
+    
+    1.  Introduction ...............................................  2 
+    2.  Abbreviations and Acronyms .................................  4 
+    3.  Types of Number Portability ................................  5 
+    4.  Service Provider Number Portability Schemes ................  7 
+       4.1   All Call Query (ACQ) ..................................  7 
+       4.2   Query on Release (QoR) ................................  8 
+       4.3   Call Dropback .........................................  9 
+       4.4   Onward Routing (OR) ...................................  9 
+       4.5   Comparisons of the Four Schemes ....................... 10 
+    5.  Database Queries in the NP Environment ..................... 11 
+       5.1   U.S. and Canada ....................................... 12 
+       5.2   Europe ................................................ 13 
+    6.  Call Routing in the NP Environment ......................... 14 
+       6.1   U.S. and Canada ....................................... 14 
+       6.2   Europe ................................................ 15 
+    7.  NP Implementations for Geographic E.164 Numbers ............ 17 
+    8.  Number Conservation Method Enabled By NP ................... 20 
+       8.1   Block Pooling ......................................... 20 
+       8.2   ITN Pooling ........................................... 21 
+    9.  Potential Implications ..................................... 21 
+   10.  Security Considerations .................................... 24 
+   11.  IANA Considerations ........................................ 24 
+   12.  Normative References ....................................... 24 
+   13.  Informative References ..................................... 25 
+   14.  Acknowledgement ............................................ 25 
+   15.  AuthorsË Addresses ......................................... 25 
+    
+ 
+    
+1. Introduction 
+    
+   This document provides an overview of E.164 telephone number 
+   portability in the Global Switched Telephone Network (GSTN).  There 
+   are considered to be three types of number portability (NP): service 
+   provider portability (SPNP), location portability (not to be 
+   confused with terminal mobility), and service portability. 
+    
+   Service provider portability (SPNP), the focus of the present draft, 
+   is a regulatory imperative in many countries seeking to liberalize 
+   telephony service competition, especially local service.  
+   Historically, local telephony service (as compared to long distance 
+   or international service) has been regulated as a utility-like form 
+   of service.  While a number of countries had begun liberalization 
+   (e.g. privatization, de-regulation, or re-regulation) some years 
+   ago, the advent of NP is relatively recent (since ~1995). 
+    
+   E.164 numbers can be non-geographic and geographic numbers.  Non-
+   geographic numbers do not reveal the locations information of those 
+   numbers.  Geographic E.164 numbers were intentionally designed as 
+   hierarchical routing addresses which could systematically be digit-
+   analyzed to ascertain the country, serving network provider, serving 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 2] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   end-office switch, and specific line of the called party.  As such, 
+   without NP a subscriber wishing to change service providers would 
+   incur a number change as a consequence of being served off of a 
+   different end-office switch operated by the new service provider.  
+   The cost and convenience impact to the subscriber of changing 
+   numbers is seen as barrier to competition.  Hence NP has become 
+   associated with GSTN infrastructure enhancements associated with a 
+   competitive environment driven by regulatory directives. 
+    
+   Forms of SPNP have been deployed or are being deployed widely in the 
+   GSTN in various parts of the world, including the U.S., Canada, 
+   Western Europe, Australia, and the Pacific Rim (e.g. Hong Kong). 
+   Other regions, such as South America (e.g. Brazil) are actively 
+   considering it. 
+    
+   Implementation of NP within a national telephony infrastructure 
+   entails potentially significant changes to numbering administration, 
+   network element signaling, call routing and processing, billing, 
+   service management, and other functions. 
+    
+   NP changes the fundamental nature of a dialed E.164 number from a 
+   hierarchical physical routing address to a virtual address.  NP 
+   implementations attempt to encapsulate the impacts to the GSTN and 
+   make NP transparent to subscribers by incorporating a translation 
+   function to map a dialed, potentially ported E.164 address, into a 
+   network routing address (either a number prefix or another E.164 
+   address) which can be hierarchically routed. 
+    
+   This is roughly analogous to the use of network address translation 
+   on IP addresses to enable IP address portability by containing the 
+   impact of the address change to the edge of the network and retain 
+   the use of CIDR blocks in the core which can be route aggregated by 
+   the network service provider to the rest of the internet. 
+    
+   NP bifurcates the historical role of a subscriberËs E.164 address 
+   into two or more data elements (a dialed or virtual address, and a 
+   network routing address) that must be made available to network 
+   elements through an NP translations database, carried by forward 
+   call signaling, and recorded on call detail records.  Not only is 
+   call processing and routing affected, but also so is SS7/C7 
+   messaging.  A number of TCAP-based SS7 messaging sets utilize an 
+   E.164 address as an application-level network element address in the 
+   global title address (GTA) field of the SCCP message header.  
+   Consequently, SS7/C7 signaling transfer points (STPs) and gateways 
+   need to be able to perform n-digit global title translation (GTT) to 
+   translate a dialed E.164 address into its network address 
+   counterpart via the NP database. 
+    
+   In addition, there are various national regulatory constraints that 
+   establish relevant parameters for NP implementation, most of which 
+   are not network technology specific.  Consequently, implementations 
+   of NP behavior in IP telephony consistent with applicable regulatory 
+   constraints, as well as the need for interoperation with the 
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 3] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   existing GSTN NP implementations, are relevant topics for numerous 
+   areas of IP telephony work-in-progress at IETF. 
+    
+   This document describes three types of number portability and the 
+   four schemes that have been standardized to support SPNP for 
+   geographic E.164 numbersspecifically.  Following that, specific 
+   information regarding the call routing and database query 
+   implementations are described for several regions (North American 
+   and Europe) and industries (wireless vs. wireline). The Number 
+   Portability Database (NPDB) interfaces and the call routing schemes 
+   that are used in the North America and Europe are described to show 
+   the variety of standards that may be implemented worldwide.  A 
+   glance of the NP implementations worldwide is provided.  Number 
+   pooling is briefly discussed to show how NP is being enhanced in the 
+   U.S. to conserve North American area codes.  The conclusion briefly 
+   touches the potential impacts of NP on IP & Telecommunications 
+   Interoperability.  Appendix A provides some specific technical and 
+   regulatory information on NP in North America.  Appendix B describes 
+   the number portability administration process that manages the 
+   number portability database in North America. 
+    
+    
+2. Abbreviations and Acronyms 
+    
+   ACQ     All Call Query 
+   AIN     Advanced Intelligent Network 
+   AMPS    Advanced Mobile Phone System 
+   ANSI    American National Standards Institute 
+   CDMA    Code Division Multiple Access 
+   CdPA    Called Party Address 
+   CdPN    Called Party Number 
+   CH      Code Holder 
+   CMIP    Common Management Information Protocol 
+   CS1     Capability Set 1 
+   CS2     Capability Set 2 
+   DN      Directory Number 
+   DNS     Domain Name System 
+   ETSI    European Technical Standards Institute 
+   FCI     Forward Call Indicator 
+   GAP     Generic Address Parameter 
+   GMSC    Gateway Mobile Services Switching Center or Gateway Mobile 
+           Switching Center 
+   GSM     Global System for Mobile Communications 
+   GSTN    Global Switched Telephone Network 
+   GW      Gateways 
+   HLR     Home Location Register 
+   IAM     Initial Address Message 
+   IETF    Internet Engineering Task Force 
+   ILNP    Interim LNP 
+   IN      Intelligent Network 
+   INAP    Intelligent Network Application Part 
+   INP     Interim NP     
+   IP      Internet Protocol 
+   IS-41   Interim Standards Number 41 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 4] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   ISDN    Integrated Services Digital Network 
+   ISUP    ISDN User Part 
+   ITN     Individual Telephony Number  
+   ITU     International Telecommunication Union 
+   ITU-TS  ITU-Telecommunication Sector 
+   LDAP    Lightweight Directory Access Protocol  
+   LEC     Local Exchange Carrier 
+   LERG    Local Exchange Routing Guide 
+   LNP     Local Number Portability 
+   LRN     Location Routing Number 
+   MAP     Mobile Application Part 
+   MNP     Mobile Number Portability 
+   MSRN    Mobile Station Roaming Number 
+   MTP     Message Transfer Part 
+   NANP    North American Numbering Plan 
+   NP      Number Portability 
+   NPDB    Number Portability Database 
+   NRN     Network Routing Number 
+   OR      Onward Routing 
+   OSS     Operation Support System 
+   PCS     Personal Communication Services 
+   PNTI    Ported Number Translation Indicator 
+   PODP    Public Office Dialing Plan 
+   PUC     Public Utility Commission 
+   QoR     Query on Release 
+   RN      Routing Number 
+   RTP     Return to Pivot 
+   SCCP    Signaling Connection Control Part 
+   SCP     Service Control Point  
+   SIP     Session Initiation Protocol 
+   SMR     Special Mobile Radio 
+   SMS     Service Management System 
+   SPNP    Service Provider Number Portability 
+   SRF     Signaling Relaying Function 
+   SRI     Send Routing Information 
+   SS7     Signaling System Number 7 
+   STP     Signaling Transfer Point 
+   TCAP    Transaction Capabilities Application Part 
+   TDMA    Time Division Multiple Access 
+   TN      Telephone Number 
+   TRIP    Telephony Routing Information Protocol 
+   URL     Universal Resource Locator 
+   U.S.    United States 
+    
+    
+3. Types of Number Portability 
+    
+   As there are several types of E.164 numbers (telephone numbers, or 
+   just TN) in the GSTN, there are correspondingly several types of 
+   E.164 NP in the GSTN.  First there are so-call non-geographic E.164 
+   numbers, commonly used for service-specific applications such as 
+   freephone (800 or 0800).  Portability of these numbers is called 
+   non-geographic number portability (NGNP).  NGNP, for example, was 
+   deployed in the U.S. in 1986-92. 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 5] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+    
+   Geographic number portability, which includes traditional fixed or 
+   wireline numbers as well as mobile numbers which are allocated out 
+   of geographic number range prefixes, is called NP or GNP or in the 
+   U.S. local number portability (LNP). 
+    
+   Number portability allows the telephony subscribers in the Global 
+   Switched Telephone Network (GSTN) to keep their phone numbers when 
+   they change their service providers or subscribed services, or when 
+   they move to a new location.   
+    
+   The ability to change the service provider while keeping the same 
+   phone number is called service provider portability (SPNP) also 
+   known as "operator portability." 
+    
+   The ability to change the subscriberËs fixed service location while 
+   keeping the same phone number is called location portability. 
+    
+   The ability to change the subscribed services (e.g., from the plain 
+   old telephone service to Integrated Services Digital Network (ISDN) 
+   services) while keeping the same phone number is called service 
+   portability.  Another aspect of service portability is to allow the 
+   subscribers to enjoy the subscribed services in the same way when 
+   they roam outside their home networks as is supported by the 
+   cellular/wireless networks. 
+    
+   In addition, mobile number portability (MNP) refers to specific NP 
+   implementation in mobile networks either as part of a broader NP 
+   implementation in the GSTN or on a stand-alone basis.  Where 
+   interoperation of LNP and MNP is supported, service portability 
+   between fixed and mobile service types is possible. 
+    
+   At present, SPNP has been the primary form of NP deployed due to its 
+   relevance in enabling local service competition. 
+    
+   Also in use in the GSTN are the terms interim NP (INP) or Interim 
+   LNP (ILNP) and true NP.  Interim NP usually refers to the use of 
+   remote call forwarding-like measures to forward calls to ported 
+   numbers through the donor network to the new service network.  These 
+   are considered interim relative to true NP, which seeks to remove 
+   the donor network or old service provider from the call or signaling 
+   path altogether.  Often the distinction between interim and true NP 
+   is a national regulatory matter relative to the 
+   technical/operational requirements imposed on NP in that country. 
+    
+   Implementations of true NP in certain countries (e.g. U.S., Canada, 
+   Spain, Belgium, Denmark) may pose specific requirements for IP 
+   telephony implementations as a result of regulatory and industry 
+   requirements for providing call routing and signaling independent of 
+   the donor network or last previous serving network. 
+    
+    
+    
+    
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 6] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+ 
+4. Service Provider Number Portability Schemes 
+    
+   Four schemes can be used to support service provider portability and 
+   are briefly described below.  But first, some further terms are 
+   introduced. 
+    
+   The donor network is the network that first assigned a telephone 
+   number (e.g., TN +1-202-533-1234) to a subscriber, out of a number 
+   range administratively (e.g., +1 202-533) assigned to it.  The 
+   current service provider (new SP) or new serving network is the 
+   network that currently serves the ported number. The old serving 
+   network (or old SP) is the network that previously served the ported 
+   number before the number was ported to the new serving network. 
+   Since a TN can port a number of times, the old SP is not necessarily 
+   the same as the donor network, except for the first time the TN 
+   ports away, or if the TN ports back into the donor network and away 
+   again.  While the new SP and old SP roles are transitory as a TN 
+   ports around, the donor network is always the same for any 
+   particular TN based on the service provider to whom the subtending 
+   number range was administratively assigned.  See the discussion 
+   below on number pooling, as this enhancement to NP further 
+   bifurcates the role of donor network into two (the number range or 
+   code holder network, and the block holder network). 
+    
+   To simplify the illustration, all the transit networks are ignored, 
+   the originating or donor network is the one that performs the 
+   database queries or call redirection, and the dialed directory 
+   number (TN) has been ported out of the donor network before.  
+    
+   It is assumed that the old serving network, the new serving network 
+   and the donor network are different networks so as to show which 
+   networks are involved in call handling and routing and database 
+   queries in each of four schemes.  Please note that the port of the 
+   number (process of moving it from one network to another) happened 
+   prior to the call setup and is not included in the call steps.  
+   Information carried in the signaling messages to support each of the 
+   four schemes is not discussed to simplify the explanation. 
+    
+    
+4.1 All Call Query (ACQ) 
+    
+   Figure 1 shows the call steps for the ACQ scheme.  Those call steps 
+   are as follows: 
+ 
+   (1) The Originating Network receives a call from the caller and 
+       sends a query to a centrally administered Number Portability 
+       Database (NPDB), a copy of which is usually resident on a 
+       network element within its network or through a third party 
+       provider. 
+   (2) The NPDB returns the routing number associated with the dialed 
+       directory number.  The routing number is discussed later in 
+       Section 6. 
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 7] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   (3) The Originating Network uses the routing number to route the 
+       call to the new serving network. 
+    
+    
+   +-------------+              +-----------+    Number   +-----------+ 
+   | Centralized |              | New Serv. |    ported   | Old Serv. | 
+   |    NPDB     |    +-------->|  Network  |<------------|  Network  | 
+   +-------------+    |         +-----------+             +-----------+ 
+       ^  |           | 
+       |  |           | 
+      1|  |         3.| 
+       |  | 2.        | 
+       |  |           | 
+       |  v           | 
+    +----------+      |         +----------+           +----------+ 
+    |   Orig.  |------+         |   Donor  |           | Internal | 
+    |  Network |                |  Network |           |   NPDB   | 
+    +----------+                +----------+           +----------+ 
+    
+    
+              Figure 1 - All Call Query (ACQ) Scheme. 
+ 
+ 
+4.2 Query on Release (QoR) 
+ 
+  Figure 2 shows the call steps for the QoR scheme.  Those call steps 
+  are as follows: 
+    
+    
+   +-------------+              +-----------+    Number   +-----------+ 
+   | Centralized |              | New Serv. |    ported   | Old Serv. | 
+   |    NPDB     |              |  Network  |<------------|  Network  | 
+   +-------------+              +-----------+             +-----------+ 
+       ^  |                          ^ 
+       |  | 4.                       | 
+     3.|  |              5.          | 
+       |  |   +----------------------+ 
+       |  |   | 
+       |  v   | 
+    +----------+      2.        +----------+           +----------+ 
+    |   Orig.  |<---------------|   Donor  |           | Internal | 
+    |  Network |--------------->|  Network |           |   NPDB   | 
+    +----------+      1.        +----------+           +----------+ 
+    
+                   
+                Figure 2 - Query on Release (QoR) Scheme. 
+    
+   (1) The Originating Network receives a call from the caller and 
+       routes the call to the donor network. 
+   (2) The donor network releases the call and indicates that the 
+       dialed directory number has been ported out of that switch. 
+   (3) The Originating Network sends a query to its copy of the 
+       centrally administered NPDB. 
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 8] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   (4) The NPDB returns the routing number associated with the dialed 
+       directory number.   
+   (5) The Originating Network uses the routing number to route the 
+       call to the new serving network. 
+    
+    
+4.3 Call Dropback 
+    
+  Figure 3 shows the call steps for the Dropback scheme.  This scheme 
+  is also known as "Return to Pivot (RTP)."  Those call steps are as 
+  follows: 
+    
+   (1) The Originating Network receives a call from the caller and 
+       routes the call to the donor network. 
+   (2) The donor network detects that the dialed directory number has 
+       been ported out of the donor switch and checks with an internal 
+       network-specific NPDB.  
+   (3) The internal NPDB returns the routing number associated with the 
+       dialed directory number. 
+   (4) The donor network releases the call by providing the routing 
+       number. 
+   (5) The Originating Network uses the routing number to route the 
+       call to the new serving network. 
+    
+   +-------------+              +-----------+    Number   +-----------+ 
+   | Centralized |              | New Serv. |    porting  | Old Serv. | 
+   |    NPDB     |              |  Network  |<------------|  Network  | 
+   +-------------+              +-----------+             +-----------+ 
+                                    /\ 
+                                     | 
+                           5.        | 
+            +------------------------+ 
+            | 
+            | 
+    +----------+       4.       +----------+     3.    +----------+ 
+    |   Orig.  |<---------------|   Donor  |<----------| Internal | 
+    |  Network |--------------->|  Network |---------->|   NPDB   | 
+    +----------+      1.        +----------+    2.     +----------+ 
+    
+                   
+                      Figure 3 - Dropback Scheme. 
+    
+    
+4.4 Onward Routing (OR) 
+    
+  Figure 4 shows the call steps for the OR scheme.  Those call steps 
+  are as follows: 
+    
+   (1) The Originating Network receives a call from the caller and 
+       routes the call to the donor network. 
+   (2) The donor network detects that the dialed directory number has 
+       been ported out of the donor switch and checks with an internal 
+       network-specific NPDB.  
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 9] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   (3) The internal NPDB returns the routing number associated with the 
+       dialed directory number. 
+   (4) The donor network uses the routing number to route the call to 
+       the new serving network. 
+ 
+    
+   +-------------+              +-----------+    Number   +-----------+ 
+   | Centralized |              | New Serv. |    porting  | Old Serv. | 
+   |    NPDB     |              |  Network  |<------------|  Network  | 
+   +-------------+              +-----------+             +-----------+ 
+                                    /\ 
+                                     | 
+                                   4.| 
+                                     | 
+    +----------+                +----------+     3.    +----------+ 
+    |   Orig.  |                |   Donor  |<----------| Internal | 
+    |  Network |--------------->|  Network |---------->|   NPDB   | 
+    +----------+      1.        +----------+    2.     +----------+ 
+    
+                   
+                 Figure 4 - Onward Routing (OR) Scheme. 
+ 
+4.5 Comparisons of the Four Schemes 
+    
+   Only the ACQ scheme does not involve the donor network when routing 
+   the call to the new serving network of the dialed ported number.  
+   The other three schemes involve call setup to or signaling with the 
+   donor network.   
+    
+   Only the OR scheme requires the setup of two physical call segments, 
+   one from the Originating Network to the donor network and the other 
+   from the donor network to the new serving network.  The OR scheme is 
+   the least efficient in terms of using the network transmission 
+   facilities.  The QoR and Dropback schemes set up calls to the donor 
+   network first but release the call back to the Originating Network 
+   that then initiates a new call to the Current Serving Network.  For 
+   the QoR and Dropback schemes, circuits are still reserved one by one 
+   between the Originating Network and the donor network when the 
+   Originating Network sets up the call towards the donor network.  
+   Those circuits are released one by one when the call is released 
+   from the donor network back to the Originating Network.  The ACQ 
+   scheme is the most efficient in terms of using the switching and 
+   transmission facilities for the call. 
+    
+   Both the ACQ and QoR schemes involve Centralized NPDBs for the 
+   Originating Network to retrieve the routing information.  
+   Centralized NPDB means that the NPDB contains ported number 
+   information from multiple networks.  This is in contrast to the 
+   internal network-specific NPDB that is used for the Dropback and OR 
+   schemes.  The internal NPDB only contains information about the 
+   numbers that were ported out of the donor network.  The internal 
+   NPDB can be a stand-alone database that contains information about 
+   all or some ported-out numbers from the donor network.  It can also 
+   reside on the donor switch and only contains information about those 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 10] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   numbers ported out of the donor switch.  In that case, no query to a 
+   stand-alone internal NPDB is required.  The donor switch for a 
+   particular phone number is the switch to which the number range is 
+   assigned from which that phone number was originally assigned. 
+    
+   For example, number ranges in the North American Numbering Plan 
+   (NANP) are usually assigned in the form of central office codes (CO 
+   codes) comprising a six-digit prefix formatted as a NPA+NXX.  Thus a 
+   switch serving +1-202-533 would typically serve +1-202-533-0000 
+   through +1-202-533-9999. In major cities, switches usually host 
+   several CO codes.  NPA stands for Numbering Plan Area that is also 
+   known as the area code.  It is three-digit long and has the format 
+   of NXX where N is any digit from 2 to 9 and X is any digit from 0 to 
+   9.  NXX in the NPA+NXX format is known as the office code that has 
+   the same format as the NPA.  When a NPA+NXX code is set as 
+   Ÿportable÷ in the Local Exchange Routing Guide (LERG), it becomes a 
+   "portable NPA+NXX" code. 
+    
+   Similarly, in other national E.164 numbering plans, number ranges 
+   cover a contiguous range of numbers within that range.  Once a 
+   number within that range has ported away from the donor network, all 
+   numbers in that range are considered potentially ported and should 
+   be queried in the NPDB. 
+    
+   The ACQ scheme has two versions.  One version is for the Originating 
+   Network to always query the NPDB when a call is received from the 
+   caller regardless whether the dialed directory number belongs to any 
+   number range that is portable or has at least one number ported out. 
+   The other version is to check whether the dialed directory number 
+   belongs to any number range that is portable or has at least one 
+   number ported out.  If yes, an NPDB query is sent. If not, no NPDB 
+   query is sent.  The former performs better when there are many 
+   portable number ranges.  The latter performs better when there are 
+   not too many portable number ranges at the expense of checking every 
+   call to see whether NPDB query is needed.  The latter ACQ scheme is 
+   similar to the QoR scheme except that the QoR scheme uses call setup 
+   and relies on the donor network to indicate "number ported out" 
+   before launching the NPDB query. 
+    
+    
+5. Database Queries in the NP Environment 
+    
+   As indicated earlier, the ACQ and QoR schemes require that a switch 
+   query the NPDB for routing information.  Various standards have been 
+   defined for the switch-to-NPDB interface.  Those interfaces with 
+   their protocol stacks are briefly described below.  The term "NPDB" 
+   is used for a stand-alone database that may support just one or some 
+   or all of the interfaces mentioned below.  The NPDB query contains 
+   the dialed directory number and the NPDB response contains the 
+   routing number.  There are certainly other information that is sent 
+   in the query and response.  The primary interest is to get the 
+   routing number from the NPDB to the switch for call routing. 
+    
+    
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 11] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+5.1 U.S. and Canada 
+    
+   One of the following five NPDB interfaces can be used to query an 
+   NPDB: 
+    
+   (a) Advanced Intelligent Network (AIN) using the American National 
+       Standards Institute (ANSI)  version of the Intelligent Network 
+       Application Part (INAP) [ANSI SS] [ANSI DB].  The INAP is 
+       carried on top of the protocol stack that includes the (ANSI) 
+       Message Transfer Part (MTP) Levels 1 through 3, ANSI Signaling 
+       Connection Control Part (SCCP), and ANSI Transaction 
+       Capabilities Application Part (TCAP).  This interface can be 
+       used by the wireline or wireless switches, is specific to the NP 
+       implementation in North America, and is modeled on the Public 
+       Office Dialing Plan (PODP) trigger defined in the Advanced 
+       Intelligent Network (AIN) 0.1 call model.  
+    
+   (b) Intelligent Network (IN), which is similar to the one used for 
+       querying the 800 databases.  The IN protocol is carried on top 
+       of the protocol stack that includes the ANSI MTP Levels 1 
+       through 3, ANSI SCCP, and ANSI TCAP.  This interface can be used 
+       by the wireline or wireless switches. 
+    
+   (c) ANSI IS-41 [IS41] [ISNP], which is carried on top of the 
+       protocol stack that includes the ANSI MTP Levels 1 through 3, 
+       ANSI SCCP, and ANSI TCAP.  This interface can be used by the IS-
+       41 based cellular/Personal Communication Services (PCS) wireless 
+       switches (e.g., AMPS, TDMA and CDMA).  Cellular systems use 
+       spectrum at 800 MHz range and PCS systems use spectrum at 1900 
+       MHz range. 
+    
+   (d) Global System for Mobile Communication Mobile Application Part 
+       (GSM MAP) [GSM], which is carried on top of the protocol stack 
+       that includes the ANSI MTP Levels 1 through 3, ANSI SCCP, and 
+       International Telecommunication Union - Telecommunication Sector  
+       (ITU-TS) TCAP.  It can be used by the PCS1900 wireless switches 
+       that are based on the GSM technologies.  GSM is a series of 
+       wireless standards defined by the European Telecommunications 
+       Standards Institute (ETSI). 
+    
+   (e) ISUP triggerless translation.  NP translations are performed 
+       transparently to the switching network by the signaling network 
+       (e.g. Signaling Transfer Points (STPs) or signaling gateways).  
+       ISUP IAM messages are examined to determine if the CdPN field 
+       has already been translated, and if not, an NPDB query is 
+       performed, and the appropriate parameters in the IAM message 
+       modified to reflect the results of the translation.   The 
+       modified IAM message is forwarded by the signaling node on to 
+       the designated DPC in a transparent manner to continue call 
+       setup.  The NPDB can be integrated with the signaling node or be 
+       accessed via an API locally or by a query to a remote NPDB using 
+       a proprietary protocol or the schemes described above. 
+    
+    
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 12] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   Wireline switches have the choice of using either (a), (b), or (e).  
+   IS-41 based wireless switches have the choice of using (a), (b), 
+   (c), or (e).  PCS1900 wireless switches have the choice of using 
+   (a), (b), (d), or (e). In the United States, service provider 
+   portability will be supported by both the wireline and wireless 
+   systems, not only within the wireline or wireless domain but also 
+   across the wireline/wireless boundary.  However, this is not true in 
+   Europe where service provider portability is usually supported only 
+   within the wireline or wireless domain, not across the 
+   wireline/wireless boundary due to explicit use of service-specific 
+   number range prefixes.  The reason is to avoid caller confusion 
+   about the call charge. GSM systems in Europe are assigned 
+   distinctive destination network codes, and the caller pays a higher 
+   charge when calling a GSM directory number. 
+    
+      
+5.2 Europe 
+    
+   One of the following two interfaces can be used to query an NPDB: 
+    
+   (a) Capability Set 1 (CS1) of the ITU-TS INAP [CS1], which is 
+       carried on top of the protocol stack that includes the ITU-TS 
+       MTP Levels 1 through 3, ITU-TS SCCP, and ITU-TS TCAP. 
+    
+   (b) Capability Set 2 (CS2) of the ITU-TS INAP [CS2], which is 
+       carried on top of the protocol stack that includes the ITU-TS 
+       MTP Levels 1 through ITU-TS MTP Levels 1 through 3, ITU-TS SCCP, 
+       and ITU-TS TCAP. 
+    
+   Wireline switches have the choice of using either (a) or (b); 
+   however, all the implementations in Europe so far are based on CS1.  
+   As indicated earlier that number portability in Europe does not go 
+   across the wireline/wireless boundary.  The wireless switches can 
+   also use (a) or (b) to query the NPDBs if those NPDBs contains 
+   ported wireless directory numbers.  The term "Mobile Number 
+   Portability (MNP)" is used for the support of service provider 
+   portability by the GSM networks in Europe.  
+    
+   In most, if not all, cases in Europe, the calls to the wireless 
+   directory numbers are routed to the wireless donor network first.  
+   Over there, an internal NPDB is queried to determine whether the 
+   dialed wireless directory number has been ported out or not.  In 
+   this case, the interface to the internal NPDB is not subject to 
+   standardization. 
+
+   MNP in Europe can also be supported via MNP Signaling Relay Function 
+   (MNP-SRF).  Again, an internal NPDB or a database integrated at the 
+   MNP-SRF is used to modify the SCCP Called Party Address parameter in 
+   the GSM MAP messages so that they can be re-directed to the wireless 
+   serving network.   Call routing involving MNP will be explained in 
+   Section 6.2. 
+    
+    
+    
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 13] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+6. Call Routing in the NP Environment 
+ 
+   This section discusses the call routing after the routing 
+   information has been retrieved either through an NPDB query or an 
+   internal database lookup at the donor switch, or from the Integrated 
+   Services Digital Network User Part (ISUP) signaling message (e.g., 
+   for the Dropback scheme).  For the ACQ, QoR and Dropback schemes, it 
+   is the Originating Network that has the routing information and is 
+   ready to route the call.  For the OR scheme, it is the donor network 
+   that has the routing information and is ready to route the call.   
+    
+   A number of triggering schemes may be employed that determine where 
+   in the call path the NPDB query is performed.  In the U.S. an ŸN-1÷ 
+   policy is used, which essentially says that for domestic calls, the 
+   originating local carriers performs the query, otherwise, the long 
+   distance carrier is expected to.  To ensure independence of the 
+   actual trigger policy employed in any one carrier, forward call 
+   signaling is used to flag that an NPDB query has already been 
+   performed and to therefore suppress any subsequent NP triggers that 
+   may be encountered in downstream switches, in downstream networks.  
+   This allows the earliest able network in the call path to perform 
+   the query without introducing additional costs and call setup delays 
+   were redundant queries performed downstream. 
+    
+     
+6.1 U.S. and Canada 
+    
+   In the U.S. and Canada, a ten-digit North American Numbering Plan 
+   (NANP) number called Location Routing Number (LRN) is assigned to 
+   every switch involved in NP.  In the NANP, a switch is not reachable 
+   unless it has a unique number range (CO code) assigned to it.  
+   Consequently, the LRN for a switch is always assigned out of a CO 
+   code that is assigned to that switch. 
+    
+   The LRN assigned to a switch currently serving a particular ported 
+   telephone number is returned as the network routing address in the 
+   NPDB response.  The service portability scheme that was adopted in 
+   the North America is very often referred to as the LRN scheme or 
+   method. 
+    
+   LRN serves as a network address for terminating calls served off 
+   that switch using ported numbers.  The LRN is assigned by the switch 
+   operator using any of the unique CO codes (NPA+NXX) assigned to that 
+   switch.  The LRN is considered a non-dialable address, as the same 
+   10-digit number value may be assigned to a line on that switch.  A 
+   switch may have more than one LRN. 
+    
+   During call routing/processing, a switch performs an NPDB query to 
+   obtain the LRN associated with the dialed directory number. NPDB 
+   queries are performed for all the dialed directory numbers whose 
+   NPA+NXX codes are marked as portable NPA+NXX at that switch. When 
+   formulating the ISUP Initial Address Message (IAM) to be sent to the 
+   next switch, the switch puts the ten-digit LRN in the ISUP Called 
+   Party Number (CdPN) parameter and the originally dialed directory 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 14] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   number in the ISUP Generic Address parameter (GAP).  A new code in 
+   the GAP was defined to indicate that the address information in the 
+   GAP is the dialed directory number. A new bit in the ISUP Forward 
+   Call Indicator (FCI) parameter, the Ported Number Translation 
+   Indicator (PNTI) bit, is set to imply that NPDB query has already 
+   been performed.  All the switches in the downstream will not perform 
+   the NPDB query if the PNTI bit is set. 
+    
+   When the terminating switch receives the IAM and sees the PNTI bit 
+   in the FCI parameter set and its own LRN in the CdPN parameter, it 
+   retrieves the originally dialed directory number from the GAP and 
+   uses the dialed directory number to terminate the call. 
+    
+   A dialed directory number with a portable NPA+NXX does not imply 
+   that directory number has been ported.  The NPDBs currently do not 
+   store records for non-ported directory numbers.  In that case, the 
+   NPDB will return the same dialed directory number instead of the 
+   LRN.  The switch will then set the PNTI bit but keep the dialed 
+   directory number in the CdPN parameter. 
+    
+   In the real world environment, the Originating Network is not always 
+   the one that performs the NPDB query.  For example, it is usually 
+   the long distance carriers that query the NPDBs for long distance 
+   calls.  In that case, the Originating Network operated by the local 
+   exchange carrier (LEC) simply routes the call to the long distance 
+   carrier that is to handle that call.   A wireless network acting as 
+   the Originating Network can also route the call to the 
+   interconnected local exchange carrier network if it does not want to 
+   support the NPDB interface at its mobile switches. 
+    
+    
+6.2 Europe 
+    
+   In some European countries, a routing number is prefixed to the 
+   dialed directory number.  The ISUP CdPN parameter in the IAM will 
+   contain the routing prefix and the dialed directory number.  For 
+   example, United Kingdom uses routing prefixes with the format of 
+   5XXXXX and Italy uses C600XXXXX as the routing prefix.  The networks 
+   use the information in the ISUP CdPN parameter to route the call to 
+   the New/Current Serving Network. 
+    
+   The routing prefix can identify the Current Serving Network or the 
+   Current Serving Switch of a ported number.  For the former case, 
+   another query to the "internal" NPDB at the Current Serving Network 
+   is required to identify the Current Serving Switch before routing 
+   the call to that switch.  This shields the Current Serving Switch 
+   information for a ported number from the other networks at the 
+   expense of an additional NPDB query.  Another routing number, may be 
+   meaningful within the Current Serving Network, will replace the 
+   previously prefixed routing number in the ISUP CdPN parameter.  For 
+   the latter case, the call is routed to the Current Serving Switch 
+   without an additional NPDB query. 
+    
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 15] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   When the terminating switch receives the IAM and sees its own 
+   routing prefix in the CdPN parameter, it retrieves the originally 
+   dialed directory number after the routing prefix, and uses the 
+   dialed directory number to terminate the call.  
+    
+   The call routing example described above shows one of the three 
+   methods that can be used to transport the Directory Number (DN) and 
+   the Routing Number (RN) in the ISUP IAM message.  In addition, some 
+   other information may be added/modified as is listed in the ETSI 302 
+   097 document [ETSIISUP], which is based on the ITU-T Recommendation 
+   Q.769.1 [ITUISUP].  The three methods and the enhancements in the 
+   ISUP to support number portability are briefly described below 
+    
+   (a) Two separate parameters with the CdPN parameter containing the 
+      RN and a new Called Directory Number (CdDN) parameter containing 
+      the DN.  A new value for the Nature of Address (NOA) indicator in 
+      the CdPN parameter is defined to indicate that the RN is in the 
+      CdPN parameter.  The switches use the CdPN parameter to route the 
+      call as is done today. 
+    
+   (b) Two separate parameters with the CdPN parameter containing the 
+      DN and a new Network Routing Number (NRN) parameter containing 
+      the RN.  This method requires that the switches use the NRN 
+      parameter to route the call. 
+    
+   (c) Concatenated parameter with the CdPN parameter containing the RN 
+      plus the DN.  A new Nature of Address (NOA) indicator in the CdPN 
+      parameter is defined to indicate that the RN is concatenated with 
+      the DN in the CdPN parameter.  Some countries may not use new NOA 
+      value because the routing prefix does not overlap with the dialed 
+      directory numbers.  But if the routing prefix overlaps with the 
+      dialed directory numbers, a new NOA value must be assigned.  For 
+      example, Spain uses "XXXXXX" as the routing prefix to identify 
+      the new serving network and uses a new NOA value of 126. 
+    
+   There is also a network option to add a new ISUP parameter called 
+   Number Portability Forwarding Information parameter.  This parameter 
+   has a four-bit Number Portability Status Indicator field that can 
+   provide an indication whether number portability query is done for 
+   the called directory number and whether the called directory number 
+   is ported or not if the number portability query is done. 
+ 
+   Please note that all those NP enhancements for a ported number can 
+   only be used in the country that defined them.  This is because 
+   number portability is supported within a nation.  Within each 
+   nation, the telecommunications industry or the regulatory bodies can 
+   decide which method or methods to use.  Number portability related 
+   parameters and coding are usually not passed across the national 
+   boundaries unless the interconnection agreements allow that.  For 
+   example, a UK routing prefix can only be used in UK, and would cause 
+   routing problem if it appears outside UK. 
+    
+
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 16] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   As indicated earlier, an originating wireless network can query the 
+   NPDB and concatenate the RN with DN in the CdPN parameter and route 
+   the call directly to the Current Serving Network.   
+    
+   If NPDBs do not contain information about the wireless directory 
+   numbers, the call, originated from either a wireline or a wireless 
+   network, will be routed to the Wireless donor network.  Over there, 
+   an internal NPDB is queried to retrieve the RN that then is 
+   concatenated with the DN in the CdPN parameter. 
+    
+   There are several ways of realizing MNP.  When MNP-SRF is supported, 
+   the Gateway Mobile Services Switching Center (GMSC) at the wireless 
+   donor network, when receiving a call from the wireline network, can 
+   send the GSM MAP Send Routing Information (SRI) message to the MNP-
+   SRF.  The MNP-SRF interrogates an internal or integrated NPDB for 
+   the RN of the MNP-SRF of the wireless Current Serving Network and 
+   prefixes the RN to the dialed wireless directory number in the 
+   global title address information in the SCCP Called Party Address 
+   (CdPA) parameter.  This SRI message will be routed to the MNP-SRF of 
+   the wireless Current Serving Network, which then responds with an 
+   acknowledgement by providing the RN plus the dialed wireless 
+   directory number as the Mobile Station Roaming Number (MSRN).  The 
+   GMSC of the wireless donor network formulates the ISUP IAM with the 
+   RN plus the dialed wireless directory number in the CdPN parameter 
+   and routes the call to the wireless Current Serving Network.  A GMSC 
+   of the wireless Current Serving Network receives the call and sends 
+   an SRI message to the associated MNP-SRF where the global title 
+   address information of the SCCP CdPA parameter contains only the 
+   dialed wireless directory number.  The MNP-SRF then replaces the 
+   global title address information in the SCCP CdPA parameter with the 
+   address information associated with a Home Location Register (HLR) 
+   that hosts the dialed wireless directory number and forwards the 
+   message to that HLR after verifying that the dialed wireless 
+   directory number is a ported-in number.   The HLR then returns an 
+   acknowledgement by providing an MSRN for the GMSC to route the call 
+   to the MSC that currently serves the mobile station that is 
+   associated with the dialed wireless directory number.  Please see 
+   [MNP] for details and additional scenarios. 
+    
+    
+7. NP Implementations for Geographic E.164 Numbers 
+ 
+   This section shows the known SPNP implementations worldwide.  
+    
+   +-------------+----------------------------------------------------+ 
+   +   Country   +             SPNP Implementation                    + 
+   +-------------+----------------------------------------------------+ 
+   +  Argentina  + Analyzing operative viability now. Will determine  + 
+   +             + whether portability should be made obligatory      + 
+   +             + after a technical solution has been determined.    + 
+   +-------------+----------------------------------------------------+ 
+   +  Australia  + NP supported by wireline operators since 11/30/99. + 
+   +             + NP among wireless operators in March/April 2000,   + 
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 17] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   +             + but may be delayed to 1Q01. The access provider    + 
+   +             + or long distance provider has the obligation to    + 
+   +             + route the call to the correct destination. The     + 
+   +             + donor network is obligated to maintain and make    + 
+   +             + available a register of numbers ported away from   +  
+   +             + its network.  Telstra uses onward routing via an   + 
+   +             + on-switch solution.                                + 
+   +-------------+----------------------------------------------------+ 
+   +   Austria   + Uses onward routing at the donor network.  Routing + 
+   +             + prefix is "86xx" where "xx" identifies the         + 
+   +             + recipient network.                                 + 
+   +-------------+----------------------------------------------------+ 
+   +  Belgium    + ACQ selected by the industry. Routing prefix is    + 
+   +             + "Cxxxx" where "xxxx" identifies the recipient      + 
+   +             + switch. Another routing prefix is "C00xx" with "xx"+ 
+   +             + identifying the recipient network.  Plan to use NOA+ 
+   +             + to identify concatenated numbers and abandon the   + 
+   +             + hexadecimal routing prefix.                        + 
+   +-------------+----------------------------------------------------+ 
+   +  Brazil     + Considering NP for wireless users.                 + 
+   +-------------+----------------------------------------------------+ 
+   +  Chile      + There has been discussions lately on NP.           + 
+   +-------------+----------------------------------------------------+ 
+   +  Colombia   + There was an Article 3.1 on NP to support NP prior + 
+   +             + to December 31, 1999 when NP became technically    + 
+   +             + possible. Regulator has not yet issued regulations + 
+   +             + concerning this matter.                            + 
+   +-------------+----------------------------------------------------+ 
+   +  Denmark    + Uses ACQ. Routing number not passed between        + 
+   +             + operators; however, NOA is set to "112" to         + 
+   +             + indicate "ported number."  QoR can be used based   + 
+   +             + on bilateral agreements.                           +        
+   +-------------+----------------------------------------------------+ 
+   +  Finland    + Uses ACQ.  Routing prefix is "1Dxxy" where "xxy"   + 
+   +             + identifies the recipient network and service type. + 
+   +-------------+----------------------------------------------------+ 
+   +  France     + Uses onward routing.  Routing prefix is "Z0xxx"    + 
+   +             + where "xxx" identifies the recipient switch.       + 
+   +-------------+----------------------------------------------------+ 
+   +  Germany    + The originating network needs to do necessary      + 
+   +             + rerouting.  Operators decide their own solution(s).+ 
+   +             + Deutsche Telekom uses ACQ.  Routing prefix is      + 
+   +             + "Dxxx" where "xxx" identifies the recipient        + 
+   +             + network.                                           + 
+   +-------------+----------------------------------------------------+ 
+   +  Hong Kong  + Recipient network informs other networks about     + 
+   +             + ported-in numbers.  Routing prefix is "14x" where  + 
+   +             + "14x" identifies the recipient network, or a       + 
+   +             + routing number of "4x" plus 7 or 8 digits is used  +  
+   +             + where "4x" identifies the recipient network and    + 
+   +             + the rest of digits identify the called party.      + 
+   +-------------+----------------------------------------------------+ 
+   +  Ireland    + Operators choose their own solution but use onward + 
+   +             + routing now. Routing prefix is "1750" as the intra-+ 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 18] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   +             + network routing code (network-specific) and        + 
+   +             + "1752xxx" to "1759xxx" for GNP where "xxx"         + 
+   +             + identifies the recipient switch.                   + 
+   +-------------+----------------------------------------------------+ 
+   +  Italy      + Uses onward routing. Routing prefix is "C600xxxxx" + 
+   +             + where "xxxxx" identifies the recipient switch.     + 
+   +             + Telecom Italia uses IN solution and other operators+              
+   +             + use on-switch solution.                            + 
+   +-------------+----------------------------------------------------+ 
+   +  Japan      + Uses onward routing.  Donor switch uses IN to get  + 
+   +             + routing number.                                    + 
+   +-------------+----------------------------------------------------+ 
+   +  Mexico     + NP is considered in the Telecom law; however, the  + 
+   +             + regulator (Cofetel) or the new local entrants have + 
+   +             + started no initiatives on this process.            + 
+   +-------------+----------------------------------------------------+ 
+   + Netherlands + Operators decide NP scheme to use.  Operators have + 
+   +             + chosen ACQ or QoR.  KPN implemented IN solution    + 
+   +             + similar to U.S. solution.  Routing prefix is not   + 
+   +             + passed between operators.                          + 
+   +-------------+----------------------------------------------------+ 
+   +  Norway     + OR for short-term and ACQ for long-term.  QoR is   + 
+   +             + optional. Routing prefix can be "xxx" with NOA=8,  + 
+   +             + or "142xx" with NOA=3 where "xxx" or "xx"          + 
+   +             + identifies the recipient network.                  + 
+   +------------ +----------------------------------------------------+ 
+   +  Peru       + Wireline NP may be supported in 2001.              + 
+   +-------------+----------------------------------------------------+ 
+   +  Portugal   + No NP today.                                       + 
+   +-------------+----------------------------------------------------+ 
+   +  Spain      + Uses ACQ.  Telefonica uses QoR within its network. + 
+   +             + Routing prefix is  "xxyyzz" where "xxyyzz"         + 
+   +             + identifies the recipient network.  NOA is set to   + 
+   +             + 126.                                               + 
+   +-------------+----------------------------------------------------+ 
+   +  Sweden     + Standardized the ACQ but OR for operators without  + 
+   +             + IN. Routing prefix is "xxx" with NOA=8 or "394xxx" + 
+   +             + with NOA=3 where "xxx" identifies the recipient    + 
+   +             + network. But operators decide NP scheme to use.    + 
+   +             + Telia uses onward routing between operators.       + 
+   +-------------+----------------------------------------------------+ 
+   + Switzerland + Uses OR now and QoR in 2001.  Routing prefix is    + 
+   +             + "980xxx" where "xxx" identifies the recipient      +        
+   +             + network.                                           + 
+   +-------------+----------------------------------------------------+ 
+   +  UK         + Uses onward routing. Routing prefix is "5xxxxx"    + 
+   +             + where "xxxxx" identifies the recipient switch. NOA + 
+   +             + is 126. BT uses the dropback scheme in some parts  + 
+   +             + of its network.                                    + 
+   +-------------+----------------------------------------------------+ 
+   +  US         + Uses ACQ.  "Location Routing Number (LRN)" is used + 
+   +             + in the Called Party Number parameter.  Called party+ 
+   +             + number is carried in the Generic Address Parameter + 
+   +             + Use a PNTI indicator in the Forward Call Indicator + 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 19] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   +             + parameter to indicate that NPDB dip has been       + 
+   +             + performed.                                         + 
+   +-------------+----------------------------------------------------+ 
+    
+    
+8. Number Conservation Methods Enabled by NP 
+ 
+   In addition to porting numbers NP provides the ability for number 
+   administrators to assign numbering resources to operators in smaller 
+   increments.  Today it is common for numbering resources to be 
+   assigned to telephone operators in a large block of consecutive 
+   telephone numbers (TNs).  For example, in North America each of 
+   these blocks contains 10,000 TNs and is of the format NXX+0000 to 
+   NXX+9999.  Operators are assigned a specific NXX, or block.  That 
+   operator is referred to as the block holder.  In that block there 
+   are 10,000 TNs with line numbers ranging from 0000 to 9999.   
+    
+   Instead of assigning an entire block to the operator NP allows the 
+   administrator to assign a sub-block or even an individual telephone 
+   number.  This is referred to as block pooling and individual 
+   telephone number (ITN) pooling, respectively.  
+     
+    
+8.1 Block Pooling 
+    
+   Block Pooling refers to the process whereby the number administrator 
+   assigns a range of numbers defined by a logical sub-block of the 
+   existing block.  Using North America as an example, block pooling 
+   would allow the administrator to assign sub-blocks of 1,000 TNs to 
+   multiple operators.  That is, NXX+0000 to NXX+0999 can be assigned 
+   to operator A, NXX+1000 to NXX+1999 can be assigned to operator B, 
+   NXX-2000 to 2999 can be assigned to operator C, etc.  In this 
+   example block pooling divides one block of 10,000 TNs into ten 
+   blocks of 1,000 TNs.   
+    
+   Porting the sub-blocks from the block holder enables block pooling.  
+   Using the example above operator A is the block holder, as well as, 
+   the holder of the first sub-block, NXX+0000 to NXX+0999.  The second 
+   sub-block, NXX+1000 to NXX+1999, is ported from operator A to 
+   operator B.  The third sub-block, NXX+2000 to NXX+2999, is ported 
+   from operator A to operator C, and so on.  NP administrative 
+   processes and call processing will enable proper and efficient 
+   routing.   
+    
+   From a number administration and NP administration perspective block 
+   pooling introduces a new concept, that of the sub-block holder.  
+   Block pooling requires coordination between the number 
+   administrator, the NP administrator, the block holder, and the sub-
+   block holder.  Block pooling must be implemented in a manner that 
+   allows for NP within the sub-blocks.  Each TN can have a different 
+   serving operator, sub-block holder, and block holder. 
+      
+    
+    
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 20] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+8.2 ITN Pooling 
+    
+   ITN pooling refers to the process whereby the number administrator 
+   assigns individual telephone numbers to operators.  Using the North 
+   American example, one block of 10,000 TNs can be divided into 10,000 
+   ITNs.  ITN is more commonly deployed in freephone services.   
+    
+   In ITN the block is not assigned to an operator but to a central 
+   administrator.  The administrator then assigns ITNs to operators.  
+   NP administrative processes and call processing will enable proper 
+   and efficient routing. 
+    
+ 
+9. Potential Implications 
+    
+   There are three general areas of impact to IP telephony work-in-
+   progress at IETF: 
+    
+   - Interoperation between NP in GSTN and IP telephony 
+   - NP implementation or emulation in IP telephony 
+   - Interconnection to NP administrative environment 
+    
+   A good understanding of how number portability is supported in the 
+   GSTN is important when addressing the interworking issues between 
+   IP-based networks and the GSTN.  This is especially important when 
+   the IP-based network needs to route the calls to the GSTN.  As shown 
+   in Section 5, there are a variety of standards with various protocol 
+   stacks for the switch-to-NPDB interface.  Not only that, the 
+   national variations of the protocol standards make it very 
+   complicated to deal with in a global environment.  If an entity in 
+   the IP-based network needs to query those existing NPDBs for routing 
+   number information to terminate the calls to the destination GSTN, 
+   it would be impractical, if not an impossible, job for that entity 
+   to support all those interface standards to access the NPDBs in many 
+   countries. 
+    
+   Several alternatives may address this particular problem.  One 
+   alternative is to use certain entities in the IP-based networks for 
+   dealing with NP query, similar to the International Switches that 
+   are used in the GSTN to interwork different national ISUP 
+   variations.  This will force signaling information associated with 
+   the calls to certain NP-capable networks in the terminating GSTN to 
+   be routed to those IP entities that support the NP functions.  Those 
+   IP entities then query the NPDBs in the terminating country.   This 
+   will limit the number of NPDB interfaces that certain IP entities 
+   need to support.  Another alternative can be to define a "common" 
+   interface to be supported by all the NPDBs so that all the IP 
+   entities use that standardized protocol to query them.   The 
+   existing NPDBs can support this additional interface, or new NPDBs 
+   can be deployed that contain the same information but support the 
+   common IP interface. The candidates for such a common interface 
+   include Lightweight Directory Access Protocol (LDAP) and SIP 
+   [SIP](e.g., using the SIP redirection capability).  Certainly 
+
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 21] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   another possibility is to use interworking function to convert from 
+   one protocol to another. 
+    
+   IP-based networks can handle the domestic calls between two GSTNs.  
+   If the originating GSTN has performed NPDB query, SIP will need to 
+   transport and make use of some of the ISUP signaling information 
+   even if ISUP signaling may be encapsulated in SIP.  Also, IP-based 
+   networks may perform the NPDB queries, as the N-1 carrier.  In that 
+   case, SIP also needs to transport the NP related information while 
+   the call is being routed to the destination GSTN.  There are three 
+   pieces of NP related information that SIP needs to transport.  They 
+   are 1) the called directory number, 2) a routing number, and 3) a 
+   NPDB dip indicator.  The NPDB dip indicator is needed so that the 
+   terminating GSTN will not perform another NPDB dip.  The routing 
+   number is needed so that it is used to route the call to the 
+   destination network or switch in the destination GSTN.  The called 
+   directory number is needed so that the terminating GSTN switch can 
+   terminate the call.  When the routing number is present, the NPDB 
+   dip indicator may not be present because there are cases where 
+   routing number is added for routing the call even if NP is not 
+   involved.  One issue is how to transport the NP related information 
+   via SIP.  The SIP Universal Resource Locator (URL) is one mechanism.  
+   Another better choice may be to add an extension to the "tel" URL 
+   [TEL] that is also supported by SIP.  Please see [TELNP] for the 
+   proposed extensions to the "tel" URL to support NP and freephone 
+   service.  Those extensions to the "tel" URL will be automatically 
+   supported by SIP because they can be carried as the optional 
+   parameters in the user portion of the "sip" URL. 
+    
+   For a called directory number that belongs to a country that 
+   supports NP, and if the IP-based network is to perform the NPDB 
+   query, the logical step is to perform the NPDB dip first to retrieve 
+   the routing number and use that routing number to select the correct 
+   IP telephony gateways that can reach the serving switch that serves 
+   the called directory number.  Therefore, if the "rn" parameter is 
+   present in the "tel" URL or sip URL in the SIP INVITE message, it 
+   instead of the called directory number should be used for making 
+   routing decisions assuming that no other higher priority routing-
+   related parameters such as the Ÿcic÷ are present.  If "rn" is not 
+   present, then the dialed directory number can be used as the routing 
+   number for making routing decisions.   
+    
+   Telephony Routing Information Protocol (TRIP) [TRIP] is a policy 
+   driven inter-administrative domain protocol for advertising the 
+   reachability of telephony destinations between location servers, and 
+   for advertising attributes of the routes to those destinations.  
+   With the NP in mind, it is very important to know that it is the 
+   routing number, if present, not the called directory number that 
+   should be used to check against the TRIP tables for making the 
+   routing decisions.   
+    
+   Overlap signaling exists in the GSTN today.  For a call routing from 
+   the originating GSTN to the IP-based network that involves overlap 
+   signaling, NP will impact the call processing within the IP-based 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 22] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   networks if they must deal with the overlap signaling.  The entities 
+   in the IP-based networks that are to retrieve the NP information 
+   (e.g., the routing number) must collect a complete called directory 
+   number information before retrieving the NP information for a ported 
+   number.  Otherwise, the information retrieval won't be successful.   
+   This is an issue for the IP-based networks if the originating GSTN 
+   does not handle the overlap signaling by collecting the complete 
+   called directory number. 
+    
+   The IETF enum working group is defining the use of Domain Name 
+   System (DNS) for identifying available services associated with a 
+   particular E.164 number [ENUM].  [ENUMPO] outlines the principles 
+   for the operation of a telephone number service that resolves 
+   telephone numbers into Internet domain name addresses and service-
+   specific directory discovery.  [ENUMPO] implements a three-level 
+   approach where the first level is the mapping of the telephone 
+   number delegation tree to the authority to which the number has been 
+   delegated, the second level is the provision of the requested DNS 
+   resource records from a service registrar, and the third level is 
+   the provision of service specific data from the service provider 
+   itself.  NP certainly must be considered at the first level because 
+   the telephony service providers do not "own" or control the 
+   telephone numbers under the NP environment; therefore, they may not 
+   be the proper entities to have the authority for a given E.164 
+   number.  Not only that, there is a regulatory requirement on NP in 
+   some countries that the donor network should not be relied on to 
+   reach the delegated authority during the DNS process .  The 
+   delegated authority for a given E.164 number is likely to be an 
+   entity designated by the end user that owns/controls a specific 
+   telephone number or one that is designated by the service registrar. 
+    
+   Since the telephony service providers may have the need to use ENUM 
+   for their network-related services (e.g., map an E.164 number to a 
+   HLR Identifier in the wireless networks), their ENUM records must be 
+   collocated with those of the telephony subscribers.  If that is the 
+   case, NP will impact ENUM when a telephony subscriber who has ENUM 
+   service changes the telephony service provider.  This is because 
+   that the ENUM records from the new telephony service provider must 
+   replace those from the old telephony service provider.  To avoid the 
+   NP impact on ENUM, it is recommended that the telephony service 
+   providers use a different domain tree for their network-related 
+   service.  For example, if e164.arpa is chosen for Ÿend user÷ ENUM, a 
+   domain tree different from e164.arpa should be used for Ÿcarrier÷ 
+   ENUM. 
+    
+   The IP-based networks also may need to support some forms of number 
+   portability in the future if E.164 numbers [E164] are assigned to 
+   the IP-based end users.  One method is to assign a GSTN routing 
+   number for each IP-based network domain or entity in a NP-capable 
+   country.  This may increase the number of digits in the routing 
+   number to incorporate the IP entities and impact the existing 
+   routing in the GSTN.  Another method is to associate each IP entity 
+   with a particular GSTN gateway.  At that particular GSTN gateway, 
+   the called directory number then is used to locate the IP-entity 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 23] 
+
+Number Portability in the GSTN: An Overview               June 24, 2002 
+
+   that serves that dialed directory number.  Yet, another method can 
+   be to assign a special routing number so that the call to an end 
+   user currently served by an IP entity is routed to the nearest GSTN 
+   gateway.  The called directory number then is used to locate the IP-
+   entity that serves that dialed directory number.  A mechanism can be 
+   developed or used for the IP-based network to locate the IP entity 
+   that serves a particular dialed directory number.  Many other types 
+   of networks use E.164 numbers to identify the end users or terminals 
+   in those networks.  Number portability among GSTN, IP-based network 
+   and those various types of networks may also need to be supported in 
+   the future. 
+    
+ 
+10. Security Considerations 
+ 
+   This document does not raise any security issues. 
+ 
+ 
+11. IANA Considerations 
+ 
+   This document introduces no new values for IANA registration. 
+    
+ 
+12. Normative References  
+ 
+   [ANSI OSS] ANSI Technical Requirements No. 1, "Number Portability -
+        Operator Services Switching Systems," April 1999. 
+    
+   [ANSI SS] ANSI Technical Requirements No. 2, "Number Portability -
+        Switching Systems," April 1999. 
+             
+   [ANSI DB] ANSI Technical Requirements No. 3, "Number Portability 
+        Database and Global Title Translation," April 1999.         
+          
+   [CS1] ITU-T Q-series  Recommendations - Supplement 4, "Number 
+        portability Capability set 1 requirements for service provider 
+        portability (All call query and onward routing)," May 1998. 
+    
+   [CS2] ITU-T Q-series  Recommendations - Supplement 5, "Number 
+        portability -Capability set 2 requirements for service provider 
+        portability (Query on release and Dropback)," March 1999. 
+    
+   [E164] ITU-T Recommendation E.164, "The International Public 
+        Telecommunications Numbering Plan," 1997. 
+    
+   [ENUM] P. Falstrom, "E.164 number and DNS," RFC 2916. 
+    
+   [ETSIISUP] ETSI EN 302 097 V.1.2.2, ŸIntegrated Services Digital 
+        Network (ISDN); Signalling System No.7 (SS7); ISDN User Part 
+        (ISUP); Enhancement for support of Number Portability (NP) 
+        [ITU-T Recommendation Q.769.1 (2000), modified] 
+    
+   [GSM]  GSM 09.02: "Digital cellular telecommunications system (Phase 
+        2+); Mobile Application Part (MAP) specification". 
+  
+Foster,McGarry,Yu           Expired on December 23, 2002      [Page 24] 
+
+Number Portability in the GSTN: An Overview              March 1, 2002 
+ 
+ 
+ 
+   [IS41] TIA/EIA IS-756 Rev. A, "TIA/EIA-41-D Enhancements for 
+        Wireless Number Portability Phase II (December 1998)"Number 
+        Portability Network Support," April 1998. 
+    
+   [ITUISUP] ITU-T Recommendation Q.769.1, "Signaling System No. 7 - 
+        ISDN User Part Enhancements for the Support of Number 
+        Portability," December 1999. 
+    
+   [MNP] ETSI EN 301 716 (2000-10) European Standard 
+        (Telecommunications series) Digital cellular telecommunications 
+        system (Phase 2+); Support of Mobile Number Portability (MNP); 
+        Technical Realisation; Stage 2; (GSM 03.66 Version 7.2.0 
+        Release 1998). 
+    
+   [RFC] Scott Bradner, RFC2026, "The Internet Standards Process -- 
+        Revision 3," October 1996. 
+    
+ 
+13. Informative References  
+ 
+   [ENUMPO] A. Brown and G. Vaudreuil, "ENUM Service Specific 
+        Provisioning: Principles of Operations," draft-ietf-enum-
+        operation-02.txt, February 23, 2001. 
+    
+   [SIP] J. Rosenberg, et al., draft-ietf-sip-rfc2543bis-09.txt, "SIP: 
+        Session Initiation Protocol," February 27, 2002. 
+    
+   [TEL] H. Schulzrinne and A. Vaha-Sipila, draft-antti-rfc2806bis-
+        04.txt, "URIs for Telephone Calls," May 24, 2002. 
+ 
+   [TELNP] J. Yu, draft-yu-tel-url-05.txt, "Extensions to the "tel" URL 
+        to support Number Portability and Freephone Service," June 14, 
+        2002. 
+    
+   [TRIP] J. Rosenberg, H. Salama and M. Squire, RFC 3219, "Telephony 
+        Routing Information Protocol (TRIP)," January 2002. 
+    
+    
+14. Acknowledgment 
+    
+   The authors would like to thank Monika Muench for providing 
+   information on ISUP and MNP. 
+    
+    
+15. Authors' Addresses 
+    
+   Mark D. Foster 
+   NeuStar, Inc. 
+   1120 Vermont Avenue, NW, 
+   Suite 400 
+   Washington, D.C. 20005 
+   United States 
+  
+Foster,McGarry,Yu           Expired on August 31, 2002        [Page 25] 
+
+Number Portability in the GSTN: An Overview              March 1, 2002 
+ 
+ 
+    
+   Phone: +1-202-533-2800 
+   Fax:   +1-202-533-2987 
+   Email: mark.foster@neustar.biz 
+          
+   Tom McGarry 
+   NeuStar, Inc. 
+   1120 Vermont Avenue, NW, 
+   Suite 400 
+   Washington, D.C. 20005 
+   United States 
+    
+   Phone: +1-202-533-2810 
+   Fax:   +1-202-533-2987 
+   Email: tom.mcgarry@neustar.biz 
+    
+   James Yu 
+   NeuStar, Inc. 
+   1120 Vermont Avenue, NW,  
+   Suite 400 
+   Washington, D.C. 20005 
+   United States 
+    
+   Phone: +1-202-533-2814 
+   Fax:   +1-202-533-2987 
+   Email: james.yu@neustar.biz 
+    
+    
+    
+Full Copyright Statement 
+ 
+   "Copyright (C) The Internet Society (2002). All Rights Reserved. 
+    
+   This document and translations of it may be copied and furnished to 
+   others, and derivative works that comment on or otherwise explain it 
+   or assist in its implementation may be prepared, copied, published 
+   and distributed, in whole or in part, without restriction of any 
+   kind, provided that the above copyright notice and this paragraph 
+   are included on all such copies and derivative works. However, this 
+   document itself may not be modified in any way, such as by removing 
+   the copyright notice or references to the Internet Society or other 
+   Internet organizations, except as needed for the purpose of 
+   developing Internet standards in which case the procedures for 
+   copyrights defined in the Internet Standards process must be 
+   followed, or as required to translate it into languages other than 
+   English. 
+    
+   The limited permissions granted above are perpetual and will not be 
+   revoked by the Internet Society or its successors or assigns. 
+    
+
+  
+Foster,McGarry,Yu           Expired on August 31, 2002        [Page 26] 
+
+Number Portability in the GSTN: An Overview              March 1, 2002 
+ 
+ 
+   This document and the information contained herein is provided on an 
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING 
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING 
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION 
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF 
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. 
+    
+    
+Acknowledgement 
+ 
+   Funding for the RFC Editor function is currently provided by the 
+   Internet Society. 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+Foster,McGarry,Yu           Expired on August 31, 2002        [Page 27] 
+
