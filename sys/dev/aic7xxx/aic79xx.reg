@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#64 $"
+VERSION = "$Id: aic79xx.reg,v 1.2.2.4 2003/03/07 23:20:36 gibbs Exp $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -2545,10 +2545,10 @@ const	AHD_PRECOMP_CUTBACK_37	0x07
 const	AHD_SLEWRATE_MASK	0x78
 const	AHD_SLEWRATE_SHIFT	3
 /*
- * Rev A has only a single bit of slew adjustment.
- * Rev B has 4 bits.
+ * Rev A has only a single bit (high bit of field) of slew adjustment.
+ * Rev B has 4 bits.  The current default happens to be the same for both.
  */
-const	AHD_SLEWRATE_DEF_REVA	0x01
+const	AHD_SLEWRATE_DEF_REVA	0x08
 const	AHD_SLEWRATE_DEF_REVB	0x08
 
 /* Rev A does not have any amplitude setting. */
