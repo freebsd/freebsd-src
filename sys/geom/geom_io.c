@@ -55,6 +55,7 @@
 #include <sys/errno.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
+#include <geom/geom_stats.h>
 
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
@@ -278,25 +279,25 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	if (g_collectstats) {
 		/* Collect statistics */
 		binuptime(&bp->bio_t0);
-		if (cp->stat.nop == cp->stat.nend) {   
+		if (cp->stat->nop == cp->stat->nend) {   
 			/* Consumer is idle */
 			bt = bp->bio_t0;
-			bintime_sub(&bt, &cp->stat.wentidle);
-			bintime_add(&cp->stat.it, &bt);
-			if (pp->stat.nop == pp->stat.nend) {
+			bintime_sub(&bt, &cp->stat->wentidle);
+			bintime_add(&cp->stat->it, &bt);
+			if (pp->stat->nop == pp->stat->nend) {
 				/*
 				 * NB: Provider can only be idle if the
 				 * consumer is but we cannot trust them
 				 * to have gone idle at the same time.
 				 */
 				bt = bp->bio_t0;
-				bintime_sub(&bt, &pp->stat.wentidle);
-				bintime_add(&pp->stat.it, &bt);
+				bintime_sub(&bt, &pp->stat->wentidle);
+				bintime_add(&pp->stat->it, &bt);
 			}
 		}
 	}
-	cp->stat.nop++;
-	pp->stat.nop++;
+	cp->stat->nop++;
+	pp->stat->nop++;
 
 	/* Pass it on down. */
 	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
@@ -339,29 +340,29 @@ g_io_deliver(struct bio *bp, int error)
 	/* Collect statistics */
 	if (g_collectstats) {
 		binuptime(&t1);
-		pp->stat.wentidle = t1;
-		cp->stat.wentidle = t1;
+		pp->stat->wentidle = t1;
+		cp->stat->wentidle = t1;
 
 		if (idx >= 0) {
 			bintime_sub(&t1, &bp->bio_t0);
-			bintime_add(&cp->stat.ops[idx].dt, &t1);
-			bintime_add(&pp->stat.ops[idx].dt, &t1);
-			pp->stat.ops[idx].nbyte += bp->bio_completed;
-			cp->stat.ops[idx].nbyte += bp->bio_completed;
-			pp->stat.ops[idx].nop++;
-			cp->stat.ops[idx].nop++;
+			bintime_add(&cp->stat->ops[idx].dt, &t1);
+			bintime_add(&pp->stat->ops[idx].dt, &t1);
+			pp->stat->ops[idx].nbyte += bp->bio_completed;
+			cp->stat->ops[idx].nbyte += bp->bio_completed;
+			pp->stat->ops[idx].nop++;
+			cp->stat->ops[idx].nop++;
 			if (error == ENOMEM) {
-				cp->stat.ops[idx].nmem++;
-				pp->stat.ops[idx].nmem++;
+				cp->stat->ops[idx].nmem++;
+				pp->stat->ops[idx].nmem++;
 			} else if (error != 0) {
-				cp->stat.ops[idx].nerr++;
-				pp->stat.ops[idx].nerr++;
+				cp->stat->ops[idx].nerr++;
+				pp->stat->ops[idx].nerr++;
 			}
 		}
 	}
 
-	pp->stat.nend++; /* In reverse order of g_io_request() */
-	cp->stat.nend++;
+	pp->stat->nend++; /* In reverse order of g_io_request() */
+	cp->stat->nend++;
 
 	if (error == ENOMEM) {
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);

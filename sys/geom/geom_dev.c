@@ -50,6 +50,7 @@
 #include <sys/fcntl.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
+#include <geom/geom_stats.h>
 #include <machine/limits.h>
 
 static d_open_t		g_dev_open;
@@ -428,7 +429,7 @@ g_dev_orphan(struct g_consumer *cp)
 	gp = cp->geom;
 	g_trace(G_T_TOPOLOGY, "g_dev_orphan(%p(%s))", cp, gp->name);
 	g_topology_assert();
-	if (cp->stat.nop != cp->stat.nend)	/* XXX ? */
+	if (cp->stat->nop != cp->stat->nend)	/* XXX ? */
 		return;
 	dev = gp->softc;
 	if (dev->si_flags & SI_DUMPDEV)

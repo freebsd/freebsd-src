@@ -49,6 +49,7 @@
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
+#include <geom/geom_stats.h>
 
 MALLOC_DEFINE(M_GEOM, "GEOM", "Geom data structures");
 
@@ -154,6 +155,7 @@ g_init(void)
 {
 	printf("Initializing GEOMetry subsystem\n");
 	sx_init(&topology_lock, "GEOM topology");
+	g_stat_init();
 	g_io_init();
 	g_event_init();
 	mtx_lock(&Giant);
