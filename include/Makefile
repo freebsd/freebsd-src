@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.10 1994/08/20 12:00:06 paul Exp $
+#	$Id: Makefile,v 1.11 1994/08/28 17:43:52 bde Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -12,12 +12,15 @@ SUBDIR= rpcsvc
 # XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h fnmatch.h fstab.h fts.h glob.h grp.h histedit.h kvm.h \
-	limits.h link.h locale.h math.h memory.h mpool.h ndbm.h \
+	limits.h link.h locale.h memory.h mpool.h ndbm.h \
 	netdb.h nlist.h paths.h pwd.h ranlib.h regex.h regexp.h \
 	resolv.h rune.h runetype.h setjmp.h sgtty.h signal.h skey.h \
 	stab.h stddef.h stdio.h stdlib.h string.h strings.h struct.h \
 	sysexits.h tar.h time.h ttyent.h tzfile.h unistd.h utime.h \
 	utmp.h vis.h
+.if !defined(WANT_MSUN)
+FILES+=	math.h
+.endif
 
 MFILES=	float.h floatingpoint.h frame.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
