@@ -1,3 +1,15 @@
+/*
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+ * ----------------------------------------------------------------------------
+ * 
+ * $Id$
+ * 
+ */
+
 #include <stdio.h>
 #include <err.h>
 #include <sys/types.h>
@@ -21,7 +33,7 @@ main(int argc, char **argv)
 	i = inet_aton(argv[3], &in);
 	if (!i)
 		errx(1, "Couldn't make sense if ip number\n");
-	j.ip_number = in.s_addr;
+	j.ip_number = ntohl(in.s_addr);
 	i = jail(&j);
 	if (i)
 		err(1, "Imprisonment failed");
