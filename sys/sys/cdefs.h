@@ -303,6 +303,7 @@
  * Here's a quick run-down of the versions:
  *  defined(_POSIX_SOURCE)		1003.1-1988
  *  _POSIX_C_SOURCE == 1		1003.1-1990
+ *  _POSIX_C_SOURCE == 2		1003.2-1992 C Language Binding Option
  *  _POSIX_C_SOURCE == 199309		1003.1b-1993
  *  _POSIX_C_SOURCE == 199506		1003.1c-1995, 1003.1i-1995,
  *					and the omnibus ISO/IEC 9945-1: 1996
@@ -316,9 +317,15 @@
  */
 
 /* Deal with IEEE Std. 1003.1-1990, in which _POSIX_C_SOURCE == 1. */
-#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE < 199309
+#if _POSIX_C_SOURCE == 1
 #undef _POSIX_C_SOURCE		/* Probably illegal, but beyond caring now. */
 #define	_POSIX_C_SOURCE		199009
+#endif
+
+/* Deal with IEEE Std. 1003.2-1992, in which _POSIX_C_SOURCE == 2. */
+#if _POSIX_C_SOURCE == 2
+#undef _POSIX_C_SOURCE
+#define	_POSIX_C_SOURCE		199209
 #endif
 
 /* Deal with various X/Open Portability Guides and Single UNIX Spec. */
@@ -350,6 +357,9 @@
 #define	__ISO_C_VISIBLE		1990
 #elif _POSIX_C_SOURCE >= 199309
 #define	__POSIX_VISIBLE		199309
+#define	__ISO_C_VISIBLE		1990
+#elif _POSIX_C_SOURCE >= 199209
+#define	__POSIX_VISIBLE		199209
 #define	__ISO_C_VISIBLE		1990
 #elif _POSIX_C_SOURCE >= 199009
 #define	__POSIX_VISIBLE		199009
