@@ -52,39 +52,39 @@ __FBSDID("$FreeBSD$");
  * is referenced.
  *
  * The interface to this module is:
- *	Arch_ParseArchive   	Given an archive specification, return a list
- *	    	  	    	of GNode's, one for each member in the spec.
- *	    	  	    	FAILURE is returned if the specification is
- *	    	  	    	invalid for some reason.
+ *	Arch_ParseArchive	Given an archive specification, return a list
+ *				of GNode's, one for each member in the spec.
+ *				FAILURE is returned if the specification is
+ *				invalid for some reason.
  *
- *	Arch_Touch	    	Alter the modification time of the archive
- *	    	  	    	member described by the given node to be
- *	    	  	    	the current time.
+ *	Arch_Touch		Alter the modification time of the archive
+ *				member described by the given node to be
+ *				the current time.
  *
- *	Arch_TouchLib	    	Update the modification time of the library
- *	    	  	    	described by the given node. This is special
- *	    	  	    	because it also updates the modification time
- *	    	  	    	of the library's table of contents.
+ *	Arch_TouchLib		Update the modification time of the library
+ *				described by the given node. This is special
+ *				because it also updates the modification time
+ *				of the library's table of contents.
  *
- *	Arch_MTime	    	Find the modification time of a member of
- *	    	  	    	an archive *in the archive*. The time is also
- *	    	  	    	placed in the member's GNode. Returns the
- *	    	  	    	modification time.
+ *	Arch_MTime		Find the modification time of a member of
+ *				an archive *in the archive*. The time is also
+ *				placed in the member's GNode. Returns the
+ *				modification time.
  *
- *	Arch_MemTime	    	Find the modification time of a member of
- *	    	  	    	an archive. Called when the member doesn't
- *	    	  	    	already exist. Looks in the archive for the
- *	    	  	    	modification time. Returns the modification
- *	    	  	    	time.
+ *	Arch_MemTime		Find the modification time of a member of
+ *				an archive. Called when the member doesn't
+ *				already exist. Looks in the archive for the
+ *				modification time. Returns the modification
+ *				time.
  *
- *	Arch_FindLib	    	Search for a library along a path. The
- *	    	  	    	library name in the GNode should be in
- *	    	  	    	-l<name> format.
+ *	Arch_FindLib		Search for a library along a path. The
+ *				library name in the GNode should be in
+ *				-l<name> format.
  *
- *	Arch_LibOODate	    	Special function to decide if a library node
- *	    	  	    	is out-of-date.
+ *	Arch_LibOODate		Special function to decide if a library node
+ *				is out-of-date.
  *
- *	Arch_Init 	    	Initialize this module.
+ *	Arch_Init		Initialize this module.
  */
 
 #include <sys/param.h>
@@ -112,11 +112,11 @@ __FBSDID("$FreeBSD$");
 static Lst archives = Lst_Initializer(archives);
 
 typedef struct Arch {
-    char	  *name;      /* Name of archive */
-    Hash_Table	  members;    /* All the members of the archive described
-			       * by <name, struct ar_hdr *> key/value pairs */
-    char	  *fnametab;  /* Extended name table strings */
-    size_t	  fnamesize;  /* Size of the string table */
+    char	*name;		/* Name of archive */
+    Hash_Table	members;	/* All the members of the archive described
+				 * by <name, struct ar_hdr *> key/value pairs */
+    char	*fnametab;	/* Extended name table strings */
+    size_t	fnamesize;	/* Size of the string table */
 } Arch;
 
 static struct ar_hdr *ArchStatMember(const char *, const char *, Boolean);
@@ -149,14 +149,14 @@ static int ArchSVR4Entry(Arch *, char *, size_t, FILE *);
 ReturnStatus
 Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 {
-    char            *cp;	    /* Pointer into line */
-    GNode	    *gn;	    /* New node */
-    char	    *libName;  	    /* Library-part of specification */
-    char	    *memName;  	    /* Member-part of specification */
-    char	    *nameBuf;	    /* temporary place for node name */
-    char	    saveChar;  	    /* Ending delimiter of member-name */
-    Boolean 	    subLibName;	    /* TRUE if libName should have/had
-				     * variable substitution performed on it */
+    char	*cp;		/* Pointer into line */
+    GNode	*gn;		/* New node */
+    char	*libName;	/* Library-part of specification */
+    char	*memName;	/* Member-part of specification */
+    char	*nameBuf;	/* temporary place for node name */
+    char	saveChar;	/* Ending delimiter of member-name */
+    Boolean	subLibName;	/* TRUE if libName should have/had
+				 * variable substitution performed on it */
 
     libName = *linePtr;
 
@@ -436,16 +436,15 @@ static struct ar_hdr *
 ArchStatMember(const char *archive, const char *member, Boolean hash)
 {
 #define	AR_MAX_NAME_LEN	    (sizeof(arh.ar_name) - 1)
-    FILE *	  arch;	      /* Stream to archive */
-    int		  size;       /* Size of archive member */
-    char	  *cp;	      /* Useful character pointer */
-    char	  magic[SARMAG];
-    LstNode	  *ln;	      /* Lst member containing archive descriptor */
-    Arch	  *ar;	      /* Archive descriptor */
-    Hash_Entry	  *he;	      /* Entry containing member's description */
-    struct ar_hdr arh;        /* archive-member header for reading archive */
-    char	  memName[MAXPATHLEN + 1];
-    	    	    	    /* Current member name while hashing. */
+    FILE	*arch;	/* Stream to archive */
+    int		size;	/* Size of archive member */
+    char	*cp;	/* Useful character pointer */
+    char	magic[SARMAG];
+    LstNode	*ln;	/* Lst member containing archive descriptor */
+    Arch	*ar;	/* Archive descriptor */
+    Hash_Entry	*he;	/* Entry containing member's description */
+    struct ar_hdr arh;	/* archive-member header for reading archive */
+    char	memName[MAXPATHLEN + 1]; /* Current member name while hashing. */
 
     /*
      * Because of space constraints and similar things, files are archived
@@ -515,7 +514,7 @@ ArchStatMember(const char *archive, const char *member, Boolean hash)
      * can handle...
      */
     if ((fread(magic, SARMAG, 1, arch) != 1) ||
-    	(strncmp(magic, ARMAG, SARMAG) != 0)) {
+	(strncmp(magic, ARMAG, SARMAG) != 0)) {
 	    fclose(arch);
 	    return (NULL);
     }
@@ -756,7 +755,7 @@ ArchFindMember(const char *archive, const char *member, struct ar_hdr *arhPtr,
      * can handle...
      */
     if ((fread(magic, SARMAG, 1, arch) != 1) ||
-    	(strncmp(magic, ARMAG, SARMAG) != 0)) {
+	(strncmp(magic, ARMAG, SARMAG) != 0)) {
 	    fclose(arch);
 	    return (NULL);
     }
@@ -919,9 +918,9 @@ void
 Arch_TouchLib(GNode *gn)
 {
 #ifdef RANLIBMAG
-    FILE *	    arch;	/* Stream open to archive */
-    struct ar_hdr   arh;      	/* Header describing table of contents */
-    struct utimbuf  times;	/* Times for utime() call */
+    FILE		*arch;	/* Stream open to archive */
+    struct ar_hdr	arh;	/* Header describing table of contents */
+    struct utimbuf	times;	/* Times for utime() call */
 
     arch = ArchFindMember(gn->path, RANLIBMAG, &arh, "r+");
     snprintf(arh.ar_date, sizeof(arh.ar_date), "%-12ld", (long) now);
@@ -991,10 +990,10 @@ Arch_MTime(GNode *gn)
 int
 Arch_MemMTime(GNode *gn)
 {
-    LstNode 	  *ln;
-    GNode	  *pgn;
-    char    	  *nameStart,
-		  *nameEnd;
+    LstNode	*ln;
+    GNode	*pgn;
+    char	*nameStart;
+    char	*nameEnd;
 
     for (ln = Lst_First(&gn->parents); ln != NULL; ln = Lst_Succ(ln)) {
 	pgn = Lst_Datum(ln);
@@ -1083,13 +1082,13 @@ Arch_FindLib(GNode *gn, Lst *path)
  *	A library will be considered out-of-date for any of these reasons,
  *	given that it is a target on a dependency line somewhere:
  *	    Its modification time is less than that of one of its
- *	    	  sources (gn->mtime < gn->cmtime).
+ *		  sources (gn->mtime < gn->cmtime).
  *	    Its modification time is greater than the time at which the
- *	    	  make began (i.e. it's been modified in the course
- *	    	  of the make, probably by archiving).
+ *		  make began (i.e. it's been modified in the course
+ *		  of the make, probably by archiving).
  *	    The modification time of one of its sources is greater than
  *		  the one of its RANLIBMAG member (i.e. its table of contents
- *	    	  is out-of-date). We don't compare of the archive time
+ *		  is out-of-date). We don't compare of the archive time
  *		  vs. TOC time because they can be too close. In my
  *		  opinion we should not bother with the TOC at all since
  *		  this is used by 'ar' rules that affect the data contents
@@ -1107,7 +1106,7 @@ Arch_FindLib(GNode *gn, Lst *path)
 Boolean
 Arch_LibOODate(GNode *gn)
 {
-    Boolean 	  oodate;
+    Boolean	  oodate;
 
     if (OP_NOP(gn->type) && Lst_IsEmpty(&gn->children)) {
 	oodate = FALSE;
@@ -1115,8 +1114,8 @@ Arch_LibOODate(GNode *gn)
 	oodate = TRUE;
     } else {
 #ifdef RANLIBMAG
-	struct ar_hdr  	*arhPtr;    /* Header for __.SYMDEF */
-	int 	  	modTimeTOC; /* The table-of-contents's mod time */
+	struct ar_hdr	*arhPtr;	/* Header for __.SYMDEF */
+	int		modTimeTOC;	/* The table-of-contents's mod time */
 
 	arhPtr = ArchStatMember(gn->path, RANLIBMAG, FALSE);
 
