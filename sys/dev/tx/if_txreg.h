@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*      $Id: if_txvar.h,v 1.1 1998/11/01 07:44:33 semenu Exp $ */
+/*      $Id: if_txvar.h,v 1.2 1999/03/14 08:30:23 semenu Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko
@@ -323,6 +323,7 @@ struct epic_tx_buffer {
 
 /* Driver status structure */
 typedef struct {
+	struct arpcom		arpcom;
 #if defined(__OpenBSD__)
 	struct device		sc_dev;
 	void			*sc_ih;
@@ -338,7 +339,6 @@ typedef struct {
 #if !defined(EPIC_NOIFMEDIA)
 	struct ifmedia 		ifmedia;
 #endif
-	struct arpcom		arpcom;
 	u_int32_t		unit;
 	struct epic_rx_buffer	rx_buffer[RX_RING_SIZE];
 	struct epic_tx_buffer	tx_buffer[TX_RING_SIZE];
