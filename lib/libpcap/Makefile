@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.7 1996/06/02 17:09:03 phk Exp $
+# $Id: Makefile,v 1.9 1996/08/19 21:00:45 pst Exp $
 
 LIB=    pcap
 SRCS=	pcap-bpf.c \
@@ -7,7 +7,6 @@ SRCS=	pcap-bpf.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c \
         grammar.y scanner.l
 MAN3=	pcap.3
-
 CLEANFILES+= lex.yy.c tokdefs.h grammar.c scanner.c
 
 DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \
@@ -16,13 +15,16 @@ DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 
 CFLAGS+=-Wall -I. -I${.CURDIR} -Dyylval=pcap_lval -Dlint ${DEFS}
 
+SHLIB_MAJOR=2
+SHLIB_MINOR=1
+
 #
 # Magic to grab sources out of src/contrib
 #
 DISTDIR?=${.CURDIR}/../../contrib/libpcap
+CFLAGS+=-I${DISTDIR} -I${DISTDIR}/lbl
 .PATH:	${DISTDIR}
 .PATH:	${DISTDIR}/bpf/net
-CFLAGS+=-I${DISTDIR} -I${DISTDIR}/lbl
 
 beforeinstall:
 	-cmp -s ${DISTDIR}/pcap.h ${DESTDIR}/usr/include/pcap.h || \
