@@ -33,7 +33,7 @@
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)subr.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$Id: subr.c,v 1.9 1997/02/22 14:21:40 peter Exp $";
+static char rcsid[] = "$Id: subr.c,v 1.10 1997/05/11 10:25:38 davidn Exp $";
 #endif /* not lint */
 
 /*
@@ -132,7 +132,7 @@ gettable(name, buf)
 	}
 
 	for (sp = gettystrs; sp->field; sp++) {
-		if ((l = cgetstr(buf, (char*)sp->field, &p)) >= 0) {
+		if ((l = cgetustr(buf, (char*)sp->field, &p)) >= 0) {
 			if (sp->value) {
 				/* prefer existing value */
 				if (strcmp(p, sp->value) != 0)
@@ -170,7 +170,7 @@ gettable(name, buf)
 #ifdef DEBUG
 	printf("name=\"%s\", buf=\"%s\"\r\n", name, buf);
 	for (sp = gettystrs; sp->field; sp++)
-		printf("cgetstr: %s=%s\r\n", sp->field, sp->value);
+		printf("cgetustr: %s=%s\r\n", sp->field, sp->value);
 	for (np = gettynums; np->field; np++)
 		printf("cgetnum: %s=%d\r\n", np->field, np->value);
 	for (fp = gettyflags; fp->field; fp++)
