@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.132 1998/07/04 22:30:24 julian Exp $
+ *      $Id: sd.c,v 1.133 1998/07/11 07:45:59 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -323,7 +323,6 @@ sdattach(struct scsi_link *sc_link)
 				sd,
 				&sd->limit,
 	 			&sd->slice,
-				NULL,
 				namebuf);
 		/* Allow full probing */
 		sd->slice->probeinfo.typespecific = NULL;
@@ -359,10 +358,9 @@ sds_init(void *arg)
 	struct scsi_data *sd = arg;
 	sh_p	tp;
 
-	if ((tp = slice_probeall(sd->slice)) != NULL) {
-		(*tp->constructor)(sd->slice);
-	}
+	slice_start_probe(sd->slice);
 	config_intrhook_disestablish(&sd->ich);
+	DELAY(2000000); /* XXX */
 }
 #endif	/* SLICE */
 

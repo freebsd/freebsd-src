@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_base.c,v 1.3 1998/04/22 10:25:10 julian Exp $
+ *	$Id: slice_base.c,v 1.4 1998/06/14 19:00:12 julian Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,8 @@
 #include <dev/slice/slice.h>	/* temporary location */
 
 #define SLICESPL() splbio()
+
+static void sl_async_done(struct buf *bp);
 
 
 static int slicexclusive = 0; /* default value == "foot shootable" */
@@ -83,47 +85,68 @@ sl_findtype(char *type)
  * Ask all known handler types if a given slice is handled by them.
  * If the slice specifies a type, then just find that.
  */
-sh_p
-slice_probeall(sl_p slice)
+void
+slice_start_probe(sl_p slice)
 {
 	sh_p            tp = types;
+
 	if (slice->probeinfo.type == NULL) {
-		while (tp) {
-			printf("%s: probing for %s.. ",slice->name, tp->name);
-			if ((*tp->claim) (slice, NULL, NULL) == 0) {
-				printf("yep\n");
-				return (tp);
-			}
-			printf("nope\n");
-			tp = tp->next;
+		if(slice->handler_up == NULL) {
+			slice->probeinfo.trial_handler = tp;
+			printf("%s: probing for %s.. ",slice->name, tp->name);  
+			(*tp->claim) (slice);
 		}
+		return;
+	}
+
 	/*
-	 * Null string ("") means "don't even try". Caller probably should
-	 * pre-trap such cases but we'll check here too.
+	 * Null string ("") means "don't even try". Caller probably
+	 * should pre-trap such cases but we'll check here too.
 	 */
-	} else if (slice->probeinfo.type[0]) {
+	if (slice->probeinfo.type[0]) {
 		tp = sl_findtype(slice->probeinfo.type);
-		if ((tp) && ((*tp->claim) (slice, NULL, NULL) == 0)) {
-			printf("%s: attaching %s..\n",slice->name, tp->name);
-			return (tp);
+		if (tp) {
+			printf("%s: attaching %s..\n", slice->name, tp->name);
+			(*tp->claim) (slice);
 		}
 	}
-	/*printf("%s: Leaving as raw device\n", slice->name); */
-	return (NULL);
 }
 
+/*
+ * Move the slice probe type, on to the next type
+ * and call that.  Called from failed probes.
+ */
+void
+slice_probe_next(sl_p slice)
+{
+	sh_p            tp = slice->probeinfo.trial_handler;
+	
+	if ((slice->flags & SLF_PROBING) == 0)
+		panic("slice_probe_next: bad call");
+	if (tp != NULL) {
+		tp = tp->next;
+		slice->probeinfo.trial_handler = tp;
+		if (tp) {
+			printf("%s: probing for %s.. ",slice->name, tp->name);  
+			(*tp->claim) (slice);
+			return;
+		}
+	}
+	slice->flags &= ~SLF_PROBING;
+}
 
 
 /*
  * Make a handler instantiation of the requested type.
+ * don't take no for an answer.
+ * force it to mark it's new territory.
+ * Must be called from a with a user context.
  * 
  */
 static int
-sl_make_handler(char *type, sl_p slice)
+sl_make_handler(sl_p slice, char *type)
 {
 	sh_p            handler_up;
-	void           *private_up;
-	int             errval;
 
 	/*
 	 * check that the type makes sense.
@@ -135,17 +158,12 @@ sl_make_handler(char *type, sl_p slice)
 	if (handler_up == NULL) {
 		return (ENXIO);
 	}
+
 	/*
 	 * and call the constructor
 	 */
-	if (handler_up->constructor != NULL) {
-		errval = (*handler_up->constructor) (slice);
-		return (errval);
-	} else {
-		printf("slice handler %s has no constructor\n",
-		       handler_up->name);
-		return (EINVAL);
-	}
+	slice->flags |= SLF_DONT_ARGUE;
+	return( (*handler_up->claim) (slice));
 }
 
 /*
@@ -154,7 +172,7 @@ sl_make_handler(char *type, sl_p slice)
  * XXX This doesn't work for SMP.
  */
 int
-lockslice(struct slice *slice)
+slice_lock(struct slice *slice)
 {
 	int s = SLICESPL();
 	slice->refs++;
@@ -165,7 +183,7 @@ lockslice(struct slice *slice)
 			return (ENXIO);
 		}
 		slice->flags |= SLF_WANTED;
-		tsleep(slice, PRIBIO, "lockslice", 0);
+		tsleep(slice, PRIBIO, "slice_lock", 0);
 	}
 	slice->flags |= SLF_LOCKED;
 	splx(s);
@@ -178,7 +196,7 @@ lockslice(struct slice *slice)
  * We can still hold a reference on it.
  */
 int
-unlockslice(struct slice *slice)
+slice_unlock(struct slice *slice)
 {
 	int s = SLICESPL();
 	slice->flags &= ~SLF_LOCKED;
@@ -191,13 +209,13 @@ unlockslice(struct slice *slice)
 }
 
 /*
- * create a new slice. Link it into the structures. don't yet find and call
- * it's type handler. That's done later
+ * create a new slice. Link it into the structures.
+ * As of yet it has no upper handler.
  */
 int
 sl_make_slice(sh_p handler_down, void *private_down,
 	      struct slicelimits * limits,
-	      sl_p * slicepp, char *type, char *name)
+	      sl_p * slicepp, char *name)
 {
 	sl_p            slice;
 
@@ -226,11 +244,6 @@ sl_make_slice(sh_p handler_down, void *private_down,
 	slice_add_device(slice);
 	slice->refs = 1; /* one for our downward creator */
 	*slicepp = slice;
-	if (type) {
-		slice->refs++; /* don't go away *//* probably not needed */
-		sl_make_handler(type, slice);
-		sl_unref(slice);
-	}
 	return (0);
 }
 
@@ -238,6 +251,7 @@ sl_make_slice(sh_p handler_down, void *private_down,
  * Forceably start a shutdown process on a slice. Either call it's shutdown
  * method, or do the default shutdown if there is no type-specific method.
  * XXX Really should say who called us.
+ * Should be called at SLICESPL (splbio)
  */
 void
 sl_rmslice(sl_p slice)
@@ -293,67 +307,139 @@ sl_unref(sl_p slice)
 	}
 }
 
+
 /*
- * Read a block on behalf of a handler.
+ * Given a slice,  launch an IOrequest for information
  * This is not a bulk IO routine but meant for probes etc.
- * I think that perhaps it should attempt to do sliceopen()
- * calls on the slice first. (XXX?)
  */
 int
-slice_readblock(struct slice * slice, int blkno, struct buf ** bpp)
+slice_request_block(sl_p slice, int blknum)
 {
 	struct buf     *bp;
-	int             error = 0;
+	int		s;
 
-	/*
-	 * posibly attempt to open device?
-	 */
-	/* --not yet-- */
-	/*
-	 * Now that it is open, get the buffer and set in the parameters.
-	 */
+RR;
+	s = splbio();
+#ifdef	PARANOID
+	if ( slice->private_up == NULL) {
+		panic("slice_request_block: no pd");
+	}
+	if (slice->flags & SLF_PROBE_STATE) {
+		panic("slice_request_block: 2nd IO");
+	}
+#endif	/* PARANOID */
 	bp = geteblk((int) slice->limits.blksize);
 	if (bp == NULL) {
 		return (ENOMEM);
 	}
-	bp->b_pblkno = bp->b_blkno = blkno;
+	slice->flags |= SLF_WAIT_READ;
+	bp->b_iodone = &sl_async_done;
+	bp->b_flags |= B_CALL;
+	bp->b_dev    = (dev_t)slice; /* XXX HACK ALERT! */
+	bp->b_pblkno = bp->b_blkno = blknum;
 	bp->b_bcount = slice->limits.blksize;
 	bp->b_flags |= B_BUSY | B_READ;
 	sliceio(slice, bp, SLW_ABOVE);
-	if (biowait(bp) != 0) {
-		printf("failure reading device block\n");
-		error = EIO;
-		bp->b_flags |= B_INVAL | B_AGE;
-		brelse(bp);
-		bp = NULL;
-	}
-	*bpp = bp;
-	return (error);
+	splx(s);
+	return (0);
 }
 
 /*
- * Read a block on behalf of a handler.
+ * Write a block on behalf of a handler.
  * This is not a bulk IO routine but meant for probes etc.
  * I think that perhaps it should attempt to do sliceopen()
- * calls on the slice first. (XXX?)
+ * calls on the slice first. (XXX?) no, they may block?
  */
 int
-slice_writeblock(struct slice * slice, int blkno, struct buf * bp)
+slice_writeblock(struct slice * slice, int blkno,
+			void (*iodone )(struct buf *),
+			caddr_t data, int len)
 {
+	struct buf     *bp;
 	int             error = 0;
 
+#ifdef	PARANOID
+	if ( slice->handler_up == NULL) {
+		panic("slice_writeblock: no handler");
+	}
+	if (slice->flags & SLF_PROBE_STATE) {
+		panic("slice_writeblock: 2nd IO");
+	}
+#endif	/* PARANOID */
+	if (len > slice->limits.blksize)
+		return (EINVAL);
+	bp = geteblk((int) slice->limits.blksize);
 	if (bp == NULL) {
 		return (ENOMEM);
 	}
+	slice->flags |= SLF_WAIT_WRITE;
+	bcopy(data, bp->b_data, len);
+	bp->b_iodone = sl_async_done;
+	bp->b_flags |= B_CALL;
+	bp->b_dev    = (dev_t)slice; /* XXX HACK ALERT! */
 	bp->b_pblkno = bp->b_blkno = blkno;
 	bp->b_bcount = slice->limits.blksize;
 	bp->b_flags |= B_BUSY | B_WRITE;
 	sliceio(slice, bp, SLW_ABOVE);
-	if (biowait(bp) != 0) {
-		printf("failure reading device block\n");
-		error = EIO;
+	return (0);
+}
+
+/* 
+ * called with an argument of a bp when it is completed
+ */
+static void
+sl_async_done(struct buf *bp)
+{
+	sl_p		slice;
+	int		error;
+
+RR;
+	if (bp->b_dev < 0xf0000000)
+		panic ("b_dev used in SLICE code");
+	slice = (struct slice *)bp->b_dev; /* XXX HACK! */
+
+#ifdef	PARANOID
+	if ( slice->handler_up == NULL) {
+		panic("sl_async_done: no pd");
 	}
-	return (error);
+	if (bp->b_flags & B_READ) {
+		if ((slice->flags & SLF_PROBE_STATE) != SLF_WAIT_READ)
+			panic("sl_async_done: unexpected read completion");
+	} else {
+		if ((slice->flags & SLF_PROBE_STATE) != SLF_WAIT_WRITE)
+			panic("sl_async_done: unexpected write completion");
+	}
+#endif	/* PARANOID */
+	/*
+	 * if the IO failed, then abandon the probes and 
+	 * return. Possibly ask the lower layer to try again later?
+	 */
+	if (bp->b_flags & B_ERROR) {
+		(* slice->handler_up->revoke)(slice->private_up);
+
+		/* (* slice->handler_down->SOMETHING) (slice->private_down); */
+
+		bp->b_flags |= B_INVAL | B_AGE;
+		brelse(bp);
+		return;
+	}
+		
+	error = (* slice->handler_up->done)(slice, bp);
+	/*
+	 * If the handler has left itself there, or cleared
+	 * the PROBING bit, then consider
+	 * probing to have come to a close. So just return.
+	 * an IO error would be a great hint to abandon probing as well.
+	 * we could catch that on the way up but we might want to give
+	 * the handler a chance to clean up state?
+	 */
+	if (slice->handler_up)
+		return;
+	if (error) {
+		slice->flags &= ~SLF_PROBING;
+		return;
+	}
+	slice_probe_next(slice);
 }
 
 /*
@@ -500,7 +586,7 @@ sliceopen(struct slice *slice, int flags, int mode,
 	/*
 	 * Firstly, don't allow re-opens of what is already open
 	 */
-	if (error = lockslice(slice))
+	if (error = slice_lock(slice))
 		return (error);
 	error = EBUSY;	/* default answer */
 	switch (who) {
@@ -597,17 +683,15 @@ sliceopen(struct slice *slice, int flags, int mode,
 		 * Maybe we should ask the lower one to re-issue the request?
 		 */
 		if (slice->handler_up == NULL) {
-			if ((tp = slice_probeall(slice)) != NULL) {
-				(*tp->constructor)(slice);
-			}
+			slice_start_probe(slice);
 		}
 	}
 #endif
 reject:
-	unlockslice(slice);
+	slice_unlock(slice);
 	if ((slice->flags & SLF_INVALID) == SLF_INVALID)
 		error = ENODEV; /* we've been zapped while down there! */
-	sl_unref(slice); /* lockslice gave us a ref.*/
+	sl_unref(slice); /* slice_lock gave us a ref.*/
 	return (error);
 }
 
@@ -620,7 +704,7 @@ sliceclose(struct slice *slice, int flags, int mode,
 
 	if (slice->flags & SLF_INVALID) 
 		return ;
-	if (lockslice(slice))
+	if (slice_lock(slice))
 		return ;
 	switch (who) {
 	case	SLW_ABOVE:
@@ -652,7 +736,7 @@ sliceclose(struct slice *slice, int flags, int mode,
 		 * Maybe we should ask the lower one to re-issue the request?
 		 */
 		if (slice->handler_up == NULL) {
-			if ((tp = slice_probeall(slice)) != NULL) {
+			if ((tp = slice_start_probe(slice)) != NULL) {
 				(*tp->constructor)(slice);
 			}
 		}
@@ -668,7 +752,7 @@ sliceclose(struct slice *slice, int flags, int mode,
 	if ( (slice->flags & SLF_OPEN_STATE) == 0)
 		(*slice->handler_down->close) (slice->private_down,
 				      flags, mode, p);
-	unlockslice(slice);
+	slice_unlock(slice);
 	sl_unref(slice);
 	return ;
 }

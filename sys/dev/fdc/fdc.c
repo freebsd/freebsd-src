@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.115 1998/07/04 22:30:16 julian Exp $
+ *	$Id: fd.c,v 1.116 1998/07/11 06:35:37 bde Exp $
  *
  */
 
@@ -794,7 +794,6 @@ fdattach(struct isa_device *dev)
 			&fd->subdevs[0],
 			&fd->subdevs[0].limit,
 		 	&fd->subdevs[0].slice,
-			NULL,
 			namebuf);
 		/* Allow full probing */
 		fd->subdevs[0].slice->probeinfo.typespecific = NULL;
@@ -861,7 +860,6 @@ fdattach(struct isa_device *dev)
 				&fd->subdevs[i],
 				&fd->subdevs[i].limit,
 			 	&fd->subdevs[i].slice,
-				NULL,
 				namebuf);
 			/* Allow full probing */
 			fd->subdevs[i].slice->probeinfo.typespecific = NULL;
@@ -914,10 +912,9 @@ fdsinit(void *arg)
 	struct subdev *sd = arg;
 	sh_p	tp;
 
-	if ((tp = slice_probeall(sd->slice)) != NULL) {
-		(*tp->constructor)(sd->slice);
-	}
+	slice_start_probe(sd->slice);
 	config_intrhook_disestablish(&sd->drive->ich);
+	DELAY(2000000); /* XXX */
 }
 #endif	/* SLICE */
 
