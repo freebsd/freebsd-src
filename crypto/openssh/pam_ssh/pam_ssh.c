@@ -29,6 +29,7 @@
 
 
 #include <sys/param.h>
+#include <sys/queue.h>
 
 #include <fcntl.h>
 #include <paths.h>
@@ -66,6 +67,127 @@ ssh_cleanup(pam_handle_t *pamh, void *data, int error_status)
 {
 	if (data)
 		free(data);
+}
+
+
+/*
+ * The following set of functions allow the module to manipulate the
+ * environment without calling the putenv() or setenv() stdlib functions.
+ * At least one version of these functions, on the first call, copies
+ * the environment into dynamically-allocated memory and then augments
+ * it.  On subsequent calls, the realloc() call is used to grow the
+ * previously allocated buffer.  Problems arise when the "environ"
+ * variable is changed to point to static memory after putenv()/setenv()
+ * have been called.
+ * 
+ * We don't use putenv() or setenv() in case the application subsequently
+ * manipulates environ, (e.g., to clear the environment by pointing
+ * environ at an array of one element equal to NULL).
+ */
+
+SLIST_HEAD(env_head, env_entry);
+
+struct env_entry {
+	char			*ee_env;
+	SLIST_ENTRY(env_entry)	 ee_entries;
+};
+
+typedef struct env {
+	char		**e_environ_orig;
+	char		**e_environ_new;
+	int		  e_count;
+	struct env_head	  e_head;
+	int		  e_committed;
+} ENV;
+
+extern char **environ;
+
+
+static ENV *
+env_new(void)
+{
+	ENV	*self;
+
+	if (!(self = malloc(sizeof (ENV)))) {
+		syslog(LOG_CRIT, "%m");
+		return NULL;
+	}
+	SLIST_INIT(&self->e_head);
+	self->e_count = 0;
+	self->e_committed = 0;
+	return self;
+}
+
+
+static int
+env_put(ENV *self, char *s)
+{
+	struct env_entry	*env;
+
+	if (!(env = malloc(sizeof (struct env_entry))) ||
+	    !(env->ee_env = strdup(s))) {
+		syslog(LOG_CRIT, "%m");
+		return PAM_SERVICE_ERR;
+	}
+	SLIST_INSERT_HEAD(&self->e_head, env, ee_entries);
+	++self->e_count;
+	return PAM_SUCCESS;
+}
+
+
+static void
+env_swap(ENV *self, int which)
+{
+	environ = which ? self->e_environ_new : self->e_environ_orig;
+}
+
+
+static int
+env_commit(ENV *self)
+{
+	int			  n;
+	struct env_entry	 *p;
+	char 			**v;
+
+	for (v = environ, n = 0; v && *v; v++, n++)
+		;
+	if (!(v = malloc((n + self->e_count + 1) * sizeof (char *)))) {
+		syslog(LOG_CRIT, "%m");
+		return PAM_SERVICE_ERR;
+	}
+	self->e_committed = 1;
+	(void)memcpy(v, environ, n * sizeof (char *));
+	SLIST_FOREACH(p, &self->e_head, ee_entries)
+		v[n++] = p->ee_env;
+	v[n] = NULL;
+	self->e_environ_orig = environ;
+	self->e_environ_new = v;
+	env_swap(self, 1);
+	return PAM_SUCCESS;
+}
+
+
+static void
+env_destroy(ENV *self)
+{
+	struct env_entry	 *p;
+
+	env_swap(self, 0);
+	SLIST_FOREACH(p, &self->e_head, ee_entries) {
+		free(p->ee_env);
+		free(p);
+	}
+	if (self->e_committed)
+		free(self->e_environ_new);
+	free(self);
+}
+
+
+void
+env_cleanup(pam_handle_t *pamh, void *data, int error_status)
+{
+	if (data)
+		env_destroy(data);
 }
 
 
@@ -210,6 +332,7 @@ pam_sm_open_session(
 	const PASSWD	*pwent;			/* user's passwd entry */
 	int		 retval;		/* from calls */
 	uid_t		 saved_uid;		/* caller's uid */
+	ENV		*ssh_env;		/* env handle */
 	const char	*tty;			/* tty or display name */
 	char		 hname[MAXHOSTNAMELEN];	/* local hostname */
 	char		 parse[BUFSIZ];		/* commands output */
@@ -251,51 +374,71 @@ pam_sm_open_session(
 			(void)fclose(env_fp);
 		return PAM_SESSION_ERR;
 	}
+	if (!(ssh_env = env_new()))
+		return PAM_SESSION_ERR;
+	if ((retval = pam_set_data(pamh, "ssh_env_handle", ssh_env,
+	    env_cleanup)) != PAM_SUCCESS)
+		return retval;
 	while (fgets(parse, sizeof parse, pipe)) {
 		if (env_fp)
 			(void)fputs(parse, env_fp);
 		/*
 		 * Save environment for application with pam_putenv()
-		 * but also with putenv() for our own call to
+		 * but also with env_* functions for our own call to
 		 * ssh_get_authentication_connection().
 		 */
 		if (strchr(parse, '=') && (env_end = strchr(parse, ';'))) {
 			*env_end = '\0';
 			/* pass to the application ... */
 			if (!((retval = pam_putenv(pamh, parse)) ==
-			    PAM_SUCCESS && putenv(parse) == 0)) {
+			    PAM_SUCCESS)) {
 				(void)pclose(pipe);
 				if (env_fp)
 					(void)fclose(env_fp);
+				env_destroy(ssh_env);
 				return PAM_SERVICE_ERR;
 			}
+			env_put(ssh_env, parse);
 		}
 	}
 	if (env_fp)
 		(void)fclose(env_fp);
-	retval = pclose(pipe);
-	if (retval > 0) {
+	switch (retval = pclose(pipe)) {
+	case -1:
+		syslog(LOG_ERR, "%s: %s: %m", MODULE_NAME, PATH_SSH_AGENT);
+		env_destroy(ssh_env);
+		return PAM_SESSION_ERR;
+	case 0:
+		break;
+	case 127:
+		syslog(LOG_ERR, "%s: cannot execute %s", MODULE_NAME,
+		    PATH_SSH_AGENT);
+		env_destroy(ssh_env);
+		return PAM_SESSION_ERR;
+	default:
 		syslog(LOG_ERR, "%s: %s exited with status %d",
 		    MODULE_NAME, PATH_SSH_AGENT, WEXITSTATUS(retval));
-		return PAM_SESSION_ERR;
-	} else if (retval < 0) {
-		syslog(LOG_ERR, "%s: %s: %m", MODULE_NAME, PATH_SSH_AGENT);
+		env_destroy(ssh_env);
 		return PAM_SESSION_ERR;
 	}
 	/* connect to the agent and hand off the private key */
 	if ((retval = pam_get_data(pamh, "ssh_private_key",
-	    (const void **)&key)) != PAM_SUCCESS)
+	    (const void **)&key)) != PAM_SUCCESS ||
+	    (retval = pam_get_data(pamh, "ssh_key_comment",
+	    (const void **)&comment)) != PAM_SUCCESS ||
+	    (retval = env_commit(ssh_env)) != PAM_SUCCESS) {
+		env_destroy(ssh_env);
 		return retval;
-	if ((retval = pam_get_data(pamh, "ssh_key_comment",
-	    (const void **)&comment)) != PAM_SUCCESS)
-		return retval;
+	}
 	if (!(ac = ssh_get_authentication_connection())) {
 		syslog(LOG_ERR, "%s: could not connect to agent",
 		    MODULE_NAME);
+		env_destroy(ssh_env);
 		return PAM_SESSION_ERR;
 	}
 	retval = ssh_add_identity(ac, key, comment);
 	ssh_close_authentication_connection(ac);
+	env_swap(ssh_env, 0);
 	return retval ? PAM_SUCCESS : PAM_SESSION_ERR;
 }
 
@@ -309,9 +452,27 @@ pam_sm_close_session(
 {
 	const char	*env_file;	/* ssh-agent environment */
 	int	 	 retval;	/* from calls */
+	ENV		*ssh_env;	/* env handle */
 
+	if ((retval = pam_get_data(pamh, "ssh_env_handle",
+	    (const void **)&ssh_env)) != PAM_SUCCESS)
+		return retval;
+	env_swap(ssh_env, 1);
 	/* kill the agent */
-	if ((retval = system(PATH_SSH_AGENT " -k")) != 0) {
+	retval = system(PATH_SSH_AGENT " -k");
+	env_destroy(ssh_env);
+	switch (retval) {
+	case -1:
+		syslog(LOG_ERR, "%s: %s -k: %m", MODULE_NAME,
+		    PATH_SSH_AGENT);
+		return PAM_SESSION_ERR;
+	case 0:
+		break;
+	case 127:
+		syslog(LOG_ERR, "%s: cannot execute %s -k", MODULE_NAME,
+		    PATH_SSH_AGENT);
+		return PAM_SESSION_ERR;
+	default:
 		syslog(LOG_ERR, "%s: %s -k exited with status %d",
 		    MODULE_NAME, PATH_SSH_AGENT, WEXITSTATUS(retval));
 		return PAM_SESSION_ERR;
