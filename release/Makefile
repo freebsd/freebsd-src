@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.478 1999/04/25 16:42:46 max Exp $
+#	$Id: Makefile,v 1.479 1999/04/27 05:09:43 max Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -330,7 +330,7 @@ release.4:
 #
 release.5:
 	# Handle some grief caused by the munition braindeadness.
-	for i in sbin/init bin/ed usr.sbin/ppp ; do \
+	for i in sbin/init bin/ed usr.sbin/ppp usr.sbin/pppd ; do \
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done

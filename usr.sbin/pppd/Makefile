@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1998/09/19 22:42:11 obrien Exp $
+#	$Id: Makefile,v 1.12 1998/10/11 19:40:38 jdp Exp $
 
 CFLAGS+= -DHAVE_PATHS_H
 
@@ -28,9 +28,12 @@ LDADD+=	-lpcap
 DPADD+=	${LIBPCAP}
 
 # MS-CHAP support.  Requires the DES library.
-#CFLAGS+=-DCHAPMS
-#SRCS+=	chap_ms.c
-#LDADD+=	-ldes
-#DPADD+=	${LIBDES}
+.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+DISTRIBUTION=des
+CFLAGS+=-DCHAPMS
+SRCS+=	chap_ms.c
+LDADD+=	-ldes
+DPADD+=	${LIBDES}
+.endif
 
 .include <bsd.prog.mk>
