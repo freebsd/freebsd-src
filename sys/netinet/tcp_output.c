@@ -116,7 +116,9 @@ tcp_output(struct tcpcb *tp)
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
 	int off, flags, error;
+#ifdef TCP_SIGNATURE
 	int sigoff = 0;
+#endif /* TCP_SIGNATURE */
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
