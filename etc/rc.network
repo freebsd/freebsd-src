@@ -138,7 +138,7 @@ network_pass1() {
 		;;
 	esac
 
-	# Warm up user ppp if required, must happen before natd.
+	# Start user ppp if required.  This must happen before natd.
 	#
 	case ${ppp_enable} in
 	[Yy][Ee][Ss])
@@ -147,27 +147,28 @@ network_pass1() {
 		if [ "${ppp_mode}" != "ddial" -a "${ppp_mode}" != "direct" \
 			-a "${ppp_mode}" != "dedicated" \
 			-a "${ppp_mode}" != "background" ]; then
-			ppp_mode="auto";
+			ppp_mode="auto"
 		fi
 
-		ppp_command="-${ppp_mode} ";
+		ppp_command="/usr/sbin/ppp -quiet -${ppp_mode}"
 
-		# Switch on alias mode?
+		# Switch on NAT mode?
 		#
 		case ${ppp_nat} in
 		[Yy][Ee][Ss])
-			ppp_command="${ppp_command} -nat";
+			ppp_command="${ppp_command} -nat"
 			;;
 		esac
 
-		echo -n 'Starting ppp: '; ppp ${ppp_command} -quiet ${ppp_profile}
+		ppp_command="${ppp_command} ${ppp_profile}"
+
+		echo -n "Starting ppp as \"${ppp_user}\""
+		su ${ppp_user} -c "exec ${ppp_command}"
 		;;
 	esac
 
 	# Initialize IP filtering using ipfw
 	#
-	echo ''
-
 	if /sbin/ipfw -q flush > /dev/null 2>&1; then
 		firewall_in_kernel=1
 	else
@@ -223,6 +224,16 @@ network_pass1() {
 				echo "but firewall rules are not enabled."
 				echo "		 All ip services are disabled."
 			fi
+
+			case ${firewall_logging} in
+			[Yy][Ee][Ss] | '')
+				echo 'Firewall logging=YES'
+				sysctl -w net.inet.ip.fw.verbose=1 >/dev/null
+				;;
+			*)
+				;;
+			esac
+
 			;;
 		esac
 		;;
@@ -352,11 +363,11 @@ network_pass1() {
 
 	case ${ip_portrange_last} in
 	[Nn][Oo] | '')
-	    ;;
+		;;
 	*)
-	    echo -n ' ip_portrange_last=$ip_portrange_last'
-	    sysctl -w net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
-	    ;;
+		echo -n ' ip_portrange_last=$ip_portrange_last'
+		sysctl -w net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
+		;;
 	esac
 
 	echo '.'
