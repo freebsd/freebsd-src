@@ -62,7 +62,7 @@ bool	was_sig;
 	addch(inch());
 	move(Max.y, Max.x);
 	addch(inch());
-# endif DEBUG
+# endif /* DEBUG */
 	for (rp = Robots; rp < &Robots[MAXROBOTS]; rp++) {
 		if (rp->y < 0)
 			continue;
@@ -123,7 +123,7 @@ bool	was_sig;
 	move(Max.y, Max.x);
 	addch(inch());
 	standend();
-# endif DEBUG
+# endif /* DEBUG */
 	if (Real_time)
 		alarm(3);
 }
