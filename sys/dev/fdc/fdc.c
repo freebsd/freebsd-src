@@ -469,6 +469,7 @@ fdc_cmd(struct fdc_data *fdc, int n_out, ...)
 				"cmd %x failed at out byte %d of %d\n",
 				cmd, n + 1, n_out);
 			fdc->flags |= FDC_NEEDS_RESET;
+			va_end(ap);
 			return fdc_err(fdc, msg);
 		}
 	}
@@ -481,9 +482,11 @@ fdc_cmd(struct fdc_data *fdc, int n_out, ...)
 				"cmd %02x failed at in byte %d of %d\n",
 				cmd, n + 1, n_in);
 			fdc->flags |= FDC_NEEDS_RESET;
+			va_end(ap);
 			return fdc_err(fdc, msg);
 		}
 	}
+	va_end(ap);
 	return (0);
 }
 
@@ -1877,7 +1880,7 @@ fd_probe(device_t dev)
 				/* ...wait a moment... */
 				DELAY(300000);
 				/* make ctrlr happy: */
-				fdc_sense_int(fdc, 0, 0);
+				fdc_sense_int(fdc, NULL, NULL);
 			}
 		}
 
@@ -1894,7 +1897,7 @@ fd_probe(device_t dev)
 				DELAY(i == 0 ? 1000000 : 300000);
 
 				/* anything responding? */
-				if (fdc_sense_int(fdc, &st0, 0) == 0 &&
+				if (fdc_sense_int(fdc, &st0, NULL) == 0 &&
 				    (st0 & NE7_ST0_EC) == 0)
 					break; /* already probed succesfully */
 			}
