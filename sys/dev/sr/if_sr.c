@@ -385,7 +385,6 @@ static struct ng_type typestruct = {
 	NULL,
 	ngsr_connect,
 	ngsr_rcvdata,
-	ngsr_rcvdata,
 	ngsr_disconnect,
 	NULL
 };
