@@ -382,8 +382,6 @@ ng_sppp_rcvdata (hook_p hook, item_p item)
 	NG_FREE_ITEM (item);
 	/* Sanity checks */
 	KASSERT (m->m_flags & M_PKTHDR, ("%s: not pkthdr", __func__));
-	if (m == NULL)
-		return (EINVAL);
 	if ((pp->pp_if.if_flags & IFF_UP) == 0) {
 		NG_FREE_M (m);
 		return (ENETDOWN);
