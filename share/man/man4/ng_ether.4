@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2000
+.Dd June 26, 2000
 .Dt NG_ETHER 4
 .Os FreeBSD
 .Sh NAME
@@ -44,63 +44,126 @@
 .Fd #include <netgraph/ng_ether.h>
 .Sh DESCRIPTION
 The
-.Nm ether
+.Nm ng_ether
 netgraph node type allows Ethernet interfaces to interact with
 the
 .Xr netgraph 4 
-networking subsystem.  The kernel must be compiled with
-.Bd -literal
-    options NETGRAPH
-.Ed
+networking subsystem.
+Once the
+.Nm
+module is loaded in the kernel, a node is automatically created
+for each Ethernet interface in the system.
+Each node will attempt to name itself with the same name
+as the associated interface.
+All
+.Nm
+nodes are persistent for as long as the interface itself exists.
 .Pp
-for this functionality to be enabled.
-This causes a netgraph node to be automatically created for each Ethernet
-interface in the system.  The node will have a name equal to
-the name of the interface, and it will be persistent.
-.Pp
-The Ethernet interface continues to function normally until a connection
-is made to one of the two supported hooks,
-.Dv orphans
-or
-.Dv divert .
-The
-.Dv orphans
-hook is used to receive Ethernet frames received by the device and
-having an unknown or unsupported Ethertype.
-The
+Three hooks are supported:
+.Dv lower ,
+.Dv upper ,
+and
+.Dv orphans .
+The hook name
 .Dv divert
-hook is used to divert
-.Em all
-Ethernet frames received by the device; the interface will otherwise
-appear to go silent until this hook is disconnected.
+may be used as an alias for
+.Dv lower ,
+and is provided for backward compatibility.
+In reality the two names represent the same hook.
 .Pp
-Either hook may be used to transmit Ethernet frames by transmitting packets
-to the hook.  In all cases, frames are raw Ethernet frames with the standard
+The
+.Dv lower
+hook is a connection to the raw Ethernet device.
+When connected, all incoming packets are diverted out this hook.
+Writing to this hook results in a raw Ethernet frame being transmitted
+by the device.
+Normal outgoing packets are not affected by
+.Dv lower
+being connected.
+.Pp
+The
+.Dv upper
+hook is a connection to the upper protocol layers.
+When connected, all outgoing packets are diverted out this hook.
+Writing to this hook results in a raw Ethernet frame being received by
+the kernel just as if it had come in over the wire.
+Normal incoming packets are not affected by
+.Dv upper
+being connected.
+.Pp
+The
+.Dv orphans
+hook is equivalent to
+.Dv lower ,
+except that only unrecognized packets (that would otherwise be discarded)
+are written to the hook, and normal incoming traffic is unaffected.
+At most one of
+.Dv orphans
+and
+.Dv lower
+may be connected at any time.
+.Pp
+In all cases, frames are raw Ethernet frames with the standard
 14 byte Ethernet header (but no checksum).
+.Pp
+When no hooks are connected,
+.Dv upper
+and
+.Dv lower
+are in effect connected together,
+so that packets flow normally upwards and downwards.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
 .Bl -tag -width orphans
+.It Dv lower
+Connection to the lower device link layer.
+.It Dv upper
+Connection to the upper protocol layers.
 .It Dv orphans
-This hook transmits Ethernet frames received by the device and
-having an unknown or unsupported Ethertype.  Frames received on
-this hook are written as-is out on the wire.
-.It Dv divert
-When connected, this hook transmits all Ethernet frames received by the device.
-Frames received on this hook are written as-is out on the wire.
+Like
+.Dv lower ,
+but only receives unrecognized packets.
 .El
 .Sh CONTROL MESSAGES
-This node type supports only the generic control messages.
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_ETHER_GET_IFNAME
+Returns the name of the associated interface as a NUL-terminated ASCII string.
+Normally this is the same as the name of the node.
+.It Dv NGM_ETHER_GET_IFINDEX
+Returns the global index of the associated interface as a 32 bit integer.
+.El
 .Sh SHUTDOWN
-This node is persistent.  Upon receipt of a
+This node is persistent for as long as the interface exists.
+Upon receipt of a
 .Dv NGM_SHUTDOWN
-control message, all hooks are disconnected.
+control message, all hooks are disconnected, but the node is not removed.
+If the interface itself is detached (e.g., because of PCCARD removal), the
+node disappears as well.
 .Sh EXAMPLE
-This command will dump all packets received by the
+This command dumps all unrecognized packets received by the
 .Dv fxp0
-interface to standard output as decoded hex and ASCII:
+interface to standard output decoded in hex and ASCII:
 .Bd -literal -offset indent
-nghook -a fxp0: divert
+nghook -a fxp0: orphans
+.Ed
+.Pp
+This command sends the contents of
+.Dv foo.pkt
+out the interface
+.Dv ed0 :
+.Bd -literal -offset indent
+cat foo.pkt | nghook fxp0: orphans
+.Ed
+.Pp
+These commands insert an
+.Xr ng_tee 4
+node between the lower and upper protocol layers, which can be used for
+tracing packet flow, statistics, etc.:
+.Bd -literal -offset indent
+ngctl mkpeer fxp0: tee lower right
+ngctl connect fxp0: lower upper left
 .Ed
 .Sh SEE ALSO
 .Xr arp 4 ,
@@ -109,5 +172,6 @@ nghook -a fxp0: divert
 .Xr ifconfig 8 ,
 .Xr nghook 8 ,
 .Xr ngctl 8
-.Sh AUTHOR
+.Sh AUTHORS
 .An Julian Elischer Aq julian@FreeBSD.org
+.An Archie Cobbs Aq archie@FreeBSD.org
