@@ -772,7 +772,7 @@ ffs_unmount(mp, mntflags, p)
 	int mntflags;
 	struct proc *p;
 {
-	register struct ufsmount *ump;
+	register struct ufsmount *ump = VFSTOUFS(mp);
 	register struct fs *fs;
 	int error, flags;
 
@@ -794,7 +794,6 @@ ffs_unmount(mp, mntflags, p)
 		if ((error = ffs_flushfiles(mp, flags, p)) != 0)
 			return (error);
 	}
-	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & FS_UNCLEAN ? 0 : 1;
