@@ -226,6 +226,9 @@ static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvinit;
+static struct pv_entry *pvbootentries;
+static int pvbootnext, pvbootmax;
+
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
@@ -345,6 +348,18 @@ pmap_bootstrap()
 #if 0
 	thread0->td_pcb->pcb_hw.apcb_asn = 0;
 #endif
+
+	/*
+	 * Reserve some memory for allocating pvs while bootstrapping
+	 * the pv allocator. We need to have enough to cover mapping
+	 * the kmem_alloc region used to allocate the initial_pvs in
+	 * pmap_init. In general, the size of this region is
+	 * appoximately (# physical pages) * (size of pv entry).
+	 */
+	pvbootmax = ((physmem * sizeof(struct pv_entry)) >> PAGE_SHIFT) + 128;
+	pvbootentries = (struct pv_entry *)
+		pmap_steal_memory(pvbootmax * sizeof(struct pv_entry));
+	pvbootnext = 0;
 }
 
 /*
@@ -777,11 +792,7 @@ get_pv_entry(void)
 	 * cover this.
 	 */
 	if (!pvinit) {
-#define PV_BOOTSTRAP_NEEDED	2048
-		static struct pv_entry pvbootentries[PV_BOOTSTRAP_NEEDED];
-		static int pvbootnext = 0;
-
-		if (pvbootnext == PV_BOOTSTRAP_NEEDED)
+		if (pvbootnext == pvbootmax)
 			panic("get_pv_entry: called too many times"
 			      " before pmap_init is finished");
 		return &pvbootentries[pvbootnext++];
