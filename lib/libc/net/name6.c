@@ -1185,7 +1185,7 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 				continue;
 			}
 			strcpy(bp, tbuf);
-			tname = bp;
+			template->h_name = bp;
 			bp += n;
 			buflen -= n;
 			continue;
