@@ -57,7 +57,7 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
-#define BSD_METHOD_NAME "BSD-method"
+#define BSD_CLASS_NAME "BSD-class"
 
 struct g_bsd_softc {
 	struct disklabel ondisk;
@@ -319,7 +319,7 @@ g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consum
 }
 
 static struct g_geom *
-g_bsd_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, int flags)
+g_bsd_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -335,7 +335,7 @@ g_bsd_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, int f
 	g_trace(G_T_TOPOLOGY, "bsd_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	if (flags == G_TF_NORMAL &&
-	    !strcmp(pp->geom->method->name, BSD_METHOD_NAME))
+	    !strcmp(pp->geom->class->name, BSD_CLASS_NAME))
 		return (NULL);
 	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_bsd_start);
 	if (gp == NULL)
@@ -433,13 +433,13 @@ g_bsd_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, int f
 	return (NULL);
 }
 
-static struct g_method g_bsd_method	= {
-	BSD_METHOD_NAME,
+static struct g_class g_bsd_class	= {
+	BSD_CLASS_NAME,
 	g_bsd_taste,
 	g_slice_access,
 	g_slice_orphan,
 	NULL,
-	G_METHOD_INITSTUFF
+	G_CLASS_INITSTUFF
 };
 
-DECLARE_GEOM_METHOD(g_bsd_method, g_bsd);
+DECLARE_GEOM_CLASS(g_bsd_class, g_bsd);

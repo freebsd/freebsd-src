@@ -77,7 +77,7 @@ g_confdot_geom(struct sbuf *sb, struct g_geom *gp)
 	struct g_provider *pp;
 
 	sbuf_printf(sb, "z%p [shape=box,label=\"%s\\n%s\\nr#%d\"];\n",
-	    gp, gp->method->name, gp->name, gp->rank);
+	    gp, gp->class->name, gp->name, gp->rank);
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		g_confdot_consumer(sb, cp);
 		sbuf_printf(sb, "z%p -> z%p;\n", gp, cp);
@@ -90,7 +90,7 @@ g_confdot_geom(struct sbuf *sb, struct g_geom *gp)
 }
 
 static void
-g_confdot_method(struct sbuf *sb, struct g_method *mp)
+g_confdot_class(struct sbuf *sb, struct g_class *mp)
 {
 	struct g_geom *gp;
 
@@ -101,14 +101,14 @@ g_confdot_method(struct sbuf *sb, struct g_method *mp)
 struct sbuf *
 g_confdot(void)
 {
-	struct g_method *mp;
+	struct g_class *mp;
 	struct sbuf *sb;
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
 	sbuf_printf(sb, "digraph geom {\n");
-	LIST_FOREACH(mp, &g_methods, method)
-		g_confdot_method(sb, mp);
+	LIST_FOREACH(mp, &g_classs, class)
+		g_confdot_class(sb, mp);
 	sbuf_printf(sb, "};\n");
 	sbuf_finish(sb);
 	return (sb);
@@ -160,7 +160,7 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 
 	sbuf_printf(sb, "    <geom>\n");
 	sbuf_printf(sb, "      <ref>%p</ref>\n", gp);
-	sbuf_printf(sb, "      <method><ref>%p</ref></method>\n", gp->method);
+	sbuf_printf(sb, "      <class><ref>%p</ref></class>\n", gp->class);
 	sbuf_printf(sb, "      <name>%s</name>\n", gp->name);
 	sbuf_printf(sb, "      <rank>%d</rank>\n", gp->rank);
 	if (gp->dumpconf) {
@@ -183,11 +183,11 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 }
 
 static void
-g_conf_method(struct sbuf *sb, struct g_method *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+g_conf_class(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
 {
 	struct g_geom *gp2;
 
-	sbuf_printf(sb, "  <method>\n");
+	sbuf_printf(sb, "  <class>\n");
 	sbuf_printf(sb, "    <ref>%p</ref>\n", mp);
 	sbuf_printf(sb, "    <name>%s</name>\n", mp->name);
 	LIST_FOREACH(gp2, &mp->geom, geom) {
@@ -195,22 +195,22 @@ g_conf_method(struct sbuf *sb, struct g_method *mp, struct g_geom *gp, struct g_
 			continue;
 		g_conf_geom(sb, gp2, pp, cp);
 	}
-	sbuf_printf(sb, "  </method>\n");
+	sbuf_printf(sb, "  </class>\n");
 }
 
 struct sbuf *
-g_conf_specific(struct g_method *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
 {
-	struct g_method *mp2;
+	struct g_class *mp2;
 	struct sbuf *sb;
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
 	sbuf_printf(sb, "<mesh>\n");
-	LIST_FOREACH(mp2, &g_methods, method) {
+	LIST_FOREACH(mp2, &g_classs, class) {
 		if (mp != NULL && mp != mp2)
 			continue;
-		g_conf_method(sb, mp2, gp, pp, cp);
+		g_conf_class(sb, mp2, gp, pp, cp);
 	}
 	sbuf_printf(sb, "</mesh>\n");
 	sbuf_finish(sb);

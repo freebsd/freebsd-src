@@ -122,10 +122,10 @@ g_orphan_register(struct g_provider *pp, struct thread *tp)
 	cp = LIST_FIRST(&pp->consumers);
 	while (cp != NULL) {
 		cp2 = LIST_NEXT(cp, consumers);
-		KASSERT(cp->geom->method->orphan != NULL,
-		    ("method %s has no orphan, geom %s",
-		    cp->geom->method->name, cp->geom->name));
-		cp->geom->method->orphan(cp, tp);
+		KASSERT(cp->geom->class->orphan != NULL,
+		    ("class %s has no orphan, geom %s",
+		    cp->geom->class->name, cp->geom->name));
+		cp->geom->class->orphan(cp, tp);
 		cp = cp2;
 	}
 }
@@ -140,26 +140,26 @@ g_destroy_event(struct g_event *ep)
 static void
 g_do_event(struct g_event *ep, struct thread *tp)
 {
-	struct g_method *mp, *mp2;
+	struct g_class *mp, *mp2;
 	struct g_geom *gp;
 	struct g_consumer *cp, *cp2;
 	struct g_provider *pp;
 	int i;
 
 	g_trace(G_T_TOPOLOGY, "g_do_event(%p) %d m:%p g:%p p:%p c:%p - ",
-	    ep, ep->event, ep->method, ep->geom, ep->provider, ep->consumer);
+	    ep, ep->event, ep->class, ep->geom, ep->provider, ep->consumer);
 	g_topology_assert();
 	switch (ep->event) {
-	case EV_NEW_METHOD:
-		mp2 = ep->method;
+	case EV_NEW_CLASS:
+		mp2 = ep->class;
 		if (mp2->taste == NULL)
 			break;
-		LIST_FOREACH(mp, &g_methods, method) {
+		LIST_FOREACH(mp, &g_classs, class) {
 			if (mp2 == mp)
 				continue;
 			LIST_FOREACH(gp, &mp->geom, geom) {
 				LIST_FOREACH(pp, &gp->provider, provider) {
-					mp2->taste(ep->method, pp, tp, 0);
+					mp2->taste(ep->class, pp, tp, 0);
 					g_topology_assert();
 				}
 			}
@@ -168,12 +168,12 @@ g_do_event(struct g_event *ep, struct thread *tp)
 	case EV_NEW_PROVIDER:
 		g_trace(G_T_TOPOLOGY, "EV_NEW_PROVIDER(%s)",
 		    ep->provider->name);
-		LIST_FOREACH(mp, &g_methods, method) {
+		LIST_FOREACH(mp, &g_classs, class) {
 			if (mp->taste == NULL)
 				continue;
 			i = 1;
 			LIST_FOREACH(cp, &ep->provider->consumers, consumers)
-				if(cp->geom->method == mp)
+				if(cp->geom->class == mp)
 					i = 0;
 			if (i) {
 				mp->taste(mp, ep->provider, tp, 0);
@@ -226,8 +226,8 @@ one_event(struct thread *tp)
 		return (0);
 	}
 	TAILQ_REMOVE(&g_events, ep, events);
-	if (ep->method != NULL)
-		ep->method->event = NULL;
+	if (ep->class != NULL)
+		ep->class->event = NULL;
 	if (ep->geom != NULL)
 		ep->geom->event = NULL;
 	if (ep->provider != NULL)
@@ -255,7 +255,7 @@ g_run_events(struct thread *tp)
 }
 
 void
-g_post_event(enum g_events ev, struct g_method *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
 {
 	struct g_event *ep;
 
@@ -265,8 +265,8 @@ g_post_event(enum g_events ev, struct g_method *mp, struct g_geom *gp, struct g_
 	ep = g_malloc(sizeof *ep, M_WAITOK | M_ZERO);
 	ep->event = ev;
 	if (mp != NULL) {
-		ep->method = mp;
-		KASSERT(mp->event == NULL, ("Double event on method"));
+		ep->class = mp;
+		KASSERT(mp->event == NULL, ("Double event on class"));
 		mp->event = ep;
 	}
 	if (gp != NULL) {

@@ -178,8 +178,8 @@ SYSCTL_PROC(_debug, OID_AUTO, geomconf, CTLTYPE_STRING|CTLFLAG_RD,
 SYSCTL_INT(_debug, OID_AUTO, geomdebugflags, CTLTYPE_INT|CTLFLAG_RW,
 	&g_debugflags, 0, "");
 
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_method, CTLTYPE_INT|CTLFLAG_RD,
-	0, sizeof(struct g_method), "");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLTYPE_INT|CTLFLAG_RD,
+	0, sizeof(struct g_class), "");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLTYPE_INT|CTLFLAG_RD,
 	0, sizeof(struct g_geom), "");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_provider, CTLTYPE_INT|CTLFLAG_RD,
