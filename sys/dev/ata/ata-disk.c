@@ -34,7 +34,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -44,8 +43,6 @@
 #include <sys/cons.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_page.h>
-#include <vm/vm_object.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>

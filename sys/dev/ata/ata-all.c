@@ -49,8 +49,6 @@
 #include <sys/devicestat.h>
 #include <sys/sysctl.h>
 #include <machine/stdarg.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>

@@ -41,9 +41,8 @@
 #if NPCI > 0
 #include <pci/pcivar.h>
 #endif
-#include <dev/ata/ata-all.h>
-#include <dev/ata/ata-disk.h>
 #include <machine/bus.h>
+#include <dev/ata/ata-all.h>
 
 #if NPCI > 0
 

@@ -376,8 +376,8 @@ atapi_interrupt(struct atapi_request *request)
 		atapi_write(request, length);
 	    /* FALLTHROUGH */
 
-	    case ATAPI_P_ABORT:
-	    case ATAPI_P_DONE:
+	case ATAPI_P_ABORT:
+	case ATAPI_P_DONE:
 	    if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF))
 		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
 	    else 

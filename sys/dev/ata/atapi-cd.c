@@ -42,7 +42,6 @@
 #include <sys/dvdio.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
-#include <sys/stat.h>
 #include <sys/ctype.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
