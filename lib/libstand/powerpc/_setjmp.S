@@ -1,11 +1,10 @@
 /*	$NetBSD: _setjmp.S,v 1.1 1997/03/29 20:55:53 thorpej Exp $	*/
-/* $FreeBSD$ */
 
 #include <machine/asm.h>
 
-#if defined(LIBC_SCCS)
+#if (defined(LIBC_SCCS) || defined(LIBC_RCS)) && !defined(lint)
 	.text
-	.asciz "$NetBSD: _setjmp.S,v 1.1 1997/03/29 20:55:53 thorpej Exp $"
+	.asciz "$FreeBSD$"
 #endif
 
 /*
