@@ -107,5 +107,5 @@ _accept(int fd, struct sockaddr * name, socklen_t *namelen)
 	return (ret);
 }
 
-__weak_reference(_accept, accept);
+__strong_reference(_accept, accept);
 #endif

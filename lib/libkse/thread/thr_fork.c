@@ -221,5 +221,5 @@ _fork(void)
 	return (ret);
 }
 
-__weak_reference(_fork, fork);
+__strong_reference(_fork, fork);
 #endif

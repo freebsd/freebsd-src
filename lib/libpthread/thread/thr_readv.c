@@ -91,5 +91,5 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 	return (ret);
 }
 
-__weak_reference(_readv, readv);
+__strong_reference(_readv, readv);
 #endif

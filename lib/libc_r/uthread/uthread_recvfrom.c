@@ -72,5 +72,5 @@ _recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
 	return (ret);
 }
 
-__weak_reference(_recvfrom, recvfrom);
+__strong_reference(_recvfrom, recvfrom);
 #endif

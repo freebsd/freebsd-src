@@ -77,5 +77,5 @@ _ioctl(int fd, unsigned long request,...)
 	return (ret);
 }
 
-__weak_reference(_ioctl, ioctl);
+__strong_reference(_ioctl, ioctl);
 #endif

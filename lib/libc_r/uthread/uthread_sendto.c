@@ -71,5 +71,5 @@ _sendto(int fd, const void *msg, size_t len, int flags, const struct
 	return (ret);
 }
 
-__weak_reference(_sendto, sendto);
+__strong_reference(_sendto, sendto);
 #endif

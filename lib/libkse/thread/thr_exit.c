@@ -77,7 +77,7 @@ void __exit(int status)
 	_thread_sys__exit(status);
 }
 
-__weak_reference(__exit, _exit);
+__strong_reference(__exit, _exit);
 
 void
 _thread_exit(char *fname, int lineno, char *string)

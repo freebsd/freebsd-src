@@ -49,5 +49,5 @@ _fchmod(int fd, mode_t mode)
 	return (ret);
 }
 
-__weak_reference(_fchmod, fchmod);
+__strong_reference(_fchmod, fchmod);
 #endif

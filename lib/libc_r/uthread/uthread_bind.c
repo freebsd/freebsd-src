@@ -49,5 +49,5 @@ _bind(int fd, const struct sockaddr * name, socklen_t namelen)
 	return (ret);
 }
 
-__weak_reference(_bind, bind);
+__strong_reference(_bind, bind);
 #endif

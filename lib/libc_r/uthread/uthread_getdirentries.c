@@ -49,5 +49,5 @@ _getdirentries(int fd, char *buf, int nbytes, long *basep)
 	return (ret);
 }
 
-__weak_reference(_getdirentries, getdirentries);
+__strong_reference(_getdirentries, getdirentries);
 #endif
