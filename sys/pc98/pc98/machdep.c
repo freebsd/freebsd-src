@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.59 1997/10/12 11:58:09 kato Exp $
+ *	$Id: machdep.c,v 1.60 1997/10/13 09:21:16 kato Exp $
  */
 
 #include "apm.h"
@@ -239,10 +239,10 @@ cpu_startup(dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			int size = phys_avail[indx + 1] - phys_avail[indx];
+			int size1 = phys_avail[indx + 1] - phys_avail[indx];
 
 			printf("0x%08lx - 0x%08lx, %d bytes (%d pages)\n", phys_avail[indx],
-			    phys_avail[indx + 1] - 1, size, size / PAGE_SIZE);
+			    phys_avail[indx + 1] - 1, size1, size1 / PAGE_SIZE);
 		}
 	}
 
@@ -606,12 +606,11 @@ sendsig(catcher, sig, mask, code)
  * state to gain improper privileges.
  */
 int
-sigreturn(p, uap, retval)
+sigreturn(p, uap)
 	struct proc *p;
 	struct sigreturn_args /* {
 		struct sigcontext *sigcntxp;
 	} */ *uap;
-	int *retval;
 {
 	register struct sigcontext *scp;
 	register struct sigframe *fp;
