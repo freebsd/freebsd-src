@@ -420,9 +420,12 @@ vinum_init(int argc, char *argv[], char *arg0[])
 		    printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
 	    }
 	    /* Now wait for them to complete */
-	    for (sdno = 0; sdno < plex.subdisks; sdno++) {
+	    while (1) {
 		int status;
 		pid = wait(&status);
+		if (((int) pid == -1)
+		    && (errno == ECHILD))		    /* all gone */
+		    break;
 		if (WEXITSTATUS(status) != 0) {		    /* oh, oh */
 		    printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
 		    failed++;
@@ -761,7 +764,7 @@ vinum_resetstats(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (argc == 0) {
-	for (objno = 0; objno < vinum_conf.volumes_used; objno++)
+	for (objno = 0; objno < vinum_conf.volumes_allocated; objno++)
 	    reset_volume_stats(objno, 1);		    /* clear everything recursively */
     } else {
 	for (i = 0; i < argc; i++) {
