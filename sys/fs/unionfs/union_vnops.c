@@ -404,9 +404,11 @@ union_lookup(ap)
 			if (cnp->cn_flags & ISWHITEOUT) {
 				iswhiteout = 1;
 			} else if (lowerdvp != NULLVP) {
-				lerror = VOP_GETATTR(upperdvp, &va,
+				int terror;
+
+				terror = VOP_GETATTR(upperdvp, &va,
 					cnp->cn_cred, cnp->cn_proc);
-				if (lerror == 0 && (va.va_flags & OPAQUE))
+				if (terror == 0 && (va.va_flags & OPAQUE))
 					iswhiteout = 1;
 			}
 		}
