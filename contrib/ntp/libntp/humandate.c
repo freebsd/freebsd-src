@@ -2,15 +2,10 @@
  * humandate - convert an NTP (or the current) time to something readable
  */
 #include <stdio.h>
-#include "time.h"
 #include "ntp_fp.h"
-#include "ntp_unixtime.h"	/* includes <sys/time.h> */
+#include "ntp_unixtime.h"	/* includes <sys/time.h> and <time.h> */
 #include "lib_strbuf.h"
 #include "ntp_stdlib.h"
-
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
-#endif
 
 static const char *months[] = {
 	"Jan", "Feb", "Mar", "Apr", "May", "Jun",

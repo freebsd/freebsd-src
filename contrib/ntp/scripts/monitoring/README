@@ -1,14 +1,14 @@
 This directory contains support for monitoring the local clock of xntp daemons.
 
-WARNING: The scripts and routines contained in this directory are bete realease!
-	 Do not depend on their correct operation. They are, however, in regular
-	 use at University of Erlangen-Nuernberg. No severe problems are known
-	 for this code.
+WARNING: The scripts and routines contained in this directory are beta
+	 release!  Do not depend on their correct operation. They are,
+	 however, in regular use at University of Erlangen-Nuernberg.
+	 No severe problems are known for this code.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 PLEASE THINK TWICE BEFORE STARTING MONITORING REMOTE XNTP DEAMONS !!!!
 MONITORING MAY INCREASE THE LOAD OF THE DEAMON MONITORED AND MAY
-INCREASE THE NETWORK LOAD SIGNIFICANTLY 
+INCREASE THE NETWORK LOAD SIGNIFICANTLY
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -23,8 +23,8 @@ ntptrap:
 	It sends a set_trap request to each server given and dumps the
 	trap messages received. It handles refresh of set_trap.
 	Currently it handles only NTP V2, however the NTP V3 servers
-	also accept v2 requests. It will not interpret v3 system and peer
-	stati correctly.
+	also accept v2 requests. It will not interpret v3 system and
+	peer stati correctly.
 
 	usage:
 	  ntptrap [-n] [-p <port>] [-l <debug-output>] servers...
@@ -72,7 +72,9 @@ ntploopstat:
 	
 	if a timeout occurs the next sample is tried after delay/2 seconds
 
-	The script will terminate after MAX_FAIL (currently 60) consecutive errors.
+	The script will terminate after MAX_FAIL (currently 60)
+	consecutive errors.
+
 	Errors are counted for:
 		- error on send call
 		- error on select call
@@ -114,10 +116,10 @@ ntploopwatch:
 	command line values would be replaced by settings from the config file.
 
 	printer:	specify printer to print plot
-			BSD print systems semantics apply; if printer is omitted
-			the name "ps" is used; plots are prepared using
-			PostScript, thus the printer should best accept
-			postscript input
+			BSD print systems semantics apply; if printer
+			is omitted the name "ps" is used; plots are
+			prepared using PostScript, thus the printer
+			should best accept postscript input
 
 	For the following see also the comments in loopwatch.config.SAMPLE
 
@@ -139,8 +141,10 @@ lr.pl:
 	within display range
 
 timelocal.pl:
-	used during conversion of ISO_DATE_TIME values specified in loopwatch
-	config files to unix epoch values (seconds since 1970-01-01_00:00_00 UTC)
+
+	used during conversion of ISO_DATE_TIME values specified in
+	loopwatch config files to unix epoch values (seconds since
+	1970-01-01_00:00_00 UTC)
 
 	A version of this file is distributed with perl-4.x, however,
 	it has a bug related to dates crossing 1970, causing endless loops..

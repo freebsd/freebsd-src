@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -31,8 +32,6 @@ mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
 
-DESTDIR =
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -48,7 +47,7 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
-INSTALL_STRIP_FLAG =
+INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
 
 NORMAL_INSTALL = :
@@ -57,24 +56,30 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+
 build_alias = @build_alias@
 build_triplet = @build@
 host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+
+@SET_MAKE@
 AMDEP = @AMDEP@
 AMTAR = @AMTAR@
+AUTOKEY = @AUTOKEY@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
 DCFD = @DCFD@
 DEPDIR = @DEPDIR@
+EF_LIBS = @EF_LIBS@
+EF_PROGS = @EF_PROGS@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -86,16 +91,27 @@ MAKE_LIBPARSE = @MAKE_LIBPARSE@
 MAKE_LIBPARSE_KERNEL = @MAKE_LIBPARSE_KERNEL@
 MAKE_LIBRSAREF = @MAKE_LIBRSAREF@
 MAKE_NTPTIME = @MAKE_NTPTIME@
+MAKE_NTP_GENKEYS = @MAKE_NTP_GENKEYS@
 MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
 MAKE_TICKADJ = @MAKE_TICKADJ@
+MAKE_TIMETRIM = @MAKE_TIMETRIM@
+OPENSSL = @OPENSSL@
+OPENSSL_INC = @OPENSSL_INC@
+OPENSSL_LIB = @OPENSSL_LIB@
 PACKAGE = @PACKAGE@
+PATH_PERL = @PATH_PERL@
 PATH_SH = @PATH_SH@
 PROPDELAY = @PROPDELAY@
 RANLIB = @RANLIB@
+RSADIR = @RSADIR@
+RSAOBJS = @RSAOBJS@
 RSAREF = @RSAREF@
+RSASRCS = @RSASRCS@
+STRIP = @STRIP@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+_am_include = @_am_include@
 install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
@@ -106,108 +122,93 @@ bin_PROGRAMS = ntpq
 INCLUDES = -I$(top_srcdir)/include
 # LDADD might need RESLIB and ADJLIB
 LDADD = version.o ../libntp/libntp.a @LIBRSAREF@ 
-DISTCLEANFILES = .version
+DISTCLEANFILES = .version version.c
 noinst_HEADERS = ntpq.h
 #EXTRA_DIST = ntpq.mak
 ETAGS_ARGS = Makefile.am
 
 ntpq_SOURCES = ntpq.c ntpq_ops.c
+EXEEXT =
+OBJEXT = o
 subdir = ntpq
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../config.h
-CONFIG_CLEAN_FILES = 
-PROGRAMS =  $(bin_PROGRAMS)
+CONFIG_HEADER = $(top_builddir)/config.h
+CONFIG_CLEAN_FILES =
+bin_PROGRAMS = ntpq$(EXEEXT)
+PROGRAMS = $(bin_PROGRAMS)
 
 
-DEFS = @DEFS@ -I. -I$(srcdir) -I..
+DEFS = @DEFS@ -I. -I$(srcdir) -I$(top_builddir)
 CPPFLAGS = @CPPFLAGS@
 LIBS = @LIBS@
 ANSI2KNR = ../util/ansi2knr
-am_ntpq_OBJECTS =  ntpq$U.o ntpq_ops$U.o
-ntpq_OBJECTS =  $(am_ntpq_OBJECTS)
+am_ntpq_OBJECTS = ntpq$U.$(OBJEXT) ntpq_ops$U.$(OBJEXT)
+ntpq_OBJECTS = $(am_ntpq_OBJECTS)
 ntpq_LDADD = $(LDADD)
-ntpq_DEPENDENCIES =  version.o ../libntp/libntp.a
+ntpq_DEPENDENCIES = version.o ../libntp/libntp.a
 ntpq_LDFLAGS = 
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-DIST_SOURCES =  $(ntpq_SOURCES)
-HEADERS =  $(noinst_HEADERS)
+DIST_SOURCES = $(ntpq_SOURCES)
+HEADERS = $(noinst_HEADERS)
 
-DIST_COMMON =  README $(noinst_HEADERS) Makefile.am Makefile.in
-
-
-DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-
-GZIP_ENV = --best
 depcomp = $(SHELL) $(top_srcdir)/depcomp
-DEP_FILES =  @AMDEP@ $(DEPDIR)/ntpq$U.Po $(DEPDIR)/ntpq_ops$U.Po
+@AMDEP@DEP_FILES = $(DEPDIR)/ntpq$U.Po $(DEPDIR)/ntpq_ops$U.Po
+DIST_COMMON = README $(noinst_HEADERS) Makefile.am Makefile.in
+
 SOURCES = $(ntpq_SOURCES)
 OBJECTS = $(am_ntpq_OBJECTS)
 
-all: all-redirect
+all: all-am
+
 .SUFFIXES:
-.SUFFIXES: .c .o
-$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu ntpq/Makefile
+.SUFFIXES: .c .o .obj
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
-	cd $(top_builddir) \
-	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+$(srcdir)/Makefile.in: Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  ntpq/Makefile
 
-
-mostlyclean-binPROGRAMS:
-
-clean-binPROGRAMS:
-	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
-
-distclean-binPROGRAMS:
-
-maintainer-clean-binPROGRAMS:
-
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(bindir)
 	@list='$(bin_PROGRAMS)'; for p in $$list; do \
 	  if test -f $$p; then \
-	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
-	    echo "  $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f"; \
-	     $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f; \
+	    f=`echo $$p|sed 's/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
+	   echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/$$f"; \
+	   $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/$$f; \
 	  else :; fi; \
 	done
 
 uninstall-binPROGRAMS:
 	@$(NORMAL_UNINSTALL)
 	@list='$(bin_PROGRAMS)'; for p in $$list; do \
-	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  f=`echo $$p|sed 's/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
 	  echo " rm -f $(DESTDIR)$(bindir)/$$f"; \
 	  rm -f $(DESTDIR)$(bindir)/$$f; \
 	done
 
-mostlyclean-compile:
-	-rm -f *.o core *.core
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 
-clean-compile:
+mostlyclean-compile:
+	-rm -f *.$(OBJEXT) core *.core
 
 distclean-compile:
 	-rm -f *.tab.c
-
-maintainer-clean-compile:
-../util/ansi2knr: ../util/ansi2knr.o
+../util/ansi2knr: ../util/ansi2knr.$(OBJEXT)
 	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr
 
-../util/ansi2knr.o:
-	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.o
+../util/ansi2knr.$(OBJEXT):
+	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.$(OBJEXT)
 
 
 mostlyclean-kr:
 	-rm -f *_.c
-
-clean-kr:
-
-distclean-kr:
-
-maintainer-clean-kr:
 
 ntpq: $(ntpq_OBJECTS) $(ntpq_DEPENDENCIES)
 	@rm -f ntpq
@@ -216,7 +217,7 @@ ntpq_.c: ntpq.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntpq.c; then echo $(srcdir)/ntpq.c; else echo ntpq.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntpq_.c
 ntpq_ops_.c: ntpq_ops.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntpq_ops.c; then echo $(srcdir)/ntpq_ops.c; else echo ntpq_ops.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntpq_ops_.c
-ntpq_.o ntpq_ops_.o : $(ANSI2KNR)
+ntpq_.$(OBJEXT) ntpq_ops_.$(OBJEXT) : $(ANSI2KNR)
 
 tags: TAGS
 
@@ -227,9 +228,9 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	  done | \
 	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	mkid -f$$here/ID $$unique $(LISP)
+	mkid -fID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
@@ -242,40 +243,19 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
-mostlyclean-tags:
-
-clean-tags:
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
 
 distclean-tags:
 	-rm -f TAGS ID
 
-maintainer-clean-tags:
-
-distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
-
-distdir: $(DISTFILES)
-	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
-	  if test -d $$d/$$file; then \
-	    cp -pR $$d/$$file $(distdir); \
-	  else \
-	    test -f $(distdir)/$$file \
-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
-	  fi; \
-	done
-
-@AMDEP@include $(DEPDIR)/ntpq$U.Po
-@AMDEP@include $(DEPDIR)/ntpq_ops$U.Po
-
-mostlyclean-depend:
-
-clean-depend:
+@AMDEP@@_am_include@ $(DEPDIR)/ntpq$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntpq_ops$U.Po
 
 distclean-depend:
 	-rm -rf $(DEPDIR)
-
-maintainer-clean-depend:
 
 @AMDEP@CCDEPMODE = @CCDEPMODE@
 
@@ -283,34 +263,52 @@ maintainer-clean-depend:
 @AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
 @AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-	$(COMPILE) -c -o $@ $<
+	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
 
-info-am:
-info: info-am
-dvi-am:
-dvi: dvi-am
+.c.obj:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `cygpath -w $<`
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
 check-am: all-am
 check: check-am
-installcheck-am:
-installcheck: installcheck-am
-install-exec-am: install-binPROGRAMS
-install-exec: install-exec-am
+all-am: Makefile $(PROGRAMS) $(HEADERS)
 
-install-data-am:
+installdirs:
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+
+install: install-am
+install-exec: install-exec-am
 install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
-install: install-am
-uninstall-am: uninstall-binPROGRAMS
-uninstall: uninstall-am
-all-am: Makefile $(PROGRAMS) $(HEADERS)
-all-redirect: all-am
-install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
-installdirs:
-	$(mkinstalldirs)  $(DESTDIR)$(bindir)
 
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
 
 mostlyclean-generic:
 
@@ -322,45 +320,55 @@ distclean-generic:
 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
 	-rm -f Makefile.in
-mostlyclean-am:  mostlyclean-binPROGRAMS mostlyclean-compile \
-		mostlyclean-kr mostlyclean-tags mostlyclean-depend \
-		mostlyclean-generic
-
-mostlyclean: mostlyclean-am
-
-clean-am:  clean-binPROGRAMS clean-compile clean-kr clean-tags \
-		clean-depend clean-generic mostlyclean-am
-
 clean: clean-am
 
-distclean-am:  distclean-binPROGRAMS distclean-compile distclean-kr \
-		distclean-tags distclean-depend distclean-generic \
-		clean-am
+clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
 
-maintainer-clean-am:  maintainer-clean-binPROGRAMS \
-		maintainer-clean-compile maintainer-clean-kr \
-		maintainer-clean-tags maintainer-clean-depend \
-		maintainer-clean-generic distclean-am
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
+distclean-am: clean-am distclean-compile distclean-depend \
+	distclean-generic distclean-tags
+
+dvi:
+
+dvi-am:
+
+info:
+
+info-am:
+
+install-data-am:
+
+install-exec-am: install-binPROGRAMS
+
+install-info:
+
+install-man:
+
+installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 
-.PHONY: mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
-maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
-mostlyclean-compile distclean-compile clean-compile \
-maintainer-clean-compile mostlyclean-kr distclean-kr clean-kr \
-maintainer-clean-kr tags mostlyclean-tags distclean-tags clean-tags \
-maintainer-clean-tags distdir mostlyclean-depend distclean-depend \
-clean-depend maintainer-clean-depend info-am info dvi-am dvi check \
-check-am installcheck-am installcheck install-exec-am install-exec \
-install-data-am install-data install-am install uninstall-am uninstall \
-all-redirect all-am all install-strip installdirs mostlyclean-generic \
-distclean-generic clean-generic maintainer-clean-generic clean \
-mostlyclean distclean maintainer-clean
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-compile mostlyclean-generic mostlyclean-kr
+
+uninstall-am: uninstall-binPROGRAMS
+
+.PHONY: all all-am check check-am clean clean-binPROGRAMS clean-generic \
+	distclean distclean-compile distclean-depend distclean-generic \
+	distclean-tags distdir dvi dvi-am info info-am install \
+	install-am install-binPROGRAMS install-data install-data-am \
+	install-exec install-exec-am install-info install-man \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-kr tags \
+	uninstall uninstall-am uninstall-binPROGRAMS
 
 
 $(PROGRAMS): $(LDADD)

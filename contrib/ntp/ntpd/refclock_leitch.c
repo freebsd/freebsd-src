@@ -1,20 +1,20 @@
 /*
  * refclock_leitch - clock driver for the Leitch CSD-5300 Master Clock
  */
+
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
 
 #if defined(REFCLOCK) && defined(CLOCK_LEITCH)
-
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
 
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 #ifdef STREAM
 #include <stropts.h>

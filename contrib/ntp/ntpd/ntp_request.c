@@ -2,13 +2,8 @@
  * ntp_request.c - respond to information requests
  */
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
-
-#include <sys/types.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/time.h>
 
 #include "ntpd.h"
 #include "ntp_io.h"
@@ -17,6 +12,12 @@
 #include "ntp_refclock.h"
 #include "ntp_if.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <signal.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "recvbuff.h"
 
 #ifdef KERNEL_PLL
@@ -60,6 +61,7 @@ static	void	mem_stats	P((struct sockaddr_in *, struct interface *, struct req_pk
 static	void	io_stats	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	timer_stats	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	loop_info	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
+static	void	dns_a		P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	do_conf		P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	do_unconf	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	set_sys_flag	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
@@ -77,7 +79,7 @@ static	void	reset_peer	P((struct sockaddr_in *, struct interface *, struct req_p
 static	void	do_key_reread	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	trust_key	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	untrust_key	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
-static	void	do_trustkey	P((struct sockaddr_in *, struct interface *, struct req_pkt *, int));
+static	void	do_trustkey	P((struct sockaddr_in *, struct interface *, struct req_pkt *, u_long));
 static	void	get_auth_info	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	reset_auth_stats P((void));
 static	void	req_get_traps	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
@@ -112,6 +114,7 @@ static	struct req_proc ntp_codes[] = {
 	{ REQ_MEM_STATS,	NOAUTH,	0,	mem_stats },
 	{ REQ_LOOP_INFO,	NOAUTH,	0,	loop_info },
 	{ REQ_TIMER_STATS,	NOAUTH,	0,	timer_stats },
+	{ REQ_HOSTNAME_ASSOCID,	AUTH, sizeof(struct info_dns_assoc), dns_a },
 	{ REQ_CONFIG,	    AUTH, sizeof(struct conf_peer), do_conf },
 	{ REQ_UNCONFIG,	    AUTH, sizeof(struct conf_unpeer), do_unconf },
 	{ REQ_SET_SYS_FLAG, AUTH, sizeof(struct conf_sys_flags), set_sys_flag },
@@ -150,7 +153,7 @@ static	struct req_proc ntp_codes[] = {
  * Authentication keyid used to authenticate requests.  Zero means we
  * don't allow writing anything.
  */
-u_long info_auth_keyid;
+keyid_t info_auth_keyid;
 
 /*
  * Statistic counters to keep track of requests and responses.
@@ -379,6 +382,7 @@ process_private(
 	struct sockaddr_in *srcadr;
 	struct interface *inter;
 	struct req_proc *proc;
+	int ec;
 
 	/*
 	 * Initialize pointers, for convenience
@@ -389,7 +393,7 @@ process_private(
 
 #ifdef DEBUG
 	if (debug > 2)
-	    printf("prepare_pkt: impl %d req %d\n",
+	    printf("process_private: impl %d req %d\n",
 		   inpkt->implementation, inpkt->request);
 #endif
 
@@ -397,15 +401,18 @@ process_private(
 	 * Do some sanity checks on the packet.  Return a format
 	 * error if it fails.
 	 */
-	if (ISRESPONSE(inpkt->rm_vn_mode)
-	    || ISMORE(inpkt->rm_vn_mode)
-	    || INFO_VERSION(inpkt->rm_vn_mode) > NTP_VERSION
-	    || INFO_VERSION(inpkt->rm_vn_mode) < NTP_OLDVERSION
-	    || INFO_SEQ(inpkt->auth_seq) != 0
-	    || INFO_ERR(inpkt->err_nitems) != 0
-	    || INFO_MBZ(inpkt->mbz_itemsize) != 0
-	    || rbufp->recv_length > REQ_LEN_MAC
-	    || rbufp->recv_length < REQ_LEN_NOMAC) {
+	ec = 0;
+	if (   (++ec, ISRESPONSE(inpkt->rm_vn_mode))
+	    || (++ec, ISMORE(inpkt->rm_vn_mode))
+	    || (++ec, INFO_VERSION(inpkt->rm_vn_mode) > NTP_VERSION)
+	    || (++ec, INFO_VERSION(inpkt->rm_vn_mode) < NTP_OLDVERSION)
+	    || (++ec, INFO_SEQ(inpkt->auth_seq) != 0)
+	    || (++ec, INFO_ERR(inpkt->err_nitems) != 0)
+	    || (++ec, INFO_MBZ(inpkt->mbz_itemsize) != 0)
+	    || (++ec, rbufp->recv_length > REQ_LEN_MAC)
+	    || (++ec, rbufp->recv_length < REQ_LEN_NOMAC)
+		) {
+		msyslog(LOG_ERR, "process_private: INFO_ERR_FMT: test %d failed", ec);
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -423,7 +430,6 @@ process_private(
 		req_ack(srcadr, inter, inpkt, INFO_ERR_IMPL);
 		return;
 	}
-
 
 	/*
 	 * Search the list for the request codes.  If it isn't one
@@ -478,6 +484,8 @@ process_private(
 			    printf("bad pkt length %d\n",
 				   rbufp->recv_length);
 #endif
+			msyslog(LOG_ERR, "process_private: bad pkt length %d", 
+				rbufp->recv_length); 
 			req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 			return;
 		}
@@ -520,16 +528,21 @@ process_private(
 	 * don't, check to see that there is none (picky, picky).
 	 */
 	if (INFO_ITEMSIZE(inpkt->mbz_itemsize) != proc->sizeofitem) {
+                msyslog(LOG_ERR, "INFO_ITEMSIZE(inpkt->mbz_itemsize) != proc->sizeofitem: %d != %d",
+			INFO_ITEMSIZE(inpkt->mbz_itemsize), proc->sizeofitem);
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
 	if (proc->sizeofitem != 0)
 	    if (proc->sizeofitem*INFO_NITEMS(inpkt->err_nitems)
 		> sizeof(inpkt->data)) {
+		    msyslog(LOG_ERR, "sizeofitem(%d)*NITEMS(%d) > data: %d > %ld",
+	    		    proc->sizeofitem, INFO_NITEMS(inpkt->err_nitems),
+			    proc->sizeofitem*INFO_NITEMS(inpkt->err_nitems),
+			    (long)sizeof(inpkt->data));
 		    req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		    return;
 	    }
-
 #ifdef DEBUG
 	if (debug > 3)
 	    printf("process_private: all okay, into handler\n");
@@ -610,14 +623,16 @@ peer_list_sum(
 			if (debug > 3)
 			    printf("sum: got one\n");
 #endif
-			ips->dstadr = (pp->processed) ?
-				pp->cast_flags == MDF_BCAST ?
-				pp->dstadr->bcast.sin_addr.s_addr:
-				pp->cast_flags ?
-				pp->dstadr->sin.sin_addr.s_addr ?
-				pp->dstadr->sin.sin_addr.s_addr:
-				pp->dstadr->bcast.sin_addr.s_addr:
-				1 : 5;
+			ips->dstadr =
+			    (pp->processed)
+			    ? pp->cast_flags == MDF_BCAST
+			      ? pp->dstadr->bcast.sin_addr.s_addr
+			      : pp->cast_flags
+			        ? pp->dstadr->sin.sin_addr.s_addr
+			          ? pp->dstadr->sin.sin_addr.s_addr
+			          : pp->dstadr->bcast.sin_addr.s_addr
+			        : 1
+			    : 5;
 			ips->srcadr = pp->srcadr.sin_addr.s_addr;
 			ips->srcport = pp->srcadr.sin_port;
 			ips->stratum = pp->stratum;
@@ -686,14 +701,16 @@ peer_info (
 		ipl++;
 		if ((pp = findexistingpeer(&addr, (struct peer *)0, -1)) == 0)
 		    continue;
-		ip->dstadr = (pp->processed) ?
-			pp->cast_flags == MDF_BCAST ?
-			pp->dstadr->bcast.sin_addr.s_addr:
-			pp->cast_flags ?
-			pp->dstadr->sin.sin_addr.s_addr ?
-			pp->dstadr->sin.sin_addr.s_addr:
-			pp->dstadr->bcast.sin_addr.s_addr:
-			2 : 6;
+		ip->dstadr =
+		    (pp->processed)
+		    ? pp->cast_flags == MDF_BCAST
+		      ? pp->dstadr->bcast.sin_addr.s_addr
+		      : pp->cast_flags
+		        ? pp->dstadr->sin.sin_addr.s_addr
+		          ? pp->dstadr->sin.sin_addr.s_addr
+		          : pp->dstadr->bcast.sin_addr.s_addr
+		        : 2
+		    : 6;
 		ip->srcadr = NSRCADR(&pp->srcadr);
 		ip->srcport = NSRCPORT(&pp->srcadr);
 		ip->flags = 0;
@@ -721,7 +738,6 @@ peer_info (
 		ip->hpoll = pp->hpoll;
 		ip->precision = pp->precision;
 		ip->version = pp->version;
-		ip->valid = pp->valid;
 		ip->reach = pp->reach;
 		ip->unreach = pp->unreach;
 		ip->flash = (u_char)pp->flash;
@@ -752,7 +768,7 @@ peer_info (
 		HTONL_FP(&ltmp, &ip->offset);
 		ip->delay = HTONS_FP(DTOFP(pp->delay));
 		ip->dispersion = HTONS_FP(DTOUFP(SQRT(pp->disp)));
-		ip->selectdisp = HTONS_FP(DTOUFP(SQRT(pp->variance)));
+		ip->selectdisp = HTONS_FP(DTOUFP(SQRT(pp->jitter)));
 		ip = (struct info_peer *)more_pkt();
 	}
 	flush_pkt();
@@ -788,14 +804,16 @@ peer_stats (
 		ipl++;
 		if ((pp = findexistingpeer(&addr, (struct peer *)0, -1)) == 0)
 		    continue;
-		ip->dstadr = (pp->processed) ?
-			pp->cast_flags == MDF_BCAST ?
-			pp->dstadr->bcast.sin_addr.s_addr:
-			pp->cast_flags ?
-			pp->dstadr->sin.sin_addr.s_addr ?
-			pp->dstadr->sin.sin_addr.s_addr:
-			pp->dstadr->bcast.sin_addr.s_addr:
-			3 : 7;
+		ip->dstadr =
+		    (pp->processed)
+		    ? pp->cast_flags == MDF_BCAST
+		      ? pp->dstadr->bcast.sin_addr.s_addr
+		      : pp->cast_flags
+		        ? pp->dstadr->sin.sin_addr.s_addr
+		          ? pp->dstadr->sin.sin_addr.s_addr
+		          : pp->dstadr->bcast.sin_addr.s_addr
+		        : 3
+		    : 7;
 		ip->srcadr = NSRCADR(&pp->srcadr);
 		ip->srcport = NSRCPORT(&pp->srcadr);
 		ip->flags = 0;
@@ -860,7 +878,7 @@ sys_info(
 	extern double sys_bdelay;
 	extern l_fp sys_authdelay;
 	extern double clock_stability;
-	extern double sys_error;
+	extern double sys_jitter;
 
 	is = (struct info_sys *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_sys));
@@ -877,7 +895,7 @@ sys_info(
 	is->precision = sys_precision;
 	is->rootdelay = htonl(DTOFP(sys_rootdelay));
 	is->rootdispersion = htonl(DTOUFP(sys_rootdispersion));
-	is->frequency = htonl(DTOFP(sys_error));
+	is->frequency = htonl(DTOFP(sys_jitter));
 	is->stability = htonl(DTOUFP(clock_stability * 1e6));
 	is->refid = sys_refid;
 	HTONL_FP(&sys_reftime, &is->reftime);
@@ -1114,10 +1132,10 @@ do_conf(
 	struct req_pkt *inpkt
 	)
 {
+	u_int fl;
 	register struct conf_peer *cp;
 	register int items;
 	struct sockaddr_in peeraddr;
-	int fl;
 
 	/*
 	 * Do a check of everything to see that it looks
@@ -1136,13 +1154,15 @@ do_conf(
 		    && cp->hmode != MODE_CLIENT
 		    && cp->hmode != MODE_BROADCAST)
 		    fl = 1;
-		if (cp->flags & ~(CONF_FLAG_AUTHENABLE | CONF_FLAG_PREFER
-		      | CONF_FLAG_NOSELECT | CONF_FLAG_BURST | CONF_FLAG_SKEY))
+		if (cp->flags & ~(CONF_FLAG_AUTHENABLE | CONF_FLAG_PREFER |
+		    CONF_FLAG_NOSELECT | CONF_FLAG_BURST | CONF_FLAG_IBURST |
+		    CONF_FLAG_SKEY))
 		    fl = 1;
 		cp++;
 	}
 
 	if (fl) {
+		msyslog(LOG_ERR, "do_conf: fl is nonzero!");
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -1164,6 +1184,11 @@ do_conf(
 		!ISREFCLOCKADR(&peeraddr) &&
 #endif
 		ISBADADR(&peeraddr)) {
+#ifdef REFCLOCK
+		msyslog(LOG_ERR, "do_conf: !ISREFCLOCK && ISBADADR");
+#else
+		msyslog(LOG_ERR, "do_conf: ISBADADR");
+#endif
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -1171,24 +1196,120 @@ do_conf(
 	while (items-- > 0) {
 		fl = 0;
 		if (cp->flags & CONF_FLAG_AUTHENABLE)
-		    fl |= FLAG_AUTHENABLE;
+			fl |= FLAG_AUTHENABLE;
 		if (cp->flags & CONF_FLAG_PREFER)
-		    fl |= FLAG_PREFER;
+			fl |= FLAG_PREFER;
 		if (cp->flags & CONF_FLAG_NOSELECT)
-		    fl |= FLAG_NOSELECT;
+			fl |= FLAG_NOSELECT;
 		if (cp->flags & CONF_FLAG_BURST)
-		    fl |= FLAG_BURST;
+			fl |= FLAG_BURST;
+		if (cp->flags & CONF_FLAG_IBURST)
+			fl |= FLAG_IBURST;
 		if (cp->flags & CONF_FLAG_SKEY)
 			fl |= FLAG_SKEY;
 		peeraddr.sin_addr.s_addr = cp->peeraddr;
 		/* XXX W2DO? minpoll/maxpoll arguments ??? */
-		if (peer_config(&peeraddr, (struct interface *)0,
-				cp->hmode, cp->version, cp->minpoll, cp->maxpoll,
-				fl, cp->ttl, cp->keyid) == 0) {
+		if (peer_config(&peeraddr, any_interface, cp->hmode,
+		    cp->version, cp->minpoll, cp->maxpoll, fl, cp->ttl,
+		    cp->keyid, cp->keystr) == 0) {
 			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 			return;
 		}
 		cp++;
+	}
+
+	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+}
+
+
+/*
+ * dns_a - Snarf DNS info for an association ID
+ */
+static void
+dns_a(
+	struct sockaddr_in *srcadr,
+	struct interface *inter,
+	struct req_pkt *inpkt
+	)
+{
+	register struct info_dns_assoc *dp;
+	register int items;
+	struct sockaddr_in peeraddr;
+
+	/*
+	 * Do a check of everything to see that it looks
+	 * okay.  If not, complain about it.  Note we are
+	 * very picky here.
+	 */
+	items = INFO_NITEMS(inpkt->err_nitems);
+	dp = (struct info_dns_assoc *)inpkt->data;
+
+	/*
+	 * Looks okay, try it out
+	 */
+	items = INFO_NITEMS(inpkt->err_nitems);
+	dp = (struct info_dns_assoc *)inpkt->data;
+	memset((char *)&peeraddr, 0, sizeof(struct sockaddr_in));
+	peeraddr.sin_family = AF_INET;
+	peeraddr.sin_port = htons(NTP_PORT);
+
+	/*
+	 * Make sure the address is valid
+	 */
+	if (
+#ifdef REFCLOCK
+		!ISREFCLOCKADR(&peeraddr) &&
+#endif
+		ISBADADR(&peeraddr)) {
+#ifdef REFCLOCK
+		msyslog(LOG_ERR, "dns_a: !ISREFCLOCK && ISBADADR");
+#else
+		msyslog(LOG_ERR, "dns_a: ISBADADR");
+#endif
+		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
+		return;
+	}
+
+	while (items-- > 0) {
+		associd_t associd;
+		size_t hnl;
+		struct peer *peer;
+		int bogon = 0;
+
+		associd = dp->associd;
+		peer = findpeerbyassoc(associd);
+		if (peer == 0 || peer->flags & FLAG_REFCLOCK) {
+			msyslog(LOG_ERR, "dns_a: %s",
+				(peer == 0)
+				? "peer == 0"
+				: "peer->flags & FLAG_REFCLOCK");
+			++bogon;
+		}
+		peeraddr.sin_addr.s_addr = dp->peeraddr;
+		for (hnl = 0; dp->hostname[hnl] && hnl < sizeof dp->hostname; ++hnl) ;
+		if (hnl >= sizeof dp->hostname) {
+			msyslog(LOG_ERR, "dns_a: hnl (%ld) >= %ld",
+				(long)hnl, (long)sizeof dp->hostname);
+			++bogon;
+		}
+
+		msyslog(LOG_INFO, "dns_a: <%s> for %s, AssocID %d, bogon %d",
+			dp->hostname, inet_ntoa(peeraddr.sin_addr), associd,
+			bogon);
+		
+		if (bogon) {
+			/* If it didn't work */
+			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
+			return;
+		} else {
+#if 0
+#ifdef PUBKEY
+			crypto_public(peer, dp->hostname);
+#endif /* PUBKEY */
+#endif
+		}
+		
+		dp++;
 	}
 
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
@@ -1300,26 +1421,31 @@ setclr_flags(
 	u_long set
 	)
 {
-	register u_long flags;
+	register u_int flags;
 
 	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
+		msyslog(LOG_ERR, "setclr_flags: err_nitems > 1");
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
 
 	flags = ((struct conf_sys_flags *)inpkt->data)->flags;
 
-	if (flags & ~(SYS_FLAG_BCLIENT | SYS_FLAG_AUTHENTICATE |
+	if (flags & ~(SYS_FLAG_BCLIENT | SYS_FLAG_PPS |
 		      SYS_FLAG_NTP | SYS_FLAG_KERNEL | SYS_FLAG_MONITOR |
 		      SYS_FLAG_FILEGEN)) {
+		msyslog(LOG_ERR, "setclr_flags: extra flags: %#x",
+			flags & ~(SYS_FLAG_BCLIENT | SYS_FLAG_PPS | 
+				  SYS_FLAG_NTP | SYS_FLAG_KERNEL |
+				  SYS_FLAG_MONITOR | SYS_FLAG_FILEGEN));
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
 
 	if (flags & SYS_FLAG_BCLIENT)
 	    proto_config(PROTO_BROADCLIENT, set, 0.);
-	if (flags & SYS_FLAG_AUTHENTICATE)
-	    proto_config(PROTO_AUTHENTICATE, set, 0.);
+	if (flags & SYS_FLAG_PPS)
+	    proto_config(PROTO_PPS, set, 0.);
 	if (flags & SYS_FLAG_NTP)
 	    proto_config(PROTO_NTP, set, 0.);
 	if (flags & SYS_FLAG_KERNEL)
@@ -1440,15 +1566,16 @@ do_restrict(
 	bad = 0;
 	while (items-- > 0 && !bad) {
 		if (cr->mflags & ~(RESM_NTPONLY))
-		    bad = 1;
+		    bad |= 1;
 		if (cr->flags & ~(RES_ALLFLAGS))
-		    bad = 1;
+		    bad |= 2;
 		if (cr->addr == htonl(INADDR_ANY) && cr->mask != htonl(INADDR_ANY))
-		    bad = 1;
+		    bad |= 4;
 		cr++;
 	}
 
 	if (bad) {
+		msyslog(LOG_ERR, "do_restrict: bad = %#x", bad);
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -1606,6 +1733,7 @@ reset_stats(
 	struct reset_entry *rent;
 
 	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
+		msyslog(LOG_ERR, "reset_stats: err_nitems > 1");
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -1613,6 +1741,8 @@ reset_stats(
 	flags = ((struct reset_flags *)inpkt->data)->flags;
 
 	if (flags & ~RESET_ALLFLAGS) {
+		msyslog(LOG_ERR, "reset_stats: reset leaves %#lx",
+			flags & ~RESET_ALLFLAGS);
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -1736,7 +1866,7 @@ do_trustkey(
 	struct sockaddr_in *srcadr,
 	struct interface *inter,
 	struct req_pkt *inpkt,
-	int trust
+	u_long trust
 	)
 {
 	register u_long *kp;
@@ -1928,6 +2058,7 @@ do_setclr_trap(
 	 * the error reporting problem.
 	 */
 	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
+		msyslog(LOG_ERR, "do_setclr_trap: err_nitems > 1");
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -1980,12 +2111,13 @@ set_request_keyid(
 	struct req_pkt *inpkt
 	)
 {
-	u_long keyid;
+	keyid_t keyid;
 
 	/*
 	 * Restrict ourselves to one item only.
 	 */
 	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
+		msyslog(LOG_ERR, "set_request_keyid: err_nitems > 1");
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -2007,13 +2139,14 @@ set_control_keyid(
 	struct req_pkt *inpkt
 	)
 {
-	u_long keyid;
-	extern u_long ctl_auth_keyid;
+	keyid_t keyid;
+	extern keyid_t ctl_auth_keyid;
 
 	/*
 	 * Restrict ourselves to one item only.
 	 */
 	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
+		msyslog(LOG_ERR, "set_control_keyid: err_nitems > 1");
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
@@ -2256,6 +2389,7 @@ set_clock_fudge(
 				(CLK_HAVEFLAG1|CLK_HAVEFLAG2|CLK_HAVEFLAG3|CLK_HAVEFLAG4);
 			break;
 		    default:
+			msyslog(LOG_ERR, "set_clock_fudge: default!");
 			req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 			return;
 		}

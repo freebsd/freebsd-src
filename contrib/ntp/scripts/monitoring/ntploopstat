@@ -1,4 +1,5 @@
-#!/local/bin/perl -w--*-perl-*-
+#!/usr/bin/perl -w
+# --*-perl-*-
 ;#
 ;# ntploopstat,v 3.1 1993/07/06 01:09:11 jbj Exp
 ;# 
@@ -22,7 +23,7 @@
 ;#              (Should have implemented &gettimeofday()..)
 ;#
 
-$0 =~ s!^.*/([^/]+)$!\1!;		# beautify script name
+$0 =~ s!^.*/([^/]+)$!$1!;		# beautify script name
 
 $ntpserver = 'localhost';		# default host to poll
 $delay = 60;				# default sampling rate

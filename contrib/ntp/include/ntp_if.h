@@ -8,12 +8,6 @@
 # include "/sys/sync/sema.h"
 #endif
 
-/* was: defined(SYS_AIX) */
-#if defined(TIME_WITH_SYS_TIME)
-# include <sys/time.h>
-# include <time.h>
-#endif
-
 /* was: (defined(SYS_SOLARIS) && !defined(bsd)) || defined(SYS_SUNOS4) */
 /* was: defined(SYS_UNIXWARE1) */
 #ifdef HAVE_SYS_SOCKIO_H

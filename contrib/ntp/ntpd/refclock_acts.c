@@ -9,19 +9,18 @@
 
 #if defined(REFCLOCK) && (defined(CLOCK_ACTS) || defined(CLOCK_PTBACTS))
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif /* HAVE_SYS_IOCTL_H */
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_unixtime.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
 #include "ntp_control.h"
+
+#include <stdio.h>
+#include <ctype.h>
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif /* HAVE_SYS_IOCTL_H */
 
 /* MUST BE AFTER LAST #include <config.h> !!! */
 
@@ -655,19 +654,22 @@ acts_receive (
 	    (void)write(pp->io.fd, &flag, 1);
 
 	/*
-	 * Yes, I know this code incorrectly thinks that 2000 is a leap
-	 * year. The ACTS timecode format croaks then anyway. Life is
-	 * short. Would only the timecode mavens resist the urge to
-	 * express months of the year and days of the month in favor of
-	 * days of the year.
-	 *	NOTE: year 2000 IS a leap year!!!  ghealton	Y2KFixes
+	 * The ACTS timecode format croaks in 2000. Life is short.
+	 * Would only the timecode mavens resist the urge to express months
+	 * of the year and days of the month in favor of days of the year.
 	 */
 	if (month < 1 || month > 12 || day < 1) {
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
-	if ( pp->year <= YEAR_PIVOT ) pp->year += 100;		/* Y2KFixes */
-	if ( !isleap_tm(pp->year) ) {				/* Y2KFixes */
+
+	/*
+	 * Depending on the driver, at this point we have a two-digit year
+	 * or a four-digit year.  Make sure we have a four-digit year.
+	 */
+	if ( pp->year < YEAR_PIVOT ) pp->year += 100;		/* Y2KFixes */
+	if ( pp->year < YEAR_BREAK ) pp->year += 1900;		/* Y2KFixes */
+	if ( !isleap_4(pp->year) ) {				/* Y2KFixes */
 		if (day > day1tab[month - 1]) {
 			refclock_report(peer, CEVNT_BADTIME);
 			return;
@@ -798,7 +800,7 @@ acts_timeout (
 		acts_disc(peer);
 		return;
 	}
-	switch (peer->ttl) {
+	switch (peer->ttlmax) {
 
 		/*
 		 * In manual mode the ACTS calling program is activated

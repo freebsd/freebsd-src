@@ -13,14 +13,13 @@
 # include <config.h>
 #endif
 
+#include "ntp_types.h"
+#include "l_stdlib.h"
+
 #include <stdio.h>
-#include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif /* HAVE_UNISTD_H */
-
-#include "ntp_types.h"
-#include "l_stdlib.h"
 
 #ifdef HAVE___ADJTIMEX		/* Linux */
 
@@ -178,7 +177,6 @@ main(
 #ifdef NLIST_STRUCT
 # include <nlist.h>
 #else /* not NLIST_STRUCT */ /* was defined(SYS_AUX3) || defined(SYS_AUX2) */
-# include <sys/time.h>
 # include <sys/resource.h>
 # include <sys/file.h>
 # include <a.out.h>

@@ -9,8 +9,13 @@
 ;#  Frank Kardel, Rainer Pruy
 ;#  Friedrich-Alexander Universitaet Erlangen-Nuernberg
 ;#
+;#  Copyright (c) 1997 by
+;#  Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+;#  (Converted to a PERL 5.004 package)
 ;#
 ;#############################################################
+
+package lr;
 
 ##
 ## y = A + Bx
@@ -23,123 +28,124 @@
 ##
 ## interface
 ##
-*lr_init   = *lr'lr_init;	#';# &lr_init(tag); initialize data set for tag
-*lr_sample = *lr'lr_sample;	#';# &lr_sample(x,y,tag); enter sample
-*lr_Y      = *lr'lr_Y;		#';# &lr_Y(x,tag); compute y for given x 
-*lr_X      = *lr'lr_X;		#';# &lr_X(y,tag); compute x for given y
-*lr_r      = *lr'lr_r;		#';# &lr_r(tag);   regression coeffizient
-*lr_cov    = *lr'lr_cov;	#';# &lr_cov(tag); covariance
-*lr_A      = *lr'lr_A;		#';# &lr_A(tag);   
-*lr_B      = *lr'lr_B;		#';# &lr_B(tag);
-*lr_sigma  = *lr'lr_sigma;	#';# &lr_sigma(tag); standard deviation
-*lr_mean   = *lr'lr_mean;	#';# &lr_mean(tag);
+;# init(tag);		initialize data set for tag
+;# sample(x, y, tag);	enter sample
+;# Y(x, tag);		compute y for given x 
+;# X(y, tag);		compute x for given y
+;# r(tag);		regression coefficient
+;# cov(tag);		covariance
+;# A(tag);   
+;# B(tag);
+;# sigma(tag);		standard deviation
+;# mean(tag);
 #########################
 
-package lr;
-
-sub tagify
+sub init
 {
-    local($tag) = @_;
-    if (defined($tag))
-    {
-      *lr_n   = eval "*${tag}_n";
-      *lr_sx  = eval "*${tag}_sx";
-      *lr_sx2 = eval "*${tag}_sx2";
-      *lr_sxy = eval "*${tag}_sxy";
-      *lr_sy  = eval "*${tag}_sy";
-      *lr_sy2 = eval "*${tag}_sy2";
-    }
+    my $self = shift;
+
+    $self->{n}   = 0;
+    $self->{sx}  = 0.0;
+    $self->{sx2} = 0.0;
+    $self->{sxy} = 0.0;
+    $self->{sy}  = 0.0;
+    $self->{sy2} = 0.0;
 }
 
-sub lr_init
+sub sample($$$)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
+    my($_x, $_y) = @_;
 
-    $lr_n   = 0;
-    $lr_sx  = 0.0;
-    $lr_sx2 = 0.0;
-    $lr_sxy = 0.0;
-    $lr_sy  = 0.0;
-    $lr_sy2 = 0.0;
+    ++($self->{n});
+    $self->{sx}  += $_x;
+    $self->{sy}  += $_y;
+    $self->{sxy} += $_x * $_y;
+    $self->{sx2} += $_x**2;
+    $self->{sy2} += $_y**2;
 }
 
-sub lr_sample
+sub B($)
 {
-    local($_x, $_y) = @_;
+    my $self = shift;
 
-    &tagify($_[$[+2]) if defined($_[$[+2]);
-
-    $lr_n++;
-    $lr_sx  += $_x;
-    $lr_sy  += $_y;
-    $lr_sxy += $_x * $_y;
-    $lr_sx2 += $_x**2;
-    $lr_sy2 += $_y**2;
+    return 1 unless ($self->{n} * $self->{sx2} - $self->{sx}**2);
+    return ($self->{n} * $self->{sxy} - $self->{sx} * $self->{sy})
+	/ ($self->{n} * $self->{sx2} - $self->{sx}**2);
 }
 
-sub lr_B
+sub A($)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
 
-    return 1 unless ($lr_n * $lr_sx2 - $lr_sx**2);
-    return ($lr_n * $lr_sxy - $lr_sx * $lr_sy) / ($lr_n * $lr_sx2 - $lr_sx**2);
+    return ($self->{sy} - B($self) * $self->{sx}) / $self->{n};
 }
 
-sub lr_A
+sub Y($$)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
 
-    return ($lr_sy - &lr_B * $lr_sx) / $lr_n;
+    return A($self) + B($self) * $_[$[];
 }
 
-sub lr_Y
+sub X($$)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
 
-    return &lr_A + &lr_B * $_[$[];
+    return ($_[$[] - A($self)) / B($self);
 }
 
-sub lr_X
+sub r($)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
 
-    return ($_[$[] - &lr_A) / &lr_B;
-}
-
-sub lr_r
-{
-    &tagify($_[$[]) if defined($_[$[]);
-
-    local($s) = ($lr_n * $lr_sx2 - $lr_sx**2) * ($lr_n * $lr_sy2 - $lr_sy**2);
+    my $s = ($self->{n} * $self->{sx2} - $self->{sx}**2)
+	  * ($self->{n} * $self->{sy2} - $self->{sy}**2);
 
     return 1 unless $s;
     
-    return ($lr_n * $lr_sxy - $lr_sx * $lr_sy) / sqrt($s);
+    return ($self->{n} * $self->{sxy} - $self->{sx} * $self->{sy}) / sqrt($s);
 }
 
-sub lr_cov
+sub cov($)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
 
-    return ($lr_sxy - $lr_sx * $lr_sy / $lr_n) / ($lr_n - 1);
+    return ($self->{sxy} - $self->{sx} * $self->{sy} / $self->{n})
+	/ ($self->{n} - 1);
 }
 
-sub lr_sigma
+sub sigma($)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
 
-    return 0 if $lr_n <= 1;
-    return sqrt(($lr_sy2 - ($lr_sy * $lr_sy) / $lr_n) / ($lr_n));
+    return 0 if $self->{n} <= 1;
+    return sqrt(($self->{sy2} - ($self->{sy} * $self->{sy}) / $self->{n})
+		/ ($self->{n}));
 }
 
-sub lr_mean
+sub mean($)
 {
-    &tagify($_[$[]) if defined($_[$[]);
+    my $self = shift;
 
-    return 0 if $lr_n <= 0;
-    return $lr_sy / $lr_n;
+    return 0 if $self->{n} <= 0;
+    return $self->{sy} / $self->{n};
 }
 
-&lr_init();
+sub new
+{
+    my $class = shift;
+    my $self = {
+	(n => undef,
+	 sx => undef,
+	 sx2 => undef,
+	 sxy => undef,
+	 sy => undef,
+	 sy2 => undef)
+    };
+    bless $self, $class;
+    init($self);
+    return $self;
+}
 
 1;

@@ -13,7 +13,7 @@
 /*
  * Support for WHARTON 400A Series clock + 404.2 serial interface.
  *
- * Copyright (C) 1999 by Philippe De Muyter <phdm@macqel.be>
+ * Copyright (C) 1999, 2000 by Philippe De Muyter <phdm@macqel.be>
  * 
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -91,9 +91,10 @@ cvt_wharton_400a(
 	int	i;
 
 	/* The given `size' includes a terminating null-character. */
-	if (size != 16 || buffer[0] != STX || buffer[14] != ETX)
+	if (size != 16 || buffer[0] != STX || buffer[14] != ETX
+	    || buffer[13] < '0' || buffer[13] > ('0' + 0xf))
 		return CVT_NONE;
-	for (i = 1; i < 14; i += 1)
+	for (i = 1; i < 13; i += 1)
 		if (buffer[i] < '0' || buffer[i] > '9')
 			return CVT_NONE;
 	clock_time->second = (buffer[2] - '0') * 10 + buffer[1] - '0';
@@ -133,7 +134,7 @@ inp_wharton_400a(
 {
 	unsigned int rtc;
 	
-	parseprintf(DD_PARSE, ("inp_wharton_400a(0x%x, 0x%x, ...)\n", (int)parseio, (int)ch));
+	parseprintf(DD_PARSE, ("inp_wharton_400a(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 	
 	switch (ch)
 	{

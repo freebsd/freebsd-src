@@ -1,7 +1,8 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML Strict//EN">
 <HTML>
 <HEAD>
-<TITLE>MX4200 Receiver Data Format</TITLE>
+  <TITLE>MX4200 Receiver Data Format</TITLE>
+</HEAD>
 <BODY>
 <h1>MX4200 Receiver Data Format</h1>
 
@@ -10,23 +11,23 @@
 
 <ul>
  <li><a href="#control">Control Port Sentences</a></li>
- <li><a href="#input">Control Port Input Sentences</a>
+ <li><a href="#input">Control Port Input Sentences</a></li>
  <ul>
-  <li> <a href="#input_000">$PMVXG,000</a> Initialization/Mode Control - Part A</li>
-  <li> <a href="#input_001">$PMVXG,001</a> Initialization/Mode Control - Part B</li>
-  <li> <a href="#input_007">$PMVXG,007</a> Control Port Configuration</li>
-  <li> <a href="#input_023">$PMVXG,023</a> Time Recovery Configuration</li>
-  <li> <a href="#input_gpq">$CDGPQ,YYY</a> Query From a Remote Device / Request to Output a Sentence</li>
+  <li><a href="#input_000">$PMVXG,000</a> Initialization/Mode Control - Part A</li>
+  <li><a href="#input_001">$PMVXG,001</a> Initialization/Mode Control - Part B</li>
+  <li><a href="#input_007">$PMVXG,007</a> Control Port Configuration</li>
+  <li><a href="#input_023">$PMVXG,023</a> Time Recovery Configuration</li>
+  <li><a href="#input_gpq">$CDGPQ,YYY</a> Query From a Remote Device / Request to Output a Sentence</li>
  </ul>
- <li><a href="#output">Control Port Output Sentences</a>
+ <li><a href="#output">Control Port Output Sentences</a></li>
  <ul>
-  <li> <a href="#output_000">$PMVXG,000</a> Receiver Status
-  <li> <a href="#output_021">$PMVXG,021</a> Position, Height, Velocity
-  <li> <a href="#output_022">$PMVXG,022</a> DOPs
-  <li> <a href="#output_030">$PMVXG,030</a> Software Configuration
-  <li> <a href="#output_101">$PMVXG,101</a> Control Sentence Accept/Reject
-  <li> <a href="#output_523">$PMVXG,523</a> Time Recovery Configuration
-  <li> <a href="#output_830">$PMVXG,830</a> Time Recovery Results
+  <li><a href="#output_000">$PMVXG,000</a> Receiver Status</li>
+  <li><a href="#output_021">$PMVXG,021</a> Position, Height, Velocity</li>
+  <li><a href="#output_022">$PMVXG,022</a> DOPs</li>
+  <li><a href="#output_030">$PMVXG,030</a> Software Configuration</li>
+  <li><a href="#output_101">$PMVXG,101</a> Control Sentence Accept/Reject</li>
+  <li><a href="#output_523">$PMVXG,523</a> Time Recovery Configuration</li>
+  <li><a href="#output_830">$PMVXG,830</a> Time Recovery Results</li>
  </ul>
 </ul>
 
@@ -38,8 +39,8 @@
 the receiver.  The structure of the control port sentences is based on
 the <cite>NMEA-0183</cite> Standard for Interfacing Marine Electronics
 Navigation Devices (version 1.5).  For more details, please refer to
-the <cite>NMEA-0183</cite> Specification available from the <a
-href="http://www.nmea.org/"> National Marine Electronics
+the <cite>NMEA-0183</cite> Specification available from the
+<a href="http://www.nmea.org/">National Marine Electronics
 Association</a>.</p>
 
 <p>Reserved characters are used to indicate the beginning and the end
@@ -50,10 +51,7 @@ characters and defines their usage.  <a href="#table_1">Table 1</a>
 illustrates the general Magnavox proprietary NMEA sentence format.
 </p>
 
-<h4><a name="table_1">Table 1. Magnavox Proprietary NMEA Sentence
-Format</a></h4>
-
-<p>
+<h4><a name="table_1">Table 1. Magnavox Proprietary NMEA Sentence Format</a></h4>
 <code>
 $PMVXG,XXX,...................*CK
 </code>
@@ -135,16 +133,16 @@ Initializes the time, position and antenna height of the MX4200.
 <p>
 <table border>
  <tr> <th>Field <th>Description           <th>Units  <th>Format <th>Default <th>Range
- <tr> <td>1     <td>Day                   <td>   <td>Int  <td>  <td>1-31
- <tr> <td>2     <td>Month                 <td>   <td>Int  <td>  <td>1-12
- <tr> <td>3     <td>Year                  <td>   <td>Int  <td>  <td>1991-9999
- <tr> <td>4     <td>GMT Time              <td>HHMMSS <td>Int  <td>  <td>000000-235959
+ <tr> <td>1     <td>Day                   <td>&nbsp  <td>Int  <td>&nbsp <td>1-31
+ <tr> <td>2     <td>Month                 <td>&nbsp  <td>Int  <td>&nbsp <td>1-12
+ <tr> <td>3     <td>Year                  <td>&nbsp  <td>Int  <td>&nbsp <td>1991-9999
+ <tr> <td>4     <td>GMT Time              <td>HHMMSS <td>Int  <td>&nbsp <td>000000-235959
  <tr> <td>5     <td>WGS-84 Latitude       <td>DDMM.MMMM<td>Float<td>0.0 <td>0 - 8959.9999
- <tr> <td>6     <td>North/South Indicator <td>   <td>Char <td>N <td>N,S
+ <tr> <td>6     <td>North/South Indicator <td>&nbsp  <td>Char <td>N <td>N,S
  <tr> <td>7     <td>WGS-84 Longitude      <td>DDDMM.MMMM<td>Float<td>0.0 <td>0 - 17959.9999
- <tr> <td>8     <td>East/West Indicator   <td>   <td>Char <td>E <td>E,W
+ <tr> <td>8     <td>East/West Indicator   <td>&nbsp  <td>Char <td>E <td>E,W
  <tr> <td>9     <td>Altitude (height above Mean Sea Level) in meters (WGS-84) <td>Meters<td>Float<td>0.0<td>+/-99999.0
- <tr> <td>10    <td>Not Used              <td>   <td>      <td>  <td> 
+ <tr> <td>10    <td>Not Used              <td>&nbsp  <td>&nbsp     <td>&nbsp <td>&nbsp
 </table>
 Example:<br>
 <code>$PMVXG,000,,,,,,,,,,*48</code><br>
@@ -160,14 +158,14 @@ DOP limits, and satellite elevation limits.
 <p>
 <table border>
  <tr> <th>Field <th>Description           <th>Units  <th>Format <th>Default <th>Range
- <tr> <td>*1    <td>Constrain Altitude    <td>   <td>Int  <td>1 <td>0=3D Only<br>1=Auto<br>2=2D Only
- <tr> <td>2     <td>Not Used              <td>   <td> <td>  <td> 
+ <tr> <td>*1    <td>Constrain Altitude    <td>&nbsp  <td>Int  <td>1 <td>0=3D Only<br>1=Auto<br>2=2D Only
+ <tr> <td>2     <td>Not Used              <td>&nbsp  <td>&nbsp<td>&nbsp <td>&nbsp
  <tr> <td>*3    <td>Horizontal Acceleration Factor<td>m/sec^2   <td>Float <td>1.0 <td>0.5-10.0
- <tr> <td>*4    <td>Not Used              <td>   <td> <td>  <td> 
- <tr> <td>*5    <td>VDOP Limit            <td>   <td>Int  <td>10 <td>1-9999
- <tr> <td>*6    <td>HDOP Limit            <td>   <td>Int  <td>10 <td>1-9999
+ <tr> <td>*4    <td>Not Used              <td>&nbsp  <td>&nbsp<td>&nbsp <td>&nbsp
+ <tr> <td>*5    <td>VDOP Limit            <td>&nbsp  <td>Int  <td>10 <td>1-9999
+ <tr> <td>*6    <td>HDOP Limit            <td>&nbsp  <td>Int  <td>10 <td>1-9999
  <tr> <td>7     <td>Elevation Limit       <td>Deg    <td>Int  <td>5   <td>0-90
- <tr> <td>8     <td>Time Output Mode      <td>   <td>Char <td>U <td>U=UTC<br>L=Local Time
+ <tr> <td>8     <td>Time Output Mode      <td>&nbsp  <td>Char <td>U <td>U=UTC<br>L=Local Time
  <tr> <td>9     <td>Local Time Offset     <td>HHMM   <td>Int  <td>0  <td>+/- 0-2359
 </table>
 Example:<br>
@@ -185,14 +183,14 @@ that the receiver is to output.
 <p>
 <table border>
  <tr> <th>Field <th>Description           <th>Units   <th>Format <th>Default <th>Range
- <tr> <td>1     <td>Control Port Output Block Label<td> <td>Char <td>  <td> 
- <tr> <td>2     <td>Clear Current Output List<td> <td>Int    <td>  <td>0=No<br>1=Yes
- <tr> <td>3     <td>Add/Delete Sentence from List<td> <td>Int    <td>  <td>1=Append<br>2=Delete
- <tr> <td>4     <td>Not Used              <td>    <td>   <td>  <td> 
- <tr> <td>5     <td>Sentence Output Rate  <td>Sec     <td>Int    <td>  <td>1-9999
- <tr> <td>6     <td># digits of Precision for CGA and GLL sentences<td>  <td>Int <td>2 <td>2-4
- <tr> <td>7     <td>Not Used              <td>    <td>   <td>  <td> 
- <tr> <td>8     <td>Not Used              <td>    <td>   <td>  <td> 
+ <tr> <td>1     <td>Control Port Output Block Label<td>&nbsp<td>Char <td>&nbsp <td>&nbsp
+ <tr> <td>2     <td>Clear Current Output List<td>&nbsp<td>Int    <td>&nbsp <td>0=No<br>1=Yes
+ <tr> <td>3     <td>Add/Delete Sentence from List<td>&nbsp<td>Int    <td>&nbsp <td>1=Append<br>2=Delete
+ <tr> <td>4     <td>Not Used              <td>&nbsp   <td>&nbsp  <td>&nbsp <td>&nbsp
+ <tr> <td>5     <td>Sentence Output Rate  <td>Sec     <td>Int    <td>&nbsp <td>1-9999
+ <tr> <td>6     <td># digits of Precision for CGA and GLL sentences<td>&nbsp <td>Int <td>2 <td>2-4
+ <tr> <td>7     <td>Not Used              <td>&nbsp   <td>&nbsp  <td>&nbsp <td>&nbsp
+ <tr> <td>8     <td>Not Used              <td>&nbsp   <td>&nbsp  <td>&nbsp <td>&nbsp
 </table>
 Example:<br>
 <code>$PMVXG,007,022,0,1,,1,,,*4F</code>
@@ -212,13 +210,13 @@ unit.
 <p>
 <table border>
  <tr> <th>Field <th>Description           <th>Units  <th>Format <th>Default <th>Range
- <tr> <td>*1    <td>Time Recovery Mode    <td>   <td>Char   <td>D   <td>D=Dynamic<br>S=Static<br>K=Known Position<br>N=No Time Recovery
- <tr> <td>2     <td>Time Synchronization  <td>   <td>Char   <td>G   <td>U=UTC<br>G=GPS
- <tr> <td>3     <td>Time Mark Mode        <td>   <td>Char   <td>A   <td>A=Always<br>V=Valid Pulses Only
+ <tr> <td>*1    <td>Time Recovery Mode    <td>&nbsp  <td>Char   <td>D   <td>D=Dynamic<br>S=Static<br>K=Known Position<br>N=No Time Recovery
+ <tr> <td>2     <td>Time Synchronization  <td>&nbsp  <td>Char   <td>G   <td>U=UTC<br>G=GPS
+ <tr> <td>3     <td>Time Mark Mode        <td>&nbsp  <td>Char   <td>A   <td>A=Always<br>V=Valid Pulses Only
  <tr> <td>4     <td>Maximum Time Error    <td>Nsec   <td>Int    <td>100 <td>50-1000
  <tr> <td>5     <td>User Time Bias        <td>Nsec   <td>Int    <td>0   <td>+/- 99999
- <tr> <td>6     <td>ASCII Time Message Control<td> <td>Int    <td>0   <td>0=No Output<br>1=830 to Control Port<br>2=830 to Equipment Port
- <tr> <td>7     <td>Known Pos PRN          <td>  <td>Int    <td>0   <td>1-32<br>0=Track All Sats
+ <tr> <td>6     <td>ASCII Time Message Control<td>&nbsp<td>Int    <td>0   <td>0=No Output<br>1=830 to Control Port<br>2=830 to Equipment Port
+ <tr> <td>7     <td>Known Pos PRN          <td>&nbsp <td>Int    <td>0   <td>1-32<br>0=Track All Sats
 </table>
 Example:<br>
 <code>$PMVXG,023,S,U,A,500,0,1,*16</code>
@@ -235,10 +233,10 @@ sentence <a href="#input_007">$PMVXG,007</a>.
 <p>
 <table border>
  <tr> <th>Field <th>Description           <th>Units  <th>Format <th>Default <th>Range
- <tr> <td>1:CD  <td>ID of Remote Device   <td>   <td>Char   <td>  <td>(See <cite>NMEA-0183</cite>)
- <tr> <td>2:GP  <td>GPS                   <td>   <td>Char   <td>  <td>(See <cite>NMEA-0183</cite>)
- <tr> <td>3:Q   <td>Query                 <td>   <td>Char   <td>  <td>(See <cite>NMEA-0183</cite>)
- <tr> <td>4:YYY <td>Label of Desired Sentence<td> <td>Char  <td>  <td>Any Valid NMEA or Magnavox Sentence Type
+ <tr> <td>1:CD  <td>ID of Remote Device   <td>&nbsp  <td>Char   <td>&nbsp <td>(See <cite>NMEA-0183</cite>)
+ <tr> <td>2:GP  <td>GPS                   <td>&nbsp  <td>Char   <td>&nbsp <td>(See <cite>NMEA-0183</cite>)
+ <tr> <td>3:Q   <td>Query                 <td>&nbsp  <td>Char   <td>&nbsp <td>(See <cite>NMEA-0183</cite>)
+ <tr> <td>4:YYY <td>Label of Desired Sentence<td>&nbsp<td>Char  <td>&nbsp <td>Any Valid NMEA or Magnavox Sentence Type
 </table>
 Example:<br>
 <code>$CDGPQ,030*5E</code>
@@ -261,11 +259,11 @@ tracked.
 <p>
 <table border>
  <tr> <th>Field <th>Description                         <th>Units  <th>Format <th>Range
- <tr> <td>1     <td>Current Receiver Status             <td>   <td>Char   <td>ACQ=Reacquisition<br>ALT=Constellation Selection<br>IAC=Initial Acquisition<br>IDL=Idle, No Satellites<br>NAV=Navigating<br>STS=Search The Sky<br>TRK=Tracking
- <tr> <td>2     <td>Number of Satellites that should be Visible <td> <td>Int  <td>0-12
- <tr> <td>3     <td>Number of Satellites being Tracked  <td>   <td>Int    <td>0-12
+ <tr> <td>1     <td>Current Receiver Status             <td>&nbsp  <td>Char   <td>ACQ=Reacquisition<br>ALT=Constellation Selection<br>IAC=Initial Acquisition<br>IDL=Idle, No Satellites<br>NAV=Navigating<br>STS=Search The Sky<br>TRK=Tracking
+ <tr> <td>2     <td>Number of Satellites that should be Visible <td>&nbsp<td>Int  <td>0-12
+ <tr> <td>3     <td>Number of Satellites being Tracked  <td>&nbsp  <td>Int    <td>0-12
  <tr> <td>4     <td>Time since Last Navigation          <td>HHMM   <td>Int    <td>0-2359
- <tr> <td>5     <td>Initialization Status               <td>   <td>Int    <td>0=Waiting for Initialization<br>1=Initialization Complete
+ <tr> <td>5     <td>Initialization Status               <td>&nbsp  <td>Int    <td>0=Waiting for Initialization<br>1=Initialization Complete
 </table>
 Example:<br>
 <code>$PMVXG,000,TRK,3,3,0122,1*19</code>
@@ -283,14 +281,14 @@ applications.</em>
  <tr> <th>Field <th>Description            <th>Units  <th>Format <th>Range
  <tr> <td>1     <td>UTC Measurement Time   <td>Seconds into the week<td>Float<td>0-604800.00
  <tr> <td>2     <td>WGS-84 Latitude        <td>DDMM.MMMM<td>Float  <td>0-89.9999
- <tr> <td>3     <td>North/South Indicator  <td>   <td>Char   <td>N, S
+ <tr> <td>3     <td>North/South Indicator  <td>&nbsp  <td>Char   <td>N, S
  <tr> <td>4     <td>WGS-84 Longitude       <td>DDDMM.MMMM  <td>Float    <td>0-179.9999
- <tr> <td>5     <td>East/West Indicator    <td>   <td>Char   <td>E, W
- <tr> <td>6     <td>Altitude (MSL)         <td>Meters <td>Float  <td> 
- <tr> <td>7     <td>Geoidal Height         <td>Meters <td>Float  <td> 
- <tr> <td>8     <td>Velocity East          <td>M/Sec  <td>Float  <td> 
- <tr> <td>9     <td>Velocity North         <td>M/Sec  <td>Float  <td> 
- <tr> <td>10    <td>Navigation Mode        <td>   <td>Int    <td><em>Navigating</em><br>
+ <tr> <td>5     <td>East/West Indicator    <td>&nbsp  <td>Char   <td>E, W
+ <tr> <td>6     <td>Altitude (MSL)         <td>Meters <td>Float  <td>&nbsp
+ <tr> <td>7     <td>Geoidal Height         <td>Meters <td>Float  <td>&nbsp
+ <tr> <td>8     <td>Velocity East          <td>M/Sec  <td>Float  <td>&nbsp
+ <tr> <td>9     <td>Velocity North         <td>M/Sec  <td>Float  <td>&nbsp
+ <tr> <td>10    <td>Navigation Mode        <td>&nbsp  <td>Int    <td><em>Navigating</em><br>
                                                                      1=Position From a Remote Device<br>
                                                                      2=2D<br>
                                                                      3=3D<br>
@@ -321,21 +319,21 @@ listed.  The satellites are listed in receiver channel order.  Fields
 <table border>
  <tr> <th>Field <th>Description            <th>Units  <th>Format <th>Range
  <tr> <td>1     <td>UTC Measurement Time   <td>Seconds into the week<td>Float<td>0-604800.00
- <tr> <td>2     <td>East DOP (EDOP)        <td>   <td>Float  <td> 
- <tr> <td>3     <td>North DOP (NDOP)       <td>   <td>Float  <td> 
- <tr> <td>4     <td>Vertical DOP (VDOP)    <td>   <td>Float  <td> 
- <tr> <td>5     <td>PRN on Channel #1      <td>   <td>Int    <td>1-32
- <tr> <td>6     <td>PRN on Channel #2      <td>   <td>Int    <td>1-32
- <tr> <td>7     <td>PRN on Channel #3      <td>   <td>Int    <td>1-32
- <tr> <td>8     <td>PRN on Channel #4      <td>   <td>Int    <td>1-32
- <tr> <td>9     <td>PRN on Channel #5      <td>   <td>Int    <td>1-32
- <tr> <td>10    <td>PRN on Channel #6      <td>   <td>Int    <td>1-32
- <tr> <td>11    <td>PRN on Channel #7      <td>   <td>Int    <td>1-32
- <tr> <td>12    <td>PRN on Channel #8      <td>   <td>Int    <td>1-32
- <tr> <td>13    <td>PRN on Channel #9      <td>   <td>Int    <td>1-32
- <tr> <td>14    <td>PRN on Channel #10     <td>   <td>Int    <td>1-32
- <tr> <td>15    <td>PRN on Channel #11     <td>   <td>Int    <td>1-32
- <tr> <td>16    <td>PRN on Channel #12     <td>   <td>Int    <td>1-32
+ <tr> <td>2     <td>East DOP (EDOP)        <td>&nbsp  <td>Float  <td>&nbsp
+ <tr> <td>3     <td>North DOP (NDOP)       <td>&nbsp  <td>Float  <td>&nbsp
+ <tr> <td>4     <td>Vertical DOP (VDOP)    <td>&nbsp  <td>Float  <td>&nbsp
+ <tr> <td>5     <td>PRN on Channel #1      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>6     <td>PRN on Channel #2      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>7     <td>PRN on Channel #3      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>8     <td>PRN on Channel #4      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>9     <td>PRN on Channel #5      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>10    <td>PRN on Channel #6      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>11    <td>PRN on Channel #7      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>12    <td>PRN on Channel #8      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>13    <td>PRN on Channel #9      <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>14    <td>PRN on Channel #10     <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>15    <td>PRN on Channel #11     <td>&nbsp  <td>Int    <td>1-32
+ <tr> <td>16    <td>PRN on Channel #12     <td>&nbsp  <td>Int    <td>1-32
 </table>
 Example:<br>
 <code>$PMVXG,022,142243.00,00.7,00.8,01.9,27,26,10,09,13,23*77</code>
@@ -350,8 +348,8 @@ version numbers.
 <p>
 <table border>
  <tr> <th>Field <th>Description                      <th>Units <th>Format <th>Range
- <tr> <td>1     <td>Nav Processor Version Number     <td>  <td>Char   <td> 
- <tr> <td>2     <td>Baseband Firmware Version Number <td>  <td>Char   <td> 
+ <tr> <td>1     <td>Nav Processor Version Number     <td>&nbsp <td>Char   <td>&nbsp
+ <tr> <td>2     <td>Baseband Firmware Version Number <td>&nbsp <td>Char   <td>&nbsp
 </table>
 Example:<br>
 <code>$PMVXG,030,DA35,015</code>
@@ -367,16 +365,16 @@ received.
 <p>
 <table border>
  <tr> <th>Field <th>Description                      <th>Units <th>Format <th>Range
- <tr> <td>1     <td>Sentence ID                      <td>  <td>Char   <td> 
- <tr> <td>2     <td>Accept/Reject Status             <td>  <td>Int    <td>0=Sentence Accepted<br>
+ <tr> <td>1     <td>Sentence ID                      <td>&nbsp <td>Char   <td>&nbsp
+ <tr> <td>2     <td>Accept/Reject Status             <td>&nbsp <td>Int    <td>0=Sentence Accepted<br>
                                                                               1=Bad Checksum<br>
                                                                               2=Illegal Value<br>
                                                                               3=Unrecognized ID<br>
                                                                               4=Wrong # of fields<br>
                                                                               5=Required Data Field Missing<br>
                                                                               6=Requested Sentence Unavailable
- <tr> <td>3     <td>Bad Field Index                  <td>  <td>Int    <td> 
- <tr> <td>4     <td>Requested Sentence ID (If field #1 = GPQ) <td>  <td>Char   <td> 
+ <tr> <td>3     <td>Bad Field Index                  <td>&nbsp <td>Int    <td>&nbsp
+ <tr> <td>4     <td>Requested Sentence ID (If field #1 = GPQ) <td>&nbsp <td>Char   <td>&nbsp
 </table>
 Example:<br>
 <code>$PMVXG,101,GPQ,0,,030*0D</code>
@@ -391,13 +389,13 @@ of the receiver.
 <p>
 <table border>
  <tr> <th>Field <th>Description                      <th>Units <th>Format <th>Range
- <tr> <td>1     <td>Time Recovery Mode               <td>  <td>Char   <td>D=Dynamic<br>S=Static<br>K=Known Position<br>N=No Time Recovery
- <tr> <td>2     <td>Time Synchronization             <td>  <td>Char   <td>U=UTC Time<br>G=GPS Time
- <tr> <td>3     <td>Time Mark Mode                   <td>  <td>Char   <td>A=Always Output Time Pulse<br>V=Only when Valid
- <tr> <td>4     <td>Maximum Time Error for which a time mark will be considered valid <td>Nsec  <td>Int    <td> 
- <tr> <td>5     <td>User Time Bias                   <td>Nsec  <td>Int    <td> 
- <tr> <td>6     <td>Time Message Control             <td>  <td>Int    <td>0=No Message<br>1=830 to Control Port<br>2=830 to Equipment Port
- <tr> <td>7     <td>Not Used                         <td>  <td>   <td> 
+ <tr> <td>1     <td>Time Recovery Mode               <td>&nbsp <td>Char   <td>D=Dynamic<br>S=Static<br>K=Known Position<br>N=No Time Recovery
+ <tr> <td>2     <td>Time Synchronization             <td>&nbsp <td>Char   <td>U=UTC Time<br>G=GPS Time
+ <tr> <td>3     <td>Time Mark Mode                   <td>&nbsp <td>Char   <td>A=Always Output Time Pulse<br>V=Only when Valid
+ <tr> <td>4     <td>Maximum Time Error for which a time mark will be considered valid <td>Nsec  <td>Int    <td>&nbsp
+ <tr> <td>5     <td>User Time Bias                   <td>Nsec  <td>Int    <td>&nbsp
+ <tr> <td>6     <td>Time Message Control             <td>&nbsp <td>Int    <td>0=No Message<br>1=830 to Control Port<br>2=830 to Equipment Port
+ <tr> <td>7     <td>Not Used                         <td>&nbsp <td>&nbsp  <td>&nbsp
 </table>
 Example:<br>
 <code>$PMVXG,523,S,U,A,0500,000000,1,0*23</code>
@@ -417,23 +415,23 @@ receivers.
 <p>
 <table border>
  <tr> <th>Field <th>Description                      <th>Units <th>Format <th>Range
- <tr> <td>1     <td>Time Mark Valid                  <td>  <td>Char   <td>T=Valid<br>F=Not Valid
- <tr> <td>2     <td>Year                             <td>  <td>Int    <td>1993-
- <tr> <td>3     <td>Month                            <td>  <td>Int    <td>1-12
+ <tr> <td>1     <td>Time Mark Valid                  <td>&nbsp <td>Char   <td>T=Valid<br>F=Not Valid
+ <tr> <td>2     <td>Year                             <td>&nbsp <td>Int    <td>1993-
+ <tr> <td>3     <td>Month                            <td>&nbsp <td>Int    <td>1-12
  <tr> <td>4     <td>Day                              <td>Nsec  <td>Int    <td>1-31
  <tr> <td>5     <td>Time                             <td>HH:MM:SS<td>Int  <td>00:00:00-23:59:59
- <tr> <td>6     <td>Time Synchronization             <td>  <td>Char   <td>U=UTC<br>G=GPS
- <tr> <td>7     <td>Operating Mode                   <td>  <td>Char   <td>D=Dynamic<br>S=Static<br>K=Known Position
- <tr> <td>8     <td>Oscillator Offset - estimate of oscillator frequency error <td>PPB   <td>Int    <td> 
- <tr> <td>9     <td>Time Mark Error of last pulse    <td>Nsec  <td>Int    <td> 
- <tr> <td>10    <td>User Time Bias                   <td>Nsec  <td>Int    <td> 
+ <tr> <td>6     <td>Time Synchronization             <td>&nbsp <td>Char   <td>U=UTC<br>G=GPS
+ <tr> <td>7     <td>Operating Mode                   <td>&nbsp <td>Char   <td>D=Dynamic<br>S=Static<br>K=Known Position
+ <tr> <td>8     <td>Oscillator Offset - estimate of oscillator frequency error <td>PPB   <td>Int    <td>&nbsp
+ <tr> <td>9     <td>Time Mark Error of last pulse    <td>Nsec  <td>Int    <td>&nbsp
+ <tr> <td>10    <td>User Time Bias                   <td>Nsec  <td>Int    <td>&nbsp
  <tr> <td>11    <td>Leap Second Flag - indicates that a leap second will occur.
                     This value is usually zero except during the week
                     prior to a leap second occurence, when this value
                     will be set to +/-1.  A value of +1 indicates
                     that GPS time will be 1 second further ahead of
                     UTC time.
-                                                     <td>  <td>Int    <td>-1,0,1
+                                                     <td>&nbsp <td>Int    <td>-1,0,1
 </table>
 Example:<br>
 <code>$PMVXG,830,T,1998,10,12,15:30:46,U,S,000298,00003,000000,01*02</code>

@@ -22,9 +22,6 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_HOPF6021)
 
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
@@ -229,7 +226,7 @@ inp_hopf6021(
 {
 	unsigned int rtc;
 	
-	parseprintf(DD_PARSE, ("inp_hopf6021(0x%x, 0x%x, ...)\n", (int)parseio, (int)ch));
+	parseprintf(DD_PARSE, ("inp_hopf6021(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 	
 	switch (ch)
 	{

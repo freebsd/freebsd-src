@@ -16,14 +16,12 @@
  * written consent of the author.
  */
 
+#include "ntp_stdlib.h"
+
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <termios.h>
-#include <sys/types.h>
-#include <sys/time.h>
-
-#include "ntp_stdlib.h"
 
 /*
  * state flags

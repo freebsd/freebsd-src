@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include "ntp_machine.h"
 #include "ntp_fp.h"
-#include "ntp_stdlib.h"
 #include "ntp_syslog.h"
+#include "ntp_stdlib.h"
 #include "ntp_io.h"
 #include "recvbuff.h"
 #include "iosignal.h"

@@ -3,7 +3,7 @@ Basic Installation
 
    These are generic *nix installation instructions.
 
-   For Windows/NT, please see ports/winnt.
+   For Windows/NT, please see ports/winnt and html/hints/winnt.htm.
 
    The `configure' shell script attempts to guess correct values for
 various system-dependent variables used during compilation.  It uses

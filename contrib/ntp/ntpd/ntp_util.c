@@ -1,17 +1,10 @@
 /*
  * ntp_util.c - stuff I didn't have any other place for
  */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/types.h>
-# ifdef HAVE_SYS_IOCTL_H
-#  include <sys/ioctl.h>
-# endif
-# include <sys/time.h>
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include "ntpd.h"
 #include "ntp_io.h"
@@ -19,6 +12,20 @@
 #include "ntp_filegen.h"
 #include "ntp_if.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
+#include <sys/types.h>
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+
+#ifdef HAVE_IEEEFP_H
+# include <ieeefp.h>
+#endif
+#ifdef HAVE_MATH_H
+# include <math.h>
+#endif
 
 #ifdef  DOSYNCTODR
 #if !defined(VMS)
@@ -218,7 +225,8 @@ hourly_stats(void)
 	NLOG(NLOG_SYSSTATIST)
 		msyslog(LOG_INFO,
 		    "offset %.6f sec freq %.3f ppm error %.6f poll %d",
-		    last_offset, drift_comp * 1e6, sys_error, sys_poll);
+		    last_offset, drift_comp * 1e6, sys_jitter, sys_poll);
+
 	
 	if (stats_drift_file != 0) {
 		if ((fp = fopen(stats_temp_file, "w")) == NULL) {
@@ -341,12 +349,27 @@ stats_config(
 			break;
 		}
 		if (fscanf(fp, "%lf", &old_drift) != 1) {
-			msyslog(LOG_ERR, "invalid frequency from %s", 
+			msyslog(LOG_ERR, "Un-parsable frequency in %s", 
 			    stats_drift_file);
 			(void) fclose(fp);
 			break;
 		}
 		(void) fclose(fp);
+		if (
+#ifdef HAVE_FINITE
+			!finite(old_drift)
+#else  /* not HAVE_FINITE */
+# ifdef HAVE_ISFINITE
+			!isfinite(old_drift)
+# else  /* not HAVE_ISFINITE */
+			0
+# endif /* not HAVE_ISFINITE */
+#endif /* not HAVE_FINITE */
+		    || (fabs(old_drift) > (NTP_MAXFREQ * 1e6))) {
+			msyslog(LOG_ERR, "invalid frequency (%f) in %s", 
+			    old_drift, stats_drift_file);
+			old_drift = 0.0;
+		}
 		msyslog(LOG_INFO, "frequency initialized %.3f from %s",
 		    old_drift, stats_drift_file);
 		loop_config(LOOP_DRIFTCOMP, old_drift / 1e6);
@@ -466,7 +489,13 @@ record_peer_stats(
  * time constant (log base 2)
  */
 void
-record_loop_stats(void)
+record_loop_stats(
+	double offset,
+	double freq,
+	double jitter,
+	double stability,
+	int poll
+	)
 {
 	struct timeval tv;
 #ifdef HAVE_GETCLOCK
@@ -490,8 +519,8 @@ record_loop_stats(void)
 	filegen_setup(&loopstats, (u_long)(tv.tv_sec + JAN_1970));
 	if (loopstats.fp != NULL) {
 		fprintf(loopstats.fp, "%lu %lu.%03lu %.9f %.6f %.9f %.6f %d\n",
-		    day, sec, msec, last_offset, drift_comp * 1e6,
-		    sys_error, clock_stability * 1e6, sys_poll);
+		    day, sec, msec, offset, freq * 1e6, jitter,
+		    stability * 1e6, poll);
 		fflush(loopstats.fp);
 	}
 }

@@ -5,10 +5,6 @@
 #ifndef NTP_SYSLOG_H
 #define NTP_SYSLOG_H
 
-#ifdef GIZMO
-# include "gizmo_syslog.h"
-#else /* !GIZMO */
-
 # ifdef VMS
 extern void msyslog();
 # else
@@ -16,10 +12,7 @@ extern void msyslog();
 #   include <syslog.h>
 #   endif
 # endif /* VMS */
-
 # include <stdio.h>
-
-#endif /* GIZMO */
 
 extern int syslogit;
 extern FILE *syslog_file;

@@ -6,14 +6,9 @@ If you want DES support in ntp:
 If you *need* DES support:
 
 - first see if you can simply "want" DES support instead
-- Get RSAREF or RSAEURO (or a reasonable facsimile thereof)
-- - Unpack it in the top-level source directory of the NTP distribution
-    in a directory named rsaref2
-    (You should see directories like ports, rsaref2, scripts)
+- Follow the instructions in README.rsa
 
-When you run configure, the Right Thing will happen.
-
-Be advised that the RSA DES code is not quite as portable os one might
+Be advised that the RSA DES code is not quite as portable as one might
 wish for.  In particular, DES under NTP will only work between machines
 of the same "endianness".
 

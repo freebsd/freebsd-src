@@ -9,20 +9,20 @@
  * For more information, see the README.kern file in the doc directory
  * of the xntp3 distribution.
  */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
-
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <setjmp.h>
 
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_syscall.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
+#include <signal.h>
+#include <setjmp.h>
 
 #ifdef NTP_SYSCALLS_STD
 # ifndef SYS_DECOSF1
@@ -30,7 +30,7 @@
 # endif /* SYS_DECOSF1 */
 #endif
 
-#ifdef HAVE_TV_NSEC_IN_NTPTIMEVAL
+#ifdef HAVE_STRUCT_NTPTIMEVAL_TIME_TV_NSEC
 #define tv_frac_sec tv_nsec
 #else
 #define tv_frac_sec tv_usec
@@ -68,7 +68,7 @@ static volatile int pll_control; /* (0) daemon, (1) kernel loop */
 static volatile int status;	/* most recent status bits */
 static volatile int flash;	/* most recent ntp_adjtime() bits */
 char* progname;
-static char optargs[] = "cde:f:hm:o:rs:t:";
+static char optargs[] = "MNT:cde:f:hm:o:rs:t:";
 
 int
 main(
@@ -100,6 +100,24 @@ main(
 	memset((char *)&ntx, 0, sizeof(ntx));
 	progname = argv[0];
 	while ((c = ntp_getopt(argc, argv, optargs)) != EOF) switch (c) {
+#ifdef MOD_MICRO
+	    case 'M':
+		ntx.modes |= MOD_MICRO;
+		break;
+#endif
+#ifdef MOD_NANO
+	    case 'N':
+		ntx.modes |= MOD_NANO;
+		break;
+#endif
+#ifdef NTP_API
+# if NTP_API > 3
+	    case 'T':
+		ntx.modes = MOD_TAI;
+		ntx.constant = atoi(ntp_optarg);
+		break;
+# endif
+#endif
 	    case 'c':
 		cost++;
 		break;
@@ -128,7 +146,7 @@ main(
 	    case 's':
 		ntx.modes |= MOD_STATUS;
 		ntx.status = atoi(ntp_optarg);
-		if (ntx.status < 0 || ntx.status > 4) errflg++;
+		if (ntx.status < 0 || ntx.status >= 0x100) errflg++;
 		break;
 	    case 't':
 		ntx.modes |= MOD_TIMECONST;
@@ -140,6 +158,7 @@ main(
 	if (errflg || (ntp_optind != argc)) {
 		(void) fprintf(stderr,
 			       "usage: %s [-%s]\n\n\
+%s%s%s\
 -c		display the time taken to call ntp_gettime (us)\n\
 -e esterror	estimate of the error (us)\n\
 -f frequency	Frequency error (-500 .. 500) (ppm)\n\
@@ -149,7 +168,27 @@ main(
 -r		print the unix and NTP time raw\n\
 -l leap		Set the leap bits\n\
 -t timeconstant	log2 of PLL time constant (0 .. %d)\n",
-			       progname, optargs, MAXTC);
+			       progname, optargs,
+#ifdef MOD_MICRO
+"-M		switch to microsecond mode\n",
+#else
+"",
+#endif
+#ifdef MOD_NANO
+"-N		switch to nanosecond mode\n",
+#else
+"",
+#endif
+#ifdef NTP_API
+# if NTP_API > 3
+"-T tai_offset	set TAI offset\n",
+# else
+"",
+# endif
+#else
+"",
+#endif
+			       MAXTC);
 		exit(2);
 	}
 
@@ -258,12 +297,18 @@ main(
 		ts.l_uf &= ts_mask;
 		printf("  time %s, (.%0*d),\n",
 		       prettydate(&ts), fdigits, (int) time_frac);
-		printf("  maximum error %lu us, estimated error %lu us.\n",
+		printf("  maximum error %lu us, estimated error %lu us",
 		       (u_long)ntv.maxerror, (u_long)ntv.esterror);
-		if (rawtime) printf("  ntptime=%x.%x unixtime=%x.%0*d %s",
+		if (rawtime)
+		    printf("  ntptime=%x.%x unixtime=%x.%0*d %s",
 		    (unsigned int) ts.l_ui, (unsigned int) ts.l_uf,
 		    (int) ntv.time.tv_sec, fdigits, (int) time_frac,
 		    ctime((const time_t *) &ntv.time.tv_sec));
+#if NTP_API > 3
+		printf(", TAI offset %d\n", ntv.tai);
+#else
+		printf("\n");
+#endif /* NTP_API */
 	}
 	status = ntp_adjtime(&ntx);
 	if (status < 0)

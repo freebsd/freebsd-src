@@ -1,170 +1,89 @@
-<HTML>
-<HEAD>
-   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
-   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
-   <TITLE>Release Notes
-</TITLE>
-</HEAD>
-<BODY>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html><title>
+Association Management
+</title></head><body><h3>
+Association Management
+</h3>
 
-<H3>
-Association Management</H3>
+<img align=left src=pic/alice51.gif alt="gif"><a href=http://www.eecis.udel.edu/~mills/pictures.htm>
+from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
 
-<HR>
-<H4>
-Association Modes</H4>
-This release of the NTP Version 4 (NTPv4) daemon for Unix incorporates
-new features and refinements to the NTP Version 3 (NTPv3) algorithms. However,
-it continues the tradition of retaining backwards compatibility with older
-versions. The NTPv4 version has been under development for quite a while
-and isn't finished yet. In fact, quite a number of NTPv4 features have
-already been implemented in the current NTPv3, including a number of new
-operating modes for automatic server discovery and improved accuracy in
-occasionally-connected networks. Following is an extended abstract describing
-the new features..
+<p>Make sure who your friends are.
+<br clear=left><hr>
 
-<P>An ephemeral association of some mode is mobilized when a message arrives
-from another client or server. For instance, a symmetric-passive association
-is mobilized upon arrival of a message from a symmetric- active peer. A
-client association is mobilized upon arrival of a broadcast message from
-a multicast server or a server message from a manycast server. Ephemeral
-associations are demobilized when either (a) the server becomes unreachable
-or (b) an error occurs on initial contact before the association is mobilized.
+<h4>Association Modes</h4>
 
-<P>The one exception to (a) and (b) above is when
-<TT><A HREF="authopt.htm">autokey</A></TT> is in use and the initial
-authentication check fails due to unknown
-key identifier or autokey mismatch. This exception is necessary because
-the Unix kernel does not bind the local address until the first packet
-is received. The result in broadcast mode is a rather painful initial exchange,
-where authentication fails until after the first round of messages. The
-result in multicast mode is in general fatal, especially if multiple interfaces
-are in use. As promiscuous modes such as multicast and manycast require
-authentication for reliable and safe operation, autokey is in general useless
-with these modes until and if the input/output machinery is overhauled.
+<p>NTP Version 4 (NTPv4) incorporates new features and refinements to the NTP Version 3 (NTPv3) algorithms; however, it continues the tradition of backwards compatibility with older versions. A number of new operating modes for automatic server discovery and improved accuracy in occasionally connected networks are provided. Following is an overview of the new features; additional information is available on the <a href=confopt.htm>Configuration Options</a> and <a href=authopt.htm>Authentication Options</a> pages and in the papers, reports, memoranda and briefings at <a href=http://www.ntp.org>www.ntp.org</a>.
 
-<P>Following is a summary of the protocol operations for each mode.
+<p>There are two types of associations: persistent associations, which result from configuration file commands, and ephemeral associations, which result from protocol operations described below. A persistent association is never demobilized, although it may become dormant when the associated server becomes unreachable. An ephemeral association is mobilized when a message arrives from a server; for instance, a symmetric passive association is mobilized upon arrival of a symmetric active message. A broadcast client association is mobilized upon arrival of a broadcast server message, while a manycast client association is mobilized upon arrival of a manycast server message.
 
-<P>Peer Modes (Active and Passive)
-<UL>In these modes, two client/server peers agree to back each other up,
-should the synchronization source for either peer fail. One or both peers
-is configured in symmetric-active mode using the peer command. Alternatively,
-one - the active peer - is configured in this mode and the other, the passive
-peer, operates in symmetric-passive mode and requires no prior configuration.
-Both association scenarios operate in NTPv4 as in NTPv3; however, several
-bugs in the handling of keys and recovery of resources when an active peer
-fails, have been corrected in NTPv4. The original NTPv3 authentication
-scheme is applicable in this mode, as well as the new NTPv3 autokey scheme.</UL>
-Client/Server Modes
-<UL>In these modes, a client sends a request to the server and expects
-a reply at some future time. The client is configured in client mode using
-the server (sic) command; the server requires no prior configuration. The
-original NTPv3 authentication scheme is applicable in this mode, as well
-as the new NTPv3 autokey scheme.</UL>
-Broadcast/Multicast Modes
-<UL>In these modes, the server generates messages at intervals specified
-by the minpoll subcommand. When using IP multicast addresses, the scope
-of the multicast tree is specified by the ttl subcommand in hops. When
-using a local interface broadcast address, the scope is limited to the
-attached subnet. The client responds to the first message received by waiting
-an interval randomized over the minpoll interval, in order to avoid implosions.
-Then, it polls the server in burst mode, in order to accumulate data to
-reliably set the host clock. This normally results in eight client/server
-cycles over a 32-s interval. When the next multicast message is received,
-the client computes the offset between the system clock just set and the
-apparent time of the multicast message in order to correct the apparent
-time in future multicast messages.</UL>
-Manycast Mode
-<UL>In this mode, a configured client broadcasts a request message as in
-client mode to a designated multicast group address. All servers configured
-as manycast clients and in ttl range respond with a server reply message.
-Each reply mobilizes a persistent client/server association as in client
-mode. Then, the NTP intersection and clustering algorithms act to discard
-all but the "best" of these associations, which then continue as in client/server
-mode.</UL>
+<p>Ordinarily, successful mobilization of an ephemeral association requires the server to be cryptographically authenticated to the dependent client. This can be done using either symmetric-key or public-key cryptography, as described in the <a href=authopt.htm>Authentication Options</a> page. The cryptographic means insure an unbroken chain of trust between the dependent client and the primary servers at the root of the synchronization subnet. We call this chain the provenance of the client and define new vocabulary as to proventicate a client or provide proventic credentials. Once mobilized, ephemeral associations are demobilized when either (a) the server becomes unreachable or (b) the server refreshes the key media without notifying the client.
 
-<H4>
-Burst Mode</H4>
-Burst mode can be configured when the network attachment requires an initial
-calling or training procedure. Each poll initiates a burst of eight request
-messages at intervals randomized over the range 3-5 s. The reply messages
-update the clock filter, which then selects the best (most accurate) among
-them. When the last reply in the burst is sent, the next reply updates
-the client variables and system clock in the usual manner, as if only a
-single request/reply cycle had occurred. This mode does produce additional
-network overhead and can cause trouble if used indiscriminately. It should
-only be used where the poll interval is expected to settle to values above
-1024 s.
-<H4>
-Revised Error Checking</H4>
-It is very important to avoid spurious mobilizations from possibly broken
-or rogue servers; in particular, to avoid denial-of-service attacks. In
-order to resist such attacks, arriving messages that might mobilize ephemeral
-associations are carefully screened using a series of eleven sanity checks.
-<OL>
-<LI>
-Duplicate packet. This message is a duplicate of one previously received.</LI>
+<p>There are three principal modes of operation: client/server, symmetric active/passive and broadcast. In addition, there are two modes using IP Multicast support: multicast and manycast. These modes are selected based on the scope of service, intended flow of time and proventic values and means of configuration. Following is a summary of the operations in each mode.
 
-<BR>&nbsp;
-<LI>
-Bogus packet. This message did not result from a message previously sent,
-or messages have been received out of order.</LI>
+<h4>Client/Server Mode</h4>
 
-<BR>&nbsp;
-<LI>
-Unsynchronized. The server has not yet stored the previous timestamps.</LI>
+<p>Client/server mode is probably the most common configuration in the Internet today. It operates in the classic remote-procedure-call (RPC) paradigm with stateless servers. In this mode a client sends a request to the server and expects a reply at some future time. In some contexts this would be described as a "pull" operation, in that the client pulls the time and proventic values from the server. A client is configured in client mode using the <tt>server</tt> (sic) command and specifying the server DNS name or address; the server requires no prior configuration. The original NTPv3 authentication scheme is applicable in this mode, as well as the new NTPv4 Autokey proventication scheme. In addition, two burst modes described below can be used in appropriate cases.
 
-<BR>&nbsp;
-<LI>
-Invalid delay or dispersion. Either the delay or dispersion or both computed
-from the message timestamps are above the normal range.</LI>
+<h4>Symmetric Active/Passive Mode</h4>
 
-<BR>&nbsp;
-<LI>
-Authentication failed. The sent MAC does not match the received MAC, either
-due to the wrong key material or damaged message.</LI>
+<p>Symmetric active/passive mode is intended for configurations were a clique of low-stratum peers operate as mutual backups for each other. Each peer operates with one or more primary reference sources, such as a radio clock, or a subset of secondary servers known to be reliable and proventicated. Should one of the peers lose all reference sources or simply cease operation, the other peers will automatically reconfigure so that time and proventication values can flow from the surviving peers to all the others in the clique. In some contexts this would be described as a "push-pull" operation, in that the peer either pulls or pushes the time and proventic values depending on the particular configuration.
 
-<BR>&nbsp;
-<LI>
-Server unsynchronized. The server indicates unsynchronized in the leap
-bits included in the packet.</LI>
+<p>Symmetric peers operate with their sources in some NTP mode and with each other in symmetric mode. A peer is configured in symmetric active mode using the <tt>peer</tt> command and specifying the other peer DNS name or address. The other peer can also be configured in symmetric active mode in a similar way. However, if the other peer is not specifically configured in this way, a symmetric passive association is mobilized upon arrival of a symmetric active message. Since an intruder can impersonate a symmetric active peer and inject false time values, symmetric mode should always be cryptographically validated. The original NTPv3 authentication scheme is applicable in this mode, as well as the new NTPv4 Autokey proventication scheme. 
 
-<BR>&nbsp;
-<LI>
-Server stratum check. The server is operating at a stratum above the normal
-range.</LI>
+<h4>Broadcast Mode</h4>
 
-<BR>&nbsp;
-<LI>
-Delay/dispersion check. The related server packet data values are above
-the normal range.</LI>
+<p>Broadcast mode is intended for configurations involving one or a few servers and a possibly very large client population. A broadcast server is configured using the <tt>broadcast</tt> command and a local subnet address. A broadcast client is configured using the <tt>broadcastclient</tt> command, in which case it responds to broadcast messages received on any interface. Since an intruder can impersonate a broadcast server and inject false time values, this mode should always be cryptographically validated. The original NTPv3 authentication scheme is applicable in this mode, as well as the new NTPv4 Autokey proventication scheme. 
 
-<BR>&nbsp;
-<LI>
-Autokey failed. The hash of the current session key does not match the
-most recent key identifiers used. (The hash is repeated four times, in
-order to recover from lost packets whenever possible.)</LI>
+<p>The server generates broadcast messages continuously at intervals specified by the <tt>minpoll</tt> keyword and with a time-to-live span specified by the <tt>ttl</tt> keyword. A NTPv4 broadcast client responds to the first proventicated message received by waiting an interval randomized over the <tt>minpoll</tt> interval, in order to avoid implosion at the server. Then, the client polls the server in burst mode in order to reliably set the host clock and validate the source. This normally results in a volley of eight client/server cycles over a 30-s interval during which both the synchronization and cryptographic protocols run concurrently. When the next broadcast message is received after the volley, the client computes the offset between the apparent broadcast time and the (unicast) client time. This offset is used to compensate for the propagation time between the broadcast server and client. Once the offset is computed, the server continues as before and the client sends no further messages.
 
-<BR>&nbsp;
-<LI>
-Access denied. The sender has been blocked by the access control list.</LI>
+<h4>IP Multicast Support</h4>
 
-<BR>&nbsp;
-<LI>
-Key not found. The key identifier does not match any identifier in the
-key list or the key has expired or been revoked.</LI>
-</OL>
-Failure to pass tests 5-11 is sufficient evidence to discard the packet
-without forming an association. However, failure to pass tests 1-4 is not
-necessarily grounds to reject the packet, since subsequent packets may
-be acceptable. In this case, the association is mobilized, but only the
-packet timestamps are stored. For the moment, and until the cryptographic
-signature algorithm is available, test 9 is temporarily disabled.
-<BR>
-<HR>
-<ADDRESS>
-David L. Mills (mills@udel.edu)</ADDRESS>
+<p>Broadcast mode in both NTPv3 and NTPv4 is limited to directly connected subnets such as Ethernets which support broadcast technology. Ordinarily, this technology does not operate beyond the first hop router or gateway. Where service is intended beyond the local subnet, IP multicasting can be used where supported by the operating system and the routers support the Internet Group Management Protocol (IGMP). Most current kernels and available routers do support IP multicast technology, although service providers are sometimes reluctant to deploy it.
 
-<BR>&nbsp;
-</BODY>
-</HTML>
+<p>A general discussion of IP multicast technology is beyond the scope here. In simple terms a host or router sending to a IP multicast group (class D) address expects all hosts or routers listening on this address to receive the message. There is no intrinsic limit on the number of senders or receivers and senders can be receivers and vice versa. The IANA has assigned multicast group address 224.0.1.1 to NTP, but this address should be used only where the multicast span can be reliably constrained to protect neighbor networks. In general, administratively scoped group addresses should be used, as described in RFC-2365, or GLOP group addresses, as described in RFC-2770.
+
+<h4>Multicasting</h4>
+
+<p>IP multicasting can be used to extend the scope of a timekeeping subnet in two ways: multicasting and manycasting. A multicast client is configured using the <tt>broadcast</tt> command, but with a multicast group (class D) address instead of a local subnet broadcast address. However, there is a subtle difference between broadcasting and multicasting. Broadcasting is specific to each interface and local subnet address. If more than one interface is attached to a machine, a separate <tt>broadcast</tt> command applies to each one separately. This provides a way to limit exposure in a firewall, for example.
+
+<p>IP multicasting is a different paradigm. A multicast message has the same format as a broadcast message and is configured with the same <tt>broadcast</tt> command, but with a multicast group address instead of a local subnet address. By design, multicast messages travel from the sender via a shortest-path or shared tree to the receivers, which may require these messages emit from one or all interfaces, but carry a common source address. However, it is possible to configure multiple multicast group addresses using multiple <tt>broadcast</tt> commands. Other than these particulars, multicast messages are processed just like broadcast messages. Note that the calibration feature in broadcast mode is extremely important, since IP multicast messages can travel far different paths through the IP routing fabric than ordinary IP unicast messages.
+
+<h4>Manycasting</h4>
+
+<p>Manycasting is a automatic discovery and configuration paradigm new to NTPv4. It is intended as a means for a multicast client to troll the nearby network neighborhood to find cooperating manycast servers, validate them using cryptographic means and evaluate their time values with respect to other servers that might be lurking in the vicinity. The intended result is that each manycast client mobilizes client associations with the "best" three of the available manycast servers, yet automatically reconfigures to sustain this number of servers should one or another fail.
+
+<p>Note that the manycasting paradigm does not coincide with the anycasting paradigm described in RFC-1546, which is designed to find a single server from a clique of servers providing the same service. The manycasting paradigm is designed to find a plurality of redundant servers, in this case willing NTP servers.
+
+<p>A persistent manycast client association is configured using the <tt>server</tt> command, but with a multicast (class D) group address instead of an ordinary IP (class A, B, C) address. It sends client mode messages to this address at the maximum feasible poll interval and minimum feasible time-to-live hops, depending on how many servers have already been found. There can be as many manycast client associations as different group addresss, each one serving as a template for a future ephemeral client/server mode association.
+
+<p>Manycast servers configured with the <tt>manycastserver</tt> command listen on the specified group address for manycast client messages. Note the distinction between manycast client, which is configured with a <tt>server</tt> command, and manycast server, which is configured with a <tt>manycastserver</tt> command. If a manycast server is in range of the current time-to-live and is itself synchronized to a valid source and operating at a stratum level equal to or lower than the manycast client, it replies to the manycast client message with an ordinary server mode message.
+
+<p>The manycast client receiving this message mobilizes an ephemeral client association as in ordinary client/server mode according to the matching manycast client template. Then, the client polls the server at its unicast address in burst mode in order to reliably set the host clock and validate the source. This normally results in a volley of eight client/server cycles over a 30-s interval during which both the synchronization and cryptographic protocols run concurrently. Following the volley, the client runs the NTP intersection and clustering algorithms, which act to discard all but the best three associations. The surviving associations then continue in ordinary client/server mode.
+
+<p>The manycast client polling program is designed to reduce as much as possible the volume of messages and the effects of implosion due to near-simultaneous arrival of manycast server messages. The program uses a poll interval eight times the system poll interval, which starts out at the <tt>minpoll</tt> value and under normal circumstances increases gradually to the <tt>maxpolll</tt> value. Initially, the time-to-live is set at one hop. At each retransmission the time-to-live is incremented by one until at least three manycast servers are found. Further retransmissions use the same time-to-live value.
+
+<p>If less than three servers are found when the time-to-live has reached the maximum specified by the <tt>ttl</tt> keyword, the poll interval is doubled. For each transmission after that, the poll interval is doubled again until reaching the maximum of eight times the value specified by the <tt>maxpoll</tt> keyword. Further transmissions use the same poll interval and time-to-live values.
+
+<p>The above scenario happens for each manycast client message, which repeats at the designated poll interval. However, once the ephemeral client association is mobilized, subsequent manycast server replies are discarded, since they will fail the message digest test. If during a poll interval the number of client associations falls below three, all manycast client prototype associations are reset to the initial poll interval and time-to-live values and operation resumes from the beginning. It is important in manycast mode to avoid frequent manycast client messages, since each one requires all manycast servers in range to respond. The result could well be an implosion, either minor or major, depending on the number of servers in range. The recommended value for <tt>maxpoll</tt> is 12 (4,096 s) and for <tt>ttl</tt> is 7.
+
+<p>It is possible and frequently useful to configure a host as both a manycast client and manycast server. A number of hosts configured this way and sharing a common group address will automatically organize themselves in an optimum configuration based on the smallest synchronization distance computed by the NTP mitigation algorithms. For example, consider an NTP subnet of two primary servers and maybe a dozen dependent clients. All servers and clients are configured as both multicast client and multicast server with multicast group address 239.1.1.1. In addition, the primary servers are configured for a primary reference source such as a GPS receiver.
+
+Once operations have stabilized in this scenario, the primary servers will affiliate with the primary reference source and each other, since they both operate at the same stratum (1), but not with any client, since clients operate at a higher stratum. The clients will find both primary servers and in addition, one of their own at the minimum synchronization distance. If one of the primary servers loses its GPS receiver, it will continue to operate as a client and other clients will time out the corresponding association and re-associate accordingly.
+
+<h4>Burst Modes</h4>
+
+<p>There are two burst modes that can be enabled in client/server mode using the <tt>iburst</tt> and <tt>burst</tt> keywords. In either mode a single poll initiates a burst of eight client messages at intervals randomized over the range 1-4 s. However, the interval between the first and second messages is increased to about 16 s in order for a dialup modem to complete a call, if necessary. Received server messages update the NTPv4 clock filter, which selects the best (most accurate) time values. When the last client message in the burst is sent, the next received server message updates the system variables and sets the system clock in the usual manner, as if only a single client/server cycle had occurred. The result is not only a rapid and reliable setting of the system clock, but a considerable reduction in network jitter.
+
+<p>The <tt>iburst</tt> keyword can be configured for cases where it is important to set the clock quickly when an association is first mobilized or first becomes reachable or when the network attachment requires an initial calling or training procedure. The burst is initiated only when the server first becomes reachable and results in good accuracy with intermittent connections typical of PPP and ISDN services. Outlyers due to initial dial-up delays, etc., are avoided and the client sets the clock within 30 s after the first message.
+
+<p>The <tt>burst</tt> keyword can be configured in cases of excessive network jitter or when the network attachment requires an initial calling or training procedure. The burst is initiated at each poll interval when the server is reachable. The burst does produce additional network overhead and can cause trouble if used indiscriminately. It should only be used where the poll interval is expected to settle to values at or above 1024 s.
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a> 
+
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>

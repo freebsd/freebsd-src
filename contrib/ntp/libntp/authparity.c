@@ -1,6 +1,12 @@
 /*
  * auth_parity - set parity on a key/check for odd parity
  */
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#ifdef DES
 #include "ntp_stdlib.h"
 
 int
@@ -55,3 +61,6 @@ DESauth_parity(
 	 */
 	return (parity_err == 0);
 }
+#else
+int authparity_bs;
+#endif /* DES */

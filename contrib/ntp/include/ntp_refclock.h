@@ -29,12 +29,14 @@
 #include <sys/modem.h>
 #endif
 
+#if 0 /* If you need that, include ntp_io.h instead */
 #if defined(STREAM)
 #include <stropts.h>
-#if defined(CLK)
+#if defined(CLK) /* This is never defined, except perhaps by a system header file */
 #include <sys/clkdefs.h>
 #endif /* CLK */
 #endif /* STREAM */
+#endif
 
 #include "recvbuff.h"
 
@@ -42,10 +44,9 @@
 #define BSD_TTYS
 #endif /* SYSV_TTYS STREAM BSD_TTYS */
 
-#define SAMPLE(x)	if ((pp->coderecv + 1) % MAXSTAGE !=		\
-			    pp->codeproc % MAXSTAGE)			\
-				pp->filter[pp->coderecv++ % MAXSTAGE] =	\
-				    (x);
+#define SAMPLE(x)	pp->filter[pp->coderecv++ % MAXSTAGE] = (x); \
+			if (pp->coderecv % MAXSTAGE == pp->codeproc % MAXSTAGE) \
+				pp->codeproc++;
 
 /*
  * Macros to determine the clock type and unit numbers from a
@@ -195,7 +196,7 @@ struct refclockproc {
 	l_fp	lastrec;	/* local timestamp */
 	double	offset;		/* mean offset */
 	double	disp;		/* sample dispersion */
-	double	variance;	/* sample variance */
+	double	jitter;		/* jitter (mean squares) */
 	double	filter[MAXSTAGE]; /* median filter */
 
 	/*

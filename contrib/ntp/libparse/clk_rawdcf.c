@@ -20,9 +20,6 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_RAWDCF)
 
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
@@ -549,7 +546,7 @@ inp_rawdcf(
 {
 	static struct timeval timeout = { 1, 500000 }; /* 1.5 secongs denote second #60 */
 	
-	parseprintf(DD_PARSE, ("inp_rawdcf(0x%x, 0x%x, ...)\n", (int)parseio, (int)ch));
+	parseprintf(DD_PARSE, ("inp_rawdcf(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 	
 	parseio->parse_dtime.parse_stime = *tstamp; /* collect timestamp */
 

@@ -18,10 +18,16 @@ rc1		start/stop scripts for NTP
 
 rc2		start/stop script for NTP
 
+ntp-close	find public stratum 2 servers that don't respond
+
 ntp-groper	script useful for reaching out and rattling the cages of
 		NTP peers to see if animals are inside the bars
 
 ntp-restart	script useful for killing and restarting the NTP daemon
+
+ntp-wait	Blocks until ntpd is in state 4 (synchronized).
+		Hopefully useful at boot time, to delay the boot sequence
+		until after "ntpd -g" has set the time.
 
 ntpsweep	prints per host given in <file> the NTP stratum level, the
 		clock offset in seconds, the daemon version, the operating

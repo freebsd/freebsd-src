@@ -1,25 +1,29 @@
 /*
  * ntpdc - control and monitor your ntpd daemon
  */
+
 #include <stdio.h>
-#include <ctype.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <netdb.h>
-
-#ifdef SYS_WINNT
-#include <io.h>
-#else
-#define closesocket close
-#endif /* SYS_WINNT */
-
 
 #include "ntpdc.h"
 #include "ntp_select.h"
 #include "ntp_io.h"
 #include "ntp_stdlib.h"
+
+#include <ctype.h>
+#include <signal.h>
+#include <setjmp.h>
+#include <netdb.h>
+
+#ifdef SYS_WINNT
+# include <io.h>
+#else
+# define closesocket close
+#endif /* SYS_WINNT */
+
+#ifdef HAVE_LIBREADLINE
+# include <readline/readline.h>
+# include <readline/history.h>
+#endif /* HAVE_LIBREADLINE */
 
 #ifdef SYS_VXWORKS
 /* vxWorks needs mode flag -casey*/
@@ -484,7 +488,7 @@ sendpkt(
 	int xdatalen
 	)
 {
-	if (send(sockfd, xdata, xdatalen, 0) == -1) {
+	if (send(sockfd, xdata, (size_t)xdatalen, 0) == -1) {
 		warning("write to %s failed", currenthost, "");
 		return -1;
 	}
@@ -914,6 +918,16 @@ doquery(
 static void
 getcmds(void)
 {
+#ifdef HAVE_LIBREADLINE
+	char *line;
+
+	for (;;) {
+		if ((line = readline(interactive?prompt:"")) == NULL) return;
+		if (*line) add_history(line);
+		docmd(line);
+		free(line);
+	}
+#else /* not HAVE_LIBREADLINE */
 	char line[MAXLINE];
 
 	for (;;) {
@@ -930,6 +944,7 @@ getcmds(void)
 
 		docmd(line);
 	}
+#endif /* not HAVE_LIBREADLINE */
 }
 
 
@@ -1283,9 +1298,9 @@ help(
 		    cmdsort[n++] = xcp->keyword;
 
 #ifdef QSORT_USES_VOID_P
-		qsort(cmdsort, n, sizeof(char *), helpsort);
+		qsort(cmdsort, (size_t)n, sizeof(char *), helpsort);
 #else
-		qsort((char *)cmdsort, n, sizeof(char *), helpsort);
+		qsort((char *)cmdsort, (size_t)n, sizeof(char *), helpsort);
 #endif
 
 		maxlength = 0;
@@ -1528,6 +1543,7 @@ passwd(
 	if (!interactive) {
 		authusekey(info_auth_keyid, info_auth_keytype,
 			   (u_char *)pcmd->argval[0].string);
+		authtrust(info_auth_keyid, 1);
 	} else {
 		pass = getpass((info_auth_keytype == KEY_TYPE_DES)
 			       ? "DES Password: "
@@ -1535,9 +1551,11 @@ passwd(
 			       );
 		if (*pass == '\0')
 		    (void) fprintf(fp, "Password unchanged\n");
-		else
+		else {
 		    authusekey(info_auth_keyid, info_auth_keytype,
 			       (u_char *)pass);
+		    authtrust(info_auth_keyid, 1);
+		}
 	}
 }
 

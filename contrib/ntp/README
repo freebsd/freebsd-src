@@ -1,4 +1,7 @@
-The ntp Distribution Base Directory
+
+Send patches and bug reports to <bugs@ntp.org> .
+
+		  The ntp Distribution Base Directory
 
 This directory and its subdirectories contain the Network Time Protocol
 Version 4 (NTP) distribution for Unix and Windows/NT systems.  This release
