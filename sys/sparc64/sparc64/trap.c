@@ -121,6 +121,8 @@ const char *trap_msg[] = {
 	"fill",
 	"breakpoint",
 	"syscall",
+	"restore physical watchpoint",
+	"restore virtual watchpoint",
 	"trap instruction",
 };
 
@@ -248,6 +250,20 @@ trap(struct trapframe *tf)
 		if (error == 0)
 			goto out;
 		break;
+	case T_WATCH_PHYS | T_KERNEL:
+		TR3("trap: watch phys pa=%#lx tpc=%#lx, tnpc=%#lx",
+		    watch_phys_get(&mask), tf->tf_tpc, tf->tf_tnpc);
+		PCPU_SET(wp_pstate, (tf->tf_tstate & TSTATE_PSTATE_MASK) >>
+		    TSTATE_PSTATE_SHIFT);
+		tf->tf_tstate &= ~TSTATE_IE;
+		wrpr(pstate, rdpr(pstate), PSTATE_IE);
+		PCPU_SET(wp_insn, *((u_int *)tf->tf_tnpc));
+		*((u_int *)tf->tf_tnpc) = 0x91d03002;	/* ta %xcc, 2 */
+		flush(tf->tf_tnpc);
+		PCPU_SET(wp_va, watch_phys_get(&mask));
+		PCPU_SET(wp_mask, mask);
+		watch_phys_clear();
+		goto out;
 	case T_WATCH_VIRT | T_KERNEL:
 		/*
 		 * At the moment, just print the information from the trap,
@@ -260,8 +276,8 @@ trap(struct trapframe *tf)
 		 * disable interrupts temporarily.
 		 * This is obviously fragile and evilish.
 		 */
-		printf("Virtual watchpoint triggered, tpc=0x%lx, tnpc=0x%lx\n",
-		    tf->tf_tpc, tf->tf_tnpc);
+		TR3("trap: watch virt pa=%#lx tpc=%#lx, tnpc=%#lx",
+		    watch_virt_get(&mask), tf->tf_tpc, tf->tf_tnpc);
 		PCPU_SET(wp_pstate, (tf->tf_tstate & TSTATE_PSTATE_MASK) >>
 		    TSTATE_PSTATE_SHIFT);
 		tf->tf_tstate &= ~TSTATE_IE;
@@ -273,7 +289,14 @@ trap(struct trapframe *tf)
 		PCPU_SET(wp_mask, mask);
 		watch_virt_clear();
 		goto out;
-	case T_RESTOREWP | T_KERNEL:
+	case T_RSTRWP_PHYS | T_KERNEL:
+		tf->tf_tstate = (tf->tf_tstate & ~TSTATE_PSTATE_MASK) |
+		    PCPU_GET(wp_pstate) << TSTATE_PSTATE_SHIFT;
+		watch_phys_set_mask(PCPU_GET(wp_va), PCPU_GET(wp_mask));
+		*(u_int *)tf->tf_tpc = PCPU_GET(wp_insn);
+		flush(tf->tf_tpc);
+		goto out;
+	case T_RSTRWP_VIRT | T_KERNEL:
 		/*
 		 * Undo the tweaks tone for T_WATCH, reset the watch point and
 		 * contunue execution.
