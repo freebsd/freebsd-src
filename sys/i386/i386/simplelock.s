@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.8 1998/01/19 17:33:08 tegge Exp $
+ *	$Id: simplelock.s,v 1.9 1998/05/17 23:08:03 tegge Exp $
  */
 
 /*
@@ -143,6 +143,8 @@ bsl1:	.asciz	"rslock: cpu: %d, addr: 0x%08x, lock: 0x%08x"
  * 	return (!test_and_set(&lkp->lock_data));
  * }
  */
+#ifndef SL_DEBUG
+
 ENTRY(s_lock_try)
 	movl	4(%esp), %eax		/* get the address of the lock */
 	movl	$1, %ecx
@@ -153,6 +155,23 @@ ENTRY(s_lock_try)
 	movzbl	%al, %eax		/* convert to an int */
 
 	ret
+
+#else /* SL_DEBUG */
+
+ENTRY(s_lock_try)
+	movl	4(%esp), %edx		/* get the address of the lock */
+	movl	_cpu_lockid, %ecx	/* add cpu id portion */
+	incl	%ecx			/* add lock portion */
+
+	xorl	%eax, %eax
+	lock
+	cmpxchgl %ecx, (%edx)
+	setz	%al			/* 1 if previous value was 0 */
+	movzbl	%al, %eax		/* convert to an int */
+
+	ret
+
+#endif /* SL_DEBUG */
 
 
 /*
@@ -166,25 +185,6 @@ ENTRY(s_unlock)
 	movl	4(%esp), %eax		/* get the address of the lock */
 	movl	$0, (%eax)
 	ret
-
-
-#ifdef needed
-
-/*
- * int test_and_set(struct simplelock *lkp);
- */
-ENTRY(test_and_set)
-	movl	4(%esp), %eax		/* get the address of the lock */
-	movl	$1, %ecx
-
-	xchgl	%ecx, (%eax)
-	testl	%ecx, %ecx
-	setz	%al			/* 1 if previous value was 0 */
-	movzbl	%al, %eax		/* convert to an int */
-
-	ret
-
-#endif /* needed */
 
 
 /*
