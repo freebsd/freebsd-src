@@ -99,26 +99,27 @@ echo "options  NETGRAPH_SOCKET"
 # Otherwise maybe it's an alpha, and it has big binaries.
 elif [ "${ARCH}" = "alpha" ]; then
 
-sed	-e '/pty/d' \
-	-e '/pass/d' \
-	-e '/apm0/d' \
-	-e '/ppp/d' \
-	-e '/gif/d' \
-	-e '/faith/d' \
-	-e '/gzip/d' \
-	-e '/splash/d' \
-	-e '/PROCFS/d' \
-	-e '/KTRACE/d' \
-	-e '/SYSV/d' \
+sed	\
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
-	-e '/RANDOMDEV/d' \
+	-e '/PROCFS/d' \
+	-e '/KTRACE/d' \
+	-e '/SYSV/d' \
 	-e '/atapist/d' \
+	-e '/pass/d' \
+	-e '/splash/d' \
+	-e '/	apm0/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
 	-e '/vpo/d' \
+	-e '/RANDOMDEV/d' \
+	-e '/gzip/d' \
+	-e '/ppp/d' \
+	-e '/pty/d' \
+	-e '/gif/d' \
+	-e '/faith/d' \
 	-e '/uhci/d' \
 	-e '/ohci/d' \
 	-e '/usb/d' \
