@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: main.c,v 8.485.4.60 2001/05/27 22:00:26 gshapiro Exp $";
+static char id[] = "@(#)$Id: main.c,v 8.485.4.65 2001/07/20 00:53:00 gshapiro Exp $";
 #endif /* ! lint */
 
 #define	_DEFINE
@@ -35,7 +35,9 @@ static char id[] = "@(#)$Id: main.c,v 8.485.4.60 2001/05/27 22:00:26 gshapiro Ex
 
 static SIGFUNC_DECL	intindebug __P((int));
 static SIGFUNC_DECL	quiesce __P((int));
+#ifdef SIGUSR1
 static SIGFUNC_DECL	sigusr1 __P((int));
+# endif /* SIGUSR1 */
 static SIGFUNC_DECL	term_daemon __P((int));
 static void	dump_class __P((STAB *, int));
 static void	obsolete __P((char **));
@@ -2156,7 +2158,7 @@ finis(drop, exitstat)
 {
 	/* Still want to process new timeouts added below */
 	clear_events();
-	releasesignal(SIGALRM);
+	(void) releasesignal(SIGALRM);
 
 	if (tTd(2, 1))
 	{
@@ -2272,7 +2274,8 @@ shutdown_daemon()
 	PendingSignal = 0;
 
 	if (LogLevel > 79)
-		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt");
+		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt (%s)",
+			  reason == NULL ? "implicit call" : reason);
 
 	FileName = NULL;
 	closecontrolsocket(TRUE);
@@ -2347,7 +2350,7 @@ intsig(sig)
 
 		drop = TRUE;
 	}
-	else
+	else if (OpMode != MD_TEST)
 		unlockqueue(CurEnv);
 
 	finis(drop, EX_OK);
@@ -2758,6 +2761,7 @@ dumpstate(when)
 	}
 	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- end of state dump ---");
 }
+#ifdef SIGUSR1
 /*
 **  SIGUSR1 -- Signal a request to dump state.
 **
@@ -2788,6 +2792,7 @@ sigusr1(sig)
 	errno = save_errno;
 	return SIGFUNC_RETURN;
 }
+# endif /* SIGUSR1 */
 /*
 **  DROP_PRIVILEGES -- reduce privileges to those of the RunAsUser option
 **

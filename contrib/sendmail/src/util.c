@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.23 2001/05/17 18:10:18 gshapiro Exp $";
+static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.26 2001/06/01 08:23:25 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -2527,6 +2527,81 @@ proc_list_display(out)
 			 OpMode == MD_DAEMON ||
 			 OpMode == MD_ARPAFTP) ? "\r" : "");
 	}
+}
+/*
+**  SAFEFOPEN -- do a file open with extra checking
+**
+**	Parameters:
+**		fn -- the file name to open.
+**		omode -- the open-style mode flags.
+**		cmode -- the create-style mode flags.
+**		sff -- safefile flags.
+**
+**	Returns:
+**		Same as fopen.
+*/
+
+FILE *
+safefopen(fn, omode, cmode, sff)
+	char *fn;
+	int omode;
+	int cmode;
+	long sff;
+{
+	int fd;
+	int save_errno;
+	FILE *fp;
+	char *fmode;
+
+	switch (omode & O_ACCMODE)
+	{
+	  case O_RDONLY:
+		fmode = "r";
+		break;
+
+	  case O_WRONLY:
+		if (bitset(O_APPEND, omode))
+			fmode = "a";
+		else
+			fmode = "w";
+		break;
+
+	  case O_RDWR:
+		if (bitset(O_TRUNC, omode))
+			fmode = "w+";
+		else if (bitset(O_APPEND, omode))
+			fmode = "a+";
+		else
+			fmode = "r+";
+		break;
+
+	  default:
+		syserr("554 5.3.5 safefopen: unknown omode %o", omode);
+		fmode = "x";
+	}
+	fd = safeopen(fn, omode, cmode, sff);
+	if (fd < 0)
+	{
+		save_errno = errno;
+		if (tTd(44, 10))
+			dprintf("safefopen: safeopen failed: %s\n",
+				errstring(errno));
+		errno = save_errno;
+		return NULL;
+	}
+	fp = fdopen(fd, fmode);
+	if (fp != NULL)
+		return fp;
+
+	save_errno = errno;
+	if (tTd(44, 10))
+	{
+		dprintf("safefopen: fdopen(%s, %s) failed: omode=%x, sff=%lx, err=%s\n",
+			fn, fmode, omode, sff, errstring(errno));
+	}
+	(void) close(fd);
+	errno = save_errno;
+	return NULL;
 }
 /*
 **  SM_STRCASECMP -- 8-bit clean version of strcasecmp

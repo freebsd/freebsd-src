@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: snprintf.c,v 8.27.16.2 2000/09/17 17:04:24 gshapiro Exp $";
+static char id[] = "@(#)$Id: snprintf.c,v 8.27.16.4 2001/07/20 04:19:37 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -86,10 +86,10 @@ sm_vsnprintf(str, count, fmt, args)
 	sm_dopr( str, fmt, args );
 	if (count > 0)
 		DoprEnd[0] = 0;
-	if (SnprfOverflow && tTd(57, 2))
+	if (SnprfOverflow > 0 && tTd(57, 2))
 		dprintf("\nvsnprintf overflow, len = %ld, str = %s",
 			(long) count, shortenstring(str, MAXSHORTSTR));
-	return strlen(str);
+	return strlen(str) + SnprfOverflow;
 }
 
 /*
