@@ -196,8 +196,9 @@ vm_map_pmap(vm_map_t map)
 
 /* 
  * Shareable process virtual address space.
- * May eventually be merged with vm_map.
- * Several fields are temporary (text, data stuff).
+ *
+ * List of locks
+ *	(c)	const until freed
  */
 struct vmspace {
 	struct vm_map vm_map;	/* VM address map */
@@ -211,10 +212,9 @@ struct vmspace {
 	segsz_t vm_tsize;	/* text size (pages) XXX */
 	segsz_t vm_dsize;	/* data size (pages) XXX */
 	segsz_t vm_ssize;	/* stack size (pages) */
-	caddr_t vm_taddr;	/* user virtual address of text XXX */
-	caddr_t vm_daddr;	/* user virtual address of data XXX */
+	caddr_t vm_taddr;	/* (c) user virtual address of text */
+	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-	caddr_t vm_minsaddr;	/* user VA at max stack growth */
 #define	vm_endcopy vm_freer
 	struct proc *vm_freer;	/* vm freed on whose behalf */
 };
