@@ -877,8 +877,10 @@ Static void kue_init(xsc)
 
 	KUE_LOCK(sc);
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_flags & IFF_RUNNING) {
+		KUE_UNLOCK(sc);
 		return;
+	}
 
 	/* Set MAC address */
 	kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SET_MAC,
