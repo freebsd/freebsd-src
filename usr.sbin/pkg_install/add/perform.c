@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.13 1994/12/06 00:51:34 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.14 1995/04/09 15:04:52 jkh Exp $";
 #endif
 
 /*
@@ -142,13 +142,17 @@ pkg_do(char *pkg)
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
 	    continue;
+	if (Verbose)
+	    printf("Package `%s' depends on `%s'", PkgName, p->name);
 	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
 	    char tmp[120];
 
+	    if (Verbose)
+		printf(" which is not currently loaded");
 	    sprintf(tmp, "%s/%s.tgz", Home, p->name);
 	    if (fexists(tmp)) {
 		if (Verbose)
-		    printf("Package `%s' depends on `%s':  Trying to load it.\n", PkgName, p->name);
+		    printf(" but was found - loading:\n");
 		if (vsystem("pkg_add %s", tmp)) {
 		    whinge("Autoload of dependency package `%s' failed!%s",
 			   p->name, Force ? " (proceeding anyway)" : "");
@@ -156,15 +160,17 @@ pkg_do(char *pkg)
 			code++;
 		}
 		else if (Verbose)
-		    printf("Dependency `%s' loaded successfully.\n", p->name);
+		    printf("\t`%s' loaded successfully.\n", p->name);
 	    }
 	    else {
-	    	whinge("Package `%s' depends on missing package `%s'%s.", PkgName,
-		   p->name, Force ? " (proceeding anyway)" : "");
+	    	whinge("and was not found%s.", p->name,
+	    	       Force ? " (proceeding anyway)" : "");
 	    	if (!Force)
 		    code++;
 	    }
 	}
+        else if (Verbose)
+	    printf(" - already installed.\n");
     }
     if (code != 0)
 	goto success;	/* close enough for government work */
