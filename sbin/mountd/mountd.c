@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.8 1995/06/11 19:30:46 rgrimes Exp $";
+	"$Id: mountd.c,v 1.8.2.1 1996/01/03 14:14:49 peter Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -206,6 +206,7 @@ struct ucred def_anon = {
 	{ (gid_t) -2 }
 };
 int resvport_only = 1;
+int dir_only = 1;
 int opt_flags;
 /* Bits for above */
 #define	OP_MAPROOT	0x01
@@ -238,6 +239,7 @@ main(argc, argv)
 {
 	SVCXPRT *udptransp, *tcptransp;
 	int c;
+#ifdef __FreeBSD__
 	struct vfsconf *vfc;
 
 	vfc = getvfsbyname("nfs");
@@ -250,17 +252,21 @@ main(argc, argv)
 	if(!vfc) {
 		errx(1, "NFS support is not available in the running kernel");
 	}
+#endif	/* __FreeBSD__ */
 
-	while ((c = getopt(argc, argv, "dn")) != EOF)
+	while ((c = getopt(argc, argv, "dnr")) != EOF)
 		switch (c) {
-		case 'd':
-			debug = debug ? 0 : 1;
-			break;
 		case 'n':
 			resvport_only = 0;
 			break;
+		case 'r':
+			dir_only = 0;
+			break;
+		case 'd':
+			debug = debug ? 0 : 1;
+			break;
 		default:
-			fprintf(stderr, "Usage: mountd [-n] [export_file]\n");
+			fprintf(stderr, "Usage: mountd [-r] [-n] [export_file]\n");
 			exit(1);
 		};
 	argc -= optind;
@@ -365,11 +371,13 @@ mntsrv(rqstp, transp)
 
 		/*
 		 * Get the real pathname and make sure it is a directory
-		 * that exists.
+		 * or a regular file if the -r option was specified
+		 * and it exists.
 		 */
 		if (realpath(rpcpath, dirpath) == 0 ||
 		    stat(dirpath, &stb) < 0 ||
-		    (stb.st_mode & S_IFMT) != S_IFDIR ||
+		    (!S_ISDIR(stb.st_mode) &&
+		     (dir_only || !S_ISREG(stb.st_mode))) ||
 		    statfs(dirpath, &fsb) < 0) {
 			chdir("/");	/* Just in case realpath doesn't */
 			if (debug)
@@ -834,7 +842,7 @@ get_exportlist()
 			hpe = (struct hostent *)malloc(sizeof(struct hostent));
 			if (hpe == (struct hostent *)NULL)
 				out_of_mem();
-			hpe->h_name = "Default";
+			hpe->h_name = strdup("Default");
 			hpe->h_addrtype = AF_INET;
 			hpe->h_length = sizeof (u_long);
 			hpe->h_addr_list = (char **)NULL;
