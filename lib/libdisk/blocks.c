@@ -19,6 +19,7 @@ void *
 read_block(int fd, daddr_t block, u_long sector_size)
 {
 	void *foo;
+	int i;
 
 	foo = malloc(sector_size);
 	if (!foo)
@@ -27,7 +28,8 @@ read_block(int fd, daddr_t block, u_long sector_size)
 		free (foo);
 		return NULL;
 	}
-	if (sector_size != read(fd, foo, sector_size)) {
+	i = read(fd, foo, sector_size);
+	if ((int)sector_size != i) {
 		free (foo);
 		return NULL;
 	}
@@ -37,10 +39,12 @@ read_block(int fd, daddr_t block, u_long sector_size)
 int
 write_block(int fd, daddr_t block, const void *foo, u_long sector_size)
 {
+	int i;
 
 	if (-1 == lseek(fd, (off_t)block * sector_size, SEEK_SET))
 		return -1;
-	if (sector_size != write(fd, foo, sector_size))
+	i = write(fd, foo, sector_size);
+	if ((int)sector_size != i)
 		return -1;
 	return 0;
 }

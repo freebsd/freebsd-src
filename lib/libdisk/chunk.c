@@ -124,7 +124,7 @@ Clone_Chunk(const struct chunk *c1)
 
 static int
 Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
-	chunk_e type, int subtype, u_long flags, const char *sname)
+	chunk_e type, int subtype, u_long flags, const char *sname __unused)
 {
 	struct chunk *ct,*cs;
 
@@ -322,7 +322,7 @@ ShowChunkFlags(struct chunk *c)
 	return ret;
 }
 
-void
+static void
 Print_Chunk(struct chunk *c1,int offset)
 {
 	int i;
