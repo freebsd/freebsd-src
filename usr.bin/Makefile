@@ -185,7 +185,6 @@ SUBDIR=	apply \
 	write \
 	xargs \
 	xinstall \
-	xlint \
 	xstr \
 	yacc \
 	yes \
