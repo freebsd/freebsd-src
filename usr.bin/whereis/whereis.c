@@ -65,14 +65,9 @@ main(argc, argv)
 	size_t len;
 	int ch, sverrno, mib[2];
 	char *p, *t, *std, path[MAXPATHLEN];
-	int useenvpath = 0;
 
-	while ((ch = getopt(argc, argv, "p")) != -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
-		case 'p':
-			useenvpath = 1;	/* use environment for PATH */
-			break;
-
 		case '?':
 		default:
 			usage();
@@ -83,25 +78,20 @@ main(argc, argv)
 	if (argc == 0)
 		usage();
 
- 	if (useenvpath) {
- 		if ((std = getenv("PATH")) == NULL)
- 			err(1, "getenv: PATH" );
-	} else {
-		/* Retrieve the standard path. */
-		mib[0] = CTL_USER;
-		mib[1] = USER_CS_PATH;
-		if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1)
-			return (-1);
-		if (len == 0)
-			err(1, "user_cs_path: sysctl: zero length");
-		if ((std = malloc(len)) == NULL)
-			err(1, NULL);
-		if (sysctl(mib, 2, std, &len, NULL, 0) == -1) {
-			sverrno = errno;
-			free(std);
-			errno = sverrno;
-			err(1, "sysctl: user_cs_path");
-		}
+	/* Retrieve the standard path. */
+	mib[0] = CTL_USER;
+	mib[1] = USER_CS_PATH;
+	if (sysctl(mib, 2, NULL, &len, NULL, 0) == -1)
+		return (-1);
+	if (len == 0)
+		err(1, "user_cs_path: sysctl: zero length");
+	if ((std = malloc(len)) == NULL)
+		err(1, NULL);
+	if (sysctl(mib, 2, std, &len, NULL, 0) == -1) {
+		sverrno = errno;
+		free(std);
+		errno = sverrno;
+		err(1, "sysctl: user_cs_path");
 	}
 
 	/* For each path, for each program... */
@@ -129,6 +119,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: whereis [-p] program [...]\n");
+	(void)fprintf(stderr, "usage: whereis program [...]\n");
 	exit (1);
 }
