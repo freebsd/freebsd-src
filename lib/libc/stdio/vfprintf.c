@@ -1409,13 +1409,8 @@ cvt(double value, int ndigits, int flags, char *sign, int *decpt,
 			ndigits++;
 		mode = 2;		/* ndigits significant digits */
 	}
-	if (value < 0) {
-		value = -value;
-		*sign = '-';
-	} else
-		*sign = '\000';
-	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve,
-			dtoaresultp);
+	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve, dtoaresultp);
+	*sign = dsgn != 0;
 	if ((ch != 'g' && ch != 'G') || flags & ALT) {
 		/* print trailing zeros */
 		bp = digits + ndigits;
