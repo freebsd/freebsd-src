@@ -176,7 +176,7 @@ isa_nmi(cd)
 
 #if NMCA > 0
 	if (MCA_system && mca_bus_nmi())
-		return;
+		return(0);
 #endif
 	
 	if (isa_port & NMI_PARITY)
