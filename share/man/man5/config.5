@@ -125,6 +125,10 @@ the compiled-in environment instead.
 This directive is useful for setting kernel tunables in
 embedded environments that do not start from
 .Xr loader 8 .
+.\" -------- FILES --------
+.It Ic files Ar filename
+Specifies a file containing a list of files specific to that kernel
+configuration file (ala files.ARCH).
 .\" -------- HINTS --------
 .It Ic hints Ar filename
 Specifies a file to load a static device configuration specification
