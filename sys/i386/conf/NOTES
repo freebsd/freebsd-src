@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.75 1994/08/31 06:17:21 davidg Exp $
+#	$Id: LINT,v 1.76 1994/09/05 22:32:40 ats Exp $
 #
 
 machine		"i386"
@@ -36,10 +36,6 @@ options		KTRACE			#kernel tracing
 
 options		"NCONS=8"		#number of syscons virtual consoles
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
-options		"STAR_SAVER"		#syscons "stars" screen saver
-options         "FADE_SAVER"            #syscons "fade" screen saver
-options		"SNAKE_SAVER"		#syscons "snake" screen saver
-options         "BLANK_SAVER"           #syscons "blank" screen saver
 
 #options	ALLOW_CONFLICT_IOADDR	#no IO addr conflict checks (PS/2 mice)
 #options	ALLOW_CONFLICT_IRQ	#no IRQ conflict checks (mport serial)
