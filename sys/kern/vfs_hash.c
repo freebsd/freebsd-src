@@ -109,7 +109,7 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 	struct vnode *vp2;
 	int error;
 
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(vp->v_vnlock, flags & LK_TYPE_MASK, NULL, td);
 	*vpp = NULL;
 	while (1) {
 		mtx_lock(&vfs_hash_mtx);
