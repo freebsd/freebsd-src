@@ -280,6 +280,13 @@ raid3_label(struct gctl_req *req)
 				str += strlen(_PATH_DEV);
 			strlcpy(md.md_provider, str, sizeof(md.md_provider));
 		}
+		if (*verify && md.md_no == md.md_all - 1) {
+			/*
+			 * In "verify" mode, force synchronization of parity
+			 * component on start.
+			 */
+			md.md_syncid = 0;
+		}
 		raid3_metadata_encode(&md, sector);
 		error = g_metadata_store(str, sector, sizeof(sector));
 		if (error != 0) {
