@@ -704,7 +704,7 @@ decode_option(swt, arg)
 		return;
 
 	case 'O':
-		output_filename = malloc(strlen(arg)+5);
+		output_filename = xmalloc(strlen(arg)+5);
 		strcpy(output_filename, arg);
 		strcat(output_filename, ".tmp");
 		real_output_filename = arg;
