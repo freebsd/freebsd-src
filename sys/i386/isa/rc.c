@@ -172,7 +172,7 @@ static int rc_rcsrt[16] = {
 	TTY_BI|TTY_PE|TTY_FE|TTY_OE
 };
 
-static struct intrhand *rc_ih;
+static void	*rc_ih;
 
 /* Static prototypes */
 static ointhand2_t rcintr;
@@ -270,8 +270,7 @@ rcattach(dvp)
 	rcb->rcb_probed = RC_ATTACHED;
 	if (!rc_started) {
 		cdevsw_add(&rc_cdevsw);
-		rc_ih = sinthand_add("tty:rc", &tty_ithd, rcpoll, NULL,
-		    SWI_TTY, 0);
+		swi_add(&tty_ithd, "tty:rc", rcpoll, NULL, SWI_TTY, 0, &rc_ih);
 		rc_wakeup((void *)NULL);
 		rc_started = 1;
 	}
@@ -365,7 +364,7 @@ rcintr(unit)
 						optr++;
 						rc_scheduled_event++;
 						if (val != 0 && val == rc->rc_hotchar)
-							sched_swi(rc_ih, SWI_NOSWITCH);
+							swi_sched(rc_ih, SWI_NOSWITCH);
 					}
 				} else {
 					/* Store also status data */
@@ -396,7 +395,7 @@ rcintr(unit)
 							    &&  (rc->rc_tp->t_iflag & INPCK))))
 								val = 0;
 							else if (val != 0 && val == rc->rc_hotchar)
-								sched_swi(rc_ih, SWI_NOSWITCH);
+								swi_sched(rc_ih, SWI_NOSWITCH);
 							optr[0] = val;
 							optr[INPUT_FLAGS_SHIFT] = iack;
 							optr++;
@@ -443,7 +442,7 @@ rcintr(unit)
 			if ((iack & MCR_CDchg) && !(rc->rc_flags & RC_MODCHG)) {
 				rc_scheduled_event += LOTS_OF_EVENTS;
 				rc->rc_flags |= RC_MODCHG;
-				sched_swi(rc_ih, SWI_NOSWITCH);
+				swi_sched(rc_ih, SWI_NOSWITCH);
 			}
 			goto more_intrs;
 		}
@@ -484,7 +483,7 @@ rcintr(unit)
 				if (!(rc->rc_flags & RC_DOXXFER)) {
 					rc_scheduled_event += LOTS_OF_EVENTS;
 					rc->rc_flags |= RC_DOXXFER;
-					sched_swi(rc_ih, SWI_NOSWITCH);
+					swi_sched(rc_ih, SWI_NOSWITCH);
 				}
 			}
 		}
