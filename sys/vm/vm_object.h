@@ -167,8 +167,11 @@ TAILQ_HEAD(object_q, vm_object);
 extern struct object_q vm_object_list;	/* list of allocated objects */
 extern struct mtx vm_object_list_mtx;	/* lock for object list and count */
 
-extern vm_object_t kernel_object;	/* the single kernel object */
-extern vm_object_t kmem_object;
+extern struct vm_object kernel_object_store;
+extern struct vm_object kmem_object_store;
+
+#define	kernel_object	(&kernel_object_store)
+#define	kmem_object	(&kmem_object_store)
 
 #define	VM_OBJECT_LOCK(object)		mtx_lock(&(object)->mtx)
 #define	VM_OBJECT_LOCK_ASSERT(object, type) \
