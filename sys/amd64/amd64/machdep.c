@@ -2365,7 +2365,9 @@ get_mcontext(struct thread *td, mcontext_t *mcp)
 
 	tp = td->td_frame;
 
+	PROC_LOCK(curthread->td_proc);
 	mcp->mc_onstack = sigonstack(tp->tf_esp);
+	PROC_UNLOCK(curthread->td_proc);
 	mcp->mc_gs = td->td_pcb->pcb_gs;
 	mcp->mc_fs = tp->tf_fs;
 	mcp->mc_es = tp->tf_es;

@@ -1132,11 +1132,11 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	td = curthread;
 	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	frame = td->td_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 
 	/*
@@ -1993,7 +1993,9 @@ get_mcontext(struct thread *td, mcontext_t *mcp)
 		mcp->mc_regs[FRAME_SP] = alpha_pal_rdusp();
 
 	mcp->mc_format = _MC_REV0_TRAPFRAME;
+	PROC_LOCK(curthread->td_proc);
 	mcp->mc_onstack = sigonstack(alpha_pal_rdusp()) ? 1 : 0;
+	PROC_UNLOCK(curthread->td_proc);
 	get_fpcontext(td, mcp);
 	return (0);
 }
