@@ -43,15 +43,9 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#ifdef sunos
-#include <sys/vnode.h>
 
-#include <ufs/fs.h>
-#include <ufs/inode.h>
-#else
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#endif
 
 #include <protocols/dumprestore.h>
 
@@ -396,8 +390,8 @@ close_rewind()
 void
 rollforward()
 {
-	register struct req *p, *q, *prev;
-	register struct slave *tslp;
+	struct req *p, *q, *prev;
+	struct slave *tslp;
 	int i, size, savedtapea, got;
 	union u_spcl *ntb, *otb;
 	tslp = &slaves[SLAVES];
@@ -517,11 +511,7 @@ startnewtape(top)
 	int	status;
 	int	waitpid;
 	char	*p;
-#ifdef sunos
-	void	(*interrupt_save)();
-#else
 	sig_t	interrupt_save;
-#endif
 
 	interrupt_save = signal(SIGINT, SIG_IGN);
 	parentpid = getpid();
@@ -689,7 +679,7 @@ void
 enslave()
 {
 	int cmd[2];
-	register int i, j;
+	int i, j;
 
 	master = getpid();
 
@@ -732,7 +722,7 @@ enslave()
 void
 killall()
 {
-	register int i;
+	int i;
 
 	for (i = 0; i < SLAVES; i++)
 		if (slaves[i].pid > 0) {
@@ -750,10 +740,10 @@ killall()
  */
 static void
 doslave(cmd, slave_number)
-	register int cmd;
+	int cmd;
         int slave_number;
 {
-	register int nread;
+	int nread;
 	int nextslave, size, wrote, eot_count;
 
 	/*
@@ -775,7 +765,7 @@ doslave(cmd, slave_number)
 	 * Get list of blocks to dump, read the blocks into tape buffer
 	 */
 	while ((nread = atomic(read, cmd, (char *)slp->req, reqsiz)) == reqsiz) {
-		register struct req *p = slp->req;
+		struct req *p = slp->req;
 
 		for (trecno = 0; trecno < ntrec;
 		     trecno += p->count, p += p->count) {

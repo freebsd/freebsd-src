@@ -48,15 +48,9 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#ifdef sunos
-#include <sys/vnode.h>
 
-#include <ufs/inode.h>
-#include <ufs/fs.h>
-#else
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#endif
 
 #include <protocols/dumprestore.h>
 
@@ -98,12 +92,12 @@ main(argc, argv)
 	char *argv[];
 {
 	struct stat sb;
-	register ino_t ino;
-	register int dirty;
-	register struct dinode *dp;
-	register struct	fstab *dt;
-	register char *map;
-	register int ch;
+	ino_t ino;
+	int dirty;
+	struct dinode *dp;
+	struct	fstab *dt;
+	char *map;
+	int ch;
 	int i, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	ino_t maxino;
 	char *tmsg;
