@@ -11,7 +11,9 @@
 # world               - buildworld + installworld.
 # buildkernel         - Rebuild the kernel and the kernel-modules.
 # installkernel       - Install the kernel and the kernel-modules.
+# installkernel.debug
 # reinstallkernel     - Reinstall the kernel and the kernel-modules.
+# reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
 # update              - Convenient way to update your source tree (cvs).
 # most                - Build user commands, no libraries or include files.
@@ -60,8 +62,9 @@
 #
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld everything \
-	hierarchy install installcheck installkernel \
-	reinstallkernel installmost installworld libraries lint maninstall \
+	hierarchy install installcheck installkernel installkernel.debug\
+	reinstallkernel reinstallkernel.debug installmost installworld \
+	libraries lint maninstall \
 	mk most obj objlink regress rerelease tags update
 
 BITGTS=	files includes
@@ -71,7 +74,9 @@ BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 .ORDER: buildworld distributeworld
 .ORDER: buildworld buildkernel
 .ORDER: buildkernel installkernel
+.ORDER: buildkernel installkernel.debug
 .ORDER: buildkernel reinstallkernel
+.ORDER: buildkernel reinstallkernel.debug
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
