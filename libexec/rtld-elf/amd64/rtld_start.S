@@ -31,14 +31,13 @@
 	.type	.rtld_start,@function
 .rtld_start:
 	xorq	%rbp,%rbp		# Clear frame pointer for good form
-	subq	$16,%rsp		# A place to store exit procedure addr
+	subq	$24,%rsp		# A place to store exit procedure addr
 	movq	%rdi,%r12
 	movq	%rsp,%rsi		# save address of exit proc
 	movq	%rsp,%rdx		# construct address of obj_main
 	addq	$8,%rdx
 	call	_rtld@PLT		# Call rtld(sp); returns entry point
 	popq	%rsi			# Get exit procedure address
-	addq	$8,%rsp			# Ignore obj_main
 	movq	%r12,%rdi		# *ap
 /*
  * At this point, %rax contains the entry point of the main program, and
@@ -62,8 +61,9 @@
  * assembly-language code that is not ABI-compliant.
  *
  * Stack map:
- * reloff       0x58
- * obj          0x50
+ * reloff       0x60
+ * obj          0x58
+ * spare	0x50
  * rflags       0x48
  * rax          0x40
  * rdx          0x38
@@ -79,6 +79,7 @@
 	.globl	_rtld_bind_start
 	.type	_rtld_bind_start,@function
 _rtld_bind_start:
+	subq	$8,%rsp
 	pushfq				# Save rflags
 	pushq	%rax			# Save %rax
 	pushq	%rdx			# Save %rdx
@@ -90,15 +91,15 @@ _rtld_bind_start:
 	pushq	%r10			# Save %r10
 	pushq	%r11			# Save %r11
 
-	movq	0x50(%rsp),%rdi		# Fetch obj argument
-	movq	0x58(%rsp),%rsi		# Fetch reloff argument
+	movq	0x58(%rsp),%rdi		# Fetch obj argument
+	movq	0x60(%rsp),%rsi		# Fetch reloff argument
 	leaq	(%rsi,%rsi,2),%rsi	# multiply by 3
 	leaq	(,%rsi,8),%rsi		# now 8, for 24 (sizeof Elf_Rela)
 
 	call	_rtld_bind@PLT		# Transfer control to the binder
 	/* Now %rax contains the entry point of the function being called. */
 
-	movq	%rax,0x58(%rsp)		# Store target over reloff argument
+	movq	%rax,0x60(%rsp)		# Store target over reloff argument
 	popq	%r11			# Restore %r11
 	popq	%r10			# Restore %r10
 	popq	%r9			# Restore %r9
@@ -109,5 +110,5 @@ _rtld_bind_start:
 	popq	%rdx			# Restore %rdx
 	popq	%rax			# Restore %rax
 	popfq				# Restore rflags
-	leaq	8(%rsp),%rsp		# Discard obj, do not change rflags
+	leaq	16(%rsp),%rsp		# Discard spare, obj, do not change rflags
 	ret				# "Return" to target address
