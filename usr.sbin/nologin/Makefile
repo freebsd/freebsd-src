@@ -11,4 +11,11 @@ MAN=	nologin.5 nologin.8
 # rendering a dynamic nologin binary virtually useless.
 NOSHARED=	YES
 
+# Logging to syslog increases the size of the statically linked
+# binary by over 100K.  Provide an option for disabling this on
+# systems where conserving space on the root device is critical.
+.ifdef NO_NOLOGIN_LOG
+CFLAGS+=	-DNO_NOLOGIN_LOG
+.endif
+
 .include <bsd.prog.mk>
