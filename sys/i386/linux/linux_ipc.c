@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.7 1996/03/02 19:37:56 peter Exp $
+ *  $Id: linux_ipc.c,v 1.11 1997/08/10 18:15:20 sos Exp $
  */
 
 
@@ -276,7 +276,7 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 	bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shmid_ds));
 	if ((error = shmctl(p, &bsd_args, retval)))
 	    return error;
-	if ((error = copyin((caddr_t)&bsd_shmid, (caddr_t)bsd_args.buf,
+	if ((error = copyin((caddr_t)bsd_args.buf, (caddr_t)&bsd_shmid,
 		    	    sizeof(struct shmid_ds))))
 	    return error;
 	bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid);
