@@ -112,15 +112,18 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
+#include <vm/vm_map.h>
 
 #include <machine/asi.h>
 #include <machine/bus.h>
@@ -159,6 +162,10 @@ static int nexus_dmamap_create(bus_dma_tag_t, bus_dma_tag_t, int,
 static int nexus_dmamap_destroy(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 static int nexus_dmamap_load(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
+static int nexus_dmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
+static int nexus_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+    struct uio *, bus_dmamap_callback2_t *, void *, int);
 static void nexus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 static void nexus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     bus_dmasync_op_t);
@@ -211,6 +218,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->dmamap_create = NULL;
 	newtag->dmamap_destroy = NULL;
 	newtag->dmamap_load = NULL;
+	newtag->dmamap_load_mbuf = NULL;
+	newtag->dmamap_load_uio = NULL;
 	newtag->dmamap_unload = NULL;
 	newtag->dmamap_sync = NULL;
 	newtag->dmamem_alloc = NULL;
@@ -368,6 +377,206 @@ nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 }
 
 /*
+ * Utility function to load a linear buffer.  lastaddrp holds state
+ * between invocations (for multiple-buffer loads).  segp contains
+ * the starting segment on entrace, and the ending segment on exit.
+ * first indicates if this is the first invocation of this function.
+ */
+static int
+_nexus_dmamap_load_buffer(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
+			bus_dma_segment_t segs[],
+			void *buf, bus_size_t buflen,
+			struct thread *td,
+			int flags,
+			vm_offset_t *lastaddrp,
+			int *segp,
+			int first)
+{
+	bus_size_t sgsize;
+	bus_addr_t curaddr, lastaddr, baddr, bmask;
+	vm_offset_t vaddr = (vm_offset_t)buf;
+	int seg;
+	pmap_t pmap;
+
+	if (td != NULL)
+		pmap = vmspace_pmap(td->td_proc->p_vmspace);
+	else
+		pmap = NULL;
+
+	lastaddr = *lastaddrp;
+	bmask  = ~(ddmat->boundary - 1);
+
+	for (seg = *segp; buflen > 0 ; ) {
+		/*
+		 * Get the physical address for this segment.
+		 */
+		if (pmap)
+			curaddr = pmap_extract(pmap, vaddr);
+		else
+			curaddr = pmap_kextract(vaddr);
+
+		/*
+		 * Compute the segment size, and adjust counts.
+		 */
+		sgsize = PAGE_SIZE - ((u_long)curaddr & PAGE_MASK);
+		if (buflen < sgsize)
+			sgsize = buflen;
+
+		/*
+		 * Make sure we don't cross any boundaries.
+		 */
+		if (ddmat->boundary > 0) {
+			baddr = (curaddr + ddmat->boundary) & bmask;
+			if (sgsize > (baddr - curaddr))
+				sgsize = (baddr - curaddr);
+		}
+
+		/*
+		 * Insert chunk into a segment, coalescing with
+		 * previous segment if possible.
+		 */
+		if (first) {
+			segs[seg].ds_addr = curaddr;
+			segs[seg].ds_len = sgsize;
+			first = 0;
+		} else {
+			if (curaddr == lastaddr &&
+			    (segs[seg].ds_len + sgsize) <= ddmat->maxsegsz &&
+			    (ddmat->boundary == 0 ||
+			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
+				segs[seg].ds_len += sgsize;
+			else {
+				if (++seg >= ddmat->nsegments)
+					break;
+				segs[seg].ds_addr = curaddr;
+				segs[seg].ds_len = sgsize;
+			}
+		}
+
+		lastaddr = curaddr + sgsize;
+		vaddr += sgsize;
+		buflen -= sgsize;
+	}
+
+	*segp = seg;
+	*lastaddrp = lastaddr;
+
+	/*
+	 * Did we fit?
+	 */
+	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
+}
+
+/*
+ * Like _bus_dmamap_load(), but for mbufs.
+ */
+static int
+nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
+		     bus_dmamap_t map,
+		     struct mbuf *m0,
+		     bus_dmamap_callback2_t *callback, void *callback_arg,
+		     int flags)
+{
+#ifdef __GNUC__
+	bus_dma_segment_t dm_segments[ddmat->nsegments];
+#else
+	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
+#endif
+	int nsegs, error;
+
+	KASSERT(m0->m_flags & M_PKTHDR,
+		("nexus_dmamap_load_mbuf: no packet header"));
+
+	nsegs = 0;
+	error = 0;
+	if (m0->m_pkthdr.len <= ddmat->maxsize) {
+		int first = 1;
+		vm_offset_t lastaddr = 0;
+		struct mbuf *m;
+
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			error = _nexus_dmamap_load_buffer(pdmat, ddmat,
+					dm_segments,
+					m->m_data, m->m_len,
+					NULL, flags, &lastaddr, &nsegs, first);
+			first = 0;
+		}
+	} else {
+		error = EINVAL;
+	}
+
+	if (error) {
+		/* force "no valid mappings" in callback */
+		(*callback)(callback_arg, dm_segments, 0, 0, error);
+	} else {
+		(*callback)(callback_arg, dm_segments,
+			    nsegs+1, m0->m_pkthdr.len, error);
+	}
+	return (error);
+}
+
+/*
+ * Like _bus_dmamap_load(), but for uios.
+ */
+static int
+nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
+		    bus_dmamap_t map,
+		    struct uio *uio,
+		    bus_dmamap_callback2_t *callback, void *callback_arg,
+		    int flags)
+{
+	vm_offset_t lastaddr;
+#ifdef __GNUC__
+	bus_dma_segment_t dm_segments[ddmat->nsegments];
+#else
+	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
+#endif
+	int nsegs, error, first, i;
+	bus_size_t resid;
+	struct iovec *iov;
+	struct thread *td = NULL;
+
+	resid = uio->uio_resid;
+	iov = uio->uio_iov;
+
+	if (uio->uio_segflg == UIO_USERSPACE) {
+		td = uio->uio_td;
+		KASSERT(td != NULL,
+			("nexus_dmamap_load_uio: USERSPACE but no proc"));
+	}
+
+	nsegs = 0;
+	error = 0;
+	first = 1;
+	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
+		/*
+		 * Now at the first iovec to load.  Load each iovec
+		 * until we have exhausted the residual count.
+		 */
+		bus_size_t minlen =
+			resid < iov[i].iov_len ? resid : iov[i].iov_len;
+		caddr_t addr = (caddr_t) iov[i].iov_base;
+
+		error = _nexus_dmamap_load_buffer(pdmat, ddmat,
+				dm_segments,
+				addr, minlen,
+				td, flags, &lastaddr, &nsegs, first);
+		first = 0;
+
+		resid -= minlen;
+	}
+
+	if (error) {
+		/* force "no valid mappings" in callback */
+		(*callback)(callback_arg, dm_segments, 0, 0, error);
+	} else {
+		(*callback)(callback_arg, dm_segments,
+			    nsegs+1, uio->uio_resid, error);
+	}
+	return (error);
+}
+
+/*
  * Common function for unloading a DMA map.  May be called by
  * bus-specific DMA map unload functions.
  */
@@ -506,6 +715,8 @@ struct bus_dma_tag nexus_dmatag = {
 	nexus_dmamap_create,
 	nexus_dmamap_destroy,
 	nexus_dmamap_load,
+	nexus_dmamap_load_mbuf,
+	nexus_dmamap_load_uio,
 	nexus_dmamap_unload,
 	nexus_dmamap_sync,
 
