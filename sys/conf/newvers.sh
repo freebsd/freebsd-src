@@ -32,11 +32,11 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.26.2.11 1997/04/15 05:29:32 asami Exp $
+#	$Id: newvers.sh,v 1.26.2.13 1997/05/16 09:21:47 jkh Exp $
 
 TYPE="FreeBSD"
-REVISION="2.2"
-BRANCH="STABLE"
+REVISION="2.2.2"
+BRANCH="RELEASE"
 RELEASE="${REVISION}-${BRANCH}"
 SNAPDATE=""
 if [ "X${SNAPDATE}" != "X" ]; then
@@ -44,7 +44,7 @@ if [ "X${SNAPDATE}" != "X" ]; then
 fi
 VERSION="${TYPE} ${RELEASE}"
 
-RELDATE="221002"
+RELDATE="222000"
 
 b=share/examples/etc/bsd-style-copyright
 year=`date '+%Y'`
