@@ -146,7 +146,6 @@ SUBDIR=	alias \
 	shar \
 	showmount \
 	sockstat \
-	soelim \
 	split \
 	stat \
 	su \

@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		eqn grn html pic refer tbl
-
-# BSD already provides soelim(1)
-MISC=		soelim
+SUBDIR=		eqn grn html pic refer soelim tbl
 
 .include <bsd.subdir.mk>

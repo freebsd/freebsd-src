@@ -4,7 +4,6 @@
 .\" @(#)rpcgen.ms	2.2 88/08/04 4.0 RPCSRC
 .\" $FreeBSD$
 .\"
-.so stubs
 .de BT
 .if \\n%=1 .tl ''- % -''
 ..

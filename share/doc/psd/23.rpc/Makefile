@@ -1,11 +1,10 @@
 # $FreeBSD$
 
-VOLUME=	psd/23.rpc
-SRCS=	rpc.prog.ms
-MACROS=	-ms
-SRCDIR=	${.CURDIR}/../../../../lib/libc/rpc/PSD.doc
-
-USE_TBL=	yes
-USE_PIC=	yes
+VOLUME=		psd/23.rpc
+SRCS=		stubs rpc.prog.ms
+MACROS=		-ms
+USE_TBL=	YES
+USE_PIC=	YES
+SRCDIR=		${.CURDIR}/../../../../lib/libc/rpc/PSD.doc
 
 .include <bsd.doc.mk>
