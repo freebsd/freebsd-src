@@ -115,7 +115,6 @@ struct tty;
 struct ucred;
 struct uio;
 struct _jmp_buf;
-struct itimerval;
 
 int	setjmp(struct _jmp_buf *);
 void	longjmp(struct _jmp_buf *, int) __dead2;
@@ -200,8 +199,6 @@ int	suword32(void *base, int32_t word);
 int	suword64(void *base, int64_t word);
 intptr_t casuptr(intptr_t *p, intptr_t old, intptr_t new);
 
-int	kern_getitimer(struct thread *, u_int, struct itimerval *);
-int	kern_setitimer(struct thread *, u_int, struct itimerval *, struct itimerval *);
 void	realitexpire(void *);
 
 void	hardclock(struct clockframe *frame);
