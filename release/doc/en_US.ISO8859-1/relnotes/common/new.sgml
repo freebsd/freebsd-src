@@ -146,6 +146,11 @@
 	some auxiliary I/O functions found on various SBus/EBus
 	&ultrasparc; models.</para>
 
+      <para>A framework for flexible processor speed control has been
+	added.  It provides methods for various drivers to control CPU
+	power utilization by adjusting the processor speed.  More
+	details can be found in the &man.cpufreq.4; manual page.</para>
+
       <para arch="sparc64">The rtc driver has been added to support
 	the MC146818-compatible clock found on some &ultrasparc; II
 	and III models.</para>
@@ -234,6 +239,11 @@
       <para>The &man.amr.4; driver is now safe for use on systems
 	using &man.pae.4;.</para>
 
+      <para>The &man.hptmv.4; driver, which supports the HighPoint
+	RocketRAID 182x series, has been added.</para>
+
+      <para>The &man.matcd.4; driver has been removed.</para>
+
       <para>Information about newly-mounted cd9660 file systems (such
 	as the presence of Rockridge extensions) is now only printed
 	if the kernel was booted in verbose mode.  This change was
@@ -291,6 +301,11 @@
       &man.ppp.8; would revert to LCP ECHO mode on negotiation
       failure.  It is now necessary to specify <command>enable
       echo</command> to get this behaviour.</para>
+
+    <para>The &man.rm.1; utility now supports an <option>-I</option>
+      option that asks for confirmation once if recursively
+      removing directories or if more than 3 files are listed in the
+      command line.</para>
 
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
