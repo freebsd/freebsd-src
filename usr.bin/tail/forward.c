@@ -258,6 +258,7 @@ forward(fp, style, off, sbp)
 				fp = freopen(fname, "r", fp);
 				if (fp == NULL) {
 					ierr();
+					return;
 				} else {
 					*sbp = sb2;
 					action = ADD_EVENTS;
