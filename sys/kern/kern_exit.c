@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.67 1998/06/05 21:44:20 dg Exp $
+ * $Id: kern_exit.c,v 1.68 1998/11/10 09:16:29 peter Exp $
  */
 
 #include "opt_compat.h"
@@ -185,6 +185,12 @@ exit1(p, rv)
 	p->p_siglist = 0;
 	if (timevalisset(&p->p_realtimer.it_value))
 		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
+
+	/*
+	 * Reset any sigio structures pointing to us as a result of
+	 * F_SETOWN with our pid.
+	 */
+	funsetownlst(&p->p_sigiolst);
 
 	/*
 	 * Close open files and release open-file table.

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.43 1998/10/13 08:24:40 dg Exp $
+ * $Id: sys_pipe.c,v 1.44 1998/10/28 13:36:58 dg Exp $
  */
 
 /*
@@ -256,7 +256,6 @@ pipeinit(cpipe)
 	cpipe->pipe_atime = cpipe->pipe_ctime;
 	cpipe->pipe_mtime = cpipe->pipe_ctime;
 	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
-	cpipe->pipe_pgid = NO_PID;
 
 #ifndef PIPE_NODIRECT
 	/*
@@ -315,12 +314,8 @@ pipeselwakeup(cpipe)
 		cpipe->pipe_state &= ~PIPE_SEL;
 		selwakeup(&cpipe->pipe_sel);
 	}
-	if (cpipe->pipe_state & PIPE_ASYNC) {
-		if (cpipe->pipe_pgid < 0)
-			gsignal(-cpipe->pipe_pgid, SIGIO);
-		else if ((p = pfind(cpipe->pipe_pgid)) != NULL)
-			psignal(p, SIGIO);
-	}
+	if ((cpipe->pipe_state & PIPE_ASYNC) && cpipe->pipe_sigio)
+		pgsigio(cpipe->pipe_sigio, SIGIO, 0);
 }
 
 /* ARGSUSED */
@@ -953,12 +948,20 @@ pipe_ioctl(fp, cmd, data, p)
 			*(int *)data = mpipe->pipe_buffer.cnt;
 		return (0);
 
-	case TIOCSPGRP:
-		mpipe->pipe_pgid = *(int *)data;
+	case FIOSETOWN:
+		return (fsetown(*(int *)data, &mpipe->pipe_sigio));
+
+	case FIOGETOWN:
+		*(int *)data = fgetown(mpipe->pipe_sigio);
 		return (0);
 
+	/* This is deprecated, FIOSETOWN should be used instead. */
+	case TIOCSPGRP:
+		return (fsetown(-(*(int *)data), &mpipe->pipe_sigio));
+
+	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
-		*(int *)data = mpipe->pipe_pgid;
+		*(int *)data = -fgetown(mpipe->pipe_sigio);
 		return (0);
 
 	}
@@ -1038,6 +1041,7 @@ pipe_close(fp, p)
 {
 	struct pipe *cpipe = (struct pipe *)fp->f_data;
 
+	funsetown(cpipe->pipe_sigio);
 	pipeclose(cpipe);
 	fp->f_data = NULL;
 	return 0;

@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id: filedesc.h,v 1.12 1997/10/12 20:25:57 phk Exp $
+ * $Id: filedesc.h,v 1.13 1997/12/05 18:58:10 bde Exp $
  */
 
 #ifndef _SYS_FILEDESC_H_
 #define _SYS_FILEDESC_H_
+
+#include <sys/queue.h>
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -91,6 +93,30 @@ struct filedesc0 {
  */
 #define OFILESIZE (sizeof(struct file *) + sizeof(char))
 
+/*
+ * This structure that holds the information needed to send a SIGIO or
+ * a SIGURG signal to a process or process group when new data arrives
+ * on a device or socket.  The structure is placed on an SLIST belonging
+ * to the proc or pgrp so that the entire list may be revoked when the
+ * process exits or the process group disappears.
+ */
+struct	sigio {
+	union {
+		struct	proc *siu_proc; /* Process to receive SIGIO/SIGURG */
+		struct	pgrp *siu_pgrp; /* Process group to receive ... */
+	} sio_u;
+	SLIST_ENTRY(sigio) sio_pgsigio;	/* sigio's for process or group */
+	struct	sigio **sio_myref;	/* location of the pointer that holds
+					 * the reference to this structure */
+	struct	ucred *sio_ucred;	/* Current credentials */
+	uid_t	sio_ruid;		/* Real user id */
+	pid_t	sio_pgid;		/* pgid for signals */
+};
+#define	sio_proc	sio_u.siu_proc
+#define	sio_pgrp	sio_u.siu_pgrp
+
+SLIST_HEAD(sigiolst, sigio);
+
 #ifdef KERNEL
 /*
  * Kernel global variables and routines.
@@ -109,6 +135,10 @@ void	fdcloseexec __P((struct proc *p));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
 int	fdissequential __P((struct file *));
 void	fdsequential __P((struct file *, int));
+pid_t	fgetown __P((struct sigio *));
+int	fsetown __P((pid_t, struct sigio **));
+void	funsetown __P((struct sigio *));
+void	funsetownlst __P((struct sigiolst *));
 #endif
 
 #endif

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.40 1998/08/24 08:39:38 dfr Exp $
+ * $Id: sys_generic.c,v 1.41 1998/09/05 14:30:11 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -467,37 +467,6 @@ ioctl(p, uap)
 		else
 			fp->f_flag &= ~FASYNC;
 		error = (*fp->f_ops->fo_ioctl)(fp, FIOASYNC, (caddr_t)&tmp, p);
-		break;
-
-	case FIOSETOWN:
-		tmp = *(int *)data;
-		if (fp->f_type == DTYPE_SOCKET) {
-			((struct socket *)fp->f_data)->so_pgid = tmp;
-			error = 0;
-			break;
-		}
-		if (tmp <= 0) {
-			tmp = -tmp;
-		} else {
-			struct proc *p1 = pfind(tmp);
-			if (p1 == 0) {
-				error = ESRCH;
-				break;
-			}
-			tmp = p1->p_pgrp->pg_id;
-		}
-		error = (*fp->f_ops->fo_ioctl)
-			(fp, (int)TIOCSPGRP, (caddr_t)&tmp, p);
-		break;
-
-	case FIOGETOWN:
-		if (fp->f_type == DTYPE_SOCKET) {
-			error = 0;
-			*(int *)data = ((struct socket *)fp->f_data)->so_pgid;
-			break;
-		}
-		error = (*fp->f_ops->fo_ioctl)(fp, (int)TIOCGPGRP, data, p);
-		*(int *)data = -*(int *)data;
 		break;
 
 	default:

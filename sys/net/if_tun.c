@@ -30,6 +30,7 @@
 #include <sys/ttycom.h>
 #include <sys/poll.h>
 #include <sys/signalvar.h>
+#include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #ifdef DEVFS
@@ -215,7 +216,7 @@ tunclose(dev, foo, bar, p)
 		}
 		splx(s);
 	}
-	tp->tun_pgrp = 0;
+	funsetown(tp->tun_sigio);
 	selwakeup(&tp->tun_rsel);
 
 	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);
@@ -372,12 +373,8 @@ tunoutput(ifp, m0, dst, rt)
 		tp->tun_flags &= ~TUN_RWAIT;
 		wakeup((caddr_t)tp);
 	}
-	if (tp->tun_flags & TUN_ASYNC && tp->tun_pgrp) {
-		if (tp->tun_pgrp > 0)
-			gsignal(tp->tun_pgrp, SIGIO);
-		else if ((p = pfind(-tp->tun_pgrp)) != 0) 
-			psignal(p, SIGIO);
-	}
+	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
+		pgsigio(tp->tun_sigio, SIGIO, 0);
 	selwakeup(&tp->tun_rsel);
 	return 0;
 }
@@ -434,12 +431,22 @@ tunioctl(dev, cmd, data, flag, p)
 			*(int *)data = 0;
 		splx(s);
 		break;
+	case FIOSETOWN:
+		return (fsetown(*(int *)data, &tp->tun_sigio));
+
+	case FIOGETOWN:
+		*(int *)data = fgetown(tp->tun_sigio);
+		return (0);
+
+	/* This is deprecated, FIOSETOWN should be used instead. */
 	case TIOCSPGRP:
-		tp->tun_pgrp = *(int *)data;
-		break;
+		return (fsetown(-(*(int *)data), &tp->tun_sigio));
+
+	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
-		*(int *)data = tp->tun_pgrp;
-		break;
+		*(int *)data = -fgetown(tp->tun_sigio);
+		return (0);
+
 	default:
 		return (ENOTTY);
 	}

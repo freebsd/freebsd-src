@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.47 1998/09/14 23:25:18 jdp Exp $
+ * $Id: kern_sig.c,v 1.48 1998/10/21 16:31:38 jdp Exp $
  */
 
 #include "opt_compat.h"
@@ -85,6 +85,16 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, 
 	    (pc)->p_ruid == (q)->p_ucred->cr_uid || \
 	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid || \
 	    ((signum) == SIGCONT && (q)->p_session == (p)->p_session))
+
+/*
+ * Policy -- Can real uid ruid with ucred uc send a signal to process q?
+ */
+#define CANSIGIO(ruid, uc, q) \
+	((uc)->cr_uid == 0 || \
+	    (ruid) == (q)->p_cred->p_ruid || \
+	    (uc)->cr_uid == (q)->p_cred->p_ruid || \
+	    (ruid) == (q)->p_ucred->cr_uid || \
+	    (uc)->cr_uid == (q)->p_ucred->cr_uid)
 
 int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, &sugid_coredump, 0, "");
@@ -1343,4 +1353,31 @@ nosys(p, args)
 
 	psignal(p, SIGSYS);
 	return (EINVAL);
+}
+
+/*
+ * Send a signal to a SIGIO or SIGURG to a process or process group using
+ * stored credentials rather than those of the current process.
+ */
+void
+pgsigio(sigio, signum, checkctty)
+	struct sigio *sigio;
+	int signum, checkctty;
+{
+	if (sigio == NULL)
+		return;
+		
+	if (sigio->sio_pgid > 0) {
+		if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred,
+		             sigio->sio_proc))
+			psignal(sigio->sio_proc, signum);
+	} else if (sigio->sio_pgid < 0) {
+		struct proc *p;
+
+		for (p = sigio->sio_pgrp->pg_members.lh_first; p != NULL;
+		     p = p->p_pglist.le_next)
+			if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred, p) &&
+			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
+				psignal(p, signum);
+	}
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.29 1998/08/23 03:07:17 wollman Exp $
+ *	$Id: socketvar.h,v 1.30 1998/11/05 14:28:25 dg Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -77,7 +77,7 @@ struct socket {
 	short	so_qlimit;		/* max number queued connections */
 	short	so_timeo;		/* connection timeout */
 	u_short	so_error;		/* error affecting connection */
-	pid_t	so_pgid;		/* pgid for signals */
+	struct  sigio *so_sigio;	/* information for SIGIO/SIGURG */
 	u_long	so_oobmark;		/* chars to oob mark */
 /*
  * Variables for socket buffering.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.37 1998/07/11 07:45:40 bde Exp $
+ * $Id: kern_proc.c,v 1.38 1998/11/09 15:07:41 truckman Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <vm/vm_map.h>
 #include <sys/user.h>
 #include <vm/vm_zone.h>
+#include <sys/filedesc.h>
 
 static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -243,6 +244,7 @@ enterpgrp(p, pgid, mksess)
 		LIST_INIT(&pgrp->pg_members);
 		LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
 		pgrp->pg_jobc = 0;
+		SLIST_INIT(&pgrp->pg_sigiolst);
 	} else if (pgrp == p->p_pgrp)
 		return (0);
 
@@ -284,6 +286,12 @@ static void
 pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {
+
+	/*
+	 * Reset any sigio structures pointing to us as a result of
+	 * F_SETOWN with our pgid.
+	 */
+	funsetownlst(&pgrp->pg_sigiolst);
 
 	if (pgrp->pg_session->s_ttyp != NULL &&
 	    pgrp->pg_session->s_ttyp->t_pgrp == pgrp)

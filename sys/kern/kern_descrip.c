@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.54 1998/07/15 06:10:16 bde Exp $
+ * $Id: kern_descrip.c,v 1.55 1998/07/29 17:38:13 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -71,6 +71,7 @@
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
 MALLOC_DEFINE(M_FILE, "file", "Open file structure");
+static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
 
 static	 d_open_t  fdopen;
@@ -257,30 +258,13 @@ fcntl(p, uap)
 		return (error);
 
 	case F_GETOWN:
-		if (fp->f_type == DTYPE_SOCKET) {
-			p->p_retval[0] = ((struct socket *)fp->f_data)->so_pgid;
-			return (0);
-		}
 		error = (*fp->f_ops->fo_ioctl)
-			(fp, TIOCGPGRP, (caddr_t)p->p_retval, p);
-		p->p_retval[0] = - p->p_retval[0];
+			(fp, FIOGETOWN, (caddr_t)p->p_retval, p);
 		return (error);
 
 	case F_SETOWN:
-		if (fp->f_type == DTYPE_SOCKET) {
-			((struct socket *)fp->f_data)->so_pgid = uap->arg;
-			return (0);
-		}
-		if (uap->arg <= 0) {
-			uap->arg = -uap->arg;
-		} else {
-			struct proc *p1 = pfind(uap->arg);
-			if (p1 == 0)
-				return (ESRCH);
-			uap->arg = p1->p_pgrp->pg_id;
-		}
 		return ((*fp->f_ops->fo_ioctl)
-			(fp, TIOCSPGRP, (caddr_t)&uap->arg, p));
+			(fp, FIOSETOWN, (caddr_t)&uap->arg, p));
 
 	case F_SETLKW:
 		flg |= F_WAIT;
@@ -363,6 +347,124 @@ finishdup(fdp, old, new, retval)
 		fdp->fd_lastfile = new;
 	*retval = new;
 	return (0);
+}
+
+/*
+ * If sigio is on the list associated with a process or process group,
+ * disable signalling from the device, remove sigio from the list and
+ * free sigio.
+ */
+void
+funsetown(sigio)
+	struct sigio *sigio;
+{
+	int s;
+
+	if (sigio == NULL)
+		return;
+	s = splhigh();
+	*(sigio->sio_myref) = NULL;
+	splx(s);
+	if (sigio->sio_pgid < 0) {
+		SLIST_REMOVE(&sigio->sio_pgrp->pg_sigiolst, sigio,
+			     sigio, sio_pgsigio);
+	} else /* if ((*sigiop)->sio_pgid > 0) */ {
+		SLIST_REMOVE(&sigio->sio_proc->p_sigiolst, sigio,
+			     sigio, sio_pgsigio);
+	}
+	crfree(sigio->sio_ucred);
+	FREE(sigio, M_SIGIO);
+}
+
+/* Free a list of sigio structures. */
+void
+funsetownlst(sigiolst)
+	struct sigiolst *sigiolst;
+{
+	struct sigio *sigio;
+
+	while ((sigio = sigiolst->slh_first) != NULL)
+		funsetown(sigio);
+}
+
+/*
+ * This is common code for FIOSETOWN ioctl called by fcntl(fd, F_SETOWN, arg).
+ *
+ * After permission checking, add a sigio structure to the sigio list for
+ * the process or process group.
+ */
+int
+fsetown(pgid, sigiop)
+	pid_t pgid;
+	struct sigio **sigiop;
+{
+	struct proc *proc = NULL;
+	struct pgrp *pgrp = NULL;
+	struct sigio *sigio;
+	int s;
+
+	if (pgid == 0) {
+		funsetown(*sigiop);
+		return (0);
+	} else if (pgid > 0) {
+		proc = pfind(pgid);
+		if (proc == NULL)
+			return (ESRCH);
+		/*
+		 * Policy - Don't allow a process to FSETOWN a process
+		 * in another session.
+		 *
+		 * Remove this test to allow maximum flexibility or
+		 * restrict FSETOWN to the current process or process
+		 * group for maximum safety.
+		 */
+		else if (proc->p_session != curproc->p_session)
+			return (EPERM);
+	} else /* if (pgid < 0) */ {
+		pgrp = pgfind(-pgid);
+		if (pgrp == NULL)
+			return (ESRCH);
+		/*
+		 * Policy - Don't allow a process to FSETOWN a process
+		 * in another session.
+		 *
+		 * Remove this test to allow maximum flexibility or
+		 * restrict FSETOWN to the current process or process
+		 * group for maximum safety.
+		 */
+		else if (pgrp->pg_session != curproc->p_session)
+			return (EPERM);
+	}
+	funsetown(*sigiop);
+	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO,
+	       M_WAITOK);
+	if (pgid > 0) {
+		SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio, sio_pgsigio);
+		sigio->sio_proc = proc;
+	} else {
+		SLIST_INSERT_HEAD(&pgrp->pg_sigiolst, sigio, sio_pgsigio);
+		sigio->sio_pgrp = pgrp;
+	}
+	sigio->sio_pgid = pgid;
+	crhold(curproc->p_ucred);
+	sigio->sio_ucred = curproc->p_ucred;
+	/* It would be convenient if p_ruid was in ucred. */
+	sigio->sio_ruid = curproc->p_cred->p_ruid;
+	sigio->sio_myref = sigiop;
+	s = splhigh();
+	*sigiop = sigio;
+	splx(s);
+	return (0);
+}
+
+/*
+ * This is common code for FIOGETOWN ioctl called by fcntl(fd, F_GETOWN, arg).
+ */
+pid_t
+fgetown(sigio)
+	struct sigio *sigio;
+{
+	return (sigio != NULL ? sigio->sio_pgid : 0);
 }
 
 /*
