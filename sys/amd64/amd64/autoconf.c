@@ -95,7 +95,7 @@ static void	configure_first __P((void *));
 static void	configure __P((void *));
 static void	configure_final __P((void *));
 
-#if defined(NFSCLIENT) && defined(NFS_ROOT)
+#if defined(NFSCLIENT) && defined(NFS_ROOT) && !defined(BOOTP_NFSROOT)
 static void	pxe_setup_nfsdiskless(void);
 #endif
 
@@ -219,9 +219,6 @@ configure_final(dummy)
 	cold = 0;
 }
 
-#ifdef BOOTP
-extern void bootpc_init(void);
-#endif
 /*
  * Do legacy root filesystem discovery.
  */
@@ -243,7 +240,7 @@ SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
-#if defined(NFSCLIENT) && defined(NFS_ROOT)
+#if defined(NFSCLIENT) && defined(NFS_ROOT) && !defined(BOOTP_NFSROOT)
 
 static int
 inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa)
