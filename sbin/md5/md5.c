@@ -1,10 +1,6 @@
 /*
- * $Id: md5.c,v 1.11 1997/12/29 03:40:37 steve Exp $
- *
  * Derived from:
- */
-
-/*
+ *
  * MDDRIVER.C - test driver for MD2, MD4 and MD5
  */
 
@@ -21,11 +17,15 @@
  *  documentation and/or software.
  */
 
-#include <sys/types.h>
-#include <md5.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
+#include <sys/types.h>
+#include <err.h>
+#include <md5.h>
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -83,7 +83,7 @@ main(argc, argv)
 		while (optind < argc) {
 			p = MD5File(argv[optind], buf);
 			if (!p)
-				perror(argv[optind]);
+				warn("%s", argv[optind]);
 			else
 				printf("MD5 (%s) = %s\n", argv[optind], p);
 			optind++;
@@ -181,10 +181,8 @@ MDFilter(pipe)
 
 	MD5Init(&context);
 	while ((len = fread(buffer, 1, BUFSIZ, stdin))) {
-		if(pipe && (len != fwrite(buffer, 1, len, stdout))) {
-			perror("stdout");
-			exit(1);
-		}
+		if(pipe && (len != fwrite(buffer, 1, len, stdout)))
+			err(1, "stdout");
 		MD5Update(&context, buffer, len);
 	}
 	printf("%s\n", MD5End(&context,buf));
