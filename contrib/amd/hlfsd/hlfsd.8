@@ -262,11 +262,12 @@ directory other than their home directory.  Only the username, uid, and
 home-directory fields of the file
 .Ar password-file
 are read and checked.  All other fields are ignored.  The file
-.I password-file
+.Ar password-file
 must be compliant with 
 .Ux 
 System 7 colon-delimited format
 .Xr passwd 5 .
+.El
 .Sh FILES
 .Bl -tag -width /axx
 .It Pa /hlfs
@@ -280,13 +281,14 @@ default sub-directory in the user's home directory, to which the
 symbolic link returned by
 .Nm
 points.
-.It /var/hlfs
+.It Pa /var/hlfs
 directory to which
 .Pa home
 symbolic link returned by
 .Nm
 points if it is unable to verify the that
 user's home directory is accessible.
+.El
 .Sh SEE ALSO
 .Xr mail 1 ,
 .Xr getgrent 3 ,
