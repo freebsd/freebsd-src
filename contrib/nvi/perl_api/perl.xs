@@ -18,6 +18,7 @@ static const char sccsid[] = "@(#)perl.xs	8.27 (Berkeley) 10/16/96";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/time.h>
 
@@ -30,6 +31,7 @@ static const char sccsid[] = "@(#)perl.xs	8.27 (Berkeley) 10/16/96";
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "../common/common.h"
 
@@ -142,7 +144,7 @@ perl_init(scrp)
         perl_call_argv("VI::bootstrap", G_DISCARD, bootargs);
 	perl_eval("$SIG{__WARN__}='VI::Warn'");
 
-	av_unshift(av = GvAVn(incgv), 1);
+	av_unshift(av = GvAVn(PL_incgv), 1);
 	av_store(av, 0, newSVpv(_PATH_PERLSCRIPTS,
 				sizeof(_PATH_PERLSCRIPTS)-1));
 
@@ -417,11 +419,11 @@ extern void boot_VI _((CV* cv));
 static void
 xs_init()
 {
+	char *file = __FILE__;
+
 #ifdef HAVE_PERL_5_003_01
 	dXSUB_SYS;
 #endif
-	char *file = __FILE__;
-
 	newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
 	newXS("VI::bootstrap", boot_VI, file);
 }
