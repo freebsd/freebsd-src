@@ -381,7 +381,7 @@ main(argc, argv)
 	sigaddset(&mask, SIGHUP);
 	sact.sa_handler = reapchild;
 	sact.sa_mask = mask;
-	sact.sa_flags = 0;
+	sact.sa_flags = SA_RESTART;
 	(void)sigaction(SIGCHLD, &sact, NULL);
 	(void)signal(SIGALRM, domark);
 	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
@@ -448,7 +448,7 @@ main(argc, argv)
 	sigaddset(&mask, SIGCHLD);
 	sact.sa_handler = init;
 	sact.sa_mask = mask;
-	sact.sa_flags = 0;
+	sact.sa_flags = SA_RESTART;
 	(void)sigaction(SIGHUP, &sact, NULL);
 
 	tvp = &tv;
