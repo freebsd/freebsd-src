@@ -14,8 +14,10 @@ LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
+.if !defined(NO_BIND)
 LIBBIND?=	${DESTDIR}${LIBDIR}/libbind.a
 LIBBIND9?=	${DESTDIR}${LIBDIR}/libbind9.a
+.endif
 LIBBLUETOOTH?=	${DESTDIR}${LIBDIR}/libbluetooth.a
 LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
 LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
@@ -50,9 +52,11 @@ LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
+.if !defined(NO_BIND)
 LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
 LIBISCCC?=	${DESTDIR}${LIBDIR}/libisccc.a
 LIBISCCFG?=	${DESTDIR}${LIBDIR}/libisccfg.a
+.endif
 LIBKADM5CLNT?=	${DESTDIR}${LIBDIR}/libkadm5clnt.a
 LIBKADM5SRV?=	${DESTDIR}${LIBDIR}/libkadm5srv.a
 LIBKAFS5?=	${DESTDIR}${LIBDIR}/libkafs5.a
@@ -62,6 +66,9 @@ LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
 LIBLN?=		"don't use LIBLN, use LIBL"
+.if !defined(NO_BIND)
+LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
+.endif
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
