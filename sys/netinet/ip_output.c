@@ -83,10 +83,7 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 #endif /*IPSEC*/
 
 #include <netinet/ip_fw.h>
-
-#ifdef DUMMYNET
 #include <netinet/ip_dummynet.h>
-#endif
 
 #ifdef IPFIREWALL_FORWARD_DEBUG
 #define print_ip(a)	 printf("%ld.%ld.%ld.%ld",(ntohl(a.s_addr)>>24)&0xFF,\
@@ -144,7 +141,7 @@ ip_output(m0, opt, ro, flags, imo)
 #ifdef IPFIREWALL_FORWARD
 	int fwd_rewrite_src = 0;
 #endif
-	struct ip_fw_chain *rule = NULL;
+	struct ip_fw *rule = NULL;
   
 #ifdef IPDIVERT
 	/* Get and reset firewall cookie */
@@ -154,7 +151,6 @@ ip_output(m0, opt, ro, flags, imo)
 	divert_cookie = 0;
 #endif
 
-#if defined(IPFIREWALL) && defined(DUMMYNET)
         /*  
          * dummynet packet are prepended a vestigial mbuf with
          * m_type = MT_DUMMYNET and m_data pointing to the matching
@@ -166,7 +162,7 @@ ip_output(m0, opt, ro, flags, imo)
              * processing was already done, and we need to go down.
              * Get parameters from the header.
              */
-            rule = (struct ip_fw_chain *)(m->m_data) ;
+            rule = (struct ip_fw *)(m->m_data) ;
 	    opt = NULL ;
 	    ro = & ( ((struct dn_pkt *)m)->ro ) ;
 	    imo = NULL ;
@@ -186,7 +182,6 @@ ip_output(m0, opt, ro, flags, imo)
             goto sendit;
         } else
             rule = NULL ;
-#endif
 #ifdef IPSEC
 	so = ipsec_getsocket(m);
 	(void)ipsec_setsocket(m, NULL);
@@ -582,10 +577,10 @@ skip_ipsec:
 	/*
 	 * Check with the firewall...
 	 */
-	if (fw_enable && ip_fw_chk_ptr) {
+	if (fw_enable && IPFW_LOADED) {
 		struct sockaddr_in *old = dst;
 
-		off = (*ip_fw_chk_ptr)(&ip,
+		off = ip_fw_chk_ptr(&ip,
 		    hlen, ifp, &divert_cookie, &m, &rule, &dst);
                 /*
                  * On return we must do the following:
@@ -610,8 +605,7 @@ skip_ipsec:
 		ip = mtod(m, struct ip *);
 		if (off == 0 && dst == old) /* common case */
 			goto pass ;
-#ifdef DUMMYNET
-                if ((off & IP_FW_PORT_DYNT_FLAG) != 0) {
+                if (DUMMYNET_LOADED && (off & IP_FW_PORT_DYNT_FLAG) != 0) {
                     /*
                      * pass the pkt to dummynet. Need to include
                      * pipe number, m, ifp, ro, dst because these are
@@ -621,11 +615,10 @@ skip_ipsec:
                      * XXX note: if the ifp or ro entry are deleted
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
-		    error = dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,
+		    error = ip_dn_io_ptr(off & 0xffff, DN_TO_IP_OUT, m,
 				ifp,ro,dst,rule, flags);
 		    goto done;
 		}
-#endif   
 #ifdef IPDIVERT
 		if (off != 0 && (off & IP_FW_PORT_DYNT_FLAG) == 0) {
 			struct mbuf *clone = NULL;

@@ -64,18 +64,18 @@
 #include <netinet/ip_mroute.h>
 
 #include <netinet/ip_fw.h>
+#include <netinet/ip_dummynet.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
 
-#include "opt_ipdn.h"
-#ifdef DUMMYNET
-#include <netinet/ip_dummynet.h>
-#endif
-
 struct	inpcbhead ripcb;
 struct	inpcbinfo ripcbinfo;
+
+/* control hooks for ipfw and dummynet */
+ip_fw_ctl_t *ip_fw_ctl_ptr;
+ip_dn_ctl_t *ip_dn_ctl_ptr;
 
 /*
  * Nominal space allocated to a raw ip socket.
@@ -285,22 +285,20 @@ rip_ctloutput(so, sopt)
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
-		case IP_FW_ADD:
+		case IP_FW_ADD: /* ADD actually returns the body... */
 		case IP_FW_GET:
-			if (ip_fw_ctl_ptr == 0)
-				error = ENOPROTOOPT;
-			else
+			if (IPFW_LOADED)
 				error = ip_fw_ctl_ptr(sopt);
+			else
+				error = ENOPROTOOPT;
 			break;
 
-#ifdef DUMMYNET
 		case IP_DUMMYNET_GET:
-			if (ip_dn_ctl_ptr == NULL)
-				error = ENOPROTOOPT ;
-			else
+			if (DUMMYNET_LOADED)
 				error = ip_dn_ctl_ptr(sopt);
+			else
+				error = ENOPROTOOPT;
 			break ;
-#endif /* DUMMYNET */
 
 		case MRT_INIT:
 		case MRT_DONE:
@@ -332,27 +330,24 @@ rip_ctloutput(so, sopt)
 				inp->inp_flags &= ~INP_HDRINCL;
 			break;
 
-		case IP_FW_ADD:
 		case IP_FW_DEL:
 		case IP_FW_FLUSH:
 		case IP_FW_ZERO:
 		case IP_FW_RESETLOG:
-			if (ip_fw_ctl_ptr == 0)
-				error = ENOPROTOOPT;
-			else
+			if (IPFW_LOADED)
 				error = ip_fw_ctl_ptr(sopt);
+			else
+				error = ENOPROTOOPT;
 			break;
 
-#ifdef DUMMYNET
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:
 		case IP_DUMMYNET_FLUSH:
-			if (ip_dn_ctl_ptr == NULL)
-				error = ENOPROTOOPT ;
-			else
+			if (DUMMYNET_LOADED)
 				error = ip_dn_ctl_ptr(sopt);
+			else
+				error = ENOPROTOOPT ;
 			break ;
-#endif
 
 		case IP_RSVP_ON:
 			error = ip_rsvp_init(so);

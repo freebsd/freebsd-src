@@ -78,6 +78,7 @@
 #include <sys/socketvar.h>
 
 #include <netinet/ip_fw.h>
+#include <netinet/ip_dummynet.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -87,10 +88,6 @@
 #include "faith.h"
 #if defined(NFAITH) && NFAITH > 0
 #include <net/if_types.h>
-#endif
-
-#ifdef DUMMYNET
-#include <netinet/ip_dummynet.h>
 #endif
 
 int rsvp_on = 0;
@@ -190,12 +187,10 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
 
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
-ip_fw_ctl_t *ip_fw_ctl_ptr;
 int fw_enable = 1 ;
 
-#ifdef DUMMYNET
-ip_dn_ctl_t *ip_dn_ctl_ptr;
-#endif
+/* Dummynet hooks */
+ip_dn_io_t *ip_dn_io_ptr;
 
 int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **)) = NULL;
 
@@ -286,7 +281,7 @@ ip_input(struct mbuf *m)
 #ifdef IPDIVERT
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 #endif
-	struct ip_fw_chain *rule = NULL;
+	struct ip_fw *rule = NULL;
 
 #ifdef IPDIVERT
 	/* Get and reset firewall cookie */
@@ -296,21 +291,19 @@ ip_input(struct mbuf *m)
 	divert_cookie = 0;
 #endif
 
-#if defined(IPFIREWALL) && defined(DUMMYNET)
         /*
          * dummynet packet are prepended a vestigial mbuf with
          * m_type = MT_DUMMYNET and m_data pointing to the matching
          * rule.
          */
         if (m->m_type == MT_DUMMYNET) {
-            rule = (struct ip_fw_chain *)(m->m_data) ;
+            rule = (struct ip_fw *)(m->m_data) ;
             m = m->m_next ;
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2;
             goto iphack ;
         } else
             rule = NULL ;
-#endif
 
 #ifdef	DIAGNOSTIC
 	if (m == NULL || (m->m_flags & M_PKTHDR) == 0)
@@ -415,9 +408,7 @@ tooshort:
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
-#if defined(IPFIREWALL) && defined(DUMMYNET)
 iphack:
-#endif
 	/*
 	 * Check if we want to allow this packet to be processed.
 	 * Consider it to be bad if not.
@@ -429,7 +420,7 @@ iphack:
 			return;
 		ip = mtod(m = m1, struct ip *);
 	}
-	if (fw_enable && ip_fw_chk_ptr) {
+	if (fw_enable && IPFW_LOADED) {
 #ifdef IPFIREWALL_FORWARD
 		/*
 		 * If we've been forwarded from the output side, then
@@ -442,7 +433,7 @@ iphack:
 		 * See the comment in ip_output for the return values
 		 * produced by the firewall.
 		 */
-		i = (*ip_fw_chk_ptr)(&ip,
+		i = ip_fw_chk_ptr(&ip,
 		    hlen, NULL, &divert_cookie, &m, &rule, &ip_fw_fwd_addr);
 		if ( (i & IP_FW_PORT_DENY_FLAG) || m == NULL) { /* drop */
                         if (m)
@@ -452,14 +443,12 @@ iphack:
 		ip = mtod(m, struct ip *); /* just in case m changed */
 		if (i == 0 && ip_fw_fwd_addr == NULL)	/* common case */
 			goto pass;
-#ifdef DUMMYNET
-                if ((i & IP_FW_PORT_DYNT_FLAG) != 0) {
+                if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG) != 0) {
                         /* Send packet to the appropriate pipe */
-                        dummynet_io(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule,
+                        ip_dn_io_ptr(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule,
 				    0);
 			return;
 		}
-#endif
 #ifdef IPDIVERT
 		if (i != 0 && (i & IP_FW_PORT_DYNT_FLAG) == 0) {
 			/* Divert or tee packet */

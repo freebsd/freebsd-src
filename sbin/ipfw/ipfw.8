@@ -69,14 +69,20 @@ traffic shaper in
 Each incoming or outgoing packet is passed through the
 .Nm
 rules.
-If host is acting as a gateway, packets forwarded by
-the gateway are processed by
+The number of times a packet is processed by
 .Nm
-twice.
-In case a host is acting as a bridge, packets forwarded by
-the bridge are processed by
+varies -- basically,
 .Nm
-once.
+is invoked every time the kernel functions
+.Em ip_input() , ip_output()
+and
+.Em bdg_forward()
+are invoked.
+This means that packets are processed once for connections having
+only one endpoint on the local host, twice for connections with
+both endpoints on the local host, or for packet routed by the host
+(acting as a gateway), and once for packets bridged by the host
+(acting as a bridge).
 .Pp
 A firewall configuration is made of a list of numbered rules,
 which is scanned for each packet until a match is found and
@@ -90,8 +96,8 @@ way as to minimize the number of checks.
 .Pp
 A configuration always includes a
 .Em DEFAULT
-rule (numbered 65535) which cannot be modified by the programmer
-and always matches packets.
+rule (numbered 65535) which cannot be modified,
+and matches all packets.
 The action associated with the default rule can be either
 .Cm deny
 or
@@ -100,11 +106,13 @@ depending on how the kernel is configured.
 .Pp
 If the ruleset includes one or more rules with the
 .Cm keep-state
+or
+.Cm limit
 option, then
 .Nm
 assumes a
 .Em stateful
-behaviour, i.e. upon a match will create dynamic rules matching
+behaviour, i.e. upon a match it will create dynamic rules matching
 the exact parameters (addresses and ports) of the matching packet.
 .Pp
 These dynamic rules, which have a limited lifetime, are checked
@@ -620,7 +628,7 @@ while packets destined for the local host have no transmit
 interface.
 .It Ar options :
 .Bl -tag -width indent
-.It Cm keep-state Op Ar method
+.It Cm keep-state
 Upon a match, the firewall will create a dynamic rule, whose
 default behaviour is to matching bidirectional traffic between
 source and destination IP/port using the same protocol.
@@ -629,9 +637,11 @@ The rule has a limited lifetime (controlled by a set of
 variables), and the lifetime is refreshed every time a matching
 packet is found.
 .Pp
-The actual behaviour can be modified by specifying a different
-.Ar method ,
-although at the moment only the default one is specified.
+.It Cm limit {src-addr src-port dst-addr dst-port} N
+The firewall will only allow N connections with the same
+set of parameters as specified in the rule. One or more
+of source and destination addresses and ports can be
+specified.
 .It Cm bridged
 Matches only bridged packets.
 This can be useful for multicast or broadcast traffic, which
@@ -1059,9 +1069,10 @@ dropped.
 A set of
 .Xr sysctl 8
 variables controls the behaviour of the firewall.
-These are shown below together with their default value and
-meaning:
-.Bl -tag -width indent
+These are shown below together with their default value
+(but always check with the
+.Nm sysctl
+command what value is actually in use) and meaning:
 .It Em net.inet.ip.fw.debug : No 1
 Controls debugging messages produced by
 .Nm .
@@ -1097,8 +1108,9 @@ When you hit this limit, no more dynamic rules can be
 installed until old ones expire.
 .It Em net.inet.ip.fw.dyn_ack_lifetime : No 300
 .It Em net.inet.ip.fw.dyn_syn_lifetime : No 20
-.It Em net.inet.ip.fw.dyn_fin_lifetime : No 20
-.It Em net.inet.ip.fw.dyn_rst_lifetime : No 5
+.It Em net.inet.ip.fw.dyn_fin_lifetime : No 1
+.It Em net.inet.ip.fw.dyn_rst_lifetime : No 1
+.It Em net.inet.ip.fw.dyn_udp_lifetime : No 5
 .It Em net.inet.ip.fw.dyn_short_lifetime : No 30
 These variables control the lifetime, in seconds, of dynamic
 rules.
@@ -1158,6 +1170,17 @@ A
 rule should be usually placed near the beginning of the
 ruleset to minimize the amount of work scanning the ruleset.
 Your mileage may vary.
+.Pp
+To limit the number of connections a user can open
+you can use the following type of rules:
+.Pp
+.Dl "ipfw add allow tcp from my-net/24 to any setup limit src-addr 10"
+.Dl "ipfw add allow tcp from any to me setup limit src-addr 4"
+.Pp
+The former (assuming it runs on a gateway) will allow each host
+on a /24 net to open at most 10 TCP connections.
+The latter can be placed on a server to make sure that a single
+client does not use more than 4 simultaneous connections.
 .Pp
 .Em BEWARE :
 stateful rules can be subject to denial-of-service attacks
