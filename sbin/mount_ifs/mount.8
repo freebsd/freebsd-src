@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"	$Id: mount.8,v 1.22 1998/04/08 18:31:18 wosch Exp $
+.\"	$Id: mount.8,v 1.23 1998/07/09 05:49:58 jkoshy Exp $
 .\"
 .Dd June 16, 1994
 .Dt MOUNT 8
@@ -348,6 +348,10 @@ file system table
 .Xr umount 8
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
+.Pp
+Switching a filesystem back and forth between asynchronous and normal
+operation or between read/write and read/only access using ``mount
+-u'' may gradually bring about severe filesystem corruption.
 .Sh CAVEATS
 After a successful mount, the permissions on the original mount point 
 determine if 
