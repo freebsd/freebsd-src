@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/layout.sgml,v 1.4 2002/10/15 23:35:57 ue Exp $
-  basiert auf: 1.5
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/layout.sgml,v 1.5 2002/11/09 23:07:18 ue Exp $
+  basiert auf: 1.6
 
 	This section contains the contents of the old LAYOUT.TXT file.
 -->
@@ -9,12 +9,13 @@
   <title>Format der Distribution</title>
 
   <para>Ein Verzeichnis mit einer typischen &os; Distribution sieht
-    ungef&auml;hr so aus:</para>
+    ungef&auml;hr so aus (das exakte Aussehen h&auml;ngt von der
+    jeweiligen Version, Architektur und andere Faktoren ab):</para>
 
 <screen>ERRATA.HTM      README.TXT      compat1x        dict            kernel
 ERRATA.TXT      RELNOTES.HTM    compat20        doc             manpages
 HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     packages
-HARDWARE.TXT    bin             compat22        filename.txt    ports
+HARDWARE.TXT    base            compat22        filename.txt    ports
 INSTALL.HTM     boot            compat3x        floppies        proflibs
 INSTALL.TXT     catpages        compat4x        games           src
 README.HTM      cdrom.inf       crypto          info            tools</screen>
@@ -56,7 +57,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
     </listitem>
 
     <listitem>
-      <para>Die Verzeichnisse <filename>bin</filename>,
+      <para>Die Verzeichnisse <filename>base</filename>,
         <filename>catpages</filename>, <filename>crypto</filename>,
         <filename>dict</filename>, <filename>doc</filename>,
         <filename>games</filename>, <filename>info</filename>,
@@ -155,7 +156,7 @@ info.aa         info.ac         info.ae         info.mtree</screen>
     <emphasis>ungepackten</emphasis> Dateien in der Distribution und
     kann sp&auml;ter vom Programm &man.mtree.8; genutzt werden, um
     &Auml;nderungen an den Datei oder Dateirechten aufzusp&uuml;ren.
-    Wenn Sie das bei der <filename>bin</filename> Distribution machen,
+    Wenn Sie das bei der <filename>base</filename> Distribution machen,
     haben Sie eine sehr wirksame Methode, um Ihr System auf
     trojanische Pferde zu untersuchen.</para>
 
