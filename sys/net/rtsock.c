@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.13 1995/05/30 08:08:31 rgrimes Exp $
+ *	$Id: rtsock.c,v 1.14 1995/10/09 04:06:28 bde Exp $
  */
 
 #include <sys/param.h>
@@ -169,7 +169,8 @@ route_output(m, so)
 	rtm->rtm_pid = curproc->p_pid;
 	info.rti_addrs = rtm->rtm_addrs;
 	rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info);
-	if (dst == 0)
+	if (dst == 0 || (dst->sa_family >= AF_MAX)
+	    || (gate != 0 && (gate->sa_family >= AF_MAX)))
 		senderr(EINVAL);
 	if (genmask) {
 		struct radix_node *t;
