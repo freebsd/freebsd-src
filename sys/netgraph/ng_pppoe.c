@@ -1167,7 +1167,7 @@ AAA
 				/* send message to creator */
 				/* close hook */
 				if (sendhook) {
-					ng_destroy_hook(sendhook);
+					ng_rmhook_self(sendhook);
 				}
 				break;
 			default:
@@ -1511,7 +1511,7 @@ AAA
 	case	PPPOE_PRIMED:
 	case	PPPOE_SOFFER:
 		/* a timeout on these says "give up" */
-		ng_destroy_hook(hook);
+		ng_rmhook_self(hook);
 		break;
 	default:
 		/* timeouts have no meaning in other states */

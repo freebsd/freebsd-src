@@ -106,6 +106,7 @@ struct ng_hook {
 #define HK_INVALID		0x0001	/* don't trust it! */
 #define HK_QUEUE		0x0002	/* queue for later delivery */
 #define HK_FORCE_WRITER		0x0004	/* Incoming data queued as a writer */
+#define HK_DEAD			0x0008	/* This is the dead hook.. don't free */
 
 /*
  * Public Methods for hook
@@ -1009,7 +1010,8 @@ item_p	ng_package_data(struct mbuf *m, meta_p meta);
 item_p	ng_package_msg(struct ng_mesg *msg);
 item_p	ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg);
 void	ng_replace_retaddr(node_p here, item_p item, ng_ID_t retaddr);
-int	ng_rmnode_self(node_p here);
+int	ng_rmhook_self(hook_p hook);	/* if a node wants to kill a hook */
+int	ng_rmnode_self(node_p here);	/* if a node wants to suicide */
 int	ng_snd_item(item_p item, int queue);
 
 /*
