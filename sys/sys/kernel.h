@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.42 1998/10/09 23:03:27 peter Exp $
+ * $Id: kernel.h,v 1.43 1998/10/16 03:55:01 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -247,6 +247,18 @@ struct sysinit {
 		SI_TYPE_DEFAULT					\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
+/*
+ * Called on module unload: no special processing
+ */
+#define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
+	static struct sysinit uniquifier ## _sys_uninit = {	\
+		subsystem,					\
+		order,						\
+		func,						\
+		ident,						\
+		SI_TYPE_DEFAULT					\
+	};							\
+	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit);
 
 /*
  * Call 'fork()' before calling '(*func)(ident)';
