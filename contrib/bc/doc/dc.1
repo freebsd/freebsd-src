@@ -2,7 +2,7 @@
 .\" dc.1 - the *roff document processor source for the dc manual
 .\"
 .\" This file is part of GNU dc.
-.\" Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+.\" Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
 .\"
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 .\" You should have received a copy of the GNU General Public License
 .\" along with this program; see the file COPYING.  If not, write to
 .\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.\" $FreeBSD$
 .\"
 .TH DC 1 "1997-03-25" "GNU Project"
 .ds dc \fIdc\fP
@@ -61,9 +63,20 @@ Prints the value on the top of the stack,
 without altering the stack.
 A newline is printed after the value.
 .TP
-.B P
+.B n
 Prints the value on the top of the stack, popping it off,
 and does not print a newline after.
+.TP
+.B P
+Pops off the value on top of the stack.
+If it it a string, it is simply printed without a trailing newline.
+Otherwise it is a number, and the integer portion of its absolute
+value is printed out as a "base (UCHAR_MAX+1)" byte stream.
+Assuming that (UCHAR_MAX+1) is 256
+(as it is on most machines with 8-bit bytes),
+the sequence \fBKSK 0k1/ [_1*]sx d0>x [256~aPd0<x]dsxx sxLKk\fP
+could also accomplish this function,
+except for the side-effect of clobbering the x register.
 .TP
 .B f
 Prints the entire contents of the stack
@@ -91,9 +104,9 @@ and pushes the result.
 .TP
 .B *
 Pops two values, multiplies them, and pushes the result.
-The number of fraction digits in the result is controlled
-by the current precision value (see below) and does not
-depend on the values being multiplied.
+The number of fraction digits in the result depends on
+the current precision value and the number of fraction
+digits in the two arguments.
 .TP
 .B /
 Pops two values,
@@ -107,9 +120,8 @@ computes the remainder of the division that the
 .B /
 command would do,
 and pushes that.
-The division is done with as many fraction digits
-as the precision value specifies,
-and the remainder is also computed with that many fraction digits.
+The value computed is the same as that computed by
+the sequence \fBSd dld/ Ld*-\fP .
 .TP
 .B ~
 Pops two values,
@@ -136,10 +148,9 @@ and should be an integer.
 The second popped is used as the exponent;
 this value must be a non-negative number,
 and any fractional part of this exponent will be ignored.
-The third value popped is the base which gets exponentiated.
-The precision value specifies the number of fraction
-digits in the result.
-For small numbers this is like the sequence \fBSm lble^ Lm%\fP,
+The third value popped is the base which gets exponentiated,
+which should be an integer.
+For small integers this is like the sequence \fBSm^Lm%\fP,
 but, unlike \fB^\fP, this command will work with arbitrarily large exponents.
 .TP
 .B v
@@ -155,12 +166,6 @@ command.
 The default precision value is zero,
 which means that all arithmetic except for
 addition and subtraction produces integer results.
-.PP
-The remainder operation
-.B %
-requires some explanation:
-applied to arguments ``a'' and ``b'' it produces ``a - (b * (a / b))'',
-where ``a / b'' is computed in the current precision.
 .SH
 Stack Control
 .TP
@@ -177,7 +182,7 @@ Reverses the order of (swaps) the top two values on the stack.
 .SH
 Registers
 .PP
-\*(Dc provides 256 memory registers,
+\*(Dc provides at least 256 memory registers,
 each named by a single character.
 You can store a number or a string in a register and retrieve it later.
 .TP
@@ -237,7 +242,7 @@ The output radix is used for printing numbers.
 The input and output radices are separate parameters;
 you can make them unequal,
 which can be useful or confusing.
-The input radix must be between 2 and 36 inclusive.
+The input radix must be between 2 and 16 inclusive.
 The output radix must be at least 2.
 The precision must be zero or greater.
 The precision is always measured in decimal digits,
@@ -343,11 +348,22 @@ contents and
 .B 2 1>a
 will not.
 .TP
+.BI !> r
+Similar but invokes the macro if the original top-of-stack is
+not greater than (less than or equal to) what was the second-to-top.
+.TP
 .BI < r
 Similar but invokes the macro if the original top-of-stack is less.
 .TP
+.BI !< r
+Similar but invokes the macro if the original top-of-stack is
+not less than (greater than or equal to) what was the second-to-top.
+.TP
 .BI = r
 Similar but invokes the macro if the two numbers popped are equal.
+.TP
+.BI != r
+Similar but invokes the macro if the two numbers popped are not equal.
 .ig
 This can also be validly used to compare two strings for equality.
 ..
@@ -392,7 +408,7 @@ the value pushed is
 0.
 .TP
 .B z
-Pushes the current stack depth;
+Pushes the current stack depth:
 the number of objects on the stack before the execution of the
 .B z
 command.
@@ -401,6 +417,9 @@ Miscellaneous
 .TP
 .B !
 Will run the rest of the line as a system command.
+Note that parsing of the !<, !=, and !> commands take precidence,
+so if you want to run a command starting with <, =, or > you will
+need to add a space after the !.
 .TP
 .B #
 Will interpret the rest of the line as a comment.
@@ -416,18 +435,12 @@ Pops the top-of-stack and uses it as an index into
 the array
 .IR r .
 The selected value is then pushed onto the stack.
-.SH
-NOTES
-.PP
-The array operations
-.B :
-and
-.B ;
-are usually only used by traditional implementations of
-.IR bc .
-(The GNU 
-.I bc
-is self contained and does not need \*(dc to run.)
+.P
+Note that each stacked instance of a register has its own
+array associated with it.
+Thus \fB1 0:a 0Sa 2 0:a La 0;ap\fP will print 1,
+because the 2 was stored in an instance of 0:a that
+was later popped.
 .SH
 BUGS
 .PP
