@@ -4,6 +4,8 @@
 <!ENTITY % output.html		"IGNORE">
 <!ENTITY % output.print 	"IGNORE">
 <!ENTITY freebsd.dsl PUBLIC "-//FreeBSD//DOCUMENT DocBook Stylesheet//EN" CDATA DSSSL>
+<!ENTITY % release.ent PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release.ent;
 ]>
 
 <style-sheet>
@@ -88,6 +90,33 @@
       (define bop-footnotes #t)
       (define %footnote-ulinks% #t)
     ]]>
+
+    <![ %output.html; [
+	<!-- Convert " ... " to `` ... '' in the HTML output. -->
+	(element quote
+	  (make sequence
+	    (literal "``")
+	    (process-children)
+	    (literal "''")))
+
+        <!-- Specify how to generate the man page link HREF -->
+        (define ($create-refentry-xref-link$ #!optional (n (current-node)))
+          (let* ((r (select-elements (children n) (normalize "refentrytitle")))
+                 (m (select-elements (children n) (normalize "manvolnum")))
+                 (v (attribute-string (normalize "vendor") n))
+                 (u (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
+                         (data r) "&" "sektion=" (data m))))
+            (case v
+              (("xfree86") (string-append u "&" "manpath=XFree86+&release.manpath.xfree86;" ))
+              (("netbsd")  (string-append u "&" "manpath=NetBSD+&release.manpath.netbsd;"))
+              (("ports")   (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd-ports;"))
+              (else        (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd;")))))
+    ]]>
+
+      (define (toc-depth nd)
+        (if (string=? (gi nd) (normalize "book"))
+            3
+            3))
 
     </style-specification-body>
   </style-specification>
