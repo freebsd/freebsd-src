@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: jobs.c,v 1.8.2.5 1998/08/27 16:24:57 cracauer Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: jobs.c,v 1.23 1998/09/08 13:16:52 cracauer Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>

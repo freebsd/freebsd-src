@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mystring.h	8.2 (Berkeley) 5/4/95
- *	$Id: mystring.h,v 1.2 1994/09/24 02:58:00 davidg Exp $
+ *	$Id: mystring.h,v 1.5 1997/02/22 13:58:39 peter Exp $
  */
 
 #include <string.h>

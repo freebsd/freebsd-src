@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)parser.h	8.3 (Berkeley) 5/4/95
- *	$Id: parser.h,v 1.3 1996/09/01 10:21:34 peter Exp $
+ *	$Id: parser.h,v 1.7 1998/09/06 21:13:09 tegge Exp $
  */
 
 /* control characters in argument strings */
@@ -46,6 +46,7 @@
 /*	CTLBACKQ | CTLQUOTE == '\205' */
 #define	CTLARI	'\206'
 #define	CTLENDARI '\207'
+#define	CTLQUOTEMARK '\210'
 
 /* variable substitution byte (follows CTLVAR) */
 #define VSTYPE	0x0f		/* type of variable substitution */

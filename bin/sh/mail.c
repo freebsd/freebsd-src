@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: mail.c,v 1.3 1996/09/01 10:20:35 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: mail.c,v 1.8 1998/05/18 06:43:50 charnier Exp $";
 #endif /* not lint */
 
 /*

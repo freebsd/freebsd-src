@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: mksyntax.c,v 1.6 1996/09/01 10:20:56 peter Exp $
  */
 
 #ifndef lint
@@ -43,7 +41,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: mksyntax.c,v 1.12 1998/09/06 21:13:09 tegge Exp $";
 #endif /* not lint */
 
 /*
@@ -291,6 +293,7 @@ init()
 	syntax[base + CTLBACKQ + CTLQUOTE] = "CCTL";
 	syntax[base + CTLARI] = "CCTL";
 	syntax[base + CTLENDARI] = "CCTL";
+	syntax[base + CTLQUOTEMARK] = "CCTL";
 }
 
 

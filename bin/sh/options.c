@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: options.c,v 1.8.2.1 1996/12/21 21:10:25 joerg Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: options.c,v 1.14 1998/05/18 06:44:08 charnier Exp $";
 #endif /* not lint */
 
 #include <signal.h>

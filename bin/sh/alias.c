@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: alias.c,v 1.4 1996/09/01 10:19:26 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)alias.c	8.3 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)alias.c	8.3 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: alias.c,v 1.10 1998/05/18 06:43:25 charnier Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>

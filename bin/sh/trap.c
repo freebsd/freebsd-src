@@ -32,16 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: trap.c,v 1.4.2.5 1998/09/10 14:58:03 cracauer Exp $
  */
 
 #ifndef lint
 #if 0
-static char const sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
+static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.4.2.5 1998/09/10 14:58:03 cracauer Exp $";
+	"$Id: trap.c,v 1.17 1998/09/10 22:09:11 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -363,7 +361,7 @@ onsig(signo)
 	pendingsigs++;
 
 	/* If we are currently in a wait builtin, prepare to break it */
-	if ( (signo == SIGINT || signo == SIGQUIT) && in_waitcmd != 0)
+	if ((signo == SIGINT || signo == SIGQUIT) && in_waitcmd != 0)
 		breakwaitcmd = 1;
 	/* 
 	 * If a trap is set, not ignored and not the null command, we need 
