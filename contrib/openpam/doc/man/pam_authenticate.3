@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_authenticate.3#10 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_authenticate.3#11 $
 .\"
-.Dd April 8, 2002
+.Dd April 14, 2002
 .Dt PAM_AUTHENTICATE 3
 .Os
 .Sh NAME
@@ -65,12 +65,16 @@ The
 .Va flags
 argument is the binary or of zero or more of the following
 values:
-.Pp
-.Bd -literal
-	=PAM_SILENT
-		Do not emit any messages.
-	=PAM_DISALLOW_NULL_AUTHTOK
-		Fail if the user's authentication token is null.
+.Bl -tag -width 18n
+.It Dv PAM_SILENT
+Do not emit any messages.
+.It Dv PAM_DISALLOW_NULL_AUTHTOK
+Fail if the user's authentication token is null.
+.El
+If any other bits are set,
+.Nm
+will return
+.Dv PAM_SYMBOL_ERR .
 .Sh RETURN VALUES
 The
 .Nm
@@ -94,6 +98,8 @@ Maximum number of tries exceeded.
 Permission denied.
 .It Bq Er PAM_SERVICE_ERR
 Error in service module.
+.It Bq Er PAM_SYMBOL_ERR
+Invalid symbol.
 .It Bq Er PAM_SYSTEM_ERR
 System error.
 .It Bq Er PAM_USER_UNKNOWN

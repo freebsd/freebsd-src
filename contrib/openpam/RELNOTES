@@ -1,14 +1,12 @@
 
-		  Release notes for OpenPAM Cinchona
-		  ==================================
-
-This is a beta release.
+		 Release notes for OpenPAM Cineraria
+		 ===================================
 
 The library itself is complete.  Documentation exists in the form of
 man pages for the library functions, though a few pages are still
 incomplete.
 
-This release is incorporated into FreeBSD-CURRENT as of 2002-04-08.
+This release is incorporated into FreeBSD-CURRENT as of 2002-04-14.
 It has also been successfully built on NetBSD, and should build with
 minimal or no changes on OpenBSD.  It has not been tested on any other
 OS.
@@ -17,9 +15,4 @@ Known issues:
 
   - The documentation is still incomplete.
 
-  - It should be possible to create incomplete modules without
-    recourse to placeholders or elaborate preprocessor tricks.  This
-    is made difficult by the requirement that it should be possible to
-    link modules statically.
-
-$P4: //depot/projects/openpam/RELNOTES#8 $
+$P4: //depot/projects/openpam/RELNOTES#9 $
