@@ -8,6 +8,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20041126:
+	The numbers of arguments for ng_timeout() and ng_untimeout()
+	have changed. If netgraph.ko is rebuilt or if netgraph is
+	statically compiled in kernel, then the following modules
+	must also be rebuilt:
+		ng_hci
+		ng_l2cap
+		ng_source
+		ng_sscop
+		ng_uni
+
 20041024:
 	FreeBSD 5.3-RELEASE
 
