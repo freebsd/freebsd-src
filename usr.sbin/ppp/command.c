@@ -492,6 +492,22 @@ substipv6(char *tgt, const char *oldstr, const struct ncpaddr *ip)
 {
     return subst(tgt, oldstr, ncpaddr_ntoa(ip));
 }
+
+#ifndef NORADIUS
+static char *
+substipv6prefix(char *tgt, const char *oldstr, const uint8_t *ipv6prefix)
+{
+  uint8_t ipv6addr[INET6_ADDRSTRLEN];
+  uint8_t prefix[INET6_ADDRSTRLEN + sizeof("/128") - 1];
+
+  if (ipv6prefix) {
+    inet_ntop(AF_INET6, &ipv6prefix[2], ipv6addr, sizeof(ipv6addr));
+    snprintf(prefix, sizeof(prefix), "%s/%d", ipv6addr, ipv6prefix[1]);
+  } else
+    prefix[0] = '\0';
+  return subst(tgt, oldstr, prefix);
+}
+#endif
 #endif
 
 void
@@ -560,6 +576,10 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
     nargv[arg] = substip(nargv[arg], "MYADDR", bundle->ncp.ipcp.my_ip);
 #ifndef NOINET6
     nargv[arg] = substipv6(nargv[arg], "MYADDR6", &bundle->ncp.ipv6cp.myaddr);
+#ifndef NORADIUS
+    nargv[arg] = substipv6prefix(nargv[arg], "IPV6PREFIX",
+				 bundle->radius.ipv6prefix);
+#endif
 #endif
     nargv[arg] = substull(nargv[arg], "OCTETSIN", oin);
     nargv[arg] = substull(nargv[arg], "OCTETSOUT", oout);
