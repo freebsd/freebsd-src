@@ -1,10 +1,4 @@
 /*
- *  modified for EXT2FS support in Lites 1.1
- *
- *  Aug 1995, Godmar Back (gback@cs.utah.edu)
- *  University of Utah, Department of Computer Science
- */
-/*
  *  linux/include/linux/ext2_fs.h
  *
  * Copyright (C) 1992, 1993, 1994, 1995
@@ -18,45 +12,11 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
+
 #ifndef _LINUX_EXT2_FS_H
 #define _LINUX_EXT2_FS_H
 
-#include <sys/types.h>
-
-#ifdef i386
-#if defined(__FreeBSD__)
-#include <machine/types.h>
-#else
-#include <i386/types.h>
-#endif
-#else
-#error need processor specific types
-#endif
-
-#define __u32 u_int32_t
-#define u32   u_int32_t
-#define __u16 u_int16_t
-#define __u8  u_int8_t
-
-#define __s32 int32_t
-#define __s16 int16_t
-#define __s8  int8_t
-
-#define umode_t mode_t
-#define loff_t  off_t
-
-/* the Linux implementation of EXT2 stores some information about
- * an inode in a ext2_inode_info structure which is part of the incore
- * inode in Linux
- * I decided to use the i_spare[11] fields instead - we'll see how this
- * works out
- */
-
-#define i_block_group		i_spare[0]
-#define i_next_alloc_block	i_spare[1]
-#define i_next_alloc_goal	i_spare[2]
-#define i_prealloc_block	i_spare[3]
-#define i_prealloc_count	i_spare[4]
+#include <linux/types.h>
 
 /*
  * The second extended filesystem constants/structures
@@ -96,11 +56,11 @@
 /*
  * Debug code
  */
-#ifdef EXT2FS_DEBUG 
+#ifdef EXT2FS_DEBUG
 #	define ext2_debug(f, a...)	{ \
-					printf ("EXT2-fs DEBUG (%s, %d): %s:", \
+					printk ("EXT2-fs DEBUG (%s, %d): %s:", \
 						__FILE__, __LINE__, __FUNCTION__); \
-				  	printf (f, ## a); \
+				  	printk (f, ## a); \
 					}
 #else
 #	define ext2_debug(f, a...)	/**/
@@ -134,16 +94,19 @@
 #define EXT2_MIN_BLOCK_SIZE		1024
 #define	EXT2_MAX_BLOCK_SIZE		4096
 #define EXT2_MIN_BLOCK_LOG_SIZE		  10
-
-#define EXT2_BLOCK_SIZE(s)		((s)->s_blocksize)
-#define EXT2_ACLE_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / \
-					sizeof (struct ext2_acl_entry))
+#ifdef __KERNEL__
+# define EXT2_BLOCK_SIZE(s)		((s)->s_blocksize)
+#else
+# define EXT2_BLOCK_SIZE(s)		(EXT2_MIN_BLOCK_SIZE << (s)->s_log_block_size)
+#endif
+#define EXT2_ACLE_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_acl_entry))
 #define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (__u32))
-#define EXT2_BLOCK_SIZE_BITS(s)		((s)->s_log_block_size + 10)
-
-#define EXT2_INODE_SIZE			128
-			/* ought to be  sizeof (struct ext2_inode)) */
-#define	EXT2_INODES_PER_BLOCK(s)	((s)->s_inodes_per_block)
+#ifdef __KERNEL__
+# define EXT2_BLOCK_SIZE_BITS(s)	((s)->u.ext2_sb.s_es->s_log_block_size + 10)
+#else
+# define EXT2_BLOCK_SIZE_BITS(s)	((s)->s_log_block_size + 10)
+#endif
+#define	EXT2_INODES_PER_BLOCK(s)	(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_inode))
 
 /*
  * Macro-instructions used to manage fragments
@@ -151,8 +114,13 @@
 #define EXT2_MIN_FRAG_SIZE		1024
 #define	EXT2_MAX_FRAG_SIZE		4096
 #define EXT2_MIN_FRAG_LOG_SIZE		  10
-#define EXT2_FRAG_SIZE(s)		((s)->s_frag_size)
-#define EXT2_FRAGS_PER_BLOCK(s)	(EXT2_BLOCK_SIZE(s) / EXT2_FRAG_SIZE(s))
+#ifdef __KERNEL__
+# define EXT2_FRAG_SIZE(s)		((s)->u.ext2_sb.s_frag_size)
+# define EXT2_FRAGS_PER_BLOCK(s)	((s)->u.ext2_sb.s_frags_per_block)
+#else
+# define EXT2_FRAG_SIZE(s)		(EXT2_MIN_FRAG_SIZE << (s)->s_log_frag_size)
+# define EXT2_FRAGS_PER_BLOCK(s)	(EXT2_BLOCK_SIZE(s) / EXT2_FRAG_SIZE(s))
+#endif
 
 /*
  * ACL structures
@@ -203,9 +171,15 @@ struct ext2_group_desc
 /*
  * Macro-instructions used to manage group descriptors
  */
-#define EXT2_INODES_PER_GROUP(s)	((s)->s_inodes_per_group)
-#define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_group_desc))
-#define EXT2_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
+#ifdef __KERNEL__
+# define EXT2_BLOCKS_PER_GROUP(s)	((s)->u.ext2_sb.s_blocks_per_group)
+# define EXT2_DESC_PER_BLOCK(s)		((s)->u.ext2_sb.s_desc_per_block)
+# define EXT2_INODES_PER_GROUP(s)	((s)->u.ext2_sb.s_inodes_per_group)
+#else
+# define EXT2_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
+# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_group_desc))
+# define EXT2_INODES_PER_GROUP(s)	((s)->s_inodes_per_group)
+#endif
 
 /*
  * Constants relative to the data blocks
@@ -215,7 +189,6 @@ struct ext2_group_desc
 #define	EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
 #define	EXT2_TIND_BLOCK			(EXT2_DIND_BLOCK + 1)
 #define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
-#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof (__u32))
 
 /*
  * Inode flags
@@ -235,6 +208,84 @@ struct ext2_group_desc
 #define	EXT2_IOC_SETFLAGS		_IOW('f', 2, long)
 #define	EXT2_IOC_GETVERSION		_IOR('v', 1, long)
 #define	EXT2_IOC_SETVERSION		_IOW('v', 2, long)
+
+/*
+ * Structure of an inode on the disk
+ */
+struct ext2_inode {
+	__u16 i_mode;		/* File mode */
+	__u16 i_uid;		/* Owner Uid */
+	__u32  i_size;		/* Size in bytes */
+	__u32  i_atime;		/* Access time */
+	__u32  i_ctime;		/* Creation time */
+	__u32  i_mtime;		/* Modification time */
+	__u32  i_dtime;		/* Deletion Time */
+	__u16 i_gid;		/* Group Id */
+	__u16 i_links_count;	/* Links count */
+	__u32  i_blocks;	/* Blocks count */
+	__u32  i_flags;		/* File flags */
+	union {
+		struct {
+			__u32  l_i_reserved1;
+		} linux1;
+		struct {
+			__u32  h_i_translator;
+		} hurd1;
+		struct {
+			__u32  m_i_reserved1;
+		} masix1;
+	} osd1;				/* OS dependent 1 */
+	__u32	i_block[EXT2_N_BLOCKS];/* Pointers to blocks */
+	__u32	i_version;	/* File version (for NFS) */
+	__u32	i_file_acl;	/* File ACL */
+	__u32	i_dir_acl;	/* Directory ACL */
+	__u32	i_faddr;		/* Fragment address */
+	union {
+		struct {
+			__u8	l_i_frag;	/* Fragment number */
+			__u8	l_i_fsize;	/* Fragment size */
+			__u16	i_pad1;
+			__u32	l_i_reserved2[2];
+		} linux2;
+		struct {
+			__u8	h_i_frag;	/* Fragment number */
+			__u8	h_i_fsize;	/* Fragment size */
+			__u16	h_i_mode_high;
+			__u16	h_i_uid_high;
+			__u16	h_i_gid_high;
+			__u32	h_i_author;
+		} hurd2;
+		struct {
+			__u8	m_i_frag;	/* Fragment number */
+			__u8	m_i_fsize;	/* Fragment size */
+			__u16	m_pad1;
+			__u32	m_i_reserved2[2];
+		} masix2;
+	} osd2;				/* OS dependent 2 */
+};
+
+#if defined(__KERNEL__) || defined(__linux__)
+#define i_reserved1	osd1.linux1.l_i_reserved1
+#define i_frag		osd2.linux2.l_i_frag
+#define i_fsize		osd2.linux2.l_i_fsize
+#define i_reserved2	osd2.linux2.l_i_reserved2
+#endif
+
+#ifdef	__hurd__
+#define i_translator	osd1.hurd1.h_i_translator
+#define i_frag		osd2.hurd2.h_i_frag;
+#define i_fsize		osd2.hurd2.h_i_fsize;
+#define i_uid_high	osd2.hurd2.h_i_uid_high
+#define i_gid_high	osd2.hurd2.h_i_gid_high
+#define i_author	osd2.hurd2.h_i_author
+#endif
+
+#ifdef	__masix__
+#define i_reserved1	osd1.masix1.m_i_reserved1
+#define i_frag		osd2.masix2.m_i_frag
+#define i_fsize		osd2.masix2.m_i_fsize
+#define i_reserved2	osd2.masix2.m_i_reserved2
+#endif
 
 /*
  * File system states
@@ -336,5 +387,119 @@ struct ext2_dir_entry {
 #define EXT2_DIR_ROUND 			(EXT2_DIR_PAD - 1)
 #define EXT2_DIR_REC_LEN(name_len)	(((name_len) + 8 + EXT2_DIR_ROUND) & \
 					 ~EXT2_DIR_ROUND)
+
+#ifdef __KERNEL__
+/*
+ * Function prototypes
+ */
+
+/*
+ * Ok, these declarations are also in <linux/kernel.h> but none of the
+ * ext2 source programs needs to include it so they are duplicated here.
+ */
+#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 5)
+# define NORET_TYPE    __volatile__
+# define ATTRIB_NORET  /**/
+# define NORET_AND     /**/
+#else
+# define NORET_TYPE    /**/
+# define ATTRIB_NORET  __attribute__((noreturn))
+# define NORET_AND     noreturn,
+#endif
+
+/* acl.c */
+extern int ext2_permission (struct inode *, int);
+
+/* balloc.c */
+extern int ext2_new_block (struct super_block *, unsigned long,
+			   __u32 *, __u32 *);
+extern void ext2_free_blocks (struct super_block *, unsigned long,
+			      unsigned long);
+extern unsigned long ext2_count_free_blocks (struct super_block *);
+extern void ext2_check_blocks_bitmap (struct super_block *);
+
+/* bitmap.c */
+extern unsigned long ext2_count_free (struct buffer_head *, unsigned);
+
+/* dir.c */
+extern int ext2_check_dir_entry (char *, struct inode *,
+				 struct ext2_dir_entry *, struct buffer_head *,
+				 unsigned long);
+
+/* file.c */
+extern int ext2_read (struct inode *, struct file *, char *, int);
+extern int ext2_write (struct inode *, struct file *, char *, int);
+
+/* fsync.c */
+extern int ext2_sync_file (struct inode *, struct file *);
+
+/* ialloc.c */
+extern struct inode * ext2_new_inode (const struct inode *, int);
+extern void ext2_free_inode (struct inode *);
+extern unsigned long ext2_count_free_inodes (struct super_block *);
+extern void ext2_check_inodes_bitmap (struct super_block *);
+
+/* inode.c */
+extern int ext2_bmap (struct inode *, int);
+
+extern struct buffer_head * ext2_getblk (struct inode *, long, int, int *);
+extern struct buffer_head * ext2_bread (struct inode *, int, int, int *);
+
+extern int ext2_getcluster (struct inode * inode, long block);
+extern void ext2_read_inode (struct inode *);
+extern void ext2_write_inode (struct inode *);
+extern void ext2_put_inode (struct inode *);
+extern int ext2_sync_inode (struct inode *);
+extern void ext2_discard_prealloc (struct inode *);
+
+/* ioctl.c */
+extern int ext2_ioctl (struct inode *, struct file *, unsigned int,
+		       unsigned long);
+
+/* namei.c */
+extern void ext2_release (struct inode *, struct file *);
+extern int ext2_lookup (struct inode *,const char *, int, struct inode **);
+extern int ext2_create (struct inode *,const char *, int, int,
+			struct inode **);
+extern int ext2_mkdir (struct inode *, const char *, int, int);
+extern int ext2_rmdir (struct inode *, const char *, int);
+extern int ext2_unlink (struct inode *, const char *, int);
+extern int ext2_symlink (struct inode *, const char *, int, const char *);
+extern int ext2_link (struct inode *, struct inode *, const char *, int);
+extern int ext2_mknod (struct inode *, const char *, int, int, int);
+extern int ext2_rename (struct inode *, const char *, int,
+			struct inode *, const char *, int);
+
+/* super.c */
+extern void ext2_error (struct super_block *, const char *, const char *, ...)
+	__attribute__ ((format (printf, 3, 4)));
+extern NORET_TYPE void ext2_panic (struct super_block *, const char *,
+				   const char *, ...)
+	__attribute__ ((NORET_AND format (printf, 3, 4)));
+extern void ext2_warning (struct super_block *, const char *, const char *, ...)
+	__attribute__ ((format (printf, 3, 4)));
+extern void ext2_put_super (struct super_block *);
+extern void ext2_write_super (struct super_block *);
+extern int ext2_remount (struct super_block *, int *, char *);
+extern struct super_block * ext2_read_super (struct super_block *,void *,int);
+extern void ext2_statfs (struct super_block *, struct statfs *);
+
+/* truncate.c */
+extern void ext2_truncate (struct inode *);
+
+/*
+ * Inodes and files operations
+ */
+
+/* dir.c */
+extern struct inode_operations ext2_dir_inode_operations;
+
+/* file.c */
+extern struct inode_operations ext2_file_inode_operations;
+
+/* symlink.c */
+extern struct inode_operations ext2_symlink_inode_operations;
+
+#endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_EXT2_FS_H */

@@ -1,10 +1,4 @@
 /*
- *  modified for EXT2FS support in Lites 1.1
- *
- *  Aug 1995, Godmar Back (gback@cs.utah.edu)
- *  University of Utah, Department of Computer Science
- */
-/*
  *  linux/include/linux/ext2_fs_sb.h
  *
  * Copyright (C) 1992, 1993, 1994, 1995
@@ -30,11 +24,6 @@
 
 #define EXT2_MAX_GROUP_LOADED	8
 
-#if defined(LITES) || defined(__FreeBSD__)
-#define buffer_head buf
-#define MAXMNTLEN	512
-#endif
-
 /*
  * second extended-fs super-block data in memory
  */
@@ -59,29 +48,11 @@ struct ext2_sb_info {
 	unsigned long s_block_bitmap_number[EXT2_MAX_GROUP_LOADED];
 	struct buffer_head * s_block_bitmap[EXT2_MAX_GROUP_LOADED];
 	int s_rename_lock;
-#if !defined(LITES) && !defined(__FreeBSD__)
 	struct wait_queue * s_rename_wait;
-#endif
 	unsigned long  s_mount_opt;
 	unsigned short s_resuid;
 	unsigned short s_resgid;
 	unsigned short s_mount_state;
-#if defined(LITES) || defined(__FreeBSD__)
-	/* 
-	   stuff that FFS keeps in its super block or that linux
-	   has in its non-ext2 specific super block and which is
-	   generally considered useful 
-	*/
-	unsigned long s_blocksize;
-	unsigned long s_blocksize_bits;
-	unsigned int  s_bshift;			/* = log2(s_blocksize) */
-	quad_t	 s_qbmask;			/* = s_blocksize - 1 */
-	unsigned int  s_fsbtodb;		/* shift to get disk block */
-	char    s_rd_only;                      /* read-only 		*/
-	char    s_dirt;                         /* fs modified flag */
-
-	char    fs_fsmnt[MAXMNTLEN];            /* name mounted on */
-#endif
 };
 
 #endif	/* _LINUX_EXT2_FS_SB */
