@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.12 1998/01/04 00:00:21 steve Exp $
+#	$Id: bsd.own.mk,v 1.13 1998/03/19 13:32:43 bde Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -122,7 +122,11 @@ BINGRP?=	bin
 BINMODE?=	555
 NOBINMODE?=	444
 
+.if ${BINFORMAT} == aout
+LIBDIR?=	/usr/lib/aout
+.else
 LIBDIR?=	/usr/lib
+.endif
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
 LINTLIBDIR?=	/usr/libdata/lint

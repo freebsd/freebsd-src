@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.179 1998/05/18 03:28:02 jb Exp $
+#	$Id: Makefile,v 1.180 1998/05/25 17:34:34 sos Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -645,7 +645,8 @@ _libm=	lib/msun
 #
 bootstrap-libraries:
 .for _lib in ${_csu} gnu/usr.bin/cc/libgcc lib/libtermcap \
-    gnu/lib/libregex lib/libc lib/libcurses lib/libedit ${_libm} \
+    gnu/lib/libregex gnu/lib/libreadline lib/libc \
+    lib/libcrypt lib/libcurses lib/libedit ${_libm} \
     lib/libmd lib/libutil lib/libz usr.bin/lex/lib
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
