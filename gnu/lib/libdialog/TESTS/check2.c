@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: check2.c,v 1.2 1996/04/16 12:17:21 jkh Exp $
  */
 
 #include <stdio.h>
@@ -28,19 +28,19 @@
 static int
 getBool(dialogMenuItem *self)
 {
-  if (self->data && *((int *)self->data))
-    return TRUE;
-  return FALSE;
+    if (self->data && *((int *)self->data))
+	return TRUE;
+    return FALSE;
 }
 
 static int
 setBool(dialogMenuItem *self)
 {
-  if (self->data) {
-    *((int *)self->data) = !*((int *)self->data);
-    return DITEM_SUCCESS;
-  }
-  return DITEM_FAILURE;
+    if (self->data) {
+	*((int *)self->data) = !*((int *)self->data);
+	return DITEM_SUCCESS;
+    }
+    return DITEM_FAILURE;
 }
 
 static int german_book, italian_book, slang_book;
@@ -48,39 +48,39 @@ static int german_book, italian_book, slang_book;
 static int
 clearBooks(dialogMenuItem *self)
 {
-  german_book = italian_book = slang_book = FALSE;
-  return DITEM_REDRAW;
+    german_book = italian_book = slang_book = FALSE;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
 buyBooks(dialogMenuItem *self)
 {
-  char foo[256];
-
-  if (german_book || italian_book || slang_book) {
-    strcpy(foo, "Ok, you're buying books on");
-    if (german_book)
-      strcat(foo, " german");
-    if (italian_book)
-      strcat(foo, " italian");
-    if (slang_book)
-      strcat(foo, " slang");
-  }
-  else
-    strcpy(foo, "You're not buying any books?");
-  dialog_mesgbox("This is a direct callback for the `Buy' button", foo, -1, -1);
-  return DITEM_SUCCESS;
+    char foo[256];
+    
+    if (german_book || italian_book || slang_book) {
+	strcpy(foo, "Ok, you're buying books on");
+	if (german_book)
+	    strcat(foo, " german");
+	if (italian_book)
+	    strcat(foo, " italian");
+	if (slang_book)
+	    strcat(foo, " slang");
+    }
+    else
+	strcpy(foo, "You're not buying any books?");
+    dialog_mesgbox("This is a direct callback for the `Buy' button", foo, -1, -1);
+    return DITEM_SUCCESS;
 }
 
 /* menu3 - Look mom!  We can finally use our own OK and Cancel buttons! */
-  /* prompt	title					checked		fire		sel   data */
+/* prompt	title					checked		fire		sel   data */
 static dialogMenuItem menu3[] = {
-  { "Buy!",	NULL,					NULL,		buyBooks	}, /* New "OK" button */
-  { "No Way!",	NULL,					NULL,		NULL		}, /* New "Cancel" button */
-  { "German",	"Buy books on learning German",		getBool,	setBool,	NULL, &german_book },
-  { "Italian",	"Buy books on learning Italian",	getBool,	setBool,	NULL, &italian_book },
-  { "Slang",	"Buy books on commonly used insults",	getBool,	setBool,	NULL, &slang_book },
-  { "Clear",	"Clear book list",			NULL,		clearBooks,	NULL, NULL, ' ', ' ', ' ' },
+    { "Buy!",	NULL,					NULL,		buyBooks	}, /* New "OK" button */
+    { "No Way!",	NULL,					NULL,		NULL		}, /* New "Cancel" button */
+    { "German",	"Buy books on learning German",		getBool,	setBool,	NULL, &german_book },
+    { "Italian",	"Buy books on learning Italian",	getBool,	setBool,	NULL, &italian_book },
+    { "Slang",	"Buy books on commonly used insults",	getBool,	setBool,	NULL, &slang_book },
+    { "Clear",	"Clear book list",			NULL,		clearBooks,	NULL, NULL, ' ', ' ', ' ' },
 };
 
 /* End of hook functions */
@@ -89,16 +89,16 @@ static dialogMenuItem menu3[] = {
 int
 main(int argc, unsigned char *argv[])
 {
-  int retval;
-
-  init_dialog();
-
-  retval = dialog_checklist("this is dialog_checklist() in action, test #2",
-			    "Same as before, but now we relabel the buttons and override the OK action.",
-			    -1, -1, 4, -4, menu3 + 2, (char *)TRUE);
-  dialog_clear();
-  fprintf(stderr, "returned value for dialog_checklist was %d\n", retval);
-
-  end_dialog();
-  return 0;
+    int retval;
+    
+    init_dialog();
+    
+    retval = dialog_checklist("this is dialog_checklist() in action, test #2",
+			      "Same as before, but now we relabel the buttons and override the OK action.",
+			      -1, -1, 4, -4, menu3 + 2, (char *)TRUE);
+    dialog_clear();
+    fprintf(stderr, "returned value for dialog_checklist was %d\n", retval);
+    
+    end_dialog();
+    return 0;
 }
