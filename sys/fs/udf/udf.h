@@ -53,9 +53,6 @@ struct udf_mnt {
 	uint32_t		part_len;
 	uint64_t		root_id;
 	struct long_ad		root_icb;
-	LIST_HEAD(udf_hash_lh, udf_node)	*hashtbl;
-	u_long			hashsz;
-	struct mtx		hash_mtx;
 	int			p_sectors;
 	int			s_table_entries;
 	struct udf_sparing_table *s_table;
@@ -130,9 +127,6 @@ udf_getid(struct long_ad *icb)
 }
 
 int udf_allocv(struct mount *, struct vnode **, struct thread *);
-int udf_hashlookup(struct udf_mnt *, ino_t, int, struct vnode **);
-int udf_hashins(struct udf_node *);
-int udf_hashrem(struct udf_node *);
 int udf_checktag(struct desc_tag *, uint16_t);
 int udf_vget(struct mount *, ino_t, int, struct vnode **);
 
