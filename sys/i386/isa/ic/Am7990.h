@@ -24,6 +24,11 @@
 #define CSR88	88
 #define CSR89	89
 
+#define BCR49	49
+#define BCR32	32
+#define BCR33	33
+#define BCR34	34
+
 
 /* Control and Status Register Masks */
 
