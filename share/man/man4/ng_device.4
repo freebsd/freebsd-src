@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2002
+.Dd October 19, 2004
 .Dt NG_DEVICE 4
 .Os
 .Sh NAME
@@ -51,64 +51,38 @@ The first node is created as
 all subsequent nodes
 .Pa /dev/ngd1 , /dev/ngd2 ,
 etc.
-The only way a
-.Nm device
-node can be created is by a connection to the main
-.Nm device
-node by another type of
-.Xr netgraph 4
-node.
-.Pp
-When a node is shut down, the corresponding device is removed
-and the device name becomes available for reuse by future
-.Nm device
-nodes.
-.Pp
+.Sh HOOKS
 A
 .Nm device
-node has a single hook to which it connects to the requesting
-.Xr netgraph 4
-node.
+node has a single hook with an arbitrary name.
 All data coming in over the hook will be presented to the device
 for
 .Xr read 2 .
 All data coming in from the device entry by
 .Xr write 2
 will be forwarded to the hook.
-.Sh HOOKS
-The
-.Nm device
-node has no named hooks.
-There is one hook which is used for all interactions.
-This is the hook created by the calling node.
 .Sh CONTROL MESSAGES
 The
 .Nm device
-node supports no special control messages.
-All incoming messages from the
-hook will be returned to the sender.
-Additionally the node accepts
-.Xr ioctl 2 Ns s
-from the device entry.
-These will be encapsulated into
-.Xr netgraph 4
-messages and send out to the hook.
+node supports one non-generic control message:
+.Bl -tag -width 3n
+.It Dv NGM_DEVICE_GET_DEVNAME
+Returns device name corresponding to a node.
+.El
+.\" Additionally, the node accepts
+.\" .Xr ioctl 2 Ns s
+.\" from the device entry.
+.\" These will be encapsulated into
+.\" .Xr netgraph 4
+.\" messages and send out to the hook.
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message.
-The associated interface is removed and becomes available
+control message, or upon hook disconnection.
+The associated device entry is removed and becomes available
 for use by future
 .Nm device
 nodes.
-.Pp
-Unlike most other node types, a
-.Nm device
-node does
-.Em not
-go away when all hooks have been disconnected; rather, an explicit
-.Dv NGM_SHUTDOWN
-control message is required.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ngctl 8
@@ -118,4 +92,6 @@ The
 node type was first implemented in
 .Fx 5.0 .
 .Sh AUTHORS
-.An Mark Santcroos Aq marks@ripe.net
+.An -nosplit
+.An Mark Santcroos Aq marks@ripe.net ,
+.An Gleb Smirnoff Aq glebius@FreeBSD.org
