@@ -89,10 +89,15 @@ extern Keymap _rl_keymap;
 
 extern char *possible_control_prefixes[], *possible_meta_prefixes[];
 
+/* Functions imported from funmap.c */
 extern char **rl_funmap_names ();
 extern int rl_add_funmap_entry ();
 
+/* Functions imported from util.c */
 extern char *_rl_strindex ();
+
+/* Functions imported from shell.c */
+extern char *get_env_value ();
 
 /* Variables exported by this file. */
 Keymap rl_binding_keymap;
@@ -202,7 +207,7 @@ rl_set_key (keyseq, function, map)
      Function *function;
      Keymap map;
 {
-  return (rl_generic_bind (ISFUNC, keyseq, function, map));
+  return (rl_generic_bind (ISFUNC, keyseq, (char *)function, map));
 }
 
 /* Bind the key sequence represented by the string KEYSEQ to
@@ -381,7 +386,7 @@ rl_untranslate_keyseq (seq)
       kseq[i++] = '\\';
       kseq[i++] = 'C';
       kseq[i++] = '-';
-      c = UNCTRL (c);
+      c = _rl_to_lower (UNCTRL (c));
     }
   else if (c == RUBOUT)
     {
@@ -394,7 +399,7 @@ rl_untranslate_keyseq (seq)
   if (c == ESC)
     {
       kseq[i++] = '\\';
-      kseq[i++] = 'e';
+      c = 'e';
     }
   else if (c == '\\' || c == '"')
     {
@@ -404,6 +409,53 @@ rl_untranslate_keyseq (seq)
   kseq[i++] = (unsigned char) c;
   kseq[i] = '\0';
   return kseq;
+}
+
+static char *
+_rl_untranslate_macro_value (seq)
+     char *seq;
+{
+  char *ret, *r, *s;
+  int c;
+
+  r = ret = xmalloc (7 * strlen (seq) + 1);
+  for (s = seq; *s; s++)
+    {
+      c = *s;
+      if (META_CHAR (c))
+	{
+	  *r++ = '\\';
+	  *r++ = 'M';
+	  *r++ = '-';
+	  c = UNMETA (c);
+	}
+      else if (CTRL_CHAR (c) && c != ESC)
+	{
+	  *r++ = '\\';
+	  *r++ = 'C';
+	  *r++ = '-';
+	  c = _rl_to_lower (UNCTRL (c));
+	}
+      else if (c == RUBOUT)
+ 	{
+ 	  *r++ = '\\';
+ 	  *r++ = 'C';
+ 	  *r++ = '-';
+ 	  c = '?';
+ 	}
+
+      if (c == ESC)
+	{
+	  *r++ = '\\';
+	  c = 'e';
+	}
+      else if (c == '\\' || c == '"')
+	*r++ = '\\';
+
+      *r++ = (unsigned char)c;
+    }
+  *r = '\0';
+  return ret;
 }
 
 /* Return a pointer to the function that STRING represents.
@@ -523,7 +575,7 @@ rl_read_init_file (filename)
     {
       filename = last_readline_init_file;
       if (filename == 0)
-        filename = getenv ("INPUTRC");
+        filename = get_env_value ("INPUTRC");
       if (filename == 0)
 	filename = DEFAULT_INPUTRC;
     }
@@ -990,14 +1042,14 @@ rl_parse_and_bind (string)
   /* Temporary.  Handle old-style keyname with macro-binding. */
   if (*funname == '\'' || *funname == '"')
     {
-      char seq[2];
+      unsigned char useq[2];
       int fl = strlen (funname);
 
-      seq[0] = key; seq[1] = '\0';
+      useq[0] = key; useq[1] = '\0';
       if (fl && funname[fl - 1] == *funname)
 	funname[fl - 1] = '\0';
 
-      rl_macro_bind (seq, &funname[1], _rl_keymap);
+      rl_macro_bind (useq, &funname[1], _rl_keymap);
     }
 #if defined (PREFIX_META_HACK)
   /* Ugly, but working hack to keep prefix-meta around. */
@@ -1528,6 +1580,8 @@ int
 rl_dump_functions (count, key)
      int count, key;
 {
+  if (rl_dispatching)
+    fprintf (rl_outstream, "\r\n");
   rl_function_dumper (rl_explicit_arg);
   rl_on_new_line ();
   return (0);
@@ -1549,7 +1603,11 @@ _rl_macro_dumper_internal (print_readably, map, prefix)
 	{
 	case ISMACR:
 	  keyname = _rl_get_keyname (key);
+#if 0
 	  out = (char *)map[key].function;
+#else
+	  out = _rl_untranslate_macro_value ((char *)map[key].function);
+#endif
 	  if (print_readably)
 	    fprintf (rl_outstream, "\"%s%s\": \"%s\"\n", prefix ? prefix : "",
 						         keyname,
@@ -1559,6 +1617,9 @@ _rl_macro_dumper_internal (print_readably, map, prefix)
 							keyname,
 							out ? out : "");
 	  free (keyname);
+#if 1
+	  free (out);
+#endif
 	  break;
 	case ISFUNC:
 	  break;
@@ -1604,6 +1665,8 @@ int
 rl_dump_macros (count, key)
      int count, key;
 {
+  if (rl_dispatching)
+    fprintf (rl_outstream, "\r\n");
   rl_macro_dumper (rl_explicit_arg);
   rl_on_new_line ();
   return (0);
@@ -1674,6 +1737,8 @@ int
 rl_dump_variables (count, key)
      int count, key;
 {
+  if (rl_dispatching)
+    fprintf (rl_outstream, "\r\n");
   rl_variable_dumper (rl_explicit_arg);
   rl_on_new_line ();
   return (0);

@@ -52,6 +52,16 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
+#if defined (__EMX__)
+#  ifndef O_BINARY
+#    define O_BINARY 0
+#  endif
+#else /* !__EMX__ */
+   /* If we're not compiling for __EMX__, we don't want this at all.  Ever. */
+#  undef O_BINARY
+#  define O_BINARY 0
+#endif /* !__EMX__ */
+
 #include <errno.h>
 #if !defined (errno)
 extern int errno;
@@ -59,6 +69,9 @@ extern int errno;
 
 #include "history.h"
 #include "histlib.h"
+
+/* Functions imported from shell.c */
+extern char *get_env_value ();
 
 extern char *xmalloc (), *xrealloc ();
 
@@ -77,7 +90,7 @@ history_filename (filename)
   if (return_val)
     return (return_val);
   
-  home = getenv ("HOME");
+  home = get_env_value ("HOME");
 
   if (home == 0)
     {
@@ -121,7 +134,7 @@ read_history_range (filename, from, to)
   struct stat finfo;
 
   input = history_filename (filename);
-  file = open (input, O_RDONLY, 0666);
+  file = open (input, O_RDONLY|O_BINARY, 0666);
 
   if ((file < 0) || (fstat (file, &finfo) == -1))
     goto error_and_exit;
@@ -194,11 +207,12 @@ history_truncate_file (fname, lines)
 {
   register int i;
   int file, chars_read;
-  char *buffer = (char *)NULL, *filename;
+  char *buffer, *filename;
   struct stat finfo;
 
+  buffer = (char *)NULL;
   filename = history_filename (fname);
-  file = open (filename, O_RDONLY, 0666);
+  file = open (filename, O_RDONLY|O_BINARY, 0666);
 
   if (file == -1 || fstat (file, &finfo) == -1)
     goto truncate_exit;
@@ -232,7 +246,7 @@ history_truncate_file (fname, lines)
 
   /* Write only if there are more lines in the file than we want to
      truncate to. */
-  if (i && ((file = open (filename, O_WRONLY|O_TRUNC, 0666)) != -1))
+  if (i && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0666)) != -1))
     {
       write (file, buffer + i, finfo.st_size - i);
       close (file);
@@ -255,10 +269,11 @@ history_do_write (filename, nelements, overwrite)
      int nelements, overwrite;
 {
   register int i;
-  char *output = history_filename (filename);
+  char *output;
   int file, mode;
 
-  mode = overwrite ? O_WRONLY | O_CREAT | O_TRUNC : O_WRONLY | O_APPEND;
+  mode = overwrite ? O_WRONLY|O_CREAT|O_TRUNC|O_BINARY : O_WRONLY|O_APPEND|O_BINARY;
+  output = history_filename (filename);
 
   if ((file = open (output, mode, 0666)) == -1)
     {

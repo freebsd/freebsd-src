@@ -53,6 +53,8 @@ extern int _rl_eof_char;
 
 extern int _rl_enable_keypad, _rl_enable_meta;
 
+extern void _rl_control_keypad ();
+
 #if defined (__GO32__)
 #  include <pc.h>
 #  undef HANDLE_SIGNALS

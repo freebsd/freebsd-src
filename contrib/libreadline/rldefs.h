@@ -40,17 +40,6 @@
 #  endif
 #endif
 
-#if defined (HAVE_SYS_STREAM_H)
-#  include <sys/stream.h>
-#endif /* HAVE_SYS_STREAM_H */
-#if defined (HAVE_SYS_PTEM_H)
-#  include <sys/ptem.h>
-#  define _IO_PTEM_H		/* work around SVR4.2 1.1.4 bug */
-#endif /* HAVE_SYS_PTEM_H */
-#if defined (HAVE_SYS_PTE_H)
-#  include <sys/pte.h>
-#endif /* HAVE_SYS_PTE_H */
-
 /* Posix macro to check file in statbuf for directory-ness.
    This requires that <sys/stat.h> be included before this test. */
 #if defined (S_IFDIR) && !defined (S_ISDIR)
