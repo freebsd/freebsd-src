@@ -84,6 +84,15 @@ extern char	host[MAXHOSTNAMELEN];
 extern char	*from;		/* client's machine name */
 extern int	remote;		/* true if sending files to a remote host */
 extern char	*printcapdb[];  /* printcap database array */
+
+extern int	requ[];		/* job number of spool entries */
+extern int	requests;	/* # of spool requests */
+extern char	*user[];        /* users to process */
+extern int	users;		/* # of users in user array */
+extern char	*person;	/* name of person doing lprm */
+extern char	*name;
+
+
 /*
  * Structure used for building a sorted list of control files.
  */

@@ -342,7 +342,6 @@ frecverr(msg, va_alist)
         va_dcl
 #endif
 {
-	extern char fromb[];
 	va_list ap;
 #if __STDC__
 	va_start(ap, msg);

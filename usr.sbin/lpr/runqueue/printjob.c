@@ -67,6 +67,7 @@ static char sccsid[] = "@(#)printjob.c	8.7 (Berkeley) 5/10/95";
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <time.h>
 #include "lp.h"
 #include "lp.local.h"
 #include "pathnames.h"
@@ -910,7 +911,6 @@ banner(name1, name2)
 	char *name1, *name2;
 {
 	time_t tvec;
-	extern char *ctime();
 
 	time(&tvec);
 	if (!SF && !tof)
@@ -972,7 +972,6 @@ scan_out(scfd, scsp, dlm)
 	register nchrs, j;
 	char outbuf[LINELEN+1], *sp, c, cc;
 	int d, scnhgt;
-	extern char scnkey[][HEIGHT];	/* in lpdchar.c */
 
 	for (scnhgt = 0; scnhgt++ < HEIGHT+DROP; ) {
 		strp = &outbuf[0];
