@@ -35,15 +35,16 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)compress.c	8.2 (Berkeley) 1/7/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -51,26 +52,21 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
 #include "zopen.h"
 
-void	compress __P((char *, char *, int));
-void	cwarn __P((const char *, ...)) __printflike(1, 2);
-void	cwarnx __P((const char *, ...)) __printflike(1, 2);
-void	decompress __P((char *, char *, int));
-int	permission __P((char *));
-void	setfile __P((char *, struct stat *));
-void	usage __P((int));
+void	compress(const char *, const char *, int);
+void	cwarn(const char *, ...) __printflike(1, 2);
+void	cwarnx(const char *, ...) __printflike(1, 2);
+void	decompress(const char *, const char *, int);
+int	permission(const char *);
+void	setfile(const char *, struct stat *);
+void	usage(int);
 
 int eval, force, verbose;
 
@@ -196,10 +192,10 @@ main(argc, argv)
 
 void
 compress(in, out, bits)
-	char *in, *out;
+	const char *in, *out;
 	int bits;
 {
-	register int nr;
+	size_t nr;
 	struct stat isb, sb;
 	FILE *ifp, *ofp;
 	int exists, isreg, oreg;
@@ -286,10 +282,10 @@ err:	if (ofp) {
 
 void
 decompress(in, out, bits)
-	char *in, *out;
+	const char *in, *out;
 	int bits;
 {
-	register int nr;
+	size_t nr;
 	struct stat sb;
 	FILE *ifp, *ofp;
 	int exists, isreg, oreg;
@@ -353,8 +349,8 @@ err:	if (ofp) {
 
 void
 setfile(name, fs)
-	char *name;
-	register struct stat *fs;
+	const char *name;
+	struct stat *fs;
 {
 	static struct timeval tv[2];
 
@@ -385,7 +381,7 @@ setfile(name, fs)
 
 int
 permission(fname)
-	char *fname;
+	const char *fname;
 {
 	int ch, first;
 
@@ -412,42 +408,22 @@ usage(iscompress)
 }
 
 void
-#if __STDC__
 cwarnx(const char *fmt, ...)
-#else
-cwarnx(fmt, va_alist)
-	int eval;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
+
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	vwarnx(fmt, ap);
 	va_end(ap);
 	eval = 1;
 }
 
 void
-#if __STDC__
 cwarn(const char *fmt, ...)
-#else
-cwarn(fmt, va_alist)
-	int eval;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
+
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	vwarn(fmt, ap);
 	va_end(ap);
 	eval = 1;
