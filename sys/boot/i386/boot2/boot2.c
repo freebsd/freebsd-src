@@ -73,10 +73,8 @@
 #define DRV_MASK	0x7f
 
 #define TYPE_AD		0
-#define TYPE_WD		1
 #define TYPE_DA		2
 #define TYPE_MAXHARD	TYPE_DA
-#define TYPE_WFD 	3
 #define TYPE_FD		4
 
 extern uint32_t _end;
