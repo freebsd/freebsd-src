@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_cause.h - causes and cause handling for i4b
  *	-----------------------------------------------
  *
- *	$Id: i4b_cause.h,v 1.13 2000/02/06 19:01:14 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Feb  6 19:46:41 2000]
+ *      last edit-date: [Sun Mar 17 10:08:21 2002]
  *
  *---------------------------------------------------------------------------*/
 

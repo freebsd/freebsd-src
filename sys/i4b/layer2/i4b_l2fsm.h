@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *      i4b_l2fsm.h - layer 2 FSM
  *      -------------------------
  *
- *	$Id: i4b_l2fsm.h,v 1.6 2000/03/18 09:33:48 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Mar 18 10:28:37 2000]
+ *      last edit-date: [Sat Mar  9 17:47:53 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -81,4 +79,3 @@ enum Q921_events {
 };
 	
 #endif /* _I4B_L2FSM_H_ */
-

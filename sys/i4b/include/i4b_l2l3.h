@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l2l3.h - i4b layer 2 / layer 3 interactions
  *	-----------------------------------------------
  *
- *	$Id: i4b_l2l3.h,v 1.8 2000/06/02 16:14:35 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jun  2 14:33:34 2000]
+ *	last edit-date: [Sat Mar  9 15:55:16 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -115,4 +113,3 @@ struct i4b_l2l3_func
 };
 
 #endif /* _I4B_L2L3_H_ */
-

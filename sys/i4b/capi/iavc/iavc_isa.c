@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 2001, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -224,10 +224,8 @@ iavc_isa_attach(device_t dev)
 	memset(&sc->sc_txq, 0, sizeof(struct ifqueue));
 	sc->sc_txq.ifq_maxlen = sc->sc_capi.sc_nbch * 4;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
         if(!mtx_initialized(&sc->sc_txq.ifq_mtx))
 		mtx_init(&sc->sc_txq.ifq_mtx, "i4b_ivac_isa", MTX_DEF);
-#endif
 
 	sc->sc_intr = FALSE;
 	sc->sc_state = IAVC_DOWN;

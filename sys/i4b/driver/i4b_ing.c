@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ing.c - isdn4bsd B-channel to netgraph driver
  *	-------------------------------------------------
  *
- *	$Id: i4b_ing.c,v 1.10 2000/04/27 11:35:00 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Nov  9 11:29:12 2000]
+ *	last edit-date: [Sat Mar  9 14:09:53 2002]
  *
  *---------------------------------------------------------------------------*/ 
 
@@ -622,24 +620,17 @@ ng_ing_newhook(node_p node, hook_p hook, const char *name)
  * The response should be in a malloc'd region that the caller can 'free'.
  * A response is not required.
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 static int
 ng_ing_rcvmsg(node_p node, item_p item, hook_p lasthook)
-#else
-static int
-ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-		struct ng_mesg **rptr)
-#endif
 {
 	struct ing_softc *sc = NG_NODE_PRIVATE(node);
 
 	struct ng_mesg *resp = NULL;
 	int error = 0;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 	struct ng_mesg *msg;
 
 	NGI_GET_MSG(item, msg);
-#endif
+
 	if(msg->header.typecookie == NGM_GENERIC_COOKIE)
 	{
 		switch(msg->header.cmd)
@@ -741,25 +732,19 @@ ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 /*---------------------------------------------------------------------------*
  * get data from another node and transmit it out on a B-channel
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 static int
 ng_ing_rcvdata(hook_p hook, item_p item)
-#else
-static int
-ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
-#endif
 {
 	struct ing_softc *sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ifqueue  *xmitq_p;
 	int s;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 	struct mbuf *m;
 	meta_p meta;
 	
 	NGI_GET_M(item, m);
 	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
-#endif
+
 	if(NG_HOOK_PRIVATE(hook) == NULL)
 	{
 		NG_FREE_M(m);
