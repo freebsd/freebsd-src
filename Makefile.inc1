@@ -441,7 +441,7 @@ buildkernel:
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
 .endif
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
-.if defined(NO_MODULES) || !exists(${KRNLSRCDIR}/modules)
+.if defined(MODULES_WITH_WORLD) || defined(NO_MODULES) || !exists(${KRNLSRCDIR}/modules)
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean
 .else
