@@ -45,6 +45,7 @@
 #include <machine/intrcnt.h>
 #include <machine/resource.h>
 #include <machine/sgmap.h>
+#include <machine/prom.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
  
@@ -742,7 +743,7 @@ static device_method_t mcpcia_methods[] = {
 	DEVMETHOD(bus_read_ivar,		mcpcia_read_ivar),
 	DEVMETHOD(bus_setup_intr,		mcpcia_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		mcpcia_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,		pci_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,		alpha_pci_alloc_resource),
 	DEVMETHOD(bus_release_resource,		pci_release_resource),
 	DEVMETHOD(bus_activate_resource,	pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	pci_deactivate_resource),
