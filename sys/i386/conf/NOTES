@@ -1771,7 +1771,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		vx	1	# 3Com 3c590, 3c595 (``Vortex'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
 device		sk
