@@ -2859,7 +2859,7 @@ dc_txeof(struct dc_softc *sc)
 		if (txstat & DC_TXSTAT_OWN)
 			break;
 
-		if (!(ctl & DC_TXCTL_FIRSTFRAG) || ctl & DC_TXCTL_SETUP) {
+		if (!(ctl & DC_TXCTL_LASTFRAG) || ctl & DC_TXCTL_SETUP) {
 			if (ctl & DC_TXCTL_SETUP) {
 				/*
 				 * Yes, the PNIC is so brain damaged
@@ -3262,6 +3262,7 @@ dc_dma_map_txbuf(arg, segs, nseg, mapsize, error)
 	sc->dc_cdata.dc_tx_prod = frag;
 	sc->dc_cdata.dc_tx_cnt += nseg;
 	sc->dc_ldata->dc_tx_list[cur].dc_ctl |= htole32(DC_TXCTL_LASTFRAG);
+	sc->dc_cdata.dc_tx_chain[cur] = sc->dc_cdata.dc_tx_mapping;
 	if (sc->dc_flags & DC_TX_INTR_FIRSTFRAG)
 		sc->dc_ldata->dc_tx_list[first].dc_ctl |=
 		    htole32(DC_TXCTL_FINT);
@@ -3311,13 +3312,13 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	 * of fragments or hit the end of the mbuf chain.
 	 */
 	idx = sc->dc_cdata.dc_tx_prod;
+	sc->dc_cdata.dc_tx_mapping = *m_head;
 	error = bus_dmamap_load_mbuf(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
 	    *m_head, dc_dma_map_txbuf, sc, 0);
 	if (error)
 		return (error);
 	if (sc->dc_cdata.dc_tx_err != 0)
 		return (sc->dc_cdata.dc_tx_err); 
-	sc->dc_cdata.dc_tx_chain[idx] = *m_head;
 	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
 	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
@@ -3768,7 +3769,7 @@ dc_stop(struct dc_softc *sc)
 		if (cd->dc_tx_chain[i] != NULL) {
 			ctl = le32toh(ld->dc_tx_list[i].dc_ctl);
 			if ((ctl & DC_TXCTL_SETUP) ||
-			    !(ctl & DC_TXCTL_FIRSTFRAG)) {
+			    !(ctl & DC_TXCTL_LASTFRAG)) {
 				cd->dc_tx_chain[i] = NULL;
 				continue;
 			}
