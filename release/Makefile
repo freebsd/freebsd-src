@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.399 1998/10/04 17:37:52 jkh Exp $
+#	$Id: Makefile,v 1.400 1998/10/07 02:57:16 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -65,18 +65,33 @@ BOOT1=	etc/protocols etc/rc.conf
 # mountpoint for filesystems.
 MNT=			/mnt
 
-# other floppy parameters.
-FDSIZE=			1440
-FDLABEL=		fd1440
+# Various floppy image parameters.
+#
+# These are adjusted down to the minimum needed by doFS.sh.
+.if ${MACHINE_ARCH} == "alpha"
+BOOTSIZE=		1440
+BOOTMFSSIZE=		1440
+FIXITSIZE=		1440
+BOOTINODE=		1000000
+MFSINODE=		8000
+FIXITINODE=		2000
+BOOTLABEL=		fd1440
+BOOTMFSLABEL=		minimum
+FIXITLABEL=		fd1440
+.else
+BOOTSIZE=		1440
+BOOTMFSSIZE=		2880
+FIXITSIZE=		2880
+BOOTINODE=		1000000
+MFSINODE=		8000
+FIXITINODE=		2000
+BOOTLABEL=		fd1440
+BOOTMFSLABEL=		minimum2
+FIXITLABEL=		minimum2
+.endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
-# Upper size for the mfs in the boot.flp kernel.
-# These are adjusted down to the minimum needed by doFS.sh.
-BOOTMFSSIZE=		1440
-MFSINODE=		8000
-FIXITINODE=		2000
-BOOTINODE=		1000000
 
 VNDEVICE?=		vn0
 
@@ -122,7 +137,7 @@ REDOSED=	sed -e 's/dirs/release.1/' -e 's/trees/release.2/' \
 		    -e 's/fixup/release.5/' -e 's/tarbin/release.6/' \
 		    -e 's/tarsrc/release.7/' -e 's/boot\.flp/release.8/' \
 		    -e 's/fixit\.flp/release.9/' -e 's/ftp/ftp.1/' \
-		    -e 's/cdrom/cdrom.1/'
+		    -e 's/cdrom/cdrom.1/' -e 's/doc/doc.1/'
 
 REDOREDO!=	echo ${REDO} | ${REDOSED}
 
@@ -451,8 +466,8 @@ release.8: write_mfs_in_kernel dumpnlist
 		tar xvf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
-		${MFSINODE} minimum
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
+		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
@@ -488,8 +503,8 @@ release.9:
 	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	cp ${.CURDIR}/tar.sh ${RD}/fixitfd/stand/tar
 	chmod 555 ${RD}/fixitfd/stand/tar
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
-		${FIXITINODE} ${FDLABEL}
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FIXITSIZE} \
+		${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 # Do our last minute floppies directory setup in a convenient place.
 	cp ${.CURDIR}/README.TXT ${RD}/floppies/README.TXT
@@ -566,6 +581,7 @@ doc.1:
 	  cd /usr/ports/$$i && make all install clean FORCE_PKG_REGISTER=yes; \
 	done
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
+	touch doc.1
 
 # Various "subroutine" and other supporting targets.
 
@@ -721,8 +737,8 @@ doMFSKERN:
 	@touch ${RD}/boot.${FSIMAGE}/boot.config
 	@touch ${RD}/boot.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
-		${BOOTINODE} ${FDLABEL}
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
+		${RD}/boot.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
 	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
 
 .include <bsd.prog.mk>
