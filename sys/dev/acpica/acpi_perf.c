@@ -185,10 +185,11 @@ acpi_perf_evaluate(device_t dev)
 	ACPI_BUFFER buf;
 	ACPI_OBJECT *pkg, *res;
 	ACPI_STATUS status;
-	int i, j;
+	int error, i, j;
 	uint32_t *p;
 
 	/* Get the control values and parameters for each state. */
+	error = ENXIO;
 	sc = device_get_softc(dev);
 	buf.Pointer = NULL;
 	buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -199,14 +200,14 @@ acpi_perf_evaluate(device_t dev)
 	pkg = (ACPI_OBJECT *)buf.Pointer;
 	if (!ACPI_PKG_VALID(pkg, 1)) {
 		device_printf(dev, "invalid top level _PSS package\n");
-		return (ENXIO);
+		goto out;
 	}
 	sc->px_count = pkg->Package.Count;
 
 	sc->px_states = malloc(sc->px_count * sizeof(struct acpi_px),
 	    M_ACPIPERF, M_WAITOK | M_ZERO);
 	if (sc->px_states == NULL)
-		return (ENOMEM);
+		goto out;
 
 	/*
 	 * Each state is a package of {CoreFreq, Power, TransitionLatency,
@@ -229,39 +230,47 @@ acpi_perf_evaluate(device_t dev)
 	buf.Pointer = NULL;
 	buf.Length = ACPI_ALLOCATE_BUFFER;
 	status = AcpiEvaluateObject(sc->handle, "_PCT", NULL, &buf);
-	if (ACPI_FAILURE(status)) {
-		free(sc->px_states, M_ACPIPERF);
-		return (ENXIO);
-	}
+	if (ACPI_FAILURE(status))
+		goto out;
 
 	/* Check the package of two registers, each a Buffer in GAS format. */
 	pkg = (ACPI_OBJECT *)buf.Pointer;
 	if (!ACPI_PKG_VALID(pkg, 2)) {
 		device_printf(dev, "invalid perf register package\n");
-		return (ENXIO);
+		goto out;
 	}
 
-	acpi_PkgGas(sc->dev, pkg, 0, &sc->px_rid, &sc->perf_ctrl);
+	error = acpi_PkgGas(sc->dev, pkg, 0, &sc->px_rid, &sc->perf_ctrl);
 	if (sc->perf_ctrl == NULL) {
-		device_printf(dev, "failed to attach PERF_CTL register\n");
-		return (ENXIO);
+		if (error != EOPNOTSUPP)
+			device_printf(dev, "failed in PERF_CTL attach\n");
+		goto out;
 	}
 	sc->px_rid++;
 
-	acpi_PkgGas(sc->dev, pkg, 1, &sc->px_rid, &sc->perf_status);
+	error = acpi_PkgGas(sc->dev, pkg, 1, &sc->px_rid, &sc->perf_status);
 	if (sc->perf_status == NULL) {
-		device_printf(dev, "failed to attach PERF_STATUS register\n");
-		return (ENXIO);
+		if (error != EOPNOTSUPP)
+			device_printf(dev, "failed in PERF_STATUS attach\n");
+		goto out;
 	}
 	sc->px_rid++;
-	AcpiOsFree(buf.Pointer);
 
 	/* Get our current limit and register for notifies. */
 	acpi_px_available(sc);
 	AcpiInstallNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,
 	    acpi_px_notify, sc);
+	error = 0;
 
-	return (0);
+out:
+	if (error) {
+		if (sc->px_states)
+			free(sc->px_states, M_ACPIPERF);
+		sc->px_count = 0;
+	}
+	if (buf.Pointer)
+		AcpiOsFree(buf.Pointer);
+	return (error);
 }
 
 static void
