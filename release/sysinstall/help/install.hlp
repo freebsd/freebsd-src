@@ -231,15 +231,14 @@ you'll be prompted for the rest.
 
 To prepare for installation from an MS-DOS partition you should simply
 copy the files from the distribution into a directory called
-"FREEBSD".  For example, to do a minimal installation of FreeBSD from
-DOS using files copied from the CDROM, you might do something like
-this:
+"FREEBSD" on the Primary DOS partition ("Drive C:").  For example, to do
+a minimal installation of FreeBSD from DOS using files copied from the
+CDROM, you might do something like this:
 
-        C> MD C:\FREEBSD
-        C> XCOPY /S E:\BIN C:\FREEBSD\BIN
+        C:\> MD C:\FREEBSD
+        C:\> XCOPY /S E:\BIN C:\FREEBSD\BIN
 
-Assuming that `C:' was where you had free space and `E:' was where
-your CD was mounted.
+Assuming that `E:' was where your CD was mounted.
 
 For as many `DISTS' as you wish to install from DOS (and you have free
 space for), install each one in a directory under `C:\FREEBSD' - the
