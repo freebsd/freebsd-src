@@ -173,13 +173,6 @@ IPR_LOG			opt_i4b.h
 DEV_NPX			opt_npx.h
 DEV_SPLASH		opt_splash.h
 
-# SMB/CIFS requester
-NETSMB			opt_netsmb.h
-NETSMBCRYPTO		opt_netsmb.h
-
-# SMB/CIFS filesystem
-SMBFS
-
 # -------------------------------
 # EOF
 # -------------------------------
