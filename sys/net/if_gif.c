@@ -81,12 +81,11 @@
 #include <net/net_osdep.h>
 
 #define GIFNAME		"gif"
-#define GIFDEV		"if_gif"
 #define GIF_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static struct rman gifunits[1];
-TAILQ_HEAD(gifhead, gif_softc) gifs = TAILQ_HEAD_INITIALIZER(gifs);
+LIST_HEAD(, gif_softc) gif_softc_list;
 
 int	gif_clone_create __P((struct if_clone *, int *));
 void	gif_clone_destroy __P((struct ifnet *));
@@ -200,7 +199,7 @@ gif_clone_create(ifc, unit)
 	sc->gif_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(&sc->gif_if);
 	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
-	TAILQ_INSERT_TAIL(&gifs, sc, gif_link);
+	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_link);
 	return (0);
 }
 
@@ -212,7 +211,7 @@ gif_clone_destroy(ifp)
 	struct gif_softc *sc = ifp->if_softc;
 
 	gif_delete_tunnel(sc);
-	TAILQ_REMOVE(&gifs, sc, gif_link);
+	LIST_REMOVE(sc, gif_link);
 	if (sc->encap_cookie4 != NULL) {
 		err = encap_detach(sc->encap_cookie4);
 		KASSERT(err == 0, ("Unexpected error detaching encap_cookie4"));
@@ -253,6 +252,7 @@ gifmodevent(mod, type, data)
 			rman_fini(gifunits);
 			return (err);
 		}
+		LIST_INIT(&gif_softc_list);
 		if_clone_attach(&gif_cloner);
 
 #ifdef INET6
@@ -263,8 +263,8 @@ gifmodevent(mod, type, data)
 	case MOD_UNLOAD:
 		if_clone_detach(&gif_cloner);
 
-		while (!TAILQ_EMPTY(&gifs))
-			gif_clone_destroy(&TAILQ_FIRST(&gifs)->gif_if);
+		while (!LIST_EMPTY(&gif_softc_list))
+			gif_clone_destroy(&LIST_FIRST(&gif_softc_list)->gif_if);
 
 		err = rman_fini(gifunits);
 		if (err != 0)
@@ -284,6 +284,7 @@ static moduledata_t gif_mod = {
 };
 
 DECLARE_MODULE(if_gif, gif_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_gif, 1);
 
 static int
 gif_encapcheck(m, off, proto, arg)
