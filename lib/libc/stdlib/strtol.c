@@ -107,7 +107,7 @@ strtol(nptr, endptr, base)
 	 * Set 'any' if any `digits' consumed; make it negative to indicate
 	 * overflow.
 	 */
-	cutoff = neg ? (unsigned long)-(LONG_MIN + LONG_MAX) + LONG_MAX
+	cutoff = neg ? -(LONG_MIN + LONG_MAX) + (unsigned long)LONG_MAX
 	    : LONG_MAX;
 	cutlim = cutoff % base;
 	cutoff /= base;
