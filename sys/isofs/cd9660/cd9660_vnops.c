@@ -430,7 +430,7 @@ cd9660_readdir(ap)
 		struct ucred *a_cred;
 		int *a_eofflag;
 		int *a_ncookies;
-		u_long *a_cookies;
+		u_long **a_cookies;
 	} */ *ap;
 {
 	struct uio *uio = ap->a_uio;
