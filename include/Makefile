@@ -1,10 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
 # $FreeBSD$
 #
-# Doing a make install builds /usr/include
-#
-# The ``rm -rf''s used below are safe because rm doesn't follow symbolic
-# links.
+# Doing a "make install" builds /usr/include.
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa protocols rpcsvc rpc
@@ -39,13 +36,10 @@ LSUBDIRS=	cam/scsi dev/an dev/ic dev/iicbus dev/firewire dev/ofw \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
-	netgraph/bluetooth/include \
 	security/mac_biba security/mac_bsdextended security/mac_lomac\
 	security/mac_mls security/mac_partition ufs/ffs ufs/ufs
 
-# For SHARED=symlinks, cam, netatm, and netgraph are symlinks, so cam/scsi,
-# netatm/*, and netgraph/* are taken care of
-LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi:Nnetatm/*:Nnetgraph/*}
+LSUBSUBDIRS=	netgraph/bluetooth/include
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -64,7 +58,7 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	. ${.CURDIR}/../sys/conf/newvers.sh;			\
 	echo "$$COPYRIGHT" > osreldate.h;			\
 	echo "#ifdef _KERNEL" >> osreldate.h;			\
-	echo '#error "/usr/include/osreldate.h cannot be used in the kernel, use sys/param.h"' >> osreldate.h; \
+	echo '#error "<osreldate.h> cannot be used in the kernel, use <sys/param.h>"' >> osreldate.h; \
 	echo "#else" >> osreldate.h;				\
 	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h; \
@@ -80,48 +74,82 @@ INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 INCSLINKS+=	posix4/$i ${INCLUDEDIR}/$i
 .endfor
 
-copies:
-.for i in ${LDIRS} ${LSYMSUBDIRS} machine crypto
-	if [ -L ${DESTDIR}/usr/include/$i ]; then \
-		rm -f ${DESTDIR}/usr/include/$i; \
+.include <bsd.prog.mk>
+
+installincludes: ${SHARED}
+${SHARED}: compat
+
+# Take care of stale directory-level symlinks.
+compat:
+.for i in ${LDIRS} ${LSUBDIRS} machine crypto
+	if [ -L ${DESTDIR}${INCLUDEDIR}/$i ]; then \
+		rm -f ${DESTDIR}${INCLUDEDIR}/$i; \
 	fi
 .endfor
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
-		-p ${DESTDIR}/usr/include
-.for i in ${LDIRS} ${LSUBDIRS}
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
+	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
+	    -p ${DESTDIR}${INCLUDEDIR}
+
+copies:
+.for i in ${LDIRS} ${LSUBDIRS} crypto machine machine/pc
+.if exists(${DESTDIR}${INCLUDEDIR}/$i)
+	cd ${DESTDIR}${INCLUDEDIR}/$i; \
+	for h in *.h; do \
+		if [ -L $$h ]; then rm -f $$h; fi; \
+	done
+.endif
+.endfor
+.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
-		${DESTDIR}/usr/include/$i
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
+	    ${DESTDIR}${INCLUDEDIR}/$i
 .endfor
 	cd ${.CURDIR}/../sys; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 opencrypto/*.h \
-		${DESTDIR}/usr/include/crypto
-.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 opencrypto/*.h \
+	    ${DESTDIR}${INCLUDEDIR}/crypto
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-		${DESTDIR}/usr/include/machine
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/machine
 .if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc)
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-		${DESTDIR}/usr/include/machine/pc
-.endif
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/machine/pc
 .endif
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS}
-	rm -rf ${DESTDIR}/usr/include/$i
-	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
+	cd ${.CURDIR}/../sys/$i; \
+	for h in *.h; do \
+		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+	done
 .endfor
-	rm -rf ${DESTDIR}/usr/include/crypto
-	ln -s ../../sys/opencrypto ${DESTDIR}/usr/include/crypto
-.for i in ${LSYMSUBDIRS}
-	rm -rf ${DESTDIR}/usr/include/$i
-	ln -s ../../../sys/$i ${DESTDIR}/usr/include/$i
+.for i in ${LSUBDIRS}
+	cd ${.CURDIR}/../sys/$i; \
+	for h in *.h; do \
+		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+	done
 .endfor
-	rm -rf ${DESTDIR}/usr/include/machine
-	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
-
-.include <bsd.prog.mk>
-
-installincludes: ${SHARED}
+.for i in ${LSUBSUBDIRS}
+	cd ${.CURDIR}/../sys/$i; \
+	for h in *.h; do \
+		ln -fs ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+	done
+.endfor
+	cd ${.CURDIR}/../sys/opencrypto; \
+	for h in *.h; do \
+		ln -fs ../../../sys/opencrypto/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/crypto; \
+	done
+	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
+	for h in *.h; do \
+		ln -fs ../../../sys/${MACHINE_ARCH}/include/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/machine; \
+	done
+.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc)
+	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc; \
+	for h in *.h; do \
+		ln -fs ../../../../sys/${MACHINE_ARCH}/include/pc/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/machine/pc; \
+	done
+.endif
