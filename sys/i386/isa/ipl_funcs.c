@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.25 1999/07/12 07:22:08 phk Exp $
+ *	$Id: ipl_funcs.c,v 1.26 1999/07/17 18:34:32 alc Exp $
  */
 
 #include <sys/types.h>
@@ -44,16 +44,7 @@ void name(void)					\
 	setbits(var, bits);			\
 }
 
-#ifndef SMP
 DO_SETBITS(setdelayed,   &ipending, loadandclear(&idelayed))
-#else /* !SMP */
-void setdelayed(void)
-{
-	IFCPL_LOCK();
-	setbits(&ipending, loadandclear(&idelayed));
-	IFCPL_UNLOCK();
-}
-#endif /* !SMP */
 
 DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
 DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
