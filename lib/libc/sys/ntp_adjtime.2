@@ -114,7 +114,10 @@ will fill the
 .Fa tp
 argument with the current clock state.
 .Sh RETURN VALUES
-.Rv -std ntp_adjtime
+Upon successful completion the clock state is returned.
+Otherwise a -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
 .Pp
 Possible states of the clock are:
 .Pp
