@@ -606,7 +606,7 @@ Return 1 if @var{c} is a lowercase alphabetic character.
 
 @deftypefun int digit_p (int c)
 Return 1 if @var{c} is a numeric character.
-@deftypefun
+@end deftypefun
 
 @deftypefun int to_upper (int c)
 If @var{c} is a lowercase alphabetic character, return the corresponding
