@@ -357,12 +357,6 @@ rulespec_intok(struct devfs_rule *dr, int ac __unused, char **av,
 				warnx("pattern specified too long; truncated");
 			dr->dr_icond |= DRC_PATHPTRN;
 			av += 2;
-		} else if (strcmp(av[0], "major") == 0) {
-			if (av[1] == NULL)
-				errx(1, "expecting argument for major");
-			dr->dr_major = eatoi(av[1]);
-			dr->dr_icond |= DRC_MAJOR;
-			av += 2;
 		} else
 			break;
 	}
@@ -438,8 +432,6 @@ rulespec_outfp(FILE *fp, struct devfs_rule *dr)
 				fprintf(fp, " type %s", is->s);
 	if (dr->dr_icond & DRC_PATHPTRN)
 		fprintf(fp, " path %s", dr->dr_pathptrn);
-	if (dr->dr_icond & DRC_MAJOR)
-		fprintf(fp, " major %d", dr->dr_major);
 
 	if (dr->dr_iacts & DRA_BACTS) {
 		if (dr->dr_bacts & DRB_HIDE)
