@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_break.c,v 1.13 1997/02/22 09:28:20 peter Exp $
  */
 
 /*
@@ -34,13 +34,11 @@
  * Breakpoints.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
 #include <ddb/ddb.h>
-#include <ddb/db_lex.h>
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_lex.c,v 1.13 1997/02/22 09:28:25 peter Exp $
  */
 
 /*
@@ -34,7 +34,6 @@
  * Lexical analyzer.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trap.c,v 1.11 1997/02/22 09:28:31 peter Exp $
+ *	$Id: db_trap.c,v 1.12 1997/03/28 12:39:43 bde Exp $
  */
 
 /*
@@ -35,13 +35,9 @@
  * Trap entry point to kernel debugger.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
-
-#include <vm/vm.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
-#include <ddb/db_break.h>
 
 #include <setjmp.h>
 
