@@ -29,8 +29,8 @@ Solution:	There are several possible solutions.  The first,
 
 		This will boot just past the memory sizing code and
 		then drop into a dynamic kernel configuration utility.
-		Type `?' at it to see a list of commands.  You can
-		use this utility to reset the IRQ, memory address,
+		Type `?' at the prompt to see a list of commands.  You
+		can use this utility to reset the IRQ, memory address,
 		IO address or a number of other device configuration
 		parameters.  You can also disable a device entirely
 		if it's causing problems for other devices you'd much

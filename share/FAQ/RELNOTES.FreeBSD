@@ -108,7 +108,7 @@ Loadable filesystems
 --------------------
 Most filesystems are now dynamically loadable on demand, with the
 exception of the UFS family (FFS, LFS, and MFS).  With the exception
-of NFS, all such filestystems can be unloaded when all references are
+of NFS, all such filesystems can be unloaded when all references are
 unmounted.  To support this functionality, the getvfsbyname(3)
 family of functions has been added to the C library and the lsvfs(1)
 command provides the same information at the shell level.  Be aware of
@@ -185,10 +185,12 @@ Sources involved:	kern/imgact_gzip.c kern/inflate.c
 
 Diskless booting
 ----------------
-Diskless booting in 2.0 and much improved since 1.1.5.  The boot-program
-is in src/sys/i386/boot/netboot, and can be run from an MSDOS system or 
-burned into an EPROM.  Local swapping is possible.  Presently WD, SMC and
-Novell cards are supported.
+
+Diskless booting in 2.0 is much improved since 1.1.5.  The
+boot-program is in src/sys/i386/boot/netboot, and can be run from an
+MSDOS system or burned into an EPROM.  Local swapping is also
+possible.  WD, SMC, 3COM and Novell ethernet cards are currently
+supported.
 
 Owner:			Martin Renters & phk
 Sources involved:	i386/boot/netboot, sys/nfs/nfs_vfsops.h
@@ -232,7 +234,7 @@ iBCS2 support
 FreeBSD now supports running iBCS2 compatible binaries (currently
 SCO UNIX 3.2.2 & 3.2.4 and ISC 2.2 COFF format are supported).
 The iBCS2 emulator is in its early stages, but it is functional, we
-havn't been able to do exhaustive testing (lack of commercial apps),
+haven't been able to do exhaustive testing (lack of commercial apps),
 but almost all of SCO's 3.2.2 binaries are working, so is an old
 INFORMIX-2.10 for SCO. Further testing is nessesary to complete this
 project. There is also work under way for ELF & XOUT loaders, and
@@ -278,19 +280,20 @@ NCR 53C810 PCI SCSI controller.
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
-Ultra Store 14F, 24F and 34F SCSI controllers.
+UltraStor 14F, 24F and 34F SCSI controllers.
 
 Seagate ST01/02 SCSI controllers.
 
 Future Domain 8xx/950 series SCSI controllers.
 
-With all supported SCSI controllers, full support is provided for SCSI-I
-& SCSI-II peripherals, including Disks, tape drives (including DAT) and
-CD ROM drives.  Note: This and the mcd driver (Mitsumi CDROM interface
-card) is the only way a CD ROM drive may be currently attached to a
-FreeBSD system; we do not support SoundBlaster (non-SCSI) CDROM
-interface, or other "non-SCSI" adapters.  The ProAudio Spectrum SCSI and
-SoundBlaster SCSI controllers are supported.
+With all supported SCSI controllers, full support is provided for
+SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
+DAT) and CD ROM drives.  Note: This and the mcd driver (Mitsumi CDROM
+interface card) are the only way a CD ROM drive may be currently
+attached to a FreeBSD system; we do not support SoundBlaster
+(non-SCSI) CDROM interface, or other "non-SCSI" adapters.  The
+ProAudio Spectrum SCSI and SoundBlaster SCSI controllers are
+supported.
 
 Some controllers have limitations with the way they deal with >16MB of
 memory, due to the fact that the ISA bus only has a DMA address space of
@@ -383,7 +386,7 @@ FreeBSD 2.0 may be ordered on CDROM from:
 	Concord CA  94520
 	1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
 
-Or via the internet from orders@cdrom.com.  There current catalog can
+Or via the internet from orders@cdrom.com.  Their current catalog can
 be obtained via ftp as ftp.cdrom.com:/cdrom/catalog.
 
 Cost is $39.95.  Shipping (per order not per disc) is $5 in the US, Canada,
@@ -511,4 +514,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.11 1994/11/13 21:17:38 nate Exp $
+$Id: RELNOTES.FreeBSD,v 1.12 1994/11/14 23:52:42 jkh Exp $
