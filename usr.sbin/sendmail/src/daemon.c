@@ -37,28 +37,29 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.148 (Berkeley) 11/8/96 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.156 (Berkeley) 12/1/96 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.148 (Berkeley) 11/8/96 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.156 (Berkeley) 12/1/96 (without daemon mode)";
 #endif
 #endif /* not lint */
 
-#ifdef DAEMON
-
+#if DAEMON || defined(SOCK_STREAM)
 # include <arpa/inet.h>
-
-#if NAMED_BIND
-# include <resolv.h>
-# ifndef NO_DATA
-#  define NO_DATA	NO_ADDRESS
+# if NAMED_BIND
+#  include <resolv.h>
+#  ifndef NO_DATA
+#   define NO_DATA	NO_ADDRESS
+#  endif
 # endif
 #endif
 
-#if IP_SRCROUTE
-# include <netinet/in_systm.h>
-# include <netinet/ip.h>
-# include <netinet/ip_var.h>
-#endif
+#if DAEMON
+
+# if IP_SRCROUTE
+#  include <netinet/in_systm.h>
+#  include <netinet/ip.h>
+#  include <netinet/ip_var.h>
+# endif
 
 /*
 **  DAEMON.C -- routines to use when running as a daemon.
@@ -195,10 +196,13 @@ getrequests(e)
 	{
 		register pid_t pid;
 		auto int lotherend;
+		int savederrno;
+		int pipefd[2];
 		extern bool refuseconnections();
 		extern int getla();
 
 		/* see if we are rejecting connections */
+		(void) blocksignal(SIGALRM);
 		if (refuseconnections(ntohs(DaemonAddr.sin.sin_port)))
 		{
 			if (DaemonSocket >= 0)
@@ -254,6 +258,7 @@ getrequests(e)
 		if (SetNonBlocking(DaemonSocket, FALSE) < 0)
 			log an error here;
 #endif
+		(void) releasesignal(SIGALRM);
 		do
 		{
 			errno = 0;
@@ -261,8 +266,11 @@ getrequests(e)
 			t = accept(DaemonSocket,
 			    (struct sockaddr *)&RealHostAddr, &lotherend);
 		} while (t < 0 && errno == EINTR);
+		savederrno = errno;
+		(void) blocksignal(SIGALRM);
 		if (t < 0)
 		{
+			errno = savederrno;
 			syserr("getrequests: accept");
 
 			/* arrange to re-open the socket next time around */
@@ -280,10 +288,26 @@ getrequests(e)
 		if (tTd(15, 2))
 			printf("getrequests: forking (fd = %d)\n", t);
 
+		/*
+		**  Create a pipe to keep the child from writing to the
+		**  socket until after the parent has closed it.  Otherwise
+		**  the parent may hang if the child has closed it first.
+		*/
+
+		if (pipe(pipefd) < 0)
+			pipefd[0] = pipefd[1] = -1;
+
+		blocksignal(SIGCHLD);
 		pid = fork();
 		if (pid < 0)
 		{
 			syserr("daemon: cannot fork");
+			if (pipefd[0] != -1)
+			{
+				(void) close(pipefd[0]);
+				(void) close(pipefd[1]);
+			}
+			(void) releasesignal(SIGCHLD);
 			sleep(10);
 			(void) close(t);
 			continue;
@@ -302,12 +326,40 @@ getrequests(e)
 			**	Verify calling user id if possible here.
 			*/
 
+			(void) releasesignal(SIGALRM);
+			(void) releasesignal(SIGCHLD);
 			(void) setsignal(SIGCHLD, SIG_DFL);
 			(void) setsignal(SIGHUP, intsig);
 			(void) close(DaemonSocket);
+			proc_list_clear();
+
+			/* don't schedule queue runs if we are told to ETRN */
+			QueueIntvl = 0;
 
 			setproctitle("startup with %s",
 				anynet_ntoa(&RealHostAddr));
+
+			if (pipefd[0] != -1)
+			{
+				auto char c;
+
+				/*
+				**  Wait for the parent to close the write end
+				**  of the pipe, which we will see as an EOF.
+				**  This guarantees that we won't write to the
+				**  socket until after the parent has closed
+				**  the pipe.
+				*/
+
+				/* close the write end of the pipe */
+				(void) close(pipefd[1]);
+
+				/* we shouldn't be interrupted, but ... */
+				while (read(pipefd[0], &c, 1) < 0 &&
+				       errno == EINTR)
+					continue;
+				(void) close(pipefd[0]);
+			}
 
 			/* determine host name */
 			p = hostnamebyanyaddr(&RealHostAddr);
@@ -350,9 +402,18 @@ getrequests(e)
 
 		/* parent -- keep track of children */
 		proc_list_add(pid);
+		(void) releasesignal(SIGCHLD);
+
+		/* close the read end of the synchronization pipe */
+		if (pipefd[0] != -1)
+			(void) close(pipefd[0]);
 
 		/* close the port so that others will hang (for a while) */
 		(void) close(t);
+
+		/* release the child by closing the read end of the sync pipe */
+		if (pipefd[1] != -1)
+			(void) close(pipefd[1]);
 	}
 	if (tTd(15, 2))
 		printf("getreq: returning (null server)\n");
@@ -585,7 +646,9 @@ setdaemonoptions(p)
 		  case 'P':		/* port */
 			switch (DaemonAddr.sa.sa_family)
 			{
+#if NETISO
 				short port;
+#endif
 
 #if NETINET
 			  case AF_INET:
@@ -683,14 +746,14 @@ makeconnection(host, port, mci, e)
 	register MCI *mci;
 	ENVELOPE *e;
 {
-	register int i = 0;
-	register int s;
-	register struct hostent *hp = (struct hostent *)NULL;
+	register volatile int i = 0;
+	register volatile int s;
+	register struct hostent *volatile hp = (struct hostent *)NULL;
 	SOCKADDR addr;
 	int sav_errno;
-	int addrlen;
-	bool firstconnect;
-	EVENT *ev;
+	volatile int addrlen;
+	volatile bool firstconnect;
+	EVENT *volatile ev = NULL;
 
 	/*
 	**  Set up the address for the mailer.
@@ -1109,7 +1172,7 @@ getauthinfo(fd)
 	int fd;
 {
 	int falen;
-	register char *p;
+	register char *volatile p = NULL;
 	SOCKADDR la;
 	int lalen;
 	register struct servent *sp;
@@ -1545,6 +1608,94 @@ host_map_lookup(map, name, av, statp)
 	s->s_namecanon.nc_cname = newstr(cp);
 	return cp;
 }
+
+# else /* DAEMON */
+/* code for systems without sophisticated networking */
+
+/*
+**  MYHOSTNAME -- stub version for case of no daemon code.
+**
+**	Can't convert to upper case here because might be a UUCP name.
+**
+**	Mark, you can change this to be anything you want......
+*/
+
+char **
+myhostname(hostbuf, size)
+	char hostbuf[];
+	int size;
+{
+	register FILE *f;
+
+	hostbuf[0] = '\0';
+	f = fopen("/usr/include/whoami", "r");
+	if (f != NULL)
+	{
+		(void) fgets(hostbuf, size, f);
+		fixcrlf(hostbuf, TRUE);
+		(void) fclose(f);
+	}
+	return (NULL);
+}
+/*
+**  GETAUTHINFO -- get the real host name asociated with a file descriptor
+**
+**	Parameters:
+**		fd -- the descriptor
+**
+**	Returns:
+**		The host name associated with this descriptor, if it can
+**			be determined.
+**		NULL otherwise.
+**
+**	Side Effects:
+**		none
+*/
+
+char *
+getauthinfo(fd)
+	int fd;
+{
+	return NULL;
+}
+/*
+**  MAPHOSTNAME -- turn a hostname into canonical form
+**
+**	Parameters:
+**		map -- a pointer to the database map.
+**		name -- a buffer containing a hostname.
+**		avp -- a pointer to a (cf file defined) argument vector.
+**		statp -- an exit status (out parameter).
+**
+**	Returns:
+**		mapped host name
+**		FALSE otherwise.
+**
+**	Side Effects:
+**		Looks up the host specified in name.  If it is not
+**		the canonical name for that host, replace it with
+**		the canonical name.  If the name is unknown, or it
+**		is already the canonical name, leave it unchanged.
+*/
+
+/*ARGSUSED*/
+char *
+host_map_lookup(map, name, avp, statp)
+	MAP *map;
+	char *name;
+	char **avp;
+	char *statp;
+{
+	register struct hostent *hp;
+
+	hp = sm_gethostbyname(name);
+	if (hp != NULL)
+		return hp->h_name;
+	*statp = EX_NOHOST;
+	return NULL;
+}
+
+#endif /* DAEMON */
 /*
 **  ANYNET_NTOA -- convert a network address to printable form.
 **
@@ -1554,6 +1705,8 @@ host_map_lookup(map, name, av, statp)
 **	Returns:
 **		A printable version of that sockaddr.
 */
+
+#ifdef SOCK_STREAM
 
 #if NETLINK
 # include <net/if_dl.h>
@@ -1659,9 +1812,11 @@ hostnamebyanyaddr(sap)
 		break;
 #endif
 
+#if NETUNIX
 	  case AF_UNIX:
 		hp = NULL;
 		break;
+#endif
 
 	  default:
 		hp = sm_gethostbyaddr(sap->sa.sa_data,
@@ -1686,90 +1841,4 @@ hostnamebyanyaddr(sap)
 	}
 }
 
-# else /* DAEMON */
-/* code for systems without sophisticated networking */
-
-/*
-**  MYHOSTNAME -- stub version for case of no daemon code.
-**
-**	Can't convert to upper case here because might be a UUCP name.
-**
-**	Mark, you can change this to be anything you want......
-*/
-
-char **
-myhostname(hostbuf, size)
-	char hostbuf[];
-	int size;
-{
-	register FILE *f;
-
-	hostbuf[0] = '\0';
-	f = fopen("/usr/include/whoami", "r");
-	if (f != NULL)
-	{
-		(void) fgets(hostbuf, size, f);
-		fixcrlf(hostbuf, TRUE);
-		(void) fclose(f);
-	}
-	return (NULL);
-}
-/*
-**  GETAUTHINFO -- get the real host name asociated with a file descriptor
-**
-**	Parameters:
-**		fd -- the descriptor
-**
-**	Returns:
-**		The host name associated with this descriptor, if it can
-**			be determined.
-**		NULL otherwise.
-**
-**	Side Effects:
-**		none
-*/
-
-char *
-getauthinfo(fd)
-	int fd;
-{
-	return NULL;
-}
-/*
-**  MAPHOSTNAME -- turn a hostname into canonical form
-**
-**	Parameters:
-**		map -- a pointer to the database map.
-**		name -- a buffer containing a hostname.
-**		avp -- a pointer to a (cf file defined) argument vector.
-**		statp -- an exit status (out parameter).
-**
-**	Returns:
-**		mapped host name
-**		FALSE otherwise.
-**
-**	Side Effects:
-**		Looks up the host specified in name.  If it is not
-**		the canonical name for that host, replace it with
-**		the canonical name.  If the name is unknown, or it
-**		is already the canonical name, leave it unchanged.
-*/
-
-/*ARGSUSED*/
-char *
-host_map_lookup(map, name, avp, statp)
-	MAP *map;
-	char *name;
-	char **avp;
-	char *statp;
-{
-	register struct hostent *hp;
-
-	hp = sm_gethostbyname(name);
-	if (hp != NULL)
-		return hp->h_name;
-	*statp = EX_NOHOST;
-	return NULL;
-}
-
-#endif /* DAEMON */
+#endif /* SOCK_STREAM */

@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.135 (Berkeley) 10/26/96')
+VERSIONID(`@(#)proto.m4	8.136 (Berkeley) 11/24/96')
 
 MAILER(local)dnl
 
@@ -428,7 +428,7 @@ _OPTION(OperatorChars, `confOPERATORS')
 # shall I avoid calling initgroups(3) because of high NIS costs?
 _OPTION(DontInitGroups, `confDONT_INIT_GROUPS')
 
-# are group-writable :include: and .forward files (un)trustworthy?
+# are group-writable `:include:' and .forward files (un)trustworthy?
 _OPTION(UnsafeGroupWrites, `confUNSAFE_GROUP_WRITES')
 
 # where do errors that occur when sending errors get sent?
@@ -635,7 +635,7 @@ ifdef(`_USE_DECNET_SYNTAX_',
 R$+ @ $+ . DECNET	$2 :: $1			u@h.DECNET => h::u',
 	`dnl')
 # delete duplicate local names
-R$+ % $=w @ $=w		$1 @ $j				u%host@host => u@host
+R$+ % $=w @ $=w		$1 @ $2				u%host@host => u@host
 
 
 

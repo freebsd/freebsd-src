@@ -35,16 +35,16 @@
 # include "sendmail.h"
 
 #ifndef lint
-#ifdef SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.125 (Berkeley) 11/8/96 (with SMTP)";
+#if SMTP
+static char sccsid[] = "@(#)srvrsmtp.c	8.131 (Berkeley) 12/1/96 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.125 (Berkeley) 11/8/96 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.131 (Berkeley) 12/1/96 (without SMTP)";
 #endif
 #endif /* not lint */
 
 # include <errno.h>
 
-# ifdef SMTP
+# if SMTP
 
 /*
 **  SMTP -- run the SMTP protocol.
@@ -128,7 +128,7 @@ smtp(nullserver, e)
 	bool nullserver;
 	register ENVELOPE *volatile e;
 {
-	register char *p;
+	register char *volatile p;
 	register struct cmd *c;
 	char *cmd;
 	auto ADDRESS *vrfyqueue;
@@ -146,6 +146,7 @@ smtp(nullserver, e)
 	volatile int badcommands = 0;	/* count of bad commands */
 	volatile int nverifies = 0;	/* count of VRFY/EXPN commands */
 	volatile int n_etrn = 0;	/* count of ETRN commands */
+	bool ok;
 	char inp[MAXLINE];
 	char cmdbuf[MAXLINE];
 	extern ENVELOPE BlankEnvelope;
@@ -169,7 +170,7 @@ smtp(nullserver, e)
 		CurSmtpClient = CurHostName;
 
 	setproctitle("server %s startup", CurSmtpClient);
-#ifdef LOG
+#if defined(LOG) && DAEMON
 	if (LogLevel > 11)
 	{
 		/* log connection information */
@@ -880,9 +881,10 @@ smtp(nullserver, e)
 					shortenstring(id, 203));
 #endif
 			QueueLimitRecipient = id;
-			runqueue(TRUE);
+			ok = runqueue(TRUE, TRUE);
 			QueueLimitRecipient = NULL;
-			message("250 Queuing for node %s started", p);
+			if (ok)
+				message("250 Queuing for node %s started", p);
 			break;
 
 		  case CMDHELP:		/* help -- give user info */
@@ -929,7 +931,7 @@ doquit:
 			message("250 Initial submission");
 			break;
 
-# ifdef SMTPDEBUG
+# if SMTPDEBUG
 		  case CMDDBGQSHOW:	/* show queues */
 			printf("Send Queue=");
 			printaddr(e->e_sendqueue, TRUE);
@@ -1271,23 +1273,21 @@ runinchild(label, e)
 	register ENVELOPE *e;
 {
 	pid_t childpid;
-	sigfunc_t chldsig;
 
 	if (!OneXact)
 	{
 		/*
 		**  Disable child process reaping, in case ETRN has preceeded
-		**  MAIL command.
+		**  MAIL command, and then fork.
 		*/
 
-#ifdef SIGCHLD
-		chldsig = setsignal(SIGCHLD, SIG_IGN);
-#endif
+		(void) blocksignal(SIGCHLD);
 
 		childpid = dofork();
 		if (childpid < 0)
 		{
 			syserr("451 %s: cannot fork", label);
+			(void) releasesignal(SIGCHLD);
 			return (1);
 		}
 		if (childpid > 0)
@@ -1310,10 +1310,8 @@ runinchild(label, e)
 				finis();
 			}
 
-#ifdef SIGCHLD
 			/* restore the child signal */
-			(void) setsignal(SIGCHLD, chldsig);
-#endif
+			(void) releasesignal(SIGCHLD);
 
 			return (1);
 		}
@@ -1323,6 +1321,8 @@ runinchild(label, e)
 			InChild = TRUE;
 			QuickAbort = FALSE;
 			clearenvelope(e, FALSE);
+			(void) setsignal(SIGCHLD, SIG_DFL);
+			(void) releasesignal(SIGCHLD);
 		}
 	}
 

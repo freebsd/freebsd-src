@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.114 (Berkeley) 9/20/96";
+static char sccsid[] = "@(#)parseaddr.c	8.115 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1045,7 +1045,7 @@ rewrite(pvp, ruleset, reclevel, e)
 					pp = m->first;
 					while (pp <= m->last)
 					{
-						printf(" %x=\"", *pp);
+						printf(" %lx=\"", (u_long) *pp);
 						(void) fflush(stdout);
 						printf("%s\"", *pp++);
 					}
@@ -1873,7 +1873,7 @@ printaddr(a, follow)
 
 	while (a != NULL)
 	{
-		printf("%x=", a);
+		printf("%lx=", (u_long) a);
 		(void) fflush(stdout);
 
 		/* find the mailer -- carefully */
@@ -1892,8 +1892,9 @@ printaddr(a, follow)
 		printf("\tuser `%s', ruser `%s'\n",
 		       a->q_user,
 		       a->q_ruser == NULL ? "<null>" : a->q_ruser);
-		printf("\tnext=%x, alias %x, uid %d, gid %d\n",
-		       a->q_next, a->q_alias, a->q_uid, a->q_gid);
+		printf("\tnext=%lx, alias %lx, uid %d, gid %d\n",
+		       (u_long) a->q_next, (u_long) a->q_alias,
+		       (int) a->q_uid, (int) a->q_gid);
 		printf("\tflags=%lx<", a->q_flags);
 		firstone = TRUE;
 		for (qfp = AddressFlags; qfp->qf_name != NULL; qfp++)

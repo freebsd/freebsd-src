@@ -25,6 +25,7 @@ Solaris	2.1
 Solaris	2.2	FAIL	93.07.19  Bill Wisner
 Solaris	2.3	FAIL	95.11.22  Scott J. Kramer <sjk@lux.com>
 Solaris	2.5	OK	96.02.29  Carson Gaspar <carson@lehman.com>
+Solaris	2.5.1	OK	96.11.29  Gregory Neil Shapiro <gshapiro@wpi.edu>
 
 OSF/1	T1.3-4	OK	93.07.19  eric (on DEC Alpha)
 OSF/1	1.3	OK	94.12.10  Jeff A. Earickson (on Intel Paragon)
@@ -75,6 +76,7 @@ OPSYS	VERSION	STATUS	DATE	  TESTER/NOTES
 Solaris	2.3	OK	95.11.22  Scott J. Kramer <sjk@lux.com>
 Solaris	2.4	OK	95.09.22  Thomas 'Mike' Michlmayr <mike@cosy.sbg.ac.at>
 Solaris	2.5	OK	96.02.29  Carson Gaspar <carson@lehman.com>
+Solaris	2.5.1	OK	96.11.29  Gregory Neil Shapiro <gshapiro@wpi.edu>
 
 Linux	1.2.13	FAIL	95.11.02  Sven Neuhaus <sven@ping.de>
 Linux	2.0.17	FAIL	96.09.03  Horst von Brand <vonbrand@sleipnir.valparaiso.cl>
