@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: igmp.c,v 3.6 1995/06/25 18:52:55 fenner Exp $
  */
 
 
@@ -17,8 +17,8 @@
 /*
  * Exported variables.
  */
-char		*recv_buf; /* input packet buffer         */
-char		*send_buf; /* output packet buffer        */
+char		*recv_buf; 		     /* input packet buffer         */
+char		*send_buf; 		     /* output packet buffer        */
 int		igmp_socket;		     /* socket for all network I/O  */
 u_int32		allhosts_group;		     /* All hosts addr in net order */
 u_int32		allrtrs_group;		     /* All-Routers "  in net order */
@@ -26,10 +26,18 @@ u_int32		dvmrp_group;		     /* DVMRP grp addr in net order */
 u_int32		dvmrp_genid;		     /* IGMP generation id          */
 
 /*
+ * Local function definitions.
+ */
+/* u_char promoted to u_int */
+static char *	packet_kind __P((u_int type, u_int code));
+static int	igmp_log_level __P((u_int type, u_int code));
+
+/*
  * Open and initialize the igmp socket, and fill in the non-changing
  * IP header fields in the output packet buffer.
  */
-void init_igmp()
+void
+init_igmp()
 {
     struct ip *ip;
 
@@ -66,8 +74,9 @@ void init_igmp()
 #define PIM_GRAFT        6
 #define PIM_GRAFT_ACK    7
 
-static char *packet_kind(type, code)
-     u_char type, code;
+static char *
+packet_kind(type, code)
+     u_int type, code;
 {
     switch (type) {
 	case IGMP_HOST_MEMBERSHIP_QUERY:	return "membership query  ";
@@ -109,7 +118,8 @@ static char *packet_kind(type, code)
  * Process a newly received IGMP packet that is sitting in the input
  * packet buffer.
  */
-void accept_igmp(recvlen)
+void
+accept_igmp(recvlen)
     int recvlen;
 {
     register u_int32 src, dst, group;
@@ -201,12 +211,12 @@ void accept_igmp(recvlen)
 		    return;
 
 		case DVMRP_NEIGHBORS:
-		    accept_neighbors(src, dst, (char *)(igmp+1), igmpdatalen,
+		    accept_neighbors(src, dst, (u_char *)(igmp+1), igmpdatalen,
 					     group);
 		    return;
 
 		case DVMRP_NEIGHBORS2:
-		    accept_neighbors2(src, dst, (char *)(igmp+1), igmpdatalen,
+		    accept_neighbors2(src, dst, (u_char *)(igmp+1), igmpdatalen,
 					     group);
 		    return;
 
@@ -250,6 +260,29 @@ void accept_igmp(recvlen)
     }
 }
 
+/*
+ * Some IGMP messages are more important than others.  This routine
+ * determines the logging level at which to log a send error (often
+ * "No route to host").  This is important when there is asymmetric
+ * reachability and someone is trying to, i.e., mrinfo me periodically.
+ */
+static int
+igmp_log_level(type, code)
+    u_int type, code;
+{
+    switch (type) {
+	case IGMP_MTRACE_RESP:
+	    return LOG_INFO;
+
+	case IGMP_DVMRP:
+	  switch (code) {
+	    case DVMRP_NEIGHBORS:
+	    case DVMRP_NEIGHBORS2:
+		return LOG_INFO;
+	  }
+    }
+    return LOG_WARNING;
+}
 
 /*
  * Construct an IGMP message in the output packet buffer.  The caller may
@@ -294,7 +327,7 @@ send_igmp(src, dst, type, code, group, datalen)
 	if (errno == ENETDOWN)
 	    check_vif_state();
 	else
-	    log(LOG_WARNING, errno,
+	    log(igmp_log_level(type, code), errno,
 		"sendto to %s on %s",
 		inet_fmt(dst, s1), inet_fmt(src, s2));
     }

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.h,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: vif.h,v 3.6 1995/06/25 19:53:22 fenner Exp $
  */
 
 /*
@@ -44,8 +44,9 @@ struct uvif {
 
 struct phaddr {
     struct phaddr   *pa_next;
-    u_long	     pa_addr;
-    u_long	     pa_mask;
+    u_int32	     pa_subnet;		/* extra subnet			*/
+    u_int32	     pa_subnetmask;	/* netmask of extra subnet	*/
+    u_int32	     pa_subnetbcast;	/* broadcast of extra subnet	*/
 };
 
 struct vif_acl {

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.h,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: route.h,v 3.6 1995/06/25 19:21:05 fenner Exp $
  */
 
 /*
@@ -38,8 +38,8 @@ struct rtentry {
     vifbitmap_t	     rt_leaves;		/* subset of outgoing children vifs */
     u_int32	    *rt_dominants;      /* per vif dominant gateways        */
     u_int32	    *rt_subordinates;   /* per vif subordinate gateways     */
-    u_long	    *rt_leaf_timers;	/* per vif leaf confirmation timers */
-    u_long	     rt_timer;		/* for timing out the route entry   */
+    u_int	    *rt_leaf_timers;	/* per vif leaf confirmation timers */
+    u_int	     rt_timer;		/* for timing out the route entry   */
     struct rtentry  *rt_prev;		/* link to previous entry           */
     struct gtable   *rt_groups;		/* link to active groups 	    */
 };

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: kern.c,v 3.6 1995/06/25 18:57:38 fenner Exp $
  */
 
 
@@ -158,7 +158,7 @@ void k_del_vif(vifi)
  * Adds a (source, mcastgrp) entry to the kernel
  */
 void k_add_rg(origin, g)
-    u_long origin;
+    u_int32 origin;
     struct gtable *g;
 {
     struct mfcctl mc;
@@ -185,11 +185,11 @@ void k_add_rg(origin, g)
  * Deletes a (source, mcastgrp) entry from the kernel
  */
 int k_del_rg(origin, g)
-    u_long origin;
+    u_int32 origin;
     struct gtable *g;
 {
     struct mfcctl mc;
-    int retval, i;
+    int retval;
 
     /* copy table values so that setsockopt can process it */
     mc.mfcc_origin.s_addr = origin;

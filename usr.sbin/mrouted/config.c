@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: config.c,v 3.6 1995/06/25 18:50:37 fenner Exp $
  */
 
 
@@ -18,7 +18,8 @@
  * Query the kernel to find network interfaces that are multicast-capable
  * and install them in the uvifs array.
  */
-void config_vifs_from_kernel()
+void
+config_vifs_from_kernel()
 {
     struct ifreq ifbuf[32];
     struct ifreq *ifrp, *ifend;
