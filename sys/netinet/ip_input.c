@@ -280,7 +280,7 @@ ip_input(struct mbuf *m)
 #ifdef IPDIVERT
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 #endif
-	struct ip_fw_chain *rule = NULL;
+	struct ip_fw *rule = NULL;
 #ifdef PFIL_HOOKS
 	struct packet_filter_hook *pfh;
 	struct mbuf *m0;
@@ -302,7 +302,7 @@ ip_input(struct mbuf *m)
          * rule.
          */
         if (m->m_type == MT_DUMMYNET) {
-            rule = (struct ip_fw_chain *)(m->m_data) ;
+            rule = (struct ip_fw *)(m->m_data) ;
             m = m->m_next ;
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2;

@@ -343,14 +343,14 @@ struct dn_pipe {			/* a pipe */
 
 MALLOC_DECLARE(M_IPFW);
 
-typedef int ip_dn_ctl_t __P((struct sockopt *)) ;
+typedef int ip_dn_ctl_t (struct sockopt *) ;
 extern ip_dn_ctl_t *ip_dn_ctl_ptr;
 
 void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
 	struct mbuf *m, struct ifnet *ifp, struct route *ro,
 	struct sockaddr_in * dst,
-	struct ip_fw_chain *rule, int flags);
+	struct ip_fw *rule, int flags);
 #endif
 
 #endif /* _IP_DUMMYNET_H */
