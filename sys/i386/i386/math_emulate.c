@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.7 1994/01/29 22:07:16 nate Exp $
+ *	$Id: math_emulate.c,v 1.9 1994/05/25 08:54:14 rgrimes Exp $
  */
 
 /*
@@ -108,7 +108,7 @@ math_emulate(struct trapframe * info)
 	switch (code) {
 		case 0x1d0: /* fnop */
 			return(0);
-		case 0x1d1: case 0x1d2: case 0x1d3:
+		case 0x1d1: case 0x1d2: case 0x1d3:  /* fst to 32-bit mem */
 		case 0x1d4: case 0x1d5: case 0x1d6: case 0x1d7:
 			math_abort(info,SIGILL);
 		case 0x1e0: /* fchs */
@@ -119,13 +119,13 @@ math_emulate(struct trapframe * info)
 			return(0);
 		case 0x1e2: case 0x1e3:
 			math_abort(info,SIGILL);
-		case 0x1e4: /* fxtract */
-			ftst(PST(0));   /* ?????? */
+		case 0x1e4: /* ftst */
+			ftst(PST(0));
 			return(0);
 		case 0x1e5: /* fxam */
 			printf("fxam not implemented\n\r");
 			math_abort(info,SIGILL);
-		case 0x1e6: case 0x1e7:
+		case 0x1e6: case 0x1e7: /* fldenv */
 			math_abort(info,SIGILL);
 		case 0x1e8: /* fld1 */
 			fpush();
@@ -157,10 +157,20 @@ math_emulate(struct trapframe * info)
 			return(0);
 		case 0x1ef:
 			math_abort(info,SIGILL);
-		case 0x1f0: case 0x1f1: case 0x1f2: case 0x1f3:
-		case 0x1f4: case 0x1f5: case 0x1f6: case 0x1f7:
-		case 0x1f8: case 0x1f9: case 0x1fa: case 0x1fb:
-		case 0x1fe: case 0x1ff:
+		case 0x1f0: /* f2xm1 */
+		case 0x1f1: /* fyl2x */
+		case 0x1f2: /* fptan */
+		case 0x1f3: /* fpatan */
+		case 0x1f4: /* fxtract */
+		case 0x1f5: /* fprem1 */
+		case 0x1f6: /* fdecstp */
+		case 0x1f7: /* fincstp */
+		case 0x1f8: /* fprem */
+		case 0x1f9: /* fyl2xp1 */
+		case 0x1fa: /* fsqrt */
+		case 0x1fb: /* fsincos */
+		case 0x1fe: /* fsin */
+		case 0x1ff: /* fcos */
 			uprintf(
 			 "math_emulate: instruction %04x not implemented\n",
 			  code + 0xd800);
