@@ -72,6 +72,11 @@
 #define _NETINET6_IP6PROTOSW_H_
 
 /*
+ * For pfil_head structure.
+ */
+#include <net/pfil.h>
+
+/*
  * Protocol switch table for IPv6.
  * All other definitions should refer to sys/protosw.h
  */
@@ -126,6 +131,7 @@ struct ip6protosw {
 	void	(*pr_drain)		/* flush any excess space possible */
 			__P((void));
 	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
+	struct	pfil_head	pr_pfh;
 };
 
 #endif /* !_NETINET6_IP6PROTOSW_H_ */
