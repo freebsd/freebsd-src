@@ -115,7 +115,7 @@ _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	if (n == 0 || (size_t)(len = _gbk_check(*s)) > n)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
-	if (n == 2 && s[1] == '\0') {
+	if (len == 2 && s[1] == '\0') {
 		errno = EILSEQ;
 		return ((size_t)-1);
 	}
