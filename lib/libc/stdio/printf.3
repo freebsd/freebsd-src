@@ -74,9 +74,11 @@ The
 family of functions produces output according to a
 .Fa format
 as described below.
-.Fn Printf
+The
+.Fn printf
 and
 .Fn vprintf
+functions
 write output to
 .Dv stdout ,
 the standard output stream;
@@ -120,9 +122,11 @@ were unlimited
 (again, not including the final
 .Ql \e0 ) .
 .Pp
-.Fn Asprintf
+The
+.Fn asprintf
 and
 .Fn vasprintf
+functions
 set
 .Fa *ret
 to be a pointer to a buffer sufficiently large to hold the formatted string.
@@ -139,9 +143,11 @@ to be a
 .Dv NULL
 pointer.
 .Pp
-.Fn Snprintf
+The
+.Fn snprintf
 and
 .Fn vsnprintf
+functions
 will write at most
 .Fa size Ns \-1
 of the characters printed into the output string
@@ -155,9 +161,11 @@ argument, the string was too short
 and some of the printed characters were discarded.
 The output is always null-terminated.
 .Pp
-.Fn Sprintf
+The
+.Fn sprintf
 and
 .Fn vsprintf
+functions
 effectively assume an infinite
 .Fa size .
 .Pp

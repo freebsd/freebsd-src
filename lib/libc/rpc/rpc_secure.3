@@ -63,7 +63,9 @@ must be running for the
 .Tn DES
 authentication system to work.
 .Pp
-.Fn Authdes_create ,
+The
+.Fn authdes_create
+function,
 used on the client side, returns an authentication handle that
 will enable the use of the secure authentication system.
 The first parameter
@@ -110,7 +112,9 @@ generate a random
 key to be used for the encryption of credentials.
 If it is supplied, however, then it will be used instead.
 .Pp
-.Fn Authdes_getucred ,
+The
+.Fn authdes_getucred
+function,
 the second of the two
 .Tn DES
 authentication routines,
@@ -127,7 +131,9 @@ in that
 pulls its information from a cache, and does not have to do a
 Yellow Pages lookup every time it is called to get its information.
 .Pp
-.Fn Getnetname
+The
+.Fn getnetname
+function
 installs the unique, operating-system independent netname of
 the
 caller in the fixed-length array
@@ -138,7 +144,9 @@ if it succeeds and
 .Dv FALSE
 if it fails.
 .Pp
-.Fn Host2netname
+The
+.Fn host2netname
+function
 converts from a domain-specific hostname to an
 operating-system independent netname.
 Returns
@@ -149,7 +157,9 @@ if it fails.
 Inverse of
 .Fn netname2host .
 .Pp
-.Fn Key_decryptsession
+The
+.Fn key_decryptsession
+function
 is an interface to the keyserver daemon, which is associated
 with
 .Tn RPC Ns 's
@@ -167,7 +177,9 @@ and the
 .Tn RPC
 library are the main clients of these four routines.
 .Pp
-.Fn Key_decryptsession
+The
+.Fn key_decryptsession
+function
 takes a server netname and a
 .Tn DES
 key, and decrypts the key by
@@ -176,7 +188,9 @@ associated with the effective uid of the calling process.  It
 is the inverse of
 .Fn key_encryptsession .
 .Pp
-.Fn Key_encryptsession
+The
+.Fn key_encryptsession
+function
 is a keyserver interface routine.
 It
 takes a server netname and a des key, and encrypts
@@ -185,7 +199,9 @@ associated with the effective uid of the calling process.  It
 is the inverse of
 .Fn key_decryptsession .
 .Pp
-.Fn Key_gendes
+The
+.Fn key_gendes
+function
 is a keyserver interface routine.
 It
 is used to ask the keyserver for a secure conversation key.
@@ -196,14 +212,18 @@ because
 the common ways of choosing random numbers, such as using the
 current time, are very easy to guess.
 .Pp
-.Fn Key_setsecret
+The
+.Fn key_setsecret
+function
 is a keyserver interface routine.
 It is used to set the key for
 the effective
 .Fa uid
 of the calling process.
 .Pp
-.Fn Netname2host
+The
+.Fn netname2host
+function
 converts from an operating-system independent netname to a
 domain-specific hostname.
 Returns
@@ -213,7 +233,9 @@ if it succeeds and
 if it fails.  Inverse of
 .Fn host2netname .
 .Pp
-.Fn Netname2user
+The
+.Fn netname2user
+function
 converts from an operating-system independent netname to a
 domain-specific user ID.
 Returns
@@ -224,7 +246,9 @@ if it fails.
 Inverse of
 .Fn user2netname .
 .Pp
-.Fn User2netname
+The
+.Fn user2netname
+function
 converts from a domain-specific username to an operating-system
 independent netname.
 Returns

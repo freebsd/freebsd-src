@@ -48,14 +48,18 @@
 .Ft void
 .Fn sethostid "long hostid"
 .Sh DESCRIPTION
-.Fn Sethostid
+The
+.Fn sethostid
+function
 establishes a 32-bit identifier for the
 current processor that is intended to be unique among all
 UNIX systems in existence.  This is normally a DARPA Internet
 address for the local machine.  This call is allowed only to the
 super-user and is normally performed at boot time.
 .Pp
-.Fn Gethostid
+The
+.Fn gethostid
+function
 returns the 32-bit identifier for the current processor.
 .Pp
 This function has been deprecated.

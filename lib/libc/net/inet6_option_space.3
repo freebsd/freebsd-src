@@ -75,7 +75,9 @@ these functions are all in the
 header.
 .\"
 .Ss inet6_option_space
+The
 .Fn inet6_option_space
+function
 returns the number of bytes required to hold an option when it is stored as
 ancillary data, including the
 .Li cmsghdr
@@ -105,7 +107,9 @@ one option
 (appendix B of [RFC-2460]).
 .\"
 .Ss inet6_option_init
+The
 .Fn inet6_option_init
+function
 is called once per ancillary data object that will
 contain either Hop-by-Hop or Destination options.
 It returns
@@ -387,16 +391,20 @@ is not
 .Dv NULL .
 .\"
 .Sh DIAGNOSTICS
+The
 .Fn inet6_option_init
 and
 .Fn inet6_option_append
+functions
 return
 .Li 0
 on success or
 .Li -1
 on an error.
 .Pp
+The
 .Fn inet6_option_alloc
+function
 returns
 .Dv NULL
 on an error.

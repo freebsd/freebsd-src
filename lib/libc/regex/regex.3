@@ -72,7 +72,9 @@ regular expressions
 .Pq Do RE Dc Ns s ;
 see
 .Xr re_format 7 .
-.Fn Regcomp
+The
+.Fn regcomp
+function
 compiles an RE written as a string into an internal form,
 .Fn regexec
 matches that internal form against a string and reports results,
@@ -96,7 +98,9 @@ a type
 and a number of constants with names starting with
 .Dq Dv REG_ .
 .Pp
-.Fn Regcomp
+The
+.Fn regcomp
+function
 compiles the regular expression contained in the
 .Fa pattern
 string,
@@ -204,7 +208,9 @@ fails, it returns a non-zero error code;
 see
 .Sx DIAGNOSTICS .
 .Pp
-.Fn Regexec
+The
+.Fn regexec
+function
 matches the compiled RE pointed to by
 .Fa preg
 against the
@@ -390,7 +396,9 @@ the value of
 will not be changed by a successful
 .Fn regexec .
 .Pp
-.Fn Regerror
+The
+.Fn regerror
+function
 maps a non-zero
 .Fa errcode
 from either
@@ -413,11 +421,14 @@ it should have been the result from the most recent
 .Fn regcomp
 using that
 .Ft regex_t .
-.No ( Fn Regerror
+The
+.Fn ( regerror
 may be able to supply a more detailed message using information
 from the
 .Ft regex_t . )
-.Fn Regerror
+The
+.Fn regerror
+function
 places the NUL-terminated message into the buffer pointed to by
 .Fa errbuf ,
 limiting the length (including the NUL) to at most
@@ -474,7 +485,9 @@ and should be used with
 caution in software intended to be portable to other systems.
 Be warned also that they are considered experimental and changes are possible.
 .Pp
-.Fn Regfree
+The
+.Fn regfree
+function
 frees any dynamically-allocated storage associated with the compiled RE
 pointed to by
 .Fa preg .
@@ -590,7 +603,9 @@ include the following:
 .Pp
 .Bl -tag -width REG_ECOLLATE -compact
 .It Dv REG_NOMATCH
+The
 .Fn regexec
+function
 failed to match
 .It Dv REG_BADPAT
 invalid regular expression
@@ -649,14 +664,18 @@ Please report problems.
 The back-reference code is subtle and doubts linger about its correctness
 in complex cases.
 .Pp
-.Fn Regexec
+The
+.Fn regexec
+function
 performance is poor.
 This will improve with later releases.
 .Fa Nmatch
 exceeding 0 is expensive;
 .Fa nmatch
 exceeding 1 is worse.
-.Fn Regexec
+The
+.Fn regexec
+function
 is largely insensitive to RE complexity
 .Em except
 that back
@@ -665,7 +684,9 @@ RE length does matter; in particular, there is a strong speed bonus
 for keeping RE length under about 30 characters,
 with most special characters counting roughly double.
 .Pp
-.Fn Regcomp
+The
+.Fn regcomp
+function
 implements bounded repetitions by macro expansion,
 which is costly in time and space if counts are large
 or bounded repetitions are nested.
