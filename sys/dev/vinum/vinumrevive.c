@@ -159,7 +159,7 @@ revive_block(int sdno)
 	    if (sd->revived >= sd->sectors) {		    /* finished */
 		sd->revived = 0;
 		set_sd_state(sdno, sd_up, setstate_force);  /* bring the sd up */
-		printf("vinum: %s is %s\n", sd->name, sd_state(sd->state));
+		log(LOG_INFO, "vinum: %s is %s\n", sd->name, sd_state(sd->state));
 		save_config();				    /* and save the updated configuration */
 		error = 0;				    /* we're done */
 	    }
@@ -169,7 +169,8 @@ revive_block(int sdno)
 	    struct request *rq = sd->waitlist;
 
 	    if (debug & DEBUG_REVIVECONFLICT)
-		printf("Relaunch revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+		log(LOG_DEBUG,
+		    "Relaunch revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 		    rq->sdno,
 		    (u_int) rq,
 		    rq->bp->b_flags & B_READ ? "Read" : "Write",
