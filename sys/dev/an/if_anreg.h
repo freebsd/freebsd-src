@@ -513,6 +513,7 @@ int	an_probe	(device_t);
 void	an_shutdown	(device_t);
 void	an_resume	(device_t);
 int	an_attach		(struct an_softc *, int, int);
+int	an_detach	(device_t);
 void    an_stop		(struct an_softc *);
 
 driver_intr_t	an_intr;
