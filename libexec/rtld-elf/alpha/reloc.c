@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996-1998 John D. Polstra.
+ * Copyright 1996, 1997, 1998, 1999 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: reloc.c,v 1.4 1999/04/09 00:28:43 jdp Exp $
+ *      $Id: reloc.c,v 1.3.2.2 1999/05/02 09:36:01 brian Exp $
  */
 
 /*
@@ -168,67 +168,185 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 int
 reloc_plt(Obj_Entry *obj, bool bind_now)
 {
+    /* All PLT relocations are the same kind: either Elf_Rel or Elf_Rela. */
+    if (obj->pltrelsize != 0) {
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
-	const Elf_Rela *relalim;
-	const Elf_Rela *rela;
 
-	/* Process the PLT relocations without addend if there are any. */
-	rellim = (const Elf_Rel *) ((caddr_t) obj->pltrel + obj->pltrelsize);
-	if (bind_now) {
-	    /* Fully resolve procedure addresses now */
-	    for (rel = obj->pltrel;  obj->pltrel != NULL && rel < rellim;
-		    rel++) {
-		Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rel->r_offset);
+	rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+	for (rel = obj->pltrel;  rel < rellim;  rel++) {
+	    Elf_Addr *where;
+
+	    assert(ELF_R_TYPE(rel->r_info) == R_ALPHA_JMP_SLOT);
+
+	    /* Relocate the GOT slot pointing into the PLT. */
+	    where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
+	    *where += (Elf_Addr)obj->relocbase;
+
+	    if (bind_now) {	/* Fully resolve the procedure address. */
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
-
-		assert(ELF_R_TYPE(rel->r_info) == R_ALPHA_JMP_SLOT);
 
 		def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
 		if (def == NULL)
-			return -1;
-
-		*where = (Elf_Addr) (defobj->relocbase + def->st_value);
-	    }
-	} else {	/* Just relocate the GOT slots pointing into the PLT */
-	    for (rel = obj->pltrel; obj->pltrel != NULL && rel < rellim;
-		rel++) {
-		Elf_Addr *where = (Elf_Addr *)
-		  (obj->relocbase + rel->r_offset);
-		*where += (Elf_Addr) obj->relocbase;
+		    return -1;
+		reloc_jmpslot(where,
+		  (Elf_Addr)(defobj->relocbase + def->st_value));
 	    }
 	}
+    } else {
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
 
-	/* Process the PLT relocations with addend if there are any. */
-	relalim = (const Elf_Rela *) ((caddr_t) obj->pltrela +
-	    obj->pltrelasize);
-	if (bind_now) {
-	    /* Fully resolve procedure addresses now */
-	    for (rela = obj->pltrela;  obj->pltrela != NULL && rela < relalim;
-		rela++) {
-		Elf_Addr *where = (Elf_Addr *) (obj->relocbase +
-		    rela->r_offset);
+	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
+	for (rela = obj->pltrela;  rela < relalim;  rela++) {
+	    Elf_Addr *where;
+
+	    assert(ELF_R_TYPE(rela->r_info) == R_ALPHA_JMP_SLOT);
+
+	    /* Relocate the GOT slot pointing into the PLT. */
+	    where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+	    *where += (Elf_Addr)obj->relocbase;
+
+	    if (bind_now) {	/* Fully resolve the procedure address. */
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
 
-		assert(ELF_R_TYPE(rela->r_info) == R_ALPHA_JMP_SLOT);
-
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true);
 		if (def == NULL)
-			return -1;
-
-		*where = (Elf_Addr) (defobj->relocbase + def->st_value);
-	    }
-	} else {	/* Just relocate the GOT slots pointing into the PLT */
-	    for (rela = obj->pltrela;  obj->pltrela != NULL && rela < relalim;
-		rela++) {
-		Elf_Addr *where = (Elf_Addr *)
-		  (obj->relocbase + rela->r_offset);
-		*where += (Elf_Addr) obj->relocbase;
+		    return -1;
+		reloc_jmpslot(where,
+		  (Elf_Addr)(defobj->relocbase + def->st_value));
 	    }
 	}
+    }
     return 0;
+}
+
+/* Fixup the jump slot at "where" to transfer control to "target". */
+void
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target)
+{
+    Elf_Addr stubaddr;
+
+    dbg(" reloc_jmpslot: where=%p, target=%p", (void *)where, (void *)target);
+    stubaddr = *where;
+    if (stubaddr != target) {
+	int64_t delta;
+	u_int32_t inst[3];
+	int instct;
+	Elf_Addr pc;
+	int64_t idisp;
+	u_int32_t *stubptr;
+
+	/* Point this GOT entry directly at the target. */
+	*where = target;
+
+	/*
+	 * There may be multiple GOT tables, each with an entry
+	 * pointing to the stub in the PLT.  But we can only find and
+	 * fix up the first GOT entry.  So we must rewrite the stub as
+	 * well, to perform a call to the target if it is executed.
+	 *
+	 * When the stub gets control, register pv ($27) contains its
+	 * address.  We adjust its value so that it points to the
+	 * target, and then jump indirect through it.
+	 *
+	 * Each PLT entry has room for 3 instructions.  If the
+	 * adjustment amount fits in a signed 32-bit integer, we can
+	 * simply add it to register pv.  Otherwise we must load the
+	 * GOT entry itself into the pv register.
+	 */
+	delta = target - stubaddr;
+	dbg("  stubaddr=%p, where-stubaddr=%ld, delta=%ld", (void *)stubaddr,
+	  (long)where - (long)stubaddr, (long)delta);
+	instct = 0;
+	if ((int32_t)delta == delta) {
+	    /*
+	     * We can adjust pv with a LDA, LDAH sequence.
+	     *
+	     * First build an LDA instruction to adjust the low 16 bits.
+	     */
+	    inst[instct++] = 0x08 << 26 | 27 << 21 | 27 << 16 |
+	      (delta & 0xffff);
+	    dbg("  LDA  $27,%d($27)", (int16_t)delta);
+	    /*
+	     * Adjust the delta to account for the effects of the LDA,
+	     * including sign-extension.
+	     */
+	    delta -= (int16_t)delta;
+	    if (delta != 0) {
+		/* Build an LDAH instruction to adjust the high 16 bits. */
+		inst[instct++] = 0x09 << 26 | 27 << 21 | 27 << 16 |
+		  (delta >> 16 & 0xffff);
+		dbg("  LDAH $27,%d($27)", (int16_t)(delta >> 16));
+	    }
+	} else {
+	    int64_t dhigh;
+
+	    /* We must load the GOT entry from memory. */
+	    delta = (Elf_Addr)where - stubaddr;
+	    /*
+	     * If the GOT entry is too far away from the PLT entry,
+	     * then punt. This PLT entry will have to be looked up
+	     * manually for all GOT entries except the first one.
+	     * The program will still run, albeit very slowly.  It's
+	     * extremely unlikely that this case could ever arise in
+	     * practice, but we might as well handle it correctly if
+	     * it does.
+	     */
+	    if ((int32_t)delta != delta) {
+		dbg("  PLT stub too far from GOT to relocate");
+		return;
+	    }
+	    dhigh = delta - (int16_t)delta;
+	    if (dhigh != 0) {
+		/* Build an LDAH instruction to adjust the high 16 bits. */
+		inst[instct++] = 0x09 << 26 | 27 << 21 | 27 << 16 |
+		  (dhigh >> 16 & 0xffff);
+		dbg("  LDAH $27,%d($27)", (int16_t)(dhigh >> 16));
+	    }
+	    /* Build an LDQ to load the GOT entry. */
+	    inst[instct++] = 0x29 << 26 | 27 << 21 | 27 << 16 |
+	      (delta & 0xffff);
+	    dbg("  LDQ  $27,%d($27)", (int16_t)delta);
+	}
+
+	/*
+	 * Build a JMP or BR instruction to jump to the target.  If
+	 * the instruction displacement fits in a sign-extended 21-bit
+	 * field, we can use the more efficient BR instruction.
+	 * Otherwise we have to jump indirect through the pv register.
+	 */
+	pc = stubaddr + 4 * (instct + 1);
+	idisp = (int64_t)(target - pc) >> 2;
+	if (-0x100000 <= idisp && idisp < 0x100000) {
+	    inst[instct++] = 0x30 << 26 | 31 << 21 | (idisp & 0x1fffff);
+	    dbg("  BR   $31,%p", (void *)target);
+	} else {
+	    inst[instct++] = 0x1a << 26 | 31 << 21 | 27 << 16 |
+	      (idisp & 0x3fff);
+	    dbg("  JMP  $31,($27),%d", (int)(idisp & 0x3fff));
+	}
+
+	/*
+	 * Fill in the tail of the PLT entry first for reentrancy.
+	 * Until we have overwritten the first instruction (an
+	 * unconditional branch), the remaining instructions have no
+	 * effect.
+	 */
+	stubptr = (u_int32_t *)stubaddr;
+	while (instct > 1) {
+	    instct--;
+	    stubptr[instct] = inst[instct];
+	}
+	/*
+	 * Commit the tail of the instruction sequence to memory
+	 * before overwriting the first instruction.
+	 */
+	__asm__ __volatile__("wmb" : : : "memory");
+	stubptr[0] = inst[0];
+    }
 }
 
 /* Process an R_ALPHA_COPY relocation. */
