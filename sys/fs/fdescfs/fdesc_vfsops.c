@@ -49,6 +49,8 @@
 #include <sys/resourcevar.h>
 #include <sys/filedesc.h>
 #include <sys/vnode.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <miscfs/fdesc/fdesc.h>
