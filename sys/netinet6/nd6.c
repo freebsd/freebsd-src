@@ -764,10 +764,12 @@ nd6_purge(ifp)
 	if (nd6_defifindex == ifp->if_index)
 		nd6_setdefaultiface(0);
 
-	/* refresh default router list */
-	bzero(&drany, sizeof(drany));
-	defrouter_delreq(&drany, 0);
-	defrouter_select();
+	if (!ip6_forwarding && ip6_accept_rtadv) { /* XXX: too restrictive? */
+		/* refresh default router list */
+		bzero(&drany, sizeof(drany));
+		defrouter_delreq(&drany, 0);
+		defrouter_select();
+	}
 
 	/*
 	 * Nuke neighbor cache entries for the ifp.
