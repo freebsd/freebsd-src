@@ -301,38 +301,4 @@
 #endif /* POST_ADDR */
 
 
-/*
- * These are all temps for debugging...
- *
-#define GUARD_INTS
- */
-
-/*
- * This macro traps unexpected INTs to a specific CPU, eg. GUARD_CPU.
- */
-#ifdef GUARD_INTS
-#define GUARD_CPU	1
-#define MAYBE_PANIC(irq_num)		\
-	cmpl	$GUARD_CPU, _cpuid ;	\
-	jne	9f ;			\
-	cmpl	$1, _ok_test1 ;		\
-	jne	9f ;			\
-	pushl	lapic_isr3 ;		\
-	pushl	lapic_isr2 ;		\
-	pushl	lapic_isr1 ;		\
-	pushl	lapic_isr0 ;		\
-	pushl	lapic_irr3 ;		\
-	pushl	lapic_irr2 ;		\
-	pushl	lapic_irr1 ;		\
-	pushl	lapic_irr0 ;		\
-	pushl	$irq_num ;		\
-	pushl	_cpuid ;		\
-	pushl	$panic_msg ;		\
-	call	_printf ;		\
-	addl	$44, %esp ;		\
-9:
-#else
-#define MAYBE_PANIC(irq_num)
-#endif /* GUARD_INTS */
-
 #endif /* _MACHINE_SMPTESTS_H_ */
