@@ -58,9 +58,6 @@ wcscmp(s1, s2)
 	const wchar_t *s1, *s2;
 {
 
-	_DIAGASSERT(s1 != NULL);
-	_DIAGASSERT(s2 != NULL);
-
 	while (*s1 == *s2++)
 		if (*s1++ == 0)
 			return (0);

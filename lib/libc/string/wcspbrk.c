@@ -46,9 +46,6 @@ wcspbrk(s, set)
 	const wchar_t *p;
 	const wchar_t *q;
 
-	_DIAGASSERT(s != NULL);
-	_DIAGASSERT(set != NULL);
-
 	p = s;
 	while (*p) {
 		q = set;
