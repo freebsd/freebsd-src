@@ -1,0 +1,97 @@
+.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 22, 2001
+.Dt CRITICAL_ENTER 9
+.Os
+.Sh NAME
+.Nm critical_enter ,
+.Nm critical_exit
+.Nd enter and exit a critical region
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/systm.h>
+.Ft critical_t
+.Fn critical_enter "void"
+.Ft void
+.Fn critical_exit "critical_t savecrit"
+.Sh DESCRIPTION
+These functions are used to prevent preemption in a critcal region of code.
+All that is guaranteed is that the current CPU will not be preempted by an
+external interrupt.
+The current CPU may still trigger faults and exceptions during a critical
+section.
+The
+.Fn critical_enter
+function returns an opaque value of type
+.Vt critical_t .
+This value must be passed to the
+.Fn critical_exit
+function when leaving the critical region.
+.Pp
+Note that these functions are not required to provide any inter-CPU
+synchronization, data protection, or memory ordering guarantees and thus
+should
+.Sy not
+be used to protect shared data structures.
+.Pp
+These functions should be used with care as an infinite loop within a
+critical region will deadlock the CPU.
+.Sh RETURN VALUES
+The
+.Fn critical_enter
+function returns an opaque value that must be passed to a corresponding call to
+.Fn critical_exit .
+.Sh EXAMPLES
+This example demonstrates the use of
+.Fn critical_enter
+and
+.Fn critical_exit
+to guarantee atomic access to the DMA controller.
+.Bd -literal -offset indent
+int
+isa_dmastatus(int chan)
+{
+        u_long  cnt = 0;
+        int     ffport, waport;
+        u_long  low1, high1, low2, high2;
+        critical_t savecrit;
+
+	...
+        savecrit = critical_enter();
+        outb(ffport, 0);
+        low1 = inb(waport);
+        high1 = inb(waport);
+        outb(ffport, 0);
+        low2 = inb(waport);
+        high2 = inb(waport);
+        critical_exit(savecrit);
+	...
+}
+.Ed
+.Sh HISTORY
+These functions were introduced in
+.Fx 5.0 .
