@@ -100,6 +100,7 @@ set_defaults() {
     o_init_src=""		# non "" if we need to init libs and includes.
     o_makeopts=${MAKEOPTS:--s}	# make options, be silent by default
     o_no_devfs=yes		# we do not want devfs
+    o_do_modules=""		# do not build modules
 
     SRC="/usr/src"		# default location for sources
     c_startdir=`pwd`	# directory where we start
@@ -397,6 +398,11 @@ this as small as possible. " 10 70 2> ${c_reply} \
 do_install() {
     log "do_install()"
 
+    if [ "${o_interactive}" = "NO" ] ; then
+	echo "+++ Build completed +++"
+	cat .build.reply
+	return
+    fi
     dialog --title "Build ${THETYPE} completed" --inputbox \
 "\nThe build process was completed successfuly.\n\
 `cat .build.reply` \n\n\
@@ -424,6 +430,10 @@ Your options:\n\
 do_kernel() {		# OK
     log "do_kernel() Preparing kernel \"$name\" in $MY_TREE"
     (cd $MY_TREE; export name SRC CONFIG BUILDDIR # used in this makefile ;
+	if [ "${o_do_modules}" = "yes" ] ; then
+		MODULES=""
+		export MODULES
+	fi
 	make -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
 }
@@ -830,6 +840,9 @@ while [ true ]; do
 	o_all_in_mfs=""
 	;;
 
+    --modules)	# also build kernel modules
+	o_do_modules="yes"
+	;;
     -n)
 	o_interactive="NO"
 	;;
