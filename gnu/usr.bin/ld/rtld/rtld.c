@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.2 1993/11/09 04:19:31 paul Exp $
+ *	$Id: rtld.c,v 1.3 1993/11/09 04:44:30 paul Exp $
  */
 
 #include <machine/vmparam.h>
@@ -144,7 +144,7 @@ static void		reloc_copy __P((void));
 static char		*rtfindlib __P((char *, int, int, int *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
-static struct nzlist	*lookup __P((char *, struct link_map **));
+static struct nzlist	*lookup __P((char *, struct link_map **, int));
 static struct rt_symbol	*lookup_rts __P((char *));
 static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t, long));
 
@@ -164,6 +164,7 @@ struct link_dynamic	*dp;
 	int			nreloc;		/* # of ld.so relocations */
 	struct relocation_info	*reloc;
 	char			**envp;
+	struct ld_debug		*ldp;
 
 	/* Check version */
 	if (version != CRT_VERSION_BSD && version != CRT_VERSION_SUN)
@@ -218,7 +219,27 @@ struct link_dynamic	*dp;
 
 	/* Fill in some field in main's __DYNAMIC structure */
 	crtp->crt_dp->ld_entry = &ld_entry;
-	crtp->crt_dp->ldd->ldd_cp = rt_symbol_head;
+
+	ldp = crtp->crt_dp->ldd;
+	ldp->ldd_cp = rt_symbol_head;
+	if (ldp->ldd_in_debugger) {
+		caddr_t	addr = (caddr_t)((long)crtp->crt_bp & (~(PAGSIZ - 1)));
+
+		/* Set breakpoint for the benefit of debuggers */
+		if (mprotect(addr, PAGSIZ,
+				PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
+			perror("mprotect"),
+			fatal("Cannot set breakpoint\n");
+		}
+		md_set_breakpoint(crtp->crt_bp, &ldp->ldd_bp_inst);
+		if (mprotect(addr, PAGSIZ, PROT_READ|PROT_EXEC) == -1) {
+			perror("mprotect");
+		}
+
+		ldp->ldd_bp_addr = crtp->crt_bp;
+		if (link_map_head)
+			ldp->ldd_sym_loaded = 1;
+	}
 }
 
 
@@ -265,9 +286,10 @@ struct crt_ldso	*crtp;
 			path = "not found";
 
 		if (lop->lo_library)
-			printf("\t-l%s.%d => %s\n", name, lop->lo_major, path);
+			printf("\t-l%s.%d => %s (%#x)\n", name,
+					lop->lo_major, path, lmp->lm_addr);
 		else
-			printf("\t%s => %s\n", name, path);
+			printf("\t%s => %s (%#x)\n", name, path, lmp->lm_addr);
 	}
 
 	_exit(0);
@@ -423,10 +445,10 @@ reloc_maps()
 				sym = LM_STRINGS(lmp) +
 					LM_SYMBOL(lmp,RELOC_SYMBOL(r))->nz_strx;
 
-				np = lookup(sym, &src_map);
+				np = lookup(sym, &src_map, 0/*XXX-jumpslots!*/);
 				if (np == NULL)
-					fatal("Undefined symbol in %s: %s\n",
-							lmp->lm_name, sym);
+					fatal("Undefined symbol \"%s\" in %s\n",
+							sym, lmp->lm_name);
 
 				/*
 				 * Found symbol definition.
@@ -475,6 +497,17 @@ xprintf("RELOCATE(%s) internal at %#x, reloc = %#x\n", lmp->lm_name, addr, md_ge
 
 		}
 
+		if (lmp->lm_rwt) {
+			if (mprotect(lmp->lm_addr + LM_TXTADDR(lmp),
+				LD_TEXTSZ(lmp->lm_ld),
+				PROT_READ|PROT_EXEC) == -1) {
+
+				perror("mprotect"),
+				fatal("Cannot disable writes to %s\n", lmp->lm_name);
+			}
+			lmp->lm_rwt = 0;
+		}
+
 	}
 }
 
@@ -516,9 +549,10 @@ caddr_t			addr;
 				lmp->lm_name, r->r_address, sym);
 #endif
 
-	if (mprotect(	lmp->lm_addr + LM_TXTADDR(lmp),
-			LD_TEXTSZ(lmp->lm_ld),
-			PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
+	if (lmp->lm_rwt == 0 &&
+		mprotect(lmp->lm_addr + LM_TXTADDR(lmp),
+				LD_TEXTSZ(lmp->lm_ld),
+				PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
 
 		perror("mprotect"),
 		fatal("Cannot enable writes to %s\n", lmp->lm_name);
@@ -527,10 +561,16 @@ caddr_t			addr;
 	lmp->lm_rwt = 1;
 }
 
+/*
+ * Lookup NAME in the link maps. The link map producing a definition
+ * is returned in SRC_MAP. If STRONG is set, the symbol returned must
+ * have a proper type (used by binder()).
+ */
 static struct nzlist *
-lookup(name, src_map)
-char	*name;
+lookup(name, src_map, strong)
+char		*name;
 struct link_map	**src_map;
+int		strong;
 {
 	long			common_size = 0;
 	struct link_map		*lmp;
@@ -587,10 +627,16 @@ struct link_map	**src_map;
 			continue;
 
 		if (np->nz_type == N_UNDF+N_EXT && np->nz_value != 0) {
-			/* It's a common, note value and continue search */
-			if (common_size < np->nz_value)
-				common_size = np->nz_value;
-			continue;
+			if (np->nz_other == RRS_FUNC) {
+				/* It's a weak function definition */
+				if (strong)
+					continue;
+			} else {
+				/* It's a common, note value and continue search */
+				if (common_size < np->nz_value)
+					common_size = np->nz_value;
+				continue;
+			}
 		}
 
 		*src_map = lmp;
@@ -647,7 +693,7 @@ jmpslot_t	*jsp;
 	sym = LM_STRINGS(lmp) +
 		LM_SYMBOL(lmp,RELOC_SYMBOL(&LM_REL(lmp)[index]))->nz_strx;
 
-	np = lookup(sym, &src_map);
+	np = lookup(sym, &src_map, 1);
 	if (np == NULL)
 		fatal("Undefined symbol \"%s\" called from %s at %#x", sym,
 							lmp->lm_name, jsp);
@@ -889,10 +935,11 @@ int	*usehints;
 
 	if (ld_path != NULL) {
 		/* Prefer paths from LD_LIBRARY_PATH */
-		while ((cp = strtok(ld_path, ":")) != NULL) {
+		while ((cp = strsep(&ld_path, ":")) != NULL) {
 
-			ld_path = NULL;
 			hint = findhint(name, major, minor, cp);
+			if (ld_path)
+				*(ld_path-1) = ':';
 			if (hint)
 				return hint;
 		}

@@ -1,5 +1,5 @@
 /*
- * $Id: md.h,v 1.3 1993/10/24 00:52:40 pk Exp $		- I386 dependent definitions
+ * $Id: md.h,v 1.2 1993/11/09 04:19:17 paul Exp $		- I386 dependent definitions
  */
 
 
@@ -50,7 +50,7 @@ typedef struct jmpslot {
 #define NOP	0x90
 #define CALL	0xe890		/* NOP + CALL opcode */
 #define JUMP	0xe990		/* NOP + JMP opcode */
-#define TRAP	0xcc		/* INT 3 */
+#define BPT	0xcc		/* breakpoint: INT 3 */
 
 /*
  * Byte swap defs for cross linking
