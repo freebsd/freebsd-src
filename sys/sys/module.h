@@ -114,7 +114,7 @@ __BEGIN_DECLS
 int	modnext(int modid);
 int	modfnext(int modid);
 int	modstat(int modid, struct module_stat* stat);
-int	modfind(char *name);
+int	modfind(const char *name);
 __END_DECLS
 
 #endif
