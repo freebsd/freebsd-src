@@ -1,6 +1,9 @@
 /*-
- * Copyright (c)1999 Citrus Project,
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +13,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -22,37 +32,33 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	citrus Id: wcsncpy.c,v 1.1 1999/12/29 21:47:45 tshiozak Exp
  */
 
 #include <sys/cdefs.h>
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: wcsncpy.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
-#endif /* LIBC_SCCS and not lint */
-#endif
 __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
 
+/*
+ * Copy src to dst, truncating or null-padding to always copy n bytes.
+ * Return dst.
+ */
 wchar_t *
-wcsncpy(s1, s2, n)
-	wchar_t * __restrict s1;
-	const wchar_t * __restrict s2;
-	size_t n;
+wcsncpy(wchar_t * __restrict dst, const wchar_t * __restrict src, size_t n)
 {
-	wchar_t *p;
-	const wchar_t *q;
+	if (n != 0) {
+		wchar_t *d = dst;
+		const wchar_t *s = src;
 
-	*s1 = '\0';
-	p = s1;
-	q = s2;
-	while (n && *q) {
-		*p++ = *q++;
-		n--;
+		do {
+			if ((*d++ = *s++) == L'\0') {
+				/* NUL pad the remaining n-1 bytes */
+				while (--n != 0)
+					*d++ = L'\0';
+				break;
+			}
+		} while (--n != 0);
 	}
-	*p = '\0';
-
-	return s1;
+	return (dst);
 }
+
