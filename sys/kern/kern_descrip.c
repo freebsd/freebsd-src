@@ -37,7 +37,7 @@
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
  * $FreeBSD$
- */
+*/
 
 #include "opt_compat.h"
 #include "opt_devfs.h"
@@ -1022,13 +1022,15 @@ setugidsafety(p)
 
 	fpp = fdp->fd_ofiles;
 	fdfp = fdp->fd_ofileflags;
-	for (i = 0; i <= 2 && i <= fdp->fd_lastfile; i++, fpp++, fdfp++) {
+	for (i = 0; i <= fdp->fd_lastfile; i++, fpp++, fdfp++) {
+		if (i > 2)
+			break;
 		if (*fpp != NULL && is_unsafe(*fpp)) {
 			if ((*fdfp & UF_MAPPED) != 0)
-				(void)munmapfd(p, i);
-			(void)closef(*fpp, p);
+				(void) munmapfd(p, i);
+			(void) closef(*fpp, p);
 			*fpp = NULL;
-			*fdfp = '\0';
+			*fdfp = 0;
 			if (i < fdp->fd_freefile)
 				fdp->fd_freefile = i;
 		}
