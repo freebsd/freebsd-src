@@ -50,6 +50,8 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/module.h>
+#include <sys/linker.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -119,6 +121,7 @@ void	status __P((const struct afswtch *afp, int addrcount,
 		    struct sockaddr_dl *sdl, struct if_msghdr *ifm,
 		    struct ifa_msghdr *ifam));
 void	usage __P((void));
+void	ifmaybeload __P((char *name));
 
 typedef	void c_func __P((const char *cmd, int arg, int s, const struct afswtch *afp));
 c_func	setatphase, setatrange;
@@ -343,6 +346,9 @@ main(argc, argv)
 
 		strncpy(name, *argv, sizeof(name));
 		argc--, argv++;
+
+		/* check and maybe load support for this interface */
+		ifmaybeload(name);
 	}
 
 	/* Check for address family */
@@ -1144,3 +1150,41 @@ xns_getaddr(addr, which)
 }
 #endif
 
+void
+ifmaybeload(name)
+	char *name;
+{
+	struct module_stat mstat;
+	int fileid, modid;
+	char ifkind[35], *cp, *dp;
+
+
+	/* turn interface and unit into module name */
+	strcpy(ifkind, "if_");
+	for (cp = name, dp = ifkind + 3; (*cp != 0) && !isdigit(*cp); cp++, dp++)
+		*dp = *cp;
+	*dp = 0;
+
+	/* scan files in kernel */
+	mstat.version = sizeof(struct module_stat);
+	for (fileid = kldnext(0); fileid > 0; fileid = kldnext(fileid)) {
+		/* scan modules in file */
+		for (modid = kldfirstmod(fileid); modid > 0;
+		     modid = modfnext(modid)) {
+			if (modstat(modid, &mstat) < 0)
+				continue;
+			/* strip bus name if present */
+			if ((cp = strchr(mstat.name, '/')) != NULL) {
+				cp++;
+			} else {
+				cp = mstat.name;
+			}
+			/* already loaded? */
+			if (!strcmp(ifkind, cp))
+				return;
+		}
+	}
+
+	/* not present, we should try to load it */
+	kldload(ifkind);
+}
