@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.13 1995/05/30 08:05:56 rgrimes Exp $
+ * $Id: sys_generic.c,v 1.14 1995/10/10 08:08:54 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -125,7 +125,7 @@ read(p, uap, retval)
  * Scatter read system call.
  */
 struct readv_args {
-	int	fdes;
+	int	fd;
 	struct	iovec *iovp;
 	u_int	iovcnt;
 };
@@ -147,8 +147,8 @@ readv(p, uap, retval)
 	struct iovec *ktriov = NULL;
 #endif
 
-	if (((u_int)uap->fdes) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fdes]) == NULL ||
+	if (((u_int)uap->fd) >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
 	    (fp->f_flag & FREAD) == 0)
 		return (EBADF);
 	/* note: can't use iovlen until iovcnt is validated */
@@ -196,7 +196,7 @@ readv(p, uap, retval)
 #ifdef KTRACE
 	if (ktriov != NULL) {
 		if (error == 0)
-			ktrgenio(p->p_tracep, uap->fdes, UIO_READ, ktriov,
+			ktrgenio(p->p_tracep, uap->fd, UIO_READ, ktriov,
 			    cnt, error);
 		FREE(ktriov, M_TEMP);
 	}
