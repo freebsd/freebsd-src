@@ -44,8 +44,18 @@ node
 .Sh SYNOPSIS
 .Nm
 .Op Fl Sadlns
+.Op Fl m Ar msg
 .Ar path
 .Op Ar hookname
+.Pp
+.Nm
+.Fl e
+.Op Fl n
+.Op Fl m Ar msg
+.Ar path
+.Ar hookname
+.Ar program
+.Op Ar args...
 .Sh DESCRIPTION
 The
 .Nm
@@ -61,14 +71,29 @@ is omitted,
 .Dq debug
 is assumed.
 .Pp
-At this point all data written to standard input is sent
+If the
+.Fl e
+option is given the third argument is interpreted as the path to a program
+and this program is executed with the remaining arguments as its arguments.
+Before executing the program netgraph messages (specified by the
+.Fl m
+option) are sent to the node.
+The program is executed with its standard input (unless closed by
+.Fl n )
+and output connected to the hook.
+.Pp
+If the
+.Fl e
+option is not given all data written to standard input is sent
 to the node and all data received from the node is relayed
-to standard output.
+to standard output. Messages specified with
+.Fl m
+are send to the node before the loop is entered.
 The
 .Nm
 utility exits when
 .Dv EOF
-is detected on standard input.
+is detected on standard input in this case.
 .Pp
 The options are as follows:
 .Pp
@@ -81,9 +106,16 @@ Output each packet read in human-readable decoded
 form instead of raw binary.
 .It Fl d
 Increase the debugging verbosity level.
+.It Fl e
+Execute the program specified by the third argument.
 .It Fl l
 Loops all received data back to the hook in addition to writing it
 to standard output.
+.It Fl m Ar msg
+Before executing the program (in
+.Fl e
+mode) send the given ASCII control message to the node.
+This option may be given more than once.
 .It Fl n
 Don't attempt to read any data from standard input.
 The
@@ -95,6 +127,10 @@ Use file descriptor 1 for input instead of the default 0.
 .Sh BUGS
 Although all input is read in unbuffered mode,
 there's no way to control the packetization of the input.
+.Pp
+If the node sends a reponse to a message (specified by
+.Fl m Ns No ),
+this response is lost.
 .Sh SEE ALSO
 .Xr netgraph 3 ,
 .Xr netgraph 4 ,
