@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.86 1999/02/19 18:32:55 luigi Exp $
+ *	$Id: ip_output.c,v 1.87 1999/03/16 12:06:11 luigi Exp $
  */
 
 #define _IP_VHL
@@ -67,16 +67,7 @@
 
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
-#if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
-#undef COMPAT_IPFW
-#define COMPAT_IPFW 1
-#else
-#undef COMPAT_IPFW
-#endif
-
-#ifdef COMPAT_IPFW
 #include <netinet/ip_fw.h>
-#endif
 
 #ifdef DUMMYNET
 #include <netinet/ip_dummynet.h>
@@ -139,9 +130,7 @@ ip_output(m0, opt, ro, flags, imo)
 #ifndef IPDIVERT /* dummy variable for the firewall code to play with */
         u_short ip_divert_cookie = 0 ;
 #endif
-#ifdef COMPAT_IPFW
 	struct ip_fw_chain *rule = NULL ;
-#endif
 
 #if defined(IPFIREWALL) && defined(DUMMYNET)
         /*  
@@ -424,12 +413,6 @@ sendit:
 	}
 #endif
 
-#ifdef COMPAT_IPFW
-        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, ifp, IP_NAT_OUT)) {
-		error = EACCES; 
-		goto done;
-	}
-
 	/*
 	 * Check with the firewall...
 	 */
@@ -468,7 +451,7 @@ sendit:
                      * XXX note: if the ifp or ro entry are deleted
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
-                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,dst,rule);
+                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,hlen,rule);
 			goto done;
 		}
 #endif   
@@ -590,7 +573,6 @@ sendit:
                 error = EACCES; /* not sure this is the right error msg */
                 goto done;
 	}
-#endif /* COMPAT_IPFW */
 
 pass:
 	/*
