@@ -73,7 +73,7 @@
 #endif
 
 /* Linux */
-#ifdef LINUX
+#ifdef linux
 #define	_FILE_OFFSET_BITS	64	/* For a 64-bit off_t */
 #include <stdint.h> /* for uintmax_t */
 #define	BSDTAR_FILESIZE_TYPE	uintmax_t

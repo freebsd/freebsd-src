@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef LINUX
+#ifdef linux
 #include <ext2fs/ext2_fs.h>
 #include <sys/ioctl.h>
 #endif
@@ -412,7 +412,11 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 				pending_dir =
 				    malloc(old_len + 1 + strlen(arg));
+				if (pending_dir == NULL)
+					bsdtar_errc(bsdtar, 1, errno,
+					    "No Memory");
 				strcpy(pending_dir, old_pending);
+				free(old_pending);
 				if (pending_dir[old_len - 1] != '/') {
 					pending_dir[old_len] = '/';
 					old_len ++;
@@ -421,9 +425,12 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			} else {
 				/* Easy case: no previously-saved dir. */
 				pending_dir = strdup(arg);
+				if (pending_dir == NULL)
+					bsdtar_errc(bsdtar, 1, errno,
+					    "No Memory");
 			}
 		} else {
-			if (pending_dir &&
+			if (pending_dir != NULL &&
 			    (*arg != '/' || (*arg == '@' && arg[1] != '/'))) {
 				/* Handle a deferred -C */
 				if (chdir(pending_dir)) {
@@ -565,7 +572,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 	FTSENT	*ftsent;
 	int	 ftsoptions;
 	char	*fts_argv[2];
-#ifdef LINUX
+#ifdef linux
 	int	 fd, r;
 	unsigned long fflags;
 #endif
@@ -635,7 +642,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			}
 #endif
 
-#ifdef LINUX
+#ifdef linux
 			/*
 			 * Linux has a nodump flag too but to read it
 			 * we have to open() the dir and do an ioctl on it...
@@ -704,7 +711,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 				break;
 #endif
 
-#ifdef LINUX
+#ifdef linux
 			/*
 			 * Linux has a nodump flag too but to read it
 			 * we have to open() the file and do an ioctl on it...
@@ -771,7 +778,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	struct archive_entry	*entry;
 	int			 e;
 	int			 fd;
-#ifdef LINUX
+#ifdef linux
 	int			 r;
 	unsigned long		 stflags;
 #endif
@@ -842,7 +849,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
-#ifdef LINUX
+#ifdef linux
 	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) &&
 	    ((fd = open(accpath, O_RDONLY|O_NONBLOCK)) >= 0) &&
 	    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags)), close(fd), r) >= 0 &&
@@ -851,7 +858,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	}
 #endif
 
-        archive_entry_copy_stat(entry, st);
+	archive_entry_copy_stat(entry, st);
 	setup_acls(bsdtar, entry, accpath);
 
 	/*

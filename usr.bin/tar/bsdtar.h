@@ -81,7 +81,7 @@ struct bsdtar {
 	char		  warned_lead_slash; /* Already displayed warning */
 	char		  next_line_is_dir; /* Used for -C parsing in -cT */
 
-        /*
+	/*
 	 * Data for various subsystems.  Full definitions are located in
 	 * the file where they are used.
 	 */
