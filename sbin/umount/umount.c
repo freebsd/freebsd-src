@@ -73,10 +73,9 @@ struct  addrinfo *nfshost_ai = NULL;
 int	fflag, vflag;
 char   *nfshost;
 
-struct statfs *checkmntlist (char *, char **);
+struct statfs *checkmntlist(char *);
 int	 checkvfsname (const char *, char **);
-struct statfs *getmntentry (const char *, const char *, mntwhat, char **,
-	     dowhat);
+struct statfs *getmntentry(const char *, const char *, mntwhat, dowhat);
 char 	*getrealname(char *, char *resolved_path);
 char   **makevfslist (const char *);
 size_t	 mntinfo (struct statfs **);
@@ -176,7 +175,7 @@ main(int argc, char *argv[])
 				errs = 1;
 		break;
 	}
-	(void)getmntentry(NULL, NULL, NOTHING, NULL, FREE);
+	(void)getmntentry(NULL, NULL, NOTHING, FREE);
 	exit(errs);
 }
 
@@ -239,7 +238,7 @@ checkname(char *name, char **typelist)
 	size_t len;
 	int speclen;
 	char *resolved, realname[MAXPATHLEN];
-	char *type, *hostp, *delimp, *origname;
+	char *hostp, *delimp, *origname;
 	struct statfs *sfs;
 
 	len = 0;
@@ -249,7 +248,7 @@ checkname(char *name, char **typelist)
 	/*
 	 * 1. Check if the name exists in the mounttable.
 	 */
-	sfs = checkmntlist(name, &type);
+	sfs = checkmntlist(name);
 	/*
 	 * 2. Remove trailing slashes if there are any. After that
 	 * we look up the name in the mounttable again.
@@ -260,7 +259,7 @@ checkname(char *name, char **typelist)
 		    speclen > 1 && name[speclen - 1] == '/';
 		    speclen--)
 			name[speclen - 1] = '\0';
-		sfs = checkmntlist(name, &type);
+		sfs = checkmntlist(name);
 		resolved = name;
 		/* Save off original name in origname */
 		if ((origname = strdup(name)) == NULL)
@@ -293,7 +292,7 @@ checkname(char *name, char **typelist)
 				    speclen--)
 					name[speclen - 1] = '\0';
 				name[len + speclen + 1] = '\0';
-				sfs = checkmntlist(name, &type);
+				sfs = checkmntlist(name);
 				resolved = name;
 			}
 			/*
@@ -307,7 +306,7 @@ checkname(char *name, char **typelist)
 			if (sfs == NULL) {
 				(void)strcpy(name, origname);
 				if ((getrealname(name, realname)) != NULL) {
-					sfs = checkmntlist(realname, &type);
+					sfs = checkmntlist(realname);
 					resolved = realname;
 				}
 				/*
@@ -341,16 +340,15 @@ checkname(char *name, char **typelist)
 	} else
 		resolved = name;
 
-	if (checkvfsname(type, typelist))
+	if (checkvfsname(sfs->f_fstypename, typelist))
 		return (1);
 
 	/*
 	 * Mark the uppermost mount as unmounted.
 	 */
-	(void)getmntentry(sfs->f_mntfromname, sfs->f_mntonname, NOTHING, &type,
-	     MARK);
+	(void)getmntentry(sfs->f_mntfromname, sfs->f_mntonname, NOTHING, MARK);
 	return (umountfs(sfs->f_mntfromname, sfs->f_mntonname, &sfs->f_fsid,
-	    type));
+	    sfs->f_fstypename));
 }
 
 /*
@@ -397,8 +395,7 @@ umountfs(char *mntfromname, char *mntonname, fsid_t *fsid, char *type)
 		 * A non-NULL return means that this is the last
 		 * mount from mntfromname that is still mounted.
 		 */
-		if (getmntentry(mntfromname, NULL, NOTHING, &type, COUNT)
-		    != NULL)
+		if (getmntentry(mntfromname, NULL, NOTHING, COUNT) != NULL)
 			do_rpc = 1;
 	}
 
@@ -462,8 +459,7 @@ umountfs(char *mntfromname, char *mntonname, fsid_t *fsid, char *type)
 }
 
 struct statfs *
-getmntentry(const char *fromname, const char *onname, mntwhat what,
-    char **type, dowhat mark)
+getmntentry(const char *fromname, const char *onname, mntwhat what, dowhat mark)
 {
 	static struct statfs *mntbuf;
 	static size_t mntsize = 0;
@@ -496,11 +492,8 @@ getmntentry(const char *fromname, const char *onname, mntwhat what,
 		for (i = mntsize - 1; i >= 0; i--) {
 			if (fromname != NULL && !strcmp((what == MNTFROM) ?
 			    mntbuf[i].f_mntfromname : mntbuf[i].f_mntonname,
-			    fromname) && mntcheck[i] != 1) {
-				if (type)
-					*type = mntbuf[i].f_fstypename;
+			    fromname) && mntcheck[i] != 1)
 				return (&mntbuf[i]);
-			}
 		}
 
 		return (NULL);
@@ -612,13 +605,13 @@ namematch(struct addrinfo *ai)
 }
 
 struct statfs *
-checkmntlist(char *name, char **type)
+checkmntlist(char *name)
 {
 	struct statfs *sfs;
 
-	sfs = getmntentry(name, NULL, MNTON, type, NAME);
+	sfs = getmntentry(name, NULL, MNTON, NAME);
 	if (sfs == NULL)
-		sfs = getmntentry(name, NULL, MNTFROM, type, NAME);
+		sfs = getmntentry(name, NULL, MNTFROM, NAME);
 	return (sfs);
 }
 
