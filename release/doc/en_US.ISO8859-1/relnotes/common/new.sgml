@@ -72,6 +72,10 @@
     first sector of the emulated floppy to contain a valid MS-DOS BPB
     that they can modify.</para>
 
+    <para arch="alpha">A long standing bug in the &os; boot from CDROM has 
+    been fixed. This means that machines like AlphaServer 1200 can now
+    be booted from the installation and fixit CDROMs.</para>
+    
     <sect3>
       <title>Processor/Motherboard Support</title>
 
