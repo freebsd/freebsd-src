@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.3 1994/08/21 05:11:43 paul Exp $
+ * $Id: if_slvar.h,v 1.4 1994/10/08 01:40:23 phk Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_
@@ -56,6 +56,8 @@ struct sl_softc {
 	long	sc_lasttime;		/* last time a char arrived */
 	long	sc_abortcount;		/* number of abort esacpe chars */
 	long	sc_starttime;		/* time of first abort in window */
+	u_int	sc_keepalive;		/* time	to decide link hang */
+	u_int	sc_outfill;		/* time	to send	FRAME_END when output idle */
 #ifdef INET				/* XXX */
 	struct	slcompress sc_comp;	/* tcp compression data */
 #endif
@@ -64,6 +66,8 @@ struct sl_softc {
 
 /* internal flags */
 #define	SC_ERROR	0x0001		/* had an input error */
+#define	SC_OUTWAIT	0x0002		/* waiting for output fill */
+#define	SC_KEEPALIVE	0x0004		/* input keepalive */
 
 /* visible flags */
 #define	SC_COMPRESS	IFF_LINK0	/* compress TCP traffic */
