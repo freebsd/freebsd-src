@@ -16,7 +16,13 @@ SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBKRB} \
 		${LIBCRYPT} ${LIBCOM_ERR}
 LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto \
-		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err -lmp -lpam
+		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err -lmp
+
+.if !defined(NOPAM)
+CFLAGS+=-DUSE_PAM
+DPADD+= ${LIBPAM}
+LDADD+= ${MINUSLPAM}
+.endif
 
 .include <bsd.prog.mk>
 
