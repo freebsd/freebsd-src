@@ -96,14 +96,14 @@ and create the two default
 windows instead.
 .It Fl e Ar escape-char
 Set the escape character to
-.Ar escape-char  .
+.Ar escape-char .
 .Ar Escape-char
 can be a single character, or in the form
 .Ic ^X
 where
 .Ar X
 is any character, meaning
-.No control\- Ns Ar X  .
+.No control\- Ns Ar X .
 .It Fl c Ar command
 Execute the string
 .Ar command
@@ -119,7 +119,7 @@ identifier, as well as a user definable label string, are displayed
 with the window on the top edge of its frame.
 A window can be
 designated to be in the
-.Ar foreground  ,
+.Ar foreground ,
 in which case it will always be
 on top of all normal, non-foreground windows, and can be covered
 only by other foreground windows.
@@ -162,7 +162,7 @@ entry tailored to this window is created
 and passed as environment (see
 .Xr environ 7 )
 variable
-.Ev TERMCAP  .
+.Ev TERMCAP .
 The termcap entry contains the window's size and
 characteristics as well as information from the physical terminal,
 such as the existence of underline, reverse video, and other display
@@ -214,7 +214,7 @@ represents one of the digits ``1'' to ``9''
 corresponding to the windows 1 to 9.
 .Ic ^X
 means
-.No control\- Ns Ar X  ,
+.No control\- Ns Ar X ,
 where
 .Ar X
 is any character.
@@ -694,7 +694,7 @@ as a statement, the parentheses surrounding
 the argument list may be omitted.
 Aliases return no value.
 .El
-.Ss  Builtin Functions
+.Ss Builtin Functions
 The arguments are listed by name in their natural
 order.
 Optional arguments are in square brackets
@@ -739,12 +739,12 @@ Close the windows specified in
 If
 .Aq Ar window\-list
 is the word
-.Ar all  ,
+.Ar all ,
 than all windows are closed.
 No value is returned.
 .It Ic cursormodes Ns Pq Bq Ar modes
 Set the window cursor to
-.Ar modes  .
+.Ar modes .
 .Ar Modes
 is the bitwise
 or of the mode bits defined as the variables
@@ -766,7 +766,7 @@ sets the window cursors to blinking
 reverse video.
 .It Ic default_nline Ns Pq Bq Ar nline
 Set the default buffer size to
-.Ar nline  .
+.Ar nline .
 Initially, it is
 48 lines.
 Returns the old default buffer size.
@@ -782,7 +782,7 @@ the first string in the old shell setting.
 Default is no change.
 Initially,
 the default shell is taken from the environment variable
-.Ev SHELL  .
+.Ev SHELL .
 .It Ic default_smooth Ns Pq Bq Ar flag
 Set the default value of the
 .Ar smooth
@@ -792,12 +792,12 @@ to the command
 (see below).
 The argument
 is a boolean flag (one of
-.Ar on  ,
-.Ar off  ,
-.Ar yes  ,
-.Ar no  ,
-.Ar true  ,
-.Ar false  ,
+.Ar on ,
+.Ar off ,
+.Ar yes ,
+.Ar no ,
+.Ar true ,
+.Ar false ,
 or a number,
 as described above).
 Default is no change.
@@ -823,7 +823,7 @@ Default
 is the current window.
 .It Ic escape Ns Pq Bq Ar escapec
 Set the escape character to
-.Ar escape-char  .
+.Ar escape-char .
 Returns the old
 escape character as a one-character string.
 Default is no
@@ -858,7 +858,7 @@ is no change.
 Set the label of
 .Nm
 to
-.Ar label  .
+.Ar label .
 Returns the old
 label as a string.
 Default for
@@ -883,11 +883,11 @@ is returned.
 Default is no change.
 .It Ic source Ns Pq Ar filename
 Read and execute the long commands in
-.Ar filename  .
+.Ar filename .
 Returns \-1 if the file cannot be read, 0 otherwise.
 .It Ic terse Ns Pq Bq flag
 Set terse mode to
-.Ar flag  .
+.Ar flag .
 In terse mode, the command window
 stays hidden even in command mode, and errors are reported by
 sounding the terminal's bell.
@@ -900,14 +900,14 @@ Returns the old terse flag.
 Default is no change.
 .It Ic unalias Ns Pq Ar alias
 Undefine
-.Ar alias  .
+.Ar alias .
 Returns -1 if
 .Ar alias
 does not exist,
 0 otherwise.
 .It Ic unset Ns Pq Ar variable
 Undefine
-.Ar variable  .
+.Ar variable .
 Returns -1 if
 .Ar variable
 does not exist,
@@ -931,11 +931,11 @@ No value is returned.
 .Bq Ar shell ) .
 .Xc
 Open a window with upper left corner at
-.Ar row  ,
+.Ar row ,
 .Ar column
 and size
-.Ar nrow  ,
-.Ar ncol  .
+.Ar nrow ,
+.Ar ncol .
 If
 .Ar nline
 is specified,
@@ -943,9 +943,9 @@ then that many lines are allocated for the text buffer.
 Otherwise,
 the default buffer size is used.
 Default values for
-.Ar row  ,
-.Ar column  ,
-.Ar nrow  ,
+.Ar row ,
+.Ar column ,
+.Ar nrow ,
 and
 .Ar ncol
 are, respectively,
@@ -953,8 +953,8 @@ the upper, left-most, lower, or right-most extremes of the
 screen.
 .Ar Label
 is the label string.
-.Ar Frame  ,
-.Ar pty  ,
+.Ar Frame ,
+.Ar pty ,
 and
 .Ar mapnl
 are flag values
@@ -984,7 +984,7 @@ command (see above).
 is a list of strings that will be used as the shell
 program to place in the window (default is the program specified
 by
-.Ar default_shell  ,
+.Ar default_shell ,
 see above).
 The created window's identifier
 is returned as a number.

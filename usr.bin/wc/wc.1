@@ -120,7 +120,9 @@ Historically, the
 utility was documented to define a word as a ``maximal string of
 characters delimited by <space>, <tab> or <newline> characters''.
 The implementation, however, didn't handle non-printing characters
-correctly so that ``  ^D^E  '' counted as 6 spaces, while ``foo^D^Ebar''
+correctly so that
+.Dq "  ^D^E  "
+counted as 6 spaces, while ``foo^D^Ebar''
 counted as 8 characters.
 .Bx 4
 systems after
