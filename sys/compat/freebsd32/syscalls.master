@@ -585,3 +585,4 @@
 412	UNIMPL	BSD	extattr_set_link
 413	UNIMPL	BSD	extattr_get_link
 414	UNIMPL	BSD	extattr_delete_link
+415	UNIMPL	BSD	__execve_mac
