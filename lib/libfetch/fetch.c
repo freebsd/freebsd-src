@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.c,v 1.6 1998/11/06 22:14:08 des Exp $
+ *	$Id: fetch.c,v 1.7 1998/12/16 10:24:54 des Exp $
  */
 
 #include <sys/param.h>
@@ -119,6 +119,25 @@ fetchStat(struct url *URL, struct url_stat *us, char *flags)
 }
 
 /*
+ * Select the appropriate protocol for the URL scheme, and return a
+ * list of files in the directory pointed to by the URL.
+ */
+struct url_ent *
+fetchList(struct url *URL, char *flags)
+{
+    if (strcasecmp(URL->scheme, "file") == 0)
+	return fetchListFile(URL, flags);
+    else if (strcasecmp(URL->scheme, "http") == 0)
+	return fetchListHTTP(URL, flags);
+    else if (strcasecmp(URL->scheme, "ftp") == 0)
+	return fetchListFTP(URL, flags);
+    else {
+	_url_seterr(URL_BAD_SCHEME);
+	return NULL;
+    }
+}
+
+/*
  * Attempt to parse the given URL; if successful, call fetchGet().
  */
 FILE *
@@ -171,6 +190,24 @@ fetchStatURL(char *URL, struct url_stat *us, char *flags)
 
     free(u);
     return s;
+}
+
+/*
+ * Attempt to parse the given URL; if successful, call fetchList().
+ */
+struct url_ent *
+fetchListURL(char *URL, char *flags)
+{
+    struct url *u;
+    struct url_ent *ue;
+
+    if ((u = fetchParseURL(URL)) == NULL)
+	return NULL;
+
+    ue = fetchList(u, flags);
+
+    free(u);
+    return ue;
 }
 
 /*
