@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2001
+.Dd October 12, 2002
 .Dt STRFMON 3
 .Os
 .Sh NAME
@@ -46,6 +46,73 @@ as controlled by the string pointed to by
 No more than
 .Fa maxsize
 bytes are placed into the array.
+.Pp
+The format string is composed of zero or more directives:
+ordinary characters (not
+.Cm % Ns ),
+which are copied unchanged to the output stream; and conversion
+specifications, each of which results in fetching zero or more subsequent
+arguments.
+Each conversion specification is introduced by the
+.Cm %
+character.
+After the
+.Cm % ,
+the following appear in sequence:
+.Bl -bullet
+.It
+Zero or more of the following flags:
+.Bl -tag -width "XXX"
+.It Cm = Ns Ar f
+A
+.Sq Cm =
+character followed by another character
+.Ar f
+which is used as the numeric fill character.
+.It Cm ^
+Do not use grouping characters, regardless of the current locale default.
+.It Cm +
+Represent positive values by prefixing them with a positive sign,
+and negative values by prefixing them with a negative sign.
+This is the default.
+.It Cm (
+Enclose negative values in parentheses.
+.It Cm !
+Do not include a currency symbol in the output.
+.It Cm \-
+Left justify the result.
+Only valid when a field width is specified.
+.El
+.It
+An optional minimum field width as a decimal number.
+By default, there is no minimum width.
+.It
+A
+.Sq Cm #
+sign followed by a decimal number specifying the maximum
+expected number of digits after the radix character.
+.It
+A
+.Sq Cm \&.
+character followed by a decimal number specifying the number
+the number of digits after the radix character.
+.It
+One of the following conversion specifiers:
+.Bl -tag -width "XXX"
+.It Cm i
+The
+.Vt double
+argument is formatted as an international monetary amount.
+.It Cm n
+The
+.Vt double
+argument is formatted as a national monetary amount.
+.It Cm %
+A
+.Sq Li %
+character is written.
+.El
+.El
 .Sh RETURN VALUES
 If the total number of resulting bytes including the terminating
 .Dv NULL
@@ -57,7 +124,7 @@ returns the number of bytes placed into the array pointed to by
 not including the terminating
 .Dv NULL
 byte.
-Otherwise, \-1 is returned,
+Otherwise, -1 is returned,
 the contents of the array are indeterminate,
 and
 .Va errno
@@ -69,6 +136,10 @@ function will fail if:
 .Bl -tag -width Er
 .It Bq Er E2BIG
 Conversion stopped due to lack of space in the buffer.
+.It Bq Er EINVAL
+The format string is invalid.
+.It Bq Er ENOMEM
+Not enough memory for temporary buffers.
 .El
 .Sh SEE ALSO
 .Xr localeconv 3
@@ -77,9 +148,7 @@ The
 .Fn strfmon
 function
 conforms to
-.St -xpg4
-and
-.St -susv2 .
+.St -p1003.1-2001 .
 .Sh AUTHORS
 .An -nosplit
 The
