@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)cat.1	8.3 (Berkeley) 5/2/95
-.\"	$Id: cat.1,v 1.6 1997/02/22 14:01:26 peter Exp $
+.\"	$Id: cat.1,v 1.7 1998/05/06 06:49:13 charnier Exp $
 .\"
 .Dd May 2, 1995
 .Dt CAT 1
@@ -56,29 +56,25 @@ operands are processed in command line order.
 A single dash represents the standard input.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl b
-Imply the
-.Fl n
-option but doesn't number blank lines.
+Number the non-blank output lines, starting at 1.
 .It Fl e
-Imply the
+Display non-printing characters (see the
 .Fl v
-option, and displays a dollar sign
+option), and display a dollar sign
 .Pq Ql \&$
-at the end of each line
-as well.
+at the end of each line.
 .It Fl n
 Number the output lines, starting at 1.
 .It Fl s
 Squeeze multiple adjacent empty lines, causing the output to be
 single spaced.
 .It Fl t
-Imply the
+Display non-printing characters (see the
 .Fl v
-option, and displays tab characters as
-.Ql ^I
-as well.
+option), and display tab characters as
+.Ql ^I .
 .It Fl u
 The
 .Fl u
