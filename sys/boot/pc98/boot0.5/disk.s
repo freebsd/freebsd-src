@@ -178,8 +178,22 @@ sasi_loop:
 	testb	%al, %dl
 	jz	no_sasi_unit
 	movb	$0x80, %dh
-	addb	%ah, %dh
-	movb	%dh, daua(%si)
+	addb	%ah, %dh		# %dh = DA/UA
+	movb	%dh, daua(%si)		# Store DA/UA
+
+	# Try new sense command
+	push	%ax
+	push	%cx
+	movb	%dh, %al
+	movb	$0x84, %ah
+	int	$0x1b
+	pop	%cx
+	pop	%ax
+	jc	err_newsense
+	movw	%bx, %dx
+	jmp	found_sasi_unit
+
+err_newsense:
 	movw	$0x457, %bx		# capacity & sector size of IDE HDD
 	call	read_biosparam
 	orb	%ah, %ah
