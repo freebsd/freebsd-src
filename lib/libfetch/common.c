@@ -456,7 +456,7 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 {
 	struct iovec iov;
 
-	iov.iov_base = __DECONST(char *, buf);
+	iov.iov_base = buf;
 	iov.iov_len = len;
 	return _fetch_writev(conn, &iov, 1);
 }
@@ -530,7 +530,7 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 		}
 		if (iovcnt > 0) {
 			iov->iov_len -= wlen;
-			iov->iov_base = __DECONST(char *, iov->iov_base) + wlen;
+			iov->iov_base = iov->iov_base + wlen;
 		}
 	}
 	return (total);
@@ -547,9 +547,9 @@ _fetch_putln(conn_t *conn, const char *str, size_t len)
 	int ret;
 
 	DEBUG(fprintf(stderr, ">>> %s\n", str));
-	iov[0].iov_base = __DECONST(char *, str);
+	iov[0].iov_base = str;
 	iov[0].iov_len = len;
-	iov[1].iov_base = __DECONST(char *, ENDL);
+	iov[1].iov_base = ENDL;
 	iov[1].iov_len = sizeof ENDL;
 	if (len == 0)
 		ret = _fetch_writev(conn, &iov[1], 1);
