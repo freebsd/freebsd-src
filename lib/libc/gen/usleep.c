@@ -61,7 +61,7 @@ usleep(useconds)
 
     if (useconds) {
         time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
-        time_to_sleep.tsvsec = useconds / 1000000;
+        time_to_sleep.tv_sec = useconds / 1000000;
         nanosleep(&time_to_sleep,NULL);
     }
 #else
