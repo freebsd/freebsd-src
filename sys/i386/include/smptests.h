@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.19 1997/08/04 17:31:28 fsmp Exp $
+ *	$Id: smptests.h,v 1.22 1997/08/21 04:48:45 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -36,52 +36,45 @@
 
 /*
  * Ignore the ipending bits when exiting FAST_INTR() routines.
+ *
+ ***
+ * according to Bruce:
+ *
+ * setsoft*() may set ipending.  setsofttty() is actually used in the
+ * FAST_INTR handler in some serial drivers.  This is necessary to get
+ * output completions and other urgent events handled as soon as possible.
+ * The flag(s) could be set in a variable other than ipending, but they
+ * needs to be checked against cpl to decide whether the software interrupt
+ * handler can/should run.
+ *
+ *  (FAST_INTR used to just return
+ * in all cases until rev.1.7 of vector.s.  This worked OK provided there
+ * were no user-mode CPU hogs.  CPU hogs caused an average latency of 1/2
+ * clock tick for output completions...)
+ ***
+ *
+ * So I need to restore cpl handling someday, but AFTER
+ *  I finish making spl/cpl MP-safe.
  */
 #define FAST_WITHOUTCPL
 
 
 /*
  * Use a simplelock to serialize FAST_INTR()s.
+ * sio.c, and probably other FAST_INTR() drivers, never expected several CPUs
+ * to be inside them at once.  Things such as global vars prevent more
+ * than 1 thread of execution from existing at once, so we serialize
+ * the access of FAST_INTR()s via a simple lock.
+ * One optimization on this would be a simple lock per DRIVER, but I'm
+ * not sure how to organize that yet...
  */
 #define FAST_SIMPLELOCK
-
-
-/*
- * Use the new INT passoff algorithm:
- *
- *	int_is_already_active = iactive & (1 << INT_NUMBER);
- *	iactive |= (1 << INT_NUMBER);
- *	if ( int_is_already_active || (try_mplock() == FAIL ) {
- *		mask_apic_int( INT_NUMBER );
- *		ipending |= (1 << INT_NUMBER);
- *		do_eoi();
- *		cleanup_and_iret();
- *	}
- */
-#define PEND_INTS
 
 
 /*
  * Portions of the old TEST_LOPRIO code, back from the grave!
  */
 #define GRAB_LOPRIO
-
-
-/*
- * 1st attempt to use the 'ExtInt' connected 8259 to attach 8254 timer.
- * failing that, attempt to attach 8254 timer via direct APIC pin.
- * failing that, panic!
- *
- */
-#define NEW_STRATEGY
-
-
-/*
- * For emergency fallback, define ONLY if 'NEW_STRATEGY' fails to work.
- * Formerly needed by Tyan Tomcat II and SuperMicro P6DNxxx motherboards.
- *
-#define SMP_TIMER_NC
- */
 
 
 /*
@@ -101,22 +94,20 @@
 
 
 /*
- * deal with broken smp_idleloop()
+ * Deal with broken smp_idleloop().
  */
 #define IGNORE_IDLEPROCS
 
 
 /*
- * misc. counters
+ * Misc. counters.
  *
 #define COUNT_XINVLTLB_HITS
-#define COUNT_SPURIOUS_INTS
-#define COUNT_CSHITS
  */
 
 
 /**
- * hack to "fake-out" kernel into thinking it is running on a 'default config'
+ * Hack to "fake-out" kernel into thinking it is running on a 'default config'.
  *
  * value == default type
 #define TEST_DEFAULT_CONFIG	6
@@ -124,7 +115,7 @@
 
 
 /*
- * simple test code for IPI interaction, save for future...
+ * Simple test code for IPI interaction, save for future...
  *
 #define TEST_TEST1
 #define IPI_TARGET_TEST1	1
@@ -194,7 +185,7 @@
 
 
 /*
- * these are all temps for debugging...
+ * These are all temps for debugging...
  *
 #define GUARD_INTS
  */

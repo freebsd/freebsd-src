@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.33 1997/08/09 00:03:16 dyson Exp $
+ *	$Id: param.h,v 1.9 1997/08/21 04:48:45 smp Exp smp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -51,6 +51,9 @@
 #define NCPUS		1
 #endif
 #define MID_MACHINE	MID_I386
+
+
+#ifndef LOCORE
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
@@ -136,8 +139,85 @@
 #define i386_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
 
+#endif /* !LOCORE */
+
+
 #ifndef _SIMPLELOCK_H_
 #define _SIMPLELOCK_H_
+
+#ifdef LOCORE
+
+#ifdef SMP
+
+#define	MPLOCKED	lock ;
+
+/*
+ * Some handy macros to allow logical organization and
+ * convenient reassignment of various locks.
+ */
+
+#define FPU_LOCK	call	_get_fpu_lock
+#define ALIGN_LOCK	call	_get_align_lock
+#define SYSCALL_LOCK	call	_get_syscall_lock
+#define ALTSYSCALL_LOCK	call	_get_altsyscall_lock
+
+/*
+ * Protects INTR() ISRs.
+ */
+#define ISR_TRYLOCK							\
+	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
+	call	_MPtrylock ;			/* try to get lock */	\
+	add	$4, %esp
+
+#define ISR_RELLOCK							\
+	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
+	call	_MPrellock ;						\
+	add	$4, %esp
+
+/*
+ * Protects the IO APIC and apic_imen as a critical region.
+ */
+#define IMASK_LOCK							\
+	pushl	$_imen_lock ;			/* address of lock */	\
+	call	_s_lock ;			/* MP-safe */		\
+	addl	$4, %esp
+
+#define IMASK_UNLOCK							\
+	pushl	$_imen_lock ;			/* address of lock */	\
+	call	_s_unlock ;			/* MP-safe */		\
+	addl	$4, %esp
+
+/*
+ * Protects spl updates as a critical region.
+ * Items within this 'region' include:
+ *  cpl
+ *  cil
+ *  ipending
+ *  ???
+ */
+#define CPL_LOCK							\
+	pushl	$_cpl_lock ;			/* address of lock */	\
+	call	_s_lock ;			/* MP-safe */		\
+	addl	$4, %esp
+
+#define CPL_UNLOCK							\
+	pushl	$_cpl_lock ;			/* address of lock */	\
+	call	_s_unlock ;			/* MP-safe */		\
+	addl	$4, %esp
+
+#else  /* SMP */
+
+#define	MPLOCKED				/* NOP */
+
+#define FPU_LOCK				/* NOP */
+#define ALIGN_LOCK				/* NOP */
+#define SYSCALL_LOCK				/* NOP */
+#define ALTSYSCALL_LOCK				/* NOP */
+
+#endif  /* SMP */
+
+#else /* LOCORE */
+
 /*
  * A simple spin lock.
  *
@@ -150,6 +230,19 @@
 struct simplelock {
 	volatile int	lock_data;
 };
+
+/* functions in simplelock.s */
+void	s_lock_init		__P((struct simplelock *));
+void	s_lock			__P((struct simplelock *));
+int	s_lock_try		__P((struct simplelock *));
+void	s_unlock		__P((struct simplelock *));
+
+/* global data in mp_machdep.c */
+extern struct simplelock	imen_lock;
+extern struct simplelock	cpl_lock;
+extern struct simplelock	fast_intr_lock;
+extern struct simplelock	intr_lock;
+extern struct simplelock	com_lock;
 
 #if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
 /*
@@ -206,6 +299,7 @@ simple_unlock(struct simplelock *lkp)
 #endif /* the_original_code */
 
 #endif /* NCPUS > 1 */
+#endif /* LOCORE */
 #endif /* !_SIMPLELOCK_H_ */
 
 #endif /* !_MACHINE_PARAM_H_ */

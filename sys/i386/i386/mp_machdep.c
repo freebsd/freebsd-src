@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.41 1997/08/10 19:32:38 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.29 1997/08/21 04:53:27 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -1418,6 +1418,18 @@ default_mp_table(int type)
 /*
  * initialize all the SMP locks
  */
+
+/* critical region around IO APIC, apic_imen */
+struct simplelock	imen_lock;
+
+/* critical region around splxx(), cpl, cil, ipending */
+struct simplelock	cpl_lock;
+
+/* Make FAST_INTR() routines sequential */
+struct simplelock	fast_intr_lock;
+
+/* critical region around INTR() routines */
+struct simplelock	intr_lock;
 
 /* lock the com (tty) data structures */
 struct simplelock	com_lock;

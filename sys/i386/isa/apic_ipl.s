@@ -22,17 +22,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.11 1997/07/31 17:28:56 fsmp Exp $
+ *	$Id: apic_ipl.s,v 1.23 1997/08/21 04:52:30 smp Exp smp $
  */
 
-
-#include <machine/smptests.h>		/** NEW_STRATEGY, APIC_PIN0_TIMER */
 
 	.data
 	ALIGN_DATA
 
-#ifdef NEW_STRATEGY
-
 /* this allows us to change the 8254 APIC pin# assignment */
 	.globl _Xintr8254
 _Xintr8254:
@@ -42,22 +38,6 @@ _Xintr8254:
 	.globl _mask8254
 _mask8254:
 	.long	0
-
-#else /** NEW_STRATEGY */
-
-#ifndef APIC_PIN0_TIMER
-/* this allows us to change the 8254 APIC pin# assignment */
-	.globl _Xintr8254
-_Xintr8254:
-	.long	_Xintr7
-
-/* used by this file, microtime.s and clock.c */
-	.globl _mask8254
-_mask8254:
-	.long	0
-#endif /* APIC_PIN0_TIMER */
-
-#endif /** NEW_STRATEGY */
 
 /*  */
 	.globl _vec
@@ -69,6 +49,7 @@ _vec:
 /* various simple locks */
 	.align 2				/* MUST be 32bit aligned */
 
+#if 0
 /* critical region around IO APIC */
 	.globl _imen_lock
 _imen_lock:
@@ -88,6 +69,7 @@ _fast_intr_lock:
 	.globl _intr_lock
 _intr_lock:
 	.long	0
+#endif
 
 /*
  * Note:
@@ -122,7 +104,6 @@ _apic_imen:
  * generic vector function for 8254 clock
  */
 	ALIGN_TEXT
-#ifdef NEW_STRATEGY
 
 	.globl	_vec8254
 _vec8254:
@@ -138,38 +119,6 @@ _vec8254:
 	MEXITCOUNT
 	movl	_Xintr8254, %eax
 	jmp	%eax			/* XXX might need _Xfastintr# */
-
-#else /** NEW_STRATEGY */
-
-#ifdef APIC_PIN0_TIMER
-vec0:
-	popl	%eax			/* return address */
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	lock				/* MP-safe */
-	andl	$~IRQ_BIT(0), iactive	/* lazy masking */
-	MEXITCOUNT
-	jmp	_Xintr0			/* XXX might need _Xfastintr0 */
-#else
-	.globl	_vec8254
-_vec8254:
-	popl	%eax			/* return address */
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	movl	_mask8254, %eax		/* lazy masking */
-	notl	%eax
-	cli
-	lock				/* MP-safe */
-	andl	%eax, iactive
-	MEXITCOUNT
-	movl	_Xintr8254, %eax
-	jmp	%eax			/* XXX might need _Xfastintr# */
-#endif /* APIC_PIN0_TIMER */
-
-#endif /** NEW_STRATEGY */
 
 
 /*
@@ -205,17 +154,7 @@ __CONCAT(vec,irq_num): ;						\
 	jmp	__CONCAT(_Xintr,irq_num)
 
 
-#ifdef NEW_STRATEGY
-
 	BUILD_VEC(0)
-
-#else /** NEW_STRATEGY */
-
-#ifndef APIC_PIN0_TIMER
-	BUILD_VEC(0)
-#endif /* APIC_PIN0_TIMER */
-
-#endif /** NEW_STRATEGY */
 	BUILD_VEC(1)
 	BUILD_VEC(2)
 	BUILD_VEC(3)
