@@ -163,6 +163,7 @@ pccard_attach_card(device_t dev)
 		child = device_add_child(dev, NULL, -1);
 		device_set_ivars(child, ivar);
 		ivar->fcn = pf;
+		pf->dev = child;
 		/*
 		 * XXX We might want to move the next two lines into
 		 * XXX the pccard interface layer.  For the moment, this
@@ -176,7 +177,6 @@ pccard_attach_card(device_t dev)
 		device_printf(dev, "pf %p pf->sc %p\n", pf, pf->sc);
 		if (device_probe_and_attach(child) == 0) {
 			attached++;
-			pf->dev = child;
 
 			DEVPRINTF((sc->dev, "function %d CCR at %d "
 			    "offset %x: %x %x %x %x, %x %x %x %x, %x\n",
@@ -296,33 +296,55 @@ void
 pccard_function_init(struct pccard_function *pf) 
 {
 	struct pccard_config_entry *cfe;
+	int i;
 
 	if (pf->pf_flags & PFF_ENABLED)
 		panic("pccard_function_init: function is enabled");
 
 	/* Remember which configuration entry we are using. */
-	/* XXX
-	 * need to look for one we can allocate the resources
-	 * and then set them so the alloc_resources work later.
-	 */
 	for (cfe = STAILQ_FIRST(&pf->cfe_head); cfe != NULL;
 	    cfe = STAILQ_NEXT(cfe, cfe_list)) {
+		for (i = 0; i < cfe->num_iospace; i++)
+			cfe->iores[i] = NULL;
+		cfe->irqres = NULL;
+		for (i = 0; i < cfe->num_iospace; i++) {
+			/* XXX kludge, need to not ignore start */
+			/* XXX start is a hint here, so this would break */
+			/* XXX modems */
+			cfe->iorid[i] = i;
+			cfe->iores[i] = bus_alloc_resource(pf->dev,
+			    SYS_RES_IOPORT, &cfe->iorid[i], 0x300, 0x3ff,
+			    cfe->iospace[i].length, 0);
+			if (cfe->iores[i] == 0)
+				goto not_this_one;
+			
+		}
+		if (cfe->num_memspace > 0) {
+			goto not_this_one;
+		}
+		if (cfe->irqmask) {
+			cfe->irqrid = 0;
+			cfe->irqres = bus_alloc_resource(pf->dev, SYS_RES_IRQ,
+			    &cfe->irqrid, 10, 12, 1, 0);
+			if (cfe->irqres == 0)
+				goto not_this_one;
+		}
+		/* XXX Don't know how to deal with maxtwins */
+		/* If we get to here, we've allocated all we need */
 		pf->cfe = cfe;
-		/*
-		 * XXX Need to try to allocate resources for this cfe and
-		 * XXX if we succeed in getting ALL of them, we will break
-		 * XXX out of the loop and use the reset of the resource
-		 * XXX mechanism to make sure that the values that we get
-		 * XXX here to work later.
-		 */
-		printf("%d: f %d type %d iospace %d 0x%lx-0x%lx mask 0x%lx memspace %d 0x%lx-0x%lx irqmask 0x%x\n",
-		    cfe->number, cfe->flags, cfe->iftype,
-		    cfe->num_iospace, cfe->iospace[0].start, 
-		    cfe->iospace[0].start + cfe->iospace[0].length - 1,
-		    cfe->iomask,
-		    cfe->num_memspace, cfe->memspace[0].hostaddr, 
-		    cfe->memspace[0].hostaddr + cfe->memspace[0].length - 1,
-		    cfe->irqmask);
+		break;
+	    not_this_one:;
+		for (i = 0; i < cfe->num_iospace; i++) {
+			if (cfe->iores[i])
+				bus_release_resource(pf->dev, SYS_RES_IOPORT, 
+				    cfe->iorid[i], cfe->iores[i]);
+			cfe->iores[i] = NULL;
+		}
+		if (cfe->irqmask && cfe->irqres) {
+			bus_release_resource(pf->dev, SYS_RES_IRQ,
+			    cfe->irqrid, cfe->irqres);
+			cfe->irqres = NULL;
+		}
 	}
 }
 
