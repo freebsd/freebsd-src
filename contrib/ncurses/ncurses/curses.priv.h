@@ -220,6 +220,8 @@ struct tries {
 #define S_QUOTE '\''
 #define D_QUOTE '"'
 
+#define VT_ACSC "``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~"
+
 /*
  * Structure for palette tables
  */
