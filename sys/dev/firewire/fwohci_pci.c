@@ -41,6 +41,7 @@
 #include <sys/queue.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/malloc.h>
 #include <machine/resource.h>
 
 #include <pci/pcivar.h>

@@ -140,38 +140,38 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		struct fw_dvbuf *dvbuf;
 
 		if((dvbuf = sc->fc->it[sub]->dvproc) != NULL){
-			free(dvbuf->buf, M_DEVBUF);
+			free(dvbuf->buf, M_FW);
 			sc->fc->it[sub]->dvproc = NULL;
 		}
 		if((dvbuf = sc->fc->it[sub]->dvdma) != NULL){
-			free(dvbuf->buf, M_DEVBUF);
+			free(dvbuf->buf, M_FW);
 			sc->fc->it[sub]->dvdma = NULL;
 		}
 		while((dvbuf = STAILQ_FIRST(&sc->fc->it[sub]->dvvalid)) != NULL){
 			STAILQ_REMOVE_HEAD(&sc->fc->it[sub]->dvvalid, link);
-			free(dvbuf->buf, M_DEVBUF);
+			free(dvbuf->buf, M_FW);
 		}
 		while((dvbuf = STAILQ_FIRST(&sc->fc->it[sub]->dvfree)) != NULL){
 			STAILQ_REMOVE_HEAD(&sc->fc->it[sub]->dvfree, link);
-			free(dvbuf->buf, M_DEVBUF);
+			free(dvbuf->buf, M_FW);
 		}
-		free(sc->fc->it[sub]->dvbuf, M_DEVBUF);
+		free(sc->fc->it[sub]->dvbuf, M_FW);
 		sc->fc->it[sub]->dvbuf = NULL;
 	}
 #endif
 	if(sc->fc->ir[sub]->flag & FWXFERQ_EXTBUF){
-		free(sc->fc->ir[sub]->buf, M_DEVBUF);
+		free(sc->fc->ir[sub]->buf, M_FW);
 		sc->fc->ir[sub]->buf = NULL;
-		free(sc->fc->ir[sub]->bulkxfer, M_DEVBUF);
+		free(sc->fc->ir[sub]->bulkxfer, M_FW);
 		sc->fc->ir[sub]->bulkxfer = NULL;
 		sc->fc->ir[sub]->flag &= ~FWXFERQ_EXTBUF;
 		sc->fc->ir[sub]->psize = PAGE_SIZE;
 		sc->fc->ir[sub]->maxq = FWMAXQUEUE;
 	}
 	if(sc->fc->it[sub]->flag & FWXFERQ_EXTBUF){
-		free(sc->fc->it[sub]->buf, M_DEVBUF);
+		free(sc->fc->it[sub]->buf, M_FW);
 		sc->fc->it[sub]->buf = NULL;
-		free(sc->fc->it[sub]->bulkxfer, M_DEVBUF);
+		free(sc->fc->it[sub]->bulkxfer, M_FW);
 		sc->fc->it[sub]->bulkxfer = NULL;
 #ifdef FWXFERQ_DV
 		sc->fc->it[sub]->dvbuf = NULL;
@@ -199,7 +199,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		fwb = STAILQ_FIRST(&sc->fc->ir[sub]->binds)){
 		STAILQ_REMOVE(&sc->fc->binds, fwb, fw_bind, fclist);
 		STAILQ_REMOVE_HEAD(&sc->fc->ir[sub]->binds, chlist);
-		free(fwb, M_DEVBUF);
+		free(fwb, M_FW);
 	}
 	sc->fc->ir[sub]->flag &= ~FWXFERQ_MODEMASK;
 	sc->fc->it[sub]->flag &= ~FWXFERQ_MODEMASK;
@@ -460,7 +460,7 @@ dvloop:
 			err = ENOMEM;
 			return err;
 		}
-		xfer->send.buf = malloc(uio->uio_resid, M_DEVBUF, M_NOWAIT);
+		xfer->send.buf = malloc(uio->uio_resid, M_FW, M_NOWAIT);
 		if(xfer->send.buf == NULL){
 			fw_xfer_free( xfer);
 			err = ENOBUFS;
@@ -569,7 +569,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 #ifdef FWXFERQ_DV
 	case FW_SSTDV:
 		ibufreq = (struct fw_isobufreq *)
-			malloc(sizeof(struct fw_isobufreq), M_DEVBUF, M_NOWAIT);
+			malloc(sizeof(struct fw_isobufreq), M_FW, M_NOWAIT);
 		if(ibufreq == NULL){
 			err = ENOMEM;
 			break;
@@ -590,7 +590,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 
 		err = fw_ioctl(dev, FW_SSTBUF, (caddr_t)ibufreq, flag, td);
 		sc->fc->it[sub]->dvpacket = FWDVPACKET;
-		free(ibufreq, M_DEVBUF);
+		free(ibufreq, M_FW);
 /* reserve a buffer space */
 #define NDVCHUNK 8
 		sc->fc->it[sub]->dvproc = NULL;
@@ -598,13 +598,13 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		sc->fc->it[sub]->flag |= FWXFERQ_DV;
 		/* XXX check malloc failure */
 		sc->fc->it[sub]->dvbuf
-			= (struct fw_dvbuf *)malloc(sizeof(struct fw_dvbuf) * NDVCHUNK, M_DEVBUF, M_NOWAIT);
+			= (struct fw_dvbuf *)malloc(sizeof(struct fw_dvbuf) * NDVCHUNK, M_FW, M_NOWAIT);
 		STAILQ_INIT(&sc->fc->it[sub]->dvvalid);
 		STAILQ_INIT(&sc->fc->it[sub]->dvfree);
 		for( i = 0 ; i < NDVCHUNK ; i++){
 			/* XXX check malloc failure */
 			sc->fc->it[sub]->dvbuf[i].buf
-				= malloc(FWDVPMAX * sc->fc->it[sub]->dvpacket, M_DEVBUF, M_NOWAIT);
+				= malloc(FWDVPMAX * sc->fc->it[sub]->dvpacket, M_FW, M_NOWAIT);
 			STAILQ_INSERT_TAIL(&sc->fc->it[sub]->dvfree,
 					&sc->fc->it[sub]->dvbuf[i], link);
 		}
@@ -631,12 +631,12 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			return(EINVAL);
 		}
 		ir->bulkxfer
-			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->rx.nchunk, M_DEVBUF, M_NOWAIT);
+			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->rx.nchunk, M_FW, M_NOWAIT);
 		if(ir->bulkxfer == NULL){
 			return(ENOMEM);
 		}
 		it->bulkxfer
-			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->tx.nchunk, M_DEVBUF, M_NOWAIT);
+			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->tx.nchunk, M_FW, M_NOWAIT);
 		if(it->bulkxfer == NULL){
 			return(ENOMEM);
 		}
@@ -645,10 +645,10 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			/* XXX psize must be 2^n and less or
 						equal to PAGE_SIZE */
 			* ((ibufreq->rx.psize + 3) &~3),
-			M_DEVBUF, M_NOWAIT);
+			M_FW, M_NOWAIT);
 		if(ir->buf == NULL){
-			free(ir->bulkxfer, M_DEVBUF);
-			free(it->bulkxfer, M_DEVBUF);
+			free(ir->bulkxfer, M_FW);
+			free(it->bulkxfer, M_FW);
 			ir->bulkxfer = NULL;
 			it->bulkxfer = NULL;
 			it->buf = NULL;
@@ -659,11 +659,11 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			/* XXX psize must be 2^n and less or
 						equal to PAGE_SIZE */
 			* ((ibufreq->tx.psize + 3) &~3),
-			M_DEVBUF, M_NOWAIT);
+			M_FW, M_NOWAIT);
 		if(it->buf == NULL){
-			free(ir->bulkxfer, M_DEVBUF);
-			free(it->bulkxfer, M_DEVBUF);
-			free(ir->buf, M_DEVBUF);
+			free(ir->bulkxfer, M_FW);
+			free(it->bulkxfer, M_FW);
+			free(ir->buf, M_FW);
 			ir->bulkxfer = NULL;
 			it->bulkxfer = NULL;
 			it->buf = NULL;
@@ -765,7 +765,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		}
 		xfer->spd = asyreq->req.sped;
 		xfer->send.len = asyreq->req.len;
-		xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT);
+		xfer->send.buf = malloc(xfer->send.len, M_FW, M_NOWAIT);
 		if(xfer->send.buf == NULL){
 			return ENOMEM;
 		}
@@ -801,7 +801,7 @@ error:
 		}
 		STAILQ_REMOVE(&sc->fc->binds, fwb, fw_bind, fclist);
 		STAILQ_REMOVE(&sc->fc->ir[sub]->binds, fwb, fw_bind, chlist);
-		free(fwb, M_DEVBUF);
+		free(fwb, M_FW);
 		break;
 	case FW_SBINDADDR:
 		if(bindreq->len <= 0 ){
@@ -812,7 +812,7 @@ error:
 			err = EINVAL;
 			break;
 		}
-		fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_DEVBUF, M_NOWAIT);
+		fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_FW, M_NOWAIT);
 		if(fwb == NULL){
 			err = ENOMEM;
 			break;
