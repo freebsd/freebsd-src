@@ -282,9 +282,7 @@ _ed=		ed
 _elink=		elink
 _em=		em
 _ep=		ep
-.if defined(WANT_EXT2FS_MODULE) || defined(ALL_MODULES)
 _ext2fs=	ext2fs
-.endif
 _fe=		fe
 _hfa=		hfa
 _i2c=		i2c
@@ -348,9 +346,7 @@ _snc=		snc
 
 .if ${MACHINE_ARCH} == "alpha"
 _agp=		agp
-.if defined(WANT_EXT2FS_MODULE) || defined(ALL_MODULES)
 _ext2fs=	ext2fs
-.endif
 _linprocfs=	linprocfs
 _linux=		linux
 _osf1=		osf1
