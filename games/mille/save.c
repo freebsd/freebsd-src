@@ -41,14 +41,15 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/uio.h>
+
 #include <fcntl.h>
 #include <string.h>
 #include <termios.h>
-#include <unistd.h>
-#include "mille.h"
-
+#include <time.h>
 #include <unctrl.h>
+#include <unistd.h>
+
+#include "mille.h"
 
 # ifdef	attron
 #	include	<term.h>
