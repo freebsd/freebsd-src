@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.23.4.2 1995/09/09 23:10:19 davidg Exp $
+**  $Id: pci.c,v 1.32 1995/10/02 13:43:11 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -436,6 +436,7 @@ pci_bus_config (void)
 		};
 
 		pcicb->pcicb_seen |= (1ul << device);
+
 		/*
 		**	Get and increment the unit.
 		*/
@@ -832,6 +833,7 @@ pci_bridge_config (void)
 			pcicb->pcicb_memlimit = pcicb->pcicb_membase+size-1;
 	}
 }
+
 /*-----------------------------------------------------------------
 **
 **	The following functions are provided for the device driver
@@ -1478,7 +1480,7 @@ struct vt {
 };
 
 static struct vt VendorTable[] = {
-/*	{0x0e11, "? 0x0e11"},*/
+	{0x0e11, "Compaq"},
 	{0x1000, "NCR/Symbios"},
 	{0x1002, "ATI Technologies Inc."},
 	{0x1004, "VLSI"},
@@ -1619,9 +1621,9 @@ void not_supported (pcici_t tag, u_long type)
 	*/
 
 	if (vp->ident) printf (vp->name);
-		else   printf ("vendor=0x%lx", type & 0xffff);
+		else   printf ("vendor=0x%04lx", type & 0xffff);
 
-	printf (", device=0x%lx", type >> 16);
+	printf (", device=0x%04lx", type >> 16);
 
 	data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 24) & 0xff;
 	if (data < sizeof(majclasses) / sizeof(majclasses[0]))
