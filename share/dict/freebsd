@@ -31,6 +31,8 @@ Firewire
 FreeBSD
 FreeBSD's
 Fry's
+GEOM
+GDBE
 GPL
 Greenman
 Haynes
@@ -50,8 +52,10 @@ KDE
 KLD
 Kerberos
 Kerneltrap
+Leffler
 Lehey
 LinuxDoc
+MFC
 MP
 Matrox
 Mozilla
@@ -67,10 +71,12 @@ Newbus
 Newsflash
 Nokia
 Novell
+OPIE
 OSF
 OSnews
 OpenBSD
 OpenGL
+PAE
 PCI
 PDF
 PPC
@@ -140,3 +146,4 @@ tradeshow
 vnode
 webmaster
 website
+Wemm
