@@ -486,6 +486,8 @@ extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
 extern struct vm_zone *proc_zone;
 
+extern int nextpid;
+
 /*
  * XXX macros for scheduler.  Shouldn't be here, but currently needed for
  * bounding the dubious p_estcpu inheritance in wait1().
