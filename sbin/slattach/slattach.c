@@ -576,6 +576,15 @@ void exit_handler(int ret)
 	/* Remove the PID file */
 	(void)unlink(pidfilename);
 
+	if (config_cmd) {
+		char *s;
+		s = (char*) malloc(strlen(config_cmd) + 32);
+		sprintf (s, "%s %d -1", config_cmd, unit);
+		syslog(LOG_NOTICE, "Deconfiguring %s (sl%d):", dev, unit);
+		syslog(LOG_NOTICE, "  '%s'", s);
+		system(s);
+		free (s);
+	}
 	/* invoke a shell for exit_cmd. */
 	if (exit_cmd) {
 		syslog(LOG_NOTICE,"exiting after running %s", exit_cmd);
