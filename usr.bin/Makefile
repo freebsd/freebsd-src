@@ -17,8 +17,8 @@ SUBDIR=	apply ar at banner basename biff cal calendar \
 	m4 mail make mesg mkdep mkfifo mklocale mkstr modstat \
 	more msgs mt netstat nfsstat nice \
 	nm nohup pagesize passwd paste pr printenv printf quota \
-	ranlib rdist renice rev rlogin rs rsh ruptime rwho \
-	script sed shar showmount size soelim split \
+	ranlib rdist renice rev rlogin rs rsh rup ruptime rusers rwall \
+	rwho script sed shar showmount size soelim split \
 	strings strip su symorder talk tcopy tee telnet tftp time tip \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
 	unifdef uniq unvis users uudecode uuencode vacation \
