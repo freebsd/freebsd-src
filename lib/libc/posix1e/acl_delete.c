@@ -30,7 +30,9 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/acl.h>
+#include "un-namespace.h"
 #include <sys/errno.h>
 
 int
@@ -53,5 +55,5 @@ int
 acl_delete_fd_np(int filedes, acl_type_t type)
 {
 
-	return (__acl_delete_fd(filedes, type));
+	return (___acl_delete_fd(filedes, type));
 }

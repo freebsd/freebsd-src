@@ -30,7 +30,9 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/acl.h>
+#include "un-namespace.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -71,7 +73,7 @@ acl_set_fd(int fd, acl_t acl)
 		return(-1);
 	}
 
-	return (__acl_set_fd(fd, ACL_TYPE_ACCESS, acl));
+	return (___acl_set_fd(fd, ACL_TYPE_ACCESS, acl));
 }
 
 int
@@ -87,7 +89,7 @@ acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
 		}
 	}
 
-	return (__acl_set_fd(fd, type, acl));
+	return (___acl_set_fd(fd, type, acl));
 }
 
 /*
