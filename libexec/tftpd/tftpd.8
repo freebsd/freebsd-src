@@ -39,7 +39,7 @@
 .Nd
 Internet Trivial File Transfer Protocol server
 .Sh SYNOPSIS
-.Nm tftpd
+.Nm /usr/libexec/tftpd
 .Op Fl l
 .Op Fl n
 .Op Fl s Ar directory
@@ -65,7 +65,7 @@ The use of
 .Xr tftp 1
 does not require an account or password on the remote system.
 Due to the lack of authentication information, 
-.Nm tftpd
+.Nm
 will allow only publicly readable files to be
 accessed.
 Files containing the string ``/\|\fB.\|.\fP\|/'' or starting with
@@ -80,7 +80,7 @@ should be considered before enabling tftp service.
 The server should have the user ID with the lowest possible privilege.
 .Pp
 Access to files may be restricted by invoking
-.Nm tftpd
+.Nm
 with a list of directories by including up to 20 pathnames
 as server program arguments in
 .Pa /etc/inetd.conf .
@@ -90,30 +90,40 @@ The given directories are also treated as a search path for
 relative filename requests.
 .Pp
 The chroot option provides additional security by restricting access
-of tftpd to only a chroot'd file system.  This is useful when moving
+of
+.Nm
+to only a chroot'd file system.  This is useful when moving
 from an OS that supported
-.Nm -s
+.Fl s
 as a boot server.  Because chroot is restricted to root, you must run
-tftpd as root.  However, if you chroot, then
-.Nm tftpd
+.Nm
+as root.  However, if you chroot, then
+.Nm
 will set its user id to nobody.
 .Pp
 The options are:
 .Bl -tag -width Ds
 .It Fl l
-Logs all requests using
+Log all requests using
 .Xr syslog 3 .
 .It Fl n
-Suppresses negative acknowledgement of requests for nonexistent
+Suppress negative acknowledgement of requests for nonexistent
 relative filenames.
 .It Fl s Ar directory
-Causes tftpd to chroot to
+Cause
+.Nm
+to chroot to
 .Pa directory
 before accepting commands.  In addition, the user id is set to
 nobody.
 .Pp
-If you are not running -s, no user id change will be
-attempted.  You should not run tftpd as root unless you are using -s.
+If you are not running
+.Fl s ,
+no user id change will be
+attempted.  You should not run
+.Nm
+as root unless you are using
+.Fl s .
 .El
 .Sh SEE ALSO
 .Xr tftp 1 ,

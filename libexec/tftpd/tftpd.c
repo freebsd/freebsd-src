@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: tftpd.c,v 1.8 1997/03/24 06:04:08 imp Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -64,6 +66,7 @@ static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -71,7 +74,6 @@ static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <pwd.h>
 
 #include "tftpsubs.h"
 
@@ -156,14 +158,14 @@ main(argc, argv)
 
 	on = 1;
 	if (ioctl(0, FIONBIO, &on) < 0) {
-		syslog(LOG_ERR, "ioctl(FIONBIO): %m\n");
+		syslog(LOG_ERR, "ioctl(FIONBIO): %m");
 		exit(1);
 	}
 	fromlen = sizeof (from);
 	n = recvfrom(0, buf, sizeof (buf), 0,
 	    (struct sockaddr *)&from, &fromlen);
 	if (n < 0) {
-		syslog(LOG_ERR, "recvfrom: %m\n");
+		syslog(LOG_ERR, "recvfrom: %m");
 		exit(1);
 	}
 	/*
@@ -210,7 +212,7 @@ main(argc, argv)
 		    }
 		}
 		if (pid < 0) {
-			syslog(LOG_ERR, "fork: %m\n");
+			syslog(LOG_ERR, "fork: %m");
 			exit(1);
 		} else if (pid != 0) {
 			exit(0);
@@ -242,17 +244,17 @@ main(argc, argv)
 	close(1);
 	peer = socket(AF_INET, SOCK_DGRAM, 0);
 	if (peer < 0) {
-		syslog(LOG_ERR, "socket: %m\n");
+		syslog(LOG_ERR, "socket: %m");
 		exit(1);
 	}
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	if (bind(peer, (struct sockaddr *)&sin, sizeof (sin)) < 0) {
-		syslog(LOG_ERR, "bind: %m\n");
+		syslog(LOG_ERR, "bind: %m");
 		exit(1);
 	}
 	if (connect(peer, (struct sockaddr *)&from, sizeof(from)) < 0) {
-		syslog(LOG_ERR, "connect: %m\n");
+		syslog(LOG_ERR, "connect: %m");
 		exit(1);
 	}
 	tp = (struct tftphdr *)buf;
@@ -488,7 +490,7 @@ sendfile(pf)
 
 send_data:
 		if (send(peer, dp, size + 4, 0) != size + 4) {
-			syslog(LOG_ERR, "tftpd: write: %m\n");
+			syslog(LOG_ERR, "write: %m");
 			goto abort;
 		}
 		read_ahead(file, pf->f_convert);
@@ -497,7 +499,7 @@ send_data:
 			n = recv(peer, ackbuf, sizeof (ackbuf), 0);
 			alarm(0);
 			if (n < 0) {
-				syslog(LOG_ERR, "tftpd: read: %m\n");
+				syslog(LOG_ERR, "read: %m");
 				goto abort;
 			}
 			ap->th_opcode = ntohs((u_short)ap->th_opcode);
@@ -553,7 +555,7 @@ recvfile(pf)
 		(void) setjmp(timeoutbuf);
 send_ack:
 		if (send(peer, ackbuf, 4, 0) != 4) {
-			syslog(LOG_ERR, "tftpd: write: %m\n");
+			syslog(LOG_ERR, "write: %m");
 			goto abort;
 		}
 		write_behind(file, pf->f_convert);
@@ -562,7 +564,7 @@ send_ack:
 			n = recv(peer, dp, PKTSIZE, 0);
 			alarm(0);
 			if (n < 0) {            /* really? */
-				syslog(LOG_ERR, "tftpd: read: %m\n");
+				syslog(LOG_ERR, "read: %m");
 				goto abort;
 			}
 			dp->th_opcode = ntohs((u_short)dp->th_opcode);
@@ -666,7 +668,7 @@ nak(error)
 	tp->th_msg[length] = '\0';
 	length += 5;
 	if (send(peer, buf, length, 0) != length)
-		syslog(LOG_ERR, "nak: %m\n");
+		syslog(LOG_ERR, "nak: %m");
 }
 
 static char *
