@@ -167,7 +167,7 @@ struct	ip6stat {
 	u_quad_t ip6s_localout;		/* total ip packets generated here */
 	u_quad_t ip6s_odropped;		/* lost packets due to nobufs, etc. */
 	u_quad_t ip6s_reassembled;	/* total packets reassembled ok */
-	u_quad_t ip6s_fragmented;	/* datagrams sucessfully fragmented */
+	u_quad_t ip6s_fragmented;	/* datagrams successfully fragmented */
 	u_quad_t ip6s_ofragments;	/* output fragments created */
 	u_quad_t ip6s_cantfrag;		/* don't fragment flag was set, etc. */
 	u_quad_t ip6s_badoptions;	/* error in option processing */
@@ -332,7 +332,7 @@ int	ip6_output __P((struct mbuf *, struct ip6_pktopts *,
 			int,
 			struct ip6_moptions *, struct ifnet **,
 			struct inpcb *));
-int	ip6_ctloutput __P((struct socket *, struct sockopt *sopt));
+int	ip6_ctloutput __P((struct socket *, struct sockopt *));
 void	init_ip6pktopts __P((struct ip6_pktopts *));
 int	ip6_setpktoptions __P((struct mbuf *, struct ip6_pktopts *, int, int));
 void	ip6_clearpktopts __P((struct ip6_pktopts *, int, int));
@@ -347,9 +347,9 @@ void	frag6_slowtimo __P((void));
 void	frag6_drain __P((void));
 
 void	rip6_init __P((void));
-int	rip6_input __P((struct mbuf **mp, int *offp, int proto));
+int	rip6_input __P((struct mbuf **, int *, int));
 void	rip6_ctlinput __P((int, struct sockaddr *, void *));
-int	rip6_ctloutput __P((struct socket *so, struct sockopt *sopt));
+int	rip6_ctloutput __P((struct socket *, struct sockopt *));
 int	rip6_output __P((struct mbuf *, ...));
 int	rip6_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *, struct thread *));

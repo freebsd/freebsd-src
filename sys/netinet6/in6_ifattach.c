@@ -156,9 +156,8 @@ generate_tmp_ifid(seed0, seed1, ret)
 			val32 = random() ^ tv.tv_usec;
 			bcopy(&val32, seed + sizeof(val32) * i, sizeof(val32));
 		}
-	} else {
+	} else
 		bcopy(seed0, seed, 8);
-	}
 
 	/* copy the right-most 64-bits of the given address */
 	/* XXX assumption on the size of IFID */
@@ -205,7 +204,7 @@ generate_tmp_ifid(seed0, seed1, ret)
 	 * RFC 3041 3.2.1. (4)
 	 * Take the rightmost 64-bits of the MD5 digest and save them in
 	 * stable storage as the history value to be used in the next
-	 * iteration of the algorithm. 
+	 * iteration of the algorithm.
 	 */
 	bcopy(&digest[8], seed0, 8);
 
@@ -240,8 +239,7 @@ get_hw_ifid(ifp, in6)
 
 	for (ifa = ifp->if_addrlist.tqh_first;
 	     ifa;
-	     ifa = ifa->ifa_list.tqe_next)
-	{
+	     ifa = ifa->ifa_list.tqe_next) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -383,8 +381,7 @@ get_ifid(ifp0, altifp, in6)
 
 	/* next, try to get it from some other hardware interface */
 	IFNET_RLOCK();
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
-	{
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next) {
 		if (ifp == ifp0)
 			continue;
 		if (get_hw_ifid(ifp, in6) != 0)
@@ -416,13 +413,10 @@ get_ifid(ifp0, altifp, in6)
 	return -1;
 
 success:
-	nd6log((LOG_INFO, "%s: ifid: "
-		"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-		if_name(ifp0),
-		in6->s6_addr[8], in6->s6_addr[9],
-		in6->s6_addr[10], in6->s6_addr[11],
-		in6->s6_addr[12], in6->s6_addr[13],
-		in6->s6_addr[14], in6->s6_addr[15]));
+	nd6log((LOG_INFO, "%s: ifid: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+	    if_name(ifp0), in6->s6_addr[8], in6->s6_addr[9], in6->s6_addr[10],
+	    in6->s6_addr[11], in6->s6_addr[12], in6->s6_addr[13],
+	    in6->s6_addr[14], in6->s6_addr[15]));
 	return 0;
 }
 
@@ -463,7 +457,7 @@ in6_ifattach_linklocal(ifp, altifp)
 		if (get_ifid(ifp, altifp, &ifra.ifra_addr.sin6_addr) != 0) {
 			nd6log((LOG_ERR,
 			    "%s: no ifid available\n", if_name(ifp)));
-			return -1;
+			return (-1);
 		}
 	}
 #ifdef SCOPEDROUTING
@@ -500,7 +494,7 @@ in6_ifattach_linklocal(ifp, altifp)
 		 * XXX: When the interface does not support IPv6, this call
 		 * would fail in the SIOCSIFADDR ioctl.  I believe the
 		 * notification is rather confusing in this case, so just
-		 * supress it.  (jinmei@kame.net 20010130)
+		 * suppress it.  (jinmei@kame.net 20010130)
 		 */
 		if (error != EAFNOSUPPORT)
 			log(LOG_NOTICE, "in6_ifattach_linklocal: failed to "
@@ -528,7 +522,7 @@ in6_ifattach_linklocal(ifp, altifp)
 	}
 
 	/*
-	 * Make the link-local prefix (fe80::/64%link) as on-link.
+	 * Make the link-local prefix (fe80::%link/64) as on-link.
 	 * Since we'd like to manage prefixes separately from addresses,
 	 * we make an ND6 prefix structure for the link-local prefix,
 	 * and add it to the prefix list as a never-expire prefix.
@@ -543,7 +537,7 @@ in6_ifattach_linklocal(ifp, altifp)
 	/* apply the mask for safety. (nd6_prelist_add will apply it again) */
 	for (i = 0; i < 4; i++) {
 		pr0.ndpr_prefix.sin6_addr.s6_addr32[i] &=
-			in6mask64.s6_addr32[i];
+		    in6mask64.s6_addr32[i];
 	}
 	/*
 	 * Initialize parameters.  The link-local prefix must always be
@@ -751,7 +745,7 @@ in6_ifattach(ifp, altifp)
 
 	/* some of the interfaces are inherently not IPv6 capable */
 	switch (ifp->if_type) {
-#ifdef IFT_BRIDGE	/*OpenBSD 2.8*/
+#ifdef IFT_BRIDGE	/* OpenBSD 2.8, NetBSD 1.6 */
 	case IFT_BRIDGE:
 		return;
 #endif
@@ -842,7 +836,7 @@ in6_ifattach(ifp, altifp)
 	}
 
 	/*
-	 * assign a link-local address, if there's none. 
+	 * assign a link-local address, if there's none.
 	 */
 	if (ip6_auto_linklocal) {
 		ia = in6ifa_ifpforlinklocal(ifp, 0);
@@ -856,7 +850,7 @@ in6_ifattach(ifp, altifp)
 	}
 
 #ifdef IFT_STF			/* XXX */
-statinit:	
+statinit:
 #endif
 
 	/* update dynamically. */
@@ -902,8 +896,7 @@ in6_ifdetach(ifp)
 	nd6_purge(ifp);
 
 	/* nuke any of IPv6 addresses we have */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next)
-	{
+	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next) {
 		next = ifa->ifa_list.tqe_next;
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -911,10 +904,8 @@ in6_ifdetach(ifp)
 	}
 
 	/* undo everything done by in6_ifattach(), just in case */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next)
-	{
+	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next) {
 		next = ifa->ifa_list.tqe_next;
-
 
 		if (ifa->ifa_addr->sa_family != AF_INET6
 		 || !IN6_IS_ADDR_LINKLOCAL(&satosin6(&ifa->ifa_addr)->sin6_addr)) {
@@ -924,15 +915,14 @@ in6_ifdetach(ifp)
 		ia = (struct in6_ifaddr *)ifa;
 
 		/* remove from the routing table */
-		if ((ia->ia_flags & IFA_ROUTE)
-		 && (rt = rtalloc1((struct sockaddr *)&ia->ia_addr, 0, 0UL))) {
+		if ((ia->ia_flags & IFA_ROUTE) &&
+		    (rt = rtalloc1((struct sockaddr *)&ia->ia_addr, 0, 0UL))) {
 			rtflags = rt->rt_flags;
 			rtfree(rt);
-			rtrequest(RTM_DELETE,
-				(struct sockaddr *)&ia->ia_addr,
-				(struct sockaddr *)&ia->ia_addr,
-				(struct sockaddr *)&ia->ia_prefixmask,
-				rtflags, (struct rtentry **)0);
+			rtrequest(RTM_DELETE, (struct sockaddr *)&ia->ia_addr,
+			    (struct sockaddr *)&ia->ia_addr,
+			    (struct sockaddr *)&ia->ia_prefixmask,
+			    rtflags, (struct rtentry **)0);
 		}
 
 		/* remove from the linked list */
@@ -949,9 +939,9 @@ in6_ifdetach(ifp)
 			if (ia->ia_next)
 				ia->ia_next = oia->ia_next;
 			else {
-				nd6log((LOG_ERR, 
-				    "%s: didn't unlink in6ifaddr from "
-				    "list\n", if_name(ifp)));
+				nd6log((LOG_ERR,
+				    "%s: didn't unlink in6ifaddr from list\n",
+				    if_name(ifp)));
 			}
 		}
 
@@ -959,10 +949,12 @@ in6_ifdetach(ifp)
 	}
 
 	/* leave from all multicast groups joined */
+
 	if (udbinfo.listhead != NULL)
 		in6_pcbpurgeif0(LIST_FIRST(udbinfo.listhead), ifp);
 	if (ripcbinfo.listhead != NULL)
 		in6_pcbpurgeif0(LIST_FIRST(ripcbinfo.listhead), ifp);
+
 	for (in6m = LIST_FIRST(&in6_multihead); in6m; in6m = in6m_next) {
 		in6m_next = LIST_NEXT(in6m, in6m_entry);
 		if (in6m->in6m_ifp != ifp)
@@ -992,7 +984,7 @@ in6_ifdetach(ifp)
 		if (rt->rt_ifp == ifp) {
 			RT_UNLOCK(rt);
 			rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt),
-				rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
+			    rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
 			RTFREE(rt);
 		} else
 			rtfree(rt);
@@ -1020,7 +1012,7 @@ in6_get_tmpifid(ifp, retbuf, baseid, generate)
 
 		/* generate_tmp_ifid will update seedn and buf */
 		(void)generate_tmp_ifid(ndi->randomseed0, ndi->randomseed1,
-					ndi->randomid);
+		    ndi->randomid);
 	}
 	bcopy(ndi->randomid, retbuf, 8);
 }
@@ -1035,9 +1027,8 @@ in6_tmpaddrtimer(ignored_arg)
 	int s = splnet();
 
 	callout_reset(&in6_tmpaddrtimer_ch,
-		      (ip6_temp_preferred_lifetime - ip6_desync_factor -
-		       ip6_temp_regen_advance) * hz,
-		      in6_tmpaddrtimer, NULL);
+	    (ip6_temp_preferred_lifetime - ip6_desync_factor -
+	    ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, NULL);
 
 	bzero(nullbuf, sizeof(nullbuf));
 	for (i = 1; i < if_index + 1; i++) {
@@ -1048,8 +1039,7 @@ in6_tmpaddrtimer(ignored_arg)
 			 * Create a new one.
 			 */
 			(void)generate_tmp_ifid(ndi->randomseed0,
-						ndi->randomseed1,
-						ndi->randomid);
+			    ndi->randomseed1, ndi->randomid);
 		}
 	}
 

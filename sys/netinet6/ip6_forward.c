@@ -139,7 +139,7 @@ ip6_forward(m, srcrt)
 	 * Do not forward packets to multicast destination (should be handled
 	 * by ip6_mforward().
 	 * Do not forward packets with unspecified source.  It was discussed
-	 * in July 2000, on ipngwg mailing list.
+	 * in July 2000, on the ipngwg mailing list.
 	 */
 	if ((m->m_flags & (M_BCAST|M_MCAST)) != 0 ||
 	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
@@ -181,8 +181,8 @@ ip6_forward(m, srcrt)
 
 #ifdef IPSEC
 	/* get a security policy for this packet */
-	sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, IP_FORWARDING,
-	    &error);
+	sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
+	    IP_FORWARDING, &error);
 	if (sp == NULL) {
 		ipsec6stat.out_inval++;
 		ip6stat.ip6s_cantforward++;
@@ -283,7 +283,7 @@ ip6_forward(m, srcrt)
 			break;
 		default:
 			printf("ip6_output (ipsec): error code %d\n", error);
-			/* fall through */
+			/* FALLTHROUGH */
 		case ENOENT:
 			/* don't show these error codes to the user */
 			break;
@@ -305,15 +305,14 @@ ip6_forward(m, srcrt)
 
 	dst = (struct sockaddr_in6 *)&ip6_forward_rt.ro_dst;
 	if (!srcrt) {
-		/*
-		 * ip6_forward_rt.ro_dst.sin6_addr is equal to ip6->ip6_dst
-		 */
+		/* ip6_forward_rt.ro_dst.sin6_addr is equal to ip6->ip6_dst */
 		if (ip6_forward_rt.ro_rt == 0 ||
 		    (ip6_forward_rt.ro_rt->rt_flags & RTF_UP) == 0) {
 			if (ip6_forward_rt.ro_rt) {
 				RTFREE(ip6_forward_rt.ro_rt);
 				ip6_forward_rt.ro_rt = 0;
 			}
+
 			/* this probably fails but give it a try again */
 			rtalloc_ign((struct route *)&ip6_forward_rt,
 				    RTF_PRCLONING);
@@ -330,7 +329,7 @@ ip6_forward(m, srcrt)
 			return;
 		}
 	} else if ((rt = ip6_forward_rt.ro_rt) == 0 ||
-		 !IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &dst->sin6_addr)) {
+		   !IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &dst->sin6_addr)) {
 		if (ip6_forward_rt.ro_rt) {
 			RTFREE(ip6_forward_rt.ro_rt);
 			ip6_forward_rt.ro_rt = 0;
@@ -423,7 +422,7 @@ ip6_forward(m, srcrt)
 		}
 		m_freem(m);
 		return;
- 	}
+	}
 
 	if (rt->rt_flags & RTF_GATEWAY)
 		dst = (struct sockaddr_in6 *)rt->rt_gateway;
@@ -497,11 +496,11 @@ ip6_forward(m, srcrt)
 #endif
 		{
 			printf("ip6_forward: outgoing interface is loopback. "
-				"src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
-				ip6_sprintf(&ip6->ip6_src),
-				ip6_sprintf(&ip6->ip6_dst),
-				ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
-				if_name(rt->rt_ifp));
+			       "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
+			       ip6_sprintf(&ip6->ip6_src),
+			       ip6_sprintf(&ip6->ip6_dst),
+			       ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
+			       if_name(rt->rt_ifp));
 		}
 
 		/* we can just use rcvif in forwarding. */
@@ -544,6 +543,7 @@ ip6_forward(m, srcrt)
 				goto freecopy;
 		}
 	}
+
 #ifdef PFIL_HOOKS
 senderr:
 #endif
@@ -551,12 +551,10 @@ senderr:
 		return;
 	switch (error) {
 	case 0:
-#if 1
 		if (type == ND_REDIRECT) {
 			icmp6_redirect_output(mcopy, rt);
 			return;
 		}
-#endif
 		goto freecopy;
 
 	case EMSGSIZE:
