@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.139 1999/05/06 18:12:19 peter Exp $
+ **      $Id: userconfig.c,v 1.140 1999/05/07 16:54:50 peter Exp $
  **/
 
 /**
@@ -2539,7 +2539,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.139 1999/05/06 18:12:19 peter Exp $
+ *      $Id: userconfig.c,v 1.140 1999/05/07 16:54:50 peter Exp $
  */
 
 #include "scbus.h"
@@ -3374,6 +3374,8 @@ load_devtab(void)
 	val = 0;
 	resource_int_value(name, unit, "disabled", &val);
 	isa_devtab[dt].id_enabled = !val;
+	resource_int_value(name, unit, "conflicts",
+		(int *)&isa_devtab[dt].id_conflicts);
 	isa_drvtab[dt].name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
 	strcpy(isa_drvtab[dt].name, name);
 	dt++;
@@ -3608,25 +3610,20 @@ list_scsi(CmdParm *parms)
 static void
 save_resource(struct isa_device *idev)
 {
-    int i;
     char *name;
     int unit;
-    int count = resource_count();
 
-    for (i = 0; i < count; i++) {
-	name = resource_query_name(i);
-	unit = resource_query_unit(i);
-	if (unit != idev->id_unit || strcmp(name, idev->id_driver->name) != 0)
-	    continue;
-	resource_set_int(i, "port", idev->id_iobase);
-	resource_set_int(i, "irq", 1 << (idev->id_irq < 0 ? 0 : idev->id_irq));
-	resource_set_int(i, "drq", idev->id_drq);
-	resource_set_int(i, "maddr", (int)idev->id_maddr);
-	resource_set_int(i, "msize", idev->id_msize);
-	resource_set_int(i, "flags", idev->id_flags);
-	resource_set_int(i, "disabled", !idev->id_enabled);
-	break;
-    }
+    name = idev->id_driver->name;
+    unit = idev->id_unit;
+    resource_set_int(name, unit, "port", idev->id_iobase);
+    resource_set_int(name, unit, "irq",
+		     1 << (idev->id_irq < 0 ? 0 : idev->id_irq));
+    resource_set_int(name, unit, "drq", idev->id_drq);
+    resource_set_int(name, unit, "maddr", (int)idev->id_maddr);
+    resource_set_int(name, unit, "msize", idev->id_msize);
+    resource_set_int(name, unit, "flags", idev->id_flags);
+    resource_set_int(name, unit, "disabled", !idev->id_enabled);
+    resource_set_int(name, unit, "conflicts", idev->id_conflicts);
 }
 
 static int
