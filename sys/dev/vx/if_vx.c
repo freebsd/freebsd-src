@@ -109,7 +109,7 @@ u_long vx_count;	/* both PCI and EISA */
 static struct connector_entry {
   int bit;
   char *name;
-} connector_table[VX_CONNECTORS] = {
+} conn_tab[VX_CONNECTORS] = {
 #define CONNECTOR_UTP	0
   { 0x08, "utp"},
 #define CONNECTOR_AUI	1
@@ -322,11 +322,11 @@ vxgetlink(sc)
     GO_WINDOW(3);
     sc->vx_connectors = inw(BASE + VX_W3_RESET_OPT) & 0x7f;
     for (n = 0, k = 0; k < VX_CONNECTORS; k++) {
-      if (sc->vx_connectors & connector_table[k].bit) {
+      if (sc->vx_connectors & conn_tab[k].bit) {
 	if (n > 0) {
 	  printf("/");
 	}
-	printf(connector_table[k].name);
+	printf(conn_tab[k].name);
 	n++;
       }
     }
@@ -340,10 +340,10 @@ vxgetlink(sc)
 			>> INTERNAL_CONNECTOR_BITS;
     if (sc->vx_connector & 0x10) {
 	sc->vx_connector &= 0x0f;
-	printf("[*%s*]", connector_table[sc->vx_connector].name);
+	printf("[*%s*]", conn_tab[sc->vx_connector].name);
 	printf(": disable 'auto select' with DOS util!", sc->unit);
     } else {
-	printf("[*%s*]", connector_table[sc->vx_connector].name);
+	printf("[*%s*]", conn_tab[sc->vx_connector].name);
     }
 }
 
@@ -352,7 +352,14 @@ vxsetlink(sc)
     struct vx_softc *sc;
 {       
     register struct ifnet *ifp = &sc->arpcom.ac_if;  
-    int i, j;
+    int i, j, k;
+    char *reason, *warning;
+    static short prev_flags;
+    static char prev_conn = -1;
+
+    if (prev_conn == -1) {
+	prev_conn = sc->vx_connector;
+    }
 
     /*
      * S.B.
@@ -368,67 +375,83 @@ vxsetlink(sc)
      *
      * If none of them is specified then
      * connector specified in the EEPROM is used
-     * (if present on card or AUI if not).
+     * (if present on card or UTP if not).
      */
-    /* Set the xcvr. */
-    if(ifp->if_flags & IFF_LINK0 && sc->vx_connectors & 
-				connector_table[CONNECTOR_AUI].bit) {
-	i = CONNECTOR_AUI;
-    } else if(ifp->if_flags & IFF_LINK1 && sc->vx_connectors & 
-				connector_table[CONNECTOR_BNC].bit) {
-	i = CONNECTOR_BNC;
-    } else if(ifp->if_flags & IFF_LINK2 && sc->vx_connectors & 
-				connector_table[CONNECTOR_UTP].bit) {
+
+    i = sc->vx_connector;	/* default in EEPROM */
+    reason = "default";
+    warning = 0;
+
+    if (ifp->if_flags & IFF_LINK0) {
+	if (sc->vx_connectors & conn_tab[CONNECTOR_AUI].bit) {
+	    i = CONNECTOR_AUI;
+	    reason = "link0";
+	} else {
+	    warning = "aui not present! (link0)";
+	}
+    } else if (ifp->if_flags & IFF_LINK1) {
+	if (sc->vx_connectors & conn_tab[CONNECTOR_BNC].bit) {
+	    i = CONNECTOR_BNC;
+	    reason = "link1";
+	} else {
+	    warning = "bnc not present! (link1)";
+	}
+    } else if (ifp->if_flags & IFF_LINK2) {
+	if (sc->vx_connectors & conn_tab[CONNECTOR_UTP].bit) {
+	    i = CONNECTOR_UTP;
+	    reason = "link2";
+	} else {
+	    warning = "utp not present! (link2)";
+	}
+    } else if ((sc->vx_connectors & conn_tab[sc->vx_connector].bit) == 0) {
+	warning = "strange connector type in EEPROM.";
+	reason = "forced";
 	i = CONNECTOR_UTP;
-    } else {
-	i = sc->vx_connector;
     }
+
+    /* Avoid unnecessary message. */
+    k = (prev_flags ^ ifp->if_flags) & (IFF_LINK0 | IFF_LINK1 | IFF_LINK2);
+    if ((k != 0) || (prev_conn != i)) {
+	if (warning != 0) {
+	    printf("vx%d: warning: %s\n", sc->unit);
+	}
+	printf("vx%d: selected %s. (%s)\n",
+	       sc->unit, conn_tab[i].name, reason);
+    }
+
+    /* Set the selected connector. */
     GO_WINDOW(3);
     j = inl(BASE + VX_W3_INTERNAL_CFG) & ~INTERNAL_CONNECTOR_MASK;
     outl(BASE + VX_W3_INTERNAL_CFG, j | (i <<INTERNAL_CONNECTOR_BITS));
+
+    /* First, disable all. */
+    outw(BASE + VX_COMMAND, STOP_TRANSCEIVER);
+    DELAY(800);
+    GO_WINDOW(4);
+    outw(BASE + VX_W4_MEDIA_TYPE, 0);
+
+    /* Second, enable the selected one. */
     switch(i) {
-      case CONNECTOR_AUI:
-	/* nothing to do */
-	break;
       case CONNECTOR_UTP:
-	if(sc->vx_connectors & connector_table[CONNECTOR_UTP].bit) {
-	    GO_WINDOW(4);
-	    outw(BASE + VX_W4_MEDIA_TYPE, ENABLE_UTP);
-	}
+	GO_WINDOW(4);
+	outw(BASE + VX_W4_MEDIA_TYPE, ENABLE_UTP);
 	break;
       case CONNECTOR_BNC:
-	if(sc->vx_connectors & connector_table[CONNECTOR_BNC].bit) {
-	    outw(BASE + VX_COMMAND, START_TRANSCEIVER);
-	    DELAY(800);
-	}
+	outw(BASE + VX_COMMAND, START_TRANSCEIVER);
+	DELAY(800);
 	break;
       case CONNECTOR_TX:
-	if(sc->vx_connectors & connector_table[CONNECTOR_TX].bit) {
-	    GO_WINDOW(4);
-	    outw(BASE + VX_W4_MEDIA_TYPE, LINKBEAT_ENABLE);
-	}
-	break;
       case CONNECTOR_FX:
-	if(sc->vx_connectors & connector_table[CONNECTOR_FX].bit) {
-	    GO_WINDOW(4);
-	    outw(BASE + VX_W4_MEDIA_TYPE, LINKBEAT_ENABLE);
-	}
+	GO_WINDOW(4);
+	outw(BASE + VX_W4_MEDIA_TYPE, LINKBEAT_ENABLE);
 	break;
-      default:
-	if(sc->vx_connectors & connector_table[CONNECTOR_UTP].bit) {
-	    printf("vx%d: strange connector type in EEPROM: %d\n",
-		   sc->unit, sc->vx_connector);
-	    printf("vx%d: assuming UTP\n", sc->unit);
-	    GO_WINDOW(4);
-	    outw(BASE + VX_W4_MEDIA_TYPE, ENABLE_UTP);
-	} else {
-	    printf("vx%d: strange connector type in EEPROM: %d\n",
-		   sc->unit, sc->vx_connector);
-	    printf("vx%d: assuming AUI\n", sc->unit);
-	}
+      default:	/* AUI and MII fall here */
 	break;
     }
     GO_WINDOW(1); 
+
+    prev_flags = ifp->if_flags;
+    prev_conn = i;
 }
 
 static void
@@ -468,20 +491,23 @@ startagain:
 	m_freem(m0);
 	goto readcheck;
     }
+    VX_BUSY_WAIT;
     if (inw(BASE + VX_W1_FREE_TX) < len + pad + 4) {
 	outw(BASE + VX_COMMAND, SET_TX_AVAIL_THRESH | ((len + pad + 4) >> 2));
 	/* not enough room in FIFO */
-	ifp->if_flags |= IFF_OACTIVE;
-	ifp->if_timer = 1;
-	return;
-    } else {
-	outw(BASE + VX_COMMAND, SET_TX_AVAIL_THRESH | (8188 >> 2));
+	if (inw(BASE + VX_W1_FREE_TX) < len + pad + 4) { /* make sure */
+	    ifp->if_flags |= IFF_OACTIVE;
+	    ifp->if_timer = 1;
+	    return;
+	}
     }
+    outw(BASE + VX_COMMAND, SET_TX_AVAIL_THRESH | (8188 >> 2));
     IF_DEQUEUE(&ifp->if_snd, m0);
     if (m0 == 0) {		/* not really needed */
 	return;
     }
 
+    VX_BUSY_WAIT;
     outw(BASE + VX_COMMAND, SET_TX_START_THRESH |
 	((len / 4 + sc->tx_start_thresh) >> 2));
 
@@ -794,7 +820,6 @@ again:
 
 abort:
     outw(BASE + VX_COMMAND, RX_DISCARD_TOP_PACK);
-    VX_BUSY_WAIT;
 }
 
 static struct mbuf *
@@ -871,7 +896,6 @@ vxget(sc, totlen)
     }
 
     outw(BASE +VX_COMMAND, RX_DISCARD_TOP_PACK);
-    VX_BUSY_WAIT;
 
     splx(sh);
 
