@@ -58,6 +58,8 @@ union semun {
 #define GETZCNT	7	/* Return the value of semzcnt {READ} */
 #define SETVAL	8	/* Set the value of semval to arg.val {ALTER} */
 #define SETALL	9	/* Set semvals from arg.array {ALTER} */
+#define SEM_STAT 10	/* Like IPC_STAT but treats semid as sema-index */
+#define SEM_INFO 11 /* Like IPC_INFO but treats semid as sema-index */
 
 /*
  * Permissions
