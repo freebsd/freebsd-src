@@ -28,6 +28,10 @@ SUBDIR+= libcrypt
 .if !exists(../secure) || defined(NOSECURE)
 SUBDIR+= libtelnet
 .else
+.if defined(RELEASEDIR)
+# releases do need both libraries
+SUBDIR+= libtelnet
+.endif
 SUBDIR+= ../secure/lib/libtelnet
 .endif
 
