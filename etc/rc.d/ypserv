@@ -27,8 +27,8 @@ esac
 
 ypserv_precmd()
 {
-        case ${OSTYPE} in
-        FreeBSD)
+	case ${OSTYPE} in
+	FreeBSD)
 		if ! checkyesno rpcbind_enable  && \
 		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
 		then

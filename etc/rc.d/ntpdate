@@ -29,8 +29,8 @@ ntpdate_start()
 {
 	if [ -z "$ntpdate_hosts" ]; then
 		ntpdate_hosts=`awk '
-		    /^server[ \t]*127.127/      {next}
-		    /^(server|peer)/            {print $2}
+			/^server[ \t]*127.127/      {next}
+			/^(server|peer)/            {print $2}
 		' </etc/ntp.conf`
 	fi
 	if [ -n "$ntpdate_hosts"  ]; then

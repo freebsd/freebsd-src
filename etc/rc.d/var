@@ -55,8 +55,8 @@ mount_md()
 # If there is a global system configuration file, suck it in.
 #
 if [ -r /etc/rc.subr ]; then
-        . /etc/rc.subr
-        load_rc_config $name
+	. /etc/rc.subr
+	load_rc_config $name
 elif [ -r /etc/defaults/rc.conf ]; then
 	. /etc/defaults/rc.conf
 	source_rc_confs
@@ -108,7 +108,7 @@ if [ ! -L /tmp ]; then
 	chmod 01777 /tmp
 fi
 
-if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
+if sysctl vfs.devfs.generation > /dev/null 2>&1; then
 	# we have DEVFS, no worries...
 	true
 else

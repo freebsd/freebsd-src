@@ -24,7 +24,7 @@ addswap_start()
 	*)
 		if [ -w "${swapfile}" -a -c /dev/mdctl ]; then
 			echo "Adding ${swapfile} as additional swap"
-		 	mdev=`mdconfig -a -t vnode -f ${swapfile}` && swapon /dev/${mdev}
+			mdev=`mdconfig -a -t vnode -f ${swapfile}` && swapon /dev/${mdev}
 		fi
 		;;
 	esac

@@ -65,7 +65,7 @@ isdnd_start()
 
 	# Start isdntrace
 	#
-	if checkyesno isdn_trace ; then
+	if checkyesno isdn_trace; then
 		echo -n ' isdntrace'
 		nohup /usr/sbin/isdntrace ${isdn_traceflags} >/dev/null 2>&1 &
 		echo '.'

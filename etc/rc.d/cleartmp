@@ -27,7 +27,7 @@ cleartmp_start()
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
 	    find -x . ! -name . ! -name lost+found ! -name quota.user \
 		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
-	
+
 	case ${OSTYPE} in
 	FreeBSD)
 		# Remove X lock files, since they will prevent you from

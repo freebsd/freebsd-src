@@ -27,11 +27,11 @@ rpc_ypupdated_precmd()
 		force_depend ypserv || return 1
 	fi
 
-        _domain=`domainname`
-        if [ -z "$_domain" ]; then
-                warn "domainname(1) is not set."
-                return 1
-        fi
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "domainname(1) is not set."
+		return 1
+	fi
 }
 
 load_rc_config $name
