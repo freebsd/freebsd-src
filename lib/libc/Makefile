@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
+#	$Id: Makefile,v 1.19 1997/05/23 08:23:53 asami Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -14,27 +15,10 @@ CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=	yes
 PRECIOUSLIB=	yes
 
-.include "${.CURDIR}/db/Makefile.inc"
-.include "${.CURDIR}/compat-43/Makefile.inc"
-.include "${.CURDIR}/gen/Makefile.inc"
-.include "${.CURDIR}/gmon/Makefile.inc"
-.include "${.CURDIR}/locale/Makefile.inc"
-.include "${.CURDIR}/net/Makefile.inc"
-.include "${.CURDIR}/nls/Makefile.inc"
-.include "${.CURDIR}/quad/Makefile.inc"
-.include "${.CURDIR}/regex/Makefile.inc"
-.include "${.CURDIR}/stdio/Makefile.inc"
-.include "${.CURDIR}/stdlib/Makefile.inc"
-.include "${.CURDIR}/stdtime/Makefile.inc"
-.include "${.CURDIR}/string/Makefile.inc"
-.include "${.CURDIR}/sys/Makefile.inc"
-.include "${.CURDIR}/rpc/Makefile.inc"
-.include "${.CURDIR}/xdr/Makefile.inc"
-.if !defined(NO_YP_LIBC)
-CFLAGS+= -DYP
-.include "${.CURDIR}/yp/Makefile.inc"
-.endif
-.include "${.CURDIR}/${MACHINE}/sys/Makefile.inc"
+#
+# Include make rules that are shared with libc_r.
+#
+.include "${.CURDIR}/Makefile.inc"
 
 KQSRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c iordi3.c \
 	lshldi3.c lshrdi3.c moddi3.c muldi3.c negdi2.c notdi2.c qdivrem.c \
