@@ -52,7 +52,8 @@
 #define OS_DEPEND_SCSI_HEADER			\
 	struct scsi_link sc_link;
 
-#define	OS_DEPEND_MISC_HEADER
+#define	OS_DEPEND_MISC_HEADER			\
+	struct callout_handle timeout_ch;
 #endif	/* __FreeBSD__ */
 
 #if	defined(__NetBSD__)

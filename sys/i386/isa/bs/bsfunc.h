@@ -212,6 +212,9 @@ bs_start_timeout(bsc)
 	if ((bsc->sc_flags & BSSTARTTIMEOUT) == 0)
 	{
 		bsc->sc_flags |= BSSTARTTIMEOUT;
+#ifdef __FreeBSD__
+		bsc->timeout_ch =
+#endif
 		timeout(bstimeout, bsc, BS_TIMEOUT_INTERVAL);
 	}
 }
@@ -223,7 +226,12 @@ bs_terminate_timeout(bsc)
 
 	if (bsc->sc_flags & BSSTARTTIMEOUT)
 	{
+#ifdef __FreeBSD__
+		untimeout(bstimeout, bsc,
+				  bsc->timeout_ch);
+#else
 		untimeout(bstimeout, bsc);
+#endif
 		bsc->sc_flags &= ~BSSTARTTIMEOUT;
 	}
 }
