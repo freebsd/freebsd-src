@@ -102,36 +102,46 @@ static int sched_attach(void)
 	return ret;
 }
 
+/* 
+ * MPSAFE
+ */
 int sched_setparam(struct proc *p,
 	struct sched_setparam_args *uap)
 {
 	struct proc *targetp;
 	int e;
-
 	struct sched_param sched_param;
+
 	e = copyin(uap->param, &sched_param, sizeof(sched_param));
 	if (e)
 		return (e);
 
+	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = p;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
-		if (targetp == NULL)
-			return (ESRCH);
+		if (targetp == NULL) {
+			e = ESRCH;
+			goto done2;
+		}
 	}
 
 	e = p_cansched(p, targetp);
 	PROC_UNLOCK(targetp);
-	if (e)
-		return (e);
-
-	e = ksched_setparam(&p->p_retval[0], ksched, targetp,
-		(const struct sched_param *)&sched_param);
+	if (e == 0) {
+		e = ksched_setparam(&p->p_retval[0], ksched, targetp,
+			(const struct sched_param *)&sched_param);
+	}
+done2:
+	mtx_unlock(&Giant);
 	return (e);
 }
 
+/* 
+ * MPSAFE
+ */
 int sched_getparam(struct proc *p,
 	struct sched_getparam_args *uap)
 {
@@ -139,27 +149,33 @@ int sched_getparam(struct proc *p,
 	struct sched_param sched_param;
 	struct proc *targetp;
 
+	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = p;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
-		if (targetp == NULL)
-			return (ESRCH);
+		if (targetp == NULL) {
+			e = ESRCH;
+			goto done2;
+		}
 	}
 
 	e = p_cansee(p, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
-		return (e);
+		goto done2;
 
 	e = ksched_getparam(&p->p_retval[0], ksched, targetp, &sched_param);
-	if (e)
-		return (e);
-
-	e = copyout(&sched_param, uap->param, sizeof(sched_param));
+	if (e == 0)
+		e = copyout(&sched_param, uap->param, sizeof(sched_param));
+done2:
+	mtx_unlock(&Giant);
 	return (e);
 }
+/* 
+ * MPSAFE
+ */
 int sched_setscheduler(struct proc *p,
 	struct sched_setscheduler_args *uap)
 {
@@ -171,89 +187,126 @@ int sched_setscheduler(struct proc *p,
 	if (e)
 		return (e);
 
+	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = p;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
-		if (targetp == NULL)
-			return (ESRCH);
+		if (targetp == NULL) {
+			e = ESRCH;
+			goto done2;
+		}
 	}
 
 	e = p_cansched(p, targetp);
 	PROC_UNLOCK(targetp);
-	if (e)
-		return (e);
-
-	e = ksched_setscheduler(&p->p_retval[0], ksched, targetp, uap->policy,
-		(const struct sched_param *)&sched_param);
-
+	if (e == 0) {
+		e = ksched_setscheduler(&p->p_retval[0], ksched,
+			targetp, uap->policy,
+			(const struct sched_param *)&sched_param);
+	}
+done2:
+	mtx_unlock(&Giant);
 	return (e);
 }
+/* 
+ * MPSAFE
+ */
 int sched_getscheduler(struct proc *p,
 	struct sched_getscheduler_args *uap)
 {
 	int e;
 	struct proc *targetp;
 
+	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = p;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
-		if (targetp == NULL)
-			return (ESRCH);
+		if (targetp == NULL) {
+			e = ESRCH;
+			goto done2;
+		}
 	}
 
 	e = p_cansee(p, targetp);
 	PROC_UNLOCK(targetp);
-	if (e)
-		return (e);
+	if (e == 0)
+		e = ksched_getscheduler(&p->p_retval[0], ksched, targetp);
 
-	e = ksched_getscheduler(&p->p_retval[0], ksched, targetp);
-
+done2:
+	mtx_unlock(&Giant);
 	return (e);
 }
+/* 
+ * MPSAFE
+ */
 int sched_yield(struct proc *p,
 	struct sched_yield_args *uap)
 {
-	return ksched_yield(&p->p_retval[0], ksched);
+	int error;
+
+	mtx_lock(&Giant);
+	error = ksched_yield(&p->p_retval[0], ksched);
+	mtx_unlock(&Giant);
+	return (error);
 }
+/* 
+ * MPSAFE
+ */
 int sched_get_priority_max(struct proc *p,
 	struct sched_get_priority_max_args *uap)
 {
-	return ksched_get_priority_max(&p->p_retval[0],
-	ksched, uap->policy);
+	int error;
+
+	mtx_lock(&Giant);
+	error = ksched_get_priority_max(&p->p_retval[0], ksched, uap->policy);
+	mtx_unlock(&Giant);
+	return (error);
 }
+/* 
+ * MPSAFE
+ */
 int sched_get_priority_min(struct proc *p,
 	struct sched_get_priority_min_args *uap)
 {
-	return ksched_get_priority_min(&p->p_retval[0],
-	ksched, uap->policy);
+	int error;
+	mtx_lock(&Giant);
+	error = ksched_get_priority_min(&p->p_retval[0], ksched, uap->policy);
+	mtx_unlock(&Giant);
+	return (error);
 }
+/* 
+ * MPSAFE
+ */
 int sched_rr_get_interval(struct proc *p,
 	struct sched_rr_get_interval_args *uap)
 {
 	int e;
 	struct proc *targetp;
 
+	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = p;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
-		if (targetp == NULL)
-			return (ESRCH);
+		if (targetp == NULL) {
+			e = ESRCH;
+			goto done2;
+		}
 	}
 
 	e = p_cansee(p, targetp);
 	PROC_UNLOCK(targetp);
-	if (e)
-		return (e);
-
-	e = ksched_rr_get_interval(&p->p_retval[0], ksched, targetp,
-	    uap->interval);
-
+	if (e == 0) {
+		e = ksched_rr_get_interval(&p->p_retval[0], ksched, targetp,
+			uap->interval);
+	}
+done2:
+	mtx_unlock(&Giant);
 	return (e);
 }
 
