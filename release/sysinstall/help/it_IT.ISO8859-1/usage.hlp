@@ -1,5 +1,3 @@
-
-
 COME USARE QUESTO SISTEMA
 =========================
 
@@ -12,7 +10,6 @@ FRECCIA A DESTRA     voce o gruppo successivo (come TAB)
 SHIFT-TAB            voce o gruppo precedente
 FRECCIA A SINISTRA   voce o gruppo precedente (come SHIFT-TAB)
 RETURN               selezione voce corrente
-ESC                  lancia una shell. Si ritorna dalla shell con exit
 PAGINA SU            nelle aree di testo, va alla pagina precedente
 PAGINA GIU           nelle aree di testo, va alla pagina successiva
 SPAZIO               cambia stato alla voce corrente (menu "radio")

@@ -11,8 +11,6 @@ SKIFT-TAB       Flytte til forrige dataelement eller gruppe.
 VENSTRE PIL     Flytte til forrige dataelement eller gruppe (samme 
                 som SKIFT-TAB).
 RETUR           Velge dataelement.
-ESC             Starte et underordnet skall i diagnostiserings-øyemed. 
-		Exit bringer deg tilbake.
 SIDE OPP        I tekstbokser, ruller opp en side.
 SIDE NED        I tekstbokser, ruller ned en side.
 MELLOMROM       I "radio" eller flervalgs menyer, markere inneværende

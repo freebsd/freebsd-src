@@ -10,7 +10,6 @@ PIL HÖGER       Flytta till nästa fält (samma som TAB).
 SHIFT-TAB       Flytta till föregående fält.
 PIL VÄNSTER     Flytta till föregående fält (samma som SHIFT-TAB).
 RETURN          Markera rad eller utför handling.
-ESC             Starta en kommandotolk för diagnostik. Exit återgår.
 PAGE UP         Flyttar upp texten en sida i textfält.
 PAGE DOWN       Flyttar ner texten en sida i textfält.
 MELLANSLAG      Markera/avmarkera gällande val i flervalsmenyer.
