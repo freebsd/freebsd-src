@@ -498,7 +498,7 @@ pmap_equal_pte(struct ia64_lpte *pte1, struct ia64_lpte *pte2)
 static PMAP_INLINE int
 pmap_track_modified(vm_offset_t va)
 {
-	if ((va < clean_sva) || (va >= clean_eva)) 
+	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva)) 
 		return 1;
 	else
 		return 0;
@@ -907,6 +907,12 @@ pmap_set_pv(pmap_t pmap, pv_entry_t pv, vm_offset_t pa,
 		vm_offset_t opa = pv->pv_pte.pte_ppn << 12;
 		vm_page_t om = PHYS_TO_VM_PAGE(opa);
 
+		if (pv->pv_pte.pte_d)
+			if (pmap_track_modified(pv->pv_va))
+				vm_page_dirty(om);
+		if (pv->pv_pte.pte_a)
+			vm_page_flag_set(om, PG_REFERENCED);
+
 		TAILQ_REMOVE(&om->md.pv_list, pv, pv_list);
 		om->md.pv_list_count--;
 
@@ -961,6 +967,12 @@ pmap_remove_pv(pmap_t pmap, pv_entry_t pv, vm_page_t m)
 		return rtval;
 
 	if ((pv->pv_pte.pte_ig & PTE_IG_MANAGED) && m) {
+		if (pv->pv_pte.pte_d)
+			if (pmap_track_modified(pv->pv_va))
+				vm_page_dirty(m);
+		if (pv->pv_pte.pte_a)
+			vm_page_flag_set(m, PG_REFERENCED);
+
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 
@@ -1168,6 +1180,9 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 	int rtval;
 	int s;
 
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+		("removing page for non-current pmap"));
+
 	s = splvm();
 
 	pv = pmap_find_pv(pmap, va);
@@ -1192,6 +1207,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
+	pmap_t oldpmap;
 	vm_offset_t va, nva;
 
 	if (pmap == NULL)
@@ -1200,6 +1216,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
+	oldpmap = pmap_install(pmap);
+
 	/*
 	 * special handling of removing one page.  a very
 	 * common operation and easy to short circuit some
@@ -1207,6 +1225,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 */
 	if (sva + PAGE_SIZE == eva) {
 		pmap_remove_page(pmap, sva);
+		pmap_install(oldpmap);
 		return;
 	}
 
@@ -1233,6 +1252,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		}
 		splx(s);
 	}
+	pmap_install(oldpmap);
 }
 
 /*
@@ -1251,6 +1271,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 static void
 pmap_remove_all(vm_page_t m)
 {
+	pmap_t oldpmap;
 	register pv_entry_t pv;
 	int nmodify;
 	int s;
@@ -1271,8 +1292,10 @@ pmap_remove_all(vm_page_t m)
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		vm_page_t m = PHYS_TO_VM_PAGE(pmap_pte_pa(&pv->pv_pte));
 		vm_offset_t va = pv->pv_va;
+		oldpmap = pmap_install(pv->pv_pmap);
 		pmap_remove_pv(pv->pv_pmap, pv, m);
 		pmap_invalidate_page(pv->pv_pmap, va);
+		pmap_install(oldpmap);
 	}
 
 	vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
@@ -1324,6 +1347,18 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 
 		if (pmap_pte_prot(&pv->pv_pte) != newprot) {
+			if (pv->pv_pte.pte_ig & PTE_IG_MANAGED) {
+				vm_page_t m = PHYS_TO_VM_PAGE(pv->pv_va);
+				if (pv->pv_pte.pte_d) {
+					if (pmap_track_modified(pv->pv_va))
+						vm_page_dirty(m);
+					pv->pv_pte.pte_d = 0;
+				}
+				if (pv->pv_pte.pte_a) {
+					vm_page_flag_set(m, PG_REFERENCED);
+					pv->pv_pte.pte_a = 0;
+				}
+			}
 			pmap_pte_set_prot(&pv->pv_pte, newprot);
 			pmap_update_vhpt(pv);
 			pmap_invalidate_page(pmap, sva);
@@ -1355,7 +1390,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pv_entry_t pv;
 	vm_offset_t opa;
 	struct ia64_lpte origpte;
-	int managed;
 
 	if (pmap == NULL)
 		return;
@@ -1379,7 +1413,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		opa = 0;
 
 	pa = VM_PAGE_TO_PHYS(m) & ~PAGE_MASK;
-	managed = 0;
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
@@ -1396,7 +1429,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		else if (!wired && (origpte.pte_ig & PTE_IG_WIRED))
 			pmap->pm_stats.wired_count--;
 
-		managed = origpte.pte_ig & PTE_IG_MANAGED;
 		goto validate;
 	}  else {
 		/*
