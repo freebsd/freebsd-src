@@ -61,7 +61,7 @@ static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 
 #ifdef KERBEROS
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 #include <netdb.h>
 
