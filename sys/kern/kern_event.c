@@ -58,7 +58,7 @@ static void	filt_procdetach(struct knote *kn);
 static int	filt_proc(struct knote *kn, long hint);
 
 static int	kqueue_scan(struct file *fp, int maxevents,
-		    struct kevent *ulistp, struct timespec *timeout,
+		    struct kevent *ulistp, const struct timespec *timeout,
 		    struct proc *p);
 static int 	kqueue_read(struct file *fp, struct uio *uio,
 		    struct ucred *cred, int flags, struct proc *p);
@@ -320,11 +320,11 @@ kqueue(struct proc *p, struct kqueue_args *uap)
 #ifndef _SYS_SYSPROTO_H_
 struct kevent_args {
 	int	fd;
-	struct	kevent *changelist;
+	const struct kevent *changelist;
 	int	nchanges;
 	struct	kevent *eventlist;
 	int	nevents;
-	struct	timespec *timeout;
+	const struct timespec *timeout;
 };
 #endif
 int
@@ -511,7 +511,7 @@ done:
 
 static int
 kqueue_scan(struct file *fp, int maxevents, struct kevent *ulistp,
-	struct timespec *tsp, struct proc *p)
+	const struct timespec *tsp, struct proc *p)
 {
 	struct kqueue *kq = (struct kqueue *)fp->f_data;
 	struct kevent *kevp;
