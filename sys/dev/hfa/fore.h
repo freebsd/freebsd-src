@@ -117,7 +117,7 @@ typedef struct m_ext	M_ext;
  *
  */
 #if ((BSD >= 199103) && defined(FORE_PCI))
-#define	BUF1_SM_DOFF	((BUF1_SM_HOFF + SIZEOF_Buf_handle) - BUF1_SM_HDR)
+#define	BUF1_SM_DOFF	(SIZEOF_Buf_handle)
 #define	BUF1_SM_SIZE	(BUF1_SM_LEN - BUF1_SM_DOFF)
 #endif
 #if ((BSD < 199103) && defined(FORE_SBUS) && defined(sun4c))
