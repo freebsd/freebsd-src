@@ -86,7 +86,7 @@ docBrowser(dialogMenuItem *self)
 int
 docShowDocument(dialogMenuItem *self)
 {
-    char *tmp[512], target[512];
+    char tmp[512], target[512];
     char *where, *browser = variable_get(VAR_BROWSER_BINARY);
     char *str = self->prompt;
 
