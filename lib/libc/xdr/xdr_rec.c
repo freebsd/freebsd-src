@@ -29,7 +29,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_rec.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_rec.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_rec.c,v 1.4 1995/10/22 14:53:56 phk Exp $";
+static char *rcsid = "$Id: xdr_rec.c,v 1.4.2.1 1998/05/18 16:15:26 wpaul Exp $";
 #endif
 
 /*
@@ -551,9 +551,13 @@ set_input_fragment(rstrm)
 	rstrm->last_frag = ((header & LAST_FRAG) == 0) ? FALSE : TRUE;
 	/*
 	 * Sanity check. Try not to accept wildly incorrect
-	 * record sizes.
+	 * record sizes. Unfortunately, the only record size
+	 * we can positively identify as being 'wildly incorrect'
+	 * is zero. Ridiculously large record sizes may look wrong,
+	 * but we don't have any way to be certain that they aren't
+	 * what the client actually intended to send us.
 	 */
-	if ((header & (~LAST_FRAG)) > rstrm->recvsize)
+	if ((header & (~LAST_FRAG)) == 0)
 		return(FALSE);
 	rstrm->fbtbc = header & (~LAST_FRAG);
 	return (TRUE);
