@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.17 1998/03/05 02:50:27 kato Exp $
+#	$Id: GENERIC98,v 1.8.2.18 1998/03/11 15:28:45 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -103,6 +103,7 @@ controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0 vector bsintr
 
 controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
 
+#options	DPTOPT		#will go away
 #options   	DPT_MEASURE_PERFORMANCE #Leave alone for now
 #options		DPT_VERIFY_HINTR		# Some hardware MUST have it!
 #options		DPT_TRACK_CCB_STATES	# Some hardware MUST have it!
