@@ -260,6 +260,9 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 				case 'j':
 					debug |= DEBUG_JOB;
 					break;
+				case 'l':
+					debug |= DEBUG_LOUD;
+					break;
 				case 'm':
 					debug |= DEBUG_MAKE;
 					break;
