@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.20 1995/05/30 08:08:11 rgrimes Exp $
+ * $Id: if_sl.c,v 1.21 1995/06/21 08:48:19 davidg Exp $
  */
 
 /*
@@ -258,7 +258,7 @@ slopen(dev, tp)
 	struct proc *p = curproc;		/* XXX */
 	register struct sl_softc *sc;
 	register int nsl;
-	int error;
+	int s, error;
 
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
@@ -293,7 +293,9 @@ slopen(dev, tp)
 					    sc->sc_if.if_mtu + SLIP_HIWAT);
 			clist_alloc_cblocks(&tp->t_rawq, 0, 0);
 
+			s = splnet();
 			if_up(&sc->sc_if);
+			splx(s);
 			return (0);
 		}
 	return (ENXIO);
