@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.6 1996/08/11 16:48:11 ache Exp $
+ *	$Id: main.c,v 1.6.2.1 1997/08/24 21:50:21 jkh Exp $
  */
 
 #ifndef lint
@@ -1355,7 +1355,8 @@ signal_hup(signo)
 {
 	if (mutex)
 		sigflags |= (1 << (signo - 1));
-	else	handle_hup(signo);
+	else
+		handle_hup(signo);
 }
 
 
@@ -1365,7 +1366,8 @@ signal_int(signo)
 {
 	if (mutex)
 		sigflags |= (1 << (signo - 1));
-	else	handle_int(signo);
+	else
+		handle_int(signo);
 }
 
 
@@ -1415,6 +1417,8 @@ void
 handle_winch(signo)
 	int signo;
 {
+	int save_errno = errno;
+
 	struct winsize ws;		/* window size structure */
 
 	sigflags &= ~(1 << (signo - 1));
@@ -1422,6 +1426,7 @@ handle_winch(signo)
 		if (ws.ws_row > 2) rows = ws.ws_row - 2;
 		if (ws.ws_col > 8) cols = ws.ws_col - 8;
 	}
+	errno = save_errno;
 }
 
 
