@@ -7,49 +7,84 @@
 # example: pccard_ether fxp0 start link0
 #
 
+. /etc/network.subr
+
 stop_dhcp() {
+	# If dhclient is already running, record
+	# its interfaces.
+	if [ -x /usr/bin/grep ]; then
+		eval _active_list=\"`/bin/ps -axwww | \
+			/usr/bin/grep dhclient | \
+			/usr/bin/grep -v grep | \
+			/usr/bin/sed -e 's|^.*dhclient||' | \
+			/usr/bin/awk '{for (i=1;i<=NF;i++) \
+				{ if ($i~/[a-zA-Z].[0-9]$/) \
+				{ printf(" %s",$i) } }}'` \
+			\"
+	fi
+
+	# Get the rc.conf list of dhcp configured interfaces
+	static_dhcp_list="`list_net_interfaces dhcp`"
+
+	# Get the current ifconfig list of interfaces
+	_aprefix=
+	_nlist=
+	for _if in ${_active_list} ; do
+		_test_if=`ifconfig ${_if} 2>&1`
+		case "$_test_if" in
+		"ifconfig: interface $_if does not exist")
+			;;
+		${interface})
+			# Don't record the same device twice.
+			;;
+		*)
+			#
+			# Catch devices which were specified before,
+			# but have not been part of the rc. We need
+			# them again for the restart.
+			#
+			for _cif in ${static_dhcp_list} ; do
+				case "$_cif" in
+				${_if})
+					# Nothing to add
+					;;
+				*)
+					# Found interface beside rc.conf
+					_nlist="${_nlist}${_aprefix}${_if}"
+					;;
+				esac
+			done
+			_dhcplist="${_dhcplist}${_aprefix}${_if}"
+			[ -z "$_aprefix" ] && _aprefix=' '
+			;;
+		esac
+	done
+
 	if [ -s /var/run/dhclient.${interface}.pid ]; then
 		pidfile="/var/run/dhclient.${interface}.pid"
 	elif [ -s /var/run/dhcpc.${interface}.pid ]; then
 		pidfile="/var/run/dhcpc.${interface}.pid"
 	elif [ -s /var/run/dhclient.pid ]; then
-		# If dhclient is already running, record
-		# it's interfaces.
-		if [ -x /usr/bin/grep ]; then
-			eval _active_list=\"`/bin/ps -axwww | \
-				/usr/bin/grep dhclient | \
-				/usr/bin/grep -v grep | \
-				/usr/bin/sed -e 's|^.*dhclient||' | \
-				/usr/bin/awk '{for (i=1;i<=NF;i++) \
-					{ if ($i~/[a-zA-Z].[0-9]$/) \
-					{ printf(" %s",$i) } }}'` \
-				\"
-		fi
-
-		_aprefix=
-		for _if in ${_active_list} ; do
-			_test_if=`ifconfig ${_if} 2>&1`
-			case "$_test_if" in
-			"ifconfig: interface $_if does not exist")
-				;;
-			*)
-				_dhcplist="${_dhcplist}${_aprefix}${_if}"
-				[ -z "$_aprefix" ] && _aprefix=' '
-				;;
-			esac
-		done
-
 		pidfile="/var/run/dhclient.pid"
 	else
 		return
 	fi
 	kill `cat ${pidfile}`
 	rm -f ${pidfile}
-	sh `/etc/rc.d/dhclient start`
+	case ${startstop} in
+	[Ss][Tt][Oo][Pp])
+		if [ -z "${_nlist}" ]; then
+			sh `/etc/rc.d/dhclient start`
+		else
+			start_dhcp_keep_current
+		fi
+		;;
+	*)
+		;;
+	esac
 }
 
 start_dhcp() {
-	stop_dhcp
 	case ${pccard_ether_delay} in
 	[Nn][Oo])
 		;;
@@ -57,6 +92,7 @@ start_dhcp() {
 		sleep ${pccard_ether_delay}
 		;;
         esac
+	stop_dhcp
 	[ -n "$dhcp_program" ] && dhclient_program="$dhcp_program"
 	[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
 	if [ -x "${dhclient_program}" ]; then
@@ -64,7 +100,20 @@ start_dhcp() {
 			pidfile="/var/run/dhclient.${interface}.pid"
 			dhclient_flags="${dhclient_flags} -pf ${pidfile}"
 		fi
-		${dhclient_program} ${dhclient_flags} $_dhcplist ${interface}
+		${dhclient_program} ${dhclient_flags}  $_dhcplist ${interface}
+	else
+		echo "${dhclient_program}: DHCP client software not available"
+	fi
+}
+
+# Called after detaching a card, if dhclient has been
+# used for more than one interface.
+start_dhcp_keep_current() {
+	[ -n "$dhcp_program" ] && dhclient_program="$dhcp_program"
+	[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
+	if [ -x "${dhclient_program}" ]; then
+		${dhclient_program} ${dhclient_flags} \
+			${_dhcplist}
 	else
 		echo "${dhclient_program}: DHCP client software not available"
 	fi
@@ -96,9 +145,11 @@ esac
 
 case ${startstop} in
 [Ss][Tt][Aa][Rr][Tt] | '')
-	if ifconfig ${interface} | grep -s UP, > /dev/null 2>&1; then
-	    # Interface is already up, so ignore it.
-	    exit 0
+	if [ -x /usr/bin/grep ]; then
+		if ifconfig ${interface} | grep -s UP, > /dev/null 2>&1; then
+		    # Interface is already up, so ignore it.
+		    exit 0
+		fi
 	fi
 
 	if [ -r /etc/start_if.${interface} ]; then
