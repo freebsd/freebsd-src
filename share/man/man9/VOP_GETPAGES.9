@@ -94,7 +94,7 @@ The possible status values are as follows:
 .It Dv VM_PAGER_OK
 The page was successfully written.
 The implementation must call
-.Xr vm_pager_undirty 9
+.Xr vm_page_undirty 9
 to mark the page as clean.
 .It Dv VM_PAGER_PEND
 The page was scheduled to be written asynchronously.
