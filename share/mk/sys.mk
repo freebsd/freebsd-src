@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$FreeBSD$
+#	$Id$
 
 unix		?=	We run FreeBSD, not UNIX.
 

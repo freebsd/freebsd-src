@@ -1,5 +1,5 @@
 
-#	$FreeBSD$
+#	$Id$
 # If this is a RELEASE, then set
 
 # Things which without too much trouble can be considered variables

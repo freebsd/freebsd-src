@@ -1,5 +1,5 @@
 ###
-#	$FreeBSD$
+#	$Id$
 #
 # What are we if we weren't told..
 CRUNCH?= fixit

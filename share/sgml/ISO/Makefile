@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 FILES=	ISOamsa ISOamsb ISOamsc ISOamsn ISOamso ISOamsr
 FILES+=	ISObox ISOcyr1 ISOcyr2 ISOdia ISOgrk1 ISOgrk2 ISOgrk3

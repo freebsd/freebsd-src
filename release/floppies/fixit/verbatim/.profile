@@ -1,5 +1,5 @@
 :
-# $FreeBSD$
+# $Id$
 PATH=/stand
 BLOCKSIZE=K
 PS1="Fixit# "

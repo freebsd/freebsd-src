@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nodes.c.pat	8.2 (Berkeley) 5/4/95
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <stdlib.h>

@@ -35,7 +35,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)builtins.def	8.4 (Berkeley) 5/4/95
-#	$FreeBSD$
+#	$Id$
 
 #
 # This file lists all the builtin commands.  The first column is the name
