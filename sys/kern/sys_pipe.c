@@ -104,7 +104,7 @@ static fo_close_t	pipe_close;
 
 static struct fileops pipeops = {
 	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,
-	pipe_stat, pipe_close
+	pipe_stat, pipe_close, DFLAG_PASSABLE
 };
 
 static void	filt_pipedetach(struct knote *kn);

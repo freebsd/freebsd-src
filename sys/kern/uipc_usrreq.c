@@ -1171,6 +1171,13 @@ unp_internalize(controlp, td)
 					error = EBADF;
 					goto out;
 				}
+				fp = fdescp->fd_ofiles[fd];
+				if (!(fp->f_ops->fo_flags & DFLAG_PASSABLE)) {
+					FILEDESC_UNLOCK(fdescp);
+					error = EOPNOTSUPP;
+					goto out;
+				}
+
 			}
 			/*
 			 * Now replace the integer FDs with pointers to

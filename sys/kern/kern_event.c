@@ -74,7 +74,8 @@ static struct fileops kqueueops = {
 	kqueue_poll,
 	kqueue_kqfilter,
 	kqueue_stat,
-	kqueue_close
+	kqueue_close,
+	0
 };
 
 static void 	knote_attach(struct knote *kn, struct filedesc *fdp);

@@ -2181,7 +2181,8 @@ struct fileops badfileops = {
 	badfo_poll,
 	badfo_kqfilter,
 	badfo_stat,
-	badfo_close
+	badfo_close,
+	0
 };
 
 static int
