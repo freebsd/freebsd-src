@@ -570,8 +570,32 @@ input_interactive() {
 	get_user
 	get_gecos
 	get_uid
-	get_logingroup
-	get_groups
+
+	# The case where group = user is handled elsewhere, so
+	# validate any other groups the user is invited to.
+	until [ "$_logingroup_ok" = yes ]; do
+		get_logingroup
+		_logingroup_ok=yes
+		if [ -n "$ulogingroup" -a "$username" != "$ulogingroup" ]; then
+			if ! ${PWCMD} show group $ulogingroup > /dev/null 2>&1; then
+				echo "Group $ulogingroup does not exist!"
+				_logingroup_ok=no
+			fi
+		fi
+	done
+	until [ "$_groups_ok" = yes ]; do
+		get_groups
+		_groups_ok=yes
+		for i in $ugroups; do
+			if [ "$username" != "$i" ]; then
+				if ! ${PWCMD} show group $i > /dev/null 2>&1; then
+					echo "Group $i does not exist!"
+					_groups_ok=no
+				fi
+			fi
+		done
+	done
+
 	get_class
 	get_shell
 	get_homedir
