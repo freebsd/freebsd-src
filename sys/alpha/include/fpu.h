@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: fpu.h,v 1.1 1998/12/04 10:52:48 dfr Exp $
  */
 
 #ifndef _MACHINE_FPU_H_
@@ -104,6 +104,16 @@
 #define IEEE_STATUS_TO_FPCR_SHIFT	35 /* convert to fpcr */
 
 #define IEEE_INHERIT		(1LL << 63) /* inherit on fork */
+
+/* read and write floating point control register */
+#define GET_FPCR(x) \
+	__asm__("trapb"); \
+	__asm__("mf_fpcr %0" : "=f" (x)); \
+	__asm__("trapb")
+#define SET_FPCR(x) \
+	__asm__("trapb"); \
+	__asm__("mt_fpcr %0" : : "f" (x)); \
+	__asm__("trapb")
 
 #ifdef KERNEL
 

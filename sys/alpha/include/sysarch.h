@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sysarch.h,v 1.1 1998/11/17 10:40:07 dfr Exp $
  */
 
 /*
@@ -39,7 +39,9 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define _MACHINE_SYSARCH_H_
 
-#define ALPHA_SETHAE	0
+#define ALPHA_SETHAE		0
+#define ALPHA_GET_FPMASK	1
+#define ALPHA_SET_FPMASK	2
 
 #ifndef KERNEL
 #include <sys/cdefs.h>

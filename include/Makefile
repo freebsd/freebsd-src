@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.87 1998/10/17 15:52:48 bde Exp $
+#	$Id: Makefile,v 1.88 1998/12/19 00:21:13 dt Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -10,7 +10,7 @@ CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	dlfcn.h elf.h err.h fnmatch.h fstab.h \
-	fts.h glob.h grp.h strhash.h histedit.h iso646.h \
+	fts.h glob.h grp.h strhash.h histedit.h ieeefp.h iso646.h \
 	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h \
 	ndbm.h netdb.h nl_types.h nlist.h objformat.h \
 	paths.h pthread.h pthread_np.h pwd.h \
