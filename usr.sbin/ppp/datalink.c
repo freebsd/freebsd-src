@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.21 1998/12/10 18:36:53 brian Exp $
+ *	$Id: datalink.c,v 1.22 1998/12/15 19:12:24 brian Exp $
  */
 
 #include <sys/types.h>
@@ -303,6 +303,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
+              dl->phone.alt = NULL;
               datalink_LoginDone(dl);
               break;
           }
