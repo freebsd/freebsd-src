@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.115 1998/11/15 09:06:19 jkh Exp $
+ * $Id: config.c,v 1.116 1999/01/27 02:32:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -381,6 +381,8 @@ configRC_conf(char *config)
     Variable *v;
     int i, nlines, len;
 
+    if (file_readable("/etc/rc.conf.site"))
+	system("cp /etc/rc.conf.site /etc/rc.conf.site.previous");
     rcSite = fopen("/etc/rc.conf.site", "w");
     if (!rcSite)
 	return;
