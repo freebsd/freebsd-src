@@ -77,6 +77,7 @@ long	asize;		/* number of 0.1" units written on current tape */
 int	etapes;		/* estimated number of tapes */
 int	nonodump;	/* if set, do not honor UF_NODUMP user flags */
 int	unlimited;	/* if set, write to end of medium */
+int	cachesize;	/* size of block cache in bytes */
 
 int	notify;		/* notify operator flag */
 int	blockswritten;	/* number of blocks written on current tape */

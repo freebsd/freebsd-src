@@ -46,6 +46,7 @@
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
 .Op Fl D Ar dumpdates
+.Op Fl C Ar cachesize
 .Op Fl d Ar density
 .Op Fl f Ar file
 .Op Fl h Ar level
@@ -142,6 +143,16 @@ Specify an alternate path to the
 file.
 The default is
 .Pa /etc/dumpdates .
+.It Fl C Ar cachesize
+Specify the cache size in megabytes.  This will greatly improve performance
+at the cost of
+.Nm
+possibly not noticing changes in the filesystem between passes.  It is
+recommended that you always use this option when dumping a snapshot.
+Beware that
+.Nm
+forks, and the actual memory use may be larger then the specified cache
+size.  The recommended cache size is between 8 and 32 (megabytes).
 .It Fl d Ar density
 Set tape density to
 .Ar density .
