@@ -339,7 +339,8 @@ restart:
 		goto out1;
 	copy_fs = (struct fs *)(nbp->b_data + blkoff(fs, SBOFF));
 	bcopy(fs, copy_fs, fs->fs_sbsize);
-	copy_fs->fs_clean = 1;
+	if ((fs->fs_flags & FS_UNCLEAN) == 0)
+		copy_fs->fs_clean = 1;
 	if (fs->fs_sbsize < SBSIZE)
 		bzero(&nbp->b_data[blkoff(fs, SBOFF) + fs->fs_sbsize],
 		    SBSIZE - fs->fs_sbsize);
@@ -601,6 +602,8 @@ ffs_snapgone(ip)
 	struct inode *ip;
 {
 	struct inode *xp;
+	struct fs *fs;
+	int snaploc;
 
 	/*
 	 * Find snapshot in incore list.
@@ -613,6 +616,21 @@ ffs_snapgone(ip)
 		    ip->i_number);
 	else
 		vrele(ITOV(ip));
+	/*
+	 * Delete snapshot inode from superblock. Keep list dense.
+	 */
+	fs = ip->i_fs;
+	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++)
+		if (fs->fs_snapinum[snaploc] == ip->i_number)
+			break;
+	if (snaploc < FSMAXSNAP) {
+		for (snaploc++; snaploc < FSMAXSNAP; snaploc++) {
+			if (fs->fs_snapinum[snaploc] == 0)
+				break;
+			fs->fs_snapinum[snaploc - 1] = fs->fs_snapinum[snaploc];
+		}
+		fs->fs_snapinum[snaploc - 1] = 0;
+	}
 }
 
 /*
@@ -627,24 +645,10 @@ ffs_snapremove(vp)
 	struct buf *ibp;
 	struct fs *fs;
 	ufs_daddr_t blkno, dblk;
-	int error, snaploc, loc, last;
+	int error, loc, last;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
-	/*
-	 * Delete snapshot inode from superblock. Keep list dense.
-	 */
-	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++)
-		if (fs->fs_snapinum[snaploc] == ip->i_number)
-			break;
-	if (snaploc < FSMAXSNAP) {
-		for (snaploc++; snaploc < FSMAXSNAP; snaploc++) {
-			if (fs->fs_snapinum[snaploc] == 0)
-				break;
-			fs->fs_snapinum[snaploc - 1] = fs->fs_snapinum[snaploc];
-		}
-		fs->fs_snapinum[snaploc - 1] = 0;
-	}
 	/*
 	 * Delete from incore list.
 	 * Clear copy-on-write flag if last snapshot.
