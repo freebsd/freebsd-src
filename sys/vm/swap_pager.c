@@ -98,9 +98,9 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
 
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
@@ -148,7 +148,7 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 static struct mtx sw_alloc_mtx;	/* protect list manipulation */ 
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 struct pagerlst		swap_pager_un_object_list;
-vm_zone_t		swap_zone;
+uma_zone_t		swap_zone;
 
 /*
  * pagerops for OBJT_SWAP - "swap pager".  Some ops are also global procedure
@@ -320,13 +320,8 @@ swap_pager_swap_init()
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
 		n = maxswzone / sizeof(struct swblock);
 	n2 = n;
-	swap_zone = zinit(
-	       "SWAPMETA", 
-	       sizeof(struct swblock), 
-	       n,
-	       ZONE_INTERRUPT, 
-	       1
-	       );
+	swap_zone = uma_zcreate("SWAPMETA", sizeof(struct swblock), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	do {
 		if (uma_zone_set_obj(swap_zone, NULL, n))
 			break;
@@ -337,7 +332,7 @@ swap_pager_swap_init()
 		n -= ((n + 2) / 3);
 	} while (n > 0);
 	if (swap_zone == NULL)
-		panic("failed to zinit swap_zone.");
+		panic("failed to create swap_zone.");
 	if (n2 != n)
 		printf("Swap zone entries reduced from %d to %d.\n", n2, n);
 	n2 = n;
@@ -1727,11 +1722,12 @@ retry:
 		if (swapblk == SWAPBLK_NONE)
 			return;
 
-		swap = *pswap = zalloc(swap_zone);
+		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
 		if (swap == NULL) {
 			VM_WAIT;
 			goto retry;
 		}
+
 		swap->swb_hnext = NULL;
 		swap->swb_object = object;
 		swap->swb_index = index & ~SWAP_META_MASK;
@@ -1796,7 +1792,7 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 					SWAPBLK_NONE;
 				if (--swap->swb_count == 0) {
 					*pswap = swap->swb_hnext;
-					zfree(swap_zone, swap);
+					uma_zfree(swap_zone, swap);
 					--object->un_pager.swp.swp_bcount;
 				}
 			}
@@ -1846,7 +1842,7 @@ swp_pager_meta_free_all(vm_object_t object)
 			if (swap->swb_count != 0)
 				panic("swap_pager_meta_free_all: swb_count != 0");
 			*pswap = swap->swb_hnext;
-			zfree(swap_zone, swap);
+			uma_zfree(swap_zone, swap);
 			--object->un_pager.swp.swp_bcount;
 		}
 		index += SWAP_META_PAGES;
@@ -1911,7 +1907,7 @@ swp_pager_meta_ctl(
 				swap->swb_pages[index] = SWAPBLK_NONE;
 				if (--swap->swb_count == 0) {
 					*pswap = swap->swb_hnext;
-					zfree(swap_zone, swap);
+					uma_zfree(swap_zone, swap);
 					--object->un_pager.swp.swp_bcount;
 				}
 			} 
