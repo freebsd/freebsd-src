@@ -71,7 +71,8 @@
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include "opt_ipfilter.h"
 # endif
-# if defined(_KERNEL) && (__FreeBSD_version >= 501108) && !defined(KLD_MODULE)
+# if defined(_KERNEL) && (__FreeBSD_version >= 501108) && \
+     (__FreeBSD_version < 600001) && !defined(KLD_MODULE)
 #  include "opt_pfil_hooks.h"
 # endif
 #endif
