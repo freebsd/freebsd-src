@@ -94,6 +94,7 @@ device		wcd0		#IDE CD-ROM
 # sufficient for any number of installed devices.
 controller	ncr0		# NCR/Symbios Logic
 controller	ahc0		# AHA2940 and onboard AIC7xxx devices
+controller	amd0		# AMD 53C974 (Teckram DC-390(T))
 controller	isp0		# Qlogic family
 controller	adv0
 
@@ -189,8 +190,6 @@ device		ppi0	at ppbus?
 # Please stay olpt driver after ppc driver
 device		olpt0	at isa? port IO_LPT
 
-# MII bus support, required for some 10/100 NICs
-controller	miibus0
 
 # PCI Ethernet NICs.
 device		al0		# ADMtek AL981 (``Comet'')
@@ -199,13 +198,17 @@ device		de0		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
 device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device		tx0		# SMC 9432TX (83c170 ``EPIC'')
+device		vr0		# VIA Rhine, Rhine II
+device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+controller	miibus0		# MII bus support
+device		dm0		# Davicom DM9100/DM9102
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
 device		ste0		# Sundance ST201 (D-Link DFE-550TX)
 device		tl0		# Texas Instruments ThunderLAN
-device		tx0		# SMC 9432TX (83c170 ``EPIC'')
-device		vr0		# VIA Rhine, Rhine II
-device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 device		wb0		# Winbond W89C840F
 device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
