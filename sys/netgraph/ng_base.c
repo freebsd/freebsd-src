@@ -3027,7 +3027,7 @@ ng_getqblk(void)
 	 * ngqfree is the final arbiter. We have our little reserve
 	 * because we use M_NOWAIT for malloc. This just helps us
 	 * avoid dropping packets while not increasing the time
-	 * we take to service the interrupt (on average) (we hope).
+	 * we take to service the interrupt (on average) (I hope).
 	 */
 	for (;;) {
 		if ((ngqfreesize < ngqfreelow) || (ngqfree == NULL)) {
@@ -3062,15 +3062,19 @@ ng_getqblk(void)
 			 */
 			if (atomic_cmpset_ptr(&ngqfree, item, item->el_next)) {
 				atomic_subtract_int(&ngqfreesize, 1);
+				item->el_flags &= ~NGQF_FREE;
 				break;
 			}
+			/* 
+			 * something got there before we did.. try again
+			 * (go around the loop again)
+			 */
 			item = NULL;
 		} else {
 			/* We really ran out */
 			break;
 		}
 	}
-	item->el_flags &= ~NGQF_FREE;
 	return (item);
 }
 
