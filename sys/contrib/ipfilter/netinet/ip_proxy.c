@@ -75,7 +75,7 @@
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.9.2.22 2002/04/26 10:23:17 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.9.2.23 2002/06/04 14:45:42 darrenr Exp $";
 #endif
 
 #if defined(_KERNEL) && (SOLARIS || defined(__sgi))
@@ -122,7 +122,7 @@ aproxy_t	ap_proxies[] = {
 	  ippr_ipsec_match },
 #endif
 #ifdef	IPF_NETBIOS_PROXY
-	{ NULL, "netbios", (char)IPPROTO_TCP, 0, 0, ippr_netbios_init, NULL,
+	{ NULL, "netbios", (char)IPPROTO_UDP, 0, 0, ippr_netbios_init, NULL,
 	  NULL, NULL, NULL, ippr_netbios_out, NULL },
 #endif
 #ifdef  IPF_H323_PROXY
@@ -421,11 +421,14 @@ int inc;
 	int sel, ch = 0, out, nlen;
 	u_32_t seq1, seq2;
 	tcphdr_t *tcp;
+	short inc2;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
 	out = fin->fin_out;
 	nlen = ip->ip_len;
 	nlen -= (ip->ip_hl << 2) + (tcp->th_off << 2);
+	inc2 = inc;
+	inc = (int)inc2;
 
 	if (out != 0) {
 		seq1 = (u_32_t)ntohl(tcp->th_seq);
