@@ -196,21 +196,21 @@ kmem_alloc(map, size)
 	 * We're intentionally not activating the pages we allocate to prevent a
 	 * race with page-out.  vm_map_pageable will wire the pages.
 	 */
+	VM_OBJECT_LOCK(kernel_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
-		VM_OBJECT_LOCK(kernel_object);
 		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
 				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-		VM_OBJECT_UNLOCK(kernel_object);
 		if ((mem->flags & PG_ZERO) == 0)
 			pmap_zero_page(mem);
-		vm_page_lock_queues();
 		mem->valid = VM_PAGE_BITS_ALL;
+		vm_page_lock_queues();
 		vm_page_flag_clear(mem, PG_ZERO);
 		vm_page_wakeup(mem);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(kernel_object);
 
 	/*
 	 * And finally, mark the data as non-pageable.
@@ -406,9 +406,9 @@ retry:
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_lock_queues();
 		vm_page_flag_clear(m, PG_ZERO);
-		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_unmanage(m);
 		vm_page_unlock_queues();
 	}
