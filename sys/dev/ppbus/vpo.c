@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: vpo.c,v 1.1 1997/08/14 13:57:44 msmith Exp $
  *
  */
 #include <sys/types.h>
@@ -64,14 +64,6 @@
 #define VP0_SELTMO		5000	/* select timeout */
 #define VP0_FAST_SPINTMO	500000	/* wait status timeout */
 #define VP0_LOW_SPINTMO		5000000	/* wait status timeout */
-
-/* XXX
- * This is ALPHA/BETA code, warnings are mandatory.
- */
-#ifndef VP0_WARNING
-  #define VP0_WARNING		/* defined to get warnings about timeouts,
-				 * except select timeouts */
-#endif
 
 /*
  * DO NOT MODIFY ANYTHING UNDER THIS LINE
@@ -175,9 +167,9 @@ vpoprobe(struct ppb_data *ppb)
 	vpo->vpo_dev.ppb = ppb;
 
 	/* now, try to initialise the drive */
-	if (vpo_detect(vpo) != 0) {
+	if (vpo_detect(vpo)) {
 		free(vpo, M_DEVBUF);
-		return(NULL);
+		return (NULL);
 	}
 
 	/* ok, go to next device on next probe */
@@ -288,25 +280,37 @@ static inline void
 vpointr(struct vpo_data *vpo, struct scsi_xfer *xs)
 {
 
-	register int timeout;
+	int errno;	/* error in errno.h */
 
 	if (xs->datalen && !(xs->flags & SCSI_DATA_IN))
 		bcopy(xs->data, vpo->vpo_buffer, xs->datalen);
 
-	timeout = vpoio_do_scsi(vpo, VP0_INITIATOR,
-		xs->sc_link->target,
-		(char *)xs->cmd, xs->cmdlen,
-		vpo->vpo_buffer, xs->datalen,
-		&vpo->vpo_stat, &vpo->vpo_count);
+	errno = vpoio_do_scsi(vpo, VP0_INITIATOR,
+		xs->sc_link->target, (char *)xs->cmd, xs->cmdlen,
+		vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat, &vpo->vpo_count);
 
+#ifdef VP0_DEBUG
+	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
+		 errno, vpo->vpo_stat, vpo->vpo_count, vpo->vpo_error);
+#endif
+
+	if (errno) {
 #ifdef VP0_WARNING
-	vpo_warning(vpo, xs, timeout);
+		log(LOG_WARNING, "vpo%d: errno = %d\n", vpo->vpo_unit, errno);
 #endif
+		/* connection to ppbus interrupted */
+		xs->error = XS_DRIVER_STUFFUP;
+		goto error;
+	}
 
-#ifdef VP03_DEBUG
-	printf("vpo_do_scsi = %d, status = 0x%x, count = %d\n", 
-		 timeout, vpo->vpo_stat, vpo->vpo_count);
+	/* if a timeout occured, no sense */
+	if (vpo->vpo_error) {
+#ifdef VP0_WARNING
+		vpo_warning(vpo, xs, vpo->vpo_error);
 #endif
+		xs->error = XS_TIMEOUT;
+		goto error;
+	}
 
 #define RESERVED_BITS_MASK 0x3e		/* 00111110b */
 #define NO_SENSE	0x0
@@ -317,23 +321,25 @@ vpointr(struct vpo_data *vpo, struct scsi_xfer *xs)
 		break;
 
 	case CHECK_CONDITION:
-	default:
 		vpo->vpo_sense.cmd.op_code = REQUEST_SENSE;
 		vpo->vpo_sense.cmd.length = sizeof(xs->sense);
 		vpo->vpo_sense.cmd.control = 0;
 
-		timeout = vpoio_do_scsi(vpo, VP0_INITIATOR,
-			xs->sc_link->target,
-			(char *)&vpo->vpo_sense.cmd,
+		errno = vpoio_do_scsi(vpo, VP0_INITIATOR,
+			xs->sc_link->target, (char *)&vpo->vpo_sense.cmd,
 			sizeof(vpo->vpo_sense.cmd),
 			(char *)&xs->sense, sizeof(xs->sense),
 			&vpo->vpo_sense.stat, &vpo->vpo_sense.count);
 
-		xs->error = XS_SENSE;
-		goto error;
-	}
+		if (errno)
+			/* connection to ppbus interrupted */
+			xs->error = XS_DRIVER_STUFFUP;
+		else
+			xs->error = XS_SENSE;
 
-	if (timeout) {
+		goto error;
+
+	default:	/* BUSY or RESERVATION_CONFLICT */
 		xs->error = XS_TIMEOUT;
 		goto error;
 	}
@@ -369,7 +375,7 @@ vpo_scsi_cmd(struct scsi_xfer *xs)
 		return TRY_AGAIN_LATER;
 	}
 
-#ifdef VP03_DEBUG
+#ifdef VP0_DEBUG
 	printf("vpo_scsi_cmd(): xs->flags = 0x%x, "\
 		"xs->data = 0x%x, xs->datalen = %d\ncommand : %*D\n",
 		xs->flags, xs->data, xs->datalen,
@@ -729,8 +735,15 @@ vpoio_wait(struct vpo_data *vpo, int tmo)
 	register int	k;
 	register char	r;
 
+#if 0	/* broken */
+	if (ppb_poll_device(&vpo->vpo_dev, 150, nBUSY, nBUSY, PPB_INTR))
+		return (0);
+
+	return (ppb_rstr(&vpo->vpo_dev) & 0xf0);
+#endif
+
 	k = 0;
-	while (!((r = ppb_rstr(&vpo->vpo_dev)) & 0x80) && (k++ < tmo))
+	while (!((r = ppb_rstr(&vpo->vpo_dev)) & nBUSY) && (k++ < tmo))
 		barrier();
 
 	/*
@@ -756,14 +769,22 @@ vpoio_do_scsi(struct vpo_data *vpo, int host, int target, char *command,
 	int rw, len, error = 0;
 	register int k;
 
-	/* enter disk state, allocate the ppbus */
-	vpoio_connect(vpo, PPB_WAIT | PPB_NOINTR);
+	/*
+	 * enter disk state, allocate the ppbus
+	 *
+	 * XXX
+	 * Should we allow this call to be interruptible?
+	 * The only way to report the interruption is to return
+	 * EIO do upper SCSI code :^(
+	 */
+	if ((error = vpoio_connect(vpo, PPB_WAIT|PPB_INTR)))
+		return (error);
 
 	if (!vpoio_in_disk_mode(vpo)) {
-		error = VP0_ECONNECT; goto error;
+		vpo->vpo_error = VP0_ECONNECT; goto error;
 	}
 
-	if ((error = vpoio_select(vpo,host,target)))
+	if ((vpo->vpo_error = vpoio_select(vpo,host,target)))
 		goto error;
 
 	/*
@@ -773,23 +794,23 @@ vpoio_do_scsi(struct vpo_data *vpo, int host, int target, char *command,
 	 */
 	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
 
-#ifdef VP03_DEBUG
+#ifdef VP0_DEBUG
 	printf("vpo%d: drive selected, now sending the command...\n",
 		vpo->vpo_unit);
 #endif
 
 	for (k = 0; k < clen; k++) {
 		if (vpoio_wait(vpo, VP0_FAST_SPINTMO) != (char)0xe0) {
-			error = VP0_ECMD_TIMEOUT;
+			vpo->vpo_error = VP0_ECMD_TIMEOUT;
 			goto error;
 		}
 		if (vpoio_outstr(vpo, &command[k], 1)) {
-			error = VP0_EPPDATA_TIMEOUT;
+			vpo->vpo_error = VP0_EPPDATA_TIMEOUT;
 			goto error;
 		}
 	}
 
-#ifdef VP03_DEBUG
+#ifdef VP0_DEBUG
 	printf("vpo%d: command sent, now completing the request...\n",
 		vpo->vpo_unit);
 #endif
@@ -804,7 +825,7 @@ vpoio_do_scsi(struct vpo_data *vpo, int host, int target, char *command,
 	for (;;) {
 
 		if (!(r = vpoio_wait(vpo, VP0_LOW_SPINTMO))) {
-			error = VP0_ESTATUS_TIMEOUT; goto error;
+			vpo->vpo_error = VP0_ESTATUS_TIMEOUT; goto error;
 		}
 
 		/* stop when the ZIP wants to send status */
@@ -812,7 +833,7 @@ vpoio_do_scsi(struct vpo_data *vpo, int host, int target, char *command,
 			break;
 
 		if (*count >= blen) {
-			error = VP0_EDATA_OVERFLOW;
+			vpo->vpo_error = VP0_EDATA_OVERFLOW;
 			goto error;
 		}
 		len = (rw && ((blen - *count) >= VP0_SECTOR_SIZE)) ?
@@ -824,37 +845,28 @@ vpoio_do_scsi(struct vpo_data *vpo, int host, int target, char *command,
 		else
 			error = vpoio_instr(vpo, &buffer[*count], len);
 
-		if (error)
+		if (error) {
+			vpo->vpo_error = error;
 			goto error;
+		}
 
 		*count += len;
 	}
 
 	if (vpoio_instr(vpo, &l, 1)) {
-		error = VP0_EOTHER; goto error;
+		vpo->vpo_error = VP0_EOTHER; goto error;
 	}
 
 	/* check if the ZIP wants to send more status */
 	if (vpoio_wait(vpo, VP0_FAST_SPINTMO) == (char)0xf0)
 		if (vpoio_instr(vpo, &h, 1)) {
-			error = VP0_EOTHER+2; goto error;
+			vpo->vpo_error = VP0_EOTHER+2; goto error;
 		}
-
-	/* return to printer state */
-	vpoio_disconnect(vpo);
-
-#if 0
-	if (vpoio_in_disk_mode(vpo)) {
-		vpoio_reset (vpo);
-		error = VP0_EDISCONNECT; goto error;
-	}
-#endif
 
 	*result = ((int) h << 8) | ((int) l & 0xff);
 
-	return (0);
-
 error:
+	/* return to printer state, release the ppbus */
 	vpoio_disconnect(vpo);
-	return (error);
+	return (0);
 }

@@ -27,7 +27,7 @@
  *	@(#)lptreg.h      1.1 (Berkeley) 12/19/90
  *	Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp 
  *
- *	$Id$
+ *	$Id: nlpt.h,v 1.1 1997/08/14 13:57:40 msmith Exp $
  */
 #ifndef __NLPT_H
 #define __NLPT_H
@@ -69,6 +69,11 @@ struct lpt_data {
 #define LP_USE_IRQ	0x02	/* we are using our irq */
 #define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
 	u_char	sc_backoff ;	/* time to call lptout() again */
+
+#ifdef DEVFS
+	void	*devfs_token;
+	void	*devfs_token_ctl;
+#endif
 };
 
 #endif

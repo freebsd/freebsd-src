@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: vpo.h,v 1.1 1997/08/14 13:57:45 msmith Exp $
  *
  */
 #ifndef __VP03_H
@@ -96,6 +96,7 @@ struct vpo_data {
 
 	int vpo_stat;
 	int vpo_count;
+	int vpo_error;
 
 	struct ppb_status vpo_status;
 	struct vpo_sense vpo_sense;

@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id$
+ *	$Id: nlpt.c,v 1.1 1997/08/14 13:57:40 msmith Exp $
  */
 
 /*
@@ -71,6 +71,9 @@
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <sys/malloc.h>
 
 #include <machine/stdarg.h>
@@ -86,7 +89,7 @@
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/nlpt.h>
 
-#ifndef DEBUG
+#ifndef NLPT_DEBUG
 #define nlprintf (void)
 #else
 #define nlprintf		if (nlptflag) printf
@@ -133,6 +136,8 @@ DATA_SET(ppbdriver_set, nlptdriver);
 #define INIT		(1<<6)	/* waiting to initialize for open */
 #define INTERRUPTED	(1<<7)	/* write call was interrupted */
 
+#define HAVEBUS		(1<<8)	/* the driver owns the bus */
+
 
 /* status masks to interrogate printer status */
 #define RDY_MASK	(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)	/* ready ? */
@@ -157,6 +162,20 @@ static struct cdevsw nlpt_cdevsw =
 	{ nlptopen,	nlptclose,	noread,		nlptwrite,	/*16*/
 	  nlptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
 	  seltrue,	nommap,		nostrat,	"nlpt",	NULL,	-1 };
+
+static int
+lpt_request_ppbus(struct lpt_data *lpt, int how)
+{
+	lpt->sc_state |= HAVEBUS;
+	return (ppb_request_bus(&lpt->lpt_dev, how));
+}
+
+static int
+lpt_release_ppbus(struct lpt_data *lpt)
+{
+	lpt->sc_state &= ~HAVEBUS;
+	return (ppb_release_bus(&lpt->lpt_dev));
+}
 
 /*
  * Internal routine to nlptprobe to do port tests of one byte value
@@ -228,12 +247,12 @@ nlpt_detect(struct lpt_data *lpt)
 	int		status;
 	u_char		data;
 	u_char		mask;
-	int		i;
+	int		i, error;
 
 	status = IO_LPTSIZE;
 
-	if (ppb_request_bus(&lpt->lpt_dev, PPB_DONTWAIT)) {
-		printf("nlpt: cannot alloc ppbus!\n");
+	if ((error = lpt_request_ppbus(lpt, PPB_DONTWAIT))) {
+		printf("nlpt: cannot alloc ppbus (%d)!\n", error);
 		status = 0 ; goto end_probe ;
 	}
 
@@ -263,7 +282,7 @@ end_probe:
 	ppb_wdtr(&lpt->lpt_dev, 0);
 	ppb_wctr(&lpt->lpt_dev, 0);
 
-	ppb_release_bus(&lpt->lpt_dev);
+	lpt_release_ppbus(lpt);
 
 	return (status);
 }
@@ -316,6 +335,7 @@ static int
 nlptattach(struct ppb_device *dev)
 {
 	struct lpt_data *lpt = lptdata[dev->id_unit];
+	int error;
 
 	/*
 	 * Report ourselves
@@ -325,8 +345,8 @@ nlptattach(struct ppb_device *dev)
 
 	lpt->sc_primed = 0;	/* not primed yet */
 
-	if (ppb_request_bus(&lpt->lpt_dev, PPB_DONTWAIT)) {
-		printf("nlpt: cannot alloc ppbus!\n");
+	if ((error = lpt_request_ppbus(lpt, PPB_DONTWAIT))) {
+		printf("nlpt: cannot alloc ppbus (%d)!\n", error);
 		return (0);
 	}
 
@@ -343,7 +363,17 @@ nlptattach(struct ppb_device *dev)
 	}
 	nlprintf("irq %x\n", lpt->sc_irq);
 
-	ppb_release_bus(&lpt->lpt_dev);
+	lpt_release_ppbus(lpt);
+
+#ifdef DEVFS
+	/* XXX what to do about the flags in the minor number? */
+	sc->devfs_token = devfs_add_devswf(&nlpt_cdevsw,
+		unit, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "nlpt%d", unit);
+	sc->devfs_token_ctl = devfs_add_devswf(&nlpt_cdevsw,
+		unit | LP_BYPASS, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
+#endif
 
 	return (1);
 }
@@ -368,6 +398,19 @@ nlptout(struct lpt_data *lpt)
 	 * Avoid possible hangs do to missed interrupts
 	 */
 	if (lpt->sc_xfercnt) {
+		/* if we cannot allocate the bus NOW, retry later */
+		if ((lpt->sc_state & HAVEBUS) == 0 &&
+			lpt_request_ppbus (lpt, PPB_DONTWAIT)) {
+
+			lpt->sc_backoff++;
+			if (lpt->sc_backoff > hz/LPTOUTMAX)
+				lpt->sc_backoff =
+					lpt->sc_backoff > hz/LPTOUTMAX;
+			timeout((timeout_func_t)nlptout, (caddr_t)lpt,
+				lpt->sc_backoff);
+			return;
+		}
+
 		pl = spltty();
 		nlptintr(lpt->lpt_unit);
 		splx(pl);
@@ -375,8 +418,6 @@ nlptout(struct lpt_data *lpt)
 		lpt->sc_state &= ~OBUSY;
 		wakeup((caddr_t)lpt);
 	}
-
-	ppb_release_bus(&lpt->lpt_dev);
 }
 
 /*
@@ -399,9 +440,6 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	lpt = lptdata[unit];
 
-	if (ppb_request_bus(&lpt->lpt_dev, PPB_WAIT|PPB_INTR))
-		return (EINTR);
-
 	if (lpt->sc_state) {
 		nlprintf("nlpt: still open %x\n", lpt->sc_state);
 		return(EBUSY);
@@ -415,6 +453,9 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		lpt->sc_state = OPEN;
 		return(0);
 	}
+
+	if (lpt_request_ppbus(lpt, PPB_WAIT|PPB_INTR))
+		return (EINTR);
 
 	s = spltty();
 	nlprintf("nlpt flags 0x%x\n", lpt->sc_flags);
@@ -445,7 +486,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 			lpt->sc_state = 0;
 			nlprintf ("status %x\n", ppb_rstr(&lpt->lpt_dev) );
 
-			ppb_release_bus(&lpt->lpt_dev);
+			lpt_release_ppbus(lpt);
 			return (EBUSY);
 		}
 
@@ -455,7 +496,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 			lpt->sc_state = 0;
 			splx(s);
 
-			ppb_release_bus(&lpt->lpt_dev);
+			lpt_release_ppbus(lpt);
 			return (EBUSY);
 		}
 
@@ -479,14 +520,16 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	lpt->sc_xfercnt = 0;
 	splx(s);
 
+	/* release the bus, nlptout() will try to allocate it later */
+	lpt_release_ppbus(lpt);
+
 	/* only use timeout if using interrupt */
 	nlprintf("irq %x\n", lpt->sc_irq);
 	if (lpt->sc_irq & LP_USE_IRQ) {
 		lpt->sc_state |= TOUT;
 		timeout((timeout_func_t)nlptout, (caddr_t)lpt,
 			 (lpt->sc_backoff = hz/LPTOUTINITIAL));
-	} else
-		ppb_release_bus(&lpt->lpt_dev);
+	}
 
 	nlprintf("opened.\n");
 	return(0);
@@ -502,12 +545,14 @@ static	int
 nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_data *lpt = lptdata[LPTUNIT(minor(dev))];
+	int err;
 
 	if(lpt->sc_flags & LP_BYPASS)
 		goto end_close;
 
-	if (ppb_request_bus(&lpt->lpt_dev, PPB_WAIT|PPB_INTR))
-		return (EINTR);
+	if ((lpt->sc_state & HAVEBUS) == 0 &&
+		(err = lpt_request_ppbus(lpt, PPB_WAIT|PPB_INTR)))
+		return (err);
 
 	lpt->sc_state &= ~OPEN;
 
@@ -524,7 +569,7 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 	ppb_wctr(&lpt->lpt_dev, LPC_NINIT);
 	brelse(lpt->sc_inbuf);
 
-	ppb_release_bus(&lpt->lpt_dev);
+	lpt_release_ppbus(lpt);
 
 end_close:
 	lpt->sc_state = 0;
@@ -612,7 +657,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 		return(EPERM);
 	}
 
-	if (ppb_request_bus(&lpt->lpt_dev, PPB_WAIT|PPB_INTR))
+	if (lpt_request_ppbus(lpt, PPB_WAIT|PPB_INTR))
 		return (EINTR);
 
 	lpt->sc_state &= ~INTERRUPTED;
@@ -641,11 +686,13 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 		/* check to see if we must do a polled write */
 		if(!(lpt->sc_irq & LP_USE_IRQ) && (lpt->sc_xfercnt)) {
 			nlprintf("p");
-			if((err = nlpt_pushbytes(lpt)))
+
+			err = nlpt_pushbytes(lpt);
+			lpt_release_ppbus(lpt);
+
+			if (err)
 				return(err);
 		}
-
-		ppb_release_bus(&lpt->lpt_dev);
 	}
 	return(0);
 }
@@ -694,6 +741,8 @@ nlptintr(int unit)
 		 * Wakeup is not done if write call was interrupted.
 		 */
 		lpt->sc_state &= ~OBUSY;
+		lpt_release_ppbus(lpt);
+
 		if(!(lpt->sc_state & INTERRUPTED))
 			wakeup((caddr_t)lpt);
 		nlprintf("w ");
