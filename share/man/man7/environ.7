@@ -32,7 +32,7 @@
 .\"	@(#)environ.7	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd April 12, 2003
 .Dt ENVIRON 7
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ is made available by
 when a process begins.  By convention these strings have the form
 .Dq Ar name=value .
 The following names are used by various commands:
-.Bl -tag -width BLOCKSIZE
+.Bl -tag -width LC_MONETARY
 .It Ev BLOCKSIZE
 The size of the block units used by several commands, most notably
 .Xr df 1 ,
@@ -88,6 +88,32 @@ from the password file
 This variable configures all programs which use
 .Xr setlocale 3
 to use the specified locale.
+.It Ev LC_ALL
+Overrides the values of
+.Ev LC_COLLATE ,
+.Ev LC_CTYPE ,
+.Ev LC_MESSAGES ,
+.Ev LC_MONETARY ,
+.Ev LC_NUMERIC
+and
+.Ev LC_TIME .
+.It Ev LC_COLLATE
+Locale to be used for ordering of strings.
+.It Ev LC_CTYPE
+Locale to be used for character classification
+(letter, space, digit, etc.) and for interpreting byte sequences as
+multibyte characters.
+.It Ev LC_MESSAGES
+Locale to be used for diagnostic messages.
+.It Ev LC_MONETARY
+Locale to be used for interpreting monetary input
+and formatting output.
+.It Ev LC_NUMERIC
+Locale to be used for interpreting numeric input and
+formatting output.
+.It Ev LC_TIME
+Locale to be used for interpreting dates input and
+for formatting output.
 .It Ev MAIL
 The location of the user's
 mailbox instead of the default in /var/mail,
@@ -95,6 +121,11 @@ used by
 .Xr mail  1 ,
 .Xr sh 1 ,
 and many other mailclients.
+.It Ev NLSPATH
+List of directories to be searched for the message catalog referred to by
+.Ev LC_MESSAGES .
+See
+.Xr catopen 3 .
 .It Ev PAGER
 Default paginator program.  The program specified by this variable is used by
 .Xr mail 1 ,
