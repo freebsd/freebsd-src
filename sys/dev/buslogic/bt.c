@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.15 1999/04/07 23:01:43 gibbs Exp $
+ *      $Id: bt.c,v 1.16 1999/04/18 15:50:32 peter Exp $
  */
 
  /*
@@ -826,6 +826,7 @@ bt_attach(device_t dev)
 	struct bt_softc *bt = device_get_softc(dev);
 	int tagged_dev_openings;
 	struct cam_devq *devq;
+	int error;
 
 	/*
 	 * We reserve 1 ccb for error recovery, so don't
@@ -869,7 +870,11 @@ bt_attach(device_t dev)
 	/*
 	 * Setup interrupt.
 	 */
-	bus_setup_intr(dev, bt->irq, bt_intr, bt, &bt->ih);
+	error = bus_setup_intr(dev, bt->irq, bt_intr, bt, &bt->ih);
+	if (error) {
+		device_printf(dev, "bus_setup_intr() failed: %d\n", error);
+		return (error);
+	}
 
 	return (0);
 }
