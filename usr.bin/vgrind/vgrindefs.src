@@ -144,3 +144,14 @@ C++|c++:\
 	ifdef ifndef include undef defined\
 	class const delete friend inline new operator overload private\
 	protected public virtual:
+#
+# Hack alert: defining function calls as `alternate comments' (ab/ae) seems
+# to be the only way to avoid major confusion inside vfontedpr for calls like:
+#   &packagename'function;
+#
+Perl|perl|pl:\
+	:pb=sub\d\p\d:bb={:be=}:cb=#:ce=$:tl:\
+	:ab=&:ae=(;|\d|,):\
+	:sb=":se=(\e"|$):lb=':le=(\e'|$):\
+	:kw=do if unless while until else elsif for foreach continue\
+	next redo sub last goto return die exit require:
