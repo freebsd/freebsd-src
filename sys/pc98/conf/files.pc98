@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.53 1998/02/18 12:34:01 kato Exp $
+#	$Id: files.pc98,v 1.54 1998/02/19 08:42:57 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -56,7 +56,6 @@ i386/i386/initcpu.c		standard
 pc98/i386/machdep.c		standard
 i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
-pc98/i386/microtime.s		standard
 i386/i386/mp_machdep.c		optional	smp
 i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
