@@ -175,7 +175,7 @@ attach (pid)
   int fd;
 
   sprintf(procfile, "/proc/%d/ctl", pid);
-  fd = open(procfile, O_RDWR, 0);
+  fd = open(procfile, O_WRONLY, 0);
 
   if (fd < 0) {
     perror_with_name ("open");
@@ -217,7 +217,7 @@ detach (signal)
   int fd;
 
   sprintf(procfile, "/proc/%d/ctl", inferior_pid);
-  fd = open(procfile, O_RDWR, 0);
+  fd = open(procfile, O_WRONLY, 0);
 
   if (fd < 0) {
     perror_with_name ("open");
