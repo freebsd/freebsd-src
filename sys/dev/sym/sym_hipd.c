@@ -56,7 +56,7 @@
  * SUCH DAMAGE.
  */
 
-#define SYM_DRIVER_NAME	"sym-0.12.0-19991127"
+#define SYM_DRIVER_NAME	"sym-1.0.0-19991205"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -122,6 +122,7 @@ typedef u_int16_t u16;
 typedef	u_int32_t u32;
 
 /* Driver configuration and definitions */
+#include "opt_sym.h"
 #include <dev/sym/sym_conf.h>
 #include <dev/sym/sym_defs.h>
 
@@ -262,20 +263,20 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
 /*
  *  Number of tasks per device we want to handle.
  */
-#if	SYMCONF_MAX_TAG_ORDER > 8
+#if	SYM_CONF_MAX_TAG_ORDER > 8
 #error	"more than 256 tags per logical unit not allowed."
 #endif
-#define	SYMCONF_MAX_TASK	(1<<SYMCONF_MAX_TAG_ORDER)
+#define	SYM_CONF_MAX_TASK	(1<<SYM_CONF_MAX_TAG_ORDER)
 
 /*
  *  Donnot use more tasks that we can handle.
  */
-#ifndef	SYMCONF_MAX_TAG
-#define	SYMCONF_MAX_TAG	SYMCONF_MAX_TASK
+#ifndef	SYM_CONF_MAX_TAG
+#define	SYM_CONF_MAX_TAG	SYM_CONF_MAX_TASK
 #endif
-#if	SYMCONF_MAX_TAG > SYMCONF_MAX_TASK
-#undef	SYMCONF_MAX_TAG
-#define	SYMCONF_MAX_TAG	SYMCONF_MAX_TASK
+#if	SYM_CONF_MAX_TAG > SYM_CONF_MAX_TASK
+#undef	SYM_CONF_MAX_TAG
+#define	SYM_CONF_MAX_TAG	SYM_CONF_MAX_TASK
 #endif
 
 /*
@@ -286,14 +287,14 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
 /*
  *  Number of SCSI targets.
  */
-#if	SYMCONF_MAX_TARGET > 16
+#if	SYM_CONF_MAX_TARGET > 16
 #error	"more than 16 targets not allowed."
 #endif
 
 /*
  *  Number of logical units per target.
  */
-#if	SYMCONF_MAX_LUN > 64
+#if	SYM_CONF_MAX_LUN > 64
 #error	"more than 64 logical units per target not allowed."
 #endif
 
@@ -301,7 +302,7 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
  *    Asynchronous pre-scaler (ns). Shall be 40 for 
  *    the SCSI timings to be compliant.
  */
-#define	SYMCONF_MIN_ASYNC (40)
+#define	SYM_CONF_MIN_ASYNC (40)
 
 /*
  *  Number of entries in the START and DONE queues.
@@ -309,24 +310,24 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
  *  We limit to 1 PAGE in order to succeed allocation of 
  *  these queues. Each entry is 8 bytes long (2 DWORDS).
  */
-#ifdef	SYMCONF_MAX_START
-#define	SYMCONF_MAX_QUEUE (SYMCONF_MAX_START+2)
+#ifdef	SYM_CONF_MAX_START
+#define	SYM_CONF_MAX_QUEUE (SYM_CONF_MAX_START+2)
 #else
-#define	SYMCONF_MAX_QUEUE (7*SYMCONF_MAX_TASK+2)
-#define	SYMCONF_MAX_START (SYMCONF_MAX_QUEUE-2)
+#define	SYM_CONF_MAX_QUEUE (7*SYM_CONF_MAX_TASK+2)
+#define	SYM_CONF_MAX_START (SYM_CONF_MAX_QUEUE-2)
 #endif
 
-#if	SYMCONF_MAX_QUEUE > PAGE_SIZE/8
-#undef	SYMCONF_MAX_QUEUE
-#define	SYMCONF_MAX_QUEUE   PAGE_SIZE/8
-#undef	SYMCONF_MAX_START
-#define	SYMCONF_MAX_START (SYMCONF_MAX_QUEUE-2)
+#if	SYM_CONF_MAX_QUEUE > PAGE_SIZE/8
+#undef	SYM_CONF_MAX_QUEUE
+#define	SYM_CONF_MAX_QUEUE   PAGE_SIZE/8
+#undef	SYM_CONF_MAX_START
+#define	SYM_CONF_MAX_START (SYM_CONF_MAX_QUEUE-2)
 #endif
 
 /*
  *  For this one, we want a short name :-)
  */
-#define MAX_QUEUE	SYMCONF_MAX_QUEUE
+#define MAX_QUEUE	SYM_CONF_MAX_QUEUE
 
 /*
  *  This one should have been already defined.
@@ -356,7 +357,7 @@ static int sym_debug = 0;
 	#define DEBUG_FLAGS sym_debug
 #else
 /*	#define DEBUG_FLAGS (0x0631) */
-	#define DEBUG_FLAGS (0x00)
+	#define DEBUG_FLAGS (0x0000)
 #endif
 #define sym_verbose	(np->verbose)
 
@@ -389,7 +390,7 @@ static void MDELAY(long ms) { while (ms--) UDELAY(1000); }
  *  We assume allocations are naturally aligned and if it is 
  *  not guaranteed, we may use our internal allocator.
  */
-#ifdef	SYMCONF_USE_INTERNAL_ALLOCATOR
+#ifdef	SYM_CONF_USE_INTERNAL_ALLOCATOR
 /*
  *  Simple power of two buddy-like allocator.
  *
@@ -541,7 +542,7 @@ static void __sym_mfree(void *ptr, int size)
 #define	__sym_mfree(ptr, size)		free((ptr), M_DEVBUF)
 #define	__sym_malloc(size)		malloc((size), M_DEVBUF, M_NOWAIT)
 
-#endif	/* SYMCONF_USE_INTERNAL_ALLOCATOR */
+#endif	/* SYM_CONF_USE_INTERNAL_ALLOCATOR */
 
 #define MEMO_WARN	1
 
@@ -594,7 +595,7 @@ static void sym_printl_hex (char *label, u_char *p, int n)
 /*
  *  Some poor sync table that refers to Tekram NVRAM layout.
  */
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 static u_char Tekram_sync[16] =
 	{25,31,37,43, 50,62,75,125, 12,15,18,21, 6,7,9,10};
 #endif
@@ -606,7 +607,7 @@ struct sym_nvram {
 	int type;
 #define	SYM_SYMBIOS_NVRAM	(1)
 #define	SYM_TEKRAM_NVRAM	(2)
-#ifdef	SYMCONF_NVRAM_SUPPORT
+#ifdef	SYM_CONF_NVRAM_SUPPORT
 	union {
 		Symbios_nvram Symbios;
 		Tekram_nvram Tekram;
@@ -644,7 +645,7 @@ struct sym_nvram {
 /*
  *  Access to the controller chip.
  *
- *  If SYMCONF_IOMAPPED is defined, the driver will use 
+ *  If SYM_CONF_IOMAPPED is defined, the driver will use 
  *  normal IOs instead of the MEMORY MAPPED IO method  
  *  recommended by PCI specifications.
  */
@@ -683,7 +684,7 @@ struct sym_nvram {
 /*
  *  Normal IO
  */
-#if defined(SYMCONF_IOMAPPED)
+#if defined(SYM_CONF_IOMAPPED)
 
 #define	INB_OFF(o)	io_read8(np->io_port + sym_offb(o))
 #define	OUTB_OFF(o, v)	io_write8(np->io_port + sym_offb(o), (v))
@@ -875,7 +876,7 @@ struct sym_tcb {
 	 *  LUN table used by the C code.
 	 */
 	lcb_p	lun0p;		/* LCB of LUN #0 (usual case)	*/
-#if SYMCONF_MAX_LUN > 1
+#if SYM_CONF_MAX_LUN > 1
 	lcb_p	*lunmp;		/* Other LCBs [1..MAX_LUN]	*/
 #endif
 
@@ -884,13 +885,13 @@ struct sym_tcb {
 	 *  1 IO and therefore assumed to be a real device.
 	 *  Avoid useless allocation of the LCB structure.
 	 */
-	u32	lun_map[(SYMCONF_MAX_LUN+31)/32];
+	u32	lun_map[(SYM_CONF_MAX_LUN+31)/32];
 
 	/*
 	 *  Bitmap that tells about LUNs that haven't yet an LCB 
 	 *  allocated (not discovered or LCB allocation failed).
 	 */
-	u32	busy0_map[(SYMCONF_MAX_LUN+31)/32];
+	u32	busy0_map[(SYM_CONF_MAX_LUN+31)/32];
 
 	/*
 	 *  Actual SYNC/WIDE IO registers value for this target.
@@ -1004,7 +1005,7 @@ struct sym_pmc {
  *  pointers which is only allocated for devices that support 
  *  LUN(s) > 0.
  */
-#if SYMCONF_MAX_LUN <= 1
+#if SYM_CONF_MAX_LUN <= 1
 #define sym_lp(np, tp, lun) (!lun) ? (tp)->lun0p : 0
 #else
 #define sym_lp(np, tp, lun) \
@@ -1055,7 +1056,7 @@ struct sym_pmc {
 #define HF_DP_SAVED	(1u<<3)
 #define HF_SENSE	(1u<<4)
 #define HF_EXT_ERR	(1u<<5)
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 #define HF_HINT_IARB	(1u<<7)
 #endif
 
@@ -1108,7 +1109,7 @@ struct dsb {
 	struct sym_tblmove smsg_ext;
 	struct sym_tblmove cmd;
 	struct sym_tblmove sense;
-	struct sym_tblmove data [SYMCONF_MAX_SG];
+	struct sym_tblmove data [SYM_CONF_MAX_SG];
 
 	/*
 	 *  Phase mismatch contexts.
@@ -1237,7 +1238,7 @@ struct sym_hcb {
 	/*
 	 *  Target data used by the CPU.
 	 */
-	struct sym_tcb	target[SYMCONF_MAX_TARGET];
+	struct sym_tcb	target[SYM_CONF_MAX_TARGET];
 
 	/*
 	 *  Target control block bus address array used by the SCRIPT 
@@ -1395,7 +1396,7 @@ struct sym_hcb {
 	 *  IARB in order to leave devices a chance to reselect.
 	 *  By the way, any non zero value of 'iarb_max' is unfair. :)
 	 */
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	u_short		iarb_max;	/* Max. # consecutive IARB hints*/
 	u_short		iarb_count;	/* Actual # of these hints	*/
 	ccb_p		last_cp;
@@ -1441,13 +1442,13 @@ struct sym_scr {
 	u32 select		[  8];
 	u32 wf_sel_done		[  2];
 	u32 send_ident		[  2];
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	u32 select2		[  8];
 #else
 	u32 select2		[  2];
 #endif
 	u32 command		[  2];
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	u32 dispatch		[ 18];
 #else
 	u32 dispatch		[ 30];
@@ -1463,7 +1464,7 @@ struct sym_scr {
 	u32 dataphase		[  2];
 	u32 msg_in		[  2];
 	u32 msg_in2		[ 10];
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	u32 status		[ 14];
 #else
 	u32 status		[ 10];
@@ -1476,12 +1477,12 @@ struct sym_scr {
 	u32 save_dp		[  8];
 	u32 restore_dp		[  4];
 	u32 disconnect		[ 20];
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	u32 idle		[  4];
 #else
 	u32 idle		[  2];
 #endif
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	u32 ungetjob		[  6];
 #else
 	u32 ungetjob		[  4];
@@ -1489,9 +1490,9 @@ struct sym_scr {
 	u32 reselect		[  4];
 	u32 reselected		[ 20];
 	u32 resel_scntl4	[ 28];
-#if   SYMCONF_MAX_TASK*4 > 512
+#if   SYM_CONF_MAX_TASK*4 > 512
 	u32 resel_tag		[ 24];
-#elif SYMCONF_MAX_TASK*4 > 256
+#elif SYM_CONF_MAX_TASK*4 > 256
 	u32 resel_tag		[ 18];
 #else
 	u32 resel_tag		[ 14];
@@ -1499,11 +1500,11 @@ struct sym_scr {
 	u32 resel_dsa		[  2];
 	u32 resel_dsa1		[  6];
 	u32 resel_no_tag	[  8];
-	u32 data_in		[SYMCONF_MAX_SG * 2];
+	u32 data_in		[SYM_CONF_MAX_SG * 2];
 	u32 data_in2		[  4];
-	u32 data_out		[SYMCONF_MAX_SG * 2];
+	u32 data_out		[SYM_CONF_MAX_SG * 2];
 	u32 data_out2		[  4];
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	u32 pm0_data		[ 28];
 	u32 pm1_data		[ 28];
 #else
@@ -1540,7 +1541,7 @@ struct sym_scrh {
 	u32 nego_bad_phase	[  4];
 	u32 msg_out		[  4];
 	u32 msg_out_done	[  4];
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	u32 no_data		[ 36];
 #else
 	u32 no_data		[ 28];
@@ -1549,7 +1550,7 @@ struct sym_scrh {
 	u32 resend_ident	[  4];
 	u32 ident_break		[  4];
 	u32 ident_break_atn	[  4];
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	u32 sdata_in		[ 12];
 #else
 	u32 sdata_in		[  6];
@@ -1573,10 +1574,10 @@ struct sym_scrh {
 	u32 swide_common	[ 10];
 	u32 swide_fin_32	[ 24];
 
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
-	u32 dt_data_in		[SYMCONF_MAX_SG * 2];
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
+	u32 dt_data_in		[SYM_CONF_MAX_SG * 2];
 	u32 dt_data_in2		[  4];
-	u32 dt_data_out		[SYMCONF_MAX_SG * 2];
+	u32 dt_data_out		[SYM_CONF_MAX_SG * 2];
 	u32 dt_data_out2	[  4];
 #endif
 
@@ -1867,7 +1868,7 @@ static struct sym_scr script0 = {
 	SCR_MOVE_TBL ^ SCR_MSG_OUT,
 		offsetof (struct dsb, smsg),
 }/*-------------------------< SELECT2 >----------------------*/,{
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	/*
 	 *  Set IMMEDIATE ARBITRATION if we have been given 
 	 *  a hint to do so. (Some job to do after this one).
@@ -1910,7 +1911,7 @@ static struct sym_scr script0 = {
 	SCR_JUMP ^ IFTRUE (IF (SCR_MSG_OUT)),
 		PADDRH (msg_out),
 
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	SCR_JUMP ^ IFTRUE (IF (SCR_DT_DATA_OUT)),
 		PADDR (dataphase),
 	SCR_JUMP ^ IFTRUE (IF (SCR_DT_DATA_IN)),
@@ -1938,7 +1939,7 @@ static struct sym_scr script0 = {
 		8,
 	SCR_MOVE_ABS (1) ^ SCR_ILG_IN,
 		NADDR (scratch),
-#endif	/* SYMCONF_BROKEN_U3EN_SUPPORT */
+#endif	/* SYM_CONF_BROKEN_U3EN_SUPPORT */
 
 	SCR_JUMP,
 		PADDR (dispatch),
@@ -2123,7 +2124,7 @@ static struct sym_scr script0 = {
 	 */
 	SCR_MOVE_ABS (1) ^ SCR_STATUS,
 		NADDR (scratch),
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	/*
 	 *  If STATUS is not GOOD, clear IMMEDIATE ARBITRATION, 
 	 *  since we may have to tamper the start queue from 
@@ -2334,12 +2335,12 @@ static struct sym_scr script0 = {
 	 */
 	SCR_NO_OP,
 		0,
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	SCR_JUMPR,
 		8,
 #endif
 }/*-------------------------< UNGETJOB >-----------------*/,{
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	/*
 	 *  Set IMMEDIATE ARBITRATION, for the next time.
 	 *  This will give us better chance to win arbitration 
@@ -2484,7 +2485,7 @@ static struct sym_scr script0 = {
 	 */
 	SCR_REG_SFBR (sidl, SCR_SHL, 0),
 		0,
-#if SYMCONF_MAX_TASK*4 > 512
+#if SYM_CONF_MAX_TASK*4 > 512
 	SCR_JUMPR ^ IFFALSE (CARRYSET),
 		8,
 	SCR_REG_REG (dsa1, SCR_OR, 2),
@@ -2495,7 +2496,7 @@ static struct sym_scr script0 = {
 		8,
 	SCR_REG_REG (dsa1, SCR_OR, 1),
 		0,
-#elif SYMCONF_MAX_TASK*4 > 256
+#elif SYM_CONF_MAX_TASK*4 > 256
 	SCR_JUMPR ^ IFFALSE (CARRYSET),
 		8,
 	SCR_REG_REG (dsa1, SCR_OR, 1),
@@ -2559,10 +2560,10 @@ static struct sym_scr script0 = {
 }/*-------------------------< DATA_IN >--------------------*/,{
 /*
  *  Because the size depends on the
- *  #define SYMCONF_MAX_SG parameter,
+ *  #define SYM_CONF_MAX_SG parameter,
  *  it is filled in at runtime.
  *
- *  ##===========< i=0; i<SYMCONF_MAX_SG >=========
+ *  ##===========< i=0; i<SYM_CONF_MAX_SG >=========
  *  ||	SCR_CHMOV_TBL ^ SCR_DATA_IN,
  *  ||		offsetof (struct dsb, data[ i]),
  *  ##==========================================
@@ -2576,10 +2577,10 @@ static struct sym_scr script0 = {
 }/*-------------------------< DATA_OUT >--------------------*/,{
 /*
  *  Because the size depends on the
- *  #define SYMCONF_MAX_SG parameter,
+ *  #define SYM_CONF_MAX_SG parameter,
  *  it is filled in at runtime.
  *
- *  ##===========< i=0; i<SYMCONF_MAX_SG >=========
+ *  ##===========< i=0; i<SYM_CONF_MAX_SG >=========
  *  ||	SCR_CHMOV_TBL ^ SCR_DATA_OUT,
  *  ||		offsetof (struct dsb, data[ i]),
  *  ##==========================================
@@ -2601,7 +2602,7 @@ static struct sym_scr script0 = {
 	 *  MOVE the data according to the actual 
 	 *  DATA direction.
 	 */
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
 		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
@@ -2658,7 +2659,7 @@ static struct sym_scr script0 = {
 	 *  MOVE the data according to the actual 
 	 *  DATA direction.
 	 */
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
 		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
@@ -3005,7 +3006,7 @@ static struct sym_scrh scripth0 = {
 		8,
 	SCR_MOVE_ABS (1) ^ SCR_DATA_IN,
 		NADDR (scratch),
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	SCR_JUMPR ^ IFFALSE (IF (SCR_DT_DATA_OUT)),
 		8,
 	SCR_MOVE_ABS (1) ^ SCR_DT_DATA_OUT,
@@ -3090,7 +3091,7 @@ static struct sym_scrh scripth0 = {
 	SCR_JUMP,
 		PADDR (select2),
 }/*-------------------------< SDATA_IN >-------------------*/,{
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
 		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
@@ -3469,14 +3470,14 @@ static struct sym_scrh scripth0 = {
 		PADDRH (scratch),
 	SCR_JUMP,
 		PADDR (dispatch),
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 }/*-------------------------< DT_DATA_IN >--------------------*/,{
 /*
  *  Because the size depends on the
- *  #define SYMCONF_MAX_SG parameter,
+ *  #define SYM_CONF_MAX_SG parameter,
  *  it is filled in at runtime.
  *
- *  ##===========< i=0; i<SYMCONF_MAX_SG >=========
+ *  ##===========< i=0; i<SYM_CONF_MAX_SG >=========
  *  ||	SCR_CHMOV_TBL ^ SCR_DT_DATA_IN,
  *  ||		offsetof (struct dsb, data[ i]),
  *  ##==========================================
@@ -3490,10 +3491,10 @@ static struct sym_scrh scripth0 = {
 }/*-------------------------< DT_DATA_OUT >--------------------*/,{
 /*
  *  Because the size depends on the
- *  #define SYMCONF_MAX_SG parameter,
+ *  #define SYM_CONF_MAX_SG parameter,
  *  it is filled in at runtime.
  *
- *  ##===========< i=0; i<SYMCONF_MAX_SG >=========
+ *  ##===========< i=0; i<SYM_CONF_MAX_SG >=========
  *  ||	SCR_CHMOV_TBL ^ SCR_DT_DATA_OUT,
  *  ||		offsetof (struct dsb, data[ i]),
  *  ##==========================================
@@ -3505,7 +3506,7 @@ static struct sym_scrh scripth0 = {
 	SCR_JUMP,
 		PADDRH (no_data),
 
-#endif	/* SYMCONF_BROKEN_U3EN_SUPPORT */
+#endif	/* SYM_CONF_BROKEN_U3EN_SUPPORT */
 
 }/*-------------------------< ZERO >------------------------*/,{
 	SCR_DATA_ZERO,
@@ -3556,22 +3557,22 @@ static void sym_fill_scripts (script_p scr, scripth_p scrh)
 	u32	*p;
 
 	p = scr->data_in;
-	for (i=0; i<SYMCONF_MAX_SG; i++) {
+	for (i=0; i<SYM_CONF_MAX_SG; i++) {
 		*p++ =SCR_CHMOV_TBL ^ SCR_DATA_IN;
 		*p++ =offsetof (struct dsb, data[i]);
 	};
 	assert ((u_long)p == (u_long)&scr->data_in + sizeof (scr->data_in));
 
 	p = scr->data_out;
-	for (i=0; i<SYMCONF_MAX_SG; i++) {
+	for (i=0; i<SYM_CONF_MAX_SG; i++) {
 		*p++ =SCR_CHMOV_TBL ^ SCR_DATA_OUT;
 		*p++ =offsetof (struct dsb, data[i]);
 	};
 	assert ((u_long)p == (u_long)&scr->data_out + sizeof (scr->data_out));
 
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	p = scrh->dt_data_in;
-	for (i=0; i<SYMCONF_MAX_SG; i++) {
+	for (i=0; i<SYM_CONF_MAX_SG; i++) {
 		*p++ =SCR_CHMOV_TBL ^ SCR_DT_DATA_IN;
 		*p++ =offsetof (struct dsb, data[i]);
 	};
@@ -3579,7 +3580,7 @@ static void sym_fill_scripts (script_p scr, scripth_p scrh)
 		(u_long)&scrh->dt_data_in + sizeof (scrh->dt_data_in));
 
 	p = scrh->dt_data_out;
-	for (i=0; i<SYMCONF_MAX_SG; i++) {
+	for (i=0; i<SYM_CONF_MAX_SG; i++) {
 		*p++ =SCR_CHMOV_TBL ^ SCR_DATA_OUT;
 		*p++ =offsetof (struct dsb, data[i]);
 	};
@@ -3916,7 +3917,7 @@ static void sym_print_targets_flag(hcb_p np, int mask, char *msg)
 	int cnt;
 	int i;
 
-	for (cnt = 0, i = 0 ; i < SYMCONF_MAX_TARGET ; i++) {
+	for (cnt = 0, i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
 		if (i == np->myaddr)
 			continue;
 		if (np->target[i].usrflags & mask) {
@@ -3995,7 +3996,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 */
 	i = np->clock_divn - 1;
 	while (--i >= 0) {
-		if (10ul * SYMCONF_MIN_ASYNC * np->clock_khz > div_10M[i]) {
+		if (10ul * SYM_CONF_MIN_ASYNC * np->clock_khz > div_10M[i]) {
 			++i;
 			break;
 		}
@@ -4072,7 +4073,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	/*
 	 *  Select burst length (dwords)
 	 */
-	burst_max	= SYMSETUP_BURST_ORDER;
+	burst_max	= SYM_SETUP_BURST_ORDER;
 	if (burst_max == 255)
 		burst_max = burst_code(np->sv_dmode, np->sv_ctest4,
 				       np->sv_ctest5);
@@ -4123,9 +4124,9 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	/*
 	 *  Select some other
 	 */
-	if (SYMSETUP_PCI_PARITY)
+	if (SYM_SETUP_PCI_PARITY)
 		np->rv_ctest4	|= MPEE; /* Master parity checking */
-	if (SYMSETUP_SCSI_PARITY)
+	if (SYM_SETUP_SCSI_PARITY)
 		np->rv_scntl0	|= 0x0a; /*  full arb., ena parity, par->ATN  */
 
 	/*
@@ -4140,7 +4141,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	if (np->myaddr == 255) {
 		np->myaddr = INB(nc_scid) & 0x07;
 		if (!np->myaddr)
-			np->myaddr = SYMSETUP_HOST_ID;
+			np->myaddr = SYM_SETUP_HOST_ID;
 	}
 
 	/*
@@ -4160,7 +4161,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	if (np->features & (FE_ULTRA2|FE_ULTRA3))
 		np->scsi_mode = (np->sv_stest4 & SMODE);
 	else if	(np->features & FE_DIFF) {
-		if (SYMSETUP_SCSI_DIFF == 1) {
+		if (SYM_SETUP_SCSI_DIFF == 1) {
 			if (np->sv_scntl3) {
 				if (np->sv_stest2 & 0x20)
 					np->scsi_mode = SMODE_HVD;
@@ -4170,7 +4171,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 					np->scsi_mode = SMODE_HVD;
 			}
 		}
-		else if	(SYMSETUP_SCSI_DIFF == 2)
+		else if	(SYM_SETUP_SCSI_DIFF == 2)
 			np->scsi_mode = SMODE_HVD;
 	}
 	if (np->scsi_mode == SMODE_HVD)
@@ -4182,14 +4183,14 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  specific GPIO wiring and for the 895A or 896 
 	 *  that drive the LED directly.
 	 */
-	if ((SYMSETUP_SCSI_LED || nvram->type == SYM_SYMBIOS_NVRAM) &&
+	if ((SYM_SETUP_SCSI_LED || nvram->type == SYM_SYMBIOS_NVRAM) &&
 	    !(np->features & FE_LEDC) && !(np->sv_gpcntl & 0x01))
 		np->features |= FE_LED0;
 
 	/*
 	 *  Set irq mode.
 	 */
-	switch(SYMSETUP_IRQ_MODE & 3) {
+	switch(SYM_SETUP_IRQ_MODE & 3) {
 	case 2:
 		np->rv_dcntl	|= IRQM;
 		break;
@@ -4204,14 +4205,14 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  Configure targets according to driver setup.
 	 *  If NVRAM present get targets setup from NVRAM.
 	 */
-	for (i = 0 ; i < SYMCONF_MAX_TARGET ; i++) {
+	for (i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
 		tcb_p tp = &np->target[i];
 
 		tp->tinfo.user.period = np->minsync;
 		tp->tinfo.user.offset = np->maxoffs;
 		tp->tinfo.user.width  = np->maxwide ? BUS_16_BIT : BUS_8_BIT;
 		tp->usrflags |= (SYM_DISC_ENABLED | SYM_TAGS_ENABLED);
-		tp->usrtags = SYMSETUP_MAX_TAG;
+		tp->usrtags = SYM_SETUP_MAX_TAG;
 
 		sym_nvram_setup_target (np, i, nvram);
 
@@ -4292,7 +4293,7 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 	 *  Early C1010 chips need a work-around for DT 
 	 *  data transfer to work.
 	 */
-#ifndef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifndef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	if (!(np->features & FE_U3EN))
 		tp->tinfo.goal.options = 0;
 #endif
@@ -4360,7 +4361,7 @@ static void sym_put_start_queue(hcb_p np, ccb_p cp)
 {
 	u_short	qidx;
 
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	/*
 	 *  If the previously queued CCB is not yet done, 
 	 *  set the IARB hint. The SCRIPTS will go with IARB 
@@ -4477,7 +4478,7 @@ static int sym_reset_scsi_bus(hcb_p np, int enab_int)
 	OUTB (nc_scntl1, CRST);
 	UDELAY (200);
 
-	if (!SYMSETUP_SCSI_BUS_CHECK)
+	if (!SYM_SETUP_SCSI_BUS_CHECK)
 		goto out;
 	/*
 	 *  Check for no terminators or SCSI bus shorts to ground.
@@ -4502,7 +4503,7 @@ static int sym_reset_scsi_bus(hcb_p np, int enab_int)
 			sym_name(np),
 			(np->features & FE_WIDE) ? "dp1,d15-8," : "",
 			(u_long)term, (u_long)(2<<7));
-		if (SYMSETUP_SCSI_BUS_CHECK == 1)
+		if (SYM_SETUP_SCSI_BUS_CHECK == 1)
 			retv = 1;
 	}
 out:
@@ -4722,7 +4723,7 @@ static void sym_init (hcb_p np, int reset, char *msg)
 	 *  Reinitialize usrwide.
 	 *  Prepare sync negotiation according to actual SCSI bus mode.
 	 */
-	for (i=0;i<SYMCONF_MAX_TARGET;i++) {
+	for (i=0;i<SYM_CONF_MAX_TARGET;i++) {
 		tcb_p tp = &np->target[i];
 
 		tp->to_reset = 0;
@@ -4953,7 +4954,7 @@ static void sym_setpprot(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);
 }
 
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 /*
  *  Patch a script address if it points to a data script to 
  *  the same position within another data script.
@@ -4964,7 +4965,7 @@ static u32 sym_chgp(u32 scrp, u32 old_endp, u32 new_endp)
 {
 	scrp = scr_to_cpu(scrp);
 	if (old_endp != new_endp && 
-	    old_endp + 8 - scrp <= SYMCONF_MAX_SG*8 + 8)
+	    old_endp + 8 - scrp <= SYM_CONF_MAX_SG*8 + 8)
 		scrp = new_endp + 8 - (old_endp + 8 - scrp);
 	return cpu_to_scr(scrp);
 }
@@ -5028,7 +5029,7 @@ static u32 sym_chg_ccb_scrp(hcb_p np, u_char dt, ccb_p cp, u32 scrp)
 out:
 	return scrp;
 }
-#endif	/* SYMCONF_BROKEN_U3EN_SUPPORT */
+#endif	/* SYM_CONF_BROKEN_U3EN_SUPPORT */
 
 /*
  *  Switch trans mode for current job and it's target.
@@ -5090,13 +5091,12 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	 */
 	if (np->features & FE_C10) {
 		uval = uval & ~U3EN;
+#ifndef	SYM_CONF_BROKEN_U3EN_SUPPORT
 		if (dt)	{
-#ifndef	SYMCONF_BROKEN_U3EN_SUPPORT
 			assert(np->features & FE_U3EN);
-#else
 			uval |= U3EN;
-#endif
 		}
+#endif
 	}
 	else {
 		wval = wval & ~ULTRA;
@@ -5125,7 +5125,7 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	OUTB (nc_scntl3, tp->wval);
 
 	if (np->features & FE_C10) {
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 		if (!(np->features & FE_U3EN)) {
 			u32 temp = INL (nc_temp);
 			temp = sym_chg_ccb_scrp(np, dt, cp, temp);
@@ -5147,7 +5147,7 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 		cp->phys.select.sel_sxfer  = tp->sval;
 		if (np->features & FE_C10) {
 			cp->phys.select.sel_scntl4 = tp->uval;
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 			if (!(np->features & FE_U3EN))
 				(void) sym_chg_ccb_scrp(np, dt, cp, 0);
 #endif
@@ -6075,7 +6075,7 @@ sym_dequeue_from_squeue(hcb_p np, int i, int target, int lun, int task)
 	while (i != np->squeueput) {
 		cp = sym_ccb_from_dsa(np, scr_to_cpu(np->squeue[i]));
 		assert(cp);
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 		/* Forget hints for IARB, they may be no longer relevant */
 		cp->host_flags &= ~HF_HINT_IARB;
 #endif
@@ -6170,7 +6170,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 	 *  The last CCB queued used for IARB hint may be 
 	 *  no longer relevant. Forget it.
 	 */
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	if (np->last_cp)
 		np->last_cp = 0;
 #endif
@@ -6279,7 +6279,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		startp = SCRIPTH_BA (np, sdata_in);
 
 		cp->phys.savep	= cpu_to_scr(startp);
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 		cp->phys.goalp	= cpu_to_scr(startp + 40);
 #else
 		cp->phys.goalp	= cpu_to_scr(startp + 16);
@@ -6426,7 +6426,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 		/*
 		 *  Do we have any target to reset or unit to clear ?
 		 */
-		for (i = 0 ; i < SYMCONF_MAX_TARGET ; i++) {
+		for (i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
 			tp = &np->target[i];
 			if (tp->to_reset || 
 			    (tp->lun0p && tp->lun0p->to_clear)) {
@@ -6435,7 +6435,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 			}
 			if (!tp->lunmp)
 				continue;
-			for (k = 1 ; k < SYMCONF_MAX_LUN ; k++) {
+			for (k = 1 ; k < SYM_CONF_MAX_LUN ; k++) {
 				if (tp->lunmp[k] && tp->lunmp[k]->to_clear) {
 					target	= i;
 					break;
@@ -6489,7 +6489,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 				continue;
 			if (!cp->to_abort)
 				continue;
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 			/*
 			 *    If we are using IMMEDIATE ARBITRATION, we donnot 
 			 *    want to cancel the last queued CCB, since the 
@@ -6567,7 +6567,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 		if (tp->lun0p && tp->lun0p->to_clear)
 			lun = 0;
 		else if (tp->lunmp) {
-			for (k = 1 ; k < SYMCONF_MAX_LUN ; k++) {
+			for (k = 1 ; k < SYM_CONF_MAX_LUN ; k++) {
 				if (tp->lunmp[k] && tp->lunmp[k]->to_clear) {
 					lun = k;
 					break;
@@ -6741,9 +6741,9 @@ static void sym_sir_task_recovery(hcb_p np, int num)
  *  array (dp_sg) and a negative offset (dp_ofs) that 
  *  have the following meaning:
  *
- *  - dp_sg = SYMCONF_MAX_SG
+ *  - dp_sg = SYM_CONF_MAX_SG
  *    we are at the end of the data script.
- *  - dp_sg < SYMCONF_MAX_SG
+ *  - dp_sg < SYM_CONF_MAX_SG
  *    dp_sg points to the next entry of the scatter array 
  *    we want to transfer.
  *  - dp_ofs < 0
@@ -6793,14 +6793,14 @@ static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 	/*
 	 *  Deduce the index of the sg entry.
 	 *  Keep track of the index of the first valid entry.
-	 *  If result is dp_sg = SYMCONF_MAX_SG, then we are at the 
+	 *  If result is dp_sg = SYM_CONF_MAX_SG, then we are at the 
 	 *  end of the data.
 	 */
 	tmp = scr_to_cpu(cp->phys.goalp);
-	dp_sg = SYMCONF_MAX_SG;
+	dp_sg = SYM_CONF_MAX_SG;
 	if (dp_sg != tmp)
 		dp_sg -= (tmp - 8 - (int)dp_scr) / (2*4);
-	dp_sgmin = SYMCONF_MAX_SG - cp->segments;
+	dp_sgmin = SYM_CONF_MAX_SG - cp->segments;
 
 	/*
 	 *  Move to the sg entry the data pointer belongs to.
@@ -6828,10 +6828,10 @@ static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 		}
 	}
 	else if (dp_ofs > 0) {
-		while (dp_sg < SYMCONF_MAX_SG) {
-			++dp_sg;
+		while (dp_sg < SYM_CONF_MAX_SG) {
 			tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
 			dp_ofs -= (tmp & 0xffffff);
+			++dp_sg;
 			if (dp_ofs <= 0)
 				break;
 		}
@@ -6843,8 +6843,8 @@ static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 	 */
 	if	(dp_sg < dp_sgmin || (dp_sg == dp_sgmin && dp_ofs < 0))
 		goto out_err;
-	else if	(dp_sg > SYMCONF_MAX_SG ||
-		 (dp_sg == SYMCONF_MAX_SG && dp_ofs > 0))
+	else if	(dp_sg > SYM_CONF_MAX_SG ||
+		 (dp_sg == SYM_CONF_MAX_SG && dp_ofs > 0))
 		goto out_err;
 
 	/*
@@ -6904,7 +6904,7 @@ static void sym_modify_dp(hcb_p np, tcb_p tp, ccb_p cp, int ofs)
 	 *  script address we want to return for the next data phase.
 	 */
 	dp_ret = cpu_to_scr(cp->phys.goalp);
-	dp_ret = dp_ret - 8 - (SYMCONF_MAX_SG - dp_sg) * (2*4);
+	dp_ret = dp_ret - 8 - (SYM_CONF_MAX_SG - dp_sg) * (2*4);
 
 	/*
 	 *  If offset / scatter entry is zero we donnot need 
@@ -7023,9 +7023,9 @@ static int sym_compute_residual(hcb_p np, ccb_p cp)
 	 *  We are now full comfortable in the computation 
 	 *  of the data residual (2's complement).
 	 */
-	dp_sgmin = SYMCONF_MAX_SG - cp->segments;
+	dp_sgmin = SYM_CONF_MAX_SG - cp->segments;
 	resid = -cp->ext_ofs;
-	for (dp_sg = cp->ext_sg; dp_sg < SYMCONF_MAX_SG; ++dp_sg) {
+	for (dp_sg = cp->ext_sg; dp_sg < SYM_CONF_MAX_SG; ++dp_sg) {
 		u_long tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
 		resid += (tmp & 0xffffff);
 	}
@@ -7251,7 +7251,7 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		if (wide > tp->tinfo.user.width)
 			{chg = 1; wide = tp->tinfo.user.width;}
 	}
-#ifndef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifndef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	if (!(np->features & FE_U3EN))	/* Broken U3EN bit not supported */
 		dt &= ~PPR_OPT_DT;
 #endif
@@ -7759,9 +7759,9 @@ static	ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order)
 			 *  and count it for this LUN.
 			 *  Toggle reselect patch to tagged.
 			 */
-			if (lp->busy_itlq < SYMCONF_MAX_TASK) {
+			if (lp->busy_itlq < SYM_CONF_MAX_TASK) {
 				tag = lp->cb_tags[lp->ia_tag];
-				if (++lp->ia_tag == SYMCONF_MAX_TASK)
+				if (++lp->ia_tag == SYM_CONF_MAX_TASK)
 					lp->ia_tag = 0;
 				lp->itlq_tbl[tag] = cpu_to_scr(cp->ccb_ba);
 				++lp->busy_itlq;
@@ -7845,7 +7845,7 @@ static void sym_free_ccb (hcb_p np, ccb_p cp)
 			 *  Free the tag value.
 			 */
 			lp->cb_tags[lp->if_tag] = cp->tag;
-			if (++lp->if_tag == SYMCONF_MAX_TASK)
+			if (++lp->if_tag == SYM_CONF_MAX_TASK)
 				lp->if_tag = 0;
 			/*
 			 *  Make the reselect path invalid, 
@@ -7882,7 +7882,7 @@ static void sym_free_ccb (hcb_p np, ccb_p cp)
 	if (cp == tp->nego_cp)
 		tp->nego_cp = 0;
 
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	/*
 	 *  If we just complete the last queued CCB,
 	 *  clear this info that is no longer relevant.
@@ -7911,7 +7911,7 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	 *  Prevent from allocating more CCBs than we can 
 	 *  queue to the controller.
 	 */
-	if (np->actccbs >= SYMCONF_MAX_START)
+	if (np->actccbs >= SYM_CONF_MAX_START)
 		return 0;
 
 	/*
@@ -8035,7 +8035,7 @@ static lcb_p sym_alloc_lcb (hcb_p np, u_char tn, u_char ln)
 	 *  Allocate the table of pointers for LUN(s) > 0, if needed.
 	 */
 	if (ln && !tp->lunmp) {
-		tp->lunmp = sym_calloc(SYMCONF_MAX_LUN * sizeof(lcb_p),
+		tp->lunmp = sym_calloc(SYM_CONF_MAX_LUN * sizeof(lcb_p),
 				   "LUNMP");
 		if (!tp->lunmp)
 			goto fail;
@@ -8095,12 +8095,12 @@ static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln)
 	 *  Allocate the task table and and the tag allocation 
 	 *  circular buffer. We want both or none.
 	 */
-	lp->itlq_tbl = sym_calloc(SYMCONF_MAX_TASK*4, "ITLQ_TBL");
+	lp->itlq_tbl = sym_calloc(SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
 	if (!lp->itlq_tbl)
 		goto fail;
-	lp->cb_tags = sym_calloc(SYMCONF_MAX_TASK, "CB_TAGS");
+	lp->cb_tags = sym_calloc(SYM_CONF_MAX_TASK, "CB_TAGS");
 	if (!lp->cb_tags) {
-		sym_mfree(lp->itlq_tbl, SYMCONF_MAX_TASK*4, "ITLQ_TBL");
+		sym_mfree(lp->itlq_tbl, SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
 		lp->itlq_tbl = 0;
 		goto fail;
 	}
@@ -8108,13 +8108,13 @@ static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln)
 	/*
 	 *  Initialize the task table with invalid entries.
 	 */
-	for (i = 0 ; i < SYMCONF_MAX_TASK ; i++)
+	for (i = 0 ; i < SYM_CONF_MAX_TASK ; i++)
 		lp->itlq_tbl[i] = cpu_to_scr(np->notask_ba);
 
 	/*
 	 *  Fill up the tag buffer with tag numbers.
 	 */
-	for (i = 0 ; i < SYMCONF_MAX_TASK ; i++)
+	for (i = 0 ; i < SYM_CONF_MAX_TASK ; i++)
 		lp->cb_tags[i] = i;
 
 	/*
@@ -8132,7 +8132,7 @@ fail:
  *
  *  Has to be called with interrupts disabled.
  */
-#ifndef SYMCONF_IOMAPPED
+#ifndef SYM_CONF_IOMAPPED
 static int sym_regtest (hcb_p np)
 {
 	register volatile u32 data;
@@ -8161,7 +8161,7 @@ static int sym_snooptest (hcb_p np)
 {
 	u32	sym_rd, sym_wr, sym_bk, host_rd, host_wr, pc;
 	int	i, err=0;
-#ifndef SYMCONF_IOMAPPED
+#ifndef SYM_CONF_IOMAPPED
 	err |= sym_regtest (np);
 	if (err) return (err);
 #endif
@@ -8534,7 +8534,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	csio->sense_resid = 0;
 	csio->resid = sym_compute_residual(np, cp);
 
-	if (!SYMCONF_RESIDUAL_SUPPORT) {/* If user does not want residuals */
+	if (!SYM_CONF_RESIDUAL_SUPPORT) {/* If user does not want residuals */
 		csio->resid  = 0;	/* throw them away. :)		   */
 		cp->sv_resid = 0;
 	}
@@ -8664,7 +8664,7 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	 *  returning zero. User can disable this feature from 
 	 *  sym_conf.h. Residual support is enabled by default.
 	 */
-	if (!SYMCONF_RESIDUAL_SUPPORT)
+	if (!SYM_CONF_RESIDUAL_SUPPORT)
 		csio->resid  = 0;
 
 	/*
@@ -8755,8 +8755,8 @@ static void sym_reset_dev(hcb_p np, union ccb *ccb)
 	struct ccb_hdr *ccb_h = &ccb->ccb_h;
 
 	if (ccb_h->target_id   == np->myaddr ||
-	    ccb_h->target_id   >= SYMCONF_MAX_TARGET ||
-	    ccb_h->target_lun  >= SYMCONF_MAX_LUN) {
+	    ccb_h->target_id   >= SYM_CONF_MAX_TARGET ||
+	    ccb_h->target_lun  >= SYM_CONF_MAX_LUN) {
 		sym_xpt_done2(np, ccb, CAM_DEV_NOT_THERE);
 		return;
 	}
@@ -8824,8 +8824,8 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 	 *  go outside our tables.
 	 */
 	if (ccb_h->target_id   == np->myaddr ||
-	    ccb_h->target_id   >= SYMCONF_MAX_TARGET ||
-	    ccb_h->target_lun  >= SYMCONF_MAX_LUN) {
+	    ccb_h->target_id   >= SYM_CONF_MAX_TARGET ||
+	    ccb_h->target_lun  >= SYM_CONF_MAX_LUN) {
 		sym_xpt_done2(np, ccb, CAM_DEV_NOT_THERE);
 		return;
         }
@@ -8910,7 +8910,7 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 		 *  great #TAG numbers. For more tags (up to 256), 
 		 *  we use directly our tag number.
 		 */
-#if SYMCONF_MAX_TASK > (512/4)
+#if SYM_CONF_MAX_TASK > (512/4)
 		msgptr[msglen++] = cp->tag;
 #else
 		msgptr[msglen++] = (cp->tag << 1) + 1;
@@ -9132,7 +9132,7 @@ end_scatter:
 	switch(dir) {
 	case CAM_DIR_OUT:
 		goalp = SCRIPT_BA (np, data_out2) + 8;
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 		if ((np->features & (FE_C10|FE_U3EN)) == FE_C10) {
 			tcb_p tp = &np->target[cp->target];
 			if (tp->tinfo.current.options & PPR_OPT_DT)
@@ -9143,7 +9143,7 @@ end_scatter:
 		break;
 	case CAM_DIR_IN:
 		goalp = SCRIPT_BA (np, data_in2) + 8;
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
 		if ((np->features & (FE_C10|FE_U3EN)) == FE_C10) {
 			tcb_p tp = &np->target[cp->target];
 			if (tp->tinfo.current.options & PPR_OPT_DT)
@@ -9193,7 +9193,7 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 
 	pe = vaddr + len;
 	n  = len;
-	s  = SYMCONF_MAX_SG - 1 - cp->segments;
+	s  = SYM_CONF_MAX_SG - 1 - cp->segments;
 
 	while (n && s >= 0) {
 		pn = (pe - 1) & ~PAGE_MASK;
@@ -9212,7 +9212,7 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 		n -= k;
 		--s;
 	}
-	cp->segments = SYMCONF_MAX_SG - 1 - s;
+	cp->segments = SYM_CONF_MAX_SG - 1 - s;
 
 	return n ? -1 : 0;
 }
@@ -9363,11 +9363,13 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = (np->features & FE_WIDE) ? 15 : 7;
 		/* Semantic problem:)LUN number max = max number of LUNs - 1 */
-		cpi->max_lun = SYMCONF_MAX_LUN-1;
+		cpi->max_lun = SYM_CONF_MAX_LUN-1;
+		if (SYM_SETUP_MAX_LUN < SYM_CONF_MAX_LUN)
+			cpi->max_lun = SYM_SETUP_MAX_LUN-1;
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->initiator_id = np->myaddr;
 		cpi->base_transfer_speed = 3300;
-		strncpy(cpi->sim_vid, "Gerard Roudier", SIM_IDLEN);
+		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Symbios", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
@@ -9436,13 +9438,13 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	/*
 	 *  Scale against out limits.
 	 */
-	if (tip->width  > SYMSETUP_MAX_WIDE)	tip->width  = np->maxwide;
+	if (tip->width  > SYM_SETUP_MAX_WIDE)	tip->width  = np->maxwide;
 	if (tip->width  > np->maxwide)		tip->width  = np->maxwide;
-	if (tip->offset > SYMSETUP_MAX_OFFS)	tip->offset = np->maxoffs;
+	if (tip->offset > SYM_SETUP_MAX_OFFS)	tip->offset = np->maxoffs;
 	if (tip->offset > np->maxoffs)		tip->offset = np->maxoffs;
 	if (tip->period) {
-		if (tip->period < SYMSETUP_MIN_SYNC)
-			tip->period = SYMSETUP_MIN_SYNC;
+		if (tip->period < SYM_SETUP_MIN_SYNC)
+			tip->period = SYM_SETUP_MIN_SYNC;
 		if (np->features & FE_ULTRA3) {
 			if (tip->period < np->minsync_dt)
 				tip->period = np->minsync_dt;
@@ -9515,60 +9517,60 @@ DATA_SET (pcidevice_set, sym_pci_driver);
 #endif /* FreeBSD_4_Bus */
 
 static struct sym_pci_chip sym_pci_dev_table[] = {
- {PCI_ID_SYM53C810, 0x0f, "810", 4,  8, 4,
+ {PCI_ID_SYM53C810, 0x0f, "810", 4, 8, 4, 0,
  FE_ERL}
  ,
- {PCI_ID_SYM53C810, 0xff, "810a", 4,  8, 4,
+ {PCI_ID_SYM53C810, 0xff, "810a", 4,  8, 4, 1,
  FE_CACHE_SET|FE_LDSTR|FE_PFEN|FE_BOF}
  ,
- {PCI_ID_SYM53C825, 0x0f, "825", 6,  8, 4,
+ {PCI_ID_SYM53C825, 0x0f, "825", 6,  8, 4, 0,
  FE_WIDE|FE_BOF|FE_ERL|FE_DIFF}
  ,
- {PCI_ID_SYM53C825, 0xff, "825a", 6,  8, 4,
+ {PCI_ID_SYM53C825, 0xff, "825a", 6,  8, 4, 2,
  FE_WIDE|FE_CACHE0_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM|FE_DIFF}
  ,
- {PCI_ID_SYM53C860, 0xff, "860",  4,  8, 5,
+ {PCI_ID_SYM53C860, 0xff, "860", 4,  8, 5, 1,
  FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_BOF|FE_LDSTR|FE_PFEN}
  ,
- {PCI_ID_SYM53C875, 0x01, "875",  6, 16, 5,
+ {PCI_ID_SYM53C875, 0x01, "875", 6, 16, 5, 2,
  FE_WIDE|FE_ULTRA|FE_CLK80|FE_CACHE0_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_DIFF}
  ,
- {PCI_ID_SYM53C875, 0xff, "875",  6, 16, 5,
+ {PCI_ID_SYM53C875, 0xff, "875", 6, 16, 5, 2,
  FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE0_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_DIFF}
  ,
- {PCI_ID_SYM53C875_2,0xff, "875_2", 6, 16, 5,
+ {PCI_ID_SYM53C875_2, 0xff, "875", 6, 16, 5, 2,
  FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE0_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_DIFF}
  ,
- {PCI_ID_SYM53C885, 0xff, "885",  6, 16, 5,
+ {PCI_ID_SYM53C885, 0xff, "885", 6, 16, 5, 2,
  FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE0_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_DIFF}
  ,
- {PCI_ID_SYM53C895, 0xff, "895",  6, 31, 7,
+ {PCI_ID_SYM53C895, 0xff, "895", 6, 31, 7, 2,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_LCKFRQ}
  ,
- {PCI_ID_SYM53C896, 0xff, "896",  6, 31, 7,
+ {PCI_ID_SYM53C896, 0xff, "896", 6, 31, 7, 4,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_LCKFRQ}
  ,
- {PCI_ID_SYM53C895A, 0xff, "895a",  6, 31, 7,
+ {PCI_ID_SYM53C895A, 0xff, "895a", 6, 31, 7, 4,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_LCKFRQ}
  ,
- {PCI_ID_LSI53C1010, 0x45, "1010",  6, 62, 7,
+ {PCI_ID_LSI53C1010, 0x00, "1010", 6, 62, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_PCI66|FE_CRC|
  FE_C10}
  ,
- {PCI_ID_LSI53C1010, 0xff, "1010",  6, 62, 7,
+ {PCI_ID_LSI53C1010, 0xff, "1010", 6, 62, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_PCI66|FE_CRC|
  FE_C10|FE_U3EN}
  ,
- {PCI_ID_LSI53C1510D, 0xff, "1510D",  6, 31, 7,
+ {PCI_ID_LSI53C1510D, 0xff, "1510d", 6, 31, 7, 4,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_IO256|FE_LEDC}
 };
@@ -9634,7 +9636,7 @@ sym_pci_probe(device_t dev)
 	chip = sym_find_pci_chip(dev);
 	if (chip) {
 		device_set_desc(dev, chip->name);
-		return 0;
+		return (chip->lp_probe_bit & SYM_SETUP_LP_PROBE_MAP) ? -2000 : 0;
 	}
 	return ENXIO;
 }
@@ -9806,7 +9808,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	}
 #endif
 
-#ifdef	SYMCONF_IOMAPPED
+#ifdef	SYM_CONF_IOMAPPED
 	/*
 	 *  User want us to use normal IO with PCI.
 	 *  Alloc/get/map/retrieve everything that deals with IO.
@@ -9835,7 +9837,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	}
 #endif
 
-#endif /* SYMCONF_IOMAPPED */
+#endif /* SYM_CONF_IOMAPPED */
 
 	/*
 	 *  If the chip has RAM.
@@ -10032,13 +10034,13 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 				cpu_to_scr(offsetof(struct sym_tcb, uval));
 	}
 
-#ifdef SYMCONF_IARB_SUPPORT
+#ifdef SYM_CONF_IARB_SUPPORT
 	/*
 	 *    If user does not want to use IMMEDIATE ARBITRATION
 	 *    when we are reselected while attempting to arbitrate,
 	 *    patch the SCRIPTS accordingly with a SCRIPT NO_OP.
 	 */
-	if (!SYMCONF_SET_IARB_ON_ARB_LOST)
+	if (!SYM_CONF_SET_IARB_ON_ARB_LOST)
 		np->script0->ungetjob[0] = cpu_to_scr(SCR_NO_OP);
 
 	/*
@@ -10047,8 +10049,8 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *    settings of IARB hints before we leave devices a chance to 
 	 *    arbitrate for reselection.
 	 */
-#ifdef	SYMSETUP_IARB_MAX
-	np->iarb_max = SYMSETUP_IARB_MAX;
+#ifdef	SYM_SETUP_IARB_MAX
+	np->iarb_max = SYM_SETUP_IARB_MAX;
 #else
 	np->iarb_max = 4;
 #endif
@@ -10093,7 +10095,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  For now, assume all logical unit are wrong. :)
 	 */
 	np->scripth0->targtbl[0] = cpu_to_scr(vtobus(np->targtbl));
-	for (i = 0 ; i < SYMCONF_MAX_TARGET ; i++) {
+	for (i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
 		np->targtbl[i] = cpu_to_scr(vtobus(&np->target[i]));
 		np->target[i].luntbl_sa = cpu_to_scr(vtobus(np->badluntbl));
 		np->target[i].lun0_sa = cpu_to_scr(vtobus(&np->badlun_sa));
@@ -10202,23 +10204,23 @@ static void sym_pci_free(hcb_p np)
 	if (np->badluntbl)
 		sym_mfree(np->badluntbl, 256,"BADLUNTBL");
 
-	for (target = 0; target < SYMCONF_MAX_TARGET ; target++) {
+	for (target = 0; target < SYM_CONF_MAX_TARGET ; target++) {
 		tp = &np->target[target];
-		for (lun = 0 ; lun < SYMCONF_MAX_LUN ; lun++) {
+		for (lun = 0 ; lun < SYM_CONF_MAX_LUN ; lun++) {
 			lp = sym_lp(np, tp, lun);
 			if (!lp)
 				continue;
 			if (lp->itlq_tbl)
-				sym_mfree(lp->itlq_tbl, SYMCONF_MAX_TASK*4,
+				sym_mfree(lp->itlq_tbl, SYM_CONF_MAX_TASK*4,
 				       "ITLQ_TBL");
 			if (lp->cb_tags)
-				sym_mfree(lp->cb_tags, SYMCONF_MAX_TASK,
+				sym_mfree(lp->cb_tags, SYM_CONF_MAX_TASK,
 				       "CB_TAGS");
 			sym_mfree(lp, sizeof(*lp), "LCB");
 		}
-#if SYMCONF_MAX_LUN > 1
+#if SYM_CONF_MAX_LUN > 1
 		if (tp->lunmp)
-			sym_mfree(tp->lunmp, SYMCONF_MAX_LUN*sizeof(lcb_p),
+			sym_mfree(tp->lunmp, SYM_CONF_MAX_LUN*sizeof(lcb_p),
 			       "LUNMP");
 #endif 
 	}
@@ -10259,7 +10261,7 @@ int sym_cam_attach(hcb_p np)
 	/*
 	 *  Create the device queue for our sym SIM.
 	 */
-	devq = cam_simq_alloc(SYMCONF_MAX_START);
+	devq = cam_simq_alloc(SYM_CONF_MAX_START);
 	if (!devq)
 		goto fail;
 
@@ -10267,7 +10269,7 @@ int sym_cam_attach(hcb_p np)
 	 *  Construct our SIM entry.
 	 */
 	sim = cam_sim_alloc(sym_action, sym_poll, "sym", np, np->unit,
-			    1, SYMSETUP_MAX_TAG, devq);
+			    1, SYM_SETUP_MAX_TAG, devq);
 	if (!sim)
 		goto fail;
 	devq = 0;
@@ -10355,7 +10357,7 @@ void sym_cam_free(hcb_p np)
  */
 static void sym_nvram_setup_host (hcb_p np, struct sym_nvram *nvram)
 {
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 	/*
 	 *  Get parity checking, host ID and verbose mode from NVRAM
 	 */
@@ -10379,7 +10381,7 @@ static void sym_nvram_setup_host (hcb_p np, struct sym_nvram *nvram)
 /*
  *  Get target setup from NVRAM.
  */
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 static void sym_Symbios_setup_target(hcb_p np,int target, Symbios_nvram *nvram);
 static void sym_Tekram_setup_target(hcb_p np,int target, Tekram_nvram *nvram);
 #endif
@@ -10387,7 +10389,7 @@ static void sym_Tekram_setup_target(hcb_p np,int target, Tekram_nvram *nvram);
 static void
 sym_nvram_setup_target (hcb_p np, int target, struct sym_nvram *nvp)
 {
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 	switch(nvp->type) {
 	case SYM_SYMBIOS_NVRAM:
 		sym_Symbios_setup_target (np, target, &nvp->data.Symbios);
@@ -10401,7 +10403,7 @@ sym_nvram_setup_target (hcb_p np, int target, struct sym_nvram *nvp)
 #endif
 }
 
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 /*
  *  Get target set-up from Symbios format NVRAM.
  */
@@ -10414,7 +10416,7 @@ sym_Symbios_setup_target(hcb_p np, int target, Symbios_nvram *nvram)
 	tp->tinfo.user.period = tn->sync_period ? (tn->sync_period + 3) / 4 : 0;
 	tp->tinfo.user.width  = tn->bus_width == 0x10 ? BUS_16_BIT : BUS_8_BIT;
 	tp->usrtags =
-		(tn->flags & SYMBIOS_QUEUE_TAGS_ENABLED)? SYMSETUP_MAX_TAG : 0;
+		(tn->flags & SYMBIOS_QUEUE_TAGS_ENABLED)? SYM_SETUP_MAX_TAG : 0;
 
 	if (!(tn->flags & SYMBIOS_DISCONNECT_ENABLE))
 		tp->usrflags &= ~SYM_DISC_ENABLED;
@@ -10454,7 +10456,7 @@ sym_Tekram_setup_target(hcb_p np, int target, Tekram_nvram *nvram)
 		np->rv_scntl0  &= ~0x0a; /* SCSI parity checking disabled */
 }
 
-#ifdef	SYMCONF_DEBUG_NVRAM
+#ifdef	SYM_CONF_DEBUG_NVRAM
 /*
  *  Dump Symbios format NVRAM for debugging purpose.
  */
@@ -10536,29 +10538,29 @@ void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
 		sync);
 	}
 }
-#endif	/* SYMCONF_DEBUG_NVRAM */
-#endif	/* SYMCONF_NVRAM_SUPPORT */
+#endif	/* SYM_CONF_DEBUG_NVRAM */
+#endif	/* SYM_CONF_NVRAM_SUPPORT */
 
 
 /*
  *  Try reading Symbios or Tekram NVRAM
  */
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 static int sym_read_Symbios_nvram (hcb_p np, Symbios_nvram *nvram);
 static int sym_read_Tekram_nvram  (hcb_p np, Tekram_nvram *nvram);
 #endif
 
 int sym_read_nvram(hcb_p np, struct sym_nvram *nvp)
 {
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 	/*
 	 *  Try to read SYMBIOS nvram.
 	 *  Try to read TEKRAM nvram if Symbios nvram not found.
 	 */
-	if	(SYMSETUP_SYMBIOS_NVRAM &&
+	if	(SYM_SETUP_SYMBIOS_NVRAM &&
 		 !sym_read_Symbios_nvram (np, &nvp->data.Symbios))
 		nvp->type = SYM_SYMBIOS_NVRAM;
-	else if	(SYMSETUP_TEKRAM_NVRAM &&
+	else if	(SYM_SETUP_TEKRAM_NVRAM &&
 		 !sym_read_Tekram_nvram (np, &nvp->data.Tekram))
 		nvp->type = SYM_TEKRAM_NVRAM;
 	else
@@ -10570,7 +10572,7 @@ int sym_read_nvram(hcb_p np, struct sym_nvram *nvp)
 }
 
 
-#ifdef SYMCONF_NVRAM_SUPPORT
+#ifdef SYM_CONF_NVRAM_SUPPORT
 /*
  *  24C16 EEPROM reading.
  *
@@ -10998,4 +11000,4 @@ static int sym_read_Tekram_nvram (hcb_p np, Tekram_nvram *nvram)
 	return 0;
 }
 
-#endif	/* SYMCONF_NVRAM_SUPPORT */
+#endif	/* SYM_CONF_NVRAM_SUPPORT */
