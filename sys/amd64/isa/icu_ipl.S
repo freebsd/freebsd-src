@@ -47,12 +47,6 @@ imen:	.long	HWI_MASK
 	.text
 	SUPERALIGN_TEXT
 
-#ifdef PC98
-#define MASK_OFFSET 2
-#else
-#define MASK_OFFSET 1
-#endif
-
 ENTRY(INTREN)
 	movl	4(%esp), %eax
 	movl	%eax, %ecx
@@ -61,12 +55,12 @@ ENTRY(INTREN)
 	movl	imen, %eax
 	testb	%cl, %cl
 	je	1f
-	outb	%al, $(IO_ICU1 + MASK_OFFSET)
+	outb	%al, $(IO_ICU1 + ICU_IMR_OFFSET)
 1:
 	testb	%ch, %ch
 	je	2f
 	shrl	$8, %eax
-	outb	%al, $(IO_ICU2 + MASK_OFFSET)
+	outb	%al, $(IO_ICU2 + ICU_IMR_OFFSET)
 2:
 	ret
 
@@ -77,11 +71,11 @@ ENTRY(INTRDIS)
 	movl	imen, %eax
 	testb	%cl, %cl
 	je	1f
-	outb	%al, $(IO_ICU1 + MASK_OFFSET)
+	outb	%al, $(IO_ICU1 + ICU_IMR_OFFSET)
 1:
 	testb	%ch, %ch
 	je	2f
 	shrl	$8, %eax
-	outb	%al, $(IO_ICU2 + MASK_OFFSET)
+	outb	%al, $(IO_ICU2 + ICU_IMR_OFFSET)
 2:
 	ret
