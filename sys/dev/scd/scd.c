@@ -827,7 +827,7 @@ writeparam:
 		}
 
 		/* send the read command */
-		disable_intr();
+		critical_enter();
 		SCD_WRITE(sc, OREG_WPARAMS, sdata[0]);
 		SCD_WRITE(sc, OREG_WPARAMS, sdata[1]);
 		SCD_WRITE(sc, OREG_WPARAMS, sdata[2]);
@@ -835,7 +835,7 @@ writeparam:
 		SCD_WRITE(sc, OREG_WPARAMS, 0);
 		SCD_WRITE(sc, OREG_WPARAMS, 1);
 		SCD_WRITE(sc, OREG_COMMAND, CMD_READ);
-		enable_intr();
+		critical_exit();
 
 		mbx->count = RDELAY_WAITREAD;
 		for (i = 0; i < 50; i++) {
