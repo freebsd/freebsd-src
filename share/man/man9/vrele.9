@@ -41,10 +41,10 @@
 .Fn vrele "struct vnode *vp"
 .Sh DESCRIPTION
 Decrement the
-.Dv v_usecount
+.Va v_usecount
 field of a vnode.
 .Bl -tag -width 2n
-.It Ar vp
+.It Fa vp
 the vnode to decrement
 .El
 .Pp
@@ -52,7 +52,7 @@ Any code in the system which is using a vnode should call
 .Fn vrele
 when it is finished with the vnode.
 If the
-.Dv v_usecount
+.Va v_usecount
 field of the vnode reaches zero, then it will be placed on the free list.
 .Sh SEE ALSO
 .Xr vget 9 ,

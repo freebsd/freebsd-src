@@ -41,16 +41,16 @@ The device object represents a piece of hardware attached to the
 system such as an expansion card, the bus which that card is plugged
 into, disk drives attached to the expansion card etc.
 The system defines one device,
-.Dv root_bus
+.Va root_bus
 and all other devices are created dynamically during
 autoconfiguration.  Normally devices representing top-level busses in
 the system (ISA, PCI etc.) will be attached directly to
-.Dv root_bus
+.Va root_bus
 and other devices will be added as children of their relevant bus.
 .Pp
 The devices in a system form a tree.
 All devices except
-.Dv root_bus
+.Va root_bus
 have a parent (see
 .Xr device_get_parent 9 ) .
 In addition, any device can have children attached to it (see
@@ -83,13 +83,13 @@ and a set of driver-specific variables (see
 .Pp
 Devices can be in one of several states:
 .Bl -tag -width DS_NOTPRESENT
-.It Ar DS_NOTPRESENT
+.It Dv DS_NOTPRESENT
 the device has not been probed for existence or the probe failed
-.It Ar DS_ALIVE
+.It Dv DS_ALIVE
 the device probe succeeded but not yet attached
-.It Ar DS_ATTACHED
+.It Dv DS_ATTACHED
 the device has been successfully attached
-.It Ar DS_BUSY
+.It Dv DS_BUSY
 the device is currently open
 .El
 .Pp

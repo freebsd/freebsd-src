@@ -43,21 +43,21 @@
 .Sh DESCRIPTION
 Read directory entries.
 .Bl -tag -width ncookies
-.It Ar vp
+.It Fa vp
 the vnode of the directory
-.It Ar uio
+.It Fa uio
 where to read the directory contents
-.It Ar cred
+.It Fa cred
 the caller's credentials
-.It Ar eofflag
+.It Fa eofflag
 return end of file status (NULL if not wanted)
-.It Ar ncookies
+.It Fa ncookies
 number of directory cookies generated for NFS (NULL if not wanted)
-.It Ar cookies
+.It Fa cookies
 directory seek cookies generated for NFS (NULL if not wanted)
 .El
 The directory contents are read into
-.Dv struct dirent
+.Vt struct dirent
 structures.  If the on-disc data structures differ from this then they
 should be translated.
 .Sh LOCKS
