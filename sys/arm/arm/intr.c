@@ -122,7 +122,7 @@ void
 arm_handler_execute(void *frame, int irqnb)
 {
 	struct ithd *ithd;
-	int i, oldirqstate;
+	int i;
 	struct intrhand *ih;
 	struct thread *td = curthread;
 
@@ -130,6 +130,7 @@ arm_handler_execute(void *frame, int irqnb)
 	if (irqnb == 0)
 		irqnb = arm_get_irqnb(frame);
 	arm_mask_irqs(irqnb);
+	enable_interrupts(I32_bit|F32_bit);
 	while (irqnb != 0) {
 		i = ffs(irqnb) - 1;
 		intrcnt[intrcnt_tab[i]]++;
@@ -139,13 +140,11 @@ arm_handler_execute(void *frame, int irqnb)
 			continue;
 		ih = TAILQ_FIRST(&ithd->it_handlers);
 		if (ih && ih->ih_flags & IH_FAST) {
-			oldirqstate = disable_interrupts(I32_bit);
 			TAILQ_FOREACH(ih, &ithd->it_handlers,
 			    ih_next) {
 				ih->ih_handler(ih->ih_argument ?
 				    ih->ih_argument : frame);
 			}
-			restore_interrupts(oldirqstate);
 			arm_unmask_irqs(1 << i);
 		} else if (ih)
 			ithread_schedule(ithd);
