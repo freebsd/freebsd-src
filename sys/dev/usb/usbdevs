@@ -121,6 +121,7 @@ vendor YEDATA		0x057b	Y-E Data
 vendor AVM		0x057c	AVM GmbH
 vendor QUICKSHOT	0x057f	Quickshot
 vendor ROCKFIRE		0x0583	Rockfire
+vendor ZYXEL		0x0586	ZyXEL Communication Co.
 vendor ALCOR		0x058f	Alcor Micro, Inc.
 vendor IOMEGA		0x059b	Iomega Corp.
 vendor ATREND		0x059c	A-Trend Technology Co., Ltd.
@@ -711,3 +712,6 @@ product YANO U640MO		0x0101	U640MO-03
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
+
+/* ZyXEL Communication Co. products */
+product ZYXEL 980N		0x2011	Scorpion-980N keyboard
