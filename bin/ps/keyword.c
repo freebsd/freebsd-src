@@ -235,14 +235,16 @@ parsefmt(const char *p)
 	static struct varent *vtail;
 	char *tempstr, *tempstr1;
 
-#define	FMTSEP	"\t,\n"
 	tempstr1 = tempstr = strdup(p);
 	while (tempstr && *tempstr) {
 		char *cp;
 		VAR *v;
 		struct varent *vent;
 
-		while ((cp = strsep(&tempstr, FMTSEP)) != NULL && *cp == '\0')
+		/*
+		 * Seperate the format by commas.
+		 */
+		while ((cp = strsep(&tempstr, ",")) != NULL && *cp == '\0')
 			/* void */;
 		if (cp == NULL || !(v = findvar(cp)))
 			continue;
