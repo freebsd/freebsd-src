@@ -451,7 +451,7 @@ map_pal_code(void)
 	__asm __volatile("itr.i itr[%0]=%1;;"
 			 :: "r"(2), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
-	__asm __volatile("mov psr.l=%0;; srlz.i" :: "r" (psr));
+	__asm __volatile("mov psr.l=%0;; srlz.i;;" :: "r" (psr));
 }
 
 static void
