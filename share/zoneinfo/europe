@@ -1,4 +1,4 @@
-# @(#)europe	7.80
+# @(#)europe	7.82
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -196,7 +196,7 @@
 # and extending this list, which can be found in
 # <a href="http://student.cusu.cam.ac.uk/~jsm28/british-time/">
 # History of legal time in Britain
-# </a> (2000-02-12).
+# </a>
 
 # From Joseph S. Myers <jsm28@cam.ac.uk> (1998-01-06):
 #
@@ -749,15 +749,53 @@ Zone Atlantic/Faeroe	-0:27:04 -	LMT	1908 Jan 11	# Torshavn
 # In the military area near Thule and in Danmarkshavn DST will not be
 # introduced.
 
-# From Paul Eggert (2001-09-29):
+# From Rives McDow (2001-11-01):
+# 
+# I correspond regularly with the Dansk Polarcenter, and wrote them at
+# the time to clarify the situation in Thule.  Unfortunately, I have
+# not heard back from them regarding my recent letter.  [But I have
+# info from earlier correspondence.]
+#
+# According to the center, a very small local time zone around Thule
+# Air Base keeps the time according to UTC-4, implementing daylight
+# savings using North America rules, changing the time at 02:00 local time....
+#
+# The east coast of Greenland north of the community of Scoresbysund
+# uses UTC in the same way as in Iceland, year round, with no dst.
+# There are just a few stations on this coast, including the
+# Danmarkshavn ICAO weather station mentioned in your September 29th
+# email.  The other stations are two sledge patrol stations in
+# Mestersvig and Daneborg, the air force base at Station Nord, and the
+# DPC research station at Zackenberg.
+#
+# Scoresbysund and two small villages nearby keep time UTC-1 and use
+# the same daylight savings time period as in West Greenland (Godthab).
+#
+# The rest of Greenland, including Godthab (this area, although it
+# includes central Greenland, is known as west Greenland), keeps time
+# UTC-3, with daylight savings methods according to European rules.
+#
+# It is common procedure to use UTC 0 in the wilderness of East and
+# North Greenland, because it is mainly Icelandic aircraft operators
+# maintaining traffic in these areas.  However, the official status of
+# this area is that it sticks with Godthab time.  This area might be
+# considered a dual time zone in some respects because of this.
+
+# From Rives McDow (2001-11-19):
+# I heard back from someone stationed at Thule; the time change took place
+# there at 2:00 AM.
+
+# From Paul Eggert (2001-11-19):
 # The 1997 CIA map shows Danmarkshavn on GMT; the 1995 map as like Godthab.
 # For lack of better info, assume they were like Godthab before 1996.
-# The 2000 IATA shows Thule as observing DST, so assume they stopped in 2001.
-
+# startkart.no says Thule does not observe DST, but this is clearly an error,
+# so go with Shanks for all Thule transitions.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Thule	1993	2000	-	Apr	Sun>=1	2:00	1:00	D
-Rule	Thule	1993	2000	-	Oct	lastSun	2:00	0	S
+Rule	Thule	1991	1992	-	Mar	lastSun	2:00	1:00	D
+Rule	Thule	1991	1992	-	Sep	lastSun	2:00	0	S
+Rule	Thule	1993	max	-	Apr	Sun>=1	2:00	1:00	D
+Rule	Thule	1993	max	-	Oct	lastSun	2:00	0	S
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Danmarkshavn -1:14:40 -	LMT	1916 Jul 28
@@ -815,6 +853,13 @@ Zone America/Thule	-4:35:08 -	LMT	1916 Jul 28 # Pituffik air base
 # no. 206 (1998-09-22) and thus sticks Estonia to +02:00 GMT for all
 # the year round.  The regulation is effective 1999-11-01.
 
+# From Toomas Soome (2002-02-21):
+# The Estonian government has changed once again timezone politics.
+# Now we are using again EU rules.
+#
+# From Urmet Jaanes (2002-03-28):
+# The legislative reference is Government decree No. 84 on 2002-02-21.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			1:39:00	-	TMT	1918 Feb # Tallinn Mean Time
@@ -827,7 +872,8 @@ Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			2:00	1:00	EEST	1989 Sep 24 2:00s
 			2:00	C-Eur	EE%sT	1998 Sep 22
 			2:00	EU	EE%sT	1999 Nov  1
-			2:00	-	EET
+			2:00	-	EET	2002 Feb 21
+			2:00	EU	EE%sT
 
 # Finland
 #
