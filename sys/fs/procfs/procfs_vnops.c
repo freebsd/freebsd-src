@@ -70,7 +70,6 @@
 
 static int	procfs_access __P((struct vop_access_args *));
 static int	procfs_badop __P((void));
-static int	procfs_bmap __P((struct vop_bmap_args *));
 static int	procfs_close __P((struct vop_close_args *));
 static int	procfs_getattr __P((struct vop_getattr_args *));
 static int	procfs_ioctl __P((struct vop_ioctl_args *));
