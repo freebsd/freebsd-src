@@ -225,7 +225,7 @@ struct {								\
 } while (0)
 
 #define	STAILQ_LAST(head, type, field)					\
-	(STAILQ_EMPTY(head) ?						\
+	(STAILQ_EMPTY((head)) ?						\
 		NULL :							\
 	        ((struct type *)					\
 		((char *)((head)->stqh_last) - __offsetof(struct type, field))))
@@ -234,7 +234,7 @@ struct {								\
 
 #define	STAILQ_REMOVE(head, elm, type, field) do {			\
 	if (STAILQ_FIRST((head)) == (elm)) {				\
-		STAILQ_REMOVE_HEAD(head, field);			\
+		STAILQ_REMOVE_HEAD((head), field);			\
 	}								\
 	else {								\
 		struct type *curelm = STAILQ_FIRST((head));		\
