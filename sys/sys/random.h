@@ -52,6 +52,7 @@
 
 #if defined(KERNEL)
 #include <i386/isa/icu.h>
+#include <i386/isa/isa_device.h>
 #endif
 #include <sys/ioctl.h>
 
@@ -71,12 +72,18 @@ extern int sec_intr_unit[ICU_LEN];
 void rand_initialize(void);
 void add_keyboard_randomness(u_char scancode);
 void add_interrupt_randomness(int irq);
+#ifdef notused
 void add_blkdev_randomness(int major);
+#endif
 
+#ifdef notused
 void get_random_bytes(void *buf, u_int nbytes);
+#endif
 u_int read_random(char *buf, u_int size);
 u_int read_random_unlimited(char *buf, u_int size);
+#ifdef notused
 u_int write_random(const char *buf, u_int nbytes);
+#endif
 
 #endif
 
