@@ -67,6 +67,7 @@
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -78,8 +79,6 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
-#include <machine/atomic.h>
-
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -88,6 +87,8 @@
 #include <vm/uma.h>
 
 #define MD_MODVER 1
+
+#define MD_SHUTDOWN 0x10000	/* Tell worker thread to terminate. */
 
 #ifndef MD_NSECT
 #define MD_NSECT (10000 * 2)
@@ -167,13 +168,13 @@ struct md_s {
 	struct bio_queue_head bio_queue;
 	struct disk disk;
 	dev_t dev;
-	int busy;
 	enum md_types type;
 	unsigned nsect;
 	unsigned opencount;
 	unsigned secsize;
 	unsigned flags;
 	char name[20];
+	struct proc *procp;
 
 	/* MD_MALLOC related fields */
 	struct indir *indir;
@@ -546,7 +547,6 @@ static void
 mdstrategy(struct bio *bp)
 {
 	struct md_s *sc;
-	int error;
 
 	if (md_debug > 1)
 		printf("mdstrategy(%p) %s %x, %lld, %ld, %p)\n",
@@ -560,18 +560,35 @@ mdstrategy(struct bio *bp)
 	bioqdisksort(&sc->bio_queue, bp);
 	/* XXX: UNLOCK(sc->lock) */
 
-	if (atomic_cmpset_int(&sc->busy, 0, 1) == 0)
-		return;
+	wakeup(sc);
+}
 
+static void
+md_kthread(void *arg)
+{
+	struct md_s *sc;
+	struct bio *bp;
+	int error;
+
+	sc = arg;
+	curthread->td_base_pri = PRIBIO;
+
+	mtx_lock(&Giant);
 	for (;;) {
 		/* XXX: LOCK(unique unit numbers) */
 		bp = bioq_first(&sc->bio_queue);
 		if (bp)
 			bioq_remove(&sc->bio_queue, bp);
 		/* XXX: UNLOCK(unique unit numbers) */
-		if (!bp)
-			break;
-
+		if (!bp) {
+			tsleep(sc, PRIBIO, "mdwait", 0);
+			if (sc->flags & MD_SHUTDOWN) {
+				sc->procp = NULL;
+				wakeup(&sc->procp);
+				kthread_exit(0);
+			}
+			continue;
+		}
 
 		switch (sc->type) {
 		case MD_MALLOC:
@@ -597,7 +614,6 @@ mdstrategy(struct bio *bp)
 		if (error != -1)
 			biofinish(bp, &sc->stats, error);
 	}
-	sc->busy = 0;
 }
 
 static struct md_s *
@@ -618,7 +634,7 @@ static struct md_s *
 mdnew(int unit)
 {
 	struct md_s *sc;
-	int max = -1;
+	int error, max = -1;
 
 	/* XXX: LOCK(unique unit numbers) */
 	LIST_FOREACH(sc, &md_softc_list, list) {
@@ -636,6 +652,11 @@ mdnew(int unit)
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
 	sprintf(sc->name, "md%d", unit);
+	error = kthread_create(md_kthread, sc, &sc->procp, 0, "%s", sc->name);
+	if (error) {
+		free(sc, M_MD);
+		return (NULL);
+	}
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
 	/* XXX: UNLOCK(unique unit numbers) */
 	return (sc);
@@ -861,6 +882,10 @@ mddestroy(struct md_s *sc, struct thread *td)
 		devstat_remove_entry(&sc->stats);
 		disk_destroy(sc->dev);
 	}
+	sc->flags |= MD_SHUTDOWN;
+	wakeup(sc);
+	while (sc->procp != NULL)
+		tsleep(&sc->procp, PRIBIO, "mddestroy", hz / 10);
 	if (sc->vnode != NULL)
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
