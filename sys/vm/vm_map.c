@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.77 1997/06/15 23:33:52 dyson Exp $
+ * $Id: vm_map.c,v 1.78 1997/06/23 21:51:03 tegge Exp $
  */
 
 /*
@@ -936,6 +936,23 @@ _vm_map_clip_start(map, entry, start)
 
 	vm_map_simplify_entry(map, entry);
 
+	/*
+	 * If there is no object backing this entry, we might as well create
+	 * one now.  If we defer it, an object can get created after the map
+	 * is clipped, and individual objects will be created for the split-up
+	 * map.  This is a bit of a hack, but is also about the best place to
+	 * put this improvement.
+	 */
+
+	if (entry->object.vm_object == NULL) {
+			vm_object_t object;
+
+			object = vm_object_allocate(OBJT_DEFAULT,
+					OFF_TO_IDX(entry->end - entry->start));
+			entry->object.vm_object = object;
+			entry->offset = 0;
+	}
+
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
 
@@ -976,6 +993,23 @@ _vm_map_clip_end(map, entry, end)
 	register vm_offset_t end;
 {
 	register vm_map_entry_t new_entry;
+
+	/*
+	 * If there is no object backing this entry, we might as well create
+	 * one now.  If we defer it, an object can get created after the map
+	 * is clipped, and individual objects will be created for the split-up
+	 * map.  This is a bit of a hack, but is also about the best place to
+	 * put this improvement.
+	 */
+
+	if (entry->object.vm_object == NULL) {
+			vm_object_t object;
+
+			object = vm_object_allocate(OBJT_DEFAULT,
+					OFF_TO_IDX(entry->end - entry->start));
+			entry->object.vm_object = object;
+			entry->offset = 0;
+	}
 
 	/*
 	 * Create a new entry and insert it AFTER the specified entry
@@ -2148,23 +2182,20 @@ vmspace_fork(vm1)
 		case VM_INHERIT_NONE:
 			break;
 
-                case VM_INHERIT_SHARE:
-                        /*
-                         * Clone the entry, creating the shared object if necessary.
-                         */
-                        object = old_entry->object.vm_object;
-                        if (object == NULL) {
-                                object = vm_object_allocate(OBJT_DEFAULT,
-                                                            OFF_TO_IDX(old_entry->end -
-                                                                       old_entry->start));
-                                old_entry->object.vm_object = object;
-                                old_entry->offset = (vm_offset_t) 0;
-                        } else if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
+		case VM_INHERIT_SHARE:
+			/*
+			 * Clone the entry, creating the shared object if necessary.
+			 */
+			object = old_entry->object.vm_object;
+			if (object == NULL) {
+				object = vm_object_allocate(OBJT_DEFAULT,
+					OFF_TO_IDX(old_entry->end - old_entry->start));
+				old_entry->object.vm_object = object;
+				old_entry->offset = (vm_offset_t) 0;
+			} else if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 				vm_object_shadow(&old_entry->object.vm_object,
-						 &old_entry->offset,
-						 OFF_TO_IDX(old_entry->end -
-							old_entry->start));
-
+					&old_entry->offset,
+					OFF_TO_IDX(old_entry->end - old_entry->start));
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				object = old_entry->object.vm_object;
 			}
