@@ -71,6 +71,7 @@
 #define	_PATH_MAN	"/usr/share/man"
 #define	_PATH_MDCONFIG	"/sbin/mdconfig"
 #define	_PATH_MEM	"/dev/mem"
+#define	_PATH_MKSNAP_FFS	"/sbin/mksnap_ffs"
 #define	_PATH_MOUNT	"/sbin/mount"
 #define	_PATH_NEWFS	"/sbin/newfs"
 #define	_PATH_NOLOGIN	"/var/run/nologin"
