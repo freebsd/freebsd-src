@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.51 1997/05/29 04:46:07 peter Exp $
+ * $Id: systm.h,v 1.52 1997/05/31 09:43:22 peter Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -200,6 +200,7 @@ extern intrmask_t stat_imask;	/* interrupts masked with splstatclock() */
 extern intrmask_t tty_imask;	/* group of interrupts masked with spltty() */
 
 /* Read only */
+extern const intrmask_t soft_imask;    /* interrupts masked with splsoft*() */
 extern const intrmask_t softnet_imask; /* interrupt masked with splnet() */
 extern const intrmask_t softtty_imask; /* interrupt masked with splsofttty() */
 
