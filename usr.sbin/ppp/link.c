@@ -23,30 +23,49 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.7 1999/02/06 02:54:46 brian Exp $
+ *  $Id: link.c,v 1.8 1999/03/31 14:21:45 brian Exp $
  *
  */
 
 #include <sys/types.h>
+#include <netinet/in_systm.h>
+#include <netdb.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
 
 #include "defs.h"
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "throughput.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "fsm.h"
 #include "descriptor.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
 #include "prompt.h"
+#include "async.h"
+#include "physical.h"
+#include "mp.h"
+#include "iplist.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "ip.h"
+#include "auth.h"
+#include "pap.h"
+#include "chap.h"
+#include "cbcp.h"
+
+static void Despatch(struct bundle *, struct link *, struct mbuf *, u_short);
 
 void
 link_AddInOctets(struct link *l, int n)
@@ -125,39 +144,6 @@ link_Dequeue(struct link *l)
   return bp;
 }
 
-/*
- * Write to the link. Actualy, requested packets are queued, and go out
- * at some later time depending on the physical link implementation.
- */
-void
-link_Write(struct link *l, int pri, const char *ptr, int count)
-{
-  struct mbuf *bp;
-
-  if(pri < 0 || pri >= LINK_QUEUES)
-    pri = 0;
-
-  bp = mbuf_Alloc(count, MB_LINK);
-  memcpy(MBUF_CTOP(bp), ptr, count);
-
-  mbuf_Enqueue(l->Queue + pri, bp);
-}
-
-void
-link_Output(struct link *l, int pri, struct mbuf *bp)
-{
-  struct mbuf *wp;
-  int len;
-
-  if(pri < 0 || pri >= LINK_QUEUES)
-    pri = 0;
-
-  len = mbuf_Length(bp);
-  wp = mbuf_Alloc(len, MB_LINK);
-  mbuf_Read(bp, MBUF_CTOP(wp), len);
-  mbuf_Enqueue(l->Queue + pri, wp);
-}
-
 static struct protostatheader {
   u_short number;
   const char *name;
@@ -207,4 +193,148 @@ link_ReportProtocolStatus(struct link *l, struct prompt *prompt)
   }
   if (!(i % 2))
     prompt_Printf(prompt, "\n");
+}
+
+void
+link_PushPacket(struct link *l, struct mbuf *bp, struct bundle *b, int pri,
+                u_short proto)
+{
+  int layer;
+
+  /*
+   * When we ``push'' a packet into the link, it gets processed by the
+   * ``push'' function in each layer starting at the top.
+   * We never expect the result of a ``push'' to be more than one
+   * packet (as we do with ``pull''s).
+   */
+
+  if(pri < 0 || pri >= LINK_QUEUES)
+    pri = 0;
+
+  for (layer = l->nlayers; layer && bp; layer--)
+    if (l->layer[layer - 1]->push != NULL)
+      bp = (*l->layer[layer - 1]->push)(b, l, bp, pri, &proto);
+
+  if (bp) {
+    log_Printf(LogDEBUG, "link_PushPacket: proto = 0x%04x\n", proto);
+    link_AddOutOctets(l, mbuf_Length(bp));
+    mbuf_Enqueue(l->Queue + pri, mbuf_Contiguous(bp));
+  }
+}
+
+void
+link_PullPacket(struct link *l, char *buf, size_t len, struct bundle *b)
+{
+  struct mbuf *bp, *lbp[LAYER_MAX], *next;
+  u_short lproto[LAYER_MAX], proto;
+  int layer;
+
+  /*
+   * When we ``pull'' a packet from the link, it gets processed by the
+   * ``pull'' function in each layer starting at the bottom.
+   * Each ``pull'' may produce multiple packets, chained together using
+   * bp->pnext.
+   * Each packet that results from each pull has to be pulled through
+   * all of the higher layers before the next resulting packet is pulled
+   * through anything; this ensures that packets that depend on the
+   * fsm state resulting from the receipt of the previous packet aren't
+   * surprised.
+   */
+
+  link_AddInOctets(l, len);
+
+  memset(lbp, '\0', sizeof lbp);
+  lbp[0] = mbuf_Alloc(len, MB_ASYNC);
+  memcpy(MBUF_CTOP(lbp[0]), buf, len);
+  lproto[0] = 0;
+  layer = 0;
+
+  while (layer || lbp[layer]) {
+    if (lbp[layer] == NULL) {
+      layer--;
+      continue;
+    }
+    bp = lbp[layer];
+    lbp[layer] = bp->pnext;
+    bp->pnext = NULL;
+    proto = lproto[layer];
+
+    if (l->layer[layer]->pull != NULL)
+      bp = (*l->layer[layer]->pull)(b, l, bp, &proto);
+
+    if (layer == l->nlayers - 1) {
+      /* We've just done the top layer, despatch the packet(s) */
+      while (bp) {
+        next = bp->pnext;
+        bp->pnext = NULL;
+        Despatch(b, l, bp, proto);
+        bp = next;
+      }
+    } else {
+      lbp[++layer] = bp;
+      lproto[layer] = proto;
+    }
+  }
+}
+
+int
+link_Stack(struct link *l, struct layer *layer)
+{
+  if (l->nlayers == sizeof l->layer / sizeof l->layer[0]) {
+    log_Printf(LogERROR, "%s: Oops, cannot stack a %s layer...\n",
+               l->name, layer->name);
+    return 0;
+  }
+  l->layer[l->nlayers++] = layer;
+  return 1;
+}
+
+void
+link_EmptyStack(struct link *l)
+{
+  l->nlayers = 0;
+}
+
+static const struct {
+  u_short proto;
+  struct mbuf *(*fn)(struct bundle *, struct link *, struct mbuf *);
+} despatcher[] = {
+  { PROTO_IP, ip_Input },
+  { PROTO_MP, mp_Input },
+  { PROTO_LCP, lcp_Input },
+  { PROTO_IPCP, ipcp_Input },
+  { PROTO_PAP, pap_Input },
+  { PROTO_CHAP, chap_Input },
+  { PROTO_CCP, ccp_Input },
+  { PROTO_LQR, lqr_Input },
+  { PROTO_CBCP, cbcp_Input }
+};
+
+#define DSIZE (sizeof despatcher / sizeof despatcher[0])
+
+static void
+Despatch(struct bundle *bundle, struct link *l, struct mbuf *bp, u_short proto)
+{
+  int f;
+
+  for (f = 0; f < DSIZE; f++)
+    if (despatcher[f].proto == proto) {
+      bp = (*despatcher[f].fn)(bundle, l, bp);
+      break;
+    }
+
+  if (bp) {
+    struct physical *p = link2physical(l);
+
+    log_Printf(LogPHASE, "%s protocol 0x%04x (%s)\n",
+               f == DSIZE ? "Unknown" : "Unexpected", proto,
+               hdlc_Protocol2Nam(proto));
+    bp = mbuf_Contiguous(proto_Prepend(bp, proto, 0, 0));
+    lcp_SendProtoRej(&l->lcp, MBUF_CTOP(bp), bp->cnt);
+    if (p) {
+      p->hdlc.lqm.SaveInDiscards++;
+      p->hdlc.stats.unknownproto++;
+    }
+    mbuf_Free(bp);
+  }
 }

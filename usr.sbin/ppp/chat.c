@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.53 1999/01/28 01:56:31 brian Exp $
+ *	$Id: chat.c,v 1.54 1999/02/12 00:52:29 brian Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -73,7 +74,6 @@
 #include "bundle.h"
 
 #define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
-#define	issep(c)	((c) == '\t' || (c) == ' ')
 
 static void ExecStr(struct physical *, char *, char *, int);
 static char *ExpandString(struct chat *, const char *, char *, int, int);
@@ -301,9 +301,9 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
    */
 
   if (c->state == CHAT_EXPECT)
-    return physical_UpdateSet(&c->physical->desc, r, NULL, e, n, 1);
+    return physical_doUpdateSet(&c->physical->desc, r, NULL, e, n, 1);
   else
-    return physical_UpdateSet(&c->physical->desc, NULL, w, e, n, 1);
+    return physical_doUpdateSet(&c->physical->desc, NULL, w, e, n, 1);
 }
 
 static int
@@ -566,61 +566,6 @@ chat_Destroy(struct chat *c)
   c->abort.num = 0;
 }
 
-static char *
-findblank(char *p, int instring)
-{
-  if (instring) {
-    while (*p) {
-      if (*p == '\\') {
-	strcpy(p, p + 1);
-	if (!*p)
-	  break;
-      } else if (*p == '"')
-	return (p);
-      p++;
-    }
-  } else {
-    while (*p) {
-      if (issep(*p))
-	return (p);
-      p++;
-    }
-  }
-  return p;
-}
-
-int
-MakeArgs(char *script, char **pvect, int maxargs)
-{
-  int nargs, nb;
-  int instring;
-
-  nargs = 0;
-  while (*script) {
-    nb = strspn(script, " \t");
-    script += nb;
-    if (*script) {
-      if (*script == '"') {
-	instring = 1;
-	script++;
-	if (*script == '\0')
-	  break;		/* Shouldn't return here. Need to null
-				 * terminate below */
-      } else
-	instring = 0;
-      if (nargs >= maxargs - 1)
-	break;
-      *pvect++ = script;
-      nargs++;
-      script = findblank(script, instring);
-      if (*script)
-	*script++ = '\0';
-    }
-  }
-  *pvect = NULL;
-  return nargs;
-}
-
 /*
  *  \c	don't add a cr
  *  \d  Sleep a little (delay 2 seconds
@@ -743,7 +688,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     close(fids[0]);
     timer_TermService();
     fids[1] = fcntl(fids[1], F_DUPFD, 4);
-    dup2(physical_GetFD(physical), STDIN_FILENO);
+    dup2(physical->fd, STDIN_FILENO);
     dup2(STDIN_FILENO, STDOUT_FILENO);
     dup2(fids[1], STDERR_FILENO);
     close(3);

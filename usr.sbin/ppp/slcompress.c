@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.23 1999/03/31 13:33:43 brian Exp $
+ * $Id: slcompress.c,v 1.24 1999/03/31 13:44:07 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -34,6 +34,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -459,9 +460,8 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
      * Make sure the state index is in range, then grab the state. If we have
      * a good state index, clear the 'discard' flag.
      */
-    if (*cp > max_state || comp->last_recv == 255) {
+    if (*cp > max_state || comp->last_recv == 255)
       goto bad;
-    }
 
     comp->flags &= ~SLF_TOSS;
     comp->last_recv = *cp++;
@@ -478,8 +478,6 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
   }
   cs = &comp->rstate[comp->last_recv];
   hlen = cs->cs_ip.ip_hl << 2;
-  if (hlen == 0)
-    goto bad;    /* We've been pointed at a not-yet-used slot ! */
   th = (struct tcphdr *) & ((u_char *) & cs->cs_ip)[hlen];
   th->th_sum = htons((*cp << 8) | cp[1]);
   cp += 2;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.50 1999/03/25 11:37:51 brian Exp $
+ *	$Id: bundle.c,v 1.51 1999/04/26 08:54:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -49,13 +49,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#ifndef NOALIAS
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
-#include "alias.h"
-#endif
-#endif
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -82,9 +76,8 @@
 #include "bundle.h"
 #include "async.h"
 #include "physical.h"
-#include "modem.h"
 #include "auth.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "chap.h"
 #include "tun.h"
 #include "prompt.h"
@@ -349,11 +342,11 @@ bundle_LayerUp(void *v, struct fsm *fp)
       bundle->ifSpeed = 0;
       for (dl = bundle->links; dl; dl = dl->next)
         if (dl->state == DATALINK_OPEN)
-          bundle->ifSpeed += modem_Speed(dl->physical);
+          bundle->ifSpeed += physical_GetSpeed(dl->physical);
       tun_configure(bundle, bundle->ncp.mp.peer_mrru);
       bundle->autoload.running = 1;
     } else {
-      bundle->ifSpeed = modem_Speed(p);
+      bundle->ifSpeed = physical_GetSpeed(p);
       tun_configure(bundle, fsm2lcp(fp)->his_mru);
     }
   } else if (fp->proto == PROTO_IPCP) {
@@ -389,7 +382,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
         if (fp == &dl->physical->link.lcp.fsm)
           lost = dl;
         else if (dl->state == DATALINK_OPEN)
-          bundle->ifSpeed += modem_Speed(dl->physical);
+          bundle->ifSpeed += physical_GetSpeed(dl->physical);
 
       if (bundle->ifSpeed)
         /* Don't configure down to a speed of 0 */
@@ -639,11 +632,8 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
       if (Enabled(bundle, OPT_LOOPBACK)) {
         pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
         if (pri >= 0) {
-          struct mbuf *bp;
-
-          bp = mbuf_Alloc(n, MB_IPIN);
-          memcpy(MBUF_CTOP(bp), tun.data, n);
-          ip_Input(bundle, bp);
+          n += sizeof tun - sizeof tun.data;
+          write(bundle->dev.fd, &tun, n);
           log_Printf(LogDEBUG, "Looped back packet addressed to myself\n");
         }
         return;
@@ -675,15 +665,8 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     }
 
     pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
-    if (pri >= 0) {
-#ifndef NOALIAS
-      if (bundle->AliasEnabled) {
-        PacketAliasOut(tun.data, sizeof tun.data);
-        n = ntohs(((struct ip *)tun.data)->ip_len);
-      }
-#endif
+    if (pri >= 0)
       ip_Enqueue(&bundle->ncp.ipcp, pri, tun.data, n);
-    }
   }
 }
 
@@ -1194,7 +1177,7 @@ bundle_FillQueues(struct bundle *bundle)
       if (dl->state == DATALINK_OPEN) {
         add = link_QueueLen(&dl->physical->link);
         if (add == 0 && dl->physical->out == NULL)
-          add = ip_FlushPacket(&dl->physical->link, bundle);
+          add = ip_PushPacket(&dl->physical->link, bundle);
         total += add;
       }
   }
@@ -1211,7 +1194,7 @@ bundle_ShowLinks(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "Name: %s [%s, %s]",
                   dl->name, mode2Nam(dl->physical->type), datalink_State(dl));
     if (dl->physical->link.throughput.rolling && dl->state == DATALINK_OPEN)
-      prompt_Printf(arg->prompt, " weight %d, %d bytes/sec",
+      prompt_Printf(arg->prompt, " weight %d, %Ld bytes/sec",
                     dl->mp.weight,
                     dl->physical->link.throughput.OctetsPerSecond);
     prompt_Printf(arg->prompt, "\n");
@@ -1704,10 +1687,10 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           break;
         default:
           close(fds[0]);
-          /* Give away all our modem locks (to the final process) */
+          /* Give away all our physical locks (to the final process) */
           for (dl = bundle->links; dl; dl = dl->next)
             if (dl->state != DATALINK_CLOSED)
-              modem_ChangedPid(dl->physical, pid);
+              physical_ChangedPid(dl->physical, pid);
           write(fds[1], "!", 1);	/* done */
           close(fds[1]);
           exit(0);
@@ -1716,10 +1699,10 @@ bundle_setsid(struct bundle *bundle, int holdsession)
       break;
     default:
       close(fds[0]);
-      /* Give away all our modem locks (to the intermediate process) */
+      /* Give away all our physical locks (to the intermediate process) */
       for (dl = bundle->links; dl; dl = dl->next)
         if (dl->state != DATALINK_CLOSED)
-          modem_ChangedPid(dl->physical, pid);
+          physical_ChangedPid(dl->physical, pid);
       write(fds[1], "!", 1);	/* done */
       close(fds[1]);
       if (holdsession) {

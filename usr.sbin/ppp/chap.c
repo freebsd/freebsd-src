@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.48 1999/04/01 11:05:22 brian Exp $
+ * $Id: chap.c,v 1.49 1999/04/21 08:03:51 brian Exp $
  *
  *	TODO:
  */
@@ -41,12 +41,13 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "lcp.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -101,7 +102,8 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
     log_Printf(LogPHASE, "Chap Output: %s\n", chapcodes[code]);
   else
     log_Printf(LogPHASE, "Chap Output: %s (%s)\n", chapcodes[code], text);
-  hdlc_Output(&physical->link, PRI_LINK, PROTO_CHAP, bp);
+  link_PushPacket(&physical->link, bp, physical->dl->bundle,
+                  PRI_LINK, PROTO_CHAP);
 }
 
 static char *
@@ -532,9 +534,10 @@ chap_ReInit(struct chap *chap)
   chap_Cleanup(chap, SIGTERM);
 }
 
-void
-chap_Input(struct physical *p, struct mbuf *bp)
+struct mbuf *
+chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
+  struct physical *p = link2physical(l);
   struct chap *chap = &p->dl->chap;
   char *name, *key, *ans;
   int len, nlen;
@@ -543,11 +546,17 @@ chap_Input(struct physical *p, struct mbuf *bp)
   int lanman;
 #endif
 
-  if (bundle_Phase(p->dl->bundle) != PHASE_NETWORK &&
-      bundle_Phase(p->dl->bundle) != PHASE_AUTHENTICATE) {
+  if (p == NULL) {
+    log_Printf(LogERROR, "chap_Input: Not a physical link - dropped\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  if (bundle_Phase(bundle) != PHASE_NETWORK &&
+      bundle_Phase(bundle) != PHASE_AUTHENTICATE) {
     log_Printf(LogPHASE, "Unexpected chap input - dropped !\n");
     mbuf_Free(bp);
-    return;
+    return NULL;
   }
 
   if ((bp = auth_ReadHeader(&chap->auth, bp)) == NULL &&
@@ -562,13 +571,13 @@ chap_Input(struct physical *p, struct mbuf *bp)
 
     if (chap->auth.in.hdr.code != CHAP_CHALLENGE &&
         chap->auth.id != chap->auth.in.hdr.id &&
-        Enabled(p->dl->bundle, OPT_IDCHECK)) {
+        Enabled(bundle, OPT_IDCHECK)) {
       /* Wrong conversation dude ! */
       log_Printf(LogPHASE, "Chap Input: %s dropped (got id %d, not %d)\n",
                  chapcodes[chap->auth.in.hdr.code], chap->auth.in.hdr.id,
                  chap->auth.id);
       mbuf_Free(bp);
-      return;
+      return NULL;
     }
     chap->auth.id = chap->auth.in.hdr.id;	/* We respond with this id */
 
@@ -582,7 +591,7 @@ chap_Input(struct physical *p, struct mbuf *bp)
         if (len < 0) {
           log_Printf(LogERROR, "Chap Input: Truncated challenge !\n");
           mbuf_Free(bp);
-          return;
+          return NULL;
         }
         *chap->challenge.peer = alen;
         bp = mbuf_Read(bp, chap->challenge.peer + 1, alen);
@@ -601,12 +610,12 @@ chap_Input(struct physical *p, struct mbuf *bp)
         if (len < 0) {
           log_Printf(LogERROR, "Chap Input: Truncated response !\n");
           mbuf_Free(bp);
-          return;
+          return NULL;
         }
         if ((ans = malloc(alen + 2)) == NULL) {
           log_Printf(LogERROR, "Chap Input: Out of memory !\n");
           mbuf_Free(bp);
-          return;
+          return NULL;
         }
         *ans = chap->auth.id;
         bp = mbuf_Read(bp, ans + 1, alen);
@@ -623,7 +632,7 @@ chap_Input(struct physical *p, struct mbuf *bp)
         if ((ans = malloc(len + 1)) == NULL) {
           log_Printf(LogERROR, "Chap Input: Out of memory !\n");
           mbuf_Free(bp);
-          return;
+          return NULL;
         }
         bp = mbuf_Read(bp, ans, len);
         ans[len] = '\0';
@@ -665,12 +674,12 @@ chap_Input(struct physical *p, struct mbuf *bp)
 
     switch (chap->auth.in.hdr.code) {
       case CHAP_CHALLENGE:
-        if (*p->dl->bundle->cfg.auth.key == '!')
-          chap_StartChild(chap, p->dl->bundle->cfg.auth.key + 1,
-                          p->dl->bundle->cfg.auth.name);
+        if (*bundle->cfg.auth.key == '!')
+          chap_StartChild(chap, bundle->cfg.auth.key + 1,
+                          bundle->cfg.auth.name);
         else
-          chap_Respond(chap, p->dl->bundle->cfg.auth.name,
-                       p->dl->bundle->cfg.auth.key, p->link.lcp.his_authtype
+          chap_Respond(chap, bundle->cfg.auth.name,
+                       bundle->cfg.auth.key, p->link.lcp.his_authtype
 #ifdef HAVE_DES
                        , lanman
 #endif
@@ -681,17 +690,17 @@ chap_Input(struct physical *p, struct mbuf *bp)
         name = chap->auth.in.name;
         nlen = strlen(name);
 #ifndef NORADIUS
-        if (*p->dl->bundle->radius.cfg.file) {
+        if (*bundle->radius.cfg.file) {
           end = chap->challenge.local[*chap->challenge.local+1];
           chap->challenge.local[*chap->challenge.local+1] = '\0';
-          radius_Authenticate(&p->dl->bundle->radius, &chap->auth,
+          radius_Authenticate(&bundle->radius, &chap->auth,
                               chap->auth.in.name, ans,
                               chap->challenge.local + 1);
           chap->challenge.local[*chap->challenge.local+1] = end;
         } else
 #endif
         {
-          key = auth_GetSecret(p->dl->bundle, name, nlen, p);
+          key = auth_GetSecret(bundle, name, nlen, p);
           if (key) {
             char *myans;
 #ifdef HAVE_DES
@@ -760,4 +769,5 @@ chap_Input(struct physical *p, struct mbuf *bp)
   }
 
   mbuf_Free(bp);
+  return NULL;
 }

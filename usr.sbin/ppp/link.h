@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.3 1998/05/23 17:05:27 brian Exp $
+ *  $Id: link.h,v 1.4 1998/08/25 17:48:42 brian Exp $
  *
  */
 
 
-#define PHYSICAL_LINK 1
-#define MP_LINK       2
+#define PHYSICAL_LINK	1
+#define LOGICAL_LINK	2
 
 #define LINK_QUEUES (PRI_MAX + 1)
 #define NPROTOSTAT 13
@@ -49,6 +49,9 @@ struct link {
 
   struct lcp lcp;                         /* Our line control FSM */
   struct ccp ccp;                         /* Our compression FSM */
+
+  struct layer const *layer[LAYER_MAX];   /* i/o layers */
+  int nlayers;
 };
 
 extern void link_AddInOctets(struct link *, int);
@@ -59,9 +62,12 @@ extern void link_DeleteQueue(struct link *);
 extern int link_QueueLen(struct link *);
 extern int link_QueueBytes(struct link *);
 extern struct mbuf *link_Dequeue(struct link *);
-extern void link_Write(struct link *, int, const char *, int);
-extern void link_StartOutput(struct link *, struct bundle *);
-extern void link_Output(struct link *, int, struct mbuf *);
+
+extern void link_PushPacket(struct link *, struct mbuf *, struct bundle *,
+                            int, u_short);
+extern void link_PullPacket(struct link *, char *, size_t, struct bundle *);
+extern int link_Stack(struct link *, struct layer *);
+extern void link_EmptyStack(struct link *);
 
 #define PROTO_IN  1                       /* third arg to link_ProtocolRecord */
 #define PROTO_OUT 2

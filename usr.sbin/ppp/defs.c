@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.18 1999/02/25 20:05:55 brian Exp $
+ *	$Id: defs.c,v 1.19 1999/04/26 08:54:24 brian Exp $
  */
 
 
@@ -37,12 +37,15 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #if !defined(__FreeBSD__) || __FreeBSD__ < 3
 #include <time.h>
 #endif
 #include <unistd.h>
 
 #include "defs.h"
+
+#define	issep(c)	((c) == '\t' || (c) == ' ')
 
 void
 randinit()
@@ -150,4 +153,167 @@ GetIpAddr(const char *cp)
   }
 
   return ipaddr;
+}
+
+static const struct speeds {
+  int nspeed;
+  speed_t speed;
+} speeds[] = {
+#ifdef B50
+  { 50, B50, },
+#endif
+#ifdef B75
+  { 75, B75, },
+#endif
+#ifdef B110
+  { 110, B110, },
+#endif
+#ifdef B134
+  { 134, B134, },
+#endif
+#ifdef B150
+  { 150, B150, },
+#endif
+#ifdef B200
+  { 200, B200, },
+#endif
+#ifdef B300
+  { 300, B300, },
+#endif
+#ifdef B600
+  { 600, B600, },
+#endif
+#ifdef B1200
+  { 1200, B1200, },
+#endif
+#ifdef B1800
+  { 1800, B1800, },
+#endif
+#ifdef B2400
+  { 2400, B2400, },
+#endif
+#ifdef B4800
+  { 4800, B4800, },
+#endif
+#ifdef B9600
+  { 9600, B9600, },
+#endif
+#ifdef B19200
+  { 19200, B19200, },
+#endif
+#ifdef B38400
+  { 38400, B38400, },
+#endif
+#ifndef _POSIX_SOURCE
+#ifdef B7200
+  { 7200, B7200, },
+#endif
+#ifdef B14400
+  { 14400, B14400, },
+#endif
+#ifdef B28800
+  { 28800, B28800, },
+#endif
+#ifdef B57600
+  { 57600, B57600, },
+#endif
+#ifdef B76800
+  { 76800, B76800, },
+#endif
+#ifdef B115200
+  { 115200, B115200, },
+#endif
+#ifdef B230400
+  { 230400, B230400, },
+#endif
+#ifdef EXTA
+  { 19200, EXTA, },
+#endif
+#ifdef EXTB
+  { 38400, EXTB, },
+#endif
+#endif				/* _POSIX_SOURCE */
+  { 0, 0 }
+};
+
+int
+SpeedToInt(speed_t speed)
+{
+  const struct speeds *sp;
+
+  for (sp = speeds; sp->nspeed; sp++) {
+    if (sp->speed == speed) {
+      return sp->nspeed;
+    }
+  }
+  return 0;
+}
+
+speed_t
+IntToSpeed(int nspeed)
+{
+  const struct speeds *sp;
+
+  for (sp = speeds; sp->nspeed; sp++) {
+    if (sp->nspeed == nspeed) {
+      return sp->speed;
+    }
+  }
+  return B0;
+}
+
+static char *
+findblank(char *p, int instring)
+{
+  if (instring) {
+    while (*p) {
+      if (*p == '\\') {
+	memmove(p, p + 1, strlen(p + 1));
+	if (!*p)
+	  break;
+      } else if (*p == '"')
+	return (p);
+      p++;
+    }
+  } else {
+    while (*p) {
+      if (issep(*p))
+	return (p);
+      p++;
+    }
+  }
+
+  return p;
+}
+
+int
+MakeArgs(char *script, char **pvect, int maxargs)
+{
+  int nargs, nb;
+  int instring;
+
+  nargs = 0;
+  while (*script) {
+    nb = strspn(script, " \t");
+    script += nb;
+    if (*script) {
+      if (*script == '"') {
+	instring = 1;
+	script++;
+	if (*script == '\0')
+	  break;		/* Shouldn't return here. Need to null
+				 * terminate below */
+      } else
+	instring = 0;
+      if (nargs >= maxargs - 1)
+	break;
+      *pvect++ = script;
+      nargs++;
+      script = findblank(script, instring);
+      if (*script)
+	*script++ = '\0';
+    }
+  }
+  *pvect = NULL;
+  return nargs;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.190 1999/03/25 23:36:23 brian Exp $
+ * $Id: command.c,v 1.191 1999/04/26 08:54:33 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include "alias.h"
 #endif
 #endif
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -61,7 +62,6 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "ipcp.h"
-#include "modem.h"
 #ifndef NOALIAS
 #include "alias_cmd.h"
 #endif
@@ -120,6 +120,8 @@
 #define	VAR_RECVPIPE	28
 #define	VAR_RADIUS	29
 #define	VAR_CD		30
+#define	VAR_PARITY	31
+#define VAR_CRTSCTS	32
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -140,8 +142,8 @@
 #define NEG_VJCOMP	51
 #define NEG_DNS		52
 
-const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/03/25 23:36:23 $";
+const char Version[] = "2.2";
+const char VersionDate[] = "$Date: 1999/04/26 08:54:33 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -622,7 +624,8 @@ static struct cmdtab const Commands[] = {
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
   "Run a background command", "[!]bg command"},
   {"clear", NULL, ClearCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Clear throughput statistics", "clear ipcp|modem [current|overall|peak]..."},
+  "Clear throughput statistics",
+  "clear ipcp|physical [current|overall|peak]..."},
   {"clone", NULL, CloneCommand, LOCAL_AUTH | LOCAL_CX,
   "Clone a link", "clone newname..."},
   {"close", NULL, CloseCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -638,7 +641,7 @@ static struct cmdtab const Commands[] = {
   {"disable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Disable option", "disable option .."},
   {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Generate a down event", "down"},
+  "Generate a down event", "down [ccp|lcp]"},
   {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Enable option", "enable option .."},
   {"iface", "interface", RunListCommand, LOCAL_AUTH,
@@ -764,8 +767,8 @@ static struct cmdtab const ShowCommands[] = {
   "log levels", "show log"},
   {"mem", NULL, mbuf_Show, LOCAL_AUTH,
   "mbuf allocations", "show mem"},
-  {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
-  "(low-level) link info", "show modem"},
+  {"physical", NULL, physical_ShowStatus, LOCAL_AUTH | LOCAL_CX,
+  "(low-level) link info", "show physical"},
   {"mp", "multilink", mp_ShowStatus, LOCAL_AUTH,
   "multilink setup", "show mp"},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -1250,13 +1253,6 @@ SetServer(struct cmdargs const *arg)
 }
 
 static int
-SetModemParity(struct cmdargs const *arg)
-{
-  return arg->argc > arg->argn ? modem_SetParity(arg->cx->physical,
-                                                 arg->argv[arg->argn]) : -1;
-}
-
-static int
 SetEscape(struct cmdargs const *arg)
 {
   int code;
@@ -1738,24 +1734,29 @@ SetVariable(struct cmdargs const *arg)
       cx->physical->cfg.cd.required = 0;
     }
     break;
+
+  case VAR_PARITY:
+    if (arg->argc == arg->argn + 1)
+      return physical_SetParity(arg->cx->physical, argp);
+    else {
+      err = "Parity value must be odd, even or none\n";
+      log_Printf(LogWARN, err);
+    }
+    break;
+
+  case VAR_CRTSCTS:
+    if (strcasecmp(argp, "on") == 0)
+      physical_SetRtsCts(arg->cx->physical, 1);
+    else if (strcasecmp(argp, "off") == 0)
+      physical_SetRtsCts(arg->cx->physical, 0);
+    else {
+      err = "RTS/CTS value must be on or off\n";
+      log_Printf(LogWARN, err);
+    }
+    break;
   }
 
   return err ? 1 : 0;
-}
-
-static int 
-SetCtsRts(struct cmdargs const *arg)
-{
-  if (arg->argc == arg->argn+1) {
-    if (strcmp(arg->argv[arg->argn], "on") == 0)
-      physical_SetRtsCts(arg->cx->physical, 1);
-    else if (strcmp(arg->argv[arg->argn], "off") == 0)
-      physical_SetRtsCts(arg->cx->physical, 0);
-    else
-      return -1;
-    return 0;
-  }
-  return -1;
 }
 
 static struct cmdtab const SetCommands[] = {
@@ -1783,13 +1784,14 @@ static struct cmdtab const SetCommands[] = {
    (const void *)VAR_CHAPRETRY},
   {"choked", NULL, SetVariable, LOCAL_AUTH,
   "choked timeout", "set choked [secs]", (const void *)VAR_CHOKED},
-  {"ctsrts", "crtscts", SetCtsRts, LOCAL_AUTH | LOCAL_CX,
-  "Use hardware flow control", "set ctsrts [on|off]"},
+  {"ctsrts", "crtscts", SetVariable, LOCAL_AUTH | LOCAL_CX,
+   "Use hardware flow control", "set ctsrts [on|off]",
+   (const char *)VAR_CRTSCTS},
   {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "deflate window sizes", "set deflate out-winsize in-winsize",
   (const void *) VAR_WINSIZE},
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "modem device name", "set device|line device-name[,device-name]",
+  "physical device name", "set device|line device-name[,device-name]",
   (const void *) VAR_DEVICE},
   {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "dialing script", "set dial chat-script", (const void *) VAR_DIAL},
@@ -1832,8 +1834,8 @@ static struct cmdtab const SetCommands[] = {
   "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
   {"papretry", "papretries", SetVariable, LOCAL_AUTH | LOCAL_CX, "PAP retries",
    "set papretry value [attempts]", (const void *)VAR_PAPRETRY},
-  {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
-  "modem parity", "set parity [odd|even|none]"},
+  {"parity", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "serial parity",
+   "set parity [odd|even|none]", (const void *)VAR_PARITY},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"proctitle", "title", SetProcTitle, LOCAL_AUTH,
@@ -1853,7 +1855,7 @@ static struct cmdtab const SetCommands[] = {
   {"server", "socket", SetServer, LOCAL_AUTH,
   "server port", "set server|socket TcpPort|LocalName|none password [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
-  "modem speed", "set speed value"},
+  "physical speed", "set speed value|sync"},
   {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
   "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
@@ -1977,7 +1979,11 @@ AliasEnable(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      arg->bundle->AliasEnabled = 1;
+      if (!arg->bundle->AliasEnabled) {
+        if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED)
+          PacketAliasSetAddress(arg->bundle->ncp.ipcp.my_ip);
+        arg->bundle->AliasEnabled = 1;
+      }
       return 0;
     } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
       arg->bundle->AliasEnabled = 0;
@@ -2373,12 +2379,12 @@ ClearCommand(struct cmdargs const *arg)
   if (arg->argc < arg->argn + 1)
     return -1;
 
-  if (strcasecmp(arg->argv[arg->argn], "modem") == 0) {
+  if (strcasecmp(arg->argv[arg->argn], "physical") == 0) {
     cx = arg->cx;
     if (!cx)
       cx = bundle2datalink(arg->bundle, NULL);
     if (!cx) {
-      log_Printf(LogWARN, "A link must be specified for ``clear modem''\n");
+      log_Printf(LogWARN, "A link must be specified for ``clear physical''\n");
       return 1;
     }
     t = &cx->physical->link.throughput;
