@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.615 1999/07/03 21:31:00 jdp Exp $
+#	$Id: LINT,v 1.616 1999/07/06 19:22:40 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1552,6 +1552,13 @@ options EISA_SLOTS=12
 # the MPX 5030/5038, which is either a RealTek in disguise or a RealTek
 # workalike.
 #
+# The 'sk' device provides support for the SysKonnect SK-984x series
+# PCI gigabit ethernet NICs. This includes the SK-9841 and SK-9842
+# single port cards (single mode and multimode fiber) and the
+# SK-9843 and SK-9844 dual port cards (also single mode and multimode).
+# The driver will autodetect the number of ports on the card and
+# attach each one as a separate network interface.
+#
 # The 'ti' device provides support for PCI gigabit ethernet NICs based
 # on the Alteon Networks Tigon 1 and Tigon 2 chipsets. This includes the
 # Alteon AceNIC, the 3Com 3c985, the Netgear GA620 and various others.
@@ -1695,6 +1702,7 @@ device		fxp0
 device		mx0
 device		pn0
 device		rl0
+device		sk0
 device		ti0
 device		tl0
 device		tx0
