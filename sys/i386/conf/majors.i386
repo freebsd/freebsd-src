@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.60 1999/01/06 05:35:39 yokota Exp $
+$Id: majors.i386,v 1.61 1999/01/11 00:03:58 n_hibma Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -158,5 +158,6 @@ chrdev	name		comments
 111	ums		USB Mouse (nick.hibma@jrc.it)
 112	kbd		keyboard
 113	ulpt		USB Printer (nick.hibma@jrc.it)
+114	ugen		USB Generic device (nick.hibma@jrc.it)
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
