@@ -207,6 +207,7 @@ typedef struct {
 typedef struct {
 	uDWord		dCSWSignature;
 #	define CSWSIGNATURE	0x53425355
+#	define CSWSIGNATURE_OLYMPUS_C1	0x55425355
 	uDWord		dCSWTag;
 	uDWord		dCSWDataResidue;
 	uByte		bCSWStatus;
@@ -295,6 +296,8 @@ struct umass_softc {
 	 * Shuttle E-USB
 	 */
 #	define NO_START_STOP		0x04
+	/* The device uses a weird CSWSIGNATURE. */
+#	define WRONG_CSWSIG		0x10
 
 	unsigned int		proto;
 #	define PROTO_UNKNOWN	0x0000		/* unknown protocol */
@@ -641,6 +644,15 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		/* They also should be able to do higher speed.
 		 */
 		sc->transfer_speed = 500;
+	}
+
+	if (UGETW(dd->idVendor) == USB_VENDOR_OLYMPUS &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_OLYMPUS_C1) {
+		/*
+		 * The Olympus C-1 camera uses a different command-status
+		 * signature.
+		 */
+		sc->quirks |= WRONG_CSWSIG;
 	}
 	
 	switch (id->bInterfaceSubClass) {
@@ -1416,6 +1428,11 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 		}
 
 		DIF(UDMASS_BBB, umass_bbb_dump_csw(sc, &sc->csw));
+
+		/* Translate weird command-status signatures. */
+		if ((sc->quirks & WRONG_CSWSIG) &&
+		    UGETDW(sc->csw.dCSWSignature) == CSWSIGNATURE_OLYMPUS_C1)
+			USETDW(sc->csw.dCSWSignature, CSWSIGNATURE);
 
 		/* Check CSW and handle any error */
 		if (UGETDW(sc->csw.dCSWSignature) != CSWSIGNATURE) {
