@@ -2,7 +2,7 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id cvs.1,v 1.12 1992/04/10 03:05:16 berliner Exp
+.Id $Id: cvs.1,v 1.16 1994/10/03 21:26:10 berliner Exp $
 .TH CVS 1 "\*(Dt"
 .\" Full space in nroff; half space in troff
 .de SP
@@ -181,8 +181,10 @@ Use
 .I editor
 to enter revision log information.
 Overrides the setting of the
+.SM CVSEDITOR
+and the
 .SM EDITOR
-environment variable.
+environment variables.
 .TP
 .B \-l
 Do not log the
@@ -206,7 +208,7 @@ activity.  Particularly useful with
 to explore the potential impact of an unfamiliar command.
 .TP
 .B \-r
-Makes new working files files read-only.
+Makes new working files read-only.
 Same effect as if the
 .SM CVSREAD
 environment variable is set.
@@ -388,7 +390,7 @@ same date (unless you explicitly override it; see the description of
 the \fBupdate\fP command).
 .B \-D
 is available with the
-.BR checkout ", " diff, ", " history ", " export ", "
+.BR checkout ", " diff ", " history ", " export ", "
 .BR rdiff ", " rtag ", and "
 .B update
 commands.
@@ -437,7 +439,7 @@ options described in
 .BR rcs ( 1 )
 are available.  The \fB\-k\fP option is available with the
 .BR add ", " checkout ", " diff ", "
-.RB rdiff ", and " update
+.BR rdiff ", and " update
 commands.  Your \fIkflag\fP specification is ``sticky'' when you use
 it to create a private copy of a source file; that is, when you use
 this option with the \fBcheckout\fP or \fBupdate\fP commands,
@@ -911,6 +913,13 @@ changed; you can use the
 option to limit
 .B commit
 to the current directory only.
+Sometimes you may want to force a file to be committed even though it
+is unchanged; this is achieved with the
+.B \-f
+flag, which also has the effect of disabling recursion (you can turn
+it back on with
+.B \-R
+of course).
 .SP
 .B commit
 verifies that the selected files are up to date with the current revisions
@@ -931,7 +940,7 @@ source repository file.
 You can instead specify the log message on the command line with the
 .B \-m
 option, thus suppressing the editor invocation, or use the
-.B \-f
+.B \-F
 option to specify that the argument \fIfile\fP contains the log message.
 .SP
 The
@@ -960,7 +969,8 @@ number of dots) with the
 .B \-r
 option.
 To create a branch revision, one typically use the
-.B \-b option of the
+.B \-b
+option of the
 .BR rtag " or " tag
 commands.
 Then, either
@@ -1144,7 +1154,7 @@ Report on checked-out modules.
 .B \ \ \ \ \ \ \-T
 Report on all tags.
 .TP 1i
-\fB\ \ \ \ \ \ \-x\fP \fItyp\fP
+\fB\ \ \ \ \ \ \-x\fP \fItype\fP
 Extract a particular set of record types \fIX\fP from the \fBcvs\fP
 history.  The types are indicated by single letters, which you may
 specify in combination.
@@ -1162,6 +1172,18 @@ added; and `R', when a file is removed.
 .B \ \ \ \ \ \ \-e
 Everything (all record types); equivalent to specifying
 .` "\-xMACFROGWUT".
+.TP 1i
+\fB\ \ \ \ \ \ \-z\fP \fIzone\fP
+Use time zone
+.I zone
+when outputting history records.
+The zone name
+.B LT
+stands for local time;
+numeric offsets stand for hours and minutes ahead of UTC.
+For example,
+.B +0530
+stands for 5 hours and 30 minutes ahead of (i.e. east of) UTC.
 .PP
 .RS .5i
 The options shown as \fB\-\fP\fIflags\fP constrain the report without
@@ -1260,8 +1282,8 @@ CVS*  cvslog.*
 tags  TAGS
 \&.make.state  .nse_depinfo
 *~  #*  .#*  ,*
-*.old  *.bak  *.orig  *.rej  .del\-*
-*.a  *.o  *.Z  *.elc  *.ln  core
+*.old  *.bak  *.BAK  *.orig  *.rej  .del\-*
+*.a  *.o  *.so  *.Z  *.elc  *.ln  core
 .fi
 .ft P
 .in -1i
@@ -1295,7 +1317,12 @@ command options are available: \fB\-Q\fP, \fB\-q\fP, and \fB\-m\fP
 \fB\-m\fP, your editor is invoked (as with \fBcommit\fP) to allow you
 to enter one.
 .SP
-There are two additional special options.
+There are three additional special options.
+.SP
+Use
+.` "\-d"
+to specify that each file's time of last modification should be used
+for the checkin date and time.
 .SP
 Use
 .` "\-b \fIbranch\fP"
@@ -1481,7 +1508,7 @@ into the
 .` "Attic"
 directory (also within the source repository).
 .SP
-This command is recursive by default, scheduing all physically removed
+This command is recursive by default, scheduling all physically removed
 files that it finds for removal by the next
 .BR commit .
 Use the
@@ -1546,7 +1573,7 @@ option to have
 .B rtag
 look in the
 .` "Attic"
-for removed files that contin the specified tag.
+for removed files that contain the specified tag.
 The tag is removed from these files, which makes it convenient to re-use a
 symbolic tag as development continues (and files get removed from the
 up-coming distribution).
@@ -1796,8 +1823,8 @@ CVS*  cvslog.*
 tags  TAGS
 \&.make.state  .nse_depinfo
 *~  #*  .#*  ,*
-*.old  *.bak  *.orig  *.rej  .del\-*
-*.a  *.o  *.Z  *.elc  *.ln  core
+*.old  *.bak  *.BAK  *.orig  *.rej  .del\-*
+*.a  *.o  *.so  *.Z  *.elc  *.ln  core
 .fi
 .ft P
 .in -1i
@@ -1881,7 +1908,7 @@ Records programs for piping
 log entries.
 .TP
 CVSROOT/rcsinfo,v
-Records pathnames to templates used dueing a
+Records pathnames to templates used during a
 .` "cvs commit"
 operation.
 .TP
@@ -1946,10 +1973,15 @@ and
 If not set, a compiled-in value is used; see the display from
 .` "cvs \-v".
 .TP
-.SM EDITOR
+.SM CVSEDITOR
 Specifies the program to use for recording log messages during
 .BR commit .
-If not set, the default is
+If not set, the
+.SM EDITOR
+environment variable is used instead.
+If
+.SM EDITOR
+is not set either, the default is
 .BR /usr/ucb/vi .
 .SH "AUTHORS"
 .TP

@@ -1,4 +1,4 @@
-.\" cvshelp.man,v 1.1 1992/04/10 03:04:21 berliner Exp
+.\" $Id: cvshelp.man,v 1.1 1992/04/10 03:04:21 berliner Exp $
 .\" Contributed by Lowell Skoog <fluke!lowell@uunet.uu.net>
 .\" Full space in nroff; half space in troff
 .de SP

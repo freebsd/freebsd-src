@@ -18,6 +18,10 @@ Cambridge, MA 02139, USA.  */
 
 /* Modified slightly by Brian Berliner <berliner@sun.com> for CVS use */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 /* IGNORE(@ */
 /* #include <ansidecl.h> */
 /* @) */
@@ -26,10 +30,6 @@ Cambridge, MA 02139, USA.  */
 
 #if !defined(__GNU_LIBRARY__) && !defined(STDC_HEADERS)
 extern int errno;
-#endif
-
-#if !__STDC__
-#define	const
 #endif
 
 /* Match STRING against the filename pattern PATTERN, returning zero if

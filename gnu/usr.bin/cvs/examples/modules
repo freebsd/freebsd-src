@@ -1,6 +1,6 @@
 #
 # CVS Modules file for Prisma sources
-# @(#)modules 1.5 92/03/31
+# $CVSid: @(#)modules 1.5 92/03/31 $
 #
 # Three different line formats are valid:
 #	key	-a    aliases...
