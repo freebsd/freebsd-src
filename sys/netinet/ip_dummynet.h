@@ -96,22 +96,13 @@ struct dn_queue {
 } ;
 
 /*
- * Flow mask/flow id for each queue.
- */
-struct dn_flow_id {
-    u_int32_t dst_ip, src_ip ;
-    u_int16_t dst_port, src_port ;
-    u_int8_t proto ;
-} ;
-
-/*
  * We use per flow queues. Hashing is used to select the right slot,
  * then we scan the list to match the flow-id.
  * The pipe is shared as it is only a delay line and thus one is enough.
  */
 struct dn_flow_queue {
     struct dn_flow_queue *next ;
-    struct dn_flow_id id ;
+    struct ipfw_flow_id id ;
     struct dn_pipe *p ;	/* parent pipe */
     struct dn_queue r;
     long numbytes ;
@@ -141,7 +132,7 @@ struct dn_pipe {			/* a pipe */
 	int	plr ;		/* pkt loss rate (2^31-1 means 100%) */
 
         struct	dn_queue p ;
-	struct dn_flow_id flow_mask ;
+	struct ipfw_flow_id flow_mask ;
 	int rq_size ;
 	int rq_elements ;
 	struct dn_flow_queue **rq ;	/* array of rq_size entries */
@@ -153,7 +144,6 @@ MALLOC_DECLARE(M_IPFW);
 
 typedef int ip_dn_ctl_t __P((struct sockopt *)) ;
 extern ip_dn_ctl_t *ip_dn_ctl_ptr;
-extern struct dn_flow_id dn_last_pkt ;
 
 void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
