@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.233 1999/04/25 18:40:05 alc Exp $
+ *	$Id: pmap.c,v 1.234 1999/04/28 01:03:23 luoqi Exp $
  */
 
 /*
@@ -851,12 +851,25 @@ pmap_qremove(va, count)
 	vm_offset_t va;
 	int count;
 {
-	int i;
+	vm_offset_t end_va;
 
-	for (i = 0; i < count; i++) {
-		pmap_kremove(va);
+	end_va = va + count*PAGE_SIZE;
+
+	while (va < end_va) {
+		unsigned *pte;
+
+		pte = (unsigned *)vtopte(va);
+		*pte = 0;
+#ifdef SMP
+		cpu_invlpg((void *)va);
+#else
+		invltlb_1pg(va);
+#endif
 		va += PAGE_SIZE;
 	}
+#ifdef SMP
+	smp_invltlb();
+#endif
 }
 
 static vm_page_t
