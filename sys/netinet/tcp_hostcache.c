@@ -244,7 +244,7 @@ tcp_hc_init(void)
 	 * Allocate the hostcache entries.
 	 */
 	tcp_hostcache.zone = uma_zcreate("hostcache", sizeof(struct hc_metrics),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(tcp_hostcache.zone, tcp_hostcache.cache_limit);
 
 	/*
