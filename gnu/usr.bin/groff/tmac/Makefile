@@ -18,7 +18,7 @@ CLEANFILES=	${MAN7} ${MDOCFILES} ${STRIPFILES} tmac.groff_an
 FILES=          tmac.andoc tmac.pic tmac.ps tmac.psnew tmac.psold\
 		tmac.pspic tmac.psatk tmac.dvi tmac.safer tmac.tty \
 		tmac.tty-char tmac.X tmac.Xps tmac.latin1 tmac.lj4 eqnrc \
-		troffrc
+		troffrc tmac.arkup tmac.html
 STRIPFILES=     tmac.e tmac.s tmac.doc
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms
 LOCALEFILES=    locale-list koi8-r
