@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_run.c,v 1.12 1997/02/22 09:28:29 peter Exp $
  */
 
 /*
@@ -35,12 +35,10 @@
  * Commands to run process.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
 
 #include <ddb/ddb.h>
-#include <ddb/db_lex.h>
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
 
