@@ -904,7 +904,7 @@ inet6print(in6, port, proto, numeric)
 	else
 		sprintf(cp, "%d", ntohs((u_short)port));
 	width = lflag ? 45 : Aflag ? 18 : 22;
-	printf(" %-*.*s", width, width, line);
+	printf("%-*.*s ", width, width, line);
 }
 
 /*
