@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.19 1998/05/14 16:49:24 wpaul Exp $
+ *	$Id: if_tlreg.h,v 1.1 1998/05/21 03:19:56 wpaul Exp $
  */
 
 
@@ -122,7 +122,7 @@ struct tl_softc {
 	struct tl_list_data	*tl_ldata;	/* TX/RX lists and mbufs */
 	struct tl_chain_data	tl_cdata;
 	int			tl_txeoc;
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	struct callout_handle	tl_stat_ch;
 #endif
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.37 1998/05/20 20:08:00 wpaul Exp $
+ *	$Id: if_tl.c,v 1.1 1998/05/21 03:19:55 wpaul Exp $
  */
 
 /*
@@ -242,7 +242,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.37 1998/05/20 20:08:00 wpaul Exp $";
+	"$Id: if_tl.c,v 1.1 1998/05/21 03:19:55 wpaul Exp $";
 #endif
 
 /*
@@ -1042,7 +1042,7 @@ static void tl_setmulti(sc)
 	struct tl_csr		*csr;
 	u_int32_t		hashes[2] = { 0, 0 };
 	int			h;
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	struct ifmultiaddr	*ifma;
 #else
 	struct ether_multi	*enm;
@@ -1056,7 +1056,7 @@ static void tl_setmulti(sc)
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
 	} else {
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
 					ifma = ifma->ifma_link.le_next) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -1324,7 +1324,7 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	sc->tl_unit = tl_unit;
 	sc->tl_phy_addr = tl_phy;
 	sc->tl_iflist = ilist;
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	callout_handle_init(&sc->tl_stat_ch);
 #endif
 
@@ -1497,7 +1497,7 @@ tl_attach_ctlr(config_id, unit)
 	s = splimp();
 
 	for (ilist = tl_iflist; ilist != NULL; ilist = ilist->tl_next)
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 		if (ilist->tl_config_id == config_id)
 #else
 		if (sametag(ilist->tl_config_id, config_id))
@@ -1512,7 +1512,7 @@ tl_attach_ctlr(config_id, unit)
 	/*
 	 * Map control/status registers.
 	 */
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG,
 			PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
 
@@ -2104,7 +2104,7 @@ static void tl_stats_update(xsc)
 			    tl_rx_overrun(tl_stats);
 	ifp->if_oerrors += tl_tx_underrun(tl_stats);
 
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
 #else
 	timeout(tl_stats_update, sc, hz);
@@ -2385,7 +2385,7 @@ static void tl_init(xsc)
 	(void)splx(s);
 
 	/* Start the stats update counter */
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
 #else
 	timeout(tl_stats_update, sc, hz);
@@ -2504,7 +2504,7 @@ static int tl_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-#if __FreeBSD_version < 300000
+#if defined(__FreeBSD__) && __FreeBSD__ < 3
 		if (command == SIOCADDMULTI)
 			error = ether_addmulti(ifr, &sc->arpcom);
 		else
@@ -2577,7 +2577,7 @@ static void tl_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	/* Stop the stats updater. */
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	untimeout(tl_stats_update, sc, sc->tl_stat_ch);
 #else
 	untimeout(tl_stats_update, sc);
