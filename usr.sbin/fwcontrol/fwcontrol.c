@@ -50,23 +50,22 @@
 #include <string.h>
 #include <unistd.h>
 
-void
+static void
 usage(void)
 {
 	printf("fwcontrol [-g gap_count] [-b pri_req] [-c node]"
-		" [-r] [-t] [-s] [-d node] [-l file]\n");
+		" [-r] [-t] [-d node] [-l file]\n");
 	printf("\t-g: broadcast gap_count by phy_config packet\n");
 	printf("\t-b: set PRIORITY_BUDGET register on all supported nodes\n");
 	printf("\t-c: read configuration ROM\n");
 	printf("\t-r: bus reset\n");
 	printf("\t-t: read topology map\n");
-	printf("\t-s: read speed map\n");
 	printf("\t-d: hex dump of configuration ROM\n");
 	printf("\t-l: load and parse hex dump file of configuration ROM\n");
 	exit(0);
 }
 
-void
+static void
 get_num_of_dev(int fd, struct fw_devlstreq *data)
 {
 	data->n = 64;
@@ -75,7 +74,7 @@ get_num_of_dev(int fd, struct fw_devlstreq *data)
 	}
 }
 
-void
+static void
 list_dev(int fd)
 {
 	struct fw_devlstreq data;
@@ -94,7 +93,7 @@ list_dev(int fd)
 	}
 }
 
-u_int32_t
+static u_int32_t
 read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int32_t data)
 {
         struct fw_asyreq *asyreq;
@@ -130,7 +129,8 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int3
 	else
 		return 0;
 }
-void
+
+static void
 send_phy_config(int fd, int root_node, int gap_count)
 {
         struct fw_asyreq *asyreq;
@@ -155,7 +155,7 @@ send_phy_config(int fd, int root_node, int gap_count)
 	}
 }
 
-void
+static void
 set_pri_req(int fd, int pri_req)
 {
 	struct fw_devlstreq data;
@@ -183,7 +183,8 @@ set_pri_req(int fd, int pri_req)
 	}
 }
 
-void parse_bus_info_block(u_int32_t *p, int info_len)
+static void
+parse_bus_info_block(u_int32_t *p, int info_len)
 {
 	int i;
 
@@ -192,7 +193,7 @@ void parse_bus_info_block(u_int32_t *p, int info_len)
 	}
 }
 
-int
+static int
 get_crom(int fd, int node, void *crom_buf, int len)
 {
 	struct fw_crom_buf buf;
@@ -219,6 +220,7 @@ get_crom(int fd, int node, void *crom_buf, int len)
 	return error;
 }
 
+static void
 show_crom(u_int32_t *crom_buf)
 {
 	int i;
@@ -245,6 +247,8 @@ show_crom(u_int32_t *crom_buf)
 	dir = cc.stack[0].dir;
 	printf("root_directory: len=0x%04x(%d) crc=0x%04x\n",
 			dir->crc_len, dir->crc_len, dir->crc);
+	if (dir->crc_len < 1)
+		return;
 	while (cc.depth >= 0) {
 		desc = crom_desc(&cc, info, sizeof(info));
 		reg = crom_get(&cc);
@@ -261,6 +265,7 @@ show_crom(u_int32_t *crom_buf)
 
 #define DUMP_FORMAT	"%08x %08x %08x %08x %08x %08x %08x %08x\n"
 
+static void
 dump_crom(u_int32_t *p)
 {
 	int len=1024, i;
@@ -272,6 +277,7 @@ dump_crom(u_int32_t *p)
 	}
 }
 
+static void
 load_crom(char *filename, u_int32_t *p)
 {
 	FILE *file;
@@ -332,27 +338,6 @@ show_topology_map(int fd)
 	free(tmap);
 }
 
-static void
-show_speed_map(int fd)
-{
-	struct fw_speed_map *smap;
-	int i,j;
-
-	smap = malloc(sizeof(struct fw_speed_map));
-	if (smap == NULL)
-		return;
-	if (ioctl(fd, FW_GSPMAP, &smap) < 0) {
-       		err(1, "ioctl");
-	}
-	printf("crc_len: %d generation:%d\n", smap->crc_len, smap->generation);
-	for (i = 0; i < 64; i ++) {
-		for (j = 0; j < 64; j ++)
-			printf("%d", smap->speed[i][j]);
-		printf("\n");
-	}
-	free(smap);
-}
-
 int
 main(int argc, char **argv)
 {
@@ -368,7 +353,7 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	while ((ch = getopt(argc, argv, "g:b:rtsc:d:l:")) != -1)
+	while ((ch = getopt(argc, argv, "g:b:rtc:d:l:")) != -1)
 		switch(ch) {
 		case 'g':
 			/* gap count */
@@ -385,9 +370,6 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			show_topology_map(fd);
-			break;
-		case 's':
-			show_speed_map(fd);
 			break;
 		case 'c':
 			tmp = strtol(optarg, NULL, 0);

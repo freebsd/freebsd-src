@@ -47,7 +47,6 @@
 #include <pci/pcireg.h>
 
 #include <dev/firewire/firewire.h>
-#include <dev/firewire/firewirebusreg.h>
 #include <dev/firewire/firewirereg.h>
 
 #include <dev/firewire/fwohcireg.h>
@@ -63,58 +62,62 @@ static int
 fwohci_pci_probe( device_t dev )
 {
 #if 1
-	if ((pci_get_vendor(dev) == FW_VENDORID_NEC) &&
-	    (pci_get_device(dev) == FW_DEVICE_UPD861)) {
+	u_int32_t id;
+
+	id = (pci_get_vendor(dev) << 16) | pci_get_device(dev);
+	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD861)) {
 		device_set_desc(dev, "NEC uPD72861");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB22)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB22)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV22");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB23)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB23)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV23");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB26)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB26)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV26");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB43)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43)) {
 		device_set_desc(dev, "Texas Instruments TSB43AA22");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_SONY) &&
-	    (pci_get_device(dev) == FW_DEVICE_CX3022)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43A)) {
+		device_set_desc(dev, "Texas Instruments TSB43AB22/A");
+		return 0;
+	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4450)) {
+		device_set_desc(dev, "Texas Instruments PCI4450");
+		return 0;
+	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4410A)) {
+		device_set_desc(dev, "Texas Instruments PCI4410A");
+		return 0;
+	}
+	if (id == (FW_VENDORID_SONY | FW_DEVICE_CX3022)) {
 		device_set_desc(dev, "SONY CX3022");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_VIA) &&
-	    (pci_get_device(dev) == FW_DEVICE_VT6306)) {
+	if (id == (FW_VENDORID_VIA | FW_DEVICE_VT6306)) {
 		device_set_desc(dev, "VIA VT6306");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_RICOH) &&
-	    (pci_get_device(dev) == FW_DEVICE_R5C552)) {
+	if (id == (FW_VENDORID_RICOH | FW_DEVICE_R5C552)) {
 		device_set_desc(dev, "Ricoh R5C552");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_APPLE) &&
-	    (pci_get_device(dev) == FW_DEVICE_PANGEA)) {
+	if (id == (FW_VENDORID_APPLE | FW_DEVICE_PANGEA)) {
 		device_set_desc(dev, "Apple Pangea");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_APPLE) &&
-	    (pci_get_device(dev) == FW_DEVICE_UNINORTH)) {
+	if (id == (FW_VENDORID_APPLE | FW_DEVICE_UNINORTH)) {
 		device_set_desc(dev, "Apple UniNorth");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_LUCENT) &&
-	    (pci_get_device(dev) == FW_DEVICE_FW322)) {
+	if (id == (FW_VENDORID_LUCENT | FW_DEVICE_FW322)) {
 		device_set_desc(dev, "Lucent FW322/323");
 		return 0;
 	}
@@ -122,7 +125,7 @@ fwohci_pci_probe( device_t dev )
 	if (pci_get_class(dev) == PCIC_SERIALBUS
 			&& pci_get_subclass(dev) == PCIS_SERIALBUS_FW
 			&& pci_get_progif(dev) == PCI_INTERFACE_OHCI) {
-		printf("XXXfw: vendid=%x, dev=%x\n", pci_get_vendor(dev),
+		device_printf(dev, "vendor=%x, dev=%x\n", pci_get_vendor(dev),
 			pci_get_device(dev));
 		device_set_desc(dev, "1394 Open Host Controller Interface");
 		return 0;
@@ -140,27 +143,10 @@ fwohci_dummy_intr(void *arg)
 #endif
 
 static int
-fwohci_pci_attach(device_t self)
+fwohci_pci_init(device_t self)
 {
-	fwohci_softc_t *sc = device_get_softc(self);
-	int err;
-	int rid;
 	int latency, cache_line;
 	u_int16_t cmd;
-#if __FreeBSD_version < 500000
-	int intr;
-	/* For the moment, put in a message stating what is wrong */
-	intr = pci_read_config(self, PCIR_INTLINE, 1);
-	if (intr == 0 || intr == 255) {
-		device_printf(self, "Invalid irq %d\n", intr);
-#ifdef __i386__
-		device_printf(self, "Please switch PNP-OS to 'No' in BIOS\n");
-#endif
-#if 0
-		return ENXIO;
-#endif
-	}
-#endif
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
@@ -185,7 +171,33 @@ fwohci_pci_attach(device_t self)
 #endif
 	if (bootverbose)
 		device_printf(self, "cache size %d.\n", (int) cache_line);
-/**/
+
+	return 0;
+}
+
+static int
+fwohci_pci_attach(device_t self)
+{
+	fwohci_softc_t *sc = device_get_softc(self);
+	int err;
+	int rid;
+#if __FreeBSD_version < 500000
+	int intr;
+	/* For the moment, put in a message stating what is wrong */
+	intr = pci_read_config(self, PCIR_INTLINE, 1);
+	if (intr == 0 || intr == 255) {
+		device_printf(self, "Invalid irq %d\n", intr);
+#ifdef __i386__
+		device_printf(self, "Please switch PNP-OS to 'No' in BIOS\n");
+#endif
+#if 0
+		return ENXIO;
+#endif
+	}
+#endif
+
+	fwohci_pci_init(self);
+
 	rid = PCI_CBMEM;
 	sc->bsr = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
 					0, ~0, 1, RF_ACTIVE);
@@ -249,6 +261,8 @@ fwohci_pci_detach(device_t self)
 
 
 	s = splfw();
+
+	fwohci_shutdown(sc, self);
 	bus_generic_detach(self);
 
 	/* disable interrupts that might have been switched on */
@@ -284,6 +298,8 @@ fwohci_pci_detach(device_t self)
 		sc->bst = 0;
 		sc->bsh = 0;
 	}
+
+	fwohci_detach(sc, self);
 	splx(s);
 
 	return 0;
@@ -292,14 +308,34 @@ fwohci_pci_detach(device_t self)
 static int
 fwohci_pci_suspend(device_t dev)
 {
-	device_printf(dev, "fwoch_pci_suspend\n");
+	int err;
+
+	device_printf(dev, "fwohci_pci_suspend\n");
+	err = bus_generic_suspend(dev);
+	if (err)
+		return err;
+	/* fwohci_shutdown(dev); */
 	return 0;
 }
 
 static int
 fwohci_pci_resume(device_t dev)
 {
-	device_printf(dev, "fwoch_pci_resume\n");
+	fwohci_softc_t *sc = device_get_softc(dev);
+
+	device_printf(dev, "fwohci_pci_resume: power_state = 0x%08x\n",
+					pci_get_powerstate(dev));
+	fwohci_pci_init(dev);
+	fwohci_resume(sc, dev);
+	return 0;
+}
+
+static int
+fwohci_pci_shutdown(device_t dev)
+{
+	fwohci_softc_t *sc = device_get_softc(dev);
+
+	fwohci_shutdown(sc, dev);
 	return 0;
 }
 
@@ -308,9 +344,9 @@ static device_method_t fwohci_methods[] = {
 	DEVMETHOD(device_probe,		fwohci_pci_probe),
 	DEVMETHOD(device_attach,	fwohci_pci_attach),
 	DEVMETHOD(device_detach,	fwohci_pci_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	fwohci_pci_suspend),
 	DEVMETHOD(device_resume,	fwohci_pci_resume),
+	DEVMETHOD(device_shutdown,	fwohci_pci_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),

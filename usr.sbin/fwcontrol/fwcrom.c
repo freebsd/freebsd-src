@@ -90,14 +90,15 @@ crom_next(struct crom_context *cc)
 			cc->depth --;
 			goto again;
 		}
-		cc->stack[cc->depth].dir = (struct csrdirectory *)
-							(reg + reg->val);
-		cc->stack[cc->depth].index = 0;
-		return;
+		ptr = &cc->stack[cc->depth];
+		ptr->dir = (struct csrdirectory *) (reg + reg->val);
+		ptr->index = 0;
+		goto check;
 	}
 again:
 	ptr = &cc->stack[cc->depth];
 	ptr->index ++;
+check:
 	if (ptr->index < ptr->dir->crc_len)
 		return;
 	if (cc->depth > 0) {
