@@ -30,11 +30,10 @@
 __FBSDID("$FreeBSD");
 
 #include <sys/param.h>
-#include <sys/signal.h>
-#include <sys/signalvar.h>
 #include <sys/ucontext.h>
 #include <machine/psl.h>
 #include <machine/sigframe.h>
+#include <signal.h>
 
 __weak_reference(__signalcontext, signalcontext);
 
@@ -43,10 +42,10 @@ extern void _ctx_start(ucontext_t *, int argc, ...);
 int
 __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 {
+	register_t *p;
 	struct sigframe *sfp;
-	int *p;
 
-	/*
+	/*-
 	 * Set up stack.
 	 * (n = sizeof(int))
 	 * 2n+sizeof(struct sigframe)	ucp
@@ -54,29 +53,27 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	 * 1n				&func
 	 * 0n				&_ctx_start
 	 */
-	p = (int *)ucp->uc_mcontext.mc_esp;
-	*--p = (int)ucp;
+	p = (register_t *)(void *)(intptr_t)ucp->uc_mcontext.mc_esp;
+	*--p = (register_t)(intptr_t)ucp;
 	p -= sizeof(struct sigframe);
 	sfp = (struct sigframe *)p;
 	bzero(sfp, sizeof(struct sigframe));
 	sfp->sf_signum = sig;
-	sfp->sf_siginfo = (int)&sfp->sf_si;
-	sfp->sf_ucontext = (int)&sfp->sf_uc;
+	sfp->sf_siginfo = (register_t)(intptr_t)&sfp->sf_si;
+	sfp->sf_ucontext = (register_t)(intptr_t)&sfp->sf_uc;
 	sfp->sf_ahu.sf_action = (__siginfohandler_t *)func;
 	bcopy(ucp, &sfp->sf_uc, sizeof(ucontext_t));
 	sfp->sf_si.si_signo = sig;
-
-	*--p = (int)func;
+	*--p = (register_t)(intptr_t)func;
 
 	/*
 	 * Set up ucontext_t.
 	 */
 	ucp->uc_mcontext.mc_ebp = ucp->uc_mcontext.mc_esp - sizeof(int);
-	ucp->uc_mcontext.mc_esp = (int)p;
-	ucp->uc_mcontext.mc_eip = (int)_ctx_start;
+	ucp->uc_mcontext.mc_esp = (register_t)(intptr_t)p;
+	ucp->uc_mcontext.mc_eip = (register_t)(intptr_t)_ctx_start;
 	ucp->uc_mcontext.mc_eflags &= ~PSL_T;
 	ucp->uc_link = &sfp->sf_uc;
-	SIGDELSET(ucp->uc_sigmask, sig);
+	sigdelset(&ucp->uc_sigmask, sig);
 	return (0);
 }
-
