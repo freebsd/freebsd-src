@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.11 1999/03/11 09:24:52 brian Exp $
+ *	$Id: natd.c,v 1.12 1999/03/24 20:30:20 brian Exp $
  */
 
 #define SYSLOG_NAMES
@@ -75,26 +75,26 @@ typedef u_long port_range;
  */
 
 static void	DoAliasing (int fd, int direction);
-static void	DaemonMode ();
+static void	DaemonMode (void);
 static void	HandleRoutingInfo (int fd);
-static void	Usage ();
+static void	Usage (void);
 static char*	FormatPacket (struct ip*);
 static void	PrintPacket (struct ip*);
-static void	SyslogPacket (struct ip*, int priority, char *label);
+static void	SyslogPacket (struct ip*, int priority, const char *label);
 static void	SetAliasAddressFromIfName (char* ifName);
-static void	InitiateShutdown ();
-static void	Shutdown ();
-static void	RefreshAddr ();
-static void	ParseOption (char* option, char* parms, int cmdLine);
-static void	ReadConfigFile (char* fileName);
-static void	SetupPortRedirect (char* parms);
-static void	SetupAddressRedirect (char* parms);
-static void	SetupPptpAlias (char* parms);
-static void	StrToAddr (char* str, struct in_addr* addr);
-static u_short  StrToPort (char* str, char* proto);
-static int      StrToPortRange (char* str, char* proto, port_range *portRange);
-static int 	StrToProto (char* str);
-static int      StrToAddrAndPortRange (char* str, struct in_addr* addr, char* proto, port_range *portRange);
+static void	InitiateShutdown (int);
+static void	Shutdown (int);
+static void	RefreshAddr (int);
+static void	ParseOption (const char* option, const char* parms, int cmdLine);
+static void	ReadConfigFile (const char* fileName);
+static void	SetupPortRedirect (const char* parms);
+static void	SetupAddressRedirect (const char* parms);
+static void	SetupPptpAlias (const char* parms);
+static void	StrToAddr (const char* str, struct in_addr* addr);
+static u_short  StrToPort (const char* str, const char* proto);
+static int      StrToPortRange (const char* str, const char* proto, port_range *portRange);
+static int 	StrToProto (const char* str);
+static int      StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange);
 static void	ParseArgs (int argc, char** argv);
 static void	FlushPacketBuffer (int fd);
 
@@ -641,7 +641,7 @@ static void PrintPacket (struct ip* ip)
 	printf ("%s", FormatPacket (ip));
 }
 
-static void SyslogPacket (struct ip* ip, int priority, char *label)
+static void SyslogPacket (struct ip* ip, int priority, const char *label)
 {
 	syslog (priority, "%s %s", label, FormatPacket (ip));
 }
@@ -694,7 +694,7 @@ static char* FormatPacket (struct ip* ip)
 	return buf;
 }
 
-static void SetAliasAddressFromIfName (char* ifName)
+static void SetAliasAddressFromIfName (char* ifn)
 {
 	struct ifconf		cf;
 	struct ifreq		buf[32];
@@ -742,7 +742,7 @@ static void SetAliasAddressFromIfName (char* ifName)
 	while (bytes) {
 
 		if (ifPtr->ifr_addr.sa_family == AF_INET &&
-                    !strcmp (ifPtr->ifr_name, ifName)) {
+                    !strcmp (ifPtr->ifr_name, ifn)) {
 
 			found = 1;
 			break;
@@ -764,13 +764,13 @@ static void SetAliasAddressFromIfName (char* ifName)
 	if (!found) {
 
 		close (helperSock);
-		sprintf (msg, "Unknown interface name %s.\n", ifName);
+		sprintf (msg, "Unknown interface name %s.\n", ifn);
 		Quit (msg);
 	}
 /*
  * Get MTU size.
  */
-	strcpy (req.ifr_name, ifName);
+	strcpy (req.ifr_name, ifn);
 
 	if (ioctl (helperSock, SIOCGIFMTU, &req) == -1)
 		Quit ("Cannot get interface mtu size.");
@@ -791,13 +791,13 @@ static void SetAliasAddressFromIfName (char* ifName)
 	close (helperSock);
 }
 
-void Quit (char* msg)
+void Quit (const char* msg)
 {
 	Warn (msg);
 	exit (1);
 }
 
-void Warn (char* msg)
+void Warn (const char* msg)
 {
 	if (background)
 		syslog (LOG_ALERT, "%s (%m)", msg);
@@ -805,14 +805,14 @@ void Warn (char* msg)
 		warn (msg);
 }
 
-static void RefreshAddr ()
+static void RefreshAddr (int sig)
 {
 	signal (SIGHUP, RefreshAddr);
 	if (ifName)
 		assignAliasAddr = 1;
 }
 
-static void InitiateShutdown ()
+static void InitiateShutdown (int sig)
 {
 /*
  * Start timer to allow kernel gracefully
@@ -823,7 +823,7 @@ static void InitiateShutdown ()
 	alarm (10);
 }
 
-static void Shutdown ()
+static void Shutdown (int sig)
 {
 	running = 0;
 }
@@ -870,10 +870,10 @@ struct OptionInfo {
 	enum Option		type;
 	int			packetAliasOpt;
 	enum Param		parm;
-	char*			parmDescription;
-	char*			description;
-	char*			name; 
-	char*			shortName;
+	const char*		parmDescription;
+	const char*		description;
+	const char*		name; 
+	const char*		shortName;
 };
 
 /*
@@ -1054,7 +1054,7 @@ static struct OptionInfo optionTable[] = {
 
 };
 	
-static void ParseOption (char* option, char* parms, int cmdLine)
+static void ParseOption (const char* option, const char* parms, int cmdLine)
 {
 	int			i;
 	struct OptionInfo*	info;
@@ -1062,7 +1062,7 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 	int			aliasValue;
 	int			numValue;
 	u_short			uNumValue;
-	char*			strValue;
+	const char*		strValue;
 	struct in_addr		addrValue;
 	int			max;
 	char*			end;
@@ -1121,7 +1121,7 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 		if (parms)
 			numValue = strtol (parms, &end, 10);
 		else
-			end = parms;
+			end = NULL;
 
 		if (end == parms)
 			errx (1, "%s needs numeric parameter", option);
@@ -1231,7 +1231,7 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 	}
 }
 
-void ReadConfigFile (char* fileName)
+void ReadConfigFile (const char* fileName)
 {
 	FILE*	file;
 	char	buf[128];
@@ -1312,7 +1312,7 @@ static void Usage ()
 	exit (1);
 }
 
-void SetupPptpAlias (char* parms)
+void SetupPptpAlias (const char* parms)
 {
 	char		buf[128];
 	char*		ptr;
@@ -1331,7 +1331,7 @@ void SetupPptpAlias (char* parms)
 	PacketAliasPptp (srcAddr);
 }
 
-void SetupPortRedirect (char* parms)
+void SetupPortRedirect (const char* parms)
 {
 	char		buf[128];
 	char*		ptr;
@@ -1443,7 +1443,7 @@ void SetupPortRedirect (char* parms)
 	}
 }
 
-void SetupAddressRedirect (char* parms)
+void SetupAddressRedirect (const char* parms)
 {
 	char		buf[128];
 	char*		ptr;
@@ -1470,7 +1470,7 @@ void SetupAddressRedirect (char* parms)
 	PacketAliasRedirectAddr (localAddr, publicAddr);
 }
 
-void StrToAddr (char* str, struct in_addr* addr)
+void StrToAddr (const char* str, struct in_addr* addr)
 {
 	struct hostent* hp;
 
@@ -1484,7 +1484,7 @@ void StrToAddr (char* str, struct in_addr* addr)
 	memcpy (addr, hp->h_addr, sizeof (struct in_addr));
 }
 
-u_short StrToPort (char* str, char* proto)
+u_short StrToPort (const char* str, const char* proto)
 {
 	u_short		port;
 	struct servent*	sp;
@@ -1501,7 +1501,7 @@ u_short StrToPort (char* str, char* proto)
 	return sp->s_port;
 }
 
-int StrToPortRange (char* str, char* proto, port_range *portRange)
+int StrToPortRange (const char* str, const char* proto, port_range *portRange)
 {
 	char*           sep;
 	struct servent*	sp;
@@ -1545,7 +1545,7 @@ int StrToPortRange (char* str, char* proto, port_range *portRange)
 }
 
 
-int StrToProto (char* str)
+int StrToProto (const char* str)
 {
 	if (!strcmp (str, "tcp"))
 		return IPPROTO_TCP;
@@ -1556,7 +1556,7 @@ int StrToProto (char* str)
 	errx (1, "unknown protocol %s. Expected tcp or udp", str);
 }
 
-int StrToAddrAndPortRange (char* str, struct in_addr* addr, char* proto, port_range *portRange)
+int StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange)
 {
 	char*	ptr;
 
