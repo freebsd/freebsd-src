@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.9 1995/05/06 09:34:18 jkh Exp $
+ * $Id: install.c,v 1.10 1995/05/07 23:37:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,7 +42,10 @@
  */
 
 #include "sysinstall.h"
-#include<sys/disklabel.h>
+#include <sys/disklabel.h>
+#include <sys/errno.h>
+#include <sys/fcntl.h>
+#include <unistd.h>
 
 Boolean SystemWasInstalled;
 
@@ -86,7 +89,7 @@ installHook(char *str)
 
 	if (!write_disks(disks)) {
 	    make_filesystems(disks);
-	    cpio_extract(disks);
+	    cpio_extract();
 	    extract_dists(disks);
 	    install_configuration_files(disks);
 	    do_final_setup(disks);
@@ -156,6 +159,7 @@ make_filesystems(struct disk **disks)
 {
     int i;
 
+    command_clear();
     for (i = 0; disks[i]; i++) {
 	struct chunk *c1;
 
@@ -168,21 +172,69 @@ make_filesystems(struct disk **disks)
 
 		while (c2) {
 		    if (c2->type == part && c2->subtype != FS_SWAP &&
-			c2->private && ((PartInfo *)c2->private)->newfs)
-			vsystem("%s %s", ((PartInfo *)c2->private)->newfs_cmd,
-				c2->name);
+			c2->private) {
+			PartInfo *tmp = (PartInfo *)c2->private;
+
+			if (tmp->newfs)
+			    command_add(tmp->mountpoint,
+					"%s %s", tmp->newfs_cmd, c2->name);
+			command_add(tmp->mountpoint,
+				    "mkdir -p /mnt/%s", tmp->mountpoint);
+			command_add(tmp->mountpoint,
+				    "mount /mnt/dev/%s /mnt/%s", c2->name,
+				    tmp->mountpoint);
+		    }
 		    c2 = c2->next;
 		}
 	    }
 	    c1 = c1->next;
 	}
     }
+    command_sort();
+    command_execute();
 }
 
 void
-cpio_extract(struct disk **disks)
+cpio_extract(void)
 {
-    
+    int i, j, zpid, cpid, pfd[2];
+
+    while (CpioFD == -1) {
+	msgConfirm("Please Insert CPIO floppy in floppy drive 0");
+	CpioFD = open("/dev/rfd0", O_RDONLY);
+    }
+    msgNotify("Extracting contents of CPIO floppy.");
+    pipe(pfd);
+    zpid = fork();
+    if (!zpid) {
+	close(0); dup(CpioFD); close(CpioFD);
+	close(1); dup(pfd[1]); close(pfd[1]);
+	close(pfd[0]);
+	i = execl("/stand/gunzip", "/stand/gunzip", 0);
+	msgDebug("/stand/gunzip command returns %d status\n", i);
+	exit(i);
+    }
+    cpid = fork();
+    if (!cpid) {
+	close(0); dup(pfd[0]); close(pfd[0]);
+	close(CpioFD);
+	close(pfd[1]);
+	close(1); open("/dev/null", O_WRONLY);
+	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
+	msgDebug("/stand/cpio command returns %d status\n", i);
+	exit(i);
+    }
+    close(pfd[0]);
+    close(pfd[1]);
+    close(CpioFD);
+    i = wait(&j);
+    if (i < 0 || j)
+	msgFatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
+		 i, j, cpid, zpid, strerror(errno));
+    i = wait(&j);
+    if (i < 0 || j)
+	msgFatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
+		 i, j, cpid, zpid, strerror(errno));
 }
 
 void
