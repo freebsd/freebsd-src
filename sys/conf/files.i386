@@ -84,6 +84,7 @@ dev/ata/atapi-all.c		optional	atapist
 dev/ata/atapi-cd.c		optional	atapicd
 dev/ata/atapi-fd.c		optional	atapifd
 dev/ata/atapi-tape.c		optional	atapist
+dev/dgb/dgm.c			optional	dgm
 dev/ed/if_ed.c			optional	ed
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/ed/if_ed_pccard.c		optional	ed card
@@ -149,7 +150,6 @@ gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/dgb.c		optional	dgb
-gnu/i386/isa/dgm.c		optional	dgm
 gnu/i386/isa/sound/awe_wave.c	optional	awe
 i386/apm/apm.c			optional	apm
 i386/i386/atomic.c		standard				\
