@@ -131,6 +131,10 @@ static unsigned long pcm_current_buf;
 static int      pcm_current_count;
 static int      pcm_current_intrflag;
 
+#if defined(__FreeBSD__)
+static char    *gus_copy_buf;
+#endif
+
 struct voice_info voices[32];
 
 static int      freq_div_table[] =
@@ -2003,11 +2007,13 @@ static int
 gus_sampling_open (int dev, int mode)
 {
   int dev_flag;
+  int init_flag;
 #ifdef GUS_NO_DMA
   printk ("GUS: DMA mode not enabled. Device not supported\n");
   return RET_ERROR (ENXIO);
 #endif
   dev_flag = 0;
+  init_flag = (gus_busy[gus_devnum] == 0 && gus_busy[gus_dspnum] == 0);
   if(mode & OPEN_WRITE)
    {
      if (gus_busy[gus_devnum])
@@ -2029,18 +2035,20 @@ gus_sampling_open (int dev, int mode)
      }
    }
 
-  if(gus_busy[gus_devnum] == 0 && gus_busy[gus_dspnum] == 0)
-    gus_initialize ();
+  if(init_flag)
+    {
+      gus_initialize ();
 
-  active_device = 0;
+      active_device = 0;
 
-  gus_reset ();
-  reset_sample_memory ();
-  gus_select_max_voices (14);
+      gus_reset ();
+      reset_sample_memory ();
+      gus_select_max_voices (14);
 
-  pcm_active = 0;
-  dma_active = 0;
-  pcm_opened = 1;
+      pcm_active = 0;
+      dma_active = 0;
+      pcm_opened = 1;
+    }
   if (mode & OPEN_READ)
     {
       recording_active = 1;
@@ -2055,7 +2063,7 @@ static void
 gus_sampling_close (int dev)
 {
   gus_busy[dev] = 0;
-  if (gus_busy[gus_devnum] == 0 && gus_busy[gus_dspnum]) {
+  if (gus_busy[gus_devnum] == 0 && gus_busy[gus_dspnum] == 0) {
     active_device = 0;
     gus_reset();
     pcm_opened = 0;
@@ -2392,6 +2400,47 @@ gus_copy_from_user (int dev, char *localbuf, int localoffs,
       COPY_FROM_USER (&localbuf[localoffs], userbuf, useroffs, len);
     }
   else if (gus_sampling_bits == 8)
+#if defined(__FreeBSD__)
+    {
+      char           *in_left = gus_copy_buf;
+      char           *in_right = in_left + 1;
+      char           *out_left = localbuf + (localoffs / 2);
+      char           *out_right = out_left + pcm_bsize;
+      int             i;
+
+      COPY_FROM_USER (gus_copy_buf, userbuf, useroffs, len);
+
+      len /= 2;
+
+      for (i = 0; i < len; i++)
+	{
+	  *out_left++ = *in_left++;
+	  in_left++;
+	  *out_right++ = *in_right++;
+	  in_right++;
+	}
+    }
+  else
+    {
+      short          *in_left = (short *)gus_copy_buf;
+      short          *in_right = in_left + 1;
+      short          *out_left = (short *)localbuf + (localoffs / 4);
+      short          *out_right = out_left + (pcm_bsize / 2);
+      int             i;
+
+      COPY_FROM_USER (gus_copy_buf, userbuf, useroffs, len);
+
+      len /= 4;
+
+      for (i = 0; i < len; i++)
+	{
+	  *out_left++ = *in_left++;
+	  in_left++;
+	  *out_right++ = *in_right++;
+	  in_right++;
+	}
+    }
+#else
     {
       int             in_left = useroffs;
       int             in_right = useroffs + 1;
@@ -2439,6 +2488,7 @@ gus_copy_from_user (int dev, char *localbuf, int localoffs,
 #endif
 	}
     }
+#endif
 }
 
 static struct audio_operations gus_sampling_operations =
@@ -3054,6 +3104,10 @@ gus_wave_init (long mem_start, int irq, int dma, int dma_read)
       voice_alloc = &guswave_operations.alloc;
       synth_devs[num_synths++] = &guswave_operations;
     }
+
+#if defined(__FreeBSD__)
+  PERMANENT_MALLOC (char *, gus_copy_buf, DSP_BUFFSIZE, mem_start);
+#endif
 
   PERMANENT_MALLOC (struct patch_info *, samples,
 	                   (MAX_SAMPLE + 1) * sizeof (*samples), mem_start);

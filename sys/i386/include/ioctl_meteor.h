@@ -113,8 +113,9 @@ struct meteor_counts {
 					/* internally stored in 32 bits */
 #define METEOR_GEO_YUV_PACKED	0x40000	/* 4-2-2 YUV 16 bits packed */
 #define METEOR_GEO_YUV_PLANER	0x80000	/* 4-2-2 YUV 16 bits planer */
+#define METEOR_GEO_UNSIGNED	0x400000 /* unsigned uv outputs */
 
-	/* following structure is used to coordinate the syncronous */
+	/* following structure is used to coordinate the synchronous */
 	   
 struct meteor_mem {
 		/* kernel write only  */

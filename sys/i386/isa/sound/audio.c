@@ -227,10 +227,16 @@ audio_write (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
 	      /* Handle nonblocking mode */
 #if defined(__FreeBSD__)
 	      if (dev_nblock[dev] && wr_buff_no[dev] == RET_ERROR (EWOULDBLOCK))
+		return wr_buff_no[dev];	/*
+					 * XXX Return error, write() will
+					 * supply # of accepted bytes.
+					 * In fact, in FreeBSD the check
+					 * above should not be needed
+					 */
 #else
 	      if (dev_nblock[dev] && wr_buff_no[dev] == RET_ERROR (EAGAIN))
-#endif
 		return p;	/* No more space. Return # of accepted bytes */
+#endif
 	      return wr_buff_no[dev];
 	    }
 	  wr_buff_ptr[dev] = 0;
@@ -317,10 +323,16 @@ audio_read (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
 
 #if defined(__FreeBSD__)
 	  if (dev_nblock[dev] && buff_no == RET_ERROR (EWOULDBLOCK))
+	    return buff_no;	/*
+	    			 * XXX Return error, read() will supply
+	    			 * # of bytes actually read. In fact,
+	    			 * in FreeBSD the check above should not
+	    			 * be needed
+	    			 */
 #else
 	  if (dev_nblock[dev] && buff_no == RET_ERROR (EAGAIN))
-#endif
 	    return p;
+#endif
 
 	  return buff_no;
 	}
@@ -448,6 +460,20 @@ audio_ioctl (int dev, struct fileinfo *file,
 	dev_nblock[dev] = 1;
 	return 0;
 	break;
+
+#ifdef __FreeBSD__
+      case FIONBIO:	/* XXX Is this the same in Linux? */
+	if (*(int *)arg)
+	  dev_nblock[dev] = 1;
+	else
+	  dev_nblock[dev] = 0;
+	return 0;
+	break;
+
+      case FIOASYNC:
+        return 0;	/* XXX Useful for ampling input notification? */
+        break;
+#endif
 
       default:
 	return DMAbuf_ioctl (dev, cmd, arg, 0);

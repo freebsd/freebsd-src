@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.30 1995/11/04 13:24:48 bde Exp $
+ * $Id: soundcard.c,v 1.31 1995/11/28 09:43:45 julian Exp $
  */
 
 #include "sound_config.h"
@@ -53,7 +53,10 @@ u_int	snd7_imask;
 u_int	snd8_imask;
 u_int	snd9_imask;
 
-#define FIX_RETURN(ret) {if ((ret)<0) return -(ret); else return 0;}
+#define FIX_RETURN(ret) { \
+			  int tmp_ret = (ret); \
+			  if (tmp_ret<0) return -tmp_ret; else return 0; \
+			}
 
 static int      timer_running = 0;
 
