@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.36 1997/06/09 23:38:34 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.9 1997/06/10 09:44:23 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -694,6 +694,94 @@ from a line like
 
 .Dl /AutoPPP/ -     -       /etc/ppp/ppp-pap-dialup
 .El
+
+.Sh PPP OVER TCP (a.k.a Tunneling)
+
+Instead of running ppp over a serial link, it is possible to
+use a tcp connection instead by specifying a host and port as the
+device:
+
+.Dl set device ui-gate:6669
+
+Instead of opening a serial device,
+.Nm
+will open a tcp connection to the given machine on the given
+socket.  It should be noted however that
+.Nm
+doesn't use the telnet protocol and will be unable to negotiate
+with a telnet server.  You should set up a port for receiving
+this ppp connection on the receiving machine (ui-gate).  This is
+done by first updating
+.Pa /etc/services
+to name the service:
+
+.Dl ppp-in 6669/tcp # Incoming ppp connections over tcp
+
+and updating
+.Pa /etc/inetd.conf
+to tell inetd how to deal with incoming connections on that port:
+
+.Dl ppp-in stream tcp nowait root /usr/sbin/ppp ppp -direct ppp-in
+
+Don't forget to send a
+.Dv HUP
+signal to
+.Nm inetd
+after you've updated
+.Pa /etc/inetd.conf .
+
+Here, we use a label named
+.Dq ppp-in .
+The entry in
+.Pa /etc/ppp/ppp.conf
+on ui-gate (the receiver) should contain the following:
+
+.Bd -literal -offset indent
+ppp-in:
+ set timeout 0
+ set ifaddr 10.0.4.1 10.0.4.2
+ add 10.0.4.1 255.255.255.255 127.0.0.1
+ add 10.0.1.0 255.255.255.0 10.0.4.1
+.Ed
+
+You may also want to enable PAP or CHAP for security.  The entry in
+.Pa /etc/ppp/ppp.conf
+on awfulhak (the initiator) should contain the following:
+
+.Bd -literal -offset indent
+ui-gate:
+ set escape 0xff
+ set device ui-gate:ppp-in
+ set dial
+ set timeout 30 5 4 
+ set log Phase Chat Connect Carrier hdlc LCP tun
+ set ifaddr 10.0.4.2 10.0.4.1
+ add 10.0.4.2 255.255.255.255 127.0.0.1
+ add 10.0.2.0 255.255.255.0 10.0.4.2
+.Ed
+
+We're assigning the address of 10.0.4.1 to ui-gate, and the address
+10.0.4.2 to awfulhak.
+
+To open the connection, just type
+
+.Dl awfulhak # ppp -background ui-gate
+
+The result will be an additional "route" on awfulhak to the
+10.0.2.0/24 network via the tcp connection, and an additional
+"route" on ui-gate to the 10.0.1.0/24 network.
+
+The networks are effectively bridged - the underlying tcp
+connection may be across a public network (such as the
+Internet), and the ppp traffic is conceptually encapsulated
+(although not packet by packet) inside the tcp stream between
+the two gateways.
+
+The major disadvantage of this mechanism is that there are two
+"guaranteed delivery" mechanisms in place - the underlying tcp
+stream and whatever protocol is used over the ppp link - probably
+tcp again.  If packets are lost, both levels will get in eachothers
+way trying to negotiate sending of the missing packet.
 
 .Sh PACKET ALIASING
 
@@ -1391,7 +1479,23 @@ This sets the authentication id used in PAP or CHAP negotiation.
 This sets hardware flow control and is the default.
 
 .It set device|line value
-This sets the device to which ppp will talk to the given value.
+This sets the device to which ppp will talk to the given
+.Dq value .
+All serial device names are expected to begin with
+.Pa /dev/ .
+If
+.Dq value
+does not begin with
+.Pa /dev/ ,
+it must be of the format
+.Dq host:port .
+If this is the case,
+.Nm
+will attempt to connect to the given
+.Dq host
+on the given
+.Dq port .
+Refer to the section on PPP OVER TCP above for further details.
 
 .It set dial chat-script
 This specifies the chat script that will be used to dial the other
