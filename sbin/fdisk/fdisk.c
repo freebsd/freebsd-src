@@ -83,7 +83,8 @@ struct mboot {
 };
 
 static struct mboot mboot;
-static int fd;
+static int fd, fdw;
+
 
 #define ACTIVE 0x80
 #define BOOT_MAGIC 0xAA55
@@ -694,7 +695,10 @@ static int
 open_disk(int flag)
 {
 	struct stat 	st;
+	int rwmode, p;
+	char *s;
 
+	fdw = -1;
 	if (stat(disk, &st) == -1) {
 		if (errno == ENOENT)
 			return -2;
@@ -703,10 +707,26 @@ open_disk(int flag)
 	}
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
-	if ((fd = open(disk,
-	    a_flag || I_flag || B_flag || flag ? O_RDWR : O_RDONLY)) == -1) {
-		if(errno == ENXIO)
-			return -2;
+	rwmode = a_flag || I_flag || B_flag || flag ? O_RDWR : O_RDONLY;
+	fd = open(disk, rwmode);
+	if (fd == -1 && errno == ENXIO)
+		return -2;
+	if (fd == -1 && errno == EPERM && rwmode == O_RDWR) {
+		fd = open(disk, O_RDONLY);
+		if (fd == -1)
+			return -3;
+		for (p = 1; p < 5; p++) {
+			asprintf(&s, "%ss%d", disk, p);
+			fdw = open(s, O_RDONLY);
+			free(s);
+			if (fdw == -1)
+				continue;
+			break;
+		}
+		if (fdw == -1)
+			return -4;
+	}
+	if (fd == -1) {
 		warnx("can't open device %s", disk);
 		return -1;
 	}
@@ -740,9 +760,14 @@ read_disk(off_t sector, void *buf)
 static ssize_t
 write_disk(off_t sector, void *buf)
 {
-	lseek(fd,(sector * 512), 0);
-	/* write out in the size that the read_disk found worked */
-	return write(fd, buf, secsize);
+
+	if (fdw != -1) {
+		return ioctl(fdw, DIOCSMBR, buf);
+	} else {
+		lseek(fd,(sector * 512), 0);
+		/* write out in the size that the read_disk found worked */
+		return write(fd, buf, secsize);
+	}
 }
 
 static int
@@ -1068,7 +1093,7 @@ process_partition(CMD *command)
 	}
 
 	/*
-	 * Adjust start upwards, if necessary, to fall on an head boundary.
+	 * Adjust start upwards, if necessary, to fall on a head boundary.
 	 */
 		if (partp->dp_start % dos_sectors != 0) {
 	    prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
@@ -1279,7 +1304,7 @@ sanitize_partition(struct dos_partition *partp)
 	return (1);
 
     /*
-     * Adjust start upwards, if necessary, to fall on an head boundary.
+     * Adjust start upwards, if necessary, to fall on a head boundary.
      */
     if (start % dos_sectors != 0) {
 	prev_head_boundary = start / dos_sectors * dos_sectors;
