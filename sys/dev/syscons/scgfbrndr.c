@@ -156,7 +156,7 @@ gfb_draw(scr_stat *scp, int from, int count, int flip)
 
 		/* Scroll to make room for new text rows... */
 		(*vidsw[scp->sc->adapter]->copy)(adp, n, 0, n);
-#ifdef 0
+#if 0
 		(*vidsw[scp->sc->adapter]->clear)(adp, n);
 #endif
 
@@ -207,7 +207,7 @@ gfb_cursor_shape(scr_stat *scp, int base, int height, int blink)
 
 static int pxlblinkrate = 0;
 
-#ifdef 0
+#if 0
 static void
 gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
