@@ -128,14 +128,23 @@ mac_none_destroy_label(struct label *label)
 }
 
 static int
-mac_none_externalize(struct label *label, struct mac *extmac)
+mac_none_externalize_label(struct label *label, char *element_name,
+    char *element_data, size_t size, size_t *len, int *claimed)
 {
 
 	return (0);
 }
 
 static int
-mac_none_internalize(struct label *label, struct mac *extmac)
+mac_none_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
+{
+
+	return (0);
+}
+
+static int
+mac_none_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
 {
 
 	return (0);
@@ -218,7 +227,7 @@ mac_none_update_procfsvnode(struct vnode *vp, struct label *vnodelabel,
 
 static int
 mac_none_update_vnode_from_externalized(struct vnode *vp,
-    struct label *vnodelabel, struct mac *extmac)
+    struct label *vnodelabel, struct oldmac *extmac)
 {
 
 	return (0);
@@ -877,8 +886,6 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_init_label_waitcheck },
 	{ MAC_INIT_SOCKET_PEER_LABEL,
 	    (macop_t)mac_none_init_label_waitcheck },
-	{ MAC_INIT_TEMP_LABEL,
-	    (macop_t)mac_none_init_label },
 	{ MAC_INIT_VNODE_LABEL,
 	    (macop_t)mac_none_init_label },
 	{ MAC_DESTROY_BPFDESC_LABEL,
@@ -903,14 +910,32 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_destroy_label },
 	{ MAC_DESTROY_SOCKET_PEER_LABEL,
 	    (macop_t)mac_none_destroy_label },
-	{ MAC_DESTROY_TEMP_LABEL,
-	    (macop_t)mac_none_destroy_label },
 	{ MAC_DESTROY_VNODE_LABEL,
 	    (macop_t)mac_none_destroy_label },
-	{ MAC_EXTERNALIZE,
-	    (macop_t)mac_none_externalize },
-	{ MAC_INTERNALIZE,
-	    (macop_t)mac_none_internalize },
+	{ MAC_EXTERNALIZE_CRED_LABEL,
+	    (macop_t)mac_none_externalize_label },
+	{ MAC_EXTERNALIZE_IFNET_LABEL,
+	    (macop_t)mac_none_externalize_label },
+	{ MAC_EXTERNALIZE_PIPE_LABEL,
+	    (macop_t)mac_none_externalize_label },
+	{ MAC_EXTERNALIZE_SOCKET_LABEL,
+	    (macop_t)mac_none_externalize_label },
+	{ MAC_EXTERNALIZE_SOCKET_PEER_LABEL,
+	    (macop_t)mac_none_externalize_label },
+	{ MAC_EXTERNALIZE_VNODE_LABEL,
+	    (macop_t)mac_none_externalize_label },
+	{ MAC_EXTERNALIZE_VNODE_OLDMAC,
+	    (macop_t)mac_none_externalize_vnode_oldmac },
+	{ MAC_INTERNALIZE_CRED_LABEL,
+	    (macop_t)mac_none_internalize_label },
+	{ MAC_INTERNALIZE_IFNET_LABEL,
+	    (macop_t)mac_none_internalize_label },
+	{ MAC_INTERNALIZE_PIPE_LABEL,
+	    (macop_t)mac_none_internalize_label },
+	{ MAC_INTERNALIZE_SOCKET_LABEL,
+	    (macop_t)mac_none_internalize_label },
+	{ MAC_INTERNALIZE_VNODE_LABEL,
+	    (macop_t)mac_none_internalize_label },
 	{ MAC_CREATE_DEVFS_DEVICE,
 	    (macop_t)mac_none_create_devfs_device },
 	{ MAC_CREATE_DEVFS_DIRECTORY,
