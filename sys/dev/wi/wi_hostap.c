@@ -343,7 +343,7 @@ addr_cmp(u_int8_t a[], u_int8_t b[])
 		*(u_int32_t *)(a    ) == *(u_int32_t *)(b));
 }
 
-void
+static void
 wihap_sta_timeout(void *v)
 {
 	struct wihap_sta_info	*sta = v;
