@@ -1093,6 +1093,9 @@ dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 	pcm_dev = devclass_get_softc(pcm_devclass, unit);
 
+	if (pcm_dev == NULL)
+		return;
+
 	SLIST_FOREACH(pcm_chan, &pcm_dev->channels, link) {
 
 		switch(devtype) {
