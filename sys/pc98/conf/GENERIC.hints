@@ -105,7 +105,7 @@ hint.sc.0.at="isa"
 #hint.pmc.0.port="0x8f0"
 
 hint.pcic.0.at="isa"
-#hint.pcic.0.irq="6"	# Default to polling
+hint.pcic.0.irq="6"
 hint.pcic.0.port="0x3e0"
 
 # Windows Sound System
