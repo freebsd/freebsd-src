@@ -32,16 +32,21 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <err.h>
 #include <errno.h>
-#include <ttyent.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <ttyent.h>
 #include "extern.h"
 
 char    tbuf[1024];      		/* Termcap entry. */
@@ -67,12 +72,12 @@ get_termcap_entry(userarg, tcapbufp)
 	}
 
 	/* Try the environment. */
-	if (ttype = getenv("TERM"))
+	if ((ttype = getenv("TERM")))
 		goto map;
 
 	/* Try ttyname(3); check for dialup or other mapping. */
-	if (ttypath = ttyname(STDERR_FILENO)) {
-		if (p = rindex(ttypath, '/'))
+	if ((ttypath = ttyname(STDERR_FILENO))) {
+		if ((p = rindex(ttypath, '/')))
 			++p;
 		else
 			p = ttypath;
@@ -107,12 +112,11 @@ found:	if ((p = getenv("TERMCAP")) != NULL && *p != '/')
 
 	/* Find the termcap entry.  If it doesn't exist, ask the user. */
 	while ((rval = tgetent(tbuf, ttype)) == 0) {
-		(void)fprintf(stderr,
-		    "tset: terminal type %s is unknown\n", ttype);
+		warnx("terminal type %s is unknown", ttype);
 		ttype = askuser(NULL);
 	}
 	if (rval == -1)
-		err("termcap: %s", strerror(errno ? errno : ENOENT));
+		errx(1, "termcap: %s", strerror(errno ? errno : ENOENT));
 	*tcapbufp = tbuf;
 	return (ttype);
 }
@@ -145,7 +149,7 @@ askuser(dflt)
 			return (dflt);
 		}
 
-		if (p = index(answer, '\n'))
+		if ((p = index(answer, '\n')))
 			*p = '\0';
 		if (answer[0])
 			return (answer);

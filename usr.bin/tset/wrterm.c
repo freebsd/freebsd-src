@@ -32,12 +32,17 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)wrterm.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
 #include <string.h>
 #include "extern.h"
 
@@ -55,7 +60,7 @@ wrtermcap(bp)
 
 	/* Find the end of the terminal names. */
 	if ((t = index(bp, ':')) == NULL)
-		err("termcap names not colon terminated");
+		errx(1, "termcap names not colon terminated");
 	*t++ = '\0';
 
 	/* Output terminal names that don't have whitespace. */

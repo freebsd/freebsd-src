@@ -41,7 +41,6 @@ extern int erasechar, intrchar, killchar;
 
 void	 add_mapping __P((char *, char *));
 void	 cat __P((char *));
-void	 err __P((const char *, ...));
 char	*get_termcap_entry __P((char *, char **));
 char	*mapped __P((char *));
 int      outc __P((int));
