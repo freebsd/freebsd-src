@@ -3890,7 +3890,7 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	return ((int)((unsigned char)result));
 }
 
-#define IICBUS(bktr) ((bktr)->i2c_sc.iicbus)
+#define IICBUS(bktr) ((bktr)->i2c_sc.iicbb)
 
 /* The MSP34xx and DPL35xx Audio chip require i2c bus writes of up */
 /* to 5 bytes which the bt848 automated i2c bus controller cannot handle */
