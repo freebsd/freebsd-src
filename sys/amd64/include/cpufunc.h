@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.78 1998/05/12 18:28:05 dyson Exp $
+ *	$Id: cpufunc.h,v 1.79 1998/05/17 18:53:08 tegge Exp $
  */
 
 /*
@@ -170,10 +170,10 @@ inbv(u_int port)
 	return (data);
 }
 
-static __inline u_long
+static __inline u_int
 inl(u_int port)
 {
-	u_long	data;
+	u_int	data;
 
 	__asm __volatile("inl %%dx,%0" : "=a" (data) : "d" (port));
 	return (data);
@@ -228,7 +228,7 @@ cpu_invlpg(void *addr)
 static __inline void
 cpu_invltlb(void)
 {
-	u_long	temp;
+	u_int	temp;
 	/*
 	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
 	 * is inlined.
@@ -251,7 +251,7 @@ invlpg(u_int addr)
 static __inline void
 invltlb(void)
 {
-	u_long	temp;
+	u_int	temp;
 	/*
 	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
 	 * is inlined.
@@ -300,7 +300,7 @@ outbv(u_int port, u_char data)
 }
 
 static __inline void
-outl(u_int port, u_long data)
+outl(u_int port, u_int data)
 {
 	/*
 	 * outl() and outw() aren't used much so we haven't looked at
@@ -340,46 +340,46 @@ outw(u_int port, u_short data)
 	__asm __volatile("outw %0,%%dx" : : "a" (data), "d" (port));
 }
 
-static __inline u_long
+static __inline u_int
 rcr2(void)
 {
-	u_long	data;
+	u_int	data;
 
 	__asm __volatile("movl %%cr2,%0" : "=r" (data));
 	return (data);
 }
 
-static __inline u_long
+static __inline u_int
 read_eflags(void)
 {
-	u_long	ef;
+	u_int	ef;
 
 	__asm __volatile("pushfl; popl %0" : "=r" (ef));
 	return (ef);
 }
 
-static __inline quad_t
+static __inline u_int64_t
 rdmsr(u_int msr)
 {
-	quad_t rv;
+	u_int64_t rv;
 
 	__asm __volatile(".byte 0x0f, 0x32" : "=A" (rv) : "c" (msr));
 	return (rv);
 }
 
-static __inline quad_t
+static __inline u_int64_t
 rdpmc(u_int pmc)
 {
-	quad_t rv;
+	u_int64_t rv;
 
 	__asm __volatile(".byte 0x0f, 0x33" : "=A" (rv) : "c" (pmc));
 	return (rv);
 }
 
-static __inline quad_t
+static __inline u_int64_t
 rdtsc(void)
 {
-	quad_t rv;
+	u_int64_t rv;
 
 	__asm __volatile(".byte 0x0f, 0x31" : "=A" (rv));
 	return (rv);
@@ -402,13 +402,13 @@ wbinvd(void)
 }
 
 static __inline void
-write_eflags(u_long ef)
+write_eflags(u_int ef)
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
 
 static __inline void
-wrmsr(u_int msr, quad_t newval)
+wrmsr(u_int msr, u_int64_t newval)
 {
 	__asm __volatile(".byte 0x0f, 0x30" : : "A" (newval), "c" (msr));
 }
@@ -419,7 +419,7 @@ int	breakpoint	__P((void));
 void	disable_intr	__P((void));
 void	enable_intr	__P((void));
 u_char	inb		__P((u_int port));
-u_long	inl		__P((u_int port));
+u_int	inl		__P((u_int port));
 void	insb		__P((u_int port, void *addr, size_t cnt));
 void	insl		__P((u_int port, void *addr, size_t cnt));
 void	insw		__P((u_int port, void *addr, size_t cnt));
@@ -429,30 +429,30 @@ void	invltlb		__P((void));
 u_short	inw		__P((u_int port));
 u_int	loadandclear	__P((u_int *addr));
 void	outb		__P((u_int port, u_char data));
-void	outl		__P((u_int port, u_long data));
+void	outl		__P((u_int port, u_int data));
 void	outsb		__P((u_int port, void *addr, size_t cnt));
 void	outsl		__P((u_int port, void *addr, size_t cnt));
 void	outsw		__P((u_int port, void *addr, size_t cnt));
 void	outw		__P((u_int port, u_short data));
-u_long	rcr2		__P((void));
-quad_t	rdmsr		__P((u_int msr));
-quad_t	rdpmc		__P((u_int pmc));
-quad_t	rdtsc		__P((void));
-u_long	read_eflags	__P((void));
+u_int	rcr2		__P((void));
+u_int64_t rdmsr		__P((u_int msr));
+u_int64_t rdpmc		__P((u_int pmc));
+u_int64_t rdtsc		__P((void));
+u_int	read_eflags	__P((void));
 void	setbits		__P((volatile unsigned *addr, u_int bits));
 void	wbinvd		__P((void));
-void	write_eflags	__P((u_long ef));
-void	wrmsr		__P((u_int msr, quad_t newval));
+void	write_eflags	__P((u_int ef));
+void	wrmsr		__P((u_int msr, u_int64_t newval));
 
 #endif	/* __GNUC__ */
 
-void	load_cr0	__P((u_long cr0));
-void	load_cr3	__P((u_long cr3));
-void	load_cr4	__P((u_long cr4));
+void	load_cr0	__P((u_int cr0));
+void	load_cr3	__P((u_int cr3));
+void	load_cr4	__P((u_int cr4));
 void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
-u_long	rcr3		__P((void));
-u_long	rcr4		__P((void));
+u_int	rcr3		__P((void));
+u_int	rcr4		__P((void));
 void	i686_pagezero	__P((void *addr));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
