@@ -133,11 +133,7 @@ the command uses the next smaller such multiple.
 This option overrides the calculation of tape size
 based on length and density.
 .It Fl b Ar blocksize
-The number of kilobytes per output block, except that if it is
-larger than 64, the command uses 64.
-(See the
-.Sx BUGS
-section.)
+The number of kilobytes per output block.
 The default block size is 10.
 .It Fl C Ar cachesize
 Specify the cache size in megabytes.
@@ -444,14 +440,6 @@ Fewer than 32 read errors on the file system are ignored.
 Each reel requires a new process, so parent processes for
 reels already written just hang around until the entire tape
 is written.
-.Pp
-Currently,
-.Xr physio 9
-slices all requests into chunks of 64 KB.
-Therefore, it is
-impossible to use a larger output block size, so
-.Nm
-will prevent this from happening.
 .Pp
 The
 .Nm
