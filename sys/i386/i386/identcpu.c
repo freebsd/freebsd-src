@@ -106,6 +106,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 	{ "Pentium II",		CPUCLASS_686 },		/* CPU_PII */
 	{ "Pentium III",	CPUCLASS_686 },		/* CPU_PIII */
+	{ "Pentium 4",		CPUCLASS_686 },		/* CPU_P4 */
 };
 
 static void
@@ -219,6 +220,10 @@ printcpuinfo(void)
 				        strcat(cpu_model, "Unknown 80686");
 					break;
 				}
+				break;
+			case 0xf00:
+				strcat(cpu_model, "Pentium 4");
+				cpu = CPU_P4;
 				break;
 			default:
 				strcat(cpu_model, "unknown");

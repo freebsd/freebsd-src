@@ -56,8 +56,9 @@
 #define	CPU_M2		11	/* Cyrix M2 (aka enhanced 6x86 with MMX */
 #define	CPU_NX586	12	/* NexGen (now AMD) 586 */
 #define	CPU_CY486DX	13	/* Cyrix 486S/DX/DX2/DX4 */
-#define CPU_PII		14	/* Intel Pentium II */
-#define CPU_PIII	15	/* Intel Pentium III */
+#define	CPU_PII		14	/* Intel Pentium II */
+#define	CPU_PIII	15	/* Intel Pentium III */
+#define	CPU_P4		16	/* Intel Pentium 4 */
 
 #ifndef LOCORE
 struct cpu_nameclass {
