@@ -208,7 +208,7 @@ struct _kwinfo {
 };
 #define NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
 
-const char *boguslocales[] = { "UTF-8", "la_LN." };
+const char *boguslocales[] = { "UTF-8" };
 #define	NBOGUS	(sizeof(boguslocales)/sizeof(boguslocales[0]))
 
 int
