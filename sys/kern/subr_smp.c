@@ -53,6 +53,7 @@ int mp_ncpus;
 
 volatile int smp_started;
 u_int all_cpus;
+u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
 
@@ -79,16 +80,27 @@ static void (*smp_rv_teardown_func)(void *arg);
 static void *smp_rv_func_arg;
 static volatile int smp_rv_waiters[2];
 static struct mtx smp_rv_mtx;
+static int mp_probe_status;
 
 /*
- * Initialize MI SMP variables and call the MD SMP initialization code.
+ * Initialize MI SMP variables.
+ */
+static void
+mp_probe(void *dummy)
+{
+	mp_probe_status = cpu_mp_probe();
+}
+SYSINIT(cpu_mp_probe, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_probe, NULL);
+
+/*
+ * Call the MD SMP initialization code.
  */
 static void
 mp_start(void *dummy)
 {
 
 	/* Probe for MP hardware. */
-	if (cpu_mp_probe() == 0)
+	if (mp_probe_status == 0)
 		return;
 
 	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
