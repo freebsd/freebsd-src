@@ -32,7 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
 #include <langinfo.h>
+#include <limits.h>
 #include <locale.h>
 #include <paths.h>
 #include <pwd.h>
@@ -271,12 +273,20 @@ int
 ttywidth(void)
 {
 	struct winsize ws;
-	int width;
+	long width;
+	char *cols, *ep;
 
+	if ((cols = getenv("COLUMNS")) != NULL && *cols != '\0') {
+		errno = 0;
+		width = strtol(cols, &ep, 10);
+		if (errno || width <= 0 || width > INT_MAX || ep == cols ||
+		    *ep != '\0')
+			warnx("invalid COLUMNS environment variable ignored");
+		else
+			return ((int)cols);
+	}
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1)
-		width = ws.ws_col;
-	else
-		width = 80;
+		return (ws.ws_col);
 
-	return (width);
+	return (80);
 }
