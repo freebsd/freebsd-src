@@ -39,8 +39,9 @@
 static void nw_passencrypt(char *old, char *new, char *out);
 
 int
-ncp_get_bindery_object_id(int connid, u_int16_t object_type, const char *object_name,
-			  struct ncp_bindery_object *target) {
+ncp_get_bindery_object_id(NWCONN_HANDLE connid, u_int16_t object_type,
+	const char *object_name, struct ncp_bindery_object *target)
+{
 	int error;
 	DECLARE_RQ;
 
@@ -61,9 +62,9 @@ ncp_get_bindery_object_id(int connid, u_int16_t object_type, const char *object_
 }
 
 int
-ncp_read_property_value(int connid, int object_type, const char *object_name,
-			int segment, const char *prop_name,
-			struct nw_property *target)
+ncp_read_property_value(NWCONN_HANDLE connid, int object_type,
+	const char *object_name, int segment, const char *prop_name,
+	struct nw_property *target)
 {
 	int error;
 	struct ncp_buf conn;
@@ -83,8 +84,9 @@ ncp_read_property_value(int connid, int object_type, const char *object_name,
 }
 
 int
-ncp_scan_bindery_object(int connid, u_int32_t last_id, u_int16_t object_type, 
-	char *search_string, struct ncp_bindery_object *target)
+ncp_scan_bindery_object(NWCONN_HANDLE connid, u_int32_t last_id,
+	u_int16_t object_type, char *search_string,
+	struct ncp_bindery_object *target)
 {
 	int error;
 	DECLARE_RQ;
@@ -105,8 +107,9 @@ ncp_scan_bindery_object(int connid, u_int32_t last_id, u_int16_t object_type,
 }
 
 int
-ncp_get_bindery_object_name(int connid, u_int32_t object_id,
-			    struct ncp_bindery_object *target) {
+ncp_get_bindery_object_name(NWCONN_HANDLE connid, u_int32_t object_id,
+	struct ncp_bindery_object *target)
+{
 	int error;
 	DECLARE_RQ;
 
@@ -175,7 +178,8 @@ ncp_get_encryption_key(NWCONN_HANDLE cH, char *target) {
 
 int
 ncp_keyed_verify_password(NWCONN_HANDLE cH, char *key, char *passwd,
-			    struct ncp_bindery_object *objinfo) {
+	struct ncp_bindery_object *objinfo)
+{
 	u_long id = htonl(objinfo->object_id);
 	u_char cryptkey[8];
 	u_char buf[128];
