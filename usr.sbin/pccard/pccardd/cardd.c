@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.13.2.5 1998/02/07 20:33:06 nate Exp $";
+	"$Id: cardd.c,v 1.13.2.6 1998/03/02 19:01:21 guido Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -270,7 +270,7 @@ card_removed(struct slot *sp)
 	sp->cis = 0;
 	sp->config = 0;
 	/* release io */
-	bit_nset(io_avail, sp->io.addr, sp->io.size);
+	bit_nset(io_avail, sp->io.addr, sp->io.addr + sp->io.size - 1);
 }
 
 /*
