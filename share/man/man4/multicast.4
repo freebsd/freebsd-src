@@ -93,13 +93,11 @@ That socket would be used
 to control the multicast forwarding in the kernel.
 Note that most operations below require certain privilege
 (i.e., root privilege):
-.Pp
 .Bd -literal
 /* IPv4 */
 int mrouter_s4;
 mrouter_s4 = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP);
 .Ed
-.Pp
 .Bd -literal
 int mrouter_s6;
 mrouter_s6 = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
@@ -108,11 +106,19 @@ mrouter_s6 = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
 Note that if the router needs to open an IGMP or ICMPv6 socket
 (in case of IPv4 and IPv6 respectively)
 for sending or receiving of IGMP or MLD multicast group membership messages,
-then the same mrouter_s4 or mrouter_s6 sockets should be used
+then the same
+.Va mrouter_s4
+or
+.Va mrouter_s6
+sockets should be used
 for sending and receiving respectively IGMP or MLD messages.
-In case of BSD-derived kernel, it may be possible to open separate sockets
+In case of
+.Bx Ns
+-derived kernel, it may be possible to open separate sockets
 for IGMP or MLD messages only.
-However, some other kernels (e.g., Linux) require that the multicast
+However, some other kernels (e.g.,
+.Tn Linux )
+require that the multicast
 routing socket must be used for sending and receiving of IGMP or MLD
 messages.
 Therefore, for portability reason the multicast
@@ -125,7 +131,6 @@ or disable multicast forwarding in the kernel:
 int v = 1;        /* 1 to enable, or 0 to disable */
 setsockopt(mrouter_s4, IPPROTO_IP, MRT_INIT, (void *)&v, sizeof(v));
 .Ed
-.Pp
 .Bd -literal
 /* IPv6 */
 int v = 1;        /* 1 to enable, or 0 to disable */
@@ -165,30 +170,30 @@ setsockopt(mrouter_s4, IPPROTO_IP, MRT_ADD_VIF, (void *)&vc,
 .Ed
 .Pp
 The
-.Dq vif_index
+.Va vif_index
 must be unique per vif.
 The
-.Dq vif_flags
+.Va vif_flags
 contains the
-.Dq VIFF_*
-flags as defined in <netinet/ip_mroute.h>.
+.Dv VIFF_*
+flags as defined in
+.In netinet/ip_mroute.h .
 The
-.Dq min_ttl_threshold
+.Va min_ttl_threshold
 contains the minimum TTL a multicast data packet must have to be
 forwarded on that vif.
 Typically, it would have value of 1.
 The
-.Dq max_rate_limit
+.Va max_rate_limit
 contains the maximum rate (in bits/s) of the multicast data packets forwarded
 on that vif.
 Value of 0 means no limit.
 The
-.Dq vif_local_address
+.Va vif_local_address
 contains the local IP address of the corresponding local interface.
 The
-.Dq vif_remote_address
+.Va vif_remote_address
 contains the remote IP address in case of DVMRP multicast tunnels.
-.Pp
 .Bd -literal
 /* IPv6 */
 struct mif6ctl mc;
@@ -202,15 +207,16 @@ setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_ADD_MIF, (void *)&mc,
 .Ed
 .Pp
 The
-.Dq mif_index
+.Va mif_index
 must be unique per vif.
 The
-.Dq mif_flags
+.Va mif_flags
 contains the
-.Dq MIFF_*
-flags as defined in <netinet6/ip6_mroute.h>.
+.Dv MIFF_*
+flags as defined in
+.In netinet6/ip6_mroute.h .
 The
-.Dq pif_index
+.Va pif_index
 is the physical interface index of the corresponding local interface.
 .Pp
 A multicast interface is deleted by:
@@ -220,7 +226,6 @@ vifi_t vifi = vif_index;
 setsockopt(mrouter_s4, IPPROTO_IP, MRT_DEL_VIF, (void *)&vifi,
            sizeof(vifi));
 .Ed
-.Pp
 .Bd -literal
 /* IPv6 */
 mifi_t mifi = mif_index;
@@ -233,53 +238,57 @@ interfaces are
 added, the kernel may deliver upcall messages (also called signals
 later in this text) on the multicast routing socket that was open
 earlier with
-.Dq MRT_INIT
+.Dv MRT_INIT
 or
-.Dq MRT6_INIT .
+.Dv MRT6_INIT .
 The IPv4 upcalls have
-.Dq struct igmpmsg
-header (see <netinet/ip_mroute.h>) with field
-.Dq im_mbz
+.Vt "struct igmpmsg"
+header (see
+.In netinet/ip_mroute.h )
+with field
+.Va im_mbz
 set to zero.
 Note that this header follows the structure of
-.Dq struct ip
+.Vt "struct ip"
 with the protocol field
-.Dq ip_p
+.Va ip_p
 set to zero.
 The IPv6 upcalls have
-.Dq struct mrt6msg
-header (see <netinet6/ip6_mroute.h>) with field
-.Dq im6_mbz
+.Vt "struct mrt6msg"
+header (see
+.In netinet6/ip6_mroute.h )
+with field
+.Va im6_mbz
 set to zero.
 Note that this header follows the structure of
-.Dq struct ip6_hdr
+.Vt "struct ip6_hdr"
 with the next header field
-.Dq ip6_nxt
+.Va ip6_nxt
 set to zero.
 .Pp
 The upcall header contains field
-.Dq im_msgtype
+.Va im_msgtype
 and
-.Dq im6_msgtype
+.Va im6_msgtype
 with the type of the upcall
-.Dq IGMPMSG_*
+.Dv IGMPMSG_*
 and
-.Dq MRT6MSG_*
+.Dv MRT6MSG_*
 for IPv4 and IPv6 respectively.
 The values of the rest of the upcall header fields
 and the body of the upcall message depend on the particular upcall type.
 .Pp
 If the upcall message type is
-.Dq IGMPMSG_NOCACHE
+.Dv IGMPMSG_NOCACHE
 or
-.Dq MRT6MSG_NOCACHE ,
+.Dv MRT6MSG_NOCACHE ,
 this is an indication that a multicast packet has reached the multicast
 router, but the router has no forwarding state for that packet.
 Typically, the upcall would be a signal for the multicast routing
 user-level process to install the appropriate Multicast Forwarding
 Cache (MFC) entry in the kernel.
 .Pp
-A MFC entry is added by:
+An MFC entry is added by:
 .Bd -literal
 /* IPv4 */
 struct mfcctl mc;
@@ -292,7 +301,6 @@ for (i = 0; i < maxvifs; i++)
 setsockopt(mrouter_s4, IPPROTO_IP, MRT_ADD_MFC,
            (void *)&mc, sizeof(mc));
 .Ed
-.Pp
 .Bd -literal
 /* IPv6 */
 struct mf6cctl mc;
@@ -308,17 +316,17 @@ setsockopt(mrouter_s4, IPPROTO_IPV6, MRT6_ADD_MFC,
 .Ed
 .Pp
 The
-.Dq source_addr
+.Va source_addr
 and
-.Dq group_addr
+.Va group_addr
 are the source and group address of the multicast packet (as set
 in the upcall message).
 The
-.Dq iif_index
+.Va iif_index
 is the virtual interface index of the multicast interface the multicast
 packets for this specific source and group address should be received on.
 The
-.Dq oifs_ttl[]
+.Va oifs_ttl[]
 array contains the minimum TTL (per interface) a multicast packet
 should have to be forwarded on an outgoing interface.
 If the TTL value is zero, the corresponding interface is not included
@@ -326,7 +334,7 @@ in the set of outgoing interfaces.
 Note that in case of IPv6 only the set of outgoing interfaces can
 be specified.
 .Pp
-A MFC entry is deleted by:
+An MFC entry is deleted by:
 .Bd -literal
 /* IPv4 */
 struct mfcctl mc;
@@ -336,7 +344,6 @@ memcpy(&mc.mfcc_mcastgrp, &group_addr, sizeof(mc.mfcc_mcastgrp));
 setsockopt(mrouter_s4, IPPROTO_IP, MRT_DEL_MFC,
            (void *)&mc, sizeof(mc));
 .Ed
-.Pp
 .Bd -literal
 /* IPv6 */
 struct mf6cctl mc;
@@ -358,7 +365,6 @@ memcpy(&sgreq.src, &source_addr, sizeof(sgreq.src));
 memcpy(&sgreq.grp, &group_addr, sizeof(sgreq.grp));
 ioctl(mrouter_s4, SIOCGETSGCNT, &sgreq);
 .Ed
-.Pp
 .Bd -literal
 /* IPv6 */
 struct sioc_sg_req6 sgreq;
@@ -378,7 +384,6 @@ memset(&vreq, 0, sizeof(vreq));
 vreq.vifi = vif_index;
 ioctl(mrouter_s4, SIOCGETVIFCNT, &vreq);
 .Ed
-.Pp
 .Bd -literal
 /* IPv6 */
 struct sioc_mif_req6 mreq;
@@ -386,7 +391,6 @@ memset(&mreq, 0, sizeof(mreq));
 mreq.mifi = vif_index;
 ioctl(mrouter_s6, SIOCGETMIFCNT_IN6, &mreq);
 .Ed
-.Pp
 .Ss Advanced Multicast API Programming Guide
 If we want to add new features in the kernel, it becomes difficult
 to preserve backward compatibility (binary and API),
@@ -409,7 +413,7 @@ the kernel has agreed on.
 .El
 .\"
 .Pp
-To support backward compatibility, if the user-level process doesn't
+To support backward compatibility, if the user-level process does not
 ask for any new features, the kernel defaults to the basic
 multicast API (see the
 .Sx "Programming Guide"
@@ -421,19 +425,28 @@ in the future there will be IPv6 support as well.
 .Pp
 Below is a summary of the expandable API solution.
 Note that all new options and structures are defined
-in <netinet/ip_mroute.h> and <netinet6/ip6_mroute.h>,
+in
+.In netinet/ip_mroute.h
+and
+.In netinet6/ip6_mroute.h ,
 unless stated otherwise.
 .Pp
-The user-level process uses new get/setsockopt() options to
+The user-level process uses new
+.Fn getsockopt Ns / Ns Fn setsockopt
+options to
 perform the API features negotiation with the kernel.
 This negotiation must be performed right after the multicast routing
 socket is open.
 The set of desired/allowed features is stored in a bitset
-(currently, in uint32_t; i.e., maximum of 32 new features).
-The new get/setsockopt() options are
-.Dq MRT_API_SUPPORT
+(currently, in
+.Vt uint32_t ;
+i.e., maximum of 32 new features).
+The new
+.Fn getsockopt Ns / Ns Fn setsockopt
+options are
+.Dv MRT_API_SUPPORT
 and
-.Dq MRT_API_CONFIG .
+.Dv MRT_API_CONFIG .
 Example:
 .Bd -literal
 uint32_t v;
@@ -441,18 +454,23 @@ getsockopt(sock, IPPROTO_IP, MRT_API_SUPPORT, (void *)&v, sizeof(v));
 .Ed
 .Pp
 would set in
-.Dq v
+.Va v
 the pre-defined bits that the kernel API supports.
-The eight least significant bits in uint32_t are same as the
+The eight least significant bits in
+.Vt uint32_t
+are same as the
 eight possible flags
-.Dq MRT_MFC_FLAGS_*
+.Dv MRT_MFC_FLAGS_*
 that can be used in
-.Dq mfcc_flags
+.Va mfcc_flags
 as part of the new definition of
-.Dq struct mfcctl
+.Vt "struct mfcctl"
 (see below about those flags), which leaves 24 flags for other new features.
-The value returned by getsockopt(MRT_API_SUPPORT) is read-only; in other
-words, setsockopt(MRT_API_SUPPORT) would fail.
+The value returned by
+.Fn getsockopt MRT_API_SUPPORT
+is read-only; in other words,
+.Fn setsockopt MRT_API_SUPPORT
+would fail.
 .Pp
 To modify the API, and to set some specific feature in the kernel, then:
 .Bd -literal
@@ -467,11 +485,13 @@ else
     return (ERROR);
 .Ed
 .Pp
-In other words, when setsockopt(MRT_API_CONFIG) is called, the
+In other words, when
+.Fn setsockopt MRT_API_CONFIG
+is called, the
 argument to it specifies the desired set of features to
 be enabled in the API and the kernel.
 The return value in
-.Dq v
+.Va v
 is the actual (sub)set of features that were enabled in the kernel.
 To obtain later the same set of features that were enabled, then:
 .Bd -literal
@@ -479,8 +499,10 @@ getsockopt(sock, IPPROTO_IP, MRT_API_CONFIG, (void *)&v, sizeof(v));
 .Ed
 .Pp
 The set of enabled features is global.
-In other words, setsockopt(MRT_API_CONFIG)
-should be called right after setsockopt(MRT_INIT).
+In other words,
+.Fn setsockopt MRT_API_CONFIG
+should be called right after
+.Fn setsockopt MRT_INIT .
 .Pp
 Currently, the following set of new features is defined:
 .Bd -literal
@@ -504,14 +526,14 @@ Currently, the following set of new features is defined:
 .\"
 .Pp
 The advanced multicast API uses a newly defined
-.Dq struct mfcctl2
+.Vt "struct mfcctl2"
 instead of the traditional
-.Dq struct mfcctl .
+.Vt "struct mfcctl" .
 The original
-.Dq struct mfcctl
+.Vt "struct mfcctl"
 is kept as is.
 The new
-.Dq struct mfcctl2
+.Vt "struct mfcctl2"
 is:
 .Bd -literal
 /*
@@ -532,13 +554,13 @@ struct mfcctl2 {
 .Ed
 .Pp
 The new fields are
-.Dq mfcc_flags[MAXVIFS]
+.Va mfcc_flags[MAXVIFS]
 and
-.Dq mfcc_rp .
+.Va mfcc_rp .
 Note that for compatibility reasons they are added at the end.
 .Pp
 The
-.Dq mfcc_flags[MAXVIFS]
+.Va mfcc_flags[MAXVIFS]
 field is used to set various flags per
 interface per (S,G) entry.
 Currently, the defined flags are:
@@ -548,9 +570,9 @@ Currently, the defined flags are:
 .Ed
 .Pp
 The
-.Dq MRT_MFC_FLAGS_DISABLE_WRONGVIF
+.Dv MRT_MFC_FLAGS_DISABLE_WRONGVIF
 flag is used to explicitly disable the
-.Dq IGMPMSG_WRONGVIF
+.Dv IGMPMSG_WRONGVIF
 kernel signal at the (S,G) granularity if a multicast data packet
 arrives on the wrong interface.
 Usually, this signal is used to
@@ -560,14 +582,14 @@ However, it should not be delivered for interfaces that are not in
 the outgoing interface set, and that are not expecting to
 become an incoming interface.
 Hence, if the
-.Dq MRT_MFC_FLAGS_DISABLE_WRONGVIF
+.Dv MRT_MFC_FLAGS_DISABLE_WRONGVIF
 flag is set for some of the
 interfaces, then a data packet that arrives on that interface for
 that MFC entry will NOT trigger a WRONGVIF signal.
 If that flag is not set, then a signal is triggered (the default action).
 .Pp
 The
-.Dq MRT_MFC_FLAGS_BORDER_VIF
+.Dv MRT_MFC_FLAGS_BORDER_VIF
 flag is used to specify whether the Border-bit in PIM
 Register messages should be set (in case when the Register encapsulation
 is performed inside the kernel).
@@ -579,40 +601,44 @@ the Border-bit in the Register messages sent to the RP will be set.
 The remaining six bits are reserved for future usage.
 .Pp
 The
-.Dq mfcc_rp
+.Va mfcc_rp
 field is used to specify the RP address (in case of PIM-SM multicast routing)
 for a multicast
 group G if we want to perform kernel-level PIM Register encapsulation.
 The
-.Dq mfcc_rp
+.Va mfcc_rp
 field is used only if the
-.Dq MRT_MFC_RP
+.Dv MRT_MFC_RP
 advanced API flag/capability has been successfully set by
-setsockopt(MRT_API_CONFIG).
+.Fn setsockopt MRT_API_CONFIG .
 .Pp
 .\"
 .\" 3. Kernel-level PIM Register encapsulation
 .\"
 If the
-.Dq MRT_MFC_RP
+.Dv MRT_MFC_RP
 flag was successfully set by
-setsockopt(MRT_API_CONFIG), then the kernel will attempt to perform
+.Fn setsockopt MRT_API_CONFIG ,
+then the kernel will attempt to perform
 the PIM Register encapsulation itself instead of sending the
-multicast data packets to user level (inside IGMPMSG_WHOLEPKT
+multicast data packets to user level (inside
+.Dv IGMPMSG_WHOLEPKT
 upcalls) for user-level encapsulation.
 The RP address would be taken from the
-.Dq mfcc_rp
+.Va mfcc_rp
 field
 inside the new
-.Dq struct mfcctl2 .
+.Vt "struct mfcctl2" .
 However, even if the
-.Dq MRT_MFC_RP
+.Dv MRT_MFC_RP
 flag was successfully set, if the
-.Dq mfcc_rp
+.Va mfcc_rp
 field was set to
-.Dq INADDR_ANY ,
+.Dv INADDR_ANY ,
 then the
-kernel will still deliver an IGMPMSG_WHOLEPKT upcall with the
+kernel will still deliver an
+.Dv IGMPMSG_WHOLEPKT
+upcall with the
 multicast data packet to the user-level process.
 .Pp
 In addition, if the multicast data packet is too large to fit within
@@ -679,12 +705,17 @@ upcall is received, we need to check whether
 .Dq measured_bw != expected_bw .
 .It
 The bandwidth-upcall mechanism is enabled by
-setsockopt(MRT_API_CONFIG) for the MRT_MFC_BW_UPCALL flag.
+.Fn setsockopt MRT_API_CONFIG
+for the
+.Dv MRT_MFC_BW_UPCALL
+flag.
 .It
 The bandwidth-upcall filters are added/deleted by the new
-setsockopt(MRT_ADD_BW_UPCALL) and setsockopt(MRT_DEL_BW_UPCALL)
+.Fn setsockopt MRT_ADD_BW_UPCALL
+and
+.Fn setsockopt MRT_DEL_BW_UPCALL
 respectively (with the appropriate
-.Dq struct bw_upcall
+.Vt "struct bw_upcall"
 argument of course).
 .El
 .Pp
@@ -750,12 +781,16 @@ struct bw_upcall {
 .Ed
 .Pp
 The
-.Dq bw_upcall
+.Vt bw_upcall
 structure is used as an argument to
-setsockopt(MRT_ADD_BW_UPCALL) and setsockopt(MRT_DEL_BW_UPCALL).
-Each setsockopt(MRT_ADD_BW_UPCALL) installs a filter in the kernel
+.Fn setsockopt MRT_ADD_BW_UPCALL
+and
+.Fn setsockopt MRT_DEL_BW_UPCALL .
+Each
+.Fn setsockopt MRT_ADD_BW_UPCALL
+installs a filter in the kernel
 for the source and destination address in the
-.Dq bw_upcall
+.Vt bw_upcall
 argument,
 and that filter will trigger an upcall according to the following
 pseudo-algorithm:
@@ -777,7 +812,7 @@ pseudo-algorithm:
 .Ed
 .Pp
 In the same
-.Dq bw_upcall
+.Vt bw_upcall
 the unit can be specified in both BYTES and PACKETS.
 However, the GEQ and LEQ flags are mutually exclusive.
 .Pp
@@ -790,7 +825,7 @@ If smaller values are allowed, then the bandwidth
 estimation may be less accurate, or the potentially very high frequency
 of the generated upcalls may introduce too much overhead.
 For the >= operation, the answer may be known before the end of
-.Dq threshold_interval ,
+.Va threshold_interval ,
 therefore the upcall may be delivered earlier.
 For the <= operation however, we must wait
 until the threshold interval has expired to know the answer.
@@ -824,21 +859,24 @@ setsockopt(mrouter_s4, IPPROTO_IP, MRT_ADD_BW_UPCALL,
           (void *)&bw_upcall, sizeof(bw_upcall));
 .Ed
 .Pp
-To delete a single filter, then use MRT_DEL_BW_UPCALL,
+To delete a single filter, then use
+.Dv MRT_DEL_BW_UPCALL ,
 and the fields of bw_upcall must be set
-exactly same as when MRT_ADD_BW_UPCALL was called.
+exactly same as when
+.Dv MRT_ADD_BW_UPCALL
+was called.
 .Pp
 To delete all bandwidth filters for a given (S,G), then
 only the
-.Dq bu_src
+.Va bu_src
 and
-.Dq bu_dst
+.Va bu_dst
 fields in
-.Dq struct bw_upcall
+.Vt "struct bw_upcall"
 need to be set, and then just set only the
-.Dq BW_UPCALL_DELETE_ALL
+.Dv BW_UPCALL_DELETE_ALL
 flag inside field
-.Dq bw_upcall.bu_flags .
+.Va bw_upcall.bu_flags .
 .Pp
 The bandwidth upcalls are received by aggregating them in the new upcall
 message:
@@ -847,24 +885,27 @@ message:
 .Ed
 .Pp
 This message is an array of
-.Dq struct bw_upcall
-elements (up to BW_UPCALLS_MAX = 128).
+.Vt "struct bw_upcall"
+elements (up to
+.Dv BW_UPCALLS_MAX
+= 128).
 The upcalls are
 delivered when there are 128 pending upcalls, or when 1 second has
 expired since the previous upcall (whichever comes first).
 In an
-.Dq struct upcall
+.Vt "struct upcall"
 element, the
-.Dq bu_measured
+.Va bu_measured
 field is filled-in to
 indicate the particular measured values.
 However, because of the way
 the particular intervals are measured, the user should be careful how
-bu_measured.b_time is used.
+.Va bu_measured.b_time
+is used.
 For example, if the
 filter is installed to trigger an upcall if the number of packets
 is >= 1, then
-.Dq bu_measured
+.Va bu_measured
 may have a value of zero in the upcalls after the
 first one, because the measured interval for >= filters is
 .Dq clocked
@@ -872,7 +913,8 @@ by the forwarded packets.
 Hence, this upcall mechanism should not be used for measuring
 the exact value of the bandwidth of the forwarded data.
 To measure the exact bandwidth, the user would need to
-get the forwarded packets statistics with the ioctl(SIOCGETSGCNT)
+get the forwarded packets statistics with the
+.Fn ioctl SIOCGETSGCNT
 mechanism
 (see the
 .Sx Programming Guide
@@ -880,13 +922,12 @@ section) .
 .Pp
 Note that the upcalls for a filter are delivered until the specific
 filter is deleted, but no more frequently than once per
-.Dq bu_threshold.b_time .
+.Va bu_threshold.b_time .
 For example, if the filter is specified to
 deliver a signal if bw >= 1 packet, the first packet will trigger a
 signal, but the next upcall will be triggered no earlier than
-.Dq bu_threshold.b_time
+.Va bu_threshold.b_time
 after the previous upcall.
-.Pp
 .\"
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
@@ -902,7 +943,6 @@ after the previous upcall.
 .Xr ip6 4 ,
 .Xr pim 4
 .\"
-.Pp
 .Sh AUTHORS
 .An -nosplit
 The original multicast code was written by
@@ -920,7 +960,8 @@ and later modified by the following individuals:
 .An Bill Fenner
 (PARC).
 The IPv6 multicast support was implemented by the KAME project
-(http://www.kame.net), and was based on the IPv4 multicast code.
+.Pq Pa http://www.kame.net ,
+and was based on the IPv4 multicast code.
 The advanced multicast API and the multicast bandwidth
 monitoring were implemented by
 .An Pavlin Radoslavov
