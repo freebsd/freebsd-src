@@ -93,6 +93,10 @@
 #define STE_MAR3		0x66
 #define STE_STATS		0x68
 
+#define STE_LATE_COLLS  0x75
+#define STE_MULTI_COLLS	0x76
+#define STE_SINGLE_COLLS 0x77	
+
 #define STE_DMACTL_RXDMA_STOPPED	0x00000001
 #define STE_DMACTL_TXDMA_CMPREQ		0x00000002
 #define STE_DMACTL_TXDMA_STOPPED	0x00000004
@@ -224,13 +228,13 @@
  * The number of bytes that must in present in the TX FIFO before
  * transmission begins. Value should be in increments of 4 bytes.
  */
-#define STE_TXSTART_THRESH		0x1FFF
+#define STE_TXSTART_THRESH		0x1FFC
 
 /*
  * Number of bytes that must be present in the RX FIFO before
  * an RX EARLY interrupt is generated.
  */
-#define STE_RXEARLY_THRESH		0x1FFF
+#define STE_RXEARLY_THRESH		0x1FFC
 
 #define STE_WAKEEVENT_WAKEPKT_ENB	0x01
 #define STE_WAKEEVENT_MAGICPKT_ENB	0x02
@@ -272,8 +276,9 @@
 #define STE_IMR_RX_DMADONE		0x0400
 
 #define STE_INTRS					\
-	(STE_IMR_RX_DMADONE|STE_IMR_TX_DMADONE|STE_IMR_STATS_OFLOW|	\
-	STE_IMR_TX_DONE|STE_IMR_HOSTERR|STE_IMR_RX_EARLY)
+	(STE_IMR_RX_DMADONE|STE_IMR_TX_DMADONE|	\
+	STE_IMR_TX_DONE|STE_IMR_HOSTERR| \
+        STE_IMR_LINKEVENT)
 
 #define STE_ISR_INTLATCH		0x0001
 #define STE_ISR_HOSTERR			0x0002
@@ -406,7 +411,7 @@ struct ste_frag {
 #define STE_FRAG_LAST		0x80000000
 #define STE_FRAG_LEN		0x00001FFF
 
-#define STE_MAXFRAGS	63
+#define STE_MAXFRAGS	8
 
 struct ste_desc {
 	u_int32_t		ste_next;
@@ -460,9 +465,10 @@ struct ste_desc_onefrag {
 #define STE_MIN_FRAMELEN	60
 #define STE_PACKET_SIZE		1536
 #define ETHER_ALIGN		2
-#define STE_RX_LIST_CNT		128
-#define STE_TX_LIST_CNT		256
+#define STE_RX_LIST_CNT		64
+#define STE_TX_LIST_CNT		64
 #define STE_INC(x, y)		(x) = (x + 1) % y
+#define STE_NEXT(x, y)		(x + 1) % y
 
 struct ste_type {
 	u_int16_t		ste_vid;
@@ -509,10 +515,12 @@ struct ste_softc {
 	void			*ste_intrhand;
 	struct ste_type		*ste_info;
 	device_t		ste_miibus;
+	device_t		ste_dev;
 	int			ste_unit;
 	int			ste_tx_thresh;
 	u_int8_t		ste_link;
 	int			ste_if_flags;
+	int			ste_tx_prev_idx;
 	struct ste_list_data	*ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout_handle	ste_stat_ch;

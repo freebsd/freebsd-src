@@ -45,6 +45,7 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
 
@@ -415,6 +416,7 @@ static void ste_miibus_statchg(dev)
 {
 	struct ste_softc	*sc;
 	struct mii_data		*mii;
+	int			i;
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->ste_miibus);
@@ -424,6 +426,15 @@ static void ste_miibus_statchg(dev)
 	} else {
 		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
 	}
+
+	STE_SETBIT4(sc, STE_ASICCTL,STE_ASICCTL_RX_RESET |
+		    STE_ASICCTL_TX_RESET);
+	for (i = 0; i < STE_TIMEOUT; i++) {
+		if (!(CSR_READ_4(sc, STE_ASICCTL) & STE_ASICCTL_RESET_BUSY))
+			break;
+	}
+	if (i == STE_TIMEOUT)
+		printf("ste%d: rx reset never completed\n", sc->ste_unit);
 
 	return;
 }
@@ -643,6 +654,9 @@ static void ste_intr(xsc)
 			ste_stats_update(sc);
 		}
 
+		if (status & STE_ISR_LINKEVENT)
+			mii_pollstat(device_get_softc(sc->ste_miibus));
+
 		if (status & STE_ISR_HOSTERR) {
 			ste_reset(sc);
 			ste_init(sc);
@@ -669,17 +683,20 @@ static void ste_rxeof(sc)
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct ste_chain_onefrag	*cur_rx;
-	int			total_len = 0;
+	int			total_len = 0, count=0;
 	u_int32_t		rxstat;
 
 	ifp = &sc->arpcom.ac_if;
 
-again:
+	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
+	      & STE_RXSTAT_DMADONE) {
+		if ((STE_RX_LIST_CNT - count) < 3) {
+			break;
+		}
 
-	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)) {
 		cur_rx = sc->ste_cdata.ste_rx_head;
 		sc->ste_cdata.ste_rx_head = cur_rx->ste_next;
-
+ 
 		/*
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
@@ -730,29 +747,9 @@ again:
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
-	}
-
-	/*
-	 * Handle the 'end of channel' condition. When the upload
-	 * engine hits the end of the RX ring, it will stall. This
-	 * is our cue to flush the RX ring, reload the uplist pointer
-	 * register and unstall the engine.
-	 * XXX This is actually a little goofy. With the ThunderLAN
-	 * chip, you get an interrupt when the receiver hits the end
-	 * of the receive ring, which tells you exactly when you
-	 * you need to reload the ring pointer. Here we have to
-	 * fake it. I'm mad at myself for not being clever enough
-	 * to avoid the use of a goto here.
-	 */
-	if (CSR_READ_4(sc, STE_RX_DMALIST_PTR) == 0 ||
-		CSR_READ_4(sc, STE_DMACTL) & STE_DMACTL_RXDMA_STOPPED) {
-		STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
-		ste_wait(sc);
-		CSR_WRITE_4(sc, STE_RX_DMALIST_PTR,
-			vtophys(&sc->ste_ldata->ste_rx_list[0]));
-		sc->ste_cdata.ste_rx_head = &sc->ste_cdata.ste_rx_chain[0];
-		STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_UNSTALL);
-		goto again;
+		
+		cur_rx->ste_ptr->ste_status = 0;
+		count++;
 	}
 
 	return;
@@ -836,11 +833,9 @@ static void ste_stats_update(xsc)
 	void			*xsc;
 {
 	struct ste_softc	*sc;
-	struct ste_stats	stats;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
-	int			i, s;
-	u_int8_t		*p;
+	int			s;
 
 	s = splimp();
 
@@ -848,24 +843,23 @@ static void ste_stats_update(xsc)
 	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->ste_miibus);
 
-	p = (u_int8_t *)&stats;
+        ifp->if_collisions += CSR_READ_1(sc, STE_LATE_COLLS)
+            + CSR_READ_1(sc, STE_MULTI_COLLS)
+            + CSR_READ_1(sc, STE_SINGLE_COLLS);
 
-	for (i = 0; i < sizeof(stats); i++) {
-		*p = CSR_READ_1(sc, STE_STATS + i);
-		p++;
-	}
-
-	ifp->if_collisions += stats.ste_single_colls +
-	    stats.ste_multi_colls + stats.ste_late_colls;
-
-	mii_tick(mii);
 	if (!sc->ste_link) {
 		mii_pollstat(mii);
 		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->ste_link++;
+			/* 
+			 * we don't get a call-back on re-init so do it 
+			 * otherwise we get stuck in the wrong link state
+			 */
+			ste_miibus_statchg(sc->ste_dev);
 			if (ifp->if_snd.ifq_head != NULL)
 				ste_start(ifp);
+		}
 	}
 
 	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);
@@ -916,6 +910,7 @@ static int ste_attach(dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ste_softc));
+	sc->ste_dev = dev;
 
 	/*
 	 * Handle power management nonsense.
@@ -1069,11 +1064,18 @@ static int ste_attach(dev)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = STE_TX_LIST_CNT - 1;
 
+	sc->ste_tx_thresh = STE_TXSTART_THRESH;
+
 	/*
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
+        /*
+         * Tell the upper layer(s) we support long frames.
+         */
+        ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+ 
 fail:
 	splx(s);
 	return(error);
@@ -1136,7 +1138,7 @@ static int ste_newbuf(sc, c, m)
 	c->ste_mbuf = m_new;
 	c->ste_ptr->ste_status = 0;
 	c->ste_ptr->ste_frag.ste_addr = vtophys(mtod(m_new, caddr_t));
-	c->ste_ptr->ste_frag.ste_len = 1536 | STE_FRAG_LAST;
+	c->ste_ptr->ste_frag.ste_len = (1536 + EVL_ENCAPLEN) | STE_FRAG_LAST;
 
 	return(0);
 }
@@ -1166,7 +1168,7 @@ static int ste_init_rx_list(sc)
 			ld->ste_rx_list[i].ste_next =
 			    vtophys(&ld->ste_rx_list[i + 1]);
 		}
-
+		ld->ste_rx_list[i].ste_status = 0;
 	}
 
 	cd->ste_rx_head = &cd->ste_rx_chain[0];
@@ -1185,6 +1187,8 @@ static void ste_init_tx_list(sc)
 	ld = sc->ste_ldata;
 	for (i = 0; i < STE_TX_LIST_CNT; i++) {
 		cd->ste_tx_chain[i].ste_ptr = &ld->ste_tx_list[i];
+		cd->ste_tx_chain[i].ste_ptr->ste_next = 0;
+		cd->ste_tx_chain[i].ste_ptr->ste_ctl  = 0;
 		cd->ste_tx_chain[i].ste_phys = vtophys(&ld->ste_tx_list[i]);
 		if (i == (STE_TX_LIST_CNT - 1))
 			cd->ste_tx_chain[i].ste_next =
@@ -1199,10 +1203,6 @@ static void ste_init_tx_list(sc)
 			cd->ste_tx_chain[i].ste_prev =
 			     &cd->ste_tx_chain[i - 1];
 	}
-
-
-	bzero((char *)ld->ste_tx_list,
-	    sizeof(struct ste_desc) * STE_TX_LIST_CNT);
 
 	cd->ste_tx_prod = 0;
 	cd->ste_tx_cons = 0;
@@ -1240,6 +1240,9 @@ static void ste_init(xsc)
 		splx(s);
 		return;
 	}
+
+	/* Set RX polling interval */
+	CSR_WRITE_1(sc, STE_RX_DMAPOLL_PERIOD, 1);
 
 	/* Init TX descriptors */
 	ste_init_tx_list(sc);
@@ -1280,20 +1283,21 @@ static void ste_init(xsc)
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_UNSTALL);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_UNSTALL);
 
-	/* Set TX polling interval */
-	CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 64);
+	/* Set TX polling interval (defer until we TX first packet */
+	CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 0);
 
 	/* Load address of the TX list */
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
 	ste_wait(sc);
-	CSR_WRITE_4(sc, STE_TX_DMALIST_PTR,
-	    vtophys(&sc->ste_ldata->ste_tx_list[0]));
+	CSR_WRITE_4(sc, STE_TX_DMALIST_PTR, 0);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	ste_wait(sc);
+	sc->ste_tx_prev_idx=-1;
 
 	/* Enable receiver and transmitter */
 	CSR_WRITE_2(sc, STE_MACCTL0, 0);
+	CSR_WRITE_2(sc, STE_MACCTL1, 0);
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_ENABLE);
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_RX_ENABLE);
 
@@ -1303,6 +1307,9 @@ static void ste_init(xsc)
 	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
+
+	/* Accept VLAN length packets */
+	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + EVL_ENCAPLEN);
 
 	ste_ifmedia_upd(ifp);
 
@@ -1333,6 +1340,11 @@ static void ste_stop(sc)
 	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
 	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
 	ste_wait(sc);
+	/* 
+	 * Try really hard to stop the RX engine or under heavy RX 
+	 * data chip will write into de-allocated memory.
+	 */
+	ste_reset(sc);
 
 	sc->ste_link = 0;
 
@@ -1349,6 +1361,8 @@ static void ste_stop(sc)
 			sc->ste_cdata.ste_tx_chain[i].ste_mbuf = NULL;
 		}
 	}
+
+	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
@@ -1413,8 +1427,10 @@ static int ste_ioctl(ifp, command, data)
 			    sc->ste_if_flags & IFF_PROMISC) {
 				STE_CLRBIT1(sc, STE_RX_MODE,
 				    STE_RXMODE_PROMISC);
-			} else if (!(ifp->if_flags & IFF_RUNNING)) {
-				sc->ste_tx_thresh = STE_MIN_FRAMELEN;
+			} 
+			if (!(ifp->if_flags & IFF_RUNNING)) {
+				sc->ste_tx_thresh = STE_MIN_FRAMELEN * 2;
+				sc->ste_tx_thresh = STE_TXSTART_THRESH;
 				ste_init(sc);
 			}
 		} else {
@@ -1457,14 +1473,13 @@ static int ste_encap(sc, c, m_head)
 
 	d = c->ste_ptr;
 	d->ste_ctl = 0;
-	d->ste_next = 0;
 
 	for (m = m_head, frag = 0; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
 			if (frag == STE_MAXFRAGS)
 				break;
 			total_len += m->m_len;
-			f = &c->ste_ptr->ste_frags[frag];
+			f = &d->ste_frags[frag];
 			f->ste_addr = vtophys(mtod(m, vm_offset_t));
 			f->ste_len = m->m_len;
 			frag++;
@@ -1472,8 +1487,8 @@ static int ste_encap(sc, c, m_head)
 	}
 
 	c->ste_mbuf = m_head;
-	c->ste_ptr->ste_frags[frag - 1].ste_len |= STE_FRAG_LAST;
-	c->ste_ptr->ste_ctl = total_len;
+	d->ste_frags[frag - 1].ste_len |= STE_FRAG_LAST;
+	d->ste_ctl = 1;
 
 	return(0);
 }
@@ -1483,7 +1498,7 @@ static void ste_start(ifp)
 {
 	struct ste_softc	*sc;
 	struct mbuf		*m_head = NULL;
-	struct ste_chain	*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct ste_chain	*cur_tx = NULL;
 	int			idx;
 
 	sc = ifp->if_softc;
@@ -1495,7 +1510,6 @@ static void ste_start(ifp)
 		return;
 
 	idx = sc->ste_cdata.ste_tx_prod;
-	start_tx = &sc->ste_cdata.ste_tx_chain[idx];
 
 	while(sc->ste_cdata.ste_tx_chain[idx].ste_mbuf == NULL) {
 
@@ -1512,9 +1526,32 @@ static void ste_start(ifp)
 
 		ste_encap(sc, cur_tx, m_head);
 
-		if (prev != NULL)
-			prev->ste_ptr->ste_next = cur_tx->ste_phys;
-		prev = cur_tx;
+		cur_tx->ste_ptr->ste_next = 0;
+
+		if(sc->ste_tx_prev_idx < 0){
+			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
+			/* Load address of the TX list */
+			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
+			ste_wait(sc);
+
+			CSR_WRITE_4(sc, STE_TX_DMALIST_PTR,
+			    vtophys(&sc->ste_ldata->ste_tx_list[0]));
+
+			/* Set TX polling interval to start TX engine */
+			CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 64);
+		  
+			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
+			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
+			ste_wait(sc);
+
+		}else{
+			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
+			sc->ste_cdata.ste_tx_chain[
+			    sc->ste_tx_prev_idx].ste_ptr->ste_next
+				= cur_tx->ste_phys;
+		}
+
+		sc->ste_tx_prev_idx=idx;
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
@@ -1525,18 +1562,9 @@ static void ste_start(ifp)
 
 		STE_INC(idx, STE_TX_LIST_CNT);
 		sc->ste_cdata.ste_tx_cnt++;
+		ifp->if_timer = 5;
+		sc->ste_cdata.ste_tx_prod = idx;
 	}
-
-	if (cur_tx == NULL)
-		return;
-
-	cur_tx->ste_ptr->ste_ctl |= STE_TXCTL_DMAINTR;
-
-	/* Start transmission */
-	sc->ste_cdata.ste_tx_prod = idx;
-	start_tx->ste_prev->ste_ptr->ste_next = start_tx->ste_phys;
-
-	ifp->if_timer = 5;
 
 	return;
 }
