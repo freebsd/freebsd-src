@@ -91,8 +91,8 @@
 void
 iso88025_ifattach(struct ifnet *ifp)
 {
-    register struct ifaddr *ifa = NULL;
-    register struct sockaddr_dl *sdl;
+    struct ifaddr *ifa = NULL;
+    struct sockaddr_dl *sdl;
 
     ifp->if_type = IFT_ISO88025;
     ifp->if_addrlen = ISO88025_ADDR_LEN;
@@ -152,7 +152,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                  */
                 case AF_IPX:
                         {
-                        register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+                        struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
                         struct arpcom *ac = IFP2AC(ifp);
 
                         if (ipx_nullhost(*ina))
@@ -393,8 +393,8 @@ iso88025_input(ifp, th, m)
 	struct iso88025_header *th;
 	struct mbuf *m;
 {
-	register struct ifqueue *inq;
-	register struct llc *l;
+	struct ifqueue *inq;
+	struct llc *l;
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
