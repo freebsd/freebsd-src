@@ -71,6 +71,9 @@ main(int argc, char **argv)
     /* Set default flag and variable values */
     installVarDefaults(NULL);
 
+    if (file_readable("/etc/sysconfig"))
+	configEnvironment("/etc/sysconfig");
+
     if (argc > 1 && !strcmp(argv[1], "-fake")) {
 	variable_set2(VAR_DEBUG, "YES");
 	Fake = TRUE;
