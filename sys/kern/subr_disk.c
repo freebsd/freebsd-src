@@ -86,6 +86,7 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 		*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
 		    UID_ROOT, GID_OPERATOR, 0640, name);
+		dev_depends(pdev, *dev);
 		return;
 	}
 }
@@ -105,7 +106,14 @@ dev_t
 disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct cdevsw *proto)
 {
 	static int once;
-	dev_t dev;
+	dev_t dev, cdev;
+	int i;
+	char buf[20];
+
+	if (!once) {
+		EVENTHANDLER_REGISTER(dev_clone, disk_clone, 0, 1000);
+		once++;
+	}
 
 	bzero(dp, sizeof(*dp));
 
@@ -128,9 +136,14 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	dp->d_dsflags = flags;
 	dp->d_devsw = cdevsw;
 	LIST_INSERT_HEAD(&disklist, dp, d_list);
-	if (!once) {
-		EVENTHANDLER_REGISTER(dev_clone, disk_clone, 0, 1000);
-		once++;
+
+	sprintf(buf, "%sc", dev->si_name);
+	cdev = NODEV;
+	disk_clone(NULL, buf, strlen(buf), &cdev);
+	for (i = 1; i < 5; i++) {
+		sprintf(buf, "%ss%d", dev->si_name, i);
+		cdev = NODEV;
+		disk_clone(NULL, buf, strlen(buf), &cdev);
 	}
 	return (dev);
 }
