@@ -1443,23 +1443,22 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	case LINUX_CDROMREADTOCENTRY: {
-		struct linux_cdrom_tocentry lte, *ltep =
-		    (struct linux_cdrom_tocentry *)args->arg;
+		struct linux_cdrom_tocentry lte;
 		struct ioc_read_toc_single_entry irtse;
-		if (ltep != NULL) {
-			irtse.address_format = ltep->cdte_format;
-			irtse.track = ltep->cdte_track;
-			error = fo_ioctl(fp, CDIOREADTOCENTRY, (caddr_t)&irtse,
-			    td->td_ucred, td);
-		} else
-			error = EINVAL;
+
+		error = copyin((void *)args->arg, &lte, sizeof(lte));
+		if (error)
+			break;
+		irtse.address_format = lte.cdte_format;
+		irtse.track = lte.cdte_track;
+		error = fo_ioctl(fp, CDIOREADTOCENTRY, (caddr_t)&irtse,
+		    td->td_ucred, td);
 		if (!error) {
-			lte = *ltep;
 			lte.cdte_ctrl = irtse.entry.control;
 			lte.cdte_adr = irtse.entry.addr_type;
 			bsd_to_linux_msf_lba(irtse.address_format,
 			    &irtse.entry.addr, &lte.cdte_addr);
-			copyout(&lte, (void *)args->arg, sizeof(lte));
+			error = copyout(&lte, (void *)args->arg, sizeof(lte));
 		}
 		break;
 	}
@@ -1944,11 +1943,14 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 		break;
 
 	case LINUX_VT_SETMODE: {
-		struct vt_mode *mode = (struct vt_mode *)args->arg;
+		struct vt_mode mode;
+		if ((error = copyin((void *)args->arg, &mode, sizeof(mode))))
+			break;
+		if (!ISSIGVALID(mode.frsig) && ISSIGVALID(mode.acqsig))
+			mode.frsig = mode.acqsig;
+		if ((error = copyout(&mode, (void *)args->arg, sizeof(mode))))
+			break;
 		args->cmd = VT_SETMODE;
-		if (mode != NULL &&
-		    !ISSIGVALID(mode->frsig) && ISSIGVALID(mode->acqsig))
-			mode->frsig = mode->acqsig;
 		error = (ioctl(td, (struct ioctl_args *)args));
 		break;
 	}
