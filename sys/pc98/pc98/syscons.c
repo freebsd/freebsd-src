@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.78 1998/02/13 16:59:01 kato Exp $
+ *  $Id: syscons.c,v 1.79 1998/02/14 08:39:35 kato Exp $
  */
 
 #include "sc.h"
@@ -4043,6 +4043,28 @@ scinit(void)
 #ifdef PC98
 	scr_map[0x5c] = (u_char)0xfc;	/* for backslash */
 #endif
+
+#ifndef PC98
+    /* Save font and palette if VGA */
+    if (crtc_vga) {
+	if (fonts_loaded & FONT_16) {
+		copy_font(LOAD, FONT_16, font_16);
+	} else {
+		copy_font(SAVE, FONT_16, font_16);
+		fonts_loaded = FONT_16;
+	}
+	save_palette();
+	set_destructive_cursor(console[0]);
+    }
+
+#ifdef SC_SPLASH_SCREEN
+    /* 
+     * Now put up a graphics image, and maybe cycle a
+     * couble of palette entries for simple animation.
+     */
+    toggle_splash_screen(cur_console);
+#endif
+#endif
 }
 
 static void
@@ -4875,32 +4897,6 @@ next_code:
     }
     goto next_code;
 }
-
-#ifdef SC_SPLASH_SCREEN
-static void
-toggle_splash_screen(scr_stat *scp)
-{
-    static int toggle = 0;
-    static u_char save_mode;
-    int s = splhigh();
-
-    if (toggle) {
-	scp->mode = save_mode;
-	scp->status &= ~UNKNOWN_MODE;
-	set_mode(scp);
-	toggle = 0;
-    }
-    else {
-	save_mode = scp->mode;
-	scp->mode = M_VGA_CG320;
-	scp->status |= UNKNOWN_MODE;
-	set_mode(scp);
-	/* load image */
-	toggle = 1;
-    }
-    splx(s);
-}
-#endif
 
 int
 scmmap(dev_t dev, int offset, int nprot)
@@ -5814,9 +5810,9 @@ draw_mouse_image(scr_stat *scp)
 	    (*(scp->mouse_pos + scp->xsize + 1) & 0xff00) | (SC_MOUSE_CHAR + 3);
     }
 #endif
-    mark_for_update(scp, scp->mouse_oldpos - scp->scr_buf);
+    mark_for_update(scp, scp->mouse_pos - scp->scr_buf);
 #ifndef	PC98
-    mark_for_update(scp, scp->mouse_oldpos + scp->xsize + 1 - scp->scr_buf);
+    mark_for_update(scp, scp->mouse_pos + scp->xsize + 1 - scp->scr_buf);
 #endif
 }
 
@@ -5950,28 +5946,6 @@ do_bell(scr_stat *scp, int pitch, int duration)
 	    pitch *= 2;
 	sysbeep(pitch, duration);
     }
-
-#ifndef PC98
-    /* Save font and palette if VGA */
-    if (crtc_vga) {
-	if (fonts_loaded & FONT_16) {
-		copy_font(LOAD, FONT_16, font_16);
-	} else {
-		copy_font(SAVE, FONT_16, font_16);
-		fonts_loaded = FONT_16;
-	}
-	save_palette();
-	set_destructive_cursor(console[0]);
-    }
-
-#ifdef SC_SPLASH_SCREEN
-    /* 
-     * Now put up a graphics image, and maybe cycle a
-     * couble of palette entries for simple animation.
-     */
-    toggle_splash_screen(cur_console);
-#endif
-#endif
 }
 
 static void
