@@ -97,16 +97,41 @@ pkg_perform(char **pkgs)
 
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
+	char **deps;
+	int i;
+	int ndeps = 0;
+
 	if (Verbose && !PlistOnly)
 	    printf("Registering depends:");
-	while (Pkgdeps) {
-	    cp = strsep(&Pkgdeps, " \t\n");
-	    if (*cp) {
-		add_plist_top(&plist, PLIST_PKGDEP, cp);
+
+	/* Count number of dependencies */
+	for (cp = Pkgdeps; cp != NULL && *cp != '\0';
+			   cp = strpbrk(++cp, " \t\n")) {
+	    ndeps++;
+	}
+
+	if (ndeps != 0) {
+	    /* Create easy to use NULL-terminated list */
+	    deps = alloca(sizeof(*deps) * ndeps + 1);
+	    if (deps == NULL) {
+		errx(2, "%s: alloca() failed", __FUNCTION__);
+		/* Not reached */
+	    }
+	    for (i = 0; Pkgdeps; i++) {
+		cp = strsep(&Pkgdeps, " \t\n");
+		if (*cp)
+		    deps[i] = cp;
+	    }
+	    deps[ndeps] = NULL;
+
+	    sortdeps(deps);
+	    for (i = 0; i < ndeps; i++) {
+		add_plist_top(&plist, PLIST_PKGDEP, deps[i]);
 		if (Verbose && !PlistOnly)
-		    printf(" %s", cp);
+		    printf(" %s", deps[i]);
 	    }
 	}
+
 	if (Verbose && !PlistOnly)
 	    printf(".\n");
     }

@@ -177,6 +177,10 @@ int		pkg_perform(char **);
 /* Query installed packages */
 char		**matchinstalled(match_t, char **, int *);
 
+/* Dependencies */
+int		sortdeps(char **);
+int		chkifdepends(char *, char *);
+
 /* Externs */
 extern Boolean	Verbose;
 extern Boolean	Fake;
