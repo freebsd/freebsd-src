@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.79 1999/01/21 08:29:07 dillon Exp $
+ * $Id: spec_vnops.c,v 1.80 1999/01/27 22:42:07 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -286,8 +286,15 @@ spec_read(ap)
 	case VBLK:
 		if (uio->uio_offset < 0)
 			return (EINVAL);
-		bsize = BLKDEV_IOSIZE;
 		dev = vp->v_rdev;
+
+		/*
+		 * Calculate block size for block device.  The block size must
+		 * be larger then the physical minimum.
+		 */
+
+		bsize = vp->v_specinfo->si_bsize_best;
+
 		if ((ioctl = bdevsw[major(dev)]->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
 		    dpart.part->p_fstype == FS_BSDFFS &&
@@ -365,7 +372,13 @@ spec_write(ap)
 			return (0);
 		if (uio->uio_offset < 0)
 			return (EINVAL);
-		bsize = BLKDEV_IOSIZE;
+
+		/*
+		 * Calculate block size for block device.  The block size must
+		 * be larger then the physical minimum.
+		 */
+		bsize = vp->v_specinfo->si_bsize_best;
+
 		if ((*bdevsw[major(vp->v_rdev)]->d_ioctl)(vp->v_rdev, DIOCGPART,
 		    (caddr_t)&dpart, FREAD, p) == 0) {
 			if (dpart.part->p_fstype == FS_BSDFFS &&
@@ -749,14 +762,16 @@ spec_getpages(ap)
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 
 	/*
-	 * Calculate the offset of the transfer.
+	 * Calculate the offset of the transfer and do sanity check.
+	 * FreeBSD currently only supports an 8 TB range due to b_blkno
+	 * being in DEV_BSIZE ( usually 512 ) byte chunks on call to
+	 * VOP_STRATEGY.  XXX
 	 */
 	offset = IDX_TO_OFF(ap->a_m[0]->pindex) + ap->a_offset;
 
-	/* XXX sanity check before we go into details. */
-	/* XXX limits should be defined elsewhere. */
-#define	DADDR_T_BIT	32
+#define	DADDR_T_BIT	(sizeof(daddr_t)*8)
 #define	OFFSET_MAX	((1LL << (DADDR_T_BIT + DEV_BSHIFT)) - 1)
+
 	if (offset < 0 || offset > OFFSET_MAX) {
 		/* XXX still no %q in kernel. */
 		printf("spec_getpages: preposterous offset 0x%x%08x\n",
@@ -768,20 +783,20 @@ spec_getpages(ap)
 	blkno = btodb(offset);
 
 	/*
-	 * Round up physical size for real devices, use the
-	 * fundamental blocksize of the fs if possible.
+	 * Round up physical size for real devices.  We cannot round using
+	 * v_mount's block size data because v_mount has nothing to do with
+	 * the device.  i.e. it's usually '/dev'.  We need the physical block
+	 * size for the device itself.
+	 *
+	 * We can't use v_specmountpoint because it only exists when the
+	 * block device is mounted.  However, we can use v_specinfo.
 	 */
-	if (vp && vp->v_mount) {
-		if (vp->v_type != VBLK) {
-			vprint("Non VBLK", vp);
-		}
-		blksiz = vp->v_mount->mnt_stat.f_bsize;
-		if (blksiz < DEV_BSIZE) {
-			blksiz = DEV_BSIZE;
-		}
-	}
+
+	if (vp->v_type == VBLK)
+		blksiz = vp->v_specinfo->si_bsize_phys;
 	else
 		blksiz = DEV_BSIZE;
+
 	size = (ap->a_count + blksiz - 1) & ~(blksiz - 1);
 
 	bp = getpbuf(NULL);
@@ -885,8 +900,8 @@ spec_getpages(ap)
 		m = ap->a_m[ap->a_reqpage];
 #ifndef MAX_PERF
 		printf(
-	    "spec_getpages: I/O read failure: (error code=%d)\n",
-		    error);
+	    "spec_getpages: I/O read failure: (error code=%d) bp %p vp %p\n",
+		    error, bp, bp->b_vp);
 		printf(
 	    "               size: %d, resid: %ld, a_count: %d, valid: 0x%x\n",
 		    size, bp->b_resid, ap->a_count, m->valid);
@@ -923,10 +938,14 @@ spec_getattr(ap)
 
 	bzero(vap, sizeof (*vap));
 
-	if (vp->v_type == VBLK)
-		vap->va_blocksize = BLKDEV_IOSIZE;
-	else if (vp->v_type == VCHR)
+	if (vp->v_type == VBLK) {
+		if (vp->v_specinfo)
+			vap->va_blocksize = vp->v_specmountpoint->mnt_stat.f_iosize;
+		else
+			vap->va_blocksize = BLKDEV_IOSIZE;
+	} else if (vp->v_type == VCHR) {
 		vap->va_blocksize = MAXBSIZE;
+	}
 
 	if ((*bdevsw[major(vp->v_rdev)]->d_ioctl)(vp->v_rdev, DIOCGPART,
 	    (caddr_t)&dpart, FREAD, ap->a_p) == 0) {
