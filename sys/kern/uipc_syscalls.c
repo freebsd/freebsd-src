@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.51 1999/01/21 09:00:26 dillon Exp $
+ * $Id: uipc_syscalls.c,v 1.52 1999/01/24 01:15:58 dillon Exp $
  */
 
 #include "opt_compat.h"
