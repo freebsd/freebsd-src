@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.19 1996/07/12 08:14:58 bde Exp $
+ * $Id: sys_pipe.c,v 1.20 1996/07/13 22:52:50 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -312,9 +312,17 @@ static __inline void
 pipeselwakeup(cpipe)
 	struct pipe *cpipe;
 {
+	struct proc *p;
+
 	if (cpipe->pipe_state & PIPE_SEL) {
 		cpipe->pipe_state &= ~PIPE_SEL;
 		selwakeup(&cpipe->pipe_sel);
+	}
+	if (cpipe->pipe_state & PIPE_ASYNC) {
+		if (cpipe->pipe_pgid < 0)
+			gsignal(-cpipe->pipe_pgid, SIGIO);
+		else if ((p = pfind(cpipe->pipe_pgid)) != NULL)
+			psignal(p, SIGIO);
 	}
 }
 
@@ -329,7 +337,7 @@ pipe_read(fp, uio, cred)
 	struct pipe *rpipe = (struct pipe *) fp->f_data;
 	int error = 0;
 	int nread = 0;
-	int size;
+	u_int size;
 
 	++rpipe->pipe_busy;
 	while (uio->uio_resid) {
@@ -337,11 +345,11 @@ pipe_read(fp, uio, cred)
 		 * normal pipe buffer receive
 		 */
 		if (rpipe->pipe_buffer.cnt > 0) {
-			int size = rpipe->pipe_buffer.size - rpipe->pipe_buffer.out;
+			size = rpipe->pipe_buffer.size - rpipe->pipe_buffer.out;
 			if (size > rpipe->pipe_buffer.cnt)
 				size = rpipe->pipe_buffer.cnt;
-			if (size > uio->uio_resid)
-				size = uio->uio_resid;
+			if (size > (u_int) uio->uio_resid)
+				size = (u_int) uio->uio_resid;
 			if ((error = pipelock(rpipe,1)) == 0) {
 				error = uiomove( &rpipe->pipe_buffer.buffer[rpipe->pipe_buffer.out], 
 					size, uio);
@@ -363,8 +371,8 @@ pipe_read(fp, uio, cred)
 		} else if ((size = rpipe->pipe_map.cnt) &&
 			(rpipe->pipe_state & PIPE_DIRECTW)) {
 			caddr_t va;
-			if (size > uio->uio_resid)
-				size = uio->uio_resid;
+			if (size > (u_int) uio->uio_resid)
+				size = (u_int) uio->uio_resid;
 			if ((error = pipelock(rpipe,1)) == 0) {
 				va = (caddr_t) rpipe->pipe_map.kva + rpipe->pipe_map.pos;
 				error = uiomove(va, size, uio);
@@ -480,11 +488,11 @@ pipe_build_write_buffer(wpipe, uio)
 	struct pipe *wpipe;
 	struct uio *uio;
 {
-	int size;
+	u_int size;
 	int i;
 	vm_offset_t addr, endaddr, paddr;
 
-	size = uio->uio_iov->iov_len;
+	size = (u_int) uio->uio_iov->iov_len;
 	if (size > wpipe->pipe_buffer.size)
 		size = wpipe->pipe_buffer.size;
 
@@ -953,11 +961,11 @@ pipe_ioctl(fp, cmd, data, p)
 			*(int *)data = mpipe->pipe_buffer.cnt;
 		return (0);
 
-	case SIOCSPGRP:
+	case TIOCSPGRP:
 		mpipe->pipe_pgid = *(int *)data;
 		return (0);
 
-	case SIOCGPGRP:
+	case TIOCGPGRP:
 		*(int *)data = mpipe->pipe_pgid;
 		return (0);
 
