@@ -539,8 +539,6 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 	goto ouch;
     for (ln = last_reply + 4; *ln && isspace(*ln); ln++)
 	/* nothing */ ;
-    t = time(NULL);
-    us->mtime = localtime(&t)->tm_gmtoff;
     sscanf(ln, "%04d%02d%02d%02d%02d%02d",
 	   &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
 	   &tm.tm_hour, &tm.tm_min, &tm.tm_sec);
@@ -548,9 +546,13 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
     tm.tm_mon--;
     tm.tm_year -= 1900;
     tm.tm_isdst = -1;
-    tm.tm_gmtoff = 0;
-    us->mtime += mktime(&tm);
-    us->atime = us->mtime;
+    t = mktime(&tm);
+    if (t == (time_t)-1)
+	t = time(NULL);
+    else
+	t += tm.tm_gmtoff;
+    us->mtime = t;
+    us->atime = t;
     return 0;
 
 ouch:
