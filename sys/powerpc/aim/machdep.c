@@ -113,7 +113,7 @@ static const char rcsid[] =
 #include <sys/vnode.h>
 #include <machine/sigframe.h>
 
-int physmem = 0;
+long physmem = 0;
 int cold = 1;
 
 char		pcpu0[PAGE_SIZE];
@@ -153,14 +153,18 @@ void		osendsig(sig_t, int, sigset_t *, u_long);
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp, 0, ctob(physmem), req);
+	int error;
+	unsigned long val;
+
+	val = ctob(physmem);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	return (error);
 }
 
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "IU", "");
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "LU", "");
 
-int		Maxmem = 0;
+long		Maxmem = 0;
 
 static int	chosen;
 

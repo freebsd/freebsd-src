@@ -111,9 +111,9 @@ typedef int ofw_vec_t(void *);
 struct tlb_entry *kernel_tlbs;
 int kernel_tlb_slots;
 
-int physmem;
+long physmem;
 int cold = 1;
-int Maxmem;
+long Maxmem;
 
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
 char uarea0[UAREA_PAGES * PAGE_SIZE];
