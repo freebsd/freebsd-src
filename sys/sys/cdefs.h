@@ -157,6 +157,12 @@
 #endif
 #endif
 
+#if __GNUC_PREREQ__(2, 96)
+#define	__pure		__attribute__((__pure__))
+#else
+#define	__pure
+#endif
+
 #if __GNUC_PREREQ__(3, 1) || (defined(__INTEL_COMPILER) && __INTEL_COMPILER >= 800)
 #define	__always_inline	__attribute__((__always_inline__))
 #else
