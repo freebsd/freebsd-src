@@ -84,7 +84,11 @@ SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
 
 static int	icmpmaskrepl = 0;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
-	&icmpmaskrepl, 0, "");
+	&icmpmaskrepl, 0, "Reply to ICMP Address Mask Request packets.");
+
+static u_int	icmpmaskfake = 0;
+SYSCTL_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_RW,
+	&icmpmaskfake, 0, "Fake reply to ICMP Address Mask Request packets.");
 
 static int	drop_redirect = 0;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_RW, 
@@ -497,7 +501,10 @@ icmp_input(m, off)
 		if (ia->ia_ifp == 0)
 			break;
 		icp->icmp_type = ICMP_MASKREPLY;
-		icp->icmp_mask = ia->ia_sockmask.sin_addr.s_addr;
+		if (icmpmaskfake == 0)
+			icp->icmp_mask = ia->ia_sockmask.sin_addr.s_addr;
+		else
+			icp->icmp_mask = icmpmaskfake;
 		if (ip->ip_src.s_addr == 0) {
 			if (ia->ia_ifp->if_flags & IFF_BROADCAST)
 			    ip->ip_src = satosin(&ia->ia_broadaddr)->sin_addr;
