@@ -26,8 +26,7 @@
 #include "dialog.priv.h"
 
 
-static void print_item(WINDOW *win, char *tag, char *item, int status, int choice, int selected,
-		       dialogMenuItem *me);
+static void print_item(WINDOW *win, char *tag, char *item, int status, int choice, int selected, dialogMenuItem *me);
 
 #define DREF(di, item)		((di) ? &((di)[(item)]) : NULL)
 
@@ -37,11 +36,12 @@ static int list_width, check_x, item_x;
 /*
  * Display a dialog box with a list of options that can be turned on or off
  */
-int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height,
-		     int item_no, void *it, unsigned char *result)
+int
+dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height,
+		 int item_no, void *it, unsigned char *result)
 {
   int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-      l, k, scroll = 0, max_choice, *status, was_on = 0;
+    l, k, scroll = 0, max_choice, *status, was_on = 0;
   int redraw_menu = FALSE;
   char okButton, cancelButton;
   WINDOW *dialog, *list;
@@ -78,7 +78,7 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
     items = (unsigned char **)alloca((item_no * 3) * sizeof(unsigned char *));
     /* Initializes status */
     for (i = 0; i < item_no; i++) {
-      status[i] = ditems[i].checked ? (*ditems[i].checked)(&ditems[i]) : FALSE;
+      status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
       if (status[i]) {
 	if (was_on)
 	  status[i] = FALSE;
@@ -118,8 +118,8 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
   if (height > LINES)
     height = LINES;
   /* center dialog box on screen */
-  x = (COLS - width)/2;
-  y = (LINES - height)/2;
+  x = DialogX ? DialogX : (COLS - width)/2;
+  y = DialogY ? DialogY : (LINES - height)/2;
   
 #ifdef HAVE_NCURSES
   if (use_shadow)
@@ -189,10 +189,10 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
   if (ditems && result) {
     cancelButton = toupper(ditems[CANCEL_BUTTON].prompt[0]);
     print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		 ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : FALSE);
+		 ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : FALSE);
     okButton = toupper(ditems[OK_BUTTON].prompt[0]);
     print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		 ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : TRUE);
+		 ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : TRUE);
   }
   else {
     cancelButton = 'C';
@@ -208,7 +208,7 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
     /* See if its the short-cut to "OK" */
     if (toupper(key) == okButton) {
       if (ditems && result && ditems[OK_BUTTON].fire) {
-	if ((*ditems[OK_BUTTON].fire)(&ditems[OK_BUTTON]) == DITEM_FAILURE)
+	if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE)
 	  continue;
 	else
 	  delwin(dialog);
@@ -228,7 +228,7 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
     /* Shortcut to cancel */
     else if (toupper(key) == cancelButton) {
       if (ditems && result && ditems[CANCEL_BUTTON].fire) {
-	if ((*ditems[CANCEL_BUTTON].fire)(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
+	if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
 	  continue;
       }
       delwin(dialog);
@@ -297,7 +297,7 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
 	  continue;
 	else if (ditems) {
 	  if (ditems[scroll + choice].fire) {
-	    int st = (*ditems[scroll + choice].fire)(&ditems[scroll + choice]);
+	    int st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
 
 	    if (st == DITEM_LEAVE_MENU) {
 	      /* Allow a fire action to take us out of the menu */
@@ -308,7 +308,7 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
 	      continue;
 	  }
 	  for (i = 0; i < item_no; i++)
-	    status[i] = ditems[i].checked ? (*ditems[i].checked)(&ditems[i]) : FALSE;
+	    status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
 	}
 	else {
   	  for (i = 0; i < item_no; i++)
@@ -383,15 +383,15 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
       if (ditems && result) {
 	if (button) {
 	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+		       ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
 	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+		       ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
 	}
 	else {
 	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+		       ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
 	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+		       ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
 	}
       }
       else {
@@ -412,7 +412,8 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
     case '\n':
       if (!button && result) {
 	if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
-	  if ((*ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire)(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]) == DITEM_FAILURE)
+	  if (ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]) ==
+	      DITEM_FAILURE)
 	    continue;
 	}
 	else {
@@ -459,8 +460,8 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
 /*
  * Print list item
  */
-static void print_item(WINDOW *win, char *tag, char *item, int status, int choice, int selected,
-		       dialogMenuItem *me)
+static void
+print_item(WINDOW *win, char *tag, char *item, int status, int choice, int selected, dialogMenuItem *me)
 {
   int i;
 
@@ -483,5 +484,8 @@ static void print_item(WINDOW *win, char *tag, char *item, int status, int choic
   wmove(win, choice, item_x);
   wattrset(win, selected ? item_selected_attr : item_attr);
   waddstr(win, item);
+  /* If have a selection handler for this, call it */
+  if (me && me->selected)
+    me->selected(me, selected);
 }
 /* End of print_item() */

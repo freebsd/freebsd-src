@@ -11,7 +11,7 @@
 .\" nor does the author assume any responsibility for damages incurred with
 .\" its use.
 .\"
-.\" $Id$
+.\" $Id: dialog.3,v 1.2 1996/01/01 03:43:51 jkh Exp $
 .\"
 .Dd December 18, 1995
 .Dt dialog 3
@@ -63,6 +63,7 @@ typedef struct _dmenu_item {
    char *\fBtitle\fR;
    int (*\fBchecked\fR)(struct _dmenu_item *self);
    int (*\fBfire\fR)(struct _dmenu_item *self);
+   int (*\fBselected\fR)(struct _dmenu_item *self, int is_selected);
    void *\fBdata\fR;
    char \fBlbra\fR, \fBmark\fR, \fBrbra\fR;
 } \fBdialogMenuItem\fR;
@@ -72,20 +73,29 @@ The \fBprompt\fR and \fBtitle\fR strings are pretty much self-explanatory,
 and the \fBchecked\fR and \fBfire\fR function pointers provide optional
 display and action hooks (the \fBdata\fR variable being available for
 the convenience of those hooks) when more tightly coupled feedback between
-a menu object and user code is required.  A number of clever tricks for
-simulating various kinds of item types can also be done by adjusting the
-values of \fBlbra\fR (default: '['), \fB\mark\fR (default: '*' for radio
-menus, 'X' for check menus) and \fBrbra\fR (default: ']') and declaring
-a reasonable \fBchecked\fR hook, which should return TRUE for the `marked' state 
-and FALSE for `unmarked.'  If an item has a \fBfire\fR hook associated
-with it, it will also be called whenever the item is "toggled" in some way
-and should return one of the following codes:
+a menu object and user code is required.  The \fBselected\fR hook also
+allows you to verify whether or not a given item is selected (the cursor is
+over it) for implementing pretty much any possible context-sensitive
+behavior. A number of clever tricks for simulating various kinds of item
+types can also be done by adjusting the values of \fBlbra\fR
+(default: '['), \fB\mark\fR (default: '*' for radio menus, 'X' for check menus)
+and \fBrbra\fR (default: ']') and declaring a reasonable \fBchecked\fR hook,
+which should return TRUE for the `marked' state and FALSE for `unmarked.'
+If an item has a \fBfire\fR hook associated with it, it will also be called
+whenever the item is "toggled" in some way and should return one of the
+following codes:
 .nf
 
 #define DITEM_SUCCESS            0      /* Successful completion */
 #define DITEM_FAILURE           -1      /* Failed to "fire" */
 #define DITEM_LEAVE_MENU        -2      /* Treat selection as "Ok" */
 #define DITEM_REDRAW            -3      /* Menu has changed, redraw it */
+
+Two special globals also exist for putting a dialog at any arbitrary
+X,Y location (the early designers rather short-sightedly made no provisions
+for this).  If set to zero, the default centering behavior will be in
+effect.
+
 .fi
 
 .Sh SYNOPSIS
