@@ -49,8 +49,12 @@ static void do_color(int pair, int  (*outc)(int))
 int fg, bg;
 
 	if ( pair == 0 ) {
-		tputs(orig_pair, 1, outc);
-	} else {
+		if (orig_pair) {
+			tputs(orig_pair, 1, outc);
+		}
+	} else if ((set_a_foreground || set_foreground) &&
+		   (set_a_background || set_background)
+		  ) {
 		fg = FG(color_pairs[pair]);
 		bg = BG(color_pairs[pair]);
 
