@@ -1879,68 +1879,62 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
 
 static char *
 expand_name(name, uid, pid)
-const char *name; uid_t uid; pid_t pid; {
+	const char *name;
+	uid_t uid;
+	pid_t pid;
+{
+	const char *format, *appendstr;
 	char *temp;
 	char buf[11];		/* Buffer for pid/uid -- max 4B */
-	int i, n;
-	char *format = corefilename;
-	size_t namelen;
+	size_t i, l, n;
 
-	temp = malloc(MAXPATHLEN + 1, M_TEMP, M_NOWAIT | M_ZERO);
+	format = corefilename;
+	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
 	if (temp == NULL)
-		return NULL;
-	namelen = strlen(name);
+		return (NULL);
 	for (i = 0, n = 0; n < MAXPATHLEN && format[i]; i++) {
-		int l;
 		switch (format[i]) {
 		case '%':	/* Format character */
 			i++;
 			switch (format[i]) {
 			case '%':
-				temp[n++] = '%';
+				appendstr = "%";
 				break;
 			case 'N':	/* process name */
-				if ((n + namelen) > MAXPATHLEN) {
-					log(LOG_ERR, "pid %d (%s), uid (%u):  Path `%s%s' is too long\n",
-					    pid, name, uid, temp, name);
-					free(temp, M_TEMP);
-					return NULL;
-				}
-				memcpy(temp+n, name, namelen);
-				n += namelen;
+				appendstr = name;
 				break;
 			case 'P':	/* process id */
-				l = sprintf(buf, "%u", pid);
-				if ((n + l) > MAXPATHLEN) {
-					log(LOG_ERR, "pid %d (%s), uid (%u):  Path `%s%s' is too long\n",
-					    pid, name, uid, temp, name);
-					free(temp, M_TEMP);
-					return NULL;
-				}
-				memcpy(temp+n, buf, l);
-				n += l;
+				sprintf(buf, "%u", pid);
+				appendstr = buf;
 				break;
 			case 'U':	/* user id */
-				l = sprintf(buf, "%u", uid);
-				if ((n + l) > MAXPATHLEN) {
-					log(LOG_ERR, "pid %d (%s), uid (%u):  Path `%s%s' is too long\n",
-					    pid, name, uid, temp, name);
-					free(temp, M_TEMP);
-					return NULL;
-				}
-				memcpy(temp+n, buf, l);
-				n += l;
+				sprintf(buf, "%u", uid);
+				appendstr = buf;
 				break;
 			default:
-			  	log(LOG_ERR, "Unknown format character %c in `%s'\n", format[i], format);
+				appendstr = "";
+			  	log(LOG_ERR,
+				    "Unknown format character %c in `%s'\n",
+				    format[i], format);
 			}
+			l = strlen(appendstr);
+			if ((n + l) >= MAXPATHLEN)
+				goto toolong;
+			memcpy(temp + n, appendstr, l);
+			n += l;
 			break;
 		default:
 			temp[n++] = format[i];
 		}
 	}
-	temp[n] = '\0';
-	return temp;
+	if (format[i] != '\0')
+		goto toolong;
+	return (temp);
+toolong:
+	log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too long\n",
+	    (long)pid, name, (u_long)uid);
+	free(temp, M_TEMP);
+	return (NULL);
 }
 
 /*
