@@ -4,7 +4,8 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id: cfparse.y,v 1.7 1997/02/22 16:06:48 peter Exp $
+ * $Id: cfparse.y,v 1.8 1998/06/09 05:01:27 imp Exp $
+ * cfparse.y,v 3.8.4.30 1998/03/01 01:48:58 fenner Exp
  */
 #include <stdio.h>
 #ifdef __STDC__
@@ -29,19 +30,23 @@ int			yyparse __P((void));
 
 static FILE *f;
 
-extern int udp_socket;
 char *configfilename = _PATH_MROUTED_CONF;
 
 extern int cache_lifetime;
-extern int max_prune_lifetime;
+extern int prune_lifetime;
+
+/* imported from config.c, with slight memory leak */
+extern struct ifconf ifc;
+
+int allow_black_holes = 0;
 
 static int lineno;
-static struct ifreq ifbuf[32];
-static struct ifconf ifc;
 
 static struct uvif *v;
 
-static int order;
+static int order, state;
+static int noflood = 0;
+static int rexmit = VIFF_REXMIT_PRUNES;
 
 struct addrmask {
 	u_int32	addr;
@@ -66,12 +71,17 @@ int numbounds = 0;			/* Number of named boundaries */
 	char *ptr;
 	struct addrmask addrmask;
 	u_int32 addr;
+	struct vf_element *filterelem;
 };
 
-%token CACHE_LIFETIME PRUNING
+%token CACHE_LIFETIME PRUNE_LIFETIME PRUNING BLACK_HOLE NOFLOOD
 %token PHYINT TUNNEL NAME
-%token DISABLE IGMPV1 SRCRT
+%token DISABLE IGMPV1 SRCRT BESIDE
 %token METRIC THRESHOLD RATE_LIMIT BOUNDARY NETMASK ALTNET ADVERT_METRIC
+%token FILTER ACCEPT DENY EXACT BIDIR REXMIT_PRUNES REXMIT_PRUNES2
+%token PASSIVE ALLOW_NONPRUNERS
+%token NOTRANSIT BLASTER FORCE_LEAF
+%token PRUNE_LIFETIME2 NOFLOOD2
 %token SYSNAM SYSCONTACT SYSVERSION SYSLOCATION
 %token <num> BOOLEAN
 %token <num> NUMBER
@@ -81,6 +91,7 @@ int numbounds = 0;			/* Number of named boundaries */
 
 %type <addr> interface addrname
 %type <addrmask> bound boundary addrmask
+%type <filterelem> filter filtlist filtelement filtelem
 
 %start conf
 
@@ -97,6 +108,8 @@ stmt	: error
 	| PHYINT interface 		{
 
 			vifi_t vifi;
+
+			state++;
 
 			if (order)
 			    fatal("phyints must appear before tunnels");
@@ -127,12 +140,9 @@ stmt	: error
 			    fatal("Tunnel local address %s is not mine",
 				inet_fmt($2, s1));
 
-			strncpy(ffr.ifr_name, ifr->ifr_name, IFNAMSIZ);
-			ffr.ifr_name[IFNAMSIZ-1]='\0';
-			if (ioctl(udp_socket, SIOCGIFFLAGS, (char *)&ffr)<0)
-			    fatal("ioctl SIOCGIFFLAGS on %s",ffr.ifr_name);
-			if (ffr.ifr_flags & IFF_LOOPBACK)
-			    fatal("Tunnel local address %s is a loopback interface",
+			if (((ntohl($2) & IN_CLASSA_NET) >> IN_CLASSA_NSHIFT) ==
+				IN_LOOPBACKNET)
+			    fatal("Tunnel local address %s is a loopback address",
 				inet_fmt($2, s1));
 
 			if (ifconfaddr(&ifc, $3) != 0)
@@ -148,30 +158,26 @@ stmt	: error
 					inet_fmt($3, s1));
 			    } else if (!(v->uv_flags & VIFF_DISABLED)) {
 				if (($3 & v->uv_subnetmask) == v->uv_subnet)
-				    fatal("Unnecessary tunnel to %s",
-					inet_fmt($3,s1));
+				    fatal("Unnecessary tunnel to %s, same subnet as vif %d (%s)",
+					inet_fmt($3,s1), vifi, v->uv_name);
 			    }
 
 			if (numvifs == MAXVIFS)
 			    fatal("too many vifs");
 
+			strncpy(ffr.ifr_name, ifr->ifr_name, IFNAMSIZ);
+			if (ioctl(udp_socket, SIOCGIFFLAGS, (char *)&ffr)<0)
+			    fatal("ioctl SIOCGIFFLAGS on %s", ffr.ifr_name);
+
 			v = &uvifs[numvifs];
-			v->uv_flags	= VIFF_TUNNEL;
-			v->uv_metric	= DEFAULT_METRIC;
-			v->uv_admetric  = 0;
-			v->uv_rate_limit= DEFAULT_TUN_RATE_LIMIT;
-			v->uv_threshold	= DEFAULT_THRESHOLD;
+			zero_vif(v, 1);
+			v->uv_flags	= VIFF_TUNNEL | rexmit | noflood;
+			v->uv_flags |= VIFF_OTUNNEL; /*XXX*/
 			v->uv_lcl_addr	= $2;
 			v->uv_rmt_addr	= $3;
-			v->uv_subnet	= 0;
-			v->uv_subnetmask= 0;
-			v->uv_subnetbcast= 0;
+			v->uv_dst_addr	= $3;
 			strncpy(v->uv_name, ffr.ifr_name, IFNAMSIZ);
 			v->uv_name[IFNAMSIZ-1]='\0';
-			v->uv_groups	= NULL;
-			v->uv_neighbors	= NULL;
-			v->uv_acl	= NULL;
-			v->uv_addrs	= NULL;
 
 			if (!(ffr.ifr_flags & IFF_UP)) {
 			    v->uv_flags |= VIFF_DOWN;
@@ -180,17 +186,101 @@ stmt	: error
 					}
 		tunnelmods
 					{
-			log(LOG_INFO, 0,
-			    "installing tunnel from %s to %s as vif #%u - rate=%d",
-			    inet_fmt($2, s1), inet_fmt($3, s2),
-			    numvifs, v->uv_rate_limit);
 
-			++numvifs;
+	if (!(v->uv_flags & VIFF_OTUNNEL)) {
+	    init_ipip_on_vif(v);
+	}
+
+	log(LOG_INFO, 0,
+	    "installing tunnel from %s to %s as vif #%u - rate=%d",
+	    inet_fmt($2, s1), inet_fmt($3, s2),
+	    numvifs, v->uv_rate_limit);
+
+	++numvifs;
+
 					}
-	| PRUNING BOOLEAN	    { pruning = $2; }
-	| CACHE_LIFETIME NUMBER     { cache_lifetime = $2;
-				      max_prune_lifetime = cache_lifetime * 2;
+	| CACHE_LIFETIME NUMBER     {
+
+			if ($2 < MIN_CACHE_LIFETIME) {
+			    warn("cache_lifetime %d must be at least %d",
+					    $2, MIN_CACHE_LIFETIME);
+			} else {
+			    cache_lifetime = $2;
+			}
+
 				    }
+	| PRUNE_LIFETIME NUMBER	    {
+
+			if ($2 < MIN_PRUNE_LIFETIME) {
+			    warn("prune_lifetime %d must be at least %d",
+					    $2, MIN_PRUNE_LIFETIME);
+			} else {
+			    prune_lifetime = $2;
+			}
+
+				    }
+	| PRUNING BOOLEAN	    {
+
+			if ($2 != 1) {
+			    warn("Disabling pruning is no longer supported");
+			}
+
+				    }
+	| BLACK_HOLE		    {
+#ifdef ALLOW_BLACK_HOLES
+					allow_black_holes = 1;
+#endif
+				    }
+	/*
+	 * Turn off initial flooding (until subordinateness is learned
+	 * via route exchange) on all phyints and set the default for
+	 * all further tunnels.
+	 */
+	| NOFLOOD		    {
+
+			vifi_t vifi;
+
+			noflood = VIFF_NOFLOOD;
+			for (vifi = 0, v = uvifs;
+			     vifi < numvifs;
+			     ++vifi, ++v)
+				v->uv_flags |= VIFF_NOFLOOD;
+
+				    }
+	/*
+	 * Turn on prune retransmission on all interfaces.
+	 * Tunnels default to retransmitting, so this just
+	 * needs to turn on phyints.
+	 */
+	| REXMIT_PRUNES		    {
+
+			vifi_t vifi;
+
+			for (vifi = 0, v = uvifs;
+			     vifi < numvifs;
+			     ++vifi, ++v)
+				v->uv_flags |= VIFF_REXMIT_PRUNES;
+
+				    }
+	/*
+	 * If true, do as above.  If false, no need to turn
+	 * it off for phyints since they default to not
+	 * rexmit; need to set flag to not rexmit on tunnels.
+	 */
+	| REXMIT_PRUNES BOOLEAN {
+
+		    if ($2) {
+			vifi_t vifi;
+
+			for (vifi = 0, v = uvifs;
+			     vifi < numvifs;
+			     ++vifi, ++v)
+				v->uv_flags |= VIFF_REXMIT_PRUNES;
+		    } else {
+			rexmit = 0;
+		    }
+
+				}
 	| NAME STRING boundary	    { if (numbounds >= MAXBOUNDS) {
 					fatal("Too many named boundaries (max %d)", MAXBOUNDS);
 				      }
@@ -226,6 +316,16 @@ tunnelmods	: /* empty */
 	;
 
 tunnelmod	: mod
+	| BESIDE		{ v->uv_flags |= VIFF_OTUNNEL; }
+	| BESIDE BOOLEAN	{
+
+		    if ($2) {
+			v->uv_flags |= VIFF_OTUNNEL;
+		    } else {
+			v->uv_flags &= ~VIFF_OTUNNEL;
+		    }
+
+				}
 	| SRCRT			{ fatal("Source-route tunnels not supported"); }
 	;
 
@@ -275,6 +375,20 @@ ifmod	: mod
 	| ALTNET		{
 
 		    warn("Expected address after altnet keyword, ignored");
+
+				}
+	| FORCE_LEAF		{
+
+		    v->uv_flags |= VIFF_FORCE_LEAF;
+
+				}
+	| FORCE_LEAF BOOLEAN	{
+
+		    if ($2) {
+		        v->uv_flags |= VIFF_FORCE_LEAF;
+		    } else {
+		        v->uv_flags &= ~VIFF_FORCE_LEAF;
+		    }
 
 				}
 	;
@@ -336,6 +450,122 @@ mod	: THRESHOLD NUMBER	{ if ($2 < 1 || $2 > 255)
 		warn("Expected boundary spec after boundary keyword, ignored");
 
 				}
+	| REXMIT_PRUNES2	{
+
+		    v->uv_flags |= VIFF_REXMIT_PRUNES;
+
+				}
+	| REXMIT_PRUNES2 BOOLEAN {
+
+		    if ($2) {
+			v->uv_flags |= VIFF_REXMIT_PRUNES;
+		    } else {
+			v->uv_flags &= ~VIFF_REXMIT_PRUNES;
+		    }
+
+				}
+	| PASSIVE		{
+
+		    v->uv_flags |= VIFF_PASSIVE;
+
+				}
+	| NOFLOOD2		{
+
+		    v->uv_flags |= VIFF_NOFLOOD;
+
+				}
+	| NOTRANSIT		{
+
+		    v->uv_flags |= VIFF_NOTRANSIT;
+
+				}
+	| BLASTER		{
+
+		    v->uv_flags |= VIFF_BLASTER;
+		    blaster_alloc(v - uvifs);
+
+				}
+	| ALLOW_NONPRUNERS	{
+
+		    v->uv_flags |= VIFF_ALLOW_NONPRUNERS;
+
+				}
+	| PRUNE_LIFETIME2 NUMBER {
+
+			if ($2 < MIN_PRUNE_LIFETIME) {
+			    warn("prune_lifetime %d must be at least %d",
+					    $2, MIN_PRUNE_LIFETIME);
+			} else {
+			    v->uv_prune_lifetime = $2;
+			}
+
+				}
+	| ACCEPT filter		{
+
+		    if (v->uv_filter == NULL) {
+			struct vif_filter *v_filter;
+
+			v_filter = (struct vif_filter *)malloc(sizeof(struct vif_filter));
+			if (v_filter == NULL)
+			    fatal("out of memory");
+			v_filter->vf_flags = 0;
+			v_filter->vf_type = VFT_ACCEPT;
+			v_filter->vf_filter = $2;
+			v->uv_filter = v_filter;
+		    } else if (v->uv_filter->vf_type != VFT_ACCEPT) {
+			fatal("can't accept and deny");
+		    } else {
+			struct vf_element *p;
+
+			p = v->uv_filter->vf_filter;
+			while (p->vfe_next)
+			    p = p->vfe_next;
+			p->vfe_next = $2;
+		    }
+
+				}
+	| ACCEPT		{
+
+		warn("Expected filter spec after accept keyword, ignored");
+
+				}
+	| DENY filter		{
+
+		    if (v->uv_filter == NULL) {
+			struct vif_filter *v_filter;
+
+			v_filter = (struct vif_filter *)malloc(sizeof(struct vif_filter));
+			if (v_filter == NULL)
+			    fatal("out of memory");
+			v_filter->vf_flags = 0;
+			v_filter->vf_type = VFT_DENY;
+			v_filter->vf_filter = $2;
+			v->uv_filter = v_filter;
+		    } else if (v->uv_filter->vf_type != VFT_DENY) {
+			fatal("can't accept and deny");
+		    } else {
+			struct vf_element *p;
+
+			p = v->uv_filter->vf_filter;
+			while (p->vfe_next)
+			    p = p->vfe_next;
+			p->vfe_next = $2;
+		    }
+
+				}
+	| DENY			{
+
+		warn("Expected filter spec after deny keyword, ignored");
+
+				}
+	| BIDIR			{
+
+		    if (v->uv_filter == NULL) {
+			fatal("bidir goes after filters");
+		    }
+		    v->uv_filter->vf_flags |= VFF_BIDIR;
+
+				}
 	;
 
 interface	: ADDR		{ $$ = $1; }
@@ -378,6 +608,9 @@ bound	: boundary		{ $$ = $1; }
 
 boundary	: ADDRMASK	{
 
+#ifdef ALLOW_BLACK_HOLES
+			if (!allow_black_holes)
+#endif
 			if ((ntohl($1.addr) & 0xff000000) != 0xef000000) {
 			    fatal("Boundaries must be 239.x.x.x, not %s/%d",
 				inet_fmt($1.addr, s1), $1.mask);
@@ -390,6 +623,35 @@ boundary	: ADDRMASK	{
 addrmask	: ADDRMASK	{ $$ = $1; }
 	| ADDR			{ $$.addr = $1; $$.mask = 0; }
 	;
+
+filter	:	filtlist	{ $$ = $1; }
+	| STRING		{ fatal("named filters no implemented yet"); }
+	;
+
+filtlist	: filtelement	{ $$ = $1; }
+	| filtelement filtlist	{ $1->vfe_next = $2; $$ = $1; }
+	;
+
+filtelement	: filtelem	{ $$ = $1; }
+	| filtelem EXACT	{ $1->vfe_flags |= VFEF_EXACT; $$ = $1; }
+	;
+
+filtelem	: ADDRMASK	{
+
+			struct vf_element *vfe;
+
+			vfe = (struct vf_element *)malloc(sizeof(struct vf_element));
+			if (vfe == NULL)
+			    fatal("out of memory");
+
+			vfe->vfe_addr = $1.addr;
+			VAL_TO_MASK(vfe->vfe_mask, $1.mask);
+			vfe->vfe_flags = 0;
+			vfe->vfe_next = NULL;
+
+			$$ = vfe;
+
+				}
 %%
 #ifdef __STDC__
 static void
@@ -455,7 +717,6 @@ next_word()
 {
 	static char buf[1024];
 	static char *p=NULL;
-	extern FILE *f;
 	char *q;
 
 	while (1) {
@@ -494,47 +755,75 @@ next_word()
 	}
 }
 
+/*
+ * List of keywords.  Must have an empty record at the end to terminate
+ * list.  If a second value is specified, the first is used at the beginning
+ * of the file and the second is used while parsing interfaces (e.g. after
+ * the first "phyint" or "tunnel" keyword).
+ */
+static struct keyword {
+	char	*word;
+	int	val1;
+	int	val2;
+} words[] = {
+	{ "cache_lifetime",	CACHE_LIFETIME },
+	{ "prune_lifetime",	PRUNE_LIFETIME,	PRUNE_LIFETIME2 },
+	{ "pruning",		PRUNING },
+	{ "phyint",		PHYINT },
+	{ "tunnel",		TUNNEL },
+	{ "disable",		DISABLE },
+	{ "metric",		METRIC },
+	{ "advert_metric",	ADVERT_METRIC },
+	{ "threshold",		THRESHOLD },
+	{ "rate_limit",		RATE_LIMIT },
+	{ "force_leaf",		FORCE_LEAF },
+	{ "srcrt",		SRCRT },
+	{ "sourceroute",	SRCRT },
+	{ "boundary",		BOUNDARY },
+	{ "netmask",		NETMASK },
+	{ "igmpv1",		IGMPV1 },
+	{ "altnet",		ALTNET },
+	{ "name",		NAME },
+	{ "accept",		ACCEPT },
+	{ "deny",		DENY },
+	{ "exact",		EXACT },
+	{ "bidir",		BIDIR },
+	{ "allow_nonpruners",	ALLOW_NONPRUNERS },
+#ifdef ALLOW_BLACK_HOLES
+	{ "allow_black_holes",	BLACK_HOLE },
+#endif
+	{ "noflood",		NOFLOOD, NOFLOOD2},
+	{ "notransit",		NOTRANSIT },
+	{ "blaster",		BLASTER },
+	{ "rexmit_prunes",	REXMIT_PRUNES, REXMIT_PRUNES2 },
+	{ "passive",		PASSIVE },
+	{ "beside",		BESIDE },
+#ifdef SNMP
+	{ "sysName",		SYSNAM },
+	{ "sysContact",		SYSCONTACT },
+	{ "sysVersion",		SYSVERSION },
+	{ "sysLocation",	SYSLOCATION },
+#endif
+	{ NULL,			0 }
+};
+
+
 static int
 yylex()
 {
 	int n;
 	u_int32 addr;
 	char *q;
+	struct keyword *w;
 
 	if ((q = next_word()) == NULL) {
 		return 0;
 	}
 
-	if (!strcmp(q,"cache_lifetime"))
-		return CACHE_LIFETIME;
-	if (!strcmp(q,"pruning"))
-		return PRUNING;
-	if (!strcmp(q,"phyint"))
-		return PHYINT;
-	if (!strcmp(q,"tunnel"))
-		return TUNNEL;
-	if (!strcmp(q,"disable"))
-		return DISABLE;
-	if (!strcmp(q,"metric"))
-		return METRIC;
-	if (!strcmp(q,"advert_metric"))
-		return ADVERT_METRIC;
-	if (!strcmp(q,"threshold"))
-		return THRESHOLD;
-	if (!strcmp(q,"rate_limit"))
-		return RATE_LIMIT;
-	if (!strcmp(q,"srcrt") || !strcmp(q,"sourceroute"))
-		return SRCRT;
-	if (!strcmp(q,"boundary"))
-		return BOUNDARY;
-	if (!strcmp(q,"netmask"))
-		return NETMASK;
-	if (!strcmp(q,"igmpv1"))
-		return IGMPV1;
-	if (!strcmp(q,"altnet"))
-		return ALTNET;
-	if (!strcmp(q,"name"))
-		return NAME;
+	for (w = words; w->word; w++)
+		if (!strcmp(q, w->word))
+		    return (state && w->val2) ? w->val2 : w->val1;
+
 	if (!strcmp(q,"on") || !strcmp(q,"yes")) {
 		yylval.num = 1;
 		return BOOLEAN;
@@ -572,14 +861,6 @@ yylex()
 		return NUMBER;
 	}
 #ifdef SNMP
-	if (!strcmp(q,"sysName"))
-		return SYSNAM;
-	if (!strcmp(q,"sysContact"))
-		return SYSCONTACT;
-	if (!strcmp(q,"sysVersion"))
-		return SYSVERSION;
-	if (!strcmp(q,"sysLocation"))
-		return SYSLOCATION;
    if (*q=='"') {
       if (q[ strlen(q)-1 ]=='"')
          q[ strlen(q)-1 ]='\0'; /* trash trailing quote */
@@ -594,9 +875,8 @@ yylex()
 void
 config_vifs_from_file()
 {
-	extern FILE *f;
-
 	order = 0;
+	state = 0;
 	numbounds = 0;
 	lineno = 0;
 
@@ -605,11 +885,6 @@ config_vifs_from_file()
 		log(LOG_ERR, errno, "can't open %s", configfilename);
 	    return;
 	}
-
-	ifc.ifc_buf = (char *)ifbuf;
-	ifc.ifc_len = sizeof(ifbuf);
-	if (ioctl(udp_socket, SIOCGIFCONF, (char *)&ifc) < 0)
-	    log(LOG_ERR, errno, "ioctl SIOCGIFCONF");
 
 	yyparse();
 
@@ -643,7 +918,7 @@ ifconfaddr(ifcp, a)
 	    if (ifrp->ifr_addr.sa_family == AF_INET &&
 		((struct sockaddr_in *)&ifrp->ifr_addr)->sin_addr.s_addr == a)
 		    return (ifrp);
-#if (defined(BSD) && (BSD >= 199006))
+#ifdef HAVE_SA_LEN
 		n = ifrp->ifr_addr.sa_len + sizeof(ifrp->ifr_name);
 		if (n < sizeof(*ifrp))
 			++ifrp;
