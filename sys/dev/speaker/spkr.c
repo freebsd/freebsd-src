@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.23 1995/12/15 00:54:30 bde Exp $
+ *    $Id: spkr.c,v 1.24 1996/03/27 19:07:33 bde Exp $
  */
 
 #include "speaker.h"
@@ -88,9 +88,10 @@ static void playtone __P((int pitch, int value, int sustain));
 static int abs __P((int n));
 static void playstring __P((char *cp, size_t slen));
 
-static void tone(thz, ticks)
 /* emit tone of frequency thz for given number of ticks */
-unsigned int thz, ticks;
+static void
+tone(thz, ticks)
+	unsigned int thz, ticks;
 {
     unsigned int divisor;
     int sps;
@@ -105,15 +106,18 @@ unsigned int thz, ticks;
 #endif /* DEBUG */
 
     /* set timer to generate clicks at given frequency in Hertz */
-    sps = spltty();
+    sps = splclock();
 
     if (acquire_timer2(PIT_MODE)) {
 	/* enter list of waiting procs ??? */
+	splx(sps);
 	return;
     }
+    splx(sps);
+    disable_intr();
     outb(TIMER_CNTR2, (divisor & 0xff));	/* send lo byte */
     outb(TIMER_CNTR2, (divisor >> 8));	/* send hi byte */
-    splx(sps);
+    enable_intr();
 
     /* turn the speaker on */
     outb(IO_PPI, inb(IO_PPI) | PPI_SPKR);
@@ -126,12 +130,15 @@ unsigned int thz, ticks;
     if (ticks > 0)
 	tsleep((caddr_t)&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
     outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR);
+    sps = splclock();
     release_timer2();
+    splx(sps);
 }
 
-static void rest(ticks)
 /* rest for given number of ticks */
-int	ticks;
+static void
+rest(ticks)
+	int	ticks;
 {
     /*
      * Set timeout to endrest function, then give up the timeslice.
@@ -208,7 +215,8 @@ static int pitchtab[] =
 /* 6 */ 4186, 4435, 4698, 4978, 5274, 5588, 5920, 6272, 6644, 7040, 7459, 7902,
 };
 
-static void playinit()
+static void
+playinit()
 {
     octave = DFLT_OCTAVE;
     whole = (hz * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
@@ -218,9 +226,10 @@ static void playinit()
     octprefix = TRUE;	/* act as though there was an initial O(n) */
 }
 
-static void playtone(pitch, value, sustain)
 /* play tone of proper duration for current rhythm signature */
-int	pitch, value, sustain;
+static void
+playtone(pitch, value, sustain)
+	int	pitch, value, sustain;
 {
     register int	sound, silence, snum = 1, sdenom = 1;
 
@@ -254,8 +263,9 @@ int	pitch, value, sustain;
     }
 }
 
-static int abs(n)
-int n;
+static int
+abs(n)
+	int n;
 {
     if (n < 0)
 	return(-n);
@@ -263,10 +273,11 @@ int n;
 	return(n);
 }
 
-static void playstring(cp, slen)
 /* interpret and play an item from a notation string */
-char	*cp;
-size_t	slen;
+static void
+playstring(cp, slen)
+	char	*cp;
+	size_t	slen;
 {
     int		pitch, oldfill, lastpitch = OCTAVE_NOTES * DFLT_OCTAVE;
 
@@ -463,11 +474,12 @@ size_t	slen;
 static int spkr_active = FALSE; /* exclusion flag */
 static struct buf *spkr_inbuf;  /* incoming buf */
 
-int spkropen(dev, flags, fmt, p)
-dev_t		dev;
-int		flags;
-int		fmt;
-struct proc	*p;
+int
+spkropen(dev, flags, fmt, p)
+	dev_t		dev;
+	int		flags;
+	int		fmt;
+	struct proc	*p;
 {
 #ifdef DEBUG
     (void) printf("spkropen: entering with dev = %x\n", dev);
@@ -489,10 +501,11 @@ struct proc	*p;
     }
 }
 
-int spkrwrite(dev, uio, ioflag)
-dev_t		dev;
-struct uio	*uio;
-int		ioflag;
+int
+spkrwrite(dev, uio, ioflag)
+	dev_t		dev;
+	struct uio	*uio;
+	int		ioflag;
 {
 #ifdef DEBUG
     printf("spkrwrite: entering with dev = %x, count = %d\n",
@@ -517,11 +530,12 @@ int		ioflag;
     }
 }
 
-int spkrclose(dev, flags, fmt, p)
-dev_t		dev;
-int		flags;
-int		fmt;
-struct proc	*p;
+int
+spkrclose(dev, flags, fmt, p)
+	dev_t		dev;
+	int		flags;
+	int		fmt;
+	struct proc	*p;
 {
 #ifdef DEBUG
     (void) printf("spkrclose: entering with dev = %x\n", dev);
@@ -539,12 +553,13 @@ struct proc	*p;
     }
 }
 
-int spkrioctl(dev, cmd, cmdarg, flags, p)
-dev_t		dev;
-int		cmd;
-caddr_t		cmdarg;
-int		flags;
-struct proc	*p;
+int
+spkrioctl(dev, cmd, cmdarg, flags, p)
+	dev_t		dev;
+	int		cmd;
+	caddr_t		cmdarg;
+	int		flags;
+	struct proc	*p;
 {
 #ifdef DEBUG
     (void) printf("spkrioctl: entering with dev = %x, cmd = %x\n");
@@ -587,7 +602,8 @@ struct proc	*p;
 
 static spkr_devsw_installed = 0;
 
-static void 	spkr_drvinit(void *unused)
+static void
+spkr_drvinit(void *unused)
 {
 	dev_t dev;
 
