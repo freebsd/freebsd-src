@@ -150,7 +150,7 @@ static moduledata_t crypto_mod = {
 	0
 };
 MODULE_VERSION(crypto, 1);
-DECLARE_MODULE(crypto, crypto_mod, SI_SUB_PSEUDO, SI_ORDER_SECOND);
+DECLARE_MODULE(crypto, crypto_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 
 /*
  * Create a new session.
