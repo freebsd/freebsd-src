@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cd.c,v 1.3 1994/11/06 01:29:26 jkh Exp $
+ *	$Id: cd.c,v 1.5 1995/11/14 01:04:52 peter Exp $
  */
 
 #ifndef lint
@@ -92,7 +92,10 @@ cdcmd(argc, argv)  char **argv; {
 		dest = ".";
 	if (dest[0] == '-' && dest[1] == '\0') {
 		dest = prevdir ? prevdir : curdir;
-		print = 1;
+		if (dest)
+			print = 1;
+		else
+			dest = ".";
 	}
 	if (*dest == '/' || (path = bltinlookup("CDPATH", 1)) == NULL)
 		path = nullstr;

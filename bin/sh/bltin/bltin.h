@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)bltin.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: bltin.h,v 1.3 1995/12/10 15:37:44 joerg Exp $
  */
 
 /*
@@ -47,15 +47,24 @@
 #include "../mystring.h"
 #ifdef SHELL
 #include "../output.h"
+#undef stdout
 #define stdout out1
+#undef stderr
 #define stderr out2
 #define printf out1fmt
+#undef putc
 #define putc(c, file)	outc(c, file)
+#undef putchar
 #define putchar(c)	out1c(c)
 #define fprintf outfmt
 #define fputs outstr
 #define fflush flushout
 #define INITARGS(argv)
+#define warnx(a, b, c) {                                               \
+       char buf[64];                                                   \
+       (void)snprintf(buf, sizeof(buf), a, b, c);                       \
+       error(buf);                                                     \
+}
 #else
 #undef NULL
 #include <stdio.h>
