@@ -234,12 +234,13 @@ interruption_Data_TLB:
 	.org	ia64_vector_table + 0x0c00	// Alternate ITLB vector
 interruption_Alternate_Instruction_TLB:
 	mov	r16=cr.ifa		// where did it happen
-	;; 
 	mov	r18=pr			// save predicates
 	;;
 	extr.u	r17=r16,61,3		// get region number
 	;;
+	cmp.ge	p3,p0=5,r17		// RR0-RR5?
 	cmp.eq	p1,p2=7,r17		// RR7->p1, RR6->p2
+(p3)	br.spnt	9f
 	;;
 (p1)	movl	r17=PTE_P+PTE_MA_WB+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RX
 (p2)	movl	r17=PTE_P+PTE_MA_UC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RX
@@ -252,6 +253,8 @@ interruption_Alternate_Instruction_TLB:
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+9:	mov	pr=r18,0x1ffff		// restore predicates
+	TRAP(3)
 
 	.org	ia64_vector_table + 0x1000	// Alternate DTLB vector
 interruption_Alternate_Data_TLB:
@@ -260,7 +263,9 @@ interruption_Alternate_Data_TLB:
 	;;
 	extr.u	r17=r16,61,3		// get region number
 	;;
+	cmp.ge	p3,p0=5,r17		// RR0-RR5?
 	cmp.eq	p1,p2=7,r17		// RR7->p1, RR6->p2
+(p3)	br.spnt	9f
 	;;
 (p1)	movl	r17=PTE_P+PTE_MA_WB+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RW
 (p2)	movl	r17=PTE_P+PTE_MA_UC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RW
@@ -273,6 +278,8 @@ interruption_Alternate_Data_TLB:
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+9:	mov	pr=r18,0x1ffff		// restore predicates
+	TRAP(4)
 
 	.org	ia64_vector_table + 0x1400	// Data Nested TLB vector
 interruption_Data_Nested_TLB:
