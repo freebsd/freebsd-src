@@ -56,13 +56,13 @@ MALLOC_DEFINE(M_SMBTEMP, "SMBTEMP", "Temp netsmb data");
 smb_unichar smb_unieol = 0;
 
 void
-smb_makescred(struct smb_cred *scred, struct proc *p, struct ucred *cred)
+smb_makescred(struct smb_cred *scred, struct thread *td, struct ucred *cred)
 {
-	if (p) {
-		scred->scr_p = p;
-		scred->scr_cred = cred ? cred : p->p_ucred;
+	if (td) {
+		scred->scr_td = td;
+		scred->scr_cred = cred ? cred : td->td_proc->p_ucred;
 	} else {
-		scred->scr_p = NULL;
+		scred->scr_td = NULL;
 		scred->scr_cred = cred ? cred : NULL;
 	}
 }
