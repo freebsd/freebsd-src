@@ -197,6 +197,7 @@ hatm_open_vcc1(struct hatm_softc *sc, struct atm_pseudoioctl *ph)
 
 	v->param.flags = ATM_PH_FLAGS(&ph->aph) &
 	    (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
+	v->param.flags |= ATMIO_FLAG_ASYNC;
 	v->param.vpi = ATM_PH_VPI(&ph->aph);
 	v->param.vci = ATM_PH_VCI(&ph->aph);
 	v->param.aal = (ATM_PH_FLAGS(&ph->aph) & ATM_PH_AAL5)
@@ -209,9 +210,6 @@ hatm_open_vcc1(struct hatm_softc *sc, struct atm_pseudoioctl *ph)
 	v->param.tparam.mcr = 0;
 
 	error = hatm_open_vcc(sc, v);
-	if (error == 0)
-		sc->vccs[HE_CID(v->param.vpi, v->param.vci)]->vflags |=
-		    HE_VCC_ASYNC;
 
 	free(v, M_TEMP);
 
@@ -271,7 +269,7 @@ hatm_close_vcc(struct hatm_softc *sc, struct atmio_closevcc *arg)
 	if (vcc->vflags & HE_VCC_RX_OPEN)
 		hatm_rx_vcc_close(sc, cid);
 
-	if (vcc->vflags & HE_VCC_ASYNC)
+	if (vcc->param.flags & ATMIO_FLAG_ASYNC)
 		goto done;
 
 	while ((sc->ifatm.ifnet.if_flags & IFF_RUNNING) &&
