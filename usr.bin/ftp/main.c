@@ -408,7 +408,7 @@ cmdscanner(top)
 			}
 			memcpy(line, buf, num);
 			line[num] = '\0';
-			history(hist, H_ENTER, buf);
+			history(hist, &he, H_ENTER, buf);
 		}
 #endif /* !SMALL */
 

@@ -839,9 +839,10 @@ void
 controlediting()
 {
 	if (editing && el == NULL && hist == NULL) {
-		el = el_init(__progname, stdin, stdout); /* init editline */
+		/* init editline */
+		el = el_init(__progname, stdin, stdout, stderr);
 		hist = history_init();		/* init the builtin history */
-		history(hist, H_EVENT, 100);	/* remember 100 events */
+		history(hist, &he, H_EVENT, 100);     /* remember 100 events */
 		el_set(el, EL_HIST, history, hist);	/* use history */
 
 		el_set(el, EL_EDITOR, "emacs");	/* default editor is emacs */

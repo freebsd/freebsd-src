@@ -127,6 +127,7 @@ int     try_epsv;               /* try EPSV for this session */
 int	  editing;		/* command line editing enabled */
 EditLine *el;			/* editline(3) status structure */
 History  *hist;			/* editline(3) history structure */
+HistEvent he;			/* editline(3) history structure */
 char	 *cursor_pos;		/* cursor position we're looking for */
 size_t	  cursor_argc;		/* location of cursor in margv */
 size_t	  cursor_argo;		/* offset of cursor in margv[cursor_argc] */
