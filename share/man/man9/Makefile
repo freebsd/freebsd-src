@@ -391,6 +391,7 @@ MLINKS+=vcount.9 count_dev.9
 
 MLINKS+=zone.9 uma.9
 MLINKS+=zone.9 uma_zalloc.9
+MLINKS+=zone.9 uma_zcreate.9
 MLINKS+=zone.9 uma_zfree.9
 MLINKS+=zone.9 uma_zdestroy.9
 

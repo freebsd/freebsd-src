@@ -29,6 +29,7 @@
 .Dt ZONE 9
 .Os
 .Sh NAME
+.Nm uma_zcreate ,
 .Nm uma_zalloc ,
 .Nm uma_zfree ,
 .Nm uma_zdestroy
@@ -37,6 +38,9 @@
 .In sys/param.h
 .In sys/queue.h
 .In vm/uma.h
+.Ft uma_zone_t
+.Fn uma_zcreate "char *name" "int size" "uma_ctor ctor" "uma_dtor dtor" "uma_in
+it uminit" "uma_fini fini" "int align" "u_int16_t flags"
 .Ft void *
 .Fn uma_zalloc "uma_zone_t zone, int flags"
 .Ft void
@@ -76,6 +80,14 @@ After the first allocation of an item,
 it will have been cleared to zeroes, however subsequent allocations
 will retain the contents as of the last free, with the exception of the
 fields mentioned above.
+.Pp
+The
+.Fn uma_zcreate
+function creates a new zone from which items may then be allocated from.
+The
+.Fa name
+argument is a text name of the zone for debugging and stats; this memory
+should not be freed until the zone has been deallocated.
 .Pp
 To allocate an item from a zone, simply call
 .Fn uma_zalloc
