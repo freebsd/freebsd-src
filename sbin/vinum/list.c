@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.13 1998/09/04 05:58:19 grog Exp grog $
+ * $Id: list.c,v 1.5 1998/11/03 06:39:39 grog Exp $
  */
 
 #include <ctype.h>
@@ -50,9 +50,9 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
-#include "vinumhdr.h"
+#include <dev/vinum/vinumhdr.h>
 #include "vext.h"
-#include "request.h"
+#include <dev/vinum/request.h>
 /* Take a size in sectors and return a pointer to a
  * string which represents the size best.
  * If lj is != 0, return left justified, otherwise
