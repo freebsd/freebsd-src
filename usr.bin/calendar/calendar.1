@@ -132,17 +132,14 @@ file in current directory
 .Pa calendar
 HOME directory. 
 .Nm calendar
-did a chdir into this directory if exist.
+does a chdir into this directory if it exists.
 
 
 .It Pa ~/.calendar/calendar
-file in calendar HOME directory, used if no calendar file
-in current directory.
+calendar file to use if no calendar file exists in the current directory.
 
 .It Pa ~/.calendar/nomail
-don't send mail if 
-.Pa ~/.calendar/nomail
-exist.
+do not send mail if this file exists.
 .El
 
 The following default calendar files are provided:
@@ -189,7 +186,7 @@ The
 program previously selected lines which had the correct date anywhere
 in the line.
 This is no longer true, the date is only recognized when it occurs
-first on the line.
+at the beginning of a line.
 .Sh HISTORY
 A
 .Nm
