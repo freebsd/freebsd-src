@@ -87,13 +87,16 @@ getvfsbyname(const char *name)
 			break;
 	}
 
+	if(i < _vfslistlen) {
+		_vfsconf = _vfslist[i];
+	}
+
 	if(!_vfs_keeplist) {
-	free(_vfslist);
+		free(_vfslist);
 		_vfslist = 0;
 	}
 
 	if(i < _vfslistlen) {
-		_vfsconf = _vfslist[i];
 		return &_vfsconf;
 	} else {
 		return 0;
@@ -114,13 +117,16 @@ getvfsbytype(int type)
 			break;
 	}
 
+	if(i < _vfslistlen) {
+		_vfsconf = _vfslist[i];
+	}
+
 	if(!_vfs_keeplist) {
 		free(_vfslist);
 		_vfslist = 0;
 	}
 
 	if(i < _vfslistlen) {
-		_vfsconf = _vfslist[i];
 		return &_vfsconf;
 	} else {
 		return 0;
