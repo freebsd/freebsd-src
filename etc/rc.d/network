@@ -26,13 +26,13 @@ network_start()
 	fi
 	if [ -n "$hostname" ]; then
 		echo "Hostname: $hostname"
-		hostname $hostname
+		/bin/hostname $hostname
 	else
 		# Don't warn about it if we're going to run
 		# DHCP later, as we will probably get the
 		# hostname at that time.
 		#
-		if ! checkyesno dhclient && [ -z "`hostname`" ]; then
+		if ! checkyesno dhclient && [ -z "`/bin/hostname`" ]; then
 			warn "\$hostname not set."
 		fi
 	fi

@@ -47,7 +47,7 @@ hostname_start()
 		if [ `$SYSCTL_N security.jail.set_hostname_allowed` -eq 0 ]; then
 			return
 		fi
-	elif [ -n "`hostname -s`" ]; then
+	elif [ -n "`/bin/hostname -s`" ]; then
 		return
 	else
 		# If we're not in a jail and rc.conf doesn't specify a
@@ -59,7 +59,7 @@ hostname_start()
 		fi
 	fi
 
-	hostname ${hostname}
+	/bin/hostname ${hostname}
 	echo "Setting hostname: `hostname`."
 }
 
