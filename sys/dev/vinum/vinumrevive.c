@@ -94,11 +94,9 @@ revive_block(int sdno)
 
     s = splbio();
     bp = geteblk(size);					    /* Get a buffer */
-    if (bp == NULL) {
-	splx(s);
-	return ENOMEM;
-    }
     splx(s);
+    if (bp == NULL)
+	return ENOMEM;
 
     /*
      * Amount to transfer: block size, unless it
@@ -140,7 +138,8 @@ revive_block(int sdno)
 	 */
 	if (sd->plexsdno > psd)				    /* beyond the parity stripe, */
 	    plexblkno -= plex->stripesize;		    /* one stripe less */
-	lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
+	if (!isparity)
+	    lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	break;
 
     case plex_disorg:					    /* to keep the compiler happy */
@@ -181,9 +180,6 @@ revive_block(int sdno)
     else
 	/* Now write to the subdisk */
     {
-	s = splbio();
-	splx(s);
-
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
 	bp->b_flags = B_ORDERED | B_WRITE;		    /* and make this an ordered write */
 	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
@@ -258,7 +254,6 @@ void
 parityops(struct vinum_ioctl_msg *data, enum parityop op)
 {
     int plexno;
-    int s;
     struct plex *plex;
     int size;						    /* I/O transfer size, bytes */
     int i;
@@ -315,9 +310,6 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
 		}
 	    }
 	} else {					    /* rebuildparity */
-	    s = splbio();
-	    splx(s);
-
 	    pbp->b_flags &= ~B_READ;
 	    pbp->b_flags |= B_WRITE;
 	    pbp->b_resid = pbp->b_bcount;
@@ -396,11 +388,11 @@ parityrebuild(struct plex *plex,
 	s = splbio();
 	bpp[sdno] = geteblk(mysize);			    /* Get a buffer */
 	if (bpp[sdno] == NULL) {
-	    splx(s);
 	    while (sdno-- > 0) {			    /* release the ones we got */
 		bpp[sdno]->b_flags |= B_INVAL;
 		brelse(bpp[sdno]);			    /* give back our resources */
 	    }
+	    splx(s);
 	    printf("vinum: can't allocate buffer space\n");
 	    return NULL;				    /* no bpps */
 	}
@@ -534,11 +526,9 @@ initsd(int sdno, int verify)
     while (!verified) {					    /* until we're happy with it, */
 	s = splbio();
 	bp = geteblk(size);				    /* Get a buffer */
-	if (bp == NULL) {
-	    splx(s);
-	    return ENOMEM;
-	}
 	splx(s);
+	if (bp == NULL)
+	    return ENOMEM;
 
 	bp->b_bcount = bp->b_bufsize;
 	bp->b_resid = bp->b_bcount;
@@ -563,12 +553,12 @@ initsd(int sdno, int verify)
 		splx(s);
 		error = ENOMEM;
 	    } else {
-		splx(s);
 		bp->b_bcount = bp->b_bufsize;
 		bp->b_resid = bp->b_bcount;
 		bp->b_blkno = sd->initialized;		    /* read from here */
 		bp->b_dev = VINUM_SD(sdno);		    /* create the device number */
 		bp->b_flags |= B_READ;			    /* read it back */
+		splx(s);
 		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
 		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */
 		sdio(bp);
