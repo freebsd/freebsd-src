@@ -53,21 +53,13 @@
 
 #include <stdio.h>
 #include <setjmp.h>
-#ifndef	FILIO_H
 #include <sys/ioctl.h>
-#else
-#include <sys/filio.h>
-#endif
-# include <errno.h>
+#include <errno.h>
 #ifdef	USE_TERMIO
 # ifndef	VINTR
-#  ifdef SYSV_TERMIO
-#   include <sys/termio.h>
-#  else
-#   include <sys/termios.h>
-#   define termio termios
-#  endif
+#  include <sys/termios.h>
 # endif
+# define termio termios
 #endif
 #if defined(NO_CC_T) || !defined(USE_TERMIO)
 # if !defined(USE_TERMIO)
@@ -77,11 +69,7 @@ typedef unsigned char cc_t;
 # endif
 #endif
 
-#ifndef	NO_STRING_H
 #include <string.h>
-#else
-#include <strings.h>
-#endif
 
 #if defined(IPSEC)
 #include <netinet6/ipsec.h>
@@ -120,7 +108,6 @@ extern int
     flushout,		/* flush output */
     connected,		/* Are we connected to the other side? */
     globalmode,		/* Mode tty should be in */
-    In3270,		/* Are we in 3270 mode? */
     telnetport,		/* Are we connected to the telnet port? */
     localflow,		/* Flow control handled locally */
     restartany,		/* If flow control, restart output on any character */
@@ -139,13 +126,7 @@ extern int
     crmod,
     netdata,		/* Print out network data flow */
     prettydump,		/* Print "netdata" output in user readable format */
-#if	defined(unix)
-#if	defined(TN3270)
-    cursesdata,		/* Print out curses data flow */
-    apitrace,		/* Trace API transactions */
-#endif	/* defined(TN3270) */
     termdata,		/* Print out terminal data flow */
-#endif	/* defined(unix) */
     debug,		/* Debug level */
     doaddrlookup,	/* do a reverse lookup? */
     clienteof;		/* Client received EOF */
@@ -233,6 +214,16 @@ extern int (*decrypt_input) P((int));
 #define	set_his_want_state_dont		set_my_want_state_wont
 #define	set_his_want_state_wont		set_my_want_state_dont
 
+#if	defined(USE_TERMIO)
+#define	SIG_FUNC_RET	void
+#else
+#define	SIG_FUNC_RET	int
+#endif
+
+#ifdef	SIGINFO
+extern SIG_FUNC_RET
+    ayt_status P((void));
+#endif
 
 extern FILE
     *NetTrace;		/* Where debugging output goes */
@@ -246,23 +237,40 @@ extern jmp_buf
     toplevel;		/* For error conditions. */
 
 extern void
-    command P((int, char *, int)),
-    Dump P((int, unsigned char *, int)),
-    ExitString P((char *, int)),
-    init_3270 P((void)),
-    printoption P((char *, int, int)),
-    printsub P((int, unsigned char *, int)),
+    command P((int, const char *, int)),
+    Dump P((char, unsigned char *, int)),
+    env_init P((void)),
+    Exit P((int)),
+    ExitString P((const char *, int)),
+    init_network P((void)),
+    init_sys P((void)),
+    init_telnet P((void)),
+    init_terminal P((void)),
+    intp P((void)),
+    optionstatus P((void)),
+    printoption P((const char *, int, int)),
+    printsub P((char, unsigned char *, int)),
+    quit P((void)),
+    sendabort P((void)),
+    sendbrk P((void)),
+    sendeof P((void)),
+    sendsusp P((void)),
     sendnaws P((void)),
+    sendayt P((void)),
     setconnmode P((int)),
     setcommandmode P((void)),
+    set_escape_char P((char *s)),
     setneturg P((void)),
     sys_telnet_init P((void)),
     telnet P((char *)),
     tel_enter_binary P((int)),
+    tel_leave_binary P((int)),
     TerminalFlushOutput P((void)),
     TerminalNewMode P((int)),
     TerminalRestoreState P((void)),
     TerminalSaveState P((void)),
+    TerminalDefaultChars P((void)),
+    TerminalSpeeds P((long *, long *)),
     tninit P((void)),
     upcase P((char *)),
     willoption P((int)),
@@ -291,16 +299,25 @@ extern void
     slc P((unsigned char *, int)),
     slc_check P((void)),
     slc_start_reply P((void)),
-    slc_add_reply P((int, int, int)),
+    slc_add_reply P((unsigned char, unsigned char, cc_t)),
     slc_end_reply P((void));
 extern int
+    getconnmode P((void)),
+    opt_welldefined P((const char *)),
     NetClose P((int)),
     netflush P((void)),
+    process_rings P((int, int, int, int, int, int)),
+    rlogin_susp P((void)),
     SetSockOpt P((int, int, int, int)),
     slc_update P((void)),
+    stilloob P((void)),
     telrcv P((void)),
+    TerminalRead P((char *, int)),
     TerminalWrite P((char *, int)),
     TerminalAutoFlush P((void)),
+    TerminalWindowSize P((long *, long *)),
+    TerminalSpecialChars P((int)),
+    tn P((int, char **)),
     ttyflush P((int));
 
 extern void
@@ -312,11 +329,11 @@ extern void
 
 extern unsigned char
     *env_default P((int, int)),
-    *env_getvalue P((unsigned char *));
+    *env_getvalue P((const unsigned char *));
 
 extern int
-    get_status P((void)),
-    dosynch P((void));
+    get_status P((char *)),
+    dosynch P((char *));
 
 extern cc_t
     *tcval P((int));
@@ -468,26 +485,7 @@ extern Ring
     ttyoring,
     ttyiring;
 
-/* Tn3270 section */
-#if	defined(TN3270)
-
-extern int
-    HaveInput,		/* Whether an asynchronous I/O indication came in */
-    noasynchtty,	/* Don't do signals on I/O (SIGURG, SIGIO) */
-    noasynchnet,	/* Don't do signals on I/O (SIGURG, SIGIO) */
-    sigiocount,		/* Count of SIGIO receptions */
-    shell_active;	/* Subshell is active */
-
-extern char
-    *Ibackp,		/* Oldest byte of 3270 data */
-    Ibuf[],		/* 3270 buffer */
-    *Ifrontp,		/* Where next 3270 byte goes */
-    tline[],
-    *transcom;		/* Transparent command */
-
-extern int
-    settranscom P((int, char**));
-
 extern void
-    inputAvailable P((int));
-#endif	/* defined(TN3270) */
+    xmitAO P((void)),
+    xmitEC P((void)),
+    xmitEL P((void));

@@ -31,22 +31,23 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)authenc.c	8.2 (Berkeley) 5/30/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
-#if	defined(AUTHENTICATION) || defined(ENCRYPTION)
+#ifdef	AUTHENTICATION
+#ifdef	ENCRYPTION
+/* Above "#ifdef"s actually "or"'ed together. XXX MarkM
+ */
 #include "telnetd.h"
 #include <libtelnet/misc.h>
 
-	int
-net_write(str, len)
-	unsigned char *str;
-	int len;
+int
+net_write(unsigned char *str, int len)
 {
 	if (nfrontp + len < netobuf + BUFSIZ) {
 		output_datalen(str, len);
@@ -55,8 +56,8 @@ net_write(str, len)
 	return(0);
 }
 
-	void
-net_encrypt()
+void
+net_encrypt(void)
 {
 #ifdef	ENCRYPTION
 	char *s = (nclearto > nbackp) ? nclearto : nbackp;
@@ -67,27 +68,23 @@ net_encrypt()
 #endif /* ENCRYPTION */
 }
 
-	int
-telnet_spin()
+int
+telnet_spin(void)
 {
 	ttloop();
 	return(0);
 }
 
-	char *
-telnet_getenv(val)
-	char *val;
+char *
+telnet_getenv(char *val)
 {
 	return(getenv(val));
 }
 
-	char *
-telnet_gets(prompt, result, length, echo)
-	char *prompt;
-	char *result;
-	int length;
-	int echo;
+char *
+telnet_gets(const char *prompt __unused, char *result __unused, int length __unused, int echo __unused)
 {
-	return((char *)0);
+	return(NULL);
 }
-#endif	/* defined(AUTHENTICATION) || defined(ENCRYPTION) */
+#endif	/* ENCRYPTION */
+#endif	/* AUTHENTICATION */

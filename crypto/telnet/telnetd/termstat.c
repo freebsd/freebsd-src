@@ -31,17 +31,17 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include "telnetd.h"
 
-#if	defined(ENCRYPTION)
+#ifdef	ENCRYPTION
 #include <libtelnet/encrypt.h>
 #endif
 
@@ -133,8 +133,8 @@ static int _terminit = 0;
  *	   then linemode is off, if server won't SGA, then linemode
  *	   is on.
  */
-	void
-localstat()
+void
+localstat(void)
 {
 	int need_will_echo = 0;
 
@@ -357,8 +357,8 @@ done:
  *
  * Check for changes to flow control
  */
-	void
-flowstat()
+void
+flowstat(void)
 {
 	if (his_state_is_will(TELOPT_LFLOW)) {
 		if (tty_flowmode() != flowmode) {
@@ -387,9 +387,8 @@ flowstat()
  * at a time, and if using kludge linemode, then only linemode may be
  * affected.
  */
-	void
-clientstat(code, parm1, parm2)
-	register int code, parm1, parm2;
+void
+clientstat(int code, int parm1, int parm2)
 {
 
 	/*
@@ -464,7 +463,7 @@ clientstat(code, parm1, parm2)
 
 	case LM_MODE:
 	    {
-		register int ack, changed;
+		int ack, changed;
 
 		/*
 		 * Client has sent along a mode mask.  If it agrees with
@@ -589,8 +588,8 @@ clientstat(code, parm1, parm2)
  * function is called when the pty state has been processed for the first time.
  * It calls other functions that do things that were deferred in each module.
  */
-	void
-defer_terminit()
+void
+defer_terminit(void)
 {
 
 	/*
@@ -624,8 +623,8 @@ defer_terminit()
  *
  * Returns true if the pty state has been processed yet.
  */
-	int
-terminit()
+int
+terminit(void)
 {
 	return(_terminit);
 

@@ -28,6 +28,10 @@
  * 
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 /* public key routines */
 /* functions:
 	genkeys(char *public, char *secret)
@@ -39,19 +43,15 @@
 	char secret[HEXKEYBYTES + 1];
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/time.h>
 #include <openssl/des.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include "mp.h"
 #include "pk.h"
-#if defined(SOLARIS2) || defined(LINUX) || defined(__FreeBSD__)
-#include <stdlib.h>
-#endif
  
 static void adjust(char keyout[HEXKEYBYTES+1], char *keyin);
 
@@ -129,11 +129,7 @@ common_key(char *xsecret, char *xpublic, IdeaData *ideakey, DesData *deskey)
         pow(public, secret, modulus, common);
         extractdeskey(common, deskey);
         extractideakey(common, ideakey);
-#if DES_OSTHOLM
-	des_fixup_key_parity(deskey);
-#else
 	des_set_odd_parity(deskey);
-#endif
         mfree(common);
         mfree(secret);
         mfree(public);
@@ -143,7 +139,7 @@ common_key(char *xsecret, char *xpublic, IdeaData *ideakey, DesData *deskey)
 /*
  * Generate a seed
  */
-void
+static void
 getseed(char *seed, int seedsize)
 {
 	int i;
@@ -160,7 +156,7 @@ getseed(char *seed, int seedsize)
 void
 genkeys(char *public, char *secret)
 {
-        int i;
+        size_t i;
  
 #       define BASEBITS (8*sizeof(short) - 1)
 #       define BASE (1 << BASEBITS)
@@ -247,7 +243,8 @@ pk_decode(char *in, char *out, DesData *key)
 	char buf[256];
 	DesData i;
 	des_key_schedule k;
-	int l,n1,n2,op;
+	int n1,n2,op;
+	size_t l;
 
 	memset(&i,0,sizeof(i));
 	memset(buf,0,sizeof(buf));
