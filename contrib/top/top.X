@@ -250,7 +250,7 @@ the number of processes in each state
 (sleeping, running, starting, zombies, and stopped),
 and a percentage of time spent in each of the processor states
 (user, nice, system, and idle).
-It also includes information about physial and virtual memory allocation.
+It also includes information about physical and virtual memory allocation.
 .PP
 The remainder of the screen displays information about individual
 processes.  This display is similar in spirit to

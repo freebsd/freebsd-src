@@ -238,7 +238,7 @@ The crunched binary ``kcopy'' can be built as follows:
 .Pp
 .nf
 	% crunchgen -m Makefile kcopy.conf    # gen Makefile and kcopy.c
-	% make objs             # build the component progams' .o files
+	% make objs             # build the component programs' .o files
 	% make                  # build the crunched binary kcopy
 	% kcopy sh              # test that this invokes a sh shell
 	$			# it works!
@@ -255,7 +255,7 @@ takes care to eliminate link conflicts between the component programs
 of a crunched binary, conflicts are still possible between the
 libraries that are linked in.  Some shuffling in the order of
 libraries may be required, and in some rare cases two libraries may
-have an unresolveable conflict and thus cannot be crunched together.
+have an unresolvable conflict and thus cannot be crunched together.
 .Pp
 Some versions of the BSD build environment do not by default build the
 intermediate object file for single-source file programs.  The ``make
