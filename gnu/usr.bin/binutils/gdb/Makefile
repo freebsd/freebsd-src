@@ -4,6 +4,10 @@
 
 .PATH: ${SRCDIR}/binutils
 
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=	-Dprint_insn_i386=print_insn_i386_att
+.endif
+
 PROG=	gdb
 XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\

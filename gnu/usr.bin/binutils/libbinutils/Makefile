@@ -8,7 +8,7 @@
 
 LIB=		binutils
 SRCS+=		arlex.l arparse.y arsup.c bucomm.c debug.c filemode.c \
-		ieee.c rdcoff.c rddbg.c stabs.c wrstabs.c version.c
+		ieee.c rdcoff.c rddbg.c rename.c stabs.c wrstabs.c version.c
 .if ${TARGET_ARCH} == "mipseb"
 CFLAGS+=	-DTARGET=\"elf32-bigmips\"
 .elif ${TARGET_ARCH} == "mipsel"

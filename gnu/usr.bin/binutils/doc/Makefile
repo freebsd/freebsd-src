@@ -21,14 +21,17 @@ MAKEINFOFLAGS+= -I ${CONTRIBDIR}/libreadline/doc
 
 CLEANFILES= gdb-cfg.texi inc-hist.texi inc-hist.texi.orig
 
-as.info:	as.texinfo asconfig.texi c-i386.texi
-ld.info:	ld.texinfo bfdsumm.texi
+as.info:	as.texinfo asconfig.texi c-i386.texi gasver.texi
+ld.info:	ld.texinfo bfdsumm.texi ldver.texi
 
 gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi remote.texi \
 	rluser.texinfo inc-hist.texi
 
 gdb-cfg.texi: all-cfg.texi
 	ln -sf ${.ALLSRC} ${.TARGET}
+
+gasver.texi ldver.texi:
+	echo "@set VERSION ${VERSION}" > ${.TARGET}
 
 .PATH: ${CONTRIBDIR}/libreadline/doc
 inc-hist.texi: hsuser.texinfo inc-hist.diff
