@@ -1087,7 +1087,7 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 	case MDIOCDETACH:
 		if (mdio->md_version != MDIOVERSION)
 			return (EINVAL);
-		if (mdio->md_file != NULL || mdio->md_mediasize != 0 ||
+		if (mdio->md_file[0] != '\0' || mdio->md_mediasize != 0 ||
 		    mdio->md_options != 0)
 			return (EINVAL);
 		return (mddetach(mdio->md_unit, td));
