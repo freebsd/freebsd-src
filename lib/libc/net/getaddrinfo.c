@@ -71,6 +71,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <sys/queue.h>
+#ifdef INET6
+#include <net/if_var.h>
+#include <sys/sysctl.h>
+#include <netinet6/in6_var.h>	/* XXX */
+#endif
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <rpc/rpc.h>
@@ -117,6 +123,14 @@ static const char in6_loopback[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
 };
 #endif
+
+struct policyqueue {
+	TAILQ_ENTRY(policyqueue) pc_entry;
+#ifdef INET6
+	struct in6_addrpolicy pc_policy;
+#endif
+};
+TAILQ_HEAD(policyhead, policyqueue);
 
 static const struct afd {
 	int a_af;
@@ -179,6 +193,23 @@ static const struct explore explore[] = {
 #define PTON_MAX	4
 #endif
 
+#define AIO_SRCFLAG_DEPRECATED	0x1
+
+struct ai_order {
+	union {
+		struct sockaddr_storage aiou_ss;
+		struct sockaddr aiou_sa;
+	} aio_src_un;
+#define aio_srcsa aio_src_un.aiou_sa
+	u_int32_t aio_srcflag;
+	int aio_srcscope;
+	int aio_dstscope;
+	struct policyqueue *aio_srcpolicy;
+	struct policyqueue *aio_dstpolicy;
+	struct addrinfo *aio_ai;
+	int aio_matchlen;
+};
+
 static const ns_src default_dns_files[] = {
 	{ NSSRC_FILES, 	NS_SUCCESS },
 	{ NSSRC_DNS, 	NS_SUCCESS },
@@ -216,12 +247,20 @@ static int get_portmatch(const struct addrinfo *, const char *);
 static int get_port(struct addrinfo *, const char *, int);
 static const struct afd *find_afd(int);
 static int addrconfig(struct addrinfo *);
+static int comp_dst(const void *, const void *);
 #ifdef INET6
 static int ip6_str2scopeid(char *, struct sockaddr_in6 *, u_int32_t *);
 #endif
+static int gai_addr2scopetype(struct sockaddr *);
 
 static int explore_fqdn(const struct addrinfo *, const char *,
 	const char *, struct addrinfo **);
+
+static int reorder(struct addrinfo *);
+static int get_addrselectpolicy(struct policyhead *);
+static void free_addrselectpolicy(struct policyhead *);
+static struct policyqueue *match_addrselectpolicy(struct sockaddr *,
+	struct policyhead *);
 
 static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
 	const struct addrinfo *);
@@ -377,6 +416,7 @@ getaddrinfo(hostname, servname, hints, res)
 	struct addrinfo ai0;
 	struct addrinfo *pai;
 	const struct explore *ex;
+	int numeric = 0;
 
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
@@ -519,8 +559,10 @@ getaddrinfo(hostname, servname, hints, res)
 	 * If numreic representation of AF1 can be interpreted as FQDN
 	 * representation of AF2, we need to think again about the code below.
 	 */
-	if (sentinel.ai_next)
+	if (sentinel.ai_next) {
+		numeric = 1;
 		goto good;
+	}
 
 	if (hostname == NULL)
 		ERR(EAI_NONAME);	/* used to be EAI_NODATA */
@@ -563,26 +605,389 @@ getaddrinfo(hostname, servname, hints, res)
 			cur = cur->ai_next;
 	}
 
-	/* XXX */
+	/* XXX inhibit errors if we have the result */
 	if (sentinel.ai_next)
 		error = 0;
 
-	if (error)
-		goto free;
+good:
+	/*
+	 * ensure we return either:
+	 * - error == 0, non-NULL *res
+	 * - error != 0, NULL *res
+	 */
 	if (error == 0) {
 		if (sentinel.ai_next) {
- good:
+			/*
+			 * If the returned entry is for an active connection,
+			 * and the given name is not numeric, reorder the
+			 * list, so that the application would try the list
+			 * in the most efficient order.
+			 */
+			if (hints == NULL || !(hints->ai_flags & AI_PASSIVE)) {
+				if (!numeric)
+					(void)reorder(&sentinel);
+			}
 			*res = sentinel.ai_next;
 			return SUCCESS;
 		} else
 			error = EAI_FAIL;
 	}
- free:
- bad:
+free:
+bad:
 	if (sentinel.ai_next)
 		freeaddrinfo(sentinel.ai_next);
 	*res = NULL;
 	return error;
+}
+
+static int
+reorder(sentinel)
+	struct addrinfo *sentinel;
+{
+	struct addrinfo *ai, **aip;
+	struct ai_order *aio;
+	int i, n;
+	struct policyhead policyhead;
+
+	/* count the number of addrinfo elements for sorting. */
+	for (n = 0, ai = sentinel->ai_next; ai != NULL; ai = ai->ai_next, n++)
+		;
+
+	/*
+	 * If the number is small enough, we can skip the reordering process.
+	 */
+	if (n <= 1)
+		return(n);
+
+	/* allocate a temporary array for sort and initialization of it. */
+	if ((aio = malloc(sizeof(*aio) * n)) == NULL)
+		return(n);	/* give up reordering */
+	memset(aio, 0, sizeof(*aio) * n);
+
+	/* retrieve address selection policy from the kernel */
+	TAILQ_INIT(&policyhead);
+	if (!get_addrselectpolicy(&policyhead)) {
+		/* no policy is installed into kernel, we don't sort. */
+		free(aio);
+		return (n);
+	}
+
+	for (i = 0, ai = sentinel->ai_next; i < n; ai = ai->ai_next, i++) {
+		aio[i].aio_ai = ai;
+		aio[i].aio_dstscope = gai_addr2scopetype(ai->ai_addr);
+		aio[i].aio_dstpolicy = match_addrselectpolicy(ai->ai_addr,
+							      &policyhead);
+	}
+
+	/* perform sorting. */
+	qsort(aio, n, sizeof(*aio), comp_dst);
+
+	/* reorder the addrinfo chain. */
+	for (i = 0, aip = &sentinel->ai_next; i < n; i++) {
+		*aip = aio[i].aio_ai;
+		aip = &aio[i].aio_ai->ai_next;
+	}
+	*aip = NULL;
+
+	/* cleanup and return */
+	free(aio);
+	free_addrselectpolicy(&policyhead);
+	return(n);
+}
+
+static int
+get_addrselectpolicy(head)
+	struct policyhead *head;
+{
+#ifdef INET6
+	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_ADDRCTLPOLICY };
+	size_t l;
+	char *buf;
+	struct in6_addrpolicy *pol, *ep;
+
+	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0)
+		return (0);
+	if ((buf = malloc(l)) == NULL)
+		return (0);
+	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+		free(buf);
+		return (0);
+	}
+
+	ep = (struct in6_addrpolicy *)(buf + l);
+	for (pol = (struct in6_addrpolicy *)buf; pol + 1 <= ep; pol++) {
+		struct policyqueue *new;
+
+		if ((new = malloc(sizeof(*new))) == NULL) {
+			free_addrselectpolicy(head); /* make the list empty */
+			break;
+		}
+		new->pc_policy = *pol;
+		TAILQ_INSERT_TAIL(head, new, pc_entry);
+	}
+
+	free(buf);
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+static void
+free_addrselectpolicy(head)
+	struct policyhead *head;
+{
+	struct policyqueue *ent, *nent;
+
+	for (ent = TAILQ_FIRST(head); ent; ent = nent) {
+		nent = TAILQ_NEXT(ent, pc_entry);
+		TAILQ_REMOVE(head, ent, pc_entry);
+		free(ent);
+	}
+}
+
+static struct policyqueue *
+match_addrselectpolicy(addr, head)
+	struct sockaddr *addr;
+	struct policyhead *head;
+{
+#ifdef INET6
+	struct policyqueue *ent, *bestent = NULL;
+	struct in6_addrpolicy *pol;
+	int matchlen, bestmatchlen = -1;
+	u_char *mp, *ep, *k, *p, m;
+	struct sockaddr_in6 key;
+
+	switch(addr->sa_family) {
+	case AF_INET6:
+		key = *(struct sockaddr_in6 *)addr;
+		break;
+	case AF_INET:
+		/* convert the address into IPv4-mapped IPv6 address. */
+		memset(&key, 0, sizeof(key));
+		key.sin6_family = AF_INET6;
+		key.sin6_len = sizeof(key);
+		key.sin6_addr.s6_addr[10] = 0xff;
+		key.sin6_addr.s6_addr[11] = 0xff;
+		memcpy(&key.sin6_addr.s6_addr[12],
+		       &((struct sockaddr_in *)addr)->sin_addr, 4);
+		break;
+	default:
+		return(NULL);
+	}
+
+	for (ent = TAILQ_FIRST(head); ent; ent = TAILQ_NEXT(ent, pc_entry)) {
+		pol = &ent->pc_policy;
+		matchlen = 0;
+
+		mp = (u_char *)&pol->addrmask.sin6_addr;
+		ep = mp + 16;	/* XXX: scope field? */
+		k = (u_char *)&key.sin6_addr;
+		p = (u_char *)&pol->addr.sin6_addr;
+		for (; mp < ep && *mp; mp++, k++, p++) {
+			m = *mp;
+			if ((*k & m) != *p)
+				goto next; /* not match */
+			if (m == 0xff) /* short cut for a typical case */
+				matchlen += 8;
+			else {
+				while (m >= 0x80) {
+					matchlen++;
+					m <<= 1;
+				}
+			}
+		}
+
+		/* matched.  check if this is better than the current best. */
+		if (matchlen > bestmatchlen) {
+			bestent = ent;
+			bestmatchlen = matchlen;
+		}
+
+	  next:
+		continue;
+	}
+
+	return(bestent);
+#else
+	return(NULL);
+#endif
+
+}
+
+static int
+comp_dst(arg1, arg2)
+	const void *arg1, *arg2;
+{
+	const struct ai_order *dst1 = arg1, *dst2 = arg2;
+
+	/*
+	 * Rule 1: Avoid unusable destinations.
+	 * XXX: we currently do not consider if an appropriate route exists.
+	 */
+	if (dst1->aio_srcsa.sa_family != AF_UNSPEC &&
+	    dst2->aio_srcsa.sa_family == AF_UNSPEC) {
+		return(-1);
+	}
+	if (dst1->aio_srcsa.sa_family == AF_UNSPEC &&
+	    dst2->aio_srcsa.sa_family != AF_UNSPEC) {
+		return(1);
+	}
+
+	/* Rule 2: Prefer matching scope. */
+	if (dst1->aio_dstscope == dst1->aio_srcscope &&
+	    dst2->aio_dstscope != dst2->aio_srcscope) {
+		return(-1);
+	}
+	if (dst1->aio_dstscope != dst1->aio_srcscope &&
+	    dst2->aio_dstscope == dst2->aio_srcscope) {
+		return(1);
+	}
+
+	/* Rule 3: Avoid deprecated addresses. */
+	if (dst1->aio_srcsa.sa_family != AF_UNSPEC &&
+	    dst2->aio_srcsa.sa_family != AF_UNSPEC) {
+		if (!(dst1->aio_srcflag & AIO_SRCFLAG_DEPRECATED) &&
+		    (dst2->aio_srcflag & AIO_SRCFLAG_DEPRECATED)) {
+			return(-1);
+		}
+		if ((dst1->aio_srcflag & AIO_SRCFLAG_DEPRECATED) &&
+		    !(dst2->aio_srcflag & AIO_SRCFLAG_DEPRECATED)) {
+			return(1);
+		}
+	}
+
+	/* Rule 4: Prefer home addresses. */
+	/* XXX: not implemented yet */
+
+	/* Rule 5: Prefer matching label. */
+#ifdef INET6
+	if (dst1->aio_srcpolicy && dst1->aio_dstpolicy &&
+	    dst1->aio_srcpolicy->pc_policy.label ==
+	    dst1->aio_dstpolicy->pc_policy.label &&
+	    (dst2->aio_srcpolicy == NULL || dst2->aio_dstpolicy == NULL ||
+	     dst2->aio_srcpolicy->pc_policy.label !=
+	     dst2->aio_dstpolicy->pc_policy.label)) {
+		return(-1);
+	}
+	if (dst2->aio_srcpolicy && dst2->aio_dstpolicy &&
+	    dst2->aio_srcpolicy->pc_policy.label ==
+	    dst2->aio_dstpolicy->pc_policy.label &&
+	    (dst1->aio_srcpolicy == NULL || dst1->aio_dstpolicy == NULL ||
+	     dst1->aio_srcpolicy->pc_policy.label !=
+	     dst1->aio_dstpolicy->pc_policy.label)) {
+		return(1);
+	}
+#endif
+
+	/* Rule 6: Prefer higher precedence. */
+#ifdef INET6
+	if (dst1->aio_dstpolicy &&
+	    (dst2->aio_dstpolicy == NULL ||
+	     dst1->aio_dstpolicy->pc_policy.preced >
+	     dst2->aio_dstpolicy->pc_policy.preced)) {
+		return(-1);
+	}
+	if (dst2->aio_dstpolicy &&
+	    (dst1->aio_dstpolicy == NULL ||
+	     dst2->aio_dstpolicy->pc_policy.preced >
+	     dst1->aio_dstpolicy->pc_policy.preced)) {
+		return(1);
+	}
+#endif
+
+	/* Rule 7: Prefer native transport. */
+	/* XXX: not implemented yet */
+
+	/* Rule 8: Prefer smaller scope. */
+	if (dst1->aio_dstscope >= 0 &&
+	    dst1->aio_dstscope < dst2->aio_dstscope) {
+		return(-1);
+	}
+	if (dst2->aio_dstscope >= 0 &&
+	    dst2->aio_dstscope < dst1->aio_dstscope) {
+		return(1);
+	}
+
+	/*
+	 * Rule 9: Use longest matching prefix.
+	 * We compare the match length in a same AF only.
+	 */
+	if (dst1->aio_ai->ai_addr->sa_family ==
+	    dst2->aio_ai->ai_addr->sa_family) {
+		if (dst1->aio_matchlen > dst2->aio_matchlen) {
+			return(-1);
+		}
+		if (dst1->aio_matchlen < dst2->aio_matchlen) {
+			return(1);
+		}
+	}
+
+	/* Rule 10: Otherwise, leave the order unchanged. */
+	return(-1);
+}
+
+/*
+ * Copy from scope.c.
+ * XXX: we should standardize the functions and link them as standard
+ * library.
+ */
+static int
+gai_addr2scopetype(sa)
+	struct sockaddr *sa;
+{
+#ifdef INET6
+	struct sockaddr_in6 *sa6;
+#endif
+	struct sockaddr_in *sa4;
+
+	switch(sa->sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		sa6 = (struct sockaddr_in6 *)sa;
+		if (IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr)) {
+			/* just use the scope field of the multicast address */
+			return(sa6->sin6_addr.s6_addr[2] & 0x0f);
+		}
+		/*
+		 * Unicast addresses: map scope type to corresponding scope
+		 * value defined for multcast addresses.
+		 * XXX: hardcoded scope type values are bad...
+		 */
+		if (IN6_IS_ADDR_LOOPBACK(&sa6->sin6_addr))
+			return(1); /* node local scope */
+		if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr))
+			return(2); /* link-local scope */
+		if (IN6_IS_ADDR_SITELOCAL(&sa6->sin6_addr))
+			return(5); /* site-local scope */
+		return(14);	/* global scope */
+		break;
+#endif
+	case AF_INET:
+		/*
+		 * IPv4 pseudo scoping according to RFC 3484.
+		 */
+		sa4 = (struct sockaddr_in *)sa;
+		/* IPv4 autoconfiguration addresses have link-local scope. */
+		if (((u_char *)&sa4->sin_addr)[0] == 169 &&
+		    ((u_char *)&sa4->sin_addr)[1] == 254)
+			return(2);
+		/* Private addresses have site-local scope. */
+		if (((u_char *)&sa4->sin_addr)[0] == 10 ||
+		    (((u_char *)&sa4->sin_addr)[0] == 172 &&
+		     (((u_char *)&sa4->sin_addr)[1] & 0xf0) == 16) ||
+		    (((u_char *)&sa4->sin_addr)[0] == 192 &&
+		     ((u_char *)&sa4->sin_addr)[1] == 168))
+			return(5);
+		/* Loopback addresses have link-local scope. */
+		if (((u_char *)&sa4->sin_addr)[0] == 127)
+			return(2);
+		return(14);
+		break;
+	default:
+		errno = EAFNOSUPPORT; /* is this a good error? */
+		return(-1);
+	}
 }
 
 /*
