@@ -1075,7 +1075,6 @@ next:
 			cm = NULL;
 		}
 	}
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
 
 	m_freem(control);
 
