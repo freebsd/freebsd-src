@@ -42,9 +42,6 @@
 #include <i4b/i4b_ioctl.h>
 #include <i4b/i4b_rbch_ioctl.h>
 #endif
-#ifdef __NetBSD__
-#include <signal.h>	/* for `errno' ?!? */
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

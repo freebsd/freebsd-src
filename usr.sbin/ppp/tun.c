@@ -39,9 +39,6 @@
 #include <sys/un.h>
 
 #include <errno.h>
-#ifdef __NetBSD__
-#include <signal.h>	/* for `errno' ?!? */
-#endif
 #include <string.h>
 #if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/ioctl.h>
