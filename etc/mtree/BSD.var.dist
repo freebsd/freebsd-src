@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.26.2.3 1997/08/20 12:07:21 peter Exp $
+#	$Id: BSD.var.dist,v 1.26.2.4 1998/02/20 06:35:37 eivind Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -52,6 +52,8 @@
         ..
         mqueue          uname=root
         ..
+	opielocks       uname=root mode=0700
+	..
         output          uname=bin
 	    lpd		    uname=root gname=daemon
 	    ..
