@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.78 1995/11/09 02:31:57 jkh Exp $
+ * $Id: install.c,v 1.71.2.79 1995/11/11 11:44:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -472,7 +472,7 @@ installCommit(char *str)
 	    if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
 			  "This will require that you have your FreeBSD CD in the CDROM\n"
 			  "drive to use the ports collection, but at a substantial savings\n"
-			  "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n
+			  "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n"
 			  "depending on the speed of your CDROM drive)."))
 		configPorts(NULL);
 	}
