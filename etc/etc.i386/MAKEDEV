@@ -37,6 +37,7 @@
 #
 # Disks:
 #	acd*	ATAPI CD-ROM disks
+#	amrd*   AMI MegaRAID
 #	cd*	SCSI CD-ROM disks
 #	da*	SCSI Direct Access Devices
 #	fd*	floppy disk drives (3 1/2", 5 1/4")
@@ -45,6 +46,7 @@
 #	matcd*	Matsushita (Panasonic) CD-ROM disks
 #	mcd*	Mitsumi CD-ROM disks
 #	md*	Memory (or malloc) disk
+#	mlxd*   Mylex DAC960 RAID
 #	od*	optical disks
 #	scd*	Sony CD-ROM disks
 #	sd*	SCSI disk, antiquated, use da* instead
@@ -312,15 +314,17 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|da*s*|fla*s*|ida*s*|md*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
+ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; blk=30; chr=116;;
 	afd*s*) name=afd; blk=32; chr=118;;
+	amrd*s*) name=amrd; blk=35; chr=133;;
 	da*s*) name=da; blk=4;  chr=13;;
 	fla*s*) name=fla; blk=28; chr=102;;
 	ida*s*) name=ida; blk=29; chr=109;;
 	md*s*) name=md; blk=22;  chr=95;;
+	mlxd*s*) name=mlxd; blk=27; chr=131;;
 	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	vn*s*) name=vn; blk=15; chr=43;;
@@ -328,6 +332,11 @@ ad*s*|afd*s*|da*s*|fla*s*|ida*s*|md*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	wfd*s*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
+	amrd*s*|mlxd*s*)
+		unit=`expr $i : '....\([0-9]*\)s'`
+		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
+		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
+		;;
 	afd*s*|fla*s*|ida*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
@@ -487,15 +496,17 @@ ft*)
 	umask 77
 	;;
 
-ad*|afd*|da*|fla*|ida*|md*|od*|sd*|vn*|wd*|wfd*)
+ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|od*|sd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; blk=30; chr=116;;
 	afd*) name=afd; blk=32; chr=118;;
+	amrd*) name=amrd; blk=35; chr=133;;
 	da*) name=da; blk=4;  chr=13;;
 	fla*) name=fla; blk=28; chr=102;;
 	ida*) name=ida; blk=29; chr=109;;
 	md*) name=md; blk=22; chr=95;;
+	mlxd*) name=mlxd; blk=27; chr=131;;
 	od*) name=od; blk=4; chr=13;;
 	sd*) name=sd; blk=4; chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
@@ -503,6 +514,9 @@ ad*|afd*|da*|fla*|ida*|md*|od*|sd*|vn*|wd*|wfd*)
 	wfd*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
+	amrd*|mlxd*)
+		unit=`expr $i : '....\(.*\)'`
+		;;
 	afd*|fla*|ida*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
