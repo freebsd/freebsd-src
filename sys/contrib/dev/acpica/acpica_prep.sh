@@ -14,9 +14,9 @@ wrk=./_acpi_ca_unpack
 dst=./acpi_ca_destination
 
 # files to remove
-stripdirs="compiler generate"
-stripfiles="osunixxf.c 16bit.h Makefile a16find.c a16utils.asm a16utils.obj\
-    acintel.h aclinux.h acmsvc.h acwin.h acwin64.h getopt.c"
+stripdirs="common compiler generate"
+stripfiles="osunixxf.c Makefile adisasm.h acdos16.h\
+    acintel.h aclinux.h acmsvc.h acwin.h acwin64.h"
 
 # pre-clean
 echo pre-clean
@@ -24,6 +24,12 @@ rm -rf ${wrk}
 rm -rf ${dst}
 mkdir -p ${wrk}
 mkdir -p ${dst}
+
+# fetch document
+echo fetch document
+fetch http://developer.intel.com/technology/iapc/acpi/downloads/CHANGES.txt
+tr -d '\r' < CHANGES.txt > CHANGES.txt.tmp
+mv CHANGES.txt.tmp CHANGES.txt
 
 # unpack
 echo unpack
@@ -41,6 +47,7 @@ done
 # move files to destination
 echo copy
 find ${wrk} -type f | xargs -J % mv % ${dst}
+mv CHANGES.txt ${dst}
 
 # post-clean
 echo post-clean
