@@ -134,6 +134,10 @@ set_drive_parms(struct drive *drive)
     getmicrotime(&drive->label.date_of_birth);		    /* and current time */
     drive->label.drive_size = ((u_int64_t) drive->partinfo.part->p_size) /* size of the drive in bytes */
     *((u_int64_t) drive->partinfo.disklab->d_secsize);
+#if VINUMDEBUG
+    if (debug & DEBUG_BIGDRIVE)				    /* pretend we're 100 times as big */
+	drive->label.drive_size *= 100;
+#endif
 
     /* number of sectors available for subdisks */
     drive->sectors_available = drive->label.drive_size / DEV_BSIZE - DATASTART;
@@ -930,7 +934,7 @@ vinum_scandisk(char *drivename[], int drives)
     char partname[DRIVENAMELEN];			    /* for creating partition names */
 
     status = 0;						    /* success indication */
-    vinum_conf.flags |= VF_DISKCONFIG | VF_READING_CONFIG;  /* reading config from disk */
+    vinum_conf.flags |= VF_READING_CONFIG;		    /* reading config from disk */
 
     gooddrives = 0;					    /* number of usable drives found */
     firstdrive = vinum_conf.drives_used;		    /* the first drive */
@@ -1040,10 +1044,10 @@ vinum_scandisk(char *drivename[], int drives)
 
     Free(config_text);
     Free(drivelist);
-    vinum_conf.flags &= ~(VF_DISKCONFIG | VF_READING_CONFIG); /* no longer reading from disk */
+    vinum_conf.flags &= ~VF_READING_CONFIG;		    /* no longer reading from disk */
     if (status != 0)
 	throw_rude_remark(status, "Couldn't read configuration");
-    updateconfig(VF_DISKCONFIG);			    /* update from disk config */
+    updateconfig(VF_READING_CONFIG);			    /* update from disk config */
     return 0;
 }
 
