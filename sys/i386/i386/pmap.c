@@ -1100,6 +1100,7 @@ pmap_pinit(pmap)
 	 * allocate the page directory page(s)
 	 */
 	for (i = 0; i < NPGPTD; i++) {
+		VM_OBJECT_LOCK(pmap->pm_pteobj);
 		ptdpg[i] = vm_page_grab(pmap->pm_pteobj, PTDPTDI + i,
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
@@ -1107,6 +1108,7 @@ pmap_pinit(pmap)
 		vm_page_flag_clear(ptdpg[i], PG_BUSY);
 		ptdpg[i]->valid = VM_PAGE_BITS_ALL;
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 	}
 
 	pmap_qenter((vm_offset_t)pmap->pm_pdir, ptdpg, NPGPTD);
@@ -1169,6 +1171,7 @@ _pmap_allocpte(pmap, ptepindex)
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
+	VM_OBJECT_LOCK(pmap->pm_pteobj);
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 
@@ -1209,6 +1212,7 @@ _pmap_allocpte(pmap, ptepindex)
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	return m;
 }
