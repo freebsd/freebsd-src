@@ -561,6 +561,7 @@ pps_event(struct pps_state *pps, int event)
 {
 	struct bintime bt;
 	struct timespec ts, *tsp, *osp;
+	u_int64_t scale;
 	u_int tcount, *pcount;
 	int foff, fhard;
 	pps_seq_t *pseq;
@@ -628,19 +629,18 @@ pps_event(struct pps_state *pps, int event)
 	if (fhard) {
 		/*
 		 * Feed the NTP PLL/FLL.
-		 * The FLL wants to know how many nanoseconds elapsed since
-		 * the previous event.
-		 * I have never been able to convince myself that this code
-		 * is actually correct:  Using th_scale is bound to contain
-		 * a phase correction component from userland, when running
-		 * as FLL, so the number hardpps() gets is not meaningful IMO.
+		 * The FLL wants to know how many (hardware) nanoseconds
+		 * elapsed since the previous event.
 		 */
 		tcount = pps->capcount - pps->ppscount[2];
 		pps->ppscount[2] = pps->capcount;
 		tcount &= pps->capth->th_counter->tc_counter_mask;
+		scale = (u_int64_t)1 << 63;
+		scale /= pps->capth->th_counter->tc_frequency;
+		scale *= 2;
 		bt.sec = 0;
 		bt.frac = 0;
-		bintime_addx(&bt, pps->capth->th_scale * tcount);
+		bintime_addx(&bt, scale * tcount);
 		bintime2timespec(&bt, &ts);
 		hardpps(tsp, ts.tv_nsec + 1000000000 * ts.tv_sec);
 	}
