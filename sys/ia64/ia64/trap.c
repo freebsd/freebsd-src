@@ -59,6 +59,7 @@
 #include <machine/reg.h>
 #include <machine/pal.h>
 #include <machine/fpu.h>
+#include <machine/efi.h>
 
 #ifdef KTRACE
 #include <sys/uio.h>
@@ -70,6 +71,33 @@
 #endif
 
 extern int unaligned_fixup(struct trapframe *framep, struct thread *td);
+
+/*
+ * EFI-Provided FPSWA interface (Floating Point SoftWare Assist
+ */
+
+/* The function entry address */
+extern FPSWA_INTERFACE *fpswa_interface;
+
+/* Copy of the faulting instruction bundle */
+typedef struct {
+	u_int64_t	bundle_low64;
+	u_int64_t	bundle_high64;
+} FPSWA_BUNDLE;
+
+/*
+ * The fp state descriptor... tell FPSWA where the "true" copy is.
+ * We save some registers in the trapframe, so we have to point some of
+ * these there.  The rest of the registers are "live"
+ */
+typedef struct {
+	u_int64_t	bitmask_low64;		/* f63 - f2 */
+	u_int64_t	bitmask_high64;		/* f127 - f64 */
+	struct ia64_fpreg *fp_low_preserved;	/* f2 - f5 */
+	struct ia64_fpreg *fp_low_volatile;	/* f6 - f15 */
+	struct ia64_fpreg *fp_high_preserved;	/* f16 - f31 */
+	struct ia64_fpreg *fp_high_volatile;	/* f32 - f127 */
+} FP_STATE;
 
 #ifdef WITNESS
 extern char *syscallnames[];
@@ -336,19 +364,135 @@ trap(int vector, int imm, struct trapframe *framep)
 		goto dopanic;
 
 	case IA64_VEC_FLOATING_POINT_FAULT:
-	case IA64_VEC_FLOATING_POINT_TRAP:
-		/* 
-		 * If user-land, give a SIGFPE if software completion
-		 * is not requested or if the completion fails.
-		 */
-		if (user) {
+	{
+		FP_STATE fp_state;
+		FPSWA_RET fpswa_ret;
+		FPSWA_BUNDLE bundle;
+
+		/* Always fatal in kernel.  Should never happen. */
+		if (!user)
+			goto dopanic;
+		if (fpswa_interface == NULL) {
+			i = SIGFPE;
+			code = 0;
+			break;
+		}
+		mtx_lock(&Giant);
+	        i = copyin((const void *)(framep->tf_cr_iip), &bundle, 16);
+		mtx_unlock(&Giant);
+		if (i) {
+			i = SIGBUS;		/* EFAULT, basically */
+			ucode = /*a0*/ 0;	/* exception summary */
+			break;
+		}
+		/* f6-f15 are saved in exception_save */
+		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
+		fp_state.bitmask_high64 = 0x0;
+		fp_state.fp_low_preserved = NULL;
+		fp_state.fp_low_volatile = framep->tf_f;
+		fp_state.fp_high_preserved = NULL;
+		fp_state.fp_high_volatile = NULL;
+		/* The docs are unclear.  Is Fpswa reentrant? */
+		fpswa_ret = fpswa_interface->Fpswa(1, &bundle,
+		    &framep->tf_cr_ipsr, &framep->tf_ar_fpsr,
+		    &framep->tf_cr_isr, &framep->tf_pr,
+		    &framep->tf_cr_ifs, &fp_state);
+		if (fpswa_ret.status == 0) {
+			/* fixed.  update ipsr and iip to next insn */
+			int ei;
+
+			ei = (framep->tf_cr_isr >> 41) & 0x03;
+			if (ei == 0) {		/* no template for this case */
+				framep->tf_cr_ipsr &= ~IA64_ISR_EI;
+				framep->tf_cr_ipsr |= IA64_ISR_EI_1;
+			} else if (ei == 1) {	/* MFI or MFB */
+				framep->tf_cr_ipsr &= ~IA64_ISR_EI;
+				framep->tf_cr_ipsr |= IA64_ISR_EI_2;
+			} else if (ei == 2) {	/* MMF */
+				framep->tf_cr_ipsr &= ~IA64_ISR_EI;
+				framep->tf_cr_iip += 0x10;
+			}
+			goto out;
+		} else if (fpswa_ret.status == -1) {
+			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
+			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
+			panic("fpswa fatal error on fp fault");
+		} else if (fpswa_ret.status > 0) {
+#if 0
+			if (fpswa_ret.status & 1) {
+				/*
+				 * New exception needs to be raised.
+				 * If set then the following bits also apply:
+				 * & 2 -> fault was converted to a trap
+				 * & 4 -> SIMD caused the exception
+				 */
+				i = SIGFPE;
+				ucode = /*a0*/ 0;	/* exception summary */
+				break;
+			}
+#endif
 			i = SIGFPE;
 			ucode = /*a0*/ 0;		/* exception summary */
 			break;
+		} else {
+			panic("bad fpswa return code %lx", fpswa_ret.status);
 		}
+	}
+
+	case IA64_VEC_FLOATING_POINT_TRAP:
+	{
+		FP_STATE fp_state;
+		FPSWA_RET fpswa_ret;
+		FPSWA_BUNDLE bundle;
 
 		/* Always fatal in kernel.  Should never happen. */
-		goto dopanic;
+		if (!user)
+			goto dopanic;
+		if (fpswa_interface == NULL) {
+			i = SIGFPE;
+			code = 0;
+			break;
+		}
+		mtx_lock(&Giant);
+	        i = copyin((const void *)(framep->tf_cr_iip), &bundle, 16);
+		mtx_unlock(&Giant);
+		if (i) {
+			i = SIGBUS;			/* EFAULT, basically */
+			ucode = /*a0*/ 0;		/* exception summary */
+			break;
+		}
+		/* f6-f15 are saved in exception_save */
+		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
+		fp_state.bitmask_high64 = 0x0;
+		fp_state.fp_low_preserved = NULL;
+		fp_state.fp_low_volatile = framep->tf_f;
+		fp_state.fp_high_preserved = NULL;
+		fp_state.fp_high_volatile = NULL;
+		/* The docs are unclear.  Is Fpswa reentrant? */
+		fpswa_ret = fpswa_interface->Fpswa(0, &bundle,
+		    &framep->tf_cr_ipsr, &framep->tf_ar_fpsr,
+		    &framep->tf_cr_isr, &framep->tf_pr,
+		    &framep->tf_cr_ifs, &fp_state);
+		if (fpswa_ret.status == 0) {
+			/* fixed */
+			/*
+			 * should we increment iip like the fault case?
+			 * or has fpswa done something like normalizing a
+			 * register so that we should just rerun it?
+			 */
+			goto out;
+		} else if (fpswa_ret.status == -1) {
+			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
+			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
+			panic("fpswa fatal error on fp trap");
+		} else if (fpswa_ret.status > 0) {
+			i = SIGFPE;
+			ucode = /*a0*/ 0;		/* exception summary */
+			break;
+		} else {
+			panic("bad fpswa return code %lx", fpswa_ret.status);
+		}
+	}
 
 	case IA64_VEC_DISABLED_FP:
 		/*
