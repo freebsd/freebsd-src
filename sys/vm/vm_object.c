@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.162 1999/08/09 10:35:05 phk Exp $
+ * $Id: vm_object.c,v 1.163 1999/08/12 06:33:56 alc Exp $
  */
 
 /*
@@ -735,11 +735,21 @@ vm_object_pmap_remove(object, start, end)
  *
  *	Implements the madvise function at the object/page level.
  *
- *	Currently, madvise() functions are limited to the default and
- *	swap object types only, and also limited to only the unshared portions 
- *	of a process's address space.  MADV_FREE, certainly, could never be
- *	run on anything else.  The others are more flexible and the code could
- *	be adjusted in the future to handle expanded cases for them.
+ *	MADV_WILLNEED	(any object)
+ *
+ *	    Activate the specified pages if they are resident.
+ *
+ *	MADV_DONTNEED	(any object)
+ *
+ *	    Deactivate the specified pages if they are resident.
+ *
+ *	MADV_FREE	(OBJT_DEFAULT/OBJT_SWAP objects,
+ *			 OBJ_ONEMAPPING only)
+ *
+ *	    Deactivate and clean the specified pages if they are
+ *	    resident.  This permits the process to reuse the pages
+ *	    without faulting or the kernel to reclaim the pages
+ *	    without I/O.
  */
 void
 vm_object_madvise(object, pindex, count, advise)
