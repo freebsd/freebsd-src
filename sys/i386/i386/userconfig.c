@@ -76,19 +76,10 @@
  **   and has at least 24 rows.
  ** - That values less than or equal to zero for any of the device
  **   parameters indicate that the driver does not use the parameter.
- ** - That the only tunable parameter for PCI devices are their flags.
  ** - That flags are _always_ editable.
  **
- ** Devices marked as disabled are imported as such.  PCI devices are 
- ** listed under a seperate heading for informational purposes only.
- ** To date, there is no means for changing the behaviour of PCI drivers
- ** from UserConfig.
+ ** Devices marked as disabled are imported as such.
  **
- ** Note that some EISA devices probably fall into this category as well,
- ** and in fact the actual bus supported by some drivers is less than clear.
- ** A longer-term goal might be to list drivers by instance rather than
- ** per bus-presence.
- ** 
  ** For this tool to be useful, the list of devices below _MUST_ be updated 
  ** when a new driver is brought into the kernel.  It is not possible to 
  ** extract this information from the drivers in the kernel.
@@ -106,7 +97,6 @@
  **/
 
 #include "opt_userconfig.h"
-#include "pci.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -129,10 +119,6 @@
 
 #if NPNP > 0
 #include <i386/isa/pnp.h>
-#endif
-
-#if NPCI > 0 && 0
-#include <pci/pcivar.h>
 #endif
 
 static MALLOC_DEFINE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
@@ -315,7 +301,6 @@ typedef struct
 #define CLS_COMMS	3		/* serial, parallel ports */
 #define CLS_INPUT	4		/* user input : mice, keyboards, joysticks etc */
 #define CLS_MMEDIA	5		/* "multimedia" devices (sound, video, etc) */
-#define CLS_PCI		254		/* PCI devices */
 #define CLS_MISC	255		/* none of the above */
 
 
@@ -331,7 +316,6 @@ static DEVCLASS_INFO devclass_names[] = {
 {	"Communications : ",	CLS_COMMS},
 {	"Input :          ",	CLS_INPUT},
 {	"Multimedia :     ",	CLS_MMEDIA},
-{	"PCI :            ",	CLS_PCI},
 {	"Miscellaneous :  ",	CLS_MISC},
 {	"",0}};
 
@@ -340,10 +324,6 @@ static DEVCLASS_INFO devclass_names[] = {
 
 /** Notes :
  ** 
- ** - PCI devices should be marked FLG_IMMUTABLE.  They should not be movable
- **   or editable, and have no attributes.  This is handled in getdevs() and
- **   devinfo(), so drivers that have a presence on busses other than PCI
- **   should have appropriate flags set below.
  ** - Devices that shouldn't be seen or removed should be marked FLG_INVISIBLE.
  ** - XXX The list below should be reviewed by the driver authors to verify
  **   that the correct flags have been set for each driver, and that the
@@ -352,20 +332,12 @@ static DEVCLASS_INFO devclass_names[] = {
 
 static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
-{"isp",	        "QLogic ISP SCSI Controller",		FLG_IMMUTABLE,	CLS_STORAGE},
-{"dpt",         "DPT SCSI RAID Controller",		FLG_IMMUTABLE,	CLS_STORAGE},
 {"adv",         "AdvanSys SCSI narrow controller",	0,		CLS_STORAGE},
-{"adw",         "AdvanSys SCSI WIDE controller",	0,		CLS_STORAGE},
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
-{"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
-{"ahb",         "Adaptec 174x SCSI controller",		0,		CLS_STORAGE},
 {"aha",         "Adaptec 154x SCSI controller",		0,		CLS_STORAGE},
-{"uha",         "Ultrastor 14F/24F/34F SCSI controller",0,		CLS_STORAGE},
 {"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
 {"nca",         "ProAudio Spectrum SCSI and compatibles",	0,	CLS_STORAGE},
 {"sea",         "Seagate ST01/ST02 SCSI and compatibles",	0,	CLS_STORAGE},
-{"wds",         "Western Digitial WD7000 SCSI controller",	0,	CLS_STORAGE},
-{"ncr",         "NCR/Symbios 53C810/15/25/60/75 SCSI controller",FLG_FIXED,CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"ata",		"ATA/ATAPI compatible disk controller",	0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
@@ -376,59 +348,30 @@ static DEV_INFO device_info[] = {
 {"wd",		"IDE or ST506 compatible storage device", FLG_INVISIBLE, CLS_STORAGE},
 {"ad",		"ATA/ATAPI compatible storage device",	FLG_INVISIBLE,	CLS_STORAGE},	
 {"fd",		"Floppy disk device",			FLG_INVISIBLE,	CLS_STORAGE},
-{"amd",	        "Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
 
-{"plip",	"Parallel Port IP link",		FLG_FIXED,	CLS_NETWORK},
-{"aue",		"ADMtek AN986 USB ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"cue",		"CATC USB ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
-{"kue",		"Kawasaki LSI USB ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"ex",          "Intel EtherExpress Pro/10 Ethernet adapter",	0,	CLS_NETWORK},
 {"fe",          "Fujitsu MD86960A/MB869685A Ethernet adapters",	0,	CLS_NETWORK},
-{"fea",         "DEC DEFEA EISA FDDI adapter",		0,		CLS_NETWORK},
-{"fxp",         "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
 {"ie",          "AT&T Starlan 10 and EN100, 3C507, NI5210 Ethernet adapters",0,CLS_NETWORK},
-{"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
-{"sf",          "Adaptec AIC-6915 PCI Ethernet adapters",		0,CLS_NETWORK},
-{"sis",         "Sis 900/SiS 7016 Ethernet adapters",			0,CLS_NETWORK},
-{"sk",          "SysKonnect SK-984x gigabit Ethernet adapters",		0,CLS_NETWORK},
 {"sn",          "SMC/Megahertz Ethernet adapters",			0,CLS_NETWORK},
-{"ste",         "Sundance ST201 PCI Ethernet adapters",			0,CLS_NETWORK},
-{"ti",          "Alteon Networks Tigon gigabit Ethernet adapters",	0,CLS_NETWORK},
-{"tl",          "Texas Instruments ThunderLAN Ethernet adapters",	0,CLS_NETWORK},
-{"tx",          "SMC 9432TX Ethernet adapters",			0,	CLS_NETWORK},
-{"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
 {"xe",          "Xircom PC Card Ethernet adapter",		0,	CLS_NETWORK},
-{"dc",          "DEC/Intel 21143 or clone Ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
-{"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
-{"rl",          "RealTek 8129/8139 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"tl",          "Texas Instruments ThunderLAN ethernet adapter", FLG_FIXED, CLS_NETWORK},
-{"vr",          "VIA Rhine/Rhine II ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"wb",          "Winbond W89C840F ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"xl",          "3COM 3C90x PCI ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"rdp",		"RealTek RTL8002 Pocket Ethernet",	0,		CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
-{"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISIBLE,CLS_COMMS},
 {"dgb",         "Digiboard PC/Xe, PC/Xi async adapter",	0,		CLS_COMMS},
 {"si",          "Specialix SI/XIO/SX async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 {"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
-{"ppi",		"Generic Parallel Port I/O device",	FLG_FIXED,	CLS_COMMS},
-{"lpt",         "Line Printer driver",			FLG_FIXED,	CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
-{"uhci",        "UHCI USB host controller driver",	FLG_IMMUTABLE,	CLS_COMMS},
-{"ohci",        "OHCI USB host controller driver",	FLG_IMMUTABLE,	CLS_COMMS},
 
 {"atkbdc",      "Keyboard controller",			FLG_INVISIBLE,	CLS_INPUT},
 {"atkbd",       "Keyboard",				FLG_FIXED,	CLS_INPUT},
@@ -438,39 +381,35 @@ static DEV_INFO device_info[] = {
 {"vt",          "PCVT console driver",			FLG_IMMUTABLE,	CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_IMMUTABLE,	CLS_INPUT},
 
-{"bktr",        "Brooktree BT848 based frame grabber/tuner card",	0,CLS_MMEDIA},
-{"pcm",         "New Luigi audio driver for all supported sound cards",	0,CLS_MMEDIA},
-{"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
-{"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
-{"sbmidi",      "Soundblaster MIDI interface",		0,		CLS_MMEDIA},
-{"awe",         "AWE32 MIDI",                           0,              CLS_MMEDIA},
-{"pas",         "ProAudio Spectrum PCM and MIDI",	0,		CLS_MMEDIA},
-{"gus",         "Gravis Ultrasound, Ultrasound 16 and Ultrasound MAX",0,CLS_MMEDIA},
-{"gusxvi",      "Gravis Ultrasound 16-bit PCM",		0,		CLS_MMEDIA},
-{"gusmax",      "Gravis Ultrasound MAX",		0,		CLS_MMEDIA},
-{"mss",         "Microsoft Sound System",		0,		CLS_MMEDIA},
-{"opl",         "OPL-2/3 FM, Soundblaster, SBPro, SB16, ProAudio Spectrum",0,CLS_MMEDIA},
-{"mpu",         "Roland MPU401 MIDI",			0,		CLS_MMEDIA},
-{"sscape",      "Ensoniq Soundscape MIDI interface",	0,		CLS_MMEDIA},
-{"sscape_mss",  "Ensoniq Soundscape PCM",		0,		CLS_MMEDIA},
-{"uart",        "6850 MIDI UART",			0,		CLS_MMEDIA},
+{"sbc",         "PCM Creative SoundBlaster/ESS/Avance sounce cards",	0,CLS_MMEDIA},
+{"gusc",        "PCM Gravis UltraSound sound cards",	0,		CLS_MMEDIA},
+{"pcm",         "PCM Generic soundcard support",		0,		CLS_MMEDIA},
+{"sb",          "VOXWARE Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
+{"sbxvi",       "VOXWARE Soundblaster 16",		0,		CLS_MMEDIA},
+{"sbmidi",      "VOXWARE Soundblaster MIDI interface",	0,		CLS_MMEDIA},
+{"awe",         "VOXWARE AWE32 MIDI",			0,		CLS_MMEDIA},
+{"pas",         "VOXWARE ProAudio Spectrum PCM and MIDI",	0,	CLS_MMEDIA},
+{"gus",         "VOXWARE Gravis Ultrasound, Ultrasound 16 and Ultrasound MAX",0,CLS_MMEDIA},
+{"gusxvi",      "VOXWARE Gravis Ultrasound 16-bit PCM",	0,		CLS_MMEDIA},
+{"gusmax",      "VOXWARE Gravis Ultrasound MAX",	0,		CLS_MMEDIA},
+{"mss",         "VOXWARE Microsoft Sound System",	0,		CLS_MMEDIA},
+{"opl",         "VOXWARE OPL-2/3 FM, Soundblaster, SBPro, SB16, ProAudio Spectrum",0,CLS_MMEDIA},
+{"mpu",         "VOXWARE Roland MPU401 MIDI",		0,		CLS_MMEDIA},
+{"sscape",      "VOXWARE Ensoniq Soundscape MIDI interface",	0,	CLS_MMEDIA},
+{"sscape_mss",  "VOXWARE Ensoniq Soundscape PCM",	0,		CLS_MMEDIA},
+{"uart",        "VOXWARE 6850 MIDI UART",		0,		CLS_MMEDIA},
 {"pca",         "PC speaker PCM audio driver",		FLG_FIXED,	CLS_MMEDIA},
 {"ctx",         "Coretex-I frame grabber",		0,		CLS_MMEDIA},
 {"spigot",      "Creative Labs Video Spigot video capture",	0,	CLS_MMEDIA},
 {"scc",         "IBM Smart Capture Card",		0,		CLS_MMEDIA},
 {"gsc",         "Genius GS-4500 hand scanner",		0,		CLS_MMEDIA},
 {"asc",         "AmiScan scanner",			0,		CLS_MMEDIA},
-{"qcam",        "QuickCam parallel port camera",	0,		CLS_MMEDIA},
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
 {"pcic",        "PC-card controller",			0,		CLS_MISC},
 {"npx",	        "Math coprocessor",			FLG_IMMUTABLE,	CLS_MISC},
-{"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
 {"vga",	        "Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
-{"chip",        "PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
-{"piix",        "Intel 82371 Bus-master IDE controller", FLG_INVISIBLE, CLS_MISC},
-{"ide_pci",     "PCI IDE controller",			FLG_INVISIBLE,	CLS_MISC},
 {"","",0,0}};
 
 
@@ -541,8 +480,6 @@ static char spaces[] = "                                                        
 static void 
 setdev(DEV_LIST *dev, int enabled)
 {
-    if (dev->iobase == -2)						/* PCI device */
-	return;
     dev->device->id_iobase = dev->iobase;				/* copy happy */
     dev->device->id_irq = (u_short)(dev->irq < 16 ? 1<<dev->irq : 0);	/* IRQ is bitfield */
     dev->device->id_drq = (short)dev->drq;
@@ -583,32 +520,6 @@ getdevs(void)
 	    if (!devinfo(&scratch))			/* get more info on the device */
 		insdev(&scratch,ap[i].id_enabled?active:inactive);
 	}
-#if NPCI > 0 && 0
-    for (i = 0; i < pcidevice_set.ls_length; i++)
-    {
-	if (pcidevice_set.ls_items[i])
-	{
-	    if (((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name)
-	    {
-		strcpy(scratch.dev,((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name);
-		scratch.iobase = -2;			/* mark as PCI for future reference */
-		scratch.irq = -2;
-		scratch.drq = -2;
-		scratch.maddr = -2;
-		scratch.msize = -2;
-		scratch.flags = 0;
-		scratch.comment = DEV_DEVICE;		/* is a device */
-		scratch.unit = 0;			/* arbitrary number of them */
-		scratch.conflicts = 0;
-		scratch.device = NULL;	
-		scratch.changed = 0;
-
-		if (!devinfo(&scratch))			/* look up name, set class and flags */
-		    insdev(&scratch,active);		/* always active */
-	    }
-	}
-    }
-#endif	/* NPCI > 0 */
 }
 
 
@@ -621,8 +532,6 @@ getdevs(void)
  ** If the device is marked "invisible", return nonzero; the caller should
  ** not insert any such device into either list.
  **
- ** PCI devices are always inserted into CLS_PCI, regardless of the class associated
- ** with the driver type.
  **/
 static int
 devinfo(DEV_LIST *dev)
@@ -636,13 +545,8 @@ devinfo(DEV_LIST *dev)
 	    if (device_info[i].attrib & FLG_INVISIBLE)	/* forget we ever saw this one */
 		return(1);
 	    strcpy(dev->name,device_info[i].name);	/* get the name */
-	    if (dev->iobase == -2) {			/* is this a PCI device? */
-		dev->attrib = FLG_IMMUTABLE;		/* dark green ones up the back... */
-		dev->class = CLS_PCI;
-	    } else {
-		dev->attrib = device_info[i].attrib;	/* light green ones up the front */
-		dev->class = device_info[i].class;
-	    }
+	    dev->attrib = device_info[i].attrib;
+	    dev->class = device_info[i].class;
 	    return(0);
 	}
     }
@@ -708,29 +612,24 @@ findspot(DEV_LIST *dev, DEV_LIST *list)
     DEV_LIST	*ap = NULL;
 
     /* search for a previous instance of the same device */
-    if (dev->iobase != -2)	/* avoid PCI devices grouping with non-PCI devices */
+    for (ap = list; ap; ap = ap->next)
     {
-	for (ap = list; ap; ap = ap->next)
+	if (ap->comment != DEV_DEVICE)			/* ignore comments */
+	    continue;
+	if (!strcmp(dev->dev,ap->dev))			/* same base device */
 	{
-	    if (ap->comment != DEV_DEVICE)			/* ignore comments */
-		continue;
-	    if (ap->iobase == -2)				/* don't group with a PCI device */
-		continue;
-	    if (!strcmp(dev->dev,ap->dev))			/* same base device */
+	    if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
+		|| !ap->next)				/* or end of list */
 	    {
-		if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
-		    || !ap->next)				/* or end of list */
-		{
-		    ap = ap->prev;				/* back up one */
-		    break;					/* done here */
-		}
-		if (ap->next)					/* if the next item exists */
-		{
-		    if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
-			break;
-		    if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
-			break;
-		}
+		ap = ap->prev;				/* back up one */
+		break;					/* done here */
+	    }
+	    if (ap->next)					/* if the next item exists */
+	    {
+		if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
+		    break;
+		if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
+		    break;
 	    }
 	}
     }
@@ -855,7 +754,6 @@ savelist(DEV_LIST *list, int active)
     {
 	if ((list->comment == DEV_DEVICE) &&		/* is a device */
 	    (list->changed) &&				/* has been changed */
-	    (list->iobase != -2) &&			/* is not a PCI device */
 	    (list->device != NULL)) {			/* has an isa_device structure */
 
 	    setdev(list,active);			/* set the device itself */
@@ -1010,15 +908,11 @@ findconflict(DEV_LIST *list)
     {
 	if (dp->comment != DEV_DEVICE)		/* comments don't usually conflict */
 	    continue;
-	if (dp->iobase == -2)			/* it's a PCI device, not interested */
-	    continue;
 
 	dp->conflicts = 0;			/* assume the best */
 	for (sp = list; sp; sp = sp->next)	/* scan the entire list for conflicts */
 	{
 	    if (sp->comment != DEV_DEVICE)	/* likewise */
-		continue;
-	    if (dp->iobase == -2)		/* it's a PCI device, not interested */
 		continue;
 
 	    if (sp == dp)			/* always conflict with itself */
@@ -1604,10 +1498,6 @@ showparams(DEV_LIST *dev)
     {
 	sprintf(buf,"Port address : 0x%x",dev->iobase);
 	putxy(1,18,buf);
-    } else {
-	if (dev->iobase == -2)			/* a PCI device */
-	    putmsg(" PCI devices are displayed for informational purposes only, and\n"
-		   " cannot be disabled or configured here.");
     }
 	    
     if (dev->irq > 0)
@@ -2364,14 +2254,11 @@ visuserconfig(void)
 		{
 		    if (dp->comment == DEV_DEVICE)	/* can't edit comments, zoom? */
 		    {
-			if (dp->iobase != -2)		/* can't edit PCI devices */
-			{
-			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
-			    editparams(dp);
-			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit             [!b?!n] Help");
-			    putxy(0,17,lines);
-			    conflicts = findconflict(active);	/* update conflict tags */
-			}
+			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
+			editparams(dp);
+			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit             [!b?!n] Help");
+			putxy(0,17,lines);
+			conflicts = findconflict(active);	/* update conflict tags */
 		    }else{				/* DO on comment = zoom */
 			switch(dp->comment)		/* Depends on current state */
 			{
