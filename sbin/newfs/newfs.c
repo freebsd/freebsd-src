@@ -70,8 +70,10 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include <stdarg.h>
+#include "newfs.h"
 
-void	fatal(const char *fmt, ...) __printflike(1, 2);
+static void fatal(const char *fmt, ...) __printflike(1, 2);
+static struct disklabel *getdisklabel(char *s, int fd);
 
 #define	COMPAT			/* allow non-labeled disks */
 
@@ -194,11 +196,10 @@ main(int argc, char *argv[])
 {
 	struct partition *pp;
 	struct disklabel *lp;
-	struct disklabel *getdisklabel();
 	struct partition oldpartition;
 	struct stat st;
 	struct statfs *mp;
-	char *cp, *s1, *s2, *special, *opstring;
+	char *cp, *s1, *s2, *special;
 	int ch, fsi, fso, len, n, vflag;
 
 	vflag = 0;
@@ -207,8 +208,8 @@ main(int argc, char *argv[])
 	else
 		progname = *argv;
 
-	opstring = "NOS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:";
-	while ((ch = getopt(argc, argv, opstring)) != -1)
+	while ((ch = getopt(argc, argv,
+	    "NOS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:")) != -1)
 		switch (ch) {
 		case 'N':
 			Nflag = 1;
@@ -532,7 +533,7 @@ getdisklabel(char *s, int fd)
 	if (ioctl(fd, DIOCGDINFO, (char *)&lab) < 0) {
 #ifdef COMPAT
 		if (disktype) {
-			struct disklabel *lp, *getdiskbyname();
+			struct disklabel *lp;
 
 			unlabeled++;
 			lp = getdiskbyname(disktype);
