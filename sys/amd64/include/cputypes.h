@@ -33,32 +33,15 @@
 /*
  * Classes of processor.
  */
-#define	CPUCLASS_286	0
-#define	CPUCLASS_386	1
-#define	CPUCLASS_486	2
-#define	CPUCLASS_586	3
-#define	CPUCLASS_686	4
+#define	CPUCLASS_X86	0	/* X86 */
+#define	CPUCLASS_K8	1	/* K8 AMD64 class */
 
 /*
  * Kinds of processor.
  */
-#define	CPU_286		0	/* Intel 80286 */
-#define	CPU_386SX	1	/* Intel 80386SX */
-#define	CPU_386		2	/* Intel 80386DX */
-#define	CPU_486SX	3	/* Intel 80486SX */
-#define	CPU_486		4	/* Intel 80486DX */
-#define	CPU_586		5	/* Intel P.....m (I hate lawyers; it's TM) */
-#define	CPU_486DLC	6	/* Cyrix 486DLC */
-#define	CPU_686		7	/* Pentium Pro */
-#define	CPU_M1SC	8	/* Cyrix M1sc (aka 5x86) */
-#define	CPU_M1		9	/* Cyrix M1 (aka 6x86) */
-#define	CPU_BLUE	10	/* IBM BlueLighting CPU */
-#define	CPU_M2		11	/* Cyrix M2 (aka enhanced 6x86 with MMX */
-#define	CPU_NX586	12	/* NexGen (now AMD) 586 */
-#define	CPU_CY486DX	13	/* Cyrix 486S/DX/DX2/DX4 */
-#define	CPU_PII		14	/* Intel Pentium II */
-#define	CPU_PIII	15	/* Intel Pentium III */
-#define	CPU_P4		16	/* Intel Pentium 4 */
+#define	CPU_X86		0	/* Intel */
+#define	CPU_CLAWHAMMER	1	/* AMD Clawhammer */
+#define	CPU_SLEDGEHAMMER 2	/* AMD Sledgehammer */
 
 #ifndef LOCORE
 struct cpu_nameclass {

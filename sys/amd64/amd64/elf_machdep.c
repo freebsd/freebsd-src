@@ -44,7 +44,7 @@
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
-struct sysentvec elf32_freebsd_sysvec = {
+struct sysentvec elf64_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
 	sysent,
 	0,
@@ -58,7 +58,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	sigcode,
 	&szsigcode,
 	NULL,
-	"FreeBSD ELF32",
+	"FreeBSD ELF64",
 	__elfN(coredump),
 	NULL,
 	MINSIGSTKSZ,
@@ -72,17 +72,17 @@ struct sysentvec elf32_freebsd_sysvec = {
 	exec_setregs
 };
 
-static Elf32_Brandinfo freebsd_brand_info = {
+static Elf64_Brandinfo freebsd_brand_info = {
 						ELFOSABI_FREEBSD,
-						EM_386,
+						EM_X86_64,
 						"FreeBSD",
 						"",
 						"/usr/libexec/ld-elf.so.1",
-						&elf32_freebsd_sysvec
+						&elf64_freebsd_sysvec
 					  };
 
-SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
+SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
+	(sysinit_cfunc_t) elf64_insert_brand_entry,
 	&freebsd_brand_info);
 
 /* Process one elf relocation with addend. */
@@ -117,7 +117,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 	}
 
 	if (local) {
-		if (rtype == R_386_RELATIVE) {	/* A + B */
+		if (rtype == R_X86_64_RELATIVE) {	/* A + B */
 			addr = relocbase + addend;
 			if (*where != addr)
 				*where = addr;
@@ -127,10 +127,10 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 
 	switch (rtype) {
 
-		case R_386_NONE:	/* none */
+		case R_X86_64_NONE:	/* none */
 			break;
 
-		case R_386_32:		/* S + A */
+		case R_X86_64_64:		/* S + A */
 			addr = elf_lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
@@ -139,16 +139,17 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 				*where = addr;
 			break;
 
-		case R_386_PC32:	/* S + A - P */
+		case R_X86_64_PC32:	/* S + A - P */
 			addr = elf_lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			addr += addend - (Elf_Addr)where;
+			/* XXX needs to be 32 bit *where, not 64 bit */
 			if (*where != addr)
 				*where = addr;
 			break;
 
-		case R_386_COPY:	/* none */
+		case R_X86_64_COPY:	/* none */
 			/*
 			 * There shouldn't be copy relocations in kernel
 			 * objects.
@@ -157,7 +158,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 			return -1;
 			break;
 
-		case R_386_GLOB_DAT:	/* S */
+		case R_X86_64_GLOB_DAT:	/* S */
 			addr = elf_lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
@@ -165,7 +166,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 				*where = addr;
 			break;
 
-		case R_386_RELATIVE:
+		case R_X86_64_RELATIVE:	/* B + A */
 			break;
 
 		default:

@@ -55,10 +55,10 @@
 #define	PSL_IOPL	0x00003000	/* i/o privilege level */
 #define	PSL_NT		0x00004000	/* nested task bit */
 #define	PSL_RF		0x00010000	/* resume flag bit */
-#define	PSL_VM		0x00020000	/* virtual 8086 mode bit */
+/* #define PSL_VM	0x00020000 */	/* virtual 8086 mode bit */
 #define	PSL_AC		0x00040000	/* alignment checking */
-#define	PSL_VIF		0x00080000	/* virtual interrupt enable */
-#define	PSL_VIP		0x00100000	/* virtual interrupt pending */
+/* #define PSL_VIF	0x00080000 */	/* virtual interrupt enable */
+/* #define PSL_VIP	0x00100000 */	/* virtual interrupt pending */
 #define	PSL_ID		0x00200000	/* identification bit */
 
 /*

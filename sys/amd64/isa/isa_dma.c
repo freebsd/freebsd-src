@@ -59,7 +59,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <i386/isa/isa.h>
+#include <amd64/isa/isa.h>
 #include <dev/ic/i8237.h>
 #include <isa/isavar.h>
 
@@ -78,6 +78,8 @@
 #define	DMA2_SMSK	(IO_DMA2 + 2*10)	/* single mask register */
 #define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
 #define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
+
+#define ISARAM_END	0x1000000
 
 static int isa_dmarangecheck(caddr_t va, u_int length, int chan);
 
@@ -382,7 +384,6 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
 	endva = (vm_offset_t)round_page((vm_offset_t)va + length);
 	for (; va < (caddr_t) endva ; va += PAGE_SIZE) {
 		phys = trunc_page(pmap_extract(kernel_pmap, (vm_offset_t)va));
-#define ISARAM_END	RAM_END
 		if (phys == 0)
 			panic("isa_dmacheck: no physical page present");
 		if (phys >= ISARAM_END)

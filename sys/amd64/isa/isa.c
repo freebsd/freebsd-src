@@ -61,9 +61,6 @@
 #include <sys/malloc.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#ifdef PC98
-#include <sys/systm.h>
-#endif
 
 #include <machine/resource.h>
 
@@ -131,119 +128,13 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				   start, end, count, flags);
 }
 
-#ifdef PC98
-/*
- * Indirection support.  The type of bus_space_handle_t is
- * defined in sys/i386/include/bus_pc98.h.
- */
-struct resource *
-isa_alloc_resourcev(device_t child, int type, int *rid,
-		    bus_addr_t *res, bus_size_t count, u_int flags)
-{
-	struct isa_device* idev = DEVTOISA(child);
-	struct resource_list *rl = &idev->id_resources;
-
-	device_t	bus = device_get_parent(child);
-	bus_addr_t	start;
-	struct resource *re;
-	struct resource	**bsre;
-	int		i, j, k, linear_cnt, ressz, bsrid;
-
-	start = bus_get_resource_start(child, type, *rid);
-
-	linear_cnt = count;
-	ressz = 1;
-	for (i = 1; i < count; ++i) {
-		if (res[i] != res[i - 1] + 1) {
-			if (i < linear_cnt)
-				linear_cnt = i;
-			++ressz;
-		}
-	}
-
-	re = isa_alloc_resource(bus, child, type, rid,
-				start + res[0], start + res[linear_cnt - 1],
-				linear_cnt, flags);
-	if (re == NULL)
-		return NULL;
-
-	bsre = malloc(sizeof (struct resource *) * ressz, M_DEVBUF, M_NOWAIT);
-	if (bsre == NULL) {
-		resource_list_release(rl, bus, child, type, *rid, re);
-		return NULL;
-	}
-	bsre[0] = re;
-
-	for (i = linear_cnt, k = 1; i < count; i = j, k++) {
-		for (j = i + 1; j < count; j++) {
-			if (res[j] != res[j - 1] + 1)
-				break;
-		}
-		bsrid = *rid + k;
-		bsre[k] = isa_alloc_resource(bus, child, type, &bsrid,
-			start + res[i], start + res[j - 1], j - i, flags);
-		if (bsre[k] == NULL) {
-			for (k--; k >= 0; k--)
-				resource_list_release(rl, bus, child, type,
-						      *rid + k, bsre[k]);
-			free(bsre, M_DEVBUF);
-			return NULL;
-		}
-	}
-
-	re->r_bushandle->bsh_res = bsre;
-	re->r_bushandle->bsh_ressz = ressz;
-
-	return re;
-}
-
-int
-isa_load_resourcev(struct resource *re, bus_addr_t *res, bus_size_t count)
-{
-	bus_addr_t	start;
-	int		i;
-
-	if (count > re->r_bushandle->bsh_maxiatsz) {
-		printf("isa_load_resourcev: map size too large\n");
-		return EINVAL;
-	}
-
-	start = rman_get_start(re);
-	for (i = 0; i < re->r_bushandle->bsh_maxiatsz; i++) {
-		if (i < count)
-			re->r_bushandle->bsh_iat[i] = start + res[i];
-		else
-			re->r_bushandle->bsh_iat[i] = start;
-	}
-
-	re->r_bushandle->bsh_iatsz = count;
-	re->r_bushandle->bsh_bam = re->r_bustag->bs_ra;	/* relocate access */
-
-	return 0;
-}
-#endif	/* PC98 */
-
 int
 isa_release_resource(device_t bus, device_t child, int type, int rid,
 		     struct resource *r)
 {
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
-#ifdef PC98
-	/*
-	 * Indirection support.  The type of bus_space_handle_t is
-	 * defined in sys/i386/include/bus_pc98.h.
-	 */
-	int	i;
 
-	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-		for (i = 1; i < r->r_bushandle->bsh_ressz; i++)
-			resource_list_release(rl, bus, child, type, rid + i,
-					      r->r_bushandle->bsh_res[i]);
-		if (r->r_bushandle->bsh_res != NULL)
-			free(r->r_bushandle->bsh_res, M_DEVBUF);
-	}
-#endif
 	return resource_list_release(rl, bus, child, type, rid, r);
 }
 

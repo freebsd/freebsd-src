@@ -36,8 +36,6 @@
 
 #include "acpi.h"
 
-#include <machine/pc/bios.h>
-
 u_long i386_acpi_root;
 
 SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &i386_acpi_root, 0,

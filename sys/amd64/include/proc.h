@@ -37,35 +37,14 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
-#include <machine/segments.h>
-
-struct proc_ldt {
-        caddr_t ldt_base;
-        int     ldt_len;
-        int     ldt_refcnt;
-        u_long  ldt_active;
-        struct  segment_descriptor ldt_sd;
-};
-
 /*
- * Machine-dependent part of the proc structure for i386.
+ * Machine-dependent part of the proc structure for AMD64.
  */
 struct mdthread {
-#ifdef lint
-	int	dummy;
-#endif
+	register_t	md_savecrit;
 };
 
 struct mdproc {
-	struct proc_ldt *md_ldt;	/* (j) per-process ldt */
 };
-
-#ifdef	_KERNEL
-
-void 	set_user_ldt(struct mdproc *);
-struct 	proc_ldt *user_ldt_alloc(struct mdproc *, int);
-void 	user_ldt_free(struct thread *);
-
-#endif	/* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */

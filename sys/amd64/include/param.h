@@ -40,7 +40,7 @@
  */
 
 /*
- * Machine dependent constants for the AMD64.
+ * Machine dependent constants for AMD64.
  */
 
 /*
@@ -55,7 +55,7 @@
  *
  */
 #ifndef _ALIGNBYTES
-#define	_ALIGNBYTES	(sizeof(int) - 1)
+#define	_ALIGNBYTES	(sizeof(long) - 1)
 #endif
 #ifndef _ALIGN
 #define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
@@ -83,40 +83,71 @@
 #define	MACHINE_ARCH	"amd64"
 #endif
 
-#ifdef SMP
-#define MAXCPU		16
-#else
 #define MAXCPU		1
-#endif /* SMP */
 
 #define	ALIGNBYTES		_ALIGNBYTES
 #define	ALIGN(p)		_ALIGN(p)
 #define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER((p),(t))
 
+/* Size of the level 1 page table units */
+#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 #define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
 #define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
 #define PAGE_MASK	(PAGE_SIZE-1)
-#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+/* Size of the level 2 page directory units */
+#define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+#define	PDRSHIFT	21              /* LOG2(NBPDR) */
+#define	NBPDR		(1<<PDRSHIFT)   /* bytes/page dir */
+#define	PDRMASK		(NBPDR-1)
+/* Size of the level 3 page directory pointer table units */
+#define	NPDPEPG		(PAGE_SIZE/(sizeof (pdp_entry_t)))
+#define	PDPSHIFT	30		/* LOG2(NBPDP) */
+#define	NBPDP		(1<<PDPSHIFT)	/* bytes/page dir ptr table */
+#define	PDPMASK		(NBPDP-1)
+/* Size of the level 4 page-map level-4 table units */
+#define	NPML4EPG	(PAGE_SIZE/(sizeof (pml4_entry_t)))
+#define	PML4SHIFT	39		/* LOG2(NBPML4T) */
+#define	NBPML4T		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
+#define	PML4MASK	(NBPML4T-1)
 
-#define	KERNBASE	0x0000000000000000LL	/* start of kernel virtual */
-#define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
+#define NKPML4E		1		/* addressable number of page tables/pde's */
+#define NKPDPE		1		/* addressable number of page tables/pde's */
+#define NPGPTD		4
+ 
+#define NBPTD           (NPGPTD<<PAGE_SHIFT)
+#define NPDEPTD         (NBPTD/(sizeof (pd_entry_t)))
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
-#ifndef KSTACK_PAGES
-#define	KSTACK_PAGES	2		/* pages of kstack (with pcb) */
-#endif
+#define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */
 #define UAREA_PAGES	1	/* holds struct user WITHOUT PCB (see def.) */
 
-#define KSTACK_GUARD	1		/* compile in the kstack guard page */
+#define KSTACK_GUARD	1	/* compile in the kstack guard page */
+
+/*
+ * Ceiling on amount of swblock kva space, can be changed via
+ * the kern.maxswzone /boot/loader.conf variable.
+ */
+#ifndef VM_SWZONE_SIZE_MAX
+#define	VM_SWZONE_SIZE_MAX	(32 * 1024 * 1024)
+#endif
+
+/*
+ * Ceiling on size of buffer cache (really only effects write queueing,
+ * the VM page cache is not effected), can be changed via
+ * the kern.maxbcache /boot/loader.conf variable.
+ */
+#ifndef VM_BCACHE_SIZE_MAX
+#define	VM_BCACHE_SIZE_MAX	(200 * 1024 * 1024)
+#endif
 
 /*
  * Mach derived conversion macros
  */
 #define	round_page(x)	((((unsigned long)(x)) + PAGE_MASK) & ~(PAGE_MASK))
 #define	trunc_page(x)	((unsigned long)(x) & ~(PAGE_MASK))
-#define trunc_4mpage(x)	((unsigned)(x) & ~PDRMASK)
-#define round_4mpage(x)	((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
+#define trunc_2mpage(x)	((unsigned long)(x) & ~PDRMASK)
+#define round_2mpage(x)	((((unsigned long)(x)) + PDRMASK) & ~PDRMASK)
 
 #define	atop(x)		((unsigned long)(x) >> PAGE_SHIFT)
 #define	ptoa(x)		((unsigned long)(x) << PAGE_SHIFT)
@@ -124,7 +155,7 @@
 #define	amd64_btop(x)	((unsigned long)(x) >> PAGE_SHIFT)
 #define	amd64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)
 
-#define	pgtok(x)	((x) * (PAGE_SIZE / 1024)) 
+#define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
 
 #endif /* !_MACHINE_PARAM_H_ */
 #endif /* !_NO_NAMESPACE_POLLUTION */

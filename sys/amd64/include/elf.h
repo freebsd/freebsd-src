@@ -30,17 +30,17 @@
 #define	_MACHINE_ELF_H_ 1
 
 /*
- * ELF definitions for the i386 architecture.
+ * ELF definitions for the AMD64 architecture.
  */
 
-#include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
+#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 
-#define	__ELF_WORD_SIZE	32	/* Used by <sys/elf_generic.h> */
+#define	__ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
 #include <sys/elf_generic.h>
 
-#define	ELF_ARCH	EM_386
+#define	ELF_ARCH	EM_X86_64
 
-#define	ELF_MACHINE_OK(x) ((x) == EM_386 || (x) == EM_486)
+#define	ELF_MACHINE_OK(x) ((x) == EM_X86_64)
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
@@ -50,13 +50,13 @@
  */
 
 typedef struct {	/* Auxiliary vector entry on initial stack */
-	int	a_type;			/* Entry type. */
+	long	a_type;			/* Entry type. */
 	union {
 		long	a_val;		/* Integer value. */
 		void	*a_ptr;		/* Address. */
 		void	(*a_fcn)(void);	/* Function pointer (not used). */
 	} a_un;
-} Elf32_Auxinfo;
+} Elf64_Auxinfo;
 
 __ElfType(Auxinfo);
 
@@ -98,24 +98,29 @@ __ElfType(Auxinfo);
  * Relocation types.
  */
 
-#define	R_386_NONE	0	/* No relocation. */
-#define	R_386_32	1	/* Add symbol value. */
-#define	R_386_PC32	2	/* Add PC-relative symbol value. */
-#define	R_386_GOT32	3	/* Add PC-relative GOT offset. */
-#define	R_386_PLT32	4	/* Add PC-relative PLT offset. */
-#define	R_386_COPY	5	/* Copy data from shared object. */
-#define	R_386_GLOB_DAT	6	/* Set GOT entry to data address. */
-#define	R_386_JMP_SLOT	7	/* Set GOT entry to code address. */
-#define	R_386_RELATIVE	8	/* Add load address of shared object. */
-#define	R_386_GOTOFF	9	/* Add GOT-relative symbol address. */
-#define	R_386_GOTPC	10	/* Add PC-relative GOT table address. */
+#define	R_X86_64_NONE	0	/* No relocation. */
+#define	R_X86_64_64	1	/* Add 64 bit symbol value. */
+#define	R_X86_64_PC32	2	/* PC-relative 32 bit signed sym value. */
+#define	R_X86_64_GOT32	3	/* PC-relative 32 bit GOT offset. */
+#define	R_X86_64_PLT32	4	/* PC-relative 32 bit PLT offset. */
+#define	R_X86_64_COPY	5	/* Copy data from shared object. */
+#define	R_X86_64_GLOB_DAT 6	/* Set GOT entry to data address. */
+#define	R_X86_64_JMP_SLOT 7	/* Set GOT entry to code address. */
+#define	R_X86_64_RELATIVE 8	/* Add load address of shared object. */
+#define	R_X86_64_GOTPCREL 9	/* Add 32 bit signed pcrel offset to GOT. */
+#define	R_X86_64_32	10	/* Add 32 bit zero extended symbol value */
+#define	R_X86_64_32S	11	/* Add 32 bit sign extended symbol value */
+#define	R_X86_64_16	12	/* Add 16 bit zero extended symbol value */
+#define	R_X86_64_PC16	13	/* Add 16 bit signed extended pc relative symbol value */
+#define	R_X86_64_8	14	/* Add 8 bit zero extended symbol value */
+#define	R_X86_64_PC8	15	/* Add 8 bit signed extended pc relative symbol value */
 
-#define	R_386_COUNT	11	/* Count of defined relocation types. */
+#define	R_X86_64_COUNT	16	/* Count of defined relocation types. */
 
 /* Define "machine" characteristics */
-#define	ELF_TARG_CLASS	ELFCLASS32
+#define	ELF_TARG_CLASS	ELFCLASS64
 #define	ELF_TARG_DATA	ELFDATA2LSB
-#define	ELF_TARG_MACH	EM_386
+#define	ELF_TARG_MACH	EM_X86_64
 #define	ELF_TARG_VER	1
 
 #ifdef _KERNEL

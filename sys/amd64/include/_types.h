@@ -56,6 +56,8 @@ typedef	unsigned long		__uint64_t;
  */
 typedef	__int32_t	__clock_t;		/* clock()... */
 typedef	__int64_t	__critical_t;
+typedef	double		__double_t;
+typedef	double		__float_t;
 typedef	__int64_t	__intfptr_t;
 typedef	__int64_t	__intmax_t;
 typedef	__int64_t	__intptr_t;
@@ -72,7 +74,7 @@ typedef	__int64_t	__register_t;
 typedef	__int64_t	__segsz_t;		/* segment size (in pages) */
 typedef	__uint64_t	__size_t;		/* sizeof() */
 typedef	__int64_t	__ssize_t;		/* byte count or error */
-typedef	__int32_t	__time_t;		/* time()... */
+typedef	__int64_t	__time_t;		/* time()... */
 typedef	__uint64_t	__uintfptr_t;
 typedef	__uint64_t	__uintmax_t;
 typedef	__uint64_t	__uintptr_t;

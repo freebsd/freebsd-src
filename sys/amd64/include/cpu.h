@@ -55,16 +55,16 @@
 
 #define	cpu_exec(p)	/* nothing */
 #define cpu_swapin(p)	/* nothing */
-#define	cpu_getstack(td)		((td)->td_frame->tf_esp)
-#define cpu_setstack(td, ap)		((td)->td_frame->tf_esp = (ap))
+#define	cpu_getstack(td)		((td)->td_frame->tf_rsp)
+#define cpu_setstack(td, ap)		((td)->td_frame->tf_rsp = (ap))
 
 #define	TRAPF_USERMODE(framep) \
-	((ISPL((framep)->tf_cs) == SEL_UPL) || ((framep)->tf_eflags & PSL_VM))
-#define	TRAPF_PC(framep)	((framep)->tf_eip)
+	(ISPL((framep)->tf_cs) == SEL_UPL)
+#define	TRAPF_PC(framep)	((framep)->tf_rip)
 
 #define	CLKF_USERMODE(framep) \
-	((ISPL((framep)->cf_cs) == SEL_UPL) || ((framep)->cf_eflags & PSL_VM))
-#define	CLKF_PC(framep)		((framep)->cf_eip)
+	(ISPL((framep)->cf_cs) == SEL_UPL)
+#define	CLKF_PC(framep)		((framep)->cf_rip)
 
 /*
  * CTL_MACHDEP definitions.
@@ -72,18 +72,8 @@
 #define CPU_CONSDEV		1	/* dev_t: console terminal device */
 #define	CPU_ADJKERNTZ		2	/* int:	timezone offset	(seconds) */
 #define	CPU_DISRTCSET		3	/* int: disable resettodr() call */
-#define CPU_BOOTINFO		4	/* struct: bootinfo */
 #define	CPU_WALLCLOCK		5	/* int:	indicates wall CMOS clock */
 #define	CPU_MAXID		6	/* number of valid machdep ids */
-
-#define CTL_MACHDEP_NAMES { \
-	{ 0, 0 }, \
-	{ "console_device", CTLTYPE_STRUCT }, \
-	{ "adjkerntz", CTLTYPE_INT }, \
-	{ "disable_rtc_set", CTLTYPE_INT }, \
-	{ "bootinfo", CTLTYPE_STRUCT }, \
-	{ "wall_cmos_clock", CTLTYPE_INT }, \
-}
 
 #ifdef _KERNEL
 extern char	btext[];
@@ -99,14 +89,7 @@ void	fork_trampoline(void);
 static __inline u_int64_t
 get_cyclecount(void)
 {
-#if defined(I386_CPU) || defined(I486_CPU)
-	struct bintime bt;
 
-	if (!tsc_present) {
-		binuptime(&bt);
-		return (bt.frac ^ bt.sec);
-	}
-#endif
 	return (rdtsc());
 }
 

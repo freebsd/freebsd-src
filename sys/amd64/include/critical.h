@@ -23,7 +23,6 @@ __BEGIN_DECLS
 /*
  * Prototypes - see <arch>/<arch>/critical.c
  */
-void cpu_unpend(void);
 void cpu_critical_fork_exit(void);
 void cpu_thread_link(struct thread *td);
 
@@ -34,12 +33,15 @@ void cpu_thread_link(struct thread *td);
  *
  *	This routine is called from critical_enter() on the 0->1 transition
  *	of td_critnest, prior to it being incremented to 1.
- *
- *	If new-style critical section handling we do not have to do anything.
- *	However, as a side effect any interrupts occuring while td_critnest
- *	is non-zero will be deferred.
  */
-#define cpu_critical_enter()
+static __inline void
+cpu_critical_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	td->td_md.md_savecrit = intr_disable();
+}
 
 /*
  *	cpu_critical_exit:
@@ -47,27 +49,14 @@ void cpu_thread_link(struct thread *td);
  *	This routine is called from critical_exit() on a 1->0 transition
  *	of td_critnest, after it has been decremented to 0.  We are
  *	exiting the last critical section.
- *
- *	Note that the td->critnest (1->0) transition interrupt race against
- *	our int_pending/unpend() check below is handled by the interrupt
- *	code for us, so we do not have to do anything fancy.
  */
 static __inline void
 cpu_critical_exit(void)
 {
-	/*
-	 * We may have to schedule pending interrupts.  Create
-	 * conditions similar to an interrupt context and call
-	 * unpend().
-	 *
-	 * note: we do this even if we are in an interrupt
-	 * nesting level.  Deep nesting is protected by
-	 * critical_*() and if we conditionalized it then we
-	 * would have to check int_pending again whenever
-	 * we decrement td_intr_nesting_level to 0.
-	 */
-	if (PCPU_GET(int_pending))
-		cpu_unpend();
+	struct thread *td;
+
+	td = curthread;
+	intr_restore(td->td_md.md_savecrit);
 }
 
 #else /* !__GNUC__ */

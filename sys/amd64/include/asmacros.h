@@ -50,11 +50,11 @@
 #define CNAME(csym)		csym
 #define HIDENAME(asmsym)	.asmsym
 
-#define ALIGN_DATA	.p2align 2	/* 4 byte alignment, zero filled */
+#define ALIGN_DATA	.p2align 3	/* 8 byte alignment, zero filled */
 #ifdef GPROF
 #define ALIGN_TEXT	.p2align 4,0x90	/* 16-byte alignment, nop filled */
 #else
-#define ALIGN_TEXT	.p2align 2,0x90	/* 4-byte alignment, nop filled */
+#define ALIGN_TEXT	.p2align 4,0x90	/* 16-byte alignment, nop filled */
 #endif
 #define SUPERALIGN_TEXT	.p2align 4,0x90	/* 16-byte alignment, nop filled */
 
@@ -64,9 +64,9 @@
 #define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
 #ifdef LOCORE
-#define	PCPU(member)	%fs:PC_ ## member
-#define	PCPU_ADDR(member, reg)	movl %fs:PC_PRVSPACE,reg; \
-			addl $PC_ ## member,reg
+#define	PCPU(member)	%gs:PC_ ## member
+#define	PCPU_ADDR(member, reg)	movq %gs:PC_PRVSPACE,reg; \
+			addq $PC_ ## member,reg
 #endif
 
 #ifdef GPROF
@@ -115,7 +115,7 @@
 #define CROSSJUMPTARGET(label) \
 	ALIGN_TEXT; __CONCAT(to,label): ; MCOUNT; jmp label
 #define ENTRY(name)		GEN_ENTRY(name) ; 9: ; MCOUNT
-#define FAKE_MCOUNT(caller)	pushl caller ; call __mcount ; popl %ecx
+#define FAKE_MCOUNT(caller)	pushq caller ; call __mcount ; popl %ecx
 #define MCOUNT			call __mcount
 #define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
 #define MEXITCOUNT		call HIDENAME(mexitcount)

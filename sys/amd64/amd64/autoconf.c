@@ -73,13 +73,8 @@
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
 
-#include <machine/bootinfo.h>
 #include <machine/md_var.h>
-#ifdef APIC_IO
-#include <machine/smp.h>
-#else
-#include <i386/isa/icu.h>
-#endif /* APIC_IO */
+#include <amd64/isa/icu.h>
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
@@ -127,13 +122,8 @@ configure(dummy)
 	 *
 	 * This is all rather inconvenient.
 	 */
-#ifdef APIC_IO
-	bsp_apic_configure();
-	enable_intr();
-#else
 	enable_intr();
 	INTREN(IRQ_SLAVE);
-#endif /* APIC_IO */
 
 	/* nexus0 is the top of the i386 device tree */
 	device_add_child(root_bus, "nexus", 0);
@@ -163,50 +153,6 @@ configure_final(dummy)
 {
 
 	cninit_finish(); 
-
-	if (bootverbose) {
-
-#ifdef APIC_IO
-		imen_dump();
-#endif /* APIC_IO */
-
-#ifdef PC98
-		{
-		int i;
-		/*
-		 * Print out the BIOS's idea of the disk geometries.
-		 */
-		printf("BIOS Geometries:\n");
-		for (i = 0; i < N_BIOS_GEOM; i++) {
-			unsigned long bios_geom;
-			int max_cylinder, max_head, max_sector;
-
-			bios_geom = bootinfo.bi_bios_geom[i];
-
-			/*
-			 * XXX the bootstrap punts a 1200K floppy geometry
-			 * when the get-disk-geometry interrupt fails.  Skip
-			 * drives that have this geometry.
-			 */
-			if (bios_geom == 0x4f010f)
-				continue;
-
-			printf(" %x:%08lx ", i, bios_geom);
-			max_cylinder = bios_geom >> 16;
-			max_head = (bios_geom >> 8) & 0xff;
-			max_sector = bios_geom & 0xff;
-			printf(
-		"0..%d=%d cylinders, 0..%d=%d heads, 1..%d=%d sectors\n",
-			       max_cylinder, max_cylinder + 1,
-			       max_head, max_head + 1,
-			       max_sector, max_sector);
-		}
-		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
-		}
-#endif
-
-		printf("Device configuration finished.\n");
-	}
 	cold = 0;
 }
 

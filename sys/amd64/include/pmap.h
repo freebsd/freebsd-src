@@ -83,52 +83,36 @@
 #define PGEX_U		0x04	/* access from User mode (UPL) */
 
 /*
- * Size of Kernel address space.  This is the number of page table pages
- * (4MB each) to use for the kernel.  256 pages == 1 Gigabyte.
- * This **MUST** be a multiple of 4 (eg: 252, 256, 260, etc).
+ * Size of Kernel address space.  This is the number of level 4 (top)
+ * entries.  We use half of them for the kernel due to the 48 bit
+ * virtual address sign extension.
  */
-#ifndef KVA_PAGES
-#ifdef PAE
-#define KVA_PAGES	512
-#else
-#define KVA_PAGES	256
-#endif
-#endif
-
+#define KVA_PAGES	1536
+  
 /*
- * Pte related macros
+ * Pte related macros.  This is complicated by having to deal with
+ * the sign extension of the 48th bit.
  */
-#define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
+#define VADDR_SIGN(l4) \
+	((l4) >= NPML4EPG/2 ? ((unsigned long)-1 << 47) : 0ul)
+#define VADDR(l4, l3, l2, l1) ( \
+	((unsigned long)(l4) << PML4SHIFT) | VADDR_SIGN(l4) | \
+	((unsigned long)(l3) << PDPSHIFT) | \
+	((unsigned long)(l2) << PDRSHIFT) | \
+	((unsigned long)(l1) << PAGE_SHIFT))
+
 
 #ifndef NKPT
-#ifdef PAE
-#define	NKPT		120	/* actual number of kernel page tables */
-#else
-#define	NKPT		30	/* actual number of kernel page tables */
+#define	NKPT		120	/* initial number of kernel page tables */
 #endif
-#endif
-#ifndef NKPDE
-#ifdef SMP
-#define NKPDE	(KVA_PAGES - 1) /* number of page tables/pde's */
-#else
-#define NKPDE	(KVA_PAGES)	/* number of page tables/pde's */
-#endif
+#ifndef	NKPDE
+#define	NKPDE	(KVA_PAGES)	/* number of page tables/pde's */
 #endif
 
 /*
  * The *PTDI values control the layout of virtual memory
- *
- * XXX This works for now, but I am not real happy with it, I'll fix it
- * right after I fix locore.s and the magic 28K hole
- *
- * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
  */
-#ifdef SMP
-#define MPPTDI		(NPDEPTD-1)	/* per cpu ptd entry */
-#define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
-#else
-#define	KPTDI		(NPDEPTD-NKPDE)/* start of kernel virtual pde's */
-#endif	/* SMP */
+#define	KPTDI		(NPDEPTD-NKPDE)	/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
 
 /*
@@ -141,38 +125,37 @@
 
 #include <sys/queue.h>
 
-#ifdef PAE
+typedef u_int64_t pd_entry_t;
+typedef u_int64_t pt_entry_t;
+typedef u_int64_t pdp_entry_t;
+typedef u_int64_t pml4_entry_t;
 
-typedef uint64_t pdpt_entry_t;
-typedef uint64_t pd_entry_t;
-typedef uint64_t pt_entry_t;
-
+#define	PML4ESHIFT	(3)
+#define	PDPESHIFT	(3)
 #define	PTESHIFT	(3)
 #define	PDESHIFT	(3)
-
-#else
-
-typedef uint32_t pd_entry_t;
-typedef uint32_t pt_entry_t;
-
-#define	PTESHIFT	(2)
-#define	PDESHIFT	(2)
-
-#endif
 
 /*
  * Address of current and alternate address space page table maps
  * and directories.
+ * XXX it might be saner to just direct map all of physical memory
+ * into the kernel using 2MB pages.  We have enough space to do
+ * it (2^47 bits of KVM, while current max physical addressability
+ * is 2^40 physical bits).  Then we can get rid of the evil hole
+ * in the page tables and the evil overlapping.
  */
 #ifdef _KERNEL
-extern pt_entry_t PTmap[];
-extern pd_entry_t PTD[];
-extern pd_entry_t PTDpde[];
+extern pt_entry_t	PTmap[];
+extern pd_entry_t	PDmap[];
+extern pdp_entry_t	PDPmap[];
+extern pml4_entry_t	PML4[];
+extern pdp_entry_t	PDP[];
+extern pd_entry_t	PTD[];
+extern pd_entry_t	PTDpde[];
 
-#ifdef PAE
-extern pdpt_entry_t *IdlePDPT;
-#endif
-extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
+extern u_int64_t IdlePML4;	/* physical address of "Idle" state directory */
+extern u_int64_t IdlePDP;	/* physical address of "Idle" state directory */
+extern u_int64_t IdlePTD;	/* physical address of "Idle" state directory */
 #endif
 
 #ifdef _KERNEL
@@ -182,7 +165,7 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  * Note: these work recursively, thus vtopte of a pte will give
  * the corresponding pde that in turn maps it.
  */
-#define	vtopte(va)	(PTmap + i386_btop(va))
+#define	vtopte(va)	(PTmap + amd64_btop(va))
 
 /*
  *	Routine:	pmap_kextract
@@ -195,7 +178,8 @@ pmap_kextract(vm_offset_t va)
 {
 	vm_paddr_t pa;
 
-	if ((pa = PTD[va >> PDRSHIFT]) & PG_PS) {
+	pa = PTD[va >> PDRSHIFT];
+	if (pa & PG_PS) {
 		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
 	} else {
 		pa = *vtopte(va);
@@ -205,39 +189,6 @@ pmap_kextract(vm_offset_t va)
 }
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
-
-#ifdef PAE
-
-static __inline pt_entry_t
-pte_load(pt_entry_t *ptep)
-{
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "lock; cmpxchg8b %1"
-	    : "=A" (r)
-	    : "m" (*ptep), "a" (0), "d" (0), "b" (0), "c" (0));
-	return (r);
-}
-
-static __inline pt_entry_t
-pte_load_store(pt_entry_t *ptep, pt_entry_t v)
-{
-	pt_entry_t r;
-
-	r = *ptep;
-	__asm __volatile(
-	    "1:\n"
-	    "\tlock; cmpxchg8b %1\n"
-	    "\tjnz 1b"
-	    : "+A" (r)
-	    : "m" (*ptep), "b" ((uint32_t)v), "c" ((uint32_t)(v >> 32)));
-	return (r);
-}
-
-#define	pte_load_clear(ptep)	pte_load_store((ptep), (pt_entry_t)0ULL)
-
-#else /* PAE */
 
 static __inline pt_entry_t
 pte_load(pt_entry_t *ptep)
@@ -258,9 +209,7 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
 	return (r);
 }
 
-#define	pte_load_clear(pte)	atomic_readandclear_int(pte)
-
-#endif /* PAE */
+#define	pte_load_clear(pte)	atomic_readandclear_long(pte)
 
 #define	pte_clear(ptep)		pte_load_store((ptep), (pt_entry_t)0ULL)
 #define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
@@ -283,13 +232,11 @@ struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	u_int			pm_active;	/* active on cpus */
+	u_long			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
-#ifdef PAE
-	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
-						   table */
-#endif
+	pdp_entry_t		*pm_pdp;	/* KVA of level 3 page table */
+	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 };
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
@@ -341,7 +288,6 @@ void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 pt_entry_t *pmap_pte_quick(pmap_t, vm_offset_t) __pure2;
-void	pmap_set_opt(void);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
 void	pmap_invalidate_all(pmap_t);

@@ -37,9 +37,7 @@
  * $FreeBSD$
  */
 
-#include "opt_auto_eoi.h"
 #include "opt_isa.h"
-#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/bus.h> 
@@ -59,32 +57,14 @@
 #include <machine/md_var.h>
 #include <machine/segments.h>
 
-#if defined(APIC_IO)
-#include <machine/smptests.h>			/** FAST_HI */
-#include <machine/smp.h>
-#include <machine/resource.h>
-#endif /* APIC_IO */
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_machdep.h>
-#include <pc98/pc98/epsonio.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/icu.h>
+#include <amd64/isa/isa.h>
+#include <amd64/isa/icu.h>
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
-#include <i386/isa/intr_machdep.h>
+#include <amd64/isa/intr_machdep.h>
 #include <sys/interrupt.h>
-#ifdef APIC_IO
-#include <machine/clock.h>
-#endif
-
-#ifdef DEV_MCA
-#include <i386/bios/mca_machdep.h>
-#endif
 
 /*
  * Per-interrupt data.
@@ -105,37 +85,6 @@ static inthand_t *fastintr[ICU_LEN] = {
 	IDTVEC(fastintr10), IDTVEC(fastintr11),
 	IDTVEC(fastintr12), IDTVEC(fastintr13),
 	IDTVEC(fastintr14), IDTVEC(fastintr15),
-#if defined(APIC_IO)
-	IDTVEC(fastintr16), IDTVEC(fastintr17),
-	IDTVEC(fastintr18), IDTVEC(fastintr19),
-	IDTVEC(fastintr20), IDTVEC(fastintr21),
-	IDTVEC(fastintr22), IDTVEC(fastintr23),
-	IDTVEC(fastintr24), IDTVEC(fastintr25),
-	IDTVEC(fastintr26), IDTVEC(fastintr27),
-	IDTVEC(fastintr28), IDTVEC(fastintr29),
-	IDTVEC(fastintr30), IDTVEC(fastintr31),
-#endif /* APIC_IO */
-};
-
-static unpendhand_t *fastunpend[ICU_LEN] = {
-	IDTVEC(fastunpend0), IDTVEC(fastunpend1),
-	IDTVEC(fastunpend2), IDTVEC(fastunpend3),
-	IDTVEC(fastunpend4), IDTVEC(fastunpend5),
-	IDTVEC(fastunpend6), IDTVEC(fastunpend7),
-	IDTVEC(fastunpend8), IDTVEC(fastunpend9),
-	IDTVEC(fastunpend10), IDTVEC(fastunpend11),
-	IDTVEC(fastunpend12), IDTVEC(fastunpend13),
-	IDTVEC(fastunpend14), IDTVEC(fastunpend15),
-#if defined(APIC_IO)
-	IDTVEC(fastunpend16), IDTVEC(fastunpend17),
-	IDTVEC(fastunpend18), IDTVEC(fastunpend19),
-	IDTVEC(fastunpend20), IDTVEC(fastunpend21),
-	IDTVEC(fastunpend22), IDTVEC(fastunpend23),
-	IDTVEC(fastunpend24), IDTVEC(fastunpend25),
-	IDTVEC(fastunpend26), IDTVEC(fastunpend27),
-	IDTVEC(fastunpend28), IDTVEC(fastunpend29),
-	IDTVEC(fastunpend30), IDTVEC(fastunpend31),
-#endif /* APIC_IO */
 };
 
 static inthand_t *slowintr[ICU_LEN] = {
@@ -143,12 +92,6 @@ static inthand_t *slowintr[ICU_LEN] = {
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15),
-#if defined(APIC_IO)
-	IDTVEC(intr16), IDTVEC(intr17), IDTVEC(intr18), IDTVEC(intr19),
-	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23),
-	IDTVEC(intr24), IDTVEC(intr25), IDTVEC(intr26), IDTVEC(intr27),
-	IDTVEC(intr28), IDTVEC(intr29), IDTVEC(intr30), IDTVEC(intr31),
-#endif /* APIC_IO */
 };
 
 static driver_intr_t isa_strayintr;
@@ -158,16 +101,11 @@ static void	ithread_enable(int vector);
 static void	ithread_disable(int vector);
 static void	init_i8259(void);
 
-#ifdef PC98
-#define NMI_PARITY 0x04
-#define NMI_EPARITY 0x02
-#else
 #define NMI_PARITY (1 << 7)
 #define NMI_IOCHAN (1 << 6)
 #define ENMI_WATCHDOG (1 << 7)
 #define ENMI_BUSTIMER (1 << 6)
 #define ENMI_IOSTATUS (1 << 5)
-#endif
 
 #ifdef DEV_ISA
 /*
@@ -189,27 +127,12 @@ atpic_probe(device_t dev)
 }
 
 /*
- * In the APIC_IO case we might be granted IRQ 2, as this is typically
- * consumed by chaining between the two PIC components.  If we're using
- * the APIC, however, this may not be the case, and as such we should
- * free the resource.  (XXX untested)
- *
  * The generic ISA attachment code will handle allocating any other resources
  * that we don't explicitly claim here.
  */
 static int
 atpic_attach(device_t dev)
 {
-#ifdef APIC_IO
-	int		rid;
-	struct resource *res;
-
-	/* try to allocate our IRQ and then free it */
-	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 0);
-	if (res != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
-#endif
 	return(0);
 }
 
@@ -245,30 +168,9 @@ isa_nmi(cd)
 	int cd;
 {
 	int retval = 0;
-#ifdef PC98
- 	int port = inb(0x33);
-
-	log(LOG_CRIT, "NMI PC98 port = %x\n", port);
-	if (epson_machine_id == 0x20)
-		epson_outb(0xc16, epson_inb(0xc16) | 0x1);
-	if (port & NMI_PARITY) {
-		log(LOG_CRIT, "BASE RAM parity error, likely hardware failure.");
-		retval = 1;
-	} else if (port & NMI_EPARITY) {
-		log(LOG_CRIT, "EXTENDED RAM parity error, likely hardware failure.");
-		retval = 1;
-	} else {
-		log(LOG_CRIT, "\nNMI Resume ??\n");
-	}
-#else /* IBM-PC */
 	int isa_port = inb(0x61);
-	int eisa_port = inb(0x461);
 
-	log(LOG_CRIT, "NMI ISA %x, EISA %x\n", isa_port, eisa_port);
-#ifdef DEV_MCA
-	if (MCA_system && mca_bus_nmi())
-		return(0);
-#endif
+	log(LOG_CRIT, "NMI ISA STATUS 0x%02x", isa_port);
 	
 	if (isa_port & NMI_PARITY) {
 		log(LOG_CRIT, "RAM parity error, likely hardware failure.");
@@ -280,30 +182,7 @@ isa_nmi(cd)
 		retval = 1;
 	}
 
-	/*
-	 * On a real EISA machine, this will never happen.  However it can
-	 * happen on ISA machines which implement XT style floating point
-	 * error handling (very rare).  Save them from a meaningless panic.
-	 */
-	if (eisa_port == 0xff)
-		return(retval);
-
-	if (eisa_port & ENMI_WATCHDOG) {
-		log(LOG_CRIT, "EISA watchdog timer expired, likely hardware failure.");
-		retval = 1;
-	}
-
-	if (eisa_port & ENMI_BUSTIMER) {
-		log(LOG_CRIT, "EISA bus timeout, likely hardware failure.");
-		retval = 1;
-	}
-
-	if (eisa_port & ENMI_IOSTATUS) {
-		log(LOG_CRIT, "EISA I/O port status error.");
-		retval = 1;
-	}
-#endif
-	return(retval);
+	return (retval);
 }
 
 /*
@@ -352,72 +231,56 @@ isa_defaultirq()
 static void init_i8259()
 {
 
-#ifdef DEV_MCA
-	if (MCA_system)
-		outb(IO_ICU1, 0x19);		/* reset; program device, four bytes */
-	else
-#endif
-		outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
+	outb(IO_ICU1, ICW1_RESET | ICW1_IC4);	/* reset; program device, four bytes */
 
 	outb(IO_ICU1+ICU_IMR_OFFSET, NRSVIDT);	/* starting at this vector index */
-	outb(IO_ICU1+ICU_IMR_OFFSET, IRQ_SLAVE);		/* slave on line 7 */
-#ifdef PC98
-#ifdef AUTO_EOI_1
-	outb(IO_ICU1+ICU_IMR_OFFSET, 0x1f);		/* (master) auto EOI, 8086 mode */
-#else
-	outb(IO_ICU1+ICU_IMR_OFFSET, 0x1d);		/* (master) 8086 mode */
-#endif
-#else /* IBM-PC */
-#ifdef AUTO_EOI_1
-	outb(IO_ICU1+ICU_IMR_OFFSET, 2 | 1);		/* auto EOI, 8086 mode */
-#else
-	outb(IO_ICU1+ICU_IMR_OFFSET, 1);		/* 8086 mode */
-#endif
-#endif /* PC98 */
-	outb(IO_ICU1+ICU_IMR_OFFSET, 0xff);		/* leave interrupts masked */
-	outb(IO_ICU1, 0x0a);		/* default to IRR on read */
-#ifndef PC98
-	outb(IO_ICU1, 0xc0 | (3 - 1));	/* pri order 3-7, 0-2 (com2 first) */
-#endif /* !PC98 */
+	outb(IO_ICU1+ICU_IMR_OFFSET, IRQ_SLAVE);/* slave on line 2 */
+	outb(IO_ICU1+ICU_IMR_OFFSET, ICW4_8086);/* 8086 mode */
+	outb(IO_ICU1+ICU_IMR_OFFSET, 0xff);	/* leave interrupts masked */
+	outb(IO_ICU1, OCW3_SEL | OCW3_RIS);	/* default to IRR on read */
+	outb(IO_ICU1, ICU_SETPRI | 0x2);/* pri order 3-7, 0-2 (com2 first) */
 
-#ifdef DEV_MCA
-	if (MCA_system)
-		outb(IO_ICU2, 0x19);		/* reset; program device, four bytes */
-	else
-#endif
-		outb(IO_ICU2, 0x11);		/* reset; program device, four bytes */
+	outb(IO_ICU2, ICW1_RESET | ICW1_IC4);	/* reset; program device, four bytes */
 
 	outb(IO_ICU2+ICU_IMR_OFFSET, NRSVIDT+8); /* staring at this vector index */
-	outb(IO_ICU2+ICU_IMR_OFFSET, ICU_SLAVEID);         /* my slave id is 7 */
-#ifdef PC98
-	outb(IO_ICU2+ICU_IMR_OFFSET,9);              /* 8086 mode */
-#else /* IBM-PC */
-#ifdef AUTO_EOI_2
-	outb(IO_ICU2+ICU_IMR_OFFSET, 2 | 1);		/* auto EOI, 8086 mode */
-#else
-	outb(IO_ICU2+ICU_IMR_OFFSET,1);		/* 8086 mode */
-#endif
-#endif /* PC98 */
-	outb(IO_ICU2+ICU_IMR_OFFSET, 0xff);          /* leave interrupts masked */
-	outb(IO_ICU2, 0x0a);		/* default to IRR on read */
+	outb(IO_ICU2+ICU_IMR_OFFSET, ICU_SLAVEID); /* my slave id is 2 */
+	outb(IO_ICU2+ICU_IMR_OFFSET, ICW4_8086); /* 8086 mode */
+	outb(IO_ICU2+ICU_IMR_OFFSET, 0xff);     /* leave interrupts masked */
+	outb(IO_ICU2, OCW3_SEL | OCW3_RIS);	/* default to IRR on read */
 }
 
 /*
  * Caught a stray interrupt, notify
  */
+static int isaglitch7;
+static int isaglitch15;
+
 static void
 isa_strayintr(vcookiep)
 	void *vcookiep;
 {
 	int intr = (void **)vcookiep - &intr_unit[0];
+	int isr;
 
-	/*
-	 * XXX TODO print a different message for #7 if it is for a
-	 * glitch.  Glitches can be distinguished from real #7's by
-	 * testing that the in-service bit is _not_ set.  The test
-	 * must be done before sending an EOI so it can't be done if
-	 * we are using AUTO_EOI_1.
-	 */
+	/* Determine if it is a stray interrupt or simply a glitch */
+	if (intr == 7) {
+		outb(IO_ICU1, OCW3_SEL);	/* select IS register */
+		isr = inb(IO_ICU1);
+		outb(IO_ICU1, OCW3_SEL | OCW3_RIS); /* reselect IIR */
+		if ((isr & 0x80) == 0) {
+			isaglitch7++;
+			return;
+		}
+	}
+	if (intr == 15) {
+		outb(IO_ICU2, OCW3_SEL);	/* select IS register */
+		isr = inb(IO_ICU2);
+		outb(IO_ICU2, OCW3_SEL | OCW3_RIS); /* reselect IIR */
+		if ((isr & 0x80) == 0) {
+			isaglitch15++;
+			return;
+		}
+	}
 	if (intrcnt[1 + intr] <= 5)
 		log(LOG_ERR, "stray irq %d\n", intr);
 	if (intrcnt[1 + intr] == 5)
@@ -498,18 +361,9 @@ found:
 int
 icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 {
-#ifdef FAST_HI
-	int		select;		/* the select register is 8 bits */
-	int		vector;
-	u_int32_t	value;		/* the window register is 32 bits */
-#endif /* FAST_HI */
 	register_t	crit;
 
-#if defined(APIC_IO)
-	if ((u_int)intr >= ICU_LEN)	/* no 8259 SLAVE to ignore */
-#else
 	if ((u_int)intr >= ICU_LEN || intr == ICU_SLAVEID)
-#endif /* APIC_IO */
 		return (EINVAL);
 #if 0
 	if (intr_handler[intr] != isa_strayintr)
@@ -520,35 +374,9 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 	mtx_lock_spin(&icu_lock);
 	intr_handler[intr] = handler;
 	intr_unit[intr] = arg;
-#ifdef FAST_HI
-	if (flags & INTR_FAST) {
-		vector = TPR_FAST_INTS + intr;
-		setidt(vector, fastintr[intr],
-		       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	}
-	else {
-		vector = TPR_SLOW_INTS + intr;
-		setidt(vector, slowintr[intr],
-		       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	}
-#ifdef APIC_INTR_REORDER
-	set_lapic_isrloc(intr, vector);
-#endif
-	/*
-	 * Reprogram the vector in the IO APIC.
-	 */
-	if (int_to_apicintpin[intr].ioapic >= 0) {
-		select = int_to_apicintpin[intr].redirindex;
-		value = io_apic_read(int_to_apicintpin[intr].ioapic, 
-				     select) & ~IOART_INTVEC;
-		io_apic_write(int_to_apicintpin[intr].ioapic, 
-			      select, value | vector);
-	}
-#else
 	setidt(ICU_OFFSET + intr,
 	       flags & INTR_FAST ? fastintr[intr] : slowintr[intr],
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif /* FAST_HI */
+	       SDT_SYSIGT, SEL_KPL, 0);
 	INTREN(1 << intr);
 	mtx_unlock_spin(&icu_lock);
 	intr_restore(crit);
@@ -576,17 +404,7 @@ icu_unset(intr, handler)
 	intr_countp[intr] = &intrcnt[1 + intr];
 	intr_handler[intr] = isa_strayintr;
 	intr_unit[intr] = &intr_unit[intr];
-#ifdef FAST_HI_XXX
-	/* XXX how do I re-create dvp here? */
-	setidt(flags & INTR_FAST ? TPR_FAST_INTS + intr : TPR_SLOW_INTS + intr,
-	    slowintr[intr], SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#else /* FAST_HI */
-#ifdef APIC_INTR_REORDER
-	set_lapic_isrloc(intr, ICU_OFFSET + intr);
-#endif
-	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-#endif /* FAST_HI */
+	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYSIGT, SEL_KPL, 0);
 	mtx_unlock_spin(&icu_lock);
 	intr_restore(crit);
 	return (0);
@@ -703,10 +521,3 @@ inthand_remove(void *cookie)
 
 	return (ithread_remove_handler(cookie));
 }
-
-void
-call_fast_unpend(int irq)
-{
- 	fastunpend[irq]();
-}
-
