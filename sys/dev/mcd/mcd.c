@@ -297,18 +297,6 @@ mcdstrategy(struct bio *bp)
 
 	sc = (struct mcd_softc *)bp->bio_dev->si_drv1;
 
-	/* test validity */
-/*MCD_TRACE("strategy: buf=0x%lx, unit=%ld, block#=%ld bcount=%ld\n",
-	bp,unit,bp->bio_blkno,bp->bio_bcount);*/
-
-	if (bp->bio_blkno < 0) {
-		device_printf(sc->dev, "strategy failure: blkno = %ld, bcount = %ld\n",
-			(long)bp->bio_blkno, bp->bio_bcount);
-		bp->bio_error = EINVAL;
-		bp->bio_flags |= BIO_ERROR;
-		goto bad;
-	}
-
 	/* if device invalidated (e.g. media change, door open), error */
 	if (!(sc->data.flags & MCDVALID)) {
 		device_printf(sc->dev, "media changed\n");
@@ -331,7 +319,6 @@ mcdstrategy(struct bio *bp)
 		goto bad;
 	}
 
-	bp->bio_pblkno = bp->bio_blkno;
 	bp->bio_resid = 0;
 
 	/* queue it */
@@ -892,8 +879,7 @@ modedone:
 		mbx->skip = 0;
 
 nextblock:
-		blknum 	= (bp->bio_blkno / (mbx->sz/DEV_BSIZE))
-			+ mbx->skip/mbx->sz;
+		blknum 	= bp->bio_offset / mbx->sz + mbx->skip/mbx->sz;
 
 		MCD_TRACE("mcd_doread: read blknum=%d for bp=%p\n",
 			blknum, bp);
