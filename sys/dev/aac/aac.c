@@ -1581,8 +1581,9 @@ aac_init(struct aac_softc *sc)
 	 * virtue of a table.
 	 */
 	qoffset = offsetof(struct aac_common, ac_qbuf) + AAC_QUEUE_ALIGN;
-	qoffset &= (AAC_QUEUE_ALIGN - 1);
-	sc->aac_queues = (struct aac_queue_table *)((uintptr_t)sc->aac_common + qoffset);
+	qoffset &= ~(AAC_QUEUE_ALIGN - 1);
+	sc->aac_queues =
+	    (struct aac_queue_table *)((uintptr_t)sc->aac_common + qoffset);
 	ip->CommHeaderAddress = sc->aac_common_busaddr + qoffset;
 
 	sc->aac_queues->qt_qindex[AAC_HOST_NORM_CMD_QUEUE][AAC_PRODUCER_INDEX] =
