@@ -423,7 +423,7 @@ options 	IPSEC_DEBUG		#debug for IP security
 options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)
 
-#options 	NCP			#NetWare Core protocol
+options 	NCP			#NetWare Core protocol
 
 options 	NETATALK		#Appletalk communications protocols
 options 	NETATALKDEBUG		#Appletalk debugging
