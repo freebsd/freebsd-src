@@ -25,6 +25,7 @@
 .Nd daemon to execute scheduled commands (Vixie Cron)
 .Sh SYNOPSIS
 .Nm
+.Op Fl s
 .Op Fl x Ar debugflag Ns Op ,...
 .Sh DESCRIPTION
 .Nm Cron
@@ -69,10 +70,16 @@ need not be restarted whenever a crontab file is modified.  Note that the
 command updates the modtime of the spool directory whenever it changes a
 crontab.
 .Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl s
+Enable special handling of the switching between the standard time and
+daylight saving time.
+.Pp
 If the time zone has daylight saving time which differs by one hour from
 the standard time and the switch to and from daylight saving time occurs
-at :00 minutes (as in most of Asia, Europe and North America) then these
-time switches are handled specially by 
+at :00 minutes (as in most of the world with very few exceptions) then these
+time switches would be handled specially by 
 .Nm cron .
 The time zones with other variations of daylight saving time (such as with
 30 minutes difference or switched at :30 minutes etc.) do not have such
@@ -95,6 +102,7 @@ during the switch to daylight saving time, such jobs are
 executed during the next hour at the first minute that is specified 
 for them in
 .Xr crontab 5 .
+.El
 .Sh SEE ALSO
 .Xr crontab 1 ,
 .Xr crontab 5 
