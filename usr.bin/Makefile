@@ -56,6 +56,7 @@ SUBDIR=	alias \
 	fstat \
 	fsync \
 	ftp \
+	gcore \
 	gencat \
 	getconf \
 	getopt \
@@ -228,7 +229,6 @@ SUBDIR+=vacation
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar \
 	doscmd \
-	gcore \
 	ncplist \
 	ncplogin \
 	nm \
