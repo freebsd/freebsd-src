@@ -1,0 +1,230 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)date.1	8.2 (Berkeley) 11/17/93
+.\"
+.Dd November 17, 1993
+.Dt DATE 1
+.Os
+.Sh NAME
+.Nm date
+.Nd display or set date and time
+.Sh SYNOPSIS
+.Nm date
+.Op Fl d Ar dst
+.Op Fl r Ar seconds
+.Op Fl t Ar minutes_west
+.Op Fl nu
+.Op Cm + Ns Ar format
+.Op [yy[mm[dd[hh]]]]mm[\&.ss]
+.Sh DESCRIPTION
+.Nm Date
+displays the current date and time when invoked without arguments.
+Providing arguments will format the date and time in a user-defined
+way or set the date.
+Only the superuser may set the date.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Set the kernel's value for daylight savings time.
+If
+.Ar dst
+is non-zero, future calls
+to
+.Xr gettimeofday 2
+will return a non-zero
+.Ql tz_dsttime  .
+.It Fl n
+The utility
+.Xr timed 8
+is used to synchronize the clocks on groups of machines.
+By default, if
+.Xr timed
+is running,
+.Nm date
+will set the time on all of the machines in the local group.
+The
+.Fl n
+option stops
+.Nm date
+from setting the time for other than the current machine.
+.It Fl r
+Print out the date and time in
+.Ar seconds
+from the Epoch.
+.It Fl t
+Set the kernel's value for minutes west of
+.Tn GMT .
+.Ar Minutes_west
+specifies the number of minutes returned in
+.Ql tz_minuteswest  
+by future calls to
+.Xr gettimeofday 2 .
+.It Fl u
+Display or set the date in
+.Tn UCT
+(universal) time.
+.El
+.Pp
+An operand with a leading plus (``+'') sign signals a user-defined format
+string which specifies the format in which to display the date and time.
+The format string may contain any of the conversion specifications described
+in the 
+.Xr strftime 3
+manual page, as well as any arbitrary text.
+The format string for the default display is:
+.Bd -literal -offset indent
+``%a %b %e %H:%M:%S %Z n''.
+.Ed
+.Pp
+If an operand does not have a leading plus sign, it is interpreted as
+a value for setting the system's notion of the current date and time.
+The canonical representation for setting the date and time is:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar yy
+Year in abbreviated form (.e.g 89 for 1989).
+.It Ar mm
+Numeric month.
+A number from 1 to 12.
+.It Ar dd
+Day, a number from 1 to 31.
+.It Ar hh
+Hour, a number from 0 to 23.
+.It Ar mm
+Minutes, a number from 0 to 59.
+.It Ar .ss
+Seconds, a number from 0 to 61 (59 plus a a maximum of two leap seconds).
+.El
+.Pp
+Everything but the minutes is optional.
+.Pp
+Time changes for Daylight Saving and Standard time and leap seconds
+and years are handled automatically.
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+date ``+DATE: %m/%d/%y%nTIME: %H:%M:0n''
+.Ed
+.Pp
+will display:
+.Bd -literal -offset indent
+DATE: 11/21/87
+TIME: 13:36:16
+.Ed
+.Pp
+The command:
+.Bd -literal -offset indent
+date 8506131627
+.Ed
+.Pp
+sets the date to
+.Dq Li "June 13, 1985, 4:27 PM" .
+.Pp
+The command:
+.Bd -literal -offset indent
+date 1432
+.Ed
+.Pp
+sets the time to
+.Li "2:32 PM" ,
+without modifying the date.
+.Sh ENVIRONMENTAL VARIABLES
+The following environment variables affect the execution of
+.Nm date :
+.Bl -tag -width TZ
+.It Ev TZ
+The timezone to use when displaying dates.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/messages -compact
+.It Pa /var/log/wtmp
+A record of date resets and time changes.
+.It Pa /var/log/messages
+A record of the user setting the time.
+.El
+.Sh SEE ALSO
+.Xr gettimeofday 2 ,
+.Xr strftime 3 ,
+.Xr utmp 5 ,
+.Xr timed 8
+.Rs
+.%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
+.%A R. Gusella
+.%A S. Zatti
+.Re
+.Sh DIAGNOSTICS
+Exit status is 0 on success, 1 if unable to set the date, and 2
+if able to set the local date, but unable to set it globally.
+.Pp
+Occasionally, when
+.Xr timed
+synchronizes the time on many hosts, the setting of a new time value may
+require more than a few seconds.
+On these occasions,
+.Nm date
+prints:
+.Ql Network time being set .
+The message
+.Ql Communication error with timed
+occurs when the communication
+between
+.Nm date
+and
+.Xr timed
+fails.
+.Sh BUGS
+The system attempts to keep the date in a format closely compatible
+with
+.Tn VMS .
+.Tn VMS ,
+however, uses local time (rather than
+.Tn GMT )
+and does not understand daylight-savings time.
+Thus, if you use both
+.Tn UNIX
+and
+.Tn VMS ,
+.Tn VMS
+will be running on
+.Tn GMT .
+.Sh STANDARDS
+The
+.Nm date
+command is expected to be compatible with
+.St -p1003.2 .
