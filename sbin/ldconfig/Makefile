@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.6 1994/02/13 20:42:18 jkh Exp $
+#	$Id: Makefile,v 1.7 1994/04/13 20:49:42 ats Exp $
 
 PROG=	ldconfig
-SRCS=	ldconfig.c shlib.c etc.c
+SRCS=	ldconfig.c shlib.c support.c
 LDDIR?= $(.CURDIR)/..
 CFLAGS+=-I$(LDDIR) -I$(.CURDIR) -I$(LDDIR)/$(MACHINE)
 LDFLAGS+=-static
