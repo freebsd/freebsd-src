@@ -346,13 +346,14 @@ next(char **argv)
 	}
 	for (;;) {
 		if (*_argv) {
+			done = 1;
 			if (!(freopen(*_argv, "r", stdin))) {
 				warn("%s", *_argv);
 				exitval = 1;
 				++_argv;
 				continue;
 			}
-			statok = done = 1;
+			statok = 1;
 		} else {
 			if (done++)
 				return(0);
