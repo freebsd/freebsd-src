@@ -91,7 +91,8 @@ ep_pccard_probe(device_t dev)
 
 	epb->cmd_off = 0;
 
-	error = get_e(sc, EEPROM_PROD_ID, &result);	/* XXX check return */
+	/* XXX check return */
+	error = get_e(sc, EEPROM_PROD_ID, &result);
 	epb->prod_id = result;
 
 	if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
@@ -99,7 +100,8 @@ ep_pccard_probe(device_t dev)
 			device_printf(dev, "Pass 1 of 2 detection "
 			    "failed (nonfatal) id 0x%x\n", epb->prod_id);
 		epb->cmd_off = 2;
-		error = get_e(sc, EEPROM_PROD_ID, &result);	/* XXX check return */
+		/* XXX check return */
+		error = get_e(sc, EEPROM_PROD_ID, &result);
 		epb->prod_id = result;
 		if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
 			device_printf(dev, "Unit failed to come ready or "
@@ -178,7 +180,8 @@ ep_pccard_attach(device_t dev)
 	}
 	sc->epb.cmd_off = 0;
 
-	error = get_e(sc, EEPROM_PROD_ID, &result);	/* XXX check return */
+	/* XXX check return */
+	error = get_e(sc, EEPROM_PROD_ID, &result);
 	sc->epb.prod_id = result;
 
 	if (!ep_pccard_card_attach(&sc->epb)) {
