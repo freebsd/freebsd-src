@@ -866,7 +866,7 @@ cam_periph_runccb(union ccb *ccb,
 	 * this particular type of ccb, record the transaction start.
 	 */
 	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO))
-		devstat_start_transaction(ds);
+		devstat_start_transaction(ds, NULL);
 
 	xpt_action(ccb);
  
@@ -896,7 +896,7 @@ cam_periph_runccb(union ccb *ccb,
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
 					DEVSTAT_WRITE : 
-					DEVSTAT_READ);
+					DEVSTAT_READ, NULL, NULL);
 
 	return(error);
 }

@@ -35,6 +35,16 @@
 
 #include <kvm.h>
 
+/*
+ * Bumped every time we change the userland API.  Hopefully this doesn't
+ * happen very often!  This should be bumped every time we have to
+ * increment SHLIB_MAJOR in the libdevstat Makefile (for non-backwards
+ * compatible API changes) and should also be bumped every time we make
+ * backwards-compatible API changes, so application writers have a way to 
+ * determine when a particular feature is available.
+ */
+#define	DEVSTAT_USER_API_VER	4
+
 #define DEVSTAT_ERRBUF_SIZE  2048 /* size of the devstat library error string */
 
 extern char devstat_errbuf[];
@@ -111,7 +121,7 @@ struct statinfo {
 	long		tk_nin;
 	long		tk_nout;
 	struct devinfo	*dinfo;
-	struct timeval	busy_time;
+	long double 	snap_time;
 };
 
 typedef enum {
@@ -122,31 +132,7 @@ typedef enum {
 } devstat_select_mode;
 
 __BEGIN_DECLS
-/* Legacy interfaces. */
-int getnumdevs(void);
-long getgeneration(void);
-int getversion(void);
-int checkversion(void);
-int getdevs(struct statinfo *stats);
-int selectdevs(struct device_selection **dev_select, int *num_selected,
-	       int *num_selections, long *select_generation, 
-	       long current_generation, struct devstat *devices, int numdevs,
-	       struct devstat_match *matches, int num_matches,
-	       char **dev_selections, int num_dev_selections,
-	       devstat_select_mode select_mode, int maxshowdevs,
-	       int perf_select);
-int buildmatch(char *match_str, struct devstat_match **matches,
-	       int *num_matches);
-int compute_stats(struct devstat *current, struct devstat *previous,
-		  long double etime, u_int64_t *total_bytes,
-		  u_int64_t *total_transfers, u_int64_t *total_blocks,
-		  long double *kb_per_transfer,
-		  long double *transfers_per_second, long double *mb_per_second,
-		  long double *blocks_per_second,
-		  long double *ms_per_transaction);
-long double compute_etime(struct timeval cur_time, struct timeval prev_time);
 
-/* New interfaces. */
 int devstat_getnumdevs(kvm_t *kd);
 long devstat_getgeneration(kvm_t *kd);
 int devstat_getversion(kvm_t *kd);
@@ -164,8 +150,8 @@ int devstat_buildmatch(char *match_str, struct devstat_match **matches,
 int devstat_compute_statistics(struct devstat *current,
 			       struct devstat *previous,
 			       long double etime, ...);
-long double devstat_compute_etime(struct timeval cur_time,
-				  struct timeval prev_time);
+long double devstat_compute_etime(struct bintime *cur_time,
+				  struct bintime *prev_time);
 __END_DECLS
 
 #endif /* _DEVSTAT_H  */

@@ -148,8 +148,6 @@ fetchiostat()
 	last.dinfo = cur.dinfo;
 	cur.dinfo = tmp_dinfo;
          
-	last.busy_time = cur.busy_time;
-
 	/*
 	 * Here what we want to do is refresh our device stats.
 	 * getdevs() returns 1 when the device list has changed.
@@ -322,7 +320,7 @@ devstats(row, _col, dn)
 	
 	di = dev_select[dn].position;
 
-	busy_seconds = devstat_compute_etime(cur.busy_time, last.busy_time);
+	busy_seconds = cur.snap_time - last.snap_time;
 
 	if (devstat_compute_statistics(&cur.dinfo->devices[di],
 	    &last.dinfo->devices[di], busy_seconds,

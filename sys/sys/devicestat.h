@@ -48,7 +48,7 @@
  * userland utilities to determine whether or not they are in sync with the
  * kernel.
  */
-#define DEVSTAT_VERSION	   5
+#define DEVSTAT_VERSION	   6
 
 /*
  * These flags specify which statistics features are supported or not
@@ -68,6 +68,7 @@ typedef enum {
 	DEVSTAT_WRITE	= 0x02,
 	DEVSTAT_FREE	= 0x03
 } devstat_trans_flags;
+#define DEVSTAT_N_TRANS_FLAGS	4
 
 typedef enum {
 	DEVSTAT_TAG_SIMPLE	= 0x00,
@@ -124,8 +125,15 @@ typedef enum {
 } devstat_type_flags;
 
 struct devstat {
-	int			sequence0;	     /* Update sequence# */
+	/* Internal house-keeping fields */
+	u_int			sequence0;	     /* Update sequence# */
 	int			allocated;	     /* Allocated entry */
+	u_int			start_count;	     /* started ops */
+	u_int			end_count;	     /* completed ops */
+	struct bintime		busy_from;	     /*
+						      * busy time unaccounted
+						      * for since this time
+						      */
 	STAILQ_ENTRY(devstat) 	dev_links;
 	u_int32_t		device_number;	     /*
 						      * Devstat device
@@ -133,44 +141,13 @@ struct devstat {
 						      */
 	char			device_name[DEVSTAT_NAME_LEN];
 	int			unit_number;
-	u_int64_t		bytes_read;	     /*
-						      * Total bytes read
-						      * from a device.
-						      */
-	u_int64_t		bytes_written;	     /*
-						      * Total bytes written
-						      * to a device.
-						      */
-	u_int64_t		bytes_freed;	     /*
-						      * Total bytes freed
-						      * from a device.
-						      */
-	u_int64_t		num_reads;	     /*
-						      * Total number of
-						      * read requests to 
-						      * the device.
-						      */
-	u_int64_t		num_writes;	     /*
-						      * Total number of
-						      * write requests to 
-						      * the device.
-						      */
-	u_int64_t		num_frees;	     /*
-						      * Total number of
-						      * free requests to 
-						      * the device.
-						      */
-	u_int64_t		num_other;	     /*
-						      * Total number of
-						      * transactions that 
-						      * don't read or write 
-						      * data.
-						      */
-	int32_t			busy_count;	     /*
-						      * Total number of 
-						      * transactions
-						      * outstanding for 
-						      * the device. 
+	u_int64_t		bytes[DEVSTAT_N_TRANS_FLAGS];
+	u_int64_t		operations[DEVSTAT_N_TRANS_FLAGS];
+	struct bintime		duration[DEVSTAT_N_TRANS_FLAGS];
+	struct bintime		busy_time;
+	struct bintime          creation_time;       /* 
+						      * Time the device was
+						      * created.
 						      */
 	u_int32_t		block_size;	     /* Block size, bytes */
 	u_int64_t		tag_types[3];	     /*
@@ -179,28 +156,6 @@ struct devstat {
 						      * and head of queue 
 						      * tags sent.
 						      */
-	struct timeval		dev_creation_time;   /* 
-						      * Time the device was
-						      * created.
-						      */
-	struct timeval 		busy_time;	     /*
-						      * Total amount of
-						      * time drive has spent 
-						      * processing requests.
-						      */
-	struct timeval		start_time;	     /*
-						      * The time when
-						      * busy_count was 
-						      * last == 0.  Or, the
-						      * start of the latest 
-						      * busy period.
-						      */
-	struct timeval		last_comp_time;	     /*
-						      * Last time a
-						      * transaction was 
-						      * completed.
-						      */
-
 	devstat_support_flags	flags;		     /*
 						      * Which statistics
 						      * are supported by a 
@@ -208,8 +163,11 @@ struct devstat {
 						      */
 	devstat_type_flags	device_type;	     /* Device type */
 	devstat_priority	priority;	     /* Controls list pos. */
-
-	int			sequence1;	     /* Update sequence# */
+	void			*id;		     /*
+						      * Identification for
+						      * GEOM nodes
+						      */
+	u_int			sequence1;	     /* Update sequence# */
 };
 
 STAILQ_HEAD(devstatlist, devstat);
@@ -217,18 +175,19 @@ STAILQ_HEAD(devstatlist, devstat);
 #ifdef _KERNEL
 struct bio;
 
-struct devstat *devstat_new_entry(const char *dev_name, 
-		       int unit_number, u_int32_t block_size,
-		       devstat_support_flags flags,
-		       devstat_type_flags device_type,
-		       devstat_priority priority);
+struct devstat *devstat_new_entry(const char *dev_name, int unit_number,
+				  u_int32_t block_size,
+				  devstat_support_flags flags,
+				  devstat_type_flags device_type,
+				  devstat_priority priority);
 
 void devstat_remove_entry(struct devstat *ds);
-void devstat_start_transaction(struct devstat *ds);
+void devstat_start_transaction(struct devstat *ds, struct bintime *now);
 void devstat_start_transaction_bio(struct devstat *ds, struct bio *bp);
 void devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
 			     devstat_tag_type tag_type,
-			     devstat_trans_flags flags);
+			     devstat_trans_flags flags,
+			     struct bintime *now, struct bintime *then);
 void devstat_end_transaction_bio(struct devstat *ds, struct bio *bp);
 #endif
 
