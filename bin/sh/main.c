@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: main.c,v 1.9.2.1 1997/08/03 18:44:27 steve Exp $
  */
 
 #ifndef lint
@@ -43,7 +41,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
+#if 0
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
+#endif
+static const char rcsid[] =
+	"$Id: main.c,v 1.15 1998/05/18 06:43:52 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

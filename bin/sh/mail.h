@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mail.h	8.2 (Berkeley) 5/4/95
- *	$Id: mail.h,v 1.2 1994/09/24 02:57:45 davidg Exp $
+ *	$Id: mail.h,v 1.5 1997/02/22 13:58:33 peter Exp $
  */
 
 void chkmail __P((int));

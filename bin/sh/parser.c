@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: parser.c,v 1.16 1996/09/10 02:42:33 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
+#if 0
+static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
+#endif
+static const char rcsid[] =
+	"$Id: parser.c,v 1.24 1998/09/13 19:24:57 tegge Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -940,27 +942,36 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 						USTPUTC('\\', out);
 					if (SQSYNTAX[c] == CCTL)
 						USTPUTC(CTLESC, out);
+					else if (eofmark == NULL)
+						USTPUTC(CTLQUOTEMARK, out);
 					USTPUTC(c, out);
 					quotef++;
 				}
 				break;
 			case CSQUOTE:
+				if (eofmark == NULL)
+					USTPUTC(CTLQUOTEMARK, out);
 				syntax = SQSYNTAX;
 				break;
 			case CDQUOTE:
+				if (eofmark == NULL)
+					USTPUTC(CTLQUOTEMARK, out);
 				syntax = DQSYNTAX;
 				dblquote = 1;
 				break;
 			case CENDQUOTE:
-				if (eofmark) {
+				if (eofmark != NULL && arinest == 0 &&
+				    varnest == 0) {
 					USTPUTC(c, out);
 				} else {
-					if (arinest)
+					if (arinest) {
 						syntax = ARISYNTAX;
-					else
+						dblquote = 0;
+					} else if (eofmark == NULL) {
 						syntax = BASESYNTAX;
+						dblquote = 0;
+					}
 					quotef++;
-					dblquote = 0;
 				}
 				break;
 			case CVAR:	/* '$' */
@@ -987,6 +998,10 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 						if (--arinest == 0) {
 							USTPUTC(CTLENDARI, out);
 							syntax = prevsyntax;
+							if (syntax == DQSYNTAX)
+								dblquote = 1;
+							else
+								dblquote = 0;
 						} else
 							USTPUTC(')', out);
 					} else {
@@ -1399,6 +1414,10 @@ parsearith: {
 		prevsyntax = syntax;
 		syntax = ARISYNTAX;
 		USTPUTC(CTLARI, out);
+		if (dblquote)
+			USTPUTC('"',out);
+		else
+			USTPUTC(' ',out);
 	} else {
 		/*
 		 * we collapse embedded arithmetic expansion to
@@ -1434,6 +1453,8 @@ noexpand(text)
 
 	p = text;
 	while ((c = *p++) != '\0') {
+		if ( c == CTLQUOTEMARK)
+			continue;
 		if (c == CTLESC)
 			p++;
 		else if (BASESYNTAX[c] == CCTL)

@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: memalloc.c,v 1.4.2.1 1997/08/25 09:10:08 jkh Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: memalloc.c,v 1.12 1998/09/13 19:24:57 tegge Exp $";
 #endif /* not lint */
 
 #include "shell.h"

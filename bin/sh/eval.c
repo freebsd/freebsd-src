@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: eval.c,v 1.7.2.3 1997/08/25 09:09:42 jkh Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
+#if 0
+static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
+#endif
+static const char rcsid[] =
+	"$Id: eval.c,v 1.15 1998/05/18 06:43:34 charnier Exp $";
 #endif /* not lint */
 
 #include <signal.h>

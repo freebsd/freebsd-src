@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)show.h	1.1 (Berkeley) 5/4/95
- *	$Id: show.h,v 1.2 1996/09/01 10:21:45 peter Exp $
+ *	$Id: show.h,v 1.6 1997/04/28 03:17:51 steve Exp $
  */
 
 void showtree __P((union node *));

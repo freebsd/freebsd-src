@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: histedit.c,v 1.6 1996/09/03 13:35:09 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: histedit.c,v 1.12 1998/05/18 06:43:42 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: mkinit.c,v 1.6 1996/09/01 10:20:50 peter Exp $
  */
 
 #ifndef lint
@@ -43,7 +41,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)mkinit.c	8.2 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)mkinit.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id: mkinit.c,v 1.12 1998/05/18 06:44:00 charnier Exp $";
 #endif /* not lint */
 
 /*
