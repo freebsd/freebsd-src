@@ -301,7 +301,7 @@ try_connect:
 		if (doencrypt) {
 			rem = krcmd_mutual(&host, sp->s_port, user, term, 0,
 			    dest_realm, &cred, schedule);
-			des_set_key(cred.session, schedule);
+			des_set_key(&cred.session, schedule);
 		} else
 #endif /* CRYPT */
 			rem = krcmd(&host, sp->s_port, user, term, 0,

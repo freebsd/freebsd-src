@@ -3,7 +3,7 @@
 #	"Copyright.MIT".
 #
 #	from: krb_err.et,v 4.1 89/09/26 09:24:20 jtkohl Exp $
-#	$Id: krb_err.et,v 1.3 1995/07/18 16:39:00 mark Exp $
+#	$Id: krb_err.et,v 1.3 1995/09/07 21:38:09 markm Exp $
 #
 	error_table	krb
 
@@ -252,6 +252,18 @@
 
 	ec		KRBET_KNAME_FMT,
 			"Bad Kerberos name format"
+
+	ec		KRBET_GT_LADDR_NOSOCK,
+			"Can't open socket"
+
+	ec		KRBET_GT_LADDR_IFLIST,
+			"Can't retrieve local interface list"
+
+	ec		KRBET_GT_LADDR_NVI,
+			"No valid local interface found"
+
+	ec		KRBET_BND_LADDR_BIND,
+			"Can't bind local address"
 
 	end
 
