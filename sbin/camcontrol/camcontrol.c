@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 Kenneth D. Merry
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1291,7 +1291,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 						CAM_EPF_ALL, stderr);
 			goto defect_bailout;
 		}
-	} else {
+	} else if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		error = 1;
 		warnx("Error returned from read defect data command");
 		if (arglist & CAM_ARG_VERBOSE)
