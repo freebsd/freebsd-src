@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.13.2.11 1999/06/29 05:16:08 jdp Exp $
+ *      $Id: rtld.c,v 1.13.2.12 1999/07/08 14:49:33 jdp Exp $
  */
 
 /*
@@ -60,7 +60,7 @@
 #define msg(s)		(write(1, s, strlen(s)))
 #define trace()		msg("trace: " __XSTRING(__LINE__) "\n");
 
-#define END_SYM		"end"
+#define END_SYM		"_end"
 
 /* Types. */
 typedef void (*func_ptr_type)();
