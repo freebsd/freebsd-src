@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.6 1994/11/26 08:57:40 phk Exp $
+ * $Id: ctm.c,v 1.7 1994/12/01 21:05:28 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a 
  * collection of files.
@@ -35,7 +35,9 @@
 #define EXTERN /* */
 #include "ctm.h"
 
-extern int Proc(char *);
+#define CTM_STATUS ".ctm_status"
+
+extern int Proc(char *, unsigned applied);
 
 int
 main(int argc, char **argv) 
@@ -44,6 +46,8 @@ main(int argc, char **argv)
     int c;
     extern int optopt,optind;
     extern char * optarg;
+    FILE *statfile;
+    unsigned applied = 0;
     
     Verbose = 1;
     Paranoid = 1;
@@ -81,11 +85,19 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
+    if((statfile = fopen(CTM_STATUS, "r")) == NULL)
+	fprintf(stderr, "Warning: " CTM_STATUS " not found.\n");
+    else {
+	fscanf(statfile, "%*s %u", &applied);
+	fclose(statfile);
+    }
+    
     if(!argc)
-	stat |= Proc("-");
+	stat |= Proc("-", applied);
 
     while(argc-- && stat == Exit_Done) {
-	stat |= Proc(*argv++);
+	stat |= Proc(*argv++, applied);
+	stat &= ~Exit_Version;
     }
 
     if(stat == Exit_Done)
@@ -97,7 +109,7 @@ main(int argc, char **argv)
 }
 
 int
-Proc(char *filename)
+Proc(char *filename, unsigned applied)
 {
     FILE *f;
     int i;
@@ -152,7 +164,7 @@ Proc(char *filename)
     if(!p)
 	rewind(f);
 
-    if((i=Pass1(f)))
+    if((i=Pass1(f, applied))) 
 	return i;
 
     if(!p) {

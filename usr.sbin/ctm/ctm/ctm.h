@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.h,v 1.4 1994/09/22 02:49:16 phk Exp $
+ * $Id: ctm.h,v 1.5 1994/10/24 20:09:21 phk Exp $
  *
  */
 
@@ -106,6 +106,7 @@ EXTERN int CheckIt;
 #define Exit_Forcible	16
 #define Exit_Mess	32
 #define Exit_Done	64
+#define Exit_Version	128
 
 char * String(char *s);
 void Fatal_(int ln, char *fn, char *kind);
@@ -124,7 +125,7 @@ u_char * Fdata(FILE *fd, int u_chars, MD5_CTX *ctx);
 #define GETBYTECNT(p,q) if(0 >((p)= Fbytecnt(fd,&ctx,(q)))) return BADREAD
 #define GETDATA(p,q) if(!((p) = Fdata(fd,(q),&ctx))) return BADREAD
 
-int Pass1(FILE *fd);
+int Pass1(FILE *fd, unsigned applied);
 int Pass2(FILE *fd);
 int Pass3(FILE *fd);
 
