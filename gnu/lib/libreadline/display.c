@@ -185,7 +185,7 @@ expand_prompt (pmt, lp)
       return r;
     }
 
-  l = strlen (pmt);
+  l = pmt ? strlen (pmt) : 0;
   r = ret = xmalloc (l + 1);
 
   for (rl = ignoring = 0, p = pmt; p && *p; p++)
