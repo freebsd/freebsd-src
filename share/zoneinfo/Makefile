@@ -98,7 +98,7 @@ REDO=		right_only
 .PATH:	${.CURDIR}/datfiles
 CFLAGS=	-DTM_GMTOFF=tm_gmtoff -DTM_ZONE=tm_zone
 PROG=	zic
-MAN5=	tzfile.0
+MAN5=	tzfile.5
 
 SRCS=	zic.c scheck.c ialloc.c
 
