@@ -1,7 +1,7 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.4 1998/09/04 19:38:57 abial Exp $
+#	$Id: build,v 1.5 1998/09/07 06:46:25 abial Exp $
 #
 
 # You can set the SRC variable which points to your source tree. It's
@@ -17,8 +17,8 @@ OBJFORMAT=aout; export OBJFORMAT
 
 DIAL_DFLT_SIZE=1600
 ROUTER_DFLT_SIZE=820
-NET_DFLT_SIZE=2100
-ISP_DFLT_SIZE=2100
+NET_DFLT_SIZE=2200
+ISP_DFLT_SIZE=2200
 
 # SET THIS if you're building on 2.2.x system
 #
