@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.3.2.3 1997/08/03 18:53:17 peter Exp $
+ *	$Id: ftp.c,v 1.3.2.4 1997/10/06 04:39:36 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -173,7 +173,17 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 		dp = ftps->ftp_remote_dirs;
 		while ((s = strchr(s, '/')) != 0) {
 			*s++ = '\0';
-			*dp++ = percent_decode(r);
+			/*
+			 * Skip double-slashes.  According to RFC1738,
+			 * double-slashes mean "send 'CWD '", which is
+			 * a syntax error to most FTP servers.  Instead,
+			 * we just pretend that multiple slashes are a
+			 * single slash.
+			 */
+			if (*r == '\0')
+				ftps->ftp_remote_ndirs--;
+			else
+				*dp++ = percent_decode(r);
 			r = s;
 		}
 	} else {
