@@ -57,7 +57,7 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
-#define KERNCRED proc0.p_ucred
+#define KERNCRED thread0.td_ucred
 #define DEBUG 1
 
 static int cgaccount __P((int, struct vnode *, struct buf *, int));
