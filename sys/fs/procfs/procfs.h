@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.16 1997/08/12 04:34:27 sef Exp $
+ *	$Id: procfs.h,v 1.17 1997/09/07 05:26:16 bde Exp $
  */
 
 /*
@@ -135,6 +135,8 @@ struct reg;
 struct fpreg;
 
 #define PFIND(pid) ((pid) ? pfind(pid) : &proc0)
+
+void procfs_exit __P((struct proc *));
 int procfs_freevp __P((struct vnode *));
 int procfs_allocvp __P((struct mount *, struct vnode **, long, pfstype));
 struct vnode *procfs_findtextvp __P((struct proc *));
