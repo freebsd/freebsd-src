@@ -1353,7 +1353,7 @@ dnsdecode(sp, ep, base, buf, bufsiz)
 			while (i-- > 0 && cp < ep) {
 				l = snprintf(cresult, sizeof(cresult),
 				    isprint(*cp) ? "%c" : "\\%03o", *cp & 0xff);
-				if (l >= sizeof(cresult))
+				if (l == -1 || l >= sizeof(cresult))
 					return NULL;
 				if (strlcat(buf, cresult, bufsiz) >= bufsiz)
 					return NULL;	/*result overrun*/

@@ -310,7 +310,7 @@ routename(sa)
 	static char line[MAXHOSTNAMELEN + 1];
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN + 1];
-	static int first = 1;
+	static int first = 1, n;
 #ifdef NS
 	char *ns_print();
 #endif
@@ -408,7 +408,8 @@ routename(sa)
 		char *cpe = line + sizeof(line);
 
 		while (++s < slim && cp < cpe) /* start with sa->sa_data */
-			cp += snprintf(cp, cpe - cp, " %x", *s);
+			if ((n = snprintf(cp, cpe - cp, " %x", *s)) > 0)
+				cp += n;
 		break;
 	    }
 	}
@@ -428,7 +429,7 @@ netname(sa)
 	struct netent *np = 0;
 	u_long net, mask;
 	register u_long i;
-	int subnetshift;
+	int n, subnetshift;
 #ifdef NS
 	char *ns_print();
 #endif
@@ -543,7 +544,8 @@ netname(sa)
 		char *cpe = line + sizeof(line);
 
 		while (s < slim && cp < cpe)
-			cp += snprintf(cp, cpe - cp, " %x", *s++);
+			if ((n = snprintf(cp, cpe - cp, " %x", *s++)) > 0)
+				cp += n;
 		break;
 	    }
 	}
