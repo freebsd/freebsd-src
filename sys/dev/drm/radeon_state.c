@@ -68,7 +68,7 @@ static __inline__ void radeon_emit_context( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 14 );
 
@@ -97,7 +97,7 @@ static __inline__ void radeon_emit_vertfmt( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 2 );
 
@@ -112,7 +112,7 @@ static __inline__ void radeon_emit_line( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 5 );
 
@@ -131,7 +131,7 @@ static __inline__ void radeon_emit_bumpmap( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 5 );
 
@@ -150,7 +150,7 @@ static __inline__ void radeon_emit_masks( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 4 );
 
@@ -167,7 +167,7 @@ static __inline__ void radeon_emit_viewport( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 7 );
 
@@ -187,7 +187,7 @@ static __inline__ void radeon_emit_setup( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 4 );
 
@@ -205,7 +205,7 @@ static __inline__ void radeon_emit_tcl( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 29 );
 
@@ -249,7 +249,7 @@ static __inline__ void radeon_emit_misc( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 2 );
 
@@ -264,7 +264,7 @@ static __inline__ void radeon_emit_tex0( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_texture_regs_t *tex = &sarea_priv->tex_state[0];
 	RING_LOCALS;
-	DRM_DEBUG( "    %s: offset=0x%x\n", __FUNCTION__, tex->pp_txoffset );
+	DRM_DEBUG( "    %s: offset=0x%x\n", __func__, tex->pp_txoffset );
 
 	BEGIN_RING( 9 );
 
@@ -287,7 +287,7 @@ static __inline__ void radeon_emit_tex1( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_texture_regs_t *tex = &sarea_priv->tex_state[1];
 	RING_LOCALS;
-	DRM_DEBUG( "    %s: offset=0x%x\n", __FUNCTION__, tex->pp_txoffset );
+	DRM_DEBUG( "    %s: offset=0x%x\n", __func__, tex->pp_txoffset );
 
 	BEGIN_RING( 9 );
 
@@ -310,7 +310,7 @@ static __inline__ void radeon_emit_tex2( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_texture_regs_t *tex = &sarea_priv->tex_state[2];
 	RING_LOCALS;
-	DRM_DEBUG( "    %s\n", __FUNCTION__ );
+	DRM_DEBUG( "    %s\n", __func__ );
 
 	BEGIN_RING( 9 );
 
@@ -333,7 +333,7 @@ static __inline__ void radeon_emit_state( drm_radeon_private_t *dev_priv )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
 
-	DRM_DEBUG( "%s: dirty=0x%08x\n", __FUNCTION__, dirty );
+	DRM_DEBUG( "%s: dirty=0x%08x\n", __func__, dirty );
 
 	if ( dirty & RADEON_UPLOAD_CONTEXT ) {
 		radeon_emit_context( dev_priv );
@@ -501,7 +501,7 @@ static void radeon_cp_dispatch_clear( drm_device_t *dev,
 	unsigned int flags = clear->flags;
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	if ( dev_priv->page_flipping && dev_priv->current_page == 1 ) {
 		unsigned int tmp = flags;
@@ -657,7 +657,7 @@ static void radeon_cp_dispatch_swap( drm_device_t *dev )
 	drm_clip_rect_t *pbox = sarea_priv->boxes;
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 #if RADEON_PERFORMANCE_BOXES
 	/* Do some trivial performance monitoring...
@@ -724,7 +724,7 @@ static void radeon_cp_dispatch_flip( drm_device_t *dev )
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
-	DRM_DEBUG( "%s: page=%d\n", __FUNCTION__, dev_priv->current_page );
+	DRM_DEBUG( "%s: page=%d\n", __func__, dev_priv->current_page );
 
 #if RADEON_PERFORMANCE_BOXES
 	/* Do some trivial performance monitoring...
@@ -774,7 +774,7 @@ static void radeon_cp_dispatch_vertex( drm_device_t *dev,
 	int prim = buf_priv->prim;
 	int i = 0;
 	RING_LOCALS;
-	DRM_DEBUG( "%s: nbox=%d\n", __FUNCTION__, sarea_priv->nbox );
+	DRM_DEBUG( "%s: nbox=%d\n", __func__, sarea_priv->nbox );
 
 	if ( 0 )
 		radeon_print_dirty( "dispatch_vertex", sarea_priv->dirty );
@@ -1141,7 +1141,7 @@ static void radeon_cp_dispatch_stipple( drm_device_t *dev, u32 *stipple )
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	BEGIN_RING( 35 );
 
@@ -1168,7 +1168,7 @@ int radeon_cp_clear( DRM_OS_IOCTL )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_radeon_clear_t clear;
 	drm_radeon_clear_rect_t depth_boxes[RADEON_NR_SAREA_CLIPRECTS];
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -1194,7 +1194,7 @@ int radeon_cp_swap( DRM_OS_IOCTL )
 	DRM_OS_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -1226,7 +1226,7 @@ int radeon_cp_vertex( DRM_OS_IOCTL )
 	LOCK_TEST_WITH_RETURN( dev );
 
 	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+		DRM_ERROR( "%s called with no initialization\n", __func__ );
 		return DRM_OS_ERR(EINVAL);
 	}
 
@@ -1234,7 +1234,7 @@ int radeon_cp_vertex( DRM_OS_IOCTL )
 			     sizeof(vertex) );
 
 	DRM_DEBUG( "%s: pid=%d index=%d count=%d discard=%d\n",
-		   __FUNCTION__, DRM_OS_CURRENTPID,
+		   __func__, DRM_OS_CURRENTPID,
 		   vertex.idx, vertex.count, vertex.discard );
 
 	if ( vertex.idx < 0 || vertex.idx >= dma->buf_count ) {
@@ -1286,7 +1286,7 @@ int radeon_cp_indices( DRM_OS_IOCTL )
 	LOCK_TEST_WITH_RETURN( dev );
 
 	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+		DRM_ERROR( "%s called with no initialization\n", __func__ );
 		return DRM_OS_ERR(EINVAL);
 	}
 
@@ -1294,7 +1294,7 @@ int radeon_cp_indices( DRM_OS_IOCTL )
 			     sizeof(elts) );
 
 	DRM_DEBUG( "%s: pid=%d index=%d start=%d end=%d discard=%d\n",
-		   __FUNCTION__, DRM_OS_CURRENTPID,
+		   __func__, DRM_OS_CURRENTPID,
 		   elts.idx, elts.start, elts.end, elts.discard );
 
 	if ( elts.idx < 0 || elts.idx >= dma->buf_count ) {
@@ -1407,7 +1407,7 @@ int radeon_cp_indirect( DRM_OS_IOCTL )
 	LOCK_TEST_WITH_RETURN( dev );
 
 	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+		DRM_ERROR( "%s called with no initialization\n", __func__ );
 		return DRM_OS_ERR(EINVAL);
 	}
 
