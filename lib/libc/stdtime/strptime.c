@@ -362,7 +362,7 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 			const char *cp;
 			char *zonestr;
 
-			for (cp = buf; *cp && isupper(*cp); ++cp) {/*empty*/}
+			for (cp = buf; *cp && isupper((unsigned char)*cp); ++cp) {/*empty*/}
 			if (cp - buf) {
 				zonestr = alloca(cp - buf + 1);
 				strncpy(zonestr, buf, cp - buf);
