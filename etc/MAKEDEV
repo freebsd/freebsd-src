@@ -1183,6 +1183,13 @@ cuaA*)
 	umask 77
 	;;
 
+# Alpha AS8[24]00 (TurboLaser) console.
+zs?)
+	unit=`expr $i : 'zs.*\(.\)$'`
+	m=`ttyminor $unit`
+	mknod zs$unit c 135 $m
+	;;
+
 # Digiboard PC/?? 16 port card.
 # The current scheme of minor numbering is:
 #
