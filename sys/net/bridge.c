@@ -66,9 +66,9 @@
  * THINGS TO REMEMBER
  *  - bridging requires some (small) modifications to the interface
  *    driver. Currently (980911) the "ed", "de", "tx", "lnc" drivers
- *    have been modified and tested. "fxp", "ep" have been modified
- *    but not tested. See the "ed" and "de" drivers as examples on
- *    how to operate.
+ *    have been modified and tested. "fxp", "ep", "fe" have been
+ *    modified but not tested. See the "ed" and "de" drivers as
+ *    examples on how to operate.
  *  - bridging is incompatible with multicast routing on the same
  *    machine. There is not an easy fix to this.
  *  - loop detection is still not very robust.
