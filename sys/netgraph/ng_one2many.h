@@ -73,8 +73,8 @@ struct ng_one2many_config {
 /* Keep this in sync with the above structure definition */
 #define NG_ONE2MANY_CONFIG_TYPE_INFO(atype)	{		\
 	{							\
-	  { "xmitAlg",		&ng_parse_uint64_type	},	\
-	  { "failAlg",		&ng_parse_uint64_type	},	\
+	  { "xmitAlg",		&ng_parse_uint32_type	},	\
+	  { "failAlg",		&ng_parse_uint32_type	},	\
 	  { "enabledLinks",	(atype)			},	\
 	  { NULL }						\
 	}							\
