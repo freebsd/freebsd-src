@@ -37,27 +37,23 @@
  *
  */
 
-#include "ed.h"
 #include "bpf.h"
-#include "pnp.h"
-
-#ifndef EXTRA_ED
-# if NPNP > 0
-#  define EXTRA_ED 8
-# else
-#  define EXTRA_ED 0
-# endif
-#endif
-
-#define NEDTOT (NED + EXTRA_ED)
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -76,94 +72,43 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/if_edreg.h>
+#include <i386/isa/if_edvar.h>
 
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
+#include <isa/isavar.h>
+#include <isa/pnpvar.h>
 
-/*
- * ed_softc: per line info and status
- */
-struct ed_softc {
-	struct arpcom arpcom;	/* ethernet common */
-
-	char   *type_str;	/* pointer to type string */
-	u_char  vendor;		/* interface vendor */
-	u_char  type;		/* interface type code */
-	u_char	gone;		/* HW missing, presumed having a good time */
-
-	u_short asic_addr;	/* ASIC I/O bus address */
-	u_short nic_addr;	/* NIC (DS8390) I/O bus address */
-
-/*
- * The following 'proto' variable is part of a work-around for 8013EBT asics
- *	being write-only. It's sort of a prototype/shadow of the real thing.
- */
-	u_char  wd_laar_proto;
-	u_char	cr_proto;
-	u_char  isa16bit;	/* width of access to card 0=8 or 1=16 */
-	int     is790;		/* set by the probe code if the card is 790
-				 * based */
-
-/*
- * HP PC LAN PLUS card support.
- */
-
-	u_short	hpp_options;	/* flags controlling behaviour of the HP card */
-	u_short hpp_id;		/* software revision and other fields */
-	caddr_t hpp_mem_start;	/* Memory-mapped IO register address */
-
-	caddr_t mem_start;	/* NIC memory start address */
-	caddr_t mem_end;	/* NIC memory end address */
-	u_long  mem_size;	/* total NIC memory size */
-	caddr_t mem_ring;	/* start of RX ring-buffer (in NIC mem) */
-
-	u_char  mem_shared;	/* NIC memory is shared with host */
-	u_char  xmit_busy;	/* transmitter is busy */
-	u_char  txb_cnt;	/* number of transmit buffers */
-	u_char  txb_inuse;	/* number of TX buffers currently in-use */
-
-	u_char  txb_new;	/* pointer to where new buffer will be added */
-	u_char  txb_next_tx;	/* pointer to next buffer ready to xmit */
-	u_short txb_len[8];	/* buffered xmit buffer lengths */
-	u_char  tx_page_start;	/* first page of TX buffer area */
-	u_char  rec_page_start;	/* first page of RX ring-buffer */
-	u_char  rec_page_stop;	/* last page of RX ring-buffer */
-	u_char  next_packet;	/* pointer to next unread RX packet */
-	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
-};
-
-static struct ed_softc ed_softc[NEDTOT];
+static int ed_alloc_port	__P((device_t, int, int));
+static int ed_alloc_memory	__P((device_t, int, int));
+static int ed_alloc_irq		__P((device_t, int, int));
+static void ed_release_resources __P((device_t));
 
 static int ed_attach		__P((struct ed_softc *, int, int));
-static int ed_attach_isa	__P((struct isa_device *));
+static int ed_isa_attach	__P((device_t));
 
 static void ed_init		__P((void *));
-static ointhand2_t edintr;
+static driver_intr_t		edintr;
 static int ed_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static int ed_probe		__P((struct isa_device *));
+static int ed_isa_probe		__P((device_t));
 static void ed_start		__P((struct ifnet *));
 static void ed_reset		__P((struct ifnet *));
 static void ed_watchdog		__P((struct ifnet *));
 
 static void ed_stop		__P((struct ed_softc *));
 static int ed_probe_generic8390	__P((struct ed_softc *));
-static int ed_probe_WD80x3	__P((struct isa_device *));
-static int ed_probe_3Com	__P((struct isa_device *));
-static int ed_probe_Novell	__P((struct isa_device *));
-static int ed_probe_Novell_generic __P((struct ed_softc *, int, int, int));
-static int ed_probe_HP_pclanp	__P((struct isa_device *));
+static int ed_probe_WD80x3	__P((device_t));
+static int ed_probe_3Com	__P((device_t));
+static int ed_probe_Novell	__P((device_t));
+static int ed_probe_Novell_generic __P((device_t, int, int));
+static int ed_probe_HP_pclanp	__P((device_t));
 
 #include "pci.h"
 #if NPCI > 0
-void *ed_attach_NE2000_pci	__P((int, int));
+int ed_attach_NE2000_pci	__P((device_t, int));
 #endif
 
 #include "card.h"
-#if NCARD > 0
+#if NCARDxx > 0
 static int ed_probe_pccard	__P((struct isa_device *, u_char *));
 #endif
 
@@ -187,16 +132,12 @@ static void	ed_pio_writemem	__P((struct ed_softc *, char *,
 				     /* u_short */ int, /* u_short */ int));
 static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
 					int));
-void edintr_sc			__P((struct ed_softc *));
 
 static void	ed_setrcr	__P((struct ed_softc *));
 
 static u_long	ds_crc		__P((u_char *ep));
 
-#if (NCARD > 0) || (NPNP > 0)
-#include <sys/kernel.h>
-#endif
-#if NCARD > 0
+#if NCARDxx > 0
 #include <sys/select.h>
 #include <sys/module.h>
 #include <pccard/cardinfo.h>
@@ -237,7 +178,7 @@ edinit(struct pccard_devinfo *devi)
 	if (e)
 		for (i = 0; i < ETHER_ADDR_LEN; ++i)
 			sc->arpcom.ac_enaddr[i] = devi->misc[i];
-	if (ed_attach_isa(&devi->isahd) == 0)
+	if (ed_isa_attach(&devi->isahd) == 0)
 		return(ENXIO);
 
 	return(0);
@@ -275,102 +216,123 @@ edunload(struct pccard_devinfo *devi)
 static int
 card_intr(struct pccard_devinfo *devi)
 {
-	edintr_sc(&ed_softc[devi->isahd.id_unit]);
+	edintr(&ed_softc[devi->isahd.id_unit]);
 	return(1);
 }
 #endif /* NCARD > 0 */
 
-struct isa_driver eddriver = {
-	ed_probe,
-	ed_attach_isa,
-	"ed",
-	1		/* We are ultra sensitive */
-};
-
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
- * (IRQ* are defined in icu.h)
  */
-static unsigned short ed_intr_mask[] = {
-	IRQ9,
-	IRQ3,
-	IRQ5,
-	IRQ7,
-	IRQ10,
-	IRQ11,
-	IRQ15,
-	IRQ4
+static unsigned short ed_intr_val[] = {
+	9,
+	3,
+	5,
+	7,
+	10,
+	11,
+	15,
+	4
 };
 
 /*
  * Interrupt conversion table for 83C790
  */
-static unsigned short ed_790_intr_mask[] = {
+static unsigned short ed_790_intr_val[] = {
 	0,
-	IRQ9,
-	IRQ3,
-	IRQ5,
-	IRQ7,
-	IRQ10,
-	IRQ11,
-	IRQ15
+	9,
+	3,
+	5,
+	7,
+	10,
+	11,
+	15
 };
 
 /*
  * Interrupt conversion table for the HP PC LAN+
  */
 
-static unsigned short ed_hpp_intr_mask[] = {
+static unsigned short ed_hpp_intr_val[] = {
 	0,		/* 0 */
 	0,		/* 1 */
 	0,		/* 2 */
-	IRQ3,		/* 3 */
-	IRQ4,		/* 4 */
-	IRQ5,		/* 5 */
-	IRQ6,		/* 6 */
-	IRQ7,		/* 7 */
+	3,		/* 3 */
+	4,		/* 4 */
+	5,		/* 5 */
+	6,		/* 6 */
+	7,		/* 7 */
 	0,		/* 8 */
-	IRQ9,		/* 9 */
-	IRQ10,		/* 10 */
-	IRQ11,		/* 11 */
-	IRQ12,		/* 12 */
+	9,		/* 9 */
+	10,		/* 10 */
+	11,		/* 11 */
+	12,		/* 12 */
 	0,		/* 13 */
 	0,		/* 14 */
-	IRQ15		/* 15 */
+	15		/* 15 */
 };
 
-/*
- * Determine if the device is present
- *
- *   on entry:
- * 	a pointer to an isa_device struct
- *   on exit:
- *	NULL if device not found
- *	or # of i/o addresses used (if found)
- */
+static struct isa_pnp_id ed_ids[] = {
+	{ 0xd680d041,	"NE2000 Compatible" },			   /* PNP80d6 */
+	{ 0x1980635e,	"WSC8019" },				   /* WSC8019 */
+	{ 0x0131d805,	"Acer ALN-101T" },			   /* ANX3101 */
+	{ 0x01200507,	"PLANET ENW-2401" },			   /* AXE2001 */
+	{ 0x19808c4a,	"Realtek Plug & Play Ethernet Card" },	   /* RTL8019 */
+	{ 0x0090252a,	"CNet NE2000 Compatible" },		   /* JQE9000 */
+	{ 0x0020832e,	"Kingston EtheRX KNE20 Plug & Play ISA" }, /* KTC2000 */
+	{ 0,		NULL}
+};
+
 static int
-ed_probe(isa_dev)
-	struct isa_device *isa_dev;
+ed_isa_probe(dev)
+	device_t dev;
 {
-	int     nports;
+	struct ed_softc *sc = device_get_softc(dev);
+	int     error = 0;
 
-	nports = ed_probe_WD80x3(isa_dev);
-	if (nports)
-		return (nports);
+	bzero(sc, sizeof(struct ed_softc));
 
-	nports = ed_probe_3Com(isa_dev);
-	if (nports)
-		return (nports);
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ed_ids);
 
-	nports = ed_probe_Novell(isa_dev);
-	if (nports)
-		return (nports);
+	/* If the card had a PnP ID that didn't match any we know about */
+	if (error == ENXIO)
+		goto end;
 
-	nports = ed_probe_HP_pclanp(isa_dev);
-	if (nports)
-		return (nports);
+	/* If we found a PnP card. */
+	if (error == 0) {
+		error = ed_probe_Novell(dev);
+		goto end;
+	}
+    
+	/* Heuristic probes */
 
-	return (0);
+	error = ed_probe_WD80x3(dev);
+	if (error == 0)
+		goto end;
+	ed_release_resources(dev);
+
+	error = ed_probe_3Com(dev);
+	if (error == 0)
+		goto end;
+	ed_release_resources(dev);
+
+	error = ed_probe_Novell(dev);
+	if (error == 0)
+		goto end;
+	ed_release_resources(dev);
+
+	error = ed_probe_HP_pclanp(dev);
+	if (error == 0)
+		goto end;
+	ed_release_resources(dev);
+
+end:
+	if (error == 0)
+		error = ed_alloc_irq(dev, 0, 0);
+
+	ed_release_resources(dev);
+	return (error);
 }
 
 /*
@@ -414,15 +376,22 @@ ed_probe_generic8390(sc)
  * Probe and vendor-specific initialization routine for SMC/WD80x3 boards
  */
 static int
-ed_probe_WD80x3(isa_dev)
-	struct isa_device *isa_dev;
+ed_probe_WD80x3(dev)
+	device_t dev;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	struct ed_softc *sc = device_get_softc(dev);
+	int	error;
 	int     i;
+	int	flags = isa_get_flags(dev);
 	u_int   memsize, maddr;
 	u_char  iptr, isa16bit, sum;
+	u_long	conf_maddr, conf_msize, irq, junk;
 
-	sc->asic_addr = isa_dev->id_iobase;
+	error = ed_alloc_port(dev, 0, ED_WD_IO_PORTS);
+	if (error)
+		return (error);
+
+	sc->asic_addr = rman_get_start(sc->port_res);
 	sc->nic_addr = sc->asic_addr + ED_WD_NIC_OFFSET;
 	sc->is790 = 0;
 
@@ -449,7 +418,7 @@ ed_probe_WD80x3(isa_dev)
 		 */
 		if (inb(sc->asic_addr + ED_WD_CARD_ID) != ED_TYPE_WD8003E ||
 		    inb(sc->asic_addr + ED_WD_PROM + 7) != 0)
-			return (0);
+			return (ENXIO);
 	}
 	/* reset card to force it into a known state. */
 #ifdef TOSH_ETHER
@@ -584,9 +553,15 @@ ed_probe_WD80x3(isa_dev)
 		memsize = 8192;
 	}
 
+	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_MEMORY, 0,
+				 &conf_maddr, &conf_msize);
+	if (error)
+		return (error);
+
 #if ED_DEBUG
 	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
-	       sc->type, sc->type_str, isa16bit, memsize, isa_dev->id_msize);
+	       sc->type, sc->type_str, isa16bit, memsize, conf_msize);
 	for (i = 0; i < 8; i++)
 		printf("%x -> %x\n", i, inb(sc->asic_addr + i));
 #endif
@@ -594,23 +569,23 @@ ed_probe_WD80x3(isa_dev)
 	/*
 	 * Allow the user to override the autoconfiguration
 	 */
-	if (isa_dev->id_msize)
-		memsize = isa_dev->id_msize;
+	if (conf_msize > 1)
+		memsize = conf_msize;
 
-	maddr = (u_int) isa_dev->id_maddr & 0xffffff;
+	maddr = conf_maddr;
 	if (maddr < 0xa0000 || maddr + memsize > 0x1000000) {
-		printf("ed%d: Invalid ISA memory address range configured: 0x%x - 0x%x\n",
-		    isa_dev->id_unit, maddr, maddr + memsize);
-		return 0;
+		device_printf(dev, "Invalid ISA memory address range configured: 0x%x - 0x%x\n",
+			      maddr, maddr + memsize);
+		return (ENXIO);
 	}
 
 	/*
 	 * (note that if the user specifies both of the following flags that
 	 * '8bit' mode intentionally has precedence)
 	 */
-	if (isa_dev->id_flags & ED_FLAGS_FORCE_16BIT_MODE)
+	if (flags & ED_FLAGS_FORCE_16BIT_MODE)
 		isa16bit = 1;
-	if (isa_dev->id_flags & ED_FLAGS_FORCE_8BIT_MODE)
+	if (flags & ED_FLAGS_FORCE_8BIT_MODE)
 		isa16bit = 0;
 
 	/*
@@ -622,58 +597,76 @@ ed_probe_WD80x3(isa_dev)
 		/*
 		 * Assemble together the encoded interrupt number.
 		 */
-		iptr = (inb(isa_dev->id_iobase + ED_WD_ICR) & ED_WD_ICR_IR2) |
-		    ((inb(isa_dev->id_iobase + ED_WD_IRR) &
+		iptr = (inb(sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_IR2) |
+		    ((inb(sc->asic_addr + ED_WD_IRR) &
 		      (ED_WD_IRR_IR0 | ED_WD_IRR_IR1)) >> 5);
 
 		/*
 		 * If no interrupt specified (or "?"), use what the board tells us.
 		 */
-		if (isa_dev->id_irq <= 0)
-			isa_dev->id_irq = ed_intr_mask[iptr];
+		error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+					 SYS_RES_IRQ, 0,
+					 &irq, &junk);
+		if (error) {
+			ISA_SET_RESOURCE(device_get_parent(dev), dev,
+					 SYS_RES_IRQ, 0,
+					 ed_intr_val[iptr], 1);
+		}
 
 		/*
 		 * Enable the interrupt.
 		 */
-		outb(isa_dev->id_iobase + ED_WD_IRR,
-		     inb(isa_dev->id_iobase + ED_WD_IRR) | ED_WD_IRR_IEN);
+		outb(sc->asic_addr + ED_WD_IRR,
+		     inb(sc->asic_addr + ED_WD_IRR) | ED_WD_IRR_IEN);
 	}
 	if (sc->is790) {
-		outb(isa_dev->id_iobase + ED_WD790_HWR,
-		  inb(isa_dev->id_iobase + ED_WD790_HWR) | ED_WD790_HWR_SWH);
-		iptr = (((inb(isa_dev->id_iobase + ED_WD790_GCR) & ED_WD790_GCR_IR2) >> 4) |
-			(inb(isa_dev->id_iobase + ED_WD790_GCR) &
+		outb(sc->asic_addr + ED_WD790_HWR,
+		  inb(sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
+		iptr = (((inb(sc->asic_addr + ED_WD790_GCR) & ED_WD790_GCR_IR2) >> 4) |
+			(inb(sc->asic_addr + ED_WD790_GCR) &
 			 (ED_WD790_GCR_IR1 | ED_WD790_GCR_IR0)) >> 2);
-		outb(isa_dev->id_iobase + ED_WD790_HWR,
-		 inb(isa_dev->id_iobase + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
+		outb(sc->asic_addr + ED_WD790_HWR,
+		 inb(sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 
 		/*
 		 * If no interrupt specified (or "?"), use what the board tells us.
 		 */
-		if (isa_dev->id_irq <= 0)
-			isa_dev->id_irq = ed_790_intr_mask[iptr];
+		error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+					 SYS_RES_IRQ, 0,
+					 &irq, &junk);
+		if (error) {
+			ISA_SET_RESOURCE(device_get_parent(dev), dev,
+					 SYS_RES_IRQ, 0,
+					 ed_790_intr_val[iptr], 1);
+		}
 
 		/*
 		 * Enable interrupts.
 		 */
-		outb(isa_dev->id_iobase + ED_WD790_ICR,
-		  inb(isa_dev->id_iobase + ED_WD790_ICR) | ED_WD790_ICR_EIL);
+		outb(sc->asic_addr + ED_WD790_ICR,
+		  inb(sc->asic_addr + ED_WD790_ICR) | ED_WD790_ICR_EIL);
 	}
-	if (isa_dev->id_irq <= 0) {
-		printf("ed%d: %s cards don't support auto-detected/assigned interrupts.\n",
-		    isa_dev->id_unit, sc->type_str);
-		return (0);
+	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_IRQ, 0,
+				 &irq, &junk);
+	if (error) {
+		device_printf(dev, "%s cards don't support auto-detected/assigned interrupts.\n",
+			      sc->type_str);
+		return (ENXIO);
 	}
 	sc->isa16bit = isa16bit;
 	sc->mem_shared = 1;
-	isa_dev->id_msize = memsize;
-	sc->mem_start = (caddr_t) isa_dev->id_maddr;
+
+	error = ed_alloc_memory(dev, 0, memsize);
+	if (error)
+		return (error);
+	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
 
 	/*
 	 * allocate one xmit buffer if < 16k, two buffers otherwise
 	 */
 	if ((memsize < 16384) ||
-            (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING)) {
+            (flags & ED_FLAGS_NO_MULTI_BUFFERING)) {
 		sc->txb_cnt = 1;
 	} else {
 		sc->txb_cnt = 2;
@@ -757,8 +750,8 @@ ed_probe_WD80x3(isa_dev)
 
 	for (i = 0; i < memsize; ++i) {
 		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
-			    isa_dev->id_unit, kvtop(sc->mem_start + i));
+			device_printf(dev, "failed to clear shared memory at %lx - check configuration\n",
+				      kvtop(sc->mem_start + i));
 
 			/*
 			 * Disable 16 bit access to shared memory
@@ -770,7 +763,7 @@ ed_probe_WD80x3(isa_dev)
 				outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
 				    ~ED_WD_LAAR_M16EN);
 			}
-			return (0);
+			return (ENXIO);
 		}
 	}
 
@@ -789,23 +782,30 @@ ed_probe_WD80x3(isa_dev)
 		outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
 		    ~ED_WD_LAAR_M16EN);
 	}
-	return (ED_WD_IO_PORTS);
+	return (0);
 }
 
 /*
  * Probe and vendor-specific initialization routine for 3Com 3c503 boards
  */
 static int
-ed_probe_3Com(isa_dev)
-	struct isa_device *isa_dev;
+ed_probe_3Com(dev)
+	device_t dev;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	struct ed_softc *sc = device_get_softc(dev);
+	int	error;
 	int     i;
+	int	flags = isa_get_flags(dev);
 	u_int   memsize;
 	u_char  isa16bit;
+	u_long	conf_maddr, conf_msize, irq, junk;
 
-	sc->asic_addr = isa_dev->id_iobase + ED_3COM_ASIC_OFFSET;
-	sc->nic_addr = isa_dev->id_iobase + ED_3COM_NIC_OFFSET;
+	error = ed_alloc_port(dev, 0, ED_3COM_IO_PORTS);
+	if (error)
+		return (error);
+
+	sc->asic_addr = rman_get_start(sc->port_res) + ED_3COM_ASIC_OFFSET;
+	sc->nic_addr = rman_get_start(sc->port_res) + ED_3COM_NIC_OFFSET;
 
 	/*
 	 * Verify that the kernel configured I/O address matches the board
@@ -813,40 +813,46 @@ ed_probe_3Com(isa_dev)
 	 */
 	switch (inb(sc->asic_addr + ED_3COM_BCFR)) {
 	case ED_3COM_BCFR_300:
-		if (isa_dev->id_iobase != 0x300)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x300)
+			return (ENXIO);
 		break;
 	case ED_3COM_BCFR_310:
-		if (isa_dev->id_iobase != 0x310)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x310)
+			return (ENXIO);
 		break;
 	case ED_3COM_BCFR_330:
-		if (isa_dev->id_iobase != 0x330)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x330)
+			return (ENXIO);
 		break;
 	case ED_3COM_BCFR_350:
-		if (isa_dev->id_iobase != 0x350)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x350)
+			return (ENXIO);
 		break;
 	case ED_3COM_BCFR_250:
-		if (isa_dev->id_iobase != 0x250)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x250)
+			return (ENXIO);
 		break;
 	case ED_3COM_BCFR_280:
-		if (isa_dev->id_iobase != 0x280)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x280)
+			return (ENXIO);
 		break;
 	case ED_3COM_BCFR_2A0:
-		if (isa_dev->id_iobase != 0x2a0)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x2a0)
+			return (ENXIO);
 		break;
 	case ED_3COM_BCFR_2E0:
-		if (isa_dev->id_iobase != 0x2e0)
-			return (0);
+		if (rman_get_start(sc->port_res) != 0x2e0)
+			return (ENXIO);
 		break;
 	default:
-		return (0);
+		return (ENXIO);
 	}
+
+	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_MEMORY, 0,
+				 &conf_maddr, &conf_msize);
+	if (error)
+		return (error);
 
 	/*
 	 * Verify that the kernel shared memory address matches the board
@@ -854,23 +860,23 @@ ed_probe_3Com(isa_dev)
 	 */
 	switch (inb(sc->asic_addr + ED_3COM_PCFR)) {
 	case ED_3COM_PCFR_DC000:
-		if (kvtop(isa_dev->id_maddr) != 0xdc000)
-			return (0);
+		if (conf_maddr != 0xdc000)
+			return (ENXIO);
 		break;
 	case ED_3COM_PCFR_D8000:
-		if (kvtop(isa_dev->id_maddr) != 0xd8000)
-			return (0);
+		if (conf_maddr != 0xd8000)
+			return (ENXIO);
 		break;
 	case ED_3COM_PCFR_CC000:
-		if (kvtop(isa_dev->id_maddr) != 0xcc000)
-			return (0);
+		if (conf_maddr != 0xcc000)
+			return (ENXIO);
 		break;
 	case ED_3COM_PCFR_C8000:
-		if (kvtop(isa_dev->id_maddr) != 0xc8000)
-			return (0);
+		if (conf_maddr != 0xc8000)
+			return (ENXIO);
 		break;
 	default:
-		return (0);
+		return (ENXIO);
 	}
 
 
@@ -962,7 +968,11 @@ ed_probe_3Com(isa_dev)
 	 */
 	outb(sc->nic_addr + ED_P2_CR, ED_CR_RD2 | ED_CR_STP);
 
-	sc->mem_start = (caddr_t) isa_dev->id_maddr;
+	error = ed_alloc_memory(dev, 0, memsize);
+	if (error)
+		return (error);
+
+	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
 	sc->mem_size = memsize;
 	sc->mem_end = sc->mem_start + memsize;
 
@@ -976,7 +986,7 @@ ed_probe_3Com(isa_dev)
 	 * we optimize for linear transfers of same-size packets.)
 	 */
 	if (isa16bit) {
-		if (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING)
+		if (flags & ED_FLAGS_NO_MULTI_BUFFERING)
 			sc->txb_cnt = 1;
 		else
 			sc->txb_cnt = 2;
@@ -1007,23 +1017,29 @@ ed_probe_3Com(isa_dev)
 	/*
 	 * Set IRQ. 3c503 only allows a choice of irq 2-5.
 	 */
-	switch (isa_dev->id_irq) {
-	case IRQ2:
+	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_IRQ, 0,
+				 &irq, &junk);
+	if (error)
+		return (error);
+
+	switch (irq) {
+	case 2:
 		outb(sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ2);
 		break;
-	case IRQ3:
+	case 3:
 		outb(sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ3);
 		break;
-	case IRQ4:
+	case 4:
 		outb(sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ4);
 		break;
-	case IRQ5:
+	case 5:
 		outb(sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ5);
 		break;
 	default:
-		printf("ed%d: Invalid irq configuration (%d) must be 3-5,9 for 3c503\n",
-		       isa_dev->id_unit, ffs(isa_dev->id_irq) - 1);
-		return (0);
+		device_printf(dev, "Invalid irq configuration (%ld) must be 3-5,9 for 3c503\n",
+			      irq);
+		return (ENXIO);
 	}
 
 	/*
@@ -1050,31 +1066,35 @@ ed_probe_3Com(isa_dev)
 
 	for (i = 0; i < memsize; ++i)
 		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
-			       isa_dev->id_unit, kvtop(sc->mem_start + i));
-			return (0);
+			device_printf(dev, "failed to clear shared memory at %lx - check configuration\n",
+				      kvtop(sc->mem_start + i));
+			return (ENXIO);
 		}
-	isa_dev->id_msize = memsize;
-	return (ED_3COM_IO_PORTS);
+	return (0);
 }
 
 /*
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
 static int
-ed_probe_Novell_generic(sc, port, unit, flags)
-	struct ed_softc *sc;
-	int port;
-	int unit;
+ed_probe_Novell_generic(dev, port_rid, flags)
+	device_t dev;
+	int port_rid;
 	int flags;
 {
+	struct ed_softc *sc = device_get_softc(dev);
 	u_int   memsize, n;
 	u_char  romdata[16], tmp;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
+	int	error;
 
-	sc->asic_addr = port + ED_NOVELL_ASIC_OFFSET;
-	sc->nic_addr = port + ED_NOVELL_NIC_OFFSET;
+	error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS);
+	if (error)
+		return (error);
+
+	sc->asic_addr = rman_get_start(sc->port_res) + ED_NOVELL_ASIC_OFFSET;
+	sc->nic_addr = rman_get_start(sc->port_res) + ED_NOVELL_NIC_OFFSET;
 
 	/* XXX - do Novell-specific probe here */
 
@@ -1108,7 +1128,7 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 
 	/* Make sure that we really have an 8390 based board */
 	if (!ed_probe_generic8390(sc))
-		return (0);
+		return (ENXIO);
 
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->mem_shared = 0;
@@ -1158,7 +1178,7 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 		ed_pio_readmem(sc, 16384, test_buffer, sizeof(test_pattern));
 
 		if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)))
-			return (0);	/* not an NE2000 either */
+			return (ENXIO);	/* not an NE2000 either */
 
 		sc->type = ED_TYPE_NE2000;
 		sc->type_str = "NE2000";
@@ -1213,8 +1233,8 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 		}
 
 		if (mstart == 0) {
-			printf("ed%d: Cannot find start of RAM.\n", unit);
-			return 0;
+			device_printf(dev, "Cannot find start of RAM.\n");
+			return (ENXIO);
 		}
 		/* Search for the start of RAM. */
 		for (x = (mstart / ED_PAGE_SIZE) + 1; x < 256; x++) {
@@ -1235,10 +1255,10 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 		}
 
 		if (msize == 0) {
-			printf("ed%d: Cannot find any RAM, start : %d, x = %d.\n", unit, mstart, x);
-			return 0;
+			device_printf(dev, "Cannot find any RAM, start : %d, x = %d.\n", mstart, x);
+			return (ENXIO);
 		}
-		printf("ed%d: RAM start at %d, size : %d.\n", unit, mstart, msize);
+		device_printf(dev, "RAM start at %d, size : %d.\n", mstart, msize);
 
 		sc->mem_size = msize;
 		sc->mem_start = (char *) mstart;
@@ -1274,25 +1294,17 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 	/* clear any pending interrupts that might have occurred above */
 	outb(sc->nic_addr + ED_P0_ISR, 0xff);
 
-	return (ED_NOVELL_IO_PORTS);
+	return (0);
 }
 
 static int
-ed_probe_Novell(isa_dev)
-	struct isa_device *isa_dev;
+ed_probe_Novell(dev)
+	device_t dev;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
-	int     nports;
-
-	nports = ed_probe_Novell_generic(sc, isa_dev->id_iobase, 
-				       isa_dev->id_unit, isa_dev->id_flags);
-	if (nports)
-		isa_dev->id_maddr = 0;
-
-	return (nports);
+	return ed_probe_Novell_generic(dev, 0, isa_get_flags(dev));
 }
 
-#if NCARD > 0
+#if NCARDxx > 0
 /*
  * Probe framework for pccards.  Replicates the standard framework, 
  * minus the pccard driver registration and ignores the ether address
@@ -1343,21 +1355,26 @@ ed_probe_pccard(isa_dev, ether)
  * command line.
  */
 static int
-ed_probe_HP_pclanp(isa_dev)
-	struct isa_device *isa_dev;
+ed_probe_HP_pclanp(dev)
+	device_t dev;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	struct ed_softc *sc = device_get_softc(dev);
+	int error;
 	int n;				/* temp var */
 	int memsize;			/* mem on board */
 	u_char checksum;		/* checksum of board address */
 	u_char irq;			/* board configured IRQ */
 	char test_pattern[ED_HPP_TEST_SIZE];	/* read/write areas for */
 	char test_buffer[ED_HPP_TEST_SIZE];	/* probing card */
+	u_long conf_maddr, conf_msize, conf_irq, junk;
 
+	error = ed_alloc_port(dev, 0, ED_HPP_IO_PORTS);
+	if (error)
+		return (error);
 
 	/* Fill in basic information */
-	sc->asic_addr = isa_dev->id_iobase + ED_HPP_ASIC_OFFSET;
-	sc->nic_addr = isa_dev->id_iobase + ED_HPP_NIC_OFFSET;
+	sc->asic_addr = rman_get_start(sc->port_res) + ED_HPP_ASIC_OFFSET;
+	sc->nic_addr = rman_get_start(sc->port_res) + ED_HPP_NIC_OFFSET;
 	sc->is790 = 0;
 	sc->isa16bit = 0;	/* the 8390 core needs to be in byte mode */
 
@@ -1437,7 +1454,7 @@ ed_probe_HP_pclanp(isa_dev)
  	 * Check for impossible IRQ.
 	 */
 
-	if (irq >= (sizeof(ed_hpp_intr_mask) / sizeof(ed_hpp_intr_mask[0])))
+	if (irq >= (sizeof(ed_hpp_intr_val) / sizeof(ed_hpp_intr_val[0])))
 		return 0;
 
 	/* 
@@ -1445,11 +1462,17 @@ ed_probe_HP_pclanp(isa_dev)
 	 * of the IRQ.  If the kernel IRQ was explicitly specified, it
  	 * should match that of the hardware.
 	 */
-
-	if (isa_dev->id_irq <= 0)
-		isa_dev->id_irq = ed_hpp_intr_mask[irq];
-	else if (isa_dev->id_irq != ed_hpp_intr_mask[irq])
-		return 0;
+	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_IRQ, 0,
+				 &conf_irq, &junk);
+	if (error) {
+		ISA_SET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_IRQ, 0,
+				 ed_hpp_intr_val[irq], 1);
+	} else {
+		if (conf_irq != ed_hpp_intr_val[irq])
+			return (ENXIO);
+	}
 
 	/*
 	 * Fill in softconfig info.
@@ -1463,6 +1486,13 @@ ed_probe_HP_pclanp(isa_dev)
 	sc->mem_start = 0;	/* we use offsets inside the card RAM */
 
 	sc->hpp_mem_start = NULL;/* no memory mapped I/O by default */
+
+	/*
+	 * The board has 32KB of memory.  Is there a way to determine
+	 * this programmatically?
+	 */
+	
+	memsize = 32768;
 
 	/*
 	 * Check if memory mapping of the I/O registers possible.
@@ -1483,19 +1513,21 @@ ed_probe_HP_pclanp(isa_dev)
 		 * Check that the kernel specified start of memory and
 		 * hardware's idea of it match.
 		 */
+		error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
+					 SYS_RES_MEMORY, 0,
+					 &conf_maddr, &conf_msize);
+		if (error)
+			return (error);
 		
-		if (mem_addr != kvtop(isa_dev->id_maddr))
+		if (mem_addr != conf_maddr)
 			return 0;
 
-		sc->hpp_mem_start = isa_dev->id_maddr;
-	}
+		error = ed_alloc_memory(dev, 0, memsize);
+		if (error)
+			return (error);
 
-	/*
-	 * The board has 32KB of memory.  Is there a way to determine
-	 * this programmatically?
-	 */
-	
-	memsize = 32768;
+		sc->hpp_mem_start = rman_get_virtual(sc->mem_res);
+	}
 
 	/*
 	 * Fill in the rest of the soft config structure.
@@ -1507,7 +1539,7 @@ ed_probe_HP_pclanp(isa_dev)
 
 	sc->tx_page_start = ED_HPP_TX_PAGE_OFFSET;
 
-	if (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING)
+	if (isa_get_flags(dev) & ED_FLAGS_NO_MULTI_BUFFERING)
 		sc->txb_cnt = 1;
 	else
 		sc->txb_cnt = 2;
@@ -1635,6 +1667,102 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 
 }
 
+/*
+ * Allocate a port resource with the given resource id.
+ */
+static int
+ed_alloc_port(dev, rid, size)
+	device_t dev;
+	int rid;
+	int size;
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	struct resource *res;
+
+	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				 0ul, ~0ul, size, RF_ACTIVE);
+	if (res) {
+		sc->port_rid = rid;
+		sc->port_res = res;
+		sc->port_used = 1;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
+}
+
+/*
+ * Allocate a memory resource with the given resource id.
+ */
+static int
+ed_alloc_memory(dev, rid, size)
+	device_t dev;
+	int rid;
+	int size;
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	struct resource *res;
+
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+				 0ul, ~0ul, size, RF_ACTIVE);
+	if (res) {
+		sc->mem_rid = rid;
+		sc->mem_res = res;
+		sc->mem_used = 1;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
+}
+
+/*
+ * Allocate an irq resource with the given resource id.
+ */
+static int
+ed_alloc_irq(dev, rid, flags)
+	device_t dev;
+	int rid;
+	int flags;
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	struct resource *res;
+
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				 0ul, ~0ul, 1, (RF_ACTIVE | flags));
+	if (res) {
+		sc->irq_rid = rid;
+		sc->irq_res = res;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
+}
+
+/*
+ * Release all resources
+ */
+static void
+ed_release_resources(dev)
+	device_t dev;
+{
+	struct ed_softc *sc = device_get_softc(dev);
+
+	if (sc->port_res) {
+		bus_release_resource(dev, SYS_RES_IOPORT,
+				     sc->port_rid, sc->port_res);
+		sc->port_res = 0;
+	}
+	if (sc->mem_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+				     sc->mem_rid, sc->mem_res);
+		sc->mem_res = 0;
+	}
+	if (sc->irq_res) {
+		bus_release_resource(dev, SYS_RES_IRQ,
+				     sc->irq_rid, sc->irq_res);
+		sc->irq_res = 0;
+	}
+}
 
 /*
  * Install interface into kernel networking data structures
@@ -1728,40 +1856,61 @@ ed_attach(sc, unit, flags)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	return 1;
+	return (0);
 }
 
 static int
-ed_attach_isa(isa_dev)
-	struct isa_device *isa_dev;
+ed_isa_attach(dev)
+	device_t dev;
 {
-	int unit = isa_dev->id_unit;
-	struct ed_softc *sc = &ed_softc[unit];
-	int flags = isa_dev->id_flags;
+	struct ed_softc *sc = device_get_softc(dev);
+	int flags = isa_get_flags(dev);
+	int error;
 
-	isa_dev->id_ointr = edintr;
-	return ed_attach(sc, unit, flags);
+	if (sc->port_used > 0)
+		ed_alloc_port(dev, sc->port_rid, 1);
+	if (sc->mem_used)
+		ed_alloc_memory(dev, sc->mem_rid, 1);
+	ed_alloc_irq(dev, sc->irq_rid, 0);
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+			       edintr, sc, &sc->irq_handle);
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
+	}
+
+	return ed_attach(sc, device_get_unit(dev), flags);
 }
 
 #if NPCI > 0
-void *
-ed_attach_NE2000_pci(unit, port)
-	int unit;
-	int port;
+int
+ed_attach_NE2000_pci(dev, port_rid)
+	device_t dev;
+	int port_rid;
 {
-	struct ed_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
-	int isa_flags = 0;
+	struct ed_softc *sc = device_get_softc(dev);
+	int flags = 0;
+	int error;
 
-	if (!sc)
-		return sc;
+	error = ed_probe_Novell_generic(dev, port_rid, flags);
+	if (error)
+		return (error);
 
-	bzero(sc, sizeof *sc);
-	if (ed_probe_Novell_generic(sc, port, unit, isa_flags) == 0
-	    || ed_attach(sc, unit, isa_flags) == 0) {
-		free(sc, M_DEVBUF);
-		return NULL;
+	error = ed_alloc_irq(dev, 0, RF_SHAREABLE);
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
 	}
-	return sc;
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+			       edintr, sc, &sc->irq_handle);
+	if (error) {
+		ed_release_resources(dev);
+		return (error);
+	}
+		
+	return ed_attach(sc, device_get_unit(dev), flags);
 }
 #endif
 
@@ -2333,10 +2482,11 @@ ed_rint(sc)
 /*
  * Ethernet interface interrupt processor
  */
-void
-edintr_sc(sc)
-	struct ed_softc *sc;
+static void
+edintr(arg)
+	void *arg;
 {
+	struct ed_softc *sc = (struct ed_softc*) arg;
 	struct ifnet *ifp = (struct ifnet *)sc;
 	u_char  isr;
 
@@ -2573,13 +2723,6 @@ edintr_sc(sc)
 			(void) inb(sc->nic_addr + ED_P0_CNTR2);
 		}
 	}
-}
-
-static void 
-edintr(unit)
-	int unit;
-{
-	edintr_sc (&ed_softc[unit]);
 }
 
 /*
@@ -3439,87 +3582,20 @@ ds_getmcaf(sc, mcaf)
 	}
 }
 
-/*
- * support PnP cards if we are using 'em
- */
+static device_method_t ed_isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ed_isa_probe),
+	DEVMETHOD(device_attach,	ed_isa_attach),
 
-#if NPNP > 0
-
-static pnpid_t edpnp_ids[] = {
-	{ 0xd680d041, "NE2000"},
-	{ 0 }
+	{ 0, 0 }
 };
 
-static char *edpnp_probe(u_long csn, u_long vend_id);
-static void edpnp_attach(u_long csn, u_long vend_id, char *name,
-	struct isa_device *dev);
-static u_long nedpnp = NED;
-
-static struct pnp_device edpnp = {
-	"edpnp",
-	edpnp_probe,
-	edpnp_attach,
-	&nedpnp,
-	&net_imask
+static driver_t ed_isa_driver = {
+	"ed",
+	ed_isa_methods,
+	sizeof(struct ed_softc)
 };
-DATA_SET (pnpdevice_set, edpnp);
 
-static char *
-edpnp_probe(u_long csn, u_long vend_id)
-{
-	pnpid_t *id;
-	char *s = NULL;
+static devclass_t ed_isa_devclass;
 
-	for(id = edpnp_ids; id->vend_id != 0; id++) {
-		if (vend_id == id->vend_id) {
-			s = id->id_str;
-			break;
-		}
-	}
-
-	if (s) {
-		struct pnp_cinfo d;
-		read_pnp_parms(&d, 0);
-		if (d.enable == 0 || d.flags & 1) {
-			printf("CSN %lu is disabled.\n", csn);
-			return (NULL);
-		}
-
-	}
-
-	return (s);
-}
-
-static void
-edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
-{
-	struct pnp_cinfo d;
-
-	if (dev->id_unit >= NEDTOT)
-		return;
-
-	if (read_pnp_parms(&d, 0) == 0) {
-		printf("failed to read pnp parms\n");
-		return;
-	}
-
-	write_pnp_parms(&d, 0);
-
-	enable_pnp_card();
-
-	dev->id_iobase = d.port[0];
-	dev->id_irq = (1 << d.irq[0]);
-	dev->id_ointr = edintr;
-	dev->id_drq = -1;
-
-	if (dev->id_driver == NULL) {
-		dev->id_driver = &eddriver;
-		dev->id_id = isa_compat_nextid();
-	}
-
-	if ((dev->id_alive = ed_probe(dev)) != 0)
-		ed_attach_isa(dev);
-	else
-		printf("ed%d: probe failed\n", dev->id_unit);
-}
-#endif
+DRIVER_MODULE(ed, isa, ed_isa_driver, ed_isa_devclass, 0, 0);
