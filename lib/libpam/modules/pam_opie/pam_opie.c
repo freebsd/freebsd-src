@@ -66,12 +66,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct opie opie;
 	struct options options;
 	struct passwd *pwd;
-	int retval, i, pwok;
+	int retval, i;
 	char *(promptstr[]) = { "%s\nPassword: ", "%s\nPassword [echo on]: "};
 	char challenge[OPIE_CHALLENGE_MAX];
 	char prompt[OPIE_CHALLENGE_MAX+22];
 	char resp[OPIE_SECRET_MAX];
-	const char *user, *response, *rhost;
+	const char *user;
+	const char *response;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -88,16 +89,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	user = NULL;
 	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
-		if ((pwd = getpwnam(getlogin())) == NULL)
-			PAM_RETURN(PAM_AUTH_ERR);
+		pwd = getpwnam(getlogin());
 		user = pwd->pw_name;
 	}
 	else {
 		retval = pam_get_user(pamh, (const char **)&user, NULL);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
-		if ((pwd = getpwnam(user)) == NULL)
-			PAM_RETURN(PAM_AUTH_ERR);
 	}
 
 	PAM_LOG("Got user: %s", user);
@@ -108,14 +106,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 */
 	opiedisableaeh();
 
-	if (opiechallenge(&opie, (char *)user, challenge) == 0) {
-		rhost = NULL;
-		(void) pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
-		pwok = (rhost != NULL) && (*rhost != '\0') &&
-		       opieaccessfile((char *)rhost) &&
-		       opiealways(pwd->pw_dir);
-	} else
-		PAM_RETURN(PAM_AUTH_ERR);
+	opiechallenge(&opie, (char *)user, challenge);
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
 		retval = pam_get_pass(pamh, &response, prompt, &options);
@@ -134,7 +125,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	}
 
 	/* We have to copy the response, because opieverify mucks with it. */
-	strlcpy(resp, response, sizeof resp);
+	snprintf(resp, sizeof resp, "%s", response);
 
 	/*
 	 * Opieverify is supposed to return -1 only if an error occurs.
@@ -142,10 +133,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 * it expects.  Thus we can't log an error and can only check for
 	 * success or lack thereof.
 	 */
-	if (opieverify(&opie, resp) != 0)
-		retval = pwok ? PAM_AUTH_ERR : PAM_CRED_ERR;
-	else
-		retval = PAM_SUCCESS;
+	retval = opieverify(&opie, resp) == 0 ? PAM_SUCCESS : PAM_AUTH_ERR;
 	PAM_RETURN(retval);
 }
 
