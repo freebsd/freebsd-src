@@ -778,8 +778,11 @@ restart:
 			(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
 			top, addr, control, td);
 		    splx(s);
-		    if (dontroute)
+		    if (dontroute) {
+			    SOCK_LOCK(so);
 			    so->so_options &= ~SO_DONTROUTE;
+			    SOCK_UNLOCK(so);
+		    }
 		    clen = 0;
 		    control = NULL;
 		    top = NULL;
