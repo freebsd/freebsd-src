@@ -145,7 +145,7 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 		if (FD_ISSET(i, &write_locks))
 			_FD_UNLOCK(i, FD_WRITE);
 
-	if (ret > 0) {
+	if (ret >= 0) {
 		if (readfds != NULL) {
 			for (i = 0; i < numfds; i++) {
 				if (FD_ISSET(i, readfds) &&
