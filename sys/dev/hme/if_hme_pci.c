@@ -302,7 +302,8 @@ hme_pci_attach(device_t dev)
 	 * Read PCI VPD.
 	 * SUNW,hme cards have a single large resource VPD-R tag
 	 * containing one NA. SUNW,qfe cards have four large resource
-	 * VPD-R tags containing one NA each.
+	 * VPD-R tags containing one NA each (all four HME chips share
+	 * the same PROM).
 	 * The VPD used on both cards is not in PCI 2.2 standard format
 	 * however. The length in the resource header is in big endian
 	 * and the end tag is non-standard (0x79) and followed by an
