@@ -834,15 +834,6 @@ will not be updated
 If set to
 .Dq YES ,
 run the NFS client daemons at boot time.
-.It Va nfs_client_flags
-.Pq Vt str
-If
-.Va nfs_client_enable
-is set to
-.Dq YES ,
-these are the flags to pass to the
-.Xr nfsiod 8
-daemon.
 .It Va nfs_access_cache
 .Pq Vt int
 If
@@ -1881,7 +1872,6 @@ Flags for
 .Xr mrouted 8 ,
 .Xr named 8 ,
 .Xr nfsd 8 ,
-.Xr nfsiod 8 ,
 .Xr ntpd 8 ,
 .Xr ntpdate 8 ,
 .Xr pcnfsd 8 ,
