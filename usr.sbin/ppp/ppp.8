@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.137 1998/12/04 19:39:05 billf Exp $
+.\" $Id: ppp.8,v 1.138 1999/01/06 00:08:15 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1298,7 +1298,7 @@ to flush all rules.
 .El
 .Pp
 See
-.Pa /etc/ppp/ppp.conf.example .
+.Pa /etc/ppp/ppp.conf.sample .
 .Sh SETTING THE IDLE TIMER
 To check/set the idle timer, use the
 .Dq show bundle
