@@ -43,8 +43,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ufs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/resourcevar.h>
@@ -82,6 +80,8 @@ static int	ffs_read(struct vop_read_args *);
 static int	ffs_write(struct vop_write_args *);
 static int	ffs_extread(struct vop_read_args *);
 static int	ffs_extwrite(struct vop_write_args *);
+static int	ffs_getextattr(struct vop_getextattr_args *);
+static int	ffs_setextattr(struct vop_setextattr_args *);
 
 
 /* Global vfs data structures for ufs. */
@@ -93,6 +93,8 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_read_desc,		(vop_t *) ffs_read },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
+	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_vnodeop_opv_desc =
@@ -102,6 +104,8 @@ vop_t **ffs_specop_p;
 static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
+	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_specop_opv_desc =
@@ -111,6 +115,8 @@ vop_t **ffs_fifoop_p;
 static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
+	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_fifoop_opv_desc =
@@ -1298,4 +1304,45 @@ ffs_extwrite(ap)
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
 		error = UFS_UPDATE(vp, 1);
 	return (error);
+}
+
+/*
+ * Vnode operating to retrieve a named extended attribute.
+ */
+int
+ffs_getextattr(struct vop_getextattr_args *ap)
+/*
+vop_getextattr {
+	IN struct vnode *a_vp;
+	IN int a_attrnamespace;
+	IN const char *a_name;
+	INOUT struct uio *a_uio;
+	OUT struct size_t *a_size;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+
+	return (ufs_vnoperate((struct vop_generic_args *)ap));
+}
+
+/*
+ * Vnode operation to set a named attribute.
+ */
+int
+ffs_setextattr(struct vop_setextattr_args *ap)
+/*
+vop_setextattr {
+	IN struct vnode *a_vp;
+	IN int a_attrnamespace;
+	IN const char *a_name;
+	INOUT struct uio *a_uio;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+
+	return (ufs_vnoperate((struct vop_generic_args *)ap));
 }

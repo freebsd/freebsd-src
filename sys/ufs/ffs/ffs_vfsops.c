@@ -74,6 +74,7 @@ static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 static void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
+static vfs_extattrctl_t ffs_extattrctl;
 
 static struct vfsops ufs_vfsops = {
 	ffs_mount,
@@ -89,11 +90,7 @@ static struct vfsops ufs_vfsops = {
 	ffs_vptofh,
 	ffs_init,
 	ffs_uninit,
-#ifdef UFS_EXTATTR
-	ufs_extattrctl,
-#else
-	vfs_stdextattrctl,
-#endif
+	ffs_extattrctl,
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);
@@ -1452,4 +1449,18 @@ ffs_sbupdate(mp, waitfor)
 	else if ((error = bwrite(bp)) != 0)
 		allerror = error;
 	return (allerror);
+}
+
+static int
+ffs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
+	int attrnamespace, const char *attrname, struct thread *td)
+{
+
+#ifdef UFS_EXTATTR
+	return (ufs_extattrctl(mp, cmd, filename_vp, attrnamespace,
+	    attrname, td));
+#else
+	return (vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace,
+	    attrname, td));
+#endif
 }
