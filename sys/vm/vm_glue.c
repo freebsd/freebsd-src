@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.40 1996/02/23 18:49:24 peter Exp $
+ * $Id: vm_glue.c,v 1.41 1996/03/02 02:54:19 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -440,7 +440,7 @@ scheduler(dummy)
 	int ppri;
 
 loop:
-	while ((cnt.v_free_count + cnt.v_cache_count) < (cnt.v_free_reserved + UPAGES + 2)) {
+	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
 	}
 
