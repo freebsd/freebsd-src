@@ -40,6 +40,8 @@
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 
+enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_SIZE };
+
 /* Where we start displaying chunk information on the screen */
 #define CHUNK_START_ROW		5
 
@@ -74,10 +76,14 @@ record_chunks(Disk *d)
 static int Total;
 
 static void
-print_chunks(Disk *d)
+print_chunks(Disk *d, int u)
 {
     int row;
     int i;
+    int sz;
+    char *szstr;
+
+    szstr = (u == UNIT_MEG ? "MB" : (u == UNIT_KILO ? "KB" : "ST"));
 
     for (i = Total = 0; chunk_info[i]; i++)
 	Total += chunk_info[i]->size;
@@ -101,17 +107,30 @@ print_chunks(Disk *d)
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
     attrset(A_REVERSE); mvaddstr(0, 55, "FDISK Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
-	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors = %lu sectors",
+	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors = %lu sectors (%luMB)",
 	     d->bios_cyl, d->bios_hd, d->bios_sect,
-	     d->bios_cyl * d->bios_hd * d->bios_sect);
-    mvprintw(3, 0, "%10s %10s %10s %8s %6s %10s %8s %8s",
-	     "Offset", "Size", "End", "Name", "PType", "Desc",
+	     d->bios_cyl * d->bios_hd * d->bios_sect,
+	     d->bios_cyl * d->bios_hd * d->bios_sect * 512 / 1024 / 1024);
+    mvprintw(3, 0, "%6s %10s(%s) %10s %8s %6s %10s %8s %8s",
+	     "Offset", "Size", szstr, "End", "Name", "PType", "Desc",
 	     "Subtype", "Flags");
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
+	switch(u) {
+	default:	/* fall thru */
+	case UNIT_BLOCKS:
+	    sz = chunk_info[i]->size;
+	    break;
+	case UNIT_KILO:
+	    sz = chunk_info[i]->size * 512 / 1024;
+	    break;
+	case UNIT_MEG:
+	    sz = chunk_info[i]->size * 512 / 1024 / 1024;
+	    break;
+	}
 	if (i == current_chunk)
 	    attrset(ATTR_SELECTED);
 	mvprintw(row, 0, "%10ld %10lu %10lu %8s %6d %10s %8d\t%-6s",
-		 chunk_info[i]->offset, chunk_info[i]->size,
+		 chunk_info[i]->offset, sz,
 		 chunk_info[i]->end, chunk_info[i]->name,
 		 chunk_info[i]->type, 
 		 slice_type_name(chunk_info[i]->type, chunk_info[i]->subtype),
@@ -125,8 +144,8 @@ static void
 print_command_summary()
 {
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
-    mvprintw(16, 0, "A = Use Entire Disk                             C = Create Slice");
-    mvprintw(17, 0, "D = Delete Slice       G = Set Drive Geometry   S = Set Bootable");
+    mvprintw(16, 0, "A = Use Entire Disk    G = set Drive Geometry   C = Create Slice");
+    mvprintw(17, 0, "D = Delete Slice       Z = Toggle Size Units    S = Set Bootable");
     mvprintw(18, 0, "T = Change Type        U = Undo All Changes     Q = Finish");
     if (!RunningAsInit)
 	mvprintw(18, 48, "W = Write Changes");
@@ -204,7 +223,9 @@ diskPartition(Device *dev)
     u_char *mbrContents;
     WINDOW *w = savescr();
     Disk *d = (Disk *)dev->private;
+    int size_unit;
 
+    size_unit = UNIT_BLOCKS;
     chunking = TRUE;
     keypad(stdscr, TRUE);
 
@@ -221,7 +242,7 @@ diskPartition(Device *dev)
 	    
 	/* Now print our overall state */
 	if (d)
-	    print_chunks(d);
+	    print_chunks(d, size_unit);
 	print_command_summary();
 	if (msg) {
 	    attrset(title_attr); mvprintw(23, 0, msg); attrset(A_NORMAL);
@@ -492,6 +513,10 @@ diskPartition(Device *dev)
 		(mbrContents = getBootMgr(d->name)) != NULL)
 		Set_Boot_Mgr(d, mbrContents);
 #endif
+	    break;
+
+	case 'Z':
+		size_unit = (size_unit + 1) % UNIT_SIZE;
 	    break;
 	    
 	default:
