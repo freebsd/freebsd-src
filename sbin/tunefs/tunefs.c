@@ -94,9 +94,9 @@ main(argc, argv)
 	const char *name;
 	struct stat st;
 	int Aflag = 0, active = 0;
-	int aflag = 0, eflag = 0, fflag = 0, mflag = 0;
+	int eflag = 0, fflag = 0, mflag = 0;
 	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
-	int avalue = 0, evalue = 0, fvalue = 0;
+	int evalue = 0, fvalue = 0;
 	int mvalue = 0, ovalue = 0, svalue = 0;
 	char *nvalue = NULL; 
 	struct fstab *fs;
@@ -109,19 +109,11 @@ main(argc, argv)
         if (argc < 3)
                 usage();
 	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "Aa:e:f:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "Ae:f:m:n:o:ps:")) != -1)
 	  switch (ch) {
 	  case 'A':
 		found_arg = 1;
 		Aflag++;
-		break;
-	  case 'a':
-		found_arg = 1;
-		name = "maximum contiguous block count";
-		avalue = atoi(optarg);
-		if (avalue < 1)
-			errx(10, "%s must be >= 1 (was %s)", name, optarg);
-		aflag = 1;
 		break;
 	  case 'e':
 		found_arg = 1;
@@ -220,17 +212,6 @@ again:
 	if (pflag) {
 		printfs();
 		exit(0);
-	}
-	if (aflag) {
-		name = "maximum contiguous block count";
-		if (sblock.fs_maxcontig == avalue) {
-			warnx("%s remains unchanged as %d", name, avalue);
-		}
-		else {
-			warnx("%s changes from %d to %d",
-					name, sblock.fs_maxcontig, avalue);
-			sblock.fs_maxcontig = avalue;
-		}
 	}
 	if (eflag) {
 		name = "maximum blocks per file in a cylinder group";
