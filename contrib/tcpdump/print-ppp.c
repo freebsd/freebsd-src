@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1990, 1991, 1993, 1994, 1995, 1996
+ * Copyright (c) 1990, 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,10 +21,9 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-ppp.c,v 1.24 96/12/10 23:23:12 leres Exp $ (LBL)";
+    "@(#) $Header: print-ppp.c,v 1.26 97/06/12 14:21:29 leres Exp $ (LBL)";
 #endif
 
-#ifdef PPP
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -44,7 +43,6 @@ struct rtentry;
 #include <ctype.h>
 #include <netdb.h>
 #include <pcap.h>
-#include <signal.h>
 #include <stdio.h>
 
 #include <net/ethernet.h>
@@ -53,6 +51,7 @@ struct rtentry;
 #include <net/ppp_defs.h>
 #include "interface.h"
 #include "addrtoname.h"
+#include "ppp.h"
 
 struct protonames {
 	u_short protocol;
@@ -196,6 +195,7 @@ static int handle_chap(const u_char *p, int length);
 static int handle_ipcp(const u_char *p, int length);
 static int handle_pap(const u_char *p, int length);
 
+/* Standard PPP printer */
 void
 ppp_hdlc_print(const u_char *p, int length)
 {
@@ -532,17 +532,80 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 out:
 	putchar('\n');
 }
-#else
-#include <sys/types.h>
-#include <sys/time.h>
 
-#include <stdio.h>
+/* proto type to string mapping */
+static struct tok ptype2str[] = {
+	{ PPP_VJC,	"VJC" },
+	{ PPP_VJNC,	"VJNC" },
+	{ PPP_OSI,	"OSI" },
+	{ PPP_LCP,	"LCP" },
+	{ PPP_IPCP,	"IPCP" },
+	{ 0,		NULL }
+};
 
-#include "interface.h"
+#define PPP_BSDI_HDRLEN 24
+
+/* BSD/OS specific PPP printer */
 void
-ppp_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+ppp_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h,
+	     register const u_char *p)
 {
-	error("not configured for ppp");
-	/* NOTREACHED */
+	register u_int length = h->len;
+	register u_int caplen = h->caplen;
+	register int hdrlength;
+	u_short ptype;
+
+	ts_print(&h->ts);
+
+	if (caplen < PPP_BSDI_HDRLEN) {
+		printf("[|ppp]");
+		goto out;
+	}
+
+	/*
+	 * Some printers want to get back at the link level addresses,
+	 * and/or check that they're not walking off the end of the packet.
+	 * Rather than pass them all the way down, we set these globals.
+	 */
+	packetp = p;
+	snapend = p + caplen;
+	hdrlength = 0;
+
+	if (p[0] == PPP_ADDRESS && p[1] == PPP_CONTROL) {
+		if (eflag) 
+			printf("%02x %02x ", p[0], p[1]);
+		p += 2;
+		hdrlength = 2;
+	}
+
+	if (eflag) 
+		printf("%d ", length);
+	/* Retrieve the protocol type */
+	if (*p & 01) {
+		/* Compressed protocol field */
+		ptype = *p;
+		if (eflag) 
+			printf("%02x ", ptype);
+		p++;
+		hdrlength += 1;
+	} else {
+		/* Un-compressed protocol field */
+		ptype = ntohs(*(u_short *)p);
+		if (eflag) 
+			printf("%04x ", ptype);
+		p += 2;
+		hdrlength += 2;
+	}
+  
+	length -= hdrlength;
+
+	if (ptype == PPP_IP)
+		ip_print(p, length);
+	else
+		printf("%s ", tok2str(ptype2str, "proto-#%d", ptype));
+
+	if (xflag)
+		default_print((const u_char *)p, caplen - hdrlength);
+out:
+	putchar('\n');
 }
-#endif

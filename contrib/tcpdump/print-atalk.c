@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-atalk.c,v 1.45 96/12/10 23:24:07 leres Exp $ (LBL)";
+    "@(#) $Header: print-atalk.c,v 1.48 97/05/28 12:50:58 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@ struct rtentry;
 #include "ethertype.h"
 #include "extract.h"			/* must come after interface.h */
 #include "appletalk.h"
+#include "savestr.h"
 
 static struct tok type2str[] = {
 	{ ddpRTMP,		"rtmp" },
@@ -412,11 +413,11 @@ print_cstring(register const char *cp, register const u_char *ep)
 	length = *cp++;
 
 	/* Spec says string can be at most 32 bytes long */
-	if (length < 0 || length > 32) {
-		(void)printf("[len=%d]", length);
+	if (length > 32) {
+		(void)printf("[len=%u]", length);
 		return (0);
 	}
-	while (--length >= 0) {
+	while ((int)--length >= 0) {
 		if (cp >= (char *)ep) {
 			fputs(tstr, stdout);
 			return (0);

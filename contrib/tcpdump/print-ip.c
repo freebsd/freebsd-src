@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-ip.c,v 1.62 96/12/10 23:20:31 leres Exp $ (LBL)";
+    "@(#) $Header: print-ip.c,v 1.66 97/05/28 12:51:43 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -37,6 +37,9 @@ static const char rcsid[] =
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -445,18 +448,15 @@ ip_print(register const u_char *bp, register u_int length)
 			igmp_print(cp, len, (const u_char *)ip);
 			break;
 
-#ifndef IPPROTO_IPIP
-#define IPPROTO_IPIP 4
-#endif
-		case IPPROTO_IPIP:
-			/* ip-in-ip encapsulation */
+		case 4:
+			/* DVMRP multicast tunnel (ip-in-ip encapsulation) */
 			if (vflag)
 				(void)printf("%s > %s: ",
 					     ipaddr_string(&ip->ip_src),
 					     ipaddr_string(&ip->ip_dst));
 			ip_print(cp, len);
 			if (! vflag) {
-				printf(" (encap)");
+				printf(" (ipip)");
 				return;
 			}
 			break;

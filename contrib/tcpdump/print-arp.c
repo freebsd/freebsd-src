@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-arp.c,v 1.41 96/10/27 14:54:50 leres Exp $ (LBL)";
+    "@(#) $Header: print-arp.c,v 1.43 97/06/15 13:20:27 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -38,6 +38,9 @@ struct rtentry;
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
+#ifdef HAVE_MEMORY_H
+#include <memory.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 

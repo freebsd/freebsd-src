@@ -9,14 +9,16 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: parsenfsfh.c,v 1.12 96/12/10 23:25:50 leres Exp $ (LBL)";
+    "@(#) $Header: parsenfsfh.c,v 1.14 97/06/15 13:20:27 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
 #include <sys/time.h>
 
 #include <ctype.h>
+#ifdef HAVE_MEMORY_H
 #include <memory.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -313,13 +315,14 @@ int ourself;		/* true if file handle was generated on this host */
 	    if (sizeof(*fsidp) >= 14) {
 		if (sizeof(*fsidp) > 14)
 		    memset((char *)fsidp, 0, sizeof(*fsidp));
-		memcpy((char *)fsidp, fh, 14);	/* just use the whole thing */
+		/* just use the whole thing */
+		memcpy((char *)fsidp, (char *)fh, 14);
 	    }
 	    else {
 		u_int32_t tempa[4];	/* at least 16 bytes, maybe more */
 
 		memset((char *)tempa, 0, sizeof(tempa));
-		memcpy((char *)tempa, fh, 14);	/* ensure alignment */
+		memcpy((char *)tempa, (char *)fh, 14); /* ensure alignment */
 		fsidp->Fsid_dev.Minor = tempa[0] + (tempa[1]<<1);
 		fsidp->Fsid_dev.Major = tempa[2] + (tempa[3]<<1);
 		fsidp->fsid_code = 0;

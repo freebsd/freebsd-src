@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-domain.c,v 1.37 96/12/10 23:21:06 leres Exp $ (LBL)";
+    "@(#) $Header: print-domain.c,v 1.39 97/06/13 12:56:28 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -44,8 +44,12 @@ struct rtentry;
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
+#ifdef NOERROR
 #undef NOERROR					/* Solaris sucks */
+#endif
+#ifdef NOERROR
 #undef T_UNSPEC					/* SINIX does too */
+#endif
 #include <arpa/nameser.h>
 
 #include <stdio.h>
@@ -216,6 +220,18 @@ static struct tok type2str[] = {
 	{ T_GPOS,	"GPOS" },
 	{ T_AAAA,	"AAAA" },
 	{ T_LOC ,	"LOC " },
+#ifndef T_UINFO
+#define T_UINFO 100
+#endif
+	{ T_UINFO,	"UINFO" },
+#ifndef T_UID
+#define T_UID 101
+#endif
+	{ T_UID,	"UID" },
+#ifndef T_GID
+#define T_GID 102
+#endif
+	{ T_GID,	"GID" },
 	{ T_UNSPEC,	"UNSPEC" },
 	{ T_UNSPECA,	"UNSPECA" },
 	{ T_AXFR,	"AXFR" },
