@@ -1357,8 +1357,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	} else if ((ke->ke_flags & KEF_ASSIGNED) == 0) {
 		/* We are ending our run so make our slot available again */
 		SLOT_RELEASE(td->td_ksegrp);
-		if (ke->ke_runq == NULL)
-			panic("Thread not on runq.");
 		kseq_load_rem(ksq, ke);
 		if (TD_IS_RUNNING(td)) {
 			/*
