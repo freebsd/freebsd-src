@@ -261,11 +261,13 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		warn("%s", mntpath);
 		return (1);
 	}
+	if (mntopts == NULL)
+		mntopts = "";
 
 	name = mntpath;
 
 	if (options == NULL) {
-		if (mntopts == NULL || *mntopts == '\0')
+		if (*mntopts == '\0')
 			options = "rw";
 		else
 			options = mntopts;
