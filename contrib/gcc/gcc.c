@@ -3268,7 +3268,7 @@ process_command (argc, argv)
     }
 
   GET_ENV_PATH_LIST (temp, LIBRARY_PATH_ENV);
-  if (temp)
+  if (temp && *cross_compile == '0')
     {
       const char *startp, *endp;
       char *nstore = (char *) alloca (strlen (temp) + 3);
@@ -6067,6 +6067,10 @@ main (argc, argv)
 		    concat (gcc_exec_prefix, machine_suffix,
 			    standard_startfile_prefix, NULL),
 		    "BINUTILS", PREFIX_PRIORITY_LAST, 0, NULL);
+#ifdef CROSS_STARTFILE_PREFIX
+	add_prefix (&startfile_prefixes, CROSS_STARTFILE_PREFIX, "BINUTILS",
+		    0, 0, NULL_PTR);
+#endif
     }
 
   /* Process any user specified specs in the order given on the command
