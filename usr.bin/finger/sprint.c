@@ -60,7 +60,7 @@ sflag_print()
 	register PERSON *pn;
 	register WHERE *w;
 	register int sflag, r;
-	register char *p;
+	char p[80];
 	DBT data, key;
 
 	/*
@@ -115,7 +115,7 @@ sflag_print()
 				(void)printf("  ");
 			} else
 				(void)printf("    *  ");
-			p = ctime(&w->loginat);
+			strftime(p, sizeof(p), "%c", localtime(&w->loginat));
 #define SECSPERDAY 86400
 #define DAYSPERWEEK 7
 #define DAYSPERNYEAR 365
