@@ -27,14 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.h,v 1.10 1994/06/15 22:40:46 rich Exp $
+ *	$Id: md.h,v 1.11 1994/12/23 22:31:14 nate Exp $
  */
 
 
 #if defined(CROSS_LINKER) && defined(XHOST) && XHOST==sparc
-
 #define NEED_SWAP
-
 #endif
 
 #define	MAX_ALIGNMENT		(sizeof (long))
@@ -144,6 +142,34 @@ typedef struct jmpslot {
 
 #ifdef CROSS_LINKER
 
+#define get_byte(p)	( ((unsigned char *)(p))[0] )
+
+#define get_short(p)	( ( ((unsigned char *)(p))[0] << 8) | \
+			  ( ((unsigned char *)(p))[1]     )   \
+			)
+
+#define get_long(p)	( ( ((unsigned char *)(p))[0] << 24) | \
+			  ( ((unsigned char *)(p))[1] << 16) | \
+			  ( ((unsigned char *)(p))[2] << 8 ) | \
+			  ( ((unsigned char *)(p))[3]      )   \
+			)
+
+#define put_byte(p, v)	{ ((unsigned char *)(p))[0] = ((unsigned long)(v)); }
+
+#define put_short(p, v)	{ ((unsigned char *)(p))[0] =			\
+				((((unsigned long)(v)) >> 8) & 0xff); 	\
+			  ((unsigned char *)(p))[1] =			\
+				((((unsigned long)(v))     ) & 0xff); }
+
+#define put_long(p, v)	{ ((unsigned char *)(p))[0] =			\
+				((((unsigned long)(v)) >> 24) & 0xff); 	\
+			  ((unsigned char *)(p))[1] =			\
+				((((unsigned long)(v)) >> 16) & 0xff); 	\
+			  ((unsigned char *)(p))[2] =			\
+				((((unsigned long)(v)) >>  8) & 0xff); 	\
+			  ((unsigned char *)(p))[3] =			\
+				((((unsigned long)(v))      ) & 0xff); }
+
 #ifdef NEED_SWAP
 
 /* Define IO byte swapping routines */
@@ -177,66 +203,10 @@ void	md_swapout_jmpslot __P((jmpslot_t *, int));
 #define md_swap_long(x) ( (((x) >> 24) & 0xff    ) | (((x) >> 8 ) & 0xff00   ) | \
 			(((x) << 8 ) & 0xff0000) | (((x) << 24) & 0xff000000))
 
-#define get_byte(p)	( ((unsigned char *)(p))[0] )
-
-#define get_short(p)	( ( ((unsigned char *)(p))[1] << 8) | \
-			  ( ((unsigned char *)(p))[0]     )   \
-			)
-#define get_long(p)	( ( ((unsigned char *)(p))[3] << 24) | \
-			  ( ((unsigned char *)(p))[2] << 16) | \
-			  ( ((unsigned char *)(p))[1] << 8 ) | \
-			  ( ((unsigned char *)(p))[0]      )   \
-			)
-
-#define put_byte(p, v)	{ ((unsigned char *)(p))[0] = ((unsigned long)(v)); }
-
-#define put_short(p, v)	{ ((unsigned char *)(p))[1] =			\
-				((((unsigned long)(v)) >> 8) & 0xff); 	\
-			  ((unsigned char *)(p))[0] =			\
-				((((unsigned long)(v))     ) & 0xff); }
-
-#define put_long(p, v)	{ ((unsigned char *)(p))[3] =			\
-				((((unsigned long)(v)) >> 24) & 0xff); 	\
-			  ((unsigned char *)(p))[2] =			\
-				((((unsigned long)(v)) >> 16) & 0xff); 	\
-			  ((unsigned char *)(p))[1] =			\
-				((((unsigned long)(v)) >>  8) & 0xff); 	\
-			  ((unsigned char *)(p))[0] =			\
-				((((unsigned long)(v))      ) & 0xff); }
-
 #else	/* We need not swap, but must pay attention to alignment: */
 
 #define md_swap_short(x)	(x)
 #define md_swap_long(x)		(x)
-
-#define get_byte(p)	( ((unsigned char *)(p))[0] )
-
-#define get_short(p)	( ( ((unsigned char *)(p))[0] << 8) | \
-			  ( ((unsigned char *)(p))[1]     )   \
-			)
-
-#define get_long(p)	( ( ((unsigned char *)(p))[0] << 24) | \
-			  ( ((unsigned char *)(p))[1] << 16) | \
-			  ( ((unsigned char *)(p))[2] << 8 ) | \
-			  ( ((unsigned char *)(p))[3]      )   \
-			)
-
-
-#define put_byte(p, v)	{ ((unsigned char *)(p))[0] = ((unsigned long)(v)); }
-
-#define put_short(p, v)	{ ((unsigned char *)(p))[0] =			\
-				((((unsigned long)(v)) >> 8) & 0xff); 	\
-			  ((unsigned char *)(p))[1] =			\
-				((((unsigned long)(v))     ) & 0xff); }
-
-#define put_long(p, v)	{ ((unsigned char *)(p))[0] =			\
-				((((unsigned long)(v)) >> 24) & 0xff); 	\
-			  ((unsigned char *)(p))[1] =			\
-				((((unsigned long)(v)) >> 16) & 0xff); 	\
-			  ((unsigned char *)(p))[2] =			\
-				((((unsigned long)(v)) >>  8) & 0xff); 	\
-			  ((unsigned char *)(p))[3] =			\
-				((((unsigned long)(v))      ) & 0xff); }
 
 #endif /* NEED_SWAP */
 
@@ -254,4 +224,3 @@ void	md_swapout_jmpslot __P((jmpslot_t *, int));
 #define put_long(where,what)		(*(long *)(where) = (what))
 
 #endif /* CROSS_LINKER */
-

@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.10 1994/06/15 22:39:49 rich Exp $	- library routines
+ * $Id: lib.c,v 1.11 1994/12/23 22:30:45 nate Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -260,6 +260,12 @@ symdef_library(fd, entry, member_length)
 			 * be satisfied are 'common' references.  This
 			 * prevents some problems with name pollution (e.g. a
 			 * global common 'utime' linked to a function).
+			 *
+			 * If we're not forcing the archive in then we don't
+			 * need to bother if: we've never heard of the symbol,
+			 * or if it is already defined. The last clause causes
+			 * archive members to be searched for definitions
+			 * satisfying undefined shared object symbols.
 			 */
 			if (!(link_mode & FORCEARCHIVE) &&
 				(!sp || sp->defined ||
@@ -501,6 +507,9 @@ subfile_wanted_p(entry)
 				sp->defined = type;
 				continue;
 			}
+			if (sp->flags & GS_WEAK)
+				/* Weak symbols don't pull archive members */
+				continue;
 			if (write_map) {
 				print_file_name(entry, stdout);
 				fprintf(stdout, " needed due to %s\n", sp->name);
@@ -542,8 +551,19 @@ subfile_wanted_p(entry)
 					 * a common; ignore it.
 					 */
 					continue;
+
+				if (N_ISWEAK(&lsp->nzlist.nlist))
+					/* Weak symbols don't pull archive members */
+					continue;
 			}
 
+			/*
+			 * At this point, either the new symbol is a common
+			 * and the shared object reference is undefined --
+			 * in which case we note the common -- or the shared
+			 * object reference has a definition -- in which case
+			 * the library member takes precedence.
+			 */
 			if (iscommon) {
 				/*
 				 * New symbol is common, just takes its
@@ -565,8 +585,9 @@ subfile_wanted_p(entry)
 			if (write_map) {
 				print_file_name(entry, stdout);
 				fprintf(stdout,
-					" needed due to shared lib ref %s\n",
-					sp->name);
+					" needed due to shared lib ref %s (%d)\n",
+					sp->name,
+					lsp ? lsp->nzlist.nlist.n_type : -1);
 			}
 			return 1;
 		}
