@@ -149,8 +149,8 @@ raid3_label(struct gctl_req *req)
 	char param[16];
 	int *hardcode, *nargs, *noautosync, *round_robin, *verify;
 	int error, i;
-	unsigned sectorsize;
-	off_t mediasize;
+	unsigned sectorsize, ssize;
+	off_t mediasize, msize;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -222,9 +222,6 @@ raid3_label(struct gctl_req *req)
 	mediasize = 0;
 	sectorsize = 0;
 	for (i = 1; i < *nargs; i++) {
-		unsigned ssize;
-		off_t msize;
-
 		snprintf(param, sizeof(param), "arg%u", i);
 		str = gctl_get_asciiparam(req, param);
 
@@ -267,6 +264,13 @@ raid3_label(struct gctl_req *req)
 	for (i = 1; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		str = gctl_get_asciiparam(req, param);
+
+		msize = g_get_mediasize(str) - g_get_sectorsize(str);
+		if (mediasize < msize) {
+			fprintf(stderr,
+			    "warning: %s: only %jd bytes from %jd bytes used.\n",
+			    str, (intmax_t)mediasize, (intmax_t)msize);
+		}
 
 		md.md_no = i - 1;
 		if (!*hardcode)
