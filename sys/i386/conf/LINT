@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.131 1995/01/26 11:00:12 ache Exp $
+#	$Id: LINT,v 1.132 1995/01/27 07:48:59 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -360,6 +360,7 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 options		HARDFONTS
 #
 # MAXCONS is maximum number of virtual consoles, no more than 16
+# default value: 12
 #
 options         "MAXCONS=16"
 
