@@ -82,7 +82,7 @@ cat << \__EOF
 .Nm lint
 .Nd Lint error message list
 .Sh DESCRIPTION
-The following is a list of message id's and messages produced by
+The following is a list of message IDs and messages produced by
 .Xr lint 1 .
 It is intended to be used with
 .Fl X
@@ -90,5 +90,5 @@ flag of
 .Xr lint 1 .
 .Bl -column -offset indent "Id#" "Message"
 __EOF
-"$@" | sed -e 's/^/.It /' -e 's/\\/\\e/g' -e "s/'/\\'/"
+"$@" | sed -e 's/\\/\\e/g' -e "s/'/\\'/"
 echo ".El"
