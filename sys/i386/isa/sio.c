@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sio.c	7.5 (Berkeley) 5/16/91
+ *	From:
+ *	@(#)com.c	7.5 (Berkeley) 5/16/91
  *
  * 27 May 93	Bruce Evans		From com-0.2 package, fast interrupt
  *					com port driver.
@@ -40,7 +41,7 @@
  *					into the patch kit.  Added in sioselect
  *					from com.c.  Added port 4 support.
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/sio.c,v 1.1.1.1 1993/06/12 14:57:57 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/sio.c,v 1.2 1993/07/15 17:53:12 davidg Exp $";
 
 #include "sio.h"
 #if NSIO > 0
