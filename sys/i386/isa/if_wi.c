@@ -66,6 +66,8 @@
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 #define WICACHE			/* turn on signal strength cache code */  
 
+#include "pci.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -87,8 +89,10 @@
 #include <machine/bus_pio.h>
 #include <sys/rman.h>
 
+#if NPCI > 0
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -152,9 +156,11 @@ void wi_cache_store __P((struct wi_softc *, struct ether_header *,
 
 static int wi_generic_attach	__P((device_t));
 static int wi_pccard_probe	__P((device_t));
-static int wi_pci_probe		__P((device_t));
 static int wi_pccard_attach	__P((device_t));
+#if NPCI > 0
+static int wi_pci_probe		__P((device_t));
 static int wi_pci_attach	__P((device_t));
+#endif
 static int wi_pccard_detach	__P((device_t));
 static void wi_shutdown		__P((device_t));
 
@@ -175,6 +181,7 @@ static device_method_t wi_pccard_methods[] = {
 	{ 0, 0 }
 };
 
+#if NPCI > 0
 static device_method_t wi_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		wi_pci_probe),
@@ -184,6 +191,7 @@ static device_method_t wi_pci_methods[] = {
 
 	{ 0, 0 }
 };
+#endif
 
 static driver_t wi_pccard_driver = {
 	"wi",
@@ -191,6 +199,7 @@ static driver_t wi_pccard_driver = {
 	sizeof(struct wi_softc)
 };
 
+#if NPCI > 0
 static driver_t wi_pci_driver = {
 	"wi",
 	wi_pci_methods,
@@ -205,12 +214,14 @@ static struct {
 	{0x1385, 0x4100,	"Netgear MA301 PCI IEEE 802.11b"},
 	{0,	 0,	NULL}
 };
+#endif
 
-static devclass_t wi_pccard_devclass;
-static devclass_t wi_pci_devclass;
+static devclass_t wi_devclass;
 
-DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_pccard_devclass, 0, 0);
-DRIVER_MODULE(if_wi, pci, wi_pci_driver, wi_pci_devclass, 0, 0);
+DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_devclass, 0, 0);
+#if NPCI > 0
+DRIVER_MODULE(if_wi, pci, wi_pci_driver, wi_devclass, 0, 0);
+#endif
 
 static char wi_device_desc[] = "WaveLAN/IEEE 802.11";
 
@@ -237,6 +248,7 @@ static int wi_pccard_probe(dev)
 	return (0);
 }
 
+#if NPCI > 0
 static int
 wi_pci_probe(dev)
 	device_t	dev;
@@ -255,6 +267,7 @@ wi_pci_probe(dev)
 	}
 	return(ENXIO);
 }
+#endif
 
 static int wi_pccard_detach(dev)
 	device_t		dev;
@@ -327,6 +340,7 @@ static int wi_pccard_attach(device_t dev)
 	return (wi_generic_attach(dev));
 }
 
+#if NPCI > 0
 static int
 wi_pci_attach(device_t dev)
 {
@@ -412,6 +426,7 @@ wi_pci_attach(device_t dev)
 
 	return (0);
 }
+#endif
 
 static int
 wi_generic_attach(device_t dev)
