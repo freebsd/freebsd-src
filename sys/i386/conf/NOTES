@@ -236,6 +236,7 @@ options 	CLK_USE_TSC_CALIBRATION
 
 device		speaker		#Play IBM BASIC-style noises out your speaker
 device		gzip		#Exec gzipped a.out's. REQUIRES COMPAT_AOUT!
+device		apm_saver	# Requires APM
 
 
 #####################################################################
@@ -757,6 +758,15 @@ options 	COMPAQ_M610
 # PCI bus Cards:
 # --------------
 #
+# Cyclades Cyclom-Y PCI serial driver
+device		cy	1
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+hint.cy.0.at="isa"
+hint.cy.0.irq="10"
+hint.cy.0.maddr="0xd4000"
+hint.cy.0.msize="0x2000"
+#
+#---------------------------------------------------------------------------
 # ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 options 	ELSA_QS1PCI
 #
