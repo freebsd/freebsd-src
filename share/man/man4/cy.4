@@ -35,39 +35,39 @@
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\"	from: sio.4,v 1.16 1995/06/26 06:05:30 bde Exp $
-.\"	$Id$
+.\"	$Id: cy.4,v 1.6 1997/02/22 13:25:15 peter Exp $
 .\"
 .Dd October 10, 1995
 .Dt CY 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm cy
-.Nd Cyclades Cyclom-8Y and Cyclom-16Y serial driver
+.Nd Cyclades Cyclom-Y serial driver
 .Sh SYNOPSIS
 .Cd "device cy0 at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 .Cd "device cy1 at isa? tty irq 11 iomem 0xd6000 iosiz 0x2000 vector cyintr
 .Pp
 Minor numbering:
-..Pp
+.Pp
 .Bd -literal
-0b\fIOLIMMMMM\fR
-  call\fBO\fRut
-   \fBL\fRock
-    \fBI\fRnitial
-     \fBMMMMMM\fRinor
+0b\fIMMMMMMMMMMMMMMMMxxxxxxxxOLIMMMMM\fR
+                          call\fBO\fRut
+                           \fBL\fRock
+                            \fBI\fRnitial
+  \fBMMMMMMMMMMMMMMMM           MMMMMM\fRinor
 .Ed
 .Sh DESCRIPTION
 The
 .Nm cy
-driver provides support for Cyrix CD1400-based
+driver provides support for Cirrus Logic CD1400-based
 .Tn EIA
 .Tn RS-232C
 .Pf ( Tn CCITT
 .Tn V.24 )
 communications interfaces (ports) on Cyclades Cyclom-Y boards.
 Each CD1400 provides 4 ports.
-Each Cyclom-8Y has 2 CD1400's giving 8 ports.
-Each Cyclom-16Y's has 4 CD1400's giving 16 ports.
+Cyclom-Y boards with various numbers of CD1400's are available.
+This driver supports up to 8 CD1400's (32 ports) per board.
 .Pp
 Input and output for each line may set independently
 to the following speeds:
@@ -144,34 +144,32 @@ CLOCAL flag on callin ports should be locked off for logins
 to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.
 .Sh FILES
-.Bl -tag -width /dev/ttyic? -compact
-.\" XXX more cloning: s/d/c/g.
-.It Pa /dev/ttyc?
+.\" XXX more cloning: s/d/c/g and add a ? for the card number.
+.Bl -tag -width /dev/ttyic?? -compact
+.It Pa /dev/ttyc??
 for callin ports
-.It Pa /dev/ttyic?
-.It Pa /dev/ttylc?
+.It Pa /dev/ttyic??
+.It Pa /dev/ttylc??
 corresponding callin initial-state and lock-state devices
 .Pp
 .\" XXX more cloning: s/a/c/g.  No consistency :-(.
-.It Pa /dev/cuac?
+.It Pa /dev/cuac??
 for callout ports
-.It Pa /dev/cuaic?
-.It Pa /dev/cualc?
+.It Pa /dev/cuaic??
+.It Pa /dev/cualc??
 corresponding callout initial-state and lock-state devices
 .El
 .Pp
 .Bl -tag -width /etc/rc.serial -compact
 .It Pa /etc/rc.serial
 examples of setting the initial-state and lock-state devices
-.\" XXX no examples in rc.serial for cy ports specifically.
-for sio ports (change the device names for cy ports)
 .El
 .Pp
-The devices numbers are made from the set [0-9a-v] so that more than
-10 ports can be supported.
-.\" XXX this is for cy only.
-[0-9a-f] are for the cy0 and [g-v] are for cy1.
-For Cyclom-8Y's, only the first 8 of these are used.
+The first question mark in these device names is short for the
+card number
+(a decimal number between 0 and 65535 inclusive).
+The second question mark is short for the port number
+(a letter in the range [0-9a-v]).
 .Sh DIAGNOSTICS
 .Bl -diag
 .\" XXX back to s/sio/cy/g.
@@ -196,7 +194,8 @@ and some has been lost.
 .Xr stty 1 ,
 .Xr termios 4 ,
 .Xr tty 4 ,
-.Xr comcontrol 8
+.Xr comcontrol 8 ,
+.Xr pstat 8
 .Sh HISTORY
 The
 .Nm
@@ -207,9 +206,6 @@ driver and the NetBSD
 driver and is
 .Ud
 .Sh BUGS
-The naming scheme and the minor numbering scheme limit the number
-of ports to 32.
-.Pp
 BREAK is not yet implemented.
 .Pp
 Serial consoles are not implemented.
