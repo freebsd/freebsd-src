@@ -46,13 +46,18 @@ static char sccsid[] = "@(#)sccs.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/dir.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include <sysexits.h>
+#include <dirent.h>
 #include <errno.h>
+#include "pathnames.h"
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
-#include "pathnames.h"
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 /*
 **  SCCS.C -- human-oriented front end to the SCCS system.
@@ -152,11 +157,11 @@ static char sccsid[] = "@(#)sccs.c	8.1 (Berkeley) 6/6/93";
 
 # ifndef SCCSPATH
 # define SCCSPATH	"SCCS"	/* pathname in which to find s-files */
-# endif NOT SCCSPATH
+# endif /* NOT SCCSPATH */
 
 # ifndef MYNAME
 # define MYNAME		"sccs"	/* name used for printing errors */
-# endif NOT MYNAME
+# endif /* NOT MYNAME */
 
 /****************  End of Configuration Information  ****************/
 
@@ -268,7 +273,7 @@ bool	Debug;			/* turn on tracing */
 # endif
 # ifndef V6
 extern char	*getenv();
-# endif V6
+# endif /* V6 */
 
 char *gstrcat(), *strcat();
 char *gstrncat(), *strncat();
@@ -318,8 +323,8 @@ main(argc, argv)
 			SccsDir = buf;
 		}
 	}
-# endif SCCSDIR
-# endif V6
+# endif /* SCCSDIR */
+# endif /* V6 */
 
 	/*
 	**  Detect and decode flags intended for this program.
@@ -977,7 +982,7 @@ clean(mode, argv)
 	int mode;
 	char **argv;
 {
-	struct direct *dir;
+	struct dirent *dir;
 	char buf[FBUFSIZ];
 	char *bufend;
 	register DIR *dirp;
@@ -1578,7 +1583,7 @@ username()
 	if (p == NULL || p[0] == '\0')
 		p = getlogin();
 	return (p);
-# endif UIDUSER
+# endif /* UIDUSER */
 }
 
 /*
