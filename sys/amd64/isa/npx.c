@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.68 1999/05/06 09:44:55 bde Exp $
+ *	$Id: npx.c,v 1.69 1999/05/06 12:47:21 peter Exp $
  */
 
 #include "npx.h"
@@ -390,7 +390,9 @@ int
 npx_attach(dev)
 	device_t dev;
 {
+#ifdef I586_CPU
 	int flags;
+#endif
 
 	device_print_prettyname(dev);
 	if (npx_irq13) {
