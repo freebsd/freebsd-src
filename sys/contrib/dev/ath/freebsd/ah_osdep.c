@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting, Atheros
+ * Copyright (c) 2002-2004 Sam Leffler, Errno Consulting, Atheros
  * Communications, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_osdep.c,v 1.28 2003/11/01 01:43:21 sam Exp $
+ * $Id: ah_osdep.c,v 1.35 2004/10/25 01:02:50 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -73,9 +73,10 @@ SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD, 0, "Atheros driver parameters");
 SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0, "Atheros HAL parameters");
 
 #ifdef AH_DEBUG
-static	int ath_hal_debug = 0;		/* XXX */
+static	int ath_hal_debug = 0;
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 	    0, "Atheros HAL debugging printfs");
+TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 #endif /* AH_DEBUG */
 
 SYSCTL_STRING(_hw_ath_hal, OID_AUTO, version, CTLFLAG_RD, ath_hal_version, 0,
@@ -367,6 +368,18 @@ ath_hal_getuptime(struct ath_hal *ah)
 		(((uint64_t)1000 * (uint32_t)(bt.frac >> 32)) >> 32);
 }
 
+void
+ath_hal_memzero(void *dst, size_t n)
+{
+	bzero(dst, n);
+}
+
+void *
+ath_hal_memcpy(void *dst, const void *src, size_t n)
+{
+	return memcpy(dst, src, n);
+}
+
 /*
  * Module glue.
  */
@@ -374,11 +387,18 @@ ath_hal_getuptime(struct ath_hal *ah)
 static int
 ath_hal_modevent(module_t mod, int type, void *unused)
 {
+	const char *sep;
+	int i;
+
 	switch (type) {
 	case MOD_LOAD:
-		if (bootverbose)
-			printf("ath_hal: <Atheros Hardware Access Layer>"
-				"version %s\n", ath_hal_version);
+		printf("ath_hal: %s (", ath_hal_version);
+		sep = "";
+		for (i = 0; ath_hal_buildopts[i] != NULL; i++) {
+			printf("%s%s", sep, ath_hal_buildopts[i]);
+			sep = ", ";
+		}
+		printf(")\n");
 		return 0;
 	case MOD_UNLOAD:
 		return 0;
