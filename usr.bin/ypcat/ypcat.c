@@ -27,15 +27,18 @@
  * SUCH DAMAGE.
  */
 
-#ifndef LINT
-static char rcsid[] = "ypcat.c,v 1.2 1993/05/16 02:49:01 deraadt Exp";
-#endif
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
@@ -58,14 +61,16 @@ struct ypalias {
 
 int key;
 
+static void
 usage()
 {
-	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\typcat [-k] [-d domainname] [-t] mapname\n");
-	fprintf(stderr, "\typcat -x\n");
+	fprintf(stderr, "%s\n%s\n",
+		"usage: ypcat [-k] [-d domainname] [-t] mapname",
+		"       ypcat -x");
 	exit(1);
 }
 
+int
 printit(instatus, inkey, inkeylen, inval, invallen, indata)
 int instatus;
 char *inkey;
@@ -86,16 +91,13 @@ int
 main(argc, argv)
 char **argv;
 {
-	char *domainname;
+	char *domainname = NULL;
 	struct ypall_callback ypcb;
 	char *inmap;
-	extern char *optarg;
-	extern int optind;
 	int notrans;
 	int c, r, i;
 
 	notrans = key = 0;
-	yp_get_default_domain(&domainname);
 
 	while( (c=getopt(argc, argv, "xd:kt")) != -1)
 		switch(c) {
@@ -121,6 +123,9 @@ char **argv;
 	if(optind + 1 != argc )
 		usage();
 
+	if (!domainname)
+		yp_get_default_domain(&domainname);
+
 	inmap = argv[optind];
 	for(i=0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 		if( strcmp(inmap, ypaliases[i].alias) == 0)
@@ -133,12 +138,9 @@ char **argv;
 	case 0:
 		break;
 	case YPERR_YPBIND:
-		fprintf(stderr, "ypcat: not running ypbind\n");
-		exit(1);
+		errx(1, "not running ypbind");
 	default:
-		fprintf(stderr, "No such map %s. Reason: %s\n",
-			inmap, yperr_string(r));
-		exit(1);
+		errx(1, "no such map %s. reason: %s", inmap, yperr_string(r));
 	}
 	exit(0);
 }
