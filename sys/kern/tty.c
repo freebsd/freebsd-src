@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.11 1994/10/15 17:59:02 ache Exp $
+ * $Id: tty.c,v 1.12 1994/10/23 06:18:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1597,7 +1597,7 @@ loop:
 						error = ttysleep(tp, &lbolt,
 						    TTOPRI | PCATCH, ttybuf, 0);
 						if (error)
-							break;
+							goto out;
 						goto loop;
 					}
 					cp++;
@@ -1628,7 +1628,7 @@ loop:
 				error = ttysleep(tp,
 				    &lbolt, TTOPRI | PCATCH, ttybuf, 0);
 				if (error)
-					break;
+					goto out;
 				goto loop;
 			}
 			if (ISSET(tp->t_lflag, FLUSHO) ||
