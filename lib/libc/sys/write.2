@@ -36,7 +36,8 @@
 .Os BSD 4
 .Sh NAME
 .Nm write ,
-.Nm writev
+.Nm writev ,
+.Nm pwrite
 .Nd write output
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
@@ -46,6 +47,8 @@
 .Fn write "int d" "const void *buf" "size_t nbytes"
 .Ft ssize_t
 .Fn writev "int d" "const struct iovec *iov" "int iovcnt"
+.Ft ssize_t
+.Fn pwrite "int d" "const void *buf" "size_t nbytes" "off_t offset"
 .Sh DESCRIPTION
 .Fn Write
 attempts to write
@@ -61,6 +64,9 @@ from the
 buffers specified by the members of the
 .Fa iov
 array: iov[0], iov[1], ..., iov[iovcnt\|-\|1].
+.Fn Pwrite
+performs the same function, but writes to the specified position in
+the file without modifying the file pointer.
 .Pp
 For 
 .Fn writev ,
@@ -168,9 +174,10 @@ is returned.  Otherwise a -1 is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Write
+.Fn Write ,
+.Fn writev ,
 and
-.Fn writev
+.Fn pwrite
 will fail and the file pointer will remain unchanged if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -235,6 +242,16 @@ values in the
 .Fa iov
 array overflowed a 32-bit integer.
 .El
+.Pp
+The
+.Fn pwrite
+call may also return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified file offset is invalid.
+.It Bq Er ESPIPE
+The file descriptor is associated with a pipe, socket, or FIFO.
+.El
 .Sh SEE ALSO
 .Xr fcntl 2 ,
 .Xr lseek 2 ,
@@ -246,7 +263,18 @@ The
 .Fn write
 function call is expected to conform to 
 .St -p1003.1-90 .
+The
+.Fn writev
+and
+.Fn pwrite
+functions are expected to conform to
+.St -xpg4.2 .
 .Sh HISTORY
+The
+.Fn pwrite
+function call
+appeared in
+.At V.4 .
 The
 .Fn writev
 function call

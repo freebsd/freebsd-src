@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.56 1998/11/05 14:43:29 dg Exp $
+#	$Id: Makefile.inc,v 1.57 1998/11/24 08:15:08 jkoshy Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -16,9 +16,9 @@
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc"
 
 # Sources common to both syscall interfaces:
-SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
+SRCS+=	ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
 
-# Build __error() into libc, but not libc_r which has it's own:
+# Build __error() into libc, but not libc_r which has its own:
 .if ${LIB} == "c"
 SRCS+=	__error.c
 .endif
@@ -122,7 +122,7 @@ MLINKS+=lseek.2 seek.2
 MLINKS+=mlock.2 munlock.2
 MLINKS+=mount.2 unmount.2
 MLINKS+=pathconf.2 fpathconf.2
-MLINKS+=read.2 readv.2
+MLINKS+=read.2 pread.2 read.2 readv.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
 MLINKS+=send.2 sendmsg.2 send.2 sendto.2
 MLINKS+=setpgid.2 setpgrp.2
@@ -133,7 +133,7 @@ MLINKS+=statfs.2 fstatfs.2
 MLINKS+=syscall.2 __syscall.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
-MLINKS+=write.2 writev.2
+MLINKS+=write.2 pwrite.2 write.2 writev.2
 .if !defined(NO_P1003_1B)
 MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2
