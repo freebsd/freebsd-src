@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.112 2001/11/21 02:38:35 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.113 2001/11/21 02:39:31 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1709,6 +1709,10 @@ ohci_device_request(usbd_xfer_handle xfer)
 		usb_delay_ms(&sc->sc_bus, 5);
 		DPRINTF(("ohci_device_request: status=%x\n",
 			 OREAD4(sc, OHCI_COMMAND_STATUS)));
+		ohci_dumpregs(sc);
+		printf("ctrl head:\n");
+		ohci_dump_ed(sc->sc_ctrl_head);
+		printf("sed:\n");
 		ohci_dump_ed(sed);
 		ohci_dump_tds(setup);
 	}
@@ -1730,6 +1734,8 @@ ohci_device_request(usbd_xfer_handle xfer)
 void
 ohci_add_ed(ohci_soft_ed_t *sed, ohci_soft_ed_t *head)
 {
+	DPRINTFN(8,("ohci_add_ed: sed=%p head=%p\n", sed, head));
+
 	SPLUSBCHECK;
 	sed->next = head->next;
 	sed->ed.ed_nexted = head->ed.ed_nexted;
