@@ -191,11 +191,15 @@ p4tcc_profile_sysctl(SYSCTL_HANDLER_ARGS)
 static void
 setup_p4tcc(void *dummy __unused)
 {
+	int nsteps, i;
+        static char p4tcc_levels[(3 * TCC_LEVELS) + 1];
+        char buf[4 + 1];
 
 	if ((cpu_feature & (CPUID_ACPI | CPUID_TM)) !=
 	    (CPUID_ACPI | CPUID_TM))
 		return;
 
+	nsteps = TCC_LEVELS;
 	switch (cpu_id & 0xf) {
 	case 0x22:	/* errata O50 P44 and Z21 */
 	case 0x24:
@@ -204,6 +208,7 @@ setup_p4tcc(void *dummy __unused)
 	case 0x29:
 		/* hang with 12.5 */
 		tcc[TCC_LEVELS - 1] = tcc[TCC_LEVELS - 2];
+		nsteps -= 1;
 		break;
 	case 0x07:	/* errata N44 and P18 */
 	case 0x0a:
@@ -211,16 +216,24 @@ setup_p4tcc(void *dummy __unused)
 	case 0x13:
 		/* hang at 12.5 and 25 */
 		tcc[TCC_LEVELS - 1] = tcc[TCC_LEVELS - 2] = tcc[TCC_LEVELS - 3];
+		nsteps -= 2;
 		break;
 	default:
 		break;
+	}
+
+	p4tcc_levels[0] = '\0';
+	for (i = nsteps; i > 0; i--) {
+	    sprintf(buf, "%d%s", tcc[i - 1].rlevel, (i != 1) ? " " : "");
+	    strcat(p4tcc_levels, buf);
 	}
 
 	p4tcc_economy = tcc[TCC_LEVELS - 1].rlevel;
 	p4tcc_performance = tcc[0].rlevel;
 
 	p4tcc_percentage = p4tcc_getperf();
-	printf("Pentium 4 TCC support enabled, current performance %u%%\n",
+	printf("Pentium 4 TCC support enabled, %d steps from 100%% to %d%%, "
+	    "current performance %u%%\n", nsteps, p4tcc_economy,
 	    p4tcc_percentage);
 
 	sysctl_ctx_init(&p4tcc_sysctl_ctx);
@@ -242,6 +255,11 @@ setup_p4tcc(void *dummy __unused)
 	    "cpuperf_economy", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
 	    &p4tcc_economy, 0, p4tcc_profile_sysctl, "I",
 	    "CPU performance in % of maximum in Economy mode");
+	SYSCTL_ADD_STRING(&p4tcc_sysctl_ctx,
+	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
+	    "cpuperf_levels", CTLFLAG_RD, p4tcc_levels, 0,
+	    "Perormance levels supported by the Pentium 4 Thermal Control "
+	    "Circuitry");
 
 	/* register performance profile change handler */
 	EVENTHANDLER_REGISTER(power_profile_change, p4tcc_power_profile, NULL, 0);
