@@ -1,4 +1,4 @@
-<!-- $Id:$ -->
+<!-- $Id: nutshell.sgml,v 1.1 1995/05/11 02:03:38 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>FreeBSD in a nutshell</heading>
@@ -36,7 +36,7 @@
 	BSDI, NetBSD, and 386BSD.</item>
       <item>Hundreds of <bf>ready-to-run</bf> applications are
 	available from the
-	FreeBSD <bf>ports and packages</bf>
+	FreeBSD <bf>ports</bf> and <bf>packages</bf>
 	collection.  Why search the net when you can find it all
 	right here?</item>
       <item>Thousands of additional and <bf>easy-to-port</bf> applications
