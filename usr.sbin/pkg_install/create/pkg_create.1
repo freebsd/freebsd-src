@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.24 1998/03/23 08:27:14 charnier Exp $	
+.\"	$Id: pkg_create.1,v 1.25 1998/05/24 03:11:17 steve Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -358,6 +358,40 @@ installed, and this package must be deinstalled before the
 package is deinstalled.  Multiple
 .Cm @pkgdep
 directives may be used if the package depends on multiple other packages.
+.El
+.Sh ENVIRONMENT
+The environment variable
+.Ev PKG_TMPDIR
+names the directory where
+.Nm
+will attempt to create its temporary files.  
+If
+.Ev PKG_TMPDIR
+is not set, 
+the directory named by the contents of
+.Ev TMPDIR 
+will be used.
+If neither of 
+.Ev PKG_TMPDIR
+and
+.Ev TMPDIR
+are set, the builtin defaults are used.
+.Sh FILES
+.Bl -tag -width /usr/tmp -compact
+.It Pa /var/tmp
+Temporary directory if environmental variables
+.Ev PKG_TMPDIR 
+and
+.Ev TMPDIR
+are not set.
+.It Pa /tmp
+The next choice if 
+.Pa /var/tmp
+does not exist.
+.It Pa /usr/tmp
+The last choice if 
+.Pa /tmp
+is unsuitable.
 .El
 .Sh SEE ALSO
 .Xr pkg_add 1 ,
