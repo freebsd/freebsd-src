@@ -1,0 +1,78 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 26, 2003 
+.Dt ARL 4
+.Os
+.Sh NAME
+.Nm arl
+.Nd "Aironet Arlan 655 wireless network adapter driver"
+.Sh SYNOPSIS
+.Cd "device arl"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Aironet Arlan 655 
+wireless network adapter.
+The Arlan 655 series adapters operate at 354kbps, 512kbps, 1Mbps and 2Mbps.
+.Pp
+The Aironet Arlan 655 devices support Aironet TMA, Aironet Non-TMA 
+and PSP operating modes.
+.Pp
+By default, the
+.Nm
+driver configures the Aironet Aironet 655 card for TMA operation.
+.Pp
+For setup Radio Network parameters use 
+.Xr arlconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr arlconfig 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+The
+.Nm
+driver initally was written by
+.An Ivan Sharov Aq ivan.sharov@iname.com .
+.Aq ran@styx.aic.net 
+wrote arlconfig utility and added ioctl support to the driver.
+.An Stanislav Svirid Aq count@riss-telecom.ru
+ported this driver to new ISA architechture, merged some al driver changes, 
+fixed some bugs and made it a module.
+.An Yuri Kurenkov Aq y.kurenkov@init.ru
+wrote this manpage.
