@@ -44,34 +44,36 @@ static int      left_fix[ICS_MIXDEVS] =
 static int      right_fix[ICS_MIXDEVS] =
 {2, 2, 2, 1, 2, 1};
 
-static int 
-scale_vol(int vol)
+static int
+scale_vol (int vol)
 {
 #if 1
-/*
+  /*
  *	Experimental volume scaling by Risto Kankkunen.
  *	This should give smoother volume response than just
  *	a plain multiplication.
  */
-        int e;
+  int             e;
 
-        if (vol < 0)
-                vol = 0;
-        if (vol > 100)
-                vol = 100;
-        vol = (31 * vol + 50) / 100;
-        e = 0;
-        if (vol) {
-                while (vol < 16) {
-                        vol <<= 1;
-                        e--;
-                }
-                vol -= 16;
-                e += 7;
-        }
-        return ((e << 4) + vol);
+  if (vol < 0)
+    vol = 0;
+  if (vol > 100)
+    vol = 100;
+  vol = (31 * vol + 50) / 100;
+  e = 0;
+  if (vol)
+    {
+      while (vol < 16)
+	{
+	  vol <<= 1;
+	  e--;
+	}
+      vol -= 16;
+      e += 7;
+    }
+  return ((e << 4) + vol);
 #else
-  return ((vol*127)+50)/100;
+  return ((vol * 127) + 50) / 100;
 #endif
 }
 
@@ -83,7 +85,7 @@ write_mix (int dev, int chn, int vol)
   int             ctrl_addr = dev << 3;
   int             attn_addr = dev << 3;
 
-  vol=scale_vol(vol);
+  vol = scale_vol (vol);
 
   if (chn == CHN_LEFT)
     {
@@ -180,7 +182,7 @@ ics2101_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 
 	  case SOUND_MIXER_STEREODEVS:
 	    return IOCTL_OUT (arg, SOUND_MASK_LINE | SOUND_MASK_CD |
-			      SOUND_MASK_SYNTH | SOUND_MASK_VOLUME|
+			      SOUND_MASK_SYNTH | SOUND_MASK_VOLUME |
 			      SOUND_MASK_MIC);
 	    break;
 

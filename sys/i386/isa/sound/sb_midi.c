@@ -1,10 +1,10 @@
 /*
  * sound/sb_dsp.c
- * 
+ *
  * The low level driver for the SoundBlaster DS chips.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -42,19 +42,26 @@
  * future version of this driver.
  */
 
-extern int      sb_dsp_ok;	/* Set to 1 after successful initialization */
+extern int      sb_dsp_ok;	/* Set to 1 atfer successful initialization */
+extern int      sbc_base;
 
 extern int      sb_midi_mode;
-extern int      sb_midi_busy;	/* 1 if the process has output to MIDI */
+extern int      sb_midi_busy;	/*
+
+
+				 * *  * * 1 if the process has output to MIDI
+				 *
+				 */
 extern int      sb_dsp_busy;
 extern int      sb_dsp_highspeed;
 
-extern volatile int sb_irq_mode;	/* IMODE_INPUT, IMODE_OUTPUT
-
-					 * or IMODE_NONE */
-extern int      sb_dsp_model;	/* 1=SB, 2=SB Pro */
+extern volatile int sb_irq_mode;
 extern int      sb_duplex_midi;
 extern int      sb_intr_active;
+int             input_opened = 0;
+static int      my_dev;
+
+void            (*midi_input_intr) (int dev, unsigned char data);
 
 static int
 sb_midi_open (int dev, int mode,
@@ -69,6 +76,9 @@ sb_midi_open (int dev, int mode,
       printk ("SB Error: MIDI hardware not installed\n");
       return RET_ERROR (ENXIO);
     }
+
+  if (sb_midi_busy)
+    return RET_ERROR (EBUSY);
 
   if (mode != OPEN_WRITE && !sb_duplex_midi)
     {
@@ -98,14 +108,20 @@ sb_midi_open (int dev, int mode,
       sb_reset_dsp ();
 
       if (!sb_dsp_command (0x35))
-	return RET_ERROR (EIO);	/* Enter the UART mode */
+	return RET_ERROR (EIO);	/*
+				 * Enter the UART mode
+				 */
       sb_intr_active = 1;
 
       if ((ret = sb_get_irq ()) < 0)
 	{
 	  sb_reset_dsp ();
-	  return 0;		/* IRQ not free */
+	  return 0;		/*
+				 * IRQ not free
+				 */
 	}
+      input_opened = 1;
+      midi_input_intr = input;
     }
 
   sb_midi_busy = 1;
@@ -118,19 +134,20 @@ sb_midi_close (int dev)
 {
   if (sb_midi_mode == UART_MIDI)
     {
-      sb_reset_dsp ();		/* The only way to kill the UART mode */
+      sb_reset_dsp ();		/*
+				 * The only way to kill the UART mode
+				 */
       sb_free_irq ();
     }
   sb_intr_active = 0;
   sb_midi_busy = 0;
+  input_opened = 0;
 }
 
 static int
 sb_midi_out (int dev, unsigned char midi_byte)
 {
   unsigned long   flags;
-
-  sb_midi_busy = 1;		/* Kill all notes after close */
 
   if (sb_midi_mode == NORMAL_MIDI)
     {
@@ -142,7 +159,9 @@ sb_midi_out (int dev, unsigned char midi_byte)
       RESTORE_INTR (flags);
     }
   else
-    sb_dsp_command (midi_byte);	/* UART write */
+    sb_dsp_command (midi_byte);	/*
+				 * UART write
+				 */
 
   return 1;
 }
@@ -175,23 +194,58 @@ sb_midi_ioctl (int dev, unsigned cmd, unsigned arg)
   return RET_ERROR (EPERM);
 }
 
+void
+sb_midi_interrupt (int dummy)
+{
+  unsigned long   flags;
+  unsigned char   data;
+
+  DISABLE_INTR (flags);
+
+  data = INB (DSP_READ);
+  if (input_opened)
+    midi_input_intr (my_dev, data);
+
+  RESTORE_INTR (flags);
+}
+
+#define MIDI_SYNTH_NAME	"SoundBlaster Midi"
+#define MIDI_SYNTH_CAPS	0
+#include "midi_synth.h"
+
 static struct midi_operations sb_midi_operations =
 {
   {"SoundBlaster", 0, 0, SNDCARD_SB},
+  &std_midi_synth,
   sb_midi_open,
   sb_midi_close,
   sb_midi_ioctl,
   sb_midi_out,
   sb_midi_start_read,
   sb_midi_end_read,
-  NULL,				/* Kick */
-  NULL,				/* command */
-  NULL				/* buffer_status */
+  NULL,				/*
+				 * Kick
+				 */
+  NULL,				/*
+				 * command
+				 */
+  NULL,				/*
+				 * buffer_status
+				 */
+  NULL
 };
 
 void
 sb_midi_init (int model)
 {
+  if (num_midis >= MAX_MIDI_DEV)
+    {
+      printk ("Sound: Too many midi devices detected\n");
+      return;
+    }
+
+  std_midi_synth.midi_dev = num_midis;
+  my_dev = num_midis;
   midi_devs[num_midis++] = &sb_midi_operations;
 }
 

@@ -1,7 +1,7 @@
 #ifndef _OS_H_
 #define _OS_H_
 /*
- * OS specific settings for FreeBSD
+ * OS specific settings for 386BSD
  *
  * This chould be used as an example when porting the driver to a new
  * operating systems.
@@ -35,7 +35,7 @@
 #include "buf.h"
 #include "i386/isa/isa_device.h"
 
-/* These few lines are used by FreeBSD (only??). */
+/* These few lines are used by 386BSD (only??). */
 
 #if NSND > 0
 #define KERNEL_SOUNDCARD
@@ -48,10 +48,6 @@
  * Rest of the file is compiled only if the driver is really required.
  */
 #ifdef CONFIGURE_SOUNDCARD
-
-/* lbolt is required by the FreeBSD version (only???) */
-extern int __timeout_val;
-extern int __process_aborting;
 
 /* 
  * select() is currently implemented in Linux specific way. Don't enable.
@@ -149,50 +145,55 @@ typedef struct uio snd_rw_buf;
  * The following macros define an interface to the process management.
  */
 
+struct snd_wait {
+	  int mode; int aborting;
+	};
+
 /*
  * DEFINE_WAIT_QUEUE is used where a wait queue is required. It must define
  * a structure which can be passed as a parameter to a sleep(). The second
  * parameter is name of a flag variable (must be defined as int).
  */
-#define DEFINE_WAIT_QUEUE(qname, flag) static int *qname = NULL; static int flag = 0
+#define DEFINE_WAIT_QUEUE(qname, flag) static int *qname = NULL; \
+	static volatile struct snd_wait flag = {0}
 /* Like the above but defines an array of wait queues and flags */
-#define DEFINE_WAIT_QUEUES(qname, flag) static int *qname = {NULL}; static int flag = {0}
+#define DEFINE_WAIT_QUEUES(qname, flag) static int *qname = {NULL}; \
+	static volatile struct snd_wait flag = {{0}}
+
+#define RESET_WAIT_QUEUE(q, f) {f.aborting = 0;f.mode = WK_NONE;}
+#define SET_ABORT_FLAG(q, f) f.aborting = 1
+#define TIMED_OUT(q, f) (f.mode & WK_TIMEOUT)
+#define SOMEONE_WAITING(q, f) (f.mode & WK_SLEEP)
 /*
  * This driver handles interrupts little bit nonstandard way. The following
  * macro is used to test if the current process has received a signal which
  * is aborts the process. This macro is called from close() to see if the
  * buffers should be discarded. If this kind info is not available, a constant
  * 1 or 0 could be returned (1 should be better than 0).
- * I'm not sure if the following is correct for FreeBSD.
+ * I'm not sure if the following is correct for 386BSD.
  */
-#define PROCESS_ABORTING (__process_aborting | curproc->p_sig)
-/* 
- * REQUEST_TIMEOUT is called before sleep. It shoud ensure that the
- * process is woken up after given number of ticks (1/HZ secs.).
- * The wqueue gives the wait queue.
- */
-#define	REQUEST_TIMEOUT(nticks, wqueue)	__timeout_val = nticks;
+#define PROCESS_ABORTING(q, f) (f.aborting | curproc->p_sig)
 
 /*
  * The following macro calls sleep. It should be implemented such that
  * the process is resumed if it receives a signal. The following is propably
  * not the way how it should be done on 386bsd.
- * The on_what parameter is a wait_queue defined with DEFINE_WAIT_QUEUE()
- * The second parameter is a flag. It must be initialized to 1 before sleep
- * and to zero after proces continues.
+ * The on_what parameter is a wait_queue defined with DEFINE_WAIT_QUEUE(),
+ * and the second is a workarea parameter. The third is a timeout 
+ * in ticks. Zero means no timeout.
  */
-#define INTERRUPTIBLE_SLEEP_ON(on_what, flag) 	\
+#define DO_SLEEP(q, f, time_limit)	\
 	{ \
-	  flag = 1; \
-	  flag=tsleep(&(on_what), (PRIBIO-5)|PCATCH, "sndint", __timeout_val); \
-	  if(flag == ERESTART) __process_aborting = 1;\
-	  else __process_aborting = 0;\
-	  __timeout_val = 0; \
-	  flag = 0; \
+	  int flag, chn; \
+	  f.mode = WK_SLEEP; \
+	  q = &chn; \
+	  flag=tsleep(&chn, (PRIBIO-5)|PCATCH, "sndint", time_limit); \
+	  if(flag == ERESTART) f.aborting = 1;\
+	  else f.aborting = 0;\
+	  f.mode &= ~WK_SLEEP; \
 	}
-	
 /* An the following wakes up a process */
-#define WAKE_UP(who)				wakeup(&(who))
+#define WAKE_UP(q, f)	{f.mode = WK_WAKEUP;wakeup(q);}
 
 /*
  * Timing macros. This driver assumes that there is a timer running in the
@@ -210,6 +211,7 @@ extern int hz;
  * ticks.  This can overflow, so the timeout might be real big...
  * 
  */
+unsigned long get_time(void);
 #define GET_TIME() get_time()
 /*#define GET_TIME()	(lbolt)	/* Returns current time (1/HZ secs since boot) */
 
@@ -234,7 +236,11 @@ extern int hz;
  */
 
 #define INB			inb
-#define OUTB(addr, data)	outb(data, addr)
+/*  
+ * The outb(0, 0x80) is just for slowdown. It's bit unsafe since
+ * this address could be used for something usefull.
+ */
+#define OUTB(addr, data)	{outb(data, addr);outb(0, 0x80);}
 
 /* memcpy() was not defined og 386bsd. Lets define it here */
 #define memcpy(d, s, c)		bcopy(s, d, c)
@@ -259,6 +265,33 @@ extern int hz;
 #define	KERNEL_MALLOC(nbytes)	malloc(nbytes, M_TEMP, M_WAITOK)
 #define	KERNEL_FREE(addr)	free(addr, M_TEMP)
 
+/*
+ * The macro PERMANENT_MALLOC(typecast, mem_ptr, size, linux_ptr)
+ * returns size bytes of
+ * (kernel virtual) memory which will never get freed by the driver.
+ * This macro is called only during boot. The linux_ptr is a linux specific
+ * parameter which should be ignored in other operating systems.
+ * The mem_ptr is a pointer variable where the macro assigns pointer to the
+ * memory area. The type is the type of the mem_ptr.
+ */
+#define PERMANENT_MALLOC(typecast, mem_ptr, size, linux_ptr) \
+  {mem_ptr = (typecast)malloc(size, M_DEVBUF, M_NOWAIT); \
+   if (!mem_ptr)panic("SOUND: Cannot allocate memory\n");}
+
+/*
+ * The macro DEFINE_TIMER defines variables for the ACTIVATE_TIMER if
+ * required. The name is the variable/name to be used and the proc is
+ * the procedure to be called when the timer expires.
+ */
+
+#define DEFINE_TIMER(name, proc)
+
+/*
+ * The ACTIVATE_TIMER requests system to call 'proc' after 'time' ticks.
+ */
+
+#define ACTIVATE_TIMER(name, proc, time) \
+	timeout(proc, 0, time);
 /*
  * The rest of this file is not complete yet. The functions using these
  * macros will not work

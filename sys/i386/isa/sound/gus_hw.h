@@ -24,6 +24,8 @@
 #define u_Command		(gus_base + 0x103)
 #define u_DataLo		(gus_base + 0x104)
 #define u_DataHi		(gus_base + 0x105)
+#define u_MixData               (gus_base + 0x106)   /* Rev. 3.7+ mixing */
+#define u_MixSelect             (gus_base + 0x506)   /* registers.       */
 #define u_IrqStatus		u_Status
 #	define MIDI_TX_IRQ		0x01	/* pending MIDI xmit IRQ */
 #	define MIDI_RX_IRQ		0x02	/* pending MIDI recv IRQ */
@@ -32,4 +34,17 @@
 #	define WAVETABLE_IRQ		0x20	/* pending wavetable IRQ */
 #	define ENVELOPE_IRQ		0x40	/* pending volume envelope IRQ */
 #	define DMA_TC_IRQ		0x80	/* pending dma tc IRQ */
+
+#define ICS2101		1
+#	define ICS_MIXDEVS	6
+#	define DEV_MIC		0
+#	define DEV_LINE		1
+#	define DEV_CD		2
+#	define DEV_GF1		3
+#	define DEV_UNUSED	4
+#	define DEV_VOL		5
+
+#	define CHN_LEFT		0
+#	define CHN_RIGHT	1
+#define CS4231		2
 #define u_DRAMIO		(gus_base + 0x107)

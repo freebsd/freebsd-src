@@ -1,11 +1,11 @@
 
 /*
  * sound/sb_mixer.c
- * 
+ *
  * The low level mixer driver for the SoundBlaster Pro and SB16 cards.
- * 
- * Copyright by Hannu Savolainen 1993
- * 
+ *
+ * Copyright by Hannu Savolainen 1994
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -13,7 +13,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,7 +25,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
+ * Modified:
+ *	Hunyue Yau	Jan 6 1994
+ *	Added code to support the Sound Galaxy NX Pro mixer.
+ *
  */
 
 #include "sound_config.h"
@@ -54,7 +58,9 @@ sb_setmixer (unsigned int port, unsigned int value)
   unsigned long   flags;
 
   DISABLE_INTR (flags);
-  OUTB ((unsigned char) (port & 0xff), MIXER_ADDR);	/* Select register */
+  OUTB ((unsigned char) (port & 0xff), MIXER_ADDR);	/*
+							 * Select register
+							 */
   tenmicrosec ();
   OUTB ((unsigned char) (value & 0xff), MIXER_DATA);
   tenmicrosec ();
@@ -68,7 +74,9 @@ sb_getmixer (unsigned int port)
   unsigned long   flags;
 
   DISABLE_INTR (flags);
-  OUTB ((unsigned char) (port & 0xff), MIXER_ADDR);	/* Select register */
+  OUTB ((unsigned char) (port & 0xff), MIXER_ADDR);	/*
+							 * Select register
+							 */
   tenmicrosec ();
   val = INB (MIXER_DATA);
   tenmicrosec ();
@@ -87,9 +95,21 @@ sb_mixer_set_stereo (int mode)
 			    | (mode ? STEREO_DAC : MONO_DAC)));
 }
 
+/*
+ * Returns:
+ *	0	No mixer detected.
+ *	1	Only a plain Sound Blaster Pro style mixer detected.
+ *	2	The Sound Galaxy NX Pro mixer detected.
+ */
 static int
 detect_mixer (void)
 {
+#ifdef __SGNXPRO__
+  int             oldbass, oldtreble;
+
+#endif
+  int             retcode = 1;
+
   /*
    * Detect the mixer by changing parameters of two volume channels. If the
    * values read back match with the values written, the mixer is there (is
@@ -99,11 +119,36 @@ detect_mixer (void)
   sb_setmixer (VOC_VOL, 0x33);
 
   if (sb_getmixer (FM_VOL) != 0xff)
-    return 0;			/* No match */
+    return 0;			/*
+				 * No match
+				 */
   if (sb_getmixer (VOC_VOL) != 0x33)
     return 0;
 
-  return 1;
+#ifdef __SGNXPRO__
+  /* Attempt to detect the SG NX Pro by check for valid bass/treble
+ * registers.
+ */
+  oldbass = sb_getmixer (BASS_LVL);
+  oldtreble = sb_getmixer (TREBLE_LVL);
+
+  sb_setmixer (BASS_LVL, 0xaa);
+  sb_setmixer (TREBLE_LVL, 0x55);
+
+  if ((sb_getmixer (BASS_LVL) != 0xaa) ||
+      (sb_getmixer (TREBLE_LVL) != 0x55))
+    {
+      retcode = 1;		/* 1 == Only SB Pro detected */
+    }
+  else
+    retcode = 2;		/* 2 == SG NX Pro detected */
+  /* Restore register in either case since SG NX Pro has EEPROM with
+   * 'preferred' values stored.
+   */
+  sb_setmixer (BASS_LVL, oldbass);
+  sb_setmixer (TREBLE_LVL, oldtreble);
+#endif
+  return retcode;
 }
 
 static void
@@ -113,12 +158,18 @@ change_bits (unsigned char *regval, int dev, int chn, int newval)
   int             shift;
 
   mask = (1 << (*iomap)[dev][chn].nbits) - 1;
-  newval = ((newval * mask) + 50) / 100;	/* Scale it */
+  newval = (int) ((newval * mask) + 50) / 100;	/*
+						 * Scale it
+						 */
 
   shift = (*iomap)[dev][chn].bitoffs - (*iomap)[dev][LEFT_CHN].nbits + 1;
 
-  *regval &= ~(mask << shift);	/* Filter out the previous value */
-  *regval |= (newval & mask) << shift;	/* Set the new value */
+  *regval &= ~(mask << shift);	/*
+				 * Filter out the previous value
+				 */
+  *regval |= (newval & mask) << shift;	/*
+					 * Set the new value
+					 */
 }
 
 static int
@@ -147,7 +198,9 @@ sb_mixer_set (int dev, int value)
   if (dev > 31)
     return RET_ERROR (EINVAL);
 
-  if (!(supported_devices & (1 << dev)))	/* Not supported */
+  if (!(supported_devices & (1 << dev)))	/*
+						 * Not supported
+						 */
     return RET_ERROR (EINVAL);
 
   regoffs = (*iomap)[dev][LEFT_CHN].regno;
@@ -160,15 +213,23 @@ sb_mixer_set (int dev, int value)
 
   levels[dev] = left | (left << 8);
 
-  if ((*iomap)[dev][RIGHT_CHN].regno != regoffs)	/* Change register */
+  if ((*iomap)[dev][RIGHT_CHN].regno != regoffs)	/*
+							 * Change register
+							 */
     {
-      sb_setmixer (regoffs, val);	/* Save the old one */
+      sb_setmixer (regoffs, val);	/*
+					 * Save the old one
+					 */
       regoffs = (*iomap)[dev][RIGHT_CHN].regno;
 
       if (regoffs == 0)
-	return left | (left << 8);	/* Just left channel present */
+	return left | (left << 8);	/*
+					 * Just left channel present
+					 */
 
-      val = sb_getmixer (regoffs);	/* Read the new one */
+      val = sb_getmixer (regoffs);	/*
+					 * Read the new one
+					 */
     }
 
   change_bits (&val, dev, RIGHT_CHN, right);
@@ -199,21 +260,27 @@ set_recmask (int mask)
       if (devmask != SOUND_MASK_MIC &&
 	  devmask != SOUND_MASK_LINE &&
 	  devmask != SOUND_MASK_CD)
-	{			/* More than one devices selected. Drop the
-				 * previous selection */
+	{			/*
+				 * More than one devices selected. Drop the *
+				 * previous selection
+				 */
 	  devmask &= ~recmask;
 	}
 
       if (devmask != SOUND_MASK_MIC &&
 	  devmask != SOUND_MASK_LINE &&
 	  devmask != SOUND_MASK_CD)
-	{			/* More than one devices selected. Default to
-				 * mic */
+	{			/*
+				 * More than one devices selected. Default to
+				 * * mic
+				 */
 	  devmask = SOUND_MASK_MIC;
 	}
 
 
-      if (devmask ^ recmask)	/* Input source changed */
+      if (devmask ^ recmask)	/*
+				 * Input source changed
+				 */
 	{
 	  switch (devmask)
 	    {
@@ -273,7 +340,9 @@ sb_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 	    return IOCTL_OUT (arg, sb_mixer_set (cmd & 0xff, IOCTL_IN (arg)));
 	  }
       else
-	switch (cmd & 0xff)	/* Return parameters */
+	switch (cmd & 0xff)	/*
+				 * Return parameters
+				 */
 	  {
 
 	  case SOUND_MIXER_RECSRC:
@@ -320,13 +389,23 @@ sb_mixer_reset (void)
   set_recmask (SOUND_MASK_MIC);
 }
 
-void
+/*
+ * Returns a code depending on whether a SG NX Pro was detected.
+ * 1 == Plain SB Pro
+ * 2 == SG NX Pro detected.
+ * 3 == SB16
+ *
+ * Used to update message.
+ */
+int
 sb_mixer_init (int major_model)
 {
+  int             mixer_type = 0;
+
   sb_setmixer (0x00, 0);	/* Reset mixer */
 
-  if (!detect_mixer ())
-    return;			/* No mixer. Why? */
+  if (!(mixer_type = detect_mixer ()))
+    return 0;			/* No mixer. Why? */
 
   mixer_initialized = 1;
   mixer_model = major_model;
@@ -335,9 +414,21 @@ sb_mixer_init (int major_model)
     {
     case 3:
       mixer_caps = SOUND_CAP_EXCL_INPUT;
-      supported_devices = SBPRO_MIXER_DEVICES;
-      supported_rec_devices = SBPRO_RECORDING_DEVICES;
-      iomap = &sbpro_mix;
+#ifdef __SGNXPRO__
+      if (mixer_type == 2)	/* A SGNXPRO was detected */
+	{
+	  supported_devices = SGNXPRO_MIXER_DEVICES;
+	  supported_rec_devices = SGNXPRO_RECORDING_DEVICES;
+	  iomap = &sgnxpro_mix;
+	}
+      else
+#endif
+	{
+	  supported_devices = SBPRO_MIXER_DEVICES;
+	  supported_rec_devices = SBPRO_RECORDING_DEVICES;
+	  iomap = &sbpro_mix;
+	  mixer_type = 1;
+	}
       break;
 
     case 4:
@@ -345,15 +436,18 @@ sb_mixer_init (int major_model)
       supported_devices = SB16_MIXER_DEVICES;
       supported_rec_devices = SB16_RECORDING_DEVICES;
       iomap = &sb16_mix;
+      mixer_type = 3;
       break;
 
     default:
       printk ("SB Warning: Unsupported mixer type\n");
-      return;
+      return 0;
     }
 
-  mixer_devs[num_mixers++] = &sb_mixer_operations;
+  if (num_mixers < MAX_MIXER_DEV)
+    mixer_devs[num_mixers++] = &sb_mixer_operations;
   sb_mixer_reset ();
+  return mixer_type;
 }
 
 #endif
