@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.7 1995/10/04 12:08:07 jkh Exp $
+ * $Id: config.c,v 1.16.2.8 1995/10/07 11:55:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,20 +70,6 @@ chunk_compare(const void *p1, const void *p2)
 	return 1;
     else
 	return strcmp(((PartInfo *)(c1->private))->mountpoint, ((PartInfo *)(c2->private))->mountpoint);
-}
-
-static char *
-nameof(Chunk *c1)
-{
-    static char rootname[64];
-
-    /* Our boot blocks can't deal with root partitions on slices - need the compatbility name */
-    if (c1->type == part && c1->flags & CHUNK_IS_ROOT) {
-	sprintf(rootname, "%sa", c1->disk->name);
-	return rootname;
-    }
-    else
-	return c1->name;
 }
 
 static char *
@@ -184,7 +170,7 @@ configFstab(void)
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", chunk_list[i]->name, mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc", NULL);
     fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
