@@ -217,6 +217,8 @@ April 20, 1998: allow arbitrary number of interfaces in wire listing.
 September 4, 1998: bug fix to avoid overrunning hostname buffer, and minor
 amd.conf man page typo correction.
 
+September 22, 1999: use more secure vsnprintf in real_plog().
+
 * Danny Rathjens <dkr@cs.fiu.edu>
 
 October 29, 1998: swap arguments to kill(2) in amd.c.
@@ -244,6 +246,8 @@ and more fixes.  Numerous IP packet security fixes.
 
 March 16, 1999: documentation typos. new cdfs options. ufs structure
 detection for bsdi4.
+
+September 17, 1999: fixes to expn.
 
 * Paul Balyoz <pbalyoz@sedona.ch.intel.com>
 March 26, 1999: ensure lostaltmail displays Y2K compliant dates.
