@@ -2,10 +2,6 @@
 # $FreeBSD$
 #
 
-all:
-	(cd netreceive ; make)
-	(cd netsend ; make)
+SUBDIR=	netreceive netsend
 
-clean:
-	(cd netreceive ; make clean)
-	(cd netsend ; make clean)
+.include <bsd.subdir.mk>
