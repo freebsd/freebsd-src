@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.9 1994/10/21 03:17:11 phk Exp $
+ * $Id: vm_swap.c,v 1.10 1994/10/22 02:41:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -142,6 +142,20 @@ swapinit()
 	 */
 	if (nswap == 0)
 		printf("WARNING: no swap space found\n");
+	for (swp = swdevt; ;swp++) {
+		if (swp->sw_dev == NODEV) {
+			if (swp->sw_vp == NULL)
+				break;
+
+			/* We DO enable NFS swapspaces */
+			error = swfree(p, swp - swdevt);
+			if (error) {
+				printf(
+				   "Couldn't enable swapspace %d, error = %d",
+				   swp-swdevt,error);
+			}
+		}
+	}
 }
 
 void
