@@ -1149,8 +1149,8 @@ static int
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 {
 
-	while (vm_page_sleep_busy(m, FALSE, "pmuwpt"))
-		;
+	while (vm_page_sleep_if_busy(m, FALSE, "pmuwpt"))
+		vm_page_lock_queues();
 
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
@@ -2133,7 +2133,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (opa) {
 		int err;
+		vm_page_lock_queues();
 		err = pmap_remove_pte(pmap, pte, va);
+		vm_page_unlock_queues();
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%x", va);
 	}
@@ -2252,8 +2254,11 @@ retry:
 	 */
 	pte = vtopte(va);
 	if (*pte) {
-		if (mpte)
+		if (mpte != NULL) {
+			vm_page_lock_queues();
 			pmap_unwire_pte_hold(pmap, mpte);
+			vm_page_unlock_queues();
+		}
 		return 0;
 	}
 
@@ -2667,7 +2672,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					pmap_insert_entry(dst_pmap, addr,
 						dstmpte, m);
 	 			} else {
+					vm_page_lock_queues();
 					pmap_unwire_pte_hold(dst_pmap, dstmpte);
+					vm_page_unlock_queues();
 				}
 				if (dstmpte->hold_count >= srcmpte->hold_count)
 					break;
