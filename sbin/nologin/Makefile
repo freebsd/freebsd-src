@@ -7,6 +7,6 @@ nologin depend lint tags:
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/nologin.sh ${DESTDIR}/sbin/nologin
+	    ${.CURDIR}/nologin.sh ${DESTDIR}${BINDIR}/nologin
 
 .include <bsd.prog.mk>
