@@ -43,9 +43,10 @@
 .Nm archive_read_open_file ,
 .Nm archive_read_next_header ,
 .Nm archive_read_data ,
+.Nm archive_read_data_block ,
 .Nm archive_read_data_skip ,
 .Nm archive_read_data_into_buffer ,
-.Nm archive_read_data_into_file ,
+.Nm archive_read_data_into_fd ,
 .Nm archive_read_extract ,
 .Nm archive_read_extract_set_progress_callback ,
 .Nm archive_read_finish
@@ -83,11 +84,13 @@
 .Ft ssize_t
 .Fn archive_read_data "struct archive *" "void *buff" "size_t len"
 .Ft int
+.Fn archive_read_data_block "struct archive *" "const void **buff" "size_t *len" "off_t *offset"
+.Ft int
 .Fn archive_read_data_skip "struct archive *"
 .Ft int
 .Fn archive_read_data_into_buffer "struct archive *" "void *"
 .Ft int
-.Fn archive_read_data_into_file "struct archive *" "int fd"
+.Fn archive_read_data_into_fd "struct archive *" "int fd"
 .Ft int
 .Fn archive_read_extract "struct archive *" "int flags"
 .Ft void
@@ -165,18 +168,30 @@ a
 .Tn struct archive_entry .
 .It Fn archive_read_data
 Read data associated with the header just read.
+Internally, this is a convenience function that uses
+.Fn archive_read_data_block .
+.It Fn archive_read_data_block
+Return the next available block of data for this entry.
+Unlike
+.Fn archive_read_data ,
+the
+.Fn archive_read_data_block
+function avoids copying data and allows you to correctly handle
+sparse files, as supported by some archive formats.
+The library gaurantees that offsets will increase and that blocks
+will not overlap.
 .It Fn archive_read_data_skip
 A convenience function that repeatedly calls
-.Fn archive_read_data
+.Fn archive_read_data_block
 to skip all of the data for this archive entry.
 .It Fn archive_read_data_into_buffer
 A convenience function that repeatedly calls
-.Fn archive_read_data
+.Fn archive_read_data_block
 to copy the entire entry into the client-supplied buffer.
 Note that the client is responsible for sizing the buffer appropriately.
-.It Fn archive_read_data_into_file
+.It Fn archive_read_data_into_fd
 A convenience function that repeatedly calls
-.Fn archive_read_data
+.Fn archive_read_data_block
 to copy the entire entry to the provided file descriptor.
 .It Fn archive_read_extract
 A convenience function that recreates the specified object on

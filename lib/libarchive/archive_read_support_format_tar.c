@@ -76,6 +76,9 @@ struct tar {
 	wchar_t 		*pax_entry;
 	size_t			 pax_entry_length;
 	int			 header_recursion_depth;
+	off_t			 entry_bytes_remaining;
+	off_t			 entry_offset;
+	off_t			 entry_padding;
 };
 
 static size_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
@@ -102,6 +105,8 @@ static int	header_gnutar(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *, const void *h);
 static int	archive_read_format_tar_bid(struct archive *);
 static int	archive_read_format_tar_cleanup(struct archive *);
+static int	archive_read_format_tar_read_data(struct archive *a,
+		    const void **buff, size_t *size, off_t *offset);
 static int	archive_read_format_tar_read_header(struct archive *,
 		    struct archive_entry *);
 static int	checksum(struct archive *, const void *);
@@ -110,8 +115,8 @@ static int 	pax_attribute(struct archive_entry *, struct stat *,
 static int 	pax_header(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *, char *attr);
 static void	pax_time(const wchar_t *, int64_t *sec, long *nanos);
-static int	read_body_to_string(struct archive *, struct archive_string *,
-		    const void *h);
+static int	read_body_to_string(struct archive *, struct tar *,
+		    struct archive_string *, const void *h);
 static int64_t	tar_atol(const char *, unsigned);
 static int64_t	tar_atol10(const wchar_t *, unsigned);
 static int64_t	tar_atol256(const char *, unsigned);
@@ -139,6 +144,7 @@ archive_read_support_format_tar(struct archive *a)
 	r = __archive_read_register_format(a, tar,
 	    archive_read_format_tar_bid,
 	    archive_read_format_tar_read_header,
+	    archive_read_format_tar_read_data,
 	    archive_read_format_tar_cleanup);
 
 	if (r != ARCHIVE_OK)
@@ -261,8 +267,46 @@ archive_read_format_tar_read_header(struct archive *a,
 
 	memset(&st, 0, sizeof(st));
 	tar = *(a->pformat_data);
+	tar->entry_offset = 0;
 
 	return (tar_read_header(a, tar, entry, &st));
+}
+
+static int
+archive_read_format_tar_read_data(struct archive *a,
+    const void **buff, size_t *size, off_t *offset)
+{
+	ssize_t bytes_read;
+	struct tar *tar;
+
+	tar = *(a->pformat_data);
+	if (tar->entry_bytes_remaining > 0) {
+		bytes_read = (a->compression_read_ahead)(a, buff, 1);
+		if (bytes_read <= 0)
+			return (ARCHIVE_FATAL);
+		if (bytes_read > tar->entry_bytes_remaining)
+			bytes_read = tar->entry_bytes_remaining;
+		*size = bytes_read;
+		*offset = tar->entry_offset;
+		tar->entry_offset += bytes_read;
+		tar->entry_bytes_remaining -= bytes_read;
+		(a->compression_read_consume)(a, bytes_read);
+		return (ARCHIVE_OK);
+	} else {
+		while (tar->entry_padding > 0) {
+			bytes_read = (a->compression_read_ahead)(a, buff, 1);
+			if (bytes_read <= 0)
+				return (ARCHIVE_FATAL);
+			if (bytes_read > tar->entry_padding)
+				bytes_read = tar->entry_padding;
+			(a->compression_read_consume)(a, bytes_read);
+			tar->entry_padding -= bytes_read;
+		}
+		*buff = NULL;
+		*size = 0;
+		*offset = tar->entry_offset;
+		return (ARCHIVE_EOF);
+	}
 }
 
 /*
@@ -436,7 +480,7 @@ header_Solaris_ACL(struct archive *a, struct tar *tar,
 	char *p;
 	wchar_t *wp;
 
-	err = read_body_to_string(a, &(tar->acl_text), h);
+	err = read_body_to_string(a, tar, &(tar->acl_text), h);
 	err2 = tar_read_header(a, tar, entry, st);
 	err = err_combine(err, err2);
 
@@ -470,7 +514,7 @@ header_longlink(struct archive *a, struct tar *tar,
 {
 	int err, err2;
 
-	err = read_body_to_string(a, &(tar->longlink), h);
+	err = read_body_to_string(a, tar, &(tar->longlink), h);
 	err2 = tar_read_header(a, tar, entry, st);
 	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK) {
 		/* Set symlink if symlink already set, else hardlink. */
@@ -488,7 +532,7 @@ header_longname(struct archive *a, struct tar *tar,
 {
 	int err, err2;
 
-	err = read_body_to_string(a, &(tar->longname), h);
+	err = read_body_to_string(a, tar, &(tar->longname), h);
 	/* Read and parse "real" header, then override name. */
 	err2 = tar_read_header(a, tar, entry, st);
 	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK)
@@ -514,7 +558,8 @@ header_volume(struct archive *a, struct tar *tar,
  * Read body of an archive entry into an archive_string object.
  */
 static int
-read_body_to_string(struct archive *a, struct archive_string *as, const void *h)
+read_body_to_string(struct archive *a, struct tar *tar,
+    struct archive_string *as, const void *h)
 {
 	const struct archive_entry_header_ustar *header;
 	off_t size;
@@ -529,8 +574,8 @@ read_body_to_string(struct archive *a, struct archive_string *as, const void *h)
 	a->state = ARCHIVE_STATE_DATA;
 
 	/* Read the body into the string. */
-	a->entry_bytes_remaining = size;
-	a->entry_padding = 0x1ff & -size;
+	tar->entry_bytes_remaining = size;
+	tar->entry_padding = 0x1ff & -size;
 	archive_string_ensure(as, size+1);
 	err = archive_read_data_into_buffer(a, as->s, size);
 	as->s[size] = 0; /* Null terminate name! */
@@ -707,8 +752,8 @@ header_old_tar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		st->st_mode |= S_IFDIR;
 	}
 
-	a->entry_bytes_remaining = st->st_size;
-	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
+	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 	return (0);
 }
 
@@ -721,7 +766,7 @@ header_pax_global(struct archive *a, struct tar *tar,
 {
 	int err, err2;
 
-	err = read_body_to_string(a, &(tar->pax_global), h);
+	err = read_body_to_string(a, tar, &(tar->pax_global), h);
 	err2 = tar_read_header(a, tar, entry, st);
 	return (err_combine(err, err2));
 }
@@ -732,7 +777,7 @@ header_pax_extensions(struct archive *a, struct tar *tar,
 {
 	int err, err2;
 
-	read_body_to_string(a, &(tar->pax_header), h);
+	read_body_to_string(a, tar, &(tar->pax_header), h);
 
 	/* Parse the next header. */
 	err = tar_read_header(a, tar, entry, st);
@@ -749,8 +794,8 @@ header_pax_extensions(struct archive *a, struct tar *tar,
 	 */
 	err2 = pax_header(a, tar, entry, st, tar->pax_header.s);
 	err =  err_combine(err, err2);
-	a->entry_bytes_remaining = st->st_size;
-	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
+	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 	return (err);
 }
 
@@ -799,8 +844,8 @@ header_ustar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		    tar_atol(header->devminor, sizeof(header->devminor)));
 	}
 
-	a->entry_bytes_remaining = st->st_size;
-	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
+	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
 	return (0);
 }
@@ -1144,8 +1189,8 @@ header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 
 	/* XXX TODO: Recognize and skip extra GNU header blocks. */
 
-	a->entry_bytes_remaining = st->st_size;
-	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
+	tar->entry_bytes_remaining = st->st_size;
+	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
 	return (0);
 }
