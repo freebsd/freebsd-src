@@ -305,9 +305,11 @@ esac
 
 # Whack the pty perms back into shape.
 #
-chflags 0 /dev/tty[pqrsPQRS]*
-chmod 666 /dev/tty[pqrsPQRS]*
-chown root:wheel /dev/tty[pqrsPQRS]*
+if ls /dev/tty[pqrsPQRS]* > /dev/null 2>&1; then
+	chflags 0 /dev/tty[pqrsPQRS]*
+	chmod 666 /dev/tty[pqrsPQRS]*
+	chown root:wheel /dev/tty[pqrsPQRS]*
+fi
 
 # Clean up left-over files
 #
@@ -445,7 +447,7 @@ if [ -x /sbin/ldconfig ]; then
 				_LDC="${_LDC} ${i}"
 			fi
 		done
-		echo 'setting ELF ldconfig path:' ${_LDC}
+		echo 'ELF ldconfig path:' ${_LDC}
 		${ldconfig} -elf ${_LDC}
 		;;
 	esac
@@ -461,7 +463,7 @@ if [ -x /sbin/ldconfig ]; then
 				_LDC="${_LDC} ${i}"
 			fi
 		done
-		echo 'setting a.out ldconfig path:' ${_LDC}
+		echo 'a.out ldconfig path:' ${_LDC}
 		${ldconfig} -aout ${_LDC}
 		;;
 	esac
