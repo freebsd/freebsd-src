@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.136 1999/07/30 04:02:04 wpaul Exp $
+ * $Id: nfs_vnops.c,v 1.137 1999/07/30 04:51:35 wpaul Exp $
  */
 
 
@@ -250,7 +250,7 @@ int nfs_numasync = 0;
 
 SYSCTL_DECL(_vfs_nfs);
 
-static int	nfsaccess_cache_timeout = 2;
+static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW, 
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
@@ -258,9 +258,47 @@ static int	nfsaccess_cache_hits;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD, 
 	   &nfsaccess_cache_hits, 0, "NFS ACCESS cache hit count");
 
-static int	nfsaccess_cache_fills;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_fills, CTLFLAG_RD, 
-	   &nfsaccess_cache_fills, 0, "NFS ACCESS cache fill count");
+static int	nfsaccess_cache_misses;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_misses, CTLFLAG_RD, 
+	   &nfsaccess_cache_misses, 0, "NFS ACCESS cache miss count");
+
+#define	NFSV3ACCESS_ALL (NFSV3ACCESS_READ | NFSV3ACCESS_MODIFY		\
+			 | NFSV3ACCESS_EXTEND | NFSV3ACCESS_EXECUTE	\
+			 | NFSV3ACCESS_DELETE | NFSV3ACCESS_LOOKUP)
+static int
+nfs3_access_otw(struct vnode *vp,
+		int wmode,
+		struct proc *p,
+		struct ucred *cred)
+{
+	const int v3 = 1;
+	u_int32_t *tl;
+	int error = 0, attrflag;
+	
+	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
+	caddr_t bpos, dpos, cp2;
+	register int32_t t1, t2;
+	register caddr_t cp;
+	u_int32_t rmode;
+	struct nfsnode *np = VTONFS(vp);
+
+	nfsstats.rpccnt[NFSPROC_ACCESS]++;
+	nfsm_reqhead(vp, NFSPROC_ACCESS, NFSX_FH(v3) + NFSX_UNSIGNED);
+	nfsm_fhtom(vp, v3);
+	nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+	*tl = txdr_unsigned(wmode); 
+	nfsm_request(vp, NFSPROC_ACCESS, p, cred);
+	nfsm_postop_attr(vp, attrflag);
+	if (!error) {
+		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		rmode = fxdr_unsigned(u_int32_t, *tl);
+		np->n_mode = rmode;
+		np->n_modeuid = cred->cr_uid;
+		np->n_modestamp = time_second;
+	}
+	nfsm_reqdone;
+	return error;
+}
 
 /*
  * nfs access vnode op.
@@ -278,13 +316,8 @@ nfs_access(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	register u_int32_t *tl;
-	register caddr_t cp;
-	register int32_t t1, t2;
-	caddr_t bpos, dpos, cp2;
-	int error = 0, attrflag;
-	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
-	u_int32_t mode, rmode, wmode;
+	int error = 0;
+	u_int32_t mode, wmode;
 	int v3 = NFS_ISV3(vp);
 	struct nfsnode *np = VTONFS(vp);
 
@@ -349,32 +382,13 @@ nfs_access(ap)
 			/*
 			 * Either a no, or a don't know.  Go to the wire.
 			 */
-			nfsstats.rpccnt[NFSPROC_ACCESS]++;
-			nfsm_reqhead(vp, NFSPROC_ACCESS, NFSX_FH(v3) + NFSX_UNSIGNED);
-			nfsm_fhtom(vp, v3);
-			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(wmode); 
-			nfsm_request(vp, NFSPROC_ACCESS, ap->a_p, ap->a_cred);
-			nfsm_postop_attr(vp, attrflag);
+			nfsaccess_cache_misses++;
+		        error = nfs3_access_otw(vp, wmode, ap->a_p,ap->a_cred);
 			if (!error) {
-				nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
-				rmode = fxdr_unsigned(u_int32_t, *tl);
-				/*
-				 * The NFS V3 spec does not clarify whether or not
-				 * the returned access bits can be a superset of
-				 * the ones requested, so...
-				 */
-				if ((rmode & mode) != mode) {
+				if ((np->n_mode & mode) != mode) {
 					error = EACCES;
-				} else if (nfsaccess_cache_timeout > 0) {
-					/* cache the result */
-					nfsaccess_cache_fills++;
-					np->n_mode = rmode;
-					np->n_modeuid = ap->a_cred->cr_uid;
-					np->n_modestamp = time_second;
 				}
 			}
-			nfsm_reqdone;
 		}
 		return (error);
 	} else {
@@ -596,6 +610,13 @@ nfs_getattr(ap)
 	 */
 	if (nfs_getattrcache(vp, ap->a_vap) == 0)
 		return (0);
+
+	if (v3 && nfsaccess_cache_timeout > 0) {
+		nfs3_access_otw(vp, NFSV3ACCESS_ALL, ap->a_p, ap->a_cred);
+		if (nfs_getattrcache(vp, ap->a_vap) == 0)
+			return (0);
+	}
+
 	nfsstats.rpccnt[NFSPROC_GETATTR]++;
 	nfsm_reqhead(vp, NFSPROC_GETATTR, NFSX_FH(v3));
 	nfsm_fhtom(vp, v3);
