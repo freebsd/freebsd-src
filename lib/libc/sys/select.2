@@ -104,10 +104,15 @@ to the maximum number of descriptors supported by the system.
 .Pp
 If
 .Fa timeout
-is a non-nil pointer, it specifies a maximum interval to wait for the
-selection to complete.  If 
+is a non-nil pointer, it specifies the maximum interval to wait for the
+selection to complete.  System activity can lengthen the interval by
+an indeterminate amount.
+.Pp
+If 
 .Fa timeout
-is a nil pointer, the select blocks indefinitely.  To effect a poll, the
+is a nil pointer, the select blocks indefinitely.
+.Pp
+To effect a poll, the
 .Fa timeout
 argument should be non-nil, pointing to a zero-valued timeval structure.
 .Pp
