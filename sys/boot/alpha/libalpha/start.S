@@ -45,7 +45,7 @@
 	.set	noreorder		/* don't reorder instructions */
 
 #define ENTRY_FRAME	32
-#define STACK_SIZE	8192
+#define STACK_SIZE	12288
 
 NESTED(start, 1, ENTRY_FRAME, ra, 0, 0)
 	br	pv,Lstartgp
@@ -58,7 +58,7 @@ Lstartgp:
 	CALL(bzero)
 
 #ifndef BOOT1
-	lda	sp,stack + STACK_SIZE - ENTRY_FRAME
+	lda	sp,stackbase + STACK_SIZE - ENTRY_FRAME
 #endif
 	
 	CALL(main)			/* transfer to C */
@@ -85,5 +85,5 @@ LEAF(cpu_number, 0)
 END(cpu_number)
 
 #ifndef BOOT1
-BSS(stack, STACK_SIZE)
+BSS(stackbase, STACK_SIZE)
 #endif
