@@ -73,16 +73,17 @@ static int	ipxnetbios = 0;
 SYSCTL_INT(_net_ipx, OID_AUTO, ipxnetbios, CTLFLAG_RW,
 	   &ipxnetbios, 0, "");
 
-union	ipx_net ipx_zeronet;
-union	ipx_host ipx_zerohost;
+const union	ipx_net ipx_zeronet;
+const union	ipx_host ipx_zerohost;
 
-union	ipx_net	ipx_broadnet;
-union	ipx_host ipx_broadhost;
+const union	ipx_net	ipx_broadnet = { .s_net[0] = 0xffff,
+					    .s_net[1] = 0xffff };
+const union	ipx_host ipx_broadhost = { .s_host[0] = 0xffff,
+					    .s_host[1] = 0xffff,
+					    .s_host[2] = 0xffff };
 
 struct	ipxstat ipxstat;
 struct	sockaddr_ipx ipx_netmask, ipx_hostmask;
-
-static	u_short allones[] = {-1, -1, -1};
 
 struct	ipxpcb ipxpcb;
 struct	ipxpcb ipxrawpcb;
@@ -104,8 +105,6 @@ static	void ipxintr(struct mbuf *m);
 void
 ipx_init()
 {
-	ipx_broadnet = *(union ipx_net *)allones;
-	ipx_broadhost = *(union ipx_host *)allones;
 
 	read_random(&ipx_pexseq, sizeof ipx_pexseq);
 	ipxpcb.ipxp_next = ipxpcb.ipxp_prev = &ipxpcb;

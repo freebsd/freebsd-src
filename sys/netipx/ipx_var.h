@@ -72,10 +72,10 @@ extern struct pr_usrreqs ripx_usrreqs;
 extern struct sockaddr_ipx ipx_netmask;
 extern struct sockaddr_ipx ipx_hostmask;
 
-extern union ipx_net ipx_zeronet;
-extern union ipx_host ipx_zerohost;
-extern union ipx_net ipx_broadnet;
-extern union ipx_host ipx_broadhost;
+extern const union ipx_net ipx_zeronet;
+extern const union ipx_host ipx_zerohost;
+extern const union ipx_net ipx_broadnet;
+extern const union ipx_host ipx_broadhost;
 
 struct ifnet;
 struct ipx_addr;
