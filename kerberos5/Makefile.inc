@@ -7,7 +7,6 @@ NOLINT=		true
 
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken
-TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 
 CFLAGS+=-I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
@@ -60,12 +59,6 @@ KRB5OBJDIR=	${.CURDIR}/../../lib/libkrb5
 LIBSL=		${.OBJDIR}/../../lib/libsl/libsl.a
 .else
 LIBSL=		${.CURDIR}/../../lib/libsl/libsl.a
-.endif
-
-.if exists(${.OBJDIR}/../../lib/libtelnet)
-LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
-.else
-LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 .endif
 
 COMPILE_ET=     compile_et

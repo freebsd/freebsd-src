@@ -1,7 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-# Present but disabled: kpasswdd
 SUBDIR=	atrun \
 	bootpd \
 	comsat \
@@ -26,6 +25,7 @@ SUBDIR=	atrun \
 	save-entropy \
 	talkd \
 	tcpd \
+	telnetd \
 	tftpd \
 	ypxfr
 
@@ -39,13 +39,6 @@ SUBDIR+=named-xfer
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=mail.local smrsh
-.endif
-
-.if defined(RELEASEDIR) || \
-    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
-    defined(NOCRYPT) || defined(NO_OPENSSL) || defined(NO_KERBEROS)
-# make release needs both
-SUBDIR+=telnetd
 .endif
 
 .if defined(WANT_LUKEMFTPD)
