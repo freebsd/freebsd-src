@@ -115,12 +115,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # CPU_ENABLE_SSE enables SSE/MMX2 instructions support.  This is default
 # on I686_CPU and above.
 #
-# CPU_ENABLE_TCC enables Thermal Control Circuitry (TCC) found in some
-# Pentium(tm) 4 and (possibly) later CPUs.  When enabled and detected,
-# TCC supports restricting power consumption using the hw.p4tcc.*
-# sysctls.  This operates independently of SpeedStep and is useful on
-# systems where other mechanisms such as apm(4) or acpi(4) don't work.
-#
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
 # CPU_GEODE is for the SC1100 Geode embedded processor.  This option

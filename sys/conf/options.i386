@@ -53,7 +53,6 @@ CPU_ELAN_PPS			opt_cpu.h
 CPU_ELAN_XTAL			opt_cpu.h
 CPU_ENABLE_LONGRUN		opt_cpu.h
 CPU_ENABLE_SSE			opt_cpu.h
-CPU_ENABLE_TCC			opt_cpu.h
 CPU_FASTER_5X86_FPU		opt_cpu.h
 CPU_GEODE			opt_cpu.h
 CPU_I486_ON_386			opt_cpu.h
