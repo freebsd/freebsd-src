@@ -670,7 +670,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
-	sprintf (user, "%.*s", (strchr(result, ':') - result), result);
+	snprintf (user, sizeof(user), "%.*s", (strchr(result, ':') - result), result);
 	_pw_passwd.pw_fields = -1; /* Impossible value */
 	if (_scancaches((char *)&user)) {
 		free(result);
@@ -736,7 +736,7 @@ unpack:
 		}
 
 		strcpy(resultbuf, result);
-		sprintf(user, "%.*s", (strchr(result, ':') - result), result);
+		snprintf(user, sizeof(user), "%.*s", (strchr(result, ':') - result), result);
 		_pw_passwd.pw_fields = -1; /* Impossible value */
 		if (_scancaches((char *)&user)) {
 			free(result);
@@ -747,7 +747,10 @@ unpack:
 		if (_pw_passwd.pw_fields == -1)
 			goto tryagain;
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		return(_pw_breakout_yp(pw, resultbuf, gotmaster));
+		if (_pw_breakout_yp(pw, resultbuf, gotmaster))
+			return(1);
+		else
+			goto tryagain;
 	}
 }
 
