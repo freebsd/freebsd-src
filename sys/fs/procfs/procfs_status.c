@@ -81,7 +81,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	SESS_LOCK(sess);
 	sid = sess->s_leader ? sess->s_leader->p_pid : 0;
 
-/* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg
+/* comm pid ppid pgid sid tty ctty,sldr start ut st wmsg
 				euid ruid rgid,egid,groups[1 .. NGROUPS]
 */
 
@@ -94,9 +94,9 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	} while (*++pc);
 	sbuf_printf(sb, " %d %d %d %d ", pid, ppid, pgid, sid);
 	if ((p->p_flag & P_CONTROLT) && (tp = sess->s_ttyp))
-		sbuf_printf(sb, "%d,%d ", major(tp->t_dev), minor(tp->t_dev));
+		sbuf_printf(sb, "%s ", devtoname(tp->t_dev));
 	else
-		sbuf_printf(sb, "%d,%d ", -1, -1);
+		sbuf_printf(sb, "- ");
 
 	sep = "";
 	if (sess->s_ttyvp) {
