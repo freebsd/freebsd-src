@@ -149,9 +149,6 @@ doarcs()
 	parentp -> cycleno = 0;
 	parentp -> cyclehead = parentp;
 	parentp -> cnext = 0;
-	if ( cflag ) {
-	    findcall( parentp , parentp -> value , (parentp+1) -> value );
-	}
     }
     for ( pass = 1 ; ; pass++ ) {
 	    /*
