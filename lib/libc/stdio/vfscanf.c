@@ -359,7 +359,46 @@ literal:
 			/* scan arbitrary characters (sets NOSKIP) */
 			if (width == 0)
 				width = 1;
-			if (flags & SUPPRESS) {
+			if (flags & LONG) {
+				if ((flags & SUPPRESS) == 0)
+					wcp = va_arg(ap, wchar_t *);
+				else
+					wcp = NULL;
+				n = 0;
+				while (width != 0) {
+					if (n == MB_CUR_MAX) {
+						fp->_flags |= __SERR;
+						goto input_failure;
+					}
+					buf[n++] = *fp->_p;
+					fp->_p++;
+					fp->_r--;
+					memset(&mbs, 0, sizeof(mbs));
+					nconv = mbrtowc(wcp, buf, n, &mbs);
+					if (nconv == (size_t)-1) {
+						fp->_flags |= __SERR;
+						goto input_failure;
+					}
+					if (nconv == 0 && wcp != NULL)
+						*wcp = L'\0';
+					if (nconv != (size_t)-2) {
+						nread += n;
+						width--;
+						if (wcp != NULL)
+							wcp++;
+						n = 0;
+					}
+					if (fp->_r <= 0 && __srefill(fp)) {
+						if (n != 0) {
+							fp->_flags |= __SERR;
+							goto input_failure;
+						}
+						break;
+					}
+				}
+				if (wcp != NULL)
+					nassigned++;
+			} else if (flags & SUPPRESS) {
 				size_t sum = 0;
 				for (;;) {
 					if ((n = fp->_r) < width) {
@@ -379,40 +418,6 @@ literal:
 					}
 				}
 				nread += sum;
-			} else if (flags & LONG) {
-				wcp = va_arg(ap, wchar_t *);
-				n = 0;
-				while (width != 0) {
-					if (n == MB_CUR_MAX) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					buf[n++] = *fp->_p;
-					fp->_p++;
-					fp->_r--;
-					memset(&mbs, 0, sizeof(mbs));
-					nconv = mbrtowc(wcp, buf, n, &mbs);
-					if (nconv == (size_t)-1) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					if (nconv == 0)
-						*wcp = L'\0';
-					if (nconv != (size_t)-2) {
-						nread += n;
-						width--;
-						wcp++;
-						n = 0;
-					}
-					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n != 0) {
-							fp->_flags |= __SERR;
-							goto input_failure;
-						}
-						break;
-					}
-				}
-				nassigned++;
 			} else {
 				size_t r = fread((void *)va_arg(ap, char *), 1,
 				    width, fp);
@@ -430,23 +435,16 @@ literal:
 			if (width == 0)
 				width = (size_t)~0;	/* `infinity' */
 			/* take only those things in the class */
-			if (flags & SUPPRESS) {
+			if (flags & LONG) {
+				wchar_t twc;
+				int nchars;
+
+				if ((flags & SUPPRESS) == 0)
+					wcp = wcp0 = va_arg(ap, wchar_t *);
+				else
+					wcp = wcp0 = &twc;
 				n = 0;
-				while (ccltab[*fp->_p]) {
-					n++, fp->_r--, fp->_p++;
-					if (--width == 0)
-						break;
-					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n == 0)
-							goto input_failure;
-						break;
-					}
-				}
-				if (n == 0)
-					goto match_failure;
-			} else if (flags & LONG) {
-				wcp = wcp0 = va_arg(ap, wchar_t *);
-				n = 0;
+				nchars = 0;
 				while (width != 0) {
 					if (n == MB_CUR_MAX) {
 						fp->_flags |= __SERR;
@@ -473,7 +471,9 @@ literal:
 						}
 						nread += n;
 						width--;
-						wcp++;
+						if (wcp != &twc)
+							wcp++;
+						nchars++;
 						n = 0;
 					}
 					if (fp->_r <= 0 && __srefill(fp)) {
@@ -488,11 +488,27 @@ literal:
 					fp->_flags |= __SERR;
 					goto input_failure;
 				}
-				n = wcp - wcp0;
+				n = nchars;
 				if (n == 0)
 					goto match_failure;
-				*wcp = L'\0';
-				nassigned++;
+				if (wcp != &twc) {
+					*wcp = L'\0';
+					nassigned++;
+				}
+			} else if (flags & SUPPRESS) {
+				n = 0;
+				while (ccltab[*fp->_p]) {
+					n++, fp->_r--, fp->_p++;
+					if (--width == 0)
+						break;
+					if (fp->_r <= 0 && __srefill(fp)) {
+						if (n == 0)
+							goto input_failure;
+						break;
+					}
+				}
+				if (n == 0)
+					goto match_failure;
 			} else {
 				p0 = p = va_arg(ap, char *);
 				while (ccltab[*fp->_p]) {
@@ -520,18 +536,13 @@ literal:
 			/* like CCL, but zero-length string OK, & no NOSKIP */
 			if (width == 0)
 				width = (size_t)~0;
-			if (flags & SUPPRESS) {
-				n = 0;
-				while (!isspace(*fp->_p)) {
-					n++, fp->_r--, fp->_p++;
-					if (--width == 0)
-						break;
-					if (fp->_r <= 0 && __srefill(fp))
-						break;
-				}
-				nread += n;
-			} else if (flags & LONG) {
-				wcp = va_arg(ap, wchar_t *);
+			if (flags & LONG) {
+				wchar_t twc;
+
+				if ((flags & SUPPRESS) == 0)
+					wcp = va_arg(ap, wchar_t *);
+				else
+					wcp = &twc;
 				n = 0;
 				while (!isspace(*fp->_p) && width != 0) {
 					if (n == MB_CUR_MAX) {
@@ -558,7 +569,8 @@ literal:
 						}
 						nread += n;
 						width--;
-						wcp++;
+						if (wcp != &twc)
+							wcp++;
 						n = 0;
 					}
 					if (fp->_r <= 0 && __srefill(fp)) {
@@ -569,8 +581,20 @@ literal:
 						break;
 					}
 				}
-				*wcp = L'\0';
-				nassigned++;
+				if (wcp != &twc) {
+					*wcp = L'\0';
+					nassigned++;
+				}
+			} else if (flags & SUPPRESS) {
+				n = 0;
+				while (!isspace(*fp->_p)) {
+					n++, fp->_r--, fp->_p++;
+					if (--width == 0)
+						break;
+					if (fp->_r <= 0 && __srefill(fp))
+						break;
+				}
+				nread += n;
 			} else {
 				p0 = p = va_arg(ap, char *);
 				while (!isspace(*fp->_p)) {
