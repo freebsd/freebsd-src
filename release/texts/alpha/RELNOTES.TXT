@@ -234,6 +234,14 @@ sendmail(8) and associated utilities upgraded from version 8.11.1 to
 version 8.11.2.  See /usr/src/contrib/sendmail/RELEASE_NOTES for more
 information.
 
+New make.conf options: SENDMAIL_MC and SENDMAIL_ADDITIONAL_MC.  See
+/etc/defaults/make.conf for more information.
+
+The Makefile in /etc/mail now supports: the new SENDMAIL_MC make.conf
+option; the ability to build .cf files from .mc files; generalized map
+rebuilding; rebuilding the aliases file; and the ability to stop, start,
+and restart sendmail.
+
 pkg_create(1) and pkg_install(1) can now work with packages that have
 been compressed using bzip2(1).
 
