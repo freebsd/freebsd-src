@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4 1997/02/11 20:46:05 wollman Exp $
+ *	$Id: http.c,v 1.5 1997/03/05 18:57:16 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -901,9 +901,9 @@ spewerror:
 	 * output until EOF.
 	 */
 	if (to_stdout)
-		local = fopen("/dev/stdout", "w");
+		local = fopen("/dev/stdout", restarting ? "a" : "w");
 	else
-		local = fopen(fs->fs_outputfile, "w");
+		local = fopen(fs->fs_outputfile, restarting ? "a" : "w");
 	if (local == 0) {
 		warn("%s: fopen", fs->fs_outputfile);
 		fclose(remote);
@@ -1307,7 +1307,7 @@ parse_http_content_range(char *orig, off_t *restart_from, off_t *total_length)
 	u_quad_t first, last, total;
 	char *ep;
 
-	if (strcasecmp(orig, "bytes") != 0) {
+	if (strncasecmp(orig, "bytes", 5) != 0) {
 		warnx("unknown Content-Range unit: `%s'", orig);
 		return EX_PROTOCOL;
 	}
