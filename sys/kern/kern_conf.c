@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
 /* Built at compile time from sys/conf/majors */
-extern unsigned char reserved_majors[256];
 
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
@@ -179,7 +178,6 @@ static struct cdevsw dead_cdevsw = {
 	.d_mmap =	dead_mmap,
 	.d_strategy =	dead_strategy,
 	.d_name =	"dead",
-	.d_maj =	255,
 	.d_dump =	dead_dump,
 	.d_kqfilter =	dead_kqfilter
 };
@@ -276,7 +274,7 @@ newdev(struct cdevsw *csw, int y, struct cdev *si)
 	dev_t	udev;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	udev = (csw->d_maj << 8) | y;
+	udev = y;
 	LIST_FOREACH(si2, &csw->d_devs, si_list) {
 		if (si2->si_drv0 == udev) {
 			freedev(si);
@@ -308,32 +306,9 @@ umajor(dev_t dev)
 }
 
 static void
-find_major(struct cdevsw *devsw)
-{
-	int i;
-
-	if (devsw->d_maj != 0) {
-		printf("NOTICE: Ignoring d_maj hint from driver \"%s\", %s",
-		    devsw->d_name, "driver should be updated/fixed\n");
-		devsw->d_maj = 0;
-	}
-	for (i = NUMCDEVSW - 1; i > 0; i--)
-		if (reserved_majors[i] != i)
-			break;
-	KASSERT(i > 0, ("Out of major numbers (%s)", devsw->d_name));
-	devsw->d_maj = i;
-	reserved_majors[i] = i;
-	devsw->d_flags |= D_ALLOCMAJ;
-}
-
-static void
 fini_cdevsw(struct cdevsw *devsw)
 {
-	if (devsw->d_flags & D_ALLOCMAJ) {
-		reserved_majors[devsw->d_maj] = 0;
-		devsw->d_maj = 0;
-		devsw->d_flags &= ~D_ALLOCMAJ;
-	}
+
 	devsw->d_flags &= ~D_INIT;
 }
 
@@ -382,8 +357,6 @@ prep_cdevsw(struct cdevsw *devsw)
 
 	devsw->d_flags |= D_INIT;
 
-	if (!(devsw->d_flags & D_ALLOCMAJ))
-		find_major(devsw);
 	dev_unlock();
 }
 
