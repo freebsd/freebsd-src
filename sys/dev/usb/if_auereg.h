@@ -230,6 +230,7 @@ struct aue_softc {
 #define GET_MII(sc) (&(sc)->aue_mii)
 #endif
 	struct arpcom		arpcom;
+	device_t		aue_dev;
 	device_t		aue_miibus;
 	usbd_device_handle	aue_udev;
 	usbd_interface_handle	aue_iface;

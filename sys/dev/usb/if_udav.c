@@ -161,7 +161,6 @@ Static void udav_shutdown(device_ptr_t);
 Static int udav_openpipes(struct udav_softc *);
 Static int udav_rx_list_init(struct udav_softc *);
 Static int udav_tx_list_init(struct udav_softc *);
-Static int udav_newbuf(struct udav_softc *, struct udav_chain *, struct mbuf *);
 Static void udav_start(struct ifnet *);
 Static int udav_send(struct udav_softc *, struct mbuf *, int);
 Static void udav_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -1127,41 +1126,6 @@ udav_openpipes(struct udav_softc *sc)
 }
 
 Static int
-udav_newbuf(struct udav_softc *sc, struct udav_chain *c, struct mbuf *m)
-{
-	struct mbuf *m_new = NULL;
-
-	DPRINTF(("%s: %s: enter\n", USBDEVNAME(sc->sc_dev), __func__));
-
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("%s: no memory for rx list "
-			       "-- packet dropped!\n", USBDEVNAME(sc->sc_dev));
-			return (ENOBUFS);
-		}
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			printf("%s: no memory for rx list "
-			       "-- packet dropped!\n", USBDEVNAME(sc->sc_dev));
-			m_freem(m_new);
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
-
-	m_adj(m_new, ETHER_ALIGN);
-	c->udav_mbuf = m_new;
-
-	return (0);
-}
-
-
-Static int
 udav_rx_list_init(struct udav_softc *sc)
 {
 	struct udav_cdata *cd;
@@ -1175,7 +1139,8 @@ udav_rx_list_init(struct udav_softc *sc)
 		c = &cd->udav_rx_chain[i];
 		c->udav_sc = sc;
 		c->udav_idx = i;
-		if (udav_newbuf(sc, c, NULL) == ENOBUFS)
+		c->udav_mbuf = usb_ether_newbuf(USBDEVNAME(sc->sc_dev));
+		if (c->udav_mbuf == NULL)
 			return (ENOBUFS);
 		if (c->udav_xfer == NULL) {
 			c->udav_xfer = usbd_alloc_xfer(sc->sc_udev);
@@ -1469,7 +1434,8 @@ udav_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 #endif
 
 #if defined(__NetBSD__)
-	if (udav_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->udav_mbuf = usb_ether_newbuf(USBDEVNAME(sc->sc_dev));
+	if (c->udav_mbuf == NULL) {
 		ifp->if_ierrors++;
 		goto done1;
 	}
@@ -2026,7 +1992,8 @@ udav_rxstart(struct ifnet *ifp)
 	UDAV_LOCK(sc);
 	c = &sc->sc_cdata.udav_rx_chain[sc->sc_cdata.udav_rx_prod];
 
-	if (udav_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->udav_mbuf = usb_ether_newbuf(USBDEVNAME(sc->sc_dev));
+	if (c->udav_mbuf == NULL) {
 		ifp->if_ierrors++;
 		UDAV_UNLOCK(sc);
 		return;

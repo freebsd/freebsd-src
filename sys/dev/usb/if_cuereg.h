@@ -167,6 +167,7 @@ struct cue_cdata {
 
 struct cue_softc {
 	struct arpcom		arpcom;
+	device_t		cue_dev;
 	usbd_device_handle	cue_udev;
 	usbd_interface_handle	cue_iface;
 	int			cue_ed[CUE_ENDPT_MAX];

@@ -212,6 +212,7 @@ struct rue_cdata {
 
 struct rue_softc {
 	struct arpcom		arpcom;
+	device_t		rue_dev;
 	device_t		rue_miibus;
 	usbd_device_handle	rue_udev;
 	usbd_interface_handle	rue_iface;

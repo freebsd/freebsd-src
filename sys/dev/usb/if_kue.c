@@ -132,7 +132,6 @@ Static int kue_detach(device_ptr_t);
 Static void kue_shutdown(device_ptr_t);
 Static int kue_tx_list_init(struct kue_softc *);
 Static int kue_rx_list_init(struct kue_softc *);
-Static int kue_newbuf(struct kue_softc *, struct kue_chain *, struct mbuf *);
 Static int kue_encap(struct kue_softc *, struct mbuf *, int);
 Static void kue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void kue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -419,6 +418,7 @@ USB_ATTACH(kue)
 	int			i;
 
 	bzero(sc, sizeof(struct kue_softc));
+	sc->kue_dev = self;
 	sc->kue_iface = uaa->iface;
 	sc->kue_udev = uaa->device;
 	sc->kue_unit = device_get_unit(self);
@@ -546,41 +546,6 @@ kue_detach(device_ptr_t dev)
 	return(0);
 }
 
-/*
- * Initialize an RX descriptor and attach an MBUF cluster.
- */
-Static int
-kue_newbuf(struct kue_softc *sc, struct kue_chain *c, struct mbuf *m)
-{
-	struct mbuf		*m_new = NULL;
-
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("kue%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->kue_unit);
-			return(ENOBUFS);
-		}
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			printf("kue%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->kue_unit);
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
-
-	c->kue_mbuf = m_new;
-
-	return(0);
-}
-
 Static int
 kue_rx_list_init(struct kue_softc *sc)
 {
@@ -593,7 +558,8 @@ kue_rx_list_init(struct kue_softc *sc)
 		c = &cd->kue_rx_chain[i];
 		c->kue_sc = sc;
 		c->kue_idx = i;
-		if (kue_newbuf(sc, c, NULL) == ENOBUFS)
+		c->kue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->kue_dev));
+		if (c->kue_mbuf == NULL)
 			return(ENOBUFS);
 		if (c->kue_xfer == NULL) {
 			c->kue_xfer = usbd_alloc_xfer(sc->kue_udev);
@@ -641,7 +607,8 @@ kue_rxstart(struct ifnet *ifp)
 	KUE_LOCK(sc);
 	c = &sc->kue_cdata.kue_rx_chain[sc->kue_cdata.kue_rx_prod];
 
-	if (kue_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->kue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->kue_dev));
+	if (c->kue_mbuf == NULL) {
 		ifp->if_ierrors++;
 		return;
 	}

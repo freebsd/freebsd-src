@@ -134,7 +134,6 @@ Static int rue_detach(device_ptr_t);
 
 Static int rue_tx_list_init(struct rue_softc *);
 Static int rue_rx_list_init(struct rue_softc *);
-Static int rue_newbuf(struct rue_softc *, struct rue_chain *, struct mbuf *);
 Static int rue_encap(struct rue_softc *, struct mbuf *, int);
 #ifdef RUE_INTR_PIPE
 Static void rue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -584,6 +583,7 @@ USB_ATTACH(rue)
 	bzero(sc, sizeof (struct rue_softc));
 	usbd_devinfo(uaa->device, 0, devinfo);
 
+	sc->rue_dev = self;
 	sc->rue_udev = uaa->device;
 	sc->rue_unit = device_get_unit(self);
 
@@ -738,43 +738,6 @@ rue_detach(device_ptr_t dev)
 	return (0);
 }
 
-/*
- * Initialize an RX descriptor and attach an MBUF cluster.
- */
-
-Static int
-rue_newbuf(struct rue_softc *sc, struct rue_chain *c, struct mbuf *m)
-{
-	struct mbuf	*m_new = NULL;
-
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("rue%d: no memory for rx list "
-				"-- packet dropped!\n", sc->rue_unit);
-			return (ENOBUFS);
-		}
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			printf("rue%d: no memory for rx list "
-				"-- packet dropped!\n", sc->rue_unit);
-			m_freem(m_new);
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
-
-	m_adj(m_new, ETHER_ALIGN);
-	c->rue_mbuf = m_new;
-
-	return (0);
-}
-
 Static int
 rue_rx_list_init(struct rue_softc *sc)
 {
@@ -787,7 +750,8 @@ rue_rx_list_init(struct rue_softc *sc)
 		c = &cd->rue_rx_chain[i];
 		c->rue_sc = sc;
 		c->rue_idx = i;
-		if (rue_newbuf(sc, c, NULL) == ENOBUFS)
+		c->rue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->rue_dev));
+		if (c->rue_mbuf == NULL)
 			return (ENOBUFS);
 		if (c->rue_xfer == NULL) {
 			c->rue_xfer = usbd_alloc_xfer(sc->rue_udev);
@@ -874,7 +838,8 @@ rue_rxstart(struct ifnet *ifp)
 	RUE_LOCK(sc);
 	c = &sc->rue_cdata.rue_rx_chain[sc->rue_cdata.rue_rx_prod];
 
-	if (rue_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->rue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->rue_dev));
+	if (c->rue_mbuf == NULL) {
 		ifp->if_ierrors++;
 		RUE_UNLOCK(sc);
 		return;
