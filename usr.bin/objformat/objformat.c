@@ -39,7 +39,7 @@ main(int argc, char **argv)
 	char objformat[32];
 	char *path, *chunk;
 	char *cmd, *newcmd = NULL;
-	char *objformat_path;
+	const char *objformat_path;
 
 	if (getobjformat(objformat, sizeof objformat, &argc, argv) == -1)
 		errx(1, "Invalid object format");
