@@ -35,9 +35,12 @@
 static char sccsid[] = "@(#)getent.c	8.2 (Berkeley) 12/15/93";
 #endif /* not lint */
 
+#include <stdlib.h>
+
 static char *area;
 
 /*ARGSUSED*/
+int
 getent(cp, name)
 char *cp, *name;
 {
