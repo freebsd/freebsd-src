@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.9 1995/10/14 19:13:28 jkh Exp $
+ * $Id: label.c,v 1.32.2.10 1995/10/16 07:31:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -114,7 +114,6 @@ labelHook(char *str)
 	else if (devs[1])
 	    msgConfirm("Bizarre multiple match for %s!", str);
 	devs[0]->enabled = TRUE;
-	diskLabel(str);
 	str = cp;
     }
     return devs ? 1 : 0;
@@ -123,43 +122,39 @@ labelHook(char *str)
 int
 diskLabelEditor(char *str)
 {
-    if (variable_get(DISK_PARTITIONED))
-	return diskLabel(str);
-    else {
-	DMenu *menu;
-	Device **devs;
-	int i, cnt;
+    Device **devs;
+    DMenu *menu;
+    int i, cnt;
 
-	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-	cnt = deviceCount(devs);
-	if (!cnt) {
-	    msgConfirm("No disks found!  Please verify that your disk controller is being\n"
-		       "properly probed at boot time.  See the Hardware Guide on the\n"
-		       "Documentation menu for clues on diagnosing this type of problem.");
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
+		   "properly probed at boot time.  See the Hardware Guide on the\n"
+		   "Documentation menu for clues on diagnosing this type of problem.");
+	return RET_FAIL;
+    }
+    else if (cnt == 1 || variable_get(DISK_PARTITIONED))
+	i = diskLabel(str);
+    else {
+	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
+	if (!menu) {
+	    msgConfirm("No devices suitable for installation found!\n\n"
+		       "Please verify that your disk controller (and attached drives)\n"
+		       "were detected properly.  This can be done by pressing the\n"
+		       "[Scroll Lock] key and using the Arrow keys to move back to\n"
+		       "the boot messages.  Press [Scroll Lock] again to return.");
 	    i = RET_FAIL;
 	}
-	else if (cnt == 1)
-	    i = diskLabel(str);
 	else {
-	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
-	    if (!menu) {
-		msgConfirm("No devices suitable for installation found!\n\n"
-			   "Please verify that your disk controller (and attached drives)\n"
-			   "were detected properly.  This can be done by pressing the\n"
-			   "[Scroll Lock] key and using the Arrow keys to move back to\n"
-			   "the boot messages.  Press [Scroll Lock] again to return.");
+	    if (!dmenuOpenSimple(menu))
 		i = RET_FAIL;
-	    }
-	    else {
-		if (!dmenuOpenSimple(menu))
-		    i = RET_FAIL;
-		else 
-		    i = RET_SUCCESS;
-		free(menu);
-	    }
+	    else
+		i = diskLabel(str);
+	    free(menu);
 	}
-	return i;
     }
+    return i;
 }
 
 int
@@ -229,18 +224,11 @@ space_free(struct chunk *c)
 
 /* Snapshot the current situation into the displayed chunks structure */
 static void
-record_label_chunks()
+record_label_chunks(Device **devs)
 {
     int i, j, p;
     struct chunk *c1, *c2;
-    Device **devs;
     Disk *d;
-
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    if (!devs) {
-	msgConfirm("No disks found!");
-	return;
-    }
 
     j = p = 0;
     /* First buzz through and pick up the FreeBSD slices */
@@ -534,9 +522,15 @@ diskLabel(char *str)
     PartType type;
     Device **devs;
 
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    if (!devs) {
+	msgConfirm("No disks found!");
+	return RET_FAIL;
+    }
+
     labeling = TRUE;
     keypad(stdscr, TRUE);
-    record_label_chunks();
+    record_label_chunks(devs);
 
     dialog_clear(); clear();
     while (labeling) {
@@ -629,7 +623,7 @@ diskLabel(char *str)
 	    }
 	    tmp->private = new_part("/", TRUE, tmp->size);
 	    tmp->private_free = safe_free;
-	    record_label_chunks();
+	    record_label_chunks(devs);
 	    
 	    mib[0] = CTL_HW;
 	    mib[1] = HW_PHYSMEM;
@@ -647,7 +641,7 @@ diskLabel(char *str)
 	    
 	    tmp->private = 0;
 	    tmp->private_free = safe_free;
-	    record_label_chunks();
+	    record_label_chunks(devs);
 	    
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
@@ -659,7 +653,7 @@ diskLabel(char *str)
 	    }
 	    tmp->private = new_part("/var", TRUE, tmp->size);
 	    tmp->private_free = safe_free;
-	    record_label_chunks();
+	    record_label_chunks(devs);
 	    
 	    sz = space_free(label_chunk_info[here].c);
 	    if (!sz || sz < USR_MIN_SIZE) {
@@ -667,6 +661,9 @@ diskLabel(char *str)
 			   "partition your disk manually with a custom install!", USR_MIN_SIZE / ONE_MEG);
 		break;
 	    }
+
+	    /* At this point, we're reasonably "labelled" */
+	    variable_set2(DISK_LABELLED, "yes");
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
 				    sz, part, FS_BSDFFS, 0);
@@ -677,7 +674,7 @@ diskLabel(char *str)
 	    }
 	    tmp->private = new_part("/usr", TRUE, tmp->size);
 	    tmp->private_free = safe_free;
-	    record_label_chunks();
+	    record_label_chunks(devs);
 	}
 	    break;
 	    
@@ -783,7 +780,8 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 		    tmp->private = p;
 		}
 		tmp->private_free = safe_free;
-		record_label_chunks();
+		variable_set2(DISK_LABELLED, "yes");
+		record_label_chunks(devs);
 	    }
 	    break;
 
@@ -797,7 +795,8 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 		break;
 	    }
 	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
-	    record_label_chunks();
+	    variable_set2(DISK_LABELLED, "yes");
+	    record_label_chunks(devs);
 	    break;
 
 	case 'M':	/* mount */
@@ -824,7 +823,8 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 			strcpy(p->mountpoint, "/bogus");
 		    }
 		}
-		record_label_chunks();
+		variable_set2(DISK_LABELLED, "yes");
+		record_label_chunks(devs);
 		break;
 
 	    default:
@@ -847,24 +847,30 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 		    label_chunk_info[here].c->private = new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
+		    variable_set2(DISK_LABELLED, "yes");
 		}
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    break;
 
 	case 'U':
-	    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+	    if (msgYesNo("Are you SURE you want to Undo everything?"))
+		break;
+	    variable_unset(DISK_PARTITIONED);
 	    for (i = 0; devs[i]; i++) {
+		extern void diskPartition(Device *dev, Disk *d);
+		Disk *d;
+
 		if (!devs[i]->enabled)
 		    continue;
-		else {
-		    char *cp = devs[i]->name;
-
+		else if ((d = Open_Disk(devs[i]->name)) != NULL) {
 		    Free_Disk(devs[i]->private);
-		    devs[i]->private = Open_Disk(cp);
+		    devs[i]->private = d;
+		    diskPartition(devs[i], d);
 		}
 	    }
-	    record_label_chunks();
+	    variable_unset(DISK_LABELLED);
+	    record_label_chunks(devs);
 	    break;
 
 	case 'W':
@@ -897,9 +903,10 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 		    if (devs[i]->enabled)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
+		variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
 		dialog_clear();
-		record_label_chunks();
+		record_label_chunks(devs);
 	    }
 	    else
 		msg = "A most prudent choice!";
@@ -915,7 +922,6 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 	    break;
 	}
     }
-    variable_set2(DISK_LABELLED, "yes");
     dialog_clear();
     return RET_SUCCESS;
 }

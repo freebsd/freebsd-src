@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.6 1995/06/11 19:30:15 rgrimes Exp $
+ * $Id: variable.c,v 1.6.2.1 1995/10/04 12:08:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,4 +93,22 @@ char *
 variable_get(char *var)
 {
     return getenv(var);
+}
+
+void
+variable_unset(char *var)
+{
+    Variable *vp;
+
+    unsetenv(var);
+    /* First search to see if it's already there */
+    for (vp = VarHead; vp; vp = vp->next) {
+	if (!strcmp(vp->name, var)) {
+	    Variable *save = vp->next;
+
+	    *vp = *save;
+	    safe_free(save);
+	    break;
+	}
+    }
 }
