@@ -298,7 +298,8 @@ nwfs_root(struct mount *mp, struct vnode **vpp) {
 	conn = NWFSTOCONN(nmp);
 	if (nmp->n_root) {
 		*vpp = NWTOV(nmp->n_root);
-		vget(*vpp, LK_EXCLUSIVE, curproc);
+		while (vget(*vpp, LK_EXCLUSIVE, curproc) != 0)
+			;
 		return 0;
 	}
 	error = ncp_lookup_volume(conn, nmp->m.mounted_vol, &vol, 
