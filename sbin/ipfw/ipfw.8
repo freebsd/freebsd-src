@@ -569,7 +569,7 @@ When a packet matches a rule with the
 keyword, the ALTQ identifier for the given
 .Ar queue
 (see
-.Xr pf.conf 5 )
+.Xr altq 4 )
 will be attached.
 Note that this ALTQ tag is only meaningful for packets going "out" of IPFW,
 and not being rejected or going to divert sockets.
@@ -2321,13 +2321,13 @@ the sleep terminates thus restoring the previous situation.
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr m4 1 ,
+.Xr altq 4 ,
 .Xr bridge 4 ,
 .Xr divert 4 ,
 .Xr dummynet 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
 .Xr protocols 5 ,
-.Xr pf.conf 5 ,
 .Xr services 5 ,
 .Xr init 8 ,
 .Xr kldload 8 ,
