@@ -8,9 +8,7 @@
 auth		required	pam_nologin.so	no_warn
 #auth		sufficient	pam_kerberosIV.so	no_warn
 #auth		sufficient	pam_krb5.so	no_warn
-#auth           sufficient      pam_ssh.so      no_warn try_first_pass
-# Uncomment either pam_opie or pam_unix, but not both of them.
-# pam_unix can't be simple chained with pam_opie, ftpd provides proper fallback
+#auth		sufficient	pam_ssh.so	no_warn try_first_pass
 auth		required	pam_opie.so	no_warn
 #auth		required	pam_unix.so	no_warn try_first_pass
 
