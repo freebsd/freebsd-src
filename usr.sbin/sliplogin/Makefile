@@ -2,7 +2,6 @@
 
 PROG=	sliplogin
 MAN8=	sliplogin.8
-BINOWN=	root
 BINGRP=	network
 BINMODE=4550
 INSTALLFLAGS=-fschg

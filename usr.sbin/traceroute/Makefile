@@ -1,8 +1,7 @@
-#	$Id: Makefile,v 1.7 1997/02/22 16:14:03 peter Exp $
+#	$Id: Makefile,v 1.8 1998/06/09 05:36:48 imp Exp $
 
 PROG=	traceroute
 MAN8=	traceroute.8
-BINOWN=	root
 BINMODE=4555
 CFLAGS+=-DHAVE_SYS_SELECT_H=1 -DHAVE_SETLINEBUF=1 -DHAVE_RAW_OPTIONS=1 \
 	-DSTDC_HEADERS=1 
