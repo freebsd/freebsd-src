@@ -695,18 +695,20 @@ inthand_remove(struct intrhand *idesc)
 		icu_unset(ithd->irq, idesc->ih_handler);
 		ithds[ithd->irq] = NULL;
 
-		mtx_enter(&sched_lock, MTX_SPIN);
-		if (ithd->it_proc->p_stat == SWAIT) {
-			ithd->it_proc->p_stat = SRUN;
-			setrunqueue(ithd->it_proc);
-			/*
-			 * We don't do an ast here because we really
-			 * don't care when it runs next.
-			 *
-			 * XXX: should we lower the threads priority?
-			 */
+		if ((idesc->ih_flags & INTR_FAST) == 0) {
+			mtx_enter(&sched_lock, MTX_SPIN);
+			if (ithd->it_proc->p_stat == SWAIT) {
+				ithd->it_proc->p_stat = SRUN;
+				setrunqueue(ithd->it_proc);
+				/*
+				 * We don't do an ast here because we really
+				 * don't care when it runs next.
+				 *
+				 * XXX: should we lower the threads priority?
+				 */
+			}
+			mtx_exit(&sched_lock, MTX_SPIN);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
 	}
 	free(idesc, M_DEVBUF);
 	return (0);
