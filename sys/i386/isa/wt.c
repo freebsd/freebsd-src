@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.34 1996/08/31 14:47:45 bde Exp $
+ * $Id: wt.c,v 1.36 1996/12/23 01:53:13 joerg Exp $
  *
  */
 
@@ -523,12 +523,19 @@ wtstrategy (struct buf *bp)
 	int s;
 
 	bp->b_resid = bp->b_bcount;
-	if (u >= NWT || t->type == UNKNOWN)
-		goto errxit;
+	if (u >= NWT || t->type == UNKNOWN) {
+		bp->b_error = ENXIO;
+		goto err2xit;
+	}
 
 	/* at file marks and end of tape, we just return '0 bytes available' */
 	if (t->flags & TPVOL)
 		goto xit;
+
+	if (bp->b_bcount % t->bsize != 0) {
+		bp->b_error = EINVAL;
+		goto err2xit;
+	}
 
 	if (bp->b_flags & B_READ) {
 		/* Check read access and no previous write to this tape. */
@@ -576,8 +583,8 @@ wtstrategy (struct buf *bp)
 	splx (s);
 
 	if (t->flags & TPEXCEP) {
-errxit:         bp->b_flags |= B_ERROR;
-		bp->b_error = EIO;
+errxit:		bp->b_error = EIO;
+err2xit:	bp->b_flags |= B_ERROR;
 	}
 xit:    biodone (bp);
 	return;
@@ -636,8 +643,6 @@ wtintr (int u)
 		TRACE (("unexpected interrupt\n"));
 		return;
 	}
-	t->flags &= ~TPACTIVE;
-	t->dmacount += t->bsize;                /* increment counter */
 
 	/*
 	 * Clean up dma.
@@ -649,6 +654,10 @@ wtintr (int u)
 		bcopy (t->buf, t->dmavaddr, t->dmatotal - t->dmacount);
 	} else
 		isa_dmadone (t->dmaflags, t->dmavaddr, t->bsize, t->chan);
+
+	t->flags &= ~TPACTIVE;
+	t->dmacount += t->bsize;
+	t->dmavaddr = (char *)t->dmavaddr + t->bsize;
 
 	/*
 	 * On exception, check for end of file and end of volume.
@@ -665,7 +674,6 @@ wtintr (int u)
 	}
 
 	if (t->dmacount < t->dmatotal) {        /* continue i/o */
-		t->dmavaddr = (char *)t->dmavaddr + t->bsize;
 		wtdma (t);
 		TRACE (("continue i/o, %d\n", t->dmacount));
 		return;
