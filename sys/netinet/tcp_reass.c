@@ -1111,12 +1111,7 @@ findpcb:
 		if (iss)
 			tp->iss = iss;
 		else {
-#ifdef TCP_COMPAT_42
-			tcp_iss += TCP_ISSINCR/2;
-			tp->iss = tcp_iss;
-#else
 			tp->iss = tcp_rndiss_next();
-#endif /* TCP_COMPAT_42 */
  		}
 		tp->irs = th->th_seq;
 		tcp_sendseqinit(tp);
@@ -1648,11 +1643,7 @@ trimthenstep6:
 			if (thflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
-#ifdef TCP_COMPAT_42
-				iss = tp->snd_nxt + TCP_ISSINCR;
-#else
 				iss = tcp_rndiss_next();
-#endif /* TCP_COMPAT_42 */
 				tp = tcp_close(tp);
 				goto findpcb;
 			}
