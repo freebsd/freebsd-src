@@ -439,8 +439,8 @@ diff_fileproc (callerdat, finfo)
 			(vers->vn_rcs == NULL
 			 ? NULL
 			 : RCS_branch_head (vers->srcfile, vers->vn_rcs));
-		    exists = (head != NULL &&
-			!RCS_isdead (vers->srcfile, head)); /*XXX*/
+		    exists = (head != NULL
+			      && !RCS_isdead (vers->srcfile, head));
 		    if (head != NULL)
 			free (head);
 		}
@@ -450,8 +450,8 @@ diff_fileproc (callerdat, finfo)
 
 		    xvers = Version_TS (finfo, NULL, diff_rev1, diff_date1,
 					1, 0);
-		    exists = (xvers->vn_rcs != NULL &&
-			!RCS_isdead (xvers->srcfile, xvers->vn_rcs)); /*XXX*/
+		    exists = (xvers->vn_rcs != NULL
+			      && !RCS_isdead (xvers->srcfile, xvers->vn_rcs));
 		    freevers_ts (&xvers);
 		}
 		if (exists)
