@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.20 1998/03/09 19:26:35 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.21 1998/03/13 00:43:52 brian Exp $
  */
 
 #include <sys/param.h>
@@ -91,7 +91,7 @@ bundle_PhaseName(struct bundle *bundle)
 }
 
 void
-bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
+bundle_NewPhase(struct bundle *bundle, u_int new)
 {
   if (new == bundle->phase)
     return;
@@ -114,7 +114,6 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
     break;
 
   case PHASE_NETWORK:
-    tun_configure(bundle, LcpInfo.his_mru, modem_Speed(physical));
     ipcp_Setup(&IpcpInfo);
     FsmUp(&IpcpInfo.fsm);
     FsmOpen(&IpcpInfo.fsm);
@@ -176,7 +175,7 @@ bundle_LayerStart(void *v, struct fsm *fp)
   struct bundle *bundle = (struct bundle *)v;
 
   if (fp->proto == PROTO_LCP && bundle->phase == PHASE_DEAD)
-    bundle_NewPhase(bundle, link2physical(fp->link), PHASE_ESTABLISH);
+    bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
 static void
@@ -184,15 +183,20 @@ bundle_LayerUp(void *v, struct fsm *fp)
 {
   /*
    * The given fsm is now up
-   * If it's a datalink, enter network phase
+   * If it's a datalink, adjust our mtu enter network phase
    * If it's the first NCP, start the idle timer.
    * If it's an NCP, tell our background mode parent to go away.
    */
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp->proto == PROTO_LCP)
-    bundle_NewPhase(bundle, link2physical(fp->link), PHASE_NETWORK);
+  if (fp->proto == PROTO_LCP) {
+    struct lcp *lcp = fsm2lcp(fp);
+
+    /* XXX Should figure out what the optimum mru and speed are */
+    tun_configure(bundle, lcp->his_mru, modem_Speed(link2physical(fp->link)));
+    bundle_NewPhase(bundle, PHASE_NETWORK);
+  }
 
   if (fp == &IpcpInfo.fsm) {
     bundle_StartIdleTimer(bundle);
@@ -240,7 +244,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
   } else if (fp == &IpcpInfo.fsm) {
     struct datalink *dl;
 
-    bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
+    bundle_NewPhase(bundle, PHASE_TERMINATE);
 
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, 1);
@@ -271,7 +275,7 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
   struct datalink *dl;
 
   if (IpcpInfo.fsm.state > ST_CLOSED || IpcpInfo.fsm.state == ST_STARTING) {
-    bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
+    bundle_NewPhase(bundle, PHASE_TERMINATE);
     FsmClose(&IpcpInfo.fsm);
     if (staydown)
       for (dl = bundle->links; dl; dl = dl->next)
@@ -613,7 +617,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   if (mode & MODE_DDIAL)
     datalink_Up(dl, 1, 1);
   else
-    bundle_NewPhase(bundle, NULL, PHASE_DEAD);
+    bundle_NewPhase(bundle, PHASE_DEAD);
 
   if (mode & MODE_INTER)
     prompt_Display(&prompt, bundle);
@@ -636,7 +640,7 @@ bundle_Open(struct bundle *bundle, const char *name)
       if (name != NULL)
         break;
     }
-  bundle_NewPhase(bundle, NULL, PHASE_ESTABLISH);
+  bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
 struct datalink *
