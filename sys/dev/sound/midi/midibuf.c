@@ -357,7 +357,7 @@ queuerawdata(midi_dbuf *dbuf, char *data, int len)
 
 	/* Wake up the processes sleeping on input data. */
 	cv_broadcast(&dbuf->cv_in);
-	if (dbuf->sel.si_pid && dbuf->rl >= dbuf->blocksize)
+	if (SEL_WAITING(&dbuf->sel) && dbuf->rl >= dbuf->blocksize)
 		selwakeup(&dbuf->sel);
 }
 
@@ -398,6 +398,6 @@ deleterawdata(midi_dbuf *dbuf, int len)
 
 	/* Wake up the processes sleeping on queueing. */
 	cv_broadcast(&dbuf->cv_out);
-	if (dbuf->sel.si_pid && dbuf->fl >= dbuf->blocksize)
+	if (SEL_WAITING(&dbuf->sel) && dbuf->fl >= dbuf->blocksize)
 		selwakeup(&dbuf->sel);
 }

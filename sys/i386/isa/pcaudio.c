@@ -542,11 +542,8 @@ pcaintr(struct clockframe *frame)
 		pca_status.buffer = pca_status.buf[pca_status.current];
                 if (pca_sleep)
 			wakeup(&pca_sleep);
-		if (pca_status.wsel.si_pid) {
-			selwakeup((struct selinfo *)&pca_status.wsel.si_pid);
-			pca_status.wsel.si_pid = 0;
-			pca_status.wsel.si_flags = 0;
-		}
+		if (SEL_WAITING(&pca_status.wsel))
+			selwakeup(&pca_status.wsel);
 	}
 }
 

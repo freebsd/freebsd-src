@@ -45,18 +45,23 @@ struct thread;
  * notified when I/O becomes possible.
  */
 struct selinfo {
-	pid_t	si_pid;		/* process to be notified */
-	struct	thread *si_thread;	/* thread in that process XXXKSE */
+	TAILQ_ENTRY(selinfo)	si_thrlist;	/* list hung off of thread */
+	struct	thread *si_thread;	/* thread waiting */
 	struct	klist si_note;	/* kernel note list */
 	short	si_flags;	/* see below */
 };
 #define	SI_COLL	0x0001		/* collision occurred */
 
+#define SEL_WAITING(si)	\
+	((si)->si_thread != NULL || ((si)->si_flags & SI_COLL) != 0)
+
 #ifdef _KERNEL
 struct thread;
 
+void	clear_selinfo_list(struct thread *);
 void	selrecord __P((struct thread *selector, struct selinfo *));
 void	selwakeup __P((struct selinfo *));
+
 #endif
 
 #endif /* !_SYS_SELINFO_H_ */

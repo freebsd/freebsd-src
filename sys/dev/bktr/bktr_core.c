@@ -809,7 +809,7 @@ common_bktr_intr( void *arg )
 		}
 
 		/* If someone has a select() on /dev/vbi, inform them */
-		if (bktr->vbi_select.si_pid) {
+		if (SEL_WAITING(&bktr->vbi_select)) {
 			selwakeup(&bktr->vbi_select);
 		}
 
