@@ -34,6 +34,8 @@
 #ifndef _DEV_KBD_ATKBDCREG_H_
 #define	_DEV_KBD_ATKBDCREG_H_
 
+#include "opt_kbd.h"	/* Structures depend on the value if KBDIO_DEBUG */
+
 /* constants */
 
 /* I/O ports */
