@@ -31,9 +31,7 @@ LDDESTDIR+=	-L${DESTDIR}/usr/lib
 .if defined(SRCS)
 
 DPSRCS+= ${SRCS:M*.h}
-.if !defined(NOOBJ)
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
-.endif
 
 .if defined(LDONLY)
 
