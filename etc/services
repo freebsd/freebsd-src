@@ -2035,6 +2035,10 @@ afs3-update	7008/tcp   #server-to-server updater
 afs3-update	7008/udp   #server-to-server updater
 afs3-rmtsys	7009/tcp   #remote cache manager service
 afs3-rmtsys	7009/udp   #remote cache manager service
+afs3-resserver	7010/tcp   #MR-AFS residence server
+afs3-resserver	7010/udp   #MR-AFS residence server
+afs3-remio	7011/tcp   #MR-AFS remote IO server
+afs3-remio	7011/udp   #MR-AFS remote IO server
 ups-onlinet	7010/tcp   #onlinet uninterruptable power supplies
 ups-onlinet	7010/udp   #onlinet uninterruptable power supplies
 font-service	7100/tcp   #X Font Service
