@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.10.2.18 1998/03/15 15:20:17 kato Exp $
+ **      $Id: userconfig.c,v 1.10.2.19 1998/04/18 15:45:27 kato Exp $
  **/
 
 /**
@@ -232,9 +232,6 @@ static DEV_INFO device_info[] = {
 #ifdef PC98
 {"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
 #endif
-#ifdef DPTOPT
-{"dpt",         "DPT RAID, Caching SCSI HBA", 0, CLS_STORAGE},
-#endif /* DPTOPT */
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"ahb",         "Adaptec 174x SCSI controller",		0,		CLS_STORAGE},
@@ -2385,7 +2382,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.10.2.18 1998/03/15 15:20:17 kato Exp $
+ *      $Id: userconfig.c,v 1.10.2.19 1998/04/18 15:45:27 kato Exp $
  */
 
 #include "scbus.h"
