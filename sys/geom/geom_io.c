@@ -59,6 +59,7 @@
 
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
+static struct g_bioq g_bio_run_task;
 static struct g_bioq g_bio_idle;
 
 static u_int pace;
@@ -101,13 +102,11 @@ g_bioq_first(struct g_bioq *bq)
 {
 	struct bio *bp;
 
-	g_bioq_lock(bq);
 	bp = TAILQ_FIRST(&bq->bio_queue);
 	if (bp != NULL) {
 		TAILQ_REMOVE(&bq->bio_queue, bp, bio_queue);
 		bq->bio_queue_length--;
 	}
-	g_bioq_unlock(bq);
 	return (bp);
 }
 
@@ -126,7 +125,9 @@ g_new_bio(void)
 {
 	struct bio *bp;
 
+	g_bioq_lock(&g_bio_idle);
 	bp = g_bioq_first(&g_bio_idle);
+	g_bioq_unlock(&g_bio_idle);
 	if (bp == NULL)
 		bp = g_malloc(sizeof *bp, M_NOWAIT | M_ZERO);
 	/* g_trace(G_T_BIO, "g_new_bio() = %p", bp); */
@@ -167,6 +168,7 @@ g_io_init()
 
 	g_bioq_init(&g_bio_run_down);
 	g_bioq_init(&g_bio_run_up);
+	g_bioq_init(&g_bio_run_task);
 	g_bioq_init(&g_bio_idle);
 }
 
@@ -383,11 +385,20 @@ g_io_schedule_down(struct thread *tp __unused)
 	struct bio *bp;
 	off_t excess;
 	int error;
+	struct mtx mymutex;
+ 
+	bzero(&mymutex, sizeof mymutex);
+	mtx_init(&mymutex, "g_xdown", MTX_DEF, 0);
 
 	for(;;) {
+		g_bioq_lock(&g_bio_run_down);
 		bp = g_bioq_first(&g_bio_run_down);
-		if (bp == NULL)
-			break;
+		if (bp == NULL) {
+			msleep(&g_wait_down, &g_bio_run_down.bio_queue_lock,
+			    PRIBIO | PDROP, "g_down", hz/10);
+			continue;
+		}
+		g_bioq_unlock(&g_bio_run_down);
 		error = g_io_check(bp);
 		if (error) {
 			g_io_deliver(bp, error);
@@ -412,7 +423,9 @@ g_io_schedule_down(struct thread *tp __unused)
 		default:
 			break;
 		}
+		mtx_lock(&mymutex);
 		bp->bio_to->geom->start(bp);
+		mtx_unlock(&mymutex);
 		if (pace) {
 			pace--;
 			break;
@@ -421,18 +434,50 @@ g_io_schedule_down(struct thread *tp __unused)
 }
 
 void
+bio_taskqueue(struct bio *bp, bio_task_t *func, void *arg)
+{
+	bp->bio_task = func;
+	bp->bio_task_arg = arg;
+	/*
+	 * The taskqueue is actually just a second queue off the "up"
+	 * queue, so we use the same lock.
+	 */
+	g_bioq_lock(&g_bio_run_up);
+	TAILQ_INSERT_TAIL(&g_bio_run_task.bio_queue, bp, bio_queue);
+	g_bio_run_task.bio_queue_length++;
+	wakeup(&g_wait_up);
+	g_bioq_unlock(&g_bio_run_up);
+}
+
+
+void
 g_io_schedule_up(struct thread *tp __unused)
 {
 	struct bio *bp;
-	struct g_consumer *cp;
-
+	struct mtx mymutex;
+ 
+	bzero(&mymutex, sizeof mymutex);
+	mtx_init(&mymutex, "g_xup", MTX_DEF, 0);
 	for(;;) {
+		g_bioq_lock(&g_bio_run_up);
+		bp = g_bioq_first(&g_bio_run_task);
+		if (bp != NULL) {
+			g_bioq_unlock(&g_bio_run_up);
+			mtx_lock(&mymutex);
+			bp->bio_task(bp, bp->bio_task_arg);
+			mtx_unlock(&mymutex);
+			continue;
+		}
 		bp = g_bioq_first(&g_bio_run_up);
-		if (bp == NULL)
-			break;
-
-		cp = bp->bio_from;
-		biodone(bp);
+		if (bp != NULL) {
+			g_bioq_unlock(&g_bio_run_up);
+			mtx_lock(&mymutex);
+			biodone(bp);
+			mtx_unlock(&mymutex);
+			continue;
+		}
+		msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
+		    PRIBIO | PDROP, "g_up", hz/10);
 	}
 }
 
