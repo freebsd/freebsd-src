@@ -22,7 +22,7 @@
  */
 
 #ifndef         __OSD_UTIL_H
-#define         __OSD_UTIL_H
+#define	        __OSD_UTIL_H
 
 /*File - OSD_UTIL.H
  ****************************************************************************
@@ -56,25 +56,25 @@
 /* Operating system selections: */
 /*----------------------------- */
 
-/*#define               _DPT_MSDOS      */
-/*#define               _DPT_WIN_3X     */
-/*#define               _DPT_WIN_4X     */
-/*#define               _DPT_WIN_NT     */
-/*#define               _DPT_NETWARE    */
-/*#define               _DPT_OS2        */
-/*#define               _DPT_SCO        */
-/*#define               _DPT_UNIXWARE   */
-/*#define               _DPT_SOLARIS    */
-/*#define               _DPT_NEXTSTEP   */
-/*#define               _DPT_BANYAN     */
+/*#define	              _DPT_MSDOS      */
+/*#define	              _DPT_WIN_3X     */
+/*#define	              _DPT_WIN_4X     */
+/*#define	              _DPT_WIN_NT     */
+/*#define	              _DPT_NETWARE    */
+/*#define	              _DPT_OS2        */
+/*#define	              _DPT_SCO        */
+/*#define	              _DPT_UNIXWARE   */
+/*#define	              _DPT_SOLARIS    */
+/*#define	              _DPT_NEXTSTEP   */
+/*#define	              _DPT_BANYAN     */
 
 /*-------------------------------- */
 /* Include the OS specific defines */
 /*-------------------------------- */
 
-/*#define       OS_SELECTION    From Above List */
-/*#define       SEMAPHORE_T     ??? */
-/*#define       DLL_HANDLE_T    ??? */
+/*#define	      OS_SELECTION    From Above List */
+/*#define	      SEMAPHORE_T     ??? */
+/*#define	      DLL_HANDLE_T    ??? */
 
 #if (defined(KERNEL) && defined(__bsdi__))
 # include        "i386/isa/dpt_osd_defs.h"
@@ -89,19 +89,19 @@
 #endif
 
 #ifndef DPT_UNALIGNED
-   #define      DPT_UNALIGNED
+   #define	     DPT_UNALIGNED
 #endif
 
 #ifndef DPT_EXPORT
-   #define      DPT_EXPORT
+   #define	     DPT_EXPORT
 #endif
 
 #ifndef DPT_IMPORT
-   #define      DPT_IMPORT
+   #define	     DPT_IMPORT
 #endif
 
 #ifndef DPT_RUNTIME_IMPORT
-   #define      DPT_RUNTIME_IMPORT  DPT_IMPORT
+   #define	     DPT_RUNTIME_IMPORT  DPT_IMPORT
 #endif
 
 /*--------------------- */
@@ -109,30 +109,30 @@
 /*--------------------- */
 
 #if defined (_DPT_MSDOS) || defined (_DPT_WIN_3X)
-   #define      _DPT_16_BIT
+   #define	     _DPT_16_BIT
 #else
-   #define      _DPT_32_BIT
+   #define	     _DPT_32_BIT
 #endif
 
 #if defined (_DPT_SCO) || defined (_DPT_UNIXWARE) || defined (_DPT_SOLARIS) || defined (_DPT_AIX) || defined (SNI_MIPS) || defined (_DPT_BSDI) || defined (_DPT_FREE_BSD) || defined(_DPT_LINUX)
-   #define      _DPT_UNIX
+   #define	     _DPT_UNIX
 #endif
 
 #if defined (_DPT_WIN_3x) || defined (_DPT_WIN_4X) || defined (_DPT_WIN_NT) \
 	    || defined (_DPT_OS2)
-   #define      _DPT_DLL_SUPPORT
+   #define	     _DPT_DLL_SUPPORT
 #endif
 
 #if !defined (_DPT_MSDOS) && !defined (_DPT_WIN_3X) && !defined (_DPT_NETWARE)
-   #define      _DPT_PREEMPTIVE
+   #define	     _DPT_PREEMPTIVE
 #endif
 
 #if !defined (_DPT_MSDOS) && !defined (_DPT_WIN_3X)
-   #define      _DPT_MULTI_THREADED
+   #define	     _DPT_MULTI_THREADED
 #endif
 
 #if !defined (_DPT_MSDOS)
-   #define      _DPT_MULTI_TASKING
+   #define	     _DPT_MULTI_TASKING
 #endif
 
   /* These exist for platforms that   */
@@ -141,16 +141,16 @@
 #if defined (SNI_MIPS) || defined (_DPT_SOLARIS)
    #if defined (_DPT_BIG_ENDIAN)
 	#if !defined (_DPT_STRICT_ALIGN)
-            #define _DPT_STRICT_ALIGN
+            #define	_DPT_STRICT_ALIGN
 	#endif
    #endif
 #endif
 
   /* Determine if in C or C++ mode */
 #ifdef  __cplusplus
-   #define      _DPT_CPP
+   #define	     _DPT_CPP
 #else
-   #define      _DPT_C
+   #define	     _DPT_C
 #endif
 
 /*-------------------------------------------------------------------*/
@@ -169,11 +169,11 @@
 /*-------------------------------------------------------------------*/
 #if !defined (DPTSQO)
    #if defined (_DPT_SOLARIS)
-      #define DPTSQO
-      #define DPTSQC
+      #define	DPTSQO
+      #define	DPTSQC
    #else
-      #define DPTSQO {
-      #define DPTSQC }
+      #define	DPTSQO {
+      #define	DPTSQC }
    #endif  /* solaris */
 #endif  /* DPTSQO */
 
@@ -183,12 +183,12 @@
 /*---------------------- */
 
 #if defined (_DPT_MSDOS) || defined (_DPT_SCO)
-   #define BYTE unsigned char
-   #define WORD unsigned short
+   #define	BYTE unsigned char
+   #define	WORD unsigned short
 #endif
 
 #ifndef _DPT_TYPEDEFS
-   #define _DPT_TYPEDEFS
+   #define	_DPT_TYPEDEFS
    typedef unsigned char   uCHAR;
    typedef unsigned short  uSHORT;
    typedef unsigned int    uINT;
@@ -202,7 +202,7 @@
 #endif
 
 #if !defined (NULL)
-   #define      NULL    0
+   #define	     NULL    0
 #endif
 
 
@@ -235,7 +235,7 @@
 	 return *inLong = DPT_Bswapl(*inLong);
 	 }
    #else
-	 #define osdSwap4(inLong)       DPT_Bswapl(inLong)
+	 #define	osdSwap4(inLong)       DPT_Bswapl(inLong)
    #endif  /* cplusplus */
 #else
 	/* Reverses the byte ordering of a 4 byte variable */
@@ -262,7 +262,7 @@
  * We will enclose all structure       *
  * portability modifications inside    *
  * #ifdefs.  When we are ready, we     *
- * will #define DPT_PORTABLE to begin  *
+ * will #define	DPT_PORTABLE to begin  *
  * using the modifications.            *
  *-------------------------------------*/
 uLONG	netSwap4(uLONG val);
@@ -272,11 +272,11 @@ uLONG	netSwap4(uLONG val);
 /* for big-endian we need to swap */
 
 #ifndef NET_SWAP_2
-#define NET_SWAP_2(x) (((x) >> 8) | ((x) << 8))
+#define	NET_SWAP_2(x) (((x) >> 8) | ((x) << 8))
 #endif  /* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
-#define NET_SWAP_4(x) netSwap4((x))
+#define	NET_SWAP_4(x) netSwap4((x))
 #endif  /* NET_SWAP_4 */
 
 #else
@@ -284,11 +284,11 @@ uLONG	netSwap4(uLONG val);
 /* for little-endian we don't need to do anything */
 
 #ifndef NET_SWAP_2
-#define NET_SWAP_2(x) (x)
+#define	NET_SWAP_2(x) (x)
 #endif  /* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
-#define NET_SWAP_4(x) (x)
+#define	NET_SWAP_4(x) (x)
 #endif  /* NET_SWAP_4 */
 
 #endif  /* big endian */
@@ -352,9 +352,9 @@ void osdWakeThread(uLONG);
 /* osd sleep for x miliseconds */
 void osdSleep(uLONG);
 
-#define DPT_THREAD_PRIORITY_LOWEST 0x00
-#define DPT_THREAD_PRIORITY_NORMAL 0x01
-#define DPT_THREAD_PRIORITY_HIGHEST 0x02
+#define	DPT_THREAD_PRIORITY_LOWEST 0x00
+#define	DPT_THREAD_PRIORITY_NORMAL 0x01
+#define	DPT_THREAD_PRIORITY_HIGHEST 0x02
 
 uCHAR osdSetThreadPriority(uLONG tid, uCHAR priority);
 

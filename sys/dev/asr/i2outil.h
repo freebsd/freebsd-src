@@ -88,9 +88,9 @@
  **********************************************************************/
 
 #if !defined(I2O_UTILITY_HDR)
-#define I2O_UTILITY_HDR
+#define	I2O_UTILITY_HDR
 
-#define I2OUTIL_REV 1_5_4  /* I2OUtil header file revision string */
+#define	I2OUTIL_REV 1_5_4  /* I2OUtil header file revision string */
 
 #if ((defined(KERNEL) || defined(_KERNEL)) && defined(__FreeBSD__))
 # if (KERN_VERSION < 3)
@@ -129,33 +129,33 @@ PRAGMA_PACK_PUSH
 
 /* Utility Message class functions. */
 
-#define    I2O_UTIL_NOP                                0x00
-#define    I2O_UTIL_ABORT                              0x01
-#define    I2O_UTIL_CLAIM                              0x09
-#define    I2O_UTIL_CLAIM_RELEASE                      0x0B
-#define    I2O_UTIL_CONFIG_DIALOG                      0x10
-#define    I2O_UTIL_DEVICE_RESERVE                     0x0D
-#define    I2O_UTIL_DEVICE_RELEASE                     0x0F
-#define    I2O_UTIL_EVENT_ACKNOWLEDGE                  0x14
-#define    I2O_UTIL_EVENT_REGISTER                     0x13
-#define    I2O_UTIL_LOCK                               0x17
-#define    I2O_UTIL_LOCK_RELEASE                       0x19
-#define    I2O_UTIL_PARAMS_GET                         0x06
-#define    I2O_UTIL_PARAMS_SET                         0x05
-#define    I2O_UTIL_REPLY_FAULT_NOTIFY                 0x15
+#define	   I2O_UTIL_NOP                                0x00
+#define	   I2O_UTIL_ABORT                              0x01
+#define	   I2O_UTIL_CLAIM                              0x09
+#define	   I2O_UTIL_CLAIM_RELEASE                      0x0B
+#define	   I2O_UTIL_CONFIG_DIALOG                      0x10
+#define	   I2O_UTIL_DEVICE_RESERVE                     0x0D
+#define	   I2O_UTIL_DEVICE_RELEASE                     0x0F
+#define	   I2O_UTIL_EVENT_ACKNOWLEDGE                  0x14
+#define	   I2O_UTIL_EVENT_REGISTER                     0x13
+#define	   I2O_UTIL_LOCK                               0x17
+#define	   I2O_UTIL_LOCK_RELEASE                       0x19
+#define	   I2O_UTIL_PARAMS_GET                         0x06
+#define	   I2O_UTIL_PARAMS_SET                         0x05
+#define	   I2O_UTIL_REPLY_FAULT_NOTIFY                 0x15
 
 /****************************************************************************/
 
 /* ABORT Abort type defines. */
 
-#define    I2O_ABORT_TYPE_EXACT_ABORT                  0x00
-#define    I2O_ABORT_TYPE_FUNCTION_ABORT               0x01
-#define    I2O_ABORT_TYPE_TRANSACTION_ABORT            0x02
-#define    I2O_ABORT_TYPE_WILD_ABORT                   0x03
-#define    I2O_ABORT_TYPE_CLEAN_EXACT_ABORT            0x04
-#define    I2O_ABORT_TYPE_CLEAN_FUNCTION_ABORT         0x05
-#define    I2O_ABORT_TYPE_CLEAN_TRANSACTION_ABORT      0x06
-#define    I2O_ABORT_TYPE_CLEAN_WILD_ABORT             0x07
+#define	   I2O_ABORT_TYPE_EXACT_ABORT                  0x00
+#define	   I2O_ABORT_TYPE_FUNCTION_ABORT               0x01
+#define	   I2O_ABORT_TYPE_TRANSACTION_ABORT            0x02
+#define	   I2O_ABORT_TYPE_WILD_ABORT                   0x03
+#define	   I2O_ABORT_TYPE_CLEAN_EXACT_ABORT            0x04
+#define	   I2O_ABORT_TYPE_CLEAN_FUNCTION_ABORT         0x05
+#define	   I2O_ABORT_TYPE_CLEAN_TRANSACTION_ABORT      0x06
+#define	   I2O_ABORT_TYPE_CLEAN_WILD_ABORT             0x07
 
 /* UtilAbort Function Message Frame structure. */
 
@@ -184,19 +184,19 @@ typedef struct _I2O_UTIL_ABORT_REPLY {
 
 /* Claim Flag defines */
 
-#define    I2O_CLAIM_FLAGS_EXCLUSIVE                   0x0001 /* Reserved */
-#define    I2O_CLAIM_FLAGS_RESET_SENSITIVE             0x0002
-#define    I2O_CLAIM_FLAGS_STATE_SENSITIVE             0x0004
-#define    I2O_CLAIM_FLAGS_CAPACITY_SENSITIVE          0x0008
-#define    I2O_CLAIM_FLAGS_PEER_SERVICE_DISABLED       0x0010
-#define    I2O_CLAIM_FLAGS_MGMT_SERVICE_DISABLED       0x0020
+#define	   I2O_CLAIM_FLAGS_EXCLUSIVE                   0x0001 /* Reserved */
+#define	   I2O_CLAIM_FLAGS_RESET_SENSITIVE             0x0002
+#define	   I2O_CLAIM_FLAGS_STATE_SENSITIVE             0x0004
+#define	   I2O_CLAIM_FLAGS_CAPACITY_SENSITIVE          0x0008
+#define	   I2O_CLAIM_FLAGS_PEER_SERVICE_DISABLED       0x0010
+#define	   I2O_CLAIM_FLAGS_MGMT_SERVICE_DISABLED       0x0020
 
 /* Claim Type defines */
 
-#define    I2O_CLAIM_TYPE_PRIMARY_USER                 0x01
-#define    I2O_CLAIM_TYPE_AUTHORIZED_USER              0x02
-#define    I2O_CLAIM_TYPE_SECONDARY_USER               0x03
-#define    I2O_CLAIM_TYPE_MANAGEMENT_USER              0x04
+#define	   I2O_CLAIM_TYPE_PRIMARY_USER                 0x01
+#define	   I2O_CLAIM_TYPE_AUTHORIZED_USER              0x02
+#define	   I2O_CLAIM_TYPE_SECONDARY_USER               0x03
+#define	   I2O_CLAIM_TYPE_MANAGEMENT_USER              0x04
 
 /* UtilClaim Function Message Frame structure. */
 
@@ -213,7 +213,7 @@ typedef struct _I2O_UTIL_CLAIM_MESSAGE {
 
 /* Claim Release Flag defines */
 
-#define    I2O_RELEASE_FLAGS_CONDITIONAL               0x0001
+#define	   I2O_RELEASE_FLAGS_CONDITIONAL               0x0001
 
 /* UtilClaimRelease Function Message Frame structure. */
 
@@ -263,37 +263,37 @@ typedef struct _I2O_UTIL_EVENT_ACK_REPLY {
 
 /* Event Indicator Mask Flags */
 
-#define    I2O_EVENT_IND_STATE_CHANGE                  0x80000000
-#define    I2O_EVENT_IND_GENERAL_WARNING               0x40000000
-#define    I2O_EVENT_IND_CONFIGURATION_FLAG            0x20000000
-/* #define    I2O_EVENT_IND_RESERVE_RELEASE               0x10000000 */
-#define    I2O_EVENT_IND_LOCK_RELEASE                  0x10000000
-#define    I2O_EVENT_IND_CAPABILITY_CHANGE             0x08000000
-#define    I2O_EVENT_IND_DEVICE_RESET                  0x04000000
-#define    I2O_EVENT_IND_EVENT_MASK_MODIFIED           0x02000000
-#define    I2O_EVENT_IND_FIELD_MODIFIED                0x01000000
-#define    I2O_EVENT_IND_VENDOR_EVENT                  0x00800000
-#define    I2O_EVENT_IND_DEVICE_STATE                  0x00400000
+#define	   I2O_EVENT_IND_STATE_CHANGE                  0x80000000
+#define	   I2O_EVENT_IND_GENERAL_WARNING               0x40000000
+#define	   I2O_EVENT_IND_CONFIGURATION_FLAG            0x20000000
+/* #define	   I2O_EVENT_IND_RESERVE_RELEASE               0x10000000 */
+#define	   I2O_EVENT_IND_LOCK_RELEASE                  0x10000000
+#define	   I2O_EVENT_IND_CAPABILITY_CHANGE             0x08000000
+#define	   I2O_EVENT_IND_DEVICE_RESET                  0x04000000
+#define	   I2O_EVENT_IND_EVENT_MASK_MODIFIED           0x02000000
+#define	   I2O_EVENT_IND_FIELD_MODIFIED                0x01000000
+#define	   I2O_EVENT_IND_VENDOR_EVENT                  0x00800000
+#define	   I2O_EVENT_IND_DEVICE_STATE                  0x00400000
 
 /* Event Data for generic Events */
 
-#define    I2O_EVENT_STATE_CHANGE_NORMAL               0x00
-#define    I2O_EVENT_STATE_CHANGE_SUSPENDED            0x01
-#define    I2O_EVENT_STATE_CHANGE_RESTART              0x02
-#define    I2O_EVENT_STATE_CHANGE_NA_RECOVER           0x03
-#define    I2O_EVENT_STATE_CHANGE_NA_NO_RECOVER        0x04
-#define    I2O_EVENT_STATE_CHANGE_QUIESCE_REQUEST      0x05
-#define    I2O_EVENT_STATE_CHANGE_FAILED               0x10
-#define    I2O_EVENT_STATE_CHANGE_FAULTED              0x11
+#define	   I2O_EVENT_STATE_CHANGE_NORMAL               0x00
+#define	   I2O_EVENT_STATE_CHANGE_SUSPENDED            0x01
+#define	   I2O_EVENT_STATE_CHANGE_RESTART              0x02
+#define	   I2O_EVENT_STATE_CHANGE_NA_RECOVER           0x03
+#define	   I2O_EVENT_STATE_CHANGE_NA_NO_RECOVER        0x04
+#define	   I2O_EVENT_STATE_CHANGE_QUIESCE_REQUEST      0x05
+#define	   I2O_EVENT_STATE_CHANGE_FAILED               0x10
+#define	   I2O_EVENT_STATE_CHANGE_FAULTED              0x11
 
-#define    I2O_EVENT_GEN_WARNING_NORMAL                0x00
-#define    I2O_EVENT_GEN_WARNING_ERROR_THRESHOLD       0x01
-#define    I2O_EVENT_GEN_WARNING_MEDIA_FAULT           0x02
+#define	   I2O_EVENT_GEN_WARNING_NORMAL                0x00
+#define	   I2O_EVENT_GEN_WARNING_ERROR_THRESHOLD       0x01
+#define	   I2O_EVENT_GEN_WARNING_MEDIA_FAULT           0x02
 
-#define    I2O_EVENT_CAPABILITY_OTHER                  0x01
-#define    I2O_EVENT_CAPABILITY_CHANGED                0x02
+#define	   I2O_EVENT_CAPABILITY_OTHER                  0x01
+#define	   I2O_EVENT_CAPABILITY_CHANGED                0x02
 
-#define    I2O_EVENT_SENSOR_STATE_CHANGED              0x01
+#define	   I2O_EVENT_SENSOR_STATE_CHANGED              0x01
 
 
 /*  UtilEventRegister Function Message Frame structure */
