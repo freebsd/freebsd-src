@@ -1,5 +1,5 @@
 /* insertion.c -- insertions for Texinfo.
-   $Id: insertion.c,v 1.14 2003/01/02 23:46:29 karl Exp $
+   $Id: insertion.c,v 1.21 2003/04/01 14:34:18 karl Exp $
 
    Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Free Software
    Foundation, Inc.
@@ -130,7 +130,20 @@ char *
 get_item_function ()
 {
   char *item_function;
+  char *item_loc;
+  
   get_rest_of_line (0, &item_function);
+
+  /* If the document erroneously says
+       @itemize @bullet @item foobar
+     it's nicer to give an error up front than repeat `@bullet expected
+     braces' until we get a segmentation fault.  */
+  item_loc = strstr (item_function, "@item");
+  if (item_loc)
+    {
+      line_error (_("@item not allowed in argument to @itemize"));
+      *item_loc = 0;
+    }
 
   /* If we hit the end of text in get_rest_of_line, backing up
      input pointer will cause the last character of the last line
@@ -191,7 +204,7 @@ pop_insertion ()
 
  /* Return a pointer to the print name of this
     enumerated type. */
-char *
+const char *
 insertion_type_pname (type)
      enum insertion_type type;
 {
@@ -643,8 +656,14 @@ begin_insertion (type)
         close_single_paragraph ();
       break;
 
-      /* Insertions that are no-ops in info, but do something in TeX. */
     case cartouche:
+      if (html)
+	add_word ("<table class=\"cartouche\" border=1><tr><td>\n");
+      if (in_menu)
+        no_discard++;
+      break;
+
+      /* Insertions that are no-ops in info, but do something in TeX. */
     case ifclear:
     case ifhtml:
     case ifinfo:
@@ -845,7 +864,7 @@ end_insertion (type)
 
     case menu:
       in_menu--;                /* No longer hacking menus. */
-      if (html)
+      if (html && !no_headers)
         add_word ("</ul>\n");
       else if (!no_headers)
         close_insertion_paragraph ();
@@ -869,8 +888,13 @@ end_insertion (type)
       close_insertion_paragraph ();
       break;
 
-    case group:
     case cartouche:
+      if (html)
+	add_word ("</td></tr></table>\n");
+      close_insertion_paragraph ();
+      break;
+
+    case group:
       close_insertion_paragraph ();
       break;
 
@@ -981,7 +1005,7 @@ discard_insertions (specials_ok)
         break;
       else
         {
-          char *offender = insertion_type_pname (insertion_stack->insertion);
+          const char *offender = insertion_type_pname (insertion_stack->insertion);
 
           file_line_error (insertion_stack->filename,
                            insertion_stack->line_number,
@@ -1643,9 +1667,10 @@ cm_item ()
                  in this context, but I cannot find any way to force
                  them all render exactly one blank line.  */
               if (!itemx_flag
-                  && strncmp ((char *) output_paragraph
+                  && ((output_paragraph_offset < sizeof (dl_tag) + 1)
+                     || strncmp ((char *) output_paragraph
                               + output_paragraph_offset - sizeof (dl_tag) + 1, 
-                              dl_tag, sizeof (dl_tag) - 1) != 0)
+                              dl_tag, sizeof (dl_tag) - 1) != 0))
                 add_word ("<br>");
    
               add_word ("<dt>");

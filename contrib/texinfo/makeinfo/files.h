@@ -1,5 +1,5 @@
 /* files.h -- declarations for files.c.
-   $Id: files.h,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: files.h,v 1.2 2003/03/06 14:05:30 karl Exp $
 
    Copyright (C) 1998, 2002 Free Software Foundation, Inc.
 
@@ -36,6 +36,7 @@ extern FSTACK *filestack;
 
 extern void pushfile (), popfile ();
 extern void flush_file_stack ();
+extern char *get_file_info_in_path ();
 extern char *find_and_load ();
 extern char *output_name_from_input_name ();
 extern char *expand_filename ();

@@ -1,8 +1,8 @@
 /* window.c -- windows in Info.
-   $Id: window.c,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: window.c,v 1.2 2003/02/11 16:39:06 karl Exp $
 
-   Copyright (C) 1993, 1997, 1998, 2001, 2002 Free Software Foundation,
-   Inc.
+   Copyright (C) 1993, 1997, 1998, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1144,7 +1144,7 @@ window_make_modeline (window)
     int modeline_len = 0;
     char *parent = NULL, *filename = "*no file*";
     char *nodename = "*no node*";
-    char *update_message = NULL;
+    const char *update_message = NULL;
     NODE *node = window->node;
 
     if (node)

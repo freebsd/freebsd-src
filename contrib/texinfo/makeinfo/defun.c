@@ -1,7 +1,8 @@
 /* defun.c -- @defun and friends.
-   $Id: defun.c,v 1.3 2002/11/11 00:57:49 feloy Exp $
+   $Id: defun.c,v 1.6 2003/05/09 23:51:10 karl Exp $
 
-   Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,7 +332,8 @@ defun_internal (type, x_p)
 {
   enum insertion_type base_type;
   char **defun_args, **scan_args;
-  char *category, *defined_name, *type_name, *type_name2;
+  const char *category;
+  char *defined_name, *type_name, *type_name2;
 
   {
     char *line;
@@ -441,7 +443,7 @@ defun_internal (type, x_p)
   if (*scan_args && **scan_args && **scan_args == '(')
     warning ("`%c' follows defined name `%s' instead of whitespace",
              **scan_args, defined_name);
-    
+
   if (!x_p)
     begin_insertion (type);
 
@@ -559,7 +561,7 @@ defun_internal (type, x_p)
           break;
         case deftypefn:
         case deftypevr:
-          execute_string ("%s", type_name);
+          execute_string ("%s ", type_name);
 	  xml_insert_element (FUNCTION, START);
           execute_string ("%s", defined_name);
 	  xml_insert_element (FUNCTION, END);
@@ -567,7 +569,7 @@ defun_internal (type, x_p)
         case deftypemethod:
         case deftypeop:
         case deftypeivar:
-          execute_string ("%s", type_name2);
+          execute_string ("%s ", type_name2);
 	  xml_insert_element (FUNCTION, START);
           execute_string ("%s", defined_name);
 	  xml_insert_element (FUNCTION, END);
@@ -713,27 +715,26 @@ defun_internal (type, x_p)
 void
 cm_defun ()
 {
-  int x_p;
   enum insertion_type type;
-  char *temp = xstrdup (command);
-
-  x_p = (command[strlen (command) - 1] == 'x');
+  char *base_command = xstrdup (command);  /* command with any `x' removed */
+  int x_p = (command[strlen (command) - 1] == 'x');
 
   if (x_p)
-    temp[strlen (temp) - 1] = 0;
+    base_command[strlen (base_command) - 1] = 0;
 
-  type = find_type_from_name (temp);
-  free (temp);
+  type = find_type_from_name (base_command);
 
   /* If we are adding to an already existing insertion, then make sure
      that we are already in an insertion of type TYPE. */
   if (x_p && (!insertion_level || insertion_stack->insertion != type))
     {
-      line_error (_("Must be in `%s' insertion to use `%sx'"),
-                  command, command);
+      line_error (_("Must be in `@%s' environment to use `@%s'"),
+                  base_command, command);
       discard_until ("\n");
       return;
     }
+  else
+    defun_internal (type, x_p);
 
-  defun_internal (type, x_p);
+  free (base_command);
 }
