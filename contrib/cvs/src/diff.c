@@ -439,7 +439,8 @@ diff_fileproc (callerdat, finfo)
 			(vers->vn_rcs == NULL
 			 ? NULL
 			 : RCS_branch_head (vers->srcfile, vers->vn_rcs));
-		    exists = head != NULL;
+		    exists = (head != NULL &&
+			!RCS_isdead (vers->srcfile, head)); /*XXX*/
 		    if (head != NULL)
 			free (head);
 		}
