@@ -82,6 +82,12 @@ struct	ether_addr {
 
 #ifdef _KERNEL
 
+/*
+ * For device drivers to specify whether they support BPF or not
+ */
+#define ETHER_BPF_UNSUPPORTED	0
+#define ETHER_BPF_SUPPORTED	1
+
 struct ifnet;
 struct mbuf;
 

@@ -500,11 +500,9 @@ USB_ATTACH(kue)
 	kue_qdat.if_rxstart = kue_rxstart;
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	usb_register_netisr();
 	sc->kue_gone = 0;
 
@@ -526,10 +524,8 @@ Static int kue_detach(dev)
 
 	sc->kue_gone = 1;
 
-	if (ifp != NULL) {
-		bpfdetach(ifp);
-		if_detach(ifp);
-	}
+	if (ifp != NULL)
+		ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	if (sc->kue_ep[KUE_ENDPT_TX] != NULL)
 		usbd_abort_pipe(sc->kue_ep[KUE_ENDPT_TX]);

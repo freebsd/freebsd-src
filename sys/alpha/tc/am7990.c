@@ -221,10 +221,7 @@ am7990_config(sc)
 	printf("%s: address %s\n", device_get_nameunit(sc->sc_dev),
 	       ether_sprintf(sc->sc_enaddr));
 
-	if_attach(ifp);
-	ether_ifattach(ifp);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 	switch (sc->sc_memsize) {
 	case 8192:

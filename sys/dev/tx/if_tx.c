@@ -550,11 +550,8 @@ epic_freebsd_attach(dev)
 	printf ("\n");
 
 	/* Attach to OS's managers */
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->stat_ch);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 fail:
 	splx(s);
@@ -578,8 +575,7 @@ epic_freebsd_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	bpfdetach(ifp);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	epic_stop(sc);
 

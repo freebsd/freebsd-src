@@ -1722,12 +1722,9 @@ static int ti_attach(dev)
 	ifmedia_set(&sc->ifmedia, IFM_ETHER|IFM_AUTO);
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 fail:
 	splx(s);
@@ -1747,7 +1744,7 @@ static int ti_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	ti_stop(sc);
 
 	bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);

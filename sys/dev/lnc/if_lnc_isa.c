@@ -315,8 +315,8 @@ lnc_attach(struct isa_device * isa_dev)
 
 #ifndef PC98
 	/*
-	 * XXX - is it safe to call isa_dmacascade() after if_attach() 
-	 *       and ether_ifattach() have been called in lnc_attach() ???
+	 * XXX - is it safe to call isa_dmacascade() after
+	 *       ether_ifattach() has been called in lnc_attach() ???
 	 */
 	if ((sc->nic.mem_mode != SHMEM) &&
 	    (sc->nic.ic < PCnet_32))
