@@ -44,12 +44,12 @@
 #include <dev/ata/atapi-all.h>
 
 /* prototypes */
-static void atapi_read(struct atapi_request *, int32_t);
-static void atapi_write(struct atapi_request *, int32_t);
+static void atapi_read(struct atapi_request *, int);
+static void atapi_write(struct atapi_request *, int);
 static void atapi_timeout(struct atapi_request *request);
-static int8_t *atapi_type(int32_t);
-static int8_t *atapi_cmd2str(u_int8_t);
-static int8_t *atapi_skey2str(u_int8_t);
+static char *atapi_type(int);
+static char *atapi_cmd2str(u_int8_t);
+static char *atapi_skey2str(u_int8_t);
 
 /* internal vars */
 MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
@@ -59,7 +59,7 @@ MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 #define ATP_PARAM		ATA_PARAM(atp->controller, atp->unit)
 
 void
-atapi_attach(struct ata_softc *scp, int32_t device)
+atapi_attach(struct ata_softc *scp, int device)
 {
     struct atapi_softc *atp;
 
@@ -88,7 +88,7 @@ atapi_attach(struct ata_softc *scp, int32_t device)
     else
 #endif
 	/* set PIO mode */
-	ata_dmainit(atp->controller, atp->unit, 
+	ata_dmainit(atp->controller, atp->unit,
 		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);
 
     switch (ATP_PARAM->device_type) {
@@ -147,13 +147,13 @@ atapi_detach(struct atapi_softc *atp)
     free(atp, M_ATAPI);
 }
 
-int32_t	  
-atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
-		int32_t count, int32_t flags, int32_t timeout,
+int	  
+atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data, 
+		int count, int flags, int timeout,
 		atapi_callback_t callback, void *driver)
 {
     struct atapi_request *request;
-    int32_t error, s;
+    int error, s;
  
     if (!(request = malloc(sizeof(struct atapi_request), M_ATAPI, M_NOWAIT)))
 	return ENOMEM;
@@ -169,6 +169,10 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     if (callback) {
 	request->callback = callback;
 	request->driver = driver;
+    }
+    if (atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA) {
+	if (!(request->dmatab = ata_dmaalloc(atp->controller, atp->unit)))
+	    atp->controller->mode[ATA_DEV(atp->unit)] = ATA_PIO;
     }
 
     s = splbio();
@@ -203,6 +207,8 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     printf("%s: finished %s\n", 
 	   request->device->devname, atapi_cmd2str(request->ccb[0]));
 #endif
+    if (request->dmatab)
+	free(request->dmatab, M_DEVBUF);
     free(request, M_ATAPI);
     return error;
 }
@@ -235,8 +241,8 @@ void
 atapi_transfer(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
-    int32_t timout;
-    int8_t reason;
+    int timout;
+    u_int8_t reason;
 
 #ifdef ATAPI_DEBUG
     printf("%s: starting %s ", 
@@ -257,9 +263,8 @@ atapi_transfer(struct atapi_request *request)
 	 ((request->ccb[0] == ATAPI_WRITE ||
 	   request->ccb[0] == ATAPI_WRITE_BIG) &&
 	  !(atp->controller->flags & ATA_ATAPI_DMA_RO))) &&
-	!ata_dmasetup(atp->controller, atp->unit,
-		      (void *)request->data, request->bytecount,
-		      request->flags & ATPR_F_READ)) {
+	!ata_dmasetup(atp->controller, atp->unit, request->dmatab,
+		      (void *)request->data, request->bytecount)) {
 	request->flags |= ATPR_F_DMA_USED;
     }
 
@@ -271,7 +276,8 @@ atapi_transfer(struct atapi_request *request)
 	printf("%s: failure to send ATAPI packet command\n", atp->devname);
 
     if (request->flags & ATPR_F_DMA_USED)
-	ata_dmastart(atp->controller);
+	ata_dmastart(atp->controller, atp->unit, 
+		     request->dmatab, request->flags & ATPR_F_READ);
 
     /* command interrupt device ? just return */
     if (ATP_PARAM->drqtype == ATAPI_DRQT_INTR)
@@ -301,12 +307,12 @@ atapi_transfer(struct atapi_request *request)
 	  request->ccbsize / sizeof(int16_t));
 }
 
-int32_t
+int
 atapi_interrupt(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
     int8_t **buffer = (int8_t **)&request->data;
-    int32_t reason, dma_stat = 0;
+    int reason, dma_stat = 0;
 
     if (request->ccb[0] == ATAPI_REQUEST_SENSE)
 	*buffer = (int8_t *)&request->sense;
@@ -338,8 +344,8 @@ atapi_interrupt(struct atapi_request *request)
 	}
     }
     else {
-	int32_t length = inb(atp->controller->ioaddr + ATA_CYL_LSB) |
-			 inb(atp->controller->ioaddr + ATA_CYL_MSB) << 8;
+	int length = inb(atp->controller->ioaddr + ATA_CYL_LSB) |
+		     inb(atp->controller->ioaddr + ATA_CYL_MSB) << 8;
 
 	switch (reason) {
 	case ATAPI_P_WRITE:
@@ -441,8 +447,11 @@ op_finished:
 	    printf("%s: finished %s (callback)\n", 
 		   request->device->devname, atapi_cmd2str(request->ccb[0]));
 #endif
-	    if (!((request->callback)(request)))
+	    if (!((request->callback)(request))) {
+		if (request->dmatab)
+		    free(request->dmatab, M_DEVBUF);
 		free(request, M_ATAPI);
+	    }
 	}
 	else 
             wakeup((caddr_t)request);	
@@ -462,11 +471,11 @@ atapi_reinit(struct atapi_softc *atp)
 		    (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
 		    ata_umode(ATP_PARAM));
     else
-	ata_dmainit(atp->controller, atp->unit, 
+	ata_dmainit(atp->controller, atp->unit,
 		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);
 }
 
-int32_t
+int
 atapi_test_ready(struct atapi_softc *atp)
 {
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
@@ -475,10 +484,10 @@ atapi_test_ready(struct atapi_softc *atp)
     return atapi_queue_cmd(atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 	
-int32_t
-atapi_wait_ready(struct atapi_softc *atp, int32_t timeout)
+int
+atapi_wait_ready(struct atapi_softc *atp, int timeout)
 {
-    int32_t error = 0, timout = timeout * hz;
+    int error = 0, timout = timeout * hz;
 
     while (timout > 0) {
 	if ((error = atapi_test_ready(atp)) != EBUSY)
@@ -490,7 +499,7 @@ atapi_wait_ready(struct atapi_softc *atp, int32_t timeout)
 }
 
 void
-atapi_dump(int8_t *label, void *data, int32_t len)
+atapi_dump(char *label, void *data, int len)
 {
     u_int8_t *p = data;
 
@@ -501,11 +510,11 @@ atapi_dump(int8_t *label, void *data, int32_t len)
 }
 
 static void
-atapi_read(struct atapi_request *request, int32_t length)
+atapi_read(struct atapi_request *request, int length)
 {
     int8_t **buffer = (int8_t **)&request->data;
-    int32_t size = min(request->bytecount, length);
-    int32_t resid;
+    int size = min(request->bytecount, length);
+    int resid;
 
     if (request->ccb[0] == ATAPI_REQUEST_SENSE)
 	*buffer = (int8_t *)&request->sense;
@@ -530,11 +539,11 @@ atapi_read(struct atapi_request *request, int32_t length)
 }
 
 static void
-atapi_write(struct atapi_request *request, int32_t length)
+atapi_write(struct atapi_request *request, int length)
 {
     int8_t **buffer = (int8_t **)&request->data;
-    int32_t size = min(request->bytecount, length);
-    int32_t resid;
+    int size = min(request->bytecount, length);
+    int resid;
 
     if (request->ccb[0] == ATAPI_REQUEST_SENSE)
 	*buffer = (int8_t *)&request->sense;
@@ -562,7 +571,7 @@ static void
 atapi_timeout(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
-    int32_t s = splbio();
+    int s = splbio();
 
     atp->controller->running = NULL;
     printf("%s: %s command timeout - resetting\n", 
@@ -571,7 +580,7 @@ atapi_timeout(struct atapi_request *request)
     if (request->flags & ATPR_F_DMA_USED) {
 	ata_dmadone(atp->controller);
 	if (request->retries == ATAPI_MAX_RETRIES) {
-	    ata_dmainit(atp->controller, atp->unit, 
+	    ata_dmainit(atp->controller, atp->unit,
 		        (ata_pmode(ATP_PARAM)<0)?0:ata_pmode(ATP_PARAM),-1,-1);
 	    printf("%s: trying fallback to PIO mode\n", atp->devname);
 	    request->retries = 0;
@@ -590,8 +599,8 @@ atapi_timeout(struct atapi_request *request)
     splx(s);
 }
 
-static int8_t *
-atapi_type(int32_t type)
+static char *
+atapi_type(int type)
 {
     switch (type) {
     case ATAPI_TYPE_CDROM:
@@ -607,7 +616,7 @@ atapi_type(int32_t type)
     }
 }
 
-static int8_t *
+static char *
 atapi_cmd2str(u_int8_t cmd)
 {
     switch (cmd) {
@@ -659,14 +668,14 @@ atapi_cmd2str(u_int8_t cmd)
     case 0xbd: return ("MECH_STATUS");
     case 0xbe: return ("READ_CD");
     default: {
-	static int8_t buffer[16];
+	static char buffer[16];
 	sprintf(buffer, "unknown CMD (0x%02x)", cmd);
 	return buffer;
 	}
     }
 }
 
-static int8_t *
+static char *
 atapi_skey2str(u_int8_t skey)
 {
     switch (skey) {

@@ -28,28 +28,7 @@
  * $FreeBSD$
  */
 
-/* structure describing an ATA disk */
-struct ad_softc {  
-    struct ata_softc		*controller;	/* ptr to parent ctrl */
-    int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
-    int32_t			lun;		/* logical unit number */
-    u_int32_t			total_secs;	/* total # of sectors (LBA) */
-    u_int8_t			heads;
-    u_int8_t			sectors;
-    u_int32_t			transfersize;	/* size of each transfer */
-    u_int32_t			num_tags;	/* number of tags supported */
-    u_int32_t			flags;		/* drive flags */
-#define		AD_F_LABELLING		0x0001		
-#define		AD_F_LBA_ENABLED	0x0002
-#define		AD_F_32B_ENABLED	0x0004
-#define		AD_F_TAG_ENABLED	0x0008
-
-    struct bio_queue_head	queue;		/* head of request queue */
-    struct devstat		stats;		/* devstat entry */
-    struct disk			disk;		/* disklabel/slice stuff */
-    dev_t			dev1, dev2;	/* device place holder */
-};
-
+/* structure describing an ATA disk request */
 struct ad_request {
     struct ad_softc		*device;	/* ptr to parent device */
     u_int32_t			blockaddr;	/* block number */
@@ -57,22 +36,50 @@ struct ad_request {
     u_int32_t			donecount;	/* bytes transferred */
     u_int32_t			currentsize;	/* size of current transfer */
     struct callout_handle       timeout_handle; /* handle for untimeout */ 
-    int32_t			retries;	/* retry count */
-    int32_t			flags;
+    int				retries;	/* retry count */
+    int				flags;
 #define		ADR_F_READ		0x0001
 #define		ADR_F_ERROR		0x0002
 #define		ADR_F_DMA_USED		0x0004
-#define		ADR_F_FORCE_PIO		0x0008
+#define		ADR_F_QUEUED		0x0008
+#define		ADR_F_FORCE_PIO		0x0010
 
-    int8_t			*data;		/* pointer to data buf */
+    caddr_t			data;		/* pointer to data buf */
     struct bio			*bp;		/* associated bio ptr */
     u_int8_t			tag;		/* tag ID of this request */
+    int				serv;		/* request had service */
+    struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     TAILQ_ENTRY(ad_request)	chain;		/* list management */
 };
 
-void ad_attach(struct ata_softc *, int32_t);
+/* structure describing an ATA disk */
+struct ad_softc {  
+    struct ata_softc		*controller;	/* ptr to parent ctrl */
+    int				unit;		/* ATA_MASTER or ATA_SLAVE */
+    int				lun;		/* logical unit number */
+    u_int32_t			total_secs;	/* total # of sectors (LBA) */
+    u_int8_t			heads;
+    u_int8_t			sectors;
+    u_int32_t			transfersize;	/* size of each transfer */
+    int				num_tags;	/* number of tags supported */
+    int				flags;		/* drive flags */
+#define		AD_F_LABELLING		0x0001		
+#define		AD_F_LBA_ENABLED	0x0002
+#define		AD_F_32B_ENABLED	0x0004
+#define		AD_F_TAG_ENABLED	0x0008
+
+    struct ad_request		*tags[32];	/* tag array of requests */
+    int				outstanding;	/* tags not serviced yet */
+    struct bio_queue_head	queue;		/* head of request queue */
+    struct devstat		stats;		/* devstat entry */
+    struct disk			disk;		/* disklabel/slice stuff */
+    dev_t			dev1, dev2;	/* device place holder */
+};
+
+void ad_attach(struct ata_softc *, int);
 void ad_detach(struct ad_softc *);
 void ad_start(struct ad_softc *);
-void ad_transfer(struct ad_request *);
-int32_t ad_interrupt(struct ad_request *);
+int ad_transfer(struct ad_request *);
+int ad_interrupt(struct ad_request *);
+int ad_service(struct ad_softc *, int);
 void ad_reinit(struct ad_softc *);
