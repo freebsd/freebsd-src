@@ -50,10 +50,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if defined (SEDLBAUER) && NISIC > 0
+#if defined (SEDLBAUER)
 
 #define SWS_RESON  0 /* reset on                 */
 #define SWS_RESOFF 1 /* reset off                */
@@ -209,4 +208,4 @@ isic_attach_sws(device_t dev)
 
 	return(0);
 }
-#endif /* defined(SEDLBAUER) && NISIC > 0 */
+#endif /* defined(SEDLBAUER) */

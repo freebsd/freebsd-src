@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
-
-#if NISIC > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -507,6 +503,3 @@ isic_printstate(struct l1_softc *sc)
 	return((char *) state_text[sc->sc_I430state]);
 }
 #endif
-	
-#endif /* NISIC > 0 */
-

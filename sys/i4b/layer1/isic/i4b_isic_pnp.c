@@ -43,10 +43,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
-
-#if (NISIC > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -327,4 +324,3 @@ isic_pnp_attach(device_t dev)
 		return 0;
 	}
 }
-#endif /* (NISIC > 0) */

@@ -35,10 +35,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ifpi2.h"
-
-#if (NIFPI2 > 0)
-
 #include "opt_i4b.h"
 
 #include <sys/param.h>
@@ -595,5 +591,3 @@ ifpi2_isacsx_init(struct l1_softc *sc)
 
 	return(0);
 }
-
-#endif /* NIFPI2 > 0 */

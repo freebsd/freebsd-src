@@ -36,10 +36,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ifpnp.h"
-
-#if (NIFPNP > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -513,5 +509,3 @@ ifpnp_printstate(struct l1_softc *sc)
 	return((char *) state_text[sc->sc_I430state]);
 }
 #endif
-	
-#endif /* NIFPNP > 0 */

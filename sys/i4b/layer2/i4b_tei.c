@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
@@ -279,5 +275,3 @@ i4b_make_rand_ri(l2_softc_t *l2sc)
 	l2sc->last_rih = (val >> 8) & 0x00ff;
 	l2sc->last_ril = val & 0x00ff;
 }
-
-#endif /* NI4BQ921 > 0 */

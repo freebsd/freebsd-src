@@ -67,10 +67,9 @@
 	This driver might also work for Asuscom cards.
 */
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && defined(DYNALINK)
+#if defined(DYNALINK)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -230,4 +229,4 @@ isic_attach_Dyn(device_t dev)
 	return 0;                
 }
 
-#endif /* (NISIC > 0) && defined(DYNALINK) */
+#endif /* defined(DYNALINK) */

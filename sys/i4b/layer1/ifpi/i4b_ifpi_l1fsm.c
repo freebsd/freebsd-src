@@ -35,10 +35,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ifpi.h"
-
-#if (NIFPI > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -512,5 +508,3 @@ ifpi_printstate(struct l1_softc *sc)
 	return((char *) state_text[sc->sc_I430state]);
 }
 #endif
-	
-#endif /* NIFPI > 0 */

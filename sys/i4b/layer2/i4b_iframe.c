@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -271,5 +267,3 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 		i4b_T200_start(l2sc);
 	}
 }
- 
-#endif /* NI4BQ921 > 0 */

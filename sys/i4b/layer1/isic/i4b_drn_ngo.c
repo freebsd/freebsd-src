@@ -33,10 +33,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && defined(DRN_NGO)
+#if defined(DRN_NGO)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -257,4 +256,4 @@ isic_attach_drnngo(device_t dev)
 	return (0);
 }
 
-#endif /* (NISIC > 0) && defined(DRN_NGO) */
+#endif /* defined(DRN_NGO) */

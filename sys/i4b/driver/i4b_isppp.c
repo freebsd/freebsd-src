@@ -42,10 +42,6 @@
 
 #include "i4bisppp.h"
 
-#if NI4BISPPP == 0
-# error "You need to define `device sppp <N>' with options ISPPP"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

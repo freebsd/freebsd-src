@@ -25,11 +25,6 @@
  * $FreeBSD$
  */
 
-#include "iavc.h"
-#include "i4bcapi.h"
-
-#if (NIAVC > 0) && (NI4BCAPI > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -293,5 +288,3 @@ iavc_isa_intr(struct iavc_softc *sc)
 {
 	iavc_handle_intr(sc);
 }
-
-#endif

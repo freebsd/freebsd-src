@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -233,5 +229,3 @@ i4b_T203_restart(l2_softc_t *l2sc)
 	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 #endif
 }
-
-#endif /* NI4BQ921 > 0 */

@@ -35,10 +35,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "iwic.h"
 #include "opt_i4b.h"
-
-#if (NIWIC > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -768,5 +765,3 @@ iwic_init_linktab(struct iwic_softc *sc)
 	/* used by HDLC data transfers, i.e. ipr and isp drivers */	
 	lt->rx_mbuf = &chan->in_mbuf;	
 }
- 
-#endif /* NIWIC > 0 */

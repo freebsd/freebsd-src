@@ -46,10 +46,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && defined (ASUSCOM_IPAC)
+#if defined (ASUSCOM_IPAC)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -230,4 +229,4 @@ isic_attach_asi(device_t dev)
 
 	return(0);
 }
-#endif /* (NISIC > 0) && defined (ASUSCOM_IPAC) */
+#endif /* defined (ASUSCOM_IPAC) */

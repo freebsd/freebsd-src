@@ -33,10 +33,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && defined(ELSA_PCC16)
+#if defined(ELSA_PCC16)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -388,4 +387,4 @@ isic_attach_Epcc16(device_t dev)
 	return 0;
 }
 
-#endif /* (NISIC > 0) && defined(ELSA_PCC16) */
+#endif /* defined(ELSA_PCC16) */
