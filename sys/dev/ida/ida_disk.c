@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Jonathan Lemon
+ * Copyright (c) 1999,2000 Jonathan Lemon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,7 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h>
+#include <sys/disk.h>
 
 #if NPCI > 0
 #include <machine/bus_memio.h>
@@ -54,15 +53,13 @@
 #include <dev/ida/idavar.h>
 
 /* prototypes */
-static void id_drvinit(void);
 static int idprobe(device_t dev);
 static int idattach(device_t dev);
+static int iddetach(device_t dev);
 
 static	d_open_t	idopen;
 static	d_close_t	idclose;
 static	d_strategy_t	idstrategy;
-static	d_ioctl_t	idioctl;
-static	d_psize_t	idsize;
 
 #define ID_BDEV_MAJOR	29
 #define ID_CDEV_MAJOR	109
@@ -75,29 +72,31 @@ static struct cdevsw id_cdevsw = {
 	/* close */	idclose,
 	/* read */	physread,
 	/* write */	physwrite,
-	/* ioctl */	idioctl,
+	/* ioctl */	noioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	idstrategy,
 	/* name */ 	"id",
 	/* maj */	ID_CDEV_MAJOR,
 	/* dump */	nodump,
-	/* psize */ 	idsize,
+	/* psize */ 	nopsize,
 	/* flags */	D_DISK,
 	/* bmaj */	ID_BDEV_MAJOR
 };
-static struct cdevsw stolen_cdevsw;
 
 static devclass_t	id_devclass;
+static struct cdevsw 	iddisk_cdevsw;
+static int		disks_registered = 0;
 
 static device_method_t id_methods[] = {
 	DEVMETHOD(device_probe,		idprobe),
 	DEVMETHOD(device_attach,	idattach),
+	DEVMETHOD(device_detach,	iddetach),
 	{ 0, 0 }
 };
 
 static driver_t id_driver = {
-	"id",
+	"idad",
 	id_methods,
 	sizeof(struct id_softc)
 };
@@ -105,42 +104,31 @@ static driver_t id_driver = {
 static __inline struct id_softc *
 idgetsoftc(dev_t dev)
 {
-	int unit;
 
-	unit = dkunit(dev);
-	return ((struct id_softc *)devclass_get_softc(id_devclass, unit));
+	return ((struct id_softc *)dev->si_drv1);
 }
 
 static int
 idopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct id_softc *drv;
-	struct disklabel label;
-	int error;
+	struct disklabel *label;
 
 	drv = idgetsoftc(dev);
 	if (drv == NULL)
 		return (ENXIO);
 
-	/* XXX block against race where > 1 person is reading label? */
+	label = &drv->disk.d_label;
+	bzero(label, sizeof(*label));
+	label->d_type = DTYPE_SCSI;
+	label->d_secsize = drv->secsize;
+	label->d_nsectors = drv->sectors;
+	label->d_ntracks = drv->heads;
+	label->d_ncylinders = drv->cylinders;
+	label->d_secpercyl = drv->sectors * drv->heads;
+	label->d_secperunit = drv->secperunit;
 
-	bzero(&label, sizeof(label));
-	label.d_type = DTYPE_SCSI;	/* XXX should this be DTYPE_RAID? */
-/*
-	strncpy(label.d_typename, ...
-	strncpy(label.d_packname, ...
-*/
-	label.d_secsize = drv->secsize;
-	label.d_nsectors = drv->sectors;
-	label.d_ntracks = drv->heads;
-	label.d_ncylinders = drv->cylinders;
-	label.d_secpercyl = drv->sectors * drv->heads;
-	label.d_secperunit = drv->secperunit;
-
-	/* Initialize slice tables. */
-	error = dsopen(dev, fmt, 0, &drv->slices, &label);
-
-	return (error);
+	return (0);
 }
 
 static int
@@ -151,37 +139,7 @@ idclose(dev_t dev, int flags, int fmt, struct proc *p)
 	drv = idgetsoftc(dev);
 	if (drv == NULL)
 		return (ENXIO);
-	dsclose(dev, fmt, drv->slices);
 	return (0);
-}
-
-static int
-idioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
-{
-	struct id_softc *drv;
-	int error;
-
-	drv = idgetsoftc(dev);
-	if (drv == NULL)
-		return (ENXIO);
-
-	error = dsioctl(dev, cmd, addr, flag, &drv->slices);
-
-	if (error == ENOIOCTL)
-		return (ENOTTY);
-
-	return (error);
-}
-
-static int
-idsize(dev_t dev)
-{
-	struct id_softc *drv;
-
-	drv = idgetsoftc(dev);
-	if (drv == NULL)
-		return (ENXIO);
-	return (dssize(dev, &drv->slices));
 }
 
 /*
@@ -201,9 +159,6 @@ idstrategy(struct buf *bp)
     		bp->b_error = EINVAL;
 		goto bad;
 	}
-
-	if (dscheck(bp, drv->slices) <= 0)
-		goto done;
 
 	/*
 	 * software write protect check
@@ -252,22 +207,6 @@ id_intr(struct buf *bp)
 	biodone(bp);
 }
 
-static void
-id_drvinit(void)
-{
-	static int devsw_installed = 0;
-
-	if (devsw_installed)
-		return;				/* XXX is this needed? */
-
-	cdevsw_add(&id_cdevsw);
-	stolen_cdevsw = id_cdevsw;
-	stolen_cdevsw.d_maj = WD_CDEV_MAJOR;
-	stolen_cdevsw.d_bmaj = WD_BDEV_MAJOR;
-	cdevsw_add(&stolen_cdevsw);
-	devsw_installed = 1;
-}
-
 static int
 idprobe(device_t dev)
 {
@@ -282,9 +221,9 @@ idattach(device_t dev)
 	struct ida_drive_info dinfo;
 	struct id_softc *drv;
 	device_t parent;
+	dev_t dsk;
 	int error;
 
-	id_drvinit();
 	drv = (struct id_softc *)device_get_softc(dev);
 	parent = device_get_parent(dev);
 	drv->controller = (struct ida_softc *)device_get_softc(parent);
@@ -315,7 +254,27 @@ idattach(device_t dev)
 	    DEVSTAT_TYPE_STORARRAY| DEVSTAT_TYPE_IF_OTHER,
 	    DEVSTAT_PRIORITY_ARRAY);
 
+	dsk = disk_create(drv->unit, &drv->disk, 0,
+	    &id_cdevsw, &iddisk_cdevsw);
+
+	dsk->si_drv1 = drv;
+	dsk->si_iosize_max = 256 * drv->secsize;	/* XXX guess? */
+	disks_registered++;
+
 	return (0);
 }
 
-DRIVER_MODULE(id, ida, id_driver, id_devclass, 0, 0);
+static int
+iddetach(device_t dev)
+{
+	struct id_softc *drv;
+
+	drv = (struct id_softc *)device_get_softc(dev);
+	devstat_remove_entry(&drv->stats);
+
+	if (--disks_registered == 0)
+		cdevsw_remove(&iddisk_cdevsw);
+	return (0);
+}
+
+DRIVER_MODULE(idad, ida, id_driver, id_devclass, 0, 0);
