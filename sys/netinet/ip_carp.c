@@ -454,7 +454,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	if (m->m_pkthdr.len < iplen + sizeof(*ch)) {
 		carpstats.carps_badlen++;
-		CARP_LOG(sc, ("received len %d < sizeof(struct carp_header)",
+		CARP_LOG(sc, ("received len %zd < sizeof(struct carp_header)",
 		    m->m_len - sizeof(struct ip)));
 		m_freem(m);
 		return;
