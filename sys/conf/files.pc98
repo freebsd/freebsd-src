@@ -62,6 +62,7 @@ dev/aic/aic_cbus.c		optional	aic isa
 dev/ata/ata-all.c		optional	ata 
 dev/ata/ata-dma.c		optional	ata 
 dev/ata/ata-disk.c		optional	atadisk
+dev/ata/ata-raid.c		optional	atadisk
 dev/ata/atapi-all.c		optional	atapicd 
 dev/ata/atapi-all.c		optional	atapifd 
 dev/ata/atapi-all.c		optional	atapist
