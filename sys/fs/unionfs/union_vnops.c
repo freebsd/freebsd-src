@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.39 1997/09/02 20:06:13 bde Exp $
+ * $Id: union_vnops.c,v 1.40 1997/09/04 03:14:49 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1755,7 +1755,7 @@ union_strategy(ap)
  * Global vfs data structures
  */
 vop_t **union_vnodeop_p;
-struct vnodeopv_entry_desc union_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)union_lookup },		/* lookup */
 	{ &vop_create_desc, (vop_t *)union_create },		/* create */
@@ -1804,7 +1804,7 @@ struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 #endif
 	{ NULL, NULL }
 };
-struct vnodeopv_desc union_vnodeop_opv_desc =
+static struct vnodeopv_desc union_vnodeop_opv_desc =
 	{ &union_vnodeop_p, union_vnodeop_entries };
 
 VNODEOP_SET(union_vnodeop_opv_desc);
