@@ -1,3 +1,109 @@
+Wed Nov 22 11:01:50 1995  Joshua Cowan <jcowan@hermit.reslife.okstate.edu>
+
+        * pcl-cvs.el (cvs-changelog-ours-p): use `user-full-name' if
+        `add-log-full-name' unbound, as not every uses the stuff in
+        add-log.el.  Same with `add-log-mailing-address'.
+        (cvs-changelog-entries): change to `change-log-mode' unless
+        already in it.
+
+Sun Jul  9 20:57:11 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * "/bin/rmdir" as default, not "/usr/local/bin/rmdir".
+
+Fri Jun 16 15:24:34 1995  Jim Kingdon  (kingdon@cyclic.com)
+
+	* pcl-cvs.elc, pcl-cvs-lucid.elc: Added.
+
+	* Makefile.in: Rename from Makefile and set srcdir.
+
+Thu May 18 17:10:27 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+        Automatically guess CVS log entries from ChangeLog contents.
+	* pcl-cvs.el (cvs-mode-changelog-commit): New command.
+	(cvs-changelog-full-paragraphs): New variable.
+	(cvs-changelog-name, cvs-narrow-changelog,
+	cvs-changelog-paragraph, cvs-changelog-subparagraph,
+	cvs-changelog-entry, cvs-changelog-ours-p, cvs-relative-path,
+	cvs-changelog-entries, cvs-changelog-insert-entries, cvs-union,
+	cvs-insert-changelog-entries, cvs-edit-delete-common-indentation):
+	New functions.
+	(cvs-mode-map): Bind 'C' to cvs-mode-changelog-commit.
+	(cvs-mode): Mention cvs-mode-changelog-commit in docstring.
+
+        Give the info files names ending in ".info".
+	* Makefile (INFOFILES, install_info): Change pcl-cvs to
+	pcl-cvs.info.
+	(pcl-cvs.info): Target renamed from pcl-cvs.
+	(DISTFILES): pcl-cvs removed; we handle the info files explicitly
+	in the dist-dir target.
+	(dist-dir): Depend on pcl-cvs.info.  Distribute pcl-cvs.info*.
+	* pcl-cvs.texinfo: Change @setfilename appropriately.
+	* INSTALL: Updated.
+	* .cvsignore: Correctly ignore the info files.
+
+	* README: Note that pcl-cvs has been tested under 19.28, and that
+	the "cookie" naming conflict was resolved in 19.11.
+
+	* Makefile (pcl-cvs-lucid.elc): Changed this target from
+	pcl-cvs-lucid.el.  That's a source file, for goodness' sake!
+
+Tue May  9 13:56:50 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* Change references to "Cygnus's remote CVS" to "Cyclic CVS".
+
+Wed May  3 13:55:27 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* pcl-cvs.el (cvs-parse-stderr): Handle colons after both
+	"rcsmerge" and "warning".
+
+Fri Apr 28 22:38:14 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+        * Makefile (ELFILES): Include pcl-cvs-startup.el.
+	(info, pcl-cvs): Call makeinfo appropriately for modern versions.
+	(pcl-cvs.aux): List dependency on pcl-cvs.texinfo.
+	(pcl-cvs.ps): New target.
+	(DVIPS): New variable.
+	(dist-dir): Renamed from dist, updated to accept DISTDIR value
+	passed from parent.
+	(DISTFILES): New varible.
+	(pcl-cvs.elc, pcl-cvs-lucid.elc): Add targets to elcfiles target.
+
+Tue Apr 25 21:33:49 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* pcl-cvs.el: (cvs-parse-stderr): Recognize "conflicts" as well as
+	"overlaps" before "during merge."
+
+Thu Feb 16 12:17:20 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* pcl-cvs.el (cvs-parse-stderr): Recognize "conflicts found in..."
+	messages attributed to "cvs server", as well as "cvs update".
+
+Sat Feb  4 01:47:01 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* pcl-cvs.el: Deal with the 'P' action, produced by remote CVS.
+	(cvs-parse-stdout): Treat 'P' like 'U' --- file is updated.
+
+Tue Jan 31 23:31:39 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* pcl-cvs.el (cvs-cvsroot-required): New variable.
+	(cvs-do-update): If cvs-cvsroot-required is not set, don't complain if
+	CVSROOT and cvs-cvsroot are both unset.
+
+Sun Jan 22 21:22:22 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* pcl-cvs.el (cvs-parse-stderr):
+	Some changes for Cygnus's Remote CVS.  Treat
+	messages like "cvs server: Updating DIRECTORY" as we treat those like
+	"cvs update: Updating DIRECTORY".  Ignore other messages starting with
+	"cvs server".
+
+	* pcl-cvs.el (cvs-parse-stderr): Re-indent.
+
+	* .cvsignore: Add ignore list for Texinfo litter.
+
+	* Makefile (lispdir): Set appropriately for totoro.
+	* pcl-cvs.el (cvs-program, cvs-diff-program, cvs-rmdir-program): Same.
+
 Tue Jun  1 00:00:03 1993  Per Cederqvist  (ceder@lysator.liu.se)
 
 	* Release 1.05. (This release was promised before the end of May,

@@ -51,22 +51,25 @@ Installation of the pcl-cvs program
 Installation of the on-line manual.
 ===================================
 
-  1. Create the info file `pcl-cvs' from `pcl-cvs.texinfo' by typing
-     `make info'.  If you don't have the program `makeinfo' you can
-     get it by anonymous ftp from e.g. `ftp.gnu.ai.mit.edu' as
+  1. Move the info file `pcl-cvs.info' to your standard info
+     directory.  This might be called something like
+     `/usr/gnu/emacs/info'.
+
+  2. Edit the file `dir' in the info directory and enter one line to
+     contain a pointer to the info file `pcl-cvs.info'.  The line can,
+     for instance, look like this:
+
+          * Pcl-cvs: (pcl-cvs.info).       An Emacs front-end to CVS.
+
+
+How to make the on-line manual from pcl-cvs.texinfo
+===================================================
+
+  1. Create the info file `pcl-cvs.info' from `pcl-cvs.texinfo' by
+     typing `make info'.  If you don't have the program `makeinfo' you
+     can get it by anonymous ftp from e.g. `ftp.gnu.ai.mit.edu' as
      `pub/gnu/texinfo-2.14.tar.Z' (there might be a newer version
-     there when you read this), or you could use the preformatted
-     info file `pcl-cvs.info' that is included in the distribution
-     (type `cp pcl-cvs.info pcl-cvs').
-
-  2. Move the info file `pcl-cvs' to your standard info directory.
-     This might be called something like `/usr/gnu/emacs/info'.
-
-  3. Edit the file `dir' in the info directory and enter one line to
-     contain a pointer to the info file `pcl-cvs'.  The line can, for
-     instance, look like this:
-
-          * Pcl-cvs: (pcl-cvs).       An Emacs front-end to CVS.
+     there when you read this).
 
 
 How to make typeset documentation from pcl-cvs.texinfo
