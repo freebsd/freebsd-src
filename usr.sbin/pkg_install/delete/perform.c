@@ -37,10 +37,33 @@ static char LogDir[FILENAME_MAX];
 int
 pkg_perform(char **pkgs)
 {
+    char **matched;
     char *tmp;
     int i, j;
     int err_cnt = 0;
-    int loop_cnt;
+    int loop_cnt, errcode;
+
+    if (MatchType != MATCH_EXACT) {
+	matched = matchinstalled(MatchType, pkgs, &errcode);
+	if (errcode != 0)
+	    return 1;
+	    /* Not reached */
+
+	if (matched != NULL)
+	    pkgs = matched;
+	else switch (MatchType) {
+	    case MATCH_GLOB:
+		break;
+	    case MATCH_ALL:
+		warnx("no packages installed");
+		return 0;
+	    case MATCH_REGEX:
+		warnx("no packages match pattern(s)");
+		return 1;
+	    default:
+		break;
+	}
+    }
 
     for (i = 0; pkgs[i]; i++) {
 	/*
@@ -120,6 +143,19 @@ pkg_do(char *pkg)
     if (chdir(LogDir) == FAIL) {
 	warnx("unable to change directory to %s! deinstall failed", LogDir);
 	return 1;
+    }
+
+    if (Interactive == TRUE) {
+	int first, ch;
+
+	(void)fprintf(stderr, "delete %s? ", pkg);
+	(void)fflush(stderr);
+	first = ch = getchar();
+	while (ch != '\n' && ch != EOF)
+	    ch = getchar();
+	if (first != 'y' && first != 'Y')
+	    return 0;
+	    /* Not reached */
     }
 
     if (!isemptyfile(REQUIRED_BY_FNAME)) {

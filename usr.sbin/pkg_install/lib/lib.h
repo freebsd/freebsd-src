@@ -88,6 +88,11 @@ enum _plist_t {
 };
 typedef enum _plist_t plist_t;
 
+enum _match_t {
+    MATCH_ALL, MATCH_EXACT, MATCH_GLOB, MATCH_REGEX
+};
+typedef enum _match_t match_t;
+
 /* Types */
 typedef unsigned int Boolean;
 
@@ -168,6 +173,9 @@ Boolean 	make_preserve_name(char *, int, char *, char *);
 
 /* For all */
 int		pkg_perform(char **);
+
+/* Query installed packages */
+char		**matchinstalled(match_t, char **, int *);
 
 /* Externs */
 extern Boolean	Verbose;
