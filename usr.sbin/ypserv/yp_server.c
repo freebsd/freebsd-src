@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_server.c,v 1.12.2.5 1997/11/18 07:52:05 charnier Exp $";
 #endif /* not lint */
 
 #include "yp.h"
@@ -142,7 +142,7 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	if (yp_select_map(argp->map, argp->domain, &argp->key, 1) != YP_TRUE) {
+	if (yp_select_map(argp->map, argp->domain, NULL, 1) != YP_TRUE) {
 		result.stat = yp_errno;
 		return(&result);
 	}
@@ -203,7 +203,7 @@ ypproc_first_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	if (yp_select_map(argp->map, argp->domain, &result.key, 0) != YP_TRUE) {
+	if (yp_select_map(argp->map, argp->domain, NULL, 0) != YP_TRUE) {
 		result.stat = yp_errno;
 		return(&result);
 	}

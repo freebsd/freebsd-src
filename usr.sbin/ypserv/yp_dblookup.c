@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_dblookup.c,v 1.9.2.3 1997/11/18 07:51:56 charnier Exp $";
 #endif /* not lint */
 
 #include <db.h>
@@ -512,8 +512,8 @@ int yp_get_record(domain,map,key,data,allow)
 
 #ifdef DB_CACHE
 	if (qhead.cqh_first->dbptr->size) {
-		qhead.cqh_first->dbptr->key = key->data;
-		qhead.cqh_first->dbptr->size = key->size;
+		qhead.cqh_first->dbptr->key = "";
+		qhead.cqh_first->dbptr->size = 0;
 	}
 #else
 	bcopy((char *)data->data, (char *)&buf, data->size);
@@ -679,8 +679,12 @@ ypstat yp_select_map(map, domain, key, allow)
 	keydat *key;
 	int allow;
 {
-	yp_currmap_db = yp_open_db_cache(domain, map, key->keydat_val,
-							key->keydat_len);
+	if (key == NULL)
+		yp_currmap_db = yp_open_db_cache(domain, map, NULL, 0);
+	else
+		yp_currmap_db = yp_open_db_cache(domain, map,
+						 key->keydat_val,
+						 key->keydat_len);
 
 	yp_allow_db = allow;
 	return(yp_errno);
