@@ -38,6 +38,8 @@
 .Nm getpeername
 .Nd get name of connected peer
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/socket.h>
 .Ft int
 .Fn getpeername "int s" "struct sockaddr *name" "int *namelen"
 .Sh DESCRIPTION
