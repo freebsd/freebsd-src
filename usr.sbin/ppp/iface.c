@@ -94,7 +94,7 @@ bitsinmask(struct in_addr mask)
 struct iface *
 iface_Create(const char *name)
 {
-  int mib[6], s;
+  int mib[6], s, maxtries, err;
   size_t needed, namelen;
   char *buf, *ptr, *end;
   struct if_msghdr *ifm;
@@ -117,25 +117,34 @@ iface_Create(const char *name)
   mib[4] = NET_RT_IFLIST;
   mib[5] = 0;
 
-  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    fprintf(stderr, "iface_Create: sysctl: estimate: %s\n",
-              strerror(errno));
-    close(s);
-    return NULL;
-  }
+  maxtries = 20;
+  err = 0;
+  do {
+    if (maxtries-- == 0 || (err && err != ENOMEM)) {
+      fprintf(stderr, "iface_Create: sysctl: %s\n", strerror(err));
+      close(s);
+      return NULL;
+    }
 
-  if ((buf = (char *)malloc(needed)) == NULL) {
-    fprintf(stderr, "iface_Create: malloc failed: %s\n", strerror(errno));
-    close(s);
-    return NULL;
-  }
+    if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+      fprintf(stderr, "iface_Create: sysctl: estimate: %s\n",
+                strerror(errno));
+      close(s);
+      return NULL;
+    }
 
-  if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
-    fprintf(stderr, "iface_Create: sysctl: %s\n", strerror(errno));
-    free(buf);
-    close(s);
-    return NULL;
-  }
+    if ((buf = (char *)malloc(needed)) == NULL) {
+      fprintf(stderr, "iface_Create: malloc failed: %s\n", strerror(errno));
+      close(s);
+      return NULL;
+    }
+
+    if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+      err = errno;
+      free(buf);
+      buf = NULL;
+    }
+  } while (buf == NULL);
 
   ptr = buf;
   end = buf + needed;
