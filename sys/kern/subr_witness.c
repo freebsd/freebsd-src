@@ -703,8 +703,8 @@ static char *ignore_list[] = {
 };
 
 static char *spin_order_list[] = {
-	"sched lock",
 	"sio",
+	"sched lock",
 #ifdef __i386__
 	"clk",
 #endif
