@@ -1695,8 +1695,8 @@
       <para><application>BIND</application> has been updated to
       8.2.4-REL.</para>
 
-      <para><application>Binutils</application> have been upgraded a
-      snapshot from 19 July 2001 on the 2.11 development branch.</para>
+      <para><application>Binutils</application> have been upgraded to
+      2.11.2. &merged;</para>
 
       <para><application>bzip2</application> 1.0.1 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
