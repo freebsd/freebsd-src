@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: perfmon.4,v 1.1 1996/03/26 20:57:26 wollman Exp $
 .Dd March 26, 1996
 .Dt PERFMON 4 i386
 .Os FreeBSD 2.2
@@ -119,9 +119,12 @@ returns the current configuration of the specified counter.
 .It Dv PMIOSTART
 .It Dv PMIOSTOP
 .Pq Li int
-starts (stops) the specified counter.  Currently, only a counter value of
-.Dv PMC_ALL
-is supported, as the hardware starts and stops the counters as a gang.
+starts (stops) the specified counter.  Due to hardware deficiencies,
+counters must be started and stopped in numerical order.  (That is to
+say, counter 0 can never be stopped without first stopping counter 1.)
+The driver will
+.Em not
+enforce this restriction (since it may not be present in future CPUs).
 .It Dv PMIORESET
 .Pq Li int
 reset the specified counter to zero.  The counter should be stopped
