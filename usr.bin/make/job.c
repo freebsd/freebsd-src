@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
  *	    	  	    	the line as a shell specification. Returns
  *	    	  	    	FAILURE if the spec was incorrect.
  *
- *	Job_End	  	    	Perform any final processing which needs doing.
+ *	Job_Finish	  	    	Perform any final processing which needs doing.
  *	    	  	    	This includes the execution of any commands
  *	    	  	    	which have been/were attached to the .END
  *	    	  	    	target. It should only be called when the
@@ -501,7 +501,7 @@ JobCmpRmtID(job, rmtID)
  *	job to be commands to be executed once the entire graph has been
  *	made and return non-zero to signal that the end of the commands
  *	was reached. These commands are later attached to the postCommands
- *	node and executed by Job_End when all things are done.
+ *	node and executed by Job_Finish when all things are done.
  *	This function is called from JobStart via Lst_ForEach.
  *
  * Results:
@@ -2915,7 +2915,7 @@ JobInterrupt(runINTERRUPT, signo)
 
 /*
  *-----------------------------------------------------------------------
- * Job_End --
+ * Job_Finish --
  *	Do final processing such as the running of the commands
  *	attached to the .END target.
  *
@@ -2924,7 +2924,7 @@ JobInterrupt(runINTERRUPT, signo)
  *-----------------------------------------------------------------------
  */
 int
-Job_End()
+Job_Finish()
 {
     if (postCommands != NULL && !Lst_IsEmpty(postCommands->commands)) {
 	if (errors) {

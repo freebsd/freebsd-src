@@ -748,7 +748,8 @@ main(argc, argv)
 		ln = Lst_Find(makefiles, (void *)NULL, ReadMakefile);
 		if (ln != NULL)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
-	} else if (!ReadMakefile("makefile", NULL))
+	} else if (!ReadMakefile("BSDmakefile", NULL))
+	    if (!ReadMakefile("makefile", NULL))
 		(void)ReadMakefile("Makefile", NULL);
 
 	(void)ReadMakefile(".depend", NULL);
