@@ -19,7 +19,6 @@ options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 # options		NFS			#Network Filesystem
-options		MFS
 options		MD_ROOT
 options		MSDOSFS			#MSDOS Filesystem
 # options		"EXT2FS"
