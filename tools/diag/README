@@ -8,8 +8,8 @@ the integrity.
 
 Please make a subdir per program, and add a brief description to this file.
 
-ac 		check if the FreeBSD handbook is in sync with the
-		committers list
+ac 		Various scripts that checks of style/content correctness of
+		committers lists in doc/ area.
 dumpvfscache	program that can be used to examine the contents of the vfs
 		name cache.
 httpd-error	check for Web files which does not exists on your host
