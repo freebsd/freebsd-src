@@ -97,8 +97,8 @@ atm_output(ifp, m0, dst, rt0)
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
 	int s, error = 0, sz;
 	struct atm_pseudohdr atmdst, *ad;
-	register struct mbuf *m = m0;
-	register struct rtentry *rt;
+	struct mbuf *m = m0;
+	struct rtentry *rt;
 	struct atmllc *atmllc;
 	struct atmllc *llc_hdr = NULL;
 	u_int32_t atm_flags;
