@@ -841,7 +841,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 		ipref = ffs_dirpref(pip);
 	else
 		ipref = pip->i_number;
-	if (ipref >= fs->fs_ncg * fs->fs_ipg)
+	if ((unsigned)ipref >= fs->fs_ncg * fs->fs_ipg)
 		ipref = 0;
 	cg = ino_to_cg(fs, ipref);
 	/*
