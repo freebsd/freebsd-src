@@ -25,8 +25,8 @@
   name='&lt;y-koga@ccs.mt.nec.co.jp&gt;'></tt>">
 
 <!ENTITY a.iwasaki "´äºê Ëþ
-  <tt><htmlurl url='mailto:iwasaki@pc.jaring.my' 
-  name='&lt;iwasaki@pc.jaring.my&gt;'></tt>">
+  <tt><htmlurl url='mailto:iwasaki@jp.FreeBSD.org' 
+  name='&lt;iwasaki@jp.FreeBSD.org&gt;'></tt>">
 
 <!ENTITY a.yuki "Á°ÅÄ ¹¬ÈÏ
   <tt><htmlurl url='mailto:yuki@jp.FreeBSD.org' 
@@ -118,3 +118,7 @@
 <!ENTITY a.nao "ÉÍÅÄ Ä¾¼ù
   <tt><htmlurl url='mailto:nao@tom-yam.or.jp' 
   name='&lt;nao@tom-yam.or.jp&gt;'></tt>">
+
+<!ENTITY a.maruyama "´Ý»³ ¹ä»Ê
+  <tt><htmlurl url='mailto:tmaruya@nnc.or.jp' 
+  name='&lt;tmaruya@nnc.or.jp&gt;'></tt>">
