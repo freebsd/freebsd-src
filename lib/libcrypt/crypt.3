@@ -1,0 +1,203 @@
+.\" FreeSec: libcrypt for NetBSD
+.\"
+.\" Copyright (c) 1994 David Burren
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the author nor the names of other contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" Manual page, using -mandoc macros
+.\"
+.Dd January 19, 1997
+.Dt CRYPT 3
+.Os "FreeSec 1.0"
+.Sh NAME
+.Nm crypt
+.Nd Trapdoor encryption
+.Sh SYNOPSIS
+.Ft char
+.Fn *crypt "const char *key" "const char *salt"
+.Sh DESCRIPTION
+The
+.Fn crypt
+function performs password hashing with additional code added to
+deter key search attempts.  Different algorithms can be used to
+in the hash.
+.\"
+.\" NOTICE:
+.\" If you add more algorithms, make sure to update this list
+.\" and the default used for the Traditional format, below.
+.\"
+Currently these include the
+.Tn NBS
+Data Encryption Standard (DES), MD5 or SHS.  The algorithm
+used will depend upon the format of the Salt--following the Modular
+Crypt Format (MCF)--and if DES is installed or not.
+.Pp
+The first argument to
+.Nm crypt
+is the data to hash (usually a password), in a
+.Dv null Ns -terminated
+string.
+The second is the salt, in one of three forms:
+.Pp
+.Bl -tag -width Traditional -compact -offset indent
+.It Extended
+If it begins with an underscore (``_'') then the DES Extended Format
+is used in interpreting both the the key and the salt, as outlined below.
+.It Modular
+If it begins with the string ``$digit$'' then the Modular Crypt Format
+is used, as outlined below.
+.It Traditional
+If neither of the above is true, it assumes the Traditional Format,
+using the entire string as the salt (or the first portion).
+.El
+.Pp
+All routines are designed to be time-consuming.  A brief test on a
+Pentium 166/MMX shows the DES crypt to do approximately 2640 crypts
+a CPU second, MD5 to do about 62 crypts a CPU second and SHA1
+to do about 18 crypts a CPU second.
+.Ss DES Extended Format:
+.Pp
+The
+.Ar key
+is divided into groups of 8 characters (the last group is null-padded)
+and the low-order 7 bits of each each character (56 bits per group) are
+used to form the DES key as follows:
+the first group of 56 bits becomes the initial DES key.
+For each additional group, the XOR of the encryption of the current DES
+key with itself and the group bits becomes the next DES key.
+.Pp
+The salt is a 9-character array consisting of an underscore followed
+by 4 bytes of iteration count and 4 bytes of salt.
+These are encoded as printable characters, 6 bits per character,
+least significant character first.
+The values 0 to 63 are encoded as ``./0-9A-Za-z''.
+This allows 24 bits for both
+.Fa count
+and
+.Fa salt .
+.Pp
+The
+.Fa salt
+introduces disorder in the
+.Tn DES
+algorithm in one of 16777216 or 4096 possible ways
+(ie. with 24 or 12 bits: if bit
+.Em i
+of the
+.Ar salt
+is set, then bits
+.Em i
+and
+.Em i+24
+are swapped in the
+.Tn DES
+E-box output).
+.Pp
+The DES key is used to encrypt a 64-bit constant using
+.Ar count
+iterations of
+.Tn DES .
+The value returned is a
+.Dv null Ns -terminated
+string, 20 or 13 bytes (plus null) in length, consisting of the
+.Ar salt
+followed by the encoded 64-bit encryption.
+.Ss "Modular" crypt:
+.Pp
+If the salt begins with the string 
+.Fa $digit$
+then the Modular Crypt Format is used.  The
+.Fa digit
+represents which algorithm is used in encryption.  Following the token is
+the actual salt to use in the encryption.  The length of the salt is limited
+to 16 characters--because the length of the returned output is also limited
+(_PASSWORD_LEN).  The salt must be terminated with the end of the string
+(NULL) or a dollar sign.  Any characters after the dollar sign are ignored.
+.Pp
+Currently supported algorithms are:
+.Pp
+.Bl -tag -width 012345678 -compact -offset indent
+.It 1
+MD5
+.It 3
+SHA1
+.El
+.Pp
+Other crypt formats may be easilly added.  An example salt would be:
+.Bl -tag -offset indent
+.It Cm "$3$thesalt$rest"
+.El
+.Pp
+.Ss "Traditional" crypt:
+.Pp
+The algorithm used will depend upon whether DES is installed or not.  If it is,
+DES will be used.  Otherwise, the best algorithm is used, which is currently
+.\"
+.\" NOTICE: Also make sure to update this
+.\"
+SHA-1.
+.Pp
+How the salt is used will depend upon the algorithm for the hash.  For
+best results, specify at least two characters of salt.
+.Sh RETURN VALUES
+.Pp
+.Fn crypt
+returns a pointer to the encrypted value on success, and NULL on failure.
+Note: this is not a standard behaviour, AT&T
+.Fn crypt
+will always return a pointer to a string.
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr passwd 1 ,
+.Xr getpass 3 ,
+.Xr passwd 5 ,
+.Xr shs 3 ,
+.Sh BUGS
+The
+.Fn crypt
+function returns a pointer to static data, and subsequent calls to
+.Fn crypt
+will modify the same data.
+.Sh HISTORY
+A rotor-based
+.Fn crypt
+function appeared in
+.At v6 .
+The current style
+.Fn crypt
+first appeared in
+.At v7 .
+.Pp
+The DES section of the code (FreeSec 1.0) was developed outside the United
+States of America as an unencumbered replacement for the U.S.-only NetBSD
+libcrypt encryption library.
+Users should be aware that this code (and programs staticly linked with it)
+may not be exported from the U.S., although it apparently can be imported.
+.Sh AUTHORS
+Originally written by David Burren <davidb@werj.com.au>, later additions
+and changes by Brandon Gillespie, Poul-henning Kamp and Mark R V Murray.

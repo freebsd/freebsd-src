@@ -2,26 +2,26 @@
 # $FreeBSD$
 #
 
-LCRYPTBASE= 	libcrypt
-LSCRYPTBASE= 	libscrypt
+SHLIB_MAJOR=	3
+LIB=		scrypt
 
-.if ${OBJFORMAT} != elf
-LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-.else
+LCRYPTBASE=	libcrypt
+LSCRYPTBASE=	lib${LIB}
+
 LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
 LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}
-.endif
 
-# called libscrypt - for scramble crypt!
-.PATH:	${.CURDIR}/../libmd
-LIB=	scrypt
-SRCS=	crypt.c md5c.c
-CFLAGS+=	-I${.CURDIR}/../libmd -DLIBC_SCCS
+.PATH:		${.CURDIR}/../libmd
+SRCS=		crypt.c crypt-md5.c crypt-shs.c misc.c
+STATICSRCS=	md5c.c sha0c.c sha1c.c
+STATICOBJS=	${STATICSRCS:S/.c/.o/g}
+MAN3=		crypt.3
+CFLAGS+=	-I${.CURDIR}/../libmd
+CFLAGS+=	-DLIBC_SCCS -Wall
+PRECIOUSLIB=	yes
 
-.if ${OBJFORMAT} == elf
-SONAME=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
-.endif
+LDADD+=		-lmd
+DPADD+=		${LIBMD}
 
 # Include this early to pick up the definitions of SHLIB_MAJOR and
 # SHLIB_MINOR which are used in the existence tests.
@@ -44,3 +44,23 @@ SYMLINKS+=	${LSCRYPTBASE}.so ${SHLIBDIR}/${LCRYPTBASE}.so
 .endif
 
 .include <bsd.lib.mk>
+
+afterinstall:
+.if !defined(NOPIC)
+	@cd ${DESTDIR}${SHLIBDIR}; \
+	rm -f ${LCRYPTSO}; \
+	ln -sf ${LSCRYPTSO} ${LCRYPTSO};
+.endif
+.if !defined(NOPIC) && ${OBJFORMAT} == elf
+	@cd ${DESTDIR}${SHLIBDIR}; \
+	rm -f ${LCRYPTBASE}.so; \
+	ln -sf ${LSCRYPTBASE}.so libcrypt.so
+.endif
+	@cd  ${DESTDIR}${LIBDIR}; \
+	rm -f ${LCRYPTBASE}.a; \
+	ln -sf ${LSCRYPTBASE}.a libcrypt.a
+.if !defined(NOPROFILE)
+	@cd  ${DESTDIR}${LIBDIR}; \
+	rm -f ${LCRYPTBASE}_p.a; \
+	ln -sf ${LSCRYPTBASE}_p.a libcrypt_p.a
+.endif
