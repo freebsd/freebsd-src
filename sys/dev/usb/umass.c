@@ -577,6 +577,7 @@ struct umass_softc {
 	unsigned char 		cam_scsi_command2[CAM_MAX_CDBLEN];
 	struct scsi_sense	cam_scsi_sense;
 	struct scsi_sense	cam_scsi_test_unit_ready;
+	usb_callout_t		cam_scsi_rescan_ch;
 
 	int			timeout;		/* in msecs */
 
@@ -874,6 +875,7 @@ USB_ATTACH(umass)
 
 	sc->iface = uaa->iface;
 	sc->ifaceno = uaa->ifaceno;
+	usb_callout_init(sc->cam_scsi_rescan_ch);
 
 	/* initialise the proto and drive values in the umass_softc (again) */
 	(void) umass_match_proto(sc, sc->iface, uaa->device);
@@ -1121,6 +1123,7 @@ USB_DETACH(umass)
 
 	sc->flags |= UMASS_FLAGS_GONE;
 
+	usb_uncallout_drain(sc->cam_scsi_rescan_ch, umass_cam_rescan, sc);
 	if ((sc->proto & UMASS_PROTO_SCSI) ||
 	    (sc->proto & UMASS_PROTO_ATAPI) ||
 	    (sc->proto & UMASS_PROTO_UFI) ||
@@ -2233,17 +2236,15 @@ umass_cam_attach(struct umass_softc *sc)
 			cam_sim_path(sc->umass_sim));
 
 	if (!cold) {
-		/* Notify CAM of the new device after 1 second delay. Any
+		/* Notify CAM of the new device after a short delay. Any
 		 * failure is benign, as the user can still do it by hand
 		 * (camcontrol rescan <busno>). Only do this if we are not
 		 * booting, because CAM does a scan after booting has
 		 * completed, when interrupts have been enabled.
 		 */
 
-		/* XXX This will bomb if the driver is unloaded between attach
-		 * and execution of umass_cam_rescan.
-		 */
-		timeout(umass_cam_rescan, sc, MS_TO_TICKS(200));
+		usb_callout(sc->cam_scsi_rescan_ch, MS_TO_TICKS(200),
+		    umass_cam_rescan, sc);
 	}
 
 	return(0);	/* always succesfull */
