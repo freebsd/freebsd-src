@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: uthread_rwlock.c,v 1.1 1998/09/07 19:01:43 alex Exp $
  */
 
 #ifdef _THREAD_SAFE
@@ -76,6 +76,8 @@ pthread_rwlock_destroy (pthread_rwlock_t *rwlock)
 		free(prwlock);
 
 		*rwlock = NULL;
+
+		ret = 0;
 	}
 
 	return(ret);
