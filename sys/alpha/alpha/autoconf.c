@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.28 1999/05/31 20:44:11 dt Exp $
+ *	$Id: autoconf.c,v 1.29 1999/07/17 20:47:40 phk Exp $
  */
 
 #include "opt_bootp.h"
@@ -248,8 +248,9 @@ cpu_rootconf()
 			periph = cam_periph_find(path, "da");
 
 			if (periph)
-				rootdev = makedev(4, dkmakeminor(periph->unit_number,
-								 COMPATIBILITY_SLICE, 0));
+			    rootdev = makebdev
+				(4, dkmakeminor(periph->unit_number,
+						COMPATIBILITY_SLICE, 0));
 
 			xpt_free_path(path);
 		}
