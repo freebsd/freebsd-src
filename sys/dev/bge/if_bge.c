@@ -1871,6 +1871,7 @@ bge_attach(dev)
 		    IFM_ETHER|IFM_1000_SX|IFM_FDX, 0, NULL);
 		ifmedia_add(&sc->bge_ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
 		ifmedia_set(&sc->bge_ifmedia, IFM_ETHER|IFM_AUTO);
+		sc->bge_ifmedia.ifm_media = sc->bge_ifmedia.ifm_cur->ifm_media;
 	} else {
 		/*
 		 * Do transceiver setup.
@@ -2061,6 +2062,18 @@ bge_reset(sc)
 	    BGE_MODECTL_BYTESWAP_DATA);
 
 	CSR_WRITE_4(sc, BGE_MAC_MODE, 0);
+
+	/*
+	 * The 5704 in TBI mode apparently needs some special
+	 * adjustment to insure the SERDES drive level is set
+	 * to 1.2V.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5704 && sc->bge_tbi) {
+		uint32_t serdescfg;
+		serdescfg = CSR_READ_4(sc, BGE_SERDES_CFG);
+		serdescfg = (serdescfg & ~0xFFF) | 0x880;
+		CSR_WRITE_4(sc, BGE_SERDES_CFG, serdescfg);
+	}
 
 	DELAY(10000);
 
@@ -2358,6 +2371,9 @@ bge_tick(xsc)
 		if (CSR_READ_4(sc, BGE_MAC_STS) &
 		    BGE_MACSTAT_TBI_PCS_SYNCHED) {
 			sc->bge_link++;
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
+				BGE_CLRBIT(sc, BGE_MAC_MODE,
+				    BGE_MACMODE_TBI_SEND_CFGS);
 			CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
 			printf("bge%d: gigabit link up\n", sc->bge_unit);
 			if (ifp->if_snd.ifq_head != NULL)
@@ -2734,6 +2750,23 @@ bge_ifmedia_upd(ifp)
 			return(EINVAL);
 		switch(IFM_SUBTYPE(ifm->ifm_media)) {
 		case IFM_AUTO:
+			/*
+			 * The BCM5704 ASIC appears to have a special
+			 * mechanism for programming the autoneg
+			 * advertisement registers in TBI mode.
+			 */
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
+				uint32_t sgdig;
+				CSR_WRITE_4(sc, BGE_TX_TBI_AUTONEG, 0);
+				sgdig = CSR_READ_4(sc, BGE_SGDIG_CFG);
+				sgdig |= BGE_SGDIGCFG_AUTO|
+				    BGE_SGDIGCFG_PAUSE_CAP|
+				    BGE_SGDIGCFG_ASYM_PAUSE;
+				CSR_WRITE_4(sc, BGE_SGDIG_CFG,
+				    sgdig|BGE_SGDIGCFG_SEND);
+				DELAY(5);
+				CSR_WRITE_4(sc, BGE_SGDIG_CFG, sgdig);
+			}
 			break;
 		case IFM_1000_SX:
 			if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
