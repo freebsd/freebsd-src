@@ -43,11 +43,11 @@
 /*
  * Regression test to check some basic cases and see if access() and
  * eaccess() are using the correct portions of the process credential.
- * This test relies on running with privilege, and on UFS file system
+ * This test relies on running with privilege, and on UFS filesystem
  * semantics.  Running the test in other environments may result
  * in incorrect failure identification.
  *
- * Note that this may also break if file system access control is
+ * Note that this may also break if filesystem access control is
  * broken, or if the ability to check and set credentials is broken.
  *
  * Note that this test uses two hard-coded non-root UIDs; on multi-user
