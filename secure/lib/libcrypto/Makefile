@@ -193,6 +193,7 @@ SRCS+=	v3_akey.c v3_akeya.c v3_alt.c v3_bcons.c v3_bitst.c \
 	v3_genn.c v3_ia5.c v3_info.c v3_int.c v3_lib.c v3_ocsp.c \
 	v3_pku.c v3_prn.c v3_purp.c v3_skey.c v3_sxnet.c v3_utl.c v3err.c
 
+.if defined(WANT_OPENSSL_MANPAGES)
 MAN3=	ASN1_OBJECT_new.3 ASN1_STRING_length.3 ASN1_STRING_new.3 \
 	ASN1_STRING_print_ex.3 BIO_ctrl.3 BIO_f_base64.3 BIO_f_buffer.3 \
 	BIO_f_cipher.3 BIO_f_md.3 BIO_f_null.3 BIO_f_ssl.3 BIO_find_type.3 \
@@ -230,6 +231,7 @@ MAN3=	ASN1_OBJECT_new.3 ASN1_STRING_length.3 ASN1_STRING_new.3 \
 	des.3 des_modes.3 dh.3 dsa.3 engine.3 err.3 evp.3 hmac.3 \
 	lh_stats.3 lhash.3 md5.3 mdc2.3 pem.3 rand.3 rc4.3 ripemd.3 \
 	rsa.3 sha.3 threads.3 ui.3 ui_compat.3
+.endif
 
 INCS=		${HDRS} openssl/evp.h openssl/opensslconf.h
 INCSDIR=	${INCLUDEDIR}/openssl
