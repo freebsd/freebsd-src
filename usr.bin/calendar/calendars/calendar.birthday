@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $Id: calendar.birthday,v 1.7 1997/06/23 06:52:58 charnier Exp $
+ * $Id: calendar.birthday,v 1.8 1998/10/22 07:40:05 torstenb Exp $
  */
 
 #ifndef _calendar_birthday_
@@ -177,6 +177,7 @@
 07/30	Henry Ford born, 1863
 08/01	Herman Melville born, 1819
 08/03	Lenny Bruce dies of a morphine overdose, 1966
+08/06	Jonathan B. Postel is born in Altadena, Calif.
 08/08	Dustin Hoffman born in Los Angeles, 1937
 08/12	Thomas Mann's Death, 1955
 08/13	Annie Oakley born, 1860
