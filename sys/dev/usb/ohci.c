@@ -800,8 +800,11 @@ ohci_intr(p)
 	ohci_softc_t *sc = p;
 
 	/* If we get an interrupt while polling, then just ignore it. */
-	if (sc->sc_bus.use_polling)
+	if (sc->sc_bus.use_polling) {
+		DPRINTF(("%s: Ignored interrupt while polling",
+			USBDEVNAME(sc->sc_bus.bdev)));
 		return (0);
+	}
 
 	return (ohci_intr1(sc)); 
 }
