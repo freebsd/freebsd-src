@@ -141,17 +141,17 @@ is a machine-dependent constant defined in
 The mbuf header includes:
 .Pp
 .Bl -tag -width "m_nextpkt" -compact -offset indent
-.It Fa m_next
+.It Va m_next
 a pointer to the next buffer in the chain
-.It Fa m_nextpkt
+.It Va m_nextpkt
 a pointer to the next chain in the queue
-.It Fa m_data
+.It Va m_data
 a pointer to the data
-.It Fa m_len
+.It Va m_len
 the length of the data
-.It Fa m_type
+.It Va m_type
 the type of data
-.It Fa m_flags
+.It Va m_flags
 the mbuf flags
 .El
 .Pp
@@ -210,7 +210,7 @@ flag set,
 bytes can otherwise.
 .Pp
 If external storage is being associated with an mbuf, the
-.Dv m_ext
+.Va m_ext
 header is added at the cost of losing the internal data buffer.
 It includes a pointer to external storage, the size of the storage,
 a pointer to a function used for freeing the storage,
@@ -334,7 +334,7 @@ then if the reference count of the storage is not greater than 1.
 The
 .Dv M_RDONLY
 flag can be set in the mbuf's
-.Dv m_flags .
+.Va m_flags .
 This can be achieved during setup of the external storage,
 by passing the
 .Dv M_RDONLY
