@@ -39,4 +39,4 @@ divert(-1)
 
 ifdef(`_MAILER_local_',
 	`errprint(`*** FEATURE(smrsh) must occur before MAILER(local)')')dnl
-define(`LOCAL_SHELL_PATH', ifelse(_ARG_, `', `/usr/local/etc/smrsh', _ARG_))
+define(`LOCAL_SHELL_PATH', ifelse(_ARG_, `', `/usr/libexec/smrsh', _ARG_))
