@@ -33,6 +33,9 @@
 
 #include "assym.s"
 
+	.globl	kernbase
+	.set	kernbase,KERNBASE
+
 /*
  * void _start(struct bootinfo *bi, u_long ofw_vec)
  */
