@@ -146,11 +146,13 @@ main(int argc, char *argv[]) {
 		if ((size_t)offset >= cmdsize)
 			err(1, "snprintf() failed");
 		p += offset;
+		cmdsize -= offset;
 		for (i = 1; i <= nargs; i++) {
 			offset = snprintf(p, cmdsize, " %c%d", magic, i);
 			if ((size_t)offset >= cmdsize)
 				err(1, "snprintf() failed");
 			p += offset;
+			cmdsize -= offset;
 		}
 
 		/*
@@ -197,6 +199,7 @@ main(int argc, char *argv[]) {
 				if ((size_t)offset >= l)
 					err(1, "snprintf() failed");
 				q += offset;
+				l -= offset;
 			} else
 				*q++ = *p;
 
