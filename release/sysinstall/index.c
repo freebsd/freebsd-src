@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.60.2.1 1999/02/15 04:57:40 jkh Exp $
+ * $Id: index.c,v 1.60.2.2 1999/03/10 02:51:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -475,13 +475,15 @@ pkg_fire(dialogMenuItem *self)
 	    else if (ie->depc == 0) {
 		WINDOW *save = savescr();
 
-		if (!msgYesNo("Do you really want to delete %s from the system?", kp->name))
-		    if (vsystem("pkg_delete %s %s", isDebug() ? "-v" : "", kp->name))
+		if (!msgYesNo("Do you really want to delete %s from the system?", kp->name)) {
+		    if (vsystem("pkg_delete %s %s", isDebug() ? "-v" : "", kp->name)) {
 			msgConfirm("Warning:  pkg_delete of %s failed.\n  Check debug output for details.", kp->name);
+		    }
 		    else {
 			ie->installed = 0;
 			index_recorddeps(FALSE, lists->root, ie);
 		    }
+		}
 		restorescr(save);
 	    }
 	    else
