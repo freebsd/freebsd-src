@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 9/5/93
-#	$Id$
+#	$Id: Makefile.inc,v 1.23 1997/05/03 03:50:01 jb Exp $
 
 # machine-independent net sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/net ${.CURDIR}/../libc/net
@@ -21,14 +21,12 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c \
 # machine-dependent net sources
 .include "${.CURDIR}/../libc/${MACHINE}/net/Makefile.inc"
 
-# Only build man pages with libc.
 .if ${LIB} == "c"
-MAN3+=	net/addr2ascii.3 \
-	net/byteorder.3 net/ethers.3 net/gethostbyname.3 net/getnetent.3 \
-	net/getprotoent.3 net/getservent.3 net/inet.3 net/linkaddr.3 \
-	net/rcmd.3 resolver.3
+MAN3+=	addr2ascii.3 byteorder.3 ethers.3 gethostbyname.3 \
+	getnetent.3 getprotoent.3 getservent.3 \
+	inet.3 linkaddr.3 rcmd.3 resolver.3
 
-# not installed: net/ns.3 net/iso_addr.3
+# not installed: ns.3 iso_addr.3
 
 MLINKS+=addr2ascii.3 ascii2addr.3
 MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
