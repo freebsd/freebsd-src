@@ -26,21 +26,19 @@ NON_GPROF_ENTRY(svr4_sigcode)
 /* must be FreeBSD, right? */
 1:	pushl	%eax			# fake return address
 	pushl	$1			# pointer to ucontext
-	movl	$svr4_sys_context,%eax
+	movl	$_svr4_sys_context,%eax
 #endif
 	int	$0x80	 		# enter kernel with args on stack
 	movl	$exit,%eax
 	int	$0x80			# exit if sigreturn fails
 
-/*	.globl	_svr4_esigcode*/
-
 	.align	2				/* long word align */
 svr4_esigcode:
 
 	.data
-	.globl	svr4_szsigcode
-svr4_szsigcode:
-	.long	svr4_esigcode - svr4_sigcode
+	.globl	_svr4_szsigcode
+_svr4_szsigcode:
+	.long	svr4_esigcode - _svr4_sigcode
 
 	.text
 
