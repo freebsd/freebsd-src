@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.74 1999/01/31 03:15:13 newton Exp $
+ * $Id: kern_exit.c,v 1.75 1999/02/19 14:25:34 luoqi Exp $
  */
 
 #include "opt_compat.h"
@@ -283,7 +283,7 @@ exit1(p, rv)
 		LIST_REMOVE(q, p_sibling);
 		LIST_INSERT_HEAD(&initproc->p_children, q, p_sibling);
 		q->p_pptr = initproc;
-		q->p_sigparent = 0;
+		q->p_sigparent = SIGCHLD;
 		/*
 		 * Traced processes are killed
 		 * since their existence means someone is screwing up.
@@ -420,7 +420,7 @@ wait1(q, uap, compat)
 
 	if (uap->pid == 0)
 		uap->pid = -q->p_pgid;
-	if (uap->options &~ (WUNTRACED|WNOHANG))
+	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE))
 		return (EINVAL);
 loop:
 	nfound = 0;
@@ -428,6 +428,17 @@ loop:
 		if (uap->pid != WAIT_ANY &&
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
+
+		/* This special case handles a kthread spawned by linux_clone 
+		 * (see linux_misc.c).  The linux_wait4 and linux_waitpid functions
+		 * need to be able to distinguish between waiting on a process and
+		 * waiting on a thread.  It is a thread if p_sigparent is not SIGCHLD,
+		 * and the WLINUXCLONE option signifies we want to wait for threads
+		 * and not processes.
+		 */
+		if ((p->p_sigparent != SIGCHLD) ^ ((uap->options & WLINUXCLONE) != 0))
+			continue;
+
 		nfound++;
 		if (p->p_stat == SZOMB) {
 			/* charge childs scheduling cpu usage to parent */
