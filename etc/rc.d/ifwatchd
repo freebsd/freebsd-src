@@ -1,16 +1,17 @@
 #!/bin/sh
 #
-# $NetBSD:  $
+# $NetBSD$
 #
 
-# PROVIDE: moused
-# REQUIRE: DAEMON
+# PROVIDE: ifwatchd
+# REQUIRE: mountcritremote network
 
 . /etc/rc.subr
 
-name="moused"
+name="ifwatchd"
 rcvar=$name
 command="/usr/sbin/${name}"
 
 load_rc_config $name
 run_rc_command "$1"
+

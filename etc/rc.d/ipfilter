@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD: ipfilter,v 1.8 2000/10/01 05:58:06 lukem Exp $
+# $NetBSD: ipfilter,v 1.9 2000/10/09 06:11:38 nisimura Exp $
 #
 
 # PROVIDE: ipfilter
@@ -16,9 +16,11 @@ stop_precmd="test -f /etc/ipf.conf -o -f /etc/ipf6.conf"
 stop_cmd="ipfilter_stop"
 reload_precmd="$stop_precmd"
 reload_cmd="ipfilter_reload"
+resync_precmd="$stop_precmd"
+resync_cmd="ipfilter_resync"
 status_precmd="$stop_precmd"
 status_cmd="ipfilter_status"
-extra_commands="reload status"
+extra_commands="reload resync status"
 
 ipfilter_prestart()
 {
@@ -68,6 +70,11 @@ ipfilter_reload()
 		err 1 "reload of ipf6.conf failed; not swapping to new ruleset."
 	fi
 	/sbin/ipf -s
+}
+
+ipfilter_resync()
+{
+	/sbin/ipf -y
 }
 
 ipfilter_status()

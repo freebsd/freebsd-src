@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD$
+# $NetBSD: racoon,v 1.2 2001/04/26 03:55:16 lukem Exp $
 #
 
 # PROVIDE: ike
-# REQUIRE: kdc ppp
+# REQUIRE: isdnd kdc ppp
+# BEFORE:  SERVERS
 
 . /etc/rc.subr
 

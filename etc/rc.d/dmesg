@@ -1,22 +1,24 @@
 #!/bin/sh
 #
-# $NetBSD: dmesg,v 1.4 2000/07/26 00:11:49 lukem Exp $
+# $NetBSD: dmesg,v 1.7 2002/03/22 04:16:39 lukem Exp $
 #
 
 # PROVIDE: dmesg
 # REQUIRE: mountcritremote
+# BEFORE:  DAEMON
 
 . /etc/rc.subr
 
 name="dmesg"
 rcvar=$name
+dmesg_file="/var/run/dmesg.boot"
 start_cmd="do_dmesg"
 stop_cmd=":"
 
 do_dmesg()
 {
-	rm -f /var/run/dmesg.boot
-	dmesg $dmesg_flags > /var/run/dmesg.boot
+	rm -f ${dmesg_file}
+	( umask 022 ; /sbin/dmesg $rc_flags > ${dmesg_file} )
 }
 
 load_rc_config $name

@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: syslogd,v 1.6 2000/07/29 21:50:20 veego Exp $
+# $NetBSD: syslogd,v 1.12 2002/03/22 04:34:00 thorpej Exp $
 #
 
 # PROVIDE: syslogd
 # REQUIRE: mountcritremote sysdb wscons
+# BEFORE:  SERVERS
 
 . /etc/rc.subr
 
@@ -16,6 +17,8 @@ required_files="/etc/syslog.conf"
 start_precmd="syslogd_precmd"
 extra_commands="reload"
 
+_sockfile="/var/run/syslogd.sockets"
+
 syslogd_precmd()
 {
 	#	Transitional symlink for old binaries
@@ -23,7 +26,32 @@ syslogd_precmd()
 	if [ ! -h /dev/log ]; then
 		ln -sf /var/run/log /dev/log
 	fi
-	rm -f /var/run/log
+
+	#	Create default list of syslog sockets to watch
+	#
+	( umask 022 ; > $_sockfile )
+
+	#	Find /etc/rc.d scripts with "chrootdir" rcorder(8) keyword,
+	#	and if $${app}_chrootdir is a directory, add appropriate
+	#	syslog socket to list of sockets to watch.
+	#
+	for _lr in $(rcorder -k chrootdir /etc/rc.d/*); do
+		_l=${_lr##*/}
+		eval _ldir=\$${_l}_chrootdir
+		if checkyesno $_l && [ -n "$_ldir" ]; then
+			echo "${_ldir}/var/run/log" >> $_sockfile
+		fi
+	done
+
+	#	If other sockets have been provided, change run_rc_command()'s
+	#	internal copy of $syslogd_flags to force use of specific
+	#	syslogd sockets.
+	#
+	if [ -s $_sockfile ]; then
+		echo "/var/run/log" >> $_sockfile
+		rc_flags="-P $_sockfile $rc_flags"
+	fi
+
 	return 0
 }
 

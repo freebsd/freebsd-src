@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: sysdb,v 1.6 2000/10/09 05:02:14 nisimura Exp $
+# $NetBSD: sysdb,v 1.8 2001/04/16 01:38:15 lukem Exp $
 #
 
 # PROVIDE: sysdb
 # REQUIRE: mountcritremote
+# BEFORE:  DAEMON
 
 . /etc/rc.subr
 
@@ -20,7 +21,7 @@ sysdb_start()
 	#
 	echo "Building databases..."
 	booted_kernel=`sysctl -n machdep.booted_kernel 2>/dev/null`
-	kvm_mkdb ${booted_kernel:-/netbsd}
+	kvm_mkdb "${booted_kernel:-/netbsd}"
 	dev_mkdb
 
 	#	Re-create /var/run/utmp, which is deleted by mountcritlocal

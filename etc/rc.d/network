@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: network,v 1.29 2001/01/11 17:56:16 itojun Exp $
+# $NetBSD: network,v 1.37 2002/04/29 12:13:14 lukem Exp $
 #
 
 # PROVIDE: network
 # REQUIRE: ipfilter ipsec mountcritlocal root tty sysctl
+# BEFORE:  NETWORKING
 
 . /etc/rc.subr
 
@@ -57,13 +58,13 @@ network_start()
 	# auto-route from a newly configured interface's address to lo0
 	# works correctly.
 	#
-	# NOTE: obscure networking problems may occur if lo0 isn't configured...
+	# NOTE: obscure networking problems will occur if lo0 isn't configured.
 	#
 	ifconfig lo0 inet 127.0.0.1
 
-	# According to RFC1122, 127.0.0.0/8 should not leave the node.
+	# According to RFC1122, 127.0.0.0/8 must not leave the node.
 	#
-	route add -inet 127.0.0.0 -netmask 0xff000000 127.0.0.1 -reject
+	route -q add -inet 127.0.0.0 -netmask 0xff000000 127.0.0.1 -reject
 
 	# IPv6 routing setups, and host/router mode selection.
 	#
@@ -73,7 +74,7 @@ network_start()
 		# disallow link-local unicast dest without outgoing scope
 		# identifiers.
 		#
-		route add -inet6 fe80:: -prefixlen 10 ::1 -reject
+		route -q add -inet6 fe80:: -prefixlen 10 ::1 -reject
 
 		# disallow site-local unicast dest without outgoing scope
 		# identifiers.
@@ -82,26 +83,26 @@ network_start()
 		# boundary), you may want to comment the following one out.
 		#
 		if ! checkyesno ip6sitelocal; then
-			route add -inet6 fec0:: -prefixlen 10 ::1 -reject
+			route -q add -inet6 fec0:: -prefixlen 10 ::1 -reject
 		fi
 
 		# disallow "internal" addresses to appear on the wire.
 		#
-		route add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
+		route -q add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
 
 		# disallow packets to malicious IPv4 compatible prefix
 		#
-		route add -inet6 ::224.0.0.0 -prefixlen 100 ::1 -reject
-		route add -inet6 ::127.0.0.0 -prefixlen 104 ::1 -reject
-		route add -inet6 ::0.0.0.0 -prefixlen 104 ::1 -reject
-		route add -inet6 ::255.0.0.0 -prefixlen 104 ::1 -reject
+		route -q add -inet6 ::224.0.0.0 -prefixlen 100 ::1 -reject
+		route -q add -inet6 ::127.0.0.0 -prefixlen 104 ::1 -reject
+		route -q add -inet6 ::0.0.0.0 -prefixlen 104 ::1 -reject
+		route -q add -inet6 ::255.0.0.0 -prefixlen 104 ::1 -reject
 
 		# disallow packets to malicious 6to4 prefix
 		#
-		route add -inet6 2002:e000:: -prefixlen 20 ::1 -reject
-		route add -inet6 2002:7f00:: -prefixlen 24 ::1 -reject
-		route add -inet6 2002:0000:: -prefixlen 24 ::1 -reject
-		route add -inet6 2002:ff00:: -prefixlen 24 ::1 -reject
+		route -q add -inet6 2002:e000:: -prefixlen 20 ::1 -reject
+		route -q add -inet6 2002:7f00:: -prefixlen 24 ::1 -reject
+		route -q add -inet6 2002:0000:: -prefixlen 24 ::1 -reject
+		route -q add -inet6 2002:ff00:: -prefixlen 24 ::1 -reject
 
 		# Completely disallow packets to IPv4 compatible prefix.
 		# This may conflict with RFC1933 under following circumstances:
@@ -117,41 +118,27 @@ network_start()
 		# Due to rare use of IPv4 compatible address, and security
 		# issues with it, we disable it by default.
 		#
-		route add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
+		route -q add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
 
-		sysctl -w net.inet6.ip6.forwarding=0 >/dev/null
-		sysctl -w net.inet6.ip6.accept_rtadv=0 >/dev/null
-
-		# backward compatibility
-		#
-		if [ -z "$ip6mode" ] && [ -n "$ip6forwarding" ]; then
-			warn 'Please migrate to newer rc.conf' \
-			    '(use ip6mode, not ip6forwarding)'
-			if checkyesno ip6forwarding; then
-				ip6mode=router
-			elif checkyesno rtsol; then
-				ip6mode=autohost
-			else
-				ip6mode=host
-			fi
-		fi
+		sysctl -qw net.inet6.ip6.forwarding=0
+		sysctl -qw net.inet6.ip6.accept_rtadv=0
 
 		case $ip6mode in
 		router)
 			echo 'IPv6 mode: router'
-			sysctl -w net.inet6.ip6.forwarding=1 >/dev/null
+			sysctl -qw net.inet6.ip6.forwarding=1
 			;;
 
 		autohost)
 			echo 'IPv6 mode: autoconfigured host'
-			sysctl -w net.inet6.ip6.accept_rtadv=1 >/dev/null
+			sysctl -qw net.inet6.ip6.accept_rtadv=1
 			;;
 
 		host)	
 			echo 'IPv6 mode: host'
 			;;
 
-		*)	echo 'WARNING: invalid value in ip6mode'
+		*)	warn "invalid \$ip6mode value "\"$ip6mode\"
 			;;
 
 		esac
@@ -164,7 +151,7 @@ network_start()
 	# we do "ifconfig xxN $ifconfig_xxN".
 	# If there is no such variable, we take the contents of the file
 	# /etc/ifconfig.xxN, and run "ifconfig xxN" repeatedly, using each
-	# line of the file as the arguments for a seperate "ifconfig"
+	# line of the file as the arguments for a separate "ifconfig"
 	# invocation.
 	#
 	# In order to configure an interface reasonably, you at the very least
@@ -266,8 +253,6 @@ network_start()
 					ifconfig $int inet alias $addr \
 					    netmask $net
 				fi
-				# Use loopback, not the wire
-				route add $addr 127.0.0.1
 			done
 		fi
 	done
@@ -292,8 +277,6 @@ network_start()
 			else
 				ifconfig $int inet alias $addr netmask $net
 			fi
-			# use loopback, not the wire
-			route add $addr 127.0.0.1
 		done < /etc/ifaliases
 	fi
 
@@ -323,6 +306,11 @@ network_start()
 			sleep $dadcount
 			sleep 1
 		fi
+	fi
+
+	# resync ipf(4)
+	if checkyesno ipfilter; then
+		/sbin/ipf -y
 	fi
 
 	# XXX this must die
@@ -380,6 +368,11 @@ network_stop()
 	# flush routes
 	#
 	route -n flush
+
+	# resync ipf(4)
+	if checkyesno ipfilter; then
+		/sbin/ipf -y
+	fi
 
 }
 

@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: sysctl,v 1.8 2000/06/13 16:29:55 itojun Exp $
+# $NetBSD: sysctl,v 1.11 2002/03/27 08:03:08 lukem Exp $
 #
 
 # PROVIDE: sysctl
 # REQUIRE: root ipfilter ipsec
+# BEFORE:  DAEMON
 
 . /etc/rc.subr
 
@@ -14,22 +15,6 @@ stop_cmd=":"
 
 sysctl_start()
 {
-	if [ -n "$defcorename" ]; then
-		cat <<__EOF__
-*** WARNING: /etc/rc.conf \$defcorename setting is obsolete. Please
-*** set kern.defcorename in /etc/sysctl.conf
-__EOF__
-		sysctl -w kern.defcorename=$defcorename
-	fi
-
-	if [ -n "$nfsiod_flags" ]; then
-		cat <<__EOF__
-*** WARNING: /etc/rc.conf \$nfsiod_flags setting is obsolete. Please
-*** remove it. If it was set to other than the default of "-n 4", then
-*** set vfs.nfs.iothreads in /etc/sysctl.conf
-__EOF__
-	fi
-
 	if [ -r /etc/sysctl.conf ]; then
 		echo "Setting sysctl variables:"
 		sysctl -f /etc/sysctl.conf

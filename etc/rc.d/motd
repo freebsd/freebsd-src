@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: motd,v 1.5 2000/09/19 13:04:38 lukem Exp $
+# $NetBSD: motd,v 1.7 2001/04/25 23:23:37 lukem Exp $
 #
 
 # PROVIDE: motd
 # REQUIRE: mountcritremote
+# BEFORE:  LOGIN
 
 . /etc/rc.subr
 
@@ -23,11 +24,13 @@ motd_start()
 	if [ ! -f /etc/motd ]; then
 		install -c -o root -g wheel -m 664 /dev/null /etc/motd
 	fi
+	( umask 022
 	T=/etc/_motd
 	sysctl -n kern.version | while read i; do echo $i; break; done > $T
 	sed '1{/^NetBSD.*/{d;};};' < /etc/motd >> $T
 	cmp -s $T /etc/motd || cp $T /etc/motd
 	rm -f $T
+	)
 }
 
 load_rc_config $name

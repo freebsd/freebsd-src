@@ -1,14 +1,12 @@
 #!/bin/sh
 #
-# $NetBSD: sendmail,v 1.12 2000/10/09 06:11:38 nisimura Exp $
+# $NetBSD: sendmail,v 1.13 2000/12/18 07:56:41 jmc Exp $
 #
 
 # PROVIDE: mail
 # REQUIRE: LOGIN
-
-#	we could do this, but make mail start late, so that things like
-#	.forward's are not processed until the system is fully operational
-## REQUIRE: DAEMON
+#	we make mail start late, so that things like .forward's are not
+#	processed until the system is fully operational
 
 . /etc/rc.subr
 
@@ -47,8 +45,8 @@ sendmail_precmd()
 
 	# check couple of common db files, too
 	for f in genericstable virtusertable domaintable mailertable; do
-		if [ -r "/etc/mail/$f" ] && [ "/etc/mail/$f" -nt "/etc/mail/$f.db" ];
-		then
+		if [ -r "/etc/mail/$f" -a \
+		    "/etc/mail/$f" -nt "/etc/mail/$f.db" ]; then
 			echo \
     "${name}: /etc/mail/$f newer than /etc/mail/$f.db, regenerating"
 			/usr/sbin/makemap hash /etc/mail/$f < /etc/mail/$f

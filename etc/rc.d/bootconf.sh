@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD: bootconf.sh,v 1.2 2000/08/21 23:34:45 lukem Exp $
+# $NetBSD: bootconf.sh,v 1.4 2002/03/24 15:08:58 lukem Exp $
 #
 
 # PROVIDE: bootconf
@@ -20,9 +20,13 @@ bootconf_start()
 	else
 		default=current
 	fi
+	if [ "$default" = "current" ]; then
+		def=`ls -ld /etc/etc.current 2>&1`
+		default="${def##*-> etc.}"
+	fi
+
 	spc=""
-	for i in /etc/etc.*
-	do
+	for i in /etc/etc.*; do
 		name="${i##/etc/etc.}"
 		case $name in
 		current|default|\*)
@@ -43,11 +47,11 @@ bootconf_start()
 	_DUMMY=/etc/passwd
 	conf=${_DUMMY}
 	while [ ! -d /etc/etc.$conf/. ]; do
-		trap "conf=$default; echo; echo Using default of $conf" 14
+		trap "conf=$default; echo; echo Using default of $conf" ALRM
 		echo -n "Which configuration [$default] ? "
 		(sleep 30 && kill -ALRM $master) >/dev/null 2>&1 &
 		read conf
-		trap : 14
+		trap : ALRM
 		if [ -z $conf ] ; then
 			conf=$default
 		fi
@@ -55,8 +59,16 @@ bootconf_start()
 			conf=${_DUMMY}
 		fi
 	done
-	rm -f /etc/etc.current
-	ln -s /etc/etc.$conf /etc/etc.current
+
+	case  $conf in
+	current|default)
+		;;
+	*)
+		rm -f /etc/etc.current
+		ln -s /etc/etc.$conf /etc/etc.current
+		;;
+	esac
+
 	if [ -f /etc/rc.conf ] ; then
 		. /etc/rc.conf
 	fi
