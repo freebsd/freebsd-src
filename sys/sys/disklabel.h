@@ -302,6 +302,7 @@ static const char *fstypenames[] = {
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 #endif
+#define DIOCBSDBB	_IOW('d', 110, void *)	/* write bootblocks */
 
 #ifdef _KERNEL
 
