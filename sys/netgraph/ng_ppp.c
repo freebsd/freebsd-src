@@ -185,6 +185,7 @@ struct ng_ppp_link {
 	struct ng_ppp_link_conf	conf;		/* link configuration */
 	hook_p			hook;		/* connection to link data */
 	int32_t			seq;		/* highest rec'd seq# - MSEQ */
+	u_int32_t		latency;	/* calculated link latency */
 	struct timeval		lastWrite;	/* time of last write */
 	int			bytesInQueue;	/* bytes in the output queue */
 	struct ng_ppp_link_stat	stats;		/* Link stats */
@@ -1735,7 +1736,7 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 
 		/* Start with base latency value */
 		alink = &priv->links[priv->activeLinks[activeLinkNum]];
-		latency[activeLinkNum] = alink->conf.latency;
+		latency[activeLinkNum] = alink->latency;
 		sortByLatency[activeLinkNum] = activeLinkNum;	/* see below */
 
 		/* Any additional latency? */
@@ -1910,7 +1911,8 @@ ng_ppp_update(node_p node, int newConf)
 			hdrBytes = (priv->links[i].conf.enableACFComp ? 0 : 2)
 			    + (priv->links[i].conf.enableProtoComp ? 1 : 2)
 			    + (priv->conf.xmitShortSeq ? 2 : 4);
-			priv->links[i].conf.latency +=
+			priv->links[i].latency =
+			    priv->links[i].conf.latency +
 			    ((hdrBytes * priv->links[i].conf.bandwidth) + 50)
 				/ 100;
 		}
@@ -1932,7 +1934,7 @@ ng_ppp_update(node_p node, int newConf)
 			link0 = &priv->links[priv->activeLinks[0]];
 
 			/* Determine if all links are still equal */
-			if (link->conf.latency != link0->conf.latency
+			if (link->latency != link0->latency
 			  || link->conf.bandwidth != link0->conf.bandwidth)
 				priv->allLinksEqual = 0;
 
