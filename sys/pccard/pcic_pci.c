@@ -1185,7 +1185,7 @@ pcic_pci_attach(device_t dev)
 			sp[i].getb = pcic_getb_io;
 			sp[i].putb = pcic_putb_io;
 			sp[i].offset = i * PCIC_SLOT_SIZE;
-			sp[i].controller = PCIC_PD6729;
+			sp[i].controller = itm ? itm->type : PCIC_PD6729;
 			if ((sp[i].getb(&sp[i], PCIC_ID_REV) & 0xc0) == 0x80)
 				sp[i].slt = (struct slot *) 1;
 		}
