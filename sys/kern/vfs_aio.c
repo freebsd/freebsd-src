@@ -49,6 +49,8 @@
 #include <sys/aio.h>
 
 #include <machine/limits.h>
+#include <machine/mutex.h>
+
 #include "opt_vfs_aio.h"
 
 #ifdef VFS_AIO
