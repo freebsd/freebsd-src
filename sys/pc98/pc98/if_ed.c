@@ -2040,6 +2040,9 @@ ed_probe_CNET98(isa_dev)
 	u_char  cmd,sum;
 	u_char  tmp,tmp_s,tmp_e;
 
+	if ((isa_dev->id_maddr == 0) || (isa_dev->id_msize == 0))
+		return 0;
+
 	sc->vendor         = ED_VENDOR_MISC;	 /* vendor name          */
 	sc->type_str       = "CNET98";           /* board name           */
 	sc->isa16bit       = 0;					 /* 16bit mode off = 0   */
