@@ -181,11 +181,11 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">SCSI controllers based on the Adaptec AIC7901
-      and 7902 Ultra320 controller chips (ahd driver)
+    <para arch="i386">Ultra-320 SCSI controllers based on the Adaptec AIC7901,
+      AIC7901A, and AIC7902 Ultra320 controller chips (&man.ahd.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>Adaptec 29320, 29320LP</para>
+	  <para>Adaptec 29320, 29320A, 29320B, 29320LP</para>
         </listitem>
         <listitem>
 	  <para>Adaptec 39320, 39320D</para>
