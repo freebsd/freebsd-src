@@ -79,6 +79,9 @@
 #define	ISP1080_DMA_REGS_OFF		0x60
 #define	DMA_REGS_OFF			0x00	/* same as BIU block */
 
+#define	SBUS_REGSIZE			0x450
+#define	PCI_REGSIZE			0x100
+
 /*
  * NB:	The *_BLOCK definitions have no specific hardware meaning.
  *	They serve simply to note to the MD layer which block of
