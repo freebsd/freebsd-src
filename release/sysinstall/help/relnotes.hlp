@@ -203,6 +203,9 @@ The following CD-ROM type systems are supported at this time:
 -------------------
 
 Allied-Telesis AT1700 and RE2000 cards
+
+AMD PCnet/PCI (79c970 & 53c974 or 79c974)
+
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
@@ -211,7 +214,9 @@ DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
+
 Fujitsu MB86960A/MB86965A
+
 HP PC Lan+ cards (model numbers: 27247B and 27252A)
 
 Intel EtherExpress (not recommended due to driver instability)
@@ -450,41 +455,41 @@ The FreeBSD Development Team, excluding core team members
         Thomas Gellekum <tg@FreeBSD.org>
         Thomas Graichen <graichen@FreeBSD.org>
         Rod Grimes <rgrimes@FreeBSD.org>
-	James FitzGibbon <jfitz@FreeBSD.org>
+        James FitzGibbon <jfitz@FreeBSD.org>
         John Hay <jhay@FreeBSD.org>
         Jeffrey Hsu <hsu@FreeBSD.org>
         Ugen J.S. Antsilevich <ugen@FreeBSD.org>
         Gary Jennejohn <gj@FreeBSD.org>
-	Andreas Klemm <andreas@FreeBSD.org>
-	Warner Losh <imp@FreeBSD.org>
+        Andreas Klemm <andreas@FreeBSD.org>
+        Warner Losh <imp@FreeBSD.org>
         L Jonas Olsson <ljo@FreeBSD.org>
         Eric L. Hernes <erich@FreeBSD.org>
         Scott Mace <smace@FreeBSD.org>
         Atsushi Murai <amurai@FreeBSD.org>
         Mark Murray <markm@FreeBSD.org>
-	Alex Nash <alex@FreeBSD.org>
-	Masafumi NAKANE <max@FreeBSD.org>
-	David E. O'Brien <obrien@FreeBSD.org>
+        Alex Nash <alex@FreeBSD.org>
+        Masafumi NAKANE <max@FreeBSD.org>
+        David E. O'Brien <obrien@FreeBSD.org>
         Andras Olah <olah@FreeBSD.org>
-	Steve Passe <smp@FreeBSD.org>
-	Sujal Patel <smpatel@FreeBSD.org>
+        Steve Passe <smp@FreeBSD.org>
+        Sujal Patel <smpatel@FreeBSD.org>
         Bill Paul <wpaul@FreeBSD.org>
         Joshua Peck Macdonald <jmacd@FreeBSD.org>
         John Polstra <jdp@FreeBSD.org>
-	Steve Price <steve@FreeBSD.org>
+        Steve Price <steve@FreeBSD.org>
         Mike Pritchard <mpp@FreeBSD.org>
         Doug Rabson <dfr@FreeBSD.org>
-	James Raynard <jraynard@FreeBSD.org>
+        James Raynard <jraynard@FreeBSD.org>
         Geoff Rehmet <csgr@FreeBSD.org>
         Martin Renters <martin@FreeBSD.org>
         Paul Richards <paul@FreeBSD.org>
         Ollivier Robert <roberto@FreeBSD.org>
-	Chuck Robey <chuckr@FreeBSD.org>
+        Chuck Robey <chuckr@FreeBSD.org>
         Dima Ruban <dima@FreeBSD.org>
         Wolfram Schneider <wosch@FreeBSD.org>
         Andreas Schulz <ats@FreeBSD.org>
         Karl Strickland <karl@FreeBSD.org>
-	Michael Smith <msmith@FreeBSD.org>
+        Michael Smith <msmith@FreeBSD.org>
         Paul Traina <pst@FreeBSD.org>
         Guido van Rooij <guido@FreeBSD.org>
         Steven Wallace <swallace@FreeBSD.org>
@@ -524,4 +529,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.22 1996/11/15 07:00:58 jkh Exp $
+$Id: relnotes.hlp,v 1.23 1996/11/15 07:02:08 jkh Exp $
