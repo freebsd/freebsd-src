@@ -61,8 +61,9 @@ test-pv 0.9 "<" 0.10 inequality
 test-pv 2.3p10 ">" 2.3p9 number/letter
 test-pv 1.6.0 ">" 1.6.0.p3 number/letter
 test-pv 1.0.b ">" 1.0.a3 number/letter
-test-pv 1.0a "<" 1.0 number/letter
-test-pv 5.0a "<" 5.0.b number/letter
+test-pv 1.0a ">" 1.0 number/letter
+test-pv 1.0a "<" 1.0b number/letter
+test-pv 5.0a ">" 5.0.b number/letter
 
 test-pv 1.5_1 ">" 1.5 portrevision
 test-pv 1.5_2 ">" 1.5_1 portrevision
