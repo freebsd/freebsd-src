@@ -78,3 +78,5 @@ o Ppp waits for 1 second before checking whether the device supports
   carrier.  This is controllable with ``set cd''.
 o Random dial timeouts are now between 1 and 30 seconds inclusive rather
   than between 0 and 29.
+o Ppp now accepts M$CHAP (as well as normal CHAP) by default.  If this
+  is not required, you must ``deny chap05 chap80''.
