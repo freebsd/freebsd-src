@@ -211,8 +211,9 @@ acpi_perf_attach(device_t dev)
 	sc->px_curr_state = CPUFREQ_VAL_UNKNOWN;
 	if (acpi_perf_evaluate(dev) != 0)
 		return (ENXIO);
-	cpufreq_register(dev);
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_px_startup, NULL);
+	if (!sc->info_only)
+		cpufreq_register(dev);
 
 	return (0);
 }
