@@ -69,6 +69,14 @@
 #include <netgraph/ng_socketvar.h>
 #include <netgraph/ng_socket.h>
 
+#ifdef NG_SEPARATE_MALLOC
+MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info ");
+MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info ");
+#else
+#define M_NETGRAPH_PATH M_NETGRAPH
+#define M_NETGRAPH_SOCK M_NETGRAPH
+#endif
+
 /*
  * It's Ascii-art time!
  *   +-------------+   +-------------+
@@ -213,7 +221,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	/* Allocate an expendable buffer for the path, chop off
 	 * the sockaddr header, and make sure it's NUL terminated */
 	len = sap->sg_len - 2;
-	MALLOC(path, char *, len + 1, M_NETGRAPH, M_WAITOK);
+	MALLOC(path, char *, len + 1, M_NETGRAPH_PATH, M_WAITOK);
 	if (path == NULL) {
 		error = ENOMEM;
 		goto release;
@@ -269,7 +277,7 @@ printf("errx=%d\n",error);
 #endif
 release:
 	if (path != NULL)
-		FREE(path, M_NETGRAPH);
+		FREE(path, M_NETGRAPH_PATH);
 	if (control != NULL)
 		m_freem(control);
 	if (m != NULL)
@@ -457,7 +465,7 @@ ng_attach_cntl(struct socket *so)
 
 	/* Allocate node private info */
 	MALLOC(privdata, struct ngsock *,
-	    sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
+	    sizeof(*privdata), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
 	if (privdata == NULL) {
 		ng_detach_common(pcbp, NG_CONTROL);
 		return (ENOMEM);
@@ -465,7 +473,7 @@ ng_attach_cntl(struct socket *so)
 
 	/* Make the generic node components */
 	if ((error = ng_make_node_common(&typestruct, &privdata->node)) != 0) {
-		FREE(privdata, M_NETGRAPH);
+		FREE(privdata, M_NETGRAPH_SOCK);
 		ng_detach_common(pcbp, NG_CONTROL);
 		return (error);
 	}
@@ -800,7 +808,7 @@ msg->header.token);
 	/* Get the return address into a sockaddr */
 	sprintf(retabuf,"[%x]:", retaddr);
 	addrlen = strlen(retabuf);
-	MALLOC(addr, struct sockaddr_ng *, addrlen + 4, M_NETGRAPH, M_NOWAIT);
+	MALLOC(addr, struct sockaddr_ng *, addrlen + 4, M_NETGRAPH_PATH, M_NOWAIT);
 	if (addr == NULL) {
 		TRAP_ERROR;
 		return (ENOMEM);
@@ -812,7 +820,7 @@ msg->header.token);
 
 	/* Send it up */
 	error = ship_msg(pcbp, msg, addr);
-	FREE(addr, M_NETGRAPH);
+	FREE(addr, M_NETGRAPH_PATH);
 	return (error);
 }
 
@@ -902,7 +910,7 @@ ngs_shutdown(node_p node)
 	}
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
-	FREE(sockdata, M_NETGRAPH);
+	FREE(sockdata, M_NETGRAPH_SOCK);
 	return (0);
 }
 

@@ -60,6 +60,12 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_pppoe.h>
 
+#ifdef NG_SEPARATE_MALLOC
+MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
+#else
+#define M_NETGRAPH_PPPOE M_NETGRAPH
+#endif
+
 #define SIGNOFF "session closed"
 #define OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 
@@ -538,7 +544,7 @@ ng_pppoe_constructor(node_p node)
 
 AAA
 	/* Initialize private descriptor */
-	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH,
+	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH_PPPOE,
 	    M_NOWAIT | M_ZERO);
 	if (privdata == NULL)
 		return (ENOMEM);
@@ -577,7 +583,7 @@ AAA
 		 * The infrastructure has already checked that it's unique,
 		 * so just allocate it and hook it in.
 		 */
-		MALLOC(sp, sessp, sizeof(*sp), M_NETGRAPH, M_NOWAIT | M_ZERO);
+		MALLOC(sp, sessp, sizeof(*sp), M_NETGRAPH_PPPOE, M_NOWAIT | M_ZERO);
 		if (sp == NULL) {
 				return (ENOMEM);
 		}
@@ -667,7 +673,7 @@ AAA
 			/*
 			 * set up prototype header
 			 */
-			MALLOC(neg, negp, sizeof(*neg), M_NETGRAPH,
+			MALLOC(neg, negp, sizeof(*neg), M_NETGRAPH_PPPOE,
 			    M_NOWAIT | M_ZERO);
 
 			if (neg == NULL) {
@@ -677,7 +683,7 @@ AAA
 			MGETHDR(neg->m, M_DONTWAIT, MT_DATA);
 			if(neg->m == NULL) {
 				printf("pppoe: Session out of mbufs\n");
-				FREE(neg, M_NETGRAPH);
+				FREE(neg, M_NETGRAPH_PPPOE);
 				LEAVE(ENOBUFS);
 			}
 			neg->m->m_pkthdr.rcvif = NULL;
@@ -685,7 +691,7 @@ AAA
 			if ((neg->m->m_flags & M_EXT) == 0) {
 				printf("pppoe: Session out of mcls\n");
 				m_freem(neg->m);
-				FREE(neg, M_NETGRAPH);
+				FREE(neg, M_NETGRAPH_PPPOE);
 				LEAVE(ENOBUFS);
 			}
 			sp->neg = neg;
@@ -1141,7 +1147,7 @@ AAA
 						= ETHERTYPE_PPPOE_SESS;
 				sp->pkt_hdr.ph.code = 0;
 				m_freem(neg->m);
-				FREE(sp->neg, M_NETGRAPH);
+				FREE(sp->neg, M_NETGRAPH_PPPOE);
 				sp->neg = NULL;
 				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
 				break;
@@ -1199,7 +1205,7 @@ AAA
 					m_freem(sp->neg->m);
 					untimeout(pppoe_ticker, sendhook,
 				    		sp->neg->timeout_handle);
-					FREE(sp->neg, M_NETGRAPH);
+					FREE(sp->neg, M_NETGRAPH_PPPOE);
 					sp->neg = NULL;
 				} else {
 					LEAVE (ENETUNREACH);
@@ -1354,7 +1360,7 @@ ng_pppoe_shutdown(node_p node)
 AAA
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(privdata->node);
-	FREE(privdata, M_NETGRAPH);
+	FREE(privdata, M_NETGRAPH_PPPOE);
 	return (0);
 }
 
@@ -1448,9 +1454,9 @@ AAA
 			untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
 			if (sp->neg->m)
 				m_freem(sp->neg->m);
-			FREE(sp->neg, M_NETGRAPH);
+			FREE(sp->neg, M_NETGRAPH_PPPOE);
 		}
-		FREE(sp, M_NETGRAPH);
+		FREE(sp, M_NETGRAPH_PPPOE);
 		NG_HOOK_SET_PRIVATE(hook, NULL);
 		/* work out how many session hooks there are */
 		/* Node goes away on last session hook removal */
