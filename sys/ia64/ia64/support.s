@@ -220,6 +220,34 @@ ENTRY(suword, 2)
 
 END(suword)
 	
+ENTRY(suhword, 2)
+
+	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	cmp.geu	p6,p0=in0,r14
+(p6)	br.dpnt.few fusufault
+
+	movl	r14=fusufault			// set up fault handler.
+	add	r15=PC_CURTHREAD,r13		// find curthread
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=TD_PCB,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=PCB_ONFAULT,r15
+	;;
+	st8	[r15]=r14
+	;;
+	st4.rel	[in0]=in1			// try the store
+	;;
+	st8	[r15]=r0			// clean up
+
+	mov	ret0=r0
+	br.ret.sptk.few rp
+
+END(suhword)
+	
 ENTRY(subyte, 2)
 
 	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
@@ -274,6 +302,33 @@ ENTRY(fuword, 1)
 	br.ret.sptk.few rp
 
 END(fuword)
+
+ENTRY(fuhword, 1)
+
+	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	cmp.geu	p6,p0=in0,r14
+(p6)	br.dpnt.few fusufault
+
+	movl	r14=fusufault			// set up fault handler.
+	add	r15=PC_CURTHREAD,r13		// find curthread
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=TD_PCB,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=PCB_ONFAULT,r15
+	;;
+	st8	[r15]=r14
+	;;
+	ld4.acq	ret0=[in0]			// try the fetch
+	;;
+	st8	[r15]=r0			// clean up
+
+	br.ret.sptk.few rp
+
+END(fuhword)
 
 ENTRY(fubyte, 1)
 
