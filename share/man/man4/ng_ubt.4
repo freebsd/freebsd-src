@@ -25,7 +25,7 @@
 .\" $Id: ng_ubt.4,v 1.3 2003/05/21 19:37:35 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2002
+.Dd September 13, 2004
 .Dt NG_UBT 4
 .Os
 .Sh NAME
@@ -41,24 +41,44 @@ node type is both a persistent Netgraph node type and a driver for
 Bluetooth USB devices.
 It implements a Bluetooth USB transport layer
 as per chapter H2 of the Bluetooth Specification Book v1.1.
-A new node is created when supported USB device is plugged.
+A new node is created when a supported USB device is plugged in.
 .Pp
 The node has a single hook called
 .Dv hook .
 Incoming bytes received on the device are re-assembled into HCI frames
 (according to the length).
 Full HCI frames are sent out on the hook.
-The node will add HCI frame indicator if device did not send it.
+The node will add a HCI frame indicator if the device did not send it.
 HCI frames received on
 .Dv hook
 are transmitted out.
-The node will drop HCI frame indicator unless device
+The node will drop the HCI frame indicator unless the device
 requires it to be present.
+.Sh HARDWARE
+The
+.Nm
+driver supports all Bluetooth USB devices that conform with
+the Bluetooth specification v1.1, including:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3CREB96
+.It
+AIPTEK BR0R02
+.It
+EPoX BT-DG02
+.It
+Mitsumi Bluetooth USB adapter
+.It
+MSI MS-6967
+.It
+TDK Bluetooth USB adapter
+.El
 .Sh HOOKS
 This node type supports the following hooks:
 .Bl -tag -width indent
 .It Dv hook
-single HCI frame contained in single
+single HCI frame contained in a single
 .Vt mbuf
 structure.
 .El
@@ -68,14 +88,14 @@ This node type supports the generic control messages, plus the following:
 .It Dv NGM_UBT_NODE_GET_DEBUG
 Returns an integer containing the current debug level for the node.
 .It Dv NGM_UBT_NODE_SET_DEBUG
-This command takes an integer argument and sets current debug level
+This command takes an integer argument and sets the current debug level
 for the node.
 .It Dv NGM_UBT_NODE_GET_QLEN
-This command takes a parameter that specifies queue number and returns
-current maximal length of the queue for the node.
+This command takes a parameter that specifies the queue number and returns
+the current maximal length of the queue for the node.
 .It Dv NGM_UBT_NODE_SET_QLEN
-This command takes two parameters that specify queue number and maximum
-length of the queue and sets maximal length of the queue for the node.
+This command takes two parameters that specify the queue number and the maximum
+length of the queue and sets the maximal length of the queue for the node.
 .It Dv NGM_UBT_NODE_GET_STAT
 Returns various statistic information for the node, such as: number of
 bytes (frames) sent, number of bytes (frames) received and number of
@@ -83,20 +103,20 @@ input (output) errors.
 .It Dv NGM_UBT_NODE_RESET_STAT
 Reset all statistic counters to zero.
 .It Dv NGM_UBT_NODE_DEV_NODES
-This command takes single integer parameter.
+This command takes a single integer parameter.
 If the parameter's value is not zero, then the driver will create device nodes
 for the control, interrupt, bulk-in and bulk-out endpoints.
-If the parameter's value is zero, then the driver will destroy device nodes
+If the parameter's value is zero, then the driver will destroy the device nodes
 for the endpoints.
-The device nodes interface is mutually exclusive with Netgraph interface.
+The device nodes interface is mutually exclusive with the Netgraph interface.
 .El
 .Sh DEVICE NODES INTERFACE
 The
 .Nm ubt
 driver can create or destroy endpoint device nodes on request.
-This feature can be used to implement external firmware download utility.
+This feature can be used to implement an external firmware download utility.
 .Pp
-The control transfers can only happen on the control endpoint which
+Control transfers can only happen on the control endpoint which
 is always endpoint 0.
 Control requests are issued by
 .Xr ioctl 2
@@ -167,7 +187,7 @@ This call will not issue any USB transactions.
 This node shuts down when the corresponding USB device is un-plugged.
 .Sh BUGS
 Isochronous USB transfers are broken.
-It means that USB device will not be able to transfer SCO data (voice).
+This means that the USB device will not be able to transfer SCO data (voice).
 USB interrupt transfers are implemented as bulk-in transfers (not really a bug).
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ubt Ns Ar N Ns Pa \&. Ns Ar EE" -compact
