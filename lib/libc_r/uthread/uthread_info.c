@@ -36,7 +36,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include <errno.h>
 #include "pthread_private.h"
@@ -47,6 +46,7 @@
 
 static void	dump_thread(int fd, pthread_t pthread, int long_version);
 
+__weak_reference(_pthread_set_name_np, pthread_set_name_np);
 
 struct s_thread_info {
 	enum pthread_state state;
@@ -273,7 +273,7 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 
 /* Set the thread name for debug: */
 void
-pthread_set_name_np(pthread_t thread, const char *name)
+_pthread_set_name_np(pthread_t thread, const char *name)
 {
 	/* Check if the caller has specified a valid thread: */
 	if (thread != NULL && thread->magic == PTHREAD_MAGIC) {
@@ -284,4 +284,3 @@ pthread_set_name_np(pthread_t thread, const char *name)
 		thread->name = strdup(name);
 	}
 }
-#endif

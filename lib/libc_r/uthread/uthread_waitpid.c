@@ -31,7 +31,6 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -46,4 +45,3 @@ waitpid(pid_t wpid, int *status, int options)
 	
 	return ret;
 }
-#endif

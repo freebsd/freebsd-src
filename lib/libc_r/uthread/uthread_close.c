@@ -36,7 +36,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -112,4 +111,3 @@ close(int fd)
 	
 	return ret;
 }
-#endif

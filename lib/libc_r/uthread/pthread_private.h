@@ -188,14 +188,15 @@
 	if ((thrd)->state != newstate) {				\
 		if ((thrd)->state == PS_RUNNING) {			\
 			PTHREAD_PRIOQ_REMOVE(thrd);			\
+			PTHREAD_SET_STATE(thrd, newstate);		\
 			PTHREAD_WAITQ_INSERT(thrd);			\
 		} else if (newstate == PS_RUNNING) { 			\
 			PTHREAD_WAITQ_REMOVE(thrd);			\
+			PTHREAD_SET_STATE(thrd, newstate);		\
 			PTHREAD_PRIOQ_INSERT_TAIL(thrd);		\
 		}							\
 	}								\
 	_thread_kern_new_state = 0;					\
-	PTHREAD_SET_STATE(thrd, newstate);				\
 } while (0)
 #else
 #define PTHREAD_ASSERT(cond, msg)
@@ -395,18 +396,6 @@ struct pthread_attr {
 #define PTHREAD_CREATE_SUSPENDED		1
 
 /*
- * Additional state for a thread suspended with pthread_suspend_np().
- */
-enum pthread_susp {
-	SUSP_NO,	/* Not suspended. */
-	SUSP_YES,	/* Suspended. */
-	SUSP_JOIN,	/* Suspended, joining. */
-	SUSP_NOWAIT,	/* Suspended, was in a mutex or condition queue. */
-	SUSP_MUTEX_WAIT,/* Suspended, still in a mutex queue. */
-	SUSP_COND_WAIT	/* Suspended, still in a condition queue. */
-};
-
-/*
  * Miscellaneous definitions.
  */
 #define PTHREAD_STACK_DEFAULT			65536
@@ -604,33 +593,8 @@ struct join_status {
 };
 
 /*
- * Normally thread contexts are stored as jmp_bufs via _setjmp()/_longjmp(),
- * but they may also be sigjmp_buf and ucontext_t.  When a thread is
- * interrupted by a signal, it's context is saved as a ucontext_t.  An
- * application is also free to use [_]longjmp()/[_]siglongjmp() to jump
- * between contexts within the same thread.  Future support will also
- * include setcontext()/getcontext().
- *
- * Define an enumerated type that can identify the 4 different context
- * types.
- */
-typedef enum {
-	CTX_JB_NOSIG,	/* context is jmp_buf without saved sigset */
-	CTX_JB,		/* context is jmp_buf (with saved sigset) */
-	CTX_SJB,	/* context is sigjmp_buf (with saved sigset) */
-	CTX_UC		/* context is ucontext_t (with saved sigset) */
-} thread_context_t;
-
-/*
- * There are 2 basic contexts that a frame may contain at any
- * one time:
- *
- *   o ctx - The context that the thread should return to after normal
- *     completion of the signal handler.
- *   o sig_jb - The context just before the signal handler is invoked.
- *     Attempts at abnormal returns from user supplied signal handlers
- *     will return back to the signal context to perform any necessary
- *     cleanup.
+ * The frame that is added to the top of a threads stack when setting up
+ * up the thread to run a signal handler.
  */
 struct pthread_signal_frame {
 	/*
@@ -639,19 +603,12 @@ struct pthread_signal_frame {
 	struct pthread_state_data saved_state;
 
 	/*
-	 * Threads return context; ctxtype identifies the type of context.
-	 * For signal frame 0, these point to the context storage area
-	 * within the pthread structure.  When handling signals (frame > 0),
-	 * these point to a context storage area that is allocated off the
-	 * threads stack.
+	 * Threads return context; we use only jmp_buf's for now.
 	 */
 	union {
 		jmp_buf		jb;
-		sigjmp_buf	sigjb;
 		ucontext_t	uc;
 	} ctx;
-	thread_context_t	ctxtype;
-	int			longjmp_val;
 	int			signo;	/* signal, arg 1 to sighandler */
 	int			sig_has_args;	/* use signal args if true */
 	ucontext_t		uc;
@@ -692,15 +649,12 @@ struct pthread {
 	struct pthread_attr	attr;
 
 	/*
-	 * Threads return context; ctxtype identifies the type of context.
+	 * Threads return context; we use only jmp_buf's for now.
 	 */
 	union {
 		jmp_buf		jb;
-		sigjmp_buf	sigjb;
 		ucontext_t	uc;
 	} ctx;
-	thread_context_t	ctxtype;
-	int			longjmp_val;
 
 	/*
 	 * Used for tracking delivery of signal handlers.
@@ -715,8 +669,6 @@ struct pthread {
 #define PTHREAD_CANCELLING		0x0008
 #define PTHREAD_CANCEL_NEEDED		0x0010
 	int	cancelflags;
-
-	enum pthread_susp	suspended;
 
 	thread_continuation_t	continuation;
 
@@ -759,7 +711,7 @@ struct pthread {
 	int	error;
 
 	/*
-	 * THe joiner is the thread that is joining to this thread.  The
+	 * The joiner is the thread that is joining to this thread.  The
 	 * join status keeps track of a join operation to another thread.
 	 */
 	struct pthread		*joiner;
@@ -834,7 +786,8 @@ struct pthread {
 #define PTHREAD_FLAGS_IN_FDQ	0x0040	/* in fd lock queue using qe link */
 #define PTHREAD_FLAGS_IN_CONDQ	0x0080	/* in condition queue using sqe link*/
 #define PTHREAD_FLAGS_IN_MUTEXQ	0x0100	/* in mutex queue using sqe link */
-#define PTHREAD_FLAGS_TRACE	0x0200	/* for debugging purposes */
+#define	PTHREAD_FLAGS_SUSPENDED	0x0200	/* thread is suspended */
+#define PTHREAD_FLAGS_TRACE	0x0400	/* for debugging purposes */
 #define PTHREAD_FLAGS_IN_SYNCQ	\
     (PTHREAD_FLAGS_IN_CONDQ | PTHREAD_FLAGS_IN_MUTEXQ)
 
@@ -913,17 +866,6 @@ SCLASS struct pthread   * volatile _thread_run
 SCLASS struct pthread   * volatile _last_user_thread
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = &_thread_kern_thread;
-#else
-;
-#endif
-
-/*
- * Ptr to the thread running in single-threaded mode or NULL if
- * running multi-threaded (default POSIX behaviour).
- */
-SCLASS struct pthread   * volatile _thread_single
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL;
 #else
 ;
 #endif
@@ -1145,9 +1087,6 @@ SCLASS	volatile int	_sigq_check_reqd
 #endif
 ;
 
-/* The signal stack. */
-SCLASS struct sigaltstack _thread_sigstack;
-
 /* Thread switch hook. */
 SCLASS pthread_switch_routine_t _sched_switch_hook
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -1240,6 +1179,23 @@ void	_pq_remove(struct pq_queue *pq, struct pthread *);
 void	_pq_insert_head(struct pq_queue *pq, struct pthread *);
 void	_pq_insert_tail(struct pq_queue *pq, struct pthread *);
 struct pthread *_pq_first(struct pq_queue *pq);
+void	*_pthread_getspecific(pthread_key_t);
+int	_pthread_key_create(pthread_key_t *, void (*) (void *));
+int	_pthread_key_delete(pthread_key_t);
+int	_pthread_mutex_destroy(pthread_mutex_t *);
+int	_pthread_mutex_init(pthread_mutex_t *, const pthread_mutexattr_t *);
+int	_pthread_mutex_lock(pthread_mutex_t *);
+int	_pthread_mutex_trylock(pthread_mutex_t *);
+int	_pthread_mutex_unlock(pthread_mutex_t *);
+int	_pthread_once(pthread_once_t *, void (*) (void));
+int	_pthread_setspecific(pthread_key_t, const void *);
+int	_pthread_cond_init(pthread_cond_t *, const pthread_condattr_t *);
+int	_pthread_cond_destroy(pthread_cond_t *);
+int	_pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+int	_pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *,
+	    const struct timespec *);
+int	_pthread_cond_signal(pthread_cond_t *);
+int	_pthread_cond_broadcast(pthread_cond_t *);
 void	_waitq_insert(pthread_t pthread);
 void	_waitq_remove(pthread_t pthread);
 #if defined(_PTHREADS_INVARIANTS)
@@ -1284,9 +1240,15 @@ void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
 
+/* #include <aio.h> */
+#ifdef _SYS_AIO_H_
+int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
+#endif
+
 /* #include <sys/event.h> */
 #ifdef _SYS_EVENT_H_
-int	__sys_kevent(int, const struct kevent *, int, struct kevent *, int, const struct timespec *);
+int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
+	    int, const struct timespec *);
 #endif
 
 /* #include <sys/ioctl.h> */
@@ -1342,11 +1304,6 @@ ssize_t	__sys_writev(int, const struct iovec *, int);
 pid_t	__sys_wait4(pid_t, int *, int, struct rusage *);
 #endif
 
-/* #include <aio.h> */
-#ifdef _SYS_AIO_H_
-int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
-#endif
-
 /* #include <dirent.h> */
 #ifdef _DIRENT_H_
 int	__sys_getdirentries(int, char *, int, long *);
@@ -1367,17 +1324,8 @@ int	__sys_poll(struct pollfd *, unsigned, int);
 /* #include <signal.h> */
 #ifdef _SIGNAL_H_
 int	__sys_sigaction(int, const struct sigaction *, struct sigaction *);
-int	__sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
-int	__sys_sigblock(int);
-int	__sys_sigpending(sigset_t *);
 int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
-int	__sys_sigsetmask(int);
-int	__sys_sigsuspend(const sigset_t *);
-#endif
-
-/* #include <time.h> */
-#ifdef _TIME_H_
-int	__sys_nanosleep(const struct timespec *, struct timespec *);
+int	__sys_sigreturn(ucontext_t *);
 #endif
 
 /* #include <unistd.h> */
@@ -1393,9 +1341,6 @@ long	__sys_fpathconf(int, int);
 int	__sys_fsync(int);
 int	__sys_pipe(int *);
 ssize_t	__sys_read(int, void *, size_t);
-pid_t	__sys_rfork(int);
-int	__sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
-pid_t	__sys_vfork(void);
 ssize_t	__sys_write(int, const void *, size_t);
 #endif
 

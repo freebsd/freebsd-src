@@ -34,7 +34,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -44,6 +43,14 @@
 static inline pthread_t	cond_queue_deq(pthread_cond_t);
 static inline void	cond_queue_remove(pthread_cond_t, pthread_t);
 static inline void	cond_queue_enq(pthread_cond_t, pthread_t);
+
+__weak_reference(_pthread_cond_init, pthread_cond_init);
+__weak_reference(_pthread_cond_destroy, pthread_cond_destroy);
+__weak_reference(_pthread_cond_wait, pthread_cond_wait);
+__weak_reference(_pthread_cond_timedwait, pthread_cond_timedwait);
+__weak_reference(_pthread_cond_signal, pthread_cond_signal);
+__weak_reference(_pthread_cond_broadcast, pthread_cond_broadcast);
+
 
 /* Reinitialize a condition variable to defaults. */
 int
@@ -70,7 +77,7 @@ _cond_reinit(pthread_cond_t *cond)
 }
 
 int
-pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
+_pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 {
 	enum pthread_cond_type type;
 	pthread_cond_t	pcond;
@@ -130,7 +137,7 @@ pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 }
 
 int
-pthread_cond_destroy(pthread_cond_t *cond)
+_pthread_cond_destroy(pthread_cond_t *cond)
 {
 	int             rval = 0;
 
@@ -157,7 +164,7 @@ pthread_cond_destroy(pthread_cond_t *cond)
 }
 
 int
-pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
+_pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
 	struct pthread	*curthread = _get_curthread();
 	int	rval = 0;
@@ -316,7 +323,7 @@ pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 }
 
 int
-pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
+_pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		       const struct timespec * abstime)
 {
 	struct pthread	*curthread = _get_curthread();
@@ -486,7 +493,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 }
 
 int
-pthread_cond_signal(pthread_cond_t * cond)
+_pthread_cond_signal(pthread_cond_t * cond)
 {
 	int             rval = 0;
 	pthread_t       pthread;
@@ -516,15 +523,9 @@ pthread_cond_signal(pthread_cond_t * cond)
 
 			if ((pthread = cond_queue_deq(*cond)) != NULL) {
 				/*
-				 * Unless the thread is currently suspended,
-				 * allow it to run.  If the thread is suspended,
-				 * make a note that the thread isn't in a wait
-				 * queue any more.
+				 * Wake up the signaled thread:
 				 */
-				if (pthread->state != PS_SUSPENDED)
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-				else
-					pthread->suspended = SUSP_NOWAIT;
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 			}
 
 			/* Check for no more waiters: */
@@ -554,7 +555,7 @@ pthread_cond_signal(pthread_cond_t * cond)
 }
 
 int
-pthread_cond_broadcast(pthread_cond_t * cond)
+_pthread_cond_broadcast(pthread_cond_t * cond)
 {
 	int             rval = 0;
 	pthread_t       pthread;
@@ -588,15 +589,9 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 			 */
 			while ((pthread = cond_queue_deq(*cond)) != NULL) {
 				/*
-				 * Unless the thread is currently suspended,
-				 * allow it to run.  If the thread is suspended,
-				 * make a note that the thread isn't in a wait
-				 * queue any more.
+				 * Wake up the signaled thread:
 				 */
-				if (pthread->state != PS_SUSPENDED)
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-				else
-					pthread->suspended = SUSP_NOWAIT;
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 			}
 
 			/* There are no more waiting threads: */
@@ -737,4 +732,3 @@ cond_queue_enq(pthread_cond_t cond, pthread_t pthread)
 	pthread->flags |= PTHREAD_FLAGS_IN_CONDQ;
 	pthread->data.cond = cond;
 }
-#endif

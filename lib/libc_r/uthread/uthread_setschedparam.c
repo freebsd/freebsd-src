@@ -33,12 +33,13 @@
  */
 #include <errno.h>
 #include <sys/param.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_setschedparam, pthread_setschedparam);
+
 int
-pthread_setschedparam(pthread_t pthread, int policy, 
+_pthread_setschedparam(pthread_t pthread, int policy, 
 	const struct sched_param *param)
 {
 	int old_prio, in_readyq = 0, ret = 0;
@@ -116,4 +117,3 @@ pthread_setschedparam(pthread_t pthread, int policy,
 	}
 	return(ret);
 }
-#endif

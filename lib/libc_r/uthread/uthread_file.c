@@ -40,7 +40,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -507,4 +506,3 @@ _flockfile_backout(struct pthread *pthread)
 	_thread_kern_sig_undefer();
 }
 
-#endif

@@ -123,13 +123,13 @@ _thread_gc(pthread_addr_t arg)
 			 * Check if this thread has detached:
 			 */
 			else if ((pthread->attr.flags &
-				  PTHREAD_DETACHED) != 0) {
+			    PTHREAD_DETACHED) != 0) {
 				/* Remove this thread from the dead list: */
 				TAILQ_REMOVE(&_dead_list, pthread, dle);
 
 				/*
 				 * Check if the stack was not specified by
-				 * the caller to pthread_create and has not
+				 * the caller to pthread_create() and has not
 				 * been destroyed yet: 
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
@@ -170,7 +170,7 @@ _thread_gc(pthread_addr_t arg)
 				 * not destroy it.
 				 *
 				 * Check if the stack was not specified by
-				 * the caller to pthread_create and has not
+				 * the caller to pthread_create() and has not
 				 * been destroyed yet: 
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&

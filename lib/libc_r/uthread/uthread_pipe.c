@@ -33,7 +33,6 @@
  */
 #include <unistd.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -53,4 +52,3 @@ _pipe(int fds[2])
 }
 
 __strong_reference(_pipe, pipe);
-#endif

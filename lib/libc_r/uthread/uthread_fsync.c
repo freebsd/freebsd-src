@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -59,4 +58,3 @@ fsync(int fd)
 
 	return ret;
 }
-#endif

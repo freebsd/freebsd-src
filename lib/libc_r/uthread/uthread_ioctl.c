@@ -33,7 +33,6 @@
  */
 #include <stdarg.h>
 #include <sys/ioctl.h>
-#ifdef _THREAD_SAFE
 #include <sys/fcntl.h>	/* O_NONBLOCK*/
 #include <pthread.h>
 #include "pthread_private.h"
@@ -80,4 +79,3 @@ _ioctl(int fd, unsigned long request,...)
 }
 
 __strong_reference(_ioctl, ioctl);
-#endif

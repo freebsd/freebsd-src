@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 #include <sys/file.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -49,4 +48,3 @@ _flock(int fd, int operation)
 }
 
 __strong_reference(_flock, flock);
-#endif

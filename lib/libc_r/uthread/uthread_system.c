@@ -30,7 +30,6 @@
  */
 
 #include <stdlib.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -45,4 +44,3 @@ system(const char *string)
 	
 	return ret;
 }
-#endif

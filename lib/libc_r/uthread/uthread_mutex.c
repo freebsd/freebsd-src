@@ -36,7 +36,6 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/queue.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -75,6 +74,12 @@ static inline void	mutex_queue_enq(pthread_mutex_t, pthread_t);
 
 static spinlock_t static_init_lock = _SPINLOCK_INITIALIZER;
 
+__weak_reference(_pthread_mutex_init, pthread_mutex_init);
+__weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
+__weak_reference(_pthread_mutex_trylock, pthread_mutex_trylock);
+__weak_reference(_pthread_mutex_lock, pthread_mutex_lock);
+__weak_reference(_pthread_mutex_unlock, pthread_mutex_unlock);
+
 /* Reinitialize a mutex to defaults. */
 int
 _mutex_reinit(pthread_mutex_t * mutex)
@@ -106,7 +111,7 @@ _mutex_reinit(pthread_mutex_t * mutex)
 }
 
 int
-pthread_mutex_init(pthread_mutex_t * mutex,
+_pthread_mutex_init(pthread_mutex_t * mutex,
 		   const pthread_mutexattr_t * mutex_attr)
 {
 	enum pthread_mutextype	type;
@@ -201,7 +206,7 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 }
 
 int
-pthread_mutex_destroy(pthread_mutex_t * mutex)
+_pthread_mutex_destroy(pthread_mutex_t * mutex)
 {
 	int	ret = 0;
 
@@ -260,7 +265,7 @@ init_static(pthread_mutex_t *mutex)
 }
 
 int
-pthread_mutex_trylock(pthread_mutex_t * mutex)
+_pthread_mutex_trylock(pthread_mutex_t * mutex)
 {
 	struct pthread	*curthread = _get_curthread();
 	int	ret = 0;
@@ -399,7 +404,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 }
 
 int
-pthread_mutex_lock(pthread_mutex_t * mutex)
+_pthread_mutex_lock(pthread_mutex_t * mutex)
 {
 	struct pthread	*curthread = _get_curthread();
 	int	ret = 0;
@@ -650,7 +655,7 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 }
 
 int
-pthread_mutex_unlock(pthread_mutex_t * mutex)
+_pthread_mutex_unlock(pthread_mutex_t * mutex)
 {
 	return (mutex_unlock_common(mutex, /* add reference */ 0));
 }
@@ -793,21 +798,9 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 				 */
 				if (((*mutex)->m_owner =
 			  	    mutex_queue_deq(*mutex)) != NULL) {
-					/*
-					 * Unless the new owner of the mutex is
-					 * currently suspended, allow the owner
-					 * to run.  If the thread is suspended,
-					 * make a note that the thread isn't in
-					 * a wait queue any more.
-					 */
-					if (((*mutex)->m_owner->state !=
-					    PS_SUSPENDED)) {
-						PTHREAD_NEW_STATE((*mutex)->m_owner,
-						    PS_RUNNING);
-					} else {
-						(*mutex)->m_owner->suspended =
-						    SUSP_NOWAIT;
-					}
+					/* Make the new owner runnable: */
+					PTHREAD_NEW_STATE((*mutex)->m_owner,
+					    PS_RUNNING);
 
 					/*
 					 * Add the mutex to the threads list of
@@ -925,20 +918,10 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 						(*mutex)->m_prio;
 
 					/*
-					 * Unless the new owner of the mutex is
-					 * currently suspended, allow the owner
-					 * to run.  If the thread is suspended,
-					 * make a note that the thread isn't in
-					 * a wait queue any more.
+					 * Make the new owner runnable:
 					 */
-					if (((*mutex)->m_owner->state !=
-					    PS_SUSPENDED)) {
-						PTHREAD_NEW_STATE((*mutex)->m_owner,
-						    PS_RUNNING);
-					} else {
-						(*mutex)->m_owner->suspended =
-						    SUSP_NOWAIT;
-					}
+					PTHREAD_NEW_STATE((*mutex)->m_owner,
+					    PS_RUNNING);
 				}
 			}
 			break;
@@ -1054,20 +1037,10 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 					    (*mutex)->m_prio;
 
 					/*
-					 * Unless the new owner of the mutex is
-					 * currently suspended, allow the owner
-					 * to run.  If the thread is suspended,
-					 * make a note that the thread isn't in
-					 * a wait queue any more.
+					 * Make the new owner runnable:
 					 */
-					if (((*mutex)->m_owner->state !=
-					    PS_SUSPENDED)) {
-						PTHREAD_NEW_STATE((*mutex)->m_owner,
-						    PS_RUNNING);
-					} else {
-						(*mutex)->m_owner->suspended =
-						    SUSP_NOWAIT;
-					}
+					PTHREAD_NEW_STATE((*mutex)->m_owner,
+					    PS_RUNNING);
 				}
 			}
 			break;
@@ -1480,4 +1453,3 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 	pthread->flags |= PTHREAD_FLAGS_IN_MUTEXQ;
 }
 
-#endif

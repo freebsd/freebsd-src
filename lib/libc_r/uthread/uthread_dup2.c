@@ -33,7 +33,6 @@
  */
 #include <errno.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -97,4 +96,3 @@ _dup2(int fd, int newfd)
 }
 
 __strong_reference(_dup2, dup2);
-#endif

@@ -34,7 +34,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -51,4 +50,3 @@ _fchown(int fd, uid_t owner, gid_t group)
 }
 
 __strong_reference(_fchown, fchown);
-#endif

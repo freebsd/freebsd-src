@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_attr_setstacksize, pthread_attr_setstacksize);
+
 int
-pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
+_pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 {
 	int	ret;
 
@@ -51,4 +52,3 @@ pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 	}
 	return(ret);
 }
-#endif

@@ -37,7 +37,6 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -57,4 +56,3 @@ _fstat(int fd, struct stat * buf)
 }
 
 __strong_reference(_fstat, fstat);
-#endif

@@ -8,8 +8,13 @@
 
 static void	finish_cancellation(void *arg);
 
+__weak_reference(_pthread_cancel, pthread_cancel);
+__weak_reference(_pthread_setcancelstate, pthread_setcancelstate);
+__weak_reference(_pthread_setcanceltype, pthread_setcanceltype);
+__weak_reference(_pthread_testcancel, pthread_testcancel);
+
 int
-pthread_cancel(pthread_t pthread)
+_pthread_cancel(pthread_t pthread)
 {
 	int ret;
 
@@ -61,8 +66,7 @@ pthread_cancel(pthread_t pthread)
 
 			case PS_JOIN:
 				/*
-				 * Disconnect the thread from the joinee and
-				 * detach:
+				 * Disconnect the thread from the joinee:
 				 */
 				if (pthread->join_status.thread != NULL) {
 					pthread->join_status.thread->joiner
@@ -74,20 +78,6 @@ pthread_cancel(pthread_t pthread)
 				break;
 
 			case PS_SUSPENDED:
-				if (pthread->suspended == SUSP_NO ||
-				    pthread->suspended == SUSP_YES ||
-				    pthread->suspended == SUSP_JOIN ||
-				    pthread->suspended == SUSP_NOWAIT) {
-					/*
-					 * This thread isn't in any scheduling
-					 * queues; just change it's state:
-					 */
-					pthread->cancelflags |=
-					    PTHREAD_CANCELLING;
-					PTHREAD_SET_STATE(pthread, PS_RUNNING);
-					break;
-				}
-				/* FALLTHROUGH */
 			case PS_MUTEX_WAIT:
 			case PS_COND_WAIT:
 			case PS_FDLR_WAIT:
@@ -105,7 +95,7 @@ pthread_cancel(pthread_t pthread)
 				 */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= PTHREAD_CANCEL_NEEDED;
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 				pthread->continuation = finish_cancellation;
 				break;
 
@@ -126,7 +116,7 @@ pthread_cancel(pthread_t pthread)
 }
 
 int
-pthread_setcancelstate(int state, int *oldstate)
+_pthread_setcancelstate(int state, int *oldstate)
 {
 	struct pthread	*curthread = _get_curthread();
 	int ostate;
@@ -157,7 +147,7 @@ pthread_setcancelstate(int state, int *oldstate)
 }
 
 int
-pthread_setcanceltype(int type, int *oldtype)
+_pthread_setcanceltype(int type, int *oldtype)
 {
 	struct pthread	*curthread = _get_curthread();
 	int otype;
@@ -186,7 +176,7 @@ pthread_setcanceltype(int type, int *oldtype)
 }
 
 void
-pthread_testcancel(void)
+_pthread_testcancel(void)
 {
 	struct pthread	*curthread = _get_curthread();
 

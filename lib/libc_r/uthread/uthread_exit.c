@@ -37,12 +37,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 #define FLAGS_IN_SCHEDQ	\
 	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)
+
+__weak_reference(_pthread_exit, pthread_exit);
 
 void __exit(int status)
 {
@@ -141,7 +142,7 @@ _thread_exit_cleanup(void)
 }
 
 void
-pthread_exit(void *status)
+_pthread_exit(void *status)
 {
 	struct pthread	*curthread = _get_curthread();
 	pthread_t pthread;
@@ -210,22 +211,8 @@ pthread_exit(void *status)
 		pthread = curthread->joiner;
 		curthread->joiner = NULL;
 
-		switch (pthread->suspended) {
-		case SUSP_JOIN:
-			/*
-			 * The joining thread is suspended.  Change the
-			 * suspension state to make the thread runnable when it
-			 * is resumed:
-			 */
-			pthread->suspended = SUSP_NO;
-			break;
-		case SUSP_NO:
-			/* Make the joining thread runnable: */
-			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-			break;
-		default:
-			PANIC("Unreachable code reached");
-		}
+		/* Make the joining thread runnable: */
+		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 
 		/* Set the return value for the joining thread: */
 		pthread->join_status.ret = curthread->ret;
@@ -247,4 +234,3 @@ pthread_exit(void *status)
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");
 }
-#endif

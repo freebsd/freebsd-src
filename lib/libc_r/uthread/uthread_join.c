@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_join, pthread_join);
+
 int
-pthread_join(pthread_t pthread, void **thread_return)
+_pthread_join(pthread_t pthread, void **thread_return)
 {
 	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
@@ -159,4 +160,3 @@ pthread_join(pthread_t pthread, void **thread_return)
 	/* Return the completion status: */
 	return (ret);
 }
-#endif

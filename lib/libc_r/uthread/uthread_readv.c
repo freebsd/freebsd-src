@@ -37,7 +37,6 @@
 #include <sys/uio.h>
 #include <errno.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -103,4 +102,3 @@ readv(int fd, const struct iovec *iov, int iovcnt)
 
 	return ret;
 }
-#endif

@@ -38,7 +38,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -109,4 +108,3 @@ poll(struct pollfd *fds, unsigned int nfds, int timeout)
 
 	return ret;
 }
-#endif

@@ -33,7 +33,6 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -50,4 +49,3 @@ _listen(int fd, int backlog)
 }
 
 __strong_reference(_listen, listen);
-#endif

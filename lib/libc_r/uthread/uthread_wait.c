@@ -29,7 +29,6 @@
  * $FreeBSD$
  */
 
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -44,4 +43,3 @@ wait(int *istat)
 
 	return ret;
 }
-#endif

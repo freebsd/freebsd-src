@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -75,4 +74,3 @@ _recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
 }
 
 __strong_reference(_recvfrom, recvfrom);
-#endif

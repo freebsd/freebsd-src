@@ -40,7 +40,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -51,7 +50,7 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 	struct pthread	*curthread = _get_curthread();
 	struct timespec ts;
 	int             i, ret = 0, f_wait = 1;
-	int		pfd_index, got_one = 0, fd_count = 0;
+	int		pfd_index, got_events = 0, fd_count = 0;
 	struct pthread_poll_data data;
 
 	if (numfds > _thread_dtablesize) {
@@ -165,13 +164,23 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 			 * this file descriptor from the fdset if
 			 * the requested event wasn't ready.
 			 */
-			got_one = 0;
+
+			/*
+			 * First check for invalid descriptor.
+			 * If found, set errno and return -1.
+			 */
+			if (data.fds[i].revents & POLLNVAL) {
+				errno = EBADF;
+				return -1;
+			}
+
+			got_events = 0;
 			if (readfds != NULL) {
 				if (FD_ISSET(data.fds[i].fd, readfds)) {
 					if ((data.fds[i].revents & (POLLIN
 					    | POLLRDNORM | POLLERR
 					    | POLLHUP | POLLNVAL)) != 0)
-						got_one = 1;
+						got_events++;
 					else
 						FD_CLR(data.fds[i].fd, readfds);
 				}
@@ -181,7 +190,7 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 					if ((data.fds[i].revents & (POLLOUT
 					    | POLLWRNORM | POLLWRBAND | POLLERR
 					    | POLLHUP | POLLNVAL)) != 0)
-						got_one = 1;
+						got_events++;
 					else
 						FD_CLR(data.fds[i].fd,
 						    writefds);
@@ -190,16 +199,15 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 			if (exceptfds != NULL) {
 				if (FD_ISSET(data.fds[i].fd, exceptfds)) {
 					if (data.fds[i].revents & (POLLRDBAND |
-					    POLLPRI | POLLHUP | POLLERR |
-					    POLLNVAL))
-						got_one = 1;
+					    POLLPRI))
+						got_events++;
 					else
 						FD_CLR(data.fds[i].fd,
 						    exceptfds);
 				}
 			}
-			if (got_one)
-				numfds++;
+			if (got_events != 0)
+				numfds+=got_events;
 		}
 		ret = numfds;
 	}
@@ -219,4 +227,3 @@ select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 
 	return ret;
 }
-#endif

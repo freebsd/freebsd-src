@@ -39,7 +39,6 @@
 #include <unistd.h>
 #include <setjmp.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -48,13 +47,14 @@ static void	thread_sig_add(struct pthread *pthread, int sig, int has_args);
 static void	thread_sig_check_state(struct pthread *pthread, int sig);
 static struct pthread *thread_sig_find(int sig);
 static void	thread_sig_handle_special(int sig);
-static void	thread_sig_savecontext(struct pthread *pthread, ucontext_t *ucp);
 static void	thread_sigframe_add(struct pthread *thread, int sig,
 		    int has_args);
 static void	thread_sigframe_save(struct pthread *thread,
 		    struct pthread_signal_frame *psf);
+static void	thread_sig_invoke_handler(int sig, siginfo_t *info,
+		    ucontext_t *ucp);
 
-/* #define DEBUG_SIGNAL */
+/*#define DEBUG_SIGNAL*/
 #ifdef DEBUG_SIGNAL
 #define DBG_MSG		stdout_debug
 #else
@@ -74,22 +74,13 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread	*pthread, *pthread_h;
-	void		*stackp;
-	int		in_sched = 0;
+	int		in_sched = _thread_kern_in_sched;
 	char		c;
 
 	if (ucp == NULL)
 		PANIC("Thread signal handler received null context");
 	DBG_MSG("Got signal %d, current thread %p\n", sig, curthread);
 
-	if (_thread_kern_in_sched != 0)
-		in_sched = 1;
-	else {
-		stackp = (void *)GET_STACK_UC(ucp);
-		if ((stackp >= _thread_kern_sched_stack) &&
-		    (stackp <= _thread_kern_sched_stack + SCHED_STACK_SIZE))
-			in_sched = 1;
-	}
 	/* Check if an interval timer signal: */
 	if (sig == _SCHED_SIGNAL) {
 		/* Update the scheduling clock: */
@@ -110,16 +101,7 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		else if (curthread->sig_defer_count > 0)
 			curthread->yield_on_sig_undefer = 1;
 		else {
-			/*
-			 * Save the context of the currently running thread:
-			 */
-			thread_sig_savecontext(curthread, ucp);
-
-			/*
-			 * Schedule the next thread. This function is not
-			 * expected to return because it will do a longjmp
-			 * instead.
-			 */
+			/* Schedule the next thread: */
 			_thread_kern_sched(ucp);
 
 			/*
@@ -213,18 +195,30 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		thread_sig_handle_special(sig);
 
 		pthread_h = NULL;
-		if ((pthread = thread_sig_find(sig)) != NULL) {
+		if ((pthread = thread_sig_find(sig)) == NULL)
+			DBG_MSG("No thread to handle signal %d\n", sig);
+		else if (pthread == curthread) {
+			/*
+			 * Unblock the signal and restore the process signal
+			 * mask in case we don't return from the handler:
+			 */
+			_thread_sigq[sig - 1].blocked = 0;
+			__sys_sigprocmask(SIG_SETMASK, &_process_sigmask, NULL);
+
+			/* Call the signal handler for the current thread: */
+			thread_sig_invoke_handler(sig, info, ucp);
+
+			/*
+			 * Set the process signal mask in the context; it
+			 * could have changed by the handler.
+ 			 */
+			ucp->uc_sigmask = _process_sigmask;
+ 
+			/* Resume the interrupted thread: */
+			sigreturn(ucp);
+		} else {
 			DBG_MSG("Got signal %d, adding frame to thread %p\n",
 			    sig, pthread);
-			/*
-			 * A thread was found that can handle the signal.
-			 * Save the context of the currently running thread
-			 * so that we can switch to another thread without
-			 * losing track of where the current thread left off.
-			 * This also applies if the current thread is the
-			 * thread to be signaled.
-			 */
-			thread_sig_savecontext(curthread, ucp);
 
 			/* Setup the target thread to receive the signal: */
 			thread_sig_add(pthread, sig, /*has_args*/ 1);
@@ -234,8 +228,6 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 			DBG_MSG("Finished adding frame, head of prio list %p\n",
 			    pthread_h);
 		}
-		else
-			DBG_MSG("No thread to handle signal %d\n", sig);
 		SIG_SET_INACTIVE();
 
 		/*
@@ -244,8 +236,8 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		 * signal and the currently running thread is not in a
 		 * signal handler.
 		 */
-		if ((pthread == curthread) || ((pthread_h != NULL) &&
-		    (pthread_h->active_priority > curthread->active_priority))) {
+		if ((pthread_h != NULL) &&
+		    (pthread_h->active_priority > curthread->active_priority)) {
 			/* Enter the kernel scheduler: */
 			_thread_kern_sched(ucp);
 		}
@@ -258,15 +250,45 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 }
 
 static void
-thread_sig_savecontext(struct pthread *pthread, ucontext_t *ucp)
-{
-	memcpy(&pthread->ctx.uc, ucp, sizeof(*ucp));
+thread_sig_invoke_handler(int sig, siginfo_t *info, ucontext_t *ucp)
+ {
+	struct pthread	*curthread = _get_curthread();
+	void (*sigfunc)(int, siginfo_t *, void *);
+	int		saved_seqno;
+	sigset_t	saved_sigmask;
 
-	/* XXX - Save FP registers too? */
-	FP_SAVE_UC(&pthread->ctx.uc);
+	/* Invoke the signal handler without going through the scheduler:
+	 */
+	DBG_MSG("Got signal %d, calling handler for current thread %p\n",
+	    sig, curthread);
 
-	/* Mark the context saved as a ucontext: */
-	pthread->ctxtype = CTX_UC;
+	/* Save the threads signal mask: */
+	saved_sigmask = curthread->sigmask;
+	saved_seqno = curthread->sigmask_seqno;
+ 
+	/* Setup the threads signal mask: */
+	SIGSETOR(curthread->sigmask, _thread_sigact[sig - 1].sa_mask);
+	sigaddset(&curthread->sigmask, sig);
+ 
+	/*
+	 * Check that a custom handler is installed and if
+	 * the signal is not blocked:
+	 */
+	sigfunc = _thread_sigact[sig - 1].sa_sigaction;
+	if (((__sighandler_t *)sigfunc != SIG_DFL) &&
+	    ((__sighandler_t *)sigfunc != SIG_IGN)) {
+		if (((_thread_sigact[sig - 1].sa_flags & SA_SIGINFO) != 0) ||
+		    (info == NULL))
+			(*(sigfunc))(sig, info, ucp);
+		else
+			(*(sigfunc))(sig, (siginfo_t *)info->si_code, ucp);
+	}
+	/*
+	 * Only restore the signal mask if it hasn't been changed by the
+	 * application during invocation of the signal handler:
+	 */
+	if (curthread->sigmask_seqno == saved_seqno)
+		curthread->sigmask = saved_sigmask;
 }
 
 /*
@@ -353,7 +375,8 @@ thread_sig_find(int sig)
 				return (NULL);
 			}
 			else if ((handler_installed != 0) &&
-			    !sigismember(&pthread->sigmask, sig)) {
+			    !sigismember(&pthread->sigmask, sig) &&
+			    ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) == 0)) {
 				if (pthread->state == PS_SIGSUSPEND) {
 					if (suspended_thread == NULL)
 						suspended_thread = pthread;
@@ -769,10 +792,17 @@ thread_sig_add(struct pthread *pthread, int sig, int has_args)
 		/*
 		 * The thread should be removed from all scheduling
 		 * queues at this point.  Raise the priority and place
-		 * the thread in the run queue.
+		 * the thread in the run queue.  It is also possible
+		 * for a signal to be sent to a suspended thread,
+		 * mostly via pthread_kill().  If a thread is suspended,
+		 * don't insert it into the priority queue; just set
+		 * its state to suspended and it will run the signal
+		 * handler when it is resumed.
 		 */
 		pthread->active_priority |= PTHREAD_SIGNAL_PRIORITY;
-		if (thread_is_active == 0)
+		if ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
+			PTHREAD_SET_STATE(pthread, PS_SUSPENDED);
+		else if (thread_is_active == 0)
 			PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 	}
 }
@@ -901,17 +931,13 @@ _thread_sig_send(struct pthread *pthread, int sig)
 	
 			/* Return the signal number: */
 			pthread->signo = sig;
-		} else if (pthread == curthread) {
+		} else if (sigismember(&pthread->sigmask, sig))
 			/* Add the signal to the pending set: */
 			sigaddset(&pthread->sigpend, sig);
-			if (!sigismember(&pthread->sigmask, sig)) {
-				/*
-				 * Call the kernel scheduler which will safely
-				 * install a signal frame for this thread:
-				 */
-				_thread_kern_sched_sig();
-			}
-		} else if (!sigismember(&pthread->sigmask, sig)) {
+		else if (pthread == curthread)
+			/* Call the signal handler for the current thread: */
+			thread_sig_invoke_handler(sig, NULL, NULL);
+		else {
 			/* Protect the scheduling queues: */
 			_thread_kern_sig_defer();
 			/*
@@ -921,9 +947,6 @@ _thread_sig_send(struct pthread *pthread, int sig)
 			thread_sig_add(pthread, sig, /* has args */ 0);
 			/* Unprotect the scheduling queues: */
 			_thread_kern_sig_undefer();
-		} else {
-			/* Increment the pending signal count. */
-			sigaddset(&pthread->sigpend,sig);
 		}
 	}
 }
@@ -936,7 +959,6 @@ _thread_sig_send(struct pthread *pthread, int sig)
 void
 _thread_sig_wrapper(void)
 {
-	void (*sigfunc)(int, siginfo_t *, void *);
 	struct pthread_signal_frame *psf;
 	struct pthread	*thread = _get_curthread();
 
@@ -1002,27 +1024,13 @@ _thread_sig_wrapper(void)
 	thread->sig_defer_count = 0;
 
 	/*
-	 * Check that a custom handler is installed and if the signal
-	 * is not blocked:
+	 * Dispatch the signal via the custom signal handler:
 	 */
-	sigfunc = _thread_sigact[psf->signo - 1].sa_sigaction;
-	if (((__sighandler_t *)sigfunc != SIG_DFL) &&
-	    ((__sighandler_t *)sigfunc != SIG_IGN)) {
-		DBG_MSG("_thread_sig_wrapper: Calling signal handler for "
-		    "thread 0x%p\n", thread);
-		/*
-		 * Dispatch the signal via the custom signal
-		 * handler:
-		 */
-		if (psf->sig_has_args == 0)
-			(*(sigfunc))(psf->signo, NULL, NULL);
-		else if ((_thread_sigact[psf->signo - 1].sa_flags &
-		    SA_SIGINFO) != 0)
-			(*(sigfunc))(psf->signo, &psf->siginfo, &psf->uc);
-		else
-			(*(sigfunc))(psf->signo,
-			    (siginfo_t *)psf->siginfo.si_code, &psf->uc);
-	}
+	if (psf->sig_has_args == 0)
+		thread_sig_invoke_handler(psf->signo, NULL, NULL);
+	else
+		thread_sig_invoke_handler(psf->signo, &psf->siginfo, &psf->uc);
+
 	/*
 	 * Call the kernel scheduler to safely restore the frame and
 	 * schedule the next thread:
@@ -1034,24 +1042,10 @@ static void
 thread_sigframe_add(struct pthread *thread, int sig, int has_args)
 {
 	struct pthread_signal_frame *psf = NULL;
-	unsigned long	stackp = 0;
+	unsigned long	stackp;
 
-	/* Get the top of the threads stack: */
-	switch (thread->ctxtype) {
-	case CTX_JB:
-	case CTX_JB_NOSIG:
-		stackp = GET_STACK_JB(thread->ctx.jb);
-		break;
-	case CTX_SJB:
-		stackp = GET_STACK_SJB(thread->ctx.sigjb);
-		break;
-	case CTX_UC:
-		stackp = GET_STACK_UC(&thread->ctx.uc);
-		break;
-	default:
-		PANIC("Invalid thread context type");
-		break;
-	}
+ 	/* Get the top of the threads stack: */
+	stackp = GET_STACK_JB(thread->ctx.jb);
 
 	/*
 	 * Leave a little space on the stack and round down to the
@@ -1085,8 +1079,6 @@ thread_sigframe_add(struct pthread *thread, int sig, int has_args)
 
 	/* Set up the new frame: */
 	thread->curframe = psf;
-	thread->ctxtype = CTX_JB_NOSIG;
-	thread->longjmp_val = 1;
 	thread->flags &= PTHREAD_FLAGS_PRIVATE | PTHREAD_FLAGS_TRACE |
 	    PTHREAD_FLAGS_IN_SYNCQ;
 	/*
@@ -1102,8 +1094,7 @@ void
 _thread_sigframe_restore(struct pthread *thread,
     struct pthread_signal_frame *psf)
 {
-	thread->ctxtype = psf->ctxtype;
-	memcpy(&thread->ctx.uc, &psf->ctx.uc, sizeof(thread->ctx.uc));
+	memcpy(&thread->ctx, &psf->ctx, sizeof(thread->ctx));
 	/*
 	 * Only restore the signal mask if it hasn't been changed
 	 * by the application during invocation of the signal handler:
@@ -1116,7 +1107,6 @@ _thread_sigframe_restore(struct pthread *thread,
 	thread->state = psf->saved_state.psd_state;
 	thread->flags = psf->saved_state.psd_flags;
 	thread->interrupted = psf->saved_state.psd_interrupted;
-	thread->longjmp_val = psf->saved_state.psd_longjmp_val;
 	thread->signo = psf->saved_state.psd_signo;
 	thread->sig_defer_count = psf->saved_state.psd_sig_defer_count;
 }
@@ -1124,8 +1114,7 @@ _thread_sigframe_restore(struct pthread *thread,
 static void
 thread_sigframe_save(struct pthread *thread, struct pthread_signal_frame *psf)
 {
-	psf->ctxtype = thread->ctxtype;
-	memcpy(&psf->ctx.uc, &thread->ctx.uc, sizeof(thread->ctx.uc));
+	memcpy(&psf->ctx, &thread->ctx, sizeof(thread->ctx));
 	psf->saved_state.psd_sigmask = thread->sigmask;
 	psf->saved_state.psd_curframe = thread->curframe;
 	psf->saved_state.psd_wakeup_time = thread->wakeup_time;
@@ -1134,10 +1123,8 @@ thread_sigframe_save(struct pthread *thread, struct pthread_signal_frame *psf)
 	psf->saved_state.psd_flags = thread->flags &
 	    (PTHREAD_FLAGS_PRIVATE | PTHREAD_FLAGS_TRACE);
 	psf->saved_state.psd_interrupted = thread->interrupted;
-	psf->saved_state.psd_longjmp_val = thread->longjmp_val;
 	psf->saved_state.psd_sigmask_seqno = thread->sigmask_seqno;
 	psf->saved_state.psd_signo = thread->signo;
 	psf->saved_state.psd_sig_defer_count = thread->sig_defer_count;
 }
 
-#endif

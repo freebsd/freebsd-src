@@ -40,7 +40,6 @@
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/mman.h>
-#ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
@@ -53,19 +52,16 @@ int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_uniqueid_offset		= OFF(uniqueid);
 int _thread_state_offset		= OFF(state);
 int _thread_name_offset			= OFF(name);
-int _thread_ctxtype_offset		= OFF(ctxtype);
 int _thread_ctx_offset			= OFF(ctx);
 #undef OFF
 
 int _thread_PS_RUNNING_value		= PS_RUNNING;
 int _thread_PS_DEAD_value		= PS_DEAD;
-int _thread_CTX_JB_NOSIG_value		= CTX_JB_NOSIG;
-int _thread_CTX_JB_value		= CTX_JB;
-int _thread_CTX_SJB_value		= CTX_SJB;
-int _thread_CTX_UC_value		= CTX_UC;
+
+__weak_reference(_pthread_create, pthread_create);
 
 int
-pthread_create(pthread_t * thread, const pthread_attr_t * attr,
+_pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
 	struct pthread	*curthread = _get_curthread();
@@ -202,9 +198,6 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			    (long)new_thread->stack + pattr->stacksize_attr
 			    - sizeof(double));
 
-			/* Initialize the rest of the frame: */
-			new_thread->ctxtype = CTX_JB_NOSIG;
-
 			/* Copy the thread attributes: */
 			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
 
@@ -269,9 +262,10 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Add the thread to the linked list of all threads: */
 			TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
 
-			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED)
+			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
+				new_thread->flags |= PTHREAD_FLAGS_SUSPENDED;
 				new_thread->state = PS_SUSPENDED;
-			else {
+			} else {
 				new_thread->state = PS_RUNNING;
 				PTHREAD_PRIOQ_INSERT_TAIL(new_thread);
 			}
@@ -327,4 +321,3 @@ _thread_start(void)
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");
 }
-#endif
