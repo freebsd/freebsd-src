@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.15 1998/09/17 03:56:23 gibbs Exp $
+#	$Id: Makefile.inc1,v 1.16 1998/09/17 09:34:51 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -226,7 +226,7 @@ buildworld: check-objformat
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Cleaning up the temporary ${OBJFORMAT} build tree"
+	@echo ">>> Cleaning up the temporary ${OBJFORMAT} build tree"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}
 	chflags -R noschg ${WORLDTMP}/
@@ -235,7 +235,7 @@ buildworld: check-objformat
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Making make"
+	@echo ">>> Making make"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}/usr/bin ${MAKETMP}
 	( \
@@ -247,7 +247,7 @@ buildworld: check-objformat
 	)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Making mtree"
+	@echo ">>> Making mtree"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}/usr/sbin ${WORLDTMP}/mtree
 	( \
@@ -260,79 +260,79 @@ buildworld: check-objformat
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Making hierarchy"
+	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 hierarchy
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Cleaning up the ${OBJFORMAT} obj tree"
+	@echo ">>> Cleaning up the ${OBJFORMAT} obj tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding the ${OBJFORMAT} obj tree"
+	@echo ">>> Rebuilding the ${OBJFORMAT} obj tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 par-${OBJDIR}
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${OBJFORMAT} bootstrap tools"
+	@echo ">>> Rebuilding ${OBJFORMAT} bootstrap tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 bootstrap
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding tools necessary to build the include files"
+	@echo ">>> Rebuilding tools necessary to build the include files"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 include-tools
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR}/usr/include"
+	@echo ">>> Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; SHARED=copies ${BMAKE} -f Makefile.inc1 includes
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding bootstrap libraries"
+	@echo ">>> Rebuilding bootstrap libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 bootstrap-libraries
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding tools needed to build libraries"
+	@echo ">>> Rebuilding tools needed to build libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 lib-tools
 .endif
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding all other tools needed to build the ${OBJFORMAT} world"
+	@echo ">>> Rebuilding all other tools needed to build the ${OBJFORMAT} world"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 build-tools
 .endif
 .if !defined(_NODEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding dependencies"
+	@echo ">>> Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 par-depend
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Building ${OBJFORMAT} libraries"
+	@echo ">>> Building ${OBJFORMAT} libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 libraries
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Building everything.."
+	@echo ">>> Building everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 all
 
 everything:
 	@echo "--------------------------------------------------------------"
-	@echo " Building everything.."
+	@echo ">>> Building everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 all
 
@@ -353,24 +353,24 @@ installworld:
 #
 reinstall:
 	@echo "--------------------------------------------------------------"
-	@echo " Making hierarchy"
+	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Installing everything.."
+	@echo ">>> Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
 .if ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Re-scanning the shared libraries.."
+	@echo ">>> Re-scanning the shared libraries.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; /sbin/ldconfig -R
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding man page indexes"
+	@echo ">>> Rebuilding man page indexes"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/share/man; ${MAKE} makedb
 
@@ -383,7 +383,7 @@ reinstall:
 update:
 .if defined(SUP_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo "Running ${SUP}"
+	@echo ">>> Running ${SUP}"
 	@echo "--------------------------------------------------------------"
 	@${SUP} ${SUPFLAGS} ${SUPFILE}
 .if defined(SUPFILE1)
@@ -395,7 +395,7 @@ update:
 .endif
 .if defined(CVS_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo "Updating /usr/src from cvs repository" ${CVSROOT}
+	@echo ">>> Updating /usr/src from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; cvs -q update -P -d
 .endif
@@ -407,7 +407,7 @@ update:
 #
 most:
 	@echo "--------------------------------------------------------------"
-	@echo " Building programs only"
+	@echo ">>> Building programs only"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/bin;		${MAKE} all
 	cd ${.CURDIR}/sbin;		${MAKE} all
@@ -432,7 +432,7 @@ most:
 #
 installmost:
 	@echo "--------------------------------------------------------------"
-	@echo " Installing programs only"
+	@echo ">>> Installing programs only"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/bin;		${MAKE} install
 	cd ${.CURDIR}/sbin;		${MAKE} install
@@ -867,23 +867,23 @@ legacy-build:
 .if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Making hierarchy"
+	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}
 	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding the ${OBJFORMAT} obj tree"
+	@echo ">>> Rebuilding the ${OBJFORMAT} obj tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 par-${OBJDIR}
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR}/usr/include"
+	@echo ">>> Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; SHARED=copies ${XMAKE} -f Makefile.inc1 includes
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Building legacy libraries"
+	@echo ">>> Building legacy libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; \
 		${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 bootstrap-libraries
@@ -891,19 +891,19 @@ legacy-build:
 		${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 libraries
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Building legacy rtld"
+	@echo ">>> Building legacy rtld"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/libexec/rtld-aout; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Building legacy lkms"
+	@echo ">>> Building legacy lkms"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/lkm; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Building legacy boot"
+	@echo ">>> Building legacy boot"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/sys/${MACHINE}/boot; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
@@ -917,23 +917,23 @@ legacy-install:
 .if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Installing legacy libraries"
+	@echo ">>> Installing legacy libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/lib; ${MAKE} -B -DNOMAN -DNOINFO install
 	cd ${.CURDIR}/gnu/lib; ${MAKE} -B -DNOMAN -DNOINFO install
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Installing legacy rtld"
+	@echo ">>> Installing legacy rtld"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/libexec/rtld-aout; ${MAKE} -DNOMAN install
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Installing legacy lkms"
+	@echo ">>> Installing legacy lkms"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/lkm; ${MAKE} -DNOMAN install
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Installing legacy boot"
+	@echo ">>> Installing legacy boot"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/sys/${MACHINE}/boot; ${MAKE} -DNOMAN install
 .endif
