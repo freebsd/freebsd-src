@@ -1,0 +1,12 @@
+#!/bin/sh -
+#
+# $Id$
+#
+
+exit 0		# do not run by default
+
+if [ -x /usr/libexec/catman.local -a -d /usr/share/man/cat1 ] ; then
+    echo ""
+    echo "Reformatting manual pages:"
+    echo /usr/libexec/catman.local "${MANPATH}" | su -fm man
+fi

@@ -1,0 +1,11 @@
+#!/bin/sh -
+#
+# $Id$
+#
+
+if [ -x /usr/sbin/ac ] ; then
+    echo ""
+    echo "Doing login accounting:"
+
+    ac -p | sort -nr +1
+fi

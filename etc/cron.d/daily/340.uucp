@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# $Id$
+#
+# Local cleanup of UUCP files.  This is for backwards compatibility,
+# /etc/uuclean.daily doesn't exist by default.
+#
+if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]; then
+	echo ""
+	echo "Cleaning up UUCP:"
+	echo /etc/uuclean.daily | su daemon
+fi
+
