@@ -95,20 +95,8 @@ thread_ctor(void *mem, int size, void *arg)
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
-	bzero(&td->td_startzero,
-	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
 	td->td_state = TDS_NEW;
 	td->td_flags |= TDF_UNBOUND;
-#if 0
-	/*
-	 * Maybe move these here from process creation, but maybe not.   
-	 * Moving them here takes them away from their "natural" place
-	 * in the fork process.
-	 */
-	/* XXX td_contested does not appear to be initialized for threads! */
-	LIST_INIT(&td->td_contested);
-	callout_init(&td->td_slpcallout, 1);
-#endif
 	cached_threads--;	/* XXXSMP */
 	active_threads++;	/* XXXSMP */
 }
@@ -202,7 +190,7 @@ threadinit(void)
 }
 
 /*
- * Stash an embarasingly esxtra thread into the zombie thread queue.
+ * Stash an embarasingly extra thread into the zombie thread queue.
  */
 void
 thread_stash(struct thread *td)
@@ -328,47 +316,59 @@ thread_exit(void)
 	KASSERT(!mtx_owned(&Giant), ("dying thread owns giant"));
 
 	if (ke->ke_tdspare != NULL) {
-		thread_stash(ke->ke_tdspare);
+		thread_free(ke->ke_tdspare);
 		ke->ke_tdspare = NULL;
 	}
 	cpu_thread_exit(td);	/* XXXSMP */
 
-	/* Reassign this thread's KSE. */
-	ke->ke_thread = NULL;
-	td->td_kse = NULL;
-	ke->ke_state = KES_UNQUEUED;
-	kse_reassign(ke);
-
-	/* Unlink this thread from its proc. and the kseg */
-	TAILQ_REMOVE(&p->p_threads, td, td_plist);
-	p->p_numthreads--;
-	TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
-	kg->kg_numthreads--;
 	/*
-	 * The test below is NOT true if we are the
-	 * sole exiting thread. P_STOPPED_SINGLE is unset
-	 * in exit1() after it is the only survivor.
+	 * The last thread is left attached to the process
+	 * So that the whole bundle gets recycled. Skip
+	 * all this stuff.
 	 */
-	if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
-		if (p->p_numthreads == p->p_suspcount) {
-			TAILQ_REMOVE(&p->p_suspended,
-			    p->p_singlethread, td_runq);
-			setrunqueue(p->p_singlethread);
-			p->p_suspcount--;
+	if (p->p_numthreads > 1) {
+		/* Reassign this thread's KSE. */
+		ke->ke_thread = NULL;
+		td->td_kse = NULL;
+		ke->ke_state = KES_UNQUEUED;
+		kse_reassign(ke);
+
+		/* Unlink this thread from its proc. and the kseg */
+		TAILQ_REMOVE(&p->p_threads, td, td_plist);
+		p->p_numthreads--;
+		TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
+		kg->kg_numthreads--;
+		/*
+		 * The test below is NOT true if we are the
+		 * sole exiting thread. P_STOPPED_SNGL is unset
+		 * in exit1() after it is the only survivor.
+		 */
+		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
+			if (p->p_numthreads == p->p_suspcount) {
+				TAILQ_REMOVE(&p->p_suspended,
+				    p->p_singlethread, td_runq);
+				setrunqueue(p->p_singlethread);
+				p->p_suspcount--;
+			}
 		}
+		PROC_UNLOCK(p);
+		td->td_state	= TDS_SURPLUS;
+		td->td_proc	= NULL;
+		td->td_ksegrp	= NULL;
+		td->td_last_kse	= NULL;
+		ke->ke_tdspare = td;
+	} else {
+		PROC_UNLOCK(p);
 	}
-	PROC_UNLOCK(p);
-	td->td_state	= TDS_SURPLUS;
-	td->td_proc	= NULL;
-	td->td_ksegrp	= NULL;
-	td->td_last_kse	= NULL;
-	ke->ke_tdspare = td;
+
 	cpu_throw();
 	/* NOTREACHED */
 }
 
 /*
  * Link a thread to a process.
+ * set up anything that needs to be initialized for it to
+ * be used by the process.
  *
  * Note that we do not link to the proc's ucred here.
  * The thread is linked as if running but no KSE assigned.
@@ -384,6 +384,8 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	td->td_ksegrp	= kg;
 	td->td_last_kse	= NULL;
 
+	LIST_INIT(&td->td_contested);
+	callout_init(&td->td_slpcallout, 1);
 	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
 	p->p_numthreads++;
@@ -393,7 +395,6 @@ thread_link(struct thread *td, struct ksegrp *kg)
 		if (oiks_debug > 1)
 			Debugger("OIKS");
 	}
-	td->td_critnest = 0;
 	td->td_kse	= NULL;
 }
 
@@ -418,11 +419,14 @@ thread_schedule_upcall(struct thread *td, struct kse *ke)
 	}
 	CTR3(KTR_PROC, "thread_schedule_upcall: thread %p (pid %d, %s)",
 	     td, td->td_proc->p_pid, td->td_proc->p_comm);
+	bzero(&td->td_startzero,
+	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
+	bcopy(&td->td_startcopy, &td2->td_startcopy,
+	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 	thread_link(td2, ke->ke_ksegrp);
 	cpu_set_upcall(td2, ke->ke_pcb);
 	td2->td_ucred = crhold(td->td_ucred);
 	td2->td_flags = TDF_UNBOUND|TDF_UPCALLING;
-	td2->td_priority = td->td_priority;
 	setrunqueue(td2);
 	return (td2);
 }
