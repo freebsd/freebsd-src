@@ -7,6 +7,7 @@
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/wait.h>
+#include <dirent.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include "ss_internal.h"
@@ -86,9 +87,6 @@ got_it:
 	};
     }
 }
-
-#include <sys/types.h>
-#include <sys/dir.h>
 
 void ss_add_info_dir(sci_idx, info_dir, code_ptr)
     int sci_idx;

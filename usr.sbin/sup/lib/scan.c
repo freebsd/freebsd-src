@@ -28,6 +28,9 @@
  **********************************************************************
  * HISTORY
  * $Log: scan.c,v $
+ * Revision 1.3  1995/12/26 05:10:59  peter
+ * Apply ports/net/sup/patches/patch-ab
+ *
  * Revision 1.2  1995/12/26 05:02:48  peter
  * Apply ports/net/sup/patches/patch-aa...
  *
@@ -101,8 +104,8 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/dir.h>
 #include <sys/file.h>
+#include <dirent.h>
 #include "sup.h"
 
 /*************************
@@ -711,7 +714,7 @@ listdir (name,always)		/* expand directory */
 char *name;
 int always;
 {
-	struct direct *dentry;
+	struct dirent *dentry;
 	register DIR *dirp;
 	char ename[STRINGLENGTH],newname[STRINGLENGTH],filename[STRINGLENGTH];
 	register char *p,*newp;

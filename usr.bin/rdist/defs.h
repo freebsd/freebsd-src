@@ -34,13 +34,13 @@
  */
 
 #include <sys/param.h>
-#include <sys/dir.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/file.h>
 
 #include <netinet/in.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <pwd.h>
 #include <grp.h>

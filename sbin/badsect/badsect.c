@@ -52,12 +52,12 @@ static const char sccsid[] = "@(#)badsect.c	8.1 (Berkeley) 6/5/93";
  * does not support bad block forwarding.
  */
 #include <sys/param.h>
-#include <sys/dir.h>
 #include <sys/stat.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>
@@ -92,7 +92,7 @@ main(argc, argv)
 	daddr_t diskbn;
 	daddr_t number;
 	struct stat stbuf, devstat;
-	register struct direct *dp;
+	register struct dirent *dp;
 	DIR *dirp;
 	char name[2 * MAXPATHLEN];
 	char *name_dir_end;

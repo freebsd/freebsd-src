@@ -26,7 +26,7 @@ char copyright[] =
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.5 1995/07/18 21:35:32 wpaul Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.6 1996/08/24 23:05:08 wpaul Exp $ (LBL)";
 #endif
 
 
@@ -60,7 +60,11 @@ static char rcsid[] =
 #include <sys/file.h>
 #include <netdb.h>
 
-#ifdef SUNOS4
+#if defined(SUNOS4) || defined(__FreeBSD__) /* XXX */
+#define HAVE_DIRENT_H
+#endif
+
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #else
 #include <sys/dir.h>
@@ -456,7 +460,7 @@ rarp_bootable(addr)
 	u_long addr;
 {
 
-#ifdef SUNOS4
+#ifdef HAVE_DIRENT_H
 	register struct dirent *dent;
 #else
 	register struct direct *dent;
