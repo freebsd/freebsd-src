@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.13 1995/09/09 18:10:29 davidg Exp $
+ * $Id: kernel.h,v 1.14 1995/11/13 07:18:09 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -236,10 +236,12 @@ extern void kproc_start __P((void *udata));
 
 #define PSEUDO_SET(init, name) \
 	extern struct linker_set MODVNOPS; \
-	MOD_MISC(#name); \
-        int name ## _load(struct lkm_table *lkmtp, int cmd) \
-		{ init((caddr_t)NULL /* XXX unused (?) */); return 0; } \
-	int name ## _unload(struct lkm_table *lkmtp, int cmd) \
+	MOD_MISC(name); \
+	static int \
+	name ## _load(struct lkm_table *lkmtp, int cmd) \
+		{ init((void *)NULL /* XXX unused (?) */); return 0; } \
+	static int \
+	name ## _unload(struct lkm_table *lkmtp, int cmd) \
 		{ return EINVAL; } \
 	int \
 	name ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
