@@ -9,15 +9,15 @@
 .Dt KVM_SWAPINFO 3
 .Os
 .Sh NAME
-.Nm kvm_swapinfo
+.Nm kvm_getswapinfo
 .Nd return swap summary statistics for the system
 .Sh SYNOPSIS
 .Fd #include <kvm.h>
 .Ft int
-.Fn kvm_swapinfo "kvm_t *kd" "struct kvm_swap *" "int maxswap" "int flags"
+.Fn kvm_getswapinfo "kvm_t *kd" "struct kvm_swap *" "int maxswap" "int flags"
 .Sh DESCRIPTION
 The
-.Fn kvm_swapinfo
+.Fn kvm_getswapinfo
 function fills an array of kvm_swap structures with swap summary
 information for each swap device, for up to maxswap - 1 devices.
 The number of devices, up to maxswap - 1, is returned.  A grand
