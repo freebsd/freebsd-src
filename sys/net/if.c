@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.6 1994/08/18 22:35:19 wollman Exp $
+ * $Id: if.c,v 1.7 1994/09/16 05:47:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
 #include <sys/protosw.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
+#include <sys/errno.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -621,10 +622,19 @@ ifconf(cmd, data)
 	ifrp = ifc->ifc_req;
 	ep = ifr.ifr_name + sizeof (ifr.ifr_name) - 2;
 	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_next) {
-		strncpy(ifr.ifr_name, ifp->if_name, sizeof (ifr.ifr_name) - 2);
-		for (cp = ifr.ifr_name; cp < ep && *cp; cp++)
-			continue;
-		*cp++ = '0' + ifp->if_unit; *cp = '\0';
+		char workbuf[12], *unitname;
+		int unitlen, ifnlen;
+	       
+		unitname = sprint_d(ifp->if_unit, workbuf, sizeof workbuf);
+		unitlen = strlen(unitname);
+		ifnlen = strlen(ifp->if_name);
+		if(unitlen + ifnlen + 1 > sizeof ifr.ifr_name) {
+			error = ENAMETOOLONG;
+		} else {
+			strcpy(ifr.ifr_name, ifp->if_name);
+			strcpy(&ifr.ifr_name[ifnlen], unitname);
+		}
+
 		if ((ifa = ifp->if_addrlist) == 0) {
 			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
 			error = copyout((caddr_t)&ifr, (caddr_t)ifrp,

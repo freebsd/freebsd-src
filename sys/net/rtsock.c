@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.3 (Berkeley) 1/4/94
- * $Id: rtsock.c,v 1.3 1994/08/02 07:46:44 davidg Exp $
+ * $Id: rtsock.c,v 1.4 1994/10/04 06:49:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -544,7 +544,7 @@ rt_ifmsg(ifp)
 		return;
 	ifm = mtod(m, struct if_msghdr *);
 	ifm->ifm_index = ifp->if_index;
-	ifm->ifm_flags = ifp->if_flags;
+	ifm->ifm_flags = (u_short)ifp->if_flags;
 	ifm->ifm_data = ifp->if_data;
 	ifm->ifm_addrs = 0;
 	route_proto.sp_protocol = 0;
@@ -674,7 +674,7 @@ sysctl_iflist(af, w)
 
 			ifm = (struct if_msghdr *)w->w_tmem;
 			ifm->ifm_index = ifp->if_index;
-			ifm->ifm_flags = ifp->if_flags;
+			ifm->ifm_flags = (u_short)ifp->if_flags;
 			ifm->ifm_data = ifp->if_data;
 			ifm->ifm_addrs = info.rti_addrs;
 			if (error = copyout((caddr_t)ifm, w->w_where, len))
