@@ -152,6 +152,9 @@ struct _excmd {
 #define	E_SEARCH_WMSG	0x01000000	/* Display search-wrapped message. */
 #define	E_USELASTCMD	0x02000000	/* Use the last command. */
 #define	E_VISEARCH	0x04000000	/* It's really a vi search command. */
+#ifdef GTAGS
+#define	E_REFERENCE	0x08000000	/* locate function references */
+#endif
 	u_int32_t flags;		/* Current flags. */
 };
 
