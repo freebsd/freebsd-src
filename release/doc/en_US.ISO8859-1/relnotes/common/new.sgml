@@ -335,6 +335,12 @@
     thus eliminating the need for an emulated floppy disk image on
     a bootable CDROM. &merged;</para>
 
+    <para>The kernel on the installation CDs is now separated from the
+    <filename>mfsroot</filename> image.  This permits the use of a
+    full kernel when installing from CD on machines that support CD
+    booting (instead of the stripped-down kernel used on
+    floppies). &merged;</para>
+
     <para arch="i386">The pmc driver, which supports the power
     management controller of the NEC PC-98NOTE, has been
     added. &merged;</para>
@@ -2190,7 +2196,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <quote>auto</quote> partitioning mode which provide more
     reasonable defaults for the sizes of partitions that are created;
     auto-sized partitions can now also recover the space that becomes
-    available when other partitions are deleted.</para>
+    available when other partitions are deleted. &merged;</para>
 
     <para arch="alpha">Filesystems created from within
     &man.sysinstall.8; continue to use the old default block and
