@@ -39,7 +39,7 @@
 #include <sys/conf.h>
 #include <sys/power.h>
 
-#include  "acpi.h"
+#include "acpi.h"
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
  
@@ -108,6 +108,8 @@ acpi_acad_get_status(void *context)
 				POWER_PROFILE_ECONOMY);
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "%s Line\n", sc->status ? "On" : "Off");
+
+	acpi_UserNotify("ACAD", h, sc->status);
     }
 }
 

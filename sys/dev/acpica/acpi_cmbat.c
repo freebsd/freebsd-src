@@ -295,6 +295,8 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     if ((sc = device_get_softc(dev)) == NULL)
 	return;
 
+    acpi_UserNotify("CMBAT", h, notify);
+
     switch (notify) {
     case ACPI_NOTIFY_DEVICE_CHECK:
     case ACPI_BATTERY_BST_CHANGE:
