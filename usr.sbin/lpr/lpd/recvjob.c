@@ -186,7 +186,8 @@ readjob(struct printer *pp)
 			 * something different than what gethostbyaddr()
 			 * returns
 			 */
-			strncpy(cp + 6, from, sizeof(line) + line - cp - 7);
+			strncpy(cp + 6, from_host, sizeof(line) + line - cp
+			    - 7);
 			line[sizeof(line) - 1 ] = '\0';
 			strncpy(tfname, cp, sizeof(tfname) - 1);
 			tfname[sizeof (tfname) - 1] = '\0';
@@ -231,7 +232,7 @@ readjob(struct printer *pp)
 			dfcnt++;
 			trstat_init(pp, dfname, dfcnt);
 			(void) readfile(pp, dfname, size);
-			trstat_write(pp, TR_RECVING, size, givenid, from,
+			trstat_write(pp, TR_RECVING, size, givenid, from_host,
 				     givenhost);
 			continue;
 		}
@@ -386,7 +387,7 @@ frecverr(msg, va_alist)
 #else
 	va_start(ap);
 #endif
-	syslog(LOG_ERR, "Error receiving job from %s:", fromb);
+	syslog(LOG_ERR, "Error receiving job from %s:", from_host);
 	vsyslog(LOG_ERR, msg, ap);
 	va_end(ap);
 	/*
