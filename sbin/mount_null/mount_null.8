@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount_null.8	8.6 (Berkeley) 5/1/95
-.\"	$Id: mount_null.8,v 1.8 1997/03/11 12:33:34 peter Exp $
+.\"	$Id: mount_null.8,v 1.9 1998/07/06 07:17:26 charnier Exp $
 .\"
 .Dd May 1, 1995
 .Dt MOUNT_NULL 8
@@ -228,6 +228,16 @@ is that vnodes arguments must be manually mapped.
 .sp
 UCLA Technical Report CSD-910056,
 .Em "Stackable Layers: an Architecture for File System Development" .
+.Sh BUGS
+
+THIS FILESYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK) 
+AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.  USE AT YOUR
+OWN RISK.  BEWARE OF DOG.  SLIPPERY WHEN WET.
+
+This code also needs an owner in order to be less dangerous - serious
+hackers can apply by sending mail to hackers@freebsd.org and announcing
+their intent to take it over.
+
 .Sh HISTORY
 The
 .Nm
