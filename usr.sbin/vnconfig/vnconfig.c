@@ -238,7 +238,6 @@ what_opt(str,p)
 	if (!strcmp(str,"labels")) { *p |= VN_LABELS; return 0; }
 	if (!strcmp(str,"follow")) { *p |= VN_FOLLOW; return 0; }
 	if (!strcmp(str,"debug")) { *p |= VN_DEBUG; return 0; }
-	if (!strcmp(str,"io")) { *p |= VN_IO; return 0; }
 	if (!strcmp(str,"all")) { *p |= ~0; return 0; }
 	if (!strcmp(str,"none")) { *p |= 0; return 0; }
 	return 1;

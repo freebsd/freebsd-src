@@ -82,9 +82,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_pageout.h>
 #include <vm/swap_pager.h>
-#include <vm/vm_extern.h>
 
 static	d_ioctl_t	vnioctl;
 static	d_open_t	vnopen;
@@ -146,7 +144,7 @@ static SLIST_HEAD(, vn_softc) vn_list;
 #define VNF_INITED	0x01
 #define	VNF_READONLY	0x02
 
-static u_long	vn_options;
+static u_long	vn_options = VN_LABELS;
 
 #define IFOPT(vn,opt) if (((vn)->sc_options|vn_options) & (opt))
 #define TESTOPT(vn,opt) (((vn)->sc_options|vn_options) & (opt))
