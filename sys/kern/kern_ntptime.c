@@ -921,7 +921,7 @@ adjtime(struct thread *td, struct adjtime_args *uap)
 			atv.tv_sec--;
 		}
 		printf("Old: time_adjtime = %ld.%06ld %lld\n", 
-		    atv.tv_sec, atv.tv_usec, time_adjtime);
+		    atv.tv_sec, atv.tv_usec, (long long)time_adjtime);
 		error = copyout(&atv, uap->olddelta, sizeof(atv));
 		if (error)
 			goto done2;
@@ -932,7 +932,7 @@ adjtime(struct thread *td, struct adjtime_args *uap)
 			goto done2;
 		time_adjtime = (int64_t)atv.tv_sec * 1000000 + atv.tv_usec;
 		printf("New: time_adjtime = %ld.%06ld %lld\n", 
-		    atv.tv_sec, atv.tv_usec, time_adjtime);
+		    atv.tv_sec, atv.tv_usec, (long long)time_adjtime);
 	}
 done2:
 	mtx_unlock(&Giant);
