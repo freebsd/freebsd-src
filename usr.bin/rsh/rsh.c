@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 		argoff = 1;
 	}
 
-#define	OPTIONS	"468KLde:l:nt:w"
+#define	OPTIONS	"468Lde:l:nt:w"
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
 		case '4':
@@ -371,6 +371,6 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: rsh [-46] [-nd] [-l login] [-t timeout] host [command]\n");
+	    "usage: rsh [-46dn] [-l login] [-t timeout] host [command]\n");
 	exit(1);
 }
