@@ -1214,8 +1214,13 @@ rescan0:
 			/*
 			 * get the process size
 			 */
-			size = vmspace_resident_count(p->p_vmspace) +
-				vmspace_swap_count(p->p_vmspace);
+			if (!vm_map_trylock_read(&p->p_vmspace->vm_map)) {
+				PROC_UNLOCK(p);
+				continue;
+			}
+			size = vmspace_swap_count(p->p_vmspace);
+			vm_map_unlock_read(&p->p_vmspace->vm_map);
+			size += vmspace_resident_count(p->p_vmspace);
 			/*
 			 * if the this process is bigger than the biggest one
 			 * remember it.

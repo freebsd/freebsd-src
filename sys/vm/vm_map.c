@@ -346,6 +346,8 @@ vmspace_exitfree(struct proc *p)
  * vmspace_swap_count() - count the approximate swap useage in pages for a
  *			  vmspace.
  *
+ *	The map must be locked.
+ *
  *	Swap useage is determined by taking the proportional swap used by
  *	VM objects backing the VM map.  To make up for fractional losses,
  *	if the VM object has any swap use at all the associated map entries
@@ -358,7 +360,6 @@ vmspace_swap_count(struct vmspace *vmspace)
 	vm_map_entry_t cur;
 	int count = 0;
 
-	vm_map_lock_read(map);
 	for (cur = map->header.next; cur != &map->header; cur = cur->next) {
 		vm_object_t object;
 
@@ -374,7 +375,6 @@ vmspace_swap_count(struct vmspace *vmspace)
 			}
 		}
 	}
-	vm_map_unlock_read(map);
 	return (count);
 }
 
@@ -435,6 +435,17 @@ _vm_map_trylock(vm_map_t map, const char *file, int line)
 	    lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL, curthread);
 	if (error == 0)
 		map->timestamp++;
+	return (error == 0);
+}
+
+int
+_vm_map_trylock_read(vm_map_t map, const char *file, int line)
+{
+	int error;
+
+	error = map->system_map ?
+	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
+	    lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL, curthread);
 	return (error == 0);
 }
 
