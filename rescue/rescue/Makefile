@@ -66,9 +66,9 @@ CRUNCH_LIBS+= ${.OBJDIR}/../librescue/*.o
 # WARNING: Changing this list may require adjusting
 # /usr/include/paths.h as well!  You were warned!
 #
-CRUNCH_SRCDIRS+=$(.CURDIR)/../../bin $(.CURDIR)/../../usr.bin
-CRUNCH_PROGS=cat chflags chio chmod cp date dd df domainname echo ed	\
-	 expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
+CRUNCH_SRCDIRS+=bin
+CRUNCH_PROGS_bin=cat chflags chio chmod cp date dd df domainname echo 	\
+	 ed expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
 	 realpath rm rmdir setfacl sh sleep stty sync test
 CRUNCH_LIBS+=-lcrypt -lcrypto -ledit -lkvm -ll -lm -ltermcap -lutil
 
@@ -82,18 +82,18 @@ CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
 
 .if !defined(NO_RCMNDS)
-CRUNCH_PROGS+= rcp
+CRUNCH_PROGS_bin+= rcp
 .endif
 
 .if !defined(NO_TCSH)
-CRUNCH_PROGS+= csh
+CRUNCH_PROGS_bin+= csh
 CRUNCH_ALIAS_csh= -csh tcsh -tcsh
 CRUNCH_SUPPRESS_LINK_-csh=1
 CRUNCH_SUPPRESS_LINK_-tcsh=1
 .endif
 
 #Is rmail of any use at all here?  I think not.
-#CRUNCH_PROGS+= rmail  
+#CRUNCH_PROGS_bin+= rmail  
 
 ###################################################################
 # Programs from standard /sbin
@@ -104,8 +104,8 @@ CRUNCH_SUPPRESS_LINK_-tcsh=1
 # Note that mdmfs and shutdown have their own private 'pathnames.h'
 # headers in addition to the standard 'paths.h' header.
 #
-CRUNCH_SRCDIRS+=$(.CURDIR)/../../sbin
-CRUNCH_PROGS+=atm adjkerntz atacontrol badsect bsdlabel camcontrol 	\
+CRUNCH_SRCDIRS+=sbin
+CRUNCH_PROGS_sbin=atm adjkerntz atacontrol badsect bsdlabel camcontrol 	\
 	ccdconfig clri comcontrol conscontrol devfs dmesg dump		\
 	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde growfs ifconfig ilmid init ip6fw ipf ipfs ipfstat	\
@@ -124,7 +124,7 @@ CRUNCH_LIBS+=-lalias -latm -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
 	-lgeom -lmd -lreadline -lsbuf -lufs -lz 
 
 .if ${MACHINE_ARCH} == "i386"
-CRUNCH_PROGS+= cxconfig fdisk
+CRUNCH_PROGS_sbin+= cxconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 #CRUNCH_PROGS+= mount_nwfs mount_smbfs
 #CRUNCH_LIBS+= -lncp -lsmb
@@ -135,11 +135,11 @@ CRUNCH_SRCDIR_fdisk=$(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-CRUNCH_PROGS+= mca gpt fdisk
+CRUNCH_PROGS_sbin+= mca gpt fdisk
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-CRUNCH_PROGS+= sunlabel
+CRUNCH_PROGS_sbin+= sunlabel
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
@@ -147,7 +147,7 @@ CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
-CRUNCH_PROGS+= fdisk
+CRUNCH_PROGS_sbin+= fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
@@ -162,26 +162,26 @@ CRUNCH_ALIAS_fsck_ffs=fsck_4.2bsd fsck_ufs
 CRUNCH_ALIAS_mount_std= mount_devfs mount_fdescfs mount_linprocfs mount_procfs
 
 # dhclient has historically been troublesome...
-CRUNCH_PROGS+=dhclient
+CRUNCH_PROGS_sbin+=dhclient
 CRUNCH_BUILDOPTS_dhclient=-DRELEASE_CRUNCH -Dlint
 
 ##################################################################
 # Programs from stock /usr/bin
 # 
-CRUNCH_SRCDIRS+=$(.CURDIR)/../../usr.bin
-CRUNCH_SRCDIRS+=$(.CURDIR)/../../gnu/usr.bin
+CRUNCH_SRCDIRS+=usr.bin
+CRUNCH_SRCDIRS+=gnu/usr.bin
 
-CRUNCH_PROGS+=wall
+CRUNCH_PROGS_usr.bin+=wall
 
-CRUNCH_PROGS+=gzip
+CRUNCH_PROGS_gnu/usr.bin+=gzip
 CRUNCH_ALIAS_gzip=gunzip gzcat zcat
 
-CRUNCH_PROGS+=bzip2
+CRUNCH_PROGS_usr.bin+=bzip2
 CRUNCH_ALIAS_bzip2=bunzip2 bzcat
 CRUNCH_LIBS+=-lbz2
 
-CRUNCH_PROGS+=tar
-CRUNCH_PROGS+=vi
+CRUNCH_PROGS_gnu/usr.bin+=tar
+CRUNCH_PROGS_usr.bin+=vi
 CRUNCH_ALIAS_vi=ex
 
 ##################################################################
@@ -204,7 +204,8 @@ CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
 
 # Program names and their aliases contribute hardlinks to 'rescue' executable,
 # except for those that get suppressed.
-.for P in $(CRUNCH_PROGS)
+.for D in $(CRUNCH_SRCDIRS)
+.for P in $(CRUNCH_PROGS_$(D))
 .ifndef CRUNCH_SUPPRESS_LINK_${P}
 LINKS += $(BINDIR)/$(PROG) $(BINDIR)/$(P)
 .endif
@@ -214,6 +215,7 @@ LINKS += $(BINDIR)/$(PROG) $(BINDIR)/$(A)
 .endif
 .endfor
 .endfor
+.endfor
 
 all: $(PROG)
 exe: $(PROG)
@@ -221,7 +223,7 @@ exe: $(PROG)
 $(CONF): Makefile
 	echo \# Auto-generated, do not edit >$(.TARGET)
 .for D in $(CRUNCH_SRCDIRS)
-	echo srcdirs $(D) >>$(.TARGET)
+	echo srcdirs $(.CURDIR)/../../$(D) >>$(.TARGET)
 .endfor
 .ifdef CRUNCH_BUILDOPTS
 	echo buildopts $(CRUNCH_BUILDOPTS) >>$(.TARGET)
@@ -229,7 +231,8 @@ $(CONF): Makefile
 .ifdef CRUNCH_LIBS
 	echo libs $(CRUNCH_LIBS) >>$(.TARGET)
 .endif
-.for P in $(CRUNCH_PROGS)
+.for D in $(CRUNCH_SRCDIRS)
+.for P in $(CRUNCH_PROGS_$(D))
 	echo progs $(P) >>$(.TARGET)
 .ifdef CRUNCH_SRCDIR_${P}
 	echo special $(P) srcdir $(CRUNCH_SRCDIR_${P}) >>$(.TARGET)
@@ -239,6 +242,7 @@ $(CONF): Makefile
 .endif
 .for A in $(CRUNCH_ALIAS_$(P))
 	echo ln $(P) $(A) >>$(.TARGET)
+.endfor
 .endfor
 .endfor
 
@@ -256,7 +260,7 @@ objs:
 # shell scripts so we can remove this nonsense.
 build-tools:
 .for _tool in bin/csh bin/sh 
-	cd ${.CURDIR}/../../${_tool}; \
+	cd $(.CURDIR)/../../${_tool}; \
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make DIRPRFX=rescue/${_tool} build-tools
 .endfor
 
@@ -266,7 +270,15 @@ build-tools:
 # targets should NOT be propagated into the components.
 cleandepend cleandir obj objlink:
 .for D in $(CRUNCH_SRCDIRS)
-	cd ${D} && MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+.for P in $(CRUNCH_PROGS_$(D))
+.ifdef CRUNCH_SRCDIR_${P}
+	cd ${CRUNCH_SRCDIR_$(P)} && \
+	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+.else
+	cd $(.CURDIR)/../../${D}/${P} && \
+	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+.endif
+.endfor
 .endfor
 
 clean:
@@ -274,8 +286,16 @@ clean:
 	if [ -e ${.OBJDIR}/$(OUTMK) ]; then		\
 		MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) clean;	\
 	fi
-.for D in $(CRUNCH_SRCDIRS) $(EXTRA_SRCDIRS)
-	cd ${D} && MAKEOBJDIRPREFIX=${CRUNCHOBJS} make clean
+.for D in $(CRUNCH_SRCDIRS)
+.for P in $(CRUNCH_PROGS_$(D))
+.ifdef CRUNCH_SRCDIR_${P}
+	cd ${CRUNCH_SRCDIR_$(P)} && \
+	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+.else
+	cd $(.CURDIR)/../../${D}/${P} && \
+	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+.endif
+.endfor
 .endfor
 
 .include <bsd.prog.mk>
