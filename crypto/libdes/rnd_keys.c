@@ -39,18 +39,17 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 
-RCSID("$Id: rnd_keys.c,v 1.55 1999/03/19 23:17:13 assar Exp $");
+RCSID("$Id$");
 #endif
 
+#include <sys/types.h>
+#include <sys/time.h>
 #include <des.h>
 #include <des_locl.h>
-#ifdef KRB5
-#include <krb5-types.h>
-#elif defined(KRB4)
-#include <ktypes.h>
-#endif
-
+#include <fcntl.h>
+#include <signal.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef TIME_WITH_SYS_TIME
 #include <sys/time.h>
