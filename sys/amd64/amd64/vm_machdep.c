@@ -47,6 +47,7 @@
 #endif
 #include "opt_reset.h"
 #include "opt_isa.h"
+#include "opt_upages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
