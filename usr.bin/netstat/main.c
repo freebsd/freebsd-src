@@ -214,6 +214,8 @@ struct protox ip6protox[] = {
 	  rip6_stats,	NULL,		"rip6",	0 },
 	{ -1,		-1,		1,	0,
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
+	{ -1,		-1,		1,	protopr,
+	  pim_stats,	NULL,		"pim",	IPPROTO_PIM },
 	{ -1,		-1,		0,	0,
 	  0,		NULL,		0,	0 }
 };
