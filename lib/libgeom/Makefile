@@ -12,4 +12,14 @@ WARNS?=	3
 
 MAN=	libgeom.3
 
+MLINKS+= \
+	libgeom.3 geom_stats_open.3 \
+	libgeom.3 geom_stats_close.3 \
+	libgeom.3 geom_stats_resync.3 \
+	libgeom.3 geom_stats_snapshot_get.3 \
+	libgeom.3 geom_stats_snapshot_free.3 \
+	libgeom.3 geom_stats_snapshot_timestamp.3 \
+	libgeom.3 geom_stats_snapshot_reset.3 \
+	libgeom.3 geom_stats_snapshot_next.3
+
 .include <bsd.lib.mk>
