@@ -431,6 +431,7 @@ ASR_fillMessage(void *Message, u_int16_t size)
 	I2O_MESSAGE_FRAME_setMessageSize(Message_Ptr,
 	  (size + sizeof(U32) - 1) >> 2);
 	I2O_MESSAGE_FRAME_setInitiatorAddress (Message_Ptr, 1);
+	KASSERT(Message_Ptr != NULL, ("Message_Ptr == NULL"));
 	return (Message_Ptr);
 } /* ASR_fillMessage */
 
@@ -1396,21 +1397,20 @@ ASR_acquireLct(Asr_softc_t *sc)
 	/*
 	 *	sc value assumed valid
 	 */
-	MessageSizeInBytes = sizeof(I2O_EXEC_LCT_NOTIFY_MESSAGE)
-	  - sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT);
-	if ((Message_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)malloc (
-	  MessageSizeInBytes, M_TEMP, M_WAITOK)) == NULL) {
+	MessageSizeInBytes = sizeof(I2O_EXEC_LCT_NOTIFY_MESSAGE) -
+	    sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT);
+	if ((Message_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)malloc(
+	    MessageSizeInBytes, M_TEMP, M_WAITOK)) == NULL) {
 		return (ENOMEM);
 	}
 	(void)ASR_fillMessage((void *)Message_Ptr, MessageSizeInBytes);
 	I2O_MESSAGE_FRAME_setVersionOffset(&(Message_Ptr->StdMessageFrame),
-	  (I2O_VERSION_11 +
-	  (((sizeof(I2O_EXEC_LCT_NOTIFY_MESSAGE) - sizeof(I2O_SG_ELEMENT))
-			/ sizeof(U32)) << 4)));
+	    (I2O_VERSION_11 + (((sizeof(I2O_EXEC_LCT_NOTIFY_MESSAGE) -
+	    sizeof(I2O_SG_ELEMENT)) / sizeof(U32)) << 4)));
 	I2O_MESSAGE_FRAME_setFunction(&(Message_Ptr->StdMessageFrame),
-	  I2O_EXEC_LCT_NOTIFY);
+	    I2O_EXEC_LCT_NOTIFY);
 	I2O_EXEC_LCT_NOTIFY_MESSAGE_setClassIdentifier(Message_Ptr,
-	  I2O_CLASS_MATCH_ANYCLASS);
+	    I2O_CLASS_MATCH_ANYCLASS);
 	/*
 	 *	Call the LCT table to determine the number of device entries
 	 * to reserve space for.
@@ -1887,7 +1887,7 @@ ASR_setSysTab(Asr_softc_t *sc)
 		free(SystemTable, M_TEMP);
 		return (ENOMEM);
 	}
-	(void)ASR_fillMessage((void *)&Message_Ptr,
+	(void)ASR_fillMessage((void *)Message_Ptr,
 	  sizeof(I2O_EXEC_SYS_TAB_SET_MESSAGE) - sizeof(I2O_SG_ELEMENT)
 	   + ((3+SystemTable->NumberEntries) * sizeof(I2O_SGE_SIMPLE_ELEMENT)));
 	I2O_MESSAGE_FRAME_setVersionOffset(&(Message_Ptr->StdMessageFrame),
