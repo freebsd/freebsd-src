@@ -82,7 +82,8 @@ int	connected;
 char	mode[32];
 char	line[200];
 int	margc;
-char	*margv[20];
+#define	MAX_MARGV	20
+char	*margv[MAX_MARGV];
 char	*prompt = "tftp";
 jmp_buf	toplevel;
 volatile int txrx_error;
@@ -683,7 +684,7 @@ makeargv()
 	margc = 0;
 	if ((cp = strchr(line, '\n')))
 		*cp = '\0';
-	for (cp = line; *cp;) {
+	for (cp = line; margc < MAX_MARGV - 1 && *cp;) {
 		while (isspace(*cp))
 			cp++;
 		if (*cp == '\0')
