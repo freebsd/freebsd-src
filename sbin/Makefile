@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.51 1998/08/20 20:47:49 jb Exp $
+#	$Id: Makefile,v 1.52 1998/08/30 20:27:37 gpalmer Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -22,6 +22,7 @@ SUBDIR= badsect \
 	kldload \
 	kldstat \
 	kldunload \
+	ldconfig \
 	md5 \
 	mknod \
 	modload \
@@ -64,7 +65,6 @@ SUBDIR+= ${MACHINE}
 
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=adjkerntz \
-	ldconfig \
 	scsi
 .endif
 
