@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.411 1998/10/09 06:28:28 jkh Exp $
+#	$Id: Makefile,v 1.412 1998/10/09 07:07:55 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -700,8 +700,6 @@ doMFSKERN:
 		-e '/MATH_EMULATE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
 		-e '/maxusers/s/32/4/' < GENERIC > BOOTMFS && \
-	  echo "options  MFS" >> BOOTMFS && \
-	  echo "options	 MFS_ROOT" >> BOOTMFS && \
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
 	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
 	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
