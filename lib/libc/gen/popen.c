@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -83,8 +85,8 @@ popen(command, type)
 		return (NULL);
 
 	if ((cur = malloc(sizeof(struct pid))) == NULL) {
-		(void)close(pdes[0]);
-		(void)close(pdes[1]);
+		(void)_libc_close(pdes[0]);
+		(void)_libc_close(pdes[1]);
 		return (NULL);
 	}
 
@@ -95,8 +97,8 @@ popen(command, type)
 
 	switch (pid = vfork()) {
 	case -1:			/* Error. */
-		(void)close(pdes[0]);
-		(void)close(pdes[1]);
+		(void)_libc_close(pdes[0]);
+		(void)_libc_close(pdes[1]);
 		free(cur);
 		return (NULL);
 		/* NOTREACHED */
@@ -110,10 +112,10 @@ popen(command, type)
 			 * the compiler is free to corrupt all the local
 			 * variables.
 			 */
-			(void) close(pdes[0]);
+			(void)_libc_close(pdes[0]);
 			if (pdes[1] != STDOUT_FILENO) {
 				(void)dup2(pdes[1], STDOUT_FILENO);
-				(void)close(pdes[1]);
+				(void)_libc_close(pdes[1]);
 				if (twoway)
 					(void)dup2(STDOUT_FILENO, STDIN_FILENO);
 			} else if (twoway && (pdes[1] != STDIN_FILENO))
@@ -121,12 +123,12 @@ popen(command, type)
 		} else {
 			if (pdes[0] != STDIN_FILENO) {
 				(void)dup2(pdes[0], STDIN_FILENO);
-				(void)close(pdes[0]);
+				(void)_libc_close(pdes[0]);
 			}
-			(void)close(pdes[1]);
+			(void)_libc_close(pdes[1]);
 		}
 		for (p = pidlist; p; p = p->next) {
-			(void)close(fileno(p->fp));
+			(void)_libc_close(fileno(p->fp));
 		}
 		execve(_PATH_BSHELL, argv, environ);
 		_exit(127);
@@ -136,10 +138,10 @@ popen(command, type)
 	/* Parent; assume fdopen can't fail. */
 	if (*type == 'r') {
 		iop = fdopen(pdes[0], type);
-		(void)close(pdes[1]);
+		(void)_libc_close(pdes[1]);
 	} else {
 		iop = fdopen(pdes[1], type);
-		(void)close(pdes[0]);
+		(void)_libc_close(pdes[0]);
 	}
 
 	/* Link into list of file descriptors. */
@@ -175,7 +177,7 @@ pclose(iop)
 	(void)fclose(iop);
 
 	do {
-		pid = waitpid(cur->pid, &pstat, 0);
+		pid = _libc_waitpid(cur->pid, &pstat, 0);
 	} while (pid == -1 && errno == EINTR);
 
 	/* Remove the entry from the linked list. */

@@ -34,6 +34,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -73,7 +75,7 @@ lockf(filedes, function, size)
 		break;
 	case F_TEST:
 		fl.l_type = F_WRLCK;
-		if (fcntl(filedes, F_GETLK, &fl) == -1)
+		if (_libc_fcntl(filedes, F_GETLK, &fl) == -1)
 			return (-1);
 		if (fl.l_type == F_UNLCK || fl.l_pid == getpid())
 			return (0);
@@ -86,5 +88,5 @@ lockf(filedes, function, size)
 		/* NOTREACHED */
 	}
 
-	return (fcntl(filedes, cmd, &fl));
+	return (_libc_fcntl(filedes, cmd, &fl));
 }

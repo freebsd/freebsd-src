@@ -350,7 +350,7 @@ _yp_dobind(dom, ypdb)
 			ysd->dom_vers = 0;
 			ysd->dom_client = NULL;
 			sock = dup2(save, sock);
-			close(save);
+			_libc_close(save);
 		}
 	}
 
@@ -373,10 +373,10 @@ again:
 			ysd->dom_socket = -1;
 		}
 		snprintf(path, sizeof(path), "%s/%s.%d", BINDINGDIR, dom, 2);
-		if( (fd=open(path, O_RDONLY)) == -1) {
+		if((fd = _libc_open(path, O_RDONLY)) == -1) {
 			/* no binding file, YP is dead. */
 			/* Try to bring it back to life. */
-			close(fd);
+			_libc_close(fd);
 			goto skipit;
 		}
 		if( flock(fd, LOCK_EX|LOCK_NB) == -1 && errno==EWOULDBLOCK) {
@@ -391,7 +391,7 @@ again:
 
 			r = readv(fd, iov, 2);
 			if(r != iov[0].iov_len + iov[1].iov_len) {
-				close(fd);
+				_libc_close(fd);
 				ysd->dom_vers = -1;
 				goto again;
 			}
@@ -405,12 +405,12 @@ again:
 			    *(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 
 			ysd->dom_server_port = ysd->dom_server_addr.sin_port;
-			close(fd);
+			_libc_close(fd);
 			goto gotit;
 		} else {
 			/* no lock on binding file, YP is dead. */
 			/* Try to bring it back to life. */
-			close(fd);
+			_libc_close(fd);
 			goto skipit;
 		}
 	}
@@ -480,7 +480,7 @@ skipit:
 			if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
 				clnt_destroy(client);
 				ysd->dom_vers = -1;
-				sleep(_yplib_timeout/2);
+				_libc_sleep(_yplib_timeout/2);
 				goto again;
 			}
 		}
@@ -518,7 +518,7 @@ gotit:
 			ysd->dom_vers = -1;
 			goto again;
 		}
-		if( fcntl(ysd->dom_socket, F_SETFD, 1) == -1)
+		if(_libc_fcntl(ysd->dom_socket, F_SETFD, 1) == -1)
 			perror("fcntl: F_SETFD");
 		/*
 		 * We want a port number associated with this socket
@@ -567,7 +567,7 @@ _yp_unbind(ypb)
 			save = dup(ypb->dom_socket);
 			clnt_destroy(ypb->dom_client);
 			sock = dup2(save, sock);
-			close(save);
+			_libc_close(save);
 		} else
 			clnt_destroy(ypb->dom_client);
 	}

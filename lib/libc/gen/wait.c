@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -41,8 +43,11 @@ static char sccsid[] = "@(#)wait.c	8.1 (Berkeley) 6/4/93";
 #include <sys/resource.h>
 
 pid_t
-wait(istat)
+__wait(istat)
 	int *istat;
 {
 	return (wait4(WAIT_ANY, istat, 0, (struct rusage *)0));
 }
+
+__weak_reference(__wait, _libc_wait);
+__weak_reference(_libc_wait, wait);

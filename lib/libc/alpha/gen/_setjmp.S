@@ -25,6 +25,8 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>
@@ -42,7 +44,9 @@
 
 	.set	noreorder
 
-LEAF(_setjmp, 1)
+XLEAF(_setjmp, 1)
+XLEAF(_libc__setjmp, 1)
+LEAF(___setjmp, 1)
 	LDGP(pv)
 	stq	ra, (2 * 8)(a0)			/* sc_pc = return address */
 	stq	s0, (( 9 + 4) * 8)(a0)		/* saved bits of sc_regs */
@@ -83,9 +87,11 @@ LEAF(_setjmp, 1)
 
 	mov	zero, v0			/* return zero */
 	RET
-END(_setjmp)
+END(___setjmp)
 
-LEAF(_longjmp, 2)
+XLEAF(_longjmp, 2)
+XLEAF(_libc__longjmp, 2)
+LEAF(___longjmp, 2)
 	LDGP(pv)
 	ldq	t0, ((31 + 4) * 8)(a0)		/* magic in sc_regs[31] */
 	ldiq	t1, 0xacedbadd
@@ -120,4 +126,4 @@ botch:
 	CALL(longjmperror)
 	CALL(abort)
 	RET					/* "can't" get here... */
-END(_longjmp)
+END(___longjmp)

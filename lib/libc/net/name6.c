@@ -257,7 +257,7 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 		 * (or apropriate interval),
 		 * because addresses will be dynamically assigned or deleted.
 		 */
-		close(s);
+		_libc_close(s);
 	}
 
 	for (i = 0; i < MAXHOSTCONF; i++) {
@@ -1182,21 +1182,21 @@ _icmp_fqdn_query(const struct in6_addr *addr, int ifindex)
 			 (char *)&filter, sizeof(filter));
 	cc = sendmsg(s, &msg, 0);
 	if (cc < 0) {
-		close(s);
+		_libc_close(s);
 		return NULL;
 	}
 	FD_SET(s, &s_fds);
 	for (;;) {
 		fds = s_fds;
 		if (select(s + 1, &fds, NULL, NULL, &tout) <= 0) {
-			close(s);
+			_libc_close(s);
 			return NULL;
 		}
 		len = sizeof(sin6);
 		cc = recvfrom(s, buf, sizeof(buf), 0,
 			      (struct sockaddr *)&sin6, &len);
 		if (cc <= 0) {
-			close(s);
+			_libc_close(s);
 			return NULL;
 		}
 		if (cc < sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr))
@@ -1207,7 +1207,7 @@ _icmp_fqdn_query(const struct in6_addr *addr, int ifindex)
 		if (fr->icmp6_fqdn_type == ICMP6_FQDN_REPLY)
 			break;
 	}
-	close(s);
+	_libc_close(s);
 	if (fr->icmp6_fqdn_cookie[1] != 0) {
 		/* rfc1788 type */
 		name = buf + sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr) + 4;

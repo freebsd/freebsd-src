@@ -1,6 +1,8 @@
 /*
 ** This file is in the public domain, so clarified as of
 ** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+**
+** $FreeBSD$
 */
 
 #ifndef lint
@@ -312,7 +314,7 @@ register struct state * const	sp;
 		}
 		if (doaccess && access(name, R_OK) != 0)
 		     	return -1;
-		if ((fid = open(name, OPEN_MODE)) == -1)
+		if ((fid = _libc_open(name, OPEN_MODE)) == -1)
 			return -1;
 		if ((fstat(fid, &stab) < 0) || !S_ISREG(stab.st_mode))
 			return -1;
@@ -323,8 +325,8 @@ register struct state * const	sp;
 		int		ttisstdcnt;
 		int		ttisgmtcnt;
 
-		i = read(fid, buf, sizeof buf);
-		if (close(fid) != 0)
+		i = _libc_read(fid, buf, sizeof buf);
+		if (_libc_close(fid) != 0)
 			return -1;
 		p = buf;
 		p += (sizeof tzhp->tzh_magic) + (sizeof tzhp->tzh_reserved);

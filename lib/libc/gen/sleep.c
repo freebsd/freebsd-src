@@ -45,7 +45,7 @@ static char rcsid[] =
 #include <unistd.h>
 
 unsigned int
-sleep(seconds)
+__sleep(seconds)
 	unsigned int seconds;
 {
 	struct timespec time_to_sleep;
@@ -56,14 +56,17 @@ sleep(seconds)
 	 * the maximum value for a time_t is >= INT_MAX.
 	 */
 	if (seconds > INT_MAX)
-		return (seconds - INT_MAX + sleep(INT_MAX));
+		return (seconds - INT_MAX + __sleep(INT_MAX));
 
 	time_to_sleep.tv_sec = seconds;
 	time_to_sleep.tv_nsec = 0;
-	if (nanosleep(&time_to_sleep, &time_remaining) != -1)
+	if (_libc_nanosleep(&time_to_sleep, &time_remaining) != -1)
 		return (0);
 	if (errno != EINTR)
 		return (seconds);		/* best guess */
 	return (time_remaining.tv_sec +
 		(time_remaining.tv_nsec != 0)); /* round up */
 }
+
+__weak_reference(__sleep, _libc_sleep);
+__weak_reference(_libc_sleep, sleep);

@@ -482,7 +482,7 @@ explore_fqdn(pai, hostname, servname, res)
 	s = socket(pai->ai_family, SOCK_DGRAM, 0);
 	if (s < 0)
 		return 0;
-	close(s);
+	_libc_close(s);
 
 	/*
 	 * if the servname does not match socktype/protocol, ignore it.
@@ -590,7 +590,7 @@ explore_null(pai, hostname, servname, res)
 	s = socket(pai->ai_family, SOCK_DGRAM, 0);
 	if (s < 0)
 		return 0;
-	close(s);
+	_libc_close(s);
 	afd = find_afd(pai->ai_family);
 	if (afd == NULL)
 		return 0;

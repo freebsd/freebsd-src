@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -251,12 +253,12 @@ error(err)
 	char *p;
 	char num[30];
 
-	(void)write(STDERR_FILENO, "fstab: ", 7);
-	(void)write(STDERR_FILENO, _PATH_FSTAB, sizeof(_PATH_FSTAB) - 1);
-	(void)write(STDERR_FILENO, ":", 1);
+	(void)_libc_write(STDERR_FILENO, "fstab: ", 7);
+	(void)_libc_write(STDERR_FILENO, _PATH_FSTAB, sizeof(_PATH_FSTAB) - 1);
+	(void)_libc_write(STDERR_FILENO, ":", 1);
 	sprintf(num, "%d: ", LineNo);
-	(void)write(STDERR_FILENO, num, strlen(num));
+	(void)_libc_write(STDERR_FILENO, num, strlen(num));
 	p = strerror(err);
-	(void)write(STDERR_FILENO, p, strlen(p));
-	(void)write(STDERR_FILENO, "\n", 1);
+	(void)_libc_write(STDERR_FILENO, p, strlen(p));
+	(void)_libc_write(STDERR_FILENO, "\n", 1);
 }
