@@ -39,7 +39,7 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_OPEN "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td"
+.Fn VOP_OPEN "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td" "int fdidx"
 .Ft int
 .Fn VOP_CLOSE "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
@@ -58,6 +58,13 @@ the access mode required by the calling process
 .It Fa td
 the thread which is accessing the file
 .El
+.Pp
+Additionally,
+.Fn VOP_OPEN
+can accept a file descriptor number in
+.Fa fdidx ;
+this is useful for file systems which require such information, e.g.
+.Xr fdesc 5 .
 .Pp
 The access mode is a set of flags, including
 .Dv FREAD ,
@@ -78,6 +85,14 @@ Note that
 .Fa vn_close
 expects an unlocked, referenced vnode and will dereference the vnode prior
 to returning.
+.Sh IMPLEMENTATION NOTES
+The
+.Fa fdidx
+argument to
+.Fn VOP_OPEN
+is currently unused, use
+.Ql \-1
+for the meantime; however, this will change in future.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error code is returned.
 .Sh PSEUDOCODE
