@@ -2,7 +2,8 @@
    hosting on Windows NT 3.x, using a Unix style C library and tools,
    as distinct from winnt.h, which is used to build GCC for use with a
    windows style library and tool set and uses the Microsoft tools.
-   Copyright (C) 1995-1998 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,7 +20,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA. */
+Boston, MA 02111-1307, USA.  */
 
 #define YES_UNDERSCORES
 
@@ -33,7 +34,7 @@ Boston, MA 02111-1307, USA. */
 #include "i386/gas.h"
 #include "dbxcoff.h"
 
-/* Augment TARGET_SWITCHES with the cygwin/win32 options. */
+/* Augment TARGET_SWITCHES with the cygwin/win32 options.  */
 #define MASK_WIN32 0x40000000 /* Use -lming32 interface */
 #define MASK_CYGWIN  0x20000000 /* Use -lcygwin interface */
 #define MASK_WINDOWS 0x10000000 /* Use windows interface */
@@ -47,21 +48,25 @@ Boston, MA 02111-1307, USA. */
 #define TARGET_NOP_FUN_DLLIMPORT (target_flags & MASK_NOP_FUN_DLLIMPORT)
 
 #undef  SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES \
-    { "win32",                           MASK_WIN32, "Use Mingw32 interface" }, \
-    { "cygwin",                          MASK_CYGWIN, "Use Cygwin interface"  },  \
-    { "windows",                         MASK_WINDOWS, "Use bare Windows interface" }, \
-    { "dll",                             MASK_DLL, "Generate code for a DLL" },     \
-    { "nop-fun-dllimport",		 MASK_NOP_FUN_DLLIMPORT, "Ignore dllimport for functions" }, \
-    { "no-nop-fun-dllimport",		 MASK_NOP_FUN_DLLIMPORT, "" },
+#define SUBTARGET_SWITCHES						\
+    { "win32",			MASK_WIN32,				\
+      N_("Use Mingw32 interface") },					\
+    { "cygwin",			MASK_CYGWIN,				\
+      N_("Use Cygwin interface")  },					\
+    { "windows",		MASK_WINDOWS,				\
+      N_("Use bare Windows interface") },				\
+    { "dll",			MASK_DLL,				\
+      N_("Generate code for a DLL") },					\
+    { "nop-fun-dllimport",	MASK_NOP_FUN_DLLIMPORT,			\
+      N_("Ignore dllimport for functions") }, 				\
+    { "no-nop-fun-dllimport",	MASK_NOP_FUN_DLLIMPORT, "" },
 
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D_WIN32 \
-  -DWINNT  -D_X86_=1 -D__STDC__=1\
+#define CPP_PREDEFINES "-D_WIN32 -DWINNT -D_X86_=1 \
   -D__stdcall=__attribute__((__stdcall__)) \
   -D__cdecl=__attribute__((__cdecl__)) \
-  -Asystem(winnt)"
+  -Asystem=winnt"
 
 #undef STARTFILE_SPEC
 
@@ -97,53 +102,6 @@ Boston, MA 02111-1307, USA. */
    so take that from libgcc2.c */
 
 #define NEED_ATEXIT 1
-#define HAVE_ATEXIT 1     
-
-#undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_ctor, in_dtor
-
-#undef EXTRA_SECTION_FUNCTIONS
-#define EXTRA_SECTION_FUNCTIONS					\
-  CTOR_SECTION_FUNCTION						\
-  DTOR_SECTION_FUNCTION
-
-#define CTOR_SECTION_FUNCTION					\
-void								\
-ctor_section ()							\
-{								\
-  if (in_section != in_ctor)					\
-    {								\
-      fprintf (asm_out_file, "\t.section .ctor\n");		\
-      in_section = in_ctor;					\
-    }								\
-}
-
-#define DTOR_SECTION_FUNCTION					\
-void								\
-dtor_section ()							\
-{								\
-  if (in_section != in_dtor)					\
-    {								\
-      fprintf (asm_out_file, "\t.section .dtor\n");		\
-      in_section = in_dtor;					\
-    }								\
-}
-
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)	\
-  do {						\
-    ctor_section ();				\
-    fprintf (FILE, "%s\t", ASM_LONG);		\
-    assemble_name (FILE, NAME);			\
-    fprintf (FILE, "\n");			\
-  } while (0)
-
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       	\
-  do {						\
-    dtor_section ();                   		\
-    fprintf (FILE, "%s\t", ASM_LONG);		\
-    assemble_name (FILE, NAME);              	\
-    fprintf (FILE, "\n");			\
-  } while (0)
 
 /* Define this macro if references to a symbol must be treated
    differently depending on something about the variable or
@@ -155,7 +113,7 @@ dtor_section ()							\
    On i386 running Windows NT, modify the assembler name with a suffix 
    consisting of an atsign (@) followed by string of digits that represents
    the number of bytes of arguments passed to the function, if it has the 
-   attribute STDCALL. */
+   attribute STDCALL.  */
 
 #ifdef ENCODE_SECTION_INFO
 #undef ENCODE_SECTION_INFO
@@ -186,16 +144,17 @@ while (0)
 #undef  STRIP_NAME_ENCODING
 #define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME)				\
 do {									\
-  char *_p;								\
-  char *_name = ((SYMBOL_NAME) + ((SYMBOL_NAME)[0] == '*'));		\
+  const char *_p;							\
+  const char *const _name = ((SYMBOL_NAME) + ((SYMBOL_NAME)[0] == '*'));\
   for (_p = _name; *_p && *_p != '@'; ++_p)				\
     ;									\
   if (*_p == '@')							\
     {									\
       int _len = _p - _name;						\
-      (VAR) = (char *) alloca (_len + 1);				\
-      strncpy ((VAR), _name, _len);					\
-      (VAR)[_len] = '\0';						\
+      char *_new_name = (char *) alloca (_len + 1);			\
+      strncpy (_new_name, _name, _len);					\
+      _new_name[_len] = '\0';						\
+      (VAR) = _new_name;						\
     }									\
   else									\
     (VAR) = _name;							\
@@ -203,15 +162,15 @@ do {									\
       
 
 /* Emit code to check the stack when allocating more that 4000
-   bytes in one go. */
+   bytes in one go.  */
 
 #define CHECK_STACK_LIMIT 4000
 
 /* By default, target has a 80387, uses IEEE compatible arithmetic,
    and returns float values in the 387 and needs stack probes */
-#undef TARGET_DEFAULT
+#undef TARGET_SUBTARGET_DEFAULT
 
-#define TARGET_DEFAULT \
+#define TARGET_SUBTARGET_DEFAULT \
    (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_STACK_PROBE) 
 
 /* This is how to output an assembler line
@@ -228,53 +187,29 @@ do {									\
    symbols must be explicitly imported from shared libraries (DLLs).  */
 #define MULTIPLE_SYMBOL_SPACES
 
-#define UNIQUE_SECTION_P(DECL) DECL_ONE_ONLY (DECL)
 extern void i386_pe_unique_section ();
 #define UNIQUE_SECTION(DECL,RELOC) i386_pe_unique_section (DECL, RELOC)
 
 #define SUPPORTS_ONE_ONLY 1
 
-/* A C statement to output something to the assembler file to switch to section
-   NAME for object DECL which is either a FUNCTION_DECL, a VAR_DECL or
-   NULL_TREE.  Some target formats do not support arbitrary sections.  Do not
-   define this macro in such cases.  */
-#undef ASM_OUTPUT_SECTION_NAME
-#define ASM_OUTPUT_SECTION_NAME(STREAM, DECL, NAME, RELOC)	\
-do {								\
-  if ((DECL) && TREE_CODE (DECL) == FUNCTION_DECL)		\
-    fprintf (STREAM, "\t.section %s,\"x\"\n", (NAME));		\
-  else if ((DECL) && DECL_READONLY_SECTION (DECL, RELOC))	\
-    fprintf (STREAM, "\t.section %s,\"\"\n", (NAME));		\
-  else								\
-    fprintf (STREAM, "\t.section %s,\"w\"\n", (NAME));		\
-  /* Functions may have been compiled at various levels of	\
-     optimization so we can't use `same_size' here.  Instead,	\
-     have the linker pick one.  */				\
-  if ((DECL) && DECL_ONE_ONLY (DECL))				\
-    fprintf (STREAM, "\t.linkonce %s\n",			\
-	     TREE_CODE (DECL) == FUNCTION_DECL			\
-	     ? "discard" : "same_size");			\
-} while (0)
+/* Switch into a generic section.  */
+#define TARGET_ASM_NAMED_SECTION  i386_pe_asm_named_section
+
+/* Select attributes for named sections.  */
+#define TARGET_SECTION_TYPE_FLAGS  i386_pe_section_type_flags
 
 #undef ASM_COMMENT_START
 #define ASM_COMMENT_START " #"
 
-/* DWARF2 Unwinding doesn't work with exception handling yet. */
-#define DWARF2_UNWIND_INFO 0
-
-/* Don't assume anything about the header files. */
+/* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
 
 #define SUBTARGET_PROLOGUE						\
-  if (profile_flag 							\
-      && strcmp (IDENTIFIER_POINTER (DECL_NAME (current_function_decl)),\
-		 "main") == 0)						\
+  if (current_function_profile						\
+      && MAIN_NAME_P (DECL_NAME (current_function_decl))		\
      {									\
       rtx xops[1];							\
       xops[0] = gen_rtx_MEM (FUNCTION_MODE,				\
 			 gen_rtx (SYMBOL_REF, Pmode, "_monstartup"));	\
-      if (do_rtl)							\
-	emit_call_insn (gen_rtx (CALL, VOIDmode, xops[0], const0_rtx));	\
-      else								\
-	output_asm_insn (AS1 (call,%P1), xops);			\
+      emit_call_insn (gen_rtx (CALL, VOIDmode, xops[0], const0_rtx));	\
      }

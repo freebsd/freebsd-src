@@ -1,31 +1,31 @@
 /* Scan linker error messages for missing template instantiations and provide
    them.
 
-   Copyright (C) 1995, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
    Contributed by Jason Merrill (jason@cygnus.com).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "intl.h"
 #include "hash.h"
 #include "demangle.h"
-#include "toplev.h"
 #include "collect2.h"
 
 #define MAX_ITERATIONS 17
@@ -33,14 +33,6 @@ Boston, MA 02111-1307, USA.  */
 /* Obstack allocation and deallocation routines.  */
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
-
-/* Defined in collect2.c.  */
-extern int vflag, debug;
-extern char *ldout;
-extern char *c_file_name;
-extern struct obstack temporary_obstack;
-extern struct obstack permanent_obstack;
-extern char * temporary_firstobj;
 
 /* Defined in the automatically-generated underscore.c.  */
 extern int prepends_underscore;
@@ -80,7 +72,7 @@ static struct hash_entry * symbol_hash_newfunc PARAMS ((struct hash_entry *,
 							struct hash_table *,
 							hash_table_key));
 static struct symbol_hash_entry * symbol_hash_lookup PARAMS ((const char *,
-							      boolean));
+							      int));
 static struct hash_entry * file_hash_newfunc PARAMS ((struct hash_entry *,
 						      struct hash_table *,
 						      hash_table_key));
@@ -89,14 +81,14 @@ static struct hash_entry * demangled_hash_newfunc PARAMS ((struct hash_entry *,
 							   struct hash_table *,
 							   hash_table_key));
 static struct demangled_hash_entry *
-  demangled_hash_lookup PARAMS ((const char *, boolean));
+  demangled_hash_lookup PARAMS ((const char *, int));
 static void symbol_push PARAMS ((symbol *));
 static symbol * symbol_pop PARAMS ((void));
 static void file_push PARAMS ((file *));
 static file * file_pop PARAMS ((void));
 static void tlink_init PARAMS ((void));
-static int tlink_execute PARAMS ((char *, char **, char *));
-static char * frob_extension PARAMS ((char *, const char *));
+static int tlink_execute PARAMS ((const char *, char **, const char *));
+static char * frob_extension PARAMS ((const char *, const char *));
 static char * obstack_fgets PARAMS ((FILE *, struct obstack *));
 static char * tfgets PARAMS ((FILE *));
 static char * pfgets PARAMS ((FILE *));
@@ -115,7 +107,7 @@ static struct hash_entry *
 symbol_hash_newfunc (entry, table, string)
      struct hash_entry *entry;
      struct hash_table *table;
-     hash_table_key string;
+     hash_table_key string ATTRIBUTE_UNUSED;
 {
   struct symbol_hash_entry *ret = (struct symbol_hash_entry *) entry;
   if (ret == NULL)
@@ -137,11 +129,11 @@ symbol_hash_newfunc (entry, table, string)
 static struct symbol_hash_entry *
 symbol_hash_lookup (string, create)
      const char *string;
-     boolean create;
+     int create;
 {
   return ((struct symbol_hash_entry *)
-	  hash_lookup (&symbol_table, (hash_table_key) string, 
-		       create, &string_copy));
+	  hash_lookup (&symbol_table, (const hash_table_key) string, 
+		       create, string_copy));
 }
 
 static struct hash_table file_table;
@@ -153,7 +145,7 @@ static struct hash_entry *
 file_hash_newfunc (entry, table, string)
      struct hash_entry *entry;
      struct hash_table *table;
-     hash_table_key string;
+     hash_table_key string ATTRIBUTE_UNUSED;
 {
    struct file_hash_entry *ret = (struct file_hash_entry *) entry;
   if (ret == NULL)
@@ -177,8 +169,8 @@ file_hash_lookup (string)
      const char *string;
 {
   return ((struct file_hash_entry *)
-	  hash_lookup (&file_table, (hash_table_key) string, true, 
-		       &string_copy));
+	  hash_lookup (&file_table, (const hash_table_key) string, true, 
+		       string_copy));
 }
 
 static struct hash_table demangled_table;
@@ -190,7 +182,7 @@ static struct hash_entry *
 demangled_hash_newfunc (entry, table, string)
      struct hash_entry *entry;
      struct hash_table *table;
-     hash_table_key string;
+     hash_table_key string ATTRIBUTE_UNUSED;
 {
   struct demangled_hash_entry *ret = (struct demangled_hash_entry *) entry;
   if (ret == NULL)
@@ -209,11 +201,11 @@ demangled_hash_newfunc (entry, table, string)
 static struct demangled_hash_entry *
 demangled_hash_lookup (string, create)
      const char *string;
-     boolean create;
+     int create;
 {
   return ((struct demangled_hash_entry *)
-	  hash_lookup (&demangled_table, (hash_table_key) string, 
-		       create, &string_copy));
+	  hash_lookup (&demangled_table, (const hash_table_key) string, 
+		       create, string_copy));
 }
 
 /* Stack code.  */
@@ -296,14 +288,14 @@ file_pop ()
 static void
 tlink_init ()
 {
-  char *p;
+  const char *p;
 
-  hash_table_init (&symbol_table, symbol_hash_newfunc, &string_hash,
-		   &string_compare);
-  hash_table_init (&file_table, file_hash_newfunc, &string_hash, 
-		   &string_compare);
+  hash_table_init (&symbol_table, symbol_hash_newfunc, string_hash,
+		   string_compare);
+  hash_table_init (&file_table, file_hash_newfunc, string_hash, 
+		   string_compare);
   hash_table_init (&demangled_table, demangled_hash_newfunc,
-		   &string_hash, &string_compare);
+		   string_hash, string_compare);
   obstack_begin (&symbol_stack_obstack, 0);
   obstack_begin (&file_stack_obstack, 0);
 
@@ -322,9 +314,9 @@ tlink_init ()
 
 static int
 tlink_execute (prog, argv, redir)
-     char *prog;
+     const char *prog;
      char **argv;
-     char *redir;
+     const char *redir;
 {
   collect_execute (prog, argv, redir);
   return collect_wait (prog);
@@ -332,13 +324,13 @@ tlink_execute (prog, argv, redir)
 
 static char *
 frob_extension (s, ext)
-     char *s;
+     const char *s;
      const char *ext;
 {
-  char *p = rindex (s, '/');
+  const char *p = strrchr (s, '/');
   if (! p)
     p = s;
-  p = rindex (p, '.');
+  p = strrchr (p, '.');
   if (! p)
     p = s + strlen (s);
 
@@ -391,7 +383,7 @@ freadsym (stream, f, chosen)
   symbol *sym;
 
   {
-    char *name = tfgets (stream);
+    const char *name = tfgets (stream);
     sym = symbol_hash_lookup (name, true);
   }
 
@@ -433,7 +425,7 @@ read_repo_file (f)
   FILE *stream = fopen ((char*) f->root.key, "r");
 
   if (tlink_verbose >= 2)
-    fprintf (stderr, "collect: reading %s\n", 
+    fprintf (stderr, _("collect: reading %s\n"), 
 	     (char*) f->root.key);
 
   while (fscanf (stream, "%c ", &c) == 1)
@@ -503,11 +495,14 @@ recompile_files ()
 {
   file *f;
 
+  putenv (xstrdup ("COMPILER_PATH"));
+  putenv (xstrdup ("LIBRARY_PATH"));
+  
   while ((f = file_pop ()) != NULL)
     {
       char *line, *command;
       FILE *stream = fopen ((char*) f->root.key, "r");
-      char *outname = frob_extension ((char*) f->root.key, ".rnw");
+      const char *const outname = frob_extension ((char*) f->root.key, ".rnw");
       FILE *output = fopen (outname, "w");
 
       while ((line = tfgets (stream)) != NULL)
@@ -534,7 +529,7 @@ recompile_files ()
       command = obstack_copy0 (&temporary_obstack, f->main, strlen (f->main));
 
       if (tlink_verbose)
-	fprintf (stderr, "collect: recompiling %s\n", f->main);
+	fprintf (stderr, _("collect: recompiling %s\n"), f->main);
       if (tlink_verbose >= 3)
 	fprintf (stderr, "%s\n", command);
 
@@ -559,8 +554,14 @@ read_repo_files (object_lst)
 
   for (; *object; object++)
     {
-      char *p = frob_extension (*object, ".rpo");
+      const char *p;
       file *f;
+
+      /* Don't bother trying for ld flags.  */
+      if (*object[0] == '-')
+	continue;
+
+      p = frob_extension (*object, ".rpo");
 
       if (! file_exists (p))
 	continue;
@@ -586,7 +587,7 @@ demangle_new_symbols ()
   while ((sym = symbol_pop ()) != NULL)
     {
       demangled *dem;
-      char *p = cplus_demangle ((char*) sym->root.key, 
+      const char *p = cplus_demangle ((char*) sym->root.key, 
 				DMGL_PARAMS | DMGL_ANSI);
 
       if (! p)
@@ -632,22 +633,46 @@ scan_linker_output (fname)
       *q = 0;
       sym = symbol_hash_lookup (p, false);
 
+      /* Some SVR4 linkers produce messages like
+	 ld: 0711-317 ERROR: Undefined symbol: .g__t3foo1Zi
+	 */
+      if (! sym && ! end && strstr (q+1, "Undefined symbol: "))
+	{
+	  char *p = strrchr (q+1, ' ');
+	  p++;
+	  if (*p == '.')
+	    p++;
+	  if (*p == '_' && prepends_underscore)
+	    p++;
+	  sym = symbol_hash_lookup (p, false);
+	}
+
       if (! sym && ! end)
 	/* Try a mangled name in quotes.  */
 	{
-	  char *oldq = q+1;
+	  const char *oldq = q+1;
 	  demangled *dem = 0;
 	  q = 0;
 
 	  /* First try `GNU style'.  */
-	  p = index (oldq, '`');
+	  p = strchr (oldq, '`');
 	  if (p)
-	    p++, q = index (p, '\'');
+	    p++, q = strchr (p, '\'');
 	  /* Then try "double quotes".  */
-	  else if (p = index (oldq, '"'), p)
-	    p++, q = index (p, '"');
+	  else if (p = strchr (oldq, '"'), p)
+	    p++, q = strchr (p, '"');
 
-	  if (q)
+	  /* Don't let the strstr's below see the demangled name; we
+	     might get spurious matches.  */
+	  if (p)
+	    p[-1] = '\0';
+
+	  /* We need to check for certain error keywords here, or we would
+	     mistakenly use GNU ld's "In function `foo':" message.  */
+	  if (q && (strstr (oldq, "ndefined")
+		    || strstr (oldq, "nresolved")
+		    || strstr (oldq, "nsatisfied")
+		    || strstr (oldq, "ultiple")))
 	    {
 	      *q = 0;
 	      dem = demangled_hash_lookup (p, false);
@@ -670,7 +695,7 @@ scan_linker_output (fname)
       if (sym && !sym->tweaking)
 	{
 	  if (tlink_verbose >= 2)
-	    fprintf (stderr, "collect: tweaking %s in %s\n",
+	    fprintf (stderr, _("collect: tweaking %s in %s\n"),
 		     (char*) sym->root.key, (char*) sym->file->root.key);
 	  sym->tweaking = 1;
 	  file_push (sym->file);
@@ -694,7 +719,7 @@ scan_linker_output (fname)
 
 void
 do_tlink (ld_argv, object_lst)
-     char **ld_argv, **object_lst;
+     char **ld_argv, **object_lst ATTRIBUTE_UNUSED;
 {
   int exit = tlink_execute ("ld", ld_argv, ldout);
 
@@ -717,7 +742,7 @@ do_tlink (ld_argv, object_lst)
 	    if (! recompile_files ())
 	      break;
 	    if (tlink_verbose)
-	      fprintf (stderr, "collect: relinking\n");
+	      fprintf (stderr, _("collect: relinking\n"));
 	    exit = tlink_execute ("ld", ld_argv, ldout);
 	  }
     }

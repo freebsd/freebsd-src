@@ -1,23 +1,23 @@
 /* Output routines for graphical representation.
-   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
    Contributed by Ulrich Drepper <drepper@cygnus.com>, 1998.
 
-   This file is part of GNU CC.
+This file is part of GCC.
 
-   GNU CC is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-   GNU CC is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with GNU CC; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 #include <config.h>
 #include "system.h"
@@ -25,15 +25,24 @@
 #include "rtl.h"
 #include "flags.h"
 #include "output.h"
+#include "function.h"
 #include "hard-reg-set.h"
 #include "basic-block.h"
 #include "toplev.h"
+#include "graph.h"
 
-static const char *graph_ext[] =
+static const char *const graph_ext[] =
 {
   /* no_graph */ "",
   /* vcg */      ".vcg",
 };
+
+static void start_fct PARAMS ((FILE *));
+static void start_bb PARAMS ((FILE *, int));
+static void node_data PARAMS ((FILE *, rtx));
+static void draw_edge PARAMS ((FILE *, int, int, int, int));
+static void end_fct PARAMS ((FILE *));
+static void end_bb PARAMS ((FILE *));
 
 /* Output text for new basic block.  */
 static void
@@ -71,7 +80,7 @@ label: \"basic block %d",
     }
 
 #if 0
-  /* FIXME Should this be printed?  It makes the graph significantly larger. */
+  /* FIXME Should this be printed?  It makes the graph significantly larger.  */
 
   /* Print the live-at-start register list.  */
   fputc ('\n', fp);
@@ -138,35 +147,12 @@ darkgrey\n  shape: ellipse" : "white",
   /* Print the RTL.  */
   if (GET_CODE (tmp_rtx) == NOTE)
     {
-      static const char *note_names[] =
-      {
-	NULL,
-	"deleted",
-	"block_beg",
-	"block_end",
-	"loop_beg",
-	"loop_end",
-	"function_end",
-	"setjmp",
-	"loop_cont",
-	"loop_vtop",
-	"prologue_end",
-	"epilogue_beg",
-	"deleted_label",
-	"function_beg",
-	"eh_region_beg",
-	"eh_region_end",
-	"repeated_line_number",
-	"range_start",
-	"range_end",
-	"live",
-	"basic_block"
-      };
-
-      fprintf (fp, " %s",
-	       XINT (tmp_rtx, 4) < 0 ? note_names[-XINT (tmp_rtx, 4)] : "");
+      const char *name = "";
+      if (NOTE_LINE_NUMBER (tmp_rtx) < 0)
+	name =  GET_NOTE_INSN_NAME (NOTE_LINE_NUMBER (tmp_rtx));
+      fprintf (fp, " %s", name);
     }
-  else if (GET_RTX_CLASS (GET_CODE (tmp_rtx)) == 'i')
+  else if (INSN_P (tmp_rtx))
     print_rtl_single (fp, PATTERN (tmp_rtx));
   else
     print_rtl_single (fp, tmp_rtx);
@@ -189,7 +175,7 @@ draw_edge (fp, from, to, bb_edge, class)
      int bb_edge;
      int class;
 {
-  char * color;
+  const char * color;
   switch (graph_dump_format)
     {
     case vcg:
@@ -214,9 +200,8 @@ draw_edge (fp, from, to, bb_edge, class)
 }
 
 static void
-end_bb (fp, bb)
+end_bb (fp)
      FILE *fp;
-     int bb ATTRIBUTE_UNUSED;
 {
   switch (graph_dump_format)
     {
@@ -251,7 +236,7 @@ print_rtl_graph_with_bb (base, suffix, rtx_first)
      const char *suffix;
      rtx rtx_first;
 {
-  register rtx tmp_rtx;
+  rtx tmp_rtx;
   size_t namelen = strlen (base);
   size_t suffixlen = strlen (suffix);
   size_t extlen = strlen (graph_ext[graph_dump_format]) + 1;
@@ -276,10 +261,10 @@ print_rtl_graph_with_bb (base, suffix, rtx_first)
       int i;
       enum bb_state { NOT_IN_BB, IN_ONE_BB, IN_MULTIPLE_BB };
       int max_uid = get_max_uid ();
-      int *start = (int *) alloca (max_uid * sizeof (int));
-      int *end = (int *) alloca (max_uid * sizeof (int));
+      int *start = (int *) xmalloc (max_uid * sizeof (int));
+      int *end = (int *) xmalloc (max_uid * sizeof (int));
       enum bb_state *in_bb_p = (enum bb_state *)
-	alloca (max_uid * sizeof (enum bb_state));
+	xmalloc (max_uid * sizeof (enum bb_state));
       basic_block bb;
 
       for (i = 0; i < max_uid; ++i)
@@ -345,7 +330,7 @@ print_rtl_graph_with_bb (base, suffix, rtx_first)
 	      bb = BASIC_BLOCK (i);
 
 	      /* End of the basic block.  */
-	      end_bb (fp, bb);
+	      end_bb (fp);
 
 	      /* Now specify the edges to all the successors of this
 		 basic block.  */
@@ -402,6 +387,11 @@ print_rtl_graph_with_bb (base, suffix, rtx_first)
       dump_for_graph = 0;
 
       end_fct (fp);
+
+      /* Clean up.  */
+      free (start);
+      free (end);
+      free (in_bb_p);
     }
 
   fclose (fp);
@@ -409,6 +399,7 @@ print_rtl_graph_with_bb (base, suffix, rtx_first)
 
 
 /* Similar as clean_dump_file, but this time for graph output files.  */
+
 void
 clean_graph_dump_file (base, suffix)
      const char *base;
@@ -427,7 +418,7 @@ clean_graph_dump_file (base, suffix)
   fp = fopen (buf, "w");
 
   if (fp == NULL)
-    pfatal_with_name (buf);
+    fatal_io_error ("can't open %s", buf);
 
   switch (graph_dump_format)
     {

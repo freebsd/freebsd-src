@@ -1,23 +1,24 @@
 /* This file contains the definitions and documentation for the
    tree codes used in the GNU C compiler.
-   Copyright (C) 1987, 1988, 1993, 1995, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1993, 1995, 1997, 1998, 2000, 2001
+   Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
  
 /* The third argument can be:
@@ -50,11 +51,6 @@ DEFTREECODE (ERROR_MARK, "error_mark", 'x', 0)
    Use `get_identifier' to get it (or create it, the first time).  */
 DEFTREECODE (IDENTIFIER_NODE, "identifier_node", 'x', -1)
 
-/* Used to hold information to identify an operator (or combination
-   of two operators) considered as a `noun' rather than a `verb'.
-   The first operand is encoded in the TREE_TYPE field.  */
-DEFTREECODE (OP_IDENTIFIER, "op_identifier", 'x', 2)
-
 /* Has the TREE_VALUE and TREE_PURPOSE fields.  */
 /* These nodes are made into lists by chaining through the
    TREE_CHAIN field.  The elements of the list live in the
@@ -82,7 +78,9 @@ DEFTREECODE (TREE_VEC, "tree_vec", 'x', 2)
    outermost scope of a particular inlining of a function).
    BLOCK_ABSTRACT is non-zero if the block represents an abstract
    instance of a block (i.e. one which is nested within an abstract
-   instance of an inline function). */
+   instance of an inline function). 
+   TREE_ASM_WRITTEN is non-zero if the block was actually referenced
+   in the generated assembly.  */
 DEFTREECODE (BLOCK, "block", 'b', 0)
 
 /* Each data type is represented by a tree node whose code is one of
@@ -147,6 +145,10 @@ DEFTREECODE (REAL_TYPE, "real_type", 't', 0)
 /* Complex number types.  The TREE_TYPE field is the data type
    of the real and imaginary parts.  */
 DEFTREECODE (COMPLEX_TYPE, "complex_type", 't', 0)
+
+/* Vector types.  The TREE_TYPE field is the data type of the vector
+   elements.  */
+DEFTREECODE (VECTOR_TYPE, "vector_type", 't', 0)
 
 /* C enums.  The type node looks just like an INTEGER_TYPE node.
    The symbols for the values of the enum type are defined by
@@ -363,9 +365,21 @@ DEFTREECODE (INDIRECT_REF, "indirect_ref", 'r', 1)
 /* Pascal `^` on a file.  One operand, an expression for the file.  */
 DEFTREECODE (BUFFER_REF, "buffer_ref", 'r', 1)
 
-/* Array indexing in languages other than C.
+/* Array indexing.
    Operand 0 is the array; operand 1 is a (single) array index. */
 DEFTREECODE (ARRAY_REF, "array_ref", 'r', 2)
+
+/* Likewise, except that the result is a range ("slice") of the array.  The
+   starting index of the resulting array is taken from operand 1 and the size
+   of the range is taken from the type of the expression.  */
+DEFTREECODE (ARRAY_RANGE_REF, "array_range_ref", 'r', 2)
+
+/* Vtable indexing.  Carries data useful for emitting information
+   for vtable garbage collection.
+   Operand 0: an array_ref (or equivalent expression)
+   Operand 1: the vtable base (must be a var_decl)
+   Operand 2: index into vtable (must be an integer_cst).  */
+DEFTREECODE (VTABLE_REF, "vtable_ref", 'r', 3)
 
 /* Constructor: return an aggregate value made from specified components.
    In C, this is used only for structure and array initializers.
@@ -419,8 +433,10 @@ DEFTREECODE (TARGET_EXPR, "target_expr", 'e', 4)
    Operand 0 is the condition.
    Operand 1 is the then-value.
    Operand 2 is the else-value.
-   Operand 0 may be of any type, but the types of operands 1 and 2
-   must be the same and the same as the type of this expression.  */
+   Operand 0 may be of any type.
+   Operand 1 must have the same type as the entire expression, unless
+   it unconditionally throws an exception, in which case it should
+   have VOID_TYPE.  The same constraints apply to operand 2.  */
 DEFTREECODE (COND_EXPR, "cond_expr", 'e', 3)
 
 /* Declare local variables, including making RTL and allocating space.
@@ -448,10 +464,8 @@ DEFTREECODE (BIND_EXPR, "bind_expr", 'e', 3)
 
 /* Function call.  Operand 0 is the function.
    Operand 1 is the argument list, a list of expressions
-   made out of a chain of TREE_LIST nodes.
-   There is no operand 2.  That slot is used for the
-   CALL_EXPR_RTL macro (see preexpand_calls).  */
-DEFTREECODE (CALL_EXPR, "call_expr", 'e', 3)
+   made out of a chain of TREE_LIST nodes.  */
+DEFTREECODE (CALL_EXPR, "call_expr", 'e', 2)
 
 /* Call a method.  Operand 0 is the method, whose type is a METHOD_TYPE.
    Operand 1 is the expression for "self".
@@ -460,8 +474,8 @@ DEFTREECODE (METHOD_CALL_EXPR, "method_call_expr", 'e', 4)
 
 /* Specify a value to compute along with its corresponding cleanup.
    Operand 0 argument is an expression whose value needs a cleanup.
-   Operand 1 is an RTL_EXPR which will eventually represent that value.
-   Operand 2 is the cleanup expression for the object.
+   Operand 1 is the cleanup expression for the object.
+   Operand 2 is an RTL_EXPR which will eventually represent that value.
      The RTL_EXPR is used in this expression, which is how the expression
      manages to act on the proper value.
    The cleanup is executed by the first enclosing CLEANUP_POINT_EXPR, if
@@ -490,39 +504,48 @@ DEFTREECODE (WITH_CLEANUP_EXPR, "with_cleanup_expr", 'e', 3)
 DEFTREECODE (CLEANUP_POINT_EXPR, "cleanup_point_expr", 'e', 1)
 
 /* The following two codes are used in languages that have types where
-   the position and/or sizes of fields vary from object to object of the
-   same type, i.e., where some other field in the object contains a value
-   that is used in the computation of another field's offset or size.
+   some field in an object of the type contains a value that is used in
+   the computation of another field's offset or size and/or the size of
+   the type.  The positions and/or sizes of fields can vary from object
+   to object of the same type.
 
-   For example, a record type with a discriminant in Ada is such a type.
-   This mechanism is also used to create "fat pointers" for unconstrained
-   array types in Ada; the fat pointer is a structure one of whose fields is
-   a pointer to the actual array type and the other field is a pointer to a
-   template, which is a structure containing the bounds of the array.  The
-   bounds in the type pointed to by the first field in the fat pointer refer
-   to the values in the template.
+   Record types with discriminants in Ada or schema types in Pascal are
+   examples of such types.  This mechanism is also used to create "fat
+   pointers" for unconstrained array types in Ada; the fat pointer is a
+   structure one of whose fields is a pointer to the actual array type
+   and the other field is a pointer to a template, which is a structure
+   containing the bounds of the array.  The bounds in the type pointed
+   to by the first field in the fat pointer refer to the values in the
+   template.
 
-   These "self-references" are doing using a PLACEHOLDER_EXPR.  This is a
-   node that will later be replaced with the object being referenced.  Its type
-   is that of the object and selects which object to use from a chain of
-   references (see below).
+   When you wish to construct such a type you need "self-references"
+   that allow you to reference the object having this type from the
+   TYPE node, i.e. without having a variable instantiating this type.
 
-   When we wish to evaluate a size or offset, we check it is contains a
-   placeholder.  If it does, we construct a WITH_RECORD_EXPR that contains
-   both the expression we wish to evaluate and an expression within which the
-   object may be found.  The latter expression is the object itself in
-   the simple case of an Ada record with discriminant, but it can be the
-   array in the case of an unconstrained array.
+   Such a "self-references" is done using a PLACEHOLDER_EXPR.  This is
+   a node that will later be replaced with the object being referenced.
+   Its type is that of the object and selects which object to use from
+   a chain of references (see below).  No other slots are used in the
+   PLACEHOLDER_EXPR.
 
-   In the latter case, we need the fat pointer, because the bounds of the
-   array can only be accessed from it.  However, we rely here on the fact that
-   the expression for the array contains the dereference of the fat pointer
-   that obtained the array pointer.
+   For example, if your type FOO is a RECORD_TYPE with a field BAR,
+   and you need the value of <variable>.BAR to calculate TYPE_SIZE
+   (FOO), just substitute <variable> above with a PLACEHOLDER_EXPR
+   what contains both the expression we wish to
+   evaluate and an expression within which the object may be found.
+   The latter expression is the object itself in the simple case of an
+   Ada record with discriminant, but it can be the array in the case of
+   an unconstrained array.
+
+   In the latter case, we need the fat pointer, because the bounds of
+   the array can only be accessed from it.  However, we rely here on the
+   fact that the expression for the array contains the dereference of
+   the fat pointer that obtained the array pointer.
 
    Accordingly, when looking for the object to substitute in place of
    a PLACEHOLDER_EXPR, we look down the first operand of the expression
-   passed as the second operand to WITH_RECORD_EXPR until we find something
-   of the desired type or reach a constant.  */
+   passed as the second operand to WITH_RECORD_EXPR until we find
+   something of the desired type or reach a constant.  */
 
 /* Denotes a record to later be supplied with a WITH_RECORD_EXPR when
    evaluating this expression.  The type of this expression is used to
@@ -578,23 +601,27 @@ DEFTREECODE (FIX_ROUND_EXPR, "fix_round_expr", '1', 1)
 /* Conversion of an integer to a real.  */
 DEFTREECODE (FLOAT_EXPR, "float_expr", '1', 1)
 
-/* Exponentiation.  Operands may have any types;
-   constraints on value type are not known yet.  */
-DEFTREECODE (EXPON_EXPR, "expon_expr", '2', 2)
-
 /* Unary negation.  */
 DEFTREECODE (NEGATE_EXPR, "negate_expr", '1', 1)
 
 DEFTREECODE (MIN_EXPR, "min_expr", '2', 2)
 DEFTREECODE (MAX_EXPR, "max_expr", '2', 2)
+
+/* Represents the absolute value of the operand.
+
+   An ABS_EXPR must have either an INTEGER_TYPE or a REAL_TYPE.  The
+   operand of the ABS_EXPR must have the same type.  */
 DEFTREECODE (ABS_EXPR, "abs_expr", '1', 1)
+
 DEFTREECODE (FFS_EXPR, "ffs_expr", '1', 1)
 
 /* Shift operations for shift and rotate.
-   Shift is supposed to mean logical shift if done on an
-   unsigned type, arithmetic shift on a signed type.
+   Shift means logical shift if done on an
+   unsigned type, arithmetic shift if done on a signed type.
    The second operand is the number of bits to
-   shift by; it need not be the same type as the first operand and result.  */
+   shift by; it need not be the same type as the first operand and result.
+   Note that the result is undefined if the second operand is larger
+   than the first operand's type size.  */
 DEFTREECODE (LSHIFT_EXPR, "lshift_expr", '2', 2)
 DEFTREECODE (RSHIFT_EXPR, "rshift_expr", '2', 2)
 DEFTREECODE (LROTATE_EXPR, "lrotate_expr", '2', 2)
@@ -607,11 +634,15 @@ DEFTREECODE (BIT_AND_EXPR, "bit_and_expr", '2', 2)
 DEFTREECODE (BIT_ANDTC_EXPR, "bit_andtc_expr", '2', 2)
 DEFTREECODE (BIT_NOT_EXPR, "bit_not_expr", '1', 1)
 
-/* Combination of boolean values or of integers considered only
-   as zero or nonzero.  ANDIF and ORIF allow the second operand
-   not to be computed if the value of the expression is determined
-   from the first operand.  AND, OR, and XOR always compute the second
-   operand whether its value is needed or not (for side effects).  */
+/* ANDIF and ORIF allow the second operand not to be computed if the
+   value of the expression is determined from the first operand.  AND,
+   OR, and XOR always compute the second operand whether its value is
+   needed or not (for side effects).  The operand may have
+   BOOLEAN_TYPE or INTEGER_TYPE.  In either case, the argument will be
+   either zero or one.  For example, a TRUTH_NOT_EXPR will never have
+   a INTEGER_TYPE VAR_DECL as its argument; instead, a NE_EXPR will be
+   used to compare the VAR_DECL to zero, thereby obtaining a node with
+   value zero or one.  */
 DEFTREECODE (TRUTH_ANDIF_EXPR, "truth_andif_expr", 'e', 2)
 DEFTREECODE (TRUTH_ORIF_EXPR, "truth_orif_expr", 'e', 2)
 DEFTREECODE (TRUTH_AND_EXPR, "truth_and_expr", 'e', 2)
@@ -632,6 +663,17 @@ DEFTREECODE (GE_EXPR, "ge_expr", '<', 2)
 DEFTREECODE (EQ_EXPR, "eq_expr", '<', 2)
 DEFTREECODE (NE_EXPR, "ne_expr", '<', 2)
 
+/* Additional relational operators for floating point unordered.  */
+DEFTREECODE (UNORDERED_EXPR, "unordered_expr", '<', 2)
+DEFTREECODE (ORDERED_EXPR, "ordered_expr", '<', 2)
+
+/* These are equivalent to unordered or ... */
+DEFTREECODE (UNLT_EXPR, "unlt_expr", '<', 2)
+DEFTREECODE (UNLE_EXPR, "unle_expr", '<', 2)
+DEFTREECODE (UNGT_EXPR, "ungt_expr", '<', 2)
+DEFTREECODE (UNGE_EXPR, "unge_expr", '<', 2)
+DEFTREECODE (UNEQ_EXPR, "uneq_expr", '<', 2)
+
 /* Operations for Pascal sets.  Not used now.  */
 DEFTREECODE (IN_EXPR, "in_expr", '2', 2)
 DEFTREECODE (SET_LE_EXPR, "set_le_expr", '<', 2)
@@ -649,6 +691,18 @@ DEFTREECODE (NOP_EXPR, "nop_expr", '1', 1)
 /* Value is same as argument, but guaranteed not an lvalue.  */
 DEFTREECODE (NON_LVALUE_EXPR, "non_lvalue_expr", '1', 1)
 
+/* Represents viewing something of one type as being of a second type.
+   This corresponds to an "Unchecked Conversion" in Ada and roughly to
+   the idiom *(type2 *)&X in C.  The only operand is the value to be
+   viewed as being of another type.  It is undefined if the type of the
+   input and of the expression have different sizes.
+
+   This code may also be used within the LHS of a MODIFY_EXPR, in which
+   case no actual data motion may occur.  TREE_ADDRESSABLE will be set in
+   this case and GCC must abort if it could not do the operation without
+   generating insns.  */
+DEFTREECODE (VIEW_CONVERT_EXPR, "view_convert_expr", '1', 1)
+
 /* Represents something we computed once and will use multiple times.
    First operand is that expression.  Second is the function decl
    in which the SAVE_EXPR was created.  The third operand is the RTL,
@@ -664,10 +718,13 @@ DEFTREECODE (SAVE_EXPR, "save_expr", 'e', 3)
    but where we must re-expand.  */
 DEFTREECODE (UNSAVE_EXPR, "unsave_expr", 'e', 1)
 
-/* Represents something whose RTL has already been expanded
-   as a sequence which should be emitted when this expression is expanded.
-   The first operand is the RTL to emit.  It is the first of a chain of insns.
-   The second is the RTL expression for the result.  */
+/* Represents something whose RTL has already been expanded as a
+   sequence which should be emitted when this expression is expanded.
+   The first operand is the RTL to emit.  It is the first of a chain
+   of insns.  The second is the RTL expression for the result.  Any
+   temporaries created during the building of the RTL_EXPR can be
+   reused once the RTL_EXPR has been expanded, with the exception of
+   the RTL_EXPR_RTL.  */
 DEFTREECODE (RTL_EXPR, "rtl_expr", 'e', 2)
 
 /* & in C.  Value is the address at which the operand's value resides.
@@ -678,8 +735,12 @@ DEFTREECODE (ADDR_EXPR, "addr_expr", 'e', 1)
 DEFTREECODE (REFERENCE_EXPR, "reference_expr", 'e', 1)
 
 /* Operand is a function constant; result is a function variable value
-   of typeEPmode.  Used only for languages that need static chains.  */
+   of type EPmode.  Used only for languages that need static chains.  */
 DEFTREECODE (ENTRY_VALUE_EXPR, "entry_value_expr", 'e', 1)
+
+/* Operand0 is a function constant; result is part N of a function 
+   descriptor of type ptr_mode.  */
+DEFTREECODE (FDESC_EXPR, "fdesc_expr", 'e', 2)
 
 /* Given two real or integer operands of the same type,
    returns a complex value of the corresponding complex type.  */
@@ -700,6 +761,9 @@ DEFTREECODE (PREDECREMENT_EXPR, "predecrement_expr", 'e', 2)
 DEFTREECODE (PREINCREMENT_EXPR, "preincrement_expr", 'e', 2)
 DEFTREECODE (POSTDECREMENT_EXPR, "postdecrement_expr", 'e', 2)
 DEFTREECODE (POSTINCREMENT_EXPR, "postincrement_expr", 'e', 2)
+
+/* Used to implement `va_arg'.  */
+DEFTREECODE (VA_ARG_EXPR, "va_arg_expr", 'e', 1)
 
 /* Evaluate operand 1.  If and only if an exception is thrown during
    the evaluation of operand 1, evaluate operand 2.
@@ -728,17 +792,6 @@ DEFTREECODE (TRY_FINALLY_EXPR, "try_finally", 'e', 2)
    Operand 1 is the rtx for a variable in which to store the address
    of where the subroutine should return to.  */
 DEFTREECODE (GOTO_SUBROUTINE_EXPR, "goto_subroutine", 'e', 2)
-
-/* Pop the top element off the dynamic handler chain.  Used in
-   conjunction with setjmp/longjmp based exception handling, see
-   except.c for more details.  This is meant to be used only by the
-   exception handling backend, expand_dhc_cleanup specifically.  */
-DEFTREECODE (POPDHC_EXPR, "popdhc_expr", 's', 0)
-
-/* Pop the top element off the dynamic cleanup chain.  Used in
-   conjunction with the exception handling.  This is meant to be used
-   only by the exception handling backend.  */
-DEFTREECODE (POPDCC_EXPR, "popdcc_expr", 's', 0)
 
 /* These types of expressions have no useful value,
    and always have side effects.  */
@@ -782,14 +835,20 @@ DEFTREECODE (EXIT_BLOCK_EXPR, "exit_block_expr", 'e', 2)
    information: a file name (EXPR_WFL_FILENAME);  a line number
    (EXPR_WFL_LINENO); and column number (EXPR_WFL_COLNO).  It is
    expanded as the contained node (EXPR_WFL_NODE);  a line note should
-   be emitted first if EXPR_WFL_EMIT_LINE_NOTE. */
-DEFTREECODE (EXPR_WITH_FILE_LOCATION, "expr_with_file_location", 'e', 2)
+   be emitted first if EXPR_WFL_EMIT_LINE_NOTE.  
+   The third operand is only used in the Java front-end, and will
+   eventually be removed.  */
+DEFTREECODE (EXPR_WITH_FILE_LOCATION, "expr_with_file_location", 'e', 3)
 
 /* Switch expression.
    Operand 0 is the expression used to perform the branch,
    Operand 1 contains the case values. The way they're organized is
    front-end implementation defined. */
 DEFTREECODE (SWITCH_EXPR, "switch_expr", 'e', 2)
+
+/* The exception object from the runtime.  */
+DEFTREECODE (EXC_PTR_EXPR, "exc_ptr_expr", 'e', 0)
+
 /*
 Local variables:
 mode:c

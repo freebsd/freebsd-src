@@ -1,5 +1,5 @@
 /* Specific flags and argument handling of the C++ front-end.
-   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,6 +20,7 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "gcc.h"
 
 /* This bit is set if we saw a `-xfoo' language specification.  */
 #define LANGSPEC	(1<<1)
@@ -37,10 +38,9 @@ Boston, MA 02111-1307, USA.  */
 #endif
 
 void
-lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
-     void (*fn)();
+lang_specific_driver (in_argc, in_argv, in_added_libraries)
      int *in_argc;
-     char ***in_argv;
+     const char *const **in_argv;
      int *in_added_libraries;
 {
   int i, j;
@@ -59,10 +59,10 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
 
   /* Used to track options that take arguments, so we don't go wrapping
      those with -xc++/-xnone.  */
-  char *quote = NULL;
+  const char *quote = NULL;
 
   /* The new argument list will be contained in this.  */
-  char **arglist;
+  const char **arglist;
 
   /* Non-zero if we saw a `-xfoo' language specification on the
      command line.  Used to avoid adding our own -xc++ if the user
@@ -70,10 +70,10 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
   int saw_speclang = 0;
 
   /* "-lm" or "-lmath" if it appears on the command line.  */
-  char *saw_math = 0;
+  const char *saw_math = 0;
 
   /* "-lc" if it appears on the command line.  */
-  char *saw_libc = 0;
+  const char *saw_libc = 0;
 
   /* An array used to flag each argument that needs a bit set for
      LANGSPEC, MATHLIB, or WITHLIBC.  */
@@ -82,11 +82,14 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
   /* By default, we throw on the math library if we have one.  */
   int need_math = (MATH_LIBRARY[0] != '\0');
 
+  /* True if we should add -shared-libgcc to the command-line.  */
+  int shared_libgcc = 1;
+
   /* The total number of arguments with the new stuff.  */
   int argc;
 
   /* The argument list.  */
-  char **argv;
+  const char *const *argv;
 
   /* The number of libraries added in.  */
   int added_libraries;
@@ -98,8 +101,7 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
   argv = *in_argv;
   added_libraries = *in_added_libraries;
 
-  args = (int *) xmalloc (argc * sizeof (int));
-  bzero ((char *) args, argc * sizeof (int));
+  args = (int *) xcalloc (argc, sizeof (int));
 
   for (i = 1; i < argc; i++)
     {
@@ -149,17 +151,22 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
 	    saw_speclang = 1;
 	  else if (((argv[i][2] == '\0'
 		     && (char *)strchr ("bBVDUoeTuIYmLiA", argv[i][1]) != NULL)
+		    || strcmp (argv[i], "-Xlinker") == 0
 		    || strcmp (argv[i], "-Tdata") == 0))
 	    quote = argv[i];
 	  else if (library != 0 && ((argv[i][2] == '\0'
 		     && (char *) strchr ("cSEM", argv[i][1]) != NULL)
-		    || strcmp (argv[i], "-MM") == 0))
+		    || strcmp (argv[i], "-MM") == 0
+		    || strcmp (argv[i], "-fsyntax-only") == 0))
 	    {
 	      /* Don't specify libraries if we won't link, since that would
 		 cause a warning.  */
 	      library = 0;
 	      added -= 2;
 	    }
+	  else if (strcmp (argv[i], "-static-libgcc") == 0 
+		   || strcmp (argv[i], "-static") == 0)
+	    shared_libgcc = 0;
 	  else
 	    /* Pass other options through.  */
 	    continue;
@@ -188,7 +195,7 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
     }
 
   if (quote)
-    (*fn) ("argument to `%s' missing\n", quote);
+    fatal ("argument to `%s' missing\n", quote);
 
   /* If we know we don't have to do anything, bail now.  */
   if (! added && ! library)
@@ -197,11 +204,24 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
       return;
     }
 
-  num_args = argc + added + need_math;
-  arglist = (char **) xmalloc (num_args * sizeof (char *));
+  /* There's no point adding -shared-libgcc if we don't have a shared
+     libgcc.  */
+#ifndef ENABLE_SHARED_LIBGCC
+  shared_libgcc = 0;
+#endif
+
+  /* Make sure to have room for the trailing NULL argument.  */
+  num_args = argc + added + need_math + shared_libgcc + 1;
+  arglist = (const char **) xmalloc (num_args * sizeof (char *));
+
+  i = 0;
+  j = 0;
+  
+  /* Copy the 0th argument, i.e., the name of the program itself.  */
+  arglist[i++] = argv[j++];
 
   /* NOTE: We start at 1 now, not 0.  */
-  for (i = 0, j = 0; i < argc; i++, j++)
+  while (i < argc)
     {
       arglist[j] = argv[i];
 
@@ -231,7 +251,10 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
 	  arglist[j++] = argv[i];
 	  arglist[j] = "-xnone";
 	}
-  }
+
+      i++;
+      j++;
+    }
 
   /* Add `-lstdc++' if we haven't already done so.  */
   if (library)
@@ -248,6 +271,8 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
     }
   if (saw_libc)
     arglist[j++] = saw_libc;
+  if (shared_libgcc)
+    arglist[j++] = "-shared-libgcc";
 
   arglist[j] = NULL;
 

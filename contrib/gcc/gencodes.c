@@ -1,178 +1,104 @@
 /* Generate from machine description:
-
    - some macros CODE_FOR_... giving the insn_code_number value
    for each of the defined standard insn names.
-   Copyright (C) 1987, 1991, 1995, 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1995, 1998,
+   1999, 2000, 2001 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 
 #include "hconfig.h"
 #include "system.h"
 #include "rtl.h"
-#include "obstack.h"
+#include "errors.h"
+#include "gensupport.h"
 
-static struct obstack obstack;
-struct obstack *rtl_obstack = &obstack;
-
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
-
-void fatal PVPROTO ((const char *, ...))
-  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
-void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
-
-/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
-char **insn_name_ptr = 0;
-
-static int insn_code_number;
-
-static void gen_insn PROTO((rtx));
+static void gen_insn PARAMS ((const char *, int));
 
 static void
-gen_insn (insn)
-     rtx insn;
+gen_insn (name, code)
+     const char *name;
+     int code;
 {
   /* Don't mention instructions whose names are the null string
      or begin with '*'.  They are in the machine description just
      to be recognized.  */
-  if (XSTR (insn, 0)[0] != 0 && XSTR (insn, 0)[0] != '*')
-    printf ("  CODE_FOR_%s = %d,\n", XSTR (insn, 0),
-	    insn_code_number);
+  if (name[0] != 0 && name[0] != '*')
+    printf ("  CODE_FOR_%s = %d,\n", name, code);
 }
 
-PTR
-xmalloc (size)
-  size_t size;
-{
-  register PTR val = (PTR) malloc (size);
+extern int main PARAMS ((int, char **));
 
-  if (val == 0)
-    fatal ("virtual memory exhausted");
-  return val;
-}
-
-PTR
-xrealloc (old, size)
-  PTR old;
-  size_t size;
-{
-  register PTR ptr;
-  if (old)
-    ptr = (PTR) realloc (old, size);
-  else
-    ptr = (PTR) malloc (size);
-  if (!ptr)
-    fatal ("virtual memory exhausted");
-  return ptr;
-}
-
-void
-fatal VPROTO ((const char *format, ...))
-{
-#ifndef ANSI_PROTOTYPES
-  const char *format;
-#endif
-  va_list ap;
-
-  VA_START (ap, format);
-
-#ifndef ANSI_PROTOTYPES
-  format = va_arg (ap, const char *);
-#endif
-
-  fprintf (stderr, "gencodes: ");
-  vfprintf (stderr, format, ap);
-  va_end (ap);
-  fprintf (stderr, "\n");
-  exit (FATAL_EXIT_CODE);
-}
-
-/* More 'friendly' abort that prints the line and file.
-   config.h can #define abort fancy_abort if you like that sort of thing.  */
-
-void
-fancy_abort ()
-{
-  fatal ("Internal gcc abort.");
-}
-
 int
 main (argc, argv)
      int argc;
      char **argv;
 {
   rtx desc;
-  FILE *infile;
-  register int c;
 
-  obstack_init (rtl_obstack);
+  progname = "gencodes";
 
   if (argc <= 1)
-    fatal ("No input file name.");
+    fatal ("no input file name");
 
-  infile = fopen (argv[1], "r");
-  if (infile == 0)
-    {
-      perror (argv[1]);
-      exit (FATAL_EXIT_CODE);
-    }
+  if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
+    return (FATAL_EXIT_CODE);
 
-  init_rtl ();
-
-  printf ("/* Generated automatically by the program `gencodes'\n\
-from the machine description file `md'.  */\n\n");
-
-  printf ("#ifndef MAX_INSN_CODE\n\n");
+  puts ("\
+/* Generated automatically by the program `gencodes'\n\
+   from the machine description file `md'.  */\n\
+\n\
+#ifndef GCC_INSN_CODES_H\n\
+#define GCC_INSN_CODES_H\n\
+\n\
+enum insn_code {");
 
   /* Read the machine description.  */
 
-  insn_code_number = 0;
-  printf ("enum insn_code {\n");
-
   while (1)
     {
-      c = read_skip_spaces (infile);
-      if (c == EOF)
-	break;
-      ungetc (c, infile);
+      int line_no;
+      int insn_code_number;
 
-      desc = read_rtx (infile);
+      desc = read_md_rtx (&line_no, &insn_code_number);
+      if (desc == NULL)
+	break;
+
       if (GET_CODE (desc) == DEFINE_INSN || GET_CODE (desc) == DEFINE_EXPAND)
-	{
-	  gen_insn (desc);
-	  insn_code_number++;
-	}
-      if (GET_CODE (desc) == DEFINE_PEEPHOLE
-	  || GET_CODE (desc) == DEFINE_SPLIT)
-	{
-	  insn_code_number++;
-	}
+	gen_insn (XSTR (desc, 0), insn_code_number);
     }
 
-  printf ("  CODE_FOR_nothing };\n");
+  puts ("CODE_FOR_nothing\n\
+};\n\
+\n\
+#endif /* GCC_INSN_CODES_H */");
 
-  printf ("\n#define MAX_INSN_CODE ((int) CODE_FOR_nothing)\n");
+  if (ferror (stdout) || fflush (stdout) || fclose (stdout))
+    return FATAL_EXIT_CODE;
 
-  printf ("#endif /* MAX_INSN_CODE */\n");
+  return SUCCESS_EXIT_CODE;
+}
 
-  fflush (stdout);
-  exit (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
-  /* NOTREACHED */
-  return 0;
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+
+const char *
+get_insn_name (code)
+     int code ATTRIBUTE_UNUSED;
+{
+  return NULL;
 }

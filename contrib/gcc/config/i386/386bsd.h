@@ -5,11 +5,8 @@
 
 #include "i386/gstabs.h"
 
-/* Get perform_* macros to build libgcc.a.  */
-#include "i386/perform.h"
-
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D____386BSD____ -D__386BSD__ -DBSD_NET2 -Asystem(unix) -Asystem(bsd) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -D____386BSD____ -D__386BSD__ -DBSD_NET2 -Asystem=unix -Asystem=bsd"
 
 /* Like the default, except no -lg.  */
 #define LIB_SPEC "%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}"
@@ -27,10 +24,6 @@
 
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 16
-
-/* 386BSD does have atexit.  */
-
-#define HAVE_ATEXIT
 
 /* Redefine this to use %eax instead of %edx.  */
 #undef FUNCTION_PROFILER
@@ -54,22 +47,6 @@
 
 #undef ASM_APP_OFF
 #define ASM_APP_OFF "#NO_APP\n"
-
-/* The following macros are stolen from i386v4.h */
-/* These have to be defined to get PIC code correct */
-
-/* This is how to output an element of a case-vector that is relative.
-   This is only used for PIC code.  See comments by the `casesi' insn in
-   i386.md for an explanation of the expression this outputs. */
-
-#undef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
-  fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
-
-/* Indicate that jump tables go in the text section.  This is
-   necessary when compiling PIC code.  */
-
-#define JUMP_TABLES_IN_TEXT_SECTION 1
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
    we want to retain compatibility with older gcc versions.  */

@@ -27,14 +27,14 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Allow multiple inclusion to work. */
 
-#ifndef _H_f_target
-#define _H_f_target
+#ifndef GCC_F_TARGET_H
+#define GCC_F_TARGET_H
 
 #ifdef FFE_STANDALONE
 #define HOST_WIDE_INT long
 #else
 #ifndef TREE_CODE
-#include "tree.j"
+#include "tree.h"
 #endif
 #endif
 
@@ -234,6 +234,10 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #define FFETARGET_f2cTYLOGICAL2 13
 #define FFETARGET_f2cTYQUAD 14
 
+#if !defined(__alpha__) && (!defined (_ARCH_PPC) || !defined (__64BIT__)) && (!defined(__sparc__) || (!defined(__sparcv9) && !defined(__arch64__))) && (!defined(__ia64__) || !defined(__LP64__)) && (!defined(__hppa__) || !defined(__LP64__)) && !defined(__s390x__)
+#define FFETARGET_32bit_longs
+#endif
+
 /* Typedefs. */
 
 typedef unsigned char ffetargetAlign;	/* ffetargetOffset for alignment. */
@@ -247,7 +251,7 @@ typedef long long ffetargetOffset;
 #define ffetargetOffset_f "ll"
 
 #if FFETARGET_okINTEGER1
-#ifndef __alpha__
+#ifdef FFETARGET_32bit_longs
 typedef long int ffetargetInteger1;
 #define ffetargetInteger1_f "l"
 #else
@@ -288,7 +292,7 @@ typedef ? ffetargetInteger8;
 ?
 #endif
 #if FFETARGET_okLOGICAL1
-#ifndef __alpha__
+#ifdef FFETARGET_32bit_longs
 typedef long int ffetargetLogical1;
 #define ffetargetLogical1_f "l"
 #else
@@ -330,7 +334,7 @@ typedef ? ffetargetLogical8;
 #endif
 #if FFETARGET_okREAL1
 #ifdef REAL_ARITHMETIC
-#ifndef __alpha__
+#ifdef FFETARGET_32bit_longs
 typedef long int ffetargetReal1;
 #define ffetargetReal1_f "l"
 #define ffetarget_cvt_r1_to_rv_ REAL_VALUE_UNTO_TARGET_SINGLE
@@ -354,7 +358,7 @@ typedef float ffetargetReal1;
 #endif
 #if FFETARGET_okREAL2
 #ifdef REAL_ARITHMETIC
-#ifndef __alpha__
+#ifdef FFETARGET_32bit_longs
 typedef struct
   {
     long int v[2];
@@ -856,13 +860,9 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 
 /* Define macros. */
 
-#if BUILT_FOR_280
-#define FFETARGET_REAL_VALUE_FROM_INT_(resr, lf, kt) \
-  REAL_VALUE_FROM_INT (resr, (long) lf, (long) ((lf < 0) ? -1 : 0), ((kt == 1) ? SFmode : DFmode))
-#else
-#define FFETARGET_REAL_VALUE_FROM_INT_(resr, lf, kt) \
-  REAL_VALUE_FROM_INT (resr, (long) lf, (long) ((lf < 0) ? -1 : 0))
-#endif
+#define FFETARGET_REAL_VALUE_FROM_INT_(resr, lf, kt)			\
+  REAL_VALUE_FROM_INT (resr, (long) lf, (long) ((lf < 0) ? -1 : 0),	\
+		       ((kt == 1) ? SFmode : DFmode))
 
 #ifdef REAL_ARITHMETIC
 #define ffetarget_add_complex1(res,l,r) \
@@ -1496,7 +1496,7 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 #define ffetarget_init_2()
 #define ffetarget_init_3()
 #define ffetarget_init_4()
-#ifndef __alpha__
+#ifdef FFETARGET_32bit_longs
 #define ffetarget_integerdefault_is_magical(i) \
   (((unsigned long int) i) == FFETARGET_integerBIG_MAGICAL)
 #else
@@ -1888,4 +1888,4 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 
 /* End of #include file. */
 
-#endif
+#endif /* ! GCC_F_TARGET_H */

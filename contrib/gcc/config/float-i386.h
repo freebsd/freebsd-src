@@ -74,20 +74,13 @@
 #define LDBL_DIG 18
    /* Difference between 1.0 and the minimum long double greater than 1.0 */
 #undef LDBL_EPSILON
-#ifndef __LDBL_UNION__
-#define __LDBL_UNION__
-union __convert_long_double {
-  unsigned __convert_long_double_i[4];
-  long double __convert_long_double_d;
-};
-#endif
-#define LDBL_EPSILON (__extension__ ((union __convert_long_double) {__convert_long_double_i: {0x0, 0x80000000, 0x3fc0, 0x0}}).__convert_long_double_d)
+#define LDBL_EPSILON 1.08420217248550443401e-19L
    /* Minimum int x such that FLT_RADIX**(x-1) is a normalised long double */
 #undef LDBL_MIN_EXP
 #define LDBL_MIN_EXP (-16381)
    /* Minimum normalised long double */
 #undef LDBL_MIN
-#define LDBL_MIN (__extension__ ((union __convert_long_double) {__convert_long_double_i: {0x0, 0x80000000, 0x1, 0x0}}).__convert_long_double_d)
+#define LDBL_MIN 3.36210314311209350626e-4932L
    /* Minimum int x such that 10**x is a normalised long double */
 #undef LDBL_MIN_10_EXP
 #define LDBL_MIN_10_EXP (-4931)
@@ -96,9 +89,36 @@ union __convert_long_double {
 #define LDBL_MAX_EXP 16384
    /* Maximum long double */
 #undef LDBL_MAX
-#define LDBL_MAX (__extension__ ((union __convert_long_double) {__convert_long_double_i: {0xffffffff, 0xffffffff, 0x107ffe, 0x0}}).__convert_long_double_d)
+#define LDBL_MAX 1.18973149535723176502e+4932L
    /* Maximum int x such that 10**x is a representable long double */
 #undef LDBL_MAX_10_EXP
 #define LDBL_MAX_10_EXP 4932
+
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+   /* The floating-point expression evaluation method.
+        -1  indeterminate
+         0  evaluate all operations and constants just to the range and
+            precision of the type
+         1  evaluate operations and constants of type float and double
+            to the range and precision of the double type, evaluate
+            long double operations and constants to the range and
+            precision of the long double type
+         2  evaluate all operations and constants to the range and
+            precision of the long double type
+   */
+# undef FLT_EVAL_METHOD
+# define FLT_EVAL_METHOD	2
+
+   /* Number of decimal digits to enable rounding to the given number of
+      decimal digits without loss of precision.
+         if FLT_RADIX == 10^n:  #mantissa * log10 (FLT_RADIX)
+         else                :  ceil (1 + #mantissa * log10 (FLT_RADIX))
+      where #mantissa is the number of bits in the mantissa of the widest
+      supported floating-point type.
+   */
+# undef DECIMAL_DIG
+# define DECIMAL_DIG	21
+
+#endif	/* C99 */
 
 #endif /*  _FLOAT_H___ */

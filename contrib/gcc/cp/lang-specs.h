@@ -1,5 +1,6 @@
 /* Definitions for specs for C++.
-   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,77 +22,45 @@ Boston, MA 02111-1307, USA.  */
 /* This is the contribution to the `default_compilers' array in gcc.c for
    g++.  */
 
-  {".cc", {"@c++"}},
-  {".cp", {"@c++"}},
-  {".cxx", {"@c++"}},
-  {".cpp", {"@c++"}},
-  {".c++", {"@c++"}},
-  {".C", {"@c++"}},
+#ifndef CPLUSPLUS_CPP_SPEC
+#define CPLUSPLUS_CPP_SPEC 0
+#endif
+
+  {".cc",  "@c++", 0},
+  {".cp",  "@c++", 0},
+  {".cxx", "@c++", 0},
+  {".cpp", "@c++", 0},
+  {".c++", "@c++", 0},
+  {".C",   "@c++", 0},
   {"@c++",
-#if USE_CPPLIB
-   {
-     "%{E|M|MM:cpp0 -lang-c++ %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I\
-	%{C:%{!E:%eGNU C++ does not support -C without using -E}}\
-	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-	%{!no-gcc:-D__GNUC__=%v1 -D__GNUG__=%v1 -D__GNUC_MINOR__=%v2}\
-	-D__cplusplus\
-	%{ansi:-trigraphs -D__STRICT_ANSI__} %{!undef:%{!ansi:%p} %P}\
-	%{!fno-exceptions:-D__EXCEPTIONS}\
-        %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}} %{trigraphs}\
-	%{ffast-math:-D__FAST_MATH__}\
-	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
-        %i %{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}}\n}\
-      %{!E:%{!M:%{!MM:cc1plus %i %1 %2\
-                            -lang-c++ %{nostdinc*} %{C} %{A*} %{I*} %{P} %{$} %I\
-                            %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-                            %{!no-gcc:-D__GNUC__=%v1 -D__GNUG__=%v1\
-                            -D__GNUC_MINOR__=%v2} -D__cplusplus\
-                            %{ansi:-trigraphs -D__STRICT_ANSI__} %{!undef:%{!ansi:%p} %P}\
-                            %{!fno-exceptions:-D__EXCEPTIONS}\
-                            %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
-			    %{ffast-math:-D__FAST_MATH__}\
-                            %{trigraphs}\
-			    %{!Q:-quiet} -dumpbase %b.cc %{d*} %{m*} %{a}\
-			    %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi}\
-                            %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
-			    %{v:-version} %{pg:-p} %{p}\
-			    %{f*} %{+e*} %{aux-info*} %{Qn:-fno-ident}\
-			    %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-			    %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}}|\n\
-              %{!S:as %a %Y\
-		      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-                      %{!pipe:%g.s} %A\n }}}}"}},
-#else /* ! USE_CPPLIB */
-   {"cpp0 -lang-c++ %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I\
-	%{C:%{!E:%eGNU C++ does not support -C without using -E}}\
-	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-	%{!no-gcc:-D__GNUC__=%v1 -D__GNUG__=%v1 -D__GNUC_MINOR__=%v2}\
-	-D__cplusplus\
-	%{ansi:-trigraphs -D__STRICT_ANSI__} %{!undef:%{!ansi:%p} %P}\
-	%{!fno-exceptions:-D__EXCEPTIONS}\
-        %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}} %{trigraphs}\
-	%{ffast-math:-D__FAST_MATH__}\
-	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
-        %i %{!M:%{!MM:%{!E:%{!pipe:%g.ii}}}}%{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}} |\n",
-    "%{!M:%{!MM:%{!E:cc1plus %{!pipe:%g.ii} %1 %2\
-			    %{!Q:-quiet} -dumpbase %b.cc %{d*} %{m*} %{a}\
-			    %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi}\
-			    %{v:-version} %{pg:-p} %{p}\
-			    %{f*} %{+e*} %{aux-info*} %{Qn:-fno-ident}\
-			    %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-			    %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}}|\n\
-              %{!S:as %a %Y\
-		      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-                      %{!pipe:%g.s} %A\n }}}}"}},
-#endif /* ! USE_CPPLIB */
-  {".ii", {"@c++-cpp-output"}},
+   /* cc1plus has an integrated ISO C preprocessor.  We should invoke
+      the external preprocessor if -save-temps is given.  */
+    "%{E|M|MM:cpp0 -lang-c++ %{!no-gcc:-D__GNUG__=%v1}\
+       %{!Wno-deprecated:-D__DEPRECATED}\
+       %{!fno-exceptions:-D__EXCEPTIONS}\
+       -D__GXX_ABI_VERSION=100\
+       %{ansi:-D__STRICT_ANSI__ -trigraphs -$} %(cpp_options)}\
+     %{!E:%{!M:%{!MM:\
+       %{save-temps:cpp0 -lang-c++ \
+		    %{!no-gcc:-D__GNUG__=%v1}\
+       		    %{!Wno-deprecated:-D__DEPRECATED}\
+		    %{!fno-exceptions:-D__EXCEPTIONS}\
+		    -D__GXX_ABI_VERSION=100\
+		    %{ansi:-D__STRICT_ANSI__ -trigraphs -$}\
+		    %(cpp_options) %b.ii \n}\
+      cc1plus %{save-temps:-fpreprocessed %b.ii}\
+              %{!save-temps:%(cpp_unique_options)\
+			    %{!no-gcc:-D__GNUG__=%v1} \
+       			    %{!Wno-deprecated:-D__DEPRECATED}\
+			    %{!fno-exceptions:-D__EXCEPTIONS}\
+			    -D__GXX_ABI_VERSION=100\
+			    %{ansi:-D__STRICT_ANSI__}}\
+       %{ansi:-trigraphs -$}\
+       %(cc1_options) %2 %{+e1*}\
+       %{!fsyntax-only:%(invoke_as)}}}}",
+     CPLUSPLUS_CPP_SPEC},
+  {".ii", "@c++-cpp-output", 0},
   {"@c++-cpp-output",
-   {"%{!M:%{!MM:%{!E:cc1plus %i %1 %2 %{!Q:-quiet} %{d*} %{m*} %{a}\
-			    %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi}\
-			    %{v:-version} %{pg:-p} %{p}\
-			    %{f*} %{+e*} %{aux-info*} %{Qn:-fno-ident}\
-			    %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-			    %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
-	            %{!S:as %a %Y\
-			    %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-			    %{!pipe:%g.s} %A\n }}}}"}},
+   "%{!M:%{!MM:%{!E:\
+    cc1plus -fpreprocessed %i %(cc1_options) %2 %{+e*}\
+    %{!fsyntax-only:%(invoke_as)}}}}", 0},

@@ -1,6 +1,6 @@
 /* Definitions for IBM PS2 running AIX/386 with gas.
    From: Minh Tran-Le <TRANLE@intellicorp.com>
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -53,17 +53,12 @@ Boston, MA 02111-1307, USA.  */
    constructors.  */
 
 #undef INIT_SECTION_ASM_OP
-#define INIT_SECTION_ASM_OP     ".section .init,\"x\""
+#define INIT_SECTION_ASM_OP     "\t.section .init,\"x\""
 
 #define CTOR_LIST_BEGIN				\
   asm (INIT_SECTION_ASM_OP);			\
   asm ("pushl $0")
 #define CTOR_LIST_END CTOR_LIST_BEGIN
 
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)	\
-  do {						\
-    init_section ();				\
-    fprintf (FILE, "\tpushl $");		\
-    assemble_name (FILE, NAME);			\
-    fprintf (FILE, "\n");			\
-  } while (0)
+#undef TARGET_ASM_CONSTRUCTOR
+#define TARGET_ASM_CONSTRUCTOR  ix86_svr3_asm_out_constructor

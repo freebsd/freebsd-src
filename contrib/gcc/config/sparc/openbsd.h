@@ -18,14 +18,12 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include <sparc/sparc.h>
-
 /* Get generic OpenBSD definitions.  */
 #define OBSD_OLD_GAS
 #include <openbsd.h>
 
 /* Run-time target specifications.  */
-#define CPP_PREDEFINES "-D__unix__ -D__sparc__ -D__OpenBSD__ -Asystem(unix) -Asystem(OpenBSD) -Acpu(sparc) -Amachine(sparc)"
+#define CPP_PREDEFINES "-D__unix__ -D__sparc__ -D__OpenBSD__ -Asystem=unix -Asystem=OpenBSD -Acpu=sparc -Amachine=sparc"
 
 /* Layout of source language data types */
 
@@ -64,5 +62,6 @@ Boston, MA 02111-1307, USA.  */
    configuration files...  */
 #define DWARF2_UNWIND_INFO 0
 
-/* Default sparc.h does already define ASM_OUTPUT_MI_THUNK */
+#undef ASM_PREFERRED_EH_DATA_FORMAT
 
+/* Default sparc.h does already define ASM_OUTPUT_MI_THUNK */

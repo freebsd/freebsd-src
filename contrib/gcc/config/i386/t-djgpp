@@ -1,2 +1,2 @@
-LIBGCC1 = libgcc1.null
-CROSS_LIBGCC1 = libgcc1.null
+# Location of DJGPP's header directory.
+NATIVE_SYSTEM_HEADER_DIR=$(DJDIR)/include

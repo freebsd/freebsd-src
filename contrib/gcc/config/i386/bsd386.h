@@ -1,12 +1,11 @@
 /* Configuration for an i386 running BSDI's BSD/OS (formerly known as BSD/386)
    as the target machine.  */
 
-#include "i386/386bsd.h"
-
-/* We exist mostly to add -Dbsdi and such to the predefines. */
+/* We exist mostly to add -Dbsdi and such to the predefines.  */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -Dbsdi -D__i386__ -D__bsdi__ -D____386BSD____ -D__386BSD__ -DBSD_NET2 -Asystem(unix) -Asystem(bsd) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -Dbsdi -D____386BSD____ -D__386BSD__\
+ -DBSD_NET2 -Asystem=unix -Asystem=bsd"
 
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "int"
