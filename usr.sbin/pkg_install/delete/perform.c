@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.2 1993/09/04 05:06:39 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.2 1993/09/03 23:01:02 jkh Exp $";
 #endif
 
 /*
@@ -69,7 +69,7 @@ pkg_do(char *pkg)
 	if (Verbose)
 	    printf("Executing 'require' script.\n");
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
-	if (vsystem("%s %s DEINSTALL", REQUIRE_FNAME, pkg)) {
+	if (vsystem("./%s %s DEINSTALL", REQUIRE_FNAME, pkg)) {
 	    whinge("Package %s fails requirements - not deleted.", pkg);
 	    return 1;
 	}
@@ -89,7 +89,7 @@ pkg_do(char *pkg)
 	    printf("Would execute de-install script at this point.\n");
 	else {
 	    vsystem("chmod +x %s", DEINSTALL_FNAME);	/* make sure */
-	    if (vsystem("%s %s DEINSTALL", DEINSTALL_FNAME, pkg)) {
+	    if (vsystem("./%s %s DEINSTALL", DEINSTALL_FNAME, pkg)) {
 		whinge("De-Install script returned error status.");
 		return 1;
 	    }

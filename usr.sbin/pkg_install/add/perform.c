@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.3 1993/09/05 04:53:50 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.4 1993/09/18 03:38:48 jkh Exp $";
 #endif
 
 /*
@@ -123,7 +123,7 @@ pkg_do(char *pkg)
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (Verbose)
 	    printf("Running requirements file first for %s..\n", PkgName);
-	if (!Fake && vsystem("%s %s INSTALL", REQUIRE_FNAME, PkgName)) {
+	if (!Fake && vsystem("./%s %s INSTALL", REQUIRE_FNAME, PkgName)) {
 	    whinge("Package %s fails requirements - not installed.",
 		   pkg_fullname);
 	    goto fail;
@@ -133,7 +133,7 @@ pkg_do(char *pkg)
 	vsystem("chmod +x %s", INSTALL_FNAME);	/* make sure */
 	if (Verbose)
 	    printf("Running install with PRE-INSTALL for %s..\n", PkgName);
-	if (!Fake && vsystem("%s %s PRE-INSTALL", INSTALL_FNAME, PkgName)) {
+	if (!Fake && vsystem("./%s %s PRE-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
 	    goto fail;
 	}
@@ -142,7 +142,7 @@ pkg_do(char *pkg)
     if (!NoInstall && fexists(INSTALL_FNAME)) {
 	if (Verbose)
 	    printf("Running install with POST-INSTALL for %s..\n", PkgName);
-	if (!Fake && vsystem("%s %s POST-INSTALL", INSTALL_FNAME, PkgName)) {
+	if (!Fake && vsystem("./%s %s POST-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
 	    goto fail;
 	}
