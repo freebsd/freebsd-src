@@ -42,7 +42,7 @@ NR == 1 {
 	if (os == "NetBSD")
 		printf("/*\t\$NetBSD\$\t*/\n\n") > dfile
 	else if (os == "FreeBSD")
-		printf("/*\t\$FreeBSD\$\t*/\n\n") > dfile
+		printf("/* \$FreeBSD\$ */\n\n") > dfile
 	else if (os == "OpenBSD")
 		printf("/*\t\$OpenBSD\$\t*/\n\n") > dfile
 	else
@@ -58,7 +58,7 @@ NR == 1 {
 	if (os == "NetBSD")
 		printf("/*\t\$NetBSD\$\t*/\n\n") > hfile
 	else if (os == "FreeBSD")
-		printf("/*\t\$FreeBSD\$\t*/\n\n") > hfile
+		printf("/* \$FreeBSD\$ */\n\n") > hfile
 	else if (os == "OpenBSD")
 		printf("/*\t\$OpenBSD\$\t*/\n\n") > hfile
 	else
