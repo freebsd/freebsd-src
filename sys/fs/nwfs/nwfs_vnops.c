@@ -755,7 +755,7 @@ int nwfs_print (ap)
 	struct vnode *vp = ap->a_vp;
 	struct nwnode *np = VTONW(vp);
 
-	printf("nwfs node: name = '%s', fid = %d, pfid = %d\n",
+	printf("\tnwfs node: name = '%s', fid = %d, pfid = %d\n",
 	    np->n_name, np->n_fid.f_id, np->n_fid.f_parent);
 	return (0);
 }
