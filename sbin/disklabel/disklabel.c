@@ -228,6 +228,10 @@ main(int argc, char *argv[])
 		np = namebuf + strlen(specname) + 1;
 		f = open(specname, op == READ ? O_RDONLY : O_RDWR);
 	}
+	if (f < 0 && errno == EBUSY) {
+		/* lets try to get by with ioctls */
+		f = open(specname, O_RDONLY);
+	}
 	if (f < 0)
 		err(4, "%s", specname);
 
@@ -378,6 +382,8 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 		sum += p[i];
 	p[63] = sum;
 #endif
+	if (ioctl(f, DIOCBSDBB, &boot) == 0)
+		return (0);
 	if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
 		warn("write");
 		return (1);
