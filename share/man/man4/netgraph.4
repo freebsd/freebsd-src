@@ -670,13 +670,13 @@ node name
 Optional globally unique name, null terminated string. If there
 is a value in here, it is the name of the node.
 .Pp
-if (
-.Fn NG_NODE_NAME "node"
+if
+.Fn ( NG_NODE_NAME "node"
 [0]) ....
 .Pp
 if (strncmp(
-.Fn NG_NODE_NAME "node"
-, "fred", NG_NODELEN)) ...
+.Fn NG_NODE_NAME "node" ,
+"fred", NG_NODELEN)) ...
 .Pp
 .It
 A node dependent opaque cookie
@@ -1238,8 +1238,7 @@ Refer to the section at the end of this man page for more nodes types.
 .Sh NOTES
 Whether a named node exists can be checked by trying to send a control message
 to it (e.g.,
-.Dv NGM_NODEINFO
-).
+.Dv NGM_NODEINFO ) .
 If it does not exist,
 .Er ENOENT
 will be returned.
