@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $Id: menu.4th,v 1.1 1998/12/22 12:15:45 abial Exp $
+\ $Id: menu.4th,v 1.2 1998/12/31 14:06:30 abial Exp $
 
 : title
 	f_single
@@ -61,6 +61,9 @@
 	10 22 at-xy ." * Choose 3 in order to warm boot your machine."
 ;
 
+: (boot) 0 boot ;
+: (reboot) 0 reboot ;
+
 : main_menu
 	begin 1 while
 		clear
@@ -75,7 +78,7 @@
 			drop
 			1 25 at-xy cr
 			." Loading kernel. Please wait..." cr
-			boot
+			['] (boot) catch abort" Error booting"
 		then
 		dup 50 = if
 			drop
@@ -85,7 +88,7 @@
 		dup 51 = if
 			drop
 			1 25 at-xy cr
-			reboot
+			['] (reboot) catch abort" Error rebooting"
 		then
 		20 12 at-xy
 		." Key " emit ."  is not a valid option!"
