@@ -2490,7 +2490,7 @@ delete(char *name)
 		perror_reply(550, name);
 		return;
 	}
-	if ((st.st_mode&S_IFMT) == S_IFDIR) {
+	if (S_ISDIR(st.st_mode)) {
 		if (rmdir(name) < 0) {
 			perror_reply(550, name);
 			return;
