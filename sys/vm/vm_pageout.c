@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.26 1994/11/17 06:24:25 davidg Exp $
+ * $Id: vm_pageout.c,v 1.27 1994/11/25 07:58:29 davidg Exp $
  */
 
 /*
@@ -533,7 +533,7 @@ rescan1:
 		next = m->pageq.tqe_next;
 
 		if( (m->flags & PG_INACTIVE) == 0) {
-			printf("vm_pageout_scan: page not inactive?");
+			printf("vm_pageout_scan: page not inactive?\n");
 			continue;
 		}
 
