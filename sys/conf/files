@@ -414,6 +414,7 @@ dev/hfa/hfa_freebsd.c	optional hfa
 #dev/hfa/hfa_eisa.c	optional hfa eisa
 dev/hfa/hfa_pci.c	optional hfa pci
 #dev/hfa/hfa_sbus.c	optional hfa sbus
+dev/hifn/hifn7751.c	optional hifn
 dev/hme/if_hme.c	optional hme
 dev/hme/if_hme_pci.c	optional hme pci
 dev/hme/if_hme_sbus.c	optional hme sbus
@@ -654,6 +655,7 @@ dev/twe/twe.c		optional twe
 dev/twe/twe_freebsd.c	optional twe
 dev/tx/if_tx.c		optional tx
 dev/txp/if_txp.c	optional txp
+dev/ubsec/ubsec.c	optional ubsec
 #
 # USB support
 dev/usb/usb_if.m	optional usb
@@ -1090,6 +1092,7 @@ net/slcompress.c	optional sl
 net/slcompress.c	optional sppp
 net/zlib.c		optional ppp_deflate
 net/zlib.c		optional ipsec
+net/zlib.c		optional crypto
 netatalk/aarp.c		optional netatalk
 netatalk/at_control.c	optional netatalk
 netatalk/at_proto.c	optional netatalk
@@ -1342,6 +1345,23 @@ nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
+# crypto support
+opencrypto/cast.c		optional crypto
+opencrypto/criov.c		optional crypto
+opencrypto/crmbuf.c		optional crypto
+opencrypto/crypto.c		optional crypto
+opencrypto/cryptodev.c		optional cryptodev
+opencrypto/cryptosoft.c		optional crypto
+opencrypto/deflate.c		optional crypto
+opencrypto/rmd160.c		optional crypto
+opencrypto/rijndael.c		optional crypto
+opencrypto/skipjack.c		optional crypto
+opencrypto/xform.c		optional crypto
+crypto/blowfish/bf_skey.c	optional crypto
+crypto/des/des_ecb.c		optional crypto
+crypto/des/des_setkey.c		optional crypto
+crypto/sha1.c			optional crypto
+crypto/sha2/sha2.c		optional crypto
 pccard/pccard.c		count card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card

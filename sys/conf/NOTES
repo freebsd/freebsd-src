@@ -2155,6 +2155,25 @@ options 	USB_DEBUG
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	UKBD_DFLT_KEYMAP=it.iso
 
+#####################################################################
+# crypto subsystem
+#
+# This is a port of the openbsd crypto framework.  Include this when
+# configuring FAST_IPSEC and when you have a h/w crypto device to accelerate
+# user applications that link to openssl.
+#
+# Drivers are ports from openbsd with some simple enhancements that have
+# been fed back to openbsd.
+
+device		crypto		# core crypto support
+device		cryptodev	# /dev/crypto for access to h/w
+
+device		hifn		# Hifn 7951, 7781, etc.
+device		ubsec		# Broadcom 5501, 5601, 58xx
+
+#####################################################################
+
+
 #
 # Embedded system options:
 #
