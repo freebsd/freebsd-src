@@ -25,6 +25,8 @@
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
 <!ENTITY release.type "snapshot">
+<!ENTITY % release.type.snapshot "INCLUDE">
+<!ENTITY % release.type.release "IGNORE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
