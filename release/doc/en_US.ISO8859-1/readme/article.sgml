@@ -307,13 +307,6 @@
 	  </listitem>
 
 	  <listitem>
-	    <para><filename>EARLY.TXT</filename>: A guide for early
-	      adopters of &os; &release.current;.  Highly recommended
-	      reading for users new to &os; &release.branch; and/or the
-	      6.<replaceable>X</replaceable> series of releases.</para>
-	  </listitem>
-
-	  <listitem>
 	    <para><filename>RELNOTES.TXT</filename>: The release
 	      notes, showing what's new and different in &os;
 	      &release.current; compared to the previous release (&os;
