@@ -322,3 +322,65 @@ out:
 		aac_free(sc);
 	return(error);
 }
+
+/*
+ * Do nothing driver that will attach to the SCSI channels of a Dell PERC
+ * controller.  This is needed to keep the power management subsystem from
+ * trying to power down these devices.
+ */
+static int aacch_probe(device_t dev);
+static int aacch_attach(device_t dev);
+static int aacch_detach(device_t dev);
+
+static device_method_t aacch_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		aacch_probe),
+	DEVMETHOD(device_attach,	aacch_attach),
+	DEVMETHOD(device_detach,	aacch_detach),
+	{ 0, 0 }
+};
+
+struct aacch_softc {
+	device_t	dev;
+};
+
+static driver_t aacch_driver = {
+	"aacch",
+	aacch_methods,
+	sizeof(struct aacch_softc)
+};
+
+static devclass_t	aacch_devclass;
+DRIVER_MODULE(aacch, pci, aacch_driver, aacch_devclass, 0, 0);
+
+static int
+aacch_probe(device_t dev)
+{
+
+	if ((pci_get_subvendor(dev) != 0x9005) ||
+	    (pci_get_subdevice(dev) != 0x00c5))
+		return (ENXIO);
+
+	device_set_desc(dev, "AAC RAID Channel");
+	return (-10);
+}
+
+static int
+aacch_attach(device_t dev)
+{
+	struct aacch_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	sc->dev = dev;
+
+	return (0);
+}
+
+static int
+aacch_detach(device_t dev)
+{
+
+	return (0);
+}
+
