@@ -29,14 +29,12 @@
  * $FreeBSD$
  */
 
+#if !defined(KLD_MODULE)
 #include "opt_inet.h"
-#include "opt_ipfw.h"
-#include "opt_ipdivert.h"
-#include "opt_ipsec.h"
 #include "opt_mac.h"
-
 #ifndef INET
 #error "IPDIVERT requires INET."
+#endif
 #endif
 
 #include <sys/param.h>
@@ -45,6 +43,8 @@
 #include <sys/malloc.h>
 #include <sys/mac.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
@@ -102,7 +102,7 @@
  * will cause it to be effectively considered as a standard packet).
  */
 
-/* Internal variables */
+/* Internal variables. */
 static struct inpcbhead divcb;
 static struct inpcbinfo divcbinfo;
 
@@ -147,7 +147,7 @@ div_input(struct mbuf *m, int off)
  * Setup generic address and protocol structures for div_input routine,
  * then pass them along with mbuf chain.
  */
-void
+static void
 divert_packet(struct mbuf *m, int incoming)
 {
 	struct ip *ip;
@@ -650,10 +650,11 @@ div_peeraddr(struct socket *so, struct sockaddr **nam)
 	return (in_setpeeraddr(so, nam, &divcbinfo));
 }
 
-
-SYSCTL_DECL(_net_inet_divert);
+#ifdef SYSCTL_NODE
+SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert, CTLFLAG_RW, 0, "IPDIVERT");
 SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
 	    div_pcblist, "S,xinpcb", "List of active divert sockets");
+#endif
 
 struct pr_usrreqs div_usrreqs = {
 	div_abort, pru_accept_notsupp, div_attach, div_bind,
@@ -662,3 +663,61 @@ struct pr_usrreqs div_usrreqs = {
 	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
 	div_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };
+
+struct protosw div_protosw = {
+  SOCK_RAW,	NULL,		IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
+  div_input,	NULL,		div_ctlinput,	ip_ctloutput,
+  NULL,
+  div_init,	NULL,		NULL,		NULL,
+  &div_usrreqs
+};
+
+static int
+div_modevent(module_t mod, int type, void *unused)
+{
+	int err = 0;
+	int n;
+
+	switch (type) {
+	case MOD_LOAD:
+		/*
+		 * Protocol will be initialized by pf_proto_register().
+		 * We don't have to register ip_protox because we are not
+		 * a true IP protocol that goes over the wire.
+		 */
+		err = pf_proto_register(PF_INET, &div_protosw);
+		ip_divert_ptr = divert_packet;
+		break;
+	case MOD_UNLOAD:
+		/*
+		 * Module ipdivert can only be unloaded if no sockets are
+		 * connected.  Maybe this can be changed later to forcefully
+		 * disconnect any open sockets.
+		 */
+		INP_INFO_RLOCK(&divcbinfo);
+		n = divcbinfo.ipi_count;
+		INP_INFO_RUNLOCK(&divcbinfo);
+		if (n != 0) {
+			err = EBUSY;
+			break;
+		}
+		ip_divert_ptr = NULL;
+		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
+		INP_INFO_LOCK_DESTROY(&divcbinfo);
+		break;
+	default:
+		return EINVAL;
+		break;
+	}
+	return err;
+}
+
+static moduledata_t ipdivertmod = {
+        "ipdivert",
+        div_modevent,
+        0
+};
+
+DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
+MODULE_VERSION(ipdivert, 1);
