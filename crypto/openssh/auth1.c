@@ -328,7 +328,7 @@ do_authloop(Authctxt *authctxt)
 			/* Do PAM auth with password */
 			authenticated = auth_pam_password(authctxt, password);
 #else /* !USE_PAM */
- 			/* Try authentication with the password. */
+			/* Try authentication with the password. */
 			authenticated = auth_password(authctxt, password);
 #endif /* USE_PAM */
 

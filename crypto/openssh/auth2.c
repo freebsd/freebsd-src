@@ -400,11 +400,10 @@ userauth_passwd(Authctxt *authctxt)
 	packet_done();
 	if (authctxt->valid &&
 #ifdef USE_PAM
-	    auth_pam_password(authctxt, password) == 1
+	    auth_password(authctxt, password) == 1)
 #else
-	    auth_password(authctxt, password) == 1
+	    auth_password(authctxt, password) == 1)
 #endif
-	    )
 		authenticated = 1;
 	memset(password, 0, len);
 	xfree(password);
