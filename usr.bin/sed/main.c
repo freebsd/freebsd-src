@@ -412,27 +412,27 @@ add_file(s)
  * Modify a pointer to a filename for inplace editing and reopen stdout
  */
 static int
-inplace_edit(fname)
-	char **fname;
+inplace_edit(filename)
+	char **filename;
 {
 	struct stat orig;
 	int input, output;
 	char backup[MAXPATHLEN];
 	char *buffer;
 
-	if (lstat(*fname, &orig) == -1)
+	if (lstat(*filename, &orig) == -1)
 		err(1, "lstat");
 	if ((orig.st_mode & S_IFREG) == 0) {
-		warnx("cannot inplace edit %s, not a regular file", fname);
+		warnx("cannot inplace edit %s, not a regular file", *filename);
 		return -1;
 	}
 
-	strlcpy(backup, *fname, MAXPATHLEN);
+	strlcpy(backup, *filename, MAXPATHLEN);
 	strlcat(backup, inplace, MAXPATHLEN);
 
-	input = open(*fname, O_RDONLY);
+	input = open(*filename, O_RDONLY);
 	if (input == -1)
-		err(1, "open(%s)", fname);
+		err(1, "open(%s)", *filename);
 	output = open(backup, O_WRONLY|O_CREAT);
 	if (output == -1)
 		err(1, "open(%s)", backup);
@@ -447,7 +447,7 @@ inplace_edit(fname)
 		err(1, "write");
 	close(input);
 	close(output);
-	freopen(*fname, "w", stdout);
-	*fname = strdup(backup);
+	freopen(*filename, "w", stdout);
+	*filename = strdup(backup);
 	return 0;
 }
