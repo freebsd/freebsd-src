@@ -42,9 +42,10 @@ _csu=csu
 
 .if ${MACHINE_ARCH} != "amd64"
 _libstand=	libstand
+.endif
+
 .if !defined(NOLIBC_R)
 _libc_r=	libc_r
-.endif
 .endif
 
 .if !defined(NO_BIND)
