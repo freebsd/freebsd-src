@@ -37,7 +37,7 @@
 backgammon \- the game of backgammon
 .SH SYNOPSIS
 .B backgammon
-[ - ] [ n r w b pr pw pb t\c
+[ - n r w b pr pw pb t\c
 .I term
 s\c
 .I file
@@ -65,45 +65,39 @@ consist of:
 .PP
 .na
 .TP 8
-.B n
+.B -n
 don't ask for rules or instructions
 .TP 8
-.B r
-player is red (implies n)
+.B -r
+player is red (implies -n)
 .TP 8
-.B w
-player is white (implies n)
+.B -w
+player is white (implies -n)
 .TP 8
-.B b
-two players, red and white (implies n)
+.B -b
+two players, red and white (implies -n)
 .TP 8
-.B pr
+.B -pr
 print the board before red's turn
 .TP 8
-.B pw
+.B -pw
 print the board before white's turn
 .TP 8
-.B pb
+.B -pb
 print the board before both player's turn
 .TP 8
-.B t\fIterm
+.B -t\fIterm
 terminal is type
 .IR term ,
 uses /etc/termcap
 .TP 8
-.B s\fIfile
+.B -s\fIfile
 recover previously saved game from
 .IR file .
 (This can also be done by executing the saved file,
 i.e., typing its name in as a command)
 .ad
 .PP
-Arguments may be optionally preceded by a `-'.
-Several arguments may be concatenated together,
-but not after `s' or `t' arguments,
-since they can be followed by an arbitrary string.
-Any unrecognized arguments are ignored.
-An argument of a lone `-' gets a description of possible arguments.
 .PP
 If
 .IR term
@@ -113,8 +107,8 @@ has capabilities for direct cursor movement (see
 ``fixes'' the board after each move,
 so the board does not need to be reprinted,
 unless the screen suffers some horrendous malady.
-Also, any `p' option will be ignored.
-(The `t' option is not necessary unless the terminal type does not match
+Also, any `-p' option will be ignored.
+(The `-t' option is not necessary unless the terminal type does not match
 the entry in the /etc/termcap data base.)
 .SH QUICK\ REFERENCE
 When the program prompts by typing only your color,
