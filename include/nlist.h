@@ -37,7 +37,7 @@
  *
  *	@(#)nlist.h	8.2 (Berkeley) 1/21/94
  *
- *	$Id$
+ *	$Id: nlist.h,v 1.2 1994/12/23 22:32:48 nate Exp $
  */
 
 #ifndef _NLIST_H_
@@ -65,6 +65,13 @@ struct nlist {
 #define	N_INDR	0x0a		/* alias definition */
 #define	N_SIZE	0x0c		/* pseudo type, defines a symbol's size */
 #define	N_COMM	0x12		/* common reference */
+/* GNU extensions */
+#define N_SETA	0x14		/* Absolute set element symbol */
+#define N_SETT  0x16		/* Text set element symbol */
+#define N_SETD  0x18		/* Data set element symbol */
+#define N_SETB  0x1a		/* Bss set element symbol */
+#define N_SETV  0x1c		/* Pointer to set vector in data area. */
+/* end GNU extensions */
 #define	N_FN	0x1e		/* file name (N_EXT on) */
 #define	N_WARN	0x1e		/* warning message (N_EXT off) */
 
