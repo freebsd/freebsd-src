@@ -8,7 +8,8 @@
 
 LIB=		binutils
 SRCS+=		arlex.l arparse.y arsup.c bucomm.c debug.c filemode.c \
-		ieee.c rdcoff.c rddbg.c rename.c stabs.c unwind-ia64.c wrstabs.c version.c
+		ieee.c rdcoff.c rddbg.c rename.c stabs.c unwind-ia64.c \
+		wrstabs.c version.c
 CFLAGS+=	-DTARGET=\"${TARGET_ARCH}-unknown-freebsd\"
 CFLAGS+=	-DVERSION=\"${VERSION}\"
 CFLAGS+=	-I${SRCDIR}/binutils
