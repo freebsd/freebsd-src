@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.117 1995/03/16 05:58:28 phk Exp $
+#	$Id: Makefile,v 1.118 1995/03/16 22:54:42 phk Exp $
 #
 # How to roll a release:
 #
@@ -11,8 +11,11 @@
 # that on a 14.4 line just yet...
 
 # Things which without too much trouble can be considered variables
-EXTRADISTRIBUTIONS=	secure games manpages proflibs dict info
-CPIO1=			etc/services etc/protocols
+
+EXPORT_DISTS=	games manpages proflibs dict info
+EXTRA_DISTS=	secure ${EXPORT_DISTS}
+
+CPIO1=	etc/services etc/protocols
 CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
 	scripts/adduser.sh scripts/bininst.sh scripts/setup.sh
 
@@ -40,7 +43,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 
 # Things which will get you into trouble if you change them
-DISTRIBUTIONS=		bin ${EXTRADISTRIBUTIONS}                      
+DISTRIBUTIONS=		bin ${EXTRA_DISTS}                      
 MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			${RELEASEDIR}/stage
 FD=			${RELEASEDIR}/ftp
@@ -103,7 +106,7 @@ release.1:
 	mkdir ${RD}/dists
 	mkdir ${RD}/dists/bin
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
-	for i in ${EXTRADISTRIBUTIONS} ; do \
+	for i in ${EXTRA_DISTS} ; do \
 		mkdir ${RD}/trees/$$i ; \
 		mkdir ${RD}/dists/$$i ; \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
@@ -207,7 +210,7 @@ release.5:
 		fi ; \
 	done
 	-cd ${RD}/trees ; \
-		find ${EXTRADISTRIBUTIONS} -depth -type d -print | xargs rmdir
+		find bin ${EXPORT_DISTS} -depth -type d -print | xargs rmdir
 
 	touch release.5
 
