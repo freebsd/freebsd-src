@@ -6,7 +6,6 @@ MAN=	ping6.8
 CFLAGS+=-DINET6 -DIPSEC
 
 BINOWN=	root
-BINGRP=	bin
 BINMODE=4555
 
 LDADD=	-lipsec -lmd
