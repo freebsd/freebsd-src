@@ -84,12 +84,12 @@ struct gre_h {
 	struct gre_sre[] routing Routing fileds (see below)
 				Present if (rt_pres == 1)
  */
-} __attribute__((__packed__));
+} __packed;
 
 struct greip {
 	struct ip gi_i;
 	struct gre_h  gi_g;
-} __attribute__((__packed__));
+} __packed;
 
 #define gi_pr		gi_i.ip_p
 #define gi_len		gi_i.ip_len
@@ -128,12 +128,12 @@ struct mobile_h {
 	u_int16_t hcrc;			/* header checksum */
 	u_int32_t odst;			/* original destination address */
 	u_int32_t osrc;			/* original source addr, if S-bit set */
-} __attribute__((__packed__));
+} __packed;
 
 struct mobip_h {
 	struct ip	mi;
 	struct mobile_h	mh;
-} __attribute__((__packed__));
+} __packed;
 
 
 #define MOB_H_SIZ_S		(sizeof(struct mobile_h) - sizeof(u_int32_t))
