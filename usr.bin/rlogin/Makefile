@@ -4,7 +4,6 @@
 PROG=	rlogin
 SRCS=	rlogin.c
 CFLAGS+=-Wall
-CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
 BINMODE=4555
 INSTALLFLAGS=-fschg
