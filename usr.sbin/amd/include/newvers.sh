@@ -4,8 +4,8 @@
 # Generate local configuration parameters for amd
 #
 
-if [ -e ../../../sys/conf/newvers.sh ]; then
-	eval `egrep '^[A-Z]+=' ../../../sys/conf/newvers.sh | grep -v COPYRIGHT`
+if [ -e $1 ]; then
+	eval `egrep '^[A-Z]+=' $1 | grep -v COPYRIGHT`
 	OS=`echo ${TYPE} | tr '[A-Z]' '[a-z]'`
 	echo '/* Define name and version of host machine (eg. solaris2.5.1) */'
 	echo "#define HOST_OS \"${OS}${REVISION}\""
@@ -22,6 +22,9 @@ cat << __NO_newvers_sh
 
 /* Define only name of host machine OS (eg. solaris2) */
 #define HOST_OS_NAME "`uname -s | tr '[A-Z]' '[a-z]'``uname -r | sed -e 's/\..*$//'`"
+
+/* Define only version of host machine (eg. 2.5.1) */
+#define HOST_OS_VERSION "`uname -r`"
 
 __NO_newvers_sh
 fi
