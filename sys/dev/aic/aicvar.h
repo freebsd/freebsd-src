@@ -91,6 +91,9 @@ struct aic_softc {
 
 	struct aic_tinfo	tinfo[8];
 	struct aic_scb		scbs[256];
+
+	int			min_period;
+	int			max_period;
 };
 
 #define	AIC_DISC_ENABLE		0x01
@@ -100,6 +103,7 @@ struct aic_softc {
 #define	AIC_RESOURCE_SHORTAGE	0x10
 #define	AIC_DROP_MSGIN		0x20
 #define	AIC_BUSFREE_OK		0x40
+#define	AIC_FAST_ENABLE		0x80
 
 #define	AIC_IDLE		0x00
 #define	AIC_SELECTING		0x01
@@ -114,6 +118,8 @@ struct aic_softc {
 #define	AIC_MSG_MSGBUF		0x80
 
 #define	AIC_SYNC_PERIOD		(200 / 4)
+#define	AIC_FAST_SYNC_PERIOD	(100 / 4)
+#define	AIC_MIN_SYNC_PERIOD	112
 #define	AIC_SYNC_OFFSET		8
 
 #define	aic_inb(aic, port) \
