@@ -109,7 +109,7 @@ static int
 display(const char *tfn, struct passwd *pw)
 {
 	FILE *fp;
-	char *bp, *p;
+	char *bp, *gecos, *p;
 
 	if ((fp = fopen(tfn, "w")) == NULL) {
 		warn("%s", tfn);
@@ -151,8 +151,13 @@ display(const char *tfn, struct passwd *pw)
 		(void)fprintf(fp, "Shell: %s\n",
 		    *pw->pw_shell ? pw->pw_shell : _PATH_BSHELL);
 	else
-	  list[E_SHELL].restricted = 1;
-	bp = pw->pw_gecos;
+		list[E_SHELL].restricted = 1;
+
+	if ((bp = gecos = strdup(pw->pw_gecos)) == NULL) {
+		warn(NULL);
+		fclose(fp);
+		return (-1);
+	}
 
 	p = strsep(&bp, ",");
 	p = strdup(p ? p : "");
@@ -182,6 +187,8 @@ display(const char *tfn, struct passwd *pw)
 	list[E_OTHER].save = bp;
 	if (!list[E_OTHER].restricted || master_mode)
 	  (void)fprintf(fp, "Other information: %s\n", bp);
+
+	free(gecos);
 
 	(void)fchown(fileno(fp), getuid(), getgid());
 	(void)fclose(fp);
