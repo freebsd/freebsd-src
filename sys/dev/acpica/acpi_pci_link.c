@@ -288,7 +288,7 @@ acpi_pci_link_get_irq_resources(ACPI_RESOURCE *resources,
 			break;
 		}
 
-		if (Interrupts[i] == NULL) {
+		if (Interrupts[i] == 0) {
 			ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Invalid IRQ %d\n",
 			    Interrupts[i]));
 			continue;
