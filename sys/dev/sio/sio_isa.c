@@ -81,6 +81,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x00b4490a, NULL},	/* BRIB400 - Boca 56k PnP */
 	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
 	{0x0100440e, NULL},	/* CRD0001 - Cardinal MVP288IV ? */
+	{0x01308c0e, NULL},	/* CTL3001 - Creative Labs Phoneblaster */
 	{0x36033610, NULL},     /* DAV0336 - DAVICOM 336PNP MODEM */
 	{0x0000aa1a, NULL},	/* FUJ0000 - FUJITSU Modem 33600 PNP/I2 */
 	{0x1200c31e, NULL},	/* GVC0012 - VF1128HV-R9 (win modem?) */
