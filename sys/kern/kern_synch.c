@@ -283,10 +283,7 @@ schedcpu(arg)
 		p->p_estcpu = decay_cpu(loadfac, p->p_estcpu);
 		resetpriority(p);
 		if (p->p_pri.pri_level >= PUSER) {
-			if ((p != curproc) &&
-#ifdef SMP
-			    p->p_oncpu == NOCPU && 	/* idle */
-#endif
+			if (p->p_oncpu == NOCPU && 	/* idle */
 			    p->p_stat == SRUN &&
 			    (p->p_sflag & PS_INMEM) &&
 			    (p->p_pri.pri_level / RQ_PPQ) !=
