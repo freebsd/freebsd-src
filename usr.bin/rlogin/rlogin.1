@@ -100,12 +100,19 @@ This specification may be as a literal character, or as an octal
 value in the form \ennn.
 .It Fl k
 The
-.FL k
+.Fl k
 option requests rlogin to obtain tickets for the remote host
 in realm
 .Ar realm
 instead of the remote host's realm as determined by
 .Xr krb_realmofhost  3  .
+.It Fl l
+The
+.Fl l
+option specifies a different
+.Ar username
+for the remote login.
+If this option is not specified, your local username will be used.
 .It Fl x
 The
 .Fl x
@@ -121,7 +128,7 @@ increased security.
 .Pp
 A line of the form ``<escape char>.'' disconnects from the remote host.
 Similarly, the line ``<escape char>^Z'' will suspend the
-.Nm rlogin
+.Nm
 session, and ``<escape char><delayed-suspend char>'' suspends the
 send portion of the rlogin, but allows output from the remote system.
 By default, the tilde (``~'') character is the escape character, and
@@ -129,7 +136,7 @@ normally control-Y (``^Y'') is the delayed-suspend character.
 .Pp
 All echoing takes place at the remote site, so that (except for delays)
 the
-.Nm rlogin
+.Nm
 is transparent.
 Flow control via ^S/^Q and flushing of input and output on interrupts
 are handled properly.
@@ -160,7 +167,7 @@ the remote user.
 .Pp
 If Kerberos authentication fails, a warning message is printed and the
 standard Berkeley
-.Nm rlogin
+.Nm
 is used instead.
 .Sh ENVIRONMENT
 The following environment variable is utilized by
@@ -193,7 +200,7 @@ Determines the user's terminal type.
 
 .Sh HISTORY
 The
-.Nm rlogin
+.Nm
 command appeared in
 .Bx 4.2 .
 .Sh BUGS
