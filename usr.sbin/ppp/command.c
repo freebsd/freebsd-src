@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.18 1996/06/09 20:40:58 ache Exp $
+ * $Id: command.c,v 1.19 1996/09/28 11:25:47 bde Exp $
  *
  */
 #include <sys/types.h>
@@ -361,6 +361,18 @@ static int ShowRedial()
   return(1);
 }
 
+#ifdef MSEXT
+static int ShowMSExt()
+{
+  printf(" MS PPP extention values \n" );
+  printf("   Primary NS     : %s\n", inet_ntoa( ns_entries[0] ));
+  printf("   Secondary NS   : %s\n", inet_ntoa( ns_entries[1] ));
+  printf("   Primary NBNS   : %s\n", inet_ntoa( nbns_entries[0] ));
+  printf("   Secondary NBNS : %s\n", inet_ntoa( nbns_entries[1] ));
+
+  return(1);
+}
+#endif /* MSEXT */
 
 extern int ShowIfilter(), ShowOfilter(), ShowDfilter(), ShowAfilter();
 
@@ -403,6 +415,10 @@ struct cmdtab const ShowCommands[] = {
 	"Show Idle timeout value", StrNull},
   { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
 	"Show Redial timeout value", StrNull},
+#ifdef MSEXT
+  { "msext", 	NULL,	  ShowMSExt,		LOCAL_AUTH,
+	"Show MS PPP extention values", StrNull},
+#endif /* MSEXT */
   { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
 	"Show version string", StrNull},
   { "help",     "?",      HelpCommand,		LOCAL_NO_AUTH | LOCAL_AUTH,
@@ -808,6 +824,59 @@ char **argv;
   return(1);
 }
 
+#ifdef MSEXT
+
+void
+SetMSEXT(pri_addr, sec_addr, argc, argv)
+struct in_addr *pri_addr;
+struct in_addr *sec_addr;
+int argc;
+char **argv;
+{
+  int dummyint;
+  struct in_addr dummyaddr;
+
+  pri_addr->s_addr = sec_addr->s_addr = 0L;
+
+  if( argc > 0 ) {
+    ParseAddr(argc, argv++, pri_addr, &dummyaddr, &dummyint);
+    if( --argc > 0 ) 
+      ParseAddr(argc, argv++, sec_addr, &dummyaddr, &dummyint);
+    else
+      sec_addr->s_addr = pri_addr->s_addr;
+  }
+
+ /*
+  * if the primary/secondary ns entries are 0.0.0.0 we should 
+  * set them to either the localhost's ip, or the values in
+  * /etc/resolv.conf ??
+  *
+  * up to you if you want to implement this...
+  */
+
+}
+
+static int
+SetNS(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  SetMSEXT(&ns_entries[0], &ns_entries[1], argc, argv);
+  return(1);
+}
+
+static int
+SetNBNS(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  SetMSEXT(&nbns_entries[0], &nbns_entries[1], argc, argv);
+  return(1);
+}
+
+#endif /* MS_EXT */
 
 #define	VAR_AUTHKEY	0
 #define	VAR_DIAL	1
@@ -919,6 +988,12 @@ struct cmdtab const SetCommands[] = {
 	"Set Idle timeout", StrValue},
   { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
 	"Set Redial timeout", "value|random [dial_attempts]"},
+#ifdef MSEXT
+  { "ns",	NULL,	  SetNS,		LOCAL_AUTH,
+	"Set NameServer", "pri-addr [sec-addr]"},
+  { "nbns",	NULL,	  SetNBNS,		LOCAL_AUTH,
+	"Set NetBIOS NameServer", "pri-addr [sec-addr]"},
+#endif /* MSEXT */
   { "help",     "?",      HelpCommand,		LOCAL_AUTH | LOCAL_NO_AUTH,
 	"Display this message", StrNull, (void *)SetCommands},
   { NULL,       NULL,     NULL },

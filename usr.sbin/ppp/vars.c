@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.6 1995/10/08 14:57:31 amurai Exp $
+ * $Id: vars.c,v 1.7 1996/01/10 21:28:04 phk Exp $
  *
  */
 #include "fsm.h"
@@ -29,7 +29,7 @@
 #include "defs.h"
 
 char VarVersion[] = "Version 0.94";
-char VarLocalVersion[] = "$Date: 1995/10/08 14:57:31 $";
+char VarLocalVersion[] = "$Date: 1996/01/10 21:28:04 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -42,7 +42,9 @@ struct confdesc pppConfs[] = {
   { "acfcomp",   CONF_ENABLE,  CONF_ACCEPT },
   { "protocomp", CONF_ENABLE,  CONF_ACCEPT },
   { "pred1",	 CONF_ENABLE,  CONF_ACCEPT },
-  { "proxy",	 CONF_DISABLE, CONF_DENY },
+  { "proxy",	 CONF_DISABLE, CONF_DENY   },
+  { "msext",     CONF_DISABLE, CONF_ACCEPT },
+  { "passwdauth",CONF_ENABLE,  CONF_DENY   },
   { NULL },
 };
 
