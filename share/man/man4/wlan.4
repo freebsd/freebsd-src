@@ -81,11 +81,14 @@ Complete debugging controls are available using:
 .Pp
 .Dl "sysctl net.wlan.X.debug=mask"
 .Pp
-where X is the number of the
+where
+.Ar X
+is the number of the
 .Nm
 instance and mask is a bit-or of control bits that determine which
 debugging messages to enable.
 For example,
+.Pp
 .Dl "sysctl net.wlan.0.debug=0x00200000"
 .Pp
 enables debugging messages related to scanning for an access point,

@@ -434,7 +434,7 @@ in that a shutdown breaks all edges and resets the node,
 but does not remove it.
 In this case, the shutdown method should not
 free its resources, but rather, clean up and then call the
-.Em NG_NODE_REVIVE()
+.Fn NG_NODE_REVIVE
 macro to signal the generic code that the shutdown is aborted.
 In the case where the shutdown is started by the node itself due to hardware
 removal or unloading (via
