@@ -62,6 +62,7 @@ static char sccsid[] = "from: @(#)quota.c	8.1 (Berkeley) 6/6/93";
 #include <pwd.h>
 #include <grp.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include <netdb.h>
 #include <rpc/rpc.h>
@@ -79,13 +80,33 @@ struct quotause {
 };
 #define	FOUND	0x01
 
-char *timeprt	__P((time_t seconds));
-struct quotause *getprivs __P((long id, int quotatype));
+static char *timeprt	__P((time_t seconds));
+static struct quotause *getprivs __P((long id, int quotatype));
+static void usage ();
+static void showuid(u_long uid);
+static void showgid(u_long gid);
+static int alldigits(char *s);
+static void showusrname(char *name);
+static void showgrpname(char *name);
+static void showquotas(int type, u_long id, char *name);
+static void heading(int type, u_long id, char *name, char *tag);
+static char *timeprt(time_t seconds);
+static struct quotause *getprivs(long id, int quotatype);
+static int ufshasquota(struct fstab *fs, int type, char **qfnamep);
+static int getufsquota(struct statfs *fst, struct fstab *fs, 
+					   struct quotause *qup, long id, int quotatype);
+static int getnfsquota(struct statfs *fst, struct fstab *fs, 
+					   struct quotause *qup, long id, int quotatype);
+static int callaurpc(char *host, int prognum, int versnum, int procnum, 
+					 xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
+static int alldigits(char *s);
 
 int	qflag;
 int	vflag;
 
+int
 main(argc, argv)
+	int argc;
 	char *argv[];
 {
 	int ngroups; 
@@ -125,14 +146,14 @@ main(argc, argv)
 			ngroups = getgroups(NGROUPS, gidset);
 			if (ngroups < 0) {
 				perror("quota: getgroups");
-				exit(1);
+				return(1);
 			}
 			showgid(mygid);
 			for (i = 0; i < ngroups; i++)
 				if (gidset[i] != mygid)
 					showgid(gidset[i]);
 		}
-		exit(0);
+		return(0);
 	}
 	if (uflag && gflag)
 		usage();
@@ -143,7 +164,7 @@ main(argc, argv)
 			else
 				showusrname(*argv);
 		}
-		exit(0);
+		return(0);
 	}
 	if (gflag) {
 		for (; argc > 0; argc--, argv++) {
@@ -152,10 +173,11 @@ main(argc, argv)
 			else
 				showgrpname(*argv);
 		}
-		exit(0);
 	}
+	return(0);
 }
 
+static void
 usage()
 {
 
@@ -169,6 +191,7 @@ usage()
 /*
  * Print out quotas for a specified user identifier.
  */
+static void
 showuid(uid)
 	u_long uid;
 {
@@ -191,6 +214,7 @@ showuid(uid)
 /*
  * Print out quotas for a specifed user name.
  */
+static void
 showusrname(name)
 	char *name;
 {
@@ -213,6 +237,7 @@ showusrname(name)
 /*
  * Print out quotas for a specified group identifier.
  */
+static void
 showgid(gid)
 	u_long gid;
 {
@@ -249,6 +274,7 @@ showgid(gid)
 /*
  * Print out quotas for a specifed group name.
  */
+static void
 showgrpname(name)
 	char *name;
 {
@@ -281,6 +307,7 @@ showgrpname(name)
 	showquotas(GRPQUOTA, grp->gr_gid, name);
 }
 
+static void
 showquotas(type, id, name)
 	int type;
 	u_long id;
@@ -289,8 +316,7 @@ showquotas(type, id, name)
 	register struct quotause *qup;
 	struct quotause *quplist;
 	char *msgi, *msgb, *nam;
-	int myuid, fd, lines = 0;
-	static int first;
+	int lines = 0;
 	static time_t now;
 
 	if (now == 0)
@@ -369,6 +395,7 @@ showquotas(type, id, name)
 		heading(type, id, name, "none");
 }
 
+static void
 heading(type, id, name, tag)
 	int type;
 	u_long id;
@@ -395,7 +422,7 @@ heading(type, id, name, tag)
 /*
  * Calculate the grace period and return a printable string for it.
  */
-char *
+static char *
 timeprt(seconds)
 	time_t seconds;
 {
@@ -425,7 +452,7 @@ timeprt(seconds)
 /*
  * Collect the requested quota information.
  */
-struct quotause *
+static struct quotause *
 getprivs(id, quotatype)
 	register long id;
 	int quotatype;
@@ -489,6 +516,7 @@ getprivs(id, quotatype)
 /*
  * Check to see if a particular quota is to be enabled.
  */
+static int
 ufshasquota(fs, type, qfnamep)
 	register struct fstab *fs;
 	int type;
@@ -505,7 +533,7 @@ ufshasquota(fs, type, qfnamep)
 	}
 	strcpy(buf, fs->fs_mntops);
 	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
-		if (cp = index(opt, '='))
+		if ((cp = index(opt, '=')))
 			*cp++ = '\0';
 		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
 			break;
@@ -523,7 +551,7 @@ ufshasquota(fs, type, qfnamep)
 	return (1);
 }
 
-int
+static int
 getufsquota(fst, fs, qup, id, quotatype)
 	struct statfs *fst;
 	struct fstab *fs;
@@ -538,7 +566,7 @@ getufsquota(fst, fs, qup, id, quotatype)
 	if (!ufshasquota(fs, quotatype, &qfpathname))
 		return (0);
 
-	if (quotactl(fs->fs_file, qcmd, id, &qup->dqblk) != 0) {
+	if (quotactl(fs->fs_file, qcmd, id, (char *)&qup->dqblk) != 0) {
 		if ((fd = open(qfpathname, O_RDONLY)) < 0) {
 			perror(qfpathname);
 			return (0);
@@ -565,7 +593,7 @@ getufsquota(fst, fs, qup, id, quotatype)
 	return (1);
 }
 
-int
+static int
 getnfsquota(fst, fs, qup, id, quotatype)
 	struct statfs *fst;
 	struct fstab *fs; 
@@ -607,8 +635,8 @@ getnfsquota(fst, fs, qup, id, quotatype)
 	gq_args.gqa_pathp = cp + 1;
 	gq_args.gqa_uid = id;
 	if (callaurpc(fst->f_mntfromname, RQUOTAPROG, RQUOTAVERS,
-	    RQUOTAPROC_GETQUOTA, xdr_getquota_args, &gq_args,
-	    xdr_getquota_rslt, &gq_rslt) != 0) {
+	    RQUOTAPROC_GETQUOTA, xdr_getquota_args, (char *)&gq_args,
+	    xdr_getquota_rslt, (char *)&gq_rslt) != 0) {
 		*cp = ':';
 		return (0);
 	}
@@ -655,11 +683,12 @@ getnfsquota(fst, fs, qup, id, quotatype)
 	return (0);
 }
  
-int
+static int
 callaurpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	char *host;
 	xdrproc_t inproc, outproc;
 	char *in, *out;
+	int prognum, versnum, procnum;
 {
 	struct sockaddr_in server_addr;
 	enum clnt_stat clnt_stat;
@@ -690,6 +719,7 @@ callaurpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	return ((int) clnt_stat);
 }
 
+static int
 alldigits(s)
 	register char *s;
 {
@@ -699,6 +729,6 @@ alldigits(s)
 	do {
 		if (!isdigit(c))
 			return (0);
-	} while (c = *s++);
+	} while ((c = *s++));
 	return (1);
 }
