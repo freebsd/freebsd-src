@@ -113,7 +113,7 @@ main(argc, argv)
 			vflag = 1;
 			break;
 		default:
-			(void)fprintf(stderr,
+			fprintf(stderr,
 			    "usage: cat [-benstuv] [-] [file ...]\n");
 			exit(1);
 		}
@@ -184,12 +184,12 @@ cook_cat(fp)
 					continue;
 				}
 				if (nflag && !bflag) {
-					(void)fprintf(stdout, "%6d\t", ++line);
+					fprintf(stdout, "%6d\t", ++line);
 					if (ferror(stdout))
 						break;
 				}
 			} else if (nflag) {
-				(void)fprintf(stdout, "%6d\t", ++line);
+				fprintf(stdout, "%6d\t", ++line);
 				if (ferror(stdout))
 					break;
 			}
