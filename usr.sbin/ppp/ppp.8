@@ -2997,6 +2997,11 @@ Set the given target address or clear it if no address is given.  The target
 address is used by libalias to specify how to NAT incoming packets by default.
 If a target address is not set, the alias address (that of the tun interface)
 is used.
+.Pp
+The target address may be set to
+.Dq default ,
+in which case libalias will not alter the destination address of new
+incoming data.
 .It nat use_sockets yes|no
 When enabled, this option tells the network address translation engine to
 create a socket so that it can guarantee a correct incoming ftp data or
