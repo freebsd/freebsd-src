@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /u1/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.10 1995/12/08 11:17:33 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.11 1995/12/09 09:11:01 julian Exp $
  */
 
 #include "param.h"
@@ -732,10 +732,16 @@ DBPRINT(("	vntodn "));
 		Debugger("bad-tag ");
 		return(EINVAL);
 	}
+#if 0
+	/*
+	 * XXX: This is actually a "normal" case when vclean calls us without
+	 * XXX: incrementing the reference count first.
+	 */
 	if(vn_p->v_usecount == 0)
 	{
 		printf("No references! ");
 	}
+#endif
 	if((vn_p->v_type == VBAD) || (vn_p->v_type == VNON))
 	{
 		printf("bad-type2 ");
@@ -762,12 +768,18 @@ DBPRINT(("dntovn "));
 	{
 		if(vn_p->v_id != dnp->vn_id)
 		{
+#if 0
+			/* XXX: This is `normal'... */
 			printf("bad-id ");
+#endif
 			goto skip;
 		}
 		if(vn_p->v_tag != VT_DEVFS)
 		{
+#if 0
+			/* XXX: This is `normal'... */
 			printf("bad-tag ");
+#endif
 			goto skip;
 		}
 		if(vn_p->v_op != *(dnp->ops))
