@@ -209,7 +209,6 @@ vm_map_zinit(void *mem, int size, int flags)
 	map = (vm_map_t)mem;
 	map->nentries = 0;
 	map->size = 0;
-	map->infork = 0;
 	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
 	sx_init(&map->lock, "user map");
 	return (0);
@@ -237,9 +236,6 @@ vm_map_zdtor(void *mem, int size, void *arg)
 	KASSERT(map->size == 0,
 	    ("map %p size == %lu on free.",
 	    map, (unsigned long)map->size));
-	KASSERT(map->infork == 0,
-	    ("map %p infork == %d on free.",
-	    map, map->infork));
 }
 #endif	/* INVARIANTS */
 
@@ -2389,7 +2385,6 @@ vmspace_fork(struct vmspace *vm1)
 	GIANT_REQUIRED;
 
 	vm_map_lock(old_map);
-	old_map->infork = 1;
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	vm2->vm_taddr = vm1->vm_taddr;
@@ -2488,7 +2483,6 @@ vmspace_fork(struct vmspace *vm1)
 		old_entry = old_entry->next;
 	}
 
-	old_map->infork = 0;
 	vm_map_unlock(old_map);
 
 	return (vm2);
@@ -3025,6 +3019,108 @@ RetryLookup:;
 	return (KERN_SUCCESS);
 
 #undef	RETURN
+}
+
+/*
+ *	vm_map_lookup_locked:
+ *
+ *	Lookup the faulting address.  A version of vm_map_lookup that returns 
+ *      KERN_FAILURE instead of blocking on map lock or memory allocation.
+ */
+int
+vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
+		     vm_offset_t vaddr,
+		     vm_prot_t fault_typea,
+		     vm_map_entry_t *out_entry,	/* OUT */
+		     vm_object_t *object,	/* OUT */
+		     vm_pindex_t *pindex,	/* OUT */
+		     vm_prot_t *out_prot,	/* OUT */
+		     boolean_t *wired)		/* OUT */
+{
+	vm_map_entry_t entry;
+	vm_map_t map = *var_map;
+	vm_prot_t prot;
+	vm_prot_t fault_type = fault_typea;
+
+	/*
+	 * If the map has an interesting hint, try it before calling full
+	 * blown lookup routine.
+	 */
+	entry = map->root;
+	*out_entry = entry;
+	if (entry == NULL ||
+	    (vaddr < entry->start) || (vaddr >= entry->end)) {
+		/*
+		 * Entry was either not a valid hint, or the vaddr was not
+		 * contained in the entry, so do a full lookup.
+		 */
+		if (!vm_map_lookup_entry(map, vaddr, out_entry))
+			return (KERN_INVALID_ADDRESS);
+
+		entry = *out_entry;
+	}
+
+	/*
+	 * Fail if the entry refers to a submap.
+	 */
+	if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
+		return (KERN_FAILURE);
+
+	/*
+	 * Check whether this task is allowed to have this page.
+	 * Note the special case for MAP_ENTRY_COW
+	 * pages with an override.  This is to implement a forced
+	 * COW for debuggers.
+	 */
+	if (fault_type & VM_PROT_OVERRIDE_WRITE)
+		prot = entry->max_protection;
+	else
+		prot = entry->protection;
+	fault_type &= VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
+	if ((fault_type & prot) != fault_type)
+		return (KERN_PROTECTION_FAILURE);
+	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
+	    (entry->eflags & MAP_ENTRY_COW) &&
+	    (fault_type & VM_PROT_WRITE) &&
+	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0)
+		return (KERN_PROTECTION_FAILURE);
+
+	/*
+	 * If this page is not pageable, we have to get it for all possible
+	 * accesses.
+	 */
+	*wired = (entry->wired_count != 0);
+	if (*wired)
+		prot = fault_type = entry->protection;
+
+	if (entry->eflags & MAP_ENTRY_NEEDS_COPY) {
+		/*
+		 * Fail if the entry was copy-on-write for a write fault.
+		 */
+		if (fault_type & VM_PROT_WRITE)
+			return (KERN_FAILURE);
+		/*
+		 * We're attempting to read a copy-on-write page --
+		 * don't allow writes.
+		 */
+		prot &= ~VM_PROT_WRITE;
+	}
+
+	/*
+	 * Fail if an object should be created.
+	 */
+	if (entry->object.vm_object == NULL && !map->system_map)
+		return (KERN_FAILURE);
+
+	/*
+	 * Return the object/offset from this entry.  If the entry was
+	 * copy-on-write or empty, it has been fixed up.
+	 */
+	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
+	*object = entry->object.vm_object;
+
+	*out_prot = prot;
+	return (KERN_SUCCESS);
 }
 
 /*
