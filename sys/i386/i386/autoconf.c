@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.132 1999/08/13 10:29:16 phk Exp $
+ *	$Id: autoconf.c,v 1.133 1999/08/22 19:59:29 peter Exp $
  */
 
 /*
@@ -74,6 +74,7 @@
 
 #include "pnp.h"
 #if NPNP > 0
+#include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
 #endif
 
