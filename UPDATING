@@ -17,6 +17,11 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020911:	p27
+	The kvm_openfiles/kvm_open functions now mark the returned file
+	descriptors close-on-exec in case set-user-ID/set-group-ID
+	applications are careless.
+
 20020813:	p26	FreeBSD-SA-02:38.signed-error
 	Bounds checking errors in accept(), getsockname(),
 	getpeername(), and a VESA ioctl() command were corrected.
