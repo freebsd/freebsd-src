@@ -1077,7 +1077,7 @@ putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
 		movw $(SCR_ROW-1)*SCR_COL/2,%cx # Words to move
 		rep				# Scroll
 		movsl				#  screen
-		movb $' ',%al			# Space
+		movb $0x20,%al			# Space
 		movb $SCR_COL,%cl		# Columns to clear
 		rep				# Clear
 		stosw				#  line
@@ -1085,6 +1085,7 @@ putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
 putchr.4:	movw %dx,(%ebx) 		# Update position
 		popa				# Restore
 		ret				# To caller
+')
 
 		.p2align 4
 #
