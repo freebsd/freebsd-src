@@ -207,6 +207,10 @@ void	divert_packet(struct mbuf *m, int incoming, int port, int rule);
 extern struct pr_usrreqs div_usrreqs;
 #endif
 
+#ifdef PFIL_HOOKS
+extern	struct pfil_head inet_pfil_hook;
+#endif
+
 void	in_delayed_cksum(struct mbuf *m);
 
 #endif /* _KERNEL */

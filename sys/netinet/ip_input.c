@@ -154,6 +154,9 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
 #ifdef DIAGNOSTIC
 static int	ipprintfs = 0;
 #endif
+#ifdef PFIL_HOOKS
+struct pfil_head inet_pfil_hook;
+#endif
 
 static struct	ifqueue ipintrq;
 static int	ipqmaxlen = IFQ_MAXLEN;
@@ -263,6 +266,14 @@ ip_init()
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip_protox[pr->pr_protocol] = pr - inetsw;
 
+#ifdef PFIL_HOOKS
+	inet_pfil_hook.ph_type = PFIL_TYPE_AF;
+	inet_pfil_hook.ph_af = AF_INET;
+	if ((i = pfil_head_register(&inet_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to register pfil hook, "
+			"error %d\n", __func__, i);
+#endif /* PFIL_HOOKS */
+
 	IPQ_LOCK_INIT();
 	for (i = 0; i < IPREASS_NHASH; i++)
 	    TAILQ_INIT(&ipq[i]);
@@ -301,11 +312,6 @@ ip_input(struct mbuf *m)
 	struct in_addr pkt_dst;
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 	struct ip_fw_args args;
-#ifdef PFIL_HOOKS
-	struct packet_filter_hook *pfh;
-	struct mbuf *m0;
-	int rv;
-#endif /* PFIL_HOOKS */
 #ifdef FAST_IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
@@ -461,25 +467,14 @@ iphack:
 
 #ifdef PFIL_HOOKS
 	/*
-	 * Run through list of hooks for input packets.  If there are any
-	 * filters which require that additional packets in the flow are
-	 * not fast-forwarded, they must clear the M_CANFASTFWD flag.
-	 * Note that filters must _never_ set this flag, as another filter
-	 * in the list may have previously cleared it.
+	 * Run through list of hooks for input packets.
 	 */
-	m0 = m;
-	pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-	for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
-		if (pfh->pfil_func) {
-			rv = pfh->pfil_func(ip, hlen,
-					    m->m_pkthdr.rcvif, 0, &m0);
-			if (rv)
-				return;
-			m = m0;
-			if (m == NULL)
-				return;
-			ip = mtod(m, struct ip *);
-		}
+	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif,
+	    PFIL_IN) != 0)
+		return;
+	if (m == NULL)			/* consumed by filter */
+		return;
+	ip = mtod(m, struct ip *);
 #endif /* PFIL_HOOKS */
 
 	if (fw_enable && IPFW_LOADED) {
