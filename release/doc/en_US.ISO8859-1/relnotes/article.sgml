@@ -3346,6 +3346,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       suppress the run of &man.locate.1;, and a <option>-q</option>
       flag suppresses the leading name of the query.</para>
 
+    <para>&man.whereis.1; now supports a <option>-a</option> flag
+      to report all matches instead of only the first of each 
+      requested type.</para>
+
     <para>&man.which.1; is now a C program, rather than a Perl
       script.</para>
 
