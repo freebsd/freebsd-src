@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.200 1997/10/06 08:36:12 jkh Exp $
+ * $Id: install.c,v 1.201 1997/10/12 16:21:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -883,7 +883,7 @@ installFilesystems(dialogMenuItem *self)
 	if (strcmp(root->mountpoint, "/"))
 	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
 
-	if (root->newfs) {
+	if (root->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs the root partition?"))) {
 	    int i;
 
 	    msgNotify("Making a new root filesystem on %s", dname);
@@ -943,7 +943,7 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == rootdev)
 			    continue;
 
-			if (tmp->newfs)
+			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgradding - are you SURE you want to newfs /dev/%s?", c2->name)))
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/r%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
 			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/r%s", RunningAsInit ? "/mnt" : "", c2->name);
