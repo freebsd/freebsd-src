@@ -115,7 +115,7 @@ static int	nfssvc_nfsd(struct nfsd_srvargs *, caddr_t, struct thread *);
  * - adds a socket to the selection list
  * - remains in the kernel as an nfsd
  * - remains in the kernel as an nfsiod
- * For INET6 we suppose that nfsd provides only IN6P_BINDV6ONLY sockets
+ * For INET6 we suppose that nfsd provides only IN6P_IPV6_V6ONLY sockets
  * and that mountd provides
  *  - sockaddr with no IPv4-mapped addresses
  *  - mask for both INET and INET6 families if there is IPv4-mapped overlap
