@@ -555,7 +555,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
       }
       af = ntohl(tun.header.family);
 #ifndef NOINET6
-      if (af != AF_INET && af != AF_INET6)
+      if (af != AF_INET && (!probe.ipv6_available || af != AF_INET6))
 #else
       if (af != AF_INET)
 #endif
