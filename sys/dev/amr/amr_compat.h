@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 1999 Michael Smith
+ * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,58 +24,38 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
-
 /*
- * ioctl interface
+ * Backwards compatibility support.
  */
 
-#include <sys/ioccom.h>
+#if __FreeBSD_version < 500003		/* old buf style */
+# include <sys/buf.h>
 
-/*
- * Fetch the driver's interface version.
- */
-#define AMR_IO_VERSION_NUMBER	0x01
-#define AMR_IO_VERSION	_IOR('A', 0x200, int)
+# define FREEBSD_4
+# define bio					buf
+# define bioq_init(x)				bufq_init(x)
+# define bioq_insert_tail(x, y)			bufq_insert_tail(x, y)
+# define bioq_remove(x, y)			bufq_remove(x, y)
+# define bioq_first(x)				bufq_first(x)
+# define bio_queue_head				buf_queue_head
+# define bio_bcount				b_bcount
+# define bio_blkno				b_blkno
+# define bio_caller1				b_caller1
+# define bio_data				b_data
+# define bio_dev				b_dev
+# define bio_driver1				b_driver1
+# define bio_driver2				b_driver2
+# define bio_error				b_error
+# define bio_flags				b_flags
+# define bio_pblkno				b_pblkno
+# define bio_resid				b_resid
+# define BIO_ERROR				B_ERROR
+# define devstat_end_transaction_bio(x, y)	devstat_end_transaction_buf(x, y)
+# define BIO_IS_READ(x)				((x)-b_flags & B_READ)
 
-/*
- * Pass a command from userspace through to the adapter.
- *
- * Note that in order to be code-compatible with the Linux
- * interface where possible, the formatting of the au_cmd field is
- * somewhat Interesting.
- *
- * For normal commands, the layout is (fields from struct amr_mailbox_ioctl):
- *
- * 0		mb_command
- * 1		mb_channel
- * 2		mb_param
- * 3		mb_pad[0]
- * 4		mb_drive
- *
- * For SCSI passthrough commands, the layout is:
- *
- * 0		AMR_CMD_PASS	(0x3)
- * 1		reserved, 0
- * 2		cdb length
- * 3		cdb data
- * 3+cdb_len	passthrough control byte (timeout, ars, islogical)
- * 4+cdb_len	reserved, 0
- * 5+cdb_len	channel
- * 6+cdb_len	target
- */
-
-struct amr_user_ioctl {
-    unsigned char	au_cmd[32];	/* command text from userspace */
-    void		*au_buffer;	/* data buffer in userspace */
-    unsigned long	au_length;	/* data buffer size (0 == no data) */
-    int			au_direction;	/* data transfer direction */
-#define AMR_IO_NODATA	0
-#define AMR_IO_READ	1
-#define AMR_IO_WRITE	2
-    int			au_status;	/* command status returned by adapter */
-};
-
-#define AMR_IO_COMMAND	_IOWR('A', 0x201, struct amr_user_ioctl)
-
+#else
+# include <sys/bio.h>
+# define BIO_IS_READ(x)				((x)->bio_cmd == BIO_READ)
+#endif
