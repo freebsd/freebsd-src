@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.17 1994/12/18 18:48:39 phk Exp $
+ *      $Id: scsiconf.c,v 1.18 1995/01/08 13:38:33 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -25,6 +25,7 @@
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 #include <sys/conf.h>
+#include <machine/clock.h>
 
 #include "st.h"
 #include "sd.h"
@@ -84,6 +85,8 @@ extern  kil_attach();
 #if NUK > 0
 extern  ukattach();
 #endif	/* NUK */
+
+errval scsi_probe_bus(int, int, int);
 
 /*
  * One of these is allocated and filled in for each scsi bus.
@@ -342,7 +345,6 @@ static struct scsidevs knowndevs[] =
 struct predefined *scsi_get_predef();
 struct scsidevs *scsi_probedev();
 struct scsidevs *selectdev();
-errval scsi_probe_bus __P((int bus, int targ, int lun));
 
 struct scsi_device probe_switch =
 {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.7 1994/11/03 21:04:21 wollman Exp $
+ * $Id: in.c,v 1.8 1994/12/22 21:56:22 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,8 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+
+#include <netinet/igmp_var.h>
 
 /*
  * Return the network number from an internet address.
