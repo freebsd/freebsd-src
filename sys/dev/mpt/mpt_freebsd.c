@@ -1289,7 +1289,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			 * problems with reading NVRAM data.
 			 */
 			if (IS_CURRENT_SETTINGS(cts)) {
-				fCONFIG_PAGE_SCSI_DEVICE_0 tmp;
+				CONFIG_PAGE_SCSI_DEVICE_0 tmp;
 				dval = 0;
 
 				tmp = mpt->mpt_dev_page0[tgt];
@@ -1464,7 +1464,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 static int
 mpt_setwidth(mpt_softc_t *mpt, int tgt, int onoff)
 {
-	fCONFIG_PAGE_SCSI_DEVICE_1 tmp;
+	CONFIG_PAGE_SCSI_DEVICE_1 tmp;
 	tmp = mpt->mpt_dev_page1[tgt];
 	if (onoff) {
 		tmp.RequestedParameters |= MPI_SCSIDEVPAGE1_RP_WIDE;
@@ -1490,7 +1490,7 @@ mpt_setwidth(mpt_softc_t *mpt, int tgt, int onoff)
 static int
 mpt_setsync(mpt_softc_t *mpt, int tgt, int period, int offset)
 {
-	fCONFIG_PAGE_SCSI_DEVICE_1 tmp;
+	CONFIG_PAGE_SCSI_DEVICE_1 tmp;
 	tmp = mpt->mpt_dev_page1[tgt];
 	tmp.RequestedParameters &=
 	    ~MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
