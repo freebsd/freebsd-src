@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.17 1994/10/26 13:18:49 jkh Exp $
+ *	$Id: boot.c,v 1.18 1994/10/26 13:46:34 jkh Exp $
  */
 
 
@@ -238,7 +238,7 @@ getbootdev(howto)
      int *howto;
 {
 	char c, *ptr = namebuf;
-	printf("Boot: [[[%s(%d,%c)]%s][-s][-a][-c][-d][-f]] :- "
+	printf("Boot: [[[%s(%d,%c)]%s][-s][-r][-a][-c][-d][-b]] :- "
 			, devs[maj]
 			, unit
 			, 'a'+part
