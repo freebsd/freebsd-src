@@ -252,7 +252,7 @@ ata_completed(void *context, int pending)
 		    printf(" dma=0x%02x", request->dmastat);
 		if (!(request->flags & ATA_R_ATAPI) &&
 		    !(request->flags & ATA_R_CONTROL))
-		    printf(" LBA=%lld", request->u.ata.lba);
+		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 		printf("\n");
 	    }
 
