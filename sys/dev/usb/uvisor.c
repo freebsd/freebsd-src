@@ -9,6 +9,8 @@
  * 1.12 not needed	rcsids
  * 1.13 already merged	extra arg to usbd_do_request_flags
  * 1.14 needed		sony and palm support
+ * 1.15 needed		sony clie
+ * 1.16 merged		trailing whites
  */
 
 /*
@@ -76,6 +78,10 @@
 #define DPRINTF(x)	if (uvisordebug) printf x
 #define DPRINTFN(n,x)	if (uvisordebug>(n)) printf x
 int uvisordebug = 0;
+#ifdef SYSCTL_DECL
+SYSCTL_INT(_debug_usb, OID_AUTO, uvisor, CTLFLAG_RW,
+	   &uvisordebug, 0, "uvisor debug level");
+#endif
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -164,7 +170,7 @@ Static device_method_t uvisor_methods[] = {
        DEVMETHOD(device_detach, uvisor_detach),
        { 0, 0 }
  };
- 
+
 
 Static driver_t uvisor_driver = {
        "usio",
@@ -363,7 +369,7 @@ uvisor_init(struct uvisor_softc *sc)
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
-	err = usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo, 
+	err = usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo,
 				    USBD_SHORT_XFER_OK, &actlen,
 				    USBD_DEFAULT_TIMEOUT);
 	if (err)
@@ -432,7 +438,7 @@ uvisor_close(void *addr, int portno)
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
-	(void)usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo, 
+	(void)usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo,
 				    USBD_SHORT_XFER_OK, &actlen,
 				    USBD_DEFAULT_TIMEOUT);
 }
