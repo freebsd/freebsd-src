@@ -1259,6 +1259,7 @@ device cs0 at isa? port 0x300 irq ?
 device cx0 at isa? port 0x240 irq 15 drq 7
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
 device el0 at isa? port 0x300 irq 9
+# for pccard support of ep0, omit all after at in following line.
 device ep0 at isa? port 0x300 irq 10
 device ex0 at isa? port? irq?
 device fe0 at isa? port 0x300 irq ?
