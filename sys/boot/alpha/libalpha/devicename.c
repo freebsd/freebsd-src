@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devicename.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  */
 
 #include <stand.h>
@@ -174,8 +174,11 @@ alpha_parsedev(struct alpha_devdesc **dev, char *devspec, char **path)
     }
     idev->d_dev = dv;
     idev->d_type = dv->dv_type;
-    if (dev != NULL)
+    if (dev == NULL) {
+	free(idev);
+    } else {
 	*dev = idev;
+    }
     return(0);
 
  fail:
