@@ -52,7 +52,9 @@ If no user is specified, or if a user is specified and authentication
 of the user fails,
 .Nm
 prompts for a user name.
-Authentication of users is done via passwords.
+Authentication of users is configurable via
+.Xr pam 8 .
+Password authentication is the default.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -101,13 +103,6 @@ If the file
 exists in the user's home directory, all of these messages are suppressed.
 This is to simplify logins for non-human users, such as
 .Xr uucp 1 .
-The
-.Nm
-utility then records an entry in the
-.Xr wtmp 5
-and
-.Xr utmp 5
-files and executes the user's command interpreter.
 .Pp
 The
 .Nm
@@ -139,12 +134,6 @@ login access control table
 login class capabilities database
 .It Pa /etc/motd
 message-of-the-day
-.It Pa /var/run/utmp
-current logins
-.It Pa /var/log/lastlog
-last login account records
-.It Pa /var/log/wtmp
-login account records
 .It Pa /var/mail/user
 system mailboxes
 .It Pa \&.hushlogin
@@ -168,7 +157,6 @@ entries with service name
 .Xr fbtab 5 ,
 .Xr login.access 5 ,
 .Xr login.conf 5 ,
-.Xr utmp 5 ,
 .Xr environ 7 ,
 .Xr pam 8
 .Sh HISTORY
