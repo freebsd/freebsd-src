@@ -1,16 +1,26 @@
-#	$Id: Makefile.inc,v 1.3 1996/08/20 08:20:59 julian Exp $
+#	$Id: Makefile.inc,v 1.3.2.1 1997/06/14 17:58:05 jdp Exp $
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread
 
 SRCS+= \
 	uthread_accept.c \
+	uthread_attr_destroy.c \
+	uthread_attr_init.c \
+	uthread_attr_getdetachstate.c \
+	uthread_attr_getstackaddr.c \
+	uthread_attr_getstacksize.c \
 	uthread_attr_setcreatesuspend_np.c \
+	uthread_attr_setdetachstate.c \
+	uthread_attr_setstackaddr.c \
+	uthread_attr_setstacksize.c \
 	uthread_autoinit.cc \
 	uthread_bind.c \
 	uthread_clean.c \
 	uthread_close.c \
 	uthread_cond.c \
+	uthread_condattr_destroy.c \
+	uthread_condattr_init.c \
 	uthread_connect.c \
 	uthread_create.c \
 	uthread_detach.c \
@@ -39,9 +49,14 @@ SRCS+= \
 	uthread_ioctl.c \
 	uthread_join.c \
 	uthread_kern.c \
+	uthread_kill.c \
 	uthread_listen.c \
 	uthread_longjmp.c \
+	uthread_mattr_init.c \
+	uthread_mattr_kind_np.c \
+	uthread_multi_np.c \
 	uthread_mutex.c \
+	uthread_mutexattr_destroy.c \
 	uthread_nanosleep.c \
 	uthread_once.c \
 	uthread_open.c \
@@ -62,6 +77,8 @@ SRCS+= \
 	uthread_sig.c \
 	uthread_sigaction.c \
 	uthread_sigblock.c \
+	uthread_single_np.c \
+	uthread_sigmask.c \
 	uthread_signal.c \
 	uthread_sigprocmask.c \
 	uthread_sigsetmask.c \

@@ -45,7 +45,7 @@ sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 	/* Check if the signal number is out of range: */
 	if (sig < 1 || sig > NSIG) {
 		/* Return an invalid argument: */
-		_thread_seterrno(_thread_run, EINVAL);
+		errno = EINVAL;
 		ret = -1;
 	} else {
 		/*

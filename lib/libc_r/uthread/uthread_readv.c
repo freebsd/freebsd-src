@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: uthread_readv.c,v 1.3 1997/04/01 22:44:16 jb Exp $
+ *
  */
 #include <sys/types.h>
 #include <sys/fcntl.h>
@@ -42,22 +44,31 @@
 ssize_t
 readv(int fd, const struct iovec * iov, int iovcnt)
 {
-	int             nonblock;
-	int             ret;
-	int             status;
-	if (fd < 0 || fd > _thread_dtablesize || _thread_fd_table[fd] == NULL) {
-		_thread_seterrno(_thread_run, EBADF);
-		ret = -1;
-	} else if ((nonblock = _thread_fd_table[fd]->flags & O_NONBLOCK) == 0 && (ret = _thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__)) != 0) {
-		/* Cannot lock file descriptor. */
-	} else {
+	int	ret;
+	int	status;
+
+	/* Lock the file descriptor for read: */
+	if ((ret = _thread_fd_lock(fd, FD_READ, NULL,
+	    __FILE__, __LINE__)) == 0) {
+		/* Perform a non-blocking readv syscall: */
 		while ((ret = _thread_sys_readv(fd, iov, iovcnt)) < 0) {
-			if (nonblock == 0 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
+			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				_thread_kern_sig_block(&status);
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
-				_thread_kern_sched_state(PS_FDR_WAIT, __FILE__, __LINE__);
-				if (errno == EINTR) {
+
+				/* Reset the interrupted operation flag: */
+				_thread_run->interrupted = 0;
+
+				_thread_kern_sched_state(PS_FDR_WAIT,
+				    __FILE__, __LINE__);
+
+				/*
+				 * Check if the operation was
+				 * interrupted by a signal
+				 */
+				if (_thread_run->interrupted) {
 					ret = -1;
 					break;
 				}
@@ -65,9 +76,7 @@ readv(int fd, const struct iovec * iov, int iovcnt)
 				break;
 			}
 		}
-		if (nonblock == 0) {
-			_thread_fd_unlock(fd, FD_READ);
-		}
+		_thread_fd_unlock(fd, FD_READ);
 	}
 	return (ret);
 }

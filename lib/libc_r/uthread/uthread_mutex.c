@@ -76,18 +76,18 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 
 				/* Process according to mutex type: */
 				switch (type) {
-					/* Fast mutex: */
+				/* Fast mutex: */
 				case MUTEX_TYPE_FAST:
 					/* Nothing to do here. */
 					break;
 
-					/* Counting mutex: */
+				/* Counting mutex: */
 				case MUTEX_TYPE_COUNTING_FAST:
 					/* Reset the mutex count: */
 					pmutex->m_data.m_count = 0;
 					break;
 
-					/* Trap invalid mutex types: */
+				/* Trap invalid mutex types: */
 				default:
 					/* Return an invalid argument error: */
 					errno = EINVAL;
@@ -130,18 +130,18 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_type) {
-			/* Fast mutex: */
+		/* Fast mutex: */
 		case MUTEX_TYPE_FAST:
 			/* Nothing to do here. */
 			break;
 
-			/* Counting mutex: */
+		/* Counting mutex: */
 		case MUTEX_TYPE_COUNTING_FAST:
 			/* Reset the mutex count: */
 			(*mutex)->m_data.m_count = 0;
 			break;
 
-			/* Trap undefined mutex types: */
+		/* Trap undefined mutex types: */
 		default:
 			/* Return an invalid argument error: */
 			errno = EINVAL;
@@ -348,7 +348,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 			 */
 			else if (((*mutex)->m_owner = _thread_queue_deq(&(*mutex)->m_queue)) != NULL) {
 				/* Allow the new owner of the mutex to run: */
-				(*mutex)->m_owner->state = PS_RUNNING;
+				PTHREAD_NEW_STATE((*mutex)->m_owner,PS_RUNNING);
 			}
 			break;
 
@@ -371,7 +371,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 			 */
 			else if (((*mutex)->m_owner = _thread_queue_deq(&(*mutex)->m_queue)) != NULL) {
 				/* Allow the new owner of the mutex to run: */
-				(*mutex)->m_owner->state = PS_RUNNING;
+				PTHREAD_NEW_STATE((*mutex)->m_owner,PS_RUNNING);
 			}
 			break;
 

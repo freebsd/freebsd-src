@@ -97,7 +97,7 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 					_thread_seterrno(pthread, 0);
 
 					/* Change the state of the thread to run: */
-					pthread->state = PS_RUNNING;
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 				}
 			}
 

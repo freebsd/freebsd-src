@@ -57,7 +57,7 @@ pthread_getprio(pthread_t pthread)
 	/* Check if the thread pointer is NULL: */
 	if (pthread == NULL || pthread_p == NULL) {
 		/* Return an invalid argument error: */
-		_thread_seterrno(_thread_run, EINVAL);
+		errno = EINVAL;
 		rval = -1;
 	} else {
 		/* Get the thread priority: */

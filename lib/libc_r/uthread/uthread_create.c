@@ -87,9 +87,9 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->start_routine = start_routine;
 			new_thread->arg = arg;
 			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
-				new_thread->state = PS_SUSPENDED;
+				PTHREAD_NEW_STATE(new_thread,PS_SUSPENDED);
 			} else {
-				new_thread->state = PS_RUNNING;
+				PTHREAD_NEW_STATE(new_thread,PS_RUNNING);
 			}
 
 			/* Initialise the thread for signals: */
@@ -208,7 +208,7 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 				 * a signal handler thread which must now
 				 * wait for the signal handler to complete: 
 				 */
-				parent->state = PS_SIGTHREAD;
+				PTHREAD_NEW_STATE(parent,PS_SIGTHREAD);
 			} else {
 				/* Schedule the new user thread: */
 				_thread_kern_sched(NULL);

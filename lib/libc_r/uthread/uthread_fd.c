@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: uthread_fd.c,v 1.4 1997/04/01 22:49:58 jb Exp $
+ *
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -47,23 +49,26 @@ _thread_fd_table_init(int fd)
 	_thread_kern_sig_block(&status);
 
 	/* Check if the file descriptor is out of range: */
-	if (fd < 0 || fd >= _thread_dtablesize) {
+	if (fd < 0 || fd >= _thread_dtablesize)
 		/* Return a bad file descriptor error: */
-		errno = EBADF;
-		ret = -1;
-	}
+		ret = EBADF;
+
 	/*
 	 * Check if memory has already been allocated for this file
 	 * descriptor: 
 	 */
 	else if (_thread_fd_table[fd] != NULL) {
+		/* Memory has already been allocated. */
 	}
 	/* Allocate memory for the file descriptor table entry: */
-	else if ((_thread_fd_table[fd] = (struct fd_table_entry *) malloc(sizeof(struct fd_table_entry))) == NULL) {
+	else if ((_thread_fd_table[fd] = (struct fd_table_entry *)
+	    malloc(sizeof(struct fd_table_entry))) == NULL)
 		/* Return a bad file descriptor error: */
-		errno = EBADF;
-		ret = -1;
-	} else {
+		ret = EBADF;
+	else {
+		/* Assume that the operation will succeed: */
+		ret = 0;
+
 		/* Initialise the file locks: */
 		_thread_fd_table[fd]->r_owner = NULL;
 		_thread_fd_table[fd]->w_owner = NULL;
@@ -79,16 +84,38 @@ _thread_fd_table_init(int fd)
 		_thread_queue_init(&_thread_fd_table[fd]->w_queue);
 
 		/* Get the flags for the file: */
-		if ((_thread_fd_table[fd]->flags = _thread_sys_fcntl(fd, F_GETFL, 0)) == -1) {
-			ret = -1;
+		if (fd >= 3 && (_thread_fd_table[fd]->flags =
+		    _thread_sys_fcntl(fd, F_GETFL, 0)) == -1)
+			ret = errno;
 
-		/* Make the file descriptor non-blocking: */
-		} else {
-			_thread_sys_fcntl(fd, F_SETFL, _thread_fd_table[fd]->flags | O_NONBLOCK);
+		else {
+			/* Check if a stdio descriptor: */
+			if (fd < 3)
+				/*
+				 * Use the stdio flags read by
+				 * _pthread_init() to avoid
+				 * mistaking the non-blocking
+				 * flag that, when set on one
+				 * stdio fd, is set on all stdio
+				 * fds.
+				 */
+				_thread_fd_table[fd]->flags =
+				    _pthread_stdio_flags[fd];
+
+			/* Make the file descriptor non-blocking: */
+			if (_thread_sys_fcntl(fd, F_SETFL,
+			    _thread_fd_table[fd]->flags | O_NONBLOCK) == -1) {
+				/*
+				 * Some devices don't support
+				 * non-blocking calls (sigh):
+				 */
+				if (errno != ENODEV)
+					ret = errno;
+			}
 		}
 
 		/* Check if one of the fcntl calls failed: */
-		if (ret == -1) {
+		if (ret != 0) {
 			/* Free the file descriptor table entry: */
 			free(_thread_fd_table[fd]);
 			_thread_fd_table[fd] = NULL;
@@ -143,7 +170,7 @@ _thread_fd_unlock(int fd, int lock_type)
 					 * Set the state of the new owner of
 					 * the thread to  running: 
 					 */
-					_thread_fd_table[fd]->r_owner->state = PS_RUNNING;
+					PTHREAD_NEW_STATE(_thread_fd_table[fd]->r_owner,PS_RUNNING);
 
 					/*
 					 * Reset the number of read locks.
@@ -181,7 +208,7 @@ _thread_fd_unlock(int fd, int lock_type)
 					 * Set the state of the new owner of
 					 * the thread to running: 
 					 */
-					_thread_fd_table[fd]->w_owner->state = PS_RUNNING;
+					PTHREAD_NEW_STATE(_thread_fd_table[fd]->w_owner,PS_RUNNING);
 
 					/*
 					 * Reset the number of write locks.

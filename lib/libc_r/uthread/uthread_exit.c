@@ -109,7 +109,7 @@ pthread_exit(void *status)
 	_thread_run->ret = status;
 
 	while (_thread_run->cleanup != NULL) {
-		_thread_cleanup_pop(1);
+		pthread_cleanup_pop(1);
 	}
 
 	if (_thread_run->attr.cleanup_attr != NULL) {
@@ -123,7 +123,7 @@ pthread_exit(void *status)
 	/* Check if there are any threads joined to this one: */
 	while ((pthread = _thread_queue_deq(&(_thread_run->join_queue))) != NULL) {
 		/* Wake the joined thread and let it detach this thread: */
-		pthread->state = PS_RUNNING;
+		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 	}
 
 	/* Check if the running thread is at the head of the linked list: */
@@ -173,11 +173,11 @@ pthread_exit(void *status)
 
 		/*
 		 * Check if the parent is not waiting on any other signal
-		 * handler threads: 
+		 * handler threads and if it hasn't died in the meantime:
 		 */
-		if (pthread == NULL) {
+		if (pthread == NULL && _thread_run->parent_thread->state != PS_DEAD) {
 			/* Allow the parent thread to run again: */
-			_thread_run->parent_thread->state = PS_RUNNING;
+			PTHREAD_NEW_STATE(_thread_run->parent_thread,PS_RUNNING);
 		}
 		/* Get the signal number: */
 		l = (long) _thread_run->arg;

@@ -45,7 +45,7 @@ pthread_setprio(pthread_t pthread, int prio)
 	/* Check if the priority is invalid: */
 	if (prio < PTHREAD_MIN_PRIORITY || prio > PTHREAD_MAX_PRIORITY) {
 		/* Return an invalid argument error: */
-		_thread_seterrno(_thread_run, EINVAL);
+		errno = EINVAL;
 		rval = -1;
 	} else {
 		/* Block signals: */
@@ -63,7 +63,7 @@ pthread_setprio(pthread_t pthread, int prio)
 		/* Check if the thread pointer is NULL: */
 		if (pthread == NULL || pthread_p == NULL) {
 			/* Return a 'search' error: */
-			_thread_seterrno(_thread_run, ESRCH);
+			errno  = ESRCH;
 			rval = -1;
 		} else {
 			/* Set the thread priority: */
