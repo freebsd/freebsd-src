@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 55 $
+ *       $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION             0x20010208
+#define ACPI_CA_VERSION             0x20010518
 
 
 /* Maximum objects in the various object caches */
@@ -180,7 +180,7 @@
 /*
  * Debugger threading model
  * Use single threaded if the entire subsystem is contained in an application
- * Use multiple threaded when the the subsystem is running in the kernel.
+ * Use multiple threaded when the subsystem is running in the kernel.
  *
  * By default the model is single threaded if ACPI_APPLICATION is set,
  * multi-threaded if ACPI_APPLICATION is not set.
@@ -239,6 +239,11 @@
 #define LO_RSDP_WINDOW_SIZE         0x400
 #define HI_RSDP_WINDOW_SIZE         0x20000
 #define RSDP_SCAN_STEP              16
+
+/* Maximum SpaceIds for Operation Regions */
+
+#define ACPI_MAX_ADDRESS_SPACE      255
+#define ACPI_NUM_ADDRESS_SPACES     256
 
 
 #endif /* _ACCONFIG_H */
