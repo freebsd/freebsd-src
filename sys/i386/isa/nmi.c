@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.11 1998/05/31 10:53:52 bde Exp $
+ *	$Id: intr_machdep.c,v 1.12 1998/06/18 15:32:06 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -80,7 +80,7 @@
  * This is to accommodate "mixed-mode" programming for 
  * motherboards that don't connect the 8254 to the IO APIC.
  */
-#define AUTO_EOI_1
+#define	AUTO_EOI_1	1
 #endif
 
 u_long	*intr_countp[ICU_LEN];
@@ -117,7 +117,7 @@ static inthand_t *slowintr[ICU_LEN] = {
 #endif /* APIC_IO */
 };
 
-static ointhand2_t isa_strayintr;
+static inthand2_t isa_strayintr;
 
 #ifdef PC98
 #define NMI_PARITY 0x04
@@ -239,9 +239,10 @@ isa_defaultirq()
  * Caught a stray interrupt, notify
  */
 static void
-isa_strayintr(d)
-	int d;
+isa_strayintr(vcookiep)
+	void *vcookiep;
 {
+	int intr = (void **)vcookiep - &intr_unit[0];
 
 	/* DON'T BOTHER FOR NOW! */
 	/* for some reason, we get bursts of intr #7, even if not enabled! */
@@ -260,11 +261,11 @@ isa_strayintr(d)
 	 * must be done before sending an EOI so it can't be done if
 	 * we are using AUTO_EOI_1.
 	 */
-	if (intrcnt[NR_DEVICES + d] <= 5)
-		log(LOG_ERR, "stray irq %d\n", d);
-	if (intrcnt[NR_DEVICES + d] == 5)
+	if (intrcnt[NR_DEVICES + intr] <= 5)
+		log(LOG_ERR, "stray irq %d\n", intr);
+	if (intrcnt[NR_DEVICES + intr] == 5)
 		log(LOG_CRIT,
-		    "too many stray irq %d's; not logging any more\n", d);
+		    "too many stray irq %d's; not logging any more\n", intr);
 }
 
 /*
@@ -476,7 +477,7 @@ icu_unset(intr, handler)
 	intr_handler[intr] = isa_strayintr;
 	intr_mptr[intr] = NULL;
 	intr_mask[intr] = HWI_MASK | SWI_MASK;
-	intr_unit[intr] = intr;
+	intr_unit[intr] = &intr_unit[intr];
 #ifdef FAST_HI_XXX
 	/* XXX how do I re-create dvp here? */
 	setidt(flags & INTR_FAST ? TPR_FAST_INTS + intr : TPR_SLOW_INTS + intr,
