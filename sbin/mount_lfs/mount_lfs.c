@@ -38,7 +38,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -48,21 +52,20 @@ static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
 #include "pathnames.h"
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_UPDATE,
 	{ NULL }
 };
 
-void	usage __P((void));
-void	invoke_cleaner __P((char *));
-
-int short_rds, cleaner_debug;
+static __dead void	usage __P((void)) __dead2;
+static void	invoke_cleaner __P((char *, int, int));
 
 int
 main(argc, argv)
@@ -73,9 +76,11 @@ main(argc, argv)
 	int ch, mntflags, noclean;
 	char *fs_name, *options;
 	struct vfsconf *vfc;
+	int short_rds, cleaner_debug;
+
 
 	options = NULL;
-	mntflags = noclean = 0;
+	mntflags = noclean = short_rds = cleaner_debug = 0;
 	while ((ch = getopt(argc, argv, "dno:s")) != EOF)
 		switch (ch) {
 		case 'd':
@@ -113,24 +118,28 @@ main(argc, argv)
 	vfc = getvfsbyname("lfs");
 	if(!vfc && vfsisloadable("lfs")) {
 		if(vfsload("lfs"))
-			err(1, "vfsload(lfs)");
+			err(EX_OSERR, "vfsload(lfs)");
 		endvfsent();	/* flush cache */
 		vfc = getvfsbyname("lfs");
 	}
+	if (!vfc)
+		errx(EX_OSERR, "lfs filesystem is not available");
 
 	if (mount(vfc ? vfc->vfc_index : MOUNT_LFS, fs_name, mntflags, &args))
-		err(1, NULL);
+		err(EX_OSERR, args.fspec);
 
 	if (!noclean)
-		invoke_cleaner(fs_name);
+		invoke_cleaner(fs_name, short_rds, cleaner_debug);
 		/* NOTREACHED */
 
 	exit(0);
 }
 
-void
-invoke_cleaner(name)
+static void
+invoke_cleaner(name, short_rds, cleaner_debug)
 	char *name;
+	int short_rds;
+	int cleaner_debug;
 {
 	char *args[6], **ap = args;
 
@@ -144,13 +153,13 @@ invoke_cleaner(name)
 	*ap = NULL;
 
 	execv(args[0], args);
-	err(1, "exec %s", _PATH_LFS_CLEANERD);
+	err(EX_OSERR, "exec %s", _PATH_LFS_CLEANERD);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,
 		"usage: mount_lfs [-dns] [-o options] special node\n");
-	exit(1);
+	exit(EX_USAGE);
 }

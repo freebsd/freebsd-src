@@ -41,7 +41,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -82,6 +86,7 @@ static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
@@ -411,12 +416,14 @@ main(argc, argv)
 	vfc = getvfsbyname("nfs");
 	if(!vfc && vfsisloadable("nfs")) {
 		if(vfsload("nfs"))
-			err(1, "vfsload(nfs)");
+			err(EX_OSERR, "vfsload(nfs)");
 		endvfsent();	/* flush cache */
 		vfc = getvfsbyname("nfs");
 	}
+	if (!vfc)
+		errx(EX_OSERR, "nfs filesystem is not loadable");
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_NFS, name, mntflags, nfsargsp))
+	if (mount(vfc->vfc_index, name, mntflags, nfsargsp))
 #else
 	if (mount(MOUNT_NFS, name, mntflags, nfsargsp))
 #endif

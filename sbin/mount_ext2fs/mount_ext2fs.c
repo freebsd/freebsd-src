@@ -38,7 +38,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
+*/
+static const char rcsid[] =
+	"$Id";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -48,6 +52,7 @@ static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
@@ -58,9 +63,7 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-void	usage __P((void));
-
-int short_rds, cleaner_debug;
+static __dead void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)
@@ -68,24 +71,16 @@ main(argc, argv)
 	char *argv[];
 {
 	struct ufs_args args;
-	int ch, mntflags, noclean;
+	int ch, mntflags;
 	char *fs_name, *options;
+	struct vfsconf *vfc;
 
 	options = NULL;
-	mntflags = noclean = 0;
-	while ((ch = getopt(argc, argv, "dno:s")) != EOF)
+	mntflags = 0;
+	while ((ch = getopt(argc, argv, "o:")) != EOF)
 		switch (ch) {
-		case 'd':
-			cleaner_debug = 1;
-			break;
-		case 'n':
-			noclean = 1;
-			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags);
-			break;
-		case 's':
-			short_rds = 1;
 			break;
 		case '?':
 		default:
@@ -106,11 +101,20 @@ main(argc, argv)
 		args.export.ex_flags = MNT_EXRDONLY;
 	else
 		args.export.ex_flags = 0;
-	if (mount(MOUNT_EXT2FS, fs_name, mntflags, &args))
-		err(1, NULL);
 
-		/* NOTREACHED */
+	vfc = getvfsbyname("ext2fs");
+	if(!vfc && vfsisloadable("ext2fs")) {
+		if(vfsload("ext2fs")) {
+			err(EX_OSERR, "vfsload(ext2fs)");
+		}
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("ext2fs");
+	}
+	if (!vfc)
+		errx(EX_OSERR, "ext2fs filesystem not available");
 
+	if (mount(vfc->vfc_index, fs_name, mntflags, &args) < 0)
+		err(EX_OSERR, "%s", args.fspec);
 	exit(0);
 }
 
@@ -119,5 +123,5 @@ usage()
 {
 	(void)fprintf(stderr,
 		"usage: mount_ext2fs [-o options] special node\n");
-	exit(1);
+	exit(EX_USAGE);
 }

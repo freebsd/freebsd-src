@@ -1,0 +1,134 @@
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd May 13, 1996
+.Dt MOUNT_STD 8
+.Os FreeBSD 2.2
+.Sh NAME
+.Nm mount_std
+.Nd mount ``standard'' filesystems
+.Sh SYNOPSIS
+.Nm mount_ Ns Ar fsname
+.Op Fl o Ar options
+.Ar "devfs"
+.Ar mount_point
+.Sh DESCRIPTION
+The
+.Nm
+command is a generic mechanism for attaching ``standard'' filesystems to
+the filesystem.  A ``standard'' filesystem is one which:
+.Bl -enum -offset indent
+.It
+accepts only the standard
+.Fl o
+options
+.Dq ro
+.Pq ``rdonly'' ,
+.Dq rw ,
+.Dq nodev ,
+.Dq noexec ,
+.Dq nosuid ,
+and
+.Dq union .
+.It
+has a kernel filesystem module name the same as its user-visible name.
+.It
+requires no other special processing on the part of the
+.Nm mount_std
+command.
+.El
+.Pp
+The
+.Nm
+command examines its zeroth command-line argument (the name by which
+it was called) to determine the type of filesystem to be mounted.  If
+it is called by a name which does not end in
+.Dq Li _ Ns Ar fsname ,
+.Nm
+will issue a diagnostic and return an error.  The
+.Nm
+command is normally installed with appropriate links to commands for
+the distributed filesystems which can be mounted in this way;
+for information on the function of each filesystem, see the manual page
+for that specific
+.Nm mount_ Ns Ar fsname
+command.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It argv[0] must end in _fsname
+The
+.Nm mount_std
+command was called with a zero'th argument which does not specify a
+filesystem type to be mounted.
+.It vfsload(%s)
+.Nm
+was unable to load a kernel module implementing the %s filesystem
+type.
+.It %s filesystem not available
+The specified filesystem type was not present in the kernel and no
+loadable module for it was found.
+.El
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr getvfsbyname 3 ,
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr mount_devfs 8 ,
+.Xr mount_fdesc 8 ,
+.Xr mount_kernfs 8 ,
+.Xr mount_procfs 8
+.Sh HISTORY
+The
+.Nm mount_std
+utility first appeared in
+.Fx 2.2 .
+Loadable filesystem modules first appeared in
+.Fx 2.0 .
+The
+.Dq fdesc ,
+.Dq kernfs ,
+and
+.Dq procfs
+filesystem types first appeared in
+.Fx 2.0 ;
+the
+.Dq devfs
+filesystem type first appeared in
+.Fx 2.2 .
+
