@@ -2073,7 +2073,11 @@ print_db(volatile struct fwohcidb *db, u_int32_t ch, u_int32_t max)
 		"Cnt");
 	for( i = 0 ; i <= max ; i ++){
 		key = db[i].db.desc.cmd & OHCI_KEY_MASK;
+#if __FreeBSD_version >= 500000
 		printf("%08tx %s %s %s %s %5d %08x %08x %04x:%04x",
+#else
+		printf("%08x %s %s %s %s %5d %08x %08x %04x:%04x",
+#endif
 				vtophys(&db[i]),
 				dbcode[(db[i].db.desc.cmd >> 28) & 0xf],
 				dbkey[(db[i].db.desc.cmd >> 24) & 0x7],
