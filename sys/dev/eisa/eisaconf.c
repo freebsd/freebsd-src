@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.42 1999/05/06 22:17:26 peter Exp $
+ *	$Id: eisaconf.c,v 1.43 1999/05/08 21:59:20 dfr Exp $
  */
 
 #include "opt_eisa.h"
@@ -149,6 +149,7 @@ eisa_probe(device_t dev)
 	struct eisa_device *e_dev;
 	int eisaBase = 0xc80;
 	eisa_id_t eisa_id;
+	int devices_found = 0;
 
 	device_set_desc(dev, "EISA bus");
 
@@ -161,6 +162,8 @@ eisa_probe(device_t dev)
 		}
 		if (eisa_id & 0x80000000)
 			continue;  /* no EISA card in slot */
+
+		devices_found++;
 
 		/* Prepare an eisa_device_node for this slot */
 		e_dev = (struct eisa_device *)malloc(sizeof(*e_dev),
@@ -183,7 +186,12 @@ eisa_probe(device_t dev)
 		device_add_child(dev, NULL, -1, e_dev);
 	}
 
-	return 0;
+	/*
+	 * EISA busses themselves are not easily detectable, the easiest way
+	 * to tell if there is an eisa bus is if we found something - there
+	 * should be a motherboard "card" there somewhere.
+	 */
+	return devices_found ? 0 : ENXIO;
 }
 
 static void
