@@ -231,8 +231,8 @@ i386/i386/pmap.c		standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
-i386/i386/tsc.c			standard
 i386/i386/trap.c		standard
+i386/i386/tsc.c			standard
 i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
 i386/ibcs2/ibcs2_errno.c	optional	ibcs2
