@@ -562,12 +562,12 @@ pipe_build_write_buffer(wpipe, uio)
 			int j;
 
 			for (j = 0; j < i; j++)
-				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
+				vm_page_unhold(wpipe->pipe_map.ms[j]);
 			return (EFAULT);
 		}
 
 		m = PHYS_TO_VM_PAGE(paddr);
-		vm_page_wire(m);
+		vm_page_hold(m);
 		wpipe->pipe_map.ms[i] = m;
 	}
 
@@ -628,7 +628,7 @@ pipe_destroy_write_buffer(wpipe)
 		}
 	}
 	for (i = 0; i < wpipe->pipe_map.npages; i++)
-		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
+		vm_page_unhold(wpipe->pipe_map.ms[i]);
 	wpipe->pipe_map.npages = 0;
 }
 
