@@ -145,6 +145,8 @@ int	sysarch();
 int	shmsys();
 #else
 #endif
+int	nosys();
+int	nosys();
 int	setgid();
 int	setegid();
 int	seteuid();
@@ -451,8 +453,8 @@ struct sysent sysent[] = {
 	{ 0, nosys },			/* 172 = nosys */
 	{ 0, nosys },			/* 173 = nosys */
 	{ 0, nosys },			/* 174 = nosys */
-	{ 0, nosys },			/* 175 = nosys */
-	{ 0, nosys },			/* 176 = nosys */
+	{ 1, nosys },			/* 175 = ntp_gettime */
+	{ 1, nosys },			/* 176 = ntp_adjtime */
 	{ 0, nosys },			/* 177 = nosys */
 	{ 0, nosys },			/* 178 = nosys */
 	{ 0, nosys },			/* 179 = nosys */
