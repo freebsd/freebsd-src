@@ -37,7 +37,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm update
-.Nd flush internal filesystem caches to disk frequently
+.Nd flush internal filesystem caches to disk periodically
 .Sh SYNOPSIS
 .Nm update
 .Sh DESCRIPTION
@@ -46,7 +46,12 @@ The
 kernel process helps protect the integrity of disk volumes
 by flushing
 volatile cached filesystem data
-to disk at thirty second intervals.
+to disk.  This is done at thirty second intervals by default.
+The time period may be changed by using
+.Xr sysctl 8
+to modify the
+.Va kern.update
+variable.
 The 
 .Nm update
 process does the equivalent of the 
@@ -57,12 +62,13 @@ function call to do the task.
 .Xr fsck 8 ,
 .Xr init 8 ,
 .Xr rc 8 ,
-.Xr sync 8
+.Xr sync 8 ,
+.Xr sysctl 8
 .Sh BUGS
 It is possible on some systems that a
 .Xr sync
 occurring simultaneously with a crash may cause
-file system damage. See
+file system damage.  See
 .Xr fsck 8 .
 .Sh HISTORY
 An
