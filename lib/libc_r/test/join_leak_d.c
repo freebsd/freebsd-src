@@ -65,6 +65,10 @@ main(void)
 	for (i = 0; i < NITERATIONS; i++) {
 		if ((error = pthread_create(&thread, NULL, thread_entry, NULL))
 		    != 0) {
+			if (error == EAGAIN) {
+				i--;
+				continue;
+			}
 			fprintf(stderr, "Error in pthread_create(): %s\n",
 			    strerror(error));
 			exit(1);
