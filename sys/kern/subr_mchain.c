@@ -28,14 +28,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -46,11 +47,11 @@
 
 MODULE_VERSION(libmchain, 1);
 
-#define MBERROR(format, args...) printf("%s(%d): "format, __FUNCTION__ , \
-				    __LINE__ ,## args)
+#define MBERROR(format, args...) printf("%s(%d): "format, __func__ , \
+				    __LINE__ , ## args)
 
-#define MBPANIC(format, args...) printf("%s(%d): "format, __FUNCTION__ , \
-				    __LINE__ ,## args)
+#define MBPANIC(format, args...) printf("%s(%d): "format, __func__ , \
+				    __LINE__ , ## args)
 
 int
 mb_init(struct mbchain *mbp)
@@ -139,42 +140,46 @@ mb_put_uint8(struct mbchain *mbp, u_int8_t x)
 int
 mb_put_uint16be(struct mbchain *mbp, u_int16_t x)
 {
-	x = htobes(x);
+	x = htobe16(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
 mb_put_uint16le(struct mbchain *mbp, u_int16_t x)
 {
-	x = htoles(x);
+	x = htole16(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
 mb_put_uint32be(struct mbchain *mbp, u_int32_t x)
 {
-	x = htobel(x);
+	x = htobe32(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
 mb_put_uint32le(struct mbchain *mbp, u_int32_t x)
 {
-	x = htolel(x);
+	x = htole32(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
 mb_put_int64be(struct mbchain *mbp, int64_t x)
 {
+#if xxx
+	x = htobe64(x);
+#else
 	x = htobeq(x);
+#endif
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
 mb_put_int64le(struct mbchain *mbp, int64_t x)
 {
-	x = htoleq(x);
+	x = htole64(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
@@ -375,7 +380,8 @@ md_get_uint16le(struct mdchain *mdp, u_int16_t *x)
 	u_int16_t v;
 	int error = md_get_uint16(mdp, &v);
 
-	*x = letohs(v);
+	if (x != NULL)
+		*x = le16toh(v);
 	return error;
 }
 
@@ -384,7 +390,8 @@ md_get_uint16be(struct mdchain *mdp, u_int16_t *x) {
 	u_int16_t v;
 	int error = md_get_uint16(mdp, &v);
 
-	*x = betohs(v);
+	if (x != NULL)
+		*x = be16toh(v);
 	return error;
 }
 
@@ -401,7 +408,8 @@ md_get_uint32be(struct mdchain *mdp, u_int32_t *x)
 	int error;
 
 	error = md_get_uint32(mdp, &v);
-	*x = betohl(v);
+	if (x != NULL)
+		*x = be32toh(v);
 	return error;
 }
 
@@ -412,7 +420,8 @@ md_get_uint32le(struct mdchain *mdp, u_int32_t *x)
 	int error;
 
 	error = md_get_uint32(mdp, &v);
-	*x = letohl(v);
+	if (x != NULL)
+		*x = le32toh(v);
 	return error;
 }
 
@@ -429,7 +438,12 @@ md_get_int64be(struct mdchain *mdp, int64_t *x)
 	int error;
 
 	error = md_get_int64(mdp, &v);
-	*x = betohq(v);
+	if (x != NULL)
+#if xxx
+		*x = be64toh(v);
+#else
+		*x = betohq(v);
+#endif
 	return error;
 }
 
@@ -440,7 +454,8 @@ md_get_int64le(struct mdchain *mdp, int64_t *x)
 	int error;
 
 	error = md_get_int64(mdp, &v);
-	*x = letohq(v);
+	if (x != NULL)
+		*x = le64toh(v);
 	return error;
 }
 
