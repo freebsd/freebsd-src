@@ -2,9 +2,6 @@
 
 #include <machine/asmacros.h>
 
-	.data
-smapi32_segment_tmp:	.word	0
-smapi32_offset_tmp:	.long	0
 	.text
 /*
  * smapi32(input_param, output_param)
@@ -36,10 +33,12 @@ ENTRY(smapi32)
  */
 ENTRY(smapi32_new)
 	pushl	%ebp			/* Save frame */
-        movl    0x08(%esp),%ebp
-	movl	%ebp,smapi32_offset_tmp
-	movw	0x0c(%esp),%bp
-	movw	%bp,smapi32_segment_tmp
+	movl	%esp,%ebp
+
+	movl	0x08(%ebp),%eax
+	movl	%eax,smapi32_offset
+	movw	0x0c(%ebp),%ax
+	movw	%ax,smapi32_segment
 
 	pushl	%ds
 	pushl	0x20(%ebp)		/* Output Param */
@@ -47,8 +46,8 @@ ENTRY(smapi32_new)
 	pushl	0x10(%ebp)		/* Input Param */
 
 	movl	$0,%eax
-	movw	%cs,smapi32_segment_tmp
-	lcall	*(smapi32_offset_tmp)
+	movw	%cs,smapi32_segment
+	lcall	*(smapi32_offset)
 
 	leave
 	ret
