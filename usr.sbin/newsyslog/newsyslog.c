@@ -25,11 +25,11 @@ provided "as is" without express or implied warranty.
  *              keeping the a specified number of backup files around.
  *
  *      $Source: /home/ncvs/src/usr.sbin/newsyslog/newsyslog.c,v $
- *      $Author: alex $
+ *      $Author: jkh $
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.5 1996/06/08 23:32:10 alex Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.6 1996/09/06 06:36:07 jkh Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -371,7 +371,7 @@ static void dotrim(log,numdays,flags,perm,owner_uid,group_gid)
 {
         char    file1 [MAXPATHLEN+1], file2 [MAXPATHLEN+1];
         char    zfile1[MAXPATHLEN+1], zfile2[MAXPATHLEN+1];
-        int     fd;
+        int     fd, _numdays;
         struct  stat st;
 
 #ifdef _IBMR2
@@ -396,6 +396,7 @@ static void dotrim(log,numdays,flags,perm,owner_uid,group_gid)
         }
 
         /* Move down log files */
+	_numdays = numdays;	/* preserve */
         while (numdays--) {
                 (void) strcpy(file2,file1);
                 (void) sprintf(file1,"%s.%d",log,numdays);
@@ -420,7 +421,7 @@ static void dotrim(log,numdays,flags,perm,owner_uid,group_gid)
         if (!noaction && !(flags & CE_BINARY))
                 (void) log_trim(log);  /* Report the trimming to the old log */
 
-	if (numdays == -1) {
+	if (!_numdays) {
 		if (noaction)
 			printf("rm %s\n",log);
 		else
