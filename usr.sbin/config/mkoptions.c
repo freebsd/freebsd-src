@@ -103,8 +103,8 @@ options(void)
 		do_option(ol->o_name);
 	for (op = opt; op; op = op->op_next) {
 		if (!op->op_ownfile && strncmp(op->op_name, "DEV_", 4)) {
-			printf("%s:%d: unknown option \"%s\"\n",
-			       PREFIX, op->op_line, op->op_name);
+			printf("%s: unknown option \"%s\"\n",
+			       PREFIX, op->op_name);
 			exit(1);
 		}
 	}
@@ -141,8 +141,8 @@ do_option(char *name)
 				value = ns("1");
 			if (oldvalue != NULL && !eq(value, oldvalue))
 				printf(
-			    "%s:%d: option \"%s\" redefined from %s to %s\n",
-				   PREFIX, op->op_line, op->op_name, oldvalue,
+			    "%s: option \"%s\" redefined from %s to %s\n",
+				   PREFIX, op->op_name, oldvalue,
 				   value);
 			op->op_ownfile++;
 		}
