@@ -50,14 +50,13 @@
 
 #include <machine/clock.h>
 
-#include <pccard/i82365.h>
-#include <pccard/card.h>
-#include <pccard/slot.h>
-
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
+#include <pccard/i82365.h>
+#include <pccard/card.h>
+#include <pccard/slot.h>
 
 extern struct kern_devconf kdc_pccard0;
 
