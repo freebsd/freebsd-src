@@ -38,7 +38,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
@@ -106,7 +105,7 @@ atm_output(ifp, m0, dst, rt0)
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
-	ifp->if_lastchange = time;
+	gettime(&ifp->if_lastchange);
 
 	/*
 	 * check route
@@ -261,7 +260,7 @@ atm_input(ifp, ah, m, rxhand)
 		m_freem(m);
 		return;
 	}
-	ifp->if_lastchange = time;
+	gettime(&ifp->if_lastchange);
 	ifp->if_ibytes += m->m_pkthdr.len;
 
 #if NBPFILTER > 0
