@@ -766,8 +766,8 @@ mac_mls_copy_label(struct label *src, struct label *dest)
  * a lot like file system objects.
  */
 static void
-mac_mls_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
-    struct label *label)
+mac_mls_create_devfs_device(struct mount *mp, dev_t dev,
+    struct devfs_dirent *devfs_dirent, struct label *label)
 {
 	struct mac_mls *mac_mls;
 	int mls_type;
@@ -791,8 +791,8 @@ mac_mls_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_mls_create_devfs_directory(char *dirname, int dirnamelen,
-    struct devfs_dirent *devfs_dirent, struct label *label)
+mac_mls_create_devfs_directory(struct mount *mp, char *dirname,
+    int dirnamelen, struct devfs_dirent *devfs_dirent, struct label *label)
 {
 	struct mac_mls *mac_mls;
 
@@ -801,8 +801,9 @@ mac_mls_create_devfs_directory(char *dirname, int dirnamelen,
 }
 
 static void
-mac_mls_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
-    struct label *ddlabel, struct devfs_dirent *de, struct label *delabel)
+mac_mls_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+    struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
+    struct label *delabel)
 {
 	struct mac_mls *source, *dest;
 
@@ -851,8 +852,9 @@ mac_mls_relabel_vnode(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-mac_mls_update_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *direntlabel, struct vnode *vp, struct label *vnodelabel)
+mac_mls_update_devfsdirent(struct mount *mp,
+    struct devfs_dirent *devfs_dirent, struct label *direntlabel,
+    struct vnode *vp, struct label *vnodelabel)
 {
 	struct mac_mls *source, *dest;
 

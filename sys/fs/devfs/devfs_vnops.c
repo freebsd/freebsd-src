@@ -832,7 +832,7 @@ devfs_setlabel(ap)
 	de = vp->v_data;
 
 	mac_relabel_vnode(ap->a_cred, vp, ap->a_label);
-	mac_update_devfsdirent(de, vp);
+	mac_update_devfsdirent(vp->v_mount, de, vp);
 
 	return (0);
 }
@@ -869,7 +869,7 @@ devfs_symlink(ap)
 	bcopy(ap->a_target, de->de_symlink, i);
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
 #ifdef MAC
-	mac_create_devfs_symlink(ap->a_cnp->cn_cred, dd, de);
+	mac_create_devfs_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);

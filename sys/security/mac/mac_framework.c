@@ -1196,10 +1196,12 @@ mac_create_cred(struct ucred *parent_cred, struct ucred *child_cred)
 }
 
 void
-mac_update_devfsdirent(struct devfs_dirent *de, struct vnode *vp)
+mac_update_devfsdirent(struct mount *mp, struct devfs_dirent *de,
+    struct vnode *vp)
 {
 
-	MAC_PERFORM(update_devfsdirent, de, &de->de_label, vp, &vp->v_label);
+	MAC_PERFORM(update_devfsdirent, mp, de, &de->de_label, vp,
+	    &vp->v_label);
 }
 
 void
@@ -2801,27 +2803,27 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 }
 
 void
-mac_create_devfs_device(dev_t dev, struct devfs_dirent *de)
+mac_create_devfs_device(struct mount *mp, dev_t dev, struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(create_devfs_device, dev, de, &de->de_label);
+	MAC_PERFORM(create_devfs_device, mp, dev, de, &de->de_label);
 }
 
 void
-mac_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
-    struct devfs_dirent *de)
+mac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+    struct devfs_dirent *dd, struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(create_devfs_symlink, cred, dd, &dd->de_label, de,
+	MAC_PERFORM(create_devfs_symlink, cred, mp, dd, &dd->de_label, de,
 	    &de->de_label);
 }
 
 void
-mac_create_devfs_directory(char *dirname, int dirnamelen,
+mac_create_devfs_directory(struct mount *mp, char *dirname, int dirnamelen,
     struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(create_devfs_directory, dirname, dirnamelen, de,
+	MAC_PERFORM(create_devfs_directory, mp, dirname, dirnamelen, de,
 	    &de->de_label);
 }
 
