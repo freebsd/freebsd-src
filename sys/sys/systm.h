@@ -56,7 +56,7 @@ extern char copyright[];	/* system copyright */
 
 extern int nswap;		/* size of swap space */
 
-extern int selwait;		/* select timeout address */
+extern struct cv selwait;	/* select conditional variable */
 
 extern int physmem;		/* physical memory */
 
