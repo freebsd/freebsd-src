@@ -133,15 +133,12 @@ static int ether_ipfw;
  * Assumes that ifp is actually pointer to arpcom structure.
  */
 int
-ether_output(ifp, m, dst, rt0)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct rtentry *rt0;
+ether_output(struct ifnet *ifp, struct mbuf *m,
+	struct sockaddr *dst, struct rtentry *rt0)
 {
 	short type;
 	int error = 0, hdrcmplt = 0;
- 	u_char esrc[6], edst[6];
+	u_char esrc[6], edst[6];
 	struct rtentry *rt;
 	struct ether_header *eh;
 	int loop_copy = 0;
@@ -189,7 +186,7 @@ ether_output(ifp, m, dst, rt0)
 			goto bad;
 		} else
 		    type = htons(ETHERTYPE_IPX);
- 		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
+		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
 		break;
 #endif
@@ -237,7 +234,7 @@ ether_output(ifp, m, dst, rt0)
 	case AF_UNSPEC:
 		loop_copy = -1; /* if this is for us, don't do it */
 		eh = (struct ether_header *)dst->sa_data;
- 		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
+		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
 		type = eh->ether_type;
 		break;
 
@@ -256,7 +253,7 @@ ether_output(ifp, m, dst, rt0)
 	eh = mtod(m, struct ether_header *);
 	(void)memcpy(&eh->ether_type, &type,
 		sizeof(eh->ether_type));
- 	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
+	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
 	if (hdrcmplt)
 		(void)memcpy(eh->ether_shost, esrc,
 			sizeof(eh->ether_shost));
@@ -635,7 +632,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		/*
 		 * Discard packet if upper layers shouldn't see it because it
 		 * was unicast to a different Ethernet address. If the driver
-		 * is working properly, then this situation can only happen 
+		 * is working properly, then this situation can only happen
 		 * when the interface is in promiscuous mode.
 		 */
 		if ((ifp->if_flags & IFF_PROMISC) != 0
@@ -767,9 +764,9 @@ post_stats:
 			if (Bcmp(&(l->llc_snap_org_code)[0], at_org_code,
 			    sizeof(at_org_code)) == 0 &&
 			    ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
-			    	m_adj(m, LLC_SNAPFRAMELEN);
+				m_adj(m, LLC_SNAPFRAMELEN);
 				isr = NETISR_ATALK2;
-			    	break;
+				break;
 			}
 			if (Bcmp(&(l->llc_snap_org_code)[0], aarp_org_code,
 			    sizeof(aarp_org_code)) == 0 &&
@@ -880,10 +877,7 @@ SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
 	    &ether_ipfw,0,"Pass ether pkts through firewall");
 
 int
-ether_ioctl(ifp, command, data)
-	struct ifnet *ifp;
-	int command;
-	caddr_t data;
+ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
@@ -912,7 +906,7 @@ ether_ioctl(ifp, command, data)
 			if (ipx_nullhost(*ina))
 				ina->x_host =
 				    *(union ipx_host *)
-			            ac->ac_enaddr;
+				    ac->ac_enaddr;
 			else {
 				bcopy((caddr_t) ina->x_host.c_host,
 				      (caddr_t) ac->ac_enaddr,
@@ -960,10 +954,8 @@ ether_ioctl(ifp, command, data)
 }
 
 static int
-ether_resolvemulti(ifp, llsa, sa)
-	struct ifnet *ifp;
-	struct sockaddr **llsa;
-	struct sockaddr *sa;
+ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
+	struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 	struct sockaddr_in *sin;
@@ -1039,10 +1031,10 @@ ether_resolvemulti(ifp, llsa, sa)
 }
 
 static moduledata_t ether_mod = {
-        "ether",
-        NULL,
-        0
+	"ether",
+	NULL,
+	0
 };
-                
+
 DECLARE_MODULE(ether, ether_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(ether, 1);
