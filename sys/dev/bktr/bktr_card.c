@@ -970,6 +970,7 @@ checkTuner:
 
                   case 0x12:
 	          case 0x17:
+		  case 0x21:
 		    select_tuner( bktr, PHILIPS_FR1236_NTSC );
 		    goto checkDBX;
 
