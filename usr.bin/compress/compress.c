@@ -140,7 +140,10 @@ main(argc, argv)
 	for (; *argv; ++argv)
 		switch(style) {
 		case COMPRESS:
-			if (cat) {
+			if (strcmp(*argv, "-") == 0) {
+				compress("/dev/stdin", "/dev/stdout", bits);
+				break;
+			} else if (cat) {
 				compress(*argv, "/dev/stdout", bits);
 				break;
 			}
@@ -162,6 +165,10 @@ main(argc, argv)
 			compress(*argv, newname, bits);
 			break;
 		case DECOMPRESS:
+			if (strcmp(*argv, "-") == 0) {
+				decompress("/dev/stdin", "/dev/stdout", bits);
+				break;
+			}
 			len = strlen(*argv);
 			if ((p = rindex(*argv, '.')) == NULL ||
 			    strcmp(p, ".Z")) {
@@ -248,7 +255,9 @@ compress(in, out, bits)
 
 		if (!force && sb.st_size >= isb.st_size) {
 			if (verbose)
-		(void)printf("%s: file would grow; left unmodified\n", in);
+		(void)fprintf(stderr, "%s: file would grow; left unmodified\n",
+		    in);
+			eval = 2;
 			if (unlink(out))
 				cwarn("%s", out);
 			goto err;
@@ -260,12 +269,12 @@ compress(in, out, bits)
 			cwarn("%s", in);
 
 		if (verbose) {
-			(void)printf("%s: ", out);
+			(void)fprintf(stderr, "%s: ", out);
 			if (isb.st_size > sb.st_size)
-				(void)printf("%.0f%% compression\n",
+				(void)fprintf(stderr, "%.0f%% compression\n",
 				    ((float)sb.st_size / isb.st_size) * 100.0);
 			else
-				(void)printf("%.0f%% expansion\n",
+				(void)fprintf(stderr, "%.0f%% expansion\n",
 				    ((float)isb.st_size / sb.st_size) * 100.0);
 		}
 	}
