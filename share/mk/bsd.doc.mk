@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.37 1997/05/11 10:42:00 wosch Exp $
+#	$Id: bsd.doc.mk,v 1.38 1997/06/21 15:40:31 jkh Exp $
 #
 # The include file <bsd.doc.mk> handles installing BSD troff documents.
 # <bsd.prog.mk> includes the include files <bsd.dep.mk> and <bsd.obj.mk>.
@@ -103,7 +103,8 @@ CLEANFILES+=	${DOC}.${PRINTERDEVICE} \
 FILES?=	${SRCS}
 realinstall:
 .if ${PRINTERDEVICE} == "html"
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	cd ${SRCDIR}; \
+		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
 .else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
@@ -142,7 +143,7 @@ SRCDIR?=	${.CURDIR}
 .if ${PRINTERDEVICE} == "html"
 ${DFILE}:	${SRCS} ${EXTRA} ${OBJS}
 	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
-		document=${.OBJDIR}/${DOC} ${SRCS}
+		document=${DOC} ${SRCS}
 .else
 
 ${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
