@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#10 $
+ * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#11 $
  */
 
 #include <sys/param.h>
@@ -57,11 +57,12 @@ openpam_borrow_cred(pam_handle_t *pamh,
 	const struct passwd *pwd)
 {
 	struct pam_saved_cred *scred;
+	void *scredp;
 	int r;
 
 	ENTERI(pwd->pw_uid);
-	r = pam_get_data(pamh, PAM_SAVED_CRED, (const void **)&scred);
-	if (r == PAM_SUCCESS && scred != NULL) {
+	r = pam_get_data(pamh, PAM_SAVED_CRED, &scredp);
+	if (r == PAM_SUCCESS && scredp != NULL) {
 		openpam_log(PAM_LOG_DEBUG,
 		    "already operating under borrowed credentials");
 		RETURNC(PAM_SYSTEM_ERR);

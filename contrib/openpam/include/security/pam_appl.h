@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_appl.h#13 $
+ * $P4: //depot/projects/openpam/include/security/pam_appl.h#14 $
  */
 
 #ifndef _PAM_APPL_H_INCLUDED
@@ -71,7 +71,7 @@ pam_end(pam_handle_t *_pamh,
 int
 pam_get_data(pam_handle_t *_pamh,
 	const char *_module_data_name,
-	const void **_data);
+	void **_data);
 
 int
 pam_get_item(pam_handle_t *_pamh,
