@@ -135,6 +135,7 @@ enum sysinit_sub_id {
 	SI_SUB_INT_CONFIG_HOOKS	= 0xa800000,	/* Interrupts enabled config */
 	SI_SUB_ROOT_CONF	= 0xb000000,	/* Find root devices */
 	SI_SUB_DUMP_CONF	= 0xb200000,	/* Find dump devices */
+	SI_SUB_VINUM		= 0xb300000,	/* Configure vinum */
 	SI_SUB_MOUNT_ROOT	= 0xb400000,	/* root mount*/
 	SI_SUB_ROOT_FDTAB	= 0xb800000,	/* root vnode in fd table...*/
 	SI_SUB_SWAP		= 0xc000000,	/* swap*/
