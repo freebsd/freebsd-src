@@ -43,7 +43,8 @@
 #if defined(__ia64__) || defined(__alpha__) || defined(__powerpc__)
 #define TLS_VARIANT_I
 #endif
-#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
+    defined(__arm__)
 #define TLS_VARIANT_II
 #endif
 
