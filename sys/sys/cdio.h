@@ -1,5 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
+ *
+ *	$Id$
  */
 /* Shared between kernel & process */
 #ifndef SYS_CDIO_H
