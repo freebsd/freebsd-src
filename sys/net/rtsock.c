@@ -675,6 +675,7 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 		break;
 
 	case RTM_IFANNOUNCE:
+	case RTM_IEEE80211:
 		len = sizeof(struct if_announcemsghdr);
 		break;
 
@@ -932,6 +933,67 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	rt_dispatch(m, ifma->ifma_addr);
 }
 
+static struct mbuf *
+rt_makeifannouncemsg(struct ifnet *ifp, int type, int what,
+	struct rt_addrinfo *info)
+{
+	struct if_announcemsghdr *ifan;
+	struct mbuf *m;
+
+	if (route_cb.any_count == 0)
+		return NULL;
+	bzero((caddr_t)info, sizeof(*info));
+	m = rt_msg1(type, info);
+	if (m != NULL) {
+		ifan = mtod(m, struct if_announcemsghdr *);
+		ifan->ifan_index = ifp->if_index;
+		strlcpy(ifan->ifan_name, ifp->if_xname,
+			sizeof(ifan->ifan_name));
+		ifan->ifan_what = what;
+	}
+	return m;
+}
+
+/*
+ * This is called to generate routing socket messages indicating
+ * IEEE80211 wireless events.
+ * XXX we piggyback on the RTM_IFANNOUNCE msg format in a clumsy way.
+ */
+void
+rt_ieee80211msg(struct ifnet *ifp, int what, void *data, size_t data_len)
+{
+	struct mbuf *m;
+	struct rt_addrinfo info;
+
+	m = rt_makeifannouncemsg(ifp, RTM_IEEE80211, what, &info);
+	if (m != NULL) {
+		/*
+		 * Append the ieee80211 data.  Try to stick it in the
+		 * mbuf containing the ifannounce msg; otherwise allocate
+		 * a new mbuf and append.
+		 *
+		 * NB: we assume m is a single mbuf.
+		 */
+		if (data_len > M_TRAILINGSPACE(m)) {
+			struct mbuf *n = m_get(M_NOWAIT, MT_DATA);
+			if (n == NULL) {
+				m_freem(m);
+				return;
+			}
+			bcopy(data, mtod(n, void *), data_len);
+			n->m_len = data_len;
+			m->m_next = n;
+		} else if (data_len > 0) {
+			bcopy(data, mtod(m, u_int8_t *) + m->m_len, data_len);
+			m->m_len += data_len;
+		}
+		if (m->m_flags & M_PKTHDR)
+			m->m_pkthdr.len += data_len;
+		mtod(m, struct if_announcemsghdr *)->ifan_msglen += data_len;
+		rt_dispatch(m, NULL);
+	}
+}
+
 /*
  * This is called to generate routing socket messages indicating
  * network interface arrival and departure.
@@ -939,22 +1001,13 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 void
 rt_ifannouncemsg(struct ifnet *ifp, int what)
 {
-	struct if_announcemsghdr *ifan;
 	struct mbuf *m;
 	struct rt_addrinfo info;
 
-	if (route_cb.any_count == 0)
-		return;
-	bzero((caddr_t)&info, sizeof(info));
-	m = rt_msg1(RTM_IFANNOUNCE, &info);
-	if (m == NULL)
-		return;
-	ifan = mtod(m, struct if_announcemsghdr *);
-	ifan->ifan_index = ifp->if_index;
-	strlcpy(ifan->ifan_name, ifp->if_xname, sizeof(ifan->ifan_name));
-	ifan->ifan_what = what;
-	rt_dispatch(m, NULL);
- }
+	m = rt_makeifannouncemsg(ifp, RTM_IFANNOUNCE, what, &info);
+	if (m != NULL)
+		rt_dispatch(m, NULL);
+}
 
 static void
 rt_dispatch(struct mbuf *m, const struct sockaddr *sa)

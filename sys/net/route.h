@@ -219,6 +219,7 @@ struct rt_msghdr {
 #define	RTM_NEWMADDR	0xf	/* mcast group membership being added to if */
 #define	RTM_DELMADDR	0x10	/* mcast group membership being deleted */
 #define	RTM_IFANNOUNCE	0x11	/* iface arrival/departure */
+#define	RTM_IEEE80211	0x12	/* IEEE80211 wireless event */
 
 /*
  * Bitmask values for rtm_inits and rmx_locks.
@@ -319,6 +320,7 @@ extern struct radix_node_head *rt_tables[AF_MAX+1];
 struct ifmultiaddr;
 
 int	 rt_getifa(struct rt_addrinfo *);
+void	 rt_ieee80211msg(struct ifnet *, int, void *, size_t);
 void	 rt_ifannouncemsg(struct ifnet *, int);
 void	 rt_ifmsg(struct ifnet *);
 void	 rt_missmsg(int, struct rt_addrinfo *, int, int);
