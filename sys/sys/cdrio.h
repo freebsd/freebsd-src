@@ -68,5 +68,6 @@ struct cdr_track {
 #define CDRIOCWRITESPEED	_IOW('c', 106, int)
 #define CDRIOCGETBLOCKSIZE	_IOR('c', 107, int)
 #define CDRIOCSETBLOCKSIZE	_IOW('c', 108, int)
+#define CDRIOCGETPROGRESS	_IOR('c', 109, int)
 
 #endif /* !_SYS_CDRIO_H_ */
