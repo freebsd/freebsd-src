@@ -110,7 +110,6 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 	int unit = DEV2UNIT(dev);
 	int sub = DEV2DMACH(dev);
 	struct fw_xfer *xfer;
-	struct fw_dvbuf *dvbuf;
 	struct fw_bind *fwb;
 	int err = 0;
 
@@ -136,7 +135,10 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		sc->fc->it[sub]->flag &= ~FWXFERQ_RUNNING;
 		sc->fc->itx_disable(sc->fc, sub);
 	}
+#ifdef FWXFERQ_DV
 	if(sc->fc->it[sub]->flag & FWXFERQ_DV){
+		struct fw_dvbuf *dvbuf;
+
 		if((dvbuf = sc->fc->it[sub]->dvproc) != NULL){
 			free(dvbuf->buf, M_DEVBUF);
 			sc->fc->it[sub]->dvproc = NULL;
@@ -156,6 +158,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		free(sc->fc->it[sub]->dvbuf, M_DEVBUF);
 		sc->fc->it[sub]->dvbuf = NULL;
 	}
+#endif
 	if(sc->fc->ir[sub]->flag & FWXFERQ_EXTBUF){
 		free(sc->fc->ir[sub]->buf, M_DEVBUF);
 		sc->fc->ir[sub]->buf = NULL;
@@ -170,7 +173,9 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		sc->fc->it[sub]->buf = NULL;
 		free(sc->fc->it[sub]->bulkxfer, M_DEVBUF);
 		sc->fc->it[sub]->bulkxfer = NULL;
+#ifdef FWXFERQ_DV
 		sc->fc->it[sub]->dvbuf = NULL;
+#endif
 		sc->fc->it[sub]->flag &= ~FWXFERQ_EXTBUF;
 		sc->fc->it[sub]->psize = 0;
 		sc->fc->it[sub]->maxq = FWMAXQUEUE;
@@ -222,43 +227,41 @@ fw_read (dev_t dev, struct uio *uio, int ioflag)
 
 	ir = sc->fc->ir[sub];
 
-	if(ir->flag & FWXFERQ_PACKET){
+	if (ir->flag & FWXFERQ_PACKET) {
 		ir->stproc = NULL;
 	}
 readloop:
 	xfer = STAILQ_FIRST(&ir->q);
-	if(!(ir->flag & FWXFERQ_PACKET) && ir->stproc == NULL){
+	if ((ir->flag & FWXFERQ_PACKET) == 0 && ir->stproc == NULL) {
+		/* iso bulkxfer */
 		ir->stproc = STAILQ_FIRST(&ir->stvalid);
-		if(ir->stproc != NULL){
+		if (ir->stproc != NULL) {
 			s = splfw();
 			STAILQ_REMOVE_HEAD(&ir->stvalid, link);
 			splx(s);
 			ir->queued = 0;
 		}
 	}
-
-	if(xfer == NULL && ir->stproc == NULL){
-		if(slept == 0){
+	if (xfer == NULL && ir->stproc == NULL) {
+		/* no data avaliable */
+		if (slept == 0) {
 			slept = 1;
-			if(!(ir->flag & FWXFERQ_RUNNING)
-				&& (ir->flag & FWXFERQ_PACKET)){
+			if ((ir->flag & FWXFERQ_RUNNING) == 0
+					&& (ir->flag & FWXFERQ_PACKET)) {
 				err = sc->fc->irx_enable(sc->fc, sub);
-			}
-			if(err){
-				return err;
+				if (err)
+					return err;
 			}
 			ir->flag |= FWXFERQ_WAKEUP;
 			err = tsleep((caddr_t)ir, FWPRI, "fw_read", hz);
-			if(err){
-				ir->flag &= ~FWXFERQ_WAKEUP;
-				return err;
-			}
-			goto readloop;
-		}else{
+			ir->flag &= ~FWXFERQ_WAKEUP;
+			if (err == 0)
+				goto readloop;
+		} else if (slept == 1)
 			err = EIO;
-			return err;
-		}
-	}else if(xfer != NULL){
+		return err;
+	} else if(xfer != NULL) {
+		/* per packet mode */
 		s = splfw();
 		ir->queued --;
 		STAILQ_REMOVE_HEAD(&ir->q, link);
@@ -268,7 +271,8 @@ readloop:
 			sc->fc->irx_post(sc->fc, fp->mode.ld);
 		err = uiomove(xfer->recv.buf + xfer->recv.off, xfer->recv.len, uio);
 		fw_xfer_free( xfer);
-	}else if(ir->stproc != NULL){
+	} else if(ir->stproc != NULL) {
+		/* iso bulkxfer */
 		fp = (struct fw_pkt *)(ir->stproc->buf + ir->queued * ir->psize);
 		if(sc->fc->irx_post != NULL)
 			sc->fc->irx_post(sc->fc, fp->mode.ld);
@@ -276,29 +280,24 @@ readloop:
 			err = EIO;
 			return err;
 		}
-		err = uiomove((caddr_t)fp, ntohs(fp->mode.stream.len) + sizeof(u_int32_t), uio);
+		err = uiomove((caddr_t)fp,
+			ntohs(fp->mode.stream.len) + sizeof(u_int32_t), uio);
+#if 0
 		fp->mode.stream.len = 0;
+#endif
 		ir->queued ++;
 		if(ir->queued >= ir->bnpacket){
 			s = splfw();
-			ir->stproc->flag = 0;
 			STAILQ_INSERT_TAIL(&ir->stfree, ir->stproc, link);
 			splx(s);
+			sc->fc->irx_enable(sc->fc, sub);
 			ir->stproc = NULL;
 		}
+		if (uio->uio_resid >= ir->psize) {
+			slept = -1;
+			goto readloop;
+		}
 	}
-#if 0
-	if(STAILQ_FIRST(&ir->q) == NULL &&
-		(ir->flag & FWXFERQ_RUNNING) && (ir->flag & FWXFERQ_PACKET)){
-		err = sc->fc->irx_enable(sc->fc, sub);
-	}
-#endif
-#if 0
-	if(STAILQ_FIRST(&ir->stvalid) == NULL &&
-		(ir->flag & FWXFERQ_RUNNING) && !(ir->flag & FWXFERQ_PACKET)){
-		err = sc->fc->irx_enable(sc->fc, sub);
-	}
-#endif
 	return err;
 }
 
@@ -354,53 +353,59 @@ fw_write (dev_t dev, struct uio *uio, int ioflag)
 	/* Discard unsent buffered stream packet, when sending Asyrequrst */
 	if(xferq != NULL && it->stproc != NULL){
 		s = splfw();
-		it->stproc->flag = 0;
 		STAILQ_INSERT_TAIL(&it->stfree, it->stproc, link);
 		splx(s);
 		it->stproc = NULL;
 	}
+#ifdef FWXFERQ_DV
 	if(xferq == NULL && !(it->flag & FWXFERQ_DV)){
+#else
+	if (xferq == NULL) {
+#endif
 isoloop:
-		if(it->stproc == NULL){
+		if (it->stproc == NULL) {
 			it->stproc = STAILQ_FIRST(&it->stfree);
-			if(it->stproc != NULL){
+			if (it->stproc != NULL) {
 				s = splfw();
 				STAILQ_REMOVE_HEAD(&it->stfree, link);
 				splx(s);
 				it->queued = 0;
-			}else if(slept == 0){
+			} else if (slept == 0) {
 				slept = 1;
 				err = sc->fc->itx_enable(sc->fc, sub);
-				if(err){
+				if (err)
 					return err;
-				}
-				err = tsleep((caddr_t)it, FWPRI, "fw_write", hz);
-				if(err){
+				err = tsleep((caddr_t)it, FWPRI,
+							"fw_write", hz);
+				if (err)
 					return err;
-				}
 				goto isoloop;
-			}else{
+			} else {
 				err = EIO;
 				return err;
 			}
 		}
-#if 0 /* What's this for? (overwritten by the following uiomove)*/
-		fp = (struct fw_pkt *)(it->stproc->buf + it->queued * it->psize);
-		fp->mode.stream.len = htons(uio->uio_resid - sizeof(u_int32_t));
-#endif
-		err = uiomove(it->stproc->buf + it->queued * it->psize,
-							uio->uio_resid, uio);
+		fp = (struct fw_pkt *)
+			(it->stproc->buf + it->queued * it->psize);
+		err = uiomove((caddr_t)fp, sizeof(struct fw_isohdr), uio);
+		err = uiomove((caddr_t)fp->mode.stream.payload,
+					ntohs(fp->mode.stream.len), uio);
 		it->queued ++;
-		if(it->queued >= it->btpacket){
+		if (it->queued >= it->bnpacket) {
 			s = splfw();
 			STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
 			splx(s);
 			it->stproc = NULL;
-			fw_tbuf_update(sc->fc, sub, 0);
 			err = sc->fc->itx_enable(sc->fc, sub);
 		}
+		if (uio->uio_resid >= sizeof(struct fw_isohdr)) {
+			slept = 0;
+			goto isoloop;
+		}
 		return err;
-	} if(xferq == NULL && it->flag & FWXFERQ_DV){
+	}
+#ifdef FWXFERQ_DV
+	if(xferq == NULL && it->flag & FWXFERQ_DV){
 dvloop:
 		if(it->dvproc == NULL){
 			it->dvproc = STAILQ_FIRST(&it->dvfree);
@@ -448,6 +453,7 @@ dvloop:
 		}
 		return err;
 	}
+#endif
 	if(xferq != NULL){
 		xfer = fw_xfer_alloc();
 		if(xfer == NULL){
@@ -521,15 +527,13 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 	struct fw_xferq *ir, *it;
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
+	struct fw_devinfo *devinfo;
 
 	struct fw_devlstreq *fwdevlst = (struct fw_devlstreq *)data;
 	struct fw_asyreq *asyreq = (struct fw_asyreq *)data;
 	struct fw_isochreq *ichreq = (struct fw_isochreq *)data;
 	struct fw_isobufreq *ibufreq = (struct fw_isobufreq *)data;
 	struct fw_asybindreq *bindreq = (struct fw_asybindreq *)data;
-#if 0
-	struct fw_map_buf *map_buf = (struct fw_map_buf *)data;
-#endif
 	struct fw_crom_buf *crom_buf = (struct fw_crom_buf *)data;
 
 	if (DEV_FWMEM(dev))
@@ -562,6 +566,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		ichreq->tag =(sc->fc->ir[sub]->flag) >> 2 & 0x3;
 		err = 0;
 		break;
+#ifdef FWXFERQ_DV
 	case FW_SSTDV:
 		ibufreq = (struct fw_isobufreq *)
 			malloc(sizeof(struct fw_isobufreq), M_DEVBUF, M_NOWAIT);
@@ -604,6 +609,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 					&sc->fc->it[sub]->dvbuf[i], link);
 		}
 		break;
+#endif
 	case FW_SSTBUF:
 		ir = sc->fc->ir[sub];
 		it = sc->fc->it[sub];
@@ -666,30 +672,29 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 
 		ir->bnchunk = ibufreq->rx.nchunk;
 		ir->bnpacket = ibufreq->rx.npacket;
-		ir->btpacket = ibufreq->rx.npacket;
 		ir->psize = (ibufreq->rx.psize + 3) & ~3;
 		ir->queued = 0;
 
 		it->bnchunk = ibufreq->tx.nchunk;
 		it->bnpacket = ibufreq->tx.npacket;
-		it->btpacket = ibufreq->tx.npacket;
 		it->psize = (ibufreq->tx.psize + 3) & ~3;
-		ir->queued = 0;
+		it->queued = 0;
+
+#ifdef FWXFERQ_DV
 		it->dvdbc = 0;
 		it->dvdiff = 0;
 		it->dvsync = 0;
 		it->dvoffset = 0;
+#endif
 
 		STAILQ_INIT(&ir->stvalid);
 		STAILQ_INIT(&ir->stfree);
-		ir->stdma = NULL;
-		ir->stdma2 = NULL;
+		STAILQ_INIT(&ir->stdma);
 		ir->stproc = NULL;
 
 		STAILQ_INIT(&it->stvalid);
 		STAILQ_INIT(&it->stfree);
-		it->stdma = NULL;
-		it->stdma2 = NULL;
+		STAILQ_INIT(&it->stdma);
 		it->stproc = NULL;
 
 		for(i = 0 ; i < sc->fc->ir[sub]->bnchunk; i++){
@@ -697,7 +702,6 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 				ir->buf +
 				i * sc->fc->ir[sub]->bnpacket *
 			  	sc->fc->ir[sub]->psize;
-			ir->bulkxfer[i].flag = 0;
 			STAILQ_INSERT_TAIL(&ir->stfree,
 					&ir->bulkxfer[i], link);
 			ir->bulkxfer[i].npacket = ir->bnpacket;
@@ -707,7 +711,6 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 				it->buf +
 				i * sc->fc->it[sub]->bnpacket *
 			  	sc->fc->it[sub]->psize;
-			it->bulkxfer[i].flag = 0;
 			STAILQ_INSERT_TAIL(&it->stfree,
 					&it->bulkxfer[i], link);
 			it->bulkxfer[i].npacket = it->bnpacket;
@@ -830,19 +833,27 @@ error:
 		err = fw_bindadd(sc->fc, fwb);
 		break;
 	case FW_GDEVLST:
-		i = 0;
-		for(fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
-			fwdev = TAILQ_NEXT(fwdev, link)){
-			if(i < fwdevlst->n){
-				fwdevlst->dst[i] = fwdev->dst;
-				fwdevlst->status[i] = 
-					(fwdev->status == FWDEVATTACHED)?1:0;
-				fwdevlst->eui[i].hi = fwdev->eui.hi;
-				fwdevlst->eui[i].lo = fwdev->eui.lo;
+		i = len = 1;
+		/* myself */
+		devinfo = &fwdevlst->dev[0];
+		devinfo->dst = sc->fc->nodeid;
+		devinfo->status = 0;	/* XXX */
+		devinfo->eui.hi = sc->fc->eui.hi;
+		devinfo->eui.lo = sc->fc->eui.lo;
+		for (fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
+			fwdev = TAILQ_NEXT(fwdev, link)) {
+			if(len < FW_MAX_DEVLST){
+				devinfo = &fwdevlst->dev[len++];
+				devinfo->dst = fwdev->dst;
+				devinfo->status = 
+					(fwdev->status == FWDEVINVAL)?0:1;
+				devinfo->eui.hi = fwdev->eui.hi;
+				devinfo->eui.lo = fwdev->eui.lo;
 			}
 			i++;
 		}
 		fwdevlst->n = i;
+		fwdevlst->info_len = len;
 		break;
 	case FW_GTPMAP:
 		bcopy(sc->fc->topology_map, data,

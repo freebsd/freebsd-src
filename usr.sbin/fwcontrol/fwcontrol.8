@@ -70,6 +70,11 @@ If you cannot get the stream, try the following commands.
 .Bd -literal -offset indent
 sysctl hw.firewire.try_bmr=0; fwcontrol -r
 .Ed
+.Pp
+The resulting file contains raw DV data excluding isochronus header
+and CIP header. It can be handled by
+.Ic libdv
+in the ports collection.
 .It Fl S Ar filename
 Send a DV file as isochronus stream.
 .El
@@ -95,8 +100,9 @@ cat second.dv first.dv | fwcontrol -S /dev/stdin
 .Ed
 .Pp
 Swap first and second 30 frames and send them to DV recorder.
+.Pp
 For PAL, replace 'bs=120000' with 'bs=144000'.
-
+.Pp
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /dev/fw0

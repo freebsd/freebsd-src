@@ -146,6 +146,7 @@ fwe_attach(device_t dev)
 	struct ifnet *ifp;
 	int unit, s;
 	u_char *eaddr;
+	struct fw_eui64 *eui;
 
 	fwe = ((struct fwe_softc *)device_get_softc(dev));
 	unit = device_get_unit(dev);
@@ -168,12 +169,14 @@ fwe_attach(device_t dev)
 #define LOCAL (0x02)
 #define GROUP (0x01)
 	eaddr = &fwe->eth_softc.arpcom.ac_enaddr[0];
-	eaddr[0] = (fwe->fd.fc->eui[0] | LOCAL) & ~GROUP;
-	eaddr[1] = fwe->fd.fc->eui[1];
-	eaddr[2] = fwe->fd.fc->eui[2];
-	eaddr[3] = fwe->fd.fc->eui[5];
-	eaddr[4] = fwe->fd.fc->eui[6];
-	eaddr[5] = fwe->fd.fc->eui[7];
+
+	eui = &fwe->fd.fc->eui;
+	eaddr[0] = (FW_EUI64_BYTE(eui, 0) | LOCAL) & ~GROUP;
+	eaddr[1] = FW_EUI64_BYTE(eui, 1);
+	eaddr[2] = FW_EUI64_BYTE(eui, 2);
+	eaddr[3] = FW_EUI64_BYTE(eui, 5);
+	eaddr[4] = FW_EUI64_BYTE(eui, 6);
+	eaddr[5] = FW_EUI64_BYTE(eui, 7);
 	printf("if_fwe%d: Fake Ethernet address: "
 		"%02x:%02x:%02x:%02x:%02x:%02x\n", unit,
 		eaddr[0], eaddr[1], eaddr[2], eaddr[3], eaddr[4], eaddr[5]);

@@ -74,13 +74,17 @@ struct frac pad_rate[2]  = {
 
 #define PSIZE 512
 #define DSIZE 480
-#define NVEC 50
-#define BUFSIZE (PSIZE * 256)
-#define	BLOCKSIZE 80
-#define MAXBLOCKS (300*6)
+#define NCHUNK 8
+
+#define NPACKET_R 256
+#define NPACKET_T 255
+#define NEMPTY 20
+#define BUFSIZE (PSIZE * NPACKET_R)
+#define MAXBLOCKS (300)
 #define CYCLE_FRAC 0xc00
 
-int dvrecv(int d, char *filename, char ich, int count)
+int
+dvrecv(int d, char *filename, char ich, int count)
 {
 	struct fw_isochreq isoreq;
 	struct fw_isobufreq bufreq;
@@ -89,19 +93,18 @@ int dvrecv(int d, char *filename, char ich, int count)
 	struct fw_pkt *pkt;
 	char *pad, *buf;
 	u_int32_t *ptr;
-	int len, npad, fd, k, m, vec, pal, nb;
-	int nblocks[] = {250*6 /* NTSC */, 300*6 /* PAL */};
-	struct iovec wbuf[NVEC];
-	struct iovec *v;
+	int len, tlen, npad, fd, k, m, vec, pal, nb;
+	int nblocks[] = {250 /* NTSC */, 300 /* PAL */};
+	struct iovec wbuf[NPACKET_R];
 
 	fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0660);
 	buf = (char *)malloc(BUFSIZE);
-	pad = (char *)malloc(BLOCKSIZE*MAXBLOCKS);
-	bzero(pad, BLOCKSIZE*MAXBLOCKS);
+	pad = (char *)malloc(DSIZE*MAXBLOCKS);
+	bzero(pad, DSIZE*MAXBLOCKS);
 	bzero(wbuf, sizeof(wbuf));
 
-	bufreq.rx.nchunk = 16;
-	bufreq.rx.npacket = 256;
+	bufreq.rx.nchunk = NCHUNK;
+	bufreq.rx.npacket = NPACKET_R;
 	bufreq.rx.psize = PSIZE;
 	bufreq.tx.nchunk = 0;
 	bufreq.tx.npacket = 0;
@@ -118,25 +121,39 @@ int dvrecv(int d, char *filename, char ich, int count)
 
 	k = m = 0;
 	while (count <= 0 || k <= count) {
-		vec = 0;
-		wbuf[0].iov_len = 0;
-		len = read(d, buf, BUFSIZE);
+#if 0
+		tlen = 0;
+		while ((len = read(d, buf + tlen, PSIZE
+						/*BUFSIZE - tlen*/)) > 0) {
+			if (len < 0) {
+				if (errno == EAGAIN) {
+					fprintf(stderr, "(EAGAIN)\n");
+					fflush(stderr);
+					if (len <= 0)
+						continue;
+				} else
+					err(1, "read failed");
+			}
+			tlen += len;
+			if ((BUFSIZE - tlen) < PSIZE)
+				break;
+		};
+#else
+		tlen = len = read(d, buf, BUFSIZE);
 		if (len < 0) {
 			if (errno == EAGAIN) {
 				fprintf(stderr, "(EAGAIN)\n");
 				fflush(stderr);
-				continue;
-			}
-			err(1, "read failed");
+				if (len <= 0)
+					continue;
+			} else
+				err(1, "read failed");
 		}
+#endif
+		vec = 0;
 		ptr = (u_int32_t *) buf;
 again:
 		pkt = (struct fw_pkt *) ptr;	
-		if (ntohs(pkt->mode.stream.len) <= sizeof(struct ciphdr)) {
-			ptr ++; 	/* skip header */
-			ptr += ntohs(pkt->mode.stream.len)/sizeof(u_int32_t);
-			goto next;
-		}
 #if 0
 		fprintf(stderr, "%08x %08x %08x %08x\n",
 			htonl(ptr[0]), htonl(ptr[1]),
@@ -144,16 +161,19 @@ again:
 #endif
 		ciph = (struct ciphdr *)(ptr + 1);	/* skip iso header */
 		if (ciph->fmt != CIP_FMT_DVCR)
-			err(1, "unknown format 0x%x", ciph->fmt);
+			errx(1, "unknown format 0x%x", ciph->fmt);
 		ptr = (u_int32_t *) (ciph + 1);		/* skip cip header */
 #if 0
 		if (ciph->fdf.dv.cyc != 0xffff && k == 0) {
 			fprintf(stderr, "0x%04x\n", ntohs(ciph->fdf.dv.cyc));
 		}
 #endif
+		if (ntohs(pkt->mode.stream.len) <= sizeof(struct ciphdr))
+			/* no payload */
+			goto next;
 		for (dv = (struct dvdbc *)ptr;
 				(char *)dv < (char *)(ptr + ciph->len);
-				dv++) {
+				dv+=6) {
 
 #if 0
 			fprintf(stderr, "(%d,%d) ", dv->sct, dv->dseq);
@@ -174,8 +194,13 @@ again:
 						npad += nb;
 					fprintf(stderr, "(%d blocks padded)",
 								npad);
-					npad *= BLOCKSIZE;
-					npad = write(fd, pad, npad);
+					npad *= DSIZE;
+					wbuf[vec].iov_base = pad;
+					wbuf[vec++].iov_len = npad;
+					if (vec >= NPACKET_R) {
+						writev(fd, wbuf, vec);
+						vec = 0;
+					}
 				}
 #endif
 				k++;
@@ -188,59 +213,51 @@ again:
 			if (k == 0 || (count > 0 && k > count))
 				continue;
 			m++;
-			v = &wbuf[vec];
-			if ((v->iov_base + v->iov_len) == (char *) dv) {
-				v->iov_len += sizeof(struct dvdbc);
-			} else {
-				if (v->iov_len != 0)
-					vec++;
-				if (vec >= NVEC) {
-					writev(fd, wbuf, vec);
-					vec = 0;
-				}
-				v = &wbuf[vec];
-				v->iov_base = (char *) dv;
-				v->iov_len = sizeof(struct dvdbc);
+			wbuf[vec].iov_base = (char *) dv;
+			wbuf[vec++].iov_len = DSIZE;
+			if (vec >= NPACKET_R) {
+				writev(fd, wbuf, vec);
+				vec = 0;
 			}
 		}
 		ptr = (u_int32_t *)dv;
 next:
-		if ((char *)ptr < buf + len) {
+		if ((char *)ptr < buf + tlen)
 			goto again;
-		}
-		if (wbuf[0].iov_len > 0) {
-			writev(fd, wbuf, vec+1);
-		}
+		if (vec > 0)
+			writev(fd, wbuf, vec);
 	}
 	close(fd);
 	fprintf(stderr, "\n");
 	return 0;
 }
 
-int dvsend(int d, char *filename, char ich, int count)
+
+int
+dvsend(int d, char *filename, char ich, int count)
 {
 	struct fw_isochreq isoreq;
 	struct fw_isobufreq bufreq;
 	struct dvdbc *dv;
-	struct ciphdr *ciph;
 	struct fw_pkt *pkt;
-	int len, dlen, header, fd, frames, packets, vec;
+	int len, tlen, header, fd, frames, packets, vec, offset, nhdr, i;
 	int system=0, pad_acc, cycle_acc, cycle, f_cycle, f_frac; 
-	struct iovec wbuf[NVEC];
+	struct iovec wbuf[NPACKET_T*2 + NEMPTY];
 	char *pbuf;
-	u_int32_t hdr[3];
+	u_int32_t iso_data, iso_empty, hdr[NPACKET_T + NEMPTY][3];
+	struct ciphdr *ciph;
 	struct timeval start, end;
 	double rtime;
 
 	fd = open(filename, O_RDONLY);
-	pbuf = (char *)malloc(BUFSIZE);
+	pbuf = (char *)malloc(DSIZE * NPACKET_T);
 	bzero(wbuf, sizeof(wbuf));
 
 	bufreq.rx.nchunk = 0;
 	bufreq.rx.npacket = 0;
 	bufreq.rx.psize = 0;
-	bufreq.tx.nchunk = 10;
-	bufreq.tx.npacket = 255;
+	bufreq.tx.nchunk = NCHUNK;
+	bufreq.tx.npacket = NPACKET_T;
 	bufreq.tx.psize = PSIZE;
 	if (ioctl(d, FW_SSTBUF, &bufreq) < 0) {
 		err(1, "ioctl");
@@ -252,19 +269,26 @@ int dvsend(int d, char *filename, char ich, int count)
 	if( ioctl(d, FW_STSTREAM, &isoreq) < 0)
        		err(1, "ioctl");
 
-	bzero(hdr, sizeof(hdr));
-	pkt = (struct fw_pkt *) &hdr[0];
+	pkt = (struct fw_pkt *) &iso_data;
 	pkt->mode.stream.len = htons(DSIZE + sizeof(struct ciphdr));
 	pkt->mode.stream.sy = 0;
 	pkt->mode.stream.tcode = FWTCODE_STREAM;
 	pkt->mode.stream.chtag = ich;
+	iso_empty = iso_data;
+	pkt = (struct fw_pkt *) &iso_empty;
+	pkt->mode.stream.len = htons(sizeof(struct ciphdr));
 
-	ciph = (struct ciphdr *) &hdr[1];
-	ciph->src = 0;	/* XXX */
+	hdr[0][0] = iso_data;
+	ciph = (struct ciphdr *)&hdr[0][1];
+	ciph->src = 0;
 	ciph->len = 120;
 	ciph->dbc = 0;
 	ciph->eoh1 = 1;
 	ciph->fdf.dv.cyc = 0xffff;
+
+	for (i = 1; i < NPACKET_T; i++) {
+		bcopy(hdr[0], hdr[i], sizeof(hdr[0]));
+	}
 
 	gettimeofday(&start, NULL);
 #if 0
@@ -274,27 +298,36 @@ int dvsend(int d, char *filename, char ich, int count)
 	frames = 0;
 	packets = 0;
 	pad_acc = 0;
-	cycle_acc = frame_cycle[system].d * 1;
 	cycle = 1;
+	cycle_acc = frame_cycle[system].d * cycle;
 	while (1) {
-		vec = 0;
-		wbuf[0].iov_len = 0;
-		dlen = 0;
-		while (dlen < DSIZE) {
-			len = read(fd, pbuf + dlen, DSIZE - dlen);
+		tlen = 0;
+		while (tlen < DSIZE * NPACKET_T) {
+			len = read(fd, pbuf + tlen, DSIZE * NPACKET_T - tlen);
 			if (len <= 0) {
-				fprintf(stderr, "\nend of file(len=%d)\n", len);
+				if (tlen > 0)
+					break;
+				if (len < 0)
+					warn("read");
+				else
+					printf("\nend of file\n");
 				goto send_end;
 			}
-			dlen += len;
+			tlen += len;
 		}
-		dv = (struct dvdbc *)pbuf;
+		vec = 0;
+		count = 0;
+		offset = 0;
+		nhdr = 0;
+next:
+		dv = (struct dvdbc *)(pbuf + offset * DSIZE);
 #if 0
 		header = (dv->sct == 0 && dv->dseq == 0);
 #else
 		header = (packets % npackets[system] == 0);
 #endif
 
+		ciph = (struct ciphdr *)&hdr[nhdr][1];
 		if (header) {
 			fprintf(stderr, "%d", frames % 10);
 			frames ++;
@@ -316,40 +349,37 @@ int dvsend(int d, char *filename, char ich, int count)
 			cycle_acc %= frame_cycle[system].d * 0x10;
 
 		} else {
-			ciph->fdf.dv.cyc = 0xffff;	/* XXX */
+			ciph->fdf.dv.cyc = 0xffff;
 		}
 		ciph->dbc = packets++ % 256;
-		wbuf[0].iov_base = (char *)&hdr[0];
-		wbuf[0].iov_len = 3 * sizeof(u_int32_t);
-		wbuf[1].iov_base = pbuf;
-		wbuf[1].iov_len = 480;
-
 		pad_acc += pad_rate[system].n;
 		if (pad_acc >= pad_rate[system].d) {
 			pad_acc -= pad_rate[system].d;
-			pkt->mode.stream.len = htons(sizeof(struct ciphdr));
+			bcopy(hdr[nhdr], hdr[nhdr+1], sizeof(hdr[0]));
+			hdr[nhdr][0] = iso_empty;
+			wbuf[vec].iov_base = (char *)hdr[nhdr];
+			wbuf[vec++].iov_len = sizeof(hdr[0]);
+			nhdr ++;
 			cycle ++;
-again1:
-			len = writev(d, wbuf, 1);
-			if (len < 0) {
-				if (errno == EAGAIN) {
-					fprintf(stderr, "(EAGAIN)\n");
-					fflush(stderr);
-					goto again1;
-				}
-				err(1, "write failed");
-			}
 		}
-
-		pkt->mode.stream.len = htons(480 + sizeof(struct ciphdr));
+		hdr[nhdr][0] = iso_data;
+		wbuf[vec].iov_base = (char *)hdr[nhdr];
+		wbuf[vec++].iov_len = sizeof(hdr[0]);
+		wbuf[vec].iov_base = (char *)dv;
+		wbuf[vec++].iov_len = DSIZE;
+		nhdr ++;
 		cycle ++;
-again2:
-		len = writev(d, wbuf, 2);
+		offset ++;
+		if (offset * DSIZE < tlen)
+			goto next;
+
+again:
+		len = writev(d, wbuf, vec);
 		if (len < 0) {
 			if (errno == EAGAIN) {
 				fprintf(stderr, "(EAGAIN)\n");
 				fflush(stderr);
-				goto again2;
+				goto again;
 			}
 			err(1, "write failed");
 		}
