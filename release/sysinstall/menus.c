@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.26 1995/10/18 00:47:09 jkh Exp $
+ * $Id: menus.c,v 1.42.2.27 1995/10/18 05:01:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,7 +78,7 @@ option by pressing [ENTER].",		/* prompt */
 	DMENU_SUBMENU,		&MenuConfigure, 0, 0		},
   { "Quit",			"Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL,		NULL, 0, 0			},
-  { "Load",			"Load a pre-configuration disk.",
+  { "Load",			"Load a pre-configuration file from floppy",
 	DMENU_CALL,		installPreconfig, 0,		},
   { NULL } },
 };
@@ -152,10 +152,10 @@ distribution files.",
 DMenu MenuMediaFTP = {
 DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
 "Please select a FreeBSD FTP distribution site",
-"Please select the site closest to you or \"other\" if you'd like to specify\n\
-a different choice.  Also note that not every site listed here carries more\n\
-than the base distribution kits. Only the Primary site is guaranteed to carry\n\
-the full range of distributions.",
+"Please select the site closest to you or \"other\" if you'd like to\n\
+specify a different choice.  Also note that not every site listed here\n\
+carries more than the base distribution kits. Only the Primary site is\n\
+guaranteed to carry the full range of distributions.",
 "Select a site that's close!",
 "install",
 { { "Primary Site",		"ftp.freebsd.org",
@@ -286,14 +286,14 @@ media.",
   { NULL } },
 };
 
-/* The installation type menu */
-DMenu MenuInstallType = {
+/* The distributions menu */
+DMenu MenuDistributions = {
 DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-"Choose Installation Type",
-"As a convenience, we provide several \"canned\" installation types.\n\
+"Choose Distributions",
+"As a convenience, we provide several \"canned\" distribution sets.\n\
 These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose\n\
-the list of distributions yourself, simply select \"custom\".",
+the list of distributions yourself, simply select \"Custom\".",
 "Press F1 for more information on these options.",
 "distributions",
 { { "Developer",	"Full sources, binaries and doc but no games [171MB]",
@@ -311,7 +311,7 @@ the list of distributions yourself, simply select \"custom\".",
   { "Everything",	"All sources, binaries and XFree86 binaries [700MB]",
 	DMENU_CALL,	distSetEverything, 0, 0		},
   { "Custom",	"Specify your own distribution set [?]",
-	DMENU_SUBMENU,	&MenuDistributions, 0, 0	},
+	DMENU_SUBMENU,	&MenuSubDistributions, 0, 0	},
   { "Clear",	"Reset selected distribution list to None",
 	DMENU_CALL,	distReset, 0, 0			},
   { NULL } },
@@ -335,7 +335,7 @@ x11FlagCheck(DMenuItem *item)
     return (Dists & DIST_XF86) ? "ON" : "OFF";
 }
 
-DMenu MenuDistributions = {
+DMenu MenuSubDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  At the\n\
@@ -610,7 +610,7 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
       { "Label",	"Label allocated disk partitions",
 	DMENU_CALL,	diskLabelEditor, 0, 0			},
       { "Distributions", "Select distribution(s) to extract",
-	DMENU_SUBMENU,	&MenuInstallType, 0, 0			},
+	DMENU_SUBMENU,	&MenuDistributions, 0, 0			},
       { "Media",	"Choose the installation media type",
 	DMENU_SUBMENU,	&MenuMedia, 0, 0			},
       { "Commit",	"Perform any pending Partition/Label/Extract actions",
@@ -656,7 +656,7 @@ software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure",
     { { "Add User",		"Add users to the system",
-	DMENU_SYSTEM_COMMAND,	"adduser -s", 0, 0			},
+	DMENU_SYSTEM_COMMAND,	"adduser -config_create ; adduser", 0, 0			},
       { "Console",		"Customize system console behavior",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
       { "Time Zone",		"Set which time zone you're in",

@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.4 1995/10/04 12:08:25 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.5 1995/10/07 11:55:37 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -211,9 +211,22 @@ tcpOpenDialog(Device *devp)
 	strcpy(netmask, di->netmask);
 	strcpy(extras, di->extras);
     }
-    else
-	ipaddr[0] = netmask[0] = extras[0] = '\0';
+    else { /* See if there are any defaults */
+	char *cp;
 
+	if ((cp = variable_get(VAR_IPADDR)) != NULL)
+	    strcpy(ipaddr, cp);
+	else
+	    ipaddr[0] = '\0';
+	if ((cp = variable_get(VAR_NETMASK)) != NULL)
+	    strcpy(netmask, cp);
+	else
+	    netmask[0] = '\0';
+	if ((cp = variable_get(VAR_EXTRAS)) != NULL)
+	    strcpy(extras, cp);
+	else
+	    extras[0] = '\0';
+    }
     /* Look up values already recorded with the system, or blank the string variables ready to accept some new data */
     tmp = variable_get(VAR_HOSTNAME);
     if (tmp)

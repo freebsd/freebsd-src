@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.16 1995/10/16 10:33:42 jkh Exp $
+ * $Id: disks.c,v 1.31.2.17 1995/10/16 15:13:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -178,7 +178,7 @@ diskPartition(Device *dev, Disk *d)
 
 	case KEY_F(1):
 	case '?':
-	    systemDisplayFile("slice");
+	    systemDisplayHelp("slice");
 	    break;
 
 	case 'A': {
@@ -491,6 +491,7 @@ diskPartitionWrite(char *str)
 	    }
 	}
     }
+    /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written");
     return RET_SUCCESS;
 }

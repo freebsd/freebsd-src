@@ -74,12 +74,6 @@ messy export issues to deal with.  If you're outside (or even inside)
 the U.S., give it a try!
 
 
-1.1 What's new in 2.1?
-------------------------
-
-Not much!  It's a stability release!  XXX change this XXX
-
-
 2. Supported Configurations
 ---------------------------
 
@@ -342,6 +336,7 @@ The FreeBSD Core Team
         David Greenman <davidg@FreeBSD.org>
         Garrett A. Wollman <wollman@FreeBSD.org>
         Gary Palmer <gpalmer@FreeBSD.org>
+        Jörg Wunsch <joerg@FreeBSD.org>
         John Dyson <dyson@FreeBSD.org>
         Jordan K. Hubbard <jkh@FreeBSD.org>
         Justin Gibbs <gibbs@FreeBSD.org>
@@ -360,14 +355,16 @@ Special mention to:
 
         Additional FreeBSD helpers and beta testers:
 
-        J.T. Conklin                            Julian Elischer
-        Frank Durda IV                          Peter Dufault
-        Sean Eric Fagan                         Jeffrey Hsu
-        Terry Lambert                           L Jonas Olsson
-        Chris Provenzano                        Dave Rivers
-        Guido van Rooij                         Steven Wallace
-        Atsushi Murai                           Scott Mace
-        Nate Williams
+        Atsushi Murai               Coranth Gryphon            
+        Dave Rivers                 Frank Durda IV
+        Guido van Rooij             Jeffrey Hsu                
+        John Hay                    Julian Elischer          
+        Kaleb S. Keithley           Michael Smith
+        Nate Williams               Peter Dufault              
+        Peter Wemm                  Rod Grimes                 
+        Scott Mace                  Sean Eric Fagan
+        Stefan Esser                Steven Wallace             
+        Terry Lambert               Wolfram Schneider          
 
         And everyone at Montana State University for their initial support.
 
@@ -375,7 +372,6 @@ Special mention to:
 Thanks also to everyone else who helped, especially those not
 mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
-
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.1 1995/10/14 19:14:23 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.2 1995/10/15 14:54:02 jkh Exp $
