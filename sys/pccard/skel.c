@@ -47,10 +47,10 @@
  MOD_MISC( "skel")
 
 
-static int skelintr(struct pccard_dev *);	/* Interrupt handler */
-static void skelunload(struct pccard_dev *);	/* Disable driver */
-static void skelsuspend(struct pccard_dev *);	/* Suspend driver */
-static int skelinit(struct pccard_dev *, int);	/* init device */
+static int skelintr(struct pccard_devinfo *);	/* Interrupt handler */
+static void skelunload(struct pccard_devinfo *);	/* Disable driver */
+static void skelsuspend(struct pccard_devinfo *);	/* Suspend driver */
+static int skelinit(struct pccard_devinfo *, int);	/* init device */
 
 static struct pccard_drv skel_info =
 	{
@@ -143,7 +143,7 @@ int			ver;
  *	the device was successfully installed.
  */
 static void
-skelunload(struct pccard_dev *dp)
+skelunload(struct pccard_devinfo *dp)
 {
 	printf("skel%d: unload\n", dp->unit);
 	opened &= ~(1 << dp->unit);
@@ -155,7 +155,7 @@ skelunload(struct pccard_dev *dp)
  * skelinit with first=0.
  */
 static void
-skelsuspend(struct pccard_dev *dp)
+skelsuspend(struct pccard_devinfo *dp)
 {
 	printf("skel%d: suspending\n", dp->unit);
 }
@@ -166,7 +166,7 @@ skelsuspend(struct pccard_dev *dp)
  *	Once initialised, the device table may be set up.
  */
 static int
-skelinit(struct pccard_dev *dp, int first)
+skelinit(struct pccard_devinfo *dp, int first)
 {
 	if (first && ((1 << dp->unit)&opened))
 		return(EBUSY);
@@ -181,7 +181,7 @@ skelinit(struct pccard_dev *dp, int first)
  *	Returns true if the interrupt is for us.
  */
 static int
-skelintr(struct pccard_dev *dp)
+skelintr(struct pccard_devinfo *dp)
 {
 	return(0);
 }

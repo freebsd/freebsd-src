@@ -41,7 +41,7 @@
 #define	PIOCSMEM	_IOW('P', 3, struct mem_desc)	/* Set memory map */
 #define	PIOCGIO		_IOWR('P', 4, struct io_desc)	/* Get I/O map */
 #define	PIOCSIO		_IOW('P', 5, struct io_desc)	/* Set I/O map */
-#define PIOCSDRV	_IOW('P', 6, struct drv_desc)	/* Set driver */
+#define PIOCSDRV	_IOW('P', 6, struct dev_desc)	/* Set driver */
 #define PIOCRWFLAG	_IOW('P', 7, int)	/* Set flags for drv use */
 #define PIOCRWMEM	_IOWR('P', 8, unsigned long) /* Set mem for drv use */
 #define PIOCSPOW	_IOW('P', 9, struct power) /* Set power structure */
@@ -94,7 +94,7 @@ struct io_desc {
 /*
  *	Device descriptor for allocation of driver.
  */
-struct drv_desc {
+struct dev_desc {
 	char	name[16];	/* Driver name */
 	int	unit;		/* Driver unit number */
 	unsigned long mem;	/* Memory address of driver */

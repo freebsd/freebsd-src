@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.1 1997/07/26 00:54:07 smp Exp smp $
+#	$Id: SMP-GENERIC,v 1.7 1997/07/26 01:46:02 fsmp Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -127,9 +127,9 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 device		apm0    at isa?	disable	flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-#controller	crd0
-#device		pcic0	at crd?
-#device		pcic1	at crd?
+#controller	card0
+#device		pcic0	at card?
+#device		pcic1	at card?
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
