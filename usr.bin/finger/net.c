@@ -58,6 +58,7 @@ netfinger(name)
 	char *name;
 {
 	extern int lflag;
+	extern int Tflag;
 	register FILE *fp;
 	register int c, lastc;
 	struct in_addr defaddr;
@@ -118,6 +119,12 @@ netfinger(name)
 	iov[msg.msg_iovlen++].iov_len = strlen(name);
 	iov[msg.msg_iovlen].iov_base = "\r\n";
 	iov[msg.msg_iovlen++].iov_len = 2;
+
+	/* -T disables T/TCP: compatibility option to finger broken hosts */
+	if (Tflag && connect(s, (struct sockaddr *)&sin, sizeof (sin))) {
+		perror("finger: connect");
+		return;
+	}
 
 	if (sendmsg(s, &msg, MSG_EOF) < 0) {
 		perror("finger: sendmsg");
