@@ -38,8 +38,7 @@
  */
 
 #include "opt_auto_eoi.h"
-
-#include "isa.h"
+#include "opt_isa.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -76,7 +75,7 @@
 #endif
 #include <i386/isa/icu.h>
 
-#if NISA > 0
+#ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
 #include <i386/isa/intr_machdep.h>
@@ -367,7 +366,7 @@ isa_strayintr(vcookiep)
 		    "too many stray irq %d's; not logging any more\n", intr);
 }
 
-#if NISA > 0
+#ifdef DEV_ISA
 /*
  * Return a bitmap of the current interrupt requests.  This is 8259-specific
  * and is only suitable for use at probe time.

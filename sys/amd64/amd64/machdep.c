@@ -44,6 +44,7 @@
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
+#include "opt_isa.h"
 #include "opt_maxmem.h"
 #include "opt_msgbuf.h"
 #include "opt_npx.h"
@@ -1979,8 +1980,7 @@ init386(first)
 	 */
 	cninit();
 
-#include	"isa.h"
-#if	NISA >0
+#ifdef DEV_ISA
 	isa_defaultirq();
 #endif
 

@@ -29,7 +29,6 @@
  */
 
 #include "ata.h"
-#include "isa.h"
 #include "card.h"
 #include "pci.h"
 #include "atadisk.h"
@@ -37,6 +36,7 @@
 #include "atapifd.h"
 #include "atapist.h"
 #include "opt_global.h"
+#include "opt_isa.h"
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -98,7 +98,7 @@ static struct intr_config_hook *ata_delayed_attach = NULL;
 static char ata_conf[256];
 static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
-#if NISA > 0
+#ifdef DEV_ISA
 static struct isa_pnp_id ata_ids[] = {
     {0x0006d041,	"Generic ESDI/IDE/ATA controller"},	/* PNP0600 */
     {0x0106d041,	"Plus Hardcard II"},			/* PNP0601 */
