@@ -68,8 +68,6 @@ pkg_perform(char **indexarg)
     i = -1;
     while (pkgs[++i] != NULL) {
 	if (MatchName == NULL || strstr(pkgs[i], MatchName))
-	    if (strcmp(pkgs[i], "mpeg_lib-1.3.1") == 0)
-		printf("Found!\n");
 	    err_cnt += pkg_do(pkgs[i]);
     }
 
