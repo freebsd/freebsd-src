@@ -49,9 +49,9 @@
 
 /* Program structure for one hook */
 struct ng_bpf_hookprog {
-	char		thisHook[NG_HOOKLEN+1];		/* name of hook */
-	char		ifMatch[NG_HOOKLEN+1];		/* match dest hook */
-	char		ifNotMatch[NG_HOOKLEN+1];	/* !match dest hook */
+	char		thisHook[NG_HOOKSIZ];		/* name of hook */
+	char		ifMatch[NG_HOOKSIZ];		/* match dest hook */
+	char		ifNotMatch[NG_HOOKSIZ];		/* !match dest hook */
 	int32_t		bpf_prog_len;			/* #isns in program */
 	struct bpf_insn	bpf_prog[];			/* bpf program */
 };
@@ -94,9 +94,9 @@ struct ng_bpf_hookstat {
 enum {
 	NGM_BPF_SET_PROGRAM = 1,	/* supply a struct ng_bpf_hookprog */
 	NGM_BPF_GET_PROGRAM,		/* returns a struct ng_bpf_hookprog */
-	NGM_BPF_GET_STATS,		/* supply name as char[NG_HOOKLEN+1] */
-	NGM_BPF_CLR_STATS,		/* supply name as char[NG_HOOKLEN+1] */
-	NGM_BPF_GETCLR_STATS,		/* supply name as char[NG_HOOKLEN+1] */
+	NGM_BPF_GET_STATS,		/* supply name as char[NG_HOOKSIZ] */
+	NGM_BPF_CLR_STATS,		/* supply name as char[NG_HOOKSIZ] */
+	NGM_BPF_GETCLR_STATS,		/* supply name as char[NG_HOOKSIZ] */
 };
 
 #endif /* _NETGRAPH_NG_BPF_H_ */

@@ -72,7 +72,7 @@ struct ng_etfstat {
 
 /* This structure is returned by the NGM_ETF_GET_STATUS command */
 struct ng_etffilter {
-	char		matchhook[NG_HOOKLEN + 1]; /* hook name */
+	char		matchhook[NG_HOOKSIZ]; /* hook name */
 	u_int16_t	ethertype;	/* this ethertype to this hook */
 };	
 
