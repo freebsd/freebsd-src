@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.155 1999/03/08 03:53:07 alc Exp $
+ * $Id: vm_map.c,v 1.156 1999/03/09 08:00:17 alc Exp $
  */
 
 /*
@@ -1380,10 +1380,11 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 
 		entry->inheritance = new_inheritance;
 
+		vm_map_simplify_entry(map, entry);
+
 		entry = entry->next;
 	}
 
-	vm_map_simplify_entry(map, temp_entry);
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -1421,9 +1422,6 @@ vm_map_user_pageable(map, start, end, new_pageable)
 		 * becomes completely unwired, unwire its physical pages and
 		 * mappings.
 		 */
-		vm_map_set_recursive(map);
-
-		entry = start_entry;
 		while ((entry != &map->header) && (entry->start < end)) {
 			if (entry->eflags & MAP_ENTRY_USER_WIRED) {
 				vm_map_clip_end(map, entry, end);
@@ -1435,7 +1433,6 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			vm_map_simplify_entry(map,entry);
 			entry = entry->next;
 		}
-		vm_map_clear_recursive(map);
 	} else {
 
 		entry = start_entry;
@@ -1592,8 +1589,6 @@ vm_map_pageable(map, start, end, new_pageable)
 		 * becomes completely unwired, unwire its physical pages and
 		 * mappings.
 		 */
-		vm_map_set_recursive(map);
-
 		entry = start_entry;
 		while ((entry != &map->header) && (entry->start < end)) {
 			vm_map_clip_end(map, entry, end);
@@ -1602,10 +1597,10 @@ vm_map_pageable(map, start, end, new_pageable)
 			if (entry->wired_count == 0)
 				vm_fault_unwire(map, entry->start, entry->end);
 
+			vm_map_simplify_entry(map, entry);
+
 			entry = entry->next;
 		}
-		vm_map_simplify_entry(map, start_entry);
-		vm_map_clear_recursive(map);
 	} else {
 		/*
 		 * Wiring.  We must do this in two passes:
