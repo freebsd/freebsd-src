@@ -123,11 +123,12 @@
 ################################################################################
 # Tset Sbootfile DSet the default boot file set
 
-	set bootfile=<filename>[,<filename>...]
+	set bootfile=<filename>[;<filename>...]
 
-	The default search path for bootable kernels is /kernel,/kernel.old.
-	It may be overridden by setting the bootfile variable to a 
-	semicolon-separated list of paths, which will be searched for in turn.
+	Sets the default set of kernel boot filename(s). It may be overridden
+	by setting the bootfile variable to a semicolon-separated list of
+	filenames, each of which will be searched for in the module_path
+	directories. The default bootfile set is "kernel;kernel.old".
 
 ################################################################################
 # Tset Sboot_askname DPrompt for root device
@@ -195,10 +196,11 @@
 ################################################################################
 # Tset Smodule_path DSet the module search path
 
-	set module_path=<path>[:<path>...]
+	set module_path=<path>[;<path>...]
 
 	Sets the list of directories which will be searched in for modules
-	named in a load command or implicitly required by a dependancy.
+	named in a load command or implicitly required by a dependancy. The
+	default module_path is "/;/boot;/modules".
 
 ################################################################################
 # Tset Sprompt DSet the command prompt
