@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -52,8 +52,11 @@
  * alphabetically.
  */
 struct acl;
+struct bpf_d;
 struct componentname;
 struct devfs_dirent;
+struct ifnet;
+struct image_params;
 struct inpcb;
 struct ipq;
 struct label;
@@ -67,6 +70,7 @@ struct sysctl_oid;
 struct sysctl_req;
 struct ucred;
 struct uio;
+struct vattr;
 struct vnode;
 struct mac_policy_ops {
 	/*
