@@ -394,8 +394,7 @@ npx_probe1(dev)
 			 * accelerator board.
 			 */
 			npx_ex16 = 1;
-			dvp->id_irq = 0;
-			return (-1);
+			return (0);
 #endif
 			npx_traps_while_probing = npx_intrs_while_probing = 0;
 			fp_divide_by_0();
