@@ -128,7 +128,7 @@ void
 convert(line)
 	char *line;
 {
-	flen, len, rval;
+	int flen, len, rval;
 	char *p, *fraction;
 
 	fraction = NULL;
