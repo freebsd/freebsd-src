@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: suff.c,v 1.8 1997/02/22 19:27:23 peter Exp $
  */
 
 #ifndef lint
@@ -160,7 +160,6 @@ static int SuffSuffIsSuffixP __P((ClientData, ClientData));
 static int SuffSuffHasNameP __P((ClientData, ClientData));
 static int SuffSuffIsPrefix __P((ClientData, ClientData));
 static int SuffGNHasNameP __P((ClientData, ClientData));
-static void SuffUnRef __P((ClientData, ClientData));
 static void SuffFree __P((ClientData));
 static void SuffInsert __P((Lst, Suff *));
 static void SuffRemove __P((Lst, Suff *));
@@ -327,20 +326,6 @@ SuffGNHasNameP (gn, name)
 
  	    /*********** Maintenance Functions ************/
 
-static void
-SuffUnRef(lp, sp)
-    ClientData lp;
-    ClientData sp;
-{
-    Lst l = (Lst) lp;
-
-    LstNode ln = Lst_Member(l, sp);
-    if (ln != NILLNODE) {
-	Lst_Remove(l, ln);
-	((Suff *) sp)->refCount--;
-    }
-}
-
 /*-
  *-----------------------------------------------------------------------
  * SuffFree  --
@@ -383,8 +368,7 @@ SuffFree (sp)
  *	None
  *
  * Side Effects:
- *	The reference count for the suffix is decremented and the
- *	suffix is possibly freed
+ *	The reference count for the suffix is decremented
  *-----------------------------------------------------------------------
  */
 static void
@@ -392,9 +376,11 @@ SuffRemove(l, s)
     Lst l;
     Suff *s;
 {
-    SuffUnRef((ClientData) l, (ClientData) s);
-    if (s->refCount == 0)
-	SuffFree((ClientData) s);
+    LstNode ln = Lst_Member(l, (ClientData)s);
+    if (ln != NILLNODE) {
+	Lst_Remove(l, ln);
+	s->refCount--;
+    }
 }
 
 /*-
