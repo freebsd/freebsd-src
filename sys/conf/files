@@ -1642,12 +1642,6 @@ crypto/des/des_ecb.c		optional crypto
 crypto/des/des_setkey.c		optional crypto
 crypto/sha1.c			optional crypto
 crypto/sha2/sha2.c		optional crypto
-pccard/pccard.c		optional card
-pccard/pccard_beep.c	optional card
-pccard/pccard_nbk.c	optional card
-pccard/pcic.c		optional pcic card
-pccard/pcic_isa.c	optional pcic card isa
-pccard/pcic_pci.c	optional pcic card pci
 pci/agp.c		optional agp pci
 pci/agp_if.m		optional agp pci
 pci/alpm.c		optional alpm pci
