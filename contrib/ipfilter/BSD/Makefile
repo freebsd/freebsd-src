@@ -231,6 +231,7 @@ clean:
 	${RM} -f *.core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl ipnat \
 	vnode_if.h $(LKM) ioconf.h *.ko setdef1.c setdef0.c setdefs.h \
 	y.tab.? lex.yy.c ipfs
+	${RM} -f ../opt_inet6.h
 
 	${MAKE} -f Makefile.ipsend ${MFLAGS} clean
 	-(for i in *; do \

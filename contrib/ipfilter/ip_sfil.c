@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.16 2002/04/05 08:43:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.18 2002/06/06 10:47:26 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -61,7 +61,11 @@ int	fr_running = 0;
 int	ipl_unreach = ICMP_UNREACH_HOST;
 u_long	ipl_frouteok[2] = {0, 0};
 static	int	frzerostats __P((caddr_t));
+#if SOLARIS2 >= 7
+static	u_int	*ip_ttl_ptr;
+#else
 static	u_long	*ip_ttl_ptr;
+#endif
 
 static	int	frrequest __P((minor_t, int, caddr_t, int));
 static	int	send_ip __P((fr_info_t *fin, mblk_t *m));
@@ -195,6 +199,9 @@ int *rp;
 	unit = getminor(dev);
 	if (IPL_LOGMAX < unit)
 		return ENXIO;
+
+	if (fr_running == 0 && (cmd != SIOCFRENB || unit != IPL_LOGIPF))
+		return ENODEV;
 
 	if (fr_running <= 0)
 		return 0;
@@ -422,7 +429,8 @@ caddr_t data;
 	 * Check that the group number does exist and that if a head group
 	 * has been specified, doesn't exist.
 	 */
-	if ((req != SIOCZRLST) && fp->fr_grhead &&
+	if ((req != SIOCZRLST) && ((req == SIOCINAFR) || (req == SIOCINIFR) ||
+	     (req == SIOCADAFR) || (req == SIOCADIFR)) && fp->fr_grhead &&
 	    fr_findgroup(fp->fr_grhead, fp->fr_flags, unit, set, NULL)) {
 		error = EEXIST;
 		goto out;

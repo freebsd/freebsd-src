@@ -147,7 +147,7 @@ int     linenum;
 				}
 				fil.fr_icode = j;
 			}
-		} else if (!strncasecmp(*(cpp+1), "return-rst", 10)) {
+		} else if (!strcasecmp(*(cpp+1), "return-rst")) {
 			fil.fr_flags |= FR_RETRST;
 			cpp++;
 		}
