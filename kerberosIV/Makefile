@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1997/10/02 22:59:48 jkh Exp $
+#	$Id: Makefile,v 1.6 1997/10/03 06:37:35 markm Exp $
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
@@ -17,13 +17,11 @@ kprog:
 	cd ${SDIR}/bin/rcp; ${CODAI}
 	cd ${SDIR}/libexec/rlogind; ${CODAI}
 	cd ${SDIR}/libexec/rshd; ${CODAI}
-	cd ${SDIR}/libexec/telnetd; ${CODAI}
 	cd ${SDIR}/usr.bin/login; ${CODAI}
 	cd ${SDIR}/usr.bin/passwd; ${CODAI}
 	cd ${SDIR}/usr.bin/rlogin; ${CODAI}
 	cd ${SDIR}/usr.bin/rsh; ${CODAI}
 	cd ${SDIR}/usr.bin/su; ${CODAI}
-	cd ${SDIR}/usr.bin/telnet; ${CODAI}
 	cd ${SDIR}/sbin/dump; ${CODAI}
 	cd ${SDIR}/sbin/restore; ${CODAI}
 
