@@ -521,6 +521,12 @@ atm_physif_ioctl(code, data, arg)
 			case MEDIA_UTP155:
 				ifp->if_baudrate = 155000000;
 				break;
+			case MEDIA_UTP25:
+				ifp->if_baudrate = 25600000;
+				break;
+			case MEDIA_UNKNOWN:
+				ifp->if_baudrate = 10000000;	/* XXX */
+				break;
 			}
 #endif
 

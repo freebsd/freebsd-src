@@ -43,6 +43,8 @@
  */
 #define ATM_NIF_MTU	9180		/* Default network interface MTU */
 
+#define ATM_PCR_25      59111		/* Peak Cell Rate for 25.6 Mbps */
+#define ATM_PCR_DS3     (12*8000)	/* 12 cells in 1/8000 seconds */
 #define ATM_PCR_TAXI100	227273		/* Peak Cell Rate for 100 Mbs TAXI */
 #define ATM_PCR_TAXI140	318181		/* Peak Cell Rate for 140 Mbs TAXI */
 #define ATM_PCR_OC3C	353207		/* Peak Cell Rate for OC3c */
@@ -64,7 +66,10 @@ typedef struct mac_addr	Mac_addr;
 enum atm_vendor {
 	VENDOR_UNKNOWN,			/* Unknown vendor */
 	VENDOR_FORE,			/* FORE Systems, Inc. */
-	VENDOR_ENI			/* Efficient Networks, Inc. */
+	VENDOR_ENI,			/* Efficient Networks, Inc. */
+ 	VENDOR_IDT,			/* Integrated Device Technology, Inc. */
+ 	VENDOR_PROSUM,			/* PROSUM, Inc. */
+	VENDOR_NETGRAPH,		/* Netgraph pseudo device */
 };
 typedef enum atm_vendor	Atm_vendor;
 
@@ -75,7 +80,9 @@ typedef enum atm_vendor	Atm_vendor;
 enum atm_vendapi {
 	VENDAPI_UNKNOWN,		/* Unknown interface */
 	VENDAPI_FORE_1,			/* FORE - 200 Series */
-	VENDAPI_ENI_1			/* ENI - Midway */
+	VENDAPI_ENI_1,			/* ENI - Midway */
+ 	VENDAPI_IDT_1,			/* IDT - NICStAR */
+ 	VENDAPI_IDT_2,			/* IDT 77252 ABR */
 };
 typedef enum atm_vendapi	Atm_vendapi;
 
@@ -88,7 +95,12 @@ enum atm_device {
 	DEV_FORE_SBA200E,		/* FORE SBA-200E */
 	DEV_FORE_SBA200,		/* FORE SBA-200 */
 	DEV_FORE_PCA200E,		/* FORE PCA-200E */
-	DEV_ENI_155P			/* ENI-155p */
+	DEV_FORE_ESA200E,		/* FORE ESA-200E */
+	DEV_ENI_155P,			/* ENI-155p */
+ 	DEV_IDT_155,			/* IDT NICStAR 155Mbps */
+	DEV_PROATM_25,			/* Prosum boards based on IDT 77252 */
+	DEV_PROATM_155,			/* Prosum boards based on IDT 77252 */
+	DEV_VATMPIF,			/* Virtual ATM Physical IF */
 };
 typedef enum atm_device	Atm_device;
 
@@ -102,7 +114,8 @@ enum atm_media {
 	MEDIA_TAXI_140,			/* TAXI - 140 Mbps */
 	MEDIA_OC3C,			/* OC-3C */
 	MEDIA_OC12C,			/* OC-12C */
-	MEDIA_UTP155			/* UTP-155 */
+	MEDIA_UTP155,			/* UTP-155 */
+	MEDIA_UTP25,			/* UTP 25.6 */
 };
 typedef enum atm_media	Atm_media;
 
@@ -114,7 +127,10 @@ enum atm_bus {
 	BUS_UNKNOWN,			/* Unknown bus type */
 	BUS_SBUS_B16,			/* SBus: 16 byte (4 word) max burst */
 	BUS_SBUS_B32,			/* SBus: 32 byte (8 word) max burst */
-	BUS_PCI				/* PCI */
+	BUS_PCI,			/* PCI */
+	BUS_EISA,			/* EISA */
+	BUS_USB,			/* USB */
+	BUS_VIRTUAL,			/* Virtual Bus */
 };
 typedef enum atm_bus	Atm_bus;
 
