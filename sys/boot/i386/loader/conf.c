@@ -44,6 +44,7 @@
 /* Exported for libstand */
 struct devsw *devsw[] = {
     &biosdisk,
+    &pxedisk,
     /* XXX network devices? */
     NULL
 };
@@ -52,6 +53,7 @@ struct fs_ops *file_system[] = {
     &ufs_fsops,
     &dosfs_fsops,
     &zipfs_fsops,
+    &pxe_fsops,
     NULL
 };
 
