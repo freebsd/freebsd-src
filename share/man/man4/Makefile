@@ -31,6 +31,7 @@ MAN4=	adv.4 \
 	dpt.4 \
 	dummynet.4 \
 	ed.4 \
+	ef.4 \
 	faith.4 \
 	fd.4 \
 	fdc.4 \
