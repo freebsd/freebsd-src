@@ -41,6 +41,7 @@ static const char rcsid[] =
 #include <histedit.h>
 #include <pwd.h>
 #include <string.h>
+#include <timeconv.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
