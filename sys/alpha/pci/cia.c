@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.7 1998/08/11 08:51:09 dfr Exp $
+ *	$Id: cia.c,v 1.8 1998/08/13 08:11:27 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -271,6 +271,46 @@ cia_bwx_maxdevs(u_int b)
 	return 12;		/* XXX */
 }
 
+static void
+cia_clear_abort(void)
+{
+	/*
+	 * Some (apparently-common) revisions of EB164 and AlphaStation
+	 * firmware do the Wrong thing with PCI master and target aborts,
+	 * which are caused by accesing the configuration space of devices
+	 * that don't exist (for example).
+	 *
+	 * To work around this, we clear the CIA error register's PCI
+	 * master and target abort bits before touching PCI configuration
+	 * space and check it afterwards.  If it indicates a master or target
+	 * abort, the device wasn't there so we return 0xffffffff.
+	 */
+	REGVAL(CIA_CSR_CIA_ERR) = CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT;
+	alpha_mb();
+	alpha_pal_draina();	
+}
+
+static int
+cia_check_abort(void)
+{
+	u_int32_t errbits;
+	int ba = 0;
+
+	alpha_pal_draina();	
+	alpha_mb();
+	errbits = REGVAL(CIA_CSR_CIA_ERR);
+	if (errbits & (CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT))
+		ba = 1;
+
+	if (errbits) {
+		REGVAL(CIA_CSR_CIA_ERR) = errbits;
+		alpha_mb();
+		alpha_pal_draina();
+	}
+
+	return ba;
+}
+
 #define CIA_BWX_CFGADDR(b, s, f, r)				\
 	KV(((b) ? CIA_EV56_BWCONF1 : CIA_EV56_BWCONF0)		\
 	   | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
@@ -279,36 +319,58 @@ static u_int8_t
 cia_bwx_cfgreadb(u_int b, u_int s, u_int f, u_int r)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)va, 1)) return ~0;
-	return ldbu(va+BWX_EV56_INT1);
+	u_int8_t data;
+	cia_clear_abort();
+	if (badaddr((caddr_t)va, 1)) {
+		cia_check_abort();
+		return ~0;
+	}
+	data = ldbu(va+BWX_EV56_INT1);
+	if (cia_check_abort())
+		return ~0;
+	return data;
 }
 
 static u_int16_t
 cia_bwx_cfgreadw(u_int b, u_int s, u_int f, u_int r)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)va, 2)) return ~0;
-	return ldwu(va+BWX_EV56_INT2);
+	u_int16_t data;
+	cia_clear_abort();
+	if (badaddr((caddr_t)va, 2)) {
+		cia_check_abort();
+		return ~0;
+	}
+	data = ldwu(va+BWX_EV56_INT2);
+	if (cia_check_abort())
+		return ~0;
+	return data;
 }
 
 static u_int32_t
 cia_bwx_cfgreadl(u_int b, u_int s, u_int f, u_int r)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)va, 4)) return ~0;
-	return ldl(va+BWX_EV56_INT4);
+	u_int32_t data;
+	cia_clear_abort();
+	if (badaddr((caddr_t)va, 4)) {
+		cia_check_abort();
+		return ~0;
+	}
+	data = ldl(va+BWX_EV56_INT4);
+	if (cia_check_abort())
+		return ~0;
+	return data;
 }
 
 static void
 cia_bwx_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
+	cia_clear_abort();
 	if (badaddr((caddr_t)va, 1)) return;
 	stb(va+BWX_EV56_INT1, data);
-	alpha_wmb();
+	cia_check_abort();
 }
 
 static void
@@ -317,7 +379,7 @@ cia_bwx_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	if (badaddr((caddr_t)va, 2)) return;
 	stw(va+BWX_EV56_INT2, data);
-	alpha_wmb();
+	cia_check_abort();
 }
 
 static void
@@ -326,7 +388,7 @@ cia_bwx_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	if (badaddr((caddr_t)va, 4)) return;
 	stl(va+BWX_EV56_INT4, data);
-	alpha_wmb();
+	cia_check_abort();
 }
 
 static u_int8_t
