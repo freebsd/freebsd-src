@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.5 1997/09/02 04:38:32 smp Exp smp $
+ *	$Id: locore.s,v 1.97 1997/09/07 22:03:46 fsmp Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -96,10 +96,10 @@
 	.set	_SMP_prvpt,_SMP_prvstart + PAGE_SIZE
 	.set	_lapic,_SMP_prvstart + (2 * PAGE_SIZE)
 	.set	_idlestack,_SMP_prvstart + (3 * PAGE_SIZE)
-	.set	_idlestack_top,_SMP_prvstart + (4 * PAGE_SIZE)
-	.set	_prv_CPAGE1,_SMP_prvstart + (4 * PAGE_SIZE)
-	.set	_prv_CPAGE2,_SMP_prvstart + (5 * PAGE_SIZE)
-	.set	_prv_CPAGE3,_SMP_prvstart + (6 * PAGE_SIZE)
+	.set	_idlestack_top,_SMP_prvstart + (5 * PAGE_SIZE)
+	.set	_prv_CPAGE1,_SMP_prvstart + (5 * PAGE_SIZE)
+	.set	_prv_CPAGE2,_SMP_prvstart + (6 * PAGE_SIZE)
+	.set	_prv_CPAGE3,_SMP_prvstart + (7 * PAGE_SIZE)
 	.set	_SMP_ioapic,_SMP_prvstart + (16 * PAGE_SIZE)
 
 	.globl	_cpuid,_curproc,_curpcb,_npxproc,_runtime,_cpu_lockid
