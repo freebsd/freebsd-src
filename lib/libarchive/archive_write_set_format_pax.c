@@ -493,6 +493,12 @@ archive_write_pax_header(struct archive *a,
 	    ((st_main->st_mtime < 0) || (st_main->st_mtime >= 0x7fffffff)))
 		need_extension = 1;
 
+	/* I use a star-compatible file flag attribute. */
+	p = archive_entry_fflags_text(entry_main);
+	if (!need_extension && p != NULL  &&  *p != '\0')
+		need_extension = 1;
+
+
 	/* If there are non-trivial ACL entries, we need an extension. */
 	if (!need_extension && archive_entry_acl_count(entry_original,
 		ARCHIVE_ENTRY_ACL_TYPE_ACCESS) > 0)
@@ -533,7 +539,7 @@ archive_write_pax_header(struct archive *a,
 			    ARCHIVE_STAT_ATIME_NANOS(st_main));
 
 		/* I use a star-compatible file flag attribute. */
-		p = archive_entry_fflags(entry_main);
+		p = archive_entry_fflags_text(entry_main);
 		if (p != NULL  &&  *p != '\0')
 			add_pax_attr(&(pax->pax_header), "SCHILY.fflags", p);
 

@@ -68,7 +68,9 @@ struct archive_entry	*archive_entry_new(void);
 
 dev_t			 archive_entry_devmajor(struct archive_entry *);
 dev_t			 archive_entry_devminor(struct archive_entry *);
-const char		*archive_entry_fflags(struct archive_entry *);
+const char		*archive_entry_fflags_text(struct archive_entry *);
+void			 archive_entry_fflags(struct archive_entry *,
+			     unsigned long *set, unsigned long *clear);
 const char		*archive_entry_gname(struct archive_entry *);
 const char		*archive_entry_hardlink(struct archive_entry *);
 mode_t			 archive_entry_mode(struct archive_entry *);
@@ -85,14 +87,18 @@ const char		*archive_entry_uname(struct archive_entry *);
  * Set fields in an archive_entry.
  *
  * Note that string 'set' functions do not copy the string, only the pointer.
- * In contrast, 'copy_stat' does copy the full structure.
+ * In contrast, 'copy' functions do copy the object pointed to.
  */
 
 void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
-void	archive_entry_set_fflags(struct archive_entry *, const char *);
-void	archive_entry_copy_fflags_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_devmajor(struct archive_entry *, dev_t);
 void	archive_entry_set_devminor(struct archive_entry *, dev_t);
+void	archive_entry_set_fflags(struct archive_entry *,
+	    unsigned long set, unsigned long clear);
+/* Returns pointer to start of first invalid token, or NULL if none. */
+/* Note that all recognized tokens are processed, regardless. */
+const wchar_t *archive_entry_copy_fflags_text_w(struct archive_entry *,
+	    const wchar_t *);
 void	archive_entry_set_gid(struct archive_entry *, gid_t);
 void	archive_entry_set_gname(struct archive_entry *, const char *);
 void	archive_entry_copy_gname_w(struct archive_entry *, const wchar_t *);

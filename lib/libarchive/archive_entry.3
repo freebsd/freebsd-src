@@ -30,12 +30,15 @@
 .Sh NAME
 .Nm archive_entry_clear
 .Nm archive_entry_clone
+.Nm archive_entry_copy_fflags_text_w
 .Nm archive_entry_copy_gname_w
 .Nm archive_entry_copy_hardlink_w
 .Nm archive_entry_copy_pathname_w
 .Nm archive_entry_copy_stat
 .Nm archive_entry_copy_symlink_w
 .Nm archive_entry_copy_uname_w
+.Nm archive_entry_fflags
+.Nm archive_entry_fflags_text
 .Nm archive_entry_free
 .Nm archive_entry_gname
 .Nm archive_entry_gname_w
@@ -46,9 +49,11 @@
 .Nm archive_entry_pathname_w
 .Nm archive_entry_set_devmajor
 .Nm archive_entry_set_devminor
+.Nm archive_entry_set_fflags
 .Nm archive_entry_set_gid
 .Nm archive_entry_set_gname
 .Nm archive_entry_set_hardlink
+.Nm archive_entry_set_link
 .Nm archive_entry_set_mode
 .Nm archive_entry_set_pathname
 .Nm archive_entry_set_symlink
@@ -67,6 +72,8 @@
 .Fn archive_entry_clear "struct archive_entry *"
 .Ft struct archive_entry *
 .Fn archive_entry_clone "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_copy_fflags_text_w "struct archive_entry *" "const wchar_t *"
 .Ft void
 .Fn archive_entry_copy_gname_w "struct archive_entry *" "const wchar_t *"
 .Ft void
@@ -79,6 +86,10 @@
 .Fn archive_entry_copy_symlink_w "struct archive_entry *" "const wchar_t *"
 .Ft void
 .Fn archive_entry_copy_uname_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_fflags "struct archive_entry *" "unsigned long *set" "unsigned long *clear"
+.Ft const char *
+.Fn archive_entry_fflags_text "struct archive_entry *"
 .Ft void
 .Fn archive_entry_free "struct archive_entry *"
 .Ft const char *
@@ -99,6 +110,8 @@
 .Fn archive_entry_set_devmajor "struct archive_entry *" "dev_t"
 .Ft void
 .Fn archive_entry_set_devminor "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_fflags "struct archive_entry *" "unsigned long set" "unsigned long clear"
 .Ft void
 .Fn archive_entry_set_gid "struct archive_entry *" "gid_t"
 .Ft void
@@ -141,42 +154,10 @@ These objects are used by
 .Xr libarchive 3
 to represent the metadata associated with a particular
 entry in an archive.
-.Pp
-Most of the functions here set or read entries
-in an object.  Such functions have one of the
-following forms:
-.Bl -tag -compact -width indent
-.It Fn archive_entry_set_XXXX
-Stores the provided data in the object.
-In particular, for strings, the pointer is stored,
-not the referenced string.
-.It Fn archive_entry_copy_XXXX
-As above, except that the referenced data is copied
-into the object.
-.It Fn archive_entry_XXXX
-Returns the specified data.
-In the case of strings, a const-qualified pointer to
-the string is returned.
-.El
-The string data can be accessed as wide character strings
-(which are suffixed with
-.Cm _w )
-or normal
-.Va char
-strings.
-Note that these are different representations of the same
-data:
-For example, if you store a narrow string and read the corresponding
-wide string, the object will transparently convert formats
-using the current locale.
-Similarly, if you store a wide string and then store a
-narrow string for the same data, the previously-set wide string will
-be discarded in favor of the new data.
-.Pp
-The remaining functions allocate, destroy, clear, and copy
+.Ss Create and Destroy
+There are functions to allocate, destroy, clear, and copy
 .Va archive_entry
-objects.
-These functions are described below:
+objects:
 .Bl -tag -compact -width indent
 .It Fn archive_entry_clear
 Erases the object, resetting all internal fields to the
@@ -194,6 +175,97 @@ Allocate and return a blank
 .Tn struct archive_entry
 object.
 .El
+.Ss Set and Get Functions
+Most of the functions here set or read entries in an object.
+Such functions have one of the following forms:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_set_XXXX
+Stores the provided data in the object.
+In particular, for strings, the pointer is stored,
+not the referenced string.
+.It Fn archive_entry_copy_XXXX
+As above, except that the referenced data is copied
+into the object.
+.It Fn archive_entry_XXXX
+Returns the specified data.
+In the case of strings, a const-qualified pointer to
+the string is returned.
+.El
+String data can be set or accessed as wide character strings
+or normal
+.Va char
+strings.
+The funtions that use wide character strings are suffixed with
+.Cm _w .
+Note that these are different representations of the same data:
+For example, if you store a narrow string and read the corresponding
+wide string, the object will transparently convert formats
+using the current locale.
+Similarly, if you store a wide string and then store a
+narrow string for the same data, the previously-set wide string will
+be discarded in favor of the new data.
+.Pp
+There are a few set/get functions that merit additional description:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_set_link
+This function sets the symlink field if it is already set.
+Otherwise, it sets the hardlink field.
+.El
+.Ss File Flags
+File flags are transparently converted between a bitmap
+representation and a textual format.
+For example, if you set the bitmap and ask for text, the library
+will build a canonical text format.
+However, if you set a text format and request a text format,
+you will get back the same text, even if it is ill-formed.
+If you need to canonicalize a textual flags string, you should first set the
+text form, then request the bitmap form, then use that to set the bitmap form.
+Setting the bitmap format will clear the internal text representation
+and force it to be reconstructed when you next request the text form.
+.Pp
+The bitmap format consists of two integers, one containing bits
+that should be set, the other specifying bits that should be
+cleared.
+Bits not mentioned in either bitmap will be ignored.
+Usually, the bitmap of bits to be cleared will be set to zero.
+In unusual circumstances, you can force a fully-specified set
+of file flags by setting the bitmap of flags to clear to the complement
+of the bitmap of flags to set.
+(This differs from
+.Xr fflagstostr 3 ,
+which only includes names for set bits.)
+Converting a bitmap to a textual string is a platform-specific
+operation; bits that are not meaningful on the current platform
+will be ignored.
+.Pp
+The canonical text format is a comma-separated list of flag names.
+The
+.Fn archive_entry_copy_fflags_text_w
+function parses the provided text and sets the internal bitmap values.
+This is a platform-specific operation; names that are not meaningful
+on the current platform will be ignored.
+The function returns a pointer to the start of the first name that was not
+recognized, or NULL if every name was recognized.
+Note that every name--including names that follow an unrecognized name--will
+be evaluated, and the bitmaps will be set to reflect every name that is
+recognized.
+(In particular, this differs from
+.Xr strtofflags 3 ,
+which stops parsing at the first unrecognized name.)
+.Ss ACL Handling
+XXX This needs serious help. XXX
+.Pp
+An
+.Dq Access Control List
+(ACL) is a list of permissions that grant access to particular users or
+groups beyond what would normally be provided by standard POSIX mode bits.
+The ACL handling here addresses some deficiencies in the POSIX.1e draft 17 ACL
+specification.
+In particular, POSIX.1e draft 17 specifies several different formats, but
+none of those formats include both textual user/group names and numeric
+UIDs/GIDs.
+.Pp
+XXX explain ACL stuff XXX
 .\" .Sh EXAMPLE
 .\" .Sh RETURN VALUES
 .\" .Sh ERRORS
