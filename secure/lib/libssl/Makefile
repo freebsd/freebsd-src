@@ -5,6 +5,8 @@
 LIB=		ssl
 SHLIB_MAJOR=	1
 
+MAINTAINER=	kris
+
 LOPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/ssl
 
 SRCS=	bio_ssl.c s23_clnt.c s23_lib.c s23_meth.c s23_pkt.c s23_srvr.c \
