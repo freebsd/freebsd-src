@@ -784,7 +784,7 @@ build-tools:
     ${_share} \
     ${_aicasm} \
     usr.bin/awk \
-    usr.bin/file \
+    lib/libmagic \
     usr.sbin/sysinstall
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
