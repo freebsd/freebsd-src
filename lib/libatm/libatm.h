@@ -71,7 +71,7 @@ struct harp_timer {
 	struct harp_timer	*ht_next;	/* Timer chain */
 	int			ht_ticks;	/* Seconds till exp */
 	int			ht_mark;	/* Processing flag */
-	void			(*ht_func)();	/* Function to call */
+	void	(*ht_func)(struct harp_timer *);	/* Function to call */
 };
 typedef struct harp_timer	Harp_timer;
 
@@ -100,7 +100,7 @@ extern int		get_netif_info(char *, struct air_netif_rsp **);
 
 /* ip_addr.c */
 extern struct sockaddr_in	*get_ip_addr(char *);
-extern char		*format_ip_addr(struct in_addr *);
+extern const char		*format_ip_addr(struct in_addr *);
 
 /* ip_checksum.c */
 extern short		ip_checksum(char *, int);
@@ -108,9 +108,9 @@ extern short		ip_checksum(char *, int);
 /* timer.c */
 extern Harp_timer	*harp_timer_head;
 extern int		harp_timer_exec;
-extern void		timer_proc();
-extern int		init_timer();
-extern int		block_timer();
+extern void		timer_proc(void);
+extern int		init_timer(void);
+extern int		block_timer(void);
 extern void		enable_timer(int);
 
 
