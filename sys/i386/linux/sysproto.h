@@ -25,6 +25,7 @@ struct linux_kill_args;
 struct linux_listen_args;
 struct linux_lseek_args;
 struct linux_mmap_args;
+struct linux_mknod_args;
 struct linux_newfstat_args;
 struct linux_newstat_args;
 struct linux_newuname_args;
@@ -146,6 +147,8 @@ int	linux_brk __P((struct proc *p, struct linux_brk_args *args,
 int	linux_fork __P((struct proc *p, void *args, int *retval));
 int	linux_getpgid __P((struct proc *p, struct linux_getpgid_args *args,
 			   int *retval));
+int	linux_mknod __P((struct proc *p, struct linux_mknod_args *args,
+			int *retval));
 int	linux_mmap __P((struct proc *p, struct linux_mmap_args *args,
 			int *retval));
 int	linux_newuname __P((struct proc *p, struct linux_newuname_args *args,
