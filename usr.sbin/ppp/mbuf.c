@@ -36,13 +36,33 @@
 #include "prompt.h"
 #include "main.h"
 
+#define BUCKET_CHUNK	20
+#define BUCKET_HASH	256
+
+struct mbucket;
+
+struct mfree {
+  struct mbucket *next;
+  size_t count;
+};
+
+static struct mbucket {
+  union {
+    struct mbuf m;
+    struct mfree f;
+  } u;
+} *bucket[(M_MAXLEN + sizeof(struct mbuf)) / BUCKET_HASH];
+
+#define M_BINDEX(sz)	(((sz) + sizeof(struct mbuf) - 1) / BUCKET_HASH)
+#define M_BUCKET(sz)	(bucket + M_BINDEX(sz))
+#define M_ROUNDUP(sz)	((M_BINDEX(sz) + 1) * BUCKET_HASH)
+
 static struct memmap {
   struct mbuf *queue;
   size_t fragments;
   size_t octets;
 } MemMap[MB_MAX + 1];
 
-static int totalalloced;
 static unsigned long long mbuf_Mallocs, mbuf_Frees;
 
 int
@@ -58,39 +78,79 @@ m_length(struct mbuf *bp)
 struct mbuf *
 m_get(size_t m_len, int type)
 {
+  struct mbucket **mb;
   struct mbuf *bp;
+  size_t size;
 
   if (type > MB_MAX) {
     log_Printf(LogERROR, "Bad mbuf type %d\n", type);
     type = MB_UNKNOWN;
   }
-  bp = malloc(sizeof *bp + m_len);
-  if (bp == NULL) {
-    log_Printf(LogALERT, "failed to allocate memory: %ld\n",
-               (long)sizeof(struct mbuf));
+  
+  if (m_len > M_MAXLEN || m_len == 0) {
+    log_Printf(LogERROR, "Request for mbuf size %lu denied\n", (u_long)m_len);
     AbortProgram(EX_OSERR);
   }
+
+  mb = M_BUCKET(m_len);
+  size = M_ROUNDUP(m_len);
+
+  if (*mb) {
+    /* We've got some free blocks of the right size */
+    bp = &(*mb)->u.m;
+    if (--(*mb)->u.f.count == 0)
+      *mb = (*mb)->u.f.next;
+    else {
+      ((struct mbucket *)((char *)*mb + size))->u.f.count = (*mb)->u.f.count;
+      *mb = (struct mbucket *)((char *)*mb + size);
+      (*mb)->u.f.next = NULL;
+    }
+  } else {
+    /*
+     * Allocate another chunk of mbufs, use the first and put the rest on
+     * the free list
+     */
+    *mb = (struct mbucket *)malloc(BUCKET_CHUNK * size);
+    if (*mb == NULL) {
+      log_Printf(LogALERT, "Failed to allocate memory (%u)\n",
+                 BUCKET_CHUNK * size);
+      AbortProgram(EX_OSERR);
+    }
+    bp = &(*mb)->u.m;
+    *mb = (struct mbucket *)((char *)*mb + size);
+    (*mb)->u.f.count = BUCKET_CHUNK - 1;
+    (*mb)->u.f.next = NULL;
+  }
+
   mbuf_Mallocs++;
+
   memset(bp, '\0', sizeof(struct mbuf));
-  MemMap[type].fragments++;
-  MemMap[type].octets += m_len;
-  totalalloced += m_len;
-  bp->m_size = bp->m_len = m_len;
+  bp->m_size = size - sizeof *bp;
+  bp->m_len = m_len;
   bp->m_type = type;
+
+  MemMap[type].fragments++;
+  MemMap[type].octets += bp->m_size;
+
   return bp;
 }
 
 struct mbuf *
 m_free(struct mbuf *bp)
 {
+  struct mbucket **mb, *f;
   struct mbuf *nbp;
 
-  if (bp) {
-    nbp = bp->m_next;
+  if ((f = (struct mbucket *)bp) != NULL) {
     MemMap[bp->m_type].fragments--;
     MemMap[bp->m_type].octets -= bp->m_size;
-    totalalloced -= bp->m_size;
-    free(bp);
+
+    nbp = bp->m_next;
+    mb = M_BUCKET(bp->m_size);
+    f->u.f.next = *mb;
+    f->u.f.count = 1;
+    *mb = f;
+
     mbuf_Frees++;
     bp = nbp;
   }
