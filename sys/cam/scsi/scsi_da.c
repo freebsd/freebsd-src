@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.23 1999/05/07 07:02:59 phk Exp $
+ *      $Id: scsi_da.c,v 1.24 1999/05/09 01:25:28 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -936,9 +936,6 @@ daasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 		break;
 	}
-	case AC_LOST_DEVICE:
-		cam_periph_invalidate(periph);
-		break;
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 	{
@@ -957,12 +954,10 @@ daasync(void *callback_arg, u_int32_t code,
 		     ccbh != NULL; ccbh = LIST_NEXT(ccbh, periph_links.le))
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
 		splx(s);
-		break;
+		/* FALLTHROUGH*/
 	}
-	case AC_TRANSFER_NEG:
-	case AC_SCSI_AEN:
-	case AC_UNSOL_RESEL:
 	default:
+		cam_periph_async(periph, code, path, arg);
 		break;
 	}
 }
