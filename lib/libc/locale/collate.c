@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.8.2.2 1996/12/16 17:39:02 joerg Exp $
+ * $Id: collate.c,v 1.8.2.3 1996/12/29 11:01:26 joerg Exp $
  */
 
 #include <rune.h>
@@ -73,7 +73,7 @@ __collate_load_tables(encoding)
 		__collate_load_error = save_load_error;
 		return -1;
 	}
-	/* Range checking already done at upper level caller */
+	/* Range checking not needed, encoding has fixed size */
 	(void) strcpy(buf, _PathLocale);
 	(void) strcat(buf, "/");
 	(void) strcat(buf, encoding);
