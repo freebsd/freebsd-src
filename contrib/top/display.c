@@ -7,6 +7,8 @@
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -829,7 +831,7 @@ caddr_t a1, a2, a3;
     register int i;
 
     /* first, format the message */
-    (void) sprintf(next_msg, msgfmt, a1, a2, a3);
+    (void) snprintf(next_msg, sizeof(next_msg), msgfmt, a1, a2, a3);
 
     if (msglen > 0)
     {
