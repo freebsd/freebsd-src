@@ -133,6 +133,11 @@
 #define	__func__	NULL
 #endif
 
+/* XXX: should use `#if __STDC_VERSION__ >= 199901'. */
+#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
+#define	__LONG_LONG_SUPPORTED
+#endif
+
 /*
  * Compiler-dependent macros to declare that functions take printf-like
  * or scanf-like arguments.  They are null except for versions of gcc
