@@ -152,9 +152,6 @@ List information about plexes.
 .Op Ar volume
 .Xc
 List information about volumes.
-.It Ic makedev
-Remake the device nodes in
-.Pa /dev/vinum .
 .It Xo
 .Ic mirror
 .Op Fl f
@@ -879,15 +876,6 @@ to output device statistics, the
 (verbose) option causes some additional information to be output, and the
 .Fl V
 causes considerable additional information to be output.
-.Pp
-.It Ic makedev
-The
-.Ic makedev
-command removes the directory
-.Pa /dev/vinum
-and recreates it with device nodes
-which reflect the current configuration.  This command is not intended for
-general use, and is provided for emergency use only.
 .Pp
 .It Xo
 .Ic mirror
