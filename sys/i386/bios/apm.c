@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.88 1999/06/01 18:17:50 jlemon Exp $
+ *	$Id: apm.c,v 1.89 1999/07/04 14:58:29 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -31,6 +31,12 @@
 #include <sys/time.h>
 #include <sys/reboot.h>
 #include <sys/bus.h>
+#include <sys/select.h>
+#include <sys/poll.h>
+#include <sys/fcntl.h>
+#include <sys/proc.h>
+#include <sys/uio.h>
+#include <sys/signalvar.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
 #include <machine/clock.h>
@@ -51,6 +57,11 @@ static int apm_display __P((int newstate));
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx, u_long *edx));
 static void apm_resume __P((void));
 
+#define APM_NEVENTS 16
+#define APM_NPMEV   13
+
+int	apm_evindex;
+
 /* static data */
 struct apm_softc {
 	int	initialized, active;
@@ -63,10 +74,23 @@ struct apm_softc {
 	u_int	intversion;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
+	struct selinfo sc_rsel;
+	int	sc_flags;
+	int	event_count;
+	int	event_ptr;
+	struct	apm_event_info event_list[APM_NEVENTS];
+	u_char	event_filter[APM_NPMEV];
 #ifdef DEVFS
 	void 	*sc_devfs_token;
 #endif
 };
+#define	SCFLAG_ONORMAL	0x0000001
+#define	SCFLAG_OCTL	0x0000002
+#define	SCFLAG_OPEN	(SCFLAG_ONORMAL|SCFLAG_OCTL)
+
+#define APMDEV(dev)	(minor(dev)&0x0f)
+#define APMDEV_NORMAL	0
+#define APMDEV_CTL	8
 
 static struct apm_softc apm_softc;
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
@@ -82,19 +106,21 @@ static struct callout_handle apm_timeout_ch =
 static timeout_t apm_timeout;
 static d_open_t apmopen;
 static d_close_t apmclose;
+static d_write_t apmwrite;
 static d_ioctl_t apmioctl;
+static d_poll_t apmpoll;
 
 #define CDEV_MAJOR 39
 static struct cdevsw apm_cdevsw = {
 	/* open */	apmopen,
 	/* close */	apmclose,
 	/* read */	noread,
-	/* write */	nowrite,
+	/* write */	apmwrite,
 	/* ioctl */	apmioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
 	/* devtotty */	nodevtotty,
-	/* poll */	nopoll,
+	/* poll */	apmpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"apm",
@@ -450,7 +476,49 @@ apm_default_suspend(void *arg)
 	return 0;
 }
 
+static int apm_record_event __P((struct apm_softc *, u_int));
 static void apm_processevent(void);
+
+static u_int apm_op_inprog = 0;
+
+static void
+apm_lastreq_notify(void)
+{
+	u_long eax, ebx, ecx, edx;
+
+	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	ebx = PMDV_ALLDEV;
+	ecx = PMST_LASTREQNOTIFY;
+	edx = 0;
+
+	apm_int(&eax, &ebx, &ecx, &edx);
+}
+
+static int
+apm_lastreq_rejected(void)
+{
+	u_long eax, ebx, ecx, edx;
+
+	if (apm_op_inprog == 0) {
+		return 1;	/* no operation in progress */
+	}
+
+	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	ebx = PMDV_ALLDEV;
+	ecx = PMST_LASTREQREJECT;
+	edx = 0;
+
+	if (apm_int(&eax, &ebx, &ecx, &edx)) {
+#ifdef APM_DEBUG
+		printf("apm_lastreq_rejected: failed\n");
+#endif
+		return 1;
+	}
+
+	apm_op_inprog = 0;
+
+	return 0;
+}
 
 /*
  * Public interface to the suspend/resume:
@@ -467,6 +535,8 @@ apm_suspend(int state)
 
 	if (!sc)
 		return;
+
+	apm_op_inprog = 0;
 
 	if (sc->initialized) {
 		error = DEVICE_SUSPEND(root_bus);
@@ -608,7 +678,11 @@ apm_timeout(void *dummy)
 {
 	struct apm_softc *sc = &apm_softc;
 
+	if (apm_op_inprog)
+		apm_lastreq_notify();
+
 	apm_processevent();
+
 	if (sc->active == 1)
 		/* Run slightly more oftan than 1 Hz */
 		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1 );
@@ -762,12 +836,37 @@ apm_probe(device_t dev)
 	return 0;
 }
 
+/*
+ * return 0 if the user will notice and handle the event,
+ * return 1 if the kernel driver should do so.
+ */
+static int
+apm_record_event(struct apm_softc *sc, u_int event_type)
+{
+	struct apm_event_info *evp;
+
+	if ((sc->sc_flags & SCFLAG_OPEN) == 0)
+		return 1;		/* no user waiting */
+	if (sc->event_count == APM_NEVENTS)
+		return 1;			/* overflow */
+	if (sc->event_filter[event_type] == 0)
+		return 1;		/* not registered */
+	evp = &sc->event_list[sc->event_ptr];
+	sc->event_count++;
+	sc->event_ptr++;
+	sc->event_ptr %= APM_NEVENTS;
+	evp->type = event_type;
+	evp->index = ++apm_evindex;
+	selwakeup(&sc->sc_rsel);
+	return (sc->sc_flags & SCFLAG_OCTL) ? 0 : 1; /* user may handle */
+}
 
 /* Process APM event */
 static void
 apm_processevent(void)
 {
 	int apm_event;
+	struct apm_softc *sc = &apm_softc;
 
 #ifdef APM_DEBUG
 #  define OPMEV_DEBUGMESSAGE(symbol) case symbol: \
@@ -779,33 +878,57 @@ apm_processevent(void)
 		apm_event = apm_getevent();
 		switch (apm_event) {
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
-			apm_suspend(PMST_STANDBY);
+			if (apm_op_inprog == 0) {
+			    apm_op_inprog++;
+			    if (apm_record_event(sc, apm_event)) {
+				apm_suspend(PMST_STANDBY);
+			    }
+			}
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_SUSPENDREQ);
-			apm_suspend(PMST_SUSPEND);
-			break;
+ 			apm_lastreq_notify();
+			if (apm_op_inprog == 0) {
+			    apm_op_inprog++;
+			    if (apm_record_event(sc, apm_event)) {
+				apm_suspend(PMST_SUSPEND);
+			    }
+			}
+			return; /* XXX skip the rest */
 		    OPMEV_DEBUGMESSAGE(PMEV_USERSUSPENDREQ);
-			apm_suspend(PMST_SUSPEND);
-			break;
+ 			apm_lastreq_notify();
+			if (apm_op_inprog == 0) {
+			    apm_op_inprog++;
+			    if (apm_record_event(sc, apm_event)) {
+				apm_suspend(PMST_SUSPEND);
+			    }
+			}
+			return; /* XXX skip the rest */
 		    OPMEV_DEBUGMESSAGE(PMEV_CRITSUSPEND);
 			apm_suspend(PMST_SUSPEND);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_NORMRESUME);
+			apm_record_event(sc, apm_event);
 			apm_resume();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_CRITRESUME);
+			apm_record_event(sc, apm_event);
 			apm_resume();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYRESUME);
+			apm_record_event(sc, apm_event);
 			apm_resume();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
-			apm_battery_low();
-			apm_suspend(PMST_SUSPEND);
+			if (apm_record_event(sc, apm_event)) {
+			    apm_battery_low();
+			    apm_suspend(PMST_SUSPEND);
+			}
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
+			apm_record_event(sc, apm_event);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
+			apm_record_event(sc, apm_event);
 			inittodr(0);	/* adjust time to RTC */
 			break;
 		    case PMEV_NOEVENT:
@@ -970,16 +1093,50 @@ static int
 apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc;
+	int ctl = APMDEV(dev);
 
-	if (minor(dev) != 0 || !sc->initialized)
+	if (!sc->initialized)
 		return (ENXIO);
 
+	switch (ctl) {
+	case APMDEV_CTL:
+		if (!(flag & FWRITE))
+			return EINVAL;
+		if (sc->sc_flags & SCFLAG_OCTL)
+			return EBUSY;
+		sc->sc_flags |= SCFLAG_OCTL;
+		bzero(sc->event_filter, sizeof sc->event_filter);
+		break;
+	case APMDEV_NORMAL:
+		sc->sc_flags |= SCFLAG_ONORMAL;
+		break;
+	default:
+		return ENXIO;
+		break;
+	}
 	return 0;
 }
 
 static int
 apmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
+	struct apm_softc *sc = &apm_softc;
+	int ctl = APMDEV(dev);
+
+	switch (ctl) {
+	case APMDEV_CTL:
+		apm_lastreq_rejected();
+		sc->sc_flags &= ~SCFLAG_OCTL;
+		bzero(sc->event_filter, sizeof sc->event_filter);
+		break;
+	case APMDEV_NORMAL:
+		sc->sc_flags &= ~SCFLAG_ONORMAL;
+		break;
+	}
+	if ((sc->sc_flags & SCFLAG_OPEN) == 0) {
+		sc->event_count = 0;
+		sc->event_ptr = 0;
+	}
 	return 0;
 }
 
@@ -990,7 +1147,7 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	int error = 0;
 	int newstate;
 
-	if (minor(dev) != 0 || !sc->initialized)
+	if (!sc->initialized)
 		return (ENXIO);
 #ifdef APM_DEBUG
 	printf("APM ioctl: cmd = 0x%x\n", cmd);
@@ -1055,7 +1212,84 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		error = EINVAL;
 		break;
 	}
+
+	/* for /dev/apmctl */
+	if (APMDEV(dev) == APMDEV_CTL) {
+		struct apm_event_info *evp;
+		int i;
+
+		error = 0;
+		switch (cmd) {
+		case APMIO_NEXTEVENT:
+			if (!sc->event_count) {
+				error = EAGAIN;
+			} else {
+				evp = (struct apm_event_info *)addr;
+				i = sc->event_ptr + APM_NEVENTS - sc->event_count;
+				i %= APM_NEVENTS;
+				*evp = sc->event_list[i];
+				sc->event_count--;
+			}
+			break;
+		case APMIO_REJECTLASTREQ:
+			if (apm_lastreq_rejected()) {
+				error = EINVAL;
+			}
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+	}
+
 	return error;
+}
+
+static int
+apmwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	struct apm_softc *sc = &apm_softc;
+	u_int event_type;
+	int error;
+	u_char enabled;
+
+	if (APMDEV(dev) != APMDEV_CTL)
+		return(ENODEV);
+	if (uio->uio_resid != sizeof(u_int))
+		return(E2BIG);
+
+	if ((error = uiomove((caddr_t)&event_type, sizeof(u_int), uio)))
+		return(error);
+
+	if (event_type < 0 || event_type >= APM_NPMEV)
+		return(EINVAL);
+
+	if (sc->event_filter[event_type] == 0) {
+		enabled = 1;
+	} else {
+		enabled = 0;
+	}
+	sc->event_filter[event_type] = enabled;
+#ifdef APM_DEBUG
+	printf("apmwrite: event 0x%x %s\n", event_type, is_enabled(enabled));
+#endif
+
+	return uio->uio_resid;
+}
+
+static int
+apmpoll(dev_t dev, int events, struct proc *p)
+{
+	struct apm_softc *sc = &apm_softc;
+	int revents = 0;
+
+	if (events & (POLLIN | POLLRDNORM))
+		if (sc->event_count)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(p, &sc->sc_rsel);
+
+	return (revents);
 }
 
 static device_method_t apm_methods[] = {
