@@ -161,7 +161,7 @@ halt(void)
 #define	inb(port)		inbv(port)
 #define	outb(port, data)	outbv(port, data)
 
-#else /* __GNUCLIKE_BUILTIN_CONSTANT_P  && __GNUCLIKE_ASM >= 3 */
+#else /* __GNUCLIKE_BUILTIN_CONSTANT_P && __GNUCLIKE_ASM >= 3 */
 
 /*
  * The following complications are to get around gcc not having a
@@ -208,7 +208,7 @@ outbc(u_int port, u_char data)
 	__asm __volatile("outb %0,%1" : : "a" (data), "id" ((u_short)(port)));
 }
 
-#endif /* __GNUCLIKE_BUILTIN_CONSTANT_P */
+#endif /* __GNUCLIKE_BUILTIN_CONSTANT_P  && __GNUCLIKE_ASM >= 3*/
 
 static __inline u_char
 inbv(u_int port)

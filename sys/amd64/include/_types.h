@@ -108,8 +108,8 @@ typedef	char *			__va_list;	/* pretend */
 #endif
 #if defined(__GNUC_VA_LIST_COMPATIBILITY) && !defined(__GNUC_VA_LIST) \
     && !defined(__NO_GNUC_VA_LIST)
-#define	__GNUC_VA_LIST
-typedef	__va_list	__gnuc_va_list;		/* compatibility w/GNU headers*/
+#define __GNUC_VA_LIST
+typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
 #endif
 
 #endif /* !_MACHINE__TYPES_H_ */

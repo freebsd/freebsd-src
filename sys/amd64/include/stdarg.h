@@ -39,7 +39,8 @@
 typedef	__va_list	va_list;
 #endif
 
-#if defined(__GNUCLIKE_BUILTIN_STDARG)
+#ifdef __GNUCLIKE_BUILTIN_STDARG
+
 #define	va_start(ap, last) \
 	__builtin_stdarg_start((ap), (last))
 
