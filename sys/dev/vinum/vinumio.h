@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.22 2003/04/24 07:36:09 grog Exp $
+ * $Id: vinumio.h,v 1.23 2003/05/04 05:25:46 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -131,7 +131,6 @@ struct vinum_rename_msg {
 #define VINUM_STARTCONFIG	_IOW(L, 78, int)	    /* start a configuration operation */
 #define VINUM_MEMINFO 		_IOR(L, 79, struct meminfo) /* get memory usage summary */
 #define VINUM_MALLOCINFO	_IOWR(L, 80, struct mc)	    /* get specific malloc information [i] */
-#define VINUM_LABEL 		_IOC(IOC_IN | IOC_OUT, L, 81, MAX_IOCTL_REPLY) /* label a volume */
 #define VINUM_INITSD 		_IOW(L, 82, int)	    /* initialize a subdisk */
 #define VINUM_REMOVE 		_IOWR(L, 83, struct _ioctl_reply) /* remove an object */
 #define VINUM_READPOL 		_IOWR(L, 84, struct _ioctl_reply) /* set read policy */
