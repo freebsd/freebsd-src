@@ -336,25 +336,6 @@ void
 cpu_mp_bootstrap(struct pcpu *pc)
 {
 	volatile struct cpu_start_args *csa;
-	u_long tag;
-	int i;
-
-	/*
-	 * When secondary cpus start up they often have junk in their tlb.
-	 * Sometimes both the lock bit and the valid bit will be set in the
-	 * tlb entries, which can cause our locked mappings to be replaced,
-	 * and other random behvaiour.  The tags always seems to be zero, so
-	 * we flush all mappings with a tag of zero, regardless of the lock
-	 * and/or valid bits.
-	 */
-	for (i = 0; i < tlb_dtlb_entries; i++) {
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
-		if (tag == 0)
-			stxa_sync(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
-		if (tag == 0)
-			stxa_sync(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, 0);
-	}
 
 	csa = &cpu_start_args;
 	pmap_map_tsb();
