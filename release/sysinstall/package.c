@@ -166,9 +166,13 @@ package_extract(Device *dev, char *name, Boolean depended)
 	pipe(pfd);
 	pid = fork();
 	if (!pid) {
+	    extern int _interactiveHack;
+
 	    dup2(pfd[0], 0); close(pfd[0]);
-	    dup2(DebugFD, 1);
-	    close(2);
+	    if (!_interactiveHack) {
+		dup2(DebugFD, 1);
+		close(2);
+	    }
 	    close(pfd[1]);
 	    if (isDebug())
 		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-v", "-", 0);
