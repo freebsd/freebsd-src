@@ -159,7 +159,7 @@ ntp_sysctl SYSCTL_HANDLER_ARGS
 SYSCTL_NODE(_kern, KERN_NTP_PLL, ntp_pll, CTLFLAG_RW, 0,
 	"NTP kernel PLL related stuff");
 SYSCTL_PROC(_kern_ntp_pll, NTP_PLL_GETTIME, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, sizeof(struct ntptimeval) , ntp_sysctl, "");
+	0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval", "");
 
 /*
  * ntp_adjtime() - NTP daemon application interface

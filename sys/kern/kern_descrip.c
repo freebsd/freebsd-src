@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.16 1995/11/29 14:40:32 julian Exp $
+ * $Id: kern_descrip.c,v 1.17 1995/12/02 18:58:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1022,8 +1022,17 @@ sysctl_kern_file SYSCTL_HANDLER_ARGS
 	}
 	return (0);
 }
+
+SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_kern_file, "S,file", "");
+
+SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
+	CTLFLAG_RD, &maxfilesperproc, 0, "");
+
+SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
+
 #ifdef JREMOD
-struct cdevsw fildesc_cdevsw = 
+static struct cdevsw fildesc_cdevsw = 
 	{ fdopen,	noclose,	noread,		nowrite,	/*22*/
 	  noioc,	nostop,		nullreset,	nodevtotty,/*fd(!=Fd)*/
 	  noselect,	nommap,		nostrat };
@@ -1058,13 +1067,3 @@ SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,
 					fildesc_drvinit,NULL)
 
 #endif /* JREMOD */
-
-
-SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_kern_file, "");
-
-SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
-	CTLFLAG_RD, &maxfilesperproc, 0, "");
-
-SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
-

@@ -5,6 +5,9 @@
  * This code is derived from software contributed to Berkeley by
  * Mike Karels at Berkeley Software Design, Inc.
  *
+ * Quite extensively rewritten by Poul-Henning Kamp of the FreeBSD
+ * project, to make these variables more userfriendly.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -34,11 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.51 1995/11/16 18:59:49 phk Exp $
- */
-
-/*
- * sysctl system call.
+ * $Id: kern_sysctl.c,v 1.52 1995/11/20 12:42:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +48,7 @@
 #include <sys/unistd.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>
+#include <sys/malloc.h>
 
 /*
  * Locking and stats
@@ -63,7 +63,9 @@ static int sysctl_root SYSCTL_HANDLER_ARGS;
 
 extern struct linker_set sysctl_;
 
-/* BEGIN_MIB */
+/*
+ * MIB definitions.  XXX Very few of these, if any, belong here.
+ */
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
 SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW, 0,
@@ -94,8 +96,6 @@ SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD, ostype, 0, "");
 extern int osreldate;
 SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD, &osreldate, 0, "");
 
-SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RD, &desiredvnodes, 0, "");
-
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD, &maxproc, 0, "");
 
 SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid,
@@ -120,36 +120,11 @@ char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile,
 	CTLFLAG_RW, kernelname, sizeof kernelname, "");
 
-SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
-	CTLFLAG_RW, &boottime, timeval, "");
-
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
-
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
-
 SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 0, 1, "");
 
 SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD, 0, BYTE_ORDER, "");
 
 SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD, 0, PAGE_SIZE, "");
-
-/* END_MIB */
-
-extern int vfs_update_wakeup;
-extern int vfs_update_interval;
-static int
-sysctl_kern_updateinterval SYSCTL_HANDLER_ARGS
-{
-	int error = sysctl_handle_int(oidp,
-		oidp->oid_arg1, oidp->oid_arg2, req);
-	if (!error)
-		wakeup(&vfs_update_wakeup);
-	return error;
-}
-
-SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
-	&vfs_update_interval, 0, sysctl_kern_updateinterval, "");
-
 
 char hostname[MAXHOSTNAMELEN];
 
@@ -174,47 +149,25 @@ sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
-	0, 0, sysctl_kern_securelvl, "");
+	0, 0, sysctl_kern_securelvl, "I", "");
 
-static int
-sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
-{
-	int error;
-	dev_t ndumpdev;
+char domainname[MAXHOSTNAMELEN];
+SYSCTL_STRING(_kern, KERN_DOMAINNAME, domainname, CTLFLAG_RW,
+	&domainname, sizeof(domainname), "");
 
-	ndumpdev = dumpdev;
-	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
-	if (!error && ndumpdev != dumpdev) {
-		error = setdumpdev(ndumpdev);
-	}
-	return (error);
-}
+long hostid;
+/* Some trouble here, if sizeof (int) != sizeof (long) */
+SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "");
 
-SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "");
+/* 
+ * End of MIB definitions.
+ */
 
-static int
-sysctl_hw_physmem SYSCTL_HANDLER_ARGS
-{
-	int error = sysctl_handle_int(oidp, 0, ctob(physmem), req);
-	return (error);
-}
-
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "");
-
-static int
-sysctl_hw_usermem SYSCTL_HANDLER_ARGS
-{
-	int error = sysctl_handle_int(oidp, 0,
-		ctob(physmem - cnt.v_wire_count), req);
-	return (error);
-}
-
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "");
-
-/* END_MIB */
+/*
+ * Initialization of the MIB tree.
+ *
+ * Order by number in each linker_set.
+ */
 
 static int
 sysctl_order_cmp(const void *a, const void *b)
@@ -233,10 +186,26 @@ sysctl_order_cmp(const void *a, const void *b)
 static void
 sysctl_order(void *arg)
 {
-	int j;
+	int j, k;
 	struct linker_set *l = (struct linker_set *) arg;
 	struct sysctl_oid **oidpp;
 
+	/* First, find the highest oid we have */
+	j = l->ls_length;
+	oidpp = (struct sysctl_oid **) l->ls_items;
+	for (k = 0; j--; oidpp++) 
+		if (*oidpp && (*oidpp)->oid_number > k)
+			k = (*oidpp)->oid_number;
+
+	/* Next, replace all OID_AUTO oids with new numbers */
+	j = l->ls_length;
+	oidpp = (struct sysctl_oid **) l->ls_items;
+	k += 100;
+	for (; j--; oidpp++) 
+		if (*oidpp && (*oidpp)->oid_number == OID_AUTO)
+			(*oidpp)->oid_number = k++;
+
+	/* Finally: sort by oid */
 	j = l->ls_length;
 	oidpp = (struct sysctl_oid **) l->ls_items;
 	for (; j--; oidpp++) {
@@ -255,6 +224,16 @@ sysctl_order(void *arg)
 }
 
 SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_order, &sysctl_);
+
+/*
+ * "Staff-functions"
+ *
+ * {0,0}	printf the entire MIB-tree.
+ * {0,1,...}	return the name of the "..." OID.
+ * {0,2,...}	return the next OID.
+ * {0,3}	return the OID of the name in "new"
+ * {0,4,...}	return the format info for the "..." OID.
+ */
 
 static void
 sysctl_sysctl_debug_dump_node(struct linker_set *l, int i)
@@ -306,7 +285,6 @@ sysctl_sysctl_debug_dump_node(struct linker_set *l, int i)
 	}
 }
 
-
 static int
 sysctl_sysctl_debug SYSCTL_HANDLER_ARGS
 {
@@ -315,15 +293,289 @@ sysctl_sysctl_debug SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_sysctl_debug, "");
+	0, 0, sysctl_sysctl_debug, "-", "");
 
-char domainname[MAXHOSTNAMELEN];
-SYSCTL_STRING(_kern, KERN_DOMAINNAME, domainname, CTLFLAG_RW,
-	&domainname, sizeof(domainname), "");
+static int
+sysctl_sysctl_name SYSCTL_HANDLER_ARGS
+{
+	int *name = (int *) arg1;
+	u_int namelen = arg2;
+	int i, j, error = 0;
+	struct sysctl_oid **oidpp;
+	struct linker_set *lsp = &sysctl_;
+	char buf[10];
 
-long hostid;
-/* Some trouble here, if sizeof (int) != sizeof (long) */
-SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "");
+	while (namelen) {
+		if (!lsp) {
+			sprintf(buf,"%d",*name);
+			if (req->oldidx)
+				error = SYSCTL_OUT(req, ".", 1);
+			if (!error)
+				error = SYSCTL_OUT(req, buf, strlen(buf));
+			if (error)
+				return (error);
+			namelen--;
+			name++;
+			continue;
+		}
+		oidpp = (struct sysctl_oid **) lsp->ls_items;
+		j = lsp->ls_length;
+		lsp = 0;
+		for (i = 0; i < j; i++, oidpp++) {
+			if (*oidpp && ((*oidpp)->oid_number != *name))
+				continue;
+
+			if (req->oldidx)
+				error = SYSCTL_OUT(req, ".", 1);
+			if (!error)
+				error = SYSCTL_OUT(req, (*oidpp)->oid_name,
+					strlen((*oidpp)->oid_name));
+			if (error)
+				return (error);
+
+			namelen--;
+			name++;
+
+			if (((*oidpp)->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+				break;
+
+			if ((*oidpp)->oid_handler)
+				break;
+
+			lsp = (struct linker_set*)(*oidpp)->oid_arg1;
+			break;
+		}
+	}
+	return (SYSCTL_OUT(req, "", 1));
+}
+
+SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD, sysctl_sysctl_name, "");
+
+static int
+sysctl_sysctl_next_ls (struct linker_set *lsp, int *name, u_int namelen, 
+	int *next, int *len, int level, struct sysctl_oid **oidp)
+{
+	int i, j;
+	struct sysctl_oid **oidpp;
+
+	oidpp = (struct sysctl_oid **) lsp->ls_items;
+	j = lsp->ls_length;
+	*len = level;
+	for (i = 0; i < j; i++, oidpp++) {
+		if (!*oidpp)
+			continue;
+
+		*next = (*oidpp)->oid_number;
+		*oidp = *oidpp;
+
+		if (!namelen) {
+			if (((*oidpp)->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
+				return 0;
+			if ((*oidpp)->oid_handler) 
+				/* We really should call the handler here...*/
+				return 0;
+			lsp = (struct linker_set*)(*oidpp)->oid_arg1;
+			return (sysctl_sysctl_next_ls (lsp, 0, 0, next+1, 
+				len, level+1, oidp));
+		}
+
+		if ((*oidpp)->oid_number < *name)
+			continue;
+
+		if ((*oidpp)->oid_number > *name) {
+			if (((*oidpp)->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+				return 0;
+			if ((*oidpp)->oid_handler)
+				return 0;
+			lsp = (struct linker_set*)(*oidpp)->oid_arg1;
+			if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, 
+				next+1, len, level+1, oidp))
+				return (0);
+			namelen = 1;
+			*len = level;
+			continue;
+		}
+		if (((*oidpp)->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+			continue;
+
+		if ((*oidpp)->oid_handler)
+			continue;
+
+		lsp = (struct linker_set*)(*oidpp)->oid_arg1;
+		if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, next+1, 
+			len, level+1, oidp))
+			return (0);
+		namelen = 1;
+		*len = level;
+	}
+	return 1;
+}
+
+static int
+sysctl_sysctl_next SYSCTL_HANDLER_ARGS
+{
+	int *name = (int *) arg1;
+	u_int namelen = arg2;
+	int i, j, error;
+	struct sysctl_oid *oid;
+	struct linker_set *lsp = &sysctl_;
+	int newoid[CTL_MAXNAME];
+
+	i = sysctl_sysctl_next_ls (lsp, name, namelen, newoid, &j, 1, &oid);
+	if (i)
+		return ENOENT;
+	error = SYSCTL_OUT(req, &oid->oid_kind, sizeof oid->oid_kind);
+	if (!error)
+		error =SYSCTL_OUT(req, newoid, j * sizeof (int));
+	return (error);
+}
+
+SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD, sysctl_sysctl_next, "");
+
+static int
+name2oid (char *name, int *oid, int *len, struct sysctl_oid **oidp)
+{
+	int i, j;
+	struct sysctl_oid **oidpp;
+	struct linker_set *lsp = &sysctl_;
+	char *p;
+
+	if (!*name)
+		return ENOENT;
+
+	p = name + strlen(name) - 1 ;
+	if (*p == '.')
+		*p = '\0';
+
+	*len = 0;
+
+	for (p = name; *p && *p != '.'; p++) 
+		;
+	i = *p;
+	if (i == '.')
+		*p = '\0';
+
+	j = lsp->ls_length;
+	oidpp = (struct sysctl_oid **) lsp->ls_items;
+
+	while (j-- && *len < CTL_MAXNAME) {
+		if (!*oidpp)
+			continue;
+		if (strcmp(name, (*oidpp)->oid_name)) {
+			oidpp++;
+			continue;
+		}
+		*oid++ = (*oidpp)->oid_number;
+		(*len)++;
+
+		if (!i) {
+			if (oidp)
+				*oidp = *oidpp;
+			return (0);
+		}
+
+		if (((*oidpp)->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+			break;
+
+		if ((*oidpp)->oid_handler)
+			break;
+
+		lsp = (struct linker_set*)(*oidpp)->oid_arg1;
+		j = lsp->ls_length;
+		oidpp = (struct sysctl_oid **)lsp->ls_items;
+		name = p+1;
+		for (p = name; *p && *p != '.'; p++) 
+				;
+		i = *p;
+		if (i == '.')
+			*p = '\0';
+	}
+	return ENOENT;
+}
+
+static int
+sysctl_sysctl_name2oid SYSCTL_HANDLER_ARGS
+{
+	char *p;
+	int error, oid[CTL_MAXNAME], len;
+	struct sysctl_oid *op = 0;
+
+	if (!req->newlen) 
+		return ENOENT;
+
+	p = malloc(req->newlen+1, M_SYSCTL, M_WAITOK);
+
+	error = SYSCTL_IN(req, p, req->newlen);
+	if (error) {
+		free(p, M_SYSCTL);
+		return (error);
+	}
+
+	p [req->newlen] = '\0';
+
+	error = name2oid(p, oid, &len, &op);
+
+	free(p, M_SYSCTL);
+
+	if (error)
+		return (error);
+
+	error = SYSCTL_OUT(req, &op->oid_kind, sizeof op->oid_kind);
+	if (!error)
+		error = SYSCTL_OUT(req, oid, len * sizeof *oid);
+	return (error);
+}
+
+SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW, 0, 0, 
+	sysctl_sysctl_name2oid, "I", "");
+
+static int
+sysctl_sysctl_oidfmt SYSCTL_HANDLER_ARGS
+{
+	int *name = (int *) arg1;
+	u_int namelen = arg2;
+	int indx, j;
+	struct sysctl_oid **oidpp;
+	struct linker_set *lsp = &sysctl_;
+
+	j = lsp->ls_length;
+	oidpp = (struct sysctl_oid **) lsp->ls_items;
+
+	indx = 0;
+	while (j-- && indx < CTL_MAXNAME) {
+		if (*oidpp && ((*oidpp)->oid_number == name[indx])) {
+			indx++;
+			if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+				if ((*oidpp)->oid_handler)
+					goto found;
+				if (indx == namelen)
+					return ENOENT;
+				lsp = (struct linker_set*)(*oidpp)->oid_arg1;
+				j = lsp->ls_length;
+				oidpp = (struct sysctl_oid **)lsp->ls_items;
+			} else {
+				if (indx != namelen)
+					return EISDIR;
+				goto found;
+			}
+		} else {
+			oidpp++;
+		}
+	}
+	return ENOENT;
+found:
+	if (!(*oidpp)->oid_fmt)
+		return ENOENT;
+	return (SYSCTL_OUT(req, (*oidpp)->oid_fmt, 
+		strlen((*oidpp)->oid_fmt)+1));
+}
+
+
+SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD, sysctl_sysctl_oidfmt, "");
+
+/*
+ * Default "handler" functions.
+ */
 
 /*
  * Handle an integer, signed or unsigned.
@@ -481,7 +733,7 @@ int
 sysctl_root SYSCTL_HANDLER_ARGS
 {
 	int *name = (int *) arg1;
-	int namelen = arg2;
+	u_int namelen = arg2;
 	int indx, i, j;
 	struct sysctl_oid **oidpp;
 	struct linker_set *lsp = &sysctl_;
