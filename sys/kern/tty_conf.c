@@ -79,7 +79,7 @@ struct	linesw linesw[MAXLDISC] =
 #else
 	NODISC(2),
 #endif
-	NODISC(3),		/* TABLDISC */
+	NODISC(3),		/* loadable */
 	NODISC(4),		/* SLIPDISC */
 	NODISC(5),		/* PPPDISC */
 	NODISC(6),		/* NETGRAPHDISC */
