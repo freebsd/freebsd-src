@@ -185,40 +185,36 @@ static	struct tstate tstate;
 static	int db_ktr_verbose;
 static	int db_mach_vtrace(void);
 
-DB_SHOW_COMMAND(ktr_first, db_ktr_first)
-{
+#define	NUM_LINES_PER_PAGE	18
 
+DB_SHOW_COMMAND(ktr, db_ktr_all)
+{
+	int	c, lines;
+
+	lines = NUM_LINES_PER_PAGE;
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
 	tstate.first = -1;
 	if (strcmp(modif, "v") == 0)
 		db_ktr_verbose = 1;
 	else
 		db_ktr_verbose = 0;
-	db_mach_vtrace();
-
-	return;
-}
-
-DB_SHOW_COMMAND(ktr, db_ktr_all)
-{
-	int	c;
-
-	db_ktr_first(addr, have_addr, count, modif);
-	while (db_mach_vtrace()) {
-		c = cncheckc();
-		if (c != -1)
-			break;
-	}
-
-	return;
-}
-
-DB_SHOW_COMMAND(ktr_next, db_ktr_next)
-{
-
-	if (strcmp(modif, "v") == 0)
-		db_ktr_verbose ^= 1;
-	db_mach_vtrace();
+	while (db_mach_vtrace())
+		if (--lines == 0) {
+			db_printf("--More--");
+			c = cngetc();
+			db_printf("\r");
+			switch (c) {
+			case '\n':	/* one more line */
+				lines = 1;
+				break;
+			case ' ':	/* one more page */
+				lines = NUM_LINES_PER_PAGE;
+				break;
+			default:
+				db_printf("\n");
+				return;
+			}
+		}
 }
 
 static int
@@ -234,27 +230,29 @@ db_mach_vtrace(void)
 
 	/* Skip over unused entries. */
 #ifdef KTR_EXTEND
-	if (kp->ktr_desc[0] != '\0') {
+	if (kp->ktr_desc[0] == '\0') {
 #else
-	if (kp->ktr_desc != NULL) {
+	if (kp->ktr_desc == NULL) {
 #endif
-		db_printf("%d: ", tstate.cur);
-		if (db_ktr_verbose)
-			db_printf("%4ld.%06ld ", (long)kp->ktr_tv.tv_sec,
-			    kp->ktr_tv.tv_nsec / 1000);
+		db_printf("--- End of trace buffer ---\n");
+		return (0);
+	}
+	db_printf("%d: ", tstate.cur);
+	if (db_ktr_verbose)
+		db_printf("%4ld.%06ld ", (long)kp->ktr_tv.tv_sec,
+		    kp->ktr_tv.tv_nsec / 1000);
 #ifdef KTR_EXTEND
 #ifdef SMP
-		db_printf("cpu%d ", kp->ktr_cpu);
+	db_printf("cpu%d ", kp->ktr_cpu);
 #endif
-		if (db_ktr_verbose)
-			db_printf("%s.%d\t", kp->ktr_filename, kp->ktr_line);
-		db_printf("%s", kp->ktr_desc);
+	if (db_ktr_verbose)
+		db_printf("%s.%d\t", kp->ktr_filename, kp->ktr_line);
+	db_printf("%s", kp->ktr_desc);
 #else
-		db_printf(kp->ktr_desc, kp->ktr_parm1, kp->ktr_parm2,
-		    kp->ktr_parm3, kp->ktr_parm4, kp->ktr_parm5);
+	db_printf(kp->ktr_desc, kp->ktr_parm1, kp->ktr_parm2, kp->ktr_parm3,
+	    kp->ktr_parm4, kp->ktr_parm5);
 #endif
-		db_printf("\n");
-	}
+	db_printf("\n");
 
 	if (tstate.first == -1)
 		tstate.first = tstate.cur;
