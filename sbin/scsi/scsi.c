@@ -42,7 +42,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: scsi.c,v 1.17 1998/01/12 07:57:57 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -378,9 +378,10 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 				err(1, "write");
 			}
 			else if (amount == 0)
-				fprintf(stderr, "Warning: wrote only %d bytes out of %d.\n",
-					scsireq->datalen - count,
-					scsireq->datalen);
+				fprintf(stderr,
+			    "Warning: wrote only %lu bytes out of %lu.\n",
+				    (u_long)scsireq->datalen - count,
+				    (u_long)scsireq->datalen);
 			
 		}
 		else
