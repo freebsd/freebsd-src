@@ -727,19 +727,7 @@ ccdopen(dev, flags, fmt, p)
 		goto done;
 	}
 
-	/* Prevent our unit from being unconfigured while open. */
-	switch (fmt) {
-	case S_IFCHR:
-		cs->sc_copenmask |= pmask;
-		break;
-
-	case S_IFBLK:
-		cs->sc_bopenmask |= pmask;
-		break;
-	}
-	cs->sc_openmask =
-	    cs->sc_copenmask | cs->sc_bopenmask;
-
+	cs->sc_openmask |= pmask;
  done:
 	ccdunlock(cs);
 	return (0);
@@ -771,18 +759,7 @@ ccdclose(dev, flags, fmt, p)
 	part = ccdpart(dev);
 
 	/* ...that much closer to allowing unconfiguration... */
-	switch (fmt) {
-	case S_IFCHR:
-		cs->sc_copenmask &= ~(1 << part);
-		break;
-
-	case S_IFBLK:
-		cs->sc_bopenmask &= ~(1 << part);
-		break;
-	}
-	cs->sc_openmask =
-	    cs->sc_copenmask | cs->sc_bopenmask;
-
+	cs->sc_openmask &= ~(1 << part);
 	ccdunlock(cs);
 	return (0);
 }
@@ -1408,16 +1385,10 @@ ccdioctl(dev, cmd, data, flag, p)
 		if ((error = ccdlock(cs)) != 0)
 			return (error);
 
-		/*
-		 * Don't unconfigure if any other partitions are open
-		 * or if both the character and block flavors of this
-		 * partition are open.
-		 */
+		/* Don't unconfigure if any other partitions are open */
 		part = ccdpart(dev);
 		pmask = (1 << part);
-		if ((cs->sc_openmask & ~pmask) ||
-		    ((cs->sc_bopenmask & pmask) &&
-		    (cs->sc_copenmask & pmask))) {
+		if ((cs->sc_openmask & ~pmask)) {
 			ccdunlock(cs);
 			return (EBUSY);
 		}
@@ -1544,7 +1515,7 @@ ccdsize(dev)
 	struct ccd_softc *cs;
 	int part, size;
 
-	if (ccdopen(dev, 0, S_IFBLK, curproc))
+	if (ccdopen(dev, 0, S_IFCHR, curproc))
 		return (-1);
 
 	cs = &ccd_softc[ccdunit(dev)];
@@ -1558,7 +1529,7 @@ ccdsize(dev)
 	else
 		size = cs->sc_label.d_partitions[part].p_size;
 
-	if (ccdclose(dev, 0, S_IFBLK, curproc))
+	if (ccdclose(dev, 0, S_IFCHR, curproc))
 		return (-1);
 
 	return (size);
