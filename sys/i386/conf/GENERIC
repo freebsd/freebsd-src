@@ -191,6 +191,10 @@ device		ed0	at isa? port 0x280 irq 10 iomem 0xd8000
 device		ex
 device		ep
 device		fe0	at isa? port 0x300
+# Xircom Ethernet
+device		xe
+# PRISM I IEEE 802.11b wireless NIC.
+device		awi
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
 # exists only as a PCMCIA device, so there is no ISA attachment needed
 # and resources will always be dynamically assigned by the pccard code.
@@ -201,8 +205,6 @@ device		wi
 # card for a manually chosen I/O address and IRQ, you must specify
 # those parameters here.
 device		an
-# Xircom Ethernet
-device		xe
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
 #device		le0	at isa? port 0x300 irq 5 iomem 0xd0000

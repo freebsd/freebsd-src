@@ -1321,6 +1321,7 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 # rdp: RealTek RTL 8002-based pocket ethernet adapters
 # sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl: Lucent Wavelan (ISA card only).
+# awi: IEEE 802.11b PRISM I cards.
 # wi: Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
 #     the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #     bridge with a PCMCIA adapter plugged into it.
@@ -1346,6 +1347,7 @@ device lnc0 at isa? port 0x280 irq 10 drq 0
 device rdp0 at isa? port 0x378 irq 7 flags 2
 device sr0 at isa? port 0x300 irq 5 iomem 0xd0000
 device sn0 at isa? port 0x300 irq 10
+device awi
 device wi
 device an
 options 	WLCACHE		# enables the signal-strength cache
