@@ -1,5 +1,5 @@
 /* THIS FILE PRODUCED AUTOMATICALLY */
-void  devfs_sinit(caddr_t junk) /*proto*/;
+void  devfs_sinit(void *junk) /*proto*/;
 devnm_p dev_findname(dn_p dir,char *name) /*proto*/;
 int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/;
 int	dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp, devnm_p *devnm_pp) /*proto*/;
