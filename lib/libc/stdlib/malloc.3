@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
-.\"     $Id: malloc.3,v 1.11 1997/06/12 12:45:45 phk Exp $
+.\"     $Id: malloc.3,v 1.12 1997/06/22 17:54:27 phk Exp $
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
@@ -119,7 +119,7 @@ is NULL, no action occurs.
 .Sh TUNING
 Once, when the first call is made to one of these memory allocation
 routines, various flags will be set or reset, which affect the
-workings of this alloction implementation.
+workings of this allocation implementation.
 .Pp
 The ``name'' of the file referenced by the symbolic link named
 .Pa /etc/malloc.conf ,
@@ -142,9 +142,16 @@ in these cases.
 .It J
 Each byte of new memory allocated by
 .Fn malloc
-and
+or
+.Fn realloc
+as well as all memory returned by
+.Fn free
+or 
 .Fn realloc
 will be initialized to 0xd0.
+This options also sets the
+.Dq R
+option.
 This is intended for debugging and will impact performance negatively.
 .It H
 Pass a hint to the kernel about pages unused by the allocation functions.
@@ -183,8 +190,11 @@ extern char *malloc_options;
 malloc_options = "X";
 .Ed
 .It Z
-Initialize all allocated memory to nul bytes, and overwrite any
-surrounding memory necessary for alignment reasons with 0xd0 bytes.
+This option implicitly sets the
+.Dq J
+and
+.Dq R
+options, and then zeros out the bytes that were requested.
 This is intended for debugging and will impact performance negatively.
 .It <
 Reduce the size of the cache by a factor of two.

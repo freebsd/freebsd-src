@@ -1,10 +1,10 @@
 #	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
-#	$Id: Makefile.inc,v 1.8 1997/05/03 03:50:04 jb Exp $
+#	$Id: Makefile.inc,v 1.9 1997/06/22 17:54:24 phk Exp $
 
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/stdlib ${.CURDIR}/../libc/stdlib
 
-SRCS+=	abort.c atexit.c atof.c atoi.c atol.c bsearch.c div.c \
+SRCS+=	abort.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c strhash.c heapsort.c labs.c \
 	ldiv.c malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
 	realpath.c setenv.c strtod.c strtol.c strtoq.c strtoul.c \
