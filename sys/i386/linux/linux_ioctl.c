@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.27 1998/08/31 10:51:19 jkh Exp $
+ *  $Id: linux_ioctl.c,v 1.28 1998/08/31 10:53:33 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -626,6 +626,26 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 
     case LINUX_SIOCDELMULTI:
 	args->cmd = SIOCDELMULTI;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_FIOSETOWN:
+	args->cmd = FIOSETOWN;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SIOCSPGRP:
+	args->cmd = SIOCSPGRP;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_FIOGETOWN:
+	args->cmd = FIOGETOWN;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SIOCGPGRP:
+	args->cmd = SIOCGPGRP;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SIOCATMARK:
+	args->cmd = SIOCATMARK;
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCSETD:
