@@ -1,2 +1,7 @@
-demo:	demo.c libvgl.a
-	cc -o demo demo.c -lvgl
+# $FreeBSD$
+
+PROG=	demo
+NOMAN=	yes
+LDADD=	-lvgl
+
+.include <bsd.prog.mk>
