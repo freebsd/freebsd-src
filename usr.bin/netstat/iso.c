@@ -263,7 +263,7 @@ iso_protopr1(u_long kern_addr, int istp)
 	if (Aflag)
 			printf("%8x ",
 					(sockb.so_pcb ? (void *)sockb.so_pcb : (void *)kern_addr));
-	printf("%-5.5s %6d %6d ", "tp", sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
+	printf("%-5.5s %6u %6u ", "tp", sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
 	if (istp && tpcb.tp_lsuffixlen) {
 			hexprint(tpcb.tp_lsuffixlen, tpcb.tp_lsuffix, "()");
 			printf("\t");
@@ -345,7 +345,7 @@ tp_inproto(u_long pcb)
 		return;
 	if (Aflag)
 		printf("%8x ", pcb);
-	printf("%-5.5s %6d %6d ", "tpip",
+	printf("%-5.5s %6u %6u ", "tpip",
 	    sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
 	inetprint(&inpcb.inp_laddr, inpcb.inp_lport, "tp");
 	inetprint(&inpcb.inp_faddr, inpcb.inp_fport, "tp");
@@ -494,7 +494,7 @@ x25_protopr(u_long off, char *name, int af __unused)
 				"Local Address", "Foreign Address", "(state)");
 			first = 0;
 		}
-		printf("%-5.5s %6d %6d ", name, sockb.so_rcv.sb_cc,
+		printf("%-5.5s %6u %6u ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		isonetprint(&xpcb.x_laddr.siso_addr, &xpcb.x_lport,
 			sizeof(xpcb.x_lport), 1);

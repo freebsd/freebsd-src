@@ -991,8 +991,8 @@ chgproccnt(uip, diff, max)
 int
 chgsbsize(uip, hiwat, to, max)
 	struct	uidinfo	*uip;
-	u_long *hiwat;
-	u_long	to;
+	u_int  *hiwat;
+	u_int	to;
 	rlim_t	max;
 {
 	rlim_t new;

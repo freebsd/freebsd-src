@@ -98,15 +98,15 @@ struct socket {
  * Variables for socket buffering.
  */
 	struct sockbuf {
-		u_long	sb_cc;		/* actual chars in buffer */
-		u_long	sb_hiwat;	/* max actual char count */
-		u_long	sb_mbcnt;	/* chars of mbufs used */
-		u_long	sb_mbmax;	/* max chars of mbufs to use */
-		long	sb_lowat;	/* low water mark */
-		struct	mbuf *sb_mb;	/* the mbuf chain */
 		struct	selinfo sb_sel;	/* process selecting read/write */
+		struct	mbuf *sb_mb;	/* the mbuf chain */
+		u_int	sb_cc;		/* actual chars in buffer */
+		u_int	sb_hiwat;	/* max actual char count */
+		u_int	sb_mbcnt;	/* chars of mbufs used */
+		u_int	sb_mbmax;	/* max chars of mbufs to use */
+		int	sb_lowat;	/* low water mark */
+		int	sb_timeo;	/* timeout for read/write */
 		short	sb_flags;	/* flags, see below */
-		short	sb_timeo;	/* timeout for read/write */
 	} so_rcv, so_snd;
 #define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
 #define	SB_LOCK		0x01		/* lock on data queue */
@@ -172,13 +172,13 @@ struct xsocket {
 	pid_t	so_pgid;
 	u_long	so_oobmark;
 	struct xsockbuf {
-		u_long	sb_cc;
-		u_long	sb_hiwat;
-		u_long	sb_mbcnt;
-		u_long	sb_mbmax;
-		long	sb_lowat;
+		u_int	sb_cc;
+		u_int	sb_hiwat;
+		u_int	sb_mbcnt;
+		u_int	sb_mbmax;
+		int	sb_lowat;
+		int	sb_timeo;
 		short	sb_flags;
-		short	sb_timeo;
 	} so_rcv, so_snd;
 	uid_t	so_uid;		/* XXX */
 };
