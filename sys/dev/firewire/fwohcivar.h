@@ -61,6 +61,9 @@ typedef struct fwohci_softc {
 #define	FWOHCI_DBCH_INIT	(1<<0)
 #define	FWOHCI_DBCH_FULL	(1<<1)
 		int buf_offset;
+#define FWOHCI_DBCH_MAX_PAGES	32
+		int npages;
+		void *pages[FWOHCI_DBCH_MAX_PAGES];
 	} arrq, arrs, atrq, atrs, it[OHCI_DMA_ITCH], ir[OHCI_DMA_IRCH];
 	u_int maxrec;
 	u_int32_t *cromptr;
