@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.13 1998/03/29 15:01:13 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.14 1998/06/05 21:38:07 julian Exp $
  */
 
 /*
@@ -94,13 +94,8 @@ static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
 #endif
 
-#ifndef IPFW_DIVERT_RESTART
 static int	ip_fw_chk __P((struct ip **pip, int hlen,
-			struct ifnet *oif, int ignport, struct mbuf **m));
-#else
-static int	ip_fw_chk __P((struct ip **pip, int hlen,
-			struct ifnet *oif, int pastrule, struct mbuf **m));
-#endif /* IPFW_DIVERT_RESTART */
+			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m));
 static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
 
 static char err_prefix[] = "ip_fw_ctl:";
@@ -377,9 +372,9 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
  * #ifndef IPFW_DIVERT_RESTART
- *	ignport	Ignore all divert/tee rules to this port (if non-zero)
+ *	*cookie	Ignore all divert/tee rules to this port (if non-zero)
  * #else
- *	pastrule Skip up to the first rule past this rule number;
+ *	*cookie Skip up to the first rule past this rule number;
  * #endif
  *	*m	The packet; we set to NULL when/if we nuke it.
  *
@@ -392,13 +387,8 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
  */
 
 static int 
-#ifndef IPFW_DIVERT_RESTART
 ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, int ignport, struct mbuf **m)
-#else
-ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, int pastrule, struct mbuf **m)
-#endif /* IPFW_DIVERT_RESTART */
+	struct ifnet *oif, u_int16_t *cookie, struct mbuf **m)
 {
 	struct ip_fw_chain *chain;
 	struct ip_fw *rule = NULL;
@@ -406,6 +396,11 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	u_short offset = (ip->ip_off & IP_OFFMASK);
 	u_short src_port, dst_port;
+#ifdef	IPFW_DIVERT_RESTART
+	u_int16_t skipto = *cookie;
+#else
+	u_int16_t ignport = *cookie;
+#endif
 
 	/*
 	 * Go down the chain, looking for enlightment
@@ -417,10 +412,10 @@ ip_fw_chk(struct ip **pip, int hlen,
 	for (chain=LIST_FIRST(&ip_fw_chain); chain; chain = LIST_NEXT(chain, chain)) {
 #else
 	chain=LIST_FIRST(&ip_fw_chain);
-	if ( pastrule ) {
-		if (pastrule >= 65535)
+	if ( skipto ) {
+		if (skipto >= 65535)
 			goto dropit;
-		while (chain && (chain->rule->fw_number <= pastrule)) {
+		while (chain && (chain->rule->fw_number <= skipto)) {
 			chain = LIST_NEXT(chain, chain);
 		}
 		if (! chain) goto dropit;
@@ -429,13 +424,15 @@ ip_fw_chk(struct ip **pip, int hlen,
 #endif /* IPFW_DIVERT_RESTART */
 		register struct ip_fw *const f = chain->rule;
 
-		/* Check direction inbound */
-		if (!oif && !(f->fw_flg & IP_FW_F_IN))
-			continue;
-
-		/* Check direction outbound */
-		if (oif && !(f->fw_flg & IP_FW_F_OUT))
-			continue;
+		if (oif) {
+			/* Check direction outbound */
+			if (!(f->fw_flg & IP_FW_F_OUT))
+				continue;
+		} else {
+			/* Check direction inbound */
+			if (!(f->fw_flg & IP_FW_F_IN))
+				continue;
+		}
 
 		/* Fragments */
 		if ((f->fw_flg & IP_FW_F_FRAG) && !(ip->ip_off & IP_OFFMASK))
@@ -602,7 +599,9 @@ got_match:
 			continue;
 		case IP_FW_F_DIVERT:
 #ifdef IPFW_DIVERT_RESTART
-			ip_divert_in_cookie = f->fw_number;
+			*cookie = f->fw_number;
+#else
+			*cookie = f->fw_divert_port;
 #endif /* IPFW_DIVERT_RESTART */
 			return(f->fw_divert_port);
 		case IP_FW_F_TEE:
