@@ -1064,9 +1064,6 @@ pmap_pinit(pmap)
 		if (m == NULL)
 			VM_WAIT;
 		else {
-			vm_page_lock_queues();
-			vm_page_flag_clear(m, PG_BUSY);
-			vm_page_unlock_queues();
 			ptdpg[i++] = m;
 		}
 	}
@@ -1350,7 +1347,6 @@ pmap_release(pmap_t pmap)
 #endif
 		m->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
-		vm_page_busy(m);
 		vm_page_free_zero(m);
 	}
 	vm_page_unlock_queues();
