@@ -64,8 +64,8 @@ msysosak.o			optional	fla			\
 #
 contrib/dev/oltr/if_oltr.c	optional	oltr
 trlld.o				optional	oltr			\
-	dependency	"$S/contrib/dev/oltr/i386${FMT}.trlld.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/oltr/i386${FMT}.trlld.o.uu"	\
+	dependency	"$S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
 	no-implicit-rule
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
