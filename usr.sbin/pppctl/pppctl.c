@@ -169,18 +169,31 @@ main(int argc, char **argv)
             return 2;
         }
     } else {
+        char *port, *host, *colon;
+
+        colon = strchr(argv[arg], ':');
+        if (colon) {
+            port = colon + 1;
+            *colon = '\0';
+            host = argv[arg];
+        } else {
+            port = argv[arg];
+            host = "localhost";
+        }
         sock = (struct sockaddr *)&ifsin;
         socksz = sizeof ifsin;
 
-        if ((h = gethostbyname("localhost")) == 0) {
-            fprintf(stderr, "Cannot resolve localhost\n");
+        if ((h = gethostbyname(host)) == 0) {
+            fprintf(stderr, "Cannot resolve %s\n", host);
             return 1;
         }
+        if (colon)
+            *colon = ':';
 
-        if (strspn(argv[arg], "0123456789") == strlen(argv[arg]))
-            ifsin.sin_port = htons(atoi(argv[arg]));
-        else if (s = getservbyname(argv[arg], "tcp"), !s) {
-            fprintf(stderr, "%s isn't a valid port or service!\n", argv[arg]);
+        if (strspn(port, "0123456789") == strlen(port))
+            ifsin.sin_port = htons(atoi(port));
+        else if (s = getservbyname(port, "tcp"), !s) {
+            fprintf(stderr, "%s isn't a valid port or service!\n", port);
             return Usage();
         }
         else
