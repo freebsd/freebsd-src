@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.117 1996/09/06 23:32:41 pst Exp $
+ *	$Id: wd.c,v 1.118 1996/09/14 04:27:46 bde Exp $
  */
 
 /* TODO:
@@ -919,7 +919,7 @@ oops:
 		 * XXX bogus inb() here, register 0 is assumed and intr status
 		 * is reset.
 		 */
-		if( (du->dk_status & DKFL_MULTI) && (inb(du->dk_port) & WDERR_ABORT)) {
+		if( (du->dk_flags & DKFL_MULTI) && (inb(du->dk_port) & WDERR_ABORT)) {
 			wderror(bp, du, "reverting to non-multi sector mode");
 			du->dk_multi = 1;
 		}
