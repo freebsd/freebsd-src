@@ -89,6 +89,7 @@ as an argument:
 struct ng_pptpgre_conf {
     u_char      enabled;          /* enables traffic flow */
     u_char      enableDelayedAck; /* enables delayed acks */
+    u_char      enableAlwaysAck;  /* always send ack with data */
     u_int16_t   cid;              /* my call id */
     u_int16_t   peerCid;          /* peer call id */
     u_int16_t   recvWin;          /* peer recv window size */
@@ -103,6 +104,9 @@ field enables traffic flow through the node.  The
 .Dv enableDelayedAck
 field enables delayed acknowledgement (maximum 250 miliseconds), which
 is a useful optimization and should generally be turned on.
+.Dv enableAlwaysAck
+field enables sending acknowledgements with every data packet, which
+is probably helpful as well.
 The remaining fields are as supplied by the PPTP virtual call setup process.
 .It Dv NGM_PPTPGRE_GET_CONFIG
 Returns the current configuration as a
