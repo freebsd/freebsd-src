@@ -40,18 +40,19 @@ driver needs either
 .Xr sppp 4
 or 
 .Xr netgraph 4 .
-Which one to use is determined by NETGRAPH_CRONYX option.
+Which one to use is determined by the NETGRAPH_CRONYX option.
 If this option is present in your kernel configuration file, the
 .Nm
 driver will be compiled with
 .Xr netgraph 4
-support, else driver will be compiled with
+support.
+Otherwise, it will be compiled with
 .Xr sppp 4
 support.
 .Pp
 The base i/o port address specified in
 .Pa /boot/device.hints
-must match the port address set by jumpers on the board.
+must match the port address set by the jumpers on the board.
 The DMA i/o channel and interrupt request numbers are configured
 by software at adapter initialization.
 Legal values are:
@@ -68,12 +69,12 @@ Legal values are:
 The
 .Nm
 driver supports autodetection.
-As for all non-PNP hardware using of
+As for all non-PNP hardware, using
 autodetection could lead to some potential problems with other devices during
-detection of hardware.
-It is alway better to specify hardware resources manualy.
+the hardware detection process.
+It is always better to specify hardware resources manually.
 .Pp
-Refere to
+Refer to
 .Xr sconfig 8
 for information about the
 .Nm
@@ -89,7 +90,7 @@ The
 .Nm
 driver was updated in
 .Fx 5.2 .
-In most of previous versions of
+In most of the previous versions of
 .Fx
 the
 .Nm
