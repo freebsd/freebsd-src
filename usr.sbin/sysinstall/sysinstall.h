@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.28 1995/05/23 18:06:16 jkh Exp $
+ * $Id: sysinstall.h,v 1.29 1995/05/24 01:27:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -159,8 +159,9 @@ typedef struct _device {
     DeviceType type;
     Boolean enabled;
     Boolean (*init)(struct _device *);
-    Boolean (*get)(char *fname);
-    void (*close)(struct _device *);
+    int (*get)(char *fname);
+    Boolean (*close)(struct _device *, int fd);
+    void (*shutdown)(struct _device *);
     void *private;
 } Device;
 
@@ -216,6 +217,7 @@ extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
 extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
 extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
+extern DMenu		MenuSyscons;		/* System console configuration menu		*/
 extern DMenu		MenuInstall;		/* Installation menu				*/
 extern DMenu		MenuInstallType;	/* Installation type menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
@@ -238,11 +240,12 @@ extern void	command_shell_add(char *key, char *fmt, ...);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
-extern void	config_fstab(void);
-extern void	config_sysconfig(void);
-extern void	config_resolv(void);
-extern int	config_ports(char *str);
-extern int	config_packages(char *str);
+extern void	configFstab(void);
+extern void	configSysconfig(void);
+extern void	configResolv(void);
+extern int	configPorts(char *str);
+extern int	configPackages(char *str);
+extern int	configSaverTimeout(char *str);
 
 /* decode.c */
 extern DMenuItem *decode(DMenu *menu, char *name);
@@ -256,8 +259,9 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-				Boolean (*init)(Device *mediadev), Boolean (*get)(char *distname),
-				void (*close)(Device *mediadev), void *private);
+				Boolean (*init)(Device *mediadev), int (*get)(char *distname),
+				Boolean (*close)(Device *mediadev, int fd), void (*shutDown)(Device *mediadev),
+				void *private);
 
 /* disks.c */
 extern int	diskPartitionEditor(char *unused);
@@ -338,12 +342,12 @@ extern int	mediaGetFloppy(char *dist);
 extern int	mediaGetFTP(char *dist);
 extern int	mediaGetTape(char *dist);
 extern int	mediaGetUFS(char *dist);
-extern void	mediaCloseCDROM(Device *dev);
-extern void	mediaCloseDOS(Device *dev);
-extern void	mediaCloseFTP(Device *dev);
-extern void	mediaCloseFloppy(Device *dev);
-extern void	mediaCloseNetwork(Device *dev);
-extern void	mediaCloseTape(Device *dev);
+extern void	mediaShutdownCDROM(Device *dev);
+extern void	mediaShutdownDOS(Device *dev);
+extern void	mediaShutdownFTP(Device *dev);
+extern void	mediaShutdownFloppy(Device *dev);
+extern void	mediaShutdownNetwork(Device *dev);
+extern void	mediaShutdownTape(Device *dev);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.14 1995/05/22 14:10:21 jkh Exp $
+ * $Id: media.c,v 1.15 1995/05/23 02:41:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,9 +86,7 @@ mediaSetCDROM(char *str)
 	/* This may need to be extended a little, but the basic idea is sound */
 	strcpy(bootCD.name, "bootCD");
 	bootCD.type = DEVICE_TYPE_CDROM;
-	bootCD.init = NULL;
 	bootCD.get = mediaGetCDROM;
-	bootCD.close = NULL;
 	mediaDevice = &bootCD;
 	return 1;
     }
@@ -197,7 +195,7 @@ mediaSetDOS(char *str)
 		if (c1->type == fat) {
 		    /* Got one! */
 		    mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
-						 mediaInitDOS, mediaGetDOS, mediaCloseDOS, NULL);
+						 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
 		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
 		    break;
 		}
@@ -267,7 +265,7 @@ mediaSetFTP(char *str)
     ftpDevice.type = DEVICE_TYPE_NETWORK;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
-    ftpDevice.close = mediaCloseFTP;
+    ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = devp;
     mediaDevice = &ftpDevice;
     return 1;
