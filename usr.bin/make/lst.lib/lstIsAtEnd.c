@@ -38,7 +38,7 @@
 
 #ifndef lint
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
+__FBSDID("$FreeBSD$");
 #endif /* not lint */
 
 /*-
