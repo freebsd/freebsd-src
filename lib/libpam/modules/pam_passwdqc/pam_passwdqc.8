@@ -47,7 +47,7 @@
 .Pa pam_passwdqc
 .Op Ar options
 .Sh DESCRIPTION
-The 
+The
 .Nm
 module is a simple password strength checking module for
 PAM.
@@ -64,7 +64,7 @@ parameter, this is the
 .Dq Li password
 feature.
 .Pp
-The 
+The
 .Fn pam_chauthtok
 service function will ask the user for a new password, and verify that
 it meets certain minimum standards.
@@ -74,7 +74,7 @@ If the chosen password is unsatisfactory, the service function returns
 The following options may be passed to the authentication module:
 .Bl -tag -width 18n
 .It Cm min Ns = Ns Ar N0 Ns , Ns Ar N1 Ns , Ns Ar N2 Ns , Ns Ar N3 Ns , Ns Ar N4
-(min=disabled,24,12,8,7) 
+(min=disabled,24,12,8,7)
 The minimum allowed password lengths for different kinds of passwords
 / passphrases.
 The keyword
@@ -94,8 +94,8 @@ be classified, but are assumed to be non-digits.
 N1 is used for passwords consisting of characters from two character
 classes, which don't meet the requirements for a passphrase.
 .Pp
-N2 is used for passphrases.  
-A passphrase must consist of sufficient words (see the 
+N2 is used for passphrases.
+A passphrase must consist of sufficient words (see the
 .Cm passphrase
 option below).
 .Pp
@@ -112,14 +112,14 @@ the minimum length they've been checked against.
 .Pp
 .It Cm max Ns = Ns Ar N
 (max=40)
-The maximum allowed password length.  
+The maximum allowed password length.
 This can be used to prevent users from setting passwords which may be
 too long for some system services.
 The value 8 is treated specially: if
-.Cm max 
+.Cm max
 is set to 8, passwords longer than 8 characters will not be rejected,
 but will be truncated to 8 characters for the strength checks and the
-user will be warned.  
+user will be warned.
 This is for compatibility with the traditional DES password hashes,
 which truncate the password at 8 characters.
 .Pp
@@ -133,7 +133,7 @@ passphrase support.
 (match=4)
 The length of common substring required to conclude that a password is
 at least partially based on information found in a character string,
-or 0 to disable the substring search.  
+or 0 to disable the substring search.
 Note that the password will not be rejected once a weak substring is
 found; it will instead be subjected to the usual strength requirements
 with the weak substring removed.
@@ -142,14 +142,14 @@ The substring search is case-insensitive and is able to detect and
 remove a common substring spelled backwards.
 .It Cm similar Ns = Ns Ar permit Ns | Ns Ar deny
 (similar=deny)
-Whether a new password is allowed to be similar to the old one.  
+Whether a new password is allowed to be similar to the old one.
 The passwords are considered to be similar when there's a sufficiently
 long common substring and the new password with the substring removed
 would be weak.
 .It Cm random Ns = Ns Ar N Ns Op , Ns Ar only
 (random=42)
 The size of randomly-generated passwords in bits, or 0 to disable this
-feature.  
+feature.
 Passwords that contain the offered randomly-generated string will be
 allowed regardless of other possible restrictions.
 .Pp
@@ -159,19 +159,19 @@ modifier can be used to disallow user-chosen passwords.
 .It Cm enforce Ns = Ns Ar none Ns | Ns Ar users Ns | Ns Ar everyone
 (enforce=everyone)
 The module can be configured to warn of weak passwords only, but not
-actually enforce strong passwords.  
+actually enforce strong passwords.
 The
 .Dq users
 setting will enforce strong passwords for non-root users only.
 .It Cm non-unix
-Normally, 
+Normally,
 .Nm
-uses 
+uses
 .Xr getpwnam 3
 to obtain the user's personal login information and use that during
 the password strength checks.
 This behavior can be disabled with the
-.Cm non-unix 
+.Cm non-unix
 option.
 .It Cm retry Ns = Ns Ar N
 (retry = 3)
@@ -179,7 +179,7 @@ The number of times the module will ask for a new password if the user
 fails to provide a sufficiently strong password and enter it twice the
 first time.
 .It Cm ask_oldauthtok Ns Op = Ns Ar update
-Ask for the old password as well.  
+Ask for the old password as well.
 Normally, pam_passwdqc leaves this task for subsequent modules.
 With no argument, the
 .Cm ask_oldauthtok
@@ -212,7 +212,7 @@ The only difference between
 .Cm use_first_pass
 and
 .Cm use_authtok
-is that the former is incompatible with 
+is that the former is incompatible with
 .Cm ask_oldauthtok .
 .Sh SEE ALSO
 .Xr getpwnnam 3 ,
