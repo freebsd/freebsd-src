@@ -68,8 +68,10 @@ struct ppi_data {
     int		ppi_mode;			/* IEEE1284 mode */
     char	ppi_buffer[BUFSIZE];
 
+#ifdef PERIPH_1284
     struct resource *intr_resource;	/* interrupt resource */
     void *intr_cookie;			/* interrupt registration cookie */
+#endif /* PERIPH_1284 */
 };
 
 #define DEVTOSOFTC(dev) \
@@ -163,20 +165,20 @@ ppi_probe(device_t dev)
 static int
 ppi_attach(device_t dev)
 {
+#ifdef PERIPH_1284
 	uintptr_t irq;
 	int zero = 0;
+#endif /* PERIPH_1284 */
 	struct ppi_data *ppi = DEVTOSOFTC(dev);
 
+#ifdef PERIPH_1284
 	/* retrive the irq */
 	BUS_READ_IVAR(device_get_parent(dev), dev, PPBUS_IVAR_IRQ, &irq);
 
 	/* declare our interrupt handler */
 	ppi->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
 						&zero, irq, irq, 1, RF_ACTIVE);
-	if (ppi->intr_resource == NULL) {
-		device_printf(dev, "can't allocate irq\n");
-		return (ENOMEM);
-	}
+#endif /* PERIPH_1284 */
 
 	make_dev(&ppi_cdevsw, device_get_unit(dev),	/* XXX cleanup */
 		 UID_ROOT, GID_WHEEL,
@@ -185,6 +187,7 @@ ppi_attach(device_t dev)
 	return (0);
 }
 
+#ifdef PERIPH_1284
 /*
  * Cable
  * -----
@@ -200,7 +203,6 @@ ppi_attach(device_t dev)
 static void
 ppiintr(void *arg)
 {
-#ifdef PERIPH_1284
 	device_t ppidev = (device_t)arg;
         device_t ppbus = device_get_parent(ppidev);
 	struct ppi_data *ppi = DEVTOSOFTC(ppidev);
@@ -251,10 +253,10 @@ ppiintr(void *arg)
 	}
 
 	ppi_enable_intr(ppidev);
-#endif /* PERIPH_1284 */
 
 	return;
 }
+#endif /* PERIPH_1284 */
 
 static int
 ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
@@ -276,9 +278,13 @@ ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 		ppi->ppi_flags |= HAVE_PPBUS;
 
-		/* register our interrupt handler */
-		BUS_SETUP_INTR(device_get_parent(ppidev), ppidev, ppi->intr_resource,
-			       INTR_TYPE_TTY, ppiintr, dev, &ppi->intr_cookie);
+#ifdef PERIPH_1284
+		if (ppi->intr_resource) {
+			/* register our interrupt handler */
+			BUS_SETUP_INTR(device_get_parent(ppidev), ppidev, ppi->intr_resource,
+				       INTR_TYPE_TTY, ppiintr, dev, &ppi->intr_cookie);
+		}
+#endif /* PERIPH_1284 */
 	}
 	ppi->ppi_count += 1;
 
