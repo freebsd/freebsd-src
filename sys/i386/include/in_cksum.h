@@ -39,6 +39,10 @@
 #ifndef _MACHINE_IN_CKSUM_H_
 #define	_MACHINE_IN_CKSUM_H_	1
 
+/*
+ * MP safe (alfred)
+ */
+
 #include <sys/cdefs.h>
 
 #define in_cksum(m, len)	in_cksum_skip(m, len, 0)
