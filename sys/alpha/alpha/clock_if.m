@@ -26,6 +26,7 @@
 # $FreeBSD$
 #
 
+#include <sys/bus.h>
 #include <machine/clockvar.h>
 
 INTERFACE clock;

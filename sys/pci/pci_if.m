@@ -26,6 +26,8 @@
 # $FreeBSD$
 #
 
+#include <sys/bus.h>
+
 INTERFACE pci;
 
 METHOD u_int32_t read_config {

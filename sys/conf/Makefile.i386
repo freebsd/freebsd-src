@@ -73,7 +73,7 @@ NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${.IMPSRC}
 
-NORMAL_M= perl5 $S/kern/makedevops.pl -c $<; \
+NORMAL_M= perl5 $S/kern/makeobjops.pl -c $<; \
 	  ${CC} -c ${CFLAGS} ${PROF} ${.PREFIX}.c
 
 GEN_CFILES= $S/$M/$M/genassym.c
@@ -126,7 +126,7 @@ ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
 
 .for mfile in ${MFILES}
 ${mfile:T:S/.m$/.h/}: ${mfile}
-	perl5 $S/kern/makedevops.pl -h ${mfile}
+	perl5 $S/kern/makeobjops.pl -h ${mfile}
 .endfor
 
 clean:

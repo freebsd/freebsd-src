@@ -26,9 +26,8 @@
 # $FreeBSD$
 #
 
-CODE {
+#include <sys/bus.h>
 #include <isa/isavar.h>
-};
 
 INTERFACE isa;
 
