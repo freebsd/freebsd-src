@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.39 1997/04/03 13:44:56 jkh Exp $
+ * $Id: cdrom.c,v 1.40 1998/01/16 15:07:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,9 +59,9 @@ mediaInitCDROM(Device *dev)
 {
     struct iso_args	args;
     Attribs *cd_attr;
-    char *cp;
+    char *cp, *mountpoint = "/dist";
     Boolean readInfo = TRUE;
-    char *mountpoint = "/dist";
+    static Boolean bogusCDOK = FALSE;
 
     if (cdromMounted)
 	return TRUE;
@@ -87,27 +87,30 @@ mediaInitCDROM(Device *dev)
 	cdromMounted = TRUE;
     }
 
-    if (!file_readable(string_concat(mountpoint, "/cdrom.inf"))) {
+    if (!file_readable(string_concat(mountpoint, "/cdrom.inf")) && !bogusCDOK) {
 	if (msgYesNo("Warning: The CD currently in the drive is either not a FreeBSD\n"
 		     "CD or it is an older (pre 2.1.5) FreeBSD CD which does not\n"
 		     "have a version number on it.  Do you wish to use this CD anyway?") != 0) {
 	    unmount(mountpoint, MNT_FORCE);
 	    return FALSE;
 	}
-	else
+	else {
 	    readInfo = FALSE;
+	    bogusCDOK = TRUE;
+	}
     }
 
     if (readInfo &&
 	(DITEM_STATUS(attr_parse_file(cd_attr, string_concat(mountpoint, "/cdrom.inf"))) == DITEM_FAILURE ||
 		      !(cp = attr_match(cd_attr, "CD_VERSION")) || (strcmp(cp, variable_get(VAR_RELNAME)) && strcmp("none", variable_get(VAR_RELNAME))))) {
-	if (!cp)
+	if (!cp) {
 	    msgConfirm("Unable to find a %s/cdrom.inf file.\n"
 		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
 		       "the CDROM driver or something is wrong with your hardware.\n"
 		       "Please fix this problem (check the console logs on VTY2) and\n"
 		       "try again.", mountpoint);
-	else
+	}
+	else if (!bogusCDOK) {
 	    msgConfirm("Warning: The version of the FreeBSD CD currently in the drive\n"
 		       "(%s) does not match the version of the boot floppy\n"
 		       "(%s).\n\n"
@@ -116,10 +119,13 @@ mediaInitCDROM(Device *dev)
 		       "string to match that of the CD before selecting it as your\n"
 		       "installation media.", cp, variable_get(VAR_RELNAME));
 
-	if (msgYesNo("Would you like to try and use this CDROM anyway?") != 0) {
-	    unmount(mountpoint, MNT_FORCE);
-	    cdromMounted = FALSE;
-	    return FALSE;
+	    if (msgYesNo("Would you like to try and use this CDROM anyway?") != 0) {
+		unmount(mountpoint, MNT_FORCE);
+		cdromMounted = FALSE;
+		return FALSE;
+	    }
+	    else
+		bogusCDOK = TRUE;
 	}
     }
     msgDebug("Mounted FreeBSD CDROM from device %s\n", dev->devname);

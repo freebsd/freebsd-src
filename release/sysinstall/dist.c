@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.123 1998/03/10 02:37:25 jkh Exp $
+ * $Id: dist.c,v 1.124 1998/06/10 01:15:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -261,7 +261,7 @@ distSetXDeveloper(dialogMenuItem *self)
     int i;
 
     distReset(NULL);
-    Dists = _DIST_DEVELOPER;
+    Dists = _DIST_DEVELOPER | DIST_XF86;
     SrcDists = DIST_SRC_ALL;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
@@ -302,7 +302,7 @@ distSetXUser(dialogMenuItem *self)
     int i;
 
     distReset(NULL);
-    Dists = _DIST_USER;
+    Dists = _DIST_USER | DIST_XF86;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86FontDists = DIST_XF86_FONTS_MISC;
