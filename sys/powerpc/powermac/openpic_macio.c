@@ -114,16 +114,15 @@ static void
 openpic_ofw_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
-	phandle_t chosen, pic;
+	phandle_t pic;
 	char type[40];
 
-	chosen = OF_finddevice("/chosen");
-	if (chosen == -1)
+	pic = OF_finddevice("mpic");
+	if (pic == -1) {
+		printf("could not find mpic!\n");
 		return;
+	}
 
-	if (OF_getprop(chosen, "interrupt-controller", &pic, 4) != 4)
-		return;
-	
 	OF_getprop(pic, "device_type", type, sizeof(type));
 
 	if (strcmp(type, "open-pic") != 0)
