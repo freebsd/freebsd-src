@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage5.c,v 1.2 1994/10/26 05:41:02 phk Exp $
+ * $Id: stage5.c,v 1.3 1994/10/29 10:01:37 phk Exp $
  *
  */
 
@@ -24,9 +24,19 @@
 
 #include "sysinstall.h"
 
+static unsigned char msg[] = "
+You are now done with the first phase of the installation.  We will,
+for now, dump you rather unceremoniously into a shell where you can
+then ftp, SLIP, DOS floppy or carrier pigeon the bindist over.  This
+will NOT be so unfriendly in the BETA installation, and will lead
+instead to a menu offering you various helpful ways of getting the
+bindist.  This is all we had time for in the ALPHA, however.  Sorry!
+Thank you for your patience!";
+
 void
 stage5()
 {
+	dialog_msgbox(TITLE, msg, 7, 75, 1);
 	end_dialog();
 	dialog_active=0;
 	setenv("PATH","/stand",1);

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage4.c,v 1.2 1994/10/26 05:41:01 phk Exp $
+ * $Id: stage4.c,v 1.3 1994/10/29 10:01:37 phk Exp $
  *
  */
 
@@ -29,52 +29,52 @@
 void
 stage4()
 {
-	int ffd,pfd[2];
-	int zpid,cpid;
-	int i,j;
+    int ffd, pfd[2];
+    int zpid, cpid;
+    int i,j;
 
-	if (access("/stand/need_cpio_floppy",R_OK))
-		return;
+    if (access("/stand/need_cpio_floppy",R_OK))
+	return;
 
-	while (1) {
-		dialog_msgbox(TITLE, 
-			"Insert CPIO floppy in floppy drive 0", 6, 75, 1);
-		ffd = open("/dev/fd0a",O_RDONLY);
-		if(ffd > 0)
-			break;
-	}
-	TellEm("cd /stand ; gunzip < /dev/fd0 | cpio -idum");
-	pipe(pfd);
-	zpid = fork();
-	if(!zpid) {
-		close(0); dup(ffd); close(ffd);
-		close(1); dup(pfd[1]); close(pfd[1]);
-		close(pfd[0]);
-		i = exec (1,"/stand/gunzip","/stand/gunzip", 0);
-		exit(i);
-	}
-	cpid = fork();
-	if(!cpid) {
-		close(0); dup(pfd[0]); close(pfd[0]);
-		close(ffd);
-		close(pfd[1]);
-		close(1); open("/dev/null",O_WRONLY);
-		chdir("/stand");
-		i = exec (1,"/stand/cpio","/stand/cpio","-iduvm", 0);
-		exit(i);
-	}
+    while (1) {
+	dialog_msgbox(TITLE, 
+		      "Insert CPIO floppy in floppy drive 0", 6, 75, 1);
+	ffd = open("/dev/fd0a",O_RDONLY);
+	if (ffd > 0)
+	    break;
+    }
+    TellEm("cd /stand ; gunzip < /dev/fd0 | cpio -idum");
+    pipe(pfd);
+    zpid = fork();
+    if (!zpid) {
+	close(0); dup(ffd); close(ffd);
+	close(1); dup(pfd[1]); close(pfd[1]);
 	close(pfd[0]);
-	close(pfd[1]);
+	i = exec (1,"/stand/gunzip","/stand/gunzip", 0);
+	exit(i);
+    }
+    cpid = fork();
+    if (!cpid) {
+	close(0); dup(pfd[0]); close(pfd[0]);
 	close(ffd);
-	i = wait(&j);
-	if(i < 0 || j)
-		Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
-			i,j,cpid,zpid,strerror(errno));
-	i = wait(&j);
-	if(i < 0 || j)
-		Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
-			i,j,cpid,zpid,strerror(errno));
-
-	TellEm("unlink /stand/need_cpio_floppy");
-	unlink("/stand/need_cpio_floppy");
+	close(pfd[1]);
+	close(1); open("/dev/null",O_WRONLY);
+	chdir("/stand");
+	i = exec (1,"/stand/cpio","/stand/cpio","-iduvm", 0);
+	exit(i);
+    }
+    close(pfd[0]);
+    close(pfd[1]);
+    close(ffd);
+    i = wait(&j);
+    if (i < 0 || j)
+	Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
+	      i, j, cpid, zpid, strerror(errno));
+    i = wait(&j);
+    if (i < 0 || j)
+	Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
+	      i, j, cpid, zpid, strerror(errno));
+    
+    TellEm("unlink /stand/need_cpio_floppy");
+    unlink("/stand/need_cpio_floppy");
 }
