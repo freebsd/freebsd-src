@@ -43,6 +43,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define SIS7012ID       0x70121039      /* SiS 7012 needs special handling */
 #define ICH4ID		0x24c58086	/* ICH4 needs special handling too */
+#define ICH5ID		0x24d58086	/* ICH5 needs to be treated as ICH4 */
 
 /* buffer descriptor */
 struct ich_desc {
@@ -75,7 +76,7 @@ struct sc_info {
 	int sample_size, swap_reg;
 
 	struct resource *nambar, *nabmbar, *irq;
-	int nambarid, nabmbarid, irqid;
+	int regtype, nambarid, nabmbarid, irqid;
 	bus_space_tag_t nambart, nabmbart;
 	bus_space_handle_t nambarh, nabmbarh;
 	bus_dma_tag_t dmat;
@@ -401,10 +402,10 @@ ich_intr(void *p)
 
 	for (i = 0; i < 3; i++) {
 		ch = &sc->ch[i];
-		if ((ch->imask & gs) == 0) 
+		if ((ch->imask & gs) == 0)
 			continue;
 		gs &= ~ch->imask;
-		st = ich_rd(sc, ch->regbase + 
+		st = ich_rd(sc, ch->regbase +
 				(sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
 			    2);
 		st &= ICH_X_SR_FIFOE | ICH_X_SR_BCIS | ICH_X_SR_LVBCI;
@@ -428,34 +429,40 @@ ich_intr(void *p)
 
 		}
 		/* clear status bit */
-		ich_wr(sc, ch->regbase + 
+		ich_wr(sc, ch->regbase +
 			   (sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
 		       st, 2);
 	}
 	if (gs != 0) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 			      "Unhandled interrupt, gs_intr = %x\n", gs);
 	}
 }
 
 /* ------------------------------------------------------------------------- */
-/* Sysctl to control ac97 speed (some boards overclocked ac97). */
+/*
+ * Sysctl to control ac97 speed (some boards appear to end up using
+ * XTAL_IN rather than BIT_CLK for link timing).
+ */
+
 
 static int
 ich_initsys(struct sc_info* sc)
 {
 #ifdef SND_DYNSYSCTL
-	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev), 
+	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev),
 		       SYSCTL_CHILDREN(snd_sysctl_tree_top(sc->dev)),
-		       OID_AUTO, "ac97rate", CTLFLAG_RW, 
-		       &sc->ac97rate, 48000, 
+		       OID_AUTO, "ac97rate", CTLFLAG_RW,
+		       &sc->ac97rate, 48000,
 		       "AC97 link rate (default = 48000)");
 #endif /* SND_DYNSYSCTL */
 	return 0;
 }
 
 /* -------------------------------------------------------------------- */
-/* Calibrate card (some boards are overclocked and need scaling) */
+/* Calibrate card to determine the clock source.  The source maybe a
+ * function of the ac97 codec initialization code (to be investigated).
+ */
 
 static
 void ich_calibrate(void *arg)
@@ -566,8 +573,9 @@ ich_init(struct sc_info *sc)
 	stat = ich_rd(sc, ICH_REG_GLOB_STA, 4);
 
 	if ((stat & ICH_GLOB_STA_PCR) == 0) {
-		/* ICH4 may fail when busmastering is enabled. Continue */
-		if (pci_get_devid(sc->dev) != ICH4ID) {
+		/* ICH4/ICH5 may fail when busmastering is enabled. Continue */
+		if ((pci_get_devid(sc->dev) != ICH4ID) &&
+		    (pci_get_devid(sc->dev) != ICH5ID)) {
 			return ENXIO;
 		}
 	}
@@ -600,35 +608,43 @@ ich_pci_probe(device_t dev)
 		return 0;
 
 	case 0x24158086:
-		device_set_desc(dev, "Intel 82801AA (ICH)");
+		device_set_desc(dev, "Intel ICH (82801AA)");
 		return 0;
 
 	case 0x24258086:
-		device_set_desc(dev, "Intel 82801AB (ICH)");
+		device_set_desc(dev, "Intel ICH (82801AB)");
 		return 0;
 
 	case 0x24458086:
-		device_set_desc(dev, "Intel 82801BA (ICH2)");
+		device_set_desc(dev, "Intel ICH2 (82801BA)");
 		return 0;
 
 	case 0x24858086:
-		device_set_desc(dev, "Intel 82801CA (ICH3)");
+		device_set_desc(dev, "Intel ICH3 (82801CA)");
 		return 0;
 
 	case ICH4ID:
-		device_set_desc(dev, "Intel 82801DB (ICH4)");
-		return 0;
+		device_set_desc(dev, "Intel ICH4 (82801DB)");
+		return -1000;	/* allow a better driver to override us */
+
+	case ICH5ID:
+		device_set_desc(dev, "Intel ICH5 (82801EB)");
+		return -1000;	/* allow a better driver to override us */
 
 	case SIS7012ID:
 		device_set_desc(dev, "SiS 7012");
 		return 0;
 
 	case 0x01b110de:
-		device_set_desc(dev, "Nvidia nForce AC97 controller");
+		device_set_desc(dev, "Nvidia nForce");
 		return 0;
 
 	case 0x006a10de:
-		device_set_desc(dev, "Nvidia nForce2 AC97 controller");
+		device_set_desc(dev, "Nvidia nForce2");
+		return 0;
+
+	case 0x74451022:
+		device_set_desc(dev, "AMD-768");
 		return 0;
 
 	default:
@@ -664,27 +680,25 @@ ich_pci_attach(device_t dev)
 	}
 
 	/*
-	 * By default, ich4 has NAMBAR and NABMBAR i/o spaces as
-	 * read-only.  Need to enable "legacy support", by poking into
-	 * pci config space.  The driver should use MMBAR and MBBAR,
-	 * but doing so will mess things up here.  ich4 has enough new
-	 * features it warrants it's own driver. 
-	 */
-	if (pci_get_devid(dev) == ICH4ID) {
-		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
-	}
-
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	/*
-	 * Enable bus master. On ich4 this may prevent the detection of
+	 * Enable bus master. On ich4/5 this may prevent the detection of
 	 * the primary codec becoming ready in ich_init().
 	 */
 	pci_enable_busmaster(dev);
 
-	sc->nambarid = PCIR_NAMBAR;
-	sc->nabmbarid = PCIR_NABMBAR;
-	sc->nambar = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->nambarid, 0, ~0, 1, RF_ACTIVE);
-	sc->nabmbar = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->nabmbarid, 0, ~0, 1, RF_ACTIVE);
+	if ((pci_get_devid(dev) == ICH4ID) || (pci_get_devid(dev) == ICH5ID)) {
+		sc->nambarid = PCIR_MMBAR;
+		sc->nabmbarid = PCIR_MBBAR;
+		sc->regtype = SYS_RES_MEMORY;
+		pci_enable_io(dev, SYS_RES_MEMORY);
+	} else {
+		sc->nambarid = PCIR_NAMBAR;
+		sc->nabmbarid = PCIR_NABMBAR;
+		sc->regtype = SYS_RES_IOPORT;
+		pci_enable_io(dev, SYS_RES_IOPORT);
+	}
+
+	sc->nambar = bus_alloc_resource(dev, sc->regtype, &sc->nambarid, 0, ~0, 1, RF_ACTIVE);
+	sc->nabmbar = bus_alloc_resource(dev, sc->regtype, &sc->nabmbarid, 0, ~0, 1, RF_ACTIVE);
 
 	if (!sc->nambar || !sc->nabmbar) {
 		device_printf(dev, "unable to map IO port space\n");
@@ -761,10 +775,10 @@ bad:
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	if (sc->nambar)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, sc->regtype,
 		    sc->nambarid, sc->nambar);
 	if (sc->nabmbar)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, sc->regtype,
 		    sc->nabmbarid, sc->nabmbar);
 	free(sc, M_DEVBUF);
 	return ENXIO;
@@ -783,8 +797,8 @@ ich_pci_detach(device_t dev)
 
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->nambarid, sc->nambar);
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->nabmbarid, sc->nabmbar);
+	bus_release_resource(dev, sc->regtype, sc->nambarid, sc->nambar);
+	bus_release_resource(dev, sc->regtype, sc->nabmbarid, sc->nabmbar);
 	bus_dma_tag_destroy(sc->dmat);
 	free(sc, M_DEVBUF);
 	return 0;
@@ -796,7 +810,7 @@ ich_pci_suspend(device_t dev)
 	struct sc_info *sc;
 	int i;
 
-	sc = pcm_getdevinfo(dev);	
+	sc = pcm_getdevinfo(dev);
 	for (i = 0 ; i < 3; i++) {
 		sc->ch[i].run_save = sc->ch[i].run;
 		if (sc->ch[i].run) {
