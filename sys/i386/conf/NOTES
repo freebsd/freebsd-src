@@ -60,17 +60,17 @@ makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	KERNEL=foo		#Build kernel "foo" and install "/foo"
 
 #
-# Certain applications can grow to be larger than the 128M limit
+# Certain applications can grow to be larger than the 512M limit
 # that FreeBSD initially imposes.  Below are some options to
-# allow that limit to grow to 256MB, and can be increased further
+# allow that limit to grow to 1GB, and can be increased further
 # with changing the parameters.  MAXDSIZ is the maximum that the
 # limit can be set to, and the DFLDSIZ is the default value for
 # the limit.  You might want to set the default lower than the
 # max, and explicitly set the maximum with a shell command for processes
 # that regularly exceed the limit like INND.
 #
-options 	MAXDSIZ="(256*1024*1024)"
-options 	DFLDSIZ="(256*1024*1024)"
+options 	MAXDSIZ="(1024UL*1024*1024)"
+options 	DFLDSIZ="(1024UL*1024*1024)"
 
 #
 # BLKDEV_IOSIZE sets the default block size used in user block
