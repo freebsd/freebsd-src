@@ -310,26 +310,14 @@ em_attach(device_t dev)
 	em_adapter_list = adapter;
 
 	/* SYSCTL stuff */
-        sysctl_ctx_init(&adapter->sysctl_ctx);
-        adapter->sysctl_tree = SYSCTL_ADD_NODE(&adapter->sysctl_ctx,
-                                               SYSCTL_STATIC_CHILDREN(_hw),
-                                               OID_AUTO,
-                                               device_get_nameunit(dev),
-                                               CTLFLAG_RD,
-                                               0, "");
-        if (adapter->sysctl_tree == NULL) {
-                error = EIO;  
-                goto err_sysctl;
-        }
-        
-        SYSCTL_ADD_PROC(&adapter->sysctl_ctx,
-                        SYSCTL_CHILDREN(adapter->sysctl_tree),
+        SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+                        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                         OID_AUTO, "debug_info", CTLTYPE_INT|CTLFLAG_RW,
                         (void *)adapter, 0,
                         em_sysctl_debug_info, "I", "Debug Information");
         
-        SYSCTL_ADD_PROC(&adapter->sysctl_ctx,
-                        SYSCTL_CHILDREN(adapter->sysctl_tree),
+        SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+                        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                         OID_AUTO, "stats", CTLTYPE_INT|CTLFLAG_RW,
                         (void *)adapter, 0,
                         em_sysctl_stats, "I", "Statistics");
@@ -504,8 +492,6 @@ err_rx_desc:
 err_tx_desc:
 err_pci:
         em_free_pci_resources(adapter);
-        sysctl_ctx_free(&adapter->sysctl_ctx);
-err_sysctl:
         return(error);
 
 }
@@ -552,9 +538,6 @@ em_detach(device_t dev)
                 em_dma_free(adapter, &adapter->rxdma);
                 adapter->rx_desc_base = NULL;
         }
-
-	/* Free the sysctl tree */
-	sysctl_ctx_free(&adapter->sysctl_ctx);
 
 	/* Remove from the adapter list */
 	if (em_adapter_list == adapter)
@@ -3391,8 +3374,8 @@ em_add_int_delay_sysctl(struct adapter *adapter, const char *name,
 	info->adapter = adapter;
 	info->offset = offset;
 	info->value = value;
-	SYSCTL_ADD_PROC(&adapter->sysctl_ctx,
-	    SYSCTL_CHILDREN(adapter->sysctl_tree),
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(adapter->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
 	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW,
 	    info, 0, em_sysctl_int_delay, "I", description);
 }
