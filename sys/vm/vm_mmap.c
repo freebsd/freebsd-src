@@ -198,6 +198,7 @@ mmap(p, uap)
 	int disablexworkaround;
 	off_t pos;
 	struct vmspace *vms = p->p_vmspace;
+	vm_object_t obj;
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
@@ -295,6 +296,14 @@ mmap(p, uap)
 		vp = (struct vnode *) fp->f_data;
 		if (vp->v_type != VREG && vp->v_type != VCHR)
 			return (EINVAL);
+		if (vp->v_type == VREG) {
+			/*
+			 * Get the proper underlying object
+			 */
+			if (VOP_GETVOBJECT(vp, &obj) != 0)
+				return (EINVAL);
+			vp = (struct vnode*)obj->handle;
+		}
 		/*
 		 * XXX hack to handle use of /dev/zero to map anon memory (ala
 		 * SunOS).
