@@ -1,5 +1,6 @@
 /*
  * file: sbcard.h
+ * $FreeBSD$
  */
 
 typedef struct _sbdev_info {
@@ -257,6 +258,7 @@ extern int sbc_major, sbc_minor ;
 
 #ifndef __SB_MIXER_C__
 mixer_tab       sbpro_mix;
+mixer_tab       ess_mix;
 mixer_tab       sb16_mix;
 #ifdef	__SGNXPRO__
 mixer_tab       sgnxpro_mix;
@@ -274,6 +276,21 @@ mixer_tab       sbpro_mix = {
     PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 4, 4, 0x2e, 0, 4),
     PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 0, 3, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_CD,      0x28, 4, 4, 0x28, 0, 4),
+    PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_RECLEV,  0x00, 0, 0, 0x00, 0, 0)
+};
+
+mixer_tab       ess_mix = {
+    PMIX_ENT(SOUND_MIXER_VOLUME,  0x32, 4, 4, 0x32, 0, 4),
+    PMIX_ENT(SOUND_MIXER_BASS,    0x00, 0, 0, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_TREBLE,  0x00, 0, 0, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_SYNTH,   0x36, 4, 4, 0x26, 0, 4),
+    PMIX_ENT(SOUND_MIXER_PCM,     0x14, 4, 4, 0x04, 0, 4),
+    PMIX_ENT(SOUND_MIXER_SPEAKER, 0x3c, 0, 3, 0x00, 0, 0),
+    PMIX_ENT(SOUND_MIXER_LINE,    0x3e, 4, 4, 0x2e, 0, 4),
+    PMIX_ENT(SOUND_MIXER_MIC,     0x1a, 4, 4, 0x1a, 0, 4),
+    PMIX_ENT(SOUND_MIXER_CD,      0x38, 4, 4, 0x28, 0, 4),
     PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_RECLEV,  0x00, 0, 0, 0x00, 0, 0)

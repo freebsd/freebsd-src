@@ -881,8 +881,8 @@ ess_format(struct sb_chinfo *ch, u_int32_t format)
 {
 	struct sb_info *sb = ch->parent;
 	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-	int b16 = (ch->fmt & AFMT_S16_LE)? 1 : 0;
-	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	int b16 = (format & AFMT_S16_LE)? 1 : 0;
+	int stereo = (format & AFMT_STEREO)? 1 : 0;
 	u_char c;
 	ch->fmt = format;
 	sb_reset_dsp(sb);
@@ -913,7 +913,7 @@ ess_speed(struct sb_chinfo *ch, int speed)
 	if (speed > 22000) {
 		t = (795500 + speed / 2) / speed;
 		speed = (795500 + t / 2) / t;
-	t = (256 - t ) | 0x80;
+		t = (256 - t ) | 0x80;
 	} else {
 		t = (397700 + speed / 2) / speed;
 		speed = (397700 + t / 2) / t;
@@ -1175,7 +1175,10 @@ sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
     	switch (sb->bd_flags & BD_F_MIX_MASK) {
     	case BD_F_MIX_CT1345:
-		iomap = &sbpro_mix;
+		if (sb->bd_flags & BD_F_ESS)
+			iomap = &ess_mix;
+		else
+			iomap = &sbpro_mix;
 		break;
 
     	case BD_F_MIX_CT1745:
@@ -1186,19 +1189,24 @@ sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
         	return -1;
     	/* XXX how about the SG NX Pro, iomap = sgnxpro_mix */
     	}
+
+	/* Change left channel */
     	regoffs = (*iomap)[dev][LEFT_CHN].regno;
-    	if (regoffs == 0) return -1;
-    	val = sb_getmixer(sb, regoffs);
-    	change_bits(iomap, &val, dev, LEFT_CHN, left);
-    	sb_setmixer(sb, regoffs, val);
-    	if ((*iomap)[dev][RIGHT_CHN].regno != regoffs) { /* Change register */
-        	regoffs = (*iomap)[dev][RIGHT_CHN].regno;
-        	if (regoffs != 0) {
-            		val = sb_getmixer(sb, regoffs); /* Read the new one */
-            		change_bits(iomap, &val, dev, RIGHT_CHN, right);
-            		sb_setmixer(sb, regoffs, val);
-        	} else right = left;
-    	} else right = left;
+    	if (regoffs != 0) {
+		val = sb_getmixer(sb, regoffs);
+		change_bits(iomap, &val, dev, LEFT_CHN, left);
+		sb_setmixer(sb, regoffs, val);
+	}
+
+	/* Change right channel */
+	regoffs = (*iomap)[dev][RIGHT_CHN].regno;
+	if (regoffs != 0) {
+		val = sb_getmixer(sb, regoffs); /* Read the new one */
+		change_bits(iomap, &val, dev, RIGHT_CHN, right);
+		sb_setmixer(sb, regoffs, val);
+	} else
+		right = left;
+
     	return left | (right << 8);
 }
 
@@ -1283,6 +1291,10 @@ sbpnp_probe(device_t dev)
 
 	case 0x69187316: /* ESS1869 */
 		s = "ESS1869";
+		break;
+
+	case 0x88187316: /* ESS1888 */
+		s = "ESS1888";
 		break;
     	}
     	if (s) {
