@@ -84,7 +84,7 @@ pr_attime(started, now)
  * pr_idle --
  *	Display the idle time.
  */
-void
+int
 pr_idle(idle)
 	time_t idle;
 {
@@ -92,6 +92,8 @@ pr_idle(idle)
 	if (idle >= 36 * 3600) {
 		int days = idle / 86400;
 		(void)printf(" %dday%s ", days, days > 1 ? "s" : " " );
+		if (days >= 10)
+			return(1);
 	}
 
 	/* If idle more than an hour, print as HH:MM. */
@@ -105,4 +107,6 @@ pr_idle(idle)
 	/* Else print the minutes idle. */
 	else
 		(void)printf("    %2d ", idle / 60);
+
+	return(0); /* not idle longer than 9 days */
 }
