@@ -914,7 +914,7 @@ out:
 	m->mtx_file = file;
 
 	/*
-	 * If this pays off it likely means that a mutex  being witnessed
+	 * If this pays off it likely means that a mutex being witnessed
 	 * is acquired in hardclock. Put it in the ignore list. It is
 	 * likely not the mutex this assert fails on.
 	 */
