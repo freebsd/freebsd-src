@@ -31,7 +31,7 @@ char copyright[] =
 #endif /* not lint */
 
 /*
- * Andrew A. Chernov   <ache@astral.msk.su>    Dec 15 1993
+ * Andrew A. Chernov   <ache@astral.msk.su>    Dec 20 1993
  *
  * Fix kernel time value if machine run wall CMOS clock
  * (and /etc/wall_cmos_clock file present)
@@ -59,6 +59,7 @@ int main(argc, argv)
 	struct timezone tz, *stz;
 	/* Avoid time_t here, can be unsigned long */
 	long offset, oldoffset, utcsec, localsec, diff;
+	time_t final_sec;
 	int ch, init = -1, verbose = 0;
 	FILE *f;
 
@@ -125,7 +126,7 @@ int main(argc, argv)
 	utcsec = mktime(&utc);
 	localsec = mktime(&local);
 	if (utcsec == -1 || localsec == -1) {
-		fprintf(stderr, "Wrong hour to call\n");
+		fprintf(stderr, "Wrong initial hour to call\n");
 		return 1;
 	}
 	offset = utcsec - localsec;
@@ -133,11 +134,40 @@ int main(argc, argv)
 	/* correct the kerneltime for this diffs */
 	/* subtract kernel offset, if present, old offset too */
 
-	diff = oldoffset + tz.tz_minuteswest * 60 - offset;
+	diff = offset - tz.tz_minuteswest * 60 - oldoffset;
+
 	if (diff != 0) {
-		tv.tv_sec += diff;
-		tv.tv_usec = 0;       /* we are restarting here... */
-		stv = &tv;
+
+		/* Yet one step for final time */
+
+		final_sec = tv.tv_sec + diff;
+
+		/* get the actual local timezone difference */
+		local = *localtime(&final_sec);
+		utc = *gmtime(&final_sec);
+		utc.tm_isdst = local.tm_isdst; /* Use current timezone for mktime(), */
+					       /* because it assumed local time */
+
+		utcsec = mktime(&utc);
+		localsec = mktime(&local);
+		if (utcsec == -1 || localsec == -1) {
+			fprintf(stderr, "Wrong final hour to call\n");
+			return 1;
+		}
+		offset = utcsec - localsec;
+
+		/* correct the kerneltime for this diffs */
+		/* subtract kernel offset, if present, old offset too */
+
+		diff = offset - tz.tz_minuteswest * 60 - oldoffset;
+
+		if (diff != 0) {
+			tv.tv_sec += diff;
+			tv.tv_usec = 0;       /* we are restarting here... */
+			stv = &tv;
+		}
+		else
+			stv = NULL;
 	}
 	else
 		stv = NULL;
