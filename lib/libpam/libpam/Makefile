@@ -65,8 +65,8 @@ SRCS+=		pam_get_pass.c pam_prompt.c pam_std_option.c
 HDRS3=		pam_mod_misc.h
 
 # Static PAM modules:
-STATIC_MODULES+= ${MODOBJDIR}/pam_cleartext_pass_ok/libpam_cleartext_pass_ok.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_deny/libpam_deny.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_ftp/libpam_ftp.a
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 STATIC_MODULES+= ${MODOBJDIR}/pam_kerberosIV/libpam_kerberosIV.a
 .endif
@@ -78,7 +78,7 @@ STATIC_MODULES+= ${MODOBJDIR}/pam_opie/libpam_opie.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_permit/libpam_permit.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_radius/libpam_radius.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_rootok/libpam_rootok.a
-STATIC_MODULES+= ${MODOBJDIR}/pam_skey/libpam_skey.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_securetty/libpam_securetty.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_unix/libpam_unix.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_wheel/libpam_wheel.a

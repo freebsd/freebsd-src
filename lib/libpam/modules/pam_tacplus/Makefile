@@ -24,17 +24,10 @@
 #
 #	$FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
-
 LIB=		pam_tacplus
 SHLIB_NAME=	pam_tacplus.so
 SRCS=		pam_tacplus.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBTACPLUS}
-LDADD+=		-ltacplus
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
+DPADD=		${LIBTACPLUS}
+LDADD=		-ltacplus
 
 .include <bsd.lib.mk>

@@ -24,16 +24,10 @@
 #
 # $FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
-
-.PATH:		${PAMDIR}/modules/pam_nologin
-
 LIB=		pam_nologin
 SHLIB_NAME=	pam_nologin.so
 SRCS=		pam_nologin.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>
+
+.PATH:		${PAMDIR}/modules/pam_nologin
