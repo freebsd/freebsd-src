@@ -47,7 +47,6 @@
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
-#include <sys/resourcevar.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/event.h>
@@ -57,10 +56,12 @@
 #include <sys/fcntl.h>
 #include <sys/ipl.h>
 #include <sys/condvar.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/wait.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
+#include <sys/resourcevar.h>
 #include <sys/syslog.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
@@ -1657,6 +1658,8 @@ sigexit(p, sig)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
 		PROC_UNLOCK(p);
+		if (!mtx_owned(&Giant))
+			mtx_lock(&Giant);
 		if (coredump(p) == 0)
 			sig |= WCOREFLAG;
 		if (kern_logsigexit)
@@ -1666,10 +1669,11 @@ sigexit(p, sig)
 			    p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
 			    sig &~ WCOREFLAG,
 			    sig & WCOREFLAG ? " (core dumped)" : "");
-	} else
+	} else {
 		PROC_UNLOCK(p);
-	if (!mtx_owned(&Giant))
-		mtx_lock(&Giant);
+		if (!mtx_owned(&Giant))
+			mtx_lock(&Giant);
+	}
 	exit1(p, W_EXITCODE(0, sig));
 	/* NOTREACHED */
 }
