@@ -174,7 +174,7 @@ you may have to do the following sysctl:
 .Bd -literal
 (kldload netgraph)
 (kldload ng_pppoe)
-sysctl -w net.graph.stupid_isp=1
+sysctl net.graph.stupid_isp=1
 .Ed
 .Pp
 to enable the alternate ethertypes. Then phone your ISP and ask them
