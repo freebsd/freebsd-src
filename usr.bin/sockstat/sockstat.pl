@@ -1,6 +1,6 @@
 #!/usr/bin/perl5
 #-
-# Copyright (c) 1999 Dag-Erling Coïdan Smgrav
+# Copyright (c) 1999 Dag-Erling Coïdan Smørgrav
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ open FSTAT, "/usr/bin/fstat |" or die "'fstat' failed: $!\n";
 while (<FSTAT>) {
     ($user, $cmd, $pid, $fd, $inet, $type, $proto, $sock) = split;
     chop $fd;
-    next unless ($inet =~ m/^internet6?$/) && ($type ne "raw");
+    next unless ($inet eq "internet") || ($inet eq "internet6") && ($type ne "raw");
     ($proto, $laddr, $faddr) =
 	($proto{$sock}, $myaddr{$sock}, $hisaddr{$sock});
     write STDOUT;
