@@ -239,7 +239,7 @@ cmi_dma_prog(struct sc_info *sc, struct sc_chinfo *ch, u_int32_t base)
 {
 	u_int32_t s, i, sz;
 
-	ch->phys_buf = vtophys(sndbuf_getbuf(ch->buffer));
+	ch->phys_buf = sndbuf_getbufaddr(ch->buffer);
 
 	cmi_wr(sc, base, ch->phys_buf, 4);
 	sz = (u_int32_t)sndbuf_getsize(ch->buffer);

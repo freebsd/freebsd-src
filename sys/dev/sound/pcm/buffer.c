@@ -48,6 +48,12 @@ sndbuf_destroy(struct snd_dbuf *b)
 	free(b, M_DEVBUF);
 }
 
+bus_addr_t
+sndbuf_getbufaddr(struct snd_dbuf *buf)
+{
+	return (buf->buf_addr);
+}
+
 static void
 sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
@@ -58,12 +64,14 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		       (unsigned long)segs->ds_len);
 		printf("%p -> %lx\n", b->buf, (unsigned long)vtophys(b->buf));
 	}
+	b->buf_addr = segs->ds_addr;
 }
 
 /*
  * Allocate memory for DMA buffer. If the device does not use DMA transfers,
  * the driver can call malloc(9) and sndbuf_setup() itself.
  */
+
 int
 sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, unsigned int size)
 {

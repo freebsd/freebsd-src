@@ -73,6 +73,7 @@ struct via_chinfo {
 	struct pcm_channel *channel;
 	struct snd_dbuf *buffer;
 	struct via_dma_op *sgd_table;
+	bus_addr_t sgd_addr;
 	int dir, blksz;
 	int rbase; 			/* base register for channel */
 };
@@ -83,6 +84,7 @@ struct via_info {
 	bus_dma_tag_t parent_dmat;
 	bus_dma_tag_t sgd_dmat;
 	bus_dmamap_t sgd_dmamap;
+	bus_addr_t sgd_addr;
 
 	struct resource *reg, *irq;
 	int regid, irqid;
@@ -229,7 +231,7 @@ via_buildsgdt(struct via_chinfo *ch)
 	 */
 	seg_size = sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN;
 		
-	phys_addr = vtophys(sndbuf_getbuf(ch->buffer));
+	phys_addr = sndbuf_getbufaddr(ch->buffer);
 
 	for (i = 0; i < SEGS_PER_CHAN; i++) {
 		flag = (i == SEGS_PER_CHAN - 1) ? VIA_DMAOP_EOL : VIA_DMAOP_FLAG;
@@ -360,6 +362,8 @@ via8233chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->buffer = b;
 	ch->dir = dir;
 	ch->sgd_table = &via->sgd_table[(dir == PCMDIR_PLAY)? 0 : SEGS_PER_CHAN];
+	ch->sgd_addr = dir == PCMDIR_PLAY ? via->sgd_addr : 
+	    via->sgd_addr * SEGS_PER_CHAN;
 
 	if (ch->dir == PCMDIR_PLAY) {
 		ch->rbase = VIA_MC_SGD_STATUS;
@@ -381,12 +385,11 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
-	struct via_dma_op *ado = ch->sgd_table;
 
 	switch(go) {
 	case PCMTRIG_START:
 		via_buildsgdt(ch);
-		via_wr(via, ch->rbase + VIA_RP_TABLE_PTR, vtophys(ado), 4);
+		via_wr(via, ch->rbase + VIA_RP_TABLE_PTR, ch->sgd_addr, 4);
 		via_wr(via, ch->rbase + VIA_RP_CONTROL,
 		       SGD_CONTROL_START | SGD_CONTROL_AUTOSTART |
 		       SGD_CONTROL_I_EOL | SGD_CONTROL_I_FLAG, 1);
@@ -478,6 +481,8 @@ via_probe(device_t dev)
 static void
 dma_cb(void *p, bus_dma_segment_t *bds, int a, int b)
 {
+	struct via_info *via = (struct via_info *)p;
+	via->sgd_addr = bds->ds_addr;
 }
 
 static int
@@ -580,7 +585,7 @@ via_attach(device_t dev)
 			     BUS_DMA_NOWAIT, &via->sgd_dmamap) == -1)
 		goto bad;
 	if (bus_dmamap_load(via->sgd_dmat, via->sgd_dmamap, via->sgd_table, 
-			    NSEGS * sizeof(struct via_dma_op), dma_cb, 0, 0))
+			    NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0))
 		goto bad;
 
 	if (via_chip_init(dev))
