@@ -53,7 +53,7 @@ i386_readin(int fd, vm_offset_t dest, size_t len)
 	got = read(fd, buf, get);
 	if (got <= 0)
 	    break;
-	bcopy(buf, PTOV(dest), chunk);
+	bcopy(buf, PTOV(dest), got);
     }
     free(buf);
     return(len - resid);
