@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.25 1995/05/26 22:22:20 jkh Exp $
+ * $Id: dist.c,v 1.26 1995/05/27 10:47:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -222,41 +222,123 @@ static int
 distExtract(char *parent, Distribution *me)
 {
     int i, status;
-    int fd;
+    int cpid, zpid, fd, fd2, chunk, numchunks;
+    char dparent[FILENAME_MAX], *path, *dist, buf[10240];
+    const char *tmp;
+    Attribs *dist_attr;
 
     status = 0;
     if (mediaDevice->init)
 	if (!(*mediaDevice->init)(mediaDevice))
 	    return 0;
     for (i = 0; me[i].my_name; i++) {
-	if (me[i].my_bit & *(me[i].my_mask)) {
-	    if (me[i].my_dist)
-		status = distExtract(me[i].my_name, me[i].my_dist);
-	    else {
-		char dparent[FILENAME_MAX];
 
-		snprintf(dparent, FILENAME_MAX, "%s/", parent ? parent : me[i].my_name);
-		fd = (*mediaDevice->get)(me[i].my_name, dparent);
-		if (fd != -1) {
+	/* If we're not doing it, we're not doing it */
+	if (!(me[i].my_bit & *(me[i].my_mask)))
+	    continue;
+
+	/* Recurse if we think thats more fun */
+	if (me[i].my_dist) {
+	    status = distExtract(me[i].my_name, me[i].my_dist);
+	    goto done;
+	}
+
+	snprintf(dparent, FILENAME_MAX, "%s/", parent ? parent : me[i].my_name);
+	dist = me[i].my_name;
+	path = dparent ? dparent : "";
+
+        snprintf(buf, 512, "%s%s.tgz", path, dist);
+	fd = (*mediaDevice->get)(buf);
+	if (fd != -1) {
+	    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
+	    if (mediaDevice->close)
+		(*mediaDevice->close)(mediaDevice, fd);
+	    else
+		close(fd);
+	    goto done;
+	}
+
+	snprintf(buf, sizeof buf, "/stand/info/%s%s.inf", path, dist);
+	if (!access(buf, R_OK)) {
+	    msgDebug("Parsing attributes file for %s\n", dist);
+	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
+	    if (attr_parse(&dist_attr, buf) == 0) {
+		msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
+		return -1;
+	    }
+   
+	    msgDebug("Looking for attribute `pieces'\n");
+	    tmp = attr_match(dist_attr, "pieces");
+	    numchunks = atoi(tmp);
+	} else
+	    numchunks = 0;
+
+	msgDebug("Attempting to extract distribution from %u chunks.\n", 
+		numchunks);
+
+	if (numchunks < 2 ) {
+	    snprintf(buf, 512, "%s%s", path, dist);
+	    if (numchunks)
+		strcat(buf,".aa");
+	    fd = (*mediaDevice->get)(buf);
+	    if (fd == -1) {
+		status = 1;
+	    } else {
 		    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
 		    if (mediaDevice->close)
 			(*mediaDevice->close)(mediaDevice, fd);
 		    else
 			close(fd);
-		}
-		else {
-		    if (getenv(NO_CONFIRMATION))
-			status = 0;
-		    else
-			status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
-		}
 	    }
-	    if (!status) {
-		/* Extract was successful, remove ourselves from further consideration */
-		*(me[i].my_mask) &= ~(me[i].my_bit);
-	    }
+	    goto done;
 	}
-    }
+
+	mediaExtractDistBegin(dist, me[i].my_dir, &fd2, &zpid, &cpid);
+	for (chunk = 0; chunk < numchunks; chunk++) {
+	    int n, retval;
+
+	    snprintf(buf, 512, "%s%s.%c%c", path, dist,
+		(chunk / 26) + 'a', (chunk % 26) + 'a');
+	    fd = (*mediaDevice->get)(buf);
+
+	    if (fd < 0)
+	    {
+		msgConfirm("FtpGet failed to retreive piece `%s' in the %s distribution!\nAborting the transfer", chunk, dist);
+		goto punt;
+	    }
+	    while ((n = read(fd, buf, sizeof buf)) > 0) {
+		retval = write(fd2, buf, n);
+		if (retval != n)
+		{
+		    if (mediaDevice->close)
+			(*mediaDevice->close)(mediaDevice, fd);
+		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
+		    goto punt;
+		}
+	    }
+	    if (mediaDevice->close)
+		(*mediaDevice->close)(mediaDevice, fd);
+	}
+	close(fd2);
+	status = mediaExtractDistEnd(zpid,cpid);
+        goto done;
+
+    punt:
+	close(fd2);
+	mediaExtractDistEnd(zpid,cpid);
+	status = 1;
+    done:
+	if (status) {
+	    if (getenv(NO_CONFIRMATION))
+		status = 0;
+	    else
+		status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
+	}
+	if (!status) {
+	    /* Extract was successful, remove ourselves from further consideration */
+	    *(me[i].my_mask) &= ~(me[i].my_bit);
+	}
+}
     if (mediaDevice->shutdown && parent == NULL) {
 	(*mediaDevice->shutdown)(mediaDevice);
 	mediaDevice = NULL;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: ufs.c,v 1.1 1995/05/27 10:39:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@ mediaInitUFS(Device *dev)
 }
 
 int
-mediaGetUFS(char *dist, char *path)
+mediaGetUFS(char *file)
 {
     return -1;
 }
