@@ -485,10 +485,6 @@ dumpsys(void)
 	int	error;
 
 	savectx(&dumppcb);
-	if (dumping++) {
-		printf("Dump already in progress, bailing...\n");
-		return;
-	}
 	if (!dodump)
 		return;
 	if (dumpdev == NODEV)
@@ -497,10 +493,16 @@ dumpsys(void)
 		return;
 	if (!(devsw(dumpdev)->d_dump))
 		return;
+	if (dumping++) {
+		dumping--;
+		printf("Dump already in progress, bailing...\n");
+		return;
+	}
 	dumpsize = Maxmem;
 	printf("\ndumping to dev %s, offset %ld\n", devtoname(dumpdev), dumplo);
 	printf("dump ");
 	error = (*devsw(dumpdev)->d_dump)(dumpdev);
+	dumping--;
 	if (error == 0) {
 		printf("succeeded\n");
 		return;
