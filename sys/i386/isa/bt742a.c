@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.23 1994/09/25 07:11:37 phk Exp $
+ *      $Id: bt742a.c,v 1.24 1994/09/28 15:55:35 jkh Exp $
  */
 
 /*
@@ -394,7 +394,7 @@ int     btprobe();
 int     btattach();
 int     btintr();
 int32   bt_scsi_cmd();
-void	bt_timeout(caddr_t, int);
+void	bt_timeout(void *);
 void	bt_inquire_setup_information();
 void    bt_done();
 void    btminphys();
@@ -1564,7 +1564,7 @@ bt_poll(unit, xs, ccb)
 		 * accounting for the fact that the clock is not running yet
 		 * by taking out the clock queue entry it makes.
 		 */
-		bt_timeout((caddr_t)ccb, 0);
+		bt_timeout(ccb);
 
 		/*
 		 * because we are polling, take out the timeout entry
@@ -1591,7 +1591,7 @@ bt_poll(unit, xs, ccb)
 			 * We timed out again...  This is bad.  Notice that
 			 * this time there is no clock queue entry to remove.
 			 */
-			bt_timeout((caddr_t)ccb, 0);
+			bt_timeout(ccb);
 		}
 	}
 	if (xs->error)
@@ -1600,7 +1600,7 @@ bt_poll(unit, xs, ccb)
 }
 
 void
-bt_timeout(caddr_t arg1, int arg2)
+bt_timeout(void *arg1)
 {
 	struct bt_ccb * ccb = (struct bt_ccb *)arg1;
 	int     unit;
