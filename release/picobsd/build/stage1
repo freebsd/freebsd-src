@@ -2,7 +2,7 @@
 
 # $FreeBSD$
 #
-# stage1 -- this script fills the mfs for the picobsd kernel
+# stage1 -- this script prepares the actual picobsd image
 
 . ../Version
 
@@ -16,6 +16,26 @@ export MFS_MOUNTPOINT
 
 MAKEOBJDIRPREFIX=${OBJ}/picobsd/${TYPE}
 export MAKEOBJDIRPREFIX
+
+# Location of the boot blocks (in case you want them custom-built)
+boot1=/boot/boot1
+boot2=/boot/boot2
+
+rm -f kernel.gz ${MFS_NAME}    # cleanup...
+
+# find a suitable vnode
+VNUM=`mount | awk "/vn/ { num++ } END { printf \"%d\", num }"`
+export VNUM
+echo "-> Using vn${VNUM}..."
+
+trap fail 2	# catch user interrupt
+
+# free as much as possible from the vnode
+free_vnode() {
+    umount ${MFS_MOUNTPOINT} 2> /dev/null || true
+    umount /dev/vn${VNUM} 2> /dev/null || true
+    vnconfig -u /dev/rvn${VNUM} 2> /dev/null || true
+}
 
 # fail errno errcode
 # This function is used to trap errors and print msgs
@@ -59,29 +79,24 @@ fail() {
     missing_kernel)
 	echo "-> ERROR: you must build PICOBSD${suffix} kernel first"
 	;;
+    *)
+	echo "unknown error, maybe user break: $errno $errcode"
+	;;
     esac
     echo "-> Aborting $0"
-    umount ${MFS_MOUNTPOINT} 2> /dev/null || true
+    # try to cleanup the vnode.
+    free_vnode
     rm -rf ${MFS_MOUNTPOINT} 2> /dev/null || true
     exit 10
 }
 
-rm -f kernel.gz ${MFS_NAME}    # cleanup...
-
 create_mfs() {
     echo "-> Preparing MFS filesystem..."
-    VNUM=`mount | awk "/vn/ { num++ } END { printf \"%d\", num }"`
-    export VNUM
-    echo "-> Using vn${VNUM}..."
 
-    umount /dev/vn${VNUM} 2> /dev/null || true
-    umount ${MFS_MOUNTPOINT} 2> /dev/null || true
-    vnconfig -u /dev/rvn${VNUM} 2> /dev/null || true
+    free_vnode
 
+    # zero-fill the MFS image
     dd of=${MFS_NAME} if=/dev/zero count=${MFS_SIZE} bs=1k 2> /dev/null
-
-    awk 'BEGIN {printf "%c%c", 85, 170}' | \
-	dd of=${MFS_NAME} obs=1 seek=510 conv=notrunc  2> /dev/null
 
     vnconfig -s labels -c /dev/rvn${VNUM} ${MFS_NAME} 2>/dev/null || \
 	    fail $? no_vnconfig
@@ -163,8 +178,6 @@ populate_mfs() {
     vnconfig -u /dev/rvn${VNUM}
 }
 
-# stage2
-
 do_kernel() {
     echo "-> Preparing kernel..."
     (cd ../${TYPE}; make -v -f ${BUILDDIR}/Makefile.conf )
@@ -172,7 +185,6 @@ do_kernel() {
 	fail $? missing_kernel
     strip kernel
     strip --remove-section=.note --remove-section=.comment kernel
-    gzip -9 -v -n kernel
 }
 
 do_floppy() {
@@ -180,22 +192,36 @@ do_floppy() {
 
     echo "==> Preparing ${FLOPPY_SIZE}kB floppy filesystem..."
 
-    dd of=picobsd.bin if=/dev/zero count=${FLOPPY_SIZE} bs=1k
-
-    awk 'BEGIN {printf "%c%c", 85, 170}' | \
-                dd of=picobsd.bin obs=1 seek=510 conv=notrunc  2> /dev/null
-
+    # correct block and number of sectors according to size.
+    blocks=${FLOPPY_SIZE}
+    sectors=18
+    if [ "${blocks}" = "1720" ]; then
+	blocks=1722
+	sectors=21
+    elif [ "${blocks}" = "1480" ]; then
+	blocks=1476
+    fi
+    echo "${sectors} sectors per track"
+    # create image
+    dd of=picobsd.bin if=/dev/zero count=${blocks} bs=1k
+    # put in boot sector so vnconfig and disklabel will not complain
+    dd if=${boot1} of=picobsd.bin conv=notrunc 2> /dev/null
     vnconfig -c /dev/rvn${VNUM} picobsd.bin || fail $? vnconfig2
 
-    dd if=/boot/boot1 of=picobsd.bin conv=notrunc 2> /dev/null
-
-    # XXX todo: use a type matching floppy size.
-    disklabel -Brw -b /boot/boot1 -s /boot/boot2 /dev/vn${VNUM}c fd1440 || \
+    disklabel -Brw -b ${boot1} -s ${boot2} /dev/vn${VNUM}c \
+	fd${FLOPPY_SIZE} || \
 	fail $?  disklabel
 
     newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/rvn${VNUM}c
 
     mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT}
+
+    # preload kernel, compress with kgzip and copy to floppy image
+    cc -o ./wmk /usr/src/release/write_mfs_in_kernel.c
+    ./wmk kernel ${MFS_NAME}
+    rm wmk
+    kgzip -o kernel.gz kernel
+    cp -p kernel.gz ${MFS_MOUNTPOINT}/kernel
 
     echo "==> Populating floppy filesystem..."
 
@@ -246,40 +272,15 @@ do_floppy() {
     # gzip returns an error if it fails to compress some file
     gzip -9 floppy.tree/etc/* || true
 
-    # Now, first copy large files, then small ones.
-    cp -p kernel.gz ${MFS_MOUNTPOINT}/kernel.gz || fail $? kernel_compress
-
-    gzip -9cv ${MFS_NAME} > ${MFS_MOUNTPOINT}/${MFS_NAME}.gz || \
-		fail $? mfs_compress
-
-    if [ ! -d ${MFS_MOUNTPOINT}/boot ] ; then
-	mkdir -p ${MFS_MOUNTPOINT}/boot
-    fi
-    #
-    # make small loader
-    (cd /usr/src/lib/libstand ; make obj ; make )
-    (cd /usr/src/sys/boot/i386 ; make obj ; make -DNOFORTH )
-    theloader=${MAKEOBJDIRPREFIX}/usr/src/sys/boot/i386/loader/loader
-    if [ ! -f ${theloader} ]; then
-	theloader=/boot/loader
-    fi
-    kgzip -o loader $theloader
-    cp -p loader ${MFS_MOUNTPOINT}/boot/loader
-
-    #
     # now transfer the floppy tree
     cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
-    cat <<__EOF > ${MFS_MOUNTPOINT}/boot/loader.rc
-load kernel
-load -t mfs_root ${MFS_NAME}
-__EOF
-    (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT} ; chown -R root *)
+    rm -rf floppy.tree || true # cleanup
 
     df -ik ${MFS_MOUNTPOINT} > .build.reply
     umount ${MFS_MOUNTPOINT}
     rm -rf ${MFS_MOUNTPOINT}
     vnconfig -u /dev/rvn${VNUM}
-    # rm kernel.gz ${MFS_NAME}
+    rm kernel.gz ${MFS_NAME}
 }
 
 do_kernel
