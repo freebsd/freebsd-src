@@ -125,6 +125,11 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_fs, CTLFLAG_RW,
     &mac_enforce_fs, 0, "Enforce MAC policy on file system objects");
 TUNABLE_INT("security.mac.enforce_fs", &mac_enforce_fs);
 
+static int	mac_enforce_kld = 1;
+SYSCTL_INT(_security_mac, OID_AUTO, enforce_kld, CTLFLAG_RW,
+    &mac_enforce_kld, 0, "Enforce MAC policy on kld operations");
+TUNABLE_INT("security.mac.enforce_kld", &mac_enforce_kld);
+
 static int	mac_enforce_network = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_network, CTLFLAG_RW,
     &mac_enforce_network, 0, "Enforce MAC policy on network packets");
@@ -2288,6 +2293,47 @@ mac_check_kenv_unset(struct ucred *cred, char *name)
 		return (0);
 
 	MAC_CHECK(check_kenv_unset, cred, name);
+
+	return (error);
+}
+
+int
+mac_check_kld_load(struct ucred *cred, struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_kld_load");
+
+	if (!mac_enforce_kld)
+		return (0);
+
+	MAC_CHECK(check_kld_load, cred, vp, &vp->v_label);
+
+	return (error);
+}
+
+int
+mac_check_kld_stat(struct ucred *cred)
+{
+	int error;
+
+	if (!mac_enforce_kld)
+		return (0);
+
+	MAC_CHECK(check_kld_stat, cred);
+
+	return (error);
+}
+
+int
+mac_check_kld_unload(struct ucred *cred)
+{
+	int error;
+
+	if (!mac_enforce_kld)
+		return (0);
+
+	MAC_CHECK(check_kld_unload, cred);
 
 	return (error);
 }
