@@ -43,7 +43,7 @@ CLEANFILES+= ${GENSRCS}
 
 .else
 
-.PATH:	${CNTRB_GDB}/gdb ${CNTRB_GDB}/gdb/doc ${CNTRB_RL}/doc ${BMAKE_BU}/doc
+.PATH:	${CNTRB_GDB}/gdb ${CNTRB_GDB}/gdb/doc ${CNTRB_RL}/doc
 
 .endif
 
