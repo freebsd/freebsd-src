@@ -326,11 +326,11 @@ main(argc, argv)
 				fatal("%s: bad file system size", optarg);
 			break;
 		case 't':
-			if ((ntracks = atoi(optarg)) <= 0)
+			if ((ntracks = atoi(optarg)) < 0)
 				fatal("%s: bad total tracks", optarg);
 			break;
 		case 'u':
-			if ((nsectors = atoi(optarg)) <= 0)
+			if ((nsectors = atoi(optarg)) < 0)
 				fatal("%s: bad sectors/track", optarg);
 			break;
 		case 'x':
