@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <machine/ia64_cpu.h>
+#include <machine/vmparam.h>
 
 struct thread;
 

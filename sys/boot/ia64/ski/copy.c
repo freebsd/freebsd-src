@@ -37,6 +37,7 @@ static const char rcsid[] =
 #include <stand.h>
 
 #include <machine/ia64_cpu.h>
+#include <machine/vmparam.h>
 
 int
 ski_copyin(void *src, vm_offset_t dest, size_t len)

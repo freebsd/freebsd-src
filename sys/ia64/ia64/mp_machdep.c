@@ -44,6 +44,7 @@
 #include <vm/vm_kern.h>
 
 #include <machine/atomic.h>
+#include <machine/cpu.h>
 #include <machine/pal.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
