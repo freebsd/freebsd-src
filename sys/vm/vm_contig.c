@@ -149,7 +149,7 @@ contigmalloc1(
 	unsigned long boundary,
 	vm_map_t map)
 {
-	int i, s, start;
+	int i, start;
 	vm_paddr_t phys;
 	vm_object_t object;
 	vm_offset_t addr, tmp_addr;
@@ -166,7 +166,6 @@ contigmalloc1(
 
 	start = 0;
 	for (pass = 0; pass <= 1; pass++) {
-		s = splvm();
 		vm_page_lock_queues();
 		mtx_lock_spin(&vm_page_queue_free_mtx);
 again:
@@ -196,7 +195,6 @@ again1:
 			if (vm_contig_launder(PQ_ACTIVE))
 				goto again1;
 			vm_page_unlock_queues();
-			splx(s);
 			continue;
 		}
 		start = i;
@@ -234,7 +232,7 @@ again1:
 			if (m->flags & PG_ZERO)
 				vm_page_zero_count--;
 			/* Don't clear the PG_ZERO flag, we'll need it later. */
-			m->flags &= PG_ZERO;
+			m->flags = PG_UNMANAGED | (m->flags & PG_ZERO);
 			KASSERT(m->dirty == 0,
 			    ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
@@ -257,7 +255,6 @@ again1:
 			 * above available.
 			 */
 			vm_map_unlock(map);
-			splx(s);
 			return (NULL);
 		}
 		vm_object_reference(kernel_object);
@@ -279,7 +276,6 @@ again1:
 		vm_map_wire(map, addr, addr + size,
 		    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 
-		splx(s);
 		return ((void *)addr);
 	}
 	return (NULL);
