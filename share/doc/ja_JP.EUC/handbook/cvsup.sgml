@@ -1,6 +1,6 @@
-<!-- $Id: cvsup.sgml,v 1.16 1997/04/30 06:41:50 hanai Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.17 1997/05/09 22:58:07 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.17 -->
+<!-- Original revision: 1.18 -->
 
 <sect1><heading>CVSup<label id="cvsup"></heading>
 
@@ -543,6 +543,9 @@ cvsup が GUI を使わないようにする必要があります.
 輸出規制された暗号化コードです. 
 <p>
   <descrip>
+  <tag><tt>src-contrib-crypto release=cvs</tt></tag>
+  輸出規制された FreeBSD プロジェクト外部からのユーティリティおよび
+  ライブラリ, 比較的無修正 (<tt>/usr/src/contrib-crypto</tt>).
   <tag><tt>src-eBones release=cvs</tt></tag>
   Kerberos および DES (<tt>/usr/src/eBones</tt>).
   <tag><tt>src-secure release=cvs</tt></tag>
