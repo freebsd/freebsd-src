@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.51 1999/02/05 22:15:50 jkh Exp $
+ * $Id: main.c,v 1.52 1999/06/17 19:04:55 markm Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include "pccard_conf.h"
 #include <sys/signal.h>
 #include <sys/fcntl.h>
 

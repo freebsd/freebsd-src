@@ -1,7 +1,7 @@
 /*
  * PC-card support for sysinstall
  *
- * $Id: pccard.c,v 1.2 1999/06/30 05:04:37 hosokawa Exp $
+ * $Id: pccard.c,v 1.4 1999/07/04 15:54:14 hosokawa Exp $
  *
  * Copyright (c) 1997-1999
  *	Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>.  All rights reserved.
@@ -15,6 +15,7 @@
  */
 
 #include "sysinstall.h"
+#include "pccard_conf.h"
 #include <sys/fcntl.h>
 #include <sys/time.h>
 #include <pccard/cardinfo.h>
