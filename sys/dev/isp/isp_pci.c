@@ -204,6 +204,10 @@ static struct ispmdvec mdvec_2200 = {
 #define	PCI_PRODUCT_QLOGIC_ISP1240	0x1240
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP1280
+#define	PCI_PRODUCT_QLOGIC_ISP1280	0x1280
+#endif
+
 #ifndef	PCI_PRODUCT_QLOGIC_ISP2100
 #define	PCI_PRODUCT_QLOGIC_ISP2100	0x2100
 #endif
@@ -219,6 +223,9 @@ static struct ispmdvec mdvec_2200 = {
 
 #define	PCI_QLOGIC_ISP1240	\
 	((PCI_PRODUCT_QLOGIC_ISP1240 << 16) | PCI_VENDOR_QLOGIC)
+
+#define	PCI_QLOGIC_ISP1280	\
+	((PCI_PRODUCT_QLOGIC_ISP1280 << 16) | PCI_VENDOR_QLOGIC)
 
 #define	PCI_QLOGIC_ISP2100	\
 	((PCI_PRODUCT_QLOGIC_ISP2100 << 16) | PCI_VENDOR_QLOGIC)
@@ -286,6 +293,9 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 		break;
 	case PCI_QLOGIC_ISP1240:
 		x = "Qlogic ISP 1240 PCI SCSI Adapter";
+		break;
+	case PCI_QLOGIC_ISP1280:
+		x = "Qlogic ISP 1280 PCI SCSI Adapter";
 		break;
 #endif
 #ifndef	ISP_DISABLE_2100_SUPPORT
@@ -443,7 +453,14 @@ isp_pci_attach(pcici_t cfid, int unit)
 	}
 	if (data == PCI_QLOGIC_ISP1240) {
 		mdvp = &mdvec_1080;
-		basetype = ISP_HA_SCSI_12X0;
+		basetype = ISP_HA_SCSI_1240;
+		psize = 2 * sizeof (sdparam);
+		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
+		    ISP1080_DMA_REGS_OFF;
+	}
+	if (data == PCI_QLOGIC_ISP1280) {
+		mdvp = &mdvec_1080;
+		basetype = ISP_HA_SCSI_1280;
 		psize = 2 * sizeof (sdparam);
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
@@ -709,16 +726,23 @@ isp_pci_rd_reg_1080(isp, regoff)
 	struct ispsoftc *isp;
 	int regoff;
 {
-	u_int16_t rv;
+	u_int16_t rv, oc = 0;
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
-	int offset, oc = 0;
+	int offset;
 
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
+	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
+	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+		u_int16_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
 		oc = isp_pci_rd_reg(isp, BIU_CONF1);
-		isp_pci_wr_reg(isp, BIU_CONF1, oc | BIU_PCI1080_CONF1_SXP);
+		tc = oc & ~BIU_PCI1080_CONF1_DMA;
+		if (regoff & SXP_BANK1_SELECT)
+			tc |= BIU_PCI1080_CONF1_SXP1;
+		else
+			tc |= BIU_PCI1080_CONF1_SXP0;
+		isp_pci_wr_reg(isp, BIU_CONF1, tc);
 	} else if ((regoff & _BLK_REG_MASK) == DMA_BLOCK) {
 		oc = isp_pci_rd_reg(isp, BIU_CONF1);
 		isp_pci_wr_reg(isp, BIU_CONF1, oc | BIU_PCI1080_CONF1_DMA);
@@ -726,8 +750,7 @@ isp_pci_rd_reg_1080(isp, regoff)
 	offset = pcs->pci_poff[(regoff & _BLK_REG_MASK) >> _BLK_REG_SHFT];
 	offset += (regoff & 0xff);
 	rv = bus_space_read_2(pcs->pci_st, pcs->pci_sh, offset);
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
-	    ((regoff & _BLK_REG_MASK) == DMA_BLOCK)) {
+	if (oc) {
 		isp_pci_wr_reg(isp, BIU_CONF1, oc);
 	}
 	return (rv);
@@ -742,12 +765,19 @@ isp_pci_wr_reg_1080(isp, regoff, val)
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int offset, oc = 0;
 
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
+	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
+	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+		u_int16_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
 		oc = isp_pci_rd_reg(isp, BIU_CONF1);
-		isp_pci_wr_reg(isp, BIU_CONF1, oc | BIU_PCI1080_CONF1_SXP);
+		tc = oc & ~BIU_PCI1080_CONF1_DMA;
+		if (regoff & SXP_BANK1_SELECT)
+			tc |= BIU_PCI1080_CONF1_SXP1;
+		else
+			tc |= BIU_PCI1080_CONF1_SXP0;
+		isp_pci_wr_reg(isp, BIU_CONF1, tc);
 	} else if ((regoff & _BLK_REG_MASK) == DMA_BLOCK) {
 		oc = isp_pci_rd_reg(isp, BIU_CONF1);
 		isp_pci_wr_reg(isp, BIU_CONF1, oc | BIU_PCI1080_CONF1_DMA);
@@ -755,8 +785,7 @@ isp_pci_wr_reg_1080(isp, regoff, val)
 	offset = pcs->pci_poff[(regoff & _BLK_REG_MASK) >> _BLK_REG_SHFT];
 	offset += (regoff & 0xff);
 	bus_space_write_2(pcs->pci_st, pcs->pci_sh, offset, val);
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
-	    ((regoff & _BLK_REG_MASK) == DMA_BLOCK)) {
+	if (oc) {
 		isp_pci_wr_reg(isp, BIU_CONF1, oc);
 	}
 }
@@ -839,7 +868,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		return (1);
 	}
 
-	if (IS_FC(isp) || IS_1080(isp) || IS_12X0(isp))
+	if (IS_FC(isp) || IS_ULTRA2(isp))
 		lim = BUS_SPACE_MAXADDR + 1;
 	else
 		lim = BUS_SPACE_MAXADDR_24BIT + 1;
