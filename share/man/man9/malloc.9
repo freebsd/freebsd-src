@@ -164,16 +164,17 @@ is required when running in an interrupt context.
 Indicates that it is OK to wait for resources.
 If the request cannot be immediately fulfilled, the current process is put
 to sleep to wait for resources to be released by other processes.
-The
+When
+.Dv M_WAITOK
+is specified, the
 .Fn malloc ,
 .Fn realloc ,
 and
 .Fn reallocf
-functions cannot return
+cannot return
 .Dv NULL
-if
-.Dv M_WAITOK
-is specified.
+unless the requested allocation size is too large for the kernel
+memory map.
 .It Dv M_USE_RESERVE
 Indicates that the system can dig into its reserve in order to obtain the
 requested memory.
