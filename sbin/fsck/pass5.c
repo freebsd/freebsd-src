@@ -332,7 +332,7 @@ pass5()
 				for (k = 0; k < NBBY; k++) {
 					if ((j & (1 << k)) == 0)
 						continue;
-					if (cg_inosused(cg)[i] & (1 << k))
+					if (cg_blksfree(newcg)[i] & (1 << k))
 						continue;
 					pwarn("ALLOCATED FRAG %d MARKED FREE",
 					    c * fs->fs_fpg + i * 8 + k);
