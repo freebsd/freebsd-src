@@ -37,7 +37,6 @@
 .Op Fl class Ar login_class
 .Op Fl config_create
 .Op Fl dotdir Ar dotdir
-.Op Fl f | force
 .Op Fl group Ar login_group
 .Op Fl h | help
 .Op Fl home Ar home
@@ -61,9 +60,6 @@ directory, dotfiles and sends the new user a welcome message.
 .It Sy username
 Login name.
 May contain only lowercase characters or digits.
-(See also the
-.Fl force
-option.)
 Maximum length
 is 16 characters (see
 .Xr setlogin 2
@@ -158,10 +154,6 @@ to read/execute/write
 .Pa prv ,
 .Pa iscreen ,
 .Pa term .
-.It Fl force , f
-Add a user even if the username contains illegal characters.
-Only semicolon or newline characters will be disallowed in
-usernames to avoid breaking the password file format.
 .It Fl group Ar login_group
 Login group.
 .Ar USER
