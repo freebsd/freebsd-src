@@ -402,6 +402,12 @@ iphack:
 		 */
 		i = (*ip_fw_chk_ptr)(&ip,
 		    hlen, NULL, &divert_cookie, &m, &rule, &ip_fw_fwd_addr);
+		if (i & 0x40000) { /* XXX new interface-denied */
+                        if (m)
+                                m_freem(m);
+			return ;
+                }
+
 		if (m == NULL)		/* Packet discarded by firewall */
 			return;
 		if (i == 0 && ip_fw_fwd_addr == NULL)	/* common case */

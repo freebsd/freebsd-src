@@ -947,6 +947,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 
 #define PULLUP_TO(len)	do {						\
 			    if ((*m)->m_len < (len)) {			\
+				ip = NULL ;				\
 				if ((*m = m_pullup(*m, (len))) == 0)	\
 				    goto bogusfrag;			\
 				ip = mtod(*m, struct ip *);		\
@@ -1221,9 +1222,7 @@ again:
 
 			if (f->fw_tcpopt != f->fw_tcpnopt && !tcpopts_match(tcp, f))
 				continue;
-			if (((f->fw_tcpf != f->fw_tcpnf) ||
-			    (f->fw_ipflg & IP_FW_IF_TCPEST))  &&
-			    !tcpflg_match(tcp, f))
+			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
 				continue;
 			goto check_ports;
 		    }
@@ -1269,7 +1268,7 @@ check_ports:
 			break;
 
 bogusfrag:
-		if (fw_verbose)
+		if (fw_verbose && ip != NULL)
 			ipfw_report(NULL, ip, offset, rif, oif);
 		goto dropit;
 
@@ -1404,9 +1403,8 @@ dropit:
 	 * Finally, drop the packet.
 	 */
 	if (*m) {
-		m_freem(*m);
-		*m = NULL;
-	}
+		return(0x40000);
+	} else
 	return(0);
 #undef BRIDGED
 }
