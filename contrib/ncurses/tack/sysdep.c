@@ -24,6 +24,10 @@
  * global has no effect.
  */
 
+#if defined(__BEOS__)
+#include <OS.h>
+#endif
+
 #include <tack.h>
 
 #include <signal.h>
@@ -39,7 +43,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: sysdep.c,v 1.5 1999/08/21 21:42:25 tom Exp $")
+MODULE_ID("$Id: sysdep.c,v 1.6 1999/09/04 13:45:00 tom Exp $")
 
 #if DECL_ERRNO
 extern int errno;
@@ -174,13 +178,13 @@ tty_reset(void)
 void 
 tty_init(void)
 {				/* ATT terminal init */
-#ifdef F_GETFL
+#if defined(F_GETFL) && defined(O_NDELAY)
 	int flags;
 
 	flags = fcntl(fileno(stdin), F_GETFL, 0);
 	nodelay_read = flags & O_NDELAY;
 #else
-	   nodelay_read = FALSE;
+	nodelay_read = FALSE;
 #endif
 	not_a_tty = FALSE;
 	if (tcgetattr(fileno(stdin), &old_modes) == -1) {
@@ -303,7 +307,17 @@ char_ready(void)
 }
 
 #else
+#if defined(__BEOS__)
+int
+char_ready(void)
+{
+	int n = 0;
+	int howmany = ioctl(0, 'ichr', &n);
+	return (howmany >= 0 && n > 0);
+}
+#else
 #define char_ready() 1
+#endif
 #endif
 #endif
 

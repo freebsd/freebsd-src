@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998 Free Software Foundation, Inc.                        *
+dnl Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,1998
 dnl
-dnl $Id: aclocal.m4,v 1.162 1999/08/22 00:13:21 tom Exp $
+dnl $Id: aclocal.m4,v 1.179 1999/10/23 21:49:25 tom Exp $
 dnl Macros used in NCURSES auto-configuration script.
 dnl
 dnl ---------------------------------------------------------------------------
@@ -154,7 +154,11 @@ AC_CACHE_VAL(cf_cv_type_of_bool,[
 	AC_TRY_RUN([
 #include <stdlib.h>
 #include <stdio.h>
-#if HAVE_BUILTIN_H
+#if HAVE_GXX_BUILTIN_H
+#include <g++/builtin.h>
+#elif HAVE_GPP_BUILTIN_H
+#include <gpp/builtin.h>
+#elif HAVE_BUILTIN_H
 #include <builtin.h>
 #endif
 main()
@@ -350,26 +354,35 @@ fi
 
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl If we're trying to use g++, test if libg++ is installed (a rather common
-dnl problem :-).  If we have the compiler but no library, we'll be able to
-dnl configure, but won't be able to build the c++ demo program.
-AC_DEFUN([CF_CXX_LIBRARY],
+dnl Check if the C++ compiler accepts duplicate parameter initialization.  This
+dnl is a late feature for the standard and is not in some recent compilers
+dnl (1999/9/11).
+AC_DEFUN([CF_CPP_PARAM_INIT],
 [
-cf_cxx_library=unknown
-if test $ac_cv_prog_gxx = yes; then
-	AC_MSG_CHECKING([for libg++])
-	cf_save="$LIBS"
-	LIBS="$LIBS -lg++ -lm"
-	AC_TRY_LINK([
-#include <builtin.h>
-	],
-	[float foo=abs(1.0)],
-	[cf_cxx_library=yes
-	 CXXLIBS="$CXXLIBS -lg++ -lm"],
-	[cf_cxx_library=no])
-	LIBS="$cf_save"
-	AC_MSG_RESULT($cf_cxx_library)
+if test -n "$CXX" ; then
+AC_CACHE_CHECK(if $CXX accepts parameter initialization,cf_cv_cpp_param_init,[
+	AC_LANG_CPLUSPLUS
+	AC_TRY_RUN([
+class TEST {
+private:
+	int value;
+public:
+	TEST(int x = 1);
+	~TEST();
+};
+
+TEST::TEST(int x = 1)	// some compilers do not like second initializer
+{
+	value = x;
+}
+void main() { }
+],
+	[cf_cv_cpp_param_init=yes],
+	[cf_cv_cpp_param_init=no],
+	[cf_cv_cpp_param_init=unknown])
+])
 fi
+test "$cf_cv_cpp_param_init" = yes && AC_DEFINE(CPP_HAS_PARAM_INIT)
 ])dnl
 dnl ---------------------------------------------------------------------------
 AC_DEFUN([CF_DIRS_TO_MAKE],
@@ -410,8 +423,8 @@ do
 AC_TRY_COMPILE([
 #include <etip.h.in>
 ],[],[
-	test -n "$cf_math" && AC_DEFINE(ETIP_NEEDS_${cf_math})
-	test -n "$cf_excp" && AC_DEFINE(ETIP_NEEDS_${cf_excp})
+	test -n "$cf_math" && AC_DEFINE_UNQUOTED(ETIP_NEEDS_${cf_math})
+	test -n "$cf_excp" && AC_DEFINE_UNQUOTED(ETIP_NEEDS_${cf_excp})
 	cf_result="$cf_math $cf_excp"
 	break
 ],[])
@@ -473,7 +486,7 @@ cat > conftest.i <<EOF
 EOF
 if test -n "$GCC"
 then
-	AC_CHECKING([for gcc __attribute__ directives])
+	AC_CHECKING([for $CC __attribute__ directives])
 	changequote(,)dnl
 cat > conftest.$ac_ext <<EOF
 #line __oline__ "configure"
@@ -500,7 +513,7 @@ EOF
 	do
 		CF_UPPER(CF_ATTRIBUTE,$cf_attribute)
 		cf_directive="__attribute__(($cf_attribute))"
-		echo "checking for gcc $cf_directive" 1>&AC_FD_CC
+		echo "checking for $CC $cf_directive" 1>&AC_FD_CC
 		case $cf_attribute in
 		scanf|printf)
 		cat >conftest.h <<EOF
@@ -546,7 +559,7 @@ then
 int main(int argc, char *argv[]) { return (argv[argc-1] == 0) ; }
 EOF
 	changequote([,])dnl
-	AC_CHECKING([for gcc warning options])
+	AC_CHECKING([for $CC warning options])
 	cf_save_CFLAGS="$CFLAGS"
 	EXTRA_CFLAGS="-W -Wall"
 	cf_warn_CONST=""
@@ -625,6 +638,50 @@ esac
 changequote([, ])dnl
 ])
 dnl ---------------------------------------------------------------------------
+dnl If we're trying to use g++, test if libg++ is installed (a rather common
+dnl problem :-).  If we have the compiler but no library, we'll be able to
+dnl configure, but won't be able to build the c++ demo program.
+AC_DEFUN([CF_GPP_LIBRARY],
+[
+cf_cxx_library=unknown
+case $cf_cv_system_name in #(vi
+os2*) #(vi
+	cf_gpp_libname=gpp
+	;;
+*)
+	cf_gpp_libname=g++
+	;;
+esac
+if test $ac_cv_prog_gxx = yes; then
+	AC_MSG_CHECKING([for lib$cf_gpp_libname])
+	cf_save="$LIBS"
+	LIBS="$LIBS -l$cf_gpp_libname -lm"
+	AC_TRY_LINK([
+#include <$cf_gpp_libname/builtin.h>
+	],
+	[//float foo=abs(1.0);
+	 two_arg_error_handler_t foo2 = lib_error_handler],
+	[cf_cxx_library=yes
+	 CXXLIBS="$CXXLIBS -l$cf_gpp_libname -lm"
+	 if test "$cf_gpp_libname" = cpp ; then
+	    AC_DEFINE(HAVE_GPP_BUILTIN_H)
+	 else
+	    AC_DEFINE(HAVE_GXX_BUILTIN_H)
+	 fi],
+	[AC_TRY_LINK([
+#include <builtin.h>
+	],
+	[//float foo=abs(1.0);
+	 two_arg_error_handler_t foo2 = lib_error_handler],
+	[cf_cxx_library=yes
+	 CXXLIBS="$CXXLIBS -l$cf_gpp_libname -lm"
+	 AC_DEFINE(HAVE_BUILTIN_H)],
+	[cf_cxx_library=no])])
+	LIBS="$cf_save"
+	AC_MSG_RESULT($cf_cxx_library)
+fi
+])dnl
+dnl ---------------------------------------------------------------------------
 dnl Insert text into the help-message, for readability, from AC_ARG_WITH.
 AC_DEFUN([CF_HELP_MESSAGE],
 [AC_DIVERT_HELP([$1])dnl
@@ -675,6 +732,8 @@ AC_DEFUN([CF_LIB_PREFIX],
 	os2)	$1=''     ;;
 	*)	$1='lib'  ;;
 	esac
+	LIB_PREFIX=[$]$1
+	AC_SUBST(LIB_PREFIX)
 ])dnl
 dnl ---------------------------------------------------------------------------
 dnl Append definitions and rules for the given models to the subdirectory
@@ -821,10 +880,12 @@ done
 
 cat >> Makefile <<CF_EOF
 
-install.data ::
+install.data \
+uninstall.data ::
 	cd misc && \$(MAKE) \$(CF_MFLAGS) \[$]@
 
-install.man ::
+install.man \
+uninstall.man ::
 	cd man && \$(MAKE) \$(CF_MFLAGS) \[$]@
 
 distclean ::
@@ -935,8 +996,15 @@ AC_DEFUN([CF_LIB_SUFFIX],
 	profile) $2='_p.a' ;;
 	shared)
 		case $cf_cv_system_name in
-		openbsd*|netbsd*|freebsd*)
+		openbsd*|freebsd*)
 			$2='.so.$(REL_VERSION)' ;;
+		netbsd*)
+			if test -f /usr/libexec/ld.elf_so; then
+				$2='.so'
+			else
+				$2='.so.$(REL_VERSION)'
+			fi
+			;;
 		hpux*)	$2='.sl'  ;;
 		*)	$2='.so'  ;;
 		esac
@@ -1058,7 +1126,9 @@ int main()
 }
 			],[
 			cf_cv_link_funcs="$cf_cv_link_funcs $cf_func"
-			eval 'ac_cv_func_'$cf_func'=yes'],[
+			eval 'ac_cv_func_'$cf_func'=yes'
+			CF_UPPER(cf_FUNC,$cf_func)
+			AC_DEFINE_UNQUOTED(HAVE_$cf_FUNC)],[
 			eval 'ac_cv_func_'$cf_func'=no'],[
 			eval 'ac_cv_func_'$cf_func'=error'])
 		done
@@ -1076,7 +1146,7 @@ AC_DEFUN([CF_MAKEFLAGS],
 AC_MSG_CHECKING([for makeflags variable])
 AC_CACHE_VAL(cf_cv_makeflags,[
 	cf_cv_makeflags=''
-	for cf_option in '-$(MAKEFLAGS)' '$(MFLAGS)' 
+	for cf_option in '-$(MAKEFLAGS)' '$(MFLAGS)'
 	do
 		cat >cf_makeflags.tmp <<CF_EOF
 all :
@@ -1367,7 +1437,11 @@ case $cf_cv_system_name in
 os2*)
     # We make sure -Zexe is not used -- it would interfere with @PROG_EXT@
     CFLAGS="$CFLAGS -Zmt -D__ST_MT_ERRNO__"
+    CXXFLAGS="$CXXFLAGS -Zmt -D__ST_MT_ERRNO__"
     LDFLAGS=`echo "$LDFLAGS -Zmt -Zcrtdll" | sed "s/-Zexe//g"`
+    PROG_EXT=".exe"
+    ;;
+cygwin*)
     PROG_EXT=".exe"
     ;;
 esac
@@ -1521,18 +1595,32 @@ AC_DEFUN([CF_SHARED_OPTS],
 		fi
 		test $cf_cv_shlib_version = auto && cf_cv_shlib_version=rel
 		if test $cf_cv_shlib_version = no ; then
-			MK_SHARED_LIB='gcc -shared -Wl,-stats,-lc -o $[@]'
+			MK_SHARED_LIB='$(CC) -shared -Wl,-stats,-lc -o $[@]'
 		else
-			MK_SHARED_LIB='gcc -shared -Wl,-soname,`basename $[@].$(ABI_VERSION)`,-stats,-lc -o $[@]'
+			MK_SHARED_LIB='$(CC) -shared -Wl,-soname,`basename $[@].$(ABI_VERSION)`,-stats,-lc -o $[@]'
 		fi
 		;;
 	openbsd2*)
 		CC_SHARED_OPTS='-fpic -DPIC'
 		MK_SHARED_LIB='$(LD) -Bshareable -soname,`basename $[@].$(ABI_VERSION)` -o $[@]'
 		;;
-	openbsd*|netbsd*|freebsd*)
+	openbsd*|freebsd*)
 		CC_SHARED_OPTS='-fpic -DPIC'
 		MK_SHARED_LIB='$(LD) -Bshareable -o $[@]'
+		test $cf_cv_shlib_version = auto && cf_cv_shlib_version=rel
+		;;
+	netbsd*)
+		CC_SHARED_OPTS='-fpic -DPIC'
+		test $cf_cv_ld_rpath = yes && cf_ld_rpath_opt="-Wl,-rpath,"
+		if test $DFT_LWR_MODEL = "shared" && test $cf_cv_ld_rpath = yes ; then
+			LOCAL_LDFLAGS='-Wl,-rpath,../lib'
+			LOCAL_LDFLAGS2='-Wl,-rpath,../../lib'
+			EXTRA_LDFLAGS="-Wl,-rpath,\$(libdir) $EXTRA_LDFLAGS"
+			MK_SHARED_LIB='$(CC) -shared -Wl,-soname,`basename $[@].$(ABI_VERSION)` -o $[@]'
+			test $cf_cv_shlib_version = auto && cf_cv_shlib_version=rel
+		else
+			MK_SHARED_LIB='$(LD) -Bshareable -o $[@]'
+		fi
 		;;
 	osf*|mls+*)
 		# tested with OSF/1 V3.2 and 'cc'
@@ -1556,9 +1644,9 @@ AC_DEFUN([CF_SHARED_OPTS],
 	sco3.2v5*)  # (also uw2* and UW7) hops 13-Apr-98
 		# tested with osr5.0.5
 		if test $ac_cv_prog_gcc = yes; then
-			CC_SHARED_OPTS='-melf -fpic'
+			CC_SHARED_OPTS='-fpic'
 		else
-			CC_SHARED_OPTS='-KPIC'
+			CC_SHARED_OPTS='-belf -KPIC'
 		fi
 		MK_SHARED_LIB='$(LD) -dy -G -h `basename [$]@.$(ABI_VERSION)` -o [$]@'
 		if test $cf_cv_ld_rpath = yes ; then
@@ -1799,7 +1887,7 @@ do
 	SRC_SUBDIRS="$SRC_SUBDIRS $cf_dir"
 done
 SRC_SUBDIRS="$SRC_SUBDIRS misc test"
-test $cf_cxx_library != no && SRC_SUBDIRS="$SRC_SUBDIRS c++"
+test $cf_with_cxx_binding != no && SRC_SUBDIRS="$SRC_SUBDIRS c++"
 
 ADA_SUBDIRS=
 if test "$cf_cv_prog_gnat_correct" = yes && test -d $srcdir/Ada95; then
@@ -1819,6 +1907,35 @@ if test -n "$ADA_SUBDIRS"; then
       SUB_MAKEFILES="$SUB_MAKEFILES Ada95/$cf_dir/Makefile"
    done
    AC_SUBST(ADA_SUBDIRS)
+fi
+])dnl
+dnl ---------------------------------------------------------------------------
+dnl Check for -lstdc++, which is GNU's standard C++ library.
+AC_DEFUN([CF_STDCPP_LIBRARY],
+[
+if test -n "$GXX" ; then
+case $cf_cv_system_name in #(vi
+os2*) #(vi
+	cf_stdcpp_libname=stdcpp
+	;;
+*)
+	cf_stdcpp_libname=stdc++
+	;;
+esac
+AC_CACHE_CHECK(for library $cf_stdcpp_libname,cf_cv_libstdcpp,[
+	cf_save="$LIBS"
+	LIBS="$LIBS -l$cf_stdcpp_libname -lm"
+AC_TRY_LINK([
+#include <strstream.h>],[
+char buf[80];
+strstreambuf foo(buf, sizeof(buf))
+//destroy foo
+],
+	[cf_cv_libstdcpp=yes],
+	[cf_cv_libstdcpp=no])
+	LIBS="$cf_save"
+])
+test $cf_cv_libstdcpp = yes && CXXLIBS="$CXXLIBS -l$cf_stdcpp_libname"
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-# $Id: man_db.renames,v 0.14 1999/02/20 12:43:56 tom Exp $
+# $Id: man_db.renames,v 0.15 1999/10/02 23:28:13 tom Exp $
 # Manual-page renamings for the man_db program
 #
 captoinfo.1m			captoinfo.1
@@ -45,7 +45,7 @@ curs_util.3x			util.3ncurses
 curs_window.3x			window.3ncurses
 curses.3x			ncurses.3ncurses
 define_key.3x			define_key.3ncurses
-dft_fgbg.3x			dft_fgbg.3ncurses
+dft_fgbg.3x			use_default_colors.3ncurses
 form.3x				form.3form
 form_cursor.3x			cursor.3form
 form_data.3x			data.3form

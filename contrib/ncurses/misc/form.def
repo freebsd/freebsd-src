@@ -1,5 +1,5 @@
-LIBRARY form4 INITINSTANCE TERMINSTANCE
-DESCRIPTION "NCurses-4-2-981212, module form"
+LIBRARY form5 INITINSTANCE TERMINSTANCE
+DESCRIPTION "NCurses-5-0-990828, module form"
 CODE LOADONCALL
 DATA LOADONCALL NONSHARED MULTIPLE
 EXPORTS
@@ -26,10 +26,6 @@ EXPORTS
 	"_nc_Set_Form_Page"	@26	NONAME
 	"_nc_Synchronize_Attributes"	@27	NONAME
 	"_nc_Synchronize_Options"	@28	NONAME
-	"_nc_ada_getvarg"	@29	NONAME
-	"_nc_ada_normalize_field_opts"	@61	NONAME
-	"_nc_ada_normalize_form_opts"	@62	NONAME
-	"_nc_get_field"	@63	NONAME
 	"current_field"	@102	NONAME
 	"data_ahead"	@133	NONAME
 	"data_behind"	@134	NONAME
@@ -59,8 +55,8 @@ EXPORTS
 	"form_opts_off"	@130	NONAME
 	"form_opts_on"	@129	NONAME
 	"form_page"	@117	NONAME
-	"form_request_by_name"	@64	NONAME
-	"form_request_name"	@65	NONAME
+	"form_request_by_name"	@29	NONAME
+	"form_request_name"	@61	NONAME
 	"form_sub"	@104	NONAME
 	"form_term"	@106	NONAME
 	"form_userptr"	@131	NONAME

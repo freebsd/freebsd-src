@@ -1,5 +1,5 @@
 /*
- * $Id: rain.c,v 1.11 1997/09/18 18:36:46 tom Exp $
+ * $Id: rain.c,v 1.13 1999/10/23 01:31:26 tom Exp $
  */
 #include <test.priv.h>
 
@@ -100,6 +100,12 @@ float c;
 	    curs_set(1);
 	    endwin();
 	    return(EXIT_SUCCESS);
+	case 's':
+	    nodelay(stdscr, FALSE);
+	    break;
+	case ' ':
+	    nodelay(stdscr, TRUE);
+	    break;
 #ifdef KEY_RESIZE
 	case(KEY_RESIZE):
 	    r = (float)(LINES - 4);
@@ -122,10 +128,6 @@ onsig(int n GCC_UNUSED)
 static float
 ranf(void)
 {
-    float rv;
-    long r = rand();
-
-    r &= 077777;
-    rv =((float)r/32767.);
-    return rv;
+    long r = (rand() & 077777);
+    return ((float) r / 32768.);
 }

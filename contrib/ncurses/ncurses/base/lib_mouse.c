@@ -85,7 +85,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_mouse.c,v 1.44 1999/07/24 21:10:48 tom Exp $")
+MODULE_ID("$Id: lib_mouse.c,v 1.45 1999/10/22 21:39:02 tom Exp $")
 
 #define MY_TRACE TRACE_ICALLS|TRACE_IEVENT
 
@@ -531,7 +531,7 @@ static void mouse_activate(bool on)
 #endif
 	}
     }
-    (void) fflush(SP->_ofp);
+    _nc_flush();
 }
 
 /**************************************************************************

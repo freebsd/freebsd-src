@@ -42,7 +42,7 @@
 #include <dump_entry.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: tic.c,v 1.51 1999/06/19 21:35:36 Philippe.De.Muyter Exp $")
+MODULE_ID("$Id: tic.c,v 1.52 1999/09/25 22:47:54 tom Exp $")
 
 const char *_nc_progname = "tic";
 
@@ -661,7 +661,7 @@ bool	check_only = FALSE;
 
 			len = dump_entry(&qp->tterm, limited, numbers, NULL);
 			for (j = 0; j < qp->nuses; j++)
-			    len += dump_uses((char *)(qp->uses[j].parent), infodump);
+			    len += dump_uses((char *)(qp->uses[j].parent), !capdump);
 			(void) putchar('\n');
 			if (debug_level != 0 && !limited)
 			    printf("# length=%d\n", len);

@@ -14,7 +14,7 @@
  *
  *	Date: 05.Nov.90
  *
- * $Id: hanoi.c,v 1.15 1997/10/18 20:11:20 tom Exp $
+ * $Id: hanoi.c,v 1.16 1999/10/23 15:01:01 tom Exp $
  */
 
 #include <test.priv.h>
@@ -118,8 +118,10 @@ unsigned char AutoFlag = 0;
 		fprintf(stderr, "Min screen length 24 lines\n");
 		return EXIT_FAILURE;
 	}
-	if(AutoFlag)
+	if(AutoFlag) {
+		curs_set(0);
 		leaveok(stdscr, TRUE);	/* Attempt to remove cursor */
+	}
 	InitTiles(NTiles);
 	DisplayTiles();
 	if(AutoFlag) {
@@ -148,7 +150,6 @@ unsigned char AutoFlag = 0;
 			}
 		}
 	}
-	curs_set(1);
 	endwin();
 	return EXIT_SUCCESS;
 }

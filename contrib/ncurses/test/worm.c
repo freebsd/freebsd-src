@@ -34,26 +34,27 @@ Options:
   traces will be dumped.  The program stops and waits for one character of
   input at the beginning and end of the interval.
 
-  $Id: worm.c,v 1.23 1999/03/06 22:52:04 tom Exp $
+  $Id: worm.c,v 1.26 1999/10/23 01:31:40 tom Exp $
 */
 
 #include <test.priv.h>
 
-#include <term.h>	/* for tparm() */
-
 #include <signal.h>
 
-#define cursor(col,row) move(row,col)
+#define typeAlloc(type,n) (type *) malloc(n * sizeof(type))
+#define typeRealloc(type,n,p) (type *) realloc(p, n * sizeof(type))
 
-short *ref[128];
-static chtype flavor[]={
-    'O' , '*', '#', '$', '%', '0', '@',
+static chtype flavor[] =
+{
+    'O', '*', '#', '$', '%', '0', '@',
 };
 #define MAXWORMS	(sizeof(flavor)/sizeof(chtype))
-static const short xinc[]={
-     1,  1,  1,  0, -1, -1, -1,  0
-}, yinc[]={
-    -1,  0,  1,  1,  1,  0, -1, -1
+static const short xinc[] =
+{
+    1, 1, 1, 0, -1, -1, -1, 0
+}, yinc[] =
+{
+    -1, 0, 1, 1, 1, 0, -1, -1
 };
 static struct worm {
     int orientation, head;
@@ -61,12 +62,13 @@ static struct worm {
 } worm[40];
 
 static const char *field;
-static int length=16, number=3;
-static chtype trail=' ';
+static int length = 16, number = 3;
+static chtype trail = ' ';
 
 #ifdef TRACE
 int generation, trace_start, trace_end, singlestep;
 #endif /* TRACE */
+/* *INDENT-OFF* */
 static const struct options {
     int nopts;
     int opts[3];
@@ -152,63 +154,90 @@ static const struct options {
     { 0, { 0, 0, 0 } },
     { 0, { 0, 0, 0 } }
 };
+/* *INDENT-ON* */
 
-static RETSIGTYPE onsig(int sig);
-static float ranf(void);
+static void
+cleanup(void)
+{
+    standend();
+    refresh();
+    curs_set(1);
+    endwin();
+}
+
+static RETSIGTYPE
+onsig(int sig GCC_UNUSED)
+{
+    cleanup();
+    exit(EXIT_FAILURE);
+}
+
+static float
+ranf(void)
+{
+    long r = (rand() & 077777);
+    return ((float) r / 32768.);
+}
 
 int
 main(int argc, char *argv[])
 {
-int x, y;
-int n;
-struct worm *w;
-const struct options *op;
-int h;
-short *ip;
-int last, bottom;
+    short **ref;
+    int x, y;
+    int n;
+    int ch;
+    struct worm *w;
+    const struct options *op;
+    int h;
+    short *ip;
+    int last, bottom;
 
-    for (x=1;x<argc;x++) {
-		register char *p;
-		p=argv[x];
-		if (*p=='-') p++;
-		switch (*p) {
-		case 'f':
-		    field="WORM";
-		    break;
-		case 'l':
-		    if (++x==argc) goto usage;
-		    if ((length=atoi(argv[x]))<2||length>1024) {
-				fprintf(stderr,"%s: Invalid length\n",*argv);
-				return EXIT_FAILURE;
-		    }
-		    break;
-		case 'n':
-		    if (++x==argc) goto usage;
-		    if ((number=atoi(argv[x]))<1||number>40) {
-				fprintf(stderr,"%s: Invalid number of worms\n",*argv);
-				return EXIT_FAILURE;
-		    }
-		    break;
-		case 't':
-		    trail='.';
-		    break;
+    for (x = 1; x < argc; x++) {
+	char *p;
+	p = argv[x];
+	if (*p == '-')
+	    p++;
+	switch (*p) {
+	case 'f':
+	    field = "WORM";
+	    break;
+	case 'l':
+	    if (++x == argc)
+		goto usage;
+	    if ((length = atoi(argv[x])) < 2 || length > 1024) {
+		fprintf(stderr, "%s: Invalid length\n", *argv);
+		return EXIT_FAILURE;
+	    }
+	    break;
+	case 'n':
+	    if (++x == argc)
+		goto usage;
+	    if ((number = atoi(argv[x])) < 1 || number > 40) {
+		fprintf(stderr, "%s: Invalid number of worms\n", *argv);
+		return EXIT_FAILURE;
+	    }
+	    break;
+	case 't':
+	    trail = '.';
+	    break;
 #ifdef TRACE
-		case 'S':
-		    singlestep = TRUE;
-		    break;
-		case 'T':
-		    trace_start = atoi(argv[++x]);
-		    trace_end   = atoi(argv[++x]);
-		    break;
-		case 'N':
-		    _nc_optimize_enable ^= OPTIMIZE_ALL;		/* declared by ncurses */
-		    break;
+	case 'S':
+	    singlestep = TRUE;
+	    break;
+	case 'T':
+	    trace_start = atoi(argv[++x]);
+	    trace_end = atoi(argv[++x]);
+	    break;
+	case 'N':
+	    _nc_optimize_enable ^= OPTIMIZE_ALL;	/* declared by ncurses */
+	    break;
 #endif /* TRACE */
-		default:
-		usage:
-		    fprintf(stderr, "usage: %s [-field] [-length #] [-number #] [-trail]\n",*argv);
-		    return EXIT_FAILURE;
-		}
+	default:
+	  usage:
+	    fprintf(stderr,
+		"usage: %s [-field] [-length #] [-number #] [-trail]\n", *argv);
+	    return EXIT_FAILURE;
+	}
     }
 
     signal(SIGINT, onsig);
@@ -219,154 +248,183 @@ int last, bottom;
 
     curs_set(0);
 
-    bottom = LINES-1;
-    last = COLS-1;
+    bottom = LINES - 1;
+    last = COLS - 1;
 
 #ifdef A_COLOR
-    if (has_colors())
-    {
+    if (has_colors()) {
 	int bg = COLOR_BLACK;
 	start_color();
 #ifdef NCURSES_VERSION
 	if (use_default_colors() == OK)
 	    bg = -1;
 #endif
- 
-	init_pair(COLOR_GREEN,   COLOR_GREEN,   bg);
-	init_pair(COLOR_RED,     COLOR_RED,     bg);
-	init_pair(COLOR_CYAN,    COLOR_CYAN,    bg);
-	init_pair(COLOR_WHITE,   COLOR_WHITE,   bg);
-	init_pair(COLOR_MAGENTA, COLOR_MAGENTA, bg);
-	init_pair(COLOR_BLUE,    COLOR_BLUE,    bg);
-	init_pair(COLOR_YELLOW,  COLOR_YELLOW,  bg);
 
-	flavor[0] |= COLOR_PAIR(COLOR_GREEN)   | A_BOLD;
-	flavor[1] |= COLOR_PAIR(COLOR_RED)     | A_BOLD;
-	flavor[2] |= COLOR_PAIR(COLOR_CYAN)    | A_BOLD;
-	flavor[3] |= COLOR_PAIR(COLOR_WHITE)   | A_BOLD;
-	flavor[4] |= COLOR_PAIR(COLOR_MAGENTA) | A_BOLD;
-	flavor[5] |= COLOR_PAIR(COLOR_BLUE)    | A_BOLD;
-	flavor[6] |= COLOR_PAIR(COLOR_YELLOW)  | A_BOLD;
+#define SET_COLOR(num, fg) \
+	    init_pair(num+1, fg, bg); \
+	    flavor[num] |= COLOR_PAIR(num+1) | A_BOLD
+
+	SET_COLOR(0, COLOR_GREEN);
+	SET_COLOR(1, COLOR_RED);
+	SET_COLOR(2, COLOR_CYAN);
+	SET_COLOR(3, COLOR_WHITE);
+	SET_COLOR(4, COLOR_MAGENTA);
+	SET_COLOR(5, COLOR_BLUE);
+	SET_COLOR(6, COLOR_YELLOW);
     }
 #endif /* A_COLOR */
 
-    ip=(short *)malloc(LINES*COLS*sizeof (short));
-
-    for (n=0;n<LINES;) {
-		ref[n++]=ip; ip+=COLS;
+    ref = typeAlloc(short *, LINES);
+    for (y = 0; y < LINES; y++) {
+	ref[y] = typeAlloc(short, COLS);
+	for (x = 0; x < COLS; x++) {
+	    ref[y][x] = 0;
+	}
     }
-    for (ip=ref[0],n=LINES*COLS;--n>=0;) *ip++=0;
 
 #ifdef BADCORNER
     /* if addressing the lower right corner doesn't work in your curses */
-    ref[bottom][last]=1;
+    ref[bottom][last] = 1;
 #endif /* BADCORNER */
 
-    for (n=number, w= &worm[0];--n>=0;w++) {
-		w->orientation=w->head=0;
-		if (!(ip=(short *)malloc((length+1)*sizeof (short)))) {
-		    fprintf(stderr,"%s: out of memory\n",*argv);
-		    return EXIT_FAILURE;
-		}
-		w->xpos=ip;
-		for (x=length;--x>=0;) *ip++ = -1;
-		if (!(ip=(short *)malloc((length+1)*sizeof (short)))) {
-		    fprintf(stderr,"%s: out of memory\n",*argv);
-		    return EXIT_FAILURE;
-		}
-		w->ypos=ip;
-		for (y=length;--y>=0;) *ip++ = -1;
+    for (n = number, w = &worm[0]; --n >= 0; w++) {
+	w->orientation = w->head = 0;
+	if (!(ip = typeAlloc(short, (length + 1)))) {
+	    fprintf(stderr, "%s: out of memory\n", *argv);
+	    return EXIT_FAILURE;
+	}
+	w->xpos = ip;
+	for (x = length; --x >= 0;)
+	    *ip++ = -1;
+	if (!(ip = typeAlloc(short, (length + 1)))) {
+	    fprintf(stderr, "%s: out of memory\n", *argv);
+	    return EXIT_FAILURE;
+	}
+	w->ypos = ip;
+	for (y = length; --y >= 0;)
+	    *ip++ = -1;
     }
     if (field) {
-		register const char *p;
-		p=field;
-		for (y=bottom;--y>=0;) {
-		    for (x=COLS;--x>=0;) {
-				addch((chtype)(*p++));
-				if (!*p) p=field;
-		    }
-            addch('\n');
-        }
+	const char *p;
+	p = field;
+	for (y = bottom; --y >= 0;) {
+	    for (x = COLS; --x >= 0;) {
+		addch((chtype) (*p++));
+		if (!*p)
+		    p = field;
+	    }
+	}
     }
     napms(10);
     refresh();
+#ifndef TRACE
+    nodelay(stdscr, TRUE);
+#endif
 
     for (;;) {
 #ifdef TRACE
-		if (trace_start || trace_end) {
-		    if (generation == trace_start) {
-			trace(TRACE_CALLS);
-			getch();
-		    } else if (generation == trace_end) {
-			trace(0);
-			getch();
+	if (trace_start || trace_end) {
+	    if (generation == trace_start) {
+		trace(TRACE_CALLS);
+		getch();
+	    } else if (generation == trace_end) {
+		trace(0);
+		getch();
+	    }
+
+	    if (singlestep && generation > trace_start && generation < trace_end)
+		getch();
+
+	    generation++;
+	}
+#else
+	if ((ch = getch()) > 0) {
+#ifdef KEY_RESIZE
+	    if (ch == KEY_RESIZE) {
+		if (last != COLS - 1) {
+		    for (y = 0; y <= bottom; y++) {
+			ref[y] = typeRealloc(short, COLS, ref[y]);
+			for (x = last + 1; x < COLS; x++)
+			    ref[y][x] = 0;
 		    }
-
-		    if (singlestep && generation > trace_start && generation < trace_end)
-			getch();
-
-		    generation++;
+		    last = COLS - 1;
 		}
+		if (bottom != LINES - 1) {
+		    ref = typeRealloc(short *, LINES, ref);
+		    for (y = COLS; y <= bottom; y++)
+			free(ref[y]);
+		    for (y = bottom + 1; y < LINES; y++) {
+			ref[y] = typeAlloc(short, COLS);
+			for (x = 0; x < COLS; x++)
+			    ref[y][x] = 0;
+		    }
+		    bottom = LINES - 1;
+		}
+	    }
+#endif
+	    /*
+	     * Make it simple to put this into single-step mode, or resume
+	     * normal operation -TD
+	     */
+	    if (ch == 'q') {
+		cleanup();
+		return (EXIT_SUCCESS);
+	    } else if (ch == 's') {
+		nodelay(stdscr, FALSE);
+	    } else if (ch == ' ') {
+		nodelay(stdscr, TRUE);
+	    }
+	}
 #endif /* TRACE */
 
-		for (n=0,w= &worm[0];n<number;n++,w++) {
-		    if ((x=w->xpos[h=w->head])<0) {
-				cursor(x=w->xpos[h]=0,y=w->ypos[h]=bottom);
-				addch(flavor[n % MAXWORMS]);
-				ref[y][x]++;
-		    }
-		    else y=w->ypos[h];
-		    if (++h==length) h=0;
-		    if (w->xpos[w->head=h]>=0) {
-				register int x1, y1;
-				x1=w->xpos[h]; y1=w->ypos[h];
-				if (--ref[y1][x1]==0) {
-				    cursor(x1,y1); addch(trail);
-				}
-		    }
-            op= &(x==0 ? (y==0 ? upleft : (y==bottom ? lowleft : left)) :
-                (x==last ? (y==0 ? upright : (y==bottom ? lowright : right)) :
-			(y==0 ? upper : (y==bottom ? lower : normal))))[w->orientation];
-		    switch (op->nopts) {
-		    case 0:
-				refresh();
-				curs_set(1);
-				endwin();
-				return EXIT_SUCCESS;
-		    case 1:
-				w->orientation=op->opts[0];
-				break;
-		    default:
-				w->orientation=op->opts[(int)(ranf()*(float)op->nopts)];
-		    }
-		    cursor(x+=xinc[w->orientation], y+=yinc[w->orientation]);
-
-		    if (y < 0 ) y = 0;
-		    addch(flavor[n % MAXWORMS]);
-		    ref[w->ypos[h]=y][w->xpos[h]=x]++;
+	for (n = 0, w = &worm[0]; n < number; n++, w++) {
+	    if ((x = w->xpos[h = w->head]) < 0) {
+		move(y = w->ypos[h] = bottom, x = w->xpos[h] = 0);
+		addch(flavor[n % MAXWORMS]);
+		ref[y][x]++;
+	    } else {
+		y = w->ypos[h];
+	    }
+	    if (x > last)
+		x = last;
+	    if (y > bottom)
+		y = bottom;
+	    if (++h == length)
+		h = 0;
+	    if (w->xpos[w->head = h] >= 0) {
+		int x1, y1;
+		x1 = w->xpos[h];
+		y1 = w->ypos[h];
+		if (y1 < LINES
+		    && x1 < COLS
+		    && --ref[y1][x1] == 0) {
+		    move(y1, x1);
+		    addch(trail);
 		}
-		napms(10);
-		refresh();
-    }
-}
+	    }
+	    op = &(x == 0 ? (y == 0 ? upleft : (y == bottom ? lowleft :
+			left)) :
+		(x == last ? (y == 0 ? upright : (y == bottom ? lowright :
+			    right)) :
+		    (y == 0 ? upper : (y == bottom ? lower : normal))))[w->orientation];
+	    switch (op->nopts) {
+	    case 0:
+		cleanup();
+		return EXIT_SUCCESS;
+	    case 1:
+		w->orientation = op->opts[0];
+		break;
+	    default:
+		w->orientation = op->opts[(int) (ranf() * (float) op->nopts)];
+	    }
+	    move(y += yinc[w->orientation], x += xinc[w->orientation]);
 
-static RETSIGTYPE
-onsig(int sig GCC_UNUSED)
-{
-	standend();
+	    if (y < 0)
+		y = 0;
+	    addch(flavor[n % MAXWORMS]);
+	    ref[w->ypos[h] = y][w->xpos[h] = x]++;
+	}
+	napms(10);
 	refresh();
-	curs_set(1);
-	endwin();
-	exit(EXIT_FAILURE);
-}
-
-static float
-ranf(void)
-{
-float rv;
-long r = rand();
-
-    r &= 077777;
-    rv =((float)r/32767.);
-    return rv;
+    }
 }
