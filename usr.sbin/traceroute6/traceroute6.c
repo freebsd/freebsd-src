@@ -365,6 +365,15 @@ main(argc, argv)
 	static u_char rcvcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))
 				+ CMSG_SPACE(sizeof(int))];
 
+	/*
+	 * Receive ICMP
+	 */
+	if ((rcvsock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
+		perror("traceroute6: icmp socket");
+		exit(5);
+	}
+	setuid(getuid());
+
 	on = 1;
 	seq = 0;
 
@@ -482,13 +491,6 @@ main(argc, argv)
 	}
 	(void) bzero((char *)outpacket, datalen);
 
-	/*
-	 * Receive ICMP
-	 */
-	if ((rcvsock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
-		perror("traceroute6: icmp socket");
-		exit(5);
-	}
 	/* initialize msghdr for receiving packets */
 	rcviov[0].iov_base = (caddr_t)packet;
 	rcviov[0].iov_len = sizeof(packet);
