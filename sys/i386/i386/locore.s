@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.52.4.1 1995/08/19 00:51:53 davidg Exp $
+ *	$Id: locore.s,v 1.52.4.2 1995/09/30 13:42:32 davidg Exp $
  */
 
 /*
@@ -100,9 +100,10 @@
  * Globals
  */
 	.data
+	.align	2		/* Just to be sure */
 
 	.globl	tmpstk
-	.space	0x1000		/* space for tmpstk - temporary stack */
+	.space	0x2000		/* space for tmpstk - temporary stack */
 tmpstk:
 /*
  * Dummy frame at top of tmpstk to help debuggers print a nice stack trace.
