@@ -45,7 +45,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: modeedit.c,v 1.1 1998/09/15 06:43:02 gibbs Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -76,7 +76,7 @@ iget(void *hook, char *name)
 	if (h->got >= h->argc)
 	{
 		fprintf(stderr, "Expecting an integer argument.\n");
-		usage();
+		usage(0);
 		exit(1);
 	}
 	arg = strtol(h->argv[h->got], 0, 0);
@@ -99,7 +99,7 @@ cget(void *hook, char *name)
 	if (h->got >= h->argc)
 	{
 		fprintf(stderr, "Expecting a character pointer argument.\n");
-		usage();
+		usage(0);
 		exit(1);
 	}
 	arg = h->argv[h->got];

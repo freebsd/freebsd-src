@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: camcontrol.8,v 1.9.2.1 1999/05/04 12:01:54 kris Exp $
+.\"	$Id: camcontrol.8,v 1.9.2.2 1999/05/07 00:42:43 ken Exp $
 .\"
 .Dd September 14, 1998
 .Dt CAMCONTROL 8
@@ -36,6 +36,7 @@
 .Sh SYNOPSIS
 .Nm camcontrol
 .Aq command
+.Op device id
 .Op generic args
 .Op command args
 .Nm camcontrol
@@ -43,25 +44,31 @@ devlist
 .Op Fl v
 .Nm camcontrol
 periphlist
+.Op device id
 .Op Fl n Ar dev_name
 .Op Fl u Ar unit_number
 .Nm camcontrol
 tur
+.Op device id
 .Op generic args
 .Nm camcontrol
 inquiry 
+.Op device id
 .Op generic args
 .Op Fl D
 .Op Fl S
 .Op Fl R
 .Nm camcontrol
 start
+.Op device id
 .Op generic args
 .Nm camcontrol
 stop
+.Op device id
 .Op generic args
 .Nm camcontrol
 eject
+.Op device id
 .Op generic args
 .Nm camcontrol
 rescan
@@ -71,12 +78,14 @@ reset
 .Aq bus Ns Op :target:lun
 .Nm camcontrol
 defects
+.Op device id
 .Op generic args
 .Aq Fl f Ar format
 .Op Fl P
 .Op Fl G
 .Nm camcontrol
 modepage
+.Op device id
 .Op generic args
 .Aq Fl m Ar page
 .Op Fl P Ar pgctl
@@ -84,6 +93,7 @@ modepage
 .Op Fl d
 .Nm camcontrol
 cmd
+.Op device id
 .Op generic args
 .Aq Fl c Ar cmd Op args
 .Op Fl i Ar len Ar fmt
@@ -99,12 +109,14 @@ debug
 .Aq all|off|bus Ns Op :target Ns Op :lun
 .Nm camcontrol
 tags
+.Op device id
 .Op generic args
 .Op Fl N Ar tags
 .Op Fl q
 .Op Fl v
 .Nm camcontrol
 negotiate
+.Op device id
 .Op generic args
 .Op Fl c
 .Op Fl D Ar enable|disable
@@ -115,6 +127,8 @@ negotiate
 .Op Fl U
 .Op Fl W Ar bus_width
 .Op Fl v
+.Nm camcontrol
+help
 .Sh DESCRIPTION
 .Nm camcontrol
 is a utility designed to provide a way for users to access and control the
@@ -127,8 +141,42 @@ expert users are encouraged to exercise caution when using this command.
 Novice users should stay away from this utility.
 .Pp
 .Nm camcontrol
-has a number of primary functions, most of which take some generic
-arguments:
+has a number of primary functions, many of which support an optional
+device identifier.  A device identifier can take one of three forms:
+.Bl -tag -width 01234567890123
+.It deviceUNIT
+Specify a device name and unit number combination, like "da5" or "cd3".
+Note that character device node names (e.g. /dev/rsd0.ctl) are
+.Em not
+allowed here.
+.It bus:target
+Specify a bus number and target id.  The bus number can be determined from
+the output of
+.Dq camcontrol devlist .
+The lun defaults to 0.
+.It bus:target:lun
+Specify the bus, target and lun for a device.  (e.g. 1:2:0)
+.El
+.Pp
+The device identifier, if it is specified,
+.Em must
+come immediately after the function name, and before any generic or
+function-specific arguments.  Note that the
+.Fl n
+and
+.Fl u
+arguments described below will override any device name or unit number
+specified beforehand.  The
+.Fl n
+and
+.Fl u
+arguments will
+.Em not
+override a specified bus:target or bus:target:lun, howevever.
+.Pp
+Most of the
+.Nm camcontrol
+primary functions support these generic arguments:
 .Bl -tag -width 01234567890123
 .It Fl C Ar count
 SCSI command retry count.  In order for this to work, error recovery
@@ -461,6 +509,8 @@ device until a command has been sent to the device.  The
 .Fl a
 switch above will automatically send a Test Unit Ready to the device so
 negotiation parameters will take effect.
+.It help
+Print out a verbose usage information.
 .El
 .Sh ENVIRONMENT
 The
@@ -497,7 +547,7 @@ information if the command fails since the
 switch was not specified.
 .Pp
 .Bd -literal -offset foobar
-camcontrol tur -n da -u 1 -E -C 4 -t 50 -v
+camcontrol tur da1 -E -C 4 -t 50 -v
 .Ed
 .Pp
 Send a test unit ready command to da1.  Enable kernel error recovery.
@@ -528,7 +578,7 @@ the command fails.  Be very careful with this command, improper use may
 cause data corruption.
 .Pp
 .Bd -literal -offset foobar
-camcontrol modepage -n da -u 3 -m 1 -e -P 3
+camcontrol modepage da3 -m 1 -e -P 3
 .Ed
 .Pp
 Edit mode page 1 (the Read-Write Error Recover page) for da3, and save the
@@ -544,7 +594,7 @@ Rescan SCSI bus 0 for devices that have been added, removed or changed.
 Rescan SCSI bus 0, target 1, lun 0 to see if it has been added, removed, or
 changed.
 .Pp
-.Dl camcontrol tags -n da -u 5 -N 24
+.Dl camcontrol tags da5 -N 24
 .Pp
 Set the number of concurrent transactions for da5 to 24.
 .Pp
