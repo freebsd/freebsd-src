@@ -15,6 +15,9 @@
 .\"
 .\" Support and other services are available for ISC products - see
 .\" http://www.isc.org for more information.
+.\"
+.\" $Id: dhclient.8,v 1.12.2.6 2002/06/08 08:23:28 murray Exp $
+.\"
 .TH dhclient 8
 .SH NAME
 dhclient - Dynamic Host Configuration Protocol Client
@@ -135,7 +138,7 @@ than cycling through the list of old leases.
 The names of the network interfaces that dhclient should attempt to
 configure may be specified on the command line.  If no interface names
 are specified on the command line dhclient will normally identify all
-network interfaces, elimininating non-broadcast interfaces if
+network interfaces, eliminating non-broadcast interfaces if
 possible, and attempt to configure each interface.
 .PP
 It is also possible to specify interfaces by name in the

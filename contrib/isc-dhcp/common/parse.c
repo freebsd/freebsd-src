@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: parse.c,v 1.104.2.9 2002/04/27 05:30:02 murray Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: parse.c,v 1.104.2.10 2002/11/03 04:31:55 dhankins Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -329,7 +329,7 @@ int parse_ip_addr (cfile, addr)
 
 /*
  * hardware-parameter :== HARDWARE hardware-type colon-seperated-hex-list SEMI
- * hardware-type :== ETHERNET | TOKEN_RING
+ * hardware-type :== ETHERNET | TOKEN_RING | FDDI
  */
 
 void parse_hardware_param (cfile, hardware)
