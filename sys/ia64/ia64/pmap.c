@@ -198,6 +198,7 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 
 vm_offset_t vhpt_base, vhpt_size;
+struct mtx pmap_vhptmutex;
 
 /*
  * We use an object to own the kernel's 'page tables'. For simplicity,
@@ -452,6 +453,9 @@ pmap_bootstrap()
 
 	vhpt_base = IA64_PHYS_TO_RR7(vhpt_base);
 	bzero((void *) vhpt_base, (1L << vhpt_size));
+
+	mtx_init(&pmap_vhptmutex, "VHPT collision chain lock", NULL, MTX_DEF);
+
 	__asm __volatile("mov cr.pta=%0;; srlz.i;;"
 			 :: "r" (vhpt_base + (1<<8) + (vhpt_size<<2) + 1));
 
@@ -982,13 +986,17 @@ pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 	if (vhpte->pte_chain)
 		pmap_vhpt_collisions++;
 
+	mtx_lock(&pmap_vhptmutex);
+
 	pte->pte_chain = vhpte->pte_chain;
-	vhpte->pte_chain = ia64_tpa((vm_offset_t) pte);
+	ia64_mf();
+	vhpte->pte_chain = ia64_tpa((vm_offset_t)pte);
+	ia64_mf();
 
 	if (!vhpte->pte_p && pte->pte_p)
 		pmap_install_pte(vhpte, pte);
-	else
-		ia64_mf();
+
+	mtx_unlock(&pmap_vhptmutex);
 }
 
 /*
@@ -999,11 +1007,14 @@ pmap_update_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 {
 	struct ia64_lpte *vhpte;
 
-	vhpte = (struct ia64_lpte *) ia64_thash(va);
+	vhpte = (struct ia64_lpte *)ia64_thash(va);
 
-	if ((!vhpte->pte_p || vhpte->pte_tag == pte->pte_tag)
-	    && pte->pte_p)
+	mtx_lock(&pmap_vhptmutex);
+
+	if ((!vhpte->pte_p || vhpte->pte_tag == pte->pte_tag) && pte->pte_p)
 		pmap_install_pte(vhpte, pte);
+
+	mtx_unlock(&pmap_vhptmutex);
 }
 
 /*
@@ -1017,37 +1028,37 @@ pmap_remove_vhpt(vm_offset_t va)
 	struct ia64_lpte *lpte;
 	struct ia64_lpte *vhpte;
 	u_int64_t tag;
-	int error = ENOENT;
 
-	vhpte = (struct ia64_lpte *) ia64_thash(va);
+	vhpte = (struct ia64_lpte *)ia64_thash(va);
 
 	/*
 	 * If the VHPTE is invalid, there can't be a collision chain.
 	 */
 	if (!vhpte->pte_p) {
 		KASSERT(!vhpte->pte_chain, ("bad vhpte"));
-		printf("can't remove vhpt entry for 0x%lx\n", va);
-		goto done;
+		return (ENOENT);
 	}
 
 	lpte = vhpte;
-	pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(vhpte->pte_chain);
 	tag = ia64_ttag(va);
+
+	mtx_lock(&pmap_vhptmutex);
+
+	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(vhpte->pte_chain);
+	KASSERT(pte != NULL, ("foo"));
 
 	while (pte->pte_tag != tag) {
 		lpte = pte;
-		if (pte->pte_chain)
-			pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(pte->pte_chain);
-		else {
-			printf("can't remove vhpt entry for 0x%lx\n", va);
-			goto done;
+		if (pte->pte_chain == 0) {
+			mtx_unlock(&pmap_vhptmutex);
+			return (ENOENT);
 		}
+		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->pte_chain);
 	}
 
-	/*
-	 * Snip this pv_entry out of the collision chain.
-	 */
+	/* Snip this pv_entry out of the collision chain. */
 	lpte->pte_chain = pte->pte_chain;
+	ia64_mf();
 
 	/*
 	 * If the VHPTE matches as well, change it to map the first
@@ -1055,19 +1066,15 @@ pmap_remove_vhpt(vm_offset_t va)
 	 */
 	if (vhpte->pte_tag == tag) {
 		if (vhpte->pte_chain) {
-			pte = (struct ia64_lpte *)
-				IA64_PHYS_TO_RR7(vhpte->pte_chain);
+			pte = (void*)IA64_PHYS_TO_RR7(vhpte->pte_chain);
 			pmap_install_pte(vhpte, pte);
-		} else {
+		} else
 			vhpte->pte_p = 0;
-			ia64_mf();
-		}
 	}
 
+	mtx_unlock(&pmap_vhptmutex);
 	pmap_vhpt_resident--;
-	error = 0;
- done:
-	return error;
+	return (0);
 }
 
 /*
@@ -1079,28 +1086,19 @@ pmap_find_vhpt(vm_offset_t va)
 	struct ia64_lpte *pte;
 	u_int64_t tag;
 
-	pte = (struct ia64_lpte *) ia64_thash(va);
-	if (!pte->pte_chain) {
-		pte = 0;
-		goto done;
-	}
-
 	tag = ia64_ttag(va);
-	pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(pte->pte_chain);
-
+	pte = (struct ia64_lpte *)ia64_thash(va);
+	if (pte->pte_chain == 0)
+		return (NULL);
+	pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->pte_chain);
 	while (pte->pte_tag != tag) {
-		if (pte->pte_chain) {
-			pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(pte->pte_chain);
-		} else {
-			pte = 0;
-			break;
-		}
+		if (pte->pte_chain == 0)
+			return (NULL);
+		pte = (struct ia64_lpte *)IA64_PHYS_TO_RR7(pte->pte_chain);
 	}
-
- done:
-	return pte;
+	return (pte);
 }
-	
+
 /*
  * Remove an entry from the list of managed mappings.
  */
