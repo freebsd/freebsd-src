@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.115.2.16 1999/05/12 09:32:51 jkh Exp $
+ * $Id: config.c,v 1.115.2.17 1999/05/14 15:04:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -724,7 +724,8 @@ configPackages(dialogMenuItem *self)
 	    if (ret & DITEM_LEAVE_MENU)
 		break;
 	    else if (DITEM_STATUS(ret) != DITEM_FAILURE) {
-		index_extract(mediaDevice, &Top, &Plist);
+		for (tmp = Plist.kids; tmp && tmp->name; tmp = tmp->next)
+		    (void)index_extract(mediaDevice, &Top, tmp, FALSE);
 		break;
 	    }
 	}

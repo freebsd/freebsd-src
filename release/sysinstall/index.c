@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.60.2.4 1999/05/12 09:04:12 jkh Exp $
+ * $Id: index.c,v 1.60.2.5 1999/05/14 12:15:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,7 +70,7 @@ _strdup(char *ptr)
 static char *descrs[] = {
     "Package Selection", "To mark a package, move to it and press SPACE.  If the package is\n"
     "already marked, it will be unmarked or deleted (if installed).\n"
-    "Items marked with a 'D' are dependencies which will be auto-loaded\n."
+    "Items marked with a `D' are dependencies which will be auto-loaded.\n"
     "To search for a package by name, press ESC.  To select a category,\n"
     "press RETURN.  NOTE:  The All category selection creates a very large\n"
     "submenu!  If you select it, please be patient while it comes up.",
@@ -375,8 +375,7 @@ index_sort(PkgNodePtr top)
 	}
     }
 
-    /* Now sub-sort everything n levels down */
-    
+    /* Now sub-sort everything n levels down */    
     for (p = top->kids; p; p = p->next) {
 	if (p->kids)
 	    index_sort(p);
@@ -407,24 +406,23 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
     PkgNodePtr p, sp;
 
     for (p = top->kids; p && p->name; p = p->next) {
-	/* Subtract out the All category from searches */
-	if (!strcmp(p->name, "All"))
-	    continue;
+	if (p->type == PACKAGE) {
+	    /* If tp == NULL, we're looking for an exact package match */
+	    if (!tp && !strcmp(p->name, str))
+		return p;
 
-	/* If tp == NULL, we're looking for an exact package match */
-	if (!tp && !strcmp(p->name, str))
-	    return p;
+	    /* If tp, we're looking for both a package and a pointer to the place it's in */
+	    if (tp && !strncmp(p->name, str, strlen(str))) {
+		*tp = top;
+		return p;
+	    }
 
-	/* If tp, we're looking for both a package and a pointer to the place it's in */
-	if (tp && !strncmp(p->name, str, strlen(str))) {
-	    *tp = top;
-	    return p;
 	}
-
-	/* The usual recursion-out-of-laziness ploy */
-	if (p->kids)
+	else if (p->kids) {
+	    /* The usual recursion-out-of-laziness ploy */
 	    if ((sp = index_search(p, str, tp)) != NULL)
 		return sp;
+	}
     }
     if (p && !p->name)
 	p = NULL;
@@ -621,19 +619,7 @@ recycle:
 }
 
 int
-index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
-{
-    PkgNodePtr tmp;
-    int status = DITEM_SUCCESS;
-
-    for (tmp = plist->kids; tmp && tmp->name; tmp = tmp->next)
-	if (DITEM_STATUS(index_extract_one(dev, top, tmp, FALSE)) != DITEM_SUCCESS)
-	    status = DITEM_FAILURE;
-    return status | DITEM_RESTORE;
-}
-
-int
-index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
+index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 {
     int status = DITEM_SUCCESS;
     PkgNodePtr tmp2;
@@ -648,7 +634,7 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 	    if ((cp2 = index(cp, ' ')) != NULL)
 		*cp2 = '\0';
 	    if ((tmp2 = index_search(top, cp, NULL)) != NULL) {
-		status = index_extract_one(dev, top, tmp2, TRUE);
+		status = index_extract(dev, top, tmp2, TRUE);
 		if (DITEM_STATUS(status) != DITEM_SUCCESS) {
 		    if (variable_get(VAR_NO_CONFIRM))
 			msgNotify("Loading of dependant package %s failed", cp);
