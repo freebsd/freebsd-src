@@ -347,5 +347,3 @@ vnode_if.o:
 #.endif
 
 %RULES
-
-# DO NOT DELETE THIS LINE -- make depend uses it
