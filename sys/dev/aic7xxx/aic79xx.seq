@@ -276,7 +276,7 @@ fetch_new_scb_done:
 	 * knows the correct location to store the SCB.
 	 * Set it to zero before processing the SCB.
 	 */
-	mov	SCB_FIFO_USE_COUNT, ALLZEROS;
+	clr	SCB_FIFO_USE_COUNT;
 	/* Update the next SCB address to download. */
 	bmov	NEXT_QUEUED_SCB_ADDR, SCB_NEXT_SCB_BUSADDR, 4;
 	mvi	SCB_NEXT[1], SCB_LIST_NULL;
@@ -582,9 +582,6 @@ found_last_sent_scb:
 		bmov	CURRSCB, SCBPTR, 2;
 curscb_ww_done:
 	} else {
-		/*
-		 * Untested - Verify with Rev B.
-		 */
 		bmov	SCBPTR, CURRSCB, 2;
 	}
 
@@ -1959,12 +1956,14 @@ SET_DST_MODE	M_SCSI;
 	test	SSTAT0, SELDO jnz return;
 	mvi	SCBPTR[1], SCB_LIST_NULL;
 unexpected_nonpkt_phase:
-	test	MODE_PTR, ~(MK_MODE(M_DFF1, M_DFF1)) jnz . + 3;
+	test	MODE_PTR, ~(MK_MODE(M_DFF1, M_DFF1))
+		jnz unexpected_nonpkt_mode_cleared;
 SET_SRC_MODE	M_DFF0;
 SET_DST_MODE	M_DFF0;
 	or	LONGJMP_ADDR[1], INVALID_ADDR;
 	dec	SCB_FIFO_USE_COUNT;
 	mvi	DFFSXFRCTL, CLRCHN;
+unexpected_nonpkt_mode_cleared:
 	mvi	CLRSINT2, CLRNONPACKREQ;
 	test	SCSIPHASE, ~(MSG_IN_PHASE|MSG_OUT_PHASE) jnz illegal_phase;
 	SET_SEQINTCODE(ENTERING_NONPACK)

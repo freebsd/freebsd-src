@@ -372,7 +372,8 @@ typedef enum {
 	AHD_HP_BOARD	      = 0x100000,
 	AHD_RESET_POLL_ACTIVE = 0x200000,
 	AHD_UPDATE_PEND_CMDS  = 0x400000,
-	AHD_RUNNING_QOUTFIFO  = 0x800000
+	AHD_RUNNING_QOUTFIFO  = 0x800000,
+	AHD_HAD_FIRST_SEL     = 0x1000000
 } ahd_flag;
 
 /************************* Hardware  SCB Definition ***************************/
