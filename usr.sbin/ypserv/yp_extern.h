@@ -71,7 +71,7 @@ extern char	*yp_dir;
 extern pid_t	yp_pid;
 
 extern enum ypstat	yp_errno;
-extern void	yp_error __P((const char *, ...));
+extern void	yp_error __P((const char *, ...)) __printflike(1, 2);
 #ifdef DB_CACHE
 extern int	yp_get_record __P(( DB *, const DBT *, DBT *, int));
 #else
