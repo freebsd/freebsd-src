@@ -195,7 +195,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		} else {
 			if (length != 0)
 				panic("ffs_truncate: partial trunc of extdata");
-			if ((error = VOP_FSYNC(ovp, MNT_WAIT, td)) != 0)
+			if ((error = ffs_syncvnode(ovp, MNT_WAIT)) != 0)
 				return (error);
 			osize = oip->i_din2->di_extsize;
 			oip->i_din2->di_blocks -= extblocks;
@@ -265,7 +265,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			 * rarely, we solve the problem by syncing the file
 			 * so that it will have no data structures left.
 			 */
-			if ((error = VOP_FSYNC(ovp, MNT_WAIT, td)) != 0)
+			if ((error = ffs_syncvnode(ovp, MNT_WAIT)) != 0)
 				return (error);
 			UFS_LOCK(ump);
 			if (oip->i_flag & IN_SPACECOUNTED)
@@ -334,7 +334,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		 */
 		if (DOINGSOFTDEP(ovp) && lbn < NDADDR &&
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
-		    (error = VOP_FSYNC(ovp, MNT_WAIT, td)) != 0)
+		    (error = ffs_syncvnode(ovp, MNT_WAIT)) != 0)
 			return (error);
 		oip->i_size = length;
 		DIP_SET(oip, i_size, length);

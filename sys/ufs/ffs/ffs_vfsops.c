@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/disk.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 
@@ -1116,7 +1115,7 @@ loop:
 				goto loop;
 			continue;
 		}
-		if ((error = VOP_FSYNC(vp, waitfor, td)) != 0)
+		if ((error = ffs_syncvnode(vp, waitfor)) != 0)
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);

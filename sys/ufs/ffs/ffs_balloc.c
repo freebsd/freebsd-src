@@ -103,7 +103,6 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	ufs1_daddr_t *bap, pref;
 	ufs1_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
 	int unwindidx = -1;
-	struct thread *td = curthread;	/* XXX */
 
 	ip = VTOI(vp);
 	dp = ip->i_din1;
@@ -403,7 +402,7 @@ fail:
 	 * occurence. The error return from fsync is ignored as we already
 	 * have an error to return to the user.
 	 */
-	(void) VOP_FSYNC(vp, MNT_WAIT, td);
+	(void) ffs_syncvnode(vp, MNT_WAIT);
 	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number);
@@ -441,7 +440,7 @@ fail:
 		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
-	(void) VOP_FSYNC(vp, MNT_WAIT, td);
+	(void) ffs_syncvnode(vp, MNT_WAIT);
 	return (error);
 }
 
@@ -467,7 +466,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	ufs2_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
 	int deallocated, osize, nsize, num, i, error;
 	int unwindidx = -1;
-	struct thread *td = curthread;	/* XXX */
 
 	ip = VTOI(vp);
 	dp = ip->i_din2;
@@ -882,7 +880,7 @@ fail:
 	 * occurence. The error return from fsync is ignored as we already
 	 * have an error to return to the user.
 	 */
-	(void) VOP_FSYNC(vp, MNT_WAIT, td);
+	(void) ffs_syncvnode(vp, MNT_WAIT);
 	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number);
@@ -920,6 +918,6 @@ fail:
 		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
-	(void) VOP_FSYNC(vp, MNT_WAIT, td);
+	(void) ffs_syncvnode(vp, MNT_WAIT);
 	return (error);
 }

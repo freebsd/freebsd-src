@@ -155,22 +155,24 @@ struct vop_vector ffs_fifoops = {
  */
 /* ARGSUSED */
 static int
-ffs_fsync(ap)
-	struct vop_fsync_args /* {
-		struct vnode *a_vp;
-		struct ucred *a_cred;
-		int a_waitfor;
-		struct thread *a_td;
-	} */ *ap;
+ffs_fsync(struct vop_fsync_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
+	int error;
+
+	error = ffs_syncvnode(ap->a_vp, ap->a_waitfor);
+	return (error);
+}
+
+int
+ffs_syncvnode(struct vnode *vp, int waitfor)
+{
 	struct inode *ip = VTOI(vp);
 	struct buf *bp;
 	struct buf *nbp;
 	int s, error, wait, passes, skipmeta;
 	ufs_lbn_t lbn;
 
-	wait = (ap->a_waitfor == MNT_WAIT);
+	wait = (waitfor == MNT_WAIT);
 	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
 
 	/*
@@ -277,7 +279,7 @@ loop:
 		 * with the vnode has been written.
 		 */
 		splx(s);
-		if ((error = softdep_sync_metadata(ap)) != 0)
+		if ((error = softdep_sync_metadata(vp)) != 0)
 			return (error);
 		s = splbio();
 
