@@ -143,7 +143,7 @@ fetchiostat()
 {
 	if (namelist[X_DK_BUSY].n_type == 0)
 		return;
-	NREAD(X_DK_BUSY, &s.dk_busy, LONG);
+	NREAD(X_DK_BUSY, &s.dk_busy, sizeof(s.dk_busy));
 	NREAD(X_DK_TIME, s.dk_time, dk_ndrive * LONG);
 	NREAD(X_DK_XFER, s.dk_xfer, dk_ndrive * LONG);
 	NREAD(X_DK_WDS, s.dk_wds, dk_ndrive * LONG);
