@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
- * $Id: lfs_bio.c,v 1.3 1994/08/02 07:54:31 davidg Exp $
+ * $Id: lfs_bio.c,v 1.4 1994/08/20 03:49:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -100,8 +100,9 @@ lfs_bwrite(ap)
 		    bp->b_lblkno > 0) {
 			/* Out of space, need cleaner to run */
 			wakeup(&lfs_allclean_wakeup);
-			if (error = tsleep(&fs->lfs_avail, PCATCH | PUSER,
-			    "cleaner", NULL)) {
+			error = tsleep(&fs->lfs_avail, PCATCH | PUSER,
+			    "cleaner", NULL);
+			if (error) {
 				brelse(bp);
 				return (error);
 			}

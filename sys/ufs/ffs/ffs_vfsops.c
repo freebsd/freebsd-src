@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.7 1994/09/22 01:57:27 wollman Exp $
+ * $Id: ffs_vfsops.c,v 1.8 1994/10/08 06:20:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -558,7 +558,9 @@ ffs_flushfiles(mp, flags, p)
 	ump = VFSTOUFS(mp);
 #ifdef QUOTA
 	if (mp->mnt_flag & MNT_QUOTA) {
-		if (error = vflush(mp, NULLVP, SKIPSYSTEM|flags))
+		int i;
+		error = vflush(mp, NULLVP, SKIPSYSTEM|flags);
+		if (error)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if (ump->um_quotas[i] == NULLVP)
@@ -724,8 +726,11 @@ ffs_vget(mp, ino, vpp)
 	ip->i_dev = dev;
 	ip->i_number = ino;
 #ifdef QUOTA
+	{
+	int i;
 	for (i = 0; i < MAXQUOTAS; i++)
 		ip->i_dquot[i] = NODQUOT;
+	}
 #endif
 	/*
 	 * Put it onto its hash chain and lock it so that other requests for

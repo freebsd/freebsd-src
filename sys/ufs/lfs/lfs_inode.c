@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.2 1994/08/02 07:54:35 davidg Exp $
+ * $Id: lfs_inode.c,v 1.3 1994/08/29 06:09:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -347,7 +347,7 @@ lfs_truncate(ap)
 	ip->i_blocks -= blocksreleased;
 #ifdef DIAGNOSTIC
 	if (length == 0 && ip->i_blocks != 0)
-		printf("lfs_inode: Warning! %s%d%s\n",
+		printf("lfs_inode: Warning! %s%ld%s\n",
 		    "Truncation to zero, but ", ip->i_blocks,
 		    " blocks left on inode");
 #endif

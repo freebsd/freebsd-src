@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.3 1994/08/02 07:55:00 davidg Exp $
+ * $Id: ufs_readwrite.c,v 1.4 1994/08/08 09:11:44 davidg Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -143,8 +143,9 @@ READ(ap)
 				break;
 			xfersize = size;
 		}
-		if (error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio))
+		error =
+		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		if (error)
 			break;
 
 		brelse(bp);

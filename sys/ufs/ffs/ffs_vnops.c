@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.5 1994/09/22 19:38:32 wollman Exp $
+ * $Id: ffs_vnops.c,v 1.6 1994/10/06 21:06:59 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/file.h>
 #include <sys/stat.h>
