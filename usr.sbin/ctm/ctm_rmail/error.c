@@ -12,6 +12,11 @@
  * Maybe you should write some free software too.
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -58,7 +63,7 @@ err_prog_name(char *name)
  * decoded and appended.
  */
 void
-err(char *fmt, ...)
+err(const char *fmt, ...)
     {
     va_list ap;
     time_t now;
