@@ -1,0 +1,15 @@
+#	@(#)DomainOS.10.4	8.1	(Berkeley)	6/24/98
+define(`confCC', `cc -A nansi -A,systype,any -A,runtype,bsd4.3')
+define(`confBEFORE', `dirent.h')
+define(`confMAPDEF', `-DNDBM')
+define(`confSBINDIR', `/usr/etc')
+define(`confMBINDIR', `/usr/lib')
+define(`confUBINDIR', `/usr/ucb')
+define(`confEBINDIR', `/usr/lib')
+define(`confSTDIR', `/usr/lib')
+define(`confHFDIR', `/usr/lib')
+PUSHDIVERT(3)
+dirent.h:
+	echo "#include <sys/dir.h>" > dirent.h
+	echo "#define dirent	direct" >> dirent.h
+POPDIVERT

@@ -1,0 +1,446 @@
+
+		     Converting Standard Sun Config
+		      Files to Sendmail Version 8
+
+			      Rick McCarty
+			 Texas Instruments Inc.
+		     Latest Update: 08/25/93 - RJMc
+
+This document details the changes necessary to continue using your
+current SunOS sendmail.cf with sendmail version 8.  In the longer term,
+it is recommended that one move to using an m4 based configuration such
+as those shipped with sendmail, but if you're like me and have made
+enough modifications to your .cf file that you'd rather put that task
+off until later, here's the sum total of my experience to get you to
+version 8 with minimal pain.  I'll cover .cf as well as build issues.
+
+Some background - as many are surely aware, Sun has some "special"
+features in the sendmail they ship ($%x, %y LHS lookup, NIS alias DB
+search, etc.).  (Some of those features can be had in alternative forms
+in IDA sendmail, but v8 has picked up some IDA capabilities as well as
+new ones, making it IMHO a most desirable version to go to.)  What I
+will explain below includes v8 functional "equivalences" to these Sun
+sendmail features.
+
+So with that out of the way, let's begin.
+
+First, some assumptions:
+
+	1) I'm going to assume you've got sendmail version 8.6 or
+	   later in hand - if not, grab it from ftp.cs.berkeley.edu
+	   in the ucb/sendmail directory.  There are bugs in earlier
+	   versions which affect some of the needed functionality.
+
+	2) Second, I'm going to detail this based upon the
+	   "sendmail.main.cf" configuration.  (BTW, if you attempt
+	   to move to using an m4 generated config in the future,
+	   MAIL_HUB is the feature which should provide similar
+	   functionality).
+
+	   In general, the changes will be similar for a subsidiary
+	   file, but since we (my TI group) funnel all non-local mail
+	   through our mailhost, we're not as interested in getting v8
+	   to run on such systems and I haven't tried it.
+
+	3) You're using DNS and sendmail.mx.  If you're not, you ought
+	   to be, even if you're also running it along with NIS (which
+	   we do - except for gethostbyxxx() lookups, which I'll be
+	   talking about later).  I would imagine you could get things
+	   running OK without DNS support, but I haven't tried it myself.
+
+	4) You're not mounting /var/spool/mail from other systems.
+	   I haven't found a v8 feature to guarantee this will work
+	   correctly.  Anyway, in the past, we've tried doing that
+	   here and found it to be a rather "ugly" feature, though
+	   Sun ostensibly supports it ("R" option).  Perhaps v8
+	   will one day have a similar feature, but for now, bottom
+	   line, I would recommend against it.
+
+	5) You're not on Solaris or using NIS+.  I'm on 4.1.3.  I've
+	   looked at Solaris briefly and have noted that things are
+	   pretty much similar there except that they've moved some
+	   things into the /etc/mail directory.  I'd guess the
+	   executables aren't functionally all that different from
+	   what they had before - the configs are roughly the same.
+	   So I'd bet most of what I say in here will apply to
+	   Solaris.
+
+OK, let's configure our sendmail.cf!  I'll just go from the top down...
+
+			  VARIOUS DECLARATIONS
+
+1) For v8, you need to define your .cf as AT LEAST a version level 4
+   configuration.  Add the following line:
+
+	V4
+
+   There are some issues regarding certain predefined macros - $w, $j, and
+   $m.  With a V4 configuration:
+
+	$w is defined to be the hostname, which will usually be fully
+	qualified (i.e. "firefly.add.itg.ti.com").
+
+	$j should have the same value as $w.
+
+	$m will be predefined as the domain portion of $w
+	(ex. "add.itg.ti.com").
+
+   One note about this - if your configuration relies on the "w" macro to
+   be the "simple" hostname (as mine does)...
+
+   If the configuration version is 5 or larger:
+
+	$w is supposed to be the "simple" name (ex. "firefly")
+
+	$j should be the fully qualified name (i.e. "firefly.add.itg.ti.com")
+
+	$m will be predefined as the domain portion of $j
+	(ex. "add.itg.ti.com").
+
+   I have not experimented with the various combinations, so I cannot
+   guarantee you that the above definitions will always come out as
+   expected.  Bottom line:  if your sendmail.cf depends on $w being the
+   simple hostname, test it carefully or define the name explicitly,
+   for example:
+
+	Dwfirefly
+
+2) To replace the Sun's "%y" feature, we must use a hostname mapping
+   feature in v8.  If you want to do similar lookups with v8, you need
+   to define the following map (we'll go over the rules that use this
+   map later):
+
+	Khostlookup host -f -m -a.
+
+   This will define a "lookup only" map that is otherwise the same as
+   sendmail version 8's built-in "host" map (see the "Sendmail
+   Installation and Operation Guide" for details on this map.).
+
+   An important note:  Whether or not these lookups will be done via
+   NIS is a function of what gethostbyxxx() functions you link into
+   your sendmail.  DO NOT redefine your host mapping to use NIS
+   explicitly within sendmail - there can be unexpected behaviour if
+   you do so (if you do any canonicalization in your .cf, you can get
+   incorrect results, for one thing).
+
+   For example, DO NOT TRY:
+
+	Khost nis -f -a. hosts.byname
+
+3) If you're doing reverse alias mapping as done in ruleset 22, instead of:
+
+	DZmail.byaddr
+
+   you'll need to declare the following:
+
+	Kaliasrev nis -f -N mail.byaddr
+
+4) If you are doing any other NIS map lookups, you'll need to define the
+   map as done in the below example.  I have a "mailhosts" map, which I
+   use to distinguish between local and non-local hosts.  Look at the
+   sendmail doc for details on this stuff.
+
+	Kmailhosts nis -f -m -a. mailhosts 
+
+5) You might wish to add the following line to support Errors-To: headers.
+   I don't.
+
+	Ol
+
+6) Comment out/remove the following line:
+
+	OR
+
+   The R option means something different under v8 - check the documentation
+   if you're interested in using it.
+
+7) If you're running NIS and have a separate alias map, BELOW the
+   following line where the alias file is declared:
+
+	OA/etc/aliases
+
+   ADD the following:
+
+	OAnis:mail.aliases
+
+   This will set things up so v8 will look at the local alias DB first,
+   then the NIS map, just as Sun sendmail does.
+
+8) Though you don't have to, I'd suggest changing:
+
+	OT3d
+
+   to use v8's warning feature, which allows a warning message to be
+   sent if a message cannot be delivered within a specified period.
+   I use:
+
+	OT5d/4h
+
+   which says - bounce after 5 days, warn after 4 hours.
+
+9) I set the following option to be explicit about how I want DNS
+    handled:
+
+	OI +DNSRCH +DEFNAMES
+
+10) The following line:
+
+	T root daemon uucp
+
+    may be deleted, though it will be ignored if you leave it around.
+
+11) It would probably be good to change the version macro value (which
+    shows up in "Received:" headers) so no one debugging mail problems
+    gets the wrong idea about what config you're running under.  Look
+    for something like:
+
+	DVSMI-4.1
+
+    Mine, for example is:
+
+	DVADD-HUB-2.1
+
+				RULESETS
+
+1)  In ruleset 3, BELOW this rule:
+
+	# basic textual canonicalization
+	R$*<$+>$*		$2			basic RFC822 parsing
+
+
+I add the following rule to remove a trailing dot in the domain spec so
+it won't interfere with v8 mapping features, etc.  (Having a trailing dot is
+not RFC-compliant anyway.):
+
+	R$+.			$1
+
+2) Because ruleset 5 is special in v8, I rename it to S95 and also change
+   all RHS expressions containing ">5" to use ">95" instead.  In v8,
+   5 is executed against addresses which resolve to the local mailer and
+   are not an alias.  If you don't change S5 to something else, you might
+   get a surprise!
+
+3) If you're doing any lookups via the generalized NIS "$%x/$!x"
+   mechanisms (such as with the mailhost map I referred to earlier) it's
+   done differently under v8.  For example:
+
+	DMmailhosts
+	...
+	R$*<@$%M.uucp>$*	$#ether $@$2 $:$1<@$2>$3
+
+   takes a different map definition and two rules under version 8:
+
+	Kmailhosts nis -f -m -a. mailhosts
+	...
+	R$*<@$+.uucp>$*		$: $1<@$(mailhosts $2 $).uucp>$3
+	R$*<@$+..uucp>$*	$#ether $@$2 $:$1<@$2>$3
+
+4) Sun has a special case of the "$%x" feature for host lookups - "%y" is
+   automagically defined to do an NIS "hosts.byname" search with no other
+   definition, as done in the below example:
+
+	R$*<@$%y.LOCAL>$*	$#ether $@$2 $:$1<@$2>$3
+
+   (Sun does this in more than one place.  But the above syntax is almost
+    identical in each - mostly a case of changing names to protect the
+    innocent.)
+
+   In version 8, the predefined "host" map can be used to do essentially
+   the same thing.  (However, whether or not it does an NIS lookup is
+   a function of what gethostbyxxx() functions are linked in.)
+
+   Recall the map definition I mentioned earlier in the DECLARATIONS
+   section:
+
+	Khostlookup host -f -m -a.
+
+   Here's where we will use it.  It will take two rules:
+
+	R$*<@$+.LOCAL>$*	$: $1<@$(hostlookup $2 $).LOCAL>$3
+	R$*<@$+..LOCAL>$*	$#ether $@$2 $:$1<@$2>$3
+
+   Note that this is almost verbatim the same change as was used in the
+   previous "mailhosts" example.
+
+5) Although Sun's default configs don't do this, because I mentioned
+   canonicalization earlier, it deserves an example, as it's illustrative
+   of the functional difference in the map definitions I discussed before.
+   This stuff is also convered in the "Sendmail Installation and Operation
+   Guide".
+
+   Remember the built-in "host" map definition?  As you'll recall, unlike
+   the "hostlookup" map we defined, "host" will actually CHANGE the
+   hostname in addition to appending a dot.  "hostlookup" only appends a
+   dot if the name is found and doesn't change it otherwise.  Anyway,
+   here's the example:
+
+	R$*<@$+>$*	$: $1<@$(host $2 $)>$3		canonicalize
+	R$*<@$+.>$*	$1<@$2>$3			remove trailing dot
+
+   Using the above, say you had input of:
+
+	joe<@tilde>
+
+	OR
+
+	joe<@[128.247.160.56]>
+
+	Assuming "tilde" or the IP address is found, it might be
+        canonicalized as:
+
+	joe<@tilde.csc.ti.com>
+
+6) As another instance of the NIS lookup feature, with a slightly
+   different twist, Sun implements reverse alias mapping in ruleset 22
+   with the below:
+
+	DZmail.byaddr
+	...
+	R$-<@$->		$:$>3${Z$1@$2$}			invert aliases
+
+   To use this feature under v8, change the above rule a (remember to
+   define the alias map as I showed earlier):
+
+	R$-<@$->		$:$>3$(aliasrev $1@$2 $)	invert aliases
+
+
+			   MAILER DEFINITIONS
+
+1) Where "TCP" is defined in the "P=" and "A=" parameters of mailers, I
+   changed it to "IPC".  Version 8 will accept "TCP", but "IPC" is
+   preferred.
+
+2) On all IPC mailers, I also defined "E=\r\n" and added an "L=1000" as
+   in the below example:
+
+	Mether,	P=[IPC], F=mDFMuCX, S=11, R=21, L=1000, E=\r\n, A=IPC $h
+
+   The "E=\r\n" will save you headaches interoperating with such things as
+   VMS TCP products.
+
+   The "L=1000" is for RFC821 compatibility.  Not strictly necessary.
+
+   I also removed the "s" (strip quotes) mailer flag Sun puts in for
+   these mailers.  Stripping quotes violates protocols, which say
+   clearly that you can't touch the local-part (left hand side of
+   the @) until you are on the delivering host.
+
+NOW.  If I haven't left anything out, you should be able to run through
+your Sun sendmail.cf file and convert it to run under v8.
+
+			      BUILD ISSUES
+
+Some important notes on building v8 on SunOS:
+
+Makefile
+
+The default makefile in the version 8 source (src) directory assumes the
+new Berkeley make.  Unless you want to go to the trouble of building it,
+you can use your regular make, but you need to use a different makefile.
+You can use "Makefile.dist" or "Makefile.SunOS" in the src directory.  I
+made changes to get it to build so it is as compatible as possible with
+the file/directory locations Sun uses.  Here are some relevant sections
+out of my makefile:
+
+	CC=gcc
+
+	# use O=-O (usual) or O=-g (debugging)
+	O=	-O
+
+	# define the database mechanisms available for map & alias lookups:
+	#	-DNDBM -- use new DBM
+	#	-DNEWDB -- use new Berkeley DB
+	#	-DNDBM -DNEWDB -DYPCOMPAT -- use both plus YP compatility
+	#	-DNIS -- include client NIS support
+	# The really old (V7) DBM library is no longer supported.
+	# See README for a description of how these flags interact.
+	#DBMDEF= -DNDBM -DNEWDB
+	DBMDEF=	-DNDBM -DNIS
+
+	# environment definitions (e.g., -D_AIX3)
+	ENVDEF=
+
+	# see also conf.h for additional compilation flags
+
+	# library directories
+	LIBDIRS=-L/usr/local/lib
+
+	# libraries required on your system
+	#LIBS=	-ldb -ldbm
+	LIBS=	-ldbm -lresolv
+
+	# location of sendmail binary (usually /usr/sbin or /usr/lib)
+	BINDIR=	${DESTDIR}/usr/lib
+
+	# location of sendmail.st file (usually /var/log or /usr/lib)
+	STDIR=	${DESTDIR}/etc
+
+	# location of sendmail.hf file (usually /usr/share/misc or /usr/lib)
+	HFDIR=	${DESTDIR}/usr/lib
+
+For the resolver library, you can use the one shipped with Sun if you
+want.  But I'd recommend using another version of the resolver library
+(such as the one with Bind 4.8.3 or 4.9).  Sun's resolver stuff (at
+least with 4.1.x) is quite old - I believe it is of 4.3.1 vintage.  (Do
+you get the impression I don't TRUST what Sun ships with their systems?)
+
+If you want NIS host lookup while maintaining DNS capability, you might
+take a look at resolv+, which has NIS capable gethostbyxxx() functions
+in it.  My recommendation, however, is to avoid doing NIS host lookups
+in sendmail altogether, and to use a "pure" version of the resolver
+library.
+
+There are probably no situations (at least I think so) where it makes
+any sense to link in Sun's NIS gethostbyxxx() functions from libc.
+You could, I guess do it (I haven't tried it) and wind up with a
+sendmail equivalent to the non-mx version Sun ships.  You'd need to
+insure that NAMED_BIND is not defined in the build.  (If you do
+this and have the "-b" DNS passthru option set in NIS, remember that
+while you have some DNS functionality you'll not have any MX support.
+(This, IMO, is what makes this a non-optimal choice.)
+
+		      INSTALLATION/TESTING ISSUES
+
+The sendmail.hf file in the src directory should replace the one currently
+in /usr/lib.  You also might choose to edit it a bit to "localize" what it
+says.
+
+The sendmail executable goes, of course, in /usr/lib in place of the current
+one.  What I did was create a subdirectory in /usr/lib and put all of the
+Sun sendmail stuff in there.  I named the v8 sendmail executable to be
+sendmail.v8.mx and then symbolically linked it to sendmail.
+
+One other thing.  If you use address test mode, keep in mind that
+Version 8 is like IDA in that it does not automatically execute ruleset
+3 first.  So say you're playing around with things testing addresses and
+you're used to things like:
+
+	0 jimbob@good.old.boy.com
+
+under v8 you need to say instead:
+
+	3,0 jimbob@good.old.boy.com
+
+	      INTEROPERABILITY ISSUES YOU MIGHT ENCOUNTER
+
+Be aware that sendmail v8 issues a multi-line SMTP welcome (220)
+response upon a client connection.  Most systems in your network should
+handle it OK, but there are some that choke on it, because whoever wrote
+the clients assumed only a single line.  THIS IS NOT SENDMAIL's FAULT.
+A multi-line 220 response is perfectly valid.  A likely place you'll
+encounter this problem is with non-Un*x SMTP clients.  If you do run
+into it, you should report it to the vendor.
+
+A final note about version 8 - if you follow the above configuration
+scenario, you'll notice it doesn't like to get envelope sender
+addresses it doesn't know how to get back to.  Sun sendmail would take
+anything, even though it might not be able to bounce the message back
+should something happen downstream.  So if another sendmail on a host
+that's not locally known is trying to pump mail through your v8 host,
+the ENVELOPE sender it gives had better be fully qualified.  This is
+a GREAT thing, because it helps clear up problems we've had with not
+being able to get things back to the sender, resulting in an
+overburdened postmaster.
+
+I hope this helps those running Sun sendmail feel more at ease with moving
+on to v8.  It's really worth going to.

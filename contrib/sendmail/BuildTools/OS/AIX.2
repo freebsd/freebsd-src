@@ -1,0 +1,18 @@
+#	@(#)AIX.2	8.8	(Berkeley)	3/12/98
+PUSHDIVERT(1)
+SMROOT=	/usr/local/newmail
+POPDIVERT
+define(`confMAPDEF', `-DNIS')
+define(`confENVDEF', `-DBSD -DBSD_INCLUDES -DBSD_REMAP_SIGNAL_TO_SIGVEC \
+	-D_PATH_SENDMAILCF=\"${SMROOT}/sendmail.cf\"\
+	-D_PATH_SENDMAILPID=\"${SMROOT}/sendmail.pid\"')
+define(`confOPTIMIZE', `-g')
+define(`confINCDIRS', `-I/u/markw/src/db.1.85/PORT/aixrt/include -I/u/markw/src/db.1.85/PORT/aixrt -I/fs/work/src/bind/include')
+define(`confLIBS', `-lbsd /u/markw/src/db.1.85/PORT/aixrt/libdb.a /usr/local/lib/libgldavg.a /fs/work/src/bind/res/libresolv.a')
+define(`confMBINDIR', `${SMROOT}/bin')
+define(`confSBINDIR', `/usr/etc')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `system')
+define(`confSTDIR', `${SMROOT}')
+define(`confHFDIR', `${SMROOT}')
+define(`confINSTALL', `/usr/ucb/install')

@@ -1,0 +1,13 @@
+#	@(#)IRIX	8.7	(Berkeley)	3/12/98
+define(`confMAPDEF', `-DNDBM -DNIS')
+define(`confENVDEF', `-DIRIX ')
+define(`confLIBS', `-lmld -lmalloc -lsun')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confUBINDIR', `/usr/bsd')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `sys')
+define(`confSTDIR', `/usr/lib')
+define(`confHFDIR', `/usr/lib')
+define(`confINSTALL', `${BUILDBIN}/install.sh')
+define(`confDEPEND_TYPE', `CC-M')

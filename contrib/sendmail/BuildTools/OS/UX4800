@@ -1,0 +1,24 @@
+#	@(#)UX4800	8.8	(Berkeley)	3/12/98
+define(`confCC', `/usr/abiccs/bin/cc -KOlimit=900')
+define(`confBEFORE', `sysexits.h ndbm.h')
+define(`confMAPDEF', `-DNDBM -DNIS		# without NEWDB')
+define(`confENVDEF', `-DHASSNPRINTF=1 ')
+define(`confLIBS', `-lsocket -lnsl -lelf # # without NEWDB')
+define(`confMBINDIR', `/usr/ucblib')
+define(`confSBINDIR', `/usr/ucbetc')
+define(`confUBINDIR', `/usr/ucb')
+define(`confEBINDIR', `/usr/ucblib')
+define(`confSBINGRP', `sys')
+define(`confSTDIR', `/var/ucblib')
+define(`confHFDIR', `/var/ucblib')
+define(`confINSTALL', `/usr/ucb/install')
+PUSHDIVERT(3)
+sysexits.h:
+	echo '#ifndef _LOCAL_SYSEXITS_H_' > sysexits.h;
+	echo '#define _LOCAL_SYSEXITS_H_' >> sysexits.h;
+	cat /usr/abiccs/ucbinclude/sysexits.h >> sysexits.h;
+	echo '#endif /* _LOCAL_SYSEXITS_H_ */' >> sysexits.h;
+
+ndbm.h:
+	sed 's/void/char/' /usr/abiccs/include/ndbm.h > ndbm.h
+POPDIVERT
