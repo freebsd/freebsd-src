@@ -49,7 +49,7 @@
     ..
     log
     ..
-    mail            gname=mail
+    mail            gname=mail	mode=0775
     ..
     msgs            uname=daemon
     ..
@@ -59,10 +59,10 @@
         named           uname=bind gname=bind
         ..
     ..
-    rwho            gname=daemon
+    rwho            gname=daemon	mode=0775
     ..
     spool
-        lock            uname=uucp gname=dialer
+        lock            uname=uucp gname=dialer	mode=0775
         ..
 /set gname=daemon
         lpd
