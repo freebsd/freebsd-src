@@ -65,4 +65,14 @@ device		tga		# TGA video card driver
 
 
 #####################################################################
-# SIMULATOR OPTIONS
+# ABI Emulation
+
+# Enable OSF/1 ABI emulation
+options 	COMPAT_OSF1
+
+# Enable Linux ABI emulation (requires COMPAT_OSF1)
+options 	COMPAT_LINUX
+
+# Enable the linux-like proc filesystem support (requires COMPAT_LINUX
+# and PSEUDOFS)
+options 	LINPROCFS
