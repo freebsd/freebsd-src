@@ -345,13 +345,35 @@ again:
 	valloc(msqids, struct msqid_ds, msginfo.msgmni);
 #endif
 
+	/*
+	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
+	 * For the first 64MB of ram nominally allocate sufficient buffers to
+	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
+	 * buffers to cover 1/20 of our ram over 64MB.
+	 *
+	 * factor represents the 1/4 x ram conversion.
+	 */
 	if (nbuf == 0) {
+		int factor = 4 * BKVASIZE / PAGE_SIZE;
+
 		nbuf = 50;
 		if (physmem > 1024)
-			nbuf += min((physmem - 1024) / 8, 2048);
+			nbuf += min((physmem - 1024) / factor, 16384 / factor);
 		if (physmem > 16384)
-			nbuf += (physmem - 16384) / 20;
+			nbuf += (physmem - 16384) * 2 / (factor * 5);
 	}
+
+	/*
+	 * Do not allow the buffer_map to be more then 1/2 the size of the
+	 * kernel_map.
+	 */
+	if (nbuf > (kernel_map->max_offset - kernel_map->min_offset) / 
+	    (BKVASIZE * 2)) {
+		nbuf = (kernel_map->max_offset - kernel_map->min_offset) / 
+		    (BKVASIZE * 2);
+		printf("Warning: nbufs capped at %d\n", nbuf);
+	}
+
 	nswbuf = max(min(nbuf/4, 256), 16);
 
 	valloc(swbuf, struct buf, nswbuf);
