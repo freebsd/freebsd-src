@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.47 1995/09/11 12:10:19 se Exp $
+**  $Id: ncr.c,v 1.48 1995/09/11 19:34:30 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1251,7 +1251,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.47 1995/09/11 12:10:19 se Exp $\n";
+	"\n$Id: ncr.c,v 1.48 1995/09/11 19:34:30 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1280,8 +1280,11 @@ int ncr_cache; /* to be aligned _NOT_ static */
 */
 
 #define	NCR_810_ID	(0x00011000ul)
+#define	NCR_810AP_ID	(0x00051000ul)
 #define	NCR_815_ID	(0x00041000ul)
 #define	NCR_825_ID	(0x00031000ul)
+#define	NCR_860_ID	(0x00061000ul)
+#define	NCR_875_ID	(0x000f1000ul)
 
 #ifdef __NetBSD__
 
@@ -3156,8 +3159,11 @@ ncr_probe(parent, match, aux)
 		return 0;
 #endif
 	if (pa->pa_id != NCR_810_ID &&
+	    pa->pa_id != NCR_810AP_ID &&
 	    pa->pa_id != NCR_815_ID &&
-	    pa->pa_id != NCR_825_ID)
+	    pa->pa_id != NCR_825_ID &&
+	    pa->pa_id != NCR_860_ID &&
+	    pa->pa_id != NCR_875_ID)
 		return 0;
 
 	return 1;
@@ -3173,11 +3179,20 @@ static	char* ncr_probe (pcici_t tag, pcidi_t type)
 	case NCR_810_ID:
 		return ("ncr 53c810 scsi");
 
+	case NCR_810AP_ID:
+		return ("ncr 53c810ap scsi");
+
 	case NCR_815_ID:
 		return ("ncr 53c815 scsi");
 
 	case NCR_825_ID:
 		return ("ncr 53c825 wide scsi");
+
+	case NCR_860_ID:
+		return ("ncr 53c860 scsi");
+
+	case NCR_875_ID:
+		return ("ncr 53c875 wide scsi");
 	}
 	return (NULL);
 }
@@ -3293,6 +3308,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 #endif /* __NetBSD__ */
 	case NCR_825_ID:
+	case NCR_875_ID:
 		np->maxwide = 1;
 		break;
 	default:
