@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.78 1996/06/13 07:17:21 asami Exp $
+ *	$Id: trap.c,v 1.79 1996/06/25 20:01:57 bde Exp $
  */
 
 /*
@@ -281,8 +281,7 @@ trap(frame)
 			/* if a transparent fault (due to context switch "late") */
 			if (npxdna())
 				return;
-#endif	/* NNPX > 0 */
-
+#endif
 			if (!pmath_emulate) {
 				i = SIGFPE;
 				ucode = FPE_FPU_NP_TRAP;
@@ -313,10 +312,14 @@ trap(frame)
 
 		case T_DNA:
 #if NNPX > 0
-			/* if a transparent fault (due to context switch "late") */
+			/*
+			 * The kernel is apparently using npx for copying.
+			 * XXX this should be fatal unless the kernel has
+			 * registered such use.
+			 */
 			if (npxdna())
 				return;
-#endif	/* NNPX > 0 */
+#endif
 			break;
 
 		case T_PROTFLT:		/* general protection fault */
