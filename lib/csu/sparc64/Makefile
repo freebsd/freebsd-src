@@ -2,10 +2,9 @@
 
 .PATH: ${.CURDIR}/../common
 
-SRCS=		crt1.c crti.S crtn.S crtbegin.c crtend.c
+SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
-SOBJS=		crtbegin.So crtend.So
 CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../../libc/include
 NOMAN=		true
 NOPIC=		true
