@@ -92,17 +92,18 @@ vm_contig_launder_page(vm_page_t m)
 	vm_page_t m_tmp;
 	struct vnode *vp;
 
+	object = m->object;
+	if (!VM_OBJECT_TRYLOCK(object))
+		return (EAGAIN);
 	if (vm_page_sleep_if_busy(m, TRUE, "vpctw0")) {
+		VM_OBJECT_UNLOCK(object);
 		vm_page_lock_queues();
 		return (EBUSY);
 	}
-	if (!VM_OBJECT_TRYLOCK(m->object))
-		return (EAGAIN);
 	vm_page_test_dirty(m);
 	if (m->dirty == 0 && m->hold_count == 0)
 		pmap_remove_all(m);
 	if (m->dirty) {
-		object = m->object;
 		if (object->type == OBJT_VNODE) {
 			vm_page_unlock_queues();
 			vp = object->handle;
@@ -123,7 +124,7 @@ vm_contig_launder_page(vm_page_t m)
 		}
 	} else if (m->hold_count == 0)
 		vm_page_cache(m);
-	VM_OBJECT_UNLOCK(m->object);
+	VM_OBJECT_UNLOCK(object);
 	return (0);
 }
 
