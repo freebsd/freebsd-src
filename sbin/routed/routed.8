@@ -93,7 +93,7 @@ non-static routes in kernel table.
 Static routes in the kernel table are preserved and
 included in RIP responses if they have a valid RIP metric
 (see
-.Xr route 8 ).
+.Xr route 8 ) .
 .Pp
 If more than one interface is present (not counting the loopback interface),
 it is assumed that the host should forward packets among the
@@ -118,7 +118,7 @@ with a "hop count" metric (a count of 16 or greater is
 considered "infinite").
 Advertised metrics reflect the metric associated with interface
 (see
-.Xr ifconfig 8 ),
+.Xr ifconfig 8 ) ,
 so setting the metric on an interface
 is an effective way to steer traffic.
 .Pp
@@ -186,7 +186,7 @@ support multicasting.
 If no response is received on a remote interface, if there are errors
 while sending responses,
 or if there are more errors than input or output (see
-.Xr netstat 1 ),
+.Xr netstat 1 ) ,
 then the cable or some other part of the interface is assumed to be
 disconnected or broken, and routes are adjusted appropriately.
 .Pp
@@ -461,7 +461,7 @@ or
 is the name of the destination network or host.
 It may be a symbolic network name or an Internet address
 specified in "dot" notation (see
-.Xr inet 3 ).
+.Xr inet 3 ) .
 (If it is a name, then it must either be defined in
 .Pa /etc/networks
 or
