@@ -516,12 +516,10 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EINVAL;
 				break;
 			}
+			bzero(&sa_dl, sizeof(struct sockaddr_dl));
 			sa_dl.sdl_len = sizeof(struct sockaddr_dl);
 			sa_dl.sdl_family = AF_LINK;
-			sa_dl.sdl_index = 0;
-			sa_dl.sdl_nlen = 0;
-			sa_dl.sdl_alen = 6;
-			sa_dl.sdl_slen = 0;
+			sa_dl.sdl_alen = ETHER_ADDR_LEN;
 			bcopy((void *)msg->data, LLADDR(&sa_dl),
 			    ETHER_ADDR_LEN);
 			error = if_addmulti(priv->ifp,
@@ -536,12 +534,10 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EINVAL;
 				break;
 			}
+			bzero(&sa_dl, sizeof(struct sockaddr_dl));
 			sa_dl.sdl_len = sizeof(struct sockaddr_dl);
 			sa_dl.sdl_family = AF_LINK;
-			sa_dl.sdl_index = 0;
-			sa_dl.sdl_nlen = 0;
-			sa_dl.sdl_alen = 6;
-			sa_dl.sdl_slen = 0;
+			sa_dl.sdl_alen = ETHER_ADDR_LEN;
 			bcopy((void *)msg->data, LLADDR(&sa_dl),
 			    ETHER_ADDR_LEN);
 			error = if_delmulti(priv->ifp,
