@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.86.2.1 1999/02/21 11:41:03 dfr Exp $
+**  $Id$
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -379,6 +379,11 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
 		return("AcerLabs M5243 PCI-PCI bridge");
 
+	/* Cyrix -- vendor 0x1078 */
+	case 0x00001078:
+		return ("Cyrix Cx5520 PCI-ISA bridge");
+	case 0x01001078:
+		return ("Cyrix Cx5530 PCI-ISA bridge");
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00011033:
