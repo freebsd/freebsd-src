@@ -19,7 +19,7 @@ FILES=	accopt.htm assoc.htm audio.htm authopt.htm biblio.htm build.htm \
 	notes.htm ntpd.htm ntpdate.htm ntpdc.htm ntpq.htm ntptime.htm \
 	ntptrace.htm parsedata.htm parsenew.htm patches.htm porting.htm \
 	pps.htm prefer.htm qth.htm quick.htm rdebug.htm refclock.htm \
-	release.htm tickadj.htm vxworks.htm y2k.htm
+	release.htm tickadj.htm
 
 MAN=	ntp.conf.5 ntp.keys.5
 MAN+=	ntp-genkeys.8 ntpd.8 ntpdate.8 ntpdc.8 ntpq.8 ntptime.8 ntptrace.8
