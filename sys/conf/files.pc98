@@ -399,6 +399,8 @@ pc98/pc98/scgdcrndr.c		optional	sc gdc
 pc98/pc98/scterm-sck.c		optional	sc
 pc98/pc98/scvtbpc98.c		optional	sc
 pc98/pc98/sio.c			optional	sio
+#pc98/pc98/sio_pccard.c		optional	card
+#pc98/pc98/sio_pccard.c		optional	pccard
 pc98/pc98/spkr.c		optional	speaker
 pc98/pc98/syscons.c		optional	sc
 pc98/pc98/syscons_pc98.c	optional	sc
