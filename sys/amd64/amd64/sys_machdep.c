@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.8 1995/03/10 08:13:07 davidg Exp $
+ *	$Id: sys_machdep.c,v 1.9 1995/05/30 07:59:40 rgrimes Exp $
  *
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/user.h>
 
@@ -49,10 +50,12 @@ void set_user_ldt	__P((struct pcb *pcb));
 int i386_get_ldt	__P((struct proc *, char *, int *));
 int i386_set_ldt	__P((struct proc *, char *, int *));
 
+#ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
 	int op;
 	char *parms;
 };
+#endif
 
 int
 sysarch(p, uap, retval)
