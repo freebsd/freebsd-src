@@ -1,5 +1,5 @@
 .\"
-.\" FreeBSD install - a package for the installation and maintainance
+.\" FreeBSD install - a package for the installation and maintenance
 .\" of non-core utilities.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -17,7 +17,7 @@
 .\"     @(#)pkg_info.1
 .\" $FreeBSD$
 .\"
-.Dd November 25, 1994
+.Dd February 8, 2001
 .Dt PKG_INFO 1
 .Os FreeBSD
 .Sh NAME
@@ -49,7 +49,7 @@ The following command line options are supported:
 .It Ar pkg-name ...
 The named packages are described.  A package name may either be the name of
 an installed package, the pathname to a package distribution file or a
-URL to an ftp available package.
+URL to an FTP available package.
 .It Fl a
 Show all currently installed packages.
 .It Fl v
@@ -62,7 +62,7 @@ Be
 in emitting report headers and such, just dump the
 raw info (basically, assume a non-human reading).
 .It Fl c
-Show the comment (one liner) field for each package.
+Show the (one line) comment field for each package.
 .It Fl d
 Show the long description field for each package.
 .It Fl D
@@ -104,8 +104,7 @@ Do not try to expand shell glob patterns in the
 when selecting packages to be displayed (by default
 .Nm
 automatically expands shell glob patterns in the
-.Ar pkg-name
-).
+.Ar pkg-name ) .
 .It Fl x
 Treat the
 .Ar pkg-name
@@ -160,7 +159,7 @@ indeed to overflow it.
 Package info is either extracted from package files named on the
 command line, or from already installed package information
 in
-.Pa /var/db/pkg/<pkg-name> .
+.Pa /var/db/pkg/ Ns Aq Ar pkg-name .
 .Sh ENVIRONMENT
 .Ev PKG_TMPDIR
 points to the directory where
@@ -202,6 +201,8 @@ Default location of the installed package database.
 .An Jordan Hubbard
 for most of the work.
 .An John Kohl
-for NetBSD refinements.
+for
+.Nx
+refinements.
 .Sh BUGS
 Sure to be some.
