@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.14 1994/03/23 09:15:06 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.15 1994/03/24 23:12:35 davidg Exp $
  */
 
 #include "npx.h"
@@ -150,18 +150,31 @@ vm_bounce_kva(count)
 	int tofree;
 	int i;
 	int startfree;
-	vm_offset_t kva;
+	vm_offset_t kva = 0;
 	int s = splbio();
+	int size = count*NBPG;
 	startfree = 0;
 more:
 	if (!bmfreeing && (tofree = kvasfreecnt)) {
 		bmfreeing = 1;
 more1:
 		for (i = startfree; i < kvasfreecnt; i++) {
+			/*
+			 * if we have a kva of the right size, no sense
+			 * in freeing/reallocating...
+			 * might affect fragmentation short term, but
+			 * as long as the amount of bounce_map is
+			 * significantly more than the maximum transfer
+			 * size, I don't think that it is a problem.
+			 */
 			pmap_remove(kernel_pmap,
 				kvaf[i].addr, kvaf[i].addr + kvaf[i].size);
-			kmem_free_wakeup(bounce_map, kvaf[i].addr,
-				kvaf[i].size);
+			if( !kva && kvaf[i].size == size) {
+				kva = kvaf[i].addr;
+			} else {
+				kmem_free_wakeup(bounce_map, kvaf[i].addr,
+					kvaf[i].size);
+			}
 		}
 		if (kvasfreecnt != tofree) {
 			startfree = i;
@@ -172,12 +185,11 @@ more1:
 		bmfreeing = 0;
 	}
 
-	if (!(kva = kmem_alloc_pageable(bounce_map, count * NBPG))) {
+	if (!kva && !(kva = kmem_alloc_pageable(bounce_map, size))) {
 		bmwait = 1;
 		tsleep((caddr_t) bounce_map, PRIBIO, "bmwait", 0);
 		goto more;
 	}
-
 	splx(s);
 
 	return kva;
@@ -266,8 +278,7 @@ vm_bounce_alloc(bp)
 			 * allocate a replacement page
 			 */
 			vm_offset_t bpa = vm_bounce_page_find(1);
-			pmap_enter(kernel_pmap, kva + (NBPG * i), bpa, VM_PROT_DEFAULT,
-				TRUE);
+			pmap_kenter(kva + (NBPG * i), bpa);
 			/*
 			 * if we are writing, the copy the data into the page
 			 */
@@ -277,11 +288,11 @@ vm_bounce_alloc(bp)
 			/*
 			 * use original page
 			 */
-			pmap_enter(kernel_pmap, kva + (NBPG * i), pa, VM_PROT_DEFAULT,
-				TRUE);
+			pmap_kenter(kva + (NBPG * i), pa);
 		}
 		va += NBPG;
 	}
+	pmap_update();
 
 /*
  * flag the buffer as being bounced
@@ -607,11 +618,11 @@ vmapbuf(bp)
 		pa = pmap_extract(&p->p_vmspace->vm_pmap, (vm_offset_t)addr);
 		if (pa == 0)
 			panic("vmapbuf: null page frame");
-		pmap_enter(vm_map_pmap(phys_map), kva, trunc_page(pa),
-			   VM_PROT_READ|VM_PROT_WRITE, TRUE);
+		pmap_kenter(kva, trunc_page(pa));
 		addr += PAGE_SIZE;
 		kva += PAGE_SIZE;
 	}
+	pmap_update();
 }
 
 /*
