@@ -2944,7 +2944,7 @@ bufdone(struct buf *bp)
 		    !(bp->b_ioflags & BIO_ERROR)) {
 			bp->b_flags |= B_CACHE;
 		}
-
+		vm_page_lock_queues();
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			int resid;
@@ -3012,6 +3012,7 @@ bufdone(struct buf *bp)
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 			iosize -= resid;
 		}
+		vm_page_unlock_queues();
 		if (obj)
 			vm_object_pip_wakeupn(obj, 0);
 	}
@@ -3050,7 +3051,7 @@ vfs_unbusy_pages(struct buf * bp)
 		vm_object_t obj;
 
 		obj = bp->b_object;
-
+		vm_page_lock_queues();
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
 
@@ -3066,6 +3067,7 @@ vfs_unbusy_pages(struct buf * bp)
 			vm_page_flag_clear(m, PG_ZERO);
 			vm_page_io_finish(m);
 		}
+		vm_page_unlock_queues();
 		vm_object_pip_wakeupn(obj, 0);
 	}
 }
