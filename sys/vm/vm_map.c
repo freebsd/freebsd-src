@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.37 1996/03/09 06:52:05 dyson Exp $
+ * $Id: vm_map.c,v 1.38 1996/03/12 13:46:13 dyson Exp $
  */
 
 /*
@@ -834,8 +834,8 @@ vm_map_simplify_entry(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
-	vm_map_entry_t next;
-	vm_size_t nextsize, esize;
+	vm_map_entry_t next, prev;
+	vm_size_t nextsize, prevsize, esize;
 
 	/*
 	 * If this entry corresponds to a sharing map, then see if we can
@@ -844,35 +844,55 @@ vm_map_simplify_entry(map, entry)
 	 * neighbors.
 	 */
 
-	if (entry->is_sub_map)
+	if (entry->is_sub_map || entry->is_a_map || entry->wired_count)
 		return;
-	if (entry->is_a_map) {
-		return;
-	} else {
-		if (entry->wired_count)
-			return;
 
-		next = entry->next;
+	prev = entry->prev;
+	if (prev != &map->header) {
+		prevsize = prev->end - prev->start;
+		if ( prev->end == entry->start &&
+		     prev->object.vm_object == entry->object.vm_object &&
+		     prev->offset + prevsize == entry->offset &&
+		     prev->protection == entry->protection &&
+		     prev->max_protection == entry->max_protection &&
+		     prev->inheritance == entry->inheritance &&
+		     prev->needs_copy == entry->needs_copy &&
+		     prev->copy_on_write == entry->copy_on_write &&
+		     prev->is_a_map == FALSE &&
+		     prev->is_sub_map == FALSE &&
+		     prev->wired_count == 0) {
+			if (map->first_free == prev)
+				map->first_free = entry;
+			vm_map_entry_unlink(map, prev);
+			entry->start = prev->start;
+			entry->offset = prev->offset;
+			vm_object_deallocate(prev->object.vm_object);
+			vm_map_entry_dispose(map, prev);
+		}
+	}
+
+	next = entry->next;
+	if (next != &map->header) {
 		nextsize = next->end - next->start;
 		esize = entry->end - entry->start;
-
-		if (next != &map->header &&
-			entry->end == next->start &&
-			next->is_a_map == FALSE &&
-			next->is_sub_map == FALSE &&
-			next->object.vm_object == entry->object.vm_object &&
-			next->protection == entry->protection &&
-			next->max_protection == entry->max_protection &&
-			next->inheritance == entry->inheritance &&
-			next->needs_copy == entry->needs_copy &&
-			next->copy_on_write == entry->copy_on_write &&
-			entry->offset + esize == next->offset &&
-			next->wired_count == 0) {
-				vm_map_entry_unlink(map, next);
-				entry->end = next->end;
-				vm_object_deallocate(next->object.vm_object);
-				vm_map_entry_dispose(map, next);
-		}
+		if (entry->end == next->start &&
+		    next->object.vm_object == entry->object.vm_object &&
+		    entry->offset + esize == next->offset &&
+		    next->protection == entry->protection &&
+		    next->max_protection == entry->max_protection &&
+		    next->inheritance == entry->inheritance &&
+		    next->needs_copy == entry->needs_copy &&
+		    next->copy_on_write == entry->copy_on_write &&
+		    next->is_a_map == FALSE &&
+		    next->is_sub_map == FALSE &&
+		    next->wired_count == 0) {
+			if (map->first_free == next)
+				map->first_free = entry;
+			vm_map_entry_unlink(map, next);
+			entry->end = next->end;
+			vm_object_deallocate(next->object.vm_object);
+			vm_map_entry_dispose(map, next);
+	        }
 	}
 }
 
@@ -2256,14 +2276,11 @@ vm_map_simplify(map, start)
 	    ) {
 		if (map->first_free == this_entry)
 			map->first_free = prev_entry;
-
-		if (!this_entry->object.vm_object->paging_in_progress) {
-			SAVE_HINT(map, prev_entry);
-			vm_map_entry_unlink(map, this_entry);
-			prev_entry->end = this_entry->end;
-			vm_object_deallocate(this_entry->object.vm_object);
-			vm_map_entry_dispose(map, this_entry);
-		}
+		SAVE_HINT(map, prev_entry);
+		vm_map_entry_unlink(map, this_entry);
+		prev_entry->end = this_entry->end;
+		vm_object_deallocate(this_entry->object.vm_object);
+		vm_map_entry_dispose(map, this_entry);
 	}
 	vm_map_unlock(map);
 }
