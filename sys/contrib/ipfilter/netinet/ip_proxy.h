@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_proxy.h,v 2.1.2.1 1999/09/19 12:18:20 darrenr Exp $
+ * $Id: ip_proxy.h,v 2.8.2.13 2002/07/04 11:07:37 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -96,7 +96,7 @@ typedef	struct	aproxy	{
 typedef struct  ftpside {
 	char	*ftps_rptr;
 	char	*ftps_wptr;
-	u_32_t	ftps_seq;
+	u_32_t	ftps_seq[2];
 	u_32_t	ftps_len;
 	int	ftps_junk;
 	int	ftps_cmds;

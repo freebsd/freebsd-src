@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.1.2.3 1999/11/18 13:55:26 darrenr Exp $
+ * $Id: ip_compat.h,v 2.26.2.46 2002/06/27 14:39:40 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -187,6 +187,9 @@ typedef	struct	qif	{
 	 */
 	size_t	qf_hl;	/* header length */
 	int	qf_sap;
+# if SOLARIS2 >= 8
+	int	qf_tunoff;	/* tunnel offset */
+#endif
 	size_t	qf_incnt;
 	size_t	qf_outcnt;
 } qif_t;
@@ -214,7 +217,11 @@ typedef	 int	minor_t;
 #if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
 # include <sys/param.h>
 # ifndef __FreeBSD_version
-#  include <sys/osreldate.h>
+#  ifdef IPFILTER_LKM
+#   include <osreldate.h>
+#  else
+#   include <sys/osreldate.h>
+#  endif
 # endif
 # ifdef IPFILTER_LKM
 #  define       ACTUALLY_LKM_NOT_KERNEL
