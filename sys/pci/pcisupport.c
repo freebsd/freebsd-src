@@ -715,7 +715,9 @@ pcib_match(device_t dev)
 
 	/* AMD -- vendor 0x1022 */
 	case 0x70071022:
-		return ("AMD-751 PCI-PCI (AGP) bridge");
+		return ("AMD-751 PCI-PCI (1x/2x AGP) bridge");
+	case 0x700f1022:
+		return ("AMD-761 PCI-PCI (4x AGP) bridge");
 
 	/* DEC -- vendor 0x1011 */
 	case 0x00011011:
@@ -1271,6 +1273,8 @@ chip_match(device_t dev)
 	/* AMD -- vendor 0x1022 */
 	case 0x70061022:
 		return ("AMD-751 host to PCI bridge");
+	case 0x700e1022:
+		return ("AMD-761 host to PCI bridge");
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00021033:
@@ -1464,6 +1468,8 @@ const char* pci_vga_match(device_t dev)
 			chip = "MGA G100"; break;
 		case 0x1001:
 			chip = "MGA G100 AGP"; break;
+		case 0x2527:
+			chip = "MGA G550 AGP"; break;
 
 		}
 		break;
