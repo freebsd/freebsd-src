@@ -41,6 +41,8 @@ License Agreement applies to this software.
         Modified heavily at NRL for OPIE 2.0.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(skeyinit.c).
+
+ $FreeBSD$
 */
 #include "opie_cfg.h"
 
@@ -117,7 +119,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 
   memset(seed, 0, sizeof(seed));
 
-  if (!(pp = getpwuid(getuid()))) {
+  if (!(pp = getpwnam(getlogin()))) {
     fprintf(stderr, "Who are you?");
     return 1;
   }
