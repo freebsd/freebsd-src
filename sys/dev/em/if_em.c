@@ -51,7 +51,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.7.16";
+char em_driver_version[] = "1.7.19";
 
 
 /*********************************************************************
@@ -529,6 +529,7 @@ em_detach(device_t dev)
 	INIT_DEBUGOUT("em_detach: begin");
 
 	EM_LOCK(adapter);
+	adapter->in_detach = 1;
 	em_stop(adapter);
 	em_phy_hw_reset(&adapter->hw);
 	EM_UNLOCK(adapter);
@@ -662,6 +663,8 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq   *ifr = (struct ifreq *) data;
 	struct adapter * adapter = ifp->if_softc;
 
+	if (adapter->in_detach) return(error);
+
 	switch (command) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
@@ -686,8 +689,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		EM_LOCK(adapter);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_flags & IFF_RUNNING)) {
-				bcopy(IF_LLADDR(ifp), adapter->hw.mac_addr, 
-				      ETHER_ADDR_LEN);
 				em_init_locked(adapter);
 			}
 
@@ -796,6 +797,10 @@ em_init_locked(struct adapter * adapter)
 
 	em_stop(adapter);
 
+	/* Get the latest mac address, User can use a LAA */
+        bcopy(adapter->interface_data.ac_enaddr, adapter->hw.mac_addr,
+              ETHER_ADDR_LEN);
+
 	/* Initialize the hardware */
 	if (em_hardware_init(adapter)) {
 		printf("em%d: Unable to initialize the hardware\n", 
@@ -825,6 +830,9 @@ em_init_locked(struct adapter * adapter)
 		return;
 	}
 	em_initialize_receive_unit(adapter);
+ 
+	/* Don't loose promiscuous settings */
+	em_set_promisc(adapter);
 
 	ifp = &adapter->interface_data.ac_if;
 	ifp->if_flags |= IFF_RUNNING;
@@ -2601,7 +2609,6 @@ em_initialize_receive_unit(struct adapter * adapter)
 	/* Enable Receives */
 	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
 
-        em_set_promisc(adapter);
 	return;
 }
 
@@ -2661,7 +2668,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 #endif
 	u_int8_t            accept_frame = 0;
  	u_int8_t            eop = 0;
-        u_int16_t           len, desc_len;
+	u_int16_t           len, desc_len, prev_len_adj;
 	int                 i;
 
 	/* Pointer to the receive descriptor being examined. */
@@ -2687,11 +2694,18 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 				BUS_DMASYNC_POSTREAD);
 
 		accept_frame = 1;
+		prev_len_adj = 0;
                 desc_len = le16toh(current_desc->length);
 		if (current_desc->status & E1000_RXD_STAT_EOP) {
 			count--;
 			eop = 1;
-			len = desc_len - ETHER_CRC_LEN;
+			if (desc_len < ETHER_CRC_LEN) {
+                                len = 0;
+                                prev_len_adj = ETHER_CRC_LEN - desc_len;
+                        }
+                        else {
+                                len = desc_len - ETHER_CRC_LEN;
+                        }
 		} else {
 			eop = 0;
 			len = desc_len;
@@ -2713,7 +2727,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 						    &adapter->stats, 
 						    pkt_len, 
 						    adapter->hw.mac_addr);
-				len--;
+				if (len > 0) len--;
 			} 
 			else {
 				accept_frame = 0;
@@ -2742,6 +2756,14 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 			} else {
 				/* Chain mbuf's together */
 				mp->m_flags &= ~M_PKTHDR;
+				/* 
+                                 * Adjust length of previous mbuf in chain if we 
+                                 * received less than 4 bytes in the last descriptor.
+                                 */
+				if (prev_len_adj > 0) {
+					adapter->lmp->m_len -= prev_len_adj;
+					adapter->fmp->m_pkthdr.len -= prev_len_adj;
+				}
 				adapter->lmp->m_next = mp;
 				adapter->lmp = adapter->lmp->m_next;
 				adapter->fmp->m_pkthdr.len += len;

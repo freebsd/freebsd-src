@@ -416,6 +416,7 @@ struct adapter {
 
         /* For 82544 PCIX Workaround */
         boolean_t       pcix_82544;
+	boolean_t       in_detach;
 
 #ifdef DBG_STATS
 	unsigned long   no_pkts_avail;
