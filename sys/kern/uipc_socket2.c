@@ -717,8 +717,15 @@ sbflush(sb)
 
 	if (sb->sb_flags & SB_LOCK)
 		panic("sbflush: locked");
-	while (sb->sb_mbcnt && sb->sb_cc)
+	while (sb->sb_mbcnt) {
+		/*
+		 * Don't call sbdrop(sb, 0) if the leading mbuf is non-empty:
+		 * we would loop forever. Panic instead.
+		 */
+		if (!sb->sb_cc && (sb->sb_mb == NULL || sb->sb_mb->m_len))
+			break;
 		sbdrop(sb, (int)sb->sb_cc);
+	}
 	if (sb->sb_cc || sb->sb_mb || sb->sb_mbcnt)
 		panic("sbflush: cc %ld || mb %p || mbcnt %ld", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
 }
