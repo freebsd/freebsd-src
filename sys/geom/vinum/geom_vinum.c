@@ -520,6 +520,9 @@ gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	struct g_geom *gp2;
 	struct gv_softc *sc;
 	struct gv_drive *d, *d2;
+	struct gv_plex *p, *p2;
+	struct gv_sd *s, *s2;
+	struct gv_volume *v, *v2;
 	struct gv_freelist *fl, *fl2;
 
 	g_trace(G_T_TOPOLOGY, "gv_destroy_geom: %s", gp->name);
@@ -539,7 +542,9 @@ gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 			return (EBUSY);
 	}
 
+	/* Clean up and deallocate what we allocated. */
 	LIST_FOREACH_SAFE(d, &sc->drives, drive, d2) {
+		LIST_REMOVE(d, drive);
 		g_free(d->hdr);
 		d->hdr = NULL;
 		LIST_FOREACH_SAFE(fl, &d->freelist, freelist, fl2) {
@@ -548,11 +553,40 @@ gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 			g_free(fl);
 			fl = NULL;
 		}
-		LIST_REMOVE(d, drive);
+		d->geom->softc = NULL;
+		g_free(d);
 	}
 
+	LIST_FOREACH_SAFE(s, &sc->subdisks, sd, s2) {
+		LIST_REMOVE(s, sd);
+		s->drive_sc = NULL;
+		s->plex_sc = NULL;
+		s->provider = NULL;
+		s->consumer = NULL;
+		g_free(s);
+	}
+
+	LIST_FOREACH_SAFE(p, &sc->plexes, plex, p2) {
+		LIST_REMOVE(p, plex);
+		gv_kill_thread(p);
+		p->vol_sc = NULL;
+		p->geom->softc = NULL;
+		p->provider = NULL;
+		p->consumer = NULL;
+		if (p->org == GV_PLEX_RAID5) {
+			mtx_destroy(&p->worklist_mtx);
+		}
+		g_free(p);
+	}
+
+	LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2) {
+		LIST_REMOVE(v, volume);
+		v->geom->softc = NULL;
+		g_free(v);
+	}
+
+	gp->softc = NULL;
 	g_free(sc);
-	sc = NULL;
 	g_wither_geom(gp, ENXIO);
 	return (0);
 }

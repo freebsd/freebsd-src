@@ -66,11 +66,13 @@ gv_plex_orphan(struct g_consumer *cp)
 		return;
 
 	p = gp->softc;
-	gv_kill_thread(p);
-	p->geom = NULL;
+	if (p != NULL) {
+		gv_kill_thread(p);
+		p->geom = NULL;
+		p->provider = NULL;
+		p->consumer = NULL;
+	}
 	gp->softc = NULL;
-	p->provider = NULL;
-	p->consumer = NULL;
 	g_wither_geom(gp, error);
 }
 
