@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.46 1997/10/16 21:59:59 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.47 1997/10/26 20:55:12 phk Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 #include <sys/proc.h>
 #include <sys/time.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <miscfs/specfs/specdev.h>/* definitions of spec functions we use */
 #include <sys/dirent.h>

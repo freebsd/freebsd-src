@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.38 1997/10/16 22:00:36 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.39 1997/10/26 20:55:22 phk Exp $
  */
 
 /*
@@ -49,7 +49,6 @@
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/proc.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.29 1997/10/20 19:53:26 phk Exp $
+ * $Id: mfs_vnops.c,v 1.30 1997/10/26 20:55:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -40,17 +40,14 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
-#include <sys/mount.h>
 
 #include <miscfs/specfs/specdev.h>
 
+#include <ufs/ufs/dir.h>
+#include <ufs/ufs/ufs_extern.h>
+
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_extern.h>
 
 static int	mfs_badop __P((struct vop_generic_args *));
 static int	mfs_bmap __P((struct vop_bmap_args *));
