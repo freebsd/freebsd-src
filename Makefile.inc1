@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.46 1998/11/28 13:14:58 jkh Exp $
+#	$Id: Makefile.inc1,v 1.47 1998/12/13 04:32:13 dillon Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -476,7 +476,7 @@ bootstrap:
 	rm -f ${DESTDIR}/usr/src/sys
 	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
 	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
-.for d in dev net netatm netinet posix4 sys vm machine
+.for d in net netatm netinet posix4 sys vm machine
 	if [ -h ${DESTDIR}/usr/include/$d ]; then \
 		rm -f ${DESTDIR}/usr/include/$d ; \
 	fi
