@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.12 1997/04/30 05:42:07 paulus Exp $ */
+/* $Id: if_ppp.c,v 1.14 1998/03/25 04:05:01 paulus Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -131,8 +131,6 @@
 #endif
 
 static int	pppsioctl __P((struct ifnet *, int, caddr_t));
-static int	pppoutput __P((struct ifnet *, struct mbuf *,
-			       struct sockaddr *, struct rtentry *));
 static void	ppp_requeue __P((struct ppp_softc *));
 static void	ppp_ccp __P((struct ppp_softc *, struct mbuf *m, int rcvd));
 static void	ppp_ccp_closed __P((struct ppp_softc *));
@@ -167,7 +165,7 @@ static void	pppdumpm __P((struct mbuf *m0));
  */
 
 extern struct compressor ppp_bsd_compress;
-extern struct compressor ppp_deflate;
+extern struct compressor ppp_deflate, ppp_deflate_draft;
 
 struct compressor *ppp_compressors[8] = {
 #if DO_BSD_COMPRESS
@@ -175,6 +173,7 @@ struct compressor *ppp_compressors[8] = {
 #endif
 #if DO_DEFLATE
     &ppp_deflate,
+    &ppp_deflate_draft,
 #endif
     NULL
 };
