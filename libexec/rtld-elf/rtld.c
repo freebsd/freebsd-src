@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.14 1999/03/24 23:37:35 nate Exp $
+ *      $Id: rtld.c,v 1.15 1999/03/24 23:47:29 nate Exp $
  */
 
 /*
@@ -1268,13 +1268,13 @@ dladdr(const void *addr, Dl_info *info)
     void *symbol_addr;
     unsigned long symoffset;
     
-	obj = obj_from_addr(addr);
+    obj = obj_from_addr(addr);
     if (obj == NULL) {
-	    _rtld_error("No shared object contains address");
+        _rtld_error("No shared object contains address");
         return 0;
     }
     info->dli_fname = obj->path;
-    info->dli_fbase = obj->relocbase;
+    info->dli_fbase = obj->mapbase;
     info->dli_saddr = (void *)0;
     info->dli_sname = NULL;
 
@@ -1284,14 +1284,21 @@ dladdr(const void *addr, Dl_info *info)
      */
     for (symoffset = 0; symoffset < obj->nchains; symoffset++) {
         def = obj->symtab + symoffset;
-        symbol_addr = obj->relocbase + def->st_value;
+
+        /*
+         * For skip the symbol if st_shndx is either SHN_UNDEF or
+         * SHN_COMMON.
+         */
+        if (def->st_shndx == SHN_UNDEF || def->st_shndx == SHN_COMMON)
+            continue;
+
         /*
          *If the symbol is greater than the specified address, or if it
          * is further away from addr than the current nearest symbol,
          * then reject it.
          */
-        if (symbol_addr > addr ||
-            symbol_addr < info->dli_saddr)
+        symbol_addr = obj->relocbase + def->st_value;
+        if (symbol_addr > addr || symbol_addr < info->dli_saddr)
             continue;
 
         /* Update our idea of the nearest symbol. */
