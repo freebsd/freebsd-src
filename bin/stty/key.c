@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: key.c,v 1.4 1995/04/28 19:29:29 ache Exp $
+ *	$Id: key.c,v 1.5 1996/12/07 11:07:20 bde Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)key.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)key.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -192,11 +192,11 @@ f_extproc(ip)
 	struct info *ip;
 {
 
-	if (!ip->off) {
-		int tmp = 1;
+	if (ip->off) {
+		int tmp = 0;
 		(void)ioctl(ip->fd, TIOCEXT, &tmp);
 	} else {
-		int tmp = 0;
+		int tmp = 1;
 		(void)ioctl(ip->fd, TIOCEXT, &tmp);
 	}
 }
