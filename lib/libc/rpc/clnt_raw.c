@@ -47,8 +47,8 @@ static char *rcsid = "$FreeBSD$";
  * any interference from the kernal.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <assert.h>
 #include <err.h>
 #include <stdio.h>

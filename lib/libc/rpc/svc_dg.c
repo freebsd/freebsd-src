@@ -43,8 +43,8 @@
  * Does some caching in the hopes of achieving execute-at-most-once semantics.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <rpc/rpc.h>
