@@ -67,7 +67,6 @@ cam/scsi/scsi_scan.c	optional scan
 cam/scsi/scsi_target.c	optional targ
 ddb/db_access.c		optional ddb
 ddb/db_kld.c		optional ddb
-ddb/db_elf.c		optional ddb
 ddb/db_aout.c		optional ddb
 ddb/db_break.c		optional ddb
 ddb/db_command.c	optional ddb
