@@ -131,15 +131,6 @@
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
 #endif
 
-/*
- * Clustering of hardware pages on machines with ridiculously small
- * page sizes is done here.  The paging subsystem deals with units of
- * CLSIZE pte's describing PAGE_SIZE (from machine/machparam.h) pages each.
- */
-#if 0
-#define	CLBYTES		(CLSIZE*PAGE_SIZE)
-#endif
-
 #define	CBLOCK	128		/* Clist block size, must be a power of 2. */
 #define CBQSIZE	(CBLOCK/NBBY)	/* Quote bytes/cblock - can do better. */
 				/* Data chars/clist. */
