@@ -1,3 +1,4 @@
+# $FreeBSD$
 
 	A Network Address Translation Daemon for FreeBSD
 
@@ -8,7 +9,7 @@
 	which performs network address translation (or masquerading)
 	for IP packets (see related RFCs 1631 and 1918).
 	It is based on packet aliasing package (see README.alias)
-	written by Charles Mott (cmott@srv.net).
+	written by Charles Mott (cmott@scientech.com).
 
 	This package works with any network interface (doesn't have
 	to be ppp). I run it on a computer having two ethernet cards,
@@ -35,16 +36,12 @@
 	at different times:
 
 	Archie Cobbs <archie@whistle.com>	Divert sockets
-	Charles Mott <cmott@srv.net>		Packet aliasing engine
+	Charles Mott <cmott@scientech.com>	Packet aliasing engine
 	Eivind Eklund <eivind@dimaga.com>	Packet aliasing engine
 	Ari Suutari <suutari@iki.fi>		Natd
 	Brian Somers <brian@awfulhak.org>	Manual page, glue and
 						bunch of good ideas.
 				
-	The original package written by Charles Mott 
-	is available at http://www.srv.net/~cmott.
-	It is described in README.alias.
-
 	Happy Networking - comments and fixes are welcome!
 
 	Ari S.	(suutari@iki.fi)
