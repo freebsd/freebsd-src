@@ -47,6 +47,9 @@
 .Sh DESCRIPTION
 The real and effective group ID's of the current process
 are set to the arguments.
+If the real group ID is changed, the saved group ID is changed to the
+new value of the effective group ID.
+.Pp
 Unprivileged users may change the real group
 ID to the effective group ID and vice-versa; only the super-user may
 make other changes.
