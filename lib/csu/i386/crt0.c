@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.23 1996/01/30 05:55:20 nate Exp $
+ *	$Id: crt0.c,v 1.24 1996/10/01 00:54:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -147,7 +147,6 @@ start()
 
 #ifdef lint
 	kfp = 0;
-	initcode = initcode = 0;
 #else /* not lint */
 	/* just above the saved frame pointer */
 	asm ("lea 4(%%ebp), %0" : "=r" (kfp) );
