@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.39 2000/06/18 21:40:46 dmlb Exp $
+ * $Id: if_ray.c,v 1.40 2000/06/20 20:14:29 dmlb Exp $
  *
  */
 
@@ -339,7 +339,7 @@ static int	ray_stop_user		(struct ray_softc *sc);
 static void	ray_tx			(struct ifnet *ifp);
 static void	ray_tx_done		(struct ray_softc *sc, size_t ccs);
 static void	ray_tx_timo		(void *xsc);
-static int	ray_tx_send		(struct ray_softc *sc, size_t ccs, u_int8_t pktlen, u_int8_t *dst);
+static int	ray_tx_send		(struct ray_softc *sc, size_t ccs, int pktlen, u_int8_t *dst);
 static size_t	ray_tx_wrhdr		(struct ray_softc *sc, size_t bufp, u_int8_t type, u_int8_t fc1, u_int8_t *addr1, u_int8_t *addr2, u_int8_t *addr3);
 static void	ray_upparams		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_upparams_done	(struct ray_softc *sc, size_t ccs);
@@ -1455,7 +1455,7 @@ ray_tx(struct ifnet *ifp)
 	 *
 	 */
 	if (m0->m_len < sizeof(struct ether_header))
-		m = m_pullup(m, sizeof(struct ether_header));
+		m0 = m_pullup(m, sizeof(struct ether_header));
 	if (m0 == NULL) {
 		RAY_RECERR(sc, "could not pullup ether");
 		RAY_CCS_FREE(sc, ccs);
@@ -1566,7 +1566,7 @@ ray_tx_wrhdr(struct ray_softc *sc, size_t bufp, u_int8_t type, u_int8_t fc1, u_i
  * Returns 0 on success, 1 on failure
  */
 static int
-ray_tx_send(struct ray_softc *sc, size_t ccs, u_int8_t pktlen, u_int8_t *dst)
+ray_tx_send(struct ray_softc *sc, size_t ccs, int pktlen, u_int8_t *dst)
 {
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 	RAY_MAP_CM(sc);
