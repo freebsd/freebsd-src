@@ -288,10 +288,12 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETFL:
-		fhold(fp);
+		FILE_LOCK(fp);
 		FILEDESC_UNLOCK(fdp);
+		fhold_locked(fp);
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(arg & ~O_ACCMODE) & FCNTLFLAGS;
+		FILE_UNLOCK(fp);
 		tmp = fp->f_flag & FNONBLOCK;
 		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		if (error) {
@@ -304,7 +306,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			fdrop(fp, td);
 			break;
 		}
+		FILE_LOCK(fp);
 		fp->f_flag &= ~FNONBLOCK;
+		FILE_UNLOCK(fp);
 		tmp = 0;
 		(void)fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		fdrop(fp, td);
