@@ -338,19 +338,15 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  * A dmamap to for use with dmamap_load is also allocated.
  */
 int
-bus_dmamem_alloc_size(bus_dma_tag_t dmat, void** vaddr, int flags,
-		      bus_dmamap_t *mapp, bus_size_t size)
+bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+		 bus_dmamap_t *mapp)
 {
-
-	if (size > dmat->maxsize)
-		return (ENOMEM);
-
 	/* If we succeed, no mapping/bouncing will be required */
 	*mapp = NULL;
 
-	if ((size <= PAGE_SIZE) &&
+	if ((dmat->maxsize <= PAGE_SIZE) &&
 	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) {
-		*vaddr = malloc(size, M_DEVBUF,
+		*vaddr = malloc(dmat->maxsize, M_DEVBUF,
 				(flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
 	} else {
 		/*
@@ -359,7 +355,7 @@ bus_dmamem_alloc_size(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 *     multi-seg allocations yet though.
 		 */
 		mtx_lock(&Giant);
-		*vaddr = contigmalloc(size, M_DEVBUF,
+		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF,
 		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
 		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
 		    dmat->boundary);
@@ -370,20 +366,12 @@ bus_dmamem_alloc_size(bus_dma_tag_t dmat, void** vaddr, int flags,
 	return (0);
 }
 
-int
-bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-		 bus_dmamap_t *mapp)
-{
-	return (bus_dmamem_alloc_size(dmat, vaddr, flags, mapp, dmat->maxsize));
-}
-
 /*
  * Free a piece of memory and it's allociated dmamap, that was allocated
  * via bus_dmamem_alloc.  Make the same choice for free/contigfree.
  */
 void
-bus_dmamem_free_size(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map,
-		     bus_size_t size)
+bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
 	/*
 	 * dmamem does not need to be bounced, so the map should be
@@ -391,19 +379,14 @@ bus_dmamem_free_size(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map,
 	 */
 	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	if ((size <= PAGE_SIZE) && dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
+	if ((dmat->maxsize <= PAGE_SIZE)
+	 && dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
 		free(vaddr, M_DEVBUF);
 	else {
 		mtx_lock(&Giant);
-		contigfree(vaddr, size, M_DEVBUF);
+		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
 		mtx_unlock(&Giant);
 	}
-}
-
-void
-bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
-{
-	bus_dmamem_free_size(dmat, vaddr, map, dmat->maxsize);
 }
 
 /*

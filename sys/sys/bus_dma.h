@@ -176,9 +176,6 @@ int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
  * bus device space based on the constraints lited in the dma tag.
  * A dmamap to for use with dmamap_load is also allocated.
  */
-int bus_dmamem_alloc_size(bus_dma_tag_t dmat, void** vaddr, int flags,
-			  bus_dmamap_t *mapp, bus_size_t size);
-
 int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		     bus_dmamap_t *mapp);
 
@@ -186,9 +183,6 @@ int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
  * Free a piece of memory and it's allociated dmamap, that was allocated
  * via bus_dmamem_alloc.
  */
-void bus_dmamem_free_size(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map,
-			  bus_size_t size);
-
 void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
 
 /*
