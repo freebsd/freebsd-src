@@ -1,20 +1,20 @@
+;
+; $FreeBSD$
+;
+
 ;       This file holds the information on root name servers needed to
 ;       initialize cache of Internet domain name servers
 ;       (e.g. reference this file in the "cache  .  <file>"
 ;       configuration file of BIND domain name servers).
 ;
-;       This file is made available by InterNIC registration services
+;       This file is made available by InterNIC 
 ;       under anonymous FTP as
 ;           file                /domain/named.root
-;           on server           FTP.RS.INTERNIC.NET
-;       -OR- under Gopher at    RS.INTERNIC.NET
-;           under menu          InterNIC Registration Services (NSI)
-;              submenu          InterNIC Registration Archives
-;           file                named.root
+;           on server           FTP.INTERNIC.NET
 ;
-;       last update:    Aug 22, 1997
-;       related version of root zone:   1997082200
-; $FreeBSD$
+;       last update:    Nov 5, 2002
+;       related version of root zone:   2002110501
+;
 ;
 ; formerly NS.INTERNIC.NET
 ;
@@ -61,17 +61,17 @@ H.ROOT-SERVERS.NET.      3600000      A     128.63.2.53
 .                        3600000      NS    I.ROOT-SERVERS.NET.
 I.ROOT-SERVERS.NET.      3600000      A     192.36.148.17
 ;
-; temporarily housed at NSI (InterNIC)
+; operated by VeriSign, Inc. 
 ;
 .                        3600000      NS    J.ROOT-SERVERS.NET.
-J.ROOT-SERVERS.NET.      3600000      A     198.41.0.10
+J.ROOT-SERVERS.NET.      3600000      A     192.58.128.30
 ;
 ; housed in LINX, operated by RIPE NCC
 ;
 .                        3600000      NS    K.ROOT-SERVERS.NET.
 K.ROOT-SERVERS.NET.      3600000      A     193.0.14.129 
 ;
-; temporarily housed at ISI (IANA)
+; operated by IANA
 ;
 .                        3600000      NS    L.ROOT-SERVERS.NET.
 L.ROOT-SERVERS.NET.      3600000      A     198.32.64.12
