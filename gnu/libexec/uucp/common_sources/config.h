@@ -1,6 +1,8 @@
 /* config.h.  Generated automatically by configure.  */
 /* Configuration header file for Taylor UUCP.  -*- C -*-  */
 
+/* $FreeBSD$ */
+
 /* If your compiler does not use const correctly, then undefine it
    here.  This #undef is commented out by the configure script if it
    determines that const is supported.  */
@@ -217,6 +219,9 @@
    is on AIX.  */
 #define HAVE_TXADDCD 0
 
+/* Set HAVE_SOCKADDR_SA_LEN to 1 if struct sockaddr has sa_len member.  */
+#define HAVE_SOCKADDR_SA_LEN 1
+
 /* There are now a number of functions to check for.  For each of
    these, the macro HAVE_FUNC should be set to 1 if your system has
    FUNC.  For example, HAVE_VFPRINTF should be set to 1 if your system
@@ -287,6 +292,10 @@
    lib/Makefile.  */
 #define HAVE_STRRCHR 1
 #define HAVE_RINDEX 1
+
+/* If neither of these functions exists, you should add getaddrinfo.o to
+   lib/Makefile.  */
+#define HAVE_GETADDRINFO 1
 
 /* There are also Unix specific functions which are replaced in the
    subdirectory unix.  If they are missing, the configure script will
