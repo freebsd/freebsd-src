@@ -156,29 +156,21 @@ NON_GPROF_ENTRY(wait_ap)
  * 1Meg.		-jackv
  */
 
-#define data32	.byte 0x66
-#define addr32	.byte 0x67
-
 	.data
 	ALIGN_DATA				/* just to be sure */
 
 BOOTMP1:
 
 NON_GPROF_ENTRY(bootMP)
+	.code16		
 	cli
 	CHECKPOINT(0x34, 1)
 	/* First guarantee a 'clean slate' */
-	data32
 	xorl	%eax, %eax
-	data32
 	movl	%eax, %ebx
-	data32
 	movl	%eax, %ecx
-	data32
  	movl	%eax, %edx
-	data32
 	movl	%eax, %esi
-	data32
 	movl	%eax, %edi
 
 	/* set up data segments */
@@ -188,32 +180,25 @@ NON_GPROF_ENTRY(bootMP)
 	mov	%ax, %fs
 	mov	%ax, %gs
 	mov	%ax, %ss
-	mov	$(boot_stk-_bootMP), %sp
+	mov	$(boot_stk-_bootMP), %esp
 
 	/* Now load the global descriptor table */
-	addr32
-	data32
 	lgdt	MP_GDTptr-_bootMP
 
 	/* Enable protected mode */
-	data32
 	movl	%cr0, %eax
-	data32
 	orl	$CR0_PE, %eax
-	data32
 	movl	%eax, %cr0 
 
 	/*
 	 * make intrasegment jump to flush the processor pipeline and
 	 * reload CS register
 	 */
-	data32
 	pushl	$0x18
-	data32
 	pushl	$(protmode-_bootMP)
-	data32
-	lret
+	lretl
 
+       .code32		
 protmode:
 	CHECKPOINT(0x35, 2)
 
