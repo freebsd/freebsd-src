@@ -70,6 +70,7 @@ ata_queue_request(struct ata_request *request)
 
 	/* kick HW into action */
 	if (request->device->channel->hw.transaction(request)==ATA_OP_FINISHED){
+	    untimeout((timeout_t *)ata_timeout,request,request->timeout_handle);
 	    if (!request->callback) 
 		sema_destroy(&request->done);
 	    return;
@@ -209,7 +210,6 @@ ata_finish(struct ata_request *request)
 
     /* if we timed out the unlocking of the ATA channel is done later */
     if (!(request->flags & ATA_R_TIMEOUT)) {
-        ch->running = NULL;
         ATA_UNLOCK_CH(ch);
         ch->locking(ch, ATA_LF_UNLOCK);
     }
@@ -466,7 +466,25 @@ ata_timeout(struct ata_request *request)
     /* now simulate the missing interrupt */
     request->flags |= ATA_R_TIMEOUT;
     request->device->channel->hw.interrupt(request->device->channel);
-    return;
+}
+
+void
+ata_catch_inflight(struct ata_channel *ch)
+{
+    struct ata_request *request = ch->running;
+
+    ch->running = NULL;
+    if (request) {
+        untimeout((timeout_t *)ata_timeout, request, request->timeout_handle);
+        ata_prtdev(request->device,
+                   "WARNING - %s requeued due to channel reset",
+                   ata_cmd2str(request));
+        if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
+            printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+        printf("\n");
+        request->flags |= ATA_R_REQUEUE;
+        ata_queue_request(request);
+    }
 }
 
 void
@@ -491,6 +509,7 @@ ata_fail_requests(struct ata_channel *ch, struct ata_device *device)
     /* if we have a request "in flight" fail it as well */
     if ((request = ch->running) && (!device || request->device == device)) {
 	untimeout((timeout_t *)ata_timeout, request, request->timeout_handle);
+	ch->running = NULL;
 	request->result = ENXIO;
 	if (request->callback)
 	    (request->callback)(request);

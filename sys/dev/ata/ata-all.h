@@ -410,6 +410,7 @@ int ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t featur
 int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
 void ata_queue_request(struct ata_request *request);
 void ata_finish(struct ata_request *request);
+void ata_catch_inflight(struct ata_channel *ch);
 void ata_fail_requests(struct ata_channel *ch, struct ata_device *device);
 char *ata_cmd2str(struct ata_request *request);
 
