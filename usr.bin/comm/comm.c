@@ -82,7 +82,7 @@ main(argc, argv)
 	flag1 = flag2 = flag3 = 1;
 	iflag = 0;
 
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 	while ((ch = getopt(argc, argv, "-123i")) != -1)
 		switch(ch) {
