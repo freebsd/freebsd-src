@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.1.1.1 1999/07/28 20:28:47 se Exp $
  */
 
 
@@ -148,34 +148,34 @@ static char *ConfigurationTypeCodes[] = {
     "SecondaryDcache",
     "SecondaryCache",
     "eisa",
-    "TcAdapter",		/* XXX ? */
+    "tc",
     "scsi",
-    "DtiAdapter",		/* XXX ? */
+    "dti",
     "multi",
     "disk",
-    "TapeController",		/* XXX ? */
-    "CdromController",		/* XXX ? */
-    "WormController",		/* XXX ? */
+    "tape",
+    "cdrom",
+    "worm",
     "serial",
-    "NetworkController",	/* XXX ? */
+    "network",
     "video",
     "par",
-    "PointerController",	/* XXX ? */
+    "point",
     "key",
-    "AudioController",		/* XXX ? */
-    "OtherController",		/* XXX ? */
+    "audio",
+    "other",
     "rdisk",
     "fdisk",
-    "TapePeripheral",		/* XXX ? */
-    "ModemPeripheral",		/* XXX ? */
-    "MonitorPeripheral",	/* XXX ? */
-    "PrinterPeripheral",	/* XXX ? */
-    "PointerPeripheral",	/* XXX ? */
+    "tape",
+    "modem",
+    "monitor",
+    "print",
+    "pointer",
     "keyboard",
-    "TerminalPeripheral",	/* XXX ? */
-    "OtherPeripheral",		/* XXX ? */
-    "LinePeripheral",		/* XXX ? */
-    "NetworkPeripheral",	/* XXX ? */
+    "term",
+    "other",
+    "line",
+    "network",
     "Memory",
     "MaximumType"
 };
