@@ -1,4 +1,5 @@
-/* Native-dependent code for BSD Unix running on i386's, for GDB.
+/* $FreeBSD$ */
+/* Native-dependent code for BSD Unix running on alphas's, for GDB.
    Copyright 1988, 1989, 1991, 1992, 1994, 1996 Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -20,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "defs.h"
 
 #include <sys/types.h>
+#include <sys/lock.h>
 #include <sys/ptrace.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
