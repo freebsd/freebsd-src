@@ -1,7 +1,10 @@
-#	$Id: Makefile,v 1.4 1994/09/07 07:16:37 pst Exp $
+#	$Id: Makefile,v 1.5 1994/09/07 07:47:03 pst Exp $
 
-# XXX usr.bin out until Geoff's master plan is done
-SUBDIR= lib
+# lib must be first, or it will not work.  This is because we reference
+# the lib's in the directory where they are built from the binaries we
+# want to build.
+
+SUBDIR= lib usr.bin sbin bin
 
 .include <bsd.subdir.mk>
 
