@@ -868,12 +868,8 @@ elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 
 	sym = ef->ddbsymtab + symidx;
 
-	/* Theoretically we can avoid a lookup for some locals */
-	switch (ELF_ST_BIND(sym->st_info)) {
-	case STB_LOCAL:
-		/* Local, but undefined? huh? */
-		if (sym->st_shndx == SHN_UNDEF)
-			return (0);
+	/* Quick answer if there is a definition included. */
+	if (sym->st_shndx != SHN_UNDEF) {
 		ret = 0;
 		/* Relative to section number */
 		for (i = 0; i < ef->nprogtab; i++) {
@@ -883,6 +879,13 @@ elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 			}
 		}
 		return ret + sym->st_value;
+	}
+
+	/* If we get here, then it is undefined and needs a lookup. */
+	switch (ELF_ST_BIND(sym->st_info)) {
+	case STB_LOCAL:
+		/* Local, but undefined? huh? */
+		return (0);
 
 	case STB_GLOBAL:
 		/* Relative to Data or Function name */
