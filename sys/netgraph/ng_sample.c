@@ -96,7 +96,7 @@ static const struct ng_cmdlist ng_xxx_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_XXX_NODE_TYPE,
 	NULL,
 	ng_xxx_constructor,

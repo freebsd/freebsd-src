@@ -187,7 +187,7 @@ static	ng_rcvdata_t ngmn_rcvdata;
 static	ng_disconnect_t ngmn_disconnect;
 
 static struct ng_type mntypestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_MN_NODE_TYPE,
 	NULL, 
 	ngmn_constructor,
@@ -281,9 +281,11 @@ ngmn_shutdown(node_p nodep)
 }
 
 static int
-ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp, hook_p lasthook)
+ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+								struct ng_mesg **rptr, hook_p lasthook)
 {
 	struct softc *sc;
+	struct ng_mesg *resp = NULL;
 	struct schan *sch;
 	char *arg;
 	int pos, i;
@@ -291,19 +293,20 @@ ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mes
 	sc = node->private;
 
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE ||
+		rptr == NULL ||  /* temporary */
 	    msg->header.cmd != NGM_TEXT_STATUS) {
-		if (resp)
-			*resp = NULL;
+		if (rptr)
+			*rptr = NULL;
 		FREE(msg, M_NETGRAPH);
 		return (EINVAL);
 	}
-	NG_MKRESPONSE(*resp, msg, sizeof(struct ng_mesg) + NG_TEXTRESPONSE,
+	NG_MKRESPONSE(resp, msg, sizeof(struct ng_mesg) + NG_TEXTRESPONSE,
 	    M_NOWAIT);
-	if (*resp == NULL) {
+	if (resp == NULL) {
 		FREE(msg, M_NETGRAPH);
 		return (ENOMEM);
 	}
-	arg = (char *)(*resp)->data;
+	arg = (char *)resp->data;
 	pos = 0;
 	pos += sprintf(pos + arg,"Framer status %b;\n", sc->framer_state, "\20"
 	    "\40LOS\37AIS\36LFA\35RRA"
@@ -371,7 +374,14 @@ ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mes
 		pos += sprintf(arg + pos, "    Xmit bytes pending %ld\n",
 		    sch->tx_pending);
 	}
-	(*resp)->header.arglen = pos + 1;
+	resp->header.arglen = pos + 1;
+
+	/* Take care of synchronous response, if any */
+	if (rptr)
+		*rptr = resp;
+	else if (resp)
+		FREE(resp, M_NETGRAPH);	/* Will eventually send the hard way */
+
 	FREE(msg, M_NETGRAPH);
 	return (0);
 }

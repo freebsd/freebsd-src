@@ -120,7 +120,7 @@ static int	ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg,
 
 /* Netgraph type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_SOCKET_NODE_TYPE,
 	ngs_mod_event,
 	ngs_constructor,

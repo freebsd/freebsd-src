@@ -266,7 +266,7 @@ static const struct ng_cmdlist ng_bridge_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_bridge_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_BRIDGE_NODE_TYPE,
 	NULL,
 	ng_bridge_constructor,

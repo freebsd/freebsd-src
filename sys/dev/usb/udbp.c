@@ -185,7 +185,7 @@ Static const struct ng_cmdlist ng_udbp_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 Static struct ng_type ng_udbp_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_UDBP_NODE_TYPE,
 	NULL,
 	ng_udbp_constructor,

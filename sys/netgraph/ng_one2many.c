@@ -162,7 +162,7 @@ static const struct ng_cmdlist ng_one2many_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_one2many_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_ONE2MANY_NODE_TYPE,
 	NULL,
 	ng_one2many_constructor,

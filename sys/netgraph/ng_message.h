@@ -54,7 +54,7 @@
 /* A netgraph message */
 struct ng_mesg {
 	struct	ng_msghdr {
-		u_char		version;		/* must == NG_VERSION */
+		u_char		version;		/*  == NGM_VERSION */
 		u_char		spare;			/* pad to 2 bytes */
 		u_int16_t	arglen;			/* length of data */
 		u_int32_t	flags;			/* message status */
@@ -65,6 +65,7 @@ struct ng_mesg {
 	} header;
 	char	data[0];		/* placeholder for actual data */
 };
+
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
@@ -82,7 +83,11 @@ struct ng_mesg {
 	}							\
 }
 
-/* Negraph type binary compatibility field */
+/*
+ * Netgraph message header compatibility field
+ * Interfaces within the kernel are defined by a different 
+ * value (see NG_ABI_VERSION in netgraph.g)
+ */
 #define NG_VERSION	4
 
 /* Flags field flags */

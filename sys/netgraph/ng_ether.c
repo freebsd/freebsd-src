@@ -180,7 +180,7 @@ static const struct ng_cmdlist ng_ether_cmdlist[] = {
 };
 
 static struct ng_type ng_ether_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_ETHER_NODE_TYPE,
 	ng_ether_mod_event,
 	ng_ether_constructor,
