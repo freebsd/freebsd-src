@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.54 1996/07/30 03:08:09 dyson Exp $
+ * $Id: vm_map.c,v 1.55 1996/09/08 16:57:53 dyson Exp $
  */
 
 /*
@@ -1235,7 +1235,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 			{
 				vm_pindex_t pindex;
 				int count;
-				vm_size_t size = entry->end - entry->start;
+				vm_size_t size = current->end - current->start;
 				pindex = OFF_TO_IDX(entry->offset);
 				count = OFF_TO_IDX(size);
 				/*
@@ -1251,8 +1251,8 @@ vm_map_madvise(map, pmap, start, end, advise)
 			{
 				vm_pindex_t pindex;
 				int count;
-				vm_size_t size = entry->end - entry->start;
-				pindex = OFF_TO_IDX(entry->offset);
+				vm_size_t size = current->end - current->start;
+				pindex = OFF_TO_IDX(current->offset);
 				count = OFF_TO_IDX(size);
 				vm_object_madvise(current->object.vm_object,
 					pindex, count, advise);
