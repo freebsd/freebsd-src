@@ -319,8 +319,6 @@ received confirmation of this.
 
 2.1. Disk Controllers
 ---------------------
-WD1003 (any generic MFM/RLL)
-WD1007 (any generic IDE/ESDI)
 IDE
 ATA
 
