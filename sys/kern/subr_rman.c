@@ -123,6 +123,8 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 {
 	struct resource *r, *s;
 
+	DPRINTF(("rman_manage_region: <%s> request: start %#lx, end %#lx\n",
+	    rm->rm_descr, start, end));
 	r = malloc(sizeof *r, M_RMAN, M_NOWAIT | M_ZERO);
 	if (r == 0)
 		return ENOMEM;
