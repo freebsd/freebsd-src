@@ -646,8 +646,8 @@ usbd_add_event(int type, usbd_device_handle dev)
 		return;
 	}
 	ueq->ue.ue_type = type;
-	ueq->ue.ue_cookie = dev->cookie;
-	usbd_fill_deviceinfo(dev, &ueq->ue.ue_device);
+	ueq->ue.u.ue_driver.ue_cookie = dev->cookie;
+	usbd_fill_deviceinfo(dev, &ueq->ue.u.ue_device);
 	microtime(&thetime);
 	TIMEVAL_TO_TIMESPEC(&thetime, &ueq->ue.ue_time);
 	SIMPLEQ_INSERT_TAIL(&usb_events, ueq, next);

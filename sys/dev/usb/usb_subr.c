@@ -1002,7 +1002,7 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 		return (err);
   	}
   
-	usbd_add_event(USB_EVENT_ATTACH, dev);
+	usbd_add_event(USB_EVENT_DEVICE_ATTACH, dev);
   	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -1129,15 +1129,15 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di)
 
 	if (dev->subdevs) {
 		for (i = 0; dev->subdevs[i] &&
-			    i < MAXDEVNAMES; i++) {
+			    i < USB_MAX_DEVNAMES; i++) {
 			strncpy(di->udi_devnames[i], USBDEVPTRNAME(dev->subdevs[i]),
-				MAXDEVNAMELEN);
-			di->udi_devnames[i][MAXDEVNAMELEN-1] = '\0'; /* terminate */
+				USB_MAX_DEVNAMELEN);
+			di->udi_devnames[i][USB_MAX_DEVNAMELEN-1] = '\0'; /* terminate */
 		}
 	} else {
 		i = 0;
 	}
-	for (/*i is set */; i < MAXDEVNAMES; i++)
+	for (/*i is set */; i < USB_MAX_DEVNAMES; i++)
 		di->udi_devnames[i][0] = 0;			/* empty */
 
 	usbd_devinfo_vp(dev, di->udi_vendor, di->udi_product);
@@ -1239,7 +1239,7 @@ usb_disconnect_port(struct usbd_port *up, device_ptr_t parent)
 		return;
 	}
 
-	usbd_add_event(USB_EVENT_DETACH, dev);
+	usbd_add_event(USB_EVENT_DEVICE_DETACH, dev);
 
 	if (dev->subdevs != NULL) {
 		DPRINTFN(3,("usb_disconnect_port: disconnect subdevs\n"));
@@ -1259,7 +1259,7 @@ usb_disconnect_port(struct usbd_port *up, device_ptr_t parent)
 		}
 	}
 
-	/*usbd_add_event(USB_EVENT_DETACH, dev);*/
+	/*usbd_add_event(USB_EVENT_DEVICE_DETACH, dev);*/
 	dev->bus->devices[dev->address] = NULL;
 	up->device = NULL;
 	usb_free_device(dev);

@@ -109,8 +109,12 @@ typedef struct event_name_s {
 } event_name_t;
 
 event_name_t event_names[] = {
-	{USB_EVENT_ATTACH, "attach"},
-	{USB_EVENT_DETACH, "detach"},
+	{USB_EVENT_CTRLR_ATTACH, "ctrlr-attach"},
+	{USB_EVENT_CTRLR_DETACH, "ctrlr-detach"},
+	{USB_EVENT_DRIVER_ATTACH, "driver-attach"},
+	{USB_EVENT_DRIVER_DETACH, "driver-detach"},
+	{USB_EVENT_DEVICE_ATTACH, "device-attach"},
+	{USB_EVENT_DEVICE_DETACH, "device-detach"},
 	{0, NULL}			/* NULL indicates end of list, not 0 */
 };
 
@@ -207,7 +211,7 @@ int  find_action	__P((struct usb_device_info *devinfo,
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-d] [-v] [-t timeout] [-e] [-f dev]\n"
+	fprintf(stderr, "usage: %s [-d] [-v] [-t timeout] [-e] [-f dev]\n"
 			"           [-n] [-c config]\n",
 		__progname);
 	exit(1);
@@ -560,7 +564,7 @@ print_event(struct usb_event *event)
 {
 	int i;
 	struct timespec *timespec = &event->ue_time;
-	struct usb_device_info *devinfo = &event->ue_device;
+	struct usb_device_info *devinfo = &event->u.ue_device;
 
 	printf("%s: ", __progname);
 	for (i = 0; event_names[i].name != NULL; i++) {
@@ -572,28 +576,42 @@ print_event(struct usb_event *event)
 	if (event_names[i].name == NULL)
 		printf("unknown event %d", event->ue_type);
 
-	printf(" at %ld.%09ld, %s, %s:\n",
-		timespec->tv_sec, timespec->tv_nsec,
-		devinfo->udi_product, devinfo->udi_vendor);
+	if (event->ue_type == USB_EVENT_DEVICE_ATTACH ||
+	    event->ue_type == USB_EVENT_DEVICE_DETACH) {
+		devinfo = &event->u.ue_device;
 
-	printf("  vndr=0x%04x prdct=0x%04x rlse=0x%04x "
-	       "clss=0x%04x subclss=0x%04x prtcl=0x%04x\n",
-	       devinfo->udi_vendorNo, devinfo->udi_productNo, devinfo->udi_releaseNo,
-	       devinfo->udi_class, devinfo->udi_subclass, devinfo->udi_protocol);
+		printf(" at %ld.%09ld, %s, %s:\n",
+			timespec->tv_sec, timespec->tv_nsec,
+			devinfo->udi_product, devinfo->udi_vendor);
 
-	if (devinfo->udi_devnames[0][0] != '\0') {
-		char c = ' ';
+		printf("  vndr=0x%04x prdct=0x%04x rlse=0x%04x "
+		       "clss=0x%04x subclss=0x%04x prtcl=0x%04x\n",
+		       devinfo->udi_vendorNo, devinfo->udi_productNo,
+		       devinfo->udi_releaseNo,
+		       devinfo->udi_class, devinfo->udi_subclass, devinfo->udi_protocol);
 
-		printf("  device names:");
-		for (i = 0; i < MAXDEVNAMES; i++) {
-			if (devinfo->udi_devnames[i][0] == '\0')
-				break;
+		if (devinfo->udi_devnames[0][0] != '\0') {
+			char c = ' ';
 
-			printf("%c%s", c, devinfo->udi_devnames[i]);
-			c = ',';
+			printf("  device names:");
+			for (i = 0; i < USB_MAX_DEVNAMES; i++) {
+				if (devinfo->udi_devnames[i][0] == '\0')
+					break;
+
+				printf("%c%s", c, devinfo->udi_devnames[i]);
+				c = ',';
+			}
 		}
-		printf("\n");
+	} else if (event->ue_type == USB_EVENT_CTRLR_ATTACH ||
+	    event->ue_type == USB_EVENT_CTRLR_DETACH) {
+		printf(" bus=%d", &event->u.ue_ctrlr.ue_bus);
+	} else if (event->ue_type == USB_EVENT_DRIVER_ATTACH ||
+	    event->ue_type == USB_EVENT_DRIVER_DETACH) {
+		printf(" cookie=%u devname=%s",
+		    &event->u.ue_driver.ue_cookie.cookie,
+		    &event->u.ue_driver.ue_devname);
 	}
+	printf("\n");
 }
 
 void
@@ -662,7 +680,7 @@ match_devname(action_t *action, struct usb_device_info *devinfo)
 	regmatch_t match;
 	int error;
 
-	for (i = 0; i < MAXDEVNAMES; i++) {
+	for (i = 0; i < USB_MAX_DEVNAMES; i++) {
 		if (devinfo->udi_devnames[i][0] == '\0')
 			break;
 
@@ -853,9 +871,17 @@ process_event_queue(int fd)
 
 		/* handle the event appropriately */
 		switch (event.ue_type) {
-		case USB_EVENT_ATTACH:
-		case USB_EVENT_DETACH:
-			if (find_action(&event.ue_device, &action_match) == 0)
+		case USB_EVENT_CTRLR_ATTACH:
+			if (verbose)
+				printf("USB_EVENT_CTRLR_ATTACH\n");
+			break;
+		case USB_EVENT_CTRLR_DETACH:
+			if (verbose)
+				printf("USB_EVENT_CTRLR_DETACH\n");
+			break;
+		case USB_EVENT_DEVICE_ATTACH:
+		case USB_EVENT_DEVICE_DETACH:
+			if (find_action(&event.u.ue_device, &action_match) == 0)
 				/* nothing found */
 				break;
 
@@ -873,11 +899,20 @@ process_event_queue(int fd)
 						__progname, action_match.devname, strerror(errno));
 			}
 
-			if (event.ue_type == USB_EVENT_ATTACH && action_match.action->attach)
+			if (USB_EVENT_IS_ATTACH(event.ue_type) &&
+			    action_match.action->attach) 
 				execute_command(action_match.action->attach);
-			if (event.ue_type == USB_EVENT_DETACH && action_match.action->detach)
+			if (USB_EVENT_IS_DETACH(event.ue_type) &&
+			    action_match.action->detach)
 				execute_command(action_match.action->detach);
-
+			break;
+		case USB_EVENT_DRIVER_ATTACH:
+			if (verbose)
+				printf("USB_EVENT_DRIVER_DETACH\n");
+			break;
+		case USB_EVENT_DRIVER_DETACH:
+			if (verbose)
+				printf("USB_EVENT_DRIVER_DETACH\n");
 			break;
 		default:
 			printf("Unknown USB event %d\n", event.ue_type);
@@ -902,9 +937,8 @@ main(int argc, char **argv)
 	int itimeout = TIMEOUT;	/* timeout for select */
 	struct timeval tv;
 
-	if (modfind(USB_OHCI) < 0 && modfind(USB_UHCI) < 0) {
-		if (kldload(USB_KLD) < 0 || 
-		    (modfind(USB_OHCI) < 0 && modfind(USB_UHCI) < 0)) {
+	if (modfind(USB_UHUB) < 0) {
+		if (kldload(USB_KLD) < 0 || modfind(USB_UHUB) < 0) {
 			perror(USB_KLD ": Kernel module not available");
 			return 1;
 		}
@@ -914,6 +948,10 @@ main(int argc, char **argv)
 		switch(ch) {
 		case 'c':
 			configfile = strdup(optarg);
+			if (configfile == NULL) {
+				fprintf(stderr, "strdup returned NULL\n");
+				return 1;
+			}
 			break;
 		case 'd':
 			debug++;
@@ -950,6 +988,10 @@ main(int argc, char **argv)
 			fds[ndevs] = open(buf, O_RDWR);
 			if (fds[ndevs] >= 0) {
 				devs[ndevs] = strdup(buf);
+				if (devs[ndevs] == NULL) {
+					fprintf(stderr, "strdup returned NULL\n");
+					return 1;
+				}
 				if (verbose)
 					printf("%s: opened %s\n", 
 					       __progname, devs[ndevs]);
