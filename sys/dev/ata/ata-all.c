@@ -274,10 +274,8 @@ static int
 ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct ata_cmd *iocmd = (struct ata_cmd *)addr;
-    struct ata_device *atadev;
     struct ata_channel *ch;
     device_t device = devclass_get_device(ata_devclass, iocmd->channel);
-    caddr_t buf;
     int error, s;
 
     if (cmd != IOCATA)
@@ -375,7 +373,9 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    return 0;
 
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
-	case ATAPICMD:
+	case ATAPICMD: {
+	    struct ata_device *atadev;
+	    caddr_t buf;
 
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
@@ -409,6 +409,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 
 	    free(buf, M_ATA);
 	    return error;
+	}
 #endif
 	default:
     }
