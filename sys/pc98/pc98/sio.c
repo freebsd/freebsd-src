@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.52 1998/02/13 12:46:20 phk Exp $
+ *	$Id: sio.c,v 1.53 1998/02/15 11:18:47 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -170,7 +170,6 @@
 #include "card.h"
 #if NCARD > 0
 #include <pccard/cardinfo.h>
-#include <pccard/driver.h>
 #include <pccard/slot.h>
 #endif
 
@@ -713,9 +712,9 @@ SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 /*
  *	PC-Card (PCMCIA) specific code.
  */
-static int sioinit(struct pccard_devinfo *);		/* init device */
-static void siounload(struct pccard_devinfo *);		/* Disable driver */
-static int card_intr(struct pccard_devinfo *);		/* Interrupt handler */
+static int	sioinit		__P((struct pccard_devinfo *));
+static void	siounload	__P((struct pccard_devinfo *));
+static int	card_intr	__P((struct pccard_devinfo *));
 
 static struct pccard_device sio_info = {
 	driver_name,
