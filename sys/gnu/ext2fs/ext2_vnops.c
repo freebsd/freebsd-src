@@ -43,6 +43,7 @@
  *
  *	@(#)ufs_vnops.c 8.27 (Berkeley) 5/27/95
  *	@(#)ext2_vnops.c	8.7 (Berkeley) 2/3/94
+ * $FreeBSD$
  */
 
 #include "opt_quota.h"
@@ -75,6 +76,7 @@
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/ext2fs/ext2_fs.h>
 
 static int ext2_makeinode __P((int mode, struct vnode *, struct vnode **, struct componentname *));
 
@@ -144,6 +146,21 @@ static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 	VNODEOP_SET(ext2fs_fifoop_opv_desc);
 
 #include <gnu/ext2fs/ext2_readwrite.c>
+
+/*
+ * A virgin directory (no blushing please).
+ * Note that the type and namlen fields are reversed relative to ufs.
+ * Also, we don't use `struct odirtemplate', since it would just cause
+ * endianness problems.
+ */
+static struct dirtemplate mastertemplate = {
+	0, 12, 1, EXT2_FT_DIR, ".",
+	0, DIRBLKSIZ - 12, 2, EXT2_FT_DIR, ".."
+};
+static struct dirtemplate omastertemplate = {
+	0, 12, 1, EXT2_FT_UNKNOWN, ".",
+	0, DIRBLKSIZ - 12, 2, EXT2_FT_UNKNOWN, ".."
+};
 
 /*
  * Create a regular file
@@ -729,8 +746,8 @@ abortit:
 				UIO_SYSSPACE, IO_NODELOCKED,
 				tcnp->cn_cred, (int *)0, (struct proc *)0);
 			if (error == 0) {
-				namlen = ((struct odirtemplate *)
-					    &dirbuf)->dotdot_namlen;
+				/* Like ufs little-endian: */
+				namlen = dirbuf.dotdot_type;
 				if (namlen != 2 ||
 				    dirbuf.dotdot_name[0] != '.' ||
 				    dirbuf.dotdot_name[1] != '.') {
@@ -779,14 +796,6 @@ out:
 		vrele(fvp);
 	return (error);
 }
-
-/*
- * A virgin directory (no blushing please).
- */
-static struct odirtemplate omastertemplate = {
-	0, 12, 1, { '.', 0 },
-	0, DIRBLKSIZ - 12, 2, { '.', '.', 0 }
-};
 
 /*
  * Mkdir system call
@@ -909,7 +918,11 @@ ext2_mkdir(ap)
 		goto bad;
 
 	/* Initialize directory with "." and ".." from static template. */
-	dtp = (struct dirtemplate *)&omastertemplate;
+	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs->s_es,
+	    EXT2_FEATURE_INCOMPAT_FILETYPE))
+		dtp = &mastertemplate;
+	else
+		dtp = &omastertemplate;
 	dirtemplate = *dtp;
 	dirtemplate.dot_ino = ip->i_number;
 	dirtemplate.dotdot_ino = dp->i_number;
