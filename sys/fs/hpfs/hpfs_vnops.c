@@ -372,7 +372,7 @@ hpfs_write(ap)
 			bn, runl, towrite, xfersz));
 
 		if ((off == 0) && (towrite == xfersz)) {
-			bp = getblk(hp->h_devvp, bn, xfersz, 0, 0);
+			bp = getblk(hp->h_devvp, bn, xfersz, 0, 0, 0);
 			clrbuf(bp);
 		} else {
 			error = bread(hp->h_devvp, bn, xfersz, NOCRED, &bp);

@@ -396,7 +396,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 * explicitly instead of letting bread do everything for us.
 	 */
 	vp = ITOV(ip);
-	bp = getblk(vp, lbn, (int)fs->s_blocksize, 0, 0);
+	bp = getblk(vp, lbn, (int)fs->s_blocksize, 0, 0, 0);
 	if (bp->b_flags & (B_DONE | B_DELWRI)) {
 	} else {
 		bp->b_iocmd = BIO_READ;

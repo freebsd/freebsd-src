@@ -398,7 +398,8 @@ updatefats(pmp, bp, fatbn)
 		for (i = 1; i < pmp->pm_FATs; i++) {
 			fatbn += pmp->pm_FATsecs;
 			/* getblk() never fails */
-			bpn = getblk(pmp->pm_devvp, fatbn, bp->b_bcount, 0, 0);
+			bpn = getblk(pmp->pm_devvp, fatbn, bp->b_bcount,
+			    0, 0, 0);
 			bcopy(bp->b_data, bpn->b_data, bp->b_bcount);
 			if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
 				bwrite(bpn);
@@ -1074,11 +1075,13 @@ extendfile(dep, count, bpp, ncp, flags)
 				 * Get the buf header for the new block of the file.
 				 */
 				if (dep->de_Attributes & ATTR_DIRECTORY)
-					bp = getblk(pmp->pm_devvp, cntobn(pmp, cn++),
-						    pmp->pm_bpcluster, 0, 0);
+					bp = getblk(pmp->pm_devvp,
+						    cntobn(pmp, cn++),
+						    pmp->pm_bpcluster, 0, 0, 0);
 				else {
-					bp = getblk(DETOV(dep), de_cn2bn(pmp, frcn++),
-					    pmp->pm_bpcluster, 0, 0);
+					bp = getblk(DETOV(dep),
+					    de_cn2bn(pmp, frcn++),
+					    pmp->pm_bpcluster, 0, 0, 0);
 					/*
 					 * Do the bmap now, as in msdosfs_write
 					 */

@@ -1626,7 +1626,7 @@ gotit:
 	    cgp->cg_initediblk < cgp->cg_niblk) {
 		ibp = getblk(ip->i_devvp, fsbtodb(fs,
 		    ino_to_fsba(fs, cg * fs->fs_ipg + cgp->cg_initediblk)),
-		    (int)fs->fs_bsize, 0, 0);
+		    (int)fs->fs_bsize, 0, 0, 0);
 		bzero(ibp->b_data, (int)fs->fs_bsize);
 		dp2 = (struct ufs2_dinode *)(ibp->b_data);
 		for (i = 0; i < INOPB(fs); i++) {

@@ -1483,7 +1483,7 @@ ffs_sbupdate(mp, waitfor)
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
 		bp = getblk(mp->um_devvp, fsbtodb(fs, fs->fs_csaddr + i),
-		    size, 0, 0);
+		    size, 0, 0, 0);
 		bcopy(space, bp->b_data, (u_int)size);
 		space = (char *)space + size;
 		if (waitfor != MNT_WAIT)
@@ -1511,7 +1511,7 @@ ffs_sbupdate(mp, waitfor)
 		fs->fs_sblockloc = SBLOCK_UFS2;
 	}
 	bp = getblk(mp->um_devvp, btodb(fs->fs_sblockloc), (int)fs->fs_sbsize,
-	    0, 0);
+	    0, 0, 0);
 	fs->fs_fmod = 0;
 	fs->fs_time = time_second;
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
