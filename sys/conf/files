@@ -3,12 +3,12 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-aicasm				optional	ahc			   \
+aicasm				optional ahc				   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
 	compile-with	"${MAKE} -f $S/dev/aic7xxx/Makefile MAKESRCPATH=$S/dev/aic7xxx" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm aicasm_gram.c aicasm_scan.c y.tab.h"
-aic7xxx_{seq,reg}.h		optional	ahc			   \
+aic7xxx_{seq,reg}.h		optional ahc				   \
 	compile-with	"./aicasm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"aic7xxx_seq.h aic7xxx_reg.h"			   \
@@ -300,7 +300,7 @@ kern/kern_timeout.c	standard
 kern/kern_xxx.c		standard
 kern/md5c.c		standard
 kern/subr_autoconf.c	standard
-kern/subr_bus.c			standard
+kern/subr_bus.c		standard
 kern/subr_devstat.c	standard
 kern/subr_diskslice.c	standard
 kern/subr_dkbad.c	standard
@@ -314,7 +314,7 @@ kern/subr_xxx.c		standard
 kern/sys_generic.c	standard
 kern/sys_pipe.c		standard
 kern/sys_process.c	standard
-kern/subr_rman.c		standard
+kern/subr_rman.c	standard
 kern/sys_socket.c	standard
 kern/sysv_ipc.c		standard
 kern/sysv_msg.c		optional sysvmsg
@@ -518,7 +518,7 @@ netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
 netinet/ip_auth.c	optional ipfilter inet
 netinet/ip_divert.c	optional ipdivert
-netinet/ip_dummynet.c  optional dummynet
+netinet/ip_dummynet.c	optional dummynet
 netinet/ip_fil.c	optional ipfilter inet
 netinet/ip_flow.c	optional inet
 netinet/ip_frag.c	optional ipfilter inet
@@ -582,39 +582,39 @@ pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pcic.c		optional pcic
 pci/amd.c		optional amd
-pci/pcic_p.c		optional pcic
-pci/adv_pci.c		optional adv
-pci/adw_pci.c		optional adw
-pci/ahc_pci.c		optional ahc 		\
+pci/pcic_p.c		optional pcic pci
+pci/adv_pci.c		optional adv pci
+pci/adw_pci.c		optional adw pci
+pci/ahc_pci.c		optional ahc pci		\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
-pci/brooktree848.c	optional bktr
-pci/bt848_i2c.c		optional bktr
+pci/brooktree848.c	optional bktr pci
+pci/bt848_i2c.c		optional bktr pci
 pci/bt_pci.c		optional bt pci
-pci/cy_pci.c		optional cy
-pci/dpt_pci.c		optional pci dpt
-pci/ida_pci.c		optional ida
+pci/cy_pci.c		optional cy pci
+pci/dpt_pci.c		optional dpt pci
+pci/ida_pci.c		optional ida pci
 pci/if_al.c		optional al
 pci/if_ax.c		optional ax
 pci/if_de.c		optional de
-pci/if_ed_p.c		optional ed
-pci/if_en_pci.c		optional en
+pci/if_ed_p.c		optional ed pci
+pci/if_en_pci.c		optional en pci
 pci/if_fxp.c		optional fxp
-pci/if_lnc_p.c		optional lnc
+pci/if_lnc_p.c		optional lnc pci
 pci/if_mx.c		optional mx
 pci/if_pn.c		optional pn
-pci/if_fpa.c		optional fpa
+pci/if_fpa.c		optional fpa pci
 pci/if_rl.c		optional rl
-pci/if_sr_p.c		optional sr
+pci/if_sr_p.c		optional sr pci
 pci/if_ti.c		optional ti
 pci/if_tl.c		optional tl
 pci/if_tx.c		optional tx
 pci/if_vr.c		optional vr
-pci/if_vx_pci.c		optional vx
+pci/if_vx_pci.c		optional vx pci
 pci/if_wb.c		optional wb
 pci/if_xl.c		optional xl
 pci/isp_pci.c		optional isp
 pci/intpm.c		optional intpm
-pci/meteor.c		optional meteor
+pci/meteor.c		optional meteor pci
 pci/ncr.c		optional ncr
 pci/pci.c		optional pci
 pci/pci_compat.c	optional pci
