@@ -632,7 +632,7 @@ aac_intr(void *arg)
 
 		/*
 		 * This might miss doing the actual wakeup.  However, the
-		 * tsleep that this is waking up has a timeout, so it will
+		 * msleep that this is waking up has a timeout, so it will
 		 * wake up eventually.  AIFs and printfs are low enough
 		 * priority that they can handle hanging out for a few seconds
 		 * if needed.
@@ -731,11 +731,15 @@ aac_command_thread(struct aac_softc *sc)
 
 	debug_called(2);
 
-	sc->aifflags |= AAC_AIFFLAGS_RUNNING;
+	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+	sc->aifflags = AAC_AIFFLAGS_RUNNING;
 
-	while (!(sc->aifflags & AAC_AIFFLAGS_EXIT)) {
-		retval = tsleep(sc->aifthread, PRIBIO, "aifthd",
-				AAC_PERIODIC_INTERVAL * hz);
+	while ((sc->aifflags & AAC_AIFFLAGS_EXIT) == 0) {
+
+		retval = 0;
+		if ((sc->aifflags & AAC_AIFFLAGS_PENDING) == 0)
+			retval = msleep(sc->aifthread, &sc->aac_io_lock, PRIBIO,
+					"aifthd", AAC_PERIODIC_INTERVAL * hz);
 
 		/*
 		 * First see if any FIBs need to be allocated.  This needs
@@ -743,11 +747,12 @@ aac_command_thread(struct aac_softc *sc)
 		 * will grab Giant, and would result in an LOR.
 		 */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
-			aac_alloc_commands(sc);
 			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
+			AAC_LOCK_RELEASE(&sc->aac_io_lock);
+			aac_alloc_commands(sc);
+			AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+			aac_startio(sc);
 		}
-
-		AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
 
 		/*
 		 * While we're here, check to see if any commands are stuck.
@@ -802,9 +807,9 @@ aac_command_thread(struct aac_softc *sc)
 						     fib);
 			}
 		}
-		AAC_LOCK_RELEASE(&sc->aac_io_lock);
 	}
 	sc->aifflags &= ~AAC_AIFFLAGS_RUNNING;
+	AAC_LOCK_RELEASE(&sc->aac_io_lock);
 	wakeup(sc->aac_dev);
 
 	mtx_lock(&Giant);
@@ -896,9 +901,10 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 
 	/* get the resources we will need */
 	cm = NULL;
-	if ((bp = aac_dequeue_bio(sc)) == NULL)
-		goto fail;
+	bp = NULL;
 	if (aac_alloc_command(sc, &cm))	/* get a command */
+		goto fail;
+	if ((bp = aac_dequeue_bio(sc)) == NULL)
 		goto fail;
 
 	/* fill out the command */
