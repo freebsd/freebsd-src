@@ -2067,6 +2067,7 @@ ciss_cam_rescan_all(struct ciss_softc *sc)
 static void
 ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
+    xpt_free_path(ccb->ccb_h.path);
     free(ccb, M_TEMP);
 }
 
