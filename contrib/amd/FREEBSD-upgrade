@@ -2,6 +2,7 @@
 
 AMD (am-utils) 6.0
 	originals can be found at: ftp://shekel.mcl.cs.columbia.edu/pub/am-utils
+	(http://www.cs.columbia.edu/~ezk/am-utils/index.html)
 
 
 For the import of AMD the following files were removed:
@@ -95,7 +96,7 @@ For the import of AMD the following files were removed:
 
 Imported by:
 
-	cvs import -ko -m 'Virgin import of AMD (am-utils) v6.0' \
+	cvs import -m 'Virgin import of AMD (am-utils) v6.0' \
 		src/contrib/amd COLUMBIA amd_6_0
 
 
