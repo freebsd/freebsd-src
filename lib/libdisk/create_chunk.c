@@ -36,10 +36,10 @@ __FBSDID("$FreeBSD$");
 struct chunk *New_Chunk(void);
 
 static int
-Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
+Fixup_FreeBSD_Names(struct chunk *c)
 {
 	struct chunk *c1, *c3;
-	int j;
+	uint j;
     
 	if (!strcmp(c->name, "X"))
 		return 0;
@@ -114,7 +114,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 
 #ifndef PC98
 static int
-Fixup_Extended_Names(struct disk *d, struct chunk *c)
+Fixup_Extended_Names(struct chunk *c)
 {
 	struct chunk *c1;
 	int j = 5;
@@ -126,9 +126,9 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 		c1->name = malloc(12);
 		if (!c1->name)
 			return -1;
-		sprintf(c1->name, "%ss%d", d->chunks->name, j++);
+		sprintf(c1->name, "%ss%d", c->disk->chunks->name, j++);
 		if (c1->type == freebsd)
-			if (Fixup_FreeBSD_Names(d, c1) != 0)
+			if (Fixup_FreeBSD_Names(c1) != 0)
 				return -1;
 	}
 	return 0;
@@ -175,10 +175,10 @@ Fixup_Names(struct disk *d)
 	}
 	for (c2 = c1->part; c2; c2 = c2->next) {
 		if (c2->type == freebsd)
-			Fixup_FreeBSD_Names(d, c2);
+			Fixup_FreeBSD_Names(c2);
 #ifndef PC98
-		if (c2->type == extended)
-			Fixup_Extended_Names(d, c2);
+		else if (c2->type == extended)
+			Fixup_Extended_Names(c2);
 #endif
 	}
 	return 0;
@@ -222,7 +222,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent, u_long size,
 {
 	int i;
 	struct chunk *c1;
-	u_long offset;
+	long offset;
 	
 	if (!parent)
 		parent = d->chunks;
