@@ -927,9 +927,12 @@ via_82c586:
 	return;
     
     case 0x00041103:	/* HighPoint HPT366/368/370/372 controllers */
+    case 0x00051103:	/* HighPoint HPT372 controllers */
     case 0x00081103:	/* HighPoint HPT374 controllers */
-	if (!ATAPI_DEVICE(ch, device) &&
-	    udmamode >= 6 && pci_get_revid(parent) >= 0x05 &&
+	if (!ATAPI_DEVICE(ch, device) && udmamode >= 6 &&
+	    ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x05) ||
+	     (ch->chiptype == 0x00051103 && pci_get_revid(parent) >= 0x01) ||
+	     (ch->chiptype == 0x00081103 && pci_get_revid(parent) >= 0x07)) &&
 	    !(pci_read_config(parent, 0x5a, 1) & (ch->unit ? 0x01:0x02))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -942,8 +945,10 @@ via_82c586:
 		return;
 	    }
 	}
-	if (!ATAPI_DEVICE(ch, device) &&
-	    udmamode >= 5 && pci_get_revid(parent) >= 0x03 &&
+	if (!ATAPI_DEVICE(ch, device) && udmamode >= 5 &&
+	    ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x05) ||
+	     (ch->chiptype == 0x00051103 && pci_get_revid(parent) >= 0x01) ||
+	     (ch->chiptype == 0x00081103 && pci_get_revid(parent) >= 0x07)) &&
 	    !(pci_read_config(parent, 0x5a, 1) & (ch->unit ? 0x01:0x02))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -1213,8 +1218,8 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 {
     device_t parent = device_get_parent(ch->dev);
     u_int32_t timing;
-    if (pci_get_revid(parent) >= 0x07) {	/* HPT374 */
-	switch (mode) {
+    if (ch->chiptype == 0x00081103 && pci_get_revid(parent) >= 0x07) {
+	switch (mode) {						/* HPT374 */
 	case ATA_PIO0:	timing = 0x0ac1f48a; break;
 	case ATA_PIO1:	timing = 0x0ac1f465; break;
 	case ATA_PIO2:	timing = 0x0a81f454; break;
@@ -1231,8 +1236,9 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 	pci_write_config(parent, 0x5b,
 			 (pci_read_config(parent, 0x5b, 1) & 0x01) | 0x20, 1);
     }
-    else if (pci_get_revid(parent) >= 0x05) {	/* HPT372 */
-	switch (mode) {
+    else if ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x05) ||
+	     (ch->chiptype == 0x00051103 && pci_get_revid(parent) >= 0x01)) {
+	switch (mode) {						/* HPT372 */
 	case ATA_PIO0:	timing = 0x0d029d5e; break;
 	case ATA_PIO1:	timing = 0x0d029d26; break;
 	case ATA_PIO2:	timing = 0x0c829ca6; break;
@@ -1246,10 +1252,11 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 	default:	timing = 0x0d029d5e;
 	}
 	pci_write_config(parent, 0x40 + (devno << 2) , timing, 4);
-	pci_write_config(parent, 0x5b, 0x20, 1);
+	pci_write_config(parent, 0x5b,
+			 (pci_read_config(parent, 0x5b, 1) & 0x01) | 0x20, 1);
     }
-    else if (pci_get_revid(parent) >= 0x03) {	/* HPT370 */
-	switch (mode) {
+    else if (ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x03) {
+	switch (mode) {						/* HPT370 */
 	case ATA_PIO0:	timing = 0x06914e57; break;
 	case ATA_PIO1:	timing = 0x06914e43; break;
 	case ATA_PIO2:	timing = 0x06514e33; break;
@@ -1264,7 +1271,7 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 	pci_write_config(parent, 0x40 + (devno << 2) , timing, 4);
 	pci_write_config(parent, 0x5b, 0x22, 1);
     }
-    else {					/* HPT36[68] */
+    else {							/* HPT36[68] */
 	switch (pci_read_config(parent, 0x41 + (devno << 2), 1)) {
 	case 0x85:	/* 25Mhz */
 	    switch (mode) {
