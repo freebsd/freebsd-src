@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.16 1995/03/21 02:54:04 davidg Exp $
+ * $Id: vm_mmap.c,v 1.17 1995/03/21 10:15:52 davidg Exp $
  */
 
 /*
@@ -745,7 +745,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			 * user_object. Since we don't map 'object', we want
 			 * only this one reference.
 			 */
-			user_object = vm_object_allocate( size);
+			user_object = vm_object_allocate(object->size);
 			user_object->shadow = object;
 			TAILQ_INSERT_TAIL(&object->reverse_shadow_head,
 				    user_object, reverse_shadow_list);
