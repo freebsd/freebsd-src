@@ -8,6 +8,8 @@ extern const char *__progname;
 void
 setprogname(const char *progname)
 {
+	char *p;
 
-	__progname = progname;
+	p = strrchr('/', progname);
+	__progname = p ? p+1 : progname;
 }
