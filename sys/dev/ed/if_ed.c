@@ -17,6 +17,10 @@
  * Modification history
  *
  * $Log:	if_ed.c,v $
+ * Revision 1.19  93/08/02  02:57:53  davidg
+ * Fixed problem where some rev 8013EBT boards want the DCR_LS flag
+ * set in order to work in 16bit mode.
+ * 
  * Revision 1.18  93/07/27  03:41:36  davidg
  * removed unnecessary variable assignment in ed_reset()
  * 
@@ -881,14 +885,14 @@ ed_init(unit)
 	if (sc->memwidth == 16) {
 		/*
 		 * Set FIFO threshold to 8, No auto-init Remote DMA,
-		 *	byte order=80x86, word-wide DMA xfers
+		 *	byte order=80x86, word-wide DMA xfers,
 		 */
-		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_FT1|ED_DCR_WTS);
+		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_FT1|ED_DCR_WTS|ED_DCR_LS);
 	} else {
 		/*
 		 * Same as above, but byte-wide DMA xfers
 		 */
-		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_FT1);
+		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_FT1|ED_DCR_LS);
 	}
 
 	/*
