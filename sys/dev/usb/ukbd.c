@@ -80,7 +80,8 @@
 #define DPRINTF(x)	if (ukbddebug) logprintf x
 #define DPRINTFN(n,x)	if (ukbddebug>(n)) logprintf x
 int	ukbddebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, ukbd, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW,
 	   &ukbddebug, 0, "ukbd debug level");
 #else
 #define DPRINTF(x)

@@ -479,7 +479,7 @@ __CONCAT(dname,_detach)(device_t self)
 #define logprintf		printf
 
 #ifdef SYSCTL_DECL
-SYSCTL_DECL(_debug_usb);
+SYSCTL_DECL(_hw_usb);
 #endif
 
 #endif /* __FreeBSD__ */
