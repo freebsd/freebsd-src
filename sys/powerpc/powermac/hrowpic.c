@@ -39,7 +39,6 @@
  * prior to this are activated.
  */
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>
@@ -224,11 +223,13 @@ hrowpic_setup_intr(device_t picdev, device_t child, struct resource *res,
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct  hrowpic_softc *sc;
+	u_long start;
 	int error;
 
 	sc = device_get_softc(picdev);
+	start = rman_get_start(res);
 
-	if ((res->r_flags & RF_SHAREABLE) == 0)
+	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
 	/*
@@ -238,16 +239,16 @@ hrowpic_setup_intr(device_t picdev, device_t child, struct resource *res,
 	if (error)
 		return (error);
 
-	error = inthand_add(device_get_nameunit(child), res->r_start, intr,
-	    arg, flags, cookiep);
+	error = inthand_add(device_get_nameunit(child), start, intr, arg,
+	    flags, cookiep);
 
 	if (!error) {
 		/*
 		 * Record irq request, and enable if h/w has been probed
 		 */
-		sc->sc_irq[res->r_start] = 1;
+		sc->sc_irq[start] = 1;
 		if (sc->sc_memr) {
-			hrowpic_toggle_irq(sc, res->r_start, 1);
+			hrowpic_toggle_irq(sc, start, 1);
 		}
 	}
 
@@ -264,7 +265,7 @@ hrowpic_teardown_intr(device_t picdev, device_t child, struct resource *res,
 	if (error)
 		return (error);
 
-	error = inthand_remove(res->r_start, ih);
+	error = inthand_remove(rman_get_start(res), ih);
 
 	return (error);
 }
