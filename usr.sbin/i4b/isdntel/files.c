@@ -260,12 +260,12 @@ free_list(void)
 void
 delete(struct onefile *this)
 {
-	char buffer[MAXPATHLEN+1];
+	char buffer[MAXPATHLEN];
 
 	if(this == NULL)
 		return;
 		
-	sprintf(buffer, "%s", this->fname);
+	strlcpy(buffer, this->fname, sizeof(buffer));
 	
 	unlink(buffer);
 
@@ -295,12 +295,12 @@ reread(void)
 void
 play(struct onefile *this)
 {
-	char buffer[MAXPATHLEN+1];
+	char buffer[MAXPATHLEN];
 
 	if(this == NULL)
 		return;
 		
-	sprintf(buffer, playstring, this->fname);
+	snprintf(buffer, sizeof(buffer), playstring, this->fname);
 	
 	system(buffer);
 }
