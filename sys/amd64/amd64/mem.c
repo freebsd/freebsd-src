@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.53 1998/11/08 12:39:01 dfr Exp $
+ *	$Id: mem.c,v 1.54 1999/02/02 14:14:05 bde Exp $
  */
 
 /*
@@ -57,13 +57,17 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
+#include <sys/ioccom.h>
 #include <sys/malloc.h>
+#include <sys/memrange.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 
 #include <machine/frame.h>
+#include <machine/md_var.h>
 #include <machine/random.h>
 #include <machine/psl.h>
+#include <machine/specialreg.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -73,7 +77,6 @@
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-
 
 
 static	d_open_t	mmopen;
@@ -91,6 +94,12 @@ static struct cdevsw mem_cdevsw =
 
 static struct random_softc random_softc[16];
 static caddr_t	zbuf;
+
+MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
+static int mem_ioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
+static int random_ioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
+
+struct mem_range_softc mem_range_softc;
 
 #ifdef DEVFS
 static void *mem_devfs_token;
@@ -418,23 +427,119 @@ mmioctl(dev, cmd, data, flags, p)
 	int flags;
 	struct proc *p;
 {
-	static intrmask_t interrupt_allowed;
-	intrmask_t interrupt_mask;
-	int error, intr;
-	struct random_softc *sc;
 
 	switch (minor(dev)) {
+	case 0:
+		return mem_ioctl(dev, cmd, data, flags, p);
 	case 3:
 	case 4:
-		break;
+		return random_ioctl(dev, cmd, data, flags, p);
 #ifdef PERFMON
 	case 32:
 		return perfmon_ioctl(dev, cmd, data, flags, p);
 #endif
-	default:
-		return (ENODEV);
 	}
+	return (ENODEV);
+}
 
+/*
+ * Operations for changing memory attributes.
+ *
+ * This is basically just an ioctl shim for mem_range_attr_get
+ * and mem_range_attr_set.
+ */
+static int 
+mem_ioctl(dev, cmd, data, flags, p)
+	dev_t dev;
+	u_long cmd;
+	caddr_t data;
+	int flags;
+	struct proc *p;
+{
+	int nd, error = 0;
+	struct mem_range_op *mo = (struct mem_range_op *)data;
+	struct mem_range_desc *md;
+	
+	/* is this for us? */
+	if ((cmd != MEMRANGE_GET) &&
+	    (cmd != MEMRANGE_SET))
+		return(ENODEV);
+
+	/* any chance we can handle this? */
+	if (mem_range_softc.mr_op == NULL)
+		return(EOPNOTSUPP);
+
+	/* do we have any descriptors? */
+	if (mem_range_softc.mr_ndesc == 0)
+		return(ENXIO);
+
+	switch(cmd) {
+	case MEMRANGE_GET:
+		nd = imin(mo->mo_arg[0], mem_range_softc.mr_ndesc);
+		if (nd > 0) {
+			md = (struct mem_range_desc *)
+				malloc(nd * sizeof(struct mem_range_desc),
+				       M_MEMDESC, M_WAITOK);
+			mem_range_attr_get(md, &nd);
+			error = copyout(md, mo->mo_desc, 
+					nd * sizeof(struct mem_range_desc));
+			free(md, M_MEMDESC);
+		} else {
+			nd = mem_range_softc.mr_ndesc;
+		}
+		mo->mo_arg[0] = nd;
+		break;
+		
+	case MEMRANGE_SET:
+		md = (struct mem_range_desc *)malloc(sizeof(struct mem_range_desc),
+						    M_MEMDESC, M_WAITOK);
+		error = copyin(mo->mo_desc, md, sizeof(struct mem_range_desc));
+		/* clamp description string */
+		md->mr_owner[sizeof(md->mr_owner) - 1] = 0;
+		if (error == 0)
+			error = mem_range_attr_set(md, &mo->mo_arg[0]);
+		free(md, M_MEMDESC);
+		break;
+	    
+	default:
+		error = EOPNOTSUPP;
+	}
+	return(error);
+}
+
+/*
+ * Implementation-neutral, kernel-callable functions for manipulating
+ * memory range attributes.
+ */
+void
+mem_range_attr_get(struct mem_range_desc *mrd, int *arg)
+{
+	if (*arg == 0) {
+		*arg = mem_range_softc.mr_ndesc;
+	} else {
+		bcopy(mem_range_softc.mr_desc, mrd, (*arg) * sizeof(struct mem_range_desc));
+	}
+}
+
+int
+mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
+{
+	return(mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
+}
+
+static int 
+random_ioctl(dev, cmd, data, flags, p)
+	dev_t dev;
+	u_long cmd;
+	caddr_t data;
+	int flags;
+	struct proc *p;
+{
+	static intrmask_t interrupt_allowed;
+	intrmask_t interrupt_mask;
+	int error, intr;
+	struct random_softc *sc;
+	
 	/*
 	 * We're the random or urandom device.  The only ioctls are for
 	 * selecting and inspecting which interrupts are used in the muck
@@ -539,7 +644,13 @@ mem_drvinit(void *unused)
 {
 	dev_t dev;
 
+	/* Initialise memory range handling */
+	if (mem_range_softc.mr_op != NULL)
+		mem_range_softc.mr_op->init(&mem_range_softc);
+
+	/* device registration */
 	if( ! mem_devsw_installed ) {
+
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&mem_cdevsw, NULL);
 		mem_devsw_installed = 1;
