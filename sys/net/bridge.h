@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 Luigi Rizzo
+ * Copyright (c) 1998-2000 Luigi Rizzo
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,8 +48,6 @@ extern int bdg_ports ;
 #define HASH_SIZE 8192	/* must be a power of 2 */
 #define HASH_FN(addr)   (	\
 	ntohs( ((short *)addr)[1] ^ ((short *)addr)[2] ) & (HASH_SIZE -1))
-
-#define	IFF_MUTE	IFF_LINK2	/* will need a separate flag... */
 
 struct ifnet *bridge_in(struct mbuf *m);
 /* bdg_forward frees the mbuf if necessary, returning null */
@@ -140,4 +138,4 @@ bridge_dst_lookup(struct mbuf *m)
 	return BDG_UNKNOWN ;
 }
 
-#endif /* _KERNEL */
+#endif /* KERNEL */
