@@ -93,13 +93,22 @@
 
 /* Capability Identification Numbers */
 
-#define PCIY_PMG	0x01
-#define PCIY_AGP	0x02
-#define PCIY_VPD	0x03
-#define PCIY_SLOTID	0x04
-#define PCIY_MSI	0x05
-#define PCIY_CHSWP	0x06
-#define PCIY_PCIX	0x07
+#define PCIY_PMG	0x01	/* PCI Power Management */
+#define PCIY_AGP	0x02	/* AGP */
+#define PCIY_VPD	0x03	/* Vital Product Data */
+#define PCIY_SLOTID	0x04	/* Slot Identification */
+#define PCIY_MSI	0x05	/* Message Signaled Interrupts */
+#define PCIY_CHSWP	0x06	/* CompactPCI Hot Swap */
+#define PCIY_PCIX	0x07	/* PCI-X */
+#define PCIY_HT		0x08	/* HyperTransport */
+#define PCIY_VENDOR	0x09	/* Vendor Unique */
+#define PCIY_DEBUG	0x0a	/* Debug port */
+#define PCIY_CRES	0x0b	/* CompactPCI central resource control */
+#define PCIY_HOTPLUG	0x0c	/* PCI Hot-Plug */
+#define PCIY_AGP8X	0x0e	/* AGP 8x */
+#define PCIY_SECDEV	0x0f	/* Secure Device */
+#define PCIY_EXPRESS	0x10	/* PCI Express */
+#define PCIY_MSIX	0x11	/* MSI-X */
 
 /* config registers for header type 0 devices */
 
@@ -317,6 +326,32 @@
 #define PCIM_BMCSR_BPCE			0x80
 
 #define PCIR_POWER_DATA		0x7
+
+/* PCI Message Signalled Interrupts (MSI) */
+#define PCIR_MSI_CTRL		0x2
+#define PCIM_MSICTRL_VECTOR		0x0100
+#define PCIM_MSICTRL_64BIT		0x0080
+#define PCIM_MSICTRL_MME_MASK		0x0070
+#define PCIM_MSICTRL_MME_1		0x0000
+#define PCIM_MSICTRL_MME_2		0x0010
+#define PCIM_MSICTRL_MME_4		0x0020
+#define PCIM_MSICTRL_MME_8		0x0030
+#define PCIM_MSICTRL_MME_16		0x0040
+#define PCIM_MSICTRL_MME_32		0x0050
+#define PCIM_MSICTRL_MMC_MASK		0x000E
+#define PCIM_MSICTRL_MMC_1		0x0000
+#define PCIM_MSICTRL_MMC_2		0x0002
+#define PCIM_MSICTRL_MMC_4		0x0004
+#define PCIM_MSICTRL_MMC_8		0x0006
+#define PCIM_MSICTRL_MMC_16		0x0008
+#define PCIM_MSICTRL_MMC_32		0x000A
+#define PCIM_MSICTRL_MSI_ENABLE		0x0001
+#define PCIR_MSI_ADDR		0x4
+#define PCIR_MSI_ADDR_HIGH	0x8
+#define PCIR_MSI_DATA		0x8
+#define PCIR_MSI_DATA_HIGH	0xc
+#define PCIR_MSI_MASK		0x10
+#define PCIR_MSI_PENDING	0x14
 
 /* PCI-X definitions */
 #define PCIXR_COMMAND	0x96
