@@ -180,7 +180,6 @@ USB_ATTACH(uhub)
 	sc->sc_hub = dev;
 	usbd_devinfo(dev, 1, devinfo);
 	USB_ATTACH_SETUP;
-	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
 	err = usbd_set_config_index(dev, 0, 1);
 	if (err) {

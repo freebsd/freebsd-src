@@ -134,7 +134,8 @@ void __CONCAT(dname,_attach)(struct device *parent, struct device *self, void *a
 #define USB_ATTACH_ERROR_RETURN	return
 #define USB_ATTACH_SUCCESS_RETURN	return
 
-#define USB_ATTACH_SETUP printf("\n")
+#define USB_ATTACH_SETUP
+	printf("\n%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
 #define USB_DETACH(dname) \
 int __CONCAT(dname,_detach)(struct device *self, int flags)
@@ -301,7 +302,8 @@ __CONCAT(dname,_attach)(parent, self, aux) \
 #define USB_ATTACH_ERROR_RETURN	return
 #define USB_ATTACH_SUCCESS_RETURN	return
 
-#define USB_ATTACH_SETUP printf("\n")
+#define USB_ATTACH_SETUP
+	printf("\n%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
 #define USB_DETACH(dname) \
 int \
@@ -474,8 +476,11 @@ __CONCAT(dname,_attach)(device_t self)
 #define USB_ATTACH_SUCCESS_RETURN	return 0
 
 #define USB_ATTACH_SETUP \
-	sc->sc_dev = self; \
-	device_set_desc_copy(self, devinfo)
+	do { \
+		sc->sc_dev = self; \
+		device_set_desc_copy(self, devinfo); \
+		device_printf(self, "%s\n", devinfo); \
+	} while (0);
 
 #define USB_DETACH(dname) \
 Static int \

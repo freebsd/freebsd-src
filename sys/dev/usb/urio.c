@@ -200,7 +200,6 @@ USB_ATTACH(urio)
 	DPRINTFN(10,("urio_attach: sc=%p\n", sc));
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
-	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
 	sc->sc_udev = udev = uaa->device;
 
