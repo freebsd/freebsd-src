@@ -102,6 +102,7 @@ Chuck Robey <chuckr@Glue.umd.edu>
 Cornelis van der Laan <nils@guru.ims.uni-stuttgart.de>
 Craig Struble <cstruble@vt.edu>
 Curt Mayer <curt@toad.com>
+Danny J. Zerkel <dzerkel@feephi.phofarm.com>
 Dave Burgess <burgess@hrd769.brooks.af.mil>
 Dave Chapeskie <dchapes@ale.zeus.leitch.com>
 Dave Rivers <rivers@ponds.uucp>
@@ -273,4 +274,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.17 1995/08/14 09:44:54 asami Exp $
+$Id: CONTRIB.FreeBSD,v 1.18 1995/08/14 12:26:54 olah Exp $
