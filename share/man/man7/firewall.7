@@ -43,10 +43,10 @@ or other purposes.
 .Pp
 Constructing a firewall may appear to be trivial, but most people
 get them wrong.  The most common mistake is to create an exclusive
-firewall rather then an inclusive firewall.  An exclusive firewall
+firewall rather than an inclusive firewall.  An exclusive firewall
 allows all packets through except for those matching a set of rules.
 An inclusive firewall allows only packets matching the ruleset
-through.  Inclusive firewalls are much, much safer then exclusive
+through.  Inclusive firewalls are much, much safer than exclusive
 firewalls but a tad more difficult to build properly.  The
 second most common mistake is to blackhole everything except the
 particular port you want to let through.  TCP/IP needs to be able
@@ -56,7 +56,7 @@ system daemons make reverse connections to the
 .Sy auth
 service in an attempt to authenticate the user making a connection.
 Auth is rather dangerous but the proper implementation is to return
-a TCP reset for the connection attempt rather then simply blackholing
+a TCP reset for the connection attempt rather than simply blackholing
 the packet.  We cover these and other quirks involved with constructing
 a firewall in the sample firewall section below.
 .Sh IPFW KERNEL CONFIGURATION
@@ -337,7 +337,7 @@ add 06000 deny all from any to any
 We've mentioned multi-homing hosts and binding services to internal or
 external addresses but we haven't really explained it.  When you have a
 host with multiple IP addresses assigned to it, you can bind services run
-on that host to specific IPs or interfaces rather then all IPs.  Take
+on that host to specific IPs or interfaces rather than all IPs.  Take
 the firewall machine for example:  With three interfaces
 and two exposed IP addresses
 on one of those interfaces, the firewall machine is known by 5 different
