@@ -138,11 +138,11 @@ void	fatal();
  *    rotational positions that we distinguish.  With NRPOS of 8 the resolution
  *    of our summary information is 2ms for a typical 3600 rpm drive.
  *
- * ...but now we make this 1 (which disables the rotational position table)
- * because modern drives with read-ahead and write-behind do better without
- * the rotational position table.
+ * ...but now we make this 1 (which escentially disables the rotational
+ * position table because modern drives with read-ahead and write-behind do
+ * better without the rotational position table.
  */
-#define	NRPOS		0	/* number distinct rotational positions */
+#define	NRPOS		1	/* number distinct rotational positions */
 
 
 int	mfs;			/* run as the memory based filesystem */
@@ -282,6 +282,8 @@ main(argc, argv)
 			if ((nrpos = atoi(optarg)) < 0)
 				fatal("%s: bad rotational layout count\n",
 				    optarg);
+			if (nrpos == 0)
+				nrpos = 1;
 			break;
 		case 'o':
 			if (mfs)
