@@ -92,6 +92,20 @@ moduleInitialize(void)
 			msgConfirm("Loading module %s failed", dp->d_name);
 		}
 	    }
+	    if (strcmp(dp->d_name + dp->d_namlen - (sizeof(".ko.gz") - 1), ".ko.gz") == 0) {
+		snprintf(module, sizeof(module), "/tmp/%s", dp->d_name);
+		module[strlen(module) - sizeof(".gz")] = '\0';
+		snprintf(desc, sizeof(desc), "zcat < %s/%s > %s", MODULESDIR,
+		  dp->d_name, module);
+		system(desc);
+		if (kldload(module) < 0 && errno != EEXIST) {
+		    if (desc_str[0])
+			msgConfirm("Loading module %s failed\n%s", dp->d_name, desc_str);
+		    else
+			msgConfirm("Loading module %s failed", dp->d_name);
+		}
+		unlink(module);
+	    }
 	}
 	closedir(dirp);
     }
