@@ -1040,7 +1040,10 @@ flushbuflist(bufv, flags, bo, slpflag, slptimeo)
 			BO_LOCK(bo);
 			return (error != ENOLCK ? error : EAGAIN);
 		}
+		KASSERT(bp->b_bufobj == bo,
+	            ("wrong b_bufobj %p should be %p", bp->b_bufobj, bo));
 		if (bp->b_bufobj != bo) {	/* XXX: necessary ? */
+			BUF_UNLOCK(bp);
 			BO_LOCK(bo);
 			return (EAGAIN);
 		}
