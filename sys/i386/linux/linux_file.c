@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.19 1998/01/05 01:17:42 jmb Exp $
+ *  $Id: linux_file.c,v 1.20 1998/03/29 07:59:09 peter Exp $
  */
 
 #include "opt_compat.h"
@@ -339,8 +339,8 @@ linux_lseek(struct proc *p, struct linux_lseek_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): lseek(%d, %d, %d)\n",
-	   p->p_pid, args->fdes, args->off, args->whence);
+    printf("Linux-emul(%ld): lseek(%d, %ld, %d)\n",
+	   (long)p->p_pid, args->fdes, args->off, args->whence);
 #endif
     tmp_args.fd = args->fdes;
     tmp_args.offset = (off_t)args->off;
@@ -796,8 +796,8 @@ linux_readlink(struct proc *p, struct linux_readlink_args *args)
 	CHECKALTEXIST(p, &sg, args->name);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): readlink(%s, 0x%x, %d)\n", 
-	    p->p_pid, args->name, args->buf, args->count);
+        printf("Linux-emul(%ld): readlink(%s, %p, %d)\n", 
+	    (long)p->p_pid, args->name, (void *)args->buf, args->count);
 #endif
 	bsd.path = args->name;
 	bsd.buf = args->buf;

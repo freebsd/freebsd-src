@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.38 1998/05/17 11:52:26 phk Exp $
+ *  $Id: linux_misc.c,v 1.39 1998/07/10 22:30:01 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -136,7 +136,7 @@ linux_brk(struct proc *p, struct linux_brk_args *args)
     } */ tmp;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): brk(%08x)\n", p->p_pid, args->dsend);
+    printf("Linux-emul(%ld): brk(%p)\n", (long)p->p_pid, (void *)args->dsend);
 #endif
     old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
     new = (vm_offset_t)args->dsend;
@@ -307,7 +307,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
      */
     if (file_offset & PAGE_MASK) {
 #ifdef DEBUG
-printf("uselib: Non page aligned binary %d\n", file_offset);
+printf("uselib: Non page aligned binary %lu\n", file_offset);
 #endif
 	/*
 	 * Map text+data read/write/execute
@@ -344,7 +344,7 @@ printf("uselib: Non page aligned binary %d\n", file_offset);
     }
     else {
 #ifdef DEBUG
-printf("uselib: Page aligned binary %d\n", file_offset);
+printf("uselib: Page aligned binary %lu\n", file_offset);
 #endif
 	/*
 	 * for QMAGIC, a_entry is 20 bytes beyond the load address
@@ -440,9 +440,10 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): newselect(%d, %x, %x, %x, %x)\n",
-	       p->p_pid, args->nfds, args->readfds, args->writefds,
-	       args->exceptfds, args->timeout);
+    printf("Linux-emul(%ld): newselect(%d, %p, %p, %p, %p)\n",
+  	(long)p->p_pid, args->nfds, (void *)args->readfds,
+	(void *)args->writefds, (void *)args->exceptfds,
+	(void *)args->timeout);
 #endif
     error = 0;
     bsa.nd = args->nfds;
@@ -459,8 +460,8 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args)
 	if ((error = copyin(args->timeout, &utv, sizeof(utv))))
 	    goto select_out;
 #ifdef DEBUG
-	printf("Linux-emul(%d): incoming timeout (%d/%d)\n",
-	       p->p_pid, utv.tv_sec, utv.tv_usec);
+	printf("Linux-emul(%ld): incoming timeout (%ld/%ld)\n",
+	    (long)p->p_pid, utv.tv_sec, utv.tv_usec);
 #endif
 	if (itimerfix(&utv)) {
 	    /*
@@ -516,8 +517,8 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args)
 	} else
 	    timevalclear(&utv);
 #ifdef DEBUG
-	printf("Linux-emul(%d): outgoing timeout (%d/%d)\n",
-	       p->p_pid, utv.tv_sec, utv.tv_usec);
+	printf("Linux-emul(%ld): outgoing timeout (%ld/%ld)\n",
+	    (long)p->p_pid, utv.tv_sec, utv.tv_usec);
 #endif
 	if ((error = copyout(&utv, args->timeout, sizeof(utv))))
 	    goto select_out;
@@ -593,9 +594,9 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 			sizeof(linux_args))))
 	return error;
 #ifdef DEBUG
-    printf("Linux-emul(%d): mmap(%08x, %d, %d, %08x, %d, %d)\n",
-	   p->p_pid, linux_args.addr, linux_args.len, linux_args.prot,
-	   linux_args.flags, linux_args.fd, linux_args.pos);
+    printf("Linux-emul(%ld): mmap(%p, %d, %d, %08x, %d, %d)\n",
+	(long)p->p_pid, (void *)linux_args.addr, linux_args.len,
+	linux_args.prot, linux_args.flags, linux_args.fd, linux_args.pos);
 #endif
     bsd_args.flags = 0;
     if (linux_args.flags & LINUX_MAP_SHARED)
@@ -625,8 +626,9 @@ linux_mremap(struct proc *p, struct linux_mremap_args *args)
 	int error = 0;
  
 #ifdef DEBUG
-	printf("Linux-emul(%d): mremap(%08x, %08x, %08x, %08x)\n",
-	p->p_pid, args->addr, args->old_len, args->new_len, args->flags);
+	printf("Linux-emul(%ld): mremap(%p, %08x, %08x, %08x)\n",
+	    (long)p->p_pid, (void *)args->addr, args->old_len, args->new_len,
+	    args->flags);
 #endif
 	args->new_len = round_page(args->new_len);
 	args->old_len = round_page(args->old_len);
@@ -813,8 +815,8 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
     int error, tmpstat;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): waitpid(%d, 0x%x, %d)\n",
-	   p->p_pid, args->pid, args->status, args->options);
+    printf("Linux-emul(%ld): waitpid(%d, %p, %d)\n",
+	(long)p->p_pid, args->pid, (void *)args->status, args->options);
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
@@ -849,8 +851,9 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
     int error, tmpstat;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): wait4(%d, 0x%x, %d, 0x%x)\n",
-	   p->p_pid, args->pid, args->status, args->options, args->rusage);
+    printf("Linux-emul(%ld): wait4(%d, %p, %d, %p)\n",
+	(long)p->p_pid, args->pid, (void *)args->status, args->options,
+	(void *)args->rusage);
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
@@ -933,8 +936,8 @@ linux_setitimer(struct proc *p, struct linux_setitimer_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): setitimer(%08x, %08x)\n",
-	   p->p_pid, args->itv, args->oitv);
+	printf("Linux-emul(%ld): setitimer(%p, %p)\n",
+	    (long)p->p_pid, (void *)args->itv, (void *)args->oitv);
 #endif
 	bsa.which = args->which;
 	bsa.itv = args->itv;
@@ -944,8 +947,10 @@ linux_setitimer(struct proc *p, struct linux_setitimer_args *args)
 			sizeof(foo))))
 		return error;
 #ifdef DEBUG
-	    printf("setitimer: value: sec: %d, usec: %d\n", foo.it_value.tv_sec, foo.it_value.tv_usec);
-	    printf("setitimer: interval: sec: %d, usec: %d\n", foo.it_interval.tv_sec, foo.it_interval.tv_usec);
+	    printf("setitimer: value: sec: %ld, usec: %ld\n",
+		foo.it_value.tv_sec, foo.it_value.tv_usec);
+	    printf("setitimer: interval: sec: %ld, usec: %ld\n",
+		foo.it_interval.tv_sec, foo.it_interval.tv_usec);
 #endif
 	}
 	return setitimer(p, &bsa);
@@ -956,8 +961,8 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args)
 {
 	struct getitimer_args bsa;
 #ifdef DEBUG
-	printf("Linux-emul(%d): getitimer(%08x)\n",
-	   p->p_pid, args->itv);
+	printf("Linux-emul(%ld): getitimer(%p)\n",
+	    (long)p->p_pid, (void *)args->itv);
 #endif
 	bsa.which = args->which;
 	bsa.itv = args->itv;
