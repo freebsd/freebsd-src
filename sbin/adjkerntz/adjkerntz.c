@@ -148,6 +148,8 @@ again:
 			return 0;
 	}
 
+	tzset();
+
 	mib[0] = CTL_MACHDEP;
 	mib[1] = CPU_ADJKERNTZ;
 	len = sizeof(kern_offset);
