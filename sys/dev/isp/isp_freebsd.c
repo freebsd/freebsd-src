@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $Id: isp_freebsd.c,v 1.10 1998/12/28 19:22:26 mjacob Exp $ */
+/* release_01_29_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -37,7 +37,7 @@
 
 #if	__FreeBSD_version >= 300004
 
-static void isp_async __P((void *, u_int32_t, struct cam_path *, void *));
+static void isp_cam_async __P((void *, u_int32_t, struct cam_path *, void *));
 static void isp_poll __P((struct cam_sim *));
 static void isp_action __P((struct cam_sim *, union ccb *));
 
@@ -79,7 +79,7 @@ isp_attach(struct ispsoftc *isp)
 	xpt_setup_ccb(&csa.ccb_h, isp->isp_path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
-	csa.callback = isp_async;
+	csa.callback = isp_cam_async;
 	csa.callback_arg = isp->isp_sim;
 	xpt_action((union ccb *)&csa);
 
@@ -96,7 +96,7 @@ isp_attach(struct ispsoftc *isp)
 }
 
 static void
-isp_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
+isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 {
 	struct cam_sim *sim;
 	struct ispsoftc *isp;
@@ -560,6 +560,63 @@ isp_done(struct ccb_scsiio *sccb)
 	xpt_done((union ccb *) sccb);
 }
 
+int
+isp_async(isp, cmd, arg)
+	struct ispsoftc *isp;
+	ispasync_t cmd;
+	void *arg;
+{
+	int rv = 0;
+	switch (cmd) {
+	case ISPASYNC_NEW_TGT_PARAMS:
+		if (isp->isp_type & ISP_HA_SCSI) {
+			int flags, tgt;
+			sdparam *sdp = isp->isp_param;
+			struct ccb_trans_settings neg;
+			struct cam_path *tmppath;
+
+			tgt = *((int *)arg);
+			if (xpt_create_path(&tmppath, NULL,
+			    cam_sim_path(isp->isp_sim), tgt,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+				xpt_print_path(isp->isp_path);
+				printf("isp_async cannot make temp path for "
+				    "target %d\n", tgt);
+				rv = -1;
+				break;
+			}
+
+			flags = sdp->isp_devparam[tgt].dev_flags;
+			neg.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+			if (flags & DPARM_DISC) {
+				neg.flags |= CCB_TRANS_DISC_ENB;
+			}
+			if (flags & DPARM_TQING) {
+				neg.flags |= CCB_TRANS_TAG_ENB;
+			}
+			neg.valid |= CCB_TRANS_BUS_WIDTH_VALID;
+			neg.bus_width = (flags & DPARM_WIDE)?
+			    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
+			neg.sync_period = sdp->isp_devparam[tgt].sync_period;
+			neg.sync_offset = sdp->isp_devparam[tgt].sync_offset;
+			if (flags & DPARM_SYNC) {
+				neg.valid |= CCB_TRANS_SYNC_RATE_VALID |
+						CCB_TRANS_SYNC_OFFSET_VALID;
+			}
+			xpt_print_path(tmppath);
+			printf("new target params period %d offset %d\n",
+			    neg.sync_period, neg.sync_offset);
+			xpt_setup_ccb(&neg.ccb_h, tmppath, 1);
+			xpt_async(AC_TRANSFER_NEG, tmppath, &neg);
+			xpt_free_path(tmppath);
+		}
+		break;
+	default:
+		break;
+	}
+	return (rv);
+}
+
 #else
 
 static void ispminphys __P((struct buf *));
@@ -739,6 +796,57 @@ isp_watch(void *arg)
 	}
 	RESTART_WATCHDOG(isp_watch, arg);
 	ISP_IUNLOCK(isp);
+}
+
+int
+isp_async(isp, cmd, arg)
+	struct ispsoftc *isp;
+	ispasync_t cmd;
+	void *arg;
+{
+	switch (cmd) {
+	case ISPASYNC_NEW_TGT_PARAMS:
+		if (isp->isp_type & ISP_HA_SCSI) {
+			sdparam *sdp = isp->isp_param;
+			char *wt;
+			int ns, flags, tgt;
+
+			tgt = *((int *) arg);
+	
+			flags = sdp->isp_devparam[tgt].dev_flags;
+			if (flags & DPARM_SYNC) {
+				ns = sdp->isp_devparam[tgt].sync_period * 4;
+			} else {
+				ns = 0;
+			}
+			switch (flags & (DPARM_WIDE|DPARM_TQING)) {
+			case DPARM_WIDE:
+				wt = ", 16 bit wide\n";
+				break;
+			case DPARM_TQING:
+				wt = ", Tagged Queueing Enabled\n";
+				break;
+			case DPARM_WIDE|DPARM_TQING:
+				wt = ", 16 bit wide, Tagged Queueing Enabled\n";
+				break;
+			default:
+				wt = "\n";
+				break;
+			}
+			if (ns) {
+				printf("%s: Target %d at %dMHz Max Offset %d%s",
+				    isp->isp_name, tgt, 1000 / ns,
+				    sdp->isp_devparam[tgt].sync_offset, wt);
+			} else {
+				printf("%s: Target %d Async Mode%s",
+				    isp->isp_name, tgt, wt);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	return (0);
 }
 #endif
 
