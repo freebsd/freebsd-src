@@ -53,6 +53,9 @@
 #include <dev/mii/miidevs.h>
 
 #include <dev/mii/brgphyreg.h>
+#include <net/if_arp.h>
+#include <machine/bus.h>
+#include <dev/bge/if_bgereg.h>
 
 #include "miibus_if.h"
 
@@ -134,6 +137,12 @@ static int brgphy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5704) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5704);
+		return(0);
+	}
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5705) {
+		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5705);
 		return(0);
 	}
 
@@ -570,6 +579,8 @@ static void
 brgphy_reset(struct mii_softc *sc)
 {
 	u_int32_t	val;
+	struct ifnet	*ifp;
+	struct bge_softc	*bge_sc;
 
 	mii_phy_reset(sc);
 
@@ -587,6 +598,21 @@ brgphy_reset(struct mii_softc *sc)
 		bcm5704_load_dspcode(sc);
 		break;
 	}
+
+	ifp = sc->mii_pdata->mii_ifp;
+	bge_sc = ifp->if_softc;
+
+	/*
+	 * Don't enable Ethernet@WireSpeed for the 5700 or the
+	 * 5705 A1 and A2 chips. Make sure we only do this test
+	 * on "bge" NICs, since other drivers may use this same
+	 * PHY subdriver.
+	 */
+	if (strcmp(ifp->if_name, "bge") == 0 &&
+	    (bge_sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+	    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A1 ||
+	    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A2))
+		return;
 
 	/* Enable Ethernet@WireSpeed. */
 	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
