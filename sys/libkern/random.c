@@ -36,13 +36,19 @@
 
 #include <sys/libkern.h>
 
+#define NSHUFF 100      /* to drop part of seed -> 1st value correlation */
+
 static u_long randseed = 1;
 
 void
 srandom(seed)
 	u_long seed;
 {
+	int i;
+
 	randseed = seed;
+	for (i = 0; i < NSHUFF; i++)
+		(void)random();
 }
 
 /*
