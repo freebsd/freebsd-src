@@ -214,9 +214,7 @@ exit1(struct thread *td, int rv)
 	 * e.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
-	mtx_lock(&Giant);
 	EVENTHANDLER_INVOKE(process_exit, p);
-	mtx_unlock(&Giant);
 
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
 		M_ZOMBIE, M_WAITOK);
