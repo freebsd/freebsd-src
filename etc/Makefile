@@ -15,8 +15,8 @@ BIN1=   amd.map apmd.conf auth.conf \
 	printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.isdn rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
-	rc.syscons rc.sysctl remote rpc security services shells syslog.conf \
-	usbd.conf \
+	rc.syscons rc.sysctl remote rpc security services shells sysctl.conf \
+	syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/disktab \
 	etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	etc.${MACHINE_ARCH}/ttys \
