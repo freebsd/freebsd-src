@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.355 2002/05/22 19:46:26 gshapiro Exp $
+#	$Id: README,v 8.355.2.3 2002/06/21 22:44:56 gshapiro Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -1266,9 +1266,15 @@ HP-UX 8.00
 	README file for the future...
 
 Linux
-	Something broke between versions 0.99.13 and 0.99.14 of Linux:
-	the flock() system call gives errors.  If you are running .14,
-	you must not use flock.  You can do this with -DHASFLOCK=0.
+	Something broke between versions 0.99.13 and 0.99.14 of Linux: the
+	flock() system call gives errors.  If you are running .14, you must
+	not use flock.  You can do this with -DHASFLOCK=0.  We have also
+	been getting complaints since version 2.4.X was released.  Unless
+	the bug is fixed before sendmail 8.13 is shipped, 8.13 will change
+	the default locking method to fcntl() for Linux kernel version 2.4
+	and later.  Be sure to update other sendmail related programs to
+	match locking techniques (some examples, besides makemap and
+	mail.local, include procmail, mailx, mutt, elm, etc).
 
 	Around the inclusion of bind-4.9.3 & Linux libc-4.6.20, the
 	initialization of the _res structure changed.  If /etc/hosts.conf
@@ -1515,6 +1521,28 @@ Darwin/Mac OS X (10.X.X)
 	b. Set / to group unwritable (as superuser):
 	   chmod g-w /
 
+Darwin/Mac OS X (10.1.5)
+	Apple's upgrade to sendmail 8.12 is incorrectly configured.  You
+	will need to manually fix it up by doing the following:
+
+	1. chown smmsp:smmsp /var/spool/clientmqueue
+	2. chmod 2770 /var/spool/clientmqueue
+	3. chgrp smmsp /usr/sbin/sendmail
+	4. chmod g+s /usr/sbin/sendmail
+
+	From Daniel J. Luke <dluke@geeklair.net>:
+
+	It appears that setting the sendmail.cf property in
+	/locations/sendmail in NetInfo on Mac OS X 10.1.5 with sendmail
+	8.12.4 causes 'bad things' to happen.
+
+	Specifically sendmail instances that should be getting their config
+	from /etc/mail/submit.cf don't (so mail/mutt/perl scripts which
+	open pipes to sendmail stop working as sendmail tries to write to
+	/var/spool/mqueue and cannot as sendmail is no longer suid root).
+
+	Removing the entry from NetInfo fixes this problem.
+
 GNU getopt
 	I'm told that GNU getopt has a problem in that it gets confused
 	by the double call.  Use the version in conf.c instead.
@@ -1740,4 +1768,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.355 $, last update $Date: 2002/05/22 19:46:26 $ )
+(Version $Revision: 8.355.2.3 $, last update $Date: 2002/06/21 22:44:56 $ )

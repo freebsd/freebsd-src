@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.918 2002/05/23 20:01:56 gshapiro Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.1 2002/06/21 20:25:22 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -2500,6 +2500,7 @@ extern pid_t	sm_wait __P((int *));
 extern bool	split_by_recipient __P((ENVELOPE *e));
 extern void	stop_sendmail __P((void));
 extern char	*str2prt __P((char *));
+extern bool	strreplnonprt __P((char *, int));
 extern bool	strcontainedin __P((bool, char *, char *));
 extern int	switch_map_find __P((char *, char *[], short []));
 extern bool	transienterror __P((int));

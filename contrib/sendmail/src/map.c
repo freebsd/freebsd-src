@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.645 2002/05/24 21:07:36 gshapiro Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.645.2.1 2002/06/21 20:25:23 ca Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -1234,6 +1234,7 @@ dns_map_lookup(map, name, av, statp)
 #  endif /* NETINET6 */
 		}
 
+		(void) strreplnonprt(value, 'X');
 		if (map_p->dns_m_type != rr->rr_type)
 		{
 			if (tTd(38, 40))
