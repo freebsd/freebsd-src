@@ -1556,11 +1556,11 @@ config_pipe(struct dn_pipe *p)
 	}
 
 	s = splimp();
-	    x->bandwidth = p->bandwidth ;
+	x->bandwidth = p->bandwidth ;
 	x->numbytes = 0; /* just in case... */
 	bcopy(p->if_name, x->if_name, sizeof(p->if_name) );
 	x->ifp = NULL ; /* reset interface ptr */
-	    x->delay = p->delay ;
+	x->delay = p->delay ;
 	set_fs_parms(&(x->fs), pfs);
 
 
