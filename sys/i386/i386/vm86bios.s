@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: vm86bios.s,v 1.1 1998/03/23 19:52:39 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -198,6 +198,7 @@ ENTRY(vm86_biosret)
 	
 	popl	_curpcb			/* restore curpcb/curproc */
 	popl	_curproc
+	movl	PCB_EIP(%edx),%edx	/* original stack frame */
 	movl	TF_TRAPNO(%edx),%eax	/* return (trapno) */
 
 	popl	%gs
