@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.66 1996/07/30 19:26:47 bde Exp $
+ *	$Id: clock.c,v 1.67 1996/08/02 21:16:26 bde Exp $
  */
 
 /*
@@ -605,7 +605,7 @@ startrtclock()
 	if (bootverbose) {
 		printf(
 		"Press a key on the console to abort clock calibration\n");
-		while (!cncheckc())
+		while (cncheckc() == -1)
 			calibrate_clocks();
 	}
 #endif
