@@ -1,4 +1,4 @@
-/* $Id: ccdvar.h,v 1.6 1997/02/22 09:44:51 peter Exp $ */
+/* $Id: ccdvar.h,v 1.7 1998/09/15 10:07:26 gibbs Exp $ */
 
 /*	$NetBSD: ccdvar.h,v 1.7.2.1 1995/10/12 21:30:18 thorpej Exp $	*/
 
@@ -188,7 +188,10 @@ struct ccd_softc {
 	struct ccdiinfo	 *sc_itable;		/* interleave table */
 	struct devstat	 device_stats;		/* device statistics */
 	struct ccdgeom   sc_geom;		/* pseudo geometry info */
-	struct dkdevice	 sc_dkdev;		/* generic disk device info */
+	struct disklabel sc_label;		/* generic disk device info */
+	int		 sc_bopenmask;
+	int		 sc_copenmask;
+	int		 sc_openmask;
 };
 
 /* sc_flags */
