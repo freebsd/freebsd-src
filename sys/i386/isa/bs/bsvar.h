@@ -1,3 +1,4 @@
+/*	$NecBSD: bsvar.h,v 1.2 1997/10/31 17:43:41 honda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -342,7 +343,7 @@ struct targ_info {
 	u_int8_t *bounce_addr;
 	u_int bounce_size;
 
-	u_int8_t *sm_vaddr;
+	u_long sm_offset;
 
 	/*****************************************
 	 * target inq data
@@ -437,14 +438,14 @@ struct bs_softc {
 
 	struct bshw *sc_hw;			/* hw selection */
 
-	u_int8_t *sm_vaddr;			/* smit buffer */
+	u_long sm_offset;			/* smit buffer offset */
 
 	u_int sc_RSTdelay;
 
 	int sc_hwlock;				/* hardware lock count */
 
 	int sc_iobase;				/* iobase for FreeBSD */
-	u_int32_t sc_irqmasks;			/* irq */
+	u_int32_t sc_irq;			/* irq */
 
 	u_int sc_dmachan;			/* dma channel */
 	u_int8_t sc_busstat;			/* scsi bus status register */

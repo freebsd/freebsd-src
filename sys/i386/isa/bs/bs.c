@@ -1,3 +1,4 @@
+/*	$NecBSD: bs.c,v 1.1 1997/07/18 09:18:59 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -32,7 +33,7 @@
  */
 
 #ifdef	__NetBSD__
-#include <dev/isa/bs/bsif.h>
+#include <i386/Cbus/dev/bs/bsif.h>
 #endif
 #ifdef	__FreeBSD__
 #include <i386/isa/bs/bsif.h>
@@ -134,7 +135,7 @@ bs_scsi_cmd(xs)
 
 	s = splbio();
 
-	TAILQ_INSERT_TAIL(&ti->ti_ctab, cb, ccb_chain)
+	TAILQ_INSERT_TAIL(&ti->ti_ctab, cb, ccb_chain);
 
 	if (ti->ti_phase == FREE)
 	{
@@ -312,7 +313,7 @@ bscmddone(ti)
 			       bsc->sc_flags |= BSPOLLDONE;
 		}
 
-		TAILQ_REMOVE(&ti->ti_ctab, cb, ccb_chain)
+		TAILQ_REMOVE(&ti->ti_ctab, cb, ccb_chain);
 
 		if (xs)
 		{
@@ -1189,7 +1190,6 @@ bs_phase_error(ti, cb)
 {
 	struct bs_softc *bsc = ti->ti_bsc;
 	struct bs_err *pep;
-	char *s = NULL;
 
 	if ((scsi_status & BSR_CM) == BSR_CMDERR &&
 	    (scsi_status & BSR_PHVALID) == 0)
@@ -1309,7 +1309,6 @@ bs_sequencer(bsc)
 	if (scsi_status == ((u_int8_t) -1))
 	{
 		bs_debug_print_all(bsc);
-		printf("%s strange scsi bus status\n");
 		return 1;
 	}
 	/**************************************************
@@ -1547,10 +1546,10 @@ bs_scsi_cmd_poll_internal(cti)
 	/* force all current jobs into the polling state. */
 	for (i = 0; i < NTARGETS; i++)
 	{
-		if (ti = bsc->sc_ti[i])
+		if ((ti = bsc->sc_ti[i]) != NULL)
 		{
 			ti->ti_flags |= BSFORCEIOPOLL;
-			if (cb = ti->ti_ctab.tqh_first)
+			if ((cb = ti->ti_ctab.tqh_first) != NULL)
 				cb->flags |= BSFORCEIOPOLL;
 		}
 	}
@@ -1616,7 +1615,7 @@ bs_scsi_cmd_poll(cti, targetcb)
 	}
 
 	bs_start_timeout(bsc);
-	softintr(bsc->sc_irqmasks);
+	softintr(bsc->sc_irq);
 	splx(s);
 	return error;
 }

@@ -1,3 +1,4 @@
+/*	$NecBSD: bshw.h,v 1.2 1997/10/31 17:43:38 honda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -46,8 +47,9 @@
 #define	BSHW_READ		BSR_IOR
 #define	BSHW_WRITE		0x0
 
-#define	BSHW_CMD_CHECK(CCB, CAT) (bshw_cmd[(CCB)->cmd[0]] & (CAT))
+#define	BSHW_SMITFIFO_OFFSET	0x1000
 
+#define	BSHW_CMD_CHECK(CCB, CAT) (bshw_cmd[(CCB)->cmd[0]] & (CAT))
 /*********************************************************
  * static inline declare.
  *********************************************************/
