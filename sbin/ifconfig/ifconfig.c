@@ -975,7 +975,11 @@ status(afp, addrcount, sdl, ifm, ifam)
 		printf("%s", ifs.ascii);
 
 	if (!allfamilies && !p && afp->af_status != media_status &&
-	    afp->af_status != ether_status && afp->af_status != vlan_status)
+	    afp->af_status != ether_status
+#ifdef USE_VLANS
+	    afp->af_status != vlan_status
+#endif
+		)
 		warnx("%s has no %s interface address!", name, afp->af_name);
 
 	close(s);
