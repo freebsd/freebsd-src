@@ -34,6 +34,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -137,7 +138,7 @@ cap_print(struct ata_params *parm)
 	printf("lba48%ssupported         ",
 		parm->support.address48 ? " " : " not ");
 	if (lbasize48)
-		printf("%lld sectors\n", lbasize48);	
+		printf("%ju sectors\n", (uintmax_t)lbasize48);	
 	else
 		printf("\n");
 
