@@ -31,24 +31,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ffs_extern.h,v 1.9 1995/12/17 21:09:30 phk Exp $
+ * $Id: ffs_extern.h,v 1.10 1996/02/25 20:12:36 bde Exp $
  */
 
-struct buf;
+#ifndef _UFS_FFS_EXTERN_H
+#define	_UFS_FFS_EXTERN_H
+
 struct fid;
 struct fs;
 struct inode;
-struct mount;
-struct nameidata;
-struct proc;
-struct statfs;
-struct timeval;
-struct ucred;
-struct uio;
-struct vnode;
 struct mbuf;
+struct mount;
+struct statfs;
+struct vnode;
 
-__BEGIN_DECLS
 int	ffs_alloc __P((struct inode *,
 	    daddr_t, daddr_t, int, struct ucred *, daddr_t *));
 int	ffs_balloc __P((struct inode *,
@@ -84,8 +80,9 @@ int	ffs_vptofh __P((struct vnode *, struct fid *));
 #ifdef DIAGNOSTIC
 void	ffs_checkoverlap __P((struct buf *, struct inode *));
 #endif
-__END_DECLS
 
 extern vop_t **ffs_vnodeop_p;
 extern vop_t **ffs_specop_p;
 extern vop_t **ffs_fifoop_p;
+
+#endif /* !_UFS_FFS_EXTERN_H */

@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.29 1996/03/11 02:04:27 hsu Exp $
+ * $Id: buf.h,v 1.30 1996/04/07 22:12:25 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
 #define	_SYS_BUF_H_
+
 #include <sys/queue.h>
 
 #define NOLIST ((struct buf *)0x87654321)
@@ -196,7 +197,6 @@ extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 extern TAILQ_HEAD(swqueue, buf) bswlist;
 
-__BEGIN_DECLS
 void	bufinit __P((void));
 void	bremfree __P((struct buf *));
 int	bread __P((struct vnode *, daddr_t, int,
@@ -244,6 +244,6 @@ void	vm_bounce_alloc __P((struct buf *));
 void	vm_bounce_free __P((struct buf *));
 vm_offset_t	vm_bounce_kva_alloc __P((int));
 void	vm_bounce_kva_alloc_free __P((vm_offset_t, int));
-__END_DECLS
-#endif
+#endif /* KERNEL */
+
 #endif /* !_SYS_BUF_H_ */
