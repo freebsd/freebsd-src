@@ -44,28 +44,45 @@
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
+db_varfcn_t db_dr0;
+db_varfcn_t db_dr1;
+db_varfcn_t db_dr2;
+db_varfcn_t db_dr3;
+db_varfcn_t db_dr4;
+db_varfcn_t db_dr5;
+db_varfcn_t db_dr6;
+db_varfcn_t db_dr7;
+
 /*
  * Machine register set.
  */
 struct db_variable db_regs[] = {
-	{ "cs",		&ddb_regs.tf_cs,  FCN_NULL },
-	{ "ds",		&ddb_regs.tf_ds,  FCN_NULL },
-	{ "es",		&ddb_regs.tf_es,  FCN_NULL },
-	{ "fs",		&ddb_regs.tf_fs,  FCN_NULL },
+	{ "cs",		&ddb_regs.tf_cs,     FCN_NULL },
+	{ "ds",		&ddb_regs.tf_ds,     FCN_NULL },
+	{ "es",		&ddb_regs.tf_es,     FCN_NULL },
+	{ "fs",		&ddb_regs.tf_fs,     FCN_NULL },
 #if 0
-	{ "gs",		&ddb_regs.tf_gs,  FCN_NULL },
+	{ "gs",		&ddb_regs.tf_gs,     FCN_NULL },
 #endif
-	{ "ss",		&ddb_regs.tf_ss,  FCN_NULL },
-	{ "eax",	&ddb_regs.tf_eax, FCN_NULL },
-	{ "ecx",	&ddb_regs.tf_ecx, FCN_NULL },
-	{ "edx",	&ddb_regs.tf_edx, FCN_NULL },
-	{ "ebx",	&ddb_regs.tf_ebx, FCN_NULL },
-	{ "esp",	&ddb_regs.tf_esp, FCN_NULL },
-	{ "ebp",	&ddb_regs.tf_ebp, FCN_NULL },
-	{ "esi",	&ddb_regs.tf_esi, FCN_NULL },
-	{ "edi",	&ddb_regs.tf_edi, FCN_NULL },
-	{ "eip",	&ddb_regs.tf_eip, FCN_NULL },
+	{ "ss",		&ddb_regs.tf_ss,     FCN_NULL },
+	{ "eax",	&ddb_regs.tf_eax,    FCN_NULL },
+	{ "ecx",	&ddb_regs.tf_ecx,    FCN_NULL },
+	{ "edx",	&ddb_regs.tf_edx,    FCN_NULL },
+	{ "ebx",	&ddb_regs.tf_ebx,    FCN_NULL },
+	{ "esp",	&ddb_regs.tf_esp,    FCN_NULL },
+	{ "ebp",	&ddb_regs.tf_ebp,    FCN_NULL },
+	{ "esi",	&ddb_regs.tf_esi,    FCN_NULL },
+	{ "edi",	&ddb_regs.tf_edi,    FCN_NULL },
+	{ "eip",	&ddb_regs.tf_eip,    FCN_NULL },
 	{ "efl",	&ddb_regs.tf_eflags, FCN_NULL },
+	{ "dr0",	NULL,		     db_dr0 },
+	{ "dr1",	NULL,		     db_dr1 },
+	{ "dr2",	NULL,		     db_dr2 },
+	{ "dr3",	NULL,		     db_dr3 },
+	{ "dr4",	NULL,		     db_dr4 },
+	{ "dr5",	NULL,		     db_dr5 },
+	{ "dr6",	NULL,		     db_dr6 },
+	{ "dr7",	NULL,		     db_dr7 },
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
@@ -409,3 +426,27 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		}
 	}
 }
+
+#define DB_DRX_FUNC(reg)                \
+int					\
+db_ ## reg (vp, valuep, op)		\
+	struct db_variable *vp;		\
+	db_expr_t * valuep;		\
+	int op;				\
+{					\
+	if (op == DB_VAR_GET)		\
+		*valuep = r ## reg ();	\
+	else				\
+		load_ ## reg (*valuep); \
+					\
+	return(0);			\
+} 
+
+DB_DRX_FUNC(dr0)
+DB_DRX_FUNC(dr1)
+DB_DRX_FUNC(dr2)
+DB_DRX_FUNC(dr3)
+DB_DRX_FUNC(dr4)
+DB_DRX_FUNC(dr5)
+DB_DRX_FUNC(dr6)
+DB_DRX_FUNC(dr7)
