@@ -82,7 +82,7 @@ static void CcpLayerFinish(struct fsm *);
 static int CcpLayerUp(struct fsm *);
 static void CcpLayerDown(struct fsm *);
 static void CcpInitRestartCounter(struct fsm *, int);
-static void CcpRecvResetReq(struct fsm *);
+static int CcpRecvResetReq(struct fsm *);
 static void CcpRecvResetAck(struct fsm *, u_char);
 
 static struct fsm_callbacks ccp_Callbacks = {
@@ -150,8 +150,10 @@ static const struct ccp_algorithm * const algorithm[] = {
 int
 ccp_ReportStatus(struct cmdargs const *arg)
 {
+  struct ccp_opt **o;
   struct link *l;
   struct ccp *ccp;
+  int f;
 
   l = command_ChooseLink(arg);
   ccp = &l->ccp;
@@ -166,6 +168,19 @@ ccp_ReportStatus(struct cmdargs const *arg)
                   ccp->compin, ccp->uncompin);
   }
 
+  if (ccp->in.algorithm != -1)
+    prompt_Printf(arg->prompt, "\n Input Options:  %s\n",
+                  (*algorithm[ccp->in.algorithm]->Disp)(&ccp->in.opt));
+
+  if (ccp->out.algorithm != -1) {
+    o = &ccp->out.opt;
+    for (f = 0; f < ccp->out.algorithm; f++)
+      if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]))
+        o = &(*o)->next;
+    prompt_Printf(arg->prompt, " Output Options: %s\n",
+                  (*algorithm[ccp->out.algorithm]->Disp)(&(*o)->val));
+  }
+
   prompt_Printf(arg->prompt, "\n Defaults: ");
   prompt_Printf(arg->prompt, "FSM retry = %us, max %u Config"
                 " REQ%s, %u Term REQ%s\n", ccp->cfg.fsm.timeout,
@@ -174,16 +189,36 @@ ccp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "           deflate windows: ");
   prompt_Printf(arg->prompt, "incoming = %d, ", ccp->cfg.deflate.in.winsize);
   prompt_Printf(arg->prompt, "outgoing = %d\n", ccp->cfg.deflate.out.winsize);
-  prompt_Printf(arg->prompt, "           DEFLATE:    %s\n",
+#ifdef HAVE_DES
+  prompt_Printf(arg->prompt, "           MPPE: ");
+  if (ccp->cfg.mppe.keybits)
+    prompt_Printf(arg->prompt, "%d bits, ", ccp->cfg.mppe.keybits);
+  else
+    prompt_Printf(arg->prompt, "any bits, ");
+  switch (ccp->cfg.mppe.state) {
+  case MPPE_STATEFUL:
+    prompt_Printf(arg->prompt, "statefull");
+    break;
+  case MPPE_STATELESS:
+    prompt_Printf(arg->prompt, "stateless");
+    break;
+  case MPPE_ANYSTATE:
+    prompt_Printf(arg->prompt, "any state");
+    break;
+  }
+  prompt_Printf(arg->prompt, "%s\n",
+                ccp->cfg.mppe.required ? ", required" : "");
+#endif
+
+  prompt_Printf(arg->prompt, "\n           DEFLATE:    %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE]));
   prompt_Printf(arg->prompt, "           PREDICTOR1: %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_PRED1]));
   prompt_Printf(arg->prompt, "           DEFLATE24:  %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE24]));
 #ifdef HAVE_DES
-  prompt_Printf(arg->prompt, "           MPPE:       %s",
+  prompt_Printf(arg->prompt, "           MPPE:       %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_MPPE]));
-  prompt_Printf(arg->prompt, " (Key Size = %d-bits)\n", ccp->cfg.mppe.keybits);
 #endif
   return 0;
 }
@@ -215,7 +250,9 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
   ccp->cfg.neg[CCP_NEG_PRED1] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_DEFLATE24] = 0;
 #ifdef HAVE_DES
-  ccp->cfg.mppe.keybits = 128;
+  ccp->cfg.mppe.keybits = 0;
+  ccp->cfg.mppe.state = MPPE_ANYSTATE;
+  ccp->cfg.mppe.required = 0;
   ccp->cfg.neg[CCP_NEG_MPPE] = NEG_ENABLED|NEG_ACCEPTED;
 #endif
 
@@ -236,6 +273,30 @@ ccp_Setup(struct ccp *ccp)
   ccp->his_reject = ccp->my_reject = 0;
   ccp->uncompout = ccp->compout = 0;
   ccp->uncompin = ccp->compin = 0;
+}
+
+/*
+ * Is ccp *REQUIRED* ?
+ * We ask each of the configured ccp protocols if they're required and
+ * return TRUE if they are.
+ *
+ * It's not possible for the peer to reject a required ccp protocol
+ * without our state machine bringing the supporting lcp layer down.
+ *
+ * If ccp is required but not open, the NCP layer should not push
+ * any data into the link.
+ */
+int
+ccp_Required(struct ccp *ccp)
+{
+  int f;
+
+  for (f = 0; f < NALGORITHMS; f++)
+    if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]) &&
+        (*algorithm[f]->Required)(&ccp->fsm))
+      return 1;
+
+  return 0;
 }
 
 static void
@@ -332,13 +393,14 @@ CcpSendTerminateAck(struct fsm *fp, u_char id)
   fsm_Output(fp, CODE_TERMACK, id, NULL, 0, MB_CCPOUT);
 }
 
-static void
+static int
 CcpRecvResetReq(struct fsm *fp)
 {
   /* Got a reset REQ, reset outgoing dictionary */
   struct ccp *ccp = fsm2ccp(fp);
-  if (ccp->out.state != NULL)
-    (*algorithm[ccp->out.algorithm]->o.Reset)(ccp->out.state);
+  if (ccp->out.state == NULL)
+    return 1;
+  return (*algorithm[ccp->out.algorithm]->o.Reset)(ccp->out.state);
 }
 
 static void
@@ -396,6 +458,12 @@ CcpLayerFinish(struct fsm *fp)
     next = ccp->out.opt->next;
     free(ccp->out.opt);
     ccp->out.opt = next;
+  }
+
+  if (ccp_Required(ccp)) {
+    if (fp->link->lcp.fsm.state == ST_OPENED)
+      log_Printf(LogLCP, "%s: Closing due to CCP completion\n", fp->link->name);
+    fsm_Close(&fp->link->lcp.fsm);
   }
 }
 
@@ -531,17 +599,28 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                      " option\n", fp->link->name);
         else {
 	  memcpy(&o->val, cp, length);
-          if ((*algorithm[f]->o.Set)(&o->val) == MODE_ACK)
+          if ((*algorithm[f]->o.Set)(&o->val, &ccp->cfg) == MODE_ACK)
             ccp->my_proto = algorithm[f]->id;
           else {
 	    ccp->his_reject |= (1 << type);
 	    ccp->my_proto = -1;
+            if (algorithm[f]->Required(fp)) {
+              log_Printf(LogWARN, "%s: Cannot understand peers (required)"
+                         " %s negotiation\n", fp->link->name,
+                         protoname(algorithm[f]->id));
+              fsm_Close(&fp->link->lcp.fsm);
+            }
           }
         }
         break;
       case MODE_REJ:
 	ccp->his_reject |= (1 << type);
 	ccp->my_proto = -1;
+        if (algorithm[f]->Required(fp)) {
+          log_Printf(LogWARN, "%s: Peer rejected (required) %s negotiation\n",
+                     fp->link->name, protoname(algorithm[f]->id));
+          fsm_Close(&fp->link->lcp.fsm);
+        }
 	break;
       }
     }
@@ -618,17 +697,26 @@ static struct mbuf *
 ccp_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
               int pri, u_short *proto)
 {
-  if (PROTO_COMPRESSIBLE(*proto) && l->ccp.fsm.state == ST_OPENED &&
-      l->ccp.out.state != NULL) {
-    bp = (*algorithm[l->ccp.out.algorithm]->o.Write)
-           (l->ccp.out.state, &l->ccp, l, pri, proto, bp);
-    switch (*proto) {
-      case PROTO_ICOMPD:
-        m_settype(bp, MB_ICOMPDOUT);
-        break;
-      case PROTO_COMPD:
-        m_settype(bp, MB_COMPDOUT);
-        break;
+  if (PROTO_COMPRESSIBLE(*proto)) {
+    if (l->ccp.fsm.state != ST_OPENED) {
+      if (ccp_Required(&l->ccp)) {
+        /* The NCP layer shouldn't have let this happen ! */
+        log_Printf(LogERROR, "%s: Unexpected attempt to use an unopened and"
+                   " required CCP layer\n", l->name);
+        m_freem(bp);
+        bp = NULL;
+      }
+    } else if (l->ccp.out.state != NULL) {
+      bp = (*algorithm[l->ccp.out.algorithm]->o.Write)
+             (l->ccp.out.state, &l->ccp, l, pri, proto, bp);
+      switch (*proto) {
+        case PROTO_ICOMPD:
+          m_settype(bp, MB_ICOMPDOUT);
+          break;
+        case PROTO_COMPD:
+          m_settype(bp, MB_COMPDOUT);
+          break;
+      }
     }
   }
 
@@ -706,9 +794,15 @@ ccp_SetOpenMode(struct ccp *ccp)
 }
 
 int
-ccp_IsUsable(struct fsm *fp)
+ccp_DefaultUsable(struct fsm *fp)
 {
   return 1;
+}
+
+int
+ccp_DefaultRequired(struct fsm *fp)
+{
+  return 0;
 }
 
 struct layer ccplayer = { LAYER_CCP, "ccp", ccp_LayerPush, ccp_LayerPull };

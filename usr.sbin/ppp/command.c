@@ -135,7 +135,7 @@
 #define VAR_URGENTPORTS	33
 #define	VAR_LOGOUT	34
 #define	VAR_IFQUEUE	35
-#define	VAR_KEYBITS	36
+#define	VAR_MPPE	36
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -1610,20 +1610,43 @@ SetVariable(struct cmdargs const *arg)
     break;
 
 #ifdef HAVE_DES
-  case VAR_KEYBITS:
-    if (arg->argc > arg->argn) {
-      l->ccp.cfg.mppe.keybits = atoi(arg->argv[arg->argn]);
-      if (l->ccp.cfg.mppe.keybits != 40 &&
-          l->ccp.cfg.mppe.keybits != 56 &&
-          l->ccp.cfg.mppe.keybits != 128 ) {
-        log_Printf(LogWARN, "%d: Invalid bits number\n",
-                  l->ccp.cfg.mppe.keybits);
-        l->ccp.cfg.mppe.keybits = 40;
-      }
-    } else {
-      err = "No bits number pecified\n";
-      log_Printf(LogWARN, err);
+  case VAR_MPPE:
+    if (arg->argc > arg->argn + 2)
+      return -1;
+
+    if (arg->argc == arg->argn) {
+      l->ccp.cfg.mppe.keybits = 0;
+      l->ccp.cfg.mppe.state = MPPE_ANYSTATE;
+      l->ccp.cfg.mppe.required = 0;
+      break;
     }
+
+    if (!strcmp(argp, "*"))
+      long_val = 0;
+    else {
+      long_val = atol(argp);
+      if (long_val != 40 && long_val != 56 && long_val != 128) {
+        log_Printf(LogWARN, "%s: Invalid bits value\n", argp);
+        return -1;
+      }
+    }
+
+    if (arg->argc == arg->argn + 2) {
+      if (!strcmp(arg->argv[arg->argn + 1], "*"))
+        l->ccp.cfg.mppe.state = MPPE_ANYSTATE;
+      else if (!strcasecmp(arg->argv[arg->argn + 1], "stateless"))
+        l->ccp.cfg.mppe.state = MPPE_STATELESS;
+      else if (!strcasecmp(arg->argv[arg->argn + 1], "statefull"))
+        l->ccp.cfg.mppe.state = MPPE_STATEFUL;
+      else {
+        log_Printf(LogWARN, "%s: Invalid state value\n",
+                   arg->argv[arg->argn + 1]);
+        return -1;
+      }
+    } else
+      l->ccp.cfg.mppe.state = MPPE_ANYSTATE;
+    l->ccp.cfg.mppe.keybits = long_val;
+    l->ccp.cfg.mppe.required = 1;
     break;
 #endif
 
@@ -2081,8 +2104,8 @@ static struct cmdtab const SetCommands[] = {
   (const void *) VAR_WINSIZE},
 #ifdef HAVE_DES
   {"mppe", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "MPPE key size", "set mppe {40|56|128}", 
-  (const void *) VAR_KEYBITS},
+  "MPPE key size and state", "set mppe [40|56|128|* [statefull|stateless|*]]", 
+  (const void *) VAR_MPPE},
 #endif
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
   "physical device name", "set device|line device-name[,device-name]",
