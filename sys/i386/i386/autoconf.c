@@ -238,8 +238,6 @@ cpu_rootconf()
 }
 SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
 
-u_long	bootdev = 0;		/* not a dev_t - encoding is different */
-
 #if defined(NFSCLIENT) && defined(NFS_ROOT) && !defined(BOOTP_NFSROOT)
 
 static int
