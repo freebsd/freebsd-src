@@ -328,7 +328,7 @@ kdebug_sadb_identity(ext)
 	    id->sadb_ident_exttype == SADB_EXT_IDENTITY_SRC ? "src" : "dst");
 	switch (id->sadb_ident_type) {
 	default:
-		printf(" type=%d id=%lu",
+		printf(" type=%u id=%lu",
 			id->sadb_ident_type, (u_long)id->sadb_ident_id);
 		if (len) {
 #ifdef _KERNEL
@@ -372,7 +372,7 @@ kdebug_sadb_supported(ext)
 	alg = (struct sadb_alg *)(sup + 1);
 	printf("sadb_sup{\n");
 	while (len--) {
-		printf("  { id=%d ivlen=%d min=%d max=%d }\n",
+		printf("  { id=%u ivlen=%u min=%u max=%u }\n",
 			alg->sadb_alg_id, alg->sadb_alg_ivlen,
 			alg->sadb_alg_minbits, alg->sadb_alg_maxbits);
 		alg++;
@@ -458,7 +458,7 @@ kdebug_sadb_key(ext)
 	/* sanity check 2 */
 	if ((key->sadb_key_bits >> 3) >
 		(PFKEY_UNUNIT64(key->sadb_key_len) - sizeof(struct sadb_key))) {
-		printf("kdebug_sadb_key: key length mismatch, bit:%d len:%ld.\n",
+		printf("kdebug_sadb_key: key length mismatch, bit:%u len:%ld.\n",
 			key->sadb_key_bits >> 3,
 			(long)PFKEY_UNUNIT64(key->sadb_key_len) - sizeof(struct sadb_key));
 	}
@@ -595,7 +595,7 @@ kdebug_secpolicy(sp)
 		printf("  type=entrust }\n");
 		break;
 	default:
-		printf("kdebug_secpolicy: Invalid policy found. %d\n",
+		printf("kdebug_secpolicy: Invalid policy found. %u\n",
 			sp->policy);
 		break;
 	}
