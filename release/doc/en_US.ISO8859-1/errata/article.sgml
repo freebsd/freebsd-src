@@ -19,6 +19,8 @@
 %mlists;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+
+<!ENTITY release.point "4.6.2-RELEASE">
 ]>
 
 <article>
@@ -60,6 +62,11 @@
       operation or usability.  An up-to-date version of this document
       should always be consulted before installing this version of
       &os;.</para>
+
+    <para>Unless otherwise noted, items listed here also pertain
+      to &os; &release.point;, which was designed to fix certain,
+      specific problems in &release.prev; (see the release notes for
+      more details).</para>
 
     <para>This errata document for &os; 
 <![ %release.type.snapshot [
@@ -122,7 +129,8 @@
       to be exploited.  A revised
       version of security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
-      contains a corrected bugfix.</para>
+      contains a corrected bugfix.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>A buffer overflow in the resolver could be exploited
       by a malicious domain name server or an attacker forging DNS
@@ -130,53 +138,62 @@
       code to run on a client machine with the privileges of a
       resolver-using application.  See security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
-      for more information and a fix.</para>
+      for more information and a fix.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>Badly-formed NFS packets could trigger a buffer overflow in
       &man.tcpdump.1;.  For a fix to this problem, see security advisory
       <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>&man.ktrace.1; can be used to trace the operation of
       formerly-privileged processes.  This is undesirable, as it is
       then possible to leak information obtained while these processes
       had elevated privileges.  See security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
-      for a workaround and a fix.</para>
+      for a workaround and a fix.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>A race condition in &man.pppd.8; can be used to
       change the permissions of an arbitrary file.
       For more details, a workaround, and bugfix information, see
       security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>Multiple buffer overflows have been discovered in
       <application>OpenSSL</application>.
       More details (including workarounds and bugfixes) can be found
       in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>A bug in the XDR decoder (used by Sun RPC) could result in a
       heap buffer overflow.
       Security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>
-      contains workaround and bugfix information.</para>
+      contains workaround and bugfix information.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>Local users can, under certain circumstances, read and write
       arbitrary blocks on an FFS filesystem has been corrected.  More
       details can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>,
-      which contains a workaround and bugfix information.</para>
+      which contains a workaround and bugfix information.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>A bug in the NFS server code could allow a remote
       denial of service attack.  Security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
-      has information on a fix and a workaround.</para>
+      has information on a fix and a workaround.
+      This problem was corrected in &os; &release.point;.</para>
 
     <para>A bug in &man.kqueue.2; could allow local users to panic a
       system.  Correction information is contained in security
       advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
 
 ]]>
   </sect1>
@@ -295,7 +312,7 @@ hw.ata.atapi_dma="1"</programlisting>
     </procedure>
 
     <para>This problem was fixed in &os; &release.current;
-      on 31 July 2002.</para>
+      on 31 July 2002, as well as &os; &release.point;.</para>
 
     <para>Due to a bug in the release generation process, some of the
       directories under <filename>/usr/share/examples</filename> are
@@ -309,7 +326,8 @@ hw.ata.atapi_dma="1"</programlisting>
       <guimenuitem>share</guimenuitem>).
       <filename>/usr/src/share/examples</filename> will then contain 
       the missing files.  This problem was corrected in
-      &os; &release.current; on 16 July 2002.</para>
+      &os; &release.current; on 16 July 2002, as well as &os;
+      &release.point;.</para>
 
 ]]>
   </sect1>
