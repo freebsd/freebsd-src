@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.18 1995/11/09 02:31:59 jkh Exp $
+ * $Id: installFinal.c,v 1.19 1995/11/12 07:27:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -204,8 +204,7 @@ configNFSServer(char *unused)
 	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	vsystem("echo >> /etc/exports");
 	dialog_clear();
-	msgNotify("Uncompressing the editor..  Please wait.");
-	systemExecute("ee /etc/exports");
+	systemExecute("/stand/ee /etc/exports");
     }
     variable_set2("nfs_server", "YES");
     return RET_SUCCESS;
