@@ -1065,7 +1065,7 @@ static int
 mac_test_check_kenv_dump(struct ucred *cred)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
