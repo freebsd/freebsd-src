@@ -100,6 +100,7 @@ SUBDIR=	accf_data \
 	rp \
 	rue \
 	sbsh \
+	scd \
 	sf \
 	sis \
 	sk \
