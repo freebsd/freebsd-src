@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.2 1998/09/18 22:33:59 ken Exp $
+ *	$Id: scsi_all.c,v 1.3 1998/09/19 01:23:04 ken Exp $
  */
 
 #include <sys/param.h>
@@ -124,7 +124,7 @@ static struct scsi_op_quirk_entry scsi_op_quirk_table[] = {
 static struct op_table_entry scsi_op_codes[] = {
 /*
  * From: ftp://ftp.symbios.com/pub/standards/io/t10/drafts/spc/op-num.txt
- * Modifications by Kenneth Merry (ken@plutotech.com)
+ * Modifications by Kenneth Merry (ken@FreeBSD.ORG)
  *
  * Note:  order is important in this table, scsi_op_desc() currently
  * depends on the opcodes in the table being in order to save search time.
@@ -2052,7 +2052,10 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 	scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
 
 #ifdef KERNEL
-	if ((sense_flags & SF_NO_PRINT) == 0 || bootverbose)
+	if (bootverbose) {
+		sense_flags |= SF_PRINT_ALWAYS;
+		print_sense = TRUE;
+	} else if ((sense_flags & SF_NO_PRINT) == 0)
 #else
 	if ((sense_flags & SF_NO_PRINT) == 0)
 #endif
@@ -2118,7 +2121,8 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 			error = 0;
 			break;
 		case SSD_KEY_ILLEGAL_REQUEST:
-			if ((sense_flags & SF_QUIET_IR) != 0)
+			if (((sense_flags & SF_QUIET_IR) != 0)
+			 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
 				print_sense = FALSE;
 
 			/* FALLTHROUGH */
@@ -2133,7 +2137,8 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 				error = ERESTART;
 				print_sense = FALSE;
 			} else {
-				if ((error_action & SSQ_PRINT_SENSE) == 0)
+				if (((error_action & SSQ_PRINT_SENSE) == 0)
+				 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
 					print_sense = FALSE;
 
 				error = error_action & SS_ERRMASK;
@@ -2158,7 +2163,10 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 					error = ERESTART;
 					print_sense = FALSE;
 				} else {
-					if ((error_action & SSQ_PRINT_SENSE)==0)
+					if (((error_action &
+					      SSQ_PRINT_SENSE) == 0)
+					 && ((sense_flags &
+					      SF_PRINT_ALWAYS) == 0))
 						print_sense = FALSE;
 
 					error = error_action & SS_ERRMASK;
@@ -2173,7 +2181,8 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 				error = ERESTART;
 				print_sense = FALSE;
 			} else {
-				if ((error_action & SSQ_PRINT_SENSE) == 0)
+				if (((error_action & SSQ_PRINT_SENSE) == 0)
+				 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
 					print_sense = FALSE;
 
 				error = error_action & SS_ERRMASK;
