@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.22 1996/04/07 01:16:37 joerg Exp $
+#	$Id: services,v 1.23 1996/04/09 01:53:58 asami Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1664,6 +1664,7 @@ man		9535/tcp
 man		9535/udp
 sd		9876/tcp   #Session Director
 sd		9876/udp   #Session Director
+amanda		10080/udp  #Dump server control
 isode-dua	17007/tcp
 isode-dua	17007/udp
 biimenu		18000/tcp #Beckman Instruments, Inc.
