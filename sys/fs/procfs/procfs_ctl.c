@@ -144,7 +144,9 @@ procfs_control(struct thread *td, struct proc *p, int op)
 		 * Stop the target.
 		 */
 		p->p_flag |= P_TRACED;
+		mtx_lock_spin(&sched_lock);
 		faultin(p);
+		mtx_unlock_spin(&sched_lock);
 		p->p_xstat = 0;		/* XXX ? */
 		if (p->p_pptr != td->td_proc) {
 			p->p_oppid = p->p_pptr->p_pid;

@@ -533,6 +533,7 @@ cv_wakeup(struct cv *cvp)
 			setrunqueue(td);
 			maybe_resched(td);
 		} else {
+			td->td_state = TDS_SWAPPED;
 			td->td_proc->p_sflag |= PS_SWAPINREQ;
 			wakeup(&proc0); /* XXXKSE */
 		}
