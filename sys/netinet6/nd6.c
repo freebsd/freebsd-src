@@ -1785,6 +1785,24 @@ fail:
 		break;
 	}
 
+	/*
+	 * When the link-layer address of a router changes, select the
+	 * best router again.  In particular, when the neighbor entry is newly
+	 * created, it might affect the selection policy.
+	 * Question: can we restrict the first condition to the "is_newentry"
+	 * case?
+	 * XXX: when we hear an RA from a new router with the link-layer
+	 * address option, defrouter_select() is called twice, since
+	 * defrtrlist_update called the function as well.  However, I believe
+	 * we can compromise the overhead, since it only happens the first
+	 * time.
+	 * XXX: although defrouter_select() should not have a bad effect
+	 * for those are not autoconfigured hosts, we explicitly avoid such
+	 * cases for safety.
+	 */
+	if (do_update && ln->ln_router && !ip6_forwarding && ip6_accept_rtadv)
+		defrouter_select();
+
 	return rt;
 }
 
