@@ -1794,10 +1794,7 @@ vclean(vp, flags, p)
 	}
 
 	cache_purge(vp);
-	if (vp->v_vnlock) {
-		lockdestroy(vp->v_vnlock);
-		vp->v_vnlock = NULL;
-	}
+	vp->v_vnlock = NULL;
 	lockdestroy(&vp->v_lock);
 
 	if (VSHOULDFREE(vp))
