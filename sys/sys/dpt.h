@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.3 1998/06/02 00:32:37 eivind Exp $"
+#ident "$Id: dpt.h,v 1.4 1998/08/05 00:54:37 eivind Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
@@ -49,10 +49,6 @@
 
 #ifdef	DEVFS
 #include <sys/devfsext.h>
-#ifdef	SLICE
-#include <sys/device.h>
-#include <dev/slice/slice.h>
-#endif	/* SLICE */
 #endif
 
 #define DPT_CDEV_MAJOR 88

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.161 1998/08/29 13:13:10 bde Exp $
+ * $Id: vfs_subr.c,v 1.162 1998/09/05 15:17:33 bde Exp $
  */
 
 /*
@@ -1113,7 +1113,6 @@ reassignbuf(bp, newvp)
 	splx(s);
 }
 
-#ifndef SLICE
 /*
  * Create a vnode for a block device.
  * Used for mounting the root file system.
@@ -1143,7 +1142,6 @@ bdevvp(dev, vpp)
 	*vpp = vp;
 	return (0);
 }
-#endif	/* !SLICE */
 
 /*
  * Check to see if the new vnode represents a special device
