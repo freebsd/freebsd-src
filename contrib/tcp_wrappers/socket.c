@@ -114,7 +114,7 @@ struct request_info *request;
 	    return;				/* give up */
 	}
 #ifdef really_paranoid
-	memset(buf, 0 sizeof(buf));
+	memset(buf, 0, sizeof(buf));
 #endif
     }
 #ifdef INET6
