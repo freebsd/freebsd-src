@@ -1738,8 +1738,21 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		}
 	}
 
+    {
+	struct m_hdr tag;
+
+	if (next_hop) {
+		/* Pass IPFORWARD info if available */
+ 
+		tag.mh_type = MT_TAG;
+		tag.mh_flags = PACKET_TAG_IPFORWARD;
+		tag.mh_data = (caddr_t)next_hop;
+		tag.mh_next = m;
+		m = (struct mbuf *)&tag;
+	}
 	error = ip_output(m, (struct mbuf *)0, &ipforward_rt, 
 			  IP_FORWARDING, 0);
+    }
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
