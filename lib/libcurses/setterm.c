@@ -214,7 +214,7 @@ zap()
 #endif
 	tmp[2] = '\0';
 
-	namp = "ambsdaeohcinmimsncnsosulxbxnxtxsxx";
+	namp = "ambsdadbeohcinmimsncnsosulxbxnxtxsxx";
 	fp = sflags;
 	do {
 		*tmp = *namp;
