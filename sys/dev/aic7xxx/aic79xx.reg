@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#45 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#55 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -72,6 +72,19 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#45 $"
 		xor	MODE_PTR, MK_MODE(M_DFF1, M_DFF1);		\
 	}
 	
+#define RESTORE_MODE(mode)						\
+	if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {			\
+		mov	mode call set_mode_work_around;			\
+	} else {							\
+		mov	MODE_PTR, mode;					\
+	}
+
+#define SET_SEQINTCODE(code)						\
+	if ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0) {			\
+		mvi	code call set_seqint_work_around;		\
+	} else {							\
+		mvi	SEQINTCODE, code;				\
+	}
 
 /*
  * Mode Pointer
@@ -114,7 +127,8 @@ register SEQINTCODE {
 	address			0x002
 	access_mode	RW
 	field {
-		BAD_PHASE	1,		/* unknown scsi bus phase */
+		NO_SEQINT,			/* No seqint pending. */
+		BAD_PHASE,			/* unknown scsi bus phase */
 		SEND_REJECT,			/* sending a message reject */
 		PROTO_VIOLATION, 		/* Protocol Violation */
 		NO_MATCH,			/* no cmd match for reconnect */
@@ -158,7 +172,12 @@ register SEQINTCODE {
 		CFG4ISTAT_INTR,
 		STATUS_OVERRUN,
 		CFG4OVERRUN,
-		ENTERING_NONPACK
+		ENTERING_NONPACK,
+		TRACEPOINT0,
+		TRACEPOINT1,
+		TRACEPOINT2,
+		TRACEPOINT3,
+		SAW_HWERR
 	}
 }
 
@@ -366,6 +385,7 @@ register DFCNTRL {
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
 	field	PRELOADEN	0x80
+	field	SCSIENWRDIS	0x40	/* Rev B only. */
 	field	SCSIEN		0x20
 	field	SCSIENACK	0x20
 	field	HDMAEN		0x08
@@ -460,6 +480,17 @@ register HODMAADR {
 	access_mode	RW
 	size		8
 	modes		M_SCSI
+}
+
+/*
+ * PCI PLL Delay.
+ */
+register PLLDELAY {
+	address			0x070
+	access_mode	RW
+	size		1
+	modes		M_CFG
+	field	SPLIT_DROP_REQ	0x80
 }
 
 /*
@@ -1561,8 +1592,23 @@ register DFFSTAT {
 	modes		M_SCSI
 	field	FIFO1FREE	0x20
 	field	FIFO0FREE	0x10
-	field	CURRFIFO	0x01
+	/*
+	 * On the B, this enum only works
+	 * in the read direction.  For writes,
+	 * you must use the B version of the
+	 * CURRFIFO_0 definition which is defined
+	 * as a constant outside of this register
+	 * definition to avoid confusing the
+	 * register pretty printing code.
+	 */
+	enum	CURRFIFO	0x03 {
+		CURRFIFO_0,
+		CURRFIFO_1,
+		CURRFIFO_NONE	0x3
+	}
 }
+
+const B_CURRFIFO_0 0x2
 
 /*
  * SCSI Bus Target IDs
@@ -2208,6 +2254,7 @@ register DFFSXFRCTL {
 	address			0x05A
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
+	field	DFFBITBUCKET	0x08
 	field	CLRSHCNT	0x04
 	field	CLRCHN		0x02
 	field	RSTCHN		0x01
@@ -2222,7 +2269,17 @@ register NEXTSCB {
 	size		2
 	modes		M_SCSI
 }
-	
+
+/* Rev B only. */
+register LQOSCSCTL {
+	address			0x05A
+	access_mode	RW
+	size		1
+	modes		M_CFG
+	field		LQOH2A_VERSION	0x80
+	field		LQONOCHKOVER	0x01
+}
+
 /*
  * SEQ Interrupts
  */
@@ -2427,7 +2484,10 @@ register NEGCONOPTS {
 	address			0x064
 	access_mode	RW
 	modes		M_SCSI
-	field	ENAIP		0x08
+	field	ENSNAPSHOT	0x40
+	field	RTI_WRTDIS	0x20
+	field	RTI_OVRDTRN	0x10
+	field	ENSLOWCRC	0x08
 	field	ENAUTOATNI	0x04
 	field	ENAUTOATNO	0x02
 	field	WIDEXFER	0x01
@@ -2447,7 +2507,7 @@ register SCSCHKN {
 	access_mode	RW
 	modes		M_CFG
 	field	STSELSKIDDIS	0x40
-	field	CURFIFODEF	0x20
+	field	CURRFIFODEF	0x20
 	field	WIDERESEN	0x10
 	field	SDONEMSKDIS	0x08
 	field	DFFACTCLR	0x04
@@ -2455,13 +2515,28 @@ register SCSCHKN {
 	field	LSTSGCLRDIS	0x01
 }
 
-const AHD_ANNEXCOL_PRECOMP	4
+const AHD_ANNEXCOL_PER_DEV0	4
+const AHD_NUM_PER_DEV_ANNEXCOLS	4
+const AHD_ANNEXCOL_PRECOMP_SLEW	4
 const	AHD_PRECOMP_MASK	0x07
+const	AHD_PRECOMP_SHIFT	0
 const	AHD_PRECOMP_CUTBACK_17	0x04
 const	AHD_PRECOMP_CUTBACK_29	0x06
 const	AHD_PRECOMP_CUTBACK_37	0x07
-const	AHD_PRECOMP_FASTSLEW	0x40
-const AHD_NUM_ANNEXCOLS		4
+const	AHD_SLEWRATE_MASK	0x78
+const	AHD_SLEWRATE_SHIFT	3
+/*
+ * Rev A has only a single bit of slew adjustment.
+ * Rev B has 4 bits.
+ */
+const	AHD_SLEWRATE_DEF_REVA	0x01
+const	AHD_SLEWRATE_DEF_REVB	0x08
+
+/* Rev A does not have any amplitude setting. */
+const AHD_ANNEXCOL_AMPLITUDE	6
+const	AHD_AMPLITUDE_MASK	0x7
+const	AHD_AMPLITUDE_SHIFT	0
+const	AHD_AMPLITUDE_DEF	0x7
 
 /*
  * Negotiation Table Annex Data Port.
@@ -2689,7 +2764,8 @@ register CCSGCTL {
 	modes		M_DFF0, M_DFF1
 	field	CCSGDONE	0x80
 	field	SG_CACHE_AVAIL	0x10
-	field	CCSGEN		0x08
+	field	CCSGENACK	0x08
+	mask	CCSGEN		0x0C
 	field	SG_FETCH_REQ	0x02
 	field	CCSGRESET	0x01
 }
@@ -2983,7 +3059,10 @@ register WRTBIASCTL {
 	field	XMITMANVAL	0x3F
 }
 
-const WRTBIASCTL_CPQ_DEFAULT 0x97
+/*
+ * Currently the WRTBIASCTL is the same as the default.
+ */
+const WRTBIASCTL_HP_DEFAULT 0x0
 
 /*
  * Receiver Bias Control
@@ -3447,7 +3526,7 @@ scratch_ram {
 		size		2
 	}
 	/*
-	 * Mode to restore on idle_loop exit.
+	 * Mode to restore on legacy idle loop exit.
 	 */
 	SAVED_MODE {
 		size		1
@@ -3518,6 +3597,13 @@ scratch_ram {
 		}
 	}
 	/*
+	 * Value to "or" into the SCBPTR[1] value to
+	 * indicate that an entry in the QINFIFO is valid.
+	 */
+	QOUTFIFO_ENTRY_VALID_TAG {
+		size		1
+	}
+	/*
 	 * Base address of our shared data with the kernel driver in host
 	 * memory.  This includes the qoutfifo and target mode
 	 * incoming command queue.
@@ -3531,13 +3617,6 @@ scratch_ram {
 	 */
 	QOUTFIFO_NEXT_ADDR {
 		size		4
-	}
-	/*
-	 * Value to "or" into the SCBPTR[1] value to
-	 * indicate that an entry in the QINFIFO is valid.
-	 */
-	QOUTFIFO_ENTRY_VALID_TAG {
-		size		1
 	}
 	/*
 	 * Kernel and sequencer offsets into the queue of
@@ -3722,7 +3801,6 @@ scb {
 }
 
 /*********************************** Constants ********************************/
-const SEQ_STACK_SIZE	8
 const MK_MESSAGE_BIT_OFFSET	4
 const TID_SHIFT		4
 const TARGET_CMD_CMPLT	0xfe
@@ -3746,7 +3824,15 @@ const BUS_32_BIT		0x02
 
 /* Offset maximums */
 const MAX_OFFSET		0xfe
-const MAX_OFFSET_PACED		0x7f
+const MAX_OFFSET_PACED		0xfe
+const MAX_OFFSET_PACED_BUG	0x7f
+/*
+ * Some 160 devices incorrectly accept 0xfe as a
+ * sync offset, but will overrun this value.  Limit
+ * to 0x7f for speed lower than U320 which will
+ * avoid the persistent sync offset overruns.
+ */
+const MAX_OFFSET_NON_PACED	0x7f
 const HOST_MSG			0xff
 
 /*

@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#61 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#73 $
  *
  * $FreeBSD$
  */
@@ -213,14 +213,17 @@ typedef enum {
  * Features available in each chip type.
  */
 typedef enum {
-	AHD_FENONE	= 0x00000,
-	AHD_WIDE  	= 0x00001,	/* Wide Channel */
-	AHD_MULTI_FUNC	= 0x00100,	/* Multi-Function Twin Channel Device */
-	AHD_TARGETMODE	= 0x01000,	/* Has tested target mode support */
-	AHD_MULTIROLE	= 0x02000,	/* Space for two roles at a time */
-	AHD_REMOVABLE	= 0x00000,	/* Hot-Swap supported - None so far*/
-	AHD_AIC7901_FE	= AHD_FENONE,
-	AHD_AIC7902_FE	= AHD_MULTI_FUNC
+	AHD_FENONE		= 0x00000,
+	AHD_WIDE  		= 0x00001,/* Wide Channel */
+	AHD_MULTI_FUNC		= 0x00100,/* Multi-Function/Channel Device */
+	AHD_TARGETMODE		= 0x01000,/* Has tested target mode support */
+	AHD_MULTIROLE		= 0x02000,/* Space for two roles at a time */
+	AHD_RTI			= 0x04000,/* Retained Training Support */
+	AHD_NEW_IOCELL_OPTS	= 0x08000,/* More Signal knobs in the IOCELL */
+	AHD_NEW_DFCNTRL_OPTS	= 0x10000,/* SCSIENWRDIS bit */
+	AHD_REMOVABLE		= 0x00000,/* Hot-Swap supported - None so far*/
+	AHD_AIC7901_FE		= AHD_FENONE,
+	AHD_AIC7902_FE		= AHD_MULTI_FUNC
 } ahd_feature;
 
 /*
@@ -228,26 +231,77 @@ typedef enum {
  */
 typedef enum {
 	AHD_BUGNONE		= 0x0000,
+	/*
+	 * Rev A hardware fails to update LAST/CURR/NEXTSCB
+	 * correctly in certain packetized selection cases.
+	 */
 	AHD_SENT_SCB_UPDATE_BUG	= 0x0001,
+	/* The wrong SCB is accessed to check the abort pending bit. */
 	AHD_ABORT_LQI_BUG	= 0x0002,
+	/* Packetized bitbucket crosses packet boundaries. */
 	AHD_PKT_BITBUCKET_BUG	= 0x0004,
+	/* The selection timer runs twice as long as its setting. */
 	AHD_LONG_SETIMO_BUG	= 0x0008,
+	/* The Non-LQ CRC error status is delayed until phase change. */
 	AHD_NLQICRC_DELAYED_BUG	= 0x0010,
+	/* The chip must be reset for all outgoing bus resets.  */
 	AHD_SCSIRST_BUG		= 0x0020,
+	/* Some PCIX fields must be saved and restored across chip reset. */
 	AHD_PCIX_CHIPRST_BUG	= 0x0040,
+	/* MMAPIO is not functional in PCI-X mode.  */
 	AHD_PCIX_MMAPIO_BUG	= 0x0080,
 	/* Bug workarounds that can be disabled on non-PCIX busses. */
 	AHD_PCIX_BUG_MASK	= AHD_PCIX_CHIPRST_BUG
 				| AHD_PCIX_MMAPIO_BUG,
+	/*
+	 * LQOSTOP0 status set even for forced selections with ATN
+	 * to perform non-packetized message delivery.
+	 */
 	AHD_LQO_ATNO_BUG	= 0x0100,
+	/* FIFO auto-flush does not always trigger.  */
 	AHD_AUTOFLUSH_BUG	= 0x0200,
+	/* The CLRLQO registers are not self-clearing. */
 	AHD_CLRLQO_AUTOCLR_BUG	= 0x0400,
+	/* The PACKETIZED status bit refers to the previous connection. */
 	AHD_PKTIZED_STATUS_BUG  = 0x0800,
+	/* "Short Luns" are not placed into outgoing LQ packets correctly. */
 	AHD_PKT_LUN_BUG		= 0x1000,
-	AHD_MDFF_WSCBPTR_BUG	= 0x2000,
-	AHD_REG_SLOW_SETTLE_BUG	= 0x4000,
-	AHD_SET_MODE_BUG	= 0x8000,
-	AHD_BUSFREEREV_BUG	= 0x10000
+	/*
+	 * Only the FIFO allocated to the non-packetized connection may
+	 * be in use during a non-packetzied connection.
+	 */
+	AHD_NONPACKFIFO_BUG	= 0x2000,
+	/*
+	 * Writing to a DFF SCBPTR register may fail if concurent with
+	 * a hardware write to the other DFF SCBPTR register.  This is
+	 * not currently a concern in our sequencer since all chips with
+	 * this bug have the AHD_NONPACKFIFO_BUG and all writes of concern
+	 * occur in non-packetized connections.
+	 */
+	AHD_MDFF_WSCBPTR_BUG	= 0x4000,
+	/* SGHADDR updates are slow. */
+	AHD_REG_SLOW_SETTLE_BUG	= 0x8000,
+	/*
+	 * Changing the MODE_PTR coincident with an interrupt that
+	 * switches to a different mode will cause the interrupt to
+	 * be in the mode written outside of interrupt context.
+	 */
+	AHD_SET_MODE_BUG	= 0x10000,
+	/* Non-packetized busfree revision does not work. */
+	AHD_BUSFREEREV_BUG	= 0x20000,
+	/*
+	 * Paced transfers are indicated with a non-standard PPR
+	 * option bit in the neg table, 160MHz is indicated by
+	 * sync factor 0x7, and the offset if off by a factor of 2.
+	 */
+	AHD_PACED_NEGTABLE_BUG	= 0x40000,
+	/* LQOOVERRUN false positives. */
+	AHD_LQOOVERRUN_BUG	= 0x80000,
+	/*
+	 * Controller write to INTSTAT will lose to a host
+	 * write to CLRINT.
+	 */
+	AHD_INTCOLLISION_BUG	= 0x100000
 } ahd_bug;
 
 /*
@@ -293,7 +347,7 @@ typedef enum {
 	AHD_64BIT_ADDRESSING  = 0x20000,/* Use 64 bit addressing scheme. */
 	AHD_CURRENT_SENSING   = 0x40000,
 	AHD_SCB_CONFIG_USED   = 0x80000,/* No SEEPROM but SCB had info. */
-	AHD_CPQ_BOARD	      = 0x100000,
+	AHD_HP_BOARD	      = 0x100000,
 	AHD_RESET_POLL_ACTIVE = 0x200000
 } ahd_flag;
 
@@ -500,13 +554,13 @@ typedef enum {
 	SCB_AUTO_NEGOTIATE	= 0x00040,/* Negotiate to achieve goal. */
 	SCB_NEGOTIATE		= 0x00080,/* Negotiation forced for command. */
 	SCB_ABORT		= 0x00100,
-	SCB_ACTIVE		= 0x00400,
-	SCB_TARGET_IMMEDIATE	= 0x00800,
-	SCB_PACKETIZED		= 0x01000,
-	SCB_EXPECT_PPR_BUSFREE	= 0x02000,
-	SCB_PKT_SENSE		= 0x04000,
-	SCB_CMDPHASE_ABORT	= 0x08000,
-	SCB_ON_COL_LIST		= 0x10000
+	SCB_ACTIVE		= 0x00200,
+	SCB_TARGET_IMMEDIATE	= 0x00400,
+	SCB_PACKETIZED		= 0x00800,
+	SCB_EXPECT_PPR_BUSFREE	= 0x01000,
+	SCB_PKT_SENSE		= 0x02000,
+	SCB_CMDPHASE_ABORT	= 0x04000,
+	SCB_ON_COL_LIST		= 0x08000
 } scb_flag;
 
 struct scb {
@@ -539,6 +593,8 @@ struct scb {
 	bus_addr_t		  sg_list_busaddr;
 	bus_addr_t		  sense_busaddr;
 	u_int			  sg_count;/* How full ahd_dma_seg is */
+#define	AHD_MAX_LQ_CRC_ERRORS 5
+	u_int			  crc_retry_count;
 };
 
 TAILQ_HEAD(scb_tailq, scb);
@@ -654,6 +710,11 @@ struct ahd_tmode_lstate;
 #define AHD_PERIOD_ASYNC	0xFF
 #define AHD_PERIOD_10MHz	0x19
 
+#define AHD_WIDTH_UNKNOWN	0xFF
+#define AHD_PERIOD_UNKNOWN	0xFF
+#define AHD_OFFSET_UNKNOWN	0x0
+#define AHD_PPR_OPTS_UNKNOWN	0xFF
+
 /*
  * Transfer Negotiation Information.
  */
@@ -707,6 +768,9 @@ struct ahd_tmode_tstate {
 #define AHD_SYNCRATE_SYNC	0x32
 #define AHD_SYNCRATE_MIN	0x60
 #define	AHD_SYNCRATE_ASYNC	0xFF
+
+/* Safe and valid period for async negotiations. */
+#define	AHD_ASYNC_XFER_PERIOD	0x44
 
 /*
  * In RevA, the synctable uses a 120MHz rate for the period
@@ -852,7 +916,8 @@ typedef enum {
 	MSG_FLAG_EXPECT_PPR_BUSFREE	= 0x01,
 	MSG_FLAG_IU_REQ_CHANGED		= 0x02,
 	MSG_FLAG_EXPECT_IDE_BUSFREE	= 0x04,
-	MSG_FLAG_PACKETIZED		= 0x08
+	MSG_FLAG_EXPECT_QASREJ_BUSFREE	= 0x08,
+	MSG_FLAG_PACKETIZED		= 0x10
 } ahd_msg_flags;
 
 typedef enum {
@@ -1023,11 +1088,6 @@ struct ahd_softc {
 	uint8_t			  our_id;
 
 	/*
-	 * PCI error detection.
-	 */
-	int			  unsolicited_ints;
-
-	/*
 	 * Target incoming command FIFO.
 	 */
 	struct target_cmd	 *targetcmds;
@@ -1066,6 +1126,12 @@ struct ahd_softc {
 	/* PCI cacheline size. */
 	u_int			  pci_cachesize;
 
+	/* IO Cell Parameters */
+	uint8_t			  iocell_opts[AHD_NUM_PER_DEV_ANNEXCOLS];
+
+	u_int			  stack_size;
+	uint16_t		 *saved_stack;
+
 	/* Per-Unit descriptive information */
 	const char		 *description;
 	const char		 *bus_description;
@@ -1081,6 +1147,34 @@ struct ahd_softc {
 
 TAILQ_HEAD(ahd_softc_tailq, ahd_softc);
 extern struct ahd_softc_tailq ahd_tailq;
+
+/*************************** IO Cell Configuration ****************************/
+#define	AHD_PRECOMP_SLEW_INDEX						\
+    (AHD_ANNEXCOL_PRECOMP_SLEW - AHD_ANNEXCOL_PER_DEV0)
+
+#define	AHD_AMPLITUDE_INDEX						\
+    (AHD_ANNEXCOL_AMPLITUDE - AHD_ANNEXCOL_PER_DEV0)
+
+#define AHD_SET_SLEWRATE(ahd, new_slew)					\
+do {									\
+    (ahd)->iocell_opts[AHD_PRECOMP_SLEW_INDEX] &= ~AHD_SLEWRATE_MASK;	\
+    (ahd)->iocell_opts[AHD_PRECOMP_SLEW_INDEX] |=			\
+	(((new_slew) << AHD_SLEWRATE_SHIFT) & AHD_SLEWRATE_MASK);	\
+} while (0)
+
+#define AHD_SET_PRECOMP(ahd, new_pcomp)					\
+do {									\
+    (ahd)->iocell_opts[AHD_PRECOMP_SLEW_INDEX] &= ~AHD_PRECOMP_MASK;	\
+    (ahd)->iocell_opts[AHD_PRECOMP_SLEW_INDEX] |=			\
+	(((new_pcomp) << AHD_PRECOMP_SHIFT) & AHD_PRECOMP_MASK);	\
+} while (0)
+
+#define AHD_SET_AMPLITUDE(ahd, new_amp)					\
+do {									\
+    (ahd)->iocell_opts[AHD_AMPLITUDE_INDEX] &= ~AHD_AMPLITUDE_MASK;	\
+    (ahd)->iocell_opts[AHD_AMPLITUDE_INDEX] |=				\
+	(((new_amp) << AHD_AMPLITUDE_SHIFT) & AHD_AMPLITUDE_MASK);	\
+} while (0)
 
 /************************ Active Device Information ***************************/
 typedef enum {
@@ -1144,14 +1238,10 @@ ahd_unbusy_tcl(struct ahd_softc *ahd, u_int tcl)
 }
 
 /***************************** PCI Front End *********************************/
-struct ahd_pci_identity	*ahd_find_pci_device(ahd_dev_softc_t);
-int			 ahd_pci_config(struct ahd_softc *,
-					struct ahd_pci_identity *);
-
-/*************************** EISA/VL Front End ********************************/
-struct aic7770_identity *aic7770_find_device(uint32_t);
-int			 aic7770_config(struct ahd_softc *ahd,
-					struct aic7770_identity *);
+struct	ahd_pci_identity *ahd_find_pci_device(ahd_dev_softc_t);
+int			  ahd_pci_config(struct ahd_softc *,
+					 struct ahd_pci_identity *);
+int	ahd_pci_test_register_access(struct ahd_softc *);
 
 /************************** SCB and SCB queue management **********************/
 int		ahd_probe_scbs(struct ahd_softc *);
@@ -1249,11 +1339,20 @@ void			ahd_validate_width(struct ahd_softc *ahd,
 					   struct ahd_initiator_tinfo *tinfo,
 					   u_int *bus_width,
 					   role_t role);
+/*
+ * Negotiation types.  These are used to qualify if we should renegotiate
+ * even if our goal and current transport parameters are identical.
+ */
+typedef enum {
+	AHD_NEG_TO_GOAL,	/* Renegotiate only if goal and curr differ. */
+	AHD_NEG_IF_NON_ASYNC,	/* Renegotiate so long as goal is non-async. */
+	AHD_NEG_ALWAYS		/* Renegotiat even if goal is async. */
+} ahd_neg_type;
 int			ahd_update_neg_request(struct ahd_softc*,
 					       struct ahd_devinfo*,
 					       struct ahd_tmode_tstate*,
 					       struct ahd_initiator_tinfo*,
-					       int /*force*/);
+					       ahd_neg_type);
 void			ahd_set_width(struct ahd_softc *ahd,
 				      struct ahd_devinfo *devinfo,
 				      u_int width, u_int type, int paused);
@@ -1290,22 +1389,27 @@ cam_status	ahd_find_tmode_devs(struct ahd_softc *ahd,
 /******************************* Debug ***************************************/
 #ifdef AHD_DEBUG
 extern uint32_t ahd_debug;
-#define AHD_SHOW_MISC		0x0001
-#define AHD_SHOW_SENSE		0x0002
-#define AHD_DUMP_SEEPROM	0x0004
-#define AHD_SHOW_TERMCTL	0x0008
-#define AHD_SHOW_MEMORY		0x0010
-#define AHD_SHOW_MESSAGES	0x0020
-#define AHD_SHOW_MODEPTR	0x0040
-#define AHD_SHOW_SELTO		0x0080
-#define AHD_SHOW_FIFOS		0x0100
-#define AHD_SHOW_QFULL		0x0200
-#define AHD_SHOW_QUEUE		0x0400
-#define AHD_SHOW_TQIN		0x0800
-#define AHD_SHOW_SG		0x1000
-#define AHD_DEBUG_SEQUENCER	0x2000
+#define AHD_SHOW_MISC		0x00001
+#define AHD_SHOW_SENSE		0x00002
+#define AHD_SHOW_RECOVERY	0x00004
+#define AHD_DUMP_SEEPROM	0x00008
+#define AHD_SHOW_TERMCTL	0x00010
+#define AHD_SHOW_MEMORY		0x00020
+#define AHD_SHOW_MESSAGES	0x00040
+#define AHD_SHOW_MODEPTR	0x00080
+#define AHD_SHOW_SELTO		0x00100
+#define AHD_SHOW_FIFOS		0x00200
+#define AHD_SHOW_QFULL		0x00400
+#define	AHD_SHOW_DV		0x00800
+#define AHD_SHOW_MASKED_ERRORS	0x01000
+#define AHD_SHOW_QUEUE		0x02000
+#define AHD_SHOW_TQIN		0x04000
+#define AHD_SHOW_SG		0x08000
+#define AHD_DEBUG_SEQUENCER	0x10000
 #endif
 void			ahd_print_scb(struct scb *scb);
+void			ahd_print_devinfo(struct ahd_softc *ahd,
+					  struct ahd_devinfo *devinfo);
 void			ahd_dump_sglist(struct scb *scb);
 void			ahd_dump_all_cards_state(void);
 void			ahd_dump_card_state(struct ahd_softc *ahd);
