@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.7 1994/08/18 22:35:47 wollman Exp $
+ * $Id: systm.h,v 1.8 1994/08/21 04:42:01 paul Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -96,11 +96,6 @@ extern struct vnode *rootvp;	/* vnode equivalent to above */
 
 extern dev_t swapdev;		/* swapping device */
 extern struct vnode *swapdev_vp;/* vnode equivalent to above */
-
-extern struct sysent {		/* system call table */
-	int	sy_narg;	/* number of arguments */
-	int	(*sy_call)();	/* implementing function */
-} sysent[];
 
 extern int boothowto;		/* reboot flags, from console subsystem */
 
