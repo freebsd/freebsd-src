@@ -107,11 +107,7 @@ s_unlock(struct simplelock *lkp)
 
 /* global data in mp_machdep.c */
 extern struct simplelock	imen_lock;
-extern struct simplelock	cpl_lock;
-extern struct simplelock	fast_intr_lock;
-extern struct simplelock	intr_lock;
 extern struct simplelock	com_lock;
-extern struct simplelock	mpintr_lock;
 extern struct simplelock	mcount_lock;
 extern struct simplelock	panic_lock;
 
