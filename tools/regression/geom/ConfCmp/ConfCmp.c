@@ -52,9 +52,11 @@ struct node {
 	LIST_HEAD(, node)	children;
 	LIST_ENTRY(node)	siblings;
 	struct node		*parent;
-	char			*name;
+	const char		*name;
 	struct sbuf		*cont;
 	struct sbuf		*key;
+	char			*id;
+	char			*ref;
 };
 
 struct mytree {
@@ -94,10 +96,11 @@ indent(int n)
 }
 
 static void
-StartElement(void *userData, const char *name, const char **atts __unused)
+StartElement(void *userData, const char *name, const char **attr)
 {
 	struct mytree *mt;
 	struct node *np;
+	int i;
 
 	mt = userData;
 	if (!strcmp(name, "FreeBSD")) {
@@ -107,6 +110,12 @@ StartElement(void *userData, const char *name, const char **atts __unused)
 	mt->ignore = 0;
 	mt->indent += 2;
 	np = new_node();
+	for (i = 0; attr[i]; i += 2) {
+		if (!strcmp(attr[i], "id"))
+			np->id = strdup(attr[i+1]);
+		else if (!strcmp(attr[i], "ref"))
+			np->ref = strdup(attr[i+1]);
+	}
 	np->name = strdup(name);
 	sbuf_cat(np->key, name);
 	sbuf_cat(np->key, "::");
@@ -198,7 +207,22 @@ dofile(char *filename)
 static void
 print_node(struct node *np)
 {
-	printf("\"%s\" -- \"%s\" -- \"%s\"\n", np->name, sbuf_data(np->cont), sbuf_data(np->key));
+	printf("\"%s\" -- \"%s\" -- \"%s\"", np->name, sbuf_data(np->cont), sbuf_data(np->key));
+	if (np->id)
+		printf(" id=\"%s\"", np->id);
+	if (np->ref)
+		printf(" ref=\"%s\"", np->ref);
+	printf("\n");
+}
+
+static void
+print_tree(struct node *np, int n)
+{
+	struct node *np1;
+
+	indent(n); printf("%s id=%s ref=%s\n", np->name, np->id, np->ref);
+	LIST_FOREACH(np1, &np->children, siblings)
+		print_tree(np1, n + 2);
 }
 
 static void
@@ -254,6 +278,18 @@ compare_node(struct node *n1, struct node *n2, int in)
 	struct node *n1a, *n2a;
 
 	i = strcmp(n1->name, n2->name);
+	if (i)
+		return (i);
+	if (n1->id && n2->id)
+		i = refcmp(n1->id, n2->id);
+	else if (n1->id || n2->id)
+		i = -1;
+	if (i)
+		return (i);
+	if (n1->ref && n2->ref)
+		i = refcmp(n1->ref, n2->ref);
+	else if (n1->ref || n2->ref)
+		i = -1;
 	if (i)
 		return (i);
 	if (!strcmp(n1->name, "ref"))
