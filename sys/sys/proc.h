@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.41 1997/06/22 16:04:22 peter Exp $
+ * $Id: proc.h,v 1.42 1997/07/06 02:40:36 dyson Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -223,6 +223,9 @@ struct	proc {
 
 /* Marked a kernel thread */
 #define P_KTHREADP	0x200000 /* Process is really a kernel thread */
+
+#define	P_NOCLDWAIT	0x400000 /* No zombies if child dies */
+
 
 /*
  * MOVE TO ucred.h?
