@@ -133,6 +133,7 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_soc.3 clnt_broadcast.3 \
 		rpc_soc.3 clntraw_create.3 \
 		rpc_soc.3 clnttcp_create.3 \
+		rpc_soc.3 clntunix_create.3 \
 		rpc_soc.3 clntudp_bufcreate.3 \
 		rpc_soc.3 clntudp_create.3 \
 		rpc_soc.3 get_myaddress.3 \
@@ -149,8 +150,10 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_soc.3 svc_register.3 \
 		rpc_soc.3 svc_unregister.3 \
 		rpc_soc.3 svcfd_create.3 \
+		rpc_soc.3 svcunixfd_create.3 \
 		rpc_soc.3 svcraw_create.3 \
 		rpc_soc.3 svctcp_create.3 \
 		rpc_soc.3 svcudp_bufcreate.3 \
+		rpc_soc.3 svcunix_create.3 \
 		rpc_soc.3 xdr_pmap.3 \
 		rpc_soc.3 xdr_pmaplist.3
