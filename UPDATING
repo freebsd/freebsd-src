@@ -9,6 +9,17 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20010724:
+	The gif(4) interface has been converted to use cloning
+	rather then allocating a static number of devices a compile
+	time.  If you use gif interfaces and configure them by any
+	method other then setting standard variables in /etc/rc.conf
+	you will need to update your system to create devices with
+	"ifconfig gifX create" before attempting to configure them.
+	
+	See the ifconfig(8) man page and /etc/rc.network for more
+	information.
+
 20010611:
 	The TCP_RESTRICT_RST option has been removed. You should entirely
 	remove it from your kernel configuration.
