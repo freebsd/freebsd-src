@@ -62,6 +62,7 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+#include <netinet/tcp_var.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -169,8 +170,11 @@ in_pcballoc(so, pcbinfo, td)
 	}
 #endif /*IPSEC*/
 #if defined(INET6)
-	if (INP_SOCKAF(so) == AF_INET6 && ip6_v6only)
-		inp->inp_flags |= IN6P_IPV6_V6ONLY;
+	if (INP_SOCKAF(so) == AF_INET6) {
+		inp->inp_vflag |= INP_IPV6PROTO;
+		if (ip6_v6only)
+			inp->inp_flags |= IN6P_IPV6_V6ONLY;
+	}
 #endif
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
 	pcbinfo->ipi_count++;
@@ -294,6 +298,17 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 				t = in_pcblookup_local(inp->inp_pcbinfo,
 				    sin->sin_addr, lport,
 				    prison ? 0 :  INPLOOKUP_WILDCARD);
+	/*
+	 * XXX
+	 * This entire block sorely needs a rewrite.
+	 */
+				if (t && (t->inp_vflag & INP_TIMEWAIT)) {
+					if ((ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
+					    ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
+					    (intotw(t)->tw_so_options & SO_REUSEPORT) == 0) &&
+					    (so->so_cred->cr_uid != intotw(t)->tw_cred->cr_uid))
+						return (EADDRINUSE);
+				} else
 				if (t &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
@@ -317,6 +332,10 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, prison ? 0 : wild);
+			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
+				if ((reuseport & intotw(t)->tw_so_options) == 0)
+					return (EADDRINUSE);
+			} else
 			if (t &&
 			    (reuseport & t->inp_socket->so_options) == 0) {
 #if defined(INET6)
@@ -640,8 +659,10 @@ in_pcbdetach(inp)
 #endif /*IPSEC*/
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
-	so->so_pcb = 0;
-	sotryfree(so);
+	if (so) {
+		so->so_pcb = 0;
+		sotryfree(so);
+	}
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
 	if (inp->inp_route.ro_rt)

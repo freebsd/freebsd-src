@@ -252,6 +252,33 @@ tcp_timer_2msl(xtp)
 }
 
 void
+tcp_timer_2msl_tw(xtw)
+	void *xtw;
+{
+	struct tcptw *tw = xtw;
+	int s;
+
+	s = splnet();
+	INP_INFO_WLOCK(&tcbinfo);
+	if (tw->tw_inpcb == NULL) {
+		INP_INFO_WUNLOCK(&tcbinfo);
+		splx(s);
+		return;
+	}
+	INP_LOCK(tw->tw_inpcb);
+	if (callout_pending(tw->tt_2msl) || !callout_active(tw->tt_2msl)) {
+		INP_UNLOCK(tw->tw_inpcb);
+		INP_INFO_WUNLOCK(&tcbinfo);
+		splx(s);
+		return;
+	}
+	callout_deactivate(tw->tt_2msl);
+	tcp_twclose(tw);
+	INP_INFO_WUNLOCK(&tcbinfo);
+	splx(s);
+}
+
+void
 tcp_timer_keep(xtp)
 	void *xtp;
 {

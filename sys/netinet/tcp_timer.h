@@ -152,6 +152,7 @@ extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 
 void	tcp_timer_2msl(void *xtp);
+void	tcp_timer_2msl_tw(void *xtw);	/* XXX temporary */
 void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
 void	tcp_timer_rexmt(void *xtp);
