@@ -316,9 +316,11 @@ struct fd_data {
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
 	struct	devstat *device_stats;
-	eventhandler_tag clonetag;
 	dev_t	masterdev;
+#ifndef BURN_BRIDGES
+	eventhandler_tag clonetag;
 	dev_t	clonedevs[NUMDENS - 1];
+#endif
 	device_t dev;
 	fdu_t	fdu;
 };
@@ -386,7 +388,9 @@ static int fdc_detach(device_t dev);
 static void fdc_add_child(device_t, const char *, int);
 static int fdc_attach(device_t);
 static int fdc_print_child(device_t, device_t);
+#ifndef BURN_BRIDGES
 static void fd_clone (void *, char *, int, dev_t *);
+#endif
 static int fd_probe(device_t);
 static int fd_attach(device_t);
 static int fd_detach(device_t);
@@ -1117,6 +1121,7 @@ DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
 
+#ifndef BURN_BRIDGES
 /*
  * Create a clone device upon request by devfs.
  */
@@ -1170,6 +1175,7 @@ fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 			}
 	}
 }
+#endif
 
 /*
  * Configuration/initialization, per drive.
@@ -1323,14 +1329,20 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-	int i;
 
 	fd = device_get_softc(dev);
+#ifndef BURN_BRIDGES
 	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, fd, 1000);
+#endif
 	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
 				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
+#ifndef BURN_BRIDGES
+	{
+	int i;
 	for (i = 0; i < NUMDENS - 1; i++)
 		fd->clonedevs[i] = NODEV;
+	}
+#endif
 	fd->device_stats = devstat_new_entry(device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
@@ -1342,16 +1354,20 @@ static int
 fd_detach(device_t dev)
 {
 	struct	fd_data *fd;
-	int i;
 
 	fd = device_get_softc(dev);
 	untimeout(fd_turnoff, fd, fd->toffhandle);
 	devstat_remove_entry(fd->device_stats);
 	destroy_dev(fd->masterdev);
+#ifndef BURN_BRIDGES
+	{
+	int i;
 	for (i = 0; i < NUMDENS - 1; i++)
 		if (fd->clonedevs[i] != NODEV)
 			destroy_dev(fd->clonedevs[i]);
 	EVENTHANDLER_DEREGISTER(dev_clone, fd->clonetag);
+	}
+#endif
 
 	return (0);
 }
