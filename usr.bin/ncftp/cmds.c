@@ -36,12 +36,14 @@
 #include "copyright.h"
 
 /* cmds.c globals */
+#ifdef PASSIVEMODE
+int					passivemode;			/* no reverse FTP connections */
+#endif
 int					curtype;			/* file transfer type */
 char				*typeabbrs = "abiet";
 str32				curtypename;		/* name of file transfer type */
 int					verbose; 			/* verbosity level of output */
 int					mprompt;			/* interactively prompt on m* cmds */
-int					passivemode;			/* use passive ftp connections */
 int					debug;				/* debugging level */
 int					options;			/* used during socket creation */
 int					macnum;				/* number of defined macros */
@@ -2057,6 +2059,10 @@ int show_version(int argc, char **argv)
 #ifdef NET_ERRNO_H
 	DStrs[nDStrs++] = "NET_ERRNO_H";
 #endif
+#ifdef PASSIVEMODE
+	DStrs[nDStrs++] = "PASSIVEMODE";
+#endif
+
 
 /* DONE with #ifdefs for now! */
 
@@ -2209,11 +2215,14 @@ int unimpl(int argc, char **argv)
 	return (NOERR);
 }	/* unimpl */
 
+#ifdef PASSIVEMODE
 int setpassive(int argc, char **argv)
 {
 	passivemode = !passivemode;
 	printf( "Passive mode %s.\n", (passivemode ? "ON" : "OFF") );
 	return NOERR;
 }
+#endif
+
 
 /* eof cmds.c */
