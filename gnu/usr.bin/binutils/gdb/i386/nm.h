@@ -115,4 +115,11 @@ extern int kernel_writablecore;
 
 #define DEFAULT_PROMPT kernel_debugging?"(kgdb) ":"(gdb) "
 
+/* misuse START_PROGRESS to test whether we're running as kgdb */
+/* START_PROGRESS is called at the top of main */
+#undef START_PROGRESS
+#define START_PROGRESS(STR,N) \
+  if (!strcmp(STR, "kgdb")) \
+     kernel_debugging = 1;
+
 #endif /* NM_FBSD_H */
