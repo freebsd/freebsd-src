@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.17 1998/04/12 04:48:09 kato Exp $
+ *	$Id: boot.c,v 1.18 1998/10/05 07:58:05 kato Exp $
  */
 
 
@@ -230,9 +230,9 @@ static void
 loadprog(void)
 {
 	struct exec head;
-	long int startaddr;
-	long int addr;	/* physical address.. not directly useable */
-	long int bootdev;
+	int startaddr;
+	int addr;	/* physical address.. not directly useable */
+	int bootdev;
 	int i;
 	unsigned pad;
 	char *s, *t;
@@ -352,8 +352,8 @@ loadprog(void)
 	bootdev = MAKEBOOTDEV(maj, (slice >> 4), slice & 0xf, unit, part);
 
 	bootinfo.bi_version = BOOTINFO_VERSION;
-	bootinfo.bi_kernelname = name + ouraddr;
-	bootinfo.bi_nfs_diskless = NULL;
+	bootinfo.bi_kernelname = (u_int32_t)(name + ouraddr);
+	bootinfo.bi_nfs_diskless = 0;
 	bootinfo.bi_size = sizeof(bootinfo);
 	bootinfo.bi_bios_dev = dosdev;
 
@@ -378,9 +378,9 @@ loadprog(void)
 	readfile(kernel_config_namebuf, kernel_config, KERNEL_CONFIG_SIZE);
 	pcpy(kernel_config, (char *)&disklabel + ouraddr, KERNEL_CONFIG_SIZE);
 
-	printf("total=0x%x entry point=0x%x\n", (int)addr, (int)startaddr);
-	startprog((int)startaddr, loadflags | RB_BOOTINFO, bootdev,
-		  (int)&bootinfo + ouraddr);
+	printf("total=0x%x entry point=0x%x\n", addr, startaddr);
+	startprog(startaddr, loadflags | RB_BOOTINFO, bootdev,
+		  (unsigned)&bootinfo + ouraddr);
 }
 
 static void
