@@ -119,7 +119,7 @@ typedef u_int64_t		pptptime_t;
 #define PPTP_XMIT_WIN		16			/* max xmit window */
 #define PPTP_MIN_RTT		(PPTP_TIME_SCALE / 10)	/* 100 milliseconds */
 #define PPTP_MIN_TIMEOUT	(PPTP_TIME_SCALE / 83)	/* 12 milliseconds */
-#define PPTP_MAX_TIMEOUT	(10 * PPTP_TIME_SCALE)	/* 10 seconds */
+#define PPTP_MAX_TIMEOUT	(1 * PPTP_TIME_SCALE)	/* 1 second */
 
 /* When we recieve a packet, we wait to see if there's an outgoing packet
    we can piggy-back the ACK off of. These parameters determine the mimimum
