@@ -56,8 +56,8 @@
 
 #define	cpu_exec(p)	/* nothing */
 #define cpu_swapin(p)	/* nothing */
-#define	cpu_getstack(p)			((p)->p_md.md_regs->tf_esp)
-#define cpu_setstack(p, ap)		((p)->p_md.md_regs->tf_esp = (ap))
+#define	cpu_getstack(p)			((p)->p_frame->tf_esp)
+#define cpu_setstack(p, ap)		((p)->p_frame->tf_esp = (ap))
 
 #define	TRAPF_USERMODE(framep) \
 	((ISPL((framep)->tf_cs) == SEL_UPL) || ((framep)->tf_eflags & PSL_VM))

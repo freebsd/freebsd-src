@@ -467,7 +467,7 @@ osendsig(catcher, sig, mask, code)
 	p = curproc;
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 	/* Allocate and validate space for the signal handler context. */
@@ -617,7 +617,7 @@ sendsig(catcher, sig, mask, code)
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 	/* Save user context. */
@@ -764,7 +764,7 @@ osigreturn(p, uap)
 	struct osigcontext *scp;
 	int eflags;
 
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 	scp = uap->sigcntxp;
 	if (!useracc((caddr_t)scp, sizeof(*scp), VM_PROT_READ))
 		return (EFAULT);
@@ -889,7 +889,7 @@ sigreturn(p, uap)
 	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
 		return (EFAULT);
 
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 	eflags = ucp->uc_mcontext.mc_eflags;
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
@@ -1035,7 +1035,7 @@ setregs(p, entry, stack, ps_strings)
 	u_long stack;
 	u_long ps_strings;
 {
-	struct trapframe *regs = p->p_md.md_regs;
+	struct trapframe *regs = p->p_frame;
 	struct pcb *pcb = &p->p_addr->u_pcb;
 
 	if (pcb->pcb_ldt)
@@ -2034,7 +2034,7 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
 	proc0.p_addr->u_pcb.pcb_ext = 0;
-	proc0.p_md.md_regs = &proc0_tf;
+	proc0.p_frame = &proc0_tf;
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -2081,7 +2081,7 @@ ptrace_set_pc(p, addr)
 	struct proc *p;
 	unsigned long addr;
 {
-	p->p_md.md_regs->tf_eip = addr;
+	p->p_frame->tf_eip = addr;
 	return (0);
 }
 
@@ -2089,7 +2089,7 @@ int
 ptrace_single_step(p)
 	struct proc *p;
 {
-	p->p_md.md_regs->tf_eflags |= PSL_T;
+	p->p_frame->tf_eflags |= PSL_T;
 	return (0);
 }
 
@@ -2105,7 +2105,7 @@ int ptrace_read_u_check(p, addr, len)
 	if ((vm_offset_t) (addr + len) <= sizeof(struct user))
 		return 0;
 
-	gap = (char *) p->p_md.md_regs - (char *) p->p_addr;
+	gap = (char *) p->p_frame - (char *) p->p_addr;
 	
 	if ((vm_offset_t) addr < gap)
 		return EPERM;
@@ -2128,9 +2128,9 @@ int ptrace_write_u(p, off, data)
 	 * Privileged kernel state is scattered all over the user area.
 	 * Only allow write access to parts of regs and to fpregs.
 	 */
-	min = (char *)p->p_md.md_regs - (char *)p->p_addr;
+	min = (char *)p->p_frame - (char *)p->p_addr;
 	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
-		tp = p->p_md.md_regs;
+		tp = p->p_frame;
 		frame_copy = *tp;
 		*(int *)((char *)&frame_copy + (off - min)) = data;
 		if (!EFL_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||
@@ -2155,7 +2155,7 @@ fill_regs(p, regs)
 	struct pcb *pcb;
 	struct trapframe *tp;
 
-	tp = p->p_md.md_regs;
+	tp = p->p_frame;
 	regs->r_fs = tp->tf_fs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
@@ -2184,7 +2184,7 @@ set_regs(p, regs)
 	struct pcb *pcb;
 	struct trapframe *tp;
 
-	tp = p->p_md.md_regs;
+	tp = p->p_frame;
 	if (!EFL_SECURE(regs->r_eflags, tp->tf_eflags) ||
 	    !CS_SECURE(regs->r_cs))
 		return (EINVAL);

@@ -45,7 +45,6 @@ struct mdbpt {
 
 struct mdproc {
 	u_long		md_flags;
-	struct	trapframe *md_tf;	/* trap/syscall registers */
 	struct pcb	*md_pcbpaddr;	/* phys addr of the pcb */
 	struct mdbpt	md_sstep[2];	/* two single step breakpoints */
 	u_int64_t	md_hae;		/* user HAE register value */

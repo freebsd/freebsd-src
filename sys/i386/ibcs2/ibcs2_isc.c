@@ -46,7 +46,7 @@ extern struct sysent isc_sysent[];
 int
 ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap)
 {
-	struct trapframe *tf = p->p_md.md_regs;
+	struct trapframe *tf = p->p_frame;
         struct sysent *callp;
         u_int code;             
 

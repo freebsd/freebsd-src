@@ -38,5 +38,4 @@
  * Machine-dependent part of the proc structure
  */
 struct mdproc {
-	int md_regs[32];
 };

@@ -982,7 +982,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 */
 	proc0paddr->u_pcb.pcb_hw.apcb_ksp =
 	    (u_int64_t)proc0paddr + USPACE - sizeof(struct trapframe);
-	proc0.p_md.md_tf =
+	proc0.p_frame =
 	    (struct trapframe *)proc0paddr->u_pcb.pcb_hw.apcb_ksp;
 
 	/*
@@ -1232,7 +1232,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigacts *psp;
 	int oonstack, fsize, rndfsize;
 
-	frame = p->p_md.md_tf;
+	frame = p->p_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
@@ -1344,7 +1344,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		return;
 	}
 
-	frame = p->p_md.md_tf;
+	frame = p->p_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
@@ -1522,10 +1522,10 @@ osigreturn(struct proc *p,
 	PROC_UNLOCK(p);
 
 	set_regs(p, (struct reg *)ksc.sc_regs);
-	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
-	p->p_md.md_tf->tf_regs[FRAME_PS] =
+	p->p_frame->tf_regs[FRAME_PC] = ksc.sc_pc;
+	p->p_frame->tf_regs[FRAME_PS] =
 	    (ksc.sc_ps | ALPHA_PSL_USERSET) & ~ALPHA_PSL_USERCLR;
-	p->p_md.md_tf->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	p->p_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 
@@ -1570,9 +1570,9 @@ sigreturn(struct proc *p,
 	set_regs(p, (struct reg *)uc.uc_mcontext.mc_regs);
 	val = (uc.uc_mcontext.mc_regs[R_PS] | ALPHA_PSL_USERSET) &
 	    ~ALPHA_PSL_USERCLR;
-	p->p_md.md_tf->tf_regs[FRAME_PS] = val;
-	p->p_md.md_tf->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
-	p->p_md.md_tf->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	p->p_frame->tf_regs[FRAME_PS] = val;
+	p->p_frame->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
+	p->p_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
 
 	PROC_LOCK(p);
@@ -1627,7 +1627,7 @@ cpu_halt(void)
 void
 setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
-	struct trapframe *tfp = p->p_md.md_tf;
+	struct trapframe *tfp = p->p_frame;
 
 	bzero(tfp->tf_regs, FRAME_SIZE * sizeof tfp->tf_regs[0]);
 	bzero(&p->p_addr->u_pcb.pcb_fp, sizeof p->p_addr->u_pcb.pcb_fp);
@@ -1655,7 +1655,7 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 int
 ptrace_set_pc(struct proc *p, unsigned long addr)
 {
-	struct trapframe *tp = p->p_md.md_tf;
+	struct trapframe *tp = p->p_frame;
 	tp->tf_regs[FRAME_PC] = addr;
 	return 0;
 }
@@ -1738,7 +1738,7 @@ ptrace_read_register(struct proc *p, int regno)
 	if (regno == R_ZERO)
 		return 0;
 
-	return p->p_md.md_tf->tf_regs[reg_to_frame[regno]];
+	return p->p_frame->tf_regs[reg_to_frame[regno]];
 }
 
 
@@ -1777,7 +1777,7 @@ int
 ptrace_single_step(struct proc *p)
 {
 	int error;
-	vm_offset_t pc = p->p_md.md_tf->tf_regs[FRAME_PC];
+	vm_offset_t pc = p->p_frame->tf_regs[FRAME_PC];
 	alpha_instruction ins;
 	vm_offset_t addr[2];	/* places to set breakpoints */
 	int count = 0;		/* count of breakpoints */
@@ -1854,7 +1854,7 @@ int ptrace_read_u_check(p, addr, len)
 	if ((vm_offset_t) (addr + len) <= sizeof(struct user))
 		return 0;
 
-	gap = (char *) p->p_md.md_tf - (char *) p->p_addr;
+	gap = (char *) p->p_frame - (char *) p->p_addr;
 	
 	if ((vm_offset_t) addr < gap)
 		return EPERM;
@@ -1877,10 +1877,10 @@ ptrace_write_u(struct proc *p, vm_offset_t off, long data)
 	 * Privileged kernel state is scattered all over the user area.
 	 * Only allow write access to parts of regs and to fpregs.
 	 */
-	min = (char *)p->p_md.md_tf - (char *)p->p_addr;
+	min = (char *)p->p_frame - (char *)p->p_addr;
 	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
 #if 0
-		tp = p->p_md.md_tf;
+		tp = p->p_frame;
 		frame_copy = *tp;
 		*(int *)((char *)&frame_copy + (off - min)) = data;
 		if (!EFLAGS_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||
@@ -1922,9 +1922,9 @@ fill_regs(p, regs)
 	struct reg *regs;
 {
 	struct pcb *pcb = &p->p_addr->u_pcb;
-	struct trapframe *tp = p->p_md.md_tf;
+	struct trapframe *tp = p->p_frame;
 
-	tp = p->p_md.md_tf;
+	tp = p->p_frame;
  
 #define C(r)	regs->r_regs[R_ ## r] = tp->tf_regs[FRAME_ ## r]
 
@@ -1949,9 +1949,9 @@ set_regs(p, regs)
 	struct reg *regs;
 {
 	struct pcb *pcb = &p->p_addr->u_pcb;
-	struct trapframe *tp = p->p_md.md_tf;
+	struct trapframe *tp = p->p_frame;
 
-	tp = p->p_md.md_tf;
+	tp = p->p_frame;
 
 #define C(r)	tp->tf_regs[FRAME_ ## r] = regs->r_regs[R_ ## r]
 

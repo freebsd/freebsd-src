@@ -149,6 +149,7 @@ struct	pargs {
  */
 struct ithd;
 struct nlminfo;
+struct trapframe;
 
 struct	proc {
 	TAILQ_ENTRY(proc) p_procq;	/* (j) Run/mutex queue. */
@@ -275,6 +276,7 @@ struct	proc {
 	struct proc *p_leader;	/* (c) */
 	struct	pasleep p_asleep;	/* (k) Used by asleep()/await(). */
 	void	*p_emuldata;	/* (c) Emulator state data. */
+	struct trapframe *p_frame; /* (k) */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -499,9 +501,6 @@ extern int lastpid;
 	     RQ_PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #define	NICE_WEIGHT	1		/* Priorities per nice level. */
-
-struct mtx;
-struct trapframe;
 
 struct	proc *pfind __P((pid_t));	/* Find process by id. */
 struct	pgrp *pgfind __P((pid_t));	/* Find process group by id. */
