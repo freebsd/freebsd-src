@@ -807,7 +807,7 @@ record_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 	 */
 	for (le = bsdtar->links_head; le != NULL; le = le->next) {
 		if (le->dev == st->st_dev && le->ino == st->st_ino) {
-			archive_entry_set_hardlink(entry, le->name);
+			archive_entry_copy_hardlink(entry, le->name);
 
 			/*
 			 * Decrement link count each time and release
@@ -820,6 +820,8 @@ record_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 					le->previous->next = le->next;
 				if (le->next != NULL)
 					le->next->previous = le->previous;
+				if (le->name != NULL)
+					free(le->name);
 				if (bsdtar->links_head == le)
 					bsdtar->links_head = le->next;
 				free(le);
