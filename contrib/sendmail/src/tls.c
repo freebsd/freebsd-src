@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.79.4.4 2003/03/20 00:03:42 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.79.4.5 2003/12/28 04:23:28 gshapiro Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -344,30 +344,36 @@ tls_set_verify(ctx, ssl, vrfy)
 # define TLS_S_DHPAR_EX	0x00400000	/* DH param file exists */
 # define TLS_S_DHPAR_OK	0x00800000	/* DH param file is ok to use */
 
+/* Type of variable */
+# define TLS_T_OTHER	0
+# define TLS_T_SRV	1
+# define TLS_T_CLT	2
+
 /*
 **  TLS_OK_F -- can var be an absolute filename?
 **
 **	Parameters:
 **		var -- filename
 **		fn -- what is the filename used for?
-**		srv -- server side?
+**		type -- type of variable
 **
 **	Returns:
 **		ok?
 */
 
 static bool
-tls_ok_f(var, fn, srv)
+tls_ok_f(var, fn, type)
 	char *var;
 	char *fn;
-	bool srv;
+	int type;
 {
 	/* must be absolute pathname */
 	if (var != NULL && *var == '/')
 		return true;
 	if (LogLevel > 12)
 		sm_syslog(LOG_WARNING, NOQID, "STARTTLS: %s%s missing",
-			  srv ? "Server" : "Client", fn);
+			  type == TLS_T_SRV ? "Server" :
+			  (type == TLS_T_CLT ? "Client" : ""), var);
 	return false;
 }
 /*
@@ -407,16 +413,16 @@ tls_safe_f(var, sff, srv)
 **		fn -- what is the filename used for?
 **		req -- is the file required?
 **		st -- status bit to set if ok
-**		srv -- server side?
+**		type -- type of variable
 **
 **	Side Effects:
 **		uses r, ok; may change ok and status.
 **
 */
 
-# define TLS_OK_F(var, fn, req, st, srv) if (ok) \
+# define TLS_OK_F(var, fn, req, st, type) if (ok) \
 	{ \
-		r = tls_ok_f(var, fn, srv); \
+		r = tls_ok_f(var, fn, type); \
 		if (r) \
 			status |= st; \
 		else if (req) \
@@ -539,13 +545,13 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 	*/
 
 	TLS_OK_F(certfile, "CertFile", bitset(TLS_I_CERT_EX, req),
-		 TLS_S_CERT_EX, srv);
+		 TLS_S_CERT_EX, srv ? TLS_T_SRV : TLS_T_CLT);
 	TLS_OK_F(keyfile, "KeyFile", bitset(TLS_I_KEY_EX, req),
-		 TLS_S_KEY_EX, srv);
+		 TLS_S_KEY_EX, srv ? TLS_T_SRV : TLS_T_CLT);
 	TLS_OK_F(cacertpath, "CACertPath", bitset(TLS_I_CERTP_EX, req),
-		 TLS_S_CERTP_EX, srv);
+		 TLS_S_CERTP_EX, TLS_T_OTHER);
 	TLS_OK_F(cacertfile, "CACertFile", bitset(TLS_I_CERTF_EX, req),
-		 TLS_S_CERTF_EX, srv);
+		 TLS_S_CERTF_EX, TLS_T_OTHER);
 
 # if _FFR_TLS_1
 	/*
@@ -556,12 +562,12 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 	if (cf2 != NULL)
 	{
 		TLS_OK_F(cf2, "CertFile", bitset(TLS_I_CERT_EX, req),
-			 TLS_S_CERT2_EX, srv);
+			 TLS_S_CERT2_EX, srv ? TLS_T_SRV : TLS_T_CLT);
 	}
 	if (kf2 != NULL)
 	{
 		TLS_OK_F(kf2, "KeyFile", bitset(TLS_I_KEY_EX, req),
-			 TLS_S_KEY2_EX, srv);
+			 TLS_S_KEY2_EX, srv ? TLS_T_SRV : TLS_T_CLT);
 	}
 # endif /* _FFR_TLS_1 */
 
@@ -599,7 +605,7 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 		{
 			TLS_OK_F(dhparam, "DHParameters",
 				 bitset(TLS_I_DHPAR_EX, req),
-				 TLS_S_DHPAR_EX, srv);
+				 TLS_S_DHPAR_EX, TLS_T_OTHER);
 		}
 	}
 	if (!ok)

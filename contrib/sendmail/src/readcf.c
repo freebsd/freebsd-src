@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.11 2003/04/03 23:04:06 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.12 2003/10/07 17:45:28 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -3153,7 +3153,7 @@ setoption(opt, val, safe, sticky, e)
 				RunAsGid = pw->pw_gid;
 			else if (UseMSP && *p == '\0')
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
-						     "WARNING: RunAsGid for MSP ignored, check group ids (egid=%d, want=%d)\n",
+						     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%d, want=%d)\n",
 						     (int) EffGid,
 						     (int) pw->pw_gid);
 		}
@@ -3177,7 +3177,7 @@ setoption(opt, val, safe, sticky, e)
 				else if (UseMSP)
 					(void) sm_io_fprintf(smioout,
 							     SM_TIME_DEFAULT,
-							     "WARNING: RunAsGid for MSP ignored, check group ids (egid=%d, want=%d)\n",
+							     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%d, want=%d)\n",
 							     (int) EffGid,
 							     (int) runasgid);
 			}
@@ -3194,7 +3194,7 @@ setoption(opt, val, safe, sticky, e)
 				else if (UseMSP)
 					(void) sm_io_fprintf(smioout,
 							     SM_TIME_DEFAULT,
-							     "WARNING: RunAsGid for MSP ignored, check group ids (egid=%d, want=%d)\n",
+							     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%d, want=%d)\n",
 							     (int) EffGid,
 							     (int) gr->gr_gid);
 			}

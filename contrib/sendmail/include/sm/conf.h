@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.90.2.18 2003/08/20 22:27:44 ca Exp $
+ *	$Id: conf.h,v 1.90.2.20 2004/01/07 00:52:16 ca Exp $
  */
 
 /*
@@ -437,6 +437,9 @@ typedef int		pid_t;
 #   if SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209)
 #    define HASURANDOMDEV	1	/* /dev/[u]random added in S9 */
 #   endif /* SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209) */
+#   if SOLARIS >= 21000 || (SOLARIS < 10000 && SOLARIS >= 210)
+#    define HASUNSETENV 1       /* unsetenv() added in S10 */
+#   endif /* SOLARIS >= 21000 || (SOLARIS < 10000 && SOLARIS >= 210) */
 #   ifndef HASGETUSERSHELL
 #    define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
 #   endif /* ! HASGETUSERSHELL */
@@ -2254,8 +2257,8 @@ typedef struct msgb		mblk_t;
 #  undef HAVE_SYS_ERRLIST
 #  define sys_errlist		__sys_errlist
 #  define sys_nerr		__sys_nerr
-#  define major(dev)		((int)(((dev) >> 8) & 0xff)
-#  define minor(dev)		((int)((dev) & 0xff)
+#  define major(dev)		((int)(((dev) >> 8) & 0xff))
+#  define minor(dev)		((int)((dev) & 0xff))
 # endif /* defined(__INTERIX) */
 
 

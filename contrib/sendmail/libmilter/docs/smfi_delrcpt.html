@@ -49,7 +49,7 @@ Remove a recipient from the current message's envelope.
 <td>smfi_delrcpt will fail and return MI_FAILURE if:
 <ul>
     <li>rcpt is NULL.
-    <li>Adding headers in the current connection state is invalid.
+    <li>Deleting recipients in the current connection state is invalid.
     <li>A network error occurs.
     <li>SMFIF_DELRCPT was not set when <a href="smfi_register.html">smfi_register</a> was called.
 </ul>

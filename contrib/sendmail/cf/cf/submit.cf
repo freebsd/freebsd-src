@@ -24,7 +24,7 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.108.2.3 2003/04/03 17:51:51 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.108.2.6 2003/12/05 02:26:47 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
 #####  $Id: submit.mc,v 8.6.2.7 2003/09/10 22:11:56 ca Exp $  #####
 #####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
@@ -32,7 +32,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.649.2.24 2003/08/04 21:14:26 ca Exp $  #####
+#####  $Id: proto.m4,v 8.649.2.30 2004/01/11 17:54:06 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -60,6 +60,7 @@ Cwlocalhost
 # ... define this only if sendmail cannot automatically determine your domain
 #Dj$w.Foo.COM
 
+# host/domain names ending with a token in class P are canonical
 CP.
 
 # "Smart" relay host (may be null)
@@ -110,7 +111,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.12.10/Submit
+DZ8.12.11/Submit
 
 
 ###############
@@ -276,7 +277,7 @@ O QueueDirectory=/var/spool/clientmqueue
 #O Timeout.quit=2m
 #O Timeout.misc=2m
 #O Timeout.command=1h
-#O Timeout.ident=5s
+O Timeout.ident=0
 #O Timeout.fileopen=60s
 #O Timeout.control=2m
 O Timeout.queuereturn=5d
