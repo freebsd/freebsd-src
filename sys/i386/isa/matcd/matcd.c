@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.34 1998/06/17 13:54:58 bde Exp $ */
+/* $Id: matcd.c,v 1.35 1998/07/04 22:30:20 julian Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -564,11 +564,11 @@ static	int	matcd_pause(int ldrive, int cdrive, int controller,
 			    int action);
 static	int	matcd_stop(int ldrive, int cdrive, int controller);
 static	int	matcd_level(int ldrive, int cdrive, int controller,
-		            struct ioc_vol * volume, int action);
+		            struct ioc_vol * volume, unsigned long action);
 static	int	matcd_patch(int ldrive, int cdrive, int controller,
 		            struct ioc_patch * routing);
 static	int	matcd_route(int ldrive, int cdrive, int controller,
-		            int command);
+		            unsigned long command);
 static	int	matcd_pitch(int ldrive, int cdrive, int controller,
 		            struct ioc_pitch * speed);
 #endif /*FULLDRIVER*/
@@ -1007,7 +1007,7 @@ int matcdioctl(dev_t dev, u_long command, caddr_t addr,
 	port=cd->iobase;
 
 #ifdef DEBUGIOCTL
-	printf("matcd%d: ioctl %x cdrive %x parms ",ldrive,command,cdrive);
+	printf("matcd%d: ioctl %lx cdrive %x parms ",ldrive,command,cdrive);
 	for (i=0;i<10;i++) {
 		printf("%02x ",(unsigned int)addr[i]);
 	}
@@ -1089,8 +1089,7 @@ int matcdioctl(dev_t dev, u_long command, caddr_t addr,
 	case	CDIOCSETLEFT:		/*<12>0 -> L&R	1 -> NULL*/
 	case	CDIOCSETRIGHT:		/*<12>0 -> NULL	1 -> L&R*/
 					/*<12>Adjust audio routing*/
-		return(matcd_route(ldrive, cdrive, controller,
-		       command));
+		return(matcd_route(ldrive, cdrive, controller, command));
 
 	case	CDIOCSETPATCH:		/*<12>Allow precise routing*/
 		return(matcd_patch(ldrive, cdrive, controller,
