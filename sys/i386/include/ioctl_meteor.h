@@ -101,6 +101,8 @@ struct meteor_video {
 #define METEORGHWS   _IOR('x', 18, unsigned char)	/* get hor start reg */
 #define METEORSVWS   _IOW('x', 19, unsigned char)	/* set vert start reg */
 #define METEORGVWS   _IOR('x', 19, unsigned char)	/* get vert start reg */
+#define	METEORSTS    _IOW('x', 20, unsigned char)	/* set time stamp */
+#define	METEORGTS    _IOR('x', 20, unsigned char)	/* get time stamp */
 
 #define	METEOR_STATUS_ID_MASK	0xf000	/* ID of 7196 */
 #define	METEOR_STATUS_DIR	0x0800	/* Direction of Expansion port YUV */
@@ -145,9 +147,11 @@ struct meteor_video {
 #define METEOR_GEO_UNSIGNED	0x0400000 /* unsigned uv outputs */
 #define METEOR_GEO_EVEN_ONLY	0x1000000 /* set for even only field capture */
 #define METEOR_GEO_ODD_ONLY	0x2000000 /* set for odd only field capture */
+#define METEOR_GEO_FIELD_MASK	0x3000000
 #define METEOR_GEO_YUV_422	0x4000000 /* 4-2-2 YUV in Y-U-V combined */
 #define METEOR_GEO_OUTPUT_MASK	0x40f0000
-#define METEOR_GEO_FIELD_MASK	0x3000000
+#define METEOR_GEO_YUV_12	0x10000000	/* YUV 12 format */
+#define METEOR_GEO_YUV_9	0x40000000	/* YUV 9 format */
 
 	/* following structure is used to coordinate the synchronous */
 	   
