@@ -1338,11 +1338,8 @@ brelse(struct buf * bp)
 	 * If B_INVAL, clear B_DELWRI.  We've already placed the buffer
 	 * on the correct queue.
 	 */
-	if ((bp->b_flags & (B_INVAL|B_DELWRI)) == (B_INVAL|B_DELWRI)) {
-		bp->b_flags &= ~B_DELWRI;
-		--numdirtybuffers;
-		numdirtywakeup(lodirtybuffers);
-	}
+	if ((bp->b_flags & (B_INVAL|B_DELWRI)) == (B_INVAL|B_DELWRI))
+		bundirty(bp);
 
 	/*
 	 * Fixup numfreebuffers count.  The bp is on an appropriate queue
