@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.3 1994/02/20 16:06:08 rgrimes Exp $
+#	$Id: Makefile,v 1.4 1994/08/28 17:43:37 bde Exp $
 
 .include "config/Makefile.$(MACHINE)"
 
@@ -27,8 +27,8 @@ SRCS+=		app.c as.c atof-generic.c bignum-copy.c \
 CFLAGS+=	-I$(.CURDIR) ${ADDINCLUDE} -I$(.CURDIR)/config \
 		-DPIC -DOLD_GAS -DSIGTY=void -Derror=as_fatal \
 		-DSUB_SEGMENT_ALIGN=4
-#LDADD+=		-lgnumalloc
-#DPADD+=		/usr/lib/libgnumalloc.a
+DPADD+=		${LIBGNUMALLOC}
+LDADD+=		-lgnumalloc
 
 CONF_HEADERS=	targ-cpu.h obj-format.h host.h targ-env.h
 
