@@ -53,7 +53,7 @@ The
 .Fn fgets
 function
 reads at most one less than the number of characters specified by
-.Xr size
+.Fa size
 from the given
 .Fa stream
 and stores them in the string
@@ -61,7 +61,7 @@ and stores them in the string
 Reading stops when a newline character is found,
 at end-of-file or error.
 The newline, if any, is retained.
-In any case a
+If any characters are read and there is no error, a
 .Ql \e0
 character is appended to end the string.
 .Pp
@@ -71,7 +71,7 @@ function
 is equivalent to
 .Fn fgets
 with an infinite
-.Xr size
+.Fa size
 and a
 .Fa stream
 of
@@ -87,14 +87,19 @@ and
 .Fn gets
 return
 a pointer to the string.
-If end-of-file or an error occurs before any characters are read, 
+If end-of-file occurs before any characters are read, 
 they return
-.Dv NULL.
+.Dv NULL
+and the buffer contents is unchanged.
+If an error occurs,
+they return
+.Dv NULL
+and the buffer contents is indeterminate.
 The
 .Fn fgets
 and
-functions
 .Fn gets
+functions
 do not distinguish between end-of-file and error, and callers must use
 .Xr feof 3
 and
