@@ -41,9 +41,9 @@ The
 .Fn aio_cancel
 function cancels the outstanding asynchronous
 I/O request for the file descriptor specified in
-.Ar fildes .
+.Fa fildes .
 If
-.Ar iocb
+.Fa iocb
 is specified, only that specific asynchronous I/O request is cancelled.
 .Pp
 Normal asynchronous notification occurs for cancelled requests.  Requests
@@ -83,7 +83,7 @@ An error return from
 indicates:
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Ar fildes
+.Fa fildes
 is an invalid file descriptor.
 .El
 .Sh STANDARDS
