@@ -88,7 +88,6 @@ static long	currentout,			/* current logout value */
 static const	char *file = _PATH_WTMP;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
-static int      d_first;
 static time_t	snaptime;			/* if != 0, we will only
 						 * report users logged in
 						 * at this snapshot time
@@ -312,8 +311,7 @@ wtmp()
 					bp->ut_line[4] = '\0';
 				tm = localtime(&bp->ut_time);
 				(void) strftime(ct, sizeof(ct),
-				    d_first ? "%a %e %b %R" :
-				    "%a %b %e %R",
+				    "%a %Ef %R",
 				    tm);
 				printf("%-*.*s %-*.*s %-*.*s %s ",
 				    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
