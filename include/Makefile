@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.56 1997/05/21 23:07:27 jdp Exp $
+#	$Id: Makefile,v 1.57 1997/05/28 04:46:38 wpaul Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -40,10 +40,11 @@ LNOHEADERDIRS=	isofs ufs
 LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
 # Define SHARED to indicate whether you want symbolic links to the system
-# source (``symlinks''), or a separate copy (``copies''); (latter useful
-# in environments where it's not possible to keep /sys publicly readable)
-# SHARED=	copies
-SHARED?=	symlinks
+# source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
+# probably only useful for developers and should be avoided if you do not
+# wish to tie your /usr/include and /usr/src together.
+#SHARED=	symlinks
+SHARED?=	copies
 
 
 .if exists (${.CURDIR}/../sys/conf/newvers.sh)
