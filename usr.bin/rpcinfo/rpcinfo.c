@@ -545,7 +545,7 @@ pmapdump(int argc, char **argv)
 			else if (head->pml_map.pm_prot == IPPROTO_TCP)
 				printf("%6s", "tcp");
 			else if (head->pml_map.pm_prot == IPPROTO_ST)
-				printf("%6s", "unix");
+				printf("%6s", "local");
 			else
 				printf("%6ld", head->pml_map.pm_prot);
 			printf("%7ld", head->pml_map.pm_port);

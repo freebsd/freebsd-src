@@ -17,6 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20021216:
+	A name change in /etc/netconfig has been reverted to stay
+	compatible with with suns TIRPC and also with NetBSD. You need
+	to run mergemaster after make world. A new libc does still work
+	with a outdated /etc/netconfig for some time, but you'll get
+	a warning. This warning will be removed in 20030301.
+
 20021202:
 	The recent binutils upgrade marks a kernel flag day on
 	sparc64: modules built with the old binutils will not work

@@ -418,6 +418,18 @@ getnetconfigent(netid)
 	return (NULL);
     }
 
+    if (strcmp(netid, "unix") == 0) {
+	fprintf(stderr, "The local transport is called \"unix\" ");
+	fprintf(stderr, "in /etc/netconfig.\n");
+	fprintf(stderr, "Please change this to \"local\" manually ");
+	fprintf(stderr, "or run mergemaster(8).\n");
+	fprintf(stderr, "See UPDATING entry 20021216 for details.\n");
+	fprintf(stderr, "Continuing in 10 seconds\n\n");
+	fprintf(stderr, "This warning will be removed 20030301\n");
+	sleep(10);
+
+    }
+
     /*
      * Look up table if the entries have already been read and parsed in
      * getnetconfig(), then copy this entry into a buffer and return it.
