@@ -99,14 +99,14 @@ function.
 It has the following fields:
 .Bl -tag -width "md_top"
 .It Va "md_top"
-.Vt ( "struct mbuf *" )
-a pointer to the top of the parsed mbuf chain
+.Pq Vt "struct mbuf *"
+A pointer to the top of the parsed mbuf chain.
 .It Va md_cur
-.Vt ( "struct mbuf *" )
-a pointer to the currently parsed mbuf
+.Pq Vt "struct mbuf *"
+A pointer to the currently parsed mbuf.
 .It Va md_pas
-.Vt ( int )
-offset in the current mbuf
+.Pq Vt int
+Offset in the current mbuf.
 .El
 .Pp
 The
@@ -157,7 +157,7 @@ The
 .Fa type
 argument specifies the method used to perform a copy,
 and can be one of the following:
-.Bl -tag -width "MB_MINLINE"
+.Bl -tag -width ".Dv MB_MINLINE"
 .It Dv MB_MSYSTEM
 Use the
 .Fn bcopy
