@@ -3,21 +3,18 @@
 
 .include <bsd.own.mk>
 
-FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz altqd \
-	amd apm apmd atm1 atm2.sh atm3.sh bgfsck bootconf.sh bootparams ccd \
-	cleanvar cleartmp cron devdb devfs dhclient dhcpd dhcrelay diskless \
-	dmesg dumpon fsck gated inetd initdiskless initrandom ipfilter ipfw \
-	ip6fw ipmon ipnat ipsec ipxrouted isdnd kadmind kdc kerberos keyserv \
-	ldconfig lkm1 lkm2 lkm3 local localdaemons lomac lpd mopd motd \
-	mountall mountcritlocal mountcritremote mountd moused mroute6d \
-	mrouted msgs named network network1 network2 network3 \
-	network_ipv6 newsyslog nfsclient nfsd nfslocking \
-	othermta nfsserver ntpd ntpdate pccard pcvt poffd ppp-user \
-	postfix ppp pppoed pwcheck quota racoon raidframe random rarpd \
-	rbootd root route6d routed rpcbind rtadvd rtsold \
-	rwho savecore screenblank securelevel sendmail serial sppp sshd swap1 \
-	swap2 sysdb syscons sysctl syslogd timed ttys usbd vinum virecover \
-	wscons xdm xfs ypbind yppasswdd ypserv ypset ypupdated ypxfrd
+FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz amd \
+	apm apmd atm1 atm2.sh atm3.sh bgfsck ccd cleanvar cleartmp cron devdb \
+	devfs diskless dmesg dumpon fsck inetd initdiskless initrandom ip6fw \
+	ipfilter ipfw ipmon ipnat ipsec ipxrouted isdnd kadmind kerberos \
+	keyserv ldconfig local localdaemons lomac lpd motd mountcritlocal \
+	mountcritremote mountd moused mroute6d mrouted msgs named network1 \
+	network2 network3 network_ipv6 nfsclient nfsd nfslocking nfsserver \
+	ntpd ntpdate othermta pccard pcvt ppp-user pppoed pwcheck quota \
+	random rarpd root route6d routed rpcbind rtadvd rwho savecore \
+	securelevel sendmail serial sppp sshd swap1 syscons sysctl syslogd \
+	timed ttys usbd vinum virecover ypbind yppasswdd ypserv ypset \
+	ypupdated ypxfrd
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
 
