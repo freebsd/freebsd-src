@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $
+**  $Id: ncr.c,v 1.141 1998/12/30 00:37:44 hoek Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1315,13 +1315,17 @@ static	void	ncr_freeze_devq (ncb_p np, struct cam_path *path);
 static	void	ncr_selectclock	(ncb_p np, u_char scntl3);
 static	void	ncr_getclock	(ncb_p np, u_char multiplier);
 static	nccb_p	ncr_get_nccb	(ncb_p np, u_long t,u_long l);
+#if 0
 static  u_int32_t ncr_info	(int unit);
+#endif
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
 static	void	ncr_intr	(void *vnp);
 static	void	ncr_int_ma	(ncb_p np, u_char dstat);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
+#if 0
 static	void	ncr_min_phys	(struct buf *bp);
+#endif
 static	void	ncr_poll	(struct cam_sim *sim);
 static	void	ncb_profile	(ncb_p np, nccb_p cp);
 static	void	ncr_script_copy_and_bind
@@ -1357,7 +1361,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $\n";
+	"\n$Id: ncr.c,v 1.141 1998/12/30 00:37:44 hoek Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
@@ -3239,6 +3243,7 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 **==========================================================
 */
 
+#if 0
 /*----------------------------------------------------------
 **
 **	Reduce the transfer length to the max value
@@ -3259,6 +3264,9 @@ void ncr_min_phys (struct  buf *bp)
 	if ((unsigned long)bp->b_bcount > MAX_SIZE) bp->b_bcount = MAX_SIZE;
 }
 
+#endif
+
+#if 0
 /*----------------------------------------------------------
 **
 **	Maximal number of outstanding requests per target.
@@ -3270,6 +3278,8 @@ u_int32_t ncr_info (int unit)
 {
 	return (1);   /* may be changed later */
 }
+
+#endif
 
 /*----------------------------------------------------------
 **
@@ -5457,7 +5467,7 @@ void ncr_exception (ncb_p np)
 		int i;
 		np->regtime = time_second;
 		for (i=0; i<sizeof(np->regdump); i++)
-			((char*)&np->regdump)[i] = INB_OFF(i);
+			((volatile char*)&np->regdump)[i] = INB_OFF(i);
 		np->regdump.nc_dstat = dstat;
 		np->regdump.nc_sist  = sist;
 	};

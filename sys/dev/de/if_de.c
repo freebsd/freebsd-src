@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.92 1998/12/14 05:47:26 dillon Exp $ */
+/*	$Id: if_de.c,v 1.93 1998/12/30 00:37:43 hoek Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -2390,8 +2390,8 @@ tulip_srom_decode(
 {
     unsigned idx1, idx2, idx3;
 
-    const tulip_srom_header_t *shp = (tulip_srom_header_t *) &sc->tulip_rombuf[0];
-    const tulip_srom_adapter_info_t *saip = (tulip_srom_adapter_info_t *) (shp + 1);
+    const tulip_srom_header_t *shp = (const tulip_srom_header_t *) &sc->tulip_rombuf[0];
+    const tulip_srom_adapter_info_t *saip = (const tulip_srom_adapter_info_t *) (shp + 1);
     tulip_srom_media_t srom_media;
     tulip_media_info_t *mi = sc->tulip_mediainfo;
     const u_int8_t *dp;
@@ -2972,8 +2972,8 @@ tulip_read_macaddr(
      * Check for various boards based on OUI.  Did I say braindead?
      */
     for (idx = 0; tulip_vendors[idx].vendor_identify_nic != NULL; idx++) {
-	if (bcmp((caddr_t) sc->tulip_enaddr,
-		 (caddr_t) tulip_vendors[idx].vendor_oui, 3) == 0) {
+	if (bcmp((c_caddr_t) sc->tulip_enaddr,
+		 (c_caddr_t) tulip_vendors[idx].vendor_oui, 3) == 0) {
 	    (*tulip_vendors[idx].vendor_identify_nic)(sc);
 	    break;
 	}

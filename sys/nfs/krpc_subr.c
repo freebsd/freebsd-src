@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/*	$Id: krpc_subr.c,v 1.10 1998/08/18 00:32:48 bde Exp $	*/
+/*	$Id: krpc_subr.c,v 1.11 1998/08/23 03:07:16 wollman Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -230,7 +230,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	sopt.sopt_val = &tv;
 	sopt.sopt_valsize = sizeof tv;
 
-	if (error = sosetopt(so, &sopt))
+	if ((error = sosetopt(so, &sopt)) != 0)
 		goto out;
 
 	/*
@@ -241,7 +241,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 		sopt.sopt_name = SO_BROADCAST;
 		sopt.sopt_val = &on;
 		sopt.sopt_valsize = sizeof on;
-		if (error = sosetopt(so, &sopt))
+		if ((error = sosetopt(so, &sopt)) != 0)
 			goto out;
 	}
 

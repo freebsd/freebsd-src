@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.33 1999/01/06 17:22:40 wpaul Exp $
+ *	$Id: if_mx.c,v 1.8 1999/01/06 17:30:06 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.33 1999/01/06 17:22:40 wpaul Exp $";
+	"$Id: if_mx.c,v 1.8 1999/01/06 17:30:06 wpaul Exp $";
 #endif
 
 /*
@@ -1571,7 +1571,7 @@ static int mx_list_rx_init(sc)
 
 	for (i = 0; i < MX_RX_LIST_CNT; i++) {
 		cd->mx_rx_chain[i].mx_ptr =
-			(struct mx_desc *)&ld->mx_rx_list[i];
+			(volatile struct mx_desc *)&ld->mx_rx_list[i];
 		if (mx_newbuf(sc, &cd->mx_rx_chain[i]) == ENOBUFS)
 			return(ENOBUFS);
 		if (i == (MX_RX_LIST_CNT - 1)) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.23 1999/01/25 08:42:24 dfr Exp $
+ *	$Id: kern_linker.c,v 1.24 1999/01/27 21:49:56 dillon Exp $
  */
 
 #include "opt_ddb.h"
@@ -460,7 +460,7 @@ linker_file_add_dependancy(linker_file_t file, linker_file_t dep)
 caddr_t
 linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 {
-    linker_sym_t sym;
+    c_linker_sym_t sym;
     linker_symval_t symval;
     linker_file_t lf;
     caddr_t address;
@@ -566,7 +566,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
  */
 
 int
-linker_ddb_lookup(char *symstr, linker_sym_t *sym)
+linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym)
 {
     linker_file_t lf;
 
@@ -578,13 +578,13 @@ linker_ddb_lookup(char *symstr, linker_sym_t *sym)
 }
 
 int
-linker_ddb_search_symbol(caddr_t value, linker_sym_t *sym, long *diffp)
+linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
 {
     linker_file_t lf;
     u_long off = (u_long)value;
     u_long diff, bestdiff;
-    linker_sym_t best;
-    linker_sym_t es;
+    c_linker_sym_t best;
+    c_linker_sym_t es;
 
     best = 0;
     bestdiff = off;
@@ -610,7 +610,7 @@ linker_ddb_search_symbol(caddr_t value, linker_sym_t *sym, long *diffp)
 }
 
 int
-linker_ddb_symbol_values(linker_sym_t sym, linker_symval_t *symval)
+linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 {
     linker_file_t lf;
 
@@ -822,7 +822,7 @@ int
 kldsym(struct proc *p, struct kldsym_args *uap)
 {
     char *symstr = NULL;
-    linker_sym_t sym;
+    c_linker_sym_t sym;
     linker_symval_t symval;
     linker_file_t lf;
     struct kld_sym_lookup lookup;

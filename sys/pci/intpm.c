@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.1 1999/01/24 18:13:31 nsouch Exp $
+ *	$Id: intpm.c,v 1.2 1999/01/27 18:36:49 dillon Exp $
  */
 
 #include "pci.h"
@@ -308,7 +308,7 @@ static void intsmb_alrintr(device_t dev)
 			volatile u_int8_t *addr;
 			addr=bus_space_read_1(sc->st,sc->sh,
 					      PIIX4_SMBHSTDAT0);
-			printf("ALART_RESPONSE: %x\n",(int) addr);
+			printf("ALART_RESPONSE: %p\n",(int) addr);
 		}
 	}else{
 	        printf("ERROR\n");
