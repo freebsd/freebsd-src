@@ -8,7 +8,7 @@
 # being perfomed on a machine for which this config file is inappropriate,
 # it should be replaced with a suitable one prior to performing the upgrade.
 #
-#	$Id: GENERICupgrade,v 1.1 1998/08/30 03:06:23 jb Exp $
+#	$Id: GENERICupgrade,v 1.1 1998/09/05 08:14:36 jb Exp $
 #
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
@@ -52,13 +52,6 @@ options		COM_MULTIPORT
 #
 #	IBM-PC HDD support
 #options	COMPAT_ATDISK
-#
-#	FreeBSD(98)-current is a *TEST VERSION*.  
-#	It is highly recomended to compile with following options, and to
-#	record the panic messages and the result of trace command brefore 
-#	reporting a problem.
-options		DDB
-options		DIAGNOSTIC
 
 config		kernel	root on wd0
 
