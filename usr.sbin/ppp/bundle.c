@@ -44,6 +44,7 @@
 #include <libutil.h>
 #endif
 #include <paths.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

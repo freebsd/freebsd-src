@@ -34,6 +34,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
