@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <stdlib.h>
-#include "libusbhid.h"
+#include "usbhid.h"
 
 int
 hid_get_data(const void *p, const hid_item_t *h)
