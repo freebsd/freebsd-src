@@ -225,7 +225,7 @@ Dir_Init ()
      */
     Dir_AddDir (openDirectories, ".");
     dot = (Path *) Lst_DeQueue (openDirectories);
-    if (dot == (Path *) NULL)
+    if (dot == (Path *) NILLNODE)
 	err(1, "cannot open current directory");
 
     /*
