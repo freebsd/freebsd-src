@@ -772,23 +772,27 @@ getnewvnode(tag, mp, vops, vpp)
 				panic("getnewvnode: free vnode isn't");
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 
-			if (vn_lock(vp, LK_EXCLUSIVE, td) != 0)
+			/* Don't recycle if we can't get the interlock */
+			if (!mtx_trylock(&vp->v_interlock)) {
+				vp = NULL;
+				continue;
+			}
+
+			/* We should be able to immediately acquire this */
+			if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0)
 				continue;
 			/*
-			 * Don't recycle if we still have cached pages or if
-			 * we cannot get the interlock.
+			 * Don't recycle if we still have cached pages.
 			 */
-			if ((VOP_GETVOBJECT(vp, &object) == 0 &&
+			if (VOP_GETVOBJECT(vp, &object) == 0 &&
 			     (object->resident_page_count ||
-			      object->ref_count)) ||
-			     !mtx_trylock(&vp->v_interlock)) {
+			      object->ref_count)) { 
 				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
 						    v_freelist);
 				vp = NULL;
 				VOP_UNLOCK(vp, 0, td);
 				continue;
 			}
-			VOP_UNLOCK(vp, 0, td);
 			if (LIST_FIRST(&vp->v_cache_src)) {
 				/*
 				 * note: nameileafonly sysctl is temporary,
@@ -802,7 +806,7 @@ getnewvnode(tag, mp, vops, vpp)
 					 * subdirectories.
 					 */
 					if (cache_leaf_test(vp) < 0) {
-						mtx_unlock(&vp->v_interlock);
+						VOP_UNLOCK(vp, 0, td);
 						TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 						vp = NULL;
 						continue;
@@ -816,7 +820,7 @@ getnewvnode(tag, mp, vops, vpp)
 					 * turned off (otherwise we reuse them
 					 * too quickly).
 					 */
-					mtx_unlock(&vp->v_interlock);
+					VOP_UNLOCK(vp, 0, td);
 					TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 					vp = NULL;
 					continue;
@@ -827,7 +831,7 @@ getnewvnode(tag, mp, vops, vpp)
 			 */
 			if (vn_start_write(vp, &vnmp, V_NOWAIT) == 0)
 				break;
-			mtx_unlock(&vp->v_interlock);
+			VOP_UNLOCK(vp, 0, td);
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			vp = NULL;
 		}
@@ -839,9 +843,10 @@ getnewvnode(tag, mp, vops, vpp)
 		mtx_unlock(&vnode_free_list_mtx);
 		cache_purge(vp);
 		if (vp->v_type != VBAD) {
-			vgonel(vp, td);
+			VOP_UNLOCK(vp, 0, td);
+			vgone(vp);
 		} else {
-			mtx_unlock(&vp->v_interlock);
+			VOP_UNLOCK(vp, 0, td);
 		}
 		vn_finished_write(vnmp);
 
