@@ -56,8 +56,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_ddb.h"
-#include "opt_ipkdb.h"
 #include "assym.s"
 
 #include <sys/syscall.h>
