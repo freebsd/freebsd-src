@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.8 1995/01/09 16:05:08 davidg Exp $
+ * $Id: nfs_subs.c,v 1.9 1995/02/06 02:20:40 davidg Exp $
  */
 
 /*
@@ -961,7 +961,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, p)
 	if (error)
 		goto out;
 	if (dp->v_type != VDIR) {
-		vrele(dp);
+		nfsrv_vrele(dp);
 		error = ENOTDIR;
 		goto out;
 	}
