@@ -108,7 +108,6 @@
 #define KSTACK_PAGES		4	/* pages of kernel stack (with pcb) */
 #endif
 #define KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
-#define UAREA_PAGES		1	/* pages of user area */
 #define PCPU_PAGES		1
 
 
