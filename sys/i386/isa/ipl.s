@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.17 1997/09/29 05:32:02 fsmp Exp $
+ *	$Id: ipl.s,v 1.18 1997/10/13 00:01:53 fsmp Exp $
  */
 
 
@@ -127,9 +127,9 @@ doreti_next:
 #ifdef SMP
 	TEST_CIL
 	cli				/* early to prevent INT deadlock */
-	movl	%eax, %edx		/* preserve cpl while getting lock */
+	pushl	%eax			/* preserve cpl while getting lock */
 	ICPL_LOCK
-	movl	%edx, %eax
+	popl	%eax
 doreti_next2:
 #endif
 	movl	%eax,%ecx
@@ -262,6 +262,7 @@ doreti_unpend:
 	jae	doreti_swi
 	cli
 #ifdef SMP
+	pushl	%edx			/* preserve %edx */
 	pushl	%eax			/* preserve %eax */
 	ICPL_LOCK
 #ifdef CPL_AND_CML
@@ -270,6 +271,7 @@ doreti_unpend:
 	popl	_cpl
 #endif
 	FAST_ICPL_UNLOCK
+	popl	%edx
 #else
 	movl	%eax,_cpl
 #endif
@@ -293,6 +295,7 @@ doreti_swi:
 	 */
 #ifdef SMP
 	orl imasks(,%ecx,4), %eax
+	pushl	%edx			/* save handler entry point */
 	cli				/* prevent INT deadlock */
 	pushl	%eax			/* save cpl|cml */
 	ICPL_LOCK
@@ -303,6 +306,7 @@ doreti_swi:
 #endif
 	FAST_ICPL_UNLOCK
 	sti
+	popl	%edx			/* restore handler entry point */
 #else
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl

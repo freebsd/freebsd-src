@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.33 1997/09/07 22:03:51 fsmp Exp $
+ *	$Id: microtime.s,v 1.34 1997/10/28 15:58:09 bde Exp $
  */
 
 #include <machine/asmacros.h>
@@ -202,9 +202,11 @@ common_microtime:
 
 #ifdef USE_CLOCKLOCK
 	pushl	%eax		/* s_lock destroys %eax, %ecx */
+	pushl	%edx		/* during profiling, %edx is also destroyed */
 	pushl	$_clock_lock
  	call	_s_unlock
 	addl	$4, %esp
+	popl	%edx
 	popl	%eax
 #endif /* USE_CLOCKLOCK */
 	popfl			/* restore interrupt mask */
