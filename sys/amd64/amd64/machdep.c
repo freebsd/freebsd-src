@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.324 1999/02/03 14:10:50 dg Exp $
+ *	$Id: machdep.c,v 1.325 1999/02/11 07:53:28 msmith Exp $
  */
 
 #include "apm.h"
@@ -614,8 +614,14 @@ sendsig(catcher, sig, mask, code)
 		 * We should never have PSL_T set when returning from vm86
 		 * mode.  It may be set here if we deliver a signal before
 		 * getting to vm86 mode, so turn it off.
+		 *
+		 * Clear PSL_NT to inhibit T_TSSFLT faults on return from
+		 * syscalls made by the signal handler.  This just avoids
+		 * wasting time for our lazy fixup of such faults.  PSL_NT
+		 * does nothing in vm86 mode, but vm86 programs can set it
+		 * almost legitimately in probes for old cpu types.
 		 */
-		tf->tf_eflags &= ~(PSL_VM | PSL_T | PSL_VIF | PSL_VIP);
+		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_T | PSL_VIF | PSL_VIP);
 	}
 #endif /* VM86 */
 
