@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.16 1997/06/03 08:27:45 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.17 1997/07/07 13:01:18 kato Exp $
  */
 
 #include "sc.h"
@@ -472,26 +472,40 @@ scprobe(struct isa_device *dev)
          printf("sc%d: keyboard scancode set %d\n", dev->id_unit, codeset);
 #endif /* DETECT_XT_KEYBOARD */
  
-     /* reset keyboard hardware */
-     if (!reset_kbd(sc_kbdc)) {
-        /* KEYBOARD ERROR
-	 * Keyboard reset may fail either because the keyboard doen't exist,
-         * or because the keyboard doesn't pass the self-test, or the keyboard 
-         * controller on the motherboard and the keyboard somehow fail to 
-         * shake hands. It is just possible, particularly in the last case,
-         * that the keyoard controller may be left in a hung state. 
-         * test_controller() and test_kbd_port() appear to bring the keyboard
-         * controller back (I don't know why and how, though.)
-	 */
-	empty_both_buffers(sc_kbdc, 10);
-	test_controller(sc_kbdc);
-	test_kbd_port(sc_kbdc);
-	/* We could disable the keyboard port and interrupt... but, 
-	 * the keyboard may still exist (see above). 
-	 */
-        if (bootverbose)
-	   printf("sc%d: failed to reset the keyboard.\n", dev->id_unit);
-	goto fail;
+    if (dev->id_flags & KBD_NORESET) {
+        write_kbd_command(sc_kbdc, KBDC_ECHO);
+        if (read_kbd_data(sc_kbdc) != KBD_ECHO) {
+            empty_both_buffers(sc_kbdc, 10);
+            test_controller(sc_kbdc);
+            test_kbd_port(sc_kbdc);
+            if (bootverbose)
+                printf("sc%d: failed to get response from the keyboard.\n", 
+		    dev->id_unit);
+	    goto fail;
+	}
+    } else {
+        /* reset keyboard hardware */
+        if (!reset_kbd(sc_kbdc)) {
+            /* KEYBOARD ERROR
+             * Keyboard reset may fail either because the keyboard doen't
+             * exist, or because the keyboard doesn't pass the self-test,
+             * or the keyboard controller on the motherboard and the keyboard
+             * somehow fail to shake hands. It is just possible, particularly
+             * in the last case, that the keyoard controller may be left 
+             * in a hung state. test_controller() and test_kbd_port() appear
+             * to bring the keyboard controller back (I don't know why and
+             * how, though.)
+             */
+            empty_both_buffers(sc_kbdc, 10);
+            test_controller(sc_kbdc);
+            test_kbd_port(sc_kbdc);
+            /* We could disable the keyboard port and interrupt... but, 
+             * the keyboard may still exist (see above). 
+             */
+            if (bootverbose)
+                printf("sc%d: failed to reset the keyboard.\n", dev->id_unit);
+            goto fail;
+        }
     }
 
     /*
@@ -738,9 +752,11 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	    free(scp->scr_buf, M_DEVBUF);
 #ifdef PC98
 	    free(scp->atr_buf, M_DEVBUF);
+	    if (scp->his_atr != NULL)
 	    free(scp->his_atr, M_DEVBUF);
 #endif
-	    free(scp->history, M_DEVBUF);
+	    if (scp->history != NULL)
+		free(scp->history, M_DEVBUF);
 	    free(scp, M_DEVBUF);
 	    console[minor(dev)] = NULL;
 	}
@@ -922,8 +938,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_HISTORY:  	/* set history size */
 	if (*data) {
-	    free(scp->history, M_DEVBUF);
+            if (cur_console->status & BUFFER_SAVED)
+                return EBUSY;
+	    if (scp->history != NULL)
+		free(scp->history, M_DEVBUF);
 #ifdef PC98
+	    if (scp->his_atr != NULL)
 	    free(scp->his_atr, M_DEVBUF);
 #endif
 	    scp->history_size = *(int*)data;
