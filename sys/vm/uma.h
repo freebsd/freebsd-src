@@ -182,19 +182,14 @@ uma_zone_t uma_zcreate(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 #define UMA_ALIGN_CACHE	(16 - 1)		/* Cache line size align */
 
 /*
- * Destroys a uma zone
+ * Destroys an empty uma zone.  If the zone is not empty uma complains loudly.
  *
  * Arguments:
  *	zone  The zone we want to destroy.
- *	wait  This flag indicates whether or not we should wait for all
- *		allocations to free, or return an errno on outstanding memory.
  *
- * Returns:
- *	0 on successful completion, or EWOULDBLOCK if there are outstanding
- *	allocations and the wait flag is M_NOWAIT
  */
 
-int uma_zdestroy(uma_zone_t zone, int wait);
+void uma_zdestroy(uma_zone_t zone);
 
 /*
  * Allocates an item out of a zone
