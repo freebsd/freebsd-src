@@ -37,11 +37,12 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -147,7 +148,7 @@ main(int argc, char *argv[])
 		if ((fd = open(tracefile, O_CREAT | O_WRONLY, DEFFILEMODE)) < 0)
 			err(1, "%s", tracefile);
 		if (fstat(fd, &sb) != 0 || sb.st_uid != getuid())
-			errx(1, "Refuse to append to %s not owned by you.",
+			errx(1, "refuse to append to %s not owned by you",
 			    tracefile);
 	} else {
 		if (unlink(tracefile) == -1 && errno != ENOENT)
@@ -176,11 +177,11 @@ rpid(char *p)
 	static int first;
 
 	if (first++) {
-		warnx("only one -g or -p flag is permitted.");
+		warnx("only one -g or -p flag is permitted");
 		usage();
 	}
 	if (!*p) {
-		warnx("illegal process id.");
+		warnx("illegal process id");
 		usage();
 	}
 	return(atoi(p));
