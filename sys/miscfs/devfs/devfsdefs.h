@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsdefs.h,v 1.13 1998/01/02 07:31:07 julian Exp $
+ * $Id: devfsdefs.h,v 1.14 1998/04/19 23:32:20 julian Exp $
  */
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
@@ -120,7 +120,7 @@ struct	devnode	/* the equivalent of an INODE */
 			dev_t	dev;
 		}Cdev;
 		struct {
-			struct	bdevsw	*bdevsw;
+			struct	cdevsw	*bdevsw;
 			dev_t	dev;
 		}Bdev;
 		struct {

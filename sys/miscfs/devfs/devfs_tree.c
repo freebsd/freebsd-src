@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.53 1998/04/20 03:57:35 julian Exp $
+ *	$Id: devfs_tree.c,v 1.54 1998/06/21 14:53:20 bde Exp $
  */
 
 
@@ -1061,7 +1061,7 @@ devfs_add_devswf(void *devsw, int minor, int chrblk, uid_t uid,
 	devnm_p	new_dev;
 	dn_p	dnp;	/* devnode for parent directory */
 	struct	cdevsw *cd;
-	struct	bdevsw *bd;
+	struct	cdevsw *bd;
 	int	retval;
 	union	typeinfo by;
 
@@ -1106,7 +1106,7 @@ devfs_add_devswf(void *devsw, int minor, int chrblk, uid_t uid,
 		break;
 	case	DV_BLK:
 		bd = devsw;
-		major = bd->d_maj;
+		major = bd->d_bmaj;
 		if ( major == -1 ) return NULL;
 		by.Bdev.bdevsw = bd;
 		by.Bdev.dev = makedev(major, minor);

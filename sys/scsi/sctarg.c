@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.25 1998/06/01 03:44:56 gibbs Exp $
+ *      $Id: sctarg.c,v 1.26 1998/06/17 14:13:14 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -66,13 +66,15 @@ struct scsi_data {
 };
 
 static	d_open_t	sctargopen;
+static	d_read_t	sctargread;
+static	d_write_t	sctargwrite;
 static	d_close_t	sctargclose;
 static	d_ioctl_t	sctargioctl;
 static	d_strategy_t	sctargstrategy;
 
 #define CDEV_MAJOR 65
 static struct cdevsw sctarg_cdevsw = 
-	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
+	{ sctargopen,	sctargclose,	sctargread,	sctargwrite,	/*65*/
 	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
 	  seltrue,	nommap,		sctargstrategy,	"sctarg", NULL,	-1 };
 
@@ -152,6 +154,18 @@ sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
 	}
 
 	return ret;
+}
+
+static int
+sctargread( dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(sctargstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+sctargwrite ( dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(sctargstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*

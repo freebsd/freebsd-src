@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.18 1997/09/14 03:19:40 peter Exp $
+ *      $Id: su.c,v 1.19 1998/06/07 17:12:54 dfr Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -91,18 +91,6 @@ static struct cdevsw su_cdevsw =
 
 /* bnxio, cnxio: non existent device entries
  */
-static struct bdevsw bnxio = {
-	nxopen,
-	nxclose,
-	nxstrategy,
-	nxioctl,
-	nxdump,
-	nxpsize,
-	0,
-	"NON",
-	NULL,
-	-1
-};
 
 static struct cdevsw cnxio = {
 	nxopen,
@@ -118,6 +106,11 @@ static struct cdevsw cnxio = {
 	nxstrategy,
 	"NON",
 	NULL,
+	-1,
+	nxdump,
+	nxpsize,
+	0,
+	0,
 	-1
 };
 
@@ -125,15 +118,13 @@ static struct cdevsw cnxio = {
  * device.
  */
 static int
-getsws(dev_t dev, int type,
-	struct bdevsw **bdevp, struct cdevsw **cdevp, dev_t *base)
+getsws(dev_t dev, int type, struct cdevsw **devswpp, dev_t *base)
 {
 	int ret = 0;
 	struct scsi_link *scsi_link;
 	int chr_dev, blk_dev;
 
-	struct cdevsw *cdev;
-	struct bdevsw *bdev;
+	struct cdevsw *devswp;
 
 	int bus = SCSI_BUS(dev),
 	    lun = SCSI_LUN(dev),
@@ -146,13 +137,8 @@ getsws(dev_t dev, int type,
 	scsi_link->dev == NODEV)
 	{
 		ret = ENXIO;
-
-		/* XXX This assumes that you always have a character device if you
-		 *     have a block device.  That seems reasonable.
-		 */
-		cdev = &cnxio;
+		devswp = &cnxio;
 		chr_dev = NODEV;
-		bdev = &bnxio;
 		blk_dev = NODEV;
 	}
 	else
@@ -160,18 +146,14 @@ getsws(dev_t dev, int type,
 		int bmaj, cmaj;
 
 		cmaj = major(scsi_link->dev);
-		cdev = cdevsw[cmaj];
+		devswp = cdevsw[cmaj];
 		chr_dev = OLD_DEV(dev, scsi_link->dev);
-
-		bmaj = chrtoblk(cmaj);
-		bdev = (bmaj == NODEV) ? &bnxio : bdevsw[bmaj];
+		bmaj = devswp->d_bmaj;
 		blk_dev = OLD_DEV(dev, makedev(bmaj, minor(scsi_link->dev)));
 	}
 
-	if (cdevp)
-		*cdevp = cdev;
-	if (bdevp)
-		*bdevp = bdev;
+	if (devswp)
+		*devswpp = devswp;
 
 	if (type == S_IFCHR)
 		*base = chr_dev;
@@ -184,17 +166,16 @@ getsws(dev_t dev, int type,
 int
 suopen(dev_t dev, int flag, int type, struct proc *p)
 {
-	struct cdevsw *cdev;
-	struct bdevsw *bdev;
+	struct cdevsw *devswp;
 	dev_t base;
 
-	if (getsws(dev, type, &bdev, &cdev, &base))
+	if (getsws(dev, type, &devswp, &base))
 	{
 		/* Device not configured?  Reprobe then try again.
 		 */
 		int bus = SCSI_BUS(dev), lun = SCSI_LUN(dev), id =  SCSI_ID(dev);
 
-		if (scsi_probe_bus(bus, id, lun) || getsws(dev, type, &bdev, &cdev,
+		if (scsi_probe_bus(bus, id, lun) || getsws(dev, type, &devswp,
 		&base))
 			return ENXIO;
 	}
@@ -202,91 +183,84 @@ suopen(dev_t dev, int flag, int type, struct proc *p)
 	/* There is a properly configured underlying device.
 	 * Synthesize an appropriate device number:
 	 */
-	if (type == S_IFCHR)
-		return (*cdev->d_open)(base, flag, S_IFCHR, p);
-	else
-		return (*bdev->d_open)(base, flag, S_IFBLK, p);
+	return (*devswp->d_open)(base, flag, type, p);
 }
 
 int
 suclose(dev_t dev, int fflag, int type, struct proc *p)
 {
-	struct cdevsw *cdev;
-	struct bdevsw *bdev;
+	struct cdevsw *devswp;
 	dev_t base;
 
-	(void)getsws(dev, type, &bdev, &cdev, &base);
+	(void)getsws(dev, type, &devswp, &base);
 
-	if (type == S_IFCHR)
-		return (*cdev->d_close)(base, fflag, S_IFCHR, p);
-	else
-		return (*bdev->d_open)(base, fflag, S_IFBLK, p);
+	return (*devswp->d_close)(base, fflag, type, p);
 }
 
 static	void
 sustrategy(struct buf *bp)
 {
 	dev_t base;
-	struct bdevsw *bdev;
+	struct cdevsw *devswp;
 	dev_t dev = bp->b_dev;
 
 	/* XXX: I have no way of knowing if this was through the
 	 * block or the character entry point.
 	 */
-	(void)getsws(dev, S_IFBLK, &bdev, 0, &base);
+	(void)getsws(dev, S_IFBLK, &devswp, &base);
 
 	bp->b_dev = base;
 
-	(*bdev->d_strategy)(bp);
+	(*devswp->d_strategy)(bp);
 
-	bp->b_dev = dev;
+	bp->b_dev = dev; /* strat needs a dev_t */
 }
 
 int
 suioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
-	struct cdevsw *cdev;
+	struct cdevsw *devswp;
 	dev_t base;
 
 	/* XXX: I have no way of knowing if this was through the
 	 * block or the character entry point.
 	 */
-	(void)getsws(dev, S_IFCHR, 0, &cdev, &base);
+	(void)getsws(dev, S_IFCHR, &devswp, &base);
 
-	return (*cdev->d_ioctl)(base, cmd, data, fflag, p);
+	return (*devswp->d_ioctl)(base, cmd, data, fflag, p);
 }
 
 static	int
 suread(dev_t dev, struct uio *uio, int ioflag)
 {
 	dev_t base;
-	struct cdevsw *cdev;
+	struct cdevsw *devswp;
 
-	(void)getsws(dev, S_IFCHR, 0, &cdev, &base);
+	(void)getsws(dev, S_IFCHR, &devswp, &base);
 
-	return (*cdev->d_read)(base, uio, ioflag);
+	return (*devswp->d_read)(base, uio, ioflag);
 }
 
 static	int
 suwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 	dev_t base;
-	struct cdevsw *cdev;
+	struct cdevsw *devswp;
 
-	(void)getsws(dev, S_IFCHR, 0, &cdev, &base);
+	(void)getsws(dev, S_IFCHR, &devswp, &base);
 
-	return (*cdev->d_write)(base, uio, ioflag);
+	return (*devswp->d_write)(base, uio, ioflag);
 }
 
 static	int
 supoll(dev_t dev, int events, struct proc *p)
 {
 	dev_t base;
-	struct cdevsw *cdev;
+	struct cdevsw *devswp;
 
-	(void)getsws(dev, S_IFCHR, 0, &cdev, &base);
+	(void)getsws(dev, S_IFCHR, &devswp, &base);
 
-	return (*cdev->d_poll)(base, events, p);
+	return (*devswp->d_poll)(base, events, p);
 }
 
 static su_devsw_installed = 0;

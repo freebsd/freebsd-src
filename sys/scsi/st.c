@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.88 1998/06/07 17:12:52 dfr Exp $
+ * $Id: st.c,v 1.89 1998/06/17 14:13:14 bde Exp $
  */
 
 /*
@@ -153,16 +153,19 @@ static errval st_close(dev_t dev, int flag, int fmt, struct proc *p,
 static void st_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static d_open_t		stopen;
+static d_read_t		stread;
+static d_write_t	stwrite;
 static d_close_t	stclose;
 static d_ioctl_t	stioctl;
 static d_strategy_t	ststrategy;
 
 #define CDEV_MAJOR 14
 #define BDEV_MAJOR 5
-static struct cdevsw st_cdevsw;
-static struct bdevsw st_bdevsw = 
-	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
-	  nodump,	nopsize,	D_TAPE,	"st",	&st_cdevsw,	-1 };
+static struct cdevsw st_cdevsw = {
+	  stopen,	stclose,	stread,		stwrite,
+	  stioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		ststrategy,	"st",
+	  NULL,		-1 };
 
 SCSI_DEVICE_ENTRIES(st)
 
@@ -747,6 +750,18 @@ done:
 		st->flags |= ST_2FM_AT_EOD;
 	}
 	return 0;
+}
+
+static int
+stread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(ststrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+stwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(ststrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*
@@ -1959,7 +1974,10 @@ st_drvinit(void *unused)
 {
 
 	if( ! st_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &st_bdevsw);
+		dev_t	dev;
+
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &st_cdevsw, NULL);
 		st_devsw_installed = 1;
     	}
 }

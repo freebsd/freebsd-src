@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.39 1998/05/06 05:29:30 msmith Exp $
+ * $Id: cd9660_vfsops.c,v 1.40 1998/06/07 17:11:29 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -114,7 +114,7 @@ iso_get_ssector(dev, p)
 	struct ioc_toc_header h;
 	struct ioc_read_toc_single_entry t;
 	int i;
-	struct bdevsw *bd;
+	struct cdevsw *bd;
 	d_ioctl_t *ioctlp;
 
 	bd = bdevsw[major(dev)];

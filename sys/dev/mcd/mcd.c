@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.97 1998/01/24 02:54:22 eivind Exp $
+ *	$Id: mcd.c,v 1.98 1998/06/07 17:10:46 dfr Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -209,6 +209,7 @@ static	int	mcd_attach(struct isa_device *dev);
 struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 
 static	d_open_t	mcdopen;
+static	d_read_t	mcdread;
 static	d_close_t	mcdclose;
 static	d_ioctl_t	mcdioctl;
 static	d_psize_t	mcdsize;
@@ -216,10 +217,15 @@ static	d_strategy_t	mcdstrategy;
 
 #define CDEV_MAJOR 29
 #define BDEV_MAJOR 7
-static struct cdevsw mcd_cdevsw;
-static struct bdevsw mcd_bdevsw = 
-	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
-	  nodump,	mcdsize,	D_DISK,	"mcd",	&mcd_cdevsw,	-1 };
+
+
+
+static struct cdevsw mcd_cdevsw = {
+	  mcdopen,	mcdclose,	mcdread,	nowrite,
+	  mcdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		mcdstrategy,	"mcd",
+	  NULL,		-1,		nodump, 	nopsize,
+	  D_DISK,	0,		NODEV };
 
 #define mcd_put(port,byte)	outb(port,byte)
 
@@ -263,11 +269,11 @@ int mcd_attach(struct isa_device *dev)
 				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
 				 "rmcd%dc", unit);
 	cd->a_devfs_token = 
-		devfs_add_devswf(&mcd_bdevsw, dkmakeminor(unit, 0, 0),
+		devfs_add_devswf(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
 				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				 "mcd%da", unit);
 	cd->c_devfs_token = 
-		devfs_add_devswf(&mcd_bdevsw, dkmakeminor(unit, 0, RAW_PART),
+		devfs_add_devswf(&mcd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
 				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				 "mcd%dc", unit);
 #endif
@@ -386,6 +392,12 @@ int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	cd->partflags[part] &= ~MCDREADRAW;
 
 	return 0;
+}
+
+static int
+mcdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(mcdstrategy, NULL, dev, 1, minphys, uio));
 }
 
 void
@@ -1841,7 +1853,7 @@ static void 	mcd_drvinit(void *unused)
 {
 
 	if( ! mcd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &mcd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &mcd_cdevsw);
 		mcd_devsw_installed = 1;
     	}
 }

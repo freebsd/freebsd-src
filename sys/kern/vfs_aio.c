@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.28 1998/04/17 22:36:50 des Exp $
+ * $Id: vfs_aio.c,v 1.29 1998/06/10 10:31:08 dfr Exp $
  */
 
 /*
@@ -973,7 +973,7 @@ aio_qphysio(p, aiocbe)
 	int rw;
 	d_strategy_t *fstrategy;
 	struct cdevsw *cdev;
-	struct bdevsw *bdev;
+	struct cdevsw *bdev;
 
 	cb = &aiocbe->uaiocb;
 	fdp = p->p_fd;
@@ -1006,10 +1006,11 @@ aio_qphysio(p, aiocbe)
 	if (cdev == NULL) {
 		return -1;
 	}
-	bdev = cdev->d_bdev;
-	if (bdev == NULL) {
+
+	if (cdev->d_bmaj == -1) {
 		return -1;
 	}
+	bdev = cdev;
 
 	ki = p->p_aioinfo;
 	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.98 1998/06/09 12:52:31 bde Exp $
+ *	$Id: autoconf.c,v 1.99 1998/06/30 03:01:33 jmg Exp $
  */
 
 /*
@@ -142,7 +142,7 @@ static int
 find_cdrom_root()
 {
 	int i, j, error;
-	struct bdevsw *bd;
+	struct cdevsw *bd;
 	dev_t orootdev;
 
 #if CD9660_ROOTDELAY > 0

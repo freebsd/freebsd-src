@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.130 1998/06/07 17:12:51 dfr Exp $
+ *      $Id: sd.c,v 1.131 1998/06/17 14:13:14 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -127,6 +127,8 @@ static errval sd_close __P((dev_t dev, int flag, int fmt, struct proc *p,
 static void sd_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static	d_open_t	sdopen;
+static	d_read_t	sdread;
+static	d_write_t	sdwrite;
 static	d_close_t	sdclose;
 static	d_ioctl_t	sdioctl;
 static	d_dump_t	sddump;
@@ -135,10 +137,14 @@ static	d_strategy_t	sdstrategy;
 
 #define CDEV_MAJOR 13
 #define BDEV_MAJOR 4
-static struct cdevsw sd_cdevsw;
-static struct bdevsw sd_bdevsw = 
-	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
-	  sddump,	sdsize,		D_DISK,	"sd",	&sd_cdevsw,	-1 };
+
+static struct cdevsw sd_cdevsw = {
+	  sdopen,	sdclose,	sdread,		sdwrite,
+	  sdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		sdstrategy,	"sd",
+	  NULL,		-1,		sddump,		sdsize,
+	  D_DISK,	0,		-1 };
+
 #else	/* ! SLICE */
 
 static errval sdattach(struct scsi_link *sc_link);
@@ -329,7 +335,7 @@ sdattach(struct scsi_link *sc_link)
 	config_intrhook_establish(&sd->ich);
 #else	/* SLICE */
 	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-	sd->b_devfs_token = devfs_add_devswf(&sd_bdevsw, mynor, DV_BLK,
+	sd->b_devfs_token = devfs_add_devswf(&sd_cdevsw, mynor, DV_BLK,
 					     UID_ROOT, GID_OPERATOR, 0640,
 					     "sd%d", unit);
 	sd->c_devfs_token = devfs_add_devswf(&sd_cdevsw, mynor, DV_CHR,
@@ -483,7 +489,7 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("sd", dev, fmt, &sd->dk_slices, &label, sdstrategy1,
-			 (ds_setgeom_t *)NULL, &sd_bdevsw, &sd_cdevsw);
+			 (ds_setgeom_t *)NULL, &sd_cdevsw, &sd_cdevsw);
 	if (errcode != 0)
 		goto close;
 #endif	/* !SLICE */
@@ -530,6 +536,18 @@ sd_close(dev_t dev,int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 	}
 	scsi_device_unlock(sc_link);
 	return (0);
+}
+
+static int
+sdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(sdstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+sdwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(sdstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*
@@ -1272,7 +1290,7 @@ static void 	sd_drvinit(void *unused)
 {
 
 	if( ! sd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &sd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &sd_cdevsw);
 		sd_devsw_installed = 1;
     	}
 }

@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.39 1998/06/07 17:12:48 dfr Exp $
+ *	$Id: od.c,v 1.40 1998/06/17 14:13:14 bde Exp $
  */
 
 /*
@@ -137,17 +137,20 @@ static errval od_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
 static void od_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static	d_open_t	odopen;
+static	d_read_t	odread;
+static	d_write_t	odwrite;
 static	d_close_t	odclose;
 static	d_ioctl_t	odioctl;
 static	d_strategy_t	odstrategy;
 
 #define CDEV_MAJOR 70
 #define BDEV_MAJOR 20
-static struct cdevsw od_cdevsw;
-static struct bdevsw od_bdevsw = 
-	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  nodump,	nopsize,	D_DISK,	"od",	&od_cdevsw,	-1 };
-
+static struct cdevsw od_cdevsw = {
+	  odopen,	odclose,	odread,	odwrite,
+	  odioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		odstrategy,	"od",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1 };
 
 /*
  * Actually include the interface routines
@@ -253,7 +256,7 @@ odattach(struct scsi_link *sc_link)
 
 #ifdef DEVFS
 	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-	od->b_devfs_token = devfs_add_devswf(&od_bdevsw, mynor, DV_BLK,
+	od->b_devfs_token = devfs_add_devswf(&od_cdevsw, mynor, DV_BLK,
 					     UID_ROOT, GID_OPERATOR, 0640,
 					     "od%d", unit);
 	od->c_devfs_token = devfs_add_devswf(&od_cdevsw, mynor, DV_CHR,
@@ -383,7 +386,7 @@ od_open(dev, mode, fmt, p, sc_link)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("od", dev, fmt, &od->dk_slices, &label, odstrategy1,
-			 (ds_setgeom_t *)NULL, &od_bdevsw, &od_cdevsw);
+			 (ds_setgeom_t *)NULL, &od_cdevsw, &od_cdevsw);
 	if (errcode != 0)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
@@ -427,6 +430,18 @@ od_close(dev, fflag, fmt, p, sc_link)
 		sc_link->flags &= ~SDEV_OPEN;
 	}
 	return 0;
+}
+
+static int
+odread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(odstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+odwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(odstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*
@@ -992,7 +1007,7 @@ static void 	od_drvinit(void *unused)
 {
 
 	if( ! od_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &od_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &od_cdevsw);
 		od_devsw_installed = 1;
     	}
 }

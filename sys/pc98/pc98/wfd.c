@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.10 1998/06/07 17:11:06 dfr Exp $
+ *      $Id: wfd.c,v 1.11 1998/06/26 18:13:57 phk Exp $
  */
 
 /*
@@ -52,17 +52,22 @@
 
 #include <i386/isa/atapi.h>
 
-static	d_open_t	wfdbopen;
-static	d_close_t	wfdbclose;
+static	d_open_t	wfdopen;
+static	d_read_t	wfdread;
+static	d_write_t	wfdwrite;
+static	d_close_t	wfdclose;
 static	d_ioctl_t	wfdioctl;
 static	d_strategy_t	wfdstrategy;
 
 #define CDEV_MAJOR 87
 #define BDEV_MAJOR 1
-static struct cdevsw wfd_cdevsw;
-static struct bdevsw wfd_bdevsw = 
-	{ wfdbopen,	wfdbclose,	wfdstrategy,	wfdioctl,
-	  nodump,	nopsize,	D_DISK,	"wfd",	&wfd_cdevsw,	-1 };
+
+static struct cdevsw wfd_cdevsw = {
+	  wfdopen,	wfdclose,	wfdread,	wfdwrite,
+	  wfdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		wfdstrategy,	"wfd",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1 };
 
 #ifndef ATAPI_STATIC
 static
@@ -251,7 +256,7 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 
 #ifdef DEVFS
 	mynor = dkmakeminor(t->lun, WHOLE_DISK_SLICE, RAW_PART);
-	t->bdevs = devfs_add_devswf(&wfd_bdevsw, mynor, 
+	t->bdevs = devfs_add_devswf(&wfd_cdevsw, mynor, 
 				    DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				    "wfd%d", t->lun);
 	t->cdevs = devfs_add_devswf(&wfd_cdevsw, mynor, 
@@ -326,7 +331,7 @@ void wfd_describe (struct wfd *t)
 	}
 }
 
-int wfdbopen (dev_t dev, int flags, int fmt, struct proc *p)
+int wfdopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wfd *t;
@@ -370,7 +375,7 @@ int wfdbopen (dev_t dev, int flags, int fmt, struct proc *p)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("wfd", dev, fmt, &t->dk_slices, &label, wfdstrategy1,
-			 (ds_setgeom_t *)NULL, &wfd_bdevsw, &wfd_cdevsw);
+			 (ds_setgeom_t *)NULL, &wfd_cdevsw, &wfd_cdevsw);
 	if (errcode != 0)
 		return errcode;
 
@@ -382,7 +387,7 @@ int wfdbopen (dev_t dev, int flags, int fmt, struct proc *p)
  * Close the device.  Only called if we are the LAST
  * occurence of an open device.
  */
-int wfdbclose (dev_t dev, int flags, int fmt, struct proc *p)
+int wfdclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wfd *t = wfdtab[lun];
@@ -396,6 +401,18 @@ int wfdbclose (dev_t dev, int flags, int fmt, struct proc *p)
 		t->flags &= ~F_BOPEN;
 	}
 	return (0);
+}
+
+static int
+wfdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wfdstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+wfdwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wfdstrategy, NULL, dev, 0, minphys, uio));
 }
 
 static void
@@ -746,7 +763,7 @@ static int wfd_eject (struct wfd *t, int closeit)
  */
 
 
-MOD_DEV(wfd, LM_DT_BLOCK, BDEV_MAJOR, &wfd_bdevsw);
+MOD_DEV(wfd, LM_DT_BLOCK, BDEV_MAJOR, &wfd_cdevsw);
 MOD_DEV(rwfd, LM_DT_CHAR, CDEV_MAJOR, &wfd_cdevsw);
 
 /*
@@ -835,7 +852,7 @@ static wfd_devsw_installed = 0;
 static void 	wfd_drvinit(void *unused)
 {
 	if( ! wfd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &wfd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &wfd_cdevsw);
 		wfd_devsw_installed = 1;
     	}
 }
