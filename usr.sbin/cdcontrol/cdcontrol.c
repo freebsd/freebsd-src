@@ -159,18 +159,30 @@ void usage ()
 	exit (1);
 }
 
+char *use_cdrom_instead(char *old_envvar)
+{
+	char *device;
+
+	device = getenv(old_envvar);
+	if (device)
+		warnx("%s environment variable deprecated, "
+		    "please use CDROM in the future.", old_envvar);
+	return device;
+}
+
+
 int main (int argc, char **argv)
 {
 	int cmd;
 	char *arg;
 
-	cdname = getenv ("MUSIC_CD");
+	cdname = use_cdrom_instead("MUSIC_CD");
 	if (! cdname)
-		cdname = getenv ("CD_DRIVE");
+		cdname = use_cdrom_instead("CD_DRIVE");
 	if (! cdname)
-		cdname = getenv ("DISC");
+		cdname = use_cdrom_instead("DISC");
 	if (! cdname)
-		cdname = getenv ("CDPLAY");
+		cdname = use_cdrom_instead("CDPLAY");
 
 	for (;;) {
 		switch (getopt (argc, argv, "svhf:")) {
