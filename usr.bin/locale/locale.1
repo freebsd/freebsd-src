@@ -46,14 +46,14 @@ the standard output.
 When
 .Nm
 is invoked without arguments it will print out summary of current
-locale environment depending on evnironment variable settings and
+locale environment depending on environment variable settings and
 internal status. 
 .Pp
 When
 .Nm
 is invoked with arguments and no options specified it will print out
 .Em keyword Ns No 's
-value detemrined using current locale settings.
+value determined using current locale settings.
 .Pp
 The following options are available:
 .Bl -tag -width indent 
@@ -70,8 +70,12 @@ directory.
 .It Fl k
 Write the name and value of the selected keywords.
 .It Fl c
-Write the category name for the selcted keywords.
+Write the category name for the selected keywords.
 .El
+.Sh IMPLEMENTATION DETAILS
+Special keyword
+.Ar list
+can be used to retrieve human readable list of available keywrods.
 .Sh DIAGNOSTICS
 The
 .Nm
