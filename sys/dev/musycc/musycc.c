@@ -395,7 +395,9 @@ init_ctrl(struct softc *sc)
 	else
 		sc->ram->grcd |= 0x00000000;	/* !OOFABT */
 
+#if 0
 	sc->ram->grcd |= 0x00000010;	/* MSKOOF */
+#endif
 	sc->ram->grcd |= 0x00000020;	/* MSKCOFA */
 
 	sc->ram->grcd |= 0x00000400;	/* POLLTH=1 */
@@ -500,7 +502,10 @@ init_8370(struct softc *sc)
         DELAY(20);
         p[0x001] = 0x00; /* CR0 - E1, RFRAME: FAS only */
         DELAY(20);
-        p[0x002] = 0x00; /* JAT_CR - XXX */
+	if (sc->clocksource == INT) 
+		p[0x002] = 0x40; /* JAT_CR - XXX */
+	else
+		p[0x002] = 0x00; /* JAT_CR - XXX */
         p[0x00D] = 0x01; /* IER6 - ONESEC */
         p[0x014] = 0x00; /* LOOP - */
         p[0x015] = 0x00; /* DL3_TS - */
@@ -557,10 +562,11 @@ init_8370(struct softc *sc)
         p[0x090] = 0x05; /* CLAD_CR - XXX */
         p[0x091] = 0x01; /* CSEL - 2048kHz */
 
-	if (sc->framing == E1U || sc->framing == T1U)
+	if (sc->framing == E1U || sc->framing == T1U) {
 		p[0x0a0] = 0x00;
-	if (sc->framing == E1U || sc->framing == T1U)
 		p[0x0a6] = 0x00;
+		p[0x0b1] = 0x00;
+	}
 
         p[0x0d0] = 0x46; /* SBI_CR - SBI=6 */
         p[0x0d1] = 0x70; /* RSB_CR - XXX */
@@ -569,7 +575,10 @@ init_8370(struct softc *sc)
         p[0x0d4] = 0x30; /* TSB_CR - XXX */
         p[0x0d5] = 0x00; /* TSYNC_BIT - 0 */
         p[0x0d6] = 0x00; /* TSYNC_TS - 0 */
-        p[0x0d7] = 0x01; /* RSIG_CR - 0 */
+	if (sc->framing == E1U || sc->framing == T1U) 
+		p[0x0d7] = 0x05; /* RSIG_CR - 0  | FRZ_OFF*/
+	else 
+		p[0x0d7] = 0x01; /* RSIG_CR - 0 */
         p[0x0d8] = 0x00; /* RSIG_FRM - 0 */
         for (i = 0; i < 32; i ++) {
                 p[0x0e0 + i] = 0x0d; /* SBC$i - RINDO|TINDO|ASSIGN */
@@ -594,7 +603,6 @@ musycc_intr0_tx_eom(struct softc *sc, int ch)
 	if (sch == NULL || sch->state != UP) {
 		/* XXX: this should not happen once the driver is done */
 		printf("Xmit packet on uninitialized channel %d\n", ch);
-		return;
 	}
 	if (sc->mdt[ch] == NULL)
 		return; 	/* XXX: can this happen ? */
@@ -649,8 +657,10 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 		m = md->m;
 		m->m_len = m->m_pkthdr.len = status & 0x3fff;
 		error = (status >> 16) & 0xf;
+#if 0
 		if (error == 8 && (sc->framing == E1U || sc->framing == T1U))
 			error = 0;
+#endif
 		if (error == 0) {
 			MGETHDR(m2, M_DONTWAIT, MT_DATA);
 			if (m2 != NULL) {
@@ -678,6 +688,10 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 				 */
 				sch->rx_drop++;
 			}
+		} else if (error == 9) {
+			printf("FCS\n");
+		} else if (error == 10) {
+			printf("ALIGN\n");
 		} else {
 			/* Receive error, print some useful info */
 			printf("%s %s: RX 0x%08x ", sch->sc->nodename, 
@@ -686,6 +700,7 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 			if (m->m_len > 16)
 				m->m_len = m->m_pkthdr.len = 16;
 			m_print(m);
+			printf("\n");
 		}
 		md->status = 1600;	/* XXX: MTU */
 		/* Check next mdesc in the ring */
@@ -747,12 +762,18 @@ musycc_intr0(void *arg)
 					musycc_intr0_rx_eom(sc, ch);
 				break;
 			case 0:
-				if (er == 2)	/* COFA */
+#if 1
+				if (er == 2) {	/* COFA */
 					break;
-				else if (er == 3) {	/* ONR */
+				} else if (er == 3) {	/* ONR */
 					musycc_intr0_tx_eom(sc, ch);
 					musycc_intr0_rx_eom(sc, ch);
+				} else if (er == 13) {	/* SHT */
+					musycc_intr0_tx_eom(sc, ch);
+					musycc_intr0_rx_eom(sc, ch);
+					break;
 				}
+#endif
 			default:
 #if 1
 				printf("huh ? %08x %d", u1, g);
@@ -867,10 +888,10 @@ musycc_config(node_p node, char *set, char *ret)
 			init_ctrl(sc);
 			return;
 		}
-		if (!strcmp(set, "clock int")) {
+		if (!strcmp(set, "clock source internal")) {
 			sc->clocksource = INT;
 			init_ctrl(sc);
-		} else if (!strcmp(set, "clock ext")) {
+		} else if (!strcmp(set, "clock source line")) {
 			sc->clocksource = EXT;
 			init_ctrl(sc);
 		} else if (!strcmp(set, "show 8370 0")) {
@@ -900,9 +921,9 @@ musycc_config(node_p node, char *set, char *ret)
 	else if (sc->framing == E1U)
 		strcat(ret, "line e1u\n");
 	if (sc->clocksource == INT)
-		strcat(ret, "clock int\n");
+		strcat(ret, "clock source internal\n");
 	else
-		strcat(ret, "clock ext\n");
+		strcat(ret, "clock source line\n");
 	return;
 barf:
 	strcpy(ret, "Syntax Error\n");
@@ -1212,6 +1233,12 @@ musycc_disconnect(hook_p hook)
 	while (csc->state != C_RUNNING)
 		tsleep(&csc->state, PZERO + PCATCH, "crun", hz/10);
 
+	/* Deactivate the channel */
+	sc->reg->srd = sc->last = 0x0900 + sch->chan;
+	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
+	sc->reg->srd = sc->last = 0x0920 + sch->chan;
+	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
+
 	if (sch->state == DOWN)
 		return (0);
 	sch->state = DOWN;
@@ -1230,12 +1257,6 @@ musycc_disconnect(hook_p hook)
 	sc->mdt[ch] = NULL;
 	FREE(sc->mdr[ch], M_MUSYCC);
 	sc->mdr[ch] = NULL;
-
-	/* Deactivate the channel */
-	sc->reg->srd = sc->last = 0x0900 + sch->chan;
-	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
-	sc->reg->srd = sc->last = 0x0920 + sch->chan;
-	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
 
 	for (i = 0; i < 32; i++) {
 		if (sch->ts & (1 << i)) {
