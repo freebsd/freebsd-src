@@ -1062,6 +1062,7 @@ static void
 ata_intr(void *data)
 {
     struct ata_softc *scp = (struct ata_softc *)data;
+    struct ata_pci_softc *sc = device_get_softc(device_get_parent(scp->dev));
     u_int8_t dmastat = 0;
 
     /* 
@@ -1078,7 +1079,6 @@ ata_intr(void *data)
 	outb(scp->bmaddr + ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
 	break;
 
-    case 0x06461095:	/* CMD 646 */
     case 0x06481095:	/* CMD 648 */
     case 0x06491095:	/* CMD 649 */
         if (!(pci_read_config(device_get_parent(scp->dev), 0x71, 1) &
@@ -1090,14 +1090,10 @@ ata_intr(void *data)
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
-    {
-	struct ata_pci_softc *sc=device_get_softc(device_get_parent(scp->dev));
-
 	if (!(inl(rman_get_start(sc->bmio) + 0x1c) & 
 	      (scp->unit ? 0x00004000 : 0x00000400)))
 	    return;
-    }
-	
+    	/* FALLTHROUGH */
 out:
 #endif
     default:
