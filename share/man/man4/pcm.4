@@ -268,8 +268,10 @@ Creative Labs SoundBlaster PCI is supported as well.
 .It NeoMagic 256AV/ZX (PCI)
 .El
 .Sh FILES
-The following commonly used symbolic links to real device nodes
-should be present:
+The
+.Nm
+drivers may create the following
+device nodes:
 .Pp
 .Bl -tag -width "/dev/dspr%d.%dXXX" -compact
 .It Pa /dev/audio%d.%d
@@ -288,11 +290,18 @@ Current
 status, including all channels and drivers.
 .El
 .Pp
-Each symbolic link refers to a device node of the same name,
-but with a unit number appended.
-The unit number for each device matches the unit number of the
-device probed at boot time.
-Device probe messages can be examined with the
+The first number in the device node
+represents the unit number of the
+.Nm PCM
+device.
+All
+.Nm
+PCM
+devices are listed
+in
+.Pa /dev/sndstat.
+Additional messages are sometimes recorded when the
+device is probed and attached, these messages can be viewed with the
 .Xr dmesg 8
 utility.
 .Sh DIAGNOSTICS
