@@ -94,8 +94,6 @@ pccard_read_cis(struct pccard_softc *sc)
 
 	state.pf = NULL;
 
-printf("Calling scan_cis\n");
-
 	if (pccard_scan_cis(sc->dev, pccard_parse_cis_tuple,
 	    &state) == -1)
 		state.card->error++;
