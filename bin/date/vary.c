@@ -41,7 +41,7 @@ struct trans {
 
 static struct trans trans_mon[] = {
   { 1, "january" }, { 2, "february" }, { 3, "march" }, { 4, "april" },
-  { 5, "may" }, { 6, "june" }, { 7, "july" }, { 8, "august" },
+  { 5, "may"}, { 6, "june" }, { 7, "july" }, { 8, "august" },
   { 9, "september" }, { 10, "october" }, { 11, "november" }, { 12, "december" },
   { -1, NULL }
 };
@@ -53,6 +53,19 @@ static struct trans trans_wday[] = {
 };
 
 static char digits[] = "0123456789";
+static int adjhour(struct tm *, char, int, int);
+
+static int
+domktime(struct tm *t, char type)
+{
+  time_t ret;
+
+  while ((ret = mktime(t)) == -1 && t->tm_year > 68 && t->tm_year < 138)
+    /* While mktime() fails, adjust by an hour */
+    adjhour(t, type == '-' ? type : '+', 1, 0);
+
+  return ret;
+}
 
 static int
 trans(const struct trans t[], const char *arg)
@@ -112,7 +125,7 @@ daysinmonth(const struct tm *t)
 
 
 static int
-adjyear(struct tm *t, char type, int val)
+adjyear(struct tm *t, char type, int val, int mk)
 {
   switch (type) {
     case '+':
@@ -129,45 +142,51 @@ adjyear(struct tm *t, char type, int val)
         t->tm_year -= 1900;             /* struct tm holds years since 1900 */
       break;
   }
-  return mktime(t) != -1;
+  return !mk || domktime(t, type) != -1;
 }
 
 static int
-adjmon(struct tm *t, char type, int val, int istext)
+adjmon(struct tm *t, char type, int val, int istext, int mk)
 {
   if (val < 0)
     return 0;
 
   switch (type) {
     case '+':
-      if (istext)
+      if (istext) {
         if (val <= t->tm_mon)
           val += 11 - t->tm_mon;	/* early next year */
         else
           val -= t->tm_mon + 1;		/* later this year */
-      if (!adjyear(t, '+', (t->tm_mon + val) / 12))
-        return 0;
-      val %= 12;
-      t->tm_mon += val;
-      if (t->tm_mon > 11)
-        t->tm_mon -= 12;
+      }
+      if (val) {
+        if (!adjyear(t, '+', (t->tm_mon + val) / 12, 0))
+          return 0;
+        val %= 12;
+        t->tm_mon += val;
+        if (t->tm_mon > 11)
+          t->tm_mon -= 12;
+      }
       break;
 
     case '-':
-      if (istext)
+      if (istext) {
         if (val-1 > t->tm_mon)
           val = 13 - val + t->tm_mon;	/* later last year */
         else
           val = t->tm_mon - val + 1;	/* early this year */
-      if (!adjyear(t, '-', val / 12))
-        return 0;
-      val %= 12;
-      if (val > t->tm_mon) {
-        if (!adjyear(t, '-', 1))
-          return 0;
-        val -= 12;
       }
-      t->tm_mon -= val;
+      if (val) {
+        if (!adjyear(t, '-', val / 12, 0))
+          return 0;
+        val %= 12;
+        if (val > t->tm_mon) {
+          if (!adjyear(t, '-', 1, 0))
+            return 0;
+          val -= 12;
+        }
+        t->tm_mon -= val;
+      }
       break;
 
     default:
@@ -176,13 +195,14 @@ adjmon(struct tm *t, char type, int val, int istext)
       t->tm_mon = --val;
   }
 
-  return mktime(t) != -1;
+  return !mk || domktime(t, type) != -1;
 }
 
 static int
-adjday(struct tm *t, char type, int val)
+adjday(struct tm *t, char type, int val, int mk)
 {
   int mdays;
+
   switch (type) {
     case '+':
       while (val) {
@@ -190,7 +210,7 @@ adjday(struct tm *t, char type, int val)
         if (val > mdays - t->tm_mday) {
           val -= mdays - t->tm_mday + 1;
           t->tm_mday = 1;
-          if (!adjmon(t, '+', 1, 0))
+          if (!adjmon(t, '+', 1, 0, 0))
             return 0;
         } else {
           t->tm_mday += val;
@@ -203,7 +223,7 @@ adjday(struct tm *t, char type, int val)
         if (val >= t->tm_mday) {
           val -= t->tm_mday;
           t->tm_mday = 1;
-          if (!adjmon(t, '-', 1, 0))
+          if (!adjmon(t, '-', 1, 0, 0))
             return 0;
           t->tm_mday = daysinmonth(t);
         } else {
@@ -219,11 +239,11 @@ adjday(struct tm *t, char type, int val)
       break;
   }
 
-  return mktime(t) != -1;
+  return !mk || domktime(t, type) != -1;
 }
 
 static int
-adjwday(struct tm *t, char type, int val, int istext)
+adjwday(struct tm *t, char type, int val, int istext, int mk)
 {
   if (val < 0)
     return 0;
@@ -236,54 +256,62 @@ adjwday(struct tm *t, char type, int val, int istext)
         else
           val -= t->tm_wday;           /* later this week */
       else
-        val *= 7;                      /* "-W +5" == "5 weeks in the future" */
-      return adjday(t, '+', val);
+        val *= 7;                      /* "-v+5w" == "5 weeks in the future" */
+      return !val || adjday(t, '+', val, mk);
     case '-':
-      if (istext)
+      if (istext) {
         if (val > t->tm_wday)
           val = 7 - val + t->tm_wday;  /* later last week */
         else
           val = t->tm_wday - val;      /* early this week */
-      else
-        val *= 7;                      /* "-W -5" == "5 weeks ago" */
-      return adjday(t, '-', val);
+      } else
+        val *= 7;                      /* "-v-5w" == "5 weeks ago" */
+      return !val || adjday(t, '-', val, mk);
     default:
       if (val < t->tm_wday)
-        return adjday(t, '-', t->tm_wday - val);
+        return adjday(t, '-', t->tm_wday - val, mk);
       else if (val > 6)
         return 0;
       else if (val > t->tm_wday)
-        return adjday(t, '+', val - t->tm_wday);
+        return adjday(t, '+', val - t->tm_wday, mk);
   }
   return 1;
 }
 
 static int
-adjhour(struct tm *t, char type, int val)
+adjhour(struct tm *t, char type, int val, int mk)
 {
   if (val < 0)
     return 0;
 
   switch (type) {
     case '+':
-      if (!adjday(t, '+', (t->tm_hour + val) / 24))
-        return 0;
-      val %= 24;
-      t->tm_hour += val;
-      if (t->tm_hour > 23)
-        t->tm_hour -= 24;
+      if (val) {
+        int days;
+
+        days = (t->tm_hour + val) / 24;
+        val %= 24;
+        t->tm_hour += val;
+        t->tm_hour %= 24;
+        if (!adjday(t, '+', days, 0))
+          return 0;
+      }
       break;
 
     case '-':
-      if (!adjday(t, '-', val / 24))
-        return 0;
-      val %= 24;
-      if (val > t->tm_hour) {
-        if (!adjday(t, '-', 1))
+      if (val) {
+        int days;
+
+        days = val / 24;
+        val %= 24;
+        if (val > t->tm_hour) {
+          days++;
+          val -= 24;
+        }
+        t->tm_hour -= val;
+        if (!adjday(t, '-', days, 0))
           return 0;
-        val -= 24;
       }
-      t->tm_hour -= val;
       break;
 
     default:
@@ -292,35 +320,39 @@ adjhour(struct tm *t, char type, int val)
       t->tm_hour = val;
   }
 
-  return mktime(t) != -1;
+  return !mk || domktime(t, type) != -1;
 }
 
 static int
-adjmin(struct tm *t, char type, int val)
+adjmin(struct tm *t, char type, int val, int mk)
 {
   if (val < 0)
     return 0;
 
   switch (type) {
     case '+':
-      if (!adjhour(t, '+', (t->tm_min + val) / 60))
-        return 0;
-      val %= 60;
-      t->tm_min += val;
-      if (t->tm_min > 59)
-        t->tm_min -= 60;
+      if (val) {
+        if (!adjhour(t, '+', (t->tm_min + val) / 60, 0))
+          return 0;
+        val %= 60;
+        t->tm_min += val;
+        if (t->tm_min > 59)
+          t->tm_min -= 60;
+      }
       break;
 
     case '-':
-      if (!adjhour(t, '-', val / 60))
-        return 0;
-      val %= 60;
-      if (val > t->tm_min) {
-        if (!adjhour(t, '-', 1))
+      if (val) {
+        if (!adjhour(t, '-', val / 60, 0))
           return 0;
-        val -= 60;
+        val %= 60;
+        if (val > t->tm_min) {
+          if (!adjhour(t, '-', 1, 0))
+            return 0;
+          val -= 60;
+        }
+        t->tm_min -= val;
       }
-      t->tm_min -= val;
       break;
 
     default:
@@ -329,35 +361,39 @@ adjmin(struct tm *t, char type, int val)
       t->tm_min = val;
   }
 
-  return mktime(t) != -1;
+  return !mk || domktime(t, type) != -1;
 }
 
 static int
-adjsec(struct tm *t, char type, int val)
+adjsec(struct tm *t, char type, int val, int mk)
 {
   if (val < 0)
     return 0;
 
   switch (type) {
     case '+':
-      if (!adjmin(t, '+', (t->tm_sec + val) / 60))
-        return 0;
-      val %= 60;
-      t->tm_sec += val;
-      if (t->tm_sec > 59)
-        t->tm_sec -= 60;
+      if (val) {
+        if (!adjmin(t, '+', (t->tm_sec + val) / 60, 0))
+          return 0;
+        val %= 60;
+        t->tm_sec += val;
+        if (t->tm_sec > 59)
+          t->tm_sec -= 60;
+      }
       break;
 
     case '-':
-      if (!adjmin(t, '-', val / 60))
-        return 0;
-      val %= 60;
-      if (val > t->tm_sec) {
-        if (!adjmin(t, '-', 1))
+      if (val) {
+        if (!adjmin(t, '-', val / 60, 0))
           return 0;
-        val -= 60;
+        val %= 60;
+        if (val > t->tm_sec) {
+          if (!adjmin(t, '-', 1, 0))
+            return 0;
+          val -= 60;
+        }
+        t->tm_sec -= val;
       }
-      t->tm_sec -= val;
       break;
 
     default:
@@ -366,7 +402,7 @@ adjsec(struct tm *t, char type, int val)
       t->tm_sec = val;
   }
 
-  return mktime(t) != -1;
+  return !mk || domktime(t, type) != -1;
 }
 
 const struct vary *
@@ -389,15 +425,18 @@ vary_apply(const struct vary *v, struct tm *t)
     if (len < 2)
       return v;
 
+    if (type == '\0')
+      t->tm_isdst = -1;
+
     if (strspn(arg, digits) != len-1) {
       val = trans(trans_wday, arg);
       if (val != -1) {
-          if (!adjwday(t, type, val, 1))
+          if (!adjwday(t, type, val, 1, 1))
             return v;
       } else {
         val = trans(trans_mon, arg);
         if (val != -1) {
-          if (!adjmon(t, type, val, 1))
+          if (!adjmon(t, type, val, 1, 1))
             return v;
         } else
           return v;
@@ -408,31 +447,35 @@ vary_apply(const struct vary *v, struct tm *t)
       
       switch (which) {
         case 'S':
-          if (!adjsec(t, type, val))
+          if (!adjsec(t, type, val, 1))
             return v;
           break;
         case 'M':
-          if (!adjmin(t, type, val))
+          if (!adjmin(t, type, val, 1))
             return v;
           break;
         case 'H':
-          if (!adjhour(t, type, val))
+          if (!adjhour(t, type, val, 1))
             return v;
           break;
         case 'd':
-          if (!adjday(t, type, val))
+          t->tm_isdst = -1;
+          if (!adjday(t, type, val, 1))
             return v;
           break;
         case 'w':
-          if (!adjwday(t, type, val, 0))
+          t->tm_isdst = -1;
+          if (!adjwday(t, type, val, 0, 1))
             return v;
           break;
         case 'm':
-          if (!adjmon(t, type, val, 0))
+          t->tm_isdst = -1;
+          if (!adjmon(t, type, val, 0, 1))
             return v;
           break;
         case 'y':
-          if (!adjyear(t, type, val))
+          t->tm_isdst = -1;
+          if (!adjyear(t, type, val, 1))
             return v;
           break;
         default:
