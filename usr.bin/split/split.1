@@ -50,8 +50,14 @@ The
 .Nm
 utility reads the given
 .Ar file
-(or standard input if no file is specified)
 and breaks it up into files of 1000 lines each.
+If
+.Ar file
+is a single dash
+.Pq Ql \&-
+or absent,
+.Nm
+reads from the standard input.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
