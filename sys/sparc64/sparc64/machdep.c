@@ -313,7 +313,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	thread0.td_kstack = kstack0;
 	thread0.td_pcb = (struct pcb *)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF;
+	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;
 	thread0.td_frame = &frame0;
 
 	/*
@@ -597,12 +597,12 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	}
 
 	pcb = td->td_pcb;
-	sp = rounddown(stack, 16);
 	tf = td->td_frame;
+	sp = rounddown(stack, 16);
 	bzero(pcb, sizeof(*pcb));
 	bzero(tf, sizeof(*tf));
 	tf->tf_out[0] = stack;
-	tf->tf_out[3] = PS_STRINGS;
+	tf->tf_out[3] = p->p_sysent->sv_psstrings;
 	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
 	tf->tf_tnpc = entry + 4;
 	tf->tf_tpc = entry;
