@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2003
+.Dd October 10, 2003
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -130,6 +130,11 @@ environment variable.
 Note that it will not be defined unless it passes some simple sanity
 checks.
 Read-only.
+.It HOSTNAME
+.Pq Vt single
+The name of the host running the tinderbox.
+This is used for cosmetic purposes only.
+No default value.
 .It LOGDIR
 .Pq Vt single
 The location of the log directory.
