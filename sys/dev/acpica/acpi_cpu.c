@@ -1046,15 +1046,21 @@ acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
     struct sbuf	 sb;
     char	 buf[128];
     int		 i;
-    u_int	 sum;
+    uint64_t	 fract, sum, whole;
 
-    /* Avoid divide by 0 potential error. */
-    sum = 1;
+    sum = 0;
     for (i = 0; i < cpu_cx_count; i++)
 	sum += cpu_cx_stats[i];
     sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-    for (i = 0; i < cpu_cx_count; i++)
-	sbuf_printf(&sb, "%u%% ", (cpu_cx_stats[i] * 100) / sum);
+    for (i = 0; i < cpu_cx_count; i++) {
+	if (sum > 0) {
+	    whole = cpu_cx_stats[i] * 100;
+	    fract = (whole % sum) * 100;
+	    sbuf_printf(&sb, "%u.%02u%% ", (u_int)(whole / sum),
+		(u_int)(fract / sum));
+	} else
+	    sbuf_printf(&sb, "0%% ");
+    }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
     sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
