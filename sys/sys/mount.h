@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.13 1995/03/16 18:16:20 bde Exp $
+ *	$Id: mount.h,v 1.14 1995/03/16 18:31:00 wollman Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -203,7 +203,15 @@ struct vfsconf {
 	int vfc_flags;
 };
 
+/*
+ * NB: these flags refer to IMPLEMENTATION properties, not properties of
+ * any actual mounts; i.e., it does not make sense to change the flags.
+ */
 #define	VFCF_STATIC	1	/* FS is statically compiled into kernel */
+#define	VFCF_NETWORK	2	/* FS may get data over the network */
+#define	VFCF_READONLY	4	/* writes are not implemented by FS */
+#define VFCF_SYNTHETIC	8	/* data in FS does not represent real files */
+#define	VFCF_LOOPBACK	16	/* FS aliases some other mounted FS */
 
 /*
  * Operations supported on mounted file system.
