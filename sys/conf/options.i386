@@ -102,7 +102,6 @@ PSM_DEBUG		opt_psm.h
 PCIC_RESUME_RESET	opt_pcic.h
 
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
-UKBD_DFLT_KEYMAP	opt_ukbd.h
 
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
