@@ -70,6 +70,7 @@ _pthread_cancel(pthread_t pthread)
 				if (pthread->join_status.thread != NULL) {
 					pthread->join_status.thread->joiner
 					    = NULL;
+					pthread->join_status.thread = NULL;
 				}
 				pthread->cancelflags |= PTHREAD_CANCELLING;
 				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
