@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 78 $
+ *              $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -1017,8 +1017,7 @@ AcpiDsInitAmlWalk (
     ACPI_NAMESPACE_NODE     *MethodNode,
     UINT8                   *AmlStart,
     UINT32                  AmlLength,
-    ACPI_OPERAND_OBJECT     **Params,
-    ACPI_OPERAND_OBJECT     **ReturnObjDesc,
+    ACPI_PARAMETER_INFO     *Info,
     UINT32                  PassNumber)
 {
     ACPI_STATUS             Status;
@@ -1037,8 +1036,20 @@ AcpiDsInitAmlWalk (
     /* The NextOp of the NextWalk will be the beginning of the method */
 
     WalkState->NextOp               = NULL;
-    WalkState->Params               = Params;
-    WalkState->CallerReturnDesc     = ReturnObjDesc;
+
+    if (Info)
+    {
+        if (Info->ParameterType == ACPI_PARAM_GPE)
+        {
+            WalkState->GpeEventInfo = ACPI_CAST_PTR (ACPI_GPE_EVENT_INFO,
+                                            Info->Parameters);
+        }
+        else
+        {
+            WalkState->Params               = Info->Parameters;
+            WalkState->CallerReturnDesc     = &Info->ReturnObject;
+        }
+    }
 
     Status = AcpiPsInitScope (&WalkState->ParserState, Op);
     if (ACPI_FAILURE (Status))
@@ -1063,7 +1074,7 @@ AcpiDsInitAmlWalk (
 
         /* Init the method arguments */
 
-        Status = AcpiDsMethodDataInitArgs (Params, ACPI_METHOD_NUM_ARGS, WalkState);
+        Status = AcpiDsMethodDataInitArgs (WalkState->Params, ACPI_METHOD_NUM_ARGS, WalkState);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);

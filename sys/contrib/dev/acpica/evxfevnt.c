@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 75 $
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -291,6 +291,56 @@ AcpiEnableEvent (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiSetGpeType
+ *
+ * PARAMETERS:  GpeDevice       - Parent GPE Device
+ *              GpeNumber       - GPE level within the GPE block
+ *              Type            - New GPE type
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enable an ACPI event (general purpose)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiSetGpeType (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT8                   Type)
+{
+    ACPI_STATUS             Status = AE_OK;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+
+
+    ACPI_FUNCTION_TRACE ("AcpiSetGpeType");
+
+
+    /* Ensure that we have a valid GPE number */
+
+    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeDevice, GpeNumber);
+    if (!GpeEventInfo)
+    {
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
+    }
+
+    if ((GpeEventInfo->Flags & ACPI_GPE_TYPE_MASK) == Type)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Set the new type (will disable GPE if currently enabled) */
+
+    Status = AcpiEvSetGpeType (GpeEventInfo, Type);
+
+UnlockAndExit:
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiEnableGpe
  *
  * PARAMETERS:  GpeDevice       - Parent GPE Device
@@ -337,33 +387,68 @@ AcpiEnableGpe (
         goto UnlockAndExit;
     }
 
-    /* Check for Wake vs Runtime GPE */
+    /* Perform the enable */
 
-    if (Flags & ACPI_EVENT_WAKE_ENABLE)
+    Status = AcpiEvEnableGpe (GpeEventInfo, TRUE);
+
+UnlockAndExit:
+    if (Flags & ACPI_NOT_ISR)
     {
-        /* Ensure the requested wake GPE is disabled */
+        (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+    }
+    return_ACPI_STATUS (Status);
+}
 
-        Status = AcpiHwDisableGpe (GpeEventInfo);
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDisableGpe
+ *
+ * PARAMETERS:  GpeDevice       - Parent GPE Device
+ *              GpeNumber       - GPE level within the GPE block
+ *              Flags           - Just disable, or also wake disable?
+ *                                Called from ISR or not
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Disable an ACPI event (general purpose)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDisableGpe (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT32                  Flags)
+{
+    ACPI_STATUS             Status = AE_OK;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+
+
+    ACPI_FUNCTION_TRACE ("AcpiDisableGpe");
+
+
+    /* Use semaphore lock if not executing at interrupt level */
+
+    if (Flags & ACPI_NOT_ISR)
+    {
+        Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
         if (ACPI_FAILURE (Status))
         {
-            goto UnlockAndExit;
+            return_ACPI_STATUS (Status);
         }
-
-        /* Defer Enable of Wake GPE until sleep time */
-
-        AcpiHwEnableGpeForWakeup (GpeEventInfo);
     }
-    else
+
+    /* Ensure that we have a valid GPE number */
+
+    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeDevice, GpeNumber);
+    if (!GpeEventInfo)
     {
-        /* Enable the requested runtime GPE  */
-
-        Status = AcpiHwEnableGpe (GpeEventInfo);
-        if (ACPI_FAILURE (Status))
-        {
-            goto UnlockAndExit;
-        }
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
     }
 
+    Status = AcpiEvDisableGpe (GpeEventInfo);
 
 UnlockAndExit:
     if (Flags & ACPI_NOT_ISR)
@@ -431,76 +516,6 @@ AcpiDisableEvent (
         return_ACPI_STATUS (AE_NO_HARDWARE_RESPONSE);
     }
 
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDisableGpe
- *
- * PARAMETERS:  GpeDevice       - Parent GPE Device
- *              GpeNumber       - GPE level within the GPE block
- *              Flags           - Just enable, or also wake enable?
- *                                Called from ISR or not
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Disable an ACPI event (general purpose)
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiDisableGpe (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Flags)
-{
-    ACPI_STATUS             Status = AE_OK;
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
-
-
-    ACPI_FUNCTION_TRACE ("AcpiDisableGpe");
-
-
-    /* Use semaphore lock if not executing at interrupt level */
-
-    if (Flags & ACPI_NOT_ISR)
-    {
-        Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-    }
-
-    /* Ensure that we have a valid GPE number */
-
-    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeDevice, GpeNumber);
-    if (!GpeEventInfo)
-    {
-        Status = AE_BAD_PARAMETER;
-        goto UnlockAndExit;
-    }
-
-    /*
-     * Only disable the requested GPE number for wake if specified.
-     * Otherwise, turn it totally off
-     */
-    if (Flags & ACPI_EVENT_WAKE_DISABLE)
-    {
-        AcpiHwDisableGpeForWakeup (GpeEventInfo);
-    }
-    else
-    {
-        Status = AcpiHwDisableGpe (GpeEventInfo);
-    }
-
-UnlockAndExit:
-    if (Flags & ACPI_NOT_ISR)
-    {
-        (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
-    }
     return_ACPI_STATUS (Status);
 }
 

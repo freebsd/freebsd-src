@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 85 $
+ *              $Revision: 87 $
  *
  ******************************************************************************/
 
@@ -355,7 +355,7 @@ AcpiNsInstallNode (
     {
 #ifdef ACPI_ALPHABETIC_NAMESPACE
         /*
-         * Walk the list whilst searching for the the correct
+         * Walk the list whilst searching for the correct
          * alphabetic placement.
          */
         PreviousChildNode = NULL;
@@ -428,7 +428,7 @@ AcpiNsInstallNode (
     Node->OwnerId = OwnerId;
     Node->Type = (UINT8) Type;
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, 
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
         "%4.4s (%s) [Node %p Owner %X] added to %4.4s (%s) [Node %p]\n",
         AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type), Node, OwnerId,
         AcpiUtGetNodeName (ParentNode), AcpiUtGetTypeName (ParentNode->Type),

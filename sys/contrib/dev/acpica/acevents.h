@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 93 $
+ *       $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -119,11 +119,11 @@
 
 
 ACPI_STATUS
-AcpiEvInitialize (
+AcpiEvInitializeEvents (
     void);
 
 ACPI_STATUS
-AcpiEvHandlerInitialize (
+AcpiEvInstallXruptHandlers (
     void);
 
 
@@ -190,6 +190,20 @@ BOOLEAN
 AcpiEvValidGpeEvent (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
+ACPI_STATUS
+AcpiEvUpdateGpeEnableMasks (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
+    UINT8                   Type);
+
+ACPI_STATUS
+AcpiEvEnableGpe (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
+    BOOLEAN                 WriteToHardware);
+
+ACPI_STATUS
+AcpiEvDisableGpe (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+
 ACPI_GPE_EVENT_INFO *
 AcpiEvGetGpeEventInfo (
     ACPI_HANDLE             GpeDevice,
@@ -212,6 +226,11 @@ ACPI_STATUS
 AcpiEvDeleteGpeBlock (
     ACPI_GPE_BLOCK_INFO     *GpeBlock);
 
+ACPI_STATUS
+AcpiEvDeleteGpeHandlers (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock);
+
 UINT32
 AcpiEvGpeDispatch (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo,
@@ -221,12 +240,25 @@ UINT32
 AcpiEvGpeDetect (
     ACPI_GPE_XRUPT_INFO     *GpeXruptList);
 
+ACPI_STATUS
+AcpiEvSetGpeType (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
+    UINT8                   Type);
+
+ACPI_STATUS
+AcpiEvCheckForWakeOnlyGpe (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+
 /*
  * Evregion - Address Space handling
  */
 
 ACPI_STATUS
-AcpiEvInitAddressSpaces (
+AcpiEvInstallRegionHandlers (
+    void);
+
+ACPI_STATUS
+AcpiEvInitializeOpRegions (
     void);
 
 ACPI_STATUS
@@ -254,6 +286,19 @@ void
 AcpiEvDetachRegion (
     ACPI_OPERAND_OBJECT    *RegionObj,
     BOOLEAN                 AcpiNsIsLocked);
+
+ACPI_STATUS
+AcpiEvInstallSpaceHandler (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_ADR_SPACE_HANDLER  Handler,
+    ACPI_ADR_SPACE_SETUP    Setup,
+    void                    *Context);
+
+ACPI_STATUS
+AcpiEvExecuteRegMethods (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_ADR_SPACE_TYPE     SpaceId);
 
 ACPI_STATUS
 AcpiEvExecuteRegMethod (
