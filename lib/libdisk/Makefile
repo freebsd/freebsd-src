@@ -1,8 +1,15 @@
 # $FreeBSD$
 
+.if ${MACHINE_ARCH} == "ia64"
+_open_disk=	open_ia64_disk.c
+.else
+_change	=	change.c
+_open_disk=	open_disk.c
+.endif
+
 LIB=	disk
-SRCS=	blocks.c chunk.c disk.c change.c \
-	create_chunk.c rules.c write_disk.c write_${MACHINE}_disk.c
+SRCS=	blocks.c ${_change} chunk.c create_chunk.c disk.c ${_open_disk} \
+	rules.c write_disk.c write_${MACHINE}_disk.c
 INCS=	libdisk.h
 
 WARNS=	2
