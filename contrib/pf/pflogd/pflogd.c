@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pflogd.c,v 1.21 2003/08/22 21:50:34 david Exp $	*/
 
 /*
@@ -44,7 +45,15 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#if defined(__FreeBSD__)
+#include "pidfile.h"
+#else
 #include <util.h>
+#endif
+
+#if defined(__FreeBSD__)
+#define __dead		__volatile
+#endif
 
 #define DEF_SNAPLEN 116		/* default plus allow for larger header of pflog */
 #define PCAP_TO_MS 500		/* pcap read timeout (ms) */
@@ -79,7 +88,11 @@ int   reset_dump(void);
 void  sig_alrm(int);
 void  sig_close(int);
 void  sig_hup(int);
+#if defined(__FreeBSD__)
+__volatile void  usage(void);
+#else
 void  usage(void);
+#endif
 
 
 char *

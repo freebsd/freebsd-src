@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl.c,v 1.188 2003/08/29 21:47:36 cedric Exp $ */
 
 /*
@@ -36,6 +37,12 @@
 
 #include <net/if.h>
 #include <netinet/in.h>
+#if defined(__FreeBSD__)
+#include <inttypes.h>
+#include <net/route.h>
+#else
+#define	PRIu64	"llu"
+#endif
 #include <net/pfvar.h>
 #include <arpa/inet.h>
 #include <altq/altq.h>
@@ -194,6 +201,10 @@ pfctl_enable(int dev, int opts)
 	if (ioctl(dev, DIOCSTART)) {
 		if (errno == EEXIST)
 			errx(1, "pf already enabled");
+#if defined(__FreeBSD__)
+		else if (errno == ESRCH)
+			errx(1, "pfil registeration failed");
+#endif
 		else
 			err(1, "DIOCSTART");
 	}
@@ -543,8 +554,8 @@ pfctl_print_rule_counters(struct pf_rule *rule, int opts)
 		    rule->qname, rule->qid, rule->pqname, rule->pqid);
 	}
 	if (opts & PF_OPT_VERBOSE)
-		printf("  [ Evaluations: %-8llu  Packets: %-8llu  "
-			    "Bytes: %-10llu  States: %-6u]\n",
+		printf("  [ Evaluations: %-8"PRIu64"  Packets: %-8"PRIu64"  "
+			    "Bytes: %-10"PRIu64"  States: %-6u]\n",
 			    rule->evaluations, rule->packets,
 			    rule->bytes, rule->states);
 }
@@ -608,7 +619,7 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 		case 1:
 			if (pr.rule.label[0]) {
 				printf("%s ", pr.rule.label);
-				printf("%llu %llu %llu\n",
+				printf("%"PRIu64" %"PRIu64" %"PRIu64"\n",
 				    pr.rule.evaluations, pr.rule.packets,
 				    pr.rule.bytes);
 			}
@@ -640,7 +651,7 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 		case 1:
 			if (pr.rule.label[0]) {
 				printf("%s ", pr.rule.label);
-				printf("%llu %llu %llu\n",
+				printf("%"PRIu64" %"PRIu64" %"PRIu64"\n",
 				    pr.rule.evaluations, pr.rule.packets,
 				    pr.rule.bytes);
 			}
@@ -1222,6 +1233,9 @@ pfctl_clear_rule_counters(int dev, int opts)
 int
 pfctl_test_altqsupport(int dev, int opts)
 {
+#if defined(__FreeBSD__) && !defined(ENABLE_ALTQ)
+	return (0);
+#else
 	struct pfioc_altq pa;
 
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
@@ -1234,6 +1248,7 @@ pfctl_test_altqsupport(int dev, int opts)
 			err(1, "DIOCGETALTQS");
 	}
 	return (1);
+#endif
 }
 
 int
@@ -1476,7 +1491,11 @@ main(int argc, char *argv[])
 		/* turn off options */
 		opts &= ~ (PF_OPT_DISABLE | PF_OPT_ENABLE);
 		clearopt = showopt = debugopt = NULL;
+#if defined(__FreeBSD__) && !defined(ENABLE_ALTQ)
+		altqsupport = 0;
+#else
 		altqsupport = 1;
+#endif
 	}
 
 	if (opts & PF_OPT_DISABLE)
