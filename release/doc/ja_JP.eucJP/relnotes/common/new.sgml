@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.178
+    Original revision: 1.186
 -->
 
 <articleinfo>
@@ -19,22 +19,22 @@
     <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーション
     プロジェクト</holder>
   </copyright>
-</articleinfo>
 
-<abstract>
-  <para>この &os; &release.current; 用リリースノートには,
-    &release.prev; 以降の &os; ベースシステムに対する変更点の概要
-    が含まれています.
-    カーネルとユーザーランド双方の変更点が列挙されているのに加え,
-    前のリリース以降に発行されたセキュリティ勧告のうちあてはまる
-    ものも含まれています.
-    また, アップグレードの際の注意点も載せてあります.</para>
-</abstract>
+  <abstract>
+    <para>この &os; &release.current; 用リリースノートには,
+      &release.prev; 以降の &os; ベースシステムに対する変更点の概要
+      が含まれています.
+      カーネルとユーザーランド双方の変更点が列挙されているのに加え,
+      前のリリース以降に発行されたセキュリティ勧告のうちあてはまる
+      ものも含まれています.
+      また, アップグレードの際の注意点も載せてあります.</para>
+  </abstract>
+</articleinfo>
 
 <sect1>
   <title>はじめに</title>
 
-  <para>この文書は &arch; ハードウェアプラットフォームの
+  <para>この文書は &arch.print; ハードウェアプラットフォームの
     &os; &release.current; 向けのリリースノートです.
     &release.prev; 以降に &os; に追加 (もしくは修正) された新しい機能
     について解説しています.
@@ -45,7 +45,7 @@
 
   <para>このリリースノートが対応する &release.type; 配布物は,
     &release.branch; 開発ブランチの &release.prev; から
-    &release.next; の間に位置します.
+    将来の &release.next; の間に位置します.
     このブランチのあらかじめコンパイルされたバイナリ &release.type;
     配布物は <ulink url="&release.url;"></ulink> に公開されています.
   </para>
@@ -375,6 +375,10 @@
       (デフォルトはオフで, コンパイル時に有効にできます).
       &merged;</para>
 
+    <para>カーネルは複数の低レベルコンソールデバイスをサポートします.
+      異なったコンソールを操作するには, 新しい &man.conscontrol.8;
+      ユーティリティを使います.</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -504,7 +508,7 @@
       <para>&man.faith.4; デバイスがロード/アンロード/クローニングに
 	対応しました.</para>
 
-      <para>富士通 MB86960A/MB86965A
+      <para arch="i386">&man.fe.4; ドライバが富士通 MB86960A/MB86965A
         ベースのイーサネット PC カードに再び対応しました. &merged;</para>
 
       <para arch="alpha">&man.fpa.4; ドライバが
@@ -513,6 +517,12 @@
       <para>&man.fxp.4; ドライバはカーネルコンフィグレーションファイルに
         <literal>device miibus</literal> のエントリを必要とするようになりました.
         &merged;</para>
+
+      <para>&man.fxp.4; ドライバは Intel のローダブルマイクロコード
+	が使えるようになり, NIC がその機能をサポートしている場合には,
+	受信側の割り込み結合とパケット bundling を実装します.
+	この機能は &man.ifconfig.8; の <option>link0</option>
+	オプションで有効にできます.</para>
 
       <para>&man.gx.4; ドライバが追加され, Intel 82542 と 82543
 	のギガビットイーサネットコントローラチップがサポートされました.
@@ -1144,6 +1154,9 @@ hw.pcic.irq="0"</programlisting>
           Eicon.Diehl DIVA 2.0 および 2.02 ISA PnP ISDN カードに対応しました.
           &merged;</para> 
 
+	<para>&man.isic.4; ドライバは Compaq Microcom 610 ISDN
+	  ISA PnP カードに内応しました.</para>
+
 	<para>&man.i4bcapi.4; および &man.iavc.4; ドライバにより
           AVM 製の Active CAPI ベースの ISDN カードに対応しました.
           対応しているカードは
@@ -1157,7 +1170,7 @@ hw.pcic.irq="0"</programlisting>
           &merged;</para>
 
 	<para>&man.isdnphone.8; はキーパッド経由でメッセージを PBX や
-	  exchange office に送るための <option>-k</option> をサポート
+	  exchange office に送るための <option>-k</option> オプションをサポート
 	  しました.</para>
 	<!-- XXX: kuriyama: exchange office って MS の? -->
       </sect4>
@@ -1650,6 +1663,10 @@ hw.pcic.irq="0"</programlisting>
       で指定される) quota プロトタイプの設定対象を,
       一つのファイルシステムに限定するために使われます.</para>
 
+    <para>&man.fbtab.5; はターゲットデバイスとして, 特定のデバイスや
+      ディレクトリだけではなく, グロブマッチングパターンも受け付ける
+      ようになりました.</para>
+
     <para arch="i386">&man.fdisk.8; は,
       コマンドラインに何も指定されていなければデバイスを検索せずに,
       ルートデバイスからデフォルトデバイス名を解決するようになりました.</para>
@@ -1758,6 +1775,12 @@ hw.pcic.irq="0"</programlisting>
       これらは現在実行されているプログラムのプログラム名を操作するためのもので,
       エラー報告ルーチンで出力に一貫性を持たせるために使用されます.
       &merged;</para>
+
+    <para>&man.gprof.1; に現在動作しているカーネルから動的にシンボル
+      参照を解決するための <option>-K</option> オプションが追加
+      されました.
+      この変更により, KLD モジュールが適切にコンパイルされていれば,
+      プロファイルすることができるようになりました.</para>
 
     <para>成長型 FFS ファイルシステム &man.growfs.8; が新たに追加されました.
       また, 既存のファイルシステムのメタ情報をダンプする
@@ -2154,6 +2177,12 @@ hw.pcic.irq="0"</programlisting>
       に含まれるディレクトリでないファイルをすべて削除するようになりました.
       &merged;</para>
 
+    <para>&man.rcmd.3; はリモート実行のために &man.rsh.1; の代わりに
+      実行するプログラムを <envar>RSH</envar> 環境変数で
+      指定できるようになりました.
+      そのため, &man.dump.8; のようなプログラムも伝送媒体として
+      &man.ssh.1; を使うことができるようになりました.</para>
+
     <para>&man.rdist.1; がベースシステムから削除され,
       &os; Ports Collection の
       <port>net/44bsd-rdist</port> として用意されるようになりました.</para>
@@ -2304,7 +2333,7 @@ hw.pcic.irq="0"</programlisting>
       他のユーティリティと同様の方法でインストールされるようになっています.</para>
 
     <para>&man.sysinstall.8; がインストール中に KLD を
-      ロードできるようになりました.</para>
+      ロードできるようになりました. &merged;</para>
 
     <para>&man.syslogd.8; に新たなオプション
       <option>-n</option> が追加されました.
@@ -2363,6 +2392,10 @@ hw.pcic.irq="0"</programlisting>
       &man.tmpnam.3; における一時ファイルの場所を指定できるようになりました.
       &merged;</para>
 
+    <para>&man.tip.1; が <application>OpenBSD</application>
+      からのものに更新されました.
+      &man.cu.1; の代用品として動作することができます.</para>
+
     <para>&man.top.1; が,
       tty の持つ最大の表示幅を利用するようになりました.</para>
 
@@ -2381,8 +2414,8 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.cu.1; と &man.rmail.8; を除いて,
       <application>UUCP</application> は
       ベースシステムから削除されました.
-      <application>UUCP</application> の残りの部分は Ports Collection
-      の <port>net/freebsd-uucp</port> にあります.</para>
+      現在は Ports Collection の
+      <port>net/freebsd-uucp</port> にあります.</para>
 
     <para>&man.units.1; に対していくつかの更新とバグ修正が加えられました.
       &merged;</para>
@@ -2477,6 +2510,9 @@ hw.pcic.irq="0"</programlisting>
       <para><application>am-utils</application> がバージョン
         6.0.7 に更新されました.</para>
 
+      <para><application>awk</application> from Bell Labs has replaced
+      <application>GNU awk</application> in the &os; base system.</para>
+
       <para><application>bc</application>
         がバージョン 1.04 から 1.06 に更新されました.
         &merged;</para>
@@ -2511,12 +2547,12 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>file</application> がバージョン 3.37 に更新されました.
         </para>
-
+<!--
       <para><application>gawk</application> の実体
         &man.awk.1; が, バージョン 3.0.4 から 3.0.6 に更新されました.
         これには数多くの致命的でないバグ修正と,
         いくつかのパフォーマンス改善が含まれています.
-        &merged;</para>
+        &merged;</para> -->
 
       <para><application>gcc</application> がバージョン
         2.95.3 に更新されました.
@@ -2875,6 +2911,10 @@ hw.pcic.irq="0"</programlisting>
         コマンドラインの指定順ではなく依存関係の順番で行なわれるようになりました.
         これにより <command>pkg_add -r</command> の機能性が向上しています.
         &merged;</para>
+
+      <para>&man.pkg.create.1; はローカルにインストールされた
+	パッケージからパッケージを作成する <option>-b</option>
+	をサポートしました. &merged;</para>
 
       <para>&man.pkg.delete.1; に複数の package を削除するように指定した際に,
         コマンドラインの指定順ではなく依存関係順に削除が行なわれるようになりました.
