@@ -44,10 +44,6 @@
 #define dMPROMPT 0
 #endif
 
-#ifndef PASSIVEMODE
-#define PASSIVEMODE 1
-#endif
-
 /* If passive FTP can be used, this specifies whether it is turned on
  * by default.  If not, we have passive mode available, but are using
  * Port ftp by default.

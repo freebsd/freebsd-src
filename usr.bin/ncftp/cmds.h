@@ -121,9 +121,7 @@ int unimpl(int argc, char **argv);
 long GetDateSizeFromLSLine(char *fName, unsigned long *mod_time);
 long GetDateAndSize(char *fName, unsigned long *mod_time);
 int SetTypeByNumber(int i);
-#ifdef PASSIVEMODE
 int setpassive(int argc, char **argv);
-#endif
 
 
 /* In util.c: */
