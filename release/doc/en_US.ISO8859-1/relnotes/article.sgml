@@ -197,6 +197,11 @@
       all loader tunables (<varname>kern.maxtsiz</varname>,
       <varname>kern.maxdfldsiz</varname>, etc.). &merged;</para>
 
+    <para>&man.mutex.9; profiling code has been added, enabled by the
+      <literal>MUTEX_PROFILING</literal> kernel configuration option.
+      It enables the <varname>debug.mutex.prof.*</varname> hierarchy
+      of sysctl variables.</para>
+
     <para arch="i386">The <literal>NCPU</literal>, <literal>NAPIC</literal>,
       <literal>NBUS</literal>, and <literal>NINTR</literal> kernel
       configuration options, for configuring SMP kernels, have been
@@ -283,6 +288,12 @@
       url="http://www.mostang.com/sane/">the SANE home page</ulink>
       for supported scanners. The HP ScanJet 4100C, 5200C and 6300C
       are known to be working. &merged;</para>
+
+    <para>The ucom device driver has been added, to support USB
+      modems, serial devices, and other programs that need to look
+      like a tty.  The related uplcom and uvscom drivers provide specific
+      support for the Prolific PL-2303 serial adapter and the SUNTAC
+      Slipper U VS-10U, respectively.</para>
 
     <para>To increase security, the <literal>UCONSOLE</literal> kernel
       configuration option has been removed.</para>
@@ -476,6 +487,10 @@
 
     <sect3>
       <title>Bootloader Changes</title>
+
+      <para arch="i386"><filename>boot2</filename> now supports a
+	<option>-n</option> to disallow boot interruption by
+	keypresses. &merged;</para>
 
       <para arch="i386">A new <filename>cdboot</filename> bootstrap
 	utility for CDROMs provides better compatability with some
@@ -988,8 +1003,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.ata.4; driver now supports a wider variety of SiS
 	chipsets, as listed in the Hardware Notes. &merged;</para>
 
-      <para>The &man.ata.4; driver now has support for rebuilding
-	failed drives in a RAID1 configuration, under control of
+      <para>The &man.ata.4; driver now has support for creating,
+	deleting, querying, and rebuilding ATA RAIDs under control of
 	&man.atacontrol.8;. &merged;</para>
 
       <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM
@@ -1799,6 +1814,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       kilobytes, megabytes, or gigabytes, in addition to
       sectors. &merged;</para>
 
+    <para>&man.diskpart.8; has been declared obsolete, and has been
+      removed.</para>
+
     <para>&man.dmesg.8; now has a <option>-a</option> option to show
       the entire message buffer, including &man.syslogd.8; records and
       <filename>/dev/console</filename> output. &merged;</para>
@@ -2054,6 +2072,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       easier to manipulate the kernel module search
       path. &merged;</para>
 
+    <para>ktrdump, a utility to dump the ktr trace buffer from
+      userland, has been added.</para>
+
     <para>&man.last.1; now implements a <option>-d</option> that
       provides a <quote>snapshot</quote> of who was logged in at a
       particular date and time. &merged;</para>
@@ -2269,6 +2290,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       8192 and 1024 bytes).  This change generally provides increased
       performance, at the expense of some wasted disk
       space. &merged;</para>
+
+    <para>A number of archaic features of &man.newfs.8; have been
+      removed; these implement tuning features that are essentially
+      useless on modern hard disks.  These features were controlled by
+      the <option>-O</option>, <option>-d</option>,
+      <option>-k</option>, <option>-l</option>, <option>-n</option>,
+      <option>-p</option>, <option>-r</option>, <option>-t</option>,
+      and <option>-x</option> flags.</para>
 
     <para>&man.newsyslog.8; now has the ability to compress log files
       using &man.bzip2.1;. &merged;</para>
@@ -2880,7 +2909,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	variable. &merged;</para>
 
       <para>The timezone database has been updated to the
-	<filename>tzdata2001d</filename> release. &merged;</para>
+	<filename>tzdata2002c</filename> release. &merged;</para>
 
       <sect4>
 	<title>CVS</title>
