@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 MAINTAINER=	billf@FreeBSD.org
+MAINTAINER+=	doug@gorean.org
 MAN8=		mergemaster.8
 
 beforeinstall:
