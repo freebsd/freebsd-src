@@ -1,133 +1,151 @@
-.\" $Id: getnetent.3,v 8.2 1996/05/09 05:59:10 vixie Exp $
-.TH getnetent 3
-.SH NAME
-getnetent, getnetbyaddr, getnetbyname, setnetent, endnetent \- get networks
-entry
-.SH SYNTAX
-.nf
-.B #include <netdb.h>
-.PP
-.B struct netent *getnetent()
-.PP
-.B struct netent *getnetbyname(\fIname\fP)
-.B char *\fIname\fP;
-.PP
-.B struct netent *getnetbyaddr(\fInet\fP, \fItype\fP)
-.B unsigned long \fInet\fP; int \fItype\fP;
-.PP
-.B void setnetent(\fIstayopen\fP)
-.B int \fIstayopen\fP;
-.PP
-.B void endnetent()
-.fi
-.SH DESCRIPTION
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getnetent.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd June 4, 1993
+.Dt GETNETENT 3
+.Os BSD 4.2
+.Sh NAME
+.Nm getnetent ,
+.Nm getnetbyaddr ,
+.Nm getnetbyname ,
+.Nm setnetent ,
+.Nm endnetent
+.Nd get network entry
+.Sh SYNOPSIS
+.Fd #include <netdb.h>
+.Ft struct netent *
+.Fn getnetent 
+.Ft struct netent *
+.Fn getnetbyname "char *name"
+.Ft struct netent *
+.Fn getnetbyaddr "long net" "int type"
+.Fn setnetent "int stayopen"
+.Fn endnetent 
+.Sh DESCRIPTION
 The
-.IR getnetent ,
-.IR getnetbyname ,
+.Fn getnetent ,
+.Fn getnetbyname ,
 and
-.I getnetbyaddr
-subroutines
+.Fn getnetbyaddr
+functions
 each return a pointer to an object with the
 following structure
 containing the broken-out
-fields of a line in the 
-.I networks 
-database.
-.RS
-.PP
-.nf
+fields of a line in the network data base,
+.Pa /etc/networks .
+.Bd -literal -offset indent
 struct	netent {
-	char	*n_name;	/* official name of net */
-	char	**n_aliases;	/* alias list */
-	int	n_addrtype;	/* net number type */
-	long	n_net;		/* net number */
+	char		*n_name;	/* official name of net */
+	char		**n_aliases;	/* alias list */
+	int		n_addrtype;	/* net number type */
+	unsigned long	n_net;		/* net number */
 };
-.ft R
-.ad
-.fi
-.RE
-.PP
+.Ed
+.Pp
 The members of this structure are:
-.TP \w'n_addrtype'u+2n
-n_name
+.Bl -tag -width n_addrtype
+.It Fa n_name
 The official name of the network.
-.TP \w'n_addrtype'u+2n
-n_aliases
+.It Fa n_aliases
 A zero terminated list of alternate names for the network.
-.TP \w'n_addrtype'u+2n
-n_addrtype
-The type of the network number returned: AF_INET.
-.TP \w'n_addrtype'u+2n
-n_net
+.It Fa n_addrtype
+The type of the network number returned; currently only AF_INET.
+.It Fa n_net
 The network number.  Network numbers are returned in machine byte
 order.
-.PP
-If the
-.I stayopen
-flag on a 
-.I setnetent
-subroutine is NULL, the
-.I networks
-database is opened.  Otherwise the
-.I setnetent
-has the effect of rewinding the 
-.I networks 
-database.
+.El
+.Pp
 The
-.I endnetent
-may be called to
-close the 
-.I networks 
-database when processing is complete.
-.PP
+.Fn getnetent
+function
+reads the next line of the file, opening the file if necessary.
+.Pp
 The
-.I getnetent
-subroutine simply reads the next
-line while
-.I getnetbyname
-and
-.I getnetbyaddr
-search until a matching
-.I name
+.Fn setnetent
+function
+opens and rewinds the file.  If the
+.Fa stayopen
+flag is non-zero,
+the net data base will not be closed after each call to 
+.Fn getnetbyname
 or
-.I net
-number is found
-(or until EOF is encountered).  The \fItype\fP must be AF_INET.
+.Fn getnetbyaddr .
+.Pp
 The
-.I getnetent
-subroutine keeps a pointer in the database, allowing
-successive calls to be used 
-to search the entire file.
-.PP
-A call to
-.I setnetent
-must be made before a
-.I while
-loop using
-.I getnetent
-in order to perform initialization and an
-.I endnetent
-must be used after the loop.  Both
-.I getnetbyname
+.Fn endnetent
+function
+closes the file.
+.Pp
+The
+.Fn getnetbyname
+function
 and
-.I getnetbyaddr
-make calls to
-.I setnetent
+.Fn getnetbyaddr
+sequentially search from the beginning
+of the file until a matching
+net name or
+net address and type is found,
+or until
+.Dv EOF
+is encountered.
+Network numbers are supplied in host order.
+.Sh FILES
+.Bl -tag -width /etc/networks -compact
+.It Pa /etc/networks
+.El
+.Sh DIAGNOSTICS
+Null pointer
+(0) returned on
+.Dv EOF
+or error.
+.Sh SEE ALSO
+.Xr networks 5
+.Sh HISTORY
+The
+.Fn getnetent ,
+.Fn getnetbyaddr ,
+.Fn getnetbyname ,
+.Fn setnetent ,
 and
-.I endnetent .
-.SH FILES
-.I /etc/networks
-.SH DIAGNOSTICS
-Null pointer (0) returned on EOF or error.
-.SH SEE ALSO
-.nf
-networks(5)
-RFC 1101
-.SH HISTORY
-The getnetent(), getnetbyaddr(), getnetbyname(), setnetent(), and
-endnetent() functions appeared in 4.2BSD.
-.SH BUGS
-The data space used by these functions is static; if future use requires the
-data, it should be copied before any subsequent calls to these functions
-overwrite it.  Only Internet network numbers are currently understood.
-Expecting network numbers to fit in no more than 32 bits is probably naive.
+.Fn endnetent
+functions appeared in 
+.Bx 4.2 .
+.Sh BUGS
+The data space used by
+these functions is static; if future use requires the data, it should be
+copied before any subsequent calls to these functions overwrite it.
+Only Internet network
+numbers are currently understood.
+Expecting network numbers to fit
+in no more than 32 bits is probably
+naive.
