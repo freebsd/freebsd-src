@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.83 1998/04/17 22:37:19 des Exp $
+ * $Id: ufs_vnops.c,v 1.84 1998/05/07 04:58:58 msmith Exp $
  */
 
 #include "opt_quota.h"
@@ -2000,7 +2000,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	/*
 	 * Initialize modrev times
 	 */
-	getmicroruntime(&tv);
+	getmicrouptime(&tv);
 	SETHIGH(ip->i_modrev, tv.tv_sec);
 	SETLOW(ip->i_modrev, tv.tv_usec * 4294);
 	*vpp = vp;

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.34 1998/03/26 20:52:51 phk Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.35 1998/04/04 13:25:55 phk Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -346,7 +346,7 @@ deget(pmp, dirclust, diroffset, depp)
 		}
 	} else
 		nvp->v_type = VREG;
-	getmicroruntime(&tv);
+	getmicrouptime(&tv);
 	SETHIGH(ldep->de_modrev, tv.tv_sec);
 	SETLOW(ldep->de_modrev, tv.tv_usec * 4294);
 	VREF(ldep->de_devvp);

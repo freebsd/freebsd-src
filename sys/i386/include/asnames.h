@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.19 1998/04/06 15:33:02 peter Exp $
+ * $Id: asnames.h,v 1.20 1998/04/22 09:46:16 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -243,7 +243,7 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
-#define _getmicroruntime		getmicroruntime
+#define _getmicrouptime		getmicrouptime
 #define _idqs				idqs
 #define _imen				imen
 #define _imen_lock			imen_lock
@@ -272,7 +272,7 @@
 #define _main				main
 #define _mask8254			mask8254
 #define _maskRTC			maskRTC
-#define _microruntime			microruntime
+#define _microuptime			microuptime
 #define _mp_gdtbase			mp_gdtbase
 #define _mp_lock			mp_lock
 #define _mp_ncpus			mp_ncpus

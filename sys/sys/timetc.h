@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.25 1998/04/23 00:11:32 eivind Exp $
+ * $Id: time.h,v 1.26 1998/04/23 14:12:06 eivind Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -265,16 +265,16 @@ struct clockinfo {
 extern struct timecounter *timecounter;
 extern time_t	time_second;
 
-void	getmicroruntime __P((struct timeval *tv));
+void	getmicrouptime __P((struct timeval *tv));
 void	getmicrotime __P((struct timeval *tv));
-void	getnanoruntime __P((struct timespec *tv));
+void	getnanouptime __P((struct timespec *tv));
 void	getnanotime __P((struct timespec *tv));
 void	init_timecounter __P((struct timecounter *tc));
 int	itimerdecr __P((struct itimerval *itp, int usec));
 int	itimerfix __P((struct timeval *tv));
-void	microruntime __P((struct timeval *tv));
+void	microuptime __P((struct timeval *tv));
 void	microtime __P((struct timeval *tv));
-void	nanoruntime __P((struct timespec *ts));
+void	nanouptime __P((struct timespec *ts));
 void	nanotime __P((struct timespec *ts));
 void	set_timecounter __P((struct timespec *ts));
 void	timevaladd __P((struct timeval *, struct timeval *));

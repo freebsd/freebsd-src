@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.53 1998/05/14 10:38:52 peter Exp $
+ * $Id: kern_time.c,v 1.54 1998/05/14 11:31:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -202,13 +202,13 @@ nanosleep1(p, rqt, rmt)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || rqt->tv_sec == 0 && rqt->tv_nsec == 0)
 		return (0);
-	getnanoruntime(&ts);
+	getnanouptime(&ts);
 	timespecadd(&ts, rqt);
 	TIMESPEC_TO_TIMEVAL(&tv, rqt);
 	for (;;) {
 		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp",
 		    tvtohz(&tv));
-		getnanoruntime(&ts2);
+		getnanouptime(&ts2);
 		if (error != EWOULDBLOCK) {
 			if (error == ERESTART)
 				error = EINTR;
@@ -434,7 +434,7 @@ getitimer(p, uap)
 		 */
 		aitv = p->p_realtimer;
 		if (timevalisset(&aitv.it_value)) {
-			getmicroruntime(&ctv);
+			getmicrouptime(&ctv);
 			if (timevalcmp(&aitv.it_value, &ctv, <))
 				timevalclear(&aitv.it_value);
 			else
@@ -488,7 +488,7 @@ setitimer(p, uap)
 		if (timevalisset(&aitv.it_value)) 
 			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
 						tvtohz(&aitv.it_value));
-		getmicroruntime(&ctv);
+		getmicrouptime(&ctv);
 		timevaladd(&aitv.it_value, &ctv);
 		p->p_realtimer = aitv;
 	} else
@@ -527,7 +527,7 @@ realitexpire(arg)
 		s = splclock(); /* XXX: still neeeded ? */
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
-		getmicroruntime(&ctv);
+		getmicrouptime(&ctv);
 		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >)) {
 			ntv = p->p_realtimer.it_value;
 			timevalsub(&ntv, &ctv);
