@@ -145,7 +145,7 @@ qcam_registerdev (struct isa_device *id)
 	kdc->kdc_unit = id->id_unit;
 	kdc->kdc_parentdata = id;
 
-#ifndef	ACTUALLY_LKM_NOT_KERNEL		/* there's a bug in dev_attach
+#ifndef	QCAM_MODULE			/* there's a bug in dev_attach
 					   when running from an LKM */
 	dev_attach(kdc);
 #endif
