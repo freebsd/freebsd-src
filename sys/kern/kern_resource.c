@@ -295,9 +295,11 @@ donice(struct thread *td, struct proc *p, int n)
 	}
  	if (n < low && suser(td))
 		return (EACCES);
+	mtx_lock_spin(&sched_lock);
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		sched_nice(kg, n);
 	}
+	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
 

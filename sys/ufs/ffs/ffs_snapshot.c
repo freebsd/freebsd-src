@@ -300,8 +300,12 @@ restart:
 	 * Recind nice scheduling while running with the filesystem suspended.
 	 */
 	if (td->td_ksegrp->kg_nice > 0) {
+		PROC_LOCK(td->td_proc);
+		mtx_lock_spin(&sched_lock);
 		saved_nice = td->td_ksegrp->kg_nice;
 		sched_nice(td->td_ksegrp, 0);
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(td->td_proc);
 	}
 	/*
 	 * Suspend operation on filesystem.
@@ -644,8 +648,13 @@ done:
 	free(copy_fs->fs_csp, M_UFSMNT);
 	bawrite(sbp);
 out:
-	if (saved_nice > 0)
+	if (saved_nice > 0) {
+		PROC_LOCK(td->td_proc);
+		mtx_lock_spin(&sched_lock);
 		sched_nice(td->td_ksegrp, saved_nice);
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(td->td_proc);
+	}
 	if (fs->fs_active != 0) {
 		FREE(fs->fs_active, M_DEVBUF);
 		fs->fs_active = 0;
