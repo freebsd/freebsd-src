@@ -101,7 +101,8 @@ static struct timecounter elan_timecounter = {
 	NULL,
 	0xffff,
 	ELAN_XTAL / 4,
-	"ELAN"
+	"ELAN",
+	1000
 };
 
 static int
