@@ -127,6 +127,10 @@ typedef	 int	minor_t;
 #endif /* SOLARIS */
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 
+#if defined(__FreeBSD__) && (__FreeBSD__ >= 5) && defined(_KERNEL)
+# include <machine/in_cksum.h>
+#endif
+
 #ifndef	IP_OFFMASK
 #define	IP_OFFMASK	0x1fff
 #endif
