@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.48 1998/04/05 10:28:01 phk Exp $
+ * $Id: kern_time.c,v 1.49 1998/04/05 11:17:19 peter Exp $
  */
 
 #include <sys/param.h>
@@ -102,10 +102,6 @@ settime(tv)
 	ts.tv_nsec = tv->tv_usec * 1000;
 	set_timecounter(&ts);
 	(void) splsoftclock();
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
-		if (timerisset(&p->p_realtimer.it_value))
-			timevaladd(&p->p_realtimer.it_value, &delta);
-	}
 	lease_updatetime(delta.tv_sec);
 	splx(s);
 	resettodr();
@@ -479,7 +475,7 @@ getitimer(p, uap)
 		 */
 		aitv = p->p_realtimer;
 		if (timerisset(&aitv.it_value)) {
-			getmicrotime(&ctv);
+			getmicroruntime(&ctv);
 			if (timercmp(&aitv.it_value, &ctv, <))
 				timerclear(&aitv.it_value);
 			else
@@ -533,6 +529,8 @@ setitimer(p, uap)
 		if (timerisset(&aitv.it_value)) 
 			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
 						tvtohz(&aitv.it_value));
+		getmicroruntime(&ctv);
+		timevaladd(&aitv.it_value, &ctv);
 		p->p_realtimer = aitv;
 	} else
 		p->p_stats->p_timer[uap->which] = aitv;
@@ -557,7 +555,7 @@ realitexpire(arg)
 	void *arg;
 {
 	register struct proc *p;
-	struct timeval ctv;
+	struct timeval ctv, ntv;
 	int s;
 
 	p = (struct proc *)arg;
@@ -570,11 +568,12 @@ realitexpire(arg)
 		s = splclock(); /* XXX: still neeeded ? */
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
-		getmicrotime(&ctv);
+		getmicroruntime(&ctv);
 		if (timercmp(&p->p_realtimer.it_value, &ctv, >)) {
+			ntv = p->p_realtimer.it_value;
+			timevalsub(&ntv, &ctv);
 			p->p_ithandle =
-			    timeout(realitexpire, (caddr_t)p,
-				    hzto(&p->p_realtimer.it_value) - 1);
+			    timeout(realitexpire, (caddr_t)p, tvtohz(&ntv));
 			splx(s);
 			return;
 		}
