@@ -209,16 +209,9 @@ initarm(void *arg, void *arg2)
 	uint32_t fake_preload[35];
 	uint32_t memsize, memstart;
 
-	i80321_calibrate_delay();
-	cninit();
 	i = 0;
+
 	set_cpufuncs();
-	/*
-	 * Fetch the SDRAM start/size from the i80321 SDRAM configration
-	 * registers.
-	 */
-	i80321_sdram_bounds(&obio_bs_tag, VERDE_PMMR_BASE + VERDE_MCU_BASE,
-	    &memstart, &memsize);
 	fake_preload[i++] = MODINFO_NAME;
 	fake_preload[i++] = strlen("elf kernel") + 1;
 	strcpy((char*)&fake_preload[i++], "elf kernel");
@@ -237,7 +230,6 @@ initarm(void *arg, void *arg2)
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
 
-	physmem = memsize / PAGE_SIZE;
 
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -307,7 +299,6 @@ initarm(void *arg, void *arg2)
 	 * This means that we can replace L1 mappings later on if necessary
 	 */
 	l1pagetable = kernel_l1pt.pv_va;
-
 
 	/* Map the L2 pages tables in the L1 page table */
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
@@ -400,7 +391,6 @@ initarm(void *arg, void *arg2)
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
-
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
@@ -409,6 +399,7 @@ initarm(void *arg, void *arg2)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
+
 				   
 	set_stackptr(PSR_IRQ32_MODE,
 	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
@@ -430,6 +421,15 @@ initarm(void *arg, void *arg2)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	/*
+	 * Fetch the SDRAM start/size from the i80321 SDRAM configration
+	 * registers.
+	 */
+	i80321_calibrate_delay();
+	i80321_sdram_bounds(&obio_bs_tag, IQ80321_80321_VBASE + VERDE_MCU_BASE,
+	    &memstart, &memsize);
+	physmem = memsize / PAGE_SIZE;
+	cninit();
 
 
 	/* Set stack for exception handlers */
