@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.16 1994/11/02 23:50:54 phk Exp $
+#	$Id: netstart,v 1.17 1994/11/07 04:02:25 phk Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 defaultrouter=NO
@@ -13,6 +13,10 @@ sendmail_flags="-bd -q30m"
 amdflags="NO"
 nfs_client=NO
 nfs_server=NO
+nis_client="NO"
+nis_serverflags="NO"
+yppasswdddflags="NO"
+#yppasswddflags"-m /var/yp/master.passwd -s -f"
 name_server=NO
 savecore=NO
 #kerberos_server=YES
@@ -24,6 +28,12 @@ savecore=NO
 if [ -z "`hostname -s`" ] ; then
 	hostname=`cat /etc/myname`
 	hostname $hostname
+fi
+
+# Set the domainname if we're using NIS
+if [ -z "`domainname`" -a -e "/etc/defaultdomain" ] ; then
+        domainname=`cat /etc/defaultdomain`
+        domainname $domainname
 fi
 
 for i in /etc/hostname.*
