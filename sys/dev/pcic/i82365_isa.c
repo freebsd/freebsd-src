@@ -122,8 +122,7 @@ static struct isa_pnp_id pcic_ids[] = {
 static void
 pcic_isa_bus_width_probe (device_t dev)
 {
-	struct pcic_softc *sc = (struct pcic_softc *)
-	    device_get_softc(dev);
+	struct pcic_softc *sc = PCIC_SOFTC(dev);
 	bus_space_handle_t ioh_high;
 	int i, iobuswidth, tmp1, tmp2;
 	int rid;
@@ -358,7 +357,6 @@ pcic_isa_attach(device_t dev)
 static int
 pcic_isa_detach(device_t dev)
 {
-	pcic_deactivate(dev);
 	pcic_detach(dev);
 	return 0;
 }
