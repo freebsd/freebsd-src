@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.52 1997/06/28 08:14:10 pst Exp $
+#	$Id: bsd.prog.mk,v 1.53 1997/07/31 06:12:04 asami Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -63,7 +63,7 @@ clean: _SUBDIR
 .endif
 .endif
 
-.if defined(PROG)
+.if defined(PROG) && !defined(NOEXTRADEPEND)
 _EXTRADEPEND:
 	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
