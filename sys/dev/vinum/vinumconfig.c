@@ -33,12 +33,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.38 2003/04/28 02:54:07 grog Exp $
+ * $Id: vinumconfig.c,v 1.39 2003/05/04 05:22:46 grog Exp grog $
  * $FreeBSD$
  */
 
 #define STATIC static
 
+#include <sys/reboot.h>					    /* XXX */
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
@@ -175,10 +176,11 @@ my_sd(int plexno, int sdno)
 
 /* Add plex to the volume if possible */
 int
-give_plex_to_volume(int volno, int plexno)
+give_plex_to_volume(int volno, int plexno, int preferme)
 {
     struct volume *vol;
     int i;
+    int volplexno;
 
     /*
      * It's not an error for the plex to already
@@ -186,25 +188,34 @@ give_plex_to_volume(int volno, int plexno)
      * number of things to make sure it's done right.
      * Some day.
      */
-    if (my_plex(volno, plexno) >= 0)
-	return plexno;					    /* that's it */
-
+    volplexno = my_plex(volno, plexno);
     vol = &VOL[volno];					    /* point to volume */
-    if (vol->plexes == MAXPLEX)				    /* all plexes allocated */
-	throw_rude_remark(ENOSPC,
-	    "Too many plexes for volume %s",
-	    vol->name);
-    else if ((vol->plexes > 0)				    /* we have other plexes */
-    &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
-	invalidate_subdisks(&PLEX[plexno], sd_stale);	    /* make the subdisks invalid */
-    vol->plex[vol->plexes] = plexno;			    /* this one */
-    vol->plexes++;					    /* add another plex */
-    PLEX[plexno].volno = volno;				    /* note the number of our volume */
+    if (volplexno < 0) {
+	if (vol->plexes == MAXPLEX)			    /* all plexes allocated */
+	    throw_rude_remark(ENOSPC,
+		"Too many plexes for volume %s",
+		vol->name);
+	else if ((vol->plexes > 0)			    /* we have other plexes */
+	&&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
+	    invalidate_subdisks(&PLEX[plexno], sd_stale);   /* make our subdisks invalid */
+	vol->plex[vol->plexes] = plexno;		    /* this one */
+	vol->plexes++;					    /* add another plex */
+	PLEX[plexno].volno = volno;			    /* note the number of our volume */
 
-    /* Find out how big our volume is */
-    for (i = 0; i < vol->plexes; i++)
-	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
-    return vol->plexes - 1;				    /* and return its index */
+	/* Find out how big our volume is */
+	for (i = 0; i < vol->plexes; i++)
+	    vol->size = max(vol->size, PLEX[vol->plex[i]].length);
+	volplexno = vol->plexes - 1;			    /* number of plex in volume */
+    }
+    if (preferme) {
+	if (vol->preferred_plex > 0)			    /* already had a facourite, */
+	    printf("vinum: changing preferred plex for %s from %s to %s\n",
+		vol->name,
+		PLEX[vol->plex[vol->preferred_plex]].name,
+		PLEX[plexno].name);
+	vol->preferred_plex = volplexno;
+    }
+    return volplexno;
 }
 
 /*
@@ -1261,8 +1272,10 @@ config_plex(int update)
     int detached = 0;					    /* don't give it to a volume */
     int namedplexno;
     enum plexstate state = plex_init;			    /* state to set at end */
+    int preferme;					    /* set if we want to be preferred access */
 
     current_plex = -1;					    /* forget the previous plex */
+    preferme = 0;					    /* nothing special yet */
     plexno = get_empty_plex();				    /* allocate a plex */
     plex = &PLEX[plexno];				    /* and point to it */
     plex->plexno = plexno;				    /* and back to the config */
@@ -1366,6 +1379,17 @@ config_plex(int update)
 		throw_rude_remark(EINVAL, "Need a stripe size parameter");
 	    break;
 
+	    /*
+	     * We're the preferred plex of our volume.
+	     * Unfortunately, we don't know who our
+	     * volume is yet.  Note that we want to be
+	     * preferred, and actually do it after we
+	     * get a volume.
+	     */
+	case kw_preferred:
+	    preferme = 1;
+	    break;
+
 	case kw_volume:
 	    plex->volno = find_volume(token[++parameter], 1); /* insert a pointer to the volume */
 	    break;
@@ -1401,7 +1425,9 @@ config_plex(int update)
 	plex->volno = current_volume;
 
     if (plex->volno >= 0)
-	pindex = give_plex_to_volume(plex->volno, plexno);  /* Now tell the volume that it has this plex */
+	pindex = give_plex_to_volume(plex->volno,	    /* Now tell the volume that it has this plex */
+	    plexno,
+	    preferme);
 
     /* Does the plex have a name?  If not, give it one */
     if (plex->name[0] == '\0') {			    /* no name */
@@ -1494,8 +1520,12 @@ config_volume(int update)
 		    int myplexno;			    /* index of this plex */
 
 		    myplexno = find_plex(token[++parameter], 1); /* find a plex */
-		    if (myplexno < 0)			    /* couldn't */
+		    if (myplexno < 0) {			    /* couldn't */
+			printf("vinum: couldn't find preferred plex %s for %s\n",
+			    token[parameter],
+			    vol->name);
 			break;				    /* we've already had an error message */
+		    }
 		    myplexno = my_plex(volno, myplexno);    /* does it already belong to us? */
 		    if (myplexno > 0)			    /* yes */
 			vol->preferred_plex = myplexno;	    /* just note the index */
