@@ -61,6 +61,9 @@ to scan for shared libraries.  Each directory's pathname must start on a new
 line.  Blank lines and lines starting with the comment character
 .Ql \&#
 are ignored.
+Filenames must conform to the
+.Pa lib*.so.[0-9]
+pattern in order to be added to the hints file.
 .Pp
 For security reasons, directories which are world or group-writable or which
 are not owned by root produce warning messages and are skipped, unless
