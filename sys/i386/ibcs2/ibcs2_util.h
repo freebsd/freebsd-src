@@ -58,7 +58,7 @@ static __inline void *stackgap_alloc(caddr_t *, size_t);
 static __inline caddr_t
 stackgap_init()
 {
-#define szsigcode (*(curproc->p_sysent->sv_szsigcode), sizeof(char *))
+#define szsigcode (*(curproc->p_sysent->sv_szsigcode))
         return (caddr_t)(((caddr_t)PS_STRINGS) - szsigcode - SPARE_USRSPACE);
 }
 
