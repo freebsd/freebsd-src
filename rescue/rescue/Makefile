@@ -235,9 +235,6 @@ exe: $(PROG)
 
 $(CONF): Makefile
 	echo \# Auto-generated, do not edit >$(.TARGET)
-.for D in $(CRUNCH_SRCDIRS)
-	echo srcdirs $(.CURDIR)/../../$(D) >>$(.TARGET)
-.endfor
 .ifdef CRUNCH_BUILDOPTS
 	echo buildopts $(CRUNCH_BUILDOPTS) >>$(.TARGET)
 .endif
@@ -249,6 +246,8 @@ $(CONF): Makefile
 	echo progs $(P) >>$(.TARGET)
 .ifdef CRUNCH_SRCDIR_${P}
 	echo special $(P) srcdir $(CRUNCH_SRCDIR_${P}) >>$(.TARGET)
+.else
+	echo special $(P) srcdir $(.CURDIR)/../../$(D)/$(P) >>$(.TARGET)
 .endif
 .ifdef CRUNCH_BUILDOPTS_${P}
 	echo special $(P) buildopts $(CRUNCH_BUILDOPTS_${P}) >>$(.TARGET)
