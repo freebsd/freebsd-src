@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * VIA Rhine fast ethernet PCI NIC driver
  *
@@ -41,7 +44,6 @@
  * Electrical Engineering Department
  * Columbia University, New York City
  */
-
 /*
  * The VIA Rhine controllers are similar in some respects to the
  * the DEC tulip chips, except less complicated. The controller
@@ -56,9 +58,6 @@
  * at longword boundaries, so we have to do a buffer copy before
  * transmission.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

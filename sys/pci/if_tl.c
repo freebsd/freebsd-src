@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Texas Instruments ThunderLAN driver for FreeBSD 2.2.6 and 3.x.
  * Supports many Compaq PCI NICs based on the ThunderLAN ethernet controller,
@@ -47,7 +50,6 @@
  * Electrical Engineering Department
  * Columbia University, New York City
  */
-
 /*
  * Some notes about the ThunderLAN:
  *
@@ -118,7 +120,6 @@
  * TX 'end of frame' interrupt. It will also generate an 'end of channel'
  * interrupt when it reaches the end of the list.
  */
-
 /*
  * Some notes about this driver:
  *
@@ -175,9 +176,6 @@
  * to and from the ThunderLAN chip is performed entirely by the chip
  * itself thereby reducing the load on the host CPU.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
