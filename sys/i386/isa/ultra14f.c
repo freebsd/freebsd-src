@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.41 1995/12/07 12:46:10 davidg Exp $
+ *      $Id: ultra14f.c,v 1.42 1995/12/10 13:39:22 phk Exp $
  */
 
 #include <sys/types.h>
@@ -265,18 +265,28 @@ static struct uha_data {
 	struct scsi_link sc_link;
 } *uhadata[NUHA];
 
-static int     uhaprobe();
-static int     uha_attach();
-static int32   uha_scsi_cmd();
-static timeout_t uha_timeout;
-static void	uha_free_mscp();
-static int     uha_abort();
-static void    uhaminphys();
-static void    uha_done();
-static u_int32 uha_adapter_info();
-static struct mscp *uha_mscp_phys_kv();
+static int	uha_abort __P((int unit, struct mscp *mscp));
+static u_int32	uha_adapter_info __P((int unit));
+static int	uha_attach __P((struct isa_device *dev));
+static void	uha_done __P((int unit, struct mscp *mscp));
+static void	uha_free_mscp __P((int unit, struct mscp *mscp, int flags));
+static struct mscp *
+		uha_get_mscp __P((int unit, int flags));
 static int	uha_init __P((int unit));
 static int	uha24_init __P((int unit));
+static void	uhaminphys __P((struct buf *bp));
+static struct mscp *
+		uha_mscp_phys_kv __P((struct uha_data *uha, long mscp_phys));
+static int	uha_poll __P((int unit, int wait));
+#ifdef UHADEBUG
+static void	uha_print_active_mscp __P((int unit));
+static void	uha_print_mscp __P((struct mscp *mscp));
+#endif
+static int	uhaprobe __P((struct isa_device *dev));
+static int32	uha_scsi_cmd __P((struct scsi_xfer *xs));
+static void	uha_send_mbox __P((int unit, struct mscp *mscp));
+static timeout_t
+		uha_timeout;
 
 static	struct mscp *cheat;
 static unsigned long int scratch;
