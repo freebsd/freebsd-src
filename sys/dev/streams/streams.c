@@ -146,6 +146,35 @@ typedef	struct streams_softc *sc_p;
 
 static sc_p sca[NSTREAMS];
 
+static void
+streamsattach(void *dummy)
+{
+	cdevsw_add_generic(CDEV_MAJOR, CDEV_MAJOR, &streams_cdevsw);
+}
+
+static	int
+streams_modevent(module_t mod, int type, void *unused)
+{
+	switch (type) {
+	case MOD_LOAD:
+		streamsattach(NULL);
+		return 0;
+	case MOD_UNLOAD:
+		cdevsw[CDEV_MAJOR] = NULL;		/* clean up cdev */
+		return 0;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static moduledata_t streams_mod = {
+	"streams",
+	streams_modevent,
+	0
+};
+DECLARE_MODULE(streams, streams_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
+
 /*
  * We only need open() and close() routines.  open() calls socreate()
  * to allocate a "real" object behind the stream and mallocs some state
