@@ -37,7 +37,14 @@
  * - Return values.  There are nonstandard return values defined and used
  *   in the source code.  This is because RFC2553 is silent about which error
  *   code must be returned for which situation.
- * - PF_UNSPEC case would be handled in getipnodebyname() with the AI_ALL flag.
+ * Note:
+ * - We use getipnodebyname() just for thread-safeness.  There's no intent
+ *   to let it do PF_UNSPEC (actually we never pass PF_UNSPEC to
+ *   getipnodebyname().
+ * - The code filters out AFs that are not supported by the kernel,
+ *   when globbing NULL hostname (to loopback, or wildcard).  Is it the right
+ *   thing to do?  What is the relationship with post-RFC2553 AI_ADDRCONFIG
+ *   in ai_flags?
  */
 
 #include <sys/types.h>
@@ -139,8 +146,6 @@ static int explore_numeric __P((const struct addrinfo *, const char *,
 	const char *, struct addrinfo **));
 static int explore_numeric_scope __P((const struct addrinfo *, const char *,
 	const char *, struct addrinfo **));
-static int get_name __P((const char *, const struct afd *, struct addrinfo **,
-	char *, const struct addrinfo *, const char *));
 static int get_canonname __P((const struct addrinfo *,
 	struct addrinfo *, const char *));
 static struct addrinfo *get_ai __P((const struct addrinfo *,
@@ -461,7 +466,6 @@ explore_fqdn(pai, hostname, servname, res)
 	const char *servname;
 	struct addrinfo **res;
 {
-	int s;
 	struct hostent *hp;
 	int h_error;
 	int af;
@@ -474,15 +478,6 @@ explore_fqdn(pai, hostname, servname, res)
 	*res = NULL;
 	sentinel.ai_next = NULL;
 	cur = &sentinel;
-
-	/*
-	 * filter out AFs that are not supported by the kernel
-	 * XXX errno?
-	 */
-	s = socket(pai->ai_family, SOCK_DGRAM, 0);
-	if (s < 0)
-		return 0;
-	_libc_close(s);
 
 	/*
 	 * if the servname does not match socktype/protocol, ignore it.
@@ -528,22 +523,15 @@ explore_fqdn(pai, hostname, servname, res)
 		if (af != pai->ai_family)
 			continue;
 
-		if ((pai->ai_flags & AI_CANONNAME) == 0) {
-			GET_AI(cur->ai_next, afd, ap);
-			GET_PORT(cur->ai_next, servname);
-		} else {
+		GET_AI(cur->ai_next, afd, ap);
+		GET_PORT(cur->ai_next, servname);
+		if ((pai->ai_flags & AI_CANONNAME) != 0) {
 			/*
-			 * if AI_CANONNAME and if reverse lookup
-			 * fail, return ai anyway to pacify
-			 * calling application.
-			 *
-			 * XXX getaddrinfo() is a name->address
-			 * translation function, and it looks
-			 * strange that we do addr->name
-			 * translation here.
+			 * RFC2553 says that ai_canonname will be set only for
+			 * the first element.  we do it for all the elements,
+			 * just for convenience.
 			 */
-			get_name(ap, afd, &cur->ai_next,
-				ap, pai, servname);
+			GET_CANONNAME(cur->ai_next, hp->h_name);
 		}
 
 		while (cur && cur->ai_next)
@@ -648,56 +636,10 @@ explore_numeric(pai, hostname, servname, res)
 	flags = pai->ai_flags;
 
 	if (inet_pton(afd->a_af, hostname, pton) == 1) {
-		u_int32_t v4a;
-#ifdef INET6
-		struct in6_addr * v6a;
-#endif
-
-		switch (afd->a_af) {
-		case AF_INET:
-			v4a = (u_int32_t)ntohl(((struct in_addr *)pton)->s_addr);
-			if (IN_MULTICAST(v4a) || IN_EXPERIMENTAL(v4a))
-				flags &= ~AI_CANONNAME;
-			v4a >>= IN_CLASSA_NSHIFT;
-			if (v4a == 0 || v4a == IN_LOOPBACKNET)
-				flags &= ~AI_CANONNAME;
-			break;
-#ifdef INET6
-		case AF_INET6:
-			v6a = (struct in6_addr *)pton;
-			if (IN6_IS_ADDR_MULTICAST(v6a))
-				flags &= ~AI_CANONNAME;
-			if (IN6_IS_ADDR_UNSPECIFIED(v6a) ||
-			    IN6_IS_ADDR_LOOPBACK(v6a))
-				flags &= ~AI_CANONNAME;
-			if (IN6_IS_ADDR_LINKLOCAL(v6a))
-				flags &= ~AI_CANONNAME;
-
-			/* should also do this for SITELOCAL ?? */
-
-			break;
-#endif
-		}
-
 		if (pai->ai_family == afd->a_af ||
 		    pai->ai_family == PF_UNSPEC /*?*/) {
-			if ((flags & AI_CANONNAME) == 0) {
-				GET_AI(cur->ai_next, afd, pton);
-				GET_PORT(cur->ai_next, servname);
-			} else {
-				/*
-				 * if AI_CANONNAME and if reverse lookup
-				 * fail, return ai anyway to pacify
-				 * calling application.
-				 *
-				 * XXX getaddrinfo() is a name->address
-				 * translation function, and it looks
-				 * strange that we do addr->name
-				 * translation here.
-				 */
-				get_name(pton, afd, &cur->ai_next,
-					pton, pai, servname);
-			}
+			GET_AI(cur->ai_next, afd, pton);
+			GET_PORT(cur->ai_next, servname);
 			while (cur && cur->ai_next)
 				cur = cur->ai_next;
 		} else
@@ -795,47 +737,6 @@ free:
 
 	return error;
 #endif
-}
-
-static int
-get_name(addr, afd, res, numaddr, pai, servname)
-	const char *addr;
-	const struct afd *afd;
-	struct addrinfo **res;
-	char *numaddr;
-	const struct addrinfo *pai;
-	const char *servname;
-{
-	struct hostent *hp;
-	struct addrinfo *cur;
-	int error = 0;
-	int h_error;
-
-	hp = getipnodebyaddr(addr, afd->a_addrlen, afd->a_af, &h_error);
-	if (hp && hp->h_name && hp->h_name[0] && hp->h_addr_list[0]) {
-		if (hp->h_addrtype == afd->a_af)
-			GET_AI(cur, afd, hp->h_addr_list[0]);
-		else /* IPv4 mapped IPv6 addr case */
-			GET_AI(cur, afd, numaddr);
-		GET_PORT(cur, servname);
-		GET_CANONNAME(cur, hp->h_name);
-	} else {
-		GET_AI(cur, afd, numaddr);
-		GET_PORT(cur, servname);
-	}
-
-	if (hp)
-		freehostent(hp);
-	*res = cur;
-	return SUCCESS;
- free:
-	if (cur)
-		freeaddrinfo(cur);
-	if (hp)
-		freehostent(hp);
- /* bad: */
-	*res = NULL;
-	return error;
 }
 
 static int
