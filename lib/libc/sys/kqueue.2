@@ -100,7 +100,7 @@ determines the size of
 If
 .Fa timeout
 is a non-NULL pointer, it specifies a maximum interval to wait
-for an event.  If
+for an event, which will be interpreted as a struct timespec.  If
 .Fa timeout
 is a NULL pointer,
 .Fn kevent
