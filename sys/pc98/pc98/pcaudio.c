@@ -574,12 +574,15 @@ pcaintr(struct clockframe *frame)
 			: : "a" ((char)pca_status.oldval) );
 		__asm__("xlatb\n"
 #ifdef PC98
-			"outb %0,$0x3fdb"
+			"outb %0,%%dx"
+			: : "a" ((char)pca_status.buffer[pca_status.index]),
+			    "b" (volume_table),
+			    "d" ((u_short)0x3fdb) );
 #else
 			"outb %0,$0x42"
-#endif
 			: : "a" ((char)pca_status.buffer[pca_status.index]),
 			    "b" (volume_table) );
+#endif
 		enable_intr();
 		pca_status.counter += pca_status.scale;
 		pca_status.index = (pca_status.counter >> 8);
