@@ -46,17 +46,13 @@
 
 #include <sys/param.h> 
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
-#include <sys/buf.h> 
 #include <sys/poll.h>
 #include <sys/vnode.h>
 #include <sys/filio.h>
-#include <machine/clock.h>
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <sys/alogio.h>
 #include <sys/dataacq.h>

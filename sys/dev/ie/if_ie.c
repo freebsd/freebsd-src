@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.49 1998/01/08 23:40:56 eivind Exp $
+ *	$Id: if_ie.c,v 1.50 1998/02/09 06:08:29 eivind Exp $
  */
 
 /*
@@ -121,9 +121,7 @@ iomem and and with 0xffff.
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 
