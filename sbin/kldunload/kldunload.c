@@ -50,7 +50,7 @@ main(int argc, char** argv)
     int c;
     int verbose = 0;
     int fileid = 0;
-    char* filename = 0;
+    char* filename = NULL;
 
     while ((c = getopt(argc, argv, "i:n:v")) != -1)
 	switch (c) {
@@ -71,18 +71,18 @@ main(int argc, char** argv)
     argc -= optind;
     argv += optind;
 
-    if (!fileid && !filename && (argc == 1)) {
+    if (fileid == 0 && filename == NULL && (argc == 1)) {
 	filename = *argv;
 	argc--;
     }
     
-    if (argc != 0 || (fileid && filename))
+    if (argc != 0 || (fileid != 0 && filename != NULL))
 	usage();
 
-    if (fileid == 0 && filename == 0)
+    if (fileid == 0 && filename == NULL)
 	usage();
 
-    if (filename) {
+    if (filename != NULL) {
 	if ((fileid = kldfind(filename)) < 0)
 	    err(1, "can't find file %s", filename);
     }
