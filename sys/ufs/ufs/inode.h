@@ -67,6 +67,7 @@ typedef long ufs_lbn_t;
  */
 struct inode {
 	LIST_ENTRY(inode) i_hash;/* Hash chain. */
+	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
 	u_int32_t i_flag;	/* flags, see below */
@@ -83,7 +84,6 @@ struct inode {
 	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
 	u_quad_t i_modrev;	/* Revision level for NFS lease. */
 	struct	 lockf *i_lockf;/* Head of byte-level lock list. */
-	struct	 inode *i_copyonwrite; /* copy-on-write list */
 	/*
 	 * Side effects; used during directory lookup.
 	 */
