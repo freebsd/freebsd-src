@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.17 1995/06/27 09:53:27 dfr Exp $
+ *	$Id: crt0.c,v 1.18 1995/09/27 23:13:33 nate Exp $
  */
 
 
@@ -72,8 +72,10 @@ extern void _startup_setlocale __P((int, const char *));
 extern struct _dynamic _DYNAMIC;
 static struct ld_entry	*ld_entry;
 static void	__do_dynamic_link ();
+#ifdef DEBUG
 static char	*_getenv();
 static int	_strncmp();
+#endif /* DEBUG */
 
 #ifdef sun
 #define LDSO	"/usr/lib/ld.so"
@@ -334,6 +336,7 @@ dlerror()
 /*
  * Support routines
  */
+#ifdef DEBUG
 
 static int
 _strncmp(s1, s2, n)
@@ -368,6 +371,8 @@ _getenv(name)
 			}
 	return (char *)0;
 }
+
+#endif /* DEBUG */
 
 	asm("	___syscall:");
 	asm("		popl %ecx");
