@@ -61,7 +61,7 @@
 % */
 %
 %#ifndef lint
-%static char *RCSid = "@(#) $FreeBSD$";
+%static const char RCSid[] = "@(#) $FreeBSD$";
 %#endif
 %
 #endif
