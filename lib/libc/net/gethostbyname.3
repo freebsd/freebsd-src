@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)gethostbyname.3	8.2 (Berkeley) 4/19/94
+.\"     @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
 .\"
-.Dd April 19, 1994
+.Dd May 25, 1995
 .Dt GETHOSTBYNAME 3
 .Os BSD 4.2
 .Sh NAME
@@ -44,7 +44,7 @@
 .Nd get network host entry
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
-.Fd extern struct h_errno;
+.Fd extern int h_errno;
 .Ft struct hostent *
 .Fn gethostbyname "char *name"
 .Ft struct hostent *
@@ -85,19 +85,20 @@ The members of this structure are:
 .It Fa h_name
 Official name of the host.
 .It Fa h_aliases
-A zero terminated array of alternate names for the host.
+A NULL-terminated array of alternate names for the host.
 .It Fa h_addrtype
 The type of address being returned; currently always
 .Dv AF_INET .
 .It Fa h_length
 The length, in bytes, of the address.
 .It Fa h_addr_list
-A zero terminated array of network addresses for the host.
+A NULL-terminated array of network addresses for the host.
 Host addresses are returned in network byte order.
 .It Fa h_addr
 The first address in
 .Fa h_addr_list ;
 this is for backward compatibility.
+.El
 .Pp
 When using the nameserver,
 .Fn gethostbyname
