@@ -54,6 +54,7 @@
  * word which is used to de-multiplex a single software
  * interrupt used for scheduling the network code to calls
  * on the lowest level routine of each protocol.
+ * Therefore must be < 32.
  */
 #define	NETISR_RAW	0		/* same as AF_UNSPEC */
 #define	NETISR_IP	2		/* same as AF_INET */
@@ -67,6 +68,7 @@
 #define	NETISR_ISDN	26		/* same as AF_E164 */
 #define	NETISR_PPP	27		/* PPP soft interrupt */
 #define	NETISR_NATM	29		/* same as AF_NATM */
+#define	NETISR_NETGRAPH	31		/* NOT same as AF_NETGRAPH */
 
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 

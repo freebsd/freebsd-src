@@ -27,6 +27,8 @@
     ..
     netatm
     ..
+    netgraph
+    ..
     netinet
     ..
     netipx
