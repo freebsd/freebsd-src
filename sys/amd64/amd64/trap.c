@@ -254,18 +254,19 @@ trap(frame)
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curproc->p_comm, type);
-		else if (type != T_BPTFLT && type != T_TRCTRAP)
+		else if (type != T_BPTFLT && type != T_TRCTRAP) {
 			/*
 			 * XXX not quite right, since this may be for a
 			 * multiple fault in user mode.
 			 */
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
-		/*
-		 * We should walk p_heldmtx here and see if any are
-		 * spin mutexes, and not do this if so.
-		 */
-		enable_intr();
+			/*
+			 * We should walk p_heldmtx here and see if any are
+			 * spin mutexes, and not do this if so.
+			 */
+			enable_intr();
+		}
 	}
 
 	eva = 0;
