@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.198 1999/05/05 11:34:03 jkh Exp $
+ * $Id: menus.c,v 1.199 1999/05/11 08:33:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1189,10 +1189,12 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuStartup },
       { "8 Options",	"View/Set various installation options",
 	NULL, optionsEditor },
-      { "D HTML Docs",	"Go to the HTML documentation menu (post-install)",
-	NULL, docBrowser },
-      { "X XFree86",	"Configure XFree86",
+      { "X XFree86",	"Configure XFree86 Server",
 	NULL, configXSetup },
+      { "X Desktop",	"Configure XFree86 Desktop",
+	NULL, configXDesktop },
+      { "H HTML Docs",	"Go to the HTML documentation menu (post-install)",
+	NULL, docBrowser },
       { "E Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
       { NULL } },
