@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.125 1995/03/24 08:10:53 phk Exp $
+#	$Id: Makefile,v 1.126 1995/03/28 18:14:03 phk Exp $
 #
 # How to roll a release:
 #
@@ -129,19 +129,21 @@ release.2:
 
 # Make and install a couple of kernels we need.
 release.3:
-	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	cd ${.CURDIR}/../sys/i386/conf ; \
-		config GENERIC ; \
+	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
+	cd ${.CURDIR}/../sys/i386/conf && \
+		config GENERIC && \
 		config BOOTFLP
-	cd ${.CURDIR}/../sys/compile/GENERIC ; \
-		make depend ; \
-		make kernel ; \
-		install -c kernel ${RD}/trees/bin/kernel.GENERIC
+	cd ${.CURDIR}/../sys/compile/GENERIC && \
+		make depend && \
+		make kernel && \
+		install -c kernel ${RD}/trees/bin/kernel.GENERIC && \
+		cd .. && rm -rf GENERIC
 	ln -f ${RD}/trees/bin/kernel.GENERIC ${RD}/cpiofd/kernel
-	cd ${.CURDIR}/../sys/compile/BOOTFLP ; \
-		make depend ; \
-		make kernel ; \
-		install -s -c kernel ${RD}/bootfd/kernel
+	cd ${.CURDIR}/../sys/compile/BOOTFLP && \
+		make depend && \
+		make kernel && \
+		install -s -c kernel ${RD}/bootfd/kernel && \
+		cd .. && rm -rf BOOTFLP
 	ln -f ${RD}/bootfd/kernel ${RD}/fixitfd/kernel
 	touch release.3
 
@@ -205,6 +207,8 @@ release.5:
 				${RD}/trees/dict/usr/share/misc ; \
 		fi ; \
 	done
+	mv ${RD}/trees/bin/usr/share/info/* \
+		${RD}/trees/info/usr/share/info
 	for i in ${RD}/trees/bin/usr/lib/*_p.a ; do \
 		if [ -f $$i ] ; then \
 			mv $$i \
