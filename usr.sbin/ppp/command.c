@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.66 1997/07/12 19:22:34 brian Exp $
+ * $Id: command.c,v 1.67 1997/07/14 01:41:26 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -383,6 +383,17 @@ static int ShowTimeout()
   return 1;
 }
 
+static int ShowStopped()
+{
+  if (!VarTerm)
+    return 0;
+  if (!VarStoppedTimeout)
+    fprintf(VarTerm, " Stopped Timer: Disabled\n");
+  else
+    fprintf(VarTerm, " Stopped Timer: %d secs\n", VarStoppedTimeout);
+  return 1;
+}
+
 static int ShowAuthKey()
 {
   if (!VarTerm)
@@ -520,6 +531,8 @@ struct cmdtab const ShowCommands[] = {
 	"Show routing table", "show route"},
   { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
 	"Show Idle timeout value", "show timeout"},
+  { "stopped",  NULL,	  ShowStopped,		LOCAL_AUTH,
+	"Show STOPPED timeout value", "show stopped"},
 #ifndef NOMSEXT
   { "msext", 	NULL,	  ShowMSExt,		LOCAL_AUTH,
 	"Show MS PPP extentions", "show msext"},
@@ -837,6 +850,19 @@ char **argv;
     return 0;
   }
 
+  return -1;
+}
+
+static int
+SetStoppedTimeout(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  if (argc == 1) {
+    VarStoppedTimeout = atoi(argv[0]);
+    return 0;
+  }
   return -1;
 }
 
@@ -1290,6 +1316,8 @@ struct cmdtab const SetCommands[] = {
 	"Set Reconnect timeout", "set reconnect value ntries"},
   { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
 	"Set Redial timeout", "set redial value|random[.value|random] [dial_attempts]"},
+  { "stopped",   NULL,     SetStoppedTimeout,	LOCAL_AUTH,
+	"Set STOPPED timeout", "set stopped value"},
   { "server",    "socket",     SetServer,	LOCAL_AUTH,
 	"Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
