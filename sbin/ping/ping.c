@@ -137,6 +137,7 @@ int options;
 #endif /*IPSEC*/
 #define	F_TTL		0x8000
 #define	F_MISSED	0x10000
+#define	F_ONCE		0x20000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -242,7 +243,7 @@ main(argc, argv)
 
 	datap = &outpack[MINICMPLEN + PHDR_LEN];
 	while ((ch = getopt(argc, argv,
-		"AI:LQRS:T:c:adfi:l:m:np:qrs:t:v"
+		"AI:LQRS:T:c:adfi:l:m:nop:qrs:t:v"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -319,6 +320,9 @@ main(argc, argv)
 			break;
 		case 'n':
 			options |= F_NUMERIC;
+			break;
+		case 'o':
+			options |= F_ONCE;
 			break;
 		case 'p':		/* fill buffer with user pattern */
 			options |= F_PINGFILLED;
@@ -696,7 +700,8 @@ main(argc, argv)
 				t = &now;
 			}
 			pr_pack((char *)packet, cc, &from, t);
-			if (npackets && nreceived >= npackets)
+			if (options & F_ONCE && nreceived ||
+			    npackets && nreceived >= npackets)
 				break;
 		}
 		if (n == 0 || options & F_FLOOD) {
@@ -1441,7 +1446,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: ping [-AQRadfnqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
+"usage: ping [-AQRadfnoqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
 "            [-p pattern] "
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
