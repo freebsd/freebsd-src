@@ -48,9 +48,9 @@ The
 .Nm rndcontrol
 command is used to set which interrupts are used to help randomise
 the ``pool of entropy'' maintained by the kernel. The 
-.Em 0 /dev/random
+.Em /dev/random
 and
-.Em 0 /dev/urandom
+.Em /dev/urandom
 devices are the user interface to this source of randomness.
 Any changes take effect immediately.
 .Sh OPTIONS
@@ -62,7 +62,7 @@ Turns off all output except errors.
 .It Fl s  Ar n
 Allows IRQ
 .Em n
-to be$ used as a source of randomness. This option may be repeated for
+to be used as a source of randomness. This option may be repeated for
 more than one IRQ.
 .It Fl c  Ar n
 Stops IRQ
