@@ -326,7 +326,7 @@ struct mac_policy_ops {
 		    struct label *label, int op);
 };
 
-typedef void *macop_t;
+typedef const void *macop_t;
 
 enum mac_op_constant {
 	MAC_OP_LAST,
@@ -445,7 +445,7 @@ enum mac_op_constant {
 
 struct mac_policy_op_entry {
 	enum mac_op_constant mpe_constant;	/* what this hook implements */
-	void *mpe_function;			/* hook's implementation */
+	macop_t mpe_function;			/* hook's implementation */
 };
 
 struct mac_policy_conf {
