@@ -25,13 +25,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * ics2101.c,v 1.4 1994/10/01 02:16:43 swallace Exp
  */
 
 #include "sound_config.h"
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
-#include <machine/ultrasound.h>
+#include "ultrasound.h"
 #include "gus_hw.h"
 
 #define MIX_DEVS	(SOUND_MASK_MIC|SOUND_MASK_LINE| \
@@ -50,10 +49,10 @@ scale_vol (int vol)
 {
 #if 1
   /*
- *	Experimental volume scaling by Risto Kankkunen.
- *	This should give smoother volume response than just
- *	a plain multiplication.
- */
+     *  Experimental volume scaling by Risto Kankkunen.
+     *  This should give smoother volume response than just
+     *  a plain multiplication.
+   */
   int             e;
 
   if (vol < 0)
@@ -225,6 +224,7 @@ ics2101_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 
 static struct mixer_operations ics2101_mixer_operations =
 {
+  "ICS2101 Multimedia Mixer",
   ics2101_mixer_ioctl
 };
 
@@ -238,9 +238,9 @@ ics2101_mixer_init (long mem_start)
       mixer_devs[num_mixers++] = &ics2101_mixer_operations;
 
       /*
- * Some GUS v3.7 cards had some channels flipped. Disable
- * the flipping feature if the model id is other than 5.
- */
+         * Some GUS v3.7 cards had some channels flipped. Disable
+         * the flipping feature if the model id is other than 5.
+       */
 
       if (INB (u_MixSelect) != 5)
 	{

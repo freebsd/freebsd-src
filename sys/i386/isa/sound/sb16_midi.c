@@ -25,14 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * sb16_midi.c,v 1.4 1994/10/01 02:17:03 swallace Exp
  */
 
 #include "sound_config.h"
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16MIDI) && !defined(EXCLUDE_MIDI)
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_MIDI)
 
 #include "sb.h"
 
@@ -181,6 +180,7 @@ static struct midi_operations sb16midi_operations =
 {
   {"SoundBlaster 16 Midi", 0, 0, SNDCARD_SB16MIDI},
   &std_midi_synth,
+  {0},
   sb16midi_open,
   sb16midi_close,
   sb16midi_ioctl,
@@ -225,11 +225,7 @@ attach_sb16midi (long mem_start, struct address_info *hw_config)
       return mem_start;
     }
 
-#ifdef __FreeBSD__
-  printk ("sbmidi: <SoundBlaster MPU-401>");
-#else
   printk (" <SoundBlaster MPU-401>");
-#endif
 
   std_midi_synth.midi_dev = my_dev = num_midis;
   midi_devs[num_midis++] = &sb16midi_operations;

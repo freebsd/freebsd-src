@@ -1,29 +1,24 @@
 /*
  *	DMA buffer calls
- *
- * $Id: sound_calls.h,v 1.12 1995/05/07 06:38:48 pst Exp $
  */
 
-#ifndef _MACHINE_ISA_SOUND_H_
-#define _MACHINE_ISA_SOUND_H_
-
 int DMAbuf_open(int dev, int mode);
-int DMAbuf_output_ready(int dev);
-int DMAbuf_input_ready(int dev);
 int DMAbuf_release(int dev, int mode);
-int DMAbuf_getwrbuffer(int dev, char **buf, int *size);
-int DMAbuf_getrdbuffer(int dev, char **buf, int *len);
+int DMAbuf_getwrbuffer(int dev, char **buf, int *size, int dontblock);
+int DMAbuf_getrdbuffer(int dev, char **buf, int *len, int dontblock);
 int DMAbuf_rmchars(int dev, int buff_no, int c);
-int DMAbuf_start_input(int dev);
 int DMAbuf_start_output(int dev, int buff_no, int l);
 int DMAbuf_ioctl(int dev, unsigned int cmd, unsigned int arg, int local);
 long DMAbuf_init(long mem_start);
 int DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode);
-int DMAbuf_open_dma (int chan);
-void DMAbuf_close_dma (int chan);
-void DMAbuf_reset_dma (int chan);
+int DMAbuf_open_dma (int dev);
+void DMAbuf_close_dma (int dev);
+void DMAbuf_reset_dma (int dev);
 void DMAbuf_inputintr(int dev);
 void DMAbuf_outputintr(int dev, int underflow_flag);
+#ifdef ALLOW_SELECT
+int DMAbuf_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
+#endif
 
 /*
  *	System calls for /dev/dsp and /dev/audio
@@ -37,6 +32,10 @@ int audio_ioctl (int dev, struct fileinfo *file,
 	   unsigned int cmd, unsigned int arg);
 int audio_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long audio_init (long mem_start);
+
+#ifdef ALLOW_SELECT
+int audio_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
+#endif
 
 /*
  *	System calls for the /dev/sequencer
@@ -87,20 +86,12 @@ long  CMIDI_init  (long mem_start);
 int   CMIDI_open  (int dev, struct fileinfo *file);
 int   CMIDI_write (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
 int   CMIDI_read  (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
-int   CMIDI_close (int dev, struct fileinfo *file);
+int   CMIDI_close (int dev, struct fileinfo *file); 
 
 /*
  *
  *	Misc calls from various sources
  */
-
-/* 	From pro_midi.c 	*/
-
-long pro_midi_attach(long mem_start);
-int  pro_midi_open(int dev, int mode);
-void pro_midi_close(int dev);
-int pro_midi_write(int dev, snd_rw_buf *uio);
-int pro_midi_read(int dev, snd_rw_buf *uio);
 
 /*	From soundcard.c	*/
 long soundcard_init(long mem_start);
@@ -108,7 +99,7 @@ void tenmicrosec(void);
 void request_sound_timer (int count);
 void sound_stop_timer(void);
 int snd_ioctl_return(int *addr, int value);
-int snd_set_irq_handler (int interrupt_level, void(*hndlr)(int));
+int snd_set_irq_handler (int interrupt_level, INT_HANDLER_PROTO(), char *name);
 void snd_release_irq(int vect);
 void sound_dma_malloc(int dev);
 void sound_dma_free(int dev);
@@ -131,7 +122,7 @@ int sb_dsp_command (unsigned char val);
 int sb_reset_dsp (void);
 
 /*	From sb16_dsp.c	*/
-void sb16_dsp_interrupt (int unused);
+void sb16_dsp_interrupt (int irq);
 long sb16_dsp_init(long mem_start, struct address_info *hw_config);
 int sb16_dsp_detect(struct address_info *hw_config);
 
@@ -163,7 +154,6 @@ long attach_adlib_card(long mem_start, struct address_info *hw_config);
 int probe_adlib(struct address_info *hw_config);
 
 /*	From pas_card.c	*/
-void mix_write(unsigned char data, int ioaddr);
 long attach_pas_card(long mem_start, struct address_info *hw_config);
 int probe_pas(struct address_info *hw_config);
 int pas_set_intr(int mask);
@@ -186,13 +176,13 @@ void pas_midi_interrupt(void);
 long attach_gus_card(long mem_start, struct address_info * hw_config);
 int probe_gus(struct address_info *hw_config);
 int gus_set_midi_irq(int num);
-void gusintr(int);
+void gusintr(INT_HANDLER_PARMS(irq, dummy));
 long attach_gus_db16(long mem_start, struct address_info * hw_config);
 int probe_gus_db16(struct address_info *hw_config);
 
 /*	From gus_wave.c */
 int gus_wave_detect(int baseaddr);
-long gus_wave_init(long mem_start, int irq, int dma);
+long gus_wave_init(long mem_start, int irq, int dma, int dma_read);
 void gus_voice_irq(void);
 unsigned char gus_read8 (int reg);
 void gus_write8(int reg, unsigned int data);
@@ -207,6 +197,7 @@ void gus_midi_interrupt(int dummy);
 /*	From mpu401.c */
 long attach_mpu401(long mem_start, struct address_info * hw_config);
 int probe_mpu401(struct address_info *hw_config);
+void mpuintr(INT_HANDLER_PARMS(irq, dummy));
 
 /*	From uart6850.c */
 long attach_uart6850(long mem_start, struct address_info * hw_config);
@@ -234,13 +225,23 @@ void sound_timer_interrupt(void);
 /*	From ad1848.c */
 void ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture);
 int ad1848_detect (int io_base);
-void adintr (int dev);
+void     ad1848_interrupt (INT_HANDLER_PARMS(irq, dummy));
 long attach_ms_sound(long mem_start, struct address_info * hw_config);
 int probe_ms_sound(struct address_info *hw_config);
 
 /* 	From pss.c */
 int probe_pss (struct address_info *hw_config);
 long attach_pss (long mem_start, struct address_info *hw_config);
+int probe_pss_mpu (struct address_info *hw_config);
+long attach_pss_mpu (long mem_start, struct address_info *hw_config);
+int probe_pss_mss (struct address_info *hw_config);
+long attach_pss_mss (long mem_start, struct address_info *hw_config);
+
+/* 	From sscape.c */
+int probe_sscape (struct address_info *hw_config);
+long attach_sscape (long mem_start, struct address_info *hw_config);
+int probe_ss_ms_sound (struct address_info *hw_config);
+long attach_ss_ms_sound(long mem_start, struct address_info * hw_config);
 
 int pss_read (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
 int pss_write (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
@@ -251,4 +252,18 @@ int pss_ioctl (int dev, struct fileinfo *file,
 int pss_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long pss_init(long mem_start);
 
-#endif /* _MACHINE_ISA_SOUND_H_ */
+/* From aedsp16.c */
+int InitAEDSP16_SBPRO(struct address_info *hw_config);
+int InitAEDSP16_MSS(struct address_info *hw_config);
+int InitAEDSP16_MPU401(struct address_info *hw_config);
+
+/*	From midi_synth.c	*/
+void do_midi_msg (int synthno, unsigned char *msg, int mlen);
+
+/*	From trix.c	*/
+long attach_trix_wss (long mem_start, struct address_info *hw_config);
+int probe_trix_wss (struct address_info *hw_config);
+long attach_trix_sb (long mem_start, struct address_info *hw_config);
+int probe_trix_sb (struct address_info *hw_config);
+long attach_trix_mpu (long mem_start, struct address_info *hw_config);
+int probe_trix_mpu (struct address_info *hw_config);

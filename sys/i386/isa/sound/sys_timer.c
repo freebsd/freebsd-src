@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * sys_timer.c,v 1.2 1994/10/01 02:17:16 swallace Exp
  */
 
 #define SEQUENCER_C
@@ -52,13 +51,13 @@ static unsigned long
 tmr2ticks (int tmr_value)
 {
   /*
- *    Convert system timer ticks (HZ) to MIDI ticks
- */
+     *    Convert system timer ticks (HZ) to MIDI ticks
+   */
 
   unsigned long   tmp;
   unsigned long   scale;
 
-  tmp = (tmr_value * 1000) / HZ;/* Convert to msecs */
+  tmp = (tmr_value * 1000) / HZ;	/* Convert to msecs */
 
   scale = (60 * 1000) / (curr_tempo * curr_timebase);	/* msecs per MIDI tick */
 

@@ -1,6 +1,3 @@
-/*
- * midi_synth.h,v 1.2 1994/10/01 02:16:47 swallace Exp
- */
 int midi_synth_ioctl (int dev,
 	    unsigned int cmd, unsigned int arg);
 int midi_synth_kill_note (int dev, int channel, int note, int velocity);
@@ -17,6 +14,7 @@ void midi_synth_aftertouch (int dev, int channel, int pressure);
 void midi_synth_controller (int dev, int channel, int ctrl_num, int value);
 int midi_synth_patchmgr (int dev, struct patmgr_info *rec);
 void midi_synth_bender (int dev, int chn, int value);
+void midi_synth_setup_voice (int dev, int voice, int chn);
 
 
 #ifndef _MIDI_SYNTH_C_
@@ -43,6 +41,8 @@ static struct synth_operations std_midi_synth =
   midi_synth_panning,
   NULL,
   midi_synth_patchmgr,
-  midi_synth_bender
+  midi_synth_bender,
+  NULL,	/* alloc_voice */
+  midi_synth_setup_voice
 };
 #endif

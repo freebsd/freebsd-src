@@ -27,10 +27,9 @@
  * SUCH DAMAGE.
  *
  * Modified:
- *	Hunyue Yau	Jan 6 1994
- *	Added code to support the Sound Galaxy NX Pro mixer.
+ *      Hunyue Yau      Jan 6 1994
+ *      Added code to support the Sound Galaxy NX Pro mixer.
  *
- * sb_mixer.c,v 1.4 1994/10/01 02:17:07 swallace Exp
  */
 
 #include "sound_config.h"
@@ -43,6 +42,7 @@
 #undef SB_TEST_IRQ
 
 extern int      sbc_base;
+extern int      Jazz16_detected;
 
 static int      mixer_initialized = 0;
 
@@ -98,9 +98,9 @@ sb_mixer_set_stereo (int mode)
 
 /*
  * Returns:
- *	0	No mixer detected.
- *	1	Only a plain Sound Blaster Pro style mixer detected.
- *	2	The Sound Galaxy NX Pro mixer detected.
+ *      0       No mixer detected.
+ *      1       Only a plain Sound Blaster Pro style mixer detected.
+ *      2       The Sound Galaxy NX Pro mixer detected.
  */
 static int
 detect_mixer (void)
@@ -110,6 +110,7 @@ detect_mixer (void)
 
 #endif
   int             retcode = 1;
+  extern int      sbc_major;
 
   /*
    * Detect the mixer by changing parameters of two volume channels. If the
@@ -128,8 +129,8 @@ detect_mixer (void)
 
 #ifdef __SGNXPRO__
   /* Attempt to detect the SG NX Pro by check for valid bass/treble
- * registers.
- */
+     * registers.
+   */
   oldbass = sb_getmixer (BASS_LVL);
   oldtreble = sb_getmixer (TREBLE_LVL);
 
@@ -148,6 +149,21 @@ detect_mixer (void)
    */
   sb_setmixer (BASS_LVL, oldbass);
   sb_setmixer (TREBLE_LVL, oldtreble);
+
+  /*
+     * If the SB version is 3.X (SB Pro), assume we have a SG NX Pro 16.
+     * In this case it's good idea to disable the Disney Sound Source
+     * compatibility mode. It's useless and just causes noise every time the
+     * LPT-port is accessed.
+     *
+     * Also place the card into WSS mode.
+   */
+  if (sbc_major == 3)
+    {
+      OUTB (0x01, sbc_base + 0x1c);
+      OUTB (0x00, sbc_base + 0x1a);
+    }
+
 #endif
   return retcode;
 }
@@ -182,6 +198,100 @@ sb_mixer_get (int dev)
   return levels[dev];
 }
 
+#ifdef JAZZ16
+static char     smw_mix_regs[] =	/* Left mixer registers */
+{
+  0x0b,				/* SOUND_MIXER_VOLUME */
+  0x0d,				/* SOUND_MIXER_BASS */
+  0x0d,				/* SOUND_MIXER_TREBLE */
+  0x05,				/* SOUND_MIXER_SYNTH */
+  0x09,				/* SOUND_MIXER_PCM */
+  0x00,				/* SOUND_MIXER_SPEAKER */
+  0x03,				/* SOUND_MIXER_LINE */
+  0x01,				/* SOUND_MIXER_MIC */
+  0x07,				/* SOUND_MIXER_CD */
+  0x00,				/* SOUND_MIXER_IMIX */
+  0x00,				/* SOUND_MIXER_ALTPCM */
+  0x00,				/* SOUND_MIXER_RECLEV */
+  0x00,				/* SOUND_MIXER_IGAIN */
+  0x00,				/* SOUND_MIXER_OGAIN */
+  0x00,				/* SOUND_MIXER_LINE1 */
+  0x00,				/* SOUND_MIXER_LINE2 */
+  0x00				/* SOUND_MIXER_LINE3 */
+};
+
+static void
+smw_mixer_init (void)
+{
+  int             i;
+
+  sb_setmixer (0x00, 0x18);	/* Mute unused (Telephone) line */
+  sb_setmixer (0x10, 0x38);	/* Config register 2 */
+
+  supported_devices = 0;
+  for (i = 0; i < sizeof (smw_mix_regs); i++)
+    if (smw_mix_regs[i] != 0)
+      supported_devices |= (1 << i);
+
+  supported_rec_devices = supported_devices &
+    ~(SOUND_MASK_BASS | SOUND_MASK_TREBLE | SOUND_MASK_PCM |
+      SOUND_MASK_VOLUME);
+}
+
+static int
+smw_mixer_set (int dev, int value)
+{
+  int             left = value & 0x000000ff;
+  int             right = (value & 0x0000ff00) >> 8;
+  int             reg, val;
+
+  if (left > 100)
+    left = 100;
+  if (right > 100)
+    right = 100;
+
+  if (dev > 31)
+    return RET_ERROR (EINVAL);
+
+  if (!(supported_devices & (1 << dev)))	/* Not supported */
+    return RET_ERROR (EINVAL);
+
+  switch (dev)
+    {
+    case SOUND_MIXER_VOLUME:
+      sb_setmixer (0x0b, 96 - (96 * left / 100));	/* 96=mute, 0=max */
+      sb_setmixer (0x0c, 96 - (96 * right / 100));
+      break;
+
+    case SOUND_MIXER_BASS:
+    case SOUND_MIXER_TREBLE:
+      levels[dev] = left | (right << 8);
+
+      /* Set left bass and treble values */
+      val = ((levels[SOUND_MIXER_TREBLE] & 0xff) * 16 / 100) << 4;
+      val |= ((levels[SOUND_MIXER_BASS] & 0xff) * 16 / 100) & 0x0f;
+      sb_setmixer (0x0d, val);
+
+      /* Set right bass and treble values */
+      val = (((levels[SOUND_MIXER_TREBLE] >> 8) & 0xff) * 16 / 100) << 4;
+      val |= (((levels[SOUND_MIXER_BASS] >> 8) & 0xff) * 16 / 100) & 0x0f;
+      sb_setmixer (0x0e, val);
+      break;
+
+    default:
+      reg = smw_mix_regs[dev];
+      if (reg == 0)
+	return RET_ERROR (EINVAL);
+      sb_setmixer (reg, (24 - (24 * left / 100)) | 0x20);	/* 24=mute, 0=max */
+      sb_setmixer (reg + 1, (24 - (24 * right / 100)) | 0x40);
+    }
+
+  levels[dev] = left | (right << 8);
+  return left | (right << 8);
+}
+
+#endif
+
 static int
 sb_mixer_set (int dev, int value)
 {
@@ -190,6 +300,11 @@ sb_mixer_set (int dev, int value)
 
   int             regoffs;
   unsigned char   val;
+
+#ifdef JAZZ16
+  if (Jazz16_detected == 2)
+    return smw_mixer_set (dev, value);
+#endif
 
   if (left > 100)
     left = 100;
@@ -234,6 +349,7 @@ sb_mixer_set (int dev, int value)
     }
 
   change_bits (&val, dev, RIGHT_CHN, right);
+
   sb_setmixer (regoffs, val);
 
   levels[dev] = left | (right << 8);
@@ -338,6 +454,7 @@ sb_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 	    break;
 
 	  default:
+
 	    return IOCTL_OUT (arg, sb_mixer_set (cmd & 0xff, IOCTL_IN (arg)));
 	  }
       else
@@ -355,8 +472,11 @@ sb_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 	    break;
 
 	  case SOUND_MIXER_STEREODEVS:
-	    return IOCTL_OUT (arg, supported_devices &
-			      ~(SOUND_MASK_MIC | SOUND_MASK_SPEAKER));
+	    if (Jazz16_detected)
+	      return IOCTL_OUT (arg, supported_devices);
+	    else
+	      return IOCTL_OUT (arg, supported_devices &
+				~(SOUND_MASK_MIC | SOUND_MASK_SPEAKER));
 	    break;
 
 	  case SOUND_MIXER_RECMASK:
@@ -377,6 +497,7 @@ sb_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 
 static struct mixer_operations sb_mixer_operations =
 {
+  "SoundBlaster",
   sb_mixer_ioctl
 };
 
@@ -415,6 +536,18 @@ sb_mixer_init (int major_model)
     {
     case 3:
       mixer_caps = SOUND_CAP_EXCL_INPUT;
+
+#ifdef JAZZ16
+      if (Jazz16_detected == 2)	/* SM Wave */
+	{
+	  supported_devices = 0;
+	  supported_rec_devices = 0;
+	  iomap = &sbpro_mix;
+	  smw_mixer_init ();
+	  mixer_type = 1;
+	}
+      else
+#endif
 #ifdef __SGNXPRO__
       if (mixer_type == 2)	/* A SGNXPRO was detected */
 	{
