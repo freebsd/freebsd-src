@@ -40,67 +40,83 @@
 .In sys/socket.h
 .In net/if.h
 .In net/pfil.h
-.Ft struct packet_filter_hook *
+.Ft "struct packet_filter_hook *"
 .Fn pfil_hook_get "int flag" "struct pfil_head *ph"
 .Ft int
 .Fo pfil_add_hook
-.Fa "int (*func)(void *, int, struct ifnet *, int, struct mbuf **)"
+.Fa "int \*[lp]*func\*[rp]\*[lp]void *, int, struct ifnet *, int, struct mbuf **\*[rp]"
 .Fa "int flags"
 .Fa "struct pfil_head *ph"
 .Fc
 .Ft int
 .Fo pfil_remove_hook
-.Fa "int (*func)(void *, int, struct ifnet *, int, struct mbuf **)"
+.Fa "int \*[lp]*func\*[rp]\*[lp]void *, int, struct ifnet *, int, struct mbuf **\*[rp]"
 .Fa "int flags"
 .Fa "struct pfil_head *ph"
 .Fc
-.\"(void *, int, struct ifnet *, int, struct mbuf **)
 .Sh DESCRIPTION
 The
 .Nm
 interface allows a function to be called on every incoming or outgoing
-packets.  The hooks for these are embedded in the
+packets.
+The hooks for these are embedded in the
 .Fn ip_input
 and
 .Fn ip_output
-routines.  The
+routines.
+The
 .Fn pfil_hook_get
 function returns the first member of a particular hook, either the in or out
-list.  The
+list.
+The
 .Fn pfil_add_hook
 function takes a function of the form below as its first argument, and the
-flags for which lists to add the function to.  The possible values for these
-flags are some combination of PFIL_IN and PFIL_OUT.  The
+flags for which lists to add the function to.
+The possible values for these
+flags are some combination of
+.Dv PFIL_IN
+and
+.Dv PFIL_OUT .
+The
 .Fn pfil_remove_hook
 removes a hook from the specified lists.
 .Pp
 The
-.Va func
+.Fa func
 argument is a function with the following prototype.
 .Pp
 .Fn func "void *data" "int hlen" "struct ifnet *net" "int dir" "struct mbuf **m"
 .Pp
 The
-.Va data
-describes the packet.  Currently, this may only be a pointer to a ip structure.  The
-.Va net
+.Fa data
+describes the packet.
+Currently, this may only be a pointer to an
+.Vt ip
+structure.
+The
+.Fa net
 and
-.Va m
+.Fa m
 arguments describe the network interface and the mbuf holding data for this
-packet.  The
-.Va dir
-is the direction; 0 for incoming packets and 1 for outgoing packets.  if the function
+packet.
+The
+.Fa dir
+is the direction; 0 for incoming packets and 1 for outgoing packets.
+If the function
 returns non-zero, this signals an error and no further processing of this packet is
-performed.  The function should set errno to indicate the nature of the error.
+performed.
+The function should set
+.Va errno
+to indicate the nature of the error.
 It is the hook's responsibility to free the chain if the packet is being dropped.
 .Pp
 The
 .Nm
 interface is enabled in the kernel via the
-.Sy PFIL_HOOKS
+.Cd PFIL_HOOKS
 option.
 .Sh RETURN VALUES
-If successful
+If successful,
 .Fn pfil_hook_get
 returns the first member of the packet filter list,
 .Fn pfil_add_hook
@@ -122,7 +138,8 @@ however this was changed in
 .Nx 1.4
 to
 .Dv TAILQ
-structures.  This change was to allow the input and output filters to be
+structures.
+This change was to allow the input and output filters to be
 processed in reverse order, to allow the same path to be taken, in or out
 of the kernel.
 .Pp
@@ -132,7 +149,8 @@ interface was changed in 1.4T to accept a 3rd parameter to both
 .Fn pfil_add_hook
 and
 .Fn pfil_remove_hook ,
-introducing the capability of per-protocol filtering.  This was done
+introducing the capability of per-protocol filtering.
+This was done
 primarily in order to support filtering of IPv6.
 .Sh BUGS
 The current
