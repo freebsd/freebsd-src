@@ -3,6 +3,8 @@
  *
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
  *  University of Utah, Department of Computer Science
+ *
+ * $FreeBSD$
  */
 /*
  *  linux/fs/ext2/balloc.c
@@ -33,6 +35,7 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <gnu/ext2fs/ext2_extern.h>
