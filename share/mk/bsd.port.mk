@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.93 1995/01/04 08:30:33 jkh Exp $
+# $Id: bsd.port.mk,v 1.94 1995/01/04 09:58:39 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -101,6 +101,8 @@
 # package		- Create a package from a build.
 # describe		- Try to generate a one-line description for each port for
 #				  use in INDEX files and the like.
+# checksum		- Use files/md5 to ensure that your distfiles are valid
+# makesum		- Generate files/md5
 #
 # Default sequence for "all" is:  fetch extract configure build
 
@@ -261,9 +263,9 @@ is_depended:	all install
 .if defined(NO_EXTRACT) && !target(extract)
 extract:
 	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
-check-md5:
+checksum:
 	@${DO_NADA}
-make-md5:
+makesum:
 	@${DO_NADA}
 .endif
 .if defined(NO_CONFIGURE) && !target(configure)
@@ -291,11 +293,15 @@ patch:
 
 .if !target(describe)
 describe:
+.if defined(NO_PACKAGE)
+	@echo "${.CURDIR}/${DISTNAME}:   ** Not packageable";
+.else
 	@if [ -f ${PKGDIR}/COMMENT ]; then \
 		echo "${.CURDIR}/${DISTNAME}:	`cat ${PKGDIR}/COMMENT`"; \
 	else \
 		echo "${.CURDIR}/${DISTNAME}:	** No Description"; \
 	fi
+.endif
 .endif
 
 .if !target(reinstall)
@@ -495,8 +501,8 @@ fetch: pre-fetch
 	 done)
 .endif
 
-.if !target(make-md5)
-make-md5: fetch
+.if !target(makesum)
+makesum: fetch
 	@if [ ! -d ${FILESDIR} ]; then mkdir -p ${FILESDIR}; fi
 	@if [ -f ${MD5_FILE} ]; then rm -f ${MD5_FILE}; fi
 	
@@ -506,8 +512,8 @@ make-md5: fetch
 	done)
 .endif
 
-.if !target(check-md5)
-check-md5: fetch
+.if !target(checksum)
+checksum: fetch
 	@if [ ! -f ${MD5_FILE} ]; then \
 		echo ">> No MD5 checksum file."; \
 		exit 1; \
