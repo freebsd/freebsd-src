@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996-1998 John D. Polstra.
+ * Copyright 1996, 1997, 1998, 2000 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,7 @@
  * $FreeBSD$
  */
 
-	.section .init,"ax",@progbits
-	ret
-
-	.section .fini,"ax",@progbits
-	ret
+/*
+ * This file is not used any more.  It will go away as soon as the gcc
+ * linker specs have been updated accordingly.
+ */
