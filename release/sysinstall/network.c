@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.29 1997/02/22 14:12:12 peter Exp $
+ * $Id: network.c,v 1.30 1998/03/09 08:57:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -248,6 +248,8 @@ startPPP(Device *devp)
     fprintf(fp, " set device %s\n", devp->devname);
     fprintf(fp, " set ifaddr %s %s\n", myaddr, provider);
     fprintf(fp, " set timeout 0\n");
+    fprintf(fp, " enable dns\n");
+    fprintf(fp, " set log local phase\n");
     fclose(fp);
 
     if (!Fake && !file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
