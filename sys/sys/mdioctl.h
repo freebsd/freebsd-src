@@ -64,6 +64,8 @@ struct md_ioctl {
 	int		pad[100];	/* padding for future ideas */
 };
 
+#define MD_NAME		"md"
+#define MDCTL_NAME	"mdctl"
 #define MDIOVERSION	1
 
 /*
@@ -75,6 +77,7 @@ struct md_ioctl {
 
 #define MDIOCATTACH	_IOWR('m', 0, struct md_ioctl)	/* attach disk */
 #define MDIOCDETACH	_IOWR('m', 1, struct md_ioctl)	/* detach disk */
+#define MDIOCQUERY	_IOWR('m', 2, struct md_ioctl)	/* query status */
 
 #define MD_CLUSTER	0x01	/* Don't cluster */
 #define MD_RESERVE	0x02	/* Pre-reserve swap */

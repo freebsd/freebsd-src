@@ -61,6 +61,9 @@
 .Nm
 .Fl d
 .Fl u Ar unit
+.Nm
+.Fl l
+.Op Fl u Ar unit
 .Sh DESCRIPTION
 The
 .Nm
@@ -92,6 +95,13 @@ swapspace is used to back this memory disk.
 .El
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.
+.It Fl l
+List information about configured
+.Xr md 4
+devices.  If the
+.Fl u
+option is used in conjuction with this, the output is limited to
+information on the specified device.
 .It Fl s Ar size
 Size of the memory disk.
 .Ar Size
