@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.53 1998/12/14 17:58:05 luigi Exp $
+ * $Id: if_ethersubr.c,v 1.54 1999/01/12 12:07:00 eivind Exp $
  */
 
 #include "opt_atalk.h"
@@ -114,7 +114,8 @@ extern u_char	aarp_org_code[3];
 static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **, 
 				    struct sockaddr *));
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-#define senderr(e) { error = (e); goto bad;}
+#define senderr(e) do { error = (e); goto bad;} while (0)
+#define IFP2AC(IFP) ((struct arpcom *)IFP)
 
 /*
  * Ethernet output routine.
@@ -138,7 +139,7 @@ ether_output(ifp, m0, dst, rt0)
 	register struct ether_header *eh;
 	int off, len = m->m_pkthdr.len, loop_copy = 0;
 	int hlen;	/* link layer header lenght */
-	struct arpcom *ac = (struct arpcom *)ifp;
+	struct arpcom *ac = IFP2AC(ifp);
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
@@ -238,6 +239,12 @@ ether_output(ifp, m0, dst, rt0)
 		}
  		bcopy((caddr_t)&(((struct sockaddr_ns *)dst)->sns_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
+		/*
+		 * XXX if ns_thishost is the same as the node's ethernet
+		 * address then just the default code will catch this anyhow.
+		 * So I'm not sure if this next clause should be here at all?
+		 * [JRE]
+		 */
 		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst))){
 			m->m_pkthdr.rcvif = ifp;
 			schednetisr(NETISR_NS);
@@ -252,17 +259,7 @@ ether_output(ifp, m0, dst, rt0)
 			return (error);
 		}
 		if (!bcmp((caddr_t)edst, (caddr_t)&ns_broadhost, sizeof(edst))){
-			m2 = m_copy(m, 0, (int)M_COPYALL);
-			m2->m_pkthdr.rcvif = ifp;
-			schednetisr(NETISR_NS);
-			inq = &nsintrq;
-			s = splimp();
-			if (IF_QFULL(inq)) {
-				IF_DROP(inq);
-				m_freem(m2);
-			} else
-				IF_ENQUEUE(inq, m2);
-			splx(s);
+			m->m_flags |= M_BCAST;
 		}
 		break;
 #endif /* NS */
@@ -365,8 +362,7 @@ ether_output(ifp, m0, dst, rt0)
 	 * on the wire). However, we don't do that here for security
 	 * reasons and compatibility with the original behavior.
 	 */
-	if ((ifp->if_flags & IFF_SIMPLEX) &&
-	   (loop_copy != -1)) {
+	if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
 		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
@@ -492,7 +488,7 @@ ether_input(ifp, eh, m)
                 break;
         case ETHERTYPE_AARP:
 		/* probably this should be done with a NETISR as well */
-                aarpinput((struct arpcom *)ifp, m); /* XXX */
+                aarpinput(IFP2AC(ifp), m); /* XXX */
                 return;
 #endif NETATALK
 	default:
@@ -536,7 +532,7 @@ ether_input(ifp, eh, m)
 				   sizeof(aarp_org_code)) == 0 &&
 			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
 			    m_adj( m, sizeof( struct llc ));
-			    aarpinput((struct arpcom *)ifp, m); /* XXX */
+			    aarpinput(IFP2AC(ifp), m); /* XXX */
 			    return;
 			}
 		
@@ -677,7 +673,10 @@ ether_ifattach(ifp)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;
-	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+	bcopy((IFP2AC(ifp))->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+#ifdef	NETGRAPH
+	ngether_init(ifp);
+#endif /* NETGRAPH */
 }
 
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
@@ -700,7 +699,7 @@ ether_ioctl(ifp, command, data)
 #ifdef INET
 		case AF_INET:
 			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
-			arp_ifinit((struct arpcom *)ifp, ifa);
+			arp_ifinit(IFP2AC(ifp), ifa);
 			break;
 #endif
 #ifdef IPX
@@ -710,7 +709,7 @@ ether_ioctl(ifp, command, data)
 		case AF_IPX:
 			{
 			register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-			struct arpcom *ac = (struct arpcom *) (ifp->if_softc);
+			struct arpcom *ac = IFP2AC(ifp);
 
 			if (ipx_nullhost(*ina))
 				ina->x_host =
@@ -736,7 +735,7 @@ ether_ioctl(ifp, command, data)
 		case AF_NS:
 		{
 			register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-			struct arpcom *ac = (struct arpcom *) (ifp->if_softc);
+			struct arpcom *ac = IFP2AC(ifp);
 
 			if (ns_nullhost(*ina))
 				ina->x_host =
@@ -765,7 +764,7 @@ ether_ioctl(ifp, command, data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(((struct arpcom *)ifp->if_softc)->ac_enaddr,
+			bcopy(IFP2AC(ifp)->ac_enaddr,
 			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;
