@@ -38,23 +38,20 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "from: @(#)main.c	8.1 (Berkeley) 6/20/93";*/
-static char rcsid[] = "$Id: main.c,v 1.15 1995/08/13 04:08:27 cgd Exp $";
+static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/20/93";
 #endif /* not lint */
+
+#define USE_OLD_TTY
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <termios.h>
-#include <sys/ioctl.h>
 #include <sys/resource.h>
-#include <sys/utsname.h>
-#include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <time.h>
+
+#include <ctype.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <setjmp.h>
+#include <sgtty.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,12 +69,21 @@ static char rcsid[] = "$Id: main.c,v 1.15 1995/08/13 04:08:27 cgd Exp $";
  */
 #define GETTY_TIMEOUT	60 /* seconds */
 
-struct termios tmode, omode;
+struct	sgttyb tmode = {
+	0, 0, CERASE, CKILL, 0
+};
+struct	tchars tc = {
+	CINTR, CQUIT, CSTART,
+	CSTOP, CEOF, CBRK,
+};
+struct	ltchars ltc = {
+	CSUSP, CDSUSP, CRPRNT,
+	CFLUSH, CWERASE, CLNEXT
+};
 
 int crmod, digit, lower, upper;
 
 char	hostname[MAXHOSTNAMELEN];
-struct	utsname kerninfo;
 char	name[16];
 char	dev[] = _PATH_DEV;
 char	ttyn[32];
@@ -111,9 +117,9 @@ char partab[] = {
 	0000,0200,0200,0000,0200,0000,0000,0201
 };
 
-#define	ERASE	tmode.c_cc[VERASE]
-#define	KILL	tmode.c_cc[VKILL]
-#define	EOT	tmode.c_cc[VEOF]
+#define	ERASE	tmode.sg_erase
+#define	KILL	tmode.sg_kill
+#define	EOT	tc.t_eofc
 
 jmp_buf timeout;
 
@@ -164,18 +170,17 @@ main(argc, argv)
 	extern char **environ;
 	char *tname;
 	long allflags;
-	int repcnt = 0, failopenlogged = 0;
+	int repcnt = 0;
 	struct rlimit limit;
 
 	signal(SIGINT, SIG_IGN);
 /*
 	signal(SIGQUIT, SIG_DFL);
 */
-	openlog("getty", LOG_ODELAY|LOG_CONS|LOG_PID, LOG_AUTH);
+	openlog("getty", LOG_ODELAY|LOG_CONS, LOG_AUTH);
 	gethostname(hostname, sizeof(hostname));
 	if (hostname[0] == '\0')
 		strcpy(hostname, "Amnesiac");
-	uname(&kerninfo);
 
 	/*
 	 * Limit running time to deal with broken or dead lines.
@@ -208,11 +213,9 @@ main(argc, argv)
 		 */
 		sleep(2);
 		while ((i = open(ttyn, O_RDWR)) == -1) {
-			if ((repcnt % 10 == 0) &&
-			    (errno != ENXIO || !failopenlogged)) {
+			if (repcnt % 10 == 0) {
 				syslog(LOG_ERR, "%s: %m", ttyn);
 				closelog();
-				failopenlogged = 1;
 			}
 			repcnt++;
 			sleep(60);
@@ -220,13 +223,6 @@ main(argc, argv)
 		login_tty(i);
 	    }
 	}
-
-	/* Start with default tty settings */
-	if (tcgetattr(0, &tmode) < 0) {
-		syslog(LOG_ERR, "%s: %m", ttyn);
-		exit(1);
-	}
-	omode = tmode;
 
 	gettable("default", defent);
 	gendefaults();
@@ -241,24 +237,23 @@ main(argc, argv)
 			APset++, OPset++, EPset++;
 		setdefaults();
 		off = 0;
-		(void)tcflush(0, TCIOFLUSH);	/* clear out the crap */
+		ioctl(0, TIOCFLUSH, &off);	/* clear out the crap */
 		ioctl(0, FIONBIO, &off);	/* turn off non-blocking mode */
 		ioctl(0, FIOASYNC, &off);	/* ditto for async mode */
-
 		if (IS)
-			cfsetispeed(&tmode, IS);
+			tmode.sg_ispeed = speed(IS);
 		else if (SP)
-			cfsetispeed(&tmode, SP);
+			tmode.sg_ispeed = speed(SP);
 		if (OS)
-			cfsetospeed(&tmode, OS);
+			tmode.sg_ospeed = speed(OS);
 		else if (SP)
-			cfsetospeed(&tmode, SP);
-		setflags(0);
+			tmode.sg_ospeed = speed(SP);
+		tmode.sg_flags = setflags(0);
+		ioctl(0, TIOCSETP, &tmode);
 		setchars();
-		if (tcsetattr(0, TCSANOW, &tmode) < 0) {
-			syslog(LOG_ERR, "%s: %m", ttyn);
-			exit(1);
-		}
+		ioctl(0, TIOCSETC, &tc);
+		if (HC)
+			ioctl(0, TIOCHPCL, 0);
 		if (AB) {
 			extern char *autobaud();
 
@@ -275,8 +270,8 @@ main(argc, argv)
 		if (IM && *IM)
 			putf(IM);
 		if (setjmp(timeout)) {
-			tmode.c_ispeed = tmode.c_ospeed = 0;
-			(void)tcsetattr(0, TCSANOW, &tmode);
+			tmode.sg_ispeed = tmode.sg_ospeed = 0;
+			ioctl(0, TIOCSETP, &tmode);
 			exit(1);
 		}
 		if (TO) {
@@ -295,26 +290,28 @@ main(argc, argv)
 			}
 			if (!(upper || lower || digit))
 				continue;
-			setflags(2);
-			if (crmod) {
-				tmode.c_iflag |= ICRNL;
-				tmode.c_oflag |= ONLCR;
-			}
-#if XXX
+			allflags = setflags(2);
+			tmode.sg_flags = allflags & 0xffff;
+			allflags >>= 16;
+			if (crmod || NL)
+				tmode.sg_flags |= CRMOD;
 			if (upper || UC)
 				tmode.sg_flags |= LCASE;
 			if (lower || LC)
 				tmode.sg_flags &= ~LCASE;
-#endif
-			if (tcsetattr(0, TCSANOW, &tmode) < 0) {
-				syslog(LOG_ERR, "%s: %m", ttyn);
-				exit(1);
-			}
+			ioctl(0, TIOCSETP, &tmode);
+			ioctl(0, TIOCSLTC, &ltc);
+			ioctl(0, TIOCLSET, &allflags);
 			signal(SIGINT, SIG_DFL);
 			for (i = 0; environ[i] != (char *)0; i++)
 				env[i] = environ[i];
 			makeenv(&env[i]);
 
+			/* 
+			 * this is what login was doing anyway.
+			 * soon we rewrite getty completely.
+			 */
+			set_ttydefaults(0);
 			limit.rlim_max = RLIM_INFINITY;
 			limit.rlim_cur = RLIM_INFINITY;
 			(void)setrlimit(RLIMIT_CPU, &limit);
@@ -345,17 +342,16 @@ getname()
 		return (0);
 	}
 	signal(SIGINT, interrupt);
-	setflags(1);
+	tmode.sg_flags = setflags(0);
+	ioctl(0, TIOCSETP, &tmode);
+	tmode.sg_flags = setflags(1);
 	prompt();
 	if (PF > 0) {
 		oflush();
 		sleep(PF);
 		PF = 0;
 	}
-	if (tcsetattr(0, TCSANOW, &tmode) < 0) {
-		syslog(LOG_ERR, "%s: %m", ttyn);
-		exit(1);
-	}
+	ioctl(0, TIOCSETP, &tmode);
 	crmod = digit = lower = upper = 0;
 	np = name;
 	for (;;) {
@@ -377,7 +373,7 @@ getname()
 		else if (c == ERASE || c == '#' || c == '\b') {
 			if (np > name) {
 				np--;
-				if (cfgetospeed(&tmode) >= 1200)
+				if (tmode.sg_ospeed >= B1200)
 					puts("\b \b");
 				else
 					putchr(cs);
@@ -386,7 +382,7 @@ getname()
 		} else if (c == KILL || c == '@') {
 			putchr(cs);
 			putchr('\r');
-			if (cfgetospeed(&tmode) < 1200)
+			if (tmode.sg_ospeed < B1200)
 				putchr('\n');
 			/* this is the way they do it down under ... */
 			else if (np > name)
@@ -412,12 +408,17 @@ getname()
 	return (1);
 }
 
+static
+short	tmspc10[] = {
+	0, 2000, 1333, 909, 743, 666, 500, 333, 166, 83, 55, 41, 20, 10, 5, 15
+};
+
 static void
 putpad(s)
 	register char *s;
 {
 	register pad = 0;
-	speed_t ospeed = cfgetospeed(&tmode);
+	register mspc10;
 
 	if (isdigit(*s)) {
 		while (isdigit(*s)) {
@@ -436,7 +437,10 @@ putpad(s)
 	 * If no delay needed, or output speed is
 	 * not comprehensible, then don't try to delay.
 	 */
-	if (pad == 0 || ospeed <= 0)
+	if (pad == 0)
+		return;
+	if (tmode.sg_ospeed <= 0 ||
+	    tmode.sg_ospeed >= (sizeof tmspc10 / sizeof tmspc10[0]))
 		return;
 
 	/*
@@ -445,8 +449,9 @@ putpad(s)
 	 * Transmitting pad characters slows many terminals down and also
 	 * loads the system.
 	 */
-	pad = (pad * ospeed + 50000) / 100000;
-	while (pad--)
+	mspc10 = tmspc10[tmode.sg_ospeed];
+	pad += mspc10 / 2;
+	for (pad /= mspc10; pad > 0; pad--)
 		putchr(*PC);
 }
 
@@ -526,28 +531,12 @@ putf(cp)
 			break;
 
 		case 'd': {
-			static char fmt[] = "%l:% %p on %A, %d %B %Y";
+			static char fmt[] = "%l:% %P on %A, %d %B %Y";
 
 			fmt[4] = 'M';		/* I *hate* SCCS... */
 			(void)time(&t);
 			(void)strftime(db, sizeof(db), fmt, localtime(&t));
 			puts(db);
-			break;
-
-		case 's':
-			puts(kerninfo.sysname);
-			break;
-
-		case 'm':
-			puts(kerninfo.machine);
-			break;
-
-		case 'r':
-			puts(kerninfo.release);
-			break;
-
-		case 'v':
-			puts(kerninfo.version);
 			break;
 		}
 

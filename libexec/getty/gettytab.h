@@ -30,8 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)gettytab.h	8.2 (Berkeley) 3/30/94
- *	$Id: gettytab.h,v 1.7 1994/08/17 20:10:34 pk Exp $
+ *	@(#)gettytab.h	8.2 (Berkeley) 3/30/94
  */
 
 /*
@@ -105,30 +104,6 @@ struct gettyflags {
 #define	F2	gettynums[11].value
 #define	F2set	gettynums[11].set
 #define	PF	gettynums[12].value
-#define	C0	gettynums[13].value
-#define	C0set	gettynums[13].set
-#define	C1	gettynums[14].value
-#define	C1set	gettynums[14].set
-#define	C2	gettynums[15].value
-#define	C2set	gettynums[15].set
-#define	I0	gettynums[16].value
-#define	I0set	gettynums[16].set
-#define	I1	gettynums[17].value
-#define	I1set	gettynums[17].set
-#define	I2	gettynums[18].value
-#define	I2set	gettynums[18].set
-#define	L0	gettynums[19].value
-#define	L0set	gettynums[19].set
-#define	L1	gettynums[20].value
-#define	L1set	gettynums[20].set
-#define	L2	gettynums[21].value
-#define	L2set	gettynums[21].set
-#define	O0	gettynums[22].value
-#define	O0set	gettynums[22].set
-#define	O1	gettynums[23].value
-#define	O1set	gettynums[23].set
-#define	O2	gettynums[24].value
-#define	O2set	gettynums[24].set
 
 /*
  * Boolean values.
@@ -158,7 +133,6 @@ struct gettyflags {
 #define AB	gettyflags[19].value
 #define DX	gettyflags[20].value
 #define	NP	gettyflags[21].value
-#define	MB	gettyflags[22].value
 
 int	getent __P((char *, char *));
 long	getnum __P((char *));
