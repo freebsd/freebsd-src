@@ -542,6 +542,8 @@ atm_stack_drain()
  * and a token (typically a driver/stack control block) at the front of the
  * queued buffer.  We assume that the function pointer and token values are 
  * both contained (and properly aligned) in the first buffer of the chain.
+ * The size of these two fields is not accounted for in the packet header
+ * length field. The packet header itself must be in the first mbuf.
  *
  * Arguments:
  *	none
@@ -562,16 +564,13 @@ atm_intr(struct mbuf *m)
 	/*
 	 * Get function to call and token value
 	 */
-	KB_DATASTART(m, cp, caddr_t);
+	cp = mtod(m, caddr_t);
 	func = *(atm_intr_func_t *)cp;
 	cp += sizeof(func);
 	token = *(void **)cp;
-	KB_HEADADJ(m, -(sizeof(func) + sizeof(token)));
-	if (KB_LEN(m) == 0) {
-		KBuffer		*m1;
-		KB_UNLINKHEAD(m, m1);
-		m = m1;
-	}
+
+	m->m_len -= sizeof(func) + sizeof(token);
+	m->m_data += sizeof(func) + sizeof(token);
 
 	/*
 	 * Call processing function
