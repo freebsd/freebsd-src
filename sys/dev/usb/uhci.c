@@ -45,7 +45,8 @@
  * Data sheets: ftp://download.intel.com/design/intarch/datashts/29055002.pdf
  *              ftp://download.intel.com/design/intarch/datashts/29056201.pdf
  * UHCI spec: http://www.intel.com/design/usb/uhci11d.pdf
- * USB spec: http://www.usb.org/cgi-usb/mailmerge.cgi/home/usb/docs/developers/cgiform.tpl
+ * USB spec: http://www.usb.org/cgi-usb/mailmerge.cgi/home/usb/docs/developers/
+cgiform.tpl
  */
 
 #include <sys/param.h>
@@ -400,7 +401,7 @@ static void
 uhci_dumpregs(sc)
 	uhci_softc_t *sc;
 {
-	DPRINTF(("%s: regs: cmd=%04x, sts=%04x, intr=%04x, frnum=%04x, "
+	printf("%s: regs: cmd=%04x, sts=%04x, intr=%04x, frnum=%04x, "
 	       "flbase=%08x, sof=%02x, portsc1=%04x, portsc2=%04x, ",
 	       USBDEVNAME(sc->sc_bus.bdev),
 	       UREAD2(sc, UHCI_CMD),
@@ -410,7 +411,7 @@ uhci_dumpregs(sc)
 	       UREAD4(sc, UHCI_FLBASEADDR),
 	       UREAD1(sc, UHCI_SOF),
 	       UREAD2(sc, UHCI_PORTSC1),
-	       UREAD2(sc, UHCI_PORTSC2)));
+	       UREAD2(sc, UHCI_PORTSC2));
 }
 
 int uhci_longtd = 1;
@@ -419,14 +420,14 @@ void
 uhci_dump_td(p)
 	uhci_soft_td_t *p;
 {
-	DPRINTF(("TD(%p) at %08lx link=0x%08lx st=0x%08lx tok=0x%08lx buf=0x%08lx\n",
+	printf("TD(%p) at %08lx link=0x%08lx st=0x%08lx tok=0x%08lx buf=0x%08lx\n",
 	       p, (long)p->physaddr,
 	       (long)p->td->td_link,
 	       (long)p->td->td_status,
 	       (long)p->td->td_token,
-	       (long)p->td->td_buffer));
+	       (long)p->td->td_buffer);
 	if (uhci_longtd)
-		DPRINTF((" %b %b,errcnt=%d,actlen=%d pid=%02x,addr=%d,endpt=%d,"
+		printf("  %b %b,errcnt=%d,actlen=%d pid=%02x,addr=%d,endpt=%d,"
 		       "D=%d,maxlen=%d\n",
 		       (int)p->td->td_link,
 		       "\20\1T\2Q\3VF",
@@ -439,15 +440,15 @@ uhci_dump_td(p)
 		       UHCI_TD_GET_DEVADDR(p->td->td_token),
 		       UHCI_TD_GET_ENDPT(p->td->td_token),
 		       UHCI_TD_GET_DT(p->td->td_token),
-		       UHCI_TD_GET_MAXLEN(p->td->td_token)));
+		       UHCI_TD_GET_MAXLEN(p->td->td_token));
 }
 
 void
 uhci_dump_qh(p)
 	uhci_soft_qh_t *p;
 {
-	DPRINTF(("QH(%p) at %08x: hlink=%08x elink=%08x\n", p, (int)p->physaddr,
-	       p->qh->qh_hlink, p->qh->qh_elink));
+	printf("QH(%p) at %08x: hlink=%08x elink=%08x\n", p, (int)p->physaddr,
+	       p->qh->qh_hlink, p->qh->qh_elink);
 }
 
 
@@ -458,8 +459,8 @@ uhci_dump()
 	uhci_softc_t *sc = uhci;
 
 	uhci_dumpregs(sc);
-	DPRINTF("intrs=%d\n", sc->sc_intrs);
-	DPRINTF("framelist[i].link = %08x\n", sc->sc_framelist[0].link);
+	printf("intrs=%d\n", sc->sc_intrs);
+	printf("framelist[i].link = %08x\n", sc->sc_framelist[0].link);
 	uhci_dump_qh(sc->sc_ctl_start->qh->hlink);
 }
 #endif
@@ -597,7 +598,7 @@ uhci_remove_ctrl(sc, sqh)
 	for (pqh = sc->sc_ctl_start; pqh->qh->hlink != sqh; pqh=pqh->qh->hlink)
 #if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
 		if (pqh->qh->qh_hlink & UHCI_PTR_T) {
-			DPRINTF(("uhci_remove_ctrl: QH not found\n"));
+			printf("uhci_remove_ctrl: QH not found\n");
 			return;
 		}
 #else
@@ -640,7 +641,7 @@ uhci_remove_bulk(sc, sqh)
 	     pqh = pqh->qh->hlink)
 #if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
 		if (pqh->qh->qh_hlink & UHCI_PTR_T) {
-			DPRINTF(("uhci_remove_bulk: QH not found\n"));
+			printf("uhci_remove_bulk: QH not found\n");
 			return;
 		}
 #else
@@ -869,9 +870,6 @@ uhci_timeout(addr)
 	int s;
 
 	DPRINTF(("uhci_timeout: ii=%p\n", ii));
-#ifdef USB_DEBUG
-	uhci_dump_tds(ii->stdstart);
-#endif
 	s = splusb();
 	uhci_ii_done(ii, 1);
 	splx(s);
@@ -1127,7 +1125,7 @@ uhci_alloc_std_chain(upipe, sc, len, rd, spd, dma, sp, ep)
 	int addr = upipe->pipe.device->address;
 	int endpt = upipe->pipe.endpoint->edesc->bEndpointAddress;
 
-	DPRINTFN(15, ("uhci_alloc_std_chain: addr=%d endpt=%d len=%d lowspeed=%d "
+	DPRINTFN(15, ("uhci_alloc_std_chain: addr=%d endpt=%d len=%d ls=%d "
 		      "spd=%d\n", addr, endpt, len, 
 		      upipe->pipe.device->lowspeed, spd));
 	if (len == 0) {
@@ -1230,8 +1228,6 @@ uhci_device_bulk_start(reqh)
 	upipe->u.bulk.isread = isread;
 	upipe->u.bulk.length = len;
 
-	/* XXX FreeBSD can do without dmap, all mem is dma-able */
-	
 	r = usb_allocmem(sc->sc_dmatag, len, 0, dmap);
 	if (r != USBD_NORMAL_COMPLETION)
 		goto ret1;
@@ -1277,16 +1273,11 @@ uhci_device_bulk_start(reqh)
 	}
 	splx(s);
 
-#if 0
 #ifdef UHCI_DEBUG
-	/* this fails, as the transfer is finished before this one
-	 * gets anywhere near the end -> traverse of non-existing list
-	 */ 
-	if (uhcidebug > 100) {
-		DPRINTF(("uhci_device_bulk_transfer: xfer(2)\n"));
+	if (uhcidebug > 10) {
+		printf("uhci_device_bulk_transfer: xfer(2)\n");
 		uhci_dump_tds(xfer);
 	}
-#endif
 #endif
 
 	return (USBD_IN_PROGRESS);
@@ -1412,7 +1403,7 @@ uhci_device_intr_start(reqh)
 
 #ifdef UHCI_DEBUG
 	if (uhcidebug > 10) {
-		DPRINTF(("uhci_device_intr_transfer: xfer(1)\n"));
+		printf("uhci_device_intr_transfer: xfer(1)\n");
 		uhci_dump_tds(xfer);
 		uhci_dump_qh(upipe->u.intr.qhs[0]);
 	}
@@ -1438,7 +1429,7 @@ uhci_device_intr_start(reqh)
 
 #ifdef UHCI_DEBUG
 	if (uhcidebug > 10) {
-		DPRINTF(("uhci_device_intr_transfer: xfer(2)\n"));
+		printf("uhci_device_intr_transfer: xfer(2)\n");
 		uhci_dump_tds(xfer);
 		uhci_dump_qh(upipe->u.intr.qhs[0]);
 	}
@@ -1544,7 +1535,7 @@ uhci_device_request(reqh)
 	uhci_soft_qh_t *sqh;
 	usb_dma_t *dmap;
 	int len;
-	u_int32_t lowspeed;
+	u_int32_t ls;
 	usbd_status r;
 	int isread;
 	int s;
@@ -1555,7 +1546,7 @@ uhci_device_request(reqh)
 		    UGETW(req->wIndex), UGETW(req->wLength),
 		    addr, endpt));
 
-	lowspeed = dev->lowspeed ? UHCI_TD_LOWSPEED : 0;
+	ls = dev->lowspeed ? UHCI_TD_LS : 0;
 	isread = req->bmRequestType & UT_READ;
 	len = UGETW(req->wLength);
 
@@ -1589,13 +1580,13 @@ uhci_device_request(reqh)
 
 	setup->td->link.std = next;
 	setup->td->td_link = next->physaddr;
-	setup->td->td_status = UHCI_TD_SET_ERRCNT(3) | lowspeed | UHCI_TD_ACTIVE;
+	setup->td->td_status = UHCI_TD_SET_ERRCNT(2) | ls | UHCI_TD_ACTIVE;
 	setup->td->td_token = UHCI_TD_SETUP(sizeof *req, endpt, addr);
 	setup->td->td_buffer = DMAADDR(&upipe->u.ctl.reqdma);
 
 	stat->td->link.std = 0;
 	stat->td->td_link = UHCI_PTR_T;
-	stat->td->td_status = UHCI_TD_SET_ERRCNT(3) | lowspeed | 
+	stat->td->td_status = UHCI_TD_SET_ERRCNT(2) | ls | 
 		UHCI_TD_ACTIVE | UHCI_TD_IOC;
 	stat->td->td_token = 
 		isread ? UHCI_TD_OUT(0, endpt, addr, 1) :
@@ -1604,9 +1595,9 @@ uhci_device_request(reqh)
 
 #ifdef UHCI_DEBUG
 	if (uhcidebug > 20) {
-		DPRINTF(("uhci_device_request: setup\n"));
+		printf("uhci_device_request: setup\n");
 		uhci_dump_td(setup);
-		DPRINTF(("uhci_device_request: stat\n"));
+		printf("uhci_device_request: stat\n");
 		uhci_dump_td(stat);
 	}
 #endif
@@ -1636,7 +1627,7 @@ uhci_device_request(reqh)
 		uhci_soft_qh_t *sxqh;
 		int maxqh = 0;
 		uhci_physaddr_t link;
-		DPRINTF(("uhci_enter_ctl_q: follow from [0]\n"));
+		printf("uhci_enter_ctl_q: follow from [0]\n");
 		for (std = sc->sc_vframes[0].htd, link = 0;
 		     (link & UHCI_PTR_Q) == 0;
 		     std = std->td->link.std) {
@@ -1650,7 +1641,7 @@ uhci_device_request(reqh)
 			uhci_dump_qh(xqh);
 			uhci_dump_qh(sxqh);
 		}
-		DPRINTF(("Enqueued QH:\n"))
+		printf("Enqueued QH:\n");
 		uhci_dump_qh(sqh);
 		uhci_dump_tds(sqh->qh->elink);
 	}
@@ -1878,7 +1869,7 @@ uhci_intr_done(ii)
 
 #ifdef UHCI_DEBUG
 		if (uhcidebug > 10) {
-			DPRINTF(("uhci_device_intr_done: xfer(1)\n"));
+			printf("uhci_device_intr_done: xfer(1)\n");
 			uhci_dump_tds(xfer);
 			uhci_dump_qh(upipe->u.intr.qhs[0]);
 		}
@@ -1994,7 +1985,7 @@ uhci_remove_intr(sc, n, sqh)
 	for (pqh = vf->hqh; pqh->qh->hlink != sqh; pqh = pqh->qh->hlink)
 #if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
 		if (pqh->qh->qh_hlink & UHCI_PTR_T) {
-			DPRINTF(("uhci_remove_intr: QH not found\n"));
+			printf("uhci_remove_intr: QH not found\n");
 			return;
 		}
 #else
