@@ -1,4 +1,4 @@
-/* Block-relocating memory allocator. 
+/* Block-relocating memory allocator.
    Copyright (C) 1993 Free Software Foundation, Inc.
 
 
@@ -104,7 +104,7 @@ static POINTER page_break_value;
 /* This is the size of a page.  We round memory requests to this boundary.  */
 static int page_size;
 
-/* Whenever we get memory from the system, get this many extra bytes.  This 
+/* Whenever we get memory from the system, get this many extra bytes.  This
    must be a multiple of page_size.  */
 static int extra_bytes;
 
@@ -173,7 +173,7 @@ relinquish (size)
   break_value -= size;
   new_page_break = (POINTER) ROUNDUP (break_value);
   excess = (char *) page_break_value - (char *) new_page_break;
-  
+
   if (excess > extra_bytes * 2)
     {
       /* Keep extra_bytes worth of empty space.
@@ -286,7 +286,7 @@ relocate_some_blocs (bloc, address)
       register SIZE offset = address - bloc->data;
       register SIZE data_size = 0;
       register bloc_ptr b;
-      
+
       for (b = bloc; b != NIL_BLOC; b = b->next)
 	{
 	  data_size += b->size;
@@ -346,7 +346,7 @@ static int use_relocatable_buffers;
    __morecore hook values - in particular, __default_morecore in the
    GNU malloc package.  */
 
-POINTER 
+POINTER
 r_alloc_sbrk (size)
      long size;
 {

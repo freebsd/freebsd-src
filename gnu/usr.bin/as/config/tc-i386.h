@@ -1,24 +1,24 @@
 /* tc-i386.h -- Header file for tc-i386.c
    Copyright (C) 1989, 1992 Free Software Foundation.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: tc-i386.h,v 1.1 1993/11/03 00:54:25 paul Exp $
+ * $Id: tc-i386.h,v 1.2 1994/12/23 22:37:36 nate Exp $
  */
 
 #ifndef TC_I386
@@ -62,19 +62,19 @@
 /* register numbers */
 #define EBP_REG_NUM 5
 #define ESP_REG_NUM 4
-    
+
 /* modrm_byte.regmem for twobyte escape */
 #define ESCAPE_TO_TWO_BYTE_ADDRESSING ESP_REG_NUM
 /* index_base_byte.index for no index register addressing */
 #define NO_INDEX_REGISTER ESP_REG_NUM
 /* index_base_byte.base for no base register addressing */
 #define NO_BASE_REGISTER EBP_REG_NUM
-    
+
  /* these are the att as opcode suffixes, making movl --> mov, for example */
 #define DWORD_OPCODE_SUFFIX 'l'
 #define WORD_OPCODE_SUFFIX  'w'
 #define BYTE_OPCODE_SUFFIX  'b'
-    
+
     /* modrm.mode = REGMEM_FIELD_HAS_REG when a register is in there */
 #define REGMEM_FIELD_HAS_REG 0x3                /* always = 0x3 */
 #define REGMEM_FIELD_HAS_MEM (~REGMEM_FIELD_HAS_REG)
@@ -145,23 +145,23 @@
 typedef struct {
 	/* instruction name sans width suffix ("mov" for movl insns) */
 	char *name;
-	
+
 	/* how many operands */
 	unsigned int operands;
-	
+
 	/* base_opcode is the fundamental opcode byte with a optional prefix(es). */
 	unsigned int base_opcode;
-	
+
 	/* extension_opcode is the 3 bit extension for group <n> insns.
 	   If this template has no extension opcode (the usual case) use None */
 	unsigned char extension_opcode;
 #define None 0xff /* If no extension_opcode is possible. */
-	
+
 	/* the bits in opcode_modifier are used to generate the final opcode from
 	   the base_opcode.  These bits also are used to detect alternate forms of
 	   the same instruction */
 	unsigned int opcode_modifier;
-	
+
 	/* opcode_modifier bits: */
 #define W        0x1	/* set if operands are words or dwords */
 #define D        0x2	/* D = 0 if Reg --> Regmem; D = 1 if Regmem --> Reg */
@@ -183,18 +183,18 @@ typedef struct {
 #define JumpByte 0x4000
 #define JumpDword 0x8000
 #define ReverseRegRegmem 0x10000
-	
+
 	/* (opcode_modifier & COMES_IN_ALL_SIZES) is true if the
 	   instuction comes in byte, word, and dword sizes and is encoded into
 	   machine code in the canonical way. */
 #define COMES_IN_ALL_SIZES (W)
-	
+
 	/* (opcode_modifier & COMES_IN_BOTH_DIRECTIONS) indicates that the
 	   source and destination operands can be reversed by setting either
 	   the D (for integer insns) or the FloatD (for floating insns) bit
 	   in base_opcode. */
 #define COMES_IN_BOTH_DIRECTIONS (D|FloatD)
-	
+
 	/* operand_types[i] describes the type of operand i.  This is made
 	   by OR'ing together all of the possible type masks.  (e.g.
 	   'operand_types[i] = Reg|Imm' specifies that operand i can be

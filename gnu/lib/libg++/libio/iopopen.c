@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1993 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
@@ -170,7 +170,7 @@ _IO_proc_close(fp)
   _IO_proc_file **ptr = &proc_file_chain;
   _IO_pid_t wait_pid;
   int status = -1;
-  
+
   /* Unlink from proc_file_chain. */
   for ( ; *ptr != NULL; ptr = &(*ptr)->next)
     {

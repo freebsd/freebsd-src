@@ -36,7 +36,7 @@ get_exec_file PARAMS ((int err));
 extern int
 have_core_file_p PARAMS ((void));
 
-/* Read "memory data" from whatever target or inferior we have. 
+/* Read "memory data" from whatever target or inferior we have.
    Returns zero if successful, errno value if not.  EIO is used
    for address out of bounds.  If breakpoints are inserted, returns
    shadow contents, not the breakpoints themselves.  From breakpoint.c.  */
@@ -79,7 +79,7 @@ extern void generic_search PARAMS ((int len, char *data, char *mask,
 /* Hook for `exec_file_command' command to call.  */
 
 extern void (*exec_file_display_hook) PARAMS ((char *filename));
-   
+
 extern void
 specify_exec_file_hook PARAMS ((void (*hook) (char *filename)));
 

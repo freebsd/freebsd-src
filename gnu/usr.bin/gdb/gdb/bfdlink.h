@@ -325,20 +325,20 @@ enum bfd_link_order_type
 /* This is the link_order structure itself.  These form a chain
    attached to the section whose contents they are describing.  */
 
-struct bfd_link_order 
+struct bfd_link_order
 {
   /* Next link_order in chain.  */
   struct bfd_link_order *next;
   /* Type of link_order.  */
   enum bfd_link_order_type type;
   /* Offset within output section.  */
-  bfd_vma offset;  
+  bfd_vma offset;
   /* Size within output section.  */
   bfd_size_type size;
   /* Type specific information.  */
-  union 
+  union
     {
-      struct 
+      struct
 	{
 	  /* Section to include.  If this is used, then
 	     section->output_section must be the section the

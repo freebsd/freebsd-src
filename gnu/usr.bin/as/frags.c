@@ -1,25 +1,25 @@
 /* frags.c - manage frags -
 
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: frags.c,v 1.3 1993/10/02 20:57:31 pk Exp $";
+static char rcsid[] = "$Id: frags.c,v 1.2 1993/11/03 00:51:39 paul Exp $";
 #endif
 
 #include "as.h"
@@ -74,7 +74,7 @@ unsigned int nchars;
 	if (obstack_room (&frags) < nchars) {
 		unsigned int n,oldn;
 		long oldc;
-		
+
 		frag_wane(frag_now);
 		frag_new(0);
 		oldn=(unsigned)-1;
@@ -117,11 +117,11 @@ int old_frags_var_max_size;	/* Number of chars (already allocated on
 	/*    char   *throw_away_pointer; JF unused */
 	register    frchainS * frchP;
 	long	tmp;		/* JF */
-	
+
 	frag_now->fr_fix = (char *) (obstack_next_free (&frags)) -
 	    (frag_now->fr_literal) - old_frags_var_max_size;
 	/* Fix up old frag's fr_fix. */
-	
+
 	obstack_finish (&frags);
 	/* This will align the obstack so the */
 	/* next struct we allocate on it will */
@@ -141,10 +141,10 @@ int old_frags_var_max_size;	/* Number of chars (already allocated on
 	   aligned, we Lose Big */
 	frag_now=(fragS *)obstack_finish(&frags);
 	obstack_alignment_mask(&frags)=tmp;		/* Restore alignment */
-	
+
 	/* Just in case we don't get zero'd bytes */
 	memset(frag_now, '\0', SIZEOF_STRUCT_FRAG);
-	
+
 	/*    obstack_unaligned_done (&frags, &frag_now); */
 	/*    know (frags.obstack_c_next_free == frag_now->fr_literal); */
 	/* Generally, frag_now->points to an */
@@ -155,14 +155,14 @@ int old_frags_var_max_size;	/* Number of chars (already allocated on
 	/* alignment address. */
 	former_last_fragP->fr_next = frag_now;
 	frchP->frch_last = frag_now;
-	
+
 #ifndef NO_LISTING
 	{
 		extern struct list_info_struct *listing_tail;
 		frag_now->line = listing_tail;
 	}
 #endif
-	
+
 	frag_now->fr_next = NULL;
 }				/* frag_new() */
 
@@ -180,7 +180,7 @@ char *frag_more (nchars)
 int nchars;
 {
 	register char  *retval;
-	
+
 	frag_grow (nchars);
 	retval = obstack_next_free (&frags);
 	obstack_blank_fast (&frags, nchars);
@@ -208,7 +208,7 @@ long offset;
 char *opcode;
 {
 	register char  *retval;
-	
+
 	frag_grow (max_chars);
 	retval = obstack_next_free (&frags);
 	obstack_blank_fast (&frags, max_chars);
@@ -246,7 +246,7 @@ int pcrel_adjust;
 char bsr;
 {
 	register char  *retval;
-	
+
 	/* frag_grow (max_chars); */
 	retval = obstack_next_free (&frags);
 	/*  obstack_blank_fast (&frags, max_chars); */ /* OVE: so far the only diff */

@@ -424,7 +424,7 @@ get_binfo (parent, binfo, protect)
   tree type;
   int dist;
   tree rval = NULL_TREE;
-  
+
   if (TREE_CODE (parent) == TREE_VEC)
     parent = BINFO_TYPE (parent);
   /* unions cannot participate in inheritance relationships */
@@ -441,7 +441,7 @@ get_binfo (parent, binfo, protect)
     return NULL_TREE;
   else
     my_friendly_abort (90);
-  
+
   dist = get_base_distance (parent, binfo, protect, &rval);
 
   if (dist == -3)
@@ -486,7 +486,7 @@ get_base_distance_recursive (binfo, depth, is_private, basetype_path, rval,
 	  int same_object = (tree_int_cst_equal (BINFO_OFFSET (*new_binfo_ptr),
 						 BINFO_OFFSET (binfo))
 			     && *via_virtual_ptr && via_virtual);
-			     
+
 	  if (*via_virtual_ptr && via_virtual==0)
 	    {
 	      *rval_private_ptr = is_private;
@@ -799,7 +799,7 @@ compute_access (basetype_path, field)
 #endif
 
   previous_scope = current_scope ();
-  
+
   context = DECL_CLASS_CONTEXT (field);
   if (context == NULL_TREE)
     context = DECL_CONTEXT (field);
@@ -2026,7 +2026,7 @@ get_abstract_virtuals (type)
   /* First get all from non-virtual bases. */
   abstract_virtuals
     = get_abstract_virtuals_1 (TYPE_BINFO (type), 1, abstract_virtuals);
-					       
+
   for (vbases = CLASSTYPE_VBASECLASSES (type); vbases; vbases = TREE_CHAIN (vbases))
     {
       if (! BINFO_VIRTUALS (vbases))
@@ -2931,7 +2931,7 @@ dfs_pushdecls (binfo)
 	      TREE_OVERLOADED (tmp) = DECL_OVERLOADED (*methods);
 #endif
 	      TREE_NONLOCAL_FLAG (tmp) = 1;
-	      
+
 	      /* Put the new contents in our envelope.  */
 	      TREE_PURPOSE (class_value) = tmp;
 	    }
@@ -2946,7 +2946,7 @@ dfs_pushdecls (binfo)
 	      TREE_OVERLOADED (tmp) = DECL_OVERLOADED (*methods);
 #endif
 	      TREE_NONLOCAL_FLAG (tmp) = 1;
-	      
+
 	      /* See comment above for a description of envelopes.  */
 	      closed_envelopes = tree_cons (tmp, class_value,
 					    closed_envelopes);

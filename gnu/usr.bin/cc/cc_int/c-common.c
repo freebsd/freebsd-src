@@ -174,7 +174,7 @@ combine_strings (strings)
 	wide_flag = 1;
     }
 
-  /* Compute the number of elements, for the array type.  */ 
+  /* Compute the number of elements, for the array type.  */
   nchars = wide_flag ? length / wchar_bytes : length;
 
   /* Create the array type for the string constant.
@@ -235,7 +235,7 @@ decl_attributes (decl, attributes)
 	  TREE_THIS_VOLATILE (decl) = 1;
 	else if (TREE_CODE (type) == POINTER_TYPE
 		 && TREE_CODE (TREE_TYPE (type)) == FUNCTION_TYPE)
-	  TREE_TYPE (decl) = type 
+	  TREE_TYPE (decl) = type
 	    = build_pointer_type
 	      (build_type_variant (TREE_TYPE (type),
 				   TREE_READONLY (TREE_TYPE (type)), 1));
@@ -275,7 +275,7 @@ decl_attributes (decl, attributes)
      {
 #ifdef VALID_MACHINE_ATTRIBUTE
 	if (VALID_MACHINE_ATTRIBUTE (type, new_attr, name))
-	  { 
+	  {
 	    register tree atlist;
 
 	    for (atlist = new_attr; atlist; atlist = TREE_CHAIN (atlist))
@@ -369,7 +369,7 @@ found_attr:;
 	  }
 
 	align = TREE_INT_CST_LOW (align_expr) * BITS_PER_UNIT;
-	
+
 	if (exact_log2 (align) == -1)
 	  error_with_decl (decl,
 			   "requested alignment of `%s' is not a power of 2");
@@ -395,14 +395,14 @@ found_attr:;
 	int is_scan;
 	tree argument;
 	int arg_num;
-	
+
 	if (TREE_CODE (decl) != FUNCTION_DECL)
 	  {
 	    error_with_decl (decl,
 			     "argument format specified for non-function `%s'");
 	    continue;
 	  }
-	
+
 	if (!strcmp (IDENTIFIER_POINTER (format_type), "printf")
 	    || !strcmp (IDENTIFIER_POINTER (format_type), "__printf__"))
 	  is_scan = 0;
@@ -414,7 +414,7 @@ found_attr:;
 	    error_with_decl (decl, "unrecognized format specifier for `%s'");
 	    continue;
 	  }
-	
+
 	/* Strip any conversions from the string index and first arg number
 	   and verify they are constants.  */
 	while (TREE_CODE (format_num_expr) == NOP_EXPR
@@ -548,7 +548,7 @@ static format_char_info print_char_table[] = {
 
 static format_char_info scan_char_table[] = {
   { "di",	1,	T_I,	T_S,	T_L,	T_LL,	T_LL,	"*"	},
-  { "ouxX",	1,	T_UI,	T_US,	T_UL,	T_ULL,	T_ULL,	"*"	},	
+  { "ouxX",	1,	T_UI,	T_US,	T_UL,	T_ULL,	T_ULL,	"*"	},
   { "efgEG",	1,	T_F,	NULL,	T_D,	NULL,	T_LD,	"*"	},
   { "sc",	1,	T_C,	NULL,	T_W,	NULL,	NULL,	"*a"	},
   { "[",	1,	T_C,	NULL,	NULL,	NULL,	NULL,	"*a"	},
@@ -812,7 +812,7 @@ check_format_info (info, params)
 	      flag_chars[i++] = *format_chars++;
 	      flag_chars[i] = 0;
 	    }
-	  /* "If the space and + flags both appear, 
+	  /* "If the space and + flags both appear,
 	     the space flag will be ignored."  */
 	  if (index (flag_chars, ' ') != 0
 	      && index (flag_chars, '+') != 0)
@@ -1084,7 +1084,7 @@ check_format_info (info, params)
 	{
 	  register char *this;
 	  register char *that;
-  
+
 	  this = IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (wanted_type)));
 	  that = 0;
 	  if (TREE_CODE (cur_type) != ERROR_MARK
@@ -1898,7 +1898,7 @@ truthvalue_conversion (expr)
 		      truthvalue_conversion (TREE_OPERAND (expr, 0)));
       else
 	return truthvalue_conversion (TREE_OPERAND (expr, 0));
-      
+
     case COND_EXPR:
       /* Distribute the conversion into the arms of a COND_EXPR.  */
       return fold (build (COND_EXPR, integer_type_node, TREE_OPERAND (expr, 0),

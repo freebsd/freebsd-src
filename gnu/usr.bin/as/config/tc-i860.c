@@ -1,18 +1,18 @@
 /* tc-i860.c -- Assemble for the I860
    Copyright (C) 1989, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -173,11 +173,11 @@ void
 	register char *retval = NULL;
 	int lose = 0;
 	register unsigned int i = 0;
-	
+
 	op_hash = hash_new();
 	if (op_hash == NULL)
 	    as_fatal("Virtual memory exhausted");
-	
+
 	while (i < NUMOPCODES)
 	    {
 		    const char *name = i860_opcodes[i].name;
@@ -200,10 +200,10 @@ void
 			} while (i < NUMOPCODES
 				 && !strcmp(i860_opcodes[i].name, name));
 	    }
-	
+
 	if (lose)
 	    as_fatal("Broken assembler.  No assembly attempted.");
-	
+
 	for (i = '0'; i < '8'; ++i)
 	    octal[i] = 1;
 	for (i = '0'; i <= '9'; ++i)
@@ -229,21 +229,21 @@ char *str;
 	int no_opcodes = 1;
 	int i;
 	struct i860_it pseudo[3];
-	
+
 	assert(str);
 	i860_ip(str);
-	
+
 	/* check for expandable flag to produce pseudo-instructions */
 	if (the_insn.expand != 0 && the_insn.highlow == NO_SPEC) {
 		for (i = 0; i < 3; i++)
 		    pseudo[i] = the_insn;
-		
+
 		switch (the_insn.expand) {
-			
+
 		case E_DELAY:
 			no_opcodes = 1;
 			break;
-			
+
 		case E_MOV:
 			if (the_insn.exp.X_add_symbol == NULL &&
 			    the_insn.exp.X_subtract_symbol == NULL &&
@@ -259,7 +259,7 @@ char *str;
 			pseudo[1].highlow = HIGH;
 			no_opcodes = 2;
 			break;
-			
+
 		case E_ADDR:
 			if (the_insn.exp.X_add_symbol == NULL &&
 			    the_insn.exp.X_subtract_symbol == NULL)
@@ -273,7 +273,7 @@ char *str;
 			pseudo[1].highlow = PAIR;
 			no_opcodes = 2;
 			break;
-			
+
 		case E_U32:	/* 2nd version emulates Intel as, not doc. */
 			if (the_insn.exp.X_add_symbol == NULL &&
 			    the_insn.exp.X_subtract_symbol == NULL &&
@@ -295,7 +295,7 @@ char *str;
 			pseudo[1].highlow = PAIR;
 			no_opcodes = 2;
 			break;
-			
+
 		case E_AND:	/* 2nd version emulates Intel as, not doc. */
 			if (the_insn.exp.X_add_symbol == NULL &&
 			    the_insn.exp.X_subtract_symbol == NULL &&
@@ -319,7 +319,7 @@ char *str;
 			pseudo[1].exp.X_add_number = -1 - the_insn.exp.X_add_number;
 			no_opcodes = 2;
 			break;
-			
+
 		case E_S32:
 			if (the_insn.exp.X_add_symbol == NULL &&
 			    the_insn.exp.X_subtract_symbol == NULL &&
@@ -337,11 +337,11 @@ char *str;
 			pseudo[2].reloc = NO_RELOC;
 			no_opcodes = 3;
 			break;
-			
+
 		default:
 			as_fatal("failed sanity check.");
 		}
-		
+
 		the_insn = pseudo[0];
 		/* check for expanded opcode after branch or in dual */
 		if (no_opcodes > 1 && last_expand == 1)
@@ -349,16 +349,16 @@ char *str;
 		if (no_opcodes > 1 && dual_mode != DUAL_OFF)
 		    as_warn("Expanded opcode in dual mode: `%s'", str);
 	}
-	
+
 	i = 0;
 	do {	/* always produce at least one opcode */
 		toP = frag_more(4);
 		/* put out the opcode */
 		md_number_to_chars(toP, the_insn.opcode, 4);
-		
+
 		/* check for expanded opcode after branch or in dual */
 		last_expand = the_insn.pcrel;
-		
+
 		/* put out the symbol-dependent stuff */
 		if (the_insn.reloc != NO_RELOC) {
 			fix_new(frag_now, /* which frag */
@@ -373,7 +373,7 @@ char *str;
 		}
 		the_insn = pseudo[++i];
 	} while (--no_opcodes > 0);
-	
+
 }
 
 static void
@@ -390,29 +390,29 @@ char *str;
 	unsigned int mask;
 	int match = 0;
 	int comma = 0;
-	
-	
+
+
 	for (s = str; islower(*s) || *s == '.' || *s == '3'; ++s)
 	    ;
 	switch (*s) {
-		
+
 	case '\0':
 		break;
-		
+
 	case ',':
 		comma = 1;
-		
+
 		/*FALLTHROUGH*/
-		
+
 	case ' ':
 		*s++ = '\0';
 		break;
-		
+
 	default:
 		as_bad("Unknown opcode: `%s'", str);
 		exit(1);
 	}
-	
+
 	if (strncmp(str, "d.", 2) == 0) {	/* check for d. opcode prefix */
 		if (dual_mode == DUAL_ON)
 		    dual_mode = DUAL_ONDDOT;
@@ -420,7 +420,7 @@ char *str;
 		    dual_mode = DUAL_DDOT;
 		str += 2;
 	}
-	
+
 	if ((insn = (struct i860_opcode *) hash_find(op_hash, str)) == NULL) {
 		if (dual_mode == DUAL_DDOT || dual_mode == DUAL_ONDDOT)
 		    str -= 2;
@@ -435,20 +435,20 @@ char *str;
 		opcode = insn->match;
 		memset(&the_insn, '\0', sizeof(the_insn));
 		the_insn.reloc = NO_RELOC;
-		
+
 		/*
 		 * Build the opcode, checking as we go to make
 		 * sure that the operands match
 		 */
 		for (args = insn->args; ; ++args) {
 			switch (*args) {
-				
+
 			case '\0':  /* end of args */
 				if (*s == '\0') {
 					match = 1;
 				}
 				break;
-				
+
 			case '+':
 			case '(':   /* these must match exactly */
 			case ')':
@@ -457,7 +457,7 @@ char *str;
 				if (*s++ == *args)
 				    continue;
 				break;
-				
+
 			case '#':   /* must be at least one digit */
 				if (isdigit(*s++)) {
 					while (isdigit(*s)) {
@@ -466,12 +466,12 @@ char *str;
 					continue;
 				}
 				break;
-				
+
 			case '1':   /* next operand must be a register */
 			case '2':
 			case 'd':
 				switch (*s) {
-					
+
 				case 'f':   /* frame pointer */
 					s++;
 					if (*s++ == 'p') {
@@ -479,7 +479,7 @@ char *str;
 						break;
 					}
 					goto error;
-					
+
 				case 's':   /* stack pointer */
 					s++;
 					if (*s++ == 'p') {
@@ -487,7 +487,7 @@ char *str;
 						break;
 					}
 					goto error;
-					
+
 				case 'r': /* any register */
 					s++;
 					if (!isdigit(c = *s++)) {
@@ -502,7 +502,7 @@ char *str;
 					}
 					mask= c;
 					break;
-					
+
 				default:	/* not this opcode */
 					goto error;
 				}
@@ -511,22 +511,22 @@ char *str;
 				 * it goes in the opcode.
 				 */
 				switch (*args) {
-					
+
 				case '1':
 					opcode |= mask << 11;
 					continue;
-					
+
 				case '2':
 					opcode |= mask << 21;
 					continue;
-					
+
 				case 'd':
 					opcode |= mask << 16;
 					continue;
-					
+
 				}
 				break;
-				
+
 			case 'e':    /* next operand is a floating point register */
 			case 'f':
 			case 'g':
@@ -541,15 +541,15 @@ char *str;
 						mask -= '0';
 					}
 					switch (*args) {
-						
+
 					case 'e':
 						opcode |= mask << 11;
 						continue;
-						
+
 					case 'f':
 						opcode |= mask << 21;
 						continue;
-						
+
 					case 'g':
 						opcode |= mask << 16;
 						if (dual_mode != DUAL_OFF)
@@ -564,7 +564,7 @@ char *str;
 					}
 				}
 				break;
-				
+
 			case 'c': /* next operand must be a control register */
 				if (strncmp(s, "fir", 3) == 0) {
 					opcode |= 0x0 << 21;
@@ -597,7 +597,7 @@ char *str;
 					continue;
 				}
 				break;
-				
+
 			case '5':   /* 5 bit immediate in src1 */
 				memset(&the_insn, '\0', sizeof(the_insn));
 				if ( !getExpression(s)) {
@@ -610,18 +610,18 @@ char *str;
 					continue;
 				}
 				break;
-				
+
 			case 'l':   /* 26 bit immediate, relative branch */
 				the_insn.reloc = BRADDR;
 				the_insn.pcrel = 1;
 				goto immediate;
-				
+
 			case 's':   /* 16 bit immediate, split relative branch */
 				/* upper 5 bits of offset in dest field */
 				the_insn.pcrel = 1;
 				the_insn.reloc = SPLIT0;
 				goto immediate;
-				
+
 			case 'S':   /* 16 bit immediate, split (st), aligned */
 				if (opcode & (1 << 28))
 				    if (opcode & 0x1)
@@ -631,7 +631,7 @@ char *str;
 				else
 				    the_insn.reloc = SPLIT0;
 				goto immediate;
-				
+
 			case 'I':   /* 16 bit immediate, aligned */
 				if (opcode & (1 << 28))
 				    if (opcode & 0x1)
@@ -641,12 +641,12 @@ char *str;
 				else
 				    the_insn.reloc = LOW0;
 				goto immediate;
-				
+
 			case 'i':   /* 16 bit immediate */
 				the_insn.reloc = LOW0;
-				
+
 				/*FALLTHROUGH*/
-				
+
 			immediate:
 				if (*s == ' ')
 				    s++;
@@ -660,19 +660,19 @@ char *str;
 					the_insn.highlow = PAIR;
 					s += 2;
 				}
-				the_insn.expand = insn->expand; 
-				
+				the_insn.expand = insn->expand;
+
 				/* Note that if the getExpression() fails, we will still have
 				   created U entries in the symbol table for the 'symbols'
 				   in the input string.  Try not to create U symbols for
 				   registers, etc. */
-				
+
 				if ( !getExpression(s)) {
 					s = expr_end;
 					continue;
 				}
 				break;
-				
+
 			default:
 				as_fatal("failed sanity check.");
 			}
@@ -697,7 +697,7 @@ char *str;
 		    }
 		break;
 	}
-	
+
 	the_insn.opcode = opcode;
 	return;
 }
@@ -708,11 +708,11 @@ char *str;
 {
 	char *save_in;
 	segT seg;
-	
+
 	save_in = input_line_pointer;
 	input_line_pointer = str;
 	switch (seg = expression(&the_insn.exp)) {
-		
+
 	case SEG_ABSOLUTE:
 	case SEG_TEXT:
 	case SEG_DATA:
@@ -722,7 +722,7 @@ char *str;
 	case SEG_BIG:
 	case SEG_ABSENT:
 		break;
-		
+
 	default:
 		the_insn.error = "bad segment";
 		expr_end = input_line_pointer;
@@ -738,7 +738,7 @@ char *str;
 /*
   This is identical to the md_atof in m68k.c.  I think this is right,
   but I'm not sure.
-  
+
   Turn a string in input_line_pointer into a floating point constant of type
   type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
   emitted is stored in *sizeP. An error message is returned, or NULL on OK.
@@ -758,33 +758,33 @@ int *sizeP;
 	LITTLENUM_TYPE *wordP;
 	char	*t;
 	char	*atof_ieee();
-	
+
 	switch (type) {
-		
+
 	case 'f':
 	case 'F':
 	case 's':
 	case 'S':
 		prec = 2;
 		break;
-		
+
 	case 'd':
 	case 'D':
 	case 'r':
 	case 'R':
 		prec = 4;
 		break;
-		
+
 	case 'x':
 	case 'X':
 		prec = 6;
 		break;
-		
+
 	case 'p':
 	case 'P':
 		prec = 6;
 		break;
-		
+
 	default:
 		*sizeP=0;
 		return "Bad call to MD_ATOF()";
@@ -810,7 +810,7 @@ long val;
 int n;
 {
 	switch (n) {
-		
+
 	case 4:
 		*buf++ = val >> 24;
 		*buf++ = val >> 16;
@@ -819,7 +819,7 @@ int n;
 	case 1:
 		*buf = val;
 		break;
-		
+
 	default:
 		as_fatal("failed sanity check.");
 	}
@@ -834,37 +834,37 @@ fixS *fixP;
 {
 	enum reloc_type reloc = fixP->fx_r_type & 0xf;
 	enum highlow_type highlow = (fixP->fx_r_type >> 4) & 0x3;
-	
+
 	assert(buf);
 	assert(n == 4);	/* always on i860 */
-	
+
 	switch (highlow) {
-		
+
 	case HIGHADJ:	/* adjusts the high-order 16-bits */
 		if (val & (1 << 15))
 		    val += (1 << 16);
-		
+
 		/*FALLTHROUGH*/
-		
+
 	case HIGH:	/* selects the high-order 16-bits */
 		val >>= 16;
 		break;
-		
+
 	case PAIR:	/* selects the low-order 16-bits */
 		val = val & 0xffff;
 		break;
-		
+
 	default:
 		break;
 	}
-	
+
 	switch (reloc) {
-		
+
 	case BRADDR:	/* br, call, bc, bc.t, bnc, bnc.t w/26-bit immediate */
 		if (fixP->fx_pcrel != 1)
 		    as_bad("26-bit branch w/o pc relative set: 0x%08x", val);
 		val >>= 2;	/* align pcrel offset, see manual */
-		
+
 		if (val >= (1 << 25) || val < -(1 << 25))	/* check for overflow */
 		    as_bad("26-bit branch offset overflow: 0x%08x", val);
 		buf[0] = (buf[0] & 0xfc) | ((val >> 24) & 0x3);
@@ -872,7 +872,7 @@ fixS *fixP;
 		buf[2] = val >> 8;
 		buf[3] = val;
 		break;
-		
+
 	case SPLIT2:	/* 16 bit immediate, 4-byte aligned */
 		if (val & 0x3)
 		    as_bad("16-bit immediate 4-byte alignment error: 0x%08x", val);
@@ -891,9 +891,9 @@ fixS *fixP;
 		    as_bad("16-bit branch offset overflow: 0x%08x", val);
 		buf[1] = (buf[1] & ~0x1f) | ((val >> 11) & 0x1f);
 		buf[2] = (buf[2] & ~0x7) | ((val >> 8) & 0x7);
-		buf[3] |= val;	/* perserve bottom opcode bits */	
+		buf[3] |= val;	/* perserve bottom opcode bits */
 		break;
-		
+
 	case LOW4:	/* fld,pfld,pst,flush 16-byte aligned */
 		if (val & 0xf)
 		    as_bad("16-bit immediate 16-byte alignment error: 0x%08x", val);
@@ -919,9 +919,9 @@ fixS *fixP;
 		if (highlow != PAIR && (val >= (1 << 16) || val < -(1 << 15)))
 		    as_bad("16-bit immediate overflow: 0x%08x", val);
 		buf[2] = val >> 8;
-		buf[3] |= val;	/* perserve bottom opcode bits */	
+		buf[3] |= val;	/* perserve bottom opcode bits */
 		break;
-		
+
 	case RELOC_32:
 		md_number_to_chars(buf, val, 4);
 		break;
@@ -965,7 +965,7 @@ void *fix;
 	as_fatal("i860_number_to_field\n");
 }
 
-/* the bit-field entries in the relocation_info struct plays hell 
+/* the bit-field entries in the relocation_info struct plays hell
    with the byte-order problems of cross-assembly.  So as a hack,
    I added this mach. dependent ri twiddler.  Ugly, but it gets
    you there. -KWK */
@@ -980,7 +980,7 @@ struct relocation_info *ri_p, ri;
 {
 #if 0
 	unsigned char the_bytes[sizeof(*ri_p)];
-	
+
 	/* this is easy */
 	md_number_to_chars(the_bytes, ri.r_address, sizeof(ri.r_address));
 	/* now the fun stuff */
@@ -1030,22 +1030,22 @@ segT segtype;
 /* for debugging only, must match enum reloc_type */
 static char *Reloc[] = {
 	"NO_RELOC",
-	"BRADDR", 
-	"LOW0", 
-	"LOW1", 
-	"LOW2", 
-	"LOW3", 
-	"LOW4", 
-	"SPLIT0", 
-	"SPLIT1", 
-	"SPLIT2", 
-	"RELOC_32", 
+	"BRADDR",
+	"LOW0",
+	"LOW1",
+	"LOW2",
+	"LOW3",
+	"LOW4",
+	"SPLIT0",
+	"SPLIT1",
+	"SPLIT2",
+	"RELOC_32",
 };
 static char *Highlow[] = {
 	"NO_SPEC",
-	"PAIR", 
-	"HIGH", 
-	"HIGHADJ", 
+	"PAIR",
+	"HIGH",
+	"HIGHADJ",
 };
 
 static void
@@ -1062,11 +1062,11 @@ struct i860_it *insn;
 	fprintf(stderr, "exp =  {\n");
 	fprintf(stderr, "\t\tX_add_symbol = %s\n",
 		insn->exp.X_add_symbol ?
-		(S_GET_NAME(insn->exp.X_add_symbol) ? 
+		(S_GET_NAME(insn->exp.X_add_symbol) ?
 		 S_GET_NAME(insn->exp.X_add_symbol) : "???") : "0");
 	fprintf(stderr, "\t\tX_sub_symbol = %s\n",
 		insn->exp.X_subtract_symbol ?
-		(S_GET_NAME(insn->exp.X_subtract_symbol) ? 
+		(S_GET_NAME(insn->exp.X_subtract_symbol) ?
 		 S_GET_NAME(insn->exp.X_subtract_symbol) : "???") : "0");
 	fprintf(stderr, "\t\tX_add_number = %d\n",
 		insn->exp.X_add_number);
@@ -1098,16 +1098,16 @@ relax_addressT segment_address_in_file;
 	register symbolS *symbolP;
 	extern char *next_object_file_charP;
 	long add_number;
-	
+
 	memset((char *) &ri, '\0', sizeof(ri));
 	for (; fixP; fixP = fixP->fx_next) {
-		
+
 		if (fixP->fx_r_type & ~0x3f) {
 			as_fatal("fixP->fx_r_type = %d\n", fixP->fx_r_type);
 		}
 		ri.r_pcrel = fixP->fx_pcrel;
 		ri.r_type = fixP->fx_r_type;
-		
+
 		if ((symbolP = fixP->fx_addsy) != NULL) {
 			ri.r_address = fixP->fx_frag->fr_address +
 			    fixP->fx_where - segment_address_in_file;
@@ -1128,7 +1128,7 @@ relax_addressT segment_address_in_file;
 			} else {
 				ri.r_addend = fixP->fx_addnumber;
 			}
-			
+
 			md_ri_to_chars((char *) &ri, ri);
 			append(&next_object_file_charP, (char *)& ri, sizeof(ri));
 		}
@@ -1168,7 +1168,7 @@ relax_addressT segment_address_in_file;
 	long r_extern;
 	long r_addend = 0;
 	long r_address;
-	
+
 	know(fixP->fx_addsy);
 	know(!(fixP->fx_r_type & ~0x3f));
 
@@ -1179,22 +1179,22 @@ relax_addressT segment_address_in_file;
 		r_extern = 0;
 		r_index = S_GET_TYPE(fixP->fx_addsy);
 	}
-	
+
 	md_number_to_chars(where,
 			   r_address = fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-	
+
 	where[4] = (r_index >> 16) & 0x0ff;
 	where[5] = (r_index >> 8) & 0x0ff;
 	where[6] = r_index & 0x0ff;
 	where[7] = (((fixP->fx_pcrel << 7) & 0x80)
 		    | ((r_extern << 6)  & 0x40)
 		    | (fixP->fx_r_type & 0x3F));
-	
+
 	if (fixP->fx_addsy->sy_frag) {
 		r_addend = fixP->fx_addsy->sy_frag->fr_address;
 	}
-	
+
 	if (fixP->fx_pcrel) {
 		/* preserve actual offset vs. pc + 4 */
 		r_addend -= (r_address + 4);
@@ -1209,7 +1209,7 @@ relax_addressT segment_address_in_file;
 
 #endif /* OBJ_AOUT */
 
-/* Parse an operand that is machine-specific.  
+/* Parse an operand that is machine-specific.
    We just return without modifying the expression if we have nothing
    to do.  */
 
@@ -1259,7 +1259,7 @@ long val;
 	/* fixme-soon: looks to me like i860 never has bit fixes. Let's see. xoxorich. */
 	know(fixP->fx_bit_fixP == NULL);
 	if (!fixP->fx_bit_fixP) {
-		
+
 		/* fixme-soon: also looks like fx_im_disp is always 0.  Let's see.  xoxorich. */
 		know(fixP->fx_im_disp == 0);
 		switch (fixP->fx_im_disp) {
@@ -1281,7 +1281,7 @@ long val;
 	} else {
 		md_number_to_field(place, val, fixP->fx_bit_fixP);
 	}
-	
+
 	return;
 } /* md_apply_fix() */
 

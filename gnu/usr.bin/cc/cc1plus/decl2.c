@@ -240,7 +240,7 @@ int flag_labels_ok;
    and to print them when we are done.  */
 int flag_detailed_statistics;
 
-/* C++ specific flags.  */   
+/* C++ specific flags.  */
 /* Nonzero for -fall-virtual: make every member function (except
    constructors) lay down in the virtual function table.  Calls
    can then either go through the virtual function table or not,
@@ -383,7 +383,7 @@ static struct { char *string; int *variable; int on_value;} lang_f_options[] =
    Return 1 if it is recognized (and handle it);
    return 0 if not recognized.  */
 
-int   
+int
 lang_decode_option (p)
      char *p;
 {
@@ -709,7 +709,7 @@ grok_x_components (specs, components)
 	    tcode = signature_type_node;
 	  else if (CLASSTYPE_DECLARED_EXCEPTION(t))
 	    tcode = exception_type_node;
-	  
+
 	  t = xref_defn_tag(tcode, TYPE_IDENTIFIER(t), NULL_TREE);
 	  if (TYPE_CONTEXT(t))
 	    CLASSTYPE_NO_GLOBALIZE(t) = 1;
@@ -1100,7 +1100,7 @@ delete_sanity (exp, size, doing_vec, use_global_delete)
   /* If the type has no destructor, then we should build a regular
      delete, instead of a vector delete.  Otherwise, we would end
      up passing a bogus offset into __builtin_delete, which is
-     not expecting it.  */ 
+     not expecting it.  */
   if (doing_vec
       && TREE_CODE (type) == POINTER_TYPE
       && !TYPE_HAS_DESTRUCTOR (TREE_TYPE (type)))
@@ -1290,7 +1290,7 @@ grokfield (declarator, declspecs, raises, init, asmspec_tree)
 	      else
 		init = digest_init (TREE_TYPE (value), init, (tree *)0);
 	    }
-	  
+
 	  if (TREE_CODE (init) == CONST_DECL)
 	    init = DECL_INITIAL (init);
 	  else if (TREE_READONLY_DECL_P (init))
@@ -1670,21 +1670,21 @@ grokoptypename (declspecs, declarator)
      virtual void f () = 0;
      int g ();
    };
-   
+
    class D1 : B
    {
     public:
      int d1;
      // error, no f ();
    };
-   
+
    class D2 : B
    {
     public:
      int d2;
      void f ();
    };
-   
+
    class D3 : B
    {
     public:
@@ -1729,7 +1729,7 @@ grok_function_init (decl, init)
       /* Mark this function as being "defined".  */
       DECL_INITIAL (decl) = error_mark_node;
       /* pure virtual destructors must be defined. */
-      /* pure virtual needs to be defined (as abort) only when put in 
+      /* pure virtual needs to be defined (as abort) only when put in
 	 vtbl. For wellformed call, it should be itself. pr4737 */
       if (!DESTRUCTOR_NAME_P (DECL_ASSEMBLER_NAME (decl)))
 	{
@@ -2405,7 +2405,7 @@ import_export_template (type)
       CLASSTYPE_VTABLE_NEEDS_WRITING (type) = 0;
     }
 }
-    
+
 static void
 finish_vtable_vardecl (prev, vars)
      tree prev, vars;
@@ -2588,7 +2588,7 @@ import_export_inline (decl)
 	}
     }
 }
-  
+
 extern int parse_time, varconst_time;
 
 #define TIMEVAR(VAR, BODY)    \
@@ -3004,7 +3004,7 @@ reparse_absdcl_as_casts (decl, expr)
      tree decl, expr;
 {
   tree type;
-  
+
   if (TREE_CODE (expr) == CONSTRUCTOR)
     {
       type = groktypename (TREE_VALUE (TREE_OPERAND (decl, 1)));
@@ -3088,7 +3088,7 @@ finish_decl_parsing (decl)
      tree decl;
 {
   extern int current_class_depth;
-  
+
   switch (TREE_CODE (decl))
     {
     case IDENTIFIER_NODE:

@@ -20,7 +20,7 @@
  *
  */
 /*
- * xditview -- 
+ * xditview --
  *
  *   Display ditroff output in an X window
  */
@@ -189,11 +189,11 @@ void main(argc, argv)
 	      XCreateBitmapFromData (XtDisplay (toplevel),
 				     XtScreen(toplevel)->root,
 				     xdit_bits, xdit_width, xdit_height));
-				    
+
     XtSetArg (topLevelArgs[1], XtNiconMask,
 	      XCreateBitmapFromData (XtDisplay (toplevel),
 				     XtScreen(toplevel)->root,
-				     xdit_mask_bits, 
+				     xdit_mask_bits,
 				     xdit_mask_width, xdit_mask_height));
     XtSetValues (toplevel, topLevelArgs, 2);
     if (argc > 1)
@@ -205,7 +205,7 @@ void main(argc, argv)
     simpleMenu = XtCreatePopupShell ("menu", simpleMenuWidgetClass, toplevel,
 				    NULL, 0);
     for (i = 0; i < XtNumber (menuEntries); i++) {
-	entry = XtCreateManagedWidget(menuEntries[i].name, 
+	entry = XtCreateManagedWidget(menuEntries[i].name,
 				      smeBSBObjectClass, simpleMenu,
 				      NULL, (Cardinal) 0);
 	XtAddCallback(entry, XtNcallback, menuEntries[i].function, NULL);
@@ -413,7 +413,7 @@ RerasterizeAction()
     if (current_file_name[0] == 0) {
 	/* XXX display an error message */
 	return;
-    } 
+    }
     XtSetArg (args[0], XtNpageNumber, &number);
     XtGetValues (dvi, args, 1);
     NewFile(current_file_name);
@@ -525,7 +525,7 @@ char	*def;
     Dimension center_width, center_height;
     Dimension prompt_width, prompt_height;
     Widget  valueWidget;
-    
+
     CancelAction ((Widget)NULL, (XEvent *) 0, (String *) 0, (Cardinal *) 0);
     promptShell = XtCreatePopupShell ("promptShell", transientShellWidgetClass,
 				      toplevel, NULL, (Cardinal) 0);

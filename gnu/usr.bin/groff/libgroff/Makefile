@@ -10,7 +10,7 @@ SRCS+=		iftoa.c itoa.c matherr.c
 CFLAGS+=	-I$(.CURDIR)/../include
 
 NOMAN=		noman
-NOPROFILE=	noprofile	
+NOPROFILE=	noprofile
 
 CLEANFILES+=	version.cc
 version.cc: $(.CURDIR)/../VERSION

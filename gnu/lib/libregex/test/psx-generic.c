@@ -12,7 +12,7 @@ test_posix_generic ()
   if (omit_generic_tests)
     return;
                                 /* Tests somewhat in the order of P1003.2.  */
-  
+
   /* Both posix basic and extended; should match.  */
 
   printf ("\nStarting generic POSIX tests.\n");
@@ -29,12 +29,12 @@ test_posix_generic ()
   TEST_REGISTERS ("", "", 0, 0, -1, -1, -1, -1);
   TEST_SEARCH ("", "", 0, 0);
   TEST_SEARCH_2 ("", "", "", 0, 1, 0);
-  
-  MATCH_SELF ("abc");				
-  test_fastmap ("abc", "a", 0, 0);				
+
+  MATCH_SELF ("abc");
+  test_fastmap ("abc", "a", 0, 0);
   TEST_REGISTERS ("abc", "abc", 0, 3, -1, -1, -1, -1);
   TEST_REGISTERS ("abc", "xabcx", 1, 4, -1, -1, -1, -1);
-  
+
   test_match ("\\a","a");
   test_match ("\\0", "0");
 
@@ -44,7 +44,7 @@ test_posix_generic ()
   TEST_SEARCH_2 ("a", "a", "b", 0, 2, 2);
   TEST_SEARCH_2 ("b", "a", "b", 0, 2, 2);
   TEST_SEARCH_2 ("a", "a", "b", 1, -2, 2);
-  
+
   test_match ("\n", "\n");
   test_match ("a\n", "a\n");
   test_match ("\nb", "\nb");
@@ -55,8 +55,8 @@ test_posix_generic ()
   test_match ("a*", "aa");
   test_fastmap ("a*", "a", 0, 0);
   TEST_REGISTERS ("a*", "aa", 0, 2, -1, -1, -1, -1);
-  
-  test_match ("a*b", "aab");			
+
+  test_match ("a*b", "aab");
   test_fastmap ("a*b", "ab", 0, 0);
 
   test_match ("a*ab", "aab");
@@ -80,9 +80,9 @@ test_posix_generic ()
   test_match (".", "a");
   TEST_REGISTERS (".", "a", 0, 1, -1, -1, -1, -1);
   test_match (".", "\004");
-  test_match (".", "\n");		
+  test_match (".", "\n");
                                               /* Valid bracket expressions.  */
-  test_match ("[ab]", "a");		
+  test_match ("[ab]", "a");
   test_match ("[ab]", "b");
   test_fastmap ("[ab]", "ab", 0, 0);
   TEST_REGISTERS ("[ab]", "a", 0, 1, -1, -1, -1, -1);
@@ -92,7 +92,7 @@ test_posix_generic ()
   test_match ("[^ab]", "c");
   test_match ("[^a]", "\n");
 
-  test_match ("[a]*a", "aa");		
+  test_match ("[a]*a", "aa");
 
   test_match ("[[]", "[");
   test_match ("[]]", "]");
@@ -115,12 +115,12 @@ test_posix_generic ()
 
                                                 /* Collating, noncollating,
                                              	   equivalence classes aren't
-                                           	   implemented yet.  */  
-					
+                                           	   implemented yet.  */
+
 
                                                 /* Character classes.  */
-  test_match ("[:alpha:]", "p");	
-  test_match ("[[:alpha:]]", "a");	
+  test_match ("[:alpha:]", "p");
+  test_match ("[[:alpha:]]", "a");
   test_match ("[[:alpha:]]", "z");
   test_match ("[[:alpha:]]", "A");
   test_match ("[[:alpha:]]", "Z");
@@ -172,10 +172,10 @@ test_posix_generic ()
   test_match ("[a-]", "-");		/* Last  */
   test_match ("[a-]", "a");
   test_match ("[--@]", "@");		/* First and starting point.  */
-  
+
   test_match ("[%--a]", "%");		/* Ending point.  */
   test_match ("[%--a]", "-");		/* Ditto.  */
-  
+
   test_match ("[a%--]", "%");		/* Both ending point and last.  */
   test_match ("[a%--]", "-");
   test_match ("[%--a]", "a");		/* Ending point only.  */
@@ -186,29 +186,29 @@ test_posix_generic ()
   test_match ("[)-+--/]", "/");
   test_match ("[[:digit:]-]", "-");
                                         /* Concatenation  ????*/
-  test_match ("[ab][cd]", "ac");			
+  test_match ("[ab][cd]", "ac");
   test_fastmap ("[ab][cd]", "ab", 0, 0);
   TEST_REGISTERS ("[ab][cd]", "ad", 0, 2, -1, -1, -1, -1);
   TEST_REGISTERS ("[ab][cd]", "xadx", 1, 3, -1, -1, -1, -1);
-	
+
                                              /* Valid expression anchoring.  */
   test_match ("^a", "a");
   test_fastmap ("^a", "a", 0, 0);
   TEST_REGISTERS ("^a", "ax", 0, 1, -1, -1, -1, -1);
-  
+
   test_match ("^", "");
   TEST_REGISTERS ("^", "", 0, 0, -1, -1, -1, -1);
   test_match ("$", "");
   TEST_REGISTERS ("$", "", 0, 0, -1, -1, -1, -1);
-  
+
   test_match ("a$", "a");
   test_fastmap ("a$", "a", 0, 0);
   TEST_REGISTERS ("a$", "xa", 1, 2, -1, -1, -1, -1);
-  
+
   test_match ("^ab$", "ab");
   test_fastmap ("^ab$", "a", 0, 0);
   TEST_REGISTERS ("^a$", "a", 0, 1, -1, -1, -1, -1);
-  
+
   test_fastmap ("^$", "", 0, 0);
   test_match ("^$", "");
   TEST_REGISTERS ("^$", "", 0, 0, -1, -1, -1, -1);
@@ -221,7 +221,7 @@ test_posix_generic ()
                                                 /* Two strings.  */
   test_match_2 ("ab", "a", "b");
   TEST_REGISTERS_2 ("ab", "a", "b", 0, 2, -1, -1, -1, -1);
-  
+
   test_match_2 ("a", "", "a");
   test_match_2 ("a", "a", "");
   test_match_2 ("ab", "a", "b");
@@ -235,8 +235,8 @@ test_posix_generic ()
 
   test_should_match = false;
                                           /* Ordinary characters.  */
-  test_match ("abc", "ab");			
-  
+  test_match ("abc", "ab");
+
   TEST_SEARCH ("c", "ab", 0, 2);
   TEST_SEARCH ("c", "ab", 0, 2);
   TEST_SEARCH ("c", "ab", 1, -2);
@@ -257,8 +257,8 @@ test_posix_generic ()
 						  /* Invalid period.  */
   test_match (".", "");
 					  /* Invalid bracket expressions.  */
-  test_match ("[ab]", "c");		    
-  test_match ("[^b]", "b");			
+  test_match ("[ab]", "c");
+  test_match ("[^b]", "b");
   test_match ("[^]]", "]");
 
   invalid_pattern (REG_EBRACK, "[");
@@ -267,7 +267,7 @@ test_posix_generic ()
   invalid_pattern (REG_EBRACK, "[]");
   invalid_pattern (REG_EBRACK, "[]a");
   invalid_pattern (REG_EBRACK, "a[]a");
-  
+
 
   test_match ("[:alpha:]", "q");	       /* Character classes.  */
   test_match ("[[:alpha:]]", "2");
@@ -288,10 +288,10 @@ test_posix_generic ()
   invalid_pattern (REG_ECTYPE, "[[:a:]]");
   invalid_pattern (REG_ECTYPE, "[[:alpo:]]");
   invalid_pattern (REG_ECTYPE, "[[:a:]");
-  
+
   test_match ("[a-z]", "2");			/* Invalid ranges.  */
-  test_match ("[^-a]", "-");		
-  test_match ("[^a-]", "-");		
+  test_match ("[^-a]", "-");
+  test_match ("[^a-]", "-");
   test_match ("[)-+--/]", ".");
   invalid_pattern (REG_ERANGE, "[z-a]");		/* Empty  */
   invalid_pattern (REG_ERANGE, "[a--]");		/* Empty  */

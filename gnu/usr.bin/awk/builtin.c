@@ -1,23 +1,23 @@
 /*
- * builtin.c - Builtin functions and various utility procedures 
+ * builtin.c - Builtin functions and various utility procedures
  */
 
-/* 
+/*
  * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
- * 
+ *
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
- * 
+ *
  * GAWK is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GAWK is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with GAWK; see the file COPYING.  If not, write to
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -293,7 +293,7 @@ register NODE *carg;
 
 	/*
 	 * Get the next arg to be formatted.  If we've run out of args,
-	 * return "" (Null string) 
+	 * return "" (Null string)
 	 */
 #define parse_next_arg() {\
   if(!carg) { toofew = 1; break; }\
@@ -413,7 +413,7 @@ check_pos:
 		case ' ':		/* print ' ' or '-' */
 					/* 'space' flag is ignored */
 					/* if '+' already present  */
-			if (signchar != 0) 
+			if (signchar != 0)
 				goto check_pos;
 			/* FALL THROUGH */
 		case '+':		/* print '+' or '-' */
@@ -447,7 +447,7 @@ check_pos:
 			parse_next_arg();
 			if (arg->flags & NUMBER) {
 #ifdef sun386
-				tmp_uval = arg->numbr; 
+				tmp_uval = arg->numbr;
 				uval= (unsigned long) tmp_uval;
 #else
 				uval = (unsigned long) arg->numbr;
@@ -769,7 +769,7 @@ NODE *tree;
 		 * From: David Trueman <emory!cs.dal.ca!david>
 		 * To: arnold@cc.gatech.edu (Arnold Robbins)
 		 * Date: 	Wed, 3 Nov 1993 12:49:41 -0400
-		 * 
+		 *
 		 * It may not be necessary to save the character, but
 		 * I'm not sure.  It would normally be the field
 		 * separator.  If the parse has not yet gone beyond
@@ -793,7 +793,7 @@ NODE *tree;
 
 extern NODE **fmt_list;  /* declared in eval.c */
 
-void 
+void
 do_print(tree)
 register NODE *tree;
 {
@@ -1090,7 +1090,7 @@ int global;
 
 		/*
 		 * create the result, copying in parts of the original
-		 * string 
+		 * string
 		 */
 		len = matchstart - text + repllen
 		      + ampersands * (matchend - matchstart);

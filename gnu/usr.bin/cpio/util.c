@@ -63,8 +63,8 @@ empty_output_buffer (out_des)
 
 #ifdef BROKEN_LONG_TAPE_DRIVER
   /* Some tape drivers seem to have a signed internal seek pointer and
-     they lose if it overflows and becomes negative (e.g. when writing 
-     tapes > 2Gb).  Doing an lseek (des, 0, SEEK_SET) seems to reset the 
+     they lose if it overflows and becomes negative (e.g. when writing
+     tapes > 2Gb).  Doing an lseek (des, 0, SEEK_SET) seems to reset the
      seek pointer and prevent it from overflowing.  */
   if (output_is_special
      && (output_bytes_before_lseek += output_size) < 0L)
@@ -262,8 +262,8 @@ fill_input_buffer (in_des, num_bytes)
 {
 #ifdef BROKEN_LONG_TAPE_DRIVER
   /* Some tape drivers seem to have a signed internal seek pointer and
-     they lose if it overflows and becomes negative (e.g. when writing 
-     tapes > 4Gb).  Doing an lseek (des, 0, SEEK_SET) seems to reset the 
+     they lose if it overflows and becomes negative (e.g. when writing
+     tapes > 4Gb).  Doing an lseek (des, 0, SEEK_SET) seems to reset the
      seek pointer and prevent it from overflowing.  */
   if (input_is_special
       && (input_bytes_before_lseek += num_bytes) < 0L)
@@ -369,8 +369,8 @@ peek_in_buf (peek_buf, in_des, num_bytes)
 
 #ifdef BROKEN_LONG_TAPE_DRIVER
   /* Some tape drivers seem to have a signed internal seek pointer and
-     they lose if it overflows and becomes negative (e.g. when writing 
-     tapes > 4Gb).  Doing an lseek (des, 0, SEEK_SET) seems to reset the 
+     they lose if it overflows and becomes negative (e.g. when writing
+     tapes > 4Gb).  Doing an lseek (des, 0, SEEK_SET) seems to reset the
      seek pointer and prevent it from overflowing.  */
   if (input_is_special
       && (input_bytes_before_lseek += num_bytes) < 0L)
@@ -487,9 +487,9 @@ create_all_directories (name)
       dir [strlen (dir) - 1] = '\0';	/* remove final + */
       mode = 04700;
     }
-  
+
 #endif
-  
+
   if (dir == NULL)
     error (2, 0, "virtual memory exhausted");
 
@@ -1002,7 +1002,7 @@ add_cdf_double_slashes (input_name)
   if (*p == '\0')
     return input_name;
 
-  /* There was a `/' preceeded by a `+' in the pathname.  If it is a CDF 
+  /* There was a `/' preceeded by a `+' in the pathname.  If it is a CDF
      then we will need to copy the input pathname to our return
      buffer so we can insert the extra `/'s.  Since we can't tell
      yet whether or not it is a CDF we will just always copy the
@@ -1020,7 +1020,7 @@ add_cdf_double_slashes (input_name)
       ret_size = n;
     }
 
-  /* Clear the `/' after this component, so we can stat the pathname 
+  /* Clear the `/' after this component, so we can stat the pathname
      up to and including this component.  */
   ++p;
   *p = '\0';

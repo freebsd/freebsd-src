@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988, 1992 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -104,7 +104,7 @@ public:
     Pix ins_after(Pix p, const T& item)
       { return BaseSLList::ins_after(p, &item); }
     void join(SLList<T>& a) { BaseSLList::join(a); }
-    
+
     T& front() {
 	if (last == 0) error("front: empty list");
 	return ((SLNode<T>*)last->tl)->hd; }

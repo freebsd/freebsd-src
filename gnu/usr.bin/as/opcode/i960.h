@@ -16,9 +16,9 @@
  * the instruction generated (a CTRL-format 'call') should have its relocation
  * specially flagged for link-time replacement with a 'bal' or 'calls' if
  * appropriate.
- */ 
+ */
 
-/* $Id: i960.h,v 1.1 1993/10/02 21:00:44 pk Exp $ */
+/* $Id: i960.h,v 1.1 1993/11/03 00:55:56 paul Exp $ */
 
 #define CTRL	0
 #define COBR	1
@@ -38,7 +38,7 @@
 #define M2		0x1000
 #define M3		0x2000
 
-/* Generate the 12-bit opcode for a REG format instruction by placing the 
+/* Generate the 12-bit opcode for a REG format instruction by placing the
  * high 8 bits in instruction bits 24-31, the low 4 bits in instruction bits
  * 7-10.
  */

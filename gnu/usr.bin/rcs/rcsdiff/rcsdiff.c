@@ -36,6 +36,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsdiff.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:16  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.10  1991/10/07  17:32:46  eggert
  * Remove lint.
  *
@@ -75,30 +78,30 @@ Report problems and direct all questions to:
  *
  * Revision 4.6  89/05/01  15:12:27  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.5  88/08/09  19:12:41  eggert
  * Use execv(), not system(); yield exit status like diff(1)s; allow cc -R.
- * 
+ *
  * Revision 4.4  87/12/18  11:37:46  narten
  * changes Jay Lepreau made in the 4.3 BSD version, to add support for
  * "-i", "-w", and "-t" flags and to permit flags to be bundled together,
  * merged in.
- * 
+ *
  * Revision 4.3  87/10/18  10:31:42  narten
  * Updating version numbers. Changes relative to 1.1 actually
  * relative to 4.1
- * 
+ *
  * Revision 1.3  87/09/24  13:59:21  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.2  87/03/27  14:22:15  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/05/03  22:13:19  wft
  * Added default branch, option -q, exit status like diff.
  * Added fterror() to replace faterror().
- * 
+ *
  * Revision 3.6  83/01/15  17:52:40  wft
  * Expanded mainprogram to handle multiple RCS files.
  *
@@ -129,7 +132,7 @@ static int exitstatus;
 static RILE *workptr;
 static struct stat workstat;
 
-mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 5.10 1991/10/07 17:32:46 eggert Exp $")
+mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 1.1.1.1 1993/06/18 04:22:16 jkh Exp $")
 {
     static char const cmdusage[] =
 	    "\nrcsdiff usage: rcsdiff [-q] [-rrev1 [-rrev2]] [-Vn] [diff options] file ...";

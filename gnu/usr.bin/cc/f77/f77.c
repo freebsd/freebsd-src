@@ -257,7 +257,7 @@ choose_temp_base ()
   base = choose_temp_base_try ("/usr/tmp", base);
   base = choose_temp_base_try ("/tmp", base);
 
-  /* If all else fails, use the current directory! */  
+  /* If all else fails, use the current directory! */
   if (base == (char *)0)
     base = "./";
 
@@ -324,7 +324,7 @@ run_dos (program, argv)
   i = system (scmd);
 
   remove (rf);
-  
+
   if (i == -1)
     perror_exec (program);
 }
@@ -424,7 +424,7 @@ main (argc, argv)
 	      if (argc == 2)
 		{
 		  /* If they only gave us `-v', don't try to link
-		     in libf2c.  */ 
+		     in libf2c.  */
 		  added--;
 		  library = NULL;
 		}
@@ -450,7 +450,7 @@ main (argc, argv)
 	}
       else
 	{
-	  int len; 
+	  int len;
 
 	  if (saw_speclang)
 	    continue;

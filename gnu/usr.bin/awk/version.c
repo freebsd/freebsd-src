@@ -7,11 +7,11 @@ char *version_string = "@(#)Gnu Awk (gawk) 2.15";
 		the split char is ' '.
 
 		Added -v option to print version number
- 		
+
 		Fixed bug that caused rounding when printing large numbers  */
 
 /* 2.00beta	Incorporated the functionality of the "new" awk as described
-		the book (reference not handy).  Extensively tested, but no 
+		the book (reference not handy).  Extensively tested, but no
 		doubt still buggy.  Badly needs tuning and cleanup, in
 		particular in memory management which is currently almost
 		non-existent. */

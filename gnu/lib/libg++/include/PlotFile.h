@@ -22,10 +22,10 @@ the resulting executable to be covered by the GNU General Public License.
 This exception does not however invalidate any other reasons why
 the executable file might be covered by the GNU General Public License. */
 
-/* 
+/*
   a very simple implementation of a class to output unix "plot"
   format plotter files. See corresponding unix man pages for
-  more details. 
+  more details.
 
   written by Doug Lea (dl@rocky.oswego.edu)
   converted to use iostream library by Per Bothner (bothner@cygnus.com)
@@ -39,7 +39,7 @@ the executable file might be covered by the GNU General Public License. */
 
 #include <fstream.h>
 
-/*   
+/*
    Some plot libraries have the `box' command to draw boxes. Some don't.
    `box' is included here via moves & lines to allow both possiblilties.
 */
@@ -51,21 +51,21 @@ protected:
   PlotFile& cmd(char c);
   PlotFile& operator << (const int x);
   PlotFile& operator << (const char *s);
-  
+
 public:
-  
+
   PlotFile() : ofstream() { }
   PlotFile(int fd) : ofstream(fd) { }
   PlotFile(const char *name, int mode=ios::out, int prot=0664)
       : ofstream(name, mode, prot) { }
-  
+
 //  PlotFile& remove() { ofstream::remove(); return *this; }
-  
+
 //  int           filedesc() { return ofstream::filedesc(); }
 //  const char*   name() { return File::name(); }
 //  void          setname(const char* newname) { File::setname(newname); }
 //  int           iocount() { return File::iocount(); }
-  
+
   PlotFile& arc(const int xi, const int yi,
                 const int x0, const int y0,
                 const int x1, const int y1);
@@ -75,7 +75,7 @@ public:
   PlotFile& cont(const int xi, const int yi);
   PlotFile& dot(const int xi, const int yi, const int dx,
                 int n, const int* pat);
-  PlotFile& erase(); 
+  PlotFile& erase();
   PlotFile& label(const char* s);
   PlotFile& line(const int x0, const int y0,
                  const int x1, const int y1);

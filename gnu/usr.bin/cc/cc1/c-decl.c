@@ -348,7 +348,7 @@ struct binding_level
     /* Nonzero means make a BLOCK if this level has any subblocks.  */
     char keep_if_subblocks;
 
-    /* Number of decls in `names' that have incomplete 
+    /* Number of decls in `names' that have incomplete
        structure or union types.  */
     int n_incomplete;
 
@@ -359,7 +359,7 @@ struct binding_level
   };
 
 #define NULL_BINDING_LEVEL (struct binding_level *) NULL
-  
+
 /* The binding level currently in effect.  */
 
 static struct binding_level *current_binding_level;
@@ -388,7 +388,7 @@ static int keep_next_level_flag;
    if it has subblocks.  */
 
 static int keep_next_if_subblocks;
-  
+
 /* The chain of outer levels of label scopes.
    This uses the same data structure used for binding levels,
    but it works differently: each link in the chain records
@@ -540,7 +540,7 @@ int dollars_in_ident = DOLLARS_IN_IDENTIFIERS > 1;
 /* Decode the string P as a language-specific option for C.
    Return 1 if it is recognized (and handle it);
    return 0 if not recognized.  */
-   
+
 int
 c_decode_option (p)
      char *p;
@@ -756,7 +756,7 @@ print_lang_identifier (file, node, indent)
 
 /* Hook called at end of compilation to assume 1 elt
    for a top-level array decl that wasn't complete before.  */
-   
+
 void
 finish_incomplete_decl (decl)
      tree decl;
@@ -1212,7 +1212,7 @@ pop_label_level ()
 			    DECL_NAME (TREE_VALUE (link)));
 	    }
 	  else if (warn_unused && !TREE_USED (TREE_VALUE (link)))
-	    warning_with_decl (TREE_VALUE (link), 
+	    warning_with_decl (TREE_VALUE (link),
 			       "label `%s' defined but not used");
 	  IDENTIFIER_LABEL_VALUE (DECL_NAME (TREE_VALUE (link))) = 0;
 
@@ -1395,7 +1395,7 @@ duplicate_decls (newdecl, olddecl)
 	      tree newtype
 		= build_function_type (newreturntype,
 				       TYPE_ARG_TYPES (TREE_TYPE (olddecl)));
-	      
+
               types_match = comptypes (TREE_TYPE (newdecl), newtype);
 	      if (types_match)
 		TREE_TYPE (olddecl) = newtype;
@@ -1414,10 +1414,10 @@ duplicate_decls (newdecl, olddecl)
 		 the return type of olddecl's function type.  */
 	      tree newtype
 		= build_function_type (TREE_TYPE (TREE_TYPE (olddecl)),
-				       tree_cons (NULL_TREE, 
+				       tree_cons (NULL_TREE,
 						  TREE_VALUE (TYPE_ARG_TYPES (TREE_TYPE (newdecl))),
 						  TREE_CHAIN (TYPE_ARG_TYPES (TREE_TYPE (olddecl)))));
-	      
+
               types_match = comptypes (TREE_TYPE (newdecl), newtype);
 	      if (types_match)
 		TREE_TYPE (olddecl) = newtype;
@@ -1656,7 +1656,7 @@ duplicate_decls (newdecl, olddecl)
 	  push_obstacks_nochange ();
 	  end_temporary_allocation ();
 	}
-		       
+
       /* Merge the data types specified in the two decls.  */
       if (TREE_CODE (newdecl) != FUNCTION_DECL || !DECL_BUILT_IN (olddecl))
 	TREE_TYPE (newdecl)
@@ -2043,7 +2043,7 @@ pushdecl (x)
       if (b == global_binding_level)
 	{
 	  /* Install a global value.  */
-	  
+
 	  /* If the first global decl has external linkage,
 	     warn if we later see static one.  */
 	  if (IDENTIFIER_GLOBAL_VALUE (name) == 0 && TREE_PUBLIC (x))
@@ -2452,7 +2452,7 @@ shadow_label (name)
       for (dup = named_labels; dup; dup = TREE_CHAIN (dup))
 	if (TREE_VALUE (dup) == decl)
 	  {
-	    error ("duplicate label declaration `%s'", 
+	    error ("duplicate label declaration `%s'",
 		   IDENTIFIER_POINTER (name));
 	    error_with_decl (TREE_VALUE (dup),
 			     "this is a previous declaration");
@@ -2993,14 +2993,14 @@ init_decl_processing ()
 		    BUILT_IN_CONSTANT_P, NULL_PTR);
 
   builtin_function ("__builtin_return_address",
-		    build_function_type (ptr_type_node, 
+		    build_function_type (ptr_type_node,
 					 tree_cons (NULL_TREE,
 						    unsigned_type_node,
 						    endlink)),
 		    BUILT_IN_RETURN_ADDRESS, NULL_PTR);
 
   builtin_function ("__builtin_frame_address",
-		    build_function_type (ptr_type_node, 
+		    build_function_type (ptr_type_node,
 					 tree_cons (NULL_TREE,
 						    unsigned_type_node,
 						    endlink)),
@@ -3099,11 +3099,11 @@ init_decl_processing ()
 		    BUILT_IN_STRCPY, "strcpy");
   builtin_function ("__builtin_strlen", strlen_ftype,
 		    BUILT_IN_STRLEN, "strlen");
-  builtin_function ("__builtin_fsqrt", double_ftype_double, 
+  builtin_function ("__builtin_fsqrt", double_ftype_double,
 		    BUILT_IN_FSQRT, "sqrt");
-  builtin_function ("__builtin_sin", double_ftype_double, 
+  builtin_function ("__builtin_sin", double_ftype_double,
 		    BUILT_IN_SIN, "sin");
-  builtin_function ("__builtin_cos", double_ftype_double, 
+  builtin_function ("__builtin_cos", double_ftype_double,
 		    BUILT_IN_COS, "cos");
 
   /* In an ANSI C program, it is okay to supply built-in meanings
@@ -4515,7 +4515,7 @@ grokdeclarator (declarator, declspecs, decl_context, initialized)
 	  /* Omit the arg types if -traditional, since the arg types
 	     and the list links might not be permanent.  */
 	  type = build_function_type (type,
-				      flag_traditional 
+				      flag_traditional
 				      ? NULL_TREE : arg_types);
 #endif
 	  /* ANSI seems to say that `const int foo ();'
@@ -5459,7 +5459,7 @@ finish_struct (t, fieldlist)
     else
       {
 	register tree y = fieldlist;
-	  
+
 	while (1)
 	  {
 	    if (DECL_NAME (y) == DECL_NAME (TREE_CHAIN (x)))
@@ -6577,7 +6577,7 @@ combine_parm_decls (specparms, parmlist, void_at_end)
 	  types = saveable_tree_cons (NULL_TREE, TREE_TYPE (parm), types);
 	}
   }
-  
+
   if (void_at_end)
     return saveable_tree_cons (parmdecls, nonparms,
 			       nreverse (saveable_tree_cons (NULL_TREE, void_type_node, types)));

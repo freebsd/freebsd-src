@@ -136,7 +136,7 @@ complete_type_p (expr)
 	  expr = TREE_OPERAND (expr, 0);
 	  continue;
 
-	case CALL_EXPR: 
+	case CALL_EXPR:
 	  if (! TREE_HAS_CONSTRUCTOR (expr))
 	    break;
 	  /* fall through... */
@@ -479,7 +479,7 @@ build_vfn_ref (ptr_to_instptr, instance, idx)
   aref = build_array_ref (vtbl, idx);
 
   /* Save the intermediate result in a SAVE_EXPR so we don't have to
-     compute each component of the virtual function pointer twice.  */ 
+     compute each component of the virtual function pointer twice.  */
   if (!building_cleanup && TREE_CODE (aref) == INDIRECT_REF)
     TREE_OPERAND (aref, 0) = save_expr (TREE_OPERAND (aref, 0));
 
@@ -1571,7 +1571,7 @@ finish_base_struct (t, b, t_binfo)
 	    b->cant_synth_copy_ctor = 1;
 	  }
       }
-  }    
+  }
 
   {
     tree vfields;
@@ -1815,7 +1815,7 @@ finish_struct_methods (t, fn_fields, nonprivate_method)
  	{
  	  tree parmtypes = FUNCTION_ARG_CHAIN (fn_fields);
  	  tree parmtype = parmtypes ? TREE_VALUE (parmtypes) : void_type_node;
-	  
+
  	  if (TREE_CODE (parmtype) == REFERENCE_TYPE
  	      && TYPE_MAIN_VARIANT (TREE_TYPE (parmtype)) == t)
  	    {
@@ -2040,14 +2040,14 @@ duplicate_tag_error (t)
    * This used to be in finish_struct, but it turns out that the
    * TREE_CHAIN is used by dbxout_type_methods and perhaps some other things...
    */
-  if (CLASSTYPE_METHOD_VEC(t)) 
+  if (CLASSTYPE_METHOD_VEC(t))
     {
       tree tv = CLASSTYPE_METHOD_VEC(t);
       int i, len  = TREE_VEC_LENGTH (tv);
       for (i = 0; i < len; i++)
 	{
 	  tree unchain = TREE_VEC_ELT (tv, i);
-	  while (unchain != NULL_TREE) 
+	  while (unchain != NULL_TREE)
 	    {
 	      TREE_CHAIN (unchain) = NULL_TREE;
 	      unchain = DECL_CHAIN(unchain);
@@ -2189,7 +2189,7 @@ get_class_offset_1 (parent, binfo, context, t, fndecl)
 	    }
 	  rval = nrval;
 	}
-	
+
       if (rval && BINFO_TYPE (binfo) == context)
 	{
 	  my_friendly_assert (rval == error_mark_node
@@ -2240,7 +2240,7 @@ modify_one_vtable (binfo, t, fndecl, pfn)
 {
   tree virtuals = BINFO_VIRTUALS (binfo);
   unsigned HOST_WIDE_INT n;
-  
+
   n = 0;
   /* Skip initial vtable length field and RTTI fake object. */
   for (; virtuals && n < 1 + flag_dossier; n++)
@@ -2344,7 +2344,7 @@ fixup_vtable_deltas (binfo, t)
 {
   tree virtuals = BINFO_VIRTUALS (binfo);
   unsigned HOST_WIDE_INT n;
-  
+
   n = 0;
   /* Skip initial vtable length field and RTTI fake object. */
   for (; virtuals && n < 1 + flag_dossier; n++)
@@ -2452,7 +2452,7 @@ modify_all_vtables (t, fndecl, vfn)
 
 /* Here, we already know that they match in every respect.
    All we have to check is where they had their declarations.  */
-static int 
+static int
 strictly_overrides (fndecl1, fndecl2)
      tree fndecl1, fndecl2;
 {
@@ -2551,7 +2551,7 @@ override_one_vtable (binfo, old, t)
 	  else if (choose == NEITHER)
 	    {
 	      TREE_VALUE (virtuals) = TREE_VALUE (old_virtuals);
-	    }  
+	    }
 	}
       else
 	{
@@ -2577,7 +2577,7 @@ override_one_vtable (binfo, old, t)
 
 	    vfn = build1 (ADDR_EXPR, vfunc_ptr_type_node, fndecl);
 	    TREE_CONSTANT (vfn) = 1;
-	    
+
 	    /* We can use integer_zero_node, as we will will core dump
 	       if this is used anyway. */
 	    TREE_VALUE (virtuals) = build_vtable_entry (integer_zero_node, vfn);
@@ -2740,7 +2740,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 #endif
 	{
 	  extern int lineno;
-	  
+
 	  DECL_SOURCE_FILE (name) = input_filename;
 	  /* For TYPE_DECL that are not typedefs (those marked with a line
 	     number of zero, we don't want to mark them as real typedefs.
@@ -3020,7 +3020,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 
 	  if (TREE_TYPE (x) == error_mark_node)
 	    continue;
-	  
+
 	  if (! fields)
 	    fields = x;
 	  last_x = x;
@@ -3038,7 +3038,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	      if (TREE_CODE (t) == UNION_TYPE)
 		/* Unions cannot have static members.  */
 		cp_error_at ("field `%D' declared static in union", x);
-	      
+
 	      continue;
 	    }
 
@@ -3196,11 +3196,11 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 		     make it through without complaint.  */
 		  if (CLASSTYPE_ABSTRACT_VIRTUALS (type))
 		    abstract_virtuals_error (x, type);
-		      
+
 		  /* Don't let signatures make it through either.  */
 		  if (IS_SIGNATURE (type))
 		    signature_error (x, type);
-		      
+
 		  if (code == UNION_TYPE)
 		    {
 		      char *fie = NULL;
@@ -3407,7 +3407,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 
   {
     int n_methods = method_vec ? TREE_VEC_LENGTH (method_vec) : 0;
-    
+
     for (access_decls = nreverse (access_decls); access_decls;
 	 access_decls = TREE_CHAIN (access_decls))
       {
@@ -3438,7 +3438,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 
 	if (! fdecl)
 	  continue;
-	
+
 	for (tmp = fields; tmp; tmp = TREE_CHAIN (tmp))
 	  if (DECL_NAME (tmp) == name)
 	    {
@@ -3450,7 +3450,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 
 	if (!fdecl)
 	  continue;
-	
+
 	/* Make type T see field decl FDECL with access ACCESS.*/
 	if (flist)
 	  {
@@ -3465,7 +3465,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	else
 	  alter_access (t, fdecl, access);
       }
-    
+
   }
 
   if (vfield == NULL_TREE && has_virtual)
@@ -3746,7 +3746,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	= size_binop (PLUS_EXPR, offset, DECL_FIELD_BITPOS (vfield));
       CLASSTYPE_VFIELD (t) = vfield;
     }
-    
+
 #ifdef NOTQUITE
   cp_warning ("Doing hard virtuals for %T...", t);
 #endif
@@ -4373,7 +4373,7 @@ pushclass (type, modify)
   if (flag_cadillac)
     cadillac_push_class (type);
 }
- 
+
 /* Get out of the current class scope. If we were in a class scope
    previously, that is the one popped to.  The flag MODIFY tells whether
    the current scope declarations needs to be modified as a result of
@@ -4493,7 +4493,7 @@ push_nested_class (type, modify)
 
   if (type == error_mark_node || ! IS_AGGR_TYPE (type))
     return;
-  
+
   context = DECL_CONTEXT (TYPE_NAME (type));
 
   if (context && TREE_CODE (context) == RECORD_TYPE)
@@ -4547,7 +4547,7 @@ push_lang_context (name)
   if (flag_cadillac)
     cadillac_push_lang (name);
 }
-  
+
 /* Get out of the current language scope.  */
 void
 pop_lang_context ()
@@ -4962,7 +4962,7 @@ instantiate_type (lhstype, rhs, complain)
 
       TREE_TYPE (rhs) = lhstype;
       return rhs;
-      
+
     case ADDR_EXPR:
       if (TYPE_PTRMEMFUNC_P (lhstype))
 	lhstype = TYPE_PTRMEMFUNC_FN_TYPE (lhstype);

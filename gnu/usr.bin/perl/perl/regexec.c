@@ -7,9 +7,12 @@
  * blame Henry for some of the lack of readability.
  */
 
-/* $RCSfile: regexec.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: regexec.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
  *
  * $Log: regexec.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
@@ -17,21 +20,21 @@
  * patch20: pattern modifiers i and g didn't interact right
  * patch20: in some cases $` and $' didn't get set by match
  * patch20: /x{0}/ was wrongly interpreted as /x{0,}/
- * 
+ *
  * Revision 4.0.1.3  91/11/05  18:23:55  lwall
  * patch11: prepared for ctype implementations that don't define isascii()
  * patch11: initial .* in pattern had dependency on value of $*
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:50:33  lwall
  * patch4: new copyright notice
  * patch4: // wouldn't use previous pattern if it started with a null character
- * 
+ *
  * Revision 4.0.1.1  91/04/12  09:07:39  lwall
  * patch1: regexec only allocated space for 9 subexpresssions
- * 
+ *
  * Revision 4.0  91/03/20  01:39:16  lwall
  * 4.0 baseline.
- * 
+ *
  */
 /*SUPPRESS 112*/
 /*
@@ -219,7 +222,7 @@ int safebase;	/* no need to remember string in subbase */
 		New(1102,regmystartp,regmyp_size,char*);
 		New(1102,regmyendp,  regmyp_size,char*);
 	    }
-	
+
 	}
 
 	/* Simplest case:  anchored match need be tried only once. */
@@ -629,7 +632,7 @@ char *prog;
 		case BOUND:
 			if (locinput == regbol)	/* was last char in word? */
 				ln = isALNUM(regprev);
-			else 
+			else
 				ln = isALNUM(locinput[-1]);
 			n = isALNUM(nextchar); /* is next char in word? */
 			if ((ln == n) == (OP(scan) == BOUND))

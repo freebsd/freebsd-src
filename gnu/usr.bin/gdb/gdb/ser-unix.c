@@ -287,7 +287,7 @@ hardwire_flush_output (scb)
 #ifdef HAVE_SGTTY
   /* This flushes both input and output, but we can't do better.  */
   return ioctl (scb->fd, TIOCFLUSH, 0);
-#endif  
+#endif
 }
 
 static int
@@ -305,7 +305,7 @@ hardwire_flush_input (scb)
 #ifdef HAVE_SGTTY
   /* This flushes both input and output, but we can't do better.  */
   return ioctl (scb->fd, TIOCFLUSH, 0);
-#endif  
+#endif
 }
 
 static int
@@ -336,7 +336,7 @@ hardwire_send_break (scb)
     status = ioctl (scb->fd, TIOCCBRK, 0);
     return status;
   }
-#endif  
+#endif
 }
 
 static void
@@ -453,7 +453,7 @@ wait_for(scb, timeout)
 	if (state.termios.c_cc[VTIME] != timeout * 10)
 	  {
 
-	    /* If c_cc is an 8-bit signed character, we can't go 
+	    /* If c_cc is an 8-bit signed character, we can't go
 	       bigger than this.  If it is always unsigned, we could use
 	       25.  */
 
@@ -477,7 +477,7 @@ wait_for(scb, timeout)
 	state.termio.c_cc[VTIME] = timeout * 10;
 	if (state.termio.c_cc[VTIME] != timeout * 10)
 	  {
-	    /* If c_cc is an 8-bit signed character, we can't go 
+	    /* If c_cc is an 8-bit signed character, we can't go
 	       bigger than this.  If it is always unsigned, we could use
 	       25.  */
 
@@ -582,14 +582,14 @@ baudtab[] =
   {-1, -1},
 };
 
-static int 
+static int
 rate_to_code(rate)
      int rate;
 {
   int i;
 
   for (i = 0; baudtab[i].rate != -1; i++)
-    if (rate == baudtab[i].rate)  
+    if (rate == baudtab[i].rate)
       return baudtab[i].code;
 
   return -1;

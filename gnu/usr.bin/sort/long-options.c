@@ -72,7 +72,7 @@ parse_long_options (argc, argv, usage)
 	case 'v':
 	  printf ("%s\n", version_string);
 	  exit (0);
-	
+
 	default:
 	  /* Don't process any other long-named options.  */
 	  break;

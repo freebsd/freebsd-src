@@ -1,4 +1,4 @@
-/* $RCSfile: toke.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:40 $
+/* $RCSfile: toke.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:34 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: toke.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:40  nate
  * PERL!
  *
@@ -15,10 +18,10 @@
  *
  * Revision 4.0.1.8  92/06/23  12:33:45  lwall
  * patch35: bad interaction between backslash and hyphen in tr///
- * 
+ *
  * Revision 4.0.1.7  92/06/11  21:16:30  lwall
  * patch34: expectterm incorrectly set to indicate start of program or block
- * 
+ *
  * Revision 4.0.1.6  92/06/08  16:03:49  lwall
  * patch20: an EXPR may now start with a bareword
  * patch20: print $fh EXPR can now expect term rather than operator in EXPR
@@ -31,10 +34,10 @@
  * patch20: 2. now eats the dot
  * patch20: <@ARGV> now notices @ARGV
  * patch20: tr/// now lets you say \-
- * 
+ *
  * Revision 4.0.1.5  91/11/11  16:45:51  lwall
  * patch19: default arg for shift was wrong after first subroutine definition
- * 
+ *
  * Revision 4.0.1.4  91/11/05  19:02:48  lwall
  * patch11: \x and \c were subject to double interpretation in regexps
  * patch11: prepared for ctype implementations that don't define isascii()
@@ -42,23 +45,23 @@
  * patch11: once-thru blocks didn't display right in the debugger
  * patch11: sort eval "whatever" didn't work
  * patch11: underscore is now allowed within literal octal and hex numbers
- * 
+ *
  * Revision 4.0.1.3  91/06/10  01:32:26  lwall
  * patch10: m'$foo' now treats string as single quoted
  * patch10: certain pattern optimizations were botched
- * 
+ *
  * Revision 4.0.1.2  91/06/07  12:05:56  lwall
  * patch4: new copyright notice
  * patch4: debugger lost track of lines in eval
  * patch4: //o and s///o now optimize themselves fully at runtime
  * patch4: added global modifier for pattern matches
- * 
+ *
  * Revision 4.0.1.1  91/04/12  09:18:18  lwall
  * patch1: perl -de "print" wouldn't stop at the first statement
- * 
+ *
  * Revision 4.0  91/03/20  01:42:14  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -1996,8 +1999,8 @@ char *start;
 	yylval.arg = Nullarg;
 	return s;
     }
-    tstr = yylval.arg[1].arg_ptr.arg_str; 
-    yylval.arg[1].arg_ptr.arg_str = Nullstr; 
+    tstr = yylval.arg[1].arg_ptr.arg_str;
+    yylval.arg[1].arg_ptr.arg_str = Nullstr;
     arg_free(yylval.arg);
     t = tstr->str_ptr;
     tlen = tstr->str_cur;
@@ -2011,8 +2014,8 @@ char *start;
 	yylval.arg = Nullarg;
 	return s;
     }
-    rstr = yylval.arg[1].arg_ptr.arg_str; 
-    yylval.arg[1].arg_ptr.arg_str = Nullstr; 
+    rstr = yylval.arg[1].arg_ptr.arg_str;
+    yylval.arg[1].arg_ptr.arg_str = Nullstr;
     arg_free(yylval.arg);
     r = rstr->str_ptr;
     rlen = rstr->str_cur;
@@ -2290,7 +2293,7 @@ int in_what;
 	leave = Nullch;
 	goto snarf_it;
 
-    case '"': 
+    case '"':
       do_double:
 	term = *s;
 	arg[1].arg_type = A_DOUBLE;

@@ -73,7 +73,7 @@ DEFS =  -DRETSIGTYPE=void -DDIRENT=1 -DHAVE_SYS_MTIO_H=1 -DHAVE_UNISTD_H=1 -DHAV
 # Set this to rtapelib.o unless you defined NO_REMOTE, in which case
 # make it empty.
 RTAPELIB = rtapelib.o
-LIBS = 
+LIBS =
 
 CFLAGS = -g
 LDFLAGS = -g
@@ -82,7 +82,7 @@ prefix = /usr/bin
 exec_prefix = $(prefix)
 
 # Prefix for each installed program, normally empty or `g'.
-binprefix = 
+binprefix =
 
 # The directory to install tar in.
 bindir = $(exec_prefix)/bin
@@ -102,8 +102,8 @@ SRC2 =  version.c list.c names.c diffarch.c port.c fnmatch.c getopt.c malloc.c
 SRC3 =  getopt1.c regex.c getdate.y getdate.c alloca.c
 SRCS =	$(SRC1) $(SRC2) $(SRC3)
 OBJ1 =	tar.o create.o extract.o buffer.o getoldopt.o update.o gnu.o mangle.o
-OBJ2 =	version.o list.o names.o diffarch.o port.o fnmatch.o getopt.o 
-OBJ3 =  getopt1.o regex.o getdate.o $(RTAPELIB) 
+OBJ2 =	version.o list.o names.o diffarch.o port.o fnmatch.o getopt.o
+OBJ3 =  getopt1.o regex.o getdate.o $(RTAPELIB)
 OBJS =	$(OBJ1) $(OBJ2) $(OBJ3)
 AUX =   README INSTALL NEWS COPYING ChangeLog Makefile.in makefile.pc \
 	configure configure.in \
@@ -113,7 +113,7 @@ AUX =   README INSTALL NEWS COPYING ChangeLog Makefile.in makefile.pc \
 	level-0 level-1 backup-specs dump-remind getpagesize.h
 #	tar.texinfo tar.info* texinfo.tex \
 
-all:	tar rmt 
+all:	tar rmt
 # tar.info
 
 .c.o:

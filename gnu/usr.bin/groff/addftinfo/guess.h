@@ -40,5 +40,5 @@ struct char_metric {
   int left_ic;
   int sk;
 };
-  
+
 void guess(const char *s, const font_params &param, char_metric *metric);

@@ -20,7 +20,7 @@
 */
 
 /*
- * $Id: yp_mkdb.c,v 1.1 1995/01/31 08:43:07 wpaul Exp $
+ * $Id: yp_mkdb.c,v 1.2 1995/03/31 19:45:13 wpaul Exp $
  */
 
 #define BUFFERSIZE 4096
@@ -103,7 +103,7 @@ load( char *FileName, char *DbName)
 	}
 
 	sprintf(filename, "%s~.db", DbName);
-	
+
 	if ((dp = dbopen(DbName,O_RDWR|O_EXCL|O_CREAT, PERM_SECURE,
 				DB_HASH, &openinfo)) == NULL) {
 		perror("dbopen");
@@ -199,7 +199,7 @@ main(int argc, char **argv)
 		int c=getopt(argc, argv, "ui:o:m:d:");
 		if (c==EOF) break;
 		switch (c) {
-		case 'u': 
+		case 'u':
 			UFlag++;
 			break;
 		case 'd':

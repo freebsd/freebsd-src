@@ -61,7 +61,7 @@ make_a_section_from_file (abfd, hdr, target_index)
 {
   asection       *return_section;
   char *name;
-    
+
   /* Assorted wastage to null-terminate the name, thanks AT&T! */
   name = bfd_alloc(abfd, sizeof (hdr->s_name)+1);
   if (name == NULL) {
@@ -161,7 +161,7 @@ coff_real_object_p (abfd, nscns, internal_f, internal_a)
   }
 
 /*  make_abs_section(abfd);*/
-  
+
   if (bfd_coff_set_arch_mach_hook (abfd, (PTR) internal_f) == false)
     goto fail;
 
@@ -261,7 +261,7 @@ coff_section_from_bfd_index (abfd, index)
 {
   struct sec *answer = abfd->sections;
 
-  if (index == N_ABS) 
+  if (index == N_ABS)
   {
     return bfd_abs_section_ptr;
   }
@@ -272,9 +272,9 @@ coff_section_from_bfd_index (abfd, index)
   if(index == N_DEBUG)
   {
     return &bfd_debug_section;
-    
+
   }
-  
+
   while (answer) {
       if (answer->target_index == index)
        return answer;
@@ -318,10 +318,10 @@ coff_get_symtab (abfd, alocation)
 	/* This nasty code looks at the symbol to decide whether or
 	   not it is descibes a constructor/destructor entry point. It
 	   is structured this way to (hopefully) speed non matches */
-#if 0	
-	if (0 && symbase->symbol.name[9] == '$') 
+#if 0
+	if (0 && symbase->symbol.name[9] == '$')
 	{
-	    bfd_constructor_entry(abfd, 
+	    bfd_constructor_entry(abfd,
 				 (asymbol **)location,
 				  symbase->symbol.name[10] == 'I' ?
 				  "CTOR" : "DTOR");
@@ -689,7 +689,7 @@ coff_write_symbol (abfd, symbol, native, written)
     {
       native->u.syment.n_scnum = N_ABS;
     }
-  else if (symbol->section == &bfd_debug_section) 
+  else if (symbol->section == &bfd_debug_section)
     {
       native->u.syment.n_scnum = N_DEBUG;
     }
@@ -697,12 +697,12 @@ coff_write_symbol (abfd, symbol, native, written)
     {
       native->u.syment.n_scnum = N_UNDEF;
     }
-  else 
+  else
     {
       native->u.syment.n_scnum =
 	symbol->section->output_section->target_index;
     }
-  
+
   coff_fix_symbol_name (abfd, symbol, native);
 
   symesz = bfd_coff_symesz (abfd);
@@ -841,7 +841,7 @@ coff_write_native_symbol (abfd, symbol, written)
       while (lineno[count].line_number != 0)
 	{
 #if 0
-	  /* 13 april 92. sac 
+	  /* 13 april 92. sac
 	     I've been told this, but still need proof:
 	     > The second bug is also in `bfd/coffcode.h'.  This bug
 	     > causes the linker to screw up the pc-relocations for
@@ -865,7 +865,7 @@ coff_write_native_symbol (abfd, symbol, written)
 	  count++;
 	}
       symbol->done_lineno = true;
-    
+
       symbol->symbol.section->output_section->moving_line_filepos +=
 	count * bfd_coff_linesz (abfd);
     }
@@ -1185,13 +1185,13 @@ build_debug_section (abfd)
     return NULL;
   }
 
-  /* Seek to the beginning of the `.debug' section and read it. 
+  /* Seek to the beginning of the `.debug' section and read it.
      Save the current position first; it is needed by our caller.
      Then read debug section and reset the file pointer.  */
 
   position = bfd_tell (abfd);
   if (bfd_seek (abfd, sect->filepos, SEEK_SET) != 0
-      || (bfd_read (debug_section, 
+      || (bfd_read (debug_section,
 		    bfd_get_section_size_before_reloc (sect), 1, abfd)
 	  != bfd_get_section_size_before_reloc(sect))
       || bfd_seek (abfd, position, SEEK_SET) != 0)
@@ -1299,11 +1299,11 @@ coff_get_normalized_symtab (abfd)
 
       for (i = 0;
 	   i < symbol_ptr->u.syment.n_numaux;
-	   i++) 
+	   i++)
       {
 	internal_ptr++;
 	raw_src += symesz;
-      
+
 	internal_ptr->fix_value = 0;
 	internal_ptr->fix_tag = 0;
 	internal_ptr->fix_end = 0;
@@ -1316,14 +1316,14 @@ coff_get_normalized_symtab (abfd)
 	/* Remember that bal entries arn't pointerized */
 	if (i != 1 || symbol_ptr->u.syment.n_sclass != C_LEAFPROC)
 	{
-	  
+
 	coff_pointerize_aux(abfd,
 			    internal,
 			    symbol_ptr->u.syment.n_type,
 			    symbol_ptr->u.syment.n_sclass,
 			    internal_ptr);
       }
-	
+
       }
     }
 
@@ -1495,13 +1495,13 @@ coff_print_symbol (abfd, filep, symbol, how)
       break;
 
     case bfd_print_symbol_all:
-      if (coffsymbol(symbol)->native) 
+      if (coffsymbol(symbol)->native)
 	{
 	  unsigned int aux;
 	  combined_entry_type *combined = coffsymbol (symbol)->native;
 	  combined_entry_type *root = obj_raw_syments (abfd);
 	  struct lineno_cache_entry *l = coffsymbol(symbol)->lineno;
-	
+
 	  fprintf (file,"[%3d]", combined - root);
 
 	  fprintf (file,
@@ -1514,7 +1514,7 @@ coff_print_symbol (abfd, filep, symbol, how)
 		   (unsigned long) combined->u.syment.n_value,
 		   symbol->name);
 
-	  for (aux = 0; aux < combined->u.syment.n_numaux; aux++) 
+	  for (aux = 0; aux < combined->u.syment.n_numaux; aux++)
 	    {
 	      combined_entry_type *auxp = combined + aux + 1;
 	      long tagndx;
@@ -1539,12 +1539,12 @@ coff_print_symbol (abfd, filep, symbol, how)
 		  break;
 		}
 	    }
-	
+
 	  if (l)
 	    {
 	      fprintf (file, "\n%s :", l->u.sym->name);
 	      l++;
-	      while (l->line_number) 
+	      while (l->line_number)
 		{
 		  fprintf (file, "\n%4d : 0x%lx",
 			   l->line_number,
@@ -1553,7 +1553,7 @@ coff_print_symbol (abfd, filep, symbol, how)
 		  l++;
 		}
 	    }
-	} 
+	}
       else
 	{
 	  bfd_print_symbol_vandf ((PTR) file, symbol);

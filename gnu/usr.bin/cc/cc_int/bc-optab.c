@@ -634,7 +634,7 @@ bc_init_mode_to_code_map ()
 
   for (mode = 0; mode < MAX_MACHINE_MODE + 1; mode++)
     {
-      signed_mode_to_code_map[mode] = 
+      signed_mode_to_code_map[mode] =
 	unsigned_mode_to_code_map[mode] =
 	  LAST_AND_UNUSED_TYPECODE;
     }
@@ -699,7 +699,7 @@ bc_expand_binary_operation (optab, resulttype, arg0, arg1)
 {
   int i, besti, cost, bestcost;
   enum typecode resultcode, arg0code, arg1code;
-  
+
   resultcode = preferred_typecode (TYPE_MODE (resulttype), TREE_UNSIGNED (resulttype));
   arg0code = preferred_typecode (TYPE_MODE (TREE_TYPE (arg0)), TREE_UNSIGNED (resulttype));
   arg1code = preferred_typecode (TYPE_MODE (TREE_TYPE (arg1)), TREE_UNSIGNED (resulttype));
@@ -740,7 +740,7 @@ bc_expand_unary_operation (optab, resulttype, arg0)
 {
   int i, besti, cost, bestcost;
   enum typecode resultcode, arg0code;
-  
+
   resultcode = preferred_typecode (TYPE_MODE (resulttype), TREE_UNSIGNED (resulttype));
   arg0code = preferred_typecode (TYPE_MODE (TREE_TYPE (arg0)), TREE_UNSIGNED (TREE_TYPE (arg0)));
 

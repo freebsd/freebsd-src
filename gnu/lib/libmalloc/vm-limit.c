@@ -68,7 +68,7 @@ check_memory_limits ()
   if (warn_function)
     switch (warnlevel)
       {
-      case 0: 
+      case 0:
 	if (data_size > five_percent * 15)
 	  {
 	    warnlevel++;
@@ -76,7 +76,7 @@ check_memory_limits ()
 	  }
 	break;
 
-      case 1: 
+      case 1:
 	if (data_size > five_percent * 17)
 	  {
 	    warnlevel++;
@@ -84,7 +84,7 @@ check_memory_limits ()
 	  }
 	break;
 
-      case 2: 
+      case 2:
 	if (data_size > five_percent * 19)
 	  {
 	    warnlevel++;

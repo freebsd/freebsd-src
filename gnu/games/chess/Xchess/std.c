@@ -20,7 +20,7 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.2 $ on $Date: 1994/01/07 11:10:42 $
+/* RCS Info: $Revision: 1.3 $ on $Date: 1994/11/04 02:11:33 $
  *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/std.c,v $
  * Copyright (c) 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
  *
@@ -62,7 +62,7 @@ copy(str)
 	char *str;
 {
 	char *p, *tmalloc();
-	
+
 	p = tmalloc(strlen(str) + 1);
 	strcpy(p, str);
 	return(p);
@@ -90,7 +90,7 @@ substring(sub, str)
 }
 
 /* Malloc num bytes and initialize to zero. Fatal error if the space can't
- * be malloc'd. 
+ * be malloc'd.
  */
 
 char *
@@ -375,7 +375,7 @@ setenv(name, value)
 		environ = xx;
 	} else
 		xx = environ;
-	
+
 	xx[i] = tmalloc(strlen(name) + strlen(value) + 2);
 	sprintf(xx[i], "%s=%s", name, value);
 	return;

@@ -2,7 +2,7 @@
 /*
  *                     RCS common definitions and data structures
  */
-#define RCSBASE "$Id: rcsbase.h,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $"
+#define RCSBASE "$Id: rcsbase.h,v 1.2 1994/05/14 07:00:20 rgrimes Exp $"
 
 /* Copyright (C) 1982, 1988, 1989 Walter Tichy
    Copyright 1990, 1991 by Paul Eggert
@@ -43,6 +43,11 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsbase.h,v $
+ * Revision 1.2  1994/05/14  07:00:20  rgrimes
+ * Add new option -K from David Dawes that allows you to turn on and off
+ * specific keyword substitution during a rcs co command.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id$.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -88,45 +93,45 @@ Report problems and direct all questions to:
  * Remove snoop and v2 support.
  *
  * Revision 4.9  89/05/01  15:17:14  narten
- * botched previous USG fix 
- * 
+ * botched previous USG fix
+ *
  * Revision 4.8  89/05/01  14:53:05  narten
  * changed #include <strings.h> -> string.h for USG systems.
- * 
+ *
  * Revision 4.7  88/11/08  15:58:45  narten
  * removed defs for functions loaded from libraries
- * 
+ *
  * Revision 4.6  88/08/09  19:12:36  eggert
  * Shrink stdio code size; remove lint; permit -Dhshsize=nn.
- * 
+ *
  * Revision 4.5  87/12/18  17:06:41  narten
  * made removed BSD ifdef, now uses V4_2BSD
- * 
+ *
  * Revision 4.4  87/10/18  10:29:49  narten
  * Updating version numbers
  * Changes relative to 1.1 are actually relative to 4.2
- * 
+ *
  * Revision 1.3  87/09/24  14:02:25  narten
  * changes for lint
- * 
+ *
  * Revision 1.2  87/03/27  14:22:02  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.2  83/12/20  16:04:20  wft
  * merged 3.6.1.1 and 4.1 (SMALLOG, logsize).
  * moved setting of STRICT_LOCKING to Makefile.
  * changed DOLLAR to UNKN (conflict with KDELIM).
- * 
+ *
  * Revision 4.1  83/05/04  09:12:41  wft
  * Added markers Id and RCSfile.
  * Added Dbranch for default branches.
- * 
+ *
  * Revision 3.6.1.1  83/12/02  21:56:22  wft
  * Increased logsize, added macro SMALLOG.
- * 
+ *
  * Revision 3.6  83/01/15  16:43:28  wft
  * 4.2 prerelease
- * 
+ *
  * Revision 3.6  83/01/15  16:43:28  wft
  * Replaced dbm.h with BYTESIZ, fixed definition of rindex().
  * Added variants of NCPFN and NCPPN for bsd 4.2, selected by defining V4_2BSD.

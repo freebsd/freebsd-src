@@ -36,7 +36,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from static char sccsid[] = "@(#)crypt.c	5.11 (Berkeley) 6/25/91"; */
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/lib/libc/gen/crypt.c,v 1.6 1993/08/29 22:03:56 nate Exp $";
+static char rcsid[] = "$Header: /home/ncvs/src/gnu/usr.bin/perl/perl/crypt.c,v 1.1.1.1 1994/09/10 06:27:37 gclarkii Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>
@@ -44,7 +44,7 @@ static char rcsid[] = "$Header: /home/cvs/386BSD/src/lib/libc/gen/crypt.c,v 1.6 
 
 /*
  * UNIX password, and DES, encryption.
- * 
+ *
  * since this is non-exportable, this is just a dummy.  if you want real
  * encryption, make sure you've got libcrypt.a around.
  */

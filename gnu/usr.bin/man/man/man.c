@@ -5,7 +5,7 @@
  *
  * You may distribute under the terms of the GNU General Public
  * License as specified in the file COPYING that comes with the man
- * distribution.  
+ * distribution.
  *
  * John W. Eaton
  * jwe@che.utexas.edu
@@ -315,7 +315,7 @@ man_getopt (argc, argv)
 	  pager = strdup (optarg);
 	  break;
 	case 'S':
-	  colon_sep_section_list = strdup (optarg); 
+	  colon_sep_section_list = strdup (optarg);
 	  break;
 	case 'a':
 	  findall++;
@@ -449,7 +449,7 @@ man_getopt (argc, argv)
  * first character of name is a numeral, or the name matches one of
  * the sections listed in section_list, we'll assume that it's a section.
  * The list of sections in config.h simply allows us to specify oddly
- * named directories like .../man3f.  Yuk. 
+ * named directories like .../man3f.  Yuk.
  */
 char *
 is_section (name)
@@ -624,7 +624,7 @@ glob_for_file (path, section, name, cat)
 
 /*
  * Return an un-globbed name in the same form as if we were doing
- * globbing. 
+ * globbing.
  */
 char **
 make_name (path, section, name, cat)
@@ -957,7 +957,7 @@ make_roff_command (file)
     {
       /*
        * Is there really any point in continuing to look for
-       * preprocessor options if we can't even read the man page source? 
+       * preprocessor options if we can't even read the man page source?
        */
       gripe_reading_man_file (file);
       return NULL;
@@ -1125,7 +1125,7 @@ format_and_display (path, man_file, cat_file)
 
   if (access (man_file, R_OK) != 0)
     return 0;
-  
+
   if (troff)
     {
       roff_command = make_roff_command (man_file);
@@ -1169,7 +1169,7 @@ format_and_display (path, man_file, cat_file)
 	      if (!found)
 	        {
 		  /* Try again as real user - see note below.
-		     By running with 
+		     By running with
 		       effective group (user) ID == real group (user) ID
 		     except for the call above, I believe the problems
 		     of reading private man pages is avoided.  */
@@ -1206,7 +1206,7 @@ format_and_display (path, man_file, cat_file)
 		{
 		  /*
 		   * Couldn't create cat file.  Just format it and
-		   * display it through the pager. 
+		   * display it through the pager.
 		   */
 		  roff_command = make_roff_command (man_file);
 		  if (roff_command == NULL)
@@ -1277,7 +1277,7 @@ try_section (path, section, name, glob)
   if (names == (char **) -1 || *names == NULL)
     /*
      * No files match.  See if there's a preformatted page around that
-     * we can display. 
+     * we can display.
      */
 #endif /* NROFF_MISSING */
     {

@@ -32,6 +32,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsrev.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.3  1991/08/19  03:13:55  eggert
  * Add `-r$', `-rB.'.  Remove botches like `<now>' from messages.  Tune.
  *
@@ -48,25 +51,25 @@ Report problems and direct all questions to:
  *
  * Revision 4.5  89/05/01  15:13:22  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.4  87/12/18  11:45:22  narten
- * more lint cleanups. Also, the NOTREACHED comment is no longer necessary, 
+ * more lint cleanups. Also, the NOTREACHED comment is no longer necessary,
  * since there's now a return value there with a value. (Guy Harris)
- * 
+ *
  * Revision 4.3  87/10/18  10:38:42  narten
- * Updating version numbers. Changes relative to version 1.1 actually 
+ * Updating version numbers. Changes relative to version 1.1 actually
  * relative to 4.1
- * 
+ *
  * Revision 1.3  87/09/24  14:00:37  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.2  87/03/27  14:22:37  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/03/25  21:10:45  wft
  * Only changed $Header to $Id.
- * 
+ *
  * Revision 3.4  82/12/04  13:24:08  wft
  * Replaced getdelta() with gettree().
  *
@@ -94,7 +97,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(revId, "$Id: rcsrev.c,v 5.3 1991/08/19 03:13:55 eggert Exp $")
+libId(revId, "$Id: rcsrev.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
 
 static char const *branchtip P((char const*));
 static struct hshentry *genbranch P((struct hshentry const*,char const*,unsigned,char const*,char const*,char const*,struct hshentries**));

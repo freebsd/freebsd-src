@@ -33,7 +33,7 @@ extern int max_stack_depth;
   opcode = TREE_INT_CST_LOW (CST); 				\
   bc_emit_bytecode_const ((char *) &opcode, sizeof opcode);	\
 }
-	  
+
 #else
 
 #define bc_emit_bytecode_DI_const(CST)	 			\
@@ -43,7 +43,7 @@ extern int max_stack_depth;
   opcode = TREE_INT_CST_HIGH (CST); 				\
   bc_emit_bytecode_const ((char *) &opcode, sizeof opcode);	\
 }
-	  
+
 #endif
 
 

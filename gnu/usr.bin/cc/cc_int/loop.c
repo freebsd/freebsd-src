@@ -20,7 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* This is the loop optimization pass of the compiler.
    It finds invariant computations within loops and moves them
-   to the beginning of the loop.  Then it identifies basic and 
+   to the beginning of the loop.  Then it identifies basic and
    general induction variables.  Strength reduction is applied to the general
    induction variables, and induction variable elimination is applied to
    the basic induction variables.
@@ -205,7 +205,7 @@ struct movable
   rtx set_dest;			/* The destination of this SET. */
   rtx dependencies;		/* When INSN is libcall, this is an EXPR_LIST
 				   of any registers used within the LIBCALL. */
-  int consec;			/* Number of consecutive following insns 
+  int consec;			/* Number of consecutive following insns
 				   that must be moved with this one.  */
   int regno;			/* The register it sets */
   short lifetime;		/* lifetime of that register;
@@ -221,7 +221,7 @@ struct movable
 		   that the reg is live outside the range from where it is set
 		   to the following label.  */
   unsigned int done : 1;	/* 1 inhibits further processing of this */
-  
+
   unsigned int partial : 1;	/* 1 means this reg is used for zero-extending.
 				   In particular, moving it does not make it
 				   invariant.  */
@@ -506,7 +506,7 @@ scan_loop (loop_start, end, nregs)
      Note that if we mistakenly think that a loop is entered at the top
      when, in fact, it is entered at the exit test, the only effect will be
      slightly poorer optimization.  Making the opposite error can generate
-     incorrect code.  Since very few loops now start with a jump to the 
+     incorrect code.  Since very few loops now start with a jump to the
      exit test, the code here to detect that case is very conservative.  */
 
   for (p = NEXT_INSN (loop_start);
@@ -553,7 +553,7 @@ scan_loop (loop_start, end, nregs)
 
   /* If SCAN_START was an insn created by loop, we don't know its luid
      as required by loop_reg_used_before_p.  So skip such loops.  (This
-     test may never be true, but it's best to play it safe.) 
+     test may never be true, but it's best to play it safe.)
 
      Also, skip loops where we do not start scanning at a label.  This
      test also rejects loops starting with a JUMP_INSN that failed the
@@ -658,7 +658,7 @@ scan_loop (loop_start, end, nregs)
 	  temp = find_reg_note (p, REG_EQUIV, NULL_RTX);
 	  if (temp)
 	    src = XEXP (temp, 0), move_insn = 1;
-	  else 
+	  else
 	    {
 	      temp = find_reg_note (p, REG_EQUAL, NULL_RTX);
 	      if (temp && CONSTANT_P (XEXP (temp, 0)))
@@ -715,12 +715,12 @@ scan_loop (loop_start, end, nregs)
 		 can be combined as long as they are both in the loop, but
 		 we move one of them outside the loop.  For large loops,
 		 this can lose.  The most common case of this is the address
-		 of a function being called.  
+		 of a function being called.
 
 		 Therefore, if this register is marked as being used exactly
 		 once if we are in a loop with calls (a "large loop"), see if
 		 we can replace the usage of this register with the source
-		 of this SET.  If we can, delete this insn. 
+		 of this SET.  If we can, delete this insn.
 
 		 Don't do this if P has a REG_RETVAL note or if we have
 		 SMALL_REGISTER_CLASSES and SET_SRC is a hard register.  */
@@ -750,7 +750,7 @@ scan_loop (loop_start, end, nregs)
 		  REG_NOTES (reg_single_usage[regno])
 		    = replace_rtx (REG_NOTES (reg_single_usage[regno]),
 				   SET_DEST (set), SET_SRC (set));
-				   
+
 		  PUT_CODE (p, NOTE);
 		  NOTE_LINE_NUMBER (p) = NOTE_INSN_DELETED;
 		  NOTE_SOURCE_FILE (p) = 0;
@@ -950,7 +950,7 @@ scan_loop (loop_start, end, nregs)
      all together as the priority of the first.  */
 
   combine_movables (movables, nregs);
-	
+
   /* Now consider each movable insn to decide whether it is worth moving.
      Store 0 in n_times_set for each reg that is moved.  */
 
@@ -1049,7 +1049,7 @@ libcall_other_reg (insn, equiv)
 /* Return 1 if all uses of REG
    are between INSN and the end of the basic block.  */
 
-static int 
+static int
 reg_in_basic_block_p (insn, reg)
      rtx insn, reg;
 {
@@ -1130,7 +1130,7 @@ skip_consec_insns (insn, count)
       rtx temp;
 
       /* If first insn of libcall sequence, skip to end.  */
-      /* Do this at start of loop, since INSN is guaranteed to 
+      /* Do this at start of loop, since INSN is guaranteed to
 	 be an insn here.  */
       if (GET_CODE (insn) != NOTE
 	  && (temp = find_reg_note (insn, REG_LIBCALL, NULL_RTX)))
@@ -1173,7 +1173,7 @@ ignore_some_movables (movables)
 		m1->done = 1;
 	}
     }
-}	  
+}
 
 /* For each movable insn, see if the reg that it loads
    leads when it dies right into another conditionally movable insn.
@@ -1716,7 +1716,7 @@ move_movables (movables, threshold, insn_count, loop_start, end, nregs)
 		      rtx i1, temp;
 
 		      /* If first insn of libcall sequence, skip to end. */
-		      /* Do this at start of loop, since p is guaranteed to 
+		      /* Do this at start of loop, since p is guaranteed to
 			 be an insn here.  */
 		      if (GET_CODE (p) != NOTE
 			  && (temp = find_reg_note (p, REG_LIBCALL, NULL_RTX)))
@@ -1753,7 +1753,7 @@ move_movables (movables, threshold, insn_count, loop_start, end, nregs)
 				       && GET_CODE (PATTERN (next)) == USE)
 				    && GET_CODE (next) != NOTE)
 				  break;
-			      
+
 			      /* If that is the call, this may be the insn
 				 that loads the function address.
 
@@ -1815,7 +1815,7 @@ move_movables (movables, threshold, insn_count, loop_start, end, nregs)
 			  rtx reg = m->set_dest;
 			  rtx sequence;
 			  rtx tem;
-		      
+
 			  start_sequence ();
 			  tem = expand_binop
 			    (GET_MODE (reg), and_optab, reg,
@@ -1851,7 +1851,7 @@ move_movables (movables, threshold, insn_count, loop_start, end, nregs)
 			 cause problems with later optimization passes.
 			 It is possible for cse to create such notes
 			 like this as a result of record_jump_cond.  */
-		      
+
 		      if ((temp = find_reg_note (i1, REG_EQUAL, NULL_RTX))
 			  && ! invariant_p (XEXP (temp, 0)))
 			remove_note (i1, temp);
@@ -1938,7 +1938,7 @@ move_movables (movables, threshold, insn_count, loop_start, end, nregs)
 			reg_map[m1->regno]
 			  = gen_lowpart_common (GET_MODE (m1->set_dest),
 						m->set_dest);
-		    
+
 		      /* Get rid of the matching insn
 			 and prevent further processing of it.  */
 		      m1->done = 1;
@@ -2288,7 +2288,7 @@ find_and_verify_loops (f)
      anywhere.
 
      Also look for blocks of code ending in an unconditional branch that
-     exits the loop.  If such a block is surrounded by a conditional 
+     exits the loop.  If such a block is surrounded by a conditional
      branch around the block, move the block elsewhere (see below) and
      invert the jump to point to the code block.  This may eliminate a
      label in our loop and will simplify processing by both us and a
@@ -2534,7 +2534,7 @@ mark_loop_jump (x, loop_num)
 	    fprintf (loop_dump_stream,
 		     "\nLoop at %d ignored due to multiple entry points.\n",
 		     INSN_UID (loop_number_loop_starts[dest_loop]));
-	  
+
 	  loop_invalid[dest_loop] = 1;
 	}
       return;
@@ -2889,7 +2889,7 @@ find_single_use_in_loop (insn, x, usage)
     {
       /* Don't count SET_DEST if it is a REG; otherwise count things
 	 in SET_DEST because if a register is partially modified, it won't
-	 show up as a potential movable so we don't care how USAGE is set 
+	 show up as a potential movable so we don't care how USAGE is set
 	 for it.  */
       if (GET_CODE (SET_DEST (x)) != REG)
 	find_single_use_in_loop (insn, SET_DEST (x), usage);
@@ -3200,9 +3200,9 @@ strength_reduce (scan_start, end, loop_top, insn_count,
 
   /* Save insn immediately after the loop_end.  Insns inserted after loop_end
      must be put before this insn, so that they will appear in the right
-     order (i.e. loop order). 
+     order (i.e. loop order).
 
-     If loop_end is the end of the current function, then emit a 
+     If loop_end is the end of the current function, then emit a
      NOTE_INSN_DELETED after loop_end and set end_insert_before to the
      dummy note insn.  */
   if (NEXT_INSN (loop_end) != 0)
@@ -3360,7 +3360,7 @@ strength_reduce (scan_start, end, loop_top, insn_count,
 		      ? "not induction variable"
 		      : (! bl->incremented ? "never incremented"
 			 : "count error")));
-	  
+
 	  reg_iv_type[bl->regno] = NOT_BASIC_INDUCT;
 	  *backbl = bl->next;
 	}
@@ -3820,7 +3820,7 @@ strength_reduce (scan_start, end, loop_top, insn_count,
 
       /* Rescan all givs.  If a giv is the same as a giv not reduced, mark it
 	 as not reduced.
-	 
+
 	 For each giv register that can be reduced now: if replaceable,
 	 substitute reduced reg wherever the old giv occurs;
 	 else add new move insn "giv_reg = reduced_reg".
@@ -3957,11 +3957,11 @@ strength_reduce (scan_start, end, loop_top, insn_count,
 
 	 We have to be careful that we didn't initially think we could eliminate
 	 this biv because of a giv that we now think may be dead and shouldn't
-	 be used as a biv replacement.  
+	 be used as a biv replacement.
 
 	 Also, there is the possibility that we may have a giv that looks
 	 like it can be used to eliminate a biv, but the resulting insn
-	 isn't valid.  This can happen, for example, on the 88k, where a 
+	 isn't valid.  This can happen, for example, on the 88k, where a
 	 JUMP_INSN can compare a register only with zero.  Attempts to
 	 replace it with a compare with a constant will fail.
 
@@ -4037,7 +4037,7 @@ strength_reduce (scan_start, end, loop_top, insn_count,
   /* Unroll loops from within strength reduction so that we can use the
      induction variable information that strength_reduce has already
      collected.  */
-  
+
   if (flag_unroll_loops)
     unroll_loop (loop_end, insn_count, loop_start, end_insert_before, 1);
 
@@ -4391,7 +4391,7 @@ record_giv (v, insn, src_reg, dest_reg, mult_val, add_val, benefit,
 
 	  /* Check each biv update, and fail if any are between the first
 	     and last use of the giv.
-	     
+
 	     If this loop contains an inner loop that was unrolled, then
 	     the insn modifying the biv may have been emitted by the loop
 	     unrolling code, and hence does not have a valid luid.  Just
@@ -4599,7 +4599,7 @@ check_final_value (v, loop_start, loop_end)
 		last_giv_use = p;
 	    }
 	}
-      
+
       /* Now that the lifetime of the giv is known, check for branches
 	 from within the lifetime to outside the lifetime if it is still
 	 replaceable.  */
@@ -4774,7 +4774,7 @@ update_giv_derive (p)
    Note that treating the entire pseudo as a BIV will result in making
    simple increments to any GIVs based on it.  However, if the variable
    overflows in its declared mode but not its promoted mode, the result will
-   be incorrect.  This is acceptable if the variable is signed, since 
+   be incorrect.  This is acceptable if the variable is signed, since
    overflows in such cases are undefined, but not if it is unsigned, since
    those overflows are defined.  So we only check for SIGN_EXTEND and
    not ZERO_EXTEND.
@@ -5017,7 +5017,7 @@ general_induction_var (x, src_reg, add_val, mult_val)
    returns 0.
 
    For a non-zero return, the result will have a code of CONST_INT, USE,
-   REG (for a BIV), PLUS, or MULT.  No other codes will occur.  
+   REG (for a BIV), PLUS, or MULT.  No other codes will occur.
 
    *BENEFIT will be incremented by the benefit of any sub-giv encountered.  */
 
@@ -5301,7 +5301,7 @@ consec_sets_giv (first_benefit, p, src_reg, dest_reg,
   rtx set;
 
   /* Indicate that this is a giv so that we can update the value produced in
-     each insn of the multi-insn sequence. 
+     each insn of the multi-insn sequence.
 
      This induction structure will be used only by the call to
      general_induction_var below, so we can allocate it on our stack.
@@ -5371,7 +5371,7 @@ consec_sets_giv (first_benefit, p, src_reg, dest_reg,
 
 /* Return an rtx, if any, that expresses giv G2 as a function of the register
    represented by G1.  If no such expression can be found, or it is clear that
-   it cannot possibly be a valid address, 0 is returned. 
+   it cannot possibly be a valid address, 0 is returned.
 
    To perform the computation, we note that
    	G1 = a * v + b		and
@@ -5832,7 +5832,7 @@ check_dbra_loop (loop_end, insn_count, loop_start)
 	      p = emit_insn_before (gen_add2_insn (reg, new_add_val),
 				    bl->biv->insn);
 	      delete_insn (bl->biv->insn);
-		      
+
 	      /* Update biv info to reflect its new status.  */
 	      bl->biv->insn = p;
 	      bl->initial_value = start_value;
@@ -6118,7 +6118,7 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
 		/* If that failed, put back the change we made above.  */
 		XEXP (x, 1-arg_operand) = reg;
 	      }
-	  
+
 	  /* Look for giv with positive constant mult_val and nonconst add_val.
 	     Insert insns to calculate new compare value.  */
 
@@ -6244,7 +6244,7 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
       switch (fmt[i])
 	{
 	case 'e':
-	  if (! maybe_eliminate_biv_1 (XEXP (x, i), insn, bl, 
+	  if (! maybe_eliminate_biv_1 (XEXP (x, i), insn, bl,
 				       eliminate_p, where))
 	    return 0;
 	  break;
@@ -6259,7 +6259,7 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
     }
 
   return 1;
-}  
+}
 
 /* Return nonzero if the last use of REG
    is in an insn following INSN in the same basic block.  */

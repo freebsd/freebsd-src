@@ -1002,7 +1002,7 @@ un_quote_string (string)
 }
 
 #ifndef __MSDOS__
-void 
+void
 ck_pipe (pipes)
      int *pipes;
 {
@@ -1223,7 +1223,7 @@ msg_perror (str, args)
 #endif /* !HAVE_VPRINTF and HAVE_DOPRNT */
 
 #if !defined(HAVE_VPRINTF) && !defined(HAVE_DOPRNT)
-void 
+void
 msg (str, a1, a2, a3, a4, a5, a6)
      char *str;
 {

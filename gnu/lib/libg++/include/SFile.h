@@ -41,10 +41,10 @@ public:
     SFile(int fd, int size);
     SFile(const char *name, int size, int mode, int prot=0664);
     void open(const char *name, int size, int mode, int prot=0664);
-    
+
     int       size() { return sz; }
     int       setsize(int s) { int old = sz; sz = s; return old; }
-    
+
     SFile&    get(void* x);
     SFile&    put(void* x);
     SFile&    operator[](long i);

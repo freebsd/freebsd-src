@@ -66,7 +66,7 @@ LookupFontSizeBySize (dw, f, size)
 	unsigned int    fontNameAttributes;
 	char	    	fontNameString[2048];
 	int		decipointsize;
-	
+
 	if (f->scalable) {
 		decipointsize = (10*size)/dw->dvi.sizescale;
 		for (best = f->sizes; best; best = best->next)
@@ -251,7 +251,7 @@ InstallFont (dw, position, dvi_name, x_name)
 		f->char_map = DviFindMap (encoding);
 	} else
 		f->char_map = 0;
-	/* 
+	/*
 	 * force requery of fonts
 	 */
 	dw->dvi.font = 0;
@@ -267,7 +267,7 @@ ForgetFonts (dw)
 	DviWidget dw;
 {
 	DviFontList *f = dw->dvi.fonts;
-	
+
 	while (f) {
 		DviFontList *tem = f;
 
@@ -280,8 +280,8 @@ ForgetFonts (dw)
 		f = f->next;
 		XtFree ((char *) tem);
 	}
-	
-	/* 
+
+	/*
 	 * force requery of fonts
 	 */
 	dw->dvi.font = 0;
@@ -300,7 +300,7 @@ MapDviNameToXName (dw, dvi_name)
 	char		*dvi_name;
 {
 	DviFontMap	*fm;
-	
+
 	for (fm = dw->dvi.font_map; fm; fm=fm->next)
 		if (!strcmp (fm->dvi_name, dvi_name))
 			return fm->x_name;
@@ -314,7 +314,7 @@ MapXNameToDviName (dw, x_name)
 	char		*x_name;
 {
 	DviFontMap	*fm;
-	
+
 	for (fm = dw->dvi.font_map; fm; fm=fm->next)
 		if (!strcmp (fm->x_name, x_name))
 			return fm->dvi_name;

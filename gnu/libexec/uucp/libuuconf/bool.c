@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_bool_rcsid[] = "$Id: bool.c,v 1.3 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_bool_rcsid[] = "$Id: bool.c,v 1.2 1994/05/07 18:11:58 ache Exp $";
 #endif
 
 /* Parse a boolean string into a variable.  This is called by
@@ -61,4 +61,4 @@ _uuconf_iboolean (qglobal, zval, pi)
     }
 
   return UUCONF_CMDTABRET_CONTINUE;
-}		    
+}

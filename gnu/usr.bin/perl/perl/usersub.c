@@ -1,22 +1,25 @@
-/* $RCSfile: usersub.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:40 $
+/* $RCSfile: usersub.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:34 $
  *
  *  This file contains stubs for routines that the user may define to
  *  set up glue routines for C libraries or to decrypt encrypted scripts
  *  for execution.
  *
  * $Log: usersub.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:40  nate
  * PERL!
  *
  * Revision 4.0.1.2  92/06/08  16:04:24  lwall
  * patch20: removed implicit int declarations on functions
- * 
+ *
  * Revision 4.0.1.1  91/11/11  16:47:17  lwall
  * patch19: deleted some unused functions from usersub.c
- * 
+ *
  * Revision 4.0  91/03/20  01:55:56  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"

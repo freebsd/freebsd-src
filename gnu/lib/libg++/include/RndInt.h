@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1990 Free Software Foundation
     adapted from a submission from John Reidl <riedl@cs.purdue.edu>
 
@@ -40,13 +40,13 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 // in a specified range.  By default the range is 0..1.  Since in my
 // experience random numbers are often needed for a wide variety of
 // ranges in the same program, this generator accepts a new low or high value
-// as an argument to the asLong and operator() methods to temporarily 
+// as an argument to the asLong and operator() methods to temporarily
 // override stored values
 
 #include <math.h>
 #include <RNG.h>
 
-class RandomInteger 
+class RandomInteger
 {
  protected:
   RNG *pGenerator;
@@ -90,20 +90,20 @@ class RandomInteger
 };
 
 
-inline RandomInteger::RandomInteger(long low, long high, RNG *gen) 
+inline RandomInteger::RandomInteger(long low, long high, RNG *gen)
      : pLow((low < high) ? low : high),
        pHigh((low < high) ? high : low),
        pGenerator(gen)
 {}
 
-inline RandomInteger::RandomInteger(long high, RNG *gen) 
+inline RandomInteger::RandomInteger(long high, RNG *gen)
      : pLow((0 < high) ? 0 : high),
        pHigh((0 < high) ? high : 0),
        pGenerator(gen)
 {}
-  
 
-inline RandomInteger::RandomInteger(RNG *gen) 
+
+inline RandomInteger::RandomInteger(RNG *gen)
      : pLow(0),
        pHigh(1),
        pGenerator(gen)
@@ -113,28 +113,28 @@ inline RNG* RandomInteger::generator() const { return pGenerator;}
 inline long RandomInteger::low() const       { return pLow; }
 inline long RandomInteger::high() const      { return pHigh; }
 
-inline RNG* RandomInteger::generator(RNG *gen) 
+inline RNG* RandomInteger::generator(RNG *gen)
 {
   RNG *tmp = pGenerator; pGenerator = gen;  return tmp;
 }
 
-inline long RandomInteger::low(long x)  
+inline long RandomInteger::low(long x)
 {
   long tmp = pLow;  pLow = x;  return tmp;
 }
 
-inline long RandomInteger:: high(long x) 
+inline long RandomInteger:: high(long x)
 {
   long tmp = pHigh; pHigh = x; return tmp;
 }
 
 inline long RandomInteger:: _asLong(long low, long high)
-{	
+{
   return (pGenerator->asLong() % (high-low+1)) + low;
 }
 
 
-inline long RandomInteger:: asLong() 
+inline long RandomInteger:: asLong()
 {
   return _asLong(pLow, pHigh);
 }
@@ -149,7 +149,7 @@ inline long RandomInteger:: asLong(long low, long high)
   return _asLong(low, high);
 }
 
-inline long RandomInteger:: operator () () 
+inline long RandomInteger:: operator () ()
 {
   return _asLong(pLow, pHigh);
 }
@@ -167,7 +167,7 @@ inline long RandomInteger:: operator () (long low, long high)
 
 
 
-inline int RandomInteger:: asInt() 
+inline int RandomInteger:: asInt()
 {
   return int(asLong());
 }

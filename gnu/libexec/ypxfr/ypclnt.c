@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypclnt.c,v 1.2 1995/02/06 23:35:48 wpaul Exp $
+	$Id: ypclnt.c,v 1.3 1995/03/31 05:45:21 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -40,7 +40,7 @@ struct dom_binding {
 	void * m;
 };
 #include <rpcsvc/ypclnt.h>
- 
+
 static struct sockaddr_in ServerAddress;
 static CLIENT *UdpClient=NULL, *TcpClient=NULL;
 extern void Perror __P((const char *, ...));
@@ -53,7 +53,7 @@ eachresult( caddr_t resultsp, struct sockaddr_in *raddr)
    return((bool_t) TRUE);
 }
 #endif
- 
+
 static struct sockaddr_in *
 __do_ypbind(domainname d)
 {
@@ -73,8 +73,8 @@ __do_ypbind(domainname d)
       clnt_pcreateerror("");
       return NULL;
    }
-   
-   rc=clnt_call(localBindClient, YPBINDPROC_DOMAIN, 
+
+   rc=clnt_call(localBindClient, YPBINDPROC_DOMAIN,
       xdr_domainname, (char *)&d, xdr_ypbind_resp, (char *)&r, t);
    if (rc) {
       clnt_perrno(rc);
@@ -118,16 +118,16 @@ __yp_unbind(char *DomainName)
    if (TcpClient) clnt_destroy(TcpClient);
    TcpClient=NULL;
 }
- 
+
 int
 _yp_bind(struct sockaddr_in *ServerAddress, char *DomainName)
 {
    struct sockaddr_in UdpServerAddress, TcpServerAddress;
    int UdpSockp, TcpSockp;
    static struct timeval Wait = { 5, 0 };
- 
+
    if (UdpClient || TcpClient) __yp_unbind(DomainName);
- 
+
    bcopy(ServerAddress, &UdpServerAddress, sizeof(*ServerAddress));
    UdpServerAddress.sin_port=0;
    UdpSockp=(RPC_ANYSOCK);
@@ -145,9 +145,9 @@ _yp_bind(struct sockaddr_in *ServerAddress, char *DomainName)
       return(YPERR_RPC);
    }
    return(0);
- 
+
 }
- 
+
 int
 __yp_bind(char *DomainName)
 {
@@ -156,7 +156,7 @@ __yp_bind(char *DomainName)
    static bool_t res;
 #  endif
    static domainname domain;
- 
+
    domain=DomainName;
 #  ifndef SOCKSERVER
 #  ifdef YPBROADCAST
@@ -189,11 +189,11 @@ __yp_all( char *DomainName, char *MapName, struct ypall_callback *CallBack)
    ypresp_all *resp;
    extern struct ypall_callback *xdr_ypall_callback;
    int Status;
- 
+
    do {
       if (TcpClient==NULL)
          if ((Status=__yp_bind(DomainName))) return(Status);
- 
+
       req.domain=DomainName;
       req.map=MapName;
       xdr_ypall_callback=CallBack;
@@ -219,7 +219,7 @@ _yp_clear(char *DomainName)
 {
    void *resp;
    int Status;
- 
+
    do {
       if (UdpClient==NULL)
          if ((Status=yp_bind(DomainName))) return(Status);

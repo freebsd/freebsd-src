@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.5 1995/04/26 01:01:07 jkh Exp $
+	$Id: freebsd-nat.c,v 1.6 1995/05/09 13:59:22 rgrimes Exp $
 */
 
 #include <sys/types.h>
@@ -32,7 +32,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 /* this table must line up with REGISTER_NAMES in tm-i386v.h */
 /* symbols like 'tEAX' come from <machine/reg.h> */
-static int tregmap[] = 
+static int tregmap[] =
 {
   tEAX, tECX, tEDX, tEBX,
   tESP, tEBP, tESI, tEDI,
@@ -64,7 +64,7 @@ i387_to_double (from, to)
   /* push extended mode on 387 stack, then pop in double mode
    *
    * first, set exception masks so no error is generated -
-   * number will be rounded to inf or 0, if necessary 
+   * number will be rounded to inf or 0, if necessary
    */
   asm ("pushl %eax"); 		/* grab a stack slot */
   asm ("fstcw (%esp)");		/* get 387 control word */
@@ -72,14 +72,14 @@ i387_to_double (from, to)
   asm ("orl $0x3f,%eax");		/* mask all exceptions */
   asm ("pushl %eax");
   asm ("fldcw (%esp)");		/* load new value into 387 */
-  
+
   asm ("movl 8(%ebp),%eax");
   asm ("fldt (%eax)");		/* push extended number on 387 stack */
   asm ("fwait");
   asm ("movl 12(%ebp),%eax");
   asm ("fstpl (%eax)");		/* pop double */
   asm ("fwait");
-  
+
   asm ("popl %eax");		/* flush modified control word */
   asm ("fnclex");			/* clear exceptions */
   asm ("fldcw (%esp)");		/* restore original control word */
@@ -105,7 +105,7 @@ double_to_i387 (from, to)
 }
 #endif
 
-struct env387 
+struct env387
 {
   unsigned short control;
   unsigned short r0;
@@ -128,7 +128,7 @@ unsigned int control;
 {
   printf ("control 0x%04x: ", control);
   printf ("compute to ");
-  switch ((control >> 8) & 3) 
+  switch ((control >> 8) & 3)
     {
     case 0: printf ("24 bits; "); break;
     case 1: printf ("(bad); "); break;
@@ -136,14 +136,14 @@ unsigned int control;
     case 3: printf ("64 bits; "); break;
     }
   printf ("round ");
-  switch ((control >> 10) & 3) 
+  switch ((control >> 10) & 3)
     {
     case 0: printf ("NEAREST; "); break;
     case 1: printf ("DOWN; "); break;
     case 2: printf ("UP; "); break;
     case 3: printf ("CHOP; "); break;
     }
-  if (control & 0x3f) 
+  if (control & 0x3f)
     {
       printf ("mask:");
       if (control & 0x0001) printf (" INVALID");
@@ -164,7 +164,7 @@ print_387_status_word (status)
      unsigned int status;
 {
   printf ("status 0x%04x: ", status);
-  if (status & 0xff) 
+  if (status & 0xff)
     {
       printf ("exceptions:");
       if (status & 0x0001) printf (" INVALID");
@@ -181,7 +181,7 @@ print_387_status_word (status)
 	  (status & 0x0400) != 0,
 	  (status & 0x0200) != 0,
 	  (status & 0x0100) != 0);
-  
+
   printf ("top %d\n", (status >> 11) & 7);
 }
 
@@ -195,43 +195,43 @@ print_387_status (status, ep)
   int top;
   int fpreg;
   unsigned char *p;
-  
+
   bothstatus = ((status != 0) && (ep->status != 0));
-  if (status != 0) 
+  if (status != 0)
     {
       if (bothstatus)
 	printf ("u: ");
       print_387_status_word ((unsigned int)status);
     }
-  
-  if (ep->status != 0) 
+
+  if (ep->status != 0)
     {
       if (bothstatus)
 	printf ("e: ");
       print_387_status_word ((unsigned int)ep->status);
     }
-  
+
   print_387_control_word ((unsigned int)ep->control);
   printf ("opcode 0x%x; ", ep->opcode);
   printf ("pc 0x%x:0x%x; ", ep->code_seg, ep->eip);
   printf ("operand 0x%x:0x%x\n", ep->operand_seg, ep->operand);
-  
+
   top = (ep->status >> 11) & 7;
-  
+
   printf (" regno     tag  msb              lsb  value\n");
-  for (fpreg = 7; fpreg >= 0; fpreg--) 
+  for (fpreg = 7; fpreg >= 0; fpreg--)
     {
       int st_regno;
       double val;
-      
+
       /* The physical regno `fpreg' is only relevant as an index into the
        * tag word.  Logical `%st' numbers are required for indexing ep->regs.
        */
       st_regno = (fpreg + 8 - top) & 7;
 
       printf ("%%st(%d) %s ", st_regno, fpreg == top ? "=>" : "  ");
-      
-      switch ((ep->tag >> (fpreg * 2)) & 3) 
+
+      switch ((ep->tag >> (fpreg * 2)) & 3)
 	{
 	case 0: printf ("valid "); break;
 	case 1: printf ("zero  "); break;
@@ -240,7 +240,7 @@ print_387_status (status, ep)
 	}
       for (i = 9; i >= 0; i--)
 	printf ("%02x", ep->regs[st_regno][i]);
-      
+
       i387_to_double (ep->regs[st_regno], (char *)&val);
       printf ("  %g\n", val);
     }
@@ -261,25 +261,25 @@ i386_float_info ()
   /*extern int corechan;*/
   int skip;
   extern int inferior_pid;
-  
+
   uaddr = (char *)&U_FPSTATE(u) - (char *)&u;
-  if (inferior_pid) 
+  if (inferior_pid)
     {
       int *ip;
-      
+
       rounded_addr = uaddr & -sizeof (int);
       rounded_size = (((uaddr + sizeof (struct fpstate)) - uaddr) +
 		      sizeof (int) - 1) / sizeof (int);
       skip = uaddr - rounded_addr;
-      
+
       ip = (int *)buf;
-      for (i = 0; i < rounded_size; i++) 
+      for (i = 0; i < rounded_size; i++)
 	{
 	  *ip++ = ptrace (PT_READ_U, inferior_pid, (caddr_t)rounded_addr, 0);
 	  rounded_addr += sizeof (int);
 	}
-    } 
-  else 
+    }
+  else
     {
 #if 1
        printf("float info: can't do a core file (yet)\n");
@@ -287,12 +287,12 @@ i386_float_info ()
 #else
       if (lseek (corechan, uaddr, 0) < 0)
 	perror_with_name ("seek on core file");
-      if (myread (corechan, buf, sizeof (struct fpstate)) < 0) 
+      if (myread (corechan, buf, sizeof (struct fpstate)) < 0)
 	perror_with_name ("read from core file");
       skip = 0;
 #endif
     }
-  
+
   fpstatep = (struct fpstate *)(buf + skip);
   print_387_status (fpstatep->sv_ex_sw, (struct env387 *)fpstatep);
 }
@@ -582,7 +582,7 @@ CORE_ADDR uaddr;
 }
 
 /*
- * read len bytes from kernel virtual address 'addr' into local 
+ * read len bytes from kernel virtual address 'addr' into local
  * buffer 'buf'.  Return numbert of bytes if read ok, 0 otherwise.  On read
  * errors, portion of buffer not read is zeroed.
  */

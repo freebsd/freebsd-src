@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: nl_types.h,v 1.1 1995/03/30 12:47:56 jkh Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -29,7 +29,7 @@ up-to-date.  Many thanks.
 				267 Allston St., #3
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
-    
+
 ******************************************************************/
 
 #ifndef _NL_TYPES_H_

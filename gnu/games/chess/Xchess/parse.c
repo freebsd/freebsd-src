@@ -19,8 +19,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.2 $ on $Date: 86/11/23 17:17:59 $
- *           $Source: /users/faustus/xchess/RCS/parse.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:06 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/parse.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -71,7 +71,7 @@ load_game(file)
 	message_add(win1, buf, false);
 	if (!oneboard)
 		message_add(win2, buf, false);
-	
+
 	fgets(buf, BSIZE, fp);
 	if (eq(buf, "\tenglish\n"))
 		eflag = true;
@@ -106,7 +106,7 @@ load_game(file)
 
 	while (fgets(buf, BSIZE, fp))
 		message_add(win1, buf, false);
-	
+
 	fclose(fp);
 
 	return;
@@ -179,7 +179,7 @@ parse_file(fp, b, english)
  * name followed by a row number.  If the column name is kr, kn, kb, k, q,
  * qb, qn, or qr, then the row number is according to the english system,
  * or if it is a-h then it is according to the international system.
- * 
+ *
  *** As of now the spec must include the position.
  */
 
@@ -380,7 +380,7 @@ if (debug) fprintf(stderr, "(alg) parsing %s\n", buf);
 	else if ((m->piece.type == KING) && (m->fromy == m->toy) &&
 			(m->fromx == 4) && (m->tox == 2))
 		m->type = QCASTLE;
-	
+
 	return (m);
 }
 

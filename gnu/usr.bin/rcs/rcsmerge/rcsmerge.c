@@ -35,6 +35,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsmerge.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:16  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.7  1991/11/20  17:58:09  eggert
  * Don't Iopen(f, "r+"); it's not portable.
  *
@@ -64,26 +67,26 @@ Report problems and direct all questions to:
  *
  * Revision 4.5  89/05/01  15:13:16  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.4  88/08/09  19:13:13  eggert
  * Beware merging into a readonly file.
  * Beware merging a revision to itself (no change).
  * Use execv(), not system(); yield exit status like diff(1)'s.
- * 
+ *
  * Revision 4.3  87/10/18  10:38:02  narten
- * Updating version numbers. Changes relative to version 1.1 
+ * Updating version numbers. Changes relative to version 1.1
  * actually relative to 4.1
- * 
+ *
  * Revision 1.3  87/09/24  14:00:31  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.2  87/03/27  14:22:36  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/03/28  11:14:57  wft
  * Added handling of default branch.
- * 
+ *
  * Revision 3.3  82/12/24  15:29:00  wft
  * Added call to catchsig().
  *
@@ -98,7 +101,7 @@ Report problems and direct all questions to:
 
 static char const co[] = CO;
 
-mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.7 1991/11/20 17:58:09 eggert Exp $")
+mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 1.1.1.1 1993/06/18 04:22:16 jkh Exp $")
 {
 	static char const cmdusage[] =
 		"\nrcsmerge usage: rcsmerge -rrev1 [-rrev2] [-p] [-Vn] file";

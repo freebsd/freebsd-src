@@ -1,7 +1,7 @@
 /*
  * program:	fselect.c
  * author:	Marc van Kempen (wmbfmk@urc.tue.nl)
- * Desc:	File selection routine 
+ * Desc:	File selection routine
  *
  * Copyright (c) 1995, Marc van Kempen
  *
@@ -14,7 +14,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  */
 
 #include <stdlib.h>
@@ -31,7 +31,7 @@
 
 char *dialog_dfselect(char *dir, char *fmask, int is_fselect);
 
-/* 
+/*
  * Functions
  */
 
@@ -60,7 +60,7 @@ get_directories(DirList *d, int n, char ***names, int *nd)
 void
 get_filenames(DirList *d, int n, char ***names, int *nf)
 /*
- * Desc: return the filenames in <dir> as an arry in 
+ * Desc: return the filenames in <dir> as an arry in
  *  	 <names>, the # of entries in <nf>, memory allocated
  *	 to *names should be freed when done.
  */
@@ -78,7 +78,7 @@ get_filenames(DirList *d, int n, char ***names, int *nf)
 	(*names)[i] = (char *) malloc( strlen(d[i+nd].filename) + 1);
 	strcpy((*names)[i], d[i+nd].filename);
     }
-	
+
     return;
 } /* get_filenames() */
 
@@ -102,8 +102,8 @@ FreeNames(char **names, int n)
 int
 dialog_dselect_old(void)
 /*
- * Desc: starting from the current directory, 
- *	 choose a new current directory 
+ * Desc: starting from the current directory,
+ *	 choose a new current directory
  */
 {
     DirList		*d = NULL;
@@ -114,12 +114,12 @@ dialog_dselect_old(void)
     StringObj		*dir_obj;
     char		o_dir[MAXPATHLEN];
     struct ComposeObj	*obj = NULL;
-    int			n, nd, okbutton, cancelbutton, 
+    int			n, nd, okbutton, cancelbutton,
 			quit, cancel, ret;
 
     ds_win = newwin(LINES-8, COLS-30, 4, 15);
     if (ds_win == NULL) {
-	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", 
+	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n",
  		LINES-8, COLS-30, 4, 15);
 	exit(1);
     }
@@ -137,7 +137,7 @@ dialog_dselect_old(void)
     /* the list of directories */
     get_dir(".", "*", &d, &n);
     get_directories(d, n, &names, &nd);
-    dirs_obj = NewListObj(ds_win, "Directories:", names, o_dir, 5, 2, 
+    dirs_obj = NewListObj(ds_win, "Directories:", names, o_dir, 5, 2,
 			  LINES-15, COLS-48, nd);
     AddObj(&obj, LISTOBJ, (void *) dirs_obj);
 
@@ -145,7 +145,7 @@ dialog_dselect_old(void)
     okbutton = FALSE;
     okbut = NewButtonObj(ds_win, "Continue", &okbutton, 7, COLS-45);
     AddObj(&obj, BUTTONOBJ, (void *) okbut);
-    
+
     /* the Cancel-button */
     cancelbutton = FALSE;
     cancelbut = NewButtonObj(ds_win, "Return", &cancelbutton, 11, COLS-44);
@@ -176,7 +176,7 @@ dialog_dselect_old(void)
 		    strcpy(old_dir, o_dir);
 		    RefreshStringObj(dir_obj);
 		}
-	    } 
+	    }
 	    get_dir(".", "*", &d, &n);
 	    FreeNames(names, nd);
 	    get_directories(d, n, &names, &nd);
@@ -194,7 +194,7 @@ dialog_dselect_old(void)
 	    break;
 	}
     }
-    
+
     FreeNames(names, nd);
     DelObj(obj);
     delwin(ds_win);
@@ -229,7 +229,7 @@ char *
 dialog_dfselect(char *dir, char *fmask, int is_fselect)
 /*
  * Desc: choose a file from the directory <dir>, which
- *	 initially display files with the mask <filemask> 
+ *	 initially display files with the mask <filemask>
  * pre:  <dir> is the initial directory
  *	 only files corresponding to the mask <fmask> are displayed
  * post: returns NULL if no file was selected
@@ -262,7 +262,7 @@ dialog_dfselect(char *dir, char *fmask, int is_fselect)
     fs_win = newwin(LINES-2, COLS-20, 1, 10);
     if (fs_win == NULL) {
 	endwin();
-	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", 
+	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n",
 		LINES-2, COLS-20, 2, 10);
 	exit(1);
     }
@@ -289,7 +289,7 @@ dialog_dfselect(char *dir, char *fmask, int is_fselect)
     get_dir(".", fmask, &d, &n);	/* read the entire directory */
     get_directories(d, n, &dnames, &nd); /* extract the dir-entries */
     if (is_fselect) {
-	dirs_obj = NewListObj(fs_win, "Directories:", dnames, o_dir, 5, 2, 
+	dirs_obj = NewListObj(fs_win, "Directories:", dnames, o_dir, 5, 2,
 			      LINES-16, (COLS-20)/2-2, nd);
     } else {
 	dirs_obj = NewListObj(fs_win, "Directories:", dnames, o_dir, 5, 2,
@@ -340,7 +340,7 @@ dialog_dfselect(char *dir, char *fmask, int is_fselect)
 	switch(ret) {
 	case SEL_CR:
 	    if (strcmp(old_fmask, o_fm) || strcmp(old_dir, o_dir)) {
-		/* reread directory and update the listobjects */		
+		/* reread directory and update the listobjects */
 		if (strcmp(old_dir, o_dir)) { /* dir entry was changed */
 		    if (chdir(o_dir)) {
 			dialog_notify("Could not change into directory");

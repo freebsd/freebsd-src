@@ -69,7 +69,7 @@ char *from, *to;
 	dev_t to_device = filestat.st_dev;
 	ino_t to_inode  = filestat.st_ino;
 	char *simplename = bakname;
-	
+
 	for (s=bakname; *s; s++) {
 	    if (*s == '/')
 		simplename = s+1;
@@ -104,7 +104,7 @@ char *from, *to;
 #endif
     if (rename(from, to) < 0) {		/* different file system? */
 	Reg4 int tofd;
-	
+
 	tofd = creat(to, 0666);
 	if (tofd < 0) {
 	    say4("Can't create %s, output is in %s: %s\n",
@@ -133,7 +133,7 @@ char *from, *to;
     Reg3 int tofd;
     Reg2 int fromfd;
     Reg1 int i;
-    
+
     tofd = creat(to, 0666);
     if (tofd < 0)
 	pfatal2("can't create %s", to);

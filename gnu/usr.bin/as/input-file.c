@@ -1,18 +1,18 @@
 /* input_file.c - Deal with Input Files -
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -25,7 +25,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: input-file.c,v 1.3 1993/10/02 20:57:37 pk Exp $";
+static char rcsid[] = "$Id: input-file.c,v 1.2 1993/11/03 00:51:48 paul Exp $";
 #endif
 
 #ifdef USG
@@ -90,17 +90,17 @@ int input_file_is_open() {
    can be restored with input_file_pop ().  */
 char *input_file_push () {
 	register struct saved_file *saved;
-	
+
 	saved = (struct saved_file *)xmalloc (sizeof *saved);
-	
+
 	saved->f_in		= f_in;
 	saved->file_name	= file_name;
 	saved->preprocess	= preprocess;
 	if (preprocess)
 	    saved->app_save	= app_push ();
-	
+
 	input_file_begin ();	/* Initialize for new file */
-	
+
 	return (char *)saved;
 }
 
@@ -109,15 +109,15 @@ void
 char *arg;
 {
 	register struct saved_file *saved = (struct saved_file *)arg;
-	
+
 	input_file_end ();	/* Close out old file */
-	
+
 	f_in			= saved->f_in;
 	file_name		= saved->file_name;
 	preprocess		= saved->preprocess;
 	if (preprocess)
 	    app_pop	 	 (saved->app_save);
-	
+
 	free(arg);
 }
 
@@ -152,7 +152,7 @@ int	debugging;	/* TRUE if we are debugging assembler. */
 		    char temporary_file_name[12];
 		    int	fd;
 		    union wait	status;
-		    
+
 		    (void)strcpy (temporary_file_name, "#appXXXXXX");
 		    (void)mktemp (temporary_file_name);
 		    pid = vfork ();
@@ -204,9 +204,9 @@ int pre;
 {
 	int	c;
 	char	buf[80];
-	
+
 	preprocess = pre;
-	
+
 	assert( filename != 0 );	/* Filename may not be NULL. */
 	if (filename[0]) {	/* We have a file name. Suck it and see. */
 		f_in=fopen(filename,"r");
@@ -219,13 +219,13 @@ int pre;
 		as_perror ("Can't open %s for reading", file_name);
 		return;
 	}
-	
+
 #ifndef HO_VMS
 	/* Ask stdio to buffer our input at BUFFER_SIZE, with a dynamically
 	   allocated buffer.  */
 	setvbuf(f_in, (char *)NULL, _IOFBF, BUFFER_SIZE);
 #endif /* HO_VMS */
-	
+
 	c = getc(f_in);
 	if (c == '#') {	/* Begins with comment, may not want to preprocess */
 		c = getc(f_in);
@@ -243,18 +243,18 @@ int pre;
 		    ungetc('#',f_in);
 	} else
 	    ungetc(c,f_in);
-	
+
 #ifdef DONTDEF
 	if ( preprocess ) {
 		char temporary_file_name[17];
 		FILE	*f_out;
-		
+
 		(void)strcpy (temporary_file_name, "/tmp/#appXXXXXX");
 		(void)mktemp (temporary_file_name);
 		f_out=fopen(temporary_file_name,"w+");
 		if (f_out == (FILE *)0)
 		    as_perror("Can't open temp file %s",temporary_file_name);
-		
+
 		/* JF this will have to be moved on any system that
 		   does not support removal of open files.  */
 		(void)unlink(temporary_file_name);/* JF do it NOW */
@@ -281,7 +281,7 @@ char *		where;	/* Where to place 1st character of new buffer. */
 {
 	char *	return_value;	/* -> Last char of what we read, + 1. */
 	register int	size;
-	
+
 	if (f_in == (FILE *)0)
 	    return 0;
 	/*
@@ -295,10 +295,10 @@ char *		where;	/* Where to place 1st character of new buffer. */
 		int n;
 		int ch;
 		extern FILE *scrub_file;
-		
+
 		scrub_file=f_in;
 		for (p = where, n = BUFFER_SIZE; n; --n) {
-			
+
 			ch = do_scrub_next_char(scrub_from_file, scrub_to_file);
 			if (ch == EOF)
 			    break;

@@ -1,4 +1,4 @@
-# Makefile for devascii 
+# Makefile for devascii
 
 DEVICE=		ascii
 

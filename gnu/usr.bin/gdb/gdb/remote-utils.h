@@ -137,6 +137,6 @@ void sr_write PARAMS((char *a, int l));
 void sr_write_cr PARAMS((char *s));
 
 void gr_open PARAMS((char *args, int from_tty,
-		     struct gr_settings *gr_settings)); 
+		     struct gr_settings *gr_settings));
 void gr_load_image PARAMS((char*, int from_tty));
 #endif /* REMOTE_UTILS_H */

@@ -332,7 +332,7 @@ diag (xoff, xlim, yoff, ylim, minimal, part)
 
    Note that XLIM, YLIM are exclusive bounds.
    All line numbers are origin-0 and discarded lines are not counted.
- 
+
    If MINIMAL is nonzero, find a minimal difference no matter how
    expensive it is.  */
 

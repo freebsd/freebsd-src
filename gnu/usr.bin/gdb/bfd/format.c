@@ -23,7 +23,7 @@ SECTION
 	File formats
 
 	A format is a BFD concept of high level file contents type. The
-	formats supported by BFD are: 
+	formats supported by BFD are:
 
 	o <<bfd_object>>
 
@@ -68,7 +68,7 @@ DESCRIPTION
 	the file, or an error results.
 
 	The function returns <<true>> on success, otherwise <<false>>
-	with one of the following error codes:  
+	with one of the following error codes:
 
 	o <<bfd_error_invalid_operation>> -
 	if <<format>> is not one of <<bfd_object>>, <<bfd_archive>> or
@@ -109,7 +109,7 @@ DESCRIPTION
 	Then the user may choose a format and try again.
 
 	When done with the list that @var{matching} points to, the caller
-	should free it.  
+	should free it.
 */
 
 boolean
@@ -133,7 +133,7 @@ bfd_check_format_matches (abfd, format, matching)
     return (abfd->format == format)? true: false;
 
 
-  /* Since the target type was defaulted, check them 
+  /* Since the target type was defaulted, check them
      all in the hope that one will be uniquely recognized.  */
 
   save_targ = abfd->xvec;
@@ -191,7 +191,7 @@ bfd_check_format_matches (abfd, format, matching)
 	}
       match_count++;
       /* If this is the default target, accept it, even if other targets
-	 might match.  People who want those other targets have to set 
+	 might match.  People who want those other targets have to set
 	 the GNUTARGET variable.  */
       if (temp == bfd_default_vector[0])
 	{
@@ -301,18 +301,18 @@ CONST char *
 bfd_format_string (format)
      bfd_format format;
 {
-  if (((int)format <(int) bfd_unknown) 
-      || ((int)format >=(int) bfd_type_end)) 
+  if (((int)format <(int) bfd_unknown)
+      || ((int)format >=(int) bfd_type_end))
     return "invalid";
-  
+
   switch (format) {
   case bfd_object:
     return "object";		/* linker/assember/compiler output */
-  case bfd_archive: 
+  case bfd_archive:
     return "archive";		/* object archive file */
-  case bfd_core: 
+  case bfd_core:
     return "core";		/* core dump */
-  default: 
+  default:
     return "unknown";
   }
 }

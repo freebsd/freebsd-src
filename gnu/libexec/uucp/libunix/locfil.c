@@ -77,7 +77,7 @@ zsysdep_local_file (zfile, zpubdir, pfbadname)
 	  zcopy = zbufalc (cuserlen + 1);
 	  memcpy (zcopy, zfile, cuserlen);
 	  zcopy[cuserlen] = '\0';
-      
+
 	  q = getpwnam (zcopy);
 	  if (q == NULL)
 	    {

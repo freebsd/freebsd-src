@@ -125,7 +125,7 @@ select_source_symtab (s)
   struct partial_symtab *ps;
   struct partial_symtab *cs_pst = 0;
   struct objfile *ofp;
-  
+
   if (s)
     {
       current_source_symtab = s;
@@ -148,7 +148,7 @@ select_source_symtab (s)
       if (current_source_symtab)
         return;
     }
-  
+
   /* All right; find the last file in the symtab list (ignoring .h's).  */
 
   current_source_line = 1;
@@ -247,7 +247,7 @@ init_source_path ()
 }
 
 /* Add zero or more directories to the front of the source path.  */
- 
+
 void
 directory_command (dirname, from_tty)
      char *dirname;
@@ -471,7 +471,7 @@ source_info (ignore, from_tty)
    the actual file opened (this string will always start with a "/".  We
    have to take special pains to avoid doubling the "/" between the directory
    and the file, sigh!  Emacs gets confuzzed by this when we print the
-   source file name!!! 
+   source file name!!!
 
    If a file is found, return the descriptor.
    Otherwise, return -1, with errno set for the last name we tried to open.  */
@@ -558,8 +558,8 @@ openp (path, try_cwd_first, string, mode, prot, filename_opened)
     else
       {
 	/* Beware the // my son, the Emacs barfs, the botch that catch... */
-	   
-	*filename_opened = concat (current_directory, 
+
+	*filename_opened = concat (current_directory,
 	   '/' == current_directory[strlen(current_directory)-1]? "": "/",
 				   filename, NULL);
       }
@@ -580,7 +580,7 @@ open_source_file (s)
   char *fullname;
 
   /* Quick way out if we already know its full name */
-  if (s->fullname) 
+  if (s->fullname)
     {
       result = open (s->fullname, O_RDONLY);
       if (result >= 0)
@@ -666,11 +666,11 @@ find_source_lines (s, desc)
 
     line_charpos[0] = tell(desc);
     nlines = 1;
-    while (myread(desc, &c, 1)>0) 
+    while (myread(desc, &c, 1)>0)
       {
-	if (c == '\n') 
+	if (c == '\n')
 	  {
-	    if (nlines == lines_allocated) 
+	    if (nlines == lines_allocated)
 	      {
 		lines_allocated *= 2;
 		line_charpos =
@@ -685,7 +685,7 @@ find_source_lines (s, desc)
   {
     struct cleanup *old_cleanups;
 
-    /* st_size might be a large type, but we only support source files whose 
+    /* st_size might be a large type, but we only support source files whose
        size fits in an int.  */
     size = (int) st.st_size;
 
@@ -752,7 +752,7 @@ source_charpos_line (s, chr)
 {
   register int line = 0;
   register int *lnp;
-    
+
   if (s == 0 || s->line_charpos == 0) return 0;
   lnp = s->line_charpos;
   /* Files are usually short, so sequential search is Ok */
@@ -780,14 +780,14 @@ get_filename_and_charpos (s, fullname)
      char **fullname;
 {
   register int desc, linenums_changed = 0;
-  
+
   desc = open_source_file (s);
   if (desc < 0)
     {
       if (fullname)
 	*fullname = NULL;
       return 0;
-    }  
+    }
   if (fullname)
     *fullname = s->fullname;
   if (s->line_charpos == 0) linenums_changed = 1;
@@ -900,7 +900,7 @@ print_source_lines (s, line, stopline, noerror)
 
 
 
-/* 
+/*
   C++
   Print a list of files and line numbers which a user may choose from
   in order to list a function which was specified ambiguously
@@ -1010,7 +1010,7 @@ list_command (arg, from_tty)
 	    sals_end = decode_line_1 (&arg1, 0, 0, 0, 0);
 	  else
 	    sals_end = decode_line_1 (&arg1, 0, sal.symtab, sal.line, 0);
-	  if (sals_end.nelts == 0) 
+	  if (sals_end.nelts == 0)
 	    return;
 	  if (sals_end.nelts > 1)
 	    {
@@ -1031,7 +1031,7 @@ list_command (arg, from_tty)
     error ("Specified start and end are in different files.");
   if (dummy_beg && dummy_end)
     error ("Two empty args do not say what lines to list.");
- 
+
   /* if line was specified by address,
      first print exactly which line, and which file.
      In this case, sal.symtab == 0 means address is outside
@@ -1115,7 +1115,7 @@ line_info (arg, from_tty)
   else
     {
       sals = decode_line_spec_1 (arg, 0);
-      
+
       dont_repeat ();
     }
 
@@ -1124,7 +1124,7 @@ line_info (arg, from_tty)
   for (i = 0; i < sals.nelts; i++)
     {
       sal = sals.sals[i];
-      
+
       if (sal.symtab == 0)
 	{
 	  printf_filtered ("No line number information available");

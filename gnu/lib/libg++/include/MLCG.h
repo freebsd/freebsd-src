@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Dirk Grunwald (grunwald@cs.uiuc.edu)
 
@@ -16,7 +16,7 @@ License along with this library; if not, write to the Free Software
 Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 #ifndef _MLCG_h
-#define _MLCG_h 1 
+#define _MLCG_h 1
 #ifdef __GNUG__
 #pragma interface
 #endif

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$Id: serial.c,v 1.56 1994/04/13 01:57:05 ian Rel $";
+const char serial_rcsid[] = "$Id: serial.c,v 1.4 1994/05/07 18:11:09 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -860,7 +860,7 @@ fsserial_unlock (qconn)
 	}
       qsysdep->o = -1;
     }
-    
+
   if (! fsserial_lockfile (FALSE, qconn))
     fret = FALSE;
 
@@ -1748,7 +1748,7 @@ fsmodem_carrier (qconn, fcarrier)
 	return FALSE;
 
 #ifdef TIOCNCAR
-      /* Tell the modem to ignore carrier.  */ 
+      /* Tell the modem to ignore carrier.  */
       if (ioctl (q->o, TIOCNCAR, 0) < 0)
 	{
 	  ulog (LOG_ERROR, "ioctl (TIOCNCAR): %s", strerror (errno));
@@ -1782,19 +1782,19 @@ fsmodem_carrier (qconn, fcarrier)
 	  ulog (LOG_ERROR, "Can't set CLOCAL: %s", strerror (errno));
 	  return FALSE;
 	}
-  
+
 #if HAVE_CLOCAL_BUG
       /* On SCO and AT&T UNIX PC you have to reopen the port.  */
       {
 	int onew;
- 
+
 	onew = open (q->zdevice, O_RDWR);
 	if (onew < 0)
 	  {
 	    ulog (LOG_ERROR, "open (%s): %s", q->zdevice, strerror (errno));
 	    return FALSE;
 	  }
- 
+
 	if (fcntl (onew, F_SETFD,
 		   fcntl (onew, F_GETFD, 0) | FD_CLOEXEC) < 0)
 	  {
@@ -2001,7 +2001,7 @@ fsysdep_modem_end_dial (qconn, qdial)
 	 errors.  */
       {
 	int onew;
- 
+
 	onew = open (q->zdevice, O_RDWR);
 	if (onew >= 0)
 	  {
@@ -2039,7 +2039,7 @@ fsysdep_modem_end_dial (qconn, qdial)
 #endif /* ! defined (TIOCWONLINE) */
     }
 
-  return TRUE; 
+  return TRUE;
 }
 
 /* Read data from a connection, with a timeout.  This routine handles
@@ -2768,7 +2768,7 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	      /* We got interrupted by a signal.  Log it.  */
 	      ulog (LOG_ERROR, (const char *) NULL);
 	    }
-	  
+
 	  if (cdid < 0)
 	    {
 	      ulog (LOG_ERROR, "write: %s", strerror (errno));
@@ -2937,7 +2937,7 @@ fsserial_set (qconn, tparity, tstrip, txonxoff)
       /* Not supported.  */
       break;
     }
-	  
+
   if (fdo)
     {
       if ((q->snew.c_cflag & iset) != iset
@@ -2973,7 +2973,7 @@ fsserial_set (qconn, tparity, tstrip, txonxoff)
   }
 #endif
 
-#else /* ! HAVE_BSD_TTY */      
+#else /* ! HAVE_BSD_TTY */
 
   fdo = FALSE;
   switch (tstrip)

@@ -440,7 +440,7 @@ dbxout_init (asm_file, input_file_name, syms)
   /* Used to put `Ltext:' before the reference, but that loses on sun 4.  */
   fprintf (asmfile, "%s ", ASM_STABS_OP);
   output_quoted_string (asmfile, input_file_name);
-  fprintf (asmfile, ",%d,0,0,%s\n", 
+  fprintf (asmfile, ",%d,0,0,%s\n",
 	   N_SO, &ltext_label_name[1]);
   text_section ();
   ASM_OUTPUT_INTERNAL_LABEL (asmfile, "Ltext", 0);
@@ -526,7 +526,7 @@ dbxout_source_file (file, filename)
     }
 }
 
-/* Output a line number symbol entry into output stream FILE, 
+/* Output a line number symbol entry into output stream FILE,
    for source file FILENAME and line number LINENO.  */
 
 void
@@ -889,12 +889,12 @@ dbxout_range_type (type)
       fprintf (asmfile, "%d", TYPE_SYMTAB_ADDRESS (integer_type_node));
     }
   if (TREE_CODE (TYPE_MIN_VALUE (type)) == INTEGER_CST)
-    fprintf (asmfile, ";%d", 
+    fprintf (asmfile, ";%d",
 	     TREE_INT_CST_LOW (TYPE_MIN_VALUE (type)));
   else
     fprintf (asmfile, ";0");
   if (TREE_CODE (TYPE_MAX_VALUE (type)) == INTEGER_CST)
-    fprintf (asmfile, ";%d;", 
+    fprintf (asmfile, ";%d;",
 	     TREE_INT_CST_LOW (TYPE_MAX_VALUE (type)));
   else
     fprintf (asmfile, ";-1;");
@@ -1615,7 +1615,7 @@ dbxout_symbol (decl, local)
 		&& !TREE_ASM_WRITTEN (TYPE_NAME (type))
 		/* Distinguish the implicit typedefs of C++
 		   from explicit ones that might be found in C.  */
-                && (!strcmp (lang_identify (), "cplusplus") 
+                && (!strcmp (lang_identify (), "cplusplus")
 		    /* The following line maybe unnecessary;
 		       in 2.6, try removing it.  */
 		    || DECL_SOURCE_LINE (decl) == 0))
@@ -1665,7 +1665,7 @@ dbxout_symbol (decl, local)
 	  }
 
 	/* Don't output a tag if this is an incomplete type (TYPE_SIZE is
-	   zero).  This prevents the sun4 Sun OS 4.x dbx from crashing.  */ 
+	   zero).  This prevents the sun4 Sun OS 4.x dbx from crashing.  */
 
 	if (tag_needed && TYPE_NAME (type) != 0 && TYPE_SIZE (type) != 0
 	    && !TREE_ASM_WRITTEN (TYPE_NAME (type)))
@@ -1787,7 +1787,7 @@ dbxout_symbol_location (decl, type, suffix, home)
 
   /* Don't mention a variable at all
      if it was completely optimized into nothingness.
-     
+
      If the decl was from an inline function, then it's rtl
      is not identically the rtl that was used in this
      particular compilation.  */

@@ -1,4 +1,4 @@
-/* $RCSfile: str.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:10 $
+/* $RCSfile: str.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:55 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,15 +6,18 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: str.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:55  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:30:10  nate
  * PERL!
  *
  * Revision 4.0.1.1  91/06/07  12:20:22  lwall
  * patch4: new copyright notice
- * 
+ *
  * Revision 4.0  91/03/20  01:58:21  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 struct string {

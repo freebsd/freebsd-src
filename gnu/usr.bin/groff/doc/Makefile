@@ -43,7 +43,7 @@ meref.PS: meref.dit
 meintro.PS: meintro.dit
 
 install:
-	
+
 clean:
 	-rm -f *.PS *.dit core
 

@@ -101,8 +101,8 @@ make_pointer_type (type, typeptr)
 
   ntype = TYPE_POINTER_TYPE (type);
 
-  if (ntype) 
-    if (typeptr == 0)		
+  if (ntype)
+    if (typeptr == 0)
       return ntype;	/* Don't care about alloc, and have new type.  */
     else if (*typeptr == 0)
       {
@@ -134,7 +134,7 @@ make_pointer_type (type, typeptr)
 
   /* pointers are unsigned */
   TYPE_FLAGS (ntype) |= TYPE_FLAG_UNSIGNED;
-  
+
   if (!TYPE_POINTER_TYPE (type))	/* Remember it, if don't have one.  */
     TYPE_POINTER_TYPE (type) = ntype;
 
@@ -166,8 +166,8 @@ make_reference_type (type, typeptr)
 
   ntype = TYPE_REFERENCE_TYPE (type);
 
-  if (ntype) 
-    if (typeptr == 0)		
+  if (ntype)
+    if (typeptr == 0)
       return ntype;	/* Don't care about alloc, and have new type.  */
     else if (*typeptr == 0)
       {
@@ -197,7 +197,7 @@ make_reference_type (type, typeptr)
 
   TYPE_LENGTH (ntype) = TARGET_PTR_BIT / TARGET_CHAR_BIT;
   TYPE_CODE (ntype) = TYPE_CODE_REF;
-  
+
   if (!TYPE_REFERENCE_TYPE (type))	/* Remember it, if don't have one.  */
     TYPE_REFERENCE_TYPE (type) = ntype;
 
@@ -228,8 +228,8 @@ make_function_type (type, typeptr)
 
   ntype = TYPE_FUNCTION_TYPE (type);
 
-  if (ntype) 
-    if (typeptr == 0)		
+  if (ntype)
+    if (typeptr == 0)
       return ntype;	/* Don't care about alloc, and have new type.  */
     else if (*typeptr == 0)
       {
@@ -256,7 +256,7 @@ make_function_type (type, typeptr)
 
   TYPE_LENGTH (ntype) = 1;
   TYPE_CODE (ntype) = TYPE_CODE_FUNC;
-  
+
   if (!TYPE_FUNCTION_TYPE (type))	/* Remember it, if don't have one.  */
     TYPE_FUNCTION_TYPE (type) = ntype;
 
@@ -291,7 +291,7 @@ lookup_member_type (type, domain)
   return (mtype);
 }
 
-/* Allocate a stub method whose return type is TYPE.  
+/* Allocate a stub method whose return type is TYPE.
    This apparently happens for speed of symbol reading, since parsing
    out the arguments to the method is cpu-intensive, the way we are doing
    it.  So, we will fill in arguments later.
@@ -487,7 +487,7 @@ create_set_type (result_type, domain_type)
   return (result_type);
 }
 
-/* Smash TYPE to be a type of members of DOMAIN with type TO_TYPE. 
+/* Smash TYPE to be a type of members of DOMAIN with type TO_TYPE.
    A MEMBER is a wierd thing -- it amounts to a typed offset into
    a struct, e.g. "an int at offset 8".  A MEMBER TYPE doesn't
    include the offset (that's the value of the MEMBER itself), but does
@@ -558,7 +558,7 @@ type_name_no_tag (type)
   return TYPE_NAME (type);
 }
 
-/* Lookup a primitive type named NAME. 
+/* Lookup a primitive type named NAME.
    Return zero if NAME is not a primitive type.*/
 
 struct type *
@@ -574,7 +574,7 @@ lookup_primitive_typename (name)
 	   return (**p);
 	 }
      }
-   return (NULL); 
+   return (NULL);
 }
 
 /* Lookup a typedef or primitive type named NAME,
@@ -695,7 +695,7 @@ lookup_enum (name, block)
 {
   register struct symbol *sym;
 
-  sym = lookup_symbol (name, block, STRUCT_NAMESPACE, 0, 
+  sym = lookup_symbol (name, block, STRUCT_NAMESPACE, 0,
 		       (struct symtab **) NULL);
   if (sym == NULL)
     {
@@ -737,7 +737,7 @@ lookup_template_type (name, type, block)
   return (SYMBOL_TYPE (sym));
 }
 
-/* Given a type TYPE, lookup the type of the component of type named NAME.  
+/* Given a type TYPE, lookup the type of the component of type named NAME.
 
    TYPE can be either a struct or union, or a pointer or reference to a struct or
    union.  If it is a pointer or reference, its target type is automatically used.
@@ -811,7 +811,7 @@ lookup_struct_elt_type (type, name, noerr)
     {
       return NULL;
     }
-  
+
   target_terminal_ours ();
   gdb_flush (gdb_stdout);
   fprintf_unfiltered (gdb_stderr, "Type ");
@@ -866,13 +866,13 @@ fill_in_vptr_fieldno (type)
    be a mistake, though--we might load in more symbols which contain a
    full definition for the type.
 
-   This used to be coded as a macro, but I don't think it is called 
+   This used to be coded as a macro, but I don't think it is called
    often enough to merit such treatment.  */
 
 struct complaint stub_noname_complaint =
   {"stub type has NULL name", 0, 0};
 
-void 
+void
 check_stub_type (type)
      struct type *type;
 {
@@ -889,7 +889,7 @@ check_stub_type (type)
 	  complain (&stub_noname_complaint);
 	  return;
 	}
-      sym = lookup_symbol (name, 0, STRUCT_NAMESPACE, 0, 
+      sym = lookup_symbol (name, 0, STRUCT_NAMESPACE, 0,
 			   (struct symtab **) NULL);
       if (sym)
 	{
@@ -1125,7 +1125,7 @@ lookup_fundamental_type (objfile, typeid)
 
   /* If this is the first time we need a fundamental type for this objfile
      then we need to initialize the vector of type pointers. */
-  
+
   if (objfile -> fundamental_types == NULL)
     {
       nbytes = FT_NUM_MEMBERS * sizeof (struct type *);
@@ -1550,7 +1550,7 @@ _initialize_gdbtypes ()
     init_type (TYPE_CODE_INT, TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
 	       0,
 	       "long long", (struct objfile *) NULL);
-  builtin_type_unsigned_long_long = 
+  builtin_type_unsigned_long_long =
     init_type (TYPE_CODE_INT, TARGET_LONG_LONG_BIT / TARGET_CHAR_BIT,
 	       TYPE_FLAG_UNSIGNED,
 	       "unsigned long long", (struct objfile *) NULL);

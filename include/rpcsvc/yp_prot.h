@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_prot.h,v 1.1 1993/09/14 17:42:54 jtc Exp $
+ *	$Id: yp_prot.h,v 1.1 1994/08/04 19:01:56 wollman Exp $
  */
 
 #ifndef _YP_PROT_H_
@@ -34,9 +34,9 @@
 
 /*
  * YPSERV PROTOCOL:
- * 
+ *
  * ypserv supports the following procedures:
- * 
+ *
  * YPPROC_NULL		takes (void), returns (void).
  * 			called to check if server is alive.
  * YPPROC_DOMAIN	takes (char *), returns (bool_t).
@@ -209,7 +209,7 @@ struct ypresp_maplist {
  * Users of the ypclnt package (or of this protocol) don't HAVE to know about
  * it, but it must be available to users because _yp_dobind is a public
  * interface."
- * 
+ *
  * This is totally bogus! Nowhere else does Sun state that _yp_dobind() is
  * a public interface, and I don't know any reason anyone would want to call
  * it. But, just in case anyone does actually expect it to be available..
@@ -228,7 +228,7 @@ struct dom_binding {
 
 /*
  * YPBIND PROTOCOL:
- * 
+ *
  * ypbind supports the following procedures:
  *
  * YPBINDPROC_NULL	takes (void), returns (void).
@@ -239,7 +239,7 @@ struct dom_binding {
  * YPBINDPROC_SETDOM	takes (struct ypbind_setdom), returns (void).
  *			used by ypset.
  */
- 
+
 #define YPBINDPROG		((u_long)100007)
 #define YPBINDVERS		((u_long)2)
 #define YPBINDVERS_ORIG		((u_long)1)
@@ -287,13 +287,13 @@ struct ypbind_setdom {
 
 /*
  * YPPUSH PROTOCOL:
- * 
+ *
  * Sun says:
  * "Protocol between clients (ypxfr, only) and yppush
  *  yppush speaks a protocol in the transient range, which
  *  is supplied to ypxfr as a command-line parameter when it
  *  is activated by ypserv."
- * 
+ *
  * This protocol is not implimented, naturally, because this YP
  * implimentation only does the client side.
  */

@@ -116,7 +116,7 @@ typedef struct rtx_def
      0 if the MEM was a variable or the result of a * operator in C;
      1 if it was the result of a . or -> operator (on a struct) in C.
      1 in a REG if the register is used only in exit code a loop.
-     1 in a SUBREG expression if was generated from a variable with a 
+     1 in a SUBREG expression if was generated from a variable with a
      promoted mode.
      1 in a CODE_LABEL if the label is used for nonlocal gotos
      and must not be deleted even if its count is zero.
@@ -130,7 +130,7 @@ typedef struct rtx_def
   unsigned int in_struct : 1;
   /* 1 if this rtx is used.  This is used for copying shared structure.
      See `unshare_all_rtl'.
-     In a REG, this is not needed for that purpose, and used instead 
+     In a REG, this is not needed for that purpose, and used instead
      in `leaf_renumber_regs_insn'.
      In a SYMBOL_REF, means that emit_library_call
      has used it as the function.  */
@@ -303,7 +303,7 @@ typedef struct rtvec_def{
    register is spilled to the stack then the constant value
    should be substituted for it.  The contents of the REG_EQUIV
    is the constant value or memory address, which may be different
-   from the source of the SET although it has the same value. 
+   from the source of the SET although it has the same value.
      REG_EQUAL is like REG_EQUIV except that the destination
    is only momentarily equal to the specified rtx.  Therefore, it
    cannot be used for substitution; but it can be used for cse.
@@ -510,7 +510,7 @@ extern char *note_insn_name[];
 /* 1 if the REG contained in SUBREG_REG is already known to be
    sign- or zero-extended from the mode of the SUBREG to the mode of
    the reg.  SUBREG_PROMOTED_UNSIGNED_P gives the signedness of the
-   extension.  
+   extension.
 
    When used as a LHS, is means that this extension must be done
    when assigning to SUBREG_REG.  */
@@ -835,7 +835,7 @@ extern rtx const_true_rtx;
 
 extern rtx const_tiny_rtx[3][(int) MAX_MACHINE_MODE];
 
-/* Returns a constant 0 rtx in mode MODE.  Integer modes are treated the 
+/* Returns a constant 0 rtx in mode MODE.  Integer modes are treated the
    same as VOIDmode.  */
 
 #define CONST0_RTX(MODE) (const_tiny_rtx[0][(int) (MODE)])

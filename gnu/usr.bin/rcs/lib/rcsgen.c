@@ -31,6 +31,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsgen.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.10  1991/10/07  17:32:46  eggert
  * Fix log bugs, e.g. ci -t/dev/null when has_mmap.
  *
@@ -69,39 +72,39 @@ Report problems and direct all questions to:
  *
  * Revision 4.7  89/05/01  15:12:49  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.6  88/08/28  14:59:10  eggert
  * Shrink stdio code size; allow cc -R; remove lint; isatty() -> ttystdin()
- * 
+ *
  * Revision 4.5  87/12/18  11:43:25  narten
  * additional lint cleanups, and a bug fix from the 4.3BSD version that
  * keeps "ci" from sticking a '\377' into the description if you run it
  * with a zero-length file as the description. (Guy Harris)
- * 
+ *
  * Revision 4.4  87/10/18  10:35:10  narten
  * Updating version numbers. Changes relative to 1.1 actually relative to
  * 4.2
- * 
+ *
  * Revision 1.3  87/09/24  13:59:51  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.2  87/03/27  14:22:27  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.2  83/12/02  23:01:39  wft
  * merged 4.1 and 3.3.1.1 (clearerr(stdin)).
- * 
+ *
  * Revision 4.1  83/05/10  16:03:33  wft
  * Changed putamin() to abort if trying to reread redirected stdin.
  * Fixed getdesc() to output a prompt on initial newline.
- * 
+ *
  * Revision 3.3.1.1  83/10/19  04:21:51  lepreau
  * Added clearerr(stdin) for re-reading description from stdin.
- * 
+ *
  * Revision 3.3  82/11/28  21:36:49  wft
  * 4.2 prerelease
- * 
+ *
  * Revision 3.3  82/11/28  21:36:49  wft
  * Replaced ferror() followed by fclose() with ffclose().
  * Putdesc() now suppresses the prompts if stdin
@@ -122,7 +125,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(genId, "$Id: rcsgen.c,v 5.10 1991/10/07 17:32:46 eggert Exp $")
+libId(genId, "$Id: rcsgen.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
 
 int interactiveflag;  /* Should we act as if stdin is a tty?  */
 struct buf curlogbuf;  /* buffer for current log message */
@@ -415,7 +418,7 @@ getsstdin(option, name, note, buf)
 	    faterror("can't reread redirected stdin for %s; use -%s<%s>",
 		name, option, name
 	    );
-	
+
 	for (
 	   i = 0,  p = 0;
 	   c = getcstdin(),  !feof(stdin);

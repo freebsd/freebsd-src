@@ -314,7 +314,7 @@ struct streambuf : public _IO_FILE { // protected??
     void setp(char* p, char* ep)
       { _IO_write_base=_IO_write_ptr=p; _IO_write_end=ep; }
     void setg(char* eb, char* g, char *eg) {
-      if (_IO_file_flags & _IO_IN_BACKUP) _IO_free_backup_area(this); 
+      if (_IO_file_flags & _IO_IN_BACKUP) _IO_free_backup_area(this);
       _IO_read_base = eb; _IO_read_ptr = g; _IO_read_end = eg; }
     char *shortbuf() { return _shortbuf; }
 
@@ -336,7 +336,7 @@ struct streambuf : public _IO_FILE { // protected??
     void unsave_markers(); // Make all streammarkers !saving().
     int put_mode() { return _flags & _IO_CURRENTLY_PUTTING; }
     int switch_to_get_mode();
-    
+
     streambuf(int flags=0);
   public:
     static int flush_all();

@@ -25,7 +25,7 @@ SECTION
 
 	BFD keeps one atom in a BFD describing the
 	architecture of the data attached to the BFD: a pointer to a
-	<<bfd_arch_info_type>>.  
+	<<bfd_arch_info_type>>.
 
 	Pointers to structures can be requested independently of a BFD
 	so that an architecture's information can be interrogated
@@ -35,13 +35,13 @@ SECTION
 	The set of default architectures is selected by the macro
 	<<SELECT_ARCHITECTURES>>.  This is normally set up in the
 	@file{config/@var{target}.mt} file of your choice.  If the name is not
-	defined, then all the architectures supported are included. 
+	defined, then all the architectures supported are included.
 
 	When BFD starts up, all the architectures are called with an
 	initialize method.  It is up to the architecture back end to
 	insert as many items into the list of architectures as it wants to;
 	generally this would be one for each machine and one for the
-	default case (an item with a machine field of 0). 
+	default case (an item with a machine field of 0).
 
 	BFD's idea of an architecture is implemented in	@file{archures.c}.
 */
@@ -58,21 +58,21 @@ DESCRIPTION
 	the family is in use.  The machine gives a number which
 	distinguishes different versions of the architecture,
 	containing, for example, 2 and 3 for Intel i960 KA and i960 KB,
-	and 68020 and 68030 for Motorola 68020 and 68030. 
+	and 68020 and 68030 for Motorola 68020 and 68030.
 
-.enum bfd_architecture 
+.enum bfd_architecture
 .{
 .  bfd_arch_unknown,   {* File arch not known *}
 .  bfd_arch_obscure,   {* Arch known, not one of these *}
 .  bfd_arch_m68k,      {* Motorola 68xxx *}
-.  bfd_arch_vax,       {* DEC Vax *}   
+.  bfd_arch_vax,       {* DEC Vax *}
 .  bfd_arch_i960,      {* Intel 960 *}
 .    {* The order of the following is important.
-.       lower number indicates a machine type that 
+.       lower number indicates a machine type that
 .       only accepts a subset of the instructions
 .       available to machines with higher numbers.
 .       The exception is the "ca", which is
-.       incompatible with all other machines except 
+.       incompatible with all other machines except
 .       "core". *}
 .
 .#define bfd_mach_i960_core      1
@@ -127,7 +127,7 @@ DESCRIPTION
 	within BFD.
 
 .
-.typedef struct bfd_arch_info 
+.typedef struct bfd_arch_info
 .{
 .  int bits_per_word;
 .  int bits_per_address;
@@ -138,7 +138,7 @@ DESCRIPTION
 .  CONST  char *printable_name;
 .  unsigned int section_align_power;
 . {* true if this is the default machine for the architecture *}
-.  boolean the_default;	
+.  boolean the_default;
 .  CONST struct bfd_arch_info * (*compatible)
 .	PARAMS ((CONST struct bfd_arch_info *a,
 .	         CONST struct bfd_arch_info *b));
@@ -206,7 +206,7 @@ bfd_scan_arch (string)
        ap != (bfd_arch_info_type *)NULL;
        ap = ap->next) {
 
-    if (ap->scan(ap, string)) 
+    if (ap->scan(ap, string))
       return ap;
   }
   return (bfd_arch_info_type *)NULL;
@@ -259,7 +259,7 @@ bfd_arch_info_type bfd_default_arch_struct =
 {
     32,32,8,bfd_arch_unknown,0,"unknown","unknown",2,true,
     bfd_default_compatible,
-    bfd_default_scan, 
+    bfd_default_scan,
     0,
 };
 
@@ -295,7 +295,7 @@ DESCRIPTION
 	Set the architecture and machine type in BFD @var{abfd}
 	to @var{arch} and @var{mach}.  Find the correct
 	pointer to a structure and insert it into the <<arch_info>>
-	pointer. 
+	pointer.
 */
 
 boolean
@@ -370,7 +370,7 @@ DESCRIPTION
 	machine.
 */
 
-unsigned long  
+unsigned long
 bfd_get_mach (abfd)
      bfd *abfd;
 {
@@ -436,7 +436,7 @@ extern void bfd_we32k_arch PARAMS ((void));
 extern void bfd_z8k_arch PARAMS ((void));
 extern void bfd_ns32k_arch PARAMS ((void));
 
-static void (*archures_init_table[]) PARAMS ((void)) = 
+static void (*archures_init_table[]) PARAMS ((void)) =
 {
 #ifdef SELECT_ARCHITECTURES
   SELECT_ARCHITECTURES,
@@ -466,7 +466,7 @@ static void (*archures_init_table[]) PARAMS ((void)) =
 
 
 /*
-INTERNAL_FUNCTION 
+INTERNAL_FUNCTION
 	bfd_arch_init
 
 SYNOPSIS
@@ -482,7 +482,7 @@ void
 bfd_arch_init ()
 {
     void (**ptable) PARAMS ((void));
-    for (ptable = archures_init_table; 
+    for (ptable = archures_init_table;
 	 *ptable ;
 	 ptable++)
     {
@@ -512,7 +512,7 @@ bfd_arch_linkin (ptr)
 
 
 /*
-INTERNAL_FUNCTION 
+INTERNAL_FUNCTION
 	bfd_default_compatible
 
 SYNOPSIS
@@ -553,7 +553,7 @@ DESCRIPTION
 	architecture hit and a machine hit.
 */
 
-boolean 
+boolean
 bfd_default_scan (info, string)
      CONST struct bfd_arch_info *info;
      CONST char *string;
@@ -570,10 +570,10 @@ bfd_default_scan (info, string)
        up to the :, then we get left with the machine number */
 
     for (ptr_src = string,
-	 ptr_tst = info->arch_name; 
+	 ptr_tst = info->arch_name;
 	 *ptr_src && *ptr_tst;
 	 ptr_src++,
-	 ptr_tst++) 
+	 ptr_tst++)
     {
 	if (*ptr_src != *ptr_tst) break;
     }
@@ -581,7 +581,7 @@ bfd_default_scan (info, string)
     /* Chewed up as much of the architecture as will match, skip any
        colons */
     if (*ptr_src == ':') ptr_src++;
-  
+
     if (*ptr_src == 0) {
 	    /* nothing more, then only keep this one if it is the default
 	       machine for this architecture */
@@ -593,7 +593,7 @@ bfd_default_scan (info, string)
 	    ptr_src++;
 	}
 
-    switch (number) 
+    switch (number)
     {
      case 300:
       arch = bfd_arch_h8300;
@@ -608,17 +608,17 @@ bfd_default_scan (info, string)
       case 68030:
       case 68040:
       case 68332:
-      case 68050:        
-      case 68000: 
-	arch = bfd_arch_m68k; 
+      case 68050:
+      case 68000:
+	arch = bfd_arch_m68k;
 	break;
-      case 386: 
+      case 386:
       case 80386:
       case 486:
       case 80486:
 	arch = bfd_arch_i386;
 	break;
-      case 29000: 
+      case 29000:
 	arch = bfd_arch_a29k;
 	break;
 
@@ -631,8 +631,8 @@ bfd_default_scan (info, string)
 	break;
 
       case 860:
-      case 80860: 
-	arch = bfd_arch_i860; 
+      case 80860:
+	arch = bfd_arch_i860;
 	break;
       case 960:
       case 80960:
@@ -650,10 +650,10 @@ bfd_default_scan (info, string)
 	arch = bfd_arch_rs6000;
 	break;
 
-      default:  
+      default:
 	return false;
     }
-    if (arch != info->arch) 
+    if (arch != info->arch)
      return false;
 
     if (number != info->mach)
@@ -699,18 +699,18 @@ DESCRIPTION
 	default.
 */
 
-bfd_arch_info_type * 
+bfd_arch_info_type *
 bfd_lookup_arch (arch, machine)
      enum bfd_architecture arch;
      long machine;
 {
     bfd_arch_info_type *ap;
-    bfd_check_init();  
-    for (ap = bfd_arch_info_list; 
+    bfd_check_init();
+    for (ap = bfd_arch_info_list;
 	 ap !=  (bfd_arch_info_type *)NULL;
 	 ap = ap->next) {
 	    if (ap->arch == arch &&
-		((ap->mach == machine) 
+		((ap->mach == machine)
 		 || (ap->the_default && machine == 0))) {
 		    return ap;
 		}
@@ -729,7 +729,7 @@ SYNOPSIS
 
 DESCRIPTION
 	Return a printable string representing the architecture and
-	machine type. 
+	machine type.
 
 	This routine is depreciated.
 */

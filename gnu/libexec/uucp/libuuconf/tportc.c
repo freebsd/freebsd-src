@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tportc_rcsid[] = "$Id: tportc.c,v 1.12 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_tportc_rcsid[] = "$Id: tportc.c,v 1.2 1994/05/07 18:13:11 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -249,7 +249,7 @@ _uuconf_iport_cmd (qglobal, argc, argv, qport)
 
 	  if (i >= CPORT_TYPES)
 	    return UUCONF_SYNTAX_ERROR;
-	  
+
 	  ttype = (enum uuconf_porttype) i;
 	}
 

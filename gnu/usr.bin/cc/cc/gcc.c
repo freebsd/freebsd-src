@@ -1597,16 +1597,16 @@ choose_temp_base ()
   base = choose_temp_base_try (P_tmpdir, base);
 #endif
 
-  base = choose_temp_base_try (concat4 (dir_separator_str, "usr", 
-                                        dir_separator_str, "tmp"), 
+  base = choose_temp_base_try (concat4 (dir_separator_str, "usr",
+                                        dir_separator_str, "tmp"),
                                 base);
   base = choose_temp_base_try (concat (dir_separator_str, "tmp"), base);
- 
-  /* If all else fails, use the current directory! */  
+
+  /* If all else fails, use the current directory! */
   if (base == (char *)0) base = concat(".", dir_separator_str);
 
   len = strlen (base);
-  temp_filename = xmalloc (len + strlen (concat (dir_separator_str, 
+  temp_filename = xmalloc (len + strlen (concat (dir_separator_str,
                                                  "ccXXXXXX")) + 1);
   strcpy (temp_filename, base);
   if (len > 0 && temp_filename[len-1] != '/'
@@ -1699,7 +1699,7 @@ putenv_from_prefixes (paths, env_var)
 	{
 	  if (!first_time)
 	    obstack_1grow (&collect_obstack, PATH_SEPARATOR);
-	    
+
 	  first_time = FALSE;
 	  obstack_grow (&collect_obstack, pprefix->prefix, len);
 	  obstack_grow (&collect_obstack, machine_suffix, suffix_len);
@@ -1711,7 +1711,7 @@ putenv_from_prefixes (paths, env_var)
 	{
 	  if (!first_time)
 	    obstack_1grow (&collect_obstack, PATH_SEPARATOR);
-	    
+
 	  first_time = FALSE;
 	  obstack_grow (&collect_obstack, pprefix->prefix, len);
 	  obstack_grow (&collect_obstack, just_machine_suffix,
@@ -2016,7 +2016,7 @@ pexecute (search_flag, program, argv, not_last)
 
   remove (rf);
 #endif
-  
+
   if (i == -1)
     {
       perror_exec (program);
@@ -2737,7 +2737,7 @@ process_command (argc, argv)
   add_prefix (&exec_prefixes, "/usr/libexec/", 0, 0, NULL_PTR);
   add_prefix (&exec_prefixes, "/usr/bin/", 0, 0, NULL_PTR);
 
-  tooldir_prefix = concat3 (tooldir_base_prefix, spec_machine, 
+  tooldir_prefix = concat3 (tooldir_base_prefix, spec_machine,
                             dir_separator_str);
 
   /* If tooldir is relative, base it on exec_prefixes.  A relative
@@ -2756,17 +2756,17 @@ process_command (argc, argv)
 		      spec_version, dir_separator_str, tooldir_prefix);
 
 	  add_prefix (&exec_prefixes,
-		      concat3 (gcc_exec_tooldir_prefix, "bin", 
+		      concat3 (gcc_exec_tooldir_prefix, "bin",
                                dir_separator_str),
 		      0, 0, NULL_PTR);
 	  add_prefix (&startfile_prefixes,
-		      concat3 (gcc_exec_tooldir_prefix, "lib", 
+		      concat3 (gcc_exec_tooldir_prefix, "lib",
                                dir_separator_str),
 		      0, 0, NULL_PTR);
 	}
 
       tooldir_prefix = concat6 (standard_exec_prefix, spec_machine,
-			        dir_separator_str, spec_version, 
+			        dir_separator_str, spec_version,
                                 dir_separator_str, tooldir_prefix);
     }
 
@@ -4178,11 +4178,11 @@ is_directory (path1, path2, linker)
   /* Exclude directories that the linker is known to search.  */
   if (linker
       && ((cp - path == 6
-	   && strcmp (path, concat4 (dir_separator_str, "lib", 
+	   && strcmp (path, concat4 (dir_separator_str, "lib",
                                      dir_separator_str, ".")) == 0)
 	  || (cp - path == 10
-	      && strcmp (path, concat6 (dir_separator_str, "usr", 
-                                        dir_separator_str, "lib", 
+	      && strcmp (path, concat6 (dir_separator_str, "usr",
+                                        dir_separator_str, "lib",
                                         dir_separator_str, ".")) == 0)))
     return 0;
 
@@ -4309,7 +4309,7 @@ main (argc, argv)
 			       machine_suffix,
 			       standard_startfile_prefix),
 		      0, 0, NULL_PTR);
-	}		       
+	}
 
     }
 
@@ -5024,7 +5024,7 @@ set_multilib_dir ()
 	}
 
       ++p;
-    }      
+    }
 }
 
 /* Print out the multiple library subdirectory selection

@@ -1,4 +1,4 @@
-/* $RCSfile: doio.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
+/* $RCSfile: doio.c,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,10 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: doio.c,v $
+ * Revision 1.2  1994/09/11  03:17:32  gclarkii
+ * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
+ * Added casts to shutup warnings in doio.c
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -17,7 +21,7 @@
  *
  * Revision 4.0.1.6  92/06/11  21:08:16  lwall
  * patch34: some systems don't declare h_errno extern in header files
- * 
+ *
  * Revision 4.0.1.5  92/06/08  13:00:21  lwall
  * patch20: some machines don't define ENOTSOCK in errno.h
  * patch20: new warnings for failed use of stat operators on filenames with \n
@@ -27,7 +31,7 @@
  * patch20: fixed memory leak on system() for vfork() machines
  * patch20: get*by* routines now return something useful in a scalar context
  * patch20: h_errno now accessible via $?
- * 
+ *
  * Revision 4.0.1.4  91/11/05  16:51:43  lwall
  * patch11: prepared for ctype implementations that don't define isascii()
  * patch11: perl mistook some streams for sockets because they return mode 0 too
@@ -36,11 +40,11 @@
  * patch11: truncate on a closed filehandle could dump
  * patch11: stats of _ forgot whether prior stat was actually lstat
  * patch11: -T returned true on NFS directory
- * 
+ *
  * Revision 4.0.1.3  91/06/10  01:21:19  lwall
  * patch10: read didn't work from character special files open for writing
  * patch10: close-on-exec wrongly set on system file descriptors
- * 
+ *
  * Revision 4.0.1.2  91/06/07  10:53:39  lwall
  * patch4: new copyright notice
  * patch4: system fd's are now treated specially
@@ -48,13 +52,13 @@
  * patch4: character special files now opened with bidirectional stdio buffers
  * patch4: taintchecks could improperly modify parent in vfork()
  * patch4: many, many itty-bitty portability fixes
- * 
+ *
  * Revision 4.0.1.1  91/04/11  17:41:06  lwall
  * patch1: hopefully straightened out some of the Xenix mess
- * 
+ *
  * Revision 4.0  91/03/20  01:07:06  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -1000,7 +1004,7 @@ STR *str;
 
     if (!str->str_pok)
 	return TRUE;
-    s = str->str_ptr; 
+    s = str->str_ptr;
     send = s + str->str_cur;
     while (isSPACE(*s))
 	s++;
@@ -1012,7 +1016,7 @@ STR *str;
 	s++;
     if (s == send)
 	return TRUE;
-    if (*s == '.') 
+    if (*s == '.')
 	s++;
     else if (s == str->str_ptr)
 	return FALSE;
@@ -1648,7 +1652,7 @@ int *arglast;
 	st[sp] = &str_yes;
 	break;
     }
-    
+
     return sp;
 
 nuts:
@@ -1692,7 +1696,7 @@ int *arglast;
 	    goto nuts2;
 	break;
     }
-    
+
     return sp;
 
 nuts:

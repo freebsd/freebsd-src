@@ -334,14 +334,14 @@ print_filename (to_print, full_pathname)
       PUTX (*s);
     }
   return 0;
-#else  
+#else
   char *s, c, *new_full_pathname;
   int extension_char = 0, slen, tlen;
 
   for (s = to_print; *s; s++)
     {
       PUTX (*s);
-    }  
+    }
 
   if (rl_filename_completion_desired && rl_visible_stats)
     {

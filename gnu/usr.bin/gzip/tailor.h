@@ -8,7 +8,7 @@
  * The target dependent functions should be defined in tailor.c.
  */
 
-/* $Id: tailor.h,v 0.18 1993/06/14 19:32:20 jloup Exp $ */
+/* $Id: tailor.h,v 1.3 1993/10/14 00:33:08 nate Exp $ */
 
 #if defined(__MSDOS__) && !defined(MSDOS)
 #  define MSDOS
@@ -235,9 +235,9 @@
 #  define NO_MEMORY_H
 #  define NO_UTIME_H
 #  define NO_UTIME
-#  define NO_CHOWN 
-#  define NO_STDIN_FSTAT 
-#  define NO_SIZE_CHECK 
+#  define NO_CHOWN
+#  define NO_STDIN_FSTAT
+#  define NO_SIZE_CHECK
 #  define NO_SYMLINK
 #  define RECORD_IO  1
 #  define casemap(c)  tolow(c) /* Force file names to lower case */

@@ -242,7 +242,7 @@ struct tree_common
    In a FUNCTION_DECL, nonzero means its address is needed.
    So it must be compiled even if it is an inline function.
    In CONSTRUCTOR nodes, it means object constructed must be in memory.
-   In LABEL_DECL nodes, it means a goto for this label has been seen 
+   In LABEL_DECL nodes, it means a goto for this label has been seen
    from a place outside all binding contours that restore stack levels.
    In ..._TYPE nodes, it means that objects of this type must
    be fully addressable.  This means that pieces of this
@@ -692,7 +692,7 @@ struct tree_type
    from the base of the complete object to the base of the part of the
    object that is allocated on behalf of this `type'.
    This is always 0 except when there is multiple inheritance.  */
-   
+
 #define BINFO_OFFSET(NODE) TREE_VEC_ELT ((NODE), 1)
 #define TYPE_BINFO_OFFSET(NODE) BINFO_OFFSET (TYPE_BINFO (NODE))
 #define BINFO_OFFSET_ZEROP(NODE) (BINFO_OFFSET (NODE) == integer_zero_node)
@@ -883,10 +883,10 @@ struct tree_type
 
 /* In a TYPE_DECL
    nonzero means the detail info about this type is not dumped into stabs.
-   Instead it will generate cross reference ('x') of names. 
+   Instead it will generate cross reference ('x') of names.
    This uses the same flag as DECL_EXTERNAL. */
 #define TYPE_DECL_SUPPRESS_DEBUG(NODE) ((NODE)->decl.external_flag)
-   
+
 
 /* In VAR_DECL and PARM_DECL nodes, nonzero means declared `register'.
    In LABEL_DECL nodes, nonzero means that an error message about

@@ -49,7 +49,7 @@ struct symdef
       } s;
     /* this points to the front of the file header (AKA member header --
        a struct ar_hdr), not to the front of the file or into the file).
-       in other words it only tells you which file to read */       
+       in other words it only tells you which file to read */
     unsigned long file_offset;
   };
 

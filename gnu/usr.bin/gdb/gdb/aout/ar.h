@@ -16,7 +16,7 @@
 #define ARFMAG "`\012"
 
 /* The ar_date field of the armap (__.SYMDEF) member of an archive
-   must be greater than the modified date of the entire file, or 
+   must be greater than the modified date of the entire file, or
    BSD-derived linkers complain.  We originally write the ar_date with
    this offset from the real file's mod-time.  After finishing the
    file, we rewrite ar_date if it's not still greater than the mod date.  */

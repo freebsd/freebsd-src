@@ -36,6 +36,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcskeep.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.4  1991/08/19  03:13:55  eggert
  * Tune.
  *
@@ -56,28 +59,28 @@ Report problems and direct all questions to:
  *
  * Revision 4.6  89/05/01  15:12:56  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.5  88/08/09  19:13:03  eggert
  * Remove lint and speed up by making FILE *fp local, not global.
- * 
+ *
  * Revision 4.4  87/12/18  11:44:21  narten
  * more lint cleanups (Guy Harris)
- * 
+ *
  * Revision 4.3  87/10/18  10:35:50  narten
  * Updating version numbers. Changes relative to 1.1 actually relative
  * to 4.1
- * 
+ *
  * Revision 1.3  87/09/24  14:00:00  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.2  87/03/27  14:22:29  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/05/10  16:26:44  wft
  * Added new markers Id and RCSfile; extraction added.
  * Marker matching with trymatch().
- * 
+ *
  * Revision 3.2  82/12/24  12:08:26  wft
  * added missing #endif.
  *
@@ -93,7 +96,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(keepId, "$Id: rcskeep.c,v 5.4 1991/08/19 03:13:55 eggert Exp $")
+libId(keepId, "$Id: rcskeep.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
 
 static int checknum P((char const*,int));
 static int getval P((RILE*,struct buf*,int));

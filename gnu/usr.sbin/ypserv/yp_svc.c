@@ -6,7 +6,7 @@
  * And thus replied Lpd@NannyMUD:
  *    Who cares? :-) /Peter Eriksson <pen@signum.se>
  *
- *	$Id: yp_svc.c,v 1.1 1995/01/31 08:58:56 wpaul Exp $
+ *	$Id: yp_svc.c,v 1.2 1995/04/05 03:23:38 wpaul Exp $
  */
 
 #include "system.h"
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
     struct sockaddr_in	socket_address;
     int			result;
     int			sunos_4_kludge = 0;
-    
+
     progname = strrchr (argv[0], '/');
     if (progname == (char *) NULL)
 	progname = argv[0];
@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 	progname++;
 
     openlog(progname, LOG_PID, TCPW_FACILITY);
-    
+
     for (i = 1; i < argc && argv[i][0] == '-'; i++)
     {
 	if (strcmp(argv[i], "-debug") == 0 || strcmp(argv[i], "-d") == 0)
@@ -313,7 +313,7 @@ int main(int argc, char **argv)
 	Perror("%s: chdir: %", argv[0], strerror(errno));
 	exit(1);
     }
-	
+
     (void) pmap_unset(YPPROG, YPVERS);
     if (sunos_4_kludge)
 	(void) pmap_unset(YPPROG, 1);
@@ -403,7 +403,7 @@ int main(int argc, char **argv)
 	Perror("%s: unable to register (YPPROG, YPVERS, tcp)\n", progname);
 	exit(1);
     }
-	
+
     svc_run();
     Perror("svc_run returned");
     exit(1);

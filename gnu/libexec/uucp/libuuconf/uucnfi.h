@@ -150,7 +150,7 @@ struct sunknown
   int cargs;
   /* Arguments.  */
   char **pzargs;
-};     
+};
 
 /* This structure is used to hold the locations of systems within the
    Taylor UUCP sys files.  */

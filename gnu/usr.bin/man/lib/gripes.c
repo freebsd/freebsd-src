@@ -5,7 +5,7 @@
  *
  * You may distribute under the terms of the GNU General Public
  * License as specified in the file COPYING that comes with the man
- * distribution.  
+ * distribution.
  *
  * John W. Eaton
  * jwe@che.utexas.edu

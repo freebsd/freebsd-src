@@ -147,7 +147,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
       zspace = azenv[0] + sizeof "PATH=" - 1;
       while ((zspace = strchr (zspace, ' ')) != NULL)
 	*zspace = ':';
-    
+
       azenv[1] = zbufalc (sizeof "HOME=" + strlen (zSspooldir));
       sprintf (azenv[1], "HOME=%s", zSspooldir);
 
@@ -158,7 +158,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
       sprintf (azenv[2], "TERM=%s", zterm);
 
       azenv[3] = zbufcpy ("SHELL=/bin/sh");
-  
+
       azenv[4] = zbufalc (sizeof "USER=" + strlen (OWNER));
       sprintf (azenv[4], "USER=%s", OWNER);
 
@@ -275,7 +275,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
 	      ierr = errno;
 	      ferr = TRUE;
 	      break;
-	    }	      
+	    }
 	}
     }
 
@@ -406,7 +406,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
     {
       char *zto;
       const char *azshargs[4];
-      
+
       pazargs[0] = zcmd;
       zto = zshcmd;
       for (i = 0; pazargs[i] != NULL; i++)

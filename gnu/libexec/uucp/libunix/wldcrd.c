@@ -167,7 +167,7 @@ zsysdep_wildcard (zfile)
   zret = zbufcpy (sSglob.gl_pathv[iSglob]);
   ++iSglob;
   return zret;
-  
+
 #else /* ! HAVE_GLOB */
 
   char *zret;

@@ -487,7 +487,7 @@ int flag_schedule_insns = 0;
 int flag_schedule_insns_after_reload = 0;
 
 /* -finhibit-size-directive inhibits output of .size for ELF.
-   This is used only for compiling crtstuff.c, 
+   This is used only for compiling crtstuff.c,
    and it may be extended to other effects
    needed for crtstuff.c on other systems.  */
 int flag_inhibit_size_directive = 0;
@@ -779,7 +779,7 @@ unsigned id_clash_len;
 /* Nonzero means warn about any objects definitions whose size is larger
    than N bytes.  Also want about function definitions whose returned
    values are larger than N bytes. The value N is in `larger_than_size'.  */
- 
+
 int warn_larger_than;
 unsigned larger_than_size;
 
@@ -1189,7 +1189,7 @@ v_message_with_decl (decl, prefix, s, ap)
     {
       char fmt[sizeof "%.255s"];
       long width = p - s;
-             
+
       if (width > 255L) width = 255L;	/* arbitrary */
       sprintf (fmt, "%%.%lds", width);
       fprintf (stderr, fmt, s);
@@ -2246,7 +2246,7 @@ compile_file (name)
 	 Therefore, I took out that change.
 	 In future versions we should find another way to solve
 	 that dbx problem.  -- rms, 23 May 93.  */
-      
+
       /* Don't let the first function fall at the same address
 	 as gcc_compiled., if profiling.  */
       if (profile_flag || profile_block_flag)
@@ -2414,7 +2414,7 @@ compile_file (name)
 	    && DECL_EXTERNAL (decl)
 	    && ! TREE_PUBLIC (decl))
 	  {
-	    pedwarn_with_decl (decl, 
+	    pedwarn_with_decl (decl,
 			       "`%s' declared `static' but never defined");
 	    /* This symbol is effectively an "extern" declaration now.  */
 	    TREE_PUBLIC (decl) = 1;
@@ -3758,7 +3758,7 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 	      else if (!strncmp (str, "gstabs+", len))
 		write_symbols = DBX_DEBUG;
 
-	      /* Always enable extensions for -ggdb or -gstabs+, 
+	      /* Always enable extensions for -ggdb or -gstabs+,
 		 always disable for -gstabs.
 		 For plain -g, use system-specific default.  */
 	      if (write_symbols == DBX_DEBUG && !strncmp (str, "ggdb", len)
@@ -3783,7 +3783,7 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 	      else if (!strncmp (str, "gdwarf", len))
 		write_symbols = DWARF_DEBUG;
 
-	      /* Always enable extensions for -ggdb or -gdwarf+, 
+	      /* Always enable extensions for -ggdb or -gdwarf+,
 		 always disable for -gdwarf.
 		 For plain -g, use system-specific default.  */
 	      if (write_symbols == DWARF_DEBUG && !strncmp (str, "ggdb", len)
@@ -3830,7 +3830,7 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 		use_gnu_debug_info_extensions = 0;
 	      else
 		use_gnu_debug_info_extensions = DEFAULT_GDB_EXTENSIONS;
-#endif	      
+#endif
 	      if (write_symbols == NO_DEBUG)
 		warning ("`-%s' option not supported on this version of GCC", str);
 	      else if (level == 0)
@@ -4049,7 +4049,7 @@ print_single_switch (type, name)
       line_position = 8;
     }
 }
-     
+
 /* Print default target switches for -version.  */
 
 static void

@@ -253,7 +253,7 @@ flonum_gen2tahoe (format_letter, f, words)
 	   * So we need: number of bits of exponent, number of bits of
 	   * mantissa.
 	   */
-	  
+
 	  bits_left_in_littlenum = LITTLENUM_NUMBER_OF_BITS;
 	  littlenum_pointer = f -> leader;
 	  littlenum_end = f->low;
@@ -271,15 +271,15 @@ flonum_gen2tahoe (format_letter, f, words)
 	  /* Forget leading zeros, forget 1st bit. */
 	  exponent_4 = exponent_3 + (1 << (exponent_bits - 1));
 	  /* Offset exponent. */
-	  
+
 	  if (exponent_4 & ~ mask [exponent_bits])
 	    {
 	      /*
 	       * Exponent overflow. Lose immediately.
 	       */
-	      
+
 	      make_invalid_floating_point_number (words);
-	      
+
 	      /*
 	       * We leave return_value alone: admit we read the
 	       * number, but return a floating exception
@@ -289,20 +289,20 @@ flonum_gen2tahoe (format_letter, f, words)
 	  else
 	    {
 	      lp = words;
-	      
+
 	      /* Word 1. Sign, exponent and perhaps high bits. */
 	      /* Assume 2's complement integers. */
 	      word1 = ((exponent_4 & mask [exponent_bits]) << (15 - exponent_bits))
 		|       ((f -> sign == '+') ? 0 : 0x8000)
 		  |	next_bits (15 - exponent_bits);
 	      * lp ++ = word1;
-	      
+
 	      /* The rest of the words are just mantissa bits. */
 	      for (; lp < words + precision; lp++)
 		{
 		  * lp = next_bits (LITTLENUM_NUMBER_OF_BITS);
 		}
-	      
+
 	      if (next_bits (1))
 		{
 		  /*
@@ -313,9 +313,9 @@ flonum_gen2tahoe (format_letter, f, words)
 		   * highest-order bit of the lowest-order word flips.
 		   * Is that clear?
 		   */
-		  
+
 		  unsigned long int	carry;
-		  
+
 		  /*
 		    #if (sizeof(carry)) < ((sizeof(bits[0]) * BITS_PER_CHAR) + 2)
 		    Please allow at least 1 more bit in carry than is in a LITTLENUM.
@@ -333,7 +333,7 @@ flonum_gen2tahoe (format_letter, f, words)
 		      * lp = carry;
 		      carry >>= LITTLENUM_NUMBER_OF_BITS;
 		    }
-		  
+
 		  if ( (word1 ^ *words) & (1 << (LITTLENUM_NUMBER_OF_BITS - 1)) )
 		    {
 		      make_invalid_floating_point_number (words);

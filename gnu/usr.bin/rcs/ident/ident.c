@@ -29,6 +29,9 @@ Report problems and direct all questions to:
  */
 
 /* $Log: ident.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:11  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.3  1991/09/10  22:15:46  eggert
  * Open files with FOPEN_R, not FOPEN_R_WORK,
  * because they might be executables, not working files.
@@ -45,26 +48,26 @@ Report problems and direct all questions to:
  *
  * Revision 4.5  89/05/01  15:11:54  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.4  87/10/23  17:09:57  narten
  * added exit(0) so exit return code would be non random
- * 
+ *
  * Revision 4.3  87/10/18  10:23:55  narten
  * Updating version numbers. Changes relative to 1.1 are actually relative
  * to 4.1
- * 
+ *
  * Revision 1.3  87/07/09  09:20:52  trinkle
  * Added check to make sure there is at least one arg before comparing argv[1]
  * with "-q".  This necessary on machines that don't allow dereferncing null
  * pointers (i.e. Suns).
- * 
+ *
  * Revision 1.2  87/03/27  14:21:47  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/05/10  16:31:02  wft
  * Added option -q and input from reading stdin.
  * Marker matching is now done with trymatch() (independent of keywords).
- * 
+ *
  * Revision 3.4  83/02/18  17:37:49  wft
  * removed printing of new line after last file.
  *
@@ -83,7 +86,7 @@ Report problems and direct all questions to:
 static int match P((FILE*));
 static void scanfile P((FILE*,char const*,int));
 
-mainProg(identId, "ident", "$Id: ident.c,v 5.3 1991/09/10 22:15:46 eggert Exp $")
+mainProg(identId, "ident", "$Id: ident.c,v 1.1.1.1 1993/06/18 04:22:11 jkh Exp $")
 /*  Ident searches the named files for all occurrences
  *  of the pattern $keyword:...$, where the keywords are
  *  Author, Date, Header, Id, Log, RCSfile, Revision, Source, and State.

@@ -6,7 +6,7 @@
 /* This is the layout on disk of the 32-bit or 64-bit exec header. */
 
 #ifndef external_exec
-struct external_exec 
+struct external_exec
 {
   bfd_byte e_info[4];		/* magic number and stuff		*/
   bfd_byte e_text[BYTES_IN_WORD]; /* length of text section in bytes	*/
@@ -299,7 +299,7 @@ struct internal_nlist {
 #define N_WEAKD 0x10		/* Weak data symbol.  */
 #define N_WEAKB 0x11		/* Weak bss symbol.  */
 
-/* Relocations 
+/* Relocations
 
   There	are two types of relocation flavours for a.out systems,
   standard and extended. The standard form is used on systems where the
@@ -410,7 +410,7 @@ enum reloc_type
   RELOC_22,			/* data[0:21] = (addend + sv) 		*/
   RELOC_13,			/* data[0:12] = (addend + sv)		*/
   RELOC_LO10,			/* data[0:9] = (addend + sv)		*/
-  RELOC_SFA_BASE,		
+  RELOC_SFA_BASE,
   RELOC_SFA_OFF13,
   /* P.I.C. (base-relative) */
   RELOC_BASE10,  		/* Not sure - maybe we can do this the */
@@ -427,17 +427,17 @@ enum reloc_type
   RELOC_JMP_SLOT,
   RELOC_RELATIVE,
 
-  RELOC_11,	
+  RELOC_11,
   RELOC_WDISP2_14,
   RELOC_WDISP19,
   RELOC_HHI22,			/* data[0:21] = (addend + sv) >> 42     */
   RELOC_HLO10,			/* data[0:9] = (addend + sv) >> 32      */
-  
+
   /* 29K relocation types */
   RELOC_JUMPTARG,
   RELOC_CONST,
   RELOC_CONSTH,
-  
+
   /* All the new ones I can think of, for sparc v9 */
 
   RELOC_64,			/* data[0:63] = addend + sv 		*/

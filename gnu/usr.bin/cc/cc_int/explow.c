@@ -101,7 +101,7 @@ plus_constant_wide (x, c)
 	 Look for constant term in the sum and combine
 	 with C.  For an integer constant term, we make a combined
 	 integer.  For a constant term that is not an explicit integer,
-	 we cannot really combine, but group them together anyway.  
+	 we cannot really combine, but group them together anyway.
 
 	 Use a recursive call in case the remaining operand is something
 	 that we handle specially, such as a SYMBOL_REF.  */
@@ -521,12 +521,12 @@ copy_to_reg (x)
      rtx x;
 {
   register rtx temp = gen_reg_rtx (GET_MODE (x));
- 
+
   /* If not an operand, must be an address with PLUS and MULT so
-     do the computation.  */ 
+     do the computation.  */
   if (! general_operand (x, VOIDmode))
     x = force_operand (x, temp);
-  
+
   if (x != temp)
     emit_move_insn (temp, x);
 
@@ -552,9 +552,9 @@ copy_to_mode_reg (mode, x)
      rtx x;
 {
   register rtx temp = gen_reg_rtx (mode);
-  
+
   /* If not an operand, must be an address with PLUS and MULT so
-     do the computation.  */ 
+     do the computation.  */
   if (! general_operand (x, VOIDmode))
     x = force_operand (x, temp);
 
@@ -851,9 +851,9 @@ emit_stack_save (save_level, psave, after)
 }
 
 /* Restore the stack pointer for the purpose in SAVE_LEVEL.  SA is the save
-   area made by emit_stack_save.  If it is zero, we have nothing to do. 
+   area made by emit_stack_save.  If it is zero, we have nothing to do.
 
-   Put any emitted insns after insn AFTER, if nonzero, otherwise at 
+   Put any emitted insns after insn AFTER, if nonzero, otherwise at
    current position.  */
 
 void
@@ -938,7 +938,7 @@ allocate_dynamic_stack_space (size, target, known_align)
 
   /* We will need to ensure that the address we return is aligned to
      BIGGEST_ALIGNMENT.  If STACK_DYNAMIC_OFFSET is defined, we don't
-     always know its final value at this point in the compilation (it 
+     always know its final value at this point in the compilation (it
      might depend on the size of the outgoing parameter lists, for
      example), so we must align the value to be returned in that case.
      (Note that STACK_DYNAMIC_OFFSET will have a default non-zero value if
@@ -1074,7 +1074,7 @@ allocate_dynamic_stack_space (size, target, known_align)
 			    NULL_RTX, 1);
     }
 #endif
-  
+
   /* Some systems require a particular insn to refer to the stack
      to make the pages exist.  */
 #ifdef HAVE_probe

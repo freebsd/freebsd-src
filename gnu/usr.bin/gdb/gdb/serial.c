@@ -174,7 +174,7 @@ connect_command (args, fromtty)
 
   if (args)
     fprintf_unfiltered(gdb_stderr, "This command takes no args.  They have been ignored.\n");
-	
+
   printf_unfiltered("[Entering connect mode.  Use ~. or ~^D to escape]\n");
 
   tty_desc = SERIAL_FDOPEN (0);

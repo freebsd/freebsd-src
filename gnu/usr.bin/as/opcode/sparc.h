@@ -20,7 +20,7 @@ along with GAS or GDB; see the file COPYING.	If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.	*/
 
 /*
- * $Id: sparc.h,v 1.1 1993/11/03 00:56:11 paul Exp $
+ * $Id: sparc.h,v 1.2 1994/12/23 22:37:45 nate Exp $
  */
 
  /* FIXME-someday: perhaps the ,a's and such should be embedded in the
@@ -115,7 +115,7 @@ The following chars are unused: (note: ,[] are used as punctuation)
 */
 
 /* The order of the opcodes in this table is significant:
-	
+
 	* The assembler requires that all instances of the same mnemonic must
 	be consecutive.	If they aren't, the assembler will bomb at runtime.
 
@@ -868,7 +868,7 @@ condfc("fbule",	"cb013", 0xe, 0),
 
 { "cpop1",	F3(2, 0x36, 0), F3(~2, ~0x36, ~1), "[1+2],d", 0, v6 },
 { "cpop2",	F3(2, 0x37, 0), F3(~2, ~0x37, ~1), "[1+2],d", 0, v6 },
-    
+
 
 
 };

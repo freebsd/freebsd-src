@@ -66,7 +66,7 @@ enum reg_class regclass_map[FIRST_PSEUDO_REGISTER] =
   SIREG, DIREG, INDEX_REGS, GENERAL_REGS,
   /* FP registers */
   FP_TOP_REG, FP_SECOND_REG, FLOAT_REGS, FLOAT_REGS,
-  FLOAT_REGS, FLOAT_REGS, FLOAT_REGS, FLOAT_REGS,       
+  FLOAT_REGS, FLOAT_REGS, FLOAT_REGS, FLOAT_REGS,
   /* arg pointer */
   INDEX_REGS
 };
@@ -528,7 +528,7 @@ output_move_double (operands)
          middlehalf[0] = operands[0];
          latehalf[0] = operands[0];
 	}
-    
+
       if (optype1 == REGOP)
 	{
           middlehalf[1] = gen_rtx (REG, SImode, REGNO (operands[1]) + 1);
@@ -2084,7 +2084,7 @@ print_operand (file, x, code)
       REAL_VALUE_TO_DECIMAL (r, "%.22e", dstr);
       fprintf (file, "%s", dstr);
     }
-  else 
+  else
     {
       if (code != 'P')
 	{

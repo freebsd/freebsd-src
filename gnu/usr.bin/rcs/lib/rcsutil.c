@@ -32,6 +32,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsutil.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.10  1991/10/07  17:32:46  eggert
  * Support piece tables even if !has_mmap.
  *
@@ -75,32 +78,32 @@ Report problems and direct all questions to:
  *
  * Revision 4.6  89/05/01  15:13:40  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.5  88/11/08  16:01:02  narten
  * corrected use of varargs routines
- * 
+ *
  * Revision 4.4  88/08/09  19:13:24  eggert
  * Check for memory exhaustion.
  * Permit signal handlers to yield either 'void' or 'int'; fix oldSIGINT botch.
  * Use execv(), not system(); yield exit status like diff(1)'s.
- * 
+ *
  * Revision 4.3  87/10/18  10:40:22  narten
  * Updating version numbers. Changes relative to 1.1 actually
  * relative to 4.1
- * 
+ *
  * Revision 1.3  87/09/24  14:01:01  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.2  87/03/27  14:22:43  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/05/10  15:53:13  wft
  * Added getcaller() and findlock().
  * Changed catchints() to check SIGINT for SIG_IGN before setting up the signal
  * (needed for background jobs in older shells). Added restoreints().
  * Removed printing of full RCS path from logcommand().
- * 
+ *
  * Revision 3.8  83/02/15  15:41:49  wft
  * Added routine fastcopy() to copy remainder of a file in blocks.
  *
@@ -136,7 +139,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(utilId, "$Id: rcsutil.c,v 5.10 1991/10/07 17:32:46 eggert Exp $")
+libId(utilId, "$Id: rcsutil.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
 
 #if !has_memcmp
 	int

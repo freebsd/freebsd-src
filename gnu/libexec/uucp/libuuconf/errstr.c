@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_errstr_rcsid[] = "$Id: errstr.c,v 1.3 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_errstr_rcsid[] = "$Id: errstr.c,v 1.2 1994/05/07 18:12:12 ache Exp $";
 #endif
 
 static char *zeprint_num P((char *zbuf, size_t cbuf, int ival));
@@ -177,7 +177,7 @@ uuconf_error_string (pglobal, ierr, zbuf, cbuf)
 	  --cbuf;
 	}
     }
-      
+
   if (cbuf > 0 && cfile > 0)
     {
       *zbuf++ = ' ';

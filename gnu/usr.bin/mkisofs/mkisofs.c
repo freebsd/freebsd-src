@@ -228,7 +228,7 @@ int FDECL2(iso9660_date,char *, result, time_t, ctime){
   return 0;
 }
 
-int FDECL3(iso9660_file_length,const char*, name, struct directory_entry *, sresult, 
+int FDECL3(iso9660_file_length,const char*, name, struct directory_entry *, sresult,
 			int, dirflag){
   int seen_dot = 0;
   int seen_semic = 0;
@@ -298,7 +298,7 @@ int FDECL3(iso9660_file_length,const char*, name, struct directory_entry *, sres
     current_length++;
     pnt++;
   };
-  
+
   if(tildes == 2){
     int prio1 = 0;
     pnt = name;
@@ -310,10 +310,10 @@ int FDECL3(iso9660_file_length,const char*, name, struct directory_entry *, sres
     };
     priority = prio1;
   };
-    
+
   if (!dirflag){
     if (!seen_dot && !omit_period) {
-      if (result) *result++ = '.'; 
+      if (result) *result++ = '.';
       extra++;
     };
     if(!omit_version_number && !seen_semic) {
@@ -458,7 +458,7 @@ int FDECL2(main, int, argc, char **, argv){
     {
 	int resource;
     struct rlimit rlp;
-	if (getrlimit(RLIMIT_DATA,&rlp) == -1) 
+	if (getrlimit(RLIMIT_DATA,&rlp) == -1)
 		perror("Warning: getrlimit");
 	else {
 		rlp.rlim_cur=33554432;
@@ -513,7 +513,7 @@ int FDECL2(main, int, argc, char **, argv){
   if(reloc_dir) sort_n_finish(reloc_dir);
 
   if (goof) exit(1);
-  
+
   if (outfile){
 	  discimage = fopen(outfile, "w");
 	  if (!discimage){
@@ -564,7 +564,7 @@ int FDECL2(main, int, argc, char **, argv){
 
   iso_write(discimage);
 
-  fprintf(stderr,"Max brk space used %x\n", 
+  fprintf(stderr,"Max brk space used %x\n",
 	  ((unsigned int)sbrk(0)) - mem_start);
   fprintf(stderr,"%d extents written (%d Mb)\n", last_extent, last_extent >> 9);
 #ifdef VMS

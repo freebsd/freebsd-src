@@ -32,7 +32,7 @@ struct complaint
   struct complaint *next;
 };
 
-/* Root of the chain of complaints that have at some point been issued. 
+/* Root of the chain of complaints that have at some point been issued.
    This is used to reset the counters, and/or report the total counts.  */
 
 extern struct complaint complaint_root[1];

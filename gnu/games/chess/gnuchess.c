@@ -1,5 +1,5 @@
 /*
-  C source for CHESS  
+  C source for CHESS
 
   Revision: 4-25-88
 
@@ -44,7 +44,7 @@
 
 #define neutral 2
 #define white 0
-#define black 1 
+#define black 1
 #define no_piece 0
 #define pawn 1
 #define knight 2
@@ -164,7 +164,7 @@ short unmap[120]=
     40,41,42,43,44,45,46,47,-1,-1,-1,-1,-1,-1,-1,-1,
     48,49,50,51,52,53,54,55,-1,-1,-1,-1,-1,-1,-1,-1,
     56,57,58,59,60,61,62,63};
-short Dcode[120]= 
+short Dcode[120]=
    {0,1,1,1,1,1,1,1,0,0,0,0,0,0,0x0E,0x0F,
     0x10,0x11,0x12,0,0,0,0,0,0,0,0,0,0,0,0x0F,0x1F,
     0x10,0x21,0x11,0,0,0,0,0,0,0,0,0,0,0x0F,0,0,
@@ -287,7 +287,7 @@ short PawnAdvance[64]=
     12,16,24,32,32,24,16,12,
     12,16,24,32,32,24,16,12,
      0, 0, 0, 0, 0, 0, 0, 0};
-     
+
 
 main(argc,argv)
 int argc; char *argv[];
@@ -331,8 +331,8 @@ short iop;
 unsigned short *mv;
 
 /*
-   Compare the string 's' to the list of legal moves available for the 
-   opponent. If a match is found, make the move on the board. 
+   Compare the string 's' to the list of legal moves available for the
+   opponent. If a match is found, make the move on the board.
 */
 
 {
@@ -373,7 +373,7 @@ struct leaf *node;
           if (xnode.flags & epmask) UpdateDisplay(0,0,1,0);
           else UpdateDisplay(xnode.f,xnode.t,0,xnode.flags & cstlmask);
           if (xnode.flags & cstlmask) Game50 = GameCnt;
-          else if (board[xnode.t] == pawn || (xnode.flags & capture)) 
+          else if (board[xnode.t] == pawn || (xnode.flags & capture))
             Game50 = GameCnt;
           GameList[GameCnt].depth = GameList[GameCnt].score = 0;
           GameList[GameCnt].nodes = 0;
@@ -384,7 +384,7 @@ struct leaf *node;
           *mv = (xnode.f << 8) + xnode.t;
           algbr(xnode.f,xnode.t,false);
           return(true);
-        } 
+        }
     }
   if (cnt > 1) ShowMessage("Ambiguous Move!");
   return(false);
@@ -464,12 +464,12 @@ SelectMove(side,iop)
 short side,iop;
 
 /*
-   Select a move by calling function search() at progressively deeper 
-   ply until time is up or a mate or draw is reached. An alpha-beta 
-   window of -90 to +90 points is set around the score returned from the 
-   previous iteration. If Sdepth != 0 then the program has correctly 
-   predicted the opponents move and the search will start at a depth of 
-   Sdepth+1 rather than a depth of 1. 
+   Select a move by calling function search() at progressively deeper
+   ply until time is up or a mate or draw is reached. An alpha-beta
+   window of -90 to +90 points is set around the score returned from the
+   previous iteration. If Sdepth != 0 then the program has correctly
+   predicted the opponents move and the search will start at a depth of
+   Sdepth+1 rather than a depth of 1.
 */
 
 {
@@ -495,7 +495,7 @@ static short i,alpha,beta,score,tempb,tempc,tempsf,tempst,xside,rpt;
   ExaminePosition();
   ScorePosition(side,&score);
   ShowSidetomove();
-  
+
   if (Sdepth == 0)
   {
     ZeroTTable();
@@ -516,7 +516,7 @@ static short i,alpha,beta,score,tempb,tempc,tempsf,tempst,xside,rpt;
     NodeCnt = ETnodes = EvalNodes = HashCnt = 0;
     Zscore = 0; zwndw = 20;
   }
-  
+
   while (!timeout && Sdepth < MaxSearchDepth)
     {
       Sdepth++;
@@ -576,7 +576,7 @@ static short i,alpha,beta,score,tempb,tempc,tempsf,tempst,xside,rpt;
   if (score == -9999 || score == 9998) mate = true;
   if (mate) hint = 0;
   if (root->flags & cstlmask) Game50 = GameCnt;
-  else if (board[root->t] == pawn || (root->flags & capture)) 
+  else if (board[root->t] == pawn || (root->flags & capture))
     Game50 = GameCnt;
   GameList[GameCnt].score = score;
   GameList[GameCnt].nodes = NodeCnt;
@@ -599,13 +599,13 @@ static short i,alpha,beta,score,tempb,tempc,tempsf,tempst,xside,rpt;
 OpeningBook()
 
 /*
-   Go thru each of the opening lines of play and check for a match with 
-   the current game listing. If a match occurs, generate a random number. 
-   If this number is the largest generated so far then the next move in 
-   this line becomes the current "candidate". After all lines are 
-   checked, the candidate move is put at the top of the Tree[] array and 
-   will be played by the program. Note that the program does not handle 
-   book transpositions. 
+   Go thru each of the opening lines of play and check for a match with
+   the current game listing. If a match occurs, generate a random number.
+   If this number is the largest generated so far then the next move in
+   this line becomes the current "candidate". After all lines are
+   checked, the candidate move is put at the top of the Tree[] array and
+   will be played by the program. Note that the program does not handle
+   book transpositions.
 */
 
 {
@@ -630,7 +630,7 @@ struct BookEntry *p;
           }
       p = p->next;
     }
-    
+
   for (pnt = TrPnt[1]; pnt < TrPnt[2]; pnt++)
     if ((Tree[pnt].f<<8) + Tree[pnt].t == m) Tree[pnt].score = 0;
   pick(TrPnt[1],TrPnt[2]-1);
@@ -658,12 +658,12 @@ short side,ply,depth,alpha,beta,*rpt;
 unsigned short bstline[];
 
 /*
-   Perform an alpha-beta search to determine the score for the current 
-   board position. If depth <= 0 only capturing moves, pawn promotions 
-   and responses to check are generated and searched, otherwise all 
-   moves are processed. The search depth is modified for check evasions, 
-   certain re-captures and threats. Extensions may continue for up to 11 
-   ply beyond the nominal search depth. 
+   Perform an alpha-beta search to determine the score for the current
+   board position. If depth <= 0 only capturing moves, pawn promotions
+   and responses to check are generated and searched, otherwise all
+   moves are processed. The search depth is modified for check evasions,
+   certain re-captures and threats. Extensions may continue for up to 11
+   ply beyond the nominal search depth.
 */
 
 #define prune (cf && score+node->score < alpha)
@@ -683,7 +683,7 @@ struct leaf *node,tmp;
   NodeCnt++;
   xside = otherside[side];
   if (depth < 0) depth = 0;
-  
+
   if (ply <= Sdepth+3) repetition(rpt); else *rpt = 0;
   if (*rpt >= 2) return(0);
 
@@ -693,7 +693,7 @@ struct leaf *node,tmp;
       bstline[ply] = 0;
       return(score);
     }
-                
+
   if (depth > 0)
     {
       if (InChk || PawnThreat[ply-1] || ReCapture) ++depth;
@@ -704,7 +704,7 @@ struct leaf *node,tmp;
          (InChk || PawnThreat[ply-1] || Threat[ply-1])) ++depth;
       else if (score <= beta && MateThreat) ++depth;
     }
-    
+
   if (depth > 0 && hashflag && ply > 1)
     {
       ProbeTTable(side,depth,&alpha,&beta,&score);
@@ -713,21 +713,21 @@ struct leaf *node,tmp;
       if (beta == -20000) return(score);
       if (alpha > beta) return(alpha);
     }
-    
+
   if (Sdepth == 1) d = 7; else d = 11;
   if (ply > Sdepth+d || (depth < 1 && score > beta)) return(score);
 
   if (ply > 1)
     if (depth > 0) MoveList(side,ply);
     else CaptureList(side,xside,ply);
-    
+
   if (TrPnt[ply] == TrPnt[ply+1]) return(score);
-    
+
   cf = (depth < 1 && ply > Sdepth+1 && !ChkFlag[ply-2] && !slk);
 
   if (depth > 0) best = -12000; else best = score;
   if (best > alpha) alpha = best;
-  
+
   for (pnt = pbst = TrPnt[ply];
        pnt < TrPnt[ply+1] && best <= beta;
        pnt++)
@@ -736,7 +736,7 @@ struct leaf *node,tmp;
       node = &Tree[pnt];
       mv = (node->f << 8) + node->t;
       nxtline[ply+1] = 0;
-      
+
       if (prune) break;
       if (ply == 1) UpdateSearchStatus;
 
@@ -789,7 +789,7 @@ struct leaf *node,tmp;
       if (NodeCnt > ETnodes) ElapsedTime(0);
       if (timeout) return(-Tscore[ply-1]);
     }
-    
+
   node = &Tree[pbst];
   mv = (node->f<<8) + node->t;
   if (hashflag && ply <= Sdepth && *rpt == 0 && best == alpha)
@@ -815,13 +815,13 @@ evaluate(side,xside,ply,alpha,beta)
 short side,xside,ply,alpha,beta;
 
 /*
-   Compute an estimate of the score by adding the positional score from 
-   the previous ply to the material difference. If this score falls 
-   inside a window which is 180 points wider than the alpha-beta window 
-   (or within a 50 point window during quiescence search) call 
-   ScorePosition() to determine a score, otherwise return the estimated 
-   score. If one side has only a king and the other either has no pawns 
-   or no pieces then the function ScoreLoneKing() is called. 
+   Compute an estimate of the score by adding the positional score from
+   the previous ply to the material difference. If this score falls
+   inside a window which is 180 points wider than the alpha-beta window
+   (or within a 50 point window during quiescence search) call
+   ScorePosition() to determine a score, otherwise return the estimated
+   score. If one side has only a king and the other either has no pawns
+   or no pieces then the function ScoreLoneKing() is called.
 */
 
 {
@@ -832,14 +832,14 @@ short s,evflag;
          (mtl[black] == valueK && (pmtl[white] == 0 || emtl[white] == 0)));
   s = -Pscore[ply-1] + mtl[side] - mtl[xside];
   s -= INCscore;
-  
+
   if (slk) evflag = false;
-  else evflag = 
+  else evflag =
      (ply == 1 || ply < Sdepth ||
      ((ply == Sdepth+1 || ply == Sdepth+2) &&
       (s > alpha-xwndw && s < beta+xwndw)) ||
      (ply > Sdepth+2 && s >= alpha-25 && s <= beta+25));
-    
+
   if (evflag)
     {
       EvalNodes++;
@@ -855,7 +855,7 @@ short s,evflag;
       InChk = SqAtakd(PieceList[side][0],xside);
       if (slk) ScoreLoneKing(side,&s);
     }
-    
+
   Pscore[ply] = s - mtl[side] + mtl[xside];
   if (InChk) ChkFlag[ply-1] = Pindex[TOsquare];
   else ChkFlag[ply-1] = 0;
@@ -867,7 +867,7 @@ short s,evflag;
 ProbeTTable(side,depth,alpha,beta,score)
 short side,depth,*alpha,*beta,*score;
 
-/* 
+/*
    Look for the current board position in the transposition table.
 */
 
@@ -916,7 +916,7 @@ short hindx;
   ptbl = (ttable + hindx);
   ptbl->hashbd = hashbd;
   ptbl->depth = depth;
-  ptbl->score = score; 
+  ptbl->score = score;
   ptbl->mv = mv;
   ptbl->flags = 0;
   if (score < alpha) ptbl->flags |= upperbound;
@@ -941,10 +941,10 @@ MoveList(side,ply)
 short side,ply;
 
 /*
-   Fill the array Tree[] with all available moves for side to play. Array 
-   TrPnt[ply] contains the index into Tree[] of the first move at a ply. 
+   Fill the array Tree[] with all available moves for side to play. Array
+   TrPnt[ply] contains the index into Tree[] of the first move at a ply.
 */
-    
+
 {
 register short i;
 short xside,f;
@@ -979,16 +979,16 @@ GenMoves(ply,sq,side,xside)
 short ply,sq,side,xside;
 
 /*
-   Generate moves for a piece. The from square is mapped onto a special  
-   board and offsets (taken from array Dir[]) are added to the mapped 
-   location. The newly generated square is tested to see if it falls off 
-   the board by ANDing the square with 88 HEX. Legal moves are linked 
-   into the tree. 
+   Generate moves for a piece. The from square is mapped onto a special
+   board and offsets (taken from array Dir[]) are added to the mapped
+   location. The newly generated square is tested to see if it falls off
+   the board by ANDing the square with 88 HEX. Legal moves are linked
+   into the tree.
 */
-    
+
 {
 register short m,u,d;
-short i,m0,piece; 
+short i,m0,piece;
 
   piece = board[sq]; m0 = map[sq];
   if (sweep[piece])
@@ -1057,7 +1057,7 @@ short ply,f,t,xside;
      2. Capture of last moved piece
      3. Other captures (major pieces first)
      4. Killer moves
-     5. "history" killers    
+     5. "history" killers
 */
 
 {
@@ -1140,7 +1140,7 @@ struct leaf *node;
     }
   PL = PieceList[side];
   for (i = 0; i <= PieceCnt[side]; i++)
-    { 
+    {
       sq = PL[i];
       m0 = map[sq]; piece = board[sq];
       j1 = Dstart[piece]; j2 = Dstop[piece];
@@ -1176,7 +1176,7 @@ struct leaf *node;
     }
 }
 #endif
-  
+
 int castle(side,kf,kt,iop)
 short side,kf,kt,iop;
 
@@ -1244,7 +1244,7 @@ short l;
     {
       board[l] = no_piece; color[l] = neutral;
     }
-  else 
+  else
     {
       board[l] = pawn; color[l] = xside;
     }
@@ -1257,11 +1257,11 @@ short side,*tempc,*tempb,*tempsf,*tempst;
 struct leaf *node;
 
 /*
-   Update Arrays board[], color[], and Pindex[] to reflect the new board 
-   position obtained after making the move pointed to by node. Also 
-   update miscellaneous stuff that changes when a move is made. 
+   Update Arrays board[], color[], and Pindex[] to reflect the new board
+   position obtained after making the move pointed to by node. Also
+   update miscellaneous stuff that changes when a move is made.
 */
-    
+
 {
 register short f,t;
 short xside,ct,cf;
@@ -1323,7 +1323,7 @@ short xside,ct,cf;
               UpdateHashbd(side,queen,f,-1);
             }
           INCscore -= *tempsf;
-        } 
+        }
       if (board[t] == king) ++kingmoved[side];
       if (node->flags & epmask) EnPassant(xside,f,t,1);
       else if (hashflag) UpdateHashbd(side,board[t],f,t);
@@ -1363,7 +1363,7 @@ short xside;
               UpdateHashbd(side,queen,-1,t);
               UpdateHashbd(side,pawn,-1,t);
             }
-        } 
+        }
       if (*tempc != neutral)
         {
           UpdatePieceList(*tempc,t,2);
@@ -1388,10 +1388,10 @@ UpdateHashbd(side,piece,f,t)
 short side,piece,f,t;
 
 /*
-   hashbd contains a 32 bit "signature" of the board position. hashkey 
-   contains a 16 bit code used to address the hash table. When a move is 
-   made, XOR'ing the hashcode of moved piece on the from and to squares 
-   with the hashbd and hashkey values keeps things current. 
+   hashbd contains a 32 bit "signature" of the board position. hashkey
+   contains a 16 bit code used to address the hash table. When a move is
+   made, XOR'ing the hashcode of moved piece on the from and to squares
+   with the hashbd and hashkey values keeps things current.
 */
 
 {
@@ -1412,8 +1412,8 @@ UpdatePieceList(side,sq,iop)
 short side,sq,iop;
 
 /*
-   Update the PieceList and Pindex arrays when a piece is captured or 
-   when a capture is unmade. 
+   Update the PieceList and Pindex arrays when a piece is captured or
+   when a capture is unmade.
 */
 
 {
@@ -1439,13 +1439,13 @@ register short i;
 InitializeStats()
 
 /*
-   Scan thru the board seeing what's on each square. If a piece is found, 
-   update the variables PieceCnt, PawnCnt, Pindex and PieceList. Also 
-   determine the material for each side and set the hashkey and hashbd 
-   variables to represent the current board position. Array 
-   PieceList[side][indx] contains the location of all the pieces of 
-   either side. Array Pindex[sq] contains the indx into PieceList for a 
-   given square. 
+   Scan thru the board seeing what's on each square. If a piece is found,
+   update the variables PieceCnt, PawnCnt, Pindex and PieceList. Also
+   determine the material for each side and set the hashkey and hashbd
+   variables to represent the current board position. Array
+   PieceList[side][indx] contains the location of all the pieces of
+   either side. Array Pindex[sq] contains the indx into PieceList for a
+   given square.
 */
 
 {
@@ -1477,9 +1477,9 @@ register short i,sq;
 pick(p1,p2)
 short p1,p2;
 
-/*  
-   Find the best move in the tree between indexes p1 and p2. Swap the 
-   best move into the p1 element. 
+/*
+   Find the best move in the tree between indexes p1 and p2. Swap the
+   best move into the p1 element.
 */
 
 {
@@ -1535,7 +1535,7 @@ short sq,side;
 /*
   See if any piece with color 'side' ataks sq.  First check for pawns
   or king, then try other pieces. Array Dcode is used to check for
-  knight attacks or R,B,Q co-linearity.  
+  knight attacks or R,B,Q co-linearity.
 */
 
 {
@@ -1550,7 +1550,7 @@ short i,m0,m1,loc,piece,*PL;
   if (!(m & 0x88))
     if (board[unmap[m]] == pawn && color[unmap[m]] == side) return(true);
   if (distance(sq,PieceList[side][0]) == 1) return(true);
-  
+
   PL = PieceList[side];
   for (i = 1; i <= PieceCnt[side]; i++)
     {
@@ -1584,7 +1584,7 @@ short side,*a;
 {
 register short u,m;
 short d,c,j,j1,j2,piece,i,m0,sq,*PL;
- 
+
 /*
   memset((char *)a,0,64*sizeof(short));
 */
@@ -1626,9 +1626,9 @@ ScorePosition(side,score)
 short side,*score;
 
 /*
-   Perform normal static evaluation of board position. A score is 
-   generated for each piece and these are summed to get a score for each 
-   side. 
+   Perform normal static evaluation of board position. A score is
+   generated for each piece and these are summed to get a score for each
+   side.
 */
 
 {
@@ -1656,17 +1656,17 @@ short i,xside,pscore[3];
     }
   if (hung[side] > 1) pscore[side] += HUNGX;
   if (hung[xside] > 1) pscore[xside] += HUNGX;
-  
+
   *score = mtl[side] - mtl[xside] + pscore[side] - pscore[xside] + 10;
   if (dither) *score += rand() % dither;
-  
+
   if (*score > 0 && pmtl[side] == 0)
     if (emtl[side] < valueR) *score = 0;
     else if (*score < valueR) *score /= 2;
   if (*score < 0 && pmtl[xside] == 0)
     if (emtl[xside] < valueR) *score = 0;
     else if (-*score < valueR) *score /= 2;
-    
+
   if (mtl[xside] == valueK && emtl[side] > valueB) *score += 200;
   if (mtl[side] == valueK && emtl[xside] > valueB) *score -= 200;
 }
@@ -1675,7 +1675,7 @@ short i,xside,pscore[3];
 ScoreLoneKing(side,score)
 short side,*score;
 
-/* 
+/*
    Static evaluation when loser has only a king and winner has no pawns
    or no pieces.
 */
@@ -1687,19 +1687,19 @@ short winner,loser,king1,king2,s,i;
   if (mtl[white] > mtl[black]) winner = white; else winner = black;
   loser = otherside[winner];
   king1 = PieceList[winner][0]; king2 = PieceList[loser][0];
-  
+
   s = 0;
-  
+
   if (pmtl[winner] > 0)
     for (i = 1; i <= PieceCnt[winner]; i++)
       s += ScoreKPK(side,winner,loser,king1,king2,PieceList[winner][i]);
-      
+
   else if (emtl[winner] == valueB+valueN)
     s = ScoreKBNK(winner,king1,king2);
-    
+
   else if (emtl[winner] > valueB)
     s = 500 + emtl[winner] - DyingKing[king2] - 2*distance(king1,king2);
-    
+
   if (side == winner) *score = s; else *score = -s;
 }
 
@@ -1713,7 +1713,7 @@ short side,winner,loser,king1,king2,sq;
 
 {
 short s,r;
-  
+
   if (PieceCnt[winner] == 1) s = 50; else s = 120;
   if (winner == white)
     {
@@ -1883,8 +1883,8 @@ short s,piece,a1,a2,in_square,r,mob,e,c;
           if (PC2[7] == 0) s += KHOPNX;
         }
     }
-    
-  if (a2 > 0) 
+
+  if (a2 > 0)
     {
       c = (control[piece] & 0x4FFF);
       if (a1 == 0 || a2 > c+1)
@@ -1977,8 +1977,8 @@ BRscan(sq,s,mob)
 short sq,*s,*mob;
 
 /*
-   Find Bishop and Rook mobility, XRAY attacks, and pins. Increment the 
-   hung[] array if a pin is found. 
+   Find Bishop and Rook mobility, XRAY attacks, and pins. Increment the
+   hung[] array if a pin is found.
 */
 
 {
@@ -2077,9 +2077,9 @@ short i,m0;
 ExaminePosition()
 
 /*
-   This is done one time before the search is started. Set up arrays 
-   Mwpawn, Mbpawn, Mknight, Mbishop, Mking which are used in the 
-   SqValue() function to determine the positional value of each piece. 
+   This is done one time before the search is started. Set up arrays
+   Mwpawn, Mbpawn, Mknight, Mbishop, Mking which are used in the
+   SqValue() function to determine the positional value of each piece.
 */
 
 {
@@ -2114,14 +2114,14 @@ short wpadv,bpadv,wstrong,bstrong,z,side,pp,j,val,Pd,fyle,rank;
   if (!PawnStorm && stage < 5)
     PawnStorm = ((column[wking] < 3 && column[bking] > 4) ||
                  (column[wking] > 4 && column[bking] < 3));
-  
+
   CopyBoard(pknight,Mknight[white]);
   CopyBoard(pknight,Mknight[black]);
   CopyBoard(pbishop,Mbishop[white]);
   CopyBoard(pbishop,Mbishop[black]);
   BlendBoard(KingOpening,KingEnding,Mking[white]);
   BlendBoard(KingOpening,KingEnding,Mking[black]);
-  
+
   for (sq = 0; sq < 64; sq++)
     {
       fyle = column[sq]; rank = row[sq];
@@ -2159,7 +2159,7 @@ short wpadv,bpadv,wstrong,bstrong,z,side,pp,j,val,Pd,fyle,rank;
           if ((column[bking] < 4 && fyle > 4) ||
               (column[bking] > 3 && fyle < 3)) Mbpawn[sq] -= 3*rank;
         }
-        
+
       Mknight[white][sq] += 5 - distance(sq,bking);
       Mknight[white][sq] += 5 - distance(sq,wking);
       Mknight[black][sq] += 5 - distance(sq,wking);
@@ -2176,19 +2176,19 @@ short wpadv,bpadv,wstrong,bstrong,z,side,pp,j,val,Pd,fyle,rank;
       if (bstrong) Mknight[black][sq] += KNIGHTSTRONG;
       if (wstrong) Mbishop[white][sq] += BISHOPSTRONG;
       if (bstrong) Mbishop[black][sq] += BISHOPSTRONG;
-      
+
       if (HasBishop[white] == 2) Mbishop[white][sq] += 8;
       if (HasBishop[black] == 2) Mbishop[black][sq] += 8;
       if (HasKnight[white] == 2) Mknight[white][sq] += 5;
       if (HasKnight[black] == 2) Mknight[black][sq] += 5;
-      
+
       if (board[sq] == bishop)
         if (rank % 2 == fyle % 2) KBNKsq = 0; else KBNKsq = 7;
-        
+
       Kfield[white][sq] = Kfield[black][sq] = 0;
       if (distance(sq,wking) == 1) Kfield[black][sq] = KATAK;
       if (distance(sq,bking) == 1) Kfield[white][sq] = KATAK;
-      
+
       Pd = 0;
       for (i = 0; i < 64; i++)
         if (board[i] == pawn)
@@ -2221,9 +2221,9 @@ short wpadv,bpadv,wstrong,bstrong,z,side,pp,j,val,Pd,fyle,rank;
 
 UpdateWeights()
 
-/* 
-   If material balance has changed, determine the values for the 
-   positional evaluation terms. 
+/*
+   If material balance has changed, determine the values for the
+   positional evaluation terms.
 */
 
 {
@@ -2241,7 +2241,7 @@ short tmtl;
       if (tmtl > 3600) stage2 = 0;
       else if (tmtl < 1400) stage2 = 10;
       else stage2 = (3600-tmtl) / 220;
-      
+
       PEDRNK2B = -15;         /* centre pawn on 2nd rank & blocked */
       PBLOK = -4;             /* blocked backward pawn */
       PDOUBLED = -14;         /* doubled pawn */
@@ -2250,27 +2250,27 @@ short tmtl;
       PADVNCM =  10;          /* advanced pawn multiplier */
       PADVNCI = 7;            /* muliplier for isolated pawn */
       PawnBonus = stage;
-      
+
       KNIGHTPOST = (stage+2)/3;   /* knight near enemy pieces */
       KNIGHTSTRONG = (stage+6)/2; /* occupies pawn hole */
-      
+
       BISHOPSTRONG = (stage+6)/2; /* occupies pawn hole */
       BishopBonus = 2*stage;
-      
+
       RHOPN    = 10;          /* rook on half open file */
       RHOPNX   = 4;
       RookBonus = 6*stage;
-      
+
       XRAY     = 8;           /* Xray attack on piece */
       PINVAL   = 10;          /* Pin */
-      
+
       KHOPN    = (3*stage-30) / 2; /* king on half open file */
       KHOPNX   = KHOPN / 2;
       KCASTLD  = 10 - stage;
       KMOVD    = -40 / (stage+1);  /* king moved before castling */
       KATAK    = (10-stage) / 2;   /* B,R attacks near enemy king */
       if (stage < 8) KSFTY = 16-2*stage; else KSFTY = 0;
-      
+
       ATAKD    = -6;          /* defender > attacker */
       HUNGP    = -8;          /* each hung piece */
       HUNGX    = -12;         /* extra for >1 hung piece */

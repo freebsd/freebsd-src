@@ -8,13 +8,13 @@
 /* The following macros are defined equivalently to their definitions
    in POSIX.1.  We fail to define WNOHANG and WUNTRACED, which POSIX.1
    <sys/wait.h> defines, since our code does not use waitpid().  We
-   also fail to declare wait() and waitpid().  */   
+   also fail to declare wait() and waitpid().  */
 
 #define WIFEXITED(w)	(((w)&0377) == 0)
 #define WIFSIGNALED(w)	(((w)&0377) != 0177 && ((w)&~0377) == 0)
 #ifdef IBM6000
 
-/* Unfortunately, the above comment (about being compatible in all Unix 
+/* Unfortunately, the above comment (about being compatible in all Unix
    systems) is not quite correct for AIX, sigh.  And AIX 3.2 can generate
    status words like 0x57c (sigtrap received after load), and gdb would
    choke on it. */

@@ -1,4 +1,4 @@
-/* $RCSfile: cmd.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:35 $
+/* $RCSfile: cmd.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,32 +6,35 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: cmd.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:35  nate
  * PERL!
  *
  * Revision 4.0.1.5  92/06/08  12:00:39  lwall
  * patch20: the switch optimizer didn't do anything in subroutines
  * patch20: removed implicit int declarations on funcions
- * 
+ *
  * Revision 4.0.1.4  91/11/11  16:29:33  lwall
  * patch19: do {$foo ne "bar";} returned wrong value
  * patch19: some earlier patches weren't propagated to alternate 286 code
- * 
+ *
  * Revision 4.0.1.3  91/11/05  16:07:43  lwall
  * patch11: random cleanup
  * patch11: "foo\0" eq "foo" was sometimes optimized to true
  * patch11: foreach on null list could spring memory leak
- * 
+ *
  * Revision 4.0.1.2  91/06/07  10:26:45  lwall
  * patch4: new copyright notice
  * patch4: made some allowances for "semi-standard" C
- * 
+ *
  * Revision 4.0.1.1  91/04/11  17:36:16  lwall
  * patch1: you may now use "die" and "caller" in a signal handler
- * 
+ *
  * Revision 4.0  91/03/20  01:04:18  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"

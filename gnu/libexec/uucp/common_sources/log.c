@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char log_rcsid[] = "$Id: log.c,v 1.54 1994/04/17 02:28:24 ian Rel $";
+const char log_rcsid[] = "$Id: log.c,v 1.2 1994/05/07 18:08:47 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -199,7 +199,7 @@ ulog_system (zsystem)
     {
       ubuffree (zLsystem);
       zLsystem = zbufcpy (zsystem);
-#if HAVE_HDB_LOGGING      
+#if HAVE_HDB_LOGGING
       /* Under HDB logging we now must write to a different log file.  */
       ulog_close ();
 #endif /* HAVE_HDB_LOGGING */
@@ -331,7 +331,7 @@ ulog (ttype, zmsg, a, b, c, d, f, g, h, i, j)
 	    char *zlower;
 	    char *zfile;
 
-	    /* We want to write to .Log/program/system, e.g.  	
+	    /* We want to write to .Log/program/system, e.g.
 	       .Log/uucico/uunet.  The system name may not be set.  */
 	    if (zLsystem == NULL)
 	      zsys = "ANY";
@@ -633,7 +633,7 @@ ustats (fsucceeded, zuser, zsystem, fsent, cbytes, csecs, cmicros, fmaster)
     {
       csecs += cmicros / 10000000L;
       cmicros = cmicros % 1000000L;
-    }      
+    }
 
   /* On a system which can determine microseconds we might very well
      have both csecs == 0 and cmicros == 0.  */

@@ -36,7 +36,7 @@ static void
 core_files_info PARAMS ((struct target_ops *));
 
 #ifdef SOLIB_ADD
-static int 
+static int
 solib_add_stub PARAMS ((char *));
 #endif
 
@@ -75,7 +75,7 @@ core_close (quitting)
 /* Stub function for catch_errors around shared library hacking.  FROM_TTYP
    is really an int * which points to from_tty.  */
 
-static int 
+static int
 solib_add_stub (from_ttyp)
      char *from_ttyp;
 {
@@ -127,7 +127,7 @@ core_open (filename, from_tty)
   target_preopen (from_tty);
   if (!filename)
     {
-      error (core_bfd? 
+      error (core_bfd?
        "No core file specified.  (Use `detach' to stop debugging a core file.)"
      : "No core file specified.");
     }
@@ -311,7 +311,7 @@ struct target_ops core_ops = {
 	"Use a core file as a target.  Specify the filename of the core file.",
 	core_open, core_close,
 	find_default_attach, core_detach, 0, 0, /* resume, wait */
-	get_core_registers, 
+	get_core_registers,
 	0, 0, /* store_regs, prepare_to_store */
 	xfer_memory, core_files_info,
 	ignore, ignore, /* core_insert_breakpoint, core_remove_breakpoint, */

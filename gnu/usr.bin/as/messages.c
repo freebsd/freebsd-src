@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: messages.c,v 1.2 1993/11/03 00:52:01 paul Exp $";
+static char rcsid[] = "$Id: messages.c,v 1.3 1994/12/23 22:36:12 nate Exp $";
 #endif
 
 #include <stdio.h>
@@ -104,7 +104,7 @@ identify (file)
 
 static int warning_count;	/* Count of number of warnings issued */
 
-int 
+int
 had_warnings ()
 {
   return (warning_count);
@@ -115,7 +115,7 @@ had_warnings ()
 
 static int error_count;
 
-int 
+int
 had_errors ()
 {
   return (error_count);
@@ -141,7 +141,7 @@ as_show_where ()
  * Like perror(3), but with more info.
  */
 
-void 
+void
 as_perror (gripe, filename)
      const char *gripe;		/* Unpunctuated error theme. */
      const char *filename;
@@ -172,7 +172,7 @@ as_perror (gripe, filename)
  */
 
 #ifndef NO_STDARG
-void 
+void
 as_tsktsk (const char *format,...)
 {
   va_list args;
@@ -186,7 +186,7 @@ as_tsktsk (const char *format,...)
 
 #else
 #ifndef NO_VARARGS
-void 
+void
 as_tsktsk (format, va_alist)
      char *format;
      va_dcl
@@ -249,7 +249,7 @@ as_warn_internal (file, line, buffer)
 #endif
 
 #ifndef NO_STDARG
-void 
+void
 as_warn (const char *format,...)
 {
   va_list args;
@@ -266,7 +266,7 @@ as_warn (const char *format,...)
 
 #else
 #ifndef NO_VARARGS
-void 
+void
 as_warn (format, va_alist)
      char *format;
      va_dcl
@@ -306,7 +306,7 @@ as_warn (format, args)
    to handle the varargs correctly and portably.  */
 
 #ifndef NO_STDARG
-void 
+void
 as_warn_where (char *file, unsigned int line, const char *format,...)
 {
   va_list args;
@@ -323,7 +323,7 @@ as_warn_where (char *file, unsigned int line, const char *format,...)
 
 #else
 #ifndef NO_VARARGS
-void 
+void
 as_warn_where (file, line, format, va_alist)
      char *file;
      unsigned int line;
@@ -394,7 +394,7 @@ as_bad_internal (file, line, buffer)
  */
 
 #ifndef NO_STDARG
-void 
+void
 as_bad (const char *format,...)
 {
   va_list args;
@@ -409,7 +409,7 @@ as_bad (const char *format,...)
 
 #else
 #ifndef NO_VARARGS
-void 
+void
 as_bad (format, va_alist)
      char *format;
      va_dcl
@@ -445,7 +445,7 @@ as_bad (format, args)
    to handle the varargs correctly and portably.  */
 
 #ifndef NO_STDARG
-void 
+void
 as_bad_where (char *file, unsigned int line, const char *format,...)
 {
   va_list args;
@@ -460,7 +460,7 @@ as_bad_where (char *file, unsigned int line, const char *format,...)
 
 #else
 #ifndef NO_VARARGS
-void 
+void
 as_bad_where (file, line, format, va_alist)
      char *file;
      unsigned int line;
@@ -505,7 +505,7 @@ as_bad_where (file, line, format, args)
  */
 
 #ifndef NO_STDARG
-void 
+void
 as_fatal (const char *format,...)
 {
   va_list args;
@@ -521,7 +521,7 @@ as_fatal (const char *format,...)
 
 #else
 #ifndef NO_VARARGS
-void 
+void
 as_fatal (format, va_alist)
      char *format;
      va_dcl

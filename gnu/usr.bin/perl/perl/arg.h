@@ -1,4 +1,4 @@
-/* $RCSfile: arg.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:34 $
+/* $RCSfile: arg.h,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:24 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,10 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: arg.h,v $
+ * Revision 1.2  1994/09/11  03:17:24  gclarkii
+ * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
+ * Added casts to shutup warnings in doio.c
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -15,19 +19,19 @@
  * Revision 4.0.1.3  92/06/08  11:44:06  lwall
  * patch20: O_PIPE conflicted with Atari
  * patch20: clarified debugging output for literals and double-quoted strings
- * 
+ *
  * Revision 4.0.1.2  91/11/05  15:51:05  lwall
  * patch11: added eval {}
  * patch11: added sort {} LIST
- * 
+ *
  * Revision 4.0.1.1  91/06/07  10:18:30  lwall
  * patch4: length($`), length($&), length($') now optimized to avoid string copy
  * patch4: new copyright notice
  * patch4: many, many itty-bitty portability fixes
- * 
+ *
  * Revision 4.0  91/03/20  01:03:09  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #define O_NULL 0

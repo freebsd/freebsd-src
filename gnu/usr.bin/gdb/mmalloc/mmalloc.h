@@ -206,7 +206,7 @@ struct mdesc
      needs to be maintained on a per-process basis. */
 
   PTR (*morecore) PARAMS ((struct mdesc *, int));
-     
+
   /* Pointer to the function that causes an abort when the memory checking
      features are activated.  By default this is set to abort(), but can
      be set to another function by the application using mmalloc().

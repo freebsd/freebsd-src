@@ -82,7 +82,7 @@ extern rtx reload_reg_rtx[MAX_RELOADS];
 
 enum reload_type
 {
-  RELOAD_FOR_INPUT, RELOAD_FOR_OUTPUT, RELOAD_FOR_INSN, 
+  RELOAD_FOR_INPUT, RELOAD_FOR_OUTPUT, RELOAD_FOR_INSN,
   RELOAD_FOR_INPUT_ADDRESS, RELOAD_FOR_OUTPUT_ADDRESS,
   RELOAD_FOR_OPERAND_ADDRESS, RELOAD_FOR_OPADDR_ADDR,
   RELOAD_OTHER, RELOAD_FOR_OTHER_ADDRESS
@@ -126,7 +126,7 @@ extern enum insn_code reload_out_optab[];
 
 /* Functions from reload.c:  */
 
-/* Return a memory location that will be used to copy X in mode MODE.  
+/* Return a memory location that will be used to copy X in mode MODE.
    If we haven't already made a location for this mode in this insn,
    call find_reloads_address on the location being returned.  */
 extern rtx get_secondary_mem PROTO((rtx, enum machine_mode,

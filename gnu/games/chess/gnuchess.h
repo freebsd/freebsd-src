@@ -21,11 +21,11 @@
 */
 
 
-/* Header file for GNU CHESS */  
+/* Header file for GNU CHESS */
 
 #define neutral 2
 #define white 0
-#define black 1 
+#define black 1
 #define no_piece 0
 #define pawn 1
 #define knight 2

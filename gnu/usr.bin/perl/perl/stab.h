@@ -1,4 +1,4 @@
-/* $RCSfile: stab.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: stab.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,23 +6,26 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: stab.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
  * Revision 4.0.1.3  92/06/08  15:33:44  lwall
  * patch20: fixed confusion between a *var's real name and its effective name
  * patch20: ($<,$>) = ... didn't work on some architectures
- * 
+ *
  * Revision 4.0.1.2  91/11/05  18:36:15  lwall
  * patch11: length($x) was sometimes wrong for numeric $x
- * 
+ *
  * Revision 4.0.1.1  91/06/07  11:56:35  lwall
  * patch4: new copyright notice
  * patch4: length($`), length($&), length($') now optimized to avoid string copy
- * 
+ *
  * Revision 4.0  91/03/20  01:39:49  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 struct stabptrs {

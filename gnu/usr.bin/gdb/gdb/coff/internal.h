@@ -193,7 +193,7 @@ struct internal_scnhdr
 #define STYP_LIB	 (0x0800)	/* for .lib: same as INFO */
 #define STYP_MERGE	 (0x2000)	/* merge section -- combines with text, data or bss sections only */
 #define STYP_REVERSE_PAD (0x4000)	/* section will be padded with no-op instructions wherever padding is necessary and there is a
-					
+
 									     word of contiguous bytes
 									     beginning on a word boundary. */
 

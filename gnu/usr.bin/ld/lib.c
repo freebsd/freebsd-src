@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.12 1995/03/04 17:46:08 nate Exp $	- library routines
+ * $Id: lib.c,v 1.14 1995/04/07 05:08:28 nate Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ decode_library_subfile(fd, library_entry, subfile_offset, length_loc)
 		name[namelen] = 0;
 		content_length -= namelen;
 		starting_offset += namelen;
-	} else 
+	} else
 
 #endif
 	{

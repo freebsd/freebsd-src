@@ -145,7 +145,7 @@ make_path (argpath, mode, parent_mode, owner, group, verbose_fmt_string)
 		 `+' from the name and create the directory.  Later
 		 we will "hide" the directory.  */
 	      if ( (*(slash +1) == '/') && (*(slash -1) == '+') )
-		{ 
+		{
 		  iscdf = 1;
 		  *(slash -1) = '\0';
 		}

@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Kurt Baudendistel (gt-eedsp!baud@gatech.edu)
     adapted for libg++ by Doug Lea (dl@rocky.oswego.edu)
@@ -26,7 +26,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <stream.h>
 #include <std.h>
 
-// extra type definitions 
+// extra type definitions
 
 typedef struct {
   _G_int32_t		u;
@@ -37,14 +37,14 @@ typedef struct {
 
 static const int
   Fix24_shift = 31;
-		  
+
 static const double
   Fix24_fs = 2147483648.,		// 2^Fix24_shift
   Fix24_mult = Fix24_fs,
   Fix24_div = 1./Fix24_fs,
   Fix24_max = 1. - .5/Fix24_fs,
   Fix24_min = -1.;
-	  
+
 static const _G_uint32_t
   Fix24_msb = 0x80000000L,
   Fix24_lsb = 0x00000100L,
@@ -57,21 +57,21 @@ static const double
   Fix48_min = -1.,
   Fix48_div_u = 1./Fix24_fs,
   Fix48_div_l = 1./Fix48_fs;
-   
+
 static const twolongs
   Fix48_msb = { 0x80000000L, 0L },
   Fix48_lsb = { 0L, 0x00000100L },
   Fix48_m_max = { 0x7fffff00L, 0xffffff00L },
   Fix48_m_min = { 0x80000000L, 0L };
-		  
+
 //
 // Fix24    class: 24-bit Fixed point data type
 //
 //	consists of a 24-bit mantissa (sign bit & 23 data bits).
 //
 
-class Fix24 
-{ 
+class Fix24
+{
   friend class          Fix48;
 
   _G_int32_t            m;
@@ -133,15 +133,15 @@ public:
   void                  range_error(_G_int32_t&) const;
 };
 
- 
+
 //
 // Fix48 class: 48-bit Fixed point data type
 //
 //	consists of a 48-bit mantissa (sign bit & 47 data bits).
 //
 
-class Fix48 
-{ 
+class Fix48
+{
   friend class         Fix24;
 
   twolongs             m;
@@ -242,85 +242,85 @@ extern void
 
 inline Fix24::~Fix24() {}
 
-inline Fix24::Fix24(long i)		
-{ 
-  m = i; 
+inline Fix24::Fix24(long i)
+{
+  m = i;
 }
 
-inline Fix24::Fix24(int i)	    
-{ 
-  m = i; 
+inline Fix24::Fix24(int i)
+{
+  m = i;
 }
 
 inline Fix24::operator double() const
-{ 
-  return  Fix24_div * m; 
+{
+  return  Fix24_div * m;
 }
 
-inline Fix24::Fix24()     			
-{ 
-  m = 0; 
+inline Fix24::Fix24()
+{
+  m = 0;
 }
 
-inline Fix24::Fix24(const Fix24&  f)		
-{ 
-  m = f.m; 
+inline Fix24::Fix24(const Fix24&  f)
+{
+  m = f.m;
 }
 
-inline Fix24::Fix24(double d)		
+inline Fix24::Fix24(double d)
 {
   m = assign(d);
 }
 
-inline Fix24::Fix24(const Fix48& f)		
-{ 
+inline Fix24::Fix24(const Fix48& f)
+{
   m = f.m.u;
 }
 
-inline Fix24&  Fix24::operator=(const Fix24&  f)	
-{ 
-  m = f.m; 
-  return *this; 
+inline Fix24&  Fix24::operator=(const Fix24&  f)
+{
+  m = f.m;
+  return *this;
 }
 
-inline Fix24&  Fix24::operator=(double d) 
-{ 
-  m = assign(d); 
-  return *this; 
+inline Fix24&  Fix24::operator=(double d)
+{
+  m = assign(d);
+  return *this;
 }
 
 inline Fix24&  Fix24::operator=(const Fix48& f)
-{ 
+{
   m = f.m.u;
-  return *this; 
+  return *this;
 }
 
 inline _G_int32_t& mantissa(Fix24&  f)
-{ 
-  return f.m; 
+{
+  return f.m;
 }
 
 inline const _G_int32_t& mantissa(const Fix24&  f)
-{ 
-  return f.m; 
+{
+  return f.m;
 }
 
 inline double value(const Fix24&  f)
-{ 
-  return double(f); 
+{
+  return double(f);
 }
 
-inline Fix24 Fix24::operator+() const		
-{ 
-  return m; 
+inline Fix24 Fix24::operator+() const
+{
+  return m;
 }
 
 inline Fix24 Fix24::operator-() const
-{ 
-  return -m; 
+{
+  return -m;
 }
 
-inline Fix24 operator+(const Fix24&  f, const Fix24&  g) 
+inline Fix24 operator+(const Fix24&  f, const Fix24&  g)
 {
   _G_int32_t sum = f.m + g.m;
   if ( (f.m ^ sum) & (g.m ^ sum) & Fix24_msb )
@@ -328,7 +328,7 @@ inline Fix24 operator+(const Fix24&  f, const Fix24&  g)
   return sum;
 }
 
-inline Fix24 operator-(const Fix24&  f, const Fix24&  g) 
+inline Fix24 operator-(const Fix24&  f, const Fix24&  g)
 {
   _G_int32_t sum = f.m - g.m;
   if ( (f.m ^ sum) & (-g.m ^ sum) & Fix24_msb )
@@ -336,23 +336,23 @@ inline Fix24 operator-(const Fix24&  f, const Fix24&  g)
   return sum;
 }
 
-inline Fix24 operator*(const Fix24& a, int b) 	
-{ 
-  return a.m * b; 
+inline Fix24 operator*(const Fix24& a, int b)
+{
+  return a.m * b;
 }
 
-inline Fix24 operator*(int b, const Fix24& a) 	
-{ 
-  return a * b; 
+inline Fix24 operator*(int b, const Fix24& a)
+{
+  return a * b;
 }
 
-inline Fix24 operator<<(const Fix24& a, int b) 	
-{ 
-  return a.m << b; 
+inline Fix24 operator<<(const Fix24& a, int b)
+{
+  return a.m << b;
 }
 
-inline Fix24 operator>>(const Fix24& a, int b) 	
-{ 
+inline Fix24 operator>>(const Fix24& a, int b)
+{
   return (a.m >> b) & ~0xff;
 }
 
@@ -361,236 +361,236 @@ inline  Fix24&  Fix24:: operator+=(const Fix24&  f)
   return *this = *this + f;
 }
 
-inline Fix24&  Fix24:: operator-=(const Fix24&  f) 	
-{ 
-  return *this = *this - f; 
+inline Fix24&  Fix24:: operator-=(const Fix24&  f)
+{
+  return *this = *this - f;
 }
 
-inline Fix24& Fix24::operator*=(const Fix24& f) 	
-{ 
-  return *this = *this * f; 
+inline Fix24& Fix24::operator*=(const Fix24& f)
+{
+  return *this = *this * f;
 }
 
-inline Fix24&  Fix24:: operator/=(const Fix24&  f) 	
-{ 
-  return *this = *this / f; 
+inline Fix24&  Fix24:: operator/=(const Fix24&  f)
+{
+  return *this = *this / f;
 }
 
-inline Fix24&  Fix24:: operator<<=(int b)	
-{ 
+inline Fix24&  Fix24:: operator<<=(int b)
+{
   return *this = *this << b;
 }
 
-inline Fix24&  Fix24:: operator>>=(int b)	
-{ 
+inline Fix24&  Fix24:: operator>>=(int b)
+{
   return *this = *this >> b;
 }
 
 inline Fix24& Fix24::operator*=(int b)
-{ 
-  return *this = *this * b; 
+{
+  return *this = *this * b;
 }
 
-inline int operator==(const Fix24&  f, const Fix24&  g)	
-{ 
+inline int operator==(const Fix24&  f, const Fix24&  g)
+{
   return f.m == g.m;
 }
 
-inline int operator!=(const Fix24&  f, const Fix24&  g)	
-{ 
+inline int operator!=(const Fix24&  f, const Fix24&  g)
+{
   return f.m != g.m;
 }
 
-inline int operator>=(const Fix24&  f, const Fix24&  g)	
-{ 
+inline int operator>=(const Fix24&  f, const Fix24&  g)
+{
   return f.m >= g.m;
 }
 
-inline int operator<=(const Fix24&  f, const Fix24&  g)	
-{ 
+inline int operator<=(const Fix24&  f, const Fix24&  g)
+{
   return f.m <= g.m;
 }
 
-inline int operator>(const Fix24&  f, const Fix24&  g)	
-{ 
+inline int operator>(const Fix24&  f, const Fix24&  g)
+{
   return f.m > g.m;
 }
 
-inline int operator<(const Fix24&  f, const Fix24&  g)	
-{ 
+inline int operator<(const Fix24&  f, const Fix24&  g)
+{
   return f.m < g.m;
 }
 
 inline istream&  operator>>(istream& s, Fix24&  f)
-{ 
+{
   double d;
-  s >> d; 
-  f = d; 
-  return s; 
+  s >> d;
+  f = d;
+  return s;
 }
 
 inline ostream&  operator<<(ostream& s, const Fix24&  f)
-{ 
+{
   return s << double(f);
 }
 
 inline Fix48::~Fix48() {}
 
-inline Fix48::Fix48(twolongs i)		
-{ 
+inline Fix48::Fix48(twolongs i)
+{
   m = i;
 }
 
 inline Fix48:: operator double() const
-{ 
+{
 /*
  * Note: can't simply do Fix48_div_u * m.u + Fix48_div_l * m.l, because
  * m.u is signed and m.l is unsigned.
  */
   return (m.u >= 0)? Fix48_div_u * m.u + Fix48_div_l * m.l :
-      (Fix48_div_u * ((_G_uint32_t)(m.u & 0xffffff00)) 
+      (Fix48_div_u * ((_G_uint32_t)(m.u & 0xffffff00))
 	  + Fix48_div_l * m.l) - 2;
 }
 
-inline Fix48::Fix48()			    
-{ 
+inline Fix48::Fix48()
+{
   m.u = 0;
   m.l = 0;
 }
 
-inline Fix48::Fix48(const Fix48& f)		
-{ 
+inline Fix48::Fix48(const Fix48& f)
+{
   m = f.m;
 }
 
-inline Fix48::Fix48(const Fix24&  f)    
-{ 
+inline Fix48::Fix48(const Fix24&  f)
+{
   m.u = f.m;
   m.l = 0;
 }
 
-inline Fix48::Fix48(double d)		
-{ 
+inline Fix48::Fix48(double d)
+{
   m = assign(d);
 }
 
-inline Fix48& Fix48::operator=(const Fix48& f)	
-{ 
+inline Fix48& Fix48::operator=(const Fix48& f)
+{
   m = f.m;
-  return *this; 
+  return *this;
 }
 
-inline Fix48& Fix48::operator=(const Fix24&  f)	
-{ 
+inline Fix48& Fix48::operator=(const Fix24&  f)
+{
   m.u = f.m;
   m.l = 0;
   return *this;
 }
 
-inline Fix48& Fix48::operator=(double d)	
-{ 
+inline Fix48& Fix48::operator=(double d)
+{
   m = assign(d);
-  return *this; 
+  return *this;
 }
 
-inline twolongs& mantissa(Fix48& f)	
-{ 
+inline twolongs& mantissa(Fix48& f)
+{
   return f.m;
 }
 
-inline const twolongs& mantissa(const Fix48& f)	
-{ 
+inline const twolongs& mantissa(const Fix48& f)
+{
   return f.m;
 }
 
 inline double value(const Fix48& f)
-{ 
+{
   return double(f);
 }
 
-inline Fix48 Fix48::operator+() const		
-{ 
+inline Fix48 Fix48::operator+() const
+{
   return m;
 }
 
 inline Fix48 Fix48::operator-() const
-{ 
+{
   twolongs n;
   n.l = -m.l;
   n.u = ~m.u + ((n.l ^ m.l) & Fix24_msb ? 0 : Fix24_lsb);
   return Fix48(n);
 }
 
-inline Fix48 operator*(int b, const Fix48& a) 	
-{ 
-  return a * b; 
+inline Fix48 operator*(int b, const Fix48& a)
+{
+  return a * b;
 }
 
-inline Fix48& Fix48::operator+=(const Fix48& f) 	
-{ 
+inline Fix48& Fix48::operator+=(const Fix48& f)
+{
   return *this = *this + f;
 }
 
-inline Fix48& Fix48::operator-=(const Fix48& f) 	
-{ 
+inline Fix48& Fix48::operator-=(const Fix48& f)
+{
   return *this = *this - f;
 }
 
-inline Fix48& Fix48::operator*=(int b)	
-{ 
+inline Fix48& Fix48::operator*=(int b)
+{
   return *this = *this * b;
 }
 
-inline Fix48& Fix48::operator<<=(int b)	
-{ 
+inline Fix48& Fix48::operator<<=(int b)
+{
   return *this = *this << b;
 }
 
-inline Fix48& Fix48::operator>>=(int b)	
-{ 
+inline Fix48& Fix48::operator>>=(int b)
+{
   return *this = *this >> b;
 }
 
-inline int operator==(const Fix48& f, const Fix48& g)	
-{ 
+inline int operator==(const Fix48& f, const Fix48& g)
+{
   return f.m.u == g.m.u && f.m.l == g.m.l;
 }
 
-inline int operator!=(const Fix48& f, const Fix48& g)	
-{ 
+inline int operator!=(const Fix48& f, const Fix48& g)
+{
   return f.m.u != g.m.u || f.m.l != g.m.l;
 }
 
-inline int operator>=(const Fix48& f, const Fix48& g)	
-{ 
+inline int operator>=(const Fix48& f, const Fix48& g)
+{
   return f.m.u >= g.m.u || (f.m.u == g.m.u && f.m.l >= g.m.l);
 }
 
-inline int operator<=(const Fix48& f, const Fix48& g)	
-{ 
+inline int operator<=(const Fix48& f, const Fix48& g)
+{
   return f.m.u <= g.m.u || (f.m.u == g.m.u && f.m.l <= g.m.l);
 }
 
-inline int operator>(const Fix48& f, const Fix48& g)	
-{ 
+inline int operator>(const Fix48& f, const Fix48& g)
+{
   return f.m.u > g.m.u || (f.m.u == g.m.u && f.m.l > g.m.l);
 }
 
-inline int operator<(const Fix48& f, const Fix48& g)	
-{ 
+inline int operator<(const Fix48& f, const Fix48& g)
+{
   return f.m.u < g.m.u || (f.m.u == g.m.u && f.m.l < g.m.l);
 }
 
 inline istream& operator>>(istream& s, Fix48& f)
-{ 
+{
   double d;
-  s >> d; 
-  f = d; 
-  return s; 
+  s >> d;
+  f = d;
+  return s;
 }
 
 inline ostream& operator<<(ostream& s, const Fix48& f)
-{ 
+{
   return s << double(f);
 }
 

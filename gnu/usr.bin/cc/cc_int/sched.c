@@ -791,7 +791,7 @@ memrefs_conflict_p (xsize, x, ysize, y, c)
    If both memory references are volatile, then there must always be a
    dependence between the two references, since their order can not be
    changed.  A volatile and non-volatile reference can be interchanged
-   though. 
+   though.
 
    A MEM_IN_STRUCT reference at a non-QImode varying address can never
    conflict with a non-MEM_IN_STRUCT reference at a fixed address.   We must
@@ -2331,7 +2331,7 @@ sched_note_set (b, x, death)
 		{
 		  offset = (regno + j) / REGSET_ELT_BITS;
 		  bit = (REGSET_ELT_TYPE) 1 << ((regno + j) % REGSET_ELT_BITS);
-		  
+
 		  bb_live_regs[offset] &= ~bit;
 		  bb_dead_regs[offset] |= bit;
 		}
@@ -2352,7 +2352,7 @@ sched_note_set (b, x, death)
 		{
 		  offset = (regno + j) / REGSET_ELT_BITS;
 		  bit = (REGSET_ELT_TYPE) 1 << ((regno + j) % REGSET_ELT_BITS);
-		  
+
 		  bb_live_regs[offset] |= bit;
 		  bb_dead_regs[offset] &= ~bit;
 		}
@@ -2710,13 +2710,13 @@ create_reg_dead_note (reg, insn)
      rtx reg, insn;
 {
   rtx link;
-		
+
   /* The number of registers killed after scheduling must be the same as the
      number of registers killed before scheduling.  The number of REG_DEAD
      notes may not be conserved, i.e. two SImode hard register REG_DEAD notes
      might become one DImode hard register REG_DEAD note, but the number of
      registers killed will be conserved.
-     
+
      We carefully remove REG_DEAD notes from the dead_notes list, so that
      there will be none left at the end.  If we run out early, then there
      is a bug somewhere in flow, combine and/or sched.  */
@@ -2841,7 +2841,7 @@ attach_deaths (x, insn, set_p)
 	   because we may have to execute this code several times, e.g.
 	   once for a clobber (which doesn't add a note) and later
 	   for a use (which does add a note).
-	   
+
 	   Always make the register live.  We must do this even if it was
 	   live before, because this may be an insn which sets and uses
 	   the same register, in which case the register has already been
@@ -3756,7 +3756,7 @@ schedule_block (b, file)
 			|| GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == CLOBBER)
 		      sched_note_set (b, XVECEXP (PATTERN (insn), 0, j), 1);
 		}
-	      
+
 	      /* This code keeps life analysis information up to date.  */
 	      if (GET_CODE (insn) == CALL_INSN)
 		{
@@ -4221,16 +4221,16 @@ update_n_sets (x, inc)
   while (GET_CODE (dest) == STRICT_LOW_PART || GET_CODE (dest) == SUBREG
 	 || GET_CODE (dest) == ZERO_EXTRACT || GET_CODE (dest) == SIGN_EXTRACT)
     dest = SUBREG_REG (dest);
-	  
+
   if (GET_CODE (dest) == REG)
     {
       int regno = REGNO (dest);
-      
+
       if (regno < FIRST_PSEUDO_REGISTER)
 	{
 	  register int i;
 	  int endregno = regno + HARD_REGNO_NREGS (regno, GET_MODE (dest));
-	  
+
 	  for (i = regno; i < endregno; i++)
 	    reg_n_sets[i] += inc;
 	}
@@ -4718,7 +4718,7 @@ schedule_insns (dump_file)
 	 This must be computed and saved now, because after a basic block's
 	 predecessor has been scheduled, it is impossible to accurately
 	 determine the correct line number for the first insn of the block.  */
-	 
+
       for (b = 0; b < n_basic_blocks; b++)
 	for (line = basic_block_head[b]; line; line = PREV_INSN (line))
 	  if (GET_CODE (line) == NOTE && NOTE_LINE_NUMBER (line) > 0)

@@ -48,16 +48,16 @@ struct elfinfo {
 
 /* Various things we might complain about... */
 
-struct complaint section_info_complaint = 
+struct complaint section_info_complaint =
   {"elf/stab section information %s without a preceding file symbol", 0, 0};
 
-struct complaint section_info_dup_complaint = 
+struct complaint section_info_dup_complaint =
   {"duplicated elf/stab section information for %s", 0, 0};
 
-struct complaint stab_info_mismatch_complaint = 
+struct complaint stab_info_mismatch_complaint =
   {"elf/stab section information missing for %s", 0, 0};
 
-struct complaint stab_info_questionable_complaint = 
+struct complaint stab_info_questionable_complaint =
   {"elf/stab section information questionable for %s", 0, 0};
 
 static void
@@ -262,7 +262,7 @@ elf_symtab_read (abfd, addr, objfile, dynamic)
 				 objfile->sym_stab_info;
   unsigned long size;
   int stripped = (bfd_get_symcount (abfd) == 0);
- 
+
   if (dynamic)
     {
       storage_needed = bfd_get_dynamic_symtab_upper_bound (abfd);
@@ -493,7 +493,7 @@ elf_symtab_read (abfd, addr, objfile, dynamic)
 	      else
 		{
 		  /* FIXME:  Solaris2 shared libraries include lots of
-		     odd "absolute" and "undefined" symbols, that play 
+		     odd "absolute" and "undefined" symbols, that play
 		     hob with actions like finding what function the PC
 		     is in.  Ignore them if they aren't text, data, or bss.  */
 		  /* ms_type = mst_unknown; */
@@ -510,7 +510,7 @@ elf_symtab_read (abfd, addr, objfile, dynamic)
 }
 
 /* Scan and build partial symbols for a symbol file.
-   We have been initialized by a call to elf_symfile_init, which 
+   We have been initialized by a call to elf_symfile_init, which
    currently does nothing.
 
    SECTION_OFFSETS is a set of offsets to apply to relocate the symbols
@@ -563,7 +563,7 @@ elf_symfile_read (objfile, section_offsets, mainline)
   memset ((char *) objfile->sym_stab_info, 0, sizeof (struct dbx_symfile_info));
   make_cleanup (free_elfinfo, (PTR) objfile);
 
-  /* Process the normal ELF symbol table first.  This may write some 
+  /* Process the normal ELF symbol table first.  This may write some
      chain of info into the dbx_symfile_info in objfile->sym_stab_info,
      which can later be used by elfstab_offset_sections.  */
 

@@ -110,7 +110,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define IS_ASM_LOGICAL_LINE_SEPARATOR(C) ((C) == ';')
 #endif
 
-/* Nonzero means this function is a leaf function, with no function calls. 
+/* Nonzero means this function is a leaf function, with no function calls.
    This variable exists to be examined in FUNCTION_PROLOGUE
    and FUNCTION_EPILOGUE.  Always zero, unless set by some action.  */
 int leaf_function;
@@ -520,7 +520,7 @@ app_disable ()
     }
 }
 
-/* Return the number of slots filled in the current 
+/* Return the number of slots filled in the current
    delayed branch sequence (we don't count the insn needing the
    delay slot).   Zero if not in a delayed branch sequence.  */
 
@@ -663,7 +663,7 @@ shorten_branches (first)
       insn_addresses[uid] = insn_current_address;
       insn_lengths[uid] = 0;
       varying_length[uid] = 0;
-      
+
       if (GET_CODE (insn) == NOTE || GET_CODE (insn) == BARRIER
 	  || GET_CODE (insn) == CODE_LABEL)
 	continue;
@@ -711,7 +711,7 @@ shorten_branches (first)
 				* insn_default_length (inner_insn));
 	      else
 		inner_length = insn_default_length (inner_insn);
-	      
+
 	      insn_lengths[inner_uid] = inner_length;
 	      if (const_delay_slots)
 		{
@@ -762,7 +762,7 @@ shorten_branches (first)
 	  if (GET_CODE (insn) == INSN && GET_CODE (PATTERN (insn)) == SEQUENCE)
 	    {
 	      int i;
-	      
+
 	      body = PATTERN (insn);
 	      new_length = 0;
 	      for (i = 0; i < XVECLEN (body, 0); i++)
@@ -872,7 +872,7 @@ final_start_function (first, file, optimize)
 	  regs_ever_live[i] = 1;
     }
 #endif
-  
+
   /* Initial line number is supposed to be output
      before the function's prologue and label
      so that the function's address will not appear to be
@@ -892,7 +892,7 @@ final_start_function (first, file, optimize)
 	  last_linenum = NOTE_LINE_NUMBER (first);
 	  xcoffout_output_first_source_line (file, last_linenum);
 	}
-#endif	  
+#endif
       else
 	output_source_line (file, first);
     }
@@ -1468,7 +1468,7 @@ final_scan_insn (insn, file, optimize, prescan, nopeepholes)
 #ifdef ASM_OUTPUT_ALIGN_CODE
       /* Don't litter the assembler output with needless alignments.  A
 	 BARRIER will be placed at the end of every function if HAVE_epilogue
-	 is true.  */	 
+	 is true.  */
       if (NEXT_INSN (insn))
 	ASM_OUTPUT_ALIGN_CODE (file);
 #endif
@@ -1982,11 +1982,11 @@ final_scan_insn (insn, file, optimize, prescan, nopeepholes)
 	    /* If we didn't split the insn, go away.  */
 	    if (new == insn && PATTERN (new) == body)
 	      abort ();
-	      
+
 	    new_block = 0;
 	    return new;
 	  }
-	
+
 	if (prescan > 0)
 	  break;
 
@@ -2431,7 +2431,7 @@ output_asm_insn (template, operands)
 	      }
 	    else
 	      output_operand (operands[c], letter);
-	    
+
 	    while ((c = *p) >= '0' && c <= '9') p++;
 	  }
 	/* % followed by a digit outputs an operand the default way.  */
@@ -2466,7 +2466,7 @@ output_asm_insn (template, operands)
       if (debug_insn)
 	{
 	  register int num = INSN_CODE (debug_insn);
-	  fprintf (asm_out_file, " %s %d %s", 
+	  fprintf (asm_out_file, " %s %d %s",
 		   ASM_COMMENT_START, INSN_UID (debug_insn), insn_name[num]);
 	  if (insn_n_alternatives[num] > 1)
 	    fprintf (asm_out_file, "/%d", which_alternative + 1);

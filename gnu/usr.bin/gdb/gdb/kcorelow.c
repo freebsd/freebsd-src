@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: kcorelow.c,v 1.1.1.1 1995/04/23 18:35:48 garyj Exp $
+	$Id: kcorelow.c,v 1.3 1995/04/26 01:01:09 jkh Exp $
 */
 
 #include "defs.h"
@@ -196,7 +196,7 @@ kcore_open (filename, from_tty)
 
 	/* print out the panic string if there is one */
 	if (kvread(ksym_lookup("panicstr"), &addr) == 0 &&
-		   addr != 0 && 
+		   addr != 0 &&
 		   target_read_memory(addr, buf, sizeof(buf)) == 0) {
 
 		for (cp = buf; cp < &buf[sizeof(buf)] && *cp; cp++)
@@ -338,7 +338,7 @@ struct target_ops kcore_ops = {
 	"Use a core file as a target.  Specify the filename of the core file.",
 	kcore_open, kcore_close,
 	find_default_attach, kcore_detach, 0, 0, /* resume, wait */
-	get_kcore_registers, 
+	get_kcore_registers,
 	0, 0, /* store_regs, prepare_to_store */
 	xfer_kmem, kcore_files_info,
 	ignore, ignore, /* core_insert_breakpoint, core_remove_breakpoint, */

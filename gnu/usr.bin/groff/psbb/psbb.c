@@ -65,7 +65,7 @@ char **argv;
   printf("%d %d %d %d\n", bb.llx, bb.lly, bb.urx, bb.ury);
   exit(0);
 }
-      
+
 /* If the bounding box was found return NULL, and store the bounding box
 in bb. If the bounding box was not found return a string suitable for
 giving to printf with the filename as an argument saying why not. */

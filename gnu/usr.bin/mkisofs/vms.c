@@ -172,7 +172,7 @@ struct direct * readdir(int context){
   if(dircontext[context] == -3) dircontext[context] = 0;
 
   dpath.dsc$w_length = strlen(searchpath[context]);
-  lib$find_file(&dpath, &result, &dircontext[context], 
+  lib$find_file(&dpath, &result, &dircontext[context],
 		0, 0, &status, 0);
 
   if(status == SS$_NOMOREFILES) return 0;
@@ -250,7 +250,7 @@ int vms_write_one_file(char * filename, int size, FILE * outfile){
 	open_file(filename);
 
 	remain = size;
-	
+
 	while(remain > 0){
 	  use =  (remain >  SECTOR_SIZE * NSECT - 1 ? NSECT*SECTOR_SIZE : remain);
 	  use = ROUND_UP(use); /* Round up to nearest sector boundary */
@@ -263,7 +263,7 @@ int vms_write_one_file(char * filename, int size, FILE * outfile){
 	  if((last_extent_written % 1000) < use/SECTOR_SIZE) fprintf(stderr,"%d..", last_extent_written);
 	  remain -= use;
 	};
-	
+
 	close_file(rab);
 }
 #endif

@@ -47,7 +47,7 @@ struct equivclass
 
 /* Hash-table: array of buckets, each being a chain of equivalence classes.  */
 static int *buckets;
-  
+
 /* Number of buckets in the hash table array. */
 static int nbuckets;
 
@@ -105,7 +105,7 @@ sip (current, skip_test)
 	  return binary_file_p (current->buffer, current->buffered_chars);
 	}
     }
-  
+
   current->buffered_chars = 0;
   return 0;
 }
@@ -315,7 +315,7 @@ find_and_hash_each_line (current)
 		   - linbuf_base;
 	}
       linbuf[line] = (char const *) p;
-    
+
       if ((char const *) p == bufend)
 	{
 	  linbuf[line]  -=  (char const *) p == incomplete_tail;
@@ -360,7 +360,7 @@ prepare_text_end (current)
       current->buffered_chars = buffered_chars;
       current->missing_newline = ! ignore_blank_lines_flag;
     }
-  
+
   /* Don't use uninitialized storage when planting or using sentinels.  */
   if (p)
     bzero (p + buffered_chars, sizeof (word));

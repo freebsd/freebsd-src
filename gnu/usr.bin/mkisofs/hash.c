@@ -32,7 +32,7 @@ void FDECL1(add_hash, struct directory_entry *, spnt){
   struct file_hash * s_hash;
   unsigned int hash_number;
 
-  if(spnt->size == 0 || spnt->starting_block == 0) 
+  if(spnt->size == 0 || spnt->starting_block == 0)
     if(spnt->size != 0 || spnt->starting_block != 0) {
       fprintf(stderr,"Non zero-length file assigned zero extent.\n");
       exit(1);
@@ -172,6 +172,6 @@ void flush_file_hash(){
 			nh = nh1;
 		};
 		name_hash_table[i] =  NULL;
-		
+
 	};
 }

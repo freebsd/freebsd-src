@@ -336,7 +336,7 @@ print_ifdef_lines (out, format, group)
 		        case 'n':
 			  value = translate_line_number (file, from);
 			  break;
-			
+
 			default:
 			  goto bad_format;
 		      }

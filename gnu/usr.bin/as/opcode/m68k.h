@@ -157,7 +157,7 @@ struct m68k_opcode {
 
 /* JF: for the 68851 */
 /*
-   I didn't use much imagination in choosing the 
+   I didn't use much imagination in choosing the
    following codes, so many of them aren't very
    mnemonic. -rab
 
@@ -981,7 +981,7 @@ struct m68k_opcode m68k_opcodes[] =
 
 {"fmovem",	two(0xF018, 0xD000),	two(0xF1F8, 0xFF00),	"Id+s#3", mfloat }, /* from autoincrement, static and dynamic: */
 {"fmovem",	two(0xF018, 0xD800),	two(0xF1F8, 0xFF8F),	"Ii+sDk", mfloat }, /* from autoincrement, static and dynamic: */
-  
+
 {"fmovem",	two(0xF000, 0xD000),	two(0xF1C0, 0xFF00),	"Id&s#3", mfloat }, /* from control, static and dynamic: */
 {"fmovem",	two(0xF000, 0xD800),	two(0xF1C0, 0xFF8F),	"Ii&sDk", mfloat }, /* from control, static and dynamic: */
 
@@ -1287,7 +1287,7 @@ struct m68k_opcode m68k_opcodes[] =
 {"ftrapule",	two(0xF07C, 0x000D),	two(0xF1FF, 0xFFFF),	"Ii", mfloat },
 {"ftrapult",	two(0xF07C, 0x000C),	two(0xF1FF, 0xFFFF),	"Ii", mfloat },
 {"ftrapun",	two(0xF07C, 0x0008),	two(0xF1FF, 0xFFFF),	"Ii", mfloat },
-        
+
 {"ftrapeqw",	two(0xF07A, 0x0001),	two(0xF1FF, 0xFFFF),	"Ii^w", mfloat },
 {"ftrapfw",	two(0xF07A, 0x0000),	two(0xF1FF, 0xFFFF),	"Ii^w", mfloat },
 {"ftrapgew",	two(0xF07A, 0x0013),	two(0xF1FF, 0xFFFF),	"Ii^w", mfloat },
@@ -1840,7 +1840,7 @@ struct m68k_opcode m68k_opcodes[] =
 {"subxw",	one(0110510),		one(0170770),		"-s-d", m68000up },
 
 {"swap",	one(0044100),		one(0177770),		"Ds", m68000up },
-	
+
 {"tas",		one(0045300),		one(0177700),		"$s", m68000up },
 {"trap",	one(0047100),		one(0177760),		"Ts", m68000up },
 

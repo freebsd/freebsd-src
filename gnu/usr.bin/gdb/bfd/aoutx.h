@@ -837,7 +837,7 @@ adjust_z_magic (abfd, execp)
   file_ptr text_end;
   CONST struct aout_backend_data *abdp;
   int ztih;			/* Nonzero if text includes exec header.  */
-  
+
   abdp = aout_backend_info (abfd);
 
   /* Text.  */
@@ -856,7 +856,7 @@ adjust_z_magic (abfd, execp)
 				    + adata(abfd).exec_bytes_size)
 				 : abdp->default_text_vma));
   /* Could take strange alignment of text section into account here?  */
-  
+
   /* Find start of data.  */
   if (ztih)
     {
@@ -891,7 +891,7 @@ adjust_z_magic (abfd, execp)
     }
   obj_datasec(abfd)->filepos = (obj_textsec(abfd)->filepos
 				+ obj_textsec(abfd)->_raw_size);
-  
+
   /* Fix up exec header while we're at it.  */
   execp->a_text = obj_textsec(abfd)->_raw_size;
   if (ztih && (!abdp || (abdp && !abdp->exec_header_not_counted)))
@@ -936,7 +936,7 @@ adjust_n_magic (abfd, execp)
   file_ptr pos = adata(abfd).exec_bytes_size;
   bfd_vma vma = 0;
   int pad;
-  
+
   /* Text.  */
   obj_textsec(abfd)->filepos = pos;
   if (!obj_textsec(abfd)->user_set_vma)
@@ -951,7 +951,7 @@ adjust_n_magic (abfd, execp)
   if (!obj_datasec(abfd)->user_set_vma)
     obj_datasec(abfd)->vma = BFD_ALIGN (vma, adata(abfd).segment_size);
   vma = obj_datasec(abfd)->vma;
-  
+
   /* Since BSS follows data immediately, see if it needs alignment.  */
   vma += obj_datasec(abfd)->_raw_size;
   pad = align_power (vma, obj_bsssec(abfd)->alignment_power) - vma;
@@ -1179,7 +1179,7 @@ aout_get_external_symbols (abfd)
       obj_aout_external_syms (abfd) = syms;
       obj_aout_external_sym_count (abfd) = count;
     }
-      
+
   if (obj_aout_external_strings (abfd) == NULL
       && exec_hdr (abfd)->a_syms != 0)
     {
@@ -4221,7 +4221,7 @@ aout_link_input_section_std (finfo, input_bfd, input_section, relocs,
 
 #ifdef MY_reloc_howto
       howto = MY_reloc_howto(input_bfd, rel, r_index, r_extern, r_pcrel);
-#else      
+#else
       if (input_bfd->xvec->header_byteorder_big_p)
 	{
 	  r_index   =  ((rel->r_index[0] << 16)

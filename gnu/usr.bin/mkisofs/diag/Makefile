@@ -1,4 +1,4 @@
-all: dump isodump isovfy 
+all: dump isodump isovfy
 dump:dump.c
 	gcc -o dump dump.c
 isodump:isodump.c

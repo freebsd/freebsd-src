@@ -2,7 +2,7 @@
 #warning "this file includes <values.h> which is obsoleted, use <limits.h> or <float.h> instead"
 #endif
 
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -72,7 +72,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #define DMAXEXP     ((1 << _DEXPLEN - 1) - 1 + _IEEE)
 #define FMAXEXP     ((1 << _FEXPLEN - 1) - 1 + _IEEE)
 
-#elif defined(sony) 
+#elif defined(sony)
 #define MAXDOUBLE   1.79769313486231470e+308
 #define MAXFLOAT    ((float)3.40282346638528860e+38)
 #define MINDOUBLE   2.2250738585072010e-308
@@ -150,7 +150,7 @@ extern float _maxfloat, _minfloat;
 
 /* #elif defined(vax) */
 /* use vax versions by default -- they seem to be the most conservative */
-#else 
+#else
 
 #define MAXDOUBLE   1.701411834604692293e+38
 #define MINDOUBLE   (2.938735877055718770e-39)

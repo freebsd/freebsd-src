@@ -19,8 +19,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.4 $ on $Date: 86/11/23 17:17:32 $
- *           $Source: /users/faustus/xchess/RCS/control.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:11 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/control.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -154,7 +154,7 @@ button_released(event, win)
 		thismove->type = QCASTLE;
 	else
 		thismove->type = MOVE;
-	
+
 	/* Now check the en-passant case... */
 	if ((thismove->type == MOVE) && ((thismove->tox == thismove->fromx + 1)
 			|| (thismove->tox == thismove->fromx - 1)) &&
@@ -278,7 +278,7 @@ screen_move(m)
 				win_drawpiece(&m->piece, m->toy, m->tox, BLACK);
 		}
 		break;
-	    
+
 	    case KCASTLE:
 		if (m->piece.color == WHITE) {
 			win_erasepiece(7, 4, WHITE);

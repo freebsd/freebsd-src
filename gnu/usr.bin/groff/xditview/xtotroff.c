@@ -12,7 +12,7 @@
 
 #ifdef X_NOT_STDC_ENV
 char *malloc();
-#else 
+#else
 #include <stdlib.h>
 #endif
 
@@ -145,7 +145,7 @@ MapFont (font_name, troff_name)
 		fprintf (stderr, "font does not exist: %s\n", names[0]);
 		return 0;
 	}
-		
+
 	printf ("%s -> %s\n", names[0], troff_name);
 
 	(void) unlink (troff_name);
@@ -189,7 +189,7 @@ MapFont (font_name, troff_name)
 					fprintf (out, ",%d", param[k]);
 			}
 			fprintf (out, "\t0\t0%o\n", c);
-			
+
 			if (name) {
 				for (k = 1; DviCharName(char_map,c,k); k++) {
 					fprintf (out, "%s\t\"\n",

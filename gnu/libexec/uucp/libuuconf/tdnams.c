@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tdnams_rcsid[] = "$Id: tdnams.c,v 1.4 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_tdnams_rcsid[] = "$Id: tdnams.c,v 1.2 1994/05/07 18:13:03 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -46,7 +46,7 @@ uuconf_taylor_dialer_names (pglobal, ppzdialers)
   struct uuconf_cmdtab as[2];
   char **pz;
   int iret;
-  
+
   *ppzdialers = NULL;
 
   as[0].uuconf_zcmd = "dialer";

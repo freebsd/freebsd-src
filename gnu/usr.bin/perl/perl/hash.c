@@ -1,4 +1,4 @@
-/* $RCSfile: hash.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:37 $
+/* $RCSfile: hash.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: hash.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:37  nate
  * PERL!
  *
@@ -13,16 +16,16 @@
  * patch20: removed implicit int declarations on functions
  * patch20: delete could cause %array to give too low a count of buckets filled
  * patch20: hash tables now split only if the memory is available to do so
- * 
+ *
  * Revision 4.0.1.2  91/11/05  17:24:13  lwall
  * patch11: saberized perl
- * 
+ *
  * Revision 4.0.1.1  91/06/07  11:10:11  lwall
  * patch4: new copyright notice
- * 
+ *
  * Revision 4.0  91/03/20  01:22:26  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"

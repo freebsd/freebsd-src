@@ -1,25 +1,25 @@
 /* symbols.c -symbol table-
 
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: symbols.c,v 1.3 1993/10/02 20:57:56 pk Exp $";
+static char rcsid[] = "$Id: symbols.c,v 1.2 1993/11/03 00:52:22 paul Exp $";
 #endif
 
 #include "as.h"
@@ -106,7 +106,7 @@ register int augend; /* 0 for nb, 1 for n:, nf */
 	register char *	p;
 	register char *	q;
 	char symbol_name_temporary[10]; /* build up a number, BACKWARDS */
-	
+
 	know( n >= 0 );
 	know( augend == 0 || augend == 1 );
 	p = symbol_name_build;
@@ -128,7 +128,7 @@ register int augend; /* 0 for nb, 1 for n:, nf */
 		    n /= 10;
 	    }
 	while (( * p ++ = * -- q ) != '\0') ;;
-	
+
 	/* The label, as a '\0' ended string, starts at symbol_name_build. */
 	return(symbol_name_build);
 } /* local_label_name() */
@@ -170,15 +170,15 @@ fragS *frag;			/* Associated fragment */
 	unsigned int name_length;
 	char *preserved_copy_of_name;
 	symbolS *symbolP;
-	
+
 	name_length = strlen(name) + 1; /* +1 for \0 */
 	obstack_grow(&notes, name, name_length);
 	preserved_copy_of_name = obstack_finish(&notes);
 	symbolP = (symbolS *) obstack_alloc(&notes, sizeof(symbolS));
-	
+
 	/* symbol must be born in some fixed state.  This seems as good as any. */
 	memset(symbolP, 0, sizeof(symbolS));
-	
+
 #ifdef STRIP_UNDERSCORE
 	S_SET_NAME(symbolP, (*preserved_copy_of_name == '_'
 			     ? preserved_copy_of_name + 1
@@ -186,28 +186,28 @@ fragS *frag;			/* Associated fragment */
 #else /* STRIP_UNDERSCORE */
 	S_SET_NAME(symbolP, preserved_copy_of_name);
 #endif /* STRIP_UNDERSCORE */
-	
+
 	S_SET_SEGMENT(symbolP, segment);
 	S_SET_VALUE(symbolP, value);
 	/*	symbol_clear_list_pointers(symbolP); uneeded if symbol is born zeroed. */
-	
+
 	symbolP->sy_frag = frag;
 	/* krm: uneeded if symbol is born zeroed.
 	   symbolP->sy_forward = NULL; */ /* JF */
 	symbolP->sy_number = ~0;
 	symbolP->sy_name_offset = ~0;
-	
+
 	/*
 	 * Link to end of symbol chain.
 	 */
 	symbol_append(symbolP, symbol_lastP, &symbol_rootP, &symbol_lastP);
-	
+
 	obj_symbol_new_hook(symbolP);
-	
+
 #ifdef DEBUG
 	/*	verify_symbol_chain(symbol_rootP, symbol_lastP); */
 #endif /* DEBUG */
-	
+
 	return(symbolP);
 } /* symbol_new() */
 
@@ -226,25 +226,25 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 /* We copy this string: OK to alter later. */
 {
 	register symbolS * symbolP; /* symbol we are working with */
-	
+
 #ifdef LOCAL_LABELS_DOLLAR
 	/* Sun local labels go out of scope whenever a non-local symbol is defined.  */
-	
+
 	if (*sym_name != 'L')
 	    memset((void *) local_label_defined, '\0', sizeof(local_label_defined));
 #endif
-	
+
 #ifndef WORKING_DOT_WORD
 	if (new_broken_words) {
 		struct broken_word *a;
 		int possible_bytes;
 		fragS *frag_tmp;
 		char *frag_opcode;
-		
+
 		extern const md_short_jump_size;
 		extern const md_long_jump_size;
 		possible_bytes=md_short_jump_size + new_broken_words * md_long_jump_size;
-		
+
 		frag_tmp=frag_now;
 		frag_opcode=frag_var(rs_broken_word,
 				     possible_bytes,
@@ -253,7 +253,7 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 				     (symbolS *) broken_words,
 				     0L,
 				     NULL);
-		
+
 		/* We want to store the pointer to where to insert the jump table in the
 		   fr_opcode of the rs_broken_word frag.  This requires a little hackery */
 		while (frag_tmp && (frag_tmp->fr_type != rs_broken_word || frag_tmp->fr_opcode))
@@ -261,7 +261,7 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 		know(frag_tmp);
 		frag_tmp->fr_opcode=frag_opcode;
 		new_broken_words = 0;
-		
+
 		for (a=broken_words;a && a->dispfrag == 0;a=a->next_broken_word)
 		    a->dispfrag=frag_tmp;
 	}
@@ -284,7 +284,7 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 			symbolP->sy_frag  = frag_now;
 			S_GET_OTHER(symbolP) = const_flag;
 			S_SET_VALUE(symbolP, obstack_next_free(& frags) - frag_now->fr_literal);
-			symbolP->sy_symbol.n_type |= 
+			symbolP->sy_symbol.n_type |=
 			  SEGMENT_TO_SYMBOL_TYPE((int) now_seg); /* keep N_EXT bit */
 			return;
 		}
@@ -303,7 +303,7 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 #ifdef N_UNDF
 				know(N_UNDF == 0);
 #endif /* if we have one, it better be zero. */
-				
+
 			} else {
 				/*
 				 *	There are still several cases to check:
@@ -320,7 +320,7 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 #define SEG_BSS SEG_E2
 #define SEG_DATA SEG_E1
 #endif
-				
+
 				if (((!S_IS_DEBUG(symbolP) && !S_IS_DEFINED(symbolP) && S_IS_EXTERNAL(symbolP))
 				     || (S_GET_SEGMENT(symbolP) == SEG_BSS))
 				    && ((now_seg == SEG_DATA)
@@ -337,7 +337,7 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 						 */
 						if (S_GET_VALUE(symbolP)
 						    < ((unsigned) (obstack_next_free(& frags) - frag_now->fr_literal))) {
-							S_SET_VALUE(symbolP, 
+							S_SET_VALUE(symbolP,
 								    obstack_next_free(& frags) -
 								    frag_now->fr_literal);
 						}
@@ -368,7 +368,7 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 #endif /* OBJ_COFF */
 				}
 			} /* if the undefined symbol has no value */
-		} else 
+		} else
 		    {
 			    /* Don't blow up if the definition is the same */
 			    if (!(frag_now == symbolP->sy_frag
@@ -376,19 +376,19 @@ register char *  sym_name; /* symbol name, as a cannonical string */
 				  && S_GET_SEGMENT(symbolP) == now_seg) )
 				as_fatal("Symbol %s already defined.", sym_name);
 		    } /* if this symbol is not yet defined */
-		
+
 	} else {
 		symbolP = symbol_new(sym_name,
-				     now_seg, 
+				     now_seg,
 				     (valueT)(obstack_next_free(&frags)-frag_now->fr_literal),
 				     frag_now);
 #ifdef OBJ_VMS
 		S_SET_OTHER(symbolP, const_flag);
 #endif /* OBJ_VMS */
-		
+
 		symbol_table_insert(symbolP);
 	} /* if we have seen this symbol before */
-	
+
 	return;
 } /* colon() */
 
@@ -404,10 +404,10 @@ void symbol_table_insert(symbolP)
 symbolS *symbolP;
 {
 	register char *error_string;
-	
+
 	know(symbolP);
 	know(S_GET_NAME(symbolP));
-	
+
 	if (*(error_string = hash_jam(sy_hash, S_GET_NAME(symbolP), (char *)symbolP))) {
 		as_fatal("Inserting \"%s\" into symbol table failed: %s",
 			 S_GET_NAME(symbolP), error_string);
@@ -424,15 +424,15 @@ symbolS *symbol_find_or_make(name)
 char *name;
 {
 	register symbolS *symbolP;
-	
+
 	symbolP = symbol_find(name);
-	
+
 	if (symbolP == NULL) {
 		symbolP = symbol_make(name);
-		
+
 		symbol_table_insert(symbolP);
 	} /* if symbol wasn't found */
-	
+
 	return(symbolP);
 } /* symbol_find_or_make() */
 
@@ -440,23 +440,23 @@ symbolS *symbol_make(name)
 char *name;
 {
 	symbolS *symbolP;
-	
+
 	/* Let the machine description default it, e.g. for register names. */
 	symbolP = md_undefined_symbol(name);
-	
+
 	if (!symbolP) {
 		symbolP = symbol_new(name,
 				     SEG_UNKNOWN,
 				     0,
 				     &zero_address_frag);
 	} /* if md didn't build us a symbol */
-	
+
 	return(symbolP);
 } /* symbol_make() */
 
 /*
  *			symbol_find()
- * 
+ *
  * Implement symbol table lookup.
  * In:	A symbol's name as a string: '\0' can't be part of a symbol name.
  * Out:	NULL if the name was not in the symbol table, else the address
@@ -503,7 +503,7 @@ symbolS **lastPP;
 		*lastPP = addme;
 		return;
 	} /* if the list is empty */
-	
+
 	if (target->sy_next != NULL) {
 #ifdef SYMBOLS_NEED_BACKPOINTERS
 		target->sy_next->sy_previous = addme;
@@ -512,18 +512,18 @@ symbolS **lastPP;
 		know(*lastPP == target);
 		*lastPP = addme;
 	} /* if we have a next */
-	
+
 	addme->sy_next = target->sy_next;
 	target->sy_next = addme;
-	
+
 #ifdef SYMBOLS_NEED_BACKPOINTERS
 	addme->sy_previous = target;
 #endif /* SYMBOLS_NEED_BACKPOINTERS */
-	
+
 #ifdef DEBUG
 	/*	verify_symbol_chain(*rootPP, *lastPP); */
 #endif /* DEBUG */
-	
+
 	return;
 } /* symbol_append() */
 
@@ -537,23 +537,23 @@ symbolS **lastPP;
 	if (symbolP == *rootPP) {
 		*rootPP = symbolP->sy_next;
 	} /* if it was the root */
-	
+
 	if (symbolP == *lastPP) {
 		*lastPP = symbolP->sy_previous;
 	} /* if it was the tail */
-	
+
 	if (symbolP->sy_next != NULL) {
 		symbolP->sy_next->sy_previous = symbolP->sy_previous;
 	} /* if not last */
-	
+
 	if (symbolP->sy_previous != NULL) {
 		symbolP->sy_previous->sy_next = symbolP->sy_next;
 	} /* if not first */
-	
+
 #ifdef DEBUG
 	verify_symbol_chain(*rootPP, *lastPP);
 #endif /* DEBUG */
-	
+
 	return;
 } /* symbol_remove() */
 
@@ -578,15 +578,15 @@ symbolS **lastPP;
 		know(*rootPP == target);
 		*rootPP = addme;
 	} /* if not first */
-	
+
 	addme->sy_previous = target->sy_previous;
 	target->sy_previous = addme;
 	addme->sy_next = target;
-	
+
 #ifdef DEBUG
 	verify_symbol_chain(*rootPP, *lastPP);
 #endif /* DEBUG */
-	
+
 	return;
 } /* symbol_insert() */
 #endif /* SYMBOLS_NEED_BACKPOINTERS */
@@ -596,11 +596,11 @@ symbolS *rootP;
 symbolS *lastP;
 {
 	symbolS *symbolP = rootP;
-	
+
 	if (symbolP == NULL) {
 		return;
 	} /* empty chain */
-	
+
 	for ( ; symbol_next(symbolP) != NULL; symbolP = symbol_next(symbolP)) {
 #ifdef SYMBOLS_NEED_BACKPOINTERS
 		/*$if (symbolP->sy_previous) {
@@ -613,9 +613,9 @@ symbolS *lastP;
 		;
 #endif /* SYMBOLS_NEED_BACKPOINTERS */
 	} /* verify pointers */
-	
+
 	know(lastP == symbolP);
-	
+
 	return;
 } /* verify_symbol_chain() */
 
@@ -633,17 +633,17 @@ char *s;
  	int label_number;
 	/*	int label_version; */
  	char *message_format = "\"%d\" (instance number %s of a local label)";
-	
+
  	if (s[0] != 'L'
  	    || s[2] != 1) {
  		return(s);
  	} /* not a local_label_name() generated name. */
-	
+
  	label_number = s[1] - '0';
-	
+
 	(void) sprintf(symbol_decode = obstack_alloc(&notes, strlen(s + 3) + strlen(message_format) + 10),
 		       message_format, label_number, s + 3);
-	
+
 	return(symbol_decode);
 } /* decode_local_label_name() */
 

@@ -1,4 +1,4 @@
-/* $RCSfile: dolist.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:36 $
+/* $RCSfile: dolist.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: dolist.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:36  nate
  * PERL!
  *
@@ -19,11 +22,11 @@
  * patch20: splice with negative offset didn't work with $[ = 1
  * patch20: fixed some memory leaks in splice
  * patch20: scalar keys %array now counts keys for you
- * 
+ *
  * Revision 4.0.1.4  91/11/11  16:33:19  lwall
  * patch19: added little-endian pack/unpack options
  * patch19: sort $subname was busted by changes in 4.018
- * 
+ *
  * Revision 4.0.1.3  91/11/05  17:07:02  lwall
  * patch11: prepared for ctype implementations that don't define isascii()
  * patch11: /$foo/o optimizer could access deallocated data
@@ -34,10 +37,10 @@
  * patch11: grep of a split lost its values
  * patch11: added sort {} LIST
  * patch11: multiple reallocations now avoided in 1 .. 100000
- * 
+ *
  * Revision 4.0.1.2  91/06/10  01:22:15  lwall
  * patch10: //g only worked first time through
- * 
+ *
  * Revision 4.0.1.1  91/06/07  10:58:28  lwall
  * patch4: new copyright notice
  * patch4: added global modifier for pattern matches
@@ -45,10 +48,10 @@
  * patch4: //o and s///o now optimize themselves fully at runtime
  * patch4: $` was busted inside s///
  * patch4: caller($arg) didn't work except under debugger
- * 
+ *
  * Revision 4.0  91/03/20  01:08:03  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -558,7 +561,7 @@ int *arglast;
 		zaps = str_get(afetch(ary,sp,FALSE));
 		zapb = (int) *zaps;
 	}
-	
+
 	while (iters > 0 && (!zapb)) {
 	    iters--,sp--;
 	    if (iters > 0) {
@@ -1593,7 +1596,7 @@ int *arglast;
 
 	    if (stab) {
 		if (!stab_sub(stab) || !(sortcmd = stab_sub(stab)->cmd))
-		    fatal("Undefined subroutine \"%s\" in sort", 
+		    fatal("Undefined subroutine \"%s\" in sort",
 			stab_ename(stab));
 		stash = stab_estash(stab);
 	    }

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char lock_rcsid[] = "$Id: lock.c,v 1.15 1994/01/30 21:09:20 ian Rel $";
+const char lock_rcsid[] = "$Id: lock.c,v 1.2 1994/05/07 18:10:40 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -620,7 +620,7 @@ fsqnx_stale (ipid, inme, inid, pferr)
       /* Use the local pid of the local process manager. */
       ivid = PROC_PID;
     }
-        
+
   /* Request the process information. */
   ifound_pid = qnx_psinfo (ivid /* process manager handling request */,
 			   ipid /* get info on this process */,
@@ -636,7 +636,7 @@ fsqnx_stale (ipid, inme, inid, pferr)
 	    strerror (errno));
     errno = isaved_errno;
   }
-          
+
   /* If the returned pid matches then the process still holds the lock. */
   if ((ifound_pid == ipid) && (spsdata.pid == ipid))
     return FALSE;

@@ -94,7 +94,7 @@ long strtol(str, ptr, base)
   }
   if (neg)
     val = -val;
-    
+
   while (*++str != '\0') {
     int n;
 
@@ -123,7 +123,7 @@ long strtol(str, ptr, base)
 	val = val*base + n;
     }
   }
-  
+
   if (ptr)
     *ptr = str;
 

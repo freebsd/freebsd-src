@@ -117,7 +117,7 @@ struct file_hash{
   unsigned int starting_block;
   unsigned int size;
 };
-  
+
 struct directory{
   struct directory * next;  /* Next directory at same level as this one */
   struct directory * subdir; /* First subdirectory in this directory */
@@ -169,7 +169,7 @@ extern int DECL(scan_directory_tree,(char * path, struct directory_entry * self)
 extern void DECL(dump_tree,(struct directory * node));
 extern void DECL(assign_directory_addresses,(struct directory * root));
 
-extern int DECL(iso9660_file_length,(const char* name, 
+extern int DECL(iso9660_file_length,(const char* name,
 			       struct directory_entry * sresult, int flag));
 extern int DECL(iso_write,(FILE * outfile));
 extern void generate_path_tables();
@@ -192,7 +192,7 @@ extern void DECL(set_723,(char *, unsigned int));
 extern void DECL(set_733,(char *, unsigned int));
 extern void DECL(sort_directory,(struct directory_entry **));
 extern int DECL(generate_rock_ridge_attributes,(char *, char *,
-					  struct directory_entry *, 
+					  struct directory_entry *,
 					  struct stat *, struct stat *,
 					  int  deep_flag));
 extern char * DECL(generate_rr_extension_record,(char * id,  char  * descriptor,

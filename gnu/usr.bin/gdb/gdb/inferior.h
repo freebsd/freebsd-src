@@ -168,7 +168,7 @@ store_inferior_registers PARAMS ((int));
 extern void
 fetch_inferior_registers PARAMS ((int));
 
-extern void 
+extern void
 solib_create_inferior_hook PARAMS ((void));
 
 extern void

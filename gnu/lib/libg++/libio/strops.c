@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1993 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
@@ -195,7 +195,7 @@ _IO_str_count (fp)
   if (put_len < ((_IO_strfile*)fp)->_s._len)
     put_len = ((_IO_strfile*)fp)->_s._len;
   return put_len;
-}     
+}
 
 _IO_pos_t
 _IO_str_seekoff(fp, offset, mode)

@@ -28,7 +28,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	'$' or '#'.  If <data> starts with two characters followed by
 	':', then the existing stubs interpret this as a sequence number.
 
-	CSUM1 and CSUM2 are ascii hex representation of an 8-bit 
+	CSUM1 and CSUM2 are ascii hex representation of an 8-bit
 	checksum of <data>, the most significant nibble is sent first.
 	the hex digits 0-9,a-f are used.
 
@@ -170,7 +170,7 @@ static int
 remote_xfer_memory PARAMS ((CORE_ADDR memaddr, char *myaddr, int len,
 			    int should_write, struct target_ops *target));
 
-static void 
+static void
 remote_prepare_to_store PARAMS ((void));
 
 static void
@@ -412,7 +412,7 @@ device is attached to the remote system (e.g. /dev/ttya).");
   /* Start the remote connection; if error (0), discard this target.
      In particular, if the user quits, be sure to discard it
      (we'd be in an inconsistent state otherwise).  */
-  if (!catch_errors (remote_start_remote, (char *)0, 
+  if (!catch_errors (remote_start_remote, (char *)0,
 	"Couldn't establish connection to remote target\n", RETURN_MASK_ALL))
     pop_target();
 }
@@ -432,7 +432,7 @@ remote_detach (args, from_tty)
 {
   if (args)
     error ("Argument given to \"detach\" when remotely debugging.");
-  
+
   pop_target ();
   if (from_tty)
     puts_filtered ("Ending remote debugging.\n");
@@ -498,7 +498,7 @@ remote_interrupt (signo)
 {
   /* If this doesn't work, try more severe steps.  */
   signal (signo, remote_interrupt_twice);
-  
+
   if (remote_debug)
     printf_unfiltered ("remote_interrupt called\n");
 
@@ -513,7 +513,7 @@ remote_interrupt_twice (signo)
      int signo;
 {
   signal (signo, ofunc);
-  
+
   interrupt_query ();
 
   signal (signo, remote_interrupt);
@@ -708,7 +708,7 @@ remote_fetch_registers (regno)
    'G' request), we have to read out the ones we don't want to change
    first.  */
 
-static void 
+static void
 remote_prepare_to_store ()
 {
   /* Make sure the entire registers array is valid.  */
@@ -1386,7 +1386,7 @@ static unsigned char break_insn[] = BREAKPOINT;
 /* Insert a breakpoint on targets that don't have any better breakpoint
    support.  We read the contents of the target location and stash it,
    then overwrite it with a breakpoint instruction.  ADDR is the target
-   location in the target machine.  CONTENTS_CACHE is a pointer to 
+   location in the target machine.  CONTENTS_CACHE is a pointer to
    memory allocated for saving the target contents.  It is guaranteed
    by the caller to be long enough to save sizeof BREAKPOINT bytes (this
    is accomplished via BREAKPOINT_MAX).  */
