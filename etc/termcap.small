@@ -35,17 +35,19 @@
 # for syscons
 # common entry without semigraphics
 cons25w|ansiw|ansi80x25-raw:\
-	:al=\E[L:am:bs:NP:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
-	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:cb=\E[1K:\
-	:ms:nd=\E[C:pt:rs=\Ec:so=\E[7m:se=\E[27m:up=\E[A:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:sc=\E7:rc=\E8:\
+	:am:bs:NP:ms:pt:AX:eo:bw:ut:km:\
+	:co#80:li#25:pa#64:Co#8:it#8:\
+	:al=\E[L:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:\
+	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:cb=\E[1K:\
+	:nd=\E[C:rs=\Ec:so=\E[7m:se=\E[27m:up=\E[A:cr=^M:ta=^I:\
+	:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:sc=\E7:rc=\E8:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
 	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
-	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
+	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:sf=\E[S:sr=\E[T:\
 	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\177:kB=\E[Z:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
-	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:bw:\
-	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:km:
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:\
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:
 cons25|ansis|ansi80x25:\
 	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
 	:tc=cons25w:
@@ -67,27 +69,27 @@ cons60|ansi80x60:\
 	:li#60:tc=cons25:
 cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
-# KOI8-R FreeBSD console with ACS support
-cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
+# KOI8-R/KOI8-U FreeBSD console with ACS support
+cons25r|cons25u|pc3r|ibmpc3r|cons25-koi8:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^Xi^U0\215:\
 	:tc=cons25w:
-cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
+cons25r-m|cons25u-m|pc3r-m|ibmpc3r-mono|cons25-koi8-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25r:
-cons30r|cons30-koi8-r:\
+cons30r|cons30u|cons30-koi8:\
 	:li#30:tc=cons25r:
-cons30r-m|cons30-koi8-r-mono:\
+cons30r-m|cons30u-m|cons30-koi8-mono:\
 	:li#30:tc=cons25r-m:
-cons43r|cons43-koi8-r:\
+cons43r|cons43u|cons43-koi8:\
 	:li#43:tc=cons25r:
-cons43r-m|cons43-koi8-r-mono:\
+cons43r-m|cons43u-m|cons43-koi8-mono:\
 	:li#43:tc=cons25r-m:
-cons50r|cons50-koi8-r:\
+cons50r|cons50u|cons50-koi8:\
 	:li#50:tc=cons25r:
-cons50r-m|cons50-koi8-r-mono:\
+cons50r-m|cons50u-m|cons50-koi8-mono:\
 	:li#50:tc=cons25r-m:
-cons60r|cons60-koi8-r:\
+cons60r|cons60u|cons60-koi8:\
 	:li#60:tc=cons25r:
-cons60r-m|cons60-koi8-r-mono:\
+cons60r-m|cons60u-m|cons60-koi8-mono:\
 	:li#60:tc=cons25r-m:
 # ISO 8859-2 FreeBSD console with ACS support
 cons25l2|cons25-iso8859-2:\
