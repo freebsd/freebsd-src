@@ -994,12 +994,24 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 		scsi_cmd = (struct scsi_start_stop_unit *)
 				&done_ccb->csio.cdb_io.cdb_bytes;
 		if (sense != 0) {
+			struct ccb_getdev cgd;
 			struct scsi_sense_data *sense;
 			int    error_code, sense_key, asc, ascq;	
+			scsi_sense_action err_action;
 
 			sense = &done_ccb->csio.sense_data;
 			scsi_extract_sense(sense, &error_code, 
 					   &sense_key, &asc, &ascq);
+
+			/*
+			 * Grab the inquiry data for this device.
+			 */
+			xpt_setup_ccb(&cgd.ccb_h, done_ccb->ccb_h.path,
+				      /*priority*/ 1);
+			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+			xpt_action((union ccb *)&cgd);
+			err_action = scsi_error_action(&done_ccb->csio,
+						       &cgd.inq_data, 0);
 
 			/*
 	 		 * If the error is "invalid field in CDB", 
@@ -1028,12 +1040,15 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 
 				xpt_action(done_ccb);
 
-			} else if (done_ccb->ccb_h.retry_count > 1) {
+			} else if ((done_ccb->ccb_h.retry_count > 1)
+				&& ((err_action & SS_MASK) != SS_FAIL)) {
+
 				/*
 				 * In this case, the error recovery
 				 * command failed, but we've got 
 				 * some retries left on it.  Give
-				 * it another try.
+				 * it another try unless this is an
+				 * unretryable error.
 				 */
 
 				/* set the timeout to .5 sec */
