@@ -304,7 +304,7 @@ create_file_names()
     if (tmpdir == 0) tmpdir = "/tmp";
 
     len = strlen(tmpdir);
-    i = len + 13;
+    i = len + 17;
     if (len && tmpdir[len-1] != '/')
 	++i;
 
