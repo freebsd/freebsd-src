@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark Murray
+ * Copyright (c) 2000 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,12 +27,12 @@
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
-#include <sys/kobj.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -46,8 +46,8 @@
 
 #include <dev/randomdev/yarrow.h>
 
-static d_read_t randomread;
-static d_write_t randomwrite;
+static d_read_t random_read;
+static d_write_t random_write;
 
 #define CDEV_MAJOR	2
 #define RANDOM_MINOR	3
@@ -56,8 +56,8 @@ static d_write_t randomwrite;
 static struct cdevsw random_cdevsw = {
 	/* open */	(d_open_t *)nullop,
 	/* close */	(d_close_t *)nullop,
-	/* read */	randomread,
-	/* write */	randomwrite,
+	/* read */	random_read,
+	/* write */	random_write,
 	/* ioctl */	noioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
@@ -71,52 +71,51 @@ static struct cdevsw random_cdevsw = {
 };
 
 /* For use with make_dev(9)/destroy_dev(9). */
-static dev_t randomdev;
-static dev_t urandomdev;
+static dev_t random_dev;
+static dev_t urandom_dev;
 
-static void *buf;
+/* Buffer used by uiomove(9) */
+static void *random_buf;
 
-extern void randominit(void);
-
-extern struct state state;
-
-/* This is mostly academic at the moment; as Yarrow gets extended, it will
-   become more relevant */
 SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0, "Random Number Generator");
 SYSCTL_NODE(_kern_random, OID_AUTO, yarrow, CTLFLAG_RW, 0, "Yarrow Parameters");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, gengateinterval, CTLFLAG_RW, &state.gengateinterval, 10, "Generator Gate Interval");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, gengateinterval, CTLFLAG_RW, &random_state.gengateinterval, 10, "Generator Gate Interval");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, bins, CTLFLAG_RW, &random_state.bins, 10, "Execution time tuner");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, fastthresh, CTLFLAG_RW, &random_state.pool[0].thresh, 100, "Fast pool reseed threshhold");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowthresh, CTLFLAG_RW, &random_state.pool[1].thresh, 100, "Slow pool reseed threshhold");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowoverthresh, CTLFLAG_RW, &random_state.slowoverthresh, 2, "Slow pool over-threshhold reseed count");
 
 static int
-randomread(dev_t dev, struct uio *uio, int flag)
+random_read(dev_t dev, struct uio *uio, int flag)
 {
 	u_int c, ret;
 	int error = 0;
 
 	c = min(uio->uio_resid, PAGE_SIZE);
-	buf = (void *)malloc(c, M_TEMP, M_WAITOK);
+	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0 && error == 0) {
-		ret = read_random(buf, c);
-		error = uiomove(buf, ret, uio);
+		ret = read_random(random_buf, c);
+		error = uiomove(random_buf, ret, uio);
 	}
-	free(buf, M_TEMP);
+	free(random_buf, M_TEMP);
 	return error;
 }
 
 static int
-randomwrite(dev_t dev, struct uio *uio, int flag)
+random_write(dev_t dev, struct uio *uio, int flag)
 {
 	u_int c;
 	int error = 0;
 
-	buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0) {
 		c = min(uio->uio_resid, PAGE_SIZE);
-		error = uiomove(buf, c, uio);
+		error = uiomove(random_buf, c, uio);
 		if (error)
 			break;
-		/* write_random(buf, c); */
+		/* write_random(random_buf, c); */
 	}
-	free(buf, M_TEMP);
+	free(random_buf, M_TEMP);
 	return error;
 }
 
@@ -127,16 +126,17 @@ random_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("random: <entropy source>\n");
-		randomdev = make_dev(&random_cdevsw, RANDOM_MINOR, UID_ROOT,
+		random_dev = make_dev(&random_cdevsw, RANDOM_MINOR, UID_ROOT,
 			GID_WHEEL, 0666, "random");
-		urandomdev = make_dev(&random_cdevsw, URANDOM_MINOR, UID_ROOT,
+		urandom_dev = make_dev(&random_cdevsw, URANDOM_MINOR, UID_ROOT,
 			GID_WHEEL, 0666, "urandom");
-		randominit();
+		random_init();
 		return 0;
 
 	case MOD_UNLOAD:
-		destroy_dev(randomdev);
-		destroy_dev(urandomdev);
+		random_deinit();
+		destroy_dev(random_dev);
+		destroy_dev(urandom_dev);
 		return 0;
 
 	case MOD_SHUTDOWN:
