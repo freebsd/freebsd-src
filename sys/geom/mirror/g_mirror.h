@@ -49,6 +49,7 @@
 #define	G_MIRROR_DISK_FLAG_SYNCHRONIZING	0x0000000000000002ULL
 #define	G_MIRROR_DISK_FLAG_FORCE_SYNC		0x0000000000000004ULL
 #define	G_MIRROR_DISK_FLAG_INACTIVE		0x0000000000000008ULL
+#define	G_MIRROR_DISK_FLAG_HARDCODED		0x0000000000000010ULL
 #define	G_MIRROR_DISK_FLAG_MASK		(G_MIRROR_DISK_FLAG_DIRTY |	\
 					 G_MIRROR_DISK_FLAG_SYNCHRONIZING | \
 					 G_MIRROR_DISK_FLAG_FORCE_SYNC | \
@@ -210,6 +211,7 @@ struct g_mirror_metadata {
 	uint64_t	md_sync_offset;	/* Synchronized offset. */
 	uint64_t	md_mflags;	/* Additional mirror flags. */
 	uint64_t	md_dflags;	/* Additional disk flags. */
+	char		md_provider[16]; /* Hardcoded provider. */
 	u_char		md_hash[16];	/* MD5 hash. */
 };
 static __inline void
@@ -232,10 +234,11 @@ mirror_metadata_encode(struct g_mirror_metadata *md, u_char *data)
 	le64enc(data + 67, md->md_sync_offset);
 	le64enc(data + 75, md->md_mflags);
 	le64enc(data + 83, md->md_dflags);
+	bcopy(md->md_provider, data + 91, 16);
 	MD5Init(&ctx);
-	MD5Update(&ctx, data, 91);
+	MD5Update(&ctx, data, 107);
 	MD5Final(md->md_hash, &ctx);
-	bcopy(md->md_hash, data + 91, 16);
+	bcopy(md->md_hash, data + 107, 16);
 }
 static __inline int
 mirror_metadata_decode(const u_char *data, struct g_mirror_metadata *md)
@@ -257,11 +260,12 @@ mirror_metadata_decode(const u_char *data, struct g_mirror_metadata *md)
 	md->md_sync_offset = le64dec(data + 67);
 	md->md_mflags = le64dec(data + 75);
 	md->md_dflags = le64dec(data + 83);
-	bcopy(data + 91, md->md_hash, 16);
+	bcopy(data + 91, md->md_provider, 16);
+	bcopy(data + 107, md->md_hash, 16);
 	MD5Init(&ctx);
-	MD5Update(&ctx, data, 91);
+	MD5Update(&ctx, data, 107);
 	MD5Final(md->md_hash, &ctx);
-	if (bcmp(md->md_hash, data + 91, 16) != 0)
+	if (bcmp(md->md_hash, data + 107, 16) != 0)
 		return (EINVAL);
 	return (0);
 }
@@ -345,6 +349,7 @@ mirror_metadata_dump(const struct g_mirror_metadata *md)
 			printf(" INACTIVE");
 	}
 	printf("\n");
+	printf("hcprovider: %s\n", md->md_provider);
 	bzero(hash, sizeof(hash));
 	for (i = 0; i < 16; i++) {
 		hash[i * 2] = hex[md->md_hash[i] >> 4];

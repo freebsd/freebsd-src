@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +60,12 @@ struct g_command class_commands[] = {
 	    }
 	},
 	{ "dump", 0, concat_main, G_NULL_OPTS },
-	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, concat_main, G_NULL_OPTS },
+	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, concat_main,
+	    {
+		{ 'h', "hardcode", NULL, G_TYPE_NONE },
+		G_OPT_SENTINEL
+	    }
+	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
@@ -77,12 +83,12 @@ void
 usage(const char *name)
 {
 
-	fprintf(stderr, "usage: %s create [-v] <name> <dev1> <dev2> [dev3 [...]]\n", name);
-	fprintf(stderr, "       %s destroy [-fv] <name> [name2 [...]]\n", name);
-	fprintf(stderr, "       %s label [-v] <name> <dev1> <dev2> [dev3 [...]]\n", name);
-	fprintf(stderr, "       %s stop [-fv] <name> [name2 [...]]\n", name);
-	fprintf(stderr, "       %s clear [-v] <dev1> [dev2 [...]]\n", name);
-	fprintf(stderr, "       %s dump <dev1> [dev2 [...]]\n", name);
+	fprintf(stderr, "usage: %s create [-v] <name> <prov> <prov> [prov [...]]\n", name);
+	fprintf(stderr, "       %s destroy [-fv] <name> [name [...]]\n", name);
+	fprintf(stderr, "       %s label [-hv] <name> <prov> <prov> [prov [...]]\n", name);
+	fprintf(stderr, "       %s stop [-fv] <name> [name [...]]\n", name);
+	fprintf(stderr, "       %s clear [-v] <prov> [prov [...]]\n", name);
+	fprintf(stderr, "       %s dump <prov> [prov [...]]\n", name);
 }
 
 static void
@@ -116,7 +122,7 @@ concat_label(struct gctl_req *req)
 	const char *name;
 	char param[16];
 	unsigned i;
-	int *nargs, error;
+	int *hardcode, *nargs, error;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -125,6 +131,11 @@ concat_label(struct gctl_req *req)
 	}
 	if (*nargs <= 2) {
 		gctl_error(req, "Too few arguments.");
+		return;
+	}
+	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
+	if (hardcode == NULL) {
+		gctl_error(req, "No '%s' argument.", "hardcode");
 		return;
 	}
 
@@ -162,6 +173,13 @@ concat_label(struct gctl_req *req)
 		name = gctl_get_asciiparam(req, param);
 
 		md.md_no = i - 1;
+		if (!*hardcode)
+			bzero(md.md_provider, sizeof(md.md_provider));
+		else {
+			if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+				name += strlen(_PATH_DEV);
+			strlcpy(md.md_provider, name, sizeof(md.md_provider));
+		}
 		concat_metadata_encode(&md, sector);
 		error = g_metadata_store(name, sector, sizeof(sector));
 		if (error != 0) {
@@ -219,6 +237,7 @@ concat_metadata_dump(const struct g_concat_metadata *md)
 	printf("            Device ID: %u\n", (u_int)md->md_id);
 	printf("          Disk number: %u\n", (u_int)md->md_no);
 	printf("Total number of disks: %u\n", (u_int)md->md_all);
+	printf("   Hardcoded provider: %s\n", md->md_provider);
 }
 
 static void
