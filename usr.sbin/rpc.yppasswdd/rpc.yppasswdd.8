@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rpc.yppasswdd.8,v 1.7 1997/02/22 16:12:53 peter Exp $
+.\"	$Id: rpc.yppasswdd.8,v 1.4.2.1 1997/03/06 08:00:02 mpp Exp $
 .\"
 .Dd February 8, 1996
 .Dt RPC.YPPASSWDD 8
@@ -51,7 +51,7 @@
 .Op Fl h
 .Sh DESCRIPTION
 The
-.Nm rpc.yppasswdd
+.Nm
 daemon allows users to change their NIS passwords and certain
 other information using the
 .Xr yppasswd 1
@@ -69,7 +69,7 @@ and
 maps.
 .Pp
 The
-.Nm rpc.yppasswdd
+.Nm
 server allows a normal NIS user to change
 his or her NIS password, full name (also
 known as 'GECOS' field) or shell. These updates are typically done using
@@ -89,7 +89,7 @@ rules outlined in
 (See the
 .Xr ypserv 8
 manual page for more information on securenets; the
-.Nm rpc.yppasswdd
+.Nm
 server uses the same access control mechanism as
 .Xr ypserv 8 .)
 .Pp
@@ -108,8 +108,10 @@ and the name of the domain that is to be updated. These in turn are
 passed to
 .Pa /var/yp/Makefile ) .
 .Pp
-The FreeBSD version of
-.Nm rpc.yppasswdd
+The
+.Bx Free
+version of
+.Nm
 also allows the super-user on the NIS master server to perform more
 sophisticated updates on the NIS passwd maps. The super-user can modify
 any field in any user's master.passwd entry in any domain, and can
@@ -124,15 +126,14 @@ master server: none of these special functions can be peformed over
 the network.
 .Pp
 The
-.Nm rpc.yppasswdd
+.Nm
 daemon can only be run on a machine that is an NIS master server.
 .Sh OPTIONS
-The following options and flags are supported by
-.Nm rpc.yppasswdd :
-.Bl -tag -width flag
+The following options are available:
+.Bl -tag -width indent
 .It Fl t Ar master.passwd template file
 By default,
-.Nm rpc.yppasswdd
+.Nm
 assumes that the template file used to generates the
 .Pa master.passwd
 and
@@ -146,14 +147,14 @@ flag.
 .Pp
 Note: if the template file specified with this flag is
 .Pa /etc/master.passwd ,
-.Nm rpc.yppasswdd
+.Nm
 will also automatically invoke
 .Xr pwd_mkdb 8
 to rebuild the local password databases in addition to the NIS
 maps. 
 .It Fl d Ar domain
 The
-.Nm rpc.yppasswdd
+.Nm
 server can support multiple domains, however it must
 choose one domain as a default.
 It will try to use the system default domain name as set by the
@@ -179,7 +180,7 @@ NIS master server is permitted to use the
 command to perform unrestricted modifications to any field in a user's
 .Pa master.passwd
 map entry. When
-.Nm rpc.yppasswdd
+.Nm
 is started with this flag, it will also allow the super-user to add new
 records to the NIS passwd maps, just as is possible when using
 .Xr chpass 1
@@ -188,17 +189,18 @@ to modify the local password database.
 Turn on multi-domain mode. Even though
 .Xr ypserv 8
 can handle several simultaneous domains, most implementations of
-.Nm rpc.yppasswdd
+.Nm
 can only operate on a single NIS domain, which is generally the same as
-the system default domain of the NIS master server. The FreeBSD
-.Nm rpc.yppasswdd
+the system default domain of the NIS master server. The
+.Bx Free
+.Nm
 attempts to overcome this problem in spite of the inherent limitations
 of the
 .Pa yppasswd
 protocol, which does not allow for a
 .Pa domain
 argument in client requests. In multi-domain mode,
-.Nm rpc.yppasswdd
+.Nm
 will search through all the passwd maps of all the domains it
 can find under
 .Pa /var/yp
@@ -236,7 +238,7 @@ matches its search criteria. Even so, paranoid administrators
 may wish to leave multi-domain mode disabled.
 .It Fl i
 If
-.Nm rpc.yppasswdd
+.Nm
 is invoked with this flag, it will perform map updates in place. This
 means that instead of just modifying the password template file and
 starting a map update, the server will modify the map databases
@@ -264,7 +266,7 @@ program is not installed set-uid root, or because the RPC
 implementation does not place any emphasis on binding to reserved
 ports when establishing client connections for the super-user.
 By default,
-.Nm rpc.yppasswdd
+.Nm
 expects to receive requests from clients using reserved ports; requests
 received from non-privileged ports are rejected. Unfortunately, this
 behavior prevents any client systems that to not use privileged
@@ -272,21 +274,21 @@ ports from sucessfully submitting password updates. Specifying
 the
 .Fl u
 flag to
-.Nm rpc.yppasswdd
+.Nm
 disables the privileged port check so that it will work with
 .Xr yppasswd 1
 clients that don't use privileged ports. This reduces security to
 a certain small degree, but it might be necessary in cases where it
 is not possible to change the client behavior.
 .It Fl h
-Displays the list of flags and options understood by
+Display the list of flags and options understood by
 .Nm rpc.yppasswdd .
 .El
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /usr/libexec/yppwupdate
 The script invoked by
-.Nm rpc.yppasswdd
+.Nm
 to update and push the NIS maps after
 an update.
 .It Pa /var/yp/master.passwd
@@ -307,7 +309,7 @@ As listed in the yppasswd.x protocol definition, the YPPASSWDPROC_UPDATE
 procedure takes two arguments: a V7-style passwd structure containing
 updated user information and the user's existing unencrypted (cleartext)
 password. Since
-.Nm rpc.yppasswdd
+.Nm
 is supposed to handle update requests from remote NIS client machines,
 this means that
 .Xr yppasswd 1
@@ -322,4 +324,4 @@ will still be valid once the update is completed. If the network is
 insecure, this cleartext password could be intercepted and used to
 gain unauthorized access to the user's account.
 .Sh AUTHOR
-Bill Paul <wpaul@ctr.columbia.edu>
+.An Bill Paul Aq wpaul@ctr.columbia.edu
