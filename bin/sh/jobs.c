@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.2 1994/09/24 02:57:41 davidg Exp $
+ *	$Id: jobs.c,v 1.4 1995/09/21 13:24:20 bde Exp $
  */
 
 #ifndef lint
@@ -459,7 +459,14 @@ makejob(node, nprocs)
 			if (njobs == 0) {
 				jobtab = ckmalloc(4 * sizeof jobtab[0]);
 			} else {
+				struct job *ojp;
+
 				jp = ckmalloc((njobs + 4) * sizeof jobtab[0]);
+				for (i = njobs, ojp = jobtab; --i >= 0;
+				     jp++, ojp++)
+					if (ojp->ps == &ojp->ps0)
+						ojp->ps = &jp->ps0;
+				jp -= njobs;
 				bcopy(jobtab, jp, njobs * sizeof jp[0]);
 				ckfree(jobtab);
 				jobtab = jp;
