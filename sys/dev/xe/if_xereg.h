@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xereg.h,v 1.2 1999/01/24 22:15:30 root Exp $
+ *	$Id: if_xereg.h,v 1.3 1999/02/22 14:00:53 root Exp $
  */
 
 /*
  * Register definitions for Xircom CreditCard Ethernet adapters.  See if_xe.c
  * for details of supported hardware.  Adapted from Werner Koch's 'xirc2ps'
- * driver for Linux.
+ * driver for Linux and the FreeBSD 'xl' driver (for the MII support).
  */
 
 #include "xe.h"
@@ -199,88 +199,98 @@
  */
 
 
+
 /*
- * MII/PHY defines adapted from the xl driver.  These need cleaning up a
- * little if we end up using them.
+ * Definitions for the Micro Linear ML6692 100Base-TX PHY, which handles the
+ * 100Mbit functionality of CE3 type cards, including media autonegotiation.
+ * It appears to be mostly compatible with the National Semiconductor
+ * DP83840A, but with a much smaller register set.  Please refer to the data
+ * sheets for these devices for the definitive word on what all this stuff
+ * means :)
+ *
+ * Note that the ML6692 has no 10Mbit capability -- that is handled by another 
+ * chip that we don't know anything about.
+ *
+ * Most of these definitions were adapted from the xl driver.
+ */
+
+/*
+ * Masks for the MII-related bits in GPR2.  For some reason read and write
+ * data are on separate bits.
  */
 #define XE_MII_CLK	0x01
 #define XE_MII_DIR	0x08
 #define XE_MII_WRD	0x02
 #define XE_MII_RDD	0x20
+
+/*
+ * MII command (etc) bit strings.
+ */
 #define XE_MII_STARTDELIM	0x01
 #define XE_MII_READOP		0x02
 #define XE_MII_WRITEOP		0x01
 #define XE_MII_TURNAROUND	0x02
 
-#define XE_MII_SET(x)	XE_OUTB(XE_GPR2, (XE_INB(XE_GPR2) | 0x04) | (x))
-#define XE_MII_CLR(x)	XE_OUTB(XE_GPR2, (XE_INB(XE_GPR2) | 0x04) & ~(x))
+/*
+ * PHY registers.
+ */
+#define PHY_BMCR		0x00	/* Basic Mode Control Register */
+#define PHY_BMSR		0x01	/* Basic Mode Status Register */
+#define PHY_ANAR		0x04	/* Auto-Negotiation Advertisment Register */
+#define PHY_LPAR		0x05	/* Auto-Negotiation Link Partner Ability Register */
+#define PHY_ANER		0x06	/* Auto-Negotiation Expansion Register */
 
-#define XL_PHY_GENCTL		0x00
-#define XL_PHY_GENSTS		0x01
-#define XL_PHY_VENID		0x02
-#define XL_PHY_DEVID		0x03
-#define XL_PHY_ANAR		0x04
-#define XL_PHY_LPAR		0x05
-#define XL_PHY_ANER		0x06
+#define PHY_BMCR_RESET		0x8000	/* Soft reset PHY.  Self-clearing */
+#define PHY_BMCR_LOOPBK		0x4000	/* Enable loopback */
+#define PHY_BMCR_SPEEDSEL	0x2000	/* 1=100Mbps, 0=10Mbps */
+#define PHY_BMCR_AUTONEGENBL	0x1000	/* Auto-negotiation enabled */
+#define PHY_BMCR_ISOLATE	0x0400	/* Isolate ML6692 from MII */
+#define PHY_BMCR_AUTONEGRSTR	0x0200	/* Restart auto-negotiation.  Self-clearing */
+#define PHY_BMCR_DUPLEX		0x0100	/* Full duplex operation */
+#define PHY_BMCR_COLLTEST	0x0080	/* Enable collision test */
 
-#define PHY_ANAR_NEXTPAGE	0x8000
-#define PHY_ANAR_RSVD0		0x4000
-#define PHY_ANAR_TLRFLT		0x2000
-#define PHY_ANAR_RSVD1		0x1000
-#define PHY_ANAR_RSVD2		0x0800
-#define PHY_ANAR_RSVD3		0x0400
-#define PHY_ANAR_100BT4		0x0200
-#define PHY_ANAR_100BTXFULL	0x0100
-#define PHY_ANAR_100BTXHALF	0x0080
-#define PHY_ANAR_10BTFULL	0x0040
-#define PHY_ANAR_10BTHALF	0x0020
-#define PHY_ANAR_PROTO4		0x0010
+#define PHY_BMSR_100BT4		0x8000	/* 100Base-T4 capable */
+#define PHY_BMSR_100BTXFULL	0x4000	/* 100Base-TX full duplex capable */
+#define PHY_BMSR_100BTXHALF	0x2000	/* 100Base-TX half duplex capable */
+#define PHY_BMSR_10BTFULL	0x1000	/* 10Base-T full duplex capable */
+#define PHY_BMSR_10BTHALF	0x0800	/* 10Base-T half duplex capable */
+#define PHY_BMSR_AUTONEGCOMP	0x0020	/* Auto-negotiation complete */
+#define PHY_BMSR_CANAUTONEG	0x0008	/* Auto-negotiation supported */
+#define PHY_BMSR_LINKSTAT	0x0004	/* Link is up */
+#define PHY_BMSR_EXTENDED	0x0001	/* Extended register capabilities */
+
+#define PHY_ANAR_NEXTPAGE	0x8000	/* Additional link code word pages */
+#define PHY_ANAR_TLRFLT		0x2000	/* Remote wire fault detected */
+#define PHY_ANAR_100BT4		0x0200	/* 100Base-T4 capable */
+#define PHY_ANAR_100BTXFULL	0x0100	/* 100Base-TX full duplex capable */
+#define PHY_ANAR_100BTXHALF	0x0080	/* 100Base-TX half duplex capable */
+#define PHY_ANAR_10BTFULL	0x0040	/* 10Base-T full duplex capable */
+#define PHY_ANAR_10BTHALF	0x0020	/* 10Base-T half duplex capable */
+#define PHY_ANAR_PROTO4		0x0010	/* Protocol selection (00001 = 802.3) */
 #define PHY_ANAR_PROTO3		0x0008
 #define PHY_ANAR_PROTO2		0x0004
 #define PHY_ANAR_PROTO1		0x0002
 #define PHY_ANAR_PROTO0		0x0001
 
-/*
- * PHY BMCR Basic Mode Control Register
- */
-#define PHY_BMCR			0x00
-#define PHY_BMCR_RESET			0x8000
-#define PHY_BMCR_LOOPBK			0x4000
-#define PHY_BMCR_SPEEDSEL		0x2000
-#define PHY_BMCR_AUTONEGENBL		0x1000
-#define PHY_BMCR_RSVD0			0x0800	/* write as zero */
-#define PHY_BMCR_ISOLATE		0x0400
-#define PHY_BMCR_AUTONEGRSTR		0x0200
-#define PHY_BMCR_DUPLEX			0x0100
-#define PHY_BMCR_COLLTEST		0x0080
-#define PHY_BMCR_RSVD1			0x0040	/* write as zero, don't care */
-#define PHY_BMCR_RSVD2			0x0020	/* write as zero, don't care */
-#define PHY_BMCR_RSVD3			0x0010	/* write as zero, don't care */
-#define PHY_BMCR_RSVD4			0x0008	/* write as zero, don't care */
-#define PHY_BMCR_RSVD5			0x0004	/* write as zero, don't care */
-#define PHY_BMCR_RSVD6			0x0002	/* write as zero, don't care */
-#define PHY_BMCR_RSVD7			0x0001	/* write as zero, don't care */
+#define PHY_LPAR_NEXTPAGE	0x8000	/* Additional link code word pages */
+#define PHY_LPAR_LPACK		0x4000	/* Link partner acknowledged receipt */
+#define PHY_LPAR_TLRFLT		0x2000	/* Remote wire fault detected */
+#define PHY_LPAR_100BT4		0x0200	/* 100Base-T4 capable */
+#define PHY_LPAR_100BTXFULL	0x0100	/* 100Base-TX full duplex capable */
+#define PHY_LPAR_100BTXHALF	0x0080	/* 100Base-TX half duplex capable */
+#define PHY_LPAR_10BTFULL	0x0040	/* 10Base-T full duplex capable */
+#define PHY_LPAR_10BTHALF	0x0020	/* 10Base-T half duplex capable */
+#define PHY_LPAR_PROTO4		0x0010	/* Protocol selection (00001 = 802.3) */
+#define PHY_LPAR_PROTO3		0x0008
+#define PHY_LPAR_PROTO2		0x0004
+#define PHY_LPAR_PROTO1		0x0002
+#define PHY_LPAR_PROTO0		0x0001
 
-/* 
- * PHY, BMSR Basic Mode Status Register 
- */   
-#define PHY_BMSR			0x01
-#define PHY_BMSR_100BT4			0x8000
-#define PHY_BMSR_100BTXFULL		0x4000
-#define PHY_BMSR_100BTXHALF		0x2000
-#define PHY_BMSR_10BTFULL		0x1000
-#define PHY_BMSR_10BTHALF		0x0800
-#define PHY_BMSR_RSVD1			0x0400	/* write as zero, don't care */
-#define PHY_BMSR_RSVD2			0x0200	/* write as zero, don't care */
-#define PHY_BMSR_RSVD3			0x0100	/* write as zero, don't care */
-#define PHY_BMSR_RSVD4			0x0080	/* write as zero, don't care */
-#define PHY_BMSR_MFPRESUP		0x0040
-#define PHY_BMSR_AUTONEGCOMP		0x0020
-#define PHY_BMSR_REMFAULT		0x0010
-#define PHY_BMSR_CANAUTONEG		0x0008
-#define PHY_BMSR_LINKSTAT		0x0004
-#define PHY_BMSR_JABBER			0x0002
-#define PHY_BMSR_EXTENDED		0x0001
+#define PHY_ANER_MLFAULT	0x0010	/* More than one link is up! */
+#define PHY_ANER_LPNPABLE	0x0008	/* Link partner supports next page */
+#define PHY_ANER_NPABLE		0x0004	/* Local port supports next page */
+#define PHY_ANER_PAGERX		0x0002	/* Page received */
+#define PHY_ANER_LPAUTONEG	0x0001	/* Link partner can auto-negotiate */
 
 
 #endif /* NXE > 0 */
