@@ -1,4 +1,4 @@
-/* $Id: msg.h,v 1.4 1995/07/29 11:42:48 bde Exp $ */
+/* $Id: msg.h,v 1.5 1995/08/30 00:33:33 bde Exp $ */
 /*	$NetBSD: msg.h,v 1.4 1994/06/29 06:44:43 cgd Exp $	*/
 
 /*
@@ -101,7 +101,6 @@ extern struct msginfo	msginfo;
 #ifndef MSGSEG
 #define MSGSEG	2048		/* must be less than 32767 */
 #endif
-#undef MSGMAX			/* ALWAYS compute MGSMAX! */
 #define MSGMAX	(MSGSSZ*MSGSEG)
 #ifndef MSGMNB
 #define MSGMNB	2048		/* max # of bytes in a queue */
