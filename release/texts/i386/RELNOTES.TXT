@@ -113,7 +113,7 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2920/2940/2950/3940/3950 (Narrow/Wide/Twin) series
+Adaptec 274X/284X/2920C/2940/2950/3940/3950 (Narrow/Wide/Twin) series
 EISA/VLB/PCI SCSI controllers.
 Adaptec AIC7850, AIC7880, AIC789x, on-board SCSI controllers.
 
@@ -125,7 +125,7 @@ Buslogic 742A, 747S, 747c EISA SCSI controller.
 Buslogic 946c PCI SCSI controller
 Buslogic 956c PCI SCSI controller
 
-DPT SCSI/RAID controllers (most variants).
+DPT SmartRAID III and IV SCSI/RAID controllers
 
 SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
 controllers:
