@@ -59,6 +59,9 @@ all:
 	@echo "Running test plus_flag"
 	@${MAKE} plus_flag || ${MAKE} failure
 	@echo "PASS: Test plus_flag detected no regression."
+	@echo "Running test shell"
+	@! ${MAKE} shell >/dev/null 2>&1 && true || ${MAKE} failure
+	@echo "PASS: Test shell detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -234,6 +237,13 @@ plus_flag:
 .if make(plus_flag_1)
 plus_flag_1:
 	+@cd /tmp; pwd
+.endif
+
+.if make(shell)
+# Test if make fully supports the .SHELL specification.
+.SHELL: path=/nonexistent
+A!= echo ok
+shell:
 .endif
 
 failure:
