@@ -773,6 +773,8 @@ static struct cmdtab const NatCommands[] =
   {"punch_fw", NULL, nat_PunchFW, LOCAL_AUTH,
    "firewall control", "nat punch_fw [base count]"},
 #endif
+  {"skinny_port", NULL, nat_SkinnyPort, LOCAL_AUTH,
+   "TCP port used by Skinny Station protocol", "nat skinny_port [port]"},
   {"same_ports", NULL, NatOption, LOCAL_AUTH,
    "try to leave port numbers unchanged", "nat same_ports yes|no",
    (const void *) PKT_ALIAS_SAME_PORTS},

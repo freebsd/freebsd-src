@@ -470,6 +470,29 @@ nat_PunchFW(struct cmdargs const *arg)
 }
 #endif
 
+int
+nat_SkinnyPort(struct cmdargs const *arg)
+{
+  char *end;
+  long port;
+
+  if (arg->argc == arg->argn) {
+    PacketAliasSetSkinnyPort(0);
+    return 0;
+  }
+
+  if (arg->argc != arg->argn + 1)
+    return -1;
+
+  port = strtol(arg->argv[arg->argn], &end, 10);
+  if (*end != '\0' || port < 0)
+    return -1;
+
+  PacketAliasSetSkinnyPort(port);
+
+  return 0;
+}
+
 static struct mbuf *
 nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)

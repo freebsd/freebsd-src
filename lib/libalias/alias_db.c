@@ -398,6 +398,9 @@ static int fireWallFD = -1;          /* File descriptor to be able to   */
                                      /* flag.                           */
 #endif
 
+unsigned int skinnyPort = 0;         /* TCP port used by the Skinny     */
+                                     /* protocol.                       */
+
 
 
 
@@ -2943,4 +2946,9 @@ PacketAliasSetFWBase(unsigned int base, unsigned int num) {
     fireWallBaseNum = base;
     fireWallNumNums = num;
 #endif
+}
+
+void
+PacketAliasSetSkinnyPort(unsigned int port) {
+    skinnyPort = port;
 }

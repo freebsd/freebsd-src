@@ -31,6 +31,7 @@
 .Op Fl log_denied
 .Op Fl log_facility Ar facility_name
 .Op Fl punch_fw Ar firewall_range
+.Op Fl skinny_port Ar port
 .Op Fl log_ipfw_denied
 .Op Fl pid_file | P Ar pidfile
 .Ek
@@ -483,6 +484,13 @@ rules starting from the rule number
 .Ar basenumber
 will be used for punching firewall holes.
 The range will be cleared for all rules on startup.
+.It Fl skinny_port Ar port
+This option allows you to specify the TCP port used for
+the Skinny Station protocol.
+Skinny is used by Cisco IP phones to communicate with
+Cisco Call Managers to set up voice over IP calls.
+By default, Skinny aliasing is not performed.
+The typical port value for Skinny is 2000.
 .It Fl log_ipfw_denied
 Log when a packet cannot be re-injected because an
 .Xr ipfw 8

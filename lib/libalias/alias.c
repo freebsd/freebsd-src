@@ -917,6 +917,9 @@ TcpAliasIn(struct ip *pip)
         if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
          || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
             AliasHandlePptpIn(pip, link);
+        else if (skinnyPort != 0 && (ntohs(tc->th_dport) == skinnyPort
+         || ntohs(tc->th_sport) == skinnyPort))
+            AliasHandleSkinny(pip, link);
 
         alias_address = GetAliasAddress(link);
         original_address = GetOriginalAddress(link);
@@ -1098,6 +1101,9 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
         else if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
          || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
             AliasHandlePptpOut(pip, link);
+        else if (skinnyPort != 0 && (ntohs(tc->th_sport) == skinnyPort
+         || ntohs(tc->th_dport) == skinnyPort))
+            AliasHandleSkinny(pip, link);
 
 /* Adjust TCP checksum since source port is being aliased */
 /* and source address is being altered                    */

@@ -45,6 +45,7 @@
 void	 PacketAliasInit(void);
 void	 PacketAliasSetAddress(struct in_addr _addr);
 void	 PacketAliasSetFWBase(unsigned int _base, unsigned int _num);
+void	 PacketAliasSetSkinnyPort(unsigned int _port);
 unsigned int
 	 PacketAliasSetMode(unsigned int _flags, unsigned int _mask);
 void	 PacketAliasUninit(void);

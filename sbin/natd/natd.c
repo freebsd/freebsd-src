@@ -99,6 +99,7 @@ static int 	StrToProto (const char* str);
 static int      StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange);
 static void	ParseArgs (int argc, char** argv);
 static void	SetupPunchFW(const char *strValue);
+static void	SetupSkinnyPort(const char *strValue);
 
 /*
  * Globals.
@@ -838,6 +839,7 @@ enum Option {
  	LogDenied,
  	LogFacility,
 	PunchFW,
+	SkinnyPort,
 	LogIpfwDenied,
 	PidFile
 };
@@ -1059,6 +1061,14 @@ static struct OptionInfo optionTable[] = {
 		"punch_fw",
 		NULL },
 
+	{ SkinnyPort,
+		0,
+		String,
+		"port",
+		"set the TCP port for use with the Skinny Station protocol",
+		"skinny_port",
+		NULL },
+
 	{ LogIpfwDenied,
 		0,
 		YesNo,
@@ -1256,6 +1266,10 @@ static void ParseOption (const char* option, const char* parms)
 
 	case PunchFW:
 		SetupPunchFW(strValue);
+		break;
+
+	case SkinnyPort:
+		SetupSkinnyPort(strValue);
 		break;
 
 	case LogIpfwDenied:
@@ -1704,4 +1718,15 @@ SetupPunchFW(const char *strValue)
 
 	PacketAliasSetFWBase(base, num);
 	(void)PacketAliasSetMode(PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
+}
+
+static void
+SetupSkinnyPort(const char *strValue)
+{
+	unsigned int port;
+
+	if (sscanf(strValue, "%u", &port) != 1)
+		errx(1, "skinny_port: port parameter required");
+
+	PacketAliasSetSkinnyPort(port);
 }
