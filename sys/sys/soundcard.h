@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef SOUNDCARD_H
-#define SOUNDCARD_H
+#ifndef _SYS_SOUNDCARD_H_
+#define _SYS_SOUNDCARD_H_
  /* 
   * If you make modifications to this file, please contact me before
   * distributing the modified version. There is already enough 
@@ -1363,4 +1363,4 @@ void seqbuf_dump __P((void));	/* This function must be provided by programs */
 #define SOUND_PCM_MAPINBUF	SNDCTL_DSP_MAPINBUF
 #define SOUND_PCM_MAPOUTBUF	SNDCTL_DSP_MAPOUTBUF
 
-#endif	/* SOUNDCARD_H */
+#endif	/* !_SYS_SOUNDCARD_H_ */
