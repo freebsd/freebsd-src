@@ -198,6 +198,8 @@ in6_pcbbind(inp, nam, p)
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD);
 				if (t &&
+				    (so->so_type != SOCK_STREAM ||
+				     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
 				     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
 				     (t->inp_socket->so_options &
@@ -214,12 +216,11 @@ in6_pcbbind(inp, nam, p)
 						sin.sin_addr, lport,
 						INPLOOKUP_WILDCARD);
 					if (t &&
+					    (so->so_type != SOCK_STREAM ||
+					     ntohl(t->inp_faddr.s_addr) ==
+					      INADDR_ANY) &&
 					    (so->so_cred->cr_uid !=
-					     t->inp_socket->so_cred->cr_uid) &&
-					    (ntohl(t->inp_laddr.s_addr) !=
-					     INADDR_ANY ||
-					     INP_SOCKAF(so) ==
-					     INP_SOCKAF(t->inp_socket)))
+					     t->inp_socket->so_cred->cr_uid))
 						return (EADDRINUSE);
 				}
 			}
