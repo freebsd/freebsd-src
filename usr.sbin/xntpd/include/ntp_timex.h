@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (c) David L. Mills 1993                                          *
+ * Copyright (c) David L. Mills 1993, 1994                                    *
  *                                                                            *
  * Permission to use, copy, modify, and distribute this software and its      *
  * documentation for any purpose and without fee is hereby granted, provided  *
@@ -17,11 +17,13 @@
 /*
  * Modification history timex.h
  *
- * 28 Nov 93	David L. Mills
- *	Adjusted parameters to improve stability and increase poll interval
+ * 20 Feb 94	David L. Mills
+ *	Revised status codes and structures for external clock and PPS
+ *	signal discipline.
  *
- * 10 Oct 93	Torsten Duwe
- *	Changed to ntp_timex.h (#ifdef'd HAVE_SYS_TIMEX_H)
+ * 28 Nov 93	David L. Mills
+ *	Adjusted parameters to improve stability and increase poll
+ *	interval.
  * 
  * 17 Sep 93    David L. Mills
  *      Created file
@@ -41,7 +43,7 @@
  *	int syscall(SYS_ntp_gettime, tptr)
  *
  *	int SYS_ntp_gettime		defined in syscall.h header file
- *	struct ntptimeval *tptr	pointer to ntptimeval structure
+ *	struct ntptimeval *tptr		pointer to ntptimeval structure
  *
  * NAME
  *	ntp_adjtime - NTP daemon application interface
@@ -55,55 +57,43 @@
  *	struct timex *tptr		pointer to timex structure
  *
  */
-#ifndef _NTP_TIMEX_H
-#define _NTP_TIMEX_H
-
-/*
- * Include system timex.h (if appropriate)
- */
-#ifdef HAVE_SYS_TIMEX_H
-#include <sys/timex.h>
-#else  /* provide definitions */
 #include <sys/syscall.h>
-
-extern int syscall      P((int, void *, ...));
-
-#define ntp_gettime(t)  syscall(SYS_ntp_gettime, (t))
-#define ntp_adjtime(t)  syscall(SYS_ntp_adjtime, (t))
 
 /*
  * The following defines establish the engineering parameters of the PLL
- * model. The HZ variable establishes the timer interrupt frequency, 100 Hz 
- * for the SunOS kernel, 256 Hz for the Ultrix kernel and 1024 Hz for the
- * OSF/1 kernel. The SHIFT_HZ define expresses the same value as the
- * nearest power of two in order to avoid hardware multiply operations.
+ * model. The hz variable is defined in the kernel build environment. It
+ * establishes the timer interrupt frequency, 100 Hz for the SunOS
+ * kernel, 256 Hz for the Ultrix kernel and 1024 Hz for the OSF/1
+ * kernel. The SHIFT_HZ define expresses the same value as the nearest
+ * power of two in order to avoid hardware multiply operations.
  */
-#define SHIFT_HZ 7		/* log2(HZ) */
+#define SHIFT_HZ 7		/* log2(hz) */
 
 /*
  * The SHIFT_KG and SHIFT_KF defines establish the damping of the PLL
  * and are chosen by analysis for a slightly underdamped convergence
- * characteristic. The MAXTC define establishes the maximum time constant
- * of the PLL. With the parameters given and the default time constant of
- * zero, the PLL will converge in about 15 minutes.
+ * characteristic. The MAXTC define establishes the maximum time
+ * constant of the PLL. With the parameters given and the minimum time
+ * constant of zero, the PLL will converge in about 15 minutes.
  */
-#define SHIFT_KG 6		/* shift for phase increment */
-#define SHIFT_KF 16		/* shift for frequency increment */
+#define SHIFT_KG 6		/* phase factor (shift) */
+#define SHIFT_KF 16		/* frequency factor (shift) */
 #define MAXTC 6			/* maximum time constant (shift) */
 
 /*
- * The SHIFT_SCALE define establishes the decimal point of the time_phase
- * variable which serves as a an extension to the low-order bits of the
- * system clock variable. The SHIFT_UPDATE define establishes the decimal
- * point of the time_offset variable which represents the current offset
- * with respect to standard time. The SHIFT_USEC define represents 1 us in
- * external units (shift), while the FINEUSEC define represents 1 us in
- * internal units.
+ * SHIFT_SCALE defines the scaling (shift) of the time_phase variable,
+ * which serves as a an extension to the low-order bits of the system
+ * clock variable time.tv_usec. SHIFT_UPDATE defines the scaling (shift)
+ * of the time_offset variable, which represents the current time offset
+ * with respect to standard time. SHIFT_USEC defines the scaling (shift)
+ * of the time_freq and time_tolerance variables, which represent the
+ * current frequency offset and frequency tolerance. FINEUSEC is 1 us in
+ * SHIFT_UPDATE units of the time_phase variable.
  */
-#define SHIFT_SCALE 23		/* shift for phase scale factor */
-#define SHIFT_UPDATE (SHIFT_KG + MAXTC) /* shift for offset scale factor */
-#define SHIFT_USEC 16		/* shift for 1 us in external units */
-#define FINEUSEC (1 << SHIFT_SCALE) /* 1 us in internal units */
+#define SHIFT_SCALE 23		/* phase scale (shift) */
+#define SHIFT_UPDATE (SHIFT_KG + MAXTC) /* time offset scale (shift) */
+#define SHIFT_USEC 16		/* frequency offset scale (shift) */
+#define FINEUSEC (1 << SHIFT_SCALE) /* 1 us in phase units */
 
 /*
  * Mode codes (timex.mode) 
@@ -122,8 +112,8 @@ extern int syscall      P((int, void *, ...));
 #define TIME_INS	1	/* insert leap second */
 #define TIME_DEL	2	/* delete leap second */
 #define TIME_OOP	3	/* leap second in progress */
-#define TIME_BAD	4	/* clock not synchronized */
-
+#define TIME_BAD	4	/* kernel clock not synchronized */
+#define TIME_ERR	5	/* external clock not synchronized */
 /*
  * NTP user interface - used to read kernel clock values
  * Note: maximum error = NTP synch distance = dispersion + delay / 2;
@@ -131,8 +121,8 @@ extern int syscall      P((int, void *, ...));
  */
 struct ntptimeval {
 	struct timeval time;	/* current time */
-	long maxerror;		/* maximum error (usec) */
-	long esterror;		/* estimated error (usec) */
+	long maxerror;		/* maximum error (us) */
+	long esterror;		/* estimated error (us) */
 };
 
 /*
@@ -140,19 +130,25 @@ struct ntptimeval {
  */
 struct timex {
 	int mode;		/* mode selector */
-	long offset;		/* time offset (usec) */
+	long offset;		/* time offset (us) */
 	long frequency;		/* frequency offset (scaled ppm) */
-	long maxerror;		/* maximum error (usec) */
-	long esterror;		/* estimated error (usec) */
+	long maxerror;		/* maximum error (us) */
+	long esterror;		/* estimated error (us) */
 	int status;		/* clock command/status */
 	long time_constant;	/* pll time constant */
-	long precision;		/* clock precision (usec) (read only) */
-	long tolerance;		/* clock frequency tolerance (ppm)
-				 * (read only)
-				 */
+	long precision;		/* clock precision (us) (read only) */
+	long tolerance;		/* clock frequency tolerance (scaled
+				 * ppm) (read only) */
+	/*
+	 * The following read-only structure members are implemented
+	 * only if the PPS signal discipline is configured in the
+	 * kernel.
+	 */
+	long ybar;		/* frequency estimate (scaled ppm) */
+	long disp;		/* dispersion estimate (scaled ppm) */
+	int shift;		/* interval duration (s) (shift) */
+	long calcnt;		/* calibration intervals */
+	long jitcnt;		/* jitter limit exceeded */
+	long discnt;		/* dispersion limit exceeded */
+
 };
-
-#endif /* HAVE_SYS_TIMEX_H */
-
-#endif /* _NTP_TIMEX_H */
-

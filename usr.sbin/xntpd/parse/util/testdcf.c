@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/util/testdcf.c,v 3.9 1994/01/25 19:05:45 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/util/testdcf.c,v 3.11 1994/02/02 17:45:55 kardel Exp
  *  
- * testdcf.c,v 3.9 1994/01/25 19:05:45 kardel Exp
+ * testdcf.c,v 3.11 1994/02/02 17:45:55 kardel Exp
  *
  * simple DCF77 100/200ms pulse test program (via 50Baud serial line)
  *

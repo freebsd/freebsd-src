@@ -27,17 +27,15 @@
 # -DCONFIG_FILE=\\"/local/etc/ntp.conf\\" or something similar.
 #
 # The -DSYSLOG_FILE defines allows logging messages that are normally
-# reported via syslog() in a file. The file name can be configured using
+# reported via syslof() in a file. The file name can be configured using
 # the configuration line "logfile <filename>" in CONFIG_FILE.
 #
 # There are three serial port system software interfaces, each of
 # which is peculiar to one or more Unix versions. Define
 # -DHAVE_SYSV_TTYS for basic System V compatibility; define -DSTREAM
 # for POSIX compatibility including System V Streams, and
-# HAVE_BSD_TTYS for 4.3bsd compatibility.
-# Use HAVE_TERMIOS for POSIX (termios.h) without System V Streams.
-# Only one of these three should be defined. If none are defined,
-# HAVE_BSD_TTYS is assumed.
+# HAVE_BSD_TTYS for 4.3bsd compatibility. Only one of these three
+# should be defined. If none are defined, HAVE_BSD_TTYS is assumed.
 # Usually these defines are already set correctly.
 #
 DEFS_OPT=-DDEBUG
@@ -80,7 +78,7 @@ DEFS_OPT=-DDEBUG
 #	special distribution.
 #
 # Note: following line must always start with DEFS_LOCAL= $(DEFS_OPT)
-DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
+DEFS_LOCAL= $(DEFS_OPT) -DREFCLOCK -DKERNEL_PLL
 
 #
 # Radio clock support definitions (these only make sense if -DREFCLOCK
@@ -113,10 +111,6 @@ DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
 # Works in all systems and requires no hardware support. This is defined
 # by default when using the "make makeconfig" script and greenhorn
 # configuraiton.
-#
-# Define -DTRAK for a 8810 GPS Receiver with Buffered RS-232-C Interface
-# Module. The driver supports both the CLK and PPS modes. It should work
-# in all systems with a serial port.
 #
 # Define -DPST for a PST/Traconex 1020 WWV/H receiver. The driver
 # supports both the CLK and PPS modes. It should work in all systems
@@ -158,9 +152,6 @@ DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
 # a serial port. The driver does not support the CLK mode, but does
 # support the PPS mode.
 #
-# Define -DGPSTM for a Kinemetrics/TrueTime GPS-TM/TMD receiver. It
-# should work in all systems with a serial port.
-#
 # Define -DOMEGA for a Kinemetrics/TrueTime OM-DC OMEGA receiver. It
 # should work in all systems with a serial port. The driver does not
 # support the CLK mode, but does support the PPS mode.
@@ -191,7 +182,7 @@ DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
 # under Ultrix 4.2a/3. If the MX4200 is removed, all the rest compile on a DEC
 # OSF/1 Alpha.
 #
-CLOCKDEFS= #GREEN -DLOCAL_CLOCK #TEST -DAS2201PPS -DCHU -DGOES -DIRIG -DMX4200PPS -DOMEGA -DPST -DPSTCLK -DTPRO -DWWVBCLK -DMSFEESPPS -DLEITCH -DPARSE -DPARSEPPS -DCLOCK_MEINBERG -DCLOCK_RAWDCF -DCLOCK_SCHMID -DCLOCK_DCF7000 -DCLOCK_TRIMSV6
+CLOCKDEFS= -DLOCAL_CLOCK -DCHU -DGOES -DOMEGA -DPST -DWWVB -DLEITCH
 
 #
 # Directory into which binaries should be installed (default /usr/local)

@@ -2,8 +2,7 @@
 
   If you are running Solaris 2.0, you should upgrade to a later version of 
 Solaris immediately.
-  If you are running Solaris 2.1, you should use Config.solaris2.1
-  If you are running Solaris 2.2 or later, you should use Config.solaris2.2
+  If you are running Solaris 2.1 or later, all should be fine (i hope)
 
   Solaris 2.1 contains fairly traditional clock code, with tick and tickadj.
 Solaris 2.2 and later contains completely re-written clock code to provide 

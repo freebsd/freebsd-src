@@ -79,6 +79,7 @@ extern	char *	inttoa		P((LONG));
 extern	char *	mfptoa		P((U_LONG, U_LONG, int));
 extern	char *	mfptoms		P((U_LONG, U_LONG, int));
 extern	char *	modetoa		P((int));
+extern	U_LONG	netof		P((U_LONG));
 extern	char *	numtoa		P((U_LONG));
 extern	char *	numtohost	P((U_LONG));
 extern	int	octtoint	P((const char *, U_LONG *));

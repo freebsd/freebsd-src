@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/parsesolaris.c,v 3.9 1994/01/25 19:05:26 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parsesolaris.c,v 3.15 1994/02/15 22:20:51 kardel Exp
  *  
- * parsesolaris.c,v 3.9 1994/01/25 19:05:26 kardel Exp
+ * parsesolaris.c,v 3.15 1994/02/15 22:20:51 kardel Exp
  *
  * STREAMS module for reference clocks
  * (SunOS5.x - not fully tested - buyer beware ! - OS KILLERS may still be
@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "parsesolaris.c,v 3.9 1994/01/25 19:05:26 kardel Exp";
+static char rcsid[] = "parsesolaris.c,v 3.15 1994/02/15 22:20:51 kardel Exp";
 #endif
 
 /*
@@ -65,7 +65,7 @@ static struct fmodsw fmod_templ =
 {
   "parse",			/* module name */
   &parseinfo,			/* module information */
-  0,				/* not clean yet */
+  D_NEW|D_MP|D_MTQPAIR,		/* exclusive for q pair */
   /* lock ptr */
 };
 
@@ -139,7 +139,7 @@ int Strcmp(s, t)
 /*ARGSUSED*/
 int _init(void)
 {
-  static char revision[] = "3.9";
+  static char revision[] = "3.15";
   char *s, *S, *t;
   
   /*
@@ -413,6 +413,8 @@ static int parseopen(queue_t *q, dev_t *dev, int flag, int sflag, cred_t *credp)
   parse->parse_ppsclockev.tv.tv_usec = 0;
   parse->parse_ppsclockev.serial     = 0;
 
+  qprocson(q);
+
   parseprintf(DD_OPEN,("parse: OPEN - initializing io subsystem q=%x\n", q)); 
 
   if (!parse_ioinit(&parse->parse_io))
@@ -420,6 +422,8 @@ static int parseopen(queue_t *q, dev_t *dev, int flag, int sflag, cred_t *credp)
       /*
        * ok guys - beat it
        */
+      qprocsoff(q);
+
       kmem_free((caddr_t)parse, sizeof(parsestream_t));
 
       parsebusy--;
@@ -441,7 +445,7 @@ static int parseopen(queue_t *q, dev_t *dev, int flag, int sflag, cred_t *credp)
        */
       if (!notice)
 	{
-	  printf("%s: Copyright (c) 1991-1993, Frank Kardel\n", modlstrmod.strmod_linkinfo);
+	  printf("%s: Copyright (c) 1991-1994, Frank Kardel\n", modlstrmod.strmod_linkinfo);
 	  notice = 1;
 	}
 
@@ -449,7 +453,12 @@ static int parseopen(queue_t *q, dev_t *dev, int flag, int sflag, cred_t *credp)
     }
   else
     {
+      qprocsoff(q);
+
+      kmem_free((caddr_t)parse, sizeof(parsestream_t));
+
       parsebusy--;
+
       return EIO;
     }
 }
@@ -462,6 +471,8 @@ static int parseclose(queue_t *q, int flags)
   
   parseprintf(DD_CLOSE,("parse: CLOSE\n"));
   
+  qprocsoff(q);
+
   s = splhigh();
   
   if (parse->parse_dqueue)
@@ -1179,6 +1190,18 @@ static void zs_xsisr(struct zscom *zs)
  * History:
  *
  * parsesolaris.c,v
+ * Revision 3.15  1994/02/15  22:20:51  kardel
+ * rcsid fixed
+ *
+ * Revision 3.14  1994/02/15  22:06:04  kardel
+ * added qprocsx & flags for MT capability
+ *
+ * Revision 3.13  1994/02/13  19:16:47  kardel
+ * updated verbose Copyright message
+ *
+ * Revision 3.12  1994/02/02  17:45:35  kardel
+ * rcs ids fixed
+ *
  * Revision 3.9  1994/01/25  19:05:26  kardel
  * 94/01/23 reconcilation
  *

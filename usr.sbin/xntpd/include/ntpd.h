@@ -93,8 +93,8 @@ extern	int	pps_sample	P((l_fp *));
 
 /* ntp_monitor.c */
 extern	void	init_mon	P((void));
-extern	void	mon_start	P((void));
-extern	void	mon_stop	P((void));
+extern	void	mon_start	P((int));
+extern	void	mon_stop	P((int));
 extern	void	monitor		P((struct recvbuf *));
 
 /* ntp_peer.c */

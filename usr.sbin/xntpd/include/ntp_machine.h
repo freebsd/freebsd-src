@@ -44,11 +44,16 @@ Signaled IO -  Signled IO defines.
 WHICH TERMINAL MODEL TO USE - I would assume HAVE_TERMIOS if 
 		      NTP_POSIX_SOURCE was set but can't.  The 
 		      posix tty driver is too restrictive on most systems.
-		      It defined if you define STREAMS.
+		      It is defined if you define STREAMS.
 
+  We do not put these defines in the ntp_machine.h as some systems
+  offer multiple interfaces and refclock configuration likes to
+  peek into the configuration defines for tty model restrictions.
+  Thus all tty definitions should be in the files in the machines directory.
+
+  HAVE_TERMIOS      - Use POSIX termios.h
   HAVE_SYSV_TTYS    - Use SYSV termio.h
   HAVE_BSD_TTYS     - Use BSD stty.h
-  HAVE_TERMIOS      - Use POSIX termios.h
 
 THIS MAKES PORTS TO NEW SYSTEMS EASY - You only have to wory about
 		                       kernel mucking.
@@ -274,7 +279,6 @@ in this file.
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/Ultrix"
 #endif
-#define HAVE_TERMIOS
 #endif
 
 /*
@@ -297,9 +301,9 @@ in this file.
 #define FORCE_NTPDATE_STEP
 #define	RETSIGTYPE	void
 #define HAVE_ATT_SETPGRP
-#define HAVE_BSD_TTYS
 #define LOG_NTP LOG_LOCAL1
 #define HAVE_SIGNALED_IO
+#define NTP_NEED_BOPS
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/AUX"
 #endif
@@ -309,6 +313,7 @@ in this file.
  * Next
  */
 #if defined(SYS_NEXT)
+#define RETSIGTYPE void
 #define DOSYNCTODR
 #define HAVE_READKMEM
 #define HAVE_BSD_NICE
@@ -329,8 +334,12 @@ in this file.
 #define setlinebuf(f) setvbuf(f, NULL, _IOLBF, 0)
 #define NO_SIGNED_CHAR_DECL
 #define LOCK_PROCESS
-#define	HAVE_NO_NICE	/* HPUX uses rtprio instead */
 #define RETSIGTYPE      void
+#if (SYS_HPUX < 9)
+#define	HAVE_NO_NICE	/* HPUX uses rtprio instead */
+#else
+#define HAVE_BSD_NICE	/* new at 9.X */
+#endif
 #if (SYS_HPUX < 10)
 #define NOKMEM
 #else
@@ -352,8 +361,6 @@ in this file.
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/BSDI"
 #endif
-#define HAVE_BSD_TTYS
-#define HAVE_TERMIOS
 #endif
 
 /*
@@ -441,9 +448,6 @@ in this file.
  */
 #if defined(SYS_PTX)
 #define NO_SIGNED_CHAR_DECL
-#ifndef HAVE_SYSV_TTYS
-#define HAVE_SYSV_TTYS
-#endif
 #define STREAMS_TLI
 #define HAVE_ATT_SETPGRP 
 #define HAVE_SIGNALED_IO
@@ -458,6 +462,7 @@ in this file.
 #define HAVE_READKMEM
 #define UDP_WILDCARD_DELIVERY
 #define NTP_POSIX_SOURCE
+#define memmove(x, y, z) memcpy(x, y, z)
 struct timezone { int __0; };   /* unused placebo */
 /*
  * no comment !@!
@@ -527,7 +532,6 @@ typedef unsigned long u_long;
 #define HAVE_BSD_NICE
 #define NOKMEM
 #define HAVE_SIGNALED_IO
-#define HAVE_BSD_TTYS
 #define NTP_SYSCALLS_STD
 #define USE_PROTOTYPES
 #define UDP_WILDCARD_DELIVERY
@@ -563,6 +567,20 @@ typedef unsigned long u_long;
 	&& !defined(HAVE_BSD_NICE) \
 	&& !defined(HAVE_NO_NICE)
 	ERROR You_must_define_one_of_the_HAVE_xx_NICE_defines
+#endif
+
+/*
+ * use only one tty model - no use in initialising
+ * a tty in three ways
+ * HAVE_TERMIOS is preferred over HAVE_SYSV_TTYS over HAVE_BSD_TTYS
+ */
+#ifdef HAVE_TERMIOS
+#undef HAVE_BSD_TTYS
+#undef HAVE_SYSV_TTYS
+#endif
+
+#ifdef HAVE_SYSV_TTYS
+#undef HAVE_BSD_TTYS
 #endif
 
 #if	!defined(HAVE_SYSV_TTYS) \

@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/include/parse.h,v 3.13 1994/01/25 19:04:21 kardel Exp
+ * /src/NTP/REPOSITORY/v3/include/parse.h,v 3.17 1994/03/03 09:27:20 kardel Exp
  *
- * parse.h,v 3.13 1994/01/25 19:04:21 kardel Exp
+ * parse.h,v 3.17 1994/03/03 09:27:20 kardel Exp
  *
  * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
@@ -15,7 +15,7 @@
 #ifndef __PARSE_H__
 #define __PARSE_H__
 #if	!(defined(lint) || defined(__GNUC__))
-  static char parsehrcsid[]="parse.h,v 3.13 1994/01/25 19:04:21 kardel Exp FAU";
+  static char parsehrcsid[]="parse.h,v 3.17 1994/03/03 09:27:20 kardel Exp";
 #endif
 
 #include "ntp_types.h"
@@ -81,35 +81,55 @@ extern int debug;
 /*
  * state flags
  */
-#define PARSEB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
-#define PARSEB_POWERUP            0x0002 /* no synchronisation */
-#define PARSEB_NOSYNC             0x0004 /* timecode currently not confirmed */
-#define PARSEB_DST                0x0008 /* DST in effect */
-#define PARSEB_UTC		  0x0010 /* UTC time */
-#define PARSEB_LEAP		  0x0020 /* LEAP warning (1 hour prior to occurence) */
-#define PARSEB_ALTERNATE	  0x0040 /* alternate antenna used */
-#define PARSEB_POSITION		  0x0080 /* position available */
-#define PARSEB_LEAPSECOND	  0x0100 /* actual leap second */
+#define PARSEB_POWERUP            0x00000001 /* no synchronisation */
+#define PARSEB_NOSYNC             0x00000002 /* timecode currently not confirmed */
 
-#define PARSEB_S_LEAP		  0x0200 /* supports LEAP */
-#define PARSEB_S_ANTENNA	  0x0400 /* supports antenna information */
-#define PARSEB_S_PPS     	  0x0800 /* supports PPS time stamping */
-#define PARSEB_S_POSITION	  0x1000 /* supports position information (GPS) */
+/*
+ * time zone information
+ */
+#define PARSEB_ANNOUNCE           0x00000010 /* switch time zone warning (DST switch) */
+#define PARSEB_DST                0x00000020 /* DST in effect */
+#define PARSEB_UTC		  0x00000040 /* UTC time */
 
-#define PARSEB_TIMECODE		  0x2000 /* valid time code sample */
-#define PARSEB_PPS		  0x4000 /* valid PPS sample */
+/*
+ * leap information
+ */
+#define PARSEB_LEAPDEL		  0x00000100 /* LEAP deletion warning */
+#define PARSEB_LEAPADD		  0x00000200 /* LEAP addition warning */
+#define PARSEB_LEAPS		  0x00000300 /* LEAP warnings */
+#define PARSEB_LEAPSECOND	  0x00000400 /* actual leap second */
+/*
+ * optional status information
+ */
+#define PARSEB_ALTERNATE	  0x00001000 /* alternate antenna used */
+#define PARSEB_POSITION		  0x00002000 /* position available */
+
+/*
+ * feature information
+ */
+#define PARSEB_S_LEAP		  0x00010000 /* supports LEAP */
+#define PARSEB_S_ANTENNA	  0x00020000 /* supports antenna information */
+#define PARSEB_S_PPS     	  0x00040000 /* supports PPS time stamping */
+#define PARSEB_S_POSITION	  0x00080000 /* supports position information (GPS) */
+
+/*
+ * time stamp availality
+ */
+#define PARSEB_TIMECODE		  0x10000000 /* valid time code sample */
+#define PARSEB_PPS		  0x20000000 /* valid PPS sample */
 
 #define PARSE_TCINFO		(PARSEB_ANNOUNCE|PARSEB_POWERUP|PARSEB_NOSYNC|PARSEB_DST|\
-				 PARSEB_UTC|PARSEB_LEAP|PARSEB_ALTERNATE|PARSEB_S_LEAP|\
+				 PARSEB_UTC|PARSEB_LEAPS|PARSEB_ALTERNATE|PARSEB_S_LEAP|\
 				 PARSEB_S_LOCATION|PARSEB_TIMECODE)
 
-#define PARSE_POWERUP(x)          ((x) & PARSEB_POWERUP)
-#define PARSE_NOSYNC(x)           (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == PARSEB_NOSYNC)
-#define PARSE_SYNC(x)             (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == 0)
-#define PARSE_ANNOUNCE(x)         ((x) & PARSEB_ANNOUNCE)
-#define PARSE_DST(x)              ((x) & PARSEB_DST)
+#define PARSE_POWERUP(x)        ((x) & PARSEB_POWERUP)
+#define PARSE_NOSYNC(x)         (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == PARSEB_NOSYNC)
+#define PARSE_SYNC(x)           (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == 0)
+#define PARSE_ANNOUNCE(x)       ((x) & PARSEB_ANNOUNCE)
+#define PARSE_DST(x)            ((x) & PARSEB_DST)
 #define PARSE_UTC(x)		((x) & PARSEB_UTC)
-#define PARSE_LEAP(x)		(PARSE_SYNC(x) && ((x) & PARSEB_LEAP))
+#define PARSE_LEAPADD(x)	(PARSE_SYNC(x) && (((x) & PARSEB_LEAPS) == PARSEB_LEAPADD))
+#define PARSE_LEAPDEL(x)	(PARSE_SYNC(x) && (((x) & PARSEB_LEAPS) == PARSEB_LEAPDEL))
 #define PARSE_ALTERNATE(x)	((x) & PARSEB_ALTERNATE)
 #define PARSE_LEAPSECOND(x)	(PARSE_SYNC(x) && ((x) & PARSEB_LEAP_SECOND))
 
@@ -118,9 +138,9 @@ extern int debug;
 #define PARSE_S_PPS(x)		((x) & PARSEB_S_PPS)
 #define PARSE_S_POSITION(x)	((x) & PARSEB_S_POSITION)
 
-#define PARSE_TIMECODE(x)		((x) & PARSEB_TIMECODE)
+#define PARSE_TIMECODE(x)	((x) & PARSEB_TIMECODE)
 #define PARSE_PPS(x)		((x) & PARSEB_PPS)
-#define PARSE_POSITION(x)		((x) & PARSEB_POSITION)
+#define PARSE_POSITION(x)	((x) & PARSEB_POSITION)
 
 /*
  * operation flags - some are also fudge flags
@@ -281,6 +301,7 @@ struct clocktime		/* clock time broken up from time code */
   LONG second;
   LONG usecond;
   LONG utcoffset;	/* in seconds */
+  time_t utctime;	/* the actual time - alternative to date/time */
   LONG flags;		/* current clock status */
 };
 
@@ -365,6 +386,9 @@ extern unsigned LONG pps_simple P((parse_t *, int status, timestamp_t *));
  * History:
  *
  * parse.h,v
+ * Revision 3.17  1994/03/03  09:27:20  kardel
+ * rcs ids fixed
+ *
  * Revision 3.13  1994/01/25  19:04:21  kardel
  * 94/01/23 reconcilation
  *

@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
- * /src/NTP/REPOSITORY/v3/parse/parse_conf.c,v 3.13 1994/01/25 19:05:23 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parse_conf.c,v 3.15 1994/02/02 17:45:32 kardel Exp
  *  
- * parse_conf.c,v 3.13 1994/01/25 19:05:23 kardel Exp
+ * parse_conf.c,v 3.15 1994/02/02 17:45:32 kardel Exp
  *
  * Parser configuration module for reference clocks
  *
@@ -81,6 +81,9 @@ unsigned short nformats = sizeof(clockformats) / sizeof(clockformats[0]) - 1;
  * History:
  *
  * parse_conf.c,v
+ * Revision 3.15  1994/02/02  17:45:32  kardel
+ * rcs ids fixed
+ *
  * Revision 3.13  1994/01/25  19:05:23  kardel
  * 94/01/23 reconcilation
  *

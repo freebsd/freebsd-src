@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_MEINBERG)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.11 1994/01/25 19:05:10 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.14 1994/02/20 13:04:37 kardel Exp
  *  
- * clk_meinberg.c,v 3.11 1994/01/25 19:05:10 kardel Exp
+ * clk_meinberg.c,v 3.14 1994/02/20 13:04:37 kardel Exp
  *
  * Meinberg clock support
  *
@@ -284,8 +284,13 @@ cvt_meinberg(buffer, size, format, clock)
 	      clock->flags |= PARSEB_S_LEAP;
 	      clock->flags |= PARSEB_S_ANTENNA;
 	      
+	      /*
+	       * DCF77 does not encode the direction -
+	       * so we take the current default -
+	       * earth slowing down
+	       */
 	      if (f[4] == 'A')
-		clock->flags |= PARSEB_LEAP;
+		clock->flags |= PARSEB_LEAPADD;
 
 	      if (f[5] == 'R')
 		clock->flags |= PARSEB_ALTERNATE;
@@ -394,9 +399,12 @@ cvt_mgps(buffer, size, format, clock)
 	  
 	  /*
 	   * oncoming leap second
+	   * data format does not (yet) specify whether
+	   * to add or to delete a second - thus we
+	   * pick the current default
 	   */
 	  if (f[5] == 'A')
-	    clock->flags |= PARSEB_LEAP;
+	    clock->flags |= PARSEB_LEAPADD;
 	  
 	  /*
 	   * this is the leap second
@@ -414,6 +422,12 @@ cvt_mgps(buffer, size, format, clock)
  * History:
  *
  * clk_meinberg.c,v
+ * Revision 3.14  1994/02/20  13:04:37  kardel
+ * parse add/delete second support
+ *
+ * Revision 3.13  1994/02/02  17:45:21  kardel
+ * rcs ids fixed
+ *
  * Revision 3.11  1994/01/25  19:05:10  kardel
  * 94/01/23 reconcilation
  *
