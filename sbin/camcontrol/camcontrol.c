@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.6 1998/11/12 17:47:24 ken Exp $
+ *	$Id: camcontrol.c,v 1.7 1998/12/20 18:51:56 mjacob Exp $
  */
 
 #include <sys/ioctl.h>
@@ -896,8 +896,8 @@ rescan_or_reset_bus(int bus, int rescan)
 	close(fd);
 
 	if ((ccb.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-		fprintf(stdout, "%s of bus %d was successful\n", bus,
-		    rescan? "Re-scan" : "Reset");
+		fprintf(stdout, "%s of bus %d was successful\n",
+		    rescan? "Re-scan" : "Reset", bus);
 		return(0);
 	} else {
 		fprintf(stdout, "%s of bus %d returned error %#x\n",
