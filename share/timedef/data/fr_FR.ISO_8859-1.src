@@ -1,4 +1,4 @@
-# $Id$
+# $Id: fr_FR.ISO_8859-1.src,v 1.1 1996/12/02 12:00:46 ache Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
@@ -63,7 +63,7 @@ Samedi
 #
 # c_fmt
 #
-%a %e %b %Y %X
+%a %e %b %X %Y
 #
 # am
 #
