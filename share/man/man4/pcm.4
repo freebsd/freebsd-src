@@ -39,13 +39,15 @@ For a card without bridge driver support, and a non-PnP card:
 .Cd "device pcm0 at isa? port? irq 5 drq 1 flags 0x15"
 .Sh DESCRIPTION
 The
-.Nm pcm
+.Nm
 driver provides support for PCM audio play and capture. This driver
 also supports various PCI and WSS/MSS compatible ISA sound cards, and
 AC97 mixer. True full duplex operation is available on most cards.
 .Pp
-If your sound card is supported by a bridge driver, .Nm driver works
-in conjuction with the bridge driver.
+If your sound card is supported by a bridge driver,
+.Nm
+driver works
+in conjunction with the bridge driver.
 .Pp
 Apart from the usual parameters, the flags field is used to specify
 the secondary DMA channel (generally used for capture in full duplex
@@ -60,7 +62,7 @@ The driver does its best to recognize the installed harware and drive
 it correctly, so that you don't have to give too many details in the
 kernel config files. For PCI and ISA PnP cards this is actually easy
 since they identify themselves. For legacy ISA cards, the driver looks
-for MSS cards at addresses 0x530 and 0x604(obviously, unless overridden
+for MSS cards at addresses 0x530 and 0x604 (obviously, unless overridden
 in the kernel config file by specifying an address).
 
 .Sh IOCTL
@@ -127,11 +129,11 @@ Some features of your cards (e.g. global volume control) might not
 be supported on all devices.
 .Sh HISTORY
 The
-.Nm pcm
+.Nm
 device driver first appeared in
-.Fx 2.2.6
-, rewritten in
-.Fx 4.0.
+.Fx 2.2.6 ,
+rewritten in
+.Fx 4.0 .
 .Sh SEE ALSO
 .Xr sbc 4
 .Xr gusc 4
@@ -143,4 +145,3 @@ initially wrote the .Nm device driver and this manual page.
 totally revised the device driver.
 .An Seigo Tanimura Aq tanimura@r.dl.itc.u-tokyo.ac.jp
 revised this manual page.
-
