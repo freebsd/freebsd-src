@@ -102,7 +102,8 @@ main(int argc, char *argv[])
 	char	*buf, *visbuf, *p;
 
 	const char *options, *attrname;
-	int	 buflen, visbuflen, ch, error, i, arg_counter, attrnamespace;
+	int	 buflen, visbuflen, ch, error, i, arg_counter, attrnamespace,
+		 minargc;
 
 	int	flag_force = 0;
 	int	flag_nofollow = 0;
@@ -119,15 +120,19 @@ main(int argc, char *argv[])
 	if (!strcmp(p, "getextattr")) {
 		what = EAGET;
 		options = "fhqsx";
+		minargc = 3;
 	} else if (!strcmp(p, "setextattr")) {
 		what = EASET;
 		options = "fhq";
+		minargc = 4;
 	} else if (!strcmp(p, "rmextattr")) {
 		what = EARM;
 		options = "fhq";
+		minargc = 3;
 	} else if (!strcmp(p, "lsextattr")) {
 		what = EALS;
 		options = "fhq";
+		minargc = 2;
 	} else {
 		usage();
 	}
@@ -158,7 +163,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc < 2)
+	if (argc < minargc)
 		usage();
 
 	error = extattr_string_to_namespace(argv[0], &attrnamespace);
