@@ -839,6 +839,8 @@ sbcreatecontrol(p, size, type, level)
 	register struct cmsghdr *cp;
 	struct mbuf *m;
 
+	if ((u_int)size > MLEN)
+		return ((struct mbuf *) NULL);
 	if ((m = m_get(M_DONTWAIT, MT_CONTROL)) == NULL)
 		return ((struct mbuf *) NULL);
 	cp = mtod(m, struct cmsghdr *);
