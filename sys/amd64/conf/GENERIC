@@ -145,12 +145,12 @@ device		sio2	at isa? disable port IO_COM3 irq 5
 device		sio3	at isa? disable port IO_COM4 irq 9
 
 # Parallel port
-device		ppc0	at isa? port? flags 0x40 irq 7
-device		ppbus0		# Parallel port bus (required)
-device		lpt0		# Printer
-device		plip0		# TCP/IP over parallel
-device		ppi0		# Parallel port interface device
-#device		vpo0		# Requires scbus and da0
+device		ppc0	at isa? port? irq 7
+device		ppbus0			# Parallel port bus (required)
+device		lpt0	at ppbus?	# Printer
+device		plip0	at ppbus?	# TCP/IP over parallel
+device		ppi0	at ppbus?	# Parallel port interface device
+#device		vpo0	at ppbus?	# Requires scbus and da0
 
 
 # PCI Ethernet NICs.
