@@ -1,5 +1,3 @@
-/*	$NetBSD: ibcs2_signal.c,v 1.6 1995/09/19 22:19:07 thorpej Exp $	*/
-
 /*
  * Copyright (c) 1995 Scott Bartram
  * All rights reserved.
@@ -25,6 +23,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #include <sys/param.h>
@@ -174,7 +174,7 @@ ibcs2_to_bsd_sigaction(isa, bsa)
 
 	bsa->sa_handler = isa->sa_handler;
 	ibcs2_to_bsd_sigset(&isa->sa_mask, &bsa->sa_mask);
-	bsa->sa_flags = 0;
+	bsa->sa_flags = 0;	/* ??? SA_NODEFER */
 	if ((isa->sa_flags & IBCS2_SA_NOCLDSTOP) != 0)
 		bsa->sa_flags |= SA_NOCLDSTOP;
 }
@@ -291,10 +291,10 @@ ibcs2_sigsys(p, uap, retval)
 
 			sa.sa_handler = SCARG(uap, fp);
 			sigemptyset(&sa.sa_mask);
-			sa.sa_flags = 0;
+			sa.sa_flags = SA_NODEFER;
 #if 0
 			if (signum != SIGALRM)
-				sa.sa_flags = SA_RESTART;
+				sa.sa_flags |= SA_RESTART;
 #endif
 			if ((error = copyout(&sa, nbsa, sizeof(sa))) != 0)
 				return error;
