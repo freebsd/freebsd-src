@@ -1,12 +1,16 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #ifdef	__FreeBSD__
-# include <osreldate.h>
+# ifndef __FreeBSD_cc_version
+#  include <osreldate.h>
+# else
+#  if __FreeBSD_cc_version < 430000
+#   include <osreldate.h>
+#  endif
+# endif
 #endif
 #include <stdio.h>
 #include <assert.h>
@@ -55,7 +59,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6 2000/03/13 22:10:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6.2.2 2001/06/26 10:43:19 darrenr Exp $";
 #endif
 
 extern	char	*optarg;

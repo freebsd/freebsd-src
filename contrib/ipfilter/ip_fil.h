@@ -1,12 +1,10 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.29.2.4 2000/11/12 11:54:53 darrenr Exp $
+ * $Id: ip_fil.h,v 2.29.2.10 2001/07/15 13:51:42 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -59,7 +57,7 @@
 # define	SIOCSTLCK	_IOWR('r', 79, u_int)
 # define	SIOCSTPUT	_IOWR('r', 80, struct ipstate_save *)
 # define	SIOCSTGET	_IOWR('r', 81, struct ipstate_save *)
-# define	SIOCSTGSZ	_IOWR('r', 82, struct natget *)
+# define	SIOCSTGSZ	_IOWR('r', 82, struct natget)
 # define	SIOCGFRST	_IOWR('r', 83, struct ipfrstat *)
 #else
 # define	SIOCADAFR	_IOW(r, 60, struct frentry *)
@@ -84,7 +82,7 @@
 # define	SIOCSTLCK	_IOWR(r, 79, u_int)
 # define	SIOCSTPUT	_IOWR(r, 80, struct ipstate_save *)
 # define	SIOCSTGET	_IOWR(r, 81, struct ipstate_save *)
-# define	SIOCSTGSZ	_IOWR(r, 82, struct natget *)
+# define	SIOCSTGSZ	_IOWR(r, 82, struct natget)
 # define	SIOCGFRST	_IOWR(r, 83, struct ipfrstat *)
 #endif
 #define	SIOCADDFR	SIOCADAFR
@@ -152,7 +150,10 @@ typedef	struct	fr_info	{
 	u_short	fin_off;
 } fr_info_t;
 
-#define	fin_v	fin_fi.fi_v
+#define	fin_v		fin_fi.fi_v
+#define	fin_saddr	fin_fi.fi_saddr
+#define	fin_daddr	fin_fi.fi_daddr
+#define	fin_fl		fin_fi.fi_fl
 
 /*
  * Size for compares on fr_info structures
@@ -168,6 +169,9 @@ typedef	struct	frdest	{
 	void	*fd_ifp;
 	struct	in_addr	fd_ip;
 	char	fd_ifname[IFNAMSIZ];
+#if SOLARIS
+	mb_t	*fd_mp;			/* cache resolver for to/dup-to */
+#endif
 } frdest_t;
 
 typedef	struct	frpcmp	{
@@ -192,8 +196,6 @@ typedef	struct	frtuc	{
 
 typedef	struct	frentry {
 	struct	frentry	*fr_next;
-	u_32_t	fr_group;	/* group to which this rule belongs */
-	u_32_t	fr_grhead;	/* group # which this rule starts */
 	struct	frentry	*fr_grp;
 	int	fr_ref;		/* reference count - for grouping */
 	void	*fr_ifa;
@@ -217,6 +219,8 @@ typedef	struct	frentry {
 	u_short	fr_icmp;
 
 	frtuc_t	fr_tuc;
+	u_32_t	fr_group;	/* group to which this rule belongs */
+	u_32_t	fr_grhead;	/* group # which this rule starts */
 	u_32_t	fr_flags;	/* per-rule flags && options (see below) */
 	u_int	fr_skip;	/* # of rules to skip */
 	u_int	fr_loglevel;	/* syslog log facility + priority */
@@ -436,6 +440,8 @@ typedef	struct	ipflog	{
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 #define	IPLLOGSIZE	8192
 
+#define	IPF_OPTCOPY	0x07ff00	/* bit mask of copied options */
+
 /*
  * Device filenames for reading log information.  Use ipf on Solaris2 because
  * ipl is already a name used by something else.
@@ -484,7 +490,6 @@ extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
 extern	int	send_reset __P((ip_t *, struct ifnet *));
 extern	int	icmp_error __P((ip_t *, struct ifnet *));
 extern	int	ipf_log __P((void));
-extern	int	ipfr_fastroute __P((ip_t *, fr_info_t *, frdest_t *));
 extern	struct	ifnet *get_unit __P((char *, int));
 # if defined(__NetBSD__) || defined(__OpenBSD__) || \
 	  (_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300000)
@@ -530,7 +535,7 @@ extern	int	iplread __P((dev_t, struct uio *, cred_t *));
 # else /* SOLARIS */
 extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
-extern	int	ipfr_fastroute __P((mb_t *, fr_info_t *, frdest_t *));
+extern	int	ipfr_fastroute __P((mb_t *, mb_t **, fr_info_t *, frdest_t *));
 extern	size_t	mbufchainlen __P((mb_t *));
 #  ifdef	__sgi
 #   include <sys/cred.h>

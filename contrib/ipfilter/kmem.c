@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 /*
  * kmemcpy() - copies n bytes from kernel memory into user buffer.
@@ -18,16 +16,24 @@
 #include <sys/file.h>
 #include "kmem.h"
 
+#ifndef __STDC__
+# define	const
+#endif
+
 #if !defined(lint)
 static const char sccsid[] = "@(#)kmem.c	1.4 1/12/96 (C) 1992 Darren Reed";
-static const char rcsid[] = "@(#)$Id: kmem.c,v 2.2 2000/03/13 22:10:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: kmem.c,v 2.2.2.3 2001/07/15 22:06:16 darrenr Exp $";
 #endif
 
 static	int	kmemfd = -1;
 
-int	openkmem()
+int	openkmem(core)
+char	*core;
 {
-	if ((kmemfd = open(KMEM,O_RDONLY)) == -1)
+	if (core == NULL)
+		core = KMEM;
+
+	if ((kmemfd = open(core, O_RDONLY)) == -1)
 	    {
 		perror("kmeminit:open");
 		return -1;
@@ -45,7 +51,7 @@ register int	n;
 	if (!n)
 		return 0;
 	if (kmemfd == -1)
-		if (openkmem() == -1)
+		if (openkmem(NULL) == -1)
 			return -1;
 	if (lseek(kmemfd, pos, 0) == -1)
 	    {
@@ -76,7 +82,7 @@ register int	n;
 	if (!n)
 		return 0;
 	if (kmemfd == -1)
-		if (openkmem() == -1)
+		if (openkmem(NULL) == -1)
 			return -1;
 	if (lseek(kmemfd, pos, 0) == -1)
 	    {
