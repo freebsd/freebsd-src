@@ -28,8 +28,9 @@ ORG1=	0x7c00
 ORG2=	0x1000
 
 CFLAGS=	-elf -I${.CURDIR}/../btx/lib -I. \
-	-Os -fno-builtin -fforce-addr -fschedule-insns \
+	-Os -fno-builtin -fforce-addr -fdata-sections \
 	-malign-functions=0 -malign-jumps=0 -malign-loops=0 -mrtd \
+	-mpreferred-stack-boundary=2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings
