@@ -38,6 +38,7 @@
 #include <sys/rman.h>
 #include <sys/interrupt.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <pci/pcivar.h>
 #include <alpha/isa/isavar.h>
