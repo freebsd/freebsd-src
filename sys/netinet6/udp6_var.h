@@ -65,7 +65,7 @@
  */
 
 #ifndef _NETINET6_UDP6_VAR_H_
-#define	_NETINET6_UDP6_VAR_H_
+#define _NETINET6_UDP6_VAR_H_
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet6_udp6);

@@ -1,0 +1,28 @@
+a note to committers about KAME tree
+$FreeBSD$
+KAME project
+
+
+FreeBSD IPv6/IPsec tree is from KAMEproject (http://www.kame.net/).
+To synchronize KAME tree and FreeBSD better today and in the future,
+please understand the following:
+
+- DO NOT MAKE COSTMETIC CHANGES.
+  "Cosmetic changes" here includes tabify, untabify, removal of space at EOL,
+  minor KNF items, and whatever adds more output lines on "diff freebsd kame".
+  To make future synchronization easier. it is critical to preserve certain
+  statements in the code.  Also, as KAME tree supports all 4 BSDs (Free, Open,
+  Net, BSD/OS) in single shared tree, it is not always possible to backport
+  FreeBSD changes into KAME tree.  So again, please do not make cosmetic
+  changes.  Even if you think it a right thing, that will bite KAME guys badly
+  during upgrade attempts, and prevent us from synchronizing two trees.
+  (you don't usually make cosmetic changes against third-party code, do you?)
+
+- REPORT CHANGES/BUGS TO KAME GUYS.
+  It is not always possible for KAME guys to watch all the freebsd mailing
+  list traffic, as the traffic is HUGE.  So if possible, please, inform
+  kame guys of changes you made in IPv6/IPsec related portion.  Contact
+  path would be snap-users@kame.net or KAME PR database on www.kame.net.
+  (or to core@kame.net if it is necessary to make it confidential)
+
+Thank you for your cooperation and have a happy IPv6 life!

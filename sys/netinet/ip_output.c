@@ -152,16 +152,6 @@ ip_output(m0, opt, ro, flags, imo)
 	divert_cookie = 0;
 #endif
 
-	/*
-	 * NOTE: If IP_SOCKINMRCVIF flag is set, 'socket *' is kept in
-	 * m->m_pkthdr.rcvif for later IPSEC check. In this case,
-	 * m->m_pkthdr will be NULL cleared after the contents is saved in
-	 * 'so'.
-	 * NULL clearance of rcvif should be natural because the packet should
-	 * have been sent from my own socket and has no rcvif in this case.
-	 * It is also necessary because someone might consider it as
-	 * 'ifnet *', and cause SEGV.
-	 */
 #if defined(IPFIREWALL) && defined(DUMMYNET)
         /*  
          * dummynet packet are prepended a vestigial mbuf with
@@ -184,10 +174,8 @@ ip_output(m0, opt, ro, flags, imo)
 
             m0 = m = m->m_next ;
 #ifdef IPSEC
-	    if ((flags & IP_SOCKINMRCVIF) != 0) {
-	        so = (struct socket *)m->m_pkthdr.rcvif;
-	        m->m_pkthdr.rcvif = NULL;
-	    }
+	    so = ipsec_getsocket(m);
+	    ipsec_setsocket(m, NULL);
 #endif
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
@@ -196,10 +184,8 @@ ip_output(m0, opt, ro, flags, imo)
             rule = NULL ;
 #endif
 #ifdef IPSEC
-	if ((flags & IP_SOCKINMRCVIF) != 0) {
-		so = (struct socket *)m->m_pkthdr.rcvif;
-		m->m_pkthdr.rcvif = NULL;
-	}
+	so = ipsec_getsocket(m);
+	ipsec_setsocket(m, NULL);
 #endif
 
 #ifdef	DIAGNOSTIC
@@ -1051,8 +1037,16 @@ ip_optcopy(ip, jp)
 			*dp++ = IPOPT_NOP;
 			optlen = 1;
 			continue;
-		} else
-			optlen = cp[IPOPT_OLEN];
+		}
+#ifdef DIAGNOSTIC
+		if (cnt < IPOPT_OLEN + sizeof(*cp))
+			panic("malformed IPv4 option passed to ip_optcopy");
+#endif
+		optlen = cp[IPOPT_OLEN];
+#ifdef DIAGNOSTIC
+		if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
+			panic("malformed IPv4 option passed to ip_optcopy");
+#endif
 		/* bogus lengths should have been caught by ip_dooptions */
 		if (optlen > cnt)
 			optlen = cnt;
@@ -1202,6 +1196,7 @@ ip_ctloutput(so, sopt)
 		case IP_IPSEC_POLICY:
 		{
 			caddr_t req;
+			size_t len = 0;
 			int priv;
 			struct mbuf *m;
 			int optname;
@@ -1213,8 +1208,9 @@ ip_ctloutput(so, sopt)
 			priv = (sopt->sopt_p != NULL &&
 				suser(sopt->sopt_p) != 0) ? 0 : 1;
 			req = mtod(m, caddr_t);
+			len = m->m_len;
 			optname = sopt->sopt_name;
-			error = ipsec4_set_policy(inp, optname, req, priv);
+			error = ipsec4_set_policy(inp, optname, req, len, priv);
 			m_freem(m);
 			break;
 		}
@@ -1309,10 +1305,13 @@ ip_ctloutput(so, sopt)
 		{
 			struct mbuf *m = NULL;
 			caddr_t req = NULL;
+			size_t len = 0;
 
-			if (m != 0)
+			if (m != 0) {
 				req = mtod(m, caddr_t);
-			error = ipsec4_get_policy(sotoinpcb(so), req, &m);
+				len = m->m_len;
+			}
+			error = ipsec4_get_policy(sotoinpcb(so), req, len, &m);
 			if (error == 0)
 				error = soopt_mcopyout(sopt, m); /* XXX */
 			if (error == 0)

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: des_ecb.c,v 1.3 2000/03/27 04:36:33 sumikawa Exp $	*/
+
 /* crypto/des/ecb_enc.c */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -43,8 +46,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #include <crypto/des/des_locl.h>
@@ -67,7 +68,7 @@ char *des_options()
 		return("des(idx,long)");
 #endif
 	}
-
+		
 
 void des_ecb_encrypt(input, output, ks, encrypt)
 des_cblock (*input);

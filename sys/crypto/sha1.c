@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: sha1.c,v 1.4 2000/03/27 04:36:23 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  * FIPS pub 180-1: Secure Hash Algorithm (SHA-1)
@@ -218,16 +219,18 @@ sha1_pad(ctxt)
 }
 
 void
-sha1_loop(ctxt, input, len)
+sha1_loop(ctxt, input0, len)
 	struct sha1_ctxt *ctxt;
-	const u_char *input;
+	const caddr_t input0;
 	size_t len;
 {
+	const u_int8_t *input;
 	size_t gaplen;
 	size_t gapstart;
 	size_t off;
 	size_t copysiz;
 
+	input = (const u_int8_t *)input0;
 	off = 0;
 
 	while (off < len) {

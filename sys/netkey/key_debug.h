@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: key_debug.h,v 1.7 2000/07/04 04:08:16 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,39 +28,35 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/* $Id: key_debug.h,v 1.1.6.2.6.1 1999/05/17 17:03:16 itojun Exp $ */
-
 #ifndef _NETKEY_KEY_DEBUG_H_
-#define	_NETKEY_KEY_DEBUG_H_
+#define _NETKEY_KEY_DEBUG_H_
 
 /* debug flags */
-#define	KEYDEBUG_STAMP		0x00000001 /* path */
-#define	KEYDEBUG_DATA		0x00000002 /* data */
-#define	KEYDEBUG_DUMP		0x00000004 /* dump */
+#define KEYDEBUG_STAMP		0x00000001 /* path */
+#define KEYDEBUG_DATA		0x00000002 /* data */
+#define KEYDEBUG_DUMP		0x00000004 /* dump */
 
-#define	KEYDEBUG_KEY		0x00000010 /* key processing */
-#define	KEYDEBUG_ALG		0x00000020 /* ciph & auth algorithm */
-#define	KEYDEBUG_IPSEC		0x00000040 /* ipsec processing */
+#define KEYDEBUG_KEY		0x00000010 /* key processing */
+#define KEYDEBUG_ALG		0x00000020 /* ciph & auth algorithm */
+#define KEYDEBUG_IPSEC		0x00000040 /* ipsec processing */
 
-#define	KEYDEBUG_KEY_STAMP	(KEYDEBUG_KEY | KEYDEBUG_STAMP)
-#define	KEYDEBUG_KEY_DATA	(KEYDEBUG_KEY | KEYDEBUG_DATA)
-#define	KEYDEBUG_KEY_DUMP	(KEYDEBUG_KEY | KEYDEBUG_DUMP)
-#define	KEYDEBUG_ALG_STAMP	(KEYDEBUG_ALG | KEYDEBUG_STAMP)
-#define	KEYDEBUG_ALG_DATA	(KEYDEBUG_ALG | KEYDEBUG_DATA)
-#define	KEYDEBUG_ALG_DUMP	(KEYDEBUG_ALG | KEYDEBUG_DUMP)
-#define	KEYDEBUG_IPSEC_STAMP	(KEYDEBUG_IPSEC | KEYDEBUG_STAMP)
-#define	KEYDEBUG_IPSEC_DATA	(KEYDEBUG_IPSEC | KEYDEBUG_DATA)
-#define	KEYDEBUG_IPSEC_DUMP	(KEYDEBUG_IPSEC | KEYDEBUG_DUMP)
+#define KEYDEBUG_KEY_STAMP	(KEYDEBUG_KEY | KEYDEBUG_STAMP)
+#define KEYDEBUG_KEY_DATA	(KEYDEBUG_KEY | KEYDEBUG_DATA)
+#define KEYDEBUG_KEY_DUMP	(KEYDEBUG_KEY | KEYDEBUG_DUMP)
+#define KEYDEBUG_ALG_STAMP	(KEYDEBUG_ALG | KEYDEBUG_STAMP)
+#define KEYDEBUG_ALG_DATA	(KEYDEBUG_ALG | KEYDEBUG_DATA)
+#define KEYDEBUG_ALG_DUMP	(KEYDEBUG_ALG | KEYDEBUG_DUMP)
+#define KEYDEBUG_IPSEC_STAMP	(KEYDEBUG_IPSEC | KEYDEBUG_STAMP)
+#define KEYDEBUG_IPSEC_DATA	(KEYDEBUG_IPSEC | KEYDEBUG_DATA)
+#define KEYDEBUG_IPSEC_DUMP	(KEYDEBUG_IPSEC | KEYDEBUG_DUMP)
 
-#define	KEYDEBUG(lev,arg) if ((key_debug_level & (lev)) == (lev)) { arg; }
+#define KEYDEBUG(lev,arg) if ((key_debug_level & (lev)) == (lev)) { arg; }
 
 #ifdef _KERNEL
 extern u_int32_t key_debug_level;
-#endif
+#endif /*_KERNEL*/
 
 struct sadb_msg;
 struct sadb_ext;
@@ -77,7 +76,7 @@ extern void kdebug_secasindex __P((struct secasindex *));
 extern void kdebug_secasv __P((struct secasvar *));
 extern void kdebug_mbufhdr __P((struct mbuf *));
 extern void kdebug_mbuf __P((struct mbuf *));
-#endif
+#endif /*_KERNEL*/
 
 struct sockaddr;
 extern void kdebug_sockaddr __P((struct sockaddr *));

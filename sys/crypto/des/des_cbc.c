@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: des_cbc.c,v 1.4 2000/06/14 10:41:17 itojun Exp $	*/
+
 /*
  * heavily modified by Yoshifumi Nishida <nishida@sfc.wide.ad.jp>.
  * then, completely rewrote by Jun-ichiro itojun Itoh <itojun@itojun.org>,
@@ -48,15 +51,13 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #include <crypto/des/des_locl.h>
 
-#define	panic(x) {printf(x); return;}
+#define panic(x) do {printf(x); return EINVAL;} while (0)
 
-void des_cbc_encrypt(m0, skip, length, schedule, ivec, mode)
+int des_cbc_encrypt(m0, skip, length, schedule, ivec, mode)
 	struct mbuf *m0;
 	size_t skip;
 	size_t length;
@@ -75,19 +76,19 @@ void des_cbc_encrypt(m0, skip, length, schedule, ivec, mode)
 	/* sanity checks */
 	if (m0->m_pkthdr.len < skip) {
 		printf("mbuf length < skip\n");
-		return;
+		return EINVAL;
 	}
 	if (m0->m_pkthdr.len < length) {
 		printf("mbuf length < encrypt length\n");
-		return;
+		return EINVAL;
 	}
 	if (m0->m_pkthdr.len < skip + length) {
 		printf("mbuf length < skip + encrypt length\n");
-		return;
+		return EINVAL;
 	}
 	if (length % 8) {
 		printf("length is not multiple of 8\n");
-		return;
+		return EINVAL;
 	}
 
 	m = m0;
@@ -142,7 +143,7 @@ void des_cbc_encrypt(m0, skip, length, schedule, ivec, mode)
 				while (in - &inbuf[0] < 8) {
 					if (!p)
 						panic("mbuf chain?\n");
-
+					
 					*in++ = *p++;
 					noff++;
 					if (noff < n->m_len)
@@ -325,4 +326,6 @@ void des_cbc_encrypt(m0, skip, length, schedule, ivec, mode)
 			length -= 8;
 		}
 	}
+
+	return 0;
 }

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: blowfish.h,v 1.4 2000/06/14 10:41:16 itojun Exp $	*/
+
 /* crypto/bf/blowfish.h */
 /* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -54,28 +57,26 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #ifndef HEADER_BLOWFISH_H
-#define	HEADER_BLOWFISH_H
+#define HEADER_BLOWFISH_H
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#define	BF_ENCRYPT	1
-#define	BF_DECRYPT	0
+#define BF_ENCRYPT	1
+#define BF_DECRYPT	0
 
 /* If you make this 'unsigned int' the pointer variants will work on
  * the Alpha, otherwise they will not.  Strangly using the '8 byte'
  * BF_LONG and the default 'non-pointer' inner loop is the best configuration
  * for the Alpha */
-#define	BF_LONG unsigned long
+#define BF_LONG unsigned long
 
-#define	BF_ROUNDS	16
-#define	BF_BLOCK	8
+#define BF_ROUNDS	16
+#define BF_BLOCK	8
 
 typedef struct bf_key_st
 	{
@@ -99,8 +100,7 @@ char *BF_options(void);
 
 /* added by itojun */
 struct mbuf;
-void BF_cbc_encrypt_m(struct mbuf *, int, int, BF_KEY *,
-		unsigned char *, int);
+int BF_cbc_encrypt_m(struct mbuf *, int, int, BF_KEY *, unsigned char *, int);
 
 #else
 

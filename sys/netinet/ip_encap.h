@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ip_encap.h,v 1.7 2000/03/25 07:23:37 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,13 +28,37 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _NETINET6_HMAC_MD5_H_
-#define	_NETINET6_HMAC_MD5_H_
+#ifndef _NETINET_IP_ENCAP_H_
+#define _NETINET_IP_ENCAP_H_
 
-extern void hmac_md5 __P((caddr_t, size_t, caddr_t, size_t, caddr_t));
+#ifdef _KERNEL
 
-#endif /* ! _NETINET6_HMAC_MD5_H_*/
+struct encaptab {
+	LIST_ENTRY(encaptab) chain;
+	int af;
+	int proto;			/* -1: don't care, I'll check myself */
+	struct sockaddr_storage src;	/* my addr */
+	struct sockaddr_storage srcmask;
+	struct sockaddr_storage dst;	/* remote addr */
+	struct sockaddr_storage dstmask;
+	int (*func) __P((const struct mbuf *, int, int, void *));
+	const struct protosw *psw;	/* only pr_input will be used */
+	void *arg;			/* passed via m->m_pkthdr.aux */
+};
+
+void	encap_init __P((void));
+void	encap4_input __P((struct mbuf *, ...));
+int	encap6_input __P((struct mbuf **, int *, int));
+const struct encaptab *encap_attach __P((int, int, const struct sockaddr *,
+	const struct sockaddr *, const struct sockaddr *,
+	const struct sockaddr *, const struct protosw *, void *));
+const struct encaptab *encap_attach_func __P((int, int,
+	int (*) __P((const struct mbuf *, int, int, void *)),
+	const struct protosw *, void *));
+int	encap_detach __P((const struct encaptab *));
+void	*encap_getarg __P((struct mbuf *));
+#endif
+
+#endif /*_NETINET_IP_ENCAP_H_*/

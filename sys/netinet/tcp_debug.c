@@ -59,7 +59,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #ifdef INET6
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #endif
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
