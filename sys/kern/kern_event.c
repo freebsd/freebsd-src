@@ -334,7 +334,7 @@ filt_timerattach(struct knote *kn)
 	    M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, 0);
 	callout_reset(calloutp, tticks, filt_timerexpire, kn);
-	kn->kn_hook = (caddr_t)calloutp;
+	kn->kn_hook = calloutp;
 
 	return (0);
 }
@@ -380,7 +380,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	fp->f_type = DTYPE_KQUEUE;
 	fp->f_ops = &kqueueops;
 	TAILQ_INIT(&kq->kq_head);
-	fp->f_data = (caddr_t)kq;
+	fp->f_data = kq;
 	FILE_UNLOCK(fp);
 	FILEDESC_LOCK(fdp);
 	td->td_retval[0] = fd;
@@ -446,8 +446,8 @@ kevent(struct thread *td, struct kevent_args *uap)
 				if (uap->nevents != 0) {
 					kevp->flags = EV_ERROR;
 					kevp->data = error;
-					(void) copyout((caddr_t)kevp,
-					    (caddr_t)uap->eventlist,
+					(void) copyout(kevp,
+					    uap->eventlist,
 					    sizeof(*kevp));
 					uap->eventlist++;
 					uap->nevents--;
@@ -751,7 +751,7 @@ start:
 		count--;
 		if (nkev == KQ_NEVENTS) {
 			splx(s);
-			error = copyout((caddr_t)&kq->kq_kev, (caddr_t)ulistp,
+			error = copyout(&kq->kq_kev, ulistp,
 			    sizeof(struct kevent) * nkev);
 			ulistp += nkev;
 			nkev = 0;
@@ -765,7 +765,7 @@ start:
 	splx(s);
 done:
 	if (nkev != 0)
-		error = copyout((caddr_t)&kq->kq_kev, (caddr_t)ulistp,
+		error = copyout(&kq->kq_kev, ulistp,
 		    sizeof(struct kevent) * nkev);
         td->td_retval[0] = maxevents - count;
 	return (error);
@@ -980,7 +980,7 @@ retry:
 			FILEDESC_LOCK(fdp);
 			goto retry;
 		}
-		bcopy((caddr_t)fdp->fd_knlist, (caddr_t)list,
+		bcopy(fdp->fd_knlist, list,
 		    fdp->fd_knlistsize * sizeof(struct klist *));
 		bzero((caddr_t)list +
 		    fdp->fd_knlistsize * sizeof(struct klist *),
