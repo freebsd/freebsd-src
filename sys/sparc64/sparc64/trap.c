@@ -385,9 +385,6 @@ trapsig:
 user:
 	userret(td, tf, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 out:
 	CTR1(KTR_TRAP, "trap: td=%p return", td);
 	return;
@@ -659,9 +656,6 @@ syscall(struct trapframe *tf)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",

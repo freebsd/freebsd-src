@@ -205,8 +205,5 @@ ast(framep)
 	}
 
 	userret(td, framep, sticks);
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
