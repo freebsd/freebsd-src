@@ -570,8 +570,35 @@ vfs_cache_lookup(ap)
 
 	error = cache_lookup(dvp, vpp, cnp);
 
+#ifdef LOOKUP_SHARED
+	if (!error) {
+		/* We do this because the rest of the system now expects to get
+		 * a shared lock, which is later upgraded if LOCKSHARED is not
+		 * set.  We have so many cases here because of bugs that yield
+		 * inconsistant lock states.  This all badly needs to be fixed
+		 */
+		error = VOP_CACHEDLOOKUP(dvp, vpp, cnp);
+		if (!error) {
+			int flock;
+
+			flock = VOP_ISLOCKED(*vpp, td);
+			if (flock != LK_EXCLUSIVE) {
+				if (flock == 0) {
+					if ((flags & ISLASTCN) &&
+					    (flags & LOCKSHARED))
+						VOP_LOCK(*vpp, LK_SHARED, td);
+					else
+						VOP_LOCK(*vpp, LK_EXCLUSIVE, td);
+				}
+			} else if ((flags & ISLASTCN) && (flags & LOCKSHARED))
+				VOP_LOCK(*vpp, LK_DOWNGRADE, td);
+		}
+		return (error);
+	}
+#else
 	if (!error) 
 		return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
+#endif
 
 	if (error == ENOENT)
 		return (error);
@@ -585,13 +612,28 @@ vfs_cache_lookup(ap)
 	} else if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
 		cnp->cn_flags |= PDIRUNLOCK;
+#ifdef LOOKUP_SHARED
+		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
+			error = vget(vp, LK_SHARED, td);
+		else
+			error = vget(vp, LK_EXCLUSIVE, td);
+#else
 		error = vget(vp, LK_EXCLUSIVE, td);
+#endif
+
 		if (!error && lockparent && (flags & ISLASTCN)) {
 			if ((error = vn_lock(dvp, LK_EXCLUSIVE, td)) == 0)
 				cnp->cn_flags &= ~PDIRUNLOCK;
 		}
 	} else {
+#ifdef LOOKUP_SHARED
+		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
+			error = vget(vp, LK_SHARED, td);
+		else
+			error = vget(vp, LK_EXCLUSIVE, td);
+#else
 		error = vget(vp, LK_EXCLUSIVE, td);
+#endif
 		if (!lockparent || error || !(flags & ISLASTCN)) {
 			VOP_UNLOCK(dvp, 0, td);
 			cnp->cn_flags |= PDIRUNLOCK;
@@ -616,7 +658,28 @@ vfs_cache_lookup(ap)
 			return (error);
 		cnp->cn_flags &= ~PDIRUNLOCK;
 	}
+#ifdef LOOKUP_SHARED
+	error = VOP_CACHEDLOOKUP(dvp, vpp, cnp);
+
+	if (!error) {
+		int flock = 0;
+
+		flock = VOP_ISLOCKED(*vpp, td);
+		if (flock != LK_EXCLUSIVE) {
+			if (flock == 0) {
+				if ((flags & ISLASTCN) && (flags & LOCKSHARED))
+					VOP_LOCK(*vpp, LK_SHARED, td);
+				else
+					VOP_LOCK(*vpp, LK_EXCLUSIVE, td);
+			}
+		} else if ((flags & ISLASTCN) && (flags & LOCKSHARED))
+			VOP_LOCK(*vpp, LK_DOWNGRADE, td);
+	}
+
+	return (error);
+#else
 	return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
+#endif
 }
 
 
