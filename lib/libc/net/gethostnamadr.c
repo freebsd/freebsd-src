@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id$";
-static char rcsid[] = "$Id$";
+static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.5 1994/09/25 02:12:18 pst Exp $";
+static char rcsid[] = "$Id: gethostnamadr.c,v 1.5 1994/09/25 02:12:18 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -88,7 +88,7 @@ get_service_name(const char *name) {
 static void
 init_services()
 {
-	char *cp, buf[BUFSIZ];
+	char *cp, *p, buf[BUFSIZ];
 	register int cc = 0;
 	FILE *fd;
 
@@ -102,14 +102,20 @@ init_services()
 			if(buf[0] == '#')
 				continue;
 
-			cp = strtok(buf, "\n \t,:;");
+			p = buf;
+			while ((cp = strsep(&p, "\n \t,:;")) != NULL && *cp == '\0')
+				;
+			if (cp == NULL)
+				continue;
 			do {
-				if(!isalpha(cp[0])) continue;
-				service_order[cc] = get_service_name(buf);
-				if(service_order[cc] != SERVICE_NONE)
-					cc++;
-			} while((cp = strtok((char *)0, "\n \t,:;"))
-				&& (cc < SERVICE_MAX));
+				if (isalpha(cp[0])) {
+					service_order[cc] = get_service_name(cp);
+					if(service_order[cc] != SERVICE_NONE)
+						cc++;
+				}
+				while ((cp = strsep(&p, "\n \t,:;")) != NULL && *cp == '\0')
+					;
+			} while(cp != NULL && cc < SERVICE_MAX);
 		}
 		service_order[cc] = SERVICE_NONE;
 		fclose(fd);
