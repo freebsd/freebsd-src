@@ -4,6 +4,6 @@ PROG=	md5
 SRCS=   md5.c
 
 LDADD+=	-lmd
-DPADD+= /usr/lib/libmd.a
+DPADD+= ${LIBMD}
 
 .include <bsd.prog.mk>
