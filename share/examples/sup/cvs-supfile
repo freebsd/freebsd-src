@@ -1,8 +1,8 @@
-# $Id: cvs-supfile,v 1.1 1995/12/10 07:35:44 gibbs Exp $
+# $Id: cvs-supfile,v 1.2 1995/12/10 08:04:21 asami Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # cvs development tree.  SUP (Software Update Protocol) allows you to
-# download the latest cvs tree to your system easily.  SUP, availible as
+# download the latest cvs tree to your system easily.  SUP, available as
 # a FreeBSD package or in the ports collection, should be invoked as:
 #
 #	sup -v cvs-supfile
@@ -12,7 +12,7 @@
 #
 # base=/usr	
 #		base specifies the root where SUP will store information
-#		about the collections you have transfered to your system.
+#		about the collections you have transferred to your system.
 #		A setting of "/usr" will generate this information in
 #		/usr/sup.  Even if you are SUPing a large number of
 #		collections, you will be hard pressed to generate more than
@@ -30,7 +30,7 @@
 src-base release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 src-bin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 
-# Doemenstic users only please.  If you are outside of the U.S.A and Canada,
+# Domestic users only please.  If you are outside of the U.S.A and Canada,
 # use the collections in secure-supfile.
 #src-eBones release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 src-etc release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
@@ -41,7 +41,7 @@ src-lib release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cv
 src-libexec release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 src-sbin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 
-# Doemenstic users only please.  If you are outside of the U.S.A and Canada,
+# Domestic users only please.  If you are outside of the U.S.A and Canada,
 # use the collections in secure-supfile.
 #src-secure release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 src-share release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
