@@ -833,7 +833,7 @@ close_tty()
     restore_tty(ttyfd);
 
     if (tty_mode != (mode_t) -1)
-	chmod(devnam, tty_mode);
+	fchmod(ttyfd, tty_mode);
 
     close(ttyfd);
     ttyfd = -1;
