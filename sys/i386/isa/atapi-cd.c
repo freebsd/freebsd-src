@@ -251,14 +251,14 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
         devstat_add_entry(cdp->device_stats, string, tmpcdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
                           DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
-			  DEVSTAT_PRIORITY_WCD);
+			  DEVSTAT_PRIORITY_CD);
     }
     else {
         acdnlun++;
         devstat_add_entry(cdp->device_stats, "wcd", cdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
                           DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
-			  DEVSTAT_PRIORITY_WCD);
+			  DEVSTAT_PRIORITY_CD);
     }
     return 1;
 }

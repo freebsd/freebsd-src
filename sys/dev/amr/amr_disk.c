@@ -288,8 +288,8 @@ amrd_attach(device_t dev)
 
     devstat_add_entry(&sc->amrd_stats, "amrd", sc->amrd_unit, AMR_BLKSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER, 
-		      DEVSTAT_PRIORITY_DA);
+		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
+		      DEVSTAT_PRIORITY_ARRAY);
 
     disk_create(sc->amrd_unit, &sc->amrd_disk, 0, &amrd_cdevsw, &amrddisk_cdevsw);
     disks_registered++;

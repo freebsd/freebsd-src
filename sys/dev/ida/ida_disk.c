@@ -312,7 +312,8 @@ idattach(device_t dev)
 
 	devstat_add_entry(&drv->stats, "id", drv->unit, drv->secsize,
 	    DEVSTAT_NO_ORDERED_TAGS,
-	    DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER, DEVSTAT_PRIORITY_DA);
+	    DEVSTAT_TYPE_STORARRAY| DEVSTAT_TYPE_IF_OTHER,
+	    DEVSTAT_PRIORITY_ARRAY);
 
 	return (0);
 }

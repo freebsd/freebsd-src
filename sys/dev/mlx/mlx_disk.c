@@ -273,8 +273,8 @@ mlxd_attach(device_t dev)
 
     devstat_add_entry(&sc->mlxd_stats, "mlxd", sc->mlxd_unit, MLX_BLKSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER, 
-		      DEVSTAT_PRIORITY_DA);
+		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
+		      DEVSTAT_PRIORITY_ARRAY);
 
     dsk = disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, &mlxd_cdevsw, &mlxddisk_cdevsw);
     disks_registered++;

@@ -961,7 +961,7 @@ daregister(struct cam_periph *periph, void *arg)
 			  periph->unit_number, 0,
 	  		  DEVSTAT_BS_UNAVAILABLE,
 			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
-			  DEVSTAT_PRIORITY_DA);
+			  DEVSTAT_PRIORITY_DISK);
 
 	/*
 	 * Register this media as a disk

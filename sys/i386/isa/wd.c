@@ -522,7 +522,7 @@ wdattach(struct isa_device *dvp)
 					  DEVSTAT_NO_ORDERED_TAGS,
 					  DEVSTAT_TYPE_DIRECT |
 					  DEVSTAT_TYPE_IF_IDE,
-					  DEVSTAT_PRIORITY_WD);
+					  DEVSTAT_PRIORITY_DISK);
 
 		} else {
 			free(du, M_TEMP);
