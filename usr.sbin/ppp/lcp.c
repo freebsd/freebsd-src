@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.23 1997/06/09 03:27:24 brian Exp $
+ * $Id: lcp.c,v 1.10.2.9 1997/06/10 09:43:40 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -40,8 +40,6 @@
 
 extern void IpcpUp();
 extern void IpcpOpen();
-extern void StartPapChallenge();
-extern void StartChapChallenge();
 extern void SetLinkParams(struct lcpstate *);
 extern void Prompt();
 extern void StopIdleTimer();
