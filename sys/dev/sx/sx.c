@@ -91,21 +91,13 @@ static	d_ioctl_t	sxioctl;
 
 #define	CDEV_MAJOR	185
 static struct cdevsw sx_cdevsw = {
-	/* open */	sxopen,
-	/* close */	sxclose,
-	/* read */	ttyread,
-	/* write */	sxwrite,
-	/* ioctl */	sxioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"sx",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* bmaj */	-1,
-	/* kqfilter */	ttykqfilter,
+	.d_version =	D_VERSION,
+	.d_open =	sxopen,
+	.d_close = 	sxclose,
+	.d_write = 	sxwrite,
+	.d_ioctl = 	sxioctl,
+	.d_name = 	"sx",
+	.d_flags = 	D_TTY | D_NEEDGIANT,
 };
 
 static int sx_debug = 0; /* DBG_ALL|DBG_PRINTF|DBG_MODEM|DBG_IOCTL|DBG_PARAM;e */
@@ -344,7 +336,7 @@ sxopen(
 	dev_t dev,
 	int flag,
 	int mode,
-	struct proc *p)
+	d_thread_t *p)
 {
 	int oldspl, error;
 	int card, chan;
@@ -513,7 +505,7 @@ sxclose(
 	dev_t dev,
 	int flag,
 	int mode,
-	struct proc *p)
+	d_thread_t *p)
 {
 	struct sx_port *pp;
 	struct tty *tp;
@@ -705,7 +697,7 @@ sxioctl(
 	u_long cmd,
 	caddr_t data,
 	int flag,
-	struct proc *p)
+	d_thread_t *p)
 {
 	struct sx_softc *sc;
 	struct sx_port *pp;
@@ -1513,12 +1505,6 @@ sx_receive(
 			i = sx_rxbuf[x];
 			if ((*linesw[tp->t_line].l_rint)(i, tp) == -1)
 				pp->sp_delta_overflows++;
-			/*
-			 * doesn't seem to be much point doing this here.
-			 * this driver has no softtty processing! ??
-			 */
-			if (pp->sp_hotchar && i == pp->sp_hotchar)
-				setsofttty();
 		}
 	}
 	pp->sp_state &= ~SX_SS_IRCV;
