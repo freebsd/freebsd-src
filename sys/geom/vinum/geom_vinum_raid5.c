@@ -297,8 +297,7 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 	stripestart = (boff - stripeoff) / (p->sdcount - 1);
 	KASSERT(stripestart >= 0, ("gv_build_raid5_request: stripestart < 0"));
 
-	if (stripeoff >= p->stripesize)
-		stripeoff -= p->stripesize;
+	stripeoff %= p->stripesize;
 
 	/* The offset of the request on this subdisk. */
 	real_off = stripestart + stripeoff;
