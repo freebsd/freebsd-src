@@ -788,12 +788,7 @@ no_kernend:
 
 /* Map read-only from zero to the beginning of the kernel text section */
 	xorl	%eax, %eax
-#ifdef BURN_BRIDGES
 	xorl	%edx,%edx
-#else
-/* XXX emulate bugs in the old PSE code so that apm works */
-	movl	$PG_RW,%edx
-#endif
 	movl	$R(btext),%ecx
 	addl	$PAGE_MASK,%ecx
 	shrl	$PAGE_SHIFT,%ecx
