@@ -68,7 +68,7 @@ as non-blocking,
 .Fn accept
 blocks the caller until a connection is present.
 If the socket is marked non-blocking and no pending
-connections are present on the queue, 
+connections are present on the queue,
 .Fn accept
 returns an error as described below.
 The accepted socket
@@ -86,7 +86,7 @@ The exact format of the
 .Fa addr
 parameter is determined by the domain in which the communication
 is occurring.
-The 
+The
 .Fa addrlen
 is a value-result parameter; it should initially contain the
 amount of space pointed to by
@@ -95,7 +95,7 @@ on return it will contain the actual length (in bytes) of the
 address returned.
 This call
 is used with connection-based socket types, currently with
-.Dv SOCK_STREAM . 
+.Dv SOCK_STREAM .
 .Pp
 It is possible to
 .Xr select 2
@@ -117,7 +117,7 @@ file descriptor, and rejection can be implied by closing the
 new socket.
 .Pp
 One can obtain user connection request data without confirming
-the connection by issuing a 
+the connection by issuing a
 .Xr recvmsg 2
 call with an
 .Fa msg_iovlen
@@ -179,7 +179,7 @@ The system file table is full.
 .It Bq Er ENOTSOCK
 The descriptor references a file, not a socket.
 .It Bq Er EINVAL
-.Xr listen 2 
+.Xr listen 2
 has not been called on the socket descriptor.
 .It Bq Er EFAULT
 The
@@ -200,5 +200,5 @@ are present to be accepted.
 .Sh HISTORY
 The
 .Fn accept
-function appeared in 
+function appeared in
 .Bx 4.2 .
