@@ -48,14 +48,14 @@
 .Sh DESCRIPTION
 The
 .Fn strxfrm
-function transform null-terminating string pointed by
+function transforms a null-terminated string pointed to by
 .Fa src
 according to the current locale collation if any,
-then copied not more than
+then copies not more than
 .Fa n-1
-characters of the result string into
+characters of the resulting string into
 .Fa dst ,
-ending it whith null character and return result length.
+terminating it with a null character and then returns the resulting length.
 Comparing two strings using
 .Fn strcmp
 after
@@ -64,7 +64,7 @@ is equal to comparing
 two original strings with
 .Fn strcoll .
 .Sh BUGS
-Sometimes biheviour of this function is unpredicatable.
+Sometimes the behavior of this function is unpredictable.
 .Sh SEE ALSO
 .Xr setlocale 3 ,
 .Xr strcmp 3 ,
