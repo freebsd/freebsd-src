@@ -118,7 +118,7 @@ struct vinum_ioctl_msg {
 };
 
 #define VINUM_RELEASECONFIG	_IOC(0, L, 77, 0)	    /* release locks and write config to disk */
-#define VINUM_STARTCONFIG	_IOC(0, L, 78, 0)	    /* start a configuration operation */
+#define VINUM_STARTCONFIG	_IOW(L, 78, int)	    /* start a configuration operation */
 #define VINUM_MEMINFO 		_IOR(L, 79, struct meminfo) /* get memory usage summary */
 #define VINUM_MALLOCINFO	_IOWR(L, 80, struct mc)	    /* get specific malloc information [i] */
 #define VINUM_LABEL 		_IOC(IOC_IN | IOC_OUT, L, 81, MAX_IOCTL_REPLY) /* label a volume */
