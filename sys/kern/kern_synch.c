@@ -464,7 +464,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	p->p_wmesg = wmesg;
 	p->p_slptime = 0;
 	p->p_priority = priority & PRIMASK;
-	p->p_nativepri = p->p_priority;
 	CTR4(KTR_PROC, "msleep: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);

@@ -102,7 +102,7 @@ static int	mtx_max_cnt;
 
 void	_mtx_enter_giant_def(void);
 void	_mtx_exit_giant_def(void);
-static void propagate_priority(struct proc *) __unused;
+static void propagate_priority(struct proc *);
 
 #define	mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
 #define	mtx_owner(m)	(mtx_unowned(m) ? NULL \
@@ -135,6 +135,7 @@ propagate_priority(struct proc *p)
 	int pri = p->p_priority;
 	struct mtx *m = p->p_blocked;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	for (;;) {
 		struct proc *p1;
 
@@ -150,37 +151,57 @@ propagate_priority(struct proc *p)
 			return;
 		}
 		MPASS(p->p_magic == P_MAGIC);
+		KASSERT(p->p_stat != SSLEEP, ("sleeping process owns a mutex"));
 		if (p->p_priority <= pri)
 			return;
+
+		/*
+		 * Bump this process' priority.
+		 */
+		SET_PRIO(p, pri);
+
 		/*
 		 * If lock holder is actually running, just bump priority.
 		 */
-		if (TAILQ_NEXT(p, p_procq) == NULL) {
+#ifdef SMP
+		/*
+		 * For SMP, we can check the p_oncpu field to see if we are
+		 * running.
+		 */
+		if (p->p_oncpu != 0xff) {
 			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB);
-			SET_PRIO(p, pri);
 			return;
 		}
+#else
+		/*
+		 * For UP, we check to see if p is curproc (this shouldn't
+		 * ever happen however as it would mean we are in a deadlock.)
+		 */
+		if (p == curproc) {
+			panic("Deadlock detected");
+			return;
+		}
+#endif
 		/*
 		 * If on run queue move to new run queue, and
 		 * quit.
 		 */
 		if (p->p_stat == SRUN) {
+			printf("XXX: moving process %d(%s) to a new run queue\n",
+			       p->p_pid, p->p_comm);
 			MPASS(p->p_blocked == NULL);
 			remrunqueue(p);
-			SET_PRIO(p, pri);
 			setrunqueue(p);
 			return;
 		}
 
 		/*
-		 * If we aren't blocked on a mutex, give up and quit.
+		 * If we aren't blocked on a mutex, we should be.
 		 */
-		if (p->p_stat != SMTX) {
-			printf(
-	"XXX: process %d(%s):%d holds %s but isn't blocked on a mutex\n",
-			    p->p_pid, p->p_comm, p->p_stat, m->mtx_description);
-			return;
-		}
+		KASSERT(p->p_stat == SMTX, (
+		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
+		    p->p_pid, p->p_comm, p->p_stat,
+		    m->mtx_description));
 
 		/*
 		 * Pick up the mutex that p is blocked on.
@@ -194,19 +215,24 @@ propagate_priority(struct proc *p)
 		 * Check if the proc needs to be moved up on
 		 * the blocked chain
 		 */
-		if ((p1 = TAILQ_PREV(p, rq, p_procq)) == NULL ||
-		    p1->p_priority <= pri) {
-			if (p1)
-				printf(
+		if (p == TAILQ_FIRST(&m->mtx_blocked)) {
+			printf("XXX: process at head of run queue\n");
+			continue;
+		}
+		p1 = TAILQ_PREV(p, rq, p_procq);
+		if (p1->p_priority <= pri) {
+			printf(
 	"XXX: previous process %d(%s) has higher priority\n",
-				    p->p_pid, p->p_comm);
-			else
-				printf("XXX: process at head of run queue\n");
+	                    p->p_pid, p->p_comm);
 			continue;
 		}
 
 		/*
-		 * Remove proc from blocked chain
+		 * Remove proc from blocked chain and determine where
+		 * it should be moved up to.  Since we know that p1 has
+		 * a lower priority than p, we know that at least one
+		 * process in the chain has a lower priority and that
+		 * p1 will thus not be NULL after the loop.
 		 */
 		TAILQ_REMOVE(&m->mtx_blocked, p, p_procq);
 		TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq) {
@@ -214,12 +240,10 @@ propagate_priority(struct proc *p)
 			if (p1->p_priority > pri)
 				break;
 		}
-		if (p1)
-			TAILQ_INSERT_BEFORE(p1, p, p_procq);
-		else
-			TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
+		MPASS(p1 != NULL);
+		TAILQ_INSERT_BEFORE(p1, p, p_procq);
 		CTR4(KTR_LOCK,
-		    "propagate priority: p 0x%p moved before 0x%p on [0x%p] %s",
+		    "propagate_priority: p 0x%p moved before 0x%p on [0x%p] %s",
 		    p, p1, m, m->mtx_description);
 	}
 }
@@ -241,6 +265,18 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 		}
 		CTR3(KTR_LOCK, "mtx_enter: 0x%p contested (lock=%p) [0x%p]",
 		    m, (void *)m->mtx_lock, (void *)RETIP(m));
+
+		/*
+		 * Save our priority.  Even though p_nativepri is protected
+		 * by sched_lock, we don't obtain it here as it can be
+		 * expensive.  Since this is the only place p_nativepri is
+		 * set, and since two CPUs will not be executing the same
+		 * process concurrently, we know that no other CPU is going
+		 * to be messing with this.  Also, p_nativepri is only read
+		 * when we are blocked on a mutex, so that can't be happening
+		 * right now either.
+		 */
+		p->p_nativepri = p->p_priority;
 		while (!_obtain_lock(m, p)) {
 			uintptr_t v;
 			struct proc *p1;
