@@ -224,37 +224,39 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		    ++brandinfo)
 			if (elf_insert_brand_entry(*brandinfo) < 0)
 				error = EINVAL;
-		if (error)
-			printf("cannot insert Linux elf brand handler\n");
-		else {
-			linux_ioctl_register_handlers(&linux_ioctl_handler_set);
+		if (error == 0) {
+			linux_ioctl_register_handlers(
+			    &linux_ioctl_handler_set);
 			if (bootverbose)
-				printf("Linux-ELF exec handler installed\n");
-		}
+				printf("Linux ELF exec handler installed\n");
+		} else
+			printf("cannot insert Linux ELF brand handler\n");
 		break;
 	case MOD_UNLOAD:
-		linux_ioctl_unregister_handlers(&linux_ioctl_handler_set);
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
 		    ++brandinfo)
 			if (elf_brand_inuse(*brandinfo))
 				error = EBUSY;
-
 		if (error == 0) {
 			for (brandinfo = &linux_brandlist[0];
 			    *brandinfo != NULL; ++brandinfo)
 				if (elf_remove_brand_entry(*brandinfo) < 0)
 					error = EINVAL;
 		}
-		if (error)
+		if (error == 0) {
+			linux_ioctl_unregister_handlers(
+			    &linux_ioctl_handler_set);
+			if (bootverbose)
+				printf("Linux ELF exec handler removed\n");
+		} else
 			printf("Could not deinstall ELF interpreter entry\n");
-		else if (bootverbose)
-			printf("Linux-elf exec handler removed\n");
 		break;
 	default:
 		break;
 	}
 	return error;
 }
+
 static moduledata_t linux_elf_mod = {
 	"linuxelf",
 	linux_elf_modevent,
