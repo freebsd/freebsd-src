@@ -2106,11 +2106,32 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 static void
 vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 {
+	vm_object_t object;
+	vm_pindex_t offidxstart, offidxend, count;
+
 	vm_map_entry_unlink(map, entry);
 	map->size -= entry->end - entry->start;
 
-	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
-		vm_object_deallocate(entry->object.vm_object);
+	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
+	    (object = entry->object.vm_object) != NULL) {
+		count = OFF_TO_IDX(entry->end - entry->start);
+		offidxstart = OFF_TO_IDX(entry->offset);
+		offidxend = offidxstart + count;
+		VM_OBJECT_LOCK(object);
+		if (object->ref_count != 1 &&
+		    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
+		     object == kernel_object || object == kmem_object) &&
+		    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
+			vm_object_collapse(object);
+			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+			if (object->type == OBJT_SWAP)
+				swap_pager_freespace(object, offidxstart, count);
+			if (offidxend >= object->size &&
+			    offidxstart < object->size)
+				object->size = offidxstart;
+		}
+		VM_OBJECT_UNLOCK(object);
+		vm_object_deallocate(object);
 	}
 
 	vm_map_entry_dispose(map, entry);
@@ -2125,7 +2146,6 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 int
 vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 {
-	vm_object_t object;
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
 
@@ -2153,8 +2173,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	 */
 	while ((entry != &map->header) && (entry->start < end)) {
 		vm_map_entry_t next;
-		vm_offset_t s, e;
-		vm_pindex_t offidxstart, offidxend, count;
 
 		/*
 		 * Wait for wiring or unwiring of an entry to complete.
@@ -2189,13 +2207,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		}
 		vm_map_clip_end(map, entry, end);
 
-		s = entry->start;
-		e = entry->end;
 		next = entry->next;
-
-		offidxstart = OFF_TO_IDX(entry->offset);
-		count = OFF_TO_IDX(e - s);
-		object = entry->object.vm_object;
 
 		/*
 		 * Unwire before removing addresses from the pmap; otherwise,
@@ -2205,28 +2217,10 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			vm_map_entry_unwire(map, entry);
 		}
 
-		offidxend = offidxstart + count;
-
 		mtx_lock(&Giant);
 		vm_page_lock_queues();
-		pmap_remove(map->pmap, s, e);
+		pmap_remove(map->pmap, entry->start, entry->end);
 		vm_page_unlock_queues();
-		if (object != NULL) {
-			VM_OBJECT_LOCK(object);
-			if (object->ref_count != 1 &&
-			    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
-			     object == kernel_object || object == kmem_object) &&
-			    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
-				vm_object_collapse(object);
-				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
-				if (object->type == OBJT_SWAP)
-					swap_pager_freespace(object, offidxstart, count);
-				if (offidxend >= object->size &&
-				    offidxstart < object->size)
-					object->size = offidxstart;
-			}
-			VM_OBJECT_UNLOCK(object);
-		}
 		mtx_unlock(&Giant);
 
 		/*
