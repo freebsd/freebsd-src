@@ -1,9 +1,12 @@
-#	$Id: Makefile,v 1.4 1994/08/28 17:21:36 bde Exp $
+#	$Id: Makefile,v 1.5 1994/09/13 02:21:03 wollman Exp $
 #
 # Doing a make install builds /usr/share/examples
 
 DIRS=etc FreeBSD_version lkm sunrpc
 NOOBJ=	noobj
+ETCOWN= root
+ETCGRP= wheel
+ETCMODE=644
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
@@ -27,5 +30,9 @@ symlinks:
 		rm -rf ${DESTDIR}/usr/share/examples/$$a; \
 		ln -s ${.CURDIR}/$$a ${DESTDIR}/usr/share/examples; \
 	done
+
+install-etc:
+	install -c -o ${ETCOWN} -g ${ETCGRP} -m ${ETCMODE} \
+		${.CURDIR}/etc/[a-z]* ${DESTDIR}/etc
 
 .include <bsd.prog.mk>
