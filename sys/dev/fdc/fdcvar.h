@@ -57,14 +57,17 @@ struct fdc_data {
 	int	fdc_errs;	/* number of logged errors */
 	struct	bio_queue_head head;
 	struct	bio *bp;	/* active buffer */
-	struct	resource *res_ioport, *res_ctl, *res_irq, *res_drq;
-	int	rid_ioport, rid_ctl, rid_irq, rid_drq;
-	int	port_off;
+	struct	resource *res_ioport, *res_sts, *res_ctl, *res_irq, *res_drq;
+	int	rid_ioport, rid_sts, rid_ctl, rid_irq, rid_drq;
 	bus_space_tag_t portt;
 	bus_space_handle_t porth;
+	bus_space_tag_t stst;
+	bus_space_handle_t stsh;
 	bus_space_tag_t ctlt;
 	bus_space_handle_t ctlh;
+	int	port_off;
 	int	ctl_off;
+	int	sts_off;
 	void	*fdc_intr;
 	struct	device *fdc_dev;
 	struct mtx fdc_mtx;
