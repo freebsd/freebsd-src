@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.18 1999/01/28 11:45:49 newton Exp $
+ *	$Id: segments.h,v 1.19 1999/04/28 01:04:06 luoqi Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -246,7 +246,7 @@ extern int	currentldt;
 extern int	_default_ldt;
 extern union descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
-extern struct gate_descriptor idt[NIDT];
+extern struct gate_descriptor *idt;
 extern union descriptor ldt[NLDT];
 
 void	lgdt		__P((struct region_descriptor *rdp));
