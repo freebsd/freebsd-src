@@ -22,7 +22,7 @@ CFLAGS+=-DKERBEROS -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \
 	-I${.CURDIR}/../../crypto/kerberosIV/appl/bsd
-DISTRIBUTION=	krb
+DISTRIBUTION=	krb4
 .endif
 
 .include <bsd.prog.mk>
