@@ -56,6 +56,9 @@ all:
 	@echo "Running test pass_cmd_vars "
 	@${MAKE} pass_cmd_vars || ${MAKE} failure
 	@echo "PASS: Test pass_cmd_vars detected no regression."
+	@echo "Running test plus_flag "
+	@${MAKE} plus_flag || ${MAKE} failure
+	@echo "PASS: Test plus_flag detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -217,6 +220,22 @@ pass_cmd_vars_4:
 .endif
 pass_cmd_vars_4_1:
 	@:
+.endif
+
+#
+# Test whether make supports the '+' flag (meaning: execute even with -n)
+#
+.if make(plus_flag)
+OUT != ${MAKE} -n plus_flag_1
+.if ${OUT} != "/tmp"
+.error "make doesn't handle + flag"
+.endif
+plus_flag:
+	@:
+.endif
+.if make(plus_flag_1)
+plus_flag_1:
+	+@cd /tmp; pwd
 .endif
 
 failure:
