@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.35 1996/08/07 00:39:06 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.36 1996/08/12 11:48:46 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -897,7 +897,7 @@ rub, QIC has a large number of densities on physically similar
 (sometimes identical) tapes. QIC drives are not quiet.  These
 drives audibly seek before they begin to record data and are
 clearly audible whenever reading, writing or seeking.  QIC tapes
-measure (6 x 4 x 0.7 inches; 15.2 x 10.2 x 1.7 mm). <ref
+measure (6 x 4 x 0.7 inches; 152 x 102 x 17 mm). <ref
 id="hw:storage:tapebackups:mini" name="Mini-cartridges">, which also
 use 1/4" wide tape are discussed separately.  Tape libraries and
 changers are not available.
