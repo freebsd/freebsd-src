@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.8 1994/09/16 01:05:24 ache Exp $
+ *	$Id: cpu.h,v 1.9 1994/09/18 21:37:56 bde Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -61,8 +61,6 @@
 #define CLKF_INTR(framep)	(0)
 #define	CLKF_BASEPRI(framep)	(((framep)->cf_ppl & ~SWI_AST_MASK) == 0)
 #define	CLKF_PC(framep)		((framep)->cf_eip)
-
-#define resettodr()	/* no todr to set */
 
 /*
  * Preempt the current process if in interrupt from user mode,
