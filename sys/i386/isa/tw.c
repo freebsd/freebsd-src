@@ -950,8 +950,8 @@ int unit;
     sc->sc_no_rcv = 1;
     return;
   }
-  untimeout((timeout_func_t)twabortrcv, (caddr_t)sc);
-  timeout((timeout_func_t)twabortrcv, (caddr_t)sc, hz/20);
+  untimeout(twabortrcv, (caddr_t)sc);
+  timeout(twabortrcv, (caddr_t)sc, hz/20);
   newphase = inb(port + tw_zcport) & tw_zcmask;
 
   /* enforce a minimum delay since the last interrupt */
