@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.13 1996/06/12 03:37:46 davidg Exp $
+ * $Id: nfs_node.c,v 1.13.2.1 1997/05/14 08:19:27 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -203,6 +203,13 @@ nfs_inactive(ap)
 		sp = (struct sillyrename *)0;
 	if (sp) {
 		/*
+		 * XXX We need a reference to keep the vnode from being
+		 * recycled by getnewvnode while we do the I/O
+		 * associated with discarding the buffers.
+		 */
+		if (vget(ap->a_vp, 0))
+			panic("nfs_inactive: lost vnode");
+		/*
 		 * Remove the silly file that was rename'd earlier
 		 */
 		(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, p, 1);
@@ -210,6 +217,7 @@ nfs_inactive(ap)
 		crfree(sp->s_cred);
 		vrele(sp->s_dvp);
 		FREE((caddr_t)sp, M_NFSREQ);
+		vrele(ap->a_vp);	/* XXX Undo above reference */
 	}
 	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT | NQNFSEVICTED |
 		NQNFSNONCACHE | NQNFSWRITE);
