@@ -89,6 +89,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"cc3i",		"SDL HSSI sync serial PCI card"					},
     { DEVICE_TYPE_NETWORK,	"en",		"Efficient Networks ATM PCI card"				},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"		},
+    { DEVICE_TYPE_NETWORK,	"dm",		"Davicom DM9100/DM9102 PCI fast ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"ed",		"Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"		},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card/3C589 PCMCIA"				},
