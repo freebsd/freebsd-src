@@ -31,19 +31,20 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif
 
+#if 0
 #ifndef lint
-static const char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
 
@@ -208,12 +209,12 @@ setpeer(argc, argv)
 	if (host) {
 		peeraddr.sin_family = host->h_addrtype;
 		bcopy(host->h_addr, &peeraddr.sin_addr, 
-			MIN(sizeof(peeraddr.sin_addr), host->h_length));
+			MIN(sizeof(peeraddr.sin_addr), (size_t)host->h_length));
 		strncpy(hostname, host->h_name, sizeof(hostname));
 	} else {
 		peeraddr.sin_family = AF_INET;
 		peeraddr.sin_addr.s_addr = inet_addr(argv[1]);
-		if (peeraddr.sin_addr.s_addr == -1) {
+		if (peeraddr.sin_addr.s_addr == INADDR_NONE) {
 			connected = 0;
 			printf("%s: unknown host\n", argv[1]);
 			return;
@@ -354,7 +355,7 @@ put(argc, argv)
 			return;
 		}
 		bcopy(hp->h_addr, (caddr_t)&peeraddr.sin_addr, 
-			MIN(sizeof(peeraddr.sin_addr), hp->h_length));
+			MIN(sizeof(peeraddr.sin_addr), (size_t)hp->h_length));
 		peeraddr.sin_family = hp->h_addrtype;
 		connected = 1;
 		strncpy(hostname, hp->h_name, sizeof(hostname));
@@ -452,7 +453,7 @@ get(argc, argv)
 				continue;
 			}
 			bcopy(hp->h_addr, (caddr_t)&peeraddr.sin_addr,
-			    MIN(sizeof(peeraddr.sin_addr), hp->h_length));
+			    MIN(sizeof(peeraddr.sin_addr), (size_t)hp->h_length));
 			peeraddr.sin_family = hp->h_addrtype;
 			connected = 1;
 			strncpy(hostname, hp->h_name, sizeof(hostname));
