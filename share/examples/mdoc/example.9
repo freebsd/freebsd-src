@@ -33,11 +33,11 @@
 .Nm example
 .Nd "example kernel interface manual page"
 .Sh SYNOPSIS
-.In example.h
+.In sys/example.h
 .Ft int
 .Fn example "char *ptr" "int mode"
 .Sh DESCRIPTION
-This is an example library function manual page for the
+This is an example manual page for the
 .Fn example
 kernel function.
 It is intended that this example can be used as a template
@@ -72,6 +72,21 @@ as follows:
 The
 .Fn example
 function is not actually implemented.
+.Sh LOCKING
+The
+.Va example_lock
+lock must be held before
+.Fn example
+is called.
+.Pp
+Since
+.Va example_lock
+is a
+.Xr mutex 9 ,
+no sleepable locks (i.e.,
+.Xr sx 9
+locks) can be acquired in
+.Fn example .
 .Sh RETURN VALUES
 The
 .Fn example
@@ -83,8 +98,12 @@ section is returned, to indicate the error.
 .Bd -literal
 	int val;
 
-	if ((val = example(NULL, EXAMPLE_ONE)) != 0)
+	mutex_lock(&example_lock);
+	if ((val = example(NULL, EXAMPLE_ONE)) != 0) {
+		mutex_unlock(&example_lock);
 		return (val);
+	}
+	mutex_unlock(&example_lock);
 .Ed
 .Sh COMPATIBILITY
 The
@@ -275,21 +294,6 @@ Attribute not found.
 .It Bq Er EDOOFUS
 Programming error.
 .El
-.Sh LOCKING
-The
-.Va example_lock
-lock must be held before
-.Fn example
-is called.
-.Pp
-Since
-.Va example_lock
-is a
-.Xr mutex 9 ,
-no sleepable locks (i.e.,
-.Xr sx 9
-locks) can be acquired in
-.Fn example .
 .Sh SEE ALSO
 .Xr example 1 ,
 .Xr example 3 ,
