@@ -60,7 +60,7 @@ will be set to
 .Er EBUSY .
 .Pp
 Associated with each open instance of a
-.Nm bpf
+.Nm
 file is a user-settable packet filter.
 Whenever a packet is received by an interface,
 all file descriptors listening on that interface apply their filter.
@@ -70,7 +70,7 @@ Reads from these files return the next group of packets
 that have matched the filter. 
 To improve performance, the buffer passed to read must be
 the same size as the buffers used internally by
-.Nm bpf .
+.Nm .
 This size is returned by the
 .Dv BIOCGBLEN
 ioctl (see below), and 
@@ -85,14 +85,14 @@ headers.  Currently, only Ethernet,
 and
 .Tn PPP
 drivers have been modified to interact with
-.Nm bpf .
+.Nm .
 .Pp
 Since packet data is in network byte order, applications should use the
 .Xr byteorder 3
 macros to extract multi-byte values.
 .Pp
 A packet can be sent out on the network by writing to a
-.Nm bpf
+.Nm
 file descriptor.  The writes are unbuffered, meaning only one
 packet can be processed per write.
 Currently, only writes to Ethernets and

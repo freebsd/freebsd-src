@@ -48,7 +48,7 @@ The behavior of
 is mainly based on RFC1933 IPv6-over-IPv4 configured tunnel.
 .Pp
 To use
-.Nm gif ,
+.Nm ,
 administrator needs to configure protocol and addresses used for the outer
 header.
 This can be done by using
@@ -108,9 +108,9 @@ can be configured to implement multi-destination tunnel.
 With
 .Dv IFF_LINK0 ,
 it is able to configure egress point to IPv4 wildcard address
-.Pq Nm 0.0.0.0
+.Pq Li 0.0.0.0
 or IPv6 unspecified address
-.Pq Nm 0::0 .
+.Pq Li 0::0 .
 In this case, destination address for the outer IP header is
 determined based on the routing table setup.
 Therefore, one
@@ -121,7 +121,7 @@ Also,
 will accept tunneled traffic from any outer source address.
 .Pp
 When finding a
-.Nm gif
+.Nm
 interface from the inbound tunneled traffic,
 bidirectional mode interface is preferred than multi-destination mode interface.
 For example, if you have the following three

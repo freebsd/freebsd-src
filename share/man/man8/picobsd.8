@@ -112,7 +112,7 @@ and
 Each directory contains a configuration file with a name starting with
 .Pa PICOBSD .
 When building a custom
-.Nm PicoBSD ,
+.Nm ,
 it is important to review this file carefully.  The smallest possible kernel
 occupies about 600 kB after compression, and it is easy to have a kernel as
 large as 900 kB.  It is probably not possible to build a first
@@ -183,7 +183,7 @@ dynamic libraries, so the programs must be static.
 .\" .Sh ERRORS
 .Sh BOOTING PicoBSD
 To boot
-.Nm PicoBSD ,
+.Nm ,
 insert the floppy and reset the machine.  The boot procedure is similar to the
 standard
 .Fx
@@ -221,7 +221,7 @@ so if you run out of memory, unpredictable things can happen.
 .Pp
 If you have a disk driver and a disk with a swap partition on it, and the swap
 partition does not contain a dump you want to keep, you can use this swap with
-.Nm PicoBSD .
+.Nm .
 Use the
 .Xr swapon 8
 command.
@@ -244,7 +244,7 @@ Man page and Makefiles created by
 .An Greg Lehey Aq grog@lemis.com .
 .Sh BUGS
 In order to build 
-.Nm PicoBSD ,
+.Nm ,
 the kernel of the system on which it is built must have the
 .Nm vn
 driver installed.  
@@ -289,4 +289,4 @@ configurations do not build.
 There appears to be no way to get
 .Nm Emacs
 to run on
-.Nm PicoBSD .
+.Nm .

@@ -20,9 +20,9 @@
 and watch activities on it.
 
 To associate a given
-.Nm snp
+.Nm
 device with a tty to be observed,  open the
-.Nm snp
+.Nm
 device and then use the SNPSTTY ioctl.
 The argument passed to the IOCTL is the address of a variable of type
 dev_t.
@@ -31,7 +31,7 @@ the snp device from a tty.
 .Pp
 The SNPGTTY ioctl returns information about the current tty attached to
 the open
-.Nm snp
+.Nm
 device.
 .Pp
 The FIONREAD ioctl returns a positive value equal to the number of characters
@@ -43,7 +43,7 @@ device overflow occured, device detached.
 .It Dv SNP_TTYCLOSE
 tty not attached.
 .It Dv SNP_DETACH
-.Nm snp
+.Nm
 device has been detached by user or tty device has been closed
 and detached.
 .Sh SEE ALSO
@@ -52,7 +52,7 @@ and detached.
 .Xr watch 8
 .Sh RESTRICTIONS
 Only the superuser may access the
-.Nm snp
+.Nm
 devices.
 .Sh BUGS
 While in line mode, user input can't be seen.
@@ -61,6 +61,6 @@ No signals may be sent to the observed tty.
 .An Ugen J.S. Antsilevich Aq ugen@NetVision.net.il
 .Sh HISTORY
 The
-.Nm snp
+.Nm
 device first appeared in
 .Fx 2.1 .
