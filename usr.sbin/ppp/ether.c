@@ -221,7 +221,7 @@ ether_MessageIn(struct etherdevice *dev)
   struct timeval t;
   fd_set *r;
   u_long slot;
-  int ret;
+  int asciilen, ret;
 
   if (dev->cs < 0)
     return;
@@ -254,6 +254,7 @@ ether_MessageIn(struct etherdevice *dev)
     return;
   }
 
+  asciilen = 0;
   switch (rep->header.cmd) {
     case NGM_PPPOE_SET_FLAG:	msg = "SET_FLAG";	break;
     case NGM_PPPOE_CONNECT:	msg = "CONNECT";	break;
@@ -267,6 +268,7 @@ ether_MessageIn(struct etherdevice *dev)
       msg = "ACNAME";
       if (setenv("ACNAME", sts->hook, 1) != 0)
         log_Printf(LogWARN, "setenv: cannot set ACNAME=%s: %m", sts->hook);
+      asciilen = rep->header.arglen;
       break;
     case NGM_PPPOE_SESSIONID:
       msg = "SESSIONID";
@@ -285,7 +287,11 @@ ether_MessageIn(struct etherdevice *dev)
       break;
   }
 
-  log_Printf(LogPHASE, "Received NGM_PPPOE_%s (hook \"%s\")\n", msg, sts->hook);
+  if (asciilen)
+    log_Printf(LogPHASE, "Received NGM_PPPOE_%s (hook \"%.*s\")\n",
+               msg, asciilen, sts->hook);
+  else
+    log_Printf(LogPHASE, "Received NGM_PPPOE_%s\n", msg);
 
   switch (rep->header.cmd) {
     case NGM_PPPOE_SUCCESS:
