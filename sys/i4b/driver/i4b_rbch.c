@@ -321,7 +321,7 @@ i4brbchclose(dev_t dev, int flag, int fmt, struct proc *p)
 	int unit = minor(dev);
 
 	if (rbch_softc[unit].cd) {
-		i4b_l4_disconnect_ind(rbch_softc[unit].cd);
+		i4b_l4_drvrdisc(BDRV_RBCH, unit);
 		rbch_softc[unit].cd = NULL;
 	}
 	rbch_softc[unit].sc_devstate &= ~ST_ISOPEN;		
@@ -569,7 +569,7 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc* p)
 			if(rbch_softc[unit].sc_devstate & ST_CONNECTED)
 			{
 				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, disconnecting for DTR down\n", unit));
-				i4b_l4_disconnect_ind(rbch_softc[unit].cd);
+				i4b_l4_drvrdisc(BDRV_RBCH, unit);
 			}
 			break;
 
