@@ -1,6 +1,10 @@
 /*	$NetBSD: ohci.c,v 1.125 2002/05/28 12:42:38 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
+/* Also, already ported:
+ *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
+ */
+
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -2063,10 +2067,8 @@ ohci_open(usbd_pipe_handle pipe)
 		opipe->sed = sed;
 		if (xfertype == UE_ISOCHRONOUS) {
 			sitd = ohci_alloc_sitd(sc);
-			if (sitd == NULL) {
-				ohci_free_sitd(sc, sitd);
+			if (sitd == NULL)
 				goto bad1;
-			}
 			opipe->tail.itd = sitd;
 			tdphys = sitd->physaddr;
 			fmt = OHCI_ED_FORMAT_ISO;
@@ -2076,10 +2078,8 @@ ohci_open(usbd_pipe_handle pipe)
 				fmt |= OHCI_ED_DIR_OUT;
 		} else {
 			std = ohci_alloc_std(sc);
-			if (std == NULL) {
-				ohci_free_std(sc, std);
+			if (std == NULL)
 				goto bad1;
-			}
 			opipe->tail.td = std;
 			tdphys = std->physaddr;
 			fmt = OHCI_ED_FORMAT_GEN | OHCI_ED_DIR_TD;
