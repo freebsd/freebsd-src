@@ -87,9 +87,9 @@ extern char	lbuf[LINE_MAX];
 extern char    *lbp;
 extern char	searchar;		/* ex search character */
 
-extern int	cicmp __P((char *));
+extern int	cicmp __P((const char *));
 extern void	getline __P((void));
-extern void	pfnote __P((char *, int));
+extern void	pfnote __P((const char *, int));
 extern int	skip_key __P((int));
 extern void	put_entries __P((NODE *));
 extern void	toss_yysec __P((void));

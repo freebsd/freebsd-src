@@ -88,7 +88,7 @@ main(argc, argv)
 	int	argc;
 	char	**argv;
 {
-	static char	*outfile = "tags";	/* output file */
+	static const char	*outfile = "tags";	/* output file */
 	int	aflag;				/* -a: append to tags */
 	int	uflag;				/* -u: update tags */
 	int	exit_val;			/* exit value */
@@ -199,7 +199,7 @@ void
 init()
 {
 	int		i;
-	unsigned char	*sp;
+	const unsigned char	*sp;
 
 	for (i = 0; i < 256; i++) {
 		_wht[i] = _etk[i] = _itk[i] = _btk[i] = NO;

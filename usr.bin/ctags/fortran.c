@@ -140,7 +140,7 @@ PF_funcs()
  */
 int
 cicmp(cp)
-	char	*cp;
+	const char	*cp;
 {
 	int	len;
 	char	*bp;
