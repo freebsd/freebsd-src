@@ -1843,8 +1843,8 @@ agg_attach(device_t dev)
 
 	/* Allocate resources. */
 	if (data & PCIM_CMD_PORTEN)
-		reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &regid,
-		    0, BUS_SPACE_UNRESTRICTED, 256, RF_ACTIVE);
+		reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &regid,
+		    RF_ACTIVE);
 	if (reg != NULL) {
 		ess->reg = reg;
 		ess->regid = regid;
@@ -1855,8 +1855,8 @@ agg_attach(device_t dev)
 		ret = ENXIO;
 		goto bad;
 	}
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
-	    0, BUS_SPACE_UNRESTRICTED, 1, RF_ACTIVE | RF_SHAREABLE);
+	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irqid,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (irq != NULL) {
 		ess->irq = irq;
 		ess->irqid = irqid;
