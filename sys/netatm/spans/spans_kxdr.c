@@ -35,7 +35,12 @@
  *
  */
 
-#include <netatm/kern_include.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <machine/clock.h>
+#include <netatm/port.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");

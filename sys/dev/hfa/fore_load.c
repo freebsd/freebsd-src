@@ -35,6 +35,53 @@
  *
  */
 
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/types.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/sockio.h>
+#include <sys/time.h>
+#include <sys/kernel.h>
+#include <sys/conf.h>
+#include <sys/domain.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/syslog.h>
+#include <sys/eventhandler.h>
+#include <machine/clock.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/if_dl.h>
+#include <net/netisr.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/if_ether.h>
+#include <netatm/port.h>
+#include <netatm/queue.h>
+#include <netatm/atm.h>
+#include <netatm/atm_sys.h>
+#include <netatm/atm_sap.h>
+#include <netatm/atm_cm.h>
+#include <netatm/atm_if.h>
+#include <netatm/atm_vc.h>
+#include <netatm/atm_ioctl.h>
+#include <netatm/atm_sigmgr.h>
+#include <netatm/atm_stack.h>
+#include <netatm/atm_pcb.h>
+#include <netatm/atm_var.h>
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
+#include <dev/hfa/fore.h>
+#include <dev/hfa/fore_aali.h>
+#include <dev/hfa/fore_slave.h>
+#include <dev/hfa/fore_stats.h>
+#include <dev/hfa/fore_var.h>
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
@@ -48,11 +95,7 @@ __RCSID("@(#) $FreeBSD$");
 static int	fore_start __P((void));
 static const char *	fore_pci_probe __P((pcici_t, pcidi_t));
 static void	fore_pci_attach __P((pcici_t, int));
-#if BSD < 199506
-static int	fore_pci_shutdown __P((struct kern_devconf *, int));
-#else
 static void	fore_pci_shutdown __P((void *, int));
-#endif
 static void	fore_unattach __P((Fore_unit *));
 static void	fore_reset __P((Fore_unit *));
 
@@ -73,11 +116,7 @@ static struct pci_device fore_pci_device = {
 	fore_pci_probe,
 	fore_pci_attach,
 	&fore_pci_count,
-#if BSD < 199506
-	fore_pci_shutdown
-#else
 	NULL
-#endif
 };
 
 COMPAT_PCI_DRIVER(fore_pci, fore_pci_device);
@@ -353,13 +392,11 @@ fore_pci_attach(config_id, unit)
 	fore_units[unit] = fup;
 	fore_nunits++;
 
-#if BSD >= 199506
 	/*
 	 * Add hook to our shutdown function
 	 */
 	EVENTHANDLER_REGISTER(shutdown_post_sync, fore_pci_shutdown, fup,
 			      SHUTDOWN_PRI_DEFAULT);
-#endif
 
 	/*
 	 * Initialize the CP microcode program.
@@ -384,38 +421,6 @@ failed:
 	return;
 }
 
-
-#if BSD < 199506
-/*
- * Device shutdown routine
- * 
- * Arguments:
- *	kdc		pointer to device's configuration table
- *	force		forced shutdown flag
- *
- * Returns:
- *	none
- *
- */
-static int
-fore_pci_shutdown(kdc, force)
-	struct kern_devconf	*kdc;
-	int			force;
-{
-	Fore_unit	*fup;
-
-	if (kdc->kdc_unit < fore_nunits) {
-
-		fup = fore_units[kdc->kdc_unit];
-		if (fup != NULL) {
-			fore_reset(fup);
-		}
-	}
-
-	(void) dev_detach(kdc);
-	return (0);
-}
-#else
 /*
  * Device shutdown routine
  * 
@@ -437,8 +442,6 @@ fore_pci_shutdown(fup, howto)
 
 	return;
 }
-#endif	/* BSD < 199506 */
-
 
 /*
  * Device unattach routine
@@ -573,11 +576,7 @@ static struct cdevsw fore_cdev = {
 /*
  * Loadable device driver module description
  */
-#if BSD < 199506
-MOD_DEV("fore_mod", LM_DT_CHAR, -1, (void *)&fore_cdev);
-#else
 MOD_DEV(fore, LM_DT_CHAR, -1, (void *)&fore_cdev);
-#endif
 
 
 /*
@@ -653,11 +652,7 @@ fore_mod(lkmtp, cmd, ver)
 	int		cmd;
 	int		ver;
 {
-#if BSD < 199506
-	DISPATCH(lkmtp, cmd, ver, fore_load, fore_unload, nosys);
-#else
 	DISPATCH(lkmtp, cmd, ver, fore_load, fore_unload, lkm_nullcmd);
-#endif
 }
 #endif	/* notdef */
 

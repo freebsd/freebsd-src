@@ -35,7 +35,27 @@
  *
  */
 
-#include <netatm/kern_include.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/types.h>
+#include <sys/errno.h>
+#include <sys/time.h>
+#include <sys/kernel.h>
+#include <sys/domain.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <machine/clock.h>
+#include <net/if.h>
+#include <netatm/port.h>
+#include <netatm/queue.h>
+#include <netatm/atm.h>
+#include <netatm/atm_sys.h>
+#include <netatm/atm_sap.h>
+#include <netatm/atm_cm.h>
+#include <netatm/atm_if.h>
+#include <netatm/atm_stack.h>
+#include <netatm/atm_pcb.h>
+#include <netatm/atm_var.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
