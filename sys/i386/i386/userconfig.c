@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.141 1999/05/08 18:12:03 peter Exp $
+ **      $Id: userconfig.c,v 1.142 1999/05/10 23:19:58 bde Exp $
  **/
 
 /**
@@ -833,7 +833,7 @@ initlist(DEV_LIST **list)
  **
  ** The device's active field is set according to (active).
  **
- ** Builds the isa_devlist used by dset to extract the changed device information.
+ ** Builds the isa_devlist used by kget to extract the changed device information.
  ** The code for this was taken almost verbatim from the original module.
  **/
 static void
@@ -2538,7 +2538,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.141 1999/05/08 18:12:03 peter Exp $
+ *      $Id: userconfig.c,v 1.142 1999/05/10 23:19:58 bde Exp $
  */
 
 #include "scbus.h"
