@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quad.h	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	$Id: quad.h,v 1.3 1995/12/26 13:24:48 bde Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
  * with 48-bit longs.
  */
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <limits.h>
 
