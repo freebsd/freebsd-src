@@ -241,9 +241,7 @@ kse_link(struct kse *ke, struct ksegrp *kg)
 
 	TAILQ_INSERT_HEAD(&kg->kg_kseq, ke, ke_kglist);
 	kg->kg_kses++;
-	ke->ke_state = KES_IDLE;
-	TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
-	kg->kg_idle_kses++;
+	ke->ke_state = KES_UNQUEUED;
 	ke->ke_proc	= p;
 	ke->ke_ksegrp	= kg;
 	ke->ke_thread	= NULL;
@@ -310,24 +308,17 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 int
 kse_release(struct thread *td, struct kse_release_args *uap)
 {
-	struct thread *td2;
+	struct proc *p;
 
+	p = td->td_proc;
 	/* KSE-enabled processes only, please. */
-	if ((td->td_proc->p_flag & P_KSES) == 0)
-		return (EINVAL);
-
-	/* Don't discard the last thread. */
-	td2 = FIRST_THREAD_IN_PROC(td->td_proc);
-	KASSERT(td2 != NULL, ("kse_release: no threads in our proc"));
-	if (TAILQ_NEXT(td, td_plist) == NULL)
-		return (EINVAL);
-
-	/* Abandon thread. */
-	PROC_LOCK(td->td_proc);
-	mtx_lock_spin(&sched_lock);
-	thread_exit();
-	/* NOTREACHED */
-	return (0);
+	if (p->p_flag & P_KSES) {
+		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
+		thread_exit();
+		/* NOTREACHED */
+	}
+	return (EINVAL);
 }
 
 /* struct kse_wakeup_args {
@@ -423,6 +414,10 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		if (SIGPENDING(p))
 			newke->ke_flags |= KEF_ASTPENDING;
 		PROC_UNLOCK(p);
+		/* For the first call this may not have been set */
+		if (td->td_standin == NULL) {
+			td->td_standin = thread_alloc();
+		}
 		mtx_lock_spin(&sched_lock);
 		if (newkg)
 			ksegrp_link(newkg, p);
