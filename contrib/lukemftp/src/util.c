@@ -1,7 +1,7 @@
-/*	$NetBSD: util.c,v 1.115 2004/04/10 12:21:39 lukem Exp $	*/
+/*	$NetBSD: util.c,v 1.117 2005/01/03 09:50:09 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -71,13 +71,13 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: util.c,v 1.115 2004/04/10 12:21:39 lukem Exp $");
+__RCSID("$NetBSD: util.c,v 1.117 2005/01/03 09:50:09 lukem Exp $");
 #endif /* not lint */
 
 /*
  * FTP User Program -- Misc support routines
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
@@ -319,9 +319,10 @@ cleanuppeer(void)
  * Top-level signal handler for interrupted commands.
  */
 void
-intr(int dummy)
+intr(int signo)
 {
 
+	sigint_raised = 1;
 	alarmtimer(0);
 	if (fromatty)
 		write(fileno(ttyout), "\n", 1);
@@ -478,7 +479,8 @@ ftp_login(const char *host, const char *user, const char *pass)
 			break;
 		}
 	}
-	updateremotepwd();
+	updatelocalcwd();
+	updateremotecwd();
 
  cleanup_ftp_login:
 	if (user != NULL && freeuser)
@@ -773,10 +775,23 @@ remotemodtime(const char *file, int noisy)
 }
 
 /*
- * update global `remotepwd', which contains the state of the remote cwd
+ * Update global `localcwd', which contains the state of the local cwd
  */
 void
-updateremotepwd(void)
+updatelocalcwd(void)
+{
+
+	if (getcwd(localcwd, sizeof(localcwd)) == NULL)
+		localcwd[0] = '\0';
+	if (debug)
+		fprintf(ttyout, "got localcwd as `%s'\n", localcwd);
+}
+
+/*
+ * Update global `remotecwd', which contains the state of the remote cwd
+ */
+void
+updateremotecwd(void)
 {
 	int	 overbose, ocode, i;
 	char	*cp;
@@ -786,31 +801,55 @@ updateremotepwd(void)
 	if (debug == 0)
 		verbose = -1;
 	if (command("PWD") != COMPLETE)
-		goto badremotepwd;
+		goto badremotecwd;
 	cp = strchr(reply_string, ' ');
 	if (cp == NULL || cp[0] == '\0' || cp[1] != '"')
-		goto badremotepwd;
+		goto badremotecwd;
 	cp += 2;
-	for (i = 0; *cp && i < sizeof(remotepwd) - 1; i++, cp++) {
+	for (i = 0; *cp && i < sizeof(remotecwd) - 1; i++, cp++) {
 		if (cp[0] == '"') {
 			if (cp[1] == '"')
 				cp++;
 			else
 				break;
 		}
-		remotepwd[i] = *cp;
+		remotecwd[i] = *cp;
 	}
-	remotepwd[i] = '\0';
+	remotecwd[i] = '\0';
 	if (debug)
-		fprintf(ttyout, "got remotepwd as `%s'\n", remotepwd);
-	goto cleanupremotepwd;
- badremotepwd:
-	remotepwd[0]='\0';
- cleanupremotepwd:
+		fprintf(ttyout, "got remotecwd as `%s'\n", remotecwd);
+	goto cleanupremotecwd;
+ badremotecwd:
+	remotecwd[0]='\0';
+ cleanupremotecwd:
 	verbose = overbose;
 	code = ocode;
 }
 
+/*
+ * Ensure file is in or under dir.
+ * Returns 1 if so, 0 if not (or an error occurred).
+ */
+int
+fileindir(const char *file, const char *dir)
+{
+	char	realfile[PATH_MAX+1];
+	size_t	dirlen;
+
+	if (realpath(file, realfile) == NULL) {
+		warn("Unable to determine real path of `%s'", file);
+		return 0;
+	}
+	if (realfile[0] != '/')		/* relative result */
+		return 1;
+	dirlen = strlen(dir);
+#if 0
+printf("file %s realfile %s dir %s [%d]\n", file, realfile, dir, dirlen);
+#endif
+	if (strncmp(realfile, dir, dirlen) == 0 && realfile[dirlen] == '/')
+		return 1;
+	return 0;
+}
 
 /*
  * List words in stringlist, vertically arranged
@@ -1057,7 +1096,7 @@ formatbuf(char *buf, size_t len, const char *src)
 		case '/':
 		case '.':
 		case 'c':
-			p2 = connected ? remotepwd : "";
+			p2 = connected ? remotecwd : "";
 			updirs = pdirs = 0;
 
 			/* option to determine fixed # of dirs from path */

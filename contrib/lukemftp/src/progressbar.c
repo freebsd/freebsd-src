@@ -1,4 +1,4 @@
-/*	$NetBSD: progressbar.c,v 1.5 2004/03/09 17:04:24 hubertf Exp $	*/
+/*	$NetBSD: progressbar.c,v 1.6 2005/02/10 16:00:28 jmc Exp $	*/
 
 /*-
  * Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
@@ -38,7 +38,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: progressbar.c,v 1.5 2004/03/09 17:04:24 hubertf Exp $");
+__RCSID("$NetBSD: progressbar.c,v 1.6 2005/02/10 16:00:28 jmc Exp $");
 #endif /* not lint */
 
 /*
@@ -79,7 +79,6 @@ foregroundproc(void)
 #endif	/* !defined(NO_PROGRESS) */
 
 
-#ifndef	NO_PROGRESS
 static void updateprogressmeter(int);
 
 /*
@@ -93,8 +92,6 @@ updateprogressmeter(int dummy)
 	progressmeter(0);
 	errno = oerrno;
 }
-#endif	/* NO_PROGRESS */
-
 
 /*
  * List of order of magnitude prefixes.
@@ -127,7 +124,7 @@ progressmeter(int flag)
 	struct timeval td;
 	off_t abbrevsize, bytespersec;
 	double elapsed;
-	int ratio, barlength, i, len, remaining;
+	int ratio, barlength, i, remaining;
 
 			/*
 			 * Work variables for progress bar.
@@ -137,7 +134,10 @@ progressmeter(int flag)
 			 *	`static' portion of it), be sure to update
 			 *	these appropriately.
 			 */
+#endif
+	int len;
 	char		buf[256];	/* workspace for progress bar */
+#ifndef NO_PROGRESS
 #define	BAROVERHEAD	43		/* non `*' portion of progress bar */
 					/*
 					 * stars should contain at least
