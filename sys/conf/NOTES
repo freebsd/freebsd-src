@@ -121,6 +121,7 @@ options 	GEOM_AES		# Don't use, use GEOM_BDE
 options 	GEOM_APPLE		# Apple partitioning
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels
+options 	GEOM_FOX		# Redundant path mitigation
 options 	GEOM_GPT		# GPT partitioning
 options 	GEOM_MBR		# DOS/MBR partitioning
 options 	GEOM_PC98		# NEC PC9800 partitioning
