@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.73 1999/04/25 04:03:22 kato Exp $
+#	$Id: GENERIC98,v 1.74 1999/04/25 05:59:02 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -53,8 +53,6 @@ options		COM_MULTIPORT
 #
 #	IBM-PC HDD support
 #options	COMPAT_ATDISK
-
-config		kernel	root on wd0
 
 # To make an SMP kernel, the next two are needed
 #options	SMP			# Symmetric MultiProcessor Kernel
