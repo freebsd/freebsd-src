@@ -76,9 +76,11 @@ struct uhub_softc {
 #if defined(__NetBSD__)
 int uhub_match __P((struct device *, struct cfdata *, void *));
 void uhub_attach __P((struct device *, struct device *, void *));
+void uhub_detach __P((struct device *));
 #elif defined(__FreeBSD__)
 static device_probe_t uhub_match;
 static device_attach_t uhub_attach;
+static device_detach_t uhub_detach;
 #endif
 
 usbd_status uhub_init_port __P((int, struct usbd_port *, usbd_device_handle));
@@ -105,6 +107,7 @@ static devclass_t uhub_devclass;
 static device_method_t uhub_methods[] = {
 	DEVMETHOD(device_probe, uhub_match),
 	DEVMETHOD(device_attach, uhub_attach),
+	DEVMETHOD(device_detach, uhub_detach),
 	{0,0}
 };
 
@@ -137,7 +140,7 @@ uhub_match(device_t device)
 #endif
 	usb_device_descriptor_t *dd = usbd_get_device_descriptor(uaa->device);
 
-	DPRINTFN(1,("uhub_match, dd=%p\n", dd));
+	DPRINTFN(5,("uhub_match, dd=%p\n", dd));
 	/* 
 	 * The subclass for hubs seems to be 0 for some and 1 for others,
 	 * so we just ignore the subclass.

@@ -63,7 +63,7 @@ typedef struct uhci_soft_td uhci_soft_td_t;
  */
 typedef struct uhci_intr_info {
 #if defined(__FreeBSD__)
-	struct callout_handle callout_handler;
+	struct callout_handle timeout_handle;
 #endif
 	struct uhci_softc *sc;
 	usbd_request_handle reqh;
@@ -124,7 +124,6 @@ typedef struct uhci_softc {
 	/* XXX should keep track of all DMA memory */
 #elif defined(__FreeBSD__)
 	int		sc_iobase;
-	int		sc_int;
 	int		unit;
 #endif
 

@@ -816,8 +816,9 @@ usbd_remove_device(dev, up)
 
 #if defined(__NetBSD__)
 	/* XXX bit of a hack, only for hubs the detach is called
-	 * the code should register a detach function and use that one
-	 * to detach a device porperly
+	 *
+	 * easiest solution, register a detach method in the softc, call that
+	 * one and pass the device struct to it, or the softc. Whatever.
 	 */
 	if (dev->bdev && dev->hub)
 		uhub_detach(dev->hub->hubdata);
