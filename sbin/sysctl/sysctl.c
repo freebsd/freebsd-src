@@ -197,7 +197,12 @@ parse(char *string)
 			errx(1, "oid '%s' isn't a leaf node", bufp);
 
 		if (!(kind&CTLFLAG_WR))
-			errx(1, "oid '%s' is read only", bufp);
+			if (kind & CTLFLAG_TUN) {
+				fprintf(stderr, "Tunable values are set in /boot/loader.conf and require a reboot to take effect.\n");
+				errx(1, "oid '%s' is a tunable.", bufp);
+			} else {
+				errx(1, "oid '%s' is read only", bufp);
+		}
 
 		if ((kind & CTLTYPE) == CTLTYPE_INT ||
 		    (kind & CTLTYPE) == CTLTYPE_UINT ||
