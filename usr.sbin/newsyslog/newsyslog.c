@@ -1262,7 +1262,7 @@ get_pid(const char *pid_file)
 }
 
 /* Skip Over Blanks */
-char *
+static char *
 sob(char *p)
 {
 	while (p && *p && isspace(*p))
@@ -1271,7 +1271,7 @@ sob(char *p)
 }
 
 /* Skip Over Non-Blanks */
-char *
+static char *
 son(char *p)
 {
 	while (p && *p && !isspace(*p))
