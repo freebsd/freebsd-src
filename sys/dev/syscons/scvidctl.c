@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/signalvar.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
@@ -486,7 +487,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     int error;
     int s;
 
-    scp = sc_get_scr_stat(tp->t_dev);
+    scp = SC_STAT(tp->t_dev);
     if (scp == NULL)		/* tp == SC_MOUSE */
 	return ENOIOCTL;
     adp = scp->sc->adp;
