@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.225 1997/07/15 14:43:22 yokota Exp $
+ *  $Id: syscons.c,v 1.226 1997/07/20 14:10:13 bde Exp $
  */
 
 #include "sc.h"
@@ -119,10 +119,15 @@ static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 	char        	*video_mode_ptr = NULL;
-	int     	fonts_loaded = 0;
+	int     	fonts_loaded = 0
+#ifdef STD8X16FONT
+	| FONT_16
+#endif
+	;
+
 	char        	font_8[256*8];
 	char		font_14[256*14];
-	char		font_16[256*16];
+extern	unsigned char	font_16[256*16];
 	char        	palette[256*3];
 static  char		vgaregs[64];
 static	char 		*cut_buffer;
@@ -2696,8 +2701,12 @@ scinit(void)
 
     /* Save font and palette if VGA */
     if (crtc_vga) {
-	copy_font(SAVE, FONT_16, font_16);
-	fonts_loaded = FONT_16;
+	if (fonts_loaded & FONT_16) {
+		copy_font(LOAD, FONT_16, font_16);
+	} else {
+		copy_font(SAVE, FONT_16, font_16);
+		fonts_loaded = FONT_16;
+	}
 	save_palette();
 	set_destructive_cursor(console[0]);
     }
