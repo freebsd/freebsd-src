@@ -60,6 +60,13 @@ int maxvfsconf = VFS_GENERIC + 1;
 struct vfsconfhead vfsconf = TAILQ_HEAD_INITIALIZER(vfsconf);
 
 /*
+ * A Zen vnode attribute structure.
+ *
+ * Initialized when the first filesystem registers by vfs_register().
+ */
+struct vattr va_null;
+
+/*
  * vfs_init.c
  *
  * Allocate and fill in operations vectors.
@@ -347,7 +354,6 @@ vfs_rm_vnodeops(const void *data)
 /*
  * Routines having to do with the management of the vnode table.
  */
-struct vattr va_null;
 
 struct vfsconf *
 vfs_byname(const char *name)
@@ -360,24 +366,18 @@ vfs_byname(const char *name)
 	return (NULL);
 }
 
-/*
- * Initialize the vnode structures and initialize each filesystem type.
- */
-/* ARGSUSED*/
-static void
-vfsinit(void *dummy)
-{
-
-	vattr_null(&va_null);
-}
-SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
-
 /* Register a new filesystem type in the global table */
 int
 vfs_register(struct vfsconf *vfc)
 {
 	struct sysctl_oid *oidp;
 	struct vfsops *vfsops;
+	static int once;
+
+	if (!once) {
+		vattr_null(&va_null);
+		once = 1;
+	}
 	
 	if (vfc->vfc_version != VFS_VERSION) {
 		printf("ERROR: filesystem %s, unsupported ABI version %x\n",
