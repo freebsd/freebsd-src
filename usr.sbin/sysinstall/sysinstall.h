@@ -402,6 +402,7 @@ typedef struct _devPriv {
 
 /*** Externs ***/
 extern jmp_buf		BailOut;		/* Used to get the heck out */
+extern int		CDROMInitQuiet;		/* Don't whine if mount(2) fails */
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		Restarting;		/* Are we restarting sysinstall?		*/
