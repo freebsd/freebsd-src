@@ -1471,6 +1471,29 @@ mac_mls_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 	return (0);
 }
 
+static int 
+mac_mls_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+    struct label *dlabel, struct vnode *vp, struct label *label,
+    struct componentname *cnp)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(dlabel);
+
+	if (!mac_mls_dominate_single(obj, subj))
+		return (EACCES);
+
+	obj = SLOT(dlabel);
+	if (!mac_mls_dominate_single(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
 static int
 mac_mls_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct componentname *cnp)
@@ -2050,6 +2073,8 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_check_vnode_getacl },
 	{ MAC_CHECK_VNODE_GETEXTATTR,
 	    (macop_t)mac_mls_check_vnode_getextattr },
+	{ MAC_CHECK_VNODE_LINK,
+	    (macop_t)mac_mls_check_vnode_link },
 	{ MAC_CHECK_VNODE_LOOKUP,
 	    (macop_t)mac_mls_check_vnode_lookup },
 	{ MAC_CHECK_VNODE_OPEN,
