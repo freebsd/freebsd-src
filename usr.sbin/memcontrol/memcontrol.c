@@ -178,7 +178,7 @@ listfunc(int memfd, int argc, char *argv[])
 	    continue;
 	if (owner && strcmp(mrd[i].mr_owner, owner))
 	    continue;
-	printf("%" PRIu64 "x/%" PRIu64 "x %.8s ", mrd[i].mr_base, mrd[i].mr_len, 
+	printf("0x%" PRIx64 "/0x%" PRIx64 " %.8s ", mrd[i].mr_base, mrd[i].mr_len, 
 	       mrd[i].mr_owner[0] ? mrd[i].mr_owner : "-");
 	for (j = 0; attrnames[j].name != NULL; j++)
 	    if (mrd[i].mr_flags & attrnames[j].val)
