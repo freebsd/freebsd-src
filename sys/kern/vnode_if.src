@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.3 (Berkeley) 2/3/94
-# $Id: vnode_if.src,v 1.3 1994/09/28 16:45:12 dfr Exp $
+# $Id: vnode_if.src,v 1.4 1995/06/28 07:06:41 davidg Exp $
 #
 vop_lookup {
 	IN struct vnode *dvp;
@@ -148,11 +148,15 @@ vop_remove {
 	IN struct componentname *cnp;
 };
 
-vop_link {
-	IN struct vnode *vp;
-	IN WILLRELE struct vnode *tdvp;
-	IN struct componentname *cnp;
-};
+# Gack. The generated VCALL uses the first vp which might
+# not be handled by the same FS as the directory (e.g. special
+# device files)...so it's special-cased.
+#
+#vop_link {
+#	IN struct vnode *vp;
+#	IN WILLRELE struct vnode *tdvp;
+#	IN struct componentname *cnp;
+#};
 
 vop_rename {
 	IN WILLRELE struct vnode *fdvp;
