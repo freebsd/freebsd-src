@@ -1,0 +1,114 @@
+This directory contains an example of how you might link in C subroutines
+with perl to make your own special copy of perl.  In the perl distribution
+directory, there will be (after make is run) a file called uperl.o, which
+is all of perl except for a single undefined subroutine, named userinit().
+See usersub.c.
+
+The sole purpose of the userinit() routine is to call the initialization
+routines for any modules that you want to link in.  In this example, we just
+call init_curses(), which sets up to link in the System V curses routines.
+You'll find this in the file curses.c, which is the processed output of
+curses.mus.  (To get BSD curses, replace curses.mus with bsdcurses.mus.)
+
+The magicname() routine adds variable names into the symbol table.  Along
+with the name of the variable as Perl knows it, we pass a structure containing
+an index identifying the variable, and the names of two C functions that
+know how to set or evaluate a variable given the index of the variable.
+Our example uses a macro to handle this conveniently.
+
+The init routine calls make_usub() to add user-defined subroutine names
+into the symbol table.  The arguments are
+
+	make_usub(subname, subindex, subfunc, filename);
+	char *subname;
+	int subindex;
+	int subfunc();
+	char *filename;
+
+The subname is the name that will be used in the Perl program.  The subindex
+will be passed to subfunc() when it is called to tell it which C function
+is desired.  subfunc() is a glue routine that translates the arguments
+from Perl internal stack form to the form required by the routine in
+question, calls the desired C function, and then translates any return
+value back into the stack format.  The glue routine used by curses just
+has a large switch statement, each branch of which does the processing
+for a particular C function.  The subindex could, however, be used to look
+up a function in a dynamically linked library.  No example of this is
+provided.
+
+As a help in producing the glue routine, a preprocessor called "mus" lets
+you specify argument and return value types in a tabular format.  An entry
+such as:
+
+    CASE int waddstr
+    I       WINDOW*         win
+    I       char*           str
+    END
+
+indicates that waddstr takes two input arguments, the first of which is a
+pointer to a window, and the second of which is an ordinary C string.  It
+also indicates that an integer is returned.  The mus program turns this into:
+
+    case US_waddstr:
+        if (items != 2)
+            fatal("Usage: &waddstr($win, $str)");
+        else {
+            int retval;
+            WINDOW*     win =           *(WINDOW**)     str_get(st[1]);
+            char*       str =           (char*)         str_get(st[2]);
+
+            retval = waddstr(win, str);
+            str_numset(st[0], (double) retval);
+        }
+        return sp;
+
+It's also possible to have output parameters, indicated by O, and input/ouput
+parameters indicated by IO.
+
+The mus program isn't perfect.  You'll note that curses.mus has some
+cases which are hand coded.  They'll be passed straight through unmodified.
+You can produce similar cases by analogy to what's in curses.c, as well
+as similar routines in the doarg.c, dolist.c and doio.c routines of Perl.
+The mus program is only intended to get you about 90% there.  It's not clear,
+for instance, how a given structure should be passed to Perl.  But that
+shouldn't bother you--if you've gotten this far, it's already obvious
+that you are totally mad.
+
+Here's an example of how to return an array value:
+
+    case US_appl_errlist:
+	if (!wantarray) {
+	    str_numset(st[0], (double) appl_nerr);
+	    return sp;
+	}
+	astore(stack, sp + appl_nerr, Nullstr);		/* extend stack */
+	st = stack->ary_array + sp;			/* possibly realloced */
+	for (i = 0; i < appl_nerr; i++) {
+	    tmps = appl_errlist[i];
+	    st[i] = str_2mortal(str_make(tmps,strlen(tmps)));
+	}
+	return sp + appl_nerr - 1;
+
+
+In addition, there is a program, man2mus, that will scan a man page for
+function prototypes and attempt to construct a mus CASE entry for you.  It has
+to guess about input/output parameters, so you'll have to tidy up after it.
+But it can save you a lot of time if the man pages for a library are
+reasonably well formed.
+
+If you happen to have curses on your machine, you might try compiling
+a copy of curseperl.  The "pager" program in this directory is a rudimentary
+start on writing a pager--don't believe the help message, which is stolen
+from the less program.
+
+User-defined subroutines may not currently be called as a signal handler,
+though a signal handler may itself call a user-defined subroutine.
+
+There are now glue routines to call back from C into Perl.  In usersub.c
+in this directory, you'll find callback() and callv().  The callback()
+routine presumes that any arguments to pass to the Perl subroutine
+have already been pushed onto the Perl stack.  The callv() routine
+is a wrapper that pushes an argv-style array of strings onto the
+stack for you, and then calls callback().  Be sure to recheck your
+stack pointer after returning from these routine, since the Perl code
+may have reallocated it.
