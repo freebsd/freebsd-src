@@ -328,7 +328,7 @@ startPPP(Device *devp)
     }
     else {
 	dialog_clear_norefresh();
-	msgConfirm("NOTICE: The PPP command is now started on VTY3 (type ALT-F3 to\n"
+	msgConfirm("NOTICE: The PPP command is now started on VTY2 (type ALT-F3 to\n"
            "interact with it, ALT-F1 to switch back here). If you are using\n"
            "a PAP or CHAP login simply enter \"dial\", otherwise you'll need\n"
            "to use the \"term\" command which starts a terminal emulator\n"
