@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.33 1997/06/24 18:21:08 jhay Exp $
+ * $Id: kernel.h,v 1.34 1997/09/21 22:09:11 gibbs Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -77,6 +77,7 @@ extern int tickdelta;
 extern long timedelta;
 
 #endif /* KERNEL */
+
 /*
  * The following macros are used to declare global sets of objects, which
  * are collected by the linker into a `struct linker_set' as defined below.
@@ -88,7 +89,7 @@ extern long timedelta;
 #define MAKE_SET(set, sym)				\
 	__asm__(".section .set." #set ",\"aw\"");       \
 	__asm__(".long " #sym);				\
-	__asm__(".previous");
+	__asm__(".previous")
 #define TEXT_SET(set, sym) MAKE_SET(set, sym)
 #define DATA_SET(set, sym) MAKE_SET(set, sym)
 #define BSS_SET(set, sym)  MAKE_SET(set, sym)
@@ -276,7 +277,8 @@ void	kproc_start __P((void *udata));
 	int \
 	name ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
 		MOD_DISPATCH(name, lkmtp, cmd, ver, name ## _load, name ## _unload, \
-			 lkm_nullcmd); }
+			 lkm_nullcmd); } \
+	struct __hack
 #else /* PSEUDO_LKM */
 
 /*
