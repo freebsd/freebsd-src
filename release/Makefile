@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.14 1995/09/25 02:15:26 jkh Exp $
+#	$Id: Makefile,v 1.193.2.15 1995/09/29 06:16:24 jkh Exp $
 #
 # How to roll a release:
 #
@@ -350,7 +350,7 @@ release.8: write_mfs_in_kernel
 	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
-		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
+		cd0a mcd0a scd0a matcd0a wcd0a rst0 ft0 rwt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
@@ -413,13 +413,10 @@ release.10:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
-		sh MAKEDEV wd0s5 wd0s6 wd0s7 wd0s8 && \
-		ls console tty ttyv0 ttyv1 null zero \
-		*[sw]d* fd[01] rfd[01] | \
+		sh MAKEDEV all && \
+		find . -print | \
 	cpio -dump ${RD}/fixitfd/dev )
-	ln -f ${RD}/fixitfd/stand/init ${RD}/fixitfd/sbin
-	cp ${RD}/trees/bin/usr/mdec/fdboot ${RD}/fixitfd/etc/boot1
-	cp ${RD}/trees/bin/usr/mdec/bootfd ${RD}/fixitfd/etc/boot2
+	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit
 	touch release.10
