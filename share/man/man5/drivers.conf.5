@@ -61,7 +61,7 @@ separated by tabs or spaces.
 .Pp
 The first field,
 .Ar driver ,
-is the name of the driver in the kernel configuration file.
+is the name of the driver or option in the kernel configuration file.
 This is used by
 .Pa driver-remove.pl
 to remove drivers from the boot floppy kernel configuration
@@ -85,7 +85,9 @@ may be added.
 The fourth field,
 .Ar type ,
 specifies the driver category.
-This field is currently unused.
+If set to 'options', then this module is assumed to add the
+functionality of a kernel option.
+Otherwise, this module is assumed to represent a device driver.
 .Pp
 The fifth field,
 .Ar description ,
