@@ -74,12 +74,16 @@ sparcv9-*-solaris2* | sparc64-*-solaris2*)
 			;;
 sparc*-*-solaris2*)	targ_emul=elf32_sparc ;;
 sparc*-wrs-vxworks*)	targ_emul=sparcaout ;;
-sparc*-*-rtems*)	targ_emul=sparcaout ;;
+sparc*-*-rtemsaout*)	targ_emul=sparcaout ;;
+sparc*-*-rtemself*)	targ_emul=elf32_sparc ;;
+sparc*-*-rtems*)	targ_emul=elf32_sparc ;;
 i960-wrs-vxworks5.0*)	targ_emul=gld960 ;;
 i960-wrs-vxworks5*)	targ_emul=gld960coff ;;
 i960-wrs-vxworks*)	targ_emul=gld960 ;;
 i960-*-coff)		targ_emul=gld960coff ;;
 i960-intel-nindy)	targ_emul=gld960 ;;
+i960-*-rtemscoff*)	targ_emul=gld960coff ;;
+i960-*-rtemself*)	targ_emul=elf32_i960 ;;
 i960-*-rtems*)		targ_emul=gld960coff ;;
 i960-*-elf*)		targ_emul=elf32_i960 ;;
 m32r-*-*)		targ_emul=m32relf ;;
@@ -99,8 +103,9 @@ i[3456]86-*-sco*)	targ_emul=i386coff ;;
 i[3456]86-*-isc*)	targ_emul=i386coff ;;
 i[3456]86-*-lynxos*)	targ_emul=i386lynx ;;
 i[3456]86-*-coff)	targ_emul=i386coff ;;
+i[3456]86-*-rtemscoff*) targ_emul=i386coff ;;
 i[3456]86-*-rtemself*)  targ_emul=elf_i386 ;;
-i[3456]86-*-rtems*)	targ_emul=i386coff ;;
+i[3456]86-*-rtems*)     targ_emul=elf_i386 ;;
 i[3456]86-*-bsd)	targ_emul=i386bsd ;;
 i[3456]86-*-bsd386)	targ_emul=i386bsd ;;
 i[3456]86-*-bsdi*)	targ_emul=i386bsd ;;
@@ -181,7 +186,8 @@ sh-*-elf* | sh-*-rtemself*)
 			;;
 sh-*-pe)		targ_emul=shpe ;
 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
-sh-*-*|sh-*-rtems*)	targ_emul=sh; targ_extra_emuls=shl ;;
+sh-*-rtemscoff* | sh-*-* | sh-*-rtems*)
+			targ_emul=sh; targ_extra_emuls=shl ;;
 m68k-sony-*)		targ_emul=news ;;
 m68k-hp-bsd*)		targ_emul=hp300bsd ;;
 m68*-motorola-sysv*)	targ_emul=delta68 ;;
@@ -202,7 +208,9 @@ m68*-*-lynxos*)		targ_emul=m68klynx ;;
 m68*-hp*-netbsd*)	targ_emul=m68k4knbsd ;;
 m68*-*-netbsd*)		targ_emul=m68knbsd ;;
 m68*-*-psos*)		targ_emul=m68kpsos ;;
-m68*-*-rtems*)		targ_emul=m68kcoff ;;
+m68*-*-rtemscoff*)	targ_emul=m68kcoff ;;
+m68*-*-rtemself)	targ_emul=m68kelf ;;
+m68*-*-rtems*)		targ_emul=m68kelf ;;
 hppa*w*-*)		targ_emul=elf64hppa ;;
 hppa*-*-*elf*)		targ_emul=hppaelf ;;
 hppa*-*-linux-gnu*)	targ_emul=hppaelf ;;
@@ -244,7 +252,7 @@ mips*-*-linux-gnu*)	targ_emul=elf32bsmip
 mips*-*-lnews*)		targ_emul=mipslnews ;;
 mn10200-*-*)		targ_emul=mn10200 ;;
 mn10300-*-*)		targ_emul=mn10300 ;;
-alpha*-*-freebsd*)	targ_emul=elf64alpha ;;
+alpha-*-freebsd*)	targ_emul=elf64alpha ;;
 alpha*-*-linuxecoff*)	targ_emul=alpha targ_extra_emuls=elf64alpha
 			tdir_elf64alpha=`echo ${targ_alias} | sed -e 's/ecoff//'`
 			;;
