@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.355.2.13 2003/01/15 19:17:15 ca Exp $
+#	$Id: README,v 8.355.2.14 2003/03/27 21:39:29 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -478,6 +478,9 @@ USE_ENVIRON	Set this to 1 to access process environment variables from
 		parameter of main().
 USE_DOUBLE_FORK By default this is on (1).  Set it to 0 to suppress the
 		extra fork() used to avoid intermediate zombies.
+ALLOW_255	Do not convert (char)0xff to (char)0x7f in headers etc.
+		This can also be done at runtime with the command line
+		option -d82.101.
 
 
 +-----------------------+
@@ -1794,4 +1797,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.355.2.13 $, last update $Date: 2003/01/15 19:17:15 $ )
+(Version $Revision: 8.355.2.14 $, last update $Date: 2003/03/27 21:39:29 $ )

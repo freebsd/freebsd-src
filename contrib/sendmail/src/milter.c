@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.197.2.6 2002/12/30 05:54:00 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.197.2.7 2003/03/22 18:54:25 ca Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -46,8 +46,18 @@ static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
 	}
 
 # if _FFR_QUARANTINE
-#  define MILTER_CHECK_ERROR(action) \
-	if (tTd(71, 101)) \
+#  define MILTER_CHECK_ERROR(initial, action) \
+	if (!initial && tTd(71, 100)) \
+	{ \
+		if (e->e_quarmsg == NULL) \
+		{ \
+			e->e_quarmsg = sm_rpool_strdup_x(e->e_rpool, \
+							 "filter failure"); \
+			macdefine(&e->e_macro, A_PERM, macid("{quarantine}"), \
+				  e->e_quarmsg); \
+		} \
+	} \
+	else if (tTd(71, 101)) \
 	{ \
 		if (e->e_quarmsg == NULL) \
 		{ \
@@ -64,7 +74,7 @@ static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
 	else \
 		action;
 # else /* _FFR_QUARANTINE */
-#  define MILTER_CHECK_ERROR(action) \
+#  define MILTER_CHECK_ERROR(initial, action) \
 	if (bitnset(SMF_TEMPFAIL, m->mf_flags)) \
 		*state = SMFIR_TEMPFAIL; \
 	else if (bitnset(SMF_REJECT, m->mf_flags)) \
@@ -1915,7 +1925,7 @@ milter_send_command(m, command, data, sz, e, state)
 			    m->mf_timeout[SMFTO_WRITE], e);
 	if (m->mf_state == SMFS_ERROR)
 	{
-		MILTER_CHECK_ERROR(return NULL);
+		MILTER_CHECK_ERROR(false, return NULL);
 		return NULL;
 	}
 
@@ -1924,7 +1934,7 @@ milter_send_command(m, command, data, sz, e, state)
 			       m->mf_timeout[SMFTO_READ], e);
 	if (m->mf_state == SMFS_ERROR)
 	{
-		MILTER_CHECK_ERROR(return NULL);
+		MILTER_CHECK_ERROR(false, return NULL);
 		return NULL;
 	}
 
@@ -2043,7 +2053,7 @@ milter_command(command, data, sz, macros, e, state)
 		/* previous problem? */
 		if (m->mf_state == SMFS_ERROR)
 		{
-			MILTER_CHECK_ERROR(continue);
+			MILTER_CHECK_ERROR(false, continue);
 			break;
 		}
 
@@ -2058,7 +2068,7 @@ milter_command(command, data, sz, macros, e, state)
 			milter_send_macros(m, macros, command, e);
 			if (m->mf_state == SMFS_ERROR)
 			{
-				MILTER_CHECK_ERROR(continue);
+				MILTER_CHECK_ERROR(false, continue);
 				break;
 			}
 		}
@@ -3062,7 +3072,7 @@ milter_init(e, state)
 		m->mf_sock = milter_open(m, false, e);
 		if (m->mf_state == SMFS_ERROR)
 		{
-			MILTER_CHECK_ERROR(continue);
+			MILTER_CHECK_ERROR(true, continue);
 			break;
 		}
 
@@ -3084,7 +3094,7 @@ milter_init(e, state)
 
 			/* if negotation failure, close socket */
 			milter_error(m, e);
-			MILTER_CHECK_ERROR(continue);
+			MILTER_CHECK_ERROR(true, continue);
 		}
 		if (MilterLogLevel > 9)
 			sm_syslog(LOG_INFO, e->e_id,
@@ -3541,7 +3551,7 @@ milter_data(e, state)
 		/* previous problem? */
 		if (m->mf_state == SMFS_ERROR)
 		{
-			MILTER_CHECK_ERROR(continue);
+			MILTER_CHECK_ERROR(false, continue);
 			break;
 		}
 
@@ -3602,7 +3612,7 @@ milter_data(e, state)
 						  "milter_data(%s): EOM ACK/NAK timeout",
 						  m->mf_name);
 				milter_error(m, e);
-				MILTER_CHECK_ERROR(break);
+				MILTER_CHECK_ERROR(false, break);
 				break;
 			}
 
@@ -3790,7 +3800,7 @@ milter_data(e, state)
 
 		if (m->mf_state == SMFS_ERROR)
 		{
-			MILTER_CHECK_ERROR(continue);
+			MILTER_CHECK_ERROR(false, continue);
 			goto finishup;
 		}
 	}

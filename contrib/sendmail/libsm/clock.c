@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.35.2.2 2002/06/27 23:24:20 gshapiro Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.35.2.3 2003/03/03 19:57:40 ca Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
@@ -167,7 +167,7 @@ sm_sigsafe_seteventm(intvl, func, arg)
 	(void) setitimer(ITIMER_REAL, &itime, NULL);
 # else /* SM_CONF_SETITIMER */
 	intvl = SmEventQueue->ev_time - now;
-	(void) alarm((unsigned) intvl < 1 ? 1 : intvl);
+	(void) alarm((unsigned) (intvl < 1 ? 1 : intvl));
 # endif /* SM_CONF_SETITIMER */
 	if (wasblocked == 0)
 		(void) sm_releasesignal(SIGALRM);
