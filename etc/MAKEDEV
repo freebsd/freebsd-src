@@ -85,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.92 1995/05/11 20:39:36 jkh Exp $
+#	$Id: MAKEDEV,v 1.93 1995/05/15 06:55:18 gpalmer Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -753,7 +753,7 @@ socksys)
 	rm -f socksys nfsd spx
 	mknod socksys c 41 0
 	mknod spx c 41 1
-	ln -s /dev/socksys /dev/nfsd
+	ln -s socksys nfsd
 	chown root.wheel socksys nfsd spx
 	chmod 666 socksys nfsd spx
 	;;
@@ -890,37 +890,37 @@ isdn*)
 	fi
 	unit=54
 	rm -f nic0 snic0 n?ic0 isdn isdn? ity?? itel?? ispy
-	mknod /dev/n8ic0 c $unit 0
-	mknod /dev/snic0 c `expr $unit + 4` 0
-	mknod /dev/n9ic0 c `expr $unit + 6` 0
-	mknod /dev/isdn c `expr $unit + 1` 0
-	mknod /dev/isdn1 c `expr $unit + 1` 1
-	mknod /dev/isdn2 c `expr $unit + 1` 2
-	mknod /dev/ity00 c `expr $unit + 2` 0
-	mknod /dev/ity01 c `expr $unit + 2` 1
-	mknod /dev/ityo0 c `expr $unit + 2` 130
-	mknod /dev/ityo1 c `expr $unit + 2` 131
-	mknod /dev/itel00 c `expr $unit + 3` 0
-	mknod /dev/itel01 c `expr $unit + 3` 1
-	mknod /dev/ispy c `expr $unit + 5` 0
+	mknod n8ic0 c $unit 0
+	mknod snic0 c `expr $unit + 4` 0
+	mknod n9ic0 c `expr $unit + 6` 0
+	mknod isdn c `expr $unit + 1` 0
+	mknod isdn1 c `expr $unit + 1` 1
+	mknod isdn2 c `expr $unit + 1` 2
+	mknod ity00 c `expr $unit + 2` 0
+	mknod ity01 c `expr $unit + 2` 1
+	mknod ityo0 c `expr $unit + 2` 130
+	mknod ityo1 c `expr $unit + 2` 131
+	mknod itel00 c `expr $unit + 3` 0
+	mknod itel01 c `expr $unit + 3` 1
+	mknod ispy c `expr $unit + 5` 0
 	chmod 600 n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
 	chown root.wheel n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
 	chown uucp.wheel ityo[01]
 	case $type in
 	5000)
-		ln /dev/snic0 /dev/nic0
-		chmod 600 /dev/nic0
-		chown root.wheel /dev/nic0
+		ln snic0 nic0
+		chmod 600 nic0
+		chown root.wheel nic0
 		;;
 	3008)
-		ln /dev/n8ic0 /dev/nic0
-		chmod 600 /dev/nic0
-		chown root.wheel /dev/nic0
+		ln n8ic0 nic0
+		chmod 600 nic0
+		chown root.wheel nic0
 		;;
 	3009)
-		ln /dev/n9ic0 /dev/nic0
-		chmod 600 /dev/nic0
-		chown root.wheel /dev/nic0
+		ln n9ic0 nic0
+		chmod 600 nic0
+		chown root.wheel nic0
 		;;
 	1000|tel*|TEL*|none)
 		;;
