@@ -1,4 +1,5 @@
 /* $Id: fake-rfc2553.h,v 1.6.2.1 2003/09/22 02:09:18 dtucker Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
@@ -113,7 +114,7 @@ struct sockaddr_in6 {
 # define NI_MAXHOST 1025
 #endif /* !NI_MAXHOST */
 
-#ifndef EAI_NODATA
+#ifndef EAI_NONAME
 # define EAI_NODATA	1
 # define EAI_MEMORY	2
 # define EAI_NONAME	3
