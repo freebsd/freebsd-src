@@ -3249,6 +3249,7 @@ ciss_notify_rescan_logical(struct ciss_softc *sc)
 	if (ld->cl_update == 0)
 		continue;
 
+	ld->cl_update		= 0;
 	ld->cl_address		= cll->lun[i];
 	ld->cl_controller	= &sc->ciss_controllers[bus];
 	if (ciss_identify_logical(sc, ld) == 0) {
