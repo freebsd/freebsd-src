@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: newfs.c,v 1.22 1998/07/20 12:04:42 bde Exp $";
+	"$Id: newfs.c,v 1.23 1998/09/11 06:26:08 grog Exp $";
 #endif /* not lint */
 
 /*
@@ -247,7 +247,7 @@ main(argc, argv)
 
 	opstring = mfs ?
 	    "NF:T:a:b:c:d:e:f:i:m:o:s:" :
-	    "NOS:T:a:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:v:x";
+	    "NOS:T:a:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:vx";
 	while ((ch = getopt(argc, argv, opstring)) != -1)
 		switch (ch) {
 		case 'N':
@@ -454,10 +454,12 @@ main(argc, argv)
 		if ((st.st_mode & S_IFMT) != S_IFCHR && !mfs)
 			printf("%s: %s: not a character-special device\n",
 			    progname, special);
-		cp = strchr(argv[0], '\0') - 1;
-		if (!vflag &&
-		    cp == (char *)-1 ||
-		    ((*cp < 'a' || *cp > 'h') && !isdigit(*cp)))
+ 		cp = strchr(argv[0], '\0');
+ 		if (cp == argv[0])
+ 			fatal("null special file name");
+ 		cp--;
+ 		if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
+		    ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))))
 			fatal("%s: can't figure out file system partition",
 			    argv[0]);
 #ifdef COMPAT
@@ -757,6 +759,8 @@ usage()
 	fprintf(stderr, "\t-r revolutions/minute\n");
 	fprintf(stderr, "\t-t tracks/cylinder\n");
 	fprintf(stderr, "\t-u sectors/track\n");
+	fprintf(stderr,
+        "\t-v do not attempt to determine partition name from device name\n");
 	fprintf(stderr, "\t-x spare sectors per cylinder\n");
 	exit(1);
 }
