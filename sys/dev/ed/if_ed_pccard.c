@@ -115,283 +115,68 @@ ed_pccard_detach(device_t dev)
 
 static const struct ed_product {
 	struct pccard_product	prod;
-	int enet_maddr;
-	unsigned char enet_vendor[3];
 	int flags;
 #define	NE2000DVF_DL10019	0x0001		/* chip is D-Link DL10019 */
 #define	NE2000DVF_AX88190	0x0002		/* chip is ASIX AX88190 */
 } ed_pccard_products[] = {
-	{ PCMCIA_CARD(EDIMAX, EP4000A, 0),
-	  -1, { 0x00, 0xa0, 0x0c } },
-	{ PCMCIA_CARD(SYNERGY21, S21810, 0),
-	  -1, { 0x00, 0x48, 0x54} },
-	{ PCMCIA_CARD(AMBICOM, AMB8002T, 0),
-	  -1, { 0x00, 0x10, 0x7a } },
-	{ PCMCIA_CARD(PREMAX, PE200, 0),
-	  0x07f0, { 0x00, 0x20, 0xe0 } },
-	{ PCMCIA_CARD(DIGITAL, DEPCMXX, 0),
-	  0x0ff0, { 0x00, 0x00, 0xe8 } },
-	{ PCMCIA_CARD(PLANET, SMARTCOM2000, 0),
-	  0xff0, { 0x00, 0x00, 0xe8 } },
-	{ PCMCIA_CARD(DLINK, DE660, 0),
-	  -1, { 0x00, 0x80, 0xc8 } },
-	{ PCMCIA_CARD(DLINK, DE660PLUS, 0),
-	  -1, { 0x00, 0x80, 0x08 } },
-	{ PCMCIA_CARD(RPTI, EP400, 0),
-	  -1, { 0x00, 0x40, 0x95 } },
-	{ PCMCIA_CARD(RPTI, EP401, 0),
-	  -1, { 0x00, 0x40, 0x95 } },
-	{ PCMCIA_CARD(ACCTON, EN2212, 0),
-	  0x0ff0, { 0x00, 0x00, 0xe8 } },
-	{ PCMCIA_CARD(SVEC, COMBOCARD, 0),
-	  -1, { 0x00, 0xe0, 0x98 } },
-	{ PCMCIA_CARD(SVEC, LANCARD, 0),
-	  0x7f0, { 0x00, 0xc0, 0x6c } },
-	{ PCMCIA_CARD(EPSON, EEN10B, 0),
-	  0xff0, { 0x00, 0x00, 0x48 } },
-	{ PCMCIA_CARD(CNET, NE2000, 0),
-	  -1, { 0x00, 0x80, 0xad } },
-	{ PCMCIA_CARD(ZONET, ZEN, 0),
-	  -1, { 0x00, 0x80, 0xad } },
-
-	/*
-	 * You have to add new entries which contains
-	 * PCMCIA_VENDOR_INVALID and/or PCMCIA_PRODUCT_INVALID 
-	 * in front of this comment.
-	 */
-	{ PCMCIA_CARD(LANTECH, FASTNETTX, 0),
-	  -1, { 0x00, 0x04, 0x1c}, NE2000DVF_AX88190 },
-	{ PCMCIA_CARD(IBM, INFOMOVER, 0),
-	  0x0ff0, { 0x08, 0x00, 0x5a } },
-	{ PCMCIA_CARD(IBM, INFOMOVER, 0),
-	  0x0ff0, { 0x00, 0x04, 0xac } },
-	{ PCMCIA_CARD(IBM, INFOMOVER, 0),
-	  0x0ff0, { 0x00, 0x06, 0x29 } },
-	{ PCMCIA_CARD(KINGSTON, KNE2, 0),
-	  -1, { 0, 0, 0 }, 0 },	/* XXX */
-	{ PCMCIA_CARD(LINKSYS, ECARD_1, 0),
-	  -1, { 0x00, 0x80, 0xc8 } },
-	{ PCMCIA_CARD(LINKSYS, PCM100, 0),
-	  -1, { 0x00, 0x04, 0x5a } },
-#ifdef BOGUS
-	/*
-	 * The next three should be detected as linksys, but might fail
-	 * the mac sanity check.
-	 */
-	{ PCMCIA_CARD(PLANEX, FNW3600T, 0), 
-	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(PLANEX, FNW3700T, 0), 
-	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(SVEC, PN650TX, 0),
-	  -1, { 0x00, 0xe0, 0x98 }, NE2000DVF_DL10019 },
-#endif
-
-	/*
-	 * This entry should be here so that above two cards doesn't
-	 * match with this.  FNW-3700T won't match above entries due to
-	 * MAC address check.
-	 */
-	{ PCMCIA_CARD(LINKSYS, COMBO_ECARD, 0),
-	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0),
-	  -1, { 0x00, 0x80, 0xc8 }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0),
-	  -1, { 0x00, 0x90, 0xfe }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD2(LINKSYS, ETHERFAST, DLINK_DE650, 0),
-	  -1, { 0x00, 0xe0, 0x98 }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD2(LINKSYS, ETHERFAST, MELCO_LPC2_TX, 0),
-	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(LINKSYS, TRUST_COMBO_ECARD, 0), 
-	  0x0120, { 0x20, 0x04, 0x49 } },
-
-	/* 
-	 * Although the comments above say to put VENDOR/PRODUCT
-	 * INVALID IDs above this list, we need to keep this one below
-	 * the ECARD_1, or else both will match the same more-generic
-	 * entry rather than the more specific one above with proper
-	 * vendor and product IDs.
-	 */
-	{ PCMCIA_CARD(LINKSYS, ECARD_2, 0),
-	  -1, { 0x00, 0x80, 0xc8 } },
-
-	/*
-	 * D-Link DE-650 has many minor versions:
-	 *
-	 *   CIS information          Manufacturer Product  Note
-	 * 1 "D-Link, DE-650"             INVALID  INVALID  white card
-	 * 2 "D-Link, DE-650, Ver 01.00"  INVALID  INVALID  became bare metal
-	 * 3 "D-Link, DE-650, Ver 01.00"   0x149    0x265   minor changed look
-	 * 4 "D-Link, DE-650, Ver 01.00"   0x149    0x265   collision LED added
-	 *
-	 * While the 1st and the 2nd types should use the "D-Link DE-650"
-	 * entry, the 3rd and the 4th types should use the "Linksys 
-	 * EtherCard" entry. Therefore, this enty must be below the 
-	 * LINKSYS_ECARD_1.  --itohy
-	 */
-	{ PCMCIA_CARD(DLINK, DE650, 0),
-	  0x0040, { 0x00, 0x80, 0xc8 } },
-
-	/*
-	 * IO-DATA PCLA/TE and later version of PCLA/T has valid
-	 * vendor/product ID and it is possible to read MAC address
-	 * using standard I/O ports.  It also read from CIS offset 0x01c0.
-	 * On the other hand, earlier version of PCLA/T doesn't have valid
-	 * vendor/product ID and MAC address must be read from CIS offset
-	 * 0x0ff0 (i.e., usual ne2000 way to read it doesn't work).
-	 * And CIS information of earlier and later version of PCLA/T are
-	 * same except fourth element.  So, for now, we place the entry for
-	 * PCLA/TE (and later version of PCLA/T) followed by entry
-	 * for the earlier version of PCLA/T (or, modify to match all CIS
-	 * information and have three or more individual entries).
-	 */
-	{ PCMCIA_CARD(IODATA, PCLATE, 0),
-	  -1, { 0x00, 0xa0, 0xb0 } },
-
-	/*
-	 * This entry should be placed after above PCLA-TE entry.
-	 * See above comments for detail.
-	 */
-	{ PCMCIA_CARD(IODATA, PCLAT, 0),
-	  0x0ff0, { 0x00, 0xa0, 0xb0 } },
-	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_1, 0),
-	  0x0110, { 0x00, 0x80, 0x19 } },
-	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_2, 0),
-	  -1, { 0x00, 0x80, 0x19 } },
-	{ PCMCIA_CARD(COREGA, ETHER_PCC_TD, 0),
-	  -1, { 0x00, 0x00, 0xf4 } },
-	{ PCMCIA_CARD(COREGA, ETHER_PCC_T, 0),
-	  -1, { 0x00, 0x00, 0xf4 } },
-	{ PCMCIA_CARD(COREGA, ETHER_II_PCC_T, 0),
-	  -1, { 0x00, 0x00, 0xf4 } },
-	{ PCMCIA_CARD(COREGA, ETHER_II_PCC_TD, 0),
-	  -1, { 0x00, 0x00, 0xf4 } },
-	{ PCMCIA_CARD(COREGA, FAST_ETHER_PCC_TX, 0),
-	  -1, { 0x00, 0x00, 0xf4 }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXD, 0),
-	  -1, { 0x00, 0x90, 0x99 }, NE2000DVF_AX88190 },
-	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXF, 0),
-	  -1, { 0x00, 0x90, 0x99 }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(COMPEX, LINKPORT_ENET_B, 0),
-	  0x01c0, { 0x00, 0xa0, 0x0c } },
-	{ PCMCIA_CARD(DYNALINK, L10C, 0),
-	  0x01c0, { 0x00, 0x00, 0x00 } },
-	{ PCMCIA_CARD(SMC, EZCARD, 0),
-	  0x01c0, { 0x00, 0xe0, 0x29 } },
-	{ PCMCIA_CARD(SOCKET, EA_ETHER, 0),
-	  -1, { 0x00, 0xc0, 0x1b } },
-	{ PCMCIA_CARD(SOCKET, LP_ETHER_CF, 0),
-	  -1, { 0x00, 0xc0, 0x1b } },
-	{ PCMCIA_CARD(SOCKET, LP_ETHER, 0),
-	  -1, { 0x00, 0xc0, 0x1b } },
-	{ PCMCIA_CARD(KINGSTON, KNE2, 0),
-	  -1, { 0x00, 0xc0, 0xf0 } },
-	{ PCMCIA_CARD(XIRCOM, CFE_10, 0),
-	  -1, { 0x00, 0x10, 0xa4 } },
-	{ PCMCIA_CARD(MELCO, LPC3_TX,  0),
-	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_AX88190 },
-	{ PCMCIA_CARD(BUFFALO, LPC3_CLT,  0),
-	  -1, { 0x00, 0x07, 0x40 } },
-	{ PCMCIA_CARD(BUFFALO, LPC_CF_CLT,  0),
-	  -1, { 0x00, 0x07, 0x40 } },
-	{ PCMCIA_CARD(BILLIONTON, LNT10TN, 0),
-	  -1, { 0x00, 0x00, 0x00 } },
-	{ PCMCIA_CARD(NDC, ND5100_E, 0),
-	  -1, { 0x00, 0x80, 0xc6 } },
-	{ PCMCIA_CARD(TELECOMDEVICE, TCD_HPC100, 0),
-	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_AX88190 },
-	{ PCMCIA_CARD(MACNICA, ME1_JEIDA, 0),
-	  0x00b8, { 0x08, 0x00, 0x42 } },
-	{ PCMCIA_CARD(ALLIEDTELESIS, LA_PCM, 0),
-	  0x0ff0, { 0x00, 0x00, 0xf4 } },
-	{ PCMCIA_CARD(DLINK, DFE670TXD, 0),
-	  -1, { 0x00, 0x50, 0xba}, NE2000DVF_DL10019},
-	{ PCMCIA_CARD(NETGEAR, FA410TXC, 0),
-	  -1, { 0x00, 0x48, 0x54 }, NE2000DVF_DL10019},
-	{ PCMCIA_CARD(NETGEAR, FA411, 0),
-	  -1, { 0x00, 0x40, 0xf4 }, NE2000DVF_AX88190},
-
-#if 0
-    /* the rest of these are stolen from the linux pcnet pcmcia device
-       driver.  Since I don't know the manfid or cis info strings for
-       any of them, they're not compiled in until I do. */
-    { "APEX MultiCard",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x03f4, { 0x00, 0x20, 0xe5 } },
-    { "ASANTE FriendlyNet",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x4910, { 0x00, 0x00, 0x94 } },
-    { "Danpex EN-6200P2",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0110, { 0x00, 0x40, 0xc7 } },
-    { "DataTrek NetCard",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0x20, 0xe8 } },
-    { "Dayna CommuniCard E",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0110, { 0x00, 0x80, 0x19 } },
-    { "EP-210 Ethernet",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0110, { 0x00, 0x40, 0x33 } },
-    { "ELECOM Laneed LD-CDWA",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x00b8, { 0x08, 0x00, 0x42 } },
-    { "Grey Cell GCS2220",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0000, { 0x00, 0x47, 0x43 } },
-    { "Hypertec Ethernet",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x01c0, { 0x00, 0x40, 0x4c } },
-    { "IBM CCAE",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x08, 0x00, 0x5a } },
-    { "IBM CCAE",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0x04, 0xac } },
-    { "IBM CCAE",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0x06, 0x29 } },
-    { "IBM FME",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0374, { 0x00, 0x04, 0xac } },
-    { "IBM FME",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0374, { 0x08, 0x00, 0x5a } },
-    { "Katron PE-520",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0110, { 0x00, 0x40, 0xf6 } },
-    { "Kingston KNE-PCM/x",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0xc0, 0xf0 } },
-    { "Kingston KNE-PCM/x",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0xe2, 0x0c, 0x0f } },
-    { "Longshine LCS-8534",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0000, { 0x08, 0x00, 0x00 } },
-    { "Maxtech PCN2000",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x5000, { 0x00, 0x00, 0xe8 } },
-    { "NDC Instant-Link",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x003a, { 0x00, 0x80, 0xc6 } },
-    { "NE2000 Compatible",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0xa0, 0x0c } },
-    { "Network General Sniffer",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0x00, 0x65 } },
-    { "Panasonic VEL211",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0x80, 0x45 } },
-    { "SCM Ethernet",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0ff0, { 0x00, 0x20, 0xcb } },
-    { "Volktek NPL-402CT",
-      0x0000, 0x0000, NULL, NULL, 0,
-      0x0060, { 0x00, 0x40, 0x05 } },
-#endif
+	{ PCMCIA_CARD(ACCTON, EN2212, 0), 0},
+	{ PCMCIA_CARD(ALLIEDTELESIS, LA_PCM, 0), 0},
+	{ PCMCIA_CARD(AMBICOM, AMB8002T, 0), 0},
+	{ PCMCIA_CARD(BILLIONTON, LNT10TN, 0), 0},
+	{ PCMCIA_CARD(BUFFALO, LPC3_CLT,  0), 0},
+	{ PCMCIA_CARD(BUFFALO, LPC_CF_CLT,  0), 0},
+	{ PCMCIA_CARD(CNET, NE2000, 0), 0},
+	{ PCMCIA_CARD(COMPEX, LINKPORT_ENET_B, 0), 0},
+	{ PCMCIA_CARD(COREGA, ETHER_II_PCC_T, 0), 0},
+	{ PCMCIA_CARD(COREGA, ETHER_II_PCC_TD, 0), 0},
+	{ PCMCIA_CARD(COREGA, ETHER_PCC_T, 0), 0},
+	{ PCMCIA_CARD(COREGA, ETHER_PCC_TD, 0), 0},
+	{ PCMCIA_CARD(COREGA, FAST_ETHER_PCC_TX, 0), NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXD, 0), NE2000DVF_AX88190 },
+	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXF, 0), NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_1, 0), 0},
+	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_2, 0), 0},
+	{ PCMCIA_CARD(DIGITAL, DEPCMXX, 0), 0 },
+	{ PCMCIA_CARD(DLINK, DE650, 0), 0},
+	{ PCMCIA_CARD(DLINK, DE660, 0), 0 },
+	{ PCMCIA_CARD(DLINK, DE660PLUS, 0), 0},
+	{ PCMCIA_CARD(DLINK, DFE670TXD, 0), NE2000DVF_DL10019},
+	{ PCMCIA_CARD(DYNALINK, L10C, 0), 0},
+	{ PCMCIA_CARD(EDIMAX, EP4000A, 0), 0},
+	{ PCMCIA_CARD(EPSON, EEN10B, 0), 0},
+	{ PCMCIA_CARD(IBM, INFOMOVER, 0), 0},
+	{ PCMCIA_CARD(IODATA, PCLAT, 0), 0},
+	{ PCMCIA_CARD(IODATA, PCLATE, 0), 0},
+	{ PCMCIA_CARD(KINGSTON, KNE2, 0), 0},
+	{ PCMCIA_CARD(KINGSTON, KNE2, 0), 0},
+	{ PCMCIA_CARD(LANTECH, FASTNETTX, 0),NE2000DVF_AX88190 },
+	{ PCMCIA_CARD(LINKSYS, COMBO_ECARD, 0), NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(LINKSYS, ECARD_1, 0), 0},
+	{ PCMCIA_CARD(LINKSYS, ECARD_2, 0), 0},
+	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0), NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(LINKSYS, PCM100, 0), 0},
+	{ PCMCIA_CARD(LINKSYS, TRUST_COMBO_ECARD, 0), 0},
+	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0), NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(MACNICA, ME1_JEIDA, 0), 0},
+	{ PCMCIA_CARD(MELCO, LPC3_TX, 0), NE2000DVF_AX88190 },
+	{ PCMCIA_CARD(NDC, ND5100_E, 0), 0},
+	{ PCMCIA_CARD(NETGEAR, FA410TXC, 0), NE2000DVF_DL10019},
+	{ PCMCIA_CARD(NETGEAR, FA411, 0), NE2000DVF_AX88190},
+	{ PCMCIA_CARD(PLANET, SMARTCOM2000, 0), 0 },
+	{ PCMCIA_CARD(PREMAX, PE200, 0), 0},
+	{ PCMCIA_CARD(RPTI, EP400, 0), 0},
+	{ PCMCIA_CARD(RPTI, EP401, 0), 0},
+	{ PCMCIA_CARD(SMC, EZCARD, 0), 0},
+	{ PCMCIA_CARD(SOCKET, EA_ETHER, 0), 0},
+	{ PCMCIA_CARD(SOCKET, LP_ETHER, 0), 0},
+	{ PCMCIA_CARD(SOCKET, LP_ETHER_CF, 0), 0},
+	{ PCMCIA_CARD(SVEC, COMBOCARD, 0), 0},
+	{ PCMCIA_CARD(SVEC, LANCARD, 0), 0},
+	{ PCMCIA_CARD(SYNERGY21, S21810, 0), 0},
+	{ PCMCIA_CARD(TELECOMDEVICE, TCD_HPC100, 0), NE2000DVF_AX88190 },
+	{ PCMCIA_CARD(XIRCOM, CFE_10, 0), 0},
+	{ PCMCIA_CARD(ZONET, ZEN, 0), 0},
 	{ { NULL } }
-	
 };
 
 static int
