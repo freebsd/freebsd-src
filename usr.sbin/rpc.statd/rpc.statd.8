@@ -94,6 +94,9 @@ RPC protocol specification used by local applications to register monitoring req
 .Xr syslog 3 ,
 .Xr rc 8 ,
 .Xr rpc.lockd 8
+.Sh STANDARDS
+The implementation is based on the specification in X/Open CAE Specification
+C218, "Protocols for X/Open PC Interworking: XNFS, Issue 4", ISBN 1 872630 66 9
 .Sh BUGS
 There is no means for the daemon to tell when a monitored host has
 disappeared permanently (e.g.\& catastrophic hardware failure), as opposed
@@ -111,6 +114,3 @@ The current implementation uses more than 1Kbyte per monitored host in
 the status file (and also in VM).
 This may be inefficient for NFS servers
 with large numbers of clients.
-.Sh STANDARDS
-The implementation is based on the specification in X/Open CAE Specification
-C218, "Protocols for X/Open PC Interworking: XNFS, Issue 4", ISBN 1 872630 66 9

@@ -119,6 +119,15 @@ tracing file for timed
 .It Pa /var/log/timed.masterlog
 log file for master timed
 .El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It ?Ambiguous command
+abbreviation matches more than one command
+.It ?Invalid command
+no match found
+.It ?Privileged command
+command can be executed by root only
+.El
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr adjtime 2 ,
@@ -129,15 +138,6 @@ log file for master timed
 .%A R. Gusella
 .%A S. Zatti
 .Re
-.Sh DIAGNOSTICS
-.Bl -diag
-.It ?Ambiguous command
-abbreviation matches more than one command
-.It ?Invalid command
-no match found
-.It ?Privileged command
-command can be executed by root only
-.El
 .Sh HISTORY
 The
 .Nm

@@ -108,8 +108,6 @@ RPC protocol specification for the network lock manager protocol.
 .Xr syslog 3 ,
 .Xr rc.conf 5 ,
 .Xr rpc.statd 8
-.Sh BUGS
-The current implementation serialises locks requests that could be shared.
 .Sh STANDARDS
 The implementation is based on the specification in
 .Rs
@@ -123,3 +121,5 @@ A version of
 appeared in
 .Tn SunOS
 4.
+.Sh BUGS
+The current implementation serialises locks requests that could be shared.

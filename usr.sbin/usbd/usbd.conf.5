@@ -127,6 +127,13 @@ Shell command to execute when a device is attached.
 .It detach Ar string
 Shell command to execute when a device is detached.
 .El
+.Sh FILES
+.Bl -tag -width /etc/usbd.conf -compact
+.It Pa /etc/usbd.conf
+The
+.Nm usbd
+configuration file.
+.El
 .Sh EXAMPLES
 A sample entry to rescan the SCSI bus on connection of a
 .Tn "Iomega USB Zip Drive" :
@@ -144,20 +151,13 @@ To start up moused for a newly attached mouse:
       devname "ums[0-9]+"
       attach "/usr/sbin/moused -p /dev/${DEVNAME} -I /var/run/moused.${DEVNAME}.pid"
 .Ed
-.Sh FILES
-.Bl -tag -width /etc/usbd.conf -compact
-.It Pa /etc/usbd.conf
-The
-.Nm usbd
-configuration file.
-.El
 .Sh SEE ALSO
 .Xr usb 4 ,
 .Xr usbd 8 ,
 .Xr usbdevs 8
-.Sh BUGS
-It is currently not possible to use a selection criterion more than once.
-For example, it is not possible to specify more than one vendor ID.
 .Sh AUTHORS
 This manual page was written by
 .An Nick Hibma Aq n_hibma@FreeBSD.org .
+.Sh BUGS
+It is currently not possible to use a selection criterion more than once.
+For example, it is not possible to specify more than one vendor ID.

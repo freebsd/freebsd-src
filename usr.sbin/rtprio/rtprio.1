@@ -164,6 +164,15 @@ but is similar to the HP-UX version.
 .Sh CAVEATS
 You can lock yourself out of the system by placing a cpu-heavy
 process in a realtime priority.
+.Sh AUTHORS
+.An -nosplit
+.An Henrik Vestergaard Draboel Aq hvd@terry.ping.dk
+is the original author.
+This
+implementation in
+.Fx
+was substantially rewritten by
+.An David Greenman .
 .Sh BUGS
 There is no way to set/view the realtime priority of process 0
 (swapper) (see
@@ -181,12 +190,3 @@ Under
 system calls are currently never preempted, therefore non-realtime
 processes can starve realtime processes, or idletime processes can
 starve normal priority processes.
-.Sh AUTHORS
-.An -nosplit
-.An Henrik Vestergaard Draboel Aq hvd@terry.ping.dk
-is the original author.
-This
-implementation in
-.Fx
-was substantially rewritten by
-.An David Greenman .

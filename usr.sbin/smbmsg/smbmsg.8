@@ -204,6 +204,10 @@ The default device to connect to, unless
 .Fl f Ar dev
 has been provided.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, or according to
+.Xr sysexits 3
+in case of failure.
 .Sh EXAMPLES
 Typical usage examples of the
 .Nm
@@ -259,10 +263,6 @@ Send a
 command to device at address 0xa0.
 For the PCF8583 RTC, this would set the clock to Sunday (2004%4)-05-16
 22:07:00.
-.Sh EXIT STATUS
-Exit status is 0 on success, or according to
-.Xr sysexits 3
-in case of failure.
 .Sh DIAGNOSTICS
 Diagnostic messages issued are supposed to be self-explanatory.
 .Sh SEE ALSO

@@ -204,8 +204,6 @@ flag is specified, only the
 and
 .Fl s
 flags are honored.
-.Sh EXIT STATUS
-.Ex -std
 .Sh FILES
 .Bl -tag -width /var/account/usracct -compact
 .It Pa /var/account/acct
@@ -215,18 +213,13 @@ per-command accounting summary database
 .It Pa /var/account/usracct
 per-user accounting summary database
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh SEE ALSO
 .Xr lastcomm 1 ,
 .Xr acct 5 ,
 .Xr ac 8 ,
 .Xr accton 8
-.Sh BUGS
-The number of options to this program is absurd, especially considering
-that there's not much logic behind their lettering.
-.Pp
-The field labels should be more consistent.
-.Pp
-The VM system does not record the CPU storage integral.
 .Sh CAVEATS
 While the behavior of the options in this version of
 .Nm
@@ -246,3 +239,10 @@ This is not considered a problem, however, because the accounting record
 format has changed as well (since user ids are now 32 bits).
 .Sh AUTHORS
 .An Chris G. Demetriou Aq cgd@postgres.berkeley.edu
+.Sh BUGS
+The number of options to this program is absurd, especially considering
+that there's not much logic behind their lettering.
+.Pp
+The field labels should be more consistent.
+.Pp
+The VM system does not record the CPU storage integral.

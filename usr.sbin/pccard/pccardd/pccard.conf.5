@@ -270,6 +270,16 @@ The alias
 can be used instead of
 .Dq generic ,
 this is supported due to historical reasons.
+.Sh FILES
+.Bl -tag -width /etc/defaults/pccard.conf -compact
+.It Pa /etc/defaults/pccard.conf
+The
+.Xr pccardd 8
+default configuration file.
+.It Pa /etc/pccard.conf
+The
+user configuration file.
+.El
 .Sh EXAMPLES
 A typical configuration file may look like this:
 .Bd -literal
@@ -298,15 +308,5 @@ card "XYZZY" "FAX/1.0"
        remove echo stop getty
 
 .Ed
-.Sh FILES
-.Bl -tag -width /etc/defaults/pccard.conf -compact
-.It Pa /etc/defaults/pccard.conf
-The
-.Xr pccardd 8
-default configuration file.
-.It Pa /etc/pccard.conf
-The
-user configuration file.
-.El
 .Sh SEE ALSO
 .Xr pccardd 8

@@ -153,6 +153,8 @@ image
 .It Pa /boot/boot0sio
 Image for serial consoles (COM1,9600,8,N,1,MODEM)
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 To boot slice 2 on the next boot:
 .Pp
@@ -161,8 +163,6 @@ To boot slice 2 on the next boot:
 To enable just slices 1 and 2 in the menu:
 .Pp
 .Dl "boot0cfg -m 0x3 ad0"
-.Sh EXIT STATUS
-.Ex -std
 .Sh SEE ALSO
 .Xr boot 8 ,
 .Xr fdisk 8

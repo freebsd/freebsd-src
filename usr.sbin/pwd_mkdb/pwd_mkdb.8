@@ -142,6 +142,23 @@ The current password file.
 .It Pa /etc/passwd
 A Version 7 format password file.
 .El
+.Sh COMPATIBILITY
+Previous versions of the system had a program similar to
+.Nm ,
+.Xr mkpasswd 8 ,
+which built
+.Xr dbm 3
+style databases for the password file but depended on the calling programs
+to install them.
+The program was renamed in order that previous users of the program
+not be surprised by the changes in functionality.
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr passwd 1 ,
+.Xr db 3 ,
+.Xr getpwent 3 ,
+.Xr passwd 5 ,
+.Xr vipw 8
 .Sh BUGS
 Because of the necessity for atomic update of the password files,
 .Nm
@@ -163,20 +180,3 @@ The front-ends to
 and
 .Xr vipw 8 ,
 handle the locking necessary to avoid this problem.
-.Sh COMPATIBILITY
-Previous versions of the system had a program similar to
-.Nm ,
-.Xr mkpasswd 8 ,
-which built
-.Xr dbm 3
-style databases for the password file but depended on the calling programs
-to install them.
-The program was renamed in order that previous users of the program
-not be surprised by the changes in functionality.
-.Sh SEE ALSO
-.Xr chpass 1 ,
-.Xr passwd 1 ,
-.Xr db 3 ,
-.Xr getpwent 3 ,
-.Xr passwd 5 ,
-.Xr vipw 8
