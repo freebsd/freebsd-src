@@ -66,6 +66,8 @@ static int	pci_cfgintr_linked(struct PIR_entry *pe, int pin);
 static int	pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int pin);
 static int	pci_cfgintr_virgin(struct PIR_entry *pe, int pin);
 
+static void	pci_print_irqmask(u_int16_t irqs);
+static void	pci_print_route_table(struct PIR_table *prt, int size);
 static int	pcibios_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcibios_cfgopen(void);
@@ -73,8 +75,8 @@ static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcireg_cfgopen(void);
 
-static struct PIR_table	*pci_route_table;
-static int		pci_route_count;
+static struct PIR_table *pci_route_table;
+static int pci_route_count;
 
 /*
  * Some BIOS writers seem to want to ignore the spec and put
@@ -487,6 +489,56 @@ pci_cfgintr_virgin(struct PIR_entry *pe, int pin)
 	return(PCI_INVALID_IRQ);
 }
 
+static void
+pci_print_irqmask(u_int16_t irqs)
+{
+	int i, first;
+
+	if (irqs == 0) {
+		printf("none");
+		return;
+	}
+	first = 1;
+	for (i = 0; i < 16; i++, irqs >>= 1)
+		if (irqs & 1) {
+			if (!first)
+				printf(" ");
+			else
+				first = 0;
+			printf("%d", i);
+		}
+}
+
+/*
+ * Dump the contents of a PCI BIOS Interrupt Routing Table to the console.
+ */
+static void
+pci_print_route_table(struct PIR_table *prt, int size)
+{
+	struct PIR_entry *entry;
+	struct PIR_intpin *intpin;
+	int i, pin;
+
+	printf("PCI-Only Interrupts: ");
+	pci_print_irqmask(prt->pt_header.ph_pci_irqs);
+	printf("\nLocation  Bus Device Pin  Link  IRQs\n");
+	entry = &prt->pt_entry[0];
+	for (i = 0; i < size; i++, entry++) {
+		intpin = &entry->pe_intpin[0];
+		for (pin = 0; pin < 4; pin++, intpin++)
+			if (intpin->link != 0) {
+				if (entry->pe_slot == 0)
+					printf("embedded ");
+				else
+					printf("slot %-3d ", entry->pe_slot);
+				printf(" %3d  %3d    %c   0x%02x  ",
+				    entry->pe_bus, entry->pe_device,
+				    'A' + pin, intpin->link);
+				pci_print_irqmask(intpin->irqs);
+				printf("\n");
+			}
+	}
+}
 
 /*
  * Config space access using BIOS functions 
