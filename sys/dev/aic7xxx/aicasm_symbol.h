@@ -13,6 +13,9 @@
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU Public License ("GPL").
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -51,10 +54,10 @@ typedef enum {
 }amode_t;
 
 struct reg_info {
-	u_int8_t address;
+	uint8_t address;
 	int	 size;
 	amode_t	 mode;
-	u_int8_t valid_bitmask;
+	uint8_t valid_bitmask;
 	int	 typecheck_masks;
 };
 
@@ -62,11 +65,11 @@ typedef SLIST_HEAD(symlist, symbol_node) symlist_t;
 
 struct mask_info {
 	symlist_t symrefs;
-	u_int8_t mask;
+	uint8_t mask;
 };
 
 struct const_info {
-	u_int8_t value;
+	uint8_t value;
 	int	 define;
 };
 

@@ -16,7 +16,7 @@
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * the GNU Public License ("GPL").
+ * GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -52,12 +52,12 @@ struct seeprom_descriptor {
 	bus_size_t sd_status_offset;
 	bus_size_t sd_dataout_offset;
 	seeprom_chip_t sd_chip;
-	u_int16_t sd_MS;
-	u_int16_t sd_RDY;
-	u_int16_t sd_CS;
-	u_int16_t sd_CK;
-	u_int16_t sd_DO;
-	u_int16_t sd_DI;
+	uint16_t sd_MS;
+	uint16_t sd_RDY;
+	uint16_t sd_CS;
+	uint16_t sd_CK;
+	uint16_t sd_DO;
+	uint16_t sd_DI;
 };
 
 /*
@@ -85,7 +85,7 @@ struct seeprom_descriptor {
 #define	SEEPROM_DATA_INB(sd) \
 	bus_space_read_1(sd->sd_tag, sd->sd_bsh, sd->sd_dataout_offset)
 
-int read_seeprom(struct seeprom_descriptor *sd, u_int16_t *buf,
+int read_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,
 		 bus_size_t start_addr, bus_size_t count);
 
 #endif /* _KERNEL */
