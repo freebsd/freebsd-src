@@ -94,24 +94,25 @@ extern char tl0_base[];
 
 extern char _end[];
 
-int physmem = 0;
+int physmem;
 int cold = 1;
 long dumplo;
-int Maxmem = 0;
+int Maxmem;
 
 u_long debug_mask;
 
 struct mtx Giant;
 struct mtx sched_lock;
 
-struct globaldata __globaldata;
+static struct globaldata __globaldata;
 /*
  * This needs not be aligned as the other user areas, provided that process 0
  * does not have an fp state (which it doesn't normally).
  * This constraint is only here for debugging.
  */
-char uarea0[UAREA_PAGES * PAGE_SIZE] __attribute__ ((aligned (64)));
-char kstack0[KSTACK_PAGES * PAGE_SIZE] __attribute__ ((aligned (64)));
+char kstack0[KSTACK_PAGES * PAGE_SIZE] __attribute__((aligned(64)));
+static char uarea0[UAREA_PAGES * PAGE_SIZE] __attribute__((aligned(64)));
+static struct trapframe frame0;
 struct user *proc0uarea;
 vm_offset_t proc0kstack;
 
@@ -133,10 +134,8 @@ cpu_startup(void *arg)
 {
 	phandle_t child;
 	phandle_t root;
-	char name[32];
 	char type[8];
 	u_int clock;
-	caddr_t p;
 
 	root = OF_peer(0);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
@@ -146,7 +145,6 @@ cpu_startup(void *arg)
 	}
 	if (child == 0)
 		panic("cpu_startup: no cpu\n");
-	OF_getprop(child, "name", name, sizeof(name));
 	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
 
 	tick_tc.tc_get_timecount = tick_get_timecount;
@@ -156,17 +154,7 @@ cpu_startup(void *arg)
 	tick_tc.tc_name = "tick";
 	tc_init(&tick_tc);
 
-	p = name;
-	if (bcmp(p, "SUNW,", 5) == 0)
-		p += 5;
-	printf("CPU: %s Processor (%d.%02d MHz CPU)\n", p,
-	    (clock + 4999) / 1000000, ((clock + 4999) / 10000) % 100);
-#if 0
-	ver = rdpr(ver);
-	printf("manuf: %#lx impl: %#lx mask: %#lx maxtl: %#lx maxwin: %#lx\n",
-	    VER_MANUF(ver), VER_IMPL(ver), VER_MASK(ver), VER_MAXTL(ver),
-	    VER_MAXWIN(ver));
-#endif
+	cpu_identify(clock);
 
 	vm_ksubmap_init(&kmi);
 
@@ -174,9 +162,8 @@ cpu_startup(void *arg)
 	vm_pager_bufferinit();
 
 	globaldata_register(globalp);
-#if 0
+
 	tick_start(clock, tick_hardclock);
-#endif
 }
 
 unsigned
@@ -188,7 +175,6 @@ tick_get_timecount(struct timecounter *tc)
 void
 sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 {
-	struct trapframe *tf;
 	u_long ps;
 
 	/*
@@ -245,11 +231,9 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	proc0.p_stats = &proc0.p_uarea->u_stats;
 	thread0 = &proc0.p_thread;
 	thread0->td_kstack = proc0kstack;
-	thread0->td_pcb = (struct pcb *)thread0->td_kstack;
-	tf = (struct trapframe *)(thread0->td_kstack + KSTACK_PAGES *
-	    PAGE_SIZE) - 1;
-	tf->tf_tstate = TSTATE_IE;
-	thread0->td_frame = tf;
+	thread0->td_pcb = (struct pcb *)
+	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0->td_frame = &frame0;
 	LIST_INIT(&thread0->td_contested);
 
 	/*
@@ -319,7 +303,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = 0;
 	td = curthread;
 	p = td->td_proc;
-	PROC_LOCK(p);
 	psp = p->p_sigacts;
 	tf = td->td_frame;
 	sp = tf->tf_sp + SPOFF;
@@ -373,7 +356,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -419,6 +401,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#lx sp=%#lx", td, tf->tf_tpc,
 	    tf->tf_sp);
+
+	PROC_LOCK(p);
 }
 
 #ifndef	_SYS_SYSPROTO_H_
@@ -448,6 +432,10 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 
 	if (((uc.uc_mcontext.mc_tpc | uc.uc_mcontext.mc_tnpc) & 3) != 0)
 		return (EINVAL);
+#if 0
+	if (!TSTATE_SECURE(uc.uc_mcontext.mc_tstate))
+		return (EINVAL);
+#endif
 
 	tf = td->td_frame;
 	bcopy(uc.uc_mcontext.mc_global, tf->tf_global,
@@ -476,7 +464,8 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 void
 cpu_halt(void)
 {
-	TODO;
+
+	OF_exit();
 }
 
 int
@@ -500,9 +489,10 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct pcb *pcb;
 	struct frame *fp;
+	u_long sp;
 
 	/* Round the stack down to a multiple of 16 bytes. */
-	stack = ((stack) / 16) * 16;
+	sp = ((stack) / 16) * 16;
 	pcb = td->td_pcb;
 	/* XXX: honor the real number of windows... */
 	bzero(pcb->pcb_rw, sizeof(pcb->pcb_rw));
@@ -529,8 +519,12 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	bzero(td->td_frame->tf_out, sizeof(td->td_frame->tf_out));
 	bzero(td->td_frame->tf_global, sizeof(td->td_frame->tf_global));
 	/* Set up user stack. */
-	fp->f_fp = stack - SPOFF;
-	td->td_frame->tf_out[6] = stack - SPOFF - sizeof(struct frame);
+	fp->f_fp = sp - SPOFF;
+	td->td_frame->tf_out[0] = stack;
+	td->td_frame->tf_out[1] = 0;
+	td->td_frame->tf_out[2] = 0;
+	td->td_frame->tf_out[3] = PS_STRINGS;
+	td->td_frame->tf_out[6] = sp - SPOFF - sizeof(struct frame);
 	wr(y, 0, 0);
 	mtx_unlock_spin(&sched_lock);
 }
@@ -544,43 +538,65 @@ Debugger(const char *msg)
 }
 
 int
-fill_dbregs(struct thread *td, struct dbreg *dbregs)
-{
-	TODO;
-	return (0);
-}
-
-int
-set_dbregs(struct thread *td, struct dbreg *dbregs)
-{
-	TODO;
-	return (0);
-}
-
-int
 fill_regs(struct thread *td, struct reg *regs)
 {
-	TODO;
+	struct trapframe *tf;
+	struct pcb *pcb;
+
+	tf = td->td_frame;
+	pcb = td->td_pcb;
+	bcopy(tf->tf_global, regs->r_global, sizeof(tf->tf_global));
+	bcopy(tf->tf_out, regs->r_out, sizeof(tf->tf_out));
+	regs->r_tstate = tf->tf_tstate;
+	regs->r_pc = tf->tf_tpc;
+	regs->r_npc = tf->tf_tnpc;
+	regs->r_y = pcb->pcb_y;
 	return (0);
 }
 
 int
 set_regs(struct thread *td, struct reg *regs)
 {
-	TODO;
+	struct trapframe *tf;
+	struct pcb *pcb;
+
+	tf = td->td_frame;
+	pcb = td->td_pcb;
+	if (((regs->r_pc | regs->r_npc) & 3) != 0)
+		return (EINVAL);
+#if 0
+	if (!TSTATE_SECURE(regs->r_tstate))
+		return (EINVAL);
+#endif
+	bcopy(regs->r_global, tf->tf_global, sizeof(regs->r_global));
+	bcopy(regs->r_out, tf->tf_out, sizeof(regs->r_out));
+	tf->tf_tstate = regs->r_tstate;
+	tf->tf_tpc = regs->r_pc;
+	tf->tf_tnpc = regs->r_npc;
+	pcb->pcb_y = regs->r_y;
 	return (0);
 }
 
 int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
-	TODO;
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	bcopy(pcb->pcb_fpstate.fp_fb, fpregs->fr_regs,
+	    sizeof(pcb->pcb_fpstate.fp_fb));
+	fpregs->fr_fsr = pcb->pcb_fpstate.fp_fsr;
 	return (0);
 }
 
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
-	TODO;
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	bcopy(fpregs->fr_regs, pcb->pcb_fpstate.fp_fb,
+	    sizeof(fpregs->fr_regs));
+	pcb->pcb_fpstate.fp_fsr = fpregs->fr_fsr;
 	return (0);
 }
