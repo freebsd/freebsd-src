@@ -45,7 +45,4 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4 troff!lbp troffrc!html
 .
 .\}
 .
-.\" Disable SGR support in grotty(1).
-.if n .do output "x X tty: sgr 0
-.
 .\" Don't let blank lines creep in here.
