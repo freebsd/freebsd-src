@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -672,6 +672,7 @@ void
 g_raid3_fill_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 {
 	struct g_raid3_softc *sc;
+	struct g_provider *pp;
 
 	sc = disk->d_softc;
 	strlcpy(md->md_magic, G_RAID3_MAGIC, sizeof(md->md_magic));
@@ -690,13 +691,18 @@ g_raid3_fill_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 		md->md_sync_offset = disk->d_sync.ds_offset_done;
 	else
 		md->md_sync_offset = 0;
-	if ((disk->d_flags & G_RAID3_DISK_FLAG_HARDCODED) != 0 &&
-	    disk->d_consumer != NULL && disk->d_consumer->provider != NULL) {
-		strlcpy(md->md_provider, disk->d_consumer->provider->name,
-		    sizeof(md->md_provider));
-	} else {
+	if (disk->d_consumer != NULL && disk->d_consumer->provider != NULL)
+		pp = disk->d_consumer->provider;
+	else
+		pp = NULL;
+	if ((disk->d_flags & G_RAID3_DISK_FLAG_HARDCODED) != 0 && pp != NULL)
+		strlcpy(md->md_provider, pp->name, sizeof(md->md_provider));
+	else
 		bzero(md->md_provider, sizeof(md->md_provider));
-	}
+	if (pp != NULL)
+		md->md_provsize = pp->mediasize;
+	else
+		md->md_provsize = 0;
 }
 
 void
@@ -2882,6 +2888,8 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp = NULL;
 
 	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+		return (NULL);
+	if (md.md_provsize != 0 && md.md_provsize != pp->mediasize)
 		return (NULL);
 	if (g_raid3_debug >= 2)
 		raid3_metadata_dump(&md);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,9 @@
  * 0 - Initial version number.
  * 1 - Added 'prefer' balance algorithm.
  * 2 - Added md_genid field to metadata.
+ * 3 - Added md_provsize field to metadata.
  */
-#define	G_MIRROR_VERSION	2
+#define	G_MIRROR_VERSION	3
 
 #define	G_MIRROR_BALANCE_NONE		0
 #define	G_MIRROR_BALANCE_ROUND_ROBIN	1
@@ -226,6 +227,7 @@ struct g_mirror_metadata {
 	uint64_t	md_mflags;	/* Additional mirror flags. */
 	uint64_t	md_dflags;	/* Additional disk flags. */
 	char		md_provider[16]; /* Hardcoded provider. */
+	uint64_t	md_provsize;	/* Provider's size. */
 	u_char		md_hash[16];	/* MD5 hash. */
 };
 static __inline void
@@ -250,10 +252,11 @@ mirror_metadata_encode(struct g_mirror_metadata *md, u_char *data)
 	le64enc(data + 79, md->md_mflags);
 	le64enc(data + 87, md->md_dflags);
 	bcopy(md->md_provider, data + 95, 16);
+	le64enc(data + 111, md->md_provsize);
 	MD5Init(&ctx);
-	MD5Update(&ctx, data, 111);
+	MD5Update(&ctx, data, 119);
 	MD5Final(md->md_hash, &ctx);
-	bcopy(md->md_hash, data + 111, 16);
+	bcopy(md->md_hash, data + 119, 16);
 }
 static __inline int
 mirror_metadata_decode_v0v1(const u_char *data, struct g_mirror_metadata *md)
@@ -283,6 +286,7 @@ mirror_metadata_decode_v0v1(const u_char *data, struct g_mirror_metadata *md)
 
 	/* New fields. */
 	md->md_genid = 0;
+	md->md_provsize = 0;
 
 	return (0);
 }
@@ -312,6 +316,39 @@ mirror_metadata_decode_v2(const u_char *data, struct g_mirror_metadata *md)
 	MD5Final(md->md_hash, &ctx);
 	if (bcmp(md->md_hash, data + 111, 16) != 0)
 		return (EINVAL);
+
+	/* New fields. */
+	md->md_provsize = 0;
+
+	return (0);
+}
+static __inline int
+mirror_metadata_decode_v3(const u_char *data, struct g_mirror_metadata *md)
+{
+	MD5_CTX ctx;
+
+	bcopy(data + 20, md->md_name, 16);
+	md->md_mid = le32dec(data + 36);
+	md->md_did = le32dec(data + 40);
+	md->md_all = *(data + 44);
+	md->md_genid = le32dec(data + 45);
+	md->md_syncid = le32dec(data + 49);
+	md->md_priority = *(data + 53);
+	md->md_slice = le32dec(data + 54);
+	md->md_balance = *(data + 58);
+	md->md_mediasize = le64dec(data + 59);
+	md->md_sectorsize = le32dec(data + 67);
+	md->md_sync_offset = le64dec(data + 71);
+	md->md_mflags = le64dec(data + 79);
+	md->md_dflags = le64dec(data + 87);
+	bcopy(data + 95, md->md_provider, 16);
+	md->md_provsize = le64dec(data + 111);
+	bcopy(data + 119, md->md_hash, 16);
+	MD5Init(&ctx);
+	MD5Update(&ctx, data, 119);
+	MD5Final(md->md_hash, &ctx);
+	if (bcmp(md->md_hash, data + 119, 16) != 0)
+		return (EINVAL);
 	return (0);
 }
 static __inline int
@@ -328,6 +365,9 @@ mirror_metadata_decode(const u_char *data, struct g_mirror_metadata *md)
 		break;
 	case 2:
 		error = mirror_metadata_decode_v2(data, md);
+		break;
+	case 3:
+		error = mirror_metadata_decode_v3(data, md);
 		break;
 	default:
 		error = EINVAL;
@@ -417,6 +457,7 @@ mirror_metadata_dump(const struct g_mirror_metadata *md)
 	}
 	printf("\n");
 	printf("hcprovider: %s\n", md->md_provider);
+	printf("  provsize: %ju\n", (uintmax_t)md->md_provsize);
 	bzero(hash, sizeof(hash));
 	for (i = 0; i < 16; i++) {
 		hash[i * 2] = hex[md->md_hash[i] >> 4];

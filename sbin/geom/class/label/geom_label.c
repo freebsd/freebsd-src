@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -149,6 +149,12 @@ label_label(struct gctl_req *req)
 		return;
 	}
 	strlcpy(md.md_label, label, sizeof(md.md_label));
+	md.md_provsize = g_get_mediasize(name);
+	if (md.md_provsize == 0) {
+		gctl_error(req, "Can't get mediasize of %s: %s.", name,
+		    strerror(errno));
+		return;
+	}
 
 	/*
 	 * Ok, store metadata.

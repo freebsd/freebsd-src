@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -668,6 +668,7 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
 		md->md_syncid = 0;
 		md->md_dflags = 0;
 		md->md_sync_offset = 0;
+		md->md_provsize = 0;
 	} else {
 		md->md_did = disk->d_id;
 		md->md_priority = disk->d_priority;
@@ -682,6 +683,7 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
 			    disk->d_consumer->provider->name,
 			    sizeof(md->md_provider));
 		}
+		md->md_provsize = disk->d_consumer->provider->mediasize;
 	}
 }
 
@@ -2642,6 +2644,8 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp = NULL;
 
 	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+		return (NULL);
+	if (md.md_provsize != 0 && md.md_provsize != pp->mediasize)
 		return (NULL);
 	if ((md.md_dflags & G_MIRROR_DISK_FLAG_INACTIVE) != 0) {
 		G_MIRROR_DEBUG(0,
