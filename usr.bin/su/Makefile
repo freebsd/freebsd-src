@@ -27,8 +27,11 @@ LDADD+=	-lkrb -ldes
 DISTRIBUTION=	krb
 .endif
 
+# Do we have to provide an implementation for libskey.so?
+.if ${BINFORMAT} != elf
 LDADD+= -lmd
 DPADD+= ${LIBMD}
+.endif
 
 BINOWN=	root
 BINMODE=4555
