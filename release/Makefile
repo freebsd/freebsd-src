@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.60 1994/11/30 15:54:39 jkh Exp $
+#	$Id: Makefile,v 1.61 1994/12/01 20:01:37 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -59,10 +59,12 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 boot_12.flp: 
 	(cd ${.CURDIR}; EVIL_FLOPPY=yes ${MAKE} boot.flp)
 	mv boot.flp boot_12.flp
+	gzip -9 -c < boot_12.flp > boot_12.flp.gz
 
 boot_144.flp:
 	(cd ${.CURDIR}; ${MAKE} boot.flp)
 	mv boot.flp boot_144.flp
+	gzip -9 -c < boot_144.flp > boot_144.flp.gz
 
 boot.flp: 
 	crunchgen ${.CURDIR}/boot_flp.conf
