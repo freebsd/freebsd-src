@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.56 1998/10/16 03:32:03 peter Exp $
+#	$Id: bsd.kmod.mk,v 1.57 1998/11/05 04:01:55 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -189,11 +189,11 @@ ${PROG}: ${OBJS} ${DPADD} ${KMODDEPS}
 
 .if defined(KMODDEPS)
 .for dep in ${KMODDEPS}
-CLEANFILES+=	${dep} ${dep}.c
+CLEANFILES+=	${dep} __${dep}_hack_dep.c
 
 ${dep}:
-	touch ${dep}.c
-	${CC} -shared ${CFLAGS} -o ${dep} ${dep}.c
+	touch __${dep}_hack_dep.c
+	${CC} -shared ${CFLAGS} -o ${dep} __${dep}_hack_dep.c
 .endfor
 .endif
 
