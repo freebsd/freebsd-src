@@ -172,6 +172,25 @@ struct ahc_platform_data {
 struct scb_platform_data {
 };
 
+/********************************* Byte Order *********************************/
+/*
+ * XXX Waiting for FreeBSD byte swapping functions.
+ * For now assume host is Little Endian.
+ */
+#define ahc_htobe16(x) x
+#define ahc_htobe32(x) x
+#define ahc_htobe64(x) x
+#define ahc_htole16(x) x
+#define ahc_htole32(x) x
+#define ahc_htole64(x) x
+
+#define ahc_be16toh(x) x
+#define ahc_be32toh(x) x
+#define ahc_be64toh(x) x
+#define ahc_le16toh(x) x
+#define ahc_le32toh(x) x
+#define ahc_le64toh(x) x
+
 /***************************** Core Includes **********************************/
 #include <dev/aic7xxx/aic7xxx.h>
 
