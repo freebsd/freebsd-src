@@ -1,9 +1,10 @@
 # Makefile for uuto
-# $Id$
+# $Id: Makefile,v 1.8 1997/02/22 15:28:52 peter Exp $
 
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)
 ONESHPROG=	uuto
+MAN1=		uuto.1
 
 all: $(ONESHPROG)
 
