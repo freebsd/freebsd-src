@@ -179,6 +179,8 @@ system call is obsolete since
 implements a coherent filesystem buffer cache.  However, it may be 
 used to associate dirty VM pages with filesystem buffers and thus cause
 them to be flushed to physical media sooner rather then later.
+.It Dv MAP_NOCORE
+Region is not included in a core file.
 .El
 .Pp
 The 

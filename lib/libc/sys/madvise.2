@@ -60,6 +60,8 @@ The known behaviors are given in
 #define	MADV_FREE	5 /* data is now unimportant */
 #define MADV_NOSYNC	6 /* no explicit commit to physical backing store */
 #define MADV_AUTOSYNC	7 /* default commit method to physical backing store */
+#define MADV_NOCORE	8 /* do not include these pages in a core file */
+#define MADV_CORE	9 /* revert to including pages in a core file */
 .Ed
 .Pp
 .Bl -tag -width MADV_SEQUENTIAL 
@@ -123,6 +125,10 @@ may or may not be reverted.  You can guarentee reversion by using the
 or
 .Xr fsync 2
 system calls.
+.It Dv MADV_NOCORE
+Region is not included in a core file.
+.It Dv MADV_CORE
+Include region in a core file.
 .El
 .Sh RETURN VALUES
 Upon successful completion,
