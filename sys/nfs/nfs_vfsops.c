@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.37 1997/04/04 17:49:30 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.38 1997/04/22 17:38:01 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -577,6 +577,10 @@ nfs_mount(mp, path, data, ndp, p)
 	u_int len;
 	u_char nfh[NFSX_V3FHMAX];
 
+	if (path == NULL) {
+		nfs_mountroot();
+		return (0);
+	}
 	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
 	if (error)
 		return (error);
