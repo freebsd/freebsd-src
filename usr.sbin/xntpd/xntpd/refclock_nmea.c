@@ -210,14 +210,19 @@ nmea_receive(rbufp)
 	 * we only care about a few of them.  The most important being
 	 * the $GPRMC format
 	 * $GPRMC,hhmmss,a,fddmm.xx,n,dddmmm.xx,w,zz.z,yyy.,ddmmyy,dd,v*CC
+  	 * $GPGGA,162617.0,4548.339,N,00837.719,E,1,07,0.97,00262,M,048,M,,*5D
 	 */
 #define GPRMC	0
 #define GPXXX	1
+#define GPGCA	2
 	cp = pp->lastcode;
 	pp->leap = 0;
 	cmdtype=0;
 	if(strncmp(cp,"$GPRMC",6)==0) {
 		cmdtype=GPRMC;
+		}
+	else if(strncmp(cp,"$GPGGA",6)==0) {
+		cmdtype=GPGCA;
 		}
 	else if(strncmp(cp,"$GPXXX",6)==0) {
 		cmdtype=GPXXX;
@@ -227,6 +232,7 @@ nmea_receive(rbufp)
 
 	switch( cmdtype ) {
 	case GPRMC:
+	case GPGCA:
 		/*
 		 *	Check time code format of NMEA
 		 */
@@ -250,16 +256,25 @@ nmea_receive(rbufp)
 
 	}
 
-	dp = field_parse(cp,9);
-	/*
-	 * Convert date and check values.
-	 */
-	day = dp[0] - '0';
-	day = (day * 10) + dp[1] - '0';
-	month = dp[2] - '0';
-	month = (month * 10) + dp[3] - '0';
-	pp->year = dp[4] - '0';
-	pp->year = (pp->year * 10) + dp[5] - '0';
+	if (cmdtype ==GPGCA) {
+		/* only time */
+		time_t tt = time(NULL);
+		struct tm * t = gmtime(&tt);
+		day = t->tm_mday;
+		month = t->tm_mon + 1;
+		pp->year= t->tm_year;
+	} else {
+		dp = field_parse(cp,9);
+		/*
+		 * Convert date and check values.
+		 */
+		day = dp[0] - '0';
+		day = (day * 10) + dp[1] - '0';
+		month = dp[2] - '0';
+		month = (month * 10) + dp[3] - '0';
+		pp->year = dp[4] - '0';
+		pp->year = (pp->year * 10) + dp[5] - '0';
+	}
 
 	if (month < 1 || month > 12 || day < 1) {
 		refclock_report(peer, CEVNT_BADTIME);
