@@ -1,0 +1,182 @@
+/*-
+ * Copyright (c) 1988, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)3270pc.kbd	8.1 (Berkeley) 6/6/93
+ */
+
+/*
+ * keynumber [ scancode [ unshifted [ shifted [ alted [ shiftalted ] ] ] ] ]
+ *
+ * keynumber is in decimal, and starts in column 1.
+ * scancode is hexadecimal.
+ * unshifted, etc. - these are either a single ascii character,
+ *			or the name of a function or an AID-generating key.
+ *
+ * all fields are separated by a single space.
+ */
+1 0e ` ~
+2 16 1 !
+3 1e 2 @
+4 26 3 #
+5 25 4 $
+6 2e 5 %
+7 36 6 ^
+8 3d 7 &
+9 3e 8 *
+10 46 9 (
+11 45 0 )
+12 4e - _
+13 55 = +
+14 5d
+15 66 LEFT
+16 0d TAB BTAB
+17 15 q Q
+18 1d w W
+19 24 e E
+20 2d r R
+21 2c t T
+22 35 y Y
+23 3c u U
+24 43 i I
+25 44 o O
+26 4d p P
+27 54 [ {
+28 5b \ |
+29 5c
+30 14 CAPS_LOCK
+31 1c a A
+32 1b s S
+33 23 d D
+34 2b f F
+35 34 g G
+36 33 h H
+37 3b j J
+38 42 k K
+39 4b l L
+40 4c ; :
+41 52 ' "
+42 53 ] }
+43 5a NL
+44 12 MAKE_SHIFT MAKE_SHIFT MAKE_SHIFT
+45 13 < >
+46 1a z Z
+47 22 x X
+48 21 c C
+49 2a v V
+50 32 b B
+51 31 n N
+52 3a m M
+53 41 , <
+54 49 . >
+55 4a / ?
+56 51
+57 59 MAKE_SHIFT MAKE_SHIFT MAKE_SHIFT
+58 11 RESET NULL DVCNL
+59
+60 19 MAKE_ALT MAKE_ALT MAKE_ALT
+61 29 SPACE SPACE
+62 39 MAKE_ALT MAKE_ALT MAKE_ALT
+63
+64 58 ENTER
+65 06 CLEAR NULL TEST
+66 0c NULL NULL ATTN
+67 0b EEOF NULL EINP
+68 0a
+69 09 MAKE_CTRL
+70 05 ATTN NULL TREQ
+71 04
+72 03
+73 83
+74 01
+75 67 PA1 DP
+76 64 BTAB
+77
+78 61 LEFT NULL LEFT2
+79
+80 6e PA2 FM
+81 65 INSRT
+82 63 UP
+83 62 NULL NULL HOME
+84 60 DOWN
+85 6f PA3
+86 6d DELETE
+87
+88 6a RIGHT NULL RIGHT2
+89
+90 76
+91 6c 7
+92 6b 4
+93 69 1
+94 68
+95 77
+96 75 8
+97 73 5
+98 72 2
+99 70 0
+100 7e ,
+101 7d 9
+102 74 6
+103 7a 3
+104 71 .
+105 84 SPACE
+106 7c TAB
+107 7b -
+108 79 ENTER
+109 78
+110 07 PF1
+111 0f PF2
+112 17 PF3
+113 1f PF4
+114 27 PF5
+115 2f PF6
+116 37 PF7
+117 3f PF8 NULL MONOCASE
+118 47 PF9
+119 4f PF10
+120 56 PF11
+121 5e PF12
+122 08 PF13
+123 10 PF14
+124 18 PF15
+125 20 PF16
+126 28 PF17
+127 30 PF18
+128 38 PF19
+129 40 PF20
+130 48 PF21
+131 50 PF22
+132 57 PF23
+133 5f PF24
+134 92 BREAK_SHIFT BREAK_SHIFT BREAK_SHIFT
+135 D9 BREAK_SHIFT BREAK_SHIFT BREAK_SHIFT
+136 99 BREAK_ALT BREAK_ALT BREAK_ALT
+137 B9 BREAK_ALT BREAK_ALT BREAK_ALT

@@ -1,0 +1,46 @@
+Return-Path: mtxinu!kinetics!minshall@ucbvax.Berkeley.EDU
+Received: from ucbvax.berkeley.edu
+	by violet.berkeley.edu (5.54 (CFC 4.22.3)/1.16.17l)
+	id AA23846; Wed, 30 Mar 88 19:54:24 PST
+Received: by ucbvax.berkeley.edu (5.59/1.26)
+	id AA09851; Tue, 29 Mar 88 23:25:19 PST
+Received: by mtxinu.UUCP (5.51/4.7)
+	id AA05135; Tue, 29 Mar 88 17:32:01 PST
+Message-Id: <8803300132.AA05135@mtxinu.UUCP>
+Date: Thu, 17 Mar 88 11:06:10 pst
+From: mtxinu!kinetics!minshall@ucbvax.Berkeley.EDU (Greg Minshall)
+To: mtxinu!minshall
+
+Path: kinetics!zehntel!varian!ptsfa!pacbell!ames!ll-xn!husc6!panda!teddy!jpn
+From: jpn@teddy.UUCP (John P. Nelson)
+Newsgroups: comp.bugs.4bsd
+Subject: Re: Ultrix curses problem
+Keywords: curses ultrix bug fix
+Message-ID: <4668@teddy.UUCP>
+Date: 14 Mar 88 19:43:39 GMT
+References: <535@hscfvax.harvard.edu>
+Reply-To: jpn@teddy.UUCP (John P. Nelson)
+Organization: GenRad, Inc., Concord, Mass.
+Lines: 21
+
+>I have found the bug, fixable as above, in both Ultrix 1.2 and 2.0.  Feedback
+>from those brave souls who have brought up 2.2 would be most welcome.
+
+Yup, the bug exists in Ultrix 2.2 as well.  I have reported this bug to
+DEC support every time we get a new release.  I assume that my bug reports
+are getting filed (in the circular file).
+
+It is clear that whoever made this "fix" at DEC had no understanding
+of curses whatsoever.  As in the earlier posting, the bug can be fixed
+by replacing the definitions of the nl() and nonl() macros in curses.h with:
+
+#define nl()	 (_tty.sg_flags |= CRMOD,_pfast = _rawmode,stty(_tty_ch, &_tty))
+#define nonl()	 (_tty.sg_flags &= ~CRMOD, _pfast = TRUE, stty(_tty_ch, &_tty))
+
+- john nelson.
+
+P.S.  I did reach someone at DEC who would listen (Thanks Chet!)  My
+      understanding is that they have no plans to fix this bug, as curses
+      is now "owned" by some group in England, who is working on a port of the
+      terminfo curses for Ultrix 2.4.  I'm just pissed that my bug reports
+      submitted for Ultrix 1.2 and 2.0 were ignored.

@@ -1,0 +1,79 @@
+
+The Makefile and config.h files in this directory work with the current
+BSD release.  Don't run the Configure script, you'll get wrong results.
+
+Keith Bostic 1/10/88
+-----------------------------------------------------------------------------
+
+			Patch Kit, Version 2.0
+
+		    Copyright (c) 1986, Larry Wall
+
+You may copy the patch kit in whole or in part as long as you don't try to
+make money off it, or pretend that you wrote it.
+--------------------------------------------------------------------------
+
+Please read all the directions below before you proceed any further, and
+then follow them carefully.  Failure to do so may void your warranty. :-)
+
+After you have unpacked your kit, you should have all the files listed
+in MANIFEST.
+
+Installation
+
+1)  Run Configure.  This will figure out various things about your system.
+    Some things Configure will figure out for itself, other things it will
+    ask you about.  It will then proceed to make config.h, config.sh, and
+    Makefile.
+
+    You might possibly have to trim # comments from the front of Configure
+    if your sh doesn't handle them, but all other # comments will be taken
+    care of.
+
+    If you don't have sh, you'll have to rip the prototype of config.h out
+    of Configure and generate the defines by hand.
+
+2)  Glance through config.h to make sure system dependencies are correct.
+    Most of them should have been taken care of by running the Configure script.
+
+    If you have any additional changes to make to the C definitions, they
+    can be done in the Makefile, or in config.h.  Bear in mind that they may
+    get undone next time you run Configure.
+
+3)  make
+
+    This will attempt to make patch in the current directory.
+
+4)  make install
+
+    This will put patch into a public directory (normally /usr/local/bin).
+    It will also try to put the man pages in a reasonable place.  It will not
+    nroff the man page, however.
+
+5)  Read the manual entry before running patch.
+
+6)  IMPORTANT!  Help save the world!  Communicate any problems and
+    suggested patches to me, lwall@sdcrdcf.UUCP (Larry Wall), so we can
+    keep the world in sync.  If you have a problem, there's someone else
+    out there who either has had or will have the same problem.
+
+    If possible, send in patches such that the patch program will apply them.
+    Context diffs are the best, then normal diffs.  Don't send ed scripts--
+    I've probably changed my copy since the version you have.
+
+    Watch for patch patches in net.sources.bugs.  Patches will generally be
+    in a form usable by the patch program.  If you are just now bringing up
+    patch and aren't sure how many patches there are, write to me and I'll
+    send any you don't have.  Your current patch level is shown in patchlevel.h.
+
+
+NEW FEATURES IN THIS RELEASE
+
+(Correct) support for 4.3bsd-style context diffs.
+Files can be created from scratch.
+You can specify a fuzz-factor for context matching.
+You can force patch to ask no questions.
+You can specify how much of the leading pathname to strip off filenames.
+Uses a Configure script for greater portability.
+You are now asked if you want to apply a reversed patch.
+No limit (apart from memory) on the size of hunks.

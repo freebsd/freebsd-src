@@ -1,0 +1,304 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)error.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt ERROR 1
+.Os BSD 4
+.Sh NAME
+.Nm error
+.Nd analyze and disperse compiler error messages
+.Sh SYNOPSIS
+.Nm error
+.Op Fl n
+.Op Fl s
+.Op Fl q
+.Op Fl v
+.Op Fl t Ar suffixlist
+.Op Fl I Ar ignorefile
+.Op name
+.Sh DESCRIPTION
+.Nm Error
+analyzes and optionally disperses the diagnostic error messages
+produced by a number of compilers and language processors to the source
+file and line where the errors occurred.  It can replace the painful,
+traditional methods of scribbling abbreviations of errors on paper, and
+permits error messages and source code to be viewed simultaneously
+without machinations of multiple windows in a screen editor.
+.Pp
+Options are:
+.Bl -tag -width Ds
+.It Fl n
+Do
+.Em not
+touch any files; all error messages are sent to the
+standard output.
+.It Fl q
+The user is
+.Ar queried
+whether s/he wants to touch the file.
+A ``y'' or ``n'' to the question is necessary to continue.
+Absence of the
+.Fl q
+option implies that all referenced files
+(except those referring to discarded error messages)
+are to be touched.
+.It Fl v
+After all files have been touched,
+overlay the visual editor
+.Xr \&vi 1
+with it set up to edit all files touched,
+and positioned in the first touched file at the first error.
+If
+.Xr \&vi 1
+can't be found, try
+.Xr \&ex 1
+or
+.Xr \&ed 1
+from standard places.
+.It Fl t
+Take the following argument as a suffix list.
+Files whose suffixes do not appear in the suffix list are not touched.
+The suffix list is dot separated, and ``*'' wildcards work.
+Thus the suffix list:
+.Pp
+.Dl ".c.y.foo*.h"
+.Pp
+allows
+.Nm error
+to touch files ending with ``.c'', ``.y'', ``.foo*'' and ``.y''.
+.It Fl s
+Print out
+.Em statistics
+regarding the error categorization.
+Not too useful.
+.El
+.Pp
+.Nm Error
+looks at the error messages,
+either from the specified file
+.Ar name
+or from the standard input,
+and attempts to determine which
+language processor produced each error message,
+determines the source file and line number to which the error message refers,
+determines if the error message is to be ignored or not,
+and inserts the (possibly slightly modified) error message into
+the source file as a comment on the line preceding to which the
+line the error message refers.
+Error messages which can't be categorized by language processor
+or content are not inserted into any file,
+but are sent to the standard output.
+.Nm Error
+touches source files only after all input has been read.
+.Pp
+.Nm Error
+is intended to be run
+with its standard input
+connected via a pipe to the error message source.
+Some language processors put error messages on their standard error file;
+others put their messages on the standard output.
+Hence, both error sources should be piped together into
+.Nm error .
+For example, when using the
+.Xr csh 1
+syntax,
+.Pp
+.Dl make \-s lint \&| error \-q \-v
+.Pp
+will analyze all the error messages produced
+by whatever programs
+.Xr make 1
+runs when making lint.
+.Pp
+.Nm Error
+knows about the error messages produced by:
+.Xr make 1 ,
+.Xr \&cc 1 ,
+.Xr cpp 1 ,
+.Xr ccom 1 ,
+.Xr \&as 1 ,
+.Xr \&ld 1 ,
+.Xr lint 1 ,
+.Xr \&pi 1 ,
+.Xr \&pc 1 ,
+.Xr f77 1 ,
+and
+.Em DEC Western Research Modula\-2 .
+.Nm Error
+knows a standard format for error messages produced by
+the language processors,
+so is sensitive to changes in these formats.
+For all languages except
+.Em Pascal ,
+error messages are restricted to be on one line.
+Some error messages refer to more than one line in more than
+one files;
+.Nm error
+will duplicate the error message and insert it at
+all of the places referenced.
+.Pp
+.Nm Error
+will do one of six things with error messages.
+.Bl -tag -width Em synchronize
+.It Em synchronize
+Some language processors produce short errors describing
+which file it is processing.
+.Nm Error
+uses these to determine the file name for languages that
+don't include the file name in each error message.
+These synchronization messages are consumed entirely by
+.Nm error .
+.It Em discard
+Error messages from
+.Xr lint 1
+that refer to one of the two
+.Xr lint 1
+libraries,
+.Pa /usr/libdata/lint/llib-lc
+and
+.Pa /usr/libdata/lint/llib-port
+are discarded,
+to prevent accidently touching these libraries.
+Again, these error messages are consumed entirely by
+.Nm error .
+.It Em nullify
+Error messages from
+.Xr lint 1
+can be nullified if they refer to a specific function,
+which is known to generate diagnostics which are not interesting.
+Nullified error messages are not inserted into the source file,
+but are written to the standard output.
+The names of functions to ignore are taken from
+either the file named
+.Pa .errorrc
+in the users's home directory,
+or from the file named by the
+.Fl I
+option.
+If the file does not exist,
+no error messages are nullified.
+If the file does exist, there must be one function
+name per line.
+.It Em not file specific
+Error messages that can't be intuited are grouped together,
+and written to the standard output before any files are touched.
+They will not be inserted into any source file.
+.It Em file specific
+Error message that refer to a specific file,
+but to no specific line,
+are written to the standard output when
+that file is touched.
+.It Em true errors
+Error messages that can be intuited are candidates for
+insertion into the file to which they refer.
+.El
+.Pp
+Only true error messages are candidates for inserting into
+the file they refer to.
+Other error messages are consumed entirely by
+.Nm error
+or are written to the standard output.
+.Nm Error
+inserts the error messages into the source file on the line
+preceding the line the language processor found in error.
+Each error message is turned into a one line comment for the
+language,
+and is internally flagged
+with the string ``###'' at
+the beginning of the error,
+and ``%%%'' at the end of the error.
+This makes pattern searching for errors easier with an editor,
+and allows the messages to be easily removed.
+In addition, each error message contains the source line number
+for the line the message refers to.
+A reasonably formatted source program can be recompiled
+with the error messages still in it,
+without having the error messages themselves cause future errors.
+For poorly formatted source programs in free format languages,
+such as C or Pascal,
+it is possible to insert a comment into another comment,
+which can wreak havoc with a future compilation.
+To avoid this, programs with comments and source
+on the same line should be formatted
+so that language statements appear before comments.
+.Pp
+.Nm Error
+catches interrupt and terminate signals,
+and if in the insertion phase,
+will orderly terminate what it is doing.
+.Sh FILES
+.Bl -tag -width ~/.errorrc -compact
+.It Pa ~/.errorrc
+function names to ignore for
+.Xr lint 1
+error messages
+.It Pa /dev/tty
+user's teletype
+.El
+.Sh HISTORY
+The
+.Nm error
+command
+appeared in
+.Bx 4.0 .
+.Sh AUTHOR
+Robert Henry
+.Sh BUGS
+.Pp
+Opens the teletype directly to do user querying.
+.Pp
+Source files with links make a new copy of the file with
+only one link to it.
+.Pp
+Changing a language processor's format of error messages
+may cause
+.Nm error
+to not understand the error message.
+.Pp
+.Nm Error ,
+since it is purely mechanical,
+will not filter out subsequent errors caused by `floodgating'
+initiated by one syntactically trivial error.
+Humans are still much better at discarding these related errors.
+.Pp
+Pascal error messages belong after the lines affected
+(error puts them before).  The alignment of the `\\' marking
+the point of error is also disturbed by
+.Nm error .
+.Pp
+.Nm Error
+was designed for work on
+.Tn CRT Ns 's
+at reasonably high speed.
+It is less pleasant on slow speed terminals, and has never been
+used on hardcopy terminals.

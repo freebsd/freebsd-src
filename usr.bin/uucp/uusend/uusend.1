@@ -1,0 +1,96 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)uusend.1	8.3 (Berkeley) 2/16/94
+.\"
+.Dd February 16, 1994
+.Dt UUSEND 1
+.Os BSD 4
+.Sh NAME
+.Nm uusend
+.Nd send a file to a remote host
+.Sh SYNOPSIS
+.Nm uusend
+.Op Fl m Ar mode
+.Ar sourcefile
+.Ar sys1!sys2!..!remotefile
+.Sh DESCRIPTION
+.Nm Uusend
+sends a file to a given location on a remote system.
+The system need not be directly connected to the local
+system, but a chain of
+.Xr uucp 1
+links must to connect the two systems.
+.Pp
+Available option:
+.Bl -tag -width Fl
+.It Fl m Ar mode
+The mode of the file on the remote
+end is taken from the octal number given.
+Otherwise, the mode of the input file will be used.
+.El
+.Pp
+The sourcefile
+can be
+.Ql Fl ,
+meaning to use the standard input.
+Both of these options are primarily intended for internal use of
+.Nm uusend .
+.Pp
+The remotefile can include the
+.Em ~userid
+syntax.
+.Sh DIAGNOSTICS
+If anything goes wrong any further away than the first system down
+the line, you will never hear about it.
+.Sh SEE ALSO
+.Xr uux 1 ,
+.Xr uucp 1 ,
+.Xr uuencode 1
+.Sh BUGS
+This command should not exist, since
+.Xr uucp
+should handle it.
+.Pp
+All systems along the line must have the
+.Nm uusend
+command available and allow remote execution of it.
+.Pp
+Some uucp systems have a bug where binary files cannot be the
+input to a
+.Xr uux 1
+command.  If this bug exists in any system along the line,
+the file will show up severely munged.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.0 .

@@ -1,0 +1,398 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sccs.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt SCCS 1
+.Os BSD 4.2
+.Sh NAME
+.Nm sccs
+.Nd front end for the
+.Li SCCS
+subsystem
+.Sh SYNOPSIS
+.Nm sccs
+.Op Fl r
+.Op Fl d Ar path
+.Op Fl p Ar path
+.Ar command
+.Op flags
+.Op Ar
+.Sh DESCRIPTION
+.Nm Sccs
+is a front end to the
+.Li SCCS
+programs
+that
+helps them mesh more cleanly
+with
+the rest of UNIX.
+It
+also includes the capability to run
+.Dq set user id
+to another user
+to
+provide additional protection.
+.Pp
+Basically,
+.Nm sccs
+runs the command with the specified
+.Ar flags
+and
+.Ar args .
+Each argument is normally modified to be prepended with
+.Dq Li SCCS/s. .
+.Pp
+Flags to be interpreted by the
+.Nm sccs
+program must be before the
+.Ar command
+argument.
+Flags to be passed to the actual
+.Li SCCS
+program must come after the
+.Ar command
+argument.
+These flags are specific to the command and
+are discussed in the documentation for that command.
+.Pp
+Besides the usual
+.Li SCCS
+commands,
+several
+.Dq pseudo-commands
+can be issued.
+These are:
+.Bl -tag -width deledit
+.It Cm edit
+Equivalent
+to 
+.Dq Li get \-e .
+.It Cm delget
+Perform a delta on the named files and
+then get new versions.
+The new versions will have id keywords expanded, and
+will not be editable.
+The
+.Fl m ,
+.Fl p ,
+.Fl r ,
+.Fl s ,
+and
+.Fl y
+flags will be passed to
+.Nm delta ,
+and the 
+.Fl b,
+.Fl c ,
+.Fl e ,
+.Fl i ,
+.Fl k ,
+.Fl l ,
+.Fl s ,
+.\" anybody who has a bad xterm which is almost anyone
+and
+.Fl x
+flags will be passed to get.
+.It Cm deledit
+Equivalent
+to
+.Nm delget
+except that the
+.Nm get
+phase includes the
+.Fl e
+flag.
+This
+option is useful for making a
+.Em checkpoint
+of your current editing phase.  The same flags will be passed to delta
+as described above, and
+all the flags listed for
+.om get
+above except
+.Fl e
+and
+.Fl k
+are
+passed to
+.Nm edit .
+.It Cm create
+Creates
+an
+.Li SCCS
+file ,
+taking
+the initial contents from the file of the same name.
+Any
+flags to
+.Nm admin
+are accepted.  If the creation is successful,
+the files are renamed with a comma on the front.
+These should be removed when you are convinced that the
+.Li SCCS
+files
+have been created successfully.
+.It Cm fix
+Must
+be followed by a
+.Fl r
+flag.
+This command essentially removes the named delta, but
+leaves you with a copy of the delta
+with the changes that were in it.  It
+is useful for fixing small compiler bugs, etc.
+Since it doesn't leave audit trails, it should be used carefully.
+.It Cm clean
+This routine removes everything from the current directory
+that can be recreated from SCCS files.
+It will not remove any files being edited.
+If the
+.Fl b
+flag is given, branches are ignored in the determination of
+whether they are being edited; this
+is dangerous if you are keeping the branches in the
+same directory.
+.It Cm unedit
+This
+is the opposite of an
+.Nm edit
+or
+a
+.Dq Li get \-e .
+It should be used with extreme caution, since
+any changes you made since the get will be irretrievably lost.
+.It Cm info
+Gives a listing of all files being edited.
+If the
+.Fl b
+flag
+is given, branches (i.e.,
+.Li SID Ns \&\'s 
+with two or fewer components)
+are ignored.  If the
+.Fl u
+flag is given (with an optional argument) then
+only files being edited by you (or the named user) are listed.
+.It Cm check
+Like
+.Nm info
+except that nothing is printed if nothing is being edited, and
+a non-zero exit status is returned if anything is being edited.
+The intent is to have this included in an
+.Em install
+entry in a makefile to insure that everything is included into the
+.Li SCCS
+file before a version is installed.
+.It Cm tell
+Gives a newline-separated list of the files being edited
+on the standard output.  Takes the
+.Fl b
+and
+.Fl u
+flags like
+.Nm info
+and
+.Nm check .
+.It Cm diffs
+Gives a
+.Nm diff
+listing between the current version of the
+program(s) you have out for editing and the versions in
+.Li SCCS
+format.
+The
+.Fl r ,
+.Fl c ,
+.Fl i ,
+.Fl x ,
+and
+.Fl t
+flags are passed to
+.if n \{\
+.	br
+.\}
+.Nm get ;
+the
+.Fl l ,
+.Fl s ,
+.Fl e ,
+.Fl f ,
+.Fl h ,
+and
+.Fl b
+options are passed to
+.if n \{\
+.	br
+.\}
+.Nm diff .
+The
+.Fl C
+flag is passed to
+.Nm diff
+as
+.Fl c .
+.It Cm print
+This command prints out verbose information
+about the named files.
+.Pp
+.It Fl r
+Runs
+.Nm sccs
+as the real user rather than as whatever effective user
+.Nm sccs
+is
+.Dq Li set user id
+to.
+.It Fl d
+Specifies a root directory for the
+.Li SCCS
+files.
+The default is the current directory.
+If environment variable
+.Ev PROJECT
+is set,
+it will be used to determine the 
+.Fl d
+flag.
+.It Fl p
+Defines the pathname of the directory in which the
+.Li SCCS
+files will be found;
+.Dq Li SCCS
+is the default.
+The
+.Fl p
+flag
+differs from the
+.Fl d
+flag
+in that the
+.Fl d
+argument is prepended to the entire pathname and the
+.Fl p
+argument is inserted before the final component of the pathname.
+For example,
+.Dq Li sccs \-d/x \-py get a/b
+will convert to
+.Dq Li get /x/a/y/s.b .
+The intent here is to create aliases such as
+.Dq Li alias syssccs sccs -d/usr/src
+which
+will be used as
+.Dq Li syssccs get cmd/who.c .
+.Pp
+Certain
+commands (such as
+.Nm admin  )
+cannot be run
+.Dq Li set user id
+by all users, since this would allow anyone to change the authorizations.
+These commands are always run as the real user.
+.Sh EXAMPLES
+To get a file for editing,
+edit it,
+and produce a new delta:
+.Pp
+.Dl sccs get \-e file.c
+.Dl ex file.c
+.Dl sccs delta file.c
+.Pp
+To get a file from another directory:
+.Pp
+.Dl sccs \-p/usr/src/sccs/s. get cc.c
+.Pp
+or
+.Pp
+.Dl sccs get /usr/src/sccs/s.cc.c
+.Pp
+To make a delta of a large number of files
+in the current directory:
+.Pp
+.Dl sccs delta *.c
+.Pp
+To get a list of files being edited that are not on branches:
+.Pp
+.Dl sccs info \-b
+.Pp
+To delta everything being edited by you:
+.Pp
+.Dl sccs delta \`sccs tell \-u\`
+.Pp
+In a makefile, to get source files
+from an
+.Li SCCS
+file if it does not already exist:
+.Pp
+.Dl SRCS = <list of source files>
+.Dl $(SRCS):
+.Dl \&\tsccs get $(REL) $@
+.Sh ENVIRONMENT
+.Bl -tag -width Ar
+.It Ev PROJECT
+The PROJECT environment variable is checked by the
+.Fl d
+flag.  If
+it begins with a slash, it is taken directly; otherwise,
+the home directory of a user of that name is
+examined for a subdirectory
+.Dq Li src
+or
+.Dq Li source .
+If such a directory is found, it is used.
+.El
+.Sh SEE ALSO
+.Xr what 1
+.Xr admin SCCS ,
+.Xr chghist SCCS ,
+.Xr comb SCCS ,
+.Xr delta SCCS ,
+.Xr get SCCS ,
+.Xr help SCCS ,
+.Xr prt SCCS ,
+.Xr rmdel SCCS ,
+.Xr sccsdiff SCCS ,
+.Rs
+.%A Eric Allman
+.%T "An Introduction to the Source Code Control System"
+.Re
+.Sh HISTORY
+The
+.Nm sccs
+command
+appeared in
+.Bx 4.3 .
+.Sh BUGS
+It should be able to take directory arguments on pseudo-commands
+like the
+.Li SCCS
+commands do.

@@ -1,0 +1,111 @@
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)uupoll.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt UUPOLL 8
+.Os BSD 4.3
+.Sh NAME
+.Nm uupoll
+.Nd poll a remote
+.Tn UUCP
+site
+.Sh SYNOPSIS
+.Nm uupoll
+.Op Fl g Ns Ar grade
+.Op Fl n
+.Ar system
+.Sh DESCRIPTION
+.Nm Uupoll
+is used to force a poll of a remote system. It queues a null job for the
+remote system and then invokes
+.Xr uucico 8 .
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl g Ns Ar grade
+Only send jobs of grade
+.Ar grade
+or higher on this call.
+.It Fl n
+Queue the null job, but do not invoke
+.Xr uucico .
+.El
+.Pp
+.Nm Uupoll
+is usually run by
+.Xr cron 5
+or by a user who wants to hurry a job along. A typical entry in
+.Em crontab
+could be:
+.Bd -literal
+0    0,8,16     *    *    *    daemon    /usr/bin/uupoll ihnp4
+0    4,12,20    *    *    *    daemon    /usr/bin/uupoll ucbvax
+.Ed
+.Pp
+This will poll
+.Em ihnp4
+at midnight, 0800, and 1600, and
+.Em ucbvax
+at 0400, noon, and 2000.
+.Pp
+If the local machine is already running
+.Xr uucico
+every
+hour and has a limited number of outgoing modems, a more elegant approach
+might be:
+.Bd -literal
+0    0,8,16    *    *    *    daemon    /usr/bin/uupoll -n ihnp4
+0    4,12,20   *    *    *    daemon    /usr/bin/uupoll -n ucbvax
+5        *     *    *    *    daemon    /usr/lib/uucp/uucico -r1
+.Ed
+.Pp
+This will queue null jobs for the remote sites at the top of hour; they
+will be processed by
+.Xr uucico
+when it runs five minutes later.
+.Sh FILES
+.Bl -tag -width /usr/lib/uucp/UUCP -compact
+.It Pa /usr/lib/uucp/UUCP
+internal files/utilities
+.It Pa /var/spool/uucp/
+Spool directory
+.El
+.Sh SEE ALSO
+.Xr uucp 1 ,
+.Xr uux 1 ,
+.Xr uucico 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .
