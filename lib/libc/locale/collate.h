@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.h,v 1.2 1996/08/12 03:40:36 ache Exp $
+ * $Id: collate.h,v 1.3 1996/08/12 19:18:46 ache Exp $
  */
 
 #ifndef COLLATE_H_INCLUDED
@@ -36,12 +36,9 @@
 
 #define STR_LEN 10
 #define TABLE_SIZE 100
+#define COLLATE_VERSION "1.0\n"
 
 struct __collate_st_char_pri {
-	int prim, sec;
-};
-struct __collate_st_name_pri {
-	u_char str[STR_LEN];
 	int prim, sec;
 };
 struct __collate_st_chain_pri {
@@ -50,10 +47,9 @@ struct __collate_st_chain_pri {
 };
 
 extern int __collate_load_error;
-extern u_char __collate_charmap_table[UCHAR_MAX + 1][STR_LEN];
+extern char __collate_version[STR_LEN];
 extern u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 extern struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
-extern struct __collate_st_name_pri __collate_name_pri_table[TABLE_SIZE];
 extern struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 
 __BEGIN_DECLS

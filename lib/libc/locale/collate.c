@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.5 1995/10/23 20:08:24 ache Exp $
+ * $Id: collate.c,v 1.6 1996/09/14 02:57:25 bde Exp $
  */
 
 #include <rune.h>
@@ -38,10 +38,9 @@
 
 char *_PathLocale;
 int __collate_load_error = 1;
-u_char __collate_charmap_table[UCHAR_MAX + 1][STR_LEN];
+char __collate_version[STR_LEN];
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
-struct __collate_st_name_pri __collate_name_pri_table[TABLE_SIZE];
 struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 
 #define FREAD(a, b, c, d) \
@@ -80,14 +79,16 @@ __collate_load_tables(encoding)
 		__collate_load_error = save_load_error;
 		return -1;
 	}
-	FREAD(__collate_charmap_table, sizeof(__collate_charmap_table), 1, fp);
+	FREAD(__collate_version, sizeof(__collate_version), 1, fp);
+	if (strcmp(__collate_version, COLLATE_VERSION) != 0) {
+		fclose(fp);
+		return -1;
+	}
 	FREAD(__collate_substitute_table, sizeof(__collate_substitute_table),
 	      1, fp);
 	FREAD(__collate_char_pri_table, sizeof(__collate_char_pri_table), 1,
 	      fp);
 	FREAD(__collate_chain_pri_table, sizeof(__collate_chain_pri_table), 1,
-	      fp);
-	FREAD(__collate_name_pri_table, sizeof(__collate_name_pri_table), 1,
 	      fp);
 	fclose(fp);
 	__collate_load_error = 0;
@@ -124,22 +125,10 @@ __collate_lookup(t, len, prim, sec)
 	u_char *t;
 	int *len, *prim, *sec;
 {
-	struct __collate_st_name_pri *p;
 	struct __collate_st_chain_pri *p2;
 
 	*len = 1;
 	*prim = *sec = 0;
-	if(__collate_charmap_table[*t][0]) {
-		for(p = __collate_name_pri_table; p->str[0]; p++) {
-			if(strncmp(__collate_charmap_table[*t], p->str, strlen(p->str))
-			   == 0) {
-				*prim = p->prim;
-				*sec = p->sec;
-				return;
-			}
-		}
-		return;
-	}
 	for(p2 = __collate_chain_pri_table; p2->str[0]; p2++) {
 		if(strncmp(t, p2->str, strlen(p2->str)) == 0) {
 			*len = strlen(p2->str);
@@ -187,22 +176,12 @@ void
 __collate_print_tables()
 {
 	int i;
-	struct __collate_st_name_pri *p;
 	struct __collate_st_chain_pri *p2;
 
 	printf("Substitute table:\n");
 	for (i = 0; i < UCHAR_MAX + 1; i++)
 		printf("\t'%c' --> \"%s\"\n", i,
 		       __collate_substitute_table[i]);
-	printf("Charmap table:\n");
-	for (i = 0; i < UCHAR_MAX + 1; i++) {
-		if (__collate_charmap_table[i][0])
-			printf("\t\\x%02x --> \"%s\"\n", i,
-			       __collate_charmap_table[i]);
-	}
-	printf("Name priority table:\n");
-	for (p = __collate_name_pri_table; p->str[0]; p++)
-		printf("\t\"%s\" : %d %d\n\n", p->str, p->prim, p->sec);
 	printf("Chain priority table:\n");
 	for (p2 = __collate_chain_pri_table; p2->str[0]; p2++)
 		printf("\t\"%s\" : %d %d\n\n", p2->str, p2->prim, p2->sec);
