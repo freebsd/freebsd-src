@@ -12,10 +12,6 @@ VECS+=	bfd_efi_app_ia64_vec \
 .if ${TARGET_ARCH} == "ia64"
 CFLAGS+= -DDEFAULT_VECTOR=bfd_elf64_ia64_little_vec
 .endif
-CFLAGS+= -DHAVE_bfd_elf64_ia64_little_vec -DHAVE_bfd_elf64_ia64_big_vec \
-	 -DHAVE_bfd_efi_app_ia64_vec \
-	 -DHAVE_bfd_elf64_little_generic_vec -DHAVE_bfd_elf64_big_generic_vec \
-	 -DHAVE_bfd_elf32_little_generic_vec -DHAVE_bfd_elf32_big_generic_vec
 
 GENSRCS= elf32-target.h elf64-target.h elf64-ia64.c pepigen.c # peigen.c
 SRCS+=	${GENSRCS}

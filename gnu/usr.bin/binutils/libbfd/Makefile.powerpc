@@ -17,9 +17,7 @@ VECS+=	bfd_elf32_powerpc_vec	\
 .if ${TARGET_ARCH} == "powerpc"
 CFLAGS+= -DDEFAULT_VECTOR=bfd_elf32_powerpc_vec
 .endif
-CFLAGS+= -DHAVE_bfd_elf32_powerpc_vec	\
-	-DHAVE_bfd_elf32_powerpcle_vec	\
-	-DHAVE_ppcboot_vec
+
 CLEANFILES+=	elf32-target.h
 
 elf32-target.h: elfxx-target.h
