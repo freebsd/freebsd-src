@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.3 1999/03/27 23:08:43 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.4 1999/04/06 23:09:58 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -141,7 +141,10 @@ uhci_pci_attach(pcici_t config_id, int unit)
 	}
 	memset(sc, 0, sizeof(uhci_softc_t));
 
-	sc->sc_iobase = pci_conf_read(config_id, PCI_UHCI_BASE_REG) & 0xffe0;
+	if ( !pci_map_port(config_id, PCI_UHCI_BASE_REG, &sc->sc_iobase) ) {
+		printf("uhci%d: could not map port\n", unit);
+		return;
+	}
 
 	if ( !pci_map_int(config_id, (pci_inthand_t *)uhci_intr,
 			  (void *) sc, &bio_imask)) {
