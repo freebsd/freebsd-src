@@ -165,5 +165,8 @@ chrdev	name		comments
 146	twe		3ware Escalade ATA RAID (controller)
 147	twed		3ware Escalade ATA RAID (drives)
 148	agp		AGP <dfr>
-200	??		entries from 200-255 are reserved for local use
-255	??		entries from 200-255 are reserved for local use
+200	??		entries from 200-252 are reserved for local use
+252	??		entries from 200-252 are reserved for local use
+253	mfs		Used by MFS
+254	internal	Used internally by the kernel
+255	bad choice	-1 is 255 which has magic meanings internally
