@@ -87,7 +87,7 @@
 /* #undef ssize_t */
 
 /* Define if cpp should also search $prefix/include.  */
-#define PREFIX_INCLUDE_DIR "NONE/include"
+/* #define PREFIX_INCLUDE_DIR "NONE/include" */
 
 /* Define if you have the __argz_count function.  */
 /* #undef HAVE___ARGZ_COUNT */
