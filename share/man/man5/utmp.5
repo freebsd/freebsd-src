@@ -100,20 +100,17 @@ file consists of
 structures and is a binary log file,
 that is, grows linearly at its end.
 .Pp
-Each time a user logs in, the
-.Xr login 1
+By default, each time a user logs in, the
+.Xr pam_lastlog 8
 program looks up the user's
 .Tn UID
 in the file
 .Nm lastlog .
 If it is found, the timestamp of the last time the user logged
 in, the terminal line and the hostname
-are written to the standard output (unless the login is
-.Em quiet ,
-see
-.Xr login 1 ) .
+are written to the standard output.
 The
-.Xr login 1
+.Xr pam_lastlog 8
 program then records the new login time in the file
 .Nm lastlog .
 .Pp
@@ -140,7 +137,7 @@ and
 .Xr who 1 .
 .Pp
 Next, the
-.Xr login 1
+.Xr pam_lastlog 8
 program opens the file
 .Nm wtmp ,
 and appends the user's
@@ -216,8 +213,8 @@ It is maintained by
 .Xr newsyslog 8 .
 .Pp
 If any one of these files does not exist, it is not created by
-.Xr login 1 .
-They must be created manually.
+.Xr pam_lastlog 8 .
+The files must be created manually.
 .Pp
 The supplied
 .Xr login 3 ,
@@ -248,7 +245,6 @@ file.
 .El
 .Sh SEE ALSO
 .Xr last 1 ,
-.Xr login 1 ,
 .Xr w 1 ,
 .Xr who 1 ,
 .Xr login 3 ,
@@ -256,7 +252,8 @@ file.
 .Xr logwtmp 3 ,
 .Xr ttyslot 3 ,
 .Xr ac 8 ,
-.Xr init 8
+.Xr init 8 ,
+.Xr pam_lastlog 8
 .Sh HISTORY
 A
 .Nm
