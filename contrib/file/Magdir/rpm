@@ -1,0 +1,17 @@
+#------------------------------------------------------------------------------
+#
+# RPM: file(1) magic for Red Hat Packages   Erik Troan (ewt@redhat.com)
+#
+0	beshort		0xedab    	
+>2	beshort		0xeedb		RPM
+>>4	byte		x		v%d
+>>6	beshort		0		bin
+>>6	beshort		1		src
+>>8	beshort		1		i386
+>>8	beshort		2		Alpha
+>>8	beshort		3		Sparc
+>>8	beshort		4		MIPS
+>>8	beshort		5		PowerPC
+>>8	beshort		6		68000
+>>8     beshort         7               SGI
+>>10	string		x		%s
