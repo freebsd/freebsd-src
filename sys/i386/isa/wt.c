@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.27 1995/12/22 15:39:45 bde Exp $
+ * $Id: wt.c,v 1.28 1996/01/08 12:46:14 joerg Exp $
  *
  */
 
@@ -293,6 +293,7 @@ wtattach (struct isa_device *id)
 	t->flags = TPSTART;                     /* tape is rewound */
 	t->dens = -1;                           /* unknown density */
 	kdc_wt[id->id_unit].kdc_state = DC_IDLE;
+	isa_dmainit(t->chan, 1024);
 
 #ifdef DEVFS
 	sprintf(name,"rwt%d",id->id_unit);

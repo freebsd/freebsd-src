@@ -946,10 +946,13 @@ DMAbuf_close_dma (int dev)
 void
 DMAbuf_reset_dma (int dev)
 {
-#if 0
   int             chan = audio_devs[dev]->dmachan;
 
+#if 0
   disable_dma (chan);
+#endif
+#ifdef __FreeBSD__
+  isa_dmadone_nobounce(chan);
 #endif
 }
 
