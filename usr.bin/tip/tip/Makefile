@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 #
 # Files are:
 #	/etc/remote		remote host description file
@@ -17,8 +18,7 @@ PROG=	tip
 DPADD=	${LIBACU} ${LIBUTIL}
 LDADD=	${LIBACU} -lutil
 LINKS=	${BINDIR}/tip
-MAN1=	tip.1
-MAN5=	modems.5
+MAN=	tip.1 modems.5
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
 	remote.c tip.c tipout.c value.c vars.c
 

@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/9/93
+# $FreeBSD$
 
 PROG=	vfontedpr
 SRCS=	regexp.c vfontedpr.c
-MAN1=	vgrind.1
-MAN5=	vgrindefs.5
+MAN=	vgrind.1 vgrindefs.5
 BINDIR=	/usr/libexec
 BIN2DIR=/usr/bin
 EXTRA=	vgrindefs.src.db

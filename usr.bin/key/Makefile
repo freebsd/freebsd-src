@@ -1,9 +1,8 @@
 #	@(#)Makefile	5.6 (Berkeley) 3/5/91
-#
+# $FreeBSD$
 
 PROG=	key
 SRCS=	skey.c
-MAN1=   key.1
 
 CFLAGS+= -D_SKEY_INTERNAL
 
