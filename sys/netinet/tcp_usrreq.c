@@ -235,7 +235,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct sockaddr_in *sinp;
-	const int inirw = INI_READ;
+	const int inirw = INI_WRITE;
 
 	COMMON_START();
 
@@ -264,7 +264,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct sockaddr_in6 *sin6p;
-	const int inirw = INI_READ;
+	const int inirw = INI_WRITE;
 
 	COMMON_START();
 
@@ -310,7 +310,7 @@ tcp_usr_listen(struct socket *so, struct thread *td)
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	const int inirw = INI_READ;
+	const int inirw = INI_WRITE;
 
 	COMMON_START();
 	if (inp->inp_lport == 0)
@@ -328,7 +328,7 @@ tcp6_usr_listen(struct socket *so, struct thread *td)
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	const int inirw = INI_READ;
+	const int inirw = INI_WRITE;
 
 	COMMON_START();
 	if (inp->inp_lport == 0) {
