@@ -603,7 +603,7 @@ svr4_sys_fchroot(td, uap)
 	struct svr4_sys_fchroot_args *uap;
 {
 	struct filedesc	*fdp = td->td_proc->p_fd;
-	struct vnode	*vp;
+	struct vnode	*vp, *vpold;
 	struct file	*fp;
 	int		 error;
 
@@ -618,7 +618,7 @@ svr4_sys_fchroot(td, uap)
 	else
 		error = VOP_ACCESS(vp, VEXEC, td->td_proc->p_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
-	if (error)
+	if (error) {
 		fdrop(fp, td);
 		return error;
 	}
