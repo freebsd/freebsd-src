@@ -43,7 +43,7 @@
 .Op Fl s | Fl show
 .Op Fl v | Fl verbose
 .Sh DESCRIPTION 
-.Nm kbdmap
+.Nm Kbdmap
 allows easy setting of available keymaps. 
 The
 .Nm vidfont 
@@ -63,8 +63,9 @@ does not
 support 
 .Tn MSDOS 
 codepage.
-.Sh OPTIONS
-.Bl -tag -width Ds
+.Pp
+The following options are available:
+.Bl -tag -width indent
 .It Fl K
 Run as command
 .Xr kbdmap 1 .
@@ -72,7 +73,9 @@ Run as command
 Run as command
 .Xr vidfont 1 .
 .It Fl d , Fl default
-Use default language. Ignore $LANG.
+Use default language. Ignore
+.Ev LANG
+environment variable.
 .It Fl h , Fl help
 Print options and exit.
 .It Fl l , Fl lang Ar language
@@ -89,30 +92,36 @@ Load default font from
 Show currently supported languages and exit.
 .It Fl v , Fl verbose
 More warnings.
+.El
 .Sh ENVIRONMENT
 .Bl -tag -width /etc/master.passwdxx -compact
 .Ev LANG	
-Preferred language.
+preferred language
+.El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps/INDEX.keymaps -compact
 .It Pa /usr/share/syscons/keymaps/INDEX.keymaps
-Database for keymaps.
+database for keymaps
 .It Pa /usr/share/syscons/fonts/INDEX.fonts
-Database for fonts.
+database for fonts
 .It Pa /etc/rc.conf
-Default font.
+default font
 .It Pa /usr/X11/lib/X11/locale/locale.alias
-Describe common LANG values.
+describe common
+.Ev LANG
+values
+.El
 .Sh BUGS
 .\" .Nm kbdmap/vidfont
 .\" does not know which font is in use. E.g. if the current font 
 .\" is iso-8859-1 and you chose lang 'ru' (for Russian) 
 .\" you get funny latin1 characters and not russkij shrift.
 .\" 
-.Nm vidcontrol
+.Nm Vidcontrol
 and
 .Nm kbdcontrol
-work only on a (virtual) console and not with X11.
+work only on a (virtual) console and not with
+.Tn X11 .
 .Sh SEE ALSO
 .Xr dialog 1 ,
 .Xr kbdcontrol 1 ,
