@@ -159,7 +159,9 @@ u_long	asn2ntp		P((ASN1_TIME *));
 extern char *optarg;		/* command line argument */
 int	debug = 0;		/* debug, not de bug */
 int	rval;			/* return status */
+#ifdef OPENSSL
 u_int	modulus = PLEN;		/* prime modulus size (bits) */
+#endif
 int	nkeys = 0;		/* MV keys */
 time_t	epoch;			/* Unix epoch (seconds) since 1970 */
 char	*hostname;		/* host name (subject name) */
@@ -221,7 +223,9 @@ main(
 	EVP_PKEY *pkey_iff = NULL; /* IFF parameters */
 	EVP_PKEY *pkey_gq = NULL; /* GQ parameters */
 	EVP_PKEY *pkey_mv = NULL; /* MV parameters */
+#endif
 	int	md5key = 0;	/* generate MD5 keys */
+#ifdef OPENSSL
 	int	hostkey = 0;	/* generate RSA keys */
 	int	iffkey = 0;	/* generate IFF parameters */
 	int	gqpar = 0;	/* generate GQ parameters */
@@ -231,7 +235,6 @@ main(
 	char	*sign = NULL;	/* sign key */
 	EVP_PKEY *pkey = NULL;	/* temp key */
 	const EVP_MD *ectx;	/* EVP digest */
-	char	hostbuf[MAXHOSTNAME + 1];
 	char	pathbuf[MAXFILENAME + 1];
 	const char *scheme = NULL; /* digest/signature scheme */
 	char	*exten = NULL;	/* private extension */
@@ -240,6 +243,7 @@ main(
 	FILE	*fstr = NULL;	/* file handle */
 	int	iffsw = 0;	/* IFF key switch */
 #endif /* OPENSSL */
+	char	hostbuf[MAXHOSTNAME + 1];
 	u_int	temp;
 
 #ifdef SYS_WINNT
@@ -267,8 +271,10 @@ main(
 	 */
 	gethostname(hostbuf, MAXHOSTNAME);
 	hostname = hostbuf;
+#ifdef OPENSSL
 	trustname = hostbuf;
 	passwd1 = hostbuf;
+#endif
 #ifndef SYS_WINNT
 	gettimeofday(&tv, 0);
 #else
@@ -277,15 +283,22 @@ main(
 	epoch = tv.tv_sec;
 	rval = 0;
 	while ((temp = getopt(argc, argv,
-	    "c:deGgHIi:Mm:nPp:q:S:s:TV:v:")) != -1) {
+#ifdef OPENSSL
+	    "c:deGgHIi:Mm:nPp:q:S:s:TV:v:"
+#else
+	    "dM"
+#endif
+	    )) != -1) {
 		switch(temp) {
 
+#ifdef OPENSSL
 		/*
 		 * -c select public certificate type
 		 */
 		case 'c':
 			scheme = optarg;
 			continue;
+#endif
 
 		/*
 		 * -d debug
@@ -294,47 +307,59 @@ main(
 			debug++;
 			continue;
 
+#ifdef OPENSSL
 		/*
 		 * -e write identity keys
 		 */
 		case 'e':
 			iffsw++;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -G generate GQ parameters and keys
 		 */
 		case 'G':
 			gqpar++;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -g update GQ keys
 		 */
 		case 'g':
 			gqkey++;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -H generate host key (RSA)
 		 */
 		case 'H':
 			hostkey++;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -I generate IFF parameters
 		 */
 		case 'I':
 			iffkey++;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -i set issuer name
 		 */
 		case 'i':
 			trustname = optarg;
 			continue;
+#endif
 
 		/*
 		 * -M generate MD5 keys
@@ -343,7 +368,7 @@ main(
 			md5key++;
 			continue;
 
-
+#ifdef OPENSSL
 		/*
 		 * -m select modulus (256-2048)
 		 */
@@ -352,49 +377,63 @@ main(
 				fprintf(stderr,
 				    "invalid option -m %s\n", optarg);	
 			continue;
-		
+#endif
+
+#ifdef OPENSSL
 		/*
 		 * -P generate PC private certificate
 		 */
 		case 'P':
 			exten = EXT_KEY_PRIVATE;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -p output private key password
 		 */
 		case 'p':
 			passwd2 = optarg;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -q input private key password
 		 */
 		case 'q':
 			passwd1 = optarg;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -S generate sign key (RSA or DSA)
 		 */
 		case 'S':
 			sign = optarg;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -s set subject name
 		 */
 		case 's':
 			hostname = optarg;
 			continue;
-		
+#endif
+
+#ifdef OPENSSL
 		/*
 		 * -T trusted certificate (TC scheme)
 		 */
 		case 'T':
 			exten = EXT_KEY_TRUST;
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -V <keys> generate MV parameters
 		 */
@@ -404,7 +443,9 @@ main(
 				fprintf(stderr,
 				    "invalid option -V %s\n", optarg);
 			continue;
+#endif
 
+#ifdef OPENSSL
 		/*
 		 * -v <key> update MV keys
 		 */
@@ -414,6 +455,7 @@ main(
 				fprintf(stderr,
 				    "invalid option -v %s\n", optarg);
 			continue;
+#endif
 
 		/*
 		 * None of the above.
@@ -446,6 +488,7 @@ main(
 	fprintf(stderr,
 	    "Random seed file %s %u bytes\n", pathbuf, temp);
 	RAND_add(&epoch, sizeof(epoch), 4.0);
+#endif
 
 	/*
 	 * Generate new parameters and keys as requested. These replace
@@ -453,6 +496,7 @@ main(
 	 */
 	if (md5key)
 		gen_md5("MD5");
+#ifdef OPENSSL
 	if (hostkey)
 		pkey_host = genkey("RSA", "host");
 	if (sign != NULL)
@@ -714,7 +758,7 @@ gen_md5(
 			}
 			md5key[j] = (u_char)temp;
 		}
-		md5key[16] = '\0';
+		md5key[15] = '\0';
 		fprintf(str, "%2d MD5 %16s	# MD5 key\n", i,
 		    md5key);
 	}
@@ -1245,7 +1289,7 @@ gen_mv(
 	char	*id		/* file name id */
 	)
 {
-	EVP_PKEY *pkey;		/* private key */
+	EVP_PKEY *pkey, *pkey1;	/* private key */
 	DSA	*dsa;		/* DSA parameters */
 	DSA	*sdsa;		/* DSA parameters */
 	BN_CTX	*ctx;		/* BN working space */
@@ -1284,7 +1328,7 @@ gen_mv(
 	    modulus / n);
 	ctx = BN_CTX_new(); u = BN_new(); v = BN_new(); w = BN_new();
 	b = BN_new(); b1 = BN_new();
-	dsa = malloc(sizeof(DSA));
+	dsa = DSA_new();
 	dsa->p = BN_new();
 	dsa->q = BN_new();
 	dsa->g = BN_new();
@@ -1589,7 +1633,7 @@ gen_mv(
 	 * the designated recipient(s) who pay a suitably outrageous fee
 	 * for its use.
 	 */
-	sdsa = malloc(sizeof(DSA));
+	sdsa = DSA_new();
 	sdsa->p = BN_dup(dsa->p);
 	sdsa->q = BN_dup(BN_value_one());
 	sdsa->g = BN_dup(BN_value_one());
@@ -1622,15 +1666,16 @@ gen_mv(
 		 */
 		sprintf(ident, "MVkey%d", j);
 		str = fheader(ident, trustname);
-		pkey = EVP_PKEY_new();
-		EVP_PKEY_assign_DSA(pkey, sdsa);
-		PEM_write_PrivateKey(str, pkey, passwd2 ?
+		pkey1 = EVP_PKEY_new();
+		EVP_PKEY_set1_DSA(pkey1, sdsa);
+		PEM_write_PrivateKey(str, pkey1, passwd2 ?
 		    EVP_des_cbc() : NULL, NULL, 0, NULL, passwd2);
 		fclose(str);
 		fprintf(stderr, "ntpkey_%s_%s.%lu\n", ident, trustname,
 		    epoch + JAN_1970);
 		if (debug)
 			DSA_print_fp(stdout, sdsa, 0);
+		EVP_PKEY_free(pkey1);
 	}
 
 	/*
@@ -1643,7 +1688,7 @@ gen_mv(
 	BN_free(u); BN_free(v); BN_free(w); BN_CTX_free(ctx);
 	BN_free(b); BN_free(b1); BN_free(biga); BN_free(bige);
 	BN_free(ss); BN_free(gbar); BN_free(ghat);
-	DSA_free(dsa); DSA_free(sdsa);
+	DSA_free(sdsa);
 
 	/*
 	 * Free the world.
@@ -1883,7 +1928,6 @@ cb	(
 		break;
 	}
 }
-#endif /* OPENSSL */
 
 
 /*
@@ -1907,6 +1951,7 @@ genkey(
 	rval = -1;
 	return (NULL);
 }
+#endif /* OPENSSL */
 
 
 /*
