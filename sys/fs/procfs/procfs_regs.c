@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,6 +37,7 @@
  *	@(#)procfs_regs.c	8.4 (Berkeley) 6/15/94
  *
  * From:
+ *	$Id: procfs_regs.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
  * $FreeBSD$
  */
 
@@ -62,7 +63,7 @@ procfs_doprocregs(PFS_FILL_ARGS)
 	int kl;
 
 	if (p_candebug(td->td_proc, p))
-		return EPERM;
+		return (EPERM);
 	kl = sizeof(r);
 	kv = (char *) &r;
 
@@ -72,18 +73,19 @@ procfs_doprocregs(PFS_FILL_ARGS)
 		kl = uio->uio_resid;
 
 	PHOLD(p);
-
 	if (kl < 0)
 		error = EINVAL;
 	else
-		error = proc_read_regs(FIRST_THREAD_IN_PROC(p), &r); /* XXXKSE */
+		/* XXXKSE: */
+		error = proc_read_regs(FIRST_THREAD_IN_PROC(p), &r);
 	if (error == 0)
 		error = uiomove(kv, kl, uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
 		else
-			error = proc_write_regs(FIRST_THREAD_IN_PROC(p), &r); /* XXXKSE */
+			/* XXXKSE: */
+			error = proc_write_regs(FIRST_THREAD_IN_PROC(p), &r);
 	}
 	PRELE(p);
 
