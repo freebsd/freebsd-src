@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)mmap.c	8.1 (Berkeley) 6/17/93";
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <unistd.h>
 
 /*
  * This function provides 64-bit offset padding that
@@ -53,6 +54,6 @@ mmap(addr, len, prot, flags, fd, offset)
 	off_t	offset;
 {
 
-	return((void *)__syscall((quad_t)SYS_mmap, addr, len, prot, flags,
+	return((void *)(long)__syscall((quad_t)SYS_mmap, addr, len, prot, flags,
 		fd, 0, offset));
 }
