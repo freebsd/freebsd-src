@@ -75,7 +75,9 @@ dev/aac/aac.c		optional aac
 #dev/aac/aac_debug.c	optional aac
 dev/aac/aac_disk.c	optional aac
 dev/aac/aac_pci.c	optional aac pci
-dev/acpi/acpi.c		count acpi
+dev/acpi/acpi.c		optional acpi
+dev/acpi/acpi_io.c	optional acpi
+dev/acpi/acpi_event.c	optional acpi
 dev/acpi/acpi_powerres.c	optional	acpi
 dev/acpi/aml/aml_amlmem.c	optional	acpi
 dev/acpi/aml/aml_common.c	optional	acpi

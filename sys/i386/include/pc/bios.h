@@ -218,3 +218,16 @@ extern int bios16(struct bios_args *, char *, ...);
 extern int bios16_call(struct bios_regs *, char *);
 extern int bios32(struct bios_regs *, u_int, u_short);
 extern void set_bios_selectors(struct bios_segments *, int);
+
+/*
+ * Int 15:E820 'SMAP' structure
+ *
+ * XXX add constants for type
+ */
+#define SMAP_SIG	0x534D4150			/* 'SMAP' */
+struct bios_smap {
+    u_int64_t	base;
+    u_int64_t	length;
+    u_int32_t	type;
+} __attribute__ ((packed));
+
