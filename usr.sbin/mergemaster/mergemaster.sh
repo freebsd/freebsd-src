@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahi] [-m /path]'
+  echo 'Usage: mergemaster [-scrvahipC] [-m /path]'
   echo '         [-t /path] [-d] [-u N] [-w N] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -25,6 +25,8 @@ display_usage () {
   echo "  -a  Leave all files that differ to merge by hand"
   echo "  -h  Display more complete help"
   echo '  -i  Automatically install files that do not exist in destination directory'
+  echo '  -p  Pre-buildworld mode, only compares crucial files'
+  echo '  -C  Compare local rc.conf variables to the defaults'
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
   echo "  -d  Add date and time to directory name (e.g., /var/tmp/temproot.`date +%m%d.%H.%M`)"
@@ -123,6 +125,7 @@ diff_loop () {
     else
       echo ''
       echo "  *** There is no installed version of ${COMPFILE}"
+      echo ''
       case "${AUTO_INSTALL}" in
       [Yy][Ee][Ss])
         echo ''
@@ -229,7 +232,7 @@ fi
 
 # Check the command line options
 #
-while getopts ":ascrvhim:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
+while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
   s)
     STRICT=yes
@@ -256,6 +259,12 @@ while getopts ":ascrvhim:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
     ;;
   i)
     AUTO_INSTALL=yes
+    ;;
+  p)
+    PRE_WORLD=yes
+    ;;
+  C)
+    COMP_CONFS=yes
     ;;
   m)
     SOURCEDIR=${OPTARG}
@@ -443,22 +452,36 @@ case "${RERUN}" in
     ;;
   esac
 
-  { cd ${SOURCEDIR} &&
-    case "${DESTDIR}" in
-    '') ;;
-    *)
+  case "${PRE_WORLD}" in
+  '')
+    { cd ${SOURCEDIR} &&
+      case "${DESTDIR}" in
+      '') ;;
+      *)
       make DESTDIR=${DESTDIR} distrib-dirs
-      ;;
-    esac
-    make DESTDIR=${TEMPROOT} distrib-dirs &&
-    make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj obj &&
-    make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj DESTDIR=${TEMPROOT} \
-        -DNO_MAKEDEV_RUN distribution;} ||
-  { echo '';
-    echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
-    echo "      the temproot environment";
-    echo '';
-    exit 1;}
+        ;;
+      esac
+      make DESTDIR=${TEMPROOT} distrib-dirs &&
+      make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj obj &&
+      make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj DESTDIR=${TEMPROOT} \
+          -DNO_MAKEDEV_RUN distribution;} ||
+    { echo '';
+     echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
+      echo "      the temproot environment";
+      echo '';
+      exit 1;}
+    ;;
+  *)
+    # Only set up files that are crucial to {build|install}world
+    { mkdir -p ${TEMPROOT}/etc &&
+      cp -p ${SOURCEDIR}/master.passwd ${TEMPROOT}/etc &&
+      cp -p ${SOURCEDIR}/group ${TEMPROOT}/etc;} ||
+    { echo '';
+      echo '  *** FATAL ERROR: Cannot copy files to the temproot environment';
+      echo '';
+      exit 1;}
+    ;;
+  esac
 
   # Doing the inventory and removing files that we don't want to compare only
   # makes sense if we are not doing a rerun, since we have no way of knowing
@@ -493,7 +516,7 @@ case "${RERUN}" in
 
   # Avoid trying to update MAKEDEV if /dev is on a devfs
   if /sbin/sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
-    rm ${TEMPROOT}/dev/MAKEDEV ${TEMPROOT}/dev/MAKEDEV.local
+    rm -f ${TEMPROOT}/dev/MAKEDEV ${TEMPROOT}/dev/MAKEDEV.local
   fi
 
   ;; # End of the "RERUN" test
@@ -503,9 +526,7 @@ esac
 # master.passwd is the real file that should be compared, then
 # the user should run pwd_mkdb if necessary.
 #
-[ -f "${TEMPROOT}/etc/spwd.db" ] && rm "${TEMPROOT}/etc/spwd.db"
-[ -f "${TEMPROOT}/etc/passwd" ]  && rm "${TEMPROOT}/etc/passwd"
-[ -f "${TEMPROOT}/etc/pwd.db" ]  && rm "${TEMPROOT}/etc/pwd.db"
+rm -f ${TEMPROOT}/etc/spwd.db ${TEMPROOT}/etc/passwd ${TEMPROOT}/etc/pwd.db
 
 # Get ready to start comparing files
 
@@ -576,11 +597,7 @@ fi
 #
 do_install_and_rm () {
   install -m "${1}" "${2}" "${3}" &&
-    if [ -f "${2}" ]; then
-      rm "${2}"
-    else
-      return 0
-    fi
+  rm -f "${2}"
 }
 
 mm_install () {
@@ -921,6 +938,53 @@ echo ''
 if [ -r "${MM_EXIT_SCRIPT}" ]; then
   . "${MM_EXIT_SCRIPT}"
 fi
+
+case "${COMP_CONFS}" in
+'') ;;
+*)
+  . ${DESTDIR}/etc/defaults/rc.conf
+
+  (echo ''
+  echo "*** Comparing conf files: ${rc_conf_files}"
+
+  for CONF_FILE in ${rc_conf_files}; do
+    if [ -r "${DESTDIR}${CONF_FILE}" ]; then
+      echo ''
+      echo "*** From ${DESTDIR}${CONF_FILE}"
+      echo "*** From ${DESTDIR}/etc/defaults/rc.conf"
+
+      for RC_CONF_VAR in `grep -i ^[a-z] ${DESTDIR}${CONF_FILE} |
+        cut -d '=' -f 1`; do
+        echo ''
+        grep ^${RC_CONF_VAR} ${DESTDIR}${CONF_FILE}
+        grep ^${RC_CONF_VAR} ${DESTDIR}/etc/defaults/rc.conf ||
+          echo ' * No default variable with this name'
+      done
+    fi
+  done) | ${PAGER}
+  echo ''
+  ;;
+esac
+
+case "${PRE_WORLD}" in
+'') ;;
+*)
+  MAKE_CONF="${SOURCEDIR%etc}share/examples/etc/make.conf"
+
+  (echo ''
+  echo '*** Comparing make variables'
+  echo ''
+  echo "*** From ${DESTDIR}/etc/make.conf"
+  echo "*** From ${MAKE_CONF}"
+
+  for MAKE_VAR in `grep -i ^[a-z] /etc/make.conf | cut -d '=' -f 1`; do
+    echo ''
+    grep ^${MAKE_VAR} ${DESTDIR}/etc/make.conf
+    grep ^#${MAKE_VAR} ${MAKE_CONF} ||
+      echo ' * No example variable with this name'
+  done) | ${PAGER}
+  ;;
+esac
 
 exit 0
 
