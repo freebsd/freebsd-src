@@ -569,20 +569,21 @@ in_arpinput(m)
 		if (ac->ac_if.if_type == IFT_ISO88025) {
 			th = (struct iso88025_header *)m->m_pkthdr.header;
                 	if ((th->iso88025_shost[0] & 0x80) &&
-			    (((ntohs(th->rcf) & 0x1f00) >> 8) > 2)) {
-				sdl->sdl_rcf = ntohs(th->rcf) & 0x0080 ? 
-				    htons(ntohs(th->rcf) & 0xff7f) :
-				    htons(ntohs(th->rcf) | 0x0080);
-				memcpy(sdl->sdl_route, th->rseg, ((ntohs(th->rcf) & 0x1f00) >> 8)  - 2);
-				sdl->sdl_rcf = htons(ntohs(sdl->sdl_rcf) & 0x1fff);
+			    ((th->rcf & 0x001f) > 2)) {
+				sdl->sdl_rcf = (th->rcf & 0x8000) ? (th->rcf & 0x7fff) :
+				    (th->rcf | 0x8000);
+				memcpy(sdl->sdl_route, th->rseg, (th->rcf & 0x001f)  - 2);
+				sdl->sdl_rcf = sdl->sdl_rcf & 0xff1f;
 				/* Set up source routing information for reply packet (XXX)*/
-				m->m_data -= (((ntohs(th->rcf) & 0x1f00) >> 8) + 8); 
-				m->m_len  += (((ntohs(th->rcf) & 0x1f00) >> 8) + 8); 
+				m->m_data -= (th->rcf & 0x001f); 
+				m->m_len  += (th->rcf & 0x001f); 
+				m->m_pkthdr.len += (th->rcf & 0x001f);
 			} else {
 				th->iso88025_shost[0] &= 0x7f;
-				m->m_data -= 8;
-				m->m_len  += 8;
 			}
+			m->m_data -= 8;
+			m->m_len  += 8;
+			m->m_pkthdr.len += 8;
 			th->rcf = sdl->sdl_rcf;
 			
 		} else {
@@ -664,7 +665,7 @@ reply:
 		/* Set the source routing bit if neccesary */
 		if (th->iso88025_dhost[0] & 0x80) {
 			th->iso88025_dhost[0] &= 0x7f;
-			if (((ntohs(th->rcf) & 0x1f00) >> 8) - 2)
+			if ((th->rcf & 0x001f) - 2)
 				th->iso88025_shost[0] |= 0x80;
 		}
 		/* Copy the addresses, ac and fc into sa_data */
