@@ -8,7 +8,7 @@ SHLIB_MINOR=0
 
 # Should be elsewhere
 AWK?=	awk
-TERMINFODIR?=	${DESTDIR}/usr/share/misc
+TERMINFODIR?=	${SHAREDIR}/misc
 
 NCURSES_MAJOR!=egrep 'NCURSES_MAJOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9]*//'
 NCURSES_MINOR!=egrep 'NCURSES_MINOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9]*//'
