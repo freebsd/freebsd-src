@@ -184,7 +184,6 @@ static void
 amrd_strategy(struct buf *bp)
 {
     struct amrd_softc	*sc = amrd_getsoftc(bp->b_dev);
-    int			s;
 
     debug("called");
 
@@ -208,10 +207,8 @@ amrd_strategy(struct buf *bp)
 
     /* pass reference to us */
     bp->b_driver1 = sc;
-    s = splbio();
     devstat_start_transaction(&sc->amrd_stats);
     amr_submit_buf(sc->amrd_controller, bp);
-    splx(s);
     return;
 
  bad:

@@ -137,8 +137,8 @@ struct amr_softc
     int				amr_waitbufs;
     struct amr_command		*amr_busycmd[AMR_MAXCMD];
     int				amr_busycmdcount;
-    TAILQ_HEAD(,amr_command)	amr_donecmds;
-    int				amr_donecmdcount;
+    TAILQ_HEAD(,amr_command)	amr_work;
+    int				amr_workcount;
     TAILQ_HEAD(,amr_command)	amr_freecmds;
 
     /* controller type-specific support */
