@@ -613,7 +613,8 @@ cs_attach(device_t dev)
 	ifp->if_linkmiblen=sizeof sc->mibdata;
 	*/
 
-	ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST );
+	ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT);
 
 	/*
 	 * this code still in progress (DMA support)
