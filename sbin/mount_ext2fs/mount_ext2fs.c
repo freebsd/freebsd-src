@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_ext2fs.c,v 1.6 1997/02/22 14:32:45 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,6 +54,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#include <ufs/ufs/ufsmount.h>
 
 #include "mntopts.h"
 
@@ -73,7 +75,8 @@ main(argc, argv)
 	struct ufs_args args;
 	int ch, mntflags;
 	char *fs_name, *options;
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
 	options = NULL;
 	mntflags = 0;
@@ -102,18 +105,18 @@ main(argc, argv)
 	else
 		args.export.ex_flags = 0;
 
-	vfc = getvfsbyname("ext2fs");
-	if(!vfc && vfsisloadable("ext2fs")) {
-		if(vfsload("ext2fs")) {
+	error = getvfsbyname("ext2fs", &vfc);
+	if (error && vfsisloadable("ext2fs")) {
+		if (vfsload("ext2fs")) {
 			err(EX_OSERR, "vfsload(ext2fs)");
 		}
 		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("ext2fs");
+		error = getvfsbyname("ext2fs", &vfc);
 	}
-	if (!vfc)
-		errx(EX_OSERR, "ext2fs filesystem not available");
+	if (error)
+		errx(EX_OSERR, "ext2fs filesystem is not available");
 
-	if (mount(vfc->vfc_index, fs_name, mntflags, &args) < 0)
+	if (mount(vfc.vfc_name, fs_name, mntflags, &args) < 0)
 		err(EX_OSERR, "%s", args.fspec);
 	exit(0);
 }

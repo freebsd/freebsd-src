@@ -42,10 +42,10 @@ char copyright[] =
 
 #ifndef lint
 /*
-static char sccsid[] = "@(#)mount_umap.c	8.3 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_umap.c	8.5 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_umap.c,v 1.9 1997/02/22 14:33:00 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -100,7 +100,8 @@ main(argc, argv)
         u_long gmapdata[GMAPFILEENTRIES][2], mapdata[MAPFILEENTRIES][2];
 	int ch, count, gnentries, mntflags, nentries;
 	char *gmapfile, *mapfile, *source, *target, buf[20];
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
 	mntflags = 0;
 	mapfile = gmapfile = NULL;
@@ -224,18 +225,17 @@ main(argc, argv)
 	args.gnentries = gnentries;
 	args.gmapdata = gmapdata;
 
-	vfc = getvfsbyname("umap");
-	if(!vfc && vfsisloadable("umap")) {
+	error = getvfsbyname("umap", &vfc);
+	if (error && vfsisloadable("umap")) {
 		if(vfsload("umap"))
 			err(1, "vfsload(umap)");
-		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("umap");
+		endvfsent();
+		error = getvfsbyname("umap", &vfc);
 	}
-	if (!vfc) {
-		errx(1, "umap filesystem not available");
-	}
+	if (error)
+		errx(1, "umap filesystem is not available");
 
-	if (mount(vfc->vfc_index, argv[1], mntflags, &args))
+	if (mount(vfc.vfc_name, argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }

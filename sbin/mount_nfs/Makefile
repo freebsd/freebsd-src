@@ -5,6 +5,7 @@ SRCS=	mount_nfs.c getmntopts.c
 MAN8=	mount_nfs.8
 
 MOUNT=	${.CURDIR}/../mount
+CFLAGS+= -D_NEW_VFSCONF
 CFLAGS+= -DNFS -I${MOUNT}
 .PATH:	${MOUNT}
 

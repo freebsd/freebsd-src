@@ -42,10 +42,10 @@ char copyright[] =
 
 #ifndef lint
 /*
-static char sccsid[] = "@(#)mount_null.c	8.5 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_null.c	8.6 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_null.c,v 1.7 1997/02/22 14:32:51 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -77,7 +77,8 @@ main(argc, argv)
 	struct null_args args;
 	int ch, mntflags;
 	char target[MAXPATHLEN];
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
@@ -104,18 +105,18 @@ main(argc, argv)
 
 	args.target = target;
 
-	vfc = getvfsbyname("null");
-	if(!vfc && vfsisloadable("null")) {
+	error = getvfsbyname("null", &vfc);
+	if (error && vfsisloadable("null")) {
 		if(vfsload("null"))
 			err(EX_OSERR, "vfsload(null)");
-		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("null");
+		endvfsent();
+		error = getvfsbyname("null", &vfc);
 	}
-	if (!vfc)
-		errx(EX_OSERR, "null filesystem is not available");
+	if (error)
+		errx(EX_OSERR, "null/loopback filesystem is not available");
 
-	if (mount(vfc->vfc_index, argv[1], mntflags, &args))
-		err(EX_OSERR, target);
+	if (mount(vfc.vfc_name, argv[1], mntflags, &args))
+		err(1, NULL);
 	exit(0);
 }
 

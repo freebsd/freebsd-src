@@ -34,9 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pt_file.c	8.2 (Berkeley) 3/27/94
+ *	@(#)pt_file.c	8.3 (Berkeley) 7/3/94
  *
- * $Id$
+ * $Id: pt_file.c,v 1.5 1997/02/22 14:32:56 peter Exp $
  */
 
 #include <stdio.h>
