@@ -48,6 +48,7 @@
 #include <sys/tty.h>
 #include <sys/syslog.h>
 #include <sys/cons.h>
+#include <sys/uio.h>
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -64,6 +65,7 @@
 
 struct putchar_arg {
 	int	flags;
+	int	pri;
 	struct	tty *tty;
 };
 
@@ -72,11 +74,13 @@ struct snprintf_arg {
 	size_t	remain;
 };
 
+extern	int log_open;
+
 struct	tty *constty;			/* pointer to console "window" tty */
 
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
-static void  logpri __P((int level));
-static void  msglogchar(int c, void *dummyarg);
+static void  msglogchar(int c, int pri);
+static void  msgaddchar(int c, void *dummy);
 static void  putchar __P((int ch, void *arg));
 static char *ksprintn __P((char *nbuf, u_long num, int base, int *len));
 static char *ksprintqn __P((char *nbuf, u_quad_t num, int base, int *len));
@@ -84,13 +88,13 @@ static void  snprintf_func __P((int ch, void *arg));
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
 static int msgbufmapped;		/* Set when safe to use msgbuf */
+int msgbuftrigger;
 
 /*
  * Warn that a system table is full.
  */
 void
-tablefull(tab)
-	const char *tab;
+tablefull(const char *tab)
 {
 
 	log(LOG_ERR, "%s: table is full\n", tab);
@@ -133,10 +137,8 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	struct putchar_arg pca;
 	int retval;
 
-	if (pri != -1) {
-		logpri(pri);
+	if (pri != -1)
 		flags |= TOLOG;
-	}
 	if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
 		SESSHOLD(p->p_session);
 		shld++;
@@ -145,6 +147,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 			tp = p->p_session->s_ttyp;
 		}
 	}
+	pca.pri = pri;
 	pca.tty = tp;
 	pca.flags = flags;
 	va_start(ap, fmt);
@@ -152,7 +155,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	va_end(ap);
 	if (shld)
 		SESSRELE(p->p_session);
-	logwakeup();
+	msgbuftrigger = 1;
 }
 
 /*
@@ -175,8 +178,6 @@ ttyprintf(struct tty *tp, const char *fmt, ...)
 	return retval;
 }
 
-extern	int log_open;
-
 /*
  * Log writes to the log buffer, and guarantees not to sleep (so can be
  * called by interrupt routines).  If there is no process reading the
@@ -185,41 +186,61 @@ extern	int log_open;
 void
 log(int level, const char *fmt, ...)
 {
-	int s;
 	va_list ap;
 	int retval;
+	struct putchar_arg pca;
 
-	s = splhigh();
-	if (level != -1)
-		logpri(level);
+	pca.tty = NULL;
+	pca.pri = level;
+	pca.flags = log_open ? TOLOG : TOCONS;
+
 	va_start(ap, fmt);
-
-	retval = kvprintf(fmt, msglogchar, NULL, 10, ap);
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 
-	splx(s);
-	if (!log_open) {
-		struct putchar_arg pca;
-		va_start(ap, fmt);
-		pca.tty = NULL;
-		pca.flags = TOCONS;
-		retval += kvprintf(fmt, putchar, &pca, 10, ap);
-		va_end(ap);
-	}
-	logwakeup();
+	msgbuftrigger = 1
 }
 
-static void
-logpri(level)
-	int level;
-{
-	char nbuf[MAXNBUF];
-	char *p;
+#define CONSCHUNK 128
 
-	msglogchar('<', NULL);
-	for (p = ksprintn(nbuf, (u_long)level, 10, NULL); *p;)
-		msglogchar(*p--, NULL);
-	msglogchar('>', NULL);
+void
+log_console(struct uio *uio)
+{
+	int c, i, error, iovlen, nl;
+	struct uio muio;
+	struct iovec *miov = NULL;
+	char *consbuffer;
+	int pri;
+
+	pri = LOG_INFO | LOG_CONSOLE;
+	muio = *uio;
+	iovlen = uio->uio_iovcnt * sizeof (struct iovec);
+	MALLOC(miov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
+	MALLOC(consbuffer, char *, CONSCHUNK, M_TEMP, M_WAITOK);
+	bcopy((caddr_t)muio.uio_iov, (caddr_t)miov, iovlen);
+	muio.uio_iov = miov;
+	uio = &muio;
+
+	nl = 0;
+	while (uio->uio_resid > 0) {
+		c = imin(uio->uio_resid, CONSCHUNK);
+		error = uiomove(consbuffer, c, uio);
+		if (error != 0)
+			return;
+		for (i = 0; i < c; i++) {
+			msglogchar(consbuffer[i], pri);
+			if (consbuffer[i] == '\n')
+				nl = 1;
+			else
+				nl = 0;
+		}
+	}
+	if (!nl)
+		msglogchar('\n', pri);
+	msgbuftrigger = 1
+	FREE(miov, M_TEMP);
+	FREE(consbuffer, M_TEMP);
+	return;
 }
 
 int
@@ -235,10 +256,11 @@ printf(const char *fmt, ...)
 	va_start(ap, fmt);
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
+	pca.pri = -1;
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	if (!panicstr)
-		logwakeup();
+		msgbuftrigger = 1
 	consintr = savintr;		/* reenable interrupts */
 	return retval;
 }
@@ -254,9 +276,10 @@ vprintf(const char *fmt, va_list ap)
 	consintr = 0;
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
+	pca.pri = -1;
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	if (!panicstr)
-		logwakeup();
+		msgbuftrigger = 1
 	consintr = savintr;		/* reenable interrupts */
 	return retval;
 }
@@ -282,7 +305,7 @@ putchar(int c, void *arg)
 	    (flags & TOCONS) && tp == constty)
 		constty = NULL;
 	if ((flags & TOLOG))
-		msglogchar(c, NULL);
+		msglogchar(c, ap->pri);
 	if ((flags & TOCONS) && constty == NULL && c != '\0')
 		(*v_putc)(c);
 }
@@ -703,23 +726,58 @@ number:
 }
 
 /*
- * Put character in log buffer.
+ * Put character in log buffer with a particular priority.
  */
 static void
-msglogchar(int c, void *dummyarg)
+msglogchar(int c, int pri)
+{
+	static int lastpri = -1;
+	static int dangling;
+	char nbuf[MAXNBUF];
+	char *p;
+
+	if (!msgbufmapped)
+		return;
+	if (c == '\0' || c == '\r')
+		return;
+	if (pri != -1 && pri != lastpri) {
+		if (dangling) {
+			msgaddchar('\n', NULL);
+			dangling = 0;
+		}
+		msgaddchar('<', NULL);
+		for (p = ksprintn(nbuf, (u_long)pri, 10, NULL); *p;)
+			msgaddchar(*p--, NULL);
+		msgaddchar('>', NULL);
+		lastpri = pri;
+	}
+	msgaddchar(c, NULL);
+	if (c == '\n') {
+		dangling = 0;
+		lastpri = -1;
+	} else {
+		dangling = 1;
+	}
+}
+
+/*
+ * Put char in log buffer
+ */
+static void
+msgaddchar(int c, void *dummy)
 {
 	struct msgbuf *mbp;
 
-	if (c != '\0' && c != '\r' && c != 0177 && msgbufmapped) {
-		mbp = msgbufp;
-		mbp->msg_ptr[mbp->msg_bufx++] = c;
-		if (mbp->msg_bufx >= mbp->msg_size)
-			mbp->msg_bufx = 0;
-		/* If the buffer is full, keep the most recent data. */
-		if (mbp->msg_bufr == mbp->msg_bufx) {
-			if (++mbp->msg_bufr >= mbp->msg_size)
-				mbp->msg_bufr = 0;
-		}
+	if (!msgbufmapped)
+		return;
+	mbp = msgbufp;
+	mbp->msg_ptr[mbp->msg_bufx++] = c;
+	if (mbp->msg_bufx >= mbp->msg_size)
+		mbp->msg_bufx = 0;
+	/* If the buffer is full, keep the most recent data. */
+	if (mbp->msg_bufr == mbp->msg_bufx) {
+		if (++mbp->msg_bufr >= mbp->msg_size)
+			mbp->msg_bufr = 0;
 	}
 }
 
@@ -730,7 +788,7 @@ msgbufcopy(struct msgbuf *oldp)
 
 	pos = oldp->msg_bufr;
 	while (pos != oldp->msg_bufx) {
-		msglogchar(oldp->msg_ptr[pos], NULL);
+		msglogchar(oldp->msg_ptr[pos], -1);
 		if (++pos >= oldp->msg_size)
 			pos = 0;
 	}
