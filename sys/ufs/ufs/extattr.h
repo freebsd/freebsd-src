@@ -93,7 +93,7 @@ struct ufs_extattr_per_mount {
 void	ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm);
 int	ufs_extattr_start(struct mount *mp, struct proc *p);
 int	ufs_extattr_stop(struct mount *mp, struct proc *p);
-int	ufs_extattrctl(struct mount *mp, int cmd, char *attrname,
+int	ufs_extattrctl(struct mount *mp, int cmd, const char *attrname,
     caddr_t arg, struct proc *p);
 int	ufs_vop_getextattr(struct vop_getextattr_args *ap);
 int	ufs_vop_setextattr(struct vop_setextattr_args *ap);

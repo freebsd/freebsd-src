@@ -539,7 +539,7 @@ vop_aclcheck {
 #
 vop_getextattr {
 	IN struct vnode *vp;
-	IN char *name;
+	IN const char *name;
 	INOUT struct uio *uio;
 	IN struct ucred *cred;
 	IN struct proc *p;
@@ -550,7 +550,7 @@ vop_getextattr {
 #
 vop_setextattr {
 	IN struct vnode *vp;
-	IN char *name;
+	IN const char *name;
 	INOUT struct uio *uio;
 	IN struct ucred *cred;
 	IN struct proc *p;
