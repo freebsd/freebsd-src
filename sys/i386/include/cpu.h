@@ -47,6 +47,8 @@
 #include <machine/frame.h>
 #include <machine/segments.h>
 #include <machine/globals.h>
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
 
 /*
  * definitions of cpu-dependent requirements
@@ -133,6 +135,25 @@ extern char	etext[];
 
 void	fork_trampoline __P((void));
 void	fork_return __P((struct proc *, struct trapframe));
+
+/*
+ * Return contents of in-cpu fast counter as a sort of "bogo-time"
+ * for non-critical timing.
+ */
+static __inline u_int64_t
+get_cyclecount(void)
+{
+#if defined(I386_CPU) || defined(I486_CPU)
+	struct timespec tv;
+
+	if ((cpu_feature & CPUID_TSC) == 0) {
+		nanotime(&tv);
+		return (tv.tv_sec * (u_int64_t)1000000000 + tv.tv_nsec);
+	}
+#endif
+	return (rdtsc());
+}
+
 #endif
 
 #endif /* !_MACHINE_CPU_H_ */
