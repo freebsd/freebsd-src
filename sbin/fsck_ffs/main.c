@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
@@ -199,6 +200,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	cdevname = filesys;
 	if (debug && preen)
 		pwarn("starting\n");
+	sblock_init();
 
 	/*
 	 * If we are to do a background check:
@@ -211,14 +213,35 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	if (bkgrdflag) {
 		if (mntp == NULL) {
 			bkgrdflag = 0;
-			pwarn("NOT MOUNTED, CANNOT RUN IN BACKGROUND\n");
+			pfatal("NOT MOUNTED, CANNOT RUN IN BACKGROUND\n");
 		} else if ((mntp->f_flags & MNT_SOFTDEP) == 0) {
 			bkgrdflag = 0;
-			pwarn("NOT USING SOFT UPDATES, CANNOT RUN IN BACKGROUND\n");
+			pfatal("NOT USING SOFT UPDATES, %s\n",
+			    "CANNOT RUN IN BACKGROUND");
 		} else if ((mntp->f_flags & MNT_RDONLY) != 0) {
 			bkgrdflag = 0;
-			pwarn("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
-		} else {
+			pfatal("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
+		} else if ((fsreadfd = open(filesys, O_RDONLY)) >= 0) {
+			if (readsb(0) != 0) {
+				if (sblock.fs_flags & FS_NEEDSFSCK) {
+					bkgrdflag = 0;
+					pfatal("UNEXPECTED INCONSISTENCY, %s\n",
+					    "CANNOT RUN IN BACKGROUND\n");
+				}
+				if ((sblock.fs_flags & FS_UNCLEAN) == 0 &&
+				    skipclean && preen) {
+					/*
+					 * filesystem is clean;
+					 * skip snapshot and report it clean
+					 */
+					pwarn("FILESYSTEM CLEAN; %s\n",
+					    "SKIPPING CHECKS");
+					goto clean;
+				}
+			}
+			close(fsreadfd);
+		}
+		if (bkgrdflag) {
 			snprintf(snapname, sizeof snapname, "%s/.fsck_snapshot",
 			    mntp->f_mntonname);
 			args.fspec = snapname;
@@ -228,7 +251,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 				if (errno == EEXIST && unlink(snapname) == 0)
 					continue;
 				bkgrdflag = 0;
-				pwarn("CANNOT CREATE SNAPSHOT %s: %s\n",
+				pfatal("CANNOT CREATE SNAPSHOT %s: %s\n",
 				    snapname, strerror(errno));
 				break;
 			}
@@ -243,6 +266,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			pfatal("CAN'T CHECK FILE SYSTEM.");
 		return (0);
 	case -1:
+	clean:
 		pwarn("clean, %ld free ", sblock.fs_cstotal.cs_nffree +
 		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
 		printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
