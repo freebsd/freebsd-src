@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.132.2.2 1999/02/07 12:56:22 jkh Exp $
+ * $Id: dist.c,v 1.132.2.3 1999/02/14 18:55:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -246,6 +246,16 @@ distConfig(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
+static int
+distSetX(void)
+{
+    Dists |= DIST_XF86;
+    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
+    XF86FontDists = DIST_XF86_FONTS_MISC;
+    return distSetXF86(NULL);
+}
+
 int
 distSetDeveloper(dialogMenuItem *self)
 {
@@ -265,11 +275,7 @@ distSetXDeveloper(dialogMenuItem *self)
     int i;
 
     i = distSetDeveloper(self);
-    Dists |= DIST_XF86;
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
-    XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
-    XF86FontDists = DIST_XF86_FONTS_MISC;
-    i |= distSetXF86(NULL);
+    i |= distSetX();
     distVerifyFlags();
     return i;
 }
@@ -283,6 +289,17 @@ distSetKernDeveloper(dialogMenuItem *self)
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
     i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    distVerifyFlags();
+    return i;
+}
+
+int
+distSetXKernDeveloper(dialogMenuItem *self)
+{
+    int i;
+
+    i = distSetKernDeveloper(self);
+    i |= distSetX();
     distVerifyFlags();
     return i;
 }
@@ -305,11 +322,7 @@ distSetXUser(dialogMenuItem *self)
     int i;
 
     i = distSetUser(self);
-    Dists |= DIST_XF86;
-    XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
-    XF86FontDists = DIST_XF86_FONTS_MISC;
-    i |= distSetXF86(NULL);
+    i |= distSetX();
     distVerifyFlags();
     return i;
 }

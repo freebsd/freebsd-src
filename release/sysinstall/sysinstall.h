@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.153.2.4 1999/02/09 22:25:58 jkh Exp $
+ * $Id: sysinstall.h,v 1.153.2.5 1999/03/10 02:51:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -462,6 +462,7 @@ extern int	distSetCustom(dialogMenuItem *self);
 extern int	distSetDeveloper(dialogMenuItem *self);
 extern int	distSetXDeveloper(dialogMenuItem *self);
 extern int	distSetKernDeveloper(dialogMenuItem *self);
+extern int	distSetXKernDeveloper(dialogMenuItem *self);
 extern int	distSetUser(dialogMenuItem *self);
 extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
