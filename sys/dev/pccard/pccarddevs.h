@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.73 2003/10/08 01:15:41 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.74 2003/10/26 06:31:46 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -601,6 +601,9 @@
 #define	PCMCIA_CIS_OLICOM_TR	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_OLICOM_TR	0x2132
 #define	PCMCIA_STR_OLICOM_TR	"GoCard Token Ring 16/4"
+#define	PCMCIA_CIS_OLICOM_OC2220	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_OLICOM_OC2220	0x2220
+#define	PCMCIA_STR_OLICOM_OC2220	"GoCard Ethernet"
 
 /* Ositech Products */
 #define	PCMCIA_CIS_OSITECH_TRUMPCARD_SOD	{ NULL, NULL, NULL, NULL }
