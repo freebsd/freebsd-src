@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.48 1996/07/26 13:47:38 peter Exp $
+ *	$Id: si.c,v 1.49 1996/07/26 16:55:37 peter Exp $
  */
 
 #ifndef lint
@@ -1193,7 +1193,10 @@ siioctl(dev, cmd, data, flag, p)
 	 */
 	switch (cmd) {
 	case TIOCSETAW: case TIOCSETAF:
-	case TIOCDRAIN: case TIOCSETP:
+	case TIOCDRAIN:
+#ifdef COMPAT_43
+	case TIOCSETP:
+#endif
 		blocked++;	/* block writes for ttywait() and siparam() */
 		si_write_enable(pp, 0);
 	}
