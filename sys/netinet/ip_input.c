@@ -431,6 +431,13 @@ tooshort:
 	if (ipsec_gethist(m, NULL))
 		goto pass;
 #endif
+#if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)
+	/*
+	 * Bypass packet filtering for packets from a tunnel (gif).
+	 */
+	if (m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
+		goto pass;
+#endif
 
 	/*
 	 * IpHack's section.
