@@ -1250,17 +1250,13 @@ psignal(p, sig)
 		 * other than kicking ourselves if we are running.
 		 * It will either never be noticed, or noticed very soon.
 		 */
-		if (p == curproc) {
+		if (p->p_stat == SRUN) {
 			signotify(p);
 			mtx_unlock_spin(&sched_lock);
-		}
 #ifdef SMP
-		else if (p->p_stat == SRUN) {
-			mtx_unlock_spin(&sched_lock);
 			forward_signal(p);
-		}
 #endif
-		else
+		} else
 			mtx_unlock_spin(&sched_lock);
 		goto out;
 	}
