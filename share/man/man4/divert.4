@@ -1,3 +1,5 @@
+.\"	$Id: divert.4,v 1.4 1996/12/26 16:15:05 wosch Exp $
+.\"
 .Dd June 18, 1996
 .Dt DIVERT 4
 .Os FreeBSD
@@ -124,11 +126,11 @@ The destination address contained an IP address not equal to
 that was not associated with any interface.
 .El
 .Sh SEE ALSO
-.Xr ipfw 8 ,
-.Xr socket 2 ,
 .Xr bind 2 ,
+.Xr recvfrom 2 ,
 .Xr sendto 2 ,
-.Xr recvfrom 2 .
+.Xr socket 2 ,
+.Xr ipfw 8
 .Sh BUGS
 This is an attempt to provide a clean way for user mode processes
 to implement various IP tricks like address translation, but it

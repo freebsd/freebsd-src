@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: worm.4,v 1.5 1996/06/23 18:27:12 joerg Exp $
+.\" $Id: worm.4,v 1.7 1996/12/26 16:15:39 wosch Exp $
 .\" "
 .Dd January 27, 1996
 .Dt WORM 4
@@ -233,14 +233,14 @@ the control device, as being used by
 .Sh DIAGNOSTICS
 See above.
 .Sh SEE ALSO
+.Xr close 2 ,
+.Xr ioctl 2 ,
+.Xr open 2 ,
+.Xr write 2 ,
 .Xr cd 4 ,
 .Xr scsi 4 ,
 .Xr scsi 8 ,
-.Xr wormcontrol 8 ,
-.Xr open 2 ,
-.Xr ioctl 2 ,
-.Xr write 2 ,
-.Xr close 2 .
+.Xr wormcontrol 8
 .Sh AUTHORS
 The first skeleton for a
 .Nm
