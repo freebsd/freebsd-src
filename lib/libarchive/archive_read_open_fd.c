@@ -27,12 +27,14 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#include <sys/stat.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "archive.h"
+#include "archive_private.h"
 
 struct read_fd_data {
 	int	 fd;
@@ -63,9 +65,16 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 static int
 file_open(struct archive *a, void *client_data)
 {
-	(void)client_data; /* UNUSED */
-	(void)a; /* UNUSED */
+	struct read_fd_data *mine = client_data;
+	struct stat st;
 
+	if (fstat(mine->fd, &st) != 0) {
+		archive_set_error(a, errno, "Can't stat fd %d", mine->fd);
+		return (ARCHIVE_FATAL);
+	}
+
+	a->skip_file_dev = st.st_dev;
+	a->skip_file_ino = st.st_ino;
 	return (ARCHIVE_OK);
 }
 
