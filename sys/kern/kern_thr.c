@@ -33,6 +33,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -89,6 +90,7 @@ thr_exit1(void)
 	ke->ke_state = KES_UNQUEUED;
 	ke->ke_thread = NULL;
 	kse_unlink(ke);
+	sched_exit_kse(TAILQ_NEXT(ke, ke_kglist), ke);
 
 	/*
 	 * If we were stopped while waiting for all threads to exit and this
@@ -106,6 +108,7 @@ thr_exit1(void)
 #endif
 	td->td_ksegrp = NULL;
 	td->td_last_kse = NULL;
+	sched_exit_thread(TAILQ_NEXT(td, td_kglist), td);
 	thread_stash(td);
 
 #if defined(__i386__) || defined(__sparc64__)
@@ -177,6 +180,9 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	/* Bind this thread and kse together. */
 	td0->td_kse = ke0;
 	ke0->ke_thread = td0;
+
+	sched_fork_kse(td->td_kse, ke0);
+	sched_fork_thread(td, td0);
 
 	TD_SET_CAN_RUN(td0);
 	if ((uap->flags & THR_SUSPENDED) == 0)
