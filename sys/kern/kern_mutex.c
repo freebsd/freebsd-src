@@ -215,14 +215,17 @@ SYSCTL_INT(_debug_mutex_prof, OID_AUTO, enable, CTLFLAG_RW,
     &mutex_prof_enable, 0, "Enable tracing of mutex holdtime");
 
 struct mutex_prof {
-	const char *name;
-	const char *file;
-	int line;
+	const char	*name;
+	const char	*file;
+	int		line;
+	/*
+	 * XXX should use specialized struct members instead of an array
+	 * and these silly #defines.
+	 */
 #define MPROF_MAX 0
 #define MPROF_TOT 1
 #define MPROF_CNT 2
-#define MPROF_AVG 3
-	uintmax_t counter[4];
+	uintmax_t	counter[3];
 	struct mutex_prof *next;
 };
 
@@ -232,10 +235,10 @@ struct mutex_prof {
  *
  * Note: NUM_MPROF_BUFFERS must be smaller than MPROF_HASH_SIZE.
  */
-#define NUM_MPROF_BUFFERS 1000
+#define	NUM_MPROF_BUFFERS	1000
 static struct mutex_prof mprof_buf[NUM_MPROF_BUFFERS];
 static int first_free_mprof_buf;
-#define MPROF_HASH_SIZE 1009
+#define	MPROF_HASH_SIZE		1009
 static struct mutex_prof *mprof_hash[MPROF_HASH_SIZE];
 
 static int mutex_prof_acquisitions;
@@ -279,19 +282,27 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 	int error, i;
 
 	if (first_free_mprof_buf == 0)
-		return SYSCTL_OUT(req, "No locking recorded",
-		    sizeof("No locking recorded"));
+		return (SYSCTL_OUT(req, "No locking recorded",
+		    sizeof("No locking recorded")));
 
 	sb = sbuf_new(NULL, NULL, 1024, SBUF_AUTOEXTEND);
-	sbuf_printf(sb, "%12s %12s %12s %12s %s\n",
-	    "max", "total", "count", "average", "name");
+	sbuf_printf(sb, "%6s %12s %11s %5s %s\n",
+	    "max", "total", "count", "avg", "name");
+	/*
+	 * XXX this spinlock seems to be by far the largest perpetrator
+	 * of spinlock latency (1.6 msec on an Athlon1600 was recorded
+	 * even before I pessimized it further by moving the average
+	 * computation here).
+	 */
 	mtx_lock_spin(&mprof_mtx);
 	for (i = 0; i < first_free_mprof_buf; ++i)
-		sbuf_printf(sb, "%12ju %12ju %12ju %12ju %s:%d (%s)\n",
+		sbuf_printf(sb, "%6ju %12ju %11ju %5ju %s:%d (%s)\n",
 		    mprof_buf[i].counter[MPROF_MAX] / 1000,
 		    mprof_buf[i].counter[MPROF_TOT] / 1000,
 		    mprof_buf[i].counter[MPROF_CNT],
-		    mprof_buf[i].counter[MPROF_AVG] / 1000,
+		    mprof_buf[i].counter[MPROF_CNT] == 0 ? (uintmax_t)0 :
+			mprof_buf[i].counter[MPROF_TOT] /
+			(mprof_buf[i].counter[MPROF_CNT] * 1000),
 		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
 	mtx_unlock_spin(&mprof_mtx);
 	sbuf_finish(sb);
@@ -299,7 +310,7 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(sb);
 	return (error);
 }
-SYSCTL_PROC(_debug_mutex_prof, OID_AUTO, stats, CTLTYPE_STRING|CTLFLAG_RD,
+SYSCTL_PROC(_debug_mutex_prof, OID_AUTO, stats, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, dump_mutex_prof_stats, "A", "Mutex profiling statistics");
 #endif
 
@@ -384,14 +395,12 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		}
 		/*
 		 * Record if the mutex has been held longer now than ever
-		 * before
+		 * before.
 		 */
-		if ((now - acqtime) > mpp->counter[MPROF_MAX])
+		if (now - acqtime > mpp->counter[MPROF_MAX])
 			mpp->counter[MPROF_MAX] = now - acqtime;
 		mpp->counter[MPROF_TOT] += now - acqtime;
-		mpp->counter[MPROF_CNT] += 1;
-		mpp->counter[MPROF_AVG] =
-		    mpp->counter[MPROF_TOT] / mpp->counter[MPROF_CNT];
+		mpp->counter[MPROF_CNT]++;
 unlock:
 		mtx_unlock_spin(&mprof_mtx);
 	}
