@@ -110,6 +110,7 @@ rlim_t login_getcapnum __P((login_cap_t *, const char *, rlim_t, rlim_t));
 rlim_t login_getcapsize __P((login_cap_t *, const char *, rlim_t, rlim_t));
 char *login_getpath __P((login_cap_t *, const char *, char *));
 int login_getcapbool __P((login_cap_t *, const char *, int));
+const char *login_setcryptfmt __P((login_cap_t *, const char *, const char *));
 
 int setclasscontext __P((const char*, unsigned int));
 int setusercontext __P((login_cap_t*, const struct passwd*, uid_t, unsigned int));
