@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002 Mark Santcroos <marks@ripe.net>
- * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -88,7 +88,6 @@ NETGRAPH_INIT(device, &ngd_typestruct);
 /* per node data */
 struct ngd_private {
 	struct	ifqueue	readq;
-	SLIST_ENTRY(ngd_private) links;
 	struct	ng_node	*node;
 	struct	ng_hook	*hook;
 	struct	cdev	*ngddev;
@@ -100,12 +99,11 @@ struct ngd_private {
 };
 typedef struct ngd_private *priv_p;
 
-/* List of all active nodes and mutex to protect it */
-static SLIST_HEAD(, ngd_private) ngd_nodes = SLIST_HEAD_INITIALIZER(ngd_nodes);
-static struct mtx	ng_device_mtx;
+/* unit number allocator entity */
+static struct unrhdr *ngd_unit;
 
 /* Maximum number of NGD devices */
-#define MAX_NGD	25	/* should be more than enough for now */
+#define MAX_NGD	999
 
 static d_close_t ngdclose;
 static d_open_t ngdopen;
@@ -129,12 +127,31 @@ static struct cdevsw ngd_cdevsw = {
 	.d_name =	NG_DEVICE_DEVNAME,
 };
 
-/* Helper functions */
-static int get_free_unit(void);
-
 /******************************************************************************
  *  Netgraph methods
  ******************************************************************************/
+
+/*
+ * Handle loading and unloading for this node type.
+ */
+static int
+ng_device_mod_event(module_t mod, int event, void *data)
+{
+	int error = 0;
+
+	switch (event) {
+	case MOD_LOAD:
+		ngd_unit = new_unrhdr(0, MAX_NGD, NULL);
+		break;
+	case MOD_UNLOAD:
+		delete_unrhdr(ngd_unit);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
+}
 
 /*
  * create new node
@@ -150,17 +167,8 @@ ng_device_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&ng_device_mtx);
-	priv->unit = get_free_unit();
-	if(priv->unit < 0) {
-		printf("%s: No free unit found by get_free_unit(), "
-				"increase MAX_NGD\n",__func__);
-		mtx_unlock(&ng_device_mtx);
-		FREE(priv, M_NETGRAPH);
-		return(EINVAL);
-	}
-	SLIST_INSERT_HEAD(&ngd_nodes, priv, links);
-	mtx_unlock(&ng_device_mtx);
+	/* Allocate unit number */
+	priv->unit = alloc_unr(ngd_unit);
 
 	/* Initialize mutexes and queue */
 	mtx_init(&priv->ngd_mtx, "ng_device", NULL, MTX_DEF);
@@ -177,6 +185,7 @@ ng_device_constructor(node_p node)
 		printf("%s(): make_dev() failed\n",__func__);
 		mtx_destroy(&priv->ngd_mtx);
 		mtx_destroy(&priv->readq.ifq_mtx);
+		free_unr(ngd_unit, priv->unit);
 		FREE(priv, M_NETGRAPH);
 		return(EINVAL);
 	}
@@ -203,9 +212,9 @@ ng_device_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	if (msg->header.typecookie == NGM_DEVICE_COOKIE) {
 		switch (msg->header.cmd) {
 		case NGM_DEVICE_GET_DEVNAME:
-			/* XXX: Fix when NGD_MAX us bigger */
+			/* XXX: Fix when MAX_NGD us bigger */
 			NG_MKRESPONSE(resp, msg,
-			    strlen(NG_DEVICE_DEVNAME) + 3, M_NOWAIT);
+			    strlen(NG_DEVICE_DEVNAME) + 4, M_NOWAIT);
 
 			if (resp == NULL)
 				ERROUT(ENOMEM);
@@ -293,12 +302,10 @@ ng_device_disconnect(hook_p hook)
 	destroy_dev(priv->ngddev);
 	mtx_destroy(&priv->ngd_mtx);
 
-	mtx_lock(&ng_device_mtx);
-	SLIST_REMOVE(&ngd_nodes, priv, ngd_private, links);
-	mtx_unlock(&ng_device_mtx);
-
 	IF_DRAIN(&priv->readq);
 	mtx_destroy(&(priv)->readq.ifq_mtx);
+
+	free_unr(ngd_unit, priv->unit);
 
 	FREE(priv, M_NETGRAPH);
 
@@ -375,16 +382,6 @@ ngdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	struct ngd_param_s * datap;
 
 	DBG;
-
-	SLIST_FOREACH(tmp,&sc->head,links) {
-		if(tmp->ngddev == dev) {
-			connection = tmp;
-		}
-	}
-	if(connection == NULL) {
-		printf("%s(): connection is still NULL, no dev found\n",__func__);
-		return(-1);
-	}
 
 	NG_MKMESSAGE(msg, NGM_DEVICE_COOKIE, cmd, sizeof(struct ngd_param_s),
 			M_NOWAIT);
@@ -492,63 +489,4 @@ ngdpoll(struct cdev *dev, int events, struct thread *td)
 		revents |= events & (POLLIN | POLLRDNORM);
 
 	return (revents);
-}
-
-/******************************************************************************
- *  Helper subroutines
- ******************************************************************************/
-
-static int
-get_free_unit()
-{
-	struct ngd_private *priv = NULL;
-	int n = 0;
-	int unit = -1;
-
-	DBG;
-
-	mtx_assert(&ng_device_mtx, MA_OWNED);
-
-	/* When there is no list yet, the first device unit is always 0. */
-	if SLIST_EMPTY(&ngd_nodes)
-		return(0);
-
-	/* Just do a brute force loop to find the first free unit that is
-	 * smaller than MAX_NGD.
-	 * Set MAX_NGD to a large value, doesn't impact performance.
-	 */
-	for(n = 0; n<MAX_NGD && unit == -1; n++) {
-		SLIST_FOREACH(priv, &ngd_nodes, links) {
-
-			if(priv->unit == n) {
-				unit = -1;
-				break;
-			}
-			unit = n;
-		}
-	}
-
-	return (unit);
-}
-
-/*
- * Handle loading and unloading for this node type.
- */
-static int
-ng_device_mod_event(module_t mod, int event, void *data)
-{
-	int error = 0;
-
-	switch (event) {
-	case MOD_LOAD:
-		mtx_init(&ng_device_mtx, "ng_device global", NULL, MTX_DEF);
-		break;
-	case MOD_UNLOAD:
-		mtx_destroy(&ng_device_mtx);
-		break;
-	default:
-		error = EOPNOTSUPP;
-		break;
-	}
-	return (error);
 }
