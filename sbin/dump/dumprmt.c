@@ -174,7 +174,6 @@ rmtgetconn()
 		msg("login to %s as %s failed.\n", rmtpeer, tuser);
 		return;
 	}
-	msgtail("Connection to %s established.\n", rmtpeer);
 	size = ntrec * TP_BSIZE;
 	if (size > 60 * 1024)		/* XXX */
 		size = 60 * 1024;
