@@ -68,7 +68,9 @@ MAIN:{
 	$| = 1;
 	print "Content-Type: text/html\n\n";
     } else {
-	open(STDOUT, ">", "index.html")
+	my $fn = $0;
+	$fn =~ s/cgi$/html/;
+	open(STDOUT, ">", $fn)
 	    or die("index.html: $!\n");
     }
     print "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
