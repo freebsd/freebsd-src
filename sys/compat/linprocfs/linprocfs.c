@@ -201,9 +201,9 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	} else {
 		model = "unknown";
 	}
-	
+
 	sysname = alpha_dsr_sysname();
-	    
+
 	sbuf_printf(sb,
 	    "cpu\t\t\t: Alpha\n"
 	    "cpu model\t\t: %s\n"
@@ -317,7 +317,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	} else if (!strcmp(cpu_vendor, "CyrixInstead")) {
 		flags[24] = "cxmmx";
 	}
-	
+
 	for (i = 0; i < 32; i++)
 		if (cpu_feature & (1 << i))
 			sbuf_printf(sb, " %s", flags[i]);
@@ -359,7 +359,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	else
 		lep = dlep;
 	lep_len = strlen(lep);
-	
+
 	mtx_lock(&mountlist_mtx);
 	error = 0;
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
@@ -369,7 +369,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 
 		/* determine device name */
 		mntfrom = mp->mnt_stat.f_mntfromname;
-		
+
 		/* determine mount point */
 		mntto = mp->mnt_stat.f_mntonname;
 		if (strncmp(mntto, lep, lep_len) == 0 &&
@@ -382,7 +382,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 			mntfrom = fstype = "proc";
 		else if (strcmp(fstype, "procfs") == 0)
 			continue;
-		
+
 		sbuf_printf(sb, "%s %s %s %s", mntfrom, mntto, fstype,
 		    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
 #define ADD_OPTION(opt, name) \
@@ -485,7 +485,7 @@ linprocfs_doloadavg(PFS_FILL_ARGS)
 	    nprocs,			/* number of tasks */
 	    lastpid			/* the last pid */
 	);
-	
+
 	return (0);
 }
 
@@ -542,7 +542,7 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	PS_ADD("processor",	"%d",	0); /* XXX */
 #undef PS_ADD
 	sbuf_putc(sb, '\n');
-	
+
 	return (0);
 }
 
@@ -623,7 +623,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, "%d ",		p->p_ucred->cr_groups[i]);
 	PROC_UNLOCK(p);
 	sbuf_putc(sb, '\n');
-	
+
 	/*
 	 * Memory
 	 *
@@ -669,7 +669,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	sbuf_printf(sb, "SigCgt:\t%08x\n",	ps->ps_sigcatch.__bits[0]);
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
-	
+
 	/*
 	 * Linux also prints the capability masks, but we don't have
 	 * capabilities yet, and when we do get them they're likely to
@@ -678,7 +678,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	sbuf_printf(sb, "CapInh:\t%016x\n",	0);
 	sbuf_printf(sb, "CapPrm:\t%016x\n",	0);
 	sbuf_printf(sb, "CapEff:\t%016x\n",	0);
-	
+
 	return (0);
 }
 
@@ -769,7 +769,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
 	}
 	IFNET_RUNLOCK();
-	
+
 	return (0);
 }
 
@@ -791,7 +791,7 @@ linprocfs_dodevices(PFS_FILL_ARGS)
 			sbuf_printf(sb, "%3d %s\n", i, cdevsw[i]->d_name);
 
 	sbuf_printf(sb, "\nBlock devices:\n");
-	
+
 	return (0);
 }
 #endif
@@ -815,7 +815,7 @@ static int
 linprocfs_domodules(PFS_FILL_ARGS)
 {
 	struct linker_file *lf;
-	
+
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		sbuf_printf(sb, "%-20s%8lu%4d\n", lf->filename,
 		    (unsigned long)lf->size, lf->refs);
