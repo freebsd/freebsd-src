@@ -160,6 +160,11 @@ SYSCTL_INT(_security_mac, OID_AUTO, vnode_label_cache_hits, CTLFLAG_RD,
 static int	mac_vnode_label_cache_misses = 0;
 SYSCTL_INT(_security_mac, OID_AUTO, vnode_label_cache_misses, CTLFLAG_RD,
     &mac_vnode_label_cache_misses, 0, "Cache misses on vnode labels");
+
+static int	mac_mmap_revocation = 1;
+SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation, CTLFLAG_RW,
+    &mac_mmap_revocation, 0, "Revoke mmap access to files on subject "
+    "relabel");
 static int	mac_mmap_revocation_via_cow = 0;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     &mac_mmap_revocation_via_cow, 0, "Revoke mmap access to files via "
@@ -2167,6 +2172,9 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 	vm_object_t object;
 	vm_ooffset_t offset;
 	struct vnode *vp;
+
+	if (!mac_mmap_revocation)
+		return;
 
 	vm_map_lock_read(map);
 	for (vme = map->header.next; vme != &map->header; vme = vme->next) {
