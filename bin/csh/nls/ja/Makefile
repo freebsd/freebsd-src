@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 NL=     ja
-DL=     ja_JP.eucJP
+DL=     ja_JP.EUC
 
 .PATH: ${BASESRC}/${NL}
 
