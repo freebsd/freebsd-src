@@ -1980,8 +1980,8 @@ ip6_setpktoptions(control, opt, priv)
 
 	opt->ip6po_m = control;
 
-	for (; control->m_len; control->m_data += CMSG_ALIGN(cm->cmsg_len),
-		     control->m_len -= CMSG_ALIGN(cm->cmsg_len)) {
+	for (; control->m_len; control->m_data += ALIGN(cm->cmsg_len),
+		     control->m_len -= ALIGN(cm->cmsg_len)) {
 		cm = mtod(control, struct cmsghdr *);
 		if (cm->cmsg_len == 0 || cm->cmsg_len > control->m_len)
 			return(EINVAL);
