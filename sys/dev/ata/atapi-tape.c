@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "apm.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -39,18 +38,15 @@
 #include <sys/mtio.h>
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-tape.h>
 
+/* device structures */
 static	d_open_t	astopen;
 static	d_close_t	astclose;
 static	d_ioctl_t	astioctl;
 static	d_strategy_t	aststrategy;
-
 static struct cdevsw ast_cdevsw = {
 	/* open */	astopen,
 	/* close */	astclose,
@@ -70,6 +66,7 @@ static struct cdevsw ast_cdevsw = {
 
 /* prototypes */
 int32_t astattach(struct atapi_softc *);
+void astdetach(struct atapi_softc *);
 static int32_t ast_sense(struct ast_softc *);
 static void ast_describe(struct ast_softc *);
 static void ast_start(struct ast_softc *);
@@ -86,6 +83,7 @@ static int32_t ast_rewind(struct ast_softc *);
 static int32_t ast_erase(struct ast_softc *);
 
 /* internal vars */
+static u_int32_t ast_lun_map = 0;
 static u_int64_t ast_total = 0;
 MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
 
@@ -95,7 +93,7 @@ astattach(struct atapi_softc *atp)
     struct ast_softc *stp;
     struct ast_readposition position;
     dev_t dev;
-    static int32_t ast_cdev_done = 0, astnlun = 0;
+    static int32_t ast_cdev_done = 0;
 
     if (!ast_cdev_done) {
 	cdevsw_add(&ast_cdevsw);
@@ -109,12 +107,14 @@ astattach(struct atapi_softc *atp)
     bzero(stp, sizeof(struct ast_softc));
     bufq_init(&stp->buf_queue);
     stp->atp = atp;
-    stp->lun = astnlun++;
-    stp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    stp->lun = ata_get_lun(&ast_lun_map);
     if (ast_sense(stp)) {
 	free(stp, M_AST);
 	return -1;
     }
+    stp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    stp->atp->driver = stp;
+
     if (!strcmp(ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
 		"OnStream DI-30")) {
 	struct ast_transferpage transfer;
@@ -139,14 +139,29 @@ astattach(struct atapi_softc *atp)
 		   UID_ROOT, GID_OPERATOR, 0640, "ast%d", stp->lun);
     dev->si_drv1 = stp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    stp->dev1 = dev;
     dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 1),
 		   UID_ROOT, GID_OPERATOR, 0640, "nast%d", stp->lun);
     dev->si_drv1 = stp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    stp->dev2 = dev;
     if ((stp->atp->devname = malloc(8, M_AST, M_NOWAIT)))
         sprintf(stp->atp->devname, "ast%d", stp->lun);
     ast_describe(stp);
     return 0;
+}
+
+void    
+astdetach(struct atapi_softc *atp)
+{   
+    struct ast_softc *stp = atp->driver;
+    
+    destroy_dev(stp->dev1);
+    destroy_dev(stp->dev2);
+    devstat_remove_entry(&stp->stats);
+    free(stp->atp->devname, M_AST);
+    ata_free_lun(&ast_lun_map, stp->lun);
+    free(stp, M_AST);
 }
 
 static int32_t
@@ -184,7 +199,7 @@ ast_describe(struct ast_softc *stp)
 	printf("ast%d: <%.40s/%.8s> tape drive at ata%d as %s\n",
                stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
                ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
-	       stp->atp->controller->lun,
+	       device_get_unit(stp->atp->controller->dev),
 	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave");
 	printf("ast%d: ", stp->lun);
 	printf("%dKB/s, ", stp->cap.max_speed);
@@ -225,7 +240,7 @@ ast_describe(struct ast_softc *stp)
     else {
 	printf("ast%d: TAPE <%.40s> at ata%d-%s using %s\n",
                stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
-	       stp->atp->controller->lun,
+	       device_get_unit(stp->atp->controller->dev),
 	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(stp->atp->controller->mode[ATA_DEV(stp->atp->unit)])
 	       );
@@ -482,7 +497,7 @@ static int32_t
 ast_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
-    struct ast_softc *stp = request->driver;
+    struct ast_softc *stp = request->device->driver;
 
     if (request->error) {
 	bp->b_error = request->error;
