@@ -541,9 +541,10 @@ ofstat(p, uap)
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
 		return (EBADF);
 	error = fo_stat(fp, &ub, p);
-	cvtstat(&ub, &oub);
-	if (error == 0)
+	if (error == 0) {
+		cvtstat(&ub, &oub);
 		error = copyout((caddr_t)&oub, (caddr_t)uap->sb, sizeof (oub));
+	}
 	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
