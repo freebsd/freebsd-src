@@ -67,6 +67,12 @@
 #include <fs/hpfs/hpfs_subr.h>
 #include <fs/hpfs/hpfs_ioctl.h>
 
+#if defined(__FreeBSD__)
+#define	a_p	a_td
+#define	cn_proc	cn_thread
+#define	proc	thread
+#endif
+
 static int	hpfs_de_uiomove __P((struct hpfsmount *, struct hpfsdirent *,
 				     struct uio *));
 static int	hpfs_ioctl __P((struct vop_ioctl_args *ap));
@@ -153,7 +159,7 @@ hpfs_ioctl (
 		caddr_t a_data;
 		int a_fflag;
 		struct ucred *a_cred;
-		struct thread *a_td;
+		struct proc *a_p;
 	} */ *ap)
 {
 	register struct vnode *vp = ap->a_vp;
@@ -465,7 +471,7 @@ hpfs_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
+		struct proc *a_p;
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
@@ -517,14 +523,14 @@ hpfs_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
+		struct proc *a_p;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct hpfsnode *hp = VTOHP(vp);
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
-	struct thread *td = ap->a_td;
+	struct proc *p = ap->a_p;
 	int error;
 
 	dprintf(("hpfs_setattr(0x%x):\n", hp->h_no));
@@ -563,9 +569,13 @@ hpfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != hp->h_uid &&
-		    (error = suser_xxx(cred, td->td_proc, PRISON_ROOT)) &&
+#if defined(__FreeBSD__)
+		    (error = suser_xxx(cred, p->td_proc, PRISON_ROOT)) &&
+#else
+		    (error = suser_xxx(cred, p, PRISON_ROOT)) &&
+#endif
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
+		    (error = VOP_ACCESS(vp, VWRITE, cred, p))))
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL)
 			hp->h_atime = vap->va_atime.tv_sec;
@@ -590,7 +600,7 @@ hpfs_setattr(ap)
 
 		if (vap->va_size < hp->h_fn.fn_size) {
 #if defined(__FreeBSD__)
-			error = vtruncbuf(vp, cred, td, vap->va_size, DEV_BSIZE);
+			error = vtruncbuf(vp, cred, p, vap->va_size, DEV_BSIZE);
 			if (error)
 				return (error);
 #else /* defined(__NetBSD__) */
@@ -646,7 +656,7 @@ hpfs_inactive(ap)
 		vprint("hpfs_inactive: pushing active", vp);
 
 	if (hp->h_flag & H_INVAL) {
-		VOP__UNLOCK(vp,0,ap->a_td);
+		VOP__UNLOCK(vp,0,ap->a_p);
 #if defined(__FreeBSD__)
 		vrecycle(vp, NULL, ap->a_td);
 #else /* defined(__NetBSD__) */
@@ -655,7 +665,7 @@ hpfs_inactive(ap)
 		return (0);
 	}
 
-	VOP__UNLOCK(vp,0,ap->a_td);
+	VOP__UNLOCK(vp,0,ap->a_p);
 	return (0);
 }
 
@@ -759,7 +769,7 @@ hpfs_access(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct thread *a_td;
+		struct proc *a_p;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -800,7 +810,7 @@ hpfs_open(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct thread *a_td;
+		struct proc *a_p;
 	} */ *ap;
 {
 #if HPFS_DEBUG
@@ -829,7 +839,7 @@ hpfs_close(ap)
 		struct vnode *a_vp;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct thread *a_td;
+		struct proc *a_p;
 	} */ *ap;
 {
 #if HPFS_DEBUG
@@ -1131,7 +1141,7 @@ hpfs_lookup(ap)
 		return (EOPNOTSUPP);
 	}
 
-	error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_thread);
+	error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_proc);
 	if(error)
 		return (error);
 
@@ -1148,17 +1158,17 @@ hpfs_lookup(ap)
 		dprintf(("hpfs_lookup(0x%x,...): .. faked (0x%x)\n",
 			dhp->h_no, dhp->h_fn.fn_parent));
 
-		VOP__UNLOCK(dvp,0,cnp->cn_thread);
+		VOP__UNLOCK(dvp,0,cnp->cn_proc);
 
 		error = VFS_VGET(hpmp->hpm_mp,
 				 dhp->h_fn.fn_parent, ap->a_vpp); 
 		if(error) {
-			VOP__LOCK(dvp, 0, cnp->cn_thread);
+			VOP__LOCK(dvp, 0, cnp->cn_proc);
 			return(error);
 		}
 
 		if( lockparent && (flags & ISLASTCN) && 
-		    (error = VOP__LOCK(dvp, 0, cnp->cn_thread)) ) {
+		    (error = VOP__LOCK(dvp, 0, cnp->cn_proc)) ) {
 			vput( *(ap->a_vpp) );
 			return (error);
 		}
@@ -1174,7 +1184,7 @@ hpfs_lookup(ap)
 			if ((error == ENOENT) && (flags & ISLASTCN) &&
 			    (nameiop == CREATE || nameiop == RENAME)) {
 				if(!lockparent)
-					VOP__UNLOCK(dvp, 0, cnp->cn_thread);
+					VOP__UNLOCK(dvp, 0, cnp->cn_proc);
 				cnp->cn_flags |= SAVENAME;
 				return (EJUSTRETURN);
 			}
@@ -1186,7 +1196,7 @@ hpfs_lookup(ap)
 			 dep->de_fnode, dep->de_cpid));
 
 		if (nameiop == DELETE && (flags & ISLASTCN)) {
-			error = VOP_ACCESS(dvp, VWRITE, cred, cnp->cn_thread);
+			error = VOP_ACCESS(dvp, VWRITE, cred, cnp->cn_proc);
 			if (error) {
 				brelse(bp);
 				return (error);
@@ -1220,7 +1230,7 @@ hpfs_lookup(ap)
 		brelse(bp);
 
 		if(!lockparent || !(flags & ISLASTCN))
-			VOP__UNLOCK(dvp, 0, cnp->cn_thread);
+			VOP__UNLOCK(dvp, 0, cnp->cn_proc);
 		if ((flags & MAKEENTRY) &&
 		    (!(flags & ISLASTCN) || 
 		     (nameiop != DELETE && nameiop != CREATE)))
