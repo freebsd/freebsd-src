@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.75 1997/11/24 18:35:04 bde Exp $
+ * $Id: init_main.c,v 1.76 1997/11/25 07:07:41 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -415,6 +415,12 @@ proc0_init(dummy)
 	 * Charge root for one process.
 	 */
 	(void)chgproccnt(0, 1);
+
+	/*
+	 * Initialize the procfs flags (to 0, of course)
+	 */
+	p->p_stops = p->p_stype = p->p_step = 0;
+
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 

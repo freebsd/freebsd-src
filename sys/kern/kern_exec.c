@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.67 1997/10/15 18:28:34 guido Exp $
+ *	$Id: kern_exec.c,v 1.68 1997/11/06 19:29:08 phk Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/imgact_elf.h>
 #include <sys/wait.h>
 #include <sys/proc.h>
+#include <sys/pioctl.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/sysent.h>
@@ -338,6 +339,8 @@ interpret:
 	 * If tracing the process, trap to debugger so breakpoints
 	 * 	can be set before the program executes.
 	 */
+	STOPEVENT(p, S_EXEC, 0);
+
 	if (p->p_flag & P_TRACED)
 		psignal(p, SIGTRAP);
 

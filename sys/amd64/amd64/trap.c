@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.117 1997/12/04 14:35:40 jkh Exp $
+ *	$Id: trap.c,v 1.118 1997/12/04 21:21:26 jmg Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/pioctl.h>
 #include <sys/kernel.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -987,6 +988,8 @@ syscall(frame)
 	p->p_retval[0] = 0;
 	p->p_retval[1] = frame.tf_edx;
 
+	STOPEVENT(p, S_SCE, callp->sy_narg);
+
 	error = (*callp->sy_call)(p, args);
 
 	switch (error) {
@@ -1037,6 +1040,14 @@ bad:
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 #endif
+
+	/*
+	 * This works because errno is findable through the
+	 * register set.  If we ever support an emulation where this
+	 * is not the case, this code will need to be revisited.
+	 */
+	STOPEVENT(p, S_SCX, code);
+
 }
 
 /*
