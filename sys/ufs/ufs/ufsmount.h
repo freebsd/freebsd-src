@@ -77,13 +77,13 @@ struct ufsmount {
 	time_t	um_itime[MAXQUOTAS];		/* inode quota time limit */
 	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
-	struct malloc_type *um_malloctype;	/* The inodes malloctype */
 	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *, int, struct buf **);
 	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);
 	int	(*um_truncate)(struct vnode *, off_t, int, struct ucred *, struct thread *);
 	int	(*um_update)(struct vnode *, int);
 	int	(*um_valloc)(struct vnode *, int, struct ucred *, struct vnode **);
 	int	(*um_vfree)(struct vnode *, ino_t, int);
+	void	(*um_ifree)(struct ufsmount *, struct inode *);
 };
 
 #define UFS_BALLOC(aa, bb, cc, dd, ee, ff) VFSTOUFS((aa)->v_mount)->um_balloc(aa, bb, cc, dd, ee, ff)
@@ -92,6 +92,7 @@ struct ufsmount {
 #define UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
 #define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
 #define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
+#define UFS_IFREE(aa, bb) ((aa)->um_ifree(aa, bb))
 
 /*
  * Filesystem types
