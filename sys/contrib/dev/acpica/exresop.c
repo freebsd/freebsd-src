@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 65 $
+ *              $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -234,7 +234,7 @@ AcpiExResolveOperands (
     ArgTypes = OpInfo->RuntimeArgs;
     if (ArgTypes == ARGI_INVALID_OPCODE)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - %X is not a valid AML opcode\n",
+        ACPI_REPORT_ERROR (("ResolveOperands: %X is not a valid AML opcode\n",
             Opcode));
 
         return_ACPI_STATUS (AE_AML_INTERNAL);
@@ -254,7 +254,7 @@ AcpiExResolveOperands (
     {
         if (!StackPtr || !*StackPtr)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - null stack entry at %p\n",
+            ACPI_REPORT_ERROR (("ResolveOperands: Null stack entry at %p\n",
                 StackPtr));
 
             return_ACPI_STATUS (AE_AML_INTERNAL);

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 74 $
+ *              $Revision: 77 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -285,10 +285,10 @@ AcpiDsMethodDataInitArgs (
     {
         /*
          * A valid parameter.
-         * Store the argument in the method/walk descriptor
+         * Store the argument in the method/walk descriptor.
+         * Do not copy the arg in order to implement call by reference
          */
-        Status = AcpiDsStoreObjectToLocal (AML_ARG_OP, Index, Params[Index],
-                                            WalkState);
+        Status = AcpiDsMethodDataSetValue (AML_ARG_OP, Index, Params[Index], WalkState);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -557,6 +557,7 @@ AcpiDsMethodDataGetValue (
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_LOCAL);
 
         default:
+            ACPI_REPORT_ERROR (("Not Arg/Local opcode: %X\n", Opcode));
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
     }
@@ -663,7 +664,6 @@ AcpiDsStoreObjectToLocal (
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OPERAND_OBJECT     *CurrentObjDesc;
     ACPI_OPERAND_OBJECT     *NewObjDesc;
-    UINT8                   ObjType;
 
 
     ACPI_FUNCTION_TRACE ("DsStoreObjectToLocal");
@@ -695,14 +695,13 @@ AcpiDsStoreObjectToLocal (
 
     /*
      * If the reference count on the object is more than one, we must
-     * take a copy of the object before we store.
+     * take a copy of the object before we store.  A reference count
+     * of exactly 1 means that the object was just created during the
+     * evaluation of an expression, and we can safely use it since it
+     * is not used anywhere else.
      */
     NewObjDesc = ObjDesc;
-    ObjType = ACPI_GET_OBJECT_TYPE(ObjDesc);
-    if (ObjDesc->Common.ReferenceCount > 1 &&
-        ObjType != ACPI_TYPE_BUFFER &&
-        ObjType != ACPI_TYPE_PACKAGE &&
-        ObjType != ACPI_TYPE_REGION)
+    if (ObjDesc->Common.ReferenceCount > 1)
     {
         Status = AcpiUtCopyIobjectToIobject (ObjDesc, &NewObjDesc, WalkState);
         if (ACPI_FAILURE (Status))

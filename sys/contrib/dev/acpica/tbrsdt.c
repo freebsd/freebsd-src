@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbrsdt - ACPI RSDT table utilities
- *              $Revision: 9 $
+ *              $Revision: 12 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -320,6 +320,17 @@ AcpiTbValidateRsdt (
             AcpiGbl_RSDP->RsdtPhysicalAddress,
             (void *) (ACPI_NATIVE_UINT) AcpiGbl_RSDP->RsdtPhysicalAddress));
 
+        if (AcpiGbl_RSDP->Revision < 2)
+        {
+            ACPI_REPORT_ERROR (("Looking for RSDT (RSDP->Rev < 2)\n"))
+        }
+        else
+        {
+            ACPI_REPORT_ERROR (("Looking for XSDT (RSDP->Rev >= 2)\n"))
+        }
+
+        ACPI_DUMP_BUFFER ((char *) TablePtr, 48);
+
         return (AE_BAD_SIGNATURE);
     }
 
@@ -396,7 +407,7 @@ AcpiTbGetTableRsdt (
         return_ACPI_STATUS (Status);
     }
 
-    AcpiGbl_XSDT = (XSDT_DESCRIPTOR *) TableInfo.Pointer;
+    AcpiGbl_XSDT = ACPI_CAST_PTR (XSDT_DESCRIPTOR, TableInfo.Pointer);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "XSDT located at %p\n", AcpiGbl_XSDT));
     return_ACPI_STATUS (Status);

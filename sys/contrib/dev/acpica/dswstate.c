@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 76 $
+ *              $Revision: 78 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -418,7 +418,7 @@ AcpiDsResultPush (
     State = WalkState->Results;
     if (!State)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No result stack frame\n"));
+        ACPI_REPORT_ERROR (("No result stack frame during push\n"));
         return (AE_AML_INTERNAL);
     }
 
