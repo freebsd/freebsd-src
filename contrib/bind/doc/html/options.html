@@ -27,6 +27,7 @@ options {
   [ fetch-glue <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ has-old-clients <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ host-statistics <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ host-statistics-max <VAR>number</VAR>; ]
   [ multiple-cnames <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ recursion <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
@@ -199,6 +200,12 @@ and <CODE>rfc2308-type1</CODE> is order dependent.
 If <CODE>yes</CODE>, statistics are kept for every host that the
 the nameserver interacts with.  The default is <CODE>no</CODE>.  <I>Note:</I>
 turning on <CODE>host-statistics</CODE> can consume huge amounts of memory.
+
+<DT><CODE>host-statistics-max</CODE>
+<DD>
+The maximum number of host records that will be kept.  When this limit is
+reached no new hosts will be added to the host statistics.  If the set
+to zero then there is no limit set.  The default value is zero.
 
 <DT><CODE>maintain-ixfr-base</CODE>
 <DD>
@@ -806,7 +813,7 @@ request for the root servers to be accepted.  Default 2.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: options.html,v 1.40 2000/06/01 21:37:46 cyarnell Exp $
+Last Updated: $Id: options.html,v 1.41 2000/11/29 11:49:09 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>
