@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.19 1995/01/30 06:16:59 bde Exp $
+ * $Id: tty.c,v 1.20 1995/02/08 22:02:02 bde Exp $
  */
 
 #include <sys/param.h>
@@ -55,11 +55,11 @@
 #include <sys/syslog.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
-static int	ttnread __P((struct tty *));
 static void	ttyblock __P((struct tty *tp));
 static void	ttyecho __P((int, struct tty *tp));
 static void	ttyrubo __P((struct tty *, int));
@@ -960,7 +960,11 @@ win:			splx(s);
 	return (0);
 }
 
-static int
+/*
+ * This is now exported to the cy driver as well; if you hack this code,
+ * then be sure to keep /sys/i386/isa/cy.c properly advised! -jkh
+ */
+int
 ttnread(tp)
 	struct tty *tp;
 {
@@ -2097,3 +2101,39 @@ ttysleep(tp, chan, pri, wmesg, timo)
 		return (error);
 	return (tp->t_gen == gen ? 0 : ERESTART);
 }
+
+/*
+ * Allocate a tty structure and its associated buffers.
+ */
+struct tty *
+ttymalloc()
+{
+        struct tty *tp;
+
+        MALLOC(tp, struct tty *, sizeof(struct tty), M_TTYS, M_WAITOK);
+        bzero(tp, sizeof *tp);
+
+	/*
+         * Initialize or restore a cblock allocation policy suitable for
+         * the standard line discipline.
+         */
+        clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
+        clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + 200, 512);
+        clist_alloc_cblocks(&tp->t_rawq, TTYHOG, 512);
+	
+        return(tp);
+}
+
+/*
+ * Free a tty structure and its buffers.
+ */
+void
+ttyfree(tp)
+struct tty *tp;
+{
+        clist_free_cblocks(&tp->t_canq);
+        clist_free_cblocks(&tp->t_outq);
+        clist_free_cblocks(&tp->t_rawq);
+        FREE(tp, M_TTYS);
+}
+
