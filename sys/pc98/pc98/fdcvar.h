@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 M. Warner Losh.
  * All rights reserved.
  *
@@ -80,7 +80,6 @@ struct fdc_data
 	int	dmacnt;
 	int	dmachan;
 	int	flags;
-#define FDC_ATTACHED	0x01
 #define FDC_STAT_VALID	0x08
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
@@ -156,8 +155,13 @@ void fdout_wr(fdc_p, u_int8_t);
 int fd_cmd(struct fdc_data *, int, ...);
 void fdc_release_resources(struct fdc_data *);
 int fdc_attach(device_t);
+int fdc_hints_probe(device_t);
 int fdc_detach(device_t dev);
+device_t fdc_add_child(device_t, const char *, int);
 int fdc_initial_reset(struct fdc_data *);
 int fdc_print_child(device_t, device_t);
 int fdc_read_ivar(device_t, device_t, int, uintptr_t *);
 int fdc_write_ivar(device_t, device_t, int, uintptr_t);
+#ifndef PC98
+int fdc_isa_alloc_resources(device_t, struct fdc_data *);
+#endif
