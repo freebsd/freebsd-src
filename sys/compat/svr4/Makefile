@@ -5,7 +5,7 @@
 MAINTAINER=	newton@freebsd.org
 
 all:
-	@echo "make syscallnames only"
+	@echo "make sysent only"
 
 sysent:  svr4_sysent.c svr4_syscall.h svr4_proto.h
 
