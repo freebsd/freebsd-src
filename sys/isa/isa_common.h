@@ -48,10 +48,10 @@ struct isa_config_entry {
  */
 struct isa_device {
 	struct resource_list	id_resources;
-	u_int32_t		id_vendorid; /* pnp vendor id */
-	u_int32_t		id_serial; /* pnp serial */
-	u_int32_t		id_logicalid; /* pnp logical device id */
-	u_int32_t		id_compatid; /* pnp compat device id */
+	uint32_t		id_vendorid; /* pnp vendor id */
+	uint32_t		id_serial; /* pnp serial */
+	uint32_t		id_logicalid; /* pnp logical device id */
+	uint32_t		id_compatid; /* pnp compat device id */
 	struct isa_config_list	id_configs; /* pnp config alternatives */
 	isa_config_cb		*id_config_cb; /* callback function */
 	void			*id_config_arg;	/* callback argument */
@@ -65,19 +65,15 @@ struct isa_device {
  */
 extern void isa_init(device_t dev);
 extern struct resource *isa_alloc_resource(device_t bus, device_t child,
-					   int type, int *rid,
-					   u_long start, u_long end,
-					   u_long count, u_int flags);
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
 extern int isa_release_resource(device_t bus, device_t child,
-				int type, int rid,
-				struct resource *r);
+    int type, int rid, struct resource *r);
 
 /* XXX alphe declares these elsewhere */
 #ifndef __alpha__
-extern int isa_setup_intr(device_t bus, device_t child,
-			  struct resource *r, int flags,
-			  void (*ihand)(void *), void *arg, void **cookiep);
-extern int isa_teardown_intr(device_t bus, device_t child,
-			     struct resource *r, void *cookie);
+extern int isa_setup_intr(device_t bus, device_t child, struct resource *r,
+    int flags, void (*ihand)(void *), void *arg, void **cookiep);
+extern int isa_teardown_intr(device_t bus, device_t child, struct resource *r,
+    void *cookie);
 #endif
 
