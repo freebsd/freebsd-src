@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.94 1997/09/14 18:57:01 joerg Exp $
+#	$Id: GENERIC,v 1.96 1997/09/22 00:37:08 gibbs Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -123,7 +123,7 @@ device		lpt0	at isa? port? tty irq 7 vector lptintr
 device		lpt1	at isa? port? tty
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 
-device		psm0	at isa? disable port "IO_KBD" conflicts tty irq 12 vector psmintr
+device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
