@@ -1031,7 +1031,7 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	<maybe fix /etc/fstab>				[7]
 	make buildworld
-	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
 	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	cd src/sys/boot ; make install			[6]
@@ -1105,6 +1105,11 @@ COMMON ITEMS:
 	actual slice name.  Chances are excellent that these will break.
 	You generally must update these entries to use the post FreeBSD
 	2.x form of /dev/ad0s1a.
+
+	[8] In order to have a kernel that can run the 4.x binaries
+	needed to do an installworld, you must include the COMPAT_FREEBSD4
+	option in your kernel.  Failure to do so may leave you with a system
+	that is hard to boot to recover.
 
 FORMAT:
 
