@@ -44,47 +44,41 @@
  */
 
 int
-acpi_PkgInt(device_t dev, ACPI_OBJECT *res, int idx, ACPI_INTEGER *dst)
+acpi_PkgInt(ACPI_OBJECT *res, int idx, ACPI_INTEGER *dst)
 {
     ACPI_OBJECT		*obj;
 
     obj = &res->Package.Elements[idx];
-    if (obj == NULL || obj->Type != ACPI_TYPE_INTEGER) {
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "PkgInt error, pkg[%d] at %d %p\n",
-		    res->Package.Count, idx, obj);
-	return (-1);
-    }
-
+    if (obj == NULL || obj->Type != ACPI_TYPE_INTEGER)
+	return (EINVAL);
     *dst = obj->Integer.Value;
+
     return (0);
 }
 
 int
-acpi_PkgInt32(device_t dev, ACPI_OBJECT *res, int idx, uint32_t *dst)
+acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst)
 {
-    ACPI_INTEGER tmp;
-    int error;
+    ACPI_INTEGER	tmp;
+    int			error;
 
-    error = acpi_PkgInt(dev, res, idx, &tmp);
+    error = acpi_PkgInt(res, idx, &tmp);
     if (error == 0)
 	*dst = (uint32_t)tmp;
+
     return (error);
 }
 
 int
-acpi_PkgStr(device_t dev, ACPI_OBJECT *res, int idx, void *dst, size_t size)
+acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size)
 {
     ACPI_OBJECT		*obj;
     void		*ptr;
     size_t		 length;
 
     obj = &res->Package.Elements[idx];
-    if (obj == NULL) {
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "PkgStr NULL object at %d\n", idx);
-	return (-1);
-    }
+    if (obj == NULL)
+	return (EINVAL);
     bzero(dst, sizeof(dst));
 
     switch (obj->Type) {
@@ -97,17 +91,12 @@ acpi_PkgStr(device_t dev, ACPI_OBJECT *res, int idx, void *dst, size_t size)
 	length = obj->Buffer.Length;
 	break;
     default:
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "PkgStr: invalid object type %d at %d\n", obj->Type, idx);
-	return (-1);
+	return (EINVAL);
     }
 
     /* Make sure string will fit, including terminating NUL */
-    if (++length > size) {
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "PkgStr string too long (%zu bytes) at %d\n", length, idx);
-	return (-1);
-    }
+    if (++length > size)
+	return (E2BIG);
 
     strlcpy(dst, ptr, length);
     return (0);
@@ -115,7 +104,7 @@ acpi_PkgStr(device_t dev, ACPI_OBJECT *res, int idx, void *dst, size_t size)
 
 int
 acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *rid,
-	    struct resource **dst)
+	struct resource **dst)
 {
     ACPI_GENERIC_ADDRESS gas;
     ACPI_OBJECT		*obj;
@@ -124,18 +113,13 @@ acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *rid,
     if (obj == NULL || obj->Type != ACPI_TYPE_BUFFER ||
 	obj->Buffer.Length < sizeof(ACPI_GENERIC_ADDRESS) + 3) {
 
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "PkgGas error at %d\n", idx);
-	return (-1);
+	return (EINVAL);
     }
 
     memcpy(&gas, obj->Buffer.Pointer + 3, sizeof(gas));
     *dst = acpi_bus_alloc_gas(dev, rid, &gas);
-    if (*dst == NULL) {
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "PkgGas error at %d\n", idx);
-	return (-1);
-    }
+    if (*dst == NULL)
+	return (ENXIO);
 
     return (0);
 }
