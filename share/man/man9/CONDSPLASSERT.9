@@ -40,7 +40,7 @@
 .Sh DESCRIPTION
 In a kernel compiled with both "options INVARIANTS"
 and "options INVARIANT_SUPPORT",
-the 
+the
 .Fn CONDSPLASSERT
 macro compares the current spl level of the kernel with the spl
 .Ar level
@@ -51,7 +51,7 @@ If the specified
 .Ar level
 is not active
 .Fn CONDSPLASSERT
-calls the 
+calls the
 .Fn KASSERT
 macro with the
 .Ar msg,
@@ -59,9 +59,9 @@ terminating the running system.
 .Pp
 In a kernel that does not have both "options INVARIANTS"
 and "options INVARIANT_SUPPORT",
-the 
+the
 .Fn CONDSPLASSERT
-macro is defined to be a no-op.  
+macro is defined to be a no-op.
 .Pp
 The behaviour of
 .Fn CONDSPLASSERT
@@ -102,6 +102,6 @@ This man page was written by
 .An Jeroen Ruigrok van der Werven
 .Aq asmodai@freebsd.org ,
 based on the
-.Xr SPLASSERT 9 
+.Xr SPLASSERT 9
 manpage by Jonathan M. Bresler
 .Aq jmb@freebsd.org .
