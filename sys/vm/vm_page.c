@@ -825,12 +825,16 @@ vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int page_req)
 {
 	vm_page_t m = NULL;
+	boolean_t prefer_zero;
 	int s;
 
 	GIANT_REQUIRED;
 
 	KASSERT(!vm_page_lookup(object, pindex),
 		("vm_page_alloc: page already allocated"));
+
+	prefer_zero = (page_req & VM_ALLOC_ZERO) != 0 ? TRUE : FALSE;
+	page_req &= ~VM_ALLOC_ZERO;
 
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
@@ -847,10 +851,8 @@ loop:
 		 * Allocate from the free queue if there are plenty of pages
 		 * in it.
 		 */
-		if (page_req == VM_ALLOC_ZERO)
-			m = vm_page_select_free(object, pindex, TRUE);
-		else
-			m = vm_page_select_free(object, pindex, FALSE);
+
+		m = vm_page_select_free(object, pindex, prefer_zero);
 	} else if (
 	    (page_req == VM_ALLOC_SYSTEM && 
 	     cnt.v_cache_count == 0 && 
