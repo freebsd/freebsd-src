@@ -7,6 +7,6 @@ SRCS=	config.c main.c lang.c mkioconf.c mkmakefile.c mkglue.c mkheaders.c \
 MAN8=	config.8
 DPADD=	${LIBL}
 LDADD=	-ll
-CLEANFILES+=y.tab.h lang.c config.c y.tab.c
+CLEANFILES+= config.c lang.c lex.yy.c y.tab.[ch]
 
 .include <bsd.prog.mk>
