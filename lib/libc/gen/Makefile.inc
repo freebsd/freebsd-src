@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.41 1997/10/21 08:41:06 bde Exp $
+#	$Id: Makefile.inc,v 1.42 1998/02/09 06:05:22 jdp Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
@@ -70,14 +70,13 @@ MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3 crypt.3 encrypt.3 \
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 readdir.3 directory.3 rewinddir.3 directory.3 seekdir.3 \
 	directory.3 telldir.3
-MLINKS+=dlopen.3 dlsym.3 \
-	dlopen.3 dlerror.3 \
-	dlopen.3 dlclose.3
-MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 exect.3 \
-	exec.3 execv.3 exec.3 execvp.3
+MLINKS+=dlopen.3 dlclose.3 dlopen.3 dlerror.3 dlopen.3 dlsym.3
 MLINKS+=err.3 err_set_exit.3 err.3 err_set_file.3 err.3 errx.3 err.3 verr.3 \
 	err.3 verrx.3 err.3 vwarn.3 err.3 vwarnx.3 err.3 warn.3 err.3 warnx.3
-MLINKS+=isinf.3 isnan.3
+MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 exect.3 \
+	exec.3 execv.3 exec.3 execvp.3
+MLINKS+=fts.3 fts_children.3 fts.3 fts_close.3 fts.3 fts_open.3 \
+	fts.3 fts_read.3 fts.3 fts_set.3
 MLINKS+=getcap.3 cgetcap.3 getcap.3 cgetclose.3 getcap.3 cgetent.3 \
 	getcap.3 cgetfirst.3 getcap.3 cgetmatch.3 getcap.3 cgetnext.3 \
 	getcap.3 cgetnum.3 getcap.3 cgetset.3 getcap.3 cgetstr.3 \
@@ -96,11 +95,12 @@ MLINKS+=getpwent.3 endpwent.3 getpwent.3 getpwnam.3 getpwent.3 getpwuid.3 \
 MLINKS+=getttyent.3 endttyent.3 getttyent.3 getttynam.3 \
 	getttyent.3 isdialuptty.3 getttyent.3 isnetworktty.3 \
 	getttyent.3 setttyent.3
+MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
 MLINKS+=getvfsent.3 endvfsent.3 getvfsent.3 getvfsbytype.3 \
 	getvfsent.3 setvfsent.3 getvfsent.3 vfsisloadable.3 \
 	getvfsent.3 vfsload.3
-MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
 MLINKS+=glob.3 globfree.3
+MLINKS+=isinf.3 isnan.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 group_from_gid.3 pwcache.3 user_from_uid.3
@@ -111,7 +111,7 @@ MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
 MLINKS+=scandir.3 alphasort.3
 MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 longjmperr.3 setjmp.3 longjmperror.3 \
-	setjmp.3 sigsetjmp.3 setjmp.3 siglongjmp.3
+	setjmp.3 siglongjmp.3 setjmp.3 sigsetjmp.3
 MLINKS+=setmode.3 getmode.3
 MLINKS+=sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigemptyset.3 sigsetops.3 sigfillset.3 \
@@ -119,15 +119,13 @@ MLINKS+=sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 MLINKS+=sysctl.3 sysctlbyname.3
 MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
-MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflush.3 tcsendbreak.3 tcflow.3
-MLINKS+=tcsetattr.3 tcgetattr.3 tcsetattr.3 cfgetispeed.3 \
-	tcsetattr.3 cfgetospeed.3 tcsetattr.3 cfmakeraw.3 \
-	tcsetattr.3 cfsetispeed.3 tcsetattr.3 cfsetospeed.3 \
-	tcsetattr.3 cfsetspeed.3
+MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflow.3 tcsendbreak.3 tcflush.3
+MLINKS+=tcsetattr.3 cfgetispeed.3 tcsetattr.3 cfgetospeed.3 \
+	tcsetattr.3 cfmakeraw.3 tcsetattr.3 cfsetispeed.3 \
+	tcsetattr.3 cfsetospeed.3 tcsetattr.3 cfsetspeed.3 \
+	tcsetattr.3 tcgetattr.3
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyslot.3
 MLINKS+=tzset.3 tzsetwall.3
-MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
 MLINKS+=unvis.3 strunvis.3 
-MLINKS+=fts.3 fts_children.3 fts.3 fts_close.3 fts.3 fts_open.3 \
-	fts.3 fts_read.3 fts.3 fts_set.3
+MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
 .endif
