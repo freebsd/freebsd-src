@@ -91,10 +91,6 @@ char *AdapterName[] = {
 
 #include <net/bpf.h>
  
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
-
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <i386/isa/isa_device.h>
