@@ -2924,11 +2924,11 @@ key_getsavbyspi(sah, spi)
 			}
 
 			if (sav->spi == spi)
-				break;
+				return sav;
 		}
 	}
 
-	return sav;
+	return NULL;
 }
 
 /*
