@@ -14,8 +14,7 @@ CFLAGS+=-Wall
 
 DPADD=	${LIBCRYPT} ${LIBUTIL}
 LDADD=	-lcrypt -lutil
-.PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
-	${.CURDIR}/../rlogin 
+.PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw
 
 CFLAGS+= -DLOGIN_CAP -DCRYPT -I. -I${.CURDIR} \
 	-I${.CURDIR}/../../usr.sbin/vipw \
@@ -35,7 +34,7 @@ CFLAGS+=-Wall
 DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
 LDADD=	-lcrypt -lrpcsvc -lutil
 .PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
-	${.CURDIR}/../rlogin ${.CURDIR}/../../libexec/ypxfr \
+	${.CURDIR}/../../libexec/ypxfr \
 	${.CURDIR}/../../usr.sbin/rpc.yppasswdd
 
 CFLAGS+= -DLOGIN_CAP -DCRYPT -DYP -I. -I${.CURDIR} \
@@ -84,7 +83,7 @@ MLINKS=passwd.1 yppasswd.1
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS4)
 SRCS+=	kpasswd_standalone.c
 .PATH:	${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
-	${.CURDIR}/../../usr.bin/rlogin ${.CURDIR}/../../usr.bin/passwd \
+	${.CURDIR}/../../usr.bin/passwd \
 	${.CURDIR}/../../crypto/kerberosIV/kadmin
 
 CFLAGS+=	-DKERBEROS
