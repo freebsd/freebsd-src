@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd May 1, 2001
+.Dd June 20, 2001
 .Dt DIGICTL 8
 .Os
 .Sh NAME
@@ -9,27 +9,55 @@
 devices
 .Sh SYNOPSIS
 .Nm
+.Fl a
+disable|enable|query
+.Ar device ...
+.Nm
 .Op Fl d Ar debug
 .Op Fl ir
-.Ar device ...
+.Ar ctrl-device ...
 .Sh DESCRIPTION
 The
 .Nm
 program provides control of the
 .Tn Digiboard
-installed with the given control
-.Ar device
-name.
-A digiboard control
+installed with the given
+.Ar ctrl-device
+name and provides control of individual digiboard
+.Ar device Ns No s.
+A digiboard
+.Ar ctrl-device
+is usually of the form
+.Pa /dev/digi Ns Sy N Ns Pa .ctl
+where
+.Sy N
+is the card number and starts at
+.Dq 0
+for the first attached card.
+A digiboard
 .Ar device
 is usually of the form
-.Pa /dev/digi Ns Ar N Ns Pa .ctl
+.Pa /dev/cua Ns Oo Pa \&il Oc Ns Pa D Ns Sy N Ns . Ns Sy D
+or
+.Pa /dev/tty Ns Oo Pa \&il Oc Ns Pa D Ns Sy N Ns . Ns Sy D
 where
-.Ar N
-is the card number and starts at 0 for the first attached card.
+.Sy N
+is the card number and
+.Sy D
+is the port number.
 .Pp
 The following flags are recognized:
-.Bl -tag -xwidth ".Fl d Ar debug"
+.Bl -tag
+.It Fl a No disable|enable|query
+Disable, enable or query the
+.Em ALTPIN
+settings for the given port(s).
+.Pp
+When ALTPIN is enabled, the CD and DSR lines are logically reversed.
+This is useful when wiring serial ports to an 8 way RJ45 cable (full
+10 way RJ45 cables are quite rare).
+.Pp
+A single ALTPIN setting applies to both of the callout and callin devices.
 .It Fl d Ar debug
 If the driver has been compiled with
 .Dv DEBUG
