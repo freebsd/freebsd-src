@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.41 1998/02/16 17:16:28 jkh Exp $";
+	"$Id: perform.c,v 1.42 1998/07/28 11:55:39 jkh Exp $";
 #endif
 
 /*
@@ -45,6 +45,7 @@ pkg_perform(char **pkgs)
     FILE *pkg_in, *fp;
     Package plist;
     char *suffix;  /* What we tack on to the end of the finished package */
+    int len;
 
     /* Preliminary setup */
     sanity_check();
@@ -62,13 +63,10 @@ pkg_perform(char **pkgs)
     }
     plist.head = plist.tail = NULL;
 
-    /* Break the package name into base and desired suffix (if any) */
-    if ((cp = rindex(pkg, '.')) != NULL) {
-	suffix = cp + 1;
-	*cp = '\0';
-    }
-    else
-	suffix = "tgz";
+    /* chop suffix off if already specified */
+    len = strlen(pkg);
+    if (len > 4 && !strcmp(&pkg[len - 4], ".tgz"))
+	pkg[len - 4] = '\0';
 
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
@@ -174,7 +172,7 @@ pkg_perform(char **pkgs)
 	cleanup(0), errx(2, "error while closing %s", CONTENTS_FNAME);
 
     /* And stick it into a tar ball */
-    make_dist(home, pkg, suffix, &plist);
+    make_dist(home, pkg, "tgz", &plist);
 
     /* Cleanup */
     free(Comment);
