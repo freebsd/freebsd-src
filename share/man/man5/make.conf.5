@@ -137,6 +137,18 @@ Refer to
 for a list of recognized
 .Va CPUTYPE
 options.
+.It Va NO_CPU_CFLAGS
+.Pq Vt str
+Setting this variable will prevent cpu specific compiler flags
+from being automatically added to
+.Va CFLAGS
+duing compile time.
+.It Va NO_CPU_COPTFLAGS
+.Pq Vt str
+Setting this variable will prevent cpu specific compiler flags
+from being automatically added to
+.Va COPTFLAGS
+duing compile time.
 .It Va CVS_UPDATE
 .Pq Vt bool
 Set this to use
