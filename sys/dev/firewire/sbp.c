@@ -2787,6 +2787,7 @@ sbp_get_ocb(struct sbp_dev *sdev)
 	if (ocb == NULL) {
 		sdev->flags |= ORB_SHORTAGE;
 		printf("ocb shortage!!!\n");
+		splx(s);
 		return NULL;
 	}
 	STAILQ_REMOVE_HEAD(&sdev->free_ocbs, ocb);
