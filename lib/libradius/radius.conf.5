@@ -42,8 +42,22 @@ single RADIUS server which will be used by the library.  Leading
 white space is ignored, as are empty lines and lines containing
 only comments.
 .Pp
-A RADIUS server is described by two to four fields on a line.  The
-fields are separated by white space.  The
+A RADIUS server is described by three to five fields on a line:
+.Pp
+.Bl -item -offset indent -compact
+.It
+Service type
+.It
+Server host
+.It
+Shared secret
+.It
+Timeout
+.It
+Retries
+.El
+.Pp
+The fields are separated by white space.  The
 .Ql #
 character at the beginning of a field begins a comment, which extends
 to the end of the line.  A field may be enclosed in double quotes,
@@ -56,19 +70,43 @@ and the backslash can be represented by
 .Ql \e\e .
 No other escape sequences are supported.
 .Pp
-The first field specifies
+.Pp
+The first field gives the service type, either
+.Ql auth
+for RADIUS authentication or
+.Ql acct
+for RADIUS accounting.  If a single server provides both services, two
+lines are required in the file.  Earlier versions of this file did
+not include a service type.  For backward compatibility, if the first
+field is not
+.Ql auth
+or
+.Ql acct
+the library behaves as if
+.Ql auth
+were specified, and interprets the fields in the line as if they
+were fields two through five.
+.Pp
+The second field specifies
 the server host, either as a fully qualified domain name or as a
 dotted-quad IP address.  The host may optionally be followed by a
 .Ql \&:
 and a numeric port number, without intervening white space.  If the
 port specification is omitted, it defaults to the
 .Ql radius
+or
+.Ql radacct
 service in the
 .Pa /etc/services
-file, or to the standard RADIUS port 1812 if there is no such entry in
-.Pa /etc/services .
+file for service types
+.Ql auth
+and
+.Ql acct ,
+respectively.
+If no such entry is present, the standard ports 1812 and 1813 are
+used.
 .Pp
-The second field contains the shared secret, which should be known
+The third field contains the shared secret, which should be known
 only to the client and server hosts.  It is an arbitrary string of
 characters, though it must be enclosed in double quotes if it
 contains white space.  The shared secret may be
@@ -77,16 +115,17 @@ characters.  N.B., some popular RADIUS servers have bugs which
 prevent them from working properly with secrets longer than 16
 characters.
 .Pp
-The third field contains a decimal integer specifying the timeout in
+The fourth field contains a decimal integer specifying the timeout in
 seconds for receiving a valid reply from the server.  If this field
 is omitted, it defaults to 3 seconds.
 .Pp
-The fourth field contains a decimal integer specifying the maximum
+The fifth field contains a decimal integer specifying the maximum
 number of attempts that will be made to authenticate with the server
 before giving up.  If omitted, it defaults to 3 attempts.  Note,
 this is the total number of attempts and not the number of retries.
 .Pp
-Up to 10 RADIUS servers may be specified.  The servers are tried in
+Up to 10 RADIUS servers may be specified for each service type.
+The servers are tried in
 round-robin fashion, until a valid response is received or the
 maximum number of tries has been reached for all servers.
 .Pp
@@ -101,14 +140,14 @@ shared secrets, it should not be readable except by root.
 .Sh EXAMPLES
 .Bd -literal
 # A simple entry using all the defaults:
-radius1.domain.com	OurLittleSecret
+acct  radius1.domain.com  OurLittleSecret
 
 # A server still using the obsolete RADIUS port, with increased
 # timeout and maximum tries:
-auth.domain.com:1645	"I can't see you, but I know you're there"  5  4
+auth  auth.domain.com:1645  "I can't see you"  5  4
 
 # A server specified by its IP address:
-192.168.27.81		$X*#..38947ax-+=
+auth  192.168.27.81  $X*#..38947ax-+=
 .Ed
 .Sh SEE ALSO
 .Xr libradius 3
@@ -116,6 +155,11 @@ auth.domain.com:1645	"I can't see you, but I know you're there"  5  4
 .%A C. Rigney, et al
 .%T Remote Authentication Dial In User Service (RADIUS)
 .%O RFC 2138
+.Re
+.Rs
+.%A C. Rigney
+.%T RADIUS Accounting
+.%O RFC 2139
 .Re
 .Sh AUTHORS
 This documentation was written by

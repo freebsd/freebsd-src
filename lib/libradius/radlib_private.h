@@ -34,10 +34,15 @@
 
 #include "radlib.h"
 
+/* Handle types */
+#define RADIUS_AUTH		0   /* RADIUS authentication, default */
+#define RADIUS_ACCT		1   /* RADIUS accounting */
+
 /* Defaults */
 #define MAXTRIES		3
 #define PATH_RADIUS_CONF	"/etc/radius.conf"
 #define RADIUS_PORT		1812
+#define RADACCT_PORT		1813
 #define TIMEOUT			3	/* In seconds */
 
 /* Limits */
@@ -81,6 +86,7 @@ struct rad_handle {
 	int		 total_tries;	/* How many requests we'll send */
 	int		 try;		/* How many requests we've sent */
 	int		 srv;		/* Server number we did last */
+	int		 type;		/* Handle type */
 };
 
 #endif
