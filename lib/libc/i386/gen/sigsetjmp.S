@@ -60,7 +60,6 @@
  */
 
 ALTENTRY(sigsetjmp)
-ALTENTRY(_libc_sigsetjmp)
 ENTRY(__sigsetjmp)
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx
@@ -91,8 +90,9 @@ ENTRY(__sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
+#ifndef _THREAD_SAFE
 ALTENTRY(siglongjmp)
-ALTENTRY(_libc_siglongjmp)
+#endif
 ENTRY(__siglongjmp)
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)

@@ -46,7 +46,6 @@
 	.set	noreorder
 
 XLEAF(sigsetjmp, 2)
-XLEAF(_libc_sigsetjmp, 2)
 LEAF(__sigsetjmp, 2)
 	LDGP(pv)
 	stq	a1, (81 * 8)(a0)		/* save the mask */
@@ -56,8 +55,9 @@ Lsavesig:
 	jmp	zero, setjmp
 END(__sigsetjmp)
 
+#ifndef _THREAD_SAFE
 XLEAF(siglongjmp, 2)
-XLEAF(_libc_siglongjmp, 2)
+#endif
 LEAF(__siglongjmp, 2)
 	LDGP(pv)
 	ldq	t0, (81 * 8)(a0)		/* get the mask */
