@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_getport.c 1.9 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_getport.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_getport.c,v 1.1 1994/08/07 18:35:55 wollman Exp $";
+static char *rcsid = "$Id: pmap_getport.c,v 1.2 1995/05/30 05:41:24 rgrimes Exp $";
 #endif
 
 /*
@@ -45,6 +45,7 @@ static char *rcsid = "$Id: pmap_getport.c,v 1.1 1994/08/07 18:35:55 wollman Exp 
 #include <rpc/pmap_clnt.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <unistd.h>
 
 static struct timeval timeout = { 5, 0 };
 static struct timeval tottimeout = { 60, 0 };
