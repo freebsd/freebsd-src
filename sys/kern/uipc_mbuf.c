@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.6 1994/10/09 07:34:59 davidg Exp $
+ * $Id: uipc_mbuf.c,v 1.7 1995/02/05 07:08:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -121,6 +121,10 @@ m_retry(i, t)
 #define m_retry(i, t)	(struct mbuf *)0
 	MGET(m, i, t);
 #undef m_retry
+	if (m != NULL)
+		mbstat.m_wait++;
+	else
+		mbstat.m_drops++;
 	return (m);
 }
 
@@ -137,6 +141,10 @@ m_retryhdr(i, t)
 #define m_retryhdr(i, t) (struct mbuf *)0
 	MGETHDR(m, i, t);
 #undef m_retryhdr
+	if (m != NULL)
+		mbstat.m_wait++;
+	else
+		mbstat.m_drops++;
 	return (m);
 }
 
