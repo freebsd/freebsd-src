@@ -1,7 +1,7 @@
 /*
  * Aic7xxx register and scratch ram definitions.
  *
- * Copyright (c) 1994, 1995 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx_reg.h,v 1.3 1996/01/07 19:18:28 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.4 1996/01/11 06:17:49 gibbs Exp $
  */
 
 /*
@@ -68,21 +68,6 @@
 #define		ENSTIMER	0x04
 #define		ACTNEGEN	0x02
 #define		STPWEN		0x01	/* Powered Termination */
-
-/*
- * SCSI Interrrupt Mode 1 (pp. 3-28,29).
- * Set bits in this register enable the corresponding
- * interrupt source.
- */
-#define	SIMODE1			0x011
-#define		ENSELTIMO	0x80
-#define		ENATNTARG	0x40
-#define		ENSCSIRST	0x20
-#define		ENPHASEMIS	0x10
-#define		ENBUSFREE	0x08
-#define		ENSCSIPERR	0x04
-#define		ENPHASECHG	0x02
-#define		ENREQINIT	0x01
 
 /*
  * SCSI Control Signal Read Register (p. 3-15).
@@ -252,6 +237,10 @@
  * can be squewed by write ahead.
  */
 #define	SHADDR			0x014
+#define	SHADDR0			0x014
+#define	SHADDR1			0x015
+#define	SHADDR2			0x016
+#define	SHADDR3			0x017
 
 /*
  * Selection/Reselection ID (p. 3-31)
@@ -275,10 +264,12 @@
 #define		DIAGLEDON	0x40	/* Aic78X0 only */
 #define		AUTOFLUSHDIS	0x20
 /*  UNUSED			0x10 */
+#define		SELBUS_MASK	0x0a
 #define		SELBUSB		0x08
 /*  UNUSED			0x04 */
 #define		SELWIDE		0x02
 /*  UNUSED			0x01 */
+#define		SELNARROW	0x00
 
 /*
  * Sequencer Control (p. 3-33)
@@ -433,6 +424,10 @@
 						 * when we were expecting
 						 * another msgin byte.
 						 */
+#define			PARITY_ERROR	0xe1	/*
+						 * Sequencer detected a parity
+						 * error.
+						 */
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -525,7 +520,6 @@
 #define		DISCENB         0x40
 #define		TAG_ENB		0x20
 #define		NEEDSDTR	0x10
-#define		NEEDDMA		0x08
 #define		DISCONNECTED	0x04
 #define		SCB_TAG_TYPE	0x03
 #define	SCB_TCL			0x0a1
@@ -557,31 +551,23 @@
 #define		SCB_CMDPTR2	0x0b6
 #define		SCB_CMDPTR3	0x0b7
 #define	SCB_CMDLEN		0x0b8
-/* RESERVED - MUST BE ZERO	0x0b9 */
-/* RESERVED - MUST BE ZERO	0x0ba */
-#define	SCB_NEXT_WAITING	0x0bb
-#define	SCB_PHYSADDR		0x0bc
-#define		SCB_PHYSADDR0	0x0bc
-#define		SCB_PHYSADDR1	0x0bd
-#define		SCB_PHYSADDR2	0x0be
-#define		SCB_PHYSADDR3	0x0bf
+#define	SCB_NEXT_WAITING	0x0b9
 
-#ifdef LINUX
+#ifdef linux
 #define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
 #else
 #define	SG_SIZEOF		0x08		/* sizeof(struct ahc_dma) */
 #endif
-#define	SCB_SIZEOF		0x1a		/* sizeof SCB to DMA */
 
 /* --------------------- AHA-2840-only definitions -------------------- */
 
-#define	SEECTL_2840		0xcc0
+#define	SEECTL_2840		0x0c0
 /*	UNUSED			0xf8 */
 #define		CS_2840		0x04
 #define		CK_2840		0x02
 #define		DO_2840		0x01
 
-#define	STATUS_2840		0xcc1
+#define	STATUS_2840		0x0c1
 #define		EEPROM_TF	0x80
 #define		BIOS_SEL	0x60
 #define		ADSEL		0x1e
@@ -676,6 +662,7 @@
  * specified in the AHA2742 technical reference manual and are initialized
  * by the BIOS at boot time.
  */
+#define LASTPHASE		0x049
 #define ARG_1			0x04a
 #define RETURN_1		0x04a
 #define		SEND_SENSE	0x80
@@ -755,6 +742,3 @@
 
 #define MAX_OFFSET_8BIT		0x0f
 #define MAX_OFFSET_16BIT	0x08
-
-
-
