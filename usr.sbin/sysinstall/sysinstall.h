@@ -407,6 +407,7 @@ extern DMenu		MenuSysconsSaver;	/* System console saver configuration menu	*/
 extern DMenu		MenuSysconsScrnmap;	/* System console screenmap configuration menu	*/
 extern DMenu            MenuSysconsTtys;        /* System console terminal type menu            */
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
+extern DMenu		MenuSendmail;		/* Sendmail configuration menu			*/
 extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
