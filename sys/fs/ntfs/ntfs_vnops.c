@@ -282,6 +282,8 @@ ntfs_strategy(ap)
 	struct ntfsmount *ntmp = ip->i_mp;
 	int error;
 
+	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
+	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	dprintf(("ntfs_strategy: offset: %d, blkno: %d, lblkno: %d\n",
 		(u_int32_t)bp->b_offset,(u_int32_t)bp->b_blkno,
 		(u_int32_t)bp->b_lblkno));

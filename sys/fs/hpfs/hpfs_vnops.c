@@ -651,6 +651,8 @@ hpfs_strategy(ap)
 	daddr_t blkno;
 	int error;
 
+	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
+	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	dprintf(("hpfs_strategy(): \n"));
 
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
