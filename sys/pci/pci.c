@@ -1246,6 +1246,7 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 
 		switch (hwrpb->rpb_type) {
 		case ST_DEC_4100:
+		case -ST_DEC_4100:
 			mask = 0xc0000000;
 			shift = 30;
 			maxh = 4;	/* not a hose. MCPCIA instance # */
