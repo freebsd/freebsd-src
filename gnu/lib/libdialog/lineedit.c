@@ -28,7 +28,7 @@
  */
 int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, chtype attr, int first, unsigned char *result)
 {
-  int i, key, len;
+  int i, key, len, max_len, fix_len;
   chtype old_attr;
   static int input_x, scroll;
   static unsigned char instr[MAX_LEN+1];
@@ -50,18 +50,18 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
   }
   wmove(dialog, box_y, box_x);
   wattrset(dialog, attr);
-  len = flen >= 0 ? MIN(flen,box_width) : box_width;
-  for (i = 0; i < len; i++)
+  fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+  for (i = 0; i < fix_len; i++)
     waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-  wattrset(dialog, old_attr);
   len = strlen(instr);
-  len = MIN(len,box_width);
-  for ( ; i < len; i++)
+  wattrset(dialog, old_attr);
+  max_len = MIN(len-scroll,box_width);
+  for ( ; i < max_len; i++)
     waddch(dialog, instr[scroll+i]);
-  wattrset(dialog, attr);
 
   wmove(dialog, box_y, box_x + input_x);
   for (;;) {
+    wattrset(dialog, attr);
     wrefresh(dialog);
     key = wgetch(dialog);
     switch (key) {
@@ -83,8 +83,13 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
       case KEY_HOME:
 	input_x = scroll = 0;
 	wmove(dialog, box_y, box_x);
-	for (i = 0; i < box_width; i++)
+	fix_len = flen >= 0 ? MIN(flen,box_width) : box_width;
+	for (i = 0; i < fix_len; i++)
 	  waddch(dialog, instr[i] ? instr[i] : ' ');
+	wattrset(dialog, old_attr);
+	max_len = MIN(len,box_width);
+	for ( ; i < max_len; i++)
+	  waddch(dialog, instr[i]);
 	wmove(dialog, box_y, box_x);
 	continue;
       case KEY_END:
@@ -94,8 +99,13 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	input_x = i % box_width;
 	scroll = i - input_x;
 	wmove(dialog, box_y, box_x);
-	for (i = 0; i < box_width; i++)
+	fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	for (i = 0; i < fix_len; i++)
 	  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	wattrset(dialog, old_attr);
+	max_len = MIN(len-scroll,box_width);
+	for ( ; i < max_len; i++)
+	  waddch(dialog, instr[scroll+i]);
 	wmove(dialog, box_y, input_x + box_x);
 	continue;
       case KEY_LEFT:
@@ -104,8 +114,13 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
 	    wmove(dialog, box_y, box_x);
-	    for (i = 0; i < box_width; i++)
-	      waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
+	    fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	    for (i = 0; i < fix_len; i++)
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	    wattrset(dialog, old_attr);
+	    max_len = MIN(len-scroll,box_width);
+	    for ( ; i < max_len; i++)
+	      waddch(dialog, instr[scroll+i]);
 	    input_x = oldscroll - 1 - scroll;
 	  }
 	  else
@@ -122,8 +137,13 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	    if (input_x == box_width-1) {
 	      scroll++;
 	      wmove(dialog, box_y, box_x);
-	      for (i = 0; i < box_width; i++)
+	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	      for (i = 0; i < fix_len; i++)
 		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	      wattrset(dialog, old_attr);
+	      max_len = MIN(len-scroll,box_width);
+	      for ( ; i < max_len; i++)
+		waddch(dialog, instr[scroll+i]);
 	      wmove(dialog, box_y, box_x + box_width - 1);
 	    }
 	    else {
@@ -146,15 +166,21 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
 	    wmove(dialog, box_y, box_x);
-	    for (i = 0; i < box_width; i++)
-	      waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
+	    fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	    for (i = 0; i < fix_len; i++)
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	    input_x = oldscroll - 1 - scroll;
 	  }
 	  else
 	    input_x--;
 	  wmove(dialog, box_y, input_x + box_x);
-	  for (i = input_x; i < box_width; i++)
+	  fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	  for (i = input_x; i < fix_len; i++)
 	    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	  wattrset(dialog, old_attr);
+	  max_len = MIN(len-scroll,box_width);
+	  for ( ; i < max_len; i++)
+	    waddch(dialog, instr[scroll+i]);
 	  wmove(dialog, box_y, input_x + box_x);
 	}
 	continue;
@@ -175,13 +201,24 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	    if (input_x == box_width-1) {
 	      scroll++;
 	      wmove(dialog, box_y, box_x);
-	      for (i = 0; i < box_width-1; i++)
+	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	      for (i = 0; i < fix_len; i++)
+		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	      wattrset(dialog, old_attr);
+	      max_len = MIN(len-scroll,box_width);
+	      for ( ; i < max_len; i++)
 		waddch(dialog, instr[scroll+i]);
+	      wmove(dialog, box_y, input_x + box_x);
 	    }
 	    else {
 	      wmove(dialog, box_y, input_x + box_x);
-	      for (i = input_x; i < box_width; i++)
+	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	      for (i = input_x; i < fix_len; i++)
 		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	      wattrset(dialog, old_attr);
+	      max_len = MIN(len-scroll,box_width);
+	      for ( ; i < max_len; i++)
+		waddch(dialog, instr[scroll+i]);
 	      wmove(dialog, box_y, ++input_x + box_x);
 	    }
 	  } else
@@ -193,9 +230,8 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 ret:
     wattrset(dialog, old_attr);
     wmove(dialog, box_y, box_x);
-    len = strlen(instr);
-    len = MIN(len,box_width);
-    for (i = 0; i < len; i++)
+    max_len = MIN(len-scroll,box_width);
+    for (i = 0; i < max_len; i++)
       waddch(dialog, instr[scroll+i]);
     wmove(dialog, box_y, input_x + box_x);
     wrefresh(dialog);
