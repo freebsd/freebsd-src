@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.15 1995/10/16 07:30:58 jkh Exp $
+ * $Id: disks.c,v 1.31.2.16 1995/10/16 10:33:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -444,7 +444,7 @@ diskPartitionWrite(char *str)
     char *cp;
     int i;
 
-    if ((cp = variable_get(DISK_PARTITIONED)) && !strcmp(cp, "written"))
+    if ((cp = variable_get(DISK_PARTITIONED)) && strcmp(cp, "yes"))
 	return RET_SUCCESS;
     else if (!cp) {
 	msgConfirm("You must partition the disk(s) before this option can be used.");

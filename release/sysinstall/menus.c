@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.20 1995/10/16 07:31:06 jkh Exp $
+ * $Id: menus.c,v 1.42.2.21 1995/10/16 09:25:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,9 +55,9 @@ DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
     "Welcome to FreeBSD!",	/* title */
     "This is the main menu of the FreeBSD installation system.  Please\n\
-select one of the options below by using the arrow keys or typing the\n\
-first character of the option name you're interested in.  Invoke an\n\
-option by pressing [ENTER].",		/* prompt */
+	select one of the options below by using the arrow keys or typing the\n\
+	    first character of the option name you're interested in.  Invoke an\n\
+		option by pressing [ENTER].",		/* prompt */
     "Press F1 for usage instructions",			/* help line */
     "usage",						/* help file */
 { { "Usage",		"Quick start - How to use this menu system.",		/* U */
@@ -97,7 +97,7 @@ consult the README file.",
   { "Hardware",			"The FreeBSD survival guide for PC hardware.",
 	DMENU_DISPLAY_FILE,	"hardware", 0, 0	},
   { "Install",			"A step-by-step guide to installing FreeBSD.",
-	DMENU_DISPLAY_FILE,	"install", 0, 0	},
+	DMENU_DISPLAY_FILE,	"install", 0, 0		},
   { "Copyright",		"The FreeBSD Copyright notices.",
 	DMENU_DISPLAY_FILE,	"COPYRIGHT", 0, 0	},
   { "Release",			"The release notes for this version of FreeBSD.",
@@ -160,68 +160,68 @@ To specify a URL not in this list, chose \"other\".",
 "install",
 { { "Primary Site",		"ftp.freebsd.org",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/", 0, 0			},
-  { "Secondary Site",	"freefall.cdrom.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/", 0, 0			},
-  { "Other",		"Specify some other ftp site by URL",
-	DMENU_SET_VARIABLE,	"ftp=other", 0, 0								},
+  { "Secondary Site",		"freefall.cdrom.com",
+	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/", 0, 0		},
+  { "Other",			"Specify some other ftp site by URL",
+	DMENU_SET_VARIABLE,	"ftp=other", 0, 0						},
   { "Australia",		"ftp.physics.usyd.edu.au",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/", 0, 0			},
-  { "Finland",		"nic.funet.fi",
-	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/", 0, 0			},
-  { "France",		"ftp.ibp.fr",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/", 0, 0				},
-  { "Germany",		"ftp.fb9dv.uni-duisburg.de",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/", 0, 0		},
+  { "Finland",			"nic.funet.fi",
+	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/", 0, 0		},
+  { "France",			"ftp.ibp.fr",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/", 0, 0			},
+  { "Germany",			"ftp.fb9dv.uni-duisburg.de",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD/", 0, 0	},
   { "Germany #2",		"gil.physik.rwth-aachen.de",
-	DMENU_SET_VARIABLE,	"ftp=ftp://gil.physik.rwth-aachen.de/pub/FreeBSD/", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://gil.physik.rwth-aachen.de/pub/FreeBSD/", 0, 0	},
   { "Germany #3",		"ftp.uni-paderborn.de",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-paderborn.de/freebsd/", 0, 0			},
   { "Hong Kong",		"ftp.hk.super.net",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.hk.super.net/pub/FreeBSD/", 0, 0			},
-  { "Israel",		"orgchem.weizmann.ac.il",
+  { "Israel",			"orgchem.weizmann.ac.il",
 	DMENU_SET_VARIABLE,	"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-", 0, 0		},
-  { "Japan",		"ftp.sra.co.jp",
+  { "Japan",			"ftp.sra.co.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/", 0, 0			},
-  { "Japan #2",		"ftp.mei.co.jp",
+  { "Japan #2",			"ftp.mei.co.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/", 0, 0		},
-  { "Japan #3",		"ftp.waseda.ac.jp",
+  { "Japan #3",			"ftp.waseda.ac.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.waseda.ac.jp/pub/FreeBSD/", 0, 0			},
-  { "Japan #4",		"ftp.pu-toyama.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/", 0, 0			},
-  { "Japan #5",		"ftpsv1.u-aizu.ac.jp",
+  { "Japan #4",			"ftp.pu-toyama.ac.jp",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/", 0, 0		},
+  { "Japan #5",			"ftpsv1.u-aizu.ac.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/", 0, 0		},
-  { "Japan #6",		"ftp.tut.ac.jp",
+  { "Japan #6",			"ftp.tut.ac.jp",
 	DMENU_SET_VARIABLE,	"ftp://ftp.tut.ac.jp/FreeBSD/", 0, 0				},
-  { "Japan #7",		"ftp.ee.uec.ac.jp",
+  { "Japan #7",			"ftp.ee.uec.ac.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org/", 0, 0	},
-  { "Japan #8",		"ftp.tokyonet.ad.jp",
+  { "Japan #8",			"ftp.tokyonet.ad.jp",
 	DMENU_SET_VARIABLE,	"ftp://ftp.tokyonet.ad.jp/pub/FreeBSD/", 0, 0			},
-  { "Korea",		"ftp.cau.ac.kr",
+  { "Korea",			"ftp.cau.ac.kr",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.cau.ac.kr/pub/FreeBSD/", 0, 0			},
   { "Netherlands",		"ftp.nl.net",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nl.net/pub/os/FreeBSD/", 0, 0			},
-  { "Russia",		"ftp.kiae.su",
+  { "Russia",			"ftp.kiae.su",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.kiae.su/FreeBSD/", 0, 0				},
-  { "Sweden",		"ftp.luth.se",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.luth.se/pub/FreeBSD/", 0, 0				},
-  { "Taiwan",		"netbsd.csie.nctu.edu.tw",
+  { "Sweden",			"ftp.luth.se",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.luth.se/pub/FreeBSD/", 0, 0			},
+  { "Taiwan",			"netbsd.csie.nctu.edu.tw",
 	DMENU_SET_VARIABLE,	"ftp=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/", 0, 0		},
-  { "Thailand",		"ftp.nectec.or.th",
+  { "Thailand",			"ftp.nectec.or.th",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nectec.or.th/pub/FreeBSD/", 0, 0			},
   { "UK",			"ftp.demon.co.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/", 0, 0			},
-  { "UK #2",		"src.doc.ic.ac.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/", 0, 0		},
-  { "UK #3",		"unix.hensa.ac.uk",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/", 0, 0		},
+  { "UK #2",			"src.doc.ic.ac.uk",
+	DMENU_SET_VARIABLE,	"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/", 0, 0	},
+  { "UK #3",			"unix.hensa.ac.uk",
 	DMENU_SET_VARIABLE,	"ftp=ftp://unix.hensa.ac.uk/mirrors/walnut.creek/FreeBSD/", 0, 0	},
   { "USA",			"ref.tfs.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ref.tfs.com/pub/FreeBSD/", 0, 0				},
-  { "USA #2",		"ftp.dataplex.net",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ref.tfs.com/pub/FreeBSD/", 0, 0			},
+  { "USA #2",			"ftp.dataplex.net",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.dataplex.net/pub/FreeBSD/", 0, 0			},
-  { "USA #3",		"kryten.atinc.com",
+  { "USA #3",			"kryten.atinc.com",
 	DMENU_SET_VARIABLE,	"ftp=ftp://kryten.atinc.com/pub/FreeBSD/", 0, 0			},
-  { "USA #4",		"ftp.neosoft.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.neosoft.com/systems/FreeBSD/", 0, 0			},
+  { "USA #4",			"ftp.neosoft.com",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.neosoft.com/systems/FreeBSD/", 0, 0		},
   { NULL } }
 };
 
@@ -339,8 +339,8 @@ DMenu MenuDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  At the\n\
-very minimum, this should be \"bin\".  WARNING:  Do not export the\n\
-DES distribution out of the U.S.!  It is for U.S. customers only.",
+	very minimum, this should be \"bin\".  WARNING:  Do not export the\n\
+	    DES distribution out of the U.S.!  It is for U.S. customers only.",
     NULL,
     NULL,
 { { "bin",		"Binary base distribution (required) [36MB]",
@@ -448,30 +448,30 @@ clearx11(char *str)
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
     "XFree86 3.1.2 Distribution",
-    "Please select the components you need from the XFree86 3.1.2\n\
-distribution.  We recommend that you select what you need from the basic\n\
-components set and at least one entry from the Server and Font set menus.",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
-{ { "Basic",	"Basic component menu (required)",
-	DMENU_SUBMENU,	&MenuXF86SelectCore, 0, 0			},
-  { "Server",	"X server menu",
-	DMENU_SUBMENU,	&MenuXF86SelectServer, 0, 0			},
-  { "Fonts",	"Font set menu",
-	DMENU_SUBMENU,	&MenuXF86SelectFonts, 0, 0			},
-  { "Clear",	"Reset XFree86 distribution list",
-	DMENU_CALL,	clearx11, 0, 0, 0				},
-  { "Exit",		"Exit this menu (returning to previous)",
-	DMENU_CANCEL,	NULL, 0, 0					},
-  { NULL } },
+    "Please select the components you need from the XFree86 3.1.2\n"
+	"distribution.  We recommend that you select what you need from the basic\n"
+	    "components set and at least one entry from the Server and Font set menus.",
+	    "Press F1 to read the XFree86 release notes for FreeBSD",
+	    "XF86",
+	{ { "Basic",	"Basic component menu (required)",
+		DMENU_SUBMENU,	&MenuXF86SelectCore, 0, 0			},
+	  { "Server",	"X server menu",
+		DMENU_SUBMENU,	&MenuXF86SelectServer, 0, 0			},
+	  { "Fonts",	"Font set menu",
+		DMENU_SUBMENU,	&MenuXF86SelectFonts, 0, 0			},
+	  { "Exit",		"Exit this menu (returning to previous)",
+		DMENU_CANCEL,	NULL, 0, 0					},
+	  { "Clear",	"Reset XFree86 distribution list",
+		DMENU_CALL,	clearx11, 0, 0, 0				},
+	  { NULL } },
 };
 
 DMenu MenuXF86SelectCore = {
-DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
-"XFree86 3.1.2 base distribution types",
-"Please check off the basic XFree86 components you wish to install.",
-"Press F1 to read the XFree86 release notes for FreeBSD",
-"XF86",
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
+    "XFree86 3.1.2 base distribution types",
+    "Please check off the basic XFree86 components you wish to install.",
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86",
 { { "bin",		"X client applications and shared libs [4MB].",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0, dmenuFlagCheck		},
   { "lib",		"Data files needed at runtime [600K]",
@@ -531,7 +531,7 @@ DMenu MenuXF86SelectServer = {
     "Please check off the types of X servers you wish to install.\n\
 If you are unsure as to which server will work for your graphics card,\n\
 it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
-Mono servers are particularly well-suited to most LCD displays).",
+						      Mono servers are particularly well-suited to most LCD displays).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
     { { "SVGA",		"Standard VGA or Super VGA display [1MB]",
@@ -575,6 +575,25 @@ and press [SPACE].",
     { { NULL } },
 };
 
+DMenu MenuHTMLDoc = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Select HTML Documentation pointer",
+    "Please select the body of documentation you're interested in, the main\n\
+ones right now being the FAQ and the Handbook.  You can also chose \"other\"\n\
+to enter an arbitrary URL for browsing.",
+    "Press F1 for more help on what you see here.",
+    "html",
+    { { "handbook",	"The FreeBSD Handbook.",
+	DMENU_CALL,	docShowDocument, 0, 0			},
+      { "FAQ",		"The Frequently Asked Questions guide.",
+	DMENU_CALL,	docShowDocument, 0, 0			},
+      { "Home",		"The Home Pages for the FreeBSD Project (requires net)",
+	DMENU_CALL,	docShowDocument, 0, 0			},
+      { "Other",	"Enter a URL.",
+	DMENU_CALL,	docShowDocument, 0, 0			},
+      { NULL } },
+};
+
 /* The main installation menu */
 DMenu MenuInstallCustom = {
     DMENU_NORMAL_TYPE,
@@ -587,7 +606,7 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
     { { "Options",	"Go to Options editor",
 	DMENU_CALL,	optionsEditor, 0, 0			},
       { "Partition",	"Allocate disk space for FreeBSD",
-	DMENU_CALL,	diskPartitionEditor, 0, 0		},
+        DMENU_CALL,	diskPartitionEditor, 0, 0		},
       { "Label",	"Label allocated disk partitions",
 	DMENU_CALL,	diskLabelEditor, 0, 0			},
       { "Distributions", "Select distribution(s) to extract",
@@ -667,7 +686,7 @@ DMenu MenuNetworking = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Network Services Menu",
     "You may have already configured one network device (and the\n\
-other various hostname/gateway/name server parameters) in the process\n\
+							 other various hostname/gateway/name server parameters) in the process\n\
 of installing FreeBSD.  This menu allows you to configure other\n\
 aspects of your system's network configuration.",
     NULL,
@@ -694,8 +713,6 @@ aspects of your system's network configuration.",
 	DMENU_SET_VARIABLE,	"samba=YES", 0, 0, dmenuVarCheck			},
   { "PCNFSD",			"Run authentication server for clients with PC-NFS.",
 	DMENU_SET_VARIABLE,	"pcnfsd=YES", 0, 0, dmenuVarCheck			},
-  { "Exit",			"Exit this menu (returning to previous)",
-	DMENU_CANCEL, NULL, 0, 0							},
   { NULL } },
 };
 
@@ -851,7 +868,5 @@ probably enable one of these screen savers to prevent phosphor burn-in.",
 	DMENU_SET_VARIABLE,	"saver=star", 0, 0, dmenuVarCheck		},
   { "Timeout",		"Set the screen saver timeout interval",
 	DMENU_CALL,		configSaverTimeout, 0, 0, menuSaverTimeoutCheck	},
-  { "Exit",			"Exit this menu (returning to previous)",
-	DMENU_CANCEL,		NULL, 0, 0					},
   { NULL } },
 };

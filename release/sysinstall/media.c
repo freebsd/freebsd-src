@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.7 1995/10/07 11:55:28 jkh Exp $
+ * $Id: media.c,v 1.25.2.8 1995/10/09 11:14:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,7 +85,10 @@ mediaSetCDROM(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
+	msgConfirm("No CDROM devices found!  Please check that your system's\n"
+		   "configuration is correct and that the CDROM drive is of a supported\n"
+		   "type.  For more information, consult the hardware guide\n"
+		   "in the Doc menu.");
 	return RET_FAIL;
     }
     else if (cnt > 1) {
@@ -124,7 +127,9 @@ mediaSetFloppy(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No floppy devices found!  Please check that your system's\nconfiguration is correct.  For more information, consult the hardware guide\nin the Doc menu.");
+	msgConfirm("No floppy devices found!  Please check that your system's configuration\n"
+		   "is correct.  For more information, consult the hardware guide in the Doc\n"
+		   "menu.");
 	return RET_FAIL;
     }
     else if (cnt > 1) {
@@ -202,7 +207,9 @@ mediaSetTape(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_TAPE);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No tape drive devices found!  Please check that your system's\nconfiguration is correct.  For more information, consult the hardware guide\nin the Doc menu.");
+	msgConfirm("No tape drive devices found!  Please check that your system's configuration\n"
+		   "is correct.  For more information, consult the hardware guide in the Doc\n"
+		   "menu.");
 	return RET_FAIL;
     }
     else if (cnt > 1) {
@@ -222,7 +229,11 @@ mediaSetTape(char *str)
     if (mediaDevice) {
 	char *val;
 
-	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\nsufficient space for holding the contents of this tape (or\ntapes).  The contents of this directory will be removed\nafter installation, so be sure to specify a directory that\ncan be erased afterwards!\n");
+	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\n"
+			  "sufficient space for holding the contents of this tape (or\n"
+			  "tapes).  The contents of this directory will be removed\n"
+			  "after installation, so be sure to specify a directory that\n"
+			  "can be erased afterwards!\n");
 	if (!val)
 	    mediaDevice = NULL;
 	else
@@ -247,7 +258,13 @@ mediaSetFTP(char *str)
     if (!cp)
 	return RET_FAIL;
     if (!strcmp(cp, "other")) {
-	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept either anonymous\nftp or you should have set an ftp username and password\nin the Options screen.\nA URL looks like this:  ftp://<hostname>/<path>\nWhere <path> is relative to the anonymous ftp directory or the\nhome directory of the user being logged in as.");
+	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\n"
+			 "remote ftp site.  This site must accept either anonymous\n"
+			 "ftp or you should have set an ftp username and password\n"
+			 "in the Options screen.\n"
+			 "A URL looks like this:  ftp://<hostname>/<path>\n"
+			 "Where <path> is relative to the anonymous ftp directory or the\n"
+			 "home directory of the user being logged in as.");
 	if (!cp || strncmp("ftp://", cp, 6))
 	    return RET_FAIL;
 	else
@@ -293,7 +310,8 @@ mediaSetUFS(char *str)
     static Device ufsDevice;
     char *val;
 
-    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\ncontaining the FreeBSD distribution files:");
+    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\n"
+		      "containing the FreeBSD distribution files:");
     if (!val)
 	return RET_FAIL;
     strcpy(ufsDevice.name, "ufs");
@@ -313,7 +331,9 @@ mediaSetNFS(char *str)
     static Device nfsDevice;
     char *val;
 
-    val = msgGetInput(nfsDevice.name, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
+    val = msgGetInput(nfsDevice.name, "Please enter the full NFS file specification for the remote\n"
+		      "host and directory containing the FreeBSD distribution files.\n"
+		      "This should be in the format:  hostname:/some/freebsd/dir");
     if (!val)
 	return RET_FAIL;
     strncpy(nfsDevice.name, val, DEV_NAME_MAX);
@@ -483,7 +503,8 @@ Boolean
 mediaVerify(void)
 {
     if (!mediaDevice) {
-	msgConfirm("Media type not set!  Please select a media type\nfrom the Installation menu before proceeding.");
+	msgConfirm("Media type not set!  Please select a media type\n"
+		   "from the Installation menu before proceeding.");
 	return mediaGetType();
     }
     return TRUE;
@@ -493,15 +514,13 @@ mediaVerify(void)
 int
 mediaSetFtpUserPass(char *str)
 {
-    char *user, *pass;
     int i;
 
     dialog_clear();
-    if ((user = msgGetInput(variable_get(FTP_USER), "Please enter the username you wish to login as")) != NULL) {
-	variable_set2(FTP_USER, user);
-	if ((pass = msgGetInput(variable_get(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!")) != NULL)
-	    variable_set2(FTP_PASS, pass);
-	i = RET_SUCCESS;
+    if (variable_get_value(FTP_USER, "Please enter the username you wish to login as") == RET_SUCCESS) {
+	noecho();
+	i = variable_get_value(FTP_PASS, "Please enter the password for this user.");
+	echo();
     }
     else
 	i = RET_FAIL;
@@ -516,13 +535,7 @@ mediaSetTapeBlocksize(char *str)
     char *bsize;
     int i;
 
-    dialog_clear();
-    if ((bsize = msgGetInput(variable_get(TAPE_BLOCKSIZE), "Please enter the tape block size in 512 byte blocks")) != NULL) {
-	variable_set2(TAPE_BLOCKSIZE, bsize);
-	i = RET_SUCCESS;
-    }
-    else
-	i = RET_FAIL;
+    i = variable_get_value(TAPE_BLOCKSIZE, "Please enter the tape block size in 512 byte blocks");
     dialog_clear();
     return i;
 }

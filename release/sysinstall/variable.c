@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.6.2.1 1995/10/04 12:08:27 jkh Exp $
+ * $Id: variable.c,v 1.6.2.2 1995/10/16 10:33:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -111,4 +111,22 @@ variable_unset(char *var)
 	    break;
 	}
     }
+}
+
+/* Prompt user for the name of a variable */
+int
+variable_get_value(char *var, char *prompt)
+{
+    char *cp;
+    int i;
+
+    dialog_clear();
+    if ((cp = msgGetInput(variable_get(var), prompt)) != NULL) {
+	variable_set2(var, cp);
+	i = RET_SUCCESS;
+    }
+    else
+	i = RET_FAIL;
+    dialog_clear();
+    return i;
 }

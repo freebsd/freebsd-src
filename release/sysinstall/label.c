@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.10 1995/10/16 07:31:04 jkh Exp $
+ * $Id: label.c,v 1.32.2.11 1995/10/16 10:33:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -163,7 +163,7 @@ diskLabelCommit(char *str)
     char *cp;
 
     /* Already done? */
-    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written"))
+    if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes"))
 	return RET_SUCCESS;
     else if (!cp) {
 	msgConfirm("You must assign disk labels before this option can be used.");
