@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.8 1998/10/28 20:31:13 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.9 1998/11/11 20:32:20 rvb Exp $
  * 
  */
 
@@ -53,6 +53,13 @@
 /*
  * HISTORY
  * $Log: coda_psdev.c,v $
+ * Revision 1.9  1998/11/11 20:32:20  rvb
+ * coda_lookup now passes up an extra flag.  But old veni will
+ * be ok; new veni will check /dev/cfs0 to make sure that a new
+ * kernel is running.
+ * Also, a bug in vc_nb_close iff CODA_SIGNAL's were seen has been
+ * fixed.
+ *
  * Revision 1.8  1998/10/28 20:31:13  rvb
  * Change the way unmounting happens to guarantee that the
  * client programs are allowed to finish up (coda_call is
@@ -181,11 +188,7 @@
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
-#ifdef	VFS_LKM
-#define NVCODA 4
-#else
 #include <vcoda.h>
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
