@@ -106,7 +106,7 @@ Specifies failure probability in percentage.
 Be more verbose.
 .El
 .Sh EXAMPLES
-The following example shows how to create transparent provider for disk
+The following example shows how to create a transparent provider for disk
 .Pa /dev/da0
 with 50% failure probability and destroy it.
 .Bd -literal -offset indent
@@ -116,7 +116,8 @@ gnop destroy -v da0.nop
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
-.Xr geom 4
+.Xr geom 4 ,
+.Xr geom 8
 .Sh HISTORY
 The
 .Nm

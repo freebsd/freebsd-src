@@ -134,7 +134,7 @@ Be more verbose.
 .El
 .Sh EXAMPLES
 The following example shows how to setup striped device from four disks
-for automatic configuration, create file system on it, and mount it:
+for automatic configuration, create a file system on it, and mount it:
 .Bd -literal -offset indent
 gstripe label -v -s 65536 data /dev/da0 /dev/da1 /dev/da2 /dev/da3
 newfs /dev/data.stripe
@@ -144,6 +144,7 @@ mount /dev/data.stripe /mnt
 Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
+.Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
 .Xr vinum 8
