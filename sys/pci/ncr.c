@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.44 1995/09/07 20:53:40 se Exp $
+**  $Id: ncr.c,v 1.45 1995/09/08 14:29:48 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -877,6 +877,16 @@ struct ccb {
 	u_char			scsi_smsg2[8];
 
 	/*
+	**	A few physical addresses that are often 
+	**	referenced ...
+	*/
+
+	u_long		p_scsi_smsg;
+	u_long		p_scsi_smsg2;
+	u_long		p_sensecmd;
+	u_long		p_phys;
+
+	/*
 	**	Lock this ccb.
 	**	Flag is used while looking for a free ccb.
 	*/
@@ -967,7 +977,6 @@ struct ncb {
 	**	A copy of the script, relocated for this ncb.
 	*/
 	struct script	*script;
-	u_long		p_script;
 
 	/*
 	**	The SCSI address of the host adapter.
@@ -1047,6 +1056,18 @@ struct ncb {
 	**	after the first successful transfer.
 	*/
 	struct ccb      ccb;
+
+	/*
+	**	A few physical addresses that are often 
+	**	referenced ...
+	*/
+
+	u_long		p_data_in;
+	u_long		p_data_out;
+	u_long		p_no_data;
+	u_long		p_select;
+	u_long		p_idle;
+	u_long		p_resel_tmp;
 
 	/*
 	**	message buffers.
@@ -1237,7 +1258,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.44 1995/09/07 20:53:40 se Exp $\n";
+	"\n$Id: ncr.c,v 1.45 1995/09/08 14:29:48 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -2964,8 +2985,6 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 	np->script = (struct script*) vm_page_alloc_contig 
 	(round_page(sizeof (struct script)), 0x100000, 0xffffffff, PAGE_SIZE);
 
-	np->p_script = vtophys(np->script);
-
 	src = script->start;
 	dst = np->script->start;
 
@@ -3292,8 +3311,20 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	**	init data structure
 	*/
 
-	np -> jump_tcb.l_cmd   = SCR_JUMP ;
-	np -> jump_tcb.l_paddr = vtophys (&np->script->abort);
+	np -> jump_tcb.l_cmd	= SCR_JUMP;
+	np -> jump_tcb.l_paddr	= vtophys (&np->script->abort);
+
+	np -> p_data_in		= vtophys (&np->script->data_in);
+	np -> p_data_out	= vtophys (&np->script->data_out);
+	np -> p_no_data		= vtophys (&np->script->no_data);
+	np -> p_select		= vtophys (&np->script->select);
+	np -> p_idle		= vtophys (&np->script->idle);
+	np -> p_resel_tmp	= vtophys (&np->script->resel_tmp);
+
+	np->ccb.p_scsi_smsg	= vtophys (&np->ccb.scsi_smsg);
+	np->ccb.p_scsi_smsg2	= vtophys (&np->ccb.scsi_smsg2);
+	np->ccb.p_sensecmd	= vtophys (&np->ccb.sensecmd);
+	np->ccb.p_phys		= vtophys (&np->ccb.phys);
 
 	/*
 	**	Make the controller's registers available.
@@ -3838,13 +3869,13 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	*/
 
 	if (flags & SCSI_DATA_IN) {
-		cp->phys.header.savep = vtophys (&np->script->data_in);
+		cp->phys.header.savep = np->p_data_in;
 		cp->phys.header.goalp = cp->phys.header.savep +20 +segments*16;
 	} else if (flags & SCSI_DATA_OUT) {
-		cp->phys.header.savep = vtophys (&np->script->data_out);
+		cp->phys.header.savep = np->p_data_out;
 		cp->phys.header.goalp = cp->phys.header.savep +20 +segments*16;
 	} else {
-		cp->phys.header.savep = vtophys (&np->script->no_data);
+		cp->phys.header.savep = np->p_no_data;
 		cp->phys.header.goalp = cp->phys.header.savep;
 	};
 	cp->phys.header.lastp = cp->phys.header.savep;
@@ -3864,7 +3895,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	Startqueue
 	*/
-	cp->phys.header.launch.l_paddr	= vtophys (&np->script->select);
+	cp->phys.header.launch.l_paddr	= np->p_select;
 	cp->phys.header.launch.l_cmd	= SCR_JUMP;
 	/*
 	**	select
@@ -3875,9 +3906,10 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	message
 	*/
-	cp->phys.smsg.addr		= vtophys (&cp->scsi_smsg );
+	cp->phys.smsg.addr		= cp->p_scsi_smsg;
 	cp->phys.smsg.size		= msglen;
-	cp->phys.smsg2.addr		= vtophys (&cp->scsi_smsg2);
+
+	cp->phys.smsg2.addr		= cp->p_scsi_smsg2;
 	cp->phys.smsg2.size		= msglen2;
 	/*
 	**	command
@@ -3887,7 +3919,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	sense command
 	*/
-	cp->phys.scmd.addr		= vtophys (&cp->sensecmd);
+	cp->phys.scmd.addr		= cp->p_sensecmd;
 	cp->phys.scmd.size		= 6;
 	/*
 	**	patch requested size into sense command
@@ -3936,8 +3968,8 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 	ptr = np->squeueput + 1;
 	if (ptr >= MAX_START) ptr=0;
-	np->squeue [ptr	  ] = vtophys(&np->script->idle);
-	np->squeue [np->squeueput] = vtophys(&cp->phys);
+	np->squeue [ptr	  ] = np->p_idle;
+	np->squeue [np->squeueput] = cp->p_phys;
 	np->squeueput = ptr;
 
 	if(DEBUG_FLAGS & DEBUG_QUEUE)
@@ -4060,7 +4092,7 @@ void ncr_complete (ncb_p np, ccb_p cp)
 	/*
 	**	No starting.
 	*/
-	cp->phys.header.launch.l_paddr= vtophys (&np->script->idle);
+	cp->phys.header.launch.l_paddr= np->p_idle;
 
 	/*
 	**	timestamp
@@ -5342,7 +5374,7 @@ static void ncr_int_ma (ncb_p np)
 	*/
 	dsa = INL (nc_dsa);
 	cp = &np->ccb;
-	while (cp && (vtophys(&cp->phys) != dsa))
+	while (cp && (cp->p_phys != dsa))
 		cp = cp->link_ccb;
 
 	if (!cp) {
@@ -5514,12 +5546,14 @@ void ncr_int_sir (ncb_p np)
 		*/
 		dsa = INL (nc_dsa);
 		cp = &np->ccb;
-		while (cp && (vtophys(&cp->phys) != dsa))
+		while (cp && (cp->p_phys != dsa))
 			cp = cp->link_ccb;
 
-		assert (cp == np->header.cp);
 		assert (cp);
 		if (!cp)
+			goto out;
+		assert (cp == np->header.cp);
+		if (cp != np->header.cp)
 			goto out;
 	}
 
@@ -5559,7 +5593,7 @@ void ncr_int_sir (ncb_p np)
 		if (cp) {
 			if (DEBUG_FLAGS & DEBUG_RESTART)
 				printf ("+ restart job ..\n");
-			OUTL (nc_dsa, vtophys (&cp->phys));
+			OUTL (nc_dsa, cp->p_phys);
 			OUTL (nc_dsp, vtophys (&np->script->getcc));
 			return;
 		};
@@ -6267,13 +6301,22 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 	bzero (cp, sizeof (*cp));
 
 	/*
+	**	Fill in physical addresses
+	*/
+
+	cp->p_scsi_smsg	     = vtophys (&cp->scsi_smsg);
+	cp->p_scsi_smsg2     = vtophys (&cp->scsi_smsg2);
+	cp->p_sensecmd	     = vtophys (&cp->sensecmd);
+	cp->p_phys	     = vtophys (&cp->phys);
+
+	/*
 	**	Chain into reselect list
 	*/
 	cp->jump_ccb.l_cmd   = SCR_JUMP;
 	cp->jump_ccb.l_paddr = lp->jump_ccb.l_paddr;
 	lp->jump_ccb.l_paddr = vtophys(&cp->jump_ccb);
 	cp->call_tmp.l_cmd   = SCR_CALL;
-	cp->call_tmp.l_paddr = vtophys(&np->script->resel_tmp);
+	cp->call_tmp.l_paddr = np->p_resel_tmp;
 
 	/*
 	**	Chain into wakeup list
