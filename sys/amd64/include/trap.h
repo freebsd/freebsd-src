@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.h	5.4 (Berkeley) 5/9/91
- *	$Id: trap.h,v 1.3 1993/11/07 17:43:15 wollman Exp $
+ *	$Id: trap.h,v 1.4 1995/01/14 13:20:26 bde Exp $
  */
 
 #ifndef _MACHINE_TRAP_H_
@@ -64,7 +64,8 @@
 #define	T_TSSFLT	25	/* invalid tss fault */
 #define	T_SEGNPFLT	26	/* segment not present fault */
 #define	T_STKFLT	27	/* stack fault */
-#define	T_RESERVED	28	/* reserved (unknown) */
+#define	T_MCHK		28	/* machine check trap */
+#define	T_RESERVED	29	/* reserved (unknown) */
 
 /* XXX most of the following codes aren't used, but could be. */
 
