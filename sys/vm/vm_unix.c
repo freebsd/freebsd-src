@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.19 1999/02/08 00:27:56 dillon Exp $
+ * $Id: vm_unix.c,v 1.20 1999/02/09 01:39:29 dillon Exp $
  */
 
 /*
@@ -93,9 +93,7 @@ obreak(p, uap)
 
 	if (new > old) {
 		vm_size_t diff;
-		if (swap_pager_full) {
-			return (ENOMEM);
-		}
+
 		diff = new - old;
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
