@@ -21,17 +21,8 @@ stop_precmd="test -f /etc/ipsec.conf"
 stop_cmd="ipsec_stop"
 reload_cmd="ipsec_reload"
 extra_commands="reload"
-
-case ${OSTYPE} in
-FreeBSD)
-	ipsec_program="/usr/sbin/setkey"
-	# ipsec_file is set by rc.conf
-	;;
-NetBSD)
-	ipsec_program="/sbin/setkey"
-	ipsec_file="/etc/ipsec.conf"
-	;;
-esac
+ipsec_program="/usr/sbin/setkey"
+# ipsec_file is set by rc.conf
 
 ipsec_prestart()
 {

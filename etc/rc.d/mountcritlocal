@@ -16,49 +16,32 @@ stop_cmd=":"
 
 mountcritlocal_start()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		# Set up the list of network filesystem types for which mounting
-		# should be delayed until after network initialization.
-		case ${extra_netfs_types} in
-		[Nn][Oo])
-			;;
-		*)
-			netfs_types="${netfs_types} ${extra_netfs_types}"
-			;;
-		esac
-
-		# Mount everything except nfs filesystems.
-		mount_excludes='no'
-		for i in ${netfs_types}; do
-			fstype=${i%:*}
-			mount_excludes="${mount_excludes}${fstype},"
-		done
-		mount_excludes=${mount_excludes%,}
-		mount -a -t ${mount_excludes}
-
-		case $? in
-		0)
-			;;
-		*)
-			echo 'Mounting /etc/fstab filesystems failed,' \
-			    ' startup aborted'
-			kill -QUIT $$
-			;;
-		esac
+	# Set up the list of network filesystem types for which mounting
+	# should be delayed until after network initialization.
+	case ${extra_netfs_types} in
+	[Nn][Oo])
 		;;
-	NetBSD)
-		#	Mount critical filesystems that are `local'
-		#	(as specified in $critical_filesystems_local)
-		#	This usually includes /var.
-		#
-		mount_critical_filesystems local
+	*)
+		netfs_types="${netfs_types} ${extra_netfs_types}"
+		;;
+	esac
 
-		#	clean up left-over files.
-		#	this could include the cleanup of lock files and /var/run, etc.
-		#
-		rm -f /etc/nologin /var/spool/lock/LCK.* /var/spool/uucp/STST/*
-		(cd /var/run && rm -rf -- *)
+	# Mount everything except nfs filesystems.
+	mount_excludes='no'
+	for i in ${netfs_types}; do
+		fstype=${i%:*}
+		mount_excludes="${mount_excludes}${fstype},"
+	done
+	mount_excludes=${mount_excludes%,}
+	mount -a -t ${mount_excludes}
+
+	case $? in
+	0)
+		;;
+	*)
+		echo 'Mounting /etc/fstab filesystems failed,' \
+		    ' startup aborted'
+		kill -QUIT $$
 		;;
 	esac
 }
