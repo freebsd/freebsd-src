@@ -46,7 +46,14 @@ do
 			echo "$0: start: named (pid $PID) already running"
 			continue
 		}
-		%INDOT%named && echo Name Server Started
+		# If there is a global system configuration file, suck it in.
+		if [ -f /etc/sysconfig ]; then
+			. /etc/sysconfig
+		fi
+		# $namedflags is imported from /etc/sysconfig
+		if [ "X${namedflags}" != "XNO" ]; then 
+			%INDOT%named ${namedflags} && echo Name Server Started
+		fi
 		;;
 	stop)
 		[ $RUNNING -eq 0 ] && {
@@ -62,7 +69,14 @@ do
 		[ $RUNNING -eq 1 ] && {
 			kill $PID && sleep 5
 		}
-		%INDOT%named && echo Name Server Restarted
+		# If there is a global system configuration file, suck it in.
+		if [ -f /etc/sysconfig ]; then
+			. /etc/sysconfig
+		fi
+		# $namedflags is imported from /etc/sysconfig
+		if [ "X${namedflags}" != "XNO" ]; then 
+			%INDOT%named ${namedflags} && echo Name Server Restarted
+		fi
 		;;
 	*)	eval "$USAGE";;
 	esac
