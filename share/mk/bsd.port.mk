@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.300 1998/12/12 07:39:30 asami Exp $
+#	$Id: bsd.port.mk,v 1.301 1999/01/11 13:04:18 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -79,7 +79,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # MASTER_SITE_BACKUP - Backup location(s) for distribution files and patch
 #				  files if not found locally and ${MASTER_SITES}/${PATCH_SITES}
 #				  (default:
-#				  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/)
+#				  ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles/${DIST_SUBDIR}/)
 # MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
 #				  value.
 # MASTER_SITE_FREEBSD - If set, only use ${MASTER_SITE_BACKUP} for
@@ -832,6 +832,12 @@ MASTER_SITE_COMP_SOURCES+=	\
 	ftp://ftp.uu.net/usenet/comp.sources.%SUBDIR%/ \
 	ftp://rtfm.mit.edu/pub/usenet/comp.sources.%SUBDIR%/
 
+MASTER_SITE_GNOME+=	\
+	ftp://ftp.jimpick.com/pub/mirrors/gnome/sources/%SUBDIR%/ \
+	ftp://ftp.geo.net/pub/gnome/sources/%SUBDIR%/ \
+	ftp://gnomeftp.wgn.net/pub/gnome/sources/%SUBDIR%/ \
+	ftp://ftp.gnome.org/pub/GNOME/sources/%SUBDIR%/
+
 # Empty declaration to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES?=
 PATCH_SITES?=
@@ -846,7 +852,7 @@ PATCH_SITES:=	${PATCH_SITES:S/%SUBDIR%/${PATCH_SITE_SUBDIR}/}
 
 # The primary backup site.
 MASTER_SITE_BACKUP?=	\
-	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
+	ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles/${DIST_SUBDIR}/
 
 # If the user has this set, go to the FreeBSD repository for everything.
 .if defined(MASTER_SITE_FREEBSD)
@@ -855,7 +861,7 @@ MASTER_SITE_OVERRIDE=  ${MASTER_SITE_BACKUP}
 
 # Where to put distfiles that don't have any other master site
 MASTER_SITE_LOCAL?= \
-	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/LOCAL_PORTS/
+	ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles/LOCAL_PORTS/
 
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
