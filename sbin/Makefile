@@ -17,6 +17,7 @@ SUBDIR=	adjkerntz \
 	dumpfs \
 	dumpon \
 	fsck \
+	fsck_ffs \
 	fsdb \
 	fsirand \
 	ifconfig \
