@@ -42,7 +42,7 @@
 
 /* XXX FIXME this does not belong here */
 
-#define RFCOMM_DEFAULT_MTU		127
+#define RFCOMM_DEFAULT_MTU		667
 #define RFCOMM_MAX_MTU			1024
 
 #define RFCOMM_DEFAULT_CREDITS		7
@@ -218,9 +218,9 @@ struct rfcomm_mcc_pn
  *****************************************************************************/
 
 #define NG_BTSOCKET_RFCOMM_SENDSPACE \
-	(RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10)
+	(RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 2)
 #define NG_BTSOCKET_RFCOMM_RECVSPACE \
-	(RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10)
+	(RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 2)
 
 /*
  * Bluetooth RFCOMM session. One L2CAP connection == one RFCOMM session
