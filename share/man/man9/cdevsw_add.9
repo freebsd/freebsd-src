@@ -31,26 +31,35 @@
 .Os
 .Sh NAME
 .Nm cdevsw_add
-.Nd "Adds a cdevsw entry"
+.Nd adds a
+.Vt cdevsw
+entry
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/conf.h>
+.In sys/param.h
+.In sys/conf.h
 .Ft int
 .Fn cdevsw_add "struct cdevsw *newentry"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn cdevsw_add
 function adds
-.Ar newentry
-to the cdevsw table if its major number is greater than or equal to zero,
-and is less than NUMCDEVSW.
+.Fa newentry
+to the
+.Va cdevsw
+table if its major number is greater than or equal to zero,
+and is less than
+.Dv NUMCDEVSW .
 .Pp
-Its argument is: 
-.Bl -tag
-.It Ar 
+Its argument is:
+.Bl -tag -xwidth ".Fa newentry"
+.It Fa newentry
 The device to add to the table.
+.El
 .Sh RETURN VALUES
-A value of 0 is returned on success; otherwise, EINVAL is returned
+A value of 0 is returned on success; otherwise,
+.Er EINVAL
+is returned
 indicating that the major number is not in the valid range.
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

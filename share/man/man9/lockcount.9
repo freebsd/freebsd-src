@@ -31,29 +31,31 @@
 .Os
 .Sh NAME
 .Nm lockcount
-.Nd "Returns the reference count of a lock"
+.Nd "returns the reference count of a lock"
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/lockmgr.h>
+.In sys/types.h
+.In sys/lockmgr.h
 .Ft int
 .Fn lockcount "struct lock *lkp"
 .Sh DESCRIPTION
 The
-.Nm
-function returns the reference count of the lock.  The reference
+.Fn lockcount
+function returns the reference count of the lock.
+The reference
 count is the sum of exclusive locks and shared locks.
 .Pp
 Its arguments are:
-.Bl -tag
-.It Ar lkp
+.Bl -tag -xwidth ".Fa lkp"
+.It Fa lkp
 The lock to return the reference count on.
 .El
 .Sh RETURN VALUES
 An integer greater than or equal to zero.
 .Sh SEE ALSO
-.Xr lockmgr 9
-.Xr lockdestroy 9
+.Xr lockdestroy 9 ,
+.Xr lockmgr 9 ,
+.Xr lockmgr_printinfo 9 ,
 .Xr lockstatus 9
-.Xr lockmgr_printinfo
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

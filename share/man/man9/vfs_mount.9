@@ -31,81 +31,100 @@
 .Os
 .Sh NAME
 .Nm vfs_mount
-.Nd "Generic filesystem mount function"
+.Nd "generic filesystem mount function"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
+.In sys/param.h
+.In sys/mount.h
 .Ft int
-.Fn vfs_mount "struct proc *vp" "char *fstype" "char *fspath" "int fsflags" "void *fsdata"
+.Fn vfs_mount "struct proc *p" "char *fstype" "char *fspath" "int fsflags" "void *fsdata"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn vfs_mount
 function handles the generic portion of mounting a filesystem,
 and calls the filesystem specific mount function after verifying
 its parameters and setting up the structures expected by the
 underlying mount code.
 .Pp
-.Nm
-is called directly by the mount system call.
+.Fn vfs_mount
+is called directly by the
+.Xr mount 2
+system call.
 .Pp
 Its arguments are:
-.Bl -tag -width fsflags
-.It Ar p
+.Bl -tag -xwidth ".Fa fsflags"
+.It Fa p
 The process responsible for this call.
-.It Ar fstype
+.It Fa fstype
 The type of filesystem being mounted.
-.It Ar fspath
+.It Fa fspath
 The path to the mount point of the filesystem.
-.It Ar fsflags
-Flags controlling the mount. See mount(8) for details.
+.It Fa fsflags
+Flags controlling the mount.
+See
+.Xr mount 2
+for details.
 .Pp
-MNT_EXPORTED MNT_NOSUID MNT_NODEV MNT_UPDATE MNT_RELOAD
-MNT_FORCE MNT_ASYNC MNT_SYNCHRONOUS MNT_UNION MNT_NOATIME
-MNT_SNAPSHOT MNT_NOCLUSTERR MNT_NOCLUSTERW MNT_IGNORE
-MNT_UNION MNT_NOSYMFOLLOW
-.It Ar fsdata
-Filesystem specific data structure.  It is in userspace
+.Dv MNT_EXPORTED , MNT_NOSUID , MNT_NODEV , MNT_UPDATE , MNT_RELOAD ,
+.Dv MNT_FORCE , MNT_ASYNC , MNT_SYNCHRONOUS , MNT_UNION , MNT_NOATIME ,
+.Dv MNT_SNAPSHOT , MNT_NOCLUSTERR , MNT_NOCLUSTERW , MNT_IGNORE ,
+.Dv MNT_UNION , MNT_NOSYMFOLLOW .
+.It Fa fsdata
+Filesystem specific data structure.
+It is in userspace
 when passed to
-.Nm
-and is left untouched when passed to filesystems mount().
+.Fn vfs_mount
+and is left untouched when passed to filesystems
+.Fn mount .
 .El
 .Sh RETURN VALUES
-A 0 value is returned on success. 
+A 0 value is returned on success.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENAMETOOLONG
 The fs type or the mount point path is too long or any individual
 path component is too long.
 .It Bq Er EPERM
-Permission denied.  There are a number of reason this can occur
+Permission denied.
+There are a number of reason this can occur
 ranging from the user not having permission to mount a filesystem
-to the securelevel being to high to load the fstype module.
+to the securelevel being to high to load the
+.Fa fstype
+module.
 .It Bq Er EINVAL
 Invalid operation (ex: trying to update a non mount-point).
 .It Bq Er ENOENT
-The mount point does not exist (from namei)
+The mount point does not exist (from
+.Fn namei ) .
 .It Bq Er ELOOP
-The mount point is a muddle of links (from namei)
+The mount point is a muddle of links (from
+.Fn namei ) .
 .It Bq Er EOPNOTSUPP
-The operation is not supported (ex: reloading a r/w filesystem)
+The operation is not supported (ex: reloading a r/w filesystem).
 .It Bq Er EBUSY
-The mount point is busy or is not really a mount point (on update)
+The mount point is busy or is not really a mount point (on update).
 .It Bq Er ENOTDIR
-The mount point is not a directory
+The mount point is not a directory.
 .It Bq Er ENODEV
-The kernel linker was unable to load the specified fstype or
-was unable to find the specified fstype module.
+The kernel linker was unable to load the specified
+.Fa fstype
+or was unable to find the specified
+.Fa fstype
+module.
+.El
 .Pp
-Other errors can be returned by the filesystems mount() and
-you should check the specific filesystem for details.  Also
+Other errors can be returned by the filesystems
+.Fn mount
+and
+you should check the specific filesystem for details.
+Also
 this call relies on a large number of other kernel services
 whose errors it returns so this list my not be exhaustive.
-.El
 .Sh SEE ALSO
-.Xr mount 2
-.Xr mount 8
-.Xr mount 9
+.Xr mount 2 ,
+.Xr mount 8 ,
 .Xr ffs_mount 9
-vfs.usermount
+.Pp
+.Va vfs.usermount
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .
