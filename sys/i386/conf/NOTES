@@ -142,6 +142,10 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # which indicates that the 15-16MB range is *definitely* not being
 # occupied by an ISA memory hole.
 #
+# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32 
+# machines.  VmWare seems to emulate this instruction poorly, causing 
+# the guest OS to run very slowly.
+#
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
 # CPU_LOOP_EN and CPU_RSTK_EN should not be used because of CPU bugs.
 # These options may crash your system.
@@ -175,6 +179,7 @@ options 	CPU_WT_ALLOC
 options 	CYRIX_CACHE_WORKS
 options 	CYRIX_CACHE_REALLY_WORKS
 #options 	NO_F00F_HACK
+options 	CPU_DISABLE_CMPXCHG
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
