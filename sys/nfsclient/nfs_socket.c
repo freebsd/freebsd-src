@@ -869,13 +869,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	rep->r_vp = vp;
 	rep->r_td = td;
 	rep->r_procnum = procnum;
-	i = 0;
-	m = mrest;
-	while (m) {
-		i += m->m_len;
-		m = m->m_next;
-	}
-	mrest_len = i;
+	mrest_len = m_length(mrest, NULL);
 
 	/*
 	 * Get the RPC header with authorization.
