@@ -72,7 +72,7 @@ This read-only register reflects the inputs on the parallel port interface.
 .Bl -column "Bit" "Name" "Description" -compact
 .It Em Bit Ta Em Name Ta Em Description
 .It 7 Ta nBUSY Ta "inverted version of parallel port Busy signal"
-.It 6 Ta nACK Ta "version of parellel port nAck signal"
+.It 6 Ta nACK Ta "version of parallel port nAck signal"
 .It 5 Ta PERROR Ta "version of parallel port PERROR signal"
 .It 4 Ta SELECT Ta "version of parallel port Select signal"
 .It 3 Ta nFAULT Ta "version of parallel port nFault signal"
@@ -144,7 +144,7 @@ the current value of the internal
 This data is modified by some of the microinstructions, not all.
 .Ss MS_OP_GET and MS_OP_PUT
 are microinstructions used to do either predefined standard IEEE1284-1994
-transfers or programed non-standard io.
+transfers or programmed non-standard io.
 .Ss MS_OP_RFETCH - Register FETCH
 is used to retrieve the current value of a parallel port register, apply a
 mask and save it in a buffer.
@@ -261,7 +261,7 @@ integer return code
 .Pp
 Predefined macro: MS_RET(code)
 .Ss MS_OP_C_CALL - C function CALL
-is used to call C functions from microsequence execution. This may be usefull
+is used to call C functions from microsequence execution. This may be useful
 when a non-standard i/o is performed to retrieve a data character from the
 parallel port.
 .Pp
@@ -279,7 +279,7 @@ The ptr parameter is the current position in the buffer currently scanned.
 .Pp
 Predefined macro: MS_C_CALL(func,param)
 .Ss MS_OP_PTR - initialize internal PTR
-is used to initilize the internal pointeur to the currently scanned buffer.
+is used to initialize the internal pointer to the currently scanned buffer.
 This pointer is passed to any C call (see above).
 .Pp
 Parameter:
@@ -290,7 +290,7 @@ Note that this pointer is automatically incremented during xxx_P() calls
 .El
 .Pp
 Predefined macro: MS_PTR(ptr)
-.Ss MS_OP_ADELAY - do an Asynchroneous DELAY
+.Ss MS_OP_ADELAY - do an Asynchronous DELAY
 is used to make a tsleep() during microsequence execution. The tsleep is
 executed at PPBPRI level.
 .Pp
@@ -427,7 +427,7 @@ definition. For example,
 .Ed
 .Pp
 Here, some parameters are undefined and must be filled before executing
-the microsequence. In order to initialize seach a microsequence, one
+the microsequence. In order to initialize each microsequence, one
 should use the ppb_MS_init_msq() function like this:
 .Bd -literal
      ppb_MS_init_msq(select_microseq, 2,
