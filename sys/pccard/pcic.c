@@ -156,7 +156,7 @@ pcic_memory(struct slot *slt, int win)
 {
 	struct pcic_slot *sp = slt->cdata;
 	struct mem_desc *mp = &slt->mem[win];
-	int reg = mp->window * PCIC_MEMSIZE + PCIC_MEMBASE;
+	int reg = win * PCIC_MEMSIZE + PCIC_MEMBASE;
 
 	if (mp->flags & MDF_ACTIVE) {
 		unsigned long sys_addr = (uintptr_t)(void *)mp->start >> 12;
