@@ -1,5 +1,5 @@
 /*
- * Device driver for Specialix range (SLXOS) of serial line multiplexors.
+ * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  *
  * Copyright (C) 1988, 1992, Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id$
+ *	$Id: si_code.c,v 1.1 1995/08/10 08:10:57 peter Exp $
  */
 
 /*
