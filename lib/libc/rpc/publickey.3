@@ -1,47 +1,51 @@
 .\" @(#)publickey.3r	2.1 88/08/07 4.0 RPCSRC
 .\" $FreeBSD$
 .\"
-.TH PUBLICKEY 3R  "6 October 1987"
-.SH NAME
-publickey, getpublickey, getsecretkey \- get public or secret key
-.SH SYNOPSIS
-.nf
-.B #include <rpc/rpc.h>
-.B #include <rpc/key_prot.h>
-.LP
-.B getpublickey(netname, publickey)
-.B	char netname[\s-1MAXNETNAMELEN\s0+1];
-.B	char publickey[\s-1HEXKEYBYTES\s0+1];
-.LP
-.B getsecretkey(netname, secretkey, passwd)
-.B	char netname[\s-1MAXNETNAMELEN\s0+1];
-.B	char secretkey[\s-1HEXKEYBYTES\s0+1];
-.B	char *passwd;
-.fi
-.SH DESCRIPTION
-.IX "getpublickey function" "" "\fLgetpublickey()\fP function"
-.IX "getsecretkey function" "" "\fLgetsecretkey()\fP function"
+.Dd October 6, 1987
+.Dt PUBLICKEY 3
+.Os
+.Sh NAME
+.Nm publickey , getpublickey , getsecretkey
+.Nd "get public or secret key"
+.Sh LIBRARY
+.Lb librpcsvc
+.Sh SYNOPSIS
+.Fd "#include <rpc/rpc.h>"
+.Fd "#include <rpc/key_prot.h>"
+.Ft int
+.Fo getpublickey
+.Fa "char netname[MAXNETNAMELEN+1]"
+.Fa "char publickey[HEXKEYBYTES+1]"
+.Fc
+.Ft int
+.Fo getsecretkey
+.Fa "char netname[MAXNETNAMELEN+1]"
+.Fa "char secretkey[HEXKEYBYTES+1]"
+.Fa "char *passwd"
+.Fc
+.Sh DESCRIPTION
 These routines are used to get public and secret keys from the
-.SM YP
+.Tn YP
 database.
-.B getsecretkey(\|)
+.Fn getsecretkey
 has an extra argument,
-.IR passwd ,
+.Fa passwd ,
 which is used to decrypt the encrypted secret key stored in the database.
 Both routines return 1 if they are successful in finding the key, 0 otherwise.
 The keys are returned as
-.SM NULL\s0-terminated,
+.Dv NULL Ns \-terminated ,
 hexadecimal strings.
 If the password supplied to
-.B getsecretkey(\|)
+.Fn getsecretkey
 fails to decrypt the secret key, the routine will return 1 but the
-.I secretkey
+.Fa secretkey
 argument will be a
-.SM NULL
-string (``'').
-.SH "SEE ALSO"
-.BR publickey (5)
-.LP
-.I \s-1RPC\s0 Programmer's Manual
+.Dv NULL
+string
+.Pq Dq .
+.Sh SEE ALSO
+.Xr publickey 5
+.Pp
+.%T "RPC Programmer's Manual"
 in
-.TX NETP
+.Pa /usr/share/doc/psd/23.rpc .
