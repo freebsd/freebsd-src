@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pas2_card.c,v 1.9 1994/08/02 07:40:20 davidg Exp $
+ * $Id: pas2_card.c,v 1.10 1994/10/01 02:16:55 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -47,7 +47,6 @@ static int      pas_irq = 0;
 
 static char     pas_model;
 static unsigned char board_rev_id;
-#define PAS_REVD_BOARD_ID 127
 static char    *pas_model_names[] =
 {"", "Pro AudioSpectrum+", "CDPC", "Pro AudioSpectrum 16", "Pro AudioSpectrum 16D"};
 
@@ -83,7 +82,7 @@ pas_write (unsigned char data, int ioaddr)
 void
 mix_write (unsigned char data, int ioaddr)
 {
-  if (board_rev_id >= PAS_REVD_BOARD_ID) {
+  if (pas_model == PAS_16D) {
 	outw ((ioaddr ^ translat_code) - 1, data | (data << 8));
 	outb (0, 0x80);
   } else
@@ -368,7 +367,7 @@ detect_pas_hw (struct address_info *hw_config)
 				 */
     return 0;
 
-  pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f];
+  pas_model = pas_read (CHIP_REV);
 
   return pas_model;
 }
@@ -382,7 +381,7 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
     {
 
  	board_rev_id = pas_read (BOARD_REV_ID);	
-	if ((pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f]))
+	if (pas_model = pas_read (CHIP_REV))
 	{
 #ifdef __FreeBSD__
 	  printk ("snd3: <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
