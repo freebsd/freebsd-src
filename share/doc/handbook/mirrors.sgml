@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.18 1996/01/03 19:40:06 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.19 1996/01/03 20:45:48 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -242,6 +242,14 @@ and on CD-ROM from Walnut Creek CDROM:
 <item>
 <htmlurl url="ftp://ftp.za.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp.za.freebsd.org/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:mark@grondar.za"
+	name="mark@grondar.za">.
+
+<item>
+<htmlurl url="ftp://ftp2.za.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.za.freebsd.org/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftp@storm.sea.uct.ac.za"
+	name="ftp@storm.sea.uct.ac.za">.
 
 </itemize>
 
@@ -366,8 +374,8 @@ eBones (Kerberos) from one of the following foreign distribution sites:
 	name="mark@grondar.za">.
 
 <item>
-<htmlurl url="ftp://storm.sea.uct.ac.za/pub/FreeBSD"
-	name="ftp://storm.sea.uct.ac.za/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.internat.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.internat.freebsd.org/pub/FreeBSD"><newline>
 	Contact: Shaun Courtney <htmlurl url="mailto:ftp@storm.sea.uct.ac.za"
 	name="ftp@storm.sea.uct.ac.za">.
 
