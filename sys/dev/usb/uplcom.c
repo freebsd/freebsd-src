@@ -680,7 +680,7 @@ uplcom_open(void *addr, int portno)
 	int err;
 	
 	if (sc->sc_ucom.sc_dying)
-		return (EIO);
+		return (ENXIO);
 
 	DPRINTF(("uplcom_open: sc = %p\n", sc));
 
