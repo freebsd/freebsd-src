@@ -8,6 +8,10 @@ _cryptodev=	cryptodev
 _random=	random
 .endif
 
+# Removed while KSE settles in:
+#	ncp \
+#	nwfs \
+
 SUBDIR=	3dfx \
 	accf_data \
 	accf_http \
@@ -31,17 +35,17 @@ SUBDIR=	3dfx \
 	digi \
 	dummynet \
 	ed \
-	fdescfs \
 	fdc \
+	fdescfs \
 	firewire \
 	fxp \
 	gx \
 	hifn \
 	if_disc \
 	if_ef \
+	if_faith \
 	if_gif \
 	if_gre \
-	if_faith \
 	if_ppp \
 	if_sl \
 	if_stf \
@@ -98,16 +102,16 @@ SUBDIR=	3dfx \
 	sysvipc \
 	ti \
 	tl \
-	twe \
 	trm \
+	twe \
 	tx \
 	txp \
 	ubsa \
 	ubsec \
 	ucom \
 	udbp \
-	ufm \
 	udf \
+	ufm \
 	uftdi \
 	ugen \
 	uhid \
@@ -130,17 +134,18 @@ SUBDIR=	3dfx \
 	wb \
 	xl
 
-.if ${MACHINE_ARCH} != "sparc64"
-SUBDIR+=syscons
+.if defined(WANT_EXT2FS_MODULE)
+SUBDIR+=ext2fs
 .endif
 
 .if !defined(NO_IPFILTER) && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=ipfilter
 .endif
 
-#removed while KSE settles in:
-#	ncp \
-#	nwfs \
+.if ${MACHINE_ARCH} != "sparc64"
+SUBDIR+=syscons
+.endif
+
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
 .if ${MACHINE} == "i386"
@@ -148,9 +153,9 @@ SUBDIR+=aac \
 	acpi \
 	aic \
 	aout \
+	apm \
 	ar \
 	arcnet \
-	apm \
 	asr \
 	atspeaker \
 	bktr \
@@ -174,13 +179,13 @@ SUBDIR+=aac \
 	linprocfs \
 	linux \
 	lomac \
-	ncv \
-	nsp \
 	mly \
+	ncv \
 	netgraph \
+	nsp \
 	oltr \
-	pecoff \
 	pccard \
+	pecoff \
 	ray \
 	s3 \
 	sbni \
@@ -201,9 +206,9 @@ SUBDIR+=aac \
 .if ${MACHINE} == "pc98"
 SUBDIR+=aic \
 	aout \
+	apm \
 	ar \
 	arcnet \
-	apm \
 	atspeaker \
 	bktr \
 	coff \
@@ -219,11 +224,11 @@ SUBDIR+=aic \
 	linux \
 	lomac \
 	ncv \
-	nsp \
 	netgraph \
+	nsp \
 	oltr \
-	pecoff \
 	pccard \
+	pecoff \
 	pmc \
 	ray \
 	sbni \
@@ -270,10 +275,6 @@ SUBDIR+=linprocfs \
 	sound \
 	sppp \
 	vinum
-.endif
-
-.if defined(WANT_EXT2FS_MODULE)
-SUBDIR+=ext2fs
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
