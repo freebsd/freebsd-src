@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.4 1994/09/22 02:49:19 phk Exp $
+ * $Id: ctm_pass2.c,v 1.5 1994/11/26 08:57:41 phk Exp $
  *
  */
 
@@ -80,9 +80,12 @@ Pass2(FILE *fd)
 			break;
 		    }
 		    if(-1 == stat(name,&st)) {
-			fprintf(stderr,"  %s: %s doesn't exists.\n",
+			fprintf(stderr,"  %s: %s doesn't exist.\n",
 			    sp->Key,name);
-		        ret |= Exit_NotOK;
+		        if (sp->Key[1] == 'R')
+			    ret |= Exit_Forcible;
+			else
+			    ret |= Exit_NotOK;
 			break;
 		    } 
 		    if (j & CTM_Q_Name_Dir) {
