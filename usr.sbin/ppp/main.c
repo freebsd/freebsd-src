@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.4 1997/01/12 21:52:48 joerg Exp $
+ * $Id: main.c,v 1.22.2.5 1997/02/02 19:06:18 joerg Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -28,7 +28,7 @@
 #include <paths.h>
 #include <sys/time.h>
 #include <termios.h>
-#include <signal.h>
+#include "sig.h"
 #include <sys/wait.h>
 #include <errno.h>
 #include <netdb.h>
@@ -211,8 +211,8 @@ int signo;
 static void
 TerminalCont()
 {
-  (void)signal(SIGCONT, SIG_DFL);
-  (void)signal(SIGTSTP, TerminalStop);
+  pending_signal(SIGCONT, SIG_DFL);
+  pending_signal(SIGTSTP, TerminalStop);
   TtyCommandMode(getpgrp() == tcgetpgrp(0));
 }
 
@@ -220,9 +220,9 @@ static void
 TerminalStop(signo)
 int signo;
 {
-  (void)signal(SIGCONT, TerminalCont);
+  pending_signal(SIGCONT, TerminalCont);
   TtyOldMode();
-  signal(SIGTSTP, SIG_DFL);
+  pending_signal(SIGTSTP, SIG_DFL);
   kill(getpid(), signo);
 }
 
@@ -346,29 +346,29 @@ char **argv;
 
   tcgetattr(0, &oldtio);		/* Save original tty mode */
 
-  signal(SIGHUP, Hangup);
-  signal(SIGTERM, CloseSession);
-  signal(SIGINT, CloseSession);
-  signal(SIGQUIT, CloseSession);
+  pending_signal(SIGHUP, Hangup);
+  pending_signal(SIGTERM, CloseSession);
+  pending_signal(SIGINT, CloseSession);
+  pending_signal(SIGQUIT, CloseSession);
 #ifdef SIGSEGV
-  signal(SIGSEGV, Hangup);
+  pending_signal(SIGSEGV, Hangup);
 #endif
 #ifdef SIGPIPE
-  signal(SIGPIPE, Hangup);
+  pending_signal(SIGPIPE, Hangup);
 #endif
 #ifdef SIGALRM
-  signal(SIGALRM, SIG_IGN);
+  pending_signal(SIGALRM, SIG_IGN);
 #endif
   if(mode & MODE_INTER)
     {
 #ifdef SIGTSTP
-      signal(SIGTSTP, TerminalStop);
+      pending_signal(SIGTSTP, TerminalStop);
 #endif
 #ifdef SIGTTIN
-      signal(SIGTTIN, TerminalStop);
+      pending_signal(SIGTTIN, TerminalStop);
 #endif
 #ifdef SIGTTOU
-      signal(SIGTTOU, SIG_IGN);
+      pending_signal(SIGTTOU, SIG_IGN);
 #endif
     }
 
@@ -791,16 +791,7 @@ DoLoop()
     usleep(TICKUNIT);
     TimerService();
 #else
-    if( TimerServiceRequest > 0 ) {
-#ifdef DEBUG
-       logprintf( "Invoking TimerService before select()\n" );
-#endif
-       /* Maybe a bit cautious.... */
-       TimerServiceRequest = -1;
-       TimerService();
-       TimerServiceRequest = 0;
-       continue;
-    }
+    handle_signals();
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
@@ -834,23 +825,10 @@ DoLoop()
         continue;
     }
 
-    if( TimerServiceRequest > 0 ) {
-       /* we want to service any SIGALRMs even if we got it before calling 
-          select. */
-       int rem_errno = errno;
-#ifdef DEBUG
-       logprintf( "Invoking TimerService\n" );
-#endif
-       /* Maybe a bit cautious.... */
-       TimerServiceRequest = -1;
-       TimerService();
-       TimerServiceRequest = 0;
-       errno = rem_errno;
-    }
-
     if ( i < 0 ) {
        if ( errno == EINTR ) {
-          continue;            /* Got a signal - should have been dealt with */
+          handle_signals();
+          continue;
        }
        perror("select");
        break;
