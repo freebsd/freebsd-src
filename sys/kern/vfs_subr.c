@@ -3028,6 +3028,7 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 #endif /* 1 || COMPAT_PRELITE2 */
 
 #define KINFO_VNODESLOP		10
+#ifdef notyet
 /*
  * Dump vnode list (via sysctl).
  */
@@ -3121,6 +3122,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_vnode, "S,xvnode", "");
+#endif
 
 /*
  * Check to see if a filesystem is mounted on a block device.
