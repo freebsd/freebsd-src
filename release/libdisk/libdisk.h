@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.12 1995/05/04 07:00:55 phk Exp $
+ * $Id: libdisk.h,v 1.13 1995/05/06 03:28:30 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@ struct disk {
 struct chunk {
 	struct chunk	*next;
 	struct chunk	*part;
-	u_long		offset;
+	long		offset;
 	u_long		size;
 	u_long		end;
 	char		*name;
@@ -206,7 +206,7 @@ Prev_Track_Aligned(struct disk *d, u_long offset);
 void Debug_Chunk(struct chunk *);
 void Free_Chunk(struct chunk *);
 struct chunk * Clone_Chunk(struct chunk *);
-int Add_Chunk(struct disk *, u_long , u_long , char *, chunk_e, int , u_long);
+int Add_Chunk(struct disk *, long , u_long , char *, chunk_e, int , u_long);
 void Bios_Limit_Chunk(struct chunk *, u_long);
 void * read_block(int, daddr_t );
 void write_block(int fd, daddr_t block, void *foo);
