@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.180 1998/11/15 20:08:50 eivind Exp $
+ *	$Id: wd.c,v 1.181 1998/12/15 09:16:57 bde Exp $
  */
 
 /* TODO:
@@ -313,19 +313,29 @@ wdprobe(struct isa_device *dvp)
 	interface = du->dk_ctrlr / 2;
 	du->dk_interface = interface;
 #if !defined(DISABLE_PCI_IDE) && (NPCI > 0)
-	if (wddma[interface].wdd_candma) {
-		du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr);
+#ifdef ALI_V
+	if ((wddma[interface].wdd_candma) && 
+	   ((du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr)) != NULL))
+	{
 		du->dk_port = dvp->id_iobase;
 		du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
 	} else {
 		du->dk_port = dvp->id_iobase;
 		du->dk_altport = du->dk_port + wd_ctlr;
 	}
+#endif
+        if (wddma[interface].wdd_candma) {
+           du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr);
+           du->dk_port = dvp->id_iobase;
+           du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
+        } else {
+                du->dk_port = dvp->id_iobase;
+                du->dk_altport = du->dk_port + wd_ctlr;
+        }
 #else
 	du->dk_port = dvp->id_iobase;
 	du->dk_altport = du->dk_port + wd_ctlr;
 #endif
-
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
 	outb(du->dk_port + wd_cyl_lo, 0xa5);	/* wd_cyl_lo is read/write */
