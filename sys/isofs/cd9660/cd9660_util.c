@@ -37,8 +37,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.3 (Berkeley) 12/5/94
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
