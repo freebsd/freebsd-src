@@ -652,16 +652,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 }
 
 /*
- * Filler function for proc/self
- */
-static int
-linprocfs_doselflink(PFS_FILL_ARGS)
-{
-	sbuf_printf(sb, "%ld", (long)td->td_proc->p_pid);
-	return (0);
-}
-
-/*
  * Filler function for proc/pid/cmdline
  */
 static int
@@ -694,22 +684,6 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 		}
 	}
 
-	return (0);
-}
-
-/*
- * Filler function for proc/pid/exe
- */
-static int
-linprocfs_doprocexe(PFS_FILL_ARGS)
-{
-	char *fullpath = "unknown";
-	char *freepath = NULL;
-
-	vn_fullpath(td, td->td_proc->p_textvp, &fullpath, &freepath);
-	sbuf_printf(sb, "%s", fullpath);
-	if (freepath)
-		free(freepath, M_TEMP);
 	return (0);
 }
 
@@ -818,7 +792,7 @@ linprocfs_init(PFS_INIT_ARGS)
 	PFS_CREATE_FILE(uptime);
 	PFS_CREATE_FILE(version);
 #undef PFS_CREATE_FILE
-	pfs_create_link(root, "self", &linprocfs_doselflink,
+	pfs_create_link(root, "self", &procfs_docurproc,
 	    NULL, NULL, 0);
 
 	dir = pfs_create_dir(root, "net", NULL, NULL, 0);
@@ -828,12 +802,10 @@ linprocfs_init(PFS_INIT_ARGS)
 	dir = pfs_create_dir(root, "pid", NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", &linprocfs_doproccmdline,
 	    NULL, NULL, PFS_RD);
-	pfs_create_link(dir, "exe", &linprocfs_doprocexe,
-	    NULL, NULL, 0);
-#if 0
+	pfs_create_link(dir, "exe", &procfs_doprocfile,
+	    NULL, &procfs_notsystem, 0);
 	pfs_create_file(dir, "mem", &procfs_doprocmem,
 	    &procfs_attr, &procfs_candebug, PFS_RDWR|PFS_RAW);
-#endif
 	pfs_create_file(dir, "stat", &linprocfs_doprocstat,
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
