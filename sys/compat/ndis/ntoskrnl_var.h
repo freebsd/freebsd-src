@@ -130,7 +130,7 @@ typedef struct mdl mdl, ndis_buffer;
 #define MmInitializeMdl(b, baseva, len)					\
 	(b)->mdl_next = NULL;						\
 	(b)->mdl_size = (uint16_t)(sizeof(mdl) +			\
-		(sizeof(uint32_t) * SPAN_PAGES((baseva), (len))));	\
+		(sizeof(vm_offset_t) * SPAN_PAGES((baseva), (len))));	\
 	(b)->mdl_flags = 0;						\
 	(b)->mdl_startva = (void *)PAGE_ALIGN((baseva));		\
 	(b)->mdl_byteoffset = BYTE_OFFSET((baseva));			\
@@ -351,7 +351,7 @@ typedef struct nt_kevent nt_kevent;
 /* Kernel defered procedure call (i.e. timer callback) */
 
 struct kdpc;
-typedef void (*kdpc_func)(struct kdpc *, void *, void *, void *);
+typedef __stdcall void (*kdpc_func)(struct kdpc *, void *, void *, void *);
 
 struct kdpc {
 	uint16_t		k_type;
@@ -983,6 +983,12 @@ typedef struct irp irp;
 		(irp)->irp_tail.irp_overlay.irp_csl++;			\
 	} while(0)
 
+#define IoInitializeDpcRequest(dobj, dpcfunc)				\
+	KeInitializeDpc(&(dobj)->do_dpc, dpcfunc, dobj)
+
+#define IoRequestDpc(dobj, irp, ctx)					\
+	KeInsertQueueDpc(&(dobj)->do_dpc, irp, ctx)
+
 typedef __stdcall uint32_t (*driver_dispatch)(device_object *, irp *);
 
 /*
@@ -1179,8 +1185,14 @@ __stdcall extern void KeClearEvent(nt_kevent *);
 __stdcall extern uint32_t KeReadStateEvent(nt_kevent *);
 __stdcall extern uint32_t KeSetEvent(nt_kevent *, uint32_t, uint8_t);
 __stdcall extern uint32_t KeResetEvent(nt_kevent *);
+#ifdef __i386__
 __fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
 __fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
+__stdcall extern uint8_t KeAcquireSpinLockRaiseToDpc(kspin_lock *);
+#else
+__stdcall extern void KeAcquireSpinLockAtDpcLevel(kspin_lock *);
+__stdcall extern void KeReleaseSpinLockFromDpcLevel(kspin_lock *);
+#endif
 __stdcall extern void KeInitializeSpinLock(kspin_lock *);
 __fastcall extern uintptr_t InterlockedExchange(REGARGS2(volatile uint32_t *,
 	uintptr_t));
@@ -1216,6 +1228,10 @@ __stdcall void IoFreeMdl(mdl *);
 #define KeReleaseSpinLock(a, b)	FASTCALL2(KfReleaseSpinLock, a, b)
 #define KeRaiseIrql(a)		FASTCALL1(KfRaiseIrql, a)
 #define KeLowerIrql(a)		FASTCALL1(KfLowerIrql, a)
+#define KeAcquireSpinLockAtDpcLevel(a)		\
+				FASTCALL1(KefAcquireSpinLockAtDpcLevel, a)
+#define KeReleaseSpinLockFromDpcLevel(a)	\
+				FASTCALL1(KefReleaseSpinLockFromDpcLevel, a)
 #endif /* __i386__ */
 
 #ifdef __amd64__
