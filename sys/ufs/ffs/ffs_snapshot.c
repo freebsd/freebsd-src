@@ -406,7 +406,7 @@ loop:
 		}
 		if (snapdebug)
 			vprint("ffs_snapshot: busy vnode", xvp);
-		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0)
+		if (vn_lock(xvp, LK_EXCLUSIVE, td) != 0)
 			goto loop;
 		xp = VTOI(xvp);
 		/*
