@@ -8,4 +8,4 @@ WARNS?=	5
 .include <bsd.prog.mk>
 
 test:	${PROG}
-	./${PROG} /dev/cuaa0
+	./${PROG} /dev/cuad0
