@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.22 1994/11/21 06:18:30 jkh Exp $
+# $Id: instdist.sh,v 1.23 1994/11/21 06:44:59 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -197,6 +197,7 @@ media_install_set()
 	cdrom|nfs|ufs|doshd)
 		if ! cd ${media_device}/${media_distribution} > /dev/ttyv1 2>&1; then
 			error "Unable to cd to ${media_device}/${media_distribution} directory."
+			media_reset
 		else
 			media_extract_dist
 			cd /
@@ -277,7 +278,7 @@ given the chance to load one or all of them.  Mandatory distributions\n\
 MUST be loaded!  Please also note that the secrdist is NOT FOR EXPORT\n\
 from the U.S.  Please don't endanger U.S. ftp sites by getting it\n\
 illegally, thanks!  When finished, select <Cancel>." \
--1 -1 11 \
+-1 -1 10 \
   "?diskfree"  "How much disk space do I have free?" \
   "bindist" "Binary base files (mandatory - $BINSIZE)" \
   "games" "Games and other frivolities (optional - $GAMESIZE)" \
@@ -287,8 +288,7 @@ illegally, thanks!  When finished, select <Cancel>." \
   "srcdist" "Sources for everything but DES (optional - $SRCSIZE)" \
   "secrdist" "DES encryption code (and sources) (optional - $SECRSIZE)" \
   "compat1xdist" "FreeBSD 1.x binary compatability (optional - $COMPATSIZE)" \
-  "packages" "Optional binary software distributions (user choice)" \
-  "XFree86-3.1" "The XFree86 3.1 (X11R6) distribution (optional - $X11SIZE)" \
+  "XFree86-3.1" "The XFree86 3.1 distribution (optional - $X11SIZE)" \
      2> ${TMP}/menu.tmp.$$
 	retval=$?
 	media_distribution=`cat ${TMP}/menu.tmp.$$`
