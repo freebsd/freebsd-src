@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.70 1996/04/20 18:43:54 jdp Exp $ -->
+<!-- $Id: contrib.sgml,v 1.71 1996/04/25 20:07:28 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -217,7 +217,7 @@
 	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
-	  <item>Masafumi Nakane &lt;masafumi@pobox.com&gt;
+	  <item>Masafumi Nakane &lt;max@sfc.wide.ad.jp&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Michael Elbel &lt;me@freebsd.org&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
