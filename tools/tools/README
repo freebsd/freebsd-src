@@ -22,6 +22,7 @@ kernxref	Shellscript to cross reference symbols in the LINT kernel.
 mid	 	Create a Message-ID database for mailing lists.
 pciid		Generate src/share/misc/pci_vendors.
 portsinfo 	Generate list of new ports for last two weeks.
+prstats		Generate statistics about the PR database.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 upgrade         Scripts used for upgrading an installed system.
 vop_table	Generates a HTML document that shows all the VOP's in
