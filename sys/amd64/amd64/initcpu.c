@@ -306,7 +306,7 @@ init_5x86(void)
  * There are i486 based upgrade products for i386 machines.
  * In this case, BIOS doesn't enables CPU cache.
  */
-void
+static void
 init_i486_on_386(void)
 {
 	u_long	eflags;
