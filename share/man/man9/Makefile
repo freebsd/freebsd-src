@@ -25,7 +25,7 @@ MAN=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	microseq.9 microtime.9 microuptime.9 \
 	mi_switch.9 module.9 mutex.9 \
 	namei.9 \
-	panic.9 pfil.9 physio.9 posix4.9 psignal.9 \
+	panic.9 pfil.9 physio.9 posix4.9 printf.9 psignal.9 \
 	random.9 resettodr.9 rtalloc.9 rtentry.9 runqueue.9 \
 	scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 style.9 suser.9 swi.9 \
 	sx.9 time.9 timeout.9 tvtohz.9 \
@@ -228,6 +228,9 @@ MLINKS+=kobj.9 kobj_create.9
 MLINKS+=kobj.9 kobj_init.9
 MLINKS+=kobj.9 kobj_delete.9
 MLINKS+=kobj.9 DEFINE_CLASS.9
+
+MLINKS+= printf.9 uprintf.9
+MLINKS+= printf.9 tprintf.9
 
 MLINKS+=taskqueue.9 taskqueue_create.9
 MLINKS+=taskqueue.9 taskqueue_free.9
