@@ -8,7 +8,7 @@ prior to 4.0 Release.
 
 This is for the 4.3 release branch.  All entries since 4.3 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.3.0p22.
+By this count, we're at 4.3.0p24.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
@@ -23,30 +23,30 @@ build and install as described in the COMMON ITEMS section.
 20020123:	p23	FreeBSD-SA-02:07.k5su
 	k5su fixes.
 
-20011221	p22	FreeBSD-SA-02:02:pw.asc
+20011221:	p22	FreeBSD-SA-02:02:pw.asc
 	A bug was fixed wherein the pw(8) command created a short-lived
 	but world-readable copy of /etc/master.passwd.
 
-20011202	p21	FreeBSD-SA-01:63:openssh.asc
+20011202:	p21	FreeBSD-SA-01:63:openssh.asc
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
 
-20010920	p20
+20010920:	p20
 	Plug login.conf hole.
 
-20010911	p19
+20010911:	p19
 	semop fixes to prevent overflows.
 
-20010910	p18	FreeBSD-SA-01:62.asc
+20010910:	p18	FreeBSD-SA-01:62.asc
 	UUCP fixes.
 
-20010904	p17	FreeBSD-SA-01:59
+20010904:	p17	FreeBSD-SA-01:59
 	Minor fix to p16.
 
-20010904	p16	FreeBSD-SA-01:59
+20010904:	p16	FreeBSD-SA-01:59
 	Close race condition when updating /etc/master.passwd in rmuser.
 
-20010830	p15	FreeBSD-SA-01:58
+20010830:	p15	FreeBSD-SA-01:58
 	Fix lpd remote root exploitable buffer overflow.
 
 20010822:	p14	FreeBSD-SA-01:57
