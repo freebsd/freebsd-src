@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: mount_smbfs.c,v 1.17 2002/04/10 04:17:51 bp Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -75,7 +76,7 @@ main(int argc, char *argv[])
 	extern void dropsuid();
 	extern int loadsmbvfs();
 #else
-	struct vfsconf vfc;
+	struct xvfsconf vfc;
 #endif /* APPLE */
 	char *next;
 	int opt, error, mntflags, caseopt;
