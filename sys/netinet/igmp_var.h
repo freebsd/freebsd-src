@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.4 1994/09/06 22:42:17 wollman Exp $
+ * $Id: igmp_var.h,v 1.5 1995/02/16 00:27:42 wollman Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -47,19 +47,19 @@
  *
  * Written by Steve Deering, Stanford, May 1988.
  *
- * MULTICAST 1.1
+ * MULTICAST Revisiob: 3.3.1.1
  */
 
 struct igmpstat {
-	u_long	igps_rcv_total;		/* total IGMP messages received */
-	u_long	igps_rcv_tooshort;	/* received with too few bytes */
-	u_long	igps_rcv_badsum;	/* received with bad checksum */
-	u_long	igps_rcv_queries;	/* received membership queries */
-	u_long	igps_rcv_badqueries;	/* received invalid queries */
-	u_long	igps_rcv_reports;	/* received membership reports */
-	u_long	igps_rcv_badreports;	/* received invalid reports */
-	u_long	igps_rcv_ourreports;	/* received reports for our groups */
-	u_long	igps_snd_reports;	/* sent membership reports */
+	u_int	igps_rcv_total;		/* total IGMP messages received */
+	u_int	igps_rcv_tooshort;	/* received with too few bytes */
+	u_int	igps_rcv_badsum;	/* received with bad checksum */
+	u_int	igps_rcv_queries;	/* received membership queries */
+	u_int	igps_rcv_badqueries;	/* received invalid queries */
+	u_int	igps_rcv_reports;	/* received membership reports */
+	u_int	igps_rcv_badreports;	/* received invalid reports */
+	u_int	igps_rcv_ourreports;	/* received reports for our groups */
+	u_int	igps_snd_reports;	/* sent membership reports */
 };
 
 #ifdef KERNEL
