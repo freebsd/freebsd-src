@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.12 1997/07/18 17:52:03 wollman Exp $
+.\"	$Id: ping.8,v 1.13 1998/03/19 07:45:57 charnier Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -173,6 +173,9 @@ the
 .Xr traceroute 8
 command is usually better at determining the route packets take to a
 particular destination.
+If more routes come back than should, such as due to an illegal spoofed
+packet, ping will print the route list and then truncate it at the correct
+spot.
 Many hosts ignore or discard the
 .Tn RECORD_ROUTE
 option.
