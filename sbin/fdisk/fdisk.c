@@ -794,7 +794,7 @@ read_s0()
 		warnx("can't read fdisk partition table");
 		return -1;
 	}
-	if (*(int *)&mboot.bootinst[MBRSIGOFF] != BOOT_MAGIC) {
+	if (*(uint16_t *)&mboot.bootinst[MBRSIGOFF] != BOOT_MAGIC) {
 		warnx("invalid fdisk partition table found");
 		/* So should we initialize things */
 		return -1;
