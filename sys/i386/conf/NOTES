@@ -282,7 +282,7 @@ device		apm_saver	# Requires APM
 #
 # ISA bus
 #
-device		isa
+device		isa		# Required by npx(4)
 
 #
 # Options for `isa':
