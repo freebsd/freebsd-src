@@ -20,7 +20,6 @@ API_UP1000		opt_cpu.h
 PPC_PROBE_CHIPSET       opt_ppc.h
 PPC_DEBUG               opt_ppc.h
 
-PREEMPTION
 SHOW_BUSYBUFS
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 
