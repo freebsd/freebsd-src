@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ieee488/upd7210.h>
 #include <dev/ieee488/ugpib.h>
 
-MALLOC_DEFINE(M_GPIB, "GPIB", "GPIB");
+static MALLOC_DEFINE(M_GPIB, "GPIB", "GPIB");
 
 /* upd7210 generic stuff */
 
@@ -277,7 +277,7 @@ gpib_l_read(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
-struct cdevsw gpib_l_cdevsw = {
+static struct cdevsw gpib_l_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_name =	"gpib_l",
 	.d_open	=	gpib_l_open,
@@ -996,7 +996,7 @@ gpib_ib_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thre
 	return (error);
 }
 
-struct cdevsw gpib_ib_cdevsw = {
+static struct cdevsw gpib_ib_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_name =	"gpib_ib",
 	.d_open	=	gpib_ib_open,
