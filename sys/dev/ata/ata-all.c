@@ -724,14 +724,14 @@ ata_reset(struct ata_channel *ch)
     ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ostat0 = ATA_INB(ch->r_io, ATA_STATUS);
-    if ((ostat0 & 0xf8) == 0x50 && ostat0 != 0xa5) {
+    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
 	stat0 = ATA_S_BUSY;
 	mask |= 0x01;
     }
     ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(10);	
     ostat1 = ATA_INB(ch->r_io, ATA_STATUS);
-    if ((ostat1 & 0xf8) == 0x50 && ostat1 != 0xa5) {
+    if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
 	stat1 = ATA_S_BUSY;
 	mask |= 0x02;
     }
