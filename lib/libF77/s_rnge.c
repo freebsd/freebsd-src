@@ -20,5 +20,7 @@ fprintf(stderr, ".\nAttempt to access the %ld-th element of variable ", offset+1
 while((i = *varn) && i != ' ')
 	putc(*varn++, stderr);
 sig_die(".", 1);
+#ifdef __cplusplus
 return 0;
+#endif
 }

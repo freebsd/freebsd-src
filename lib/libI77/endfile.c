@@ -43,7 +43,7 @@ integer f_end(alist *a)
 		(void) sprintf(nbuf,"fort.%ld",a->aunit);
 #ifdef NON_UNIX_STDIO
 		{ FILE *tf;
-			if ( (tf = fopen(nbuf, f__w_mode[0])) )
+			if (tf = fopen(nbuf, f__w_mode[0]))
 				fclose(tf);
 			}
 #else
@@ -63,7 +63,7 @@ copy(from, len, to) char *from, *to; register long len;
 copy(FILE *from, register long len, FILE *to)
 #endif
 {
-	int len1;
+	int k, len1;
 	char buf[BUFSIZ];
 
 	while(fread(buf, len1 = len > BUFSIZ ? BUFSIZ : (int)len, 1, from)) {

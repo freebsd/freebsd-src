@@ -21,6 +21,7 @@ extern char *malloc();
 unit f__units[MXUNIT];	/*unit table*/
 flag f__init;	/*0 on entry, 1 after initializations*/
 cilist *f__elist;	/*active external io list*/
+icilist *f__svic;	/*active internal io list*/
 flag f__reading;	/*1 if reading, 0 if writing*/
 flag f__cplus,f__cblank;
 char *f__fmtbuf;
@@ -39,7 +40,8 @@ flag f__formatted;	/*1 if formatted io, 0 if unformatted*/
 FILE *f__cf;	/*current file*/
 unit *f__curunit;	/*current unit*/
 int f__recpos;	/*place in current record*/
-int f__cursor,f__scale;
+int f__cursor, f__hiwater, f__scale;
+char *f__icptr;
 
 /*error messages*/
 char *F_err[] =
@@ -73,14 +75,15 @@ char *F_err[] =
 	"can't read file",				/* 126 */
 	"can't write file",				/* 127 */
 	"'new' file exists",				/* 128 */
-	"can't append to file"				/* 129 */
+	"can't append to file",				/* 129 */
+	"non-positive record number"			/* 130 */
 };
 #define MAXERR (sizeof(F_err)/sizeof(char *)+100)
 
 #ifdef KR_headers
-int f__canseek(f) FILE *f; /*SYSDEP*/
+f__canseek(f) FILE *f; /*SYSDEP*/
 #else
-int f__canseek(FILE *f) /*SYSDEP*/
+f__canseek(FILE *f) /*SYSDEP*/
 #endif
 {
 #ifdef NON_UNIX_STDIO
@@ -187,9 +190,9 @@ f_init(Void)
 	p->uwrt=1;
 }
 #ifdef KR_headers
-int f__nowreading(x) unit *x;
+f__nowreading(x) unit *x;
 #else
-int f__nowreading(unit *x)
+f__nowreading(unit *x)
 #endif
 {
 	long loc;
@@ -210,9 +213,9 @@ int f__nowreading(unit *x)
 	return(0);
 }
 #ifdef KR_headers
-int f__nowwriting(x) unit *x;
+f__nowwriting(x) unit *x;
 #else
-int f__nowwriting(unit *x)
+f__nowwriting(unit *x)
 #endif
 {
 	long loc;
