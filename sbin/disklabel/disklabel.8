@@ -344,7 +344,7 @@ command described above.
 In addition to writing a new volume label, it also installs the bootstrap.
 If run on a base disk this command will create a
 .Dq dangerously-dedicated
-label.  This command is normally run on a slice rather then a base disk.
+label.  This command is normally run on a slice rather than a base disk.
 .Pp
 .Nm
 .Fl R
@@ -362,7 +362,7 @@ command described above.
 In addition to restoring the volume label, it also installs the bootstrap.
 If run on a base disk this command will create a
 .Dq dangerously-dedicated
-label.  This command is normally run on a slice rather then a base disk.
+label.  This command is normally run on a slice rather than a base disk.
 .Pp
 The bootstrap commands always access the disk directly, so it is not necessary
 to specify the
@@ -431,10 +431,10 @@ boot blocks.
 .It
 Use
 .Ar disklabel
-to edit your newly created label, addiing appropriate partitions.
+to edit your newly created label, adding appropriate partitions.
 .It
 Finally newfs the filesystem partitions you created in the label.  A typical
-disklabel partiioning scheme would be to have an
+disklabel partitioning scheme would be to have an
 .Dq a
 partition 
 of approximately 128MB to hold the root filesystem, a
@@ -450,7 +450,7 @@ for /var/tmp (usually 128MB), an
 partition for /usr (usually around 2G),
 and finally a
 .Dq g
-partition for /home (usally all remaining space).
+partition for /home (usually all remaining space).
 Your mileage may vary.
 .El
 .Pp
@@ -564,6 +564,7 @@ For file systems only, the block size.
 For UFS file systems, the number of cylinders in a cylinder group.  For LFS file
 systems, the segment shift value.
 .El
+.Pp
 The remainder of the line is a comment and shows the cylinder allocations based
 on the obsolete (but possibly correct) geometry information about the drive.
 The asterisk (*) indicates that the partition does not begin or end exactly on a
