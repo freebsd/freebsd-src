@@ -354,15 +354,15 @@ do {									\
  */
 extern	int debug_mpsafenet;		/* defined in net/netisr.c */
 #define	NET_LOCK_GIANT() do {						\
-	if (debug_mpsafenet)						\
+	if (!debug_mpsafenet)						\
 		mtx_lock(&Giant);					\
 } while (0)
 #define	NET_UNLOCK_GIANT() do {						\
-	if (debug_mpsafenet)						\
+	if (!debug_mpsafenet)						\
 		mtx_unlock(&Giant);					\
 } while (0)
 #define	NET_ASSERT_GIANT() do {						\
-	if (debug_mpsafenet)						\
+	if (!debug_mpsafenet)						\
 		mtx_assert(&Giant, MA_OWNED);				\
 } while (0)
 

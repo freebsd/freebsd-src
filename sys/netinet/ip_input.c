@@ -936,9 +936,7 @@ DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
 		*(struct sockaddr_in **)(mtag+1) = args.next_hop;
 		m_tag_prepend(m, mtag);
 	}
-	NET_LOCK_GIANT();
 	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
-	NET_UNLOCK_GIANT();
 	return;
 bad:
 	m_freem(m);
