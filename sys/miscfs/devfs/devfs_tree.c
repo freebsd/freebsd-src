@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.6 1995/09/09 12:51:55 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.7 1995/09/09 18:10:18 davidg Exp $
  */
 
 #include "param.h"
@@ -715,17 +715,17 @@ int devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp) /*proto*/
 DBPRINT(("	vntodn "));
 	if(vn_p->v_tag != VT_DEVFS)
 	{
-		printf("bad-tag ");
+		printf("bad-tag2 ");
 		Debugger("bad-tag ");
 		return(EINVAL);
 	}
 	if(vn_p->v_usecount == 0)
 	{
-		printf("not locked! ");
+		printf("No references! ");
 	}
 	if((vn_p->v_type == VBAD) || (vn_p->v_type == VNON))
 	{
-		printf("bad-type ");
+		printf("bad-type2 ");
 		return(EINVAL);
 	}
 	*dn_pp = (dn_p)vn_p->v_data;
