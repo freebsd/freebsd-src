@@ -288,10 +288,10 @@ sofree(so)
 		return;
 	if (so->so_head != NULL) {
 		head = so->so_head;
-		if (so->so_state & SS_INCOMP) {
+		if (so->so_qstate & SQ_INCOMP) {
 			TAILQ_REMOVE(&head->so_incomp, so, so_list);
 			head->so_incqlen--;
-		} else if (so->so_state & SS_COMP) {
+		} else if (so->so_qstate & SQ_COMP) {
 			/*
 			 * We must not decommission a socket that's
 			 * on the accept(2) queue.  If we do, then
@@ -302,7 +302,7 @@ sofree(so)
 		} else {
 			panic("sofree: not queued");
 		}
-		so->so_state &= ~SS_INCOMP;
+		so->so_qstate &= ~SQ_INCOMP;
 		so->so_head = NULL;
 	}
 	so->so_snd.sb_flags |= SB_NOINTR;
@@ -346,7 +346,7 @@ soclose(so)
 			/* Dequeue from so_comp since sofree() won't do it */
 			TAILQ_REMOVE(&so->so_comp, sp, so_list);
 			so->so_qlen--;
-			sp->so_state &= ~SS_COMP;
+			sp->so_qstate &= ~SQ_COMP;
 			sp->so_head = NULL;
 			(void) soabort(sp);
 		}

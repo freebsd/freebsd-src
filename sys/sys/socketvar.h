@@ -63,6 +63,7 @@ struct socket {
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
 	short	so_state;		/* internal state flags SS_*, below */
+	int	so_qstate;		/* internal state flags SQ_* */
 	void	*so_pcb;		/* protocol control block */
 	struct	protosw *so_proto;	/* protocol handle */
 /*
@@ -157,9 +158,13 @@ struct socket {
 #define	SS_ASYNC		0x0200	/* async i/o notify */
 #define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
 
-#define	SS_INCOMP		0x0800	/* unaccepted, incomplete connection */
-#define	SS_COMP			0x1000	/* unaccepted, complete connection */
 #define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
+
+/*
+ * Socket state bits stored in so_qstate.
+ */
+#define	SQ_INCOMP		0x0800	/* unaccepted, incomplete connection */
+#define	SQ_COMP			0x1000	/* unaccepted, complete connection */
 
 /*
  * Externalized form of struct socket used by the sysctl(3) interface.

@@ -1204,7 +1204,7 @@ ng_ksocket_finish_accept(priv_p priv)
 
 	soref(so);
 
-	so->so_state &= ~SS_COMP;
+	so->so_qstate &= ~SQ_COMP;
 	so->so_state |= SS_NBIO;
 	so->so_head = NULL;
 
