@@ -171,7 +171,7 @@ RMD160Transform(u_int32_t state[5], const u_char block[64])
 	int i;
 
 	for (i = 0; i < 16; i++)
-		x[i] = swap32(*(u_int32_t*)(block+i*4));
+		x[i] = bswap32(*(const u_int32_t*)(block+i*4));
 #endif
 
 	a = state[0];
