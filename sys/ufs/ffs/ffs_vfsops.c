@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.17 1995/04/11 04:23:47 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.18 1995/05/01 23:20:24 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -187,8 +187,18 @@ ffs_mount(mp, path, data, ndp, p)
 			error = ffs_reload(mp, ndp->ni_cnd.cn_cred, p);
 		if (error)
 			return (error);
-		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR))
+		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR)) {
+			if (!fs->fs_clean) {
+				if (mp->mnt_flag & MNT_FORCE) {
+					printf("WARNING: %s was not properly dismounted.\n",fs->fs_fsmnt);
+				} else {
+					printf("WARNING: R/W mount of %s denied. Filesystem is not clean - run fsck.\n",
+					    fs->fs_fsmnt);
+					return (EPERM);
+				}
+			}
 			fs->fs_ronly = 0;
+		}
 		if (fs->fs_ronly == 0) {
 			fs->fs_clean = 0;
 			ffs_sbupdate(ump, MNT_WAIT);
@@ -408,6 +418,15 @@ ffs_mountfs(devvp, mp, p)
 		error = EINVAL;		/* XXX needs translation */
 		goto out;
 	}
+	if (!fs->fs_clean) {
+		if (ronly || (mp->mnt_flag & MNT_FORCE)) {
+			printf("WARNING: %s was not properly dismounted.\n",fs->fs_fsmnt);
+		} else {
+			printf("WARNING: R/W mount of %s denied. Filesystem is not clean - run fsck.\n",fs->fs_fsmnt);
+			error = EPERM;
+			goto out;
+		}
+	}
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,
@@ -419,9 +438,6 @@ ffs_mountfs(devvp, mp, p)
 	bp = NULL;
 	fs = ump->um_fs;
 	fs->fs_ronly = ronly;
-	if (!fs->fs_clean) {
-		printf("WARNING: %s was not properly dismounted\n",fs->fs_fsmnt);
-	}
 	if (ronly == 0) {
 		fs->fs_fmod = 1;
 		fs->fs_clean = 0;

@@ -84,7 +84,9 @@ determine what the
 command is trying to do.
 .It Fl f
 Forces the revocation of write access when trying to downgrade
-a filesystem mount status from read-write to read-only.
+a filesystem mount status from read-write to read-only. Also
+forces the R/W mount of an unclean filesystem (dangerous; use with
+caution).
 .It Fl o
 Options are specified with a
 .Fl o
@@ -104,7 +106,8 @@ system should your system crash.
 The same as
 .Fl f ;
 forces the revocation of write access when trying to downgrade
-a filesystem mount status from read-write to read-only.
+a filesystem mount status from read-write to read-only. Also
+forces the R/W mount of an unclean filesystem (dangerous; use with caution).
 .It nodev
 Do not interpret character or block special devices on the file system.
 This option is useful for a server that has file systems containing
