@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.86 1996/04/07 17:32:12 bde Exp $
+ *	$Id: fd.c,v 1.87 1996/04/08 19:40:56 smpatel Exp $
  *
  */
 
@@ -581,6 +581,7 @@ fdattach(struct isa_device *dev)
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
+	TAILQ_INIT(&fdc->head);
 
 	/* check for each floppy drive */
 	for (fdup = isa_biotab_fdc; fdup->id_driver != 0; fdup++) {
@@ -1126,7 +1127,6 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 void
 fdstrategy(struct buf *bp)
 {
-	register struct buf *dp;
 	long nblocks, blknum;
  	int	s;
  	fdcu_t	fdcu;
@@ -1187,9 +1187,8 @@ fdstrategy(struct buf *bp)
 	}
  	bp->b_cylin = blknum / (fd->ft->sectrac * fd->ft->heads);
  	bp->b_pblkno = bp->b_blkno;
-	dp = &(fdc->head);
 	s = splbio();
-	disksort(dp, bp);
+	tqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, (caddr_t)fdu); /* a good idea */
 	fdstart(fdcu);
 	splx(s);
@@ -1227,11 +1226,10 @@ fd_timeout(void *arg1)
 	fdcu_t fdcu = (fdcu_t)arg1;
 	fdu_t fdu = fdc_data[fdcu].fdu;
 	int baseport = fdc_data[fdcu].baseport;
-	struct buf *dp, *bp;
+	struct buf *bp;
 	int s;
 
-	dp = &fdc_data[fdcu].head;
-	bp = dp->b_actf;
+	bp = TAILQ_FIRST(&fdc_data[fdcu].head);
 
 	/*
 	 * Due to IBM's brain-dead design, the FDC has a faked ready
@@ -1314,14 +1312,12 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	unsigned long blknum;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
-	register struct buf *dp, *bp;
+	register struct buf *bp;
 	struct fd_formb *finfo = NULL;
 	size_t fdblk;
 
-	dp = &(fdc->head);
-	bp = dp->b_actf;
-	if(!bp)
-	{
+	bp = TAILQ_EMPTY(&fdc->head);
+	if(!bp) {
 		/***********************************************\
 		* nothing left for this controller to do	*
 		* Force into the IDLE state,			*
@@ -1619,7 +1615,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			/* ALL DONE */
 			fd->skip = 0;
 			bp->b_resid = 0;
-			dp->b_actf = bp->b_actf;
+			TAILQ_REMOVE(&fdc->head, bp, b_act);
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
@@ -1727,10 +1723,9 @@ retrier(fdcu)
 	fdcu_t fdcu;
 {
 	fdc_p fdc = fdc_data + fdcu;
-	register struct buf *dp, *bp;
+	register struct buf *bp;
 
-	dp = &(fdc->head);
-	bp = dp->b_actf;
+	bp = TAILQ_FIRST(&fdc->head);
 
 	if(fd_data[FDUNIT(minor(bp->b_dev))].options & FDOPT_NORETRY)
 		goto fail;
@@ -1774,7 +1769,7 @@ retrier(fdcu)
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
 		bp->b_resid = bp->b_bcount - fdc->fd->skip;
-		dp->b_actf = bp->b_actf;
+		TAILQ_REMOVE(&fdc->head, bp, b_act);
 		fdc->fd->skip = 0;
 		biodone(bp);
 		fdc->state = FINDWORK;

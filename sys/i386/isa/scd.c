@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.17 1996/01/15 10:28:32 phk Exp $ */
+/* $Id: scd.c,v 1.18 1996/03/28 14:28:50 scrappy Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -142,7 +142,7 @@ static struct scd_data {
 	struct	ioc_play_msf last_play;
 
 	short	audio_status;
-	struct buf head;		/* head of buf queue */
+	struct buf_queue_head head;		/* head of buf queue */
 	struct scd_mbx mbx;
 #ifdef	DEVFS
 	void	*ra_devfs_token;
@@ -351,7 +351,6 @@ static	void
 scdstrategy(struct buf *bp)
 {
 	struct scd_data *cd;
-	struct buf *qp;
 	int s;
 	int unit = scd_unit(bp->b_dev);
 
@@ -396,9 +395,8 @@ scdstrategy(struct buf *bp)
 	bp->b_resid = 0;
 
 	/* queue it */
-	qp = &cd->head;
 	s = splbio();
-	disksort(qp,bp);
+	tqdisksort(&cd->head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */
@@ -417,7 +415,7 @@ static void
 scd_start(int unit)
 {
 	struct scd_data *cd = scd_data + unit;
-	struct buf *bp, *qp = &cd->head;
+	struct buf *bp;
 	struct partition *p;
 	register s = splbio();
 
@@ -426,9 +424,10 @@ scd_start(int unit)
 		return;
 	}
 
-	if ((bp = qp->b_actf) != 0) {
+	bp = TAILQ_FIRST(&cd->head);
+	if (bp != 0) {
 		/* block found to process, dequeue */
-		qp->b_actf = bp->b_actf;
+		TAILQ_REMOVE(&cd->head, bp, b_act);
 		cd->flags |= SCDMBXBSY;
 		splx(s);
 	} else {
