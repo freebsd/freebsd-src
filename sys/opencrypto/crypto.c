@@ -20,6 +20,7 @@
  * MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
  * PURPOSE.
  */
+#define	CRYPTO_TIMING				/* enable timing support */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -79,10 +80,6 @@ static	struct mtx crypto_ret_q_mtx;
 static	uma_zone_t cryptop_zone;
 static	uma_zone_t cryptodesc_zone;
 
-int	crypto_usercrypto = 1;		/* userland may open /dev/crypto */
-SYSCTL_INT(_kern, OID_AUTO, usercrypto, CTLFLAG_RW,
-	   &crypto_usercrypto, 0,
-	   "Enable/disable user-mode access to crypto support");
 int	crypto_userasymcrypto = 1;	/* userland may do asym crypto reqs */
 SYSCTL_INT(_kern, OID_AUTO, userasymcrypto, CTLFLAG_RW,
 	   &crypto_userasymcrypto, 0,
@@ -93,6 +90,16 @@ SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RW,
 	   "Enable/disable use of software asym crypto support");
 
 MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
+
+static	struct cryptostats cryptostats;
+SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
+	    cryptostats, "Crypto system statistics");
+
+#ifdef CRYPTO_TIMING
+static	int crypto_timing = 0;
+SYSCTL_INT(_debug, OID_AUTO, crypto_timing, CTLFLAG_RW,
+	   &crypto_timing, 0, "Enable/disable crypto timing support");
+#endif
 
 static void
 crypto_init(void)
@@ -558,6 +565,13 @@ crypto_dispatch(struct cryptop *crp)
 	struct cryptocap *cap;
 	int wasempty;
 
+	cryptostats.cs_ops++;
+
+#ifdef CRYPTO_TIMING
+	if (crypto_timing)
+		binuptime(&crp->crp_tstamp);
+#endif
+
 	CRYPTO_Q_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_q);
 	TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
@@ -582,6 +596,8 @@ crypto_kdispatch(struct cryptkop *krp)
 {
 	struct cryptocap *cap;
 	int wasempty;
+
+	cryptostats.cs_kops++;
 
 	CRYPTO_Q_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_kq);
@@ -642,6 +658,32 @@ crypto_kinvoke(struct cryptkop *krp, int hint)
 	return 0;
 }
 
+#ifdef CRYPTO_TIMING
+static void
+crypto_tstat(struct cryptotstat *ts, struct bintime *bt)
+{
+	struct bintime now, delta;
+	struct timespec t;
+	uint64_t u;
+
+	binuptime(&now);
+	u = now.frac;
+	delta.frac = now.frac - bt->frac;
+	delta.sec = now.sec - bt->sec;
+	if (u < delta.frac)
+		delta.sec--;
+	bintime2timespec(&delta, &t);
+	timespecadd(&ts->acc, &t);
+	if (timespeccmp(&t, &ts->min, <))
+		ts->min = t;
+	if (timespeccmp(&t, &ts->max, >))
+		ts->max = t;
+	ts->count++;
+
+	*bt = now;
+}
+#endif
+
 /*
  * Dispatch a crypto request to the appropriate crypto devices.
  */
@@ -651,6 +693,10 @@ crypto_invoke(struct cryptop *crp, int hint)
 	u_int32_t hid;
 	int (*process)(void*, struct cryptop *, int);
 
+#ifdef CRYPTO_TIMING
+	if (crypto_timing)
+		crypto_tstat(&cryptostats.cs_invoke, &crp->crp_tstamp);
+#endif
 	mtx_assert(&crypto_q_mtx, MA_OWNED);
 
 	/* Sanity checks. */
@@ -752,6 +798,12 @@ crypto_done(struct cryptop *crp)
 {
 	int wasempty;
 
+	if (crp->crp_etype != 0)
+		cryptostats.cs_errs++;
+#ifdef CRYPTO_TIMING
+	if (crypto_timing)
+		crypto_tstat(&cryptostats.cs_done, &crp->crp_tstamp);
+#endif
 	CRYPTO_RETQ_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_ret_q);
 	TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
@@ -769,6 +821,8 @@ crypto_kdone(struct cryptkop *krp)
 {
 	int wasempty;
 
+	if (krp->krp_status != 0)
+		cryptostats.cs_kerrs++;
 	CRYPTO_RETQ_LOCK();
 	wasempty = TAILQ_EMPTY(&crp_ret_kq);
 	TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
@@ -883,6 +937,7 @@ crypto_proc(void)
 				/* XXX validate sid again? */
 				crypto_drivers[SESID2HID(submit->crp_sid)].cc_qblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_q, submit, crp_next);
+				cryptostats.cs_blocks++;
 			}
 		}
 
@@ -912,6 +967,7 @@ crypto_proc(void)
 				/* XXX validate sid again? */
 				crypto_drivers[krp->krp_hid].cc_kqblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_kq, krp, krp_next);
+				cryptostats.cs_kblocks++;
 			}
 		}
 
@@ -929,6 +985,7 @@ crypto_proc(void)
 			 * and some become blocked while others do not.
 			 */
 			msleep(&crp_q, &crypto_q_mtx, PWAIT, "crypto_wait", 0);
+			cryptostats.cs_intrs++;
 		}
 	}
 }
@@ -979,8 +1036,22 @@ crypto_ret_proc(void)
 			/*
 			 * Run callbacks unlocked.
 			 */
-			if (crpt != NULL)
-				crpt->crp_callback(crpt);
+			if (crpt != NULL) {
+#ifdef CRYPTO_TIMING
+				if (crypto_timing) {
+					/*
+					 * NB: We must copy the timestamp before
+					 * doing the callback as the cryptop is
+					 * likely to be reclaimed.
+					 */
+					struct bintime t = crpt->crp_tstamp;
+					crypto_tstat(&cryptostats.cs_cb, &t);
+					crpt->crp_callback(crpt);
+					crypto_tstat(&cryptostats.cs_finis, &t);
+				} else
+#endif
+					crpt->crp_callback(crpt);
+			}
 			if (krpt != NULL)
 				krpt->krp_callback(krpt);
 			CRYPTO_RETQ_LOCK();
@@ -991,6 +1062,7 @@ crypto_ret_proc(void)
 			 */
 			msleep(&crp_ret_q, &crypto_ret_q_mtx, PWAIT,
 				"crypto_ret_wait", 0);
+			cryptostats.cs_rets++;
 		}
 	}
 }
