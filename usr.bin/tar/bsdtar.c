@@ -76,6 +76,7 @@ const char *tar_opts = "Bb:C:cF:f:HhjkLlmnOoPprtT:UuvwX:xyZz";
 #define	OPTION_HELP 4
 #define	OPTION_INCLUDE 5
 #define	OPTION_ONE_FILE_SYSTEM 6
+#define OPTION_NO_SAME_PERMISSIONS 7
 
 const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
@@ -106,6 +107,7 @@ const struct option tar_longopts[] = {
 	{ "nodump",             no_argument,       NULL, OPTION_NODUMP },
 	{ "norecurse",          no_argument,       NULL, 'n' },
 	{ "no-same-owner",	no_argument,	   NULL, 'o' },
+	{ "no-same-permissions",no_argument,	   NULL, OPTION_NO_SAME_PERMISSIONS },
 	{ "one-file-system",	no_argument,	   NULL, OPTION_ONE_FILE_SYSTEM },
 	{ "preserve-permissions", no_argument,     NULL, 'p' },
 	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
@@ -264,6 +266,11 @@ main(int argc, char **argv)
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_NODUMP: /* star */
 			bsdtar->option_honor_nodump = 1;
+			break;
+#endif
+#ifdef HAVE_GETOPT_LONG
+		case OPTION_NO_SAME_PERMISSIONS: /* GNU tar */
+			/* XXX This appears to be a no-op in GNU tar? XXX */
 			break;
 #endif
 		case 'O': /* GNU tar */
