@@ -121,6 +121,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
     &tcp_delack_enabled, 0, 
     "Delay ACK to try and piggyback it onto a data packet");
 
+int tcp_lq_overflow = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_lq_overflow, CTLFLAG_RW,
+    &tcp_lq_overflow, 0, 
+    "Listen Queue Overflow");
+
 #ifdef TCP_DROP_SYNFIN
 static int drop_synfin = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
@@ -709,6 +714,9 @@ findpcb:
 				tcpstat.tcps_listendrop++;
 				so2 = sodropablereq(so);
 				if (so2) {
+					if (tcp_lq_overflow)
+						sototcpcb(so2)->t_flags |= 
+						    TF_LQ_OVERFLOW;
 					tcp_drop(sototcpcb(so2), ETIMEDOUT);
 					so2 = sonewconn(so, 0);
 				}
