@@ -34,10 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.4 1998/11/15 18:25:15 dfr Exp $
+ *	$Id: genassym.c,v 1.5 1999/02/28 10:53:28 bde Exp $
  */
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
@@ -52,9 +53,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#define KERNEL /* XXX avoid user headers */
 #include <sys/user.h>
-#undef KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
@@ -69,12 +68,6 @@ int	printf __P((const char *, ...));
 
 #define P(name, val) \
 	printf(BIG(val) ? "#define\t%s 0x%qx\n" : "#define\t%s %qd\n", name, val)
-
-/* XXX Danger Will Robinson */ 
-struct	prochd {
-	struct	proc *ph_link;		/* Linked list of running processes. */
-	struct	proc *ph_rlink;
-};
 
 #define OFF(name, type, elem)	P(#name, (long long) &((type*)0)->elem)
 #define CONST2(name, val)	P(#name, (long long) val)
