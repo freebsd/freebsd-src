@@ -139,7 +139,7 @@ vwalk()
 			continue;
 extra:
 		if (!eflag) {
-			(void)printf("extra: %s", RP(p));
+			(void)printf("%s extra", RP(p));
 			if (rflag) {
 				if ((S_ISDIR(p->fts_statp->st_mode)
 				    ? rmdir : unlink)(p->fts_accpath)) {
@@ -179,7 +179,7 @@ miss(p, tail)
 			if (qflag && stat(path, &statbuf) == 0)
 				p->flags |= F_VISIT;
 			else
-				(void)printf("missing: %s", path);
+				(void)printf("%s missing", path);
 		}
 		if (p->type != F_DIR && p->type != F_LINK) {
 			putchar('\n');
