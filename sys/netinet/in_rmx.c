@@ -4,7 +4,7 @@
  * You may copy this file verbatim until I find the official 
  * Institute boilerplate.
  *
- * $Id: in_rmx.c,v 1.6 1994/12/13 22:32:45 wollman Exp $
+ * $Id: in_rmx.c,v 1.7 1994/12/21 17:25:52 wollman Exp $
  */
 
 /*
@@ -45,13 +45,16 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	    struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
-	struct in_rtq *inr;
 
 	/*
-	 * For IP, all non-host routes are automatically cloning.
+	 * For IP, all unicast non-host routes are automatically cloning.
 	 */
-	if(!(rt->rt_flags & (RTF_HOST | RTF_CLONING)))
-		rt->rt_flags |= RTF_PRCLONING;
+	if(!(rt->rt_flags & (RTF_HOST | RTF_CLONING))) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
+		if(!IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
+			rt->rt_flags |= RTF_PRCLONING;
+		}
+	}
 
 	return rn_addroute(v_arg, n_arg, head, treenodes);
 }
@@ -76,19 +79,21 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-#define RTQ_REALLYOLD	4*60*60	/* four hours is ``really old'' */
+#define RTQ_REALLYOLD	60*60	/* one hour is ``really old'' */
 int rtq_reallyold = RTQ_REALLYOLD;
 
 /*
- * On last reference drop, add the route to the queue so that it can be
+ * On last reference drop, mark the route as belong to us so that it can be
  * timed out.
  */
 static void
 in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 {
 	struct rtentry *rt = (struct rtentry *)rn;
-	struct in_rtq *inr;
 	
+	if(!(rt->rt_flags & RTF_UP))
+		return;		/* prophylactic measures */
+
 	if((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
 		return;
 
@@ -99,9 +104,6 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	rt->rt_flags |= RTPRF_OURS;
 	rt->rt_rmx.rmx_expire = time.tv_sec + rtq_reallyold;
 }
-
-#define RTQ_TIMEOUT	60	/* run once a minute */
-int rtq_timeout = RTQ_TIMEOUT;
 
 struct rtqk_arg {
 	struct radix_node_head *rnh;
@@ -148,6 +150,9 @@ in_rtqkill(struct radix_node *rn, void *rock)
 	return 0;
 }
 
+#define RTQ_TIMEOUT	600	/* run no less than once every ten minutes */
+int rtq_timeout = RTQ_TIMEOUT;
+
 static void
 in_rtqtimo(void *rock)
 {
@@ -158,7 +163,7 @@ in_rtqtimo(void *rock)
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
-	arg.nextstop = time.tv_sec + 10*rtq_timeout;
+	arg.nextstop = time.tv_sec + rtq_timeout;
 	arg.draining = 0;
 	s = splnet();
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
