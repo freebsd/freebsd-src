@@ -258,6 +258,7 @@ filt_proc(struct knote *kn, long hint)
 	 * process is gone, so flag the event as finished.
 	 */
 	if (event == NOTE_EXIT) {
+		filt_procdetach(kn);
 		kn->kn_status |= KN_DETACHED;
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT); 
 		return (1);
