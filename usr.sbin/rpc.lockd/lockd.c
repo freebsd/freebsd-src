@@ -38,8 +38,8 @@
 
 #include "lockd.h"
 
-extern void nlm_prog_1 __P((struct svc_req, register SVCXPRT));
-extern void nlm_prog_3 __P((struct svc_req, register SVCXPRT));
+void nlm_prog_1 __P((struct svc_req *, SVCXPRT *));
+void nlm_prog_3 __P((struct svc_req *, SVCXPRT *));
 
 int debug_level = 0;	/* Zero means no debugging syslog() calls	*/
 
