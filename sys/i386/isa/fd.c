@@ -34,66 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)fd.c	7.4 (Berkeley) 5/25/91
+ *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
+ *	$Id$
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00153
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Julian Elischer		Heavily re worked, see notes below
- * 
- * Largely rewritten to handle multiple controllers and drives
- * By Julian Elischer, Sun Apr  4 16:34:33 WST 1993
- */
-char	rev[] = "$Revision: 1.3 $";
-/*
- * $Header: /a/cvs/386BSD/src/sys/i386/isa/fd.c,v 1.3 1993/08/12 09:21:20 rgrimes Exp $
- */
-/*
- * $Log: fd.c,v $
- * Revision 1.3  1993/08/12  09:21:20  rgrimes
- * Fixed poor timeout code in out_fdc.  The timeout counter was not being
- * reinitialized between while loops.  Added comments about what was going
- * on in the out_fdc routine.
- *
- * out_fdc now returns if the direction bit is not set in time instead of
- * trying to wait for MRQ to get cleared.
- *
- * Revision 1.2  1993/07/15  17:53:04  davidg
- * Modified attach printf's so that the output is compatible with the "new"
- * way of doing things. There still remain several drivers that need to
- * be updated.  Also added a compile-time option to pccons to switch the
- * control and caps-lock keys (REVERSE_CAPS_CTRL) - added for my personal
- * sanity.
- *
- * Revision 1.1.1.1  1993/06/12  14:58:02  rgrimes
- * Initial import, 0.1 + pk 0.2.4-B1
- *
- * Revision 1.10  93/04/13  16:53:29  root
- * make sure turning off a drive motor doesn't deselect another
- * drive active at the time.
- * Also added a pointer from the fd_data to it's fd_type.
- * 
- * Revision 1.9  93/04/13  15:31:02  root
- * make all seeks go through DOSEEK state so are sure of being done right.
- * 
- * Revision 1.8  93/04/12  21:20:13  root
- * only check if old fd is the one we are working on if there IS
- * an old fd pointer. (in fdstate())
- * 
- * Revision 1.7  93/04/11  17:05:35  root
- * cleanup timeouts etc.
- * also fix bug to select teh correct drive when running > 1 drive
- * at a time.
- * 
- * Revision 1.6  93/04/05  00:48:45  root
- * change a timeout and add version to banner message
- * 
- * Revision 1.5  93/04/04  16:39:08  root
- * first working version.. some floppy controllers don't seem to
- * like 2 int. status inquiries in a row.
- * 
  */
 
 #include "fd.h"
