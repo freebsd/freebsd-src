@@ -18,6 +18,7 @@ MLINKS+=	ahb.4 ../ahb.4
 MLINKS+=	ahc.4 ../ahc.4
 MLINKS+=	aic.4 ../aic.4
 MLINKS+=	al.4 ../al.4
+MLINKS+=	alpm.4 ../alpm.4
 MLINKS+=	apm.4 ../apm.4
 MLINKS+=	ar.4 ../ar.4
 MLINKS+=	asc.4 ../asc.4
