@@ -431,7 +431,9 @@ coda_rdwr(vp, uiop, rw, ioflag, cred, p)
 	 * venus won't have the correct size of the core when
 	 * it's completely written.
 	 */
+	PROC_LOCK(p);
 	if (cp->c_inode != 0 && !(p && (p->p_acflag & ACORE))) { 
+	    PROC_UNLOCK(p);
 	    igot_internally = 1;
 	    error = coda_grab_vnode(cp->c_device, cp->c_inode, &cfvp);
 	    if (error) {
@@ -445,6 +447,7 @@ coda_rdwr(vp, uiop, rw, ioflag, cred, p)
 	    VOP_UNLOCK(cfvp, 0, p);
 	}
 	else {
+	    PROC_UNLOCK(p);
 	    opened_internally = 1;
 	    MARK_INT_GEN(CODA_OPEN_STATS);
 	    error = VOP_OPEN(vp, (rw == UIO_READ ? FREAD : FWRITE), 
