@@ -611,8 +611,10 @@ mtx_validate(struct mtx *m)
  * we can re-enable the kernacc() checks.
  */
 #ifndef __alpha__
-	if (!kernacc((caddr_t)m, sizeof(m), VM_PROT_READ | VM_PROT_WRITE))
-		panic("Can't read and write to mutex %p", m);
+	if (!cold)
+		if (!kernacc((caddr_t)m, sizeof(m),
+		    VM_PROT_READ | VM_PROT_WRITE))
+			panic("Can't read and write to mutex %p", m);
 #endif
 }
 #endif
