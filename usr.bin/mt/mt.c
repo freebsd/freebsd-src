@@ -302,6 +302,8 @@ printreg(s, v, bits)
 		printf("%s=%o", s, v);
 	else
 		printf("%s=%x", s, v);
+	if (!bits)
+		return;
 	bits++;
 	if (v && bits) {
 		putchar('<');
