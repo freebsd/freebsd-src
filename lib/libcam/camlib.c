@@ -554,7 +554,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	char newpath[MAXPATHLEN+1];
 	char *func_name = "cam_real_open_device";
 	union ccb ccb;
-	int fd, malloced_device = 0;
+	int fd = -1, malloced_device = 0;
 
 	/*
 	 * See if the user wants us to malloc a device for him.
@@ -567,6 +567,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 				strerror(errno));
 			return(NULL);
 		}
+		device->fd = -1;
 		malloced_device = 1;
 	} 
 
@@ -690,6 +691,9 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	return(device);
 
 crod_bailout:
+
+	if (fd >= 0)
+		close(fd);
 
 	if (malloced_device)
 		free(device);
