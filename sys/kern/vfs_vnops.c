@@ -365,6 +365,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 		}
 
 	}
+	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = base;
