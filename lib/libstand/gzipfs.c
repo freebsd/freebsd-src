@@ -49,7 +49,7 @@ static int	zf_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	zf_seek(struct open_file *f, off_t offset, int where);
 static int	zf_stat(struct open_file *f, struct stat *sb);
 
-struct fs_ops zipfs_fsops = {
+struct fs_ops gzipfs_fsops = {
     "zip",
     zf_open, 
     zf_close, 
