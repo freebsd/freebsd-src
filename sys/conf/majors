@@ -39,7 +39,6 @@
 64	??		Talisman
 66	labpc		National Instruments LabPC
 67	-		was meteor Matrox Meteor video capture
-70	crypto		Device-independent crypto interface (from openbsd)
 74	*ccd		concatenated disk
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
 77	-		-
