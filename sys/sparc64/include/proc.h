@@ -52,6 +52,7 @@ struct mdthread {
 
 struct mdproc {
 	struct	md_utrap *md_utrap;
+	void	*md_sigtramp;
 };
 
 #endif /* !_MACHINE_PROC_H_ */

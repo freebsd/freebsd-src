@@ -41,10 +41,16 @@
 #define _MACHINE_SYSARCH_H_
 
 #define	SPARC_UTRAP_INSTALL	1
+#define	SPARC_SIGTRAMP_INSTALL	2
 
 struct sparc_utrap_install_args {
 	int num;
 	const struct sparc_utrap_args *handlers;
+};
+
+struct sparc_sigtramp_install_args {
+	void	*sia_new;
+	void	**sia_old;
 };
 
 struct sparc_utrap_args {
