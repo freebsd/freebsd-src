@@ -945,10 +945,10 @@ printf("XXX no address?\n");
 	else
 		lnc_mem = (char *) (sc->trans_ring + NDESC(sc->ntdre));
 
-	lnc_mem = (char *)(((int)lnc_mem + 1) & ~1);
-	sc->init_block = (struct init_block *) ((int) lnc_mem & ~1);
+	lnc_mem = (char *)(((long)lnc_mem + 1) & ~1);
+	sc->init_block = (struct init_block *) ((long) lnc_mem & ~1);
 	lnc_mem = (char *) (sc->init_block + 1);
-	lnc_mem = (char *)(((int)lnc_mem + 7) & ~7);
+	lnc_mem = (char *)(((long)lnc_mem + 7) & ~7);
 
 	/* Initialise pointers to descriptor entries */
 	for (i = 0; i < NDESC(sc->nrdre); i++) {
