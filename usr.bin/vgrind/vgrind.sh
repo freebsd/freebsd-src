@@ -1,4 +1,4 @@
-#!/bin/csh -f
+#!/bin/sh
 #
 # Copyright (c) 1980, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -36,122 +36,100 @@
 # $FreeBSD$
 #
 
-set voptions=
-set options=
-set files=
-set f=''
-set head=""
-set vf=/usr/libexec/vfontedpr
-set tm=/usr/share/tmac
-set postproc=psroff
-top:
-if ($#argv > 0) then
-    switch ($1:q)
+voptions=""
+options=""
+files=""
+f=""
+head=""
+vf="/usr/libexec/vfontedpr"
+tm="/usr/share/tmac"
+postproc="psroff"
 
-    case -f:
-	set f='filter'
-	set options = "$options $1:q"
+# Parse args
+while test $# -gt 0; do
+	case $1 in
+	-f)
+		f="filter"
+		options="$options -f"
+	;;
+	-t)
+		voptions="$voptions -t"
+	;;
+	-o*)
+		voptions="$voptions $1"
+	;;
+	-W)
+		voptions="$voptions -W"
+	;;
+	-d)
+		if test $# -lt 2; then
+			echo "$0: option $1 must have argument" >&2
+			exit 1
+		fi
+		options="$options $1 $2"
+		shift
+	;;
+	-h)
+		if test $# -lt 2; then
+			echo "$0: option $1 must have argument" >&2
+			exit 1
+		fi
+		head="$2"
+		shift
+	;;
+	-p)
+		if test $# -lt 2; then
+			echo "$0: option $1 must have argument" >&2
+			exit 1
+		fi
+		postproc="$2"
+		shift
+	;;
+	-*)
+		options="$options $1"
+	;;
+	*)
+		files="$files $1"
+	;;
+	esac
 	shift
-	goto top
+done
 
-    case -t:
-	set voptions = "$voptions -t"
-	shift
-	goto top
-
-    case -o*:
-	set voptions="$voptions $1:q"
-	shift
-	goto top
-
-    case -W:
-	set voptions = "$voptions -W"
-	shift
-	goto top
-
-    case -d:
-	if ($#argv < 2) then
-	    echo "vgrind: $1:q option must have argument"
-	    goto done
+if test -r index; then
+	echo > nindex
+	for i in $files; do
+		#       make up a sed delete command for filenames
+		#       being careful about slashes.
+		echo "? $i ?d" | sed -e "s:/:\\/:g" -e "s:?:/:g" >> nindex
+	done
+	sed -f nindex index > xindex
+	if test "x$f" = xfilter; then
+		if test "x$head" != x; then
+			$vf $options -h "$head" $files
+		else
+			$vf $options $files
+		fi | cat $tm/tmac.vgrind -
 	else
-	    set options = ($options $1:q $2)
-	    shift
-	    shift
-	    goto top
-	endif
-			
-    case -h:
-	if ($#argv < 2) then
-	    echo "vgrind: $1:q option must have argument"
-	    goto done
-	else
-	    set head="$2"
-	    shift
-	    shift
-	    goto top
-	endif
-			
-    case -p:
-	if ($#argv < 2) then
-	    echo "vgrind: $1:q option must have argument"
-	    goto done
-	else
-	    set postproc="$2"
-	    shift
-	    shift
-	    goto top
-	endif
-			
-    case -*:
-	set options = "$options $1:q"
-	shift
-	goto top
-
-    default:
-	set files = "$files $1:q"
-	shift
-	goto top
-    endsw
-endif
-if (-r index) then
-    echo > nindex
-    foreach i ($files)
-	#	make up a sed delete command for filenames
-	#	being careful about slashes.
-	echo "? $i ?d" | sed -e "s:/:\\/:g" -e "s:?:/:g" >> nindex
-    end
-    sed -f nindex index >xindex
-    if ($f == 'filter') then
-	if ("$head" != "") then
-	    $vf $options -h "$head" $files | cat $tm/tmac.vgrind -
-	else
-	    $vf $options $files | cat $tm/tmac.vgrind -
-	endif
-    else
-	if ("$head" != "") then
-	    $vf $options -h "$head" $files | \
-		sh -c "$postproc -rx1 $voptions -i -mvgrind 2>> xindex"
-	else
-	    $vf $options $files | \
-		sh -c "$postproc -rx1 $voptions -i -mvgrind 2>> xindex"
-	endif
-    endif
-    sort -df -k 1,2 xindex >index
-    rm nindex xindex
+		if test "x$head" != x; then
+			$vf $options -h "$head" $files
+		else
+			$vf $options $files
+		fi | sh -c "$postproc -rx1 $voptions -i -mvgrind 2>> xindex"
+	fi
+	sort -df -k 1,2 xindex > index
+	rm nindex xindex
 else
-    if ($f == 'filter') then
-	if ("$head" != "") then
-	    $vf $options -h "$head" $files | cat $tm/tmac.vgrind -
+	if test "x$f" = xfilter; then
+		if test "x$head" != x; then
+			$vf $options -h "$head" $files
+		else
+			$vf $options $files
+		fi | cat $tm/tmac.vgrind -
 	else
-	    $vf $options $files | cat $tm/tmac.vgrind -
-	endif
-    else
-	if ("$head" != "") then
-	    $vf $options -h "$head" $files | $postproc -i $voptions -mvgrind
-	else
-	    $vf $options $files | $postproc -i $voptions -mvgrind
-	endif
-    endif
-endif
-
-done:
+		if test "x$head" != x; then
+			$vf $options -h "$head" $files
+		else
+			$vf $options $files
+		fi | $postproc -i $voptions -mvgrind
+	fi
+fi
