@@ -28,19 +28,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2002
+.Dd October 8, 2003
 .Dt HIFN 4
 .Os
 .Sh NAME
 .Nm hifn
-.Nd Hifn 7751/7951/7811 crypto accelerator
+.Nd Hifn 7751/7951/7811/7955/7956 crypto accelerator
 .Sh SYNOPSIS
 .Cd device hifn
 .Sh DESCRIPTION
 The
 .Nm
-driver supports various cards containing the Hifn 7751, Hifn 7951, or
-Hifn 7811
+driver supports various cards containing the Hifn 7751, 7951,
+7811, 7955, and 7956
 chipsets, such as
 .Bl -tag -width namenamenamena -offset indent
 .It Invertex AEON
@@ -65,20 +65,27 @@ Supports the most IPsec sessions, with 1MB SRAM.
 See
 .Pa http://www.soekris.com/ .
 Contains a 7951 and supports symmetric and random number operations.
+.It Soekris Engineering vpn1401 and vpn1411
+See
+.Pa http://www.soekris.com/ .
+Contains a 7955 and supports symmetric and random number operations.
 .El
 .Pp
 The
 .Nm
-driver registers itself to accelerate DES, Triple-DES, ARC4, MD5,
+driver registers itself to accelerate DES, Triple-DES,
+AES (7955 and 7956 only), ARC4, MD5,
 MD5-HMAC, SHA1, and SHA1-HMAC operations for
 .Xr ipsec 4
 and
 .Xr crypto 4 .
 .Pp
-The
-.Tn Hifn 7951
+The Hifn
+.Tn 7951 ,
+.Tn 7811 ,
+.Tn 7955 ,
 and
-.Tn Hifn 7811
+.Tn 7956
 will also supply data to the kernel
 .Xr random 4
 subsystem.
@@ -102,6 +109,9 @@ This chip is basically a 7751, but with the cryptographic functions missing.
 Instead, the 9751 is only capable of doing compression.
 Since we do not currently attempt to use any of these chips to do
 compression, the 9751-based cards are not useful.
+.Pp
+Support for the 7955 and 7956 is incomplete; the asymetric crypto
+facilities are to be added and the performance is suboptimal.
 .Sh HISTORY
 The
 .Nm
