@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: aic7870.c,v 1.2 1995/01/16 16:31:57 gibbs Exp $
  */
 
 #include <pci.h>
@@ -33,7 +33,7 @@
 
 #define PCI_BASEADR0	PCI_MAP_REG_START
 #define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940_MB	0x70789004ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
 
 static char* aic7870_probe __P((pcici_t tag, pcidi_t type));
 void aic7870_attach __P((pcici_t config_id, int unit));
@@ -53,9 +53,8 @@ aic7870_probe (pcici_t tag, pcidi_t type)
 		case PCI_DEVICE_ID_ADAPTEC_2940:
 				return ("Adaptec 294X SCSI host adapter");
 				break;
-		case PCI_DEVICE_ID_ADAPTEC_2940_MB:
-				return ("Adaptec aic7870 SCSI host adapter"
-					": on Motherboard");
+		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
+				return ("Adaptec aic7870 SCSI host adapter");
 				break;
 		default:
 			break;
