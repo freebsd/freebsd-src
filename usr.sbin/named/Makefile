@@ -27,7 +27,6 @@ LIBISC:=       ${LIBISCDIR}/libisc.a
 DPADD+=         ${LIBISC}
 LDADD+=         ${LIBISC}
 
-DOCDIR=	/usr/share/doc/bind
 HTMLS=	acl.html address_list.html comments.html config.html controls.html \
 	docdef.html example.html include.html index.html key.html \
 	logging.html master.html options.html server.html trusted-keys.html \
@@ -37,10 +36,10 @@ FILES=	${HTMLS} ${MISCS}
 .PATH: ${BIND_DIR}/doc/html ${BIND_DIR}/doc/misc
 
 .for file in ${HTMLS}
-FILESDIR_${file}=	${DOCDIR}/html
+FILESDIR_${file}=	${DESTDIR}${DOCDIR}/bind/html
 .endfor
 .for file in ${MISCS}
-FILESDIR_${file}=	${DOCDIR}/misc
+FILESDIR_${file}=	${DESTDIR}${DOCDIR}/bind/misc
 .endfor
 
 .include <bsd.prog.mk>
