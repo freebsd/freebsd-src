@@ -580,8 +580,7 @@ sloutput(struct ifnet *ifp, register struct mbuf *m, struct sockaddr *dst,
 }
 
 static void
-slstart(ifp)
-	struct ifnet *ifp;
+slstart(struct ifnet *ifp)
 {
 	struct sl_softc *sc = ifp->if_softc;
 	int s;
