@@ -157,7 +157,7 @@ exec_aout_imgact(imgp)
 	 * text/data/bss must not exceed limits
 	 */
 	if (/* text can't exceed maximum text size */
-	    a_out->a_text > MAXTSIZ ||
+	    a_out->a_text > maxtsiz ||
 
 	    /* data + bss can't exceed rlimit */
 	    a_out->a_data + bss_size >

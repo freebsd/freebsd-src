@@ -46,6 +46,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 
+#include <machine/vmparam.h>
+
 /*
  * System parameter formulae.
  */
@@ -78,6 +80,12 @@ int	nbuf;
 int	nswbuf;
 int	maxswzone;			/* max swmeta KVA storage */
 int	maxbcache;			/* max buffer cache KVA storage */
+u_quad_t	maxtsiz;			/* max text size */
+u_quad_t	dfldsiz;			/* initial data size limit */
+u_quad_t	maxdsiz;			/* max data size */
+u_quad_t	dflssiz;			/* initial stack size limit */
+u_quad_t	maxssiz;			/* max stack size */
+u_quad_t	sgrowsiz;			/* amount to grow stack */
 
 /* maximum # of sf_bufs (sendfile(2) zero-copy virtual buffers) */
 int	nsfbufs;
@@ -127,4 +135,17 @@ init_param(void)
 	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
 	ncallout = 16 + maxproc + maxfiles;
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
+
+	maxtsiz = MAXTSIZ;
+	TUNABLE_QUAD_FETCH("kern.maxtsiz", &maxtsiz);
+	dfldsiz = DFLDSIZ;
+	TUNABLE_QUAD_FETCH("kern.dfldsiz", &dfldsiz);
+	maxdsiz = MAXDSIZ;
+	TUNABLE_QUAD_FETCH("kern.maxdsiz", &maxdsiz);
+	dflssiz = DFLSSIZ;
+	TUNABLE_QUAD_FETCH("kern.dflssiz", &dflssiz);
+	maxssiz = MAXSSIZ;
+	TUNABLE_QUAD_FETCH("kern.maxssiz", &maxssiz);
+	sgrowsiz = SGROWSIZ;
+	TUNABLE_QUAD_FETCH("kern.sgrowsiz", &sgrowsiz);
 }

@@ -407,7 +407,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
      * XXX: this is not complete. it should check current usage PLUS
      * the resources needed by this library.
      */
-    if (a_out->a_text > MAXTSIZ ||
+    if (a_out->a_text > maxtsiz ||
 	a_out->a_data + bss_size > p->p_rlimit[RLIMIT_DATA].rlim_cur) {
 	error = ENOMEM;
 	goto cleanup;

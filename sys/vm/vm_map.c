@@ -2267,10 +2267,10 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	if (VM_MIN_ADDRESS > 0 && addrbos < VM_MIN_ADDRESS)
 		return (KERN_NO_SPACE);
 
-	if (max_ssize < SGROWSIZ)
+	if (max_ssize < sgrowsiz)
 		init_ssize = max_ssize;
 	else
-		init_ssize = SGROWSIZ;
+		init_ssize = sgrowsiz;
 
 	vm_map_lock(map);
 
@@ -2410,7 +2410,7 @@ Retry:
 	}
 
 	/* Round up the grow amount modulo SGROWSIZ */
-	grow_amount = roundup (grow_amount, SGROWSIZ);
+	grow_amount = roundup (grow_amount, sgrowsiz);
 	if (grow_amount > stack_entry->avail_ssize) {
 		grow_amount = stack_entry->avail_ssize;
 	}
