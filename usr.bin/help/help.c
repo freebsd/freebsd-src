@@ -33,6 +33,11 @@ __FBSDID("$FreeBSD$");
  */
 #define	_PATH_DEFAULT	_PATH_LIBHELP "/default"
 
+/*
+ * The file we check for command help.
+ */
+#define	_PATH_COMMANDS	_PATH_LIBHELP "/cmds"
+
 int help(const char *);
 
 int
@@ -103,19 +108,20 @@ help(const char *key)
 	keynumber = key;
 	key = keyname;
 	*p = '\0';
+	numlen = strlen(keynumber);
 	/*
 	 * Try the default help file if we have a numeric key.
+	 * If we have no numeric part of the key, use the command help.
 	 * Or else, use the non-numeric part of the key.
 	 */
 	if (strlen(keybase) == 0) {
 		strlcpy(path, _PATH_DEFAULT, sizeof(path));
+	} else if (numlen == 0) {
+		keynumber = keybase;
+		numlen = strlen(keynumber);
+		strlcpy(path, _PATH_COMMANDS, sizeof(path));
 	} else {
 		snprintf(path, sizeof(path), _PATH_LIBHELP "/%s", keybase);
-	}
-	free(keybase);
-	numlen = strlen(keynumber);
-	if (!numlen) {
-		goto fail;
 	}
 
 	helpfile = fopen(path, "r");
@@ -127,7 +133,7 @@ help(const char *key)
 		case '*':
 			continue;
 		case '-':
-			if (len < numlen + 1) {
+			if (len < numlen) {
 				continue;
 			}
 			if (strncmp(++p, keynumber, numlen) == 0) {
@@ -147,10 +153,16 @@ help(const char *key)
 		}
 	}
 	fclose(helpfile);
+	if (keybase != NULL) {
+		free(keybase);
+	}
 	if (found) {
 		return 0;
 	}
 fail:
+	if (keybase != NULL) {
+		free(keybase);
+	}
 	printf("Key '%s' not found.\n", key);
 	return 1;
 }
