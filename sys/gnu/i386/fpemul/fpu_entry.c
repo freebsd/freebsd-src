@@ -191,7 +191,7 @@ FPU_REG *FPU_st0_ptr;
 char    emulating = 0;
 #endif				/* PARANOID */
 
-#define bswapw(x) __asm__("xchgb %%al,%%ah":"=a" (x):"0" ((short)x))
+#define bswapw(x) __asm__("xchgb %%al,%%ah":"+a" ((short)(x)))
 #define math_abort(signo) \
     FPU_EIP = FPU_ORIG_EIP;REENTRANT_CHECK(OFF);return(signo);
 
