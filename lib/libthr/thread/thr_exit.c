@@ -42,9 +42,6 @@
 
 __weak_reference(_pthread_exit, pthread_exit);
 
-/* thr_exit() */
-extern int _thr_exit(long *state);
-
 static void	deadlist_free_threads();
 
 void
@@ -180,7 +177,7 @@ _pthread_exit(void *status)
 	 * thread, which we can't be because we've already checked
 	 * for that.
 	 */
-	_thr_exit((long *)&curthread->isdead);
+	thr_exit((long *)&curthread->isdead);
 
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");
