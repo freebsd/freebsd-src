@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.73 1997/11/06 19:29:07 phk Exp $
+ * $Id: init_main.c,v 1.74 1997/11/07 08:52:53 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -75,7 +75,6 @@ extern struct linker_set	sysinit_set;	/* XXX */
 
 extern void __main __P((void));
 extern void main __P((void *framep));
-extern void secondary_main __P((void));
 
 /* Components of the first process -- never freed. */
 static struct session session0;
@@ -94,11 +93,11 @@ int cmask = CMASK;
 extern	struct user *proc0paddr;
 
 struct	vnode *rootvp;
-int	boothowto;
+int	boothowto = 0;		/* initialized so that it can be patched */
 
 struct	timeval boottime;
 SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
-	CTLFLAG_RW, &boottime, timeval, "");
+	CTLFLAG_RD, &boottime, timeval, "");
 
 static int shutdowntimeout = 120;
 SYSCTL_INT(_kern, OID_AUTO, shutdown_timeout,
@@ -239,7 +238,6 @@ kproc_start(udata)
 #ifdef DIAGNOSTIC
 	printf("Start pid=%d <%s>\n",p->p_pid, kp->arg0);
 #endif
-
 
 	/* save a global descriptor, if desired*/
 	if( kp->global_procpp != NULL)
