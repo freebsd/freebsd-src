@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id:$
+ *	$Id: natd.h,v 1.2 1999/03/07 18:23:56 brian Exp $
  */
 
 #define PIDFILE	"/var/run/natd.pid"
@@ -17,8 +17,8 @@
 #define	OUTPUT		2
 #define	DONT_KNOW	3
 
-extern void Quit (char* msg);
-extern void Warn (char* msg);
+extern void Quit (const char* msg);
+extern void Warn (const char* msg);
 extern int SendNeedFragIcmp (int sock, struct ip* failedDgram, int mtu);
 
 
