@@ -41,6 +41,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <err.h>
@@ -100,11 +101,11 @@ usage(const char *reason)
 	p = getprogname();
 	fprintf(stderr, "Usage error: %s", reason);
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\t%s attach dest -l filename\n", p);
+	fprintf(stderr, "\t%s attach dest [-l lockfile]\n", p);
 	fprintf(stderr, "\t%s detach dest\n", p);
-	fprintf(stderr, "\t%s init dest [-i] [-f filename] -l filename\n", p);
-	fprintf(stderr, "\t%s setkey dest [-n key] -l filename\n", p);
-	fprintf(stderr, "\t%s destroy dest [-n key] -l filename\n", p);
+	fprintf(stderr, "\t%s init /dev/dest [-i] [-f filename] [-L lockfile]\n", p);
+	fprintf(stderr, "\t%s setkey dest [-n key] [-l lockfile] [-L lockfile]\n", p);
+	fprintf(stderr, "\t%s destroy dest [-n key] [-l lockfile] [-L lockfile]\n", p);
 	exit (1);
 }
 
@@ -644,10 +645,11 @@ main(int argc, char **argv)
 	const char *l_opt, *L_opt;
 	const char *p_opt, *P_opt;
 	const char *f_opt;
-	const char *dest;
-	int i_opt, n_opt, ch, dfd, nkey, doopen;
+	char *dest;
+	int i_opt, n_opt, ch, dfd, doopen;
+	u_int nkey;
 	int i;
-	char *q;
+	char *q, buf[BUFSIZ];
 	struct g_bde_key *gl;
 	struct g_bde_softc sc;
 
@@ -683,7 +685,7 @@ main(int argc, char **argv)
 	argc--;
 	argv++;
 
-	dest = argv[1];
+	dest = strdup(argv[1]);
 	argc--;
 	argv++;
 
@@ -727,8 +729,17 @@ main(int argc, char **argv)
 
 	if (doopen) {
 		dfd = open(dest, O_RDWR | O_CREAT, 0644);
+		if (dfd < 0) {
+			sprintf(buf, "%s%s", _PATH_DEV, dest);
+			dfd = open(buf, O_RDWR | O_CREAT, 0644);
+		}
 		if (dfd < 0)
 			err(1, dest);
+	} else {
+		if (!memcmp(dest, _PATH_DEV, strlen(_PATH_DEV)))
+			strcpy(dest, dest + strlen(_PATH_DEV));
+		if (strchr(dest, '/'))
+			usage("\"dest\" argument must be geom-name\n");
 	}
 
 	memset(&sc, 0, sizeof sc);
