@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.5 1998/02/13 05:10:24 brian Exp $
+ *	$Id: server.c,v 1.16.2.6 1998/02/16 00:01:03 brian Exp $
  */
 
 #include <sys/param.h>
@@ -159,13 +159,13 @@ ServerLocalOpen(const char *name, mode_t mask)
   int s;
 
   if (VarLocalAuth == LOCAL_DENY) {
-    LogPrintf(LogERROR, "Local: Can't open socket %s: No password "
+    LogPrintf(LogWARN, "Local: Can't open socket %s: No password "
 	      "in ppp.secret\n", name);
     return 1;
   }
 
   if (mode & MODE_INTER) {
-    LogPrintf(LogERROR, "Local: Can't open socket in interactive mode\n");
+    LogPrintf(LogWARN, "Local: Can't open socket in interactive mode\n");
     return 1;
   }
 
@@ -217,13 +217,13 @@ ServerTcpOpen(int port)
   int s;
 
   if (VarLocalAuth == LOCAL_DENY) {
-    LogPrintf(LogERROR, "Tcp: Can't open socket %d: No password "
+    LogPrintf(LogWARN, "Tcp: Can't open socket %d: No password "
 	      "in ppp.secret\n", port);
     return 6;
   }
 
   if (mode & MODE_INTER) {
-    LogPrintf(LogERROR, "Tcp: Can't open socket in interactive mode\n");
+    LogPrintf(LogWARN, "Tcp: Can't open socket in interactive mode\n");
     return 6;
   }
 
