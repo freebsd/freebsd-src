@@ -116,7 +116,6 @@ esp4_input(m, off)
 	int ivlen;
 	size_t hlen;
 	size_t esplen;
-	int proto;
 
 	/* sanity check for alignment. */
 	if (off % 4 != 0 || m->m_pkthdr.len % 4 != 0) {
@@ -137,7 +136,6 @@ esp4_input(m, off)
 	}
 
 	ip = mtod(m, struct ip *);
-	proto = ip->ip_p;
 	esp = (struct esp *)(((u_int8_t *)ip) + off);
 #ifdef _IP_VHL
 	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
@@ -208,8 +206,8 @@ esp4_input(m, off)
 
 	/* check ICV */
     {
-	u_char sum0[AH_MAXSUMSIZE];
-	u_char sum[AH_MAXSUMSIZE];
+	u_int8_t sum0[AH_MAXSUMSIZE];
+	u_int8_t sum[AH_MAXSUMSIZE];
 	const struct ah_algorithm *sumalgo;
 	size_t siz;
 
@@ -229,7 +227,7 @@ esp4_input(m, off)
 		goto bad;
 	}
 
-	m_copydata(m, m->m_pkthdr.len - siz, siz, &sum0[0]);
+	m_copydata(m, m->m_pkthdr.len - siz, siz, (caddr_t)&sum0[0]);
 
 	if (esp_auth(m, off, m->m_pkthdr.len - off - siz, sav, sum)) {
 		ipseclog((LOG_WARNING, "auth fail in IPv4 ESP input: %s %s\n",
@@ -590,7 +588,7 @@ esp6_input(mp, offp, proto)
 		goto bad;
 	}
 
-	m_copydata(m, m->m_pkthdr.len - siz, siz, &sum0[0]);
+	m_copydata(m, m->m_pkthdr.len - siz, siz, (caddr_t)&sum0[0]);
 
 	if (esp_auth(m, off, m->m_pkthdr.len - off - siz, sav, sum)) {
 		ipseclog((LOG_WARNING, "auth fail in IPv6 ESP input: %s %s\n",
@@ -761,7 +759,7 @@ noreplaycheck:
 		 * we can always compute checksum for AH correctly.
 		 */
 		size_t stripsiz;
-		char *prvnxtp;
+		u_int8_t *prvnxtp;
 
 		/*
 		 * Set the next header field of the previous header correctly.
@@ -790,9 +788,9 @@ noreplaycheck:
 				goto bad;
 			}
 			m_adj(n, stripsiz);
-			m_cat(m, n);
 			/* m_cat does not update m_pkthdr.len */
 			m->m_pkthdr.len += n->m_pkthdr.len;
+			m_cat(m, n);
 		}
 
 #ifndef PULLDOWN_TEST

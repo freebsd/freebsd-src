@@ -551,7 +551,7 @@ esp_3des_schedule(algo, sav)
 	int error;
 	des_key_schedule *p;
 	int i;
-	char *k;
+	u_int8_t *k;
 
 	p = (des_key_schedule *)sav->sched;
 	k = _KEYBUF(sav->key_enc);
@@ -673,7 +673,7 @@ esp_cbc_decrypt(m, off, sav, algo, ivlen)
 	}
 
 	/* grab iv */
-	m_copydata(m, ivoff, ivlen, iv);
+	m_copydata(m, ivoff, ivlen, (caddr_t)iv);
 
 	/* extend iv */
 	if (ivlen == blocklen)
@@ -878,11 +878,11 @@ esp_cbc_encrypt(m, off, plen, sav, algo, ivlen)
 
 	/* put iv into the packet.  if we are in derived mode, use seqno. */
 	if (derived)
-		m_copydata(m, ivoff, ivlen, iv);
+		m_copydata(m, ivoff, ivlen, (caddr_t)iv);
 	else {
 		bcopy(sav->iv, iv, ivlen);
 		/* maybe it is better to overwrite dest, not source */
-		m_copyback(m, ivoff, ivlen, iv);
+		m_copyback(m, ivoff, ivlen, (caddr_t)iv);
 	}
 
 	/* extend iv */
@@ -945,7 +945,7 @@ esp_cbc_encrypt(m, off, plen, sav, algo, ivlen)
 			sp = mtod(s, u_int8_t *) + sn;
 		} else {
 			/* body is non-continuous */
-			m_copydata(s, sn, blocklen, sbuf);
+			m_copydata(s, sn, blocklen, (caddr_t)sbuf);
 			sp = sbuf;
 		}
 
