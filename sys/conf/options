@@ -433,6 +433,7 @@ LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
 MUTEX_DEBUG		opt_global.h
+MUTEX_NOINLINE		opt_global.h
 MUTEX_PROFILING		opt_global.h
 NPX_DEBUG		opt_debug_npx.h
 NETATALKDEBUG		opt_atalk.h
