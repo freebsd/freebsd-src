@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 1997
+.Dd November 23, 2004
 .Dt CAL 1
 .Os
 .Sh NAME
@@ -38,6 +38,10 @@
 .Op Ar month
 .Ar year
 .Oc
+.Nm
+.Op Fl j
+.Fl m Ar month
+.Op Ar year
 .Nm ncal
 .Op Fl jJpwy
 .Op Fl s Ar country_code
@@ -69,6 +73,9 @@ option, display date of easter according to the Julian Calendar.
 Display date of easter (for western churches).
 .It Fl j
 Display Julian days (days one-based, numbered from January 1).
+.It Fl m Ar month
+Display the specified
+.Ar month .
 .It Fl o
 Display date of orthodox easter (Greek and Russian
 Orthodox Churches).
@@ -91,7 +98,7 @@ Britain and her colonies switched to the Gregorian Calendar.
 .It Fl w
 Print the number of the week below each week column.
 .It Fl y
-Display a calendar for the current year.
+Display a calendar for the specified year.
 .El
 .Pp
 A single parameter specifies the year (1 - 9999) to be displayed;
@@ -102,6 +109,9 @@ will
 display a calendar for 1989.
 Two parameters denote the month and year; the month is either a number between
 1 and 12, or a full or abbreviated name as specified by the current locale.
+Month and year default to those of the current system clock and time zone (so
+.Dq Li cal -m 8
+will display a calendar for the month of August in the current year).
 .Pp
 A year starts on Jan 1.
 .Sh SEE ALSO
@@ -122,5 +132,5 @@ The
 command and manual were written by
 .An Wolfgang Helbig Aq helbig@FreeBSD.org .
 .Sh BUGS
-The assignment of Julian - Gregorian switching dates to
+The assignment of Julian\(EmGregorian switching dates to
 country codes is historically naive for many countries.
