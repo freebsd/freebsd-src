@@ -143,30 +143,16 @@ closekre(w)
 
 
 static struct nlist namelist[] = {
-#define X_CPTIME	0
-	{ "_cp_time" },
-#define X_CNT		1
+#define X_CNT		0
 	{ "_cnt" },
-#define	X_BUFFERSPACE	2
-	{ "_bufspace" },
-#define	X_NCHSTATS	3
-	{ "_nchstats" },
-#define	X_INTRNAMES	4
+#define	X_INTRNAMES	1
 	{ "_intrnames" },
-#define	X_EINTRNAMES	5
+#define	X_EINTRNAMES	2
 	{ "_eintrnames" },
-#define	X_INTRCNT	6
+#define	X_INTRCNT	3
 	{ "_intrcnt" },
-#define	X_EINTRCNT	7
+#define	X_EINTRCNT	4
 	{ "_eintrcnt" },
-#define	X_DESIREDVNODES	8
-	{ "_desiredvnodes" },
-#define	X_NUMVNODES	9
-	{ "_numvnodes" },
-#define	X_FREEVNODES	10
-	{ "_freevnodes" },
-#define X_NUMDIRTYBUFFERS 11
-	{ "_numdirtybuffers" },
 	{ "" },
 };
 
@@ -730,18 +716,52 @@ getinfo(s, st)
 	enum state st;
 {
 	struct devinfo *tmp_dinfo;
-	int mib[2], size;
+	size_t len;
+	int mib[2], size, err;
 
-	NREAD(X_CPTIME, s->time, sizeof s->time);
-	NREAD(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
+	len = sizeof(s->time);
+	err = sysctlbyname("kern.cp_time", &s->time, &len, NULL, 0);
+	if (err || len != sizeof(s->time))
+		perror("kern.cp_time");
+
+	len = sizeof(cur.cp_time);
+	err = sysctlbyname("kern.cp_time", &cur.cp_time, &len, NULL, 0);
+	if (err || len != sizeof(cur.cp_time))
+		perror("kern.cp_time");
+
 	NREAD(X_CNT, &s->Cnt, sizeof s->Cnt);
-	NREAD(X_BUFFERSPACE, &s->bufspace, sizeof(s->bufspace));
-	NREAD(X_DESIREDVNODES, &s->desiredvnodes, sizeof(s->desiredvnodes));
-	NREAD(X_NUMVNODES, &s->numvnodes, LONG);
-	NREAD(X_FREEVNODES, &s->freevnodes, LONG);
-	NREAD(X_NCHSTATS, &s->nchstats, sizeof s->nchstats);
+
+	len = sizeof(s->bufspace);
+	err = sysctlbyname("vfs.bufspace", &s->bufspace, &len, NULL, 0);
+	if (err || len != sizeof(s->bufspace))
+		perror("vfs.bufspace");
+
+	len = sizeof(s->desiredvnodes);
+	err = sysctlbyname("kern.maxvnodes", &s->desiredvnodes, &len, NULL, 0);
+	if (err || len != sizeof(s->desiredvnodes))
+		perror("kern.maxvnodes");
+
+	len = sizeof(s->numvnodes);
+	err = sysctlbyname("debug.numvnodes", &s->numvnodes, &len, NULL, 0);
+	if (err || len != sizeof(s->numvnodes))
+		perror("debug.numvnodes");
+
+	len = sizeof(s->freevnodes);
+	err = sysctlbyname("debug.freevnodes", &s->freevnodes, &len, NULL, 0);
+	if (err || len != sizeof(s->freevnodes))
+		perror("debug.freevnodes");
+
+	len = sizeof(s->nchstats);
+	err = sysctlbyname("vfs.cache.nchstats", &s->nchstats, &len, NULL, 0);
+	if (err || len != sizeof(s->nchstats))
+		perror("vfs.cache.nchstats");
+
 	NREAD(X_INTRCNT, s->intrcnt, nintr * LONG);
-	NREAD(X_NUMDIRTYBUFFERS, &s->numdirtybuffers, sizeof(s->numdirtybuffers));
+
+	len = sizeof(s->numdirtybuffers);
+	err = sysctlbyname("vfs.numdirtybuffers", &s->numdirtybuffers, &len,
+	    NULL, 0);
+
 	size = sizeof(s->Total);
 	mib[0] = CTL_VM;
 	mib[1] = VM_METER;
@@ -750,7 +770,8 @@ getinfo(s, st)
 		bzero(&s->Total, sizeof(s->Total));
 	}
 	size = sizeof(ncpu);
-	if (sysctlbyname("hw.ncpu", &ncpu, &size, NULL, 0) < 0)
+	if (sysctlbyname("hw.ncpu", &ncpu, &size, NULL, 0) < 0 ||
+	    size != sizeof(ncpu))
 		ncpu = 1;
 
 	tmp_dinfo = last.dinfo;
