@@ -32,39 +32,42 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd OCTOBER 25, 2002
+.\"
+.Dd October 25, 2002
 .Os
 .Dt MACLABEL 7
 .Sh NAME
 .Nm maclabel
 .Nd Mandatory Access Control label format
 .Sh DESCRIPTION
-If Mandatory Access Control, or
-.Dq MAC ,
-is enabled in your kernel,
+If Mandatory Access Control, or MAC, is enabled in the kernel,
 then in addition to the traditional credentials,
 each subject
 (typically a user or a socket)
 and object
-(file system object, socket, etc)
+(file system object, socket, etc.\&)
 is given a
-.Em MAC label .
+.Em "MAC label" .
 The MAC label specifies the necessary subject-specific or
 object-specific information necessary for a MAC security policy
-.\" .Xr ( mac 9 )
+.\" .Pq Xr mac 9
 to enforce access control on the subject/object.
 .Pp
 The format for a MAC label is defined as follows:
-.Dl Sy policy1 Ns No / Ns Sy qualifier1 , Ns Sy policy2 Ns No / Ns Sy qualifier2 , Ns ...
+.Pp
+.Sm off
+.D1 Ar policy1 No / Ar qualifier1 , policy2 No / Ar qualifier2 , No ...
+.Sm on
 .Pp
 A MAC label consists of a policy name,
 followed by a forward slash,
 followed by the subject or object's qualifier,
 optionally followed by a comma and one or more additional policy labels.
 For example:
-.Pp
-.Dl Li "biba/low(low-low)"
-.Dl Li "biba/high(low-high),mls/equal(equal-equal),partition/0"
+.Bd -literal -offset indent
+biba/low(low-low)
+biba/high(low-high),mls/equal(equal-equal),partition/0
+.Ed
 .Sh SEE ALSO
 .Xr mac 3 ,
 .Xr posix1e 3 ,
@@ -77,12 +80,12 @@ For example:
 .Xr mac_seeotheruids 4 ,
 .Xr mac_test 4 ,
 .Xr login.conf 5 ,
-.Xr ifconfig 8 ,
 .Xr getfmac 8 ,
 .Xr getpmac 8 ,
+.Xr ifconfig 8 ,
 .Xr setfmac 8 ,
 .Xr setpmac 8 ,
-.Xr mac 9 ,
+.Xr mac 9
 .Sh HISTORY
 MAC first appeared in
 .Fx 5.0 .
@@ -90,5 +93,6 @@ MAC first appeared in
 This software was contributed to the
 .Fx
 Project by NAI Labs, the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

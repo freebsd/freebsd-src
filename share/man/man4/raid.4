@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"     $NetBSD: raid.4,v 1.16 2000/11/02 03:34:08 oster Exp $
 .\"
 .\" Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -61,6 +60,8 @@
 .\" any improvements or extensions that they make and grant Carnegie the
 .\" rights to redistribute these changes.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd October 20, 2002
 .Dt RAID 4
 .Os
@@ -68,7 +69,7 @@
 .Nm raid
 .Nd RAIDframe disk driver
 .Sh SYNOPSIS
-.Cd device raidframe
+.Cd "device raidframe"
 .Sh DESCRIPTION
 The
 .Nm
@@ -76,94 +77,109 @@ driver provides RAID 0, 1, 4, and 5 (and more!) capabilities to
 .Fx .
 This
 document assumes that the reader has at least some familiarity with RAID
-and RAID concepts.  The reader is also assumed to know how to configure
-disks and pseudo-devices into kernels, how to generate kernels, and how
+and RAID concepts.
+The reader is also assumed to know how to configure
+disks and add devices into kernels, how to generate kernels, and how
 to partition disks.
 .Pp
 RAIDframe provides a number of different RAID levels including:
-.Bl -tag -width indent
-.It RAID 0
-provides simple data striping across the components.
-.It RAID 1
-provides mirroring.
-.It RAID 4
-provides data striping across the components, with parity
+.Bl -item
+.It
+RAID 0 provides simple data striping across the components.
+.It
+RAID 1 provides mirroring.
+.It
+RAID 4 provides data striping across the components, with parity
 stored on a dedicated drive (in this case, the last component).
-.It RAID 5
-provides data striping across the components, with parity
+.It
+RAID 5 provides data striping across the components, with parity
 distributed across all the components.
 .El
 .Pp
 There are a wide variety of other RAID levels supported by RAIDframe,
 including Even-Odd parity, RAID level 5 with rotated sparing, Chained
-declustering,  and Interleaved declustering.  The reader is referred
+declustering, and Interleaved declustering.
+The reader is referred
 to the RAIDframe documentation mentioned in the
 .Sx HISTORY
 section for more detail on these various RAID configurations.
 .Pp
 Depending on the parity level configured, the device driver can
-support the failure of component drives.  The number of failures
-allowed depends on the parity level selected.  If the driver is able
+support the failure of component drives.
+The number of failures allowed depends on the parity level selected.
+If the driver is able
 to handle drive failures, and a drive does fail, then the system is
-operating in "degraded mode".  In this mode, all missing data must be
+operating in
+.Dq "degraded mode" .
+In this mode, all missing data must be
 reconstructed from the data and parity present on the other
-components.  This results in much slower data accesses, but
+components.
+This results in much slower data accesses, but
 does mean that a failure need not bring the system to a complete halt.
 .Pp
 The RAID driver supports and enforces the use of
-.Sq component labels .
+.Dq "component labels" .
 A
-.Sq component label
+.Dq "component label"
 contains important information about the component, including a
 user-specified serial number, the row and column of that component in
 the RAID set, and whether the data (and parity) on the component is
-.Sq clean .
+.Dq clean .
 If the driver determines that the labels are very inconsistent with
-respect to each other (e.g. two or more serial numbers do not match)
-or that the component label is not consistent with it's assigned place
-in the set (e.g. the component label claims the component should be
+respect to each other (e.g., two or more serial numbers do not match)
+or that the component label is not consistent with its assigned place
+in the set (e.g., the component label claims the component should be
 the 3rd one a 6-disk set, but the RAID set has it as the 3rd component
-in a 5-disk set) then the device will fail to configure.  If the
+in a 5-disk set) then the device will fail to configure.
+If the
 driver determines that exactly one component label seems to be
 incorrect, and the RAID set is being configured as a set that supports
 a single failure, then the RAID set will be allowed to configure, but
 the incorrectly labeled component will be marked as
-.Sq failed ,
+.Dq failed ,
 and the RAID set will begin operation in degraded mode.
 If all of the components are consistent among themselves, the RAID set
 will configure normally.
 .Pp
 Component labels are also used to support the auto-detection and
-auto-configuration of RAID sets.  A RAID set can be flagged as
+auto-configuration of RAID sets.
+A RAID set can be flagged as
 auto-configurable, in which case it will be configured automatically
-during the kernel boot process.  RAID file systems which are
+during the kernel boot process.
+RAID file systems which are
 automatically configured are also eligible to be the root file system.
 There is currently only limited support (alpha and pmax architectures)
 for booting a kernel directly from a RAID 1 set, and no support for
-booting from any other RAID sets.  To use a RAID set as the root
+booting from any other RAID sets.
+To use a RAID set as the root
 file system, a kernel is usually obtained from a small non-RAID
 partition, after which any auto-configuring RAID set can be used for the
-root file system.  See
+root file system.
+See
 .Xr raidctl 8
 for more information on auto-configuration of RAID sets.
 .Pp
 The driver supports
-.Sq hot spares ,
+.Dq "hot spares" ,
 disks which are on-line, but are not
-actively used in an existing file system.  Should a disk fail, the
+actively used in an existing file system.
+Should a disk fail, the
 driver is capable of reconstructing the failed disk onto a hot spare
 or back onto a replacement drive.
 If the components are hot swapable, the failed disk can then be
 removed, a new disk put in its place, and a copyback operation
-performed.  The copyback operation, as its name indicates, will copy
+performed.
+The copyback operation, as its name indicates, will copy
 the reconstructed data from the hot spare to the previously failed
-(and now replaced) disk.  Hot spares can also be hot-added using
+(and now replaced) disk.
+Hot spares can also be hot-added using
 .Xr raidctl 8 .
 .Pp
 If a component cannot be detected when the RAID device is configured,
-that component will be simply marked as 'failed'.
+that component will be simply marked as
+.Dq failed .
 .Pp
-The user-land utility for doing all
+The userland utility for doing all
 .Nm
 configuration and other operations
 is
@@ -172,77 +188,103 @@ Most importantly,
 .Xr raidctl 8
 must be used with the
 .Fl i
-option to initialize all RAID sets.  In particular, this
-initialization includes re-building the parity data.  This rebuilding
+option to initialize all RAID sets.
+In particular, this initialization includes re-building the parity data.
+This rebuilding
 of parity data is also required when either a) a new RAID device is
-brought up for the first time or b) after an un-clean shutdown of a
-RAID device.  By using the
+brought up for the first time or b) after an unclean shutdown of a
+RAID device.
+By using the
 .Fl P
 option to
 .Xr raidctl 8 ,
 and performing this on-demand recomputation of all parity
-before doing a
+before doing an
 .Xr fsck 8
 or a
 .Xr newfs 8 ,
-file system integrity and parity integrity can be ensured.  It bears
+file system integrity and parity integrity can be ensured.
+It bears
 repeating again that parity recomputation is
-.Ar required
-before any file systems are created or used on the RAID device.  If the
+.Em required
+before any file systems are created or used on the RAID device.
+If the
 parity is not correct, then missing data cannot be correctly recovered.
 .Pp
-RAID levels may be combined in a hierarchical fashion.  For example, a RAID 0
+RAID levels may be combined in a hierarchical fashion.
+For example, a RAID 0
 device can be constructed out of a number of RAID 5 devices (which, in turn,
 may be constructed out of the physical disks, or of other RAID devices).
 .Pp
 It is important that drives be hard-coded at their respective
-addresses (i.e. not left free-floating, where a drive with SCSI ID of
-4 can end up as /dev/da0c) for well-behaved functioning of the RAID
-device.  This is true for all types of drives, including IDE, SCSI,
-etc.  For IDE drivers, use the option ATAPI_STATIC_ID in your kernel
-config file.  For SCSI, you should 'wire down' the devices according to
-their ID.  See
+addresses (i.e., not left free-floating, where a drive with SCSI ID of
+4 can end up as
+.Pa /dev/da0c )
+for well-behaved functioning of the RAID
+device.
+This is true for all types of drives, including IDE, SCSI,
+etc.
+For IDE drivers, use the
+.Cd "options ATA_STATIC_ID"
+in your kernel config file.
+For SCSI, you should
+.Dq "wire down"
+the devices according to their ID.
+See
 .Xr cam 4
 for examples of this.
 The rationale for fixing the device addresses
-is as follows: Consider a system with three SCSI drives at SCSI ID's
-4, 5, and 6, and which map to components /dev/da0e, /dev/da1e, and
-/dev/da2e of a RAID 5 set.  If the drive with SCSI ID 5 fails, and the
-system reboots, the old /dev/da2e will show up as /dev/da1e.  The RAID
+is as follows: consider a system with three SCSI drives at SCSI IDs
+4, 5, and 6, and which map to components
+.Pa /dev/da0e , /dev/da1e ,
+and
+.Pa /dev/da2e
+of a RAID 5 set.
+If the drive with SCSI ID 5 fails, and the
+system reboots, the old
+.Pa /dev/da2e
+will show up as
+.Pa /dev/da1e .
+The RAID
 driver is able to detect that component positions have changed, and
-will not allow normal configuration.  If the device addresses are hard
+will not allow normal configuration.
+If the device addresses are hard
 coded, however, the RAID driver would detect that the middle component
-is unavailable, and bring the RAID 5 set up in degraded mode.  Note
+is unavailable, and bring the RAID 5 set up in degraded mode.
+Note
 that the auto-detection and auto-configuration code does not care
-about where the components live.  The auto-configuration code will
+about where the components live.
+The auto-configuration code will
 correctly configure a device even after any number of the components
 have been re-arranged.
 .Pp
 The first step to using the
 .Nm
-driver is to ensure that it is suitably configured in the kernel.  This is
-done by adding a line similar to:
-.Bd -unfilled -offset indent
-pseudo-device   raidframe      # RAIDframe disk device
-.Ed
+driver is to ensure that it is suitably configured in the kernel.
+This is done by adding the
 .Pp
-to the kernel configuration file.  No count argument is required as the
+.D1 Cd "device raidframe"
+.Pp
+line to the kernel configuration file.
+No count argument is required as the
 driver will automatically create and configure new device units as needed.
 To turn on component auto-detection and auto-configuration of RAID
-sets, simply add:
-.Bd -unfilled -offset indent
-options    RAID_AUTOCONFIG
-.Ed
+sets, simply add
+.Pp
+.D1 Cd "options RAID_AUTOCONFIG"
 .Pp
 to the kernel configuration file.
 .Pp
 All component partitions must be of the type
 .Dv FS_BSDFFS
-(e.g. 4.2BSD) or
+(e.g.,
+.Cm 4.2BSD )
+or
 .Dv FS_RAID .
 The use of the latter is strongly encouraged, and is required if
-auto-configuration of the RAID set is desired.  Since RAIDframe leaves
-room for disklabels, RAID components can be simply raw disks, or
+auto-configuration of the RAID set is desired.
+Since RAIDframe leaves
+room for disk labels, RAID components can be simply raw disks, or
 partitions which use an entire disk.
 .Pp
 A more detailed treatment of actually using a
@@ -251,37 +293,39 @@ device is found in
 .Xr raidctl 8 .
 It is highly recommended that the steps to reconstruct, copyback, and
 re-compute parity are well understood by the system administrator(s)
-.Ar before
-a component failure.  Doing the wrong thing when a component fails may
+.Em before
+a component failure.
+Doing the wrong thing when a component fails may
 result in data loss.
-.Pp
 .Sh WARNINGS
 Certain RAID levels (1, 4, 5, 6, and others) can protect against some
-data loss due to component failure.  However the loss of two
+data loss due to component failure.
+However, the loss of two
 components of a RAID 4 or 5 system, or the loss of a single component
 of a RAID 0 system, will result in the entire file systems on that RAID
 device being lost.
 RAID is
-.Ar NOT
+.Em NOT
 a substitute for good backup practices.
 .Pp
 Recomputation of parity
-.Ar MUST
+.Em MUST
 be performed whenever there is a chance that it may have been
-compromised.  This includes after system crashes, or before a RAID
-device has been used for the first time.  Failure to keep parity
-correct will be catastrophic should a component ever fail -- it is
+compromised.
+This includes after system crashes, or before a RAID
+device has been used for the first time.
+Failure to keep parity
+correct will be catastrophic should a component ever fail \[em] it is
 better to use RAID 0 and get the additional space and speed, than it
-is to use parity, but not keep the parity correct.  At least with RAID
-0 there is no perception of increased data security.
-.Pp
+is to use parity, but not keep the parity correct.
+At least with RAID 0 there is no perception of increased data security.
 .Sh FILES
-.Bl -tag -width /dev/XXrXraidX -compact
+.Bl -tag -width ".Pa /dev/raid*" -compact
 .It Pa /dev/raid*
+The
 .Nm
 device special files.
 .El
-.Pp
 .Sh SEE ALSO
 .Xr config 8 ,
 .Xr fsck 8 ,
@@ -295,19 +339,28 @@ driver in
 .Fx
 is a port of RAIDframe, a framework for rapid prototyping of RAID
 structures developed by the folks at the Parallel Data Laboratory at
-Carnegie Mellon University (CMU).  RAIDframe, as originally distributed
+Carnegie Mellon University (CMU).
+RAIDframe, as originally distributed
 by CMU, provides a RAID simulator for a number of different
 architectures, and a user-level device driver and a kernel device
-driver for Digital Unix.  The
+driver for Digital
+.Ux .
+The
 .Nm
 driver is a kernelized version of RAIDframe v1.1, based on the
 .Nx
-port of RAIDframe by Greg Oster.
+port of RAIDframe by
+.An "Greg Oster" .
 .Pp
 A more complete description of the internals and functionality of
-RAIDframe is found in the paper "RAIDframe: A Rapid Prototyping Tool
-for RAID Systems", by William V. Courtright II, Garth Gibson, Mark
-Holland, LeAnn Neal Reilly, and Jim Zelenka, and published by the
+RAIDframe is found in the paper
+.%T "RAIDframe: A Rapid Prototyping Tool for RAID Systems" ,
+by
+.An "William V. Courtright II" , "Garth Gibson" , "Mark Holland" ,
+.An "LeAnn Neal Reilly" ,
+and
+.An "Jim Zelenka" ,
+and published by the
 Parallel Data Laboratory of Carnegie Mellon University.
 The
 .Nm
