@@ -101,6 +101,9 @@ static	int	tun_devsw_installed;
 static	void	*tun_devfs_token[NTUN];
 #endif
 
+#define minor_val(n) ((((n) & ~0xff) << 8) | ((n) & 0xff))
+#define dev_val(n) (((n) >> 8) | ((n) & 0xff))
+
 static void
 tunattach(dummy)
 	void *dummy;
@@ -116,9 +119,10 @@ tunattach(dummy)
 	tun_devsw_installed = 1;
 	for ( i = 0; i < NTUN; i++ ) {
 #ifdef DEVFS
-		tun_devfs_token[i] = devfs_add_devswf(&tun_cdevsw, i, DV_CHR,
-						      UID_UUCP, GID_DIALER,
-						      0600, "tun%d", i);
+		tun_devfs_token[i] = devfs_add_devswf(&tun_cdevsw, minor_val(i),
+						      DV_CHR, UID_UUCP,
+						      GID_DIALER, 0600,
+						      "tun%d", i);
 #endif
 		tunctl[i].tun_flags = TUN_INITED;
 
@@ -155,7 +159,7 @@ tunopen(dev, flag, mode, p)
 	if (error)
 		return (error);
 
-	if ((unit = minor(dev)) >= NTUN)
+	if ((unit = dev_val(minor(dev))) >= NTUN)
 		return (ENXIO);
 	tp = &tunctl[unit];
 	if (tp->tun_flags & TUN_OPEN)
@@ -177,7 +181,7 @@ tunclose(dev, foo, bar, p)
 	int bar;
 	struct proc *p;
 {
-	register int	unit = minor(dev), s;
+	register int	unit = dev_val(minor(dev)), s;
 	struct tun_softc *tp = &tunctl[unit];
 	struct ifnet	*ifp = &tp->tun_if;
 	struct mbuf	*m;
@@ -389,7 +393,7 @@ tunioctl(dev, cmd, data, flag, p)
 	int		flag;
 	struct proc	*p;
 {
-	int		unit = minor(dev), s;
+	int		unit = dev_val(minor(dev)), s;
 	struct tun_softc *tp = &tunctl[unit];
  	struct tuninfo *tunp;
 
@@ -452,7 +456,7 @@ tunread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	int		unit = minor(dev);
+	int		unit = dev_val(minor(dev));
 	struct tun_softc *tp = &tunctl[unit];
 	struct ifnet	*ifp = &tp->tun_if;
 	struct mbuf	*m, *m0;
@@ -510,7 +514,7 @@ tunwrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	int		unit = minor (dev);
+	int		unit = dev_val(minor(dev));
 	struct ifnet	*ifp = &tunctl[unit].tun_if;
 	struct mbuf	*top, **mp, *m;
 	int		error=0, s, tlen, mlen;
@@ -604,7 +608,7 @@ tunpoll(dev, events, p)
 	int events;
 	struct proc *p;
 {
-	int		unit = minor(dev), s;
+	int		unit = dev_val(minor(dev)), s;
 	struct tun_softc *tp = &tunctl[unit];
 	struct ifnet	*ifp = &tp->tun_if;
 	int		revents = 0;
