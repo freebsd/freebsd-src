@@ -259,6 +259,12 @@
 
       <para>The &man.matcd.4; driver has been removed.</para>
 
+      <para>The SHSEC GEOM class has been added.  It provides for the
+	sharing of a secret between multiple GEOM providers.  All of
+	these providers must be present in order to reveal the
+	secret.  This feature is controlled by the &man.gshsec.8;
+	utility.</para>
+
       <para>Information about newly-mounted cd9660 file systems (such
 	as the presence of Rockridge extensions) is now only printed
 	if the kernel was booted in verbose mode.  This change was
@@ -303,11 +309,28 @@
     <para>A number of bugfixes for <filename>libpthread</filename>
       have been merged from HEAD.</para>
 
+    <para>A number of new functions have been implemented in the
+      &man.math.3; library.  These include &man.ceill.3;,
+      &man.floorl.3;, &man.ilogbl.3;, &man.fma.3; and variants,
+      &man.lrint.3; and variants, and &man.lround.3; and
+      variants.</para>
+
+    <para arch="i386">The &man.mkuzip.8; utility, which
+      compresses file system images for use with
+      <literal>GEOM_UZIP</literal> &man.geom.4; module,
+      has been added. &merged;</para>
+
     <para>The &man.moused.8; daemon now supports <quote>virtual
       scrolling</quote>, in which mouse motions made while holding
       down the middle mouse button are interpreted as scrolling.  This
       feature is enabled with the <option>-V</option>
       flag.</para>
+
+    <para>The &man.newfs.8; utility now supports a <option>-n</option>
+      flag to suppress the creation of a <filename>.snap</filename>
+      directory on new file systems.  This feature is intended for use
+      on memory or vnode file systems that will not require snapshot
+      support.</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
@@ -330,6 +353,11 @@
       option that asks for confirmation (once) if recursively
       removing directories or if more than 3 files are listed in the
       command line.</para>
+
+    <para>The &man.rtld.1; dynamic linker now supports specifying
+      library replacements via the <varname>LD_LIBMAP</varname>
+      environment variable.  This variable will override the entries
+      in &man.libmap.conf.5;.</para>
 
     <para>The &man.syslog.3; function is now thread-safe.</para>
 
@@ -361,9 +389,15 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>Heimdal</application> has been updated from
+      0.6.1 to 0.6.3.</para>
+
     <para>A snapshot of <application>netcat</application> from OpenBSD
       as of 4 February 2005 has been added.  More information can be
       found in the &man.nc.1; manual page.</para>
+
+    <para><application>OpenSSL</application> has been updated from
+      0.9.7d to 0.9.7e.</para>
 
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3.</para>
