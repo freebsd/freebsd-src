@@ -1,14 +1,12 @@
-#	$Id: Makefile,v 1.1 1995/12/10 22:59:06 peter Exp $
+#	$Id: Makefile,v 1.2 1995/12/11 00:45:41 peter Exp $
+
+SUBDIR=	 pcl-cvs
 
 SCRIPTS= ccvs-rsh rcs2log clmerge cln_hist commit_prep cvs_acls cvscheck \
 	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs \
-	 easy-import.pl
+	 easy-import
 
 FILES=	 README cvscheck.man cvshelp.man descend.man intro.doc
-
-PCLCVS=	ChangeLog INSTALL NEWS README \
-	compile-all.el pcl-cvs-lucid.el pcl-cvs-lucid.elc pcl-cvs-startup.el \
-	pcl-cvs.el pcl-cvs.elc pcl-cvs.texinfo
 
 EXAMPDIR=	/usr/share/examples/cvs
 PERLPATH=	/usr/bin/perl
@@ -34,9 +32,6 @@ afterinstall:
 	cd ${.CURDIR} ; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${FILES} ${DESTDIR}${EXAMPDIR}/contrib
-	cd ${.CURDIR}/pcl-cvs ; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${PCLCVS} ${DESTDIR}${EXAMPDIR}/pcl-cvs
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
