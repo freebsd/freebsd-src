@@ -1840,6 +1840,7 @@ pbgetvp(vp, bp)
 	KASSERT(bp->b_vp == NULL, ("pbgetvp: not free"));
 
 	bp->b_vp = vp;
+	bp->b_object = vp->v_object;
 	bp->b_flags |= B_PAGING;
 	bp->b_dev = vn_todev(vp);
 }
@@ -1865,6 +1866,7 @@ pbrelvp(bp)
 	}
 	VI_UNLOCK(bp->b_vp);
 	bp->b_vp = (struct vnode *) 0;
+	bp->b_object = NULL;
 	bp->b_flags &= ~B_PAGING;
 }
 
