@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	daily weekly monthly
+SUBDIR=	daily security weekly monthly
 
 .include <bsd.subdir.mk>
