@@ -357,9 +357,11 @@ man_getopt (argc, argv)
 	case 'm':
 	  machine = optarg;
 	  break;
+#ifdef __FreeBSD__
 	case 'o':
 	  use_original++;
 	  break;
+#endif
 	case 'p':
 	  roff_directive = strdup (optarg);
 	  break;
