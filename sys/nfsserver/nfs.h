@@ -99,29 +99,6 @@ struct nfsd_args {
 	int	namelen;	/* Length of name */
 };
 
-struct nfsd_srvargs {
-	struct nfsd	*nsd_nfsd;	/* Pointer to in kernel nfsd struct */
-	uid_t		nsd_uid;	/* Effective uid mapped to cred */
-	u_int32_t	nsd_haddr;	/* Ip address of client */
-	struct xucred	nsd_cr;		/* Cred. uid maps to */
-	u_int		nsd_authlen;	/* Length of auth string (ret) */
-	u_char		*nsd_authstr;	/* Auth string (ret) */
-	u_int		nsd_verflen;	/* and the verfier */
-	u_char		*nsd_verfstr;
-	struct timeval	nsd_timestamp;	/* timestamp from verifier */
-	u_int32_t	nsd_ttl;	/* credential ttl (sec) */
-};
-
-struct nfsd_cargs {
-	char		*ncd_dirp;	/* Mount dir path */
-	uid_t		ncd_authuid;	/* Effective uid */
-	int		ncd_authtype;	/* Type of authenticator */
-	u_int		ncd_authlen;	/* Length of authenticator string */
-	u_char		*ncd_authstr;	/* Authenticator string */
-	u_int		ncd_verflen;	/* and the verifier */
-	u_char		*ncd_verfstr;
-};
-
 /*
  * XXX to allow amd to include nfs.h without nfsproto.h
  */
