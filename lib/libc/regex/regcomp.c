@@ -1236,7 +1236,7 @@ freezeset(p, cs)
 register struct parse *p;
 register cset *cs;
 {
-	register uch h = cs->hash;
+	register short h = cs->hash;
 	register int i;
 	register cset *top = &p->g->sets[p->g->ncsets];
 	register cset *cs2;
