@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.58 1997/09/28 05:51:49 kato Exp $
+ *  $Id: syscons.c,v 1.59 1997/10/02 09:14:32 kato Exp $
  */
 
 #include "sc.h"
@@ -84,6 +84,19 @@
 
 #if !defined(MAXCONS)
 #define MAXCONS 16
+#endif
+
+#if !defined(SC_MAX_HISTORY_SIZE)
+#define SC_MAX_HISTORY_SIZE	(1000 * MAXCONS)
+#endif
+
+#if !defined(SC_HISTORY_SIZE)
+#define SC_HISTORY_SIZE		(ROW * 4)
+#endif
+
+#if (SC_HISTORY_SIZE * MAXCONS) > SC_MAX_HISTORY_SIZE
+#undef SC_MAX_HISTORY_SIZE
+#define SC_MAX_HISTORY_SIZE	(SC_HISTORY_SIZE * MAXCONS)
 #endif
 
 #define COLD 0
@@ -174,6 +187,9 @@ static  u_short 	mouse_or_mask[16] = {
 				0x0c00, 0x0c00, 0x0600, 0x0600,
 				0x0000, 0x0000, 0x0000, 0x0000
 			};
+
+static int		extra_history_size = 
+			    SC_MAX_HISTORY_SIZE - SC_HISTORY_SIZE * MAXCONS;
 
 static void    		none_saver(int blank) { }
 static void    		(*current_saver)(int blank) = none_saver;
@@ -755,15 +771,19 @@ scattach(struct isa_device *dev)
 	    		scp->mouse_xpos/8);
 
     /* initialize history buffer & pointers */
-    scp->history_head = scp->history_pos = scp->history =
+    scp->history_head = scp->history_pos = 
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
 			  M_DEVBUF, M_NOWAIT);
-    bzero(scp->history_head, scp->history_size*sizeof(u_short));
+    if (scp->history_head != NULL)
+        bzero(scp->history_head, scp->history_size*sizeof(u_short));
+    scp->history = scp->history_head;
 #ifdef PC98
-    scp->his_atr_head = scp->his_atr_pos = scp->his_atr =
+    scp->his_atr_head = scp->his_atr_pos =
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
 			  M_DEVBUF, M_NOWAIT);
-    bzero(scp->his_atr_head, scp->history_size*sizeof(u_short));
+    if (scp->his_atr_head != NULL)
+        bzero(scp->his_atr_head, scp->history_size*sizeof(u_short));
+    scp->his_atr = scp->his_atr_pos;
 #endif
 
     /* initialize cursor stuff */
@@ -916,8 +936,13 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	    if (scp->his_atr != NULL)
 	    free(scp->his_atr, M_DEVBUF);
 #endif
-	    if (scp->history != NULL)
+	    if (scp->history != NULL) {
 		free(scp->history, M_DEVBUF);
+		if (scp->history_size / scp->xsize
+			> imax(SC_HISTORY_SIZE, scp->ysize))
+		    extra_history_size += scp->history_size / scp->xsize 
+			- imax(SC_HISTORY_SIZE, scp->ysize);
+	    }
 	    free(scp, M_DEVBUF);
 	    console[minor(dev)] = NULL;
 	}
@@ -1019,6 +1044,10 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     int error;
     u_int i;
     struct tty *tp;
+    u_short *usp;
+#ifdef PC98
+    u_short *atr_usp;
+#endif
     scr_stat *scp;
 
     tp = scdevtotty(dev);
@@ -1100,25 +1129,56 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_HISTORY:  	/* set history size */
-	if (*data) {
+	if (*(int *)data > 0) {
+	    int lines;	/* buffer size to allocate */
+	    int lines0;	/* current buffer size */
+
+	    lines = imax(*(int *)data, scp->ysize);
+	    lines0 = (scp->history != NULL) ? 
+		      scp->history_size / scp->xsize : scp->ysize;
+	    /*
+	     * syscons unconditionally allocates buffers upto SC_HISTORY_SIZE
+	     * lines or scp->ysize lines, whichever is larger. A value 
+	     * greater than that is allowed, subject to extra_history_size.
+	     */
+	    if (lines > imax(lines0, SC_HISTORY_SIZE) + extra_history_size)
+                return EINVAL;
             if (cur_console->status & BUFFER_SAVED)
                 return EBUSY;
-	    if (scp->history != NULL)
-		free(scp->history, M_DEVBUF);
+	    usp = scp->history;
+	    scp->history = NULL;
+	    if (usp != NULL)
+		free(usp, M_DEVBUF);
 #ifdef PC98
-	    if (scp->his_atr != NULL)
-	    free(scp->his_atr, M_DEVBUF);
+	    atr_usp = scp->his_atr;
+	    scp->his_atr = NULL;
+	    if (atr_usp != NULL)
+		free(atr_usp, M_DEVBUF);
 #endif
-	    scp->history_size = max(scp->ysize, *(int *)data)*scp->xsize;
-	    scp->history_head = scp->history_pos = scp->history =
-		(u_short *)malloc(scp->history_size*sizeof(u_short),
-				  M_DEVBUF, M_WAITOK);
-	    bzero(scp->history_head, scp->history_size*sizeof(u_short));
+	    scp->history_size = lines * scp->xsize;
+	    /*
+	     * extra_history_size += 
+	     *    (lines0 > imax(SC_HISTORY_SIZE, scp->ysize)) ? 
+	     *     lines0 - imax(SC_HISTORY_SIZE, scp->ysize)) : 0;
+	     * extra_history_size -= 
+	     *    (lines > imax(SC_HISTORY_SIZE, scp->ysize)) ? 
+	     *	   lines - imax(SC_HISTORY_SIZE, scp->ysize)) : 0;
+	     * lines0 >= ysize && lines >= ysize... Hey, the above can be 
+	     * reduced to the following...
+	     */
+	    extra_history_size += 
+		imax(lines0, SC_HISTORY_SIZE) - imax(lines, SC_HISTORY_SIZE);
+	    usp = (u_short *)malloc(scp->history_size * sizeof(u_short),
+				    M_DEVBUF, M_WAITOK);
+	    bzero(usp, scp->history_size * sizeof(u_short));
+	    scp->history_head = scp->history_pos = usp;
+	    scp->history = usp;
 #ifdef PC98
-	    scp->his_atr_head = scp->his_atr_pos = scp->his_atr =
-		(u_short *)malloc(scp->history_size*sizeof(u_short),
-				  M_DEVBUF, M_WAITOK);
-	    bzero(scp->his_atr_head, scp->history_size*sizeof(u_short));
+	    atr_usp = (u_short *)malloc(scp->history_size * sizeof(u_short),
+				    M_DEVBUF, M_WAITOK);
+	    bzero(atr_usp, scp->history_size * sizeof(u_short));
+	    scp->his_atr_head = scp->his_atr_pos = atr_usp;
+	    scp->his_atr = atr_usp;
 #endif
 	    return 0;
 	}
@@ -1303,13 +1363,33 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
-	if (scp->history != NULL)
-	    free(scp->history, M_DEVBUF);
-	scp->history_size = max(HISTORY_SIZE, scp->xsize*scp->ysize);
-	scp->history_head = scp->history_pos = scp->history = (u_short *)
-	    malloc(scp->history_size*sizeof(u_short), M_DEVBUF, M_NOWAIT);
-	if (scp->history != NULL)
-	    bzero(scp->history, scp->history_size*sizeof(u_short));
+	usp = scp->history;
+	scp->history = NULL;
+	if (usp != NULL) {
+	    free(usp, M_DEVBUF);
+	    extra_history_size += i;
+	}
+#ifdef PC98
+	atr_usp = scp->his_atr;
+	scp->his_atr = NULL;
+	if (atr_usp != NULL)
+	    free(atr_usp, M_DEVBUF);
+#endif
+	scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
+	usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
+				M_DEVBUF, M_NOWAIT);
+	if (usp != NULL)
+	    bzero(usp, scp->history_size * sizeof(u_short));
+	scp->history_head = scp->history_pos = usp;
+	scp->history = usp;
+#ifdef PC98
+	atr_usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
+				M_DEVBUF, M_NOWAIT);
+	if (atr_usp != NULL)
+	    bzero(atr_usp, scp->history_size * sizeof(u_short));
+	scp->his_atr_head = scp->his_atr_pos = atr_usp;
+	scp->his_atr = atr_usp;
+#endif
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status &= ~UNKNOWN_MODE;
@@ -1337,6 +1417,9 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	if (!crtc_vga || video_mode_ptr == NULL)
 	    return ENXIO;
+	if (scp->history != NULL)
+	    i = imax(scp->history_size / scp->xsize 
+		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
 	switch (cmd & 0xff) {
 	case M_VGA_C80x60: case M_VGA_M80x60:
 	    if (!(fonts_loaded & FONT_8))
@@ -1386,6 +1469,19 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
+	usp = scp->history;
+	scp->history = NULL;
+	if (usp != NULL) {
+	    free(usp, M_DEVBUF);
+	    extra_history_size += i;
+	}
+	scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
+	usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
+				M_DEVBUF, M_NOWAIT);
+	if (usp != NULL)
+	    bzero(usp, scp->history_size * sizeof(u_short));
+	scp->history_head = scp->history_pos = usp;
+	scp->history = usp;
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status &= ~UNKNOWN_MODE;
@@ -3566,18 +3662,20 @@ static scr_stat
     scp->mouse_pos = scp->mouse_oldpos = 
 	scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
 			scp->mouse_xpos/8);
-    scp->history_head = scp->history_pos = scp->history =
+    scp->history_head = scp->history_pos =
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
 			  M_DEVBUF, M_WAITOK);
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
+    scp->history = scp->history_head;
 #ifdef PC98
     scp->atr_buf = scp->cursor_atr = scp->atr_buf =
 	(u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 			  M_DEVBUF, M_WAITOK);
-    scp->his_atr_head = scp->his_atr_pos = scp->his_atr =
+    scp->his_atr_head = scp->his_atr_pos =
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
 			  M_DEVBUF, M_WAITOK);
     bzero(scp->his_atr_head, scp->history_size*sizeof(u_short));
+    scp->his_atr = scp->his_atr_head;
 #endif
 /* SOS
 #ifndef PC98
@@ -3651,7 +3749,7 @@ init_scp(scr_stat *scp)
 #ifdef PC98
     scp->his_atr_head = scp->his_atr_pos = scp->his_atr = NULL;
 #endif
-    scp->history_size = max(HISTORY_SIZE, scp->xsize*scp->ysize);
+    scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
 #ifdef KANJI
     scp->kanji_1st_char = 0;
     scp->kanji_type = 0;
