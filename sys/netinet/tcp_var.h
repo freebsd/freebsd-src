@@ -187,8 +187,6 @@ struct tcpcb {
 	int	sack_enable;		/* enable SACK for this connection */
 	int	snd_numholes;		/* number of holes seen by sender */
 	struct sackhole *snd_holes;	/* linked list of holes (sorted) */
-	tcp_seq	rcv_laststart;		/* start of last segment recd. */
-	tcp_seq	rcv_lastend;		/* end of ... */
 	tcp_seq	rcv_lastsack;		/* last seq number(+1) sack'd by rcv'r*/
 	int	rcv_numsacks;		/* # distinct sack blks present */
 	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
@@ -575,7 +573,7 @@ extern	u_long tcp_recvspace;
 tcp_seq tcp_new_isn(struct tcpcb *);
 
 int	 tcp_sack_option(struct tcpcb *,struct tcphdr *,u_char *,int);
-void	 tcp_update_sack_list(struct tcpcb *tp);
+void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
 void	 tcp_del_sackholes(struct tcpcb *, struct tcphdr *);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
