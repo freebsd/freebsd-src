@@ -5,8 +5,8 @@
 .Nm sd
 .Nd scsi disk driver
 .Sh SYNOPSIS
-.Nm device-driver sd
-.Op Ar count
+.Nm disk sd
+.Nm disk sd1 target 4 lun 0
 .Sh DESCRIPTION
 The
 .Xr sd
@@ -46,11 +46,16 @@ As the scsi adapter is probed during boot, the
 bus is scanned for devices. Any devices found which answer as 'Direct'
 type devices will be 'attached' to the 
 .Nm
-driver. The first found will be attached as
+driver.
+In FreeBSD releases prior to 2.1, the first found will be attached as
 .Em sd0
 and the next, 
 .Em sd1
 etc.
+Beginning in 2.1 it is possible to specify what sd unit a device should
+come on line as; refer to
+.Xr scsi 4
+for details on kernel configuration.
 .Pp
 .Sh PARTITIONING
 The 
