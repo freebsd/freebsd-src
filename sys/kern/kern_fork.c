@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.39 1997/04/23 22:13:18 ache Exp $
+ * $Id: kern_fork.c,v 1.40 1997/04/26 14:31:36 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -47,6 +47,7 @@
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -62,6 +63,13 @@
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_inherit.h>
+
+#ifdef SMP
+int fast_vfork = 0;	/* Doesn't work on SMP yet */
+#else
+int fast_vfork = 1;
+#endif
+SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
 
 static int fork1 __P((struct proc *p, int flags, int *retval));
 
@@ -99,11 +107,8 @@ vfork(p, uap, retval)
 	struct vfork_args *uap;
 	int retval[];
 {
-	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT
-#ifndef SMP
-	    |RFMEM		/* does not work yet on SMP */
-#endif
-	    ), retval));
+	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT|(fast_vfork ? RFMEM : 0)),
+		retval));
 }
 
 /* ARGSUSED */
