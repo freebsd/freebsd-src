@@ -589,8 +589,8 @@ pci/ahc_pci.c		optional ahc device-driver			\
 pci/brooktree848.c	optional bktr device-driver
 pci/bt848_i2c.c		optional bktr device-driver
 pci/bt_pci.c		optional bt device-driver
-pci/dpt_pci.c		optional pci dpt device-driver
 pci/cy_pci.c		optional cy device-driver
+pci/dpt_pci.c		optional pci dpt device-driver
 pci/ida_pci.c		optional ida device-driver
 pci/if_al.c		optional al device-driver
 pci/if_ax.c		optional ax device-driver
