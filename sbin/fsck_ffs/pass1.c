@@ -228,6 +228,11 @@ checkinode(inumber, idesc)
 			printf("bad special-file size %qu:", dp->di_size);
 		goto unknown;
 	}
+	if ((mode == IFBLK || mode == IFCHR) && (dev_t)dp->di_rdev == NODEV) {
+		if (debug)
+			printf("bad special-file rdev NODEV:");
+		goto unknown;
+	}
 	ndb = howmany(dp->di_size, sblock.fs_bsize);
 	if (ndb < 0) {
 		if (debug)
