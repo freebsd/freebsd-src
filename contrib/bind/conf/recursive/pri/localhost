@@ -1,0 +1,12 @@
+; localhost.
+$TTL 3600
+@               in      soa     localhost. postmaster.localhost. (
+                                1993050801      ;serial
+                                3600            ;refresh
+                                1800            ;retry
+                                604800          ;expiration
+                                3600 )          ;minimum
+
+                        ns      localhost.
+
+                        a       127.0.0.1

@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_ho.c,v 1.25 1999/10/13 17:11:19 vixie Exp $";
+static const char rcsid[] = "$Id: lcl_ho.c,v 1.26 2001/05/29 05:49:04 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -83,6 +83,7 @@ static const char rcsid[] = "$Id: lcl_ho.c,v 1.25 1999/10/13 17:11:19 vixie Exp 
 
 #include "irs_p.h"
 #include "dns_p.h"
+#include "lcl_p.h"
 
 #ifdef SPRINTF_CHAR
 # define SPRINTF(x) strlen(sprintf/**/x)
@@ -136,6 +137,8 @@ static struct __res_state * ho_res_get(struct irs_ho *this);
 static void		ho_res_set(struct irs_ho *this,
 				   struct __res_state *res,
 				   void (*free_res)(void *));
+static struct addrinfo * ho_addrinfo(struct irs_ho *this, const char *name,
+				     const struct addrinfo *pai);
 
 static size_t		ns_namelen(const char *);
 static int		init(struct irs_ho *this);
@@ -152,6 +155,8 @@ struct irs_ho *
 irs_lcl_ho(struct irs_acc *this) {
 	struct irs_ho *ho;
 	struct pvt *pvt;
+
+	UNUSED(this);
 
 	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
@@ -174,6 +179,7 @@ irs_lcl_ho(struct irs_acc *this) {
 	ho->minimize = ho_minimize;
 	ho->res_get = ho_res_get;
 	ho->res_set = ho_res_set;
+	ho->addrinfo = ho_addrinfo;
 	return (ho);
 }
 
@@ -257,7 +263,7 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af) {
 	    (!memcmp(uaddr, mapped, sizeof mapped) ||
 	     !memcmp(uaddr, tunnelled, sizeof tunnelled))) {
 		/* Unmap. */
-		addr = (u_char *)addr + sizeof mapped;
+		addr = (const u_char *)addr + sizeof mapped;
 		uaddr += sizeof mapped;
 		af = AF_INET;
 		len = INADDRSZ;
@@ -477,6 +483,73 @@ ho_res_set(struct irs_ho *this, struct __res_state *res,
 
 	pvt->res = res;
 	pvt->free_res = free_res;
+}
+
+struct lcl_res_target {
+	struct lcl_res_target *next;
+	int family;
+};
+
+/* XXX */
+extern struct addrinfo *hostent2addrinfo __P((struct hostent *,
+					      const struct addrinfo *pai));
+
+static struct addrinfo *
+ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
+{
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct hostent *hp;
+	struct lcl_res_target q, q2, *p;
+	struct addrinfo sentinel, *cur;
+
+	memset(&q, 0, sizeof(q2));
+	memset(&q2, 0, sizeof(q2));
+	memset(&sentinel, 0, sizeof(sentinel));
+	cur = &sentinel;
+
+	switch(pai->ai_family) {
+	case AF_UNSPEC:		/* INET6 then INET4 */
+		q.family = AF_INET6;
+		q.next = &q2;
+		q2.family = AF_INET;
+		break;
+	case AF_INET6:
+		q.family = AF_INET6;
+		break;
+	case AF_INET:
+		q.family = AF_INET;
+		break;
+	default:
+		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY); /* ??? */
+		return(NULL);
+	}
+
+	for (p = &q; p; p = p->next) {
+		struct addrinfo *ai;
+
+		hp = (*this->byname2)(this, name, p->family);
+		if (hp == NULL) {
+			/* byname2 should've set an appropriate error */
+			continue;
+		}
+		if ((hp->h_name == NULL) || (hp->h_name[0] == 0) ||
+		    (hp->h_addr_list[0] == NULL)) {
+			RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
+			continue;
+		}
+
+		ai = hostent2addrinfo(hp, pai);
+		if (ai) {
+			cur->ai_next = ai;
+			while (cur && cur->ai_next)
+				cur = cur->ai_next;
+		}
+	}
+
+	if (sentinel.ai_next == NULL)
+		RES_SET_H_ERRNO(pvt->res, HOST_NOT_FOUND);
+
+	return(sentinel.ai_next);
 }
 
 /* Private. */

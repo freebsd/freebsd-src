@@ -143,6 +143,11 @@ while read CMD ARGS; do
 			no-recursion )
 				echo "	recursion no;" >>$OPTIONFILE
 				;;
+			no-round-robin ) # HP extention
+				echo "	rrset-order {" >>$OPTIONFILE
+				echo "		class ANY type ANY name \"*\" order fixed;" >>$OPTIONFILE
+				echo "	};" >>$OPTIONFILE
+				;;
 			esac
 		done
 		rm -f $COMMENTFILE

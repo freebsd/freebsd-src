@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_sign.c,v 8.9 2000/12/23 08:14:57 vixie Exp $";
+static const char rcsid[] = "$Id: ns_sign.c,v 8.10 2001/05/29 05:49:39 marka Exp $";
 #endif
 
 /* Import. */
@@ -233,7 +233,7 @@ ns_sign_tcp_init(void *k, const u_char *querysig, int querysiglen,
 	state->key = k;
 	if (state->key->dk_alg != KEY_HMAC_MD5)
 		return (-ns_r_badkey);
-	if (querysiglen > sizeof(state->sig))
+	if (querysiglen > (int)sizeof(state->sig))
 		return (-1);
 	memcpy(state->sig, querysig, querysiglen);
 	state->siglen = querysiglen;

@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_nw.c,v 1.19 1999/10/15 19:49:10 vixie Exp $";
+static const char rcsid[] = "$Id: dns_nw.c,v 1.21 2001/11/30 00:36:53 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -56,11 +56,7 @@ static const char rcsid[] = "$Id: dns_nw.c,v 1.19 1999/10/15 19:49:10 vixie Exp 
 
 #define	MAXALIASES	35
 
-#if PACKETSZ > 1024
-#define	MAXPACKET	PACKETSZ
-#else
-#define	MAXPACKET	1024
-#endif
+#define	MAXPACKET	(64*1024)
 
 struct pvt {
 	struct nwent	net;
@@ -108,6 +104,8 @@ struct irs_nw *
 irs_dns_nw(struct irs_acc *this) {
 	struct irs_nw *nw;
 	struct pvt *pvt;
+
+	UNUSED(this);
 
 	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
@@ -185,11 +183,15 @@ nw_byaddr(struct irs_nw *this, void *net, int len, int af) {
 
 static struct nwent *
 nw_next(struct irs_nw *this) {
+
+	UNUSED(this);
+
 	return (NULL);
 }
 
 static void
 nw_rewind(struct irs_nw *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -539,7 +541,7 @@ normalize_name(char *name) {
 
 	/* Make lower case. */
 	for (t = name; *t; t++)
-		if (isascii(*t) && isupper(*t))
+		if (isascii((unsigned char)*t) && isupper((unsigned char)*t))
 			*t = tolower(*t);
 
 	/* Remove trailing dots. */

@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_pr.c,v 1.13 1999/01/18 07:46:59 vixie Exp $";
+static const char rcsid[] = "$Id: nis_pr.c,v 1.14 2001/05/29 05:49:16 marka Exp $";
 #endif
 
 /* Imports */
@@ -132,10 +132,12 @@ static struct protoent *
 pr_byname(struct irs_pr *this, const char *name) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	int r;
+	char *tmp;
 	
 	nisfree(pvt, do_val);
-	r = yp_match(pvt->nis_domain, protocols_byname, (char *)name,
-		     strlen(name), &pvt->curval_data, &pvt->curval_len);
+	DE_CONST(name, tmp);
+	r = yp_match(pvt->nis_domain, protocols_byname, tmp,
+		     strlen(tmp), &pvt->curval_data, &pvt->curval_len);
 	if (r != 0) {
 		errno = ENOENT;
 		return (NULL);
@@ -204,6 +206,7 @@ pr_rewind(struct irs_pr *this) {
 
 static void
 pr_minimize(struct irs_pr *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -220,9 +223,9 @@ makeprotoent(struct irs_pr *this) {
 	pvt->prbuf = pvt->curval_data;
 	pvt->curval_data = NULL;
 
-	for (p = pvt->prbuf; *p && *p != '#'; p++)
-		NULL;
-	while (p > pvt->prbuf && isspace(p[-1]))
+	for (p = pvt->prbuf; *p && *p != '#';)
+		p++;
+	while (p > pvt->prbuf && isspace((unsigned char)(p[-1])))
 		p--;
 	*p = '\0';
 
@@ -230,16 +233,16 @@ makeprotoent(struct irs_pr *this) {
 	n = m = 0;
 
 	pvt->proto.p_name = p;
-	while (*p && !isspace(*p))
+	while (*p && !isspace((unsigned char)*p))
 		p++;
 	if (!*p)
 		return (NULL);
 	*p++ = '\0';
 
-	while (*p && isspace(*p))
+	while (*p && isspace((unsigned char)*p))
 		p++;
 	pvt->proto.p_proto = atoi(p);
-	while (*p && !isspace(*p))
+	while (*p && !isspace((unsigned char)*p))
 		p++;
 	*p++ = '\0';
 
@@ -255,7 +258,7 @@ makeprotoent(struct irs_pr *this) {
 			pvt->proto.p_aliases = t;
 		}
 		pvt->proto.p_aliases[n++] = p;
-		while (*p && !isspace(*p))
+		while (*p && !isspace((unsigned char)*p))
 			p++;
 		if (*p)
 			*p++ = '\0';

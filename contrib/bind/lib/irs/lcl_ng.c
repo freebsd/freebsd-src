@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: lcl_ng.c,v 1.16 1999/10/13 16:39:32 vixie Exp $";
+static const char rcsid[] = "$Id: lcl_ng.c,v 1.17 2001/05/29 05:49:05 marka Exp $";
 #endif
 
 /* Imports */
@@ -39,6 +39,7 @@ static const char rcsid[] = "$Id: lcl_ng.c,v 1.16 1999/10/13 16:39:32 vixie Exp 
 #include "port_after.h"
 
 #include "irs_p.h"
+#include "lcl_p.h"
 
 /* Definitions */
 
@@ -88,7 +89,8 @@ struct pvt {
 
 static void 		ng_rewind(struct irs_ng *, const char*);
 static void 		ng_close(struct irs_ng *);
-static int		ng_next(struct irs_ng *, char **, char **, char **);
+static int		ng_next(struct irs_ng *, const char **,
+				const char **, const char **);
 static int 		ng_test(struct irs_ng *, const char *,
 				const char *, const char *,
 				const char *);
@@ -104,6 +106,8 @@ struct irs_ng *
 irs_lcl_ng(struct irs_acc *this) {
 	struct irs_ng *ng;
 	struct pvt *pvt;
+
+	UNUSED(this);
 	
 	if (!(ng = memget(sizeof *ng))) {
 		errno = ENOMEM;
@@ -174,7 +178,9 @@ ng_rewind(struct irs_ng *this, const char *group) {
  * Get the next netgroup off the list.
  */
 static int
-ng_next(struct irs_ng *this, char **host, char **user, char **domain) {
+ng_next(struct irs_ng *this, const char **host, const char **user,
+	const char **domain)
+{
 	struct pvt *pvt = (struct pvt *)this->private;
 	
 	if (pvt->nextgrp) {
@@ -194,7 +200,7 @@ static int
 ng_test(struct irs_ng *this, const char *name,
 	const char *host, const char *user, const char *domain)
 {
-	char *ng_host, *ng_user, *ng_domain;
+	const char *ng_host, *ng_user, *ng_domain;
 
 	ng_rewind(this, name);
 	while (ng_next(this, &ng_host, &ng_user, &ng_domain))
@@ -350,7 +356,7 @@ parse_netgrp(struct irs_ng *this, const char *group) {
 static struct linelist *
 read_for_group(struct irs_ng *this, const char *group) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	char *pos, *spos, *linep, *olinep;
+	char *pos, *spos, *linep = NULL, *olinep;
 	int len, olen, cont;
 	struct linelist *lp;
 	char line[LINSIZ + 1];

@@ -86,17 +86,19 @@
 
 /*
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 8.15 1999/09/18 06:23:46 vixie Exp $
+ *	$Id: netdb.h,v 8.17 2001/06/18 14:43:48 marka Exp $
  */
 
 #ifndef _NETDB_H_
 #define _NETDB_H_
 
 #include <sys/param.h>
+#include <sys/types.h>
 #if (!defined(BSD)) || (BSD < 199306)
 # include <sys/bitypes.h>
 #endif
 #include <sys/cdefs.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
 
@@ -116,10 +118,10 @@
 #define	_PATH_SERVICES	"/etc/services"
 #endif
 
-#ifdef _REENTRANT
 __BEGIN_DECLS
 extern int * __h_errno __P((void));
 __END_DECLS
+#ifdef _REENTRANT
 #define	h_errno (*__h_errno())
 #else
 extern int h_errno;
@@ -236,10 +238,17 @@ struct	addrinfo {
 #define	NI_NAMEREQD	0x00000004
 #define	NI_NUMERICSERV	0x00000008
 #define	NI_DGRAM	0x00000010
+#define	NI_WITHSCOPEID	0x00000020
+#define NI_NUMERICSCOPE	0x00000040
+
+/*
+ * Scope delimit character
+ */
+#define SCOPE_DELIMITER	'%'
 
 
 #ifdef _REENTRANT
-#if defined (__hpux) || defined(__osf__)
+#if defined (__hpux) || defined(__osf__) || defined(_AIX)
 #define	_MAXALIASES	35
 #define	_MAXLINELEN	1024
 #define	_MAXADDRS	35
@@ -334,10 +343,13 @@ void		endhostent __P((void));
 void		endnetent __P((void));
 void		endprotoent __P((void));
 void		endservent __P((void));
+void		freehostent __P((struct hostent *));
 struct hostent	*gethostbyaddr __P((const char *, int, int));
 struct hostent	*gethostbyname __P((const char *));
 struct hostent	*gethostbyname2 __P((const char *, int));
 struct hostent	*gethostent __P((void));
+struct hostent	*getipnodebyaddr __P((const void *, size_t, int, int *));
+struct hostent	*getipnodebyname __P((const char *, int, int, int *));
 struct netent	*getnetbyaddr __P((unsigned long, int));
 struct netent	*getnetbyname __P((const char *));
 struct netent	*getnetent __P((void));
@@ -359,20 +371,24 @@ int		getaddrinfo __P((const char *, const char *,
 int		getnameinfo __P((const struct sockaddr *, size_t, char *,
 				 size_t, char *, size_t, int));
 void		freeaddrinfo __P((struct addrinfo *));
-char		*gai_strerror __P((int));
+const char	*gai_strerror __P((int));
 struct hostent  *getipnodebyname __P((const char *, int, int, int *));
 struct hostent	*getipnodebyaddr __P((const void *, size_t, int, int *));
 void		freehostent __P((struct hostent *));
 
 
 #ifdef _REENTRANT
-#if defined(__hpux) || defined(__osf__)
+#if defined(__hpux) || defined(__osf__) || defined(_AIX)
 int		gethostbyaddr_r __P((const char *, int, int, struct hostent *,
 					struct hostent_data *));
 int		gethostbyname_r __P((const char *, struct hostent *, 
 					struct hostent_data *));
 int		gethostent_r __P((struct hostent *, struct hostent_data *));
+#if defined(_AIX)
+void		sethostent_r __P((int, struct hostent_data *));
+#else
 int		sethostent_r __P((int, struct hostent_data *));
+#endif 
 #if defined(__hpux)
 int		endhostent_r __P((struct hostent_data *));
 #else
@@ -419,8 +435,8 @@ int		endservent_r __P((struct servent_data *));
 #else
 void		endservent_r __P((struct servent_data *));
 #endif
-#endif
-#if defined(sun) || defined(bsdi)
+#else
+ /* defined(sun) || defined(bsdi) */
 struct hostent	*gethostbyaddr_r __P((const char *, int, int, struct hostent *,
 					char *, int, int *));
 struct hostent	*gethostbyname_r __P((const char *, struct hostent *,
