@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.24 1995/05/15 08:39:31 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.25 1995/05/21 21:38:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -844,7 +844,7 @@ link(p, uap, retval)
 				    p, p->p_ucred, LEASE_WRITE);
 				LEASE_CHECK(vp,
 				    p, p->p_ucred, LEASE_WRITE);
-				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
+				error = VOP_LINK(vp, nd.ni_dvp, &nd.ni_cnd);
 			} else {
 				VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 				if (nd.ni_dvp == nd.ni_vp)
