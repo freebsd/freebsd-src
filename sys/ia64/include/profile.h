@@ -37,11 +37,11 @@ typedef unsigned long	fptrdiff_t;
 /*
  * The following two macros do splhigh and splx respectively.
  */
-#define MCOUNT_ENTER(s) \n\
-	_c = intr_disable()
-#define MCOUNT_EXIT(s) \n\
-	intr_restore(_c)
-#define	MCOUNT_DECL(s)	register_t c;
+#define	MCOUNT_ENTER(s)	s = intr_disable()
+#define	MCOUNT_EXIT(s)	intr_restore(s)
+#define	MCOUNT_DECL(s)	register_t s;
+
+_MCOUNT_DECL(uintfptr_t, uintfptr_t);
 
 #else /* !_KERNEL */
 
