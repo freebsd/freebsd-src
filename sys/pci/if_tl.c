@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.31 1999/05/06 18:13:08 peter Exp $
+ *	$Id: if_tl.c,v 1.32 1999/05/09 17:07:01 peter Exp $
  */
 
 /*
@@ -221,7 +221,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.31 1999/05/06 18:13:08 peter Exp $";
+	"$Id: if_tl.c,v 1.32 1999/05/09 17:07:01 peter Exp $";
 #endif
 
 /*
@@ -1562,9 +1562,9 @@ tl_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, TL_PCI_LOIO,
-	    (u_short *)&(sc->tl_bhandle))) {
+	    (pci_port_t *)&(sc->tl_bhandle))) {
 		if (!pci_map_port(config_id, TL_PCI_LOMEM,
-		    (u_short *)&(sc->tl_bhandle))) {
+		    (pci_port_t *)&(sc->tl_bhandle))) {
 			printf ("tl%d: couldn't map ports\n", unit);
 			goto fail;
 		}
@@ -1642,7 +1642,7 @@ tl_attach(config_id, unit)
 	 * allow that.
 	 */
 	sc->tl_ldata = (struct tl_list_data *)sc->tl_ldata_ptr;
-	round = (unsigned int)sc->tl_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->tl_ldata_ptr & 0xF;
 	roundptr = sc->tl_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {

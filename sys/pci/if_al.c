@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_al.c,v 1.13 1999/05/26 22:48:16 wpaul Exp $
+ *	$Id: if_al.c,v 1.4 1999/05/26 22:56:22 wpaul Exp $
  */
 
 /*
@@ -90,7 +90,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_al.c,v 1.13 1999/05/26 22:48:16 wpaul Exp $";
+	"$Id: if_al.c,v 1.4 1999/05/26 22:56:22 wpaul Exp $";
 #endif
 
 /*
@@ -901,7 +901,7 @@ al_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, AL_PCI_LOIO,
-					(u_short *)&(sc->al_bhandle))) {
+					(pci_port_t *)&(sc->al_bhandle))) {
 		printf ("al%d: couldn't map ports\n", unit);
 		goto fail;
         }

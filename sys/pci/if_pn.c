@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.20 1999/05/26 23:08:04 gallatin Exp $
+ *	$Id: if_pn.c,v 1.21 1999/05/28 18:43:10 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.20 1999/05/26 23:08:04 gallatin Exp $";
+	"$Id: if_pn.c,v 1.21 1999/05/28 18:43:10 wpaul Exp $";
 #endif
 
 
@@ -1041,7 +1041,7 @@ pn_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, PN_PCI_LOIO,
-					(u_short *)&(sc->pn_bhandle))) {
+					(pci_port_t *)&(sc->pn_bhandle))) {
 		printf ("pn%d: couldn't map ports\n", unit);
 		goto fail;
 	}
@@ -1104,7 +1104,7 @@ pn_attach(config_id, unit)
 	}
 
 	sc->pn_ldata = (struct pn_list_data *)sc->pn_ldata_ptr;
-	round = (unsigned int)sc->pn_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->pn_ldata_ptr & 0xF;
 	roundptr = sc->pn_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {
@@ -1419,7 +1419,7 @@ static void pn_rx_bug_war(sc, cur_rx)
 		ptr--;
 
 	/* Round off. */
-	if ((u_int32_t)(ptr) & 0x3)
+	if ((uintptr_t)(ptr) & 0x3)
 		ptr -= 1;
 
 	/* Now find the start of the frame. */
