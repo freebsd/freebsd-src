@@ -2374,6 +2374,37 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		vm_offset_t s, e;
 		vm_pindex_t offidxstart, offidxend, count;
 
+		/*
+		 * Wait for wiring or unwiring of an entry to complete.
+		 */
+		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0) {
+			unsigned int last_timestamp;
+			vm_offset_t saved_start;
+			vm_map_entry_t tmp_entry;
+
+			saved_start = entry->start;
+			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
+			last_timestamp = map->timestamp;
+			(void) vm_map_unlock_and_wait(map, FALSE);
+			vm_map_lock(map);
+			if (last_timestamp + 1 != map->timestamp) {
+				/*
+				 * Look again for the entry because the map was
+				 * modified while it was unlocked.
+				 * Specifically, the entry may have been
+				 * clipped, merged, or deleted.
+				 */
+				if (!vm_map_lookup_entry(map, saved_start,
+							 &tmp_entry))
+					entry = tmp_entry->next;
+				else {
+					entry = tmp_entry;
+					vm_map_clip_start(map, entry,
+							  saved_start);
+				}
+			}
+			continue;
+		}
 		vm_map_clip_end(map, entry, end);
 
 		s = entry->start;
