@@ -35,5 +35,6 @@
 MAN8	=	setobjstat.0
 SRCS	=	setobjstat.c eltsub.c
 PROG	=	setobjstat
+VPATH	=	${.CURDIR}/../srcs
 
 .include <bsd.prog.mk>

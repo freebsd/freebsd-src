@@ -35,5 +35,6 @@
 MAN8	=	sesd.0
 SRCS	=	sesd.c eltsub.c
 PROG	=	sesd
+VPATH	=	${.CURDIR}/../srcs
 
 .include <bsd.prog.mk>
