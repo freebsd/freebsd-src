@@ -42,7 +42,7 @@ CLEANFILES+=	netboot.com
 CLEANFILES+=	makerom start2.ro 3c509.o ns8390.o
 LDFLAGS+=	-N -T ${RELOCADDR} -e _start -nostdlib
 NOSHARED=	YES
-NOMAN=
+MAN8=	netboot.8
 STRIP=
 
 ROMSIZE=16384
