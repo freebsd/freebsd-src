@@ -816,7 +816,7 @@ void
 icmp6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct icmp6stat icmp6stat;
-	register int i, first;
+	int i, first;
 	int mib[4];
 	size_t len;
 
@@ -840,7 +840,7 @@ icmp6_stats(u_long off __unused, char *name, int af __unused)
 	    "\t%llu error%s not generated because old message was icmp error or so\n");
 	p(icp6s_toofreq,
 	  "\t%llu error%s not generated because rate limitation\n");
-#define NELEM (sizeof(icmp6stat.icp6s_outhist)/sizeof(icmp6stat.icp6s_outhist[0]))
+#define NELEM (int)(sizeof(icmp6stat.icp6s_outhist)/sizeof(icmp6stat.icp6s_outhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)
 		if (icmp6stat.icp6s_outhist[i] != 0) {
 			if (first) {
@@ -855,7 +855,7 @@ icmp6_stats(u_long off __unused, char *name, int af __unused)
 	p(icp6s_tooshort, "\t%llu message%s < minimum length\n");
 	p(icp6s_checksum, "\t%llu bad checksum%s\n");
 	p(icp6s_badlen, "\t%llu message%s with bad length\n");
-#define NELEM (sizeof(icmp6stat.icp6s_inhist)/sizeof(icmp6stat.icp6s_inhist[0]))
+#define NELEM (int)(sizeof(icmp6stat.icp6s_inhist)/sizeof(icmp6stat.icp6s_inhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)
 		if (icmp6stat.icp6s_inhist[i] != 0) {
 			if (first) {
