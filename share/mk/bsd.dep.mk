@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.18 1998/03/07 13:57:37 bde Exp $
+#	$Id: bsd.dep.mk,v 1.19 1998/03/23 14:58:26 eivind Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -94,17 +94,4 @@ cleandepend: _SUBDIR
 	rm -rf ${.OBJDIR}/HTML
 .endif
 .endif
-.endif
-
-_SUBDIR: .USE
-.if defined(SUBDIR) && !empty(SUBDIR)
-	@for entry in ${SUBDIR}; do \
-		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			cd ${.CURDIR}/$${entry}.${MACHINE}; \
-		else \
-			cd ${.CURDIR}/$${entry}; \
-		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
-	done
 .endif

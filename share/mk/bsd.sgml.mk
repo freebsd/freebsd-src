@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.22 1997/11/09 15:03:15 wosch Exp $
+#	$Id: bsd.sgml.mk,v 1.23 1998/01/23 20:09:21 jkh Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 #
@@ -195,11 +195,10 @@ CLEANFILES+= ${DOC}.${_XFORMAT}
 .endfor
 
 
-.for __target in beforeinstall afterinstall maninstall depend _SUBDIR
+.for __target in beforeinstall afterinstall maninstall _SUBDIR
 .if !target(${__target})
 ${__target}:
 .endif
 .endfor
 
-.include <bsd.dep.mk>
 .include <bsd.obj.mk>
