@@ -195,6 +195,7 @@ MLINKS+=yp.4 YP.4 yp.4 NIS.4 yp.4 nis.4
 
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
 SUBDIR=	 man4.i386 
+SUBDIR=	 man4.alpha 
 .if make(maninstall)
 maninstall:: _SUBDIR
 .endif
