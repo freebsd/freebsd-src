@@ -176,6 +176,7 @@ mmrw(dev, uio, flags)
 /* minor device 0 is physical memory */
 		case 0:
 			v = uio->uio_offset;
+			v &= ~PAGE_MASK;
 			pmap_kenter((vm_offset_t)ptvmmap, v);
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
