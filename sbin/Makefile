@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.66 1999/02/27 10:54:06 jkh Exp $
+#	$Id: Makefile,v 1.67 1999/03/12 15:38:53 brian Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -28,8 +28,6 @@ SUBDIR=	adjkerntz \
 	ldconfig \
 	md5 \
 	mknod \
-	modload \
-	modunload \
 	mount \
 	mount_cd9660 \
 	mount_ext2fs \
