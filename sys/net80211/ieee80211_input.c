@@ -709,10 +709,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 #endif
 		if (ni == NULL) {
 			ni = ieee80211_alloc_node(ic, wh->i_addr2);
-			if (ni == NULL) {
-				ic->ic_stats.is_rx_nodealloc++;
+			if (ni == NULL)
 				return;
-			}
 			ni->ni_esslen = ssid[1];
 			memset(ni->ni_essid, 0, sizeof(ni->ni_essid));
 			memcpy(ni->ni_essid, ssid + 2, ssid[1]);
@@ -789,10 +787,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 
 		if (ni == ic->ic_bss) {
 			ni = ieee80211_dup_bss(ic, wh->i_addr2);
-			if (ni == NULL) {
-				ic->ic_stats.is_rx_nodealloc++;
+			if (ni == NULL)
 				return;
-			}
 			IEEE80211_DPRINTF(("%s: new req from %s\n",
 				__func__, ether_sprintf(wh->i_addr2)));
 			allocbs = 1;
@@ -869,10 +865,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			}
 			if (ni == ic->ic_bss) {
 				ni = ieee80211_alloc_node(ic, wh->i_addr2);
-				if (ni == NULL) {
-					ic->ic_stats.is_rx_nodealloc++;
+				if (ni == NULL)
 					return;
-				}
 				IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_bss->ni_bssid);
 				ni->ni_rssi = rssi;
 				ni->ni_rstamp = rstamp;
