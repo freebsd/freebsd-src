@@ -74,14 +74,13 @@ int
 announce(CTL_MSG *request, const char *remote_machine)
 {
 	char full_tty[32];
-	FILE *tf;
 	struct stat stbuf;
 
 	(void)snprintf(full_tty, sizeof(full_tty),
 	    "%s%s", _PATH_DEV, request->r_tty);
 	if (stat(full_tty, &stbuf) < 0 || (stbuf.st_mode&020) == 0)
 		return (PERMISSION_DENIED);
-	return (print_mesg(request->r_tty, tf, request, remote_machine));
+	return (print_mesg(request->r_tty, request, remote_machine));
 }
 
 #define max(a,b) ( (a) > (b) ? (a) : (b) )
@@ -95,13 +94,12 @@ announce(CTL_MSG *request, const char *remote_machine)
  * in in vi at the time
  */
 int
-print_mesg(const char *tty, FILE *tf, CTL_MSG *request,
+print_mesg(const char *tty, CTL_MSG *request,
     const char *remote_machine)
 {
-	struct timeval clock;
+	struct timeval now;
 	time_t clock_sec;
 	struct timezone zone;
-	struct tm *localtime();
 	struct tm *localclock;
 	struct iovec iovec;
 	char line_buf[N_LINES][N_CHARS];
@@ -112,8 +110,8 @@ print_mesg(const char *tty, FILE *tf, CTL_MSG *request,
 
 	i = 0;
 	max_size = 0;
-	gettimeofday(&clock, &zone);
-	clock_sec = clock.tv_sec;
+	gettimeofday(&now, &zone);
+	clock_sec = now.tv_sec;
 	localclock = localtime(&clock_sec);
 	(void)snprintf(line_buf[i], N_CHARS, " ");
 	sizes[i] = strlen(line_buf[i]);
