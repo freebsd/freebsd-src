@@ -25,7 +25,6 @@ PROG=	${PROG_CXX}
 .endif
 
 .if defined(PROG)
-.if !target(${PROG})
 .if defined(SRCS)
 
 # If there are Objective C sources, link with Objective C libraries.
@@ -36,8 +35,16 @@ LDADD+=	${OBJCLIBS}
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
+${PROG}: ${OBJS}
+.if defined(PROG_CXX)
+	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.else
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.endif
+
 .else !defined(SRCS)
 
+.if !target(${PROG})
 .if defined(PROG_CXX)
 SRCS=	${PROG}.cc
 .else
@@ -50,13 +57,13 @@ SRCS=	${PROG}.c
 #   the name of a variable temporary object.
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
-.endif
 
 ${PROG}: ${OBJS}
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.endif
 .endif
 
 .endif
