@@ -32,6 +32,18 @@
 #include <machine/alpha_cpu.h>
 
 /*
+ * Quick and dirty workaround for compiling LINT. The kernel is too
+ * large to jump between sections without linker stubs/trampolines.
+ */
+#ifdef COMPILING_LINT
+#define	__COLD_SECTION	"br 3f\n"
+#define	__HOT_SECTION	"3:\n"
+#else
+#define	__COLD_SECTION	".section .text3,\"ax\"\n"
+#define	__HOT_SECTION	".previous\n"
+#endif
+
+/*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and SMP safe.
  */
@@ -56,9 +68,9 @@ static __inline void atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 		"bis %0, %3, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
@@ -75,9 +87,9 @@ static __inline void atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 		"bic %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -94,9 +106,9 @@ static __inline void atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 		"addl %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -113,9 +125,9 @@ static __inline void atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 		"subl %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -154,9 +166,9 @@ static __inline void atomic_set_64(volatile u_int64_t *p, u_int64_t v)
 		"bis %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -173,9 +185,9 @@ static __inline void atomic_clear_64(volatile u_int64_t *p, u_int64_t v)
 		"bic %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -192,9 +204,9 @@ static __inline void atomic_add_64(volatile u_int64_t *p, u_int64_t v)
 		"addq %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -211,9 +223,9 @@ static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
 		"subq %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 2f\n\t"		/* spin if failed */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"2:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -375,9 +387,9 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 		"stl_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 3f\n\t"		/* if it failed, spin */
 		"2:\n"				/* done */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"3:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (ret), "+m" (*p)
 		: "r" ((long)(int)cmpval), "r" (newval)
 		: "memory");
@@ -405,9 +417,9 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 		"stq_c %0, %1\n\t"		/* attempt to store */
 		"beq %0, 3f\n\t"		/* if it failed, spin */
 		"2:\n"				/* done */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		__COLD_SECTION			/* improve branch prediction */
 		"3:\tbr 1b\n"			/* try again */
-		".previous\n"
+		__HOT_SECTION
 		: "=&r" (ret), "+m" (*p)
 		: "r" (cmpval), "r" (newval)
 		: "memory");
