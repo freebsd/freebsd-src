@@ -44,7 +44,7 @@
 #endif
 
 #ifndef SMALL_PIPE_SIZE
-#define SMALL_PIPE_SIZE 4096
+#define SMALL_PIPE_SIZE	PAGE_SIZE
 #endif
 
 /*
