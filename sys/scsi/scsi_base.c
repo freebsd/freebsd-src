@@ -17,6 +17,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
@@ -61,8 +62,9 @@ get_xs(sc_link, flags)
 		sc_link->flags |= SDEV_WAITING;
 		tsleep((caddr_t)sc_link, PRIBIO, "scsiget", 0);
 	}
+	sc_link->active++;
 	sc_link->opennings--;
-	if (xs = next_free_xs) {
+	if ( (xs = next_free_xs) ) {
 		next_free_xs = xs->next;
 		splx(s);
 	} else {
@@ -97,6 +99,7 @@ free_xs(xs, sc_link, flags)
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("free_xs\n"));
 	/* if was 0 and someone waits, wake them up */
+	sc_link->active--;
 	if ((!sc_link->opennings++) && (sc_link->flags & SDEV_WAITING)) {
 		sc_link->flags &= ~SDEV_WAITING;
 		wakeup((caddr_t)sc_link); /* remember, it wakes them ALL up */
@@ -154,6 +157,42 @@ scsi_read_capacity(sc_link, blk_size, flags)
 			*blk_size = scsi_4btou(&rdcap.length_3);
 	}
 	return (size);
+}
+
+errval
+scsi_reset_target(sc_link)
+	struct scsi_link *sc_link;
+{
+	return (scsi_scsi_cmd(sc_link,
+		0,
+		0,
+		0,
+		0,
+		1,
+		2000,
+		NULL,
+		SCSI_RESET));
+}
+
+errval
+scsi_target_mode(sc_link, on_off)
+	struct scsi_link *sc_link;
+	int on_off;
+{
+	struct scsi_generic scsi_cmd;
+	bzero(&scsi_cmd, sizeof(scsi_cmd));
+	scsi_cmd.opcode = SCSI_OP_TARGET;
+	scsi_cmd.bytes[0] = (on_off) ? 1 : 0;
+
+	return (scsi_scsi_cmd(sc_link,
+		&scsi_cmd,
+		sizeof(scsi_cmd),
+		0,
+		0,
+		1,
+		2000,
+		NULL,
+		SCSI_ESCAPE));
 }
 
 /*
@@ -354,8 +393,11 @@ scsi_done(xs)
 			free_xs(xs, sc_link, SCSI_NOSLEEP);	/*XXX */
 			return;	/* it did it all, finish up */
 		}
-		/* BUG: This isn't used anywhere. Do you have plans for it,
+		/* XXX: This isn't used anywhere. Do you have plans for it,
 		 * Julian? (dufault@hda.com).
+		 * This allows a private 'done' handler to 
+		 * resubmit the command if it wants to retry,
+		 * In this case the xs must NOT be freed. (julian)
 		 */
 		if (retval == -2) {
 			return;	/* it did it all, finish up */
@@ -373,15 +415,16 @@ scsi_done(xs)
 	}
 	/*
 	 * Go and handle errors now.
-	 * If it returns -1 then we should RETRY
+	 * If it returns SCSIRET_DO_RETRY then we should RETRY
 	 */
-	if ((retval = sc_err1(xs)) == -1) {
+	if ((retval = sc_err1(xs)) == SCSIRET_DO_RETRY) {
 		if ((*(sc_link->adapter->scsi_cmd)) (xs)
 		    == SUCCESSFULLY_QUEUED) {	/* don't wake the job, ok? */
 			return;
 		}
 		xs->flags |= ITSDONE;
 	}
+
 	free_xs(xs, sc_link, SCSI_NOSLEEP); /* does a start if needed */
 	biodone(bp);
 }
@@ -414,20 +457,23 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	 * Reject zero length commands and assert all defined commands
 	 * are the correct length.
 	 */
-	if (cmdlen == 0)
-		return EFAULT;
-	else
+	if ((flags & (SCSI_RESET | SCSI_ESCAPE)) == 0)
 	{
-		static u_int8 sizes[] = {6, 10, 10, 0, 0, 12, 0, 0 };
-		u_int8 size = sizes[((scsi_cmd->opcode) >> 5)];
-		if (size && (size != cmdlen))
-			return EIO;
+		if (cmdlen == 0)
+			return EFAULT;
+		else
+		{
+			static u_int8 sizes[] = {6, 10, 10, 0, 0, 12, 0, 0 };
+			u_int8 size = sizes[((scsi_cmd->opcode) >> 5)];
+			if (size && (size != cmdlen))
+				return EIO;
+		}
 	}
 
 	if (bp && !(flags & SCSI_USER)) flags |= SCSI_NOSLEEP;
 	SC_DEBUG(sc_link, SDEV_DB2, ("scsi_cmd\n"));
 
-	xs = get_xs(sc_link, flags);	/* should wait unless booting */
+	xs = get_xs(sc_link, flags);
 	if (!xs) return (ENOMEM);
 	/*
 	 * Fill out the scsi_xfer structure.  We don't know whose context
@@ -442,7 +488,7 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	xs->cmdlen = cmdlen;
 	xs->data = data_addr;
 	xs->datalen = datalen;
-	xs->resid = datalen;
+ 	xs->resid = 0;
 	xs->bp = bp;
 /*XXX*/ /*use constant not magic number */
 	if (datalen && ((caddr_t) data_addr < (caddr_t) KERNBASE)) {
@@ -503,8 +549,9 @@ retry:
 
 	switch (retval) {
 	case SUCCESSFULLY_QUEUED:
-		if (bp)
-			return retval;	/* will sleep (or not) elsewhere */
+		if (bp) {
+			return 0;	/* will sleep (or not) elsewhere */
+		}
 		s = splbio();
 		while (!(xs->flags & ITSDONE)) {
 			tsleep((caddr_t)xs, PRIBIO + 1, "scsicmd", 0);
@@ -514,7 +561,7 @@ retry:
 	case COMPLETE:		/* Polling command completed ok */
 /*XXX*/	case HAD_ERROR:		/* Polling command completed with error */
 		SC_DEBUG(sc_link, SDEV_DB3, ("back in cmd()\n"));
-		if ((retval = sc_err1(xs)) == -1)
+		if ((retval = sc_err1(xs)) == SCSIRET_DO_RETRY)
 			goto retry;
 		break;
 
@@ -562,85 +609,168 @@ bad:
 	return (retval);
 }
 
-static errval 
-sc_err1(xs)
-	struct scsi_xfer *xs;
+static errval
+sc_done(struct scsi_xfer *xs, int code)
 {
-	struct buf *bp = xs->bp;
-	errval  retval;
-
-	SC_DEBUG(xs->sc_link, SDEV_DB3, ("sc_err1,err = 0x%x \n", xs->error));
 	/*
 	 * If it has a buf, we might be working with
 	 * a request from the buffer cache or some other
 	 * piece of code that requires us to process
-	 * errors at inetrrupt time. We have probably
+	 * errors at interrupt time. We have probably
 	 * been called by scsi_done()
 	 */
-	switch ((int)xs->error) {
-	case XS_NOERROR:	/* nearly always hit this one */
-		retval = ESUCCESS;
-		if (bp) {
-			bp->b_error = 0;
-			bp->b_resid = 0;
-		}
-		break;
+	struct buf *bp;
 
-	case XS_SENSE:
-		retval = scsi_interpret_sense(xs);
-		if (retval == SCSIRET_DO_RETRY) {
-			if (xs->retries--) {
-				xs->error = XS_NOERROR;
-				xs->flags &= ~ITSDONE;
-				goto retry;
-			}
-			retval = EIO;   /* Too many retries */
-		}
-
-		if (bp) {
-			bp->b_error = 0;
-			if (retval) {
-				bp->b_flags |= B_ERROR;
-				bp->b_error = retval;
-				bp->b_resid = bp->b_bcount;
-			}
-			SC_DEBUG(xs->sc_link, SDEV_DB3,
-			    ("scsi_interpret_sense (bp) returned %d\n", retval));
-		} else {
-			SC_DEBUG(xs->sc_link, SDEV_DB3,
-			    ("scsi_interpret_sense (no bp) returned %d\n", retval));
-		}
-		break;
-
-	case XS_BUSY:
-		/*should somehow arange for a 1 sec delay here (how?) */
-		/* XXX tsleep(&localvar, priority, "foo", hz);
-		   that's how! */
-	case XS_TIMEOUT:
-		/*
-		 * If we can, resubmit it to the adapter.
-		 */
+	if (code == SCSIRET_DO_RETRY) {
 		if (xs->retries--) {
 			xs->error = XS_NOERROR;
 			xs->flags &= ~ITSDONE;
-			goto retry;
+			return SCSIRET_DO_RETRY;
 		}
+		code = EIO;	/* Too many retries */
+	}
+
+	/*
+ 	 * an EOF condition results in a VALID resid..
+ 	 */
+ 	if(xs->flags & SCSI_EOF) {
+ 		xs->resid = xs->datalen;
+ 		xs->flags |= SCSI_RESID_VALID;
+  	}
+
+	bp = xs->bp;
+	if (code != ESUCCESS) {
+		if (bp) {
+			bp->b_error = 0;
+			bp->b_flags |= B_ERROR;
+			bp->b_error = code;
+			bp->b_resid = bp->b_bcount;
+			SC_DEBUG(xs->sc_link, SDEV_DB3,
+				("scsi_interpret_sense (bp) returned %d\n", code));
+		} else {
+			SC_DEBUG(xs->sc_link, SDEV_DB3,
+				("scsi_interpret_sense (no bp) returned %d\n", code));
+		}
+	}
+	else {
+		if (bp) {
+
+			bp->b_error = 0;
+
+			/* XXX: We really shouldn't need this SCSI_RESID_VALID flag.
+			 * If we initialize it to 0 and only touch it if we have
+			 * a value then we can leave out the test.
+			 */
+
+			if (xs->flags & SCSI_RESID_VALID) {
+				bp->b_resid = xs->resid;
+				bp->b_flags |= B_ERROR;
+			} else {
+				bp->b_resid = 0;
+			}
+		}
+	}
+
+	return code;
+}
+
+/*
+ * submit a scsi command, given the command.. used for retries
+ * and callable from timeout()
+ */
+#ifdef NOTYET
+errval scsi_submit(xs)
+	struct scsi_xfer *xs;
+{
+	struct scsi_link *sc_link = xs->sc_link;
+	int retval;
+
+	retval = (*(sc_link->adapter->scsi_cmd)) (xs);
+
+	return retval;
+}
+
+/*
+ * Retry a scsi command, given the command,  and a delay.
+ */
+errval scsi_retry(xs,delay)
+	struct scsi_xfer *xs;
+	int	delay;
+{
+	if(delay)
+	{
+		timeout(((void())*)scsi_submit,xs,hz*delay);
+		return(0);
+	}
+	else
+	{
+		return(scsi_submit(xs));
+	}
+}
+#endif
+
+/*
+ * handle checking for errors..
+ * called at interrupt time from scsi_done() and 
+ * at user time from scsi_scsi_cmd(), depending on whether
+ * there was a bp  (basically, if there is a bp, there may be no
+ * associated process at the time. (it could be an async operation))
+ * lower level routines shouldn't know about xs->bp.. we are the lowest.
+ */
+static errval 
+sc_err1(xs)
+	struct scsi_xfer *xs;
+{
+	SC_DEBUG(xs->sc_link, SDEV_DB3, ("sc_err1,err = 0x%lx \n", xs->error));
+
+	switch ((int)xs->error) {
+	case XS_SENSE:
+		return sc_done(xs, scsi_interpret_sense(xs));
+
+	case XS_NOERROR:
+		return sc_done(xs, ESUCCESS);
+
+	case XS_BUSY:
+ 		/* should somehow arange for a 1 sec delay here (how?)[jre]
+ 		 * tsleep(&localvar, priority, "foo", hz);
+ 		 * that's how! [unknown]
+ 		 * no, we could be at interrupt context..  use
+ 		 * timeout(scsi_resubmit,xs,hz); [jre] (not implimenteed yet)
+ 		 */
+	case XS_TIMEOUT:
+		return sc_done(xs, SCSIRET_DO_RETRY);
+
 		/* fall through */
 	case XS_DRIVER_STUFFUP:
-		if (bp) {
-			bp->b_flags |= B_ERROR;
-			bp->b_error = EIO;
-		}
-		retval = EIO;
-		break;
+		return sc_done(xs, EIO);
+
 	default:
-		retval = EIO;
 		sc_print_addr(xs->sc_link);
 		printf("unknown error category from scsi driver\n");
+		return sc_done(xs, EIO);
 	}
-	return retval;
-retry:
-	return (-1);
+}
+
+int
+scsi_sense_qualifiers(xs, asc, ascq)
+	struct scsi_xfer *xs;
+	int *asc;
+	int *ascq;
+{
+	struct scsi_sense_data_new *sense;
+	struct scsi_sense_extended *ext;
+
+	sense = (struct scsi_sense_data_new *)&(xs->sense);
+
+	ext = &(sense->ext.extended);
+
+	if (ext->extra_len < 5)
+		return 0;
+
+	*asc = (ext->extra_len >= 5) ? ext->add_sense_code : 0;
+	*ascq = (ext->extra_len >= 6) ? ext->add_sense_code_qual : 0;
+
+	return 1;
 }
 
 /*
@@ -655,7 +785,6 @@ void scsi_sense_print(xs)
 	struct scsi_sense_extended *ext;
 	u_int32 key;
 	u_int32 info;
-	errval  errcode;
 	int asc, ascq;
 
 	/* This sense key text now matches what is in the SCSI spec
@@ -675,7 +804,7 @@ void scsi_sense_print(xs)
 	    "MISCOMPARE", "RESERVED"
 	};
 
-	sc_print_addr(xs->sc_link);
+	sc_print_start(xs->sc_link);
 
 	sense = (struct scsi_sense_data_new *)&(xs->sense);
 	ext = &(sense->ext.extended);
@@ -706,8 +835,14 @@ void scsi_sense_print(xs)
 				    info);
 				break;
 			default:
-				if (info)
-					printf(" info:%lx", info);
+				if (info) {
+		    		if (sense->ext.extended.flags & SSD_ILI) {
+						printf(" ILI (length mismatch): %ld", info);
+					}
+					else {
+						printf(" info:%lx", info);
+					}
+				}
 			}
 		}
 		else if (info)
@@ -734,11 +869,11 @@ void scsi_sense_print(xs)
 			if (strlen(desc) > 40)
 				sc_print_addr(xs->sc_link);;
 
-			printf("%s", desc);
+			printf(" %s", desc);
 		}
 			
 		if (ext->extra_len >= 7 && ext->fru) {
-			printf(" fru:%x", ext->fru);
+			printf(" field replaceable unit: %x", ext->fru);
 		}
 
 		if (ext->extra_len >= 10 && 
@@ -764,6 +899,7 @@ void scsi_sense_print(xs)
 	}
 
 	printf("\n");
+	sc_print_finish();
 }
 
 /*
@@ -781,10 +917,11 @@ scsi_interpret_sense(xs)
 	u_int32 key;
 	u_int32 silent;
 	errval  errcode;
+	int error_code;
 
 	/*
 	 * If the flags say errs are ok, then always return ok.
-	 * BUG: What if it is a deferred error?
+	 * XXX: What if it is a deferred error?
 	 */
 	if (xs->flags & SCSI_ERR_OK)
 		return (ESUCCESS);
@@ -823,20 +960,34 @@ scsi_interpret_sense(xs)
 	 * request a retry or continue with default sense handling.
 	 */
 	if (sc_link->device->err_handler) {
-		SC_DEBUG(sc_link, SDEV_DB2, ("calling private err_handler()\n"));
+		SC_DEBUG(sc_link, SDEV_DB2,
+			("calling private err_handler()\n"));
 		errcode = (*sc_link->device->err_handler) (xs);
 
-		if (errcode >= 0)
+		SC_DEBUG(sc_link, SDEV_DB2,
+			("private err_handler() returned %d\n",errcode));
+		if (errcode >= 0) {
+		SC_DEBUG(sc_link, SDEV_DB2,
+			("SCSI_EOF = %d\n",(xs->flags & SCSI_EOF)?1:0));
+		SC_DEBUG(sc_link, SDEV_DB2,
+			("SCSI_RESID_VALID = %d\n",
+				(xs->flags & SCSI_RESID_VALID)?1:0));
+
+			if(xs->flags & SCSI_EOF) {
+				xs->resid = xs->datalen;
+ 				xs->flags |= SCSI_RESID_VALID;
+			}
 			return errcode;			/* valid errno value */
+		}
 
 		switch(errcode) {
-			case SCSIRET_DO_RETRY:	/* Requested a retry */
+		case SCSIRET_DO_RETRY:	/* Requested a retry */
 			return errcode;
 
-			case SCSIRET_CONTINUE:	/* Continue with default sense processing */
+		case SCSIRET_CONTINUE:	/* Continue with default sense processing */
 			break;
 
-			default:
+		default:
 			sc_print_addr(xs->sc_link);
 			printf("unknown return code %d from sense handler.\n",
 			errcode);
@@ -844,15 +995,17 @@ scsi_interpret_sense(xs)
 			return errcode;
 		}
 	}
+
 	/* otherwise use the default */
 	silent = (xs->flags & SCSI_SILENT);
 	key = sense->ext.extended.flags & SSD_KEY;
+	error_code = sense->error_code & SSD_ERRCODE;
 
 	if (!silent) {
 		scsi_sense_print(xs);
 	}
 
-	switch (sense->error_code & SSD_ERRCODE) {
+	switch (error_code) {
 	case 0x71:		/* deferred error */
 		/* Print even if silent (not silent was already done)
 		 */
@@ -860,7 +1013,7 @@ scsi_interpret_sense(xs)
 			scsi_sense_print(xs);
 		}
 
-		/* BUG:
+		/* XXX:
 		 * This error doesn't relate to the command associated
 		 * with this request sense.  A deferred error is an error
 		 * for a command that has already returned GOOD status (see 7.2.14.2).
@@ -890,9 +1043,11 @@ scsi_interpret_sense(xs)
 		switch ((int)key) {
 		case 0x0:	/* NO SENSE */
 		case 0x1:	/* RECOVERED ERROR */
-			if (xs->resid == xs->datalen)
-				xs->resid = 0;	/* not short read */
 		case 0xc:	/* EQUAL */
+ 			if(xs->flags & SCSI_EOF) {
+ 				xs->resid = xs->datalen;
+ 				xs->flags |= SCSI_RESID_VALID;
+ 			}
 			return (ESUCCESS);
 		case 0x2:	/* NOT READY */
 			sc_link->flags &= ~SDEV_MEDIA_LOADED;
@@ -911,6 +1066,7 @@ scsi_interpret_sense(xs)
 		case 0xd:	/* VOLUME OVERFLOW */
 			return (ENOSPC);
 		case 0x8:	/* BLANK CHECK */
+			xs->flags |= SCSI_EOF; /* force EOF on tape read */
 			return (ESUCCESS);
 		default:
 			return (EIO);
@@ -1014,16 +1170,38 @@ sc_print_start(sc_link)
 	struct scsi_link *sc_link;
 {
 	sc_print_addr(sc_link);
-	sc_printing = 1;
+	sc_printing++;
 }
 void
 sc_print_finish()
 {
-	sc_printing = 0;
+	sc_printing--;
+}
+
+static void
+id_put(int id, char *after)
+{
+	switch(id)
+	{
+		case SCCONF_UNSPEC:
+		break;
+
+		case SCCONF_ANY:
+		printf("?");
+		break;
+
+		default:
+		printf("%d", id);
+		break;
+	}
+
+	printf("%s", after);
 }
 
 /*
- * Print out the scsi_link structure's address info.
+ * sc_print_addr: Print out the scsi_link structure's address info.
+ * This should handle any circumstance, even the transitory ones
+ * during system configuration.
  */
 
 void
@@ -1033,12 +1211,26 @@ sc_print_addr(sc_link)
 	if (sc_printing)
 		printf("\n");
 
-	if (strcmp(sc_link->device->name, "probe") != 0)
-		printf("%s%d", sc_link->device->name, sc_link->dev_unit);
+	if (sc_link->device == 0) {
+		printf("nodevice");
+	}
+	else if (strcmp(sc_link->device->name, "probe") != 0) {
+		printf("%s", sc_link->device->name);
+		id_put(sc_link->dev_unit, "");
+	}
 
-	printf("(%s%d:%d:%d): ", sc_link->adapter->name, sc_link->adapter_unit,
-		sc_link->target, sc_link->lun);		
+	if (sc_link->adapter == 0) {
+		printf("(noadapter:");
+	}
+	else {
+		printf("(%s", sc_link->adapter->name);
+		id_put(sc_link->adapter_unit, ":");
+	}
+
+	id_put(sc_link->target, ":");
+	id_put(sc_link->lun, "): ");
 }
+
 #ifdef	SCSIDEBUG
 /*
  * Given a scsi_xfer, dump the request, in all it's glory
@@ -1047,18 +1239,18 @@ void
 show_scsi_xs(xs)
 	struct scsi_xfer *xs;
 {
-	printf("xs(0x%x): ", xs);
-	printf("flg(0x%x)", xs->flags);
-	printf("sc_link(0x%x)", xs->sc_link);
+	printf("xs(%p): ", xs);
+	printf("flg(0x%lx)", xs->flags);
+	printf("sc_link(%p)", xs->sc_link);
 	printf("retr(0x%x)", xs->retries);
-	printf("timo(0x%x)", xs->timeout);
-	printf("cmd(0x%x)", xs->cmd);
-	printf("len(0x%x)", xs->cmdlen);
-	printf("data(0x%x)", xs->data);
-	printf("len(0x%x)", xs->datalen);
-	printf("res(0x%x)", xs->resid);
-	printf("err(0x%x)", xs->error);
-	printf("bp(0x%x)", xs->bp);
+	printf("timo(0x%lx)", xs->timeout);
+	printf("cmd(%p)", xs->cmd);
+	printf("len(0x%lx)", xs->cmdlen);
+	printf("data(%p)", xs->data);
+	printf("len(0x%lx)", xs->datalen);
+	printf("res(0x%lx)", xs->resid);
+	printf("err(0x%lx)", xs->error);
+	printf("bp(%p)", xs->bp);
 	show_scsi_cmd(xs);
 }
 
@@ -1077,7 +1269,7 @@ show_scsi_cmd(struct scsi_xfer *xs)
 				printf(",");
 			printf("%x", b[i++]);
 		}
-		printf("-[%d bytes]\n", xs->datalen);
+		printf("-[%ld bytes]\n", xs->datalen);
 		if (xs->datalen)
 			show_mem(xs->data, min(64, xs->datalen));
 	} else {
@@ -1090,11 +1282,11 @@ show_mem(address, num)
 	unsigned char *address;
 	u_int32 num;
 {
-	u_int32 x, y;
+	u_int32 y;
 	printf("------------------------------");
 	for (y = 0; y < num; y += 1) {
 		if (!(y % 16))
-			printf("\n%03d: ", y);
+			printf("\n%03ld: ", y);
 		printf("%02x ", *address++);
 	}
 	printf("\n------------------------------\n");

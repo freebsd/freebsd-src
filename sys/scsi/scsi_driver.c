@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.6 1995/03/16 18:15:48 bde Exp $
+ * $Id: scsi_driver.c,v 1.7 1995/03/21 11:21:02 dufault Exp $
  *
  */
 #include <sys/types.h>
@@ -125,18 +125,19 @@ struct scsi_device *device)
 	errcode = (device->dev_open) ? 
 		(*device->dev_open)(dev, flags, fmt, p, sc_link) : 0;
 
-	if (sc_link->flags & SDEV_ONCE_ONLY) {
+	if (errcode == 0 && (sc_link->flags & SDEV_ONCE_ONLY)) {
 		/*
 		 * Only allow one at a time
 		 */
 		if (sc_link->flags & SDEV_OPEN) {
-			return EBUSY;
+			errcode = EBUSY;
 		}
-
-		sc_link->flags |= SDEV_OPEN;
+		else {
+			sc_link->flags |= SDEV_OPEN;
+		}
 	}
 
-	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%x (unit %d) result %d\n",
+	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%lx (unit %ld) result %d\n",
 		device->name, dev, unit, errcode));
 
 	return errcode;
@@ -192,12 +193,14 @@ scsi_strategy(struct buf *bp, struct scsi_device *device)
 	struct scsi_link *sc_link = SCSI_LINK(device, unit);
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("\n%sstrategy ", device->name));
-	SC_DEBUG(sc_link, SDEV_DB1, ("%s%ld: %d bytes @ blk%d\n",
-		device->name, unit, bp->b_bcount, bp->b_blkno));
+	SC_DEBUG(sc_link, SDEV_DB1, ("%ld bytes @ blk%ld\n",
+		bp->b_bcount, bp->b_blkno));
+
+	bp->b_resid = 0;
+	bp->b_error = 0;
 
 	if (bp->b_bcount == 0)
 	{
-		bp->b_resid = 0;
 		biodone(bp);
 	}
 	else if (device->dev_strategy)

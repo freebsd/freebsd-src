@@ -50,10 +50,6 @@ u_int32 sdstrats, sdqueues;
 #define	SD_RETRIES	4
 #define	MAXTRANSFER	8		/* 1 page at a time */
 
-#define SDUNITSHIFT          3
-#define SDUNIT(DEV)         SH3_UNIT(DEV)
-#define SDSETUNIT(DEV, U)   SH3SETUNIT((DEV), (U))
-
 #define	PARTITION(dev)	dkpart(dev)
 #define	SDUNIT(dev)	dkunit(dev)
 
@@ -187,19 +183,20 @@ sdattach(struct scsi_link *sc_link)
 	 * (could happen on removable media - MOD)
 	 * -- this avoids the division below from falling over
 	 */
-	if(dp->secsiz == 0) dp->secsiz = 512;
-	printf("%luMB (%lu S), %u C %u H %u S/T %u B/S",
+	if(dp->secsiz == 0) dp->secsiz = SECSIZE;
+	printf("%ldMB (%ld %d byte sectors)",
 	    dp->disksize / ((1024L * 1024L) / dp->secsiz),
 	    dp->disksize,
-	    dp->cyls,
-	    dp->heads,
-	    dp->sectors,
 	    dp->secsiz);
 
+#ifndef SCSI_REPORT_GEOMETRY
 	if ( (sc_link->flags & SDEV_BOOTVERBOSE) )
+#endif
 	{
 		printf("\n");
 		sc_print_addr(sc_link);
+		printf("with %d cyls, %d heads, and an average %d sectors/track",
+	   	dp->cyls, dp->heads, dp->sectors);
 	}
 
 	sd->flags |= SDINIT;
@@ -237,7 +234,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	}
 
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("sd_open: dev=0x%x (unit %d, partition %d)\n",
+	    ("sd_open: dev=0x%lx (unit %ld, partition %d)\n",
 		dev, unit, PARTITION(dev)));
 
 	/*
@@ -318,7 +315,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
 
-	SC_DEBUG(sc_link, SDEV_DB3, ("open %d %d\n", sdstrats, sdqueues));
+	SC_DEBUG(sc_link, SDEV_DB3, ("open %ld %ld\n", sdstrats, sdqueues));
 
 	return 0;
 
@@ -376,12 +373,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 		bp->b_error = EIO;
 		goto bad;
 	}
-	/*
-	 * If it's a null transfer, return immediatly
-	 */
-	if (bp->b_bcount == 0) {
-		goto done;
-	}
+
 	/*
 	 * Odd number of bytes
 	 */
@@ -503,7 +495,7 @@ sdstart(u_int32 unit)
 		 * With this thing..
 		 */
 		blkno = bp->b_pblkno;
-		if (bp->b_bcount & 511) 
+		if (bp->b_bcount & (SECSIZE - 1))
 		{
 		    goto bad;
 		}
@@ -733,7 +725,7 @@ sd_get_parms(unit, flags)
 	} else {
 
 		SC_DEBUG(sc_link, SDEV_DB3,
-		    ("%d cyls, %d heads, %d precomp, %d red_write, %d land_zone\n",
+		    ("%ld cyls, %d heads, %d precomp, %d red_write, %d land_zone\n",
 			scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2),
 			scsi_sense.pages.rigid_geometry.nheads,
 			b2tol(scsi_sense.pages.rigid_geometry.st_cyl_wp),
@@ -822,6 +814,11 @@ int sd_sense_handler(struct scsi_xfer *xs)
 	if ((sense->error_code & SSD_ERRCODE) == 0x71)
 		return SCSIRET_CONTINUE;
 
+	if (((sense->error_code & SSD_ERRCODE) == 0x70) &&
+		((sense->ext.extended.flags & SSD_KEY) == 0x05))
+		/* No point in retrying Illegal Requests */
+			return SCSIRET_CONTINUE;
+
 	inqbuf = &(xs->sc_link->inqbuf);
 
 	/* It is dangerous to retry on removable drives without
@@ -861,7 +858,6 @@ sddump(dev_t dev)
 	static	int sddoingadump = 0;
 	struct	scsi_xfer *xs = &sx;
 	errval	retval;
-	int	c;
 
 	addr = (char *) 0;	/* starting address */
 
@@ -938,11 +934,11 @@ sddump(dev_t dev)
 		xs->timeout = 10000;	/* 10000 millisecs for a disk ! */
 		xs->cmd = (struct scsi_generic *) &cmd;
 		xs->cmdlen = sizeof(cmd);
-		xs->resid = blkcnt * 512;
+		xs->resid = 0;
 		xs->error = XS_NOERROR;
 		xs->bp = 0;
 		xs->data = (u_char *) CADDR1;	/* XXX use pmap_enter() */
-		xs->datalen = blkcnt * 512;
+		xs->datalen = blkcnt * SECSIZE;
 
 		/*
 		 * Pass all this info to the scsi driver.
@@ -963,7 +959,7 @@ sddump(dev_t dev)
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;
-		(int) addr += 512 * blkcnt;
+		(int) addr += SECSIZE * blkcnt;
 
 		/* operator aborting dump? */
 		if (cncheckc())

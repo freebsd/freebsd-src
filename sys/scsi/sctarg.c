@@ -1,5 +1,5 @@
 /* 
- * pt: Processor Type driver.
+ * sctarg: Processor Type driver.
  *
  * Copyright (C) 1995, HD Associates, Inc.
  * PO Box 276
@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.1 1995/03/04 20:50:46 dufault Exp $
+ *      $Id: sctarg.c,v 1.1 1995/03/04 20:50:46 dufault Exp $
  */
 
 /*
@@ -53,58 +53,115 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
+#define OPEN 0x01
+
 struct scsi_data {
 	struct buf *buf_queue;		/* the queue of pending IO operations */
+	int flags;					/* Already open */
 };
 
-void ptstart(u_int32 unit);
-void pt_strategy(struct buf *bp, struct scsi_link *sc_link);
-int	pt_sense(struct scsi_xfer *scsi_xfer);
+errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link);
+void sctargstart(u_int32 unit);
+errval sctarg_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link);
+void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
 
-SCSI_DEVICE_ENTRIES(pt)
+SCSI_DEVICE_ENTRIES(sctarg)
 
-struct scsi_device pt_switch =
+struct scsi_device sctarg_switch =
 {
-    pt_sense,
-    ptstart,			/* we have a queue, and this is how we service it */
+    NULL,
+    sctargstart,			/* we have a queue, and this is how we service it */
     NULL,
     NULL,
-    "pt",
+    "sctarg",
     0,
 	{0, 0},
-	SDEV_ONCE_ONLY,	/* Only one open allowed */
+	SDEV_ONCE_ONLY,
 	0,
-	"Processor",
-	ptopen,
+	"Processor Target",
+	sctargopen,
     sizeof(struct scsi_data),
-	T_PROCESSOR,
+	T_TARGET,
 	0,
 	0,
+	sctarg_open,
 	0,
 	0,
-	0,
-	pt_strategy,
+	sctarg_strategy,
 };
+
+errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link)
+{
+	int ret = 0;
+
+	/* Does this host adapter support target mode operation?
+	 */
+	if ((sc_link->flags & SDEV_TARGET_OPS) == 0)
+		return ENODEV;	/* Operation not supported */
+
+	if (SCSI_FIXED(dev)) {
+		sc_link->scsibus = SCSI_BUS(dev);
+		scsi_set_bus(sc_link->scsibus, sc_link);
+
+		sc_link->target = SCSI_ID(dev);
+		sc_link->lun = SCSI_LUN(dev);
+	}
+
+	if (sc_link->scsibus == SCCONF_UNSPEC ||
+		sc_link->target == SCCONF_UNSPEC ||
+		sc_link->lun == SCCONF_UNSPEC)
+			return ENXIO;
+
+	/* XXX: You can have more than one target device on a single
+	 * host adapter.  We need a reference count.
+	 */
+	if ((sc_link->sd->flags & OPEN) == 0)	/* Enable target mode */
+	{
+		ret = scsi_target_mode(sc_link, 1);
+		sc_link->sd->flags |= OPEN;
+	}
+
+	return ret;
+}
+
+errval sctarg_close(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link)
+{
+	int ret = 0;
+
+	/* XXX: You can have more than one target device on a single
+	 * host adapter.  We need a reference count.
+	 */
+	ret = scsi_target_mode(sc_link, 0);
+
+	sc_link->sd->flags &= ~OPEN;
+
+	return ret;
+}
+
 /*
- * ptstart looks to see if there is a buf waiting for the device
+ * sctargstart looks to see if there is a buf waiting for the device
  * and that the device is not already busy. If both are true,
  * It dequeues the buf and creates a scsi command to perform the
  * transfer required. The transfer request will call scsi_done
  * on completion, which will in turn call this routine again
  * so that the next queued transfer is performed.
- * The bufs are queued by the strategy routine (ptstrategy)
+ * The bufs are queued by the strategy routine (sctargstrategy)
  *
  * This routine is also called after other non-queued requests
  * have been made of the scsi driver, to ensure that the queue
  * continues to be drained.
- * ptstart() is called at splbio
+ * sctargstart() is called at splbio
  */
 void 
-ptstart(unit)
+sctargstart(unit)
 	u_int32	unit;
 {
-	struct scsi_link *sc_link = SCSI_LINK(&pt_switch, unit);
-	struct scsi_data *pt = sc_link->sd;
+	struct scsi_link *sc_link = SCSI_LINK(&sctarg_switch, unit);
+	struct scsi_data *sctarg = sc_link->sd;
 	register struct buf *bp = 0;
 	struct
 	{
@@ -118,7 +175,7 @@ ptstart(unit)
 
 	u_int32 flags;
 
-	SC_DEBUG(sc_link, SDEV_DB2, ("ptstart "));
+	SC_DEBUG(sc_link, SDEV_DB2, ("sctargstart "));
 	/*
 	 * See if there is a buf to do and we are not already
 	 * doing one
@@ -131,21 +188,22 @@ ptstart(unit)
 			wakeup((caddr_t)sc_link);
 			return;
 		}
-		if ((bp = pt->buf_queue) == NULL) {
+		if ((bp = sctarg->buf_queue) == NULL) {
 			return;	/* no work to bother with */
 		}
-		pt->buf_queue = bp->b_actf;
+		sctarg->buf_queue = bp->b_actf;
 
 		/*
 		 *  Fill out the scsi command
 		 */
 		bzero(&cmd, sizeof(cmd));
+		flags = SCSI_TARGET;
 		if ((bp->b_flags & B_READ) == B_WRITE) {
 			cmd.op_code = PROCESSOR_SEND;
-			flags = SCSI_DATA_OUT;
+			flags |= SCSI_DATA_OUT;
 		} else {
 			cmd.op_code = PROCESSOR_RECEIVE;
-			flags = SCSI_DATA_IN;
+			flags |= SCSI_DATA_IN;
 		}
 
 		scsi_uto3b(bp->b_bcount, cmd.len);
@@ -158,11 +216,11 @@ ptstart(unit)
 			(u_char *) bp->b_un.b_addr,
 			bp->b_bcount,
 			0,
-			10000,
+			100000,
 			bp,
 			flags | SCSI_NOSLEEP) == SUCCESSFULLY_QUEUED) {
 		} else {
-			printf("pt%ld: oops not queued\n", unit);
+			printf("sctarg%ld: oops not queued\n", unit);
 			bp->b_flags |= B_ERROR;
 			bp->b_error = EIO;
 			biodone(bp);
@@ -171,15 +229,15 @@ ptstart(unit)
 }
 
 void 
-pt_strategy(struct buf *bp, struct scsi_link *sc_link)
+sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
 	unsigned char unit;
 	u_int32 opri;
-	struct scsi_data *pt;
+	struct scsi_data *sctarg;
 
 	unit = STUNIT((bp->b_dev));
-	pt = sc_link->sd;
+	sctarg = sc_link->sd;
 
 	opri = splbio();
 
@@ -192,11 +250,9 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 #endif
 
 	/*
-	 * Place it in the queue of activities for this tape
-	 * at the end (a bit silly because we only have one user..
-	 * (but it could fork() ))
+	 * Place it at the end of the queue of activities for this device.
 	 */
-	dp = &(pt->buf_queue);
+	dp = &(sctarg->buf_queue);
 	while (*dp) {
 		dp = &((*dp)->b_actf);
 	}
@@ -208,47 +264,8 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * not doing anything, otherwise just wait for completion
 	 * (All a bit silly if we're only allowing 1 open but..)
 	 */
-	ptstart(unit);
+	sctargstart(unit);
 
 	splx(opri);
 	return;
-}
-
-/*
- * sense handler: Called to determine what to do when the
- * device returns a CHECK CONDITION.
- *
- * For the processor type devices we try to handle the "info" field.
- */
-
-int pt_sense(struct scsi_xfer *xs)
-{
-	struct scsi_sense_data *sense = &(xs->sense);
-	struct buf *bp;
-
-	long resid;
-
-	if ((sense->error_code & SSD_ERRCODE_VALID) == 0 ||
-	(sense->ext.extended.flags & SSD_ILI) == 0) {
-		return SCSIRET_CONTINUE;	/* let the default handler handle it */
-	}
-
-	resid = ntohl(*((int32 *) sense->ext.extended.info));
-
- 	bp = xs->bp;
-
-	if (resid < 0) {
-		/* It synthesized data in order to fill our request.
-		 * Move resid back to cover this.
-		 */
-		xs->resid = -resid;
-		xs->flags |= SCSI_RESID_VALID;
-		return 0;
-	}
-	else {
-		/* It wanted to send more data.  We can't really do anything
-		 * about this.
-		 */
-		return SCSIRET_CONTINUE;
-	}
 }
