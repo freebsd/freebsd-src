@@ -37,6 +37,8 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <pci/pcic_p.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 static u_long pcic_pci_count = 0;
 
@@ -91,7 +93,7 @@ pcic_pci_attach(pcici_t config_id, int unit)
 
 	switch (pcic_type) { 
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
-		pd6832_legacy_init(config_id,unit);
+		pd6832_legacy_init(config_id, unit);
 		break;
 	}
 
@@ -104,10 +106,11 @@ pcic_pci_attach(pcici_t config_id, int unit)
 		for (j = 0; j < 0x98; j += 16) {
 			printf("%02x: ", j);
 			for (i = 0; i < 16; i += 4)
-				printf(" %08x", pci_conf_read(tag, i+j));
+				printf(" %08x", pci_conf_read(config_id, i+j));
 			printf("\n");
 		}
-		p = (u_char *)pmap_mapdev(pci_conf_read(tag, 0x10), 0x1000);
+		p = (u_char *)pmap_mapdev(pci_conf_read(config_id, 0x10),
+					  0x1000);
 		pl = (u_long *)p;
 		printf("Cardbus Socket registers:\n");
 		printf("00: ");
