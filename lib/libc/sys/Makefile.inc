@@ -31,7 +31,7 @@ SRCS+=${MDASM}
 # not declared for no generation of default code (NOASM). If the
 # syscall is not hidden, add it to the ASM list, otherwise add it
 # to the ASMR list.
-.for _asm in ${MIASM:S/sys_exit/exit/}
+.for _asm in ${MIASM}
 .if (${MDASM:R:M${_asm:R}} == "")
 .if (${NOASM:R:M${_asm:R}} == "")
 .if (${HIDDEN_SYSCALLS:R:M${_asm:R}} == "")
