@@ -257,8 +257,6 @@ mcdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		return (ENXIO);
 	}
 
-	dev->si_bsize_phys = sc->data.blksize;
-
 	sc->data.openflags = 1;
 	sc->data.partflags |= MCDREADRAW;
 	sc->data.flags |= MCDVALID;
@@ -347,11 +345,10 @@ mcd_start(struct mcd_softc *sc)
 		return;
 	}
 
-	bp = bioq_first(&sc->data.head);
+	bp = bioq_takefirst(&sc->data.head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
-		bioq_remove(&sc->data.head, bp);
 		sc->data.flags |= MCDMBXBSY;
 		splx(s);
 	} else {
