@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.61 1996/03/28 12:32:44 jfieber Exp $ -->
+<!-- $Id: contrib.sgml,v 1.62 1996/03/31 23:40:07 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -131,7 +131,7 @@
         <tag/Source Repository Manager/ &a.peter 
         <tag/Ports Manager/ &a.asami 
         <tag/System Administration/ &a.gpalmer 
-        <tag/Webmasters/ &a.jfieber; and &a.jlrobin
+        <tag/Webmasters/ &a.jehamby; and &a.jfieber
         <tag/XFree86 Project, Inc. Liason/ &a.rich 
       </descrip>
 
