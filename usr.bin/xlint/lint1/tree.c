@@ -39,7 +39,6 @@ static char rcsid[] = "$NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $";
 #include <string.h>
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 #include "lint1.h"
 #include "y.tab.h"
