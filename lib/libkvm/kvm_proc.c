@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+#include <sys/file.h>
 #include <unistd.h>
 #include <nlist.h>
 #include <kvm.h>
@@ -80,97 +81,6 @@ kvm_readswap(kd, p, va, cnt)
 	/* XXX Stubbed out, our vm system is differnet */
 	_kvm_err(kd, kd->program, "kvm_readswap not implemented");
 	return(0);
-#else
-	register int ix;
-	register u_long addr, head;
-	register u_long offset, pagestart, sbstart, pgoff;
-	register off_t seekpoint;
-	struct vm_map_entry vme;
-	struct vm_object vmo;
-	struct pager_struct pager;
-	struct swpager swap;
-	struct swblock swb;
-	static char page[NBPG];
-
-	head = (u_long)&p->p_vmspace->vm_map.header;
-	/*
-	 * Look through the address map for the memory object
-	 * that corresponds to the given virtual address.
-	 * The header just has the entire valid range.
-	 */
-	addr = head;
-	while (1) {
-		if (kvm_read(kd, addr, (char *)&vme, sizeof(vme)) != 
-		    sizeof(vme))
-			return (0);
-
-		if (va >= vme.start && va <= vme.end && 
-		    vme.object.vm_object != 0)
-			break;
-
-		addr = (u_long)vme.next;
-		if (addr == 0 || addr == head)
-			return (0);
-	}
-	/*
-	 * We found the right object -- follow shadow links.
-	 */
-	offset = va - vme.start + vme.offset;
-	addr = (u_long)vme.object.vm_object;
-	while (1) {
-		if (kvm_read(kd, addr, (char *)&vmo, sizeof(vmo)) != 
-		    sizeof(vmo))
-			return (0);
-		addr = (u_long)vmo.shadow;
-		if (addr == 0)
-			break;
-		offset += vmo.shadow_offset;
-	}
-	if (vmo.pager == 0)
-		return (0);
-
-	offset += vmo.paging_offset;
-	/*
-	 * Read in the pager info and make sure it's a swap device.
-	 */
-	addr = (u_long)vmo.pager;
-	if (kvm_read(kd, addr, (char *)&pager, sizeof(pager)) != sizeof(pager)
-	    || pager.pg_type != PG_SWAP)
-		return (0);
-
-	/*
-	 * Read in the swap_pager private data, and compute the
-	 * swap offset.
-	 */
-	addr = (u_long)pager.pg_data;
-	if (kvm_read(kd, addr, (char *)&swap, sizeof(swap)) != sizeof(swap))
-		return (0);
-	ix = offset / dbtob(swap.sw_bsize);
-	if (swap.sw_blocks == 0 || ix >= swap.sw_nblocks)
-		return (0);
-
-	addr = (u_long)&swap.sw_blocks[ix];
-	if (kvm_read(kd, addr, (char *)&swb, sizeof(swb)) != sizeof(swb))
-		return (0);
-
-	sbstart = (offset / dbtob(swap.sw_bsize)) * dbtob(swap.sw_bsize);
-	sbstart /= NBPG;
-	pagestart = offset / NBPG;
-	pgoff = pagestart - sbstart;
-
-	if (swb.swb_block == 0 || (swb.swb_mask & (1 << pgoff)) == 0)
-		return (0);
-
-	seekpoint = dbtob(swb.swb_block) + ctob(pgoff);
-	errno = 0;
-	if (lseek(kd->swfd, seekpoint, 0) == -1 && errno != 0)
-		return (0);
-	if (read(kd->swfd, page, sizeof(page)) != sizeof(page))
-		return (0);
-
-	offset %= NBPG;
-	*cnt = NBPG - offset;
-	return (&page[offset]);
 #endif	/* __FreeBSD__ */
 }
 
@@ -451,7 +361,7 @@ _kvm_realloc(kd, p, n)
 
 /*
  * Read in an argument vector from the user address space of process p.
- * addr if the user-space base address of narg null-terminated contiguous 
+ * addr is the user-space base address of narg null-terminated contiguous 
  * strings.  This is used to read in both the command arguments and
  * environment strings.  Read at most maxcnt characters of strings.
  */
@@ -538,7 +448,7 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 
 		while (--cc >= 0) {
 			if (*cp++ == 0) {
-				if (--narg <= 0) {
+				if (--narg <= 0 || (struct ps_strings *)(addr - cc) >= PS_STRINGS) {
 					*++argv = 0;
 					return (kd->argv);
 				} else
@@ -666,46 +576,40 @@ kvm_uread(kd, p, uva, buf, len)
 	register size_t len;
 {
 	register char *cp;
+	char procfile[MAXPATHLEN];
+	ssize_t amount;
+	int fd;
+	u_long tmpuva = uva;
+	int i;
+	char *chr;
 
 	cp = buf;
-	while (len > 0) {
-		u_long pa;
-		register int cc;
-		
-		cc = _kvm_uvatop(kd, p, uva, &pa);
-		if (cc > 0) {
-			if (cc > len)
-				cc = len;
-			errno = 0;
-			if (lseek(kd->pmfd, (off_t)pa, 0) == -1 && errno != 0) {
-				_kvm_err(kd, 0, "invalid address (%x)", uva);
-				break;
-			}
-			cc = read(kd->pmfd, cp, cc);
-			if (cc < 0) {
-				_kvm_syserr(kd, 0, _PATH_MEM);
-				break;
-			} else if (cc < len) {
-				_kvm_err(kd, kd->program, "short read");
-				break;
-			}
-		} else if (ISALIVE(kd)) {
-			/* try swap */
-			register char *dp;
-			int cnt;
 
-			dp = kvm_readswap(kd, p, uva, &cnt);
-			if (dp == 0) {
-				_kvm_err(kd, 0, "invalid address (%x)", uva);
-				return (0);
-			}
-			cc = MIN(cnt, len);
-			bcopy(dp, cp, cc);
-		} else
-			break;
-		cp += cc;
-		uva += cc;
-		len -= cc;
+	sprintf(procfile, "/proc/%d/mem", p->p_pid);
+	fd = open(procfile, O_RDONLY, 0);
+
+	if (fd < 0) {
+		_kvm_err(kd, kd->program, "cannot open %s", procfile);
+		close(fd);
+		return (0);
 	}
+
+	
+	while (len > 0) {
+		if (lseek(fd, uva, 0) == -1 && errno != 0) {
+			_kvm_err(kd, kd->program, "invalid address (%x) in %s", uva, procfile);
+			break;
+		}
+		amount = read(fd, buf, len);
+		if (amount < 0) {
+			_kvm_err(kd, kd->program, "error reading %s", procfile);
+			break;
+		}
+		cp += amount;
+		uva += amount;
+		len -= amount;
+	}
+
+	close(fd);
 	return (ssize_t)(cp - buf);
 }
