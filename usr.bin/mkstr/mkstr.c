@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)mkstr.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,6 +96,7 @@ int
 main(int argc, char *argv[])
 {
 	char addon = 0;
+	size_t namelen;
 
 	argc--, argv++;
 	if (argc > 1 && argv[0][0] == '-')
@@ -109,11 +111,19 @@ main(int argc, char *argv[])
 		err(1, "%s", argv[0]);
 	inithash();
 	argc--, argv++;
-	strcpy(name, argv[0]);
-	np = name + strlen(name);
+	namelen = strlcpy(name, argv[0], sizeof(name));
+	if (namelen >= sizeof(name)) {
+		errno = ENAMETOOLONG;
+		err(1, "%s", argv[0]);
+	}
+	np = name + namelen;
 	argc--, argv++;
 	do {
-		strcpy(np, argv[0]);
+		if (strlcpy(np, argv[0], sizeof(name) - namelen) >=
+		    sizeof(name) - namelen) {
+			errno = ENAMETOOLONG;
+			err(1, "%s%s", name, argv[0]);
+		}
 		if (freopen(name, "w", stdout) == NULL)
 			err(1, "%s", name);
 		if (freopen(argv[0], "r", stdin) == NULL)
