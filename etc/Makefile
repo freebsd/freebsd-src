@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.68 1994/06/21 11:02:38 jkh Exp $
+#	$Id: Makefile,v 1.69 1994/06/21 12:42:56 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -20,6 +20,8 @@ BIN2=	motd
 # -rwxr-xr-x root.wheel, for the new f***ing cron root.wheel
 BIN3=	daily weekly monthly
 
+CLEANFILES+= *.o *.lo *.c *.cache
+
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	localhost.rev named.boot root.cache
 PCS=	pcs750.bin
@@ -28,7 +30,7 @@ WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
 # Special top level files for FreeBSD
 COPYRIGHT=	COPYRIGHT.386BSD COPYRIGHT.FreeBSD
-FREEBSD=	CONTRIB.386BSD CONTRIB.FreeBSD
+FREEBSD=	CONTRIB.386BSD CONTRIB.FreeBSD ROSTER.FreeBSD
 FREEBSD+=	MIRROR.SITES PERSONAL.ACKS RELNOTES.FreeBSD SUPPORT.TXT
 FREEBSD+=	${COPYRIGHT}
 #
@@ -43,10 +45,9 @@ MDEC+=		usr/mdec/bootwd usr/mdec/wdboot
 #
 KC_DIRS=	bin dev mnt sbin
 KC_FILES=	${COPYRIGHT}
-KC_FILES+=	bin/sh					# XXX Crunch is broken!
-KC_FILES+=	sbin/mount sbin/mount_isofs		# XXX Crunch is broken!
-KC_LINKS=	bin/[ bin/cp bin/echo bin/test
+KC_LINKS=	bin/[ bin/cp bin/echo bin/sh bin/test
 KC_LINKS+=	sbin/fsck sbin/halt sbin/init
+KC_LINKS+=	sbin/mount sbin/mount_isofs
 KC_LINKS+=	sbin/umount
 #
 CD_DIRS=	etc usr
@@ -54,13 +55,12 @@ CD_DIRS=	etc usr
 FILESYSTEM_DIRS=	bin dev etc mnt proc sbin usr usr/bin usr/mdec usr/sbin
 FILESYSTEM_TREES=	dev
 FILESYSTEM_FILES=	${COPYRIGHT}
-FILESYSTEM_FILES+=	bin/sh				# XXX Crunch is broken!
 FILESYSTEM_FILES+=	dev/MAKEDEV
 FILESYSTEM_FILES+=	etc/group
 FILESYSTEM_FILES+=	etc/master.passwd etc/passwd etc/pwd.db
 FILESYSTEM_FILES+=	${MDEC}
 FILESYSTEM_LINKS=	bin/[ bin/expr bin/ls bin/mkdir bin/rm
-FILESYSTEM_LINKS+=	bin/sync bin/test
+FILESYSTEM_LINKS+=	bin/sh bin/sync bin/test
 FILESYSTEM_LINKS+=	sbin/disklabel sbin/fdisk sbin/halt sbin/init
 FILESYSTEM_LINKS+=	sbin/mount sbin/mount_pcfs
 FILESYSTEM_LINKS+=	sbin/newfs
@@ -115,7 +115,7 @@ CRYPT_SRCS+=	usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
 CRYPT_SRCS+=	usr.bin/rlogin usr.bin/rsh usr.bin/su usr.bin/telnet
 CRYPT_DIRS=	bin sbin usr usr/bin usr/lib usr/libexec 
 
-all clean cleandir depend etc install lint:
+all depend etc install lint:
 
 crypt:
 	rm -f ${LIBCRYPT};
