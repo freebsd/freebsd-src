@@ -32,6 +32,37 @@ network_pass1() {
 		echo -n ' hostname'
 	fi
 
+	# Establish ipfilter ruleset as early as possible (best in
+	# addition to IPFILTER_DEFAULT_BLOCK in the kernel config file)
+	#
+	case "${ipfilter_enable}" in
+	[Yy][Ee][Ss])
+		if [ -r "${ipfilter_rules}" ]; then
+			echo -n ' ipfilter';
+			${ipfilter_program:-ipf -Fa -f} "${ipfilter_rules}" ${ipfilter_flags}
+			case "${ipmon_enable}" in
+			[Yy][Ee][Ss])
+				echo -n ' ipmon'
+				${ipmon_program:-ipmon} ${ipmon_flags}
+				;;
+			esac
+			case "${ipnat_enable}" in
+			[Yy][Ee][Ss])
+				if [ -r "${ipnat_rules}" ]; then
+					echo -n ' ipnat';
+					${ipnat_program:-ipnat -CF -f} "${ipnat_rules}" ${ipnat_flags}
+				else
+					echo -n ' NO IPNAT RULES'
+				fi
+				;;
+			esac
+		else
+			ipfilter_enable="NO"
+			echo -n ' NO IPF RULES'
+		fi
+		;;
+	esac
+
 	# Set the domainname if we're using NIS
 	#
 	case ${nisdomainname} in
