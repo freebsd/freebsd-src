@@ -157,11 +157,10 @@ struct pccard_card {
 	STAILQ_HEAD(, pccard_function) pf_head;
 };
 
-struct pccardbus_if {
-    int (*if_card_attach) __P((struct device*));
-    void (*if_card_detach) __P((struct device*, int));
-    void (*if_card_deactivate) __P((struct device*));
-    int (*if_card_gettype) __P((struct device*));
+/* More later? */
+struct pccard_ivar {
+	struct resource_list resources;
+	int	slotnum;
 };
 
 struct pccard_softc {
@@ -183,8 +182,6 @@ struct pccard_softc {
 	 */
 	bus_addr_t iobase;		/* start i/o space allocation here */
 	bus_size_t iosize;		/* size of the i/o space range */
-        /* pccardbus (upper) interface functions */
-        struct pccardbus_if sc_if;
 };
 
 void
