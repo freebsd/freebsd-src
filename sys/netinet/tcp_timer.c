@@ -109,6 +109,14 @@ int	tcp_msl;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_msl, 0, sysctl_msec_to_ticks, "I", "Maximum segment lifetime");
 
+int	tcp_rexmit_min;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_min, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_rexmit_min, 0, sysctl_msec_to_ticks, "I", "Minimum Retransmission Timeout");
+
+int	tcp_rexmit_slop;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I", "Retransmission Timer Slop");
+
 static int	always_keepalive = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW, 
     &always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
