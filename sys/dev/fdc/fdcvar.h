@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 M. Warner Losh.
+ * Copyright (c) 2004-2005 M. Warner Losh.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,8 @@ struct fdc_data {
 #define FDC_STAT_VALID	0x08
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
-#define FDC_NODMA	0x40
+#define FDC_NODMA	0x40	/* Don't do DMA */
+#define FDC_NOFAST	0x80	/* Don't register isr as a fast one */
 #define FDC_KTHREAD_EXIT	0x1000 /* request worker thread to stop */
 #define FDC_KTHREAD_ALIVE	0x2000 /* worker thread is alive */
 	struct	fd_data *fd;	/* The active drive */
@@ -54,17 +55,14 @@ struct fdc_data {
 	int	fdc_errs;	/* number of logged errors */
 	struct	bio_queue_head head;
 	struct	bio *bp;	/* active buffer */
-	struct	resource *res_ioport, *res_sts, *res_ctl, *res_irq, *res_drq;
-	int	rid_ioport, rid_sts, rid_ctl, rid_irq, rid_drq;
-	bus_space_tag_t portt;
-	bus_space_handle_t porth;
-	bus_space_tag_t stst;
-	bus_space_handle_t stsh;
-	bus_space_tag_t ctlt;
-	bus_space_handle_t ctlh;
-	int	port_off;
-	int	ctl_off;
-	int	sts_off;
+	struct	resource *res_irq, *res_drq;
+	int	rid_irq, rid_drq;
+#define FDC_MAXREG	8
+	int	ridio[FDC_MAXREG];
+	struct	resource *resio[FDC_MAXREG];
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh[FDC_MAXREG];
+	int	ioff[FDC_MAXREG];
 	void	*fdc_intr;
 	struct	device *fdc_dev;
 	struct mtx fdc_mtx;

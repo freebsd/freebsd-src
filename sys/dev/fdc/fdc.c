@@ -110,7 +110,6 @@ __FBSDID("$FreeBSD$");
  *
  * 2.88M format has 2 x 36 x 512, allow for hacked up density.
  */
-
 #define MAX_BYTES_PER_CYL	(2 * 40 * 512)
 
 /*
@@ -196,15 +195,22 @@ static struct fd_type *fd_native_types[] = {
 #define	FDCTL	7	/* Control Register (W) */
 
 /*
- * The YE-DATA PC Card floppies use PIO to read in the data rather than
- * DMA due to the wild variability of DMA for the PC Card devices.  In
- * addition, if we cannot setup the DMA resources for the ISA attachment,
- * we'll use this same offset for data transfer.
+ * The YE-DATA PC Card floppies use PIO to read in the data rather
+ * than DMA due to the wild variability of DMA for the PC Card
+ * devices.  DMA was deleted from the PC Card specification in version
+ * 7.2 of the standard, but that post-dates the YE-DATA devices by many
+ * years.
+ *
+ * In addition, if we cannot setup the DMA resources for the ISA
+ * attachment, we'll use this same offset for data transfer.  However,
+ * that almost certainly won't work.
  *
  * For this mode, offset 0 and 1 must be used to setup the transfer
- * for this floppy.  This means they are only available on those systems
- * that map them to the floppy drive.  Newer systems do not do this, and
- * we should likely prohibit access to them (or disallow NODMA to be set).
+ * for this floppy.  This is OK for PC Card YE Data devices, but for
+ * ISA this is likely wrong.  These registers are only available on
+ * those systems that map them to the floppy drive.  Newer systems do
+ * not do this, and we should likely prohibit access to them (or
+ * disallow NODMA to be set).
  */
 #define FDBCDR		0	/* And 1 */
 #define FD_YE_DATAPORT	6	/* Drive Data port */
@@ -303,46 +309,60 @@ fdsettype(struct fd_data *fd, struct fd_type *ft)
 /*
  * Bus space handling (access to low-level IO).
  */
+__inline static void
+fdregwr(struct fdc_data *fdc, int reg, uint8_t v)
+{
+
+	bus_space_write_1(fdc->iot, fdc->ioh[reg], fdc->ioff[reg], v);
+}
+
+__inline static uint8_t
+fdregrd(struct fdc_data *fdc, int reg)
+{
+
+	return bus_space_read_1(fdc->iot, fdc->ioh[reg], fdc->ioff[reg]);
+}
+
 static void
 fdctl_wr(struct fdc_data *fdc, u_int8_t v)
 {
 
-	bus_space_write_1(fdc->ctlt, fdc->ctlh, fdc->ctl_off, v);
+	fdregwr(fdc, FDCTL, v);
 }
 
 static void
 fdout_wr(struct fdc_data *fdc, u_int8_t v)
 {
 
-	bus_space_write_1(fdc->portt, fdc->porth, FDOUT+fdc->port_off, v);
+	fdregwr(fdc, FDOUT, v);
 }
 
 static u_int8_t
 fdsts_rd(struct fdc_data *fdc)
 {
 
-	return bus_space_read_1(fdc->portt, fdc->porth, FDSTS+fdc->port_off);
+	return fdregrd(fdc, FDSTS);
 }
 
 static void
 fddata_wr(struct fdc_data *fdc, u_int8_t v)
 {
 
-	bus_space_write_1(fdc->portt, fdc->porth, FDDATA+fdc->port_off, v);
+	fdregwr(fdc, FDDATA, v);
 }
 
 static u_int8_t
 fddata_rd(struct fdc_data *fdc)
 {
 
-	return bus_space_read_1(fdc->portt, fdc->porth, FDDATA+fdc->port_off);
+	return fdregrd(fdc, FDDATA);
 }
 
 static u_int8_t
 fdin_rd(struct fdc_data *fdc)
 {
 
-	return bus_space_read_1(fdc->ctlt, fdc->ctlh, fdc->ctl_off);
+	return fdregrd(fdc, FDCTL);
 }
 
 /*
@@ -352,10 +372,9 @@ fdin_rd(struct fdc_data *fdc)
 static void
 fdbcdr_wr(struct fdc_data *fdc, int iswrite, uint16_t count)
 {
-	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + FDBCDR,
-	    (count - 1) & 0xff);
-	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + FDBCDR + 1,
-	  ((iswrite ? 0x80 : 0) | (((count - 1) >> 8) & 0x7f)));
+	fdregwr(fdc, FDBCDR, (count - 1) & 0xff);
+	fdregwr(fdc, FDBCDR + 1,
+	    (iswrite ? 0x80 : 0) | (((count - 1) >> 8) & 0x7f));
 }
 
 static int
@@ -669,11 +688,11 @@ fdc_pio(struct fdc_data *fdc)
 
 	if (bp->bio_cmd == BIO_READ) {
 		fdbcdr_wr(fdc, 0, count);
-		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
-		    FD_YE_DATAPORT, cptr, count);
+		bus_space_read_multi_1(fdc->iot, fdc->ioh[FD_YE_DATAPORT],
+		    fdc->ioff[FD_YE_DATAPORT], cptr, count);
 	} else {
-		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
-		    FD_YE_DATAPORT, cptr, count);
+		bus_space_write_multi_1(fdc->iot, fdc->ioh[FD_YE_DATAPORT],
+		    fdc->ioff[FD_YE_DATAPORT], cptr, count);
 		fdbcdr_wr(fdc, 0, count);	/* needed? */
 	}
 }
@@ -1519,6 +1538,8 @@ void
 fdc_release_resources(struct fdc_data *fdc)
 {
 	device_t dev;
+	struct resource *last;
+	int i;
 
 	dev = fdc->fdc_dev;
 	if (fdc->fdc_intr)
@@ -1528,18 +1549,15 @@ fdc_release_resources(struct fdc_data *fdc)
 		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
 		    fdc->res_irq);
 	fdc->res_irq = NULL;
-	if (fdc->res_ctl != NULL)
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-		    fdc->res_ctl);
-	fdc->res_ctl = NULL;
-	if (fdc->res_sts != NULL)
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_sts,
-		    fdc->res_sts);
-	fdc->res_sts = NULL;
-	if (fdc->res_ioport != NULL)
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-		    fdc->res_ioport);
-	fdc->res_ioport = NULL;
+	last = NULL;
+	for (i = 0; i < FDC_MAXREG; i++) {
+		if (fdc->resio[i] != NULL && fdc->resio[i] != last) {
+			bus_release_resource(dev, SYS_RES_IOPORT,
+			    fdc->ridio[i], fdc->resio[i]);
+			last = fdc->resio[i];
+			fdc->resio[i] = NULL;
+		}
+	}
 	if (fdc->res_drq != NULL)
 		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
 		    fdc->res_drq);
@@ -1719,7 +1737,8 @@ fdc_attach(device_t dev)
 		return (error);
 	}
 	error = bus_setup_intr(dev, fdc->res_irq,
-	    INTR_TYPE_BIO | INTR_ENTROPY | INTR_FAST | INTR_MPSAFE,
+	    INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE |
+	    ((fdc->flags & FDC_NOFAST) ? 0 : INTR_FAST),
 	    fdc_intr, fdc, &fdc->fdc_intr);
 	if (error) {
 		device_printf(dev, "cannot setup interrupt\n");
