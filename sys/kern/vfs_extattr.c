@@ -341,6 +341,10 @@ getfsstat(td, uap)
 	count = 0;
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+		if (!prison_check_mount(td->td_ucred, mp)) {
+			nmp = TAILQ_NEXT(mp, mnt_list);
+			continue;
+		}
 #ifdef MAC
 		if (mac_check_mount_stat(td->td_ucred, mp) != 0) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -519,6 +523,10 @@ freebsd4_getfsstat(td, uap)
 	count = 0;
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+		if (!prison_check_mount(td->td_ucred, mp)) {
+			nmp = TAILQ_NEXT(mp, mnt_list);
+			continue;
+		}
 #ifdef MAC
 		if (mac_check_mount_stat(td->td_ucred, mp) != 0) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
