@@ -63,24 +63,44 @@
 #include <machine/intrcnt.h>
 #endif
 
+	.section .data.proc0,"aw"
+	.global	proc0paddr
+	.align	PAGE_SIZE
+proc0paddr:	.space UPAGES * PAGE_SIZE
+
 	.text
 
 /*
  * Not really a leaf but we can't return.
  */
-ENTRY(locorestart, 1)
+ENTRY(__start, 1)
 
 	movl	r8=ia64_vector_table	// set up IVT early
 	movl	r9=ia64_vhpt+(1<<8)+(15<<2)+1 // and VHPT
 	;;
 	mov	cr.iva=r8
 	mov	cr.pta=r9
+	movl	r10=proc0
 	;;
+	add	r10=P_ADDR,r10
+	movl	r11=proc0paddr
+	;;
+	st8	[r10]=r11
 	srlz.i
 	;;
 	srlz.d
+	mov	r9=UPAGES*PAGE_SIZE-16
 	;; 
 	movl	gp=__gp			// find kernel globals
+	add	sp=r9,r11		// proc0's stack
+	add	r10=SIZEOF_USER,r11	// proc0's backing store
+	mov	ar.rsc=0		// turn off rse
+	;;
+	mov	ar.bspstore=r10		// switch backing store
+	;;
+	loadrs				// invalidate regs
+	;;
+	mov	ar.rsc=3		// turn rse back on
 	;;
 	br.call.sptk.many rp=ia64_init
 
@@ -182,12 +202,6 @@ XENTRY(esigcode)
 	.data
 	EXPORT(szsigcode)
 	.quad	esigcode-sigcode
-	.text
-	
-	.data
-	EXPORT(proc0paddr)
-	.quad	0
-	
 	.text
 	
 /* XXX: make systat/vmstat happy */

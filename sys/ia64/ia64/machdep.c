@@ -81,12 +81,12 @@
 u_int64_t cycles_per_usec;
 u_int32_t cycles_per_sec;
 int cold = 1;
-struct bootinfo_kernel bootinfo;
+struct bootinfo bootinfo;
 
 struct mtx sched_lock;
 struct mtx Giant;
 
-struct	user *proc0paddr;
+char proc0paddr[UPAGES * PAGE_SIZE];
 
 char machine[] = "ia64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -389,20 +389,20 @@ ia64_init()
 	 */
 	kernstart = trunc_page(kernel_text);
 #ifdef DDBxx
-	ksym_start = (void *)bootinfo.ssym;
-	ksym_end   = (void *)bootinfo.esym;
+	ksym_start = (void *)bootinfo.bi_symtab;
+	ksym_end   = (void *)bootinfo.bi_esymtab;
 	kernend = (vm_offset_t)round_page(ksym_end);
 #else
 	kernend = (vm_offset_t)round_page(_end);
 #endif
 	/* But if the bootstrap tells us otherwise, believe it! */
-	if (bootinfo.kernend)
-		kernend = round_page(bootinfo.kernend);
-	preload_metadata = (caddr_t)bootinfo.modptr;
+	if (bootinfo.bi_kernend)
+		kernend = round_page(bootinfo.bi_kernend);
+	preload_metadata = (caddr_t)bootinfo.bi_modulep;
 	if (envmode == 1)
 		kern_envp = static_env;
 	else
-		kern_envp = bootinfo.envp;
+		kern_envp = (caddr_t)bootinfo.bi_envp;
 
 	/* Init basic tunables, including hz */
 	init_param();
@@ -547,12 +547,6 @@ ia64_init()
 	}
 
 	/*
-	 * Init mapping for u page(s) for proc 0
-	 */
-	proc0paddr = proc0.p_addr =
-	    (struct user *)pmap_steal_memory(UPAGES * PAGE_SIZE);
-
-	/*
 	 * Setup the global data for the bootstrap cpu.
 	 */
 	{
@@ -603,7 +597,7 @@ ia64_init()
 	boothowto |= RB_KDB;
 #endif
 /*	boothowto |= RB_KDB | RB_GDB; */
-	for (p = bootinfo.boot_flags; p && *p != '\0'; p++) {
+	for (p = bootinfo.bi_flags; p && *p != '\0'; p++) {
 		/*
 		 * Note that we'd really like to differentiate case here,
 		 * but the Ia64 AXP Architecture Reference Manual
