@@ -846,9 +846,6 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		break;
 	case VCHR:
 	case VBLK:
-		/*
-		 * if device, look at device number table for translation
-		 */
 		vp->v_op = cd9660_specop_p;
 		addaliasu(vp, ip->inode.iso_rdev);
 		break;
