@@ -36,9 +36,14 @@
 
 #ifndef _NETINET_TCP_VAR_H_
 #define _NETINET_TCP_VAR_H_
+
+#include <netinet/in_pcb.h>		/* needed for in_conninfo, inp_gen_t */
+
 /*
  * Kernel variables for tcp.
  */
+extern int	tcp_do_rfc1323;
+extern int	tcp_do_rfc1644;
 
 /* TCP segment queue entry */
 struct tseg_qent {
@@ -95,7 +100,8 @@ struct tcpcb {
 #define	TF_SENDCCNEW	0x08000		/* send CCnew instead of CC in SYN */
 #define	TF_MORETOCOME	0x10000		/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x20000		/* listen queue overflow */
-#define TF_RXWIN0SENT	0x40000		/* sent a receiver win 0 in response */
+#define	TF_LASTIDLE	0x40000		/* connection was previously idle */
+#define TF_RXWIN0SENT	0x80000		/* sent a receiver win 0 in response */
 	int	t_force;		/* 1 if forcing out a byte */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
@@ -171,17 +177,56 @@ struct tcpcb {
  * to tcp_dooptions.
  */
 struct tcpopt {
-	u_long	to_flag;		/* which options are present */
+	u_long		to_flags;	/* which options are present */
 #define TOF_TS		0x0001		/* timestamp */
 #define TOF_CC		0x0002		/* CC and CCnew are exclusive */
 #define TOF_CCNEW	0x0004
 #define	TOF_CCECHO	0x0008
-	u_long	to_tsval;
-	u_long	to_tsecr;
-	tcp_cc	to_cc;		/* holds CC or CCnew */
-	tcp_cc	to_ccecho;
+#define	TOF_MSS		0x0010
+#define	TOF_SCALE	0x0020
+	u_int32_t	to_tsval;
+	u_int32_t	to_tsecr;
+	tcp_cc		to_cc;		/* holds CC or CCnew */
+	tcp_cc		to_ccecho;
+	u_int16_t	to_mss;
+	u_int8_t 	to_requested_s_scale;
+	u_int8_t 	to_pad;
 };
 
+struct syncache {
+	inp_gen_t	sc_inp_gencnt;		/* pointer check */
+	struct 		tcpcb *sc_tp;		/* tcb for listening socket */
+	struct		mbuf *sc_ipopts;	/* source route */
+	struct 		in_conninfo sc_inc;	/* addresses */
+#define sc_route	sc_inc.inc_route
+#define sc_route6	sc_inc.inc6_route
+	u_int32_t	sc_tsrecent;
+	tcp_cc		sc_cc_send;		/* holds CC or CCnew */
+	tcp_cc		sc_cc_recv;
+	tcp_seq 	sc_irs;			/* seq from peer */
+	tcp_seq 	sc_iss;			/* our ISS */
+	u_long		sc_rxttime;		/* retransmit time */
+	u_int16_t	sc_rxtslot; 		/* retransmit counter */
+	u_int16_t	sc_peer_mss;		/* peer's MSS */
+	u_int16_t	sc_wnd;			/* advertised window */
+	u_int8_t 	sc_requested_s_scale:4,
+			sc_request_r_scale:4;
+	u_int8_t	sc_flags;
+#define SCF_NOOPT	0x01			/* no TCP options */
+#define SCF_WINSCALE	0x02			/* negotiated window scaling */
+#define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
+#define SCF_CC		0x08			/* negotiated CC */
+#define SCF_UNREACH	0x10			/* icmp unreachable received */
+#define SCF_KEEPROUTE	0x20			/* keep cloned route */
+	TAILQ_ENTRY(syncache)	sc_hash;
+	TAILQ_ENTRY(syncache)	sc_timerq;
+};
+
+struct syncache_head {
+	TAILQ_HEAD(, syncache)	sch_bucket;
+	u_int		sch_length;
+};
+ 
 /*
  * The TAO cache entry which is stored in the protocol family specific
  * portion of the route metrics.
@@ -306,6 +351,22 @@ struct	tcpstat {
 	u_long	tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
 	u_long	tcps_mturesent;		/* resends due to MTU discovery */
 	u_long	tcps_listendrop;	/* listen queue overflows */
+
+	u_long	tcps_sc_added;		/* entry added to syncache */
+	u_long	tcps_sc_retransmitted;	/* syncache entry was retransmitted */
+	u_long	tcps_sc_dupsyn;		/* duplicate SYN packet */
+	u_long	tcps_sc_dropped;	/* could not reply to packet */
+	u_long	tcps_sc_completed;	/* successful extraction of entry */
+	u_long	tcps_sc_bucketoverflow;	/* syncache per-bucket limit hit */
+	u_long	tcps_sc_cacheoverflow;	/* syncache cache limit hit */
+	u_long	tcps_sc_reset;		/* RST removed entry from syncache */
+	u_long	tcps_sc_stale;		/* timed out or listen socket gone */
+	u_long	tcps_sc_aborted;	/* syncache entry aborted */
+	u_long	tcps_sc_badack;		/* removed due to bad ACK */
+	u_long	tcps_sc_unreach;	/* ICMP unreachable received */
+	u_long	tcps_sc_zonefail;	/* zalloc() failed */
+	u_long	tcps_sc_sendcookie;	/* SYN cookie sent */
+	u_long	tcps_sc_recvcookie;	/* SYN cookie received */
 };
 
 /*
@@ -383,7 +444,7 @@ struct tcpcb *
 void	 tcp_drain __P((void));
 void	 tcp_fasttimo __P((void));
 struct rmxp_tao *
-	 tcp_gettaocache __P((struct inpcb *));
+	 tcp_gettaocache __P((struct in_conninfo *));
 void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int, int));
 void	 tcp_mss __P((struct tcpcb *, int));
@@ -397,7 +458,7 @@ void	 tcp_quench __P((struct inpcb *, int));
 void	 tcp_respond __P((struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int));
 struct rtentry *
-	 tcp_rtlookup __P((struct inpcb *));
+	 tcp_rtlookup __P((struct in_conninfo *));
 void	 tcp_setpersist __P((struct tcpcb *));
 void	 tcp_slowtimo __P((void));
 struct tcptemp *
@@ -407,6 +468,14 @@ struct tcpcb *
 	 tcp_timers __P((struct tcpcb *, int));
 void	 tcp_trace __P((int, int, struct tcpcb *, void *, struct tcphdr *,
 			int));
+void	 syncache_init(void);
+void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
+int	 syncache_expand(struct in_conninfo *, struct tcphdr *,
+	     struct socket **, struct mbuf *);
+int	 syncache_add(struct in_conninfo *, struct tcpopt *,
+	     struct tcphdr *, struct socket **, struct mbuf *);
+void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
+void	 syncache_badack(struct in_conninfo *);
 
 extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;
