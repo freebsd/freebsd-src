@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.15 1996/03/02 18:23:57 peter Exp $
+ * $Id: param.c,v 1.16 1996/03/11 05:52:50 hsu Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -103,7 +103,7 @@ int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */
  */
 #ifdef SYSVSHM
 #ifndef SHMMAX
-#define	SHMMAX	(SHMMAXPGS*NBPG)
+#define	SHMMAX	(SHMMAXPGS*PAGE_SIZE)
 #endif
 #ifndef SHMMIN
 #define	SHMMIN	1

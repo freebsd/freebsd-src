@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.19 1996/01/07 19:22:35 gibbs Exp $
+ * $Id: aic6360.c,v 1.20 1996/03/10 07:04:43 gibbs Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -1067,8 +1067,8 @@ aic_minphys(bp)
 {
 
 	AIC_TRACE(("aic_minphys\n"));
-	if (bp->b_bcount > (AIC_NSEG << PGSHIFT))
-		bp->b_bcount = (AIC_NSEG << PGSHIFT);
+	if (bp->b_bcount > (AIC_NSEG << PAGE_SHIFT))
+		bp->b_bcount = (AIC_NSEG << PAGE_SHIFT);
 }
 
 

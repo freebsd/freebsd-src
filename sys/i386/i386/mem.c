@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.32 1996/04/01 21:02:14 scrappy Exp $
+ *	$Id: mem.c,v 1.33 1996/04/07 14:59:26 bde Exp $
  */
 
 /*
@@ -215,13 +215,13 @@ mmrw(dev, uio, flags)
 			pmap_enter(kernel_pmap, (vm_offset_t)ptvmmap, v,
 				uio->uio_rw == UIO_READ ? VM_PROT_READ : VM_PROT_WRITE,
 				TRUE);
-			o = (int)uio->uio_offset & PGOFSET;
-			c = (u_int)(NBPG - ((int)iov->iov_base & PGOFSET));
-			c = min(c, (u_int)(NBPG - o));
+			o = (int)uio->uio_offset & PAGE_MASK;
+			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
+			c = min(c, (u_int)(PAGE_SIZE - o));
 			c = min(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
 			pmap_remove(kernel_pmap, (vm_offset_t)ptvmmap,
-				    (vm_offset_t)&ptvmmap[NBPG]);
+				    (vm_offset_t)&ptvmmap[PAGE_SIZE]);
 			continue;
 
 /* minor device 1 is kernel memory */
@@ -261,8 +261,8 @@ mmrw(dev, uio, flags)
 			}
 			if (buf == NULL)
 				buf = (caddr_t)
-				    malloc(CLBYTES, M_TEMP, M_WAITOK);
-			c = min(iov->iov_len, CLBYTES);
+				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, PAGE_SIZE);
 			poolsize = read_random(buf, c);
 			if (poolsize == 0) {
 				if (buf)
@@ -281,8 +281,8 @@ mmrw(dev, uio, flags)
 			}
 			if (buf == NULL)
 				buf = (caddr_t)
-				    malloc(CLBYTES, M_TEMP, M_WAITOK);
-			c = min(iov->iov_len, CLBYTES);
+				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, PAGE_SIZE);
 			poolsize = read_random_unlimited(buf, c);
 			c = min(c, poolsize);
 			error = uiomove(buf, (int)c, uio);
@@ -296,10 +296,10 @@ mmrw(dev, uio, flags)
 			}
 			if (buf == NULL) {
 				buf = (caddr_t)
-				    malloc(CLBYTES, M_TEMP, M_WAITOK);
-				bzero(buf, CLBYTES);
+				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+				bzero(buf, PAGE_SIZE);
 			}
-			c = min(iov->iov_len, CLBYTES);
+			c = min(iov->iov_len, PAGE_SIZE);
 			error = uiomove(buf, (int)c, uio);
 			continue;
 
