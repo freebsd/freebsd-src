@@ -1,0 +1,30 @@
+// Stuff used to implement the Integer class.
+// WARNING:  Its internals WILL change!
+
+/*
+ Sizes of shifts for multiple-precision arithmetic.
+ These should not be changed unless Integer representation
+ as unsigned shorts is changed in the implementation files.
+*/
+
+#define I_SHIFT         (sizeof(short) * CHAR_BIT)
+#define I_RADIX         ((unsigned long)(1L << I_SHIFT))
+#define I_MAXNUM        ((unsigned long)((I_RADIX - 1)))
+#define I_MINNUM        ((unsigned long)(I_RADIX >> 1))
+#define I_POSITIVE      1
+#define I_NEGATIVE      0
+
+/* All routines assume SHORT_PER_LONG > 1 */
+#define SHORT_PER_LONG  ((unsigned)(((sizeof(long) + sizeof(short) - 1) / sizeof(short))))
+#define CHAR_PER_LONG   ((unsigned)sizeof(long))
+
+/*
+  minimum and maximum sizes for an IntRep
+*/
+
+#define MINIntRep_SIZE   16
+#define MAXIntRep_SIZE   I_MAXNUM
+
+#ifndef MALLOC_MIN_OVERHEAD
+#define MALLOC_MIN_OVERHEAD 4
+#endif

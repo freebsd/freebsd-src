@@ -1,0 +1,161 @@
+
+
+# DO NOT DELETE THIS LINE -- g++dep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+
+tBag.o : tBag.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iBag.h \
+  iXPBag.h \
+  iSLBag.h \
+  iVHBag.h \
+  iCHBag.h \
+  iOXPBag.h \
+  iOSLBag.h \
+  iSplayBag.h
+tBitSet.o : tBitSet.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tBitString.o : tBitString.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tComplex.o : tComplex.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tCurses.o : tCurses.cc 
+tDeque.o : tDeque.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iDeque.h \
+  iXPDeque.h \
+  iDLDeque.h
+tFile.o : tFile.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  $(srcdir)/../$(IO_DIR)/strstream.h \
+  $(srcdir)/../$(IO_DIR)/SFile.h \
+  $(srcdir)/../$(IO_DIR)/fstream.h \
+  $(srcdir)/../$(IO_DIR)/PlotFile.h 
+tFix.o : tFix.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tFix16.o : tFix16.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tFix24.o : tFix24.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tGetOpt.o : tGetOpt.cc 
+tInteger.o : tInteger.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tLList.o : tLList.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iSLList.h \
+  iDLList.h
+tList.o : tList.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iList.h 
+tMap.o : tMap.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iMap.h \
+  iSplayMap.h \
+  iVHMap.h \
+  iCHMap.h \
+  iAVLMap.h \
+  iRAVLMap.h
+tObstack.o : tObstack.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tPQ.o : tPQ.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iPQ.h \
+  iXPPQ.h \
+  iPHPQ.h \
+  iSplayPQ.h
+tPlex.o : tPlex.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iPlex.h \
+  iFPlex.h \
+  iXPlex.h \
+  iMPlex.h \
+  iRPlex.h
+tQueue.o : tQueue.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iQueue.h \
+  iXPQueue.h \
+  iVQueue.h \
+  iSLQueue.h
+tRandom.o : tRandom.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tRational.o : tRational.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tSet.o : tSet.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iSet.h \
+  iXPSet.h \
+  iSLSet.h \
+  iVHSet.h \
+  iVOHSet.h \
+  iCHSet.h \
+  iOXPSet.h \
+  iOSLSet.h \
+  iBSTSet.h \
+  iAVLSet.h \
+  iSplaySet.h
+tStack.o : tStack.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iStack.h \
+  iXPStack.h \
+  iVStack.h \
+  iSLStack.h
+tString.o : tString.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h 
+tVec.o : tVec.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  iVec.h \
+  iAVec.h 
+test_h.o : test_h.cc \
+  $(srcdir)/../$(IO_DIR)/stream.h \
+  $(srcdir)/../$(IO_DIR)/iostream.h \
+  $(srcdir)/../$(IO_DIR)/streambuf.h \
+  $(srcdir)/../$(IO_DIR)/istream.h \
+  $(srcdir)/../$(IO_DIR)/ostream.h 
+
+# IF YOU PUT ANYTHING HERE IT WILL GO AWAY

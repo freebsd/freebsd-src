@@ -1,0 +1,13 @@
+* See iostream/TODO for iostream-specific issues
+
+* Update README.
+
+* Add 'return 0' to end of tests.
+[Not needed, if ANSI makes that implicit.]
+
+* Undo gcc-2.3.2-specific kludge in test-install/bf.cc.
+
+* Remove use of _libgxx_io_ob from Fix.cc.
+
+* Since the libg++ include files in gxx_includedir aren't architecture
+  dependent, they belong under $(datadir) not $(libdir).
