@@ -227,7 +227,7 @@ new feature to limit the number of outstanding unauthenticated ssh
 connections in sshd has been added.
 
 The compiler chain now uses the FSF-supplied C/C++ runtime
-initialization code.  This change brings about better compatability
+initialization code.  This change brings about better compatibility
 with code generated from the various egcs and gcc ports, as well as
 the stock public FSF source.
 
