@@ -34,10 +34,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint && not SCCSID */
 
 /*
