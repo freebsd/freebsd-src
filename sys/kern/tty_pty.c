@@ -119,6 +119,10 @@ struct	pt_ioctl {
 #define	PF_NOSTOP	0x40
 #define PF_UCNTL	0x80		/* user control mode */
 
+#define	TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)
+#define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
+#define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
+
 static char *names = "pqrsPQRS";
 /*
  * This function creates and initializes a pts/ptc pair
