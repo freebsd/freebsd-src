@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 1998
+.Dd September 2, 2003
 .Dt CD 9
 .Os
 .Sh NAME
@@ -74,6 +74,22 @@ In general, the driver will figure this out automatically when it sees a
 LUN greater than 0.  Setting this flag only has the effect of telling the
 driver to run the initial read capacity command for LUN 0 of the changer
 through the changer scheduling code.
+.It Dv CD_Q_10_BYTE_ONLY
+This flag tells the driver that the given device only accepts 10 byte MODE
+SENSE/MODE SELECT commands.  In general these types of quirks should not be
+added to the
+.Xr cd 4
+driver.  The reason is that the driver does several things to attempt to
+determine whether the drive in question needs 10 byte commands.  First, it
+issues a CAM Path Inquiry command to determine whether the protocol that
+the drive speaks typically only allows 10 byte commands.  (ATAPI and USB
+are two prominent examples of protocols where you generally only want to
+send 10 byte commands.)  Then, if it gets an ILLEGAL REQUEST error back
+from a 6 byte MODE SENSE or MODE SELECT command, it attempts to send the 10
+byte version of the command instead.  The only reason you would need a
+quirk is if your drive uses a protocol (e.g. 
+.Tn SCSI )
+that typically doesn't have a problem with 6 byte commands.
 .El
 .Sh FILES
 .Bl -tag -width /sys/cam/scsi/scsi_cd.c -compact

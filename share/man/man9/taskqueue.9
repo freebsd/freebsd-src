@@ -174,26 +174,43 @@ argument to the macro is executed as a C statement,
 allowing any further initialisation to be performed
 (such as registering an interrupt handler etc.)
 .Pp
-The system provides a global taskqueue,
+The system provides three global taskqueues,
 .Va taskqueue_swi ,
-which is run via a software interrupt mechanism.
-To use this queue,
+.Va taskqueue_swi_giant ,
+and 
+.Va taskqueue_thread .
+The swi taskqueues are run via a software interrupt mechanism.
+The taskqueue_swi queue runs without the protection of the Giant kernel lock,
+and the taskqueue_swi_giant queue runs with the protection of the Giant
+kernel lock.
+The thread taskqueue runs in a kernel thread context, and tasks run from
+this thread do not run under the Giant kernel lock.
+If the caller wants to run under Giant, he should explicitly acquire and
+release Giant in his taskqueue handler routine.
+
+To use these queues,
 call
 .Fn taskqueue_enqueue
-with the value of the global variable
-.Va taskqueue_swi .
-The queue will be run at
-.\" XXX	This should be a cross-reference (Xr), but there is no MANLINKS
-.\"	entry for splsofttq.9 yet.
-.Fn splsofttq .
+with the value of the global taskqueue variable for the queue you wish to
+use (
+.Va taskqueue_swi ,
+.Va taskqueue_swi_giant ,
+or
+.Va taskqueue_thread
+).
 .Pp
-This queue can be used,
+This the software interrupt queues can be used,
 for instance, for implementing interrupt handlers which must perform a
 significant amount of processing in the handler.
 The hardware interrupt handler would perform minimal processing of the
 interrupt and then enqueue a task to finish the work.
 This reduces to a minimum
 the amount of time spent with interrupts disabled.
+.Pp
+The thread queue can be used, for instance, by interrupt level routines
+that need to call kernel functions that do things that can only be done
+from a thread context.
+(e.g., call malloc with the M_WAITOK flag.)
 .Sh HISTORY
 This interface first appeared in
 .Fx 5.0 .
