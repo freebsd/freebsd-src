@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.61 1996/10/06 07:50:08 ache Exp $
+#	$Id: termcap.src,v 1.65 1996/10/19 22:47:50 pst Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2217,7 +2217,7 @@ cons25w|ansiw|ansi80x25-raw:\
 	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\177:kB=\E[Z:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:bw:\
-	:mb=\E[5m:md=\E[1m:mh=\E[30;1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:
+	:mb=\E[5m:md=\E[1m:mh=\E[30;1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:km:
 cons25|ansis|ansi80x25:\
 	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
 	:tc=cons25w:
