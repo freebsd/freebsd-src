@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 
-#include <osreldate.h>
+#ifndef __FreeBSD_version
+#include <sys/param.h>
+#endif
 
 /* auto-host.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
