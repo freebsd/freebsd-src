@@ -74,8 +74,8 @@ STATIC int docd(char *, int, int);
 STATIC char *getcomponent(void);
 STATIC int updatepwd(char *);
 
-char *curdir = NULL;		/* current working directory */
-char *prevdir;			/* previous working directory */
+STATIC char *curdir = NULL;	/* current working directory */
+STATIC char *prevdir;		/* previous working directory */
 STATIC char *cdcomppath;
 
 int

@@ -599,7 +599,7 @@ deletefuncs(void)
  * entry.
  */
 
-struct tblentry **lastcmdentry;
+STATIC struct tblentry **lastcmdentry;
 
 
 STATIC struct tblentry *
