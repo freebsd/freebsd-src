@@ -17,7 +17,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: crontab.c,v 1.5 1996/08/05 00:31:27 pst Exp $";
+static char rcsid[] = "$Id: crontab.c,v 1.6 1996/08/05 00:50:02 pst Exp $";
 #endif
 
 /* crontab - install and manage per-user crontab files
@@ -142,7 +142,8 @@ parse_args(argc, argv)
 		fprintf(stderr, "bailing out.\n");
 		exit(ERROR_EXIT);
 	}
-	strcpy(User, pw->pw_name);
+	(void) strncpy(User, pw->pw_name, (sizeof User)-1);
+	User[(sizeof User)-1] = '\0';
 	strcpy(RealUser, User);
 	Filename[0] = '\0';
 	Option = opt_unknown;
@@ -165,7 +166,8 @@ parse_args(argc, argv)
 					ProgramName, optarg);
 				exit(ERROR_EXIT);
 			}
-			(void) snprintf(User, sizeof(user), "%s", optarg);
+			(void) strncpy(User, pw->pw_name, (sizeof User)-1);
+			User[(sizeof User)-1] = '\0';
 			break;
 		case 'l':
 			if (Option != opt_unknown)
@@ -196,8 +198,9 @@ parse_args(argc, argv)
 	} else {
 		if (argv[optind] != NULL) {
 			Option = opt_replace;
-			(void) snprintf(Filename, sizeof(Filename), "%s",
-					argv[optind]);
+			(void) strncpy (Filename, argv[optind], (sizeof Filename)-1);
+			Filename[(sizeof Filename)-1] = '\0';
+
 		} else {
 			usage("file name must be specified for replace");
 		}
@@ -299,6 +302,7 @@ edit_cmd() {
 	time_t		mtime;
 	WAIT_T		waiter;
 	PID_T		pid, xpid;
+	mode_t		um;
 
 	log_it(RealUser, Pid, "BEGIN EDIT", User);
 	(void) sprintf(n, CRON_TAB(User));
@@ -315,11 +319,14 @@ edit_cmd() {
 		}
 	}
 
-	(void) sprintf(Filename, "/tmp/crontab.%d", Pid);
-	if (-1 == (t = open(Filename, O_CREAT|O_EXCL|O_RDWR, 0600))) {
+	um = umask(077);
+	(void) sprintf(Filename, "/tmp/crontab.XXXXXXXXXX");
+	if ((t = mkstemp(Filename)) == -1) {
 		perror(Filename);
+		(void) umask(um);
 		goto fatal;
 	}
+	(void) umask(um);
 #ifdef HAS_FCHOWN
 	if (fchown(t, getuid(), getgid()) < 0) {
 #else
@@ -480,7 +487,7 @@ edit_cmd() {
 		goto done;
 	default:
 		fprintf(stderr, "%s: panic: bad switch() in replace_cmd()\n",
-			ProgramName);
+		    ProgramName);
 		goto fatal;
 	}
  remove:
@@ -502,6 +509,11 @@ replace_cmd() {
 	entry	*e;
 	time_t	now = time(NULL);
 	char	**envp = env_init();
+
+	if (envp == NULL) {
+		fprintf(stderr, "%s: Cannot allocate memory.\n", ProgramName);
+		return (-2);
+	}
 
 	(void) sprintf(n, "tmp.%d", Pid);
 	(void) sprintf(tn, CRON_TAB(n));

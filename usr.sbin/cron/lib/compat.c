@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: compat.c,v 1.1.1.1 1994/08/27 13:43:02 jkh Exp $";
+static char rcsid[] = "$Id: compat.c,v 1.2 1996/11/01 23:27:28 millert Exp $";
 #endif
 
 /* vix 30dec93 [broke this out of misc.c - see RCS log for history]
@@ -53,7 +53,10 @@ strdup(str)
 {
 	char	*temp;
 
-	temp = malloc(strlen(str) + 1);
+	if ((temp = malloc(strlen(str) + 1)) == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
 	(void) strcpy(temp, str);
 	return temp;
 }
@@ -143,7 +146,7 @@ getdtablesize() {
  * Snarfage done by Jarkko Hietaniemi <Jarkko.Hietaniemi@hut.fi>
  * *) well, almost, had to K&R the function entry, HPUX "cc"
  * does not grok ANSI function prototypes */
-
+ 
 /*
  * flock (fd, operation)
  *
@@ -199,13 +202,13 @@ flock(fd, operation)
 	case LOCK_UN:		/* unlock */
 		i = lockf (fd, F_ULOCK, 0);
 		break;
-
+ 
 	default:		/* can't decipher operation */
 		i = -1;
 		errno = EINVAL;
 		break;
 	}
-
+ 
 	return (i);
 }
 #endif /*NEED_FLOCK*/
@@ -227,7 +230,7 @@ setenv(name, value, overwrite)
 		return -1;
 	}
 
-	sprintf("%s=%s", name, value);
+	sprintf(tmp, "%s=%s", name, value);
 	return putenv(tmp);	/* intentionally orphan 'tmp' storage */
 }
 #endif
