@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.67 1997/10/03 18:10:35 markm Exp $
+#	$Id: Makefile,v 1.68 1998/01/01 23:17:05 steve Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -78,7 +78,7 @@ beforeinstall: ${SHARED}
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${RPCFILES} ${DESTDIR}/usr/include/rpc
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}\osreldate.h \
+		${.OBJDIR}/osreldate.h \
 		${DESTDIR}/usr/include
 .for i in ${LFILES}
 	ln -sf sys/$i ${DESTDIR}/usr/include/$i
