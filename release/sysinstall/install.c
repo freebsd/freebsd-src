@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.112 1997/02/07 04:26:13 jkh Exp $
+ * $Id: install.c,v 1.71.2.113 1997/02/13 00:32:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -446,8 +446,6 @@ installExpress(dialogMenuItem *self)
 	/* Give user the option of one last configuration spree */
 	installConfigure();
     }
-    /* Now write out any changes .. */
-    configSysconfig("/etc/sysconfig");
     return i | DITEM_RESTORE;
 }
 
@@ -601,9 +599,6 @@ installNovice(dialogMenuItem *self)
     /* Give user the option of one last configuration spree */
     installConfigure();
 
-    /* Now write out any changes .. */
-    configSysconfig("/etc/sysconfig");
-
     return DITEM_LEAVE_MENU | DITEM_RESTORE;
 }
 
@@ -617,9 +612,6 @@ installCustomCommit(dialogMenuItem *self)
     if (DITEM_STATUS(i) == DITEM_SUCCESS) {
 	/* Give user the option of one last configuration spree */
 	installConfigure();
-
-	/* Now write out any changes .. */
-	configSysconfig("/etc/sysconfig");
 	return i;
     }
     else

@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.5 1996/12/15 11:22:37 joerg Exp $
+ * $Id: user.c,v 1.6 1997/01/03 06:32:38 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -108,7 +108,7 @@ static Layout groupLayout[] = {
 /* The user configuration menu. */
 static Layout userLayout[] = {
 #define LAYOUT_UNAME		0
-    { 3, 6, UT_NAMESIZE, UT_NAMESIZE + 4,
+    { 3, 6, UT_NAMESIZE, UT_NAMESIZE + 1,
       "Login ID:", "The login name of the new user (mandatory)",
       uname, STRINGOBJ, NULL },
 #define LAYOUT_UID		1
@@ -122,7 +122,7 @@ static Layout userLayout[] = {
 #define LAYOUT_PASSWD		3
     { 3, 43, 15, PASSWD_FIELD_LEN - 1,
       "Password:", "The password for this user (enter this field with care!)",
-      passwd, STRINGOBJ, NULL },
+      passwd, NO_ECHO_OBJ(STRINGOBJ), NULL },
 #define LAYOUT_GECOS		4
     { 8, 6, 33, GECOS_FIELD_LEN - 1,
       "Full name:", "The user's full name (comment)",
@@ -225,7 +225,6 @@ completeGroup(void)
 	for (i = getdtablesize(); i > 2; i--)
 	    close(i);
 
-	chroot(variable_get(VAR_INSTALL_ROOT));
 	execv("/usr/sbin/pw", vec);
 	msgDebug("Cannot execv() /usr/sbin/pw.\n");
 	_exit(99);
@@ -291,7 +290,6 @@ addGroup(WINDOW *ds_win)
 	else
 	    vec[VEC_GID - 1] = 0;
 
-	chroot(variable_get(VAR_INSTALL_ROOT));
 	execv("/usr/sbin/pw", vec);
 	msgDebug("Cannot execv() /usr/sbin/pw.\n");
 	_exit(99);
@@ -356,7 +354,7 @@ userAddGroup(dialogMenuItem *self)
     }
 
     /* Draw a group entry box */
-    draw_box(ds_win, USER_DIALOG_Y + 2, USER_DIALOG_X + 8, USER_DIALOG_HEIGHT - 6,
+    draw_box(ds_win, USER_DIALOG_Y + 2, USER_DIALOG_X + 8, USER_DIALOG_HEIGHT - 8,
 	     USER_DIALOG_WIDTH - 17, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
     mvwaddstr(ds_win, USER_DIALOG_Y + 2, USER_DIALOG_X + 22, " Add a new group ");
@@ -370,16 +368,16 @@ userAddGroup(dialogMenuItem *self)
 
 reenter:
     cancelbutton = okbutton = 0;
-    while (layoutDialogLoop(ds_win, groupLayout, &obj, &n, max, &cancelbutton, &cancel)) {
-	if (firsttime && n == LAYOUT_GNAME) {
-	    /* fill in the blanks, well, just the GID */
-	    completeGroup();
-	    RefreshStringObj(groupLayout[LAYOUT_GID].obj);
-	    firsttime = FALSE;
-	}
+    if (firsttime) {
+	/* fill in the blanks, well, just the GID */
+	completeGroup();
+	RefreshStringObj(groupLayout[LAYOUT_GID].obj);
+	firsttime = FALSE;
     }
 
-    if (!verifyGroupSettings())
+    while (layoutDialogLoop(ds_win, groupLayout, &obj, &n, max, &cancelbutton, &cancel));
+
+    if (!cancel && !verifyGroupSettings())
 	goto reenter;
 
     /* Clear this crap off the screen */
@@ -482,7 +480,6 @@ completeUser(void)
 
 	vec[VEC_UNAME] = uname;
 
-	chroot(variable_get(VAR_INSTALL_ROOT));
 	execv("/usr/sbin/pw", vec);
 	msgDebug("Cannot execv() /usr/sbin/pw.\n");
 	_exit(99);
@@ -589,7 +586,6 @@ addUser(WINDOW *ds_win)
 	}
 	vec[i] = 0;
 
-	chroot(variable_get(VAR_INSTALL_ROOT));
 	execv("/usr/sbin/pw", vec);
 	msgDebug("Cannot execv() /usr/sbin/pw.\n");
 	_exit(99);
@@ -678,7 +674,7 @@ userAddUser(dialogMenuItem *self)
     }
 
     /* Draw a user entry box */
-    draw_box(ds_win, USER_DIALOG_Y + 1, USER_DIALOG_X + 3, USER_DIALOG_HEIGHT - 5,
+    draw_box(ds_win, USER_DIALOG_Y + 1, USER_DIALOG_X + 3, USER_DIALOG_HEIGHT - 6,
 	     USER_DIALOG_WIDTH - 6, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
     mvwaddstr(ds_win, USER_DIALOG_Y + 1, USER_DIALOG_X + 22, " Add a new user ");
@@ -697,21 +693,21 @@ userAddUser(dialogMenuItem *self)
     
 reenter:
     cancelbutton = okbutton = 0;
-    while (layoutDialogLoop(ds_win, userLayout, &obj, &n, max, &cancelbutton, &cancel)) {
-	if (firsttime && n == LAYOUT_UNAME) {
-	    /* fill in the blanks, well, just the GID */
-	    completeUser();
-	    RefreshStringObj(userLayout[LAYOUT_UID].obj);
-	    RefreshStringObj(userLayout[LAYOUT_UGROUP].obj);
-	    RefreshStringObj(userLayout[LAYOUT_GECOS].obj);
-	    RefreshStringObj(userLayout[LAYOUT_UMEMB].obj);
-	    RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
-	    RefreshStringObj(userLayout[LAYOUT_SHELL].obj);
-	    firsttime = FALSE;
-	}
+    if (firsttime) {
+	/* fill in the blanks, well, just the GID */
+	completeUser();
+	RefreshStringObj(userLayout[LAYOUT_UID].obj);
+	RefreshStringObj(userLayout[LAYOUT_UGROUP].obj);
+	RefreshStringObj(userLayout[LAYOUT_GECOS].obj);
+	RefreshStringObj(userLayout[LAYOUT_UMEMB].obj);
+	RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
+	RefreshStringObj(userLayout[LAYOUT_SHELL].obj);
+	firsttime = FALSE;
     }
 
-    if (!verifyUserSettings(ds_win))
+    while (layoutDialogLoop(ds_win, userLayout, &obj, &n, max, &cancelbutton, &cancel));
+
+    if (!cancel && !verifyUserSettings(ds_win))
 	goto reenter;
 
     /* Clear this crap off the screen */

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.66 1997/02/07 04:25:32 jkh Exp $
+ * $Id: config.c,v 1.16.2.67 1997/02/14 02:55:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -234,10 +234,10 @@ configFstab(void)
     fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump?\tfsck pass#\n");
     fprintf(fstab, "#\t\t\t\t\t\t\t\t\t(0=no) (0=no fsck)\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t%s\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t%s\t\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc");
-    fprintf(fstab, "proc\t\t/proc\tprocfs\t\trw\t0\t0\n");
+    fprintf(fstab, "proc\t\t\t/proc\t\tprocfs\t\trw\t0\t0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -269,50 +269,94 @@ configFstab(void)
     return DITEM_SUCCESS;
 }
 
+/* Do the work of sucking in a config file.
+ * config is the filename to read in.
+ * lines is a fixed (max) sized array of char *.
+ * returns number of lines read.  line contents
+ * are malloc'd and must be freed by the caller.
+ */
+int
+readConfig(char *config, char **lines, int max)
+{
+    FILE *fp;
+    char line[256];
+    int i, nlines;
+
+    fp = fopen(config, "r");
+    if (!fp)
+	return -1;
+
+    nlines = 0;
+    /* Read in the entire file */
+    for (i = 0; i < max; i++) {
+	if (!fgets(line, sizeof line, fp))
+	    break;
+	lines[nlines++] = strdup(line);
+    }
+    fclose(fp);
+    if (isDebug())
+	msgDebug("readConfig: Read %d lines from %s.\n", nlines, config);
+    return nlines;
+}
+
+#define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
+
+/* Load the environment from /etc/sysconfig, if it exists */
+void
+configEnvironment(char *config)
+{
+    char *lines[MAX_LINES], *cp, *cp2;
+    int i, j, nlines;
+
+    nlines = readConfig(config, lines, MAX_LINES);
+    if (nlines == -1)
+	return;
+
+    for (i = 0; i < nlines; i++) {
+	/* Skip the comments & non-variable settings */
+	if (lines[i][0] == '#' || !(cp = index(lines[i], '='))) {
+	    free(lines[i]);
+	    continue;
+	}
+	*cp++ = '\0';
+	(void)string_prune(lines[i]);
+	cp = string_skipwhite(string_prune(cp));
+	if ((cp2 = index(cp, '"')))	/* Eliminate leading quote if it's quoted */
+	    cp = cp2 + 1;
+	j = strlen(cp) - 1;
+	if (cp[j] == '"') /* And trailing one */
+	    cp[j] = '\0';
+	if (strlen(cp))
+	    variable_set2(lines[i], cp);
+	free(lines[i]);
+    }
+}
+    
 /*
  * This sucks in /etc/sysconfig, substitutes anything needing substitution, then
  * writes it all back out.  It's pretty gross and needs re-writing at some point.
  */
-
-#define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
 void
 configSysconfig(char *config)
 {
     FILE *fp;
     char *lines[MAX_LINES], *cp;
-    char line[256];
     Variable *v;
     int i, nlines;
 
-    fp = fopen(config, "r");
-    if (!fp) {
+    nlines = readConfig(config, lines, MAX_LINES);
+    if (nlines == -1) {
 	msgConfirm("Unable to open %s file!  This is bad!", config);
 	return;
     }
-    msgNotify("Writing configuration changes to %s file..", config);
 
-    nlines = 0;
-    /* Read in the entire file */
-    for (i = 0; i < MAX_LINES; i++) {
-	if (!fgets(line, 255, fp))
-	    break;
-	lines[nlines++] = strdup(line);
-    }
-    msgDebug("Read %d lines from %s.\n", nlines, config);
     /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
 	for (i = 0; i < nlines; i++) {
-	    char tmp[256];
-
-	    /* Skip the comments */
-	    if (lines[i][0] == '#')
+	    /* Skip the comments & non-variable settings */
+	    if (lines[i][0] == '#' || !(cp = index(lines[i], '=')))
 		continue;
-	    SAFE_STRCPY(tmp, lines[i]);
-	    cp = index(tmp, '=');
-	    if (!cp)
-		continue;
-	    *(cp++) = '\0';
-	    if (!strcmp(tmp, v->name)) {
+	    if (!strncmp(lines[i], v->name, cp - lines[i])) {
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 5);
 		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
@@ -322,7 +366,7 @@ configSysconfig(char *config)
     }
 
     /* Now write it all back out again */
-    fclose(fp);
+    msgNotify("Writing configuration changes to %s file..", config);
     if (Fake) {
 	msgDebug("Writing %s out to debugging screen..\n", config);
 	fp = fdopen(DebugFD, "w");
@@ -430,9 +474,6 @@ configResolv(void)
     FILE *fp;
     char *cp, *dp, *hp;
 
-    if (!RunningAsInit || file_readable("/etc/resolv.conf"))
-	return;
-
     cp = variable_get(VAR_NAMESERVER);
     if (!cp || !*cp)
 	goto skip;
@@ -447,16 +488,18 @@ configResolv(void)
 	msgDebug("Wrote out /etc/resolv.conf\n");
 
 skip:
-    /* Tack ourselves into /etc/hosts */
-    fp = fopen("/etc/hosts", "w");
-
-    /* Add an entry for localhost */
     dp = variable_get(VAR_DOMAINNAME);
-    fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
-
-    /* Now the host entries, if applicable */
     cp = variable_get(VAR_IPADDR);
     hp = variable_get(VAR_HOSTNAME);
+    if ((!dp || !cp || !hp) && file_readable("/etc/hosts"))
+	return;
+    /* Tack ourselves into /etc/hosts */
+    fp = fopen("/etc/hosts", "w");
+    if (!fp)
+	return;
+    /* Add an entry for localhost */
+    fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
+    /* Now the host entries, if applicable */
     if (cp && cp[0] != '0' && hp) {
 	char cp2[255];
 
@@ -471,7 +514,7 @@ skip:
     }
     fclose(fp);
     if (isDebug())
-	msgDebug("Wrote entry for %s to /etc/hosts\n", cp);
+	msgDebug("Wrote out /etc/hosts\n");
 }
 
 int

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: media.c,v 1.25.2.45 1997/02/07 04:26:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,6 +96,14 @@ cpioVerbosity()
     return "";
 }
 
+static void
+mediaClose(void)
+{
+    if (mediaDevice)
+	mediaDevice->shutdown(mediaDevice);
+    mediaDevice = NULL;
+}
+
 /*
  * Return 1 if we successfully found and set the installation type to
  * be a CD.
@@ -106,6 +114,7 @@ mediaSetCDROM(dialogMenuItem *self)
     Device **devs;
     int cnt;
 
+    mediaClose();
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
     if (!cnt) {
@@ -149,6 +158,7 @@ mediaSetFloppy(dialogMenuItem *self)
     Device **devs;
     int cnt;
 
+    mediaClose();
     devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
     cnt = deviceCount(devs);
     if (!cnt) {
@@ -190,6 +200,7 @@ mediaSetDOS(dialogMenuItem *self)
     Device **devs;
     int cnt;
 
+    mediaClose();
     devs = deviceFind(NULL, DEVICE_TYPE_DOS);
     cnt = deviceCount(devs);
     if (!cnt) {
@@ -229,6 +240,7 @@ mediaSetTape(dialogMenuItem *self)
     Device **devs;
     int cnt;
 
+    mediaClose();
     devs = deviceFind(NULL, DEVICE_TYPE_TAPE);
     cnt = deviceCount(devs);
     if (!cnt) {
@@ -277,12 +289,13 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, *hostname, *dir;
     extern int FtpPort;
-    static Boolean network_init = 1;
+    static Device *networkDev = NULL;
     int what = DITEM_RESTORE;
 
+    mediaClose();
     cp = variable_get(VAR_FTP_PATH);
     /* If we've been through here before ... */
-    if (!network_init && cp && msgYesNo("Re-use old FTP site selection values?"))
+    if (networkDev && cp && msgYesNo("Re-use old FTP site selection values?"))
 	cp = NULL;
 
     if (!cp) {
@@ -318,10 +331,11 @@ mediaSetFTP(dialogMenuItem *self)
     SAFE_STRCPY(ftpDevice.name, cp);
 
     dialog_clear_norefresh();
-    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
-						   "would you like to skip over it now?") != 0)) {
-	if (mediaDevice)
-	    mediaDevice->shutdown(mediaDevice);
+    if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
+				"would you like to skip over it now?") != 0) {
+	if (networkDev)
+	    networkDev->shutdown(networkDev);
+	networkDev = NULL;
 	if (!tcpDeviceSelect()) {
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
@@ -332,8 +346,8 @@ mediaSetFTP(dialogMenuItem *self)
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
+	networkDev = mediaDevice;
     }
-    network_init = FALSE;
     hostname = cp + 6;
     if ((cp = index(hostname, ':')) != NULL) {
 	*(cp++) = '\0';
@@ -352,13 +366,14 @@ mediaSetFTP(dialogMenuItem *self)
 	if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
-	    mediaDevice->shutdown(mediaDevice);
-	    network_init = TRUE;
+	    if (networkDev)
+		networkDev->shutdown(networkDev);
+	    networkDev = NULL;
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
 	else
-	    msgNotify("Found DNS entry for %s successfully..", hostname);
+	    msgDebug("Found DNS entry for %s successfully..", hostname);
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
@@ -367,7 +382,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
-    ftpDevice.private = RunningAsInit ? mediaDevice : NULL; /* Set to network device by tcpDeviceSelect() */
+    ftpDevice.private = networkDev;
     mediaDevice = &ftpDevice;
     return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
@@ -392,6 +407,7 @@ mediaSetUFS(dialogMenuItem *self)
     static Device ufsDevice;
     char *cp;
 
+    mediaClose();
     dialog_clear_norefresh();
     cp = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
 			    "containing the FreeBSD distribution files:");
@@ -411,9 +427,10 @@ int
 mediaSetNFS(dialogMenuItem *self)
 {
     static Device nfsDevice;
-    static int network_init = 1;
+    static Device *networkDev = NULL;
     char *cp, *idx;
 
+    mediaClose();
     dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
 			    "host and directory containing the FreeBSD distribution files.\n"
@@ -427,8 +444,11 @@ mediaSetNFS(dialogMenuItem *self)
     }
     SAFE_STRCPY(nfsDevice.name, cp);
     *idx = '\0';
-    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
-						   "would you like to skip over it now?") != 0)) {
+    if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
+				"would you like to skip over it now?") != 0) {
+	if (networkDev)
+	    networkDev->shutdown(networkDev);
+	networkDev = NULL;
 	if (!tcpDeviceSelect())
 	    return DITEM_FAILURE;
 	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
@@ -436,23 +456,27 @@ mediaSetNFS(dialogMenuItem *self)
 		msgDebug("mediaSetNFS: Net device init failed\n");
 	    return DITEM_FAILURE;
 	}
+	networkDev = mediaDevice;
     }
-    network_init = 0;
-    if (!RunningAsInit || variable_get(VAR_NAMESERVER)) {
+    if (variable_get(VAR_NAMESERVER)) {
 	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", cp);
+	    if (networkDev)
+		networkDev->shutdown(networkDev);
+	    networkDev = NULL;
+	    variable_unset(VAR_NFS_PATH);
 	    return DITEM_FAILURE;
 	}
 	else
-	    msgNotify("Found DNS entry for %s successfully..", cp);
+	    msgDebug("Found DNS entry for %s successfully..", cp);
     }
     variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
     nfsDevice.shutdown = mediaShutdownNFS;
-    nfsDevice.private = RunningAsInit ? mediaDevice : NULL;
+    nfsDevice.private = networkDev;
     mediaDevice = &nfsDevice;
     return DITEM_LEAVE_MENU;
 }

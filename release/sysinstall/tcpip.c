@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.30 1997/02/07 04:26:57 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.31 1997/02/13 00:33:00 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -255,7 +255,7 @@ reenter:
 	}
     }
     
-    if (!verifySettings())
+    if (!cancel && !verifySettings())
 	goto reenter;
 
     /* Clear this crap off the screen */
