@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $Id$
  *
  */
 
@@ -25,7 +25,7 @@ MDXEnd(MDX_CTX *ctx)
     int i;
     char *p = malloc(33);
     unsigned char digest[16];
-    char hex[]="0123456789abcdef";
+    static const char hex[]="0123456789abcdef";
     
     if(!p) return 0;
     MDXFinal(digest,ctx);
