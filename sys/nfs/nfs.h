@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.18.2.3 1997/05/14 08:19:26 dfr Exp $
+ * $Id: nfs.h,v 1.18.2.4 1997/05/28 18:26:44 dfr Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -300,7 +300,7 @@ struct nfsreq {
 	int		r_retry;	/* max retransmission count */
 	int		r_rexmit;	/* current retrans count */
 	int		r_timer;	/* tick counter on reply */
-	int		r_procnum;	/* NFS procedure number */
+	u_int32_t	r_procnum;	/* NFS procedure number */
 	int		r_rtt;		/* RTT for rpc */
 	struct proc	*r_procp;	/* Proc that did I/O system call */
 };
