@@ -369,10 +369,11 @@ main(int argc, char **argv)
                     size = 20;
 #ifdef __NetBSD__
                 history(hist, NULL, H_SETSIZE, size);
+                edit = el_init("pppctl", stdin, stdout, stderr);
 #else
                 history(hist, H_EVENT, size);
-#endif
                 edit = el_init("pppctl", stdin, stdout);
+#endif
                 el_source(edit, NULL);
                 el_set(edit, EL_PROMPT, GetPrompt);
                 if ((env = getenv("EL_EDITOR"))) {
