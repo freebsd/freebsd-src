@@ -1,4 +1,4 @@
-#	$Id: options,v 1.95 1998/09/11 18:50:15 rvb Exp $
+#	$Id: options,v 1.96 1998/09/14 19:56:36 sos Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -29,6 +29,13 @@
 #
 # If filename is missing, the default is
 # opt_<name-of-option-in-lower-case>.h
+
+# Adaptec aic7xxx SCSI controller options
+AHC_ALLOW_MEMIO		opt_aic7xxx.h	# Allow PCI devices to use memory
+					# mapped I/o
+
+AHC_TMODE_ENABLE	opt_aic7xxx.h	# Bitmap of units to enable
+					# targetmode operations.
 
 # Miscellaneous options.
 BOUNCE_BUFFERS	opt_bounce.h
@@ -138,11 +145,21 @@ SHMMNI		opt_param.h
 SHMSEG		opt_param.h
 
 # Generic SCSI options.
-SCSIDEBUG		opt_scsi.h
+CAM_MAX_HIGHPOWER	opt_cam.h
+CAMDEBUG		opt_cam.h
+CAM_DEBUG_BUS		opt_cam.h
+CAM_DEBUG_TARGET	opt_cam.h
+CAM_DEBUG_LUN		opt_cam.h
+CAM_DEBUG_FLAGS		opt_cam.h
+SCSI_CAM		opt_scsi.h
 SCSI_DELAY		opt_scsi.h
 SCSI_REPORT_GEOMETRY	opt_scsi.h
-SCSI_2_DEF		opt_scsi.h
-NO_SCSI_SENSE		opt_scsi.h
+SCSI_NO_SENSE_STRINGS	opt_scsi.h
+SCSI_NO_OP_STRINGS	opt_scsi.h
+
+# Options used only in cam/scsi/scsi_cd.c
+CHANGER_MIN_BUSY_SECONDS	opt_cd.h
+CHANGER_MAX_BUSY_SECONDS	opt_cd.h
 
 # Options used only in scsi/od.c.
 OD_AUTO_TURNOFF		opt_od.h
