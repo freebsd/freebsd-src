@@ -199,7 +199,7 @@ define ps
     set $nproc = nprocs
     set $aproc = allproc.lh_first
     set $proc = allproc.lh_first
-    printf "  pid    proc    addr   uid  ppid  pgrp   flag stat comm         wchan\n"
+    printf "  pid    proc   uid  ppid  pgrp   flag stat comm         wchan\n"
     while (--$nproc >= 0)
         set $pptr = $proc.p_pptr
         if ($pptr == 0)
@@ -208,9 +208,9 @@ define ps
         if ($proc.p_state)
             set $thread = $proc->p_threads.tqh_first
             while ($thread)
-                printf "%5d %08x %08x %4d %5d %5d  %06x  %d  %-10s   ", \
+                printf "%5d %08x %4d %5d %5d  %06x  %d  %-10s   ", \
                        $proc.p_pid, $aproc, \
-                       $proc.p_uarea, $proc.p_ucred->cr_ruid, $pptr->p_pid, \
+                       $proc.p_ucred->cr_ruid, $pptr->p_pid, \
                        $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_state, \
                        &$proc.p_comm[0]
                 if ($thread.td_wchan)
