@@ -143,6 +143,7 @@ VAR var[] = {
 	{"re", "RE", NULL, 0, kvar, NULL, 3, KOFF(ki_swtime), UINT, "d"},
 	{"rgid", "RGID", NULL, 0, kvar, NULL, UIDLEN, KOFF(ki_rgid),
 		UINT, UIDFMT},
+	{"rss", "RSS", NULL, 0, kvar, NULL, 4, KOFF(ki_rssize), UINT, "d"},
 	{"rtprio", "RTPRIO", NULL, 0, rtprior, NULL, 7, KOFF(ki_rtprio)},
 	{"ruid", "RUID", NULL, 0, kvar, NULL, UIDLEN, KOFF(ki_ruid),
 		UINT, UIDFMT},
