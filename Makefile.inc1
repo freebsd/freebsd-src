@@ -364,7 +364,7 @@ distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cap_mkdb cat chflags chmod chown \
 	    date echo egrep find grep \
-	    ln make makewhatis mtree mv perl pwd_mkdb rm sed sh sysctl \
+	    ln make makewhatis mkdir mtree mv perl pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
