@@ -3,7 +3,7 @@ PROG=	top
 TOPDIR=	${.CURDIR}/../../contrib/top
 .PATH:	${TOPDIR}
 
-CFLAGS+= -DHAVE_GETOPT -I${.CURDIR} -I${TOPDIR}
+CFLAGS+= -DHAVE_GETOPT -I${.CURDIR} -I${TOPDIR} -DORDER
 
 #
 # The table size should be a prime number approximately twice as

@@ -6,6 +6,8 @@
  * DESCRIPTION:
  * Originally written for BSD4.4 system by Christos Zoulas.
  * Ported to FreeBSD 2.x by Steven Wallace && Wolfram Schneider
+ * Order support hacked in from top-3.5beta6/machine/m_aix41.c
+ *   by Monte Mitzelfelt (for latest top see http://www.groupsys.com/topinfo/)
  *
  * This is the machine-dependent module for FreeBSD 2.2
  * Works for:
@@ -16,8 +18,9 @@
  * AUTHOR:  Christos Zoulas <christos@ee.cornell.edu>
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
+ *          Monte Mitzelfelt <monte@gonefishing.org>
  *
- * $Id: machine.c,v 1.3.2.3 1998/02/14 13:37:25 peter Exp $
+ * $Id: machine.c,v 1.3.2.4 1998/07/27 12:09:10 wosch Exp $
  */
 
 
@@ -232,6 +235,11 @@ static int pageshift;		/* log base 2 of the pagesize */
 /* useful externals */
 long percentages();
 
+/* sorting orders. first is default */
+char *ordernames[] = {
+    "cpu", "size", "res", "time", "pri", NULL
+};
+
 int
 machine_init(statics)
 
@@ -300,6 +308,7 @@ struct statics *statics;
     statics->cpustate_names = cpustatenames;
     statics->memory_names = memorynames;
     statics->swap_names = swapnames;
+    statics->order_names = ordernames;
 
     /* all done! */
     return(0);
@@ -685,7 +694,7 @@ char *refstr;
     return(1);
 }
     
-/* comparison routine for qsort */
+/* comparison routines for qsort */
 
 /*
  *  proc_compare - comparison function for "qsort"
@@ -709,8 +718,43 @@ static unsigned char sorted_state[] =
     4	/* stop			*/
 };
  
+/* compare routines */
+int compare_cpu(), compare_size(), compare_res(), compare_time(), 
+    compare_prio();
+
+int (*proc_compares[])() = {
+    compare_cpu,
+    compare_size,
+    compare_res,
+    compare_time,
+    compare_prio,
+    NULL
+};
+
+#define ORDERKEY_PCTCPU \
+  if (lresult = PP(p2, p_pctcpu) - PP(p1, p_pctcpu), \
+     (result = lresult > 0 ? 1 : lresult < 0 ? -1 : 0) == 0)
+
+#define ORDERKEY_CPTICKS \
+  if ((result = PP(p2, p_rtime).tv_sec - PP(p1, p_rtime).tv_sec) == 0)
+
+#define ORDERKEY_STATE \
+  if ((result = sorted_state[(unsigned char) PP(p2, p_stat)] - \
+                sorted_state[(unsigned char) PP(p1, p_stat)]) == 0)
+
+#define ORDERKEY_PRIO \
+  if ((result = PP(p2, p_priority) - PP(p1, p_priority)) == 0)
+
+#define ORDERKEY_RSSIZE \
+  if ((result = VP(p2, vm_rssize) - VP(p1, vm_rssize)) == 0) 
+
+#define ORDERKEY_MEM \
+  if ( (result = PROCSIZE(p2) - PROCSIZE(p1)) == 0 )
+
+/* compare_cpu - the comparison function for sorting by cpu percentage */
+
 int
-proc_compare(pp1, pp2)
+compare_cpu(pp1, pp2)
 
 struct proc **pp1;
 struct proc **pp2;
@@ -725,37 +769,132 @@ struct proc **pp2;
     p1 = *(struct kinfo_proc **) pp1;
     p2 = *(struct kinfo_proc **) pp2;
 
-    /* compare percent cpu (pctcpu) */
-    if ((lresult = PP(p2, p_pctcpu) - PP(p1, p_pctcpu)) == 0)
-    {
-	/* use lifetime CPU usage to break the tie */
-	if ((result = PP(p2, p_rtime).tv_sec - PP(p1, p_rtime).tv_sec) == 0)
-	{
-	    /* use process state to break the tie */
-	    if ((result = sorted_state[(unsigned char) PP(p2, p_stat)] -
-			  sorted_state[(unsigned char) PP(p1, p_stat)])  == 0)
-	    {
-		/* use priority to break the tie */
-		if ((result = PP(p2, p_priority) - PP(p1, p_priority)) == 0)
-		{
-		    /* use resident set size (rssize) to break the tie */
-		    if ((result = VP(p2, vm_rssize) - VP(p1, vm_rssize)) == 0)
-		    {
-			/* use total memory to break the tie */
-			result = PROCSIZE(p2) - PROCSIZE(p1);
-		    }
-		}
-	    }
-	}
-    }
-    else
-    {
-	result = lresult < 0 ? -1 : 1;
-    }
+    ORDERKEY_PCTCPU
+    ORDERKEY_CPTICKS
+    ORDERKEY_STATE
+    ORDERKEY_PRIO
+    ORDERKEY_RSSIZE
+    ORDERKEY_MEM
+    ;
 
     return(result);
 }
 
+/* compare_size - the comparison function for sorting by total memory usage */
+
+int
+compare_size(pp1, pp2)
+
+struct proc **pp1;
+struct proc **pp2;
+
+{
+    register struct kinfo_proc *p1;
+    register struct kinfo_proc *p2;
+    register int result;
+    register pctcpu lresult;
+
+    /* remove one level of indirection */
+    p1 = *(struct kinfo_proc **) pp1;
+    p2 = *(struct kinfo_proc **) pp2;
+
+    ORDERKEY_MEM
+    ORDERKEY_RSSIZE
+    ORDERKEY_PCTCPU
+    ORDERKEY_CPTICKS
+    ORDERKEY_STATE
+    ORDERKEY_PRIO
+    ;
+
+    return(result);
+}
+
+/* compare_res - the comparison function for sorting by resident set size */
+
+int
+compare_res(pp1, pp2)
+
+struct proc **pp1;
+struct proc **pp2;
+
+{
+    register struct kinfo_proc *p1;
+    register struct kinfo_proc *p2;
+    register int result;
+    register pctcpu lresult;
+
+    /* remove one level of indirection */
+    p1 = *(struct kinfo_proc **) pp1;
+    p2 = *(struct kinfo_proc **) pp2;
+
+    ORDERKEY_RSSIZE
+    ORDERKEY_MEM
+    ORDERKEY_PCTCPU
+    ORDERKEY_CPTICKS
+    ORDERKEY_STATE
+    ORDERKEY_PRIO
+    ;
+
+    return(result);
+}
+
+/* compare_time - the comparison function for sorting by total cpu time */
+
+int
+compare_time(pp1, pp2)
+
+struct proc **pp1;
+struct proc **pp2;
+
+{
+    register struct kinfo_proc *p1;
+    register struct kinfo_proc *p2;
+    register int result;
+    register pctcpu lresult;
+
+    /* remove one level of indirection */
+    p1 = *(struct kinfo_proc **) pp1;
+    p2 = *(struct kinfo_proc **) pp2;
+
+    ORDERKEY_CPTICKS
+    ORDERKEY_PCTCPU
+    ORDERKEY_STATE
+    ORDERKEY_PRIO
+    ORDERKEY_RSSIZE
+    ORDERKEY_MEM
+    ;
+
+    return(result);
+}
+
+/* compare_prio - the comparison function for sorting by cpu percentage */
+
+int
+compare_prio(pp1, pp2)
+
+struct proc **pp1;
+struct proc **pp2;
+
+{
+    register struct kinfo_proc *p1;
+    register struct kinfo_proc *p2;
+    register int result;
+    register pctcpu lresult;
+
+    /* remove one level of indirection */
+    p1 = *(struct kinfo_proc **) pp1;
+    p2 = *(struct kinfo_proc **) pp2;
+
+    ORDERKEY_PRIO
+    ORDERKEY_CPTICKS
+    ORDERKEY_PCTCPU
+    ORDERKEY_STATE
+    ORDERKEY_RSSIZE
+    ORDERKEY_MEM
+    ;
+
+    return(result);
+}
 
 /*
  * proc_owner(pid) - returns the uid that owns process "pid", or -1 if
