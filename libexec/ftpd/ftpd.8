@@ -47,8 +47,9 @@
 .Op Fl p Ar file
 .Op Fl t Ar timeout
 .Sh DESCRIPTION
-.Nm Ftpd
-is the
+The
+.Nm
+utility is the
 Internet File Transfer Protocol
 server process.  The server uses the
 .Tn TCP
@@ -281,16 +282,18 @@ STAT
 command is received during a data transfer, preceded by a Telnet IP
 and Synch, transfer status will be returned.
 .Pp
-.Nm Ftpd
-interprets file names according to the
+The
+.Nm
+utility interprets file names according to the
 .Dq globbing
 conventions used by
 .Xr csh 1 .
 This allows users to utilize the metacharacters
 .Dq Li \&*?[]{}~ .
 .Pp
-.Nm Ftpd
-authenticates users according to six rules.
+The
+.Nm
+utility authenticates users according to six rules.
 .Pp
 .Bl -enum -offset indent
 .It
@@ -383,7 +386,7 @@ The files pwd.db (see
 and
 .Xr group 5
 must be present for the
-.Xr ls
+.Xr ls 1
 command to be able to produce owner names rather than numbers.
 The password field in
 .Xr passwd
@@ -452,8 +455,9 @@ value is to be used.
 As with any anonymous login configuration, due care must be given
 to setup and maintenance to guard against security related problems.
 .Pp
+The
 .Nm
-has internal support for handling remote requests to list
+utility has internal support for handling remote requests to list
 files, and will not execute
 .Pa /bin/ls
 in either a chrooted or non-chrooted environment.  The
@@ -495,6 +499,6 @@ scrutinized, but are possibly incomplete.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .
 IPv6 support was added in WIDE Hydrangea IPv6 stack kit.
