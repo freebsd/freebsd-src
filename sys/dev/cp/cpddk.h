@@ -15,7 +15,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * $Cronyx: cpddk.h,v 1.8.4.19 2004/08/10 13:37:20 rik Exp $
+ * $Cronyx: cpddk.h,v 1.8.4.20 2004/12/06 16:21:06 rik Exp $
  * $FreeBSD$
  */
 #define NBRD		6	/* the maximum number of installed boards */
@@ -231,6 +231,7 @@ typedef struct _cp_board_t {
 #define B_TAUPCI_2E1	9		/* 2 channels E1, 4 data ports */
 #define B_TAUPCI4_E1	10		/* 2 channels E1 + 2 channels V.35/RS */
 #define B_TAUPCI4_4E1	11		/* 4 channels E1 */
+#define B_TAUPCI_L	12		/* 1 channel V.35/RS */
 
 	unsigned long osc;		/* oscillator frequency */
 	char name[16];			/* board version name */
