@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.70 1995/12/14 23:59:04 bde Exp $
+ *	$Id: pmap.c,v 1.71 1995/12/17 07:19:15 bde Exp $
  */
 
 /*
@@ -1904,8 +1904,12 @@ pmap_mapdev(pa, size)
 }
 
 #ifdef DEBUG
+
+static void	pads __P((pmap_t pm));
+static void	pmap_pvdump __P((vm_offset_t pa));
+
 /* print address space of pmap*/
-void
+static void
 pads(pm)
 	pmap_t pm;
 {
@@ -1929,7 +1933,7 @@ pads(pm)
 
 }
 
-void
+static void
 pmap_pvdump(pa)
 	vm_offset_t pa;
 {
