@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#) $Header: tcpdump.c,v 1.129 97/06/13 13:10:11 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.138.2.1 2000/01/11 07:34:00 fenner Exp $ (LBL)";
 #endif
 
 /* $FreeBSD$ */
@@ -37,6 +37,10 @@ static const char rcsid[] =
  * combined efforts of Van, Steve McCanne and Craig Leres of LBL.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <sys/types.h>
 #include <sys/time.h>
 
@@ -48,6 +52,10 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
+
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -64,11 +72,16 @@ int Nflag;			/* remove domains from printed host names */
 int Oflag = 1;			/* run filter code optimizer */
 int pflag;			/* don't go promiscuous */
 int qflag;			/* quick (shorter) output */
+int Rflag = 1;			/* print sequence # field in AH/ESP*/
+int sflag = 0;			/* use the libsmi to translate OIDs */
 int Sflag;			/* print raw TCP sequence numbers */
 int tflag = 1;			/* print packet arrival time */
 int vflag;			/* verbose */
 int xflag;			/* print packet in hex */
-int Xflag;			/* print packet in emacs-hexl style */
+int Xflag;			/* print packet in ascii as well as hex */
+
+char *ahsecret = NULL;		/* AH secret key */
+char *espsecret = NULL;		/* ESP secret key */
 
 int packettype;
 
@@ -95,6 +108,12 @@ struct printer {
 static struct printer printers[] = {
 	{ ether_if_print,	DLT_EN10MB },
 	{ token_if_print,	DLT_IEEE802 },
+#ifdef DLT_LANE8023
+	{ lane_if_print,        DLT_LANE8023 },
+#endif
+#ifdef DLT_CIP
+	{ cip_if_print,         DLT_CIP },
+#endif
 	{ sl_if_print,		DLT_SLIP },
 	{ sl_bsdos_if_print,	DLT_SLIP_BSDOS },
 	{ ppp_if_print,		DLT_PPP },
@@ -103,6 +122,9 @@ static struct printer printers[] = {
 	{ null_if_print,	DLT_NULL },
 	{ raw_if_print,		DLT_RAW },
 	{ atm_if_print,		DLT_ATM_RFC1483 },
+#ifdef DLT_CHDLC
+	{ chdlc_if_print,	DLT_CHDLC },
+#endif
 	{ NULL,			0 },
 };
 
@@ -150,14 +172,27 @@ main(int argc, char **argv)
 	if (abort_on_misalignment(ebuf) < 0)
 		error("%s", ebuf);
 
+#ifdef LIBSMI
+	smiInit("tcpdump");
+#endif
+	
 	opterr = 0;
 	while (
-	    (op = getopt(argc, argv, "ac:defF:i:lnNOpqr:s:StT:vw:xXY")) != EOF)
+	    (op = getopt(argc, argv, "ac:deE:fF:i:lnNm:Opqr:Rs:StT:vw:xXY")) != EOF)
 		switch (op) {
 
 		case 'a':
 			++aflag;
 			break;
+
+#if 0
+		case 'A':
+#ifndef CRYPTO
+			warning("crypto code not compiled in");
+#endif
+			ahsecret = optarg;
+			break;
+#endif
 
 		case 'c':
 			cnt = atoi(optarg);
@@ -171,6 +206,13 @@ main(int argc, char **argv)
 
 		case 'e':
 			++eflag;
+			break;
+
+		case 'E':
+#ifndef CRYPTO
+			warning("crypto code not compiled in");
+#endif
+			espsecret = optarg;
 			break;
 
 		case 'f':
@@ -201,6 +243,18 @@ main(int argc, char **argv)
 			++Nflag;
 			break;
 
+		case 'm':
+#ifdef LIBSMI
+		        if (smiLoadModule(optarg) == 0) {
+				error("could not load MIB module %s", optarg);
+		        }
+			sflag = 1;
+#else
+			(void)fprintf(stderr, "%s: ignoring option `-m %s' ",
+				      program_name, optarg);
+			(void)fprintf(stderr, "(no libsmi support)\n");
+#endif
+			
 		case 'O':
 			Oflag = 0;
 			break;
@@ -215,6 +269,10 @@ main(int argc, char **argv)
 
 		case 'r':
 			RFileName = optarg;
+			break;
+
+		case 'R':
+			Rflag = 0;
 			break;
 
 		case 's':
@@ -242,6 +300,8 @@ main(int argc, char **argv)
 				packettype = PT_RTP;
 			else if (strcasecmp(optarg, "rtcp") == 0)
 				packettype = PT_RTCP;
+			else if (strcasecmp(optarg, "snmp") == 0)
+				packettype = PT_SNMP;
 			else
 				error("unknown packet type `%s'", optarg);
 			break;
@@ -253,6 +313,16 @@ main(int argc, char **argv)
 		case 'w':
 			WFileName = optarg;
 			break;
+
+		case 'x':
+			++xflag;
+			break;
+
+		case 'X':
+			++xflag;
+			++Xflag;
+			break;
+
 #ifdef YYDEBUG
 		case 'Y':
 			{
@@ -262,15 +332,6 @@ main(int argc, char **argv)
 			}
 			break;
 #endif
-		case 'x':
-			++xflag;
-			break;
-
-		case 'X':
-			++Xflag;
-			if (xflag == 0) ++xflag;
-			break;
-
 		default:
 			usage();
 			/* NOTREACHED */
@@ -446,61 +507,31 @@ default_print_unaligned(register const u_char *cp, register u_int length)
 	register int nshorts;
 
 	if (Xflag) {
-		/* dump the buffer in `emacs-hexl' style */
-		default_print_hexl(cp, length, 0);
-	} else {
-		/* dump the buffer in old tcpdump style */
-		nshorts = (u_int) length / sizeof(u_short);
-		i = 0;
-		while (--nshorts >= 0) {
-			if ((i++ % 8) == 0)
-				(void)printf("\n\t\t\t");
-			s = *cp++;
-			(void)printf(" %02x%02x", s, *cp++);
-		}
-		if (length & 1) {
-			if ((i % 8) == 0)
-				(void)printf("\n\t\t\t");
-			(void)printf(" %02x", *cp);
-		}
+		ascii_print(cp, length);
+		return;
+	}
+	nshorts = (u_int) length / sizeof(u_short);
+	i = 0;
+	while (--nshorts >= 0) {
+		if ((i++ % 8) == 0)
+			(void)printf("\n\t\t\t");
+		s = *cp++;
+		(void)printf(" %02x%02x", s, *cp++);
+	}
+	if (length & 1) {
+		if ((i % 8) == 0)
+			(void)printf("\n\t\t\t");
+		(void)printf(" %02x", *cp);
 	}
 }
 
 /*
  * By default, print the packet out in hex.
- *
- * (BTW, please don't send us patches to print the packet out in ascii)
  */
 void
 default_print(register const u_char *bp, register u_int length)
 {
-	register const u_short *sp;
-	register u_int i;
-	register int nshorts;
-
-	if (Xflag) {
-		/* dump the buffer in `emacs-hexl' style */
-		default_print_hexl(bp, length, 0);
-	} else {
-		/* dump the buffer in old tcpdump style */
-		if ((long)bp & 1) {
-			default_print_unaligned(bp, length);
-			return;
-		}
-		sp = (u_short *)bp;
-		nshorts = (u_int) length / sizeof(u_short);
-		i = 0;
-		while (--nshorts >= 0) {
-			if ((i++ % 8) == 0)
-				(void)printf("\n\t\t\t");
-			(void)printf(" %04x", ntohs(*sp++));
-		}
-		if (length & 1) {
-			if ((i % 8) == 0)
-				(void)printf("\n\t\t\t");
-			(void)printf(" %02x", *(u_char *)sp);
-		}
-	}
+	default_print_unaligned(bp, length);
 }
 
 __dead void

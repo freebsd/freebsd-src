@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: interface.h,v 1.105 97/04/26 13:39:58 leres Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.118 1999/12/22 15:44:09 itojun Exp $ (LBL)
  * $FreeBSD$
  */
 
@@ -42,10 +42,16 @@ extern int fflag;		/* don't translate "foreign" IP address */
 extern int nflag;		/* leave addresses as numbers */
 extern int Nflag;		/* remove domains from printed host names */
 extern int qflag;		/* quick (shorter) output */
+extern int Rflag;		/* print sequence # field in AH/ESP*/
+extern int sflag;		/* use the libsmi to translate OIDs */
 extern int Sflag;		/* print raw TCP sequence numbers */
 extern int tflag;		/* print packet arrival time */
 extern int vflag;		/* verbose */
 extern int xflag;		/* print packet in hex */
+extern int Xflag;		/* print packet in hex/ascii */
+
+extern char *ahsecret;
+extern char *espsecret;
 
 extern int packettype;		/* as specified by -T */
 #define PT_VAT		1	/* Visual Audio Tool */
@@ -53,6 +59,7 @@ extern int packettype;		/* as specified by -T */
 #define PT_RPC		3	/* Remote Procedure Call */
 #define PT_RTP		4	/* Real-Time Applications protocol */
 #define PT_RTCP		5	/* Real-Time Applications control protocol */
+#define PT_SNMP		6	/* Simple Network Management Protocol */
 
 #ifndef min
 #define min(a,b) ((a)>(b)?(b):(a))
@@ -61,6 +68,7 @@ extern int packettype;		/* as specified by -T */
 #define max(a,b) ((b)>(a)?(b):(a))
 #endif
 
+#ifndef INET6
 /*
  * The default snapshot length.  This value allows most printers to print
  * useful information while keeping the amount of unwanted data down.
@@ -68,6 +76,9 @@ extern int packettype;		/* as specified by -T */
  * 14 bytes of data (assuming no ip options).
  */
 #define DEFAULT_SNAPLEN 68
+#else
+#define DEFAULT_SNAPLEN 96
+#endif
 
 #ifndef BIG_ENDIAN
 #define BIG_ENDIAN 4321
@@ -133,6 +144,7 @@ struct timeval;
 #endif
 
 extern void ts_print(const struct timeval *);
+extern void relts_print(int);
 
 extern int fn_print(const u_char *, const u_char *);
 extern int fn_printn(const u_char *, u_int, const u_char *);
@@ -162,6 +174,11 @@ extern char *dnnum_string(u_short);
 struct pcap_pkthdr;
 #endif
 
+extern void ascii_print_with_offset(const u_char *, u_int, u_int);    
+extern void ascii_print(const u_char *, u_int);    
+extern void hex_print_with_offset(const u_char *, u_int, u_int);    
+extern void telnet_print(const u_char *, u_int);    
+extern void hex_print(const u_char *, u_int);    
 extern int ether_encap_print(u_short, const u_char *, u_int, u_int);
 extern int llc_print(const u_char *, u_int, u_int, const u_char *,
 	const u_char *);
@@ -170,6 +187,7 @@ extern void arp_print(const u_char *, u_int, u_int);
 extern void atalk_print(const u_char *, u_int);
 extern void atm_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
 extern void bootp_print(const u_char *, u_int, u_short, u_short);
+extern void bgp_print(const u_char *, int);
 extern void decnet_print(const u_char *, u_int, u_int);
 extern void default_print(const u_char *, u_int);
 extern void default_print_unaligned(const u_char *, u_int);
@@ -181,7 +199,7 @@ extern void token_if_print(u_char *, const struct pcap_pkthdr *,
 	const u_char *);
 extern void fddi_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
 extern void gre_print(const u_char *, u_int);
-extern void icmp_print(const u_char *, const u_char *);
+extern void icmp_print(const u_char *, u_int, const u_char *);
 extern void igrp_print(const u_char *, u_int, const u_char *);
 extern void ip_print(const u_char *, u_int);
 extern void ipx_print(const u_char *, u_int);
@@ -194,15 +212,23 @@ extern void ns_print(const u_char *, u_int);
 extern void ntp_print(const u_char *, u_int);
 extern void null_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
 extern void ospf_print(const u_char *, u_int, const u_char *);
+extern void pimv1_print(const u_char *, u_int);
+extern void cisco_autorp_print(const u_char *, u_int);
+extern void mobile_print(const u_char *, u_int);
 extern void pim_print(const u_char *, u_int);
+extern void pppoe_print(const u_char *, u_int);
 extern void ppp_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
 extern void ppp_bsdos_if_print(u_char *, const struct pcap_pkthdr *,
 	const u_char *);
-extern void pppoe_print(const u_char *, u_int);
+extern int vjc_print(register const char *, register u_int, u_short);
 extern void raw_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
 extern void rip_print(const u_char *, u_int);
 extern void sl_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
+extern void lane_if_print(u_char *, const struct pcap_pkthdr *,const u_char *);
+extern void cip_if_print(u_char *, const struct pcap_pkthdr *,const u_char *);
 extern void sl_bsdos_if_print(u_char *, const struct pcap_pkthdr *,
+    const u_char *);
+extern void chdlc_if_print(u_char *, const struct pcap_pkthdr *,
     const u_char *);
 extern void snmp_print(const u_char *, u_int);
 extern void sunrpcrequest_print(const u_char *, u_int, const u_char *);
@@ -210,3 +236,31 @@ extern void tcp_print(const u_char *, u_int, const u_char *);
 extern void tftp_print(const u_char *, u_int);
 extern void udp_print(const u_char *, u_int, const u_char *);
 extern void wb_print(const void *, u_int);
+extern int ah_print(register const u_char *, register const u_char *);
+extern int esp_print(register const u_char *, register const u_char *, int *);
+extern void isakmp_print(const u_char *, u_int, const u_char *);
+extern int ipcomp_print(register const u_char *, register const u_char *, int *);
+extern void rx_print(register const u_char *, int, int, int, u_char *);
+extern void netbeui_print(const u_char *, const u_char *);
+extern void ipx_netbios_print(const u_char *, const u_char *);
+extern void nbt_tcp_print(const u_char *, int);
+extern void nbt_udp137_print(const u_char *data, int);
+extern void nbt_udp138_print(const u_char *data, int);
+extern char *smb_errstr(int, int);
+extern void print_data(const unsigned char *, int);
+extern void l2tp_print(const u_char *, u_int);
+extern void lcp_print(const u_char *, u_int);
+
+#ifdef INET6
+extern void ip6_print(const u_char *, int);
+extern void ip6_opt_print(const u_char *, int);
+extern int hbhopt_print(const u_char *);
+extern int dstopt_print(const u_char *);
+extern int frag6_print(const u_char *, const u_char *);
+extern void icmp6_print(const u_char *, const u_char *);
+extern void ripng_print(const u_char *, int);
+extern int rt6_print(const u_char *, const u_char *);
+extern void ospf6_print(const u_char *, u_int);
+extern void dhcp6_print(const u_char *, u_int, u_short, u_short);
+#endif /*INET6*/
+extern u_short in_cksum(const u_short *addr, register int len, u_short csum);

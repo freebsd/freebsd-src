@@ -17,14 +17,19 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-fddi.c,v 1.36 97/05/26 17:13:35 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.40 1999/12/14 16:49:02 fenner Exp $ (LBL)";
 #endif
 
-#ifdef HAVE_FDDI
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -57,7 +62,7 @@ struct rtentry;
 /*
  * Some FDDI interfaces use bit-swapped addresses.
  */
-#if defined(ultrix) || defined(__alpha) || defined(__bsdi)
+#if defined(ultrix) || defined(__alpha) || defined(__bsdi) || defined(__NetBSD__)
 int	fddi_bitswap = 0;
 #else
 int	fddi_bitswap = 1;
@@ -266,8 +271,8 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 	u_int caplen = h->caplen;
 	u_int length = h->len;
 	const struct fddi_header *fddip = (struct fddi_header *)p;
-	extern u_short extracted_ethertype;
 	struct ether_header ehdr;
+	u_short extracted_ethertype;
 
 	ts_print(&h->ts);
 
@@ -335,19 +340,3 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 out:
 	putchar('\n');
 }
-#else
-#include <sys/types.h>
-#include <sys/time.h>
-
-#include <stdio.h>
-
-#include "interface.h"
-void
-fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
-	      register const u_char *p)
-{
-
-	error("not configured for fddi");
-	/* NOTREACHED */
-}
-#endif
