@@ -2906,7 +2906,7 @@ tcp_timewait(tw, to, th, m, tlen)
 		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
 		if (seq + 1 == tw->rcv_nxt)
 			callout_reset(tw->tt_2msl,
-			    2 * tcp_msl, tcp_timer_2msl, tw);
+			    2 * tcp_msl, tcp_timer_2msl_tw, tw);
 	}
 
 	/*
