@@ -110,6 +110,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
+/* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
+#ifndef PP_FR
+#define PP_FR 0
+#endif
+
 #define CX_DEBUG(d,s)	({if (d->chan->debug) {\
 				printf ("%s: ", d->name); printf s;}})
 #define CX_DEBUG2(d,s)	({if (d->chan->debug>1) {\
@@ -1809,7 +1814,7 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	        CX_DEBUG2 (d, ("ioctl: getproto\n"));
 		s = splhigh ();
 	        strcpy ((char*)data, (c->mode == M_ASYNC) ? "async" :
-			/*(d->pp.pp_flags & PP_FR) ? "fr" :*/
+			(d->pp.pp_flags & PP_FR) ? "fr" :
 			(d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
 		splx (s);
 	        return 0;
@@ -1831,14 +1836,14 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 		if (d->pp.pp_if.if_flags & IFF_RUNNING)
 			return EBUSY;
 	        if (! strcmp ("cisco", (char*)data)) {
-/*	                d->pp.pp_flags &= ~(PP_FR);*/
+	                d->pp.pp_flags &= ~(PP_FR);
 	                d->pp.pp_flags |= PP_KEEPALIVE;
 	                d->pp.pp_if.if_flags |= PP_CISCO;
-/*	        } else if (! strcmp ("fr", (char*)data)) {*/
-/*	                d->pp.pp_if.if_flags &= ~(PP_CISCO);*/
-/*	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;*/
+	        } else if (! strcmp ("fr", (char*)data)) {
+	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
+	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
 	        } else if (! strcmp ("ppp", (char*)data)) {
-	                d->pp.pp_flags &= ~(/*PP_FR |*/ PP_KEEPALIVE);
+	                d->pp.pp_flags &= ~(PP_FR | PP_KEEPALIVE);
 	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
 	        } else
 			return EINVAL;
@@ -1846,7 +1851,7 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 
 	case SERIAL_GETKEEPALIVE:
 	        CX_DEBUG2 (d, ("ioctl: getkeepalive\n"));
-	        if (/*(d->pp.pp_flags & PP_FR) ||*/
+	        if ((d->pp.pp_flags & PP_FR) ||
 		    (d->pp.pp_if.if_flags & PP_CISCO) ||
 		    (c->mode == M_ASYNC))
 			return EINVAL;
@@ -1867,7 +1872,7 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 #endif /* __FreeBSD_version >= 500000 */
 	        if (error)
 	                return error;
-	        if (/*(d->pp.pp_flags & PP_FR) ||*/
+	        if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
 		s = splhigh ();
