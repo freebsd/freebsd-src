@@ -96,7 +96,7 @@ display(win, text, size)
 			text++;
 			continue;
 		}
-		
+
 		/* erase character */
 		if (   *text == win->cerase
 		    || *text == 010     /* BS */
