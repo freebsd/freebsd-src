@@ -1,5 +1,3 @@
-/*	$NetBSD: stringlist.c,v 1.2 1997/01/17 07:26:20 lukem Exp $	*/
-
 /*
  * Copyright (c) 1994 Christos Zoulas
  * All rights reserved.
@@ -34,6 +32,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char *rcsid = "$NetBSD: stringlist.c,v 1.2 1997/01/17 07:26:20 lukem Exp $";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <string.h>
@@ -49,7 +49,9 @@ static char *rcsid = "$NetBSD: stringlist.c,v 1.2 1997/01/17 07:26:20 lukem Exp 
 StringList *
 sl_init()
 {
-	StringList *sl = malloc(sizeof(StringList));
+	StringList *sl;
+
+	sl = malloc(sizeof(StringList));
 	if (sl == NULL)
 		err(1, "stringlist: %m");
 
@@ -65,7 +67,7 @@ sl_init()
 /*
  * sl_add(): Add an item to the string list
  */
-void
+int
 sl_add(sl, name)
 	StringList *sl;
 	char *name;
@@ -74,9 +76,10 @@ sl_add(sl, name)
 		sl->sl_max += _SL_CHUNKSIZE;
 		sl->sl_str = reallocf(sl->sl_str, sl->sl_max * sizeof(char *));
 		if (sl->sl_str == NULL)
-			err(1, "stringlist: %m");
+			return (-1);
 	}
 	sl->sl_str[sl->sl_cur++] = name;
+	return (0);
 }
 
 

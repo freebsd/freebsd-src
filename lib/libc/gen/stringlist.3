@@ -1,6 +1,6 @@
-.\"	$NetBSD: stringlist.3,v 1.2 1997/04/09 08:59:25 kleink Exp $
+.\"	$NetBSD: stringlist.3,v 1.5 1999/03/22 19:44:46 garbled Exp $
 .\"
-.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997, 1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 24, 1997
+.Dd November 28, 1999
 .Os
 .Dt STRINGLIST 3
 .Sh NAME
@@ -51,7 +51,7 @@
 .In stringlist.h
 .Ft StringList *
 .Fn sl_init
-.Ft void
+.Ft int
 .Fn sl_add "StringList *sl" "char *item"
 .Ft void
 .Fn sl_free "StringList *sl" "int freeall"
@@ -64,7 +64,7 @@ functions manipulate stringlists, which are lists of
 strings that extend automatically if necessary.
 .Pp
 The
-.Ar StringList
+.Vt StringList
 structure has the following definition:
 .Bd -literal -offset indent
 typedef struct _stringlist {
@@ -75,14 +75,14 @@ typedef struct _stringlist {
 .Ed
 .Pp
 .Bl -tag -width "sl_str" -offset indent
-.It Ar sl_str
+.It Va sl_str
 a pointer to the base of the array containing the list.
-.It Ar sl_max
+.It Va sl_max
 the size of
-.Ar sl_str .
-.It Ar sl_cur
+.Va sl_str .
+.It Va sl_cur
 the offset in
-.Ar sl_str
+.Va sl_str
 of the current element.
 .El
 .Pp
@@ -91,34 +91,45 @@ The following stringlist manipulation functions are available:
 .It Fn sl_init
 Create a stringlist.
 Returns a pointer to a
-.Ar StringList .
+.Vt StringList ,
+or
+.Dv NULL
+in case of failure.
 .It Fn sl_free
 Releases memory occupied by
-.Ar sl
+.Fa sl
 and the
-.Ar sl->sl_str
+.Fa sl->sl_str
 array.
 If
-.Ar freeall
+.Fa freeall
 is non-zero, then each of the items within
-.Ar sl->sl_str
+.Fa sl->sl_str
 is released as well.
 .It Fn sl_add
 Add
-.Ar item
+.Fa item
 to
-.Ar sl->sl_str
+.Fa sl->sl_str
 at
-.Ar sl->sl_cur ,
+.Fa sl->sl_cur ,
 extending the size of
-.Ar sl->sl_str
+.Fa sl->sl_str .
+Returns zero upon success, \-1 upon failure.
 .It Fn sl_find
 Find
-.Ar item
+.Fa item
 in
-.Ar sl ,
+.Fa sl ,
 returning NULL if it's not found.
 .El
 .Sh SEE ALSO
 .Xr free 3 ,
 .Xr malloc 3
+.Sh HISTORY
+The
+.Nm
+functions appeared in
+.Fx 2.2.6
+and
+.Nx 1.3 .
