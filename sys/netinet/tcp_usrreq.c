@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.15 1995/06/11 19:31:43 rgrimes Exp $
+ *	$Id: tcp_usrreq.c,v 1.16 1995/09/13 17:54:03 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -674,8 +674,12 @@ tcp_usrclosed(tp)
 		tp->t_state = TCPS_LAST_ACK;
 		break;
 	}
-	if (tp && tp->t_state >= TCPS_FIN_WAIT_2)
+	if (tp && tp->t_state >= TCPS_FIN_WAIT_2) {
 		soisdisconnected(tp->t_inpcb->inp_socket);
+		/* To prevent the connection hanging in FIN_WAIT_2 forever. */
+		if (tp->t_state == TCPS_FIN_WAIT_2)
+			tp->t_timer[TCPT_2MSL] = tcp_maxidle;
+	}
 	return (tp);
 }
 
