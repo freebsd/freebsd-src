@@ -5,4 +5,6 @@ VOLUME=	psd/06.Clang
 SRCS=	Clang.ms
 MACROS=	-ms
 
+USE_TBL=	YES
+
 .include <bsd.doc.mk>
