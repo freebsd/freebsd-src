@@ -79,13 +79,6 @@
 /* Define if you have MIT Kerberos version 4 available.  */
 /* #undef HAVE_KERBEROS */
 
-/* Define if you have GSSAPI with MIT Kerberos version 5 available.  */
-/* #undef HAVE_GSSAPI */
-
-/* Define if GSS_C_NT_HOSTBASED_SERVICE is defined in the gssapi.h
-   header file.  Only relevant when using GSSAPI.  */
-/* #undef HAVE_GSS_C_NT_HOSTBASED_SERVICE */
-
 /* Define if you want CVS to be able to be a remote repository client.  */
 #define CLIENT_SUPPORT 1
 
@@ -149,11 +142,17 @@
 /* Define if you have the ftruncate function.  */
 #define HAVE_FTRUNCATE 1
 
+/* Define if you have the getgroups function.  */
+#define HAVE_GETGROUPS 1
+
 /* Define if you have the getpagesize function.  */
 #define HAVE_GETPAGESIZE 1
 
 /* Define if you have the getpassphrase function.  */
 /* #undef HAVE_GETPASSPHRASE */
+
+/* Define if you have the gettimeofday function.  */
+#define HAVE_GETTIMEOFDAY 1
 
 /* Define if you have the initgroups function.  */
 #define HAVE_INITGROUPS 1
@@ -170,8 +169,14 @@
 /* Define if you have the mknod function.  */
 #define HAVE_MKNOD 1
 
+/* Define if you have the mkstemp function.  */
+#define HAVE_MKSTEMP 1
+
 /* Define if you have the mktemp function.  */
 #define HAVE_MKTEMP 1
+
+/* Define if you have the nanosleep function.  */
+#define HAVE_NANOSLEEP 1
 
 /* Define if you have the putenv function.  */
 #define HAVE_PUTENV 1
@@ -181,6 +186,9 @@
 
 /* Define if you have the rename function.  */
 #define HAVE_RENAME 1
+
+/* Define if you have the select function.  */
+/* #undef HAVE_SELECT */
 
 /* Define if you have the sigaction function.  */
 #define HAVE_SIGACTION 1
@@ -214,6 +222,9 @@
 
 /* Define if you have the tzset function.  */
 #define HAVE_TZSET 1
+
+/* Define if you have the usleep function.  */
+/* #undef HAVE_USLEEP */
 
 /* Define if you have the valloc function.  */
 #define HAVE_VALLOC 1
@@ -296,11 +307,29 @@
 /* Define if you have the <sys/timeb.h> header file.  */
 #define HAVE_SYS_TIMEB_H 1
 
+/* Define if you have the <syslog.h> header file.  */
+#define HAVE_SYSLOG_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
 /* Define if you have the <utime.h> header file.  */
 #define HAVE_UTIME_H 1
 
-/* Define if you have the gen library (-lgen).  */
-/* #undef HAVE_LIBGEN */
+/* Name of package */
+#define PACKAGE "cvs"
+
+/* Version number of package */
+#define VERSION "1.11.1p1"
+
+/* Path to the pr utility */
+#define PR_PROGRAM "/usr/bin/pr"
+
+/* Define if you have GSSAPI with Kerberos version 5 available. */
+/* #undef HAVE_GSSAPI */
+
+/* Define to an alternative value if GSS_C_NT_HOSTBASED_SERVICE isn't defined
+in the gssapi.h header file.  MIT Kerberos 1.2.1 requires this.  Only relevant
+when using GSSAPI. */
+/* #undef GSS_C_NT_HOSTBASED_SERVICE */
+
