@@ -168,6 +168,8 @@ extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 int	 ip_output(struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *,
 	    struct inpcb *);
+struct mbuf *
+	 ip_reass(struct mbuf *);
 struct in_ifaddr *
 	 ip_rtaddr(struct in_addr);
 void	 ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,

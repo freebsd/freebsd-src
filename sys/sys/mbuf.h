@@ -737,21 +737,6 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 	    NULL : m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
 
-/*
- * Obtain next_hop information associated with the mbuf, if any.
- * If a tag is present devalidate it also.
- */
-static __inline struct sockaddr_in *
-m_claim_next(struct mbuf *m, int type)
-{
-	struct m_tag *mtag = m_tag_find(m, type, NULL);
-	if (mtag) {
-		struct sockaddr_in *sin = *(struct sockaddr_in **)(mtag + 1);
-		mtag->m_tag_id = PACKET_TAG_NONE;
-		return (sin);
-	}
-	return (NULL);
-}
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
