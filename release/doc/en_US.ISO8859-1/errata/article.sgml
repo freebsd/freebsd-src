@@ -121,7 +121,8 @@
     <para>A local root vulnerability in
       <application>UUCP</application> was corrected before the release
       of &os; &release.prev; and documented in security advisory
-      FreeBSD-SA-01:62.  The release notes mentioned the correction,
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:62.uucp.asc">FreeBSD-SA-01:62</ulink>.
+      The release notes mentioned the correction,
       but not the security advisory, which was issued after the
       release date of &release.prev;.</para>
 
@@ -131,7 +132,19 @@
       closed.  Note that the default value of this setting is
       <literal>UseLogin no</literal>.  For more information, including
       workarounds and bugfixes, see security advisory
-      FreeBSD-SA-01:63.</para>
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:63.openssh.asc">FreeBSD-SA-01:63</ulink>.</para>
+
+    <para>The use of an insecure temporary directory by
+      &man.pkg.add.1; could permit a local attacker to modify the
+      contents of binary packages while they were being installed.
+      This hole has been closed.  For more information, see security advisory
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:01.pkg_add.asc">FreeBSD-SA-02:01</ulink>.</para>
+
+    <para>A race condition in &man.pw.8;, which could expose the
+      contents of <filename>/etc/master.passwd</filename>, has been
+      eliminated.  For more information, including workarounds and
+      bugfixes, see security advisory 
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:02.pw.asc">FreeBSD-SA-02:02</ulink>.</para>
 ]]>
   </sect1>
 
