@@ -1,29 +1,22 @@
-#	@(#)Makefile	1-Mar-97
-
-SUBDIR= gctags global gtags btreeop htags systags
+SUBDIR= lib global gtags gctags btreeop htags systags
 BINDIR= /usr/bin					# EDIT THIS
-MANDIR= /usr/share/man					# EDIT THIS
-
-# For FreeBSD contrib
-CONTRIBDIR= /tmp/global
-RMFILES=INSTALL Makefile.generic nvi-1.34.diff nvi-1.79.diff \
-	*/Makefile.generic */err.c include
+MANDIR= /usr/man					# EDIT THIS
 
 all:
 	@for d in $(SUBDIR); do \
-		set -e; (cd $$d; echo '===>' $$d; make $(MFLAGS)) \
+		set -e; (cd $$d; echo '===>' $$d; make $(MFLAGS)) ;\
 	done
 install:
 	@for d in $(SUBDIR); do \
-		set -e; (cd $$d; echo '===>' $$d; make $(MFLAGS) BINDIR=$(BINDIR) MANDIR=$(MANDIR) install) \
+		set -e; (cd $$d; echo '===>' $$d; make $(MFLAGS) BINDIR=$(BINDIR) MANDIR=$(MANDIR) install) ;\
 	done
 gen:
 	@if [ ! -f Makefile.generic ]; then \
 		echo "Error: generic makefile not found."; exit 1; \
 	fi
-	mv Makefile Makefile.bsd; mv Makefile.generic Makefile
+	mv Makefile Makefile.bsd && mv Makefile.generic Makefile
 	for d in $(SUBDIR); do \
-		(cd $$d; mv Makefile Makefile.bsd; mv Makefile.generic Makefile) \
+		(cd $$d && mv Makefile Makefile.bsd && mv Makefile.generic Makefile) ;\
 	done
 bsd:
 	@if [ ! -f Makefile.bsd ]; then \
@@ -31,13 +24,10 @@ bsd:
 	fi
 	mv Makefile Makefile.generic; mv Makefile.bsd Makefile
 	for d in $(SUBDIR); do \
-		(cd $$d; mv Makefile Makefile.generic; mv Makefile.bsd Makefile) \
+		(cd $$d && mv Makefile Makefile.generic && mv Makefile.bsd Makefile) ;\
 	done
-bsdcontrib: clean
-	rm -rf $(CONTRIBDIR)
-	mkdir $(CONTRIBDIR) && cp -r . $(CONTRIBDIR)
-	cd $(CONTRIBDIR) && rm -rf $(RMFILES)
 clean:
 	@for d in $(SUBDIR); do \
-		(cd $$d; echo '===>' $$d; make $(MFLAGS) clean) \
+		(cd $$d; echo '===>' $$d; make $(MFLAGS) clean) ;\
 	done
+

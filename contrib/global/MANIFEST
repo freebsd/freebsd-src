@@ -4,15 +4,16 @@ MANIFEST		This file.
 Makefile		Makefile for BSD.
 Makefile.inc		A part of Makefile for BSD.
 Makefile.generic	Makefile for generic UNIX(including BSD).
+PROBLEMS		Problem report.
 README			Readme (introduction and usage).
 VERSION			Version number.
 btreeop/		Btreeop command directory.
-gctags/			Gctags command directory (extended ctags).
 global/			Global command directory.
+gozilla/		Gozilla command directory.
 gtags/			Gtags command directory.
 htags/			Htags command directory.
-include/		include files for non BSD system.
 systags/		Script for kernel.
-gtags.el		Gtags mode for Emacs
+lib/			library.
+gtags.el		Gtags mode for Emacs.
 nvi-1.34.diff		Patch for nvi 1.34.
 nvi-1.79.diff		Patch for nvi 1.79.
