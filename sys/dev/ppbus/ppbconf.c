@@ -44,42 +44,11 @@
   
 MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
 
-static devclass_t ppbus_devclass;
 
 /*
  * Device methods
  */
-static int ppbus_probe(device_t);
-static int ppbus_attach(device_t);
-static void ppbus_print_child(device_t bus, device_t dev);
-static int ppbus_read_ivar(device_t, device_t, int, uintptr_t *);
-static int ppbus_write_ivar(device_t, device_t, int, u_long);
-static int ppbus_setup_intr(device_t, device_t, struct resource *, int,
-		void (*)(void *), void *, void **);
-static int ppbus_teardown_intr(device_t, device_t, struct resource *, void *);
 
-static device_method_t ppbus_methods[] = {
-        /* device interface */
-        DEVMETHOD(device_probe,         ppbus_probe),
-        DEVMETHOD(device_attach,        ppbus_attach),
-  
-        /* bus interface */
-	DEVMETHOD(bus_print_child,	ppbus_print_child),
-        DEVMETHOD(bus_read_ivar,        ppbus_read_ivar),
-        DEVMETHOD(bus_write_ivar,       ppbus_write_ivar),
-	DEVMETHOD(bus_setup_intr,	ppbus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	ppbus_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
-
-        { 0, 0 }
-};
-
-static driver_t ppbus_driver = {
-        "ppbus",
-        ppbus_methods,
-        sizeof(struct ppb_data),
-  };
-  
 static void
 ppbus_print_child(device_t bus, device_t dev)
 {
@@ -106,12 +75,12 @@ ppbus_probe(device_t dev)
 }
 
 /*
- * ppb_add_device()
+ * ppbus_add_child()
  *
  * Add a ppbus device, allocate/initialize the ivars
  */
-static void
-ppbus_add_device(device_t dev, const char *name, int unit)
+static device_t
+ppbus_add_child(device_t dev, int order, const char *name, int unit)
 {
 	struct ppb_device *ppbdev;
 	device_t child;
@@ -119,7 +88,7 @@ ppbus_add_device(device_t dev, const char *name, int unit)
 	/* allocate ivars for the new ppbus child */
 	ppbdev = malloc(sizeof(struct ppb_device), M_PPBUSDEV, M_NOWAIT);
 	if (!ppbdev)
-		return;
+		return NULL;
 	bzero(ppbdev, sizeof *ppbdev);
 
 	/* initialize the ivars */
@@ -127,15 +96,15 @@ ppbus_add_device(device_t dev, const char *name, int unit)
 
 	/* add the device as a child to the ppbus bus with the allocated
 	 * ivars */
-	child = device_add_child(dev, name, unit);
+	child = device_add_child_ordered(dev, order, name, unit);
 	device_set_ivars(child, ppbdev);
 
-	return;
+	return child;
 }
 
 static int
 ppbus_read_ivar(device_t bus, device_t dev, int index, uintptr_t* val)
-  {
+{
 	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
   
 	switch (index) {
@@ -421,39 +390,9 @@ end_scan:
 static int
 ppbus_attach(device_t dev)
 {
-	int i;
-	int unit, disabled;
-	char *name;
 
-	/*
-	 * Add all devices configured to be attached to ppbus0.
-	 */
-	for (i = resource_query_string(-1, "at", "ppbus0");
-	     i != -1;
-	     i = resource_query_string(i, "at", "ppbus0")) {
-		unit = resource_query_unit(i);
-		name = resource_query_name(i);
-		if (resource_int_value(name, unit, "disabled", &disabled) == 0) {
-			if (disabled)
-				continue;
-		}
-		ppbus_add_device(dev, name, unit);
-	}
-
-	/*
-	 * and ppbus?
-	 */
-	for (i = resource_query_string(-1, "at", "ppbus");
-	     i != -1;
-	     i = resource_query_string(i, "at", "ppbus")) {
-		unit = resource_query_unit(i);
-		name = resource_query_name(i);
-		if (resource_int_value(name, unit, "disabled", &disabled) == 0) {
-			if (disabled)
-				continue;
-		}
-		ppbus_add_device(dev, name, unit);
-	} 
+	/* Locate our children */
+	bus_generic_probe(dev);
 
 #ifndef DONTPROBE_1284
 	/* detect IEEE1284 compliant devices */
@@ -601,4 +540,28 @@ ppb_release_bus(device_t bus, device_t dev)
 	return (0);
 }
 
+static devclass_t ppbus_devclass;
+
+static device_method_t ppbus_methods[] = {
+        /* device interface */
+	DEVMETHOD(device_probe,         ppbus_probe),
+	DEVMETHOD(device_attach,        ppbus_attach),
+  
+        /* bus interface */
+	DEVMETHOD(bus_add_child,	ppbus_add_child),
+	DEVMETHOD(bus_print_child,	ppbus_print_child),
+	DEVMETHOD(bus_read_ivar,        ppbus_read_ivar),
+	DEVMETHOD(bus_write_ivar,       ppbus_write_ivar),
+	DEVMETHOD(bus_setup_intr,	ppbus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	ppbus_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
+
+        { 0, 0 }
+};
+
+static driver_t ppbus_driver = {
+        "ppbus",
+        ppbus_methods,
+        sizeof(struct ppb_data),
+};
 DRIVER_MODULE(ppbus, ppc, ppbus_driver, ppbus_devclass, 0, 0);

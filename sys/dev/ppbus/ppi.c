@@ -26,10 +26,6 @@
  * $FreeBSD$
  *
  */
-#include "ppi.h"
-
-#if NPPI > 0
-
 #include "opt_ppb_1284.h"
 
 #include <sys/param.h>
@@ -83,25 +79,7 @@ struct ppi_data {
 #define UNITODEVICE(unit) \
 	(devclass_get_device(ppi_devclass, (unit)))
 
-static int ppi_probe(device_t);
-static int ppi_attach(device_t);
-static void ppiintr(void *arg);
-
 static devclass_t ppi_devclass;
-
-static device_method_t ppi_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		ppi_probe),
-	DEVMETHOD(device_attach,	ppi_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t ppi_driver = {
-	"ppi",
-	ppi_methods,
-	sizeof(struct ppi_data),
-};
 
 static	d_open_t	ppiopen;
 static	d_close_t	ppiclose;
@@ -155,6 +133,13 @@ ppi_disable_intr(device_t ppidev)
 
 #endif /* PERIPH_1284 */
 
+static void
+ppi_identify(driver_t *driver, device_t parent)
+{
+
+	BUS_ADD_CHILD(parent, 0, "ppi", 0);
+}
+
 /*
  * ppi_probe()
  */
@@ -162,13 +147,9 @@ static int
 ppi_probe(device_t dev)
 {
 	struct ppi_data *ppi;
-	static int once;
 
 	/* probe is always ok */
 	device_set_desc(dev, "Parallel I/O");
-
-	if (!once++)
-		cdevsw_add(&ppi_cdevsw);
 
 	ppi = DEVTOSOFTC(dev);
 	bzero(ppi, sizeof(struct ppi_data));
@@ -574,6 +555,18 @@ ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-DRIVER_MODULE(ppi, ppbus, ppi_driver, ppi_devclass, 0, 0);
+static device_method_t ppi_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_identify,	ppi_identify),
+	DEVMETHOD(device_probe,		ppi_probe),
+	DEVMETHOD(device_attach,	ppi_attach),
 
-#endif /* NPPI */
+	{ 0, 0 }
+};
+
+static driver_t ppi_driver = {
+	"ppi",
+	ppi_methods,
+	sizeof(struct ppi_data),
+};
+DRIVER_MODULE(ppi, ppbus, ppi_driver, ppi_devclass, 0, 0);

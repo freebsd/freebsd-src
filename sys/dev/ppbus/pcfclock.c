@@ -25,10 +25,6 @@
  *
  */
 
-#include "pcfclock.h"
-
-#if NPCFCLOCK > 0
-
 #include "opt_pcfclock.h"
 
 #include <sys/param.h>
@@ -67,23 +63,6 @@ struct pcfclock_data {
 	(devclass_get_device(pcfclock_devclass, (unit)))
 
 static devclass_t pcfclock_devclass;
-
-static int pcfclock_probe(device_t);
-static int pcfclock_attach(device_t);
-
-static device_method_t pcfclock_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		pcfclock_probe),
-	DEVMETHOD(device_attach,	pcfclock_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t pcfclock_driver = {
-	PCFCLOCK_NAME,
-	pcfclock_methods,
-	sizeof(struct pcfclock_data),
-};
 
 static	d_open_t		pcfclock_open;
 static	d_close_t		pcfclock_close;
@@ -144,16 +123,19 @@ static struct cdevsw pcfclock_cdevsw = {
 #define PCFCLOCK_CMD_TIME 0		/* send current time */
 #define PCFCLOCK_CMD_COPY 7 	/* copy received signal to PC */
 
+static void
+pcfclock_identify(driver_t *driver, device_t parent)
+{
+
+	BUS_ADD_CHILD(parent, 0, PCFCLOCK_NAME, 0);
+}
+
 static int
 pcfclock_probe(device_t dev)
 {
 	struct pcfclock_data *sc;
-	static int once;
 
 	device_set_desc(dev, "PCF-1.0");
-
-	if (!once++)
-		cdevsw_add(&pcfclock_cdevsw);
 
 	sc = DEVTOSOFTC(dev);
 	bzero(sc, sizeof(struct pcfclock_data));
@@ -343,6 +325,19 @@ pcfclock_read(dev_t dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
-DRIVER_MODULE(pcfclock, ppbus, pcfclock_driver, pcfclock_devclass, 0, 0);
+static device_method_t pcfclock_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_identify,	pcfclock_identify),
+	DEVMETHOD(device_probe,		pcfclock_probe),
+	DEVMETHOD(device_attach,	pcfclock_attach),
 
-#endif /* NPCFCLOCK */
+	{ 0, 0 }
+};
+
+static driver_t pcfclock_driver = {
+	PCFCLOCK_NAME,
+	pcfclock_methods,
+	sizeof(struct pcfclock_data),
+};
+
+DRIVER_MODULE(pcfclock, ppbus, pcfclock_driver, pcfclock_devclass, 0, 0);
