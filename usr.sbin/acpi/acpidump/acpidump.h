@@ -293,6 +293,18 @@ struct ECDTbody {
 	u_char		ec_id[1];	/* Variable length name string */
 } __packed;
 
+/* Memory Mapped PCI config space base allocation structure */
+struct MCFGbody {
+	uint8_t		rsvd[8];
+	struct {
+		uint64_t	baseaddr;	/* Base Address */
+		uint16_t	seg_grp;	/* Segment group number */
+		uint8_t		start;		/* Starting bus number */
+		uint8_t		end;		/* Ending bus number */
+		uint8_t		rsvd[4];	/* Reserved */
+	} s[];
+} __packed;
+
 /*
  * Addresses to scan on ia32 for the RSD PTR.  According to section 5.2.2
  * of the ACPI spec, we only consider two regions for the base address:
