@@ -171,7 +171,7 @@ MMAKE=		${MMAKEENV} make \
 		-DNOMAN -DNOSHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR
 
-make:
+make: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building an up-to-date make(1)"
