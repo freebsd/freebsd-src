@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.47 1997/07/17 02:09:25 peter Exp $
+ *	$Id: npx.c,v 1.3 1997/07/20 23:30:38 smp Exp smp $
  */
 
 #include "npx.h"
@@ -59,11 +59,6 @@
 #include <machine/pcb.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>
-#if defined(APIC_IO)
-#include <machine/smp.h>
-#include <machine/apic.h>
-#include <machine/mpapic.h>
-#endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
@@ -151,32 +146,13 @@ static	volatile u_int		npx_intrs_while_probing;
 static	bool_t			npx_irq13;
 static	volatile u_int		npx_traps_while_probing;
 
+#ifndef SMP
 /*
  * Special interrupt handlers.  Someday intr0-intr15 will be used to count
  * interrupts.  We'll still need a special exception 16 handler.  The busy
  * latch stuff in probeintr() can be moved to npxprobe().
  */
 inthand_t probeintr;
-
-#if defined(APIC_IO)
-
-asm
-("
-	.text
-	.p2align 2,0x90
-" __XSTRING(CNAME(probeintr)) ":
-	ss
-	incl	" __XSTRING(CNAME(npx_intrs_while_probing)) "
-	pushl	%eax
-	movl	$lapic_eoi,%eax		# EOI to local APIC
-	movl	$0,(%eax)		# movl $0, APIC_EOI(%eax)
-	movb	$0,%al
-	outb	%al,$0xf0		# clear BUSY# latch
-	popl	%eax
-	iret
-");
-
-#else
 
 asm
 ("
@@ -195,8 +171,6 @@ asm
 	iret
 ");
 
-#endif /* APIC_IO */
-
 inthand_t probetrap;
 asm
 ("
@@ -208,6 +182,8 @@ asm
 	fnclex
 	iret
 ");
+#endif /* SMP */
+
 
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
@@ -219,14 +195,16 @@ static int
 npxprobe(dvp)
 	struct isa_device *dvp;
 {
+#ifdef SMP
+
+	return npxprobe1(dvp);
+
+#else /* SMP */
+
 	int	result;
 	u_long	save_eflags;
-#if defined(APIC_IO)
-	u_int	save_apic_mask;
-#else
 	u_char	save_icu1_mask;
 	u_char	save_icu2_mask;
-#endif /* APIC_IO */
 	struct	gate_descriptor save_idt_npxintr;
 	struct	gate_descriptor save_idt_npxtrap;
 	/*
@@ -239,36 +217,26 @@ npxprobe(dvp)
 	npx_intrno = NRSVIDT + ffs(dvp->id_irq) - 1;
 	save_eflags = read_eflags();
 	disable_intr();
-#if defined(APIC_IO)
-	save_apic_mask = INTRGET();
-#else
 	save_icu1_mask = inb(IO_ICU1 + 1);
 	save_icu2_mask = inb(IO_ICU2 + 1);
-#endif /* APIC_IO */
 	save_idt_npxintr = idt[npx_intrno];
 	save_idt_npxtrap = idt[16];
-#if defined(APIC_IO)
-	INTRSET( ~dvp->id_irq );
-#else
 	outb(IO_ICU1 + 1, ~(IRQ_SLAVE | dvp->id_irq));
 	outb(IO_ICU2 + 1, ~(dvp->id_irq >> 8));
-#endif /* APIC_IO */
 	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(npx_intrno, probeintr, SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	npx_idt_probeintr = idt[npx_intrno];
 	enable_intr();
 	result = npxprobe1(dvp);
 	disable_intr();
-#if defined(APIC_IO)
-	INTRSET( save_apic_mask );
-#else
 	outb(IO_ICU1 + 1, save_icu1_mask);
 	outb(IO_ICU2 + 1, save_icu2_mask);
-#endif /* APIC_IO */
 	idt[npx_intrno] = save_idt_npxintr;
 	idt[16] = save_idt_npxtrap;
 	write_eflags(save_eflags);
 	return (result);
+
+#endif /* SMP */
 }
 
 static int
@@ -310,6 +278,23 @@ npxprobe1(dvp)
 	 * IRQ13 and cleared the BUSY# latch early to handle them anyway.
 	 */
 	fninit();
+
+#ifdef SMP
+
+	/*
+	 * Exception 16 MUST work for SMP.
+	 */
+	npx_irq13 = 0;
+	npx_ex16 = hw_float = npx_exists = 1;
+	dvp->id_irq = 0;	/* zap the interrupt */
+	/*
+	 * special return value to flag that we do not
+	 * actually use any I/O registers
+	 */
+	return (-1);
+
+#else /* SMP */
+
 	/*
 	 * Don't use fwait here because it might hang.
 	 * Don't use fnop here because it usually hangs if there is no FPU.
@@ -383,6 +368,8 @@ npxprobe1(dvp)
 	 * actually use any I/O registers
 	 */
 	return (-1);
+
+#endif /* SMP */
 }
 
 /*
@@ -622,32 +609,28 @@ void
 npxsave(addr)
 	struct save87 *addr;
 {
-#if defined(APIC_IO)
-	u_int	apic_mask;
-	u_int	old_apic_mask;
-#else
+#ifdef SMP
+
+	stop_emulating();
+	fnsave(addr);
+	/* fnop(); */
+	start_emulating();
+	npxproc = NULL;
+
+#else /* SMP */
+
 	u_char	icu1_mask;
 	u_char	icu2_mask;
 	u_char	old_icu1_mask;
 	u_char	old_icu2_mask;
-#endif /* APIC_IO */
 	struct gate_descriptor	save_idt_npxintr;
 
 	disable_intr();
-#if defined(APIC_IO)
-	old_apic_mask = INTRGET();
-#else
 	old_icu1_mask = inb(IO_ICU1 + 1);
 	old_icu2_mask = inb(IO_ICU2 + 1);
-#endif /* APIC_IO */
 	save_idt_npxintr = idt[npx_intrno];
-#if defined(APIC_IO)
-	/** FIXME: try clrIoApicMaskBit( npx0_imask ); */
-	INTRSET( old_apic_mask & ~(npx0_imask & 0xffff) );
-#else
 	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
 	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0_imask >> 8));
-#endif /* APIC_IO */
 	idt[npx_intrno] = npx_idt_probeintr;
 	enable_intr();
 	stop_emulating();
@@ -656,11 +639,6 @@ npxsave(addr)
 	start_emulating();
 	npxproc = NULL;
 	disable_intr();
-#if defined(APIC_IO)
-	apic_mask = INTRGET();		/* masks may have changed */
-        INTRSET( (apic_mask & ~(npx0_imask & 0xffff)) |
-		 (old_apic_mask & (npx0_imask & 0xffff)));
-#else
 	icu1_mask = inb(IO_ICU1 + 1);	/* masks may have changed */
 	icu2_mask = inb(IO_ICU2 + 1);
 	outb(IO_ICU1 + 1,
@@ -668,9 +646,10 @@ npxsave(addr)
 	outb(IO_ICU2 + 1,
 	     (icu2_mask & ~(npx0_imask >> 8))
 	     | (old_icu2_mask & (npx0_imask >> 8)));
-#endif /* APIC_IO */
 	idt[npx_intrno] = save_idt_npxintr;
 	enable_intr();		/* back to usual state */
+
+#endif /* SMP */
 }
 
 #endif /* NNPX > 0 */
