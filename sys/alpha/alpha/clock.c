@@ -257,7 +257,7 @@ cpu_initclocks()
 		tc_init(&alpha_timecounter);
 	}
 
-	stathz = 128;
+	stathz = hz / 8;
 	platform.clockintr = (void (*) __P((void *))) handleclock;
 
 	/*
