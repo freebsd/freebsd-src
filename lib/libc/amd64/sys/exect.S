@@ -51,4 +51,9 @@ ENTRY(exect)
 	pushq	%r8
 	popfq
 	KERNCALL
-	jmp	PIC_PLT(HIDENAME(cerror))	/* exect(file, argv, env); */
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(cerror)),%rdx
+	jmp	*%rdx
+#else
+	jmp	HIDENAME(cerror)
+#endif
