@@ -431,14 +431,12 @@ printit(struct printer *pp, char *file)
 		case 'H':
 			strlcpy(origin_host, line + 1, sizeof(origin_host));
 			if (class[0] == '\0') {
-				strncpy(class, line+1, sizeof(class) - 1);
-				class[sizeof(class) - 1] = '\0';
+				strlcpy(class, line+1, sizeof(class));
 			}
 			continue;
 
 		case 'P':
-			strncpy(logname, line+1, sizeof(logname) - 1);
-			logname[sizeof(logname) - 1] = '\0';
+			strlcpy(logname, line + 1, sizeof(logname));
 			if (pp->restricted) { /* restricted */
 				if (getpwnam(logname) == NULL) {
 					bombed = NOACCT;
@@ -463,23 +461,24 @@ printit(struct printer *pp, char *file)
 
 		case 'J':
 			if (line[1] != '\0') {
-				strncpy(jobname, line+1, sizeof(jobname) - 1);
-				jobname[sizeof(jobname) - 1] = '\0';
+				strlcpy(jobname, line + 1, sizeof(jobname));
 			} else
 				strcpy(jobname, " ");
 			continue;
 
 		case 'C':
 			if (line[1] != '\0')
-				strncpy(class, line+1, sizeof(class) - 1);
-			else if (class[0] == '\0')
+				strlcpy(class, line + 1, sizeof(class));
+			else if (class[0] == '\0') {
+				/* XXX - why call gethostname instead of
+				 *       just strlcpy'ing local_host? */
 				gethostname(class, sizeof(class));
-			class[sizeof(class) - 1] = '\0';
+				class[sizeof(class) - 1] = '\0';
+			}
 			continue;
 
 		case 'T':	/* header title for pr */
-			strncpy(title, line+1, sizeof(title) - 1);
-			title[sizeof(title) - 1] = '\0';
+			strlcpy(title, line + 1, sizeof(title));
 			continue;
 
 		case 'L':	/* identification line */
@@ -492,24 +491,21 @@ printit(struct printer *pp, char *file)
 		case '3':
 		case '4':
 			if (line[1] != '\0') {
-				strncpy(fonts[line[0]-'1'], line+1,
-				    50-1);
-				fonts[line[0]-'1'][50-1] = '\0';
+				strlcpy(fonts[line[0]-'1'], line + 1,
+				    (size_t)50);
 			}
 			continue;
 
 		case 'W':	/* page width */
-			strncpy(width+2, line+1, sizeof(width) - 3);
-			width[2+sizeof(width) - 3] = '\0';
+			strlcpy(width+2, line + 1, sizeof(width) - 2);
 			continue;
 
 		case 'I':	/* indent amount */
-			strncpy(indent+2, line+1, sizeof(indent) - 3);
-			indent[2+sizeof(indent) - 3] = '\0';
+			strlcpy(indent+2, line + 1, sizeof(indent) - 2);
 			continue;
 
 		case 'Z':       /* locale for pr */
-			strncpy(locale, line+1, sizeof(locale) - 1);
+			strlcpy(locale, line + 1, sizeof(locale));
 			locale[sizeof(locale) - 1] = '\0';
 			continue;
 
@@ -896,12 +892,10 @@ sendit(struct printer *pp, char *file)
 		} else if (line[0] == 'H') {
 			strlcpy(origin_host, line + 1, sizeof(origin_host));
 			if (class[0] == '\0') {
-				strncpy(class, line+1, sizeof(class) - 1);
-				class[sizeof(class) - 1] = '\0';
+				strlcpy(class, line + 1, sizeof(class));
 			}
 		} else if (line[0] == 'P') {
-			strncpy(logname, line+1, sizeof(logname) - 1);
-			logname[sizeof(logname) - 1] = '\0';
+			strlcpy(logname, line + 1, sizeof(logname));
 			if (pp->restricted) { /* restricted */
 				if (getpwnam(logname) == NULL) {
 					sendmail(pp, line+1, NOACCT);
@@ -910,8 +904,7 @@ sendit(struct printer *pp, char *file)
 				}
 			}
 		} else if (line[0] == 'I') {
-			strncpy(indent+2, line+1, sizeof(indent) - 3);
-			indent[2 + sizeof(indent) - 3] = '\0';
+			strlcpy(indent+2, line + 1, sizeof(indent) - 2);
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			strcpy(last, line);
 			while ((i = getline(cfp)) != 0)
