@@ -1012,8 +1012,8 @@ thread_export_context(struct thread *td)
 
 	/* Exports clock ticks in kernel mode */
 	addr = (caddr_t)(&td->td_mailbox->tm_sticks);
-	temp = fuword(addr) + td->td_usticks;
-	if (suword(addr, temp)) {
+	temp = fuword32(addr) + td->td_usticks;
+	if (suword32(addr, temp)) {
 		error = EFAULT;
 		goto bad;
 	}
@@ -1167,7 +1167,7 @@ thread_update_usr_ticks(struct thread *td, int user)
 		addr = (caddr_t)&tmbx->tm_sticks;
 	}
 	if (uticks) {
-		if (suword(addr, uticks+fuword(addr))) {
+		if (suword32(addr, uticks+fuword32(addr))) {
 			PROC_LOCK(p);
 			psignal(p, SIGSEGV);
 			PROC_UNLOCK(p);
@@ -1576,7 +1576,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 		KASSERT(ku, ("%s: no upcall owned", __func__));
 		KASSERT((ku->ku_owner == td), ("%s: wrong owner", __func__));
 		KASSERT(!TD_CAN_UNBIND(td), ("%s: can unbind", __func__));
-		ku->ku_mflags = fuword((void *)&ku->ku_mailbox->km_flags);
+		ku->ku_mflags = fuword32((void *)&ku->ku_mailbox->km_flags);
 		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
 		if ((tmbx == NULL) || (tmbx == (void *)-1)) {
 			td->td_mailbox = NULL;
