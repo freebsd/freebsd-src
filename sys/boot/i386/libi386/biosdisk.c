@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.2 1998/09/17 23:52:08 msmith Exp $
+ *	$Id: biosdisk.c,v 1.3 1998/09/18 01:12:46 msmith Exp $
  */
 
 /*
@@ -51,9 +51,9 @@
 #define	MAXBDDEV		MAXDEV
 
 #ifdef DISK_DEBUG
-# define D(x)	x
+# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
 #else
-# define D(x)
+# define DEBUG(fmt, args...)
 #endif
 
 
@@ -200,13 +200,13 @@ bd_open(struct open_file *f, void *vdev)
     int				error;
 
     if (dev->d_kind.biosdisk.unit >= nbdinfo) {
-	D(printf("bd_open: attempt to open nonexistent disk\n"));
+	DEBUG("attempt to open nonexistent disk");
 	return(ENXIO);
     }
     
     od = (struct open_disk *)malloc(sizeof(struct open_disk));
     if (!od) {
-	D(printf("bd_open: no memory\n"));
+	DEBUG("no memory");
 	return (ENOMEM);
     }
 
@@ -216,15 +216,13 @@ bd_open(struct open_file *f, void *vdev)
     od->od_flags = bdinfo[od->od_dkunit].bd_flags;
     od->od_boff = 0;
     error = 0;
-#if 0
-    D(printf("bd_open: open '%s' - unit 0x%x slice %d partition %c\n",
+    DEBUG("open '%s', unit 0x%x slice %d partition %c",
 	     i386_fmtdev(dev), dev->d_kind.biosdisk.unit, 
-	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition + 'a'));
-#endif
+	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition + 'a');
 
     /* Get geometry for this open (removable device may have changed) */
     if (bd_getgeom(od)) {
-	D(printf("bd_open: can't get geometry\n"));
+	DEBUG("can't get geometry");
 	error = ENXIO;
 	goto out;
     }
@@ -239,7 +237,7 @@ bd_open(struct open_file *f, void *vdev)
      * Find the slice in the DOS slice table.
      */
     if (bd_read(od, 0, 1, od->od_buf)) {
-	D(printf("bd_open: error reading MBR\n"));
+	DEBUG("error reading MBR");
 	error = EIO;
 	goto out;
     }
@@ -250,7 +248,7 @@ bd_open(struct open_file *f, void *vdev)
     if ((od->od_buf[0x1fe] != 0xff) || (od->od_buf[0x1ff] != 0xaa)) {
 	/* If a slice number was explicitly supplied, this is an error */
 	if (dev->d_kind.biosdisk.slice > 0) {
-	    D(printf("bd_open: no slice table/MBR (no magic)\n"));
+	    DEBUG("no slice table/MBR (no magic)");
 	    error = ENOENT;
 	    goto out;
 	}
@@ -298,17 +296,17 @@ bd_open(struct open_file *f, void *vdev)
      */
     if (dev->d_kind.biosdisk.partition < 0) {
 	od->od_boff = sector;		/* no partition, must be after the slice */
-	D(printf("bd_open: opening raw slice\n"));
+	DEBUG("opening raw slice");
     } else {
 	
 	if (bd_read(od, sector + LABELSECTOR, 1, od->od_buf)) {
-	    D(printf("bd_open: error reading disklabel\n"));
+	    DEBUG("error reading disklabel");
 	    error = EIO;
 	    goto out;
 	}
 	lp = (struct disklabel *) (od->od_buf + LABELOFFSET);
 	if (lp->d_magic != DISKMAGIC) {
-	    D(printf("bd_open: no disklabel\n"));
+	    DEBUG("no disklabel");
 	    error = ENOENT;
 	    goto out;
 
@@ -317,8 +315,8 @@ bd_open(struct open_file *f, void *vdev)
 	    /*
 	     * The partition supplied is out of bounds; this is fatal.
 	     */
-	    D(printf("partition '%c' exceeds partitions in table (a-'%c')\n",
-		     'a' + dev->d_kind.biosdisk.partition, 'a' + lp->d_npartitions));
+	    DEBUG("partition '%c' exceeds partitions in table (a-'%c')",
+		     'a' + dev->d_kind.biosdisk.partition, 'a' + lp->d_npartitions);
 	    error = EPART;
 	    goto out;
 
@@ -328,9 +326,9 @@ bd_open(struct open_file *f, void *vdev)
 	     * Complain if the partition type is wrong and it shouldn't be, but
 	     * regardless accept this partition.
 	     */
-	    D(if ((lp->d_partitions[dev->d_kind.biosdisk.partition].p_fstype == FS_UNUSED) &&
+	    if ((lp->d_partitions[dev->d_kind.biosdisk.partition].p_fstype == FS_UNUSED) &&
 		  !(od->od_flags & BD_FLOPPY))	    /* Floppies often have bogus fstype */
-	      printf("bd_open: warning, partition marked as unused\n"););
+		DEBUG("warning, partition marked as unused");
 
 	    od->od_boff = lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset;
 	}
@@ -339,9 +337,7 @@ bd_open(struct open_file *f, void *vdev)
      * Save our context
      */
     ((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data = od;
-#if 0
-    D(printf("bd_open: open_disk %p\n", od));
-#endif
+    DEBUG("open_disk %p, partition at 0x%x", od, od->od_boff);
 
  out:
     if (error)
@@ -355,7 +351,7 @@ bd_close(struct open_file *f)
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
 
 #if 0
-    D(printf("bd_close: open_disk %p\n", od));
+    DEBUG("open_disk %p", od);
 #endif
 #if 0
     /* XXX is this required? (especially if disk already open...) */
@@ -382,7 +378,7 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 #endif
 
 #if 0
-    D(printf("bd_strategy: open_disk %p\n", od));
+    DEBUG("open_disk %p", od);
 #endif
 
     if (rw != F_READ)
@@ -391,22 +387,22 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 
     blks = size / BIOSDISK_SECSIZE;
 #if 0
-    D(printf("bd_strategy: read %d from %d+%d to %p\n", blks, od->od_boff, dblk, buf));
+    DEBUG("read %d from %d+%d to %p", blks, od->od_boff, dblk, buf);
 #endif
 
     if (rsize)
 	*rsize = 0;
     if (blks && bd_read(od, dblk + od->od_boff, blks, buf)) {
-	D(printf("read error\n"));
+	DEBUG("read error");
 	return (EIO);
     }
 #ifdef BD_SUPPORT_FRAGS
 #if 0
     D(printf("bd_strategy: frag read %d from %d+%d+d to %p\n", 
-#endif
 	     fragsize, od->od_boff, dblk, blks, buf + (blks * BIOSDISK_SECSIZE)));
+#endif
     if (fragsize && bd_read(od, dblk + od->od_boff + blks, 1, fragsize)) {
-	D(printf("frag read error\n"));
+	DEBUG("frag read error");
 	return(EIO);
     }
     bcopy(fragbuf, buf + (blks * BIOSDISK_SECSIZE), fragsize);
@@ -442,8 +438,8 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	v86.eax = 0x200 | x;
 	v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
 	v86.edx = (hd << 8) | od->od_unit;
-	v86.es = V86SEG(dest);
-	v86.ebx = V86OFS(dest);
+	v86.es = VTOPSEG(dest);
+	v86.ebx = VTOPOFF(dest);
 	v86int();
 	if (v86.efl & 0x1)
 	    return(-1);
