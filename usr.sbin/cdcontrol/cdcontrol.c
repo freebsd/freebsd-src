@@ -17,7 +17,7 @@
  *              New eject algorithm.
  *              Some code style reformatting.
  *
- * $Id: cdcontrol.c,v 1.10 1996/02/03 15:21:30 ache Exp $
+ * $Id: cdcontrol.c,v 1.11 1996/02/09 00:22:17 ache Exp $
  */
 
 #include <ctype.h>
@@ -398,11 +398,15 @@ int play (char *arg)
 	if (rc < 0)
 		return (rc);
 
-	if (! arg || ! *arg)
+	if (! arg || ! *arg) {
 		/* Play the whole disc */
-		return play_blocks (0, msf2lba (toc_buffer[n].addr.msf.minute,
-						toc_buffer[n].addr.msf.second,
-						toc_buffer[n].addr.msf.frame));
+		if (msf)
+			return play_blocks (0, msf2lba (toc_buffer[n].addr.msf.minute,
+							toc_buffer[n].addr.msf.second,
+							toc_buffer[n].addr.msf.frame));
+		else
+			return play_blocks (0, ntohl(toc_buffer[n].addr.lba));
+	}
 
 	if (strchr (arg, '#')) {
 		/* Play block #blk [ len ] */
@@ -412,10 +416,14 @@ int play (char *arg)
 		    1 != sscanf (arg, "#%d", &blk))
 			goto Clean_up;
 
-		if (len == 0)
-		    len = msf2lba (toc_buffer[n].addr.msf.minute,
-				   toc_buffer[n].addr.msf.second,
-				   toc_buffer[n].addr.msf.frame) - blk;
+		if (len == 0) {
+			if (msf)
+				len = msf2lba (toc_buffer[n].addr.msf.minute,
+					       toc_buffer[n].addr.msf.second,
+					       toc_buffer[n].addr.msf.frame) - blk;
+			else
+				len = ntohl(toc_buffer[n].addr.lba) - blk;
+		}
 		return play_blocks (blk, len);
 	}
 
@@ -430,6 +438,7 @@ int play (char *arg)
 		 */
 		unsigned tr1, tr2;
 		unsigned m1, m2, s1, s2, f1, f2;
+		unsigned char tm, ts, tf;
 
 		tr2 = m2 = s2 = f2 = f1 = 0;
 		if (8 == sscanf (arg, "%d %d:%d.%d %d %d:%d.%d",
@@ -501,30 +510,37 @@ Play_Relative_Addresses:
 		else if (tr1 > n)
 			tr1 = n;
 
-		if ((m1 > toc_buffer[tr1].addr.msf.minute)
-		    || ((m1 == toc_buffer[tr1].addr.msf.minute)
-		    && ((s1 > toc_buffer[tr1].addr.msf.second)
-		    || ((s1 == toc_buffer[tr1].addr.msf.second)
-		    && (f1 > toc_buffer[tr1].addr.msf.frame))))) {
+		if (msf) {
+			tm = toc_buffer[tr1].addr.msf.minute;
+			ts = toc_buffer[tr1].addr.msf.second;
+			tf = toc_buffer[tr1].addr.msf.frame;
+		} else
+			lba2msf(ntohl(toc_buffer[tr1].addr.lba),
+				&tm, &ts, &tf);
+		if ((m1 > tm)
+		    || ((m1 == tm)
+		    && ((s1 > ts)
+		    || ((s1 == ts)
+		    && (f1 > tf))))) {
 			printf ("Track %d is not that long.\n", tr1);
 			return (0);
 		}
 
 		tr1--;
 
-		f1 += toc_buffer[tr1].addr.msf.frame;
+		f1 += tf;
 		if (f1 >= 75) {
 			s1 += f1 / 75;
 			f1 %= 75;
 		}
 
-		s1 += toc_buffer[tr1].addr.msf.second;
+		s1 += ts;
 		if (s1 >= 60) {
 			m1 += s1 / 60;
 			s1 %= 60;
 		}
 
-		m1 += toc_buffer[tr1].addr.msf.minute;
+		m1 += tm;
 
 		if (! tr2) {
 			if (m2 || s2 || f2) {
@@ -544,9 +560,17 @@ Play_Relative_Addresses:
 				m2 += m1;
 			} else {
 				tr2 = n;
-				m2 = toc_buffer[n].addr.msf.minute;
-				s2 = toc_buffer[n].addr.msf.second;
-				f2 = toc_buffer[n].addr.msf.frame;
+				if (msf) {
+					m2 = toc_buffer[n].addr.msf.minute;
+					s2 = toc_buffer[n].addr.msf.second;
+					f2 = toc_buffer[n].addr.msf.frame;
+				} else {
+					lba2msf(ntohl(toc_buffer[n].addr.lba),
+						&tm, &ts, &tf);
+					m2 = tm;
+					s2 = ts;
+					f2 = tf;
+				}
 			}
 		} else if (tr2 > n) {
 			tr2 = n;
@@ -554,27 +578,41 @@ Play_Relative_Addresses:
 		} else {
 			if (m2 || s2 || f2)
 				tr2--;
-			f2 += toc_buffer[tr2].addr.msf.frame;
+			if (msf) {
+				tm = toc_buffer[tr2].addr.msf.minute;
+				ts = toc_buffer[tr2].addr.msf.second;
+				tf = toc_buffer[tr2].addr.msf.frame;
+			} else
+				lba2msf(ntohl(toc_buffer[tr2].addr.lba),
+					&tm, &ts, &tf);
+			f2 += tf;
 			if (f2 >= 75) {
 				s2 += f2 / 75;
 				f2 %= 75;
 			}
 
-			s2 += toc_buffer[tr2].addr.msf.second;
+			s2 += ts;
 			if (s2 > 60) {
 				m2 += s2 / 60;
 				s2 %= 60;
 			}
 
-			m2 += toc_buffer[tr2].addr.msf.minute;
+			m2 += tm;
 		}
 
+		if (msf) {
+			tm = toc_buffer[n].addr.msf.minute;
+			ts = toc_buffer[n].addr.msf.second;
+			tf = toc_buffer[n].addr.msf.frame;
+		} else
+			lba2msf(ntohl(toc_buffer[n].addr.lba),
+				&tm, &ts, &tf);
 		if ((tr2 < n)
-		    && ((m2 > toc_buffer[n].addr.msf.minute)
-		    || ((m2 == toc_buffer[n].addr.msf.minute)
-		    && ((s2 > toc_buffer[n].addr.msf.second)
-		    || ((s2 == toc_buffer[n].addr.msf.second)
-		    && (f2 > toc_buffer[n].addr.msf.frame)))))) {
+		    && ((m2 > tm)
+		    || ((m2 == tm)
+		    && ((s2 > ts)
+		    || ((s2 == ts)
+		    && (f2 > tf)))))) {
 			printf ("The playing time of the disc is not that long.\n");
 			return (0);
 		}
@@ -591,9 +629,17 @@ Try_Absolute_Timed_Addresses:
 			goto Clean_up;
 
 		if (m2 == 0) {
-			m2 = toc_buffer[n].addr.msf.minute;
-			s2 = toc_buffer[n].addr.msf.second;
-			f2 = toc_buffer[n].addr.msf.frame;
+			if (msf) {
+				m2 = toc_buffer[n].addr.msf.minute;
+				s2 = toc_buffer[n].addr.msf.second;
+				f2 = toc_buffer[n].addr.msf.frame;
+			} else {
+				lba2msf(ntohl(toc_buffer[n].addr.lba),
+					&tm, &ts, &tf);
+				m2 = tm;
+				s2 = ts;
+				f2 = tf;
+			}
 		}
 		return play_msf (m1, s1, f1, m2, s2, f2);
 	}
