@@ -523,14 +523,19 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	if (request) {
 	    request->device = atadev;
 	    request->u.ata.command = command;
-	    request->flags = ATA_R_READ;
+	    request->flags = (ATA_R_READ | ATA_R_QUIET);
 	    request->data = (caddr_t)atacap;
 	    request->timeout = 2;
-	    request->retries = 2;
+	    request->retries = 3;
 	    request->bytecount = sizeof(struct ata_params);
 	    request->transfersize = DEV_BSIZE;
-	    ata_queue_request(request);
-	    error = request->result;
+	    while (request->retries) {
+		ata_queue_request(request);
+		if (!(error = request->result))
+		    break;
+		request->flags &= ~ATA_R_QUIET;
+		request->retries--;
+	    }
 	    ata_free_request(request);
 	}
 	if (error) {
