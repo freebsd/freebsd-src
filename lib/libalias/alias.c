@@ -76,8 +76,12 @@
     Version 2.3 Dec 1998 (dillon)
 	- Major bounds checking additions, see FreeBSD/CVS
 
-    Version 3.1 May, 2000 (eds)
+    Version 3.1 May, 2000 (salander) 
 	- Added hooks to handle PPTP.
+
+    Version 3.2 July, 2000 (salander and satoh)
+	- Added PacketUnaliasOut routine.
+	- Added hooks to handle RTSP/RTP.
 
     See HISTORY file for additional revisions.
 
@@ -102,6 +106,8 @@
 #define IRC_CONTROL_PORT_NUMBER_1 6667
 #define IRC_CONTROL_PORT_NUMBER_2 6668
 #define CUSEEME_PORT_NUMBER 7648
+#define RTSP_CONTROL_PORT_NUMBER_1 554
+#define RTSP_CONTROL_PORT_NUMBER_2 7070
 #define PPTP_CONTROL_PORT_NUMBER 1723
 
 
@@ -1112,6 +1118,11 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
         else if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
          || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
             AliasHandleIrcOut(pip, link, maxpacketsize);
+        else if (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1
+         || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_1
+         || ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2
+         || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_2) 
+            AliasHandleRtspOut(pip, link, maxpacketsize);
         else if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
          || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
             AliasHandlePptpOut(pip, link);
@@ -1236,6 +1247,7 @@ FragmentOut(struct ip *pip)
         PacketAliasFragmentIn()
         PacketAliasIn()
         PacketAliasOut()
+        PacketUnaliasOut()
 
 (prototypes in alias.h)
 */
@@ -1464,4 +1476,125 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
 
     SetDefaultAliasAddress(addr_save);
     return(iresult);
+}
+
+int
+PacketUnaliasOut(char *ptr,           /* valid IP packet */
+                 int  maxpacketsize   /* for error checking */
+                )
+{
+    struct ip		*pip;
+    struct icmp 	*ic;
+    struct udphdr	*ud;
+    struct tcphdr 	*tc;
+    struct alias_link 	*link;
+    int 		iresult = PKT_ALIAS_IGNORED;
+
+    pip = (struct ip *) ptr;
+
+    /* Defense against mangled packets */
+    if (ntohs(pip->ip_len) > maxpacketsize
+     || (pip->ip_hl<<2) > maxpacketsize)
+        return(iresult);
+
+    ud = (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
+    tc = (struct tcphdr *) ud;
+    ic = (struct icmp *) ud;
+
+    /* Find a link */
+    if (pip->ip_p == IPPROTO_UDP)
+        link = QueryUdpTcpIn(pip->ip_dst, pip->ip_src,
+                            ud->uh_dport, ud->uh_sport,
+                            IPPROTO_UDP);
+    else if (pip->ip_p == IPPROTO_TCP)
+        link = QueryUdpTcpIn(pip->ip_dst, pip->ip_src,
+                            tc->th_dport, tc->th_sport,
+                            IPPROTO_TCP);
+    else if (pip->ip_p == IPPROTO_ICMP) 
+        link = FindIcmpIn(pip->ip_dst, pip->ip_src, ic->icmp_id);
+    else
+        link = NULL;
+
+    /* Change it from an aliased packet to an unaliased packet */
+    if (link != NULL)
+    {
+        if (pip->ip_p == IPPROTO_UDP || pip->ip_p == IPPROTO_TCP)
+        {
+            u_short        *sptr;
+            int 	   accumulate;
+            struct in_addr original_address;
+            u_short        original_port;
+
+            original_address = GetOriginalAddress(link);
+            original_port = GetOriginalPort(link);
+    
+            /* Adjust TCP/UDP checksum */
+            sptr = (u_short *) &(pip->ip_src);
+            accumulate  = *sptr++;
+            accumulate += *sptr;
+            sptr = (u_short *) &original_address;
+            accumulate -= *sptr++;
+            accumulate -= *sptr;
+
+            if (pip->ip_p == IPPROTO_UDP) {
+                accumulate += ud->uh_sport;
+                accumulate -= original_port;
+                ADJUST_CHECKSUM(accumulate, ud->uh_sum)
+	    } else { 
+                accumulate += tc->th_sport;
+                accumulate -= original_port;
+                ADJUST_CHECKSUM(accumulate, tc->th_sum)
+	    }
+
+            /* Adjust IP checksum */
+            DifferentialChecksum(&pip->ip_sum,
+                                 (u_short *) &original_address,
+                                 (u_short *) &pip->ip_src,
+                                 2);
+
+            /* Un-alias source address and port number */ 
+            pip->ip_src = original_address;
+            if (pip->ip_p == IPPROTO_UDP) 
+                ud->uh_sport = original_port; 
+	    else   
+                tc->th_sport = original_port; 
+            
+	    iresult = PKT_ALIAS_OK;
+
+        } else if (pip->ip_p == IPPROTO_ICMP) {
+
+            u_short        *sptr;
+            int            accumulate;
+            struct in_addr original_address;
+            u_short        original_id;
+
+            original_address = GetOriginalAddress(link);
+            original_id = GetOriginalPort(link);
+
+            /* Adjust ICMP checksum */
+            sptr = (u_short *) &(pip->ip_src);
+            accumulate  = *sptr++;
+            accumulate += *sptr;
+            sptr = (u_short *) &original_address;
+            accumulate -= *sptr++;
+            accumulate -= *sptr;
+            accumulate += ic->icmp_id;
+            accumulate -= original_id;
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+
+            /* Adjust IP checksum */
+            DifferentialChecksum(&pip->ip_sum,
+                                 (u_short *) &original_address,
+                                 (u_short *) &pip->ip_src,
+                                 2);
+
+            /* Un-alias source address and port number */
+            pip->ip_src = original_address;
+            ic->icmp_id = original_id;
+
+	    iresult = PKT_ALIAS_OK;
+        }
+    }
+    return(iresult);
+
 }
