@@ -34,7 +34,6 @@ typedef struct sigaction sigaction_t;
 
 #define CHANGED     -1
 
-extern WINDOW	*newscr;
 extern int _coloron;
 extern int _isendwin;
 

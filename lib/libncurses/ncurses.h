@@ -137,7 +137,7 @@ struct _win_st {
 	WINDOW	*_parent;	/* parent if a sub-window */
 };
 
-extern WINDOW	*stdscr, *curscr;
+extern WINDOW   *stdscr, *curscr, *newscr;
 
 extern int	LINES, COLS;
 
