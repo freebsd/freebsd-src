@@ -1,8 +1,8 @@
 .\"
-.\" $Id: ipfw.8,v 1.47.2.3 1999/04/29 19:22:13 ghelmer Exp $
+.\" $Id: ipfw.8,v 1.53 1999/06/15 12:56:38 ru Exp $
 .\"
 .Dd July 20, 1996
-.Dt IPFW 8 SMM
+.Dt IPFW 8
 .Os FreeBSD
 .Sh NAME
 .Nm ipfw
@@ -472,6 +472,13 @@ and the length of the port list is limited to
 (as defined in 
 .Pa /usr/src/sys/netinet/ip_fw.h )
 ports.
+A
+.Ql \e
+can be used to escape the
+.Ql -
+character in a service name:
+.Pp
+.Dl ipfw add count tcp from any ftp\e\e-data-ftp to any
 .Pp
 Fragmented packets which have a non-zero offset (i.e. not the first
 fragment) will never match a rule which has one or more port
