@@ -952,7 +952,7 @@ datalink_Close(struct datalink *dl, int how)
         if (how == CLOSE_LCP)
           dl->stayonline = 1;
       }
-      break;
+      /* fall through */
 
     default:
       datalink_ComeDown(dl, how);
