@@ -261,7 +261,7 @@ cpu_fork(p1, p2, flags)
 		 * right value for gp.
 		 */
 		up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
-		up->u_pcb.pcb_r4 = FDESC_FUNC(child_return);
+		up->u_pcb.pcb_r4 = FDESC_FUNC(fork_return);
 		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_restore);
 		up->u_pcb.pcb_r6 = (u_int64_t)p2;
 		up->u_pcb.pcb_b0 = FDESC_FUNC(switch_trampoline);
