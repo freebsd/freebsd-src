@@ -134,6 +134,8 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	struct nfsd_args nfsdarg;
 	int error;
 
+	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
+
 #ifdef MAC
 	error = mac_check_system_nfsd(td->td_ucred);
 	if (error)
@@ -550,8 +552,16 @@ nfssvc_nfsd(struct thread *td)
 			nfsd->nfsd_slp = NULL;
 			nfsrv_slpderef(slp);
 		}
+		KASSERT(!(debug_mpsafenet == 0 && !mtx_owned(&Giant)),
+		    ("nfssvc_nfsd(): debug.mpsafenet=0 && !Giant"));
+		KASSERT(!(debug_mpsafenet == 1 && mtx_owned(&Giant)),
+		    ("nfssvc_nfsd(): debug.mpsafenet=1 && Giant"));
 	}
 done:
+	KASSERT(!(debug_mpsafenet == 0 && !mtx_owned(&Giant)),
+	    ("nfssvc_nfsd(): debug.mpsafenet=0 && !Giant"));
+	KASSERT(!(debug_mpsafenet == 1 && mtx_owned(&Giant)),
+	    ("nfssvc_nfsd(): debug.mpsafenet=1 && Giant"));
 	TAILQ_REMOVE(&nfsd_head, nfsd, nfsd_chain);
 	splx(s);
 	free((caddr_t)nfsd, M_NFSD);
