@@ -118,7 +118,7 @@ int DRM(ctxbitmap_init)( drm_device_t *dev )
 							DRM_MEM_CTXBITMAP );
 	if ( dev->ctx_bitmap == NULL ) {
 		DRM_OS_UNLOCK;
-		DRM_OS_RETURN(ENOMEM);
+		return DRM_OS_ERR(ENOMEM);
 	}
 	memset( (void *)dev->ctx_bitmap, 0, PAGE_SIZE );
 	dev->context_sareas = NULL;
@@ -160,7 +160,7 @@ int DRM(getsareactx)( DRM_OS_IOCTL )
 	DRM_OS_LOCK;
 	if (dev->max_context < 0 || request.ctx_id >= (unsigned) dev->max_context) {
 		DRM_OS_UNLOCK;
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	map = dev->context_sareas[request.ctx_id];
@@ -208,7 +208,7 @@ int DRM(setsareactx)( DRM_OS_IOCTL )
 
 bad:
 	DRM_OS_UNLOCK;
-	return -EINVAL;
+	return DRM_OS_ERR(EINVAL);
 
 found:
 #ifdef __linux__
@@ -237,7 +237,7 @@ int DRM(context_switch)( drm_device_t *dev, int old, int new )
 
         if ( test_and_set_bit( 0, &dev->context_flag ) ) {
                 DRM_ERROR( "Reentering -- FIXME\n" );
-                DRM_OS_RETURN(EBUSY);
+                return DRM_OS_ERR(EBUSY);
         }
 
 #if __HAVE_DMA_HISTOGRAM
@@ -298,7 +298,7 @@ int DRM(resctx)( DRM_OS_IOCTL )
 			ctx.handle = i;
 			if ( DRM_OS_COPYTOUSR( &res.contexts[i],
 					   &i, sizeof(i) ) )
-				DRM_OS_RETURN(EFAULT);
+				return DRM_OS_ERR(EFAULT);
 		}
 	}
 	res.count = DRM_RESERVED_CONTEXTS;
@@ -324,7 +324,7 @@ int DRM(addctx)( DRM_OS_IOCTL )
 	if ( ctx.handle == -1 ) {
 		DRM_DEBUG( "Not enough free contexts.\n" );
 				/* Should this return -EBUSY instead? */
-		DRM_OS_RETURN(ENOMEM);
+		return DRM_OS_ERR(ENOMEM);
 	}
 
 	DRM_OS_KRNTOUSR( (drm_ctx_t *)data, ctx, sizeof(ctx) );
@@ -415,7 +415,7 @@ int DRM(context_switch)(drm_device_t *dev, int old, int new)
 
 	if (test_and_set_bit(0, &dev->context_flag)) {
 		DRM_ERROR("Reentering -- FIXME\n");
-		DRM_OS_RETURN(EBUSY);
+		return DRM_OS_ERR(EBUSY);
 	}
 
 #if __HAVE_DMA_HISTOGRAM
@@ -426,7 +426,7 @@ int DRM(context_switch)(drm_device_t *dev, int old, int new)
 
 	if (new >= dev->queue_count) {
 		clear_bit(0, &dev->context_flag);
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	if (new == dev->last_context) {
@@ -439,7 +439,7 @@ int DRM(context_switch)(drm_device_t *dev, int old, int new)
 	if (atomic_read(&q->use_count) == 1) {
 		atomic_dec(&q->use_count);
 		clear_bit(0, &dev->context_flag);
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	if (DRM(flags) & DRM_FLAG_NOCTX) {
@@ -569,7 +569,7 @@ static int DRM(alloc_queue)(drm_device_t *dev)
 		if (!dev->queuelist) {
 			DRM_OS_UNLOCK;
 			DRM_DEBUG("out of memory\n");
-			DRM_OS_RETURN(ENOMEM);
+			return DRM_OS_ERR(ENOMEM);
 		}
 	}
 	dev->queuelist[dev->queue_count-1] = queue;
@@ -596,7 +596,7 @@ int DRM(resctx)( DRM_OS_IOCTL )
 			if (DRM_OS_COPYTOUSR(&res.contexts[i],
 					 &i,
 					 sizeof(i)))
-				DRM_OS_RETURN(EFAULT);
+				return DRM_OS_ERR(EFAULT);
 		}
 	}
 	res.count = DRM_RESERVED_CONTEXTS;
@@ -637,19 +637,19 @@ int DRM(modctx)( DRM_OS_IOCTL )
 	DRM_DEBUG("%d\n", ctx.handle);
 
 	if (ctx.handle < 0 || ctx.handle >= dev->queue_count) 
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	q = dev->queuelist[ctx.handle];
 
 	atomic_inc(&q->use_count);
 	if (atomic_read(&q->use_count) == 1) {
 				/* No longer in use */
 		atomic_dec(&q->use_count);
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	if (DRM_BUFCOUNT(&q->waitlist)) {
 		atomic_dec(&q->use_count);
-		DRM_OS_RETURN(EBUSY);
+		return DRM_OS_ERR(EBUSY);
 	}
 
 	q->flags = ctx.flags;
@@ -669,14 +669,14 @@ int DRM(getctx)( DRM_OS_IOCTL )
 	DRM_DEBUG("%d\n", ctx.handle);
 
 	if (ctx.handle >= dev->queue_count) 
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	q = dev->queuelist[ctx.handle];
 
 	atomic_inc(&q->use_count);
 	if (atomic_read(&q->use_count) == 1) {
 				/* No longer in use */
 		atomic_dec(&q->use_count);
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	ctx.flags = q->flags;
@@ -722,14 +722,14 @@ int DRM(rmctx)( DRM_OS_IOCTL )
 
 	DRM_DEBUG("%d\n", ctx.handle);
 
-	if (ctx.handle >= dev->queue_count) DRM_OS_RETURN(EINVAL);
+	if (ctx.handle >= dev->queue_count) return DRM_OS_ERR(EINVAL);
 	q = dev->queuelist[ctx.handle];
 
 	atomic_inc(&q->use_count);
 	if (atomic_read(&q->use_count) == 1) {
 				/* No longer in use */
 		atomic_dec(&q->use_count);
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	atomic_inc(&q->finalization); /* Mark queue in finalization state */
@@ -741,7 +741,7 @@ int DRM(rmctx)( DRM_OS_IOCTL )
 		schedule();
 		if (signal_pending(current)) {
 			clear_bit(0, &dev->interrupt_flag);
-			DRM_OS_RETURN(EINTR);
+			return DRM_OS_ERR(EINTR);
 		}
 #endif /* __linux__ */
 #ifdef __FreeBSD__

@@ -85,13 +85,13 @@ int DRM(open_helper)(dev_t kdev, int flags, int fmt, DRM_OS_STRUCTPROC *p,
 	dev->flags = flags;
 #endif /* __FreeBSD__ */
 	if (!DRM(cpu_valid)())
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 
 	DRM_DEBUG("pid = %d, minor = %d\n", DRM_OS_CURRENTPID, m);
 
 #ifdef __linux__
 	priv = (drm_file_t *) DRM(alloc)(sizeof(*priv), DRM_MEM_FILES);
-	if(!priv) DRM_OS_RETURN(ENOMEM);
+	if(!priv) return DRM_OS_ERR(ENOMEM);
 
 	memset(priv, 0, sizeof(*priv));
 	filp->private_data  = priv;

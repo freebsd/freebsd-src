@@ -198,7 +198,7 @@ do {									\
 	     dev->lock.pid != DRM_OS_CURRENTPID ) {			\
 		DRM_ERROR( "%s called without lock held\n",		\
 			   __FUNCTION__ );				\
-		DRM_OS_RETURN( EINVAL );				\
+		return DRM_OS_ERR(EINVAL);				\
 	}								\
 } while (0)
 
@@ -211,7 +211,7 @@ do {									\
 			    dev_priv->prim.high_mark ) {		\
 			if ( MGA_DMA_DEBUG )				\
 				DRM_INFO( __FUNCTION__": wrap...\n" );	\
-			DRM_OS_RETURN( EBUSY);				\
+			return DRM_OS_ERR(EBUSY);				\
 		}							\
 	}								\
 } while (0)
@@ -222,7 +222,7 @@ do {									\
 		if ( mga_do_wait_for_idle( dev_priv ) ) {		\
 			if ( MGA_DMA_DEBUG )				\
 				DRM_INFO( __FUNCTION__": wrap...\n" );	\
-			DRM_OS_RETURN( EBUSY);			\
+			return DRM_OS_ERR(EBUSY);			\
 		}							\
 		mga_do_dma_wrap_end( dev_priv );			\
 	}								\

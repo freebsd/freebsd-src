@@ -38,7 +38,7 @@ int DRM(mmap)(dev_t kdev, vm_offset_t offset, int prot)
 		return EINVAL;
 	}
 
-	if (!priv->authenticated) DRM_OS_RETURN(EACCES);*/
+	if (!priv->authenticated) return DRM_OS_ERR(EACCES);*/
 
 	if (dev->dma
 	    && offset >= 0

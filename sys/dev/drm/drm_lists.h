@@ -39,12 +39,12 @@
 int DRM(waitlist_create)(drm_waitlist_t *bl, int count)
 {
 	if (bl->count)
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 
 	bl->bufs       = DRM(alloc)((bl->count + 2) * sizeof(*bl->bufs),
 				    DRM_MEM_BUFLISTS);
 
-	if(!bl->bufs) DRM_OS_RETURN(ENOMEM);
+	if(!bl->bufs) return DRM_OS_ERR(ENOMEM);
 
 	bl->count      = count;
 	bl->rp	       = bl->bufs;
@@ -58,7 +58,7 @@ int DRM(waitlist_create)(drm_waitlist_t *bl, int count)
 int DRM(waitlist_destroy)(drm_waitlist_t *bl)
 {
 	if (bl->rp != bl->wp)
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	if (bl->bufs) DRM(free)(bl->bufs,
 				(bl->count + 2) * sizeof(*bl->bufs),
 				DRM_MEM_BUFLISTS);
@@ -83,7 +83,7 @@ int DRM(waitlist_put)(drm_waitlist_t *bl, drm_buf_t *buf)
 	if (!left) {
 		DRM_ERROR("Overflow while adding buffer %d from pid %d\n",
 			  buf->idx, buf->pid);
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 #if __HAVE_DMA_HISTOGRAM
 #ifdef __linux__
