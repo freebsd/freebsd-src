@@ -23,8 +23,9 @@
 #include <sys/linker.h>
 
 #include <machine/asi.h>
-#include <machine/bootinfo.h>
 #include <machine/elf.h>
+#include <machine/lsu.h>
+#include <machine/metadata.h>
 #include <machine/tte.h>
 
 #include "bootstrap.h"
@@ -56,8 +57,6 @@ static int mmu_mapin(vm_offset_t, vm_size_t);
 
 char __progname[] = "FreeBSD/sparc64 loader";
 
-vm_offset_t kernelpa;	/* Begin of kernel and mod memory. */
-vm_offset_t curkpg;	/* (PA) used for on-demand map-in. */
 vm_offset_t curkva = 0;
 vm_offset_t heapva;
 int tlbslot = 63;	/* Insert first entry at this TLB slot. XXX */
@@ -90,11 +89,14 @@ struct file_format *file_formats[] = {
 	0
 };
 struct fs_ops *file_system[] = {
-#ifdef LOAD_DISK_SUPPORT
+#ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
-#ifdef LOADER_NET_SUPPORT
+#ifdef LOADER_NFS_SUPPORT
 	&nfs_fsops,
+#endif
+#ifdef LOADER_TFTP_SUPPORT
+	&tftp_fsops,
 #endif
 	0
 };
@@ -110,6 +112,59 @@ struct console *consoles[] = {
 	&ofwconsole,
 	0
 };
+
+#ifdef LOADER_DEBUG
+static int
+watch_phys_set_mask(vm_offset_t pa, u_long mask)
+{
+	u_long lsucr;
+
+	stxa(AA_DMMU_PWPR, ASI_DMMU, pa & (((2UL << 38) - 1) << 3));
+	lsucr = ldxa(0, ASI_LSU_CTL_REG);
+	lsucr = ((lsucr | LSU_PW) & ~LSU_PM_MASK) |
+	    (mask << LSU_PM_SHIFT);
+	stxa(0, ASI_LSU_CTL_REG, lsucr);
+	return (0);
+}
+
+static int
+watch_phys_set(vm_offset_t pa, int sz)
+{
+	u_long off;
+
+	off = (u_long)pa & 7;
+	/* Test for misaligned watch points. */
+	if (off + sz > 8)
+		return (-1);
+	return (watch_phys_set_mask(pa, ((1 << sz) - 1) << off));
+}
+
+
+static int
+watch_virt_set_mask(vm_offset_t va, u_long mask)
+{
+	u_long lsucr;
+
+	stxa(AA_DMMU_VWPR, ASI_DMMU, va & (((2UL << 41) - 1) << 3));
+	lsucr = ldxa(0, ASI_LSU_CTL_REG);
+	lsucr = ((lsucr | LSU_VW) & ~LSU_VM_MASK) |
+	    (mask << LSU_VM_SHIFT);
+	stxa(0, ASI_LSU_CTL_REG, lsucr);
+	return (0);
+}
+
+static int
+watch_virt_set(vm_offset_t va, int sz)
+{
+	u_long off;
+
+	off = (u_long)va & 7;
+	/* Test for misaligned watch points. */
+	if (off + sz > 8)
+		return (-1);
+	return (watch_virt_set_mask(va, ((1 << sz) - 1) << off));
+}
+#endif
 
 /*
  * archsw functions
@@ -170,25 +225,45 @@ elf_exec(struct preloaded_file *fp)
 static int
 mmu_mapin(vm_offset_t va, vm_size_t len)
 {
+	vm_offset_t pa, mva;
 
 	if (va + len > curkva)
 		curkva = va + len;
 
+	pa = (vm_offset_t)-1;
 	len += va & PAGE_MASK_4M;
 	va &= ~PAGE_MASK_4M;
 	while (len) {
 		if (dtlb_va_to_pa(va) == (vm_offset_t)-1 ||
 		    itlb_va_to_pa(va) == (vm_offset_t)-1) {
-			dtlb_enter(tlbslot, curkpg, va,
+			/* Allocate a physical page, claim the virtual area */
+			if (pa == (vm_offset_t)-1) {
+				pa = (vm_offset_t)OF_alloc_phys(PAGE_SIZE_4M,
+				    PAGE_SIZE_4M);
+				if (pa == (vm_offset_t)-1)
+					panic("out of memory");
+				mva = (vm_offset_t)OF_claim_virt(va,
+				    PAGE_SIZE_4M, 0);
+				if (mva != va) {
+					panic("can't claim virtual page "
+					    "(wanted %#lx, got %#lx)",
+					    va, mva);
+				}
+				/* The mappings may have changed, be paranoid. */
+				continue;
+			}
+			dtlb_enter(tlbslot, pa, va,
 			    TD_V | TD_4M | TD_L | TD_CP | TD_CV | TD_P | TD_W);
-			itlb_enter(tlbslot, curkpg, va,
+			itlb_enter(tlbslot, pa, va,
 			    TD_V | TD_4M | TD_L | TD_CP | TD_CV | TD_P | TD_W);
 			tlbslot--;
-			curkpg += PAGE_SIZE_4M;
+			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
 		va += PAGE_SIZE_4M;
 	}
+	if (pa != (vm_offset_t)-1)
+		OF_release_phys(pa, PAGE_SIZE_4M);
 	return 0;
 }
 
@@ -200,9 +275,6 @@ init_heap(void)
 	if (OF_getprop(pmemh, "available", memslices, sizeof(memslices)) <= 0)
 		OF_exit();
 
-	/* Reserve 16 MB continuous for kernel and modules. */
-	kernelpa = (vm_offset_t)OF_alloc_phys(LOADSZ, 0x400000);
-	curkpg = kernelpa;
 	/* There is no need for continuous physical heap memory. */
 	heapva = (vm_offset_t)OF_claim((void *)HEAPVA, HEAPSZ, 32);
 	return heapva;
@@ -272,13 +344,35 @@ main(int (*openfirm)(void *))
 	printf("%s\n", __progname);
 	printf("bootpath=\"%s\"\n", bootpath);
 	printf("loaddev=%s\n", getenv("loaddev"));
-	printf("kernelpa=0x%lx\n", curkpg);
 
 	/* Give control to the machine independent loader code. */
 	interact();
 	return 1;
 }
 
+COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
+
+static int
+command_reboot(int argc, char *argv[])
+{
+	int i;
+
+	for (i = 0; devsw[i] != NULL; ++i)
+		if (devsw[i]->dv_cleanup != NULL)
+			(devsw[i]->dv_cleanup)();
+
+	printf("Rebooting...\n");
+	OF_exit();
+}
+
+/* provide this for panic, as it's not in the startup code */
+void
+exit(int code)
+{
+	OF_exit();
+}
+
+#ifdef LOADER_DEBUG
 typedef u_int64_t tte_t;
 
 const char *page_sizes[] = {
@@ -331,3 +425,4 @@ pmap_print_tlb(char which)
 		pmap_print_tte(tag, tte);
 	}
 }
+#endif
