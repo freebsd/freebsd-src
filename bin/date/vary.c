@@ -148,6 +148,8 @@ adjyear(struct tm *t, char type, int val, int mk)
 static int
 adjmon(struct tm *t, char type, int val, int istext, int mk)
 {
+  int lmdays;
+
   if (val < 0)
     return 0;
 
@@ -194,6 +196,11 @@ adjmon(struct tm *t, char type, int val, int istext, int mk)
         return 0;
       t->tm_mon = --val;
   }
+
+  /* e.g., -v-1m on March, 31 is the last day of February in common sense */
+  lmdays = daysinmonth(t);
+  if (t->tm_mday > lmdays)
+    t->tm_mday = lmdays;
 
   return !mk || domktime(t, type) != -1;
 }
