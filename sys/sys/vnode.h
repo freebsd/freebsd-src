@@ -44,7 +44,6 @@
 #include <sys/lockmgr.h>
 
 #include <sys/queue.h>
-#include <sys/_label.h>
 #include <sys/_lock.h>
 #include <sys/lock.h>
 #include <sys/_mutex.h>
@@ -153,7 +152,7 @@ struct vnode {
 	struct	vnode *v_dd;			/* c .. vnode */
 	u_long	v_ddid;				/* c .. capability identifier */
 	struct vpollinfo *v_pollinfo;		/* p Poll events */
-	struct label v_label;			/* MAC label for vnode */
+	struct label *v_label;			/* MAC label for vnode */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */

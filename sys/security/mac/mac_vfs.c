@@ -100,68 +100,123 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, devfsdirents, CTLFLAG_RD,
 static int	mac_setlabel_vnode_extattr(struct ucred *cred,
 		    struct vnode *vp, struct label *intlabel);
 
+static struct label *
+mac_devfsdirent_label_alloc(void)
+{
+	struct label *label;
+
+	label = mac_labelzone_alloc(M_WAITOK);
+	MAC_PERFORM(init_devfsdirent_label, label);
+	MAC_DEBUG_COUNTER_INC(&nmacdevfsdirents);
+	return (label);
+}
+
 void
 mac_init_devfsdirent(struct devfs_dirent *de)
 {
 
-	mac_init_label(&de->de_label);
-	MAC_PERFORM(init_devfsdirent_label, &de->de_label);
-	MAC_DEBUG_COUNTER_INC(&nmacdevfsdirents);
+	de->de_label = mac_devfsdirent_label_alloc();
+}
+
+static struct label *
+mac_mount_label_alloc(void)
+{
+	struct label *label;
+
+	label = mac_labelzone_alloc(M_WAITOK);
+	MAC_PERFORM(init_mount_label, label);
+	MAC_DEBUG_COUNTER_INC(&nmacmounts);
+	return (label);
+}
+
+static struct label *
+mac_mount_fs_label_alloc(void)
+{
+	struct label *label;
+
+	label = mac_labelzone_alloc(M_WAITOK);
+	MAC_PERFORM(init_mount_fs_label, label);
+	MAC_DEBUG_COUNTER_INC(&nmacmounts);
+	return (label);
 }
 
 void
 mac_init_mount(struct mount *mp)
 {
 
-	mac_init_label(&mp->mnt_mntlabel);
-	mac_init_label(&mp->mnt_fslabel);
-	MAC_PERFORM(init_mount_label, &mp->mnt_mntlabel);
-	MAC_PERFORM(init_mount_fs_label, &mp->mnt_fslabel);
-	MAC_DEBUG_COUNTER_INC(&nmacmounts);
+	mp->mnt_mntlabel = mac_mount_label_alloc();
+	mp->mnt_fslabel = mac_mount_fs_label_alloc();
 }
 
-void
-mac_init_vnode_label(struct label *label)
+struct label *
+mac_vnode_label_alloc(void)
 {
+	struct label *label;
 
-	mac_init_label(label);
+	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_vnode_label, label);
 	MAC_DEBUG_COUNTER_INC(&nmacvnodes);
+	return (label);
 }
 
 void
 mac_init_vnode(struct vnode *vp)
 {
 
-	mac_init_vnode_label(&vp->v_label);
+	vp->v_label = mac_vnode_label_alloc();
+}
+
+static void
+mac_devfsdirent_label_free(struct label *label)
+{
+
+	MAC_PERFORM(destroy_devfsdirent_label, label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacdevfsdirents);
 }
 
 void
 mac_destroy_devfsdirent(struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(destroy_devfsdirent_label, &de->de_label);
-	mac_destroy_label(&de->de_label);
-	MAC_DEBUG_COUNTER_DEC(&nmacdevfsdirents);
+	mac_devfsdirent_label_free(de->de_label);
+	de->de_label = NULL;
+}
+
+static void
+mac_mount_label_free(struct label *label)
+{
+
+	MAC_PERFORM(destroy_mount_label, label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacmounts);
+}
+
+static void
+mac_mount_fs_label_free(struct label *label)
+{
+
+	MAC_PERFORM(destroy_mount_fs_label, label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacmounts);
 }
 
 void
 mac_destroy_mount(struct mount *mp)
 {
 
-	MAC_PERFORM(destroy_mount_label, &mp->mnt_mntlabel);
-	MAC_PERFORM(destroy_mount_fs_label, &mp->mnt_fslabel);
-	mac_destroy_label(&mp->mnt_fslabel);
-	mac_destroy_label(&mp->mnt_mntlabel);
-	MAC_DEBUG_COUNTER_DEC(&nmacmounts);
+	mac_mount_fs_label_free(mp->mnt_fslabel);
+	mp->mnt_fslabel = NULL;
+	mac_mount_label_free(mp->mnt_mntlabel);
+	mp->mnt_mntlabel = NULL;
 }
 
 void
-mac_destroy_vnode_label(struct label *label)
+mac_vnode_label_free(struct label *label)
 {
 
 	MAC_PERFORM(destroy_vnode_label, label);
-	mac_destroy_label(label);
+	mac_labelzone_free(label);
 	MAC_DEBUG_COUNTER_DEC(&nmacvnodes);
 }
 
@@ -169,7 +224,8 @@ void
 mac_destroy_vnode(struct vnode *vp)
 {
 
-	mac_destroy_vnode_label(&vp->v_label);
+	mac_vnode_label_free(vp->v_label);
+	vp->v_label = NULL;
 }
 
 void
@@ -205,8 +261,8 @@ mac_update_devfsdirent(struct mount *mp, struct devfs_dirent *de,
     struct vnode *vp)
 {
 
-	MAC_PERFORM(update_devfsdirent, mp, de, &de->de_label, vp,
-	    &vp->v_label);
+	MAC_PERFORM(update_devfsdirent, mp, de, de->de_label, vp,
+	    vp->v_label);
 }
 
 void
@@ -214,8 +270,8 @@ mac_associate_vnode_devfs(struct mount *mp, struct devfs_dirent *de,
     struct vnode *vp)
 {
 
-	MAC_PERFORM(associate_vnode_devfs, mp, &mp->mnt_fslabel, de,
-	    &de->de_label, vp, &vp->v_label);
+	MAC_PERFORM(associate_vnode_devfs, mp, mp->mnt_fslabel, de,
+	    de->de_label, vp, vp->v_label);
 }
 
 int
@@ -225,8 +281,8 @@ mac_associate_vnode_extattr(struct mount *mp, struct vnode *vp)
 
 	ASSERT_VOP_LOCKED(vp, "mac_associate_vnode_extattr");
 
-	MAC_CHECK(associate_vnode_extattr, mp, &mp->mnt_fslabel, vp,
-	    &vp->v_label);
+	MAC_CHECK(associate_vnode_extattr, mp, mp->mnt_fslabel, vp,
+	    vp->v_label);
 
 	return (error);
 }
@@ -235,8 +291,8 @@ void
 mac_associate_vnode_singlelabel(struct mount *mp, struct vnode *vp)
 {
 
-	MAC_PERFORM(associate_vnode_singlelabel, mp, &mp->mnt_fslabel, vp,
-	    &vp->v_label);
+	MAC_PERFORM(associate_vnode_singlelabel, mp, mp->mnt_fslabel, vp,
+	    vp->v_label);
 }
 
 int
@@ -259,8 +315,8 @@ mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	} else if (error)
 		return (error);
 
-	MAC_CHECK(create_vnode_extattr, cred, mp, &mp->mnt_fslabel,
-	    dvp, &dvp->v_label, vp, &vp->v_label, cnp);
+	MAC_CHECK(create_vnode_extattr, cred, mp, mp->mnt_fslabel,
+	    dvp, dvp->v_label, vp, vp->v_label, cnp);
 
 	if (error) {
 		VOP_CLOSEEXTATTR(vp, 0, NOCRED, curthread);
@@ -294,7 +350,7 @@ mac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 	} else if (error)
 		return (error);
 
-	MAC_CHECK(setlabel_vnode_extattr, cred, vp, &vp->v_label, intlabel);
+	MAC_CHECK(setlabel_vnode_extattr, cred, vp, vp->v_label, intlabel);
 
 	if (error) {
 		VOP_CLOSEEXTATTR(vp, 0, NOCRED, curthread);
@@ -319,7 +375,7 @@ mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp,
 	if (!mac_enforce_process && !mac_enforce_fs)
 		return;
 
-	MAC_PERFORM(execve_transition, old, new, vp, &vp->v_label,
+	MAC_PERFORM(execve_transition, old, new, vp, vp->v_label,
 	    interpvnodelabel, imgp, imgp->execlabel);
 }
 
@@ -335,7 +391,7 @@ mac_execve_will_transition(struct ucred *old, struct vnode *vp,
 		return (0);
 
 	result = 0;
-	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label,
+	MAC_BOOLEAN(execve_will_transition, ||, old, vp, vp->v_label,
 	    interpvnodelabel, imgp, imgp->execlabel);
 
 	return (result);
@@ -351,7 +407,7 @@ mac_check_vnode_access(struct ucred *cred, struct vnode *vp, int acc_mode)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_access, cred, vp, &vp->v_label, acc_mode);
+	MAC_CHECK(check_vnode_access, cred, vp, vp->v_label, acc_mode);
 	return (error);
 }
 
@@ -365,7 +421,7 @@ mac_check_vnode_chdir(struct ucred *cred, struct vnode *dvp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_chdir, cred, dvp, &dvp->v_label);
+	MAC_CHECK(check_vnode_chdir, cred, dvp, dvp->v_label);
 	return (error);
 }
 
@@ -379,7 +435,7 @@ mac_check_vnode_chroot(struct ucred *cred, struct vnode *dvp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_chroot, cred, dvp, &dvp->v_label);
+	MAC_CHECK(check_vnode_chroot, cred, dvp, dvp->v_label);
 	return (error);
 }
 
@@ -394,7 +450,7 @@ mac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_create, cred, dvp, &dvp->v_label, cnp, vap);
+	MAC_CHECK(check_vnode_create, cred, dvp, dvp->v_label, cnp, vap);
 	return (error);
 }
 
@@ -410,8 +466,8 @@ mac_check_vnode_delete(struct ucred *cred, struct vnode *dvp, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_delete, cred, dvp, &dvp->v_label, vp,
-	    &vp->v_label, cnp);
+	MAC_CHECK(check_vnode_delete, cred, dvp, dvp->v_label, vp,
+	    vp->v_label, cnp);
 	return (error);
 }
 
@@ -426,7 +482,7 @@ mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_deleteacl, cred, vp, &vp->v_label, type);
+	MAC_CHECK(check_vnode_deleteacl, cred, vp, vp->v_label, type);
 	return (error);
 }
 
@@ -441,7 +497,7 @@ mac_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_deleteextattr, cred, vp, &vp->v_label,
+	MAC_CHECK(check_vnode_deleteextattr, cred, vp, vp->v_label,
 	    attrnamespace, name);
 	return (error);
 }
@@ -457,7 +513,7 @@ mac_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_process && !mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_exec, cred, vp, &vp->v_label, imgp,
+	MAC_CHECK(check_vnode_exec, cred, vp, vp->v_label, imgp,
 	    imgp->execlabel);
 
 	return (error);
@@ -473,7 +529,7 @@ mac_check_vnode_getacl(struct ucred *cred, struct vnode *vp, acl_type_t type)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_getacl, cred, vp, &vp->v_label, type);
+	MAC_CHECK(check_vnode_getacl, cred, vp, vp->v_label, type);
 	return (error);
 }
 
@@ -488,7 +544,7 @@ mac_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_getextattr, cred, vp, &vp->v_label,
+	MAC_CHECK(check_vnode_getextattr, cred, vp, vp->v_label,
 	    attrnamespace, name, uio);
 	return (error);
 }
@@ -505,8 +561,8 @@ mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_link, cred, dvp, &dvp->v_label, vp,
-	    &vp->v_label, cnp);
+	MAC_CHECK(check_vnode_link, cred, dvp, dvp->v_label, vp,
+	    vp->v_label, cnp);
 	return (error);
 }
 
@@ -521,7 +577,7 @@ mac_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_listextattr, cred, vp, &vp->v_label,
+	MAC_CHECK(check_vnode_listextattr, cred, vp, vp->v_label,
 	    attrnamespace);
 	return (error);
 }
@@ -537,7 +593,7 @@ mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_lookup, cred, dvp, &dvp->v_label, cnp);
+	MAC_CHECK(check_vnode_lookup, cred, dvp, dvp->v_label, cnp);
 	return (error);
 }
 
@@ -551,7 +607,7 @@ mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp, int prot)
 	if (!mac_enforce_fs || !mac_enforce_vm)
 		return (0);
 
-	MAC_CHECK(check_vnode_mmap, cred, vp, &vp->v_label, prot);
+	MAC_CHECK(check_vnode_mmap, cred, vp, vp->v_label, prot);
 	return (error);
 }
 
@@ -565,7 +621,7 @@ mac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp, int *prot)
 	if (!mac_enforce_fs || !mac_enforce_vm)
 		return;
 
-	MAC_PERFORM(check_vnode_mmap_downgrade, cred, vp, &vp->v_label,
+	MAC_PERFORM(check_vnode_mmap_downgrade, cred, vp, vp->v_label,
 	    &result);
 
 	*prot = result;
@@ -581,7 +637,7 @@ mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp, int prot)
 	if (!mac_enforce_fs || !mac_enforce_vm)
 		return (0);
 
-	MAC_CHECK(check_vnode_mprotect, cred, vp, &vp->v_label, prot);
+	MAC_CHECK(check_vnode_mprotect, cred, vp, vp->v_label, prot);
 	return (error);
 }
 
@@ -595,7 +651,7 @@ mac_check_vnode_open(struct ucred *cred, struct vnode *vp, int acc_mode)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_open, cred, vp, &vp->v_label, acc_mode);
+	MAC_CHECK(check_vnode_open, cred, vp, vp->v_label, acc_mode);
 	return (error);
 }
 
@@ -611,7 +667,7 @@ mac_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 		return (0);
 
 	MAC_CHECK(check_vnode_poll, active_cred, file_cred, vp,
-	    &vp->v_label);
+	    vp->v_label);
 
 	return (error);
 }
@@ -628,7 +684,7 @@ mac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 		return (0);
 
 	MAC_CHECK(check_vnode_read, active_cred, file_cred, vp,
-	    &vp->v_label);
+	    vp->v_label);
 
 	return (error);
 }
@@ -643,7 +699,7 @@ mac_check_vnode_readdir(struct ucred *cred, struct vnode *dvp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_readdir, cred, dvp, &dvp->v_label);
+	MAC_CHECK(check_vnode_readdir, cred, dvp, dvp->v_label);
 	return (error);
 }
 
@@ -657,7 +713,7 @@ mac_check_vnode_readlink(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_readlink, cred, vp, &vp->v_label);
+	MAC_CHECK(check_vnode_readlink, cred, vp, vp->v_label);
 	return (error);
 }
 
@@ -669,7 +725,7 @@ mac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 
 	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_relabel");
 
-	MAC_CHECK(check_vnode_relabel, cred, vp, &vp->v_label, newlabel);
+	MAC_CHECK(check_vnode_relabel, cred, vp, vp->v_label, newlabel);
 
 	return (error);
 }
@@ -686,8 +742,8 @@ mac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_rename_from, cred, dvp, &dvp->v_label, vp,
-	    &vp->v_label, cnp);
+	MAC_CHECK(check_vnode_rename_from, cred, dvp, dvp->v_label, vp,
+	    vp->v_label, cnp);
 	return (error);
 }
 
@@ -703,8 +759,8 @@ mac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_rename_to, cred, dvp, &dvp->v_label, vp,
-	    vp != NULL ? &vp->v_label : NULL, samedir, cnp);
+	MAC_CHECK(check_vnode_rename_to, cred, dvp, dvp->v_label, vp,
+	    vp != NULL ? vp->v_label : NULL, samedir, cnp);
 	return (error);
 }
 
@@ -718,7 +774,7 @@ mac_check_vnode_revoke(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_revoke, cred, vp, &vp->v_label);
+	MAC_CHECK(check_vnode_revoke, cred, vp, vp->v_label);
 	return (error);
 }
 
@@ -733,7 +789,7 @@ mac_check_vnode_setacl(struct ucred *cred, struct vnode *vp, acl_type_t type,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_setacl, cred, vp, &vp->v_label, type, acl);
+	MAC_CHECK(check_vnode_setacl, cred, vp, vp->v_label, type, acl);
 	return (error);
 }
 
@@ -748,7 +804,7 @@ mac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_setextattr, cred, vp, &vp->v_label,
+	MAC_CHECK(check_vnode_setextattr, cred, vp, vp->v_label,
 	    attrnamespace, name, uio);
 	return (error);
 }
@@ -763,7 +819,7 @@ mac_check_vnode_setflags(struct ucred *cred, struct vnode *vp, u_long flags)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_setflags, cred, vp, &vp->v_label, flags);
+	MAC_CHECK(check_vnode_setflags, cred, vp, vp->v_label, flags);
 	return (error);
 }
 
@@ -777,7 +833,7 @@ mac_check_vnode_setmode(struct ucred *cred, struct vnode *vp, mode_t mode)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_setmode, cred, vp, &vp->v_label, mode);
+	MAC_CHECK(check_vnode_setmode, cred, vp, vp->v_label, mode);
 	return (error);
 }
 
@@ -792,7 +848,7 @@ mac_check_vnode_setowner(struct ucred *cred, struct vnode *vp, uid_t uid,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_setowner, cred, vp, &vp->v_label, uid, gid);
+	MAC_CHECK(check_vnode_setowner, cred, vp, vp->v_label, uid, gid);
 	return (error);
 }
 
@@ -807,7 +863,7 @@ mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_setutimes, cred, vp, &vp->v_label, atime,
+	MAC_CHECK(check_vnode_setutimes, cred, vp, vp->v_label, atime,
 	    mtime);
 	return (error);
 }
@@ -824,7 +880,7 @@ mac_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 		return (0);
 
 	MAC_CHECK(check_vnode_stat, active_cred, file_cred, vp,
-	    &vp->v_label);
+	    vp->v_label);
 	return (error);
 }
 
@@ -840,7 +896,7 @@ mac_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
 		return (0);
 
 	MAC_CHECK(check_vnode_write, active_cred, file_cred, vp,
-	    &vp->v_label);
+	    vp->v_label);
 
 	return (error);
 }
@@ -849,23 +905,23 @@ void
 mac_relabel_vnode(struct ucred *cred, struct vnode *vp, struct label *newlabel)
 {
 
-	MAC_PERFORM(relabel_vnode, cred, vp, &vp->v_label, newlabel);
+	MAC_PERFORM(relabel_vnode, cred, vp, vp->v_label, newlabel);
 }
 
 void
 mac_create_mount(struct ucred *cred, struct mount *mp)
 {
 
-	MAC_PERFORM(create_mount, cred, mp, &mp->mnt_mntlabel,
-	    &mp->mnt_fslabel);
+	MAC_PERFORM(create_mount, cred, mp, mp->mnt_mntlabel,
+	    mp->mnt_fslabel);
 }
 
 void
 mac_create_root_mount(struct ucred *cred, struct mount *mp)
 {
 
-	MAC_PERFORM(create_root_mount, cred, mp, &mp->mnt_mntlabel,
-	    &mp->mnt_fslabel);
+	MAC_PERFORM(create_root_mount, cred, mp, mp->mnt_mntlabel,
+	    mp->mnt_fslabel);
 }
 
 int
@@ -876,7 +932,7 @@ mac_check_mount_stat(struct ucred *cred, struct mount *mount)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_mount_stat, cred, mount, &mount->mnt_mntlabel);
+	MAC_CHECK(check_mount_stat, cred, mount, mount->mnt_mntlabel);
 
 	return (error);
 }
@@ -885,7 +941,7 @@ void
 mac_create_devfs_device(struct mount *mp, dev_t dev, struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(create_devfs_device, mp, dev, de, &de->de_label);
+	MAC_PERFORM(create_devfs_device, mp, dev, de, de->de_label);
 }
 
 void
@@ -893,8 +949,8 @@ mac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(create_devfs_symlink, cred, mp, dd, &dd->de_label, de,
-	    &de->de_label);
+	MAC_PERFORM(create_devfs_symlink, cred, mp, dd, dd->de_label, de,
+	    de->de_label);
 }
 
 void
@@ -903,7 +959,7 @@ mac_create_devfs_directory(struct mount *mp, char *dirname, int dirnamelen,
 {
 
 	MAC_PERFORM(create_devfs_directory, mp, dirname, dirnamelen, de,
-	    &de->de_label);
+	    de->de_label);
 }
 
 /*

@@ -96,37 +96,48 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, procs, CTLFLAG_RD,
 static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
 
-void
-mac_init_cred_label(struct label *label)
+struct label *
+mac_cred_label_alloc(void)
 {
+	struct label *label;
 
-	mac_init_label(label);
+	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_cred_label, label);
 	MAC_DEBUG_COUNTER_INC(&nmaccreds);
+	return (label);
 }
 
 void
 mac_init_cred(struct ucred *cred)
 {
 
-	mac_init_cred_label(&cred->cr_label);
+	cred->cr_label = mac_cred_label_alloc();
+}
+
+static struct label *
+mac_proc_label_alloc(void)
+{
+	struct label *label;
+
+	label = mac_labelzone_alloc(M_WAITOK);
+	MAC_PERFORM(init_proc_label, label);
+	MAC_DEBUG_COUNTER_INC(&nmacprocs);
+	return (label);
 }
 
 void
 mac_init_proc(struct proc *p)
 {
 
-	mac_init_label(&p->p_label);
-	MAC_PERFORM(init_proc_label, &p->p_label);
-	MAC_DEBUG_COUNTER_INC(&nmacprocs);
+	p->p_label = mac_proc_label_alloc();
 }
 
 void
-mac_destroy_cred_label(struct label *label)
+mac_cred_label_free(struct label *label)
 {
 
 	MAC_PERFORM(destroy_cred_label, label);
-	mac_destroy_label(label);
+	mac_labelzone_free(label);
 	MAC_DEBUG_COUNTER_DEC(&nmaccreds);
 }
 
@@ -134,16 +145,25 @@ void
 mac_destroy_cred(struct ucred *cred)
 {
 
-	mac_destroy_cred_label(&cred->cr_label);
+	mac_cred_label_free(cred->cr_label);
+	cred->cr_label = NULL;
+}
+
+static void
+mac_proc_label_free(struct label *label)
+{
+
+	MAC_PERFORM(destroy_proc_label, label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacprocs);
 }
 
 void
 mac_destroy_proc(struct proc *p)
 {
 
-	MAC_PERFORM(destroy_proc_label, &p->p_label);
-	mac_destroy_label(&p->p_label);
-	MAC_DEBUG_COUNTER_DEC(&nmacprocs);
+	mac_proc_label_free(p->p_label);
+	p->p_label = NULL;
 }
 
 int
@@ -209,9 +229,9 @@ mac_create_cred(struct ucred *parent_cred, struct ucred *child_cred)
 }
 
 int
-mac_execve_enter(struct image_params *imgp, struct mac *mac_p,
-    struct label *execlabelstorage)
+mac_execve_enter(struct image_params *imgp, struct mac *mac_p)
 {
+	struct label *label;
 	struct mac mac;
 	char *buffer;
 	int error;
@@ -234,22 +254,24 @@ mac_execve_enter(struct image_params *imgp, struct mac *mac_p,
 		return (error);
 	}
 
-	mac_init_cred_label(execlabelstorage);
-	error = mac_internalize_cred_label(execlabelstorage, buffer);
+	label = mac_cred_label_alloc();
+	error = mac_internalize_cred_label(label, buffer);
 	free(buffer, M_MACTEMP);
 	if (error) {
-		mac_destroy_cred_label(execlabelstorage);
+		mac_cred_label_free(label);
 		return (error);
 	}
-	imgp->execlabel = execlabelstorage;
+	imgp->execlabel = label;
 	return (0);
 }
 
 void
 mac_execve_exit(struct image_params *imgp)
 {
-	if (imgp->execlabel != NULL)
-		mac_destroy_cred_label(imgp->execlabel);
+	if (imgp->execlabel != NULL) {
+		mac_cred_label_free(imgp->execlabel);
+		imgp->execlabel = NULL;
+	}
 }
 
 /*

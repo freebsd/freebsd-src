@@ -61,34 +61,31 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, pipes, CTLFLAG_RD,
     &nmacpipes, 0, "number of pipes in use");
 #endif
 
-MALLOC_DEFINE(M_MACPIPELABEL, "macpipelabel", "MAC labels for pipes");
-
-void
-mac_init_pipe_label(struct label *label)
+struct label *
+mac_pipe_label_alloc(void)
 {
+	struct label *label;
 
-	mac_init_label(label);
+	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_pipe_label, label);
 	MAC_DEBUG_COUNTER_INC(&nmacpipes);
+	return (label);
 }
 
 void
 mac_init_pipe(struct pipe *pipe)
 {
-	struct label *label;
 
-	label = malloc(sizeof(struct label), M_MACPIPELABEL, M_ZERO|M_WAITOK);
-	pipe->pipe_label = label;
-	pipe->pipe_peer->pipe_label = label;
-	mac_init_pipe_label(label);
+	pipe->pipe_label = pipe->pipe_peer->pipe_label =
+	    mac_pipe_label_alloc();
 }
 
 void
-mac_destroy_pipe_label(struct label *label)
+mac_pipe_label_free(struct label *label)
 {
 
 	MAC_PERFORM(destroy_pipe_label, label);
-	mac_destroy_label(label);
+	mac_labelzone_free(label);
 	MAC_DEBUG_COUNTER_DEC(&nmacpipes);
 }
 
@@ -96,8 +93,8 @@ void
 mac_destroy_pipe(struct pipe *pipe)
 {
 
-	mac_destroy_pipe_label(pipe->pipe_label);
-	free(pipe->pipe_label, M_MACPIPELABEL);
+	mac_pipe_label_free(pipe->pipe_label);
+	pipe->pipe_label = NULL;
 }
 
 void

@@ -635,7 +635,7 @@ mac_test_create_devfs_symlink(struct ucred *cred, struct mount *mp,
     struct label *delabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_DEVFS_LABEL(ddlabel);
 	ASSERT_DEVFS_LABEL(delabel);
 }
@@ -646,7 +646,7 @@ mac_test_create_vnode_extattr(struct ucred *cred, struct mount *mp,
     struct vnode *vp, struct label *vlabel, struct componentname *cnp)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_MOUNT_LABEL(fslabel);
 	ASSERT_VNODE_LABEL(dlabel);
 
@@ -658,7 +658,7 @@ mac_test_create_mount(struct ucred *cred, struct mount *mp,
     struct label *mntlabel, struct label *fslabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_MOUNT_LABEL(mntlabel);
 	ASSERT_MOUNT_LABEL(fslabel);
 }
@@ -668,7 +668,7 @@ mac_test_create_root_mount(struct ucred *cred, struct mount *mp,
     struct label *mntlabel, struct label *fslabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_MOUNT_LABEL(mntlabel);
 	ASSERT_MOUNT_LABEL(fslabel);
 }
@@ -678,7 +678,7 @@ mac_test_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(vnodelabel);
 	ASSERT_VNODE_LABEL(label);
 }
@@ -688,7 +688,7 @@ mac_test_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
     struct label *vlabel, struct label *intlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(vlabel);
 	ASSERT_VNODE_LABEL(intlabel);
 	return (0);
@@ -721,7 +721,7 @@ mac_test_create_socket(struct ucred *cred, struct socket *socket,
    struct label *socketlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(socketlabel);
 }
 
@@ -730,7 +730,7 @@ mac_test_create_pipe(struct ucred *cred, struct pipe *pipe,
    struct label *pipelabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 }
 
@@ -749,7 +749,7 @@ mac_test_relabel_socket(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(newlabel);
 }
 
@@ -758,7 +758,7 @@ mac_test_relabel_pipe(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 	ASSERT_PIPE_LABEL(newlabel);
 }
@@ -790,7 +790,7 @@ mac_test_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
     struct label *bpflabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_BPF_LABEL(bpflabel);
 }
 
@@ -916,7 +916,7 @@ mac_test_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
     struct label *ifnetlabel, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_IFNET_LABEL(ifnetlabel);
 	ASSERT_IFNET_LABEL(newlabel);
 }
@@ -937,8 +937,8 @@ static void
 mac_test_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 {
 
-	ASSERT_CRED_LABEL(&cred_parent->cr_label);
-	ASSERT_CRED_LABEL(&cred_child->cr_label);
+	ASSERT_CRED_LABEL(cred_parent->cr_label);
+	ASSERT_CRED_LABEL(cred_child->cr_label);
 }
 
 static void
@@ -948,8 +948,8 @@ mac_test_execve_transition(struct ucred *old, struct ucred *new,
     struct label *execlabel)
 {
 
-	ASSERT_CRED_LABEL(&old->cr_label);
-	ASSERT_CRED_LABEL(&new->cr_label);
+	ASSERT_CRED_LABEL(old->cr_label);
+	ASSERT_CRED_LABEL(new->cr_label);
 	ASSERT_VNODE_LABEL(filelabel);
 	ASSERT_VNODE_LABEL(interpvnodelabel);
 	if (execlabel != NULL) {
@@ -963,7 +963,7 @@ mac_test_execve_will_transition(struct ucred *old, struct vnode *vp,
     struct image_params *imgp, struct label *execlabel)
 {
 
-	ASSERT_CRED_LABEL(&old->cr_label);
+	ASSERT_CRED_LABEL(old->cr_label);
 	ASSERT_VNODE_LABEL(filelabel);
 	if (interpvnodelabel != NULL) {
 		ASSERT_VNODE_LABEL(interpvnodelabel);
@@ -979,21 +979,21 @@ static void
 mac_test_create_proc0(struct ucred *cred)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 }
 
 static void
 mac_test_create_proc1(struct ucred *cred)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 }
 
 static void
 mac_test_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(newlabel);
 }
 
@@ -1023,7 +1023,7 @@ static int
 mac_test_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_CRED_LABEL(newlabel);
 
 	return (0);
@@ -1033,8 +1033,8 @@ static int
 mac_test_check_cred_visible(struct ucred *u1, struct ucred *u2)
 {
 
-	ASSERT_CRED_LABEL(&u1->cr_label);
-	ASSERT_CRED_LABEL(&u2->cr_label);
+	ASSERT_CRED_LABEL(u1->cr_label);
+	ASSERT_CRED_LABEL(u2->cr_label);
 
 	return (0);
 }
@@ -1044,7 +1044,7 @@ mac_test_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
     struct label *ifnetlabel, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_IFNET_LABEL(ifnetlabel);
 	ASSERT_IFNET_LABEL(newlabel);
 	return (0);
@@ -1074,7 +1074,7 @@ static int
 mac_test_check_kenv_get(struct ucred *cred, char *name)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1083,7 +1083,7 @@ static int
 mac_test_check_kenv_set(struct ucred *cred, char *name, char *value)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1092,7 +1092,7 @@ static int
 mac_test_check_kenv_unset(struct ucred *cred, char *name)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1102,7 +1102,7 @@ mac_test_check_kld_load(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1112,7 +1112,7 @@ static int
 mac_test_check_kld_stat(struct ucred *cred)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1121,7 +1121,7 @@ static int
 mac_test_check_kld_unload(struct ucred *cred)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1131,7 +1131,7 @@ mac_test_check_mount_stat(struct ucred *cred, struct mount *mp,
     struct label *mntlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_MOUNT_LABEL(mntlabel);
 
 	return (0);
@@ -1142,7 +1142,7 @@ mac_test_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 
 	return (0);
@@ -1153,7 +1153,7 @@ mac_test_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 
 	return (0);
@@ -1164,7 +1164,7 @@ mac_test_check_pipe_read(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 
 	return (0);
@@ -1175,7 +1175,7 @@ mac_test_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 	ASSERT_PIPE_LABEL(newlabel);
 
@@ -1187,7 +1187,7 @@ mac_test_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 
 	return (0);
@@ -1198,7 +1198,7 @@ mac_test_check_pipe_write(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
 
 	return (0);
@@ -1208,8 +1208,8 @@ static int
 mac_test_check_proc_debug(struct ucred *cred, struct proc *proc)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
-	ASSERT_CRED_LABEL(&proc->p_ucred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_CRED_LABEL(proc->p_ucred->cr_label);
 
 	return (0);
 }
@@ -1218,8 +1218,8 @@ static int
 mac_test_check_proc_sched(struct ucred *cred, struct proc *proc)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
-	ASSERT_CRED_LABEL(&proc->p_ucred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_CRED_LABEL(proc->p_ucred->cr_label);
 
 	return (0);
 }
@@ -1228,8 +1228,8 @@ static int
 mac_test_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
-	ASSERT_CRED_LABEL(&proc->p_ucred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_CRED_LABEL(proc->p_ucred->cr_label);
 
 	return (0);
 }
@@ -1239,7 +1239,7 @@ mac_test_check_socket_bind(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct sockaddr *sockaddr)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(socketlabel);
 
 	return (0);
@@ -1250,7 +1250,7 @@ mac_test_check_socket_connect(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct sockaddr *sockaddr)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(socketlabel);
 
 	return (0);
@@ -1272,7 +1272,7 @@ mac_test_check_socket_listen(struct ucred *cred, struct socket *socket,
     struct label *socketlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(socketlabel);
 
 	return (0);
@@ -1283,7 +1283,7 @@ mac_test_check_socket_visible(struct ucred *cred, struct socket *socket,
     struct label *socketlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(socketlabel);
 
 	return (0);
@@ -1294,7 +1294,7 @@ mac_test_check_socket_relabel(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(socketlabel);
 	ASSERT_SOCKET_LABEL(newlabel);
 
@@ -1305,7 +1305,7 @@ static int
 mac_test_check_sysarch_ioperm(struct ucred *cred)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1315,7 +1315,7 @@ mac_test_check_system_acct(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1324,7 +1324,7 @@ static int
 mac_test_check_system_reboot(struct ucred *cred, int how)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1333,7 +1333,7 @@ static int
 mac_test_check_system_settime(struct ucred *cred)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1343,7 +1343,7 @@ mac_test_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1354,7 +1354,7 @@ mac_test_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1365,7 +1365,7 @@ mac_test_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
     void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 
 	return (0);
 }
@@ -1375,7 +1375,7 @@ mac_test_check_vnode_access(struct ucred *cred, struct vnode *vp,
     struct label *label, int acc_mode)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1386,7 +1386,7 @@ mac_test_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 
 	return (0);
@@ -1397,7 +1397,7 @@ mac_test_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 
 	return (0);
@@ -1408,7 +1408,7 @@ mac_test_check_vnode_create(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct componentname *cnp, struct vattr *vap)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 
 	return (0);
@@ -1420,7 +1420,7 @@ mac_test_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
     struct componentname *cnp)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 	ASSERT_VNODE_LABEL(label);
 
@@ -1432,7 +1432,7 @@ mac_test_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *label, acl_type_t type)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1443,7 +1443,7 @@ mac_test_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
     struct label *label, int attrnamespace, const char *name)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1455,7 +1455,7 @@ mac_test_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *execlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 	if (execlabel != NULL) {
 		ASSERT_CRED_LABEL(execlabel);
@@ -1469,7 +1469,7 @@ mac_test_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
     struct label *label, acl_type_t type)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1480,7 +1480,7 @@ mac_test_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
     struct label *label, int attrnamespace, const char *name, struct uio *uio)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1492,7 +1492,7 @@ mac_test_check_vnode_link(struct ucred *cred, struct vnode *dvp,
     struct componentname *cnp)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 	ASSERT_VNODE_LABEL(label);
 
@@ -1504,7 +1504,7 @@ mac_test_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
     struct label *label, int attrnamespace)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1515,7 +1515,7 @@ mac_test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct componentname *cnp)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 
 	return (0);
@@ -1526,7 +1526,7 @@ mac_test_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
     struct label *label, int prot)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1537,7 +1537,7 @@ mac_test_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
     struct label *label, int prot)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1548,7 +1548,7 @@ mac_test_check_vnode_open(struct ucred *cred, struct vnode *vp,
     struct label *filelabel, int acc_mode)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(filelabel);
 
 	return (0);
@@ -1559,8 +1559,8 @@ mac_test_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&active_cred->cr_label);
-	ASSERT_CRED_LABEL(&file_cred->cr_label);
+	ASSERT_CRED_LABEL(active_cred->cr_label);
+	ASSERT_CRED_LABEL(file_cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1571,9 +1571,9 @@ mac_test_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&active_cred->cr_label);
+	ASSERT_CRED_LABEL(active_cred->cr_label);
 	if (file_cred != NULL) {
-		ASSERT_CRED_LABEL(&file_cred->cr_label);
+		ASSERT_CRED_LABEL(file_cred->cr_label);
 	}
 	ASSERT_VNODE_LABEL(label);
 
@@ -1585,7 +1585,7 @@ mac_test_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 
 	return (0);
@@ -1596,7 +1596,7 @@ mac_test_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(vnodelabel);
 
 	return (0);
@@ -1607,7 +1607,7 @@ mac_test_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, struct label *newlabel)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(vnodelabel);
 	ASSERT_VNODE_LABEL(newlabel);
 
@@ -1620,7 +1620,7 @@ mac_test_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
     struct componentname *cnp)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 	ASSERT_VNODE_LABEL(label);
 
@@ -1633,7 +1633,7 @@ mac_test_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
     struct componentname *cnp)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(dlabel);
 
 	if (vp != NULL) {
@@ -1648,7 +1648,7 @@ mac_test_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1659,7 +1659,7 @@ mac_test_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
     struct label *label, acl_type_t type, struct acl *acl)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1670,7 +1670,7 @@ mac_test_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *label, int attrnamespace, const char *name, struct uio *uio)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1681,7 +1681,7 @@ mac_test_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
     struct label *label, u_long flags)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1692,7 +1692,7 @@ mac_test_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
     struct label *label, mode_t mode)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1703,7 +1703,7 @@ mac_test_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
     struct label *label, uid_t uid, gid_t gid)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1714,7 +1714,7 @@ mac_test_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *label, struct timespec atime, struct timespec mtime)
 {
 
-	ASSERT_CRED_LABEL(&cred->cr_label);
+	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_VNODE_LABEL(label);
 
 	return (0);
@@ -1725,9 +1725,9 @@ mac_test_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&active_cred->cr_label);
+	ASSERT_CRED_LABEL(active_cred->cr_label);
 	if (file_cred != NULL) {
-		ASSERT_CRED_LABEL(&file_cred->cr_label);
+		ASSERT_CRED_LABEL(file_cred->cr_label);
 	}
 	ASSERT_VNODE_LABEL(label);
 
@@ -1739,9 +1739,9 @@ mac_test_check_vnode_write(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *label)
 {
 
-	ASSERT_CRED_LABEL(&active_cred->cr_label);
+	ASSERT_CRED_LABEL(active_cred->cr_label);
 	if (file_cred != NULL) {
-		ASSERT_CRED_LABEL(&file_cred->cr_label);
+		ASSERT_CRED_LABEL(file_cred->cr_label);
 	}
 	ASSERT_VNODE_LABEL(label);
 

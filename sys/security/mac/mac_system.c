@@ -120,7 +120,7 @@ mac_check_kld_load(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_kld)
 		return (0);
 
-	MAC_CHECK(check_kld_load, cred, vp, &vp->v_label);
+	MAC_CHECK(check_kld_load, cred, vp, vp->v_label);
 
 	return (error);
 }
@@ -176,7 +176,7 @@ mac_check_system_acct(struct ucred *cred, struct vnode *vp)
 		return (0);
 
 	MAC_CHECK(check_system_acct, cred, vp,
-	    vp != NULL ? &vp->v_label : NULL);
+	    vp != NULL ? vp->v_label : NULL);
 
 	return (error);
 }
@@ -230,7 +230,7 @@ mac_check_system_swapon(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_system)
 		return (0);
 
-	MAC_CHECK(check_system_swapon, cred, vp, &vp->v_label);
+	MAC_CHECK(check_system_swapon, cred, vp, vp->v_label);
 	return (error);
 }
 
@@ -244,7 +244,7 @@ mac_check_system_swapoff(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_system)
 		return (0);
 
-	MAC_CHECK(check_system_swapoff, cred, vp, &vp->v_label);
+	MAC_CHECK(check_system_swapoff, cred, vp, vp->v_label);
 	return (error);
 }
 

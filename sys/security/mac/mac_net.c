@@ -91,7 +91,8 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, sockets, CTLFLAG_RD,
     &nmacsockets, 0, "number of sockets in use");
 #endif
 
-static void	mac_destroy_socket_label(struct label *label);
+static void	mac_socket_label_free(struct label *label);
+
 
 static struct label *
 mbuf_to_label(struct mbuf *mbuf)
@@ -105,46 +106,70 @@ mbuf_to_label(struct mbuf *mbuf)
 	return (label);
 }
 
+static struct label *
+mac_bpfdesc_label_alloc(void)
+{
+	struct label *label;
+
+	label = mac_labelzone_alloc(M_WAITOK);
+	MAC_PERFORM(init_bpfdesc_label, label);
+	MAC_DEBUG_COUNTER_INC(&nmacbpfdescs);
+	return (label);
+}
+
 void
 mac_init_bpfdesc(struct bpf_d *bpf_d)
 {
 
-	mac_init_label(&bpf_d->bd_label);
-	MAC_PERFORM(init_bpfdesc_label, &bpf_d->bd_label);
-	MAC_DEBUG_COUNTER_INC(&nmacbpfdescs);
+	bpf_d->bd_label = mac_bpfdesc_label_alloc();
 }
 
-static void
-mac_init_ifnet_label(struct label *label)
+static struct label *
+mac_ifnet_label_alloc(void)
 {
+	struct label *label;
 
-	mac_init_label(label);
+	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_ifnet_label, label);
 	MAC_DEBUG_COUNTER_INC(&nmacifnets);
+	return (label);
 }
 
 void
 mac_init_ifnet(struct ifnet *ifp)
 {
 
-	mac_init_ifnet_label(&ifp->if_label);
+	ifp->if_label = mac_ifnet_label_alloc();
+}
+
+static struct label *
+mac_ipq_label_alloc(int flag)
+{
+	struct label *label;
+	int error;
+
+	label = mac_labelzone_alloc(flag);
+	if (label == NULL)
+		return (NULL);
+
+	MAC_CHECK(init_ipq_label, label, flag);
+	if (error) {
+		MAC_PERFORM(destroy_ipq_label, label);
+		mac_labelzone_free(label);
+		return (NULL);
+	}
+	MAC_DEBUG_COUNTER_INC(&nmacipqs);
+	return (label);
 }
 
 int
 mac_init_ipq(struct ipq *ipq, int flag)
 {
-	int error;
 
-	mac_init_label(&ipq->ipq_label);
-
-	MAC_CHECK(init_ipq_label, &ipq->ipq_label, flag);
-	if (error) {
-		MAC_PERFORM(destroy_ipq_label, &ipq->ipq_label);
-		mac_destroy_label(&ipq->ipq_label);
-	} else {
-		MAC_DEBUG_COUNTER_INC(&nmacipqs);
-	}
-	return (error);
+	ipq->ipq_label = mac_ipq_label_alloc(flag);
+	if (ipq->ipq_label == NULL)
+		return (ENOMEM);
+	return (0);
 }
 
 int
@@ -195,71 +220,85 @@ mac_init_mbuf(struct mbuf *m, int flag)
 	return (0);
 }
 
-static int
-mac_init_socket_label(struct label *label, int flag)
+static struct label *
+mac_socket_label_alloc(int flag)
 {
+	struct label *label;
 	int error;
 
-	mac_init_label(label);
+	label = mac_labelzone_alloc(flag);
+	if (label == NULL)
+		return (NULL);
 
 	MAC_CHECK(init_socket_label, label, flag);
 	if (error) {
 		MAC_PERFORM(destroy_socket_label, label);
-		mac_destroy_label(label);
-	} else {
-		MAC_DEBUG_COUNTER_INC(&nmacsockets);
+		mac_labelzone_free(label);
+		return  (NULL);
 	}
-
-	return (error);
+	MAC_DEBUG_COUNTER_INC(&nmacsockets);
+	return (label);
 }
 
-static int
-mac_init_socket_peer_label(struct label *label, int flag)
+static struct label *
+mac_socket_peer_label_alloc(int flag)
 {
+	struct label *label;
 	int error;
 
-	mac_init_label(label);
+	label = mac_labelzone_alloc(flag);
+	if (label == NULL)
+		return (NULL);
 
 	MAC_CHECK(init_socket_peer_label, label, flag);
 	if (error) {
 		MAC_PERFORM(destroy_socket_peer_label, label);
-		mac_destroy_label(label);
+		mac_labelzone_free(label);
+		return  (NULL);
 	}
-
-	return (error);
+	MAC_DEBUG_COUNTER_INC(&nmacsockets);
+	return (label);
 }
 
 int
-mac_init_socket(struct socket *socket, int flag)
+mac_init_socket(struct socket *so, int flag)
 {
-	int error;
 
-	error = mac_init_socket_label(&socket->so_label, flag);
-	if (error)
-		return (error);
+	so->so_label = mac_socket_label_alloc(flag);
+	if (so->so_label == NULL)
+		return (ENOMEM);
+	so->so_peerlabel = mac_socket_peer_label_alloc(flag);
+	if (so->so_peerlabel == NULL) {
+		mac_socket_label_free(so->so_label);
+		so->so_label = NULL;
+		return (ENOMEM);
+	}
+	return (0);
+}
 
-	error = mac_init_socket_peer_label(&socket->so_peerlabel, flag);
-	if (error)
-		mac_destroy_socket_label(&socket->so_label);
+static void
+mac_bpfdesc_label_free(struct label *label)
+{
 
-	return (error);
+	MAC_PERFORM(destroy_bpfdesc_label, label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacbpfdescs);
 }
 
 void
 mac_destroy_bpfdesc(struct bpf_d *bpf_d)
 {
 
-	MAC_PERFORM(destroy_bpfdesc_label, &bpf_d->bd_label);
-	mac_destroy_label(&bpf_d->bd_label);
-	MAC_DEBUG_COUNTER_DEC(&nmacbpfdescs);
+	mac_bpfdesc_label_free(bpf_d->bd_label);
+	bpf_d->bd_label = NULL;
 }
 
 static void
-mac_destroy_ifnet_label(struct label *label)
+mac_ifnet_label_free(struct label *label)
 {
 
 	MAC_PERFORM(destroy_ifnet_label, label);
-	mac_destroy_label(label);
+	mac_labelzone_free(label);
 	MAC_DEBUG_COUNTER_DEC(&nmacifnets);
 }
 
@@ -267,16 +306,25 @@ void
 mac_destroy_ifnet(struct ifnet *ifp)
 {
 
-	mac_destroy_ifnet_label(&ifp->if_label);
+	mac_ifnet_label_free(ifp->if_label);
+	ifp->if_label = NULL;
+}
+
+static void
+mac_ipq_label_free(struct label *label)
+{
+
+	MAC_PERFORM(destroy_ipq_label, label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacipqs);
 }
 
 void
 mac_destroy_ipq(struct ipq *ipq)
 {
 
-	MAC_PERFORM(destroy_ipq_label, &ipq->ipq_label);
-	mac_destroy_label(&ipq->ipq_label);
-	MAC_DEBUG_COUNTER_DEC(&nmacipqs);
+	mac_ipq_label_free(ipq->ipq_label);
+	ipq->ipq_label = NULL;
 }
 
 void
@@ -292,28 +340,31 @@ mac_destroy_mbuf_tag(struct m_tag *tag)
 }
 
 static void
-mac_destroy_socket_label(struct label *label)
+mac_socket_label_free(struct label *label)
 {
 
 	MAC_PERFORM(destroy_socket_label, label);
-	mac_destroy_label(label);
+	mac_labelzone_free(label);
 	MAC_DEBUG_COUNTER_DEC(&nmacsockets);
 }
 
 static void
-mac_destroy_socket_peer_label(struct label *label)
+mac_socket_peer_label_free(struct label *label)
 {
 
 	MAC_PERFORM(destroy_socket_peer_label, label);
-	mac_destroy_label(label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacsockets);
 }
 
 void
 mac_destroy_socket(struct socket *socket)
 {
 
-	mac_destroy_socket_label(&socket->so_label);
-	mac_destroy_socket_peer_label(&socket->so_peerlabel);
+	mac_socket_label_free(socket->so_label);
+	socket->so_label = NULL;
+	mac_socket_peer_label_free(socket->so_peerlabel);
+	socket->so_peerlabel = NULL;
 }
 
 void
@@ -388,21 +439,21 @@ void
 mac_create_ifnet(struct ifnet *ifnet)
 {
 
-	MAC_PERFORM(create_ifnet, ifnet, &ifnet->if_label);
+	MAC_PERFORM(create_ifnet, ifnet, ifnet->if_label);
 }
 
 void
 mac_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d)
 {
 
-	MAC_PERFORM(create_bpfdesc, cred, bpf_d, &bpf_d->bd_label);
+	MAC_PERFORM(create_bpfdesc, cred, bpf_d, bpf_d->bd_label);
 }
 
 void
 mac_create_socket(struct ucred *cred, struct socket *socket)
 {
 
-	MAC_PERFORM(create_socket, cred, socket, &socket->so_label);
+	MAC_PERFORM(create_socket, cred, socket, socket->so_label);
 }
 
 void
@@ -410,8 +461,8 @@ mac_create_socket_from_socket(struct socket *oldsocket,
     struct socket *newsocket)
 {
 
-	MAC_PERFORM(create_socket_from_socket, oldsocket, &oldsocket->so_label,
-	    newsocket, &newsocket->so_label);
+	MAC_PERFORM(create_socket_from_socket, oldsocket, oldsocket->so_label,
+	    newsocket, newsocket->so_label);
 }
 
 static void
@@ -419,7 +470,7 @@ mac_relabel_socket(struct ucred *cred, struct socket *socket,
     struct label *newlabel)
 {
 
-	MAC_PERFORM(relabel_socket, cred, socket, &socket->so_label, newlabel);
+	MAC_PERFORM(relabel_socket, cred, socket, socket->so_label, newlabel);
 }
 
 void
@@ -430,7 +481,7 @@ mac_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct socket *socket)
 	label = mbuf_to_label(mbuf);
 
 	MAC_PERFORM(set_socket_peer_from_mbuf, mbuf, label, socket,
-	    &socket->so_peerlabel);
+	    socket->so_peerlabel);
 }
 
 void
@@ -439,7 +490,7 @@ mac_set_socket_peer_from_socket(struct socket *oldsocket,
 {
 
 	MAC_PERFORM(set_socket_peer_from_socket, oldsocket,
-	    &oldsocket->so_label, newsocket, &newsocket->so_peerlabel);
+	    oldsocket->so_label, newsocket, newsocket->so_peerlabel);
 }
 
 void
@@ -449,7 +500,7 @@ mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *datagram)
 
 	label = mbuf_to_label(datagram);
 
-	MAC_PERFORM(create_datagram_from_ipq, ipq, &ipq->ipq_label,
+	MAC_PERFORM(create_datagram_from_ipq, ipq, ipq->ipq_label,
 	    datagram, label);
 }
 
@@ -472,7 +523,7 @@ mac_create_ipq(struct mbuf *fragment, struct ipq *ipq)
 
 	label = mbuf_to_label(fragment);
 
-	MAC_PERFORM(create_ipq, fragment, label, ipq, &ipq->ipq_label);
+	MAC_PERFORM(create_ipq, fragment, label, ipq, ipq->ipq_label);
 }
 
 void
@@ -494,7 +545,7 @@ mac_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct mbuf *mbuf)
 
 	label = mbuf_to_label(mbuf);
 
-	MAC_PERFORM(create_mbuf_from_bpfdesc, bpf_d, &bpf_d->bd_label, mbuf,
+	MAC_PERFORM(create_mbuf_from_bpfdesc, bpf_d, bpf_d->bd_label, mbuf,
 	    label);
 }
 
@@ -505,7 +556,7 @@ mac_create_mbuf_linklayer(struct ifnet *ifnet, struct mbuf *mbuf)
 
 	label = mbuf_to_label(mbuf);
 
-	MAC_PERFORM(create_mbuf_linklayer, ifnet, &ifnet->if_label, mbuf,
+	MAC_PERFORM(create_mbuf_linklayer, ifnet, ifnet->if_label, mbuf,
 	    label);
 }
 
@@ -516,7 +567,7 @@ mac_create_mbuf_from_ifnet(struct ifnet *ifnet, struct mbuf *mbuf)
 
 	label = mbuf_to_label(mbuf);
 
-	MAC_PERFORM(create_mbuf_from_ifnet, ifnet, &ifnet->if_label, mbuf,
+	MAC_PERFORM(create_mbuf_from_ifnet, ifnet, ifnet->if_label, mbuf,
 	    label);
 }
 
@@ -530,7 +581,7 @@ mac_create_mbuf_multicast_encap(struct mbuf *oldmbuf, struct ifnet *ifnet,
 	newmbuflabel = mbuf_to_label(newmbuf);
 
 	MAC_PERFORM(create_mbuf_multicast_encap, oldmbuf, oldmbuflabel,
-	    ifnet, &ifnet->if_label, newmbuf, newmbuflabel);
+	    ifnet, ifnet->if_label, newmbuf, newmbuflabel);
 }
 
 void
@@ -555,7 +606,7 @@ mac_fragment_match(struct mbuf *fragment, struct ipq *ipq)
 
 	result = 1;
 	MAC_BOOLEAN(fragment_match, &&, fragment, label, ipq,
-	    &ipq->ipq_label);
+	    ipq->ipq_label);
 
 	return (result);
 }
@@ -586,7 +637,7 @@ mac_update_ipq(struct mbuf *fragment, struct ipq *ipq)
 
 	label = mbuf_to_label(fragment);
 
-	MAC_PERFORM(update_ipq, fragment, label, ipq, &ipq->ipq_label);
+	MAC_PERFORM(update_ipq, fragment, label, ipq, ipq->ipq_label);
 }
 
 void
@@ -596,7 +647,7 @@ mac_create_mbuf_from_socket(struct socket *socket, struct mbuf *mbuf)
 
 	label = mbuf_to_label(mbuf);
 
-	MAC_PERFORM(create_mbuf_from_socket, socket, &socket->so_label, mbuf,
+	MAC_PERFORM(create_mbuf_from_socket, socket, socket->so_label, mbuf,
 	    label);
 }
 
@@ -608,8 +659,8 @@ mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet)
 	if (!mac_enforce_network)
 		return (0);
 
-	MAC_CHECK(check_bpfdesc_receive, bpf_d, &bpf_d->bd_label, ifnet,
-	    &ifnet->if_label);
+	MAC_CHECK(check_bpfdesc_receive, bpf_d, bpf_d->bd_label, ifnet,
+	    ifnet->if_label);
 
 	return (error);
 }
@@ -627,7 +678,7 @@ mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 
 	label = mbuf_to_label(mbuf);
 
-	MAC_CHECK(check_ifnet_transmit, ifnet, &ifnet->if_label, mbuf,
+	MAC_CHECK(check_ifnet_transmit, ifnet, ifnet->if_label, mbuf,
 	    label);
 
 	return (error);
@@ -642,7 +693,7 @@ mac_check_socket_bind(struct ucred *ucred, struct socket *socket,
 	if (!mac_enforce_socket)
 		return (0);
 
-	MAC_CHECK(check_socket_bind, ucred, socket, &socket->so_label,
+	MAC_CHECK(check_socket_bind, ucred, socket, socket->so_label,
 	    sockaddr);
 
 	return (error);
@@ -657,7 +708,7 @@ mac_check_socket_connect(struct ucred *cred, struct socket *socket,
 	if (!mac_enforce_socket)
 		return (0);
 
-	MAC_CHECK(check_socket_connect, cred, socket, &socket->so_label,
+	MAC_CHECK(check_socket_connect, cred, socket, socket->so_label,
 	    sockaddr);
 
 	return (error);
@@ -674,7 +725,7 @@ mac_check_socket_deliver(struct socket *socket, struct mbuf *mbuf)
 
 	label = mbuf_to_label(mbuf);
 
-	MAC_CHECK(check_socket_deliver, socket, &socket->so_label, mbuf,
+	MAC_CHECK(check_socket_deliver, socket, socket->so_label, mbuf,
 	    label);
 
 	return (error);
@@ -688,7 +739,7 @@ mac_check_socket_listen(struct ucred *cred, struct socket *socket)
 	if (!mac_enforce_socket)
 		return (0);
 
-	MAC_CHECK(check_socket_listen, cred, socket, &socket->so_label);
+	MAC_CHECK(check_socket_listen, cred, socket, socket->so_label);
 	return (error);
 }
 
@@ -700,7 +751,7 @@ mac_check_socket_receive(struct ucred *cred, struct socket *so)
 	if (!mac_enforce_socket)
 		return (0);
 
-	MAC_CHECK(check_socket_receive, cred, so, &so->so_label);
+	MAC_CHECK(check_socket_receive, cred, so, so->so_label);
 
 	return (error);
 }
@@ -711,7 +762,7 @@ mac_check_socket_relabel(struct ucred *cred, struct socket *socket,
 {
 	int error;
 
-	MAC_CHECK(check_socket_relabel, cred, socket, &socket->so_label,
+	MAC_CHECK(check_socket_relabel, cred, socket, socket->so_label,
 	    newlabel);
 
 	return (error);
@@ -725,7 +776,7 @@ mac_check_socket_send(struct ucred *cred, struct socket *so)
 	if (!mac_enforce_socket)
 		return (0);
 
-	MAC_CHECK(check_socket_send, cred, so, &so->so_label);
+	MAC_CHECK(check_socket_send, cred, so, so->so_label);
 
 	return (error);
 }
@@ -738,7 +789,7 @@ mac_check_socket_visible(struct ucred *cred, struct socket *socket)
 	if (!mac_enforce_socket)
 		return (0);
 
-	MAC_CHECK(check_socket_visible, cred, socket, &socket->so_label);
+	MAC_CHECK(check_socket_visible, cred, socket, socket->so_label);
 
 	return (error);
 }
@@ -767,7 +818,7 @@ mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_externalize_ifnet_label(&ifnet->if_label, elements,
+	error = mac_externalize_ifnet_label(ifnet->if_label, elements,
 	    buffer, mac.m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
@@ -782,7 +833,7 @@ int
 mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
     struct ifnet *ifnet)
 {
-	struct label intlabel;
+	struct label *intlabel;
 	struct mac mac;
 	char *buffer;
 	int error;
@@ -802,11 +853,11 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 		return (error);
 	}
 
-	mac_init_ifnet_label(&intlabel);
-	error = mac_internalize_ifnet_label(&intlabel, buffer);
+	intlabel = mac_ifnet_label_alloc();
+	error = mac_internalize_ifnet_label(intlabel, buffer);
 	free(buffer, M_MACTEMP);
 	if (error) {
-		mac_destroy_ifnet_label(&intlabel);
+		mac_ifnet_label_free(intlabel);
 		return (error);
 	}
 
@@ -817,20 +868,20 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 	 */
 	error = suser_cred(cred, 0);
 	if (error) {
-		mac_destroy_ifnet_label(&intlabel);
+		mac_ifnet_label_free(intlabel);
 		return (error);
 	}
 
-	MAC_CHECK(check_ifnet_relabel, cred, ifnet, &ifnet->if_label,
-	    &intlabel);
+	MAC_CHECK(check_ifnet_relabel, cred, ifnet, ifnet->if_label,
+	    intlabel);
 	if (error) {
-		mac_destroy_ifnet_label(&intlabel);
+		mac_ifnet_label_free(intlabel);
 		return (error);
 	}
 
-	MAC_PERFORM(relabel_ifnet, cred, ifnet, &ifnet->if_label, &intlabel);
+	MAC_PERFORM(relabel_ifnet, cred, ifnet, ifnet->if_label, intlabel);
 
-	mac_destroy_ifnet_label(&intlabel);
+	mac_ifnet_label_free(intlabel);
 	return (0);
 }
 
@@ -838,7 +889,7 @@ int
 mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
     struct mac *mac)
 {
-	struct label intlabel;
+	struct label *intlabel;
 	char *buffer;
 	int error;
 
@@ -853,23 +904,23 @@ mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
 		return (error);
 	}
 
-	mac_init_socket_label(&intlabel, M_WAITOK);
-	error = mac_internalize_socket_label(&intlabel, buffer);
+	intlabel = mac_socket_label_alloc(M_WAITOK);
+	error = mac_internalize_socket_label(intlabel, buffer);
 	free(buffer, M_MACTEMP);
 	if (error) {
-		mac_destroy_socket_label(&intlabel);
+		mac_socket_label_free(intlabel);
 		return (error);
 	}
 
-	mac_check_socket_relabel(cred, so, &intlabel);
+	mac_check_socket_relabel(cred, so, intlabel);
 	if (error) {
-		mac_destroy_socket_label(&intlabel);
+		mac_socket_label_free(intlabel);
 		return (error);
 	}
 
-	mac_relabel_socket(cred, so, &intlabel);
+	mac_relabel_socket(cred, so, intlabel);
 
-	mac_destroy_socket_label(&intlabel);
+	mac_socket_label_free(intlabel);
 	return (0);
 }
 
@@ -892,7 +943,7 @@ mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
 	}
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_externalize_socket_label(&so->so_label, elements,
+	error = mac_externalize_socket_label(so->so_label, elements,
 	    buffer, mac->m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
@@ -922,7 +973,7 @@ mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
 	}
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_externalize_socket_peer_label(&so->so_peerlabel,
+	error = mac_externalize_socket_peer_label(so->so_peerlabel,
 	    elements, buffer, mac->m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);

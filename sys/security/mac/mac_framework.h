@@ -144,7 +144,6 @@ int	mac_init_mbuf_tag(struct m_tag *, int flag);
 void	mac_init_mount(struct mount *);
 void	mac_init_proc(struct proc *);
 void	mac_init_vnode(struct vnode *);
-void	mac_init_vnode_label(struct label *);
 void	mac_copy_mbuf_tag(struct m_tag *, struct m_tag *);
 void	mac_copy_vnode_label(struct label *, struct label *label);
 void	mac_destroy_bpfdesc(struct bpf_d *);
@@ -158,7 +157,12 @@ void	mac_destroy_proc(struct proc *);
 void	mac_destroy_mbuf_tag(struct m_tag *);
 void	mac_destroy_mount(struct mount *);
 void	mac_destroy_vnode(struct vnode *);
-void	mac_destroy_vnode_label(struct label *);
+
+struct label	*mac_cred_label_alloc(void);
+void		 mac_cred_label_free(struct label *label);
+struct label	*mac_vnode_label_alloc(void);
+void		 mac_vnode_label_free(struct label *label);
+void		 mac_destroy_vnode_label(struct label *);
 
 /*
  * Labeling event operations: file system objects, and things that
@@ -220,8 +224,7 @@ void	mac_update_ipq(struct mbuf *fragment, struct ipq *ipq);
  * Labeling event operations: processes.
  */
 void	mac_create_cred(struct ucred *cred_parent, struct ucred *cred_child);
-int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p,
-	    struct label *execlabel);
+int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);
 void	mac_execve_exit(struct image_params *imgp);
 void	mac_execve_transition(struct ucred *old, struct ucred *new,
 	    struct vnode *vp, struct label *interpvnodelabel,
