@@ -94,7 +94,7 @@ __RCSID("@(#) $FreeBSD$");
 #define	ASN_IPADDR	0x40
 #define	ASN_TIMESTAMP	0x43
 
-static char *Var_Types[] = {
+static const char *Var_Types[] = {
 	"",
 	"",
 	"ASN_INTEGER",
@@ -293,7 +293,7 @@ enum ilmi_states {
 	ILMI_RUNNING			/* Normal processing */
 };
 
-static char *ILMI_State[] = {
+static const char *ILMI_State[] = {
 	"UNKNOWN",
 	"COLDSTART",
 	"INIT",
@@ -318,14 +318,6 @@ u_char	Resp_Buf[1024];
  */
 #define	COPY_RESP(resp)	\
         bcopy ( (resp), Resp_Buf, (resp)[0] + 1 )
-
-/*
- * TRAP generic trap types
- */
-char	*Traps[] = { "coldStart", "warmStart", "linkDown", "linkUp",
-		"authenticationFailure", "egpNeighborLoss",
-			"enterpriseSpecific" };
-
 
 int                     NUnits;
 
@@ -370,8 +362,8 @@ void	set_reqid( u_char *, int );
 void	Increment_DL( int );
 void	Decrement_DL( int );
 
-static char	*Months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-			     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+static const char *Months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+				"Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
 static void hexdump (FILE *, u_int8_t *, int, char *);
 
