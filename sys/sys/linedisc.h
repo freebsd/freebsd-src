@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.55 1999/05/11 19:54:54 phk Exp $
+ * $Id: conf.h,v 1.56 1999/05/12 22:33:08 peter Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -112,7 +112,7 @@ struct cdevsw {
 	d_write_t	*d_write;
 	d_ioctl_t	*d_ioctl;
 	d_stop_t	*d_stop;
-	d_reset_t	*d_reset;	/* XXX not used */
+	d_reset_t	*d_bogoreset;	/* XXX not used */
 	d_devtotty_t	*d_devtotty;
 	d_poll_t	*d_poll;
 	d_mmap_t	*d_mmap;
@@ -208,16 +208,9 @@ d_stop_t	nostop;
 d_reset_t	noreset;
 d_devtotty_t	nodevtotty;
 d_mmap_t	nommap;
-
-/* Bogus defines for compatibility. */
-#define	noioc		noioctl
-#define	nostrat		nostrategy
-#define zerosize	nopsize
-/*
- * XXX d_strategy seems to be unused for cdevs that aren't associated with
- * bdevs and called without checking for it being non-NULL for bdevs.
- */
 #define	nostrategy	((d_strategy_t *)NULL)
+#define	noparms	((d_parms_t *)NULL)
+#define	nopoll	seltrue
 
 d_dump_t	nodump;
 
@@ -228,8 +221,6 @@ d_dump_t	nodump;
 
 d_open_t	nullopen;
 d_close_t	nullclose;
-#define	nullstop nostop		/* one void return is as good as another */
-#define	nullreset noreset	/* one unused function is as good as another */
 
 l_read_t	l_noread;
 l_write_t	l_nowrite;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.12 1999/02/14 11:59:59 nsouch Exp $
+ *	$Id: ppi.c,v 1.13 1999/04/28 10:51:39 dt Exp $
  *
  */
 #include "ppi.h"
@@ -91,10 +91,27 @@ static	d_write_t	ppiwrite;
 static	d_read_t	ppiread;
 
 #define CDEV_MAJOR 82
-static struct cdevsw ppi_cdevsw = 
-	{ ppiopen,	ppiclose,	ppiread,	ppiwrite,	/* 82 */
-	  ppiioctl,	nullstop,	nullreset,	nodevtotty,
-	  seltrue,	nommap,		nostrat,	"ppi",	NULL,	-1 };
+static struct cdevsw ppi_cdevsw = {
+	/* open */	ppiopen,
+	/* close */	ppiclose,
+	/* read */	ppiread,
+	/* write */	ppiwrite,
+	/* ioctl */	ppiioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ppi",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 #ifdef PERIPH_1284
 

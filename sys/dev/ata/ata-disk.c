@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.10 1999/05/11 19:53:58 phk Exp $
+ *	$Id: ata-disk.c,v 1.11 1999/05/17 15:58:45 sos Exp $
  */
 
 #include "ata.h"
@@ -62,16 +62,31 @@ static d_psize_t	adpsize;
 
 #define BDEV_MAJOR 30
 #define CDEV_MAJOR 116
-static struct cdevsw ad_cdevsw = {
-    adopen,	adclose,	physread,	physwrite,	
-    adioctl,	nostop,		nullreset,	nodevtotty,
 #ifdef NOTYET	/* the boot code needs to be fixed to boot arbitrary devices */
-    seltrue,	nommap,		adstrategy,	"ad",
+#define DRIVER_NAME "ad"
 #else
-    seltrue,	nommap,		adstrategy,	"wd",
+#define DRIVER_NAME "wd"
 #endif
-    NULL,	-1,		nodump,		adpsize,
-    D_DISK,	0,		-1
+static struct cdevsw ad_cdevsw = {
+	/* open */	adopen,
+	/* close */	adclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	adioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	adstrategy,
+	/* name */	DRIVER_NAME,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	adpsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR,
 };
 
 /* misc defines */

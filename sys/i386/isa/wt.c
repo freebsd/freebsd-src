@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.49 1999/05/06 18:44:11 peter Exp $
+ * $Id: wt.c,v 1.50 1999/05/07 07:03:33 phk Exp $
  *
  */
 
@@ -194,10 +194,26 @@ static	d_strategy_t	wtstrategy;
 
 
 static struct cdevsw wt_cdevsw = {
-	  wtopen,	wtclose,	physread,	physwrite,
-	  wtioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		wtstrategy,	"wt",
-	  NULL,	-1 };
+	/* open */	wtopen,
+	/* close */	wtclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	wtioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	wtstrategy,
+	/* name */	"wt",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 
 /*

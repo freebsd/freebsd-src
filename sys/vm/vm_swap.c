@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.67 1999/05/09 17:28:00 phk Exp $
+ * $Id: vm_swap.c,v 1.68 1999/05/12 11:05:23 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -74,12 +74,27 @@ static	d_strategy_t    swstrategy;
 #define CDEV_MAJOR 4
 #define BDEV_MAJOR 26
 
-static struct cdevsw sw_cdevsw = 
-	{ nullopen,	nullclose,	physread,	physwrite,	/*4*/
-	  noioc,	nostop,		noreset,	nodevtotty,/* swap */
-	  seltrue,	nommap,		swstrategy,	"sw",
-	  NULL,		-1,		nodump,		nopsize,
-	  0,		0,		-1};
+static struct cdevsw sw_cdevsw = {
+	/* open */	nullopen,
+	/* close */	nullclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	noioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	swstrategy,
+	/* name */	"sw",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 
 /*

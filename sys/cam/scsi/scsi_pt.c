@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.7 1999/05/09 01:25:32 ken Exp $
+ *      $Id: scsi_pt.c,v 1.8 1999/05/22 22:00:22 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -112,27 +112,26 @@ DATA_SET(periphdriver_set, ptdriver);
 
 #define PT_CDEV_MAJOR 61
 
-static struct cdevsw pt_cdevsw = 
-{
-	/*d_open*/	ptopen,
-	/*d_close*/	ptclose,
-	/*d_read*/	physread,
-	/*d_write*/	physwrite,
-	/*d_ioctl*/	noioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	seltrue,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	ptstrategy,
-	/*d_name*/	"pt",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	nodump,
-	/*d_psize*/	nopsize,
-	/*d_flags*/	0,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+static struct cdevsw pt_cdevsw = {
+	/* open */	ptopen,
+	/* close */	ptclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	noioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	ptstrategy,
+	/* name */	"pt",
+	/* parms */	noparms,
+	/* maj */	PT_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static struct extend_array *ptperiphs;

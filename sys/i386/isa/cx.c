@@ -90,12 +90,26 @@ static	d_devtotty_t	cxdevtotty;
 
 #define	CDEV_MAJOR	42
 /* Don't make this static, since if_cx.c uses it. */
-struct cdevsw	cx_cdevsw = {
-	cxopen,		cxclose,	cxread,		cxwrite,
-	cxioctl,	cxstop,		nullreset,	cxdevtotty,
-	ttpoll,		nommap,		NULL,		"cx",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+struct cdevsw cx_cdevsw = {
+	/* open */	cxopen,
+	/* close */	cxclose,
+	/* read */	cxread,
+	/* write */	cxwrite,
+	/* ioctl */	cxioctl,
+	/* stop */	cxstop,
+	/* reset */	noreset,
+	/* devtotty */	cxdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"cx",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #else
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */

@@ -157,10 +157,25 @@ static d_poll_t ums_poll;
 #define UMS_CDEV_MAJOR	111
 
 static struct cdevsw ums_cdevsw = {
-	ums_open,	ums_close,	ums_read,	nowrite,
-	ums_ioctl,	nostop,		nullreset,	nodevtotty,
-	ums_poll,	nommap,		nostrat,
-	"ums",		NULL,		-1
+	/* open */	ums_open,
+	/* close */	ums_close,
+	/* read */	ums_read,
+	/* write */	nowrite,
+	/* ioctl */	ums_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	ums_poll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ums",
+	/* parms */	noparms,
+	/* maj */	UMS_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #endif
 

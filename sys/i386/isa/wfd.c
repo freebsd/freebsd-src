@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.22 1999/04/28 10:53:04 dt Exp $
+ *      $Id: wfd.c,v 1.23 1999/05/07 07:03:31 phk Exp $
  */
 
 /*
@@ -61,11 +61,26 @@ static	d_strategy_t	wfdstrategy;
 #define BDEV_MAJOR 1
 
 static struct cdevsw wfd_cdevsw = {
-	  wfdopen,	wfdclose,	physread,	physwrite,
-	  wfdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		wfdstrategy,	"wfd",
-	  NULL,		-1,		nodump,		nopsize,
-	  D_DISK,	0,		-1 };
+	/* open */	wfdopen,
+	/* close */	wfdclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	wfdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	wfdstrategy,
+	/* name */	"wfd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 int  wfdattach(struct atapi*, int, struct atapi_params*, int);
 

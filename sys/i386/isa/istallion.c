@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.26 1999/04/28 10:52:35 dt Exp $
+ * $Id: istallion.c,v 1.27 1999/05/08 07:02:29 phk Exp $
  */
 
 /*****************************************************************************/
@@ -640,12 +640,26 @@ struct isa_driver	stlidriver = {
  */
 
 #define	CDEV_MAJOR	75
-static	struct cdevsw	stli_cdevsw = {
-	stliopen,	stliclose,	stliread,	stliwrite,
-	stliioctl,	stlistop,	noreset,	stlidevtotty,
-	ttpoll,		nommap,		NULL,		stli_drvname,
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw stli_cdevsw = {
+	/* open */	stliopen,
+	/* close */	stliclose,
+	/* read */	stliread,
+	/* write */	stliwrite,
+	/* ioctl */	stliioctl,
+	/* stop */	stlistop,
+	/* reset */	noreset,
+	/* devtotty */	stlidevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	stli_drvname,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static int stli_devsw_installed;

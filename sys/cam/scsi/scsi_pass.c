@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.9 1999/05/09 01:25:30 ken Exp $
+ *      $Id: scsi_pass.c,v 1.10 1999/05/22 22:00:21 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -121,27 +121,26 @@ static struct periph_driver passdriver =
 
 DATA_SET(periphdriver_set, passdriver);
 
-static struct cdevsw pass_cdevsw = 
-{
-	/*d_open*/	passopen,
-	/*d_close*/	passclose,
-	/*d_read*/	physread,
-	/*d_write*/	physwrite,
-	/*d_ioctl*/	passioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	seltrue,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	passstrategy,
-	/*d_name*/	"pass",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	nodump,
-	/*d_psize*/	nopsize,
-	/*d_flags*/	0,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+static struct cdevsw pass_cdevsw = {
+	/* open */	passopen,
+	/* close */	passclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	passioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	passstrategy,
+	/* name */	"pass",
+	/* parms */	noparms,
+	/* maj */	PASS_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static struct extend_array *passperiphs;

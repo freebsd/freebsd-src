@@ -130,11 +130,26 @@ static d_ioctl_t ulptioctl;
 
 #define ULPT_CDEV_MAJOR 113
 
-static struct  cdevsw ulpt_cdevsw = {
-	ulptopen,	ulptclose,	noread,		ulptwrite,
-	ulptioctl,	nostop,		nullreset,	nodevtotty,
-	seltrue,	nommap,		nostrat,
-	"ulpt",		NULL,		-1
+static struct cdevsw ulpt_cdevsw = {
+	/* open */	ulptopen,
+	/* close */	ulptclose,
+	/* read */	noread,
+	/* write */	ulptwrite,
+	/* ioctl */	ulptioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ulpt",
+	/* parms */	noparms,
+	/* maj */	ULPT_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #endif
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.7 1999/05/17 15:58:46 sos Exp $
+ *	$Id: atapi-fd.c,v 1.8 1999/05/20 09:12:05 sos Exp $
  */
 
 #include "ata.h"
@@ -65,11 +65,25 @@ static  d_strategy_t	afdstrategy;
 #define CDEV_MAJOR 118
 
 static struct cdevsw afd_cdevsw = {
-	  afdopen,	afdclose,	physread,	physwrite,
-	  afdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		afdstrategy,	"afd",
-	  NULL,		-1,		nodump,		nopsize,
-	  D_DISK,	0,		-1
+	/* open */	afdopen,
+	/* close */	afdclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	afdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	afdstrategy,
+	/* name */	"afd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR,
 };
 
 #define NUNIT 			8

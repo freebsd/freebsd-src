@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.8 1999/05/09 16:39:24 peter Exp $
+ * $Id: vga_isa.c,v 1.9 1999/05/30 11:12:30 dfr Exp $
  */
 
 #include "vga.h"
@@ -100,11 +100,26 @@ static d_close_t	isavgaclose;
 static d_read_t		isavgaread;
 static d_ioctl_t	isavgaioctl;
 
-static struct  cdevsw vga_cdevsw = {
-	isavgaopen,	isavgaclose,	noread,		nowrite,	/* ?? */
-	isavgaioctl,	nostop,		nullreset,	nodevtotty,
-	seltrue,	nommap,		NULL,		DRIVER_NAME,
-	NULL,		-1,		nodump,		nopsize,
+static struct cdevsw vga_cdevsw = {
+	/* open */	isavgaopen,
+	/* close */	isavgaclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	isavgaioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	DRIVER_NAME,
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #endif /* FB_INSTALL_CDEV */

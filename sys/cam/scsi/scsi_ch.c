@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.11 1999/05/09 01:25:26 ken Exp $
+ *      $Id: scsi_ch.c,v 1.12 1999/05/22 22:00:19 gibbs Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -214,27 +214,26 @@ static struct periph_driver chdriver =
 
 DATA_SET(periphdriver_set, chdriver);
 
-static struct cdevsw ch_cdevsw = 
-{
-	/*d_open*/	chopen,
-	/*d_close*/	chclose,
-	/*d_read*/	noread,
-	/*d_write*/	nowrite,
-	/*d_ioctl*/	chioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	seltrue,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	nostrategy,
-	/*d_name*/	"ch",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	nodump,
-	/*d_psize*/	nopsize,
-	/*d_flags*/	0,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+static struct cdevsw ch_cdevsw = {
+	/* open */	chopen,
+	/* close */	chclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	chioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ch",
+	/* parms */	noparms,
+	/* maj */	CH_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static struct extend_array *chperiphs;

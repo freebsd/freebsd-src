@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.6 1999/05/18 11:08:39 yokota Exp $
+ * $Id: kbd.c,v 1.7 1999/05/30 14:55:24 phk Exp $
  */
 
 #include "kbd.h"
@@ -406,10 +406,25 @@ static d_mmap_t		kbdmmap;
 #define CDEV_MAJOR	112
 
 static struct cdevsw kbd_cdevsw = {
-	kbdopen,	kbdclose,	kbdread,	kbdwrite,   /* ??? */
-	kbdioctl,	nullstop,	noreset,	kbddevtotty,
-	kbdpoll,	kbdmmap,	nostrategy,	"kbd",
-	NULL,		-1,		nodump,		nopsize,
+	/* open */	kbdopen,
+	/* close */	kbdclose,
+	/* read */	kbdread,
+	/* write */	kbdwrite,
+	/* ioctl */	kbdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	kbddevtotty,
+	/* poll */	kbdpoll,
+	/* mmap */	kbdmmap,
+	/* strategy */	nostrategy,
+	/* name */	"kbd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static void

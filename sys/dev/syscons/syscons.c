@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.302 1999/05/10 14:01:32 dfr Exp $
+ *	$Id: syscons.c,v 1.303 1999/05/12 04:45:56 bde Exp $
  */
 
 #include "sc.h"
@@ -365,12 +365,26 @@ static	d_write_t	scwrite;
 static	d_ioctl_t	scioctl;
 static	d_mmap_t	scmmap;
 
-struct cdevsw	sc_cdevsw = {
-	scopen,		scclose,	scread,		scwrite,
-	scioctl,	nullstop,	noreset,	scdevtotty,
-	ttpoll,		scmmap,		nostrategy,	"sc",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw sc_cdevsw = {
+	/* open */	scopen,
+	/* close */	scclose,
+	/* read */	scread,
+	/* write */	scwrite,
+	/* ioctl */	scioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	scdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	scmmap,
+	/* strategy */	nostrategy,
+	/* name */	"sc",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #ifdef __i386__

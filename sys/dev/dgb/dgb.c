@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.47 1999/05/02 21:39:52 peter Exp $
+ *  dgb.c $Id: dgb.c,v 1.48 1999/05/08 07:02:24 phk Exp $
  *
  *  Digiboard driver.
  *
@@ -224,12 +224,26 @@ static	d_stop_t	dgbstop;
 static	d_devtotty_t	dgbdevtotty;
 
 #define	CDEV_MAJOR	58
-static	struct cdevsw	dgb_cdevsw = {
-	dgbopen,	dgbclose,	dgbread,	dgbwrite,
-	dgbioctl,	dgbstop,	noreset,	dgbdevtotty,
-	ttpoll,		nommap,		NULL,		"dgb",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw dgb_cdevsw = {
+	/* open */	dgbopen,
+	/* close */	dgbclose,
+	/* read */	dgbread,
+	/* write */	dgbwrite,
+	/* ioctl */	dgbioctl,
+	/* stop */	dgbstop,
+	/* reset */	noreset,
+	/* devtotty */	dgbdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"dgb",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static	speed_t	dgbdefaultrate = TTYDEF_SPEED;

@@ -133,10 +133,25 @@ d_poll_t	uhidpoll;
 #define		UHID_CDEV_MAJOR 122
 
 static struct cdevsw uhid_cdevsw = {
-	uhidopen,	uhidclose,	uhidread,	uhidwrite,
-	uhidioctl,	nostop,		nullreset,	nodevtotty,
-	uhidpoll,	nommap,		nostrat,
-	"uhid",		NULL,		-1
+	/* open */	uhidopen,
+	/* close */	uhidclose,
+	/* read */	uhidread,
+	/* write */	uhidwrite,
+	/* ioctl */	uhidioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	uhidpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"uhid",
+	/* parms */	noparms,
+	/* maj */	UHID_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #endif
 

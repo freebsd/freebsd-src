@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.11 1999/05/11 11:03:18 jkh Exp $"
+#ident "$Id: dpt_control.c,v 1.12 1999/05/13 05:24:53 jkh Exp $"
 
 #include "opt_dpt.h"
 
@@ -91,11 +91,27 @@ static dpt_sig_t dpt_sig = {
 #define CDEV_MAJOR	    DPT_CDEV_MAJOR
 
 /* Normally, this is a static structure.  But we need it in pci/dpt_pci.c */
-struct cdevsw   dpt_cdevsw = {
-	dpt_open, dpt_close, dpt_read, dpt_write,
-	dpt_ioctl, nostop, nullreset, nodevtotty,
-	seltrue, nommap, NULL, "dpt",
-NULL, -1};
+static struct cdevsw dpt_cdevsw = {
+	/* open */	dpt_open,
+	/* close */	dpt_close,
+	/* read */	dpt_read,
+	/* write */	dpt_write,
+	/* ioctl */	dpt_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"dpt",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static struct buf *dpt_inbuf[DPT_MAX_ADAPTERS];
 static char     dpt_rw_command[DPT_MAX_ADAPTERS][DPT_RW_CMD_LEN + 1];
