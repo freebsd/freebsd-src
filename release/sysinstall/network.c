@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.7 1995/06/05 21:19:17 jkh Exp $
+ * $Id: network.c,v 1.6.2.8 1995/06/05 23:13:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,7 +63,7 @@ mediaInitNetwork(Device *dev)
     configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
 	if (!msgYesNo("You have selected a serial-line network interface.\nDo you want to use PPP with it?")) {
-	    if (!dev->private = startPPP(dev)) {
+	    if (!dev->private = (void *)startPPP(dev)) {
 		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 		return FALSE;
 	    }
@@ -142,7 +142,7 @@ mediaShutdownNetwork(Device *dev)
 	    vsystem("route delete default");
 	networkInitialized = FALSE;
     }
-    else if (pid = dev->private) {
+    else if ((pid = (pid_t)dev->private) != 0) {
 	kill(pid, SIGTERM);
 	dev->private = NULL;
     }
@@ -217,7 +217,7 @@ startPPP(Device *devp)
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
 	return 0;
     }
-    if (!pid = fork()) {
+    if (!(pid = fork())) {
 	dup2(fd, 0);
 	dup2(fd, 1);
 	dup2(fd, 2);
