@@ -1245,9 +1245,6 @@ psmattach(device_t dev)
     int error;
     int rid;
 
-    if (sc == NULL)    /* shouldn't happen */
-	return (ENXIO);
-
     /* Setup initial state */
     sc->state = PSM_VALID;
     callout_handle_init(&sc->callout);
