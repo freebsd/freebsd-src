@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.80 1998/07/11 04:58:25 bde Exp $
+ *	$Id: cpufunc.h,v 1.81 1998/08/17 08:57:05 dfr Exp $
  */
 
 /*
@@ -461,6 +461,5 @@ void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_int	rcr3		__P((void));
 u_int	rcr4		__P((void));
-void	i686_pagezero	__P((void *addr));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
