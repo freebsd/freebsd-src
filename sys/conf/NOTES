@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.348 1997/06/30 14:37:38 yokota Exp $
+#	$Id: LINT,v 1.349 1997/07/01 00:14:39 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -949,14 +949,14 @@ options		NATM			#native ATM
 # Controls all sound devices
 controller	snd0
 device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
-device sb0      at isa? port 0x220 irq 5 conflicts drq 1 vector sbintr
-device sbxvi0   at isa? port? irq? drq 5 conflicts
-device sbmidi0  at isa? port 0x330 irq? conflicts
-#device awe0     at isa? port 0x620 
+device sb0      at isa? port 0x220 irq 5 drq 1 vector sbintr
+device sbxvi0   at isa? drq 5
+device sbmidi0  at isa? port 0x330
+device awe0     at isa? port 0x620
 device gus0 at isa? port 0x220 irq 12 drq 1 vector gusintr
 #device gus0 at isa? port 0x220 irq 12 drq 1 flags 0x3 vector gusintr
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
-device opl0     at isa? port 0x388 conflicts
+device opl0     at isa? port 0x388
 device mpu0     at isa? port 0x330 irq 6 drq 0
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
