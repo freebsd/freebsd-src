@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.9 1999/01/11 23:43:54 bde Exp $
+ *	$Id: cy_pci.c,v 1.10 1999/01/15 10:00:12 bde Exp $
  */
 
 /*
@@ -102,7 +102,7 @@ cy_attach(config_id, unit)
 		/*
 		 * No ports found. Release resources and punt.
 		 */
-		printf("cy%d: no ports found!", unit);
+		printf("cy%d: no ports found!\n", unit);
 		goto fail;
 	}
 
