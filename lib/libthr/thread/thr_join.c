@@ -40,7 +40,6 @@ __weak_reference(_pthread_join, pthread_join);
 int
 _pthread_join(pthread_t pthread, void **thread_return)
 {
-	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
 	pthread_t thread;
  

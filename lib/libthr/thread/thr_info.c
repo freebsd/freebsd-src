@@ -135,7 +135,6 @@ _thread_dump_info(void)
 static void
 dump_thread(int fd, pthread_t pthread, int long_version)
 {
-	struct pthread	*curthread = _get_curthread();
 	char		s[512];
 	int		i;
 

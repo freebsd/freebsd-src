@@ -43,7 +43,6 @@ __weak_reference(_pthread_cleanup_pop, pthread_cleanup_pop);
 void
 _pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 {
-	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *new;
 
 	if ((new = (struct pthread_cleanup *) malloc(sizeof(struct pthread_cleanup))) != NULL) {
@@ -58,7 +57,6 @@ _pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 void
 _pthread_cleanup_pop(int execute)
 {
-	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *old;
 
 	if ((old = curthread->cleanup) != NULL) {

@@ -76,6 +76,11 @@
 #define stderr_debug(args...)	_thread_printf(STDOUT_FILENO, args)
 
 /*
+ * Currently executing thread.
+ */
+#define	curthread	_get_curthread()
+
+/*
  * State change macro without scheduling queue change:
  */
 #define PTHREAD_SET_STATE(thrd, newstate) do {				\
@@ -665,8 +670,8 @@ SCLASS	volatile int	_spinblock_count
  * And, should we climb the beanstalk,
  * We'll meet his brother, Giant.
  */
-void GIANT_LOCK(pthread_t curthread);
-void GIANT_UNLOCK(pthread_t curthread);
+void GIANT_LOCK(pthread_t);
+void GIANT_UNLOCK(pthread_t);
 
 /* Undefine the storage class specifier: */
 #undef  SCLASS
@@ -680,8 +685,7 @@ char    *__ttyname_r_basic(int, char *, size_t);
 char    *ttyname_r(int, char *, size_t);
 void	_cond_wait_backout(pthread_t);
 int     _find_thread(pthread_t);
-struct pthread *_get_curthread_slow(void);
-struct pthread *_get_curthread(void);
+pthread_t _get_curthread(void);
 void	*_set_curthread(struct pthread *);
 void	_retire_thread(void *arch_id);
 void	*_thread_stack_alloc(size_t, size_t);
@@ -716,7 +720,7 @@ void    _thread_dump_info(void);
 void    _thread_init(void);
 void	_thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context);
 void	_thread_printf(int fd, const char *, ...);
-void    _thread_start(void);
+void    _thread_start(pthread_t);
 void	_thread_seterrno(pthread_t, int);
 pthread_addr_t _thread_gc(pthread_addr_t);
 void	_thread_enter_cancellation_point(void);

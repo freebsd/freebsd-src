@@ -213,12 +213,10 @@ _sem_trywait(sem_t *sem)
 int
 _sem_post(sem_t *sem)
 {
-	pthread_t curthread;
 	int	retval;
 
 	_SEM_CHECK_VALIDITY(sem);
 
-	curthread = _get_curthread();
 	/*
 	 * sem_post() is required to be safe to call from within signal
 	 * handlers.  Thus, we must defer signals.

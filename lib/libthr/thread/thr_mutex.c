@@ -63,7 +63,7 @@
  * Prototypes
  */
 static inline int	mutex_self_trylock(pthread_mutex_t);
-static inline int	mutex_self_lock(pthread_t, pthread_mutex_t);
+static inline int	mutex_self_lock(pthread_mutex_t);
 static inline int	mutex_unlock_common(pthread_mutex_t *, int);
 static void		mutex_priority_adjust(pthread_mutex_t);
 static void		mutex_rescan_owned (pthread_t, pthread_mutex_t);
@@ -300,7 +300,6 @@ init_static_private(pthread_mutex_t *mutex)
 static int
 mutex_trylock_common(pthread_mutex_t *mutex)
 {
-	struct pthread	*curthread = _get_curthread();
 	int	ret = 0;
 
 	PTHREAD_ASSERT((mutex != NULL) && (*mutex != NULL),
@@ -469,7 +468,6 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 static int
 mutex_lock_common(pthread_mutex_t * mutex)
 {
-	struct pthread	*curthread = _get_curthread();
 	int	ret = 0;
 
 	PTHREAD_ASSERT((mutex != NULL) && (*mutex != NULL),
@@ -517,7 +515,7 @@ mutex_lock_common(pthread_mutex_t * mutex)
 				    (*mutex), m_qe);
 
 			} else if ((*mutex)->m_owner == curthread)
-				ret = mutex_self_lock(curthread, *mutex);
+				ret = mutex_self_lock(*mutex);
 			else {
 				/*
 				 * Join the queue of threads waiting to lock
@@ -571,7 +569,7 @@ mutex_lock_common(pthread_mutex_t * mutex)
 				    (*mutex), m_qe);
 
 			} else if ((*mutex)->m_owner == curthread)
-				ret = mutex_self_lock(curthread, *mutex);
+				ret = mutex_self_lock(*mutex);
 			else {
 				/*
 				 * Join the queue of threads waiting to lock
@@ -637,7 +635,7 @@ mutex_lock_common(pthread_mutex_t * mutex)
 				TAILQ_INSERT_TAIL(&curthread->mutexq,
 				    (*mutex), m_qe);
 			} else if ((*mutex)->m_owner == curthread)
-				ret = mutex_self_lock(curthread, *mutex);
+				ret = mutex_self_lock(*mutex);
 			else {
 				/*
 				 * Join the queue of threads waiting to lock
@@ -802,7 +800,7 @@ mutex_self_trylock(pthread_mutex_t mutex)
 }
 
 static inline int
-mutex_self_lock(pthread_t curthread, pthread_mutex_t mutex)
+mutex_self_lock(pthread_mutex_t mutex)
 {
 	int ret = 0;
 
@@ -844,7 +842,6 @@ mutex_self_lock(pthread_t curthread, pthread_mutex_t mutex)
 static inline int
 mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 {
-	struct pthread	*curthread = _get_curthread();
 	int	ret = 0;
 
 	if (mutex == NULL || *mutex == NULL) {

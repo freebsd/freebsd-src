@@ -102,7 +102,6 @@ _pthread_key_delete(pthread_key_t key)
 void 
 _thread_cleanupspecific(void)
 {
-	struct pthread	*curthread = _get_curthread();
 	void		*data = NULL;
 	int		key;
 	int		itr;
@@ -165,11 +164,8 @@ pthread_key_allocate_data(void)
 int 
 _pthread_setspecific(pthread_key_t key, const void *value)
 {
-	struct pthread	*pthread;
 	int		ret = 0;
-
-	/* Point to the running thread: */
-	pthread = _get_curthread();
+	pthread_t	pthread = curthread;
 
 	if ((pthread->specific) ||
 	    (pthread->specific = pthread_key_allocate_data())) {
@@ -198,11 +194,8 @@ _pthread_setspecific(pthread_key_t key, const void *value)
 void *
 _pthread_getspecific(pthread_key_t key)
 {
-	struct pthread	*pthread;
+	pthread_t	pthread = curthread;
 	void		*data;
-
-	/* Point to the running thread: */
-	pthread = _get_curthread();
 
 	/* Check if there is specific data: */
 	if (pthread->specific != NULL && key < PTHREAD_KEYS_MAX) {

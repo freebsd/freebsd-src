@@ -48,9 +48,6 @@ _pthread_resume_np(pthread_t thread)
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
-		pthread_t curthread;
-
-		curthread = _get_curthread();
 		GIANT_LOCK(curthread);
 
 		if ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
@@ -64,7 +61,6 @@ _pthread_resume_np(pthread_t thread)
 void
 _pthread_resume_all_np(void)
 {
-	struct pthread	*curthread = _get_curthread();
 	struct pthread	*thread;
 
 	GIANT_LOCK(curthread);
