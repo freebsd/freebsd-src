@@ -46,7 +46,7 @@ default() {
 
 	for i in $*
 	do
-		comcontrol /dev/tty${ci}${i} dtrwait 300 drainwait 0
+		comcontrol /dev/tty${ci}${i} dtrwait 300 drainwait 300
 		stty < /dev/ttyi${ci}${i} -clocal crtscts hupcl 9600 reprint ^R
 		stty < /dev/ttyl${ci}${i} -clocal -crtscts -hupcl 0
 		stty < /dev/cuai${co}${i} -clocal crtscts hupcl 9600 reprint ^R
