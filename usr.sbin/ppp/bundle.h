@@ -61,7 +61,7 @@ struct prompt;
 struct iface;
 
 struct bundle {
-  struct fdescriptor desc;     /* really all our datalinks */
+  struct fdescriptor desc;    /* really all our datalinks */
   int unit;                   /* The device/interface unit number */
 
   struct {
