@@ -53,6 +53,7 @@ typedef struct label_t {
 
 typedef	unsigned long	vm_offset_t;
 typedef	long		vm_ooffset_t;
+typedef	unsigned long	vm_paddr_t;
 typedef	unsigned long	vm_pindex_t;
 typedef	unsigned long	vm_size_t;
 
