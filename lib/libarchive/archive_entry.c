@@ -339,16 +339,9 @@ archive_entry_new(void)
  */
 
 dev_t
-archive_entry_devmajor(struct archive_entry *entry)
+archive_entry_dev(struct archive_entry *entry)
 {
-	return (major(entry->ae_stat.st_rdev));
-}
-
-
-dev_t
-archive_entry_devminor(struct archive_entry *entry)
-{
-	return (minor(entry->ae_stat.st_rdev));
+	return (entry->ae_stat.st_dev);
 }
 
 void
@@ -403,12 +396,17 @@ archive_entry_hardlink(struct archive_entry *entry)
 	return (aes_get_mbs(&entry->ae_hardlink));
 }
 
+ino_t
+archive_entry_ino(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_ino);
+}
+
 mode_t
 archive_entry_mode(struct archive_entry *entry)
 {
 	return (entry->ae_stat.st_mode);
 }
-
 
 time_t
 archive_entry_mtime(struct archive_entry *entry)
@@ -432,6 +430,24 @@ const wchar_t *
 archive_entry_pathname_w(struct archive_entry *entry)
 {
 	return (aes_get_wcs(&entry->ae_pathname));
+}
+
+dev_t
+archive_entry_rdev(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_rdev);
+}
+
+dev_t
+archive_entry_rdevmajor(struct archive_entry *entry)
+{
+	return (major(entry->ae_stat.st_rdev));
+}
+
+dev_t
+archive_entry_rdevminor(struct archive_entry *entry)
+{
+	return (minor(entry->ae_stat.st_rdev));
 }
 
 int64_t
@@ -470,24 +486,6 @@ void
 archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
 {
 	entry->ae_stat = *st;
-}
-
-void
-archive_entry_set_devmajor(struct archive_entry *entry, dev_t m)
-{
-	dev_t d;
-
-	d = entry->ae_stat.st_rdev;
-	entry->ae_stat.st_rdev = makedev(m, minor(d));
-}
-
-void
-archive_entry_set_devminor(struct archive_entry *entry, dev_t m)
-{
-	dev_t d;
-
-	d = entry->ae_stat.st_rdev;
-	entry->ae_stat.st_rdev = makedev( major(d), m);
 }
 
 void
@@ -570,6 +568,24 @@ void
 archive_entry_copy_pathname_w(struct archive_entry *entry, const wchar_t *name)
 {
 	aes_copy_wcs(&entry->ae_pathname, name);
+}
+
+void
+archive_entry_set_rdevmajor(struct archive_entry *entry, dev_t m)
+{
+	dev_t d;
+
+	d = entry->ae_stat.st_rdev;
+	entry->ae_stat.st_rdev = makedev(m, minor(d));
+}
+
+void
+archive_entry_set_rdevminor(struct archive_entry *entry, dev_t m)
+{
+	dev_t d;
+
+	d = entry->ae_stat.st_rdev;
+	entry->ae_stat.st_rdev = makedev( major(d), m);
 }
 
 void
