@@ -3,7 +3,8 @@
 LIB=	install
 NOPROFILE= yes
 NOPIC=	yes
-SRCS=	file.c msg.c plist.c str.c exec.c global.c pen.c match.c deps.c
+SRCS=	file.c msg.c plist.c str.c exec.c global.c pen.c match.c \
+	deps.c version.c
 
 CFLAGS+= ${DEBUG}
 
