@@ -2,7 +2,7 @@ PROG=	ncrcontrol
 SRCS=	ncrcontrol.c
 MAN8=	ncrcontrol.8
 
-CFLAGS+=	-I/sys
+CFLAGS+=	-I${.CURDIR}/../../sys
 LDADD+=		-lkvm
 DPADD+=		${LIBKVM}
 BINGRP=		kmem
