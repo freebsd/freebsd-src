@@ -164,7 +164,7 @@
 	<ulink
 	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
 	Sites</ulink> section of the Handbook, or on the <ulink
-	url="http://mirrorlist.freebsd.org/"></ulink> Web pages.
+	url="http://mirrorlist.FreeBSD.org/"></ulink> Web pages.
 	Finding a close (in networking terms) mirror from which to
 	download the distribution is highly recommended.</para>
 
