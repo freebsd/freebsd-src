@@ -9,36 +9,36 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-linux_genassym.o		optional compat_linux		\
+linux_genassym.o		optional	compat_linux		\
 	dependency 	"$S/i386/linux/linux_genassym.c"		\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
 	no-obj no-implicit-rule						\
 	clean		"linux_genassym.o"
 #
-linux_assym.h			optional compat_linux		\
+linux_assym.h			optional	compat_linux		\
 	dependency 	"$S/kern/genassym.sh linux_genassym.o"		\
 	compile-with	"sh $S/kern/genassym.sh linux_genassym.o > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"linux_assym.h"
 #
-svr4_genassym.o			optional compat_svr4		\
+svr4_genassym.o			optional	compat_svr4		\
 	dependency 	"$S/i386/svr4/svr4_genassym.c"			\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
 	no-obj no-implicit-rule						\
 	clean		"svr4_genassym.o"
 #
-svr4_assym.h			optional compat_svr4		\
+svr4_assym.h			optional	compat_svr4		\
 	dependency 	"$S/kern/genassym.sh svr4_genassym.o"	   	\
 	compile-with	"sh $S/kern/genassym.sh svr4_genassym.o > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"svr4_assym.h"
 #
-ukbdmap.h			optional ukbd_dflt_keymap	\
+ukbdmap.h			optional	ukbd_dflt_keymap	\
 	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-trlld.o				optional oltr			\
+trlld.o				optional	oltr			\
 	dependency	"$S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
 	compile-with	"uudecode < $S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
 	no-implicit-rule
