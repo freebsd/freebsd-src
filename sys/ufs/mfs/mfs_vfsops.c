@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.53 1999/01/01 04:14:11 dillon Exp $
+ * $Id: mfs_vfsops.c,v 1.53.2.1 1999/03/12 00:51:47 julian Exp $
  */
 
 
@@ -402,11 +402,18 @@ mfs_start(mp, flags, p)
 	curproc->p_flag |= P_NOSWAP;
 
 	while (mfsp->mfs_active) {
+		int	s;
+
+		s = splbio();
 		while (bp = bufq_first(&mfsp->buf_queue)) {
 			bufq_remove(&mfsp->buf_queue, bp);
+			splx(s);
 			mfs_doio(bp, base);
 			wakeup((caddr_t)bp);
+			s = splbio();
 		}
+		splx(s);
+
 		/*
 		 * If a non-ignored signal is received, try to unmount.
 		 * If that fails, clear the signal (it has been "processed"),
