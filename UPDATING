@@ -9,7 +9,9 @@ ITEMS:'
 	pccard support for pci cards has been committed.  You must change
 	your /etc/pccard.conf irq lines.  It must match the irq used by
 	pcic device.  Interrupt storms may result if you fail to do this.
-	Interrupt storms look a lot like a hang.
+	Interrupt storms look a lot like a hang. You do this by using the
+	-I and -i options to pccardd via the pccardd_flags entry in
+	/etc/rc.conf, e.g. pccardd_flags="-I -i 11"
 
 20010530:
 	INSTALL=install -C is being deprecated.  If you want to do this,
