@@ -1000,6 +1000,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n",
-"usage: bdes [-abdp] [-F bit] [-f bit] [-k key] [-m bit] [-o bit] [-v vector]");
+"usage: bdes [-abdp] [-F N] [-f N] [-k key] [-m N] [-o N] [-v vector]");
 	exit(1);
 }
