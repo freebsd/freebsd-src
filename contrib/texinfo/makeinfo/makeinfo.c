@@ -3918,12 +3918,6 @@ cm_dotless (arg, start, end)
     }
 }
 
-#if defined (__osf__)
-#define LOCALTIME_CAST(x) (time_t *)(x)
-#else
-#define LOCALTIME_CAST(x) (x)
-#endif
-
 void
 cm_today (arg)
      int arg;
@@ -3933,8 +3927,8 @@ cm_today (arg)
 	"August", "September", "October", "November", "December" };
   if (arg == START)
     {
-      long timer = time (0);
-      struct tm *ts = localtime (LOCALTIME_CAST (&timer));
+      time_t timer = time (0);
+      struct tm *ts = localtime (&timer);
       add_word_args
 	("%d %s %d",
 	 (ts -> tm_mday),
