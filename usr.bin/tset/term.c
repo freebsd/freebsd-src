@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
+static const char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <err.h>
@@ -51,20 +51,21 @@ static const char rcsid[] =
 
 char    tbuf[1024];      		/* Termcap entry. */
 
-char	*askuser __P((char *));
+const char *askuser __P((const char *));
 char	*ttys __P((char *));
 
 /*
  * Figure out what kind of terminal we're dealing with, and then read in
  * its termcap entry.
  */
-char *
+const char *
 get_termcap_entry(userarg, tcapbufp)
 	char *userarg, **tcapbufp;
 {
 	struct ttyent *t;
 	int rval;
-	char *p, *ttype, *ttypath;
+	char *p, *ttypath;
+	const char *ttype;
 
 	if (userarg) {
 		ttype = userarg;
@@ -123,9 +124,9 @@ found:	if ((p = getenv("TERMCAP")) != NULL && *p != '/')
 }
 
 /* Prompt the user for a terminal type. */
-char *
+const char *
 askuser(dflt)
-	char *dflt;
+	const char *dflt;
 {
 	static char answer[256];
 	char *p;

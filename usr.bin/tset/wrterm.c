@@ -31,19 +31,21 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)wrterm.c	8.1 (Berkeley) 6/9/93";
+static const char sccsid[] = "@(#)wrterm.c	8.1 (Berkeley) 6/9/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+
 #include "extern.h"
 
 /*
@@ -64,11 +66,11 @@ wrtermcap(bp)
 	*t++ = '\0';
 
 	/* Output terminal names that don't have whitespace. */
-	sep = "";
+	sep = strdup("");
 	while ((p = strsep(&bp, "|")) != NULL)
 		if (*p != '\0' && strpbrk(p, " \t") == NULL) {
 			(void)printf("%s%s", sep, p);
-			sep = "|";
+			sep = strdup("|");
 		}
 	(void)putchar(':');
 
