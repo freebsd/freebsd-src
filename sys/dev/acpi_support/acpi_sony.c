@@ -130,7 +130,7 @@ acpi_snc_attach(device_t dev)
 static int 
 acpi_snc_detach(device_t dev)
 {
-	return_VALUE(0);
+	return (0);
 }
 
 #if 0
