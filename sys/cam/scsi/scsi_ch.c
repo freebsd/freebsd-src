@@ -1192,8 +1192,7 @@ chgetelemstatus(struct cam_periph *periph,
 
 	user_data = (struct changer_element_status *)
 		malloc(avail * sizeof(struct changer_element_status),
-		       M_DEVBUF, M_WAITOK);
-	bzero(user_data, avail * sizeof(struct changer_element_status));
+		       M_DEVBUF, M_WAITOK | M_ZERO);
 
 	desc = (struct read_element_status_descriptor *)((uintptr_t)data +
 		sizeof(struct read_element_status_header) +
