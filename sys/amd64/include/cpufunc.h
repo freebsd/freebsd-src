@@ -71,7 +71,7 @@ bsfl(u_int mask)
 {
 	u_int	result;
 
-	__asm __volatile("bsfl %0,%0" : "=r" (result) : "0" (mask));
+	__asm __volatile("bsfl %1,%0" : "=r" (result) : "rm" (mask));
 	return (result);
 }
 
@@ -80,7 +80,7 @@ bsrl(u_int mask)
 {
 	u_int	result;
 
-	__asm __volatile("bsrl %0,%0" : "=r" (result) : "0" (mask));
+	__asm __volatile("bsrl %1,%0" : "=r" (result) : "rm" (mask));
 	return (result);
 }
 
@@ -198,8 +198,8 @@ static __inline void
 insb(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insb"
-			 : "=D" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port)
+			 : "+D" (addr), "+c" (cnt)
+			 : "d" (port)
 			 : "memory");
 }
 
@@ -207,8 +207,8 @@ static __inline void
 insw(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insw"
-			 : "=D" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port)
+			 : "+D" (addr), "+c" (cnt)
+			 : "d" (port)
 			 : "memory");
 }
 
@@ -216,8 +216,8 @@ static __inline void
 insl(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insl"
-			 : "=D" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port)
+			 : "+D" (addr), "+c" (cnt)
+			 : "d" (port)
 			 : "memory");
 }
 
@@ -321,24 +321,24 @@ static __inline void
 outsb(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsb"
-			 : "=S" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port));
+			 : "+S" (addr), "+c" (cnt)
+			 : "d" (port));
 }
 
 static __inline void
 outsw(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsw"
-			 : "=S" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port));
+			 : "+S" (addr), "+c" (cnt)
+			 : "d" (port));
 }
 
 static __inline void
 outsl(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsl"
-			 : "=S" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port));
+			 : "+S" (addr), "+c" (cnt)
+			 : "d" (port));
 }
 
 static __inline void
