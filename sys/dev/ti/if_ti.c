@@ -2375,7 +2375,7 @@ ti_detach(dev)
 		return EBUSY;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->ti_mtx), "ti mutex not initialized");
+	KASSERT(mtx_initialized(&sc->ti_mtx), ("ti mutex not initialized"));
 	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
