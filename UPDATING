@@ -8,6 +8,19 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050302:
+	The full packet destination manipulation for 'ipfw fwd' is
+	back with the kernel compile time option:
+
+	  options IPFIREWALL_FORWARD_EXTENDED
+
+	This option has to be specified in addition to IPFIRWALL_FORWARD.
+	With this option even packets targeted for an IP address local
+	to the host can be redirected.  All restrictions to ensure proper
+	behaviour for locally generated packets are turned off.  Firewall
+	rules have to be carefully crafted to make sure that things like
+	PMTU discovery do not break.
+
 20050228:
 	The responsibility of recomputing the file system summary of
 	a SoftUpdates-enabled dirty volume has been transferred to the

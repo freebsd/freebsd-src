@@ -464,7 +464,19 @@ tooshort:
 		m->m_flags &= ~M_FASTFWD_OURS;
 		goto ours;
 	}
+#ifndef IPFIREWALL_FORWARD_EXTENDED
 	dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL);
+#else
+	if ((dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL)) != 0) {
+		/*
+		 * Directly ship on the packet.  This allows to forward packets
+		 * that were destined for us to some other directly connected
+		 * host.
+		 */
+		ip_forward(m, dchg);
+		return;
+	}
+#endif /* IPFIREWALL_FORWARD_EXTENDED */
 #endif /* IPFIREWALL_FORWARD */
 
 passin:

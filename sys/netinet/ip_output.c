@@ -704,18 +704,22 @@ spd_done:
 	/* Or forward to some other address? */
 	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 	if (fwd_tag) {
+#ifndef IPFIREWALL_FORWARD_EXTENDED
 		if (!in_localip(ip->ip_src) && !in_localaddr(ip->ip_dst)) {
+#endif
 			dst = (struct sockaddr_in *)&ro->ro_dst;
 			bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
 			m->m_flags |= M_SKIP_FIREWALL;
 			m_tag_delete(m, fwd_tag);
 			goto again;
+#ifndef IPFIREWALL_FORWARD_EXTENDED
 		} else {
 			m_tag_delete(m, fwd_tag);
 			/* Continue. */
 		}
-	}
 #endif
+	}
+#endif /* IPFIREWALL_FORWARD */
 
 passout:
 	/* 127/8 must not appear on wire - RFC1122. */
