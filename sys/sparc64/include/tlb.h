@@ -88,7 +88,8 @@ struct tlb_entry;
 extern int kernel_tlb_slots;
 extern struct tlb_entry *kernel_tlbs;
 
-extern int tlb_slot_count;
+extern int tlb_dtlb_entries;
+extern int tlb_itlb_entries;
 
 void	tlb_context_demap(struct pmap *pm);
 void	tlb_page_demap(struct pmap *pm, vm_offset_t va);
