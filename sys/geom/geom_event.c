@@ -151,8 +151,13 @@ g_do_event(struct g_event *ep)
 	    ep, ep->event, ep->class, ep->geom, ep->provider, ep->consumer);
 	g_topology_assert();
 	switch (ep->event) {
+	case EV_CALL_ME:
+		ep->func(ep->arg);
+		break;	
 	case EV_NEW_CLASS:
 		mp2 = ep->class;
+		if (g_shutdown)
+			break;
 		if (mp2->taste == NULL)
 			break;
 		if (g_shutdown)
@@ -226,12 +231,15 @@ one_event(void)
 			break;
 		g_orphan_register(pp);
 	}
+	mtx_lock(&g_eventlock);
 	ep = TAILQ_FIRST(&g_events);
 	if (ep == NULL) {
+		mtx_unlock(&g_eventlock);
 		g_topology_unlock();
 		return (0);
 	}
 	TAILQ_REMOVE(&g_events, ep, events);
+	mtx_unlock(&g_eventlock);
 	if (ep->class != NULL)
 		ep->class->event = NULL;
 	if (ep->geom != NULL)
@@ -288,9 +296,31 @@ g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_p
 		KASSERT(cp->event == NULL, ("Double event on consumer"));
 		cp->event = ep;
 	}
+	mtx_lock(&g_eventlock);
 	g_pending_events++;
 	TAILQ_INSERT_TAIL(&g_events, ep, events);
+	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
+}
+
+int
+g_call_me(g_call_me_t *func, void *arg)
+{
+	struct g_event *ep;
+
+	g_trace(G_T_TOPOLOGY, "g_call_me(%p, %p", func, arg);
+	ep = g_malloc(sizeof *ep, M_NOWAIT | M_ZERO);
+	if (ep == NULL)
+		return (ENOMEM);
+	ep->event = EV_CALL_ME;
+	ep->func = func;
+	ep->arg = arg;
+	mtx_lock(&g_eventlock);
+	g_pending_events++;
+	TAILQ_INSERT_TAIL(&g_events, ep, events);
+	mtx_unlock(&g_eventlock);
+	wakeup(&g_wait_event);
+	return (0);
 }
 
 #ifdef _KERNEL

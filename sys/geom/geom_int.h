@@ -51,6 +51,7 @@ enum g_events {
 	EV_NEW_CLASS,		/* class */
 	EV_NEW_PROVIDER,	/* provider */
 	EV_SPOILED,		/* provider, consumer */
+	EV_CALL_ME,		/* func, arg */
 	EV_LAST
 };
 
@@ -61,6 +62,8 @@ struct g_event {
 	struct g_geom		*geom;
 	struct g_provider	*provider;
 	struct g_consumer	*consumer;
+	void			*arg;
+	g_call_me_t		*func;
 };
 
 /* geom_dump.c */
