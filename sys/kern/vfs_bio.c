@@ -1321,8 +1321,7 @@ brelse(struct buf * bp)
 		 */
 		resid = bp->b_bufsize;
 		foff = bp->b_offset;
-		if (obj != NULL)
-			VM_OBJECT_LOCK(obj);
+		VM_OBJECT_LOCK(obj);
 		for (i = 0; i < bp->b_npages; i++) {
 			int had_bogus = 0;
 
@@ -1371,8 +1370,7 @@ brelse(struct buf * bp)
 			resid -= PAGE_SIZE - (foff & PAGE_MASK);
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
-		if (obj != NULL)
-			VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_UNLOCK(obj);
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
 
@@ -3168,8 +3166,7 @@ bufdone(struct buf *bp)
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("biodone: no buffer offset"));
 
-		if (obj != NULL)
-			VM_OBJECT_LOCK(obj);
+		VM_OBJECT_LOCK(obj);
 #if defined(VFS_BIO_DEBUG)
 		if (obj->paging_in_progress < bp->b_npages) {
 			printf("biodone: paging in progress(%d) < bp->b_npages(%d)\n",
@@ -3258,10 +3255,8 @@ bufdone(struct buf *bp)
 			iosize -= resid;
 		}
 		vm_page_unlock_queues();
-		if (obj != NULL) {
-			vm_object_pip_wakeupn(obj, 0);
-			VM_OBJECT_UNLOCK(obj);
-		}
+		vm_object_pip_wakeupn(obj, 0);
+		VM_OBJECT_UNLOCK(obj);
 	}
 
 	/*
@@ -3385,8 +3380,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("vfs_busy_pages: no buffer offset"));
 		vfs_setdirty(bp);
-		if (obj != NULL)
-			VM_OBJECT_LOCK(obj);
+		VM_OBJECT_LOCK(obj);
 retry:
 		vm_page_lock_queues();
 		for (i = 0; i < bp->b_npages; i++) {
@@ -3430,8 +3424,7 @@ retry:
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
 		vm_page_unlock_queues();
-		if (obj != NULL)
-			VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_UNLOCK(obj);
 		if (bogus)
 			pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 	}
