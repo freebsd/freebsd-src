@@ -56,7 +56,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-
 static int	spec_advlock(struct vop_advlock_args *);
 static int	spec_close(struct vop_close_args *);
 static int	spec_freeblks(struct vop_freeblks_args *);
@@ -69,6 +68,8 @@ static int	spec_poll(struct vop_poll_args *);
 static int	spec_print(struct vop_print_args *);
 static int	spec_read(struct vop_read_args *);
 static int	spec_strategy(struct vop_strategy_args *);
+static int	spec_xstrategy(struct vop_strategy_args *);
+static int	spec_specstrategy(struct vop_specstrategy_args *);
 static int	spec_write(struct vop_write_args *);
 
 vop_t **spec_vnodeop_p;
@@ -104,6 +105,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_rename_desc,		(vop_t *) vop_panic },
 	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
 	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
+	{ &vop_specstrategy_desc,	(vop_t *) spec_specstrategy },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) vop_panic },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
@@ -522,7 +524,7 @@ SYSCTL_INT(_debug, OID_AUTO, doslowdown, CTLFLAG_RW, &doslowdown, 0, "");
  * Just call the device strategy routine
  */
 static int
-spec_strategy(ap)
+spec_xstrategy(ap)
 	struct vop_strategy_args /* {
 		struct vnode *a_vp;
 		struct buf *a_bp;
@@ -607,6 +609,41 @@ spec_strategy(ap)
 		DEV_STRATEGY(bp);
 		
 	return (0);
+}
+
+/*
+ * Decoy strategy routine.  We should always come in via the specstrategy
+ * method, but in case some code has botched it, we have a strategy as
+ * well.  We will deal with the request anyway and first time around we
+ * print some debugging useful information.
+ */
+
+static int
+spec_strategy(ap)
+	struct vop_strategy_args /* {
+		struct vnode *a_vp;
+		struct buf *a_bp;
+	} */ *ap;
+{
+	static int once;
+
+	if (!once) {
+		vprint("\nVOP_STRATEGY on VCHR\n", ap->a_vp);
+		backtrace();
+		once++;
+	}
+	return spec_xstrategy(ap);
+}
+
+static int
+spec_specstrategy(ap)
+	struct vop_specstrategy_args /* {
+		struct vnode *a_vp;
+		struct buf *a_bp;
+	} */ *ap;
+{
+
+	return spec_xstrategy((void *)ap);
 }
 
 static int

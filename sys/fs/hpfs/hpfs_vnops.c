@@ -706,7 +706,7 @@ hpfs_strategy(ap)
 		return (0);
 	}
 	bp->b_dev = hp->h_devvp->v_rdev;
-	VOP_STRATEGY(hp->h_devvp, bp);
+	VOP_SPECSTRATEGY(hp->h_devvp, bp);
 	return (0);
 }
 
