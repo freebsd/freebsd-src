@@ -99,7 +99,6 @@ extern int maxslp;
  *
  * Note: proc0 from proc.h
  */
-
 static void vm_init_limits __P((void *));
 SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0)
 
@@ -413,7 +412,6 @@ loop:
 				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
 					pri -= kg->kg_nice * 8;
 				}
-				
 
 				/*
 				 * if this ksegrp is higher priority

@@ -219,7 +219,6 @@ static void vm_pageout_page_stats(void);
  * block.  Note the careful timing, however, the busy bit isn't set till
  * late and we cannot do anything that will mess with the page.
  */
-
 static int
 vm_pageout_clean(m)
 	vm_page_t m;
@@ -276,7 +275,6 @@ vm_pageout_clean(m)
 	 * first and attempt to align our cluster, then do a 
 	 * forward scan if room remains.
 	 */
-
 more:
 	while (ib && pageout_count < vm_pageout_page_count) {
 		vm_page_t p;
@@ -359,7 +357,6 @@ more:
  *	the parent to do more sophisticated things we may have to change
  *	the ordering.
  */
-
 int
 vm_pageout_flush(mc, count, flags)
 	vm_page_t *mc;
@@ -382,7 +379,6 @@ vm_pageout_flush(mc, count, flags)
 	 * NOTE! mc[i]->dirty may be partial or fragmented due to an
 	 * edge case with file fragments.
 	 */
-
 	for (i = 0; i < count; i++) {
 		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL, ("vm_pageout_flush page %p index %d/%d: partially invalid page", mc[i], i, count));
 		vm_page_io_start(mc[i]);
@@ -479,9 +475,9 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 		remove_mode = map_remove_only;
 		if (object->shadow_count > 1)
 			remove_mode = 1;
-	/*
-	 * scan the objects entire memory queue
-	 */
+		/*
+		 * scan the objects entire memory queue
+		 */
 		rcount = object->resident_page_count;
 		p = TAILQ_FIRST(&object->memq);
 		while (p && (rcount-- > 0)) {
@@ -606,14 +602,13 @@ vm_pageout_map_deactivate_pages(map, desired)
 	vm_map_unlock(map);
 	return;
 }
-#endif
+#endif		/* !defined(NO_SWAPPING) */
 
 /*
  * Don't try to be fancy - being fancy can lead to VOP_LOCK's and therefore
  * to vnode deadlocks.  We only do it for OBJT_DEFAULT and OBJT_SWAP objects
  * which we know can be trivially freed.
  */
-
 void
 vm_pageout_page_free(vm_page_t m) {
 	vm_object_t object = m->object;
@@ -690,12 +685,10 @@ vm_pageout_scan(int pass)
 	 * daemon cannot clean enough pages in the first pass, we let it go
 	 * all out in succeeding passes.
 	 */
-
 	if ((maxlaunder = vm_max_launder) <= 1)
 		maxlaunder = 1;
 	if (pass)
 		maxlaunder = 10000;
-
 rescan0:
 	addl_page_shortage = addl_page_shortage_init;
 	maxscan = cnt.v_inactive_count;
@@ -727,7 +720,7 @@ rescan0:
 			continue;
 		}
 		/*
-		 * Dont mess with busy pages, keep in the front of the
+		 * Don't mess with busy pages, keep in the front of the
 		 * queue, most likely are being paged out.
 		 */
 		if (m->busy || (m->flags & PG_BUSY)) {
@@ -972,7 +965,6 @@ rescan0:
 	 * track the per-page activity counter and use it to locate
 	 * deactivation candidates.
 	 */
-
 	pcount = cnt.v_active_count;
 	m = TAILQ_FIRST(&vm_page_queues[PQ_ACTIVE].pl);
 
@@ -1061,7 +1053,6 @@ rescan0:
 	 * are considered basically 'free', moving pages from cache to free
 	 * does not effect other calculations.
 	 */
-
 	while (cnt.v_free_count < cnt.v_free_reserved) {
 		static int cache_rover = 0;
 		m = vm_pageq_find(PQ_CACHE, cache_rover, FALSE);
@@ -1305,7 +1296,6 @@ vm_size_t count;
 	return 1;
 }
 
-
 /*
  *	vm_pageout is the high level pageout daemon.
  */
@@ -1319,7 +1309,6 @@ vm_pageout()
 	/*
 	 * Initialize some paging parameters.
 	 */
-
 	cnt.v_interrupt_free_min = 2;
 	if (cnt.v_page_count < 2000)
 		vm_pageout_page_count = 8;
@@ -1367,7 +1356,6 @@ vm_pageout()
 		vm_pageout_stats_interval = 5;
 	if (vm_pageout_full_stats_interval == 0)
 		vm_pageout_full_stats_interval = vm_pageout_stats_interval * 4;
-	
 
 	/*
 	 * Set maximum free per pass
@@ -1469,7 +1457,6 @@ vm_daemon()
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
 		 */
-
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			vm_pindex_t limit, size;
@@ -1515,4 +1502,4 @@ vm_daemon()
 		sx_sunlock(&allproc_lock);
 	}
 }
-#endif
+#endif			/* !defined(NO_SWAPPING) */

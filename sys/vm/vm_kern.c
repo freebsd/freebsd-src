@@ -97,7 +97,6 @@ vm_map_t buffer_map=0;
  *	Allocate pageable memory to the kernel's address map.
  *	"map" must be kernel_map or a submap of kernel_map.
  */
-
 vm_offset_t
 kmem_alloc_pageable(map, size)
 	vm_map_t map;
@@ -123,7 +122,6 @@ kmem_alloc_pageable(map, size)
  *
  *	Same as kmem_alloc_pageable, except that it create a nofault entry.
  */
-
 vm_offset_t
 kmem_alloc_nofault(map, size)
 	vm_map_t map;
@@ -199,7 +197,6 @@ kmem_alloc(map, size)
 	 * We're intentionally not activating the pages we allocate to prevent a
 	 * race with page-out.  vm_map_pageable will wire the pages.
 	 */
-
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
@@ -215,7 +212,6 @@ kmem_alloc(map, size)
 	/*
 	 * And finally, mark the data as non-pageable.
 	 */
-
 	(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size, FALSE);
 
 	return (addr);
@@ -443,7 +439,6 @@ bad:
  *
  *	This routine may block.
  */
-
 vm_offset_t
 kmem_alloc_wait(map, size)
 	vm_map_t map;
@@ -504,7 +499,6 @@ kmem_free_wakeup(map, addr, size)
  *	new map will thus map the range between VM_MIN_KERNEL_ADDRESS and 
  *	`start' as allocated, and the range between `start' and `end' as free.
  */
-
 void
 kmem_init(start, end)
 	vm_offset_t start, end;

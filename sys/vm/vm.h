@@ -111,7 +111,7 @@ typedef int boolean_t;
  */
 struct vm_page;
 typedef struct vm_page *vm_page_t;
-#endif
+#endif				/* _KERNEL */
 
 /*
  * Information passed from the machine-independant VM initialization code

@@ -57,7 +57,7 @@ int obreak __P((struct thread *, void *, int *));
 int sbrk __P((struct thread *, void *, int *));
 int sstk __P((struct thread *, void *, int *));
 int swapon __P((struct thread *, void *, int *));
-#endif
+#endif			/* TYPEDEF_FOR_UAP */
 
 int grow __P((struct proc *, size_t));
 int grow_stack __P((struct proc *, size_t));
@@ -97,7 +97,5 @@ void vsunlock __P((caddr_t, u_int));
 void vm_object_print __P((/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 			  char *));
 int vm_fault_quick __P((caddr_t v, int prot));
-
 #endif				/* _KERNEL */
-
 #endif				/* !_VM_EXTERN_H_ */

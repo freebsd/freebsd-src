@@ -82,7 +82,6 @@ struct vnode *swapdev_vp;
  *
  *	The bp is expected to be locked and *not* B_DONE on call.
  */
-
 static int
 swapdev_strategy(ap)
 	struct vop_strategy_args /* {

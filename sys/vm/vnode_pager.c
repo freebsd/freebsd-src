@@ -229,7 +229,7 @@ vnode_pager_haspage(object, pindex, before, after)
 		after, before);
 	if (err)
 		return TRUE;
-	if ( bn == -1)
+	if (bn == -1)
 		return FALSE;
 	if (pagesperblock > 0) {
 		poff = pindex - (reqblock * pagesperblock);
@@ -393,7 +393,7 @@ vnode_pager_addr(vp, address, run)
 		rtaddress = -1;
 	else {
 		rtaddress = block + voffset / DEV_BSIZE;
-		if( run) {
+		if (run) {
 			*run += 1;
 			*run *= bsize/PAGE_SIZE;
 			*run -= voffset/PAGE_SIZE;
@@ -681,7 +681,6 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * clean up and return.  Otherwise we have to re-read the
 	 * media.
 	 */
-
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage)
@@ -694,12 +693,12 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * here on direct device I/O
 	 */
-
 	firstaddr = -1;
+
 	/*
 	 * calculate the run that includes the required page
 	 */
-	for(first = 0, i = 0; i < count; i = runend) {
+	for (first = 0, i = 0; i < count; i = runend) {
 		firstaddr = vnode_pager_addr(vp,
 			IDX_TO_OFF(m[i]->pindex), &runpg);
 		if (firstaddr == -1) {
@@ -920,7 +919,6 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	/*
 	 * Call device-specific putpages function
 	 */
-
 	vp = object->handle;
 	if (vp->v_type != VREG)
 		mp = NULL;
