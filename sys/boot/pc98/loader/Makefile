@@ -1,11 +1,12 @@
 # $FreeBSD$
 
+PROG=		loader.sym
+INTERNALPROG=
 NEWVERSWHAT=	"bootstrap loader" pc98
-
-CFLAGS+=	-DPC98
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
+CFLAGS+=	-DPC98
 .PATH:		${.CURDIR}/../../i386/loader
 
 # Enable PXE TFTP or NFS support, not both.
@@ -23,11 +24,7 @@ HAVE_ISABUS=	yes
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
-.if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.else
-LIBFICL=	${.CURDIR}/../../ficl/libficl.a
-.endif
 .endif
 
 .if defined(LOADER_BZIP2_SUPPORT)
@@ -44,10 +41,10 @@ CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../i386
 CFLAGS+=	-I.
 
-CLEANFILES=	vers.c loader loader.list loader.bin loader.sym loader.help
+CLEANFILES=	vers.c loader loader.list loader.bin loader.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-nostdlib -static -Ttext 0x0
+LDFLAGS=	-static -Ttext 0x0
 
 # pc98 standalone support library
 LIBPC98=	${.OBJDIR}/../libpc98/libpc98.a
@@ -66,7 +63,7 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version ${NEWVERSWHAT}
 
-loader: loader.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
+loader: loader.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} loader.bin
 #	/usr/bin/kzip ${.TARGET}
@@ -90,10 +87,7 @@ FILESDIR_loader.conf=	/boot/defaults
 FILES+=	${.CURDIR}/../../i386/loader/loader.rc
 .endif
 
-OBJS=	${SRCS:N*.h:R:S/$/.o/g}
-
-loader.sym: ${OBJS} ${LIBFICL} ${LIBPC98} ${LIBSTAND}
-	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} \
-		${LIBFICL} ${LIBPC98} ${LIBSTAND}
+DPADD=	${BTXCRT} ${LIBFICL} ${LIBPC98} ${LIBSTAND}
+LDADD=	${BTXCRT} ${LIBFICL} ${LIBPC98} -lstand
 
 .include <bsd.prog.mk>

@@ -6,6 +6,7 @@ BINDIR?=	/boot
 
 LOADER_ADDRESS?=0x100000
 CFLAGS+=	-ffreestanding -mpreferred-stack-boundary=2
+LDFLAGS+=	-nostdlib
 
 # BTX components
 .if exists(${.OBJDIR}/../btx)
