@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.10 1997/02/26 22:24:28 jdp Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.11 1997/03/06 05:55:08 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -198,7 +198,7 @@ different tomorrow than it means today.
     The main line of development, also known as FreeBSD-current.
     Note:  the "." is not punctuation; it is the name of the tag.
   <tag/tag=RELENG_2_2/
-    The line of development leading up to FreeBSD-2.2.
+    The line of development for FreeBSD-2.2.x.
   <tag/tag=RELENG_2_1_0/
     The line of development for FreeBSD-2.1.x, also known as
     FreeBSD-stable.
@@ -207,6 +207,10 @@ different tomorrow than it means today.
 <p>Here are the revision tags that users might be interested in:
 
 <descrip>
+  <tag/tag=RELENG_2_2_0_RELEASE/
+  FreeBSD-2.2.0.
+  <tag/tag=RELENG_2_1_7_RELEASE/
+  FreeBSD-2.1.7.
   <tag/tag=RELENG_2_1_6_1_RELEASE/
   FreeBSD-2.1.6.1.
   <tag/tag=RELENG_2_1_6_RELEASE/
