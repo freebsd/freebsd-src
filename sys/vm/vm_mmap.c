@@ -1094,6 +1094,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		type = OBJT_DEVICE;
 		handle = vp->v_rdev;
 
+		/* XXX: lack thredref on device */
 		if(vp->v_rdev->si_devsw->d_flags & D_MMAP_ANON) {
 			*maxprotp = VM_PROT_ALL;
 			*flagsp |= MAP_ANON;
