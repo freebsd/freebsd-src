@@ -1886,7 +1886,7 @@ const char *name; uid_t uid; pid_t pid; {
 	char *format = corefilename;
 	size_t namelen;
 
-	temp = malloc(MAXPATHLEN + 1, M_TEMP, M_NOWAIT);
+	temp = malloc(MAXPATHLEN + 1, M_TEMP, M_NOWAIT | M_ZERO);
 	if (temp == NULL)
 		return NULL;
 	namelen = strlen(name);
