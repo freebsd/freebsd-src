@@ -30,10 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.2 1997/05/24 17:09:44 smp Exp smp $
+ *	$Id: exception.s,v 1.27 1997/05/26 18:00:34 fsmp Exp $
  */
 
-#include "opt_smp.h"
 #include "npx.h"				/* NNPX */
 #include "assym.s"				/* system defines */
 #include <sys/errno.h>				/* error return codes */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.67 1997/05/04 15:24:19 joerg Exp $
+ *	$Id: autoconf.c,v 1.68 1997/05/11 18:05:36 tegge Exp $
  */
 
 /*
@@ -45,7 +45,6 @@
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
  */
-#include "opt_smp.h"
 #include "opt_cd9660.h"
 
 #include <sys/param.h>

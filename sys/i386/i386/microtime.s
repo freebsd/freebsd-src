@@ -32,11 +32,10 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.21 1997/04/26 11:45:13 peter Exp $
+ *	$Id: microtime.s,v 1.22 1997/04/26 19:47:59 peter Exp $
  */
 
 #include "opt_cpu.h"
-#include "opt_smp.h"
 
 #ifdef APIC_IO
 #include <machine/apic.h>
