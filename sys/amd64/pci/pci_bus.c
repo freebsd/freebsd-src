@@ -68,6 +68,14 @@ nexus_pcib_write_config(device_t dev, int bus, int slot, int func,
 	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }
 
+/* route interrupt */
+
+static int
+nexus_pcib_route_interrupt(device_t bus, int device, int pin)
+{
+	return(pci_cfgintr(nexus_get_pcibus(bus), device, pin));
+}
+
 static devclass_t	pcib_devclass;
 
 static const char *
@@ -435,6 +443,7 @@ static device_method_t nexus_pcib_methods[] = {
 	DEVMETHOD(pcib_maxslots,	nexus_pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	nexus_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	nexus_pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt,	nexus_pcib_route_interrupt),
 
 	{ 0, 0 }
 };
