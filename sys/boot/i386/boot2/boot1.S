@@ -269,7 +269,25 @@ return: 	retw				# To caller
  * %dl	- byte     - drive number
  * stack - 10 bytes - EDD Packet
  */
-read:	 	push %dx			# Save
+read:		testb $FL_PACKET,%cs:MEM_REL+flags-start # LBA support enabled?
+		jz read.1			# No, use CHS
+		cmpb $0x80,%dl			# Hard drive?
+		jb read.1			# No, use CHS
+		mov $0x55aa,%bx			# Magic
+		push %dx			# Save
+		movb $0x41,%ah			# BIOS: Check
+		int $0x13			#  extensions present
+		pop %dx				# Restore
+		jc read.1			# If error, use CHS
+		cmp $0xaa55,%bx			# Magic?
+		jne read.1			# No, so use CHS
+		testb $0x1,%cl			# Packet interface?
+		jz read.1			# No, so use CHS
+		mov %bp,%si			# Disk packet
+		movb $0x42,%ah			# BIOS: Extended
+		int $0x13			#  read
+		retw				# To caller
+read.1:	 	push %dx			# Save
 		movb $0x8,%ah			# BIOS: Get drive
 		int $0x13			#  parameters
 		movb %dh,%ch			# Max head number
@@ -292,7 +310,7 @@ read:	 	push %dx			# Save
 		pop %dx				# Restore
 		cmpl $0x3ff,%eax		# Cylinder number supportable?
 		sti				# Enable interrupts
-		ja read.7			# No, try EDD
+		ja ereturn			# No, return an error
 		xchgb %al,%ah			# Set up cylinder
 		rorb $0x2,%al			#  number
 		orb %ch,%al			# Merge
@@ -328,24 +346,8 @@ read.4: 	movzbw %bl,%ax	 		# Sectors read
 read.5: 	shlb %bl			#  buffer
 		add %bl,0x5(%bp)		#  pointer,
 		sub %al,0x2(%bp)		#  block count
-		ja read				# If not done
+		ja read.1			# If not done
 read.6: 	retw				# To caller
-read.7:		testb $FL_PACKET,%cs:MEM_REL+flags-start # LBA support enabled?
-		jz ereturn			# No, so return an error
-		mov $0x55aa,%bx			# Magic
-		push %dx			# Save
-		movb $0x41,%ah			# BIOS: Check
-		int $0x13			#  extensions present
-		pop %dx				# Restore
-		jc return			# If error, return an error
-		cmp $0xaa55,%bx			# Magic?
-		jne ereturn			# No, so return an error
-		testb $0x1,%cl			# Packet interface?
-		jz ereturn			# No, so return an error
-		mov %bp,%si			# Disk packet
-		movb $0x42,%ah			# BIOS: Extended
-		int $0x13			#  read
-		retw				# To caller
 
 /* Messages */
 
