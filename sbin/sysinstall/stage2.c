@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.3 1994/10/20 19:30:53 ache Exp $
+ * $Id: stage2.c,v 1.4 1994/10/21 02:14:51 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@ stage2()
 		strcat(pbuf, *p);
 		i = exec(0, "/bin/newfs", "/bin/newfs", pbuf, 0);
 		if (i) 
-			Fatal("Exec(/bin/newfs) failed, code=%d.",i);
+			TellEm("Exec(/bin/newfs) failed, code=%d.",i);
 	}
 
 	for(q=mountpoint,p = devicename; *p; p++,q++) {
@@ -100,4 +100,5 @@ stage2()
 		if (unmount(dbuf, 0) == -1)
 			Fatal("Error unmounting %s.",dbuf);
 	}
+	dialog_msgbox(TITLE,"Remove the floppydisk from the drive, and hit return to reboot from the harddisk",6, 75, 1);
 }
