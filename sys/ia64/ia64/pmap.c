@@ -787,8 +787,10 @@ pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 	vhpte->chain = ia64_tpa((vm_offset_t)pte);
 	ia64_mf();
 
-	if (!pmap_lpte_present(vhpte) && pmap_lpte_present(pte))
+	if (!pmap_lpte_present(vhpte) && pmap_lpte_present(pte)) {
+		ia64_ptc_g(va, PAGE_SHIFT << 2);
 		pmap_install_pte(vhpte, pte);
+	}
 
 	mtx_unlock(&pmap_vhptmutex);
 }
@@ -806,8 +808,10 @@ pmap_update_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 	mtx_lock(&pmap_vhptmutex);
 
 	if ((!pmap_lpte_present(vhpte) || vhpte->tag == pte->tag) &&
-	    pmap_lpte_present(pte))
+	    pmap_lpte_present(pte)) {
+		ia64_ptc_g(va, PAGE_SHIFT << 2);
 		pmap_install_pte(vhpte, pte);
+	}
 
 	mtx_unlock(&pmap_vhptmutex);
 }
