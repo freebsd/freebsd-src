@@ -926,14 +926,10 @@ pmap_new_proc(struct proc *p)
 	/*
 	 * allocate object for the upages
 	 */
-	PROC_LOCK(p);
 	if ((upobj = p->p_upages_obj) == NULL) {
-		PROC_UNLOCK(p);
 		upobj = vm_object_allocate( OBJT_DEFAULT, UPAGES);
-		PROC_LOCK(p);
 		p->p_upages_obj = upobj;
 	}
-	PROC_UNLOCK(p);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	if ((up = p->p_addr) == NULL) {
@@ -988,9 +984,7 @@ pmap_dispose_proc(p)
 	vm_page_t m;
 	pt_entry_t *ptek, oldpte;
 
-	PROC_LOCK(p);
 	upobj = p->p_upages_obj;
-	PROC_UNLOCK(p);
 
 	ptek = vtopte((vm_offset_t) p->p_addr);
 	for(i=0;i<UPAGES;i++) {
@@ -1025,9 +1019,7 @@ pmap_swapout_proc(p)
 	 */
 	alpha_fpstate_save(p, 1);
 
-	PROC_LOCK(p);
 	upobj = p->p_upages_obj;
-	PROC_UNLOCK(p);
 	/*
 	 * let the upages be paged
 	 */
@@ -1051,9 +1043,7 @@ pmap_swapin_proc(p)
 	vm_object_t upobj;
 	vm_page_t m;
 
-	PROC_LOCK(p);
 	upobj = p->p_upages_obj;
-	PROC_UNLOCK(p);
 	for(i=0;i<UPAGES;i++) {
 
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
