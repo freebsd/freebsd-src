@@ -41,10 +41,10 @@ The Wheel authentication service module for PAM,
 .Nm
 provides functionality for only one PAM category:
 authentication.
-In terms of the 
+In terms of the
 .Ar module-type
 parameter, this is the
-.Dv auth
+.Dq Li auth
 feature.
 It also provides a null function for session management.
 .Ss Wheel Authentication Module
@@ -52,43 +52,48 @@ The Wheel authentication component
 .Pq Fn pam_sm_authenticate ,
 permit authentication to members of a group,
 which defaults to
-.Dv wheel.
-.Em ie,
-if
-.Xr getuid 2
-returns 0.
+.Dq Li wheel .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -xwidth ".Cm use_first_pass"
+.Bl -tag -xwidth ".Cm group Ns = Ns Ar foo"
 .It Cm debug
 .Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
 .It Cm use_uid
-check for wheel membership against 
-the current uid
-.Pq given by Fn getuid .
+check for
+.Dq Li wheel
+membership against
+the current UID
+(given by
+.Xr getuid 2 ) .
 .It Cm trust
 return
 .Dv PAM_SUCCESS
 instead of
 .Dv PAM_IGNORE
 if the user is a member of the group (default is
-.Dv wheel ).
+.Dq Li wheel ) .
 .It Cm deny
 invert the operation
-if is a member of the 
-.Pq default Dv wheel )
+if the user is a member of the
+(default
+.Dq Li wheel )
 group.
-.Pq return failure instead of success.
-mainly of use with the ``group=foo'' option.
-.It Cm group=foo
-checking for membership of group ``foo''
+Returns failure instead of success.
+Mainly of use with the
+.Cm group Ns = Ns Ar foo
+option.
+.It Cm group Ns = Ns Ar foo
+checking for membership of group
+.Ar foo
 instead of the default group
-.Dv wheel.
+.Dq Li wheel .
 .El
 .Sh SEE ALSO
+.Xr getuid 2 ,
+.Xr syslog 3 ,
 .Xr group 5 ,
 .Xr pam.conf 5 ,
 .Xr pam 8
