@@ -99,6 +99,24 @@ port_match(portptr, nports, port, range_flag)
 	return FALSE;
 }
 
+int
+tcpflg_match(tcp, f)
+	struct tcphdr		*tcp;
+	struct ip_fw		*f;
+{
+	u_char		flg_set, flg_clr;
+	
+	flg_set = tcp->th_flags & f->fw_tcpf;
+	flg_clr = tcp->th_flags & f->fw_tcpnf;
+
+	if (flg_set != f->fw_tcpf)
+		return 0;
+	if (flg_clr != f->fw_tcpnf)
+		return 0;
+
+	return 1;
+}
+
 
 int
 ipopts_match(ip, f)
@@ -109,14 +127,11 @@ ipopts_match(ip, f)
 	int opt, optlen, cnt;
 	u_char	opts, nopts, nopts_sve;
 
-printf("Here\n");
-
 	cp = (u_char *)(ip + 1);
 	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
 	opts = f->fw_ipopt;
 	nopts = nopts_sve = f->fw_ipnopt;
-printf("opts = %x, nopts = %x\n", opts, nopts);
-printf("Cnt = %d\n", cnt);
+
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[IPOPT_OPTVAL];
 		if (opt == IPOPT_EOL)
@@ -135,7 +150,6 @@ printf("Cnt = %d\n", cnt);
 			break;
 
 		case IPOPT_LSRR:
-printf("Has LSRR\n");
 			opts &= ~IP_FW_IPOPT_LSRR;
 			nopts &= ~IP_FW_IPOPT_LSRR;
 			break;
@@ -157,7 +171,6 @@ printf("Has LSRR\n");
 		if (opts == nopts)
 			break;
 	}
-printf("opts = %x, nopts = %x\n", opts, nopts);
 	if (opts == 0 && nopts == nopts_sve)
 		return 1;
 	else
@@ -314,15 +327,21 @@ ip_fw_chk(m, ip, rif, chain)
 				 * Specific firewall - packet's protocol must
 				 * match firewall's
 				 */
-				if (prt == f_prt) {
-					if (prt == IP_FW_F_ICMP ||
-					    (port_match(&f->fw_pts[0], f->fw_nsp, src_port,
-					    f->fw_flg & IP_FW_F_SRNG) &&
-					    port_match(&f->fw_pts[f->fw_nsp], f->fw_ndp, dst_port,
-					    f->fw_flg & IP_FW_F_DRNG))) {
+				if (prt != f_prt) 
+					continue;
+				if (prt == IP_FW_F_ICMP) 
+					goto got_match;
+				if (prt == IP_FW_F_TCP)
+					if (f->fw_tcpf != f->fw_tcpnf)
+						if (!tcpflg_match(tcp, f))
+							continue;
+
+			    	if (port_match(&f->fw_pts[0], f->fw_nsp,
+					src_port, f->fw_flg & IP_FW_F_SRNG) &&
+				    port_match(&f->fw_pts[f->fw_nsp], f->fw_ndp,
+					dst_port, f->fw_flg & IP_FW_F_DRNG)) 
 						goto got_match;
-					}	/* Ports match */
-				}	/* Proto matches */
+
 			}	/* ALL/Specific */
 		}	/* IP addr/mask matches */
 	/*
@@ -718,6 +737,16 @@ add_entry(chainptr, frwl)
 						addb4++;
 					if (n_dr > o_dr)
 						addb4--;
+
+					if (n_dr == o_dr && n_sr == o_sr &&
+						oldkind == IP_FW_F_TCP)    {
+						if (ftmp->fw_tcpf != 0 &&
+							chtmp->fw_tcpf == 0)
+							addb4++;
+						if (ftmp->fw_tcpnf != 0 &&
+							chtmp->fw_tcpnf == 0)
+							addb4++;
+					}
 
 			skip_check:
 				}
