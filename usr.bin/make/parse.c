@@ -745,8 +745,7 @@ ParseDoDependency (line)
 
     do {
 	for (cp = line;
-	     *cp && !isspace (*cp) &&
-	     (*cp != '!') && (*cp != ':') && (*cp != '(');
+	     *cp && !isspace ((unsigned char) *cp) && *cp != '(';
 	     cp++)
 	{
 	    if (*cp == '$') {
@@ -767,6 +766,33 @@ ParseDoDependency (line)
 		    free(result);
 		}
 		cp += length-1;
+	    } else if (*cp == '!' || *cp == ':') {
+		/*
+		 * We don't want to end a word on ':' or '!' if there is a
+		 * better match later on in the string (greedy matching).
+		 * This allows the user to have targets like:
+		 *    fie::fi:fo: fum
+		 *    foo::bar:
+		 * where "fie::fi:fo" and "foo::bar" are the targets.  In
+		 * real life this is used for perl5 library man pages where
+		 * "::" separates an object from its class.
+		 * Ie: "File::Spec::Unix".  This behaviour is also consistent
+		 * with other versions of make.
+		 */
+		char *p = cp + 1;
+
+		if (*cp == ':' && *p == ':')
+		    p++;
+
+		/* Found the best match already. */
+		if (*p == '\0' || isspace(*p))
+		    break;
+
+		p += strcspn(p, "!:");
+
+		/* No better match later on... */
+		if (*p == '\0')
+		    break;
 	    }
 	    continue;
 	}
