@@ -131,7 +131,7 @@ struct meteor_video {
 #define METEOR_FMT_SECAM	0x00400	/* SECAM */
 #define METEOR_FMT_AUTOMODE	0x00800 /* auto-mode */
 #define METEOR_INPUT_DEV0	0x01000	/* camera input 0 -- default */
-#define METEOR_INPUT_DEV_RCA	METEOR_GEO_DEV0
+#define METEOR_INPUT_DEV_RCA	METEOR_INPUT_DEV0
 #define METEOR_INPUT_DEV1	0x02000	/* camera input 1 */
 #define METEOR_INPUT_DEV2	0x04000	/* camera input 2 */
 #define METEOR_INPUT_DEV3	0x08000	/* camera input 3 */
@@ -153,6 +153,12 @@ struct meteor_video {
 #define METEOR_GEO_OUTPUT_MASK	0x40f0000
 #define METEOR_GEO_YUV_12	0x10000000	/* YUV 12 format */
 #define METEOR_GEO_YUV_9	0x40000000	/* YUV 9 format */
+
+#define	METEOR_FIELD_MODE	0x80000000	/* Field cap or Frame cap */
+
+#define	METEOR_SIG_MODE_MASK	0xffff0000
+#define	METEOR_SIG_FRAME	0x00000000	/* signal every frame */
+#define	METEOR_SIG_FIELD	0x00010000	/* signal every field */
 
 	/* following structure is used to coordinate the synchronous */
 	   
