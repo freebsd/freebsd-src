@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.23 1997/09/22 12:23:47 kato Exp $
+ *	$Id: fd.c,v 1.24 1997/09/24 08:21:26 kato Exp $
  *
  */
 
@@ -95,6 +95,12 @@
 
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
+
+/* configuration flags */
+#define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
+
+/* internally used only, not really from CMOS: */
+#define RTCFDT_144M_PRETENDED	0x1000
 
 /*
  * this biotab field doubles as a field for the physical unit number
@@ -779,7 +785,10 @@ fdattach(struct isa_device *dev)
 			fdt = FDT_NONE;
 			break;
 #else
-			case 0: fdt = (rtcin(RTC_FDISKETTE) & 0xf0);
+			case 0: if (dev->id_flags & FDC_PRETEND_D0)
+					fdt = RTCFDT_144M | RTCFDT_144M_PRETENDED;
+				else
+					fdt = (rtcin(RTC_FDISKETTE) & 0xf0);
 				break;
 			case 1: fdt = ((rtcin(RTC_FDISKETTE) << 4) & 0xf0);
 				break;
@@ -945,6 +954,10 @@ fdattach(struct isa_device *dev)
 			printf("1.2MB 5.25in\n");
 			fd->type = FD_1200;
 			break;
+		case RTCFDT_144M | RTCFDT_144M_PRETENDED:
+			printf("config-pretended ");
+			fdt = RTCFDT_144M;
+			/* fallthrough */
 		case RTCFDT_144M:
 			printf("1.44MB 3.5in\n");
 			fd->type = FD_1440;
