@@ -101,17 +101,6 @@ _sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	blocking = ((_thread_fd_table[s]->flags & O_NONBLOCK) == 0);
 
 	/*
-	 * Emulate sendfile(2) weirdness, sendfile doesn't actually send
-	 * nbytes of the file, it really sends (nbytes - headers_size) of
-	 * the file.  If (nbytes - headers_size) == 0 we just send trailers.
-	 */	
-	if (nbytes != 0) {
-		nbytes -= nwritten;
-		if (nbytes <= 0)
-			goto ERROR_2;
-	}
-
-	/*
 	 * Loop while no error occurs and until the expected number of bytes are
 	 * written.
 	 */
