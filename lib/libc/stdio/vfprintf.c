@@ -111,9 +111,9 @@ enum typeid {
 
 static int	__sprint(FILE *, struct __suio *);
 static int	__sbprintf(FILE *, const char *, va_list) __printflike(2, 0);
-static char	*__ujtoa(uintmax_t, char *, int, int, char *, int, char,
+static char	*__ujtoa(uintmax_t, char *, int, int, const char *, int, char,
 		    const char *);
-static char	*__ultoa(u_long, char *, int, int, char *, int, char,
+static char	*__ultoa(u_long, char *, int, int, const char *, int, char,
 		    const char *);
 static char	*__wcsconv(wchar_t *, int);
 static void	__find_arguments(const char *, va_list, union arg **);
@@ -185,7 +185,7 @@ __sbprintf(FILE *fp, const char *fmt, va_list ap)
  * use the given digits.
  */
 static char *
-__ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
+__ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
 	int needgrp, char thousep, const char *grp)
 {
 	char *cp = endp;
@@ -262,7 +262,7 @@ __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
 
 /* Identical to __ultoa, but for intmax_t. */
 static char *
-__ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs, 
+__ujtoa(uintmax_t val, char *endp, int base, int octzero, const char *xdigs, 
 	int needgrp, char thousep, const char *grp)
 {
 	char *cp = endp;
@@ -407,15 +407,17 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 }
 
 #ifdef FLOATING_POINT
+
+#define	dtoa		__dtoa
+#define	freedtoa	__freedtoa
+
+#include <float.h>
 #include <math.h>
 #include "floatio.h"
+#include "gdtoa.h"
 
 #define	DEFPREC		6
 
-extern char *__dtoa(double, int, int, int *, int *, char **);
-extern void __freedtoa(char *s);
-
-static char *cvt(double, int, int, char *, int *, int, int *);
 static int exponent(char *, int, int);
 
 #endif /* FLOATING_POINT */
@@ -435,7 +437,6 @@ static int exponent(char *, int, int);
  * Flags used during conversion.
  */
 #define	ALT		0x001		/* alternate form */
-#define	HEXPREFIX	0x002		/* add 0x or 0X prefix */
 #define	LADJUST		0x004		/* left adjustment */
 #define	LONGDBL		0x008		/* long double */
 #define	LONGINT		0x010		/* long integer */
@@ -464,19 +465,41 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int flags;		/* flags as above */
 	int ret;		/* return value accumulator */
 	int width;		/* width from format (%8d), or 0 */
-	int prec;		/* precision from format (%.3d), or -1 */
+	int prec;		/* precision from format; <0 for N/A */
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	char thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */
 #ifdef FLOATING_POINT
+	/*
+	 * We can decompose the printed representation of floating
+	 * point numbers into several parts, some of which may be empty:
+	 *
+	 * [+|-| ] [0x|0X] MMM . NNN [e|E|p|P] [+|-] ZZ
+	 *    A       B     ---C---      D       E   F
+	 *
+	 * A:	'sign' holds this value if present; '\0' otherwise
+	 * B:	ox[1] holds the 'x' or 'X'; '\0' if not hexadecimal
+	 * C:	cp points to the string MMMNNN.  Leading and trailing
+	 *	zeros are not in the string and must be added.
+	 * D:	expchar holds this character; '\0' if no exponent, e.g. %f
+	 * F:	at least two digits for decimal, at least one digit for hex
+	 */
 	char *decimal_point;	/* locale specific decimal point */
-	char softsign;		/* temporary negative sign for floats */
-	double _double;		/* double precision arguments %[eEfgG] */
+	int signflag;		/* true if float is negative */
+	union {			/* floating point arguments %[aAeEfFgG] */
+		double dbl;
+		long double ldbl;
+	} fparg;
 	int expt;		/* integer value of exponent */
+	char expchar;		/* exponent character: [eEpP\0] */
+	char *dtoaend;		/* pointer to end of converted digits */
 	int expsize;		/* character count for expstr */
-	int ndig;		/* actual number of digits returned by cvt */
-	char expstr[MAXEXPDIG+2];	/* buffer for exponent string */
+	int lead;		/* sig figs before decimal or group sep */
+	int ndig;		/* actual number of digits returned by dtoa */
+	char expstr[MAXEXPDIG+2];	/* buffer for exponent string: e+ZZZ */
 	char *dtoaresult;	/* buffer allocated by dtoa */
+	int nseps;		/* number of group separators with ' */
+	int nrepeats;		/* number of repeats of the last group */
 #endif
 	u_long	ulval;		/* integer arguments %[diouxX] */
 	uintmax_t ujval;	/* %j, %ll, %q, %t, %z integers */
@@ -485,12 +508,12 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int realsz;		/* field size expanded by dprec, sign, etc */
 	int size;		/* size of converted field or string */
 	int prsize;             /* max size of printed field */
-	char *xdigs;		/* digits for [xX] conversion */
+	const char *xdigs;     	/* digits for %[xX] conversion */
 #define NIOV 8
 	struct __suio uio;	/* output information: summary */
 	struct __siov iov[NIOV];/* ... and individual io vectors */
 	char buf[BUF];		/* buffer with space for digits of uintmax_t */
-	char ox[2];		/* space for 0x hex-prefix */
+	char ox[2];		/* space for 0x; ox[1] is either x, X, or \0 */
 	union arg *argtable;    /* args, built due to positional arg */
 	union arg statargtable [STATIC_ARG_TBL_SIZE];
 	int nextarg;            /* 1-based argument index */
@@ -507,6 +530,9 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	 {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
 	static char zeroes[PADSIZE] =
 	 {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
+
+	static const char xdigs_lower[16] = "0123456789abcdef";
+	static const char xdigs_upper[16] = "0123456789ABCDEF";
 
 	/*
 	 * BEWARE, these `goto error' on error, and PAD uses `n'.
@@ -647,6 +673,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 		width = 0;
 		prec = -1;
 		sign = '\0';
+		ox[1] = '\0';
 
 rflag:		ch = *fmt++;
 reswitch:	switch (ch) {
@@ -801,86 +828,122 @@ reswitch:	switch (ch) {
 #ifdef HEXFLOAT
 		case 'a':
 		case 'A':
+			if (ch == 'a') {
+				ox[1] = 'x';
+				xdigs = xdigs_lower;
+				expchar = 'p';
+			} else {
+				ox[1] = 'X';
+				xdigs = xdigs_upper;
+				expchar = 'P';
+			}
+			/*
+			 * XXX We don't actually have a conversion
+			 * XXX routine for this yet.
+			 */
+			if (flags & LONGDBL) {
+				fparg.ldbl = (double)GETARG(long double);
+				dtoaresult = cp =
+				    __hldtoa(fparg.ldbl, xdigs, prec,
+				    &expt, &signflag, &dtoaend);
+			} else {
+				fparg.dbl = GETARG(double);
+				dtoaresult = cp =
+				    __hdtoa(fparg.dbl, xdigs, prec,
+				    &expt, &signflag, &dtoaend);
+			}
+			goto fp_begin;
 #endif
 		case 'e':
 		case 'E':
-			/*-
-			 * Grouping apply to %i, %d, %u, %f, %F, %g, %G
-			 * conversion specifiers only. For other conversions
-			 * behavior is undefined.
-			 *	-- POSIX
-			 */
-			flags &= ~GROUPING;
-			/*FALLTHROUGH*/
+			expchar = ch;
+			if (prec < 0)	/* account for digit before decpt */
+				prec = DEFPREC + 1;
+			else
+				prec++;
+			goto fp_begin;
 		case 'f':
 		case 'F':
+			expchar = '\0';
 			goto fp_begin;
 		case 'g':
 		case 'G':
+			expchar = ch - ('g' - 'e');
 			if (prec == 0)
 				prec = 1;
-fp_begin:		if (prec == -1)
+fp_begin:
+			if (prec < 0)
 				prec = DEFPREC;
-			if (flags & LONGDBL)
-				/* XXX this loses precision. */
-				_double = (double)GETARG(long double);
-			else
-				_double = GETARG(double);
-			/* do this before tricky precision changes */
-			if (isinf(_double)) {
-				if (_double < 0)
-					sign = '-';
-				if (isupper(ch))
-					cp = "INF";
-				else
-					cp = "inf";
-				size = 3;
-				break;
+			if (dtoaresult != NULL)
+				freedtoa(dtoaresult);
+			if (flags & LONGDBL) {
+				fparg.ldbl = GETARG(long double);
+				dtoaresult = cp =
+				    __ldtoa(&fparg.ldbl, expchar ? 2 : 3, prec,
+				    &expt, &signflag, &dtoaend);
+			} else {
+				fparg.dbl = GETARG(double);
+				dtoaresult = cp =
+				    dtoa(fparg.dbl, expchar ? 2 : 3, prec,
+				    &expt, &signflag, &dtoaend);
+				if (expt == 9999)
+					expt = INT_MAX;
 			}
-			if (isnan(_double)) {
-				if (isupper(ch))
-					cp = "NAN";
-				else
-					cp = "nan";
+			if (signflag)
+				sign = '-';
+			if (expt == INT_MAX) {	/* inf or nan */
+				if (*cp == 'N') {
+					cp = (ch >= 'a') ? "nan" : "NAN";
+					sign = '\0';
+				} else
+					cp = (ch >= 'a') ? "inf" : "INF";
 				size = 3;
 				break;
 			}
 			flags |= FPT;
-			if (dtoaresult != NULL) {
-				__freedtoa(dtoaresult);
-				dtoaresult = NULL;
-			}
-			dtoaresult = cp = cvt(_double, prec, flags, &softsign,
-				&expt, ch, &ndig);
+			ndig = dtoaend - cp;
 			if (ch == 'g' || ch == 'G') {
-				if (expt <= -4 || expt > prec)
-					ch = (ch == 'g') ? 'e' : 'E';
-				else
-					ch = 'g';
+				if (expt > -4 && expt <= prec) {
+					/* Make %[gG] smell like %[fF] */
+					expchar = '\0';
+					if (flags & ALT)
+						prec -= expt;
+					else
+						prec = ndig - expt;
+					if (prec < 0)
+						prec = 0;
+				}
 			}
-			if (ch == 'e' || ch == 'E') {
-				--expt;
-				expsize = exponent(expstr, expt, ch);
-				size = expsize + ndig;
-				if (ndig > 1 || flags & ALT)
+			if (expchar) {
+				expsize = exponent(expstr, expt - 1, expchar);
+				size = expsize + prec;
+				if (prec || flags & ALT)
 					++size;
-			} else if (ch == 'f' || ch == 'F') {
+			} else {
 				if (expt > 0) {
 					size = expt;
 					if (prec || flags & ALT)
 						size += prec + 1;
 				} else	/* "0.X" */
 					size = prec + 2;
-			} else if (expt >= ndig) {	/* fixed g fmt */
-				size = expt;
-				if (flags & ALT)
-					++size;
-			} else
-				size = ndig + (expt > 0 ?
-					1 : 2 - expt);
-
-			if (softsign)
-				sign = '-';
+				if (grouping && expt > 0) {
+					/* space for thousands' grouping */
+					nseps = nrepeats = 0;
+					lead = expt;
+					while (*grouping != CHAR_MAX) {
+						if (lead <= *grouping)
+							break;
+						lead -= *grouping;
+						if (*(grouping+1)) {
+							nseps++;
+							grouping++;
+						} else
+							nrepeats++;
+					}
+					size += nseps + nrepeats;
+				} else
+					lead = (expt < ndig) ? expt : ndig;
+			}
 			break;
 #endif /* FLOATING_POINT */
 		case 'n':
@@ -926,9 +989,9 @@ fp_begin:		if (prec == -1)
 			 */
 			ujval = (uintmax_t)(uintptr_t)GETARG(void *);
 			base = 16;
-			xdigs = "0123456789abcdef";
-			flags = flags | INTMAXT | HEXPREFIX;
-			ch = 'x';
+			xdigs = xdigs_lower;
+			flags = flags | INTMAXT;
+			ox[1] = 'x';
 			goto nosign;
 		case 'S':
 			flags |= LONGINT;
@@ -980,10 +1043,10 @@ fp_begin:		if (prec == -1)
 			base = 10;
 			goto nosign;
 		case 'X':
-			xdigs = "0123456789ABCDEF";
+			xdigs = xdigs_upper;
 			goto hex;
 		case 'x':
-			xdigs = "0123456789abcdef";
+			xdigs = xdigs_lower;
 hex:
 			if (flags & INTMAX_SIZE)
 				ujval = UJARG();
@@ -993,7 +1056,7 @@ hex:
 			/* leading 0x/X only if non-zero */
 			if (flags & ALT &&
 			    (flags & INTMAX_SIZE ? ujval != 0 : ulval != 0))
-				flags |= HEXPREFIX;
+				ox[1] = ch;
 
 			flags &= ~GROUPING;
 			/* unsigned conversions */
@@ -1057,7 +1120,7 @@ number:			if ((dprec = prec) >= 0)
 		realsz = dprec > size ? dprec : size;
 		if (sign)
 			realsz++;
-		else if (flags & HEXPREFIX)
+		else if (ox[1])
 			realsz += 2;
 
 		prsize = width > realsz ? width : realsz;
@@ -1073,9 +1136,8 @@ number:			if ((dprec = prec) >= 0)
 		/* prefix */
 		if (sign) {
 			PRINT(&sign, 1);
-		} else if (flags & HEXPREFIX) {
+		} else if (ox[1]) {	/* ox[1] is either x, X, or \0 */
 			ox[0] = '0';
-			ox[1] = ch;
 			PRINT(ox, 2);
 		}
 
@@ -1091,42 +1153,49 @@ number:			if ((dprec = prec) >= 0)
 		if ((flags & FPT) == 0) {
 			PRINT(cp, size);
 		} else {	/* glue together f_p fragments */
-			if (ch >= 'f') {	/* 'f' or 'g' */
-				if (_double == 0) {
-					/* kludge for __dtoa irregularity */
-					PRINT("0", 1);
-					if (expt < ndig || (flags & ALT) != 0) {
-						PRINT(decimal_point, 1);
-						PAD(ndig - 1, zeroes);
-					}
-				} else if (expt <= 0) {
-					PRINT("0", 1);
-					PRINT(decimal_point, 1);
+			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
+				if (expt <= 0) {
+					buf[0] = '0';
+					buf[1] = *decimal_point;
+					PRINT(buf, 2);
 					PAD(-expt, zeroes);
-					PRINT(cp, ndig);
-				} else if (expt >= ndig) {
-					PRINT(cp, ndig);
-					PAD(expt - ndig, zeroes);
-					if (flags & ALT)
-						PRINT(decimal_point, 1);
+					if (ndig > 0)
+						PRINT(cp, ndig);
 				} else {
-					PRINT(cp, expt);
-					cp += expt;
-					PRINT(decimal_point, 1);
-					PRINT(cp, ndig-expt);
+					PRINT(cp, lead);
+					cp += lead;
+					if (grouping) {
+						while (nseps>0 || nrepeats>0) {
+							if (nrepeats > 0)
+								nrepeats--;
+							else {
+								grouping--;
+								nseps--;
+							}
+							PRINT(&thousands_sep,
+							    1);
+							PRINT(cp, *grouping);
+							cp += *grouping;
+						}
+					} else {
+						PAD(expt - lead, zeroes);
+					}
+					if (prec || flags & ALT)
+						PRINT(decimal_point,1);
+					if (ndig > lead)
+						PRINT(cp, ndig - lead);
 				}
-			} else {	/* 'e' or 'E' */
-				if (ndig > 1 || flags & ALT) {
-					ox[0] = *cp++;
-					ox[1] = *decimal_point;
-					PRINT(ox, 2);
-					if (_double) {
-						PRINT(cp, ndig-1);
-					} else	/* 0.[0..] */
-						/* __dtoa irregularity */
-						PAD(ndig - 1, zeroes);
+				PAD(prec - ndig + expt, zeroes);
+			} else {	/* %[eE] or sufficiently long %[gG] */
+				if (prec || flags & ALT) {
+					buf[0] = *cp++;
+					buf[1] = *decimal_point;
+					PRINT(buf, 2);
+					PRINT(cp, ndig-1);
+					PAD(prec - ndig, zeroes);
 				} else	/* XeYYY */
 					PRINT(cp, 1);
+					
 				PRINT(expstr, expsize);
 			}
 		}
@@ -1147,7 +1216,7 @@ done:
 error:
 #ifdef FLOATING_POINT
 	if (dtoaresult != NULL)
-		__freedtoa(dtoaresult);
+		freedtoa(dtoaresult);
 #endif
 	if (convbuf != NULL)
 		free(convbuf);
@@ -1517,44 +1586,6 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 
 #ifdef FLOATING_POINT
 
-static char *
-cvt(double value, int ndigits, int flags, char *sign, int *decpt,
-    int ch, int *length)
-{
-	int mode, dsgn;
-	char *digits, *bp, *rve;
-
-	if (ch == 'f')
-		mode = 3;		/* ndigits after the decimal point */
-	else {
-		/*
-		 * To obtain ndigits after the decimal point for the 'e'
-		 * and 'E' formats, round to ndigits + 1 significant
-		 * figures.
-		 */
-		if (ch == 'e' || ch == 'E')
-			ndigits++;
-		mode = 2;		/* ndigits significant digits */
-	}
-	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve);
-	*sign = dsgn != 0;
-	if ((ch != 'g' && ch != 'G') || flags & ALT) {
-		/* print trailing zeros */
-		bp = digits + ndigits;
-		if (ch == 'f') {
-			if ((*digits == '0' || *digits == '\0') && value)
-				*decpt = -ndigits + 1;
-			bp += *decpt;
-		}
-		if (value == 0)	/* kludge for __dtoa irregularity */
-			rve = bp;
-		while (rve < bp)
-			*rve++ = '0';
-	}
-	*length = rve - digits;
-	return (digits);
-}
-
 static int
 exponent(char *p0, int exp, int fmtch)
 {
@@ -1578,7 +1609,14 @@ exponent(char *p0, int exp, int fmtch)
 		for (; t < expbuf + MAXEXPDIG; *p++ = *t++);
 	}
 	else {
-		*p++ = '0';
+		/*
+		 * Exponents for decimal floating point conversions
+		 * (%[eEgG]) must be at least two characters long,
+		 * whereas exponents for hexadecimal conversions can
+		 * be only one character long.
+		 */
+		if (fmtch == 'e' || fmtch == 'E')
+			*p++ = '0';
 		*p++ = to_char(exp);
 	}
 	return (p - p0);
