@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.118 1999/06/09 11:46:43 ache Exp $
+**  $Id: pcisupport.c,v 1.119 1999/06/13 20:48:29 n_hibma Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -703,6 +703,7 @@ ide_pci_match(device_t dev)
 	    return ("Promise Ultra/33 IDE controller");
 	case 0x522910b9:
 	    return ("AcerLabs Aladdin IDE controller");
+	case 0x15711106:
 	case 0x05711106:
 	    return ("VIA Apollo IDE controller");
 	case 0x06401095:
@@ -950,11 +951,8 @@ isab_match(device_t dev)
 	case 0x00061004:
 		return ("VLSI 82C593 PCI to ISA bridge");
 
-	/* VIA Technologies -- vendor 0x1106 
-	 * Note that the old Apollo Master chipset is not in here, as VIA
-	 * does not seem to have any docs on their website for it, and I do
-	 * not have a Master board in my posession. -LC */
-	case 0x05861106: /* south bridge section -- IDE is covered in ide_pci.c */
+	/* VIA Technologies -- vendor 0x1106 &/
+	case 0x05861106: /* south bridge section */
 		return ("VIA 82C586 PCI-ISA bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
@@ -1159,11 +1157,9 @@ chip_match(device_t dev)
 	case 0x01051004:
 		return ("VLSI 82C147 IrDA controller");
 
-	/* VIA Technologies -- vendor 0x1106 
-	 * Note that the old Apollo Master chipset is not in here, as VIA
-	 * does not seem to have any docs on their website for it, and I do
-	 * not have a Master board in my posession. -LC */
-
+	/* VIA Technologies -- vendor 0x1106 (0x1107 on the Apollo Master) */
+	case 0x15761107:
+		return ("VIA 82C570 (Apollo Master) system controller");
 	case 0x05851106:
 		return ("VIA 82C585 (Apollo VP1/VPX) system controller");
 	case 0x05951106:
@@ -1178,7 +1174,7 @@ chip_match(device_t dev)
 		return ("VIA 82C598MVP (Apollo MVP3) host bridge");
 	case 0x30401106:
 		return ("VIA 82C586B ACPI interface");
-        case 0x05711106:
+	case 0x05711106:
 		return ("VIA 82C586B IDE controller");
 	case 0x30381106:
 		return ("VIA 83C572 USB controller");
