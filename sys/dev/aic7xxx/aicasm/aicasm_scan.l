@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm_scan.l#3 $
  *
  * $FreeBSD$
  */
@@ -126,6 +126,8 @@ RW|RO|WO		{
 					yylval.value = WO;
 				 return T_MODE;
 			}
+BEGIN_CRITICAL		{ return T_BEGIN_CS; }
+END_CRITICAL		{ return T_END_CS; }
 bit			{ return T_BIT; }
 mask			{ return T_MASK; }
 alias			{ return T_ALIAS; }

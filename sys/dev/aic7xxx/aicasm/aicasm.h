@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm.h#3 $
  *
  * $FreeBSD$
  */
@@ -62,6 +62,7 @@ typedef enum {
 SLIST_HEAD(path_list, path_entry);
 
 extern struct path_list search_path;
+extern struct cs_tailq cs_tailq;
 extern struct scope_list scope_stack;
 extern struct symlist patch_functions;
 extern int includes_search_curdir;		/* False if we've seen -I- */
@@ -72,5 +73,6 @@ extern char *yyfilename;
 void stop(const char *errstring, int err_code);
 void include_file(char *file_name, include_type type);
 struct instruction *seq_alloc(void);
+struct critical_section *cs_alloc(void);
 struct scope *scope_alloc(void);
 void process_scope(struct scope *);
