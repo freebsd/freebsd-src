@@ -7,6 +7,9 @@
 # $FreeBSD$
 #
 
+# We don't have modules on amd64.
+makeoptions	NO_MODULES=not_yet
+
 #
 # This directive is mandatory; it defines the architecture to be
 # configured for; in this case, the 386 family based IBM-PC and
