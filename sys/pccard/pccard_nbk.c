@@ -77,6 +77,8 @@ devclass_t	pccard_devclass;
 #define PCCARD_NIRQ	1
 #define PCCARD_NDRQ	0
 
+#define PCCARD_DEVINFO(d) (struct pccard_devinfo *) device_get_ivars(d)
+
 static int
 pccard_probe(device_t dev)
 {
@@ -86,7 +88,7 @@ pccard_probe(device_t dev)
 
 static void
 pccard_print_resources(struct resource_list *rl, const char *name, int type,
-		    int count, const char *format)
+    int count, const char *format)
 {
 	struct resource_list_entry *rle;
 	int printed;
@@ -116,7 +118,7 @@ pccard_print_resources(struct resource_list *rl, const char *name, int type,
 static int
 pccard_print_child(device_t dev, device_t child)
 {
-	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
 	int retval = 0;
 
@@ -144,7 +146,7 @@ static int
 pccard_set_resource(device_t dev, device_t child, int type, int rid,
 		 u_long start, u_long count)
 {
-	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
 
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
@@ -170,7 +172,7 @@ static int
 pccard_get_resource(device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {
-	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
 
@@ -189,7 +191,7 @@ pccard_get_resource(device_t dev, device_t child, int type, int rid,
 static void
 pccard_delete_resource(device_t dev, device_t child, int type, int rid)
 {
-	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
 	resource_list_delete(rl, type, rid);
 }
@@ -245,7 +247,7 @@ static int
 pccard_release_resource(device_t bus, device_t child, int type, int rid,
 		     struct resource *r)
 {
-	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
 	return resource_list_release(rl, bus, child, type, rid, r);
 }
@@ -255,8 +257,8 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(device_probe,		pccard_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_suspend,	pccard_suspend),
+	DEVMETHOD(device_resume,	pccard_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pccard_print_child),
@@ -270,7 +272,6 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),
 	DEVMETHOD(bus_get_resource,	pccard_get_resource),
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
-
 
 	{ 0, 0 }
 };

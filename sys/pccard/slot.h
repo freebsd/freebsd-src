@@ -69,7 +69,6 @@ struct slot_ctrl {
 				/* Map interrupt number */
 	void	(*resume) __P((struct slot *));
 				/* suspend/resume support */
-	int	extra;		/* Controller specific size */
 	int	maxmem;		/* Number of allowed memory windows */
 	int	maxio;		/* Number of allowed I/O windows */
 
@@ -89,7 +88,6 @@ struct slot_ctrl {
  */
 struct pccard_devinfo {
 	u_char	name[128];
-	struct isa_device isahd;
 	int running;			/* Current state of driver */
 	u_char	misc[128];		/* For any random info */
 	struct slot *slt;		/* Back pointer to slot */
@@ -128,5 +126,7 @@ enum card_event { card_removed, card_inserted };
 
 struct slot	*pccard_alloc_slot(struct slot_ctrl *);
 void		 pccard_event(struct slot *, enum card_event);
+int		 pccard_suspend(device_t);
+int		 pccard_resume(device_t);
 
 #endif /* !_PCCARD_SLOT_H */
