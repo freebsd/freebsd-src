@@ -12,7 +12,7 @@ SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
 		-I${TELNETDIR} -DINET6
-CFLAGS+=	-DKRB5
+CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 
 WARNS?=		2
 

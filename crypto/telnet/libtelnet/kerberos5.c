@@ -192,6 +192,7 @@ kerberos5_send(const char *name, Authenticator *ap)
 	ap_opts = AP_OPTS_MUTUAL_REQUIRED;
     else
 	ap_opts = 0;
+    ap_opts |= AP_OPTS_USE_SUBKEY;
     
     ret = krb5_auth_con_init (context, &auth_context);
     if (ret) {
@@ -406,6 +407,29 @@ kerberos5_is(Authenticator *ap, unsigned char *data, int cnt)
 		printf("Kerberos V5: "
 		       "krb5_auth_con_getremotesubkey failed (%s)\r\n",
 		       krb5_get_err_text(context, ret));
+	    return;
+	}
+
+	if (key_block == NULL) {
+	    ret = krb5_auth_con_getkey(context,
+				       auth_context,
+				       &key_block);
+	}
+	if (ret) {
+	    Data(ap, KRB_REJECT, "krb5_auth_con_getkey failed", -1);
+	    auth_finished(ap, AUTH_REJECT);
+	    if (auth_debug_mode)
+		printf("Kerberos V5: "
+		       "krb5_auth_con_getkey failed (%s)\r\n",
+		       krb5_get_err_text(context, ret));
+	    return;
+	}
+	if (key_block == NULL) {
+	    Data(ap, KRB_REJECT, "no subkey received", -1);
+	    auth_finished(ap, AUTH_REJECT);
+	    if (auth_debug_mode)
+		printf("Kerberos V5: "
+		       "krb5_auth_con_getremotesubkey returned NULL key\r\n");
 	    return;
 	}
 
