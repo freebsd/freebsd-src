@@ -122,11 +122,11 @@
 	processors will be treated like additional physical processors
 	for the purposes of process scheduling.</para>
  
-      <para arch="alpha">For use of &os; on AlphaServer 8200 and 8400
-        TurboLaser machines you have manually enable a getty on the
-        serial console line after installation. If you forget to do
-        this your system might appear hung as you never get a login
-        prompt. Look for zs0 in /etc/ttys.</para>
+      <para arch="alpha">Users of AlphaServer 8200 and 8400
+        TurboLaser machines must explicitly enable &man.getty.8; for the
+        serial console line after installation.  If this is not done,
+        the system might appear hung as it will not output a login
+        prompt.  (See the <literal>zs0</literal> line in <filename>/etc/ttys</filename>.)</para>
 
     </sect3>
 
