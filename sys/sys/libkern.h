@@ -83,6 +83,7 @@ int	 fls(int);
 int	 flsl(long);
 #endif
 int	 fnmatch(const char *, const char *, int);
+void	 gets(char *, size_t, int);
 int	 locc(int, char *, u_int);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
