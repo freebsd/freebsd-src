@@ -332,7 +332,12 @@ struct system_info *si;
 	GETSYSCTL("vm.stats.vm.v_swappgsin", nspgsin);
 	GETSYSCTL("vm.stats.vm.v_swappgsout", nspgsout);
 	/* convert memory stats to Kbytes */
+	memory_stats[0] = pagetok(memory_stats[0]);
+	memory_stats[1] = pagetok(memory_stats[1]);
+	memory_stats[2] = pagetok(memory_stats[2]);
+	memory_stats[3] = pagetok(memory_stats[3]);
 	memory_stats[4] = bufspace / 1024;
+	memory_stats[5] = pagetok(memory_stats[5]);
 	memory_stats[6] = -1;
 
 	/* first interval */
