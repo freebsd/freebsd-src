@@ -471,6 +471,12 @@
 	<varname>dev.fxp0</varname>, and those sysctls can be set
 	on a per-device basis.</para>
 
+      <para>&man.fxp.4; now provides actual control over its capability
+	to receive extended Ethernet frames, <literal>VLAN_MTU</literal>.
+	It can be toggled from the userland with the aid of the options
+	<option>vlanmtu</option> and <option>-vlanmtu</option>
+	to &man.ifconfig.8;.</para>
+
       <para>The &man.ixgb.4; driver, which supports
         Intel PRO/10GBE 10 gigabit Ethernet cards, has been
         added. &merged;</para>
@@ -872,6 +878,17 @@
 
     <para>&man.ifconfig.8; now prints the &man.polling.4; status
       on the interface.  &merged;</para>
+
+    <para>&man.ifconfig.8; now provides options,
+      <option>vlanmtu</option> and <option>-vlanmtu</option>,
+      allowing to control the capability of some Ethernet interfaces
+      to receive extended frames (i.e. frames containing more than
+      1500 bytes of payload).</para>
+
+    <para>&man.ifconfig.8; now provides options,
+      <option>vlanhwtag</option> and <option>-vlanhwtag</option>,
+      allowing to control the capability of some Ethernet interfaces
+      to process VLAN tags in the hardware.</para>
 
     <para>&man.ip6fw.8; now supports a <option>-n</option> flag to
       stop it from making any changes to the rules in the kernel</para>
