@@ -17,7 +17,6 @@ CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS
 
-AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/thread
 PRECIOUSLIB=	yes
 
 WARNS?=	2

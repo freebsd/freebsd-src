@@ -3,7 +3,6 @@
 
 LIB=compat
 CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${.CURDIR}/../libc/locale
-AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH}
 NOPIC=
 
 .PATH:	${.CURDIR}/4.1/${MACHINE_ARCH} ${.CURDIR}/4.1 \
