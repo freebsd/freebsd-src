@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.h,v 1.11 1998/02/27 08:19:24 hosokawa Exp $
+ * $Id: cardd.h,v 1.12 1998/03/09 05:18:55 hosokawa Exp $
  *
  *	Common include file for PCMCIA daemon
  */
@@ -59,6 +59,7 @@ struct card {
 	char   *version;
 	int     ether;			/* For net cards, ether at offset */
 	int     reset_time;		/* Reset time */
+	int	iosize;			/* I/O window size (ignore location) */
 	struct card_config *config;	/* List of configs */
 	struct cmd *insert;		/* Insert commands */
 	struct cmd *remove;		/* Remove commands */
@@ -109,10 +110,22 @@ struct slot {
 	struct allocblk io;		/* I/O block spec */
 	struct allocblk mem;		/* Memory block spec */
 	int     irq;			/* Irq value */
+	int	flags;			/* Resource assignment flags */
 };
 
-EXTERN struct allocblk *pool_ioblks;		/* I/O blocks in the pool */
-EXTERN struct allocblk *pool_mem;		/* Memory in the pool */
+/*
+ * Slot resource assignment/configuration flags
+ */
+#define IO_ASSIGNED	0x1
+#define MEM_ASSIGNED	0x2
+#define IRQ_ASSIGNED	0x4
+#define EADDR_CONFIGED	0x8
+#define WL_CONFIGED	0x10
+#define AFLAGS	(IO_ASSIGNED | MEM_ASSIGNED | IRQ_ASSIGNED)
+#define CFLAGS	(EADDR_CONFIGED | WL_CONFIGED)
+
+EXTERN struct allocblk *pool_ioblks;            /* I/O blocks in the pool */
+EXTERN struct allocblk *pool_mem;               /* Memory in the pool */
 EXTERN int     pool_irq[16];			/* IRQ allocations */
 EXTERN struct driver *drivers;			/* List of drivers */
 EXTERN struct card *cards;

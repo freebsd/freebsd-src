@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.17 1999/06/17 21:07:58 markm Exp $";
+	"$Id: file.c,v 1.18 1999/07/15 03:04:31 imp Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -52,6 +52,7 @@ static char *keys[] = {
 	"ether",		/* 9 */
 	"insert",		/* 10 */
 	"remove",		/* 11 */
+	"iosize",		/* 12 */
 	0
 };
 
@@ -66,6 +67,7 @@ static char *keys[] = {
 #define KWD_ETHER		9
 #define KWD_INSERT		10
 #define KWD_REMOVE		11
+#define KWD_IOSIZE		12
 
 struct flags {
 	char   *name;
@@ -82,6 +84,7 @@ static int     irq_tok(int);
 static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
 static struct driver *new_driver(char *);
+static int     iosize_tok(void);
 
 static void    addcmd(struct cmd **);
 static void    parse_card(void);
@@ -181,9 +184,10 @@ parse_card(void)
 {
 	char   *man, *vers;
 	struct card *cp;
-	int     i;
+	int     i, iosize;
 	struct card_config *confp, *lastp;
 
+	confp = 0;
 	man = newstr(next_tok());
 	vers = newstr(next_tok());
 	cp = xmalloc(sizeof(*cp));
@@ -255,6 +259,19 @@ parse_card(void)
 		case KWD_REMOVE:
 			/* remove */
 			addcmd(&cp->remove);
+			break;
+		case KWD_IOSIZE:
+			/* iosize */
+			iosize = iosize_tok();
+			if (!iosize) {
+				error("Illegal cardio arguments");
+				break;
+			}
+			if (!confp) {
+				error("iosize should be placed after config");
+				break;
+			}
+			cp->iosize = iosize;
 			break;
 		default:
 			pusht = 1;
@@ -378,6 +395,30 @@ irq_tok(int force)
 		error("illegal IRQ value");
 	return (-1);
 }
+
+/*
+ *	iosize token
+ *	iosize {<size>|auto}
+ */
+static int
+iosize_tok(void)
+{
+	int iosize = 0;
+	if (strcmp("auto", next_tok()) == 0)
+		iosize = -1;	/* wildcard */
+	else {
+		pusht = 1;
+		iosize = num_tok();
+		if (iosize == -1)
+			return 0;
+	}
+#ifdef DEBUG
+	if (verbose)
+		printf("iosize: size=%x\n", iosize);
+#endif
+	return iosize;
+}
+
 
 /*
  *	search the table for a match.
