@@ -11,17 +11,17 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.164 1999/04/19 11:53:36 peter Exp $
+#	$Id: GENERIC,v 1.165 1999/04/24 16:04:16 peter Exp $
 
-machine		"i386"
-cpu		"I386_CPU"
-cpu		"I486_CPU"
-cpu		"I586_CPU"
-cpu		"I686_CPU"
+machine		i386
+cpu		I386_CPU
+cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
 ident		GENERIC
 maxusers	32
 
-#makeoptions	DEBUG="-g"		#Build kernel with gdb(1) debug symbols
+#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
@@ -32,10 +32,10 @@ options		MFS_ROOT		#MFS usable as root device, "MFS" req'ed
 options		NFS			#Network Filesystem
 options		NFS_ROOT		#NFS usable as root device, "NFS" req'ed
 options		MSDOSFS			#MSDOS Filesystem
-options		"CD9660"		#ISO 9660 Filesystem
-options		"CD9660_ROOT"		#CD-ROM usable as root. "CD9660" req'ed
+options		CD9660			#ISO 9660 Filesystem
+options		CD9660_ROOT		#CD-ROM usable as root. "CD9660" req'ed
 options		PROCFS			#Process filesystem
-options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
@@ -58,20 +58,22 @@ controller	pnp0			# PnP support for ISA
 controller	eisa0
 controller	pci0
 
-controller	fdc0	at isa? port "IO_FD1" irq 6 drq 2
+controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 
-controller	wdc0	at isa? port "IO_WD1" irq 14
+controller	wdc0	at isa? port IO_WD1 irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
 
-controller	wdc1	at isa? port "IO_WD2" irq 15
+controller	wdc1	at isa? port IO_WD2 irq 15
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
+# ATAPI devices on wdc?
 device		wcd0		#IDE CD-ROM
 device		wfd0		#IDE Floppy (e.g. LS-120)
+device		wst0		#IDE Tape (e.g. Travan)
 
 # A single entry for any of these controllers (ncr, ahb, ahc) is
 # sufficient for any number of installed devices.
@@ -92,13 +94,10 @@ controller	aha0	at isa? port ? irq ?
 
 controller	scbus0
 
-device		da0
-
+device		da0	#Only need one of these, the code dynamically grows
 device		sa0
-
 device		pass0
-
-device		cd0	#Only need one of these, the code dynamically grows
+device		cd0
 
 device		wt0	at isa? port 0x300 irq 5 drq 1
 device		mcd0	at isa? port 0x300 irq 10
@@ -119,6 +118,7 @@ pseudo-device	splash
 
 # syscons is the default console driver, resembling an SCO console
 device		sc0	at isa?
+
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa?
 #options		XSERVER			# support for X server
@@ -138,10 +138,10 @@ device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 #device		pcic0	at card?
 #device		pcic1	at card?
 
-device		sio0	at isa? port "IO_COM1" flags 0x10 irq 4
-device		sio1	at isa? port "IO_COM2" irq 3
-device		sio2	at isa? disable port "IO_COM3" irq 5
-device		sio3	at isa? disable port "IO_COM4" irq 9
+device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
+device		sio1	at isa? port IO_COM2 irq 3
+device		sio2	at isa? disable port IO_COM3 irq 5
+device		sio3	at isa? disable port IO_COM4 irq 9
 
 # Parallel port
 device		ppc0	at isa? port? irq 7
@@ -201,13 +201,11 @@ options         SYSVSHM
 options         SYSVMSG
 options         SYSVSEM
 
-
 #  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.
 #pseudo-device	bpfilter 4	#Berkeley packet filter
-
 
 # USB support
 #controller    uhci0
