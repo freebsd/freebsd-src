@@ -2447,7 +2447,8 @@ digest_symbols ()
 		    }
 		  set_vectors[setv_fill_count++] = p->n_value;
 		}
-	      else if ((type & N_EXT) && type != (N_UNDF | N_EXT))
+	      else if ((type & N_EXT) && type != (N_UNDF | N_EXT)
+		       && (type & N_TYPE) != N_FN)
 		{
 		  /* non-common definition */
 		  if (defs++ && sp->value != p->n_value)
