@@ -34,7 +34,7 @@
  *  caveats:   We may need an eisa and an isa files too
  */
 
-#ident "$Id: dpt_pci.c,v 1.1 1998/01/26 06:11:17 julian Exp $"
+#ident "$Id: dpt_pci.c,v 1.2 1998/02/09 02:31:47 eivind Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -75,9 +75,9 @@ int dpt_controllers_present = 0;
 
 /* Function Prototypes */
 
-char    *dpt_pci_probe(pcici_t tag, pcidi_t type);
-void     dpt_pci_attach(pcici_t config_id, int unit);
-int      dpt_pci_shutdown(int foo, int bar);
+static char    *dpt_pci_probe(pcici_t tag, pcidi_t type);
+static void     dpt_pci_attach(pcici_t config_id, int unit);
+static int      dpt_pci_shutdown(int foo, int bar);
 
 extern struct cdevsw dpt_cdevsw;
 
@@ -98,7 +98,7 @@ DATA_SET(pcidevice_set, dpt_pci_driver);
  * because we do not know for sure how the two relate.
  */
 
-char   *
+static char *
 dpt_pci_probe(pcici_t tag, pcidi_t type)
 {
     static char silly_message[64];
@@ -172,7 +172,7 @@ dpt_pci_probe(pcici_t tag, pcidi_t type)
     return (NULL);
 }
 
-void
+static void
 dpt_pci_attach(pcici_t config_id, int unit)
 {
     int          ospl;
@@ -503,7 +503,7 @@ dpt_pci_attach(pcici_t config_id, int unit)
     }
 }
 
-int
+static int
 dpt_pci_shutdown(int foo, int bar)
 {
 #ifdef DPT_DEBUG_WARN
