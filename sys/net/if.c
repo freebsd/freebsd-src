@@ -75,6 +75,8 @@
 #include <netinet/if_ether.h>
 #endif
 
+struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
+
 static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
@@ -441,13 +443,11 @@ if_attach(struct ifnet *ifp)
 	ifa->ifa_refcnt = 1;
 	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
-#ifdef ALTQ
 	ifp->if_snd.altq_type = 0;
 	ifp->if_snd.altq_disc = NULL;
 	ifp->if_snd.altq_flags &= ALTQF_CANTCHANGE;
 	ifp->if_snd.altq_tbr  = NULL;
 	ifp->if_snd.altq_ifp  = ifp;
-#endif
 
 	if (domains)
 		if_attachdomain1(ifp);
