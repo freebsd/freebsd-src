@@ -6,14 +6,17 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 #undef off_t
 
-/* Define if you need to in order for stat and other things to work.  */
-#undef _POSIX_SOURCE
-
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
 /* Define if you have the ANSI C header files.  */
 #undef STDC_HEADERS
+
+/* Define if you have the fseeko function.  */
+#undef HAVE_FSEEKO
+
+/* Define if you have the ftello function.  */
+#undef HAVE_FTELLO
 
 /* Define if you have the ftruncate function.  */
 #undef HAVE_FTRUNCATE
@@ -24,11 +27,23 @@
 /* Define if you have the tempnam function.  */
 #undef HAVE_TEMPNAM
 
-/* Define if fcntl.h is missing. */
-#undef NO_FCNTL
+/* Define if you have the tmpnam function.  */
+#undef HAVE_TMPNAM
 
-/* Define if fcntl.h is missing. */
-#undef OPEN_DECL
+/* Get Single Unix Specification semantics */
+#undef _XOPEN_SOURCE
+
+/* Get Single Unix Specification semantics */
+#undef _XOPEN_SOURCE_EXTENDED
+
+/* Solaris extensions */
+#undef __EXTENSIONS__
+
+/* Get 64-bit file size support */
+#undef _FILE_OFFSET_BITS
+
+/* Define for HP-UX ftello and fseeko extension. */
+#undef _LARGEFILE_SOURCE
 
 /* Define if we do not have Unix Stdio. */
 #undef NON_UNIX_STDIO

@@ -1,3 +1,4 @@
+#include <sys/types.h>
 #include <stdio.h>
 #include <errno.h>
 #ifndef NULL
@@ -12,6 +13,16 @@
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
+#endif
+
+/* Only use fseeko/ftello if they are both there.  */
+
+#if defined (HAVE_FSEEKO) && defined (HAVE_FTELLO)
+#define FSEEK fseeko
+#define FTELL ftello
+#else
+#define FSEEK fseek
+#define FTELL ftell
 #endif
 
 #if defined (MSDOS) && !defined (GO32)
