@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.30 1999/06/30 23:36:39 sheldonh Exp $
+.\"	$Id: inetd.8,v 1.31 1999/06/30 23:47:46 sheldonh Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -442,6 +442,14 @@ daemon is not required, as that functionality is builtin.
 For more information on TCP Wrappers; see the relevant documentation (
 .Xr hosts_access 5
 ).
+When reading that document, keep in mind that
+.Dq internal
+services have no associated daemon name. Therefore, the service name
+as specified in
+.Pa inetd.conf
+should be used as the daemon name for
+.Dq internal
+services.
 .Sh TCPMUX
 .Pp
 .Tn RFC 1078 
