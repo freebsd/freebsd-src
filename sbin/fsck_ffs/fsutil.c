@@ -195,7 +195,6 @@ getdatablk(ufs_daddr_t blkno, long size)
 	getblk(bp, blkno, size);
 	/* fall through */
 foundit:
-	totalreads++;
 	bp->b_prev->b_next = bp->b_next;
 	bp->b_next->b_prev = bp->b_prev;
 	bp->b_prev = &bufhead;
@@ -211,6 +210,7 @@ getblk(struct bufarea *bp, ufs_daddr_t blk, long size)
 {
 	ufs_daddr_t dblk;
 
+	totalreads++;
 	dblk = fsbtodb(&sblock, blk);
 	if (bp->b_bno != dblk) {
 		flush(fswritefd, bp);
