@@ -4,8 +4,8 @@
 PROG=	scp
 SRCS=	scp.c scp-common.c
 
-LDADD+=	-lssh -lcrypto -lutil -lz
-DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
+DPADD=	${LIBSSH}
+LDADD=	-lssh
 
 .include <bsd.prog.mk>
 

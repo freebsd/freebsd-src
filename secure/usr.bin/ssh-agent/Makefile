@@ -4,8 +4,8 @@
 PROG=	ssh-agent
 SRCS=	ssh-agent.c
 
-LDADD+=	-lssh -lcrypto -lz
-DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
+LDADD+=	-lssh -lcrypto
+DPADD+=	${LIBSSH} ${LIBCRYPTO}
 
 .include <bsd.prog.mk>
 
