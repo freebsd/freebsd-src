@@ -31,7 +31,8 @@
  * SUCH DAMAGE.
  *
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 1.4 1996/01/30 23:30:30 mpp Exp $
+ *      From: Id: netdb.h,v 8.7 1996/05/09 05:59:09 vixie Exp
+ *	$Id: netdb.h,v 1.5 1996/08/29 20:00:56 peter Exp $
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  *
@@ -56,6 +57,8 @@
 
 #ifndef _NETDB_H_
 #define _NETDB_H_
+
+#include <sys/cdefs.h>
 
 #define	_PATH_HEQUIV	"/etc/hosts.equiv"
 #define	_PATH_HOSTS	"/etc/hosts"
@@ -116,8 +119,6 @@ struct	protoent {
 #define	NO_DATA		4 /* Valid name, no data record of requested type */
 #define	NO_ADDRESS	NO_DATA		/* no address, look for MX record */
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
 void		endhostent __P((void));
 void		endnetent __P((void));
@@ -127,7 +128,7 @@ struct hostent	*gethostbyaddr __P((const char *, int, int));
 struct hostent	*gethostbyname __P((const char *));
 struct hostent	*gethostbyname2 __P((const char *, int));
 struct hostent	*gethostent __P((void));
-struct netent	*getnetbyaddr __P((long, int)); /* u_long? */
+struct netent	*getnetbyaddr __P((unsigned long, int));
 struct netent	*getnetbyname __P((const char *));
 struct netent	*getnetent __P((void));
 struct protoent	*getprotobyname __P((const char *));
@@ -171,7 +172,6 @@ struct netent *  _getnetbydnsaddr __P((unsigned long, int));
 struct netent *  _getnetbynisaddr __P((unsigned long, int));
 void _map_v4v6_address __P((const char *src, char *dst));
 void _map_v4v6_hostent __P((struct hostent *hp, char **bp, int *len));
-
 __END_DECLS
 
 #endif /* !_NETDB_H_ */
