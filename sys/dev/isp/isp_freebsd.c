@@ -160,7 +160,6 @@ isp_attach(struct ispsoftc *isp)
  */
 
 #ifdef	ISP_TARGET_MODE
-#include "targbh.h"
 
 static __inline int is_lun_enabled(struct ispsoftc *, lun_id_t);
 static __inline int are_any_luns_enabled(struct ispsoftc *);
@@ -962,20 +961,32 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	}
 
 	if (tptr == NULL) {
-#if	0
-		/* XXX WE REALLY NEED A HARDWIRED SENSE/INQ CTIO TO USE XXX */
-		u_int32_t ccode = SCSI_STATUS_CHECK_COND | ECMD_SVALID;
-#if	NTARGBH > 0
-		/* Not Ready, Unit Not Self-Configured yet.... */
-		ccode |= (SSD_KEY_NOT_READY << 8) | (0x3E << 24);
-#else
-		/* Illegal Request, Unit Not Self-Configured yet.... */
-		ccode |= (SSD_KEY_ILLEGAL_REQUEST << 8) | (0x25 << 24);
-#endif
-#else
+		/*
+		 * What we'd like to know is whether or not we have a listener
+		 * upstream that really hasn't configured yet. If we do, then
+		 * we can give a more sensible reply here. If not, then we can
+		 * reject this out of hand.
+		 *
+		 * Choices for what to send were
+		 *
+                 *	Not Ready, Unit Not Self-Configured Yet
+		 *	(0x2,0x3e,0x00)
+		 *
+		 * for the former and
+		 *
+		 *	Illegal Request, Logical Unit Not Supported
+		 *	(0x5,0x25,0x00)
+		 *
+		 * for the latter.
+		 *
+		 * We used to decide whether there was at least one listener
+		 * based upon whether the black hole driver was configured.
+		 * However, recent config(8) changes have made this hard to do
+		 * at this time.
+		 *
+		 */
 		u_int32_t ccode = SCSI_STATUS_BUSY;
-#endif
-		
+
 		/*
 		 * Because we can't autofeed sense data back with
 		 * a command for parallel SCSI, we can't give back
