@@ -40,7 +40,7 @@
 .\"
 .Dd August 2, 1999
 .Dt PAM_TACPLUS 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm pam_tacplus
 .Nd TACACS+ authentication PAM module
@@ -60,7 +60,7 @@ for the PAM (Pluggable Authentication Module) framework.
 The
 .Nm
 module accepts these optional parameters:
-.Bl -tag -width Fl
+.Bl -tag -xwidth ".Cm use_first_pass"
 .It Cm use_first_pass
 causes
 .Nm
@@ -69,7 +69,8 @@ If no password has been entered then authentication fails.
 .It Cm try_first_pass
 causes
 .Nm
-to use a previously entered password, if one is available.  If no
+to use a previously entered password, if one is available.
+If no
 password has been entered,
 .Nm
 prompts for one as usual.
@@ -77,14 +78,15 @@ prompts for one as usual.
 causes echoing to be left on if
 .Nm
 prompts for a password.
-.It Cm conf Ns No = Ns Ar pathname
+.It Cm conf Ns = Ns Ar pathname
 specifies a non-standard location for the TACACS+ client configuration file
-(normally located in /etc/tacplus.conf).
-.It Cm template_user Ns No = Ns Ar username
+(normally located in
+.Pa /etc/tacplus.conf ) .
+.It Cm template_user Ns = Ns Ar username
 specifies a user whose
 .Xr passwd 5
 entry will be used as a template to create the session environment
-if the supplied username doesn't exist in local password database.
+if the supplied username does not exist in local password database.
 The user
 will be authenticated with the supplied username and password, but his
 credentials to the system will be presented as the ones for

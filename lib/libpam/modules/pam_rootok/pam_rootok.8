@@ -41,23 +41,23 @@ The RootOK authentication service module for PAM,
 .Nm
 provides functionality for only one PAM category:
 authentication.
-In terms of the 
+In terms of the
 .Ar module-type
 parameter, this is the
-.Dv auth
+.Dq Li auth
 feature.
 It also provides a null function for session management.
 .Ss RootOK Authentication Module
 The RootOK authentication component
 .Pq Fn pam_sm_authenticate ,
 always returns success for the superuser;
-.Em ie,
+i.e.,
 if
 .Xr getuid 2
 returns 0.
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -xwidth ".Cm use_first_pass"
+.Bl -tag -xwidth ".Cm debug"
 .It Cm debug
 .Xr syslog 3
 debugging information at
