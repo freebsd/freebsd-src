@@ -149,7 +149,6 @@ typedef int d_close_t(dev_t dev, int fflag, int devtype, struct thread *td);
 typedef void d_strategy_t(struct bio *bp);
 typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
 		      int fflag, struct thread *td);
-typedef int d_psize_t(dev_t dev);
 
 typedef int d_read_t(dev_t dev, struct uio *uio, int ioflag);
 typedef int d_write_t(dev_t dev, struct uio *uio, int ioflag);
@@ -232,7 +231,7 @@ struct cdevsw {
 	const char	*d_name;	/* base device name, e.g. 'vn' */
 	int		d_maj;
 	dumper_t	*d_dump;
-	d_psize_t	*d_psize;
+	void		*__d_unused_was_psize;
 	u_int		d_flags;
 	/* additions below are not binary compatible with 4.2 and below */
 	d_kqfilter_t	*d_kqfilter;
@@ -281,7 +280,7 @@ dumper_t	nodump;
 /*
  * nopsize is little used, so not worth having dummy functions for.
  */
-#define	nopsize	((d_psize_t *)NULL)
+#define	nopsize	(NULL)
 
 d_open_t	nullopen;
 d_close_t	nullclose;
