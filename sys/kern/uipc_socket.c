@@ -231,7 +231,7 @@ sobind(so, nam, td)
 	return (error);
 }
 
-static void
+void
 sodealloc(struct socket *so)
 {
 
