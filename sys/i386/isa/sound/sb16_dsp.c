@@ -84,7 +84,11 @@ static void     dsp_cleanup (void);
 static struct audio_operations sb16_dsp_operations =
 {
   "SoundBlaster 16",
+#if defined(__FreeBSD__)
+  0,          /* disable automode for now until we get this working right */
+#else
   DMA_AUTOMODE,
+#endif
   AFMT_U8 | AFMT_S16_LE,
   NULL,
   sb16_dsp_open,

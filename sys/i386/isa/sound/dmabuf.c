@@ -702,7 +702,7 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
 
 #if defined(__FreeBSD__)
 
-      isa_dmastart (B_RAW + (dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
+      isa_dmastart (B_RAW | ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE),
 		    (caddr_t)dmap->raw_buf_phys[0],
 		    dmap->bytes_in_use,
 		    chan);
@@ -870,7 +870,9 @@ DMAbuf_inputintr (int dev)
 
   if (dmap->qlen == (dmap->nbufs - 1))
     {
+#if !defined(__FreeBSD__)	/* ignore console message. */
       printk ("Sound: Recording overrun\n");
+#endif
       dmap->underrun_count++;
       audio_devs[dev]->halt_xfer (dev);
       dmap->flags &= ~DMA_ACTIVE;

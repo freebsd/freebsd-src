@@ -475,7 +475,7 @@ static struct audio_operations ad1848_pcm_operations[MAX_AUDIO_DEV] =
   {
     "Generic AD1848 codec",
 #if defined(__FreeBSD__)
-    NEEDS_RESTART,
+    NEEDS_RESTART,/* disable automode for now until we get this working right */
 #else
     DMA_AUTOMODE,
 #endif
@@ -1196,7 +1196,7 @@ ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture
 	     "Generic audio codec (%s)", devc->chip_name);
 
 #if defined(__FreeBSD__)
-  printk ("gus0: <%s>\n", ad1848_pcm_operations[nr_ad1848_devs].name);
+  printk ("\ngus0: <%s>", ad1848_pcm_operations[nr_ad1848_devs].name);
 #else
   printk (" <%s>", ad1848_pcm_operations[nr_ad1848_devs].name);
 #endif
