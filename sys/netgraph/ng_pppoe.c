@@ -174,6 +174,7 @@ static void	pppoe_start(sessp sp);
 static void	sendpacket(sessp sp);
 static void	pppoe_ticker(void *arg);
 static struct pppoe_tag* scan_tags(sessp	sp, struct pppoe_hdr* ph);
+static	int	pppoe_send_event(sessp sp, enum cmd cmdid);
 
 /*************************************************************************
  * Some basic utilities  from the Linux version with author's permission.*
@@ -923,6 +924,7 @@ ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 				make_packet(sp);
 				sp->state = PPPOE_NEWCONNECTED;
 				sendpacket(sp);
+				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
 				/*
 				 * Having sent the last Negotiation header,
 				 * Set up the stored packet header to 
@@ -936,6 +938,7 @@ ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 				sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_SESS;
 				sp->pkt_hdr.ph.code = 0;
+				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
 				break;
 			case	PADS_CODE:
 				/*
@@ -986,6 +989,7 @@ ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 				m_freem(neg->m);
 				FREE(sp->neg, M_NETGRAPH);
 				sp->neg = NULL;
+				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
 				break;
 			case	PADT_CODE:
 				/*
@@ -1002,7 +1006,9 @@ ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 				}
 				/* send message to creator */
 				/* close hook */
-				ng_destroy_hook(sendhook);
+				if (sendhook) {
+					ng_destroy_hook(sendhook);
+				}
 				break;
 			default:
 				LEAVE(EPFNOSUPPORT);
@@ -1189,6 +1195,9 @@ ng_PPPoE_disconnect(hook_p hook)
 		privp->ethernet_hook = NULL;
 	} else {
 		sp = hook->private;
+		if (sp->state != PPPOE_SNONE ) {
+			pppoe_send_event(sp, NGM_PPPOE_CLOSE);
+		}
 		untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
 		FREE(sp, M_NETGRAPH);
 	}
@@ -1228,6 +1237,7 @@ pppoe_ticker(void *arg)
 		if ((neg->timeout <<= 1) > PPPOE_TIMEOUT_LIMIT) {
 			if (sp->state == PPPOE_SREQ) {
 				/* revert to SINIT mode */
+				pppoe_start(sp);
 			} else {
 				neg->timeout = PPPOE_TIMEOUT_LIMIT;
 			}
@@ -1236,7 +1246,6 @@ pppoe_ticker(void *arg)
 	case	PPPOE_PRIMED:
 	case	PPPOE_SOFFER:
 		/* a timeout on these says "give up" */
-		/* XXX should notify creator */
 		ng_destroy_hook(hook);
 		break;
 	default:
@@ -1341,3 +1350,17 @@ scan_tags(sessp	sp, struct pppoe_hdr* ph)
 	return NULL;
 }
 	
+static	int
+pppoe_send_event(sessp sp, enum cmd cmdid)
+{
+	int error;
+	struct ng_mesg *msg;
+	struct ngPPPoE_sts *sts;
+
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, cmdid,
+			sizeof(struct ngPPPoE_sts), M_NOWAIT);
+	sts = (struct ngPPPoE_sts *)msg->data;
+	strncpy(sts->hook, sp->hook->name, NG_HOOKLEN + 1);
+	error = ng_send_msg(sp->hook->node, msg, sp->creator, NULL);
+	return (error);
+}
