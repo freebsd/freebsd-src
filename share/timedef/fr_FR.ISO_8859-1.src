@@ -71,7 +71,7 @@ Samedi
 #
 # pm
 #
-pm
+
 #
 # date_fmt
 #
@@ -99,3 +99,8 @@ décembre
 # EF_fmt
 #
 %e %B
+#
+# ampm_fmt
+#
+
+# EOF
