@@ -71,7 +71,7 @@ auth_krb5(const char* server_user, krb5_data *auth, krb5_principal *client)
 	}
 	
 	/* if client wants mutual auth */
-	problem = krb5_mk_rep(ssh_context, &auth_context, &reply);
+	problem = krb5_mk_rep(ssh_context, auth_context, &reply);
 	if (problem) {
 	  ret = 0;
 	  goto err;
@@ -79,7 +79,7 @@ auth_krb5(const char* server_user, krb5_data *auth, krb5_principal *client)
 	
 	*client = tkt_client;
 	
-	packet_start(SSH_SMSG_AUTH_KRB5_RESPONSE);
+	packet_start(SSH_SMSG_AUTH_KERBEROS_RESPONSE);
 	packet_put_string((char *) reply.data, reply.length);
 	packet_send();
 	packet_write_wait();
@@ -115,7 +115,7 @@ auth_krb5_tgt(char *server_user, krb5_data *tgt, krb5_principal tkt_client)
      goto fail;
   }
     
-  problem = krb5_rd_cred(ssh_context, auth_context, ccache, tgt);
+  problem = krb5_rd_cred2(ssh_context, auth_context, ccache, tgt);
   if (problem) {
      goto fail;
   }

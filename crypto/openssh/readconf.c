@@ -91,11 +91,11 @@ typedef enum {
 	oForwardAgent, oForwardX11, oGatewayPorts, oRhostsAuthentication,
 	oPasswordAuthentication, oRSAAuthentication, oFallBackToRsh, oUseRsh,
 	oSkeyAuthentication, oXAuthLocation,
-#ifdef KRB4
-	oKrb4Authentication,
+#if defined(KRB4) || defined(KRB5)
+	oKerberosAuthentication,
 #endif /* KRB4 */
 #ifdef KRB5
-	oKrb5Authentication, oKrb5TgtPassing,
+	oKrb5TgtPassing,
 #endif /* KRB5 */
 #ifdef AFS
 	oKrb4TgtPassing, oAFSTokenPassing,
@@ -128,11 +128,10 @@ static struct {
 	{ "rsaauthentication", oRSAAuthentication },
 	{ "dsaauthentication", oDSAAuthentication },
 	{ "skeyauthentication", oSkeyAuthentication },
-#ifdef KRB4
-	{ "kerberos4authentication", oKrb4Authentication },
-#endif /* KRB4 */
+#if defined(KRB4) || defined(KRB5)
+	{ "kerberosauthentication", oKerberosAuthentication },
+#endif /* KRB4 || KRB5 */
 #ifdef KRB5
-	{ "kerberos5authentication", oKrb5Authentication },
 	{ "kerberos5tgtpassing", oKrb5TgtPassing },
 #endif /* KRB5 */
 #ifdef AFS
@@ -324,17 +323,13 @@ parse_flag:
 		intptr = &options->skey_authentication;
 		goto parse_flag;
 
-#ifdef KRB4
-	case oKrb4Authentication:
-		intptr = &options->krb4_authentication;
+#if defined(KRB4) || defined(KRB5)
+	case oKerberosAuthentication:
+		intptr = &options->kerberos_authentication;
 		goto parse_flag;
-#endif /* KRB4 */
+#endif /* KRB4 || KRB5 */
 
 #ifdef KRB5
-	case oKrb5Authentication:
-		intptr = &options->krb5_authentication;
-		goto parse_flag;
-
 	case oKrb5TgtPassing:
 		intptr = &options->krb5_tgt_passing;
 		goto parse_flag;
@@ -682,11 +677,10 @@ initialize_options(Options * options)
 	options->rsa_authentication = -1;
 	options->dsa_authentication = -1;
 	options->skey_authentication = -1;
-#ifdef KRB4
-	options->krb4_authentication = -1;
+#if defined(KRB4) || defined(KRB5)
+	options->kerberos_authentication = -1;
 #endif
 #ifdef KRB5
-	options->krb5_authentication = -1;
 	options->krb5_tgt_passing = -1;
 #endif /* KRB5 */
 #ifdef AFS
@@ -754,13 +748,11 @@ fill_default_options(Options * options)
 		options->dsa_authentication = 1;
 	if (options->skey_authentication == -1)
 		options->skey_authentication = 0;
-#ifdef KRB4
-	if (options->krb4_authentication == -1)
-		options->krb4_authentication = 1;
-#endif /* KRB4 */
+#if defined(KRB4) || defined(KRB5)
+	if (options->kerberos_authentication == -1)
+		options->kerberos_authentication = 1;
+#endif /* KRB4 || KRB5 */
 #ifdef KRB5
-	if (options->krb5_authentication == -1)
-		options->krb5_authentication = 1;
 	if (options->krb5_tgt_passing == -1)
 		options->krb5_tgt_passing = 1;
 #endif /* KRB5 */
