@@ -350,6 +350,23 @@ void do_order()
 	Tbl.str_flags |= STR_ORDERED;
 }
 
+/* static */ int collate_range_cmp (c1, c2)
+	int c1, c2;
+{
+	static char s1[2], s2[2];
+	int ret;
+
+	c1 &= UCHAR_MAX;
+	c2 &= UCHAR_MAX;
+	if (c1 == c2)
+		return (0);
+	s1[0] = c1;
+	s2[0] = c2;
+	if ((ret = strcoll(s1, s2)) != 0)
+		return (ret);
+	return (c1 - c2);
+}
+
 /*
  * cmp_str:
  *	Compare two strings in the file
