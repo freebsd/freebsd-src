@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.47 1997/04/22 06:55:29 jdp Exp $
+ *	$Id: swtch.s,v 1.48 1997/04/26 11:45:24 peter Exp $
  */
 
 #include "npx.h"
@@ -536,10 +536,6 @@ swtch_com:
 #ifdef SMP
 	movl	_apic_base, %eax		/* base addr of LOCAL APIC */
 #if defined(TEST_LOPRIO)
-	/**
-	 * FIXME: the belief here is that we ALWAYS leave here
-	 *         holding a the lock, is this TRUE???
-	 */
 	pushl	%edx
 	movl	APIC_TPR(%eax), %edx		/* get TPR register contents */
 	andl	$~0xff, %edx			/* clear the prio field */
