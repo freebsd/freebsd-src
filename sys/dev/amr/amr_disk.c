@@ -256,7 +256,7 @@ amrd_attach(device_t dev)
     sc->amrd_disk->d_name = "amrd";
     sc->amrd_disk->d_dump = (dumper_t *)amrd_dump;
     sc->amrd_disk->d_unit = sc->amrd_unit;
-    sc->amrd_disk->d_flags = DISKFLAG_NEEDSGIANT;
+    sc->amrd_disk->d_flags = 0;
     disk_create(sc->amrd_disk, DISK_VERSION);
 #ifdef FREEBSD_4
     disks_registered++;
