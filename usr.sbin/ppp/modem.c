@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.1 1998/01/29 00:49:26 brian Exp $
+ * $Id: modem.c,v 1.77.2.2 1998/01/30 19:45:57 brian Exp $
  *
  *  TODO:
  */
@@ -98,7 +98,7 @@ struct physical phys_modem = {
 
 /* XXX-ML this should probably change when we add support for other
    types of devices */
-#define	Online	(modem->mbits & TIOCM_CD)
+#define	Online(modem)	((modem)->mbits & TIOCM_CD)
 
 static void CloseLogicalModem(struct physical *);
 
@@ -217,43 +217,48 @@ DownConnection()
   LcpDown();
 }
 
+struct timeoutArg {
+  struct bundle *bundle;
+  struct physical *modem;
+};
+
 /*
  *  ModemTimeout() watches DCD signal and notifies if it's status is changed.
  *
  */
-void
+static void
 ModemTimeout(void *data)
 {
-  struct physical *modem = data;
-  int ombits = modem->mbits;
+  struct timeoutArg *to = data;
+  int ombits = to->modem->mbits;
   int change;
 
-  StopTimer(&modem->link.Timer);
-  StartTimer(&modem->link.Timer);
+  StopTimer(&to->modem->link.Timer);
+  StartTimer(&to->modem->link.Timer);
 
-  if (modem->dev_is_modem) {
-    if (modem->fd >= 0) {
-      if (ioctl(modem->fd, TIOCMGET, &modem->mbits) < 0) {
+  if (to->modem->dev_is_modem) {
+    if (to->modem->fd >= 0) {
+      if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
 	DownConnection();
 	return;
       }
     } else
-      modem->mbits = 0;
-    change = ombits ^ modem->mbits;
+      to->modem->mbits = 0;
+    change = ombits ^ to->modem->mbits;
     if (change & TIOCM_CD) {
-      if (modem->mbits & TIOCM_CD) {
+      if (to->modem->mbits & TIOCM_CD) {
         LogPrintf(LogDEBUG, "ModemTimeout: offline -> online\n");
 	/*
 	 * In dedicated mode, start packet mode immediate after we detected
 	 * carrier.
 	 */
 #ifdef notyet
-	if (modem->is_dedicated)
-	  PacketMode(VarOpenMode);
+	if (to->modem->is_dedicated)
+	  PacketMode(to->bundle, VarOpenMode);
 #else
 	if (mode & MODE_DEDICATED)
-	  PacketMode(VarOpenMode);
+	  PacketMode(to->bundle, VarOpenMode);
 #endif
       } else {
         LogPrintf(LogDEBUG, "ModemTimeout: online -> offline\n");
@@ -263,25 +268,28 @@ ModemTimeout(void *data)
     }
     else
       LogPrintf(LogDEBUG, "ModemTimeout: Still %sline\n",
-                Online ? "on" : "off");
-  } else if (!Online) {
+                Online(to->modem) ? "on" : "off");
+  } else if (!Online(to->modem)) {
     /* mbits was set to zero in OpenModem() */
-    modem->mbits = TIOCM_CD;
+    to->modem->mbits = TIOCM_CD;
   }
 }
 
 static void
-StartModemTimer(struct physical *modem)
+StartModemTimer(struct bundle *bundle, struct physical *modem)
 {
   struct pppTimer *ModemTimer;
+  static struct timeoutArg to;
 
+  to.modem = modem;
+  to.bundle = bundle;
   ModemTimer = &modem->link.Timer;
 
   StopTimer(ModemTimer);
   ModemTimer->state = TIMER_STOPPED;
   ModemTimer->load = SECTICKS;
   ModemTimer->func = ModemTimeout;
-  ModemTimer->arg = modem;
+  ModemTimer->arg = &to;
   LogPrintf(LogDEBUG, "ModemTimer using ModemTimeout() - %p\n", ModemTimeout);
   StartTimer(ModemTimer);
 }
@@ -447,7 +455,7 @@ HaveModem(struct physical *modem)
 }
 
 int
-OpenModem(struct physical *modem)
+OpenModem(struct bundle *bundle, struct physical *modem)
 {
   struct termios rstio;
   int oldflag;
@@ -627,7 +635,7 @@ OpenModem(struct physical *modem)
     }
     (void) fcntl(modem->fd, F_SETFL, oldflag & ~O_NONBLOCK);
   }
-  StartModemTimer(modem);
+  StartModemTimer(bundle, modem);
 
   return (modem->fd);
 }
@@ -658,7 +666,7 @@ RawModem(struct physical *modem)
 #else
       !(mode & MODE_DIRECT) &&
 #endif
-      modem->fd >= 0 && !Online) {
+      modem->fd >= 0 && !Online(modem)) {
     LogPrintf(LogDEBUG, "RawModem: modem = %d, mbits = %x\n",
 			  modem->fd, modem->mbits);
   }
@@ -734,7 +742,7 @@ ModemHangup(struct link *l, int dedicated_force)
     return;
   }
 
-  if (modem->fd >= 0 && Online) {
+  if (modem->fd >= 0 && Online(modem)) {
     modem->mbits &= ~TIOCM_DTR;
     tcgetattr(modem->fd, &tio);
     if (cfsetspeed(&tio, B0) == -1) {
@@ -842,7 +850,7 @@ ModemIsActive(struct link *l)
 }
 
 int
-DialModem(struct physical *modem)
+DialModem(struct bundle *bundle, struct physical *modem)
 {
   char ScriptBuffer[SCRIPT_LEN];
   int excode;
@@ -854,9 +862,14 @@ DialModem(struct physical *modem)
       fprintf(VarTerm, "dial OK!\n");
     strncpy(ScriptBuffer, VarLoginScript, sizeof ScriptBuffer - 1);
     if ((excode = DoChat(modem, ScriptBuffer)) > 0) {
+      struct timeoutArg to;
+
       VarAltPhone = NULL;
       if (VarTerm)
 	fprintf(VarTerm, "login OK!\n");
+      to.modem = pppVars.physical;
+      to.bundle = bundle;
+      ModemTimeout(&to);
       return EX_DONE;
     } else if (excode == -1)
       excode = EX_SIG;

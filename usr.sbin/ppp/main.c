@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.3 1998/01/30 19:45:53 brian Exp $
+ * $Id: main.c,v 1.121.2.4 1998/01/31 02:48:25 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -54,7 +54,7 @@
 #include "timer.h"
 #include "fsm.h"
 #include "modem.h"
-#include "os.h"
+#include "bundle.h"
 #include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"
@@ -93,7 +93,7 @@ static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
 static int dial_up;
 
-static void DoLoop(void);
+static void DoLoop(struct bundle *);
 static void TerminalStop(int);
 static const char *ex_desc(int);
 
@@ -178,16 +178,18 @@ TtyOldMode()
   tcsetattr(netfd, TCSADRAIN, &oldtio);
 }
 
+static struct bundle *CleanupBundle;
+
 void
 Cleanup(int excode)
 {
   DropClient(1);
   ServerClose();
-  OsInterfaceDown(1);
+  bundle_InterfaceDown(CleanupBundle);
   link_Close(physical2link(pppVars.physical), 1); /* XXX gotta get a handle on
                                                    * the logical link */
   nointr_sleep(1);
-  DeleteIfRoutes(1);
+  DeleteIfRoutes(CleanupBundle, 1);
   ID0unlink(pid_filename);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
@@ -353,6 +355,7 @@ main(int argc, char **argv)
   FILE *lockfile;
   char *name, *label;
   int nfds;
+  struct bundle *bundle;
 
   nfds = getdtablesize();
   if (nfds >= FD_SETSIZE)
@@ -411,14 +414,16 @@ main(int argc, char **argv)
   if (mode & MODE_INTER)
     VarLocalAuth = LOCAL_AUTH;
 
-  if (SelectSystem("default", CONFFILE) < 0 && VarTerm)
-    fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
-
-  if (OpenTunnel(&tunno) < 0) {
-    LogPrintf(LogWARN, "OpenTunnel: %s\n", strerror(errno));
+  if ((bundle = bundle_Create("/dev/tun")) == NULL) {
+    LogPrintf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }
-  CleanInterface(IfDevName);
+
+  CleanupBundle = bundle;
+
+  if (SelectSystem(bundle, "default", CONFFILE) < 0 && VarTerm)
+    fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
+
   if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
     if (label == NULL) {
       if (VarTerm)
@@ -458,7 +463,7 @@ main(int argc, char **argv)
   }
 
   if (label) {
-    if (SelectSystem(label, CONFFILE) < 0) {
+    if (SelectSystem(bundle, label, CONFFILE) < 0) {
       LogPrintf(LogWARN, "Destination system %s not found in conf file.\n",
                 GetLabel());
       Cleanup(EX_START);
@@ -556,7 +561,7 @@ main(int argc, char **argv)
 
 
   do
-    DoLoop();
+    DoLoop(bundle);
   while (mode & MODE_DEDICATED);
 
   Cleanup(EX_DONE);
@@ -567,7 +572,7 @@ main(int argc, char **argv)
  *  Turn into packet mode, where we speak PPP.
  */
 void
-PacketMode(int delay)
+PacketMode(struct bundle *bundle, int delay)
 {
   if (RawModem(pppVars.physical) < 0) {
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
@@ -575,9 +580,9 @@ PacketMode(int delay)
   }
   AsyncInit();
   VjInit(15);
-  LcpInit(pppVars.physical);
-  IpcpInit(physical2link(pppVars.physical));
-  CcpInit(physical2link(pppVars.physical));
+  LcpInit(bundle, pppVars.physical);
+  IpcpInit(bundle, physical2link(pppVars.physical));
+  CcpInit(bundle, physical2link(pppVars.physical));
   LcpUp();
 
   LcpOpen(delay);
@@ -603,7 +608,7 @@ ShowHelp(void)
 }
 
 static void
-ReadTty(void)
+ReadTty(struct bundle *bundle)
 {
   int n;
   char ch;
@@ -621,7 +626,7 @@ ReadTty(void)
       else
         linebuff[n] = '\0';
       if (n)
-        DecodeCommand(linebuff, n, IsInteractive(0) ? NULL : "Client");
+        DecodeCommand(bundle, linebuff, n, IsInteractive(0) ? NULL : "Client");
       Prompt();
     } else if (n <= 0) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
@@ -656,7 +661,7 @@ ReadTty(void)
 	 * XXX: Should check carrier.
 	 */
 	if (LcpInfo.fsm.state <= ST_CLOSED)
-	  PacketMode(0);
+	  PacketMode(bundle, 0);
 	break;
       case '.':
 	TermMode = 1;
@@ -751,7 +756,7 @@ StartRedialTimer(int Timeout)
 #define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
 
 static void
-DoLoop(void)
+DoLoop(struct bundle *bundle)
 {
   fd_set rfds, wfds, efds;
   int pri, i, n, wfd, nfds;
@@ -769,13 +774,13 @@ DoLoop(void)
 
   if (mode & MODE_DIRECT) {
     LogPrintf(LogDEBUG, "Opening modem\n");
-    if (OpenModem(pppVars.physical) < 0)
+    if (OpenModem(bundle, pppVars.physical) < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
-    PacketMode(VarOpenMode);
+    PacketMode(bundle, VarOpenMode);
   } else if (mode & MODE_DEDICATED) {
     if (!link_IsActive(physical2link(pppVars.physical)))
-      while (OpenModem(pppVars.physical) < 0)
+      while (OpenModem(bundle, pppVars.physical) < 0)
 	nointr_sleep(VarReconnectTimer);
   }
   fflush(VarTerm);
@@ -822,7 +827,7 @@ DoLoop(void)
 	}
 	reconnectState = RECON_ENVOKED;
       } else if (mode & MODE_DEDICATED)
-        PacketMode(VarOpenMode);
+        PacketMode(bundle, VarOpenMode);
     }
 
     /*
@@ -831,7 +836,7 @@ DoLoop(void)
     if (dial_up && RedialTimer.state != TIMER_RUNNING) {
       LogPrintf(LogDEBUG, "going to dial: modem = %d\n",
 		Physical_GetFD(pppVars.physical));
-      if (OpenModem(pppVars.physical) < 0) {
+      if (OpenModem(bundle, pppVars.physical) < 0) {
 	tries++;
 	if (!(mode & MODE_DDIAL) && VarDialTries)
 	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
@@ -856,9 +861,8 @@ DoLoop(void)
 	else
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
-	if ((res = DialModem(pppVars.physical)) == EX_DONE) {
-	  ModemTimeout(pppVars.physical);
-	  PacketMode(VarOpenMode);
+	if ((res = DialModem(bundle, pppVars.physical)) == EX_DONE) {
+	  PacketMode(bundle, VarOpenMode);
 	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
 	  tries = 0;
@@ -924,10 +928,10 @@ DoLoop(void)
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
-    if (qlen < 20 && tun_in >= 0) {
-      if (tun_in + 1 > nfds)
-	nfds = tun_in + 1;
-      FD_SET(tun_in, &rfds);
+    if (qlen < 20 && bundle->tun_fd >= 0) {
+      if (bundle->tun_fd + 1 > nfds)
+	nfds = bundle->tun_fd + 1;
+      FD_SET(bundle->tun_fd, &rfds);
     }
     if (netfd >= 0) {
       if (netfd + 1 > nfds)
@@ -1010,7 +1014,7 @@ DoLoop(void)
     }
     if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
-      ReadTty();
+      ReadTty(bundle);
     if (Physical_FD_ISSET(pppVars.physical, &wfds)) {
       /* ready to write into modem */
       link_StartOutput(physical2link(pppVars.physical));
@@ -1042,18 +1046,18 @@ DoLoop(void)
 	      Physical_Write(pppVars.physical, rbuff, cp - rbuff);
 	      Physical_Write(pppVars.physical, "\r\n", 2);
 	    }
-	    PacketMode(0);
+	    PacketMode(bundle, 0);
 	  } else
 	    write(fileno(VarTerm), rbuff, n);
 	}
       } else {
 	if (n > 0)
-	  AsyncInput(rbuff, n, pppVars.physical);
+	  AsyncInput(bundle, rbuff, n, pppVars.physical);
       }
     }
-    if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {	/* something to read
-							 * from tun */
-      n = read(tun_in, &tun, sizeof tun);
+    if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {
+      /* something to read from tun */
+      n = read(bundle->tun_fd, &tun, sizeof tun);
       if (n < 0) {
 	LogPrintf(LogERROR, "read from tun: %s\n", strerror(errno));
 	continue;
@@ -1080,7 +1084,7 @@ DoLoop(void)
 #endif
 	    bp = mballoc(n, MB_IPIN);
 	    memcpy(MBUF_CTOP(bp), rbuff, n);
-	    IpInput(bp);
+	    IpInput(bundle, bp);
 	    LogPrintf(LogDEBUG, "Looped back packet addressed to myself\n");
 	  }
 	  continue;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.3 1998/01/30 19:45:43 brian Exp $
+ * $Id: ip.c,v 1.38.2.4 1998/01/31 02:48:19 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -56,7 +56,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "filter.h"
-#include "os.h"
+#include "bundle.h"
 #include "iplist.h"
 #include "throughput.h"
 #include "ipcp.h"
@@ -97,9 +97,9 @@ StartIdleTimer()
 }
 
 void
-UpdateIdleTimer()
+UpdateIdleTimer(const struct bundle *bundle)
 {
-  if (OsLinkIsUp())
+  if (bundle_LinkIsUp(bundle))
     StartIdleTimer();
 }
 
@@ -382,8 +382,8 @@ PacketCheck(char *cp, int nb, int direction)
 }
 
 void
-IpInput(struct mbuf * bp)
-{				/* IN: Pointer to IP pakcet */
+IpInput(struct bundle *bundle, struct mbuf * bp)
+{
   u_char *cp;
   struct mbuf *wp;
   int nb, nw;
@@ -428,7 +428,7 @@ IpInput(struct mbuf * bp)
 
       nb = ntohs(((struct ip *) tun.data)->ip_len);
       nb += sizeof tun - sizeof tun.data;
-      nw = write(tun_out, &tun, nb);
+      nw = write(bundle->tun_fd, &tun, nb);
       if (nw != nb)
         if (nw == -1)
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
@@ -443,7 +443,7 @@ IpInput(struct mbuf * bp)
           frag = (struct tun_data *)
 	    ((char *)fptr - sizeof tun + sizeof tun.data);
           nb += sizeof tun - sizeof tun.data;
-	  nw = write(tun_out, frag, nb);
+	  nw = write(bundle->tun_fd, frag, nb);
 	  if (nw != nb)
             if (nw == -1)
 	      LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
@@ -474,7 +474,7 @@ IpInput(struct mbuf * bp)
     }
     IpcpAddInOctets(nb);
     nb += sizeof tun - sizeof tun.data;
-    nw = write(tun_out, &tun, nb);
+    nw = write(bundle->tun_fd, &tun, nb);
     if (nw != nb)
       if (nw == -1)
 	LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb, strerror(errno));

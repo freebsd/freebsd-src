@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.2 1998/01/30 19:46:05 brian Exp $
+ * $Id: route.c,v 1.42.2.3 1998/01/31 02:48:30 brian Exp $
  *
  */
 
@@ -47,7 +47,7 @@
 #include "defs.h"
 #include "vars.h"
 #include "id.h"
-#include "os.h"
+#include "bundle.h"
 #include "iplist.h"
 #include "timer.h"
 #include "throughput.h"
@@ -56,130 +56,6 @@
 #include "fsm.h"
 #include "ipcp.h"
 #include "route.h"
-
-static int IfIndex;
-
-struct rtmsg {
-  struct rt_msghdr m_rtm;
-  char m_space[64];
-};
-
-static int seqno;
-
-void
-OsSetRoute(int cmd,
-	   struct in_addr dst,
-	   struct in_addr gateway,
-	   struct in_addr mask,
-	   int bang)
-{
-  struct rtmsg rtmes;
-  int s, nb, wb;
-  char *cp;
-  const char *cmdstr;
-  struct sockaddr_in rtdata;
-
-  if (bang)
-    cmdstr = (cmd == RTM_ADD ? "Add!" : "Delete!");
-  else
-    cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
-  s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
-  if (s < 0) {
-    LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
-    return;
-  }
-  memset(&rtmes, '\0', sizeof rtmes);
-  rtmes.m_rtm.rtm_version = RTM_VERSION;
-  rtmes.m_rtm.rtm_type = cmd;
-  rtmes.m_rtm.rtm_addrs = RTA_DST;
-  rtmes.m_rtm.rtm_seq = ++seqno;
-  rtmes.m_rtm.rtm_pid = getpid();
-  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
-
-  memset(&rtdata, '\0', sizeof rtdata);
-  rtdata.sin_len = 16;
-  rtdata.sin_family = AF_INET;
-  rtdata.sin_port = 0;
-  rtdata.sin_addr = dst;
-
-  cp = rtmes.m_space;
-  memcpy(cp, &rtdata, 16);
-  cp += 16;
-  if (cmd == RTM_ADD)
-    if (gateway.s_addr == INADDR_ANY) {
-      /* Add a route through the interface */
-      struct sockaddr_dl dl;
-      const char *iname;
-      int ilen;
-
-      iname = Index2Nam(IfIndex);
-      ilen = strlen(iname);
-      dl.sdl_len = sizeof dl - sizeof dl.sdl_data + ilen;
-      dl.sdl_family = AF_LINK;
-      dl.sdl_index = IfIndex;
-      dl.sdl_type = 0;
-      dl.sdl_nlen = ilen;
-      dl.sdl_alen = 0;
-      dl.sdl_slen = 0;
-      strncpy(dl.sdl_data, iname, sizeof dl.sdl_data);
-
-      memcpy(cp, &dl, dl.sdl_len);
-      cp += dl.sdl_len;
-      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-    } else {
-      rtdata.sin_addr = gateway;
-      memcpy(cp, &rtdata, 16);
-      cp += 16;
-      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-    }
-
-  if (dst.s_addr == INADDR_ANY)
-    mask.s_addr = INADDR_ANY;
-
-  if (cmd == RTM_ADD || dst.s_addr == INADDR_ANY) {
-    rtdata.sin_addr = mask;
-    memcpy(cp, &rtdata, 16);
-    cp += 16;
-    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
-  }
-
-  nb = cp - (char *) &rtmes;
-  rtmes.m_rtm.rtm_msglen = nb;
-  wb = ID0write(s, &rtmes, nb);
-  if (wb < 0) {
-    LogPrintf(LogTCPIP, "OsSetRoute failure:\n");
-    LogPrintf(LogTCPIP, "OsSetRoute:  Cmd = %s\n", cmd);
-    LogPrintf(LogTCPIP, "OsSetRoute:  Dst = %s\n", inet_ntoa(dst));
-    LogPrintf(LogTCPIP, "OsSetRoute:  Gateway = %s\n", inet_ntoa(gateway));
-    LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
-failed:
-    if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
-                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST)))
-      if (!bang)
-        LogPrintf(LogWARN, "Add route failed: %s already exists\n",
-                  inet_ntoa(dst));
-      else {
-        rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
-        if ((wb = ID0write(s, &rtmes, nb)) < 0)
-          goto failed;
-      }
-    else if (cmd == RTM_DELETE &&
-             (rtmes.m_rtm.rtm_errno == ESRCH ||
-              (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
-      if (!bang)
-        LogPrintf(LogWARN, "Del route failed: %s: Non-existent\n",
-                  inet_ntoa(dst));
-    } else if (rtmes.m_rtm.rtm_errno == 0)
-      LogPrintf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
-                inet_ntoa(dst), strerror(errno));
-    else
-      LogPrintf(LogWARN, "%s route failed: %s: %s\n",
-		cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
-  }
-  LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
-            wb, cmdstr, dst.s_addr, gateway.s_addr);
-  close(s);
-}
 
 static void
 p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
@@ -463,7 +339,7 @@ ShowRoute(struct cmdargs const *arg)
  *  Delete routes associated with our interface
  */
 void
-DeleteIfRoutes(int all)
+DeleteIfRoutes(const struct bundle *bundle, int all)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa;
@@ -473,7 +349,7 @@ DeleteIfRoutes(int all)
   char *sp, *cp, *ep;
   int mib[6];
 
-  LogPrintf(LogDEBUG, "DeleteIfRoutes (%d)\n", IfIndex);
+  LogPrintf(LogDEBUG, "DeleteIfRoutes (%d)\n", bundle->ifIndex);
   sa_none.s_addr = INADDR_ANY;
 
   mib[0] = CTL_NET;
@@ -520,7 +396,7 @@ DeleteIfRoutes(int all)
                 Index2Nam(rtm->rtm_index), rtm->rtm_flags,
 	        inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
       if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
-	  rtm->rtm_index == IfIndex &&
+	  rtm->rtm_index == bundle->ifIndex &&
 	  (all || (rtm->rtm_flags & RTF_GATEWAY))) {
         sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
         sa = (struct sockaddr *)((char *)sa + sa->sa_len);
@@ -528,7 +404,7 @@ DeleteIfRoutes(int all)
           if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
               (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
             LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it (pass %d)\n", pass);
-            OsSetRoute(RTM_DELETE, sa_dst, sa_none, sa_none, 0);
+            bundle_SetRoute(bundle, RTM_DELETE, sa_dst, sa_none, sa_none, 0);
           } else
             LogPrintf(LogDEBUG, "DeleteIfRoutes: Skip it (pass %d)\n", pass);
         } else
@@ -550,14 +426,14 @@ GetIfIndex(char *name)
   idx = 1;
   while (strcmp(got = Index2Nam(idx), "???"))
     if (!strcmp(got, name))
-      return IfIndex = idx;
+      return idx;
     else
       idx++;
   return -1;
 }
 
 struct in_addr
-ChooseHisAddr(const struct in_addr gw)
+ChooseHisAddr(struct bundle *bundle, const struct in_addr gw)
 {
   struct in_addr try;
   int f;
@@ -566,7 +442,7 @@ ChooseHisAddr(const struct in_addr gw)
     try = iplist_next(&IpcpInfo.DefHisChoice);
     LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
               f, inet_ntoa(try));
-    if (OsTrySetIpaddress(gw, try) == 0) {
+    if (bundle_TrySetIPaddress(bundle, gw, try) == 0) {
       LogPrintf(LogIPCP, "ChooseHisAddr: Selected IP address %s\n",
                 inet_ntoa(try));
       break;

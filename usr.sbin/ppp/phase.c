@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: phase.c,v 1.6.4.4 1998/01/30 19:46:01 brian Exp $
+ *	$Id: phase.c,v 1.6.4.5 1998/01/31 02:48:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -77,7 +77,7 @@ Auth2Nam(u_short auth)
 }
 
 void
-NewPhase(struct physical *physical, int new)
+NewPhase(struct bundle *bundle, struct physical *physical, int new)
 {
   phase = new;
   LogPrintf(LogPHASE, "NewPhase: %s\n", PhaseNames[phase]);
@@ -94,11 +94,11 @@ NewPhase(struct physical *physical, int new)
       if (LcpInfo.want_auth == PROTO_CHAP)
 	StartAuthChallenge(&AuthChapInfo, physical);
     } else
-      NewPhase(physical, PHASE_NETWORK);
+      NewPhase(bundle, physical, PHASE_NETWORK);
     break;
 
   case PHASE_NETWORK:
-    tun_configure(LcpInfo.his_mru, ModemSpeed(physical));
+    tun_configure(bundle, LcpInfo.his_mru, ModemSpeed(physical));
     IpcpUp();
     IpcpOpen();
     CcpUp();

@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.3 1998/01/30 19:46:00 brian Exp $
+ * $Id: pap.c,v 1.20.2.4 1998/01/31 02:48:27 brian Exp $
  *
  *	TODO:
  */
@@ -117,7 +117,8 @@ SendPapCode(int id, int code, const char *message, struct physical *physical)
  * Validate given username and passwrd against with secret table
  */
 static int
-PapValidate(u_char * name, u_char * key, struct physical *physical)
+PapValidate(struct bundle *bundle, u_char *name, u_char *key,
+            struct physical *physical)
 {
   int nlen, klen;
 
@@ -141,11 +142,11 @@ PapValidate(u_char * name, u_char * key, struct physical *physical)
   }
 #endif
 
-  return (AuthValidate(SECRETFILE, name, key, physical));
+  return AuthValidate(bundle, SECRETFILE, name, key, physical);
 }
 
 void
-PapInput(struct mbuf * bp, struct physical *physical)
+PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 {
   int len = plength(bp);
   struct fsmheader *php;
@@ -161,7 +162,7 @@ PapInput(struct mbuf * bp, struct physical *physical)
       switch (php->code) {
       case PAP_REQUEST:
 	cp = (u_char *) (php + 1);
-	if (PapValidate(cp, cp + *cp + 1, physical)) {
+	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
 	  LcpInfo.auth_ineed = 0;
 	  if (LcpInfo.auth_iwait == 0) {
@@ -181,7 +182,7 @@ PapInput(struct mbuf * bp, struct physical *physical)
 	        login(&ut);
 	        Utmp = 1;
 	      }
-	    NewPhase(physical, PHASE_NETWORK);
+	    NewPhase(bundle, physical, PHASE_NETWORK);
 	  }
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
@@ -198,7 +199,7 @@ PapInput(struct mbuf * bp, struct physical *physical)
 	if (LcpInfo.auth_iwait == PROTO_PAP) {
 	  LcpInfo.auth_iwait = 0;
 	  if (LcpInfo.auth_ineed == 0)
-	    NewPhase(physical, PHASE_NETWORK);
+	    NewPhase(bundle, physical, PHASE_NETWORK);
 	}
 	break;
       case PAP_NAK:

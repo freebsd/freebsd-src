@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.34 1997/12/24 09:29:17 brian Exp $
+ * $Id: systems.c,v 1.35 1998/01/21 02:15:28 brian Exp $
  *
  *  TODO:
  */
@@ -169,6 +169,7 @@ static int userok;
 int
 AllowUsers(struct cmdargs const *arg)
 {
+  /* arg->bundle may be NULL (see ValidSystem()) ! */
   int f;
   char *user;
 
@@ -203,6 +204,7 @@ static int modeok;
 int
 AllowModes(struct cmdargs const *arg)
 {
+  /* arg->bundle may be NULL (see ValidSystem()) ! */
   int f;
   int m;
   int allowed;
@@ -223,7 +225,8 @@ AllowModes(struct cmdargs const *arg)
 }
 
 static int
-ReadSystem(const char *name, const char *file, int doexec)
+ReadSystem(struct bundle *bundle, const char *name, const char *file,
+           int doexec)
 {
   FILE *fp;
   char *cp, *wp;
@@ -271,7 +274,7 @@ ReadSystem(const char *name, const char *file, int doexec)
         switch (DecodeCtrlCommand(cp+1, arg)) {
         case CTRL_INCLUDE:
           LogPrintf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
-          n = ReadSystem(name, arg, doexec);
+          n = ReadSystem(bundle, name, arg, doexec);
           LogPrintf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
           if (!n)
             return 0;	/* got it */
@@ -299,7 +302,7 @@ ReadSystem(const char *name, const char *file, int doexec)
 	      olauth = VarLocalAuth;
 	      if (VarLocalAuth == LOCAL_NO_AUTH)
 	        VarLocalAuth = LOCAL_AUTH;
-	      RunCommand(argc, (char const *const *)argv, name);
+	      RunCommand(bundle, argc, (char const *const *)argv, name);
 	      VarLocalAuth = olauth;
 	    }
 	  } else if (*cp == '#' || *cp == '\n' || *cp == '\0') {
@@ -320,21 +323,25 @@ ReadSystem(const char *name, const char *file, int doexec)
 int
 ValidSystem(const char *name)
 {
+  /*
+   * Note:  The ReadSystem() calls only result in calls to the Allow*
+   * functions.  arg->bundle will be set to NULL for these commands !
+   */
   if (ID0realuid() == 0)
     return userok = modeok = 1;
   userok = 0;
   modeok = 1;
-  ReadSystem("default", CONFFILE, 0);
+  ReadSystem(NULL, "default", CONFFILE, 0);
   if (name != NULL)
-    ReadSystem(name, CONFFILE, 0);
+    ReadSystem(NULL, name, CONFFILE, 0);
   return userok && modeok;
 }
 
 int
-SelectSystem(const char *name, const char *file)
+SelectSystem(struct bundle *bundle, const char *name, const char *file)
 {
   userok = modeok = 1;
-  return ReadSystem(name, file, 1);
+  return ReadSystem(bundle, name, file, 1);
 }
 
 int
@@ -350,7 +357,7 @@ LoadCommand(struct cmdargs const *arg)
   if (!ValidSystem(name)) {
     LogPrintf(LogERROR, "%s: Label not allowed\n", name);
     return 1;
-  } else if (SelectSystem(name, CONFFILE) < 0) {
+  } else if (SelectSystem(arg->bundle, name, CONFFILE) < 0) {
     LogPrintf(LogWARN, "%s: label not found.\n", name);
     return -1;
   } else

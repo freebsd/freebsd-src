@@ -17,15 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.h,v 1.8.2.1 1998/01/29 00:49:23 brian Exp $
+ * $Id: ip.h,v 1.8.2.2 1998/01/30 19:45:43 brian Exp $
  *
  */
 
 extern void IpStartOutput(struct link *);
 extern int  PacketCheck(char *, int, int);
 extern void IpEnqueue(int, char *, int);
-extern void IpInput(struct mbuf *);
+extern void IpInput(struct bundle *, struct mbuf *);
 extern void StartIdleTimer(void);
 extern void StopIdleTimer(void);
-extern void UpdateIdleTimer(void);
+extern void UpdateIdleTimer(const struct bundle *);
 extern int  RemainingIdleTime(void);

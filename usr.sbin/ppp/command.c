@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.3 1998/01/30 19:45:32 brian Exp $
+ * $Id: command.c,v 1.131.2.4 1998/01/31 02:48:16 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -66,7 +66,7 @@
 #include "vars.h"
 #include "systems.h"
 #include "chat.h"
-#include "os.h"
+#include "bundle.h"
 #include "server.h"
 #include "main.h"
 #include "route.h"
@@ -194,14 +194,13 @@ DialCommand(struct cmdargs const *arg)
     }
     if (VarTerm)
       fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
-    if (OpenModem(pppVars.physical) < 0) {
+    if (OpenModem(arg->bundle, pppVars.physical) < 0) {
       if (VarTerm)
 	fprintf(VarTerm, "Failed to open modem.\n");
       break;
     }
-    if ((res = DialModem(pppVars.physical)) == EX_DONE) {
-      ModemTimeout(pppVars.physical);
-      PacketMode(VarOpenMode);
+    if ((res = DialModem(arg->bundle, pppVars.physical)) == EX_DONE) {
+      PacketMode(arg->bundle, VarOpenMode);
       break;
     } else if (res == EX_SIG)
       return 1;
@@ -300,7 +299,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 	if (strcasecmp(arg->argv[argc], "HISADDR") == 0)
 	  argv[argc] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
 	else if (strcasecmp(arg->argv[argc], "INTERFACE") == 0)
-	  argv[argc] = strdup(IfDevName);
+	  argv[argc] = strdup(arg->bundle->ifname);
 	else if (strcasecmp(arg->argv[argc], "MYADDR") == 0)
 	  argv[argc] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
         else
@@ -695,8 +694,8 @@ FindCommand(struct cmdtab const *cmds, const char *str, int *pmatch)
 }
 
 static int
-FindExec(struct cmdtab const *cmds, int argc, char const *const *argv,
-         const char *prefix)
+FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
+         char const *const *argv, const char *prefix)
 {
   struct cmdtab const *cmd;
   int val = 1;
@@ -711,6 +710,7 @@ FindExec(struct cmdtab const *cmds, int argc, char const *const *argv,
     arg.argc = argc-1;
     arg.argv = argv+1;
     arg.data = cmd->args;
+    arg.bundle = bundle;
     val = (cmd->func) (&arg);
   } else
     LogPrintf(LogWARN, "%s%s: Invalid command\n", prefix, *argv);
@@ -785,7 +785,8 @@ arghidden(int argc, char const *const *argv, int n)
 }
 
 void
-RunCommand(int argc, char const *const *argv, const char *label)
+RunCommand(struct bundle *bundle, int argc, char const *const *argv,
+           const char *label)
 {
   if (argc > 0) {
     if (LogIsKept(LogCOMMAND)) {
@@ -810,25 +811,25 @@ RunCommand(int argc, char const *const *argv, const char *label)
       }
       LogPrintf(LogCOMMAND, "%s\n", buf);
     }
-    FindExec(Commands, argc, argv, "");
+    FindExec(bundle, Commands, argc, argv, "");
   }
 }
 
 void
-DecodeCommand(char *buff, int nb, const char *label)
+DecodeCommand(struct bundle *bundle, char *buff, int nb, const char *label)
 {
   int argc;
   char **argv;
 
   InterpretCommand(buff, nb, &argc, &argv);
-  RunCommand(argc, (char const *const *)argv, label);
+  RunCommand(bundle, argc, (char const *const *)argv, label);
 }
 
 static int
 ShowCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(ShowCommands, arg->argc, arg->argv, "show ");
+    FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ");
   else if (VarTerm)
     fprintf(VarTerm, "Use ``show ?'' to get a arg->cmd.\n");
   else
@@ -847,7 +848,7 @@ TerminalCommand(struct cmdargs const *arg)
   }
   if (!IsInteractive(1))
     return (1);
-  if (OpenModem(pppVars.physical) < 0) {
+  if (OpenModem(arg->bundle, pppVars.physical) < 0) {
     if (VarTerm)
       fprintf(VarTerm, "Failed to open modem.\n");
     return (1);
@@ -1210,7 +1211,8 @@ SetIdleTimeout(struct cmdargs const *arg)
 {
   if (arg->argc > 0) {
     VarIdleTimeout = atoi(arg->argv[0]);
-    UpdateIdleTimer();		/* If we're connected, restart the idle timer */
+    /* If we're connected, restart the idle timer */
+    UpdateIdleTimer(arg->bundle);
     if (arg->argc > 1) {
       VarLqrTimeout = atoi(arg->argv[1]);
       if (VarLqrTimeout < 1)
@@ -1288,7 +1290,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
     IpcpInfo.DefHisAddress.width = 0;
   }
 
-  if (hisaddr && !UseHisaddr(hisaddr, mode & MODE_AUTO))
+  if (hisaddr && !UseHisaddr(arg->bundle, hisaddr, mode & MODE_AUTO))
     return 4;
 
   return 0;
@@ -1519,7 +1521,7 @@ static int
 SetCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(SetCommands, arg->argc, arg->argv, "set ");
+    FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ");
   else if (VarTerm)
     fprintf(VarTerm, "Use `set ?' to get a arg->cmd or `set ? <var>' for"
 	    " syntax help.\n");
@@ -1562,7 +1564,8 @@ AddCommand(struct cmdargs const *arg)
     gateway.s_addr = INADDR_ANY;
   else
     gateway = GetIpAddr(arg->argv[gw]);
-  OsSetRoute(RTM_ADD, dest, gateway, netmask, arg->data ? 1 : 0);
+  bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
+                  arg->data ? 1 : 0);
   return 0;
 }
 
@@ -1573,7 +1576,7 @@ DeleteCommand(struct cmdargs const *arg)
 
   if (arg->argc == 1)
     if(strcasecmp(arg->argv[0], "all") == 0)
-      DeleteIfRoutes(0);
+      DeleteIfRoutes(arg->bundle, 0);
     else {
       if (strcasecmp(arg->argv[0], "MYADDR") == 0)
         dest = IpcpInfo.want_ipaddr;
@@ -1582,7 +1585,8 @@ DeleteCommand(struct cmdargs const *arg)
       else
         dest = GetIpAddr(arg->argv[0]);
       none.s_addr = INADDR_ANY;
-      OsSetRoute(RTM_DELETE, dest, none, none, arg->data ? 1 : 0);
+      bundle_SetRoute(arg->bundle, RTM_DELETE, dest, none, none,
+                      arg->data ? 1 : 0);
     }
   else
     return -1;
@@ -1625,10 +1629,10 @@ static int
 AliasCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(AliasCommands, arg->argc, arg->argv, "alias ");
+    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ");
   else if (VarTerm)
-    fprintf(VarTerm, "Use `alias help' to get a arg->cmd or `alias help <option>'"
-	    " for syntax help.\n");
+    fprintf(VarTerm, "Use `alias help' to get a arg->cmd or `alias help"
+            " <option>' for syntax help.\n");
   else
     LogPrintf(LogWARN, "alias command must have arguments\n");
 
@@ -1695,8 +1699,9 @@ static struct cmdtab const AllowCommands[] = {
 static int
 AllowCommand(struct cmdargs const *arg)
 {
+  /* arg->bundle may be NULL (see ValidSystem()) ! */
   if (arg->argc > 0)
-    FindExec(AllowCommands, arg->argc, arg->argv, "allow ");
+    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ");
   else if (VarTerm)
     fprintf(VarTerm, "Use `allow ?' to get a arg->cmd or `allow ? <cmd>' for"
 	    " syntax help.\n");

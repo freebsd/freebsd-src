@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.3 1998/01/30 19:45:44 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.4 1998/01/31 02:48:20 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -47,7 +47,7 @@
 #include "throughput.h"
 #include "ipcp.h"
 #include "slcompress.h"
-#include "os.h"
+#include "bundle.h"
 #include "phase.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -73,7 +73,7 @@ static void IpcpInitRestartCounter(struct fsm *);
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSendTerminateReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *);
-static void IpcpDecodeConfig(u_char *, int, int);
+static void IpcpDecodeConfig(struct bundle *, u_char *, int, int);
 
 struct ipcpstate IpcpInfo = {
   {
@@ -87,7 +87,8 @@ struct ipcpstate IpcpInfo = {
     {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
     {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
     LogIPCP,
-    NULL,
+    NULL,				/* link */
+    NULL,				/* bundle */
     IpcpLayerUp,
     IpcpLayerDown,
     IpcpLayerStart,
@@ -224,10 +225,10 @@ ShowInitVJ(struct cmdargs const *args)
 }
 
 void
-IpcpInit(struct link *l)
+IpcpInit(struct bundle *bundle, struct link *l)
 {
   /* Initialise ourselves */
-  FsmInit(&IpcpInfo.fsm, l);
+  FsmInit(&IpcpInfo.fsm, bundle, l);
   if (iplist_isvalid(&IpcpInfo.DefHisChoice))
     iplist_setrandpos(&IpcpInfo.DefHisChoice);
   IpcpInfo.his_compproto = 0;
@@ -348,7 +349,7 @@ IpcpLayerDown(struct fsm * fp)
 }
 
 static void
-IpcpLayerUp(struct fsm * fp)
+IpcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   char tbuff[100];
@@ -363,7 +364,8 @@ IpcpLayerUp(struct fsm * fp)
 
   LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
 	    tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
-  if (OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr) < 0) {
+  if (bundle_SetIPaddress(fp->bundle, IpcpInfo.want_ipaddr,
+                          IpcpInfo.his_ipaddr) < 0) {
     if (VarTerm)
       LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
@@ -372,7 +374,7 @@ IpcpLayerUp(struct fsm * fp)
   if (mode & MODE_ALIAS)
     VarPacketAliasSetAddress(IpcpInfo.want_ipaddr);
 #endif
-  OsLinkup();
+  bundle_Linkup(fp->bundle);
   throughput_start(&IpcpInfo.throughput);
   StartIdleTimer();
 }
@@ -417,7 +419,7 @@ AcceptableAddr(struct in_range *prange, struct in_addr ipaddr)
 }
 
 static void
-IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
+IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
 {
   /* Deal with incoming PROTO_IPCP */
   int type, length;
@@ -452,10 +454,12 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
         if (iplist_isvalid(&IpcpInfo.DefHisChoice)) {
           if (ipaddr.s_addr == INADDR_ANY ||
               iplist_ip2pos(&IpcpInfo.DefHisChoice, ipaddr) < 0 ||
-              OsTrySetIpaddress(IpcpInfo.DefMyAddress.ipaddr, ipaddr) != 0) {
+              bundle_TrySetIPaddress(bundle, IpcpInfo.DefMyAddress.ipaddr,
+                                     ipaddr)) {
             LogPrintf(LogIPCP, "%s: Address invalid or already in use\n",
                       inet_ntoa(ipaddr));
-            IpcpInfo.his_ipaddr = ChooseHisAddr(IpcpInfo.DefMyAddress.ipaddr);
+            IpcpInfo.his_ipaddr = ChooseHisAddr
+              (bundle, IpcpInfo.DefMyAddress.ipaddr);
             if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
 	      memcpy(rejp, cp, length);
 	      rejp += length;
@@ -701,7 +705,7 @@ IpcpInput(struct mbuf * bp)
 }
 
 int
-UseHisaddr(const char *hisaddr, int setaddr)
+UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
 {
   /* Use `hisaddr' for the peers address (set iface if `setaddr') */
   memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
@@ -710,7 +714,7 @@ UseHisaddr(const char *hisaddr, int setaddr)
     iplist_setsrc(&IpcpInfo.DefHisChoice, hisaddr);
     if (iplist_isvalid(&IpcpInfo.DefHisChoice)) {
       iplist_setrandpos(&IpcpInfo.DefHisChoice);
-      IpcpInfo.his_ipaddr = ChooseHisAddr(IpcpInfo.want_ipaddr);
+      IpcpInfo.his_ipaddr = ChooseHisAddr(bundle, IpcpInfo.want_ipaddr);
       if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
         LogPrintf(LogWARN, "%s: None available !\n", IpcpInfo.DefHisChoice.src);
         return(0);
@@ -727,8 +731,8 @@ UseHisaddr(const char *hisaddr, int setaddr)
                        &IpcpInfo.DefHisAddress.width) != 0) {
     IpcpInfo.his_ipaddr.s_addr = IpcpInfo.DefHisAddress.ipaddr.s_addr;
 
-    if (setaddr && OsSetIpaddress
-	(IpcpInfo.DefMyAddress.ipaddr, IpcpInfo.DefHisAddress.ipaddr) < 0) {
+    if (setaddr && bundle_SetIPaddress(bundle, IpcpInfo.DefMyAddress.ipaddr,
+                                   IpcpInfo.DefHisAddress.ipaddr) < 0) {
       IpcpInfo.DefMyAddress.ipaddr.s_addr = INADDR_ANY;
       IpcpInfo.DefHisAddress.ipaddr.s_addr = INADDR_ANY;
       return 0;

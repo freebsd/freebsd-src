@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.15 1997/12/24 09:29:14 brian Exp $
+ *	$Id: server.c,v 1.16 1998/01/21 02:15:27 brian Exp $
  */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ ServerLocalOpen(const char *name, mode_t mask)
   if (mask != (mode_t)-1)
     umask(mask);
   if (listen(s, 5) != 0) {
-    LogPrintf(LogERROR, "Local: Unable to listen to socket - OS overload?\n");
+    LogPrintf(LogERROR, "Local: Unable to listen to socket - BUNDLE overload?\n");
     close(s);
     ID0unlink(name);
     return 5;
@@ -145,7 +145,7 @@ ServerTcpOpen(int port)
     return 8;
   }
   if (listen(s, 5) != 0) {
-    LogPrintf(LogERROR, "Tcp: Unable to listen to socket - OS overload?\n");
+    LogPrintf(LogERROR, "Tcp: Unable to listen to socket - BUNDLE overload?\n");
     close(s);
     return 9;
   }

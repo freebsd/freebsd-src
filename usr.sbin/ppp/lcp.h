@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.2 1998/01/30 01:33:45 brian Exp $
+ * $Id: lcp.h,v 1.16.2.3 1998/01/31 02:48:22 brian Exp $
  *
  *	TODO:
  */
@@ -74,7 +74,7 @@ struct physical;
 
 extern struct lcpstate LcpInfo;
 
-extern void LcpInit(struct physical *);
+extern void LcpInit(struct bundle *, struct physical *);
 extern void LcpUp(void);
 extern void LcpSendProtoRej(u_char *, int);
 extern void LcpOpen(int);

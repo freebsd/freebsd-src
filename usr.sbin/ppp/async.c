@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.1 1998/01/29 00:49:10 brian Exp $
+ * $Id: async.c,v 1.15.2.2 1998/01/30 19:45:25 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -179,7 +179,8 @@ AsyncDecode(u_char c)
 }
 
 void
-AsyncInput(u_char *buff, int cnt, struct physical *physical)
+AsyncInput(struct bundle *bundle, u_char *buff, int cnt,
+           struct physical *physical)
 {
   struct mbuf *bp;
 
@@ -189,12 +190,12 @@ AsyncInput(u_char *buff, int cnt, struct physical *physical)
     bp = mballoc(cnt, MB_ASYNC);
     memcpy(MBUF_CTOP(bp), buff, cnt);
     bp->cnt = cnt;
-    HdlcInput(bp, physical);
+    HdlcInput(bundle, bp, physical);
   } else {
     while (cnt > 0) {
       bp = AsyncDecode(*buff++);
       if (bp)
-	HdlcInput(bp, physical);
+	HdlcInput(bundle, bp, physical);
       cnt--;
     }
   }

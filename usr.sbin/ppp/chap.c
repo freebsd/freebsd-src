@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.3 1998/01/30 19:45:29 brian Exp $
+ * $Id: chap.c,v 1.28.2.4 1998/01/31 02:48:15 brian Exp $
  *
  *	TODO:
  */
@@ -110,7 +110,8 @@ struct authinfo AuthChapInfo = {
 };
 
 static void
-RecvChapTalk(struct fsmheader *chp, struct mbuf *bp, struct physical *physical)
+RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
+             struct physical *physical)
 {
   int valsize, len;
   int arglen, keylen, namelen;
@@ -206,7 +207,7 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp, struct physical *physical)
     /*
      * Get a secret key corresponds to the peer
      */
-    keyp = AuthGetSecret(SECRETFILE, name, namelen,
+    keyp = AuthGetSecret(bundle, SECRETFILE, name, namelen,
 			 chp->code == CHAP_RESPONSE,
 			 physical);
     if (keyp) {
@@ -246,7 +247,7 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp, struct physical *physical)
 	    login(&ut);
 	    Utmp = 1;
 	  }
-	NewPhase(physical, PHASE_NETWORK);
+	NewPhase(bundle, physical, PHASE_NETWORK);
 	break;
       }
     }
@@ -262,7 +263,7 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp, struct physical *physical)
 }
 
 static void
-RecvChapResult(struct fsmheader *chp, struct mbuf *bp,
+RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	       struct physical *physical)
 {
   int len;
@@ -273,7 +274,7 @@ RecvChapResult(struct fsmheader *chp, struct mbuf *bp,
     if (LcpInfo.auth_iwait == PROTO_CHAP) {
       LcpInfo.auth_iwait = 0;
       if (LcpInfo.auth_ineed == 0)
-	NewPhase(physical, PHASE_NETWORK);
+	NewPhase(bundle, physical, PHASE_NETWORK);
     }
   } else {
 
@@ -285,7 +286,7 @@ RecvChapResult(struct fsmheader *chp, struct mbuf *bp,
 }
 
 void
-ChapInput(struct mbuf *bp, struct physical *physical)
+ChapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 {
   int len = plength(bp);
   struct fsmheader *chp;
@@ -305,11 +306,11 @@ ChapInput(struct mbuf *bp, struct physical *physical)
 	StopAuthTimer(&AuthChapInfo);
 	/* Fall into.. */
       case CHAP_CHALLENGE:
-	RecvChapTalk(chp, bp, physical);
+	RecvChapTalk(bundle, chp, bp, physical);
 	break;
       case CHAP_SUCCESS:
       case CHAP_FAILURE:
-	RecvChapResult(chp, bp, physical);
+	RecvChapResult(bundle, chp, bp, physical);
 	break;
       }
     }

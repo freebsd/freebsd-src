@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.2 1998/01/29 23:11:31 brian Exp $
+ * $Id: auth.c,v 1.27.2.3 1998/01/30 19:45:26 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -103,8 +103,8 @@ LocalAuthValidate(const char *fname, const char *system, const char *key)
 }
 
 int
-AuthValidate(const char *fname, const char *system, const char *key,
-			 struct physical *physical)
+AuthValidate(struct bundle *bundle, const char *fname, const char *system,
+             const char *key, struct physical *physical)
 {
   FILE *fp;
   int n;
@@ -127,10 +127,10 @@ AuthValidate(const char *fname, const char *system, const char *key,
       ExpandString(vector[1], passwd, sizeof passwd, 0);
       if (strcmp(passwd, key) == 0) {
 	CloseSecret(fp);
-	if (n > 2 && !UseHisaddr(vector[2], 1))
+	if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
 	    return (0);
-	IpcpInit(physical2link(physical));   /* XXX defer this - we may join an
-                                              * existing bundle ! */
+        /* XXX This should be deferred - we may join an existing bundle ! */
+	IpcpInit(bundle, physical2link(physical));
 	if (n > 3)
 	  SetLabel(vector[3]);
 	return (1);		/* Valid */
@@ -142,8 +142,8 @@ AuthValidate(const char *fname, const char *system, const char *key,
 }
 
 char *
-AuthGetSecret(const char *fname, const char *system, int len, int setaddr,
-			  struct physical *physical)
+AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
+              int len, int setaddr, struct physical *physical)
 {
   FILE *fp;
   int n;
@@ -167,9 +167,9 @@ AuthGetSecret(const char *fname, const char *system, int len, int setaddr,
       if (setaddr)
 	memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
       if (n > 2 && setaddr)
-	if (UseHisaddr(vector[2], 1))
-	  IpcpInit(physical2link(physical));   /* XXX defer this - we may join
-                                                * an existing bundle ! */
+	if (UseHisaddr(bundle, vector[2], 1))
+          /* XXX This should be deferred - we may join an existing bundle ! */
+	  IpcpInit(bundle, physical2link(physical));
         else
           return NULL;
       if (n > 3)

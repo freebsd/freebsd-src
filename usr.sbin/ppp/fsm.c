@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.2 1998/01/30 19:45:39 brian Exp $
+ * $Id: fsm.c,v 1.27.2.3 1998/01/31 02:48:18 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -83,7 +83,7 @@ StoppedTimeout(void *v)
 }
 
 void
-FsmInit(struct fsm * fp, struct link *l)
+FsmInit(struct fsm *fp, struct bundle *bundle, struct link *l)
 {
   LogPrintf(LogDEBUG, "FsmInit\n");
   fp->state = ST_INITIAL;
@@ -91,6 +91,7 @@ FsmInit(struct fsm * fp, struct link *l)
   fp->restart = 1;
   fp->maxconfig = 3;
   fp->link = l;
+  fp->bundle = bundle;
 }
 
 static void
@@ -277,35 +278,29 @@ FsmSendTerminateReq(struct fsm * fp)
 }
 
 static void
-FsmSendConfigAck(struct fsm * fp,
-		 struct fsmheader * lhp,
-		 u_char * option,
-		 int count)
+FsmSendConfigAck(struct fsm *fp, struct fsmheader *lhp,
+		 u_char *option, int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigAck(%s)\n", StateNames[fp->state]);
-  (fp->DecodeConfig) (option, count, MODE_NOP);
+  (fp->DecodeConfig) (fp->bundle, option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGACK, lhp->id, option, count);
 }
 
 static void
-FsmSendConfigRej(struct fsm * fp,
-		 struct fsmheader * lhp,
-		 u_char * option,
-		 int count)
+FsmSendConfigRej(struct fsm *fp, struct fsmheader *lhp,
+		 u_char *option, int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigRej(%s)\n", StateNames[fp->state]);
-  (fp->DecodeConfig) (option, count, MODE_NOP);
+  (fp->DecodeConfig) (fp->bundle, option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGREJ, lhp->id, option, count);
 }
 
 static void
-FsmSendConfigNak(struct fsm * fp,
-		 struct fsmheader * lhp,
-		 u_char * option,
-		 int count)
+FsmSendConfigNak(struct fsm *fp, struct fsmheader *lhp,
+		 u_char *option, int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigNak(%s)\n", StateNames[fp->state]);
-  (fp->DecodeConfig) (option, count, MODE_NOP);
+  (fp->DecodeConfig) (fp->bundle, option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGNAK, lhp->id, option, count);
 }
 
@@ -367,7 +362,7 @@ FsmInitRestartCounter(struct fsm * fp)
  *   Actions when receive packets
  */
 static void
-FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCR */
 {
   int plen, flen;
@@ -403,7 +398,7 @@ FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
     return;
   }
 
-  (fp->DecodeConfig) (MBUF_CTOP(bp), flen, MODE_REQ);
+  (fp->DecodeConfig) (fp->bundle, MBUF_CTOP(bp), flen, MODE_REQ);
 
   if (nakp == NakBuff && rejp == RejBuff)
     ackaction = 1;
@@ -487,7 +482,7 @@ FsmRecvConfigAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 }
 
 static void
-FsmRecvConfigNak(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCN */
 {
   int plen, flen;
@@ -519,7 +514,7 @@ FsmRecvConfigNak(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
     return;
   }
 
-  (fp->DecodeConfig) (MBUF_CTOP(bp), flen, MODE_NAK);
+  (fp->DecodeConfig) (fp->bundle, MBUF_CTOP(bp), flen, MODE_NAK);
 
   switch (fp->state) {
   case ST_REQSENT:
@@ -597,7 +592,7 @@ FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 }
 
 static void
-FsmRecvConfigRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCJ */
 {
   int plen, flen;
@@ -630,7 +625,7 @@ FsmRecvConfigRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
     return;
   }
 
-  (fp->DecodeConfig) (MBUF_CTOP(bp), flen, MODE_REJ);
+  (fp->DecodeConfig) (fp->bundle, MBUF_CTOP(bp), flen, MODE_REJ);
 
   switch (fp->state) {
   case ST_REQSENT:

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.2 1998/01/30 19:45:40 brian Exp $
+ * $Id: fsm.h,v 1.16.2.3 1998/01/31 02:48:18 brian Exp $
  *
  *	TODO:
  */
@@ -70,8 +70,11 @@ struct fsm {
   struct pppTimer StoppedTimer;
   int LogLevel;
 
-  /* The link layer active with this FSM. */
+  /* The link layer active with this FSM (may be our bundle below) */
   struct link *link;
+
+  /* Our high-level link */
+  struct bundle *bundle;
 
   void (*LayerUp) (struct fsm *);            /* Layer is now up (tlu) */
   void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
@@ -81,7 +84,8 @@ struct fsm {
   void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
   void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
   void (*SendTerminateAck) (struct fsm *);   /* Send Term ACK please */
-  void (*DecodeConfig) (u_char *, int, int); /* Deal with incoming data */
+  void (*DecodeConfig) (struct bundle *, u_char *, int, int);
+                                             /* Deal with incoming data */
 };
 
 struct fsmheader {
@@ -122,7 +126,7 @@ extern u_char *rejp;
 
 extern char const *StateNames[];
 
-extern void FsmInit(struct fsm *, struct link *);
+extern void FsmInit(struct fsm *, struct bundle *, struct link *);
 extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
 extern void FsmOpen(struct fsm *);
 extern void FsmUp(struct fsm *);

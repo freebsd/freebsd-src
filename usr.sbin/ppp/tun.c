@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.5 1998/01/11 17:53:27 brian Exp $
+ *	$Id: tun.c,v 1.6 1998/01/21 02:15:30 brian Exp $
  */
 
 #include <sys/param.h>
@@ -45,10 +45,11 @@
 #include "defs.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "bundle.h"
 #include "tun.h"
 
 void
-tun_configure(int mtu, int speed)
+tun_configure(struct bundle *bundle, int mtu, int speed)
 {
   struct tuninfo info;
 
@@ -60,7 +61,7 @@ tun_configure(int mtu, int speed)
 #ifdef __OpenBSD__                                           
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif
-  if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
+  if (ioctl(bundle->tun_fd, TUNSIFINFO, &info) < 0)
     LogPrintf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
 	      strerror(errno));
 }

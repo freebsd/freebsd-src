@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: phase.h,v 1.9 1998/01/21 02:15:24 brian Exp $
+ * $Id: phase.h,v 1.9.2.1 1998/01/29 00:49:28 brian Exp $
  *
  *	TODO:
  */
@@ -30,4 +30,4 @@ struct physical;
 
 extern int phase;			/* Curent phase */
 
-extern void NewPhase(struct physical *physical, int);
+extern void NewPhase(struct bundle *, struct physical *physical, int);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1998 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,22 +23,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.h,v 1.3 1997/12/21 12:11:10 brian Exp $
+ *	$Id$
  */
 
-struct tun_data {
-#ifdef __OpenBSD__
-  struct tunnel_header head;
-#endif
-  u_char data[MAX_MRU];
+struct bundle {
+  int unit;
+  int ifIndex;
+  int tun_fd;
+  char dev[20];
+  char *ifname;
+
+  /* These belong at the NCP level */
+  int linkup;
+  struct in_addr if_mine, if_peer;
 };
 
-#ifdef __OpenBSD__
-#define tun_fill_header(f,proto) do { (f).head.tun_af = (proto); } while (0)
-#define tun_check_header(f,proto) ((f).head.tun_af == (proto))
-#else
-#define tun_fill_header(f,proto) do { } while (0)
-#define tun_check_header(f,proto) (1)
-#endif
-
-extern void tun_configure(struct bundle *, int, int);
+extern struct bundle *bundle_Create(const char *dev);
+extern int  bundle_InterfaceDown(struct bundle *);
+extern int  bundle_SetIPaddress(struct bundle *, struct in_addr,
+                                struct in_addr);
+extern int  bundle_TrySetIPaddress(struct bundle *, struct in_addr,
+                                   struct in_addr);
+extern void bundle_Linkup(struct bundle *);
+extern int  bundle_LinkIsUp(const struct bundle *);
+extern void bundle_Linkdown(struct bundle *);
+extern void bundle_SetRoute(const struct bundle *, int, struct in_addr,
+                            struct in_addr, struct in_addr, int);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.3 1998/01/30 19:45:41 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.4 1998/01/31 02:48:19 brian Exp $
  *
  *	TODO:
  */
@@ -367,7 +367,8 @@ Protocol2Nam(u_short proto)
 }
 
 static void
-DecodePacket(u_short proto, struct mbuf * bp, struct link *l)
+DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
+             struct link *l)
 {
   struct physical *p = link2physical(l);
   u_char *cp;
@@ -391,7 +392,7 @@ DecodePacket(u_short proto, struct mbuf * bp, struct link *l)
     break;
   case PROTO_PAP:
     if (p)
-      PapInput(bp, p);
+      PapInput(bundle, bp, p);
     else {
       LogPrintf(LogERROR, "DecodePacket: PAP: Not a physical link !\n");
       pfree(bp);
@@ -408,7 +409,7 @@ DecodePacket(u_short proto, struct mbuf * bp, struct link *l)
     break;
   case PROTO_CHAP:
     if (p)
-      ChapInput(bp, p);
+      ChapInput(bundle, bp, p);
     else {
       LogPrintf(LogERROR, "DecodePacket: CHAP: Not a physical link !\n");
       pfree(bp);
@@ -421,7 +422,7 @@ DecodePacket(u_short proto, struct mbuf * bp, struct link *l)
       break;
     /* fall down */
   case PROTO_IP:
-    IpInput(bp);
+    IpInput(bundle, bp);
     break;
   case PROTO_IPCP:
     IpcpInput(bp);
@@ -473,7 +474,7 @@ HdlcErrorCheck()
 }
 
 void
-HdlcInput(struct mbuf * bp, struct physical *physical)
+HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
 {
   u_short fcs, proto;
   u_char *cp, addr, ctrl;
@@ -556,5 +557,5 @@ HdlcInput(struct mbuf * bp, struct physical *physical)
   link_ProtocolRecord(physical2link(physical), proto, PROTO_IN);
   HisLqrSave.SaveInPackets++;
 
-  DecodePacket(proto, bp, physical2link(physical));
+  DecodePacket(bundle, proto, bp, physical2link(physical));
 }

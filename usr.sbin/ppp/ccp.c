@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.3 1998/01/30 19:45:27 brian Exp $
+ * $Id: ccp.c,v 1.30.2.4 1998/01/31 02:48:14 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -46,7 +46,7 @@
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
 static void CcpSendTerminateAck(struct fsm *);
-static void CcpDecodeConfig(u_char *, int, int);
+static void CcpDecodeConfig(struct bundle *, u_char *, int, int);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
 static void CcpLayerUp(struct fsm *);
@@ -65,7 +65,8 @@ struct ccpstate CcpInfo = {
     {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
     {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
     LogCCP,
-    NULL,
+    NULL,				/* link */
+    NULL,				/* bundle */
     CcpLayerUp,
     CcpLayerDown,
     CcpLayerStart,
@@ -136,10 +137,10 @@ ReportCcpStatus(struct cmdargs const *arg)
 }
 
 void
-CcpInit(struct link *l)
+CcpInit(struct bundle *bundle, struct link *l)
 {
   /* Initialise ourselves */
-  FsmInit(&CcpInfo.fsm, l);
+  FsmInit(&CcpInfo.fsm, bundle, l);
   CcpInfo.his_proto = CcpInfo.my_proto = -1;
   CcpInfo.reset_sent = CcpInfo.last_reset = -1;
   CcpInfo.in_algorithm = CcpInfo.out_algorithm = -1;
@@ -318,7 +319,7 @@ CcpOpen()
 }
 
 static void
-CcpDecodeConfig(u_char *cp, int plen, int mode_type)
+CcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 {
   /* Deal with incoming data */
   int type, length;

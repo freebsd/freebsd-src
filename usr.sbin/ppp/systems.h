@@ -17,11 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.h,v 1.9 1997/11/11 22:58:14 brian Exp $
+ * $Id: systems.h,v 1.10 1997/11/22 03:37:51 brian Exp $
  *
  */
 
-extern int SelectSystem(const char *, const char *);
+extern int SelectSystem(struct bundle *bundle, const char *, const char *);
 extern int ValidSystem(const char *);
 extern FILE *OpenSecret(const char *);
 extern void CloseSecret(FILE *);
