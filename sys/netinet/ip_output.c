@@ -96,7 +96,6 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
 u_short ip_id;
 
-static void	in_delayed_cksum(struct mbuf *m);
 static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
 static void	ip_mloopback
 	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *, int));
@@ -954,7 +953,7 @@ bad:
 	goto done;
 }
 
-static void
+void
 in_delayed_cksum(struct mbuf *m)
 {
 	struct ip *ip;
