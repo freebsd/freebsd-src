@@ -179,7 +179,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			TAILQ_INIT(&new_thread->mutexq);
 
 			/* Initialise hooks in the thread structure: */
-			new_thread->specific_data = NULL;
+			new_thread->specific = NULL;
 			new_thread->cleanup = NULL;
 			new_thread->flags = 0;
 			new_thread->poll_data.nfds = 0;
