@@ -167,7 +167,7 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 		return EINVAL;
 
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
-
+ 
 	return 0;
 }
 
@@ -212,7 +212,8 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
-	
+	struct resource *res;
+
 	if (!passthrough && !isdefault) {
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
@@ -242,8 +243,9 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 
-	return resource_list_alloc(rl, bus, child, type, rid,
-				   start, end, count, flags);
+	res = resource_list_alloc(rl, bus, child, type, rid, start, end, 
+	    count, flags);
+	return res;
 }
 
 static int
