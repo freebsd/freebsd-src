@@ -1,4 +1,4 @@
-.\" $Id$
+.\" $Id: lsvfs.1,v 1.5 1997/02/22 19:55:59 peter Exp $
 .\" Garrett A. Wollman, September 1994
 .\" This file is in the public domain.
 .\"
@@ -27,22 +27,18 @@ The information is as follows:
 .Bl -tag -compact -width Filesystem
 .It Filesystem
 the name of the filesystem, as would be used in the
-.Fl t
-option to
-.Xr mount 8
-.It Index
-the kernel filesystem switch slot number for this filesystem, as would be
-used in the
 .Ar type
 parameter to
 .Xr mount 2
+and the
+.Fl t
+option to
+.Xr mount 8
 .It Refs
 the number of references to this VFS; i.e., the number of currently
 mounted filesystems of this type
 .It Flags
-flag bits (only
-.Dq static
-is currently defined).
+flag bits.
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,

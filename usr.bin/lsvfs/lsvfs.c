@@ -3,7 +3,7 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id: lsvfs.c,v 1.9 1997/07/23 06:48:01 charnier Exp $
+ * $Id: lsvfs.c,v 1.10 1998/01/17 16:24:27 bde Exp $
  */
 
 #define _NEW_VFSCONF
@@ -15,9 +15,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define FMT "%-32.32s %5d %5d %s\n"
-#define HDRFMT "%-32.32s %5.5s %5.5s %s\n"
-#define DASHES "-------------------------------- ----- ----- ---------------\n"
+#define FMT "%-32.32s %5d %s\n"
+#define HDRFMT "%-32.32s %5.5s %s\n"
+#define DASHES "-------------------------------- ----- ---------------\n"
 
 static const char *fmt_flags(int);
 
@@ -31,14 +31,13 @@ main(int argc, char **argv)
 
   setvfsent(1);
 
-  printf(HDRFMT, "Filesystem", "Index", "Refs", "Flags");
+  printf(HDRFMT, "Filesystem", "Refs", "Flags");
   fputs(DASHES, stdout);
 
   if(argc) {
     for(; argc; argc--, argv++) {
       if (getvfsbyname(*argv, &vfc) != 0) {
-        printf(FMT, vfc.vfc_name, vfc.vfc_typenum, vfc.vfc_refcount,
-               fmt_flags(vfc.vfc_flags));
+        printf(FMT, vfc.vfc_name, vfc.vfc_refcount, fmt_flags(vfc.vfc_flags));
       } else {
 	warnx("VFS %s unknown or not loaded", *argv);
         rv++;
@@ -46,7 +45,7 @@ main(int argc, char **argv)
     }
   } else {
     while (ovfcp = getvfsent()) {
-      printf(FMT, ovfcp->vfc_name, ovfcp->vfc_index, ovfcp->vfc_refcount,
+      printf(FMT, ovfcp->vfc_name, ovfcp->vfc_refcount,
              fmt_flags(ovfcp->vfc_flags));
     }
   }
