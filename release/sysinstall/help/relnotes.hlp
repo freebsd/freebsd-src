@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                        FreeBSD Release 2.2-960426-SNAP
+                        FreeBSD Release 2.2-960428-SNAP
 
 
 0. What's new since 2.2-960323-SNAP?
@@ -10,11 +10,14 @@ are supported, from modems to ethernet cards to SCSI adaptors.
 
 Adaptec AIC7850 support has been added.
 
+The Yellow Pages (NIS) support has had many optimizations made
+and no longer has portions copyright under the GPL.
+
 Various VM system enhancements and a few bugs fixed (gzip'd binaries
-now work again).
+now work again, for example).
 
 The system installation tool has been revamped with slightly different
-menu behavior.
+menu behavior and a number of bugs have been fixed.
 
 
 1. What's New since 2.1.0-RELEASE?
@@ -489,4 +492,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.8 1995/11/04 09:33:17 jkh Exp $
+$Id: relnotes.hlp,v 1.3 1996/04/25 19:04:45 jkh Exp $
