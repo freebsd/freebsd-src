@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
-.\"	$Id: chmod.1,v 1.4.2.1 1997/02/28 07:54:25 mpp Exp $
+.\"	$Id: chmod.1,v 1.4.2.2 1998/02/15 10:51:43 jkh Exp $
 .\"
 .Dd March 31, 1994
 .Dt CHMOD 1
@@ -103,35 +103,59 @@ The
 utility exits 0 on success, and >0 if an error occurs.
 .Sh MODES
 Modes may be absolute or symbolic.
-An absolute mode is an octal number constructed by
-.Ar or-ing
-the following values:
+An absolute mode is an octal number constructed from the sum of
+one or more of the following values:
 .Pp
 .Bl -tag -width 6n -compact -offset indent
 .It Li 4000
-set-user-ID-on-execution
-( see 
+(the set-user-ID-on-execution bit) Executable files with this bit set 
+will run with effective uid set to the uid of the file owner.
+Directories with the set-user-id bit set will force all files and 
+sub-directories created in them to be owned by the directory owner 
+and not by the uid of the creating process, if the underlying file 
+system supports this feature: see 
 .Xr chmod 2
-for directories )
+and the 
+.Ar suiddir
+option to
+.Xr mount 1 .
 .It Li 2000
-set-group-ID-on-execution
+(the set-group-ID-on-execution bit)  Executable files with this bit set 
+will run with effective gid set to the gid of the file owner.  
 .It Li 1000
-sticky bit, see
-.Xr chmod 2
+(the sticky bit)  
+When set on a directory, unprivileged users can delete and rename
+only those files in the directory that are owned by them, regardless of 
+the permissions on the directory.  Under FreeBSD, the sticky bit is 
+ignored for executable files and may only be set for directories (see 
+.Xr sticky 8 ).
 .It Li 0400
-read by owner
+Allow read by owner.
 .It Li 0200
-write by owner
+Allow write by owner.
 .It Li 0100
-execute (or search for directories) by owner
-.It Li 0070
-read, write, execute/search by group
-.It Li 0007
-read, write, execute/search by others
+For files, allow execution by owner.  For directories, allow the owner to 
+search in the directory.
+.It Li 0040
+Allow read by group members.
+.It Li 0020
+Allow write by group members.
+.It Li 0010
+For files, allow execution by group members.  For directories, allow 
+group members to search in the directory.
+.It Li 0004
+Allow read by others.
+.It Li 0002
+Allow write by others.
+.It Li 0001
+For files, allow execution by others.  For directories allow others to
+search in the directory.
 .El
 .Pp
-The read, write, and execute/search values for group and others
-are encoded as described for owner.
+For example, the absolute mode that permits read, write and execute by 
+the owner, read and execute by group members, read and execute by 
+others, and no set-uid or set-gid behaviour is 755 
+(400+200+100+040+010+004+001).
 .Pp
 The symbolic mode is described by the following grammar:
 .Bd -literal -offset indent
@@ -280,13 +304,15 @@ option for the naughty bits.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr install 1 ,
+.Xr mount 1 ,
 .Xr chmod 2 ,
 .Xr stat 2 ,
 .Xr umask 2 ,
 .Xr fts 3 ,
 .Xr setmode 3 ,
 .Xr symlink 7 ,
-.Xr chown 8
+.Xr chown 8 ,
+.Xr sticky 8
 .Sh STANDARDS
 The
 .Nm chmod
