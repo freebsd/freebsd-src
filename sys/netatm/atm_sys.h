@@ -172,61 +172,6 @@ struct atm_time {
 
 #define	ATM_HZ		2		/* Time ticks per second */
 
-
-/*
- * To avoid heavy use of kmem_alloc, memory for protocol control blocks may
- * be allocated from storage pools.  Each control block type will have 
- * its own pool.  Each storage pool will consist of individually allocated
- * memory chunks, which will then be sub-divided into the separate control
- * blocks.  Each chunk will contain a header (sp_chunk) and 'n' blocks of the 
- * same type, plus a link field for each block.  Each chunk will also contain 
- * a list of all free control blocks in the chunk. 
- *
- * Each protocol must define an sp_info structure for each of its storage 
- * pools.  This structure serves as the "root" for its particular pool.
- * Protocols must not modify this structure after its first use.
- */
-struct sp_info {
-	/* Values supplied by pool owner */
-	char		*si_name;	/* Name of pool */
-	size_t		si_blksiz;	/* Size of each block */
-	int		si_blkcnt;	/* Blocks per chunk */
-	int		si_maxallow;	/* Maximum allowable chunks */
-
-	/* Used by allocate/free functions - do not touch */
-	struct sp_info	*si_next;	/* Next active storage pool */
-	struct sp_chunk	*si_poolh;	/* Storage pool chunk head */
-	struct sp_chunk	*si_poolt;	/* Storage pool chunk tail */
-	size_t		si_chunksiz;	/* Size of chunk */
-	int		si_chunks;	/* Current allocated chunks */
-	int		si_total;	/* Total number of blocks */
-	int		si_free;	/* Free blocks */
-	int		si_maxused;	/* Maximum allocated chunks */
-	int		si_allocs;	/* Total allocate calls */
-	int		si_fails;	/* Allocate failures */
-};
-
-struct sp_chunk {
-	struct sp_chunk	*sc_next;	/* Next chunk in pool */
-	struct sp_info	*sc_info;	/* Storage pool info */
-	u_int		sc_magic;	/* Chunk magic number */
-	int		sc_used;	/* Allocated blocks in chunk */
-	struct sp_link	*sc_freeh;	/* Head of free blocks in chunk */
-	struct sp_link	*sc_freet;	/* Tail of free blocks in chunk */
-};
-
-struct sp_link {
-	union {
-		struct sp_link	*slu_next;	/* Next block in free list */
-		struct sp_chunk	*slu_chunk;	/* Link back to our chunk */
-	} sl_u;
-};
-
-#define	SPOOL_MAGIC	0x73d4b69c	/* Storage pool magic number */
-#define	SPOOL_MIN_CHUNK	2		/* Minimum number of chunks */
-#define	SPOOL_ROUNDUP	16		/* Roundup for allocated chunks */
-#define	SPOOL_COMPACT	(300 * ATM_HZ)	/* Compaction timeout value */
-
 /*
  * Debugging
  */
