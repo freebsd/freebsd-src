@@ -1342,12 +1342,11 @@ ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
 			int pos = 0;
 			int resplen = sizeof(struct ng_mesg) + 512;
 			MALLOC(resp, struct ng_mesg *, resplen, M_NETGRAPH,
-			       M_NOWAIT);
+			       M_NOWAIT | M_ZERO);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			bzero(resp, resplen);
 			arg = (resp)->data;
 
 			/*

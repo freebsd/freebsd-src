@@ -553,12 +553,11 @@ oltr_pci_attach(pcici_t config_id, int unit)
 
         s = splimp();
 
-	sc = malloc(sizeof(struct oltr_softc), M_DEVBUF, M_NOWAIT);
+	sc = malloc(sizeof(struct oltr_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		printf("oltr%d: no memory for softc struct!\n", unit);
 		goto config_failed;
 	}
-       	bzero(sc, sizeof(struct oltr_softc));
 	sc->unit = unit;
 	sc->state = OL_UNKNOWN;
 	ifp = &sc->arpcom.ac_if;

@@ -63,16 +63,15 @@ int wait;
 {
   struct natmpcb *npcb;
 
-  MALLOC(npcb, struct natmpcb *, sizeof(*npcb), M_PCB, wait);
+  MALLOC(npcb, struct natmpcb *, sizeof(*npcb), M_PCB, wait | M_ZERO);
 
 #ifdef DIAGNOSTIC
   if (wait == M_WAITOK && npcb == NULL) panic("npcb_alloc: malloc didn't wait");
 #endif
 
-  if (npcb) {
-    bzero(npcb, sizeof(*npcb));
+  if (npcb)
     npcb->npcb_flags = NPCB_FREE;
-  }
+
   return(npcb);
 }
 

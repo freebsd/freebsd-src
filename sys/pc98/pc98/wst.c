@@ -235,13 +235,12 @@ wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	    "wst: check `options ATAPI_STATIC' in your kernel config file!\n");
         return(-1);
     }
-    t = malloc(sizeof(struct wst), M_TEMP, M_NOWAIT);
+    t = malloc(sizeof(struct wst), M_TEMP, M_NOWAIT | M_ZERO);
     if (!t) {
         printf("wst: out of memory\n");
         return(-1);
     }
     wsttab[wstnlun] = t;
-    bzero(t, sizeof(struct wst));
     bioq_init(&t->buf_queue);
     t->ata = ata;
     t->unit = unit;

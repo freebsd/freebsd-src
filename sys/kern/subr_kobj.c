@@ -175,10 +175,9 @@ kobj_create(kobj_class_t cls,
 	/*
 	 * Allocate and initialise the new object.
 	 */
-	obj = malloc(cls->size, mtype, mflags);
+	obj = malloc(cls->size, mtype, mflags | M_ZERO);
 	if (!obj)
 		return 0;
-	bzero(obj, cls->size);
 	kobj_init(obj, cls);
 
 	return obj;

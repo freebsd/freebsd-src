@@ -257,8 +257,7 @@ mdstrategy_malloc(struct bio *bp)
 						*secpp = (u_char *)(uintptr_t)uc;
 				} else {
 					if (!secpp) {
-						MALLOC(secpp, u_char **, (secno + nsec + 1) * sizeof(u_char *), M_MD, M_WAITOK);
-						bzero(secpp, (secno + nsec + 1) * sizeof(u_char *));
+						MALLOC(secpp, u_char **, (secno + nsec + 1) * sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
 						bcopy(sc->secp, secpp, sc->nsecp * sizeof(u_char *));
 						FREE(sc->secp, M_MD);
 						sc->secp = secpp;
@@ -356,8 +355,7 @@ mdcreate(int unit)
 		if (sc->unit == unit)
 			return (NULL);
 	}
-	MALLOC(sc, struct md_s *,sizeof(*sc), M_MD, M_WAITOK);
-	bzero(sc, sizeof(*sc));
+	MALLOC(sc, struct md_s *,sizeof(*sc), M_MD, M_WAITOK | M_ZERO);
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
@@ -397,8 +395,7 @@ mdcreate_malloc(int unit)
 	sc->type = MD_MALLOC;
 
 	sc->nsect = MD_NSECT;	/* for now */
-	MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK);
-	bzero(sc->secp, sizeof(u_char *));
+	MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
 	sc->nsecp = 1;
 	printf("md%d: Malloc disk\n", sc->unit);
 }

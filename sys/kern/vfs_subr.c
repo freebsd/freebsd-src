@@ -335,8 +335,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 			break;
 	if (vfsp == NULL)
 		return (ENODEV);
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
+	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
 	LIST_INIT(&mp->mnt_vnodelist);
@@ -2322,8 +2321,7 @@ vfs_hang_addrlist(mp, nep, argp)
 		return (0);
 	}
 	i = sizeof(struct netcred) + argp->ex_addrlen + argp->ex_masklen;
-	np = (struct netcred *) malloc(i, M_NETADDR, M_WAITOK);
-	bzero((caddr_t) np, i);
+	np = (struct netcred *) malloc(i, M_NETADDR, M_WAITOK | M_ZERO);
 	saddr = (struct sockaddr *) (np + 1);
 	if ((error = copyin(argp->ex_addr, (caddr_t) saddr, argp->ex_addrlen)))
 		goto out;

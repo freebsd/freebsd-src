@@ -724,8 +724,7 @@ mn_create_channel(struct softc *sc, int chan)
 	struct schan *sch;
 
 	sch = sc->ch[chan] = (struct schan *)malloc(sizeof *sc->ch[chan], 
-	    M_MN, M_WAITOK);
-	bzero(sch, sizeof *sch);
+	    M_MN, M_WAITOK | M_ZERO);
 	sch->sc = sc;
 	sch->state = DOWN;
 	sch->chan = chan;
@@ -1216,8 +1215,7 @@ mn_attach (device_t self)
 		once++;
 	}
 
-	sc = (struct softc *)malloc(sizeof *sc, M_MN, M_WAITOK);
-	bzero(sc, sizeof *sc);
+	sc = (struct softc *)malloc(sizeof *sc, M_MN, M_WAITOK | M_ZERO);
 	device_set_softc(self, sc);
 
 	sc->dev = self;

@@ -180,13 +180,12 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 		printf("wfd: check `options ATAPI_STATIC' in your kernel config file!\n");
 		return (0);
 	}
-	t = malloc (sizeof (struct wfd), M_TEMP, M_NOWAIT);
+	t = malloc (sizeof (struct wfd), M_TEMP, M_NOWAIT | M_ZERO);
 	if (! t) {
 		printf ("wfd: out of memory\n");
 		return (0);
 	}
 	wfdtab[wfdnlun] = t;
-	bzero (t, sizeof (struct wfd));
 	bioq_init(&t->buf_queue);
 	t->ata = ata;
 	t->unit = unit;

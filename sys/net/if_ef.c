@@ -492,10 +492,10 @@ ef_clone(struct ef_link *efl, int ft)
 	char cbuf[IFNAMSIZ], *ifname;
 	int ifnlen;
 
-	efp = (struct efnet*)malloc(sizeof(struct efnet), M_IFADDR, M_WAITOK);
+	efp = (struct efnet*)malloc(sizeof(struct efnet), M_IFADDR,
+	    M_WAITOK | M_ZERO);
 	if (efp == NULL)
 		return ENOMEM;
-	bzero(efp, sizeof(*efp));
 	efp->ef_ifp = ifp;
 	eifp = &efp->ef_ac.ac_if;
 	ifnlen = 1 + snprintf(cbuf, sizeof(cbuf), "%s%df", ifp->if_name,

@@ -443,8 +443,7 @@ bdginit(void *dummy)
     flush_table();
 
     ifp2sc = malloc(BDG_MAX_PORTS * sizeof(struct bdg_softc),
-		M_IFADDR, M_WAITOK );
-    bzero(ifp2sc, BDG_MAX_PORTS * sizeof(struct bdg_softc) );
+		M_IFADDR, M_WAITOK | M_ZERO);
 
     bzero(&bdg_stats, sizeof(bdg_stats) );
     bdgtakeifaces();

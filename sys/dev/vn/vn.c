@@ -182,10 +182,9 @@ vnfindvn(dev_t dev)
 		}
 	}
 	if (!vn) {
-		vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK);
+		vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK | M_ZERO);
 		if (!vn)
 			return (NULL);
-		bzero(vn, sizeof *vn);
 		vn->sc_unit = unit;
 		dev->si_drv1 = vn;
 		make_dev(&vn_cdevsw,

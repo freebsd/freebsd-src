@@ -306,8 +306,7 @@ kqueue(struct proc *p, struct kqueue_args *uap)
 	fp->f_flag = FREAD | FWRITE;
 	fp->f_type = DTYPE_KQUEUE;
 	fp->f_ops = &kqueueops;
-	kq = malloc(sizeof(struct kqueue), M_TEMP, M_WAITOK);
-	bzero(kq, sizeof(*kq));
+	kq = malloc(sizeof(struct kqueue), M_TEMP, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&kq->kq_head);
 	fp->f_data = (caddr_t)kq;
 	p->p_retval[0] = fd;

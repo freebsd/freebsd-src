@@ -107,9 +107,8 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
 {
     struct acd *ptr;
 
-    if (!(ptr = malloc(sizeof(struct acd), M_TEMP, M_NOWAIT)))
+    if (!(ptr = malloc(sizeof(struct acd), M_TEMP, M_NOWAIT | M_ZERO)))
         return NULL;
-    bzero(ptr, sizeof(struct acd));
     bioq_init(&ptr->bio_queue);
     ptr->ata = ata;
     ptr->unit = unit;
@@ -123,9 +122,8 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     ptr->changer_info = NULL;
     if (device_stats == NULL) {
         if (!(ptr->device_stats = malloc(sizeof(struct devstat), 
-					 M_TEMP, M_NOWAIT)))
+					 M_TEMP, M_NOWAIT | M_ZERO)))
             return NULL;
-	bzero(ptr->device_stats, sizeof(struct devstat));
     }
     else
 	ptr->device_stats = device_stats;
@@ -199,12 +197,11 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	char string[16];
     	struct acd *tmpcdp = cdp;
 
-        chp = malloc(sizeof(struct changer), M_TEMP, M_NOWAIT);
+        chp = malloc(sizeof(struct changer), M_TEMP, M_NOWAIT | M_ZERO);
         if (chp == NULL) {
             printf("wcd: out of memory\n");
             return 0;
         }
-        bzero(chp, sizeof(struct changer));
         result = atapi_request_immediate(ata, unit, ATAPI_MECH_STATUS,
             				 0, 0, 0, 0, 0, 0, 0,
             				 sizeof(struct changer)>>8,

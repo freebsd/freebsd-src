@@ -147,8 +147,7 @@ ptyinit(n)
 	if (n & ~0xff)
 		return (NODEV);
 
-	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK);
-	bzero(pt, sizeof(*pt));
+	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
 	pt->devs = devs = make_dev(&pts_cdevsw, n,
 	    UID_ROOT, GID_WHEEL, 0666, "tty%c%r", names[n / 32], n % 32);
 	pt->devc = devc = make_dev(&ptc_cdevsw, n,

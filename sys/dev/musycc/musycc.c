@@ -1012,8 +1012,7 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 		return (EINVAL);
 		
 	if (sc->chan[chan] == NULL) {
-		MALLOC(sch, struct schan *, sizeof(*sch), M_MUSYCC, M_WAITOK);
-		bzero(sch, sizeof(*sch));
+		MALLOC(sch, struct schan *, sizeof(*sch), M_MUSYCC, M_WAITOK | M_ZERO);
 		sch->sc = sc;
 		sch->state = DOWN;
 		sch->chan = chan;
@@ -1340,8 +1339,7 @@ musycc_attach(device_t self)
 	f = pci_get_function(self);
 	/* For function zero allocate a csoftc */
 	if (f == 0) {
-		MALLOC(csc, struct csoftc *, sizeof(*csc), M_MUSYCC, M_WAITOK);
-		bzero(csc, sizeof(*csc));
+		MALLOC(csc, struct csoftc *, sizeof(*csc), M_MUSYCC, M_WAITOK | M_ZERO);
 		csc->bus = pci_get_bus(self);
 		csc->slot = pci_get_slot(self);
 		LIST_INSERT_HEAD(&sc_list, csc, list);
@@ -1415,8 +1413,7 @@ musycc_attach(device_t self)
 		sc->reg = (struct globalr *)
 		    (csc->virbase[0] + i * 0x800);
 		MALLOC(sc->mycg, struct mycg *, 
-		    sizeof(struct mycg), M_MUSYCC, M_WAITOK);
-		bzero(sc->mycg, sizeof(struct mycg));
+		    sizeof(struct mycg), M_MUSYCC, M_WAITOK | M_ZERO);
 		sc->ram = &sc->mycg->cg;
 
 		error = ng_make_node_common(&ngtypestruct, &sc->node);

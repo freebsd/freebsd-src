@@ -831,25 +831,24 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 
 	bzero(rp, sizeof(struct rp_port) * num_ports);
 	ctlp->tty = tty = (struct tty *)
-		malloc(sizeof(struct tty) * num_ports, M_TTYS, M_NOWAIT);
+		malloc(sizeof(struct tty) * num_ports, M_TTYS,
+			M_NOWAIT | M_ZERO);
 	if(tty == NULL) {
 		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc tty structures.\n");
 		retval = ENOMEM;
 		goto nogo;
 	}
-	bzero(tty, sizeof(struct tty) * num_ports);
 
 	oldspl = spltty();
 	rp_addr(unit) = rp;
 	splx(oldspl);
 
-	dev_nodes = ctlp->dev_nodes = malloc(sizeof(*(ctlp->dev_nodes)) * rp_num_ports[unit] * 6, M_DEVBUF, M_NOWAIT);
+	dev_nodes = ctlp->dev_nodes = malloc(sizeof(*(ctlp->dev_nodes)) * rp_num_ports[unit] * 6, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if(ctlp->dev_nodes == NULL) {
 		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc device node structures.\n");
 		retval = ENOMEM;
 		goto nogo;
 	}
-	bzero(dev_nodes, sizeof(*(ctlp->dev_nodes)) * rp_num_ports[unit] * 6);
 
 	for (i = 0 ; i < rp_num_ports[unit] ; i++) {
 		*(dev_nodes++) = make_dev(&rp_cdevsw, ((unit + 1) << 16) | i,

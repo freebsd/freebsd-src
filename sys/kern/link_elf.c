@@ -728,12 +728,11 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     nbytes = hdr->e_shnum * hdr->e_shentsize;
     if (nbytes == 0 || hdr->e_shoff == 0)
 	goto nosyms;
-    shdr = malloc(nbytes, M_LINKER, M_WAITOK);
+    shdr = malloc(nbytes, M_LINKER, M_WAITOK | M_ZERO);
     if (shdr == NULL) {
 	error = ENOMEM;
 	goto out;
     }
-    bzero(shdr, nbytes);
     error = vn_rdwr(UIO_READ, nd.ni_vp,
 		    (caddr_t)shdr, nbytes, hdr->e_shoff,
 		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);

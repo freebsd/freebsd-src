@@ -546,10 +546,10 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 	if (ithd == NULL || ithd->it_ih == NULL) {
 		/* first handler for this irq. */
 		if (ithd == NULL) {
-			ithd = malloc(sizeof (struct ithd), M_DEVBUF, M_WAITOK);
+			ithd = malloc(sizeof (struct ithd), M_DEVBUF,
+			    M_WAITOK | M_ZERO);
 			if (ithd == NULL)
 				return (NULL);
-			bzero(ithd, sizeof(struct ithd));	
 			ithd->irq = irq;
 			ithds[irq] = ithd;
 		}
@@ -620,10 +620,9 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 		else
 			strcat(p->p_comm, "+");
 	}
-	idesc = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK);
+	idesc = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (idesc == NULL)
 		return (NULL);
-	bzero(idesc, sizeof (struct intrhand));
 
 	idesc->ih_handler = handler;
 	idesc->ih_argument = arg;

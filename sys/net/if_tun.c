@@ -147,8 +147,7 @@ tuncreate(dev)
 	dev = make_dev(&tun_cdevsw, minor(dev),
 	    UID_UUCP, GID_DIALER, 0600, "tun%d", dev2unit(dev));
 
-	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK);
-	bzero(sc, sizeof *sc);
+	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	sc->tun_flags = TUN_INITED;
 
 	ifp = &sc->tun_if;

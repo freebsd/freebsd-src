@@ -137,10 +137,9 @@ lmc_pci_attach(pcici_t config_id, int unit)
 	/*
 	 * allocate memory for the softc
 	 */
-	sc = (lmc_softc_t *) malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
+	sc = (lmc_softc_t *) malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return;
-	bzero(sc, sizeof(*sc));				/* Zero out the softc*/
 
 	revinfo  = PCI_CONF_READ(PCI_CFRV) & 0xFF;
 	id       = PCI_CONF_READ(PCI_CFID);

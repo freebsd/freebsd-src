@@ -397,8 +397,7 @@ arattach_pci(int unit, vm_offset_t mem_addr)
 	struct ar_hardc *hc;
 	u_int i, tmp;
 
-	hc = malloc(sizeof(struct ar_hardc), M_DEVBUF, M_WAITOK);
-	bzero(hc, sizeof(struct ar_hardc));
+	hc = malloc(sizeof(struct ar_hardc), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	hc->cunit = unit;
 	hc->mem_start = (caddr_t)mem_addr;
@@ -1139,11 +1138,10 @@ arc_init(struct ar_hardc *hc)
 	u_int descneeded;
 	u_char isr, mar;
 
-	MALLOC(sc, struct ar_softc *,
-		hc->numports * sizeof(struct ar_softc), M_DEVBUF, M_WAITOK);
+	MALLOC(sc, struct ar_softc *, hc->numports * sizeof(struct ar_softc),
+		M_DEVBUF, M_WAITOK | M_ZERO);
 	if (sc == NULL)
 		return;
-	bzero(sc, hc->numports * sizeof(struct ar_softc));
 	hc->sc = sc;
 
 	hc->txc_dtr[0] = AR_TXC_DTR_NOTRESET |
@@ -2234,12 +2232,11 @@ ngar_rcvmsg(node_p node, struct ng_mesg *msg,
 			    int pos = 0;
 			    int resplen = sizeof(struct ng_mesg) + 512;
 			    MALLOC(*resp, struct ng_mesg *, resplen,
-					M_NETGRAPH, M_NOWAIT);
+					M_NETGRAPH, M_NOWAIT | M_ZERO);
 			    if (*resp == NULL) { 
 				error = ENOMEM;
 				break;
 			    }       
-			    bzero(*resp, resplen);
 			    arg = (*resp)->data;
 
 			    /*

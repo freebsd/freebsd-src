@@ -515,10 +515,9 @@ linker_file_add_dependancy(linker_file_t file, linker_file_t dep)
     linker_file_t* newdeps;
 
     newdeps = malloc((file->ndeps + 1) * sizeof(linker_file_t*),
-		     M_LINKER, M_WAITOK);
+		     M_LINKER, M_WAITOK | M_ZERO);
     if (newdeps == NULL)
 	return ENOMEM;
-    bzero(newdeps, (file->ndeps + 1) * sizeof(linker_file_t*));
 
     if (file->deps) {
 	bcopy(file->deps, newdeps, file->ndeps * sizeof(linker_file_t*));
@@ -589,12 +588,11 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	cp = malloc(sizeof(struct common_symbol)
 		    + common_size
 		    + strlen(name) + 1,
-		    M_LINKER, M_WAITOK);
+		    M_LINKER, M_WAITOK | M_ZERO);
 	if (!cp) {
 	    KLD_DPF(SYM, ("linker_file_lookup_symbol: nomem\n"));
 	    return 0;
 	}
-	bzero(cp, sizeof(struct common_symbol) + common_size + strlen(name)+ 1);
 
 	cp->address = (caddr_t) (cp + 1);
 	cp->name = cp->address + common_size;
@@ -1021,10 +1019,9 @@ linker_preload(void* arg)
 		/* XXX what can we do? this is a build error. :-( */
 		continue;
 	    }
-	    mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT);
+	    mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT|M_ZERO);
 	    if (mod == NULL)
 		panic("no memory for module list");
-	    bzero(mod, sizeof(*mod));
 	    mod->container = linker_kernel_file;
 	    mod->name = modname;
 	    TAILQ_INSERT_TAIL(&found_modules, mod, link);
@@ -1082,10 +1079,10 @@ restart:
 			TAILQ_REMOVE(&loaded_files, lf, loaded);
 			goto restart;	/* we changed the tailq next ptr */
 		    }
-		    mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT);
+		    mod = malloc(sizeof(struct modlist), M_LINKER,
+			M_NOWAIT|M_ZERO);
 		    if (mod == NULL)
 			panic("no memory for module list");
-		    bzero(mod, sizeof(*mod));
 		    mod->container = lf;
 		    mod->name = modname;
 		    TAILQ_INSERT_TAIL(&found_modules, mod, link);
@@ -1383,10 +1380,9 @@ linker_load_dependancies(linker_file_t lf)
 	    if (mp->md_type != MDT_VERSION)
 		continue;
 	    modname = linker_reloc_ptr(lf, mp->md_cval);
-	    mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT);
+	    mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT|M_ZERO);
 	    if (mod == NULL)
 		panic("no memory for module list");
-	    bzero(mod, sizeof(*mod));
 	    mod->container = lf;
 	    mod->name = modname;
 	    TAILQ_INSERT_TAIL(&found_modules, mod, link);
