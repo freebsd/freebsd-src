@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.2 1996/08/02 21:15:47 bde Exp $
+ *	$Id: identcpu.c,v 1.3 1996/08/10 06:35:35 peter Exp $
  */
 
 #include <sys/param.h>
@@ -147,6 +147,20 @@ identifycpu(void)
 				strcat(cpu_model, "DX4"); break;
 				break;
 			}
+		}
+	} else if (!strcmp(cpu_vendor,"AuthenticAMD")) {
+		cpu_model[0] = '\0';
+		strcpy(cpu_model, "AMD ");
+		switch (cpu_id & 0xF0) {
+		case 0xE0:
+			strcat(cpu_model, "Am5x86 Write-Through");
+			break;
+		case 0xF0:
+			strcat(cpu_model, "Am5x86 Write-Back");
+			break;
+		default:
+			strcat(cpu_model, "Unknown");
+			break;
 		}
 	}
 #endif
