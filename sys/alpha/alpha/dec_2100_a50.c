@@ -45,7 +45,6 @@
 #include <machine/clock.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <pci/pci_ioctl.h>
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
 
