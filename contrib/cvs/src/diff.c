@@ -50,6 +50,7 @@ static void diff_mark_errors PROTO((int err));
 static char *diff_rev1, *diff_rev2;
 /* Command line dates, from -D option.  Malloc'd.  */
 static char *diff_date1, *diff_date2;
+static char *diff_join1, *diff_join2;
 static char *use_rev1, *use_rev2;
 static int have_rev1_label, have_rev2_label;
 
@@ -245,10 +246,12 @@ diff (argc, argv)
     diff_rev2 = NULL;
     diff_date1 = NULL;
     diff_date2 = NULL;
+    diff_join1 = NULL;	/* used for client/server only */
+    diff_join2 = NULL;	/* used for client/server only */
 
     optind = 0;
     while ((c = getopt_long (argc, argv,
-	       "+abcdefhilnpstuw0123456789BHNRC:D:F:I:L:U:V:W:k:r:",
+	       "+abcdefhilnpstuw0123456789BHNRC:D:F:I:L:U:V:W:k:r:j:",
 			     longopts, &option_index)) != -1)
     {
 	switch (c)
@@ -308,6 +311,27 @@ diff (argc, argv)
 		    free (options);
 		options = RCS_check_kflag (optarg);
 		break;
+	    case 'j':
+		{
+		    char *ptr;
+		    char *cpy = strdup(optarg);
+
+		    if ((ptr = strchr(optarg, ':')) != NULL)
+			*ptr++ = 0;
+		    if (diff_rev2 != NULL || diff_date2 != NULL)
+			error (1, 0,
+			   "no more than two revisions/dates can be specified");
+		    if (diff_rev1 != NULL || diff_date1 != NULL) {
+			diff_join2 = cpy;
+			diff_rev2 = optarg;
+			diff_date2 = ptr ? Make_Date(ptr) : NULL;
+		    } else {
+			diff_join1 = cpy;
+			diff_rev1 = optarg;
+			diff_date1 = ptr ? Make_Date(ptr) : NULL;
+		    }
+		}
+		break;
 	    case 'r':
 		if (diff_rev2 != NULL || diff_date2 != NULL)
 		    error (1, 0,
@@ -356,13 +380,18 @@ diff (argc, argv)
 	send_option_string (opts);
 	if (options[0] != '\0')
 	    send_arg (options);
-	if (diff_rev1)
+	if (diff_join1)
+	    option_with_arg ("-j", diff_join1);
+	else if (diff_rev1)
 	    option_with_arg ("-r", diff_rev1);
-	if (diff_date1)
+	else if (diff_date1)
 	    client_senddate (diff_date1);
-	if (diff_rev2)
+
+	if (diff_join2)
+	    option_with_arg ("-j", diff_join2);
+	else if (diff_rev2)
 	    option_with_arg ("-r", diff_rev2);
-	if (diff_date2)
+	else if (diff_date2)
 	    client_senddate (diff_date2);
 
 	/* Send the current files unless diffing two revs from the archive */
@@ -375,28 +404,26 @@ diff (argc, argv)
 
 	send_to_server ("diff\012", 0);
         err = get_responses_and_close ();
-	free (options);
-	options = NULL;
-	return (err);
-    }
+    } else
 #endif
+    {
+	if (diff_rev1 != NULL)
+	    tag_check_valid (diff_rev1, argc, argv, local, 0, "");
+	if (diff_rev2 != NULL)
+	    tag_check_valid (diff_rev2, argc, argv, local, 0, "");
 
-    if (diff_rev1 != NULL)
-	tag_check_valid (diff_rev1, argc, argv, local, 0, "");
-    if (diff_rev2 != NULL)
-	tag_check_valid (diff_rev2, argc, argv, local, 0, "");
+	which = W_LOCAL;
+	if (diff_rev1 != NULL || diff_date1 != NULL)
+	    which |= W_REPOS | W_ATTIC;
 
-    which = W_LOCAL;
-    if (diff_rev1 != NULL || diff_date1 != NULL)
-	which |= W_REPOS | W_ATTIC;
+	wrap_setup ();
 
-    wrap_setup ();
+	/* start the recursion processor */
+	err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
+			       diff_dirleaveproc, NULL, argc, argv, local,
+			       which, 0, 1, (char *) NULL, 1);
 
-    /* start the recursion processor */
-    err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
-			   diff_dirleaveproc, NULL, argc, argv, local,
-			   which, 0, 1, (char *) NULL, 1);
-
+    }
     /* clean up */
     free (options);
     options = NULL;
@@ -405,6 +432,10 @@ diff (argc, argv)
 	free (diff_date1);
     if (diff_date2 != NULL)
 	free (diff_date2);
+    if (diff_join1 != NULL)
+	free (diff_join1);
+    if (diff_join2 != NULL)
+	free (diff_join2);
 
     return (err);
 }
@@ -452,7 +483,7 @@ diff_fileproc (callerdat, finfo)
 		int exists;
 
 		exists = 0;
-		/* special handling for TAG_HEAD */
+		/* special handling for TAG_HEAD XXX */
 		if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
 		{
 		    char *head =
@@ -842,7 +873,7 @@ diff_file_nodiff (finfo, vers, empty_file)
 
     if (diff_rev1 || diff_date1)
     {
-	/* special handling for TAG_HEAD */
+	/* special handling for TAG_HEAD XXX */
 	if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
 	    use_rev1 = ((vers->vn_rcs == NULL || vers->srcfile == NULL)
 			? NULL
@@ -857,7 +888,7 @@ diff_file_nodiff (finfo, vers, empty_file)
     }
     if (diff_rev2 || diff_date2)
     {
-	/* special handling for TAG_HEAD */
+	/* special handling for TAG_HEAD XXX */
 	if (diff_rev2 && strcmp (diff_rev2, TAG_HEAD) == 0)
 	    use_rev2 = ((vers->vn_rcs == NULL || vers->srcfile == NULL)
 			? NULL
