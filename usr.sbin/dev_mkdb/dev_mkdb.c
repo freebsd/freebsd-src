@@ -105,7 +105,7 @@ main(argc, argv)
 	key.size = sizeof(bkey);
 	data.data = buf;
 	while (dp = readdir(dirp)) {
-		if (stat(dp->d_name, &sb)) {
+		if (lstat(dp->d_name, &sb)) {
 			(void)fprintf(stderr, "dev_mkdb: can't stat %s\n",
 				dp->d_name);
 			continue;

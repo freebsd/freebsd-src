@@ -31,10 +31,16 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mount.h	7.22 (Berkeley) 6/3/91
- *	$Id: mount.h,v 1.5 1993/10/24 04:28:11 rgrimes Exp $
+ *	$Id: mount.h,v 1.10 1993/12/19 22:54:02 alm Exp $
  */
 
-typedef quad fsid_t;			/* file system id type */
+#ifndef _SYS_MOUNT_H_
+#define _SYS_MOUNT_H_ 1
+
+typedef union {
+		quad_t v;
+		long val[2];
+} fsid_t;			/* file system id type */
 
 /*
  * File identifier.
@@ -79,7 +85,8 @@ struct statfs {
 #define	MOUNT_MFS	3		/* Memory Filesystem */
 #define	MOUNT_MSDOS	4		/* MSDOS Filesystem */
 #define MOUNT_ISOFS	5		/* iso9660 cdrom */
-#define	MOUNT_MAXTYPE	5
+#define MOUNT_PROCFS	6		/* proc filesystem */
+#define	MOUNT_MAXTYPE	6
 
 /*
  * Structure per mounted file system.
@@ -166,7 +173,7 @@ struct vfsops {
 	int	(*vfs_fhtovp)	__P((struct mount *mp, struct fid *fhp,
 				    struct vnode **vpp));
 	int	(*vfs_vptofh)	__P((struct vnode *vp, struct fid *fhp));
-	int	(*vfs_init)	__P(());
+	void	(*vfs_init)	__P((void));
 };
 
 #define VFS_MOUNT(MP, PATH, DATA, NDP, P) \
@@ -217,9 +224,12 @@ struct ufs_args {
 struct mfs_args {
 	char	*name;		/* name to export for statfs */
 	caddr_t	base;		/* base address of file system in memory */
-	u_long size;		/* size of file system */
+	long	size;		/* size of file system */
+	int	flags;		/* MFS specific flags */
 };
-#endif MFS
+
+#define MFSMNT_SIGPPID	0x01	/* send SIGUSR1 to parent when successful */
+#endif /* MFS */
 
 #ifdef NFS
 /*
@@ -262,7 +272,7 @@ struct nfs_args {
 #define	NFSMNT_SPONGY	0x0400	/* spongy mount (soft for stat and lookup) */
 #define	NFSMNT_COMPRESS	0x0800	/* Compress nfs rpc xdr */
 #define	NFSMNT_LOCKBITS	(NFSMNT_SCKLOCK | NFSMNT_WANTSCK)
-#endif NFS
+#endif /* NFS */
 
 #ifdef PCFS
 /*
@@ -283,8 +293,13 @@ void	vfs_remove __P((struct mount *mp)); /* remove a vfs from mount list */
 int	vfs_lock __P((struct mount *mp));   /* lock a vfs */
 void	vfs_unlock __P((struct mount *mp)); /* unlock a vfs */
 struct	mount *getvfs __P((fsid_t *fsid));  /* return vfs given fsid */
-struct	mount *rootfs;			    /* ptr to root mount structure */
-struct	vfsops *vfssw[];		    /* mount filesystem type table */
+extern struct	mount *rootfs;	/* ptr to root mount structure */
+extern struct	vfsops *vfssw[]; /* mount filesystem type table */
+
+extern int vfs_busy(struct mount *);
+extern void vfs_unbusy(struct mount *);
+extern void mntflushbuf(struct mount *, int);
+extern int vflush(struct mount *, struct vnode *, int);
 
 #else /* KERNEL */
 
@@ -301,3 +316,4 @@ int	unmount __P((const char *, int));
 __END_DECLS
 
 #endif /* KERNEL */
+#endif /* _SYS_MOUNT_H_ */

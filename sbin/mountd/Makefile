@@ -4,7 +4,6 @@ PROG=	mountd
 CFLAGS+=-DNFS
 MAN5=	exports.5
 MAN8=	mountd.8
-DPADD=	${LIBRPC}
-LDADD=	-lrpc -lutil
+LDADD=	-lutil
 
 .include <bsd.prog.mk>

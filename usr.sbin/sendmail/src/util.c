@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 7/13/93";
+static char sccsid[] = "@(#)util.c	8.34 (Berkeley) 3/11/94";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -403,8 +403,13 @@ buildfname(gecos, login, buf)
 **
 **	Parameters:
 **		fn -- filename to check.
-**		uid -- uid to compare against.
-**		mustown -- to be safe, this uid must own the file.
+**		uid -- user id to compare against.
+**		gid -- group id to compare against.
+**		uname -- user name to compare against (used for group
+**			sets).
+**		flags -- modifiers:
+**			SFF_MUSTOWN -- "uid" must own this file.
+**			SFF_NOSLINK -- file cannot be a symbolic link.
 **		mode -- mode bits that must match.
 **
 **	Returns:
@@ -415,8 +420,14 @@ buildfname(gecos, login, buf)
 **		none.
 */
 
+#include <grp.h>
+
 #ifndef S_IXOTH
 # define S_IXOTH	(S_IEXEC >> 6)
+#endif
+
+#ifndef S_IXGRP
+# define S_IXGRP	(S_IEXEC >> 3)
 #endif
 
 #ifndef S_IXUSR
@@ -424,60 +435,129 @@ buildfname(gecos, login, buf)
 #endif
 
 int
-safefile(fn, uid, mustown, mode)
+safefile(fn, uid, gid, uname, flags, mode)
 	char *fn;
 	uid_t uid;
-	bool mustown;
+	gid_t gid;
+	char *uname;
+	int flags;
 	int mode;
 {
 	register char *p;
+	register struct group *gr = NULL;
 	struct stat stbuf;
 
 	if (tTd(54, 4))
-		printf("safefile(%s, %d, %d, %o): ", fn, uid, mustown, mode);
+		printf("safefile(%s, uid=%d, gid=%d, flags=%x, mode=%o):\n",
+			fn, uid, gid, flags, mode);
 	errno = 0;
 
 	for (p = fn; (p = strchr(++p, '/')) != NULL; *p = '/')
 	{
 		*p = '\0';
-		if (stat(fn, &stbuf) < 0 ||
-		    !bitset(stbuf.st_uid == uid ? S_IXUSR : S_IXOTH,
-			    stbuf.st_mode))
+		if (stat(fn, &stbuf) < 0)
+			break;
+		if (uid == 0 && !bitset(SFF_ROOTOK, flags))
 		{
-			int ret = errno;
-
-			if (ret == 0)
-				ret = EACCES;
-			if (tTd(54, 4))
-				printf("[dir %s] %s\n", fn, errstring(ret));
-			*p = '/';
-			return ret;
+			if (bitset(S_IXOTH, stbuf.st_mode))
+				continue;
+			break;
 		}
+		if (stbuf.st_uid == uid && bitset(S_IXUSR, stbuf.st_mode))
+			continue;
+		if (stbuf.st_gid == gid && bitset(S_IXGRP, stbuf.st_mode))
+			continue;
+#ifndef NO_GROUP_SET
+		if (uname != NULL &&
+		    ((gr != NULL && gr->gr_gid == stbuf.st_gid) ||
+		     (gr = getgrgid(stbuf.st_gid)) != NULL))
+		{
+			register char **gp;
+
+			for (gp = gr->gr_mem; *gp != NULL; gp++)
+				if (strcmp(*gp, uname) == 0)
+					break;
+			if (*gp != NULL && bitset(S_IXGRP, stbuf.st_mode))
+				continue;
+		}
+#endif
+		if (!bitset(S_IXOTH, stbuf.st_mode))
+			break;
+	}
+	if (p != NULL)
+	{
+		int ret = errno;
+
+		if (ret == 0)
+			ret = EACCES;
+		if (tTd(54, 4))
+			printf("\t[dir %s] %s\n", fn, errstring(ret));
+		*p = '/';
+		return ret;
 	}
 
+#ifdef HASLSTAT
+	if ((bitset(SFF_NOSLINK, flags) ? lstat(fn, &stbuf)
+					: stat(fn, &stbuf)) < 0)
+#else
 	if (stat(fn, &stbuf) < 0)
+#endif
 	{
 		int ret = errno;
 
 		if (tTd(54, 4))
-			printf("%s\n", errstring(ret));
+			printf("\t%s\n", errstring(ret));
 
 		errno = 0;
 		return ret;
 	}
-	if (stbuf.st_uid != uid || uid == 0 || !mustown)
+
+#ifdef S_ISLNK
+	if (bitset(SFF_NOSLINK, flags) && S_ISLNK(stbuf.st_mode))
+	{
+		if (tTd(54, 4))
+			printf("\t[slink mode %o]\tEPERM\n", stbuf.st_mode);
+		return EPERM;
+	}
+#endif
+
+	if (uid == 0 && !bitset(SFF_ROOTOK, flags))
 		mode >>= 6;
+	else if (stbuf.st_uid != uid)
+	{
+		mode >>= 3;
+		if (stbuf.st_gid == gid)
+			;
+#ifndef NO_GROUP_SET
+		else if (uname != NULL &&
+			 ((gr != NULL && gr->gr_gid == stbuf.st_gid) ||
+			  (gr = getgrgid(stbuf.st_gid)) != NULL))
+		{
+			register char **gp;
+
+			for (gp = gr->gr_mem; *gp != NULL; gp++)
+				if (strcmp(*gp, uname) == 0)
+					break;
+			if (*gp == NULL)
+				mode >>= 3;
+		}
+#endif
+		else
+			mode >>= 3;
+	}
 	if (tTd(54, 4))
-		printf("[uid %d, stat %o] ", stbuf.st_uid, stbuf.st_mode);
-	if ((stbuf.st_uid == uid || uid == 0 || !mustown) &&
+		printf("\t[uid %d, stat %o, mode %o] ",
+			stbuf.st_uid, stbuf.st_mode, mode);
+	if ((stbuf.st_uid == uid || stbuf.st_uid == 0 ||
+	     !bitset(SFF_MUSTOWN, flags)) &&
 	    (stbuf.st_mode & mode) == mode)
 	{
 		if (tTd(54, 4))
-			printf("OK\n");
+			printf("\tOK\n");
 		return 0;
 	}
 	if (tTd(54, 4))
-		printf("EACCES\n");
+		printf("\tEACCES\n");
 	return EACCES;
 }
 /*
@@ -564,8 +644,16 @@ dfopen(filename, omode, cmode)
 		fd = open(filename, omode, cmode);
 		if (fd >= 0)
 			break;
-		if (errno != ENFILE && errno != EINTR)
-			break;
+		switch (errno)
+		{
+		  case ENFILE:		/* system file table full */
+		  case EINTR:		/* interrupted syscall */
+#ifdef ETXTBSY
+		  case ETXTBSY:		/* Apollo: net file locked */
+#endif
+			continue;
+		}
+		break;
 	}
 	if (fd >= 0 && fstat(fd, &st) >= 0 && S_ISREG(st.st_mode))
 	{
@@ -576,7 +664,7 @@ dfopen(filename, omode, cmode)
 			locktype = LOCK_EX;
 		else
 			locktype = LOCK_SH;
-		(void) lockfile(fd, filename, locktype);
+		(void) lockfile(fd, filename, NULL, locktype);
 		errno = 0;
 	}
 	if (fd < 0)
@@ -592,8 +680,7 @@ dfopen(filename, omode, cmode)
 **
 **	Parameters:
 **		l -- line to put.
-**		fp -- file to put it onto.
-**		m -- the mailer used to control output.
+**		mci -- the mailer connection information.
 **
 **	Returns:
 **		none
@@ -602,16 +689,16 @@ dfopen(filename, omode, cmode)
 **		output of l to fp.
 */
 
-putline(l, fp, m)
+putline(l, mci)
 	register char *l;
-	FILE *fp;
-	MAILER *m;
+	register MCI *mci;
 {
 	register char *p;
 	register char svchar;
+	int slop = 0;
 
 	/* strip out 0200 bits -- these can look like TELNET protocol */
-	if (bitnset(M_7BITS, m->m_flags))
+	if (bitset(MCIF_7BIT, mci->mci_flags))
 	{
 		for (p = l; (svchar = *p) != '\0'; ++p)
 			if (bitset(0200, svchar))
@@ -629,40 +716,45 @@ putline(l, fp, m)
 			fprintf(TrafficLogFile, "%05d >>> ", getpid());
 
 		/* check for line overflow */
-		while (m->m_linelimit > 0 && (p - l) > m->m_linelimit)
+		while (mci->mci_mailer->m_linelimit > 0 &&
+		       (p - l + slop) > mci->mci_mailer->m_linelimit)
 		{
-			register char *q = &l[m->m_linelimit - 1];
+			register char *q = &l[mci->mci_mailer->m_linelimit - slop - 1];
 
 			svchar = *q;
 			*q = '\0';
-			if (l[0] == '.' && bitnset(M_XDOT, m->m_flags))
+			if (l[0] == '.' && slop == 0 &&
+			    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 			{
-				(void) putc('.', fp);
+				(void) putc('.', mci->mci_out);
 				if (TrafficLogFile != NULL)
 					(void) putc('.', TrafficLogFile);
 			}
-			fputs(l, fp);
-			(void) putc('!', fp);
-			fputs(m->m_eol, fp);
+			fputs(l, mci->mci_out);
+			(void) putc('!', mci->mci_out);
+			fputs(mci->mci_mailer->m_eol, mci->mci_out);
+			(void) putc(' ', mci->mci_out);
 			if (TrafficLogFile != NULL)
-				fprintf(TrafficLogFile, "%s!\n%05d >>> ",
+				fprintf(TrafficLogFile, "%s!\n%05d >>>  ",
 					l, getpid());
 			*q = svchar;
 			l = q;
+			slop = 1;
 		}
 
 		/* output last part */
-		if (l[0] == '.' && bitnset(M_XDOT, m->m_flags))
+		if (l[0] == '.' && slop == 0 &&
+		    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 		{
-			(void) putc('.', fp);
+			(void) putc('.', mci->mci_out);
 			if (TrafficLogFile != NULL)
 				(void) putc('.', TrafficLogFile);
 		}
 		if (TrafficLogFile != NULL)
 			fprintf(TrafficLogFile, "%.*s\n", p - l, l);
 		for ( ; l < p; ++l)
-			(void) putc(*l, fp);
-		fputs(m->m_eol, fp);
+			(void) putc(*l, mci->mci_out);
+		fputs(mci->mci_mailer->m_eol, mci->mci_out);
 		if (*l == '\n')
 			++l;
 	} while (l[0] != '\0');
@@ -716,6 +808,10 @@ xfclose(fp, a, b)
 {
 	if (tTd(53, 99))
 		printf("xfclose(%x) %s %s\n", fp, a, b);
+#ifdef XDEBUG
+	if (fileno(fp) == 1)
+		syserr("xfclose(%s %s): fd = 1", a, b);
+#endif
 	if (fclose(fp) < 0 && tTd(53, 99))
 		printf("xfclose FAILURE: %s\n", errstring(errno));
 }
@@ -739,6 +835,7 @@ xfclose(fp, a, b)
 */
 
 static jmp_buf	CtxReadTimeout;
+static int	readtimeout();
 
 char *
 sfgets(buf, siz, fp, timeout, during)
@@ -750,7 +847,12 @@ sfgets(buf, siz, fp, timeout, during)
 {
 	register EVENT *ev = NULL;
 	register char *p;
-	static int readtimeout();
+
+	if (fp == NULL)
+	{
+		buf[0] = '\0';
+		return NULL;
+	}
 
 	/* set the timeout */
 	if (timeout != 0)
@@ -776,12 +878,13 @@ sfgets(buf, siz, fp, timeout, during)
 
 	/* try to read */
 	p = NULL;
-	while (p == NULL && !feof(fp) && !ferror(fp))
+	while (!feof(fp) && !ferror(fp))
 	{
 		errno = 0;
 		p = fgets(buf, siz, fp);
-		if (errno == EINTR)
-			clearerr(fp);
+		if (p != NULL || errno != EINTR)
+			break;
+		clearerr(fp);
 	}
 
 	/* clear the event if it has not sprung */
@@ -927,7 +1030,7 @@ bool
 atobool(s)
 	register char *s;
 {
-	if (*s == '\0' || strchr("tTyY", *s) != NULL)
+	if (s == NULL || *s == '\0' || strchr("tTyY", *s) != NULL)
 		return (TRUE);
 	return (FALSE);
 }
@@ -968,10 +1071,15 @@ atooct(s)
 **		none.
 */
 
+int
 waitfor(pid)
 	int pid;
 {
+#ifdef WAITUNION
+	union wait st;
+#else
 	auto int st;
+#endif
 	int i;
 
 	do
@@ -980,8 +1088,12 @@ waitfor(pid)
 		i = wait(&st);
 	} while ((i >= 0 || errno == EINTR) && i != pid);
 	if (i < 0)
-		st = -1;
-	return (st);
+		return -1;
+#ifdef WAITUNION
+	return st.w_status;
+#else
+	return st;
+#endif
 }
 /*
 **  BITINTERSECT -- tell if two bitmaps intersect
@@ -1051,18 +1163,23 @@ strcontainedin(a, b)
 	register char *a;
 	register char *b;
 {
-	int l;
+	int la;
+	int lb;
+	int c;
 
-	l = strlen(a);
-	for (;;)
+	la = strlen(a);
+	lb = strlen(b);
+	c = *a;
+	if (isascii(c) && isupper(c))
+		c = tolower(c);
+	for (; lb-- >= la; b++)
 	{
-		b = strchr(b, a[0]);
-		if (b == NULL)
-			return FALSE;
-		if (strncmp(a, b, l) == 0)
+		if (*b != c && isascii(*b) && isupper(*b) && tolower(*b) != c)
+			continue;
+		if (strncasecmp(a, b, la) == 0)
 			return TRUE;
-		b++;
 	}
+	return FALSE;
 }
 /*
 **  CHECKFD012 -- check low numbered file descriptors
@@ -1086,7 +1203,7 @@ checkfd012(where)
 
 	for (i = 0; i < 3; i++)
 	{
-		if (fstat(i, &stbuf) < 0)
+		if (fstat(i, &stbuf) < 0 && errno != EOPNOTSUPP)
 		{
 			/* oops.... */
 			int fd;
@@ -1100,5 +1217,197 @@ checkfd012(where)
 			}
 		}
 	}
-#endif XDEBUG
+#endif /* XDEBUG */
+}
+/*
+**  PRINTOPENFDS -- print the open file descriptors (for debugging)
+**
+**	Parameters:
+**		logit -- if set, send output to syslog; otherwise
+**			print for debugging.
+**
+**	Returns:
+**		none.
+*/
+
+#include <netdb.h>
+#include <arpa/inet.h>
+
+printopenfds(logit)
+	bool logit;
+{
+	register int fd;
+	extern int DtableSize;
+
+	for (fd = 0; fd < DtableSize; fd++)
+		dumpfd(fd, FALSE, logit);
+}
+/*
+**  DUMPFD -- dump a file descriptor
+**
+**	Parameters:
+**		fd -- the file descriptor to dump.
+**		printclosed -- if set, print a notification even if
+**			it is closed; otherwise print nothing.
+**		logit -- if set, send output to syslog instead of stdout.
+*/
+
+dumpfd(fd, printclosed, logit)
+	int fd;
+	bool printclosed;
+	bool logit;
+{
+	register struct hostent *hp;
+	register char *p;
+	struct sockaddr_in sin;
+	auto int slen;
+	struct stat st;
+	char buf[200];
+
+	p = buf;
+	sprintf(p, "%3d: ", fd);
+	p += strlen(p);
+
+	if (fstat(fd, &st) < 0)
+	{
+		if (printclosed || errno != EBADF)
+		{
+			sprintf(p, "CANNOT STAT (%s)", errstring(errno));
+			goto printit;
+		}
+		return;
+	}
+
+	slen = fcntl(fd, F_GETFL, NULL);
+	if (slen != -1)
+	{
+		sprintf(p, "fl=0x%x, ", slen);
+		p += strlen(p);
+	}
+
+	sprintf(p, "mode=%o: ", st.st_mode);
+	p += strlen(p);
+	switch (st.st_mode & S_IFMT)
+	{
+#ifdef S_IFSOCK
+	  case S_IFSOCK:
+		sprintf(p, "SOCK ");
+		p += strlen(p);
+		slen = sizeof sin;
+		if (getsockname(fd, (struct sockaddr *) &sin, &slen) < 0)
+			sprintf(p, "(badsock)");
+		else
+		{
+			hp = gethostbyaddr((char *) &sin.sin_addr, slen, AF_INET);
+			sprintf(p, "%s/%d", hp == NULL ? inet_ntoa(sin.sin_addr)
+						   : hp->h_name, ntohs(sin.sin_port));
+		}
+		p += strlen(p);
+		sprintf(p, "->");
+		p += strlen(p);
+		slen = sizeof sin;
+		if (getpeername(fd, (struct sockaddr *) &sin, &slen) < 0)
+			sprintf(p, "(badsock)");
+		else
+		{
+			hp = gethostbyaddr((char *) &sin.sin_addr, slen, AF_INET);
+			sprintf(p, "%s/%d", hp == NULL ? inet_ntoa(sin.sin_addr)
+						   : hp->h_name, ntohs(sin.sin_port));
+		}
+		break;
+#endif
+
+	  case S_IFCHR:
+		sprintf(p, "CHR: ");
+		p += strlen(p);
+		goto defprint;
+
+	  case S_IFBLK:
+		sprintf(p, "BLK: ");
+		p += strlen(p);
+		goto defprint;
+
+#if defined(S_IFIFO) && (!defined(S_IFSOCK) || S_IFIFO != S_IFSOCK)
+	  case S_IFIFO:
+		sprintf(p, "FIFO: ");
+		p += strlen(p);
+		goto defprint;
+#endif
+
+#ifdef S_IFDIR
+	  case S_IFDIR:
+		sprintf(p, "DIR: ");
+		p += strlen(p);
+		goto defprint;
+#endif
+
+#ifdef S_IFLNK
+	  case S_IFLNK:
+		sprintf(p, "LNK: ");
+		p += strlen(p);
+		goto defprint;
+#endif
+
+	  default:
+defprint:
+		sprintf(p, "dev=%d/%d, ino=%d, nlink=%d, u/gid=%d/%d, size=%ld",
+			major(st.st_dev), minor(st.st_dev), st.st_ino,
+			st.st_nlink, st.st_uid, st.st_gid, st.st_size);
+		break;
+	}
+
+printit:
+	if (logit)
+		syslog(LOG_DEBUG, "%s", buf);
+	else
+		printf("%s\n", buf);
+}
+/*
+**  SHORTENSTRING -- return short version of a string
+**
+**	If the string is already short, just return it.  If it is too
+**	long, return the head and tail of the string.
+**
+**	Parameters:
+**		s -- the string to shorten.
+**		m -- the max length of the string.
+**
+**	Returns:
+**		Either s or a short version of s.
+*/
+
+#ifndef MAXSHORTSTR
+# define MAXSHORTSTR	203
+#endif
+
+char *
+shortenstring(s, m)
+	register char *s;
+	int m;
+{
+	int l;
+	static char buf[MAXSHORTSTR + 1];
+
+	l = strlen(s);
+	if (l < m)
+		return s;
+	if (m > MAXSHORTSTR)
+		m = MAXSHORTSTR;
+	else if (m < 10)
+	{
+		if (m < 5)
+		{
+			strncpy(buf, s, m);
+			buf[m] = '\0';
+			return buf;
+		}
+		strncpy(buf, s, m - 3);
+		strcpy(buf + m - 3, "...");
+		return buf;
+	}
+	m = (m - 3) / 2;
+	strncpy(buf, s, m);
+	strcpy(buf + m, "...");
+	strcpy(buf + m + 3, s + l - m);
+	return buf;
 }

@@ -218,7 +218,11 @@ extern int	needtermstat;
 #endif
 
 #ifndef	CRAY
+#ifndef __FreeBSD__
 #define DEFAULT_IM	"\r\n\r\n4.3 BSD UNIX (%h) (%t)\r\n\r\r\n\r"
+#else
+#define DEFAULT_IM	"\r\n\r\n%s (%%h) (%%t)\r\n\r\r\n\r"
+#endif
 #else
 #define DEFAULT_IM	"\r\n\r\nCray UNICOS (%h) (%t)\r\n\r\r\n\r"
 #endif

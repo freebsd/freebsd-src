@@ -1,0 +1,102 @@
+This is a port of bootpd (CMU version 2.2a) to NetBSD-current.
+
+BOOTPD is a useful adjunct to the nfs diskless boot EPROM code.
+
+The alternatives for initiating a boot of a kernel across a network
+are to use RARP protocol, or BOOTP protocol. BOOTP is more flexible;
+it allows additional items of information to be returned to the
+booting client; it also supports booting across gateways.
+
+There are two parts to this package:
+
+- The bootpd sources to be compiled and installed.
+
+- A patch to etc/services and etc/inetd.conf to define the bootpd
+network service names and to define the bootpd task to inetd. These
+items are in the PATCH file.
+
+If you have problems or questions about this port, send me email at
+mckim@lerc.nasa.gov
+
+- Jim McKim
+
+enclosed below is the original README:
+
+
+This directory contains the source for the CMU BOOTP server.  The files
+include:
+
+README		This file
+bootpd.8	The manual page
+bootp.h		The protocol header file
+bootpd.h	The server header file
+bootpd.c	The main server module
+readfile.c	The configuration file-reading routines
+hash.h		The hash table header file
+hash.c		The hash table module
+Version.c	The version module
+newvers.sh	A shell script to generate new version numbers
+Makefile	The makefile
+bootptab	An example database file for the server
+gmods		Text describing optional gateway modifications
+
+
+Notes:
+1) BOOTP was originally designed and implemented by Bill Croft at Stanford.
+   Much of the credit for the ideas and the code goes to him.  We've added
+   code to support the vendor specific area of the packet as specified in
+   RFC1048.  We've also improved the host lookup algorithm and added some
+   extra logging.
+
+2) The server now uses syslog to do logging.  Specifically it uses the 4.3bsd
+   version.  I've #ifdef'd all of these calls.  If you are running 4.2 you
+   should compile without the -DSYSLOG switch.
+
+3) You must update your /etc/services file to contain the following two lines:
+    bootps		67/udp				# bootp server
+    bootpc		68/udp				# bootp client
+
+4) The code and the bootptab should be reasonably well commented.  If you 
+   have any questions, just let us know.
+
+Construction:
+    Make sure all of the files exist first.  If anything is missing,
+    please contact either Walt Wimer or Drew Perkins by E-mail or phone.
+    Addresses and phone numbers are listed below.
+
+    Type 'make'.  The options at present are: -DSYSLOG which enables logging
+    code, -DDEBUG which enables table dumping via signals, and -DVEND_CMU
+    which enables the CMU extensions for CMU PC/IP.
+
+    Edit the bootptab.  The man page and the comments in the file should
+    explain how to go about doing so.  If you have any problems, let me know.
+
+    Type 'make install'.  This should put all of the files in the right place.
+
+    Edit your /etc/rc.local or /etc/inetd.conf file to start up bootpd upon
+    reboot.
+
+Care and feeding:
+    If you change the interface cards on your host or add new hosts you will
+    need to update /etc/bootptab.  Just edit it as before.  Once you write
+    it back out, bootpd will notice that there is a new copy and will
+    reread it the next time it gets a request.
+
+    If your bootp clients don't get a response then several things might be
+    wrong.  Most often, the entry for that host is not in the database.
+    Check the hardware address and then check the entry and make sure
+    everything is right.  Other problems include the server machine crashing,
+    bad cables, and the like.  If your network is very congested you should
+    try making your bootp clients send additional requests before giving up.
+
+
+November 7, 1988
+
+
+Walter L. Wimer			Drew D. Perkins
+ww0n@andrew.cmu.edu		ddp@andrew.cmu.edu
+(412) 268-6252			(412) 268-8576
+
+4910 Forbes Ave
+Pittsburgh, PA  15213
+

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_usrreq.c	7.15 (Berkeley) 6/28/90
- *	$Id: tcp_usrreq.c,v 1.2 1993/10/16 18:26:36 rgrimes Exp $
+ *	$Id: tcp_usrreq.c,v 1.5 1994/01/24 05:12:36 davidg Exp $
  */
 
 #include "param.h"
@@ -58,13 +58,14 @@
 #include "tcp_timer.h"
 #include "tcp_var.h"
 #include "tcpip.h"
+#ifdef TCPDEBUG
 #include "tcp_debug.h"
+#endif
 
 /*
  * TCP protocol interface to socket abstraction.
  */
 extern	char *tcpstates[];
-struct	tcpcb *tcp_newtcpcb();
 
 /*
  * Process a TCP user request for TCP tb.  If this is a send request
@@ -72,13 +73,15 @@ struct	tcpcb *tcp_newtcpcb();
  * (called from the software clock routine), then timertype tells which timer.
  */
 /*ARGSUSED*/
-tcp_usrreq(so, req, m, nam, control)
+int
+tcp_usrreq(so, req, m, nam, control, dummy)
 	struct socket *so;
 	int req;
 	struct mbuf *m, *nam, *control;
+	struct mbuf *dummy;
 {
 	register struct inpcb *inp;
-	register struct tcpcb *tp;
+	register struct tcpcb *tp = 0;
 	int s;
 	int error = 0;
 	int ostate;
@@ -331,12 +334,15 @@ tcp_usrreq(so, req, m, nam, control)
 	default:
 		panic("tcp_usrreq");
 	}
+#ifdef TCPDEBUG
 	if (tp && (so->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (struct tcpiphdr *)0, req);
+#endif
 	splx(s);
 	return (error);
 }
 
+int
 tcp_ctloutput(op, so, level, optname, mp)
 	int op;
 	struct socket *so;
@@ -395,19 +401,12 @@ tcp_ctloutput(op, so, level, optname, mp)
 	return (error);
 }
 
-#ifdef	TCP_SMALLSPACE
-u_long	tcp_sendspace = 1024*4;
-u_long	tcp_recvspace = 1024*4;
-#else
-u_long	tcp_sendspace = 1024*16;
-u_long	tcp_recvspace = 1024*16;
-#endif	/* TCP_SMALLSPACE */
-
 /*
  * Attach TCP protocol to socket, allocating
  * internet protocol control block, tcp control block,
  * bufer space, and entering LISTEN state if to accept connections.
  */
+int
 tcp_attach(so)
 	struct socket *so;
 {

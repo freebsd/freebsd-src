@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)socketvar.h	7.17 (Berkeley) 5/5/91
- *	$Id: socketvar.h,v 1.2 1993/10/16 17:17:45 rgrimes Exp $
+ *	$Id: socketvar.h,v 1.4 1993/11/25 01:38:02 wollman Exp $
  */
+
+#ifndef _SYS_SOCKETVAR_H_
+#define _SYS_SOCKETVAR_H_ 1
 
 /*
  * Kernel structure per socket.
@@ -181,13 +184,13 @@ struct socket {
 #define	sowwakeup(so)	sowakeup((so), &(so)->so_snd)
 
 #ifdef KERNEL
-u_long	sb_max;
+extern u_long	sb_max;
 /* to catch callers missing new second argument to sonewconn: */
 #define	sonewconn(head, connstatus)	sonewconn1((head), (connstatus))
 struct	socket *sonewconn1 __P((struct socket *head, int connstatus));
 
 /* strings for sleep message: */
-extern	char netio[], netcon[], netcls[];
+extern	const char netio[], netcon[], netcls[];
 
 /*
  * File operations on sockets.
@@ -197,4 +200,54 @@ int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int	soo_ioctl __P((struct file *fp, int com, caddr_t data, struct proc *p));
 int	soo_select __P((struct file *fp, int which, struct proc *p));
 int 	soo_close __P((struct file *fp, struct proc *p));
-#endif
+
+/* From uipc_socket.c: */
+struct sockaddr;
+struct mbuf;
+
+extern int socreate(int, struct socket **, int, int); /* XXX */
+extern int sobind(struct socket *, struct mbuf *);
+extern int solisten(struct socket *, int);
+extern void sofree(struct socket *);
+extern int soclose(struct socket *);
+extern int soabort(struct socket *);
+extern int soaccept(struct socket *, struct mbuf *);
+extern int soconnect(struct socket *, struct mbuf *);
+extern int soconnect2(struct socket *, struct socket *);
+extern int sodisconnect(struct socket *);
+extern int sosend(struct socket *, struct mbuf *, struct uio *, struct mbuf *, struct mbuf *, int); /* XXX */
+extern int soreceive(struct socket *, struct mbuf **, struct uio *, struct mbuf **, struct mbuf **, int *); /* XXX */
+extern int soshutdown(struct socket *, int);
+extern void sorflush(struct socket *);
+extern int sosetopt(struct socket *, int, int, struct mbuf *);
+extern int sogetopt(struct socket *, int, int, struct mbuf **);
+extern void sohasoutofband(struct socket *);
+
+/* From uipc_socket2.c: */
+extern void soisconnecting(struct socket *);
+extern void soisconnected(struct socket *);
+extern void soisdisconnecting(struct socket *);
+extern void soisdisconnected(struct socket *);
+extern void soqinsque(struct socket *, struct socket *, int);
+extern int soqremque(struct socket *, int);
+extern void socantsendmore(struct socket *);
+extern void socantrcvmore(struct socket *);
+extern void sbselqueue(struct sockbuf *, struct proc *);
+extern int sbwait(struct sockbuf *);
+extern int sb_lock(struct sockbuf *);
+extern void sowakeup(struct socket *, struct sockbuf *);
+extern int soreserve(struct socket *, u_long, u_long);
+extern int sbreserve(struct sockbuf *, u_long);
+extern void sbrelease(struct sockbuf *);
+extern void sbappend(struct sockbuf *, struct mbuf *);
+extern void sbappendrecord(struct sockbuf *, struct mbuf *);
+extern void sbinsertoob(struct sockbuf *, struct mbuf *);
+extern int sbappendaddr(struct sockbuf *, struct sockaddr *, struct mbuf *, struct mbuf *);
+extern int sbappendcontrol(struct sockbuf *, struct mbuf *, struct mbuf *);
+extern void sbcompress(struct sockbuf *, struct mbuf *, struct mbuf *);
+extern void sbflush(struct sockbuf *);
+extern void sbdrop(struct sockbuf *, int);
+extern void sbdroprecord(struct sockbuf *);
+
+#endif /* KERNEL */
+#endif /* _SYS_SOCKETVAR_H_ */

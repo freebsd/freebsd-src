@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso_snpac.h	7.8 (Berkeley) 5/6/91
- *	$Id: iso_snpac.h,v 1.2 1993/10/16 21:05:28 rgrimes Exp $
+ *	$Id: iso_snpac.h,v 1.4 1993/12/19 00:53:27 wollman Exp $
  */
 
 /***********************************************************
@@ -60,6 +60,9 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
+
+#ifndef _NETISO_ISO_SNPAC_H_
+#define _NETISO_ISO_SNPAC_H_ 1
 
 #define	MAX_SNPALEN		8			/* curiously equal to sizeof x.121 (
 										plus 1 for nibble len) addr */
@@ -108,6 +111,23 @@ struct llinfo_llc {
 #define	SIOCSSTYPE 	_IOW('a', 39, struct systype_req) /* set system type */
 #define	SIOCGSTYPE 	_IOR('a', 40, struct systype_req) /* get system type */
 
-#ifdef	KERNEL
-struct llinfo_llc llinfo_llc;	/* head for linked lists */
-#endif	KERNEL
+#ifdef KERNEL
+extern struct llinfo_llc llinfo_llc;	/* head for linked lists */
+extern void llc_rtrequest(int, struct rtentry *, struct sockaddr *);
+extern int iso_snparesolve(struct ifnet *, struct sockaddr_iso *, caddr_t, 
+			   int *);
+extern void snpac_free(struct llinfo_llc *);
+extern int snpac_add(struct ifnet *, struct iso_addr *, caddr_t, int /*char*/,
+		     int /*u_short*/, int);
+extern int snpac_ioctl(struct socket *, int, caddr_t);
+extern void snpac_age(caddr_t, int);
+extern int snpac_ownmulti(caddr_t, u_int);
+extern void snpac_flushifp(struct ifnet *);
+extern void snpac_rtrequest(int, struct iso_addr *, struct iso_addr *,
+			    struct iso_addr *, int /*short*/,
+			    struct rtentry **);
+extern void snpac_addrt(struct ifnet *, struct iso_addr *, struct iso_addr *,
+			struct iso_addr *);
+
+#endif /* KERNEL */
+#endif /* _NETISO_ISO_SNPAC_H_ */

@@ -253,7 +253,7 @@ swap_device_spec:
 		= {
 			struct file_list *fl = newswap();
 
-			if (eq($1, "generic"))
+			if (eq($1, "generic") || eq($1,"nfs"))
 				fl->f_fn = $1;
 			else {
 				fl->f_swapdev = nametodev($1, 0, 'b');
@@ -650,7 +650,7 @@ mkswap(system, fl, size)
 	 */
 	if (system->f_fn)
 		return;
-	if (eq(fl->f_fn, "generic"))
+	if (eq(fl->f_fn, "generic") || eq(fl->f_fn, "nfs"))
 		system->f_fn = ns(fl->f_fn);
 	else
 		system->f_fn = ns(system->f_needs);
@@ -821,7 +821,7 @@ checksystemspec(fl)
 {
 	char buf[BUFSIZ];
 	register struct file_list *swap;
-	int generic;
+	int generic, nfs;
 
 	if (fl == 0 || fl->f_type != SYSTEMSPEC) {
 		yyerror("internal error, bad system specification");
@@ -829,7 +829,8 @@ checksystemspec(fl)
 	}
 	swap = fl->f_next;
 	generic = swap && swap->f_type == SWAPSPEC && eq(swap->f_fn, "generic");
-	if (fl->f_rootdev == NODEV && !generic) {
+	nfs = swap && swap->f_type == SWAPSPEC && eq(swap->f_fn, "nfs");
+	if (fl->f_rootdev == NODEV && !generic && !nfs) {
 		yyerror("no root device specified");
 		exit(1);
 	}

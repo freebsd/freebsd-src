@@ -66,7 +66,8 @@ main(argc, argv)
 	i.fd = STDIN_FILENO;
 
 	opterr = 0;
-	while (strspn(argv[optind], "-aefg") == strlen(argv[optind]) &&
+	while (argv[optind] &&
+ 	    strspn(argv[optind], "-aefg") == strlen(argv[optind]) &&
 	    (ch = getopt(argc, argv, "aef:g")) != EOF)
 		switch(ch) {
 		case 'a':		/* undocumented: POSIX compatibility */

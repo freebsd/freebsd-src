@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)sendmail.8	8.2 (Berkeley) 7/11/93
+.\"     @(#)sendmail.8	8.4 (Berkeley) 12/11/93
 .\"
-.Dd July 11, 1993
+.Dd December 11, 1993
 .Dt SENDMAIL 8
 .Os BSD 4
 .Sh NAME
@@ -132,16 +132,14 @@ it is used for debugging configuration tables.
 Verify names only \- do not try to collect or deliver a message.
 Verify mode is normally used for validating
 users or mailing lists.
-.It Fl bz
-Create the configuration freeze file.
 .It Fl C Ns Ar file
 Use alternate configuration file.
 .Nm Sendmail
 refuses to run as root if an alternate configuration file is specified.
-The frozen configuration file is bypassed.
 .It Fl d Ns Ar X
 Set debugging value to
 .Ar X .
+.ne 1i
 .It Fl F Ns Ar fullname
 Set the full name of the sender.
 .It Fl f Ns Ar name
@@ -463,8 +461,6 @@ raw data for alias names
 data base of alias names
 .It Pa /etc/sendmail.cf
 configuration file
-.It Pa /etc/sendmail.fc
-frozen configuration
 .It Pa /etc/sendmail.hf
 help file
 .It Pa /var/log/sendmail.st
@@ -491,12 +487,12 @@ Internet Request For Comments
 .Rs
 .%T "Sendmail \- An Internetwork Mail Router"
 .%V SMM
-.%N \&No. 16
+.%N \&No. 9
 .Re
 .Rs
 .%T "Sendmail Installation and Operation Guide"
 .%V SMM
-.%N \&No. 7
+.%N \&No. 8
 .Re
 .Sh HISTORY
 The

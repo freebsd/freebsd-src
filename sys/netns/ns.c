@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns.c	7.8 (Berkeley) 6/27/91
- *	$Id: ns.c,v 1.2 1993/10/16 19:54:14 rgrimes Exp $
+ *	$Id: ns.c,v 1.5 1993/12/19 00:53:55 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "mbuf.h"
 #include "ioctl.h"
 #include "protosw.h"
@@ -45,21 +46,30 @@
 
 #include "../net/if.h"
 #include "../net/route.h"
-#include "../net/af.h"
 
 #include "ns.h"
 #include "ns_if.h"
 
 #ifdef NS
 
+static void ns_ifscrub(struct ifnet *, struct ns_ifaddr *);
+
 struct ns_ifaddr *ns_ifaddr;
+struct ifqueue nsintrq;
+
 int ns_interfaces;
 extern struct sockaddr_ns ns_netmask, ns_hostmask;
+union ns_host ns_thishost;
+union ns_host ns_zerohost;
+union ns_host ns_braodhost;
+union ns_net ns_zeronet;
+union ns_net ns_broadnet;
 
 /*
  * Generic internet control operations (ioctl's).
  */
 /* ARGSUSED */
+int
 ns_control(so, cmd, data, ifp)
 	struct socket *so;
 	int cmd;
@@ -173,7 +183,8 @@ ns_control(so, cmd, data, ifp)
 			ia->ia_flags &= ~IFA_ROUTE;
 		}
 		if (ifp->if_ioctl) {
-			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR, ia);
+			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR, 
+						 (caddr_t)ia);
 			if (error)
 				return (error);
 		}
@@ -185,6 +196,7 @@ ns_control(so, cmd, data, ifp)
 				(struct sockaddr_ns *)&ifr->ifr_addr, 1));
 
 	case SIOCDIFADDR:
+		error = 0;
 		ns_ifscrub(ifp, ia);
 		if ((ifa = ifp->if_addrlist) == (struct ifaddr *)ia)
 			ifp->if_addrlist = ifa->ifa_next;
@@ -219,6 +231,7 @@ ns_control(so, cmd, data, ifp)
 		return (0);
 	
 	case SIOCAIFADDR:
+		error = 0;
 		dstIsNew = 0; hostIsNew = 1;
 		if (ia->ia_addr.sns_family == AF_NS) {
 			if (ifra->ifra_addr.sns_len == 0) {
@@ -250,6 +263,7 @@ ns_control(so, cmd, data, ifp)
 /*
 * Delete any previous route for an old address.
 */
+static void
 ns_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
 	register struct ns_ifaddr *ia; 
@@ -266,10 +280,12 @@ ns_ifscrub(ifp, ia)
  * Initialize an interface's internet address
  * and routing table entry.
  */
+int
 ns_ifinit(ifp, ia, sns, scrub)
 	register struct ifnet *ifp;
 	register struct ns_ifaddr *ia;
 	register struct sockaddr_ns *sns;
+	int scrub;
 {
 	struct sockaddr_ns oldaddr;
 	register union ns_host *h = &ia->ia_addr.sns_addr.x_host;
@@ -294,7 +310,8 @@ ns_ifinit(ifp, ia, sns, scrub)
 	 */
 	if (ns_hosteqnh(ns_thishost, ns_zerohost)) {
 		if (ifp->if_ioctl &&
-		     (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, ia))) {
+		     (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, 
+					       (caddr_t)ia))) {
 			ia->ia_addr = oldaddr;
 			splx(s);
 			return (error);
@@ -304,7 +321,8 @@ ns_ifinit(ifp, ia, sns, scrub)
 	    || ns_hosteqnh(sns->sns_addr.x_host, ns_thishost)) {
 		*h = ns_thishost;
 		if (ifp->if_ioctl &&
-		     (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, ia))) {
+		     (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, 
+					       (caddr_t)ia))) {
 			ia->ia_addr = oldaddr;
 			splx(s);
 			return (error);

@@ -39,6 +39,8 @@ static char sccsid[] = "@(#)setenv.c	5.6 (Berkeley) 6/4/91";
 #include <stdlib.h>
 #include <string.h>
 
+extern char *_findenv();
+
 /*
  * setenv --
  *	Set the value of the environmental variable "name" to be
@@ -53,7 +55,6 @@ setenv(name, value, rewrite)
 	static int alloced;			/* if allocated space before */
 	register char *C;
 	int l_value, offset;
-	char *_findenv();
 
 	if (*value == '=')			/* no `=' in value */
 		++value;

@@ -6,17 +6,23 @@
 # from CFLAGS below.  To remove these strings from just the system call
 # stubs, remove just -DSYSLIBC_SCCS from CFLAGS.
 LIB=c
-CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS
+CFLAGS+= -DYP -DLIBC_SCCS -DSYSLIBC_SCCS
 AINC=	-I${.CURDIR}/${MACHINE}
+INSTALL_PIC_ARCHIVE=
 
 .include "${.CURDIR}/compat-43/Makefile.inc"
 .include "${.CURDIR}/db/Makefile.inc"
 .include "${.CURDIR}/gen/Makefile.inc"
 .include "${.CURDIR}/locale/Makefile.inc"
 .include "${.CURDIR}/net/Makefile.inc"
+.include "${.CURDIR}/quad/Makefile.inc"
 .include "${.CURDIR}/stdio/Makefile.inc"
 .include "${.CURDIR}/stdlib/Makefile.inc"
 .include "${.CURDIR}/string/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/rpc/Makefile.inc"
+.include "${.CURDIR}/regex/Makefile.inc"
+.include "${.CURDIR}/yp/Makefile.inc"
+.include "${.CURDIR}/${MACHINE}/sys/Makefile.inc"
 
 .include <bsd.lib.mk>

@@ -1279,14 +1279,14 @@ getcmd(row, col, cp)
 		if (ch == '\f') {
 			wrefresh(curscr);
 			refresh();
-		} else if (i >= 2 && ch != _tty.sg_erase && ch != _tty.sg_kill) {
+		} else if (i >= 2 && ch != erasechar() && ch != killchar()) {
 			if (ch != '\n' && ch != '\r' && ch != ' ')
 				write(1, "\007", 1);
-		} else if (ch == _tty.sg_erase && i > 0) {
+		} else if (ch == erasechar() && i > 0) {
 			printw("\b \b");
 			refresh();
 			i--;
-		} else if (ch == _tty.sg_kill && i > 0) {
+		} else if (ch == killchar() && i > 0) {
 			while (i > 0) {
 				printw("\b \b");
 				i--;

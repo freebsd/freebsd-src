@@ -1,0 +1,47 @@
+.\"	$Id: osname.3,v 1.3 1994/02/23 15:55:45 wollman Exp $
+.\"
+.\" This file is in the public domain.
+.\"
+.Dd February 3, 1994
+.Dt OSNAME 3
+.Os
+.Sh NAME
+.Nm _osname
+.Nd get name of running operating system
+.br
+.Nm _osnamever
+.Nd get name and version of running operating system
+.Sh SYNOPSIS
+.Ft char *
+.Fn _osname void
+.Ft char *
+.Fn _osnamever void
+.Sh DESCRIPTION
+The
+.Fn _osname
+and
+.Fn _osnamever
+functions return the name of the running operating system and a string
+giving the name and version thereof, respectively.
+The information is retrieved from the kernel using the
+.Xr uname 2
+system call, which is then copied into a static buffer which is
+returned to the caller.
+.Sh DIAGNOSTICS
+If the
+.Xr uname 2
+system call returns an error,
+.Dq unknown
+is returned.
+.Sh SEE ALSO
+.Xr uname 1 ,
+.Xr uname 2
+.Sh HISTORY
+The
+.Fn _osname
+and
+.Fn _osnamever
+functions appreared in
+.Fx 1.1 .
+.Sh AUTHOR
+Garrett A. Wollman

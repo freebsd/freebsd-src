@@ -1,0 +1,4 @@
+# $Id: sendmail,v 1.1 1993/11/12 00:00:03 wollman Exp $
+# This file determines whether to automatically start sendmail at
+# system boot time.  The default is on; options in sendmail.flags.
+on

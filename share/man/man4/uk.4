@@ -1,0 +1,60 @@
+.Dd October 11, 1993
+.Dt UK 4
+.Os 386BSD/NetBSD
+.Sh NAME
+.Nm uk
+.Nd scsi user-level driver
+.Sh SYNOPSIS
+.Nm device-driver uk
+.Sh DESCRIPTION
+The
+.Xr uk
+driver provides support for a 
+process to address devices on the scsi bus for which there is no configured
+driver. 
+.Nm
+devices are numbered in the order they are found.
+.Pp
+A scsi adapter must also be separatly configured into the system
+before this driver makes sense.
+.Pp
+.Sh KERNEL CONFIGURATION
+If an count is given that number of
+.Nm 
+devices will be configured into the kernel.
+
+
+.Pp
+.Sh IOCTLS
+The 
+.Nm
+driver has no ioctls of it's own but rather acts as a medium for the
+generic 
+.Xr scsi 4
+ioctls. These are described in
+.Em sys/scsiio.h.
+
+
+.Sh FILES
+.Bl -tag -width /dev/uk0XXX -compact
+.It Pa /dev/uk[0-255]
+uk{x} is the  'xth'unknown device found.
+.El
+.Sh DIAGNOSTICS
+All
+.Xr scsi 4
+debug ioclts work on 
+.Nm
+devices.
+.Sh SEE ALSO
+.Xr sd 4
+.Xr st 4
+.Xr cd 4
+.Xr ch 4
+.Xr su 4
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in 386BSD 0.1
+

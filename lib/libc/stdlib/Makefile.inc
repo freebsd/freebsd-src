@@ -3,17 +3,17 @@
 # stdlib sources
 .PATH: ${.CURDIR}/${MACHINE}/stdlib ${.CURDIR}/stdlib
 
-SRCS+=	abort.c atexit.c atoi.c atol.c bsearch.c calloc.c div.c exit.c \
+SRCS+=	abort.c atexit.c atoi.c atol.c bsearch.c calloc.c exit.c \
 	getenv.c getopt.c heapsort.c malloc.c multibyte.c \
 	putenv.c qsort.c radixsort.c rand.c random.c setenv.c strtod.c \
 	strtol.c strtoul.c system.c \
 	_rand48.c drand48.c erand48.c jrand48.c lcong48.c lrand48.c \
-	mrand48.c nrand48.c seed48.c srand48.c
+	mrand48.c nrand48.c seed48.c srand48.c strtoq.c strtouq.c
 
 .if   (${MACHINE} == "hp300")
 SRCS+=	abs.s div.c labs.c ldiv.c atof.c
 .elif (${MACHINE} == "i386")
-SRCS+=	abs.s div.s labs.s ldiv.s atof.c
+SRCS+=	abs.S div.S labs.S ldiv.S atof.c
 .elif (${MACHINE} == "tahoe")
 SRCS+=	abs.s div.c labs.c ldiv.c atof.c
 .elif (${MACHINE} == "vax")

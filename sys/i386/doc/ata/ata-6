@@ -1,0 +1,337 @@
+6.  Physical Interface
+
+6.1  Signal Conventions
+
+Signal names are shown in all upper case letters. Signals can be asserted 
+(active, true) in either a high (more positive voltage) or low (less positive 
+voltage) state. A dash character (-) at the beginning or end of a signal name 
+indicates it is asserted at the low level (active low). No dash or a plus 
+character (+) at the beginning or end of a signal name indicates it is 
+asserted high (active high). An asserted signal may be driven high or low by 
+an active circuit, or it may be allowed to be pulled to the correct state by 
+the bias circuitry. 
+
+Control signals that are asserted for one function when high and asserted for 
+another function when low are named with the asserted high function name 
+followed by a slash character (/), and the asserted low function name followed 
+with a dash (-) e.g. BITENA/BITCLR- enables a bit when high and clears a bit 
+when low. All signals are TTL compatible unless otherwise noted. Negated means 
+that the signal is driven by an active circuit to the state opposite to the 
+asserted state (inactive, or false) or may be simply released (in which case 
+the bias circuitry pulls it inactive, or false), at the option of the 
+implementor. 
+
+6.2  Signal Summary
+
+The physical interface consists of single ended TTL compatible receivers and 
+drivers communicating through a 40-conductor flat ribbon nonshielded cable 
+using an asynchronous interface protocol. The pin numbers and signal names 
+are shown in Table 6-1. Reserved signals shall be left unconnected. 
+
+                       TABLE 6-1:  INTERFACE SIGNALS 
+ +----------------------------------+                         +-----------+
+ |         HOST  I/O                |                         | DRIVE I/O | 
+ |         CONNECTOR                |                         | CONNECTOR | 
+ |                                  |                         |           | 
+ | HOST RESET                     1 | -----  RESET-  -------->| 1         | 
+ |                                2 | -----  Ground  -------- | 2         | 
+ | HOST DATA BUS BIT 7            3 |<-----  DD7  ----------->| 3         | 
+ | HOST DATA BUS BIT 8            4 |<-----  DD8  ----------->| 4         | 
+ | HOST DATA BUS BIT 6            5 |<-----  DD6  ----------->| 5         | 
+ | HOST DATA BUS BIT 9            6 |<-----  DD9  ----------->| 6         | 
+ | HOST DATA BUS BIT 5            7 |<-----  DD5  ----------->| 7         | 
+ | HOST DATA BUS BIT 10           8 |<-----  DD10  ---------->| 8         | 
+ | HOST DATA BUS BIT 4            9 |<-----  DD4  ----------->| 9         | 
+ | HOST DATA BUS BIT 11          10 |<-----  DD11  ---------->| 10        | 
+ | HOST DATA BUS BIT 3           11 |<-----  DD3  ----------->| 11        | 
+ | HOST DATA BUS BIT 12          12 |<-----  DD12  ---------->| 12        | 
+ | HOST DATA BUS BIT 2           13 |<-----  DD2  ----------->| 13        | 
+ | HOST DATA BUS BIT 13          14 |<-----  DD13  ---------->| 14        | 
+ | HOST DATA BUS BIT 1           15 |<-----  DD1  ----------->| 15        | 
+ | HOST DATA BUS BIT 14          16 |<-----  DD14  ---------->| 16        | 
+ | HOST DATA BUS BIT 0           17 |<-----  DD0  ----------->| 17        | 
+ | HOST DATA BUS BIT 15          18 |<-----  DD15  ---------->| 18        | 
+ |                               19 | -----  Ground  -------- | 19        | 
+ |                               20 | -----  (keypin)  ------ | 20        | 
+ | DMA REQUEST                   21 |<-----  DMARQ  --------- | 21        | 
+ |                               22 | -----  Ground  -------- | 22        | 
+ | HOST I/O WRITE                23 | -----  DIOW-  --------->| 23        | 
+ |                               24 | -----  Ground  -------- | 24        | 
+ | HOST I/O READ                 25 | -----  DIOR-  --------->| 25        | 
+ |                               26 | -----  Ground  -------- | 26        | 
+ | I/O CHANNEL READY             27 |<-----  IORDY  --------- | 27        | 
+ | SPINDLE SYNC                  28 |*-----  SPSYNC  --------*| 28        | 
+ | DMA ACKNOWLEDGE               29 | -----  DMACK-  -------->| 29        | 
+ |                               30 | -----  Ground  -------- | 30        | 
+ | HOST INTERRUPT REQUEST        31 |<-----  INTRQ  --------- | 31        | 
+ | HOST 16 BIT I/O               32 |<-----  IOCS16-  ------- | 32        | 
+ | HOST ADDRESS BUS BIT 1        33 | -----  DA1  ----------->| 33        | 
+ | PASSED DIAGNOSTICS            34 |*-----  PDIAG-  --------*| 34        | 
+ | HOST ADDRESS BUS BIT 0        35 | -----  DAO  ----------->| 35        | 
+ | HOST ADDRESS BUS BIT 2        36 | -----  DA2  ----------->| 36        | 
+ | HOST CHIP SELECT 0            37 | -----  CS1FX-  -------->| 37        | 
+ | HOST CHIP SELECT 1            38 | -----  CS3FX-  -------->| 38        | 
+ | DRIVE ACTIVE/DRIVE 1 PRESENT  39 |<-----  DASP-  ---------*| 39        | 
+ |                               40 | -----  Ground  -------- | 40        | 
+ +----------------------------------+                         +-----------+
+
+                     * Drive Intercommunication Signals
+
+       +---HOST---+       +-Drive 0-+                    +-Drive 1-+
+       |       28 | ----->| 28   28 |<----- SPSYNC  ---->| 28      |
+       |       34 | ----- | 34   34 |<----- PDIAG-  ---- | 34      |
+       |       39 |<----- | 39   39 |<----- DASP-  ----- | 39      |
+       +----------+       +---------+                    +---------+ 
+
+6.3  Signal Descriptions
+
+The interface signals and pins are described in more detail than shown in 
+Table 6-1. The signals are listed according to function, rather than in 
+numerical connector pin order. Table 6-2 lists signal name mnemonic, connector 
+pin number, whether input to (I) or output from (O) the drive, and full signal 
+name. 
+
+                 TABLE 6-2:  INTERFACE SIGNALS DESCRIPTION 
+ +--------+----+-----+
+ | Signal | Pin| I/O |
+ +--------+----+-----+-----------------------------------------------------+
+ | CS1FX- | 37 |  I  | Drive chip Select 0                                 |
+ | CS3FX- | 38 |  I  | Drive chip Select 1                                 |
+ | DA0    | 35 |  I  | Drive Address Bus - Bit 0                           |
+ | DA1    | 33 |  I  |                   - Bit 1                           |
+ | DA2    | 36 |  I  |                   - Bit 2                           |
+ | DASP-  | 39 | I/O | Drive Active/Drive 1 Present                        |
+ | DD0    | 17 | I/O | Drive Data Bus - Bit 0                              |
+ | DD1    | 15 | I/O |                - Bit 1                              | 
+ | DD2    | 13 | I/O |                - Bit 2                              |
+ | DD3    | 11 | I/O |                - Bit 3                              |
+ | DD4    |  9 | I/O |                - Bit 4                              |
+ | DD5    |  7 | I/O |                - Bit 5                              |
+ | DD6    |  5 | I/O |                - Bit 6                              |
+ | DD7    |  3 | I/O |                - Bit 7                              |
+ | DD8    |  4 | I/O |                - Bit 8                              |
+ | DD9    |  6 | I/O |                - Bit 9                              |
+ | DD10   |  8 | I/O |                - Bit 10                             |
+ | DD11   | 10 | I/O |                - Bit 11                             |
+ | DD12   | 12 | I/O |                - Bit 12                             |
+ | DD13   | 14 | I/O |                - Bit 13                             |
+ | DD14   | 16 | I/O |                - Bit 14                             |
+ | DD15   | 18 | I/O |                - Bit 15                             |
+ | DIOR-  | 25 |  I  | Drive I/O Read                                      |
+ | DIOW-  | 23 |  I  | Drive I/O Write                                     |
+ | DMACK- | 29 |  I  | DMA Acknowledge                                     |
+ | DMARQ  | 21 |  O  | DMA Request                                         |
+ | INTRQ  | 31 |  O  | Drive Interrupt                                     |
+ | IOCS16-| 32 |  O  | Drive 16-bit I/O                                    |
+ | IORDY  | 27 |  O  | I/O Channel Ready                                   |
+ | PDIAG- | 34 | I/O | Passed Diagnostics                                  |
+ | RESET- |  1 |  I  | Drive Reset                                         | 
+ | SPSYNC | 28 |  -  | Spindle Sync                                        |
+ | keypin | 20 |  -  | Pin used for keying the interface connector.        |
+ +--------+----+-----+-----------------------------------------------------+
+
+6.3.1 CS1FX- (Drive chip Select 0)
+
+This is the chip select signal decoded from the host address bus used to 
+select the Command Block Registers. 
+
+6.3.2 CS3FX- (Drive chip Select 1)
+
+This is the chip select signal decoded from the host address bus used to 
+select the Control Block Registers. 
+
+6.3.3 DA0-2 (Drive Address Bus) 
+
+This is the 3-bit binary coded address asserted by the host to access a 
+register or data port in the drive.  
+
+6.3.4 DASP- (Drive Active/Drive 1 Present)
+
+This is a time-multiplexed signal which indicates that a drive is active, or 
+that Drive 1 is present. This signal shall be an open collector output and 
+each drive shall have a 10K pull-up resistor.
+
+During power on initialization or after RESET- is negated, DASP- shall be 
+asserted by Drive 1 within 400 msec to indicate that Drive 1 is present. 
+
+Drive 0 shall allow up to 450 msec for Drive 1 to assert DASP-. If Drive 1 is 
+not present, Drive 0 may assert DASP- to drive an activity LED. 
+
+DASP- shall be negated following acceptance of the first valid command by 
+Drive 1 or after 31 seconds, whichever comes first. 
+
+Any time after negation of DASP-, either drive may assert DASP- to indicate 
+that a drive is active. 
+
+..rm102
+  NOTE: Prior to the development of this standard, products were introduced 
+        which did not time multiplex DASP-. Some used two jumpers to indicate 
+        to Drive 0 whether Drive 1 was present. If such a drive is jumpered to 
+        indicate Drive 1 is present it should work successfully with a Drive 1 
+        which complies with this standard. If installed as Drive 1, such a 
+        drive may not work successfully because it may not assert DASP- for a 
+        long enough period to be recognized. However, it would assert DASP- 
+        to indicate that the drive is active. 
+
+6.3.5 DD0-DD15 (Drive Data Bus)
+
+This is an 8- or 16-bit bidirectional data bus between the host and the drive. 
+The lower 8 bits are used for 8-bit transfers e.g. registers, ECC bytes.
+
+6.3.6 DIOR- (Drive I/O Read)
+
+This is the Read strobe signal. The falling edge of DIOR- enables data from a 
+register or the data port of the drive onto the host data bus, DD0-DD7 or DD0-
+DD15. The rising edge of DIOR- latches data at the host. 
+
+6.3.7 DIOW- (Drive I/O Write)
+
+This is the Write strobe signal. The rising edge of DIOW- clocks data from the 
+host data bus, DD0-DD7 or DD0-DD15, into a register or the data port of the 
+drive. 
+
+6.3.8 DMACK- (DMA Acknowledge) (Optional)
+
+This signal shall be used by the host in response to DMARQ to either 
+acknowledge that data has been accepted, or that data is available.
+
+6.3.9 DMARQ (DMA Request) (Optional)
+
+This signal, used for DMA data transfers between host and drive, shall be 
+asserted by the drive when it is ready to transfer data to or from the host. 
+The direction of data transfer is controlled by DIOR- and DIOW-. This signal 
+is used in a handshake manner with DMACK- i.e. the drive shall wait until the 
+host asserts DMACK- before negating DMARQ, and re-asserting DMARQ if there is 
+more data to transfer. 
+
+When a DMA operation is enabled, IOCS16-, CS1FX- and CS3FX- shall not be 
+asserted and transfers shall be 16-bits wide. 
+
+..rm102
+  NOTE: ATA products with DMA capability require a pull-down resistor on this 
+        signal to prevent spurious data transfers. This resistor may affect 
+        driver requirements for drives sharing this signal in systems with 
+        unbuffered ATA signals. 
+
+6.3.10 INTRQ (Drive Interrupt)
+
+This signal is used to interrupt the host system. INTRQ is asserted only when 
+the drive has a pending interrupt, the drive is selected, and the host has 
+cleared nIEN in the Device Control Register. If nIEN=1, or the drive is not 
+selected, this output is in a high impedance state, regardless of the presence 
+or absence of a pending interrupt. 
+
+INTRQ shall be negated by:
+
+ - assertion of RESET- or
+ - the setting of SRST of the Device Control Register, or 
+ - the host writing the Command Register or
+ - the host reading the Status Register 
+
+..rm102
+  NOTE: Some drives may negate INTRQ on a PIO data transfer completion, except 
+        on a single sector read or on the last sector of a multi-sector read.
+
+On PIO transfers, INTRQ is asserted at the beginning of each data block to be 
+transferred. A data block is typically a single sector, except when 
+declared otherwise by use of the Set Multiple command. An exception occurs on 
+Format Track, Write Sector(s), Write Buffer and Write Long commands - INTRQ 
+shall not be asserted at the beginning of the first data block to be 
+transferred.
+
+On DMA transfers, INTRQ is asserted only once, after the command has 
+completed. 
+
+6.3.11 IOCS16- (Drive 16-bit I/O)
+
+Except for DMA transfers, IOCS16- indicates to the host system that the 16-bit 
+data port has been addressed and that the drive is prepared to send or receive 
+a 16-bit data word. This shall be an open collector output. 
+
+ - When transferring in PIO mode, If IOCS16- is not asserted, transfers shall 
+   be 8-bit using DD0-7. 
+ - When transferring in PIO mode, if IOCS16- is asserted, transfers shall be 
+   16-bit using DD0-15. 
+   for 16-bit data transfers. 
+ - When transferring in DMA mode, the host shall use a 16-bit DMA channel and 
+   IOCS16- shall not be asserted. 
+
+6.3.12 IORDY (I/O Channel Ready) (Optional)
+
+This signal is negated to extend the host transfer cycle of any host register 
+access (Read or Write) when the drive is not ready to respond to a data 
+transfer request. When IORDY is not negated, IORDY shall be in a high 
+impedance state. 
+
+6.3.13 PDIAG- (Passed Diagnostics)
+
+This signal shall be asserted by Drive 1 to indicate to Drive 0 that it has 
+completed diagnostics. A 10K pull-up resistor shall be used on this signal by 
+each drive. 
+
+Following a power on reset, software reset or RESET-, Drive 1 shall negate 
+PDIAG- within 1 msec (to indicate to Drive 0 that it is busy). Drive 1 shall 
+then assert PDIAG- within 30 seconds to indicate that it is no longer busy, 
+and is able to provide status. After the assertion of PDIAG-, Drive 1 may be 
+unable to accept commands until it has finished its reset procedure and is 
+Ready (DRDY=1). 
+
+Following the receipt of a valid Execute Drive Diagnostics command, Drive 
+1 shall negate PDIAG- within 1 msec to indicate to Drive 0 that it is busy 
+and has not yet passed its drive diagnostics. If Drive 1 is present then 
+Drive 0 shall wait for up to 5 seconds from the receipt of a valid Execute 
+Drive Diagnostics command for Drive 1 to assert PDIAG-. Drive 1 should 
+clear BSY before asserting PDIAG-, as PDIAG- is used to indicate that 
+Drive 1 has passed its diagnostics and is ready to post status.
+
+..
+If DASP- was not asserted by Drive 1 during reset initialization, Drive 0 
+shall post its own status immediately after it completes diagnostics, and 
+clear the Drive 1 Status Register to 00h. Drive 0 may be unable to accept 
+commands until it has finished its reset procedure and is Ready (DRDY=1). 
+
+6.3.14 RESET- (Drive Reset)
+
+This signal from the host system shall be asserted for at least 25 usec after 
+voltage levels have stabilized during power on and negated thereafter unless 
+some event requires that the drive(s) be reset following power on.
+
+6.3.15  SPSYNC (Spindle Synchronization) (Optional) 
+
+This signal may be either input or output to the drive depending on a vendor-
+defined switch. If a drive is set to Master the signal is output, and if a 
+drive is set to slave the signal is input.
+
+There is no requirement that each drive implementation be plug-compatible to 
+the extent that a multiple vendor drive subsystem be operable. Mix and match 
+of different manufacturers drives is unlikely because rpm, sync fields, sync 
+bytes etc need to be virtually identical. However, if drives are designed to 
+match the following recommendation, controllers can operate drives with a 
+single implementation. 
+
+There can only be one master drive at a time in a configuration. The host or 
+the drive designated as master can generate SPSYNC at least once per rotation, 
+but may be at a higher frequency. 
+
+SPSYNC received by a drive is used as the synchronization signal to lock the 
+spindles in step. The time to achieve synchronization varies, and is indicated 
+by the drive setting DRDY i.e. if the drive does not achieve synchronization 
+following power on or a reset, it shall not set DRDY. 
+
+A master drive or the host generates SPSYNC and transmits it. 
+
+A slave drive does not generate SPSYNC and is responsible to synchronize its 
+index to SPSYNC.
+
+If a drive does not support synchronization, it shall ignore SPSYNC. 
+
+In the event that a drive previously synchronized loses synchronization, but 
+is otherwise operational, it does not clear DRDY.
+
+Prior to the introduction of this standard, this signal was defined as DALE 
+(Drive Address Latch Enable), and used for an address valid indication from 
+the host system. If used, the host address and chip selects, DAO through DA2, 
+CS1FX-, and CS3FX- were valid at the negation of this signal and remained 
+valid while DALE was negated, therefore, the drive did not need to latch these 
+signals with DALE. 
+

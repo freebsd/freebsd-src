@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)db.h	8.1 (Berkeley) 6/2/93
+ *	@(#)db.h	8.3 (Berkeley) 10/12/93
  */
 
 #ifndef _DB_H_
@@ -39,6 +39,8 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <machine/endian.h>
+
+#include <limits.h>
 
 #define	RET_ERROR	-1		/* Return values. */
 #define	RET_SUCCESS	 0
@@ -72,20 +74,40 @@ typedef struct {
 
 typedef enum { DB_BTREE, DB_HASH, DB_RECNO } DBTYPE;
 
-#define	__USE_OPEN_FLAGS \
-	(O_CREAT|O_EXCL|O_EXLOCK|O_RDONLY|O_RDWR|O_SHLOCK|O_TRUNC)
+/*
+ * !!!
+ * The following flags are included in the dbopen(3) call as part of the
+ * open(2) flags.  In order to avoid conflicts with the open flags, start
+ * at the top of the 16 or 32-bit number space and work our way down.  If
+ * the open flags were significantly expanded in the future, it could be
+ * a problem.  Wish I'd left another flags word in the dbopen call.
+ *
+ * !!!
+ * None of this stuff is implemented yet.  The only reason that it's here
+ * is so that the access methods can skip copying the key/data pair when
+ * the DB_LOCK flag isn't set.
+ */
+#if UINT_MAX > 65535
+#define	DB_LOCK		0x20000000	/* Do locking. */
+#define	DB_SHMEM	0x40000000	/* Use shared memory. */
+#define	DB_TXN		0x80000000	/* Do transactions. */
+#else
+#define	DB_LOCK		0x00002000	/* Do locking. */
+#define	DB_SHMEM	0x00004000	/* Use shared memory. */
+#define	DB_TXN		0x00008000	/* Do transactions. */
+#endif
 
 /* Access method description structure. */
 typedef struct __db {
-	DBTYPE type;			/* underlying db type */
+	DBTYPE type;			/* Underlying db type. */
 	int (*close)	__P((struct __db *));
 	int (*del)	__P((const struct __db *, const DBT *, u_int));
-	int (*fd)	__P((const struct __db *));
 	int (*get)	__P((const struct __db *, const DBT *, DBT *, u_int));
 	int (*put)	__P((const struct __db *, DBT *, const DBT *, u_int));
 	int (*seq)	__P((const struct __db *, DBT *, DBT *, u_int));
 	int (*sync)	__P((const struct __db *, u_int));
-	void *internal;			/* access method private */
+	void *internal;			/* Access method private. */
+	int (*fd)	__P((const struct __db *));
 } DB;
 
 #define	BTREEMAGIC	0x053162
@@ -139,25 +161,25 @@ typedef struct {
  *	BLPSWAP		swap a referenced memory location
  *	BLSWAP_COPY	swap from one location to another
  */
-#define BLSWAP(a) { \
-	u_long _tmp = a; \
-	((char *)&a)[0] = ((char *)&_tmp)[3]; \
-	((char *)&a)[1] = ((char *)&_tmp)[2]; \
-	((char *)&a)[2] = ((char *)&_tmp)[1]; \
-	((char *)&a)[3] = ((char *)&_tmp)[0]; \
+#define BLSWAP(a) {							\
+	u_long _tmp = a;						\
+	((char *)&a)[0] = ((char *)&_tmp)[3];				\
+	((char *)&a)[1] = ((char *)&_tmp)[2];				\
+	((char *)&a)[2] = ((char *)&_tmp)[1];				\
+	((char *)&a)[3] = ((char *)&_tmp)[0];				\
 }
-#define	BLPSWAP(a) { \
-	u_long _tmp = *(u_long *)a; \
-	((char *)a)[0] = ((char *)&_tmp)[3]; \
-	((char *)a)[1] = ((char *)&_tmp)[2]; \
-	((char *)a)[2] = ((char *)&_tmp)[1]; \
-	((char *)a)[3] = ((char *)&_tmp)[0]; \
+#define	BLPSWAP(a) {							\
+	u_long _tmp = *(u_long *)a;					\
+	((char *)a)[0] = ((char *)&_tmp)[3];				\
+	((char *)a)[1] = ((char *)&_tmp)[2];				\
+	((char *)a)[2] = ((char *)&_tmp)[1];				\
+	((char *)a)[3] = ((char *)&_tmp)[0];				\
 }
-#define	BLSWAP_COPY(a, b) { \
-	((char *)&(b))[0] = ((char *)&(a))[3]; \
-	((char *)&(b))[1] = ((char *)&(a))[2]; \
-	((char *)&(b))[2] = ((char *)&(a))[1]; \
-	((char *)&(b))[3] = ((char *)&(a))[0]; \
+#define	BLSWAP_COPY(a, b) {						\
+	((char *)&(b))[0] = ((char *)&(a))[3];				\
+	((char *)&(b))[1] = ((char *)&(a))[2];				\
+	((char *)&(b))[2] = ((char *)&(a))[1];				\
+	((char *)&(b))[3] = ((char *)&(a))[0];				\
 }
 
 /*
@@ -166,28 +188,28 @@ typedef struct {
  *	BSPSWAP		swap a referenced memory location
  *	BSSWAP_COPY	swap from one location to another
  */
-#define BSSWAP(a) { \
-	u_short _tmp = a; \
-	((char *)&a)[0] = ((char *)&_tmp)[1]; \
-	((char *)&a)[1] = ((char *)&_tmp)[0]; \
+#define BSSWAP(a) {							\
+	u_short _tmp = a;						\
+	((char *)&a)[0] = ((char *)&_tmp)[1];				\
+	((char *)&a)[1] = ((char *)&_tmp)[0];				\
 }
-#define BSPSWAP(a) { \
-	u_short _tmp = *(u_short *)a; \
-	((char *)a)[0] = ((char *)&_tmp)[1]; \
-	((char *)a)[1] = ((char *)&_tmp)[0]; \
+#define BSPSWAP(a) {							\
+	u_short _tmp = *(u_short *)a;					\
+	((char *)a)[0] = ((char *)&_tmp)[1];				\
+	((char *)a)[1] = ((char *)&_tmp)[0];				\
 }
-#define BSSWAP_COPY(a, b) { \
-	((char *)&(b))[0] = ((char *)&(a))[1]; \
-	((char *)&(b))[1] = ((char *)&(a))[0]; \
+#define BSSWAP_COPY(a, b) {						\
+	((char *)&(b))[0] = ((char *)&(a))[1];				\
+	((char *)&(b))[1] = ((char *)&(a))[0];				\
 }
 
 __BEGIN_DECLS
 DB *dbopen __P((const char *, int, int, DBTYPE, const void *));
 
 #ifdef __DBINTERFACE_PRIVATE
-DB	*__bt_open __P((const char *, int, int, const BTREEINFO *));
-DB	*__hash_open __P((const char *, int, int, const HASHINFO *));
-DB	*__rec_open __P((const char *, int, int, const RECNOINFO *));
+DB	*__bt_open __P((const char *, int, int, const BTREEINFO *, int));
+DB	*__hash_open __P((const char *, int, int, const HASHINFO *, int));
+DB	*__rec_open __P((const char *, int, int, const RECNOINFO *, int));
 void	 __dbpanic __P((DB *dbp));
 #endif
 __END_DECLS

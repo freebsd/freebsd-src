@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.2 1993/10/16 14:39:32 rgrimes Exp $
+ *	$Id: specialreg.h,v 1.3 1993/11/07 17:43:11 wollman Exp $
  */
+
+#ifndef _MACHINE_SPECIALREG_H_
+#define _MACHINE_SPECIALREG_H_ 1
 
 /*
  * Bits in 386 special registers:
@@ -58,3 +61,4 @@
 #ifdef notyet
 #define CR0_AM	0x00040000	/* Alignment Mask (set to enable AC flag) */
 #endif
+#endif /* _MACHINE_SPECIALREG_H_ */

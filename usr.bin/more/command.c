@@ -42,6 +42,8 @@ static char sccsid[] = "@(#)command.c	5.22 (Berkeley) 6/21/92";
 #include <less.h>
 #include "pathnames.h"
 
+extern off_t position();
+
 #define	NO_MCA		0
 #define	MCA_DONE	1
 #define	MCA_MORE	2
@@ -154,7 +156,7 @@ prompt()
 {
 	extern int linenums, short_file;
 	extern char *current_name, *firstsearch, *next_name;
-	off_t len, pos, ch_length(), position(), forw_line();
+	off_t len, pos, ch_length(), forw_line();
 	char pbuf[40];
 
 	/*

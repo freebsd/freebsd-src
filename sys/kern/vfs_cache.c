@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vfs_cache.c	7.8 (Berkeley) 2/28/91
- *	$Id: vfs_cache.c,v 1.2 1993/10/16 15:25:19 rgrimes Exp $
+ *	$Id: vfs_cache.c,v 1.3 1993/11/25 01:33:40 wollman Exp $
  */
 
 #include "param.h"
@@ -92,6 +92,7 @@ int doingcache = 1;			/* 1 => enable the cache */
  * the name does not exist (negative cacheing), a status of ENOENT
  * is returned. If the lookup fails, a status of zero is returned.
  */
+int
 cache_lookup(ndp)
 	register struct nameidata *ndp;
 {
@@ -189,6 +190,7 @@ cache_lookup(ndp)
 /*
  * Add an entry to the cache
  */
+void
 cache_enter(ndp)
 	register struct nameidata *ndp;
 {
@@ -240,6 +242,7 @@ cache_enter(ndp)
 /*
  * Name cache initialization, from vfs_init() when we are booting
  */
+void
 nchinit()
 {
 	register union nchash *nchp;
@@ -264,6 +267,7 @@ nchinit()
  * Cache flush, a particular vnode; called when a vnode is renamed to
  * hide entries that would now be invalid
  */
+void
 cache_purge(vp)
 	struct vnode *vp;
 {
@@ -291,6 +295,7 @@ cache_purge(vp)
  * if the cache lru chain is modified while we are dumping the
  * inode.  This makes the algorithm O(n^2), but do you think I care?
  */
+void
 cache_purgevfs(mp)
 	struct mount *mp;
 {

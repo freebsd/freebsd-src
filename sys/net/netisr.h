@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)netisr.h	7.8 (Berkeley) 5/7/91
- *	$Id: netisr.h,v 1.2.2.1 1993/11/14 18:51:06 rgrimes Exp $
+ *	$Id: netisr.h,v 1.5 1993/12/20 14:58:31 wollman Exp $
  */
+
+#ifndef _NET_NETISR_H_
+#define _NET_NETISR_H_ 1
 
 /*
  * The networking code runs off software interrupts.
@@ -57,7 +60,8 @@
 #define	NETISR_IMP	3		/* same as AF_IMPLINK */
 #define	NETISR_NS	6		/* same as AF_NS */
 #define	NETISR_ISO	7		/* same as AF_ISO */
-#define	NETISR_CCITT	10		/* same as AF_CCITT */
+#define NETISR_X25	9		/* hope nobody wants AF_DATAKIT */
+#define	NETISR_HDLC	10		/* same as AF_CCITT */
 
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 
@@ -77,3 +81,4 @@
 extern int	netisr;		/* scheduling bits for network */
 #endif
 #endif
+#endif /* _NET_NETISR_H_ */

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/print-rip.c,v 1.1.1.1 1993/06/12 14:42:07 rgrimes Exp $ (LBL)";
+    "@(#) $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/print-rip.c,v 1.3 1994/02/10 11:24:32 davidg Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -33,12 +33,38 @@ static char rcsid[] =
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#include <protocols/routed.h>
 
 #include <errno.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+
+#define RIPVERSION	1
+
+struct netinfo {
+	struct	osockaddr rip_dst;	/* destination net/host */
+	int	rip_metric;		/* cost of route */
+};
+
+struct rip {
+	u_char	rip_cmd;		/* request/response */
+	u_char	rip_vers;		/* protocol version # */
+	u_char	rip_res1[2];		/* pad to 32-bit boundary */
+	union {
+		struct	netinfo ru_nets[1];	/* variable length... */
+		char	ru_tracefile[1];	/* ditto ... */
+	} ripun;
+#define	rip_nets	ripun.ru_nets
+#define	rip_tracefile	ripun.ru_tracefile
+};
+ 
+/*
+ * Packet types.
+ */
+#define	RIPCMD_REQUEST		1	/* want info */
+#define	RIPCMD_RESPONSE		2	/* responding to request */
+#define	RIPCMD_TRACEON		3	/* turn tracing on */
+#define	RIPCMD_TRACEOFF		4	/* turn it off */
 
 static void
 rip_entry_print(ni)
@@ -49,8 +75,8 @@ rip_entry_print(ni)
 
 		printf(" [family %d:", ntohs(ni->rip_dst.sa_family));
 		for (i = 0; i < 14; i += 2)
-			printf(" %02x%02x", ni->rip_dst.sa_data[i],
-				ni->rip_dst.sa_data[i+1]);
+			printf(" %02x%02x", (u_char)ni->rip_dst.sa_data[i],
+				(u_char)ni->rip_dst.sa_data[i+1]);
 		printf("]");
 	} else {
 		register struct sockaddr_in *sin = 

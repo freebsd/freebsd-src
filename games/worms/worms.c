@@ -67,6 +67,8 @@ static char sccsid[] = "@(#)worms.c	5.9 (Berkeley) 2/28/91";
 #endif
 #include <signal.h>
 
+extern char *malloc(), *getenv(), *tgetstr(), *tgoto();
+
 static struct options {
 	int nopts;
 	int opts[3];
@@ -195,7 +197,7 @@ main(argc, argv)
 	void onsig();
 	short **ref;
 	char *AL, *BC, *CM, *EI, *HO, *IC, *IM, *IP, *SR;
-	char *field, tcb[100], *mp, *malloc(), *getenv(), *tgetstr(), *tgoto();
+	char *field, tcb[100], *mp;
 	long random();
 #ifdef USG
 	struct termio sg;

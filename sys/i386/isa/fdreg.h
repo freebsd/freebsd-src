@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: fdreg.h,v 1.2 1993/10/16 13:45:50 rgrimes Exp $
+ *	$Id: fdreg.h,v 1.4 1994/02/07 22:12:42 alm Exp $
  */
 
 /*
@@ -62,5 +62,4 @@
 
 #define	fdin	7	/* Digital Input Register (R) */
 #define	FDI_DCHG	0x80	/* diskette has been changed */
-
 

@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)uipc_domain.c	7.9 (Berkeley) 3/4/91
- *	$Id: uipc_domain.c,v 1.2 1993/10/16 15:25:06 rgrimes Exp $
+ *	$Id: uipc_domain.c,v 1.5 1993/12/19 00:51:43 wollman Exp $
  */
 
-#include <sys/cdefs.h>
 #include "param.h"
+#include "systm.h"
 #include "socket.h"
 #include "protosw.h"
 #include "domain.h"
@@ -43,12 +43,18 @@
 #include "time.h"
 #include "kernel.h"
 
+struct domain *domains;
+
 #define	ADDDOMAIN(x)	{ \
 	extern struct domain __CONCAT(x,domain); \
 	__CONCAT(x,domain.dom_next) = domains; \
 	domains = &__CONCAT(x,domain); \
 }
 
+static void pfslowtimo(caddr_t, int);
+static void pffasttimo(caddr_t, int);
+
+void
 domaininit()
 {
 	register struct domain *dp;
@@ -91,8 +97,8 @@ if (max_linkhdr < 16)		/* XXX */
 max_linkhdr = 16;
 	max_hdr = max_linkhdr + max_protohdr;
 	max_datalen = MHLEN - max_hdr;
-	pffasttimo();
-	pfslowtimo();
+	pffasttimo(0, 0);
+	pfslowtimo(0, 0);
 }
 
 struct protosw *
@@ -139,6 +145,7 @@ found:
 	return (maybe);
 }
 
+void
 pfctlinput(cmd, sa)
 	int cmd;
 	struct sockaddr *sa;
@@ -152,7 +159,8 @@ pfctlinput(cmd, sa)
 				(*pr->pr_ctlinput)(cmd, sa, (caddr_t) 0);
 }
 
-pfslowtimo()
+static void
+pfslowtimo(caddr_t dummy1, int dummy2)
 {
 	register struct domain *dp;
 	register struct protosw *pr;
@@ -164,7 +172,8 @@ pfslowtimo()
 	timeout(pfslowtimo, (caddr_t)0, hz/2);
 }
 
-pffasttimo()
+static void
+pffasttimo(caddr_t dummy1, int dummy2)
 {
 	register struct domain *dp;
 	register struct protosw *pr;

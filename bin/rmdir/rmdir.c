@@ -38,7 +38,8 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rmdir.c	5.3 (Berkeley) 5/31/90";
+/*static char sccsid[] = "from: @(#)rmdir.c	5.3 (Berkeley) 5/31/90";*/
+static char rcsid[] = "$Id: rmdir.c,v 1.3 1993/11/23 00:13:55 jtc Exp $";
 #endif /* not lint */
 
 /*
@@ -47,8 +48,14 @@ static char sccsid[] = "@(#)rmdir.c	5.3 (Berkeley) 5/31/90";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <errno.h>
+#include <err.h>
 
+static int rmdirp __P((char *));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -57,7 +64,7 @@ main(argc, argv)
 	int ch;
 	int delete_parent_directories = 0;
 
-	while ((ch = getopt (argc, argv, "p")) != EOF) {
+	while ((ch = getopt (argc, argv, "p")) != -1) {
 		switch (ch) {
 		case 'p':
 			delete_parent_directories = 1;
@@ -76,13 +83,12 @@ main(argc, argv)
 
 	for (errors = 0; *argv; argv++) {
 		if (!delete_parent_directories) {
-			if (rmdir(*argv) < 0) {
-				fprintf(stderr, "rmdir: %s: %s\n", 
-					*argv, strerror(errno));
+			if (rmdir(*argv)) {
+				warn ("%s", *argv);
 				errors = 1;
-			} 
+			}
 		} else {
-			if (rmdirp(*argv) < 0) {
+			if (rmdirp(*argv)) {
 				errors = 1;
 			}
 		}
@@ -91,37 +97,38 @@ main(argc, argv)
 	exit(errors);
 }
 
-int
-rmdirp (char *path)
+static int
+rmdirp (path)
+	char *path;
 {
 	char *slash;
 
-	/* point slash at last slash */
-	slash = strrchr (path, '/');
+	if (rmdir (path)) {
+		warn ("%s", path);
+		return -1;
+	}
 
-	while (slash != NULL) {
-		if (rmdir (path) < 0) {
-			fprintf(stderr, "rmdir: %s: %s\n", 
-				path, strerror(errno));
-			return -1;
+	for (;;) {
+		slash = strrchr (path, '/');
+		if (slash == NULL) {
+			return 0;
 		}
 
 		/* skip trailing slash characters */
 		while (slash > path && *slash == '/')
 			slash--;
-
 		*++slash = '\0';
-		slash = strrchr (path, '/');
+
+		if (rmdir (path)) {
+			warn ("%s", path);
+			return -1;
+		}
 	}
 
-	if (rmdir (path) < 0) {
-		fprintf(stderr, "rmdir: %s: %s\n", path, strerror(errno));
-		return -1;
-	}
-
-	return 0;
+	/* NOTREACHED */
 }
 
+static void
 usage()
 {
 	fprintf(stderr, "usage: rmdir [-p] directory ...\n");

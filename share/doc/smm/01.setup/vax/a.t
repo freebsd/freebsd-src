@@ -35,8 +35,8 @@
 \fI\\$1\fP\|\\$2
 ..
 .ds LH "Installing/Operating \*(4B
-.nr H1 6
-.nr H2 0
+.\".nr H1 6
+.\".nr H2 0
 .ds RH "Appendix A \- bootstrap details
 .ds CF \*(DY
 .bp

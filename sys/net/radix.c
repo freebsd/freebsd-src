@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)radix.c	7.9 (Berkeley) 2/4/91
- *	$Id: radix.c,v 1.3 1993/10/16 17:43:30 rgrimes Exp $
+ *	$Id: radix.c,v 1.4 1993/11/25 01:34:07 wollman Exp $
  */
 
 /*
@@ -213,6 +213,7 @@ int	rn_saveinfo;
 struct radix_node *
 rn_newpair(v, b, nodes)
 	caddr_t v;
+	int b;
 	struct radix_node nodes[2];
 {
 	register struct radix_node *tt = nodes, *t = tt + 1;
@@ -293,7 +294,9 @@ on1:
 
 struct radix_node *
 rn_addmask(netmask, search, skip)
-caddr_t netmask;
+	caddr_t netmask;
+	int search;
+	int skip;
 {
 	register struct radix_node *x;
 	register caddr_t cp, cplim;
@@ -343,9 +346,9 @@ struct radix_node *head;
 {
 	register int j;
 	register caddr_t cp;
-	register struct radix_node *t, *x, *tt;
+	register struct radix_node *t, *x = 0, *tt;
 	short b = 0, b_leaf;
-	int vlen = *(u_char *)v, mlen, keyduplicated;
+	int vlen = *(u_char *)v, mlen = 0, keyduplicated;
 	caddr_t cplim; unsigned char *maskp;
 	struct radix_mask *m, **mp;
 	struct radix_node *saved_tt;
@@ -599,9 +602,11 @@ out:
 }
 char rn_zeros[MAXKEYLEN], rn_ones[MAXKEYLEN];
 
+int
 rn_inithead(head, off, af)
-struct radix_node_head **head;
-int off;
+	struct radix_node_head **head;
+	int off;
+	int af;
 {
 	register struct radix_node_head *rnh;
 	register struct radix_node *t, *tt, *ttt;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tty_tty.c	7.15 (Berkeley) 5/28/91
- *	$Id: tty_tty.c,v 1.2 1993/10/16 15:25:05 rgrimes Exp $
+ *	$Id: tty_tty.c,v 1.3 1993/11/25 01:33:30 wollman Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
 #define cttyvp(p) ((p)->p_flag&SCTTY ? (p)->p_session->s_ttyvp : NULL)
 
 /*ARGSUSED*/
+int
 cttyopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -69,9 +70,11 @@ cttyopen(dev, flag, mode, p)
 }
 
 /*ARGSUSED*/
+int
 cttyread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	register struct vnode *ttyvp = cttyvp(uio->uio_procp);
 	int error;
@@ -85,9 +88,11 @@ cttyread(dev, uio, flag)
 }
 
 /*ARGSUSED*/
+int
 cttywrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	register struct vnode *ttyvp = cttyvp(uio->uio_procp);
 	int error;
@@ -101,6 +106,7 @@ cttywrite(dev, uio, flag)
 }
 
 /*ARGSUSED*/
+int
 cttyioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
 	int cmd;
@@ -112,7 +118,9 @@ cttyioctl(dev, cmd, addr, flag, p)
 
 	if (ttyvp == NULL)
 		return (EIO);
-	if (cmd == TIOCNOTTY) {
+	if (cmd == TIOCSCTTY)	/* don't allow controlling tty to be set */
+		return EINVAL;	/* to controlling tty - infinite recursion */
+	else if (cmd == TIOCNOTTY) {
 		if (!SESS_LEADER(p)) {
 			p->p_flag &= ~SCTTY;
 			return (0);
@@ -123,6 +131,7 @@ cttyioctl(dev, cmd, addr, flag, p)
 }
 
 /*ARGSUSED*/
+int
 cttyselect(dev, flag, p)
 	dev_t dev;
 	int flag;

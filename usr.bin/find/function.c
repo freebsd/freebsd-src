@@ -673,7 +673,7 @@ f_nogroup(plan, entry)
 {
 	char *group_from_gid();
 
-	return (group_from_gid(entry->fts_statp->st_gid, 1) ? 1 : 0);
+	return (group_from_gid(entry->fts_statp->st_gid, 1) ? 0 : 1);
 }
  
 PLAN *
@@ -697,7 +697,7 @@ f_nouser(plan, entry)
 {
 	char *user_from_uid();
 
-	return (user_from_uid(entry->fts_statp->st_uid, 1) ? 1 : 0);
+	return (user_from_uid(entry->fts_statp->st_uid, 1) ? 0 : 1);
 }
  
 PLAN *
@@ -790,7 +790,17 @@ f_print(plan, entry)
 	PLAN *plan;
 	FTSENT *entry;
 {
-	(void)printf("%s\n", entry->fts_path);
+	if (plan->flags & F_PRINTF) {
+		printf(plan->c_data, entry->fts_path);
+	} else {
+		fputs(entry->fts_path, stdout);
+	}
+
+	if (plan->flags & F_PRINT0) {
+		fputc('\0', stdout);
+	} else {
+		fputc('\n', stdout);
+	}
 	return (1);
 }
  
@@ -801,6 +811,27 @@ c_print()
 
 	return (palloc(N_PRINT, f_print));
 }
+
+PLAN *
+c_print0()
+{
+	PLAN *rv = palloc(N_PRINT, f_print);
+	rv->flags = F_PRINT0;
+	isoutput = 1;
+	return rv;
+}
+
+PLAN *
+c_printf(arg)
+	char *arg;
+{
+	PLAN *rv = palloc(N_PRINT, f_print);
+	rv->flags = F_PRINTF;
+	rv->c_data = arg;
+	isoutput = 1;
+	return rv;
+}
+
  
 /*
  * -prune functions --

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fifo_vnops.c	7.7 (Berkeley) 4/15/91
- *	$Id: fifo_vnops.c,v 1.4 1993/10/16 15:24:02 rgrimes Exp $
+ *	$Id: fifo_vnops.c,v 1.5 1993/11/25 01:32:44 wollman Exp $
  */
 
 #ifdef	FIFO
@@ -100,6 +100,7 @@ struct vnodeops fifo_vnodeops = {
  * Trivial lookup routine that always fails.
  */
 /* ARGSUSED */
+int
 fifo_lookup(vp, ndp, p)
 	struct vnode *vp;
 	struct nameidata *ndp;
@@ -116,6 +117,7 @@ fifo_lookup(vp, ndp, p)
  * to find an active instance of a fifo.
  */
 /* ARGSUSED */
+int
 fifo_open(vp, mode, cred, p)
 	register struct vnode *vp;
 	int mode;
@@ -203,6 +205,7 @@ fifo_open(vp, mode, cred, p)
  * Vnode op for read
  */
 /* ARGSUSED */
+int
 fifo_read(vp, uio, ioflag, cred)
 	struct vnode *vp;
 	register struct uio *uio;
@@ -222,8 +225,8 @@ fifo_read(vp, uio, ioflag, cred)
 		rso->so_state |= SS_NBIO;
 	startresid = uio->uio_resid;
 	VOP_UNLOCK(vp);
-	error = soreceive(rso, (struct mbuf **)0, uio, (int *)0,
-		(struct mbuf **)0, (struct mbuf **)0);
+	error = soreceive(rso, (struct mbuf **)0, uio, 
+		(struct mbuf **)0, (struct mbuf **)0, (int *)0);
 	VOP_LOCK(vp);
 	/*
 	 * Clear EOF indication after first such return.
@@ -239,6 +242,7 @@ fifo_read(vp, uio, ioflag, cred)
  * Vnode op for write
  */
 /* ARGSUSED */
+int
 fifo_write(vp, uio, ioflag, cred)
 	struct vnode *vp;
 	register struct uio *uio;
@@ -266,6 +270,7 @@ fifo_write(vp, uio, ioflag, cred)
  * Device ioctl operation.
  */
 /* ARGSUSED */
+int
 fifo_ioctl(vp, com, data, fflag, cred, p)
 	struct vnode *vp;
 	int com;
@@ -287,6 +292,7 @@ fifo_ioctl(vp, com, data, fflag, cred, p)
 }
 
 /* ARGSUSED */
+int
 fifo_select(vp, which, fflag, cred, p)
 	struct vnode *vp;
 	int which, fflag;
@@ -306,6 +312,7 @@ fifo_select(vp, which, fflag, cred, p)
 /*
  * This is a noop, simply returning what one has been given.
  */
+int
 fifo_bmap(vp, bn, vpp, bnp)
 	struct vnode *vp;
 	daddr_t bn;
@@ -324,6 +331,7 @@ fifo_bmap(vp, bn, vpp, bnp)
  * At the moment we do not do any locking.
  */
 /* ARGSUSED */
+int
 fifo_lock(vp)
 	struct vnode *vp;
 {
@@ -332,6 +340,7 @@ fifo_lock(vp)
 }
 
 /* ARGSUSED */
+int
 fifo_unlock(vp)
 	struct vnode *vp;
 {
@@ -343,6 +352,7 @@ fifo_unlock(vp)
  * Device close routine
  */
 /* ARGSUSED */
+int
 fifo_close(vp, fflag, cred, p)
 	register struct vnode *vp;
 	int fflag;
@@ -375,6 +385,7 @@ fifo_close(vp, fflag, cred, p)
 /*
  * Print out the contents of a fifo vnode.
  */
+void
 fifo_print(vp)
 	struct vnode *vp;
 {
@@ -387,6 +398,7 @@ fifo_print(vp)
 /*
  * Print out internal contents of a fifo vnode.
  */
+void
 fifo_printinfo(vp)
 	struct vnode *vp;
 {
@@ -399,6 +411,7 @@ fifo_printinfo(vp)
 /*
  * Fifo failed operation
  */
+int
 fifo_ebadf()
 {
 
@@ -409,6 +422,7 @@ fifo_ebadf()
  * Fifo advisory byte-level locks.
  */
 /* ARGSUSED */
+int
 fifo_advlock(vp, id, op, fl, flags)
 	struct vnode *vp;
 	caddr_t id;
@@ -423,6 +437,7 @@ fifo_advlock(vp, id, op, fl, flags)
 /*
  * Fifo bad operation
  */
+int
 fifo_badop()
 {
 

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)dbopen.3	8.1 (Berkeley) 6/4/93
+.\"	@(#)dbopen.3	8.5 (Berkeley) 1/2/94
 .\"
-.TH DBOPEN 3 "June 4, 1993"
+.TH DBOPEN 3 "January 2, 1994"
 .UC 7
 .SH NAME
 dbopen \- database access methods
@@ -51,7 +51,7 @@ const void *openinfo);
 .SH DESCRIPTION
 .IR Dbopen
 is the library interface to database files.
-The supported file formats are btree, hashed and UNIX file oriented.
+The supported file formats are btree, hashed and flat-file oriented.
 The btree format is a representation of a sorted, balanced tree structure.
 The hashed format is an extensible, dynamic hashing scheme.
 The flat-file format is a byte stream file with fixed or variable length
@@ -75,9 +75,29 @@ and
 .I mode arguments
 are as specified to the
 .IR open (2)
-routine, however, only the O_CREAT, O_EXCL, O_EXLOCK, O_RDONLY, O_RDWR,
-O_SHLOCK and O_TRUNC flags are meaningful.
+routine, however, only the O_CREAT, O_EXCL, O_EXLOCK, O_NONBLOCK,
+O_RDONLY, O_RDWR, O_SHLOCK and O_TRUNC flags are meaningful.
 (Note, opening a database file O_WRONLY is not possible.)
+.\"Three additional options may be specified by
+.\".IR or 'ing
+.\"them into the
+.\".I flags
+.\"argument.
+.\".TP
+.\"DB_LOCK
+.\"Do the necessary locking in the database to support concurrent access.
+.\"If concurrent access isn't needed or the database is read-only this
+.\"flag should not be set, as it tends to have an associated performance
+.\"penalty.
+.\".TP
+.\"DB_SHMEM
+.\"Place the underlying memory pool used by the database in shared
+.\"memory.
+.\"Necessary for concurrent access.
+.\".TP
+.\"DB_TXN
+.\"Support transactions in the database.
+.\"The DB_LOCK and DB_SHMEM flags must be set as well.
 .PP
 The
 .I type
@@ -167,7 +187,7 @@ processes which call
 with the same
 .I file
 name.
-This file descriptor may be safely used as a argument to the
+This file descriptor may be safely used as an argument to the
 .IR fcntl (2)
 and
 .IR flock (2)
@@ -442,6 +462,9 @@ for any of the errors specified for the library routine
 .IR hash (3),
 .IR mpool (3),
 .IR recno (3)
+.sp
+.IR "LIBTP: Portable, Modular Transactions for UNIX" ,
+Margo Seltzer, Michael Olson, USENIX proceedings, Winter 1992.
 .SH BUGS
 The typedef DBT is a mnemonic for ``data base thang'', and was used
 because noone could think of a reasonable name that wasn't already used.

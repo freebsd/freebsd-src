@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)subr_mcount.c	7.10 (Berkeley) 5/7/91
- *	$Id: subr_mcount.c,v 1.3 1993/10/16 15:24:41 rgrimes Exp $
+ *	$Id: subr_mcount.c,v 1.6 1993/12/20 16:41:12 davidg Exp $
  */
 
 #ifdef GPROF
@@ -47,14 +47,16 @@ int	profiling = 3;
 u_short	*froms;
 struct	tostruct *tos = 0;
 long	tolimit = 0;
-char	*s_lowpc = (char *)KERNBASE;
-extern	char etext;
-char	*s_highpc = &etext;
+extern	char btext[];
+char	*s_lowpc = btext;
+extern	char etext[];
+char	*s_highpc = etext;
 u_long	s_textsize = 0;
 int	ssiz;
 u_short	*sbuf;
 u_short	*kcount;
 
+void
 kmstartup()
 {
 	u_long fromssize, tossize;
@@ -107,6 +109,7 @@ kmstartup()
 	kcount = (u_short *)(((int)sbuf) + sizeof (struct phdr));
 }
 
+void
 mcount()
 {
 	register char *selfpc;			/* r11 => r5 */
@@ -167,9 +170,6 @@ mcount()
 	asm("	movl (sp), r11");	/* selfpc = ... (jsb frame) */
 	asm("	movl 16(fp), r10");	/* frompcindex =     (calls frame) */
 #endif
-#if defined(i386)
-	Fix Me!!
-#endif /* i386 */
 #if defined(tahoe)
 	asm("	movl -8(fp),r12");	/* selfpc = callf frame */
 	asm("	movl (fp),r11");
@@ -189,7 +189,11 @@ mcount()
 	asm("movw	sr,%0" : "=g" (s));
 	asm("movw	#0x2700,sr");
 #else
+#if defined(i386)
+	asm("cli");
+#else
 	s = splhigh();
+#endif
 #endif
 	/*
 	 * Check that frompcindex is a reasonable pc value.
@@ -271,7 +275,11 @@ done:
 #if defined(hp300)
 	asm("movw	%0,sr" : : "g" (s));
 #else
+#if defined(i386)
+	asm("sti");
+#else
 	splx(s);
+#endif
 #endif
 	/* and fall through */
 out:

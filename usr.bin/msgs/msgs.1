@@ -39,7 +39,7 @@
 .Nd system messages and junk mail program
 .Sh SYNOPSIS
 .Nm msgs
-.Op Fl fhlpq
+.Op Fl fhlpqr
 .Op Ar number
 .Op Ar \-number
 .Nm msgs
@@ -94,8 +94,12 @@ A copy of the specified message is placed in a temporary
 mailbox and
 .Xr mail  1
 is invoked on that mailbox.
-Both `m' and `s' accept a numeric argument in place of the `\-'.
+.It Cm p
+The specified message is piped through $PAGER or, if $PAGER is not defined,
+.Xr more  1  .
 .El
+.Pp
+The commands `m', `p' and `s' all accept a numeric argument in place of the `\-'.
 .Pp
 .Nm Msgs
 keeps track of the next message you will see by a number in the file
@@ -156,6 +160,9 @@ Queries whether there are messages, printing
 The command ``msgs \-q'' is often used in login scripts.
 .It Fl h
 Print the first part of messages only.
+.It Fl r
+Disables the ability to save messages or enter the mailer.  It is
+assumed that $PAGER is set to something secure.
 .It Fl l
 Option causes only locally originated messages to be reported.
 .It Ar num
@@ -178,7 +185,7 @@ messages back from the one indicated in the
 .Pa \&.msgsrc
 file, useful for reviews of recent messages.
 .It Fl p
-Pipe long messages through
+Pipe long messages through $PAGER or, if $PAGER is not defined,
 .Xr more  1  .
 .El
 .Pp

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_arp.h	7.4 (Berkeley) 6/28/90
- *	$Id: if_arp.h,v 1.2 1993/10/16 17:43:13 rgrimes Exp $
+ *	$Id: if_arp.h,v 1.5 1993/11/25 01:34:00 wollman Exp $
  */
+
+#ifndef _NET_IF_ARP_H_
+#define _NET_IF_ARP_H_ 1
 
 /*
  * Address Resolution Protocol.
@@ -57,10 +60,10 @@ struct	arphdr {
  * The remaining fields are variable in size,
  * according to the sizes above.
  */
-/*	u_char	ar_sha[];	/* sender hardware address */
-/*	u_char	ar_spa[];	/* sender protocol address */
-/*	u_char	ar_tha[];	/* target hardware address */
-/*	u_char	ar_tpa[];	/* target protocol address */
+/*	u_char	ar_sha[];*/	/* sender hardware address */
+/*	u_char	ar_spa[];*/	/* sender protocol address */
+/*	u_char	ar_tha[];*/	/* target hardware address */
+/*	u_char	ar_tpa[];*/	/* target protocol address */
 };
 
 /*
@@ -71,9 +74,21 @@ struct arpreq {
 	struct	sockaddr arp_ha;		/* hardware address */
 	int	arp_flags;			/* flags */
 };
+
 /*  arp_flags and at_flags field values */
 #define	ATF_INUSE	0x01	/* entry in use */
 #define ATF_COM		0x02	/* completed entry (enaddr valid) */
 #define	ATF_PERM	0x04	/* permanent entry */
 #define	ATF_PUBL	0x08	/* publish entry (respond for other host) */
 #define	ATF_USETRAILERS	0x10	/* has requested trailers */
+
+/*
+ * This doesn't really belong here, but there is no obvious other place
+ * to put it that will get seen by every client...
+ */
+struct mbuf; struct sockaddr; struct ifnet; struct rtentry;
+
+extern int 
+ether_output(struct ifnet *, struct mbuf*, struct sockaddr*, struct rtentry *);
+
+#endif /* _NET_IF_ARP_H_ */

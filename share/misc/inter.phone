@@ -104,7 +104,8 @@
 43:222:Vienna:Austria
 43:316:Graz:Austria
 43:5222:Innsbruck:Austria
-44:1:London, Eng.:United Kingdom
+44:71:London (Inner), Eng.:United Kingdom
+44:81:London (Outer), Eng.:United Kingdom
 44:203:Coventry, Eng.:United Kingdom
 44:21:Birmingham, Eng.:United Kingdom
 44:222:Cardiff, Wales:United Kingdom
@@ -125,10 +126,7 @@
 44:752:Plymouth, Eng.:United Kingdom
 44:782:Stoke-on-Trent, Eng.:United Kingdom
 44:902:Wolverhampton, Eng.:United Kingdom
-45:3:Copenhagen:Denmark
-45:6:Aarhus:Denmark
-45:8:Aalborg:Denmark
-45:9:Odense:Denmark
+45:::Denmark
 46:18:Uppsala:Sweden
 46:21:Vasteras:Sweden
 46:31:Goteborg:Sweden

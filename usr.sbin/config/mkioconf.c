@@ -631,6 +631,7 @@ i386_ioconf()
 	 * First print the isa initialization structures
 	 */
 	if (seen_isa) {
+		int seen_wdc = 0, seen_fdc = 0;
 
 		fprintf(fp, "/*\n");
 		fprintf(fp, " * ISA devices\n");
@@ -646,22 +647,53 @@ i386_ioconf()
 				continue;
 			fprintf(fp, "extern struct isa_driver %3.3sdriver;",
 				dp->d_name);
+			if(eq(dp->d_name, "wdc")) seen_wdc++;
+			if(eq(dp->d_name, "fdc")) seen_fdc++;
 			if (dp->d_irq == 2)
 				{
 				fprintf(stderr, "remapped irq 2 to irq 9, please update your config file\n");
 				dp->d_irq = 9;
 				}
 			if (dp->d_irq != -1)
-				fprintf(fp, " extern %s();", shandler(dp));
+				fprintf(fp, " extern void %s();", shandler(dp));
 			fprintf(fp, "\n");
 		}
 		isa_devtab(fp, "bio");
+		if(seen_wdc)
+			isa_biotab(fp, "wdc");
+		if(seen_fdc)
+			isa_biotab(fp, "fdc");
 		isa_devtab(fp, "tty");
 		isa_devtab(fp, "net");
 		isa_devtab(fp, "null");
 	}
 	(void) fclose(fp);
 }
+
+isa_biotab(fp, table)
+	FILE	*fp;
+	char	*table;
+{
+	register struct device *dp, *mp;
+
+	fprintf(fp, "\n\nstruct isa_device isa_biotab_%s[] = {\n", table);
+	fprintf(fp, "\
+/*    driver    iobase    irq drq      maddr   msiz      intr unit   flags  drive*/\n");
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		mp = dp->d_conn;
+		if (dp->d_unit == QUES || mp == 0 ||
+		    mp == TO_NEXUS || !eq(mp->d_name, table))
+			continue;
+		fprintf(fp, "{ &%3.3sdriver, %8.8s,",
+			mp->d_name, mp->d_port);
+		fprintf(fp, "%6.6s, %2d, C 0x%05X, %5d, %8.8s,  %2d, 0x%04X, %2d },\n",
+			sirq(mp->d_irq), mp->d_drq, mp->d_maddr,
+			mp->d_msize, shandler(mp), dp->d_unit,
+			dp->d_flags, dp->d_drive);
+	}
+	fprintf(fp, "0\n};\n");
+}
+
 /*
  * Generized routine for isa bus device table, instead of repeating
  * all this 4 times, call this with the table argument.

@@ -38,17 +38,26 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rm.c	4.27 (Berkeley) 1/27/92";
+/*static char sccsid[] = "from: @(#)rm.c	4.26 (Berkeley) 3/10/91";*/
+static char rcsid[] = "$Id: rm.c,v 1.6.2.1 1994/03/07 02:25:28 rgrimes Exp $";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/errno.h>
-#include <fts.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <locale.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fts.h>
+
+int check	__P((char *, char *, struct stat *));
+void checkdot	__P((char **));
+void error	__P((char *, int));
+void rmtree	__P((char **));
+void rmfile	__P((char **));
+void usage	__P((void));
 
 int dflag, fflag, iflag, retval, stdin_ok;
 
@@ -60,16 +69,17 @@ int dflag, fflag, iflag, retval, stdin_ok;
  * 	file removal.
  */
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	int ch, rflag;
 
+	setlocale(LC_ALL, "");
+
 	rflag = 0;
-	while ((ch = getopt(argc, argv, "dfiRr")) != EOF)
+	while ((ch = getopt(argc, argv, "dfiRr")) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -97,25 +107,26 @@ main(argc, argv)
 		usage();
 
 	checkdot(argv);
-	if (!*argv)
-		exit(retval);
 
-	stdin_ok = isatty(STDIN_FILENO);
+	if (*argv) {
+		stdin_ok = isatty(STDIN_FILENO);
 
-	if (rflag)
-		rmtree(argv);
-	else
-		rmfile(argv);
+		if (rflag)
+			rmtree(argv);
+		else
+			rmfile(argv);
+	}
+
 	exit(retval);
 }
 
+void
 rmtree(argv)
 	char **argv;
 {
 	register FTS *fts;
 	register FTSENT *p;
 	register int needstat;
-	struct stat sb;
 
 	/*
 	 * Remove a file hierarchy.  If forcing removal (-f), or interactive
@@ -129,18 +140,20 @@ rmtree(argv)
 	 */
 #define	SKIPPED	1
 
-	if (!(fts = fts_open(argv,
-	    needstat ? FTS_PHYSICAL : FTS_PHYSICAL|FTS_NOSTAT,
-	    (int (*)())NULL))) {
-		(void)fprintf(stderr, "rm: %s.\n", strerror(errno));
-		exit(1);
+	if (!(fts = fts_open(argv, needstat ? FTS_PHYSICAL|FTS_NOCHDIR :
+		FTS_PHYSICAL|FTS_NOCHDIR|FTS_NOSTAT,
+		(int (*)())NULL))) {
+		if (!fflag)
+			(void)fprintf(stderr, "rm: %s.\n", strerror(errno));
+		exit (1);
 	}
-	while (p = fts_read(fts)) {
+
+	while ((p = fts_read(fts)) != NULL) {
 		switch(p->fts_info) {
 		case FTS_DNR:
 		case FTS_ERR:
 			error(p->fts_path, errno);
-			exit(1);
+			continue;
 		/*
 		 * FTS_NS: assume that if can't stat the file, it can't be
 		 * unlinked.
@@ -153,7 +166,7 @@ rmtree(argv)
 			continue;
 		/* Pre-order: give user chance to skip. */
 		case FTS_D:
-			if (iflag && !check(p->fts_path, p->fts_accpath,
+			if (!fflag && !check(p->fts_path, p->fts_accpath,
 			    p->fts_statp)) {
 				(void)fts_set(fts, p, FTS_SKIP);
 				p->fts_number = SKIPPED;
@@ -164,11 +177,12 @@ rmtree(argv)
 			if (p->fts_number == SKIPPED)
 				continue;
 			break;
-		}
 
-		if (!fflag &&
-		    !check(p->fts_path, p->fts_accpath, p->fts_statp))
-			continue;
+		default:
+			if (!fflag && !check(p->fts_path, p->fts_accpath,
+			    p->fts_statp)) 
+				continue;
+		}
 
 		/*
 		 * If we can't read or search the directory, may still be
@@ -181,7 +195,7 @@ rmtree(argv)
 			if (errno == ENOENT) {
 				if (fflag)
 					continue;
-			} else if (p->fts_info != FTS_DP)
+			} else if (p->fts_info != FTS_DP && !fflag)
 				(void)fprintf(stderr,
 				    "rm: unable to read %s.\n", p->fts_path);
 		} else if (!unlink(p->fts_accpath) || fflag && errno == ENOENT)
@@ -190,38 +204,52 @@ rmtree(argv)
 	}
 }
 
+void
 rmfile(argv)
 	char **argv;
 {
-	register int df;
 	register char *f;
 	struct stat sb;
 
-	df = dflag;
 	/*
 	 * Remove a file.  POSIX 1003.2 states that, by default, attempting
 	 * to remove a directory is an error, so must always stat the file.
 	 */
-	while (f = *argv++) {
-		/* Assume if can't stat the file, can't unlink it. */
+	while ((f = *argv++) != NULL) {
+		/* If the file does not exist: 
+		 *   If the -f option was not specified, write a diagnostic
+		 *   to the standard error...
+		 */
 		if (lstat(f, &sb)) {
-			if (!fflag || errno != ENOENT)
+			if (!fflag || errno != ENOENT) {
 				error(f, errno);
+			}
 			continue;
 		}
-		if (S_ISDIR(sb.st_mode) && !df) {
-			(void)fprintf(stderr, "rm: %s: is a directory\n", f);
-			retval = 1;
+
+		/* If the file is of type directory and neither the -r or -R
+		 * (or -d) options are specified, write a diagnostic to the
+		 * standard error... 
+		 */
+		if (S_ISDIR(sb.st_mode) && !dflag) {
+			error (f, EISDIR);
 			continue;
 		}
-		if (!fflag && !check(f, f, &sb))
+
+		if (!fflag && !check(f, f, &sb)) {
 			continue;
-		if ((S_ISDIR(sb.st_mode) ? rmdir(f) : unlink(f)) &&
-		    (!fflag || errno != ENOENT))
+		}
+
+		/*
+		 * rmdir() directories, unlink() files...
+		 */
+		if ((S_ISDIR(sb.st_mode) ? rmdir(f) : unlink(f))) {
 			error(f, errno);
+		}
 	}
 }
 
+int
 check(path, name, sp)
 	char *path, *name;
 	struct stat *sp;
@@ -238,7 +266,7 @@ check(path, name, sp)
 		 * talking to a terminal, ask.  Symbolic links are excluded
 		 * because their permissions are meaningless.
 		 */
-		if (S_ISLNK(sp->st_mode) || !stdin_ok || !access(name, W_OK))
+		if (!stdin_ok || S_ISLNK(sp->st_mode) || !access(name, W_OK))
 			return(1);
 		strmode(sp->st_mode, modep);
 		(void)fprintf(stderr, "override %s%s%s/%s for %s? ",
@@ -251,10 +279,11 @@ check(path, name, sp)
 	first = ch = getchar();
 	while (ch != '\n' && ch != EOF)
 		ch = getchar();
-	return(first == 'y');
+	return(first == 'y' || first == 'Y');
 }
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || (a)[1] == '.' && !(a)[2]))
+void
 checkdot(argv)
 	char **argv;
 {
@@ -263,7 +292,7 @@ checkdot(argv)
 
 	complained = 0;
 	for (t = argv; *t;) {
-		if (p = rindex(*t, '/'))
+		if ((p = rindex(*t, '/')) != NULL)
 			++p;
 		else
 			p = *t;
@@ -279,14 +308,17 @@ checkdot(argv)
 	}
 }
 
+void
 error(name, val)
 	char *name;
 	int val;
 {
-	(void)fprintf(stderr, "rm: %s: %s.\n", name, strerror(val));
+	if (!fflag)
+		(void)fprintf(stderr, "rm: %s: %s.\n", name, strerror(val));
 	retval = 1;
 }
 
+void
 usage()
 {
 	(void)fprintf(stderr, "usage: rm [-dfiRr] file ...\n");

@@ -174,7 +174,7 @@ pow_P(x, y) double x, y;
 #endif
 {
 	struct Double s, t, log__D();
-	double  exp__D(), huge = 1e300, tiny = 1e-300;
+	double  exp__D(), tiny = 1e-300;
 
 	if (x == zero)
 		return ((y>zero)? x : one/x);
@@ -184,7 +184,7 @@ pow_P(x, y) double x, y;
 		if (x < 1)
 			return(tiny*tiny);
 		else if (_IEEE)
-			return (huge*huge);
+			return (HUGE_VAL*HUGE_VAL);
 		else
 			return (infnan(ERANGE));
 

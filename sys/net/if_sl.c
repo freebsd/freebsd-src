@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_sl.c	7.22 (Berkeley) 4/20/91
- *	$Id: if_sl.c,v 1.4 1993/10/16 17:43:20 rgrimes Exp $
+ *	$Id: if_sl.c,v 1.7 1993/12/20 19:31:32 wollman Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
  * interrupts and network activity; thus, splimp must be >= spltty.
  */
 
-/* $Header: /a/cvs/386BSD/src/sys/net/if_sl.c,v 1.4 1993/10/16 17:43:20 rgrimes Exp $ */
+/* $Id: if_sl.c,v 1.7 1993/12/20 19:31:32 wollman Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "sl.h"
@@ -73,6 +73,7 @@
 
 #include "param.h"
 #include "systm.h"
+#include "kernel.h"		/* sigh */
 #include "proc.h"
 #include "mbuf.h"
 #include "buf.h"
@@ -94,7 +95,7 @@
 #include "netinet/in_var.h"
 #include "netinet/ip.h"
 #else
-Huh? Slip without inet?
+#error "Huh? Slip without inet?"
 #endif
 
 #include "machine/mtpr.h"
@@ -105,8 +106,8 @@ Huh? Slip without inet?
 
 #include "bpfilter.h"
 #if NBPFILTER > 0
-#include <sys/time.h>
-#include <net/bpf.h>
+#include "sys/time.h"
+#include "net/bpf.h"
 #endif
 
 /*
@@ -156,7 +157,24 @@ Huh? Slip without inet?
 #endif
 #define	SLMAX		(MCLBYTES - BUFOFFSET)
 #define	SLBUFSIZE	(SLMAX + BUFOFFSET)
-#define	SLMTU		296
+
+#ifdef experimental
+/*
+ * In this code, the SLMTU is the actual interface MTU as advertised
+ * in our ifnet structures.  SLRMTU is the MTU we stick into routes
+ * via slrtrequest() to tell TCP to produce small packets.
+ */
+#ifndef SLMTU
+#define SLMTU		1500	/* same as Ethernet */
+#endif
+#ifndef SLRMTU
+#define	SLRMTU		296	/* for good latency */
+#endif
+#else
+#define SLMTU		296
+#define SLRMTU		SLMTU
+#endif
+
 #define	SLIP_HIWAT	roundup(50,CBSIZE)
 
 /*
@@ -195,13 +213,26 @@ struct sl_softc sl_softc[NSL];
 
 #define t_sc T_LINEP
 
-int sloutput(), slioctl(), ttrstrt();
-extern struct timeval time;
+/*
+ * Prototypes.
+ */
+void slattach(void);
+static int slinit(struct sl_softc *);
+int slopen(int /*dev_t*/, struct tty *);
+int slclose(struct tty *);
+int sltioctl(struct tty *, int, caddr_t, int);
+int sloutput(struct ifnet *, struct mbuf *, struct sockaddr *, struct rtentry *);
+void slstart(struct tty *);
+static struct mbuf *sl_btom(struct sl_softc *, int);
+void slinput(int, struct tty *);
+static int slrtrequest(int, struct rtentry *, struct sockaddr *);
+int slioctl(struct ifnet *, int, caddr_t);
 
 /*
  * Called from boot code to establish sl interfaces.
  */
-slattach()
+void
+slattach(void)
 {
 	register struct sl_softc *sc;
 	register int i = 0;
@@ -211,6 +242,13 @@ slattach()
 		sc->sc_if.if_unit = i++;
 		sc->sc_if.if_mtu = SLMTU;
 		sc->sc_if.if_flags = IFF_POINTOPOINT;
+		/*
+		 * Multicast support is trivial for point-to-point
+		 * netifs.
+		 */
+#ifdef MULTICAST
+		sc->sc_if.if_flags |= IFF_MULTICAST;
+#endif
 		sc->sc_if.if_type = IFT_SLIP;
 		sc->sc_if.if_ioctl = slioctl;
 		sc->sc_if.if_output = sloutput;
@@ -223,6 +261,8 @@ slattach()
 #endif
 	}
 }
+
+TEXT_SET(pseudo_set, slattach);
 
 static int
 slinit(sc)
@@ -251,6 +291,7 @@ slinit(sc)
  * Attach the given tty to the first available sl unit.
  */
 /* ARGSUSED */
+int
 slopen(dev, tp)
 	dev_t dev;
 	register struct tty *tp;
@@ -284,6 +325,7 @@ slopen(dev, tp)
  * Detach the tty from the sl unit.
  * Mimics part of ttyclose().
  */
+int
 slclose(tp)
 	struct tty *tp;
 {
@@ -304,6 +346,7 @@ slclose(tp)
 		sc->sc_buf = 0;
 	}
 	splx(s);
+	return 0;
 }
 
 /*
@@ -311,9 +354,12 @@ slclose(tp)
  * Provide a way to get the sl unit number.
  */
 /* ARGSUSED */
+int
 sltioctl(tp, cmd, data, flag)
 	struct tty *tp;
+	int cmd;
 	caddr_t data;
+	int flag;
 {
 	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
 	int s;
@@ -344,10 +390,12 @@ sltioctl(tp, cmd, data, flag)
 /*
  * Queue a packet.  Start transmission if not active.
  */
-sloutput(ifp, m, dst)
+int
+sloutput(ifp, m, dst, rt)
 	struct ifnet *ifp;
 	register struct mbuf *m;
 	struct sockaddr *dst;
+	struct rtentry *rt;
 {
 	register struct sl_softc *sc = &sl_softc[ifp->if_unit];
 	register struct ip *ip;
@@ -408,6 +456,7 @@ sloutput(ifp, m, dst)
  * to send from the interface queue and map it to
  * the interface before starting output.
  */
+void
 slstart(tp)
 	register struct tty *tp;
 {
@@ -419,7 +468,7 @@ slstart(tp)
 	struct mbuf *m2;
 #if NBPFILTER > 0
 	u_char bpfbuf[SLMTU + SLIP_HDRLEN];
-	register int len;
+	register int len = 0;
 #endif
 
 	for (;;) {
@@ -630,6 +679,7 @@ sl_btom(sc, len)
 /*
  * tty interface receiver interrupt.
  */
+void
 slinput(c, tp)
 	register int c;
 	register struct tty *tp;
@@ -794,9 +844,25 @@ newpack:
 	sc->sc_escape = 0;
 }
 
+#ifdef experimental
+/*
+ * Get a route change request.
+ * We fill in the MTU and lock it so that MTU discovery won't try
+ * to change it back to the interface MTU.
+ */
+static int
+slrtrequest(int cmd, struct rtentry *rt, struct sockaddr *gate) {
+	if(rt) {
+		rt->rt_rmx.rmx_mtu = SLRMTU;
+		rt->rt_rmx.rmx_locks |= RTV_MTU;
+	}
+}
+#endif
+
 /*
  * Process an ioctl request.
  */
+int
 slioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;
@@ -807,11 +873,16 @@ slioctl(ifp, cmd, data)
 
 	switch (cmd) {
 
+	case SIOCAIFADDR:
 	case SIOCSIFADDR:
-		if (ifa->ifa_addr->sa_family == AF_INET)
+		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ifp->if_flags |= IFF_UP;
-		else
+#ifdef experimental
+			ifa->ifa_rtrequest = slrtrequest;
+#endif
+		} else {
 			error = EAFNOSUPPORT;
+		}
 		break;
 
 	case SIOCSIFDSTADDR:

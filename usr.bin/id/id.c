@@ -268,7 +268,7 @@ user(pw)
 	id = pw->pw_uid;
 	(void)printf("uid=%u(%s)", id, pw->pw_name);
 	(void)printf(" gid=%u", pw->pw_gid);
-	if (gr = getgrgid(id))
+	if (gr = getgrgid(pw->pw_gid))
 		(void)printf("(%s)", gr->gr_name);
 	for (fmt = " groups=%u(%s)", lastid = -1; gr = getgrent();
 	    lastid = id) {

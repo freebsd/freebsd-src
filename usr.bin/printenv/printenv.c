@@ -38,8 +38,12 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)printenv.c	5.4 (Berkeley) 6/1/90";
+/*static char sccsid[] = "from: @(#)printenv.c	5.4 (Berkeley) 6/1/90";*/
+static char rcsid[] = "$Id: printenv.c,v 1.2 1993/11/23 00:34:05 jtc Exp $";
 #endif /* not lint */
+
+#include <stdio.h>
+#include <string.h>
 
 /*
  * printenv
@@ -47,6 +51,7 @@ static char sccsid[] = "@(#)printenv.c	5.4 (Berkeley) 6/1/90";
  * Bill Joy, UCB
  * February, 1979
  */
+int
 main(argc, argv)
 	int argc;
 	char **argv;

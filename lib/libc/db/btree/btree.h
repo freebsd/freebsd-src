@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)btree.h	8.1 (Berkeley) 6/4/93
+ *	@(#)btree.h	8.4 (Berkeley) 12/18/93
  */
 
 #include <mpool.h>
@@ -59,7 +59,7 @@
  * (ANSI C permits random padding.)  If your compiler pads randomly you'll have
  * to do some work to get this package to run.
  */
-typedef struct PAGE {
+typedef struct _page {
 	pgno_t	pgno;			/* this page's page number */
 	pgno_t	prevpg;			/* left sibling */
 	pgno_t	nextpg;			/* right sibling */
@@ -111,7 +111,7 @@ typedef struct PAGE {
  * somewhat special and can cause duplicate internal and leaf page records and
  * some minor modifications of the above rule.
  */
-typedef struct BINTERNAL {
+typedef struct _binternal {
 	size_t	ksize;			/* key size */
 	pgno_t	pgno;			/* page number stored on */
 #define	P_BIGDATA	0x01		/* overflow data */
@@ -142,7 +142,7 @@ typedef struct BINTERNAL {
  * For the recno internal pages, the item is a page number with the number of
  * keys found on that page and below.
  */
-typedef struct RINTERNAL {
+typedef struct _rinternal {
 	recno_t	nrecs;			/* number of records */
 	pgno_t	pgno;			/* page number stored below */
 } RINTERNAL;
@@ -163,7 +163,7 @@ typedef struct RINTERNAL {
 }
 
 /* For the btree leaf pages, the item is a key and data pair. */
-typedef struct BLEAF {
+typedef struct _bleaf {
 	size_t	ksize;			/* size of key */
 	size_t	dsize;			/* size of data */
 	u_char	flags;			/* P_BIGDATA, P_BIGKEY */
@@ -196,7 +196,7 @@ typedef struct BLEAF {
 }
 
 /* For the recno leaf pages, the item is a data entry. */
-typedef struct RLEAF {
+typedef struct _rleaf {
 	size_t	dsize;			/* size of data */
 	u_char	flags;			/* P_BIGDATA */
 	char	bytes[1];
@@ -238,12 +238,12 @@ typedef struct RLEAF {
  * duplicate keys make it impossible.  This scheme does require extra work
  * though, to make sure that we don't perform an operation on a deleted key.
  */
-typedef struct EPGNO {
+typedef struct _epgno {
 	pgno_t	pgno;			/* the page number */
 	indx_t	index;			/* the index on the page */
 } EPGNO;
 
-typedef struct EPG {
+typedef struct _epg {
 	PAGE	*page;			/* the (pinned) page */
 	indx_t	 index;			/* the index on the page */
 } EPG;
@@ -253,7 +253,7 @@ typedef struct EPG {
  * This is because the btree doesn't really need it and it requires that every
  * put or delete call modify the metadata.
  */
-typedef struct BTMETA {
+typedef struct _btmeta {
 	u_long	m_magic;		/* magic number */
 	u_long	m_version;		/* version */
 	u_long	m_psize;		/* page size */
@@ -265,10 +265,13 @@ typedef struct BTMETA {
 } BTMETA;
 
 /* The in-memory btree/recno data structure. */
-typedef struct BTREE {
+typedef struct _btree {
 	MPOOL	*bt_mp;			/* memory pool cookie */
 
 	DB	*bt_dbp;		/* pointer to enclosing DB */
+
+	EPG	bt_cur;			/* current (pinned) page */
+	PAGE	*bt_pinned;		/* page pinned across calls */
 
 	EPGNO	bt_bcursor;		/* B: btree cursor */
 	recno_t	bt_rcursor;		/* R: recno cursor (1-based) */
@@ -291,7 +294,7 @@ typedef struct BTREE {
 	indx_t	bt_ovflsize;		/* cut-off for key/data overflow */
 	int	bt_lorder;		/* byte order */
 					/* sorted order */
-	enum { NOT, BACK, FORWARD, } bt_order;
+	enum { NOT, BACK, FORWARD } bt_order;
 	EPGNO	bt_last;		/* last insert */
 
 					/* B: key comparison function */
@@ -299,7 +302,7 @@ typedef struct BTREE {
 					/* B: prefix comparison function */
 	int	(*bt_pfx) __P((const DBT *, const DBT *));
 					/* R: recno input function */
-	int	(*bt_irec) __P((struct BTREE *, recno_t));
+	int	(*bt_irec) __P((struct _btree *, recno_t));
 
 	FILE	*bt_rfp;		/* R: record FILE pointer */
 	int	bt_rfd;			/* R: record file descriptor */
@@ -324,16 +327,20 @@ typedef struct BTREE {
 #define	B_NEEDSWAP	0x00010		/* if byte order requires swapping */
 #define	B_NODUPS	0x00020		/* no duplicate keys permitted */
 #define	B_RDONLY	0x00040		/* read-only tree */
+#define	R_RECNO		0x00080		/* record oriented tree */
 #define	B_SEQINIT	0x00100		/* sequential scan initialized */
 
 #define	R_CLOSEFP	0x00200		/* opened a file pointer */
 #define	R_EOF		0x00400		/* end of input file reached. */
 #define	R_FIXLEN	0x00800		/* fixed length records */
 #define	R_MEMMAPPED	0x01000		/* memory mapped file. */
-#define	R_RECNO		0x00080		/* record oriented tree */
 #define	R_INMEM		0x02000		/* in-memory file */
 #define	R_MODIFIED	0x04000		/* modified file */
 #define	R_RDONLY	0x08000		/* read-only file */
+
+#define	B_DB_LOCK	0x10000		/* DB_LOCK specified. */
+#define	B_DB_SHMEM	0x20000		/* DB_SHMEM specified. */
+#define	B_DB_TXN	0x40000		/* DB_TXN specified. */
 
 	u_long		bt_flags;	/* btree state */
 } BTREE;

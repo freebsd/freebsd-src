@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -31,8 +38,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)times.h	7.6 (Berkeley) 3/9/91
- *	$Id: times.h,v 1.2 1993/10/16 17:18:01 rgrimes Exp $
+ *	$Id: times.h,v 1.3.2.1 1994/05/04 07:57:42 rgrimes Exp $
  */
+
+#ifndef _SYS_TIMES_H_
+#define _SYS_TIMES_H_ 1
 
 #include <machine/ansi.h>
 
@@ -55,3 +65,4 @@ __BEGIN_DECLS
 clock_t	times __P((struct tms *));
 __END_DECLS
 #endif
+#endif /* _SYS_TIMES_H_ */

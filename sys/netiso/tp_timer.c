@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_timer.c	7.5 (Berkeley) 5/6/91
- *	$Id: tp_timer.c,v 1.3 1993/10/16 21:06:06 rgrimes Exp $
+ *	$Id: tp_timer.c,v 1.4 1993/12/19 00:53:45 wollman Exp $
  */
 
 /***********************************************************
@@ -102,6 +102,7 @@ struct	Ecallout *TP_callout;
 struct	tp_ref *tp_ref;
 int		N_TPREF = 100;
 
+int tp_driver();		/* XXX */
 extern int tp_maxrefopen;  /* highest ref # of an open tp connection */
 
 /*

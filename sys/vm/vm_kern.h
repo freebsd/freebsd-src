@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_kern.h	7.2 (Berkeley) 4/21/91
- *	$Id: vm_kern.h,v 1.2 1993/10/16 16:20:31 rgrimes Exp $
+ *	$Id: vm_kern.h,v 1.4 1993/12/19 00:56:02 wollman Exp $
  */
 
 /*
@@ -64,6 +64,9 @@
  * rights to redistribute these changes.
  */
 
+#ifndef _VM_VM_KERN_H_
+#define _VM_VM_KERN_H_ 1
+
 /*
  *	Kernel memory management definitions.
  */
@@ -79,8 +82,10 @@ vm_offset_t	vm_move();
 vm_offset_t	kmem_alloc_wait();
 void		kmem_free_wakeup();
 
-vm_map_t	kernel_map;
-vm_map_t	mb_map;
-vm_map_t	kmem_map;
-vm_map_t	phys_map;
-vm_map_t	buffer_map;
+extern vm_map_t	kernel_map;
+extern vm_map_t	mb_map;
+extern vm_map_t	kmem_map;
+extern vm_map_t	phys_map;
+extern vm_map_t	buffer_map;
+
+#endif /* _VM_VM_KERN_H_ */

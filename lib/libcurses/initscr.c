@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,62 +32,63 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)initscr.c	5.6 (Berkeley) 3/3/91";
-#endif /* not lint */
+static char sccsid[] = "@(#)initscr.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
-# include	<signal.h>
-
-extern char	*getenv();
+#include <curses.h>
+#include <signal.h>
+#include <stdlib.h>
 
 /*
- *	This routine initializes the current and standard screen.
- *
+ * initscr --
+ *	Initialize the current and standard screen.
  */
 WINDOW *
-initscr() {
+initscr()
+{
+	register char *sp;
 
-	reg char	*sp;
-	void		tstp();
+#ifdef DEBUG
+	__CTRACE("initscr\n");
+#endif
+	__echoit = 1;
+        __pfast = __rawmode = __noqch = 0;
 
-# ifdef DEBUG
-	fprintf(outf, "INITSCR()\n");
-# endif
-	if (My_term)
-		setterm(Def_term);
-	else {
-		gettmode();
-		if ((sp = getenv("TERM")) == NULL)
-			sp = Def_term;
-		setterm(sp);
-# ifdef DEBUG
-		fprintf(outf, "INITSCR: term = %s\n", sp);
-# endif
-	}
-	_puts(TI);
-	_puts(VS);
-# ifdef SIGTSTP
-	signal(SIGTSTP, tstp);
-# endif
-	if (curscr != NULL) {
-# ifdef DEBUG
-		fprintf(outf, "INITSCR: curscr = 0%o\n", curscr);
-# endif
+	if (gettmode() == ERR)
+		return (NULL);
+
+	/*
+	 * If My_term is set, or can't find a terminal in the environment,
+	 * use Def_term.
+	 */
+	if (My_term || (sp = getenv("TERM")) == NULL)
+		sp = Def_term;
+	if (setterm(sp) == ERR)
+		return (NULL);
+
+	/* Need either homing or cursor motion for refreshes */
+	if (!HO && !CM) 
+		return (NULL);
+
+	if (curscr != NULL)
 		delwin(curscr);
-	}
-# ifdef DEBUG
-	fprintf(outf, "LINES = %d, COLS = %d\n", LINES, COLS);
-# endif
 	if ((curscr = newwin(LINES, COLS, 0, 0)) == ERR)
-		return ERR;
-	clearok(curscr, TRUE);
-	curscr->_flags &= ~_FULLLINE;
-	if (stdscr != NULL) {
-# ifdef DEBUG
-		fprintf(outf, "INITSCR: stdscr = 0%o\n", stdscr);
-# endif
+		return (NULL);
+	clearok(curscr, 1);
+
+	if (stdscr != NULL)
 		delwin(stdscr);
+	if ((stdscr = newwin(LINES, COLS, 0, 0)) == ERR) {
+		delwin(curscr);
+		return (NULL);
 	}
-	stdscr = newwin(LINES, COLS, 0, 0);
-	return stdscr;
+
+	__set_stophandler();
+
+#ifdef DEBUG
+	__CTRACE("initscr: LINES = %d, COLS = %d\n", LINES, COLS);
+#endif
+	__startwin();
+
+	return (stdscr);
 }

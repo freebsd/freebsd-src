@@ -29,8 +29,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso_rrip.h
- *	$Id: iso_rrip.h,v 1.3 1993/10/25 19:43:02 rgrimes Exp $
+ *	$Id: iso_rrip.h,v 1.4 1993/11/07 17:46:03 wollman Exp $
  */
+
+#ifndef _ISOFS_ISO_RRIP_H_
+#define _ISOFS_ISO_RRIP_H_ 1
 
 /*
  *	Analyze function flag
@@ -54,3 +57,4 @@ typedef struct {
 	char		*iso_altname;	/* Alt Name (no Null terminated ) */
 	char		*iso_symname;	/* Symbol Name (no NULL termninated )*/
 } ISO_RRIP_ANALYZE;
+#endif /* _ISOFS_ISO_RRIP_H_ */

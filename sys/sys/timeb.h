@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
@@ -31,8 +38,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)timeb.h	7.2 (Berkeley) 5/5/91
- *	$Id: timeb.h,v 1.2 1993/10/16 17:18:00 rgrimes Exp $
+ *	$Id: timeb.h,v 1.3.2.1 1994/05/04 07:57:40 rgrimes Exp $
  */
+
+#ifndef _SYS_TIMEB_H_
+#define _SYS_TIMEB_H_ 1
 
 /* The ftime(2) system call structure -- deprecated. */
 struct timeb {
@@ -41,3 +51,4 @@ struct timeb {
 	short	timezone;		/* minutes west of CUT */
 	short	dstflag;		/* DST == non-zero */
 };
+#endif /* _SYS_TIMEB_H_ */

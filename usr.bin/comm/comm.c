@@ -41,34 +41,41 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)comm.c	5.7 (Berkeley) 11/1/90";
+/*static char sccsid[] = "from: @(#)comm.c	5.7 (Berkeley) 11/1/90";*/
+static char rcsid[] = "$Id: comm.c,v 1.2 1993/11/23 00:20:04 jtc Exp $";
 #endif /* not lint */
 
-#include <sys/file.h>
-#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+#include <locale.h>
+#include <unistd.h>
 
 #define	MAXLINELEN	(_POSIX2_LINE_MAX + 1)
 
 char *tabs[] = { "", "\t", "\t\t" };
 
+FILE *file __P((const char *));
+void  show __P((FILE *, char *, char *));
+void  usage __P((void));
+
+int
 main(argc,argv)
 	int argc;
-	char *argv[];
+	char **argv;
 {
 	register int comp, file1done, file2done, read1, read2;
 	register char *col1, *col2, *col3;
 	int ch, flag1, flag2, flag3;
-	FILE *fp1, *fp2, *file();
+	FILE *fp1, *fp2;
 	char **p, line1[MAXLINELEN], line2[MAXLINELEN];
-	extern int optind;
+
+	setlocale(LC_ALL, "");
 
 	flag1 = flag2 = flag3 = 1;
-	while ((ch = getopt(argc, argv, "-123")) != EOF)
+	while ((ch = getopt(argc, argv, "123")) != -1)
 		switch(ch) {
-		case '-':
-			--optind;
-			goto done;
 		case '1':
 			flag1 = 0;
 			break;
@@ -82,7 +89,7 @@ main(argc,argv)
 		default:
 			usage();
 		}
-done:	argc -= optind;
+	argc -= optind;
 	argv += optind;
 
 	if (argc != 2)
@@ -121,7 +128,7 @@ done:	argc -= optind;
 		}
 
 		/* lines are the same */
-		if (!(comp = strcmp(line1, line2))) {
+		if (!(comp = strcoll(line1, line2))) {
 			read1 = read2 = 1;
 			if (col3)
 				(void)printf("%s%s", col3, line1);
@@ -144,6 +151,7 @@ done:	argc -= optind;
 	exit(0);
 }
 
+void
 show(fp, offset, buf)
 	FILE *fp;
 	char *offset, *buf;
@@ -155,7 +163,7 @@ show(fp, offset, buf)
 
 FILE *
 file(name)
-	char *name;
+	const char *name;
 {
 	FILE *fp;
 
@@ -168,8 +176,9 @@ file(name)
 	return(fp);
 }
 
+void
 usage()
 {
-	(void)fprintf(stderr, "usage: comm [-123] [ - ] file1 file2\n");
+	(void)fprintf(stderr, "usage: comm [-123] file1 file2\n");
 	exit(1);
 }

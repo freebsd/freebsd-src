@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ip_input.c	7.19 (Berkeley) 5/25/91
- *	$Id: ip_input.c,v 1.2 1993/10/16 18:26:14 rgrimes Exp $
+ *	$Id: ip_input.c,v 1.8 1994/01/04 17:47:13 ache Exp $
  */
 
 #include "param.h"
@@ -56,27 +56,12 @@
 #include "ip_var.h"
 #include "ip_icmp.h"
 
-#ifndef	IPFORWARDING
-#ifdef GATEWAY
-#define	IPFORWARDING	1	/* forward IP packets not for us */
-#else /* GATEWAY */
-#define	IPFORWARDING	0	/* don't forward IP packets not for us */
-#endif /* GATEWAY */
-#endif /* IPFORWARDING */
-#ifndef	IPSENDREDIRECTS
-#define	IPSENDREDIRECTS	1
-#endif
-int	ipforwarding = IPFORWARDING;
-int	ipsendredirects = IPSENDREDIRECTS;
-#ifdef DIAGNOSTIC
-int	ipprintfs = 0;
-#endif
-
-extern	struct domain inetdomain;
-extern	struct protosw inetsw[];
-u_char	ip_protox[IPPROTO_MAX];
-int	ipqmaxlen = IFQ_MAXLEN;
-struct	in_ifaddr *in_ifaddr;			/* first inet address */
+static void ip_freef(struct ipq *);
+static void ip_enq(struct ipasfrag *, struct ipasfrag *);
+static void ip_deq(struct ipasfrag *);
+static void save_rte(u_char *, struct in_addr);
+static void ip_forward(struct mbuf *, int);
+static struct ip *ip_reass(struct ipasfrag *, struct ipq *);
 
 /*
  * We need to save the IP options in case a protocol wants to respond
@@ -93,27 +78,28 @@ static	struct ip_srcrt {
 	struct	in_addr route[MAX_IPOPTLEN/sizeof(struct in_addr)];
 } ip_srcrt;
 
-#ifdef GATEWAY
 extern	int if_index;
-u_long	*ip_ifmatrix;
+#ifdef DIAGNOSTIC
+extern  int ipprintfs;
 #endif
 
 /*
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.
  */
+void
 ip_init()
 {
-	register struct protosw *pr;
+	register struct in_protosw *pr;
 	register int i;
 
-	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
+	pr = (struct in_protosw *)pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == 0)
 		panic("ip_init");
 	for (i = 0; i < IPPROTO_MAX; i++)
 		ip_protox[i] = pr - inetsw;
-	for (pr = inetdomain.dom_protosw;
-	    pr < inetdomain.dom_protoswNPROTOSW; pr++)
+	for (pr = (struct in_protosw *)inetdomain.dom_protosw;
+	    pr < (struct in_protosw *)inetdomain.dom_protoswNPROTOSW; pr++)
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip_protox[pr->pr_protocol] = pr - inetsw;
@@ -127,14 +113,11 @@ ip_init()
 #endif
 }
 
-struct	ip *ip_reass();
-struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
-struct	route ipforward_rt;
-
 /*
  * Ip input routine.  Checksum and byte swap header.  If fragmented
  * try to reassemble.  Process options.  Pass to next level.
  */
+void
 ipintr()
 {
 	register struct ip *ip;
@@ -348,7 +331,7 @@ bad:
  * reassembly of this datagram already exists, then it
  * is given as fp; otherwise have to make a chain.
  */
-struct ip *
+static struct ip *
 ip_reass(ip, fp)
 	register struct ipasfrag *ip;
 	register struct ipq *fp;
@@ -488,6 +471,7 @@ dropfrag:
  * Free a fragment reassembly header and all
  * associated datagrams.
  */
+static void
 ip_freef(fp)
 	struct ipq *fp;
 {
@@ -506,6 +490,7 @@ ip_freef(fp)
  * Put an ip fragment on a reassembly chain.
  * Like insque, but pointers in middle of structure.
  */
+static void
 ip_enq(p, prev)
 	register struct ipasfrag *p, *prev;
 {
@@ -519,6 +504,7 @@ ip_enq(p, prev)
 /*
  * To ip_enq as remque is to insque.
  */
+static void
 ip_deq(p)
 	register struct ipasfrag *p;
 {
@@ -532,6 +518,7 @@ ip_deq(p)
  * if a timer expires on a reassembly
  * queue, discard it.
  */
+void
 ip_slowtimo()
 {
 	register struct ipq *fp;
@@ -556,6 +543,7 @@ ip_slowtimo()
 /*
  * Drain off all datagram fragments.
  */
+void
 ip_drain()
 {
 
@@ -575,6 +563,7 @@ struct in_ifaddr *ip_rtaddr();
  * Returns 1 if packet has been forwarded/freed,
  * 0 if the packet should be processed further.
  */
+int
 ip_dooptions(m)
 	struct mbuf *m;
 {
@@ -748,7 +737,10 @@ ip_dooptions(m)
 	} else
 		return (0);
 bad:
-	icmp_error(m, type, code);
+	{
+	  static struct in_addr fake;
+	  icmp_error(m, type, code, fake, 0);
+	}
 	return (1);
 }
 
@@ -784,6 +776,7 @@ ip_rtaddr(dst)
  * Save incoming source route for use in replies,
  * to be picked up later by ip_srcroute if the receiver is interested.
  */
+static void
 save_rte(option, dst)
 	u_char *option;
 	struct in_addr dst;
@@ -878,6 +871,7 @@ ip_srcroute()
  * will be moved, and return value is their length.
  * XXX should be deleted; last arg currently ignored.
  */
+void
 ip_stripoptions(m, mopt)
 	register struct mbuf *m;
 	struct mbuf *mopt;
@@ -897,15 +891,6 @@ ip_stripoptions(m, mopt)
 	ip->ip_hl = sizeof(struct ip) >> 2;
 }
 
-u_char inetctlerrmap[PRC_NCMDS] = {
-	0,		0,		0,		0,
-	0,		EMSGSIZE,	EHOSTDOWN,	EHOSTUNREACH,
-	EHOSTUNREACH,	EHOSTUNREACH,	ECONNREFUSED,	ECONNREFUSED,
-	EMSGSIZE,	EHOSTUNREACH,	0,		0,
-	0,		0,		0,		0,
-	ENOPROTOOPT
-};
-
 /*
  * Forward a packet.  If some error occurs return the sender
  * an icmp packet.  Note we can't always generate a meaningful
@@ -920,6 +905,7 @@ u_char inetctlerrmap[PRC_NCMDS] = {
  * The srcrt parameter indicates whether the packet is being forwarded
  * via a source route.
  */
+static void
 ip_forward(m, srcrt)
 	struct mbuf *m;
 	int srcrt;
@@ -927,9 +913,10 @@ ip_forward(m, srcrt)
 	register struct ip *ip = mtod(m, struct ip *);
 	register struct sockaddr_in *sin;
 	register struct rtentry *rt;
-	int error, type = 0, code;
+	int error, type = 0, code = 0;
 	struct mbuf *mcopy;
 	struct in_addr dest;
+	int mtu = 0;
 
 	dest.s_addr = 0;
 #ifdef DIAGNOSTIC
@@ -944,7 +931,7 @@ ip_forward(m, srcrt)
 	}
 	HTONS(ip->ip_id);
 	if (ip->ip_ttl <= IPTTLDEC) {
-		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, dest);
+		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, dest, 0);
 		return;
 	}
 	ip->ip_ttl -= IPTTLDEC;
@@ -962,10 +949,12 @@ ip_forward(m, srcrt)
 
 		rtalloc(&ipforward_rt);
 		if (ipforward_rt.ro_rt == 0) {
-			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, dest);
+			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, dest, 0);
 			return;
 		}
 		rt = ipforward_rt.ro_rt;
+		mtu = rt->rt_ifp->if_mtu;
+				/* salt away if's mtu */
 	}
 
 	/*
@@ -1065,5 +1054,5 @@ ip_forward(m, srcrt)
 		code = 0;
 		break;
 	}
-	icmp_error(mcopy, type, code, dest);
+	icmp_error(mcopy, type, code, dest, mtu);
 }

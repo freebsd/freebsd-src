@@ -33,13 +33,14 @@
 .\"
 .\".ds RH "Network Library Routines
 .bp
-.nr H1 3
-.nr H2 0
+.\".nr H1 3
+.\".nr H2 0
 .bp
 .LG
 .B
 .ce
-3. NETWORK LIBRARY ROUTINES
+.NH 1
+NETWORK LIBRARY ROUTINES
 .sp 2
 .R
 .NL

@@ -33,7 +33,7 @@
  *	@(#)names.c	5.2 (Berkeley) 6/4/91
  */
 
-#if !defined(hp300) && !defined(tahoe) && !defined(vax) && !defined(__386BSD__)
+#if !defined(hp300) && !defined(tahoe) && !defined(vax) && !defined(__FreeBSD__)
 char *defdrives[] = { 0 };
 
 void read_names()
@@ -41,7 +41,7 @@ void read_names()
 }
 #endif
 
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 /*
  * 386BSD support added by Rodney W. Grimes, rgrimes@agora.rain.com 3/24/93
  */
@@ -95,7 +95,7 @@ read_names()
 		i++;
 	}
 }
-#endif /* __386BSD__ */
+#endif /* __FreeBSD__ */
 
 #ifdef hp300
 #include <hp300/dev/device.h>

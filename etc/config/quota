@@ -1,0 +1,5 @@
+# $Id: quota,v 1.1 1993/11/11 23:59:58 wollman Exp $
+# This file determines whether quotas are enabled upon system startup.
+# This option does not effect whether the kernel supports quotas.
+# The default is off.
+off

@@ -62,6 +62,10 @@ static char sccsid[] = "@(#)sys_bsd.c	5.2 (Berkeley) 3/1/91";
 #else
 #define	SIG_FUNC_RET	int
 #endif
+#ifdef	SIGINFO
+extern	SIG_FUNC_RET ayt_status();
+#endif
+extern void intp(), sendbrk();
 
 int
 	tout,			/* Output file descriptor */
@@ -175,7 +179,7 @@ extern int kludgelinemode;
 TerminalSpecialChars(c)
     int	c;
 {
-    void xmitAO(), xmitEL(), xmitEC(), intp(), sendbrk();
+    void xmitAO(), xmitEL(), xmitEC();
 
     if (c == termIntChar) {
 	intp();
@@ -575,13 +579,15 @@ TerminalNewMode(f)
 
 	if (f & MODE_INBIN)
 		lmode |= LPASS8;
-	else
+	else {
 		lmode &= ~LPASS8;
+		lmode |= olmode & LPASS8;
+	}
 #else
 	if (f & MODE_INBIN)
 		tmp_tc.c_iflag &= ~ISTRIP;
 	else
-		tmp_tc.c_iflag |= ISTRIP;
+		tmp_tc.c_iflag |= old_tc.c_iflag & ISTRIP;
 	if (f & MODE_OUTBIN) {
 		tmp_tc.c_cflag &= ~(CSIZE|PARENB);
 		tmp_tc.c_cflag |= CS8;
@@ -649,7 +655,6 @@ TerminalNewMode(f)
 #endif
     } else {
 #ifdef	SIGINFO
-	SIG_FUNC_RET ayt_status();
 
 	(void) signal(SIGINFO, ayt_status);
 #endif	SIGINFO
@@ -696,6 +701,14 @@ TerminalNewMode(f)
 # define B38400 B19200
 #endif
 
+#ifndef B57600
+# define B57600 B38400
+#endif
+
+#ifndef B115200
+# define B115200 B57600
+#endif
+
 /*
  * This code assumes that the values B0, B50, B75...
  * are in ascending order.  They do not have to be
@@ -710,7 +723,8 @@ struct termspeeds {
 	{ 200,   B200 },   { 300,   B300 },  { 600,   B600 },
 	{ 1200,  B1200 },  { 1800,  B1800 }, { 2400,  B2400 },
 	{ 4800,  B4800 },  { 9600,  B9600 }, { 19200, B19200 },
-	{ 38400, B38400 }, { -1,    B38400 }
+	{ 38400, B38400 }, { 57600, B57600 },{ 115200,B115200},
+	{ -1,    B115200 }
 };
 
     void

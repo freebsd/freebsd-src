@@ -1034,7 +1034,8 @@ Instead, you may identify the line you want to change
 by asking edit to search for a specified pattern of letters
 that occurs in that line.
 The parts of the above command are:
-.TS
+.\".TS
+.sp 1
 .in +1i
 .nr 35 \n(.u
 .nf
@@ -1083,7 +1084,8 @@ The parts of the above command are:
 .T# 1
 .if \n(35>0 .fi
 .in -1i
-.TE
+.\".TE
+.sp 1
 .PP
 You should note the space after ``but'' in ``/strange, but /''. 
 If you do not indicate that the space is to be taken out,

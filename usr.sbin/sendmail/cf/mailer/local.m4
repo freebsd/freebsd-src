@@ -32,8 +32,8 @@ PUSHDIVERT(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `rn')')
-ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/libexec/mail.local)')
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `rmn')')
+ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /bin/mail)')
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -d $u')')
 ifdef(`LOCAL_SHELL_FLAGS',, `define(`LOCAL_SHELL_FLAGS', `eu')')
 ifdef(`LOCAL_SHELL_PATH',, `define(`LOCAL_SHELL_PATH', /bin/sh)')
@@ -44,15 +44,21 @@ POPDIVERT
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-VERSIONID(`@(#)local.m4	8.3 (Berkeley) 7/13/93')
+VERSIONID(`@(#)local.m4	8.6 (Berkeley) 10/24/93')
 
-Mlocal,		P=LOCAL_MAILER_PATH, F=CONCAT(`lsDFMm', LOCAL_MAILER_FLAGS), S=10, R=20,
+Mlocal,		P=LOCAL_MAILER_PATH, F=CONCAT(`lsDFM', LOCAL_MAILER_FLAGS), S=10, R=20/40,
 		A=LOCAL_MAILER_ARGS
-Mprog,		P=LOCAL_SHELL_PATH, F=CONCAT(`lsDFM', LOCAL_SHELL_FLAGS), S=10, R=20, D=$z:/,
+Mprog,		P=LOCAL_SHELL_PATH, F=CONCAT(`lsDFM', LOCAL_SHELL_FLAGS), S=10, R=20/40, D=$z:/,
 		A=LOCAL_SHELL_ARGS
 
 S10
 R<@>			$n			errors to mailer-daemon
+R$+			$: $>40 $1
+
+S20
+R$+ < @ $* >		$: $1			strip host part
+
+S40
 ifdef(`_ALWAYS_ADD_DOMAIN_',
 `R$* < @ $* > $*		$@ $1 < @ $2 > $3	already fully qualified
 R$*			$: $1 @ $M		add local qualification

@@ -1,0 +1,37 @@
+These are the rules so that older bsd systems and the POSIX standard
+system can coexist togather.
+
+  1) If you use select then include "ntp_select.h"
+     select is not standard, since it is very system depenedent as to where
+     select is defined.  The logic to include the right system dependent
+     include file is in "ntp_select.h".
+  2) Always use POSIX defintion of strings.  Inlcude "ntp_string.h" instaed
+     of <string.h>.
+  3) Always include "ntp_malloc.h" if you use malloc.
+  4) Always include "ntp_io.h" instead of <sys/file.h> or <fnctl.h> to
+     get O_* flags.
+  5) Always include "ntp_if.h" instead of <net/if.h>.
+  6) Always include "ntp_stdlib.h" instead of <stdlib.h>.
+  7) Always define a system identifier for any new system added to the
+     machines directory.  The identifier should always start with SYS_!
+  8) Define any special defines needed for a system in
+     ./include/ntp_machine.h based on system identifier. This file is
+     included by the "ntp_types.h" file and should always be placed
+     first after the <> defines.
+  9) Define any special library prototypes left over from the system
+     library and include files in the "l_stdlib.h" file. This file is
+     included by the "ntp_stdlib.h" file and should ordinarily be
+     placed last in the includes list.
+ 10) Don't define a include file by the same name as a system include file.
+     
+  
+"l_stdlib.h" can contain any extra definitions that are needed so that 
+gcc will shut up.  They should be controlled by a system identifier and 
+there should be a seperate section for each system. Really this will
+make it easier to maintain. 
+
+See include/ntp_machines.h for the verious compile time options.
+
+Good luck.
+
+Bill Jones, with amendments by Dave Mills

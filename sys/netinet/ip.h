@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ip.h	7.10 (Berkeley) 6/28/90
- *	$Id: ip.h,v 1.2 1993/10/16 18:26:08 rgrimes Exp $
+ *	$Id: ip.h,v 1.3 1993/11/07 17:47:54 wollman Exp $
  */
+
+#ifndef _NETINET_IP_H_
+#define _NETINET_IP_H_ 1
 
 /*
  * Definitions for internet protocol version 4.
@@ -165,3 +168,4 @@ struct	ip_timestamp {
 #define	IPTTLDEC	1		/* subtracted when forwarding */
 
 #define	IP_MSS		576		/* default maximum segment size */
+#endif /* _NETINET_IP_H_ */

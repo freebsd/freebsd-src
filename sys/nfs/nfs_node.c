@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_node.c	7.34 (Berkeley) 5/15/91
- *	$Id: nfs_node.c,v 1.2 1993/09/09 22:06:02 rgrimes Exp $
+ *	$Id: nfs_node.c,v 1.4 1994/01/31 23:40:48 martin Exp $
  */
 
 #include "param.h"
@@ -162,6 +162,7 @@ loop:
 	np->n_sillyrename = (struct sillyrename *)0;
 	np->n_size = 0;
 	np->n_mtime = 0;
+	np->n_lockf = 0;
 	*npp = np;
 	return (0);
 }
@@ -249,6 +250,7 @@ nfs_reclaim(vp)
  * for doing it just in case it is needed.
  */
 int donfslocking = 0;
+
 /*
  * Lock an nfsnode
  */
@@ -259,7 +261,7 @@ nfs_lock(vp)
 	register struct nfsnode *np = VTONFS(vp);
 
 	if (!donfslocking)
-		return;
+		return 0;
 	while (np->n_flag & NLOCKED) {
 		np->n_flag |= NWANT;
 		if (np->n_lockholder == curproc->p_pid)

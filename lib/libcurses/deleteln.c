@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,43 +32,50 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deleteln.c	5.4 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)deleteln.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
+#include <string.h>
 
 /*
- *	This routine deletes a line from the screen.  It leaves
- * (_cury,_curx) unchanged.
- *
+ * wdeleteln --
+ *	Delete a line from the screen.  It leaves (cury, curx) unchanged.
  */
+int
 wdeleteln(win)
-reg WINDOW	*win;
+	register WINDOW *win;
 {
-	reg chtype      *temp;
-	reg int		y;
-	reg chtype      *end;
-	reg int		x;
+	register int y, i;
+	register __LINE *temp;
 
-# ifdef DEBUG
-	fprintf(outf, "DELETELN(%0.2o)\n", win);
-# endif
-	temp = win->_y[win->_cury];
-	for (y = win->_cury; y < win->_maxy - 1; y++) {
-		if (win->_orig == NULL)
-			win->_y[y] = win->_y[y + 1];
+#ifdef DEBUG
+	__CTRACE("deleteln: (%0.2o)\n", win);
+#endif
+	temp = win->lines[win->cury];
+	for (y = win->cury; y < win->maxy - 1; y++) {
+		win->lines[y]->flags &= ~__ISPASTEOL;
+		win->lines[y + 1]->flags &= ~__ISPASTEOL;
+		if (win->orig == NULL)
+			win->lines[y] = win->lines[y + 1];
 		else
-			bcopy(win->_y[y + 1], win->_y[y], win->_maxx * sizeof(chtype));
-		touchline(win, y, 0, win->_maxx - 1);
+			(void) memcpy(win->lines[y]->line, 
+			    win->lines[y + 1]->line, 
+			    win->maxx * __LDATASIZE);
+		__touchline(win, y, 0, win->maxx - 1, 0);
 	}
-	if (win->_orig == NULL)
-		win->_y[y] = temp;
+
+	if (win->orig == NULL)
+		win->lines[y] = temp;
 	else
-		temp = win->_y[y];
-	for (end = &temp[win->_maxx]; temp < end; )
-		*temp++ = ' ';
-	touchline(win, y, 0, win->_maxx - 1);
-	if (win->_orig == NULL)
-		_id_subwins(win);
-	return OK;
+		temp = win->lines[y];
+
+	for(i = 0; i < win->maxx; i++) {
+		temp->line[i].ch = ' ';
+		temp->line[i].attr = 0;
+	}
+	__touchline(win, y, 0, win->maxx - 1, 0);
+	if (win->orig == NULL)
+		__id_subwins(win);
+	return (OK);
 }

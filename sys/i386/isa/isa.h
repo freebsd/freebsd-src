@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.2 1993/10/16 13:45:57 rgrimes Exp $
+ *	$Id: isa.h,v 1.4 1994/01/05 15:03:28 rgrimes Exp $
  */
+
+#ifndef _I386_ISA_ISA_H_
+#define _I386_ISA_ISA_H_ 1
 
 /*
  * ISA Bus conventions
@@ -63,8 +66,8 @@ int isa_irq_pending __P((struct isa_device *dvp));
 		/* CPU Board */
 #define IO_DMA1		0x000		/* 8237A DMA Controller #1 */
 #define IO_ICU1		0x020		/* 8259A Interrupt Controller #1 */
-#define IO_TIMER1	0x040		/* 8252 Timer #1 */
-#define IO_TIMER2	0x048		/* 8252 Timer #2 */
+#define IO_TIMER1	0x040		/* 8253 Timer #1 */
+#define IO_TIMER2	0x048		/* 8253 Timer #2 */
 #define IO_KBD		0x060		/* 8042 Keyboard */
 #define IO_RTC		0x070		/* RTC */
 #define IO_NMI		IO_RTC		/* NMI Control */
@@ -178,3 +181,4 @@ int isa_irq_pending __P((struct isa_device *dvp));
 #define	WEITEK_FPU	0xC0000000	/* WTL 2167 */
 #define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
 #endif	COMPAQ_RAMRELOC
+#endif /* _I386_ISA_ISA_H_ */

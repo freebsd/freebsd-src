@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)uio.h	7.8 (Berkeley) 4/15/91
- *	$Id: uio.h,v 1.2 1993/10/16 17:18:15 rgrimes Exp $
+ *	$Id: uio.h,v 1.3 1993/12/19 00:55:30 wollman Exp $
  */
 
 #ifndef _UIO_H_
@@ -69,7 +69,22 @@ struct uio {
 #define UIO_MAXIOV	1024		/* max 1K of iov's */
 #define UIO_SMALLIOV	8		/* 8 on stack, else malloc */
 
-#ifndef	KERNEL
+#ifdef	KERNEL
+
+extern int uiomove(void *, int, struct uio *);
+/*
+ * NB: argument cannot be properly declared because this function is often
+ * called with arguments not matching the appropriate type.  The actual
+ * type of the first argument is `int (*)(caddr_t, caddr_t, caddr_t, off_t,
+ * enum uio_rw, caddr_t, u_int *, struct proc *)'.
+ */
+
+typedef int (*uioapply_func_t)(caddr_t, caddr_t, caddr_t, off_t, enum uio_rw, caddr_t, u_int *, struct proc *);
+
+extern int uioapply(int (*)(), caddr_t, caddr_t, struct uio *);
+extern int ureadc(int, struct uio *);
+
+#else /* not KERNEL */
 
 #include <sys/cdefs.h>
 

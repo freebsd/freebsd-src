@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)uname.2	6.6 (Berkeley) 3/10/91
-.\"	$Id: uname.2,v 1.1 1993/10/08 01:06:55 jkh Exp $
+.\"	$Id: uname.2,v 1.2 1994/02/03 00:51:14 wollman Exp $
 .\"
 .Dd March 29, 1993
 .Dt UNAME 2
@@ -43,8 +43,10 @@
 .Ft int
 .Fn uname "struct utsname *name"
 .Sh DESCRIPTION
-.Fn Uname
-returns the information identifying the current UNIX system
+The
+.Fn uname
+function
+returns the information identifying the current operating system
 in the structure pointed to by
 .Fa name.
 .Pp
@@ -62,25 +64,33 @@ struct utsname {
 };
 .Ed
 .Pp
-.Fn Uname
+The
+.Fn uname
+function
 returns a null-terminated character string naming the
-current UNIX system in the character array
+current operating system in the character array
 .Fa sysname .
 Similarly,
 .Fa nodename
 contains the name that the system is known by on a
 communication network.
-.Fa Release
+The
+.Fa release
 and
 .Fa version
+fields
 further identify the operating system.
-.Fa Machine
+The
+.Fa machine
+field
 contains the standard name that identifies the hardware
-that the UNIX system is running on.
+that the operating system is running on.
 .Sn ERRORS
 .Bl -tag -width ENAMETOOLONGAA
 .It Bq Er EFAULT
-.Fn Uname
+The
+.Fn uname
+function
 will fail if
 .Fa name
 points to an invalid address.
@@ -97,4 +107,4 @@ is set to indicate the error.
 The
 .Nm uname
 function call appeared in
-System V.2 AT&T UNIX.
+.At V.2 .

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_user.h	7.10 (Berkeley) 5/6/91
- *	$Id: tp_user.h,v 1.2 1993/10/16 21:06:13 rgrimes Exp $
+ *	$Id: tp_user.h,v 1.3 1993/11/07 17:50:07 wollman Exp $
  */
 
 /***********************************************************
@@ -67,16 +67,10 @@ SOFTWARE.
  * These are the values a real-live user ;-) needs. 
  */
 
-#ifndef _TYPES_
-#ifdef KERNEL
-#include  "../sys/types.h"
-#else KERNEL
-#include  <sys/types.h>
-#endif KERNEL
-#endif
-
 #ifndef __TP_USER__
 #define __TP_USER__
+
+#include  <sys/types.h>
 
 struct tp_conn_param {
 	/* PER CONNECTION parameters */
@@ -168,4 +162,4 @@ struct tp_disc_reason {
  */
 
 
-#endif __TP_USER__
+#endif /* __TP_USER__ */

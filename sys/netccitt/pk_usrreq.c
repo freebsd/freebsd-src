@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pk_usrreq.c	7.16 (Berkeley) 6/27/91
- *	$Id: pk_usrreq.c,v 1.3 1993/10/16 19:46:56 rgrimes Exp $
+ *	$Id: pk_usrreq.c,v 1.5 1993/12/19 00:52:23 wollman Exp $
  */
 
 #include "param.h"
@@ -60,10 +60,10 @@
  * forward references
  */
 
-static
+static void
 old_to_new (struct mbuf *m);
 
-static
+static void
 new_to_old (struct mbuf *m);
 
 /*
@@ -77,11 +77,12 @@ new_to_old (struct mbuf *m);
  *
  */
 
+int
 pk_usrreq (so, req, m, nam, control)
-struct socket *so;
-int req;
-register struct mbuf *m, *nam;
-struct mbuf *control;
+	struct socket *so;
+	int req;
+	register struct mbuf *m, *nam;
+	struct mbuf *control;
 {
 	register struct pklcd *lcp = (struct pklcd *) so -> so_pcb;
 	register int error = 0;
@@ -305,12 +306,12 @@ release:
  * other X.25 level 2 driver, have the ifp -> if_ioctl routine
  * assign pk_start to ia -> ia_start when called with SIOCSIFCONF_X25.
  */
-/* ARGSUSED */
+int
 pk_start (lcp)
-register struct pklcd *lcp;
+	register struct pklcd *lcp;
 {
-	pk_output (lcp);
-	return (0); /* XXX pk_output should return a value */
+	pk_output (lcp, 0);
+	return 0;
 }
 
 #ifndef _offsetof
@@ -321,17 +322,18 @@ _offsetof(struct sockaddr_x25, x25_addr[0]),
 0, -1};
 
 /*ARGSUSED*/
+int
 pk_control (so, cmd, data, ifp)
-struct socket *so;
-int cmd;
-caddr_t data;
-register struct ifnet *ifp;
+	struct socket *so;
+	int cmd;
+	caddr_t data;
+	register struct ifnet *ifp;
 {
 	register struct ifreq_x25 *ifr = (struct ifreq_x25 *)data;
 	register struct ifaddr *ifa = 0;
 	register struct x25_ifaddr *ia = 0;
 	struct pklcd *dev_lcp = 0;
-	int error, s, old_maxlcn;
+	int error = 0, s, old_maxlcn;
 	unsigned n;
 
 	/*
@@ -396,7 +398,8 @@ register struct ifnet *ifp;
 		ia -> ia_start = pk_start;
 		s = splimp();
 		if (ifp -> if_ioctl)
-			error = (*ifp -> if_ioctl)(ifp, SIOCSIFCONF_X25, ifa);
+			error = (*ifp -> if_ioctl)(ifp, SIOCSIFCONF_X25, 
+						   (caddr_t)ifa);
 		if (error)
 			ifp -> if_flags &= ~IFF_UP;
 		else
@@ -411,10 +414,11 @@ register struct ifnet *ifp;
 	}
 }
 
+int
 pk_ctloutput (cmd, so, level, optname, mp)
-struct socket *so;
-struct mbuf **mp;
-int cmd, level, optname;
+	struct socket *so;
+	struct mbuf **mp;
+	int cmd, level, optname;
 {
 	register struct mbuf *m = *mp;
 	register struct pklcd *lcp = (struct pklcd *) so -> so_pcb;
@@ -460,9 +464,9 @@ int cmd, level, optname;
  * socket address to the new style
  */
 
-static
+static void
 old_to_new (m)
-register struct mbuf *m;
+	register struct mbuf *m;
 {
 	register struct x25_sockaddr *oldp;
 	register struct sockaddr_x25 *newp;
@@ -502,9 +506,9 @@ register struct mbuf *m;
  * socket address to the old style
  */
 
-static
+static void
 new_to_old (m)
-register struct mbuf *m;
+	register struct mbuf *m;
 {
 	register struct x25_sockaddr *oldp;
 	register struct sockaddr_x25 *newp;
@@ -534,9 +538,9 @@ register struct mbuf *m;
 	m -> m_len = sizeof (*oldp);
 }
 
-
+int
 pk_checksockaddr (m)
-struct mbuf *m;
+	struct mbuf *m;
 {
 	register struct sockaddr_x25 *sa = mtod (m, struct sockaddr_x25 *);
 	register char *cp;
@@ -554,9 +558,10 @@ struct mbuf *m;
 	return (0);
 }
 
+int
 pk_send (lcp, m)
-struct pklcd *lcp;
-register struct mbuf *m;
+	struct pklcd *lcp;
+	register struct mbuf *m;
 {
 	int mqbit = 0, error = 0;
 	register struct x25_packet *xp;

@@ -1,6 +1,14 @@
-# @(#)leapseconds	4.1
+# @(#)leapseconds	7.7
 
 # Allowance for leapseconds added to each timezone file.
+
+# The International Earth Rotation Service periodically uses leap seconds
+# to keep UTC to within 0.9 s of TAI (atomic time); see
+# Terry J Quinn, The BIPM and the accurate measure of time,
+# Proc IEEE 79, 7 (July 1991), 894-905.
+# There were no leap seconds before 1972, because the official mechanism
+# accounting for the discrepancy between atomic time and the earth's rotation
+# did not exist until the early 1970s.
 
 # The correction (+ or -) is made at the given time, so lines
 # will typically look like:
@@ -26,3 +34,8 @@ Leap	1982	Jun	30	23:59:60	+	S
 Leap	1983	Jun	30	23:59:60	+	S
 Leap	1985	Jun	30	23:59:60	+	S
 Leap	1987	Dec	31	23:59:60	+	S
+Leap	1989	Dec	31	23:59:60	+	S
+Leap	1990	Dec	31	23:59:60	+	S
+Leap	1992	Jun	30	23:59:60	+	S
+Leap	1993	Jun	30	23:59:60	+	S
+Leap	1994	Jun	30	23:59:60	+	S

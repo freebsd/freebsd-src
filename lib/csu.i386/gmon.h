@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)gmon.h	5.2 (Berkeley) 5/6/91
+ *	from: @(#)gmon.h	5.2 (Berkeley) 5/6/91
+ *	$Id: gmon.h,v 1.2 1993/11/04 01:09:18 paul Exp $
  */
 
 struct phdr {

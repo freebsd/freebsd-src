@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)recno.3	8.1 (Berkeley) 6/4/93
+.\"	@(#)recno.3	8.2 (Berkeley) 1/2/94
 .\"
-.TH RECNO 3 "June 4, 1993"
+.TH RECNO 3 "January 2, 1994"
 .UC 7
 .SH NAME
 recno \- record number database access method
@@ -66,58 +66,23 @@ is defined in the <db.h> include file as follows:
 .PP
 typedef struct {
 .RS
-u_char bval;
+u_long flags;
 .br
 u_int cachesize;
 .br
 index_t psize;
 .br
-u_long flags;
-.br
 int lorder;
 .br
 size_t reclen;
+.br
+u_char bval;
 .br
 char *bfname;
 .RE
 } RECNOINFO;
 .PP
 The elements of this structure are defined as follows:
-.TP
-bval
-The delimiting byte to be used to mark the end of a record for
-variable-length records, and the pad character for fixed-length
-records.
-If no value is specified, newlines (``\en'') are used to mark the end
-of variable-length records and fixed-length records are padded with
-spaces.
-.TP
-cachesize
-A suggested maximum size, in bytes, of the memory cache.
-This value is
-.B only
-advisory, and the access method will allocate more memory rather than fail.
-If
-.I cachesize
-is  0 (no size is specified) a default cache is used.
-.TP
-psize
-The recno access method stores the in-memory copies of its records
-in a btree.
-This value is the size (in bytes) of the pages used for nodes in that tree.
-If
-.I psize
-is 0 (no page size is specified) a page size is chosen based on the
-underlying file system I/O block size.
-See
-.IR btree (3)
-for more information.
-.TP
-bfname
-The recno access method stores the in-memory copies of its records
-in a btree.
-If bfname is non-NULL, it specifies the name of the btree file,
-as if specified as the file name for a dbopen of a btree file.
 .TP
 flags
 The flag value is specified by
@@ -151,6 +116,27 @@ is called, instead of permitting any unmodified records to be read from
 the original file.
 .RE
 .TP
+cachesize
+A suggested maximum size, in bytes, of the memory cache.
+This value is
+.B only
+advisory, and the access method will allocate more memory rather than fail.
+If
+.I cachesize
+is  0 (no size is specified) a default cache is used.
+.TP
+psize
+The recno access method stores the in-memory copies of its records
+in a btree.
+This value is the size (in bytes) of the pages used for nodes in that tree.
+If
+.I psize
+is 0 (no page size is specified) a page size is chosen based on the
+underlying file system I/O block size.
+See
+.IR btree (3)
+for more information.
+.TP
 lorder
 The byte order for integers in the stored database metadata.
 The number should represent the order as an integer; for example,
@@ -161,6 +147,20 @@ is 0 (no order is specified) the current host order is used.
 .TP
 reclen
 The length of a fixed-length record.
+.TP
+bval
+The delimiting byte to be used to mark the end of a record for
+variable-length records, and the pad character for fixed-length
+records.
+If no value is specified, newlines (``\en'') are used to mark the end
+of variable-length records and fixed-length records are padded with
+spaces.
+.TP
+bfname
+The recno access method stores the in-memory copies of its records
+in a btree.
+If bfname is non-NULL, it specifies the name of the btree file,
+as if specified as the file name for a dbopen of a btree file.
 .PP
 The data part of the key/data pair used by the recno access method
 is the same as other access methods.

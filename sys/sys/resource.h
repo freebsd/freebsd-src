@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)resource.h	7.5 (Berkeley) 3/17/91
- *	$Id: resource.h,v 1.2 1993/10/16 17:17:28 rgrimes Exp $
+ *	$Id: resource.h,v 1.3 1993/12/19 00:55:24 wollman Exp $
  */
 
 #ifndef _RESOURCE_H_
@@ -97,7 +97,11 @@ struct rlimit {
 	long	rlim_max;		/* maximum value for rlim_cur */
 };
 
-#ifndef KERNEL
+#ifdef KERNEL
+
+extern void ruadd(struct rusage *, struct rusage *);
+
+#else /* not KERNEL */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS

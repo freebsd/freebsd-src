@@ -38,7 +38,8 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cmp.c	5.3 (Berkeley) 6/1/90";
+/*static char sccsid[] = "from: @(#)cmp.c	5.3 (Berkeley) 6/1/90";*/
+static char rcsid[] = "$Id: cmp.c,v 1.2 1993/11/23 00:17:17 jtc Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -58,14 +59,14 @@ char	*file1, *file2;
 
 main(argc, argv)
 	int argc;
-	char *argv[];
+	char **argv;
 {
 	extern char *optarg;
 	extern int optind;
 	int ch;
 	u_long otoi();
 
-	while ((ch = getopt(argc, argv, "-ls")) != EOF)
+	while ((ch = getopt(argc, argv, "ls")) != -1)
 		switch (ch) {
 		case 'l':		/* print all differences */
 			all = 1;
@@ -73,25 +74,19 @@ main(argc, argv)
 		case 's':		/* silent run */
 			silent = 1;
 			break;
-		case '-':		/* must be after any flags */
-			--optind;
-			goto endargs;
 		case '?':
 		default:
 			usage();
 		}
-endargs:
 	argv += optind;
 	argc -= optind;
 
 	if (argc < 2 || argc > 4)
 		usage();
 
-	if (all && silent) {
-		fprintf(stderr,
-		    "cmp: only one of -l and -s may be specified.\n");
-		exit(EXITERR);
-	}
+	if (all && silent)
+		usage ();
+
 	if (strcmp(file1 = argv[0], "-") == 0)
 		fd1 = 0;
 	else if ((fd1 = open(file1, O_RDONLY, 0)) < 0)
@@ -257,10 +252,8 @@ error(filename)
 endoffile(filename)
 	char *filename;
 {
-	/* 32V put this message on stdout, S5 does it on stderr. */
-	/* POSIX.2 currently does it on stdout-- Hooray! */
 	if (!silent)
-		(void) printf("cmp: EOF on %s\n", filename);
+		(void) fprintf(stderr, "cmp: EOF on %s\n", filename);
 	exit(EXITDIFF);
 }
 
@@ -270,6 +263,6 @@ endoffile(filename)
  */
 usage()
 {
-	fputs("usage: cmp [-ls] file1 file2 [skip1] [skip2]\n", stderr);
+	fputs("usage: cmp [-l | -s] file1 file2 [skip1] [skip2]\n", stderr);
 	exit(EXITERR);
 }

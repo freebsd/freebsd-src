@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.7.2.1 1993/11/14 18:12:50 rgrimes Exp $
+ *	$Id: param.h,v 1.13 1994/01/31 04:18:54 davidg Exp $
  */
+
+#ifndef _MACHINE_PARAM_H_
+#define _MACHINE_PARAM_H_ 1
 
 /*
  * Machine dependent constants for Intel 386.
@@ -54,7 +57,10 @@
 
 /* XXX PGSHIFT and PG_SHIFT are two names for the same thing */
 #define PGSHIFT		12		/* LOG2(NBPG) */
-#define NBPG		(1 << PGSHIFT)	/* bytes/page */
+#define PAGE_SHIFT	12
+#define NBPG		(1 << PAGE_SHIFT)	/* bytes/page */
+#define PAGE_SIZE	(1 << PAGE_SHIFT)
+#define PAGE_MASK	(PAGE_SIZE-1)
 #define PGOFSET		(NBPG-1)	/* byte offset into page */
 #define NPTEPG		(NBPG/(sizeof (struct pte)))
 
@@ -68,8 +74,7 @@
  * defined in pmap.h which is included after this we can't do that
  * (YET!)
  */
-#define KERNBASE	0xFE000000	/* start of kernel virtual */
-#define BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
+#define BTOPKERNBASE	(KERNBASE >> PGSHIFT)
 
 #define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #define DEV_BSIZE	(1 << DEV_BSHIFT)
@@ -145,6 +150,11 @@
 /*
  * Mach derived conversion macros
  */
+#define trunc_page(x)		((unsigned)(x) & ~(NBPG-1))
+#define round_page(x)		((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
+#define atop(x)			((unsigned)(x) >> PG_SHIFT)
+#define ptoa(x)			((unsigned)(x) << PG_SHIFT)
+
 #define i386_round_pdr(x)	((((unsigned)(x)) + NBPDR - 1) & ~(NBPDR-1))
 #define i386_trunc_pdr(x)	((unsigned)(x) & ~(NBPDR-1))
 #define i386_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
@@ -154,7 +164,4 @@
 #define i386_btop(x)		((unsigned)(x) >> PGSHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PGSHIFT)
 
-/*
- * phystokv stolen from SCSI device drivers and fixed to use KERNBASE
- */
-#define PHYSTOKV(x)	(x | KERNBASE)
+#endif /* _MACHINE_PARAM_H_ */

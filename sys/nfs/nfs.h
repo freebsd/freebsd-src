@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs.h	7.11 (Berkeley) 4/19/91
- *	$Id: nfs.h,v 1.2 1993/09/09 22:05:59 rgrimes Exp $
+ *	$Id: nfs.h,v 1.3 1993/11/07 17:50:56 wollman Exp $
  */
 
 #ifndef __h_nfs
@@ -164,7 +164,7 @@ struct nfsstats {
 };
 
 #ifdef KERNEL
-struct nfsstats nfsstats;
+extern struct nfsstats nfsstats;
 #endif /* KERNEL */
 
 #endif /* __h_nfs */

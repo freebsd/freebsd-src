@@ -1,0 +1,51 @@
+
+New features in version 2.2 include:
+
+o  A new "td" tag allows the specification of a "TFTP directory" for use
+   with so-called "secure" implementations of tftpd which chroot(2) to a
+   particular directory.
+
+o  A new "sa" tag allows the explicit specification of the TFTP
+   "server address."  Formerly, the 'siaddr' field of the BOOTREPLY was
+   always filled with the IP address of the BOOTP server.  The "sa" tag
+   now allows the BOOTP server and the TFTP server to be two different
+   machines, if desired.
+
+o  The server now automatically determines whether it is running as a
+   standalone program (e.g. invoked by hand from a shell) or as a child of
+   /etc/inetd.  The -s option and a new -i option are provided to force
+   standalone or inetd mode if necessary.
+
+o  When the vendor magic cookie is zero, BOOTP replies now default to the
+   RFC 1084 vendor format, rather than the old CMU format.  This helps
+   interoperability with uncooperative BOOTP clients which want RFC 1084
+   format but don't bother filling in the magic cookie properly to tell
+   the server... *sigh*  (This makes the ":vm=rfc1048:" tag unnecessary
+   in most cases now.  Oh, the "vm" tag now accepts "rfc1084" as well as
+   "rfc1048" -- they mean the same thing.)
+
+o  Log messages now include the specific network type.  For example, rather
+   than saying "request from hardware address ABCDEF012345", the message is
+   now "request from Ethernet address ABCEDF012345", or "request from
+   IEEE802 address 4000A1B2C3D4".
+
+
+Bug fixes in this version include:
+
+o  The automatic bootfile-size calculation now works correctly when the
+   file size is an exact multiple of 512 octets.  It used to return a number
+   which was one 512-octet unit greater than necessary.
+
+o  A bug in comparing subnet masks has been fixed.
+
+o  A bug in calculating the size of the vendor information area when
+   inserting the hostname has been fixed.
+
+
+Other changes:
+
+o  The man page has been split into two man pages.  One covers the server
+   itself (bootpd.8) and the other covers the configuration file format
+   (bootptab.5).
+
+

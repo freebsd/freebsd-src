@@ -1,0 +1,5 @@
+# $Id: routed,v 1.1 1993/11/11 23:59:59 wollman Exp $
+# This option determines whether routed is automatically started at
+# boot time.  It should probably be turned off, but for now the
+# default is on.
+on

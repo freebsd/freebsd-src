@@ -58,7 +58,7 @@ char	*entp;
 char	**sortbase;
 
 char	*index();
-int	argcmp();
+static int	argcmp();
 
 #define sort()	qsort((char *)sortbase, &eargv[eargc] - sortbase, \
 		      sizeof(*sortbase), argcmp), sortbase = &eargv[eargc]

@@ -1,0 +1,41 @@
+
+The FreeBSD software is being mirrored at the following locations:
+
+Country		Site/Directory/Maintainer
+=======		=========================================================
+
+Austria		ftp.tu-graz.ac.at:/pub/FreeBSD	
+		<ftp@ftp.tu-graz.ac.at>
+
+Finland		ftp.funet.fi:/pub/unix/FreeBSD
+		<unix-adm@nic.funet.fi>
+
+France		ftp.ibp.fr:/pub/FreeBSD
+		<ftp@ftp.ibp.fr>
+
+Germany		ftp.informatik.tu-muenchen.de:/pub/comp/os/bsd/FreeBSD
+		<unknown>
+
+Germany		ftp.uni-duisburg.de:/pub/unix/FreeBSD
+		<ftp@ftp.uni-duisburg.de>
+
+Germany		gil.physik.rwth-aachen.de:/pub/FreeBSD
+		<kuku@acds.physik.rwth-aachen.de>
+
+Hong Kong	ftp.cs.cuhk.hk:/pub/FreeBSD
+		<unknown>
+
+Netherlands	ftp.nl.net:/pub/os/FreeBSD
+		<archive@nl.net>
+
+Russia		ftp.kiae.su:/FreeBSD
+		<arcman@kiae.su>
+
+UK		src.doc.ic.ac.uk:/packages/FreeBSD
+		<unknown>
+
+USA		ftp.dsu.edu:/pub/FreeBSD
+		<ghelmer@alpha.dsu.edu>
+
+
+$Id: MIRROR.SITES,v 1.7.2.1 1994/04/18 04:41:53 rgrimes Exp $

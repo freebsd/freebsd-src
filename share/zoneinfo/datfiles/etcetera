@@ -1,4 +1,4 @@
-# @(#)etcetera	4.4
+# @(#)etcetera	7.1
 
 # All of these are set up just so people can "zic -l" to a timezone
 # that's right for their area, even if it doesn't have a name or dst rules

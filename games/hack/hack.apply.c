@@ -4,7 +4,7 @@
 #include	"hack.h"
 #include	"def.edog.h"
 #include	"def.mkroom.h"
-extern struct monst *bchit();
+static struct monst *bchit();
 extern struct obj *addinv();
 extern struct trap *maketrap();
 extern int (*occupation)();

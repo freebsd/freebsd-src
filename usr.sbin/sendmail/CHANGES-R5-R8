@@ -1,22 +1,36 @@
 	SUMMARY OF CHANGES BETWEEN SENDMAIL V5 and V8
+		@(#)CHANGES-R5-R8	8.1 (Berkeley) 2/26/94
 
 The following is a summary of the changes between the last commonly
 available version of sendmail from Berkeley (5.67) and the latest
-version (8.1).  I can't guarantee that it is complete.
+version (8.6).  I can't guarantee that it is complete.
+
+Many of these are ideas that had been tried in IDA, albeit many of
+them with a more general syntax.
 
 
 Connection Caching
 
-   Instead of closing SMTP connections immediately, those connections
-   are cached for possible future use.  The advent of MX records made
-   this effective for mailing lists; in addition, substantial performance
-   improvements can be expected for queue processing.
+   Instead of closing SMTP connections immediately, open connections are
+   cached for possible future use.  There is a limit to the number of
+   simultaneous open connections and the idle time of any individual
+   connection.
+   
+   This is of best help during queue processing (since there is the
+   potential of many different messages going to one site), although
+   it can also help when processing MX records which aren't handled
+   by MX Piggybacking.
 
 MX Piggybacking
 
    If two hosts with different names in a single message happen to
    have the same set of MX hosts, they can be sent in the same
    transaction.  Version 8 notices this and tries to batch the messages.
+
+   For example, if two sites ``foo.com'' and ``bar.com'' are both
+   served by UUNET, they will have the same set of MX hosts and will
+   be sent in one transaction.  UUNET will then split the message
+   and send it to the two individual hosts.
 
 RFC 1123 Changes
 
@@ -26,23 +40,59 @@ RFC 1123 Changes
 
    The major areas of change are (numbers are RFC 1123 section numbers):
 
-   5.2.7	Response to RCPT command is fast.
+   5.2.7	Response to RCPT command is fast.  Previously, sendmail
+		expanded all aliases as far as it could -- this could
+		take a very long time, particularly if there were
+		name server delays.  Version 8 only checks for the
+		existence of an alias and does the expansion later.
    5.2.8	Numeric IP addresses are logged in Received: lines.
-   5.2.17	Self domain literal is properly handled.
-   5.3.2	Better control over individual timeouts.
-   5.3.3	Error messages are sent as From:<>.
-   5.3.3	Error messages are never sent to <>.
-   5.3.3	Route-addrs are pruned.
+		This helps tracing spoofed messages.
+   5.2.17	Self domain literal is properly handled.  Previously,
+		if someone sent to user@[a.b.c.d], where a.b.c.d is
+		your IP address, the mail would probably be rejected.
+		Version 8 special cases these addresses.
+   5.3.2	Better control over individual timeouts.  RFC 821 specified
+		no timeouts.  Older versions of sendmail had a single
+		timeout, typically set to two hours.  Version 8 allows
+		the configuration file to set timeouts for various
+		SMTP commands individually.
+   5.3.3	Error messages are sent as From:<>.  This was urged by
+		RFC 821 and reiterated by RFC 1123, but older versions
+		of sendmail never really did it properly.  Version 8
+		does.  However, some systems cannot handle this
+		perfectly legal address; if necessary, you can create
+		a special mailer that uses the `g' flag to disable this.
+   5.3.3	Error messages are never sent to <>.  Previously,
+		sendmail was happy to send responses-to-responses which
+		sometimes resulted in responses-to-responses-to-responses
+		which resulted in ....  you get the idea.
+   5.3.3	Route-addrs (the ugly ``<@hosta,@hostb:user@hostc>''
+		syntax) are pruned.  RFC 821 urged the use of this
+		bletcherous syntax.  RFC 1123 has seen the light and
+		officially deprecates them, further urging that you
+		eliminate all but ``user@hostc'' should you receive
+		one of these things.  Version 8 is slightly more generous
+		than the standards suggest; instead of stripping off all
+		the route addressees, it only strips hosts off up to
+		the one before the last one known to DNS, thus allowing
+		you to have pseudo-hosts such as foo.BITNET.  The 'R'
+		option will turn this off.
 
    The areas in which sendmail is not ``unconditionally compliant'' are:
 
    5.2.6	Sendmail does do header munging.
    5.2.10	Sendmail doesn't always use the exact SMTP message
-		text from RFC 821.
+		text from RFC 821.  This is a rather silly requirement.
    5.3.1.1	Sendmail doesn't guarantee only one connect for each
-		host on queue runs.
+		host on queue runs.  Connection caching gives you most
+		of this, but it does not provide a guarantee.
    5.3.1.1	Sendmail doesn't always provide an adequate limit
-		on concurrency.
+		on concurrency.  That is, there can be several
+		independent sendmails running at once.  My feeling
+		is that doing an absolute limit would be a mistake
+		(it might result in lost mail).  However, if you use
+		the XLA contributed software, most of this will be
+		guaranteed (but I don't guarantee the guarantee).
 
 Extended SMTP Support
 
@@ -65,6 +115,10 @@ User Database
    unified large-site name support.  We are installing it at Berkeley;
    future versions may show significant modifications.
 
+   The user database allows you to map both incoming and outgoing
+   addresses, much like IDA.  However, the interface set is still
+   better with IDA.
+
 Improved BIND Support
 
    The BIND support, particularly for MX records, had a number of
@@ -73,15 +127,19 @@ Improved BIND Support
    to sendmail, so that the name server resolution rules are incorporated
    directly into sendmail.
 
+   The major change has been that the $[ ... $] operator didn't fully
+   qualify names that were in DNS as A or MX records.  Version 8 does
+   this qualification.
+
 Keyed Files
 
    Generalized keyed files is an idea taken directly from IDA sendmail
    (albeit with a completely different implementation).  They can be
    useful on large sites.
 
-   Version 8 also understands YP.
+   Version 8 includes an "NIS" map class to support NIS/YP maps.
 
-Multi-Word Classes
+Multi-Word Classes & Macros in Classes
 
    Classes can now be multiple words.  For example,
 
@@ -90,9 +148,15 @@ Multi-Word Classes
    allows you to match the entire string ``hofmann.CS.Berkeley.EDU''
    using the single construct ``$=S''.
 
+   Class definitions are now allowed to include macros -- for example:
+
+	Cw$k
+
+   is legal.
+
 Deferred Macro Expansion
 
-   The $&x construct has been adopted from IDA .
+   The $&x construct has been adopted from IDA.
 
 IDENT Protocol Support
 
@@ -161,21 +225,28 @@ New Options
 
    b	Insist on a minimum number of disk blocks.
 
-   C	Delivery checkpoint interval.
+   C	Delivery checkpoint interval.  Checkpoint the queue (to avoid
+	duplicate deliveries) every C addresses.
 
-   E	Default error message.
+   E	Default error message.  This message (or the contents of the
+	indicated file) are prepended to error messages.
 
-   G	Enable GECOS matching.
+   G	Enable GECOS matching.  If you can't find a local user name
+	and this option is enabled, do a sequential scan of the passwd
+	file to match against full names.  Previously a compile option.
 
-   h	Maximum hop count.
+   h	Maximum hop count.  Previously this was compiled in.
 
    j	Send errors in MIME-encapsulated format.
 
-   J	Forward file path.
+   J	Forward file path.  Where to search for .forward files -- defaults
+	to $HOME/.forward.
 
-   k	Connection cache size
+   k	Connection cache size.  The total number of connections that will
+	be kept open at any time.
 
-   K	Connection cache lifetime.
+   K	Connection cache lifetime.  The amount of time any connection
+	will be permitted to sit idle.
 
    l	Enable Errors-To: header.  These headers violate RFC 1123;
   	this option is included to provide back compatibility with
@@ -183,15 +254,27 @@ New Options
 
    O	Incoming daemon options (e.g., use alternate SMTP port).
 
-   p	Privacy options.
+   p	Privacy options.  These can be used to make your SMTP server
+	less friendly.
 
-   R	Don't prune route-addrs.
+   R	Don't prune route-addrs.  Normally, if version 8 sees an address
+	like "<@hostA,@hostB:user@hostC>, sendmail will try to strip off
+	as much as it can (up to user@hostC) as suggested by RFC 1123.
+	This option disables that behaviour.
 
-   U	User database spec.
+   U	User database spec.  This is still experimental.
 
-   V	Fallback ``MX'' host.
+   V	Fallback ``MX'' host.  This can be thought of as an MX host
+	that applies to all addresses that has a very high preference
+	value (that is, use it only if everything else fails).
 
-   7	Do not run eight bit clean.
+   w	If set, assume that if you are the best MX host for a host,
+	you should send directly to that host.  This is intended
+	for compatibility with UIUC sendmail, and may have some
+	use on firewalls.
+
+   7	Do not run eight bit clean.  Technically, you have to assert
+	this option to be RFC 821 compatible.
 
 Extended Options
 
@@ -201,28 +284,53 @@ Extended Options
    The `A' (alias file) option has been extended to allow multiple
    alias files of different types.
 
+New Mailer Keyletters
+
+   L=	Set the allowable line length.  In V5, the L mailer flag implied
+	a line length limit of 990 characters; this is now settable to
+	an arbitrary value.
+
 New Mailer Flags
 
-   a	Try to use ESMTP.  It will fall back to SMTP if the initial
+   F=a	Try to use ESMTP.  It will fall back to SMTP if the initial
   	EHLO packet is rejected.
 
-   b	Ensure a blank line at the end of messages.
+   F=b	Ensure a blank line at the end of messages.  Useful on the
+	*file* mailer.
 
-   c	Strip all comments from addresses; this should only be used as
+   F=c	Strip all comments from addresses; this should only be used as
   	a last resort when dealing with cranky mailers.
 
-   g	Never use the null sender as the envelope sender, even when
+   F=g	Never use the null sender as the envelope sender, even when
 	running SMTP.  This violates RFC 1123.
 
-   7	Strip all output to this mailer to 7 bits.
+   F=7	Strip all output to this mailer to 7 bits.
 
-New Pre-Defined Macros
+Changed Mailer Flags
+
+   F=L	Used to set the line limit to 990 bytes for SMTP compatibility.
+	It now does that only if the L= keyletter is not specified.
+	This flag is obsolete and should not be used.
+
+New or Changed Pre-Defined Macros
 
    $k	UUCP node name from uname(2).
 
    $m	Domain part of our full hostname.
 
    $_	RFC 1413-provided sender address.
+
+   $w	Previously was sometimes the full domain name, sometimes
+	just the first word.  Now guaranteed to be the first word
+	of the domain name (i.e., the host name).
+
+   $j	Previously had to be defined -- it is now predefined to be
+	the full domain name, if that can be determined.  That is,
+	it is equivalent to $w.$m.
+
+New Classes
+
+   $=k	Initialized to contain $k.
 
 New LHS Token
 
@@ -257,7 +365,15 @@ Auto-Quoting in Addresses
 Symbolic Names On Error Mailer
 
    Several names have been built in to the $@ portion of the $#error
-   mailer.
+   mailer.  For example:
+
+	$#error $@NOHOST $: Host unknown
+
+New Built-In Mailers
+
+   Two new mailers, *file* and *include*, are included to define options
+   when mailing to a file or a :include: file respectively.  Previously
+   these were overloaded on the local mailer.
 
 SMTP VRFY Doesn't Expand
 
@@ -267,6 +383,7 @@ SMTP VRFY Doesn't Expand
    As an optimization, if you run with your default delivery mode
    being queue-only, the RCPT command will also not chase aliases and
    .forward files.  It will chase them when it processes the queue.
+   This speeds up RCPT processing.
 
 [IPC] Mailers Allow Multiple Hosts
 
@@ -281,7 +398,10 @@ SMTP VRFY Doesn't Expand
 Aliases Extended
 
    The implementation has been merged with maps.  Among other things,
-   this supports NIS-based aliases.
+   this supports multiple alias files and NIS-based aliases.  For
+   example:
+
+	OA/etc/aliases,nis:mail.aliases
 
 Portability and Security Enhancements
 
@@ -289,13 +409,34 @@ Portability and Security Enhancements
 
    Several fixes have been made to increase the paranoia factor.
 
+   In particular, the permissions required for .forward and :include:
+   files have been tightened up considerably.  V5 would pretty much
+   read any file it could get to as root, which exposed some security
+   holes.  V8 insists that all directories leading up to the .forward
+   or :include: file be searchable ("x" permission) by the controlling
+   user" (defined below), that the file itself be readable by the
+   controlling user, and that .forward files be owned by the user
+   who is being forwarded to or root.
+
+   The "controlling user" is the user on whose behalf the mail is
+   being delivered.  For example, if you mail to "user1" then the
+   controlling user for ~user1/.forward and any mailers invoked
+   by that .forward file, including :include: files.
+
+   Previously, anyone who had a home directory could create a .forward
+   could forward to a program.  Now, sendmail checks to make sure
+   that they have an "approved shell", that is, a shell listed in
+   the /etc/shells file.
+
 Miscellaneous Enhancements
 
-   Sendmail writes a /etc/sendmail.pid file with the current process id.
+   Sendmail writes a /etc/sendmail.pid file with the current process id
+   and the current invocation flags.
 
    Two people using the same program (e.g., submit) are considered
    "different" so that duplicate elimination doesn't delete one of
-   them.
+   them.  For example, two people forwarding their email to
+   |submit will be treated as two recipients.
 
    The mailstats program prints mailer names and gets the location of
    the sendmail.st file from /etc/sendmail.cf.

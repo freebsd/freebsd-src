@@ -1,4 +1,5 @@
-#	@(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
+#	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
+#	$Id: bsd.subdir.mk,v 1.5 1994/01/31 06:10:40 rgrimes Exp $
 
 .MAIN: all
 

@@ -354,6 +354,8 @@ nextfree ()  {
 
 	new = freeq;
 	freeq = freeq->b_next;
+	new->b_next = 0;
+	return (new);
 }
 
 pickmove ()  {

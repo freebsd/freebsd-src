@@ -45,11 +45,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vfs__bio.c,v 1.7 1993/10/19 01:06:29 nate Exp $
+ *	$Id: vfs__bio.c,v 1.15 1994/01/31 05:57:45 davidg Exp $
  */
 
 #include "param.h"
 #include "systm.h"
+#include "kernel.h"
 #include "proc.h"
 #include "vnode.h"
 #include "buf.h"
@@ -58,6 +59,18 @@
 #include "malloc.h"
 #include "vm/vm.h"
 #include "resourcevar.h"
+
+/* From sys/buf.h */
+struct	buf *buf;		/* the buffer pool itself */
+char	*buffers;
+int	nbuf;			/* number of buffer headers */
+int	bufpages;		/* number of memory pages in the buffer pool */
+struct	buf *swbuf;		/* swap I/O headers */
+int	nswbuf;
+struct	bufhd bufhash[BUFHSZ];	/* heads of hash lists */
+struct	buf bfreelist[BQUEUES];	/* heads of available lists */
+struct	buf bswlist;		/* head of free swap header list */
+struct	buf *bclnlist;		/* head of cleaned page list */
 
 static struct buf *getnewbuf(int);
 extern	vm_map_t buffer_map;
@@ -283,12 +296,12 @@ brelse(register struct buf *bp)
 	x=splbio();
 	if ((bfreelist + BQ_AGE)->b_flags & B_WANTED) {
 		(bfreelist + BQ_AGE) ->b_flags &= ~B_WANTED;
-		wakeup(bfreelist);
+		wakeup((caddr_t)bfreelist);
 	}
 	/* anyone need this very block? */
 	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~B_WANTED;
-		wakeup(bp);
+		wakeup((caddr_t)bp);
 	}
 
 	if (bp->b_flags & (B_INVAL|B_ERROR)) {
@@ -342,14 +355,14 @@ start:
 
 /*#define notyet*/
 #ifndef notyet
-		if ((addr = malloc (sz, M_TEMP, M_WAITOK)) == 0) goto tryfree;
+		if ((addr = malloc (sz, M_IOBUF, M_WAITOK)) == 0) goto tryfree;
 #else /* notyet */
 		/* get new memory buffer */
 		if (round_page(sz) == sz)
 			addr = (caddr_t) kmem_alloc_wired_wait(buffer_map, sz);
 		else
-			addr = (caddr_t) malloc (sz, M_TEMP, M_WAITOK);
-	/*if ((addr = malloc (sz, M_TEMP, M_NOWAIT)) == 0) goto tryfree;*/
+			addr = (caddr_t) malloc (sz, M_IOBUF, M_WAITOK);
+	/*if ((addr = malloc (sz, M_IOBUF, M_NOWAIT)) == 0) goto tryfree;*/
 		bzero(addr, sz);
 #endif /* notyet */
 		freebufspace -= sz;
@@ -373,7 +386,7 @@ tryfree:
 	} else	{
 		/* wait for a free buffer of any kind */
 		(bfreelist + BQ_AGE)->b_flags |= B_WANTED;
-		sleep(bfreelist, PRIBIO);
+		tsleep((caddr_t)bfreelist, PRIBIO, "newbuf", 0);
 		splx(x);
 		return (0);
 	}
@@ -448,33 +461,30 @@ getblk(register struct vnode *vp, daddr_t blkno, int size)
 	struct buf *bp, *bh;
 	int x;
 
-	for (;;) {
-		if (bp = incore(vp, blkno)) {
-			x = splbio();
-			if (bp->b_flags & B_BUSY) {
-				bp->b_flags |= B_WANTED;
-				sleep (bp, PRIBIO);
-				splx(x);
-				continue;
-			}
-			bp->b_flags |= B_BUSY | B_CACHE;
-			bremfree(bp);
-			if (size > bp->b_bufsize)
-				panic("now what do we do?");
-			/* if (bp->b_bufsize != size) allocbuf(bp, size); */
-		} else {
-
-			if((bp = getnewbuf(size)) == 0) continue;
-			bp->b_blkno = bp->b_lblkno = blkno;
-			bgetvp(vp, bp);
-			x = splbio();
-			bh = BUFHASH(vp, blkno);
-			binshash(bp, bh);
-			bp->b_flags = B_BUSY;
+	x = splbio();
+loop:
+	if (bp = incore(vp, blkno)) {
+		if (bp->b_flags & B_BUSY) {
+			bp->b_flags |= B_WANTED;
+			tsleep ((caddr_t)bp, PRIBIO, "getblk", 0);
+			goto loop;
 		}
-		splx(x);
-		return (bp);
+		bp->b_flags |= B_BUSY | B_CACHE;
+		bremfree(bp);
+		if (size > bp->b_bufsize)
+			panic("now what do we do?");
+		/* if (bp->b_bufsize != size) allocbuf(bp, size); */
+	} else {
+
+		if ((bp = getnewbuf(size)) == 0) goto loop;
+		bp->b_blkno = bp->b_lblkno = blkno;
+		bgetvp(vp, bp);
+		bh = BUFHASH(vp, blkno);
+		binshash(bp, bh);
+		bp->b_flags = B_BUSY;
 	}
+	splx(x);
+	return (bp);
 }
 
 /*
@@ -512,12 +522,12 @@ allocbuf(register struct buf *bp, int size)
 
 	/* get new memory buffer */
 #ifndef notyet
-	newcontents = (caddr_t) malloc (size, M_TEMP, M_WAITOK);
+	newcontents = (caddr_t) malloc (size, M_IOBUF, M_WAITOK);
 #else /* notyet */
 	if (round_page(size) == size)
 		newcontents = (caddr_t) kmem_alloc_wired_wait(buffer_map, size);
 	else
-		newcontents = (caddr_t) malloc (size, M_TEMP, M_WAITOK);
+		newcontents = (caddr_t) malloc (size, M_IOBUF, M_WAITOK);
 #endif /* notyet */
 
 	/* copy the old into the new, up to the maximum that will fit */
@@ -525,12 +535,12 @@ allocbuf(register struct buf *bp, int size)
 
 	/* return old contents to free heap */
 #ifndef notyet
-	free (bp->b_un.b_addr, M_TEMP);
+	free (bp->b_un.b_addr, M_IOBUF);
 #else /* notyet */
 	if (round_page(bp->b_bufsize) == bp->b_bufsize)
 		kmem_free_wakeup(buffer_map, bp->b_un.b_addr, bp->b_bufsize);
 	else
-		free (bp->b_un.b_addr, M_TEMP);
+		free (bp->b_un.b_addr, M_IOBUF);
 #endif /* notyet */
 
 	/* adjust buffer cache's idea of memory allocated to buffer contents */
@@ -555,7 +565,7 @@ biowait(register struct buf *bp)
 
 	x = splbio();
 	while ((bp->b_flags & B_DONE) == 0)
-		sleep((caddr_t)bp, PRIBIO);
+		tsleep((caddr_t)bp, PRIBIO, "biowait", 0);
 	if((bp->b_flags & B_ERROR) || bp->b_error) {
 		if ((bp->b_flags & B_INVAL) == 0) {
 			bp->b_flags |= B_INVAL;
@@ -575,28 +585,84 @@ biowait(register struct buf *bp)
 }
 
 /*
- * Finish up operations on a buffer, calling an optional
- * function (if requested), and releasing the buffer if
- * marked asynchronous. Then mark this buffer done so that
- * others biowait()'ing for it will notice when they are
- * woken up from sleep().
+ * Finish up operations on a buffer, calling an optional function
+ *	(if requested), and releasing the buffer if marked asynchronous.
+ *	Mark this buffer done so that others biowait()'ing for it will
+ *	notice when they are woken up from sleep().
  */
-int
+void
 biodone(register struct buf *bp)
 {
-	int x;
+	bp->b_flags |= B_DONE;
 
-	x = splbio();
-	if (bp->b_flags & B_CALL) (*bp->b_iodone)(bp);
-	bp->b_flags &=  ~B_CALL;
-	if ((bp->b_flags & (B_READ|B_DIRTY)) == B_DIRTY)  {
-		bp->b_flags &=  ~B_DIRTY;
+	if ((bp->b_flags & B_READ) == 0)  {
 		vwakeup(bp);
 	}
-	if (bp->b_flags & B_ASYNC)
+
+	/* call optional completion function if requested */
+	if (bp->b_flags & B_CALL) {
+		bp->b_flags &= ~B_CALL;
+		(*bp->b_iodone)(bp);
+		return;
+	}
+
+/*
+ * For asynchronous completions, release the buffer now. The brelse
+ *	checks for B_WANTED and will do the wakeup there if necessary -
+ *	so no need to do a wakeup here in the async case.
+ */
+
+	if (bp->b_flags & B_ASYNC) {
 		brelse(bp);
-	bp->b_flags &=  ~B_ASYNC;
-	bp->b_flags |= B_DONE;
-	wakeup(bp);
-	splx(x);
+	} else {
+		bp->b_flags &= ~B_WANTED;
+		wakeup((caddr_t) bp);
+	}
+}
+
+/*
+ * Internel update daemon, process 3
+ *	The variable vfs_update_wakeup allows for internal syncs.
+ */
+int vfs_update_wakeup;
+
+void
+vfs_update() {
+	(void) spl0();
+	while(1) {
+		tsleep((caddr_t)&vfs_update_wakeup, PRIBIO, "update", hz*30);
+		vfs_update_wakeup = 0;
+		sync(curproc, NULL, NULL);
+	}
+}
+
+/*
+ * Print out statistics on the current allocation of the buffer pool.
+ * Can be enabled to print out on every ``sync'' by setting "syncprt"
+ * in ufs/ufs_vfsops.c.
+ */
+void
+bufstats()
+{
+	int s, i, j, count;
+	register struct buf *bp, *dp;
+	int counts[MAXBSIZE/CLBYTES+1];
+	static char *bname[BQUEUES] = { "LOCKED", "LRU", "AGE", "EMPTY" };
+
+	for (bp = bfreelist, i = 0; bp < &bfreelist[BQUEUES]; bp++, i++) {
+		count = 0;
+		for (j = 0; j <= MAXBSIZE/CLBYTES; j++)
+			counts[j] = 0;
+		s = splbio();
+		for (dp = bp->av_forw; dp != bp; dp = dp->av_forw) {
+			counts[dp->b_bufsize/CLBYTES]++;
+			count++;
+		}
+		splx(s);
+		printf("%s: total-%d", bname[i], count);
+		for (j = 0; j <= MAXBSIZE/CLBYTES; j++)
+			if (counts[j] != 0)
+				printf(", %d-%d", j * CLBYTES, counts[j]);
+		printf("\n");
+	}
 }

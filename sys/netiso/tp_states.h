@@ -1,7 +1,10 @@
 /*
  *	from: unknown
- *	$Id: tp_states.h,v 1.2 1993/10/16 21:06:01 rgrimes Exp $
+ *	$Id: tp_states.h,v 1.3 1993/11/07 17:50:01 wollman Exp $
  */
+
+#ifndef _NETISO_TP_STATES_H_
+#define _NETISO_TP_STATES_H_ 1
 
 #define ST_ERROR 0x0
 #define TP_CLOSED 0x1
@@ -14,3 +17,4 @@
 #define TP_CONFIRMING 0x8
 
 #define tp_NSTATES 0x9
+#endif /* _NETISO_TP_STATES_H_ */

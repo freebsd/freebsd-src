@@ -36,7 +36,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)cmp.c	5.4 (Berkeley) 3/8/91";
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/bin/ls/cmp.c,v 1.2 1993/06/29 02:59:30 nate Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/bin/ls/cmp.c,v 1.2 1993/06/29 02:59:30 nate Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+#	$Id: cpio.install,v 1.1 1994/02/21 21:51:50 rgrimes Exp $
+#
+
+echo
+echo -n "Copying to disk... "
+cd /
+gunzip < mnt/inst2.cpio.gz | cpio -idmu
+cd /mnt
+echo -n "Copying more to disk... "
+ls install magic | cpio -pdmu /
+echo -n "Copying even more to disk... "
+ls rc | cpio -pdmu /etc
+echo -n "Building /dev files... "
+cd /dev
+sh MAKEDEV all
+cd /
+echo "done."
+sync

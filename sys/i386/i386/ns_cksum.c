@@ -32,10 +32,11 @@
  *
  *	from: @(#)ns_cksum.c	7.7 (Berkeley) 4/29/91
  *	from NetBSD: ns_cksum.c,v 1.2 1993/05/22 07:59:55 cgd Exp
- *	$Id: ns_cksum.c,v 1.1 1993/09/06 12:12:24 rgrimes Exp $
+ *	$Id: ns_cksum.c,v 1.2 1993/12/19 00:50:07 wollman Exp $
  */
 
 #include "sys/param.h"
+#include "systm.h"
 #include "sys/mbuf.h"
 
 /*

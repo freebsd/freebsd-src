@@ -1,0 +1,193 @@
+#	@(#)README	8.40 (Berkeley) 1/12/94
+
+This is the README for version 1.01 of nvi, a freely redistributable
+replacement for the vi and ex text editors.  It can be retrieved via
+anonymous ftp from ftp.uu.net, or from ftp.cs.berkeley.edu.  In the
+latter, it is in the directory ucb/4bsd, and is named nvi.tar.Z.
+
+If you have any questions or problems with nvi, please send them to
+me by electronic mail at one of the following addresses:
+
+	uunet!bostic
+	bostic@cs.berkeley.edu
+
+Keith Bostic
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+o Redistribution:
+
+Nvi is copyrighted by the The Regents of the University of California,
+but may be freely redistributed (or used to line your birdcage) under
+the following conditions:
+
+/*-
+ * Copyright (c) 1994
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+o Credit where it's due:
+
+	This software was originally derived from software contributed
+	to the University of California, Berkeley by Steve Kirkendall,
+	the author of the vi clone elvis.  Without his work, this work
+	would have been far more difficult.
+
+	POSIX 1003.2 style regular expression support is courtesy of
+	Henry Spencer, for which I am *very* grateful.
+
+	The curses library was originally done by Ken Arnold.  Scrolling
+	and general reworking for 4.4BSD was done by Elan Amir.
+
+o From the original vi acknowledgements, by William Joy and Mark Horton:
+
+	Bruce Englar encouraged the early development of this display
+	editor.  Peter Kessler helped bring sanity to version 2's
+	command layout.  Bill Joy wrote versions 1 and 2.0 through 2.7,
+	and created the framework that users see in the present editor.
+	Mark Horton added macros and other features and made the editor
+	work on a large number of terminals and Unix systems.
+
+o And...
+
+	The financial support of UUNET Communications Services is gratefully
+	acknowledged.
+
+=-=-=-=-=-=-=-=-=-=-=
+o Comments:
+
+This software is beta software, although it's pretty stable.  Almost
+of the necessary functionality for ex/vi is in it, the only missing
+pieces are fairly obscure.
+
+Code fixes are very much appreciated, of course, but if you can't
+provide them, please send me as much information as you can as to how
+to reproduce the bug, and I'll try to fix it here.  In particular, the
+screen routines are nasty stuff, and you probably don't want to mess
+with them.  Stack traces of core dumps are sometimes helpful, but an
+example file with a set of keystrokes that causes the problem is far
+better.
+
+Nvi is mostly 8-bit clean.  This isn't difficult to fix, and was left in
+during initial development to make things easier.  Wide character support
+will be integrated at the same time it is made fully 8-bit clean.
+
+=-=-=-=-=-=-=-=-=-=-=
+o New features:
+
+There aren't a lot of new features in nex/nvi, but there are a few things
+you might like:
+
+	o 8-bit clean data, practically infinite lines/files.
+		^Vx[0-9A-Fa-f]* in input mode will insert any
+		legal character value.
+	o Split screens:
+		:sp[lit] [file ...] splits the screen.
+		^W switches between screens.
+		:resize count grows/shrinks the current screen.
+	o Background/foreground screens
+		:bg backgrounds the current screen.
+		:di[splay] s[creens] lists the hidden screens.
+		:fg [file] foregrounds the specified (or next) screen.
+	o Shell screens:
+		:sc[ript] [file ...] runs a shell in the screen.
+		Carriage return sends a line to the shell.
+	o Buffer, screens, tags display:
+		:di[splay] b[uffers] displays the current cut buffers.
+		:di[splay] s[creens] displays the hidden screen names.
+		:di[splay] t[ags] displays the current tags stack.
+	o Tag stacks:
+		^T returns to previous tag location.
+		:tagpop [number | file] returns to previous tag location,
+		     or, optionally tag #N, or the tag in a specific file.
+		:tagtop returns to first tag location.
+	o Infinite undo:
+		A '.' command immediately after a 'u' command continues
+		either forward or backward depending on whether the 'u'
+		command was an undo or a redo.
+	o Usage information:
+		:exu[sage] [cmd] for ex commands.
+		:viu[sage] [key] for vi commands.
+		:help
+	o Extended RE expressions:
+		:set extended turns on extended RE's, so you can
+		    do "/in|or" and search for the next occurrence of
+		    more than one expression.
+	o Word search:
+		^A searches for the word referenced by the cursor.
+	o Number increment:
+		# increments the number referenced by the cursor.
+	o Previous file:
+		:prev[ious][!] edits the previous file from the
+		argument list.
+
+=-=-=-=-=-=-=-=-=-=-=
+o Porting information:
+
+The directory PORT has directories per machine/OS combination, with
+V7-style Makefiles which build nvi.  See the file PORT/README for
+more detailed information.
+
+=-=-=-=-=-=-=-=-=-=-=
+o Directories:
+
+The main directory, nvi, contains source files for pieces of code that
+are shared by all the editors, like searching and logging code or code
+translating line numbers into requests to the dbopen(3) database code.
+It also has the code for adding, deleting, and changing "records" in
+the underlying database.
+
+nvi/docs:
+	The nvi/docs directory has technical information about data
+	structures and some of the trickier parts of vi like quoting,
+	key mapping, input queues, and executing buffers, and a
+	description of how nvi does edit session recovery.
+
+nvi/ex:
+	The nvi/ex directory is the ex source code.  Because vi has the
+	colon command, lots of this code is used by vi.  Generally, if
+	functionality is shared by both ex and vi, it's in nvi/ex, if
+	it's vi only, it's in nvi/vi.  Files are generally named by the
+	command(s) they support, but occasionally with a name that
+	describes their functionality.
+
+nvi/sex:
+	The nvi/sex directory is the screen support for the ex editor.
+
+nvi/svi:
+	The nvi/svi directory is the screen support for a curses based
+	vi editor.
+
+nvi/vi:
+	The nvi/vi directory is the vi source code.
+
+nvi/xaw:
+	Place reserved for an X11 (Athena Widget) screen.

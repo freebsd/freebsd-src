@@ -33,24 +33,22 @@
  */
 
 #include <errno.h>
-#include <signal.h>
 #include "sendmail.h"
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.2 (Berkeley) 7/13/93 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.39 (Berkeley) 3/13/94 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.2 (Berkeley) 7/13/93 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.39 (Berkeley) 3/13/94 (without daemon mode)";
 #endif
 #endif /* not lint */
 
 #ifdef DAEMON
 
 # include <netdb.h>
-# include <sys/wait.h>
-# include <sys/time.h>
+# include <arpa/inet.h>
 
-#ifdef NAMED_BIND
+#if NAMED_BIND
 # include <arpa/nameser.h>
 # include <resolv.h>
 #endif
@@ -105,14 +103,16 @@ static char sccsid[] = "@(#)daemon.c	8.2 (Berkeley) 7/13/93 (without daemon mode
 int		DaemonSocket	= -1;		/* fd describing socket */
 SOCKADDR	DaemonAddr;			/* socket for incoming */
 int		ListenQueueSize = 10;		/* size of listen queue */
+int		TcpRcvBufferSize = 0;		/* size of TCP receive buffer */
+int		TcpSndBufferSize = 0;		/* size of TCP send buffer */
 
 getrequests()
 {
 	int t;
-	register struct servent *sp;
 	int on = 1;
 	bool refusingconnections = TRUE;
 	FILE *pidf;
+	int socksize;
 	extern void reapchild();
 
 	/*
@@ -125,17 +125,16 @@ getrequests()
 		DaemonAddr.sin.sin_addr.s_addr = INADDR_ANY;
 	if (DaemonAddr.sin.sin_port == 0)
 	{
+		register struct servent *sp;
+
 		sp = getservbyname("smtp", "tcp");
 		if (sp == NULL)
 		{
 			syserr("554 service \"smtp\" unknown");
-			goto severe;
+			DaemonAddr.sin.sin_port = htons(25);
 		}
-#ifdef _SCO_unix_
-		DaemonAddr.sin.sin_port = htons(sp->s_port);
-#else
-		DaemonAddr.sin.sin_port = sp->s_port;
-#endif
+		else
+			DaemonAddr.sin.sin_port = sp->s_port;
 	}
 
 	/*
@@ -166,39 +165,57 @@ getrequests()
 	(void) setsockopt(DaemonSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof on);
 	(void) setsockopt(DaemonSocket, SOL_SOCKET, SO_KEEPALIVE, (char *)&on, sizeof on);
 
+#ifdef SO_RCVBUF
+	if (TcpRcvBufferSize > 0)
+	{
+		if (setsockopt(DaemonSocket, SOL_SOCKET, SO_RCVBUF,
+			       (char *) &TcpRcvBufferSize,
+			       sizeof(TcpRcvBufferSize)) < 0)
+			syserr("getrequests: setsockopt(SO_RCVBUF)");
+	}
+#endif
+
 	switch (DaemonAddr.sa.sa_family)
 	{
 # ifdef NETINET
 	  case AF_INET:
-		t = sizeof DaemonAddr.sin;
+		socksize = sizeof DaemonAddr.sin;
 		break;
 # endif
 
 # ifdef NETISO
 	  case AF_ISO:
-		t = sizeof DaemonAddr.siso;
+		socksize = sizeof DaemonAddr.siso;
 		break;
 # endif
 
 	  default:
-		t = sizeof DaemonAddr;
+		socksize = sizeof DaemonAddr;
 		break;
 	}
 
-	if (bind(DaemonSocket, &DaemonAddr.sa, t) < 0)
+	if (bind(DaemonSocket, &DaemonAddr.sa, socksize) < 0)
 	{
 		syserr("getrequests: cannot bind");
 		(void) close(DaemonSocket);
 		goto severe;
 	}
 
-	(void) signal(SIGCHLD, reapchild);
+	(void) setsignal(SIGCHLD, reapchild);
 
 	/* write the pid to the log file for posterity */
 	pidf = fopen(PidFile, "w");
 	if (pidf != NULL)
 	{
+		extern char *CommandLineArgs;
+
+		/* write the process id on line 1 */
 		fprintf(pidf, "%d\n", getpid());
+
+		/* line 2 contains all command line flags */
+		fprintf(pidf, "%s\n", CommandLineArgs);
+
+		/* flush and close */
 		fclose(pidf);
 	}
 
@@ -245,7 +262,7 @@ getrequests()
 		do
 		{
 			errno = 0;
-			lotherend = sizeof RealHostAddr;
+			lotherend = socksize;
 			t = accept(DaemonSocket,
 			    (struct sockaddr *)&RealHostAddr, &lotherend);
 		} while (t < 0 && errno == EINTR);
@@ -274,6 +291,7 @@ getrequests()
 
 		if (pid == 0)
 		{
+			char *p;
 			extern char *hostnamebyanyaddr();
 
 			/*
@@ -282,14 +300,19 @@ getrequests()
 			**	Verify calling user id if possible here.
 			*/
 
-			(void) signal(SIGCHLD, SIG_DFL);
-			OpMode = MD_SMTP;
+			(void) setsignal(SIGCHLD, SIG_DFL);
+			DisConnected = FALSE;
+
+			setproctitle("startup with %s",
+				anynet_ntoa(&RealHostAddr));
 
 			/* determine host name */
-			RealHostName = newstr(hostnamebyanyaddr(&RealHostAddr));
+			p = hostnamebyanyaddr(&RealHostAddr);
+			RealHostName = newstr(p);
+			setproctitle("startup with %s", p);
 
 #ifdef LOG
-			if (LogLevel > 10)
+			if (LogLevel > 11)
 			{
 				/* log connection information */
 				syslog(LOG_INFO, "connect from %s (%s)",
@@ -298,8 +321,13 @@ getrequests()
 #endif
 
 			(void) close(DaemonSocket);
-			InChannel = fdopen(t, "r");
-			OutChannel = fdopen(dup(t), "w");
+			if ((InChannel = fdopen(t, "r")) == NULL ||
+			    (t = dup(t)) < 0 ||
+			    (OutChannel = fdopen(t, "w")) == NULL)
+			{
+				syserr("cannot open SMTP server channel, fd=%d", t);
+				exit(0);
+			}
 
 			/* should we check for illegal connection here? XXX */
 #ifdef XLA
@@ -434,7 +462,7 @@ setdaemonoptions(p)
 #ifdef NETINET
 			  case AF_INET:
 				if (isascii(*v) && isdigit(*v))
-					DaemonAddr.sin.sin_port = atoi(v);
+					DaemonAddr.sin.sin_port = htons(atoi(v));
 				else
 				{
 					register struct servent *sp;
@@ -443,13 +471,7 @@ setdaemonoptions(p)
 					if (sp == NULL)
 						syserr("554 service \"%s\" unknown", v);
 					else
-					{
-#ifdef _SCO_unix_
-						DaemonAddr.sin.sin_port = htons(sp->s_port);
-#else
 						DaemonAddr.sin.sin_port = sp->s_port;
-#endif
-					}
 				}
 				break;
 #endif
@@ -458,7 +480,7 @@ setdaemonoptions(p)
 			  case AF_ISO:
 				/* assume two byte transport selector */
 				if (isascii(*v) && isdigit(*v))
-					port = atoi(v);
+					port = htons(atoi(v));
 				else
 				{
 					register struct servent *sp;
@@ -482,6 +504,14 @@ setdaemonoptions(p)
 
 		  case 'L':		/* listen queue size */
 			ListenQueueSize = atoi(v);
+			break;
+
+		  case 'S':		/* send buffer size */
+			TcpSndBufferSize = atoi(v);
+			break;
+
+		  case 'R':		/* receive buffer size */
+			TcpRcvBufferSize = atoi(v);
 			break;
 		}
 	}
@@ -519,7 +549,7 @@ makeconnection(host, port, mci, usesecureport)
 	SOCKADDR addr;
 	int sav_errno;
 	int addrlen;
-#ifdef NAMED_BIND
+#if NAMED_BIND
 	extern int h_errno;
 #endif
 
@@ -528,11 +558,12 @@ makeconnection(host, port, mci, usesecureport)
 	**	Accept "[a.b.c.d]" syntax for host name.
 	*/
 
-#ifdef NAMED_BIND
+#if NAMED_BIND
 	h_errno = 0;
 #endif
 	errno = 0;
 	bzero(&CurHostAddr, sizeof CurHostAddr);
+	SmtpPhase = mci->mci_phase = "initial connection";
 	CurHostName = host;
 
 	if (host[0] == '[')
@@ -550,6 +581,12 @@ makeconnection(host, port, mci, usesecureport)
 			{
 				/* try it as a host name (avoid MX lookup) */
 				hp = gethostbyname(&host[1]);
+				if (hp == NULL && p[-1] == '.')
+				{
+					p[-1] = '\0';
+					hp = gethostbyname(&host[1]);
+					p[-1] = '.';
+				}
 				*p = ']';
 				goto gothostent;
 			}
@@ -567,11 +604,19 @@ makeconnection(host, port, mci, usesecureport)
 	}
 	else
 	{
+		register char *p = &host[strlen(host) - 1];
+
 		hp = gethostbyname(host);
+		if (hp == NULL && *p == '.')
+		{
+			*p = '\0';
+			hp = gethostbyname(host);
+			*p = '.';
+		}
 gothostent:
 		if (hp == NULL)
 		{
-#ifdef NAMED_BIND
+#if NAMED_BIND
 			if (errno == ETIMEDOUT || h_errno == TRY_AGAIN)
 				return (EX_TEMPFAIL);
 
@@ -588,7 +633,7 @@ gothostent:
 		  case AF_INET:
 			bcopy(hp->h_addr,
 				&addr.sin.sin_addr,
-				hp->h_length);
+				sizeof addr.sin.sin_addr);
 			break;
 #endif
 
@@ -614,13 +659,10 @@ gothostent:
 		if (sp == NULL)
 		{
 			syserr("554 makeconnection: service \"smtp\" unknown");
-			return (EX_OSERR);
+			port = htons(25);
 		}
-#ifdef _SCO_unix_
-		port = htons(sp->s_port);
-#else
-		port = sp->s_port;
-#endif
+		else
+			port = sp->s_port;
 	}
 
 	switch (addr.sa.sa_family)
@@ -681,6 +723,16 @@ gothostent:
 			goto failure;
 		}
 
+#ifdef SO_SNDBUF
+		if (TcpSndBufferSize > 0)
+		{
+			if (setsockopt(s, SOL_SOCKET, SO_SNDBUF,
+				       (char *) &TcpSndBufferSize,
+				       sizeof(TcpSndBufferSize)) < 0)
+				syserr("makeconnection: setsockopt(SO_SNDBUF)");
+		}
+#endif
+
 		if (tTd(16, 1))
 			printf("makeconnection: fd=%d\n", s);
 
@@ -711,7 +763,7 @@ gothostent:
 			  case AF_INET:
 				bcopy(hp->h_addr_list[i++],
 				      &addr.sin.sin_addr,
-				      hp->h_length);
+				      sizeof addr.sin.sin_addr);
 				break;
 #endif
 
@@ -739,8 +791,13 @@ gothostent:
 	}
 
 	/* connection ok, put it into canonical form */
-	mci->mci_out = fdopen(s, "w");
-	mci->mci_in = fdopen(dup(s), "r");
+	if ((mci->mci_out = fdopen(s, "w")) == NULL ||
+	    (s = dup(s)) < 0 ||
+	    (mci->mci_in = fdopen(s, "r")) == NULL)
+	{
+		syserr("cannot open SMTP client channel, fd=%d", s);
+		return EX_TEMPFAIL;
+	}
 
 	return (EX_OK);
 }
@@ -755,10 +812,8 @@ gothostent:
 **		A list of aliases for this host.
 **
 **	Side Effects:
-**		Sets the MyIpAddrs buffer to a list of my IP addresses.
+**		Adds numeric codes to $=w.
 */
-
-struct in_addr	MyIpAddrs[MAXIPADDR + 1];
 
 char **
 myhostname(hostbuf, size)
@@ -782,13 +837,14 @@ myhostname(hostbuf, size)
 		{
 			register int i;
 
-			for (i = 0; i < MAXIPADDR; i++)
+			for (i = 0; hp->h_addr_list[i] != NULL; i++)
 			{
-				if (hp->h_addr_list[i] == NULL)
-					break;
-				MyIpAddrs[i].s_addr = *(u_long *) hp->h_addr_list[i];
+				char ipbuf[100];
+
+				sprintf(ipbuf, "[%s]",
+					inet_ntoa(*((struct in_addr *) hp->h_addr_list[i])));
+				setclass('w', ipbuf);
 			}
-			MyIpAddrs[i].s_addr = 0;
 		}
 
 		return (hp->h_aliases);
@@ -806,12 +862,9 @@ myhostname(hostbuf, size)
 **
 **	Returns:
 **		The user@host information associated with this descriptor.
-**
-**	Side Effects:
-**		Sets RealHostName to the name of the host at the other end.
 */
 
-#ifdef IDENTPROTO
+#if IDENTPROTO
 
 static jmp_buf	CtxAuthTimeout;
 
@@ -830,7 +883,7 @@ getauthinfo(fd)
 	SOCKADDR fa;
 	int falen;
 	register char *p;
-#ifdef IDENTPROTO
+#if IDENTPROTO
 	SOCKADDR la;
 	int lalen;
 	register struct servent *sp;
@@ -843,19 +896,19 @@ getauthinfo(fd)
 	extern char RealUserName[];			/* main.c */
 
 	falen = sizeof fa;
-	if (getpeername(fd, &fa.sa, &falen) < 0 || falen <= 0)
+	if (getpeername(fd, &fa.sa, &falen) < 0 || falen <= 0 ||
+	    fa.sa.sa_family == 0)
 	{
-		RealHostName = "localhost";
 		(void) sprintf(hbuf, "%s@localhost", RealUserName);
 		if (tTd(9, 1))
 			printf("getauthinfo: %s\n", hbuf);
 		return hbuf;
 	}
 
-	RealHostName = newstr(hostnamebyanyaddr(&fa));
-	RealHostAddr = fa;
+#if IDENTPROTO
+	if (TimeOuts.to_ident == 0)
+		goto noident;
 
-#ifdef IDENTPROTO
 	lalen = sizeof la;
 	if (fa.sa.sa_family != AF_INET ||
 	    getsockname(fd, &la.sa, &lalen) < 0 || lalen <= 0 ||
@@ -870,18 +923,12 @@ getauthinfo(fd)
 		ntohs(fa.sin.sin_port), ntohs(la.sin.sin_port));
 
 	/* create local address */
-	bzero(&la, sizeof la);
+	la.sin.sin_port = 0;
 
 	/* create foreign address */
 	sp = getservbyname("auth", "tcp");
 	if (sp != NULL)
-	{
-#ifdef _SCO_unix_
-		fa.sin.sin_port = htons(sp->s_port);
-#else
 		fa.sin.sin_port = sp->s_port;
-#endif
-	}
 	else
 		fa.sin.sin_port = htons(113);
 
@@ -894,21 +941,19 @@ getauthinfo(fd)
 	}
 
 	/* put a timeout around the whole thing */
-	ev = setevent((time_t) 30, authtimeout, 0);
+	ev = setevent(TimeOuts.to_ident, authtimeout, 0);
 
-	/* connect to foreign IDENT server */
+	/* connect to foreign IDENT server using same address as SMTP socket */
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s < 0)
 	{
 		clrevent(ev);
 		goto noident;
 	}
-	if (connect(s, &fa.sa, sizeof fa.sin) < 0)
+	if (bind(s, &la.sa, sizeof la.sin) < 0 ||
+	    connect(s, &fa.sa, sizeof fa.sin) < 0)
 	{
-closeident:
-		(void) close(s);
-		clrevent(ev);
-		goto noident;
+		goto closeident;
 	}
 
 	if (tTd(9, 10))
@@ -967,16 +1012,27 @@ closeident:
 		continue;
 
 	/* p now points to the authenticated name */
-	(void) sprintf(hbuf, "%s@%s", p, RealHostName);
+	(void) sprintf(hbuf, "%s@%s",
+		p, RealHostName == NULL ? "localhost" : RealHostName);
 	goto finish;
+
+closeident:
+	(void) close(s);
+	clrevent(ev);
 
 #endif /* IDENTPROTO */
 
 noident:
+	if (RealHostName == NULL)
+	{
+		if (tTd(9, 1))
+			printf("getauthinfo: NULL\n");
+		return NULL;
+	}
 	(void) strcpy(hbuf, RealHostName);
 
 finish:
-	if (RealHostName[0] != '[')
+	if (RealHostName != NULL && RealHostName[0] != '[')
 	{
 		p = &hbuf[strlen(hbuf)];
 		(void) sprintf(p, " [%s]", anynet_ntoa(&RealHostAddr));
@@ -1020,7 +1076,9 @@ host_map_lookup(map, name, av, statp)
 	register STAB *s;
 	char hbuf[MAXNAME];
 	extern struct hostent *gethostbyaddr();
+#if NAMED_BIND
 	extern int h_errno;
+#endif
 
 	/*
 	**  See if we have already looked up this name.  If so, just
@@ -1034,8 +1092,16 @@ host_map_lookup(map, name, av, statp)
 			printf("host_map_lookup(%s) => CACHE %s\n",
 				name, s->s_namecanon.nc_cname);
 		errno = s->s_namecanon.nc_errno;
+#if NAMED_BIND
 		h_errno = s->s_namecanon.nc_herrno;
+#endif
 		*statp = s->s_namecanon.nc_stat;
+		if (CurEnv->e_message == NULL && *statp == EX_TEMPFAIL)
+		{
+			sprintf(hbuf, "%s: Name server timeout",
+				shortenstring(name, 33));
+			CurEnv->e_message = newstr(hbuf);
+		}
 		return s->s_namecanon.nc_cname;
 	}
 
@@ -1054,7 +1120,7 @@ host_map_lookup(map, name, av, statp)
 			printf("host_map_lookup(%s) => ", name);
 		s->s_namecanon.nc_flags |= NCF_VALID;		/* will be soon */
 		(void) strcpy(hbuf, name);
-		if (getcanonname(hbuf, sizeof hbuf - 1))
+		if (getcanonname(hbuf, sizeof hbuf - 1, TRUE))
 		{
 			if (tTd(9, 1))
 				printf("%s\n", hbuf);
@@ -1066,20 +1132,21 @@ host_map_lookup(map, name, av, statp)
 		{
 			register struct hostent *hp;
 
+			s->s_namecanon.nc_errno = errno;
+#if NAMED_BIND
+			s->s_namecanon.nc_herrno = h_errno;
 			if (tTd(9, 1))
 				printf("FAIL (%d)\n", h_errno);
-			s->s_namecanon.nc_errno = errno;
-			s->s_namecanon.nc_herrno = h_errno;
 			switch (h_errno)
 			{
 			  case TRY_AGAIN:
 				if (UseNameServer)
 				{
-					char *msg = "Recipient domain nameserver timed out";
-
-					message(msg);
+					sprintf(hbuf, "%s: Name server timeout",
+						shortenstring(name, 33));
+					message("%s", hbuf);
 					if (CurEnv->e_message == NULL)
-						CurEnv->e_message = newstr(msg);
+						CurEnv->e_message = newstr(hbuf);
 				}
 				*statp = EX_TEMPFAIL;
 				break;
@@ -1096,6 +1163,11 @@ host_map_lookup(map, name, av, statp)
 				*statp = EX_UNAVAILABLE;
 				break;
 			}
+#else
+			if (tTd(9, 1))
+				printf("FAIL\n");
+			*statp = EX_NOHOST;
+#endif
 			s->s_namecanon.nc_stat = *statp;
 			if (*statp != EX_TEMPFAIL || UseNameServer)
 				return NULL;
@@ -1123,19 +1195,12 @@ host_map_lookup(map, name, av, statp)
 	*cp = '\0';
 	in_addr = inet_addr(&name[1]);
 
-	/* check to see if this is one of our addresses */
-	for (i = 0; MyIpAddrs[i].s_addr != 0; i++)
-	{
-		if (MyIpAddrs[i].s_addr == in_addr)
-		{
-			return map_rewrite(map, MyHostName, strlen(MyHostName), av);
-		}
-	}
-
 	/* nope -- ask the name server */
 	hp = gethostbyaddr((char *)&in_addr, sizeof(struct in_addr), AF_INET);
 	s->s_namecanon.nc_errno = errno;
+#if NAMED_BIND
 	s->s_namecanon.nc_herrno = h_errno;
+#endif
 	s->s_namecanon.nc_flags |= NCF_VALID;		/* will be soon */
 	if (hp == NULL)
 	{
@@ -1166,7 +1231,7 @@ anynet_ntoa(sap)
 	register char *bp;
 	register char *ap;
 	int l;
-	static char buf[80];
+	static char buf[100];
 
 	/* check for null/zero family */
 	if (sap == NULL)
@@ -1174,14 +1239,28 @@ anynet_ntoa(sap)
 	if (sap->sa.sa_family == 0)
 		return "0";
 
-#ifdef NETINET
-	if (sap->sa.sa_family == AF_INET)
+	switch (sap->sa.sa_family)
 	{
-		extern char *inet_ntoa();
-
-		return inet_ntoa(((struct sockaddr_in *) sap)->sin_addr);
-	}
+#ifdef MAYBENEXTRELEASE		/*** UNTESTED *** UNTESTED *** UNTESTED ***/
+#ifdef NETUNIX
+	  case AF_UNIX:
+	  	if (sap->sunix.sun_path[0] != '\0')
+	  		sprintf(buf, "[UNIX: %.64s]", sap->sunix.sun_path);
+	  	else
+	  		sprintf(buf, "[UNIX: localhost]");
+		return buf;
 #endif
+#endif
+
+#ifdef NETINET
+	  case AF_INET:
+		return inet_ntoa(((struct sockaddr_in *) sap)->sin_addr);
+#endif
+
+	  default:
+	  	/* this case is only to ensure syntactic correctness */
+	  	break;
+	}
 
 	/* unknown family -- just dump bytes */
 	(void) sprintf(buf, "Family %d: ", sap->sa.sa_family);
@@ -1213,10 +1292,9 @@ hostnamebyanyaddr(sap)
 	register SOCKADDR *sap;
 {
 	register struct hostent *hp;
-
-#ifdef NAMED_BIND
 	int saveretry;
 
+#if NAMED_BIND
 	/* shorten name server timeout to avoid higher level timeouts */
 	saveretry = _res.retry;
 	_res.retry = 3;
@@ -1240,6 +1318,12 @@ hostnamebyanyaddr(sap)
 		break;
 #endif
 
+#ifdef MAYBENEXTRELEASE		/*** UNTESTED *** UNTESTED *** UNTESTED ***/
+	  case AF_UNIX:
+		hp = NULL;
+		break;
+#endif
+
 	  default:
 		hp = gethostbyaddr(sap->sa.sa_data,
 			   sizeof sap->sa.sa_data,
@@ -1247,7 +1331,7 @@ hostnamebyanyaddr(sap)
 		break;
 	}
 
-#ifdef NAMED_BIND
+#if NAMED_BIND
 	_res.retry = saveretry;
 #endif /* NAMED_BIND */
 

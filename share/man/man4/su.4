@@ -1,0 +1,57 @@
+.Dd August 27, 1993
+.Dt SU 4
+.Os 386BSD/NetBSD
+.Sh NAME
+.Nm su
+.Nd scsi user-level driver
+.Sh SYNOPSIS
+.Nm device-driver su
+.Sh DESCRIPTION
+The
+.Xr su
+driver provides support for a 
+process to address arbitrary locations on the scsi bus. Minor
+numbers are mapped 1:1 to bus:target:lun. The lowest three bits being LUN
+and the next three bits being TARGET. Remaining bits are the bus number.
+.Pp
+A scsi adapter must also be separatly configured into the system
+before this driver makes sense.
+.Pp
+.Sh THE SU DEVICE IS NOT COMPLETED YET
+.Sh KERNEL CONFIGURATION
+There are no configuration parameters for the su option. It'e either there
+or it's not.
+
+.Pp
+.Sh IOCTLS
+The 
+.Nm
+driver has no ioctls of it's own but rather acts as a medium for the
+generic 
+.Xr scsi 4
+ioctls. These are described in
+.Em sys/scsiio.h.
+
+
+.Sh FILES
+.Bl -tag -width /dev/su0-0-0XXXXXXXXXXX -compact
+.It Pa /dev/su[0-9]-[0-7]-[0-7]
+su{x}-{y}-{z} is the su device for the device at bus x, target y, lun z
+.El
+.Sh DIAGNOSTICS
+All
+.Xr scsi 4
+debug ioclts work on 
+.Nm
+devices.
+.Sh SEE ALSO
+.Xr sd 4
+.Xr st 4
+.Xr cd 4
+.Xr uk 4
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in 386BSD 0.1
+

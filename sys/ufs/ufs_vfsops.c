@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1989, 1991 The Regents of the University of California.
  * All rights reserved.
  *
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_vfsops.c	7.56 (Berkeley) 6/28/91
- *	$Id: ufs_vfsops.c,v 1.4 1993/10/16 18:18:01 rgrimes Exp $
+ *	$Id: ufs_vfsops.c,v 1.6.2.1 1994/05/04 07:59:13 rgrimes Exp $
  */
 
 #include "param.h"
@@ -54,6 +61,8 @@
 #include "fs.h"
 #include "ufsmount.h"
 #include "inode.h"
+
+int mountfs(struct vnode *, struct mount *, struct proc *);
 
 struct vfsops ufs_vfsops = {
 	ufs_mount,
@@ -80,6 +89,7 @@ int doforce = 1;
  */
 #define ROOTNAME	"root_device"
 
+int
 ufs_mountroot()
 {
 	register struct mount *mp;
@@ -130,6 +140,7 @@ ufs_mountroot()
  *
  * mount system call
  */
+int
 ufs_mount(mp, path, data, ndp, p)
 	register struct mount *mp;
 	char *path;
@@ -139,7 +150,7 @@ ufs_mount(mp, path, data, ndp, p)
 {
 	struct vnode *devvp;
 	struct ufs_args args;
-	struct ufsmount *ump;
+	struct ufsmount *ump = 0;
 	register struct fs *fs;
 	u_int size;
 	int error;
@@ -219,6 +230,7 @@ ufs_mount(mp, path, data, ndp, p)
 /*
  * Common code for mount and mountroot
  */
+int
 mountfs(devvp, mp, p)
 	register struct vnode *devvp;
 	struct mount *mp;
@@ -337,6 +349,7 @@ out:
  * Nothing to do at the moment.
  */
 /* ARGSUSED */
+int
 ufs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -349,6 +362,7 @@ ufs_start(mp, flags, p)
 /*
  * unmount system call
  */
+int
 ufs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -401,6 +415,7 @@ ufs_unmount(mp, mntflags, p)
 /*
  * Check to see if a filesystem is mounted on a block device.
  */
+int
 mountedon(vp)
 	register struct vnode *vp;
 {
@@ -423,6 +438,7 @@ mountedon(vp)
 /*
  * Return root of a filesystem
  */
+int
 ufs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -446,6 +462,7 @@ ufs_root(mp, vpp)
 /*
  * Do operations associated with quotas
  */
+int
 ufs_quotactl(mp, cmds, uid, arg, p)
 	struct mount *mp;
 	int cmds;
@@ -516,6 +533,7 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 /*
  * Get file system statistics.
  */
+int
 ufs_statfs(mp, sbp, p)
 	struct mount *mp;
 	register struct statfs *sbp;
@@ -556,6 +574,7 @@ int	syncprt = 0;
  *
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
+int
 ufs_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
@@ -622,6 +641,7 @@ loop:
 /*
  * Write a superblock and associated information back to disk.
  */
+int
 sbupdate(mp, waitfor)
 	struct ufsmount *mp;
 	int waitfor;
@@ -659,36 +679,6 @@ sbupdate(mp, waitfor)
 }
 
 /*
- * Print out statistics on the current allocation of the buffer pool.
- * Can be enabled to print out on every ``sync'' by setting "syncprt"
- * above.
- */
-bufstats()
-{
-	int s, i, j, count;
-	register struct buf *bp, *dp;
-	int counts[MAXBSIZE/CLBYTES+1];
-	static char *bname[BQUEUES] = { "LOCKED", "LRU", "AGE", "EMPTY" };
-
-	for (bp = bfreelist, i = 0; bp < &bfreelist[BQUEUES]; bp++, i++) {
-		count = 0;
-		for (j = 0; j <= MAXBSIZE/CLBYTES; j++)
-			counts[j] = 0;
-		s = splbio();
-		for (dp = bp->av_forw; dp != bp; dp = dp->av_forw) {
-			counts[dp->b_bufsize/CLBYTES]++;
-			count++;
-		}
-		splx(s);
-		printf("%s: total-%d", bname[i], count);
-		for (j = 0; j <= MAXBSIZE/CLBYTES; j++)
-			if (counts[j] != 0)
-				printf(", %d-%d", j * CLBYTES, counts[j]);
-		printf("\n");
-	}
-}
-
-/*
  * File handle to vnode
  *
  * Have to be really careful about stale file handles:
@@ -697,6 +687,7 @@ bufstats()
  * - check for an unallocated inode (i_mode == 0)
  * - check that the generation number matches
  */
+int
 ufs_fhtovp(mp, fhp, vpp)
 	register struct mount *mp;
 	struct fid *fhp;
@@ -743,6 +734,7 @@ ufs_fhtovp(mp, fhp, vpp)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
+int
 ufs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;

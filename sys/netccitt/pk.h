@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pk.h	7.8 (Berkeley) 4/30/91
- *	$Id: pk.h,v 1.2 1993/10/16 19:46:46 rgrimes Exp $
+ *	$Id: pk.h,v 1.3 1993/11/07 17:47:25 wollman Exp $
  */
+
+#ifndef _NETCCITT_PK_H_
+#define _NETCCITT_PK_H_ 1
 
 /*
  *
@@ -191,3 +194,4 @@ struct mbuf *pk_template ();
 #define DIAG_TYPE       14 * MAXSTATES
 #define INVALID_PACKET  15 * MAXSTATES
 #define DELETE_PACKET	INVALID_PACKET
+#endif /* _NETCCITT_PK_H_ */

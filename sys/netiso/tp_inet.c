@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_inet.c	7.8 (Berkeley) 5/6/91
- *	$Id: tp_inet.c,v 1.2 1993/10/16 21:05:42 rgrimes Exp $
+ *	$Id: tp_inet.c,v 1.4 1993/12/19 00:53:34 wollman Exp $
  */
 
 /***********************************************************
@@ -85,6 +85,7 @@ SOFTWARE.
 #ifdef INET
 
 #include "param.h"
+#include "systm.h"
 #include "socket.h"
 #include "socketvar.h"
 #include "mbuf.h"
@@ -105,6 +106,8 @@ SOFTWARE.
 #include "iso_chksum.c"
 #endif
 
+static void tpin_abort(struct inpcb *, int);
+
 /*
  * NAME:			in_getsufx()
 
@@ -122,6 +125,7 @@ SOFTWARE.
  *
  * NOTES:			
  */
+void
 in_getsufx(inp, lenp, data_out, which)
 	struct inpcb *inp;
 	u_short *lenp;
@@ -161,6 +165,7 @@ void
 in_putsufx(inp, sufxloc, sufxlen, which)
 	struct inpcb *inp;
 	caddr_t sufxloc;
+	int sufxlen;
 	int which;
 {
 	if (which == TP_FOREIGN) {
@@ -250,6 +255,7 @@ in_putnetaddr(inp, name, which)
  *
  * NOTES:			
  */ 
+int
 in_cmpnetaddr(inp, name, which)
 	register struct inpcb	*inp;
 	register struct sockaddr_in	*name;
@@ -667,8 +673,6 @@ tpip_ctlinput(cmd, sin)
 	struct sockaddr_in *sin;
 {
 	extern u_char inetctlerrmap[];
-	extern ProtoHook tpin_abort();
-	extern ProtoHook in_rtchange();
 	extern struct in_addr zeroin_addr;
 
 	if (sin->sin_family != AF_INET && sin->sin_family != AF_IMPLINK)
@@ -680,8 +684,8 @@ tpip_ctlinput(cmd, sin)
 	switch (cmd) {
 
 		case	PRC_QUENCH:
-			in_pcbnotify(&tp_inpcb, sin, 0,
-				zeroin_addr, 0, cmd, (int (*)())tp_quench);
+			in_pcbnotify(&tp_inpcb, (struct sockaddr *)sin, 0,
+				zeroin_addr, 0, cmd, (void (*)())tp_quench);
 			break;
 
 		case	PRC_ROUTEDEAD:
@@ -689,7 +693,7 @@ tpip_ctlinput(cmd, sin)
 		case	PRC_UNREACH_NET:
 		case	PRC_IFDOWN:
 		case	PRC_HOSTDEAD:
-			in_pcbnotify(&tp_inpcb, sin, 0,
+			in_pcbnotify(&tp_inpcb, (struct sockaddr *)sin, 0,
 				zeroin_addr, 0, cmd, in_rtchange);
 			break;
 
@@ -709,7 +713,7 @@ tpip_ctlinput(cmd, sin)
 		case	PRC_TIMXCEED_REASS:
 		case	PRC_PARAMPROB:
 		*/
-		in_pcbnotify(&tp_inpcb, sin, 0, zeroin_addr, 0,
+		in_pcbnotify(&tp_inpcb, (struct sockaddr *)sin, 0, zeroin_addr, 0,
 				cmd, tpin_abort);
 	}
 	return 0;
@@ -734,25 +738,26 @@ tpip_ctlinput(cmd, sin)
  * NOTES:			
  */
 
-ProtoHook
-tpin_abort(inp)
+static void
+tpin_abort(inp, errno)
 	struct inpcb *inp;
+	int errno;
 {
 	struct tp_event e;
 
 	e.ev_number = ER_TPDU;
 	e.ATTR(ER_TPDU).e_reason = ENETRESET;
 	(void) tp_driver((struct tp_pcb *)inp->inp_ppcb, &e);
-	return 0;
 }
 
 #ifdef ARGO_DEBUG
+void
 dump_inaddr(addr)
 	register struct sockaddr_in *addr;
 {
 	printf("INET: port 0x%x; addr 0x%x\n", addr->sin_port, addr->sin_addr);
 }
-#endif ARGO_DEBUG
+#endif /* ARGO_DEBUG */
 
 /*
  * NAME:	tpip_route()
@@ -814,4 +819,4 @@ tpip_route(dst)
 	return ifp;
 }
 
-#endif INET
+#endif /* INET */

@@ -1,32 +1,50 @@
 #!/bin/sh -
 #
-#	@(#)run.test	8.1 (Berkeley) 6/4/93
+#	@(#)run.test	8.7 (Berkeley) 9/16/93
 #
 
 # db regression tests
-
 main()
 {
-	DICT=/usr/share/dict/words
-	PROG=obj/dbtest
-	TMP1=t1
-	TMP2=t2
-	TMP3=t3
 
-	test1
-	test2
-	test3
-	test4
-	test5
-	test6
-	test7
-	test8
-	test9
-	test10
-	test11
-	test12
-	test13
-	test20
+DICT=/usr/share/dict/words
+#DICT=/usr/dict/words
+PROG=./dbtest
+TMP1=t1
+TMP2=t2
+TMP3=t3
+
+	if [ $# -eq 0 ]; then
+		for t in 1 2 3 4 5 6 7 8 9 10 11 12 13 20; do
+			test$t
+		done
+	else
+		while [ $# -gt 0 ]
+			do case "$1" in
+			test*)
+				$1;;
+			[0-9]*)
+				test$1;;
+			btree)
+				for t in 1 2 3 7 8 9 10 12 13; do
+					test$t
+				done;;
+			hash)
+				for t in 1 2 3 8 13 20; do
+					test$t
+				done;;
+			recno)
+				for t in 1 2 3 4 5 6 7 10 11; do
+					test$t
+				done;;
+			*)
+				echo "run.test: unknown test $1"
+				echo "usage: run.test test# | type"
+				exit 1
+			esac
+			shift
+		done
+	fi
 	rm -f $TMP1 $TMP2 $TMP3
 	exit 0
 }
@@ -35,21 +53,25 @@ main()
 # be key/data pairs.
 test1()
 {
-	printf "Test 1: btree, hash: small key, small data pairs\n"
+	echo "Test 1: btree, hash: small key, small data pairs"
 	sed 200q $DICT > $TMP1
 	for type in btree hash; do
 		rm -f $TMP2 $TMP3
 		for i in `sed 200q $DICT`; do
-			printf "p\nk%s\nd%s\ng\nk%s\n" $i $i $i
+			echo p
+			echo k$i
+			echo d$i
+			echo g
+			echo k$i
 		done > $TMP2
 		$PROG -o $TMP3 $type $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test1: type %s: failed\n" $type
+			echo "test1: type $type: failed"
 			exit 1
 		fi
 	done
-	printf "Test 1: recno: small key, small data pairs\n"
+	echo "Test 1: recno: small key, small data pairs"
 	rm -f $TMP2 $TMP3
 	sed 200q $DICT |
 	awk '{ 
@@ -59,7 +81,7 @@ test1()
 	$PROG -o $TMP3 recno $TMP2
 	if (cmp -s $TMP1 $TMP3) ; then :
 	else
-		printf "test1: type recno: failed\n"
+		echo "test1: type recno: failed"
 		exit 1
 	fi
 }
@@ -68,23 +90,27 @@ test1()
 # each a medium size data entry.
 test2()
 {
-	printf "Test 2: btree, hash: small key, medium data pairs\n"
+	echo "Test 2: btree, hash: small key, medium data pairs"
 	mdata=abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
 	echo $mdata |
 	awk '{ for (i = 1; i < 201; ++i) print $0 }' > $TMP1
 	for type in hash btree; do
 		rm -f $TMP2 $TMP3
 		for i in `sed 200q $DICT`; do
-			printf "p\nk%s\nd%s\ng\nk%s\n" $i $mdata $i
+			echo p
+			echo k$i
+			echo d$mdata
+			echo g
+			echo k$i
 		done > $TMP2
 		$PROG -o $TMP3 $type $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test2: type %s: failed\n" $type
+			echo "test2: type $type: failed"
 			exit 1
 		fi
 	done
-	printf "Test 2: recno: small key, medium data pairs\n"
+	echo "Test 2: recno: small key, medium data pairs"
 	rm -f $TMP2 $TMP3
 	echo $mdata | 
 	awk '{  for (i = 1; i < 201; ++i)
@@ -93,7 +119,7 @@ test2()
 	$PROG -o $TMP3 recno $TMP2
 	if (cmp -s $TMP1 $TMP3) ; then :
 	else
-		printf "test2: type recno: failed\n"
+		echo "test2: type recno: failed"
 		exit 1
 	fi
 }
@@ -101,40 +127,46 @@ test2()
 # Insert the programs in /bin with their paths as their keys.
 test3()
 {
-	printf "Test 3: hash: small key, big data pairs\n"
+	echo "Test 3: hash: small key, big data pairs"
 	rm -f $TMP1
 	(find /bin -type f -print | xargs cat) > $TMP1
 	for type in hash; do
 		rm -f $TMP2 $TMP3
 		for i in `find /bin -type f -print`; do
-			printf "p\nk%s\nD%s\ng\nk%s\n" $i $i $i
+			echo p
+			echo k$i
+			echo D$i
+			echo g
+			echo k$i
 		done > $TMP2
 		$PROG -o $TMP3 $type $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test3: %s: page size %d: failed\n" \
-			    $type $psize
+			echo "test3: $type: failed"
 			exit 1
 		fi
 	done
-	printf "Test 3: btree: small key, big data pairs\n"
+	echo "Test 3: btree: small key, big data pairs"
 	for psize in 512 16384 65536; do
-		printf "\tpage size %d\n" $psize
+		echo "    page size $psize"
 		for type in btree; do
 			rm -f $TMP2 $TMP3
 			for i in `find /bin -type f -print`; do
-				printf "p\nk%s\nD%s\ng\nk%s\n" $i $i $i
+				echo p
+				echo k$i
+				echo D$i
+				echo g
+				echo k$i
 			done > $TMP2
 			$PROG -i psize=$psize -o $TMP3 $type $TMP2
 			if (cmp -s $TMP1 $TMP3) ; then :
 			else
-				printf "test3: %s: page size %d: failed\n" \
-				    $type $psize
+				echo "test3: $type: page size $psize: failed"
 				exit 1
 			fi
 		done
 	done
-	printf "Test 3: recno: big data pairs\n"
+	echo "Test 3: recno: big data pairs"
 	rm -f $TMP2 $TMP3
 	find /bin -type f -print | 
 	awk '{
@@ -142,11 +174,11 @@ test3()
 		printf("p\nk%d\nD%s\ng\nk%d\n", i, $0, i);
 	}' > $TMP2
 	for psize in 512 16384 65536; do
-		printf "\tpage size %d\n" $psize
+		echo "    page size $psize"
 		$PROG -i psize=$psize -o $TMP3 recno $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test3: recno: page size %d: failed\n" $psize
+			echo "test3: recno: page size $psize: failed"
 			exit 1
 		fi
 	done
@@ -155,18 +187,33 @@ test3()
 # Do random recno entries.
 test4()
 {
-	printf "Test 4: recno: random entries\n"
+	echo "Test 4: recno: random entries"
 	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
 	awk '{
-		for (i = 37; i <= 37 + 88 * 17; i += 17)
-			printf("input key %d: %.*s\n", i, i % 41, $0);
-		for (i = 1; i <= 15; ++i)
-			printf("input key %d: %.*s\n", i, i % 41, $0);
-		for (i = 19234; i <= 19234 + 61 * 27; i += 27)
-			printf("input key %d: %.*s\n", i, i % 41, $0);
+		for (i = 37; i <= 37 + 88 * 17; i += 17) {
+			if (i % 41)
+				s = substr($0, 1, i % 41);
+			else
+				s = substr($0, 1);
+			printf("input key %d: %s\n", i, s);
+		}
+		for (i = 1; i <= 15; ++i) {
+			if (i % 41)
+				s = substr($0, 1, i % 41);
+			else
+				s = substr($0, 1);
+			printf("input key %d: %s\n", i, s);
+		}
+		for (i = 19234; i <= 19234 + 61 * 27; i += 27) {
+			if (i % 41)
+				s = substr($0, 1, i % 41);
+			else
+				s = substr($0, 1);
+			printf("input key %d: %s\n", i, s);
+		}
 		exit
 	}' > $TMP1
-	rm -f TMP2 $TMP3
+	rm -f $TMP2 $TMP3
 	cat $TMP1 |
 	awk 'BEGIN {
 			i = 37;
@@ -196,7 +243,7 @@ test4()
 	$PROG -o $TMP3 recno $TMP2
 	if (cmp -s $TMP1 $TMP3) ; then :
 	else
-		printf "test4: type recno: failed\n"
+		echo "test4: type recno: failed"
 		exit 1
 	fi
 }
@@ -204,14 +251,19 @@ test4()
 # Do reverse order recno entries.
 test5()
 {
-	printf "Test 5: recno: reverse order entries\n"
+	echo "Test 5: recno: reverse order entries"
 	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
 	awk ' {
-		for (i = 1500; i; --i)
-			printf("input key %d: %.*s\n", i, i % 34, $0);
+		for (i = 1500; i; --i) {
+			if (i % 34)
+				s = substr($0, 1, i % 34);
+			else
+				s = substr($0, 1);
+			printf("input key %d: %s\n", i, s);
+		}
 		exit;
 	}' > $TMP1
-	rm -f TMP2 $TMP3
+	rm -f $TMP2 $TMP3
 	cat $TMP1 |
 	awk 'BEGIN {
 			i = 1500;
@@ -227,7 +279,7 @@ test5()
 	$PROG -o $TMP3 recno $TMP2
 	if (cmp -s $TMP1 $TMP3) ; then :
 	else
-		printf "test5: type recno: failed\n"
+		echo "test5: type recno: failed"
 		exit 1
 	fi
 }
@@ -235,16 +287,26 @@ test5()
 # Do alternating order recno entries.
 test6()
 {
-	printf "Test 6: recno: alternating order entries\n"
+	echo "Test 6: recno: alternating order entries"
 	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
 	awk ' {
-		for (i = 1; i < 1200; i += 2)
-			printf("input key %d: %.*s\n", i, i % 34, $0);
-		for (i = 2; i < 1200; i += 2)
-			printf("input key %d: %.*s\n", i, i % 34, $0);
+		for (i = 1; i < 1200; i += 2) {
+			if (i % 34)
+				s = substr($0, 1, i % 34);
+			else
+				s = substr($0, 1);
+			printf("input key %d: %s\n", i, s);
+		}
+		for (i = 2; i < 1200; i += 2) {
+			if (i % 34)
+				s = substr($0, 1, i % 34);
+			else
+				s = substr($0, 1);
+			printf("input key %d: %s\n", i, s);
+		}
 		exit;
 	}' > $TMP1
-	rm -f TMP2 $TMP3
+	rm -f $TMP2 $TMP3
 	cat $TMP1 |
 	awk 'BEGIN {
 			i = 1;
@@ -269,7 +331,7 @@ test6()
 	sort -o $TMP3 $TMP3
 	if (cmp -s $TMP1 $TMP3) ; then :
 	else
-		printf "test6: type recno: failed\n"
+		echo "test6: type recno: failed"
 		exit 1
 	fi
 }
@@ -277,7 +339,7 @@ test6()
 # Delete cursor record
 test7()
 {
-	printf "Test 7: btree, recno: delete cursor record\n"
+	echo "Test 7: btree, recno: delete cursor record"
 	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
 	awk '{
 		for (i = 1; i <= 120; ++i)
@@ -288,7 +350,7 @@ test7()
 		printf("%05d: input key %d: %s\n", 2, 2, $0);
 		exit;
 	}' > $TMP1
-	rm -f TMP2 $TMP3
+	rm -f $TMP2 $TMP3
 
 	for type in btree recno; do
 		cat $TMP1 |
@@ -311,7 +373,7 @@ test7()
 		$PROG -o $TMP3 recno $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test7: type $type: failed\n"
+			echo "test7: type $type: failed"
 			exit 1
 		fi
 	done
@@ -320,8 +382,9 @@ test7()
 # Make sure that overflow pages are reused.
 test8()
 {
-	printf "Test 8: btree, hash: repeated small key, big data pairs\n"
+	echo "Test 8: btree, hash: repeated small key, big data pairs"
 	rm -f $TMP1
+	echo "" | 
 	awk 'BEGIN {
 		for (i = 1; i <= 10; ++i) {
 			printf("p\nkkey1\nD/bin/sh\n");
@@ -338,21 +401,21 @@ test8()
 		printf("eend of test8 run\n");
 	}' > $TMP1
 	$PROG btree $TMP1
-	$PROG hash $TMP1
+#	$PROG hash $TMP1
 	# No explicit test for success.
 }
 
 # Test btree duplicate keys
 test9()
 {
-	printf "Test 9: btree: duplicate keys\n"
+	echo "Test 9: btree: duplicate keys"
 	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
 	awk '{
 		for (i = 1; i <= 543; ++i)
 			printf("%05d: input key %d: %s\n", i, i, $0);
 		exit;
 	}' > $TMP1
-	rm -f TMP2 $TMP3
+	rm -f $TMP2 $TMP3
 
 	for type in btree; do
 		cat $TMP1 | 
@@ -369,7 +432,7 @@ test9()
 		sort -o $TMP3 $TMP3
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test9: type $type: failed\n"
+			echo "test9: type $type: failed"
 			exit 1
 		fi
 	done
@@ -378,14 +441,14 @@ test9()
 # Test use of cursor flags without initialization
 test10()
 {
-	printf "Test 10: btree, recno: test cursor flag use\n"
+	echo "Test 10: btree, recno: test cursor flag use"
 	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
 	awk '{
 		for (i = 1; i <= 20; ++i)
 			printf("%05d: input key %d: %s\n", i, i, $0);
 		exit;
 	}' > $TMP1
-	rm -f TMP2 $TMP3
+	rm -f $TMP2 $TMP3
 
 	# Test that R_CURSOR doesn't succeed before cursor initialized
 	for type in btree recno; do
@@ -401,7 +464,7 @@ test10()
 		}' > $TMP2
 		$PROG -o $TMP3 $type $TMP2 > /dev/null 2>&1
 		if [ -s $TMP3 ] ; then
-			printf "Test 10: delete: R_CURSOR SHOULD HAVE FAILED\n"
+			echo "Test 10: delete: R_CURSOR SHOULD HAVE FAILED"
 			exit 1
 		fi
 	done
@@ -418,7 +481,7 @@ test10()
 		}' > $TMP2
 		$PROG -o $TMP3 $type $TMP2 > /dev/null 2>&1
 		if [ -s $TMP3 ] ; then
-			printf "Test 10: put: R_CURSOR SHOULD HAVE FAILED\n"
+			echo "Test 10: put: R_CURSOR SHOULD HAVE FAILED"
 			exit 1
 		fi
 	done
@@ -427,14 +490,14 @@ test10()
 # Test insert in reverse order.
 test11()
 {
-	printf "Test 11: recno: reverse order insert\n"
+	echo "Test 11: recno: reverse order insert"
 	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
 	awk '{
 		for (i = 1; i <= 779; ++i)
 			printf("%05d: input key %d: %s\n", i, i, $0);
 		exit;
 	}' > $TMP1
-	rm -f TMP2 $TMP3
+	rm -f $TMP2 $TMP3
 
 	for type in recno; do
 		cat $TMP1 |
@@ -452,7 +515,7 @@ test11()
 		$PROG -o $TMP3 $type $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test11: type $type: failed\n"
+			echo "test11: type $type: failed"
 			exit 1
 		fi
 	done
@@ -463,19 +526,23 @@ test11()
 # the btree split code gets hammered.
 test12()
 {
-	printf "Test 12: btree: lots of keys, small page size\n"
+	echo "Test 12: btree: lots of keys, small page size"
 	mdata=abcdefghijklmnopqrstuvwxy
 	echo $mdata |
 	awk '{ for (i = 1; i < 20001; ++i) print $0 }' > $TMP1
 	for type in btree; do
 		rm -f $TMP2 $TMP3
 		for i in `sed 20000q $DICT | rev`; do
-			printf "p\nk%s\nd%s\ng\nk%s\n" $i $mdata $i
+			echo p
+			echo k$i
+			echo d$mdata
+			echo g
+			echo k$i
 		done > $TMP2
 		$PROG -i psize=512 -o $TMP3 $type $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test12: type %s: failed\n" $type
+			echo "test12: type $type: failed"
 			exit 1
 		fi
 	done
@@ -484,27 +551,32 @@ test12()
 # Test different byte orders.
 test13()
 {
-	printf "Test 13: btree, hash: differing byte orders\n"
+	echo "Test 13: btree, hash: differing byte orders"
 	sed 50q $DICT > $TMP1
 	for order in 1234 4321; do
 		for type in btree hash; do
 			rm -f byte.file $TMP2 $TMP3
 			for i in `sed 50q $DICT`; do
-				printf "p\nk%s\nd%s\ng\nk%s\n" $i $i $i
+				echo p
+				echo k$i
+				echo d$i
+				echo g
+				echo k$i
 			done > $TMP2
 			$PROG -ilorder=$order -f byte.file -o $TMP3 $type $TMP2
 			if (cmp -s $TMP1 $TMP3) ; then :
 			else
-				printf "test13: %s/%s put failed\n" $type $order
+				echo "test13: $type/$order put failed"
 				exit 1
 			fi
 			for i in `sed 50q $DICT`; do
-				printf "g\nk%s\n" $i
+				echo g
+				echo k$i
 			done > $TMP2
 			$PROG -ilorder=$order -f byte.file -o $TMP3 $type $TMP2
 			if (cmp -s $TMP1 $TMP3) ; then :
 			else
-				printf "test13: %s/%s get failed\n" $type $order
+				echo "test13: $type/$order get failed"
 				exit 1
 			fi
 		done
@@ -515,18 +587,29 @@ test13()
 # Try a variety of bucketsizes and fill factors for hashing
 test20()
 {
-	printf\
-    "Test 20: hash: bucketsize, fill factor; nelem 25000 cachesize 65536\n"
-	awk 'BEGIN {
-		for (i = 1; i <= 10000; ++i)
-			printf("%.*s\n", i % 34,
-		    "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg");
+	echo\
+    "Test 20: hash: bucketsize, fill factor; nelem 25000 cachesize 65536"
+	echo "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg" |
+	awk '{
+		for (i = 1; i <= 10000; ++i) {
+			if (i % 34)
+				s = substr($0, 1, i % 34);
+			else
+				s = substr($0, 1);
+			printf("%s\n", s);
+		}
+		exit;
 	}' > $TMP1
 	sed 10000q $DICT |
-	awk '{
-		++i;
-		printf("p\nk%s\nd%.*s\n", $0, i % 34,
-		    "abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg");
+	awk 'BEGIN {
+		ds="abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg abcdefg"
+	}
+	{
+		if (++i % 34)
+			s = substr(ds, 1, i % 34);
+		else
+			s = substr(ds, 1);
+		printf("p\nk%s\nd%s\n", $0, s);
 	}' > $TMP2
 	sed 10000q $DICT |
 	awk '{
@@ -535,82 +618,82 @@ test20()
 	}' >> $TMP2
 	bsize=256
 	for ffactor in 11 14 21; do
-		printf "\tbucketsize %d, fill factor %d\n" $bsize $ffactor
+		echo "    bucketsize $bsize, fill factor $ffactor"
 		$PROG -o$TMP3 \
 		    -ibsize=$bsize,ffactor=$ffactor,nelem=25000,cachesize=65536\
 		    hash $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test20: type hash:\
-bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed\n"
+			echo "test20: type hash:\
+bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed"
 			exit 1
 		fi
 	done
 	bsize=512
 	for ffactor in 21 28 43; do
-		printf "\tbucketsize %d, fill factor %d\n" $bsize $ffactor
+		echo "    bucketsize $bsize, fill factor $ffactor"
 		$PROG -o$TMP3 \
 		    -ibsize=$bsize,ffactor=$ffactor,nelem=25000,cachesize=65536\
 		    hash $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test20: type hash:\
-bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed\n"
+			echo "test20: type hash:\
+bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed"
 			exit 1
 		fi
 	done
 	bsize=1024
 	for ffactor in 43 57 85; do
-		printf "\tbucketsize %d, fill factor %d\n" $bsize $ffactor
+		echo "    bucketsize $bsize, fill factor $ffactor"
 		$PROG -o$TMP3 \
 		    -ibsize=$bsize,ffactor=$ffactor,nelem=25000,cachesize=65536\
 		    hash $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test20: type hash:\
-bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed\n"
+			echo "test20: type hash:\
+bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed"
 			exit 1
 		fi
 	done
 	bsize=2048
 	for ffactor in 85 114 171; do
-		printf "\tbucketsize %d, fill factor %d\n" $bsize $ffactor
+		echo "    bucketsize $bsize, fill factor $ffactor"
 		$PROG -o$TMP3 \
 		    -ibsize=$bsize,ffactor=$ffactor,nelem=25000,cachesize=65536\
 		    hash $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test20: type hash:\
-bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed\n"
+			echo "test20: type hash:\
+bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed"
 			exit 1
 		fi
 	done
 	bsize=4096
 	for ffactor in 171 228 341; do
-		printf "\tbucketsize %d, fill factor %d\n" $bsize $ffactor
+		echo "    bucketsize $bsize, fill factor $ffactor"
 		$PROG -o$TMP3 \
 		    -ibsize=$bsize,ffactor=$ffactor,nelem=25000,cachesize=65536\
 		    hash $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test20: type hash:\
-bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed\n"
+			echo "test20: type hash:\
+bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed"
 			exit 1
 		fi
 	done
 	bsize=8192
 	for ffactor in 341 455 683; do
-		printf "\tbucketsize %d, fill factor %d\n" $bsize $ffactor
+		echo "    bucketsize $bsize, fill factor $ffactor"
 		$PROG -o$TMP3 \
 		    -ibsize=$bsize,ffactor=$ffactor,nelem=25000,cachesize=65536\
 		    hash $TMP2
 		if (cmp -s $TMP1 $TMP3) ; then :
 		else
-			printf "test20: type hash:\
-bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed\n"
+			echo "test20: type hash:\
+bsize=$bsize ffactor=$ffactor nelem=25000 cachesize=65536 failed"
 			exit 1
 		fi
 	done
 }
 
-main
+main $*

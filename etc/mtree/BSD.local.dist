@@ -1,6 +1,4 @@
-#	  fs: /usr/local
-#	  by: rgrimes
-#	date: Sun Aug 29 22:56:32 PDT 1993
+#	$Id: BSD.local.dist,v 1.4 1994/02/22 05:43:07 rgrimes Exp $
 #
 
 /set type=file uname=bin gname=bin mode=0755
@@ -52,4 +50,6 @@ man	type=dir uname=bin gname=bin mode=0755
 	man8	type=dir uname=bin gname=bin mode=0755
 	..
 	manl	type=dir uname=bin gname=bin mode=0755
+..
+skel	type=dir uname=bin gname=bin mode=0755
 ..

@@ -294,6 +294,7 @@ printsub(direction, pointer, length)
     int		  length;	/* length of suboption data */
 {
     register int i;
+    int tmpint;
     char buf[512];
     extern int want_status_response;
 
@@ -589,7 +590,8 @@ printsub(direction, pointer, length)
 	    case LM_SLC:
 		fprintf(NetTrace, "SLC");
 		for (i = 2; i < length - 2; i += 3) {
-		    if (SLC_NAME_OK(pointer[i+SLC_FUNC]))
+		    tmpint = pointer[i+SLC_FUNC];
+		    if (SLC_NAME_OK(tmpint))
 			fprintf(NetTrace, " %s", SLC_NAME(pointer[i+SLC_FUNC]));
 		    else
 			fprintf(NetTrace, " %d", pointer[i+SLC_FUNC]);
@@ -678,7 +680,8 @@ printsub(direction, pointer, length)
 		    case WONT:	cp = "WONT"; goto common2;
 		    common2:
 			i++;
-			if (TELOPT_OK((int)pointer[i]))
+			tmpint = (int) pointer[i];
+			if (TELOPT_OK(tmpint))
 			    fprintf(NetTrace, " %s %s", cp, TELOPT(pointer[i]));
 			else
 			    fprintf(NetTrace, " %s %d", cp, pointer[i]);
@@ -800,7 +803,8 @@ printsub(direction, pointer, length)
 	    break;
 
 	default:
-	    if (TELOPT_OK(pointer[0]))
+	    tmpint = pointer[0];
+	    if (TELOPT_OK(tmpint))
 		fprintf(NetTrace, "%s (unknown)", TELOPT(pointer[0]));
 	    else
 		fprintf(NetTrace, "%d (unknown)", pointer[i]);

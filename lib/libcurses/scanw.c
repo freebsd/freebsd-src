@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,25 +32,27 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)scanw.c	5.7 (Berkeley) 4/15/91";
-#endif /* not lint */
+static char sccsid[] = "@(#)scanw.c	8.2 (Berkeley) 10/5/93";
+#endif	/* not lint */
 
 /*
- * scanw and friends
- *
+ * scanw and friends.
  */
 
-#if __STDC__
+#include <curses.h>
+
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
-#include "curses.ext"
 
 /*
- *	This routine implements a scanf on the standard screen.
+ * scanw --
+ *	Implement a scanf on the standard screen.
  */
-#if __STDC__
+int
+#ifdef __STDC__
 scanw(const char *fmt, ...)
 #else
 scanw(fmt, va_alist)
@@ -61,20 +63,22 @@ scanw(fmt, va_alist)
 	va_list ap;
 	int ret;
 
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	va_start(ap);
 #endif
-	ret = _sscans(stdscr, fmt, ap);
+	ret = vwscanw(stdscr, fmt, ap);
 	va_end(ap);
-	return ret;
+	return (ret);
 }
 
 /*
- *	This routine implements a scanf on the given window.
+ * wscanw --
+ *	Implements a scanf on the given window.
  */
-#if __STDC__
+int
+#ifdef __STDC__
 wscanw(WINDOW *win, const char *fmt, ...)
 #else
 wscanw(win, fmt, va_alist)
@@ -86,30 +90,86 @@ wscanw(win, fmt, va_alist)
 	va_list ap;
 	int ret;
 
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	va_start(ap);
 #endif
-	ret = _sscans(win, fmt, ap);
+	ret = vwscanw(win, fmt, ap);
 	va_end(ap);
-	return ret;
+	return (ret);
 }
 
 /*
- *	This routine actually executes the scanf from the window.
- *	THIS SHOULD BE RENAMED vwscanw AND EXPORTED
+ * mvscanw, mvwscanw -- 
+ *	Implement the mvscanw commands.  Due to the variable number of
+ *	arguments, they cannot be macros.  Another sigh....
  */
-_sscans(win, fmt, ap)
-	WINDOW *win;
-#if __STDC__
-	const char *fmt;
+int
+#ifdef __STDC__
+mvscanw(register int y, register int x, const char *fmt,...)
 #else
+mvscanw(y, x, fmt, va_alist)
+	register int y, x;
 	char *fmt;
+	va_dcl
 #endif
+{
+	va_list ap;
+	int ret;
+
+	if (move(y, x) != OK)
+		return (ERR);
+#ifdef __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+	ret = vwscanw(stdscr, fmt, ap);
+	va_end(ap);
+	return (ret);
+}
+
+int
+#ifdef __STDC__
+mvwscanw(register WINDOW * win, register int y, register int x,
+    const char *fmt, ...)
+#else
+mvwscanw(win, y, x, fmt, va_alist)
+	register WINDOW *win;
+	register int y, x;
+	char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
+	int ret;
+
+	if (move(y, x) != OK)
+		return (ERR);
+#ifdef __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+	ret = vwscanw(win, fmt, ap);
+	va_end(ap);
+	return (ret);
+}
+
+/*
+ * vwscanw --
+ *	This routine actually executes the scanf from the window.
+ */
+int
+vwscanw(win, fmt, ap)
+	WINDOW *win;
+	const char *fmt;
 	va_list ap;
 {
-	char buf[100];
 
-	return wgetstr(win, buf) == OK ? vsscanf(buf, fmt, ap) : ERR;
+	char buf[1024];
+
+	return (wgetstr(win, buf) == OK ?
+	    vsscanf(buf, fmt, ap) : ERR);
 }

@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_kinfo.c	7.17 (Berkeley) 6/26/91
- *	$Id: kern_kinfo.c,v 1.3 1993/10/16 15:24:18 rgrimes Exp $
+ *	$Id: kern_kinfo.c,v 1.9 1993/12/19 00:51:26 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
 #include "kinfo.h"
 #include "ioctl.h"
@@ -58,6 +59,7 @@ struct getkerninfo_args {
 };
 
 /* ARGSUSED */
+int
 getkerninfo(p, uap, retval)
 	struct proc *p;
 	register struct getkerninfo_args *uap;
@@ -66,10 +68,6 @@ getkerninfo(p, uap, retval)
 
 	int bufsize;		/* max size of users buffer */
 	int needed, locked, (*server)(), error = 0;
-
-	if (error = copyin((caddr_t)uap->size, (caddr_t)&bufsize,
-	    sizeof (bufsize)))
-		goto done;
 
 	switch (ki_type(uap->op)) {
 
@@ -97,9 +95,14 @@ getkerninfo(p, uap, retval)
 		error = (*server)(uap->op, NULL, NULL, uap->arg, &needed);
 		goto done;
 	}
+
+	if (error = copyin((caddr_t)uap->size, (caddr_t)&bufsize,
+	    sizeof (bufsize)))
+		goto done;
+
 	while (kinfo_lock.kl_lock) {
 		kinfo_lock.kl_want++;
-		sleep(&kinfo_lock, PRIBIO+1);
+		tsleep((caddr_t)&kinfo_lock, PRIBIO+1, "kinflck", 0);
 		kinfo_lock.kl_want--;
 		kinfo_lock.kl_locked++;
 	}
@@ -119,7 +122,7 @@ getkerninfo(p, uap, retval)
 release:
 	kinfo_lock.kl_lock--;
 	if (kinfo_lock.kl_want)
-		wakeup(&kinfo_lock);
+		wakeup((caddr_t)&kinfo_lock);
 done:
 	if (!error)
 		*retval = needed;
@@ -131,14 +134,18 @@ done:
  */
 #define KINFO_PROCSLOP	(5 * sizeof (struct kinfo_proc))
 
+int
 kinfo_doproc(op, where, acopysize, arg, aneeded)
+	int op;
 	char *where;
-	int *acopysize, *aneeded;
+	int *acopysize;
+	int arg;
+	int *aneeded;
 {
 	register struct proc *p;
 	register struct kinfo_proc *dp = (struct kinfo_proc *)where;
-	register needed = 0;
-	int buflen;
+	register int needed = 0;
+	int buflen = 0;
 	int doingzomb;
 	struct eproc eproc;
 	int error = 0;
@@ -243,8 +250,10 @@ fill_eproc(p, ep)
 	ep->e_flag = ep->e_sess->s_ttyvp ? EPROC_CTTY : 0;
 	if (SESS_LEADER(p))
 		ep->e_flag |= EPROC_SLEADER;
-	if (p->p_wmesg)
+	if (p->p_wmesg) {
 		strncpy(ep->e_wmesg, p->p_wmesg, WMESGLEN);
+		ep->e_wmesg[WMESGLEN] = 0; /* prevents fault on long wmesg */
+	}
 	ep->e_xsize = ep->e_xrssize = 0;
 	ep->e_xccount = ep->e_xswrss = 0;
 }
@@ -252,9 +261,13 @@ fill_eproc(p, ep)
 /*
  * Get file structures.
  */
+int
 kinfo_file(op, where, acopysize, arg, aneeded)
+	int op;
 	register char *where;
-	int *acopysize, *aneeded;
+	int *acopysize;
+	int arg;
+	int *aneeded;
 {
 	int buflen, needed, error;
 	struct file *fp;

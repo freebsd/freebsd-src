@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rtsock.c	7.18 (Berkeley) 6/27/91
- *	$Id: rtsock.c,v 1.3 1993/10/16 17:43:43 rgrimes Exp $
+ *	$Id: rtsock.c,v 1.6 1993/12/19 00:52:08 wollman Exp $
  */
 
 #include "param.h"
@@ -43,18 +43,21 @@
 #include "domain.h"
 #include "protosw.h"
 
-#include "af.h"
 #include "if.h"
 #include "route.h"
 #include "raw_cb.h"
 
 #include "machine/mtpr.h"
 
+static void rt_setmetrics(u_long, struct rt_metrics *, struct rt_metrics *);
+
+struct route_cb route_cb;
 struct sockaddr route_dst = { 2, PF_ROUTE, };
 struct sockaddr route_src = { 2, PF_ROUTE, };
 struct sockproto route_proto = { PF_ROUTE, };
 
 /*ARGSUSED*/
+int
 route_usrreq(so, req, m, nam, control)
 	register struct socket *so;
 	int req;
@@ -80,7 +83,7 @@ route_usrreq(so, req, m, nam, control)
 		route_cb.any_count--;
 	}
 	s = splnet();
-	error = raw_usrreq(so, req, m, nam, control);
+	error = raw_usrreq(so, req, m, nam, control, 0);
 	rp = sotorawcb(so);
 	if (req == PRU_ATTACH && rp) {
 		int af = rp->rcb_proto.sp_protocol;
@@ -108,6 +111,7 @@ route_usrreq(so, req, m, nam, control)
 #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
 /*ARGSUSED*/
+int
 route_output(m, so)
 	register struct mbuf *m;
 	struct socket *so;
@@ -366,6 +370,7 @@ cleanup:
 	return (error);
 }
 
+void
 rt_setmetrics(which, in, out)
 	u_long which;
 	register struct rt_metrics *in, *out;
@@ -382,66 +387,19 @@ rt_setmetrics(which, in, out)
 #undef metric
 }
 
-/*
- * Copy data from a buffer back into the indicated mbuf chain,
- * starting "off" bytes from the beginning, extending the mbuf
- * chain if necessary.
- */
-m_copyback(m0, off, len, cp)
-	struct	mbuf *m0;
-	register int off;
-	register int len;
-	caddr_t cp;
-
-{
-	register int mlen;
-	register struct mbuf *m = m0, *n;
-	int totlen = 0;
-
-	if (m0 == 0)
-		return;
-	while (off > (mlen = m->m_len)) {
-		off -= mlen;
-		totlen += mlen;
-		if (m->m_next == 0) {
-			n = m_getclr(M_DONTWAIT, m->m_type);
-			if (n == 0)
-				goto out;
-			n->m_len = min(MLEN, len + off);
-			m->m_next = n;
-		}
-		m = m->m_next;
-	}
-	while (len > 0) {
-		mlen = min (m->m_len - off, len);
-		bcopy(cp, off + mtod(m, caddr_t), (unsigned)mlen);
-		cp += mlen;
-		len -= mlen;
-		mlen += off;
-		off = 0;
-		totlen += mlen;
-		if (len == 0)
-			break;
-		if (m->m_next == 0) {
-			n = m_get(M_DONTWAIT, m->m_type);
-			if (n == 0)
-				break;
-			n->m_len = min(MLEN, len);
-			m->m_next = n;
-		}
-		m = m->m_next;
-	}
-out:	if (((m = m0)->m_flags & M_PKTHDR) && (m->m_pkthdr.len < totlen))
-		m->m_pkthdr.len = totlen;
-}
-
 /* 
  * The miss message and losing message are very similar.
  */
 
+void
 rt_missmsg(type, dst, gate, mask, src, flags, error)
-register struct sockaddr *dst;
-struct sockaddr *gate, *mask, *src;
+	int type;
+	register struct sockaddr *dst;
+	struct sockaddr *gate;
+	struct sockaddr *mask;
+	struct sockaddr *src;
+	int flags;
+	int error;
 {
 	register struct rt_msghdr *rtm;
 	register struct mbuf *m;
@@ -508,6 +466,7 @@ struct walkarg {
 /*
  * This is used in dumping the kernel table via getkinfo().
  */
+int
 rt_dumpentry(rn, w)
 	struct radix_node *rn;
 	register struct walkarg *w;
@@ -575,6 +534,7 @@ rt_dumpentry(rn, w)
 #undef next
 }
 
+int
 kinfo_rtable(op, where, given, arg, needed)
 	int	op, arg;
 	caddr_t	where;
@@ -618,6 +578,7 @@ kinfo_rtable(op, where, given, arg, needed)
 	return (error);
 }
 
+int
 rt_walk(rn, f, w)
 	register struct radix_node *rn;
 	register int (*f)();
@@ -642,7 +603,6 @@ rt_walk(rn, f, w)
  * Definitions of protocols supported in the ROUTE domain.
  */
 
-int	raw_init(),raw_usrreq(),raw_input(),raw_ctlinput();
 extern	struct domain routedomain;		/* or at least forward */
 
 struct protosw routesw[] = {

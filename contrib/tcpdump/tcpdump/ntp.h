@@ -1,4 +1,4 @@
-/* $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/ntp.h,v 1.1.1.1 1993/06/12 14:42:11 rgrimes Exp $ */
+/* $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/ntp.h,v 1.1.1.1 1993/06/12 14:42:11 rgrimes Exp $ */
 
 /*
  * Based on ntp.h from the U of MD implementation

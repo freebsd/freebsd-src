@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)uipc_usrreq.c	7.26 (Berkeley) 6/3/91
- *	$Id: uipc_usrreq.c,v 1.4 1993/10/23 16:34:45 davidg Exp $
+ *	$Id: uipc_usrreq.c,v 1.5 1993/11/25 01:33:37 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
 #include "filedesc.h"
 #include "domain.h"
@@ -61,6 +62,7 @@ struct	sockaddr sun_noname = { sizeof(sun_noname), AF_UNIX };
 ino_t	unp_ino;			/* prototype for fake inode numbers */
 
 /*ARGSUSED*/
+int
 uipc_usrreq(so, req, m, nam, control)
 	struct socket *so;
 	int req;
@@ -313,6 +315,7 @@ u_long	unpdg_recvspace = 4*1024;
 
 int	unp_rights;			/* file descriptors in flight */
 
+int
 unp_attach(so)
 	struct socket *so;
 {
@@ -330,6 +333,8 @@ unp_attach(so)
 		case SOCK_DGRAM:
 			error = soreserve(so, unpdg_sendspace, unpdg_recvspace);
 			break;
+		default:
+			panic("unp_attach");
 		}
 		if (error)
 			return (error);
@@ -343,6 +348,7 @@ unp_attach(so)
 	return (0);
 }
 
+void
 unp_detach(unp)
 	register struct unpcb *unp;
 {
@@ -373,6 +379,7 @@ unp_detach(unp)
 	}
 }
 
+int
 unp_bind(unp, nam, p)
 	struct unpcb *unp;
 	struct mbuf *nam;
@@ -422,6 +429,7 @@ unp_bind(unp, nam, p)
 	return (0);
 }
 
+int
 unp_connect(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
@@ -481,6 +489,7 @@ bad:
 	return (error);
 }
 
+int
 unp_connect2(so, so2)
 	register struct socket *so;
 	register struct socket *so2;
@@ -512,6 +521,7 @@ unp_connect2(so, so2)
 	return (0);
 }
 
+void
 unp_disconnect(unp)
 	struct unpcb *unp;
 {
@@ -557,6 +567,7 @@ unp_abort(unp)
 }
 #endif
 
+void
 unp_shutdown(unp)
 	struct unpcb *unp;
 {
@@ -567,6 +578,7 @@ unp_shutdown(unp)
 		socantrcvmore(so);
 }
 
+void
 unp_drop(unp, errno)
 	struct unpcb *unp;
 	int errno;
@@ -590,6 +602,7 @@ unp_drain()
 }
 #endif
 
+int
 unp_externalize(rights)
 	struct mbuf *rights;
 {
@@ -621,6 +634,7 @@ unp_externalize(rights)
 	return (0);
 }
 
+int
 unp_internalize(control, p)
 	struct mbuf *control;
 	struct proc *p;
@@ -655,9 +669,9 @@ unp_internalize(control, p)
 }
 
 int	unp_defer, unp_gcing;
-int	unp_mark();
 extern	struct domain unixdomain;
 
+void
 unp_gc()
 {
 	register struct file *fp;
@@ -719,18 +733,18 @@ restart:
 	unp_gcing = 0;
 }
 
+void
 unp_dispose(m)
 	struct mbuf *m;
 {
-	int unp_discard();
-
 	if (m)
 		unp_scan(m, unp_discard);
 }
 
+void
 unp_scan(m0, op)
 	register struct mbuf *m0;
-	int (*op)();
+	void (*op)(struct file *);
 {
 	register struct mbuf *m;
 	register struct file **rp;
@@ -757,6 +771,7 @@ unp_scan(m0, op)
 	}
 }
 
+void
 unp_mark(fp)
 	struct file *fp;
 {
@@ -767,6 +782,7 @@ unp_mark(fp)
 	fp->f_flag |= (FMARK|FDEFER);
 }
 
+void
 unp_discard(fp)
 	struct file *fp;
 {

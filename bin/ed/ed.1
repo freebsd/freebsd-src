@@ -1,20 +1,21 @@
 .TH ED 1 "21 May 1993"
 .SH NAME
-ed, red \- text editor
+.\" ed, red \- text editor
+ed \- text editor
 .SH SYNOPSIS
 ed [-] [-sx] [-p \fIstring\fR] [\fIfile\fR]
-.LP
-red [-] [-sx] [-p \fIstring\fR] [\fIfile\fR]
+.\" .LP
+.\" red [-] [-sx] [-p \fIstring\fR] [\fIfile\fR]
 .SH DESCRIPTION
 .B ed
 is a line-oriented text editor.
 It is used to create, display, modify and otherwise manipulate text
 files.
-.B red
-is a restricted
-.BR ed :
-it can only edit files in the current
-directory and cannot execute shell commands.
+.\" .B red
+.\" is a restricted
+.\" .BR ed :
+.\" it can only edit files in the current
+.\" directory and cannot execute shell commands.
 
 If invoked with a
 .I file
@@ -45,7 +46,7 @@ A typical command might look like:
 ,s/\fIold\fR/\fInew\fR/g
 .RE
 .sp
-which replaces all occurences of the string
+which replaces all occurrences of the string
 .I old
 with
 .IR new .
@@ -134,7 +135,7 @@ The default filename is set to
 only if it is not prefixed with a bang.
 
 .SS LINE ADDRESSING
-An address represents the number of line in the buffer.
+An address represents the number of a line in the buffer.
 .B ed
 maintains a
 .I current address
@@ -165,25 +166,26 @@ and is legal wherever it makes sense.
 
 An address range is two addresses separated either by a comma or
 semi-colon. The value of the first address in a range cannot exceed the
-value of the the second.  If an
+value of the the second.  If only one address is given in a range, then
+the second address is set to the given address.  If an
 .IR n- tuple
 of addresses is given where
 .I n > 2,
-then the corresponding range is determined by the last two addresses
-in the
+then the corresponding range is determined by the last two addresses in
+the
 .IR n- tuple.
-If only one address is expected, then the last
-address is used.
+If only one address is expected, then the last address is used.
 
 Each address in a comma-delimited range is interpreted relative to the
 current address.  In a semi-colon-delimited range, the first address is
 used to set the current address, and the second address is interpreted
 relative to the first.
 
+
 The following address symbols are recognized.
 
 .TP 8
-\fR.\fR
+\&.
 The current line (address) in the buffer.
 
 .TP 8
@@ -511,7 +513,9 @@ The current address is set to the last line read.
 .RI e \ !command
 Edits the standard output of
 .IR `!command' ,
-executed as described below.
+(see
+.RI ! command
+below).
 The default filename is unchanged.
 Any lines in the buffer are deleted before the output of
 .I command
@@ -629,6 +633,12 @@ deleted or otherwise modified.
 .TP 8
 (.,.)l
 Prints the addressed lines unambiguously.
+If a single line fills for than one screen (as might be the case
+when viewing a binary file, for instance), a `--More--' 
+prompt is printed on the last line. 
+.B ed
+waits until the RETURN key is pressed
+before displaying the next screen. 
 The current address is set to the last line
 printed.
 
@@ -689,7 +699,9 @@ Reads
 to after the addressed line
 the standard output of
 .IR `!command' ,
-executed as described below.
+(see the
+.RI ! command
+below).
 The default filename is unchanged.
 The current address is set to the last line read.
 
@@ -707,14 +719,14 @@ matching a regular expression
 with
 .IR replacement .
 By default, only the first match in each line is replaced.
-The
+If the
 .I `g'
-(global) suffix causes every match to be replaced.
+(global) suffix is given, then every match to be replaced.
 The
 .I `n'
 suffix, where
 .I n
-is a postive number, causes only the
+is a positive number, causes only the
 .IR n th
 match to be replaced.
 It is an error if no substitutions are performed on any of the addressed
@@ -724,7 +736,10 @@ The current address is set the last line affected.
 .I re
 and
 .I replacement
-may be delimited by any character other than space and newline.
+may be delimited by any character other than space and newline
+(see the
+.I `s'
+command below).
 If one or two of the last delimiters is omitted, then the last line
 affected is printed as though the print suffix
 .I `p'
@@ -755,12 +770,18 @@ if they are escaped with a backslash (\\).
 Repeats the last substitution.
 This form of the
 .I `s'
-command may be suffixed with
-any combination of the characters
+command accepts a count suffix
+.IR `n' ,
+or any combination of the characters
 .IR `r' ,
 .IR `g' ,
 and
 .IR `p' .
+If a count suffix
+.I `n'
+is given, then only the
+.IR n th
+match is replaced.
 The
 .I `r'
 suffix causes
@@ -840,7 +861,9 @@ command.
 .RI (1,$)w \ !command
 Writes the addressed lines to the standard input of
 .IR `!command' ,
-executed as described below.
+(see the
+.RI ! command
+below).
 The default filename and current address are unchanged.
 
 .TP 8
@@ -889,13 +912,6 @@ is replaced by the default filename.
 When the shell returns from execution, a `!'
 is printed to the standard output.
 The current line is unchanged.
-
-.TP 8
-.RI (.,.)! command
-Replaces the addressed lines with the output of
-.I `!command'
-as described above.
-The current address is set to the last line read.
 
 .TP 8
 ($)=

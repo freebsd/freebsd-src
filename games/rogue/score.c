@@ -206,7 +206,8 @@ short other;
 
 	md_lock(1);
 
-	if ((fp = fopen(_PATH_SCOREFILE, "r+")) == NULL) {
+	if (   (fp = fopen(_PATH_SCOREFILE, "r+")) == NULL
+	    && (fp = fopen(_PATH_SCOREFILE, "w+")) == NULL) {
 		message("cannot read/write/create score file", 0);
 		sf_error();
 	}

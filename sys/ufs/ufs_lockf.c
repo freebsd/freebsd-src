@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_lockf.c	7.7 (Berkeley) 7/2/91
- *	$Id: ufs_lockf.c,v 1.5 1993/10/25 03:19:43 davidg Exp $
+ *	$Id: ufs_lockf.c,v 1.7 1993/12/19 00:55:44 wollman Exp $
  */
 
 #include "param.h"
@@ -51,10 +51,14 @@
 #include "inode.h"
 
 
+static void lf_addblock(struct lockf *, struct lockf *);
+static void lf_split(struct lockf *, struct lockf *);
+static void lf_wakelock(struct lockf *);
 
 /*
  * Advisory record locking support
  */
+int
 lf_advlock(head, size, id, op, fl, flags)
 	struct lockf **head;
 	u_long size;
@@ -157,6 +161,7 @@ int	lockf_debug = 0;
 /*
  * Set a byte-range lock.
  */
+int
 lf_setlock(lock)
 	register struct lockf *lock;
 {
@@ -402,6 +407,7 @@ lf_setlock(lock)
  * Generally, find the lock (or an overlap to that lock)
  * and remove it (or shrink it), then wakeup anyone we can.
  */
+int
 lf_clearlock(unlock)
 	register struct lockf *unlock;
 {
@@ -470,6 +476,7 @@ lf_clearlock(unlock)
  * Check whether there is a blocking lock,
  * and if so return its process identifier.
  */
+int
 lf_getlock(lock, fl)
 	register struct lockf *lock;
 	register struct flock *fl;
@@ -534,6 +541,7 @@ lf_getblock(lock)
  * NOTE: this returns only the FIRST overlapping lock.  There
  *	 may be more than one.
  */
+int
 lf_findoverlap(lf, lock, type, prev, overlap)
 	register struct lockf *lf;
 	struct lockf *lock;
@@ -642,6 +650,7 @@ lf_findoverlap(lf, lock, type, prev, overlap)
 /*
  * Add a lock to the end of the blocked list.
  */
+static void
 lf_addblock(lock, blocked)
 	struct lockf *lock;
 	struct lockf *blocked;
@@ -670,6 +679,7 @@ lf_addblock(lock, blocked)
  * Split a lock and a contained region into
  * two or three locks as necessary.
  */
+static void
 lf_split(lock1, lock2)
 	register struct lockf *lock1;
 	register struct lockf *lock2;
@@ -716,6 +726,7 @@ lf_split(lock1, lock2)
 /*
  * Wakeup a blocklist
  */
+static void
 lf_wakelock(listhead)
 	struct lockf *listhead;
 {

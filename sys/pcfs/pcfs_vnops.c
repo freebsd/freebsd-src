@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_vnops.c,v 1.2 1993/10/16 19:29:39 rgrimes Exp $
+ *	$Id: pcfs_vnops.c,v 1.4 1993/12/19 00:54:32 wollman Exp $
  */
 
 #include "param.h"
@@ -314,7 +314,7 @@ printf("    va_uid %x, va_gid %x, va_atime.tv_sec %x\n",
 		if (cred->cr_uid == 0)
 			dep->de_flag = vap->va_flags;
 		else {
-			dep->de_flag &= 0xffff0000;
+			dep->de_flag &= 0xffff0000UL;
 			dep->de_flag |= (vap->va_flags & 0xffff);
 		}
 		dep->de_flag |= DEUPD;
@@ -585,6 +585,7 @@ pcfs_ioctl(vp, com, data, fflag, cred, p)
 	struct vnode *vp;
 	int com;
 	caddr_t data;
+	int fflag;
 	struct ucred *cred;
 	struct proc *p;
 {
@@ -718,7 +719,8 @@ printf("seek: newoff %d > foff %d\n", newoff, foff);
 			dep->de_FileSize += pmp->pm_bpcluster;
 		} /* end while() */
 		dep->de_FileSize = newoff;
-		return deupdat(dep, &time);
+		return deupdat(dep, &time, 
+			       pmp->pm_mountp->mnt_flag & MNT_SYNCHRONOUS);
 	}
 	return 0;
 }
@@ -894,7 +896,7 @@ printf("pcfs_rename(fndp %08x, tndp %08x, p %08x\n", fndp, tndp, p);
 			tdep = NULL;
 		}
 		/* doscheckpath() deput()'s tddep */
-		error = doscheckpath(fdep, tddep, tndp->ni_cred);
+		error = doscheckpath(fdep, tddep);
 		tddep = NULL;
 		if (error) {
 			goto bad;
@@ -970,7 +972,7 @@ printf("pcfs_rename(fndp %08x, tndp %08x, p %08x\n", fndp, tndp, p);
  *  tdep is unlocked and unreferenced
  */
 	} else {
-		u_long dirsize;
+		u_long dirsize = 0;
 /*
  *  If the source and destination are in different
  *  directories, then mark the entry in the source
@@ -1591,7 +1593,7 @@ pcfs_strategy(bp)
 	return 0;
 }
 
-int
+void
 pcfs_print(vp)
 	struct vnode *vp;
 {

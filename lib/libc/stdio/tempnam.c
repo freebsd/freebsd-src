@@ -48,6 +48,8 @@ tempnam(dir, pfx)
 {
 	int sverrno;
 	char *f, *name;
+	static char unique[] = "@AA";
+	int idx;
 
 	if (!(name = malloc(MAXPATHLEN)))
 		return(NULL);
@@ -55,27 +57,35 @@ tempnam(dir, pfx)
 	if (!pfx)
 		pfx = "tmp.";
 
+	/* Bump up the unique counter.  The following is also a gross abuse
+	 * of C, but I don't really care.  This whole function is superceeded
+	 * by mkstemp() anyway.
+	 */
+	idx = unique[0] < 'Z' ? 0 : unique[1] < 'Z' ? 1 : unique[2] < 'Z' ?
+	    2 : (int)strcpy(unique, "AAA"), 0;
+	++unique[idx];
+
 	if (f = getenv("TMPDIR")) {
-		(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f,
-			*(f + strlen(f) - 1) == '/'? "": "/", pfx);
+		(void)snprintf(name, MAXPATHLEN, "%s%s%s%sXXXXXX", f,
+			*(f + strlen(f) - 1) == '/'? "": "/", pfx, unique);
 		if (f = mktemp(name))
 			return(f);
 	}
 
 	if (f = (char *)dir) {
-		(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f,
-			*(f + strlen(f) - 1) == '/'? "": "/", pfx);
+		(void)snprintf(name, MAXPATHLEN, "%s%s%s%sXXXXXX", f,
+			*(f + strlen(f) - 1) == '/'? "": "/", pfx, unique);
 		if (f = mktemp(name))
 			return(f);
 	}
 
 	f = P_tmpdir;
-	(void)snprintf(name, MAXPATHLEN, "%s%sXXXXXX", f, pfx);
+	(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f, pfx, unique);
 	if (f = mktemp(name))
 		return(f);
 
 	f = _PATH_TMP;
-	(void)snprintf(name, MAXPATHLEN, "%s%sXXXXXX", f, pfx);
+	(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f, pfx, unique);
 	if (f = mktemp(name))
 		return(f);
 

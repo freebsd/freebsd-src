@@ -57,6 +57,8 @@ typedef struct _plandata {
 #define	F_MTFLAG	1			/* fstype */
 #define	F_MTTYPE	2
 #define	F_ATLEAST	1			/* perm */
+#define F_PRINT0	1
+#define F_PRINTF	2
 	int flags;				/* private flags */
 	enum ntype type;			/* plan node type */
 	union {

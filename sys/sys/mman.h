@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mman.h	7.5 (Berkeley) 6/27/91
- *	$Id: mman.h,v 1.2 1993/10/16 17:17:12 rgrimes Exp $
+ *	$Id: mman.h,v 1.3 1993/11/07 17:52:49 wollman Exp $
  */
+
+#ifndef _SYS_MMAN_H_
+#define _SYS_MMAN_H_ 1
 
 /*
  * Protections are chosen from these bits, or-ed together
@@ -86,3 +89,4 @@ int	msync __P((caddr_t, int));
 __END_DECLS
 
 #endif /* !KERNEL */
+#endif /* _SYS_MMAN_H_ */

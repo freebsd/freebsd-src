@@ -1,4 +1,4 @@
-# $Header: /a/cvs/386BSD/src/usr.bin/tn3270/mset/Makefile,v 1.3 1993/07/07 22:27:07 nate Exp $
+# $Header: /home/cvs/386BSD/src/usr.bin/tn3270/mset/Makefile,v 1.3 1993/07/07 22:27:07 nate Exp $
 
 .include <../../Makefile.inc>
 

@@ -34,39 +34,144 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.1 1993/08/28 12:41:23 rgrimes Exp $
+.\"	$Id: sio.4,v 1.8.2.1 1994/05/01 16:07:37 jkh Exp $
 .\"
-.Dd August 28, 1993
+.Dd February 9, 1994
 .Dt SIO 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm sio
 .Nd
-fast interrupt serial communications interface
+fast interrupt driven asynchronous serial communications interface
 .Sh SYNOPSIS
+For standard ports:
 .Cd "device sio0 at isa? port" \&"IO_COM1\&" tty irq 4 vector siointr
 .Cd "device sio1 at isa? port" \&"IO_COM2\&" tty irq 3 vector siointr
 .Cd "device sio2 at isa? port" \&"IO_COM3\&" tty irq 5 vector siointr
 .Cd "device sio3 at isa? port" \&"IO_COM4\&" tty irq 9 vector siointr
+.sp
+For multiport cards:
+.Cd "options" \&"COM_MULTIPORT\&"
+.Cd "device sio4 at isa? port 0x2a0 tty irq 12 flags 0x401 vector siointr"
+.Cd "device sio5 at isa? port 0x2a8 tty flags 0x401 vector siointr"
+.Cd "device sio6 at isa? port 0x2b0 tty flags 0x401 vector siointr"
+.Cd "device sio7 at isa? port 0x2b8 tty flags 0x401 vector siointr"
+.sp
+For bidirectional use of ports:
+.Cd "options" \&"COM_BIDIR\&"
+.sp
+For control FIFO trigger:
+.Cd "options" \&"FIFO_TRIGGER=FIFO_TRIGGER_14\&"
+.sp
+Use 0x02 bit in flags field to disable FIFO on specified port.
 .Sh DESCRIPTION
 The
 .Nm sio
-driver provides support for NS8250-, NS16450-, and NS16550-based
+driver provides support for NS8250-, NS16450-, NS16550 and NS16550A-based
 .Tn EIA
 .Tn RS-232C
 .Pf ( Tn CCITT
-.Tn V.28 )
+.Tn V.24 )
 communications interfaces.  The NS8250 and NS16450 have single character
-buffers, and the NS16550 has a 16 character buffer.
+buffers, the NS16550A has a 16 character FIFO buffer.
 .Pp
 Input and output for each line may set to one of following baud rates;
 50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
-19200, 38400, 57600, or 115200.
+19200, 38400, 57600, or 115200. Your hardware may limit your baud
+rate choices.
+.Pp
+The driver supports `multiport' cards. 
+Multiport cards are those that have one or more groups of ports
+that share a common IRQ and Interrupt Request register set per group.
+Frequently 4 ports share 1 IRQ, some 8 port cards have 2 groups of 4 ports,
+thus using 2 IRQs.
+Some cards allow the first 2 serial ports to have seperate IRQs per port
+(as per DOS PC standard).
+.sp
+The
+.Nm flags
+keyword specifies for each 
+.Nm device sio
+line in the kernel configuration file, 
+whether the port is part of an IRQ sharing group, & if so,
+which port is the master device for
+the group (ie which port has the IRQ control registers).
+The master device is the port which
+has registers through which all interrupts of the port group are funneled.
+All ports of a port group report pending interrupts using this
+single register.
+.sp
+The master device is an integer embedded in the high byte of the
+.Nm flags
+bitfield, so all sio entries in the kernel config file that are part of a 
+multiport card must include the correct 
+.Nm flags
+specification. 
+The bitwise assignment allows multiple port groups to
+be configured in one system. It does 
+.Nm not
+imply that more than one port group (or card) can share
+the same physical interrupt line!
+.Pp
+In the synopsis the 
+.Nm flags 0x401
+means that the 5th port (sio4) is the master
+device (so the MSB of the flags), and that the ports are part of a 
+multiport card (the LSB of the flags, actually only the LS 
+.Nm bit
+).
+F.e. if you have only two standard ports in addition to multiport
+card, this
+.Nm flags
+will be
+.Nm 0x201 
+(assuming the control port is 
+.Nm sio2
+).
+.Pp
+Which port is the master device depends on the card type. Consult
+the hardware documentation of your card.
+.Pp
+Serial ports controlled by the 
+.Nm sio
+driver can be used for both dialin and dialout. Use 
+.Xr comcontrol 8
+to enable/disable bidirectional use of the 
+.Nm sio
+ports. The minor number of the dialout
+port is 128 higher than that of the corresponding dialin port. Use 
+.Xr stty 1
+to enable or disable modem control as required by your setup.
+.Pp
+While testing new cards & resolving card config DIP header &
+.Nm sio flags
+settings, to avoid coms. failure from lack of full modem DC level
+settings on ports,
+you are recommended to temporarily use syntax such as:
+.Nm stty -f /dev/tty03 clocal
+or open
+.Nm /dev/cua03
+if you have bidirectional mode active
+to force serial port to open without
+.Nm O_NONBLOCK
+flag.
 .Sh FILES
-.Bl -tag -width Pa
-.It Pa /dev/tty00
-.It Pa /dev/tty01
+.Bl -tag -width /dev/tty0? -compact
+.It Pa /dev/tty0?
+for hardwired terminals
 .El
+or
+.Bl -tag -width /dev/tty0? -compact
+.It Pa /dev/ttyd?
+for dialin ports (and dialout when bidirectional usage disabled)
+.It Pa /dev/cua0?
+for dialout ports when bidirectional usage enabled
+.El
+.Pp
+The devices numbers are made from the set [0-9a-z] so that more than
+10 ports can be supported.
+/dev/tty0? and /dev/ttyd? are mutually exclusive, if you have
+/dev/tty0? corresponding /dev/ttyd? must be removed and vice versa.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It sio%d: silo overflow.
@@ -78,8 +183,9 @@ has overflowed and incoming data has been lost.
 .\"with the code listed.
 .El
 .Sh SEE ALSO
-.Xr tty 4
-.Xr com 4
+.Xr tty 4 ,
+.Xr comcontrol 8 ,
+.Xr stty 1 .
 .Sh HISTORY
 The
 .Nm
@@ -91,11 +197,23 @@ driver and is
 .Sh BUGS
 Data loss is not near as likely on busy systems as they are with the
 .Xr com 4
-driver but they still can occur at very high baud rates on slow systems.
+driver but they still can occur at very high baud rates on slow systems. The
+use of NS16550A's helps lot to handle high baud rates.
+.Pp
+Stay away from NS16550 (so without the trailing A). These are early 
+implementations of the chip with non-functional FIFO hardware.
 .Pp
 The constants which define the locations
-of the various seiral ports are holdovers from
+of the various serial ports are holdovers from
 .Nm DOS .
+As shown, hex addresses can be and for clarity probably should be used instead.
 .Pp
-As usual, you get what you pay for; cheap NS16550 clones
-generally don't work.
+As usual, you get what you pay for; cheap NS16550 clones generally don't work.
+.Pp
+The multiport example is based on an AST/4 card, your
+mileage may vary however. Note that on the AST/4 the card's dipswitches should 
+.Nm not
+be set to use interrupt sharing. AST/4-like interrupt sharing is only used when 
+.Nm multiple
+AST/4 cards are installed in the same system. The sio driver does not 
+support more than 1 AST/4 on one IRQ.

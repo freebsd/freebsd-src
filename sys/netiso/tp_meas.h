@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_meas.h	7.5 (Berkeley) 5/6/91
- *	$Id: tp_meas.h,v 1.2 1993/10/16 21:05:50 rgrimes Exp $
+ *	$Id: tp_meas.h,v 1.3 1993/11/07 17:49:54 wollman Exp $
  */
 
 /***********************************************************
@@ -56,6 +56,9 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
 ******************************************************************/
+
+#ifndef _NETISO_TP_MEAS_H_
+#define _NETISO_TP_MEAS_H_ 1
 
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
@@ -92,4 +95,5 @@ extern struct tp_Meas tp_Meas[];
 #define TPtime_open_X		0x28 /* xtd format */
 #define TPtime_close		0x09
 
-#endif TP_PERF_MEAS
+#endif /* TP_PERF_MEAS */
+#endif /* _NETISO_TP_MEAS_H_ */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vlimit.h	7.2 (Berkeley) 5/5/91
- *	$Id: vlimit.h,v 1.2 1993/10/16 17:18:24 rgrimes Exp $
+ *	$Id: vlimit.h,v 1.3 1993/11/07 17:53:20 wollman Exp $
  */
+
+#ifndef _SYS_VLIMIT_H_
+#define _SYS_VLIMIT_H_ 1
 
 /*
  * Limits for u.u_limit[i], per process, inherited.
@@ -48,3 +51,4 @@
 #define	NLIMITS		6
 
 #define	INFINITY	0x7fffffff
+#endif /* _SYS_VLIMIT_H_ */

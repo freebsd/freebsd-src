@@ -1,13 +1,7 @@
                              INSTALLATION NOTES
                                   FreeBSD
-                                Release 1.0
+                                Release 1.1
 
-These notes have been prepared from those written originally for NetBSD
-0.9. The conversion was done by someone who has had experience with
-installing and upgrading 386bsd, but who is not a unix guru, so there
-will be slant towards this experience. Corrections/updates are
-welcomed, it is difficult/impossible to test every last hardware
-combination.
 
 Be sure to read _ALL_ of this document before you try to install
 FreeBSD.  FreeBSD probably looks a bit similar to things that you've
@@ -15,12 +9,12 @@ seen before (perhaps 386BSD), but the installation procedures are quite
 different.
 
 
-FreeBSD 1.0 Release Contents:
+FreeBSD Release Contents:
 ------- --- ------- --------
 
-The FreeBSD 1.0 Release consists of the following elements:
+The FreeBSD Release consists of the following elements:
 
-Bootable Kernel-copy floppies
+Bootable Kernel copy floppies
 
 	These disks are bootable and have enough utilities on
 	board to copy a new kernel to a prepared hard disk.  While
@@ -28,10 +22,10 @@ Bootable Kernel-copy floppies
 	also make upgrading to a new kernel easy:  boot from it,
 	and copy a new kernel to disk.
 
-	You must choose between one of two kernel-copy floppy
+	You must choose between one of two kernel copy floppy
 	images, depending on your disk controller type.  The
-	"kcopy-ah-floppy" image supports the Adaptec 154x and 1742
-	SCSI adapters, while "kcopy-bt-floppy" supports the Bustek
+	"kcopy_ah.flp" image supports the Adaptec 154x and 1742
+	SCSI adapters, while "kcopy_bt.flp" supports the Bustek
 	742 and Ultrastore SCSI adapters.  For systems with only
 	MFM, RLL, ESDI or IDE disk controllers, either image can
 	be used.
@@ -42,8 +36,8 @@ Installation floppies
 	disks are required to prepare your hard drive for FreeBSD
 	and to install the FreeBSD distribution.  Like the boot
 	floppies, these are distributed as binary images.  They are
-	are referred to below as the  "filesystem-floppy" and the
-	"cpio-floppy".
+	are referred to below as the  "filesyst.flp" and the
+	"cpio.flp".
 
 	There is also an optional fourth installation disk referred
 	to as the "dos-floppy".  Unlike the other install disks,
@@ -71,21 +65,21 @@ FreeBSD distribution sets
 	and the DES sources+binaries.  The DES set contains only
 	crypt(3) code and is subject to U.S.A. export restrictions.
 
-	The binary distribution set can be found in the "binarydist"
+	The binary distribution set can be found in the "bindist"
 	subdirectory of the FreeBSD archive sites.  It consists
-	of files named bin_tgz.aa to bin_tgz.db (i.e., 80 files
+	of files named bin_tgz.aa to bin_tgz.ce (i.e., 57 files
 	all told).  A CKSUMS file (* see note below) is included
 	for verifying the integrity of these.
 
-	The source distribution sets can be found in under
-	"sourcedist" subdirectory of archive sites. It is consists
-	of files named src_tgz.aa to src_tgz.cp (i.e., 68 files
-	all told), plus file CKSUMS*.
+	The source distribution sets can be found in the 
+	"srcdist" subdirectory of archive sites. It is consists
+	of files named base.aa to usrsbin.ae (i.e., 86 files
+	all told), plus the file CKSUMS*.
 
 	Finally, the security distribution set contains
 	usr/src/libcrypt/*, the source files for the DES encryption
 	algorithm, and the binaries which depend on it.  It can
-	be found in the "securedist" subdirectory on sites which
+	be found in the "secrdist" subdirectory on sites which
 	choose to carry the complete FreeBSD distribution.
 
 	The individual files in each collection are no more than
@@ -127,7 +121,7 @@ FreeBSD distribution sets
 System Requirements and Supported Devices:
 ------ ------------ --- --------- -------
 
-FreeBSD 1.0 runs on ISA (AT-Bus) and EISA systems, with 386 and 486
+FreeBSD runs on ISA (AT-Bus) and EISA systems, with 386 and 486
 processors, with or without math coprocessors.  It does NOT support
 Micro-channel systems, such as some IBM PS/2 systems.  The minimal
 configuration includes 4Meg of RAM, and an 80Meg hard disk, but to
@@ -146,10 +140,10 @@ Supported devices include:
 		RLL
 
 	SCSI hard disk controllers:
-		Adaptec 154x series *			[kcopy-ah-floppy]
+		Adaptec 154x series *			[kcopy_ah.flp]
 		Adaptec 174x series
 		Buslogic 545S
-		Bustek 742 (EISA)			[kcopy-bt-floppy]
+		Bustek 742 (EISA)			[kcopy_bt.flp]
 		DTC 3290 in 1542 emulation mode *
 		Ultrastor 14f and 34f
 
@@ -174,7 +168,7 @@ Supported devices include:
 	Ethernet controllers
 		SMC/WD 8003, 8013, and equivalents
 			(including the SMC "Elite" series)
-		Novell NE1000, NE2000
+		Novell NE1000, NE2000, NE2100
 		3COM 3c503
 		ISOLAN ISOLink
 
@@ -199,15 +193,15 @@ Floppy Cntlr.	fd0	0x3f0	6	2
 Std. Hard Disk Cntlr.
 		wd0	0x1f0	14
 
-AHA-154x SCSI Cntlr.	0x330	11	5	 [kcopy-ah-floppy]
+AHA-154x SCSI Cntlr.	0x330	11	5	 [kcopy_ah.flp]
 
-AHA-174x SCSI Cntlr.	automatically configured [kcopy-ah-floppy]
+AHA-174x SCSI Cntlr.	automatically configured [kcopy_ah.flp]
 
-BT742 SCSI Cntlr.	0x330	12		 [kcopy-bt-floppy]
+BT742 SCSI Cntlr.	0x330	12		 [kcopy_bt.flp]
 
 UHA-14f	SCSI Cntlr. or
-UHA-34f SCSI Cntlr.	0x330	14	5        [kcopy-bt-floppy]
-(In FreeBSD GAMMA and before, UHA was on IRQ 11)
+UHA-34f SCSI Cntlr.	0x330	14	5        [kcopy_bt.flp]
+(In FreeBSD 1.0 GAMMA and before, UHA was on IRQ 11)
 
 SCSI Disks	sd[0-2]	automatically configured
 
@@ -234,6 +228,7 @@ replaced with an ed0 device.  The default settings of 9/300 have
 been changed to 5/280.
 
 ISOLAN ISOLink	is0	0x280	10	7
+Novell NE2100	is0	0x280	10	7
 
 QIC-02 Tape	wt0	0x300	5	1
 
@@ -256,9 +251,9 @@ the three installation disks, which don't support a multi-user
 shell.
 
 The full binary distribution  extracts to about 46 MB.
-The full source distribution extracts to about 72 MB.
+The full source distribution extracts to about 86 MB.
 The kernel source only extracts to about 7 MB.
-To recompile the sources requires an additional 55 MB.
+To recompile the sources requires an additional 50 MB.
 To recompile the kernel requires an additional 2 MB.
 
 Since additional room is required for extracting the distributions,
@@ -283,31 +278,31 @@ Installation is supported from several media types, including:
 	Kermit
 
 No matter what you do, however, you'll need at least three disks (1.2M
-or 1.44M) handy, on which you will put the kernel-copy image and the
+or 1.44M) handy, on which you will put the kernel copy image and the
 install (or upgrade) floppy images.
 
 The images are available from the directory "floppies", under the root
-of the FreeBSD/FreeBSD-1.0 tree at your favorite archive site.
+of the FreeBSD/FreeBSD-1.1 tree at your favorite archive site.
 They're available both as raw disk images, and gzipped, to save time
 downloading.
 
 If you are using an AHA-154x or AHA-1742 SCSI host adapter, you need
-the kcopy-ah-floppy image.  If you're using a BT-742 SCSI host adapter
-or an Ultrastor adaptor, then you'll need the kcopy-bt-floppy image.
+the kcopy_ah.flp image.  If you're using a BT-742 SCSI host adapter
+or an Ultrastor adaptor, then you'll need the kcopy_bt.flp image.
 If you're using MFM/RLL/IDE disk controllers, you can use either
-kernel-copy floppy image.
+kernel copy floppy image.
 
 If you are using UNIX to make the floppies, you should use the command
-dd(1) to write the raw floppy images (i.e., kcopy-ah-floppy or
-kcopy-bt-floppy, filesystem-floppy and cpio-floppy) to the floppies.
-For example, to write kcopy-ah-floppy to a 5.25" 1.2 Mb floppy
+dd(1) to write the raw floppy images (i.e., kcopy_ah.flp or
+kcopy_bt.flp, filesyst.flp and cpio.flp) to the floppies.
+For example, to write kcopy_ah.flp to a 5.25" 1.2 Mb floppy
 disk under 386BSD, use:
 
-	$ dd if=kcopy-ah-floppy of=/dev/fd0a bs=30b count=80
+	$ dd if=kcopy_ah.flp of=/dev/fd0a bs=30b count=80
 
 or for a 3.5" 1.44 Mb floppy:
 
-	$ dd if=kcopy-ah-floppy of=/dev/fd0a bs=36b count=80
+	$ dd if=kcopy_ah.flp of=/dev/fd0a bs=36b count=80
 
 If you are using DOS to make the floppies, use the rawrite.exe
 utility.  This can be found in the "tools" subdirectory of the
@@ -518,7 +513,7 @@ The following is a walk-through of the steps necessary to get FreeBSD
 installed on your hard disk.  If you wish to stop the installation, you
 may hit Control-C at any prompt and then type `halt'. 
 
-	Boot from the kcopy-ah or kcopy-bt floppy, depending on
+	Boot from the kcopy_ah or kcopy_bt floppy, depending on
 	your hard disk controller type.
 
 	When prompted to insert the filesystem floppy, remove the
@@ -635,7 +630,7 @@ may hit Control-C at any prompt and then type `halt'.
 
 	Read the message and note which partition (e.g., sd0a or wd0a)
 	you need to copy a kernel to.  Reboot the machine off the
-	kcopy-xx-floppy disk, but this time at the prompt asking
+	kcopy_xx.flp disk, but this time at the prompt asking
 	you to insert a file system floppy, do _not_ replace the
 	floppy, just press <enter>.
 
@@ -658,7 +653,7 @@ may hit Control-C at any prompt and then type `halt'.
 	Once again, this stage can take up to two minutes, so DO NOT
 	PANIC!
 
-	You will be asked to insert the cpio-floppy into a floppy
+	You will be asked to insert the cpio.flp into a floppy
 	drive, and enter that drive's number.  "0" corresponds to
 	DOS's "A:" drive, "1" corresponds to DOS's "B:" drive.
 
@@ -673,7 +668,7 @@ may hit Control-C at any prompt and then type `halt'.
 	binary.  Or if you are using SCSI tape, the dos-floppy should
 	contain the st command.  
 
-	To load the dos-floppy, remove the cpio-floppy from the
+	To load the dos-floppy, remove the cpio.flp from the
 	drive,  insert the dos-floppy and enter a "yes" response
 	at the prompt.  Otherwise, enter "no" at the prompt.
 
@@ -686,8 +681,7 @@ may hit Control-C at any prompt and then type `halt'.
 	CONGRATULATIONS: You now have the minimum base of FreeBSD
 	files on your hard disk!  Now you get to install the
 	distribution file sets.  Remember that, at minimum, you must
-	install the bin.tar.gz.xx file set (see below for
-	instructions).
+	install the bin_tgz.xx file set (see below for instructions).
 
 	After the machine is done booting, you will be presented
 	with a screenful of information about what to do next.
@@ -706,7 +700,7 @@ may hit Control-C at any prompt and then type `halt'.
 		After you have chosen a temporary directory,
 		you should issue the appropriate load command:
 
-			load_fd - for loading from a MS-DOS hard disk 
+			load_dos - for loading from a MS-DOS hard disk 
 				partition, or from floppies,
 			
 			load_qic_tape - for loading from QIC-02 tape, or
@@ -724,7 +718,7 @@ may hit Control-C at any prompt and then type `halt'.
 			# st -f /dev/nrst0 low_dnsty 16
 			# load_scsi_tape
 
-		If loading from floppy or hard disk, the load_fd
+		If loading from floppy or hard disk, the load_dos
 		command prompts for information, such as to which
 		floppy drive or hard disk directory to load from.
 		Additional options are available, e.g., for listing
@@ -734,7 +728,7 @@ may hit Control-C at any prompt and then type `halt'.
 		Go to the directory which contains the first
 		distribution set you wish to install.  This is
 		either the directory you specified above, if using
-		load_fd, or possibly a subdirectory of that
+		load_dos, or possibly a subdirectory of that
 		directory, if you loaded from tape.
 
 		When there, run "set_tmp_dir" again, and choose
@@ -778,7 +772,7 @@ may hit Control-C at any prompt and then type `halt'.
 	To install via FTP or NFS:
 
 		First you must decide on a temporary directory to hold
-		the <set>.tar.gz.xx files. The directory /usr/distrib
+		the <set>.xx files. The directory /usr/distrib
 		is suggested. You should cd to it, if necessary do
 		a mkdir first. Use set_tmp_dir to identify this 
 		directory to the install process.
@@ -860,7 +854,7 @@ may hit Control-C at any prompt and then type `halt'.
 	To install via Kermit:
 
 		First you must decide on a temporary directory to hold
-		the <set>.tar.gz.xx files. The directory /usr/distrib
+		the <set>.xx files. The directory /usr/distrib
 		is suggested. You should cd to it, if necessary do
 		a mkdir first. Use set_tmp_dir to identify this 
 		directory to the install process.
@@ -936,26 +930,20 @@ may hit Control-C at any prompt and then type `halt'.
 Further Tips on Installing FreeBSD
 ------- ---- -- ---------- -------
 
-	You might wish to install the binarydist first, get that
+	You might wish to install the bindist first, get that
 	working, and then at a later point in time have a go at
-	installing the sourcedist. BEFORE YOU REBOOT AFTER INSTALLING
-	THE BINARYDIS, you must preserve the commands that do the
-	extracting. They are kept in the single-user-mode .profile
-	file called /.profile.  Proceed like this:
-
-		mv /.profile /.profile.install
-		ln /root/.profile /.profile
+	installing the sourcedist.
 
 	When you are ready to install the sourcedist at some time
 	in the future, get into multi-user mode (i.e., the normal
-	means of running FreeBSD) and issue these commands:
+	means of running FreeBSD) and issue this command:
 
-		cp /.profile.install /.profile
 		shutdown now
 
-	This will cause the system to go into single-user mode, and
-	the install profile will be active (i.e., you will find the
-	commands load_fd, extract etc available to you again).
+	This will cause the system to go into single-user mode.  To
+	get the install commands active again issue this command:
+
+		. /magic
 
 	If your disk has several operating systems, you may want
 	to install a boot manager such as Thomas Wolfram's os-bs
@@ -1052,4 +1040,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.11 1993/10/19 17:33:38 rgrimes Exp $
+This is $Id: install_notes,v 1.13.2.2 1994/05/05 09:08:55 rgrimes Exp $

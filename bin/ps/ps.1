@@ -99,7 +99,7 @@ Extract the name list from the specified system instead of the default
 .Dq Pa /386bsd .
 .It Fl O
 Add the information associated with the space or comma separated list
-of keywords specifed, after the process
+of keywords specified, after the process
 .Tn ID ,
 in the default information
 display.
@@ -108,7 +108,7 @@ This causes the printed header to use the specified string instead of
 the standard header.
 .It Fl o
 Display information associated with the space or comma separated list
-of keywords specifed.
+of keywords specified.
 Keywords may be appended with an equals (``='') sign and a string.
 This causes the printed header to use the specified string instead of
 the standard header.
@@ -161,7 +161,7 @@ Display information about processes without controlling terminals.
 .El
 .Pp
 A complete list of the available keywords are listed below.
-Some of these keywords are further specifed as follows:
+Some of these keywords are further specified as follows:
 .Bl -tag -width indent
 .It %cpu
 The cpu utilization of the process; this is a decaying average over up to
@@ -176,44 +176,34 @@ The percentage of real memory used by this process.
 The flags (in hexadecimal) associated with the process as in
 the include file
 .Aq Pa sys/proc.h :
-.Bl -column SNOCLDSTOP SNOCLDSTOP
-.It Dv "SLOAD" Ta No "0x0000001	in core"
-.It Dv "SSYS" Ta No "0x0000002	swapper or pager process"
-.It Dv "SLOCK" Ta No "0x0000004	process being swapped out"
-.It Dv "SSWAP" Ta No "0x0000008	save area flag"
-.It Dv "STRC" Ta No "0x0000010	process is being traced"
-.It Dv "SWTED" Ta No "0x0000020	another tracing flag"
-.It Dv "SSINTR" Ta No "0x0000040	sleep is interruptible"
-.It Dv "SPAGE" Ta No "0x0000080	process in page wait state"
-.It Dv "SKEEP" Ta No "0x0000100	another flag to prevent swap out"
-.It Dv "SOMASK" Ta No "0x0000200	restore old mask after taking signal"
-.It Dv "SWEXIT" Ta No "0x0000400	working on exiting"
-.It Dv "SPHYSIO" Ta No "0x0000800	doing physical"
-.Tn I/O
-.It Dv "SVFORK" Ta No "0x0001000	process resulted from"
-.Xr vfork 2
-.It Dv "SVFDONE" Ta No "0x0002000	another"
-.Xr vfork
-flag
-.It Dv "SNOVM" Ta No "0x0004000	no vm, parent in a"
-.Xr vfork
-.It Dv "SPAGV" Ta No "0x0008000	init data space on demand, from vnode"
-.It Dv "SSEQL" Ta No "0x0010000	user warned of sequential vm behavior"
-.It Dv "SUANOM" Ta No "0x0020000	user warned of random vm behavior"
-.It Dv "STIMO" Ta No "0x0040000	timing out during sleep"
-.It Dv "SNOCLDSTOP" Ta No "0x0080000	no"
+.Bl -column SPAGEDAEMON SPAGEDAEMON
+.It Dv "SLOAD" Ta No "0x00000001	in core"
+.It Dv "SSYS" Ta No "0x00000002	swapper or pager process"
+.It Dv "SSINTR" Ta No "0x00000004	process is in interruuptible sleep"
+.It Dv "SCTTY" Ta No "0x00000008	process has a controlling terminal"
+.It Dv "SPPWAIT" Ta No "0x00000010	waiting for child to exec or exit"
+.It Dv "SEXEC" Ta No "0x00000020	process called"
+.Xr exec 2
+.It Dv "STIMO" Ta No "0x00000040	sleep timed out"
+.It Dv "SSEL" Ta No "0x00000080	selecting; wakeup/waiting danger"
+.It Dv "SWEXIT" Ta No "0x00000100	process in"
+.Xr exit 2
+.It Dv "SNOCLDSTOP" Ta No "0x00000200	no"
 .Dv SIGCHLD
 when children stop
-.It Dv "SCTTY" Ta No "0x0100000	has a controlling terminal"
-.It Dv "SOWEUPC" Ta No "0x0200000	owe process an addupc() call at next ast"
-.\" the routine addupc is not documented in the man pages
-.It Dv "SSEL" Ta No "0x0400000	selecting; wakeup/waiting danger"
-.It Dv "SEXEC" Ta No "0x0800000	process called"
-.Xr exec 2
-.It Dv "SHPUX" Ta No "0x1000000	\\*(tNHP-UX\\*(sP process
-.Pq Dv HPUXCOMPAT
-.It Dv "SULOCK" Ta No "0x2000000	locked in core after swap error"
-.It Dv "SPTECHG" Ta No "0x4000000	pte's for process have changed"
+.It Dv "SLOCK" Ta No "0x00000400	process is being swapped out"
+.It Dv "SKEEP" Ta No "0x00000800	process canot be swapped out"
+.It Dv "SPHYSIO" Ta No "0x00001000	process is performing physical"
+.Tn I/O
+.It Dv "SOWEUPC" Ta No "0x00002000	process is owed an addupc() call"
+.It Dv "STRC" Ta No "0x00004000	process is being traced"
+.It Dv "SWTED" Ta No "0x00008000	another tracing flag"
+.It Dv "SUGID" Ta No "0x00020000	process changed uid/gid since last exec"
+.It Dv "SADVLCK" Ta No "0x00040000	process may hold a"
+.Tn POSIX
+advisory lock
+.It Dv "SPAGEDAEMON" Ta No "0x00080000	process has been scanned by pageout"
+daemon
 .El
 .It lim
 The soft limit on memory used, specified via a call to
@@ -244,8 +234,8 @@ The first letter indicates the run state of the process:
 Marks a process in disk (or other short term, uninterruptable) wait.
 .It I
 Marks a process that is idle (sleeping for longer than about 20 seconds).
-.It P
-Marks a process in page wait.
+.\" .It P
+.\" Marks a process in page wait.
 .It R
 Marks a runnable process.
 .It S
@@ -270,14 +260,14 @@ scheduling priority.
 The process has specified a soft limit on memory requirements and is
 currently exceeding that limit; such a process is (necessarily) not
 swapped.
-.It A
-the process has asked for random page replacement
-.Pf ( Dv VA_ANOM ,
-from
-.Xr vadvise 2 ,
-for example,
-.Xr lisp 1
-in a garbage collect).
+.\" .It A
+.\" the process has asked for random page replacement
+.\" .Pf ( Dv VA_ANOM ,
+.\" from
+.\" .Xr vadvise 2 ,
+.\" for example,
+.\" .Xr lisp 1
+.\" in a garbage collect).
 .It E
 The process is trying to exit.
 .It L
@@ -288,15 +278,15 @@ The process has reduced
 .Tn CPU
 scheduling priority (see
 .Xr setpriority 2 ) .
-.It S
-The process has asked for
-.Tn FIFO
-page replacement
-.Pf ( Dv VA_SEQL ,
-from
-.Xr vadvise 2 ,
-for example, a large image processing program using virtual memory to
-sequentially address voluminous data).
+.\" .It S
+.\" The process has asked for
+.\" .Tn FIFO
+.\" page replacement
+.\" .Pf ( Dv VA_SEQL ,
+.\" from
+.\" .Xr vadvise 2 ,
+.\" for example, a large image processing program using virtual memory to
+.\" sequentially address voluminous data).
 .It s
 The process is a session leader.
 .It V
@@ -306,6 +296,18 @@ The process is suspended during a
 The process is swapped out.
 .It X
 The process is being traced or debugged.
+.It U
+The process has changed its uid or gid (with a call to
+.Xr setuid 2 ,
+.Xr setgid 2 ,
+.Xr seteuid 2 ,
+.Xr setegid 2 ,
+.Xr setreuid 2 ,
+or
+.Xr setregid 2 )
+since it last called
+.Xr execve 2 .
+This flag is also set when a set-uid or set-gid executable is loaded.
 .El
 .It tt
 An abbreviation for the pathname of the controlling terminal, if any.

@@ -5,9 +5,7 @@
 #  old make program (I recommend that you get and port the new make if you
 #  are going to be doing any signficant work on sendmail).
 #
-#  This has been tested on Ultrix.
-#
-#	@(#)Makefile.dist	8.1 (Berkeley) 6/7/93
+#	@(#)Makefile.dist	8.11 (Berkeley) 3/5/94
 #
 
 # use O=-O (usual) or O=-g (debugging)
@@ -16,26 +14,22 @@ O=	-O
 # define the database mechanisms available for map & alias lookups:
 #	-DNDBM -- use new DBM
 #	-DNEWDB -- use new Berkeley DB
-#	-DNDBM -DNEWDB -DYPCOMPAT -- use both plus YP compatility
-#	-DNIS -- include client NIS support
+#	-DNIS -- include NIS support
 # The really old (V7) DBM library is no longer supported.
-# If YPCOMPAT is defined and /var/yp/Makefile exists, sendmail will build
-#   both the NEWDB and DBM libraries (the DBM just for YP).
+# See READ_ME for a description of how these flags interact.
 #
-DBMDEF=	-DNEWDB
+DBMDEF=	-DNDBM -DNEWDB
 
-# define the load average calculation on your system: -DLA_TYPE=LA_INT,
-#   -DLA_TYPE=LA_FLOAT, -DLA_TYPE=LA_SUBR, or -DLA_TYPE=LA_ZERO
-# leave undefined to use internal guess
-#LADEF=	-DLA_TYPE=LA_SUBR
-
-# define UNSETENV if you need to compile in a local version of setenv
-#ENVDEF=	-DUNSETENV
+# environment definitions (e.g., -D_AIX3)
+ENVDEF=
 
 # see also conf.h for additional compilation flags
 
 # include directories
 INCDIRS=-I/usr/sww/include/db
+
+# loader options
+LDOPTS=
 
 # library directories
 LIBDIRS=-L/usr/sww/lib
@@ -52,26 +46,36 @@ STDIR=	${DESTDIR}/var/log
 # location of sendmail.hf file (usually /usr/share/misc or /usr/lib)
 HFDIR=	${DESTDIR}/usr/share/misc
 
+# additional .o files needed
+OBJADD=
+
 ###################  end of user configuration flags  ######################
 
-CFLAGS=	-I. $O ${INCDIRS} ${DBMDEF} ${LADEF} ${ENVDEF}
+CFLAGS=	-I. $O ${INCDIRS} ${DBMDEF} ${ENVDEF}
 
 OBJS=	alias.o arpadate.o clock.o collect.o conf.o convtime.o daemon.o \
 	deliver.o domain.o envelope.o err.o headers.o macro.o main.o \
 	map.o mci.o parseaddr.o queue.o readcf.o recipient.o \
 	savemail.o srvrsmtp.o stab.o stats.o sysexits.o \
-	trace.o udb.o usersmtp.o util.o version.o
+	trace.o udb.o usersmtp.o util.o version.o ${OBJADD}
 
 LINKS=	${DESTDIR}/usr/ucb/newaliases ${DESTDIR}/usr/ucb/mailq
 BINOWN=	root
 BINGRP=	kmem
 BINMODE=6555
 
-sendmail: ${OBJS}
-	${CC} -o sendmail ${OBJS} ${LIBDIRS} ${LIBS}
+ALL=	sendmail aliases.0 mailq.0 newaliases.0 sendmail.0
+
+all: ${ALL}
+
+sendmail: ${BEFORE} ${OBJS}
+	${CC} -o sendmail ${LDOPTS} ${OBJS} ${LIBDIRS} ${LIBS}
 
 aliases.0: aliases.5
 	nroff -h -mandoc aliases.5 > aliases.0
+
+mailq.0: mailq.1
+	nroff -h -mandoc mailq.1 > mailq.0
 
 newaliases.0: newaliases.1
 	nroff -h -mandoc newaliases.1 > newaliases.0
@@ -79,20 +83,22 @@ newaliases.0: newaliases.1
 sendmail.0: sendmail.8
 	nroff -h -mandoc sendmail.8 > sendmail.0
 
+INSTALL=install
+
 install: install-sendmail install-docs
 
 install-sendmail: sendmail
-	install -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} sendmail ${BINDIR}
-	for i in ${LINKS}; do ; rm -f $$i; ln -s ${BINDIR}/sendmail $$i; done
-	install -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} sendmail ${BINDIR}
+	for i in ${LINKS}; do rm -f $$i; ln -s ${BINDIR}/sendmail $$i; done
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${STDIR}/sendmail.st
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 sendmail.hf ${HFDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 sendmail.hf ${HFDIR}
 
 # doesn't actually install them -- you may want to install pre-nroff versions
-install-docs: aliases.0 newaliases.0 sendmail.0
+install-docs: aliases.0 mailq.0 newaliases.0 sendmail.0
 
 clean:
-	rm -f ${OBJS} sendmail aliases.0 newaliases.0 sendmail.0
+	rm -f ${OBJS} sendmail aliases.0 mailq.0 newaliases.0 sendmail.0
 
 # dependencies
 #   gross overkill, and yet still not quite enough....

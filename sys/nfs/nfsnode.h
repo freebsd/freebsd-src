@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfsnode.h	7.12 (Berkeley) 4/16/91
- *	$Id: nfsnode.h,v 1.3 1993/10/20 07:31:16 davidg Exp $
+ *	$Id: nfsnode.h,v 1.6 1993/12/19 00:54:22 wollman Exp $
  */
 
 #ifndef __h_nfsnode
@@ -87,6 +87,7 @@ struct nfsnode {
 /*
  * Prototypes for NFS vnode operations
  */
+#ifdef KERNEL
 int	nfs_lookup __P((
 		struct vnode *vp,
 		struct nameidata *ndp,
@@ -214,7 +215,7 @@ int	nfs_bmap __P((
 		daddr_t *bnp));
 int	nfs_strategy __P((
 		struct buf *bp));
-int	nfs_print __P((
+void	nfs_print __P((
 		struct vnode *vp));
 int	nfs_islocked __P((
 		struct vnode *vp));
@@ -226,4 +227,37 @@ int	nfs_advlock __P((
 		int flags));
 
 void	nfs_nput __P((struct vnode *));
+
+extern int nfs_dogetattr(struct vnode *, struct vattr *, struct ucred *, int,
+			 struct proc *);
+extern int nfsrv_fhtovp(fhandle_t *, int, struct vnode **, struct ucred *);
+struct mbuf;
+extern int nfs_loadattrcache(struct vnode **, struct mbuf **, caddr_t *,
+			     struct vattr *);
+extern int nfs_getattrcache(struct vnode *, struct vattr *);
+extern int nfs_namei(struct nameidata *, fhandle_t *, int, struct mbuf **,
+		     caddr_t *, struct proc *);
+
+extern int nfsrv_access(struct vnode *, int, struct ucred *, struct proc *);
+extern union nhead *nfs_hash(nfsv2fh_t *);
+extern int nfs_nget(struct mount *, nfsv2fh_t *, struct nfsnode **);
+
+struct nfsreq; struct nfsmount;
+extern int nfs_reply(struct nfsmount *, struct nfsreq *);
+extern void nfs_timer(caddr_t);
+extern void nfs_updatetimer(struct nfsmount *);
+extern void nfs_backofftimer(struct nfsmount *);
+extern int nfs_connect(struct nfsmount *);
+extern int nfs_reconnect(struct nfsreq *, struct nfsmount *);
+extern void nfs_disconnect(struct nfsmount *);
+extern int nfs_sigintr(struct proc *);
+extern void nfs_msg(struct proc *, const char *, const char *);
+extern void nfs_solock(int *);
+extern void nfs_sounlock(int *);
+
+/* From nfs_bio.c: */
+extern int nfs_bioread(struct vnode *, struct uio *, int, struct ucred *);
+extern int nfs_write(struct vnode *, struct uio *, int, struct ucred *);
+
+#endif /* KERNEL */
 #endif /* __h_nfsnode */

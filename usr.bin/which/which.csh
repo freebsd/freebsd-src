@@ -57,7 +57,7 @@ foreach arg ( $argv )
 	if ( -e $arg ) then
 	    echo $arg
 	else
-	    echo $arg not found
+	    echo "$arg not found" > /dev/stderr
 	endif
 	continue
     else
@@ -70,6 +70,6 @@ foreach arg ( $argv )
 	end
     endif
     if ( ! $?found ) then
-	echo no $arg in $path
+	echo "no $arg in $path" > /dev/stderr
     endif
 end

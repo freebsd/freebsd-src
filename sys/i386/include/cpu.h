@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.3 1993/10/08 20:50:57 rgrimes Exp $
+ *	$Id: cpu.h,v 1.4 1993/11/07 17:42:46 wollman Exp $
  */
+
+#ifndef _MACHINE_CPU_H_
+#define _MACHINE_CPU_H_ 1
 
 /*
  * Definitions unique to i386 cpu support.
@@ -83,9 +86,6 @@ typedef struct intrframe clockframe;
 
 #define aston() (astpending++)
 
-int	astpending;		/* need to trap before returning to user mode */
-int	want_resched;		/* resched() was called */
-
 /*
  * pull in #defines for kinds of processors
  */
@@ -97,7 +97,11 @@ struct cpu_nameclass {
 };
 
 #ifdef KERNEL
+extern int astpending;		/* want a trap before returning to user mode */
+extern int want_resched;	/* resched was called */
+
 extern int cpu;
 extern int cpu_class;
 extern struct cpu_nameclass i386_cpus[];
 #endif
+#endif /* _MACHINE_CPU_H_ */

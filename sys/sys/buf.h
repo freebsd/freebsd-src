@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)buf.h	7.11 (Berkeley) 5/9/90
- *	$Id: buf.h,v 1.2 1993/10/16 17:16:21 rgrimes Exp $
+ *	$Id: buf.h,v 1.7 1993/12/22 12:51:48 davidg Exp $
  */
+
+#ifndef _SYS_BUF_H_
+#define _SYS_BUF_H_ 1
 
 /*
  * The header for buffers in the buffer pool and otherwise used
@@ -64,6 +67,12 @@ struct bufhd
 	long	b_flags;		/* see defines below */
 	struct	buf *b_forw, *b_back;	/* fwd/bkwd pointer in chain */
 };
+
+#ifdef __STDC__
+struct buf;
+#endif
+typedef void b_iodone_t __P((struct buf *));
+
 struct buf
 {
 	long	b_flags;		/* too much goes here to describe */
@@ -91,7 +100,7 @@ struct buf
 	long	b_resid;		/* words not transferred after error */
 #define	b_errcnt b_resid		/* while i/o in progress: # retries */
 	struct  proc *b_proc;		/* proc doing physical or swap I/O */
-	int	(*b_iodone)();		/* function called by iodone */
+	b_iodone_t *b_iodone;		/* function called by iodone */
 	struct	vnode *b_vp;		/* vnode for dev */
 	int	b_pfcent;		/* center page when swapping cluster */
 	struct	ucred *b_rcred;		/* ref to read credentials */
@@ -99,6 +108,9 @@ struct buf
 	int	b_dirtyoff;		/* offset in buffer of dirty region */
 	int	b_dirtyend;		/* offset of end of dirty region */
 	caddr_t	b_saveaddr;		/* original b_addr for PHYSIO */
+	void *	b_driver1;		/* for private use by the driver */
+	void *	b_driver2;		/* for private use by the driver */
+	void *	b_spc;			/* swap pager info */
 };
 
 #define	BQUEUES		4		/* number of free buffer queues */
@@ -120,18 +132,18 @@ struct buf
 	((struct buf *)&bufhash[((int)(dvp)/sizeof(struct vnode)+(int)(dblkno)) % BUFHSZ])
 #endif
 
-struct	buf *buf;		/* the buffer pool itself */
-char	*buffers;
-int	nbuf;			/* number of buffer headers */
-int	bufpages;		/* number of memory pages in the buffer pool */
-struct	buf *swbuf;		/* swap I/O headers */
-int	nswbuf;
-struct	bufhd bufhash[BUFHSZ];	/* heads of hash lists */
-struct	buf bfreelist[BQUEUES];	/* heads of available lists */
-struct	buf bswlist;		/* head of free swap header list */
-struct	buf *bclnlist;		/* head of cleaned page list */
+extern struct	buf *buf;		/* the buffer pool itself */
+extern char	*buffers;
+extern int	nbuf;			/* number of buffer headers */
+extern int	bufpages;	/* number of memory pages in the buffer pool */
+extern struct	buf *swbuf;		/* swap I/O headers */
+extern int	nswbuf;
+extern struct	bufhd bufhash[BUFHSZ];	/* heads of hash lists */
+extern struct	buf bfreelist[BQUEUES];	/* heads of available lists */
+extern struct	buf bswlist;		/* head of free swap header list */
+extern struct	buf *bclnlist;		/* head of cleaned page list */
 
-void bufinit();
+void bufinit(void);
 int bread(struct vnode *, daddr_t, int, struct ucred *, struct buf **);
 int breada(struct vnode *, daddr_t, int, daddr_t, int, struct ucred *,
 	struct buf **);
@@ -143,10 +155,18 @@ struct buf *incore(struct vnode *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int);
 struct buf *geteblk(int);
 int biowait(struct buf *);
-int biodone(struct buf *);
+void biodone(struct buf *);
 void allocbuf(struct buf *, int);
 
-#endif
+extern void vwakeup(struct buf *);
+extern void bgetvp(struct vnode *, struct buf *);
+extern void brelvp(struct buf *);
+extern void reassignbuf(struct buf *, struct vnode *);
+extern void bufstats(void);
+extern int physio(void (*)(struct buf *), int, struct buf *, int, int,
+		  caddr_t, int *, struct proc *);
+
+#endif /* KERNEL */
 
 /*
  * These flags are kept in b_flags.
@@ -175,6 +195,11 @@ void allocbuf(struct buf *, int);
 #define	B_CALL		0x200000	/* call b_iodone from iodone */
 #define	B_RAW		0x400000	/* set by physio for raw transfers */
 #define	B_NOCACHE	0x800000	/* do not cache block after use */
+#define	B_DRIVER       0xF000000	/* Four bits for the driver to use */
+#define	B_DRIVER1      0x1000000	/* bits for the driver to use */
+#define	B_DRIVER2      0x2000000	/* bits for the driver to use */
+#define	B_DRIVER4      0x3000000	/* bits for the driver to use */
+#define	B_DRIVER8      0x4000000	/* bits for the driver to use */
 
 /*
  * Insq/Remq for the buffer hash lists.
@@ -222,3 +247,5 @@ void allocbuf(struct buf *, int);
 }
 #define B_CLRBUF	0x1	/* request allocated buffer be cleared */
 #define B_SYNC		0x2	/* do all allocations synchronously */
+
+#endif /* _SYS_BUF_H_ */

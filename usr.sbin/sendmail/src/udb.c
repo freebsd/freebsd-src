@@ -36,15 +36,14 @@
 
 #ifndef lint
 #ifdef USERDB
-static char sccsid [] = "@(#)udb.c	8.1 (Berkeley) 6/7/93 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.6 (Berkeley) 3/11/94 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.1 (Berkeley) 6/7/93 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.6 (Berkeley) 3/11/94 (without USERDB)";
 #endif
 #endif
 
 #ifdef USERDB
 
-#include <sys/time.h>
 #include <errno.h>
 #include <netdb.h>
 #include <db.h>
@@ -197,12 +196,14 @@ udbexpand(a, sendq, e)
 			key.data = keybuf;
 			key.size = keylen;
 			if (tTd(28, 80))
-				printf("udbexpand: trying %s\n", keybuf);
+				printf("udbexpand: trying %s (%d)\n",
+					keybuf, keylen);
 			i = (*up->udb_dbp->seq)(up->udb_dbp, &key, &info, R_CURSOR);
 			if (i > 0 || info.size <= 0)
 			{
 				if (tTd(28, 2))
-					printf("udbexpand: no match on %s\n", keybuf);
+					printf("udbexpand: no match on %s (%d)\n",
+						keybuf, keylen);
 				continue;
 			}
 			if (tTd(28, 80))
@@ -346,6 +347,17 @@ char *
 udbsender(sender)
 	char *sender;
 {
+	extern char *udbmatch();
+
+	return udbmatch(sender, "mailname");
+}
+
+
+char *
+udbmatch(user, field)
+	char *user;
+	char *field;
+{
 	register char *p;
 	register struct udbent *up;
 	int i;
@@ -354,7 +366,7 @@ udbsender(sender)
 	char keybuf[MAXKEY];
 
 	if (tTd(28, 1))
-		printf("udbsender(%s)\n", sender);
+		printf("udbmatch(%s, %s)\n", user, field);
 
 	if (!UdbInitialized)
 	{
@@ -367,16 +379,17 @@ udbsender(sender)
 		return NULL;
 
 	/* long names can never match and are a pain to deal with */
-	if (strlen(sender) > sizeof keybuf - 12)
+	if ((strlen(user) + strlen(field)) > sizeof keybuf - 4)
 		return NULL;
 
 	/* names beginning with colons indicate metadata */
-	if (sender[0] == ':')
+	if (user[0] == ':')
 		return NULL;
 
 	/* build database key */
-	(void) strcpy(keybuf, sender);
-	(void) strcat(keybuf, ":mailname");
+	(void) strcpy(keybuf, user);
+	(void) strcat(keybuf, ":");
+	(void) strcat(keybuf, field);
 	keylen = strlen(keybuf);
 
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
@@ -394,8 +407,8 @@ udbsender(sender)
 			if (i != 0 || info.size <= 0)
 			{
 				if (tTd(28, 2))
-					printf("udbsender: no match on %s\n",
-							keybuf);
+					printf("udbmatch: no match on %s (%d)\n",
+							keybuf, keylen);
 				continue;
 			}
 
@@ -403,10 +416,13 @@ udbsender(sender)
 			bcopy(info.data, p, info.size);
 			p[info.size] = '\0';
 			if (tTd(28, 1))
-				printf("udbsender ==> %s\n", p);
+				printf("udbmatch ==> %s\n", p);
 			return p;
 		}
 	}
+
+	if (strcmp(field, "mailname") != 0)
+		return NULL;
 
 	/*
 	**  Nothing yet.  Search again for a default case.  But only
@@ -415,7 +431,7 @@ udbsender(sender)
 	*/
 
 	/* build database key */
-	(void) strcpy(keybuf, sender);
+	(void) strcpy(keybuf, user);
 	(void) strcat(keybuf, ":maildrop");
 	keylen = strlen(keybuf);
 
@@ -456,12 +472,12 @@ udbsender(sender)
 			}
 
 			/* they exist -- build the actual address */
-			p = xalloc(strlen(sender) + strlen(up->udb_default) + 2);
-			(void) strcpy(p, sender);
+			p = xalloc(strlen(user) + strlen(up->udb_default) + 2);
+			(void) strcpy(p, user);
 			(void) strcat(p, "@");
 			(void) strcat(p, up->udb_default);
 			if (tTd(28, 1))
-				printf("udbsender ==> %s\n", p);
+				printf("udbmatch ==> %s\n", p);
 			return p;
 		}
 	}
@@ -554,7 +570,7 @@ _udbx_init()
 		  case '*':	/* search remote database (expand MX) */
 			if (*spec == '*')
 			{
-#ifdef NAMED_BIND
+#if NAMED_BIND
 				nmx = getmxrr(spec + 1, mxhosts, FALSE, &rcode);
 #else
 				mxhosts[0] = spec + 1;
@@ -586,7 +602,7 @@ _udbx_init()
 				up->udb_addr.sin_family = h->h_addrtype;
 				bcopy(h->h_addr_list[0],
 				      (char *) &up->udb_addr.sin_addr,
-				      h->h_length);
+				      sizeof up->udb_addr.sin_addr);
 				up->udb_addr.sin_port = UdbPort;
 				up->udb_timeout = UdbTimeout;
 				up++;

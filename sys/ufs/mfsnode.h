@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mfsnode.h	7.3 (Berkeley) 4/16/91
- *	$Id: mfsnode.h,v 1.2 1993/10/16 18:17:46 rgrimes Exp $
+ *	$Id: mfsnode.h,v 1.4 1993/11/25 01:38:26 wollman Exp $
  */
+
+#ifndef _UFS_MFSNODE_H_
+#define _UFS_MFSNODE_H_ 1
 
 /*
  * This structure defines the control data for the memory
@@ -185,7 +188,7 @@ int	mfs_bmap __P((
 		daddr_t *bnp));
 int	mfs_strategy __P((
 		struct buf *bp));
-int	mfs_print __P((
+void	mfs_print __P((
 		struct vnode *vp));
 #define mfs_islocked ((int (*) __P(( \
 		struct vnode *vp))) nullop)
@@ -195,3 +198,7 @@ int	mfs_print __P((
 		int op, \
 		struct flock *fl, \
 		int flags))) mfs_badop)
+
+void mfs_doio(struct buf *, caddr_t);
+
+#endif /* _UFS_MFSNODE_H_ */

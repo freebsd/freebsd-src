@@ -40,10 +40,10 @@
 .Nd change data segment size
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
-.Ft char
-.Fn *brk "const char *addr"
+.Ft int
+.Fn brk "const char *addr"
 .Ft char *
-.Fn *sbrk "int incr"
+.Fn sbrk "int incr"
 .Sh DESCRIPTION
 .Bf -symbolic
 The brk and sbrk functions are historical curiosities
@@ -107,8 +107,7 @@ returns 0 if successful; -1 if the process requests more memory than
 than allowed by the system limit.
 The
 .Nm sbrk
-function returns 0 if successful, otherwise the error
-.Er EOPNOTSUPP
+function returns the old break value if successful, otherwise a -1
 is returned.
 .\" .Sh ERRORS
 .\" .Xr Sbrk
@@ -141,4 +140,5 @@ the data segment without consulting
 .Sh HISTORY
 A
 .Nm
-function call appeared in Version 7 AT&T UNIX.
+function call appeared in
+.At v7 .

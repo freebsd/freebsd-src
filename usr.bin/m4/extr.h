@@ -38,11 +38,6 @@ extern char  csmsg[];		/* error message for chrsave */
 #define putback(c) do { if (bp >= endpbb) error(pbmsg); *bp++ = c; } while (0)
 #define chrsave(c) do { if (ep >= endest) error(csmsg); *ep++ = c; } while (0)
 
-/* getopt() interface */
-
-extern	char *	optarg;
-extern	int	optind;
-extern	int	getopt();
 
 #ifdef	__STDC__
 #include <stdlib.h>

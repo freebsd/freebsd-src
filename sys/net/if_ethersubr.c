@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_ethersubr.c	7.13 (Berkeley) 4/20/91
- *	$Id: if_ethersubr.c,v 1.3 1993/10/16 17:43:16 rgrimes Exp $
+ *	$Id: if_ethersubr.c,v 1.4 1993/11/25 01:34:02 wollman Exp $
  */
 
 #include "param.h"
@@ -81,6 +81,7 @@ extern	struct ifnet loif;
  * packet leaves a multiple of 512 bytes of data in remainder.
  * Assumes that ifp is actually pointer to arpcom structure.
  */
+int
 ether_output(ifp, m0, dst, rt)
 	register struct ifnet *ifp;
 	struct mbuf *m0;
@@ -280,6 +281,7 @@ bad:
  * the packet is in the mbuf chain m without
  * the ether header, which is provided separately.
  */
+void
 ether_input(ifp, eh, m)
 	struct ifnet *ifp;
 	register struct ether_header *eh;
@@ -376,7 +378,7 @@ ether_input(ifp, eh, m)
 				eh->ether_dhost[i] = eh->ether_shost[i];
 			eh->ether_shost[i] = c;
 		    }
-		    ifp->if_output(ifp, m, &sa);
+		    ifp->if_output(ifp, m, &sa, (struct rtentry *)0);
 		    return;
 		}
 		dropanyway:
@@ -387,7 +389,7 @@ ether_input(ifp, eh, m)
 #else
 	    m_freem(m);
 	    return;
-#endif	ISO
+#endif /* ISO */
 	}
 
 	s = splimp();

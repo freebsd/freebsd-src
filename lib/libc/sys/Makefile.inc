@@ -4,9 +4,9 @@
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
 
 # modules with non-default implementations on at least one architecture:
-SRCS+=	Ovfork.s brk.s cerror.s exect.s fork.s pipe.s ptrace.s reboot.s \
-	sbrk.s setlogin.s sigpending.s sigprocmask.s sigreturn.s \
-	sigsuspend.s syscall.s
+SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
+	sbrk.S setlogin.S sigpending.S sigprocmask.S sigreturn.S \
+	sigsuspend.S syscall.S
 
 # modules with default implementations on all architectures:
 ASM=	accept.o access.o acct.o adjtime.o async_daemon.o bind.o chdir.o \
@@ -19,51 +19,66 @@ ASM=	accept.o access.o acct.o adjtime.o async_daemon.o bind.o chdir.o \
 	getpriority.o getrlimit.o getrusage.o getsockname.o getsockopt.o \
 	gettimeofday.o getuid.o ioctl.o kill.o ktrace.o link.o listen.o \
 	lseek.o lstat.o madvise.o mincore.o mkdir.o mkfifo.o mknod.o \
-	mmap.o mount.o mprotect.o msync.o munmap.o nfssvc.o open.o \
+	mmap.o mount.o mprotect.o msgsys.o msync.o munmap.o nfssvc.o open.o \
 	profil.o quotactl.o read.o readlink.o readv.o recvfrom.o recvmsg.o \
-	rename.o revoke.o rmdir.o select.o sendmsg.o sendto.o setdomainname.o \
-	setegid.o seteuid.o setgid.o setgroups.o sethostid.o sethostname.o \
-	setitimer.o setpgid.o setpriority.o setregid.o setreuid.o \
-	setrlimit.o setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o \
-	shutdown.o sigaction.o sigstack.o socket.o socketpair.o stat.o \
-	statfs.o swapon.o symlink.o sync.o truncate.o umask.o uname.o unlink.o \
-	unmount.o utimes.o vadvise.o wait4.o write.o writev.o
+	rename.o revoke.o rmdir.o select.o semsys.o sendmsg.o sendto.o \
+	setdomainname.o setegid.o seteuid.o setgid.o setgroups.o sethostid.o \
+	sethostname.o setitimer.o setpgid.o setpriority.o setregid.o \
+	setreuid.o setrlimit.o setsid.o setsockopt.o settimeofday.o setuid.o \
+	shmsys.o shutdown.o sigaction.o sigstack.o socket.o socketpair.o \
+	stat.o statfs.o swapon.o symlink.o sync.o sysarch.o truncate.o \
+	umask.o uname.o unlink.o unmount.o utimes.o vadvise.o vm_allocate.o \
+	vm_deallocate.o vm_inherit.o vm_protect.o wait4.o write.o writev.o
 
-PSEUDO=	_exit.o _getlogin.o
 
 PASM=		${ASM:.o=.po}
+SASM=		${ASM:.o=.so}
+
+PSEUDO=	_exit.o _getlogin.o
 PPSEUDO=	${PSEUDO:.o=.po}
+SPSEUDO=	${PSEUDO:.o=.so}
 
 OBJS+=		${ASM} ${PSEUDO}
 POBJS+=		${PASM} ${PPSEUDO}
+SOBJS+=		${SASM} ${SPSEUDO}
 
 ${ASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@echo creating ${.PREFIX}.o
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -x -r ${.PREFIX}.o
-	@mv a.out ${.PREFIX}.o
+#	@${LD} -x -r ${.PREFIX}.o
+#	@mv a.out ${.PREFIX}.o
 
 ${PASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@echo creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -x -r ${.PREFIX}.po
-	@mv a.out ${.PREFIX}.po
+#	@${LD} -x -r ${.PREFIX}.po
+#	@mv a.out ${.PREFIX}.po
+
+${SASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
+	@echo creating ${.TARGET}
+	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
+	   ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.TARGET}
 
 ${PSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@echo creating ${.PREFIX}.o 
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -x -r ${.PREFIX}.o
-	@mv a.out ${.PREFIX}.o
+#	@${LD} -x -r ${.PREFIX}.o
+#	@mv a.out ${.PREFIX}.o
 
 ${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@echo creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -x -r ${.PREFIX}.po
-	@mv a.out ${.PREFIX}.po
+#	@${LD} -x -r ${.PREFIX}.po
+#	@mv a.out ${.PREFIX}.po
+
+${SPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
+	@echo creating ${.TARGET}
+	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
+	   ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.TARGET}
 
 MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/async_daemon.2 \
 	sys/bind.2 sys/brk.2 sys/chdir.2 sys/chflags.2 sys/chmod.2 sys/chown.2 \
@@ -81,12 +96,12 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/async_daemon.2 \
 	sys/msync.2 sys/munmap.2 sys/nfssvc.2 sys/open.2 sys/pipe.2 \
 	sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 sys/recv.2 \
 	sys/rename.2 sys/rmdir.2 sys/select.2 sys/send.2 sys/setgroups.2 \
-	sys/setpgid.2 sys/setregid.2 sys/setreuid.2 sys/shutdown.2 \
-	sys/sigaction.2 sys/sigprocmask.2 sys/sigreturn.2 sys/sigstack.2 \
-	sys/sigsuspend.2 sys/socket.2 sys/socketpair.2 sys/stat.2 \
-	sys/statfs.2 sys/swapon.2 sys/symlink.2 sys/sync.2 sys/syscall.2 \
-	sys/truncate.2 sys/umask.2 sys/uname.2 sys/unlink.2 sys/utimes.2 \
-	sys/vfork.2 sys/wait.2 sys/write.2
+	sys/setpgid.2 sys/setregid.2 sys/setreuid.2 sys/setsid.2 \
+	sys/shutdown.2 sys/sigaction.2 sys/sigprocmask.2 sys/sigreturn.2 \
+	sys/sigstack.2 sys/sigsuspend.2 sys/socket.2 sys/socketpair.2 \
+	sys/stat.2 sys/statfs.2 sys/swapon.2 sys/symlink.2 sys/sync.2 \
+	sys/syscall.2 sys/truncate.2 sys/umask.2 sys/uname.2 sys/unlink.2 \
+	sys/utimes.2 sys/vfork.2 sys/wait.2 sys/write.2
 
 MLINKS+=brk.2 sbrk.2
 MLINKS+=dup.2 dup2.2
@@ -112,6 +127,7 @@ MLINKS+=mount.2 unmount.2
 MLINKS+=read.2 readv.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
 MLINKS+=send.2 sendmsg.2 send.2 sendto.2
+MLINKS+=setpgid.2 setpgrp.2
 MLINKS+=stat.2 fstat.2 stat.2 lstat.2
 MLINKS+=statfs.2 fstatfs.2
 MLINKS+=truncate.2 ftruncate.2

@@ -36,16 +36,18 @@
 .\".ds RF "Leffler/Fabry/Joy
 .\".ds LF "\*(DY
 .\".ds CF "
-.nr H1 1
+.\".nr H1 1
 .LP
 .bp
 .LG
 .B
 .ce
-1. INTRODUCTION
+.NH 1
+INTRODUCTION
 .sp 2
 .R
 .NL
+.PP
 One of the most important additions to UNIX in 4.2BSD was interprocess
 communication.
 These facilities were the result of

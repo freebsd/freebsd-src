@@ -20,7 +20,7 @@
  *
  * AppleTalk protocol formats (courtesy Bill Croft of Stanford/SUMEX).
  *
- * @(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/appletalk.h,v 1.1.1.1 1993/06/12 14:42:14 rgrimes Exp $ (LBL)
+ * @(#) $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/appletalk.h,v 1.1.1.1 1993/06/12 14:42:14 rgrimes Exp $ (LBL)
  */
 
 /* Datagram Delivery Protocol */

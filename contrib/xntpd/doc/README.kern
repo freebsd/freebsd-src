@@ -1,0 +1,775 @@
+          Unix Kernel Modifications for Precision Timekeeping
+
+                       Revised 3 December 1993
+
+Note: This information file is included in the distributions for the
+SunOS, Ultrix and OSF/1 kernels and in the NTP Version 3 distribution
+(xntp3.tar.Z) as the file README.kern. Availability of the kernel
+distributions, which involve licensed code, will be announced
+separately. The NTP Version 3 distribution can be obtained via anonymous
+ftp from louie.udel.edu in the directory pub/ntp. In order to utilize
+all features of this distribution, the NTP version number should be 3.3
+or later.
+
+1. Introduction
+
+This memo describes modifications to certain SunOS, Ultrix and OSF/1
+kernel software that manage the system clock and timer functions. They
+provide improved accuracy and stability through the use of a disciplined
+clock interface for use with the Network Time Protocol (NTP) or similar
+time-synchronization protocol. In addition, for the DEC 3000 AXP (Alpha)
+and DECstation 5000/240 machines, the modifications provide improved
+precision within one microsecond (us) (SunOS 4.1.x already does provide
+precision to this order). The NTP Version 3 daemon xntpd operates with
+these kernel modifications to provide synchronization in principle to
+within this order, but in practice this is limited by the short-term
+stability of the timer oscillator to within the order of 100 usec.
+
+This memo describes the principles behind the design and operation of
+the new software. There are three versions: one that operates with the
+SunOS 4.1.x kernels, a second that operates with the Ultrix 4.x kernels
+and a third that operates with the OSF/1 V1.x kernels. A detailed
+description of the variables and algorithms is given in the hope that
+similar functionality can be incorporated in Unix kernels for other
+machines. The algorithms involve only minor changes to the system clock
+and interval timer routines and include interfaces for application
+programs to learn the system clock status and certain statistics of the
+time-synchronization process. Detailed installation instructions are
+given in a companion README.install file included in the kernel
+distributions. The kernel software itself is not provided for public
+distribution, since it involves licensed code. Detailed instructions on
+how to obtain it for either SunOS, Ultrix or OSF/1 will be given
+separately.
+
+The principal feature added to the Unix kernels is to change the way the
+system clock is controlled, in order to provide precision time and
+frequency adjustments. Another feature utilizes an undocumented bus-
+cycle counter in the DEC 3000 AXP and DECstation 5000/240 to provide
+precise time to the microsecond. This feature can in principle be used
+with any DEC machine that has this counter, although this has not been
+verified. The addition of these features does not affect the operation
+of existing Unix system calls such as gettimeofday(), settimeofday() and
+adjtime(); however, if the new features are in use, the operations of
+adjtime() are controlled instead by a new system call ntp_adjtime().
+
+Most Unix programs read the system clock using the gettimeofday() system
+call, which returns only the system time and timezone data. For some
+applications it is useful to know the maximum error of the reported time
+due to all causes, including clock reading errors, oscillator frequency
+errors and accumulated latencies on the path to a primary reference
+source. However, the new software can adjust the system clock to
+compensate for its intrinsic frequency error, so that the timing errors
+expected in normal operation will usually be much less than the maximum
+error. The user application interface includes a new system call
+ntp_gettime(), which returns the system time, as well as the maximum
+error and estimated error. This interface is intended to support
+applications that need such things, including distributed file systems,
+multimedia teleconferencing and other real-time applications. The
+protocol daemon application interface includes a new system call
+ntp_adjtime(), which can be used to read and write kernel variables used
+for precision timekeeping, including time and frequency adjustments,
+controlling time constant, leap-second warning and related data.
+
+In this memo, NTP Version 3 and the Unix implementation xntpd are used
+as an example application of the new system calls for use by a protocol
+daemon. In principle, the new system calls can be used by other
+protocols and daemon implementations as well. Even in cases where the
+local time is maintained by periodic exchanges of messages at relatively
+long intervals, such as using the NIST Automated Computer Time Service,
+the ability to precisely adjust the local clock frequency simplifies the
+synchronization procedures and allows the call frequency to be
+considerably reduced.
+
+2. Design Principles
+
+In order to understand how the new software works, it is useful to
+consider how most Unix systems maintain the system time. In the original
+design a hardware timer interrupts the kernel at a fixed rate: 100 Hz in
+the SunOS kernel, 256 Hz in the Ultrix kernel and 1024 Hz in the OSF/1
+kernel. Since the Ultrix kernel rate does not evenly divide one second
+in microseconds, the kernel adds 64 microseconds once each second, so
+the timescale consists of 255 advances of 3906 usec plus one of 3970
+usec. Similarly, the OSF/1 kernel adds 576 usec once each second, so its
+timescale consists of 1023 advances of 976 usec plus one of 1552 usec.
+
+In all Unix kernels considered in this memo, it is possible to slew the
+system clock to a new offset using the standard Unix adjtime() system
+call. To do this the clock frequency is changed by adding or subtracting
+a fixed amount (tickadj) at each timer interrupt (tick) for a calculated
+number of ticks. Since this calculation involves dividing the requested
+offset by tickadj, it is possible to slew to a new offset with a
+precision only of tickadj, which is usually in the neighborhood of 5 us,
+but sometimes much higher. This results in an amortization error which
+can accumulate to unacceptable levels, so that special provisions must
+be made in the clock adjustment procedures of the protocol daemon.
+
+In order to maintain the system clock within specified bounds with this
+scheme, it is necessary to call adjtime() on a regular basis. For
+instance, let the bound be set at 100 usec, which is a reasonable value
+for NTP-synchronized hosts on a local network, and let the onboard
+oscillator tolerance be 100 parts-per-million (ppm), which is a
+reasonably conservative assumption. This requires that adjtime() be
+called at intervals not exceeding 1 second (s), which is in fact what
+the unmodified NTP software daemon does.
+
+In the new software this scheme is replaced by another that extends the
+low-order bits of the system clock to provide very precise clock
+adjustments. At each timer interrupt a precisely calibrated quantity is
+added to the composite time value and overflows handled as required. The
+quantity is computed from the measured clock offset and in addition a
+frequency adjustment, which is automatically calculated from previous
+time adjustments. This implementation operates as an adaptive-parameter
+first-order, type-II, phase-lock loop (PLL), which in principle provides
+precision control of the system clock phase to within +-1 us and
+frequency to within +-5 nanoseconds (ns) per day.
+
+This PLL model is identical to the one implemented in NTP, except that
+in NTP the software daemon has to simulate the PLL using only the
+original adjtime() system call. The daemon is considerably complicated
+by the need to parcel time adjustments at frequent intervals in order to
+maintain the accuracy to specified bounds. The modified kernel routines
+do this directly, allowing vast gobs of ugly daemon code to be avoided
+at the expense of only a small amount of new code in the kernel. In
+fact, the amount of code added to the kernel for the new scheme is about
+the amount needed to implement the old scheme. A new system call
+ntp_adjtime(), which operates in a way similar to the original
+adjtime(), is called only as each new time update is determined, which
+in NTP occurs at intervals of from 16 s to 1024 s. In addition, doing
+the frequency correction in the kernel means that the system time runs
+true even if the daemon were to cease operation or the network paths to
+the primary reference source fail. The addition of the new ntp_adjtime()
+system call does not affect the original adjtime() system call, which
+continues to operate in its traditional fashion. However, the two system
+calls canot be used at the same time; only one of the two should be used
+on any given system.
+
+It is the intent in the design that settimeofday() be used for changes
+in system time greater than +-128 ms. It has been the Internet
+experience that the need to change the system time in increments greater
+than +-128 milliseconds is extremely rare and is usually associated with
+a hardware or software malfunction or system reboot. Once the system
+clock has been set in this way, the ntp_adjtime() system call is used to
+provide periodic updates including the time offset, maximum error,
+estimated error and PLL time constant. With NTP the update interval
+depends on the measured error and time constant; however, the scheme is
+quite forgiving and neither moderate loss of updates nor variations in
+the length of the polling interval are serious.
+
+In addition, the kernel adjusts the maximum error to grow by an amount
+equal to the oscillator frequency tolerance times the elapsed time since
+the last update. The default engineering parameters have been optimized
+for intervals not greater than about 16 s. For longer intervals the PLL
+time constant can be adjusted to optimize the dynamic response up to
+intervals of 1024 s. Normally, this is automatically done by NTP. In any
+case, if updates are suspended, the PLL coasts at the frequency last
+determined, which usually results in errors increasing only to a few
+tens of milliseconds over a day.
+
+The new code needs to know the initial frequency offset and time
+constant for the PLL, and the daemon needs to know the current frequency
+offset computed by the kernel for monitoring purposes. These data are
+exchanged between the kernel and protocol daemon using ntp_adjtime() as
+documented later in this memo. Provisions are made to exchange related
+timing information, such as the maximum error and estimated error,
+between the kernel and daemon and between the kernel and application
+programs.
+
+In the DEC 3000 AXP, DECstation 5000/240 and possibly other DEC
+machines there is an undocumented hardware register that counts system
+bus cycles at a rate of 25 MHz. The new kernel microtime() routine tests
+for the CPU type and, in the case of these machines, use this register
+to interpolate system time between hardware timer interrupts. This
+results in a precision of +-1 us for all time values obtained via the
+gettimeofday() and ntp_gettime() system calls. These routines call the
+microtime() routine, which returns the actual interpolated value but
+does not change the kernel time variable. Therefore, other kernel
+routines that access the kernel time variable directly and do not call
+either gettimeofday(), ntp_gettime() or microtime() will continue their
+present behavior. The microtime() feature is independent of other
+features described here and is operative even if the kernel PLL or new
+system calls have not been implemented.
+
+While any protocol daemon can in principle be modified to use the new
+system calls, the most likely will be users of the NTP Version 3 daemon
+xntpd. The xntpd code determines whether the new system calls are
+implemented and automatically reconfigures as required. When
+implemented, the daemon reads the frequency offset from a file and
+provides it and the initial time constant via ntp_adjtime(). In
+subsequent calls to ntp_adjtime(), only the time adjustment and time
+constant are affected. The daemon reads the frequency from the kernel
+using ntp_adjtime() at intervals of about one hour and writes it to the
+system log file. This information is recovered when the daemon is
+restarted after reboot, for example, so the sometimes extensive training
+period to learn the frequency separately for each system can be avoided.
+
+3. Kernel Interfaces
+
+This section describes the kernel interfaces to the protocol daemon and
+user applications. The ideas are based on suggestions from Jeff Mogul
+and Philip Gladstone and a similar interface designed by the latter. It
+is important to point out that the functionality of the original Unix
+adjtime() system call is preserved, so that the modified kernel will
+work as the unmodified one should the kernel PLL not be in use. In this
+case the ntp_adjtime() system call can still be used to read and write
+kernel variables that might be used by a protocol daemon other than NTP,
+for example.
+
+3.1. The ntp_gettime() System Call
+
+The syntax and semantics of the ntp_gettime() call are given in the
+following fragment of the timex.h header file. This file is identical in
+the SunOS, Ultrix and OSF/1 kernel distributions. Note that the timex.h
+file calls the syscall.h system header file, which must be modified to
+define the SYS_ntp_gettime system call specific to each system type. The
+kernel distributions include directions on how to do this.
+
+/*
+ * This header file defines the Network Time Protocol (NTP) interfaces
+ * for user and daemon application programs. These are implemented using
+ * private system calls and data structures and require specific kernel
+ * support.
+ *
+ * NAME
+ *   ntp_gettime - NTP user application interface
+ *
+ * SYNOPSIS
+ *   #include <sys/timex.h>
+ *
+ *   int system call(SYS_ntp_gettime, tptr)
+ *
+ *   int SYS_ntp_gettime      defined in syscall.h header file
+ *   struct ntptimeval *tptr  pointer to ntptimeval structure
+ *
+ * NTP user interface - used to read kernel clock values
+ * Note: maximum error = NTP synch distance = dispersion + delay / 2;
+ * estimated error = NTP dispersion.
+ */
+struct ntptimeval {
+     struct timeval time;     /* current time */
+     long maxerror;           /* maximum error (usec) */
+     long esterror;           /* estimated error (usec) */
+};
+
+The ntp_gettime() system call returns three values in the ntptimeval
+structure: the current time in unix timeval format plus the maximum and
+estimated errors in microseconds. While the 32-bit long data type limits
+the error quantities to something more than an hour, in practice this is
+not significant, since the protocol itself will declare an
+unsynchronized condition well below that limit. If the protocol computes
+either of these values in excess of 16 seconds, they are clamped to that
+value and the local clock declared unsynchronized.
+
+Following is a detailed description of the ntptimeval structure members.
+
+struct timeval time;
+
+     This member is set to the current system time, expressed as a Unix
+     timeval structure. The timeval structure consists of two 32-bit
+     words, one for the number of seconds past 1 January 1970 and the
+     other the number of microseconds past the most recent second's
+     epoch.
+
+long maxerror;
+
+     This member is set to the value of the time_maxerror kernel
+     variable, which establishes the maximum error of the indicated time
+     relative to the primary reference source, in microseconds. This
+     variable can also be set and read by the ntp_adjtime() system call.
+     For NTP, the value is determined as the synchronization distance,
+     which is equal to the root dispersion plus one-half the root delay.
+     It is increased by a small amount (time_tolerance) each second to
+     reflect the clock frequency tolerance. This variable is computed by
+     the time-synchronization daemon and the kernel and returned in a
+     ntp_gettime() system call, but is otherwise not used by the kernel.
+
+long esterror;
+
+     This member is set to the value of the time_esterror kernel
+     variable, which establishes the expected error of the indicated
+     time relative to the primary reference source, in microseconds.
+     This variable can also be set and read by the ntp_adjtime() system
+     call. For NTP, the value is determined as the root dispersion,
+     which represents the best estimate of the actual error of the
+     system clock based on its past behavior, together with observations
+     of multiple clocks within the peer group. This variable is computed
+     by the time-synchronization daemon and returned in a ntp_gettime()
+     system call, but is otherwise not used by the kernel.
+
+3.2. The ntp_adjtime() System Call
+
+The syntax and semantics of the ntp_adjtime() call is given in the
+following fragment of the timex.h header file. Note that, as in the
+ntp_gettime() system call, the the syscall.h system header file must be
+modified to define the SYS_ntp_adjtime system call specific to each
+system type.
+
+/*
+ * NAME
+ *   ntp_adjtime - NTP daemon application interface
+ *
+ * SYNOPSIS
+ *   #include <sys/timex.h>
+ *
+ *   int system call(SYS_ntp_adjtime, mode, tptr)
+ *
+ *   int SYS_ntp_adjtime      defined in syscall.h header file
+ *   struct timex *tptr       pointer to timex structure
+ *
+ * NTP daemon interface - used to discipline kernel clock oscillator
+ */
+struct timex {
+     int mode;                /* mode selector */
+     long offset;             /* time offset (usec) */
+     long frequency;          /* frequency offset (scaled ppm) */
+     long maxerror;           /* maximum error (usec) */
+     long esterror;           /* estimated error (usec) */
+     int status;              /* clock command/status */
+     long time_constant;      /* pll time constant */
+     long precision;          /* clock precision (usec) (read only) */
+     long tolerance;          /* clock frequency tolerance (ppm)
+                               * (read only)
+                               */
+};
+
+The ntp_adjtime() system call is used to read and write certain time-
+related kernel variables summarized in this and subsequent sections.
+Writing these variables can only be done in superuser mode. To write a
+variable, the mode structure member is set with one or more bits, one of
+which is assigned each of the following variables in turn. The current
+values for all variables are returned in any case; therefore, a mode
+argument of zero means to return these values without changing anything.
+
+Following is a description of the timex structure members.
+
+int mode;
+
+     This is a bit-coded variable selecting one or more structure
+     members, with one bit assigned each member. If a bit is set, the
+     value of the associated member variable is copied to the
+     corresponding kernel variable; if not, the member is ignored. The
+     bits are assigned as given in the following fragment of the timex.h
+     header file. Note that the precision and tolerance are intrinsic
+     properties of the kernel configuration and cannot be changed.
+
+     /*
+      * Mode codes (timex.mode)
+      */
+     #define ADJ_OFFSET       0x0001    /* time offset */
+     #define ADJ_FREQUENCY    0x0002    /* frequency offset */
+     #define ADJ_MAXERROR     0x0004    /* maximum time error */
+     #define ADJ_ESTERROR     0x0008    /* estimated time error */
+     #define ADJ_STATUS       0x0010    /* clock status */
+     #define ADJ_TIMECONST    0x0020    /* pll time constant */
+
+long offset;
+
+     If selected, this member (scaled) replaces the value of the
+     time_offset kernel variable, which defines the current time offset
+     of the phase-lock loop. The value must be in the range +-512 ms in
+     the present implementation. If so, the clock status is
+     automatically set to TIME_OK.
+
+long time_constant;
+
+     If selected, this member replaces the value of the time_constant
+     kernel variable, which establishes the bandwidth of "stiffness" of
+     the kernel PLL. The value is used as a shift, with the effective
+     PLL time constant equal to a multiple of (1 << time_constant), in
+     seconds. The optimum value for the time_constant variable is
+     log2(update_interval) - 4, where update_interval is the nominal
+     interval between clock updates, in seconds. With an ordinary crystal
+     oscillator the optimum value for time_constant is about 2, giving
+     an update_interval of 4 (64 s). Values of time_constant between zero
+     and 2 can be used if quick convergence is necessary; values between
+     2 and 6 can be used to reduce network load, but at a modest cost in
+     accuracy. Values above 6 are appropriate only if a precision
+     oscillator is available.
+
+long frequency;
+
+     If selected, this member (scaled) replaces the value of the
+     time_frequency kernel variable, which establishes the intrinsic
+     frequency of the local clock oscillator. This variable is scaled by
+     (1 << SHIFT_USEC) in parts-per-million (ppm), giving it a maximum
+     value of about +-31 ms/s and a minimum value (frequency resolution)
+     of about 2e-11, which is appropriate for even the best quartz
+     oscillator.
+
+long maxerror;
+
+     If selected, this member replaces the value of the time_maxerror
+     kernel variable, which establishes the maximum error of the
+     indicated time relative to the primary reference source, in
+     microseconds. This variable can also be read by the ntp_gettime()
+     system call. For NTP, the value is determined as the
+     synchronization distance, which is equal to the root dispersion
+     plus one-half the root delay. It is increased by a small amount
+     (time_tolerance) each second to reflect the clock frequency
+     tolerance. This variable is computed by the time-synchronization
+     daemon and the kernel and returned in a ntp_gettime() system call,
+     but is otherwise not used by the kernel.
+
+long esterror;
+
+     If selected, this member replaces the value of the time_esterror
+     kernel variable, which establishes the expected error of the
+     indicated time relative to the primary reference source, in
+     microseconds. This variable can also be read by the ntp_gettime()
+     system call. For NTP, the value is determined as the root
+     dispersion, which represents the best estimate of the actual error
+     of the system clock based on its past behavior, together with
+     observations of multiple clocks within the peer group. This
+     variable is computed by the time-synchronization daemon and
+     returned in a ntp_gettime() system call, but is otherwise not used
+     by the kernel.
+
+int status;
+
+     If selected, this member replaces the value of the time_status
+     kernel variable, which records whether the clock is synchronized,
+     waiting for a leap second, etc. In order to set this variable
+     explicitly, either (a) the current clock status is TIME_OK or (b)
+     the member value is TIME_BAD; that is, the ntp_adjtime() call can
+     always set the clock to the unsynchronized state or, if the clock
+     is running correctly, can set it to any state. In any case, the
+     ntp_adjtime() call always returns the current state in this member,
+     so the caller can determine whether or not the request succeeded.
+
+long precision;
+
+     This member is set equal to the time_precision kernel in
+     microseconds variable upon return from the system call. The
+     time_precision variable cannot be written. This variable represents
+     the maximum error in reading the system clock, which is ordinarily
+     equal to the kernel variable tick, 10000 usec in the SunOS kernel,
+     3906 usec in Ultrix kernel and 976 usec in the OSF/1 kernel.
+     However, in cases where the time can be interpolated with
+     microsecond resolution, such as in the SunOS kernel and modified
+     Ultrix and OSF/1 kernels, the precision is specified as 1 usec.
+     This variable is computed by the kernel for use by the time-
+     synchronization daemon, but is otherwise not used by the kernel.
+
+long tolerance;
+
+     This member is set equal to the time_tolerance kernel variable in
+     parts-per-million (ppm) upon return from the system call. The
+     time_tolerance variable cannot be written. This variable represents
+     the maximum frequency error or tolerance of the particular platform
+     and is a property of the architecture and manufacturing process.
+
+3.3. Command/Status Codes
+
+The kernel routines use the system clock status variable time_status,
+which records whether the clock is synchronized, waiting for a leap
+second, etc. The value of this variable is returned as the result code
+by both the ntp_gettime() and ntp_adjtime() system calls. In addition,
+it can be explicitly read and written using the ntp_adjtime() system
+call, but can be written only in superuser mode. Values presently
+defined in the timex.h header file are as follows:
+
+/*
+ * Clock command/status codes (timex.status)
+ */
+#define TIME_OK     0         /* clock synchronized */
+#define TIME_INS    1         /* insert leap second */
+#define TIME_DEL    2         /* delete leap second */
+#define TIME_OOP    3         /* leap second in progress */
+#define TIME_BAD    4         /* clock not synchronized */
+
+A detailed description of these codes as used by the leap-second state
+machine is given later in this memo. In case of a negative result code,
+the kernel has intercepted an invalid address or (in case of the
+ntp_adjtime() system call), a superuser violation.
+
+4. Technical Summary
+
+In order to more fully understand the workings of the PLL, a stand-alone
+simulator kern.c is included in the kernel distributions. This is an
+implementation of an adaptive-parameter, first-order, type-II phase-lock
+loop. The system clock is implemented using a set of variables and
+algorithms defined in the simulator and driven by explicit offsets
+generated by the simulator. The algorithms include code fragments
+identical to those in the modified kernel routines and operate in the
+same way, but the operations can be understood separately from any
+licensed source code into which these fragments may be integrated. The
+code segments themselves are not derived from any licensed code.
+
+4.1. PLL Simulation
+
+In the simulator the hardupdate() fragment is called by ntp_adjtime() as
+each update is computed to adjust the system clock phase and frequency.
+Note that the time constant is in units of powers of two, so that
+multiplies can be done by simple shifts. The phase variable is computed
+as the offset multiplied by the time constant. Then, the time since the
+last update is computed and clamped to a maximum (for robustness) and to
+zero if initializing. The offset is multiplied (sorry about the ugly
+multiply) by the result and by the square of the time constant and then
+added to the frequency variable. Finally, the frequency variable is
+clamped not to exceed the tolerance. Note that all shifts are assumed to
+be positive and that a shift of a signed quantity to the right requires
+a little dance.
+
+With the defines given, the maximum time offset is determined by the
+size in bits of the long type (32) less the SHIFT_UPDATE scale factor or
+18 bits (signed). The scale factor is chosen so that there is no loss of
+significance in later steps, which may involve a right shift up to 14
+bits. This results in a maximum offset of about +-130 ms. Since
+time_constant must be greater than or equal to zero, the maximum
+frequency offset is determined by the SHIFT_KF (20) scale factor, or
+about +-130 ppm. In the addition step, the value of offset * mtemp is
+represented in 18 + 10 = 28 bits, which will not overflow a long add.
+There could be a loss of precision due to the right shift of up to eight
+bits, since time_constant is bounded at 6. This results in a net worst-
+case frequency error of about 2^-16 us or well down into the oscillator
+phase noise. While the time_offset value is assumed checked before
+entry, the time_phase variable is an accumulator, so is clamped to the
+tolerance on every call. This helps to damp transients before the
+oscillator frequency has been determined, as well as to satisfy the
+correctness assertions if the time-synchronization protocol comes
+unstuck.
+
+The hardclock() fragment is inserted in the hardware timer interrupt
+routine at the point the system clock is to be incremented. Previous to
+this fragment the time_update variable has been initialized to the value
+computed by the adjtime() system call in the stock Unix kernel, normally
+the value of tick plus/minus the tickadj value, which is usually in the
+order of 5 microseconds. When the kernel PLL is in use, adjtime() is
+not, so the time_update value at this point is the value of tick. This
+value, the phase adjustment (time_adj) and the clock phase (time_phase)
+are summed and the total tested for overflow of the microsecond. If an
+overflow occurs, the microsecond (tick) is incremented or decremented,
+depending on the sign of the overflow.
+
+The second_overflow() fragment is inserted at the point where the
+microseconds field of the system time variable is being checked for
+overflow. On rollover of the second the maximum error is increased by
+the tolerance and the time offset is divided by the phase weight
+(SHIFT_KG) and time constant. The time offset is then reduced by the
+result and the result is scaled and becomes the value of the phase
+adjustment. The phase adjustment is then corrected for the calculated
+frequency offset and a fixed offset determined from the fixtick variable
+in some kernel implementations. On rollover of the day, the leap-warning
+indicator is checked and the apparent time adjusted +-1 s accordingly.
+The microtime() routine insures that the reported time is always
+monotonically increasing.
+
+The simulator has been used to check the PLL operation over the design
+envelope of +-128 ms in time error and +-100 ppm in frequency error.
+This confirms that no overflows occur and that the loop initially
+converges in about 15 minutes for timer interrupt rates from 50 Hz to
+1024 Hz. The loop has a normal overshoot of about seven percent and a
+final convergence time of several hours, depending on the initial time
+and frequency error.
+
+4.2. Leap Seconds
+
+It does not seem generally useful in the user application interface to
+provide additional details private to the kernel and synchronization
+protocol, such as stratum, reference identifier, reference timestamp and
+so forth. It would in principle be possible for the application to
+independently evaluate the quality of time and project into the future
+how long this time might be "valid." However, to do that properly would
+duplicate the functionality of the synchronization protocol and require
+knowledge of many mundane details of the platform architecture, such as
+the subnet configuration, reachability status and related variables.
+However, for the curious, the ntp_adjtime() system call can be used to
+reveal some of these mysteries.
+
+However, the user application may need to know whether a leap second is
+scheduled, since this might affect interval calculations spanning the
+event. A leap-warning condition is determined by the synchronization
+protocol (if remotely synchronized), by the timecode receiver (if
+available), or by the operator (if awake). This condition is set by the
+protocol daemon on the day the leap second is to occur (30 June or 31
+December, as announced) by specifying in a ntp_adjtime() system call a
+clock status of either TIME_DEL, if a second is to be deleted, or
+TIME_INS, if a second is to be inserted. Note that, on all occasions
+since the inception of the leap-second scheme, there has never been a
+deletion occasion. If the value is TIME_DEL, the kernel adds one second
+to the system time immediately following second 23:59:58 and resets the
+clock status to TIME_OK. If the value is TIME_INS, the kernel subtracts
+one second from the system time immediately following second 23:59:59
+and resets the clock status to TIME_OOP, in effect causing system time
+to repeat second 59. Immediately following the repeated second, the
+kernel resets the clock status to TIME_OK.
+
+Depending upon the system call implementation, the reported time during
+a leap second may repeat (with the TIME_OOP return code set to advertise
+that fact) or be monotonically adjusted until system time "catches up"
+to reported time. With the latter scheme the reported time will be
+correct before and shortly after the leap second (depending on the
+number of microtime() calls during the leap second itself), but freeze
+or slowly advance during the leap second itself. However, Most programs
+will probably use the ctime() library routine to convert from timeval
+(seconds, microseconds) format to tm format (seconds, minutes,...). If
+this routine is modified to use the ntp_gettime() system call and
+inspect the return code, it could simply report the leap second as
+second 60.
+
+To determine local midnight without fuss, the kernel simply finds the
+residue of the time.tv_sec value mod 86,400, but this requires a messy
+divide. Probably a better way to do this is to initialize an auxiliary
+counter in the settimeofday() routine using an ugly divide and increment
+the counter at the same time the time.tv_sec is incremented in the timer
+interrupt routine. For future embellishment.
+
+4.2. Kernel Variables
+
+The following kernel variables are defined by the new code:
+
+long time_offset = 0;         /* time adjustment (us) */
+
+     This variable is used by the PLL to adjust the system time in small
+     increments. It is scaled by (1 << SHIFT_UPDATE) in binary
+     microseconds. The maximum value that can be represented is about +-
+     512 ms and the minimum value or precision is one microsecond.
+
+long time_constant = 0;       /* pll time constant */
+
+     This variable determines the bandwidth or "stiffness" of the PLL.
+     It is used as a shift, with the effective value in positive powers
+     of two. The default value (0) corresponds to a PLL time constant of
+     about 4 minutes.
+
+long time_tolerance = MAXFREQ; /* frequency tolerance (ppm) */
+
+     This variable represents the maximum frequency error or tolerance
+     of the particular platform and is a property of the architecture.
+     It is expressed as a positive number greater than zero in parts-
+     per-million (ppm). The default MAXFREQ (100) is appropriate for
+     conventional workstations.
+
+long time_precision = 1000000 / HZ; /* clock precision (us) */
+
+     This variable represents the maximum error in reading the system
+     clock. It is expressed as a positive number greater than zero in
+     microseconds and is usually based on the number of microseconds
+     between timer interrupts, 3906 usec for the Ultrix kernel, 976 usec
+     for the OSF/1 kernel. However, in cases where the time can be
+     interpolated between timer interrupts with microsecond resolution,
+     such as in the unmodified SunOS kernel and modified Ultrix and
+     OSF/1 kernels, the precision is specified as 1 usec. This variable
+     is computed by the kernel for use by the time-synchronization
+     daemon, but is otherwise not used by the kernel.
+
+long time_maxerror;           /* maximum error */
+
+     This variable establishes the maximum error of the indicated time
+     relative to the primary reference source, in microseconds. For NTP,
+     the value is determined as the synchronization distance, which is
+     equal to the root dispersion plus one-half the root delay. It is
+     increased by a small amount (time_tolerance) each second to reflect
+     the clock frequency tolerance. This variable is computed by the
+     time-synchronization daemon and the kernel, but is otherwise not
+     used by the kernel.
+
+long time_esterror;           /* estimated error */
+
+     This variable establishes the expected error of the indicated time
+     relative to the primary reference source, in microseconds. For NTP,
+     the value is determined as the root dispersion, which represents
+     the best estimate of the actual error of the system clock based on
+     its past behavior, together with observations of multiple clocks
+     within the peer group. This variable is computed by the time-
+     synchronization daemon and returned in system calls, but is
+     otherwise not used by the kernel.
+
+long time_phase = 0;          /* phase offset (scaled us) */
+long time_freq = 0;           /* frequency offset (scaled ppm) */
+time_adj = 0;                 /* tick adjust (scaled 1 / HZ) */
+
+     These variables control the phase increment and the frequency
+     increment of the system clock at each tick. The time_phase variable
+     is scaled by (1 << SHIFT_SCALE) (24) in microseconds, giving a
+     maximum adjustment of about +-128 us/tick and a resolution of about
+     60 femtoseconds/tick. The time_freq variable is scaled by (1 <<
+     SHIFT_KF) in parts-per-million (ppm), giving it a maximum value of
+     over +-2000 ppm and a minimum value (frequency resolution) of about
+     1e-5 ppm. The time_adj variable is the actual phase increment in
+     scaled microseconds to add to time_phase once each tick. It is
+     computed from time_phase and time_freq once per second.
+
+long time_reftime = 0;        /* time at last adjustment (s) */
+
+     This variable is the second's portion of the system time on the
+     last call to adjtime(). It is used to adjust the time_freq variable
+     as the time since the last update increases.
+
+int fixtick = 1000000 % HZ;   /* amortization factor */
+
+     In some systems such as the Ultrix and OSF/1 kernels, the local
+     clock runs at some frequency that does not divide the number of
+     microseconds in the second. In order that the clock runs at a
+     precise rate, it is necessary to introduce an amortization factor
+     into the local timescale, in effect a leap-multimicrosecond. This
+     is not a new kernel variable, but a new use of an existing kernel
+     variable.
+
+4.3. Architecture Constants
+
+Following is a list of the important architecture constants that
+establish the response and stability of the PLL and provide maximum
+bounds on behavior in order to satisfy correctness assertions made in
+the protocol specification.
+
+#define HZ 256                /* timer interrupt frequency (Hz) */
+#define SHIFT_HZ 8            /* log2(HZ) */
+
+     The HZ define (a variable in some kernels) establishes the timer
+     interrupt frequency, 100 Hz for the SunOS kernel, 256 Hz for the
+     Ultrix kernel and 1024 Hz for the OSF/1 kernel. The SHIFT_HZ define
+     expresses the same value as the nearest power of two in order to
+     avoid hardware multiply operations. These are the only parameters
+     that need to be changed for different kernel timer interrupt
+     frequencies.
+
+#define SHIFT_KG 6       /* shift for phase increment */
+#define SHIFT_KF 16      /* shift for frequency increment */
+#define MAXTC 6          /* maximum time constant (shift) */
+
+     These defines establish the response and stability characteristics
+     of the PLL model. The SHIFT_KG and SHIFT_KF defines establish the
+     damping of the PLL and are chosen by analysis for a slightly
+     underdamped convergence characteristic. The MAXTC define
+     establishes the maximum time constant of the PLL.
+
+#define SHIFT_SCALE (SHIFT_KF + SHIFT_HZ) /* shift for scale factor */
+#define SHIFT_UPDATE (SHIFT_KG + MAXTC) /* shift for offset scale
+                          * factor */
+#define SHIFT_USEC 16    /* shift for 1 us in external units */
+#define FINEUSEC (1 << SHIFT_SCALE) /* 1 us in scaled units */
+
+     The SHIFT_SCALE define establishes the decimal point on the
+     time_phase variable which serves as a an extension to the low-order
+     bits of the system clock variable. The SHIFT_UPDATE define
+     establishes the decimal point of the phase portion of the
+     ntp_adjtime() update. The SHIFT_USEC define represents 1 us in
+     external units (shift), while the FINEUSEC define represents 1 us
+     in internal units.
+
+#define MAXPHASE 128000  /* max phase error (usec) */
+#define MAXFREQ 100      /* max frequency error (ppm) */
+#define MINSEC 16        /* min interval between updates (s) */
+#define MAXSEC 1200      /* max interval between updates (s) */
+
+     These defines establish the performance envelope of the PLL, one to
+     bound the maximum phase error, another to bound the maximum
+     frequency error and two others to bound the minimum and maximum
+     time between updates. The intent of these bounds is to force the
+     PLL to operate within predefined limits in order to conform to the
+     correctness models assumed by time-synchronization protocols like
+     NTP and DTSS. An excursion which exceeds these bounds is clamped to
+     the bound and operation proceeds accordingly. In practice, this can
+     occur only if something has failed or is operating out of
+     tolerance, but otherwise the PLL continues to operate in a stable
+     mode. Note that the MAXPHASE define conforms to the maximum offset
+     allowed in NTP before the system time is reset (by settimeofday(),
+     rather than incrementally adjusted (by ntp_adjtime().
+
+David L. Mills <mills@udel.edu>
+Electrical Engineering Department
+University of Delaware
+Newark, DE 19716
+302 831 8247 fax 302 831 4316
+
+1 April 1992

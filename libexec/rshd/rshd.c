@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)rshd.c	5.38 (Berkeley) 3/2/91";
 
 /*
  * From:
- *	$Source: /a/cvs/386BSD/src/libexec/rshd/rshd.c,v $
+ *	$Source: /home/cvs/386BSD/src/libexec/rshd/rshd.c,v $
  *	$Header: /mit/kerberos/ucb/mit/rshd/RCS/rshd.c,v 
  *		5.2 89/07/31 19:30:04 kfall Exp $
  */

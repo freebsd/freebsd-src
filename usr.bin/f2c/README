@@ -1,0 +1,94 @@
+Type "make" to check the validity of the f2c source and compile f2c.
+
+On a PC, you may need to compile xsum.c with -DMSDOS (i.e., with
+MSDOS #defined).  If your system does not understand ANSI/ISO C
+syntax (i.e., if you have a K&R C compiler), compile xsum.c with
+-DKR_headers.  (Eventually this will also be required of the f2c
+source proper.)
+
+On non-Unix systems where files have separate binary and text modes,
+you may need to "make xsumr.out" rather than "make xsum.out".
+
+If (in accordance with what follows) you need to modify the makefile
+or any of the source files, first issue a "make xsum.out" (or, if
+appropriate, "make xsumr.out") to check the validity of the f2c source,
+then make your changes, then type "make f2c".
+
+The file usignal.h is for the benefit of strictly ANSI include files
+on a UNIX system -- the ANSI signal.h does not define SIGHUP or SIGQUIT.
+You may need to modify usignal.h if you are not running f2c on a UNIX
+system.
+
+Should you get the message "xsum0.out xsum1.out differ", see what lines
+are different (`diff xsum0.out xsum1.out`) and ask netlib to send you
+the files in question "from f2c/src".  For example, if exec.c and
+expr.c have incorrect check sums, you would send netlib the message
+	send exec.c expr.c from f2c/src
+
+On some systems, the malloc and free in malloc.c let f2c run faster
+than do the standard malloc and free.  Other systems cannot tolerate
+redefinition of malloc and free.  If yours is such a system, you may
+either modify the makefile appropriately, or simply execute
+	cc -c -DCRAY malloc.c
+before typing "make".  Still other systems have a -lmalloc that
+provides performance competitive with that from malloc.c; you may
+wish to compare the two on your system.
+
+On some BSD systems, you may need to create a file named "string.h"
+whose single line is
+#include <strings.h>
+you may need to add " -Dstrchr=index" to the "CFLAGS =" assignment
+in the makefile, and you may need to add " memset.o" to the "OBJECTS ="
+assignment in the makefile -- see the comments in memset.c .
+
+For non-UNIX systems, you may need to change some things in sysdep.c,
+such as the choice of intermediate file names.
+
+On some systems, you may need to modify parts of sysdep.h (which is
+included by defs.h).  In particular, for Sun 4.1 systems and perhaps
+some others, you need to comment out the typedef of size_t.  For some
+systems (e.g., IRIX 4.0.1 and AIX) it is better to add
+#define ANSI_Libraries
+to the beginning of sysdep.h (or to supply -DANSI_Libraries in the
+makefile).
+
+Alas, some systems #define __STDC__ but do not provide a true standard
+(ANSI or ISO) C environment, e.g. do not provide stdlib.h .  If yours
+is such a system, then (a) you should complain loudly to your vendor
+about __STDC__ being erroneously defined, and (b) you should insert
+#undef __STDC__
+at the beginning of sysdep.h .  You may need to make other adjustments.
+
+For some non-ANSI versions of stdio, you must change the values given
+to binread and binwrite in sysdep.c from "rb" and "wb" to "r" and "w".
+You may need to make this change if you run f2c and get an error
+message of the form
+	Compiler error ... cannot open intermediate file ...
+
+On many systems, it is best to combine libF77 and libI77 into a single
+library, say libf2c, as suggested in "readme from f2c".  If you do this,
+then you should adjust the definition of link_msg in sysdep.c
+appropriately (e.g., replacing "-lF77 -lI77" by "-lf2c").
+
+Some older C compilers object to
+	typedef void (*foo)();
+or to
+	typedef void zap;
+	zap (*foo)();
+If yours is such a compiler, change the definition of VOID in
+f2c.h from void to int.
+
+For convenience with systems that use control-Z to denote end-of-file,
+f2c treats control-Z characters (ASCII 26, '\x1a') that appear at the
+beginning of a line as an end-of-file indicator.  You can disable this
+test by compiling lex.c with NO_EOF_CHAR_CHECK #defined, or can
+change control-Z to some other character by #defining EOF_CHAR to
+be the desired value.
+
+Please send bug reports to dmg@research.att.com .  The old index file
+(now called "readme" due to unfortunate changes in netlib conventions:
+"send readme from f2c") will report recent changes in the recent-change
+log at its end; all changes will be shown in the "changes" file
+("send changes from f2c").  To keep current source, you will need to
+request xsum0.out and version.c, in addition to the changed source
+files.

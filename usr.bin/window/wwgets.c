@@ -47,7 +47,7 @@ int n;
 register struct ww *w;
 {
 	register char *p = buf;
-	register char c;
+	register c;
 	char uc = w->ww_unctrl;
 	static void rub();
 

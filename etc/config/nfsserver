@@ -1,0 +1,4 @@
+# $Id: nfsserver,v 1.1 1993/11/11 23:59:58 wollman Exp $
+# This file determines whether the NFS server is automatically started
+# at boot time.  The default is off.
+off

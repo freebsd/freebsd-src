@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_emit.c	7.9 (Berkeley) 5/9/91
- *	$Id: tp_emit.c,v 1.3 1993/10/16 21:05:39 rgrimes Exp $
+ *	$Id: tp_emit.c,v 1.5 1993/12/19 00:53:33 wollman Exp $
  */
 
 /***********************************************************
@@ -87,7 +87,10 @@ SOFTWARE.
 #include "errno.h"
 #include "types.h"
 #include "time.h"
+
+#include "net/if.h"
 #include "iso.h"
+#include "iso_var.h"
 #include "iso_pcb.h"
 #include "argo_debug.h"
 #include "tp_timer.h"
@@ -100,7 +103,6 @@ SOFTWARE.
 #include "tp_seq.h"
 #include "iso_errno.h"
 
-#include "../net/if.h"
 #ifdef TRUE
 #undef FALSE
 #undef TRUE
@@ -108,9 +110,6 @@ SOFTWARE.
 #include "../netccitt/x25.h"
 #include "../netccitt/pk.h"
 #include "../netccitt/pk_var.h"
-
-void iso_gen_csum();
-
 
 /* Here is a mighty kludge.  The token ring misorders packets if you
  * fire them at it too fast, and TP sans checksum is "too fast", so
@@ -968,4 +967,5 @@ tp_error_emit(error, sref, faddr, laddr, erdata, erlen, tpcb, cons_channel,
 #endif notdef
 		}
 	}
+	return 0;
 }

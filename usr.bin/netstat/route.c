@@ -32,7 +32,9 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)route.c	5.20 (Berkeley) 11/29/90";
+/* From: static char sccsid[] = "@(#)route.c	5.20 (Berkeley) 11/29/90"; */
+static const char route_c_rcsid[] =
+	"$Id: route.c,v 1.9 1993/12/17 16:52:18 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,6 +56,7 @@ static char sccsid[] = "@(#)route.c	5.20 (Berkeley) 11/29/90";
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 extern	int nflag, aflag, Aflag, af;
 int do_rtent;
@@ -61,7 +64,7 @@ extern	char *routename(), *netname(), *plural();
 #ifdef NS
 extern	char *ns_print();
 #endif
-extern	char *malloc();
+
 #define kget(p, d) \
 	(kvm_read((off_t)(p), (char *)&(d), sizeof (d)))
 
@@ -81,6 +84,8 @@ struct bits {
 	{ RTF_XRESOLVE,	'X' },
 	{ RTF_LLINFO,	'L' },
 	{ RTF_REJECT,	'R' },
+	{ RTF_PROTO2,	'2' },
+	{ RTF_PROTO1,	'1' },
 	{ 0 }
 };
 
@@ -96,6 +101,18 @@ p_proto(proto)
 	case AF_INET:
 		printf("inet");
 		break;
+	case AF_NS:
+		printf("NS");
+		break;
+	case AF_OSI:
+		printf("OSI");
+		break;
+	case AF_CCITT:
+		printf("CCITT");
+		break;
+	case AF_APPLETALK:
+		printf("AppleTalk");
+		break;
 	default:
 		printf("%d", proto);
 		break;
@@ -106,6 +123,7 @@ p_proto(proto)
 /*
  * Print routing tables.
  */
+int
 routepr(hostaddr, netaddr, hashsizeaddr, treeaddr)
 	off_t hostaddr, netaddr, hashsizeaddr, treeaddr;
 {
@@ -117,50 +135,26 @@ routepr(hostaddr, netaddr, hashsizeaddr, treeaddr)
 	int hashsize;
 	int i, doinghost = 1;
 
+	if (!treeaddr) {
+		printf("Could not find routing tables\n");
+		return 1;
+	}
 	printf("Routing tables\n");
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	printf("%-16.16s %-18.18s %-6.6s  %6.6s%8.8s  %s\n",
+	printf("%-16.16s %-18.18s %-6.6s  %6.6s%8.8s  %-5.5s",
 		"Destination", "Gateway",
-		"Flags", "Refs", "Use", "Interface");
-	if (treeaddr)
-		return treestuff(treeaddr);
-	if (hostaddr == 0) {
-		printf("rthost: symbol not in namelist\n");
-		return;
+		"Flags", "Refs", "Use", "Iface");
+	if(!aflag) {
+		printf("%-6.6s %-6.6s\n", "MTU", "Rtt");
+	} else {
+		printf("\n    %8s %8s %8s %8s %8s %8s %8s %8s\n",
+		       "MTU", "Hopcount", "Expire", "recvpipe",
+		       "sendpipe", "ssthresh", "RTT", "RTT var.");
 	}
-	if (netaddr == 0) {
-		printf("rtnet: symbol not in namelist\n");
-		return;
-	}
-	if (hashsizeaddr == 0) {
-		printf("rthashsize: symbol not in namelist\n");
-		return;
-	}
-	kget(hashsizeaddr, hashsize);
-	routehash = (struct mbuf **)malloc( hashsize*sizeof (struct mbuf *) );
-	kvm_read(hostaddr, (char *)routehash, hashsize*sizeof (struct mbuf *));
-again:
-	for (i = 0; i < hashsize; i++) {
-		if (routehash[i] == 0)
-			continue;
-		m = routehash[i];
-		while (m) {
-			kget(m, mb);
-			if (Aflag)
-				printf("%8.8x ", m);
-			p_ortentry((struct ortentry *)(mb.m_dat));
-			m = mb.m_next;
-		}
-	}
-	if (doinghost) {
-		kvm_read(netaddr, (char *)routehash,
-			hashsize*sizeof (struct mbuf *));
-		doinghost = 0;
-		goto again;
-	}
-	free((char *)routehash);
-	return;
+
+	return treestuff(treeaddr);
+
 }
 
 static union {
@@ -355,15 +349,14 @@ int flags, width;
 
 	default:
 	    {
-		register u_short *s = ((u_short *)sa->sa_data), *slim;
+		register u_char *s = ((u_char *)sa->sa_data), *slim;
 
-		slim = (u_short *) sa + ((sa->sa_len + sizeof(u_short) - 1) /
-		    sizeof(u_short));
+		slim = (u_char *) sa + sa->sa_len;
 		cp = workbuf;
 		cplim = cp + sizeof(workbuf) - 6;
 		cp += sprintf(cp, "(%d)", sa->sa_family);
 		while (s < slim && cp < cplim)
-			cp += sprintf(cp, " %x", *s++);
+			cp += sprintf(cp, " %02x%02x", s[0], s[1]), s += 2;
 		cp = workbuf;
 	    }
 	}
@@ -407,29 +400,90 @@ register struct rtentry *rt;
 	}
 	kget(rt->rt_ifp, ifnet);
 	kvm_read((off_t)ifnet.if_name, name, 16);
-	printf(" %.15s%d%s", name, ifnet.if_unit,
-		rt->rt_nodes[0].rn_dupedkey ? " =>\n" : "\n");
-}
+	printf(" %.2s%d", name, ifnet.if_unit);
+	if(aflag) {
+	  /*
+	   * MTU
+	   */
+	  if(rt->rt_rmx.rmx_mtu)
+	    printf("\n    %7d%c", rt->rt_rmx.rmx_mtu, 
+		   (rt->rt_rmx.rmx_locks & RTV_MTU) ? '*' : ' ');
+	  else
+	    printf("\n    %7s ", "-");
 
-p_ortentry(rt)
-register struct ortentry *rt;
-{
-	char name[16], *flags;
-	register struct bits *p;
-	register struct sockaddr_in *sin;
-	struct ifnet ifnet;
+	  /*
+	   * Hop count
+	   */
+	  if(rt->rt_rmx.rmx_hopcount)
+	    printf(" %7d%c", rt->rt_rmx.rmx_hopcount,
+		   (rt->rt_rmx.rmx_locks & RTV_HOPCOUNT) ? '*' : ' ');
+	  else
+	    printf(" %7s ", "-");
+	  
+	  /*
+	   * Expiration time
+	   */
+	  if(rt->rt_rmx.rmx_expire)
+	    printf(" %7d%c", rt->rt_rmx.rmx_expire,
+		   (rt->rt_rmx.rmx_locks & RTV_EXPIRE) ? '*' : ' ');
+	  else
+	    printf(" %7s ", "-");
 
-	p_sockaddr(&rt->rt_dst, rt->rt_flags, 16);
-	p_sockaddr(&rt->rt_gateway, 0, 18);
-	p_flags(rt->rt_flags, "%-6.6s ");
-	printf("%6d %8d ", rt->rt_refcnt, rt->rt_use);
-	if (rt->rt_ifp == 0) {
-		putchar('\n');
-		return;
+	  /*
+	   * Receive pipe size (bytes)
+	   */
+	  if(rt->rt_rmx.rmx_recvpipe)
+	    printf(" %7d%c", rt->rt_rmx.rmx_recvpipe,
+		   (rt->rt_rmx.rmx_locks & RTV_RPIPE) ? '*' : ' ');
+	  else
+	    printf(" %7s ", "-");
+
+	  /*
+	   * Send pipe size (bytes)
+	   */
+	  if(rt->rt_rmx.rmx_sendpipe)
+	    printf(" %7d%c", rt->rt_rmx.rmx_sendpipe,
+		   (rt->rt_rmx.rmx_locks & RTV_SPIPE) ? '*' : ' ');
+	  else
+	    printf(" %7s ", "-");
+
+	  /*
+	   * Slow-start threshold (bytes)
+	   */
+	  if(rt->rt_rmx.rmx_ssthresh)
+	    printf(" %7d%c", rt->rt_rmx.rmx_ssthresh,
+		   (rt->rt_rmx.rmx_locks & RTV_SSTHRESH) ? '*' : ' ');
+	  else
+	    printf(" %7s ", "-");
+
+	  /*
+	   * Round-trip time (seconds)
+	   */
+	  if(rt->rt_rmx.rmx_rtt)
+	    printf(" %7.4f%c", (1.0 * rt->rt_rmx.rmx_rtt) / RTM_RTTUNIT,
+		   (rt->rt_rmx.rmx_locks & RTV_RTT) ? '*' : ' ');
+	  else
+	    printf(" %7s ", "-");
+
+	  /*
+	   * Round-trip time variance (seconds)
+	   */
+	  if(rt->rt_rmx.rmx_rttvar)
+	    printf(" %7.4f%c", (1.0 * rt->rt_rmx.rmx_rttvar) / RTM_RTTUNIT,
+		   (rt->rt_rmx.rmx_locks & RTV_RTTVAR) ? '*' : ' ');
+	  else
+	    printf(" %7s ", "-");
+	} else {		/* no -a flag */
+	  if(rt->rt_rmx.rmx_mtu)
+	    printf(" %6d", rt->rt_rmx.rmx_mtu);
+	  else
+	    printf(" %-6s", "-");
+	  if(rt->rt_rmx.rmx_rtt)
+	    printf(" %6.3f", (1. * rt->rt_rmx.rmx_rtt) / RTM_RTTUNIT);
+	  else
+	    printf(" %-6s", "-");
 	}
-	kget(rt->rt_ifp, ifnet);
-	kvm_read((off_t)ifnet.if_name, name, 16);
-	printf(" %.15s%d\n", name, ifnet.if_unit);
+	printf(rt->rt_nodes[0].rn_dupedkey ? " =>\n" : "\n");
 }
 
 char *

@@ -1,0 +1,174 @@
+Copies of this proposal may be purchased from:               CAM/89-002
+CAM Committee  408-867-6630                               
+14426 Black Walnut Ct, Saratoga CA 95070
+
+                          working document of the 
+                    CAM (Common Access Method Committee) 
+
+                                draft proposal
+
+                             ATA (AT Attachment) 
+
+                          Rev 2.1     June 11, 1990
+
+ABSTRACT:  This standard defines mechanical, electrical, and functional 
+requirements for attaching small computers employing an AT Bus with 
+intelligent peripheral devices. The resulting interface provides a common 
+interface specification for systems manufacturers, system integrators, 
+controller manufacturers, and suppliers of intelligent disk drives. 
+
+
+CAUTION:  This is a preliminary draft of the proposed standard.  It is subject 
+to change without notice, at the sole discretion of the CAM Committee.  It is 
+likely that some sections may change significantly, and most sections will 
+change to some extent in the course of further development of this draft 
+standard.  This draft is distributed solely for the purpose of review and 
+comment, and it should not be used as a design document without assuming the 
+risk of an early implementation. 
+
+COPYRIGHT NOTICE:  This draft standard is based upon product specifications of 
+contributing members, these documents may be copyrighted by the individual 
+companies. This draft standard may be reproduced without further permission, 
+for the purpose of review and comment or for the purpose of including in an 
+appropriate product specification provided the risk of early implementation is 
+assumed. All other rights are reserved. 
+
+
+POINTS OF CONTACT: 
+
+ I. Dal Allan (CAM Committee Chairman)  
+ ENDL                                   
+ 14426 Black Walnut Court               
+ Saratoga, CA 95070                   
+ (408) 867-6630                         
+
+
+
+If changes from the prior revision of this document are included, they may 
+be identified by:
+
+ - change bars at the side of each paragraph or 
+ - printed in bold or
+ - printed in italics or 
+ - underscored in the text. 
+
+The specific technique used will depend on the software used to detect the 
+differences and the printer used to print the document. 
+
+In the event that deleted text is identified by an overstrike, the Table of 
+Contents will not be accurate. 
+
+An electronic copy of this document is available from the CAM Committee 
+(408-867-6630). 
+
+This document has been prepared according to the style guide of the ISO 
+(International Organization of Standards). 
+
+
+If this document was printed in a 2-up form directly from the printer, NOTEs 
+had to be adjusted to fit into a half-page, which may have resulted in an 
+imperfect representation of the format within the NOTE. This is most likely 
+to occur if a series of NOTEs are mixed in without any line separation. 
+
+
+
+
+
+
+
+
+..     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+..      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+..     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  
+..
+..     Please look this revision over carefully. Larry and I have reviewed
+..     this document for editorial consistency.                           
+..     This is close to the final step in having a standards document. 
+..     Please pay special attention to references, because any renumbering
+..     may mean a few boo-boos crept in. 
+..
+..     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  
+..      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+..     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  
+..
+..                             EXPOSITORY REMARKS
+..
+..
+..
+..
+..
+..
+..
+..
+..I S O
+..
+..INTERNATIONAL ORGANIZATION FOR STANDARDIZATION
+..
+..
+..
+..
+..
+..
+..          Information Processing Systems --
+..
+..          Common Access Method AT Attachment 
+..
+..
+..
+..
+..
+..
+..
+..               +-----------------------------------------+
+..               | +-------------------------------------+ |
+..               | |                                     | |
+..               | |           ISO 10***:198x            | |
+..               | |                                     | |
+..               | |                                     | |
+..               | |                                     | |
+..               | +-------------------------------------+ |
+..               +-----------------------------------------+
+..
+..
+..
+..
+..
+..
+..
+..
+..                         Technical Editor:   I. Dal Allan 
+..                                             ENDL 
+..                                             14426 Black Walnut Court
+..                                             Saratoga 
+..                                             CA 95070 
+..
+..                                             Ph: 408-867-6630
+..                                             Fx: 408-867-2115
+..                                             Tx: 650-250-1752
+..
+..
+..foCommon Access Method AT Attachment
+..dm       Merging  ata-1 .dif
+..fi ata-1 .dif
+..dm       Merging  ata-2 .dif
+..fi ata-2 .dif
+..dm       Merging  ata-3 .dif
+..fi ata-3 .dif
+..dm       Merging  ata-4 .dif
+..fi ata-4 .dif
+..dm       Merging  ata-5 .dif
+..fi ata-5 .dif
+..dm       Merging  ata-6 .dif
+..fi ata-6 .dif
+..dm       Merging  ata-7 .dif
+..fi ata-7 .dif
+..dm       Merging  ata-8 .dif
+..fi ata-8 .dif
+..dm       Merging  ata-9 .dif
+..fi ata-9 .dif
+..dm       Merging  ata-10 .dif
+..fi ata-10 .dif
+..dm       Merging  ata-11 .dif
+..fi ata-11 .dif
+..dm       Merging  ata-apx .dif
+..fi ata-apx .dif

@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_denode.c,v 1.2 1993/10/16 19:29:32 rgrimes Exp $
+ *	$Id: pcfs_denode.c,v 1.5 1993/12/19 00:54:30 wollman Exp $
  */
 
 #include "param.h"
@@ -44,7 +44,8 @@ union dehead {
 	struct denode *deh_chain[2];
 } dehead[DEHSZ];
 
-pcfs_init()
+void
+pcfs_init(void)
 {
 	int i;
 	union dehead *deh;
@@ -131,7 +132,7 @@ loop:
 			/* should we brelse() the passed buf hdr to
 			 *  avoid some potential deadlock? */
 			ldep->de_flag |= DEWANT;
-			sleep((caddr_t)ldep, PINOD);
+			tsleep((caddr_t)ldep, PINOD, "deget", 0);
 			goto loop;
 		}
 		if (vget(DETOV(ldep)))
@@ -468,6 +469,7 @@ printf("detrunc(): fatentry errors %d\n", error);
  *  the file it represents has been moved to a new
  *  directory.
  */
+void
 reinsert(dep)
 	struct denode *dep;
 {
@@ -586,7 +588,7 @@ printf("pcfs_inactive(): v_usecount %d, de_Name[0] %x\n", vp->v_usecount,
 	return error;
 }
 
-int
+void
 delock(dep)
 	struct denode *dep;
 {
@@ -595,16 +597,14 @@ delock(dep)
 		if (dep->de_spare0 == curproc->p_pid)
 			panic("delock: locking against myself");
 		dep->de_spare1 = curproc->p_pid;
-		(void) sleep((caddr_t)dep, PINOD);
+		(void) tsleep((caddr_t)dep, PINOD, "delock", 0);
 	}
 	dep->de_spare1 = 0;
 	dep->de_spare0 = curproc->p_pid;
 	dep->de_flag |= DELOCKED;
-
-	return 0;
 }
 
-int
+void
 deunlock(dep)
 	struct denode *dep;
 {
@@ -616,6 +616,4 @@ deunlock(dep)
 		dep->de_flag &= ~DEWANT;
 		wakeup((caddr_t)dep);
 	}
-
-	return 0;
 }

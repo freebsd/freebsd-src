@@ -143,7 +143,7 @@ oldsyntax(argc, argvp)
 	argc -= optind;
 	*argvp += optind;
 
-	odoffset(argc, argvp);
+	if(argc > 1) odoffset(argc, argvp);
 }
 
 #define	ishexdigit(c) \

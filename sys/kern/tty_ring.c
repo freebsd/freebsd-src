@@ -45,7 +45,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty_ring.c,v 1.2 1993/10/16 15:25:01 rgrimes Exp $
+ *	$Id: tty_ring.c,v 1.4 1993/12/19 00:51:42 wollman Exp $
  */
 
 #include "param.h"
@@ -54,12 +54,10 @@
 #include "ioctl.h"
 #include "tty.h"
 
-/*
- * XXX - put this in tty.h someday.
- */
-size_t rb_write __P((struct ringb *to, char *buf, size_t nfrom));
-
-putc(c, rbp) struct ringb *rbp;
+int
+putc(c, rbp)
+	int c;
+	struct ringb *rbp;
 {
 	char *nxtp;
 
@@ -72,7 +70,9 @@ putc(c, rbp) struct ringb *rbp;
 	return(0);
 }
 
-getc(rbp) struct ringb *rbp;
+int
+getc(rbp)
+	struct ringb *rbp;
 {
 	u_char c;
 
@@ -85,7 +85,11 @@ getc(rbp) struct ringb *rbp;
 	return (c);
 }
 
-nextc(cpp, rbp) struct ringb *rbp; char **cpp; {
+int
+nextc(cpp, rbp)
+	char **cpp;
+	struct ringb *rbp;
+{
 
 	if (*cpp == rbp->rb_tl) return (0);
 	else {	char *cp;
@@ -95,7 +99,10 @@ nextc(cpp, rbp) struct ringb *rbp; char **cpp; {
 	}
 }
 
-ungetc(c, rbp) struct ringb *rbp;
+int
+ungetc(c, rbp)
+	int c;
+	struct ringb *rbp;
 {
 	char	*backp;
 
@@ -108,7 +115,9 @@ ungetc(c, rbp) struct ringb *rbp;
 	return(0);
 }
 
-unputc(rbp) struct ringb *rbp;
+int
+unputc(rbp)
+	struct ringb *rbp;
 {
 	char	*backp;
 	int c;
@@ -126,7 +135,10 @@ unputc(rbp) struct ringb *rbp;
 
 #define	peekc(rbp)	(*(rbp)->rb_hd)
 
-initrb(rbp) struct ringb *rbp; {
+void
+initrb(rbp)
+	struct ringb *rbp;
+{
 	rbp->rb_hd = rbp->rb_tl = rbp->rb_buf;
 }
 
@@ -157,6 +169,7 @@ initrb(rbp) struct ringb *rbp; {
 /*
  * Concatenate ring buffers.
  */
+void
 catb(from, to)
 	struct ringb *from, *to;
 {

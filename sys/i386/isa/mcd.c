@@ -1,6 +1,11 @@
 /*
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
+ * Changes Copyright 1993 by Gary Clark II
+ *
+ * Rewrote probe routine to work on newer Mitsumi drives.
+ * Additional changes (C) 1994 by Jordan K. Hubbard
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +19,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This software was developed by Holger Veit and Brian Moore
- *      for use with "386BSD" and similar operating systems.
+ *	for use with "386BSD" and similar operating systems.
  *    "Similar operating systems" includes mainly non-profit oriented
  *    systems for research and education, including but not restricted to
  *    "NetBSD", "FreeBSD", "Mach" (by CMU).
@@ -34,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.2 1993/10/16 13:46:13 rgrimes Exp $
+ *	$Id: mcd.c,v 1.10.2.2 1994/03/23 23:51:39 rgrimes Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -74,7 +79,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define mcd_part(dev)	((minor(dev)) & 7)
 #define mcd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
 #define mcd_phys(dev)	(((minor(dev)) & 0x40) >> 6)
-#define RAW_PART	3
+#define RAW_PART	0
 
 /* flags */
 #define MCDOPEN		0x0001	/* device opened */
@@ -93,6 +98,12 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define MCDDSKCHNG	MCD_ST_DSKCHNG		/* sensed change of disk */
 #define MCDDSKIN	MCD_ST_DSKIN		/* sensed disk in drive */
 #define MCDDOOROPEN	MCD_ST_DOOROPEN		/* sensed door open */
+
+/* These are apparently the different states a mitsumi can get up to */
+#define MCDCDABSENT	0x0030
+#define MCDCDPRESENT	0x0020
+#define MCDSCLOSED	0x0080
+#define MCDSOPEN	0x00a0
 
 /* toc */
 #define MCD_MAXTOCS	104	/* from the Linux driver */
@@ -141,7 +152,7 @@ struct mcd_data {
 /* prototypes */
 int	mcdopen(dev_t dev);
 int	mcdclose(dev_t dev);
-int	mcdstrategy(struct buf *bp);
+void	mcdstrategy(struct buf *bp);
 int	mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags);
 int	mcdsize(dev_t dev);
 static	void	mcd_done(struct mcd_mbx *mbx);
@@ -289,7 +300,8 @@ int mcdclose(dev_t dev)
 	return 0;
 }
 
-int mcdstrategy(struct buf *bp)
+void
+mcdstrategy(struct buf *bp)
 {
 	struct mcd_data *cd;
 	struct buf *qp;
@@ -524,32 +536,51 @@ int mcdsize(dev_t dev)
  **************************************************************/
 
 #ifdef NOTDEF
-static char irqs[] = {
+static char
+irqs[] = {
 	0x00,0x00,0x10,0x20,0x00,0x30,0x00,0x00,
 	0x00,0x10,0x40,0x50,0x00,0x00,0x00,0x00
 };
 
-static char drqs[] = {
+static char
+drqs[] = {
 	0x00,0x01,0x00,0x03,0x00,0x05,0x06,0x07,
 };
 #endif
 
-static void mcd_configure(struct mcd_data *cd)
+static void
+mcd_configure(struct mcd_data *cd)
 {
 	outb(cd->iobase+mcd_config,cd->config);
 }
 
-/* check if there is a cdrom */
-/* Heavly hacked by gclarkii@sugar.neosoft.com */
+/* Wait for non-busy - return 0 on timeout */
+static int
+twiddle_thumbs(int port, int unit, int count, char *whine)
+{
+	int i;
 
-int mcd_probe(struct isa_device *dev)
+	for (i = 0; i < count; i++) {
+		if (!(inb(port+MCD_FLAGS) & MCD_ST_BUSY)) {
+			return 1;
+		}
+	}
+#ifdef MCD_TO_WARNING_ON
+	printf("mcd%d: timeout %s\n", unit, whine);
+#endif
+	return 0;
+}
+
+/* check to see if a Mitsumi CD-ROM is attached to the ISA bus */
+
+int
+mcd_probe(struct isa_device *dev)
 {
 	int port = dev->id_iobase;	
 	int unit = dev->id_unit;
-	int i;
-	int st;
-	int check;
-	int junk;
+	int i, j;
+	int status;
+	unsigned char stbytes[3];
 
 	mcd_data[unit].flags = MCDPROBING;
 
@@ -561,73 +592,45 @@ int mcd_probe(struct isa_device *dev)
 #endif
 
 	/* send a reset */
-	outb(port+MCD_FLAGS,0);
-	DELAY(100000);
-	/* get any pending status and throw away...*/
-	for (i=10; i != 0; i--) {
-		inb(port+MCD_DATA);
+	outb(port+MCD_FLAGS, M_RESET);
+
+	/*
+	 * delay awhile by getting any pending garbage (old data) and
+	 * throwing it away.
+	 */
+	for (i = 1000000; i != 0; i--) {
+		inb(port+MCD_FLAGS);
 	}
-	DELAY(1000);
 
-	outb(port+MCD_DATA,MCD_CMDGETSTAT);	/* Send get status command */
-
-	/* Loop looking for avail of status */
-	/* XXX May have to increase for fast machinces */
-	for (i = 1000; i != 0; i--) {
-		if ((inb(port+MCD_FLAGS) & 0xF ) == STATUS_AVAIL) {
-			break;
+	/* Get status */
+	outb(port+MCD_DATA, MCD_CMDGETSTAT);
+	if (!twiddle_thumbs(port, unit, 1000000, "getting status")) {
+		return 0;	/* Timeout */
+	}
+	status = inb(port+MCD_DATA);
+	if (status != MCDCDABSENT && status != MCDCDPRESENT &&
+		status != MCDSOPEN && status != MCDSCLOSED)
+		return 0;	/* Not actually a Mitsumi drive here */
+	/* Get version information */
+	outb(port+MCD_DATA, MCD_CMDCONTINFO);
+	for (j = 0; j < 3; j++) {
+		if (!twiddle_thumbs(port, unit, 3000, "getting version info")) {
+			return 0;
 		}
-		DELAY(10);
+		stbytes[j] = (inb(port+MCD_DATA) & 0xFF);
 	}
-	/* get status */
-
-	if (i == 0) {
-#ifdef DEBUG
-		printf ("Mitsumi drive NOT detected\n");
-#endif
-	return 0;
+	printf("mcd%d: version information is %x %c %x\n", unit,
+		stbytes[0], stbytes[1], stbytes[2]);
+	if (stbytes[1] >= 4) {
+		outb(port+MCD_CTRL, M_PICKLE);
+		printf("mcd%d: Adjusted for newer drive model\n", unit);
 	}
-
-/*
- * The following code uses the 0xDC command, it returns a M from the
- * second byte and a number in the third.  Does anyone know what the
- * number is for? Better yet, how about someone thats REAL good in
- * i80x86 asm looking at the Dos driver... Most of this info came
- * from a friend of mine spending a whole weekend.....
- */
-
-	DELAY (2000);
-	outb(port+MCD_DATA,MCD_CMDCONTINFO);
-	for (i = 0; i < 100000; i++) {
-		if ((inb(port+MCD_FLAGS) & 0xF) == STATUS_AVAIL)
-			break;
-	}
-	if (i > 100000) {
-#ifdef DEBUG
-		printf ("Mitsumi drive error\n");
-#endif
-		return 0;
-	}
-	DELAY (40000);
-	st = inb(port+MCD_DATA);
-	DELAY (500);
-	check = inb(port+MCD_DATA);
-	DELAY (500);
-	junk = inb(port+MCD_DATA);	/* What is byte used for?!?!? */
-
-	if (check = 'M') {
-#ifdef DEBUG
-		printf("Mitsumi drive detected\n");
-#endif
-		return 4;
-	} else {
-		printf("Mitsumi drive NOT detected\n");
-		printf("Mitsumi drive error\n");
-		return 0;
-	}
+	return 4;
 }
 
-static int mcd_waitrdy(int port,int dly)
+
+static int
+mcd_waitrdy(int port,int dly)
 {
 	int i;
 
@@ -640,7 +643,8 @@ static int mcd_waitrdy(int port,int dly)
 	return -1;
 }
 
-static int mcd_getreply(int unit,int dly)
+static int
+mcd_getreply(int unit,int dly)
 {
 	int	i;
 	struct	mcd_data *cd = mcd_data + unit;
@@ -658,7 +662,8 @@ static int mcd_getreply(int unit,int dly)
 	return inb(port+mcd_status) & 0xFF;
 }
 
-static int mcd_getstat(int unit,int sflg)
+static int
+mcd_getstat(int unit,int sflg)
 {
 	int	i;
 	struct	mcd_data *cd = mcd_data + unit;
@@ -676,7 +681,8 @@ static int mcd_getstat(int unit,int sflg)
 	return cd->status;
 }
 
-static void mcd_setflags(int unit, struct mcd_data *cd)
+static void
+mcd_setflags(int unit, struct mcd_data *cd)
 {
 	/* check flags */
 	if (cd->status & (MCDDSKCHNG|MCDDOOROPEN)) {
@@ -692,13 +698,13 @@ static void mcd_setflags(int unit, struct mcd_data *cd)
 #endif
 }
 
-static int mcd_get(int unit, char *buf, int nmax)
+static int
+mcd_get(int unit, char *buf, int nmax)
 {
 	int port = mcd_data[unit].iobase;
 	int i,k;
 	
 	for (i=0; i<nmax; i++) {
-
 		/* wait for data */
 		if ((k = mcd_getreply(unit,DELAY_GETREPLY)) < 0) {
 #ifdef MCD_TO_WARNING_ON
@@ -711,7 +717,8 @@ static int mcd_get(int unit, char *buf, int nmax)
 	return i;
 }
 
-static int mcd_send(int unit, int cmd,int nretrys)
+static int
+mcd_send(int unit, int cmd,int nretrys)
 {
 	int i,k;
 	int port = mcd_data[unit].iobase;
@@ -719,8 +726,9 @@ static int mcd_send(int unit, int cmd,int nretrys)
 /*MCD_TRACE("mcd_send: command = 0x%x\n",cmd,0,0,0);*/
 	for (i=0; i<nretrys; i++) {
 		outb(port+mcd_command, cmd);
-		if ((k=mcd_getstat(unit,0)) != -1)
+		if ((k=mcd_getstat(unit,0)) != -1) {
 			break;
+		}
 	}
 	if (i == nretrys) {
 		printf("mcd%d: mcd_send retry cnt exceeded\n",unit);
@@ -730,17 +738,20 @@ static int mcd_send(int unit, int cmd,int nretrys)
 	return 0;
 }
 
-static int bcd2bin(bcd_t b)
+static int
+bcd2bin(bcd_t b)
 {
 	return (b >> 4) * 10 + (b & 15);
 }
 
-static bcd_t bin2bcd(int b)
+static bcd_t
+bin2bcd(int b)
 {
 	return ((b / 10) << 4) | (b % 10);
 }
 
-static void hsg2msf(int hsg, bcd_t *msf)
+static void
+hsg2msf(int hsg, bcd_t *msf)
 {
 	hsg += 150;
 	M_msf(msf) = bin2bcd(hsg / 4500);
@@ -749,14 +760,16 @@ static void hsg2msf(int hsg, bcd_t *msf)
 	F_msf(msf) = bin2bcd(hsg % 75);
 }
 
-static int msf2hsg(bcd_t *msf)
+static int
+msf2hsg(bcd_t *msf)
 {
 	return (bcd2bin(M_msf(msf)) * 60 +
 		bcd2bin(S_msf(msf))) * 75 +
 		bcd2bin(F_msf(msf)) - 150;
 }
 
-static int mcd_volinfo(int unit)
+static int
+mcd_volinfo(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	int i;
@@ -787,7 +800,9 @@ static int mcd_volinfo(int unit)
 	return -1;
 }
 
-int mcdintr(unit)
+void
+mcdintr(unit)
+	int unit;
 {
 	int	port = mcd_data[unit].iobase;
 	u_int	i;
@@ -808,7 +823,8 @@ int mcdintr(unit)
  */
 static struct mcd_mbx *mbxsave;
 
-static void mcd_doread(int state, struct mcd_mbx *mbxin)
+static void
+mcd_doread(int state, struct mcd_mbx *mbxin)
 {
 	struct mcd_mbx *mbx = (state!=MCD_S_BEGIN) ? mbxsave : mbxin;
 	int	unit = mbx->unit;
@@ -830,17 +846,20 @@ loop:
 		/* get status */
 		outb(port+mcd_command, MCD_CMDGETSTAT);
 		mbx->count = RDELAY_WAITSTAT;
-		timeout(mcd_doread,MCD_S_WAITSTAT,hz/100);
+		timeout((timeout_func_t)mcd_doread,
+			(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITSTAT:
-		untimeout(mcd_doread,MCD_S_WAITSTAT);
+		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT);
 		if (mbx->count-- >= 0) {
 			if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
-				timeout(mcd_doread,MCD_S_WAITSTAT,hz/100);
+				timeout((timeout_func_t)mcd_doread,
+				    (caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 				return;
 			}
 			mcd_setflags(unit,cd);
-			MCD_TRACE("got WAITSTAT delay=%d\n",RDELAY_WAITSTAT-mbx->count,0,0,0);
+			MCD_TRACE("got WAITSTAT delay=%d\n",
+				RDELAY_WAITSTAT-mbx->count,0,0,0);
 			/* reject, if audio active */
 			if (cd->status & MCDAUDIOBSY) {
 				printf("mcd%d: audio is active\n",unit);
@@ -860,7 +879,8 @@ loop:
 		
 			mcd_put(port+mcd_command, MCD_CMDSETMODE);
 			mcd_put(port+mcd_command, rm);
-			timeout(mcd_doread,MCD_S_WAITMODE,hz/100);
+			timeout((timeout_func_t)mcd_doread,
+				(caddr_t)MCD_S_WAITMODE,hz/100); /* XXX */
 			return;
 		} else {
 #ifdef MCD_TO_WARNING_ON
@@ -870,7 +890,7 @@ loop:
 		}
 
 	case MCD_S_WAITMODE:
-		untimeout(mcd_doread,MCD_S_WAITMODE);
+		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITMODE);
 		if (mbx->count-- < 0) {
 #ifdef MCD_TO_WARNING_ON
 			printf("mcd%d: timeout set mode\n",unit);
@@ -878,11 +898,12 @@ loop:
 			goto readerr;
 		}
 		if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
-			timeout(mcd_doread,MCD_S_WAITMODE,hz/100);
+			timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITMODE,hz/100);
 			return;
 		}
 		mcd_setflags(unit,cd);
-		MCD_TRACE("got WAITMODE delay=%d\n",RDELAY_WAITMODE-mbx->count,0,0,0);
+		MCD_TRACE("got WAITMODE delay=%d\n",
+			RDELAY_WAITMODE-mbx->count,0,0,0);
 		/* for first block */
 		mbx->nblk = (bp->b_bcount + (mbx->sz-1)) / mbx->sz;
 		mbx->skip = 0;
@@ -891,7 +912,8 @@ nextblock:
 		blknum 	= (bp->b_blkno / (mbx->sz/DEV_BSIZE))
 			+ mbx->p_offset + mbx->skip/mbx->sz;
 
-		MCD_TRACE("mcd_doread: read blknum=%d for bp=0x%x\n",blknum,bp,0,0);
+		MCD_TRACE("mcd_doread: read blknum=%d for bp=0x%x\n",
+			blknum,bp,0,0);
 
 		/* build parameter block */
 		hsg2msf(blknum,rbuf.start_msf);
@@ -905,14 +927,16 @@ nextblock:
 		mcd_put(port+mcd_command,0);
 		mcd_put(port+mcd_command,1);
 		mbx->count = RDELAY_WAITREAD;
-		timeout(mcd_doread,MCD_S_WAITREAD,hz/100);
+		timeout((timeout_func_t)mcd_doread,
+			(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITREAD:
-		untimeout(mcd_doread,MCD_S_WAITREAD);
+		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD);
 		if (mbx->count-- > 0) {
 			k = inb(port+mcd_xfer);
 			if ((k & 2)==0) {
-			MCD_TRACE("got data delay=%d\n",RDELAY_WAITREAD-mbx->count,0,0,0);
+				MCD_TRACE("got data delay=%d\n",
+					RDELAY_WAITREAD-mbx->count,0,0,0);
 				/* data is ready */
 				addr	= bp->b_un.b_addr + mbx->skip;
 				outb(port+mcd_ctl2,0x04);	/* XXX */
@@ -935,7 +959,8 @@ nextblock:
 			}
 			if ((k & 4)==0)
 				mcd_getstat(unit,0);
-			timeout(mcd_doread,MCD_S_WAITREAD,hz/100);
+			timeout((timeout_func_t)mcd_doread,
+				(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 			return;
 		} else {
 #ifdef MCD_TO_WARNING_ON
@@ -975,7 +1000,8 @@ readerr:
 }
 
 #ifndef MCDMINI
-static int mcd_setmode(int unit, int mode)
+static int
+mcd_setmode(int unit, int mode)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	int port = cd->iobase;
@@ -992,12 +1018,14 @@ static int mcd_setmode(int unit, int mode)
 	return -1;
 }
 
-static int mcd_toc_header(int unit, struct ioc_toc_header *th)
+static int
+mcd_toc_header(int unit, struct ioc_toc_header *th)
 {
 	struct mcd_data *cd = mcd_data + unit;
 
-	if (mcd_volinfo(unit) < 0)
+	if (mcd_volinfo(unit) < 0) {
 		return ENXIO;
+	}
 
 	th->len = msf2hsg(cd->volinfo.vol_msf);
 	th->starting_track = bcd2bin(cd->volinfo.trk_low);
@@ -1006,7 +1034,8 @@ static int mcd_toc_header(int unit, struct ioc_toc_header *th)
 	return 0;
 }
 
-static int mcd_read_toc(int unit)
+static int
+mcd_read_toc(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	struct ioc_toc_header th;
@@ -1014,21 +1043,27 @@ static int mcd_read_toc(int unit)
 	int rc, trk, idx, retry;
 
 	/* Only read TOC if needed */
-	if (cd->flags & MCDTOC) return 0;
+	if (cd->flags & MCDTOC) {
+		return 0;
+	}
 
 	printf("mcd%d: reading toc header\n", unit);
-	if (mcd_toc_header(unit, &th) != 0)
+	if (mcd_toc_header(unit, &th) != 0) {
 		return ENXIO;
+	}
 
 	printf("mcd%d: stopping play\n", unit);
-	if ((rc=mcd_stop(unit)) != 0)
+	if ((rc=mcd_stop(unit)) != 0) {
 		return rc;
+	}
 
 	/* try setting the mode twice */
-	if (mcd_setmode(unit, MCD_MD_TOC) != 0)
+	if (mcd_setmode(unit, MCD_MD_TOC) != 0) {
 		return EIO;
-	if (mcd_setmode(unit, MCD_MD_TOC) != 0)
+	}
+	if (mcd_setmode(unit, MCD_MD_TOC) != 0) {
 		return EIO;
+	}
 
 	printf("mcd%d: get_toc reading qchannel info\n",unit);	
 	for(trk=th.starting_track; trk<=th.ending_track; trk++)
@@ -1038,18 +1073,21 @@ static int mcd_read_toc(int unit)
 	{
 		if (mcd_getqchan(unit, &q) < 0) break;
 		idx = bcd2bin(q.idx_no);
-		if (idx>0 && idx < MCD_MAXTOCS && q.trk_no==0)
-			if (cd->toc[idx].idx_no == 0)
-			{
+		if (idx>0 && idx < MCD_MAXTOCS && q.trk_no==0) {
+			if (cd->toc[idx].idx_no == 0) {
 				cd->toc[idx] = q;
 				trk--;
 			}
+		}
 	}
 
-	if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
+	if (mcd_setmode(unit, MCD_MD_COOKED) != 0) {
 		return EIO;
+	}
 
-	if (trk != 0) return ENXIO;
+	if (trk != 0) {
+		return ENXIO;
+	}
 
 	/* add a fake last+1 */
 	idx = th.ending_track + 1;
@@ -1065,11 +1103,11 @@ static int mcd_read_toc(int unit)
 	return 0;
 }
 
-static int mcd_toc_entry(int unit, struct ioc_read_toc_entry *te)
+static int
+mcd_toc_entry(int unit, struct ioc_read_toc_entry *te)
 {
 	struct mcd_data *cd = mcd_data + unit;
-	struct ret_toc
-	{
+	struct ret_toc {
 		struct ioc_toc_header th;
 		struct cd_toc_entry rt;
 	} ret_toc;
@@ -1077,36 +1115,42 @@ static int mcd_toc_entry(int unit, struct ioc_read_toc_entry *te)
 	int rc, i;
 
 	/* Make sure we have a valid toc */
-	if ((rc=mcd_read_toc(unit)) != 0)
+	if ((rc=mcd_read_toc(unit)) != 0) {
 		return rc;
+	}
 
 	/* find the toc to copy*/
 	i = te->starting_track;
-	if (i == MCD_LASTPLUS1)
+	if (i == MCD_LASTPLUS1) {
 		i = bcd2bin(cd->volinfo.trk_high) + 1;
+	}
 	
 	/* verify starting track */
 	if (i < bcd2bin(cd->volinfo.trk_low) ||
-		i > bcd2bin(cd->volinfo.trk_high)+1)
+		i > bcd2bin(cd->volinfo.trk_high)+1) {
 		return EINVAL;
+	}
 
 	/* do we have room */
 	if (te->data_len < sizeof(struct ioc_toc_header) +
-		sizeof(struct cd_toc_entry)) return EINVAL;
+		sizeof(struct cd_toc_entry)) {
+		return EINVAL;
+	}
 
 	/* Copy the toc header */
-	if (mcd_toc_header(unit, &th) < 0) return EIO;
+	if (mcd_toc_header(unit, &th) < 0) {
+		return EIO;
+	}
 	ret_toc.th = th;
 
 	/* copy the toc data */
 	ret_toc.rt.control = cd->toc[i].ctrl_adr;
 	ret_toc.rt.addr_type = te->address_format;
 	ret_toc.rt.track = i;
-	if (te->address_format == CD_MSF_FORMAT)
-	{
-		ret_toc.rt.addr[1] = cd->toc[i].hd_pos_msf[0];
-		ret_toc.rt.addr[2] = cd->toc[i].hd_pos_msf[1];
-		ret_toc.rt.addr[3] = cd->toc[i].hd_pos_msf[2];
+	if (te->address_format == CD_MSF_FORMAT) {
+		ret_toc.rt.addr.addr[1] = cd->toc[i].hd_pos_msf[0];
+		ret_toc.rt.addr.addr[2] = cd->toc[i].hd_pos_msf[1];
+		ret_toc.rt.addr.addr[3] = cd->toc[i].hd_pos_msf[2];
 	}
 
 	/* copy the data back */
@@ -1116,34 +1160,41 @@ static int mcd_toc_entry(int unit, struct ioc_read_toc_entry *te)
 	return 0;
 }
 
-static int mcd_stop(int unit)
+static int
+mcd_stop(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 
-	if (mcd_send(unit, MCD_CMDSTOPAUDIO, MCD_RETRYS) < 0)
+	if (mcd_send(unit, MCD_CMDSTOPAUDIO, MCD_RETRYS) < 0) {
 		return ENXIO;
+	}
 	cd->audio_status = CD_AS_PLAY_COMPLETED;
 	return 0;
 }
 
-static int mcd_getqchan(int unit, struct mcd_qchninfo *q)
+static int
+mcd_getqchan(int unit, struct mcd_qchninfo *q)
 {
 	struct mcd_data *cd = mcd_data + unit;
 
-	if (mcd_send(unit, MCD_CMDGETQCHN, MCD_RETRYS) < 0)
+	if (mcd_send(unit, MCD_CMDGETQCHN, MCD_RETRYS) < 0) {
 		return -1;
-	if (mcd_get(unit, (char *) q, sizeof(struct mcd_qchninfo)) < 0)
+	}
+	if (mcd_get(unit, (char *) q, sizeof(struct mcd_qchninfo)) < 0) {
 		return -1;
-	if (cd->debug)
-	printf("mcd%d: qchannel ctl=%d, t=%d, i=%d, ttm=%d:%d.%d dtm=%d:%d.%d\n",
+	}
+	if (cd->debug) {
+		printf("mcd%d: qchannel ctl=%d, t=%d, i=%d, ttm=%d:%d.%d dtm=%d:%d.%d\n",
 		unit,
 		q->ctrl_adr, q->trk_no, q->idx_no,
 		q->trk_size_msf[0], q->trk_size_msf[1], q->trk_size_msf[2],
 		q->trk_size_msf[0], q->trk_size_msf[1], q->trk_size_msf[2]);
+	}
 	return 0;
 }
 
-static int mcd_subchan(int unit, struct ioc_read_subchannel *sc)
+static int
+mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	struct mcd_qchninfo q;
@@ -1152,21 +1203,28 @@ static int mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 	printf("mcd%d: subchan af=%d, df=%d\n", unit,
 		sc->address_format,
 		sc->data_format);
-	if (sc->address_format != CD_MSF_FORMAT) return EIO;
-	if (sc->data_format != CD_CURRENT_POSITION) return EIO;
-
-	if (mcd_getqchan(unit, &q) < 0) return EIO;
+	if (sc->address_format != CD_MSF_FORMAT) {
+		return EIO;
+	}
+	if (sc->data_format != CD_CURRENT_POSITION) {
+		return EIO;
+	}
+	if (mcd_getqchan(unit, &q) < 0) {
+		return EIO;
+	}
 
 	data.header.audio_status = cd->audio_status;
 	data.what.position.data_format = CD_MSF_FORMAT;
 	data.what.position.track_number = bcd2bin(q.trk_no);
 
-	if (copyout(&data, sc->data, sizeof(struct cd_sub_channel_info))!=0)
+	if (copyout(&data, sc->data, sizeof(struct cd_sub_channel_info))!=0) {
 		return EFAULT;
+	}
 	return 0;
 }
 
-static int mcd_playtracks(int unit, struct ioc_play_track *pt)
+static int
+mcd_playtracks(int unit, struct ioc_play_track *pt)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	struct mcd_read2 pb;
@@ -1174,14 +1232,16 @@ static int mcd_playtracks(int unit, struct ioc_play_track *pt)
 	int z = pt->end_track;
 	int rc;
 
-	if ((rc = mcd_read_toc(unit)) != 0) return rc;
-
+	if ((rc = mcd_read_toc(unit)) != 0) {
+		return rc;
+	}
 	printf("mcd%d: playtracks from %d:%d to %d:%d\n", unit,
 		a, pt->start_index, z, pt->end_index);
 
 	if (a < cd->volinfo.trk_low || a > cd->volinfo.trk_high || a > z ||
-		z < cd->volinfo.trk_low || z > cd->volinfo.trk_high)
+	    z < cd->volinfo.trk_low || z > cd->volinfo.trk_high) {
 		return EINVAL;
+	}
 
 	pb.start_msf[0] = cd->toc[a].hd_pos_msf[0];
 	pb.start_msf[1] = cd->toc[a].hd_pos_msf[1];
@@ -1193,15 +1253,15 @@ static int mcd_playtracks(int unit, struct ioc_play_track *pt)
 	return mcd_play(unit, &pb);
 }
 
-static int mcd_play(int unit, struct mcd_read2 *pb)
+static int
+mcd_play(int unit, struct mcd_read2 *pb)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	int port = cd->iobase;
 	int retry, st;
 
 	cd->lastpb = *pb;
-	for(retry=0; retry<MCD_RETRYS; retry++)
-	{
+	for(retry=0; retry<MCD_RETRYS; retry++) {
 		outb(port+mcd_command, MCD_CMDREAD2);
 		outb(port+mcd_command, pb->start_msf[0]);
 		outb(port+mcd_command, pb->start_msf[1]);
@@ -1209,31 +1269,38 @@ static int mcd_play(int unit, struct mcd_read2 *pb)
 		outb(port+mcd_command, pb->end_msf[0]);
 		outb(port+mcd_command, pb->end_msf[1]);
 		outb(port+mcd_command, pb->end_msf[2]);
-		if ((st=mcd_getstat(unit, 0)) != -1) break;
+		if ((st=mcd_getstat(unit, 0)) != -1) {
+			break;
+		}
 	}
 
-	if (cd->debug)
-	printf("mcd%d: mcd_play retry=%d, status=%d\n", unit, retry, st);
-	if (st == -1) return ENXIO;
+	if (cd->debug) {
+		printf("mcd%d: mcd_play retry=%d, status=%d\n", unit, retry, st);
+	}
+	if (st == -1) {
+		return ENXIO;
+	}
 	cd->audio_status = CD_AS_PLAY_IN_PROGRESS;
 	return 0;
 }
 
-static int mcd_pause(int unit)
+static int
+mcd_pause(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	struct mcd_qchninfo q;
 	int rc;
 
 	/* Verify current status */
-	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS)
-	{
+	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS) {
 		printf("mcd%d: pause attempted when not playing\n", unit);
 		return EINVAL;
 	}
 
 	/* Get the current position */
-	if (mcd_getqchan(unit, &q) < 0) return EIO;
+	if (mcd_getqchan(unit, &q) < 0) {
+		return EIO;
+	}
 
 	/* Copy it into lastpb */
 	cd->lastpb.start_msf[0] = q.hd_pos_msf[0];
@@ -1241,18 +1308,23 @@ static int mcd_pause(int unit)
 	cd->lastpb.start_msf[2] = q.hd_pos_msf[2];
 
 	/* Stop playing */
-	if ((rc=mcd_stop(unit)) != 0) return rc;
+	if ((rc=mcd_stop(unit)) != 0) {
+		return rc;
+	}
 
 	/* Set the proper status and exit */
 	cd->audio_status = CD_AS_PLAY_PAUSED;
 	return 0;
 }
 
-static int mcd_resume(int unit)
+static int
+mcd_resume(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 
-	if (cd->audio_status != CD_AS_PLAY_PAUSED) return EINVAL;
+	if (cd->audio_status != CD_AS_PLAY_PAUSED) {
+		return EINVAL;
+	}
 	return mcd_play(unit, &cd->lastpb);
 }
 #endif /*!MCDMINI*/

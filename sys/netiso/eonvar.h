@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)eonvar.h	7.5 (Berkeley) 5/6/91
- *	$Id: eonvar.h,v 1.2 1993/10/16 21:05:04 rgrimes Exp $
+ *	$Id: eonvar.h,v 1.3 1993/11/07 17:49:32 wollman Exp $
  */
 
 /***********************************************************
@@ -60,6 +60,9 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
+
+#ifndef _NETISO_EONVAR_H_
+#define _NETISO_EONVAR_H_ 1
 
 #define EON_986_VERSION 0x3
 #define EON_VERSION 0x1
@@ -149,7 +152,11 @@ struct eon_stat {
 	/* errors */
 	int	es_badcsum;
 	int	es_badhdr;
-} eonstat;
+};
+
+#ifdef KERNEL
+extern struct eon_stat eon_stat;
+#endif
 
 #undef IncStat
 #define IncStat(xxx) eonstat.xxx++
@@ -169,3 +176,4 @@ struct eon_llinfo {
 };
 #define el_iphdr el_ei.ei_ip
 #define el_eonhdr el_ei.ei_eh
+#endif /* _NETISO_EONVAR_H_ */

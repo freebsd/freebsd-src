@@ -5,8 +5,8 @@ CFLAGS+=-I${.CURDIR} -DREGEX
 SRCS=	ch.c command.c decode.c filename.c help.c input.c line.c \
 	linenum.c main.c option.c os.c output.c position.c prim.c \
 	screen.c signal.c tags.c ttyin.c 
-LDADD+=	-ltermcap -lgnuregex
-DPADD+=	${LIBTERM} /usr/lib/libgnuregex.a
+LDADD+=	-ltermcap
+DPADD+=	${LIBTERM}
 MLINKS=	more.1 page.1
 LINKS=	${BINDIR}/more ${BINDIR}/page
 

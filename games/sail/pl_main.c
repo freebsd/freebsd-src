@@ -198,7 +198,7 @@ reprint:
 	else {
 		(void) printf("Your name, Captain? ");
 		(void) fflush(stdout);
-		(void) gets(captain);
+		(void) fgets(captain, sizeof captain, stdin);
 		if (!*captain)
 			(void) strcpy(captain, "no name");
 	}

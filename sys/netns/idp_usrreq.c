@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)idp_usrreq.c	7.11 (Berkeley) 6/27/91
- *	$Id: idp_usrreq.c,v 1.2 1993/10/16 19:54:11 rgrimes Exp $
+ *	$Id: idp_usrreq.c,v 1.5 1993/12/19 00:53:50 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "malloc.h"
 #include "mbuf.h"
 #include "protosw.h"
@@ -57,11 +58,13 @@
  * IDP protocol implementation.
  */
 
+struct	idpstat idpstat;
 struct	sockaddr_ns idp_ns = { sizeof(idp_ns), AF_NS };
 
 /*
  *  This may also be called for raw listeners.
  */
+void
 idp_input(m, nsp)
 	struct mbuf *m;
 	register struct nspcb *nsp;
@@ -102,8 +105,10 @@ bad:
 	m_freem(m);
 }
 
-idp_abort(nsp)
+void
+idp_abort(nsp, errno)
 	struct nspcb *nsp;
+	int errno;
 {
 	struct socket *so = nsp->nsp_socket;
 
@@ -114,7 +119,7 @@ idp_abort(nsp)
  * Drop connection, reporting
  * the specified error.
  */
-struct nspcb *
+void
 idp_drop(nsp, errno)
 	register struct nspcb *nsp;
 	int errno;
@@ -136,6 +141,8 @@ idp_drop(nsp, errno)
 }
 
 int noIdpRoute;
+
+int
 idp_output(nsp, m0)
 	struct nspcb *nsp;
 	struct mbuf *m0;
@@ -145,7 +152,7 @@ idp_output(nsp, m0)
 	register struct socket *so;
 	register int len = 0;
 	register struct route *ro;
-	struct mbuf *mprev;
+	struct mbuf *mprev = 0;
 	extern int idpcksum;
 
 	/*
@@ -254,11 +261,12 @@ idp_output(nsp, m0)
 		}
 	}
 	nsp->nsp_lastdst = idp->idp_dna;
-#endif ancient_history
+#endif /* ancient_history */
 	if (noIdpRoute) ro = 0;
 	return (ns_output(m, ro, so->so_options & SO_BROADCAST));
 }
 /* ARGSUSED */
+int
 idp_ctloutput(req, so, level, name, value)
 	int req, level;
 	struct socket *so;
@@ -358,7 +366,7 @@ idp_ctloutput(req, so, level, name, value)
 		case SO_NSIP_ROUTE:
 			error = nsip_route(*value);
 			break;
-#endif NSIP
+#endif /* NSIP */
 		default:
 			error = EINVAL;
 		}
@@ -370,10 +378,12 @@ idp_ctloutput(req, so, level, name, value)
 }
 
 /*ARGSUSED*/
-idp_usrreq(so, req, m, nam, control)
+int
+idp_usrreq(so, req, m, nam, control, dummy)
 	struct socket *so;
 	int req;
 	struct mbuf *m, *nam, *control;
+	struct mbuf *dummy;
 {
 	struct nspcb *nsp = sotonspcb(so);
 	int error = 0;
@@ -454,7 +464,7 @@ idp_usrreq(so, req, m, nam, control)
 	case PRU_SEND:
 	{
 		struct ns_addr laddr;
-		int s;
+		int s = 0;
 
 		if (nam) {
 			laddr = nsp->nsp_laddr;
@@ -531,11 +541,13 @@ release:
 		m_freem(m);
 	return (error);
 }
-/*ARGSUSED*/
-idp_raw_usrreq(so, req, m, nam, control)
+
+int
+idp_raw_usrreq(so, req, m, nam, control, dummy)
 	struct socket *so;
 	int req;
 	struct mbuf *m, *nam, *control;
+	struct mbuf *dummy;
 {
 	int error = 0;
 	struct nspcb *nsp = sotonspcb(so);
@@ -560,7 +572,7 @@ idp_raw_usrreq(so, req, m, nam, control)
 		nsp->nsp_flags = NSP_RAWIN | NSP_RAWOUT;
 		break;
 	default:
-		error = idp_usrreq(so, req, m, nam, control);
+		error = idp_usrreq(so, req, m, nam, control, 0);
 	}
 	return (error);
 }

@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)rlogin.c	5.33 (Berkeley) 3/1/91";
 #endif /* not lint */
 
 /*
- * $Source: /a/cvs/386BSD/src/usr.bin/rlogin/rlogin.c,v $
+ * $Source: /home/cvs/386BSD/src/usr.bin/rlogin/rlogin.c,v $
  * $Header: mit/rlogin/RCS/rlogin.c,v 5.2 89/07/26 12:11:21 kfall
  *	Exp Locker: kfall $
  */

@@ -1,0 +1,143 @@
+exec:	  iffable
+	| SDO end_spec intonlyon label intonlyoff opt_comma dospecw
+		{
+		if($4->labdefined)
+			execerr("no backward DO loops", CNULL);
+		$4->blklevel = blklevel+1;
+		exdo($4->labelno, NPNULL, $7);
+		}
+	| SDO end_spec opt_comma dospecw
+		{
+		exdo((int)(ctls - ctlstack - 2), NPNULL, $4);
+		NOEXT("DO without label");
+		}
+	| SENDDO
+		{ exenddo(NPNULL); }
+	| logif iffable
+		{ exendif();  thiswasbranch = NO; }
+	| logif STHEN
+	| SELSEIF end_spec SLPAR expr SRPAR STHEN
+		{ exelif($4); lastwasbranch = NO; }
+	| SELSE end_spec
+		{ exelse(); lastwasbranch = NO; }
+	| SENDIF end_spec
+		{ exendif(); lastwasbranch = NO; }
+	;
+
+logif:	  SLOGIF end_spec SLPAR expr SRPAR
+		{ exif($4); }
+	;
+
+dospec:	  name SEQUALS exprlist
+		{ $$ = mkchain((char *)$1, $3); }
+	;
+
+dospecw:  dospec
+	| SWHILE SLPAR expr SRPAR
+		{ $$ = mkchain(CNULL, (chainp)$3); }
+	;
+
+iffable:  let lhs SEQUALS expr
+		{ exequals((struct Primblock *)$2, $4); }
+	| SASSIGN end_spec assignlabel STO name
+		{ exassign($5, $3); }
+	| SCONTINUE end_spec
+	| goto
+	| io
+		{ inioctl = NO; }
+	| SARITHIF end_spec SLPAR expr SRPAR label SCOMMA label SCOMMA label
+		{ exarif($4, $6, $8, $10);  thiswasbranch = YES; }
+	| call
+		{ excall($1, LBNULL, 0, labarray); }
+	| call SLPAR SRPAR
+		{ excall($1, LBNULL, 0, labarray); }
+	| call SLPAR callarglist SRPAR
+		{ if(nstars < maxlablist)
+			excall($1, mklist(revchain($3)), nstars, labarray);
+		  else
+			many("alternate returns", 'l', maxlablist);
+		}
+	| SRETURN end_spec opt_expr
+		{ exreturn($3);  thiswasbranch = YES; }
+	| stop end_spec opt_expr
+		{ exstop($1, $3);  thiswasbranch = $1; }
+	;
+
+assignlabel:   SICON
+		{ $$ = mklabel( convci(toklen, token) ); }
+	;
+
+let:	  SLET
+		{ if(parstate == OUTSIDE)
+			{
+			newproc();
+			startproc(ESNULL, CLMAIN);
+			}
+		}
+	;
+
+goto:	  SGOTO end_spec label
+		{ exgoto($3);  thiswasbranch = YES; }
+	| SASGOTO end_spec name
+		{ exasgoto($3);  thiswasbranch = YES; }
+	| SASGOTO end_spec name opt_comma SLPAR labellist SRPAR
+		{ exasgoto($3);  thiswasbranch = YES; }
+	| SCOMPGOTO end_spec SLPAR labellist SRPAR opt_comma expr
+		{ if(nstars < maxlablist)
+			putcmgo(putx(fixtype($7)), nstars, labarray);
+		  else
+			many("labels in computed GOTO list", 'l', maxlablist);
+		}
+	;
+
+opt_comma:
+	| SCOMMA
+	;
+
+call:	  SCALL end_spec name
+		{ nstars = 0; $$ = $3; }
+	;
+
+callarglist:  callarg
+		{ $$ = $1 ? mkchain((char *)$1,CHNULL) : CHNULL; }
+	| callarglist SCOMMA callarg
+		{ $$ = $3 ? mkchain((char *)$3, $1) : $1; }
+	;
+
+callarg:  expr
+	| SSTAR label
+		{ if(nstars < maxlablist) labarray[nstars++] = $2; $$ = 0; }
+	;
+
+stop:	  SPAUSE
+		{ $$ = 0; }
+	| SSTOP
+		{ $$ = 2; }
+	;
+
+exprlist:  expr
+		{ $$ = mkchain((char *)$1, CHNULL); }
+	| exprlist SCOMMA expr
+		{ $$ = hookup($1, mkchain((char *)$3,CHNULL) ); }
+	;
+
+end_spec:
+		{ if(parstate == OUTSIDE)
+			{
+			newproc();
+			startproc(ESNULL, CLMAIN);
+			}
+
+/* This next statement depends on the ordering of the state table encoding */
+
+		  if(parstate < INDATA) enddcl();
+		}
+	;
+
+intonlyon:
+		{ intonly = YES; }
+	;
+
+intonlyoff:
+		{ intonly = NO; }
+	;

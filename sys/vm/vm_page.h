@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.h	7.3 (Berkeley) 4/21/91
- *	$Id: vm_page.h,v 1.2 1993/10/16 16:20:46 rgrimes Exp $
+ *	$Id: vm_page.h,v 1.8 1994/01/31 04:21:19 davidg Exp $
  */
 
 /*
@@ -96,58 +96,53 @@
  *	queues (P).
  */
 
+#define PG_INACTIVE		0x0001
+#define PG_ACTIVE		0x0002
+#define PG_LAUNDRY		0x0004
+#define PG_CLEAN		0x0008
+#define PG_BUSY			0x0010
+#define PG_WANTED		0x0020
+#define PG_TABLED		0x0040
+#define PG_COPY_ON_WRITE	0x0080
+#define PG_FICTITIOUS		0x0100
+#define PG_ABSENT		0x0200
+#define PG_FAKE			0x0400
+#define PG_PAGEROWNED		0x0800
+#define PG_PTPAGE		0x1000
+
 struct vm_page {
-	queue_chain_t	pageq;		/* queue info for FIFO
-					 * queue or free list (P) */
+	queue_chain_t	pageq;		/* queue info for FIFO */
+					/* queue or free list (P) */
 	queue_chain_t	hashq;		/* hash table links (O)*/
 	queue_chain_t	listq;		/* all pages in same object (O)*/
 
 	vm_object_t	object;		/* which object am I in (O,P)*/
 	vm_offset_t	offset;		/* offset into that object (O,P) */
 
-	unsigned int	wire_count:16,	/* how many wired down maps use me?
-					   (P) */
-	/* boolean_t */	inactive:1,	/* page is in inactive list (P) */
-			active:1,	/* page is in active list (P) */
-			laundry:1,	/* page is being cleaned now (P)*/
-#ifdef DEBUG
-			pagerowned:1,	/* async paging op in progress */
-			ptpage:1,	/* is a user page table page */
-#endif
-			:0;		/* (force to 'long' boundary) */
-#ifdef	ns32000
-	int		pad;		/* extra space for ns32000 bit ops */
-#endif	ns32000
-	boolean_t	clean;		/* page has not been modified */
-	unsigned int
-	/* boolean_t */	busy:1,		/* page is in transit (O) */
-			wanted:1,	/* someone is waiting for page (O) */
-			tabled:1,	/* page is in VP table (O) */
-			copy_on_write:1,/* page must be copied before being
-					   changed (O) */
-			fictitious:1,	/* physical page doesn't exist (O) */
-			absent:1,	/* virtual page doesn't exist (O) */
-			fake:1,		/* page is a placeholder for page-in
-					   (O) */
-			:0;
+	unsigned int	wire_count;	/* how many wired down maps use me? */
+	unsigned short	flags;		/* bit encoded flags */
+	unsigned short	deact;		/* deactivation count */
 
 	vm_offset_t	phys_addr;	/* physical address of page */
-	vm_prot_t	page_lock;	/* Uses prohibited by data manager */
-	vm_prot_t	unlock_request;	/* Outstanding unlock request */
 };
 
 typedef struct vm_page	*vm_page_t;
 
+#define DEACT_START	5
+#define	DEACT_DELAY	2
+#define DEACT_CLEAN	1
+#define DEACT_FREE	0
+
 #if	VM_PAGE_DEBUG
 #define	VM_PAGE_CHECK(mem) { \
-		if ( (((unsigned int) mem) < ((unsigned int) &vm_page_array[0])) || \
+		if ((((unsigned int) mem) < ((unsigned int) &vm_page_array[0])) || \
 		     (((unsigned int) mem) > ((unsigned int) &vm_page_array[last_page-first_page])) || \
-		     (mem->active && mem->inactive) \
+		     ((mem->flags & PG_ACTIVE) && (mem->flags & PG_INACTIVE)) \
 		    ) panic("vm_page_check: not valid!"); \
 		}
-#else	VM_PAGE_DEBUG
+#else /* VM_PAGE_DEBUG */
 #define	VM_PAGE_CHECK(mem)
-#endif	VM_PAGE_DEBUG
+#endif /* VM_PAGE_DEBUG */
 
 #ifdef	KERNEL
 /*
@@ -223,7 +218,6 @@ simple_lock_data_t	vm_page_queue_free_lock;
 vm_offset_t	vm_page_startup();
 vm_page_t	vm_page_lookup();
 vm_page_t	vm_page_alloc();
-void		vm_page_init();
 void		vm_page_free();
 void		vm_page_activate();
 void		vm_page_deactivate();
@@ -236,21 +230,20 @@ void		vm_page_copy();
 void		vm_page_wire();
 void		vm_page_unwire();
 
-void		vm_set_page_size();
 
 /*
  *	Functions implemented as macros
  */
 
 #define PAGE_ASSERT_WAIT(m, interruptible)	{ \
-				(m)->wanted = TRUE; \
+				(m)->flags |= PG_WANTED; \
 				assert_wait((int) (m), (interruptible)); \
 			}
 
 #define PAGE_WAKEUP(m)	{ \
-				(m)->busy = FALSE; \
-				if ((m)->wanted) { \
-					(m)->wanted = FALSE; \
+				(m)->flags &= ~PG_BUSY; \
+				if ((m)->flags & PG_WANTED) { \
+					(m)->flags &= ~PG_WANTED; \
 					thread_wakeup((int) (m)); \
 				} \
 			}
@@ -258,6 +251,33 @@ void		vm_set_page_size();
 #define	vm_page_lock_queues()	simple_lock(&vm_page_queue_lock)
 #define	vm_page_unlock_queues()	simple_unlock(&vm_page_queue_lock)
 
-#define vm_page_set_modified(m)	{ (m)->clean = FALSE; }
-#endif	KERNEL
-#endif	_VM_PAGE_
+#define vm_page_set_modified(m)	{ (m)->flags &= ~PG_CLEAN; }
+
+/* Some pmap things are declared here for the convenience of other bits of
+   code. */
+extern void pmap_bootstrap(vm_offset_t, vm_offset_t);
+extern void pmap_init(vm_offset_t, vm_offset_t);
+extern vm_offset_t pmap_map(vm_offset_t, vm_offset_t, vm_offset_t, int);
+extern void pmap_remove_all(vm_offset_t);
+extern void pmap_copy_on_write(vm_offset_t);
+extern void pmap_page_protect(vm_offset_t, vm_prot_t);
+extern void pmap_update(void);
+extern void pmap_zero_page(vm_offset_t);
+extern void pmap_copy_page(vm_offset_t, vm_offset_t);
+extern void pmap_clear_modify(vm_offset_t);
+extern void pmap_clear_reference(vm_offset_t);
+extern boolean_t pmap_is_referenced(vm_offset_t);
+extern boolean_t pmap_is_modified(vm_offset_t);
+extern vm_offset_t pmap_phys_ddress(int);
+
+
+/*
+ * these macros are *MUCH* faster on a 386/486 type machine
+ * eventually they need to be implemented correctly and put
+ * somewhere in the machine dependant stuff.
+ */
+#define vm_disable_intr() (disable_intr(), 0)
+#define vm_set_intr(spl) enable_intr()
+
+#endif /* KERNEL */
+#endif /* _VM_PAGE_ */

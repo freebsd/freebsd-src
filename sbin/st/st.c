@@ -111,7 +111,7 @@ main(argc, argv)
 		if (strncmp(cp, comp->c_name, strlen(cp)) == 0)
 			break;
 	if (comp->c_name == NULL) {
-		fprintf(stderr, "mt: don't grok \"%s\"\n", cp);
+		fprintf(stderr, "st: don't grok \"%s\"\n", cp);
 		usage();
 		exit(1);
 	}
@@ -123,7 +123,7 @@ main(argc, argv)
 		mt_com.mt_op = comp->c_code;
 		mt_com.mt_count = (argc > 2 ? atoi(argv[2]) : 1);
 		if (mt_com.mt_count < 0) {
-			fprintf(stderr, "mt: negative repeat count\n");
+			fprintf(stderr, "st: negative repeat count\n");
 			exit(1);
 		}
 		if (ioctl(mtfd, MTIOCTOP, &mt_com) < 0) {
@@ -134,7 +134,7 @@ main(argc, argv)
 		}
 	} else {
 		if (ioctl(mtfd, MTIOCGET, (char *)&mt_status) < 0) {
-			perror("mt");
+			perror("st");
 			exit(2);
 		}
 		status(&mt_status);
@@ -194,23 +194,25 @@ status(bp)
 {
 	register struct tape_desc *mt;
 
-	for (mt = tapes; mt->t_type; mt++)
-		if (mt->t_type == bp->mt_type)
-			break;
-	if (mt->t_type == 0) {
-		printf("unknown tape drive type (%d)\n", bp->mt_type);
-		return;
-	}
-	printf("%s tape drive, residual=%d, blocksize=%d\n", 
-		mt->t_name, bp->mt_resid, bp->mt_bsiz);
-	printf("Density: dflt(0) = %d(0x%x) 1 = %d(0x%x), 2 = %d(0x%x), 3 = %d(0x%x)\n", 
-		bp->mt_dns_dflt, bp->mt_dns_dflt,
-		bp->mt_dns_dsty1, bp->mt_dns_dsty1,
-		bp->mt_dns_dsty2, bp->mt_dns_dsty2,
-		bp->mt_dns_dsty3, bp->mt_dns_dsty3);
+	printf("Present Mode:	Density = 0x%02x, Blocksize = %d bytes\n",
+		bp->mt_density, bp->mt_blksiz);
+	printf("---------available modes----------\n");
+	printf("Mode 0:		Density = 0x%02x, Blocksize = %d bytes\n",
+		bp->mt_density0, bp->mt_blksiz0);
+	printf("Mode 1:		Density = 0x%02x, Blocksize = %d bytes\n",
+		bp->mt_density1, bp->mt_blksiz1);
+	printf("Mode 2:		Density = 0x%02x, Blocksize = %d bytes\n",
+		bp->mt_density2, bp->mt_blksiz2);
+	printf("Mode 3:		Density = 0x%02x, Blocksize = %d bytes\n",
+		bp->mt_density3, bp->mt_blksiz3);
+		
+#ifdef NOTYET
+	printf("tape drive: residual=%d\n", 
+		 bp->mt_resid);
 	printreg("ds", bp->mt_dsreg, mt->t_dsbits);
 	printreg("\ner", bp->mt_erreg, mt->t_erbits);
 	putchar('\n');
+#endif
 }
 
 /*

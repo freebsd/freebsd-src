@@ -1,0 +1,246 @@
+.\" Copyright (c) 1981, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mt.1	6.7 (Berkeley) 7/28/91
+.\"
+.Dd July 28, 1991
+.Dt ST 1
+.Os BSD 4
+.Sh NAME
+.Nm st
+.Nd magnetic tape manipulating program
+.Sh SYNOPSIS
+.Nm st
+.Op Fl f Ar tapename
+.Ar command
+.Op Ar count
+.Sh DESCRIPTION
+.Nm St
+is used to give commands to a magnetic tape drive.
+By default
+.Nm st
+performs the requested operation once.  Operations
+may be performed multiple times by specifying
+.Ar count  .
+Note
+that
+.Ar tapename
+must reference a raw (not block) tape device.
+.Pp
+The tape drive will hold density and blocking parameters until the next 
+unmount. In the case of rst0, this is immediately and is therefore of
+not much use with this device. In the case of nrst0 this
+may be after several commands when either an offline command is issued or
+rst0 is openned and closed. If parameters are to be held across 
+unmounts, then they should be made to the control device for each
+mode.. i.e. the devices with a submode of 3 (minors 3,7,11,15 for example).
+It is suggested that the operator keep the control device unreadble
+and unwritable to normal system users, while giving them access to
+the non-rewind device (e.g. nrst0) on demand.
+.Pp
+The available commands are listed below.  Only as many
+characters as are required to uniquely identify a command
+need be specified.
+.Bl -tag -width "eof, weof"
+.It Cm eof , weof
+Write
+.Ar count
+end-of-file marks at the current position on the tape.
+.It Cm fsf
+Forward space
+.Ar count
+files.
+.It Cm fsr
+Forward space
+.Ar count
+records.
+.It Cm bsf
+Back space
+.Ar count
+files.
+.It Cm bsr
+Back space
+.Ar count
+records.
+.It Cm rewind
+Rewind the tape
+(Count is ignored).
+.It Cm offline , rewoffl
+Rewind the tape and place the tape unit off-line (possibly eject)
+(Count is ignored).
+.It Cm blocksize
+Sets the block size characteristics of the openned 
+device to value specified in
+.Ar count.
+A 0 means variable sized blocks, and anything else means fixed block, 
+with blocksize as that of
+.Ar count.
+.It Cm density
+Set the density for the openned device  (bits 2,3 of minor number)
+.Ar count
+density code as specified by the SCSI II specification. Valid values
+are from 0  to 0x17.
+.It The different density codes are as follows:
+0x0	default for device
+.br
+0xE	reserved for ECMA
+.br
+
+Value Tracks Density(bpi) Code Type  Reference     Note
+.br
+0x1     9       800       NRZI  R    X3.22-1983    2
+.br
+0x2     9      1600       PE    R    X3.39-1986    2
+.br
+0x3     9      6250       GCR   R    X3.54-1986    2
+.br
+0x5    4/9     8000       GCR   C    X3.136-1986   1
+.br
+0x6     9      3200       PE    R    X3.157-1987   2
+.br
+0x7     4      6400       IMFM  C    X3.116-1986   1
+.br
+0x8     4      8000       GCR   CS   X3.158-1986   1
+.br
+0x9    18     37871       GCR   C    X3B5/87-099   2
+.br
+0xA    22      6667       MFM   C    X3B5/86-199   1
+.br
+0xB     4      1600       PE    C    X3.56-1986    1
+.br
+0xC    24     12690       GCR   C    HI-TC1        1,5
+.br
+0xD    24     25380       GCR   C    HI-TC2        1,5
+.br
+0xF    15     10000       GCR   C    QIC-120       1,5
+.br
+0x10   18     10000       GCR   C    QIC-150       1,5
+.br
+0x11   26     16000       GCR   C    QIC-320(525?) 1,5
+.br
+0x12   30     51667       RLL   C    QIC-1350      1,5
+.br
+0x13    1     61000       DDS   CS    X3B5/88-185A 4
+.br
+0x14    1     43245       RLL   CS    X3.202-1991  4
+.br
+0x15    1     45434       RLL   CS    ECMA TC17    4
+.br
+0x16   48     10000       MFM   C     X3.193-1990  1
+.br
+0x17   48     42500       MFM   C     X3B5/91-174  1
+.br
+
+where Code means:
+.br
+NRZI	Non Return to Zero, change on ones
+.br
+GCR	Group Code Recording
+.br
+PE	Phase Encoded
+.br
+IMFM	Inverted Modified Frequency Modulation
+.br
+MFM	Modified Frequency Modulation
+.br
+DDS	Dat Data Storage
+.br
+RLL	Run Length Encoding
+.br
+
+where Type means:
+.br
+R	Real-to-Real
+.br
+C	Cartridge
+.br
+CS	cassette
+.br
+
+where Notes means:
+.br
+1	Serial Recorded
+.br
+2	Parallel Recorded
+.br
+3	Old format know as QIC-11
+.br
+4	Helical Scan
+.br
+5	Not ANSI standard, rather industry standard.
+.br
+
+.It Cm status
+Print status information about the tape unit.
+Information is printed out about the present active parameters and
+also the four Operating modes available.
+.El
+.Pp
+If a tape name is not specified, and the environment variable
+.Ev TAPE
+does not exist;
+.Nm st
+uses the device
+.Pa /dev/nrst0 .
+.Pp
+.Nm St
+returns a 0 exit status when the operation(s) were successful,
+1 if the command was unrecognized, and 2 if an operation failed.
+.Sh ENVIRONMENT
+If the following environment variable exists, it is utilized by
+.Nm st .
+.Bl -tag -width Fl
+.It Ev TAPE
+.Nm St
+checks the
+.Ev TAPE
+environment variable if the
+argument
+.Ar tapename
+is not given.
+.Sh FILES
+.Bl -tag -width /dev/rmt* -compact
+.It Pa /dev/rst*
+Raw magnetic tape interface
+.El
+.Sh SEE ALSO
+.\".Xr mtio 4 ,
+.Xr st 4 ,
+.Xr dd 1 ,
+.Xr ioctl 2 ,
+.Xr environ 7
+.Sh HISTORY
+The
+.Nm st
+command appeared in 386BSD 0.1.
+
+.\" mt.1: mtio(4) missing

@@ -35,6 +35,7 @@
 .ds rq ''
 .ds 4B 4.3BSD-tahoe
 .nr Vx 1		\" VAX version
+.nr Th 0
 .ds Mc VAX
 .ds mC vax
 .ds Dk hp
@@ -227,7 +228,7 @@ compatible between 4.2BSD, \*(Ps, and \*(4B,
 though running a \*(4B file system under older systems
 may cause more of the above
 messages to be generated the next time it is \fIfsck\fP'ed on \*(4B.
-.NH 2
+.SH
 Hints on converting from 4.3BSD to \*(4B
 .PP
 The largest visible change between 4.3BSD to \*(4B

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vfs_syscalls.c	7.74 (Berkeley) 6/21/91
- *	$Id: vfs_syscalls.c,v 1.5 1993/10/23 16:02:54 davidg Exp $
+ *	$Id: vfs_syscalls.c,v 1.10 1994/01/19 21:09:13 jtc Exp $
  */
 
 #include "param.h"
@@ -46,6 +46,9 @@
 #include "proc.h"
 #include "uio.h"
 #include "malloc.h"
+
+static int getvnode(struct filedesc *, int, struct file **);
+static int chdirec(struct nameidata *, struct proc *);
 
 /*
  * Virtual File System System Calls
@@ -63,6 +66,7 @@ struct mount_args {
 };
 
 /* ARGSUSED */
+int
 mount(p, uap, retval)
 	struct proc *p;
 	register struct mount_args *uap;
@@ -71,7 +75,7 @@ mount(p, uap, retval)
 	register struct nameidata *ndp;
 	register struct vnode *vp;
 	register struct mount *mp;
-	int error, flag;
+	int error, flag = 0;
 	struct nameidata nd;
 
 	/*
@@ -150,30 +154,10 @@ update:
 	/*
 	 * Set the mount level flags.
 	 */
-	if (uap->flags & MNT_RDONLY)
-		mp->mnt_flag |= MNT_RDONLY;
-	else
-		mp->mnt_flag &= ~MNT_RDONLY;
-	if (uap->flags & MNT_NOSUID)
-		mp->mnt_flag |= MNT_NOSUID;
-	else
-		mp->mnt_flag &= ~MNT_NOSUID;
-	if (uap->flags & MNT_NOEXEC)
-		mp->mnt_flag |= MNT_NOEXEC;
-	else
-		mp->mnt_flag &= ~MNT_NOEXEC;
-	if (uap->flags & MNT_NODEV)
-		mp->mnt_flag |= MNT_NODEV;
-	else
-		mp->mnt_flag &= ~MNT_NODEV;
-	if (uap->flags & MNT_NOCORE)
-		mp->mnt_flag |= MNT_NOCORE;
-	else
-		mp->mnt_flag &= ~MNT_NOCORE;
-	if (uap->flags & MNT_SYNCHRONOUS)
-		mp->mnt_flag |= MNT_SYNCHRONOUS;
-	else
-		mp->mnt_flag &= ~MNT_SYNCHRONOUS;
+	mp->mnt_flag &=
+		~(MNT_RDONLY|MNT_NOSUID|MNT_NOEXEC|MNT_NODEV|MNT_SYNCHRONOUS);
+	mp->mnt_flag |= uap->flags &
+		(MNT_RDONLY|MNT_NOSUID|MNT_NOEXEC|MNT_NODEV|MNT_SYNCHRONOUS);
 	/*
 	 * Mount the filesystem.
 	 */
@@ -218,6 +202,7 @@ struct umount_args {
 };
 
 /* ARGSUSED */
+int
 unmount(p, uap, retval)
 	struct proc *p;
 	register struct umount_args *uap;
@@ -257,6 +242,7 @@ unmount(p, uap, retval)
 /*
  * Do an unmount.
  */
+int
 dounmount(mp, flags, p)
 	register struct mount *mp;
 	int flags;
@@ -293,6 +279,7 @@ dounmount(mp, flags, p)
  * Sync each mounted filesystem.
  */
 /* ARGSUSED */
+int
 sync(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -332,6 +319,7 @@ struct quotactl_args {
 };
 
 /* ARGSUSED */
+int
 quotactl(p, uap, retval)
 	struct proc *p;
 	register struct quotactl_args *uap;
@@ -363,6 +351,7 @@ struct statfs_args {
 };
 
 /* ARGSUSED */
+int
 statfs(p, uap, retval)
 	struct proc *p;
 	register struct statfs_args *uap;
@@ -399,6 +388,7 @@ struct fstatfs_args {
 };
 
 /* ARGSUSED */
+int
 fstatfs(p, uap, retval)
 	struct proc *p;
 	register struct fstatfs_args *uap;
@@ -429,6 +419,7 @@ struct getfsstat_args {
 	int flags;
 };
 
+int
 getfsstat(p, uap, retval)
 	struct proc *p;
 	register struct getfsstat_args *uap;
@@ -481,6 +472,7 @@ struct fchdir_args {
 };
 
 /* ARGSUSED */
+int
 fchdir(p, uap, retval)
 	struct proc *p;
 	struct fchdir_args *uap;
@@ -517,6 +509,7 @@ struct chdir_args {
 };
 
 /* ARGSUSED */
+int
 chdir(p, uap, retval)
 	struct proc *p;
 	struct chdir_args *uap;
@@ -547,6 +540,7 @@ struct chroot_args {
 };
 
 /* ARGSUSED */
+int
 chroot(p, uap, retval)
 	struct proc *p;
 	struct chroot_args *uap;
@@ -574,6 +568,7 @@ chroot(p, uap, retval)
 /*
  * Common routine for chroot and chdir.
  */
+static int
 chdirec(ndp, p)
 	struct nameidata *ndp;
 	struct proc *p;
@@ -606,6 +601,7 @@ struct open_args {
 	int	crtmode;
 };
 
+int
 open(p, uap, retval)
 	struct proc *p;
 	register struct open_args *uap;
@@ -645,6 +641,7 @@ open(p, uap, retval)
 		return (error);
 	}
 	vp = ndp->ni_vp;
+	VOP_UNLOCK(vp);
 	fp->f_flag = fmode & FMASK;
 	if (fmode & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
@@ -658,7 +655,6 @@ open(p, uap, retval)
 		if ((fmode & FNONBLOCK) == 0)
 			type |= F_WAIT;
 		if (error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) {
-			VOP_UNLOCK(vp);
 			(void) vn_close(vp, fp->f_flag, fp->f_cred, p);
 			ffree(fp);
 			fdp->fd_ofiles[indx] = NULL;
@@ -666,7 +662,6 @@ open(p, uap, retval)
 		}
 		fp->f_flag |= FHASLOCK;
 	}
-	VOP_UNLOCK(vp);
 	fp->f_type = DTYPE_VNODE;
 	fp->f_ops = &vnops;
 	fp->f_data = (caddr_t)vp;
@@ -684,6 +679,7 @@ struct ocreat_args {
 	int	fmode;
 };
 
+int
 ocreat(p, uap, retval)
 	struct proc *p;
 	register struct ocreat_args *uap;
@@ -713,6 +709,7 @@ struct mknod_args {
 };
 
 /* ARGSUSED */
+int
 mknod(p, uap, retval)
 	struct proc *p;
 	register struct mknod_args *uap;
@@ -780,6 +777,7 @@ struct mkfifo_args {
 };
 
 /* ARGSUSED */
+int
 mkfifo(p, uap, retval)
 	struct proc *p;
 	register struct mkfifo_args *uap;
@@ -825,6 +823,7 @@ struct link_args {
 };
 
 /* ARGSUSED */
+int
 link(p, uap, retval)
 	struct proc *p;
 	register struct link_args *uap;
@@ -884,6 +883,7 @@ struct symlink_args {
 };
 
 /* ARGSUSED */
+int
 symlink(p, uap, retval)
 	struct proc *p;
 	register struct symlink_args *uap;
@@ -931,6 +931,7 @@ struct unlink_args {
 };
 
 /* ARGSUSED */
+int
 unlink(p, uap, retval)
 	struct proc *p;
 	struct unlink_args *uap;
@@ -983,6 +984,7 @@ struct lseek_args {
 	int	sbase;
 };
 
+int
 lseek(p, uap, retval)
 	struct proc *p;
 	register struct lseek_args *uap;
@@ -1033,6 +1035,7 @@ struct saccess_args {
 };
 
 /* ARGSUSED */
+int
 saccess(p, uap, retval)
 	struct proc *p;
 	register struct saccess_args *uap;
@@ -1087,6 +1090,7 @@ struct stat_args {
 };
 
 /* ARGSUSED */
+int
 stat(p, uap, retval)
 	struct proc *p;
 	register struct stat_args *uap;
@@ -1122,6 +1126,7 @@ struct lstat_args {
 };
 
 /* ARGSUSED */
+int
 lstat(p, uap, retval)
 	struct proc *p;
 	register struct lstat_args *uap;
@@ -1157,6 +1162,7 @@ struct readlink_args {
 };
 
 /* ARGSUSED */
+int
 readlink(p, uap, retval)
 	struct proc *p;
 	register struct readlink_args *uap;
@@ -1206,6 +1212,7 @@ struct chflags_args {
 };
 
 /* ARGSUSED */
+int
 chflags(p, uap, retval)
 	struct proc *p;
 	register struct chflags_args *uap;
@@ -1246,6 +1253,7 @@ struct fdchflags_args {
 };
 
 /* ARGSUSED */
+int
 fchflags(p, uap, retval)
 	struct proc *p;
 	register struct fdchflags_args *uap;
@@ -1282,6 +1290,7 @@ struct chmod_args {
 };
 
 /* ARGSUSED */
+int
 chmod(p, uap, retval)
 	struct proc *p;
 	register struct chmod_args *uap;
@@ -1322,6 +1331,7 @@ struct fchmod_args {
 };
 
 /* ARGSUSED */
+int
 fchmod(p, uap, retval)
 	struct proc *p;
 	register struct fchmod_args *uap;
@@ -1359,6 +1369,7 @@ struct chown_args {
 };
 
 /* ARGSUSED */
+int
 chown(p, uap, retval)
 	struct proc *p;
 	register struct chown_args *uap;
@@ -1401,6 +1412,7 @@ struct fchown_args {
 };
 
 /* ARGSUSED */
+int
 fchown(p, uap, retval)
 	struct proc *p;
 	register struct fchown_args *uap;
@@ -1438,6 +1450,7 @@ struct utimes_args {
 };
 
 /* ARGSUSED */
+int
 utimes(p, uap, retval)
 	struct proc *p;
 	register struct utimes_args *uap;
@@ -1450,7 +1463,12 @@ utimes(p, uap, retval)
 	int error;
 	struct nameidata nd;
 
-	if (error = copyin((caddr_t)uap->tptr, (caddr_t)tv, sizeof (tv)))
+	VATTR_NULL(&vattr);
+	if ((caddr_t)uap->tptr == NULL) {
+		microtime(&tv[0]);
+		tv[1] = tv[0];
+		vattr.va_vaflags |= VA_UTIMES_NULL;
+	} else if (error = copyin((caddr_t)uap->tptr, (caddr_t)tv, sizeof (tv)))
 		return (error);
 	ndp = &nd;
 	ndp->ni_nameiop = LOOKUP | FOLLOW | LOCKLEAF;
@@ -1463,7 +1481,6 @@ utimes(p, uap, retval)
 		error = EROFS;
 		goto out;
 	}
-	VATTR_NULL(&vattr);
 	vattr.va_atime = tv[0];
 	vattr.va_mtime = tv[1];
 	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
@@ -1482,6 +1499,7 @@ struct truncate_args {
 };
 
 /* ARGSUSED */
+int
 truncate(p, uap, retval)
 	struct proc *p;
 	register struct truncate_args *uap;
@@ -1525,6 +1543,7 @@ struct ftruncate_args {
 };
 
 /* ARGSUSED */
+int
 ftruncate(p, uap, retval)
 	struct proc *p;
 	register struct ftruncate_args *uap;
@@ -1564,6 +1583,7 @@ struct fsync_args {
 };
 
 /* ARGSUSED */
+int
 fsync(p, uap, retval)
 	struct proc *p;
 	struct fsync_args *uap;
@@ -1595,6 +1615,7 @@ struct rename_args {
 };
 
 /* ARGSUSED */
+int
 rename(p, uap, retval)
 	struct proc *p;
 	register struct rename_args *uap;
@@ -1685,6 +1706,7 @@ struct mkdir_args {
 };
 
 /* ARGSUSED */
+int
 mkdir(p, uap, retval)
 	struct proc *p;
 	register struct mkdir_args *uap;
@@ -1730,6 +1752,7 @@ struct rmdir_args {
 };
 
 /* ARGSUSED */
+int
 rmdir(p, uap, retval)
 	struct proc *p;
 	struct rmdir_args *uap;
@@ -1788,6 +1811,7 @@ struct getdirentries_args {
 	long	*basep;
 };
 
+int
 getdirentries(p, uap, retval)
 	struct proc *p;
 	register struct getdirentries_args *uap;
@@ -1858,6 +1882,7 @@ struct revoke_args {
 };
 
 /* ARGSUSED */
+int
 revoke(p, uap, retval)
 	struct proc *p;
 	register struct revoke_args *uap;
@@ -1895,10 +1920,11 @@ out:
 /*
  * Convert a user file descriptor to a kernel file entry.
  */
+static int
 getvnode(fdp, fdes, fpp)
 	struct filedesc *fdp;
-	struct file **fpp;
 	int fdes;
+	struct file **fpp;
 {
 	struct file *fp;
 

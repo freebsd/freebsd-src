@@ -1,8 +1,16 @@
-#	  fs: /
-#	  by: rgrimes
-#	date: Fri Jul 16 22:24:17 1993
+#	$Id: BSD.var.dist,v 1.9 1994/02/15 10:38:50 rgrimes Exp $
 #
 
+/set type=dir uname=bin gname=bin mode=0755
+account
+..
+/set type=dir uname=root gname=wheel mode=0755
+at
+	jobs
+	..
+	spool
+	..
+..
 /set type=dir uname=bin gname=bin mode=0755
 backups
 ..

@@ -63,7 +63,7 @@ static struct termio sg, old_tty;
 static struct sgttyb sg, old_tty;
 #endif
 
-int	fputchar();
+static int	fputchar();
 char	*LL, *TE, *tgoto();
 
 main(argc, argv)

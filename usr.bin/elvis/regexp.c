@@ -49,48 +49,180 @@ regex_t *
 optpat(s)
 	char *s;
 {
-	static char *neuter();
+	char *neuter();
+	char *expand_tilde();
 
 	int n;
 	if (*s == '\0') {
-		if (!previous) regerr("RE error: no previous pattern");
+		if (!previous) regerr("no previous pattern");
 		return previous;
 	} else if (previous && !patlock)
 		regfree(previous);
 	else if ((previous = (regex_t *) malloc(sizeof(regex_t))) == NULL) {
-		regerr("RE error: out of memory");
+		regerr("out of memory");
 		return previous;
 	}
 	patlock = 0;
-	if (n = regcomp(previous, *o_magic ? s : neuter(s), 
-	    *o_ignorecase ? REG_ICASE : 0)) {
-		regerr("RE error: %d", n);
+	if ((s = *o_magic ? expand_tilde(s) : neuter(s)) == NULL) {
+		free(previous);
+		return previous = NULL;
+	} else if (n = regcomp(previous, s, *o_ignorecase ? REG_ICASE : 0)) {
+		regerr("%d", n);
 		free(previous);
 		return previous = NULL;
 	}
 	return previous;
 }
 
-/* escape BRE meta-characters in a string */
-static char *
+extern char *last_repl; 	/* replacement text from previous substitute */
+
+/* expand_tilde: expand ~'s in a BRE */
+char *
+expand_tilde(s)
+	char *s;
+{
+	char *literalize();
+	static char *hd = NULL;
+
+	char *t, *repl;
+	int size;
+	int offset;
+	int m;
+
+	free(hd);
+	hd = t = malloc(size = strlen(s) + 1);
+	while (*s)
+		if (*s == '\\' && *(s + 1) == '~') {
+			*t++ = *s++;
+			*t++ = *s++;
+		} else if (*s != '~')
+			*t++ = *s++;
+		else {
+			if (!last_repl) {
+				regerr("no previous replacement");
+				return NULL;
+			} else if ((repl = literalize(last_repl)) == NULL)
+				return NULL;
+			m = strlen(repl);
+			offset = t - hd;
+			if ((hd = realloc(hd, size += m)) == NULL) {
+				regerr("out of memory");
+				return NULL;
+			}
+			t = hd + offset;
+			strcpy(t, repl);
+			t += m;
+			s++;
+		}
+	*t = '\0';
+	return hd;
+}
+
+
+/* escape BRE meta-characters and expand ~'s in a string */
+char *
 neuter(s)
+	char *s;
+{
+	char *literalize();
+	static char *hd = NULL;
+
+	char *t, *repl;
+	int size;
+	int offset;
+	int m;
+
+	free(hd);
+	if ((hd = t = (char *) malloc(size = 2 * strlen(s) + 1)) == NULL) {
+		regerr("out of memory");
+		return NULL;
+	}
+	if (*s == '^')
+		*t++ = *s++;
+	while (*s) {
+		if (*s == '\\' && (*(s + 1) == '.' || *(s + 1) == '*' || 
+		    *(s + 1) == '[')) {
+		    	s++;
+		    	*t++ = *s++;
+		    	continue;
+		} else if (*s == '\\' && *(s + 1) == '~') {
+			if (!last_repl) {
+				regerr("no previous replacement");
+				return NULL;
+			} else if ((repl = literalize(last_repl)) == NULL)
+				return NULL;
+			m = strlen(repl);
+			offset = t - hd;
+			if ((hd = realloc(hd, size += m)) == NULL) {
+				regerr("out of memory");
+				return NULL;
+			}
+			t = hd + (offset);
+			strcpy(t, repl);
+			t += m;
+			s += 2;
+			continue;
+		} else if (*s == '.' || *s == '\\' || *s == '[' || *s == '*')
+			*t++ = '\\';
+		*t++ = *s++;
+	}
+	*t = '\0';
+	return hd;
+}
+
+
+/* escape BRE meta-characters in a string */
+char *
+literalize(s)
 	char *s;
 {
 	static char *hd = NULL;
 
 	char *t;
-	int n = strlen(s);
+	int size;
+	int offset;
+	int m;
 
 	free(hd);
-	if ((hd = t = (char *) malloc(n + n + 1)) == NULL)
+	if ((hd = t = (char *) malloc(size = 2 * strlen(s) + 1)) == NULL) {
+		regerr("out of memory");
 		return NULL;
-	if (*s == '^')
-		*t++ = *s++;
-	while (*s) {
-		if (*s == '.' || *s == '\\' || *s == '[' || *s == '*')
-			*t++ = '\\';
-		*t++ = *s++;
 	}
+	if (*o_magic)
+		while (*s) {
+			if (*s == '~' || *s == '&') {
+				regerr("can't use ~ or & in pattern");
+				return NULL;
+			} else if (*s == '\\') {
+				s++;
+				if (isdigit(*s)) {
+					regerr("can't use \\d in pattern");
+					return NULL;
+				} else if (*s == '&' || *s == '~') {
+					*t++ = '\\';
+					*t++ = *s++;
+				}
+			} else if (*s == '^' || *s == '$' || *s == '.' || 
+			    *s == '[' || *s == '*') {
+				*t++ = '\\';
+				*t++ = *s++;
+			} else
+				*t++ = *s++;
+		}
+	else
+		while (*s) {
+			if (*s == '\\') {
+				s++;
+				if (*s == '&' || *s == '~') {
+					regerr("can't use \\~ or \\& in pattern");
+					return NULL;
+				} else if (isdigit(*s)) {
+					regerr("can't use \\d in pattern");
+					return NULL;
+				}
+			} else
+				*t++ = *s++;
+		}
 	*t = '\0';
 	return hd;
 }

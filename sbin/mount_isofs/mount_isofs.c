@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sbin/mount_isofs/mount_isofs.c,v 1.3 1993/10/24 04:30:08 rgrimes Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/mount_isofs/mount_isofs.c,v 1.3 1993/10/24 04:30:08 rgrimes Exp $";
 #endif
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-			  FreeBSD 1.0
+			  FreeBSD 1.1
 		        Contributor List
 
 
@@ -32,15 +32,16 @@ FreeBSD core:
 
 Andrew Moore <alm@netcom.com>
 Andreas Schulz <ats@g386bsd.first.bmd.de>
-J.T. Conklin <jtc@winsey.com>
+John Dyson <dyson@implode.rain.com>
 Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
-David Greenman <davidg@implode.rain.com>
-Jordan K. Hubbard <jkh@whisker.lotus.ie>
+David Greenman <davidg@Root.COM>
+Jordan K. Hubbard <jkh@whisker.hubbard.ie>
 Nate Williams <nate@bsd.coe.montana.edu>
 Paul Richards <paul@isl.cf.ac.uk>
 Rich Murphey <rich@lamprey.utmb.edu>
 Rodney W. Grimes <rgrimes@cdrom.com>
 Scott Mace <smace@neosoft.com>
+Garrett A. Wollman <wollman@freefall.cdrom.com>
 
 
 Additional FreeBSD Contributors:
@@ -51,19 +52,20 @@ Andrew Herbert <andrew@werple.apana.org.au>
 Bob Wilcox <bob@obiwan.uucp>
 Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
-Chris G. Demetriou <cgd@sun-lamp.cs.berkeley.edu>
+Chris G. Demetriou <cgd@postgres.berkeley.edu>
 Chris Torek <torek@ee.lbl.gov>
+Curt Mayer <curt@toad.com>
 Dave Burgess <burgess@hrd769.brooks.af.mil>
 Dave Rivers <rivers@ponds.uucp>
 David Dawes <dawes@physics.su.OZ.AU>
 Frank Maclachlan <fpm@crash.cts.com>
 Gary A. Browning <gab10@griffcd.amdahl.com>
-Garrett A. Wollman <wollman@uvm-gen.EMBA.UVM.EDU>
-Gary Clark II <gclarkii@sugar.neosoft.com>
+Gary Clark II <gclarkii@radon.gbdata.com>
 Guido van Rooij <guido@gvr.win.tue.nl>
 Havard Eidnes <Havard.Eidnes@runit.sintef.no>
 Holger Veit <Holger.Veit@gmd.de>
 Ishii Masahiro, R. Kym Horsell
+J.T. Conklin <jtc@winsey.com>
 James Clark <jjc@jclark.com>
 James da Silva <jds@cs.umd.edu> et al
 Jim Wilson <wilson@moria.cygnus.com>
@@ -76,12 +78,14 @@ Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
 Martin Birgmeier
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
-Poul-Henning Kamp <phk@data.fls.dk>
-Rod Shady <crt@tiamat.umd.umich.edu>
+Poul-Henning Kamp <phk@login.dkuug.dk>
+Rod Shady <rls@id.net>
 Sascha Wildner <swildner@channelz.GUN.de>
 Sean Eric Fagan <sef@kithrup.com>
+Serge V. Vakulenko <vak@zebub.msk.su>
 Steven Wallace <swallace@ece.uci.edu>
-Terry Lee <terry@uivlsi.csl.uiuc.edu> <terry@uivlsisd.csl.uiuc.edu>
+Søren Schmidt <sos@login.dkuug.dk>
+Terry Lee <terry@uivlsi.csl.uiuc.edu>
 Theo Deraadt <deraadt@fsa.ca>
 Yuval Yarom <yval@cs.huji.ac.il>
 
@@ -102,14 +106,14 @@ Branko Lankester
 Brett Lymn <blymn@mulga.awadi.com.AU>
 Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
-Chris G. Demetriou <cgd@sun-lamp.cs.berkeley.edu>
+Chris G. Demetriou <cgd@postgres.berkeley.edu>
 Chris Torek <torek@ee.lbl.gov>
 Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
 Daniel Poirot <poirot@aio.jsc.nasa.gov>
 Dave Burgess <burgess@hrd769.brooks.af.mil>
 Dave Rivers <rivers@ponds.uucp>
 David Dawes <dawes@physics.su.OZ.AU>
-David Greenman <davidg@implode.rain.com>
+David Greenman <davidg@Root.COM>
 Eric J. Haug <ejh@slustl.slu.edu>
 Felix Gaehtgens <felix@escape.vsse.in-berlin.de>
 Frank Maclachlan <fpm@crash.cts.com>
@@ -131,7 +135,7 @@ James da Silva <jds@cs.umd.edu> et al
 Jay Fenlason <hack@datacube.com>
 Jim Wilson <wilson@moria.cygnus.com>
 Joerg Lohse <lohse@tech7.informatik.uni-hamburg.de>
-Joerg Wunsch
+Joerg Wunsch <joerg_wunsch@uriah.sax.de>
 John Dyson - <formerly dyson@ref.tfs.com>
 John Woods <jfw@eddie.mit.edu>
 Jordan K. Hubbard <jkh@whisker.lotus.ie>
@@ -155,10 +159,10 @@ Paul Mackerras <paulus@cs.anu.edu.au>
 Paul Popelka <paulp@uts.amdahl.com>
 Peter da Silva <peter@NeoSoft.com>
 Phil Sutherland <philsuth@mycroft.dialix.oz.au>
-Poul-Henning Kamp <phk@data.fls.dk>
+Poul-Henning Kamp <phk@login.dkuug.dk>
 Ralf Friedl <friedl@informatik.uni-kl.de>
 Rich Murphey <rich@lamprey.utmb.edu>
-Rick "gopher I" <root@snowhite.cis.uoguelph.ca>
+Rick Macklem <root@snowhite.cis.uoguelph.ca>
 Robert D. Thrush <rd@phoenix.aii.com>
 Rodney W. Grimes <rgrimes@cdrom.com>
 Rog Egge
@@ -170,10 +174,12 @@ Sean Eric Fagan <sef@kithrup.com>
 Simon J Gerraty <sjg@melb.bull.oz.au> <sjg@zen.void.oz.au>
 Stephen McKay <robert@psych.psy.uq.oz.au>
 Terry Lambert <terry@icarus.weber.edu>
-Terry Lee <terry@uivlsi.csl.uiuc.edu> <terry@uivlsisd.csl.uiuc.edu>
+Terry Lee <terry@uivlsi.csl.uiuc.edu>
 Warren Toomey <wkt@csadfa.cs.adfa.oz.au>
 Wiljo Heinen <wiljo@freeside.ki.open.de>
 William Jolitz <withheld>
 Wolfgang Solfrank <ws@tools.de>
 Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
 Yuval Yarom <yval@cs.huji.ac.il>
+
+$Id: CONTRIB.FreeBSD,v 1.32.2.1 1994/03/07 01:29:59 rgrimes Exp $

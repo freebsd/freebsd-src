@@ -71,7 +71,7 @@ int k;
 }
 
 
-onintr()
+void onintr()
 {
     done(1);
 }

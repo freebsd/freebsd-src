@@ -181,6 +181,12 @@ setpeer(argc, argv)
 			if (cp)
 				*cp = c;
 		}
+		/*
+		 * UNIX is a registered trademark of someone.
+		 * Unfortunately, it is also a mandatory part of
+		 * the protocol we talk with the server FTP, so
+		 * we are stuck with it now.
+		 */
 		if (!strncmp(reply_string, "215 UNIX Type: L8", 17)) {
 			if (proxy)
 				unix_proxy = 1;

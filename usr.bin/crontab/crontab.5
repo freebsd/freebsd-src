@@ -1,6 +1,4 @@
-.\" $Header: /a/cvs/386BSD/src/usr.bin/crontab/crontab.5,v 1.1 1993/07/02 07:25:42 root Exp $
-.\" 
-.\"/* Copyright 1988,1990 by Paul Vixie
+.\"/* Copyright 1988,1990,1993,1994 by Paul Vixie
 .\" * All rights reserved
 .\" *
 .\" * Distribute freely, except: don't remove my name from the source or
@@ -14,10 +12,14 @@
 .\" *
 .\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
 .\" * I'll try to keep a version up to date.  I can be reached as follows:
-.\" * Paul Vixie, 329 Noe Street, San Francisco, CA, 94114, (415) 864-7013,
-.\" * paul@vixie.sf.ca.us || {hoptoad,pacbell,decwrl,crash}!vixie!paul
+.\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 .\" */
-.TH CRONTAB 5 "15 January 1990"
+.\"
+.\" $Header: /home/cvs/386BSD/src/usr.bin/crontab/crontab.5,v 1.3.2.1 1994/05/01 16:08:13 jkh Exp $
+.\" 
+.\" From Id: crontab.5,v 2.4 1994/01/15 20:43:43 vixie Exp 
+.\" 
+.TH CRONTAB 5 "24 January 1994"
 .UC 4
 .SH NAME
 crontab \- tables for driving cron
@@ -25,7 +27,7 @@ crontab \- tables for driving cron
 A
 .I crontab
 file contains instructions to the
-.IR crond (8)
+.IR cron (8)
 daemon of the general form: ``run this command at this time on this date''.
 Each user has their own crontab, and commands in any given crontab will be
 executed as the user who owns the crontab.  Uucp and News will usually have
@@ -56,19 +58,17 @@ leading or trailing blanks.
 .PP
 Several environment variables are set up
 automatically by the
-.IR crond (8)
-daemon from the /etc/passwd line of the crontab's owner: USER, HOME, and SHELL.
-HOME and SHELL may be overridden by settings in the crontab; USER may not.
+.IR cron (8)
+daemon.
+SHELL is set to /bin/sh, and LOGNAME and HOME are set from the /etc/passwd 
+line of the crontab's owner.
+HOME and SHELL may be overridden by settings in the crontab; LOGNAME may not.
 .PP
-(Note: for UUCP, always set SHELL=/bin/sh, or
-.IR crond (8)
-will cheerfully try to execute your commands using /usr/lib/uucp/uucico.)
+(Another note: the LOGNAME variable is sometimes called USER on BSD systems...
+on these systems, USER will be set also.)
 .PP
-(Another note: the USER variable is sometimes called LOGNAME or worse on
-System V... on these systems, LOGNAME will be set rather than USER.)
-.PP
-In addition to USER, HOME, and SHELL,
-.IR crond (8)
+In addition to LOGNAME, HOME, and SHELL,
+.IR cron (8)
 will look at MAILTO if it has any reason to send mail as a result of running
 commands in ``this'' crontab.  If MAILTO is defined (and non-empty), mail is
 sent to the user so named.  If MAILTO is defined but empty (MAILTO=""), no
@@ -79,13 +79,14 @@ usually doesn't read its mail.
 .PP
 The format of a cron command is very much the V7 standard, with a number of
 upward-compatible extensions.  Each line has five time and date fields,
+followed by a user name if this is the system crontab file,
 followed by a command.  Commands are executed by
-.IR crond (8)
+.IR cron (8)
 when the minute, hour, and month of year fields match the current time,
 .I and
 when at least one of the two day fields (day of month, or day of week)
 match the current time (see ``Note'' below).
-.IR crond (8)
+.IR cron (8)
 examines cron entries once every minute.
 The time and date fields are:
 .IP
@@ -105,8 +106,7 @@ month	0-12 (or names, see below)
 day of week	0-7 (0 or 7 is Sun, or use names)
 .br
 .PP
-A field may be an asterisk (*), which always matches the
-current time.
+A field may be an asterisk (*), which always stands for ``first\-last''.
 .PP
 Ranges of numbers are allowed.  Ranges are two numbers separated
 with a hyphen.  The specified range is inclusive.  For example,
@@ -120,7 +120,9 @@ Step values can be used in conjunction with ranges.  Following
 a range with ``/<number>'' specifies skips of the number's value
 through the range.  For example, ``0-23/2'' can be used in the hours
 field to specify command execution every other hour (the alternative
-in the V7 standard is ``0,2,4,6,8,10,12,14,16,18,20,22'').
+in the V7 standard is ``0,2,4,6,8,10,12,14,16,18,20,22'').  Steps are
+also permitted after an asterisk, so if you want to say ``every two
+hours'', just use ``*/2''.
 .PP
 Names can also be used for the ``month'' and ``day of week''
 fields.  Use the first three letters of the particular
@@ -130,7 +132,7 @@ lists of names are not allowed.
 The ``sixth'' field (the rest of the line) specifies the command to be
 run.
 The entire command portion of the line, up to a newline or %
-character, will be executed by the user's login shell or by the shell
+character, will be executed by /bin/sh or by the shell
 specified in the SHELL variable of the cronfile.
 Percent-signs (%) in the command, unless escaped with backslash
 (\\), will be changed into newline characters, and all data
@@ -164,7 +166,7 @@ MAILTO=paul
 5 4 * * sun     echo "run at 5 after 4 every sunday"
 .fi
 .SH SEE ALSO
-crond(8), crontab(1)
+cron(8), crontab(1)
 .SH EXTENSIONS
 When specifying day of week, both day 0 and day 7 will be considered Sunday.
 BSD and ATT seem to disagree about this.
@@ -185,4 +187,4 @@ feature can be turned off and no mail will be sent at all (SysV can't do this
 either).
 .SH AUTHOR
 .nf
-Paul Vixie, paul@vixie.sf.ca.us
+Paul Vixie <paul@vix.com>

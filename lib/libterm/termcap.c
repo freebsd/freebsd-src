@@ -62,9 +62,9 @@ static	int hopcount;	/* detect infinite loops in termcap, init 0 */
 static	char pathbuf[PBUFSIZ];		/* holds raw path of filenames */
 static	char *pathvec[PVECSIZ];		/* to point to names in pathbuf */
 static	char **pvec;			/* holds usable tail of path vector */
-char	*tskip();
+static	char	*tskip();
+static	char	*tdecode();
 char	*tgetstr();
-char	*tdecode();
 char	*getenv();
 
 /*

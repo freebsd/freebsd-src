@@ -31,8 +31,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mfsiom.h	7.2 (Berkeley) 6/28/90
- *	$Id: mfsiom.h,v 1.2 1993/10/16 18:17:45 rgrimes Exp $
+ *	$Id: mfsiom.h,v 1.3 1993/11/07 17:53:41 wollman Exp $
  */
+
+#ifndef _UFS_MFSIOM_H_
+#define _UFS_MFSIOM_H_ 1
 
 #define MFS_MAPREG	(MAXPHYS/NBPG + 2) /* Kernel mapping pte's */
 #define MFS_MAPSIZE	10		   /* Size of alloc map for pte's */
+#endif /* _UFS_MFSIOM_H_ */

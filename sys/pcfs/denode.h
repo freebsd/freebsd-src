@@ -15,8 +15,11 @@
  *
  *  October 1992
  *
- *	$Id: denode.h,v 1.2 1993/10/16 19:29:26 rgrimes Exp $
+ *	$Id: denode.h,v 1.6 1993/12/19 00:54:25 wollman Exp $
  */
+
+#ifndef _PCFS_DENODE_H_
+#define _PCFS_DENODE_H_ 1
 
 /*
  *  This is the pc filesystem specific portion of the
@@ -158,7 +161,9 @@ struct denode {
 #define	DETOV(de)	((de)->de_vnode)
 
 #define	DELOCK(de)	delock(de)
+extern void delock(struct denode *);
 #define	DEUNLOCK(de)	deunlock(de)
+extern void deunlock(struct denode *);
 
 #define	DEUPDAT(dep, t, waitfor) \
 	if (dep->de_flag & DEUPD) \
@@ -182,7 +187,7 @@ struct defid {
 	u_long	defid_dirclust;	/* cluster this dir entry came from	*/
 	u_long	defid_dirofs;	/* index of entry within the cluster	*/
 
-/*	u_long	defid_gen;	/* generation number */
+/*	u_long	defid_gen;*/	/* generation number */
 };
 
 /*
@@ -235,7 +240,7 @@ int pcfs_unlock __P((struct vnode *vp));
 int pcfs_bmap __P((struct vnode *vp, daddr_t bn, struct vnode **vpp,
 	daddr_t *bnp));
 int pcfs_strategy __P((struct buf *bp));
-int pcfs_print __P((struct vnode *vp));
+void pcfs_print __P((struct vnode *vp));
 int pcfs_islocked __P((struct vnode *vp));
 int pcfs_advlock __P((struct vnode *vp, caddr_t id, int op, struct flock *fl,
 	int flags));
@@ -245,4 +250,34 @@ int pcfs_advlock __P((struct vnode *vp, caddr_t id, int op, struct flock *fl,
  */
 int deget __P((struct pcfsmount *pmp, u_long dirclust, u_long diroffset,
 	struct direntry *direntptr, struct denode **depp));
+
+extern int pcbmap(struct denode *, u_long, daddr_t *, u_long *);
+extern void fc_purge(struct denode *, u_int);
+extern void updateotherfats(struct pcfsmount *, struct buf *, u_long);
+extern int clusterfree(struct pcfsmount *, u_long, u_long *);
+extern int fatentry(int, struct pcfsmount *, u_long, u_long *, u_long);
+extern int clusteralloc(struct pcfsmount *, u_long *, u_long);
+extern int freeclusterchain(struct pcfsmount *, u_long);
+extern int fillinusemap(struct pcfsmount *);
+extern int extendfile(struct denode *, struct buf **, u_int *);
+extern int readep(struct pcfsmount *, u_long, u_long, struct buf **,
+		  struct direntry **);
+extern int readde(struct denode *, struct buf **, struct direntry **);
+extern int doscheckpath(struct denode *, struct denode *);
+extern int dosdirempty(struct denode *);
+extern int removede(struct nameidata *);
+extern int markdeleted(struct pcfsmount *, u_long, u_long);
+extern int createde(struct denode *, struct nameidata *, struct denode **);
+extern int pcfs_lookup(struct vnode *, struct nameidata *, struct proc *);
+
+extern void pcfs_init(void);
+extern void deput(struct denode *);
+extern int deupdat(struct denode *, struct timeval *, int);
+extern int detrunc(struct denode *, u_long, int);
+extern void reinsert(struct denode *);
+extern int pcfs_reclaim(struct vnode *);
+extern int pcfs_inactive(struct vnode *, struct proc *);
+
+
 #endif /* defined(KERNEL) */
+#endif /* _PCFS_DENODE_H_ */

@@ -3,7 +3,7 @@ cpyr	Copyright (c) 1983  Eric P. Allman
 cpyr	Copyright (c) 1988, 1993
 cpyr	    The Regents of the University of California.  All rights reserved.
 cpyr	
-cpyr	@(#)sendmail.hf	8.1 (Berkeley) 6/7/93
+cpyr	@(#)sendmail.hf	8.2 (Berkeley) 7/16/93
 cpyr
 smtp	Commands:
 smtp		HELO	EHLO	MAIL	RCPT	DATA
@@ -16,8 +16,7 @@ smtp	For local information send email to Postmaster at your site.
 help	HELP [ <topic> ]
 help		The HELP command gives help info.
 helo	HELO <hostname>
-helo		Introduce yourself.  I am a boor, so I really don't
-helo		care if you do.
+helo		Introduce yourself.
 ehlo	EHLO <hostname>
 ehlo		Introduce yourself, and request extended SMTP mode.
 mail	MAIL FROM: <sender>

@@ -286,6 +286,7 @@ StringToTerminal(s)
 }
 
 
+#if 0
 #if	((!defined(NOT43)) || defined(PUTCHAR))
 /* _putchar - output a single character to the terminal.  This name is so that
  *	curses(3x) can call us to send out data.
@@ -308,6 +309,7 @@ _putchar(c)
     }
 }
 #endif	/* ((!defined(NOT43)) || defined(PUTCHAR)) */
+#endif /* 0 */
 
     void
 SetIn3270()

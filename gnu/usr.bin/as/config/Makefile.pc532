@@ -1,0 +1,7 @@
+#	$Id: Makefile.pc532,v 1.1 1993/11/03 00:52:59 paul Exp $
+
+SRCS+=		tc-ns32k.c atof-ns32k.c
+
+CFLAGS+=	-DNS32532 -DNS32381
+
+gas_target=	ns32k

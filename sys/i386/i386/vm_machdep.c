@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.6 1993/10/15 10:34:29 rgrimes Exp $
+ *	$Id: vm_machdep.c,v 1.11.2.1 1994/03/24 08:56:56 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -62,6 +62,7 @@
  * address in each process; in the future we will probably relocate
  * the frame pointers on the stack after copying.
  */
+int
 cpu_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
@@ -91,6 +92,7 @@ cpu_fork(p1, p2)
 	 * Wire top of address space of child to it's kstack.
 	 * First, fault in a page of pte's to map it.
 	 */
+#if 0
         addr = trunc_page((u_int)vtopte(kstack));
 	vm_map_pageable(&p2->p_vmspace->vm_map, addr, addr+NBPG, FALSE);
 	for (i=0; i < UPAGES; i++)
@@ -104,6 +106,7 @@ cpu_fork(p1, p2)
 			    * by the segment limits.
 			    */
 			   VM_PROT_READ|VM_PROT_WRITE, TRUE);
+#endif
 	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
 
 	/*
@@ -168,6 +171,7 @@ cpu_exit(p)
 	npxexit(p);
 #endif	/* NNPX */
 	splclock();
+	curproc = 0;
 	swtch();
 	/* 
 	 * This is to shutup the compiler, and if swtch() failed I suppose
@@ -177,17 +181,23 @@ cpu_exit(p)
 	panic("cpu_exit");
 }
 
+void
 cpu_wait(p) struct proc *p; {
+/*	extern vm_map_t upages_map; */
+	extern char kstack[];
 
 	/* drop per-process resources */
-	vmspace_free(p->p_vmspace);
+ 	pmap_remove(vm_map_pmap(kernel_map), (vm_offset_t) p->p_addr,
+		((vm_offset_t) p->p_addr) + ctob(UPAGES));
 	kmem_free(kernel_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
+	vmspace_free(p->p_vmspace);
 }
 #endif
 
 /*
  * Set a red zone in the kernel stack after the u. area.
  */
+void
 setredzone(pte, vaddr)
 	u_short *pte;
 	caddr_t vaddr;
@@ -207,6 +217,7 @@ setredzone(pte, vaddr)
  * Both addresses are assumed to reside in the Sysmap,
  * and size must be a multiple of CLSIZE.
  */
+void
 pagemove(from, to, size)
 	register caddr_t from, to;
 	int size;
@@ -230,8 +241,8 @@ pagemove(from, to, size)
 /*
  * Convert kernel VA to physical address
  */
-kvtop(addr)
-	register caddr_t addr;
+u_long
+kvtop(void *addr)
 {
 	vm_offset_t va;
 
@@ -240,96 +251,6 @@ kvtop(addr)
 		panic("kvtop: zero page frame");
 	return((int)va);
 }
-
-#ifdef notdef
-/*
- * The probe[rw] routines should probably be redone in assembler
- * for efficiency.
- */
-prober(addr)
-	register u_int addr;
-{
-	register int page;
-	register struct proc *p;
-
-	if (addr >= USRSTACK)
-		return(0);
-	p = u.u_procp;
-	page = btop(addr);
-	if (page < dptov(p, p->p_dsize) || page > sptov(p, p->p_ssize))
-		return(1);
-	return(0);
-}
-
-probew(addr)
-	register u_int addr;
-{
-	register int page;
-	register struct proc *p;
-
-	if (addr >= USRSTACK)
-		return(0);
-	p = u.u_procp;
-	page = btop(addr);
-	if (page < dptov(p, p->p_dsize) || page > sptov(p, p->p_ssize))
-		return((*(int *)vtopte(p, page) & PG_PROT) == PG_UW);
-	return(0);
-}
-
-/*
- * NB: assumes a physically contiguous kernel page table
- *     (makes life a LOT simpler).
- */
-kernacc(addr, count, rw)
-	register u_int addr;
-	int count, rw;
-{
-	register struct pde *pde;
-	register struct pte *pte;
-	register int ix, cnt;
-	extern long Syssize;
-
-	if (count <= 0)
-		return(0);
-	pde = (struct pde *)((u_int)u.u_procp->p_p0br + u.u_procp->p_szpt * NBPG);
-	ix = (addr & PD_MASK) >> PD_SHIFT;
-	cnt = ((addr + count + (1 << PD_SHIFT) - 1) & PD_MASK) >> PD_SHIFT;
-	cnt -= ix;
-	for (pde += ix; cnt; cnt--, pde++)
-		if (pde->pd_v == 0)
-			return(0);
-	ix = btop(addr-KERNBASE);
-	cnt = btop(addr-KERNBASE+count+NBPG-1);
-	if (cnt > (int)&Syssize)
-		return(0);
-	cnt -= ix;
-	for (pte = &Sysmap[ix]; cnt; cnt--, pte++)
-		if (pte->pg_v == 0 /*|| (rw == B_WRITE && pte->pg_prot == 1)*/) 
-			return(0);
-	return(1);
-}
-
-useracc(addr, count, rw)
-	register u_int addr;
-	int count, rw;
-{
-	register int (*func)();
-	register u_int addr2;
-	extern int prober(), probew();
-
-	if (count <= 0)
-		return(0);
-	addr2 = addr;
-	addr += count;
-	func = (rw == B_READ) ? prober : probew;
-	do {
-		if ((*func)(addr2) == 0)
-			return(0);
-		addr2 = (addr2 + NBPG) & ~PGOFSET;
-	} while (addr2 < addr);
-	return(1);
-}
-#endif
 
 extern vm_map_t phys_map;
 
@@ -351,6 +272,7 @@ extern vm_map_t phys_map;
  * All requests are (re)mapped into kernel VA space via the useriomap
  * (a name with only slightly more meaning than "kernelmap")
  */
+void
 vmapbuf(bp)
 	register struct buf *bp;
 {
@@ -385,6 +307,7 @@ vmapbuf(bp)
  * Free the io map PTEs associated with this IO operation.
  * We also invalidate the TLB entries and restore the original b_addr.
  */
+void
 vunmapbuf(bp)
 	register struct buf *bp;
 {
@@ -404,6 +327,7 @@ vunmapbuf(bp)
 /*
  * Force reset the processor by invalidating the entire address space!
  */
+void
 cpu_reset() {
 
 	/* force a shutdown by unmapping entire address space ! */
@@ -412,4 +336,58 @@ cpu_reset() {
 	/* "good night, sweet prince .... <THUNK!>" */
 	tlbflush(); 
 	/* NOTREACHED */
+	while(1);
+}
+
+/*
+ * Grow the user stack to allow for 'sp'. This version grows the stack in
+ *	chunks of SGROWSIZ.
+ */
+int
+grow(p, sp)
+	struct proc *p;
+	int sp;
+{
+	unsigned int nss;
+	caddr_t v;
+	struct vmspace *vm = p->p_vmspace;
+
+	if ((caddr_t)sp <= vm->vm_maxsaddr || (unsigned)sp >= (unsigned)USRSTACK)
+	    return (1);
+
+	nss = roundup(USRSTACK - (unsigned)sp, PAGE_SIZE);
+
+	if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
+		return (0);
+
+	if (vm->vm_ssize && roundup(vm->vm_ssize << PAGE_SHIFT,
+	    SGROWSIZ) < nss) {
+		int grow_amount;
+		/*
+		 * If necessary, grow the VM that the stack occupies
+		 * to allow for the rlimit. This allows us to not have
+		 * to allocate all of the VM up-front in execve (which
+		 * is expensive).
+		 * Grow the VM by the amount requested rounded up to
+		 * the nearest SGROWSIZ to provide for some hysteresis.
+		 */
+		grow_amount = roundup((nss - (vm->vm_ssize << PAGE_SHIFT)), SGROWSIZ);
+		v = (char *)USRSTACK - roundup(vm->vm_ssize << PAGE_SHIFT,
+		    SGROWSIZ) - grow_amount;
+		/*
+		 * If there isn't enough room to extend by SGROWSIZ, then
+		 * just extend to the maximum size
+		 */
+		if (v < vm->vm_maxsaddr) {
+			v = vm->vm_maxsaddr;
+			grow_amount = MAXSSIZ - (vm->vm_ssize << PAGE_SHIFT);
+		}
+		if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
+		    grow_amount, FALSE) != KERN_SUCCESS) {
+			return (0);
+		}
+		vm->vm_ssize += grow_amount >> PAGE_SHIFT;
+	}
+
+	return (1);
 }

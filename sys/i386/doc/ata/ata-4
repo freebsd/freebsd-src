@@ -1,0 +1,59 @@
+4.  Definitions and Conventions
+
+4.1 Definitions
+
+For the purpose of this standard the following definitions apply:
+
+4.1.1 ATA (AT Attachment):  ATA defines a compatible register set and a 40-pin 
+connector and its associated signals. 
+
+4.1.2 Data block: This term describes a data transfer, and is typically a 
+single sector, except when declared otherwise by use of the Set Multiple 
+command. 
+
+4.1.3 DMA (Direct Memory Access): A means of data transfer between 
+peripheral and host memory without processor intervention. 
+
+4.1.4 Optional:  This term describes features which are not required by the 
+standard. However, if any feature defined by the standard is implemented, it 
+shall be done in the same way as defined by the standard. Describing a feature 
+as optional in the text is done to assist the reader. If there is a conflict 
+between text and tables on a feature described as optional, the table shall be 
+accepted as being correct. 
+
+4.1.5 PIO (Programmed Input/Output): A means of data transfer that requires 
+the use of the host processor.
+
+4.1.6 Reserved:  Where this term is used for bits, bytes, fields and code 
+values; the bits, bytes, fields and code values are set aside for future 
+standardization, and shall be zero.
+
+..4.1.10 VU (Vendor Unique):  This term defines those features that can be 
+..defined by the vendor in a specific implementation. Caution should be 
+..exercised in defining and using such features since they may or may not 
+..vary between vendors.
+..
+4.1.7 VU (Vendor Unique):  This term is used to describe bits, bytes, 
+fields, code values and features which are not described in this standard, 
+and may be used in a way that varies between vendors. 
+
+4.2  Conventions
+
+Certain terms used herein are the proper names of signals. These are printed 
+in uppercase to avoid possible confusion with other uses of the same words; 
+e.g., ATTENTION. Any lowercase uses of these words have the normal American-
+English meaning. 
+
+A number of conditions, commands, sequence parameters, events, English text, 
+states or similar terms are printed with the first letter of each word in 
+uppercase and the rest lowercase; e.g., In, Out, Request Status. Any lowercase 
+uses of these words have the normal American-English meaning. 
+
+The American convention of numbering is used i.e., the thousands and higher 
+multiples are separated by a comma and a period is used as the decimal point. 
+This is equivalent to the ISO convention of a space and comma. 
+
+   American:          0.6                      ISO:          0,6
+                  1,000                                  1 000 
+              1,323,462.9                            1 323 462,9
+ 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_pcb.c	7.11 (Berkeley) 5/6/91
- *	$Id: tp_pcb.c,v 1.2 1993/10/16 21:05:55 rgrimes Exp $
+ *	$Id: tp_pcb.c,v 1.4 1993/12/19 00:53:41 wollman Exp $
  */
 
 /***********************************************************
@@ -76,8 +76,8 @@ SOFTWARE.
  *
  */
 
-#include "types.h"
 #include "param.h"
+#include "systm.h"
 #include "mbuf.h"
 #include "socket.h"
 #include "socketvar.h"
@@ -252,56 +252,51 @@ struct tp_conn_param tp_conn_param[] = {
 };
 
 #ifdef INET
-int		in_putnetaddr();
-int		in_getnetaddr();
-int		in_cmpnetaddr();
+int	in_putnetaddr();
+int	in_getnetaddr();
+int	in_cmpnetaddr();
 int 	in_putsufx(); 
 int 	in_getsufx(); 
 int 	in_recycle_tsuffix(); 
 int 	tpip_mtu(); 
-int 	in_pcbbind(); 
-int 	in_pcbconnect(); 
-int 	in_pcbdisconnect(); 
-int 	in_pcbdetach(); 
-int 	in_pcballoc(); 
 int 	tpip_output(); 
 int 	tpip_output_dg(); 
 struct inpcb	tp_inpcb;
-#endif INET
+#endif /* INET */
 #ifdef ISO
-int		iso_putnetaddr();
-int		iso_getnetaddr();
-int		iso_cmpnetaddr();
+int	iso_putnetaddr();
+int	iso_getnetaddr();
+int	iso_cmpnetaddr();
 int 	iso_putsufx(); 
 int 	iso_getsufx(); 
 int 	iso_recycle_tsuffix(); 
-int		tpclnp_mtu(); 
-int		iso_pcbbind(); 
-int		iso_pcbconnect(); 
-int		iso_pcbdisconnect(); 
-int 	iso_pcbdetach(); 
+int	tpclnp_mtu(); 
+int	iso_pcbbind(); 
+int	iso_pcbconnect(); 
+void	iso_pcbdisconnect(); 
+void 	iso_pcbdetach(); 
 int 	iso_pcballoc(); 
 int 	tpclnp_output(); 
 int 	tpclnp_output_dg(); 
-int		iso_nlctloutput();
+int	iso_nlctloutput();
 struct isopcb	tp_isopcb;
-#endif ISO
+#endif /* ISO */
 #ifdef TPCONS
-int		iso_putnetaddr();
-int		iso_getnetaddr();
-int		iso_cmpnetaddr();
+int	iso_putnetaddr();
+int	iso_getnetaddr();
+int	iso_cmpnetaddr();
 int 	iso_putsufx(); 
 int 	iso_getsufx(); 
 int 	iso_recycle_tsuffix(); 
-int		iso_pcbbind(); 
-int		tpcons_pcbconnect(); 
-int		tpclnp_mtu();
-int		iso_pcbdisconnect(); 
-int 	iso_pcbdetach(); 
+int	iso_pcbbind(); 
+int	tpcons_pcbconnect(); 
+int	tpclnp_mtu();
+void	iso_pcbdisconnect(); 
+void 	iso_pcbdetach(); 
 int 	iso_pcballoc(); 
 int 	tpcons_output(); 
 struct isopcb	tp_isopcb;
-#endif TPCONS
+#endif /* TPCONS */
 
 
 struct nl_protosw nl_protosw[] = {
@@ -591,6 +586,7 @@ tp_getref(tpcb)
  *
  * NOTES:
  */
+int
 tp_attach(so, dom)
 	struct socket 	*so;
 	int 			dom;

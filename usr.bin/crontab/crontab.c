@@ -1,38 +1,4 @@
-#if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/usr.bin/crontab/crontab.c,v 1.1.1.1 1993/06/12 14:53:53 rgrimes Exp $";
-#endif
-
-/* Revision 1.5  87/05/02  17:33:22  paul
- * pokecron?  (RCS file has the rest of the log)
- * 
- * Revision 1.5  87/05/02  17:33:22  paul
- * baseline for mod.sources release
- * 
- * Revision 1.4  87/03/31  13:11:48  paul
- * I won't say that rs@mirror gave me this idea but crontab uses getopt() now
- * 
- * Revision 1.3  87/03/30  23:43:48  paul
- * another suggestion from rs@mirror:
- *   use getpwuid(getuid)->pw_name instead of getenv("USER")
- *   this is a boost to security...
- * 
- * Revision 1.2  87/02/11  17:40:12  paul
- * changed command syntax to allow append and replace instead of append as
- * default and no replace at all.
- * 
- * Revision 1.1  87/01/26  23:49:06  paul
- * Initial revision
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00131
- * --------------------         -----   ----------------------
- *
- * 06 Apr 93	Adam Glass	Fixes so it compiles quitely
- *
- */
-
-/* Copyright 1988,1990 by Paul Vixie
+/* Copyright 1988,1990,1993,1994 by Paul Vixie
  * All rights reserved
  *
  * Distribute freely, except: don't remove my name from the source or
@@ -46,8 +12,17 @@ static char rcsid[] = "$Header: /a/cvs/386BSD/src/usr.bin/crontab/crontab.c,v 1.
  *
  * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
  * I'll try to keep a version up to date.  I can be reached as follows:
- * Paul Vixie, 329 Noe Street, San Francisco, CA, 94114, (415) 864-7013,
- * paul@vixie.sf.ca.us || {hoptoad,pacbell,decwrl,crash}!vixie!paul
+ * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+ * From Id: crontab.c,v 2.13 1994/01/17 03:20:37 vixie Exp
+ */
+
+#if !defined(lint) && !defined(LINT)
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/usr.bin/crontab/crontab.c,v 1.3 1994/01/27 19:06:16 nate Exp $";
+#endif
+
+/* crontab - install and manage per-user crontab files
+ * vix 02may87 [RCS has the rest of the log]
+ * vix 26jan87 [original]
  */
 
 
@@ -55,50 +30,76 @@ static char rcsid[] = "$Header: /a/cvs/386BSD/src/usr.bin/crontab/crontab.c,v 1.
 
 
 #include "cron.h"
-#include <pwd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/file.h>
-#if defined(BSD)
+#include <sys/stat.h>
+#ifdef USE_UTIMES
 # include <sys/time.h>
-#endif  /*BSD*/
-
-/* extern	char	*sprintf(); */
-
-
-static int	Pid;
-static char	User[MAX_UNAME], RealUser[MAX_UNAME];
-static char	Filename[MAX_FNAME];
-static FILE	*NewCrontab;
-static int	CheckErrorCount;
-static enum	{opt_unknown, opt_list, opt_delete, opt_replace}
-		Option;
-
-extern void	log_it();
-
-#if DEBUGGING
-static char	*Options[] = {"???", "list", "delete", "replace"};
+#else
+# include <time.h>
+# include <utime.h>
+#endif
+#if defined(POSIX)
+# include <locale.h>
 #endif
 
-void
-usage()
+
+#define NHEADER_LINES 3
+
+
+enum opt_t	{ opt_unknown, opt_list, opt_delete, opt_edit, opt_replace };
+
+#if DEBUGGING
+static char	*Options[] = { "???", "list", "delete", "edit", "replace" };
+#endif
+
+
+static	PID_T		Pid;
+static	char		User[MAX_UNAME], RealUser[MAX_UNAME];
+static	char		Filename[MAX_FNAME];
+static	FILE		*NewCrontab;
+static	int		CheckErrorCount;
+static	enum opt_t	Option;
+static	struct passwd	*pw;
+static	void		list_cmd __P((void)),
+			delete_cmd __P((void)),
+			edit_cmd __P((void)),
+			poke_daemon __P((void)),
+			check_error __P((char *)),
+			parse_args __P((int c, char *v[]));
+static	int		replace_cmd __P((void));
+
+
+static void
+usage(msg)
+	char *msg;
 {
-	fprintf(stderr, "usage:  %s [-u user] ...\n", ProgramName);
-	fprintf(stderr, " ... -l         (list user's crontab)\n");
-	fprintf(stderr, " ... -d         (delete user's crontab)\n");
-	fprintf(stderr, " ... -r file    (replace user's crontab)\n");
+	fprintf(stderr, "%s: usage error: %s\n", ProgramName, msg);
+	fprintf(stderr, "usage:\t%s [-u user] file\n", ProgramName);
+	fprintf(stderr, "\t%s [-u user] { -e | -l | -r }\n", ProgramName);
+	fprintf(stderr, "\t\t(default operation is replace, per 1003.2)\n");
+	fprintf(stderr, "\t-e\t(edit user's crontab)\n");
+	fprintf(stderr, "\t-l\t(list user's crontab)\n");
+	fprintf(stderr, "\t-r\t(delete user's crontab)\n");
 	exit(ERROR_EXIT);
 }
 
 
+int
 main(argc, argv)
 	int	argc;
 	char	*argv[];
 {
-        void parse_args(), set_cron_uid(), set_cron_cwd(),
-             list_cmd(), delete_cmd(), replace_cmd();
+	int	exitstatus;
 
 	Pid = getpid();
 	ProgramName = argv[0];
+
+#if defined(POSIX)
+	setlocale(LC_ALL, "");
+#endif
+
 #if defined(BSD)
 	setlinebuf(stderr);
 #endif
@@ -113,35 +114,31 @@ main(argc, argv)
 		log_it(RealUser, Pid, "AUTH", "crontab command not allowed");
 		exit(ERROR_EXIT);
 	}
-	switch (Option)
-	{
+	exitstatus = OK_EXIT;
+	switch (Option) {
 	case opt_list:		list_cmd();
 				break;
 	case opt_delete:	delete_cmd();
 				break;
-	case opt_replace:	replace_cmd();
+	case opt_edit:		edit_cmd();
+				break;
+	case opt_replace:	if (replace_cmd() < 0)
+					exitstatus = ERROR_EXIT;
 				break;
 	}
+	exit(0);
+	/*NOTREACHED*/
 }
 	
 
- void
+static void
 parse_args(argc, argv)
 	int	argc;
 	char	*argv[];
 {
-	void		usage();
-	char		*getenv(), *strcpy();
-	int		getuid();
-	struct passwd	*getpwnam();
-	extern int	getopt(), optind;
-	extern char	*optarg;
-
-	struct passwd	*pw;
 	int		argch;
 
-	if (!(pw = getpwuid(getuid())))
-	{
+	if (!(pw = getpwuid(getuid()))) {
 		fprintf(stderr, "%s: your UID isn't in the passwd file.\n",
 			ProgramName);
 		fprintf(stderr, "bailing out.\n");
@@ -151,13 +148,11 @@ parse_args(argc, argv)
 	strcpy(RealUser, User);
 	Filename[0] = '\0';
 	Option = opt_unknown;
-	while (EOF != (argch = getopt(argc, argv, "u:ldr:x:")))
-	{
-		switch (argch)
-		{
+	while (EOF != (argch = getopt(argc, argv, "u:lerx:"))) {
+		switch (argch) {
 		case 'x':
 			if (!set_debug_flags(optarg))
-				usage();
+				usage("bad debug option");
 			break;
 		case 'u':
 			if (getuid() != ROOT_UID)
@@ -166,7 +161,7 @@ parse_args(argc, argv)
 					"must be privileged to use -u\n");
 				exit(ERROR_EXIT);
 			}
-			if ((struct passwd *)NULL == getpwnam(optarg))
+			if (!(pw = getpwnam(optarg)))
 			{
 				fprintf(stderr, "%s:  user `%s' unknown\n",
 					ProgramName, optarg);
@@ -176,38 +171,40 @@ parse_args(argc, argv)
 			break;
 		case 'l':
 			if (Option != opt_unknown)
-				usage();
+				usage("only one operation permitted");
 			Option = opt_list;
-			break;
-		case 'd':
-			if (Option != opt_unknown)
-				usage();
-			Option = opt_delete;
 			break;
 		case 'r':
 			if (Option != opt_unknown)
-				usage();
-			Option = opt_replace;
-			(void) strcpy(Filename, optarg);
+				usage("only one operation permitted");
+			Option = opt_delete;
+			break;
+		case 'e':
+			if (Option != opt_unknown)
+				usage("only one operation permitted");
+			Option = opt_edit;
 			break;
 		default:
-			usage();
+			usage("unrecognized option");
 		}
 	}
 
 	endpwent();
 
-	if (Option == opt_unknown || argv[optind] != NULL)
-		usage();
+	if (Option != opt_unknown) {
+		if (argv[optind] != NULL) {
+			usage("no arguments permitted after this option");
+		}
+	} else {
+		if (argv[optind] != NULL) {
+			Option = opt_replace;
+			(void) strcpy (Filename, argv[optind]);
+		} else {
+			usage("file name must be specified for replace");
+		}
+	}
 
 	if (Option == opt_replace) {
-		if (!Filename[0]) {
-			/* getopt(3) says this can't be true
-			 * but I'm paranoid today.
-			 */
-			fprintf(stderr, "filename must be given for -a or -r\n");
-			usage();
-		}
 		/* we have to open the file here because we're going to
 		 * chdir(2) into /var/cron before we get around to
 		 * reading the file.
@@ -215,30 +212,43 @@ parse_args(argc, argv)
 		if (!strcmp(Filename, "-")) {
 			NewCrontab = stdin;
 		} else {
+			/* relinquish the setuid status of the binary during
+			 * the open, lest nonroot users read files they should
+			 * not be able to read.  we can't use access() here
+			 * since there's a race condition.  thanks go out to
+			 * Arnt Gulbrandsen <agulbra@pvv.unit.no> for spotting
+			 * the race.
+			 */
+
+			if (swap_uids() < OK) {
+				perror("swapping uids");
+				exit(ERROR_EXIT);
+			}
 			if (!(NewCrontab = fopen(Filename, "r"))) {
 				perror(Filename);
+				exit(ERROR_EXIT);
+			}
+			if (swap_uids() < OK) {
+				perror("swapping uids back");
 				exit(ERROR_EXIT);
 			}
 		}
 	}
 
 	Debug(DMISC, ("user=%s, file=%s, option=%s\n",
-					User, Filename, Options[(int)Option]))
+		      User, Filename, Options[(int)Option]))
 }
 
 
- void
-list_cmd()
-{
-	extern	errno;
+static void
+list_cmd() {
 	char	n[MAX_FNAME];
 	FILE	*f;
 	int	ch;
 
 	log_it(RealUser, Pid, "LIST", User);
 	(void) sprintf(n, CRON_TAB(User));
-	if (!(f = fopen(n, "r")))
-	{
+	if (!(f = fopen(n, "r"))) {
 		if (errno == ENOENT)
 			fprintf(stderr, "no crontab for %s\n", User);
 		else
@@ -255,18 +265,13 @@ list_cmd()
 }
 
 
- void
-delete_cmd()
-{
-	extern	errno;
-	int	unlink();
-	void	poke_daemon();
+static void
+delete_cmd() {
 	char	n[MAX_FNAME];
 
 	log_it(RealUser, Pid, "DELETE", User);
 	(void) sprintf(n, CRON_TAB(User));
-	if (unlink(n))
-	{
+	if (unlink(n)) {
 		if (errno == ENOENT)
 			fprintf(stderr, "no crontab for %s\n", User);
 		else
@@ -277,58 +282,250 @@ delete_cmd()
 }
 
 
- void
+static void
 check_error(msg)
 	char	*msg;
 {
-	CheckErrorCount += 1;
-	fprintf(stderr, "\"%s\", line %d: %s\n", Filename, LineNumber, msg);
+	CheckErrorCount++;
+	fprintf(stderr, "\"%s\":%d: %s\n", Filename, LineNumber-1, msg);
 }
 
 
- void
-replace_cmd()
-{
-	entry	*load_entry();
-	int	load_env();
-	int	unlink();
-	void	free_entry();
-	void	check_error();
-	void	poke_daemon();
-	extern	errno;
+static void
+edit_cmd() {
+	char		n[MAX_FNAME], q[MAX_TEMPSTR], *editor;
+	FILE		*f;
+	int		ch, t, x;
+	struct stat	statbuf;
+	time_t		mtime;
+	WAIT_T		waiter;
+	PID_T		pid, xpid;
 
+	log_it(RealUser, Pid, "BEGIN EDIT", User);
+	(void) sprintf(n, CRON_TAB(User));
+	if (!(f = fopen(n, "r"))) {
+		if (errno != ENOENT) {
+			perror(n);
+			exit(ERROR_EXIT);
+		}
+		fprintf(stderr, "no crontab for %s - using an empty one\n",
+			User);
+		if (!(f = fopen("/dev/null", "r"))) {
+			perror("/dev/null");
+			exit(ERROR_EXIT);
+		}
+	}
+
+	(void) sprintf(Filename, "/tmp/crontab.%d", Pid);
+	if (-1 == (t = open(Filename, O_CREAT|O_EXCL|O_RDWR, 0600))) {
+		perror(Filename);
+		goto fatal;
+	}
+#ifdef HAS_FCHOWN
+	if (fchown(t, getuid(), getgid()) < 0) {
+#else
+	if (chown(Filename, getuid(), getgid()) < 0) {
+#endif
+		perror("fchown");
+		goto fatal;
+	}
+	if (!(NewCrontab = fdopen(t, "r+"))) {
+		perror("fdopen");
+		goto fatal;
+	}
+
+	Set_LineNum(1)
+
+	/* ignore the top few comments since we probably put them there.
+	 */
+	for (x = 0;  x < NHEADER_LINES;  x++) {
+		ch = get_char(f);
+		if (EOF == ch)
+			break;
+		if ('#' != ch) {
+			putc(ch, NewCrontab);
+			break;
+		}
+		while (EOF != (ch = get_char(f)))
+			if (ch == '\n')
+				break;
+		if (EOF == ch)
+			break;
+	}
+
+	/* copy the rest of the crontab (if any) to the temp file.
+	 */
+	if (EOF != ch)
+		while (EOF != (ch = get_char(f)))
+			putc(ch, NewCrontab);
+	fclose(f);
+	if (fflush(NewCrontab) < OK) {
+		perror(Filename);
+		exit(ERROR_EXIT);
+	}
+ again:
+	rewind(NewCrontab);
+	if (ferror(NewCrontab)) {
+		fprintf(stderr, "%s: error while writing new crontab to %s\n",
+			ProgramName, Filename);
+ fatal:		unlink(Filename);
+		exit(ERROR_EXIT);
+	}
+	if (fstat(t, &statbuf) < 0) {
+		perror("fstat");
+		goto fatal;
+	}
+	mtime = statbuf.st_mtime;
+
+	if ((!(editor = getenv("VISUAL")))
+	 && (!(editor = getenv("EDITOR")))
+	    ) {
+		editor = EDITOR;
+	}
+
+	/* we still have the file open.  editors will generally rewrite the
+	 * original file rather than renaming/unlinking it and starting a
+	 * new one; even backup files are supposed to be made by copying
+	 * rather than by renaming.  if some editor does not support this,
+	 * then don't use it.  the security problems are more severe if we
+	 * close and reopen the file around the edit.
+	 */
+
+	switch (pid = fork()) {
+	case -1:
+		perror("fork");
+		goto fatal;
+	case 0:
+		/* child */
+		if (setuid(getuid()) < 0) {
+			perror("setuid(getuid())");
+			exit(ERROR_EXIT);
+		}
+		if (chdir("/tmp") < 0) {
+			perror("chdir(/tmp)");
+			exit(ERROR_EXIT);
+		}
+		if (strlen(editor) + strlen(Filename) + 2 >= MAX_TEMPSTR) {
+			fprintf(stderr, "%s: editor or filename too long\n",
+				ProgramName);
+			exit(ERROR_EXIT);
+		}
+		sprintf(q, "%s %s", editor, Filename);
+		execlp(_PATH_BSHELL, _PATH_BSHELL, "-c", q, NULL);
+		perror(editor);
+		exit(ERROR_EXIT);
+		/*NOTREACHED*/
+	default:
+		/* parent */
+		break;
+	}
+
+	/* parent */
+	xpid = wait(&waiter);
+	if (xpid != pid) {
+		fprintf(stderr, "%s: wrong PID (%d != %d) from \"%s\"\n",
+			ProgramName, xpid, pid, editor);
+		goto fatal;
+	}
+	if (WIFEXITED(waiter) && WEXITSTATUS(waiter)) {
+		fprintf(stderr, "%s: \"%s\" exited with status %d\n",
+			ProgramName, editor, WEXITSTATUS(waiter));
+		goto fatal;
+	}
+	if (WIFSIGNALED(waiter)) {
+		fprintf(stderr,
+			"%s: \"%s\" killed; signal %d (%score dumped)\n",
+			ProgramName, editor, WTERMSIG(waiter),
+			WCOREDUMP(waiter) ?"" :"no ");
+		goto fatal;
+	}
+	if (fstat(t, &statbuf) < 0) {
+		perror("fstat");
+		goto fatal;
+	}
+	if (mtime == statbuf.st_mtime) {
+		fprintf(stderr, "%s: no changes made to crontab\n",
+			ProgramName);
+		goto remove;
+	}
+	fprintf(stderr, "%s: installing new crontab\n", ProgramName);
+	switch (replace_cmd()) {
+	case 0:
+		break;
+	case -1:
+		for (;;) {
+			printf("Do you want to retry the same edit? ");
+			fflush(stdout);
+			q[0] = '\0';
+			(void) fgets(q, sizeof q, stdin);
+			switch (islower(q[0]) ? q[0] : tolower(q[0])) {
+			case 'y':
+				goto again;
+			case 'n':
+				goto abandon;
+			default:
+				fprintf(stderr, "Enter Y or N\n");
+			}
+		}
+		/*NOTREACHED*/
+	case -2:
+	abandon:
+		fprintf(stderr, "%s: edits left in %s\n",
+			ProgramName, Filename);
+		goto done;
+	default:
+		fprintf(stderr, "%s: panic: bad switch() in replace_cmd()\n");
+		goto fatal;
+	}
+ remove:
+	unlink(Filename);
+ done:
+	log_it(RealUser, Pid, "END EDIT", User);
+}
+	
+
+/* returns	0	on success
+ *		-1	on syntax error
+ *		-2	on install error
+ */
+static int
+replace_cmd() {
 	char	n[MAX_FNAME], envstr[MAX_ENVSTR], tn[MAX_FNAME];
 	FILE	*tmp;
-	int	ch;
+	int	ch, eof;
 	entry	*e;
-	int	status;
 	time_t	now = time(NULL);
+	char	**envp = env_init();
 
 	(void) sprintf(n, "tmp.%d", Pid);
 	(void) sprintf(tn, CRON_TAB(n));
-	if (!(tmp = fopen(tn, "w"))) {
+	if (!(tmp = fopen(tn, "w+"))) {
 		perror(tn);
-		exit(ERROR_EXIT);
+		return (-2);
 	}
 
-	/* write a signature at the top of the file.  for brian.
+	/* write a signature at the top of the file.
+	 *
+	 * VERY IMPORTANT: make sure NHEADER_LINES agrees with this code.
 	 */
+	fprintf(tmp, "# DO NOT EDIT THIS FILE - edit the master and reinstall.\n");
 	fprintf(tmp, "# (%s installed on %-24.24s)\n", Filename, ctime(&now));
 	fprintf(tmp, "# (Cron version -- %s)\n", rcsid);
 
 	/* copy the crontab to the tmp
 	 */
+	rewind(NewCrontab);
 	Set_LineNum(1)
 	while (EOF != (ch = get_char(NewCrontab)))
 		putc(ch, tmp);
-	fclose(NewCrontab);
+	ftruncate(fileno(tmp), ftell(tmp));
 	fflush(tmp);  rewind(tmp);
 
 	if (ferror(tmp)) {
 		fprintf(stderr, "%s: error while writing new crontab to %s\n",
 			ProgramName, tn);
 		fclose(tmp);  unlink(tn);
-		exit(ERROR_EXIT);
+		return (-2);
 	}
 
 	/* check the syntax of the file being installed.
@@ -338,80 +535,91 @@ replace_cmd()
 	 * in the file proper -- kludged it by stopping after first error.
 	 *		vix 31mar87
 	 */
-	CheckErrorCount = 0;
-	while (!CheckErrorCount && (status = load_env(envstr, tmp)) >= OK)
-	{
-		if (status == FALSE)
-		{
-			if (NULL != (e = load_entry(NewCrontab, check_error)))
-				free((char *) e);
+	Set_LineNum(1 - NHEADER_LINES)
+	CheckErrorCount = 0;  eof = FALSE;
+	while (!CheckErrorCount && !eof) {
+		switch (load_env(envstr, tmp)) {
+		case ERR:
+			eof = TRUE;
+			break;
+		case FALSE:
+			e = load_entry(tmp, check_error, pw, envp);
+			if (e)
+				free(e);
+			break;
+		case TRUE:
+			break;
 		}
 	}
 
-	if (CheckErrorCount != 0)
-	{
+	if (CheckErrorCount != 0) {
 		fprintf(stderr, "errors in crontab file, can't install.\n");
 		fclose(tmp);  unlink(tn);
-		exit(ERROR_EXIT);
+		return (-1);
 	}
 
+#ifdef HAS_FCHOWN
 	if (fchown(fileno(tmp), ROOT_UID, -1) < OK)
+#else
+	if (chown(tn, ROOT_UID, -1) < OK)
+#endif
 	{
 		perror("chown");
 		fclose(tmp);  unlink(tn);
-		exit(ERROR_EXIT);
+		return (-2);
 	}
 
+#ifdef HAS_FCHMOD
 	if (fchmod(fileno(tmp), 0600) < OK)
+#else
+	if (chmod(tn, 0600) < OK)
+#endif
 	{
 		perror("chown");
 		fclose(tmp);  unlink(tn);
-		exit(ERROR_EXIT);
+		return (-2);
 	}
 
 	if (fclose(tmp) == EOF) {
 		perror("fclose");
 		unlink(tn);
-		exit(ERROR_EXIT);
+		return (-2);
 	}
 
 	(void) sprintf(n, CRON_TAB(User));
-	if (rename(tn, n))
-	{
+	if (rename(tn, n)) {
 		fprintf(stderr, "%s: error renaming %s to %s\n",
 			ProgramName, tn, n);
 		perror("rename");
 		unlink(tn);
-		exit(ERROR_EXIT);
+		return (-2);
 	}
 	log_it(RealUser, Pid, "REPLACE", User);
 
 	poke_daemon();
+
+	return (0);
 }
 
 
- void
-poke_daemon()
-{
-#if defined(BSD)
+static void
+poke_daemon() {
+#ifdef USE_UTIMES
 	struct timeval tvs[2];
 	struct timezone tz;
 
 	(void) gettimeofday(&tvs[0], &tz);
 	tvs[1] = tvs[0];
-	if (utimes(SPOOL_DIR, tvs) < OK)
-	{
+	if (utimes(SPOOL_DIR, tvs) < OK) {
 		fprintf(stderr, "crontab: can't update mtime on spooldir\n");
 		perror(SPOOL_DIR);
 		return;
 	}
-#endif  /*BSD*/
-#if defined(ATT)
-	if (utime(SPOOL_DIR, NULL) < OK)
-	{
+#else
+	if (utime(SPOOL_DIR, NULL) < OK) {
 		fprintf(stderr, "crontab: can't update mtime on spooldir\n");
 		perror(SPOOL_DIR);
 		return;
 	}
-#endif  /*ATT*/
+#endif /*USE_UTIMES*/
 }

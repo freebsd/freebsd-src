@@ -22,7 +22,7 @@
  *	All rights reserved.
  */
 #ifndef lint
-static char RCSstorage[] = "@(#)$Header: /a/cvs/386BSD/src/usr.sbin/named/storage.c,v 1.1.1.1 1993/06/12 14:46:17 rgrimes Exp $";
+static char RCSstorage[] = "@(#)$Header: /home/cvs/386BSD/src/usr.sbin/named/storage.c,v 1.1.1.1 1993/06/12 14:46:17 rgrimes Exp $";
 #endif
 
 #include <sys/param.h>

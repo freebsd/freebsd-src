@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tty_compat.c	7.10 (Berkeley) 5/9/91
- *	$Id: tty_compat.c,v 1.2 1993/10/16 15:24:57 rgrimes Exp $
+ *	$Id: tty_compat.c,v 1.4 1993/12/19 00:51:40 wollman Exp $
  */
 
 /* 
@@ -50,6 +50,10 @@
 #include "dkstat.h"
 #include "kernel.h"
 #include "syslog.h"
+
+static int ttcompatgetflags(struct tty *);
+static void ttcompatsetflags(struct tty *, struct termios *);
+static void ttcompatsetlflags(struct tty *, struct termios *);
 
 int ttydebug = 0;
 
@@ -81,9 +85,12 @@ static int compatspcodes[] = {
 };
 
 /*ARGSUSED*/
+int
 ttcompat(tp, com, data, flag)
 	register struct tty *tp;
+	int com;
 	caddr_t data;
+	int flag;
 {
 
 	switch (com) {
@@ -123,7 +130,7 @@ ttcompat(tp, com, data, flag)
 			term.c_ospeed = compatspcodes[speed];
 		term.c_cc[VERASE] = sg->sg_erase;
 		term.c_cc[VKILL] = sg->sg_kill;
-		tp->t_flags = tp->t_flags&0xffff0000 | sg->sg_flags&0xffff;
+		tp->t_flags = tp->t_flags&0xffff0000UL | sg->sg_flags&0xffff;
 		ttcompatsetflags(tp, &term);
 		return (ttioctl(tp, com == TIOCSETP ? TIOCSETAF : TIOCSETA, 
 			(caddr_t)&term, flag));
@@ -189,7 +196,8 @@ ttcompat(tp, com, data, flag)
 			tp->t_flags = (tp->t_flags&0xffff) | *(int *)data<<16;
 		else {
 			tp->t_flags = 
-			 (ttcompatgetflags(tp)&0xffff0000)|(tp->t_flags&0xffff);
+			  (ttcompatgetflags(tp) & 0xffff0000UL)
+			    | (tp->t_flags & 0xffff);
 			if (com == TIOCLBIS)
 				tp->t_flags |= *(int *)data<<16;
 			else
@@ -200,7 +208,8 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCLGET:
 		tp->t_flags =
-		 (ttcompatgetflags(tp)&0xffff0000)|(tp->t_flags&0xffff);
+		 (ttcompatgetflags(tp) & 0xffff0000UL) 
+		   | (tp->t_flags & 0xffff);
 		*(int *)data = tp->t_flags>>16;
 		if (ttydebug)
 			printf("CLGET: returning %x\n", *(int *)data);
@@ -227,6 +236,7 @@ ttcompat(tp, com, data, flag)
 	return (0);
 }
 
+static int
 ttcompatgetflags(tp)
 	register struct tty *tp;
 {
@@ -284,6 +294,7 @@ if (ttydebug)
 	return (flags);
 }
 
+static void
 ttcompatsetflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
@@ -356,6 +367,7 @@ ttcompatsetflags(tp, t)
 	t->c_cflag = cflag;
 }
 
+static void
 ttcompatsetlflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;

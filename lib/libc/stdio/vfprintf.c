@@ -35,7 +35,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)vfprintf.c	5.50 (Berkeley) 12/16/92";
+/*static char *sccsid = "from: @(#)vfprintf.c	5.50 (Berkeley) 12/16/92";*/
+static char *rcsid = "$Id: vfprintf.c,v 1.5 1994/02/06 07:35:02 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -120,6 +121,7 @@ __sbprintf(fp, fmt, ap)
 
 
 #ifdef FLOATING_POINT
+#include <locale.h>
 #include <math.h>
 #include "floatio.h"
 
@@ -159,7 +161,7 @@ int
 vfprintf(fp, fmt0, ap)
 	FILE *fp;
 	const char *fmt0;
-	va_list ap;
+	_VA_LIST_ ap;
 {
 	register char *fmt;	/* format string */
 	register int ch;	/* character from fmt */
@@ -382,20 +384,23 @@ reswitch:	switch (ch) {
 			base = DEC;
 			goto number;
 #ifdef FLOATING_POINT
-		case 'e':		/* anomalous precision */
+		case 'e':
 		case 'E':
-			prec = (prec == -1) ?
-				DEFPREC + 1 : prec + 1;
-			/* FALLTHROUGH */
-			goto fp_begin;
-		case 'f':		/* always print trailing zeroes */
-			if (prec != 0)
-				flags |= ALT;
+		case 'f':
 		case 'g':
 		case 'G':
-			if (prec == -1)
+			if (prec == -1) {
 				prec = DEFPREC;
-fp_begin:		_double = va_arg(ap, double);
+			} else if ((ch == 'g' || ch == 'G') && prec == 0) {
+				prec = 1;
+			}
+
+			if (flags & LONGDBL) {
+				_double = (double) va_arg(ap, long double);
+			} else {
+				_double = va_arg(ap, double);
+			}
+
 			/* do this before tricky precision changes */
 			if (isinf(_double)) {
 				if (_double < 0)
@@ -409,6 +414,7 @@ fp_begin:		_double = va_arg(ap, double);
 				size = 3;
 				break;
 			}
+
 			flags |= FPT;
 			cp = cvt(_double, prec, flags, &softsign,
 				&expt, ch, &ndig);
@@ -469,7 +475,12 @@ fp_begin:		_double = va_arg(ap, double);
 			 *	-- ANSI X3J11
 			 */
 			/* NOSTRICT */
+			/* no easy way to tell in cpp how big a type is */
+#if defined(__i386)
+			_uquad = (u_quad_t)(u_long)va_arg(ap, void *);
+#else
 			_uquad = (u_quad_t)va_arg(ap, void *);
+#endif
 			base = HEX;
 			xdigs = "0123456789abcdef";
 			flags |= HEXPREFIX;
@@ -631,9 +642,8 @@ number:			if ((dprec = prec) >= 0)
 		} else {	/* glue together f_p fragments */
 			if (ch >= 'f') {	/* 'f' or 'g' */
 				if (_double == 0) {
-				/* kludge for __dtoa irregularity */
-					if (prec == 0 ||
-					    (flags & ALT) == 0) {
+					/* kludge for __dtoa irregularity */
+					if (expt >= ndig && (flags & ALT) == 0) {
 						PRINT("0", 1);
 					} else {
 						PRINT("0.", 2);
@@ -701,18 +711,26 @@ cvt(value, ndigits, flags, sign, decpt, ch, length)
 	int mode, dsgn;
 	char *digits, *bp, *rve;
 
-	if (ch == 'f')
-		mode = 3;
-	else {
-		mode = 2;
+	if (ch == 'f') {
+		mode = 3;		/* ndigits after the decimal point */
+	} else {
+		/* To obtain ndigits after the decimal point for the 'e' 
+		 * and 'E' formats, round to ndigits + 1 significant 
+		 * figures.
+		 */
+		if (ch == 'e' || ch == 'E') {
+			ndigits++;
+		}
+		mode = 2;		/* ndigits significant digits */
 	}
+
 	if (value < 0) {
 		value = -value;
 		*sign = '-';
 	} else
 		*sign = '\000';
 	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve);
-	if (flags & ALT) {	/* Print trailing zeros */
+	if ((ch != 'g' && ch != 'G') || flags & ALT) {	/* Print trailing zeros */
 		bp = digits + ndigits;
 		if (ch == 'f') {
 			if (*digits == '0' && value)

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stdarg.h	7.2 (Berkeley) 5/4/91
- *	$Id: stdarg.h,v 1.2 1993/10/16 14:39:34 rgrimes Exp $
+ *	$Id: stdarg.h,v 1.3 1993/11/07 17:43:12 wollman Exp $
  */
+
+#ifndef _MACHINE_STDARG_H_
+#define _MACHINE_STDARG_H_ 1
 
 typedef char *va_list;
 
@@ -52,3 +55,4 @@ typedef char *va_list;
 
 #define	va_start(ap, last) \
 	(ap = ((char *)&(last) + __va_promote(last)))
+#endif /* _MACHINE_STDARG_H_ */

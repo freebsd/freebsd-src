@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fs.h	7.12 (Berkeley) 5/8/91
- *	$Id: fs.h,v 1.2 1993/10/16 18:17:38 rgrimes Exp $
+ *	$Id: fs.h,v 1.6 1993/12/19 22:51:09 alm Exp $
  */
+
+#ifndef _UFS_FS_H_
+#define _UFS_FS_H_ 1
 
 /*
  * Each disk drive contains some number of file systems.
@@ -210,8 +213,14 @@ struct	fs
 	short	fs_opostbl[16][8];	/* old rotation block list head */
 	long	fs_sparecon[55];	/* reserved for future constants */
 	long	fs_state;		/* validate fs_clean field */
-	quad	fs_qbmask;		/* ~fs_bmask - for use with quad size */
-	quad	fs_qfmask;		/* ~fs_fmask - for use with quad size */
+	union {
+		quad_t v;
+		long val[2];
+	}	fs_qbmask;		/* ~fs_bmask - for use with quad size */
+	union {
+		quad_t v;
+		long val[2];
+	}	fs_qfmask;		/* ~fs_fmask - for use with quad size */
 	long	fs_postblformat;	/* format of positional layout tables */
 	long	fs_nrpos;		/* number of rotaional positions */
 	long	fs_postbloff;		/* (short) rotation block list head */
@@ -439,3 +448,16 @@ struct	ocg {
  * NINDIR is the number of indirects in a file system block.
  */
 #define	NINDIR(fs)	((fs)->fs_nindir)
+
+#ifdef KERNEL
+
+extern void fserr(struct fs *, int /*uid_t*/, const char *);
+extern void fragacct(struct fs *, int, long *, int);
+extern int isblock(struct fs *, u_char *, daddr_t);
+extern void clrblock(struct fs *, u_char *, daddr_t);
+extern void setblock(struct fs *, u_char *, daddr_t);
+extern ino_t dirpref(struct fs *);
+extern daddr_t mapsearch(struct fs *, struct cg *, daddr_t, int);
+
+#endif /* KERNEL */
+#endif /* _UFS_FS_H_ */

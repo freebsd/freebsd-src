@@ -70,7 +70,7 @@
  */
 
 /*
- *	$Id: if_ppp.c,v 1.4 1993/10/07 02:19:37 rgrimes Exp $
+ *	$Id: if_ppp.c,v 1.7 1993/12/20 19:31:30 wollman Exp $
  * 	From: if_ppp.c,v 1.22 1993/08/31 23:20:40 paulus Exp
  *	From: if_ppp.c,v 1.21 1993/08/29 11:22:37 paulus Exp
  *	From: if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp 
@@ -85,14 +85,13 @@
 #include "systm.h"
 #include "proc.h"
 #include "mbuf.h"
-#include "buf.h"
-#include "dkstat.h"
 #include "socket.h"
 #include "ioctl.h"
 #include "file.h"
 #include "tty.h"
 #include "kernel.h"
 #include "conf.h"
+#include "dkstat.h"
 
 #include "if.h"
 #include "if_types.h"
@@ -155,7 +154,7 @@ int	pppread __P((struct tty *tp, struct uio *uio, int flag));
 int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
 int	ppptioctl __P((struct tty *tp, int cmd, caddr_t data, int flag));
 int	pppoutput __P((struct ifnet *ifp, struct mbuf *m0,
-		       struct sockaddr *dst));
+		       struct sockaddr *dst, struct rtentry *rt));
 void	pppstart __P((struct tty *tp));
 void	pppinput __P((int c, struct tty *tp));
 int	pppioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
@@ -223,6 +222,8 @@ pppattach()
     }
 }
 
+TEXT_SET(pseudo_set, pppattach);
+
 /*
  * Line specific open routine.
  * Attach the given tty to the first available ppp unit.
@@ -252,7 +253,7 @@ pppopen(dev, tp)
 
     sc->sc_flags = 0;
     sc->sc_ilen = 0;
-    sc->sc_asyncmap = 0xffffffff;
+    sc->sc_asyncmap = ~0;
     sc->sc_rasyncmap = 0;
     sc->sc_mru = PPP_MRU;
 #ifdef VJC
@@ -344,7 +345,7 @@ pppread(tp, uio, flag)
     register struct ppp_softc *sc = (struct ppp_softc *)tp->t_sc;
     struct mbuf *m, *m0;
     register int s;
-    int error;
+    int error = 0;
 
     if ((tp->t_state & TS_CARR_ON)==0)
 	return (EIO);
@@ -420,7 +421,7 @@ pppwrite(tp, uio, flag)
     *ph1 = *ph2;
     m0->m_data += PPP_HEADER_LEN;
     m0->m_len -= PPP_HEADER_LEN;
-    return (pppoutput(&sc->sc_if, m0, &dst));
+    return (pppoutput(&sc->sc_if, m0, &dst, 0));
 }
 
 /*
@@ -569,10 +570,11 @@ pppfcs(fcs, cp, len)
  * Packet is placed in Information field of PPP frame.
  */
 int
-pppoutput(ifp, m0, dst)
-    struct ifnet *ifp;
-    struct mbuf *m0;
-    struct sockaddr *dst;
+pppoutput(ifp, m0, dst, rt)
+	struct ifnet *ifp;
+	struct mbuf *m0;
+	struct sockaddr *dst;
+	struct rtentry *rt;
 {
     register struct ppp_softc *sc = &ppp_softc[ifp->if_unit];
     struct ppp_header *ph;
@@ -1330,6 +1332,7 @@ pppinput(c, tp)
 /*
  * Process an ioctl request to interface.
  */
+int
 pppioctl(ifp, cmd, data)
     register struct ifnet *ifp;
     int cmd;

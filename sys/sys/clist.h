@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clist.h	7.3 (Berkeley) 2/15/91
- *	$Id: clist.h,v 1.2 1993/10/16 17:16:28 rgrimes Exp $
+ *	$Id: clist.h,v 1.3 1993/11/07 17:52:25 wollman Exp $
  */
+
+#ifndef _SYS_CLIST_H_
+#define _SYS_CLIST_H_ 1
 
 struct cblock {
 	struct cblock *c_next;		/* next cblock in queue */
@@ -44,3 +47,5 @@ struct cblock {
 struct cblock *cfree, *cfreelist;
 int cfreecount, nclist;
 #endif
+
+#endif /* _SYS_CLIST_H_ */

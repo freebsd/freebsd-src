@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.3 1993/10/13 15:59:30 rgrimes Exp $
+ *	$Id: npx.c,v 1.6 1994/01/03 07:55:43 davidg Exp $
  */
 
 #include "npx.h"
@@ -138,11 +138,11 @@ _probeintr:
 	ss
 	incl	_npx_intrs_while_probing
 	pushl	%eax
-	movb	$0x20,%al	/* EOI (asm in strings loses cpp features) */
-	outb	%al,$0xa0	/* IO_ICU2 */
-	outb	%al,$0x20	/* IO_ICU1 */
+	movb	$0x20,%al	# EOI (asm in strings loses cpp features)
+	outb	%al,$0xa0	# IO_ICU2
+	outb	%al,$0x20	#IO_ICU1
 	movb	$0,%al
-	outb	%al,$0xf0	/* clear BUSY# latch */
+	outb	%al,$0xf0	# clear BUSY# latch
 	popl	%eax
 	iret
 ");
@@ -439,7 +439,6 @@ npxintr(frame)
 		 * just before it is used).
 		 */
 		curproc->p_regs = (int *)&frame.if_es;
-		curpcb->pcb_flags |= FM_TRAP;	/* used by sendsig */
 #ifdef notyet
 		/*
 		 * Encode the appropriate code for detailed information on
@@ -450,7 +449,6 @@ npxintr(frame)
 		code = 0;	/* XXX */
 #endif
 		trapsignal(curproc, SIGFPE, code);
-		curpcb->pcb_flags &= ~FM_TRAP;
 	} else {
 		/*
 		 * Nested interrupt.  These losers occur when:

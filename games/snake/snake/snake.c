@@ -56,6 +56,7 @@ static char sccsid[] = "@(#)snake.c	5.10 (Berkeley) 2/28/91";
 #include <fcntl.h>
 #include <pwd.h>
 #include <errno.h>
+#include <time.h>
 #include "snake.h"
 #include "pathnames.h"
 
@@ -97,7 +98,6 @@ char **argv;
 	extern char *optarg;
 	extern int optind;
 	int ch, i, j, k;
-	time_t time();
 	long atol();
 	void stop();
 

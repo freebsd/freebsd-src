@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)in.c	7.17 (Berkeley) 4/20/91
- *	$Id: in.c,v 1.2 1993/10/16 18:25:57 rgrimes Exp $
+ *	$Id: in.c,v 1.8 1994/01/15 14:29:21 davidg Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "ioctl.h"
 #include "mbuf.h"
 #include "socket.h"
@@ -42,11 +43,13 @@
 #include "in_systm.h"
 #include "net/if.h"
 #include "net/route.h"
-#include "net/af.h"
 #include "in.h"
 #include "in_var.h"
 
 #ifdef INET
+
+static void in_ifscrub(struct ifnet *, struct in_ifaddr *);
+
 /*
  * Formulate an Internet address from network + host.
  */
@@ -106,6 +109,7 @@ in_netof(in)
 /*
  * Compute and save network mask as sockaddr from an internet address.
  */
+void
 in_sockmaskof(in, sockmask)
 	struct in_addr in;
 	register struct sockaddr_in *sockmask;
@@ -183,16 +187,13 @@ in_lnaof(in)
 	return (host);
 }
 
-#ifndef SUBNETSARELOCAL
-#define	SUBNETSARELOCAL	1
-#endif
-int subnetsarelocal = SUBNETSARELOCAL;
 /*
  * Return 1 if an internet address is for a ``local'' host
  * (one to which we have a connection).  If subnetsarelocal
  * is true, this includes other subnets of the local net.
  * Otherwise, it includes only the directly-connected (sub)nets.
  */
+int
 in_localaddr(in)
 	struct in_addr in;
 {
@@ -216,6 +217,7 @@ in_localaddr(in)
  * that may not be forwarded, or whether datagrams to that destination
  * may be forwarded.
  */
+int
 in_canforward(in)
 	struct in_addr in;
 {
@@ -226,20 +228,20 @@ in_canforward(in)
 		return (0);
 	if (IN_CLASSA(i)) {
 		net = i & IN_CLASSA_NET;
-		if (net == 0 || net == IN_LOOPBACKNET)
+		if (net == 0 || net == (IN_LOOPBACKNET << IN_CLASSA_NSHIFT))
 			return (0);
 	}
 	return (1);
 }
 
-int	in_interfaces;		/* number of external internet interfaces */
-extern	struct ifnet loif;
+static int in_interfaces;	/* number of external internet interfaces */
 
 /*
  * Generic internet control operations (ioctl's).
  * Ifp is 0 if not an interface-specific ioctl.
  */
 /* ARGSUSED */
+int
 in_control(so, cmd, data, ifp)
 	struct socket *so;
 	int cmd;
@@ -364,7 +366,8 @@ in_control(so, cmd, data, ifp)
 		oldaddr = ia->ia_dstaddr;
 		ia->ia_dstaddr = *(struct sockaddr_in *)&ifr->ifr_dstaddr;
 		if (ifp->if_ioctl &&
-		    (error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR, ia))) {
+		    (error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR, 
+					      (caddr_t)ia))) {
 			ia->ia_dstaddr = oldaddr;
 			return (error);
 		}
@@ -463,6 +466,7 @@ in_control(so, cmd, data, ifp)
 /*
  * Delete any existing route for an interface.
  */
+static void
 in_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
 	register struct in_ifaddr *ia;
@@ -481,10 +485,12 @@ in_ifscrub(ifp, ia)
  * Initialize an interface's internet address
  * and routing table entry.
  */
+int
 in_ifinit(ifp, ia, sin, scrub)
 	register struct ifnet *ifp;
 	register struct in_ifaddr *ia;
 	struct sockaddr_in *sin;
+	int scrub;
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
@@ -497,7 +503,8 @@ in_ifinit(ifp, ia, sin, scrub)
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl && (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, ia))) {
+	if (ifp->if_ioctl && (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, 
+						       (caddr_t)ia))) {
 		splx(s);
 		ia->ia_addr = oldaddr;
 		return (error);
@@ -571,6 +578,7 @@ in_iaonnetof(net)
 /*
  * Return 1 if the address might be a local broadcast address.
  */
+int
 in_broadcast(in)
 	struct in_addr in;
 {

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1982, 1986, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)types.h	7.17 (Berkeley) 5/6/91
- *	$Id: types.h,v 1.2 1993/10/16 17:18:12 rgrimes Exp $
+ *	$Id: types.h,v 1.8.2.1 1994/05/04 07:57:47 rgrimes Exp $
  */
 
 #ifndef _TYPES_H_
@@ -58,9 +65,20 @@ typedef	u_short	mode_t;			/* permissions */
 typedef u_long	fixpt_t;		/* fixed point number */
 
 #ifndef _POSIX_SOURCE
-typedef	struct	_uquad	{ u_long val[2]; } u_quad;
-typedef	struct	_quad	{   long val[2]; } quad;
-typedef	long *	qaddr_t;	/* should be typedef quad * qaddr_t; */
+#ifdef __STRICT_ANSI__
+typedef quad_t __attribute (( mode (DI) ));
+typedef unsigned u_quad_t __attribute (( mode (DI) ));
+#else
+typedef long long quad_t;
+typedef unsigned long long u_quad_t;
+#endif
+typedef	quad_t *	qaddr_t;
+
+/* GCC_1 quad definitions */
+/* typedef	struct	_uquad	{ u_long val[2]; } u_quad;
+ * typedef	struct	_quad	{   long val[2]; } quad;
+ * typedef	long *	qaddr_t; 
+ */
 
 #define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
 #define	minor(x)	((int)((x)&0xff))		/* minor number */
@@ -116,7 +134,7 @@ typedef	struct fd_set {
 #define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
 #define	FD_ZERO(p)	bzero((char *)(p), sizeof(*(p)))
 
-#if defined(__STDC__) && defined(KERNEL)
+#if defined(__STDC__)
 /*
  * Forward structure declarations for function prototypes.
  * We include the common structures that cross subsystem boundaries here;
@@ -127,7 +145,9 @@ struct	pgrp;
 struct	ucred;
 struct	rusage;
 struct	file;
+#ifdef KERNEL
 struct	buf;
+#endif
 struct	tty;
 struct	uio;
 #endif

@@ -1,10 +1,31 @@
 /*
-	linux/kernel/chr_drv/sound/dev_table.h
-
-	Global definitions for device call tables
-
-	(C) Hannu Savolainen 1992
- 	 See COPYING for further details. Should be distributed with this file.
+ *	dev_table.h
+ *
+ *	Global definitions for device call tables
+ * 
+ * Copyright by Hannu Savolainen 1993
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
 
 */
 
@@ -77,7 +98,10 @@ struct synth_operations {
 
 struct midi_operations {
 	struct midi_info info;
-	int (*open) (int dev, int mode);
+	int (*open) (int dev, int mode,
+		void (*inputintr)(int dev, unsigned char data),
+		void (*outputintr)(int dev)
+		);
 	void (*close) (int dev);
 	int (*ioctl) (int dev, unsigned int cmd, unsigned int arg);
 	int (*putc) (int dev, unsigned char data);
@@ -94,8 +118,8 @@ struct generic_midi_operations {
 	struct midi_info info;
 	int (*open) (int dev, int mode);
 	void (*close) (int dev);
-	int (*write) (int dev, struct uio *data);
-	int (*read)  (int dev, struct uio *data);
+	int (*write) (int dev, snd_rw_buf *data);
+	int (*read)  (int dev, snd_rw_buf *data);
 };	
 
 #ifndef ALL_EXTERNAL_TO_ME

@@ -215,7 +215,7 @@ setmode(p)
 	mode_t mask;
 	struct bitcmd *set, *saveset, *endset;
 	int permXbits, setlen;
-	static int compress_mode();
+	static void compress_mode();
 
 	/*
 	 * Get a copy of the mask for the permissions that are mask relative.
@@ -321,7 +321,7 @@ setmode(p)
 				 * to flush out any partial mode that we have,
 				 * and then do the copying of the mode bits.
 				 */
-				if (perm) {
+				if (perm || op == '=') {
 					ADDCMD(op, who, perm, mask);
 					perm = 0;
 				}
@@ -337,7 +337,7 @@ setmode(p)
 				 * Add any permissions that we haven't already
 				 * done.
 				 */
-				if (perm) {
+				if (perm || op == '=') {
 					ADDCMD(op, who, perm, mask);
 					perm = 0;
 				}
@@ -389,7 +389,7 @@ dumpmode(set)
  * 'g' and 'o' commands continue to be separate.  They could probably be 
  * compacted, but it's not worth the effort.
  */
-static
+static void
 compress_mode(set)
 	register struct bitcmd *set;
 {

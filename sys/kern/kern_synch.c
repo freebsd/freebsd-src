@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_synch.c	7.18 (Berkeley) 6/27/91
- *	$Id: kern_synch.c,v 1.2 1993/10/16 15:24:32 rgrimes Exp $
+ *	$Id: kern_synch.c,v 1.4 1994/02/11 21:14:28 guido Exp $
  */
 
 #include "param.h"
@@ -45,12 +45,17 @@
 
 #include "machine/cpu.h"
 
+static void endtsleep(caddr_t, int);
+
 u_char	curpri;			/* usrpri of curproc */
 
 /*
  * Force switch among equal priority processes every 100ms.
  */
-roundrobin()
+void
+roundrobin(dummy1, dummy2)
+	caddr_t dummy1;
+	int dummy2;
 {
 
 	need_resched();
@@ -145,7 +150,10 @@ fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;		/* exp(-1/20) */
 /*
  * Recompute process priorities, once a second
  */
-schedcpu()
+void
+schedcpu(dummy1, dummy2)
+	caddr_t dummy1;
+	int dummy2;
 {
 	register fixpt_t loadfac = loadfactor(averunnable[0]);
 	register struct proc *p;
@@ -211,6 +219,7 @@ schedcpu()
  * For all load averages >= 1 and max p_cpu of 255, sleeping for at least
  * six times the loadfactor will decay p_cpu to zero.
  */
+void
 updatepri(p)
 	register struct proc *p;
 {
@@ -259,18 +268,18 @@ int safepri;
  * if possible, and EINTR is returned if the system call should
  * be interrupted by the signal (return EINTR).
  */
+int
 tsleep(chan, pri, wmesg, timo)
 	caddr_t chan;
 	int pri;
-	char *wmesg;
+	const char *wmesg;
 	int timo;
 {
 	register struct proc *p = curproc;
 	register struct slpque *qp;
 	register s;
-	int sig, catch = pri & PCATCH;
+	int sig = 0, catch = pri & PCATCH;
 	extern int cold;
-	int endtsleep();
 
 	s = splhigh();
 	if (cold || panicstr) {
@@ -326,7 +335,7 @@ tsleep(chan, pri, wmesg, timo)
 	p->p_stats->p_ru.ru_nvcsw++;
 	swtch();
 #include "ddb.h"
-#ifdef	NDDB
+#if	NDDB > 0
 	/* handy breakpoint location after process "wakes" */
 	asm(".globl bpendtsleep ; bpendtsleep:");
 #endif
@@ -354,9 +363,12 @@ resume:
  * set timeout flag and undo the sleep.  If proc
  * is stopped, just unsleep so it will remain stopped.
  */
-endtsleep(p)
-	register struct proc *p;
+void
+endtsleep(arg1, dummy)
+	caddr_t arg1;
+	int dummy;
 {
+	register struct proc *p = (struct proc *)arg1;
 	int s = splhigh();
 
 	if (p->p_wchan) {
@@ -369,9 +381,11 @@ endtsleep(p)
 	splx(s);
 }
 
+#if 1				/* XXX this should go away... */
 /*
  * Short-term, non-interruptable sleep.
  */
+void
 sleep(chan, pri)
 	caddr_t chan;
 	int pri;
@@ -417,17 +431,19 @@ sleep(chan, pri)
 	p->p_stat = SSLEEP;
 	p->p_stats->p_ru.ru_nvcsw++;
 	swtch();
-#ifdef	NDDB
+#if	NDDB > 0
 	/* handy breakpoint location after process "wakes" */
 	asm(".globl bpendsleep ; bpendsleep:");
 #endif
 	curpri = p->p_usrpri;
 	splx(s);
 }
+#endif
 
 /*
  * Remove a process from its wait queue
  */
+void
 unsleep(p)
 	register struct proc *p;
 {
@@ -452,6 +468,7 @@ unsleep(p)
  * Wakeup on "chan"; set all processes
  * sleeping on chan to run state.
  */
+void
 wakeup(chan)
 	register caddr_t chan;
 {
@@ -501,6 +518,7 @@ restart:
  * Initialize the (doubly-linked) run queues
  * to be empty.
  */
+void
 rqinit()
 {
 	register int i;
@@ -514,6 +532,7 @@ rqinit()
  * placing it on the run queue if it is in memory,
  * and awakening the swapper if it isn't in memory.
  */
+void
 setrun(p)
 	register struct proc *p;
 {
@@ -555,6 +574,7 @@ setrun(p)
  * Arrange to reschedule if the resulting priority
  * is better than that of the current process.
  */
+void
 setpri(p)
 	register struct proc *p;
 {
@@ -567,29 +587,40 @@ setpri(p)
 		need_resched();
 }
 
-#ifdef NDDB
-#define	DDBFUNC(s)	ddb_##s
+#if NDDB > 0
+#define	DDBFUNC(s)	db_##s
+void
 DDBFUNC(ps) () {
 	int np;
+	int nl=0;
 	struct proc *ap, *p, *pp;
 	np = nprocs;
 	p = ap = allproc;
-    printf("  pid  proc    addr     uid     ppid  pgrp   flag stat comm         wchan\n");
+    db_printf("  pid  proc    addr     uid     ppid  pgrp   flag stat comm         wchan\n");
     while (--np >= 0) {
+	/*
+	 * XXX just take 20 for now...
+	 */
+	if(nl++==20) {
+		db_printf("--More--");
+		cngetc();
+		db_printf("\b\b\b\b\b\b\b\b");
+		nl=0;
+	}
 	pp = p->p_pptr;
 	if (pp == 0)
 		pp = p;
 	if (p->p_stat) {
-	    printf("%5d %06x %06x %3d %5d %5d  %06x  %d  %s   ",
+	    db_printf("%5d %06x %06x %3d %5d %5d  %06x  %d  %s   ",
 		   p->p_pid, ap, p->p_addr, p->p_cred->p_ruid, pp->p_pid, 
 		   p->p_pgrp->pg_id, p->p_flag, p->p_stat,
 		   p->p_comm);
 	    if (p->p_wchan) {
 		if (p->p_wmesg)
-		    printf("%s ", p->p_wmesg);
-		printf("%x", p->p_wchan);
+		    db_printf("%s ", p->p_wmesg);
+		db_printf("%x", p->p_wchan);
 	    }
-	    printf("\n");
+	    db_printf("\n");
 	}
 	ap = p->p_nxt;
 	if (ap == 0 && np > 0)

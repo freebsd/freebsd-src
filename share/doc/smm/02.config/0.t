@@ -31,6 +31,7 @@
 .\"
 .\"	@(#)0.t	6.4 (Berkeley) 4/17/91
 .\"
+.nr GA 0
 .bd S B 3
 .de UX
 .ie \\n(GA>0 \\$2UNIX\\$1
@@ -38,10 +39,8 @@
 .if n \\$2UNIX\\$1*
 .if t \\$2UNIX\\$1\\f1\(dg\\fP
 .FS
-.if n *UNIX
-.if t \(dgUNIX
-.ie \\$3=1 is a Footnote of Bell Laboratories.
-.el is a Trademark of Bell Laboratories.
+.if n *UNIX is a Trademark of Bell Laboratories.
+.if t \(dgUNIX is a Trademark of Bell Laboratories.
 .FE
 .nr GA 1\}
 ..

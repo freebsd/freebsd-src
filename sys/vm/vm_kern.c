@@ -33,11 +33,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)vm_kern.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_kern.c,v 1.3 1993/10/16 16:20:30 rgrimes Exp $
- */
-
-/*
+ *	@(#)vm_kern.c	7.4 (Berkeley) 5/7/91
+ *
+ *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
  * All rights reserved.
  *
@@ -62,7 +60,6 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- *
  */
 
 /*
@@ -70,12 +67,19 @@
  */
 
 #include "param.h"
-#include "syslog.h"
 
 #include "vm.h"
 #include "vm_page.h"
 #include "vm_pageout.h"
 #include "vm_kern.h"
+#include "machine/pmap.h"
+
+vm_map_t	kernel_map;
+vm_map_t	mb_map;
+vm_map_t	kmem_map;
+vm_map_t	phys_map;
+vm_map_t	buffer_map;
+
 
 /*
  *	kmem_alloc_pageable:
@@ -84,7 +88,8 @@
  *	map must be "kernel_map" below.
  */
 
-vm_offset_t kmem_alloc_pageable(map, size)
+vm_offset_t
+kmem_alloc_pageable(map, size)
 	vm_map_t		map;
 	register vm_size_t	size;
 {
@@ -112,7 +117,8 @@ vm_offset_t kmem_alloc_pageable(map, size)
  *	Allocate wired-down memory in the kernel's address map
  *	or a submap.
  */
-vm_offset_t kmem_alloc(map, size)
+vm_offset_t
+kmem_alloc(map, size)
 	register vm_map_t	map;
 	register vm_size_t	size;
 {
@@ -121,6 +127,7 @@ vm_offset_t kmem_alloc(map, size)
 	register vm_offset_t	offset;
 	extern vm_object_t	kernel_object;
 	vm_offset_t		i;
+	unsigned v;
 
 	size = round_page(size);
 
@@ -177,6 +184,7 @@ vm_offset_t kmem_alloc(map, size)
 	 */
 
 	vm_object_lock(kernel_object);
+
 	for (i = 0 ; i < size; i+= PAGE_SIZE) {
 		vm_page_t	mem;
 
@@ -186,7 +194,7 @@ vm_offset_t kmem_alloc(map, size)
 			vm_object_lock(kernel_object);
 		}
 		vm_page_zero_fill(mem);
-		mem->busy = FALSE;
+		mem->flags &= ~PG_BUSY;
 	}
 	vm_object_unlock(kernel_object);
 		
@@ -196,6 +204,16 @@ vm_offset_t kmem_alloc(map, size)
 
 	(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size, FALSE);
 
+	vm_map_lock(map);
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		vm_page_t m;
+		vm_object_lock(kernel_object);
+		m = vm_page_lookup(kernel_object, offset + i);
+		vm_object_unlock(kernel_object);
+		pmap_enter(map->pmap, addr + i, VM_PAGE_TO_PHYS(m),
+			   VM_PROT_DEFAULT, TRUE);
+	}
+	vm_map_unlock(map);
 	/*
 	 *	Try to coalesce the map
 	 */
@@ -212,13 +230,15 @@ vm_offset_t kmem_alloc(map, size)
  *	with kmem_alloc, and return the physical pages
  *	associated with that region.
  */
-void kmem_free(map, addr, size)
+void
+kmem_free(map, addr, size)
 	vm_map_t		map;
 	register vm_offset_t	addr;
 	vm_size_t		size;
 {
 	(void) vm_map_remove(map, trunc_page(addr), round_page(addr + size));
 	vm_map_simplify(map, addr);
+	wakeup((caddr_t)map);
 }
 
 /*
@@ -234,7 +254,8 @@ void kmem_free(map, addr, size)
  *	min, max	Returned endpoints of map
  *	pageable	Can the region be paged
  */
-vm_map_t kmem_suballoc(parent, min, max, size, pageable)
+vm_map_t
+kmem_suballoc(parent, min, max, size, pageable)
 	register vm_map_t	parent;
 	vm_offset_t		*min, *max;
 	register vm_size_t	size;
@@ -259,9 +280,11 @@ vm_map_t kmem_suballoc(parent, min, max, size, pageable)
 		panic("kmem_suballoc: cannot create submap");
 	if ((ret = vm_map_submap(parent, *min, *max, result)) != KERN_SUCCESS)
 		panic("kmem_suballoc: unable to change range to submap");
+
 	return(result);
 }
 
+#if 0
 /*
  *	vm_move:
  *
@@ -280,7 +303,8 @@ vm_map_t kmem_suballoc(parent, min, max, size, pageable)
  *
  *	Returns new destination address or 0 (if a failure occurs).
  */
-vm_offset_t vm_move(src_map,src_addr,dst_map,num_bytes,src_dealloc)
+vm_offset_t
+vm_move(src_map, src_addr, dst_map, num_bytes, src_dealloc)
 	vm_map_t		src_map;
 	register vm_offset_t	src_addr;
 	register vm_map_t	dst_map;
@@ -337,7 +361,7 @@ vm_offset_t vm_move(src_map,src_addr,dst_map,num_bytes,src_dealloc)
 		return(dst_start + (src_addr - src_start));
 	return(0);
 }
-
+#endif
 /*
  * Allocate wired-down memory in the kernel's address map for the higher
  * level kernel memory allocator (kern/kern_malloc.c).  We cannot use
@@ -365,23 +389,26 @@ kmem_malloc(map, size, canwait)
 	vm_offset_t		addr;
 	vm_page_t		m;
 	extern vm_object_t	kmem_object;
+	int			result;
 
-	if (map != kmem_map && map != mb_map)
-		panic("kern_malloc_alloc: map != {kmem,mb}_map");
+	if (map != kmem_map && map != mb_map && map != buffer_map)
+		panic("kern_malloc_alloc: map != {kmem,mb,buffer}_map");
 
 	size = round_page(size);
 	addr = vm_map_min(map);
 
-	if (vm_map_find(map, NULL, (vm_offset_t)0,
-			&addr, size, TRUE) != KERN_SUCCESS) {
-		if (!canwait) {
-			if (map == kmem_map)
-				panic("kmem_malloc: kmem_map too small");
-			else if (map == mb_map)
-				log(LOG_WARNING,
-					"kmem_malloc: mb_map too small (can't wait)\n");
+	result = vm_map_find(map, NULL, (vm_offset_t)0, &addr, size, TRUE);
+	if (result != KERN_SUCCESS) {
+		printf("vm_map_find failure: %d\n", result);
+		if (canwait) {
+		        return(0);
+		} else {
+			if (map != buffer_map) {
+	/*			panic("kmem_malloc: kmem_map too small"); */
+			}
+			return 0;
 		}
-		return 0;
+		panic("kmem_malloc: not enough map entries or map too small\n");
 	}
 
 	/*
@@ -430,12 +457,9 @@ kmem_malloc(map, size, canwait)
 			vm_object_unlock(kmem_object);
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
+			thread_wakeup((int)&vm_pages_needed);
 			return(0);
 		}
-#if 0
-		vm_page_zero_fill(m);
-#endif
-		m->busy = FALSE;
 	}
 	vm_object_unlock(kmem_object);
 
@@ -462,6 +486,8 @@ kmem_malloc(map, size, canwait)
 		vm_object_unlock(kmem_object);
 		pmap_enter(map->pmap, addr + i, VM_PAGE_TO_PHYS(m),
 			   VM_PROT_DEFAULT, TRUE);
+		PAGE_WAKEUP(m);
+		vm_page_wire(m);
 	}
 	vm_map_unlock(map);
 
@@ -476,7 +502,8 @@ kmem_malloc(map, size, canwait)
  *	has no room, the caller sleeps waiting for more memory in the submap.
  *
  */
-vm_offset_t kmem_alloc_wait(map, size)
+vm_offset_t
+kmem_alloc_wait(map, size)
 	vm_map_t	map;
 	vm_size_t	size;
 {
@@ -501,15 +528,14 @@ vm_offset_t kmem_alloc_wait(map, size)
 		lock_clear_recursive(&map->lock);
 		if (result != KERN_SUCCESS) {
 
-			if ( (vm_map_max(map) - vm_map_min(map)) < size ) {
+			if ((vm_map_max(map) - vm_map_min(map)) < size) {
 				vm_map_unlock(map);
 				return(0);
 			}
 
-			assert_wait((int)map, TRUE);
 			vm_map_unlock(map);
-thread_wakeup(&vm_pages_needed); /* XXX */
-			thread_block();
+			thread_wakeup((int)&vm_pages_needed); /* XXX */
+			tsleep((caddr_t)map, PVM, "kmemaw", 0);
 		}
 		else {
 			vm_map_unlock(map);
@@ -520,6 +546,7 @@ thread_wakeup(&vm_pages_needed); /* XXX */
 	return(addr);
 }
 
+#if 0
 /*
  *	kmem_alloc_wired_wait
  *
@@ -527,7 +554,8 @@ thread_wakeup(&vm_pages_needed); /* XXX */
  *	has no room, the caller sleeps waiting for more memory in the submap.
  *
  */
-vm_offset_t kmem_alloc_wired_wait(map, size)
+vm_offset_t
+kmem_alloc_wired_wait(map, size)
 	vm_map_t	map;
 	vm_size_t	size;
 {
@@ -552,15 +580,14 @@ vm_offset_t kmem_alloc_wired_wait(map, size)
 		lock_clear_recursive(&map->lock);
 		if (result != KERN_SUCCESS) {
 
-			if ( (vm_map_max(map) - vm_map_min(map)) < size ) {
+			if ((vm_map_max(map) - vm_map_min(map)) < size) {
 				vm_map_unlock(map);
 				return(0);
 			}
 
-			assert_wait((int)map, TRUE);
 			vm_map_unlock(map);
-thread_wakeup(&vm_pages_needed); /* XXX */
-			thread_block();
+			thread_wakeup((int)&vm_pages_needed); /* XXX */
+			tsleep((caddr_t)map, PVM, "kmemaww", 0);
 		}
 		else {
 			vm_map_unlock(map);
@@ -570,6 +597,7 @@ thread_wakeup(&vm_pages_needed); /* XXX */
 
 	return(addr);
 }
+#endif
 
 /*
  *	kmem_free_wakeup
@@ -577,16 +605,17 @@ thread_wakeup(&vm_pages_needed); /* XXX */
  *	Returns memory to a submap of the kernel, and wakes up any threads
  *	waiting for memory in that map.
  */
-void	kmem_free_wakeup(map, addr, size)
+void
+kmem_free_wakeup(map, addr, size)
 	vm_map_t	map;
 	vm_offset_t	addr;
 	vm_size_t	size;
 {
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
-	thread_wakeup((int)map);
 	vm_map_unlock(map);
 	vm_map_simplify(map, addr);
+	thread_wakeup((int)map);
 }
 
 /*
@@ -595,7 +624,8 @@ void	kmem_free_wakeup(map, addr, size)
  *	Initialize the kernel's virtual memory map, taking
  *	into account all memory allocated up to this time.
  */
-void kmem_init(start, end)
+void
+kmem_init(start, end)
 	vm_offset_t	start;
 	vm_offset_t	end;
 {

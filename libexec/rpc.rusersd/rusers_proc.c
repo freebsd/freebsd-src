@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers_proc.c,v 1.1 1993/09/16 00:34:46 jtc Exp $";
+static char rcsid[] = "$Id: rusers_proc.c,v 1.1.2.1 1994/03/07 02:28:00 rgrimes Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -78,9 +78,9 @@ static char rcsid[] = "$Id: rusers_proc.c,v 1.1 1993/09/16 00:34:46 jtc Exp $";
 #define UT_HOSTSIZE sizeof(((struct utmp *)0)->ut_host)
 #endif
 
-typedef char ut_line_t[UT_LINESIZE];
-typedef char ut_name_t[UT_NAMESIZE];
-typedef char ut_host_t[UT_HOSTSIZE];
+typedef char ut_line_t[UT_LINESIZE+1];
+typedef char ut_name_t[UT_NAMESIZE+1];
+typedef char ut_host_t[UT_HOSTSIZE+1];
 
 utmpidle utmp_idle[MAXUSERS];
 rutmp old_utmp[MAXUSERS];
@@ -218,11 +218,16 @@ do_names_2(int all)
                         utmp_idle[nusers].ui_idle =
                                 getidle(usr.ut_line, usr.ut_host);
                         utmp_idle[nusers].ui_utmp.ut_line = line[nusers];
-                        strncpy(line[nusers], usr.ut_line, sizeof(line[nusers]));
+                        strncpy(line[nusers], usr.ut_line, UT_LINESIZE);
                         utmp_idle[nusers].ui_utmp.ut_name = name[nusers];
-                        strncpy(name[nusers], usr.ut_name, sizeof(name[nusers]));
+                        strncpy(name[nusers], usr.ut_name, UT_NAMESIZE);
                         utmp_idle[nusers].ui_utmp.ut_host = host[nusers];
-                        strncpy(host[nusers], usr.ut_host, sizeof(host[nusers]));
+                        strncpy(host[nusers], usr.ut_host, UT_HOSTSIZE);
+			
+			/* Make sure entries are NUL terminated */
+			line[nusers][UT_LINESIZE] = 
+			name[nusers][UT_NAMESIZE] = 
+			host[nusers][UT_HOSTSIZE] = '\0';
                         nusers++;
                 }
 

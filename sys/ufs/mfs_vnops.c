@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mfs_vnops.c	7.22 (Berkeley) 4/16/91
- *	$Id: mfs_vnops.c,v 1.2 1993/10/16 18:17:44 rgrimes Exp $
+ *	$Id: mfs_vnops.c,v 1.3 1993/11/25 01:38:25 wollman Exp $
  */
 
 #include "param.h"
@@ -94,6 +94,7 @@ struct vnodeops mfs_vnodeops = {
  * so we can tell when we are doing I/O to ourself.
  */
 /* ARGSUSED */
+int
 mfs_open(vp, mode, cred, p)
 	register struct vnode *vp;
 	int mode;
@@ -112,6 +113,7 @@ mfs_open(vp, mode, cred, p)
  * Ioctl operation.
  */
 /* ARGSUSED */
+int
 mfs_ioctl(vp, com, data, fflag, cred, p)
 	struct vnode *vp;
 	int com;
@@ -127,6 +129,7 @@ mfs_ioctl(vp, com, data, fflag, cred, p)
 /*
  * Pass I/O requests to the memory filesystem process.
  */
+int
 mfs_strategy(bp)
 	register struct buf *bp;
 {
@@ -152,6 +155,7 @@ mfs_strategy(bp)
  *
  * Trivial since buffer has already been mapping into KVA space.
  */
+void
 mfs_doio(bp, base)
 	register struct buf *bp;
 	caddr_t base;
@@ -169,6 +173,7 @@ mfs_doio(bp, base)
 /*
  * This is a noop, simply returning what one has been given.
  */
+int
 mfs_bmap(vp, bn, vpp, bnp)
 	struct vnode *vp;
 	daddr_t bn;
@@ -187,6 +192,7 @@ mfs_bmap(vp, bn, vpp, bnp)
  * Memory filesystem close routine
  */
 /* ARGSUSED */
+int
 mfs_close(vp, flag, cred, p)
 	register struct vnode *vp;
 	int flag;
@@ -232,6 +238,7 @@ mfs_close(vp, flag, cred, p)
  * Memory filesystem inactive routine
  */
 /* ARGSUSED */
+int
 mfs_inactive(vp, p)
 	struct vnode *vp;
 	struct proc *p;
@@ -245,6 +252,7 @@ mfs_inactive(vp, p)
 /*
  * Print out the contents of an mfsnode.
  */
+void
 mfs_print(vp)
 	struct vnode *vp;
 {
@@ -257,6 +265,7 @@ mfs_print(vp)
 /*
  * Block device bad operation
  */
+int
 mfs_badop()
 {
 
@@ -267,6 +276,7 @@ mfs_badop()
 /*
  * Memory based filesystem initialization.
  */
+void
 mfs_init()
 {
 

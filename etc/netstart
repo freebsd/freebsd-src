@@ -1,10 +1,14 @@
 #!/bin/sh -
 #
-#	@(#)netstart	5.9 (Berkeley) 3/30/91
+#	$Id: netstart,v 1.8.2.3 1994/05/04 08:57:11 rgrimes Exp $
+#	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 routedflags=-q
 timedflags=NO
+xntpdflags="NO"
+ntpdate="NO"
 rwhod=NO
+sendmail_flags="-bd -q30m"
 #kerberos_server=YES
 #nfs_server=YES
 #name_server=YES
@@ -16,11 +20,18 @@ rwhod=NO
 hostname=`cat /etc/myname`
 hostname $hostname
 
-# ifconfig we0 inet $hostname netmask 447-ether
-# ifconfig ne0 inet $hostname netmask my-netmask
-# ifconfig ec0 inet $hostname netmask my-netmask
-# ifconfig is0 inet $hostname netmask my-netmask
-# ifconfig ed0 inet $hostname netmask my-netmask
+if [ -e /etc/hostname.ed0 ]; then
+	ifconfig ed0 `cat /etc/hostname.ed0`
+fi
+if [ -e /etc/hostname.ed1 ]; then
+	ifconfig ed1 `cat /etc/hostname.ed1`
+fi
+if [ -e /etc/hostname.ie0 ]; then
+	ifconfig ie0 `cat /etc/hostname.ie0`
+fi
+if [ -e /etc/hostname.is0 ]; then
+	ifconfig is0 `cat /etc/hostname.is0`
+fi
 
 # set the address for the loopback interface
 ifconfig lo0 inet localhost

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mbuf.h	7.14 (Berkeley) 12/5/90
- *	$Id: mbuf.h,v 1.2 1993/10/16 17:17:09 rgrimes Exp $
+ *	$Id: mbuf.h,v 1.6 1993/12/19 00:55:19 wollman Exp $
  */
+
+#ifndef _SYS_MBUF_H_
+#define _SYS_MBUF_H_ 1
 
 #ifndef M_WAITOK
 #include "malloc.h"
@@ -345,39 +348,59 @@ struct mbstat {
 #ifdef	KERNEL
 extern	struct mbuf *mbutl;		/* virtual address of mclusters */
 extern	char *mclrefcnt;		/* cluster reference counts */
-struct	mbstat mbstat;
-int	nmbclusters;
-union	mcluster *mclfree;
-int	max_linkhdr;			/* largest link-level header */
-int	max_protohdr;			/* largest protocol header */
-int	max_hdr;			/* largest link+protocol header */
-int	max_datalen;			/* MHLEN - max_hdr */
-struct	mbuf *m_get(), *m_gethdr(), *m_getclr(), *m_retry(), *m_retryhdr();
-struct	mbuf *m_free(), *m_copym(), *m_pullup(), *m_prepend();
-int	m_clalloc();
-extern	int mbtypes[];			/* XXX */
+extern struct	mbstat mbstat;
+extern int	nmbclusters;
+extern union	mcluster *mclfree;
+extern int	max_linkhdr;			/* largest link-level header */
+extern int	max_protohdr;			/* largest protocol header */
+extern int	max_hdr;	/* largest link+protocol header */
+extern int	max_datalen;			/* MHLEN - max_hdr */
+
+/* From uipc_mbuf.c: */
+extern int m_clalloc(int, int);
+extern struct mbuf *m_retry(int, int);
+extern struct mbuf *m_retryhdr(int, int);
+extern struct mbuf *m_get(int, int);
+extern struct mbuf *m_gethdr(int, int);
+extern struct mbuf *m_getclr(int, int);
+extern struct mbuf *m_free(struct mbuf *);
+extern void m_freem(struct mbuf *);
+extern struct mbuf *m_prepend(struct mbuf *, int, int);
+extern struct mbuf *m_copym(struct mbuf *, int, int, int);
+extern void m_copydata(struct mbuf *, int, int, caddr_t);
+extern void m_cat(struct mbuf *, struct mbuf *);
+extern void m_adj(struct mbuf *, int);
+extern struct mbuf *m_pullup(struct mbuf *, int);
+extern void m_copyback(struct mbuf *, int, int, caddr_t);
+extern struct mbuf *m_split(struct mbuf *, int, int);
+extern struct mbuf *m_append(struct mbuf *, struct mbuf *);
+extern int m_datalen(struct mbuf *);
+extern int m_compress(struct mbuf *, struct mbuf **);
+
+extern int mbtypes[];			/* XXX */
 
 #ifdef MBTYPES
 int mbtypes[] = {				/* XXX */
-	M_FREE,		/* MT_FREE	0	/* should be on free list */
-	M_MBUF,		/* MT_DATA	1	/* dynamic (data) allocation */
-	M_MBUF,		/* MT_HEADER	2	/* packet header */
-	M_SOCKET,	/* MT_SOCKET	3	/* socket structure */
-	M_PCB,		/* MT_PCB	4	/* protocol control block */
-	M_RTABLE,	/* MT_RTABLE	5	/* routing tables */
-	M_HTABLE,	/* MT_HTABLE	6	/* IMP host tables */
-	0,		/* MT_ATABLE	7	/* address resolution tables */
-	M_MBUF,		/* MT_SONAME	8	/* socket name */
+	M_FREE,		/* MT_FREE	0*/	/* should be on free list */
+	M_MBUF,		/* MT_DATA	1*/	/* dynamic (data) allocation */
+	M_MBUF,		/* MT_HEADER	2*/	/* packet header */
+	M_SOCKET,	/* MT_SOCKET	3*/	/* socket structure */
+	M_PCB,		/* MT_PCB	4*/	/* protocol control block */
+	M_RTABLE,	/* MT_RTABLE	5*/	/* routing tables */
+	M_HTABLE,	/* MT_HTABLE	6*/	/* IMP host tables */
+	0,		/* MT_ATABLE	7*/	/* address resolution tables */
+	M_MBUF,		/* MT_SONAME	8*/	/* socket name */
 	0,		/* 		9 */
-	M_SOOPTS,	/* MT_SOOPTS	10	/* socket options */
-	M_FTABLE,	/* MT_FTABLE	11	/* fragment reassembly header */
-	M_MBUF,		/* MT_RIGHTS	12	/* access rights */
-	M_IFADDR,	/* MT_IFADDR	13	/* interface address */
-	M_MBUF,		/* MT_CONTROL	14	/* extra-data protocol message */
-	M_MBUF,		/* MT_OOBDATA	15	/* expedited data  */
+	M_SOOPTS,	/* MT_SOOPTS	10*/	/* socket options */
+	M_FTABLE,	/* MT_FTABLE	11*/	/* fragment reassembly header */
+	M_MBUF,		/* MT_RIGHTS	12*/	/* access rights */
+	M_IFADDR,	/* MT_IFADDR	13*/	/* interface address */
+	M_MBUF,		/* MT_CONTROL	14*/	/* extra-data protocol message */
+	M_MBUF,		/* MT_OOBDATA	15*/	/* expedited data  */
 #ifdef DATAKIT
 	25, 26, 27, 28, 29, 30, 31, 32		/* datakit ugliness */
 #endif
 };
 #endif
 #endif
+#endif /* _SYS_MBUF_H_ */

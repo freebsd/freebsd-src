@@ -1,0 +1,143 @@
+8.  Programming Requirements
+
+8.1  Reset Response 
+
+A reset is accepted within 400 nsec after the negation of RESET- or within 400 
+nsec after SRST has been set in the Device Control Register. 
+
+When the drive is reset by RESET-, Drive 1 shall indicate it is present by 
+asserting DASP- within 400 msec, and DASP- shall remain asserted for 30 
+seconds or until Drive 1 accepts the first command. See also 6.3.4 and 6.3.13.
+
+When the drive is reset by SRST, the drive shall set BSY=1. 
+
+See also 7.2.6.
+
+When a reset is accepted, and with BSY set:
+
+ a) Both drives perform any necessary hardware initialization
+ b) Both drives clear any previously programmed drive parameters 
+ c) Both drives may revert to the default condition
+ d) Both drives load the Command Block Registers with their default values
+ e) If a hardware reset, Drive 0 waits for DASP- to be asserted by Drive 1
+ f) If operational, Drive 1 asserts DASP-
+ g) Drive 0 waits for PDIAG- to be asserted if Drive 1 asserts DASP-
+ h) If operational, Drive 1 clears BSY
+ i) If operational, Drive 1 asserts PDIAG-
+ j) Drive 0 clears BSY
+
+No interrupt is generated when initialization is complete.
+
+The default values for the Command Block Registers if no self-tests are 
+performed or if no errors occurred are: 
+
+      Error         = 01h       Cylinder Low  = 00h 
+      Sector Count  = 01h       Cylinder High = 00h 
+      Sector Number = 01h       Drive/Head    = 00h 
+
+The Error Register shall contain a Diagnostic Code (see Table 9.2) if a self-
+test is performed. 
+
+Following any reset, the host should issue an Initialize Drive Parameters 
+command to ensure the drive is initialized as desired. 
+
+There are three types of reset in ATA. The following is a suggested method of 
+classifying reset actions: 
+
+ - Power On Reset: the drive executes a series of electrical circuitry 
+   diagnostics, spins up the HDA, tests speed and other mechanical 
+   parametrics, and sets default values.
+ - Hardware Reset: the drive executes a series of electrical circuitry 
+   diagnostics, and resets to default values. 
+ - Software Reset: the drive resets the interface circuitry to default values.
+
+8.2   Translate Mode 
+
+The cylinder, head and sector geometry of the drive as presented to the host 
+may differ from the actual physical geometry. Translate mode is an optional 
+and device specific means of mapping between the two. 
+
+8.3  Power Conditions
+
+Optional power commands permit the host to modify the behavior of the drive in 
+a manner which reduces the power required to operate. 
+
+                        TABLE 8-1:  POWER CONDITIONS
+             +----------+----+----+----+------------------+-----+
+             |   Mode   |SRST| BSY|DRDY| Interface Active |Media|
+             +----------+----+----+----+------------------+-----+
+             | Sleep    |  1 |  x |  x |        No        |  0  |
+             |          |    |    |    |                  |     |
+             | Standby  |  x |  0 |  1 |        Yes       |  0  |
+             |          |    |    |    |                  |     |
+             | Idle     |  x |  0 |  1 |        Yes       |  1  |
+             |          |    |    |    |                  |     |
+             | Active   |  x |  x |  x |        Yes       |  1  |
+             +----------+----+----+----+------------------+-----+
+             |             1 = Active    0 = Inactive           |
+             +--------------------------------------------------+
+
+The lowest power consumption occurs in Sleep mode. When in Sleep mode, the 
+drive needs a Software Reset to be activated (see 9.18). The time to respond 
+could be as long as 30 seconds or more. 
+
+In Standby mode the drive interface is capable of accepting commands, but as 
+the media is not immediately accessible, it could take the drive as long as 30 
+seconds or more to respond.
+
+In Idle mode the drive is capable of responding immediately to media access 
+requests. A drive in Idle mode may take longer to complete the execution of a 
+command because it may have to activate some circuitry.
+
+In Active mode the drive is capable of responding immediately to media access 
+requests, and commands complete execution in the shortest possible time.
+
+Ready is not a power condition. A drive may post ready at the interface even 
+though the media may not be accessible.
+
+See specific power-related commands.
+
+8.4  Error Posting 
+
+The errors that are valid for each command are defined in Table 8-1. It is not 
+a requirement that all valid conditions be implemented. See 7.2.9 and 7.2.13 
+for the definition of the Error Register and Status Register bits.
+
+                        TABLE 8-2:  REGISTER CONTENTS
+                          +----------------------------+---------------------+
+                          |       Error Register       |   Status Register   |
+                          |BBK|UNC|IDNF|ABRT|TK0NF|AMNF|DRDY|DWF|DSC|CORR|ERR| 
+ +------------------------+---+---+----+----+-----+----+----+---+---+----+---+
+ | Check Power Mode       |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Execute Drive Diags    |         See 9.2            |    |   |   |    | V |
+ | Format Track           |   |   |  V |  V |     |    |  V | V | V |    | V |
+ | Identify Drive         |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Idle                   |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Idle Immediate         |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Initialize Drive Parms |   |   |    |    |     |    |  V | V | V |    |   |
+ | Recalibrate            |   |   |    |  V |  V  |    |  V | V | V |    | V |
+ | Read Buffer            |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Read DMA               | V | V |  V |  V |     |  V |  V | V | V |  V | V |
+ | Read Long              | V | V |  V |  V |     |  V |  V | V | V |  V | V |
+ | Read Multiple          | V | V |  V |  V |     |  V |  V | V | V |  V | V |
+ | Read Sector(s)         | V | V |  V |  V |     |  V |  V | V | V |  V | V |
+ | Read Verify Sector(s)  | V | V |  V |  V |     |  V |  V | V | V |  V | V |
+ | Seek                   |   |   |  V |  V |     |    |  V | V | V |    | V |
+ | Set Features           |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Set Multiple Mode      |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Sleep                  |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Standby                |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Standby Immediate      |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Write Buffer           |   |   |    |  V |     |    |  V | V | V |    | V |
+ | Write DMA              | V |   |  V |  V |     |    |  V | V | V |    | V |
+ | Write Long             | V |   |  V |  V |     |    |  V | V | V |    | V |
+ | Write Multiple         | V |   |  V |  V |     |    |  V | V | V |    | V |
+ | Write Same             | V |   |  V |  V |     |    |  V | V | V |    | V |
+ | Write Sector(s)        | V |   |  V |  V |     |    |  V | V | V |    | V |
+ | Write Verify           | V | V |  V |  V |     | V  |  V | V | V | V  | V |
+ +------------------------+---+---+----+----+-----+----+----+---+---+----+---+
+ | Invalid Command Code   |   |   |    |  V |     |    |  V | V | V |    | V |
+ +------------------------+---+---+----+----+-----+----+----+---+---+----+---+
+ | V = valid on this command                                                 |
+ +---------------------------------------------------------------------------+
+

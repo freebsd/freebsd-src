@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,38 +32,41 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)erase.c	5.4 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)erase.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
 
 /*
- *	This routine erases everything on the window.
- *
+ * werase --
+ *	Erases everything on the window.
  */
+int
 werase(win)
-reg WINDOW	*win; {
+	register WINDOW *win;
+{
 
-	reg int		y;
-	reg chtype      *sp, *end, *start, *maxx;
-	reg int		minx;
+	register int minx, y;
+	register __LDATA *sp, *end, *start, *maxx;
 
-# ifdef DEBUG
-	fprintf(outf, "WERASE(%0.2o)\n", win);
-# endif
-	for (y = 0; y < win->_maxy; y++) {
-		minx = _NOCHANGE;
-		start = win->_y[y];
-		end = &start[win->_maxx];
+#ifdef DEBUG
+	__CTRACE("werase: (%0.2o)\n", win);
+#endif
+	for (y = 0; y < win->maxy; y++) {
+		minx = -1;
+		start = win->lines[y]->line;
+		end = &start[win->maxx];
 		for (sp = start; sp < end; sp++)
-			if (*sp != ' ') {
-				maxx = sp;
-				if (minx == _NOCHANGE)
+			if (sp->ch != ' ' || sp->attr != 0) {
+				maxx = sp; 
+				if (minx == -1)
 					minx = sp - start;
-				*sp = ' ';
+				sp->ch = ' ';
+				sp->attr = 0;
 			}
-		if (minx != _NOCHANGE)
-			touchline(win, y, minx, maxx - win->_y[y]);
+		if (minx != -1)
+			__touchline(win, y, minx, maxx - win->lines[y]->line,
+			   0);
 	}
-	win->_curx = win->_cury = 0;
+	return (OK);
 }

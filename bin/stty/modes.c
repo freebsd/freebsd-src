@@ -78,6 +78,14 @@ struct modes cmodes[] = {
 	"-clocal",	0, CLOCAL,
 	"crtscts",	CRTSCTS, 0,
 	"-crtscts",	0, CRTSCTS,
+	"ctsflow",	CCTS_OFLOW, 0,
+	"-ctsflow",	0, CCTS_OFLOW,
+	"dsrflow",	CDSR_OFLOW, 0,
+	"-dsrflow",	0, CDSR_OFLOW,
+	"dtrflow",	CDTR_IFLOW, 0,
+	"-dtrflow",	0, CDTR_IFLOW,
+	"rtsflow",	CRTS_IFLOW, 0,
+	"-rtsflow",	0, CRTS_IFLOW,
 	NULL
 };
 

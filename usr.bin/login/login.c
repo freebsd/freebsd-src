@@ -230,12 +230,21 @@ main(argc, argv)
 		 * is root or the caller isn't changing their uid, don't
 		 * authenticate.
 		 */
-		if (pwd && (*pwd->pw_passwd == '\0' ||
-		    fflag && (uid == 0 || uid == pwd->pw_uid)))
-			break;
+		if (pwd) {
+			if (pwd->pw_uid == 0)
+				rootlogin = 1;
+
+			if (fflag && (uid == 0 || uid == pwd->pw_uid)) {
+				/* already authenticated */
+				break;
+			} else if (pwd->pw_passwd[0] == '\0') {
+				/* pretend password okay */
+				rval = 0;
+				goto ttycheck;
+			}
+		}
+
 		fflag = 0;
-		if (pwd && pwd->pw_uid == 0)
-			rootlogin = 1;
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
@@ -256,6 +265,7 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
+	ttycheck:
 		/*
 		 * If trying to log in as root without Kerberos,
 		 * but with insecure terminal, refuse the login attempt.
@@ -263,7 +273,7 @@ main(argc, argv)
 #ifdef KERBEROS
 		if (authok == 0)
 #endif
-		if (pwd && rootlogin && !rootterm(tty)) {
+		if (pwd && !rval && rootlogin && !rootterm(tty)) {
 			(void)fprintf(stderr,
 			    "%s login refused on this terminal.\n",
 			    pwd->pw_name);

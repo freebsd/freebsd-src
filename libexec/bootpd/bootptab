@@ -1,0 +1,125 @@
+# /etc/bootptab: database for bootp server (/etc/bootpd)
+# Last update Mon 11/7/88 18:03
+# Blank lines and lines beginning with '#' are ignored.
+#
+# Legend:
+#
+#	first field -- hostname
+#			(may be full domain name and probably should be)
+#
+#	hd -- home directory
+#	bf -- bootfile
+#	cs -- cookie servers
+#	df -- dumpfile
+#	dn -- domain name
+#	ds -- domain name servers
+#	gw -- gateways
+#	ha -- hardware address
+#	ht -- hardware type
+#	im -- impress servers
+#	ip -- host IP address
+#	lg -- log servers
+#	lp -- LPR servers
+#	ns -- IEN-116 name servers
+#	rl -- resource location protocol servers
+#	rp -- root path
+#	sm -- subnet mask
+#	sw -- swap server
+#	tc -- template host (points to similar host entry)
+#	to -- time offset (seconds)
+#	ts -- time servers
+
+#
+# Be careful about including backslashes where they're needed.  Weird (bad)
+# things can happen when a backslash is omitted where one is intended.
+#
+
+
+# First, we define a global entry which specifies the stuff every host uses.
+
+global.dummy:\
+	:sm=255.255.255.0:\
+	:hd=/usr/boot:bf=null:\
+	:ds=128.2.35.50 128.2.13.21:\
+	:ns=0x80020b4d 0x80020ffd:\
+	:ts=0x80020b4d 0x80020ffd:\
+	:to=auto:\
+	:dn=cmu.edu:
+
+
+# Next, we can define different master entries for each subnet. . .
+
+subnet13.dummy:\
+	:tc=global.dummy:gw=128.2.13.1:
+
+subnet232.dummy:\
+	:tc=global.dummy:gw=128.2.232.1:
+
+subnet19.dummy:\
+	:tc=global.dummy:gw=128.2.19.1:
+
+
+#
+# We should be able to use as many levels of indirection as desired.  Use
+# your imagination. . .
+#
+
+
+# Individual entries (could also have different servers for some/all of these
+# hosts, but we don't really use this feature at CMU):
+
+carnegie:tc=subnet13.dummy:ht=ieee802:ha=7FF8100000AF:ip=128.2.11.1:
+baldwin:tc=subnet19.dummy:ht=ethernet:ha=0800200159C3:ip=128.2.11.10:
+wylie:tc=subnet232.dummy:ht=ethernet:ha=00DD00CADF00:ip=128.2.11.100:
+arnold:tc=subnet19.dummy:ht=ethernet:ha=0800200102AD:ip=128.2.11.102:
+bairdford:tc=subnet19.dummy:ht=ethernet:ha=08002B02A2F9:ip=128.2.11.103:
+bakerstown:tc=subnet19.dummy:ht=ethernet:ha=08002B0287C8:ip=128.2.11.104:
+butlerjct:tc=subnet232.dummy:ht=ethernet:ha=08002001560D:ip=128.2.11.108:
+gastonville:tc=subnet232.dummy:ht=ieee802:ha=7FFF81000A47:ip=128.2.11.115:
+hahntown:tc=subnet13.dummy:ht=ieee802:ha=7FFF81000434:ip=128.2.11.117:
+hickman:tc=subnet19.dummy:ht=ieee802:ha=7FFF810001BA:ip=128.2.11.118:
+lowber:tc=subnet13.dummy:ht=ethernet:ha=00DD00CAF000:ip=128.2.11.121:
+mtoliver:tc=subnet19.dummy:ht=ethernet:ha=00DD00FE1600:ip=128.2.11.122:
+osborne:tc=subnet232.dummy:ht=ethernet:ha=00DD00CAD600:ip=128.2.11.124:
+russelton:tc=subnet232.dummy:ht=ethernet:ha=080020017FC3:ip=128.2.11.126:
+thornburg:tc=subnet13.dummy:ht=ethernet:ha=080020012A33:ip=128.2.11.128:
+
+
+# Hmmm. . .  Let's throw in some whitespace for readability. . . .
+
+andrew:		tc=subnet19.dummy:   ht=ethernet:ha=00DD00C88900:	ip=128.2.11.131:
+birdville:	tc=subnet19.dummy:   ht=ethernet:ha=00DD00FE2D00:	ip=128.2.11.14:
+coudersport:	tc=subnet13.dummy:   ht=ethernet:ha=00DD00CB1E00:	ip=128.2.11.143:
+bridgeville:	tc=subnet232.dummy:  ht=ethernet:ha=080020011394:	ip=128.2.11.15:
+franklin:	tc=subnet19.dummy:   ht=ethernet:ha=08002B02A5D5:	ip=128.2.11.150:
+hollidaysburg:	tc=subnet19.dummy:   ht=ieee802:ha=7FFF810002C8:	ip=128.2.11.154:
+honesdale:	tc=subnet19.dummy:   ht=ethernet:ha=08002B02F83F:	ip=128.2.11.155:
+huntingdon:	tc=subnet19.dummy:   ht=ethernet:ha=08002B02E410:	ip=128.2.11.156:
+indiana:	tc=subnet13.dummy:   ht=ethernet:ha=08002B029BEC:	ip=128.2.11.157:
+jimthorpe:	tc=subnet232.dummy:  ht=ethernet:ha=08002B02FBBA:	ip=128.2.11.158:
+kittanning:	tc=subnet232.dummy:  ht=ethernet:ha=08002B0273FC:	ip=128.2.11.159:
+lebanon:	tc=subnet232.dummy:  ht=ethernet:ha=08002B037F67:	ip=128.2.11.162:
+lewisburg:	tc=subnet19.dummy:   ht=ethernet:ha=50005A1A0DE4:	ip=128.2.11.163:
+middleburg:	tc=subnet232.dummy:  ht=ethernet:ha=00DD00FE1200:	ip=128.2.11.169:
+aspinwall:	tc=subnet13.dummy:   ht=ethernet:ha=08002B03C163:	ip=128.2.11.17:
+berlin:		tc=subnet13.dummy:   ht=ethernet:ha=00DD000A4400:	ip=128.2.11.171:
+norristown:	tc=subnet13.dummy:   ht=ethernet:ha=08002001455B:	ip=128.2.11.174:
+pottsville:	tc=subnet13.dummy:   ht=ethernet:ha=00DD000A3700:	ip=128.2.11.177:
+ridgway:	tc=subnet19.dummy:   ht=ethernet:ha=08002B029425:	ip=128.2.11.179:
+scranton:	tc=subnet232.dummy:  ht=ethernet:ha=0800200113A1:	ip=128.2.11.180:
+chalfont:	tc=subnet13.dummy:   ht=ethernet:ha=08002001124B:	ip=128.2.11.19:
+washington:	tc=subnet19.dummy:   ht=ethernet:ha=00DD00656E00:	ip=128.2.11.190:
+wellsboro:	tc=subnet13.dummy:   ht=ethernet:ha=00DD00CB1C00:	ip=128.2.11.192:
+bb1:		tc=subnet19.dummy:   ht=ethernet:ha=00DD000A1F00:	ip=128.2.11.197:
+adamstown:	tc=subnet13.dummy:   ht=ethernet:ha=08002B02D0E6:	ip=128.2.11.199:
+beta:		tc=subnet19.dummy:   ht=ethernet:ha=02070100B197:	ip=128.2.11.2:
+carbondale:	tc=subnet232.dummy:  ht=ethernet:ha=08002B022A73:	ip=128.2.11.206:
+clairton:	tc=subnet19.dummy:   ht=ethernet:ha=080020010FD1:	ip=128.2.11.21:
+egypt:		tc=subnet13.dummy:   ht=ethernet:ha=00DD00847B00:	ip=128.2.11.211:
+fairchance:	tc=subnet232.dummy:  ht=ethernet:ha=00DD000AB100:	ip=128.2.11.212:
+fairhope:	tc=subnet232.dummy:  ht=ethernet:ha=00DD00CB0800:	ip=128.2.11.213:
+galeton:	tc=subnet232.dummy:  ht=ethernet:ha=08002001138C:	ip=128.2.11.215:
+imperial:	tc=subnet232.dummy:  ht=ethernet:ha=08002001130C:	ip=128.2.11.219:
+kingston:	tc=subnet232.dummy:  ht=ethernet:ha=080020011382:	ip=128.2.11.224:
+knox:		tc=subnet232.dummy:  ht=ethernet:ha=50005A1A0D2A:	ip=128.2.11.225:
+lakecity:	tc=subnet13.dummy:   ht=ethernet:ha=080020011380:	ip=128.2.11.226:

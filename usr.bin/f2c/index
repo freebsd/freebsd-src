@@ -1,0 +1,135 @@
+# ======  index for f2c/src ======
+
+file	f2c/src/all
+for	bundle of complete f2c source
+
+# NOTE:	"all from f2c/src" is the complete f2c source (sans libraries).
+#	The remaining files in this directory are the component modules
+#	of "all from f2c/src", so you can request just the modules that
+#	have changed since last you updated your f2c source.  You can
+#	tell what has changed by looking at the timestamps at the end
+#	of "readme from f2c".
+
+file	f2c/src/notice
+
+file	f2c/src/readme
+
+file	f2c/src/cds.c
+
+file	f2c/src/changes
+
+file	f2c/src/data.c
+
+file	f2c/src/defines.h
+
+file	f2c/src/defs.h
+
+file	f2c/src/equiv.c
+
+file	f2c/src/error.c
+
+file	f2c/src/exec.c
+
+file	f2c/src/expr.c
+
+file	f2c/src/f2c.1
+
+file	f2c/src/f2c.1t
+
+file	f2c/src/f2c.h
+
+file	f2c/src/fc
+
+file	f2c/src/format.c
+
+file	f2c/src/format.h
+
+file	f2c/src/formatdata.c
+
+file	f2c/src/ftypes.h
+
+file	f2c/src/gram.c
+
+file	f2c/src/gram.dcl
+
+file	f2c/src/gram.exec
+
+file	f2c/src/gram.expr
+
+file	f2c/src/gram.head
+
+file	f2c/src/gram.io
+
+file	f2c/src/init.c
+
+file	f2c/src/intr.c
+
+file	f2c/src/io.c
+
+file	f2c/src/iob.h
+
+file	f2c/src/lex.c
+
+file	f2c/src/machdefs.h
+
+file	f2c/src/main.c
+
+file	f2c/src/makefile
+
+file	f2c/src/malloc.c
+
+file	f2c/src/mem.c
+
+file	f2c/src/memset.c
+
+file	f2c/src/misc.c
+
+file	f2c/src/names.c
+
+file	f2c/src/names.h
+
+file	f2c/src/niceprintf.c
+
+file	f2c/src/niceprintf.h
+
+file	f2c/src/notice
+
+file	f2c/src/output.c
+
+file	f2c/src/output.h
+
+file	f2c/src/p1defs.h
+
+file	f2c/src/p1output.c
+
+file	f2c/src/parse.h
+
+file	f2c/src/parse_args.c
+
+file	f2c/src/pccdefs.h
+
+file	f2c/src/pread.c
+
+file	f2c/src/proc.c
+
+file	f2c/src/put.c
+
+file	f2c/src/putpcc.c
+
+file	f2c/src/readme
+
+file	f2c/src/sysdep.c
+
+file	f2c/src/sysdep.h
+
+file	f2c/src/tokens
+
+file	f2c/src/usignal.h
+
+file	f2c/src/vax.c
+
+file	f2c/src/version.c
+
+file	f2c/src/xsum.c
+
+file	f2c/src/xsum0.out

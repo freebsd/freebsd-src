@@ -31,8 +31,18 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)disklabel.h	7.19 (Berkeley) 5/7/91
- *	$Id: disklabel.h,v 1.2 1993/10/16 17:16:33 rgrimes Exp $
+ *	$Id: disklabel.h,v 1.6 1993/12/19 00:55:13 wollman Exp $
  */
+
+#ifndef _SYS_DISKLABEL_H_
+#define _SYS_DISKLABEL_H_ 1
+
+#ifndef KERNEL
+#include <sys/cdefs.h>
+#include <sys/conf.h>
+#else
+#include "conf.h"
+#endif
 
 /*
  * Disk description table, see disktab(5)
@@ -61,7 +71,7 @@
 #define LABELOFFSET	64			/* offset of label in sector */
 #endif
 
-#define DISKMAGIC	((u_long) 0x82564557)	/* The disk magic number */
+#define DISKMAGIC	(0x82564557UL)	/* The disk magic number */
 #ifndef MAXPARTITIONS
 #define	MAXPARTITIONS	8
 #endif
@@ -160,7 +170,7 @@ struct disklabel {
 		u_short	p_cpg;		/* filesystem cylinders per group */
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
 };
-#else LOCORE
+#else /* LOCORE */
 	/*
 	 * offsets for asm boot files.
 	 */
@@ -171,7 +181,7 @@ struct disklabel {
 	.set	d_secpercyl,56
 	.set	d_secperunit,60
 	.set	d_end_,276		/* size of disk label */
-#endif LOCORE
+#endif /* LOCORE*/
 
 /* d_type values: */
 #define	DTYPE_SMD		1		/* SMD, XSMD; VAX hp/up */
@@ -308,7 +318,9 @@ struct dos_partition {
 	unsigned char	dp_ecyl;	/* end cylinder */
 	unsigned long	dp_start;	/* absolute starting sector number */
 	unsigned long	dp_size;	/* partition size in sectors */
-} dos_partitions[NDOSPART];
+};
+
+extern struct dos_partition dos_partitions[NDOSPART];
 
 #define	DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
 #define	DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
@@ -333,26 +345,23 @@ struct dos_partition {
 #define DIOCSBAD	_IOW('d', 110, struct dkbad)	/* set kernel dkbad */
 
 #if defined(KERNEL)
-
-
 void diskerr(struct buf *, char *, char *, int, int, struct disklabel *);
-
 int dkcksum(struct disklabel *);
 
 int setdisklabel(struct disklabel *, struct disklabel *, u_long,
 	struct dos_partition *);
 
-char *readdisklabel(int, int (*)(), struct disklabel *,
+char *readdisklabel(int, d_strategy_t *, struct disklabel *,
 	struct dos_partition *, struct dkbad *, struct buf **);
 
 void disksort(struct buf *, struct buf *);
 
-int writedisklabel(int, int (*)(), struct disklabel *,
+int writedisklabel(int, d_strategy_t *, struct disklabel *,
 		struct dos_partition *);
 
 int bounds_check_with_label(struct buf *, struct disklabel *, int);
 #endif
-#endif LOCORE
+#endif /* LOCORE */
 
 #if !defined(KERNEL) && !defined(LOCORE)
 
@@ -363,3 +372,4 @@ struct disklabel *getdiskbyname __P((const char *));
 __END_DECLS
 
 #endif
+#endif /* _SYS_DISKLABEL_H_ */

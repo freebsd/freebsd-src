@@ -289,11 +289,15 @@ main(argc, argv)
 	if (argwidth < 4)
 		argwidth = 8;
 	for (ep = ehead; ep != NULL; ep = ep->next) {
-		ep->args = strdup(kvm_getargs(ep->proc, kvm_getu(ep->proc)));
-		if (ep->args == NULL) {
-			error("out of memory");
-			exit(1);
+		if(ep->proc != NULL) {
+			ep->args = strdup(kvm_getargs(ep->proc, kvm_getu(ep->proc)));
+			if (ep->args == NULL) {
+				error("out of memory");
+				exit(1);
+			}
 		}
+
+
 	}
 	/* sort by idle time */
 	if (sortidle && ehead != NULL) {
@@ -326,7 +330,10 @@ main(argc, argv)
 			printf("     - ");
 		else
 			prttime(ep->idle, " ");
-		printf("%.*s\n", argwidth, ep->args);
+		if(ep->args)
+			printf("%.*s\n", argwidth, ep->args);
+		else
+			printf("-\n");
 	}
 	exit(0);
 }

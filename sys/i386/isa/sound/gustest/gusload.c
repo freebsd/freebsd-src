@@ -9,8 +9,7 @@
 #endif
 
 #include <stdio.h>
-#include <sys/ultrasound.h>
-#include <sys/ioctl.h>
+#include <machine/ultrasound.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>

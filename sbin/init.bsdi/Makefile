@@ -1,4 +1,4 @@
-#	BSDI $Id: Makefile,v 1.3 1993/09/26 12:26:15 rgrimes Exp $
+#	BSDI $Id: Makefile,v 1.4 1994/01/25 01:35:58 nate Exp $
 #	@(#)Makefile	5.3 (Berkeley) 5/11/90
 
 PROG=	init
@@ -13,5 +13,10 @@ BINMODE=500
 DPADD+= ${LIBCRYPT}
 LDADD+= -lcrypt
 .endif
+
+beforeinstall:
+	@rm -f ${DESTDIR}${BINDIR}/init.old
+	@- ln ${DESTDIR}${BINDIR}/init ${DESTDIR}${BINDIR}/init.old
+	@rm -f ${DESTDIR}${BINDIR}/init
 
 .include <bsd.prog.mk>

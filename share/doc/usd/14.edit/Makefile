@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	6.2 (Berkeley) 6/30/90
 #	Makefile,v 1.5 1993/07/31 15:30:17 mycroft Exp
 
-DIR=	usd/14.edit
+VOLUME=	usd
 DOC=	14.edit
 
 SRCS=	edittut.ms

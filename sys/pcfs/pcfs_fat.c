@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_fat.c,v 1.2 1993/10/16 19:29:34 rgrimes Exp $
+ *	$Id: pcfs_fat.c,v 1.3 1993/11/25 01:37:11 wollman Exp $
  */
 
 /*
@@ -38,6 +38,8 @@
 #include "direntry.h"
 #include "denode.h"
 #include "fat.h"
+
+static void fc_lookup(struct denode *, u_long, u_long *, u_long *);
 
 /*
  *  Fat cache stats.
@@ -106,7 +108,7 @@ pcbmap(dep, findcn, bnp, cnp)
 	int error;
 	u_long i;
 	u_long cn;
-	u_long prevcn;
+	u_long prevcn = 0;
 	u_long byteoffset;
 	u_long bn;
 	u_long bo;
@@ -224,6 +226,7 @@ hiteof:;
  *  Find the closest entry in the fat cache to the
  *  cluster we are looking for.
  */
+static void
 fc_lookup(dep, findcn, frcnp, fsrcnp)
 	struct denode *dep;
 	u_long findcn;
@@ -251,6 +254,7 @@ fc_lookup(dep, findcn, frcnp, fsrcnp)
  *  Purge the fat cache in denode dep of all entries
  *  relating to file relative cluster frcn and beyond.
  */
+void
 fc_purge(dep, frcn)
 	struct denode *dep;
 	u_int frcn;

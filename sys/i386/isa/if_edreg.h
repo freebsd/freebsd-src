@@ -1,48 +1,22 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
  *
- * $Id: if_edreg.h,v 1.7 1993/09/29 20:30:26 davidg Exp $
+ * $Id: if_edreg.h,v 1.13.2.1 1994/04/17 06:07:24 rgrimes Exp $
  *
  * Modification history
  *
- * $Log: if_edreg.h,v $
- * Revision 1.7  1993/09/29  20:30:26  davidg
- *  * Revision 2.2  93/09/29  13:23:25  davidg
- *  * added no multi-buffer override for 3c503
- *  *
- *  * Revision 2.1  93/09/29  12:32:12  davidg
- *  * changed multi-buffer count for 16bit 3c503's from 5 to 2 after
- *  * noticing that the transmitter becomes idle because of so many
- *  * packets to load.
- *  *
- *  * Revision 2.0  93/09/29  00:00:19  davidg
- *  * many changes, rewrites, additions, etc. Now supports the
- *  * NE1000, NE2000, WD8003, WD8013, 3C503, 16bit 3C503, and
- *  * a variety of similar clones. 16bit 3c503 now does multi
- *  * transmit buffers. Nearly every part of the driver has
- *  * changed in some way since rev 1.30.
+ * Revision 2.2  1993/11/29  16:33:39  davidg
+ * From Thomas Sandford <t.d.g.sandford@comp.brad.ac.uk>
+ * Add support for the 8013W board type
+ *
+ * Revision 2.1  1993/11/22  10:52:33  davidg
+ * patch to add support for SMC8216 (Elite-Ultra) boards
+ * from Glen H. Lowe
  *
  * Revision 2.0  93/09/29  00:37:15  davidg
  * changed double buffering flag to multi buffering
  * made changes/additions for 3c503 multi-buffering
  * ...companion to Rev. 2.0 of 'ed' driver.
- * 
- * Revision 1.6  93/09/28  17:20:03  davidg
- * first cut at PIO (e.g. NE1000/2000) support
- * 
- * Revision 1.5  93/08/25  20:38:34  davidg
- * added define for card type WD8013WC (10BaseT)
- * 
- * Revision 1.4  93/08/14  20:07:55  davidg
- * fix board type definition for 8013EP
- * 
- * Revision 1.3  93/07/20  15:25:25  davidg
- * added config flags for forcing 8/16bit mode and disabling double
- * xmit buffers.
- * 
- * Revision 1.2  93/06/23  03:03:05  davidg
- * added some additional definitions for the 83C584 bus interface
- * chip (SMC/WD boards)
  * 
  * Revision 1.1  93/06/23  03:01:07  davidg
  * Initial revision
@@ -628,6 +602,11 @@ struct ed_ring	{
  */
 #define ED_WD_MSR	0
 
+/* next three definitions for Toshiba */
+#define ED_WD_MSR_POW	0x02	/* 0 = power save, 1 = normal (R/W) */
+#define ED_WD_MSR_BSY	0x04	/* gate array busy (R) */
+#define ED_WD_MSR_LEN	0x20	/* data bus width, 0 = 16 bits,
+				   1 = 8 bits (R/W) */
 #define ED_WD_MSR_ADDR	0x3f	/* Memory decode bits 18-13 */
 #define ED_WD_MSR_MENB	0x40	/* Memory enable */
 #define ED_WD_MSR_RST	0x80	/* Reset board */
@@ -645,6 +624,14 @@ struct ed_ring	{
 #define ED_WD_ICR_RX7	0x20	/* recall all but i/o and LAN address */
 #define	ED_WD_ICR_RIO	0x40	/* recall i/o address */
 #define ED_WD_ICR_STO	0x80	/* store to non-volatile memory */
+#ifdef TOSH_ETHER
+#define ED_WD_ICR_MEM	0xe0	/* shared mem address A15-A13 (R/W) */
+#define ED_WD_ICR_MSZ1	0x0f	/* memory size, 0x08 = 64K, 0x04 = 32K,
+				   0x02 = 16K, 0x01 = 8K */
+				/* 64K can only be used if mem address
+				   above 1Mb */
+				/* IAR holds address A23-A16 (R/W) */
+#endif
 
 /*
  * IO Address Register (IAR)
@@ -668,7 +655,7 @@ struct ed_ring	{
 #define ED_WD_IRR_FLASH	0x10	/* Flash RAM is in the ROM socket */
 
 /*
- * The three bit of the encoded IRQ are decoded as follows:
+ * The three bits of the encoded IRQ are decoded as follows:
  *
  *	IR2 IR1 IR0	IRQ
  *	 0   0   0	 2/9
@@ -697,6 +684,49 @@ struct ed_ring	{
 /* i/o base offset to station address/card-ID PROM */
 #define ED_WD_PROM	8
 
+/*
+ *	83C790 specific registers
+ */
+/*
+ * Hardware Support Register (HWR) ('790)
+ */
+#define ED_WD790_HWR	4
+
+#define WD_WD790_HWR_NUKE	0x10	/* hardware reset */
+#define ED_WD790_HWR_LPRM	0x40	/* LAN PROM select */
+#define ED_WD790_HWR_SWH	0x80	/* switch register set */
+
+/*
+ * ICR790 Interrupt Control Register for the 83C790
+ */
+#define ED_WD790_ICR	6
+
+#define ED_WD790_ICR_EIL	0x01	/* enable interrupts */
+
+/*
+ * General Control Register (GCR)
+ *	Enabled with SWH bit=1 in HWR register
+ */
+#define ED_WD790_GCR	0x0d
+
+#define ED_WD790_GCR_IR0	0x04	/* bit 0 of encoded IRQ */
+#define ED_WD790_GCR_IR1	0x08	/* bit 1 of encoded IRQ */
+#define ED_WD790_GCR_ZWSEN	0x20	/* zero wait state enable */
+#define ED_WD790_GCR_IR2	0x40	/* bit 2 of encoded IRQ */
+/*
+ * The three bits of the encoded IRQ are decoded as follows:
+ *
+ *	IR2 IR1 IR0	IRQ
+ *	 0   0   0	 none
+ *	 0   0   1	 9
+ *	 0   1   0	 3
+ *	 0   1   1	 5
+ *	 1   0   0	 7
+ *	 1   0   1	 10
+ *	 1   1   0	 11
+ *	 1   1   1	 15
+ */
+
 /* i/o base offset to CARD ID */
 #define ED_WD_CARD_ID	ED_WD_PROM+6
 
@@ -704,10 +734,19 @@ struct ed_ring	{
 #define ED_TYPE_WD8003S		0x02
 #define ED_TYPE_WD8003E		0x03
 #define ED_TYPE_WD8013EBT	0x05
+#define ED_TYPE_TOSHIBA1	0x11 /* named PCETA1 */
+#define ED_TYPE_TOSHIBA2	0x12 /* named PCETA2 */
+#define ED_TYPE_TOSHIBA3	0x13 /* named PCETB  */
+#define ED_TYPE_TOSHIBA4	0x14 /* named PCETC  */
+#define ED_TYPE_WD8003W		0x24
+#define ED_TYPE_WD8003EB	0x25
+#define ED_TYPE_WD8013W		0x26
 #define ED_TYPE_WD8013EP	0x27
 #define ED_TYPE_WD8013WC	0x28
-#define ED_TYPE_WD8013EBP	0x2c
 #define ED_TYPE_WD8013EPC	0x29
+#define ED_TYPE_SMC8216T	0x2a
+#define ED_TYPE_SMC8216C	0x2b
+#define ED_TYPE_WD8013EBP	0x2c
 
 /* Bit definitions in card ID */
 #define	ED_WD_REV_MASK		0x1f		/* Revision mask */
@@ -718,7 +757,11 @@ struct ed_ring	{
 /*
  * Checksum total. All 8 bytes in station address PROM will add up to this
  */
+#ifdef TOSH_ETHER
+#define ED_WD_ROM_CHECKSUM_TOTAL	0xA5
+#else
 #define ED_WD_ROM_CHECKSUM_TOTAL	0xFF
+#endif
 
 #define ED_WD_NIC_OFFSET	0x10		/* I/O base offset to NIC */
 #define ED_WD_ASIC_OFFSET	0		/* I/O base offset to ASIC */

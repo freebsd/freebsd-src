@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bpfdesc.h	7.1 (Berkeley) 5/7/91
- *	$Id: bpfdesc.h,v 1.2 1993/10/16 17:43:09 rgrimes Exp $
+ *	$Id: bpfdesc.h,v 1.3 1993/11/07 17:46:51 wollman Exp $
  */
+
+#ifndef _NET_BPFDESC_H_
+#define _NET_BPFDESC_H_ 1
 
 /*
  * Descriptor associated with each open bpf file.
@@ -86,3 +89,4 @@ struct bpf_if {
 	u_int bif_hdrlen;		/* length of header (with padding) */
 	struct ifnet *bif_ifp;		/* correspoding interface */
 };
+#endif /* _NET_BPFDESC_H_ */

@@ -47,6 +47,7 @@ char		*prgname;
 __BEGIN_DECLS
 int	is_syscons	__P((int));
 void	screensaver	__P((char *));
+void	screensavertype	__P((char *));
 void	linemode	__P((char *));
 void	keyrate		__P((char *));
 void	keymap		__P((char *));
@@ -75,10 +76,13 @@ int		opt;
 	prgname = argv[0];
 	if (!is_syscons(0))
 		exit(1);
-	while((opt = getopt(argc, argv, "s:m:r:k:f:t:F:S:vd")) != -1)
+	while((opt = getopt(argc, argv, "s:S:m:r:k:f:t:F:V:vd")) != -1)
 		switch(opt) {
 			case 's':
 				screensaver(optarg);
+				break;
+			case 'V':
+				screensavertype(optarg);
 				break;
 			case 'm':
 				linemode(optarg);
@@ -150,6 +154,7 @@ usage(void)
 const char	usagestr[] = {"\
 Usage: syscons  -v               (be verbose)\n\
                 -s {TIME|off}    (set screensaver timeout to TIME seconds)\n\
+		-V {NAME|list}   (set screensaver type or list available types\n\
                 -m {80x25|80x50} (set screen to 25 or 50 lines)\n\
                 -r DELAY.REPEAT  (set keyboard delay & repeat rate)\n\
                 -r fast		 (set keyboard delay & repeat to fast)\n\
@@ -159,7 +164,7 @@ Usage: syscons  -v               (be verbose)\n\
                 -f SIZE FILE     (load font file of size 8, 14 or 16)\n\
                 -t SCRNUM        (switch to specified VT)\n\
                 -F NUM STRING    (set function key NUM to send STRING)\n\
-                -S SCRNMAP       (load screen map file)\n\
+		-S SCRNMAP       (load screen map file)\n\
 "};
 	fprintf(stderr, usagestr);
 }
@@ -230,6 +235,46 @@ char		*s1;
 
 	if (ioctl(0, CONS_BLANKTIME, &nsec) == -1)
 		perror("setting screensaver period");
+}
+
+
+void
+screensavertype(opt)
+char		*opt;
+{
+ssaver_t	shaver;
+int		i, e;
+
+
+	if (!strcmp(opt, "list")) {
+		i = 0;
+		printf("available screen saver types:\n");
+		do {
+			shaver.num = i;
+			e = ioctl(0, CONS_GSAVER, &shaver);
+			i ++;
+			if (e == 0)
+				printf("\t%d\t%s\n", shaver.num, shaver.name);
+		} while (e == 0);
+		if (e == -1 && errno != EIO)
+			perror("getting screensaver info");
+	} else {
+		i = 0;
+		do {
+			shaver.num = i;
+			e = ioctl(0, CONS_GSAVER, &shaver);
+			i ++;
+			if (e == 0 && !strcmp(opt, shaver.name)) {
+				if (ioctl(0, CONS_SSAVER, &shaver) == -1)
+					perror("setting screensaver type");
+				return;
+			}
+		} while (e == 0);
+		if (e == -1 && errno != EIO)
+			perror("getting screensaver info");
+		else
+			fprintf(stderr, "%s: No such screensaver\n", opt);
+	}
 }
 
 

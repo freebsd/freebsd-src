@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.2 1993/10/16 16:47:10 rgrimes Exp $
+ *	$Id: db_command.c,v 1.4 1994/02/11 21:14:52 guido Exp $
  */
 
 /*
@@ -35,8 +35,9 @@
  * Command dispatcher.
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>		/* type definitions */
+#include "ddb/ddb.h"
 
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>
@@ -168,7 +169,7 @@ db_command(last_cmdp, cmd_table)
 	int		t;
 	char		modif[TOK_STRING_SIZE];
 	db_expr_t	addr, count;
-	boolean_t	have_addr;
+	boolean_t	have_addr = FALSE;
 	int		result;
 
 	t = db_read_token();
@@ -306,13 +307,15 @@ extern void	db_listbreak_cmd();
 extern void	db_listwatch_cmd();
 extern void	db_show_regs(), db_show_one_thread(), db_show_all_threads();
 extern void	vm_map_print(), vm_object_print(), vm_page_print();
+extern void	db_ps();
 extern void	ipc_port_print();
 void		db_show_help();
 
 struct command db_show_all_cmds[] = {
 #if 0
-	{ "threads",	db_show_all_threads,0,	0 },
+	{ "threads",	db_show_all_threads,	0,	0 },
 #endif
+	{ "procs",	db_ps,			0,	0 },
 	{ (char *)0 }
 };
 
@@ -369,6 +372,7 @@ struct command db_command_table[] = {
 	{ "trace",	db_stack_trace_cmd,	0,	0 },
 	{ "call",	db_fncall,		CS_OWN,	0 },
 	{ "show",	0,			0,	db_show_cmds },
+	{ "ps",		db_ps,			0,	0 },
 	{ (char *)0, }
 };
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if.c	7.14 (Berkeley) 4/20/91
- *	$Id: if.c,v 1.4 1993/10/16 17:43:10 rgrimes Exp $
+ *	$Id: if.c,v 1.7 1993/12/19 00:52:00 wollman Exp $
  */
 
 #include "param.h"
@@ -45,13 +45,18 @@
 #include "ioctl.h"
 
 #include "if.h"
-#include "af.h"
 #include "if_dl.h"
 #include "if_types.h"
 
 #include "ether.h"
 
 int	ifqmaxlen = IFQ_MAXLEN;
+struct	ifqueue rawintrq;	/* raw packet input queue */
+struct	ifnet *ifnet;		/* list of configured interfaces */
+
+static void link_rtrequest(int, struct rtentry *, struct sockaddr *);
+static void if_qflush(struct ifqueue *);
+static void if_slowtimo(caddr_t, int);
 
 /*
  * Network interface utility routines.
@@ -60,6 +65,7 @@ int	ifqmaxlen = IFQ_MAXLEN;
  * parameters.
  */
 
+void
 ifinit()
 {
 	register struct ifnet *ifp;
@@ -67,7 +73,7 @@ ifinit()
 	for (ifp = ifnet; ifp; ifp = ifp->if_next)
 		if (ifp->if_snd.ifq_maxlen == 0)
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	if_slowtimo();
+	if_slowtimo((caddr_t)0, 0);
 }
 
 #ifdef vax
@@ -93,6 +99,7 @@ static char *sprint_d();
  * Attach an interface to the
  * list of "active" interfaces.
  */
+void
 if_attach(ifp)
 	struct ifnet *ifp;
 {
@@ -103,7 +110,6 @@ if_attach(ifp)
 	register struct sockaddr_dl *sdl;
 	register struct ifaddr *ifa;
 	static int if_indexlim = 8;
-	extern link_rtrequest(), ether_output();
 
 	while (*p)
 		p = &((*p)->if_next);
@@ -119,14 +125,7 @@ if_attach(ifp)
 		}
 		ifnet_addrs = q;
 	}
-#if defined(INET) && NETHER > 0
-	/* XXX -- Temporary fix before changing 10 ethernet drivers */
-	if (ifp->if_output == ether_output) {
-		ifp->if_type = IFT_ETHER;
-		ifp->if_addrlen = 6;
-		ifp->if_hdrlen = 14;
-	}
-#endif
+
 	/*
 	 * create a Link Level name for this device
 	 */
@@ -311,9 +310,11 @@ ifaof_ifpforaddr(addr, ifp)
  * Lookup an appropriate real ifa to point to.
  * This should be moved to /sys/net/link.c eventually.
  */
+void
 link_rtrequest(cmd, rt, sa)
-register struct rtentry *rt;
-struct sockaddr *sa;
+	int cmd;
+	register struct rtentry *rt;
+	struct sockaddr *sa;
 {
 	register struct ifaddr *ifa;
 	struct sockaddr *dst;
@@ -334,6 +335,7 @@ struct sockaddr *sa;
  * the transition.
  * NOTE: must be called at splnet or eqivalent.
  */
+void
 if_down(ifp)
 	register struct ifnet *ifp;
 {
@@ -348,6 +350,7 @@ if_down(ifp)
 /*
  * Flush an interface queue.
  */
+static void
 if_qflush(ifq)
 	register struct ifqueue *ifq;
 {
@@ -368,7 +371,8 @@ if_qflush(ifq)
  * from softclock, we decrement timers (if set) and
  * call the appropriate interface routine on expiration.
  */
-if_slowtimo()
+static void
+if_slowtimo(caddr_t dummy1, int dummy2)
 {
 	register struct ifnet *ifp;
 	int s = splimp();
@@ -426,6 +430,7 @@ ifunit(name)
 /*
  * Interface ioctls.
  */
+int
 ifioctl(so, cmd, data, p)
 	struct socket *so;
 	int cmd;
@@ -540,7 +545,10 @@ ifioctl(so, cmd, data, p)
 			cmd = SIOCGIFNETMASK;
 		}
 		error =  ((*so->so_proto->pr_usrreq)(so, PRU_CONTROL,
-							    cmd, data, ifp));
+						     (struct mbuf *)cmd,
+						     (struct mbuf *)data,
+						     (struct mbuf *)ifp,
+						     (struct mbuf *)0));
 		switch (ocmd) {
 
 		case OSIOCGIFADDR:
@@ -564,6 +572,7 @@ ifioctl(so, cmd, data, p)
  * other information.
  */
 /*ARGSUSED*/
+int
 ifconf(cmd, data)
 	int cmd;
 	caddr_t data;
@@ -643,4 +652,36 @@ sprint_d(n, buf, buflen)
 		n /= 10;
 	} while (n != 0);
 	return (cp);
+}
+
+/*
+ * Set/clear promiscuous mode on interface ifp based on the truth value
+ * of pswitch.  The calls are reference counted so that only the first
+ * "on" request actually has an effect, as does the final "off" request.
+ * Results are undefined if the "off" and "on" requests are not matched.
+ */
+int
+ifpromisc(ifp, pswitch)
+	struct ifnet *ifp;
+	int pswitch;
+{
+	struct ifreq ifr;
+	/*
+	 * If the device is not configured up, we cannot put it in
+	 * promiscuous mode.
+	 */
+	if ((ifp->if_flags & IFF_UP) == 0)
+		return (ENETDOWN);
+
+	if (pswitch) {
+		if (ifp->if_pcount++ != 0)
+			return (0);
+		ifp->if_flags |= IFF_PROMISC;
+	} else {
+		if (--ifp->if_pcount > 0)
+			return (0);
+		ifp->if_flags &= ~IFF_PROMISC;
+	}
+	ifr.ifr_flags = ifp->if_flags;
+	return ((*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr));
 }

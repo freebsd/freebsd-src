@@ -55,7 +55,9 @@
 #include "i386/isa/isa_device.h"
 #include "i386/isa/icu.h"
 
-int 	mseprobe(), mseattach(), mseintr();
+static int mseprobe(struct isa_device *);
+static int mseattach(struct isa_device *);
+void mseintr(int);
 
 struct	isa_driver msedriver = {
 	mseprobe, mseattach, "mse"
@@ -146,6 +148,7 @@ struct mse_types {
 	{ 0, },
 };
 
+int
 mseprobe(idp)
 	register struct isa_device *idp;
 {
@@ -169,6 +172,7 @@ mseprobe(idp)
 	return (0);
 }
 
+int
 mseattach(idp)
 	struct isa_device *idp;
 {
@@ -181,6 +185,7 @@ mseattach(idp)
 /*
  * Exclusive open the mouse, initialize it and enable interrupts.
  */
+int
 mseopen(dev, flag)
 	dev_t dev;
 	int flag;
@@ -210,7 +215,9 @@ mseopen(dev, flag)
 /*
  * mseclose: just turn off mouse innterrupts.
  */
+int
 mseclose(dev, flag)
+	dev_t dev;
 	int flag;
 {
 	struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
@@ -228,6 +235,7 @@ mseclose(dev, flag)
  * using bytes 4 and 5.
  * (Yes this is cheesy, but it makes the X386 server happy, so...)
  */
+int
 mseread(dev, uio)
 	dev_t dev;
 	struct uio *uio;
@@ -288,6 +296,7 @@ mseread(dev, uio)
 /*
  * mseselect: check for mouse input to be processed.
  */
+int
 mseselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -315,6 +324,7 @@ mseselect(dev, rw, p)
 /*
  * mseintr: update mouse status. sc_deltax and sc_deltay are accumulative.
  */
+void
 mseintr(unit)
 	int unit;
 {

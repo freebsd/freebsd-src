@@ -85,6 +85,7 @@ struct tzhead {
 ** exceed any of the limits below.
 */
 
+#ifndef TZ_MAX_TIMES
 /*
 ** The TZ_MAX_TIMES value below is enough to handle a bit more than a
 ** year's worth of solar time (corrected daily to the nearest second) or
@@ -92,8 +93,7 @@ struct tzhead {
 ** (where there are three time zone transitions every fourth year).
 */
 #define TZ_MAX_TIMES	370
-
-#define NOSOLAR			/* 4BSD doesn't currently handle solar time */
+#endif /* TZ_MAX_TIMES */
 
 #ifndef NOSOLAR
 #define TZ_MAX_TYPES	256	/* Limited by what (unsigned char)'s can hold */

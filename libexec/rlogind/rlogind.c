@@ -43,8 +43,8 @@ static char sccsid[] = "@(#)rlogind.c	5.53 (Berkeley) 4/20/91";
 
 #ifdef KERBEROS
 /* From:
- *	$Source: /a/cvs/386BSD/src/libexec/rlogind/rlogind.c,v $
- *	$Header: /a/cvs/386BSD/src/libexec/rlogind/rlogind.c,v 1.1.1.1 1993/06/12 14:54:58 rgrimes Exp $
+ *	$Source: /home/cvs/386BSD/src/libexec/rlogind/rlogind.c,v $
+ *	$Header: /home/cvs/386BSD/src/libexec/rlogind/rlogind.c,v 1.1.1.1 1993/06/12 14:54:58 rgrimes Exp $
  */
 #endif
 

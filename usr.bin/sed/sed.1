@@ -1,5 +1,5 @@
-.\" Copyright (c) 1992 The Regents of the University of California.
-.\" All rights reserved.
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" This code is derived from software contributed to Berkeley by
 .\" the Institute of Electrical and Electronics Engineers, Inc.
@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sed.1	5.2 (Berkeley) 8/24/92
+.\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\"
-.Dd "August 24, 1992"
+.Dd "December 30, 1993"
 .Dt SED 1
 .Os
 .Sh NAME
@@ -257,7 +257,7 @@ can be preceded by white space and can be followed by white space.
 The function can be preceded by white space.
 The terminating
 .Dq }
-must be preceded by a newline an optional white space.
+must be preceded by a newline or optional white space.
 .sp
 .Bl -tag -width "XXXXXX" -compact
 .It [2addr] function-list
@@ -394,7 +394,7 @@ An ampersand
 appearing in the replacement is replaced by the string matching the RE.
 The special meaning of
 .Dq &
-in this context can be suppressed by preceding it by backslash.
+in this context can be suppressed by preceding it by a backslash.
 The string
 .Dq \e# ,
 where
@@ -456,8 +456,9 @@ Within
 .Em string1
 and
 .Em string2 ,
-the delimiter itself can be used as a literal character if it is preceded
-by a backslash.
+a backslash followed by any character other than a newline is that literal
+character, and a backslash followed by an ``n'' is replaced by a newline
+character.
 .sp
 .It [2addr]!function
 .It [2addr]!function-list

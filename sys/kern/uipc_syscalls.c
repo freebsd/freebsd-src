@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)uipc_syscalls.c	7.24 (Berkeley) 6/3/91
- *	$Id: uipc_syscalls.c,v 1.4 1993/10/16 15:25:14 rgrimes Exp $
+ *	$Id: uipc_syscalls.c,v 1.6 1993/12/19 00:51:48 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "filedesc.h"
 #include "proc.h"
 #include "file.h"
@@ -48,6 +49,12 @@
 #include "ktrace.h"
 #endif
 
+/* First two also used by NFS, boooo, hiss! */
+int getsock(struct filedesc *, int, struct file **);
+int sockargs(struct mbuf **, caddr_t, int, int);
+static int sendit(struct proc *, int, struct msghdr *, int, int *);
+static int recvit(struct proc *, int, struct msghdr *, caddr_t, int *);
+
 /*
  * System call interface to the socket abstraction.
  */
@@ -60,6 +67,7 @@ struct socket_args {
 	int	protocol;
 };
 
+int
 socket(p, uap, retval)
 	struct proc *p;
 	register struct socket_args *uap;
@@ -92,6 +100,7 @@ struct bind_args {
 };
 
 /* ARGSUSED */
+int
 bind(p, uap, retval)
 	struct proc *p;
 	register struct bind_args *uap;
@@ -116,6 +125,7 @@ struct listen_args {
 };
 
 /* ARGSUSED */
+int
 listen(p, uap, retval)
 	struct proc *p;
 	register struct listen_args *uap;
@@ -129,46 +139,6 @@ listen(p, uap, retval)
 	return (solisten((struct socket *)fp->f_data, uap->backlog));
 }
 
-#ifdef COMPAT_43
-
-struct accept_args {
-	int	s;
-	caddr_t	name;
-	int	*anamelen;
-	int	compat_43;
-};
-
-accept(p, uap, retval)
-	struct proc *p;
-	struct accept_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 0;
-	return (accept1(p, uap, retval));
-}
-
-struct oaccept_args {
-	int	s;
-	caddr_t	name;
-	int	*anamelen;
-	int	compat_43;
-};
-
-oaccept(p, uap, retval)
-	struct proc *p;
-	struct oaccept_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 1;
-	return (accept1(p, uap, retval));
-}
-#else /* COMPAT_43 */
-
-#define	accept1	accept
-#endif
-
 struct accept1_args {
 	int	s;
 	caddr_t	name;
@@ -178,6 +148,51 @@ struct accept1_args {
 #endif
 };
 
+#ifdef COMPAT_43
+
+int accept1(struct proc *, struct accept1_args *, int *);
+
+struct accept_args {
+	int	s;
+	caddr_t	name;
+	int	*anamelen;
+	int	compat_43;
+};
+
+int
+accept(p, uap, retval)
+	struct proc *p;
+	struct accept_args *uap;
+	int *retval;
+{
+
+	uap->compat_43 = 0;
+	return (accept1(p, (struct accept1_args *)uap, retval));
+}
+
+struct oaccept_args {
+	int	s;
+	caddr_t	name;
+	int	*anamelen;
+	int	compat_43;
+};
+
+int
+oaccept(p, uap, retval)
+	struct proc *p;
+	struct oaccept_args *uap;
+	int *retval;
+{
+
+	uap->compat_43 = 1;
+	return (accept1(p, (struct accept1_args *)uap, retval));
+}
+#else /* COMPAT_43 */
+
+#define	accept1	accept
+#endif
+
+int
 accept1(p, uap, retval)
 	struct proc *p;
 	register struct accept1_args *uap;
@@ -261,6 +276,7 @@ struct connect_args {
 };
 
 /* ARGSUSED */
+int
 connect(p, uap, retval)
 	struct proc *p;
 	register struct connect_args *uap;
@@ -310,6 +326,7 @@ struct socketpair_args {
 	int	*rsv;
 };
 
+int
 socketpair(p, uap, retval)
 	struct proc *p;
 	register struct socketpair_args *uap;
@@ -373,6 +390,7 @@ struct sendto_args {
 	int	tolen;
 };
 
+int
 sendto(p, uap, retval)
 	struct proc *p;
 	register struct sendto_args *uap;
@@ -404,6 +422,7 @@ struct osend_args {
 	int	flags;
 };
 
+int
 osend(p, uap, retval)
 	struct proc *p;
 	register struct osend_args *uap;
@@ -431,6 +450,7 @@ struct osendmsg_args {
 	int	flags;
 };
 
+int
 osendmsg(p, uap, retval)
 	struct proc *p;
 	register struct osendmsg_args *uap;
@@ -469,6 +489,7 @@ struct sendmsg_args {
 	int	flags;
 };
 
+int
 sendmsg(p, uap, retval)
 	struct proc *p;
 	register struct sendmsg_args *uap;
@@ -503,6 +524,7 @@ done:
 	return (error);
 }
 
+static int
 sendit(p, s, mp, flags, retsize)
 	register struct proc *p;
 	int s;
@@ -615,6 +637,7 @@ struct orecvfrom_args {
 	int	*fromlenaddr;
 };
 
+int
 orecvfrom(p, uap, retval)
 	struct proc *p;
 	struct orecvfrom_args *uap;
@@ -635,6 +658,7 @@ struct recvfrom_args {
 	int	*fromlenaddr;
 };
 
+int
 recvfrom(p, uap, retval)
 	struct proc *p;
 	register struct recvfrom_args *uap;
@@ -669,6 +693,7 @@ struct orecv_args {
 	int	flags;
 };
 
+int
 orecv(p, uap, retval)
 	struct proc *p;
 	register struct orecv_args *uap;
@@ -700,6 +725,7 @@ struct orecvmsg_args {
 	int	flags;
 };
 
+int
 orecvmsg(p, uap, retval)
 	struct proc *p;
 	register struct orecvmsg_args *uap;
@@ -743,6 +769,7 @@ struct recvmsg_args {
 	int	flags;
 };
 
+int
 recvmsg(p, uap, retval)
 	struct proc *p;
 	register struct recvmsg_args *uap;
@@ -782,6 +809,7 @@ done:
 	return (error);
 }
 
+int
 recvit(p, s, mp, namelenp, retsize)
 	register struct proc *p;
 	int s;
@@ -918,6 +946,7 @@ struct shutdown_args {
 };
 
 /* ARGSUSED */
+int
 shutdown(p, uap, retval)
 	struct proc *p;
 	register struct shutdown_args *uap;
@@ -940,6 +969,7 @@ struct setsocketopt_args {
 };
 
 /* ARGSUSED */
+int
 setsockopt(p, uap, retval)
 	struct proc *p;
 	register struct setsocketopt_args *uap;
@@ -977,6 +1007,7 @@ struct getsockopt_args {
 };
 
 /* ARGSUSED */
+int
 getsockopt(p, uap, retval)
 	struct proc *p;
 	register struct getsockopt_args *uap;
@@ -1009,6 +1040,7 @@ getsockopt(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 pipe(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -1056,46 +1088,6 @@ free1:
 /*
  * Get socket name.
  */
-#ifdef COMPAT_43
-
-struct getsockname_args {
-	int	fdes;
-	caddr_t	asa;
-	int	*alen;
-	int	compat_43;
-};
-
-getsockname(p, uap, retval)
-	struct proc *p;
-	struct getsockname_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 0;
-	return (getsockname1(p, uap, retval));
-}
-
-struct ogetsockname_args {
-	int	fdes;
-	caddr_t	asa;
-	int	*alen;
-	int	compat_43;
-};
-
-ogetsockname(p, uap, retval)
-	struct proc *p;
-	struct ogetsockname_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 1;
-	return (getsockname1(p, uap, retval));
-}
-#else /* COMPAT_43 */
-
-#define	getsockname1	getsockname
-#endif
-
 struct getsockname1_args {
 	int	fdes;
 	caddr_t	asa;
@@ -1105,7 +1097,52 @@ struct getsockname1_args {
 #endif
 };
 
+#ifdef COMPAT_43
+
+int getsockname1(struct proc *, struct getsockname1_args *, int *);
+
+struct getsockname_args {
+	int	fdes;
+	caddr_t	asa;
+	int	*alen;
+	int	compat_43;
+};
+
+int
+getsockname(p, uap, retval)
+	struct proc *p;
+	struct getsockname_args *uap;
+	int *retval;
+{
+
+	uap->compat_43 = 0;
+	return (getsockname1(p, (struct getsockname1_args *)uap, retval));
+}
+
+struct ogetsockname_args {
+	int	fdes;
+	caddr_t	asa;
+	int	*alen;
+	int	compat_43;
+};
+
+int
+ogetsockname(p, uap, retval)
+	struct proc *p;
+	struct ogetsockname_args *uap;
+	int *retval;
+{
+
+	uap->compat_43 = 1;
+	return (getsockname1(p, (struct getsockname1_args *)uap, retval));
+}
+#else /* COMPAT_43 */
+
+#define	getsockname1	getsockname
+#endif
+
 /* ARGSUSED */
+int
 getsockname1(p, uap, retval)
 	struct proc *p;
 	register struct getsockname1_args *uap;
@@ -1124,7 +1161,7 @@ getsockname1(p, uap, retval)
 	m = m_getclr(M_WAIT, MT_SONAME);
 	if (m == NULL)
 		return (ENOBUFS);
-	if (error = (*so->so_proto->pr_usrreq)(so, PRU_SOCKADDR, 0, m, 0))
+	if (error = (*so->so_proto->pr_usrreq)(so, PRU_SOCKADDR, 0, m, 0, 0))
 		goto bad;
 	if (len > m->m_len)
 		len = m->m_len;
@@ -1145,46 +1182,6 @@ bad:
 /*
  * Get name of peer for connected socket.
  */
-#ifdef COMPAT_43
-
-struct getpeername_args {
-	int	fdes;
-	caddr_t	asa;
-	int	*alen;
-	int	compat_43;
-};
-
-getpeername(p, uap, retval)
-	struct proc *p;
-	struct getpeername_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 0;
-	return (getpeername1(p, uap, retval));
-}
-
-struct ogetpeername_args {
-	int	fdes;
-	caddr_t	asa;
-	int	*alen;
-	int	compat_43;
-};
-
-ogetpeername(p, uap, retval)
-	struct proc *p;
-	struct ogetpeername_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 1;
-	return (getpeername1(p, uap, retval));
-}
-#else /* COMPAT_43 */
-
-#define	getpeername1	getpeername
-#endif
-
 struct getpeername1_args {
 	int	fdes;
 	caddr_t	asa;
@@ -1194,7 +1191,52 @@ struct getpeername1_args {
 #endif
 };
 
+#ifdef COMPAT_43
+
+int getpeername1(struct proc *, struct getpeername1_args *, int *);
+
+struct getpeername_args {
+	int	fdes;
+	caddr_t	asa;
+	int	*alen;
+	int	compat_43;
+};
+
+int
+getpeername(p, uap, retval)
+	struct proc *p;
+	struct getpeername_args *uap;
+	int *retval;
+{
+
+	uap->compat_43 = 0;
+	return (getpeername1(p, (struct getpeername1_args *)uap, retval));
+}
+
+struct ogetpeername_args {
+	int	fdes;
+	caddr_t	asa;
+	int	*alen;
+	int	compat_43;
+};
+
+int
+ogetpeername(p, uap, retval)
+	struct proc *p;
+	struct ogetpeername_args *uap;
+	int *retval;
+{
+
+	uap->compat_43 = 1;
+	return (getpeername1(p, (struct getpeername1_args *)uap, retval));
+}
+#else /* COMPAT_43 */
+
+#define	getpeername1	getpeername
+#endif
+
 /* ARGSUSED */
+int
 getpeername1(p, uap, retval)
 	struct proc *p;
 	register struct getpeername1_args *uap;
@@ -1215,7 +1257,7 @@ getpeername1(p, uap, retval)
 		return (ENOBUFS);
 	if (error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len)))
 		return (error);
-	if (error = (*so->so_proto->pr_usrreq)(so, PRU_PEERADDR, 0, m, 0))
+	if (error = (*so->so_proto->pr_usrreq)(so, PRU_PEERADDR, 0, m, 0, 0))
 		goto bad;
 	if (len > m->m_len)
 		len = m->m_len;
@@ -1232,6 +1274,7 @@ bad:
 	return (error);
 }
 
+int
 sockargs(mp, buf, buflen, type)
 	struct mbuf **mp;
 	caddr_t buf;
@@ -1270,6 +1313,7 @@ sockargs(mp, buf, buflen, type)
 	return (0);
 }
 
+int
 getsock(fdp, fdes, fpp)
 	struct filedesc *fdp;
 	int fdes;

@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	5.2 (Berkeley) 5/31/90
+ *	from: @(#)pathnames.h	5.2 (Berkeley) 5/31/90
+ *	$Id: pathnames.h,v 1.2 1993/11/22 23:54:24 jtc Exp $
  */
 
 #define	_PATH_RM	"/bin/rm"

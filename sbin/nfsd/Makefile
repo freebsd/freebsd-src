@@ -3,7 +3,6 @@
 PROG=	nfsd
 CFLAGS+=-DNFS
 MAN8=	nfsd.8
-DPADD=	${LIBRPC}
-LDADD=	-lrpc -lutil
+LDADD=	-lutil
 
 .include <bsd.prog.mk>

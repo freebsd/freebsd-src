@@ -1,0 +1,4 @@
+# $Id: nfsclient,v 1.1 1993/11/12 03:46:10 wollman Exp $
+# This file determines whether the NFS client software is automatically
+# started at boot time.  The default is off.
+off

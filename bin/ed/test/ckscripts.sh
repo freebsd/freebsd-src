@@ -5,26 +5,24 @@
 
 PATH="/bin:/usr/bin:/usr/local/bin/:."
 ED=$1
-[ X"$ED" = X -o ! -x $ED ] && ED="../ed"
 [ ! -x $ED ] && { echo "$ED: cannot execute"; exit 1; }
 
-# Run the *-err.ed scripts first, since these don't generate output;
-# rename then to *-err.ed~; they exit with non-zero status
-for i in *-err.ed; do
-	echo $i~
+# Run the *.red scripts first, since these don't generate output;
+# they exit with non-zero status
+for i in *.red; do
+	echo $i
 	if $i; then
-		echo "*** The script $i~ exited abnormally  ***"
+		echo "*** The script $i exited abnormally  ***"
 	fi
-	mv $i $i~
 done >errs.o 2>&1
 
 # Run the remainding scripts; they exit with zero status
 for i in *.ed; do
-	base=`expr $i : '\([^.]*\)'`
+#	base=`expr $i : '\([^.]*\)'`
 #	base=`echo $i | sed 's/\..*//'`
-#	base=`$ED - \!"echo \\\\$i" <<-EOF
-#		s/\..*
-#	EOF`
+	base=`$ED - \!"echo $i" <<-EOF
+		s/\..*
+	EOF`
 	if $base.ed; then
 		if cmp -s $base.o $base.r; then :; else
 			echo "*** Output $base.o of script $i is incorrect ***"

@@ -1,6 +1,4 @@
-.\" $Header: /a/cvs/386BSD/src/usr.bin/crontab/crontab.1,v 1.1.1.1 1993/06/12 14:53:53 rgrimes Exp $
-.\"
-.\"/* Copyright 1988,1990 by Paul Vixie
+.\"/* Copyright 1988,1990,1993 by Paul Vixie
 .\" * All rights reserved
 .\" *
 .\" * Distribute freely, except: don't remove my name from the source or
@@ -14,27 +12,28 @@
 .\" *
 .\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
 .\" * I'll try to keep a version up to date.  I can be reached as follows:
-.\" * Paul Vixie, 329 Noe Street, San Francisco, CA, 94114, (415) 864-7013,
-.\" * paul@vixie.sf.ca.us || {hoptoad,pacbell,decwrl,crash}!vixie!paul
+.\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 .\" */
-.TH CRONTAB 1 "9 December 1988"
+.\"
+.\" $Header: /home/cvs/386BSD/src/usr.bin/crontab/crontab.1,v 1.2.2.1 1994/05/01 16:08:10 jkh Exp $
+.\"
+.\" From Id: crontab.1,v 2.4 1993/12/31 10:47:33 vixie Exp
+.\"
+.TH CRONTAB 1 "29 December 1993"
 .UC 4
 .SH NAME
-crontab \- maintain crontab files for individual users
+crontab \- maintain crontab files for individual users (V3)
 .SH SYNOPSIS
-crontab [ -u user ] { -l | -d | -r file }
+crontab [ -u user ] file
+.br
+crontab [ -u user ] { -l | -r | -e }
 .SH DESCRIPTION
 .I Crontab
 is the program used to install, deinstall or list the tables
 used to drive the
-.IR crond (8)
-daemon in Vixie Cron.  Each user has their own crontab, and though these are
-files in /var, they are not readable or writable by anyone or anything
-except the super-user or the
-.IR crond (8)
-or
-.I crontab
-programs.
+.IR cron (8)
+daemon in Vixie Cron.  Each user can have their own crontab, and though
+these are files in /var, they are not intended to be edited directly.
 .PP
 If the
 .I allow
@@ -66,28 +65,38 @@ you should always use the
 .I -u
 option for safety's sake.
 .PP
+The first form of this command is used to install a new crontab from some
+named file or standard input if the pseudo-filename ``-'' is given.
+.PP
 The
 .I -l
 option causes the current crontab to be displayed on standard output.
 .PP
 The
-.I -d
-option causes the current crontab to be deleted.
+.I -r
+option causes the current crontab to be removed.
 .PP
 The
-.I -r
-option is used to replace the current
-crontab (if any) with the contents of the named file.
+.I -e
+option is used to edit the current crontab using the editor specified by
+the \s-1VISUAL\s+1 or \s-1EDITOR\s+1 environment variables.  After you exit
+from the editor, the modified crontab will be installed automatically.
 .SH "SEE ALSO"
-crontab(5), crond(8)
+crontab(5), cron(8)
 .SH FILES
 .nf
 /var/cron/allow
 /var/cron/deny
 .fi
+.SH STANDARDS
+The
+.I crontab
+command conforms to IEEE Std1003.2-1992 (``POSIX'').  This new command syntax
+differs from previous versions of Vixie Cron, as well as from the classic
+SVR3 syntax.
 .SH DIAGNOSTICS
 A fairly informative usage message appears if you run it with a bad command
 line.
 .SH AUTHOR
 .nf
-Paul Vixie, paul@vixie.sf.ca.us
+Paul Vixie <paul@vix.com>

@@ -49,7 +49,7 @@ struct sigaction {
 .Fn sigaction "int sig" "struct sigaction *act" "struct sigaction *oact"
 .Sh DESCRIPTION
 The system defines a set of signals that may be delivered to a process.
-Signal delivery resembles the occurence of a hardware interrupt:
+Signal delivery resembles the occurrence of a hardware interrupt:
 the signal is blocked from further occurrence, the current process 
 context is saved, and a new one is built.  A process may specify a
 .Em handler

@@ -29,7 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)getopt.3	6.16 (Berkeley) 4/19/91
+.\"     from: @(#)getopt.3	6.16 (Berkeley) 4/19/91
+.\"	$Id: getopt.3,v 1.2 1993/11/23 00:08:36 jtc Exp $
 .\"
 .Dd April 19, 1991
 .Dt GETOPT 3
@@ -38,12 +39,13 @@
 .Nm getopt
 .Nd get option letter from argv
 .Sh SYNOPSIS
-.Fd #include <stdlib.h>
-.Vt extern char *optarg
-.Vt extern int   optind
-.Vt extern int   opterr
+.Fd #include <unistd.h>
 .Ft int
 .Fn getopt "int argc" "char * const *argv" "const char *optstring"
+.Vt extern char *optarg;
+.Vt extern int optind;
+.Vt extern int opterr;
+.Vt extern int optopt;
 .Sh DESCRIPTION
 The
 .Fn getopt
@@ -93,68 +95,137 @@ evaluation.
 The
 .Fn getopt
 function
-returns an
-.Dv EOF
-when the argument list is exhausted, or a non-recognized
-option is encountered.
+returns \-1
+when the argument list is exhausted.
 The interpretation of options in the argument list may be cancelled
 by the option
 .Ql --
 (double dash) which causes
 .Fn getopt
-to signal the end of argument processing and return an
-.Dv EOF . 
+to signal the end of argument processing and return \-1.
 When all options have been processed (i.e., up to the first non-option
 argument),
 .Fn getopt
-returns
-.Dv EOF .
+returns \-1.
 .Sh DIAGNOSTICS
-If the
+If the 
 .Fn getopt
-function encounters a character not found in the string
-.Va optarg
-or detects
-a missing option argument
-it writes error message
-.Ql ?
-to the
-.Em stderr .
-Setting
+function encounters an option character that is not contained in 
+.Fa optstring ,
+it returns a question mark 
+.Pq ? 
+character.
+If it detects a missing option argument, it returns a colon 
+.Pq \: 
+character if the first character of
+.Fa optstring 
+is a colon, otherwise it returns a question mark.
+In either case, a diagnostic message is written to 
+.Em stderr
+unless the application has set 
 .Va opterr
-to a zero will disable these error messages.
+to zero or the first character of
+.Fa optstring
+is a colon.
 .Sh EXAMPLE
+.\" The following example comes from section E.9.7 of the IEEE 1003.2-90
+.\" standard (POSIX.2).
+The following code fragment shows how one might process the arguments for 
+a utility that can take the mutually exclusive options 
+.Em a 
+and 
+.Em b 
+and the options 
+.Em f 
+and 
+.Em o ,
+both of which require arguments:
+.Pp
 .Bd -literal -compact
-extern char *optarg;
-extern int optind;
-int bflag, ch, fd;
+#include <unistd.h>
 
-bflag = 0;
-while ((ch = getopt(argc, argv, "bf:")) != EOF)
-	switch(ch) {
-	case 'b':
-		bflag = 1;
-		break;
-	case 'f':
-		if ((fd = open(optarg, O_RDONLY, 0)) < 0) {
-			(void)fprintf(stderr,
-				"myname: unable to read file %s.\en", optarg);
-			exit(1) ;
+int
+main (argc, argv)
+	int argc;
+	char *argv[];
+{
+	int c, bflg, aflg, errflg = 0;
+	char *ifile, *ofile;
+	extern char *optarg;
+	extern int optind, optopt;
+
+	. . .
+
+	while ((c = getopt(argc, argv, ":abf:o:")) != -1) {
+		switch(ch) {
+		case 'a':
+			if (bflg)
+				errflg = 1;
+			else
+				aflg = 1;
+			break;
+		case 'b':
+			if (aflg)
+				errflg = 1;
+			else
+				bflg = 1;
+			break;
+		case 'f':
+			ifile = optarg;
+			break;
+		case 'o':
+			ofile = optarg;
+			break;
+		case ':':	/* -f or -o without option-arg */
+			fprintf (stderr,
+				"Option -%c requires an option-argument\\n",
+				optopt);
+			errflg = 1;
+			break;
+		case '?':
+			fprintf (stderr,
+				"Unrecognized option: -%c\\n",
+				optopt);
+			errflg = 1;
+			break;
 		}
-		break;
-	case '?':
-	default:
-		usage();
+	}
+
+	if (errflg) {
+		fprintf (stderr, "usage: . . .\\n");
+		exit (2);
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	. . .
+
 }
-argc -= optind;
-argv += optind;
 .Ed
+.Sh STANDARDS
+The
+.Fn getopt
+function conforms to
+.St -p1003.2-92 .
 .Sh HISTORY
 The
 .Fn getopt
 function appeared
 .Bx 4.3 .
 .Sh BUGS
+The
+.Fn getopt
+function was once specified to return
+.Dv EOF 
+instead of \-1.
+This was changed by
+.St -p1003.2-92
+to decouple 
+.Fn getopt
+from 
+.Pa <stdio.h> .
+.Pp
 Option arguments are allowed to begin with
 .Dq Li \- ;
 this is reasonable but
@@ -177,8 +248,7 @@ It is provided for backward compatibility
 .Em only .
 By default, a single dash causes
 .Fn getopt
-to return
-.Dv EOF .
+to returns \-1.
 This is, we believe, compatible with System V.
 .Pp
 It is also possible to handle digits as option letters.
@@ -195,7 +265,7 @@ The following code fragment works fairly well.
 int length;
 char *p;
 
-while ((c = getopt(argc, argv, "0123456789")) != EOF)
+while ((c = getopt(argc, argv, "0123456789")) != -1)
 	switch (c) {
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':

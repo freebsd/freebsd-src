@@ -32,7 +32,9 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mbuf.c	5.10 (Berkeley) 1/30/91";
+/* From: static char sccsid[] = "@(#)mbuf.c	5.10 (Berkeley) 1/30/91"; */
+static const char mbuf_c_rcsid[] =
+	"$Id: mbuf.c,v 1.2 1993/11/17 20:19:23 wollman Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

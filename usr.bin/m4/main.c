@@ -230,17 +230,7 @@ int strip = 0;			/* throw away comments?        */
 */
 
 #if unix
-#include <sys/param.h>
-#ifdef BSD
-#include <paths.h>
-#if __STDC__
-static char DIVNAM[] = _PATH_VARTMP "m40XXXXXX";
-#else
-static char DIVNAM[] = "/usr/tmp/m40XXXXXX";
-#endif
-#else 
-static char DIVNAM[] = "/usr/tmp/m40XXXXXX";
-#endif
+static char DIVNAM[] = "/tmp/m40XXXXXX";
 #else
 #if vms
 static char DIVNAM[] = "sys$login:m40XXXXXX";
@@ -873,8 +863,14 @@ int main(argc, argv)
 	} else				/* file names in commandline */
 	for (; optind < argc; optind++) {
 	    char *name = argv[optind];	/* next file name            */
-	    infile[0] = fopen(name, "r");
+	    if(name[1] == 0 && name[0] == '-')
+		infile[0] = stdin;
+	    else
+	    	infile[0] = fopen(name, "r");
 	    if (!infile[0]) cantread(name);
+	    sp = -1;			/* stack pointer initialized */
+	    fp = 0; 			/* frame pointer initialized */
+	    ilevel = 0;			/* reset input file stack ptr*/
 #ifndef	NO__FILE
 	    dodefine("__FILE__", name);
 #endif
@@ -887,10 +883,13 @@ int main(argc, argv)
 	    putback(EOF);		/* eof is a must !!	     */
 	    pbstr(m4wraps); 		/* user-defined wrapup act   */
 	    macro();			/* last will and testament   */
-	} else {			/* default wrap-up: undivert */
-	    for (n = 1; n < MAXOUT; n++)
-		if (outfile[n] != NULL) getdiv(n);
 	}
+
+	if (active != stdout)
+	    active = stdout;		/* reset output just in case */
+
+	for (n = 1; n < MAXOUT; n++)	/* default wrap-up: undivert */
+	    if (outfile[n] != NULL) getdiv(n);
 
 	if (outfile[0] != NULL) {	/* remove bitbucket if used  */
 	    (void) fclose(outfile[0]);

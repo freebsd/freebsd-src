@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ip_icmp.h	7.5 (Berkeley) 6/28/90
- *	$Id: ip_icmp.h,v 1.2 1993/10/16 18:26:12 rgrimes Exp $
+ *	$Id: ip_icmp.h,v 1.4 1993/11/18 00:08:19 wollman Exp $
  */
+
+#ifndef _NETINET_IP_ICMP_H_
+#define _NETINET_IP_ICMP_H_ 1
 
 /*
  * Interface Control Message Protocol Definitions.
@@ -53,6 +56,10 @@ struct icmp {
 			n_short	icd_id;
 			n_short	icd_seq;
 		} ih_idseq;
+		struct ih_mtu {
+			n_short imt_unused;
+			n_short imt_nhmtu;
+		} ih_mtu;
 		int ih_void;
 	} icmp_hun;
 #define	icmp_pptr	icmp_hun.ih_pptr
@@ -60,6 +67,8 @@ struct icmp {
 #define	icmp_id		icmp_hun.ih_idseq.icd_id
 #define	icmp_seq	icmp_hun.ih_idseq.icd_seq
 #define	icmp_void	icmp_hun.ih_void
+#define icmp_mtu	icmp_hun.ih_mtu.imt_nhmtu
+#define icmp_mtuvoid	icmp_hun.ih_mtu.imt_unused
 	union {
 		struct id_ts {
 			n_time its_otime;
@@ -107,17 +116,38 @@ struct icmp {
 #define		ICMP_UNREACH_PORT	3		/* bad port */
 #define		ICMP_UNREACH_NEEDFRAG	4		/* IP_DF caused drop */
 #define		ICMP_UNREACH_SRCFAIL	5		/* src route failed */
+#define		ICMP_UNREACH_NETUNKNOWN	6		/* dest net unknown */
+#define		ICMP_UNREACH_HSTUNKNOWN 7		/* dst host unknown */
+#define		ICMP_UNREACH_ISOLATED	8		/* src host isolated*/
+/* next two are for administratively prohibited */
+#define		ICMP_UNREACH_NETADMIN	9		/* dest net */
+#define		ICMP_UNREACH_HOSTADMIN	10		/* dest host */
+/* next two are for TOS unreachables */
+#define		ICMP_UNREACH_TOSNET	11		/* dest net+tos */
+#define		ICMP_UNREACH_TOSHOST	12		/* dest host+tos */
+#define		ICMP_UNREACH_MAXCODE	12
+
 #define	ICMP_SOURCEQUENCH	4		/* packet lost, slow down */
+
 #define	ICMP_REDIRECT		5		/* shorter route, codes: */
 #define		ICMP_REDIRECT_NET	0		/* for network */
 #define		ICMP_REDIRECT_HOST	1		/* for host */
 #define		ICMP_REDIRECT_TOSNET	2		/* for tos and net */
 #define		ICMP_REDIRECT_TOSHOST	3		/* for tos and host */
+#define		ICMP_REDIRECT_MAXCODE	3
+
 #define	ICMP_ECHO		8		/* echo service */
+
 #define	ICMP_TIMXCEED		11		/* time exceeded, code: */
 #define		ICMP_TIMXCEED_INTRANS	0		/* ttl==0 in transit */
 #define		ICMP_TIMXCEED_REASS	1		/* ttl==0 in reass */
+#define		ICMP_TIMXCEED_MAXCODE	1
+
 #define	ICMP_PARAMPROB		12		/* ip header bad */
+#define		ICMP_PARAMPROB_GENERAL	0		/* generic problems */
+#define		ICMP_PARAMPROB_REQDOPT	1		/* option  misssing */
+#define		ICMP_PARAMPROB_MAXCODE	1
+
 #define	ICMP_TSTAMP		13		/* timestamp request */
 #define	ICMP_TSTAMPREPLY	14		/* timestamp reply */
 #define	ICMP_IREQ		15		/* information request */
@@ -132,3 +162,12 @@ struct icmp {
 	(type) == ICMP_TSTAMP || (type) == ICMP_TSTAMPREPLY || \
 	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
+
+#ifdef KERNEL
+struct mbuf;
+extern void icmp_error(struct mbuf *, int, int, struct in_addr, int);
+extern void icmp_input(struct mbuf *, int);
+n_time iptime(void);
+#endif
+
+#endif /* _NETINET_IP_ICMP_H_ */

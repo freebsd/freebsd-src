@@ -39,7 +39,7 @@
 .Nm waitpid ,
 .Nm wait4 ,
 .Nm wait3
-.Nd wait for process terminatation
+.Nd wait for process termination
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/wait.h>
@@ -72,7 +72,7 @@ The
 .Fn wait4
 call provides a more general interface for programs
 that need to wait for certain child processes,
-that need resource utilization statistics accummulated by child processes,
+that need resource utilization statistics accumulated by child processes,
 or that require options.
 The other wait functions are implemented using
 .Fn wait4 .
@@ -292,4 +292,5 @@ call are extensions to the POSIX interface.
 .Sh HISTORY
 A
 .Nm
-function call appeared in Version 6 AT&T UNIX.
+function call appeared in
+.At v6 .

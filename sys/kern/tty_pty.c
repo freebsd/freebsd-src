@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tty_pty.c	7.21 (Berkeley) 5/30/91
- *	$Id: tty_pty.c,v 1.4 1993/10/16 15:25:00 rgrimes Exp $
+ *	$Id: tty_pty.c,v 1.9 1994/01/29 04:04:26 davidg Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include "uio.h"
 #include "kernel.h"
 #include "vnode.h"
+#include "signalvar.h"
 
 #if NPTY == 1
 #undef NPTY
@@ -58,6 +59,8 @@
 #endif
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */
+
+static void ptcwakeup(struct tty *, int);
 
 /*
  * pts == /dev/tty[pqrs]?
@@ -81,8 +84,11 @@ int	npty = NPTY;		/* for pstat -t */
 #define PF_UCNTL	0x80		/* user control mode */
 
 /*ARGSUSED*/
+int
 ptsopen(dev, flag, devtype, p)
 	dev_t dev;
+	int flag;
+	int devtype;
 	struct proc *p;
 {
 	register struct tty *tp;
@@ -120,6 +126,7 @@ ptsopen(dev, flag, devtype, p)
 	return (error);
 }
 
+int
 ptsclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -134,9 +141,11 @@ ptsclose(dev, flag, mode, p)
 	return(0);
 }
 
+int
 ptsread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	struct proc *p = curproc;
 	register struct tty *tp = &pt_tty[minor(dev)];
@@ -185,9 +194,11 @@ again:
  * Wakeups of controlling tty will happen
  * indirectly, when tty driver calls ptsstart.
  */
+int
 ptswrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	register struct tty *tp;
 
@@ -201,6 +212,7 @@ ptswrite(dev, uio, flag)
  * Start output on pseudo-tty.
  * Wake up process selecting or sleeping for input from controlling tty.
  */
+void
 ptsstart(tp)
 	struct tty *tp;
 {
@@ -215,8 +227,10 @@ ptsstart(tp)
 	ptcwakeup(tp, FREAD);
 }
 
+static void
 ptcwakeup(tp, flag)
 	struct tty *tp;
+	int flag;
 {
 	struct pt_ioctl *pti = &pt_ioctl[minor(tp->t_dev)];
 
@@ -239,8 +253,9 @@ ptcwakeup(tp, flag)
 }
 
 /*ARGSUSED*/
+int
 #ifdef __STDC__
-ptcopen(dev_t dev, int flag, int devtype, struct proc *p)
+ptcopen(int /*dev_t*/ dev, int flag, int devtype, struct proc *p)
 #else
 ptcopen(dev, flag, devtype, p)
 	dev_t dev;
@@ -267,6 +282,8 @@ ptcopen(dev, flag, devtype, p)
 }
 
 extern struct tty *constty;	/* -hv- 06.Oct.92*/
+
+int
 ptcclose(dev)
 	dev_t dev;
 {
@@ -278,16 +295,17 @@ ptcclose(dev)
 	tp->t_oproc = 0;		/* mark closed */
 	tp->t_session = 0;
 
-/* XXX -hv- 6.Oct.92 this prevents the "hanging console bug" with X11 */
 	if (constty==tp)
 		constty = 0;
 
 	return (0);
 }
 
+int
 ptcread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	register struct tty *tp = &pt_tty[minor(dev)];
 	struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
@@ -363,6 +381,7 @@ ptcread(dev, uio, flag)
 	return (error);
 }
 
+void
 ptsstop(tp, flush)
 	register struct tty *tp;
 	int flush;
@@ -386,6 +405,7 @@ ptsstop(tp, flush)
 	ptcwakeup(tp, flag);
 }
 
+int
 ptcselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -447,12 +467,14 @@ ptcselect(dev, rw, p)
 	return (0);
 }
 
+int
 ptcwrite(dev, uio, flag)
 	dev_t dev;
 	register struct uio *uio;
+	int flag;
 {
 	register struct tty *tp = &pt_tty[minor(dev)];
-	register u_char *cp;
+	register u_char *cp = 0;
 	register int cc = 0;
 	u_char locbuf[BUFSIZ];
 	int cnt = 0;
@@ -542,15 +564,17 @@ block:
 }
 
 /*ARGSUSED*/
+int
 ptyioctl(dev, cmd, data, flag)
 	caddr_t data;
+	int cmd;
 	dev_t dev;
+	int flag;
 {
 	register struct tty *tp = &pt_tty[minor(dev)];
 	register struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
 	register u_char *cc = tp->t_cc;
 	int stop, error;
-	extern ttyinput();
 
 	/*
 	 * IF CONTROLLER STTY THEN MUST FLUSH TO PREVENT A HANG.

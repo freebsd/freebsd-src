@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_user.h	7.2 (Berkeley) 4/21/91
- *	$Id: vm_user.h,v 1.2 1993/10/16 16:21:00 rgrimes Exp $
+ *	$Id: vm_user.h,v 1.4 1993/12/19 00:56:16 wollman Exp $
  */
 
 /*
@@ -71,10 +71,47 @@
 #ifndef	_VM_USER_
 #define	_VM_USER_
 
-int	vm_allocate();
-int	vm_deallocate();
-int	vm_inherit();
-int	vm_protect();
-int	vm_statistics();
+#ifdef KERNEL
 
-#endif	_VM_USER_
+#include "sys/cdefs.h"
+#include "vm/vm_param.h"
+#include "vm/vm_inherit.h"
+#include "vm/vm_prot.h"
+
+struct vm_map; struct vm_object; struct pager_struct;
+
+extern int munmapfd(struct proc *, int);
+extern int vm_mmap(struct vm_map *, vm_offset_t *, vm_size_t, vm_prot_t,
+		   vm_prot_t, int, caddr_t, vm_offset_t);
+extern int vm_region(struct vm_map *, vm_offset_t *, vm_size_t *, vm_prot_t *,
+		     vm_prot_t *, vm_inherit_t *, boolean_t *, 
+		     struct vm_object **,
+		     vm_offset_t *);
+extern int vm_allocate_with_pager(struct vm_map *, vm_offset_t *, vm_size_t,
+				  boolean_t, struct pager_struct *, 
+				  vm_offset_t, boolean_t);
+
+
+extern int vm_allocate(struct vm_map *, vm_offset_t *, vm_size_t, boolean_t);
+extern int vm_deallocate(struct vm_map *, vm_offset_t, vm_size_t);
+extern int vm_inherit(struct vm_map *, vm_offset_t, vm_size_t, vm_inherit_t);
+extern int vm_protect(struct vm_map *, vm_offset_t, vm_size_t, boolean_t,
+		      vm_prot_t);
+
+#else /* not KERNEL */
+#include <sys/cdefs.h>
+#include <vm/vm_param.h>
+#include <vm/vm_inherit.h>
+#include <vm/vm_prot.h>
+
+__BEGIN_DECLS
+
+int	vm_allocate __P((void *, vm_offset_t *, vm_size_t, boolean_t));
+int	vm_deallocate __P((void *, vm_offset_t, vm_size_t));
+int	vm_inherit __P((void *, vm_offset_t, vm_size_t, vm_inherit_t));
+int	vm_protect __P((void *, vm_offset_t, vm_size_t, boolean_t, vm_prot_t));
+
+__END_DECLS
+
+#endif /* not KERNEL */
+#endif /* _VM_USER_ */

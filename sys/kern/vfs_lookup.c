@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1982, 1986, 1989 Regents of the University of California.
  * All rights reserved.
  *
@@ -31,10 +38,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vfs_lookup.c	7.32 (Berkeley) 5/21/91
- *	$Id: vfs_lookup.c,v 1.2 1993/10/16 15:25:23 rgrimes Exp $
+ *	$Id: vfs_lookup.c,v 1.5.2.1 1994/05/04 07:54:56 rgrimes Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "syslimits.h"
 #include "time.h"
 #include "namei.h"
@@ -48,6 +56,8 @@
 #ifdef KTRACE
 #include "ktrace.h"
 #endif
+
+u_long nextvnodeid;
 
 /*
  * Convert a pathname into a pointer to a locked inode.
@@ -69,6 +79,7 @@
  *		if symbolic link, massage name in buffer and continue
  *	}
  */
+int
 namei(ndp, p)
 	register struct nameidata *ndp;
 	struct proc *p;
@@ -91,10 +102,10 @@ namei(ndp, p)
 		MALLOC(ndp->ni_pnbuf, caddr_t, MAXPATHLEN, M_NAMEI, M_WAITOK);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr(ndp->ni_dirp, ndp->ni_pnbuf,
-			    MAXPATHLEN, &ndp->ni_pathlen);
+			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
 	else
 		error = copyinstr(ndp->ni_dirp, ndp->ni_pnbuf,
-			    MAXPATHLEN, &ndp->ni_pathlen);
+			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
 	if (error) {
 		free(ndp->ni_pnbuf, M_NAMEI);
 		ndp->ni_vp = NULL;
@@ -230,6 +241,7 @@ namei(ndp, p)
  *	    if LOCKPARENT set, return locked parent in ni_dvp
  *	    if WANTPARENT set, return unlocked parent in ni_dvp
  */
+int
 lookup(ndp, p)
 	register struct nameidata *ndp;
 	struct proc *p;
@@ -399,7 +411,7 @@ mntloop:
 	       (ndp->ni_nameiop & NOCROSSMOUNT) == 0) {
 		while(mp->mnt_flag & MNT_MLOCK) {
 			mp->mnt_flag |= MNT_MWAIT;
-			sleep((caddr_t)mp, PVFS);
+			tsleep((caddr_t)mp, PVFS, "lookup", 0);
 			goto mntloop;
 		}
 		if (error = VFS_ROOT(dp->v_mountedhere, &tdp))

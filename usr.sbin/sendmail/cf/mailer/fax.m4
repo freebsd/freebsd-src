@@ -37,12 +37,14 @@ PUSHDIVERT(-1)
 
 ifdef(`FAX_MAILER_PATH',,
 	`define(`FAX_MAILER_PATH', /usr/local/lib/fax/mailfax)')
+ifdef(`FAX_MAILER_MAX',,
+	`define(`FAX_MAILER_MAX', 100000)')
 POPDIVERT
 ####################################
 ###   FAX Mailer specification   ###
 ####################################
 
-VERSIONID(`@(#)fax.m4	8.1 (Berkeley) 6/7/93')
+VERSIONID(`@(#)fax.m4	8.2 (Berkeley) 1/24/94')
 
-Mfax,		P=FAX_MAILER_PATH, F=DFMhu, S=14, R=24, M=100000,
+Mfax,		P=FAX_MAILER_PATH, F=DFMhu, S=14, R=24, M=FAX_MAILER_MAX,
 		A=mailfax $u $h $f

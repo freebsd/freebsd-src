@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
- *	$Id: ufs_disksubr.c,v 1.3 1993/10/08 21:00:37 rgrimes Exp $
+ *	$Id: ufs_disksubr.c,v 1.5 1993/12/19 00:55:43 wollman Exp $
  */
 
 #include "param.h"
@@ -167,7 +167,7 @@ insert:
 char *
 readdisklabel(dev, strat, lp, dp, bdp, bpp)
 	dev_t dev;
-	int (*strat)();
+	d_strategy_t *strat;
 	register struct disklabel *lp;
 	struct dos_partition *dp;
 	struct dkbad *bdp;
@@ -321,6 +321,7 @@ done:
  * Check new disk label for sensibility
  * before setting it.
  */
+int
 setdisklabel(olp, nlp, openmask, dp)
 	register struct disklabel *olp, *nlp;
 	u_long openmask;
@@ -335,7 +336,7 @@ setdisklabel(olp, nlp, openmask, dp)
 			return(EINVAL);
 
 	/* special case to allow disklabel to be invalidated */
-	if (nlp->d_magic == 0xffffffff) {
+	if (nlp->d_magic == 0xffffffffUL) {
 		*olp = *nlp;
 		return (0);
 	}
@@ -376,9 +377,10 @@ setdisklabel(olp, nlp, openmask, dp)
 /*
  * Write disk label back to device after modification.
  */
+int
 writedisklabel(dev, strat, lp, dp)
 	dev_t dev;
-	int (*strat)();
+	d_strategy_t *strat;
 	register struct disklabel *lp;
 	struct dos_partition *dp;
 {
@@ -464,6 +466,7 @@ done:
 /*
  * Compute checksum for disk label.
  */
+int
 dkcksum(lp)
 	register struct disklabel *lp;
 {
@@ -563,7 +566,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 
 	if (pri != LOG_PRINTF) {
 		log(pri, "");
-		pr = addlog;
+		pr = (int (*)(const char *, ...))addlog; /* XXX FIXME! */
 	} else
 		pr = printf;
 	(*pr)("%s%d%c: %s %sing fsbn ", dname, unit, partname, what,

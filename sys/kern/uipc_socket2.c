@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)uipc_socket2.c	7.17 (Berkeley) 5/4/91
- *	$Id: uipc_socket2.c,v 1.2 1993/10/16 15:25:12 rgrimes Exp $
+ *	$Id: uipc_socket2.c,v 1.4 1993/12/19 00:51:47 wollman Exp $
  */
 
 #include "param.h"
@@ -50,9 +50,9 @@
  */
 
 /* strings for sleep message: */
-char	netio[] = "netio";
-char	netcon[] = "netcon";
-char	netcls[] = "netcls";
+const char	netio[] = "netio";
+const char	netcon[] = "netcon";
+const char	netcls[] = "netcls";
 
 u_long	sb_max = SB_MAX;		/* patchable */
 
@@ -86,6 +86,7 @@ u_long	sb_max = SB_MAX;		/* patchable */
  * cause software-interrupt process scheduling.
  */
 
+void
 soisconnecting(so)
 	register struct socket *so;
 {
@@ -94,6 +95,7 @@ soisconnecting(so)
 	so->so_state |= SS_ISCONNECTING;
 }
 
+void
 soisconnected(so)
 	register struct socket *so;
 {
@@ -112,6 +114,7 @@ soisconnected(so)
 	}
 }
 
+void
 soisdisconnecting(so)
 	register struct socket *so;
 {
@@ -123,6 +126,7 @@ soisdisconnecting(so)
 	sorwakeup(so);
 }
 
+void
 soisdisconnected(so)
 	register struct socket *so;
 {
@@ -169,7 +173,8 @@ sonewconn1(head, connstatus)
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
 	soqinsque(head, so, soqueue);
 	if ((*so->so_proto->pr_usrreq)(so, PRU_ATTACH,
-	    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0)) {
+	    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0,
+				       (struct mbuf *)0)) {
 		(void) soqremque(so, soqueue);
 		(void) free((caddr_t)so, M_SOCKET);
 		return ((struct socket *)0);
@@ -182,6 +187,7 @@ sonewconn1(head, connstatus)
 	return (so);
 }
 
+void
 soqinsque(head, so, q)
 	register struct socket *head, *so;
 	int q;
@@ -203,6 +209,7 @@ soqinsque(head, so, q)
 	*prev = so;
 }
 
+int
 soqremque(so, q)
 	register struct socket *so;
 	int q;
@@ -241,6 +248,7 @@ soqremque(so, q)
  * Data queued for reading in the socket may yet be read.
  */
 
+void
 socantsendmore(so)
 	struct socket *so;
 {
@@ -249,6 +257,7 @@ socantsendmore(so)
 	sowwakeup(so);
 }
 
+void
 socantrcvmore(so)
 	struct socket *so;
 {
@@ -264,6 +273,7 @@ socantrcvmore(so)
 /*
  * Queue a process for a select on a socket buffer.
  */
+void
 sbselqueue(sb, cp)
 	struct sockbuf *sb;
 	struct proc *cp;
@@ -281,6 +291,7 @@ sbselqueue(sb, cp)
 /*
  * Wait for data to arrive at/drain from a socket buffer.
  */
+int
 sbwait(sb)
 	struct sockbuf *sb;
 {
@@ -295,6 +306,7 @@ sbwait(sb)
  * Lock a sockbuf already known to be locked;
  * return any error returned from sleep (EINTR).
  */
+int
 sb_lock(sb)
 	register struct sockbuf *sb;
 {
@@ -316,6 +328,7 @@ sb_lock(sb)
  * Do asynchronous notification via SIGIO
  * if the socket has the SS_ASYNC flag set.
  */
+void
 sowakeup(so, sb)
 	register struct socket *so;
 	register struct sockbuf *sb;
@@ -371,6 +384,7 @@ sowakeup(so, sb)
  * should be released by calling sbrelease() when the socket is destroyed.
  */
 
+int
 soreserve(so, sndcc, rcvcc)
 	register struct socket *so;
 	u_long sndcc, rcvcc;
@@ -398,6 +412,7 @@ bad:
  * Attempt to scale mbmax so that mbcnt doesn't become limiting
  * if buffering efficiency is near the normal case.
  */
+int
 sbreserve(sb, cc)
 	struct sockbuf *sb;
 	u_long cc;
@@ -415,6 +430,7 @@ sbreserve(sb, cc)
 /*
  * Free mbufs held by a socket, and reserved mbuf space.
  */
+void
 sbrelease(sb)
 	struct sockbuf *sb;
 {
@@ -454,6 +470,7 @@ sbrelease(sb)
  * the mbuf chain is recorded in sb.  Empty mbufs are
  * discarded and mbufs are compacted where possible.
  */
+void
 sbappend(sb, m)
 	struct sockbuf *sb;
 	struct mbuf *m;
@@ -502,6 +519,7 @@ sbcheck(sb)
  * As above, except the mbuf chain
  * begins a new record.
  */
+void
 sbappendrecord(sb, m0)
 	register struct sockbuf *sb;
 	register struct mbuf *m0;
@@ -536,6 +554,7 @@ sbappendrecord(sb, m0)
  * is inserted at the beginning of the sockbuf,
  * but after any other OOB data.
  */
+void
 sbinsertoob(sb, m0)
 	register struct sockbuf *sb;
 	register struct mbuf *m0;
@@ -580,6 +599,7 @@ sbinsertoob(sb, m0)
  * m0 must include a packet header with total length.
  * Returns 0 if no space in sockbuf or insufficient mbufs.
  */
+int
 sbappendaddr(sb, asa, m0, control)
 	register struct sockbuf *sb;
 	struct sockaddr *asa;
@@ -622,6 +642,7 @@ panic("sbappendaddr");
 	return (1);
 }
 
+int
 sbappendcontrol(sb, m0, control)
 	struct sockbuf *sb;
 	struct mbuf *control, *m0;
@@ -658,6 +679,7 @@ sbappendcontrol(sb, m0, control)
  * buffer sb following mbuf n.  If n
  * is null, the buffer is presumed empty.
  */
+void
 sbcompress(sb, m, n)
 	register struct sockbuf *sb;
 	register struct mbuf *m, *n;
@@ -706,6 +728,7 @@ sbcompress(sb, m, n)
  * Free all mbufs in a sockbuf.
  * Check that all resources are reclaimed.
  */
+void
 sbflush(sb)
 	register struct sockbuf *sb;
 {
@@ -721,6 +744,7 @@ sbflush(sb)
 /*
  * Drop data from (the front of) a sockbuf.
  */
+void
 sbdrop(sb, len)
 	register struct sockbuf *sb;
 	register int len;
@@ -764,6 +788,7 @@ sbdrop(sb, len)
  * Drop a record off the front of a sockbuf
  * and move the next record to the front.
  */
+void
 sbdroprecord(sb)
 	register struct sockbuf *sb;
 {

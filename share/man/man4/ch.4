@@ -1,0 +1,80 @@
+.Dd August 27, 1993
+.Dt CH 4
+.Os 386BSD/NetBSD
+.Sh NAME
+.Nm ch
+.Nd scsi media-changer (juke box) driver
+.Sh SYNOPSIS
+.Nm device-driver ch
+.Op Ar count
+.Sh DESCRIPTION
+The
+.Xr ch
+driver provides support for a 
+.Em scsi
+juke box. It allows many slots of media to be multiplexed between a number
+of drives.
+.Pp
+A scsi adapter must also be separatly configured into the system
+before a scsi changer can be configured.
+.Pp
+As the scsi adapter is probed during boot, the 
+.Em SCSI
+bus is scanned for devices. Any devices found which answer as 'Changer'
+type devices will be 'attached' to the 
+.Nm
+driver. The first found will be attached as
+.Em ch0
+and the next, 
+.Em ch1
+etc.
+.Pp
+
+.Sh KERNEL CONFIGURATION
+In configuring, if an optional
+.Ar count
+is given in the specification, that number of scsi media changers
+are configured; Most storage for them is allocated only when found
+so a large number of configured devices is cheap. (once the first
+has included the driver).
+
+.Pp
+.Sh IOCTLS
+The following 
+.Xr ioctl 2
+call applies to the changer. It is defined in
+in the header file
+.Em sys/chio.h.
+
+.Bl -tag -width DIOCSDINFO
+CHIOOP	
+This appears to be a 'do-everything' call.
+.El
+.Sh NOTES
+The 
+.Nm
+driver was added to the system by
+   Stefan Grefen (grefen@goofy.zdv.uni-mainz.de)
+who apparently had such a device
+however It appears as though no-one I have heard of has ever used this
+driver. If you use it please let me know so I can test changes.
+Stefan appears to have suffered net.death (or at least net.disconnection).
+I (julian) have never used this device. If you do please re-write this
+man page and send it to me..
+
+.Sh FILES
+.Bl -tag -width /dev/ch[0-9] -compact
+.It Pa /dev/ch[0-9]
+device entries
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr sd 4
+.Xr st 4
+.Xr cd 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in 386BSD 0.1
+

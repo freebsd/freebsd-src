@@ -2,15 +2,18 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id: cpufunc.h,v 1.3 1993/10/16 14:39:08 rgrimes Exp $
+ *	$Id: cpufunc.h,v 1.9 1994/01/31 23:48:23 davidg Exp $
  */
+
+#ifndef _MACHINE_CPUFUNC_H_
+#define _MACHINE_CPUFUNC_H_ 1
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
 #ifdef	__GNUC__
 
-static __inline int bdb(void)
+static inline int bdb(void)
 {
 	extern int bdb_exists;
 
@@ -20,13 +23,13 @@ static __inline int bdb(void)
 	return (1);
 }
 
-static __inline void
+static inline void
 disable_intr(void)
 {
 	__asm __volatile("cli");
 }
 
-static __inline void
+static inline void
 enable_intr(void)
 {
 	__asm __volatile("sti");
@@ -38,7 +41,7 @@ enable_intr(void)
  */
 #define	inb(port)	((u_char) u_int_inb(port))
 
-static __inline u_int
+static inline u_int
 u_int_inb(u_int port)
 {
 	u_char	data;
@@ -51,7 +54,7 @@ u_int_inb(u_int port)
 	return data;
 }
 
-static __inline void
+static inline void
 outb(u_int port, u_char data)
 {
 	register u_char	al asm("ax");
@@ -60,7 +63,14 @@ outb(u_int port, u_char data)
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
 }
 
-static __inline__
+static inline void
+tlbflush()
+{
+	__asm __volatile("movl %%cr3, %%eax; movl %%eax, %%cr3" : : : "ax");
+}
+
+static inline
+int
 imin(a, b)
 	int a, b;
 {
@@ -68,7 +78,8 @@ imin(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
+int
 imax(a, b)
 	int a, b;
 {
@@ -76,7 +87,7 @@ imax(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned int
 min(a, b)
 	unsigned int a, b;
@@ -85,7 +96,7 @@ min(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned int
 max(a, b)
 	unsigned int a, b;
@@ -94,7 +105,7 @@ max(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
 long
 lmin(a, b)
 	long a, b;
@@ -103,7 +114,7 @@ lmin(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
 long
 lmax(a, b)
 	long a, b;
@@ -112,7 +123,7 @@ lmax(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned long
 ulmin(a, b)
 	unsigned long a, b;
@@ -121,7 +132,7 @@ ulmin(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned long
 ulmax(a, b)
 	unsigned long a, b;
@@ -130,7 +141,8 @@ ulmax(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
+int
 ffs(mask)
 	register long mask;
 {
@@ -145,7 +157,8 @@ ffs(mask)
 	}
 }
 
-static __inline__
+static inline
+int
 bcmp(v1, v2, len)
 	void *v1, *v2;
 	register unsigned len;
@@ -158,10 +171,10 @@ bcmp(v1, v2, len)
 	return (0);
 }
 
-static __inline__
+static inline
 size_t
 strlen(s1)
-	register __const__ char *s1;
+	register const char *s1;
 {
 	register size_t len;
 
@@ -170,7 +183,34 @@ strlen(s1)
 	return (len);
 }
 
+struct quehead {
+	struct quehead *qh_link;
+	struct quehead *qh_rlink;
+};
+
+static inline void
+insque(void *a, void *b)
+{
+	register struct quehead *element = a, *head = b;
+	element->qh_link = head->qh_link;
+	head->qh_link = (struct quehead *)element;
+	element->qh_rlink = (struct quehead *)head;
+	((struct quehead *)(element->qh_link))->qh_rlink
+	  = (struct quehead *)element;
+}
+
+static inline void
+remque(void *a)
+{
+	register struct quehead *element = a;
+	((struct quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;
+	((struct quehead *)(element->qh_rlink))->qh_link = element->qh_link;
+	element->qh_rlink = 0;
+}
+
 #else /* not __GNUC__ */
+extern	void insque __P((void *, void *));
+extern	void remque __P((void *));
 
 int	bdb		__P((void));
 void	disable_intr	__P((void));
@@ -180,16 +220,19 @@ void	outb		__P((u_int port, u_int data));	/* XXX - incompat */
 
 #endif	/* __GNUC__ */
 
-#define	really_u_int	int	/* XXX */
-#define	really_void	int	/* XXX */
-
 void	load_cr0	__P((u_int cr0));
-really_u_int	rcr0	__P((void));
+u_int	rcr0	__P((void));
+void load_cr3(u_long);
+u_long rcr3(void);
+u_long rcr2(void);
 
-#ifdef notyet
-really_void	setidt	__P((int idx, /*XXX*/caddr_t func, int typ, int dpl));
-#endif
+void	setidt	__P((int, void (*)(), int, int));
+extern u_long kvtop(void *);
+extern void outw(int /*u_short*/, int /*u_short*/); /* XXX inline!*/
+extern void outsb(int /*u_short*/, void *, size_t);
+extern void outsw(int /*u_short*/, void *, size_t);
+extern void insw(int /*u_short*/, void *, size_t);
+extern void fillw(int /*u_short*/, void *, size_t);
+extern void filli(int, void *, size_t);
 
-#undef	really_u_int
-#undef	really_void
-
+#endif /* _MACHINE_CPUFUNC_H_ */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso_chksum.c	7.5 (Berkeley) 5/6/91
- *	$Id: iso_chksum.c,v 1.3 1993/10/16 21:05:18 rgrimes Exp $
+ *	$Id: iso_chksum.c,v 1.5 1993/12/19 00:53:24 wollman Exp $
  */
 
 /***********************************************************
@@ -86,11 +86,11 @@ SOFTWARE.
 #include "param.h"
 #include "systm.h"
 #include "mbuf.h"
-#endif ISO
+#endif /* ISO */
 
 #ifndef MNULL
 #define MNULL (struct mbuf *)0
-#endif MNULL
+#endif /* MNULL */
 
 /*
  * FUNCTION:	iso_check_csum
@@ -188,8 +188,8 @@ iso_gen_csum(m,n,l)
 	register int c0=0, c1=0;
 	register int i=0;
 	int loc = n++, len=0; /* n is position, loc is offset */
-	u_char *xloc;
-	u_char *yloc;
+	u_char *xloc = 0;
+	u_char *yloc = 0;
 	int cum=0;	/* cum == cumulative length */
 
 	IFDEBUG(D_CHKSUM)
@@ -253,133 +253,3 @@ iso_gen_csum(m,n,l)
 	ENDDEBUG
 }
 
-struct mbuf  *
-m_append(head, m)
-	struct mbuf *head, *m;
-{
-	register struct mbuf *n;
-
-	if (m == 0)
-		return head;
-	if (head == 0)
-		return m;
-	n = head;
-	while (n->m_next)
-		n = n->m_next;
-	n->m_next = m;
-	return head;
-}
-/*
- * FUNCTION:	m_datalen
- *
- * PURPOSE:		returns length of the mbuf chain.
- * 				used all over the iso code.
- *
- * RETURNS:		integer
- *
- * SIDE EFFECTS: none
- *
- * NOTES:		
- */
-
-int
-m_datalen (morig)
-	struct mbuf *morig;
-{ 	
-	int	s = splimp();
-	register struct mbuf *n=morig;
-	register int datalen = 0;
-
-	if( morig == (struct mbuf *)0)
-		return 0;
-	for(;;) {
-		datalen += n->m_len;
-		if (n->m_next == (struct mbuf *)0 ) {
-			break;
-		}
-		n = n->m_next;
-	}
-	splx(s);
-	return datalen;
-}
-
-int
-m_compress(in, out)
-	register struct mbuf *in, **out;
-{
-	register 	int datalen = 0;
-	int	s = splimp();
-
-	if( in->m_next == MNULL ) {
-		*out = in;
-		IFDEBUG(D_REQUEST)
-			printf("m_compress returning 0x%x: A\n", in->m_len);
-		ENDDEBUG
-		splx(s);
-		return in->m_len;
-	}
-	MGET((*out), M_DONTWAIT, MT_DATA);
-	if((*out) == MNULL) {
-		*out = in;
-		IFDEBUG(D_REQUEST)
-			printf("m_compress returning -1: B\n");
-		ENDDEBUG
-		splx(s);
-		return -1; 
-	}
-	(*out)->m_len = 0;
-	(*out)->m_act = MNULL;
-
-	while (in) {
-		IFDEBUG(D_REQUEST)
-			printf("m_compress in 0x%x *out 0x%x\n", in, *out);
-			printf("m_compress in: len 0x%x, off 0x%x\n", in->m_len, in->m_data);
-			printf("m_compress *out: len 0x%x, off 0x%x\n", (*out)->m_len, 
-				(*out)->m_data);
-		ENDDEBUG
-		if (in->m_flags & M_EXT) {
-			ASSERT(in->m_len == 0);
-		}
-		if ( in->m_len == 0) {
-			in = in->m_next;
-			continue;
-		}
-		if (((*out)->m_flags & M_EXT) == 0) {
-			int len;
-
-			len = M_TRAILINGSPACE(*out);
-			len = MIN(len, in->m_len);
-			datalen += len;
-
-			IFDEBUG(D_REQUEST)
-				printf("m_compress copying len %d\n", len);
-			ENDDEBUG
-			bcopy(mtod(in, caddr_t), mtod((*out), caddr_t) + (*out)->m_len,
-						(unsigned)len);
-
-			(*out)->m_len += len;
-			in->m_len -= len;
-			continue;
-		} else {
-			/* (*out) is full */
-			if(( (*out)->m_next = m_get(M_DONTWAIT, MT_DATA) ) == MNULL) {
-				m_freem(*out);
-				*out = in;
-				IFDEBUG(D_REQUEST)
-					printf("m_compress returning -1: B\n");
-				ENDDEBUG
-				splx(s);
-				return -1;
-			}
-			(*out)->m_len = 0;
-			(*out)->m_act = MNULL;
-			*out = (*out)->m_next;
-		}
-	}
-	m_freem(in);
-	IFDEBUG(D_REQUEST)
-		printf("m_compress returning 0x%x: A\n", datalen);
-	ENDDEBUG
-	splx(s);
-	return datalen;
-}

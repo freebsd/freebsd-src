@@ -15,8 +15,11 @@
  *
  *  October 1992
  *
- *	$Id: direntry.h,v 1.2 1993/10/16 19:29:28 rgrimes Exp $
+ *	$Id: direntry.h,v 1.3 1993/11/07 17:51:14 wollman Exp $
  */
+
+#ifndef _PCFS_DIRENTRY_H_
+#define _PCFS_DIRENTRY_H_ 1
 
 /*
  *  Structure of a dos directory entry.
@@ -94,3 +97,4 @@ void dos2unixtime __P((union dosdate *ddp,
 int  dos2unixfn __P((u_char dn[11], u_char *un));
 void unix2dosfn __P((u_char *un, u_char dn[11], int unlen));
 #endif /* defined(KERNEL) */
+#endif /* _PCFS_DIRENTRY_H_ */

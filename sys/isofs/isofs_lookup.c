@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
- *	$Id: isofs_lookup.c,v 1.4 1993/10/17 01:48:27 rgrimes Exp $
+ *	$Id: isofs_lookup.c,v 1.5 1993/11/25 01:32:22 wollman Exp $
  */
 
 #include "param.h"
@@ -87,6 +87,7 @@ struct	nchstats nchstats;
  *
  * NOTE: (LOOKUP | LOCKPARENT) currently returns the parent inode unlocked.
  */
+int
 isofs_lookup(vdp, ndp, p)
 	register struct vnode *vdp;
 	register struct nameidata *ndp;
@@ -97,7 +98,7 @@ isofs_lookup(vdp, ndp, p)
 	struct buf *bp = 0;		/* a buffer of directory entries */
 	register struct iso_directory_record *ep;
 					/* the current directory entry */
-	int entryoffsetinblock;		/* offset of ep in bp's buffer */
+	int entryoffsetinblock = 0;	/* offset of ep in bp's buffer */
 	enum {NONE, COMPACT, FOUND} slotstatus;
 	int slotoffset = -1;		/* offset of area with free space */
 	int slotsize;			/* size of area at slotoffset */
@@ -388,6 +389,7 @@ found:
  * is non-zero, fill it in with a pointer to the
  * remaining space in the directory.
  */
+int
 iso_blkatoff(ip, offset, res, bpp)
 	struct iso_node *ip;
 	off_t offset;

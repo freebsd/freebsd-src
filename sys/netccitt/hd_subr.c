@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)hd_subr.c	7.6 (Berkeley) 5/29/91
- *	$Id: hd_subr.c,v 1.2 1993/10/16 19:46:37 rgrimes Exp $
+ *	$Id: hd_subr.c,v 1.3 1993/11/25 01:34:21 wollman Exp $
  */
 
 #include "param.h"
@@ -55,14 +55,17 @@
 #include "hd_var.h"
 #include "x25.h"
 
+void
 hd_init ()
 {
 
 	hdintrq.ifq_maxlen = IFQ_MAXLEN;
 }
 
+int
 hd_ctlinput (prc, addr)
-struct sockaddr *addr;
+	int prc;
+	struct sockaddr *addr;
 {
 	register struct x25config *xcp = (struct x25config *)addr;
 	register struct hdcb *hdp;
@@ -125,8 +128,9 @@ struct sockaddr *addr;
 	return (0);
 }
 
+void
 hd_initvars (hdp)
-register struct hdcb *hdp;
+	register struct hdcb *hdp;
 {
 	register struct mbuf *m;
 	register int i;
@@ -151,9 +155,10 @@ register struct hdcb *hdp;
 	hdp->hd_condition = 0;
 }
 
+int
 hd_decode (hdp, frame)
-register struct hdcb *hdp;
-struct Hdlc_frame *frame;
+	register struct hdcb *hdp;
+	struct Hdlc_frame *frame;
 {
 	register int frametype = ILLEGAL;
 	register struct Hdlc_iframe *iframe = (struct Hdlc_iframe *) frame;
@@ -216,9 +221,10 @@ struct Hdlc_frame *frame;
  *  Only supervisory or unnumbered frames are processed.
  */
 
+void
 hd_writeinternal (hdp, frametype, pf)
-register struct hdcb *hdp;
-register int frametype, pf;
+	register struct hdcb *hdp;
+	register int frametype, pf;
 {
 	register struct mbuf *buf;
 	struct Hdlc_frame *frame;
@@ -315,9 +321,10 @@ struct hdtxq *q;
 	return (m);
 }
 
+void
 hd_append (q, m)
-register struct hdtxq *q;
-register struct mbuf *m;
+	register struct hdtxq *q;
+	register struct mbuf *m;
 {
 
 	m -> m_act = NULL;
@@ -328,8 +335,9 @@ register struct mbuf *m;
 	q -> tail = m;
 }
 
+void
 hd_flush (ifp)
-struct ifnet *ifp;
+	struct ifnet *ifp;
 {
 	register struct mbuf *m;
 	register int s;
@@ -344,9 +352,10 @@ struct ifnet *ifp;
 	}
 }
 
+void
 hd_message (hdp, msg)
-struct hdcb *hdp;
-char *msg;
+	struct hdcb *hdp;
+	const char *msg;
 {
 	char *format_ntn ();
 

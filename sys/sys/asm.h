@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)asm.h	5.5 (Berkeley) 5/7/91
- *	$Id: asm.h,v 1.2 1993/10/16 17:16:20 rgrimes Exp $
+ *	$Id: asm.h,v 1.3 1993/11/07 17:52:20 wollman Exp $
  */
 
 #ifdef PROF
@@ -53,6 +53,6 @@
 # else
 #  define	ENTRY(x)	.globl _/**/x; .text; .align 2; _/**/x: 
 # endif /* __STDC__ */
-#endif PROF
+#endif /* PROF */
 #define	ASMSTR		.asciz
 

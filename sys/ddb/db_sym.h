@@ -23,8 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.2 1993/10/16 16:47:27 rgrimes Exp $
+ *	$Id: db_sym.h,v 1.3 1993/11/07 17:39:25 wollman Exp $
  */
+
+#ifndef _DDB_DB_SYM_H_
+#define _DDB_DB_SYM_H_ 1
 
 /*
  * 	Author: Alessandro Forin, Carnegie Mellon University
@@ -96,3 +99,4 @@ extern int	db_eqname(/* char*, char*, char */);
 
 extern void	db_printsym(/* db_expr_t, db_strategy_t */);
 					/* print closest symbol to a value */
+#endif /* _DDB_DB_SYM_H_ */

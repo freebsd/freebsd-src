@@ -11,8 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/ultrasound.h>
-#include <sys/ioctl.h>
+#include <machine/ultrasound.h>
 #include <fcntl.h>
 #include <math.h>
 #include <string.h>

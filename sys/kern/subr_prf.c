@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1986, 1988, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)subr_prf.c	7.30 (Berkeley) 6/29/91
- *	$Id: subr_prf.c,v 1.4.2.1 1993/11/14 18:13:07 rgrimes Exp $
+ *	$Id: subr_prf.c,v 1.6.2.1 1994/05/04 07:54:49 rgrimes Exp $
  */
 
 #include "param.h"
@@ -129,7 +136,7 @@ panic(msg)
 #endif
 #include "ddb.h"
 #if NDDB > 0
-	Debugger ();
+	Debugger ("panic");
 #endif
 	boot(bootopt);
 }
@@ -139,7 +146,7 @@ panic(msg)
  */
 void
 tablefull(tab)
-	char *tab;
+	const char *tab;
 {
 
 	log(LOG_ERR, "%s: table is full\n", tab);
@@ -285,12 +292,12 @@ logpri(level)
 	putchar('>', TOLOG, NULL);
 }
 
-int
+void
 #ifdef __STDC__
 addlog(const char *fmt, ...)
 #else
 addlog(fmt /*, va_alist */)
-	char *fmt;
+	const char *fmt;
 #endif
 {
 	register int s;
@@ -307,7 +314,6 @@ addlog(fmt /*, va_alist */)
 		va_end(ap);
 	}
 	logwakeup();
-	return (0);
 }
 
 int	consintr = 1;			/* ok to handle console interrupts? */
@@ -317,7 +323,7 @@ int
 printf(const char *fmt, ...)
 #else
 printf(fmt /*, va_alist */)
-	char *fmt;
+	const char *fmt;
 #endif
 {
 	va_list ap;

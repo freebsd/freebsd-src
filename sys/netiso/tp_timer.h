@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_timer.h	7.4 (Berkeley) 5/6/91
- *	$Id: tp_timer.h,v 1.2 1993/10/16 21:06:08 rgrimes Exp $
+ *	$Id: tp_timer.h,v 1.3 1993/11/07 17:50:03 wollman Exp $
  */
 
 /***********************************************************
@@ -88,4 +88,4 @@ struct Ecallout {
 	struct Ecallout *c_next;
 };
 
-#endif __TP_CALLOUT__
+#endif /* __TP_CALLOUT__ */

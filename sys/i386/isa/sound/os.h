@@ -3,7 +3,30 @@
 /*
  * OS specific settings for FreeBSD
  *
- * This chould be used as an example when porting the driver to a new
+ * Copyright by Hannu Savolainen 1993
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * This should be used as an example when porting the driver to a new
  * operating systems.
  *
  * What you should do is to rewrite the soundcard.c and os.h (this file).
@@ -21,6 +44,7 @@
 
 #include "param.h"
 #include "systm.h"
+#include "kernel.h"
 #include "ioctl.h"
 #include "tty.h"
 #include "proc.h"
@@ -28,21 +52,11 @@
 #include "conf.h"
 #include "file.h"
 #include "uio.h"
-/* #include "kernel.h" */
 #include "syslog.h"
 #include "errno.h"
 #include "malloc.h"
 #include "buf.h"
 #include "i386/isa/isa_device.h"
-
-/* These few lines are used by FreeBSD (only??). */
-
-#if NSND > 0
-#define KERNEL_SOUNDCARD
-#else
-#undef KERNEL_SOUNDCARD
-#endif
-
 
 /*
  * Rest of the file is compiled only if the driver is really required.
@@ -62,7 +76,7 @@ extern int __process_aborting;
 #define SHORT_BANNERS
 
 /* The soundcard.h could be in a nonstandard place so inclyde it here. */
-#include "soundcard.h"
+#include <machine/soundcard.h>
 
 /*
  * Here is the first portability problem. Every OS has it's own way to
@@ -96,23 +110,23 @@ typedef struct uio snd_rw_buf;
  * user space. The count is number of bytes to be moved.
  */
 #define COPY_FROM_USER(target, source, offs, count) \
-	if (uiomove(target, count, source)) { \
+	do { if (uiomove(target, count, (struct uio *)source)) { \
 		printf ("sb: Bad copyin()!\n"); \
-	} else
+	} } while(0)
 /* Like COPY_FOM_USER but for writes. */
 #define COPY_TO_USER(target, offs, source, count) \
-	if (uiomove(source, count, target)) { \
+	do { if (uiomove(source, count, (struct uio *)target)) { \
 		printf ("sb: Bad copyout()!\n"); \
-	} else
+	} } while(0)
 /* 
  * The following macros are like COPY_*_USER but work just with one byte (8bit),
  * short (16 bit) or long (32 bit) at a time.
  * The same restrictions apply than for COPY_*_USER
  */
-#define GET_BYTE_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 1, addr);}
-#define GET_SHORT_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 2, addr);}
-#define GET_WORD_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 4, addr);}
-#define PUT_WORD_TO_USER(addr, offs, data)	{uiomove((char*)&(data), 4, addr);}
+#define GET_BYTE_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 1, (struct uio *)addr);}
+#define GET_SHORT_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 2, (struct uio *)addr);}
+#define GET_WORD_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 4, (struct uio *)addr);}
+#define PUT_WORD_TO_USER(addr, offs, data)	{uiomove((char*)&(data), 4, (struct uio *)addr);}
 
 /*
  * The way how the ioctl arguments are passed is another nonportable thing.
@@ -184,7 +198,7 @@ typedef struct uio snd_rw_buf;
 #define INTERRUPTIBLE_SLEEP_ON(on_what, flag) 	\
 	{ \
 	  flag = 1; \
-	  flag=tsleep(&(on_what), (PRIBIO-5)|PCATCH, "sndint", __timeout_val); \
+	  flag=tsleep((caddr_t)&(on_what), (PRIBIO-5)|PCATCH, "sndint", __timeout_val); \
 	  if(flag == ERESTART) __process_aborting = 1;\
 	  else __process_aborting = 0;\
 	  __timeout_val = 0; \
@@ -192,7 +206,7 @@ typedef struct uio snd_rw_buf;
 	}
 	
 /* An the following wakes up a process */
-#define WAKE_UP(who)				wakeup(&(who))
+#define WAKE_UP(who)				wakeup((caddr_t)&(who))
 
 /*
  * Timing macros. This driver assumes that there is a timer running in the
@@ -201,7 +215,6 @@ typedef struct uio snd_rw_buf;
  */
 
 #ifndef HZ
-extern int hz;
 #define HZ	hz
 #endif
 
@@ -211,7 +224,8 @@ extern int hz;
  * 
  */
 #define GET_TIME() get_time()
-/*#define GET_TIME()	(lbolt)	/* Returns current time (1/HZ secs since boot) */
+extern long get_time(void);
+/*#define GET_TIME()	(lbolt)*/	/* Returns current time (1/HZ secs since boot) */
 
 /*
  * The following three macros are called before and after atomic
@@ -263,8 +277,8 @@ extern int hz;
  * The rest of this file is not complete yet. The functions using these
  * macros will not work
  */
-#define ALLOC_DMA_CHN(chn) (0)
-#define RELEASE_DMA_CHN(chn) (0)
+#define ALLOC_DMA_CHN(chn) ({ 0; })
+#define RELEASE_DMA_CHN(chn) ({ 0; })
 #define DMA_MODE_READ		0
 #define DMA_MODE_WRITE		1
 #define RELEASE_IRQ(irq_no)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)shm.h	7.2 (Berkeley) 2/5/91
- *	$Id: shm.h,v 1.4 1993/10/16 17:17:37 rgrimes Exp $
+ *	$Id: shm.h,v 1.5 1993/11/07 17:53:00 wollman Exp $
  */
 
 /*
@@ -88,8 +88,8 @@ struct	shminfo {
 #define	SHMMMNI		512	/* maximum value for shminfo.shmmni */
 
 #ifdef KERNEL
-struct	shmid_ds	*shmsegs;
-struct	shminfo		shminfo;
+extern struct	shmid_ds	*shmsegs;
+extern struct	shminfo		shminfo;
 #endif
 
 #ifndef KERNEL

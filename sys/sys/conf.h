@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -31,74 +38,85 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.h	7.9 (Berkeley) 5/5/91
- *	$Id: conf.h,v 1.2 1993/10/16 17:16:30 rgrimes Exp $
+ *	$Id: conf.h,v 1.4.2.1 1994/05/04 07:57:05 rgrimes Exp $
  */
+
+#ifndef _SYS_CONF_H_
+#define _SYS_CONF_H_ 1
 
 /*
  * Definitions of device driver entry switches
  */
 
 #ifdef __STDC__
-struct tty;
+struct tty; struct buf;
+struct uio;
 #endif
 
+typedef int d_open_t __P((int /*dev_t*/, int, int, struct proc *));
+typedef int d_close_t __P((int /*dev_t*/, int, int, struct proc *));
+typedef void d_strategy_t __P((struct buf *));
+typedef int d_ioctl_t __P((int /*dev_t*/, int, caddr_t, int, struct proc *));
+typedef int d_dump_t __P((int /*dev_t*/));
+typedef int d_psize_t __P((int /*dev_t*/));
+
 struct bdevsw {
-	int	(*d_open)	__P((dev_t dev, int oflags, int devtype,
-				     struct proc *p));
-	int	(*d_close)	__P((dev_t dev, int fflag, int devtype,
-				     struct proc *));
-	int	(*d_strategy)	__P((struct buf *bp));
-	int	(*d_ioctl)	__P((dev_t dev, int cmd, caddr_t data,
-				     int fflag, struct proc *p));
-	int	(*d_dump)	__P((dev_t dev));
-	int	(*d_psize)	__P((dev_t dev));
+	d_open_t *d_open;
+	d_close_t *d_close;
+	d_strategy_t *d_strategy;
+	d_ioctl_t *d_ioctl;
+	d_dump_t *d_dump;
+	d_psize_t *d_psize;
 	int	d_flags;
 };
 
 #ifdef KERNEL
-struct bdevsw bdevsw[];
+extern struct bdevsw bdevsw[];
 #endif
 
+typedef int d_rdwr_t __P((int /*dev_t*/, struct uio *, int));
+typedef int d_stop_t __P((struct tty *, int));
+typedef int d_reset_t __P((int));
+typedef int d_select_t __P((int /*dev_t*/, int, struct proc *));
+typedef int d_mmap_t __P((/* XXX */));
+
 struct cdevsw {
-	int	(*d_open)	__P((dev_t dev, int oflags, int devtype,
-				     struct proc *p));
-	int	(*d_close)	__P((dev_t dev, int fflag, int devtype,
-				     struct proc *));
-	int	(*d_read)	__P((dev_t dev, struct uio *uio, int ioflag));
-	int	(*d_write)	__P((dev_t dev, struct uio *uio, int ioflag));
-	int	(*d_ioctl)	__P((dev_t dev, int cmd, caddr_t data,
-				     int fflag, struct proc *p));
-	int	(*d_stop)	__P((struct tty *tp, int rw));
-	int	(*d_reset)	__P((int uban));	/* XXX */
+	d_open_t *d_open;
+	d_close_t *d_close;
+	d_rdwr_t *d_read;
+	d_rdwr_t *d_write;
+	d_ioctl_t *d_ioctl;
+	d_stop_t *d_stop;
+	d_reset_t *d_reset;
 	struct	tty *d_ttys;
-	int	(*d_select)	__P((dev_t dev, int which, struct proc *p));
-	int	(*d_mmap)	__P(());
-	int	(*d_strategy)	__P((struct buf *bp));
+	d_select_t *d_select;
+	d_mmap_t *d_mmap;
+	d_strategy_t *d_strategy;
 };
 
 #ifdef KERNEL
-struct cdevsw cdevsw[];
+extern struct cdevsw cdevsw[];
 
 /* symbolic sleep message strings */
-extern char devopn[], devio[], devwait[], devin[], devout[];
-extern char devioc[], devcls[];
+extern const char devopn[], devio[], devwait[], devin[], devout[];
+extern const char devioc[], devcls[];
 #endif
 
 struct linesw {
-	int	(*l_open)();
-	int	(*l_close)();
-	int	(*l_read)();
-	int	(*l_write)();
-	int	(*l_ioctl)();
-	int	(*l_rint)();
-	int	(*l_rend)();
-	int	(*l_meta)();
-	int	(*l_start)();
-	int	(*l_modem)();
+	int	(*l_open)(int /*dev_t*/, struct tty *, int);
+	void	(*l_close)(struct tty *, int);
+	int	(*l_read)(struct tty *, struct uio *, int);
+	int	(*l_write)(struct tty *, struct uio *, int);
+	int	(*l_ioctl)(struct tty *, int, caddr_t, int);
+	void	(*l_rint)(int, struct tty *);
+	int	(*l_rend)();	/* XXX - to be deleted */
+	int	(*l_meta)();	/* XXX - to be deleted */
+	void	(*l_start)(struct tty *);
+	int	(*l_modem)(struct tty *, int);
 };
 
 #ifdef KERNEL
-struct linesw linesw[];
+extern struct linesw linesw[];
 #endif
 
 struct swdevt {
@@ -109,5 +127,6 @@ struct swdevt {
 };
 
 #ifdef KERNEL
-struct swdevt swdevt[];
+extern struct swdevt swdevt[];
 #endif
+#endif /* _SYS_CONF_H_ */

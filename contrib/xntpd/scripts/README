@@ -1,0 +1,41 @@
+README file for directory ./scripts of the NTP Version 3 distribution
+
+This directory contains shell and perl script files for the configuration,
+monitoring and support of NTP installations. See the README and RELNOTES
+files in the parent directory for directions on how to use these files.
+
+Guess.sh        script to figure out what machine and operating system
+                is running this thing. Prizes awarded for new machines
+                added to the list.
+
+autoconf        awesome script swiped from Jeff Johnson (who may have
+                swiped it from GNU) which delves deep into the system
+                files to reveal dark secrets necessary to port NTP to
+                everything exceptt sewing machines. Unfinished work.
+
+makeconfig.sh   shell script that calles Guess.sh and then figures out
+                what compiler is available, then builds the
+                configuration file in the base directory. Finally, it
+                launches the sed script Config.sed in the base directory
+                to make the makefiles used by most programs.
+
+mklinks         script useful to create directories for multiple
+                architecture maintenance
+
+mkversion	script useful to create new version numbers for all
+		sources
+
+monitoring      directory containing perl scripts useful for monitoring
+                operations
+
+ntp-groper	script useful for reaching out and rattling the cages of
+		NTP peers to see if animals are inside the bars
+
+ntp-restart	script useful for killing and restarting the NTP daemon
+
+stats		directory containing awk ans shell scripts useful for
+		maintaining statistics summaries of clockstats, loopstats
+		and peerstats files
+
+support         directory containing shell and perl scripts useful for
+                configuration and monitoring of NTP subnets

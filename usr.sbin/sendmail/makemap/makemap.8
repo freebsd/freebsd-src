@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)makemap.8	8.1 (Berkeley) 6/17/93
+.\"     @(#)makemap.8	8.2 (Berkeley) 9/22/93
 .\"
 .Dd November 16, 1992
 .Dt MAKEMAP 8
@@ -99,13 +99,14 @@ in the map.
 This must match the \-N flag in the sendmail.cf
 ``K'' line.
 .It Fl f
-Fold all upper case letters in the key
-to lower case;
-this is intended to mesh with the
+Normally all upper case letters in the key
+are folded to lower case.
+This flag disables that behavior.
+This is intended to mesh with the
 \-f flag in the
 \fBK\fP
 line in sendmail.cf.
-The value is not case folded.
+The value is never case folded.
 .It Fl o
 Append to an old file.
 This allows you to augment an existing file.

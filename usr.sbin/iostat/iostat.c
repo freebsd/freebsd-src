@@ -93,10 +93,10 @@ struct nlist nl[] = {
 	{ "_ubdinit" },
 #define X_UBDINIT	(X_END+2)
 #endif
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 #define	X_ISA_BIO	(X_END+1)
 	{ "_isa_devtab_bio" },
-#endif /* __386BSD__ */
+#endif /* __FreeBSD__ */
 	{ NULL },
 };
 

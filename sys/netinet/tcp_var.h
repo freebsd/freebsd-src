@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_var.h	7.10 (Berkeley) 6/28/90
- *	$Id: tcp_var.h,v 1.2 1993/10/16 18:26:38 rgrimes Exp $
+ *	$Id: tcp_var.h,v 1.5 1993/12/19 00:52:54 wollman Exp $
  */
+
+#ifndef _NETINET_TCP_VAR_H_
+#define _NETINET_TCP_VAR_H_ 1
 
 /*
  * Kernel variables for tcp.
@@ -211,9 +214,60 @@ struct	tcpstat {
 };
 
 #ifdef KERNEL
-struct	inpcb tcb;		/* head of queue of active tcpcb's */
-struct	tcpstat tcpstat;	/* tcp statistics */
-struct	tcpiphdr *tcp_template();
-struct	tcpcb *tcp_close(), *tcp_drop();
-struct	tcpcb *tcp_timers(), *tcp_disconnect(), *tcp_usrclosed();
+extern struct	inpcb tcb;	/* head of queue of active tcpcb's */
+extern struct	tcpstat tcpstat; /* tcp statistics */
+
+/* From tcp_input.c: */
+extern int tcp_reass(struct tcpcb *, struct tcpiphdr *, struct mbuf *);
+extern void tcp_input(struct mbuf *, int);
+extern int tcp_mss(struct tcpcb *, int /*u_short*/);
+
+/* From tcp_output.c: */
+extern int tcp_output(struct tcpcb *);
+extern void tcp_setpersist(struct tcpcb *);
+
+/* From tcp_subr.c: */
+extern void tcp_init(void);
+extern struct tcpiphdr *tcp_template(struct tcpcb *);
+extern void tcp_respond(struct tcpcb *, struct tcpiphdr *, struct mbuf *,
+			tcp_seq, tcp_seq, int);
+extern struct tcpcb *tcp_newtcpcb(struct inpcb *);
+extern struct tcpcb *tcp_drop(struct tcpcb *, int);
+extern struct tcpcb *tcp_close(struct tcpcb *);
+extern void tcp_drain(void);
+extern void tcp_notify(struct inpcb *, int);
+#ifdef MTUDISC
+extern void tcp_checkmtu(struct inpcb *, int);
+extern void tcp_mtuchanged(struct inpcb *, int);
 #endif
+extern void tcp_ctlinput(int, struct sockaddr *, struct ip *);
+extern void tcp_quench(struct inpcb *, int);
+
+/* From tcp_timer.c: */
+extern void tcp_fasttimo(void);
+extern void tcp_slowtimo(void);
+extern void tcp_canceltimers(struct tcpcb *);
+extern struct tcpcb *tcp_timers(struct tcpcb *, int);
+
+/* From tcp_usrreq.c: */
+extern int tcp_usrreq(struct socket *, int, struct mbuf *, struct mbuf *,
+		      struct mbuf *, struct mbuf *);
+extern int tcp_ctloutput(int, struct socket *, int, int, struct mbuf **);
+extern int tcp_attach(struct socket *);
+extern struct tcpcb *tcp_disconnect(struct tcpcb *);
+extern struct tcpcb *tcp_usrclosed(struct tcpcb *);
+
+extern	struct inpcb *tcp_last_inpcb;
+
+/* From in_var.c: */
+extern int tcp_ttl;
+extern int tcp_mssdflt;
+extern int tcp_rttdflt;
+extern int tcp_keepidle;
+extern int tcp_keepintvl;
+extern int tcp_maxidle;
+extern u_long tcp_sendspace;
+extern u_long tcp_recvspace;
+
+#endif /* KERNEL */
+#endif /* _NETINET_TCP_VAR_H_ */

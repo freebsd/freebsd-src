@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id: pwcache.c,v 1.2 1994/02/23 09:56:56 rgrimes Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -86,7 +88,7 @@ group_from_gid(gid, nogroup)
 {
 	static struct ncache {
 		gid_t	gid;
-		char	name[UT_NAMESIZE];
+		char	name[UT_NAMESIZE + 1];
 	} c_gid[NCACHE];
 	static char nbuf[15];		/* 32 bits == 10 digits */
 	register struct group *gr;

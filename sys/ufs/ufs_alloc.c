@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_alloc.c	7.26 (Berkeley) 5/2/91
- *	$Id: ufs_alloc.c,v 1.2 1993/10/16 18:17:49 rgrimes Exp $
+ *	$Id: ufs_alloc.c,v 1.4 1993/12/19 00:55:42 wollman Exp $
  */
 
 #include "param.h"
@@ -46,6 +46,7 @@
 #include "inode.h"
 #include "fs.h"
 
+/* XXX */
 extern u_long		hashalloc();
 extern ino_t		ialloccg();
 extern daddr_t		alloccg();
@@ -75,6 +76,7 @@ extern unsigned char	*fragtbl[];
  *   2) quadradically rehash into other cylinder groups, until an
  *      available block is located.
  */
+int
 alloc(ip, lbn, bpref, size, bnp)
 	register struct inode *ip;
 	daddr_t lbn, bpref;
@@ -136,6 +138,7 @@ nospace:
  * the original block. Failing that, the regular block allocator is
  * invoked to get an appropriate block.
  */
+int
 realloccg(ip, lbprev, bpref, osize, nsize, bpp)
 	register struct inode *ip;
 	off_t lbprev;
@@ -288,6 +291,7 @@ nospace:
  *   2) quadradically rehash into other cylinder groups, until an
  *      available inode is located.
  */
+int
 ialloc(pip, ipref, mode, cred, ipp)
 	register struct inode *pip;
 	ino_t ipref;
@@ -867,6 +871,7 @@ gotit:
  * free map. If a fragment is deallocated, a possible 
  * block reassembly is checked.
  */
+void
 blkfree(ip, bno, size)
 	register struct inode *ip;
 	daddr_t bno;
@@ -969,6 +974,7 @@ blkfree(ip, bno, size)
  *
  * The specified inode is placed back in the free map.
  */
+void
 ifree(ip, ino, mode)
 	struct inode *ip;
 	ino_t ino;
@@ -1091,10 +1097,11 @@ mapsearch(fs, cgp, bpref, allocsiz)
  * The form of the error message is:
  *	fs: error message
  */
+void
 fserr(fs, uid, cp)
 	struct fs *fs;
 	uid_t uid;
-	char *cp;
+	const char *cp;
 {
 
 	log(LOG_ERR, "uid %d on %s: %s\n", uid, fs->fs_fsmnt, cp);

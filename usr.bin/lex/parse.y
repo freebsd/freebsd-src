@@ -32,7 +32,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/usr.bin/lex/parse.y,v 1.2 1993/06/29 03:27:18 nate Exp $ (LBL)";
+    "@(#) $Header: /home/cvs/386BSD/src/usr.bin/lex/parse.y,v 1.2 1993/06/29 03:27:18 nate Exp $ (LBL)";
 #endif
 
 #include "flexdef.h"

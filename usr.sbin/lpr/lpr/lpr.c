@@ -1,4 +1,13 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ *	$Id: lpr.c,v 1.1.1.1.2.2 1994/05/04 08:02:12 rgrimes Exp $
+ */
+/*
  * Copyright (c) 1983 Regents of the University of California.
  * All rights reserved.
  *
@@ -483,7 +492,7 @@ nfile(n)
 	register f;
 	int oldumask = umask(0);		/* should block signals */
 
-	f = creat(n, FILMOD);
+	f = open(n, O_WRONLY|O_EXCL|O_CREAT, FILMOD);
 	(void) umask(oldumask);
 	if (f < 0) {
 		printf("%s: cannot create %s\n", name, n);

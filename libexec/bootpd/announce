@@ -1,0 +1,46 @@
+Subject: RFC-1048 compatible BOOTP server now available
+
+
+An RFC-1048 (BOOTP Vendor Information Extensions) compatible BOOTP (RFC-951)
+server is now available for anonymous FTP from lancaster.andrew.cmu.edu
+(128.2.13.21).  The new server can be found in pub/bootp.2.0.tar.  This is
+an enhanced version of the existing CMU BOOTP server which was derived from
+the original BOOTP server created by Bill Croft at Stanford.
+
+New features and changes in version 2.0 include:
+
+o  Full support for the vendor information extensions described in RFC-1048.
+o  Faster response time (host lookup via hash table instead of linear search).
+o  New termcap-like configuration file format which allows greater flexibility
+   in specifying the variable vendor information of RFC-1048.  Host entries
+   may refer to other hosts as templates so that redundant information need
+   be specified only once.
+o  Continued support for the CMU vendor information format.  The server may
+   be configured on a per-host basis to always reply with a certain vendor
+   information format or to reply based on the client's request.
+o  Expanded logging.
+o  The server may now be run by inetd or as a standalone program like the
+   old version.
+o  The configuration and debugging dump files may be specified on the command
+   line.
+
+
+The server has been successfully tested on the following machines:
+
+    IBM RT PC running ACIS 4.3 (4.3 BSD)
+    Sun 3/50 running SunOS 3.5
+    DEC MicroVAX II running Ultrix 1.1
+    DEC MicroVAX II running Ultrix 2.2
+
+
+
+Please direct questions, comments, and bug reports to
+Walt Wimer <ww0n@andrew.cmu.edu> or Drew Perkins <ddp@andrew.cmu.edu>.
+
+
+
+Sincerely,
+
+Walt Wimer
+Network Development
+Carnegie Mellon University

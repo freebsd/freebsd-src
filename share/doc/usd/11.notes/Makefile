@@ -15,7 +15,7 @@
 #	and a typesetter. Hopefully the only changes to make it
 #	run again under nroff will be in page length/width statements.
 
-DIR=	usd/11.notes
+VOLUME=	usd
 DOC=	11.notes
 
 SRCS=	macros 0.long \

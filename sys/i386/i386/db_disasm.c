@@ -23,15 +23,16 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.3 1993/10/16 14:14:52 rgrimes Exp $
+ *	$Id: db_disasm.c,v 1.5 1993/12/19 00:49:58 wollman Exp $
  */
 
 /*
  * Instruction disassembler.
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>
+#include "ddb/ddb.h"
 
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
@@ -1067,7 +1068,7 @@ db_disasm(loc, altfmt)
 	char *	i_name;
 	int	i_size;
 	int	i_mode;
-	int	regmodrm;
+	int	regmodrm = 0;
 	boolean_t	first;
 	int	displ;
 	int	prefix;

@@ -1,0 +1,451 @@
+.\" Copyright (c) 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)vi.1	8.3 (Berkeley) 3/19/94
+.\"
+.Dd "March 19, 1994"
+.Dt EX/VI 1
+.Os
+.Sh NAME
+.Nm ex, vi, view
+.Nd text editors
+.Sh SYNOPSIS
+.Nm \&ex
+.Op Fl eFlRsv
+.Op Fl c Ar cmd
+.Op Fl r Ar file
+.Op Fl t Ar tag
+.Op Fl w Ar size
+.Op Fl x Ar \&aw
+.Op Ar "file ..."
+.Nm \&vi
+.Op Fl eFlRv
+.Op Fl c Ar cmd
+.Op Fl r Ar file
+.Op Fl t Ar tag
+.Op Fl w Ar size
+.Op Fl x Ar \&aw
+.Op Ar "file ..."
+.Nm view
+.Op Fl eFlRv
+.Op Fl c Ar cmd
+.Op Fl r Ar file
+.Op Fl t Ar tag
+.Op Fl w Ar size
+.Op Fl x Ar \&aw
+.Op Ar "file ..."
+.Sh DESCRIPTION
+.Nm \&Vi
+is a screen oriented text editor.
+.Nm \&Ex
+is a line-oriented text editor.
+.Nm \&Ex
+and
+.Nm \&vi
+are different interfaces to the same program,
+and it is possible to switch back and forth during an edit session.
+.Nm View
+is the equivalent of using the
+.Fl R
+(read-only) option of
+.Nm \&vi .
+.Pp
+This manual page is the one provided with the
+.Nm ex/vi
+versions of the
+.Nm ex/vi
+text editors.
+.Nm Ex/vi
+are intended as bug-for-bug compatible replacements for the original
+Fourth Berkeley Software Distribution (4BSD)
+.Nm \&ex
+and
+.Nm \&vi
+programs.
+For the rest of this manual page,
+.Nm ex/vi
+is used only when it's necessary to distinguish it from the historic
+implementations of
+.Nm ex/vi .
+.Pp
+This manual page is intended for users already familiar with
+.Nm ex/vi .
+Anyone else should almost certainly read a good tutorial on the
+editor before this manual page.
+If you're in an unfamiliar environment, and you absolutely have to
+get work done immediately, read the section near the end of this
+manual page, entitled FAST STARTUP.
+It's probably enough to get you going.
+.Pp
+The following options are available:
+.Bl -tag -width Ds 
+.It Fl c
+Execute
+.Ar cmd
+immediately after starting the edit session.
+Particularly useful for initial positioning in the file, however
+.Ar cmd
+is not limited to positioning commands.
+This is the POSIX 1003.2 interface for the historic
+.Dq "+cmd"
+syntax.
+.Nm Ex/vi
+supports both the old and new syntax.
+.It Fl e
+Start editing in ex mode, as if the command name were
+.Nm \&ex .
+.It Fl F
+Don't copy the entire file when first starting to edit.
+(The default is to make a copy in case someone else modifies
+the file during your edit session.)
+.It Fl l
+List the files that may be recovered using the
+.Fl r
+option of
+.Nm \&vi .
+This is the new interface for the historic syntax of the
+.Fl r
+option without a file argument.
+.Nm Ex/vi
+supports both the old and new syntax.
+.It Fl R
+Start editing in read-only mode, as if the command name was
+.Nm view ,
+or the readonly option was set.
+.It Fl r
+Recover the specified file.
+.It Fl s
+Enter batch mode; applicable only to
+.Nm \&ex
+edit sessions.
+Batch mode is useful when running
+.Nm \&ex
+scripts.
+Prompts, informative messages and other user oriented message
+are turned off,
+and no startup files or environmental variables are read.
+This is the POSIX 1003.2 interface for the historic
+.Dq \&\-
+argument.
+.Nm \&Ex/vi
+supports both the old and new syntax.
+.It Fl t
+Start editing at the specified tag.
+(See
+.Xr ctags 1 ).
+.It Fl w
+Set the initial window size to the specified number of lines.
+.It Fl v
+Start editing in vi mode, as if the command name was
+.Nm \&vi
+or
+.Nm view .
+.It Fl x
+Reserved for X11 interfaces.
+.Em "No X11 support is currently implemented."
+.El
+.Pp
+.Nm Ex/vi
+exit 0 on success, and greater than 0 if an error occurs.
+.Sh ENVIRONMENTAL VARIABLES
+.Bl -tag -width XXXX -compact
+.It Ev COLUMNS
+The number of columns on the screen.
+This value overrides any system or terminal specific values.
+If the COLUMNS environmental variable is not set when
+.Nm ex/vi
+runs, or the
+.Sy columns
+option is explicitly reset by the user,
+.Nm ex/vi
+enters the value into the environment.
+.It Ev EXINIT
+A list of
+.Nm \&ex
+startup commands.
+.It Ev HOME
+The user's home directory, used as the initial directory path
+for the startup
+.Pa $HOME/.exrc
+file.
+This value is also used as the default directory for the
+.Nm \&vi
+.Sy \&cd
+command.
+.It Ev LINES
+The number of rows on the screen.
+This value overrides any system or terminal specific values.
+If the LINES environmental variable is not set when
+.Nm ex/vi
+runs, or the
+.Sy lines
+option is explicitly reset by the user,
+.Nm ex/vi
+enters the value into the environment.
+.It Ev SHELL
+The user's shell of choice (see also the
+.Sy shell
+option).
+.It Ev TERM
+The user's terminal type.
+The default is the type
+.Dq unknown .
+If the TERM environmental variable is not set when
+.Nm ex/vi
+runs, or the
+.Sy term
+option is explicitly reset by the user,
+.Nm ex/vi
+enters the value into the environment.
+.It Ev TMPDIR
+The location used to stored temporary files (see also the
+.Sy directory
+option).
+.El
+.Sh SET OPTIONS
+#include <set.opt.roff>
+.Sh FAST STARTUP
+This section will tell you the minimum amount that you need to
+do simple editing tasks using
+.Nm \&vi .
+If you've never used any screen editor before, you're likely to have
+problems even with this simple introduction.
+In that case you should find someone that already knows
+.Nm \&vi
+and have them walk you through this section.
+.Pp
+.Nm \&Vi
+is a screen editor.
+This means that it takes up almost the entire screen, displaying part
+of the file on each screen line, except for the last line of the screen.
+The last line of the screen is used for you to give commands to
+.Nm \&vi ,
+and for
+.Nm \&vi
+to give information to you.
+.Pp
+The other fact that you need to understand is that
+.Nm \&vi
+is a modeful editor, i.e. you are either entering text or you
+are executing commands, and you have to be in the right mode
+to do one or the other.
+You will be in command mode when you first start editing a file.
+There are commands that switch you into input mode.
+There is only one key that takes you out of input mode,
+and that is the <escape> key.
+(Key names are written using less-than and greater-than signs, e.g.
+<escape> means the
+.Dq escape
+key, usually labeled
+.Dq esc
+on your terminal's keyboard.)
+If you're ever confused as to which mode you're in,
+keep entering the <escape> key until
+.Nm \&vi
+beeps at you.
+(Generally,
+.Nm \&vi
+will beep at you if you try and do something that's not allowed.
+It will also display error messages.)
+.Pp
+To start editing a file, enter the command
+.Dq Li "vi file_name<carriage-return>" .
+The command you should enter as soon as you start editing is
+.Dq Li ":set verbose showmode<carriage-return>" .
+This will make the editor give you verbose error messages and display
+the current mode at the bottom of the screen.
+.Pp
+The commands to move around the file are:
+.Bl -tag -width XXXX -compact
+.It Sy h
+Move the cursor left one character.
+.It Sy j
+Move the cursor down one line.
+.It Sy k
+Move the cursor up one line.
+.It Sy l
+Move the cursor right one character.
+.It Sy <cursor-arrows>
+The cursor arrow keys should work, too.
+.It Sy /text<carriage-return>
+Search for the string
+.Dq text
+in the file, and move the cursor to its first character.
+.El
+.Pp
+The commands to enter new text are:
+.Bl -tag -width XXXX -compact
+.It Sy a
+Append new text,
+.Em after
+the cursor.
+.It Sy i
+Insert new text,
+.Em before
+the cursor.
+.It Sy o
+Open a new line below the line the cursor is on, and start
+entering text.
+.It Sy O
+Open a new line above the line the cursor is on, and start
+entering text.
+.It Sy <escape>
+Once you've entered input mode using the one of the
+.Sy \&a ,
+.Sy \&i ,
+.Sy \&O ,
+or 
+.Sy \&o
+commands, use
+.Sy <escape>
+to quit entering text and return to command mode.
+.El
+.Pp
+The commands to copy text are:
+.Bl -tag -width XXXX -compact
+.It Sy yy
+Copy the line the cursor is on.
+.It Sy p
+Append the copied line after the line the cursor is on.
+.El
+.Pp
+The commands to delete text are:
+.Bl -tag -width XXXX -compact
+.It Sy dd
+Delete the line the cursor is on.
+.It Sy x
+Delete the character the cursor is on.
+.El
+.Pp
+The commands to write the file are:
+.Bl -tag -width XXXX -compact
+.It Sy :w<carriage-return>
+Write the file back to the file with the name that you originally used
+as an argument on the
+.Nm \&vi
+command line.
+.It Sy :w file_name<carriage-return>
+Write the file back to the file with the name
+.Dq file_name .
+.El
+.Pp
+The commands to quit editing and exit the editor are:
+.Bl -tag -width XXXX -compact
+.It Sy :q<carriage-return>
+Quit editing and leave vi (if you've modified the file, but not
+saved your changes,
+.Nm \&vi
+will refuse to quit).
+.It Sy :q!<carriage-return>
+Quit, discarding any modifications that you may have made.
+.El
+.Pp
+One final caution.
+Unusual characters can take up more than one column on the screen,
+and long lines can take up more than a single screen line.
+The above commands work on
+.Dq physical
+characters and lines, i.e. they affect the entire line no matter
+how many screen lines it takes up and the entire character no matter
+how many screen columns it takes up.
+.Sh BUGS
+See the file
+.Pa vi/docs/bugs.current
+for a list of the known bugs in this version.
+.Sh FILES
+.Bl -tag -width /var/tmp/vi.recover -compact
+.It Pa /bin/sh
+The default user shell.
+.It Pa /etc/vi.exrc
+System-wide vi startup file.
+.It Pa /tmp
+Temporary file directory.
+.It Pa /var/tmp/vi.recover
+Recovery file directory.
+.It Pa $HOME/.exrc
+user's home directory startup file.
+.It Pa .exrc
+local directory startup file.
+.El
+.Sh SEE ALSO
+.Xr ctags 1 ,
+.Xr more 1 ,
+.Xr curses 3 ,
+.Xr dbopen 3
+.sp
+The
+.Dq "Vi Quick Reference"
+card.
+.sp
+.Dq "An Introduction to Display Editing with Vi" ,
+found in the
+.Dq "UNIX User's Manual Supplementary Documents" .
+.sp
+.Dq "Edit: A tutorial" ,
+found in the
+.Dq "UNIX User's Manual Supplementary Documents" .
+.sp
+.Dq "\&Ex Reference Manual (Version 3.7)" ,
+found in the
+.Dq "UNIX User's Manual Supplementary Documents" .
+.Pp
+.Nm Nroff/troff
+source for the previous three documents are distributed with
+.Nm ex/vi
+in the
+.Pa vi/docs/USD.doc
+directory of the
+.Nm ex/vi
+source code.
+.sp
+The files
+.Dq autowrite ,
+.Dq input ,
+.Dq quoting ,
+and
+.Dq structures ,
+found in the
+.Pa vi/docs/internals
+directory of the
+.Nm ex/vi
+source code.
+.Sh HISTORY
+The
+.Nm ex/vi
+replacements for the
+.Nm ex/vi
+editor first appeared in 4.4BSD.
+.Sh STANDARDS
+.Nm \&Ex/vi
+is close to IEEE Std1003.2 (``POSIX'').
+That document differs from historical
+.Nm ex/vi
+practice in several places; there are changes to be made on both sides.

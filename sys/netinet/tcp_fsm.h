@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_fsm.h	7.4 (Berkeley) 6/28/90
- *	$Id: tcp_fsm.h,v 1.2 1993/10/16 18:26:24 rgrimes Exp $
+ *	$Id: tcp_fsm.h,v 1.3 1993/11/07 17:48:05 wollman Exp $
  */
+
+#ifndef _NETINET_TCP_FSM_H_
+#define _NETINET_TCP_FSM_H_ 1
 
 /*
  * TCP FSM state definitions.
@@ -74,7 +77,7 @@ u_char	tcp_outflags[TCP_NSTATES] = {
 #endif
 
 #ifdef KPROF
-int	tcp_acounts[TCP_NSTATES][PRU_NREQ];
+extern int	tcp_acounts[TCP_NSTATES][PRU_NREQ];
 #endif
 
 #ifdef	TCPSTATES
@@ -84,3 +87,4 @@ char *tcpstates[] = {
 	"LAST_ACK",	"FIN_WAIT_2",	"TIME_WAIT",
 };
 #endif
+#endif /* _NETINET_TCP_FSM_H_ */

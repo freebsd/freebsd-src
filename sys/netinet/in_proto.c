@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)in_proto.c	7.5 (Berkeley) 6/28/90
- *	$Id: in_proto.c,v 1.2 1993/10/16 18:26:04 rgrimes Exp $
+ *	$Id: in_proto.c,v 1.3 1993/12/19 00:52:38 wollman Exp $
  */
 
 #include "param.h"
@@ -39,23 +39,52 @@
 #include "protosw.h"
 #include "domain.h"
 #include "mbuf.h"
+#include "net/if.h"
+#include "net/route.h"
 
 #include "in.h"
 #include "in_systm.h"
+#include "in_var.h"		/* IP prototypes */
+
+#include "ip.h"
+#include "ip_var.h"		/* more IP prototypes */
+
+#include "ip_icmp.h"
+#include "icmp_var.h"		/* ICMP prototypes */
+
+#include "udp.h"
+#include "udp_var.h"		/* UDP prototypes */
+
+#include "tcp.h"
+#include "tcp_fsm.h"
+#include "tcp_seq.h"
+#include "tcp_timer.h"
+#include "tcp_var.h"		/* TCP prototypes */
 
 /*
  * TCP/IP protocol family: IP, ICMP, UDP, TCP.
  */
-int	ip_output(),ip_ctloutput();
-int	ip_init(),ip_slowtimo(),ip_drain();
-int	icmp_input();
-int	udp_input(),udp_ctlinput();
-int	udp_usrreq();
-int	udp_init();
-int	tcp_input(),tcp_ctlinput();
-int	tcp_usrreq(),tcp_ctloutput();
-int	tcp_init(),tcp_fasttimo(),tcp_slowtimo(),tcp_drain();
-int	rip_input(),rip_output(),rip_ctloutput(), rip_usrreq();
+in_output_t ip_output;
+in_ctloutput_t ip_ctloutput;
+void ip_init();
+void ip_slowtimo();
+void ip_drain();
+in_input_t udp_input;
+in_ctlinput_t udp_ctlinput;
+int udp_usrreq();
+void udp_init();
+in_input_t tcp_input;
+in_ctlinput_t tcp_ctlinput;
+int tcp_usrreq();
+in_ctloutput_t tcp_ctloutput;
+void tcp_init();
+void tcp_fasttimo();
+void tcp_slowtimo();
+void tcp_drain();
+in_input_t rip_input;
+in_output_t rip_output;
+in_ctloutput_t rip_ctloutput; 
+int rip_usrreq();
 /*
  * IMP protocol family: raw interface.
  * Using the raw interface entry to get the timer routine
@@ -63,25 +92,34 @@ int	rip_input(),rip_output(),rip_ctloutput(), rip_usrreq();
  */
 #include "imp.h"
 #if NIMP > 0
-int	rimp_output(), hostslowtimo();
+int rimp_output();
+void hostslowtimo();
 #endif
 
 #ifdef NSIP
-int	idpip_input(), nsip_ctlinput();
+in_input_t idpip_input;
+in_ctlinput_t nsip_ctlinput;
 #endif
 
 #ifdef TPIP
-int	tpip_input(), tpip_ctlinput(), tp_ctloutput(), tp_usrreq();
-int	tp_init(), tp_slowtimo(), tp_drain();
+in_input_t tpip_input;
+in_ctlinput_t tpip_ctlinput;
+in_ctloutput_t tp_ctloutput;
+int tp_usrreq();
+void tp_init();
+void tp_slowtimo();
+void tp_drain();
 #endif
 
 #ifdef EON
-int	eoninput(), eonctlinput(), eonprotoinit();
-#endif EON
+in_input_t eoninput;
+in_ctlinput_t eonctlinput;
+void eonprotoinit();
+#endif /* EON */
 
 extern	struct domain inetdomain;
 
-struct protosw inetsw[] = {
+struct in_protosw inetsw[] = {
 { 0,		&inetdomain,	0,		0,
   0,		ip_output,	0,		0,
   0,
@@ -138,8 +176,10 @@ struct protosw inetsw[] = {
 };
 
 struct domain inetdomain =
-    { AF_INET, "internet", 0, 0, 0, 
-      inetsw, &inetsw[sizeof(inetsw)/sizeof(inetsw[0])] };
+{ AF_INET, "internet", 0, 0, 0, 
+    (struct protosw *)inetsw,
+    (struct protosw *)&inetsw[sizeof(inetsw)/sizeof(inetsw[0])]
+};
 
 #if NIMP > 0
 extern	struct domain impdomain;

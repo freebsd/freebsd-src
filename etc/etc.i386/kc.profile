@@ -1,4 +1,4 @@
-# $Header
+#	$Id: kc.profile,v 1.6 1994/02/21 21:52:00 rgrimes Exp $
 #
 # rc for kernel distribution floppy
 
@@ -8,10 +8,7 @@ export PATH
 reboot_it() {
 	echo    ""
 	echo    "halting the machine..."
-	
 	halt
-	sync
-	sync
 	echo "Halt failed!  Try power-cycling the machine..."
 	exit 1
 }
@@ -25,6 +22,8 @@ bail_out() {
 	reboot_it
 }
 
+echo	""
+echo	""
 echo    Enter '"copy"' at the prompt to copy the kernel on this
 echo    floppy to your hard disk.  enter anything else to reboot,
 echo	but wait for the machine to restart to remove the floppy.
@@ -51,32 +50,30 @@ if [ X"$todo" = Xcopy ]; then
 	fsck -y /dev/r$diskpart
 	if [ $? -ne 0 ]; then
 		echo ""
-		echo "fsck failed...  Sorry, can't copy kernel..."
+		echo "fsck failed...  Sorry, can't copy kernel!"
 		bail_out
 	fi
-	echo    ""
-	echo    "mounting $diskpart on /mnt..."
+	echo -n	"Mounting $diskpart on /mnt... "
 	mount /dev/$diskpart /mnt
 	if [ $? -ne 0 ]; then
 		echo ""
-		echo "mount failed...  Sorry, can't copy kernel..."
+		echo "mount failed...  Sorry, can't copy kernel!"
 		bail_out
 	fi
-	echo    ""
-	echo    "Please wait.  Copying kernel..."
+	echo    "done."
+	echo -n	"Copying kernel... "
 	cp /386bsd /mnt/386bsd
 	if [ $? -ne 0 ]; then
-		echo ""
-		echo "Copy failed...  (?!?!?!)"
+		echo "failed...  (?!?!?!)"
 		bail_out
 	fi
-	echo    ""
-	echo    "unmounting $diskpart..."
+	echo    "done."
+	echo -n	"Unmounting $diskpart... "
 	umount /mnt > /dev/null 2>&1
 	if [ $? -ne 0 ]; then
-		echo ""
-		echo "unmount failed...  Shouldn't be a problem..."
+		echo -n "failed...  Shouldn't be a problem... "
 	fi
+	echo "done."
 	bail_out
 fi
 

@@ -65,6 +65,8 @@ PLAN	*c_nouser __P((void));
 PLAN	*c_path __P((char *));
 PLAN	*c_perm __P((char *));
 PLAN	*c_print __P((void));
+PLAN	*c_print0 __P((void));
+PLAN	*c_printf __P((char *));
 PLAN	*c_prune __P((void));
 PLAN	*c_size __P((char *));
 PLAN	*c_type __P((char *));

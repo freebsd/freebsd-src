@@ -510,7 +510,8 @@ void vi()
 				/* do it */
 				tcurs = (*keyptr->func)(cursor, count, i);
 			}
-			count = 0L;
+			if (keyptr->args != C_C_K_CUT)
+				count = 0L;
 			break;
 	
 		  case CURSOR_MOVED:

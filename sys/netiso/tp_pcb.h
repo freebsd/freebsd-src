@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_pcb.h	7.9 (Berkeley) 5/6/91
- *	$Id: tp_pcb.h,v 1.2 1993/10/16 21:05:56 rgrimes Exp $
+ *	$Id: tp_pcb.h,v 1.6 1993/12/19 00:53:42 wollman Exp $
  */
 
 /***********************************************************
@@ -76,7 +76,7 @@ SOFTWARE.
 #include "../netiso/tp_user.h"
 #ifndef sblock
 #include "socketvar.h"
-#endif sblock
+#endif /* sblock */
 
 /* NOTE: the code depends on REF_CLOSED > REF_OPEN > the rest, and
  * on REF_FREE being zero
@@ -135,23 +135,23 @@ struct tp_rtc {
 };
 
 struct nl_protosw {
-	int		nlp_afamily;			/* address family */
-	int		(*nlp_putnetaddr)();	/* puts addresses in nl pcb */
-	int		(*nlp_getnetaddr)();	/* gets addresses from nl pcb */
-	int		(*nlp_cmpnetaddr)();	/* compares address in pcb with sockaddr */
-	int		(*nlp_putsufx)();		/* puts transport suffixes in nl pcb */
-	int		(*nlp_getsufx)();		/* gets transport suffixes from nl pcb */
-	int		(*nlp_recycle_suffix)();/* clears suffix from nl pcb */
-	int		(*nlp_mtu)();			/* figures out mtu based on nl used */
-	int		(*nlp_pcbbind)();		/* bind to pcb for net level */
-	int		(*nlp_pcbconn)();		/* connect for net level */
-	int		(*nlp_pcbdisc)();		/* disconnect net level */
-	int		(*nlp_pcbdetach)();		/* detach net level pcb */
-	int		(*nlp_pcballoc)();		/* allocate a net level pcb */
-	int		(*nlp_output)();		/* prepare a packet to give to nl */
-	int		(*nlp_dgoutput)();		/* prepare a packet to give to nl */
-	int		(*nlp_ctloutput)();		/* hook for network set/get options */
-	caddr_t	nlp_pcblist;			/* list of xx_pcb's for connections */
+	int nlp_afamily;	/* address family */
+	int (*nlp_putnetaddr)(); /* puts addresses in nl pcb */
+	int (*nlp_getnetaddr)(); /* gets addresses from nl pcb */
+	int (*nlp_cmpnetaddr)(); /* compares address in pcb with sockaddr */
+	int (*nlp_putsufx)();	/* puts transport suffixes in nl pcb */
+	int (*nlp_getsufx)();	/* gets transport suffixes from nl pcb */
+	int (*nlp_recycle_suffix)(); /* clears suffix from nl pcb */
+	int (*nlp_mtu)();	/* figures out mtu based on nl used */
+	int (*nlp_pcbbind)();	/* bind to pcb for net level */
+	int (*nlp_pcbconn)();	/* connect for net level */
+	void (*nlp_pcbdisc)();	/* disconnect net level */
+	void (*nlp_pcbdetach)(); /* detach net level pcb */
+	int (*nlp_pcballoc)();	/* allocate a net level pcb */
+	int (*nlp_output)();	/* prepare a packet to give to nl */
+	int (*nlp_dgoutput)();	/* prepare a packet to give to nl */
+	int (*nlp_ctloutput)();	/* hook for network set/get options */
+	caddr_t	nlp_pcblist;	/* list of xx_pcb's for connections */
 };
 
 
@@ -285,7 +285,7 @@ struct tp_pcb {
 	/* performance stats - see tp_stat.h */
 	struct tp_pmeas		*tp_p_meas;
 	struct mbuf			*tp_p_mbuf;
-#endif TP_PERF_MEAS
+#endif /* TP_PERF_MEAS */
 	/* addressing */
 	u_short				tp_domain;		/* domain (INET, ISO) */
 	/* for compatibility with the *old* way and with INET, be sure that
@@ -303,7 +303,7 @@ struct tp_pcb {
 	u_char 				tp_peer_acktime; /* used to compute DT retrans time */
 
 	struct sockbuf		tp_Xsnd;		/* for expedited data */
-/*	struct sockbuf		tp_Xrcv;		/* for expedited data */
+/*	struct sockbuf		tp_Xrcv;*/		/* for expedited data */
 #define tp_Xrcv tp_sock->so_rcv
 	SeqNum				tp_Xsndnxt;	/* next XPD seq # to send */
 	SeqNum				tp_Xuna;		/* seq # of unacked XPD */
@@ -315,7 +315,10 @@ struct tp_pcb {
 
 };
 
-u_int	tp_start_win;
+#ifdef KERNEL
+extern u_int	tp_start_win;
+#endif
+
 
 #define ROUND(scaled_int) (((scaled_int) >> 8) + (((scaled_int) & 0x80) ? 1:0))
 
@@ -362,6 +365,35 @@ extern struct tp_param	tp_param;
 extern struct nl_protosw  nl_protosw[];
 extern struct tp_pcb	*tp_listeners;
 extern struct tp_pcb	*tp_intercepts;
+
+extern int tp_goodXack(struct tp_pcb *, SeqNum);
+extern void tp_rtt_rtv(struct timeval *, struct timeval *, struct timeval *);
+extern int tp_goodack(struct tp_pcb *, u_int, SeqNum, SeqNum);
+extern int tp_send(struct tp_pcb *);
+struct tp_event;
+extern int tp_stash(struct tp_pcb *, struct tp_event *);
+
+extern void tp_local_credit(struct tp_pcb *);
+extern int tp_protocol_error(struct tp_event *, struct tp_pcb *);
+extern void tp_drain(void);
+extern void tp_indicate(int, struct tp_pcb *, int /*u_short*/);
+extern void tp_getoptions(struct tp_pcb *);
+extern void tp_recycle_tsuffix(struct tp_pcb *);
+extern void tp_quench(struct tp_pcb *, int);
+extern void tp_netcmd(struct tp_pcb *, int);
+extern int tp_mask_to_num(int /*u_char*/);
+extern int tp_route_to(struct mbuf *, struct tp_pcb *, caddr_t);
+extern void tp0_stash(struct tp_pcb *, struct tp_event *);
+extern void ytp0_openflow(struct tp_pcb *);
+extern int tp_setup_perf(struct tp_pcb *);
+
+extern int tp_consistency(struct tp_pcb *, u_int, struct tp_conn_param *);
+extern int tp_ctloutput(int, struct socket *, int, int, struct mbuf **);
+extern struct mbuf *tp_inputprep(struct mbuf *);
+extern int tp_input(struct mbuf *, struct sockaddr *, struct sockaddr *, 
+		     u_int, int (*)(), int);
+extern int tp_headersize(int, struct tp_pcb *);
+ 
 #endif
 
 #define	sototpcb(so) 	((struct tp_pcb *)(so->so_tpcb))
@@ -369,4 +401,4 @@ extern struct tp_pcb	*tp_intercepts;
 #define	tpcbtoso(tp)	((struct socket *)((tp)->tp_sock))
 #define	tpcbtoref(tp)	((struct tp_ref *)((tp)->tp_ref))
 
-#endif  __TP_PCB__
+#endif /* __TP_PCB__ */

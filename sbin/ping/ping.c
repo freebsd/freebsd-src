@@ -709,7 +709,24 @@ finish()
 	if (nreceived && timing)
 		(void)printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
 		    tmin/1000.0, tsum/(nreceived + nrepeats)/1000.0, tmax/1000.0);
-	exit(0);
+
+	/*
+	 * 13NOV93 GRS
+	 * added code to return 1 if no packets were returned to the receiver.
+	 * Originally PING returned 0 regardless of how many packets were 
+	 * returned, thus the only way to test the return value of PING in a 
+	 * shell script was to do something like:
+	 *
+	 *   if ping -n -c 1 -r $IP_ADDR | grep '0 packets received' >/dev/null
+	 *
+	 * now, all that is needed is:
+	 *
+	 *   if ping -n -c 1 -r $IP_ADDR >/dev/null
+	 */
+	if (nreceived)
+		exit (0);
+	else
+		exit (1);
 }
 
 #ifdef notdef

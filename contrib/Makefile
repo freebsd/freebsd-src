@@ -1,6 +1,6 @@
-#	@(#)Makefile	0.1 (RGrimes) 4/7/93
+# $Id: Makefile,v 1.3 1993/12/21 21:18:14 wollman Exp $
 
-SUBDIR=	tcpdump
+SUBDIR=	tcpdump xntpd
 
 # Not ported: isode
 

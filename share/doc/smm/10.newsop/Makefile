@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.2 (Berkeley) 6/30/90
 #	Makefile,v 1.4 1993/07/31 15:31:54 mycroft Exp
 
-DIR=	smm/10.newsop
+VOLUME=	smm
 DOC=	10.newsop
 
 SSRC=	tmac.n standard.mn

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_syscalls.c	7.26 (Berkeley) 4/16/91
- *	$Id: nfs_syscalls.c,v 1.3 1993/09/09 22:06:09 rgrimes Exp $
+ *	$Id: nfs_syscalls.c,v 1.4 1993/12/19 00:54:16 wollman Exp $
  */
 
 #include "param.h"
@@ -288,7 +288,8 @@ nfssvc(p, uap, retval)
 			 */
 			if (!sosendallatonce(so)) {
 				M_PREPEND(mreq, sizeof(u_long), M_WAIT);
-				*mtod(mreq, u_long *) = htonl(0x80000000 | siz);
+				*mtod(mreq, u_long *) = 
+				  htonl(0x80000000UL | siz);
 			}
 			error = nfs_send(so, nam, mreq, (struct nfsreq *)0);
 			if (nam)

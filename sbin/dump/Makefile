@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.12 (Berkeley) 3/7/91
 #
-#	$Header: /a/cvs/386BSD/src/sbin/dump/Makefile,v 1.4 1993/07/22 16:49:11 jkh Exp $
+#	$Header: /home/cvs/386BSD/src/sbin/dump/Makefile,v 1.4 1993/07/22 16:49:11 jkh Exp $
 
 #	dump.h			header file
 #	dumpitime.c		reads /etc/dumpdates

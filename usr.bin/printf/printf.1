@@ -32,17 +32,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)printf.1	5.11 (Berkeley) 7/24/91
+.\"	from: @(#)printf.1	5.11 (Berkeley) 7/24/91
+.\"	$Id: printf.1,v 1.2 1993/11/23 00:06:20 jtc Exp $
 .\"
-.Dd July 24, 1991
+.Dd November 5, 1993
 .Dt PRINTF 1
 .Os
 .Sh NAME
 .Nm printf
 .Nd formatted output
 .Sh SYNOPSIS
-.Nm printf format
-.Op arguments  ...
+.Nm printf 
+.Ar format
+.Op Ar arguments  ...
 .Sh DESCRIPTION
 .Nm Printf
 formats and prints its arguments, after the first, under control
@@ -60,6 +62,7 @@ The
 .Ar arguments
 after the first are treated as strings if the corresponding format is
 either
+.Cm b ,
 .Cm c
 or
 .Cm s ;
@@ -69,8 +72,9 @@ otherwise it is evaluated as a C constant, with the following extensions:
 .It
 A leading plus or minus sign is allowed.
 .It
-If the leading character is a single or double quote, or not a digit,
-plus, or minus sign, the value is the ASCII code of the next character.
+If the leading character is a single or double quote, the value is the 
+.Tn ASCII
+code of the next character.
 .El
 .Pp
 The format string is reused as often as necessary to satisfy the
@@ -78,11 +82,8 @@ The format string is reused as often as necessary to satisfy the
 Any extra format specifications are evaluated with zero or the null
 string.
 .Pp
-Character escape sequences are in backslash notation as defined in the
-draft proposed
-.Tn ANSI C
-Standard
-.Tn X3J11 .
+Character escape sequences are in backslash notation as defined in 
+.St -ansiC .
 The characters and their meanings
 are as follows:
 .Bl -tag -width Ds -offset indent
@@ -187,7 +188,7 @@ from a string; if the digit string is missing, the precision is treated
 as zero;
 .It Format:
 A character which indicates the type of format to use (one of
-.Cm diouxXfwEgGcs ) .
+.Cm diouxXfwEgGbcs ) .
 .El
 .Pp
 A field width or precision may be
@@ -232,6 +233,10 @@ or in style
 .Cm e
 .Pq Cm E
 whichever gives full precision in minimum space.
+.It Cm b
+Characters from the string
+.Ar argument
+are printed with backslash-escape sequences expanded.
 .It Cm c
 The first character of
 .Ar argument
@@ -253,20 +258,15 @@ the actual width.
 .Nm Printf
 exits 0 on success, 1 on failure.
 .Sh SEE ALSO
+.Xr echo 1 ,
 .Xr printf 3
-.Sh HISTORY
+.Sh STANDARDS
 The
 .Nm printf
-command appeared in
-.Bx 4.3 Reno .
-It is modeled
-after the standard library function,
-.Xr printf 3 .
+utility conforms to 
+.St -p1003.2-92 .
 .Sh BUGS
-Since the number is translated from
+Since arguments are translated from
 .Tn ASCII
 to floating-point, and
 then back again, floating-point precision may be lost.
-.Pp
-.Tn ANSI
-hexadecimal character constants were deliberately not provided.

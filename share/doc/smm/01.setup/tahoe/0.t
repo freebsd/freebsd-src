@@ -32,6 +32,7 @@
 .\"	@(#)0.t	1.6 (Berkeley) 5/7/91
 .\"
 .nr Th 1		\" Tahoe version
+.nr Vx 0
 .ds Th Tahoe
 .ds Ux \s-1UNIX\s0
 .ds Bs \s-1BSD\s0

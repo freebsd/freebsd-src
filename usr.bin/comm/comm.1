@@ -32,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)comm.1	6.7 (Berkeley) 6/27/91
+.\"     from: @(#)comm.1	6.7 (Berkeley) 6/27/91
+.\"	$Id: comm.1,v 1.2 1993/11/23 00:20:03 jtc Exp $
 .\"
 .Dd June 27, 1991
 .Os
@@ -80,7 +81,15 @@ printed in column number three will have one.
 .Nm Comm
 assumes that the files are lexically sorted; all characters
 participate in line comparisons.
-.Pp
+.\" .Sh ENVIRONMENT
+.\" .Bl -tag -width indent
+.\" .It Ev LANG
+.\" .It Ev LC_ALL
+.\" .It Ev LC_CTYPE
+.\" .It Ev LC_COLLATE
+.\" .It Ev LC_MESSAGES
+.\" .El
+.Sh DIAGNOSTICS
 .Nm Comm
 exits 0 on success, >0 if an error occurred.
 .Sh SEE ALSO
@@ -91,4 +100,5 @@ exits 0 on success, >0 if an error occurred.
 .Sh STANDARDS
 The
 .Nm comm
-command is expected to be POSIX 1003.2 compatible.
+utility conforms to 
+.St -p1003.2-92 .

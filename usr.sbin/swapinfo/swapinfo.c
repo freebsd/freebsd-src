@@ -18,9 +18,10 @@
 #include <sys/uio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
-#include <sys/rlist.h>  /* swapmap defined here... */
+#include <sys/rlist.h>
 #include <nlist.h>
 
+struct rlist *swapmap;
 
 static struct nlist nl[] = {{"_swapmap"},  /* list of free swap areas */
 #define VM_SWAPMAP	0

@@ -30,16 +30,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00102
- * --------------------         -----   ----------------------
- *
- * 06 Sep 92	Herb Peyerl		Added "aui"/"bnc" options to ifconfig
- *					for 3COM 3C503 port selection
- * 10 Mar 93	Rodney W. Grimes	Made the aui/bnc more general, you now
- *					also have llc[0-2] and -llc[0-2].
- *					Added the rest of the output flag bits.
  */
 
 #ifndef lint
@@ -50,6 +40,8 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)ifconfig.c	5.1 (Berkeley) 2/28/91";
+static const char rcsid[] = 
+  "$Id: ifconfig.c,v 1.6 1994/01/22 08:23:47 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -60,7 +52,6 @@ static char sccsid[] = "@(#)ifconfig.c	5.1 (Berkeley) 2/28/91";
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#ifdef notdef
 #define	NSIP
 #include <netns/ns.h>
 #include <netns/ns_if.h>
@@ -68,7 +59,6 @@ static char sccsid[] = "@(#)ifconfig.c	5.1 (Berkeley) 2/28/91";
 #define EON
 #include <netiso/iso.h>
 #include <netiso/iso_var.h>
-#endif
 #include <netdb.h>
 #include <sys/protosw.h>
 
@@ -118,8 +108,17 @@ struct	cmd {
 	{ "-arp",	IFF_NOARP,	setifflags },
 	{ "debug",	IFF_DEBUG,	setifflags },
 	{ "-debug",	-IFF_DEBUG,	setifflags },
+#ifdef IFF_ALTPHYS
+	{ "aui",	IFF_ALTPHYS,	setifflags },
+	{ "bnc",	-IFF_ALTPHYS,	setifflags },
+	{ "altphys",	IFF_ALTPHYS,	setifflags },
+	{ "-altphys",	-IFF_ALTPHYS,	setifflags },
+#else
 	{ "aui",	IFF_LLC0,	setifflags },	/* 06 Sep 92*/
 	{ "bnc",	-IFF_LLC0,	setifflags },
+	{ "altphys",	IFF_LLC0,	setifflags },
+	{ "-altphys",	-IFF_LLC0,	setifflags },
+#endif
 	{ "llc0",	IFF_LLC0,	setifflags },	/* 10 Mar 93 */
 	{ "-llc0",	-IFF_LLC0,	setifflags },
 	{ "llc1",	IFF_LLC1,	setifflags },
@@ -242,6 +241,12 @@ main(argc, argv)
 			p++;	/* got src, do dst */
 		if (p->c_func) {
 			if (p->c_parameter == NEXTARG) {
+				if (argv[1] == NULL) {
+					fprintf(stderr,
+						"ifconfig: '%s' requires argument.\n",
+						p->c_name);
+					exit(1);
+				}
 				(*p->c_func)(argv[1]);
 				argc--, argv++;
 			} else
@@ -348,7 +353,7 @@ setifdstaddr(addr, param)
 
 setifflags(vname, value)
 	char *vname;
-	short value;
+	int value;
 {
  	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
  		Perror("ioctl (SIOCGIFFLAGS)");
@@ -384,10 +389,14 @@ setsnpaoffset(val)
 #endif
 }
 
+/*
+ * This is ok if IFF_ALTPHYS is not defined, since we can be sure of never
+ * seeing in in that case anyway.
+ */
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6NOTRAILERS\7RUNNING\10NOARP\
 \11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LLC0\16LLC1\17LLC2\
-"
+\20ALTPHYS\21MULTICAST\22VIRTUAL"
 
 /*
  * Print the status of the interface.  If an address family was
@@ -415,7 +424,6 @@ in_status(force)
 	int force;
 {
 	struct sockaddr_in *sin;
-	char *inet_ntoa();
 
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	if (ioctl(s, SIOCGIFADDR, (caddr_t)&ifr) < 0) {
@@ -558,8 +566,6 @@ iso_status(force)
 Perror(cmd)
 	char *cmd;
 {
-	extern int errno;
-
 	fprintf(stderr, "ifconfig: ");
 	switch (errno) {
 
@@ -596,14 +602,14 @@ in_getaddr(s, which)
 	if (which != MASK)
 		sin->sin_family = AF_INET;
 
-	if ((val = inet_addr(s)) != -1)
-		sin->sin_addr.s_addr = val;
+	if (inet_aton(s, &sin->sin_addr))
+		; /* do nothing, conversion successful */
 	else if (hp = gethostbyname(s))
 		bcopy(hp->h_addr, (char *)&sin->sin_addr, hp->h_length);
 	else if (np = getnetbyname(s))
 		sin->sin_addr = inet_makeaddr(np->n_net, INADDR_ANY);
 	else {
-		fprintf(stderr, "%s: bad value\n", s);
+		fprintf(stderr, "ifconfig: %s: bad value\n", s);
 		exit(1);
 	}
 }

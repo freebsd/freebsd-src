@@ -32,7 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rec_search.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)rec_search.c	8.2 (Berkeley) 9/14/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -55,9 +55,10 @@ static char sccsid[] = "@(#)rec_search.c	8.1 (Berkeley) 6/4/93";
  *	EPG for matching record, if any, or the EPG for the location of the
  *	key, if it were inserted into the tree.
  *
- * Warnings:
- *	The EPG returned is in static memory, and will be overwritten by the
- *	next search of any kind in any tree.
+ * Returns:
+ *	The EPG for matching record, if any, or the EPG for the location
+ *	of the key, if it were inserted into the tree, is entered into
+ *	the bt_cur field of the tree.  A pointer to the field is returned.
  */
 EPG *
 __rec_search(t, recno, op)
@@ -65,7 +66,6 @@ __rec_search(t, recno, op)
 	recno_t recno;
 	enum SRCHOP op;
 {
-	static EPG e;
 	register indx_t index;
 	register PAGE *h;
 	EPGNO *parent;
@@ -80,9 +80,9 @@ __rec_search(t, recno, op)
 		if ((h = mpool_get(t->bt_mp, pg, 0)) == NULL)
 			goto err;
 		if (h->flags & P_RLEAF) {
-			e.page = h;
-			e.index = recno - total;
-			return (&e);
+			t->bt_cur.page = h;
+			t->bt_cur.index = recno - total;
+			return (&t->bt_cur);
 		}
 		for (index = 0, top = NEXTINDEX(h);;) {
 			r = GETRINTERNAL(h, index);

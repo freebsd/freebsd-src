@@ -3,7 +3,5 @@
 PROG=	sed
 SRCS=	compile.c main.c misc.c process.c 
 CFLAGS+=-I${.CURDIR} -DHISTORIC_PRACTICE
-LDADD+=	-lgnuregex
-DPADD+=	/usr/lib/libgnuregex.a
 
 .include <bsd.prog.mk>

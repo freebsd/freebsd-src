@@ -35,14 +35,15 @@
 \fI\\$1\fP\|\\$2
 ..
 .ds LH "Installing/Operating \*(4B
-.nr H1 6
-.nr H2 0
+.\".nr H1 6
+.\".nr H2 0
 .ds RH "System Operation
 .ds CF \*(DY
 .bp
 .LG
 .B
 .ce
+.NH 1
 6. SYSTEM OPERATION
 .sp 2
 .R

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pk_acct.c	7.6 (Berkeley) 6/26/91
- *	$Id: pk_acct.c,v 1.2 1993/10/16 19:46:47 rgrimes Exp $
+ *	$Id: pk_acct.c,v 1.3 1993/11/25 01:34:27 wollman Exp $
  */
 
 #include "param.h"
@@ -62,6 +62,7 @@ struct	vnode *pkacctp;
  *  Turn on packet accounting
  */
 
+int
 pk_accton (path)
 	char *path;
 {
@@ -95,8 +96,9 @@ pk_accton (path)
  *  Write a record on the accounting file.
  */
 
+void
 pk_acct (lcp)
-register struct pklcd *lcp;
+	register struct pklcd *lcp;
 {
 	register struct vnode *vp;
 	register struct sockaddr_x25 *sa;

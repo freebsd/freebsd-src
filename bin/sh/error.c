@@ -178,55 +178,55 @@ struct errname {
 #define ALL (E_OPEN|E_CREAT|E_EXEC)
 
 STATIC const struct errname errormsg[] = {
-	EINTR, ALL,	"interrupted",
-	EACCES, ALL,	"permission denied",
+	EINTR, ALL,		"interrupted",
+	EACCES, ALL,		"permission denied",
 	EIO, ALL,		"I/O error",
-	ENOENT, E_OPEN,	"no such file",
+	ENOENT, E_OPEN,		"no such file",
 	ENOENT, E_CREAT,	"directory nonexistent",
-	ENOENT, E_EXEC,	"not found",
+	ENOENT, E_EXEC,		"not found",
 	ENOTDIR, E_OPEN,	"no such file",
 	ENOTDIR, E_CREAT,	"directory nonexistent",
 	ENOTDIR, E_EXEC,	"not found",
-	EISDIR, ALL,	"is a directory",
-/*    EMFILE, ALL,	"too many open files", */
-	ENFILE, ALL,	"file table overflow",
-	ENOSPC, ALL,	"file system full",
+	EISDIR, ALL,		"is a directory",
+/*    EMFILE, ALL,		"too many open files", */
+	ENFILE, ALL,		"file table overflow",
+	ENOSPC, ALL,		"file system full",
 #ifdef EDQUOT
-	EDQUOT, ALL,	"disk quota exceeded",
+	EDQUOT, ALL,		"disk quota exceeded",
 #endif
 #ifdef ENOSR
-	ENOSR, ALL,	"no streams resources",
+	ENOSR, ALL,		"no streams resources",
 #endif
-	ENXIO, ALL,	"no such device or address",
-	EROFS, ALL,	"read-only file system",
-	ETXTBSY, ALL,	"text busy",
+	ENXIO, ALL,		"no such device or address",
+	EROFS, ALL,		"read-only file system",
+	ETXTBSY, ALL,		"text busy",
 #ifdef SYSV
-	EAGAIN, E_EXEC,	"not enough memory",
+	EAGAIN, E_EXEC,		"not enough memory",
 #endif
-	ENOMEM, ALL,	"not enough memory",
+	ENOMEM, ALL,		"not enough memory",
 #ifdef ENOLINK
-	ENOLINK, ALL,	"remote access failed",
+	ENOLINK, ALL,		"remote access failed",
 #endif
 #ifdef EMULTIHOP
-	EMULTIHOP, ALL,	"remote access failed",
+	EMULTIHOP, ALL,		"remote access failed",
 #endif
 #ifdef ECOMM
-	ECOMM, ALL,	"remote access failed",
+	ECOMM, ALL,		"remote access failed",
 #endif
 #ifdef ESTALE
-	ESTALE, ALL,	"remote access failed",
+	ESTALE, ALL,		"remote access failed",
 #endif
 #ifdef ETIMEDOUT
-	ETIMEDOUT, ALL,	"remote access failed",
+	ETIMEDOUT, ALL,		"remote access failed",
 #endif
 #ifdef ELOOP
-	ELOOP, ALL,	"symbolic link loop",
+	ELOOP, ALL,		"symbolic link loop",
 #endif
-	E2BIG, E_EXEC,	"argument list too long",
+	E2BIG, E_EXEC,		"argument list too long",
 #ifdef ELIBACC
 	ELIBACC, E_EXEC,	"shared library missing",
 #endif
-	0, 0,		NULL
+	0, 0,			NULL
 };
 
 

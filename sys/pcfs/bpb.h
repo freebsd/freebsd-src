@@ -15,8 +15,11 @@
  *
  *  October 1992
  *
- *	$Id: bpb.h,v 1.2 1993/10/16 19:29:25 rgrimes Exp $
+ *	$Id: bpb.h,v 1.3 1993/11/07 17:51:11 wollman Exp $
  */
+
+#ifndef _PCFS_BPB_H_
+#define _PCFS_BPB_H_ 1
 
 /*
  *  BIOS Parameter Block (BPB) for DOS 3.3
@@ -108,3 +111,4 @@ struct byte_bpb50 {
 	char bpbHiddenSecs[4];	/* number of hidden sectors		*/
 	char bpbHugeSectors[4];	/* number of sectrs if bpbSectors == 0	*/
 };
+#endif /* _PCFS_BPB_H_ */

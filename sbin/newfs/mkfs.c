@@ -109,9 +109,7 @@ extern int	maxbpg;		/* maximum blocks per file in a cyl group */
 extern int	nrpos;		/* # of distinguished rotational positions */
 extern int	bbsize;		/* boot block size */
 extern int	sbsize;		/* superblock size */
-extern u_long	memleft;	/* virtual memory available */
 extern caddr_t	membase;	/* start address of memory based filesystem */
-extern caddr_t	malloc(), calloc();
 
 union {
 	struct fs fs;
@@ -141,32 +139,11 @@ mkfs(pp, fsys, fi, fo)
 	long used, mincpgcnt, bpcg;
 	long mapcramped, inodecramped;
 	long postblsize, rotblsize, totalsbsize;
-	int ppid, status;
 	time_t utime;
-	void started();
 
 #ifndef STANDALONE
 	time(&utime);
 #endif
-	if (mfs) {
-		ppid = getpid();
-		(void) signal(SIGUSR1, started);
-		if (i = fork()) {
-			if (i == -1) {
-				perror("mfs");
-				exit(10);
-			}
-			if (waitpid(i, &status, 0) != -1 && WIFEXITED(status))
-				exit(WEXITSTATUS(status));
-			exit(11);
-			/* NOTREACHED */
-		}
-		(void)malloc(0);
-		if (fssize * sectorsize > memleft)
-			fssize = (memleft - 16384) / sectorsize;
-		if ((membase = malloc(fssize * sectorsize)) == 0)
-			exit(12);
-	}
 	fsi = fi;
 	fso = fo;
 	/*
@@ -629,18 +606,6 @@ next:
 	pp->p_fsize = sblock.fs_fsize;
 	pp->p_frag = sblock.fs_frag;
 	pp->p_cpg = sblock.fs_cpg;
-	/*
-	 * Notify parent process of success.
-	 * Dissociate from session and tty.
-	 */
-	if (mfs) {
-		kill(ppid, SIGUSR1);
-		(void) setsid();
-		(void) close(0);
-		(void) close(1);
-		(void) close(2);
-		(void) chdir("/");
-	}
 }
 
 /*
@@ -929,86 +894,6 @@ iput(ip, ino)
 	rdfs(d, sblock.fs_bsize, buf);
 	buf[itoo(&sblock, ino)] = *ip;
 	wtfs(d, sblock.fs_bsize, buf);
-}
-
-/*
- * Notify parent process that the filesystem has created itself successfully.
- */
-void
-started()
-{
-
-	exit(0);
-}
-
-/*
- * Replace libc function with one suited to our needs.
- */
-caddr_t
-malloc(size)
-	register u_long size;
-{
-	u_long base, i;
-	static u_long pgsz;
-	struct rlimit rlp;
-
-	if (pgsz == 0) {
-		base = sbrk(0);
-		pgsz = getpagesize() - 1;
-		i = (base + pgsz) &~ pgsz;
-		base = sbrk(i - base);
-		if (getrlimit(RLIMIT_DATA, &rlp) < 0)
-			perror("getrlimit");
-		rlp.rlim_cur = rlp.rlim_max;
-		if (setrlimit(RLIMIT_DATA, &rlp) < 0)
-			perror("setrlimit");
-		memleft = rlp.rlim_max - base;
-	}
-	size = (size + pgsz) &~ pgsz;
-	if (size > memleft)
-		size = memleft;
-	memleft -= size;
-	if (size == 0)
-		return (0);
-	return ((caddr_t)sbrk(size));
-}
-
-/*
- * Replace libc function with one suited to our needs.
- */
-caddr_t
-realloc(ptr, size)
-	char *ptr;
-	u_long size;
-{
-
-	/* always fail for now */
-	return ((caddr_t)0);
-}
-
-/*
- * Replace libc function with one suited to our needs.
- */
-char *
-calloc(size, numelm)
-	u_long size, numelm;
-{
-	caddr_t base;
-
-	size *= numelm;
-	base = malloc(size);
-	bzero(base, size);
-	return (base);
-}
-
-/*
- * Replace libc function with one suited to our needs.
- */
-free(ptr)
-	char *ptr;
-{
-	
-	/* do not worry about it for now */
 }
 
 /*

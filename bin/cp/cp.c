@@ -325,7 +325,7 @@ copy_file(fs, dne)
 			checkch = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
-			if (checkch != 'y') {
+			if (checkch != 'y' && checkch != 'Y') {
 				(void)close(from_fd);
 				return;
 			}
@@ -350,10 +350,13 @@ copy_file(fs, dne)
 		if ((p = mmap(NULL, fs->st_size, PROT_READ,
 		    MAP_FILE, from_fd, (off_t)0)) == (char *)-1)
 			err("%s: %s", from.p_path, strerror(errno));
-		madvise((caddr_t) p, fs->st_size, MADV_SEQUENTIAL);
+		/* Not implemented yet...
+		 madvise((caddr_t) p, fs->st_size, MADV_SEQUENTIAL);
+		 */
 		if (write(to_fd, p, fs->st_size) != fs->st_size)
 			err("%s: %s", to.p_path, strerror(errno));
-		munmap((caddr_t) p, fs->st_size);
+		if (munmap((caddr_t) p, fs->st_size) < 0)
+			err("%s: %s", from.p_path, strerror(errno));
 	} else {
 		while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
 			wcount = write(to_fd, buf, rcount);

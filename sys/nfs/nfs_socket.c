@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_socket.c	7.23 (Berkeley) 4/20/91
- *	$Id: nfs_socket.c,v 1.3 1993/09/09 22:06:05 rgrimes Exp $
+ *	$Id: nfs_socket.c,v 1.4.2.1 1994/05/03 21:04:53 rgrimes Exp $
  */
 
 /*
@@ -479,7 +479,7 @@ tryagain:
 			}
 			if (error)
 				goto errout;
-			len = ntohl(len) & ~0x80000000;
+			len = ntohl(len) & ~0x80000000ul;
 			/*
 			 * This is SERIOUS! We are out of sync with the sender
 			 * and forcing a disconnect/reconnect is all I can do.
@@ -810,7 +810,7 @@ nfs_request(vp, mreq, xid, procnum, procp, tryhard, mp, mrp, mdp, dposp)
 	 */
 	if ((nmp->nm_soflags & PR_ATOMIC) == 0) {
 		M_PREPEND(mreq, sizeof(u_long), M_WAIT);
-		*mtod(mreq, u_long *) = htonl(0x80000000 | len);
+		*mtod(mreq, u_long *) = htonl(0x80000000ul | len);
 	}
 	rep->r_mreq = mreq;
 
@@ -971,6 +971,8 @@ nfs_getreq(so, prog, vers, maxproc, nam, mrp, mdp, dposp, retxid, procnum, cr,
 	}
 	if (error)
 		return (error);
+	if (!mrep)
+		return (EBADRPC);
 	md = mrep;
 	mrep = nfs_uncompress(mrep);
 	if (mrep != md) {

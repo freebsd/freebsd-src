@@ -42,8 +42,8 @@ static char sccsid[] = "@(#)rsh.c	5.24 (Berkeley) 7/1/91";
 #endif /* not lint */
 
 /*
- * $Source: /a/cvs/386BSD/src/usr.bin/rsh/rsh.c,v $
- * $Header: /a/cvs/386BSD/src/usr.bin/rsh/rsh.c,v 1.1.1.1 1993/06/12 14:49:28 rgrimes Exp $
+ * $Source: /home/cvs/386BSD/src/usr.bin/rsh/rsh.c,v $
+ * $Header: /home/cvs/386BSD/src/usr.bin/rsh/rsh.c,v 1.1.1.1 1993/06/12 14:49:28 rgrimes Exp $
  */
 
 #include <sys/types.h>

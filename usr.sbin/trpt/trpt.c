@@ -38,7 +38,9 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)trpt.c	5.14 (Berkeley) 7/1/91";
+static char sccsid[] = "From: @(#)trpt.c	5.14 (Berkeley) 7/1/91";
+static const char rcsid[] =
+	"$Id: trpt.c,v 1.2 1993/11/09 23:03:33 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,6 +82,9 @@ static char sccsid[] = "@(#)trpt.c	5.14 (Berkeley) 7/1/91";
 #include <errno.h>
 #include <nlist.h>
 #include <paths.h>
+
+struct   tcp_debug tcp_debug[TCP_NDEBUG];
+int      tcp_debx;
 
 struct nlist nl[] = {
 #define	N_TCP_DEBUG	0

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)proc.h	7.28 (Berkeley) 5/30/91
- *	$Id: proc.h,v 1.2 1993/10/16 17:17:20 rgrimes Exp $
+ *	$Id: proc.h,v 1.6.2.1 1994/03/24 08:38:44 rgrimes Exp $
  */
 
 #ifndef _PROC_H_
@@ -138,8 +138,8 @@ struct	proc {
 	char	p_comm[MAXCOMLEN+1];
 
 /* end area that is copied on creation */
-#define	p_endcopy	p_wmesg
-	char	*p_wmesg;	/* reason for sleep */
+#define	p_endcopy p_wmesg
+	const char *p_wmesg;	/* reason for sleep */
 	int	p_thread;	/* id for this "thread" (Mach glue) XXX */
 	struct	user *p_addr;	/* kernel virtual addr of u-area (PROC ONLY) */
 	swblk_t	p_swaddr;	/* disk address of u area when swapped */
@@ -182,32 +182,35 @@ struct	pcred {
 #define	SSTOP	6		/* process being traced */
 
 /* flag codes */
-#define	SLOAD	0x0000001	/* in core */
-#define	SSYS	0x0000002	/* swapper or pager process */
-#define	SSINTR	0x0000004	/* sleep is interruptible */
-#define	SCTTY	0x0000008	/* has a controlling terminal */
-#define	SPPWAIT	0x0000010	/* parent is waiting for child to exec/exit */
-#define SEXEC	0x0000020	/* process called exec */
-#define	STIMO	0x0000040	/* timing out during sleep */
-#define	SSEL	0x0000080	/* selecting; wakeup/waiting danger */
-#define	SWEXIT	0x0000100	/* working on exiting */
-#define	SNOCLDSTOP 0x0000200	/* no SIGCHLD when children stop */
+#define	SLOAD	0x00000001	/* in core */
+#define	SSYS	0x00000002	/* swapper or pager process */
+#define	SSINTR	0x00000004	/* sleep is interruptible */
+#define	SCTTY	0x00000008	/* has a controlling terminal */
+#define	SPPWAIT	0x00000010	/* parent is waiting for child to exec/exit */
+#define SEXEC	0x00000020	/* process called exec */
+#define	STIMO	0x00000040	/* timing out during sleep */
+#define	SSEL	0x00000080	/* selecting; wakeup/waiting danger */
+#define	SWEXIT	0x00000100	/* working on exiting */
+#define	SNOCLDSTOP \
+		0x00000200	/* no SIGCHLD when children stop */
 /* the following three should probably be changed into a hold count */
-#define	SLOCK	0x0000400	/* process being swapped out */
-#define	SKEEP	0x0000800	/* another flag to prevent swap out */
-#define	SPHYSIO	0x0001000	/* doing physical i/o */
-#define	STRC	0x0004000	/* process is being traced */
-#define	SWTED	0x0008000	/* another tracing flag */
-#define	SADVLCK	0x0040000	/* process may hold a POSIX advisory lock */
+#define	SLOCK	0x00000400	/* process being swapped out */
+#define	SKEEP	0x00000800	/* another flag to prevent swap out */
+#define	SPHYSIO	0x00001000	/* doing physical i/o */
+#define	STRC	0x00004000	/* process is being traced */
+#define	SWTED	0x00008000	/* another tracing flag */
+#define	SADVLCK	0x00040000	/* process may hold a POSIX advisory lock */
 /* the following should be moved to machine-dependent areas */
-#define	SOWEUPC	0x0002000	/* owe process an addupc() call at next ast */
+#define	SOWEUPC	0x00002000	/* owe process an addupc() call at next ast */
 #ifdef HPUXCOMPAT
-#define	SHPUX	0x0010000	/* HP-UX process (HPUXCOMPAT) */
+#define	SHPUX	0x00010000	/* HP-UX process (HPUXCOMPAT) */
 #else
 #define	SHPUX	0		/* not HP-UX process (HPUXCOMPAT) */
 #endif
-/* not currently in use (never set) */
-#define	SPAGE	0x0020000	/* process in page wait state */
+#define	SUGID	0x00020000	/* process has changed [ug]id since exec */
+
+#define SPAGEDAEMON \
+		0x00080000	/* process has been scanned by pageout daemon */
 
 #ifdef KERNEL
 /*
@@ -228,12 +231,10 @@ struct	pcred {
 
 extern	int pidhashmask;		/* in param.c */
 extern	struct proc *pidhash[];		/* in param.c */
-struct	proc *pfind();			/* find process by id */
 extern	struct pgrp *pgrphash[];	/* in param.c */
-struct 	pgrp *pgfind();			/* find process group by id */
-struct	proc *zombproc, *allproc;	/* lists of procs in various states */
+extern	struct proc *zombproc, *allproc; /* lists of procs in various states */
 extern	struct proc proc0;		/* process slot for swapper */
-struct	proc *initproc, *pageproc;	/* process slots for init, pager */
+extern	struct	proc *initproc, *pageproc; /* process slots for init, pager */
 extern	struct proc *curproc;		/* current running proc */
 extern	int nprocs, maxproc;		/* current and max number of procs */
 
@@ -241,9 +242,25 @@ extern	int nprocs, maxproc;		/* current and max number of procs */
 struct	prochd {
 	struct	proc *ph_link;	/* linked list of running processes */
 	struct	proc *ph_rlink;
-} qs[NQS];
+};
 
-int	whichqs;		/* bit mask summarizing non-empty qs's */
+extern struct prochd qs[NQS];
+extern	int whichqs;		/* bit mask summarizing non-empty qs's */
+
+extern struct 	pgrp *pgfind(pid_t);	/* find process group by id */
+extern struct	proc *pfind(int);	/* find process by id */
+
+void fixjobc(struct proc *, struct pgrp *, int);
+void unsleep(struct proc *);
+void setrun(struct proc *);
+void setpri(struct proc *);
+
+void	remrq __P((struct proc *));
+void	setrq __P((struct proc *));
+void	updatepri __P((struct proc *));
+int	cpu_fork __P((struct proc *, struct proc *));
+void	enterpgrp __P((struct proc *, int /*pid_t*/, int));
+
 #endif	/* KERNEL */
 
 #endif	/* !_PROC_H_ */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vtimes.h	7.2 (Berkeley) 5/5/91
- *	$Id: vtimes.h,v 1.2 1993/10/16 17:18:31 rgrimes Exp $
+ *	$Id: vtimes.h,v 1.3 1993/11/07 17:53:24 wollman Exp $
  */
+
+#ifndef _SYS_VTIMES_H_
+#define _SYS_VTIMES_H_ 1
 
 /*
  * Structure returned by vtimes() and in vwait().
@@ -53,3 +56,4 @@ struct vtimes {
 	int	vm_inblk;		/* block reads */
 	int	vm_oublk;		/* block writes */
 };
+#endif /* _SYS_VTIMES_H_ */

@@ -32,7 +32,7 @@
  *
  *	@(#)fsck.h	5.17 (Berkeley) 7/27/90
  *
- *	$Header: /a/cvs/386BSD/src/sbin/fsck/fsck.h,v 1.2 1993/07/22 16:51:49 jkh Exp $
+ *	$Header: /home/cvs/386BSD/src/sbin/fsck/fsck.h,v 1.2 1993/07/22 16:51:49 jkh Exp $
  */
 
 #define	MAXDUP		10	/* limit on dup blks (per inode) */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode.h	7.39 (Berkeley) 6/27/91
- *	$Id: vnode.h,v 1.3 1993/10/16 17:18:27 rgrimes Exp $
+ *	$Id: vnode.h,v 1.10 1994/01/19 21:09:33 jtc Exp $
  */
+
+#ifndef _SYS_VNODE_H_
+#define _SYS_VNODE_H_ 1
 
 #ifndef KERNEL
 #include <machine/endian.h>
@@ -47,14 +50,14 @@
 /*
  * vnode types. VNON means no type.
  */
-enum vtype 	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
+enum vtype 	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VPROC, VBAD };
 
 /*
  * Vnode tag types.
  * These are for the benefit of external programs only (e.g., pstat)
  * and should NEVER be inspected inside the kernel.
  */
-enum vtagtype	{ VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PCFS, VT_ISOFS };
+enum vtagtype	{ VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PCFS, VT_ISOFS, VT_PROCFS };
 
 /*
  * This defines the maximum size of the private data area
@@ -121,7 +124,10 @@ struct vattr {
 	gid_t		va_gid;		/* owner group id */
 	long		va_fsid;	/* file system id (dev for now) */
 	long		va_fileid;	/* file id */
-	u_quad		va_qsize;	/* file size in bytes */
+	union { 
+		u_quad_t v;
+		u_long val[2];
+	} 		va_qsize;	/* file size in bytes */
 	long		va_blocksize;	/* blocksize preferred for i/o */
 	struct timeval	va_atime;	/* time of last access */
 	struct timeval	va_mtime;	/* time of last modification */
@@ -129,7 +135,11 @@ struct vattr {
 	u_long		va_gen;		/* generation number of file */
 	u_long		va_flags;	/* flags defined for file */
 	dev_t		va_rdev;	/* device the special file represents */
-	u_quad		va_qbytes;	/* bytes of disk space held by file */
+	union { 
+		u_quad_t v;
+		u_long val[2];
+	}		va_qbytes;	/* bytes of disk space held by file */
+	u_int		va_vaflags;	/* operations flags, see below */
 };
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define	va_size		va_qsize.val[0]
@@ -142,6 +152,11 @@ struct vattr {
 #define	va_bytes	va_qbytes.val[1]
 #define	va_bytes_rsv	va_qbytes.val[0]
 #endif
+
+/*
+ * Flags for va_vaflags.
+ */
+#define VA_UTIMES_NULL	0x01		/* utimes argument was NULL */
 
 /*
  * Operations on vnodes.
@@ -206,7 +221,7 @@ struct vnodeops {
 	int	(*vop_bmap)	__P((struct vnode *vp, daddr_t bn,
 				    struct vnode **vpp, daddr_t *bnp));
 	int	(*vop_strategy)	__P((struct buf *bp));
-	int	(*vop_print)	__P((struct vnode *vp));
+	void	(*vop_print)	__P((struct vnode *vp));
 	int	(*vop_islocked)	__P((struct vnode *vp));
 	int	(*vop_advlock)	__P((struct vnode *vp, caddr_t id, int op,
 				    struct flock *fl, int flags));
@@ -256,6 +271,7 @@ struct vnodeops {
 #define	IO_SYNC		0x04		/* do I/O synchronously */
 #define	IO_NODELOCKED	0x08		/* underlying node already locked */
 #define	IO_NDELAY	0x10		/* FNDELAY flag set in file table */
+#define IO_PAGER	0x20		/* I/O requested from pager */
 
 /*
  *  Modes. Some values same as Ixxx entries from inode.h for now
@@ -270,7 +286,7 @@ struct vnodeops {
 /*
  * Token indicating no attribute value yet assigned
  */
-#define	VNOVAL	((unsigned)0xffffffff)
+#define	VNOVAL	(~0)
 
 #ifdef KERNEL
 /*
@@ -288,6 +304,9 @@ int	vn_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int	vn_ioctl __P((struct file *fp, int com, caddr_t data, struct proc *p));
 int	vn_select __P((struct file *fp, int which, struct proc *p));
 int 	vn_closefile __P((struct file *fp, struct proc *p));
+struct stat;
+int	vn_stat __P((struct vnode *, struct stat *, struct proc *));
+int	vn_writechk __P((struct vnode *));
 int 	getnewvnode __P((enum vtagtype tag, struct mount *mp,
 	    struct vnodeops *vops, struct vnode **vpp));
 int 	bdevvp __P((int dev, struct vnode **vpp));
@@ -303,6 +322,20 @@ void 	vput __P((struct vnode *vp));	/* unlock and release vnode */
 void 	vrele __P((struct vnode *vp));	/* release vnode */
 void 	vgone __P((struct vnode *vp));	/* completely recycle vnode */
 void 	vgoneall __P((struct vnode *vp));/* recycle vnode and all its aliases */
+extern void vflushbuf(struct vnode *, int);
+extern int vinvalbuf(struct vnode *, int);
+extern int bdevvp(int /*dev_t*/ dev, struct vnode **);
+extern struct vnode *checkalias(struct vnode *, int /*dev_t*/, struct mount *);
+extern void vhold(struct vnode *);
+extern void holdrele(struct vnode *);
+extern void vclean(struct vnode *, int);
+extern int vfinddev(int /*dev_t*/, enum vtype, struct vnode **);
+extern void vprint(const char *, struct vnode *);
+extern int kinfo_vnode(int, char *, int *, int, int *);
+extern int vnode_pager_uncache(struct vnode *);
+extern void vnode_pager_setsize(struct vnode *, u_long);
+extern void cache_purge(struct vnode *);
+extern void cache_purgevfs(struct mount *);
 
 /*
  * Flags to various vnode functions.
@@ -332,3 +365,4 @@ extern	struct vnode *rootdir;		/* root (i.e. "/") vnode */
 extern	long desiredvnodes;		/* number of vnodes desired */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 #endif
+#endif /* _SYS_VNODE_H_ */

@@ -31,23 +31,21 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_process.c	7.22 (Berkeley) 5/11/91
- *	$Id: sys_process.c,v 1.5 1993/10/16 15:24:48 rgrimes Exp $
+ *	$Id: sys_process.c,v 1.9.2.2 1994/05/03 20:44:01 rgrimes Exp $
  */
 
-#include <stddef.h>
-
-#define IPCREG
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
 #include "vnode.h"
 #include "buf.h"
 #include "ptrace.h"
 
-#include "machine/eflags.h"
 #include "machine/reg.h"
 #include "machine/psl.h"
 #include "vm/vm.h"
 #include "vm/vm_page.h"
+#include "vm/vm_kern.h"
 
 #include "user.h"
 
@@ -76,30 +74,165 @@
 #define	SFTRC	0
 #endif
 
-/*
- * `ipcreg' defined in <machine/reg.h>
- * Should we define a structure with all regs?
- */
-int sipcreg[NIPCREG] =
-  { 0,0,sEDI,sESI,sEBP,sEBX,sEDX,sECX,sEAX,sEIP,sCS,sEFLAGS,sESP,sSS };
+int
+pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
+	int		rv;
+	vm_map_t	map, tmap;
+	vm_object_t	object;
+	vm_offset_t	kva = 0;
+	int		page_offset;	/* offset into page */
+	vm_offset_t	pageno;		/* page number */
+	vm_map_entry_t	out_entry;
+	vm_prot_t	out_prot;
+	boolean_t	wired, single_use;
+	vm_offset_t	off;
 
-struct {
-	int	flag;
-#define IPC_BUSY	1
-#define IPC_WANT	2
-#define IPC_DONE	4
-	int	req;			/* copy of ptrace request */
-	int	*addr;			/* copy of ptrace address */
-	int	data;			/* copy of ptrace data */
-	int	error;			/* errno from `procxmt' */
-	int	regs[NIPCREG];		/* PT_[GS]ETREG */
-	caddr_t	buf;			/* PT_BREAD/WRITE */
-	int	buflen;			/* 	"	*/
-} ipc;
+	/* Map page into kernel space */
 
-/*
- * Process debugging system call.
- */
+	map = &procp->p_vmspace->vm_map;
+
+	page_offset = addr - trunc_page(addr);
+	pageno = trunc_page(addr);
+  
+	tmap = map;
+	rv = vm_map_lookup (&tmap, pageno, VM_PROT_READ, &out_entry,
+		&object, &off, &out_prot, &wired, &single_use);
+
+	if (rv != KERN_SUCCESS)
+		return EINVAL;
+  
+	vm_map_lookup_done (tmap, out_entry);
+  
+	/* Find space in kernel_map for the page we're interested in */
+	rv = vm_map_find (kernel_map, object, off, &kva, PAGE_SIZE, 1);
+
+	if (!rv) {
+		vm_object_reference (object);
+
+		rv = vm_map_pageable (kernel_map, kva, kva + PAGE_SIZE, 0);
+		if (!rv) {
+			*retval = 0;
+			bcopy ((caddr_t)(kva + page_offset), retval,
+			       sizeof *retval);
+		}
+		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
+	}
+
+	return rv;
+}
+
+int
+pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
+	int		rv;
+	vm_map_t	map, tmap;
+	vm_object_t	object;
+	vm_offset_t	kva = 0;
+	int		page_offset;	/* offset into page */
+	vm_offset_t	pageno;		/* page number */
+	vm_map_entry_t	out_entry;
+	vm_prot_t	out_prot;
+	boolean_t	wired, single_use;
+	vm_offset_t	off;
+	boolean_t	fix_prot = 0;
+
+	/* Map page into kernel space */
+  
+	map = &procp->p_vmspace->vm_map;
+  
+	page_offset = addr - trunc_page(addr);
+	pageno = trunc_page(addr);
+  
+	/*
+	 * Check the permissions for the area we're interested in.
+	 */
+
+	if (vm_map_check_protection (map, pageno, pageno + PAGE_SIZE,
+		VM_PROT_WRITE) == FALSE) {
+		/*
+		 * If the page was not writable, we make it so.
+		 * XXX It is possible a page may *not* be read/executable,
+		 * if a process changes that!
+		 */
+		fix_prot = 1;
+		/* The page isn't writable, so let's try making it so... */
+		if ((rv = vm_map_protect (map, pageno, pageno + PAGE_SIZE,
+			VM_PROT_ALL, 0)) != KERN_SUCCESS)
+		  return EFAULT;	/* I guess... */
+	}
+
+	/*
+	 * Now we need to get the page.  out_entry, out_prot, wired, and
+	 * single_use aren't used.  One would think the vm code would be
+	 * a *bit* nicer...  We use tmap because vm_map_lookup() can
+	 * change the map argument.
+	 */
+
+	tmap = map;
+	rv = vm_map_lookup (&tmap, pageno, VM_PROT_WRITE, &out_entry,
+		&object, &off, &out_prot, &wired, &single_use);
+	if (rv != KERN_SUCCESS) {
+		return EINVAL;
+	}
+
+	/*
+	 * Okay, we've got the page.  Let's release tmap.
+	 */
+
+	vm_map_lookup_done (tmap, out_entry);
+  
+	/*
+	 * Fault the page-table-page in...
+	 */
+	vm_map_pageable(map, trunc_page(vtopte(pageno)),
+		trunc_page(vtopte(pageno)) + NBPG, FALSE);
+	/*
+	 * Fault the page in...
+	 */
+
+	rv = vm_fault (map, pageno, VM_PROT_WRITE, FALSE);
+	if (rv != KERN_SUCCESS) {
+		/*
+		 * release the page table page
+		 */
+		vm_map_pageable(map, trunc_page(vtopte(pageno)),
+			trunc_page(vtopte(pageno)) + NBPG, TRUE);
+		return EFAULT;
+	}
+
+	/*
+	 * The page may need to be faulted in again, it seems.
+	 * This covers COW pages, I believe.
+	 */
+
+	if (!rv)
+		rv = vm_fault (map, pageno, VM_PROT_WRITE, 0);
+
+	/* Find space in kernel_map for the page we're interested in */
+	rv = vm_map_find (kernel_map, object, off, (vm_offset_t *)&kva,
+			  PAGE_SIZE, 1);
+
+	if (!rv) {
+		vm_object_reference (object);
+
+		rv = vm_map_pageable (kernel_map, kva, kva + PAGE_SIZE, FALSE);
+		if (!rv) {
+		  bcopy (&datum, (caddr_t)(kva + page_offset), sizeof datum);
+		}
+		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
+	}
+  
+	if (fix_prot)
+		vm_map_protect (map, pageno, pageno + PAGE_SIZE,
+			VM_PROT_READ|VM_PROT_EXECUTE, 0);
+
+	/*
+	 * release the page table page
+	 */
+	vm_map_pageable(map, trunc_page(vtopte(pageno)),
+		trunc_page(vtopte(pageno)) + NBPG, TRUE);
+
+	return rv;
+}
 
 struct ptrace_args {
 	int	req;
@@ -108,6 +241,10 @@ struct ptrace_args {
 	int	data;
 };
 
+/*
+ * Process debugging system call.
+ */
+int
 ptrace(curp, uap, retval)
 	struct proc *curp;
 	register struct ptrace_args *uap;
@@ -119,14 +256,13 @@ ptrace(curp, uap, retval)
 	*retval = 0;
 	if (uap->req == PT_TRACE_ME) {
 		curp->p_flag |= STRC;
-		/*p->p_tptr = p->p_pptr; * What shall we do here ? */
 		return 0;
 	}
 	if ((p = pfind(uap->pid)) == NULL) {
 		return ESRCH;
 	}
 
-#ifdef notyet
+#ifdef PT_ATTACH
 	if (uap->req != PT_ATTACH && (
 			(p->p_flag & STRC) == 0 ||
 			(p->p_tptr && curp != p->p_tptr) ||
@@ -134,10 +270,25 @@ ptrace(curp, uap, retval)
 
 		return ESRCH;
 #endif
-
-
 #ifdef PT_ATTACH
+	if (uap->req != PT_ATTACH) {
+#endif
+		if ((p->p_flag & STRC) == 0)
+			return EPERM;
+		if (p->p_stat != SSTOP || (p->p_flag & SWTED) == 0)
+			return EBUSY;
+#ifdef PT_ATTACH
+	}
+#endif
+	/*
+	 * XXX The PT_ATTACH code is completely broken.  It will
+	 * be obsoleted by a /proc filesystem, so is it worth it
+	 * to fix it?  (Answer, probably.  So that'll be next,
+	 * I guess.)
+	 */
+
 	switch (uap->req) {
+#ifdef PT_ATTACH
 	case PT_ATTACH:
 		if (curp->p_ucred->cr_uid != 0 && (
 			curp->p_ucred->cr_uid != p->p_ucred->cr_uid ||
@@ -146,7 +297,7 @@ ptrace(curp, uap, retval)
 
 		p->p_tptr = curp;
 		p->p_flag |= STRC;
-		psignal(p, SIGTRAP);
+		psignal(p, SIGSTOP);
 		return 0;
 
 	case PT_DETACH:
@@ -166,346 +317,100 @@ ptrace(curp, uap, retval)
 		splx(s);
 		return 0;
 
-#ifdef PT_INHERIT
+# ifdef PT_INHERIT
 	case PT_INHERIT:
 		if ((p->p_flag & STRC) == 0)
 			return ESRCH;
 		p->p_flag |= SFTRC;
 		return 0;
-#endif
+# endif	/* PT_INHERIT */
+#endif	/* PT_ATTACH */
 
-	default:
-		break;
-	}
-#endif
+	case PT_READ_I:
+	case PT_READ_D:
+		if (error = pread (p, (unsigned int)uap->addr, retval))
+			return error;
+		return 0;
+	case PT_WRITE_I:
+	case PT_WRITE_D:
+		if (error = pwrite (p, (unsigned int)uap->addr,
+				    (unsigned int)uap->data))
+			return error;
+		return 0;
+	case PT_STEP:
+		if (error = ptrace_single_step (p))
+			return error;
+		/* fallthrough */
+	case PT_CONTINUE:
+		/*
+		 * Continue at addr uap->addr with signal
+		 * uap->data; if uap->addr is 1, then we just
+		 * let the chips fall where they may.
+		 *
+		 * The only check I'll make right now is for
+		 * uap->data to be larger than NSIG; if so, we return
+		 * EINVAL.
+		 */
+		if (uap->data >= NSIG)
+			return EINVAL;
 
-	/* Other ptrace calls require target process to be in stopped state */
-	if ((p->p_flag & STRC) == 0 || p->p_stat != SSTOP) {
-		return ESRCH;
-	}
-
-	/* Acquire the ipc structure */
-	while (ipc.flag & IPC_BUSY) {
-		ipc.flag |= IPC_WANT;
-		error = tsleep((caddr_t)&ipc, PWAIT|PCATCH, "ipc", 0);
-		if (error)
-			goto out;
-	}
-
-	/* Got it, fill it */
-	ipc.flag = IPC_BUSY;
-	ipc.error = 0;
-	ipc.req = uap->req;
-	ipc.addr = uap->addr;
-	ipc.data = uap->data;
-
-#ifdef PT_GETREGS
-	switch (uap->req) {
-	case PT_SETREGS:
-		error = copyin((char *)ipc.addr, (char *)ipc.regs, sizeof(ipc.regs));
-		if (error)
-			goto out;
-		break;
-
-#ifdef notyet	/* requires change in number of args to ptrace syscall */
-	case PT_BWRITE_I:
-	case PT_BWRITE_D:
-		ipc.buflen = uap->data;
-		ipc.buf = kmem_alloc_wait(kernelmap, uap->data);
-		error = copyin((char *)ipc.addr, (char *)ipc.buf, ipc.buflen);
-		if (error) {
-			kmem_free_wakeup(kernelmap, ipc.buf, ipc.buflen);
-			goto out;
+		if (uap->addr != (int*)1) {
+			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			if (error = ptrace_set_pc (p, uap->addr))
+				return error;
 		}
-#endif
-	default:
-		break;
-	}
-#endif
 
-	setrun(p);
-	while ((ipc.flag & IPC_DONE) == 0) {
-		error = tsleep((caddr_t)&ipc, PWAIT|PCATCH, "ipc", 0);
-		if (error)
-			goto out;
-	}
+		p->p_xstat = uap->data;
 
-	*retval = ipc.data;
-	if (error = ipc.error)
-		goto out;
-
+/*		if (p->p_stat == SSTOP) */
+		setrun (p);
+		return 0;
+	case PT_READ_U:
+		if ((u_int)uap->addr > (UPAGES * NBPG - sizeof(int))) {
+			return EFAULT;
+		}
+		p->p_addr->u_kproc.kp_proc = *p;
+		fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+		*retval = *(int*)((u_int)p->p_addr + (u_int)uap->addr);
+		return 0;
+	case PT_WRITE_U:
+		if ((u_int)uap->addr > (UPAGES * NBPG - sizeof(int))) {
+			return EFAULT;
+		}
+		p->p_addr->u_kproc.kp_proc = *p;
+		fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+		*(int*)((u_int)p->p_addr + (u_int)uap->addr) = uap->data;
+		return 0;
+	case PT_KILL:
+		p->p_xstat = SIGKILL;
+		setrun(p);
+		return 0;
 #ifdef PT_GETREGS
-	switch (uap->req) {
 	case PT_GETREGS:
-		error = copyout((char *)ipc.regs, (char *)ipc.addr, sizeof(ipc.regs));
-		break;
-
-	case PT_BREAD_I:
-	case PT_BREAD_D:
-		/* Not yet */
+		/*
+		 * copyout the registers into addr.  There's no
+		 * size constraint!!! *GRRR*
+		 */
+		return ptrace_getregs(p, uap->addr);
+	case PT_SETREGS:
+		/*
+		 * copyin the registers from addr.  Again, no
+		 * size constraint!!! *GRRRR*
+		 */
+		return ptrace_setregs (p, uap->addr);
+#endif /* PT_GETREGS */
 	default:
 		break;
 	}
-#endif
 
-out:
-	/* Release ipc structure */
-	ipc.flag &= ~IPC_BUSY;
-	if (ipc.flag & IPC_WANT) {
-		ipc.flag &= ~IPC_WANT;
-		wakeup((caddr_t)&ipc);
-	}
-	return error;
+	return 0;
 }
 
+int
 procxmt(p)
 	register struct proc *p;
 {
-	int i, *xreg, rv = 0;
-#ifdef i386
-	int new_eflags, old_cs, old_ds, old_es, old_ss, old_eflags;
-	int *regs;
-#endif
-
-	/* Are we still being traced? */
-	if ((p->p_flag & STRC) == 0)
-		return 1;
-
-	p->p_addr->u_kproc.kp_proc = *p;
-	fill_eproc(p, &p->p_addr->u_kproc.kp_eproc);
-
-	switch (ipc.req) {
-	case PT_READ_I:
-	case PT_READ_D:
-		if (!useracc(ipc.addr, sizeof(ipc.data), B_READ)) {
-			ipc.error = EFAULT;
-			break;
-		}
-		ipc.error = copyin((char *)ipc.addr, (char *)&ipc.data, sizeof(ipc.data));
-		break;
-
-	case PT_READ_U:
-		if ((u_int)ipc.addr > UPAGES * NBPG - sizeof(int)) {
-			ipc.error = EFAULT;
-			break;
-		}
-		ipc.data = *(int *)((u_int)p->p_addr + (u_int)ipc.addr);
-		break;
-
-	case PT_WRITE_I:
-	case PT_WRITE_D: {				/* 04 Sep 92*/
-		vm_prot_t prot;		/* current protection of region */
-		int cow;		/* ensure copy-on-write happens */
-
-		if (cow = (useracc(ipc.addr, sizeof(ipc.data), B_WRITE) == 0)) {
-			vm_offset_t	addr = (vm_offset_t)ipc.addr;
-			vm_size_t	size;
-			vm_prot_t	max_prot;
-			vm_inherit_t	inh;
-			boolean_t	shared;
-			vm_object_t	object;
-			vm_offset_t	objoff;
-
-			/*
-			 * XXX - the useracc check is stronger than the vm
-			 * checks because the user page tables are in the map.
-			 * Anyway, most of this can be removed now that COW
-			 * works.
-			 */
-			if (!useracc(ipc.addr, sizeof(ipc.data), B_READ) ||
-			    vm_region(&p->p_vmspace->vm_map, &addr, &size,
-					&prot, &max_prot, &inh, &shared,
-					&object, &objoff) != KERN_SUCCESS ||
-			    vm_protect(&p->p_vmspace->vm_map, ipc.addr,
-					sizeof(ipc.data), FALSE,
-					prot|VM_PROT_WRITE) != KERN_SUCCESS ||
-			    vm_fault(&p->p_vmspace->vm_map,trunc_page(ipc.addr),
-					VM_PROT_WRITE, FALSE) != KERN_SUCCESS) {
-
-				ipc.error = EFAULT;
-				break;
-			}
-		}
-		ipc.error = copyout((char *)&ipc.data,
-					(char *)ipc.addr, sizeof(ipc.data));
-		if (cow)
-			if (vm_protect(&p->p_vmspace->vm_map, ipc.addr,
-					sizeof(ipc.data), FALSE,
-					prot) != KERN_SUCCESS)
-				printf("ptrace: oops\n");
-		break;
-	}
-
-	case PT_WRITE_U:
-#ifdef i386
-		regs = p->p_regs;
-		/*
-		 * XXX - privileged kernel state is scattered all over the
-		 * user area.  Only allow write access to areas known to
-		 * be safe.
-		 */
-#define	GO_IF_SAFE(min, size) \
-		if ((u_int)ipc.addr >= (min) \
-		    && (u_int)ipc.addr <= (min) + (size) - sizeof(int)) \
-			goto pt_write_u
-		/*
-		 * Allow writing entire FPU state.
-		 */
-		GO_IF_SAFE(offsetof(struct user, u_pcb)
-			   + offsetof(struct pcb, pcb_savefpu),
-			   sizeof(struct save87));
-		/*
-		 * Allow writing ordinary registers.  Changes to segment
-		 * registers and to some bits in %eflags will be silently
-		 * ignored.  Such changes ought to be an error.
-		 */
-/*
- * XXX - there is no define for the base of the user area except USRSTACK.
- * XXX - USRSTACK is not the base of the user stack.  It is the base of the
- * user area.
- */
-#define	USER_OFF(va)	((u_int)(va) - USRSTACK)
-		GO_IF_SAFE(USER_OFF(regs),
-			   (curpcb->pcb_flags & FM_TRAP ? tSS + 1 : sSS + 1)
-			   * sizeof *regs);
-		ipc.error = EFAULT;
-		break;
-#else
-		if ((u_int)ipc.addr > UPAGES * NBPG - sizeof(int)) {
-			ipc.error = EFAULT;
-			break;
-		}
-#endif
-	pt_write_u:
-#ifdef i386
-		if (curpcb->pcb_flags & FM_TRAP) {
-			old_cs = regs[tCS];
-			old_ds = regs[tES];
-			old_es = regs[tES];
-			old_ss = regs[tSS];
-			old_eflags = regs[tEFLAGS];
-		} else {
-			old_cs = regs[sCS];
-			old_ss = regs[sSS];
-			old_eflags = regs[sEFLAGS];
-		}
-#endif
-		*(int *)((u_int)p->p_addr + (u_int)ipc.addr) = ipc.data;
-#ifdef i386
-		/*
-		 * Don't allow segment registers to change (although they can
-		 * be changed directly to certain values).
-		 * Don't allow privileged bits in %eflags to change.  Users
-		 * have privilege to change TF and NT although although they
-		 * usually shouldn't.
-		 * XXX - fix PT_SETREGS.
-		 * XXX - simplify.  Maybe copy through a temporary struct.
-		 * Watch out for problems when ipc.addr is not a multiple
-		 * of the register size.
-		 */
-#define EFL_UNPRIVILEGED (EFL_CF | EFL_PF | EFL_AF | EFL_ZF | EFL_SF \
-			  | EFL_TF | EFL_DF | EFL_OF | EFL_NT)
-		if (curpcb->pcb_flags & FM_TRAP) {
-			regs[tCS] = old_cs;
-			regs[tDS] = old_ds;
-			regs[tES] = old_es;
-			regs[tSS] = old_es;
-			new_eflags = regs[tEFLAGS];
-			regs[tEFLAGS]
-				= (new_eflags & EFL_UNPRIVILEGED)
-				  | (old_eflags & ~EFL_UNPRIVILEGED);
-		} else {
-			regs[sCS] = old_cs;
-			regs[sSS] = old_ss;
-			new_eflags = regs[sEFLAGS];
-			regs[sEFLAGS]
-				= (new_eflags & EFL_UNPRIVILEGED)
-				  | (old_eflags & ~EFL_UNPRIVILEGED);
-		}
-#endif
-		break;
-
-	case PT_CONTINUE:
-		if (ipc.addr != (int *)1) {
-#ifdef i386
-			p->p_regs[(curpcb->pcb_flags&FM_TRAP)?tEIP:sEIP] = (int)ipc.addr;
-#endif
-		}
-		p->p_flag &= ~SSTRC;	/* Only set by PT_SYSCALL */
-		if ((unsigned)ipc.data >= NSIG) {
-			ipc.error = EINVAL;
-		} else {
-			p->p_xstat = ipc.data;
-			rv = 1;
-		}
-		break;
-
-	case PT_KILL:
-		p->p_flag &= ~SSTRC;	/* Only set by PT_SYSCALL */
-		rv = 2;
-		break;
-
-	case PT_STEP:
-#ifdef i386
-		if (ipc.addr != (int *)1) {
-			p->p_regs[(curpcb->pcb_flags&FM_TRAP)?tEIP:sEIP] = (int)ipc.addr;
-		}
-		p->p_regs[(curpcb->pcb_flags&FM_TRAP)?tEFLAGS:sEFLAGS] |= PSL_T;
-#endif
-		p->p_flag &= ~SSTRC;	/* Only set by PT_SYSCALL */
-		p->p_xstat = 0;
-		rv = 1;
-		break;
-
-#ifdef PT_SYSCALL
-	case PT_SYSCALL:
-		if (ipc.addr != (int *)1) {
-#ifdef i386
-			p->p_regs[(curpcb->pcb_flags&FM_TRAP)?tEIP:sEIP] = (int)ipc.addr;
-#endif
-		}
-		p->p_flag |= SSTRC;
-		p->p_xstat = 0;
-		rv = 1;
-		break;
-#endif
-#ifdef PT_GETREGS
-	case PT_GETREGS:
-#ifdef i386
-		xreg = (curpcb->pcb_flags&FM_TRAP)?ipcreg:sipcreg;
-#endif
-
-		for (i = 0; i < NIPCREG; i++)
-			ipc.regs[i] = p->p_regs[xreg[i]];
-		break;
-
-	case PT_SETREGS:
-#ifdef i386
-		xreg = (curpcb->pcb_flags&FM_TRAP)?ipcreg:sipcreg;
-#endif
-
-		for (i = 0; i < NIPCREG; i++)
-			p->p_regs[xreg[i]] = ipc.regs[i];
-		break;
-#endif
-
-#ifdef PT_DUMP
-	case PT_DUMP:
-		/* Should be able to specify core file name */
-		ipc.error = coredump(p);
-		break;
-#endif
-
-	default:
-		ipc.error = EINVAL;
-	}
-	ipc.flag |= IPC_DONE;
-	wakeup((caddr_t)&ipc);
-
-	if (rv == 2)
-		kexit(p, 0); 	/*???*/
-
-	return rv;
+	return 1;
 }
 
 /*
@@ -520,6 +425,7 @@ struct profil_args {
 };
 
 /* ARGSUSED */
+int
 profil(p, uap, retval)
 	struct proc *p;
 	register struct profil_args *uap;
@@ -539,9 +445,14 @@ profil(p, uap, retval)
 	 *
 	 * so we've gotta check to make sure that the info set up for
 	 * addupc is set right... it's gotta be writable by the user...
+	 *
+	 * Add a little extra sanity checking so that end profil requests
+	 * don't generate spurious faults.	-jkh
 	 */
 
-	if (useracc(uap->bufbase,uap->bufsize*sizeof(short),B_WRITE) == 0)
+	if (uap->bufbase && uap->bufsize &&
+	    useracc((caddr_t)uap->bufbase, uap->bufsize * sizeof(short),
+		    B_WRITE) == 0)
 		return EFAULT;
 
 	p->p_stats->p_prof.pr_base = uap->bufbase;

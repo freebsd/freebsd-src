@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/etherent.h,v 1.1.1.1 1993/06/12 14:42:13 rgrimes Exp $ (LBL)
+ * @(#) $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/etherent.h,v 1.1.1.1 1993/06/12 14:42:13 rgrimes Exp $ (LBL)
  */
 
 /* File name of ethernet address data base. */

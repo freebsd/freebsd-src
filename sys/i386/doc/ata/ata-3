@@ -1,0 +1,27 @@
+3.  General Description
+
+The application environment for the AT Attachment is any computer which uses 
+an AT Bus or 40-pin ATA interface. 
+
+The AT Bus is a widely used and implemented interface for which a variety of 
+peripherals have been manufactured. As a means of reducing size and cost, a 
+class of products has emerged which embed the controller functionality in the 
+drive. These new products utilize the AT Bus fixed disk interface protocol, 
+and a subset of the AT bus. Because of their compatibility with existing AT 
+hardware and software this interface quickly became a de facto industry 
+standard. 
+
+The purpose of the ATA standard is to define the de facto implementations.
+
+Software in the Operating System dispatches I/O (Input/Output) requests via 
+the AT Bus to peripherals which respond to direct commands. 
+
+3.1  Structure
+
+This standard relies upon specifications of the mechanical and electrical 
+characteristics of the AT Bus and a subset of the AT Bus specifically 
+developed for the direct attachment of peripherals. 
+
+Also defined are the methods by which commands are directed to peripherals, 
+the contents of registers and the method of data transfers. 
+

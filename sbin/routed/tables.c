@@ -183,8 +183,21 @@ rtadd(dst, gate, metric, state)
 	rt->rt_flags = RTF_UP | flags;
 	rt->rt_state = state | RTS_CHANGED;
 	rt->rt_ifp = if_ifwithdstaddr(&rt->rt_dst);
-	if (rt->rt_ifp == 0)
+	if (rt->rt_ifp == 0) {
 		rt->rt_ifp = if_ifwithnet(&rt->rt_router);
+		/*
+		 * seems like we can't figure out the interface for the
+		 * IP address of the local side of a point to point
+		 * connection, we just don't add that entry in the
+		 * table. (it seems to already be there anyway)
+		 */
+		if (rt->rt_ifp == 0) {
+			syslog(LOG_DEBUG,
+			       "rtadd: can't get interface for %s",
+			       (*afswitch[dst->sa_family].af_format)(dst));
+			return;
+		}
+	}
 	if ((state & RTS_INTERFACE) == 0)
 		rt->rt_flags |= RTF_GATEWAY;
 	rt->rt_metric = metric;
@@ -257,8 +270,22 @@ rtchange(rt, gate, metric)
 	if (add) {
 		rt->rt_router = *gate;
 		rt->rt_ifp = if_ifwithdstaddr(&rt->rt_router);
-		if (rt->rt_ifp == 0)
+		if (rt->rt_ifp == 0) {
 			rt->rt_ifp = if_ifwithnet(&rt->rt_router);
+			/*
+			 * seems like we can't figure out the interface for the
+			 * IP address of the local side of a point to point
+			 * connection, we just don't add that entry in the
+			 * table. (it seems to already be there anyway)
+			 */
+			if (rt->rt_ifp == 0) {
+				struct sockaddr *dst = &(rt->rt_dst);
+				syslog(LOG_DEBUG,
+				       "rtchange: can't get interface for %s",
+				       (*afswitch[dst->sa_family].af_format)(dst));
+				return;
+			}
+		}
 	}
 	rt->rt_metric = metric;
 	rt->rt_state |= RTS_CHANGED;

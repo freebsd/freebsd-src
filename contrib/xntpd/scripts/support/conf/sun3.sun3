@@ -1,0 +1,36 @@
+#
+# peers - local synch setup
+#
+#server ntps1-0 key 0 version 2
+#server ntps1-1 key 0 version 2
+#server ntps2-0 key 0 version 2
+#server ntps2-1 key 0 version 2
+broadcastclient yes
+#broadcastdelay 				# use default, until we measure something
+#
+# files
+#
+driftfile /+private/local/NTP/xntp.drift
+resolver	/local/NTP/bin/xntpres
+#
+# authentication stuff
+#
+authdelay	0.000629
+requestkey	65634
+controlkey	65635
+#
+# restrictions
+#
+#	provide cheap services to the world/ prevent modifications from there 
+restrict	default		notrust	lowpriotrap nopeer nomodify
+#
+#	hosts on the local networks are allowed unrestricted access
+#
+restrict	131.188.1.0     mask 255.255.255.0	 # allow local hosts
+restrict	131.188.34.0    mask 255.255.255.0	 # allow local hosts
+restrict	131.188.44.0    mask 255.255.255.0	 # allow local hosts
+#
+restrict        127.127.0.0     mask 255.255.0.0         # allow refclocks
+restrict        127.0.0.1       mask 255.255.255.255     # allow local config
+#
+restrict	131.188.0.0     mask 255.255.0.0 nomodify# allow local hosts

@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)dm.c	5.16 (Berkeley) 2/28/91";
 #include <nlist.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 #include "pathnames.h"
 
 extern int errno;
@@ -89,7 +90,7 @@ main(argc, argv)
 play(args)
 	char **args;
 {
-	char pbuf[MAXPATHLEN], *strcpy(), *strerror();
+	char pbuf[MAXPATHLEN];
 
 	(void)strcpy(pbuf, _PATH_HIDE);
 	(void)strcpy(pbuf + sizeof(_PATH_HIDE) - 1, game);

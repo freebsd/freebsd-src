@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.h	5.4 (Berkeley) 5/9/91
- *	$Id: trap.h,v 1.2 1993/10/16 14:39:37 rgrimes Exp $
+ *	$Id: trap.h,v 1.3 1993/11/07 17:43:15 wollman Exp $
  */
+
+#ifndef _MACHINE_TRAP_H_
+#define _MACHINE_TRAP_H_ 1
 
 /*
  * Trap type values
@@ -95,3 +98,4 @@
 
 /* Trap's coming from user mode */
 #define	T_USER	0x100
+#endif /* _MACHINE_TRAP_H_ */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)mtio.h	7.6 (Berkeley) 2/5/91
- *	$Id: mtio.h,v 1.4 1993/10/16 17:17:16 rgrimes Exp $
+ *	$Id: mtio.h,v 1.6 1993/11/18 05:03:25 rgrimes Exp $
  */
+
+#ifndef _SYS_MTIO_H_
+#define _SYS_MTIO_H_ 1
 
 /*
  * Structures and definitions for mag tape io control commands
@@ -61,8 +64,7 @@ struct mtop {
 /* a non zero parameter will change the device to a fixed block size	*/
 /* device with block size set to that of the parameter passed in.	*/
 /* Resetting the block size to 0 will restore the device to a variable	*/
-/* block size device.  At this time this command works across all modes	*/ 
-/* unlike the density command below.. this may change			*/
+/* block size device. */
 
 #define MTSETBSIZ	10
 
@@ -82,11 +84,16 @@ struct mtget {
 /* end device-dependent registers */
 	short	mt_resid;	/* residual count */
 #if defined (__386BSD__)
-	daddr_t mt_bsiz;	/* block size, 0 is variable */
-	short	mt_dns_dflt;	/* density setting for default density */
-	short	mt_dns_dsty1;	/* density setting for high density */
-	short	mt_dns_dsty2;	/* density setting for medium density */
-	short	mt_dns_dsty3;	/* density setting for low density */
+	daddr_t mt_blksiz;	/* presently operatin blocksize */
+	daddr_t mt_density;	/* presently operatin density */
+	daddr_t mt_blksiz0;	/* blocksize for mode 0 */
+	daddr_t mt_blksiz1;	/* blocksize for mode 1 */
+	daddr_t mt_blksiz2;	/* blocksize for mode 2 */
+	daddr_t mt_blksiz3;	/* blocksize for mode 3 */
+	daddr_t mt_density0;	/* density for mode 0 */
+	daddr_t mt_density1;	/* density for mode 1 */
+	daddr_t mt_density2;	/* density for mode 2 */
+	daddr_t mt_density3;	/* density for mode 3 */
 #endif
 /* the following two are not yet implemented */
 	daddr_t	mt_fileno;	/* file number of current position */
@@ -123,7 +130,7 @@ struct mtget {
 #define MTIOCEEOT	_IO('m', 4)			/* enable EOT error */
 
 #ifndef KERNEL
-#define	DEFTAPE	"/dev/rst0"
+#define	DEFTAPE	"/dev/nrst0"
 #endif
 
 #ifdef	KERNEL
@@ -139,3 +146,4 @@ struct mtget {
 #define	T_6250BPI	020		/* select 6250 bpi */
 #define	T_BADBPI	030		/* undefined selection */
 #endif
+#endif /* _SYS_MTIO_H_ */

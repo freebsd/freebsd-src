@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)tp_output.c	7.10 (Berkeley) 6/27/91
- *	$Id: tp_output.c,v 1.3 1993/10/16 21:05:51 rgrimes Exp $
+ *	$Id: tp_output.c,v 1.4 1993/12/19 00:53:39 wollman Exp $
  */
 
 /***********************************************************
@@ -117,9 +117,9 @@ SOFTWARE.
 
 int
 tp_consistency( tpcb, cmd, param )
+	struct tp_pcb *tpcb;
 	u_int cmd;
 	struct tp_conn_param *param;
-	struct tp_pcb *tpcb;
 {
 	register int	error = EOK;
 	int 			class_to_use  = tp_mask_to_num(param->p_class);

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -31,8 +38,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dkstat.h	7.5 (Berkeley) 2/15/91
- *	$Id: dkstat.h,v 1.2 1993/10/16 17:16:36 rgrimes Exp $
+ *	$Id: dkstat.h,v 1.3.2.1 1994/05/04 07:57:07 rgrimes Exp $
  */
+
+#ifndef _SYS_DKSTAT_H_
+#define _SYS_DKSTAT_H_ 1
 
 #define	CP_USER		0
 #define	CP_NICE		1
@@ -42,18 +52,19 @@
 
 #define	DK_NDRIVE	8
 #ifdef KERNEL
-long cp_time[CPUSTATES];
-long dk_seek[DK_NDRIVE];
-long dk_time[DK_NDRIVE];
-long dk_wds[DK_NDRIVE];
-long dk_wpms[DK_NDRIVE];
-long dk_xfer[DK_NDRIVE];
+extern long cp_time[CPUSTATES];
+extern long dk_seek[DK_NDRIVE];
+extern long dk_time[DK_NDRIVE];
+extern long dk_wds[DK_NDRIVE];
+extern long dk_wpms[DK_NDRIVE];
+extern long dk_xfer[DK_NDRIVE];
 
-int dk_busy;
-int dk_ndrive;
+extern int dk_busy;
+extern int dk_ndrive;
 
-long tk_cancc;
-long tk_nin;
-long tk_nout;
-long tk_rawcc;
+extern long tk_cancc;
+extern long tk_nin;
+extern long tk_nout;
+extern long tk_rawcc;
 #endif
+#endif /* _SYS_DKSTAT_H_ */

@@ -1,4 +1,4 @@
-# $Header: /a/cvs/386BSD/src/usr.bin/tn3270/tools/mkhits/Makefile,v 1.1 1993/06/29 11:40:21 nate Exp $
+# $Header: /home/cvs/386BSD/src/usr.bin/tn3270/tools/mkhits/Makefile,v 1.1 1993/06/29 11:40:21 nate Exp $
 
 CFLAGS += -I${.CURDIR}/.. -I.
 

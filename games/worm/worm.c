@@ -210,7 +210,7 @@ char ch;
 	y = head->y;
 	switch(ch)
 	{
-		when 'h': x--;
+		case 'h': x--;
 		when 'j': y++;
 		when 'k': y--;
 		when 'l': x++;

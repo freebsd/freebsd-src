@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_usrreq.c	7.17 (Berkeley) 6/27/91
- *	$Id: tp_usrreq.c,v 1.2 1993/10/16 21:06:14 rgrimes Exp $
+ *	$Id: tp_usrreq.c,v 1.4 1993/12/19 00:53:46 wollman Exp $
  */
 
 /***********************************************************
@@ -92,6 +92,8 @@ SOFTWARE.
 #include "tp_meas.h"
 #include "iso.h"
 #include "iso_errno.h"
+
+int tp_confirm(struct tp_pcb *);
 
 int tp_attach(), tp_driver();
 int TNew;
@@ -167,6 +169,7 @@ dump_mbuf(n, str)
  *		xpd data in the buffer
  *  E* whatever is returned from the fsm.
  */
+int
 tp_rcvoob(tpcb, so, m, outflags, inflags)
 	struct tp_pcb	*tpcb;
 	register struct socket	*so;
@@ -273,6 +276,7 @@ release:
  *  EMSGSIZE if trying to send > max-xpd bytes (16)
  *  ENOBUFS if ran out of mbufs
  */
+int
 tp_sendoob(tpcb, so, xdata, outflags)
 	struct tp_pcb	*tpcb;
 	register struct socket	*so;
@@ -788,6 +792,8 @@ tp_usrreq(so, req, m, nam, controlp)
 	splx(s);
 	return error;
 }
+
+void
 tp_ltrace(so, uio)
 struct socket *so;
 struct uio *uio;
@@ -801,8 +807,9 @@ struct uio *uio;
 	ENDTRACE
 }
 
+int
 tp_confirm(tpcb)
-register struct tp_pcb *tpcb;
+	register struct tp_pcb *tpcb;
 {
 	struct tp_event E;
 	if (tpcb->tp_state == TP_CONFIRMING)
@@ -815,6 +822,7 @@ register struct tp_pcb *tpcb;
 /*
  * Process control data sent with sendmsg()
  */
+int
 tp_snd_control(m, so, data)
 	struct mbuf *m;
 	struct socket *so;

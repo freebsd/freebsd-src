@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns_ip.c	7.6 (Berkeley) 6/28/90
- *	$Id: ns_ip.c,v 1.2 1993/10/16 19:54:25 rgrimes Exp $
+ *	$Id: ns_ip.c,v 1.3 1993/12/19 00:53:58 wollman Exp $
  */
 
 /*
@@ -73,7 +73,12 @@ struct ifnet_en {
 	struct ifnet_en *ifen_next;
 };
 
-int	nsipoutput(), nsipioctl(), nsipstart();
+struct rtentry;
+static int nsipoutput(struct ifnet *, struct mbuf *, struct sockaddr *, 
+		      struct rtentry *);
+static int nsipioctl(struct ifnet *, int, caddr_t);
+static void nsipstart(struct ifnet *);
+static void nsip_free(struct ifnet *);
 #define LOMTU	(1024+512);
 
 struct ifnet nsipif;
@@ -118,7 +123,7 @@ nsipattach()
 /*
  * Process an ioctl request.
  */
-/* ARGSUSED */
+static int
 nsipioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;
@@ -141,8 +146,10 @@ nsipioctl(ifp, cmd, data)
 
 	case SIOCSIFFLAGS:
 		ifr = (struct ifreq *)data;
-		if ((ifr->ifr_flags & IFF_UP) == 0)
-			error = nsip_free(ifp);
+		if ((ifr->ifr_flags & IFF_UP) == 0) {
+			nsip_free(ifp);
+			error = 0;
+		}
 
 
 	default:
@@ -155,6 +162,7 @@ struct mbuf *nsip_badlen;
 struct mbuf *nsip_lastin;
 int nsip_hold_input;
 
+void
 idpip_input(m, ifp)
 	register struct mbuf *m;
 	struct ifnet *ifp;
@@ -234,13 +242,14 @@ bad:
 	return;
 }
 
-/* ARGSUSED */
-nsipoutput(ifn, m, dst)
-	struct ifnet_en *ifn;
+static int
+nsipoutput(ifp, m, dst, rt)
+	struct ifnet *ifp;
 	register struct mbuf *m;
 	struct sockaddr *dst;
+	struct rtentry *rt;
 {
-
+	struct ifnet_en *ifn = (struct ifnet_en *)ifp;
 	register struct ip *ip;
 	register struct route *ro = &(ifn->ifen_route);
 	register int len = 0;
@@ -301,6 +310,7 @@ bad:
 	return (ENETUNREACH);
 }
 
+static void
 nsipstart(ifp)
 struct ifnet *ifp;
 {
@@ -309,6 +319,7 @@ struct ifnet *ifp;
 
 struct ifreq ifr = {"nsip0"};
 
+int
 nsip_route(m)
 	register struct mbuf *m;
 {
@@ -383,6 +394,7 @@ nsip_route(m)
 			(struct ifnet *)ifn));
 }
 
+void
 nsip_free(ifp)
 struct ifnet *ifp;
 {
@@ -394,9 +406,9 @@ struct ifnet *ifp;
 		ro->ro_rt = 0;
 	}
 	ifp->if_flags &= ~IFF_UP;
-	return (0);
 }
 
+void
 nsip_ctlinput(cmd, sa)
 	int cmd;
 	struct sockaddr *sa;
@@ -425,6 +437,7 @@ nsip_ctlinput(cmd, sa)
 	}
 }
 
+void
 nsip_rtchange(dst)
 	register struct in_addr *dst;
 {

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmmeter.h	7.3 (Berkeley) 5/5/91
- *	$Id: vmmeter.h,v 1.2 1993/10/16 17:18:26 rgrimes Exp $
+ *	$Id: vmmeter.h,v 1.3 1993/11/07 17:53:21 wollman Exp $
  */
+
+#ifndef _SYS_VMMETER_H_
+#define _SYS_VMMETER_H_ 1
 
 /*
  * Virtual memory related instrumentation
@@ -69,8 +72,10 @@ struct vmmeter
 	unsigned v_seqfree;	/* pages taken from sequential programs */
 	unsigned v_dfree;	/* pages freed by daemon */
 	unsigned v_fastpgrec;	/* fast reclaims in locore */
-#ifdef tahoe
+#if defined(tahoe) || defined(i386)
 	unsigned v_fpe;		/* floating point emulation traps */
+#endif
+#ifdef tahoe
 	unsigned v_align;	/* alignment emulation traps */
 #endif
 #define	v_last v_fastpgrec
@@ -78,7 +83,7 @@ struct vmmeter
 	unsigned v_swpout;	/* swapouts */
 };
 #ifdef KERNEL
-struct	vmmeter cnt, rate, sum;
+extern struct	vmmeter cnt, rate, sum;
 #endif
 
 /* systemwide totals computed every five seconds */
@@ -100,7 +105,7 @@ struct vmtotal
 	long	t_free;		/* free memory pages */
 };
 #ifdef KERNEL
-struct	vmtotal total;
+extern struct	vmtotal total;
 #endif
 
 /*
@@ -123,20 +128,21 @@ struct	vmtotal total;
 #define	NRMON	64
 
 /* data and stack size distribution counters */
-unsigned int	dmon[NDMON+1];
-unsigned int	smon[NSMON+1];
+extern unsigned int	dmon[NDMON+1];
+extern unsigned int	smon[NSMON+1];
 
 /* page in time distribution counters */
-unsigned int	pmon[NPMON+2];
+extern unsigned int	pmon[NPMON+2];
 
 /* reclaim time distribution counters */
-unsigned int	rmon[NRMON+2];
+extern unsigned int	rmon[NRMON+2];
 
-int	pmonmin;
-int	pres;
-int	rmonmin;
-int	rres;
+extern int	pmonmin;
+extern int	pres;
+extern int	rmonmin;
+extern int	rres;
 
-unsigned rectime;		/* accumulator for reclaim times */
-unsigned pgintime;		/* accumulator for page in times */
+extern unsigned rectime;		/* accumulator for reclaim times */
+extern unsigned pgintime;		/* accumulator for page in times */
 #endif
+#endif /* _SYS_VMMETER_H_ */

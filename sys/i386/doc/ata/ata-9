@@ -1,0 +1,721 @@
+9.  Command Descriptions 
+
+Commands are issued to the drive by loading the pertinent registers in the 
+command block with the needed parameters, and then writing the command code to 
+the Command Register. 
+
+The manner in which a command is accepted varies. There are three classes 
+(see Table 9-1) of command acceptance, all predicated on the fact that to 
+receive a command, BSY=0:
+
+ - Upon receipt of a Class 1 command, the drive sets BSY within 400 nsec.
+ - Upon receipt of a Class 2 command, the drive sets BSY within 400 nsec, sets 
+   up the sector buffer for a write operation, sets DRQ within 700 usec, and 
+   clears BSY within 400 nsec of setting DRQ.
+ - Upon receipt of a Class 3 command, the drive sets BSY within 400 nsec, sets 
+   up the sector buffer for a write operation, sets DRQ within 20 msec, and 
+   clears BSY within 400 nsec of setting DRQ.
+
+..rm102
+  NOTE: DRQ may be set so quickly on Class 2 and Class 3 that the BSY 
+        transition is too short for BSY=1 to be recognized.
+
+The drive shall implement all mandatory commands as identified by an M, and 
+may implement the optional commands identified by an O, in Table 9-1. V 
+indicates a Vendor Specific command code.
+
+                   TABLE 9-1:  COMMAND CODES AND PARAMETERS
+                                               +-------+-------------------+
+  +-----+                                      |Command|  Parameters Used  |
+  |Class|                                      | Code  |FR  SC  SN  CY  DH |
+  +-----+----------------------------------+---+-------+---+---+---+---+---+
+  |  1  | Check Power Mode                 | O |98h E5h|   | y |   |   | D |
+  |  1  | Execute Drive Diagnostic         | M |  90h  |   |   |   |   | D*|
+  |  2  | Format Track                     | M |  50h  | * | y |   | y | y |
+  |  1  | Identify Drive                   | O |  ECh  |   |   |   |   | D |
+  |  1  | Idle                             | O |97h E3h|   | y |   |   | D |
+  |  1  | Idle Immediate                   | O |95h E1h|   |   |   |   | D |
+  |  1  | Initialize Drive Parameters      | M |  91h  |   | y |   |   | y |
+  |  1  | Recalibrate                      | M |  1xh  |   |   |   |   | D |
+  |  1  | Read Buffer                      | O |  E4h  |   |   |   |   | D |
+  |  1  | Read DMA (w/retry)               | O |  C8h  |   | y | y | y | y |
+  |  1  | Read DMA (w/o retry)             | O |  C9h  |   | y | y | y | y |
+  |  1  | Read Multiple                    | O |  C4h  |   | y | y | y | y |
+  |  1  | Read Sector(s) (w/retry)         | M |  20   |   | y | y | y | y |
+  |  1  | Read Sector(s) (w/o retry)       | M |  21   |   | y | y | y | y |
+  |  1  | Read Long (w/retry) See 9.13     | M |  22   |   | y | y | y | y |
+  |  1  | Read Long (w/o retry) See 9.13   | M |  23   |   | y | y | y | y |
+  |  1  | Read Verify Sector(s) (w/retry)  | M |  40   |   | y | y | y | y |
+  |  1  | Read Verify Sector(s) (w/o retry)| M |  41   |   | y | y | y | y |
+  |  1  | Seek                             | M |  7xh  |   |   | y | y | y |
+  |  1  | Set Features                     | O |  EFh  | y |   |   |   | D |
+  |  1  | Set Multiple Mode                | O |  C6h  |   | y |   |   | D |
+  |  1  | Set Sleep Mode                   | O |99h E6h|   |   |   |   | D |
+  |  1  | Standby                          | O |96h E2h|   | y |   |   | D |
+  |  1  | Standby Immediate                | O |94h E0h|   |   |   |   | D |
+  |  2  | Write Buffer                     | O |  E8h  |   |   |   |   | D |
+  |  3  | Write DMA (w/retry)              | O |  CAh  |   | y | y | y | y |
+  |  3  | Write DMA (w/o retry)            | O |  CBh  |   | y | y | y | y |
+  |  3  | Write Multiple                   | O |  C5h  | * | y | y | y | y |
+  |  3  | Write Same                       | O |  E9h  | y | y | y | y | y |
+  |  2  | Write Sector(s) (w/retry)        | M |  30   | * | y | y | y | y |
+  |  2  | Write Sector(s) (w/o retry)      | M |  31   | * | y | y | y | y |
+  |  2  | Write Sector(s) (w/retry)        | M |  32   | * | y | y | y | y |
+  |  2  | Write Sector(s) (w/o retry)      | M |  33   | * | y | y | y | y |
+  |  3  | Write Verify                     | O |  3Ch  | * | y | y | y | y |
+  |     | Vendor Unique                    | V |  9Ah  |   |   |   |   |   |
+  |     | Vendor Unique                    | V | C0-C3h|   |   |   |   |   |
+  |     | Vendor Unique                    | V |  8xh  |   |   |   |   |   |
+  |     | Vendor Unique                    | V |F5h-FFh|   |   |   |   |   |
+  |     |    EATA Standard (CAM/89-004)    | O |F0h-F4h|   |   |   |   |   |
+  |     | Reserved: All remaining codes    |   |       |   |   |   |   |   |
+  +-----+----------------------------------+---+-------+---+---+---+---+---+
+  |     | CY = Cylinder Registers         SC = Sector Count Register       |
+  |     | DH = Drive/Head Register        SN = Sector Number Register      |
+  |     | FR = Features Register (see command descriptions for use)        |
+..  |     |                                                                  |
+..  |     | M = Mandatory    O = Optional    V = Vendor Specific             |
+  |     | y - the register contains a valid parameter for this command.    |
+  |     |     For the Drive/Head Register, y means both the drive and      |
+  |     |     head parameters are used.                                    |
+  |     | D - only the drive parameter is valid and not the head parameter.|
+  |     | D* - Addressed to Drive 0 but both drives execute it.            |
+  |     | * - Maintained for compatibility (see 7.2.9)                     |
+  +-----+------------------------------------------------------------------+
+
+9.1  Check Power Mode
+
+This command checks the power mode. 
+
+If the drive is in, going to, or recovering from the Standby Mode the drive 
+shall set BSY, set the Sector Count Register to 00h, clear BSY, and generate 
+an interrupt. 
+
+If the drive is in the Idle Mode, the drive shall set BSY, set the Sector 
+Count Register to FFh, clear BSY, and generate an interrupt. 
+
+9.2  Execute Drive Diagnostic 
+
+This command shall perform the internal diagnostic tests implemented by the 
+drive. See also 6.3.4 and 6.3.13. The DRV bit is ignored. Both drives, if 
+present, shall execute this command. 
+
+If Drive 1 is present: 
+
+ - Drive 0 waits up to 5 seconds for Drive 1 to assert PDIAG-. 
+ - If Drive 1 has not asserted PDIAG-, indicating a failure, Drive 0 shall 
+   append 80h to its own diagnostic status. 
+ - Both drives shall execute diagnostics. 
+ - If Drive 1 diagnostic failure is detected when Drive 0 status is read, 
+   Drive 1 status is obtained by setting the DRV bit, and reading status. 
+
+If there is no Drive 1 present:
+
+ - Drive 0 posts only its own diagnostic results. 
+ - Drive 0 clears BSY, and generates an interrupt. 
+
+The Diagnostic Code written to the Error Register is a unique 8-bit code as 
+shown in Table 9-2, and not as the single bit flags defined in 7.2.9. 
+
+..Table 9-2 details the codes and the corresponding explanations. 
+If Drive 1 fails diagnostics, Drive 0 "ORs" 80h with its own status and loads 
+that code into the Error Register. If Drive 1 passes diagnostics or there is 
+no Drive 1 connected, Drive 0 "ORs" 00h with its own status and loads that 
+code into the Error Register. 
+
+                         TABLE 9-2:  DIAGNOSTIC CODES 
+                 +-------+
+                 | Code  | 
+                 +-------+----------------------------------+
+                 |  01h  | No error detected                |
+                 |  02h  | Formatter device error           |
+                 |  03h  | Sector buffer error              |
+                 |  04h  | ECC circuitry error              |
+                 |  05h  | Controlling microprocessor error |
+                 |  8xh  | Drive 1 failed                   |
+                 +-------+----------------------------------+ 
+
+9.3  Format Track 
+
+The implementation of the Format Track command is vendor specific. The actions 
+may be a physical reformatting of a track, initializing the data field 
+contents to some value, or doing nothing. 
+
+The Sector Count Register contains the number of sectors per track. 
+
+The track address is specified in the Cylinder High and Cylinder Low 
+Registers, and the number of sectors is specified in the Sector Count 
+Register. When the command is accepted, the drive sets the DRQ bit and waits 
+for the host to fill the sector buffer. When the sector buffer is full, the 
+drive clears DRQ, sets BSY and begins command execution. 
+
+The contents of the sector buffer shall not be written to the media, and may 
+be either ignored or interpreted as follows: 
+
+     DD15 ---- DD0               DD15 ---- DD0
+    +------+------+             +------+------+--------------------------+
+    | First|Desc- |             | Last |Desc- |  Remainder of buffer     |
+    |Sector|riptor| : : : : : : |Sector|riptor|  filled with zeros       |
+    +------+------+             +------+------+--------------------------+
+
+One 16-bit word represents each sector, the words being contiguous from the 
+start of a sector. Any words remaining in the buffer after the representation 
+of the last sector are filled with zeros. DD15-8 contain the sector number. If 
+an interleave is specified, the words appear in the same sequence as they 
+appear on the track. DD7-0 contain a descriptor value defined as follows: 
+
+     00h - Format sector as good
+     20h - Unassign the alternate location for this sector
+     40h - Assign this sector to an alternate location
+     80h - Format sector as bad
+
+..rm102
+  NOTE: Some users of the ATA drive expect the operating system partition 
+        table to be erased on a Format command. It is recommended that a drive 
+        which does not perform a physical format of the track, write a data 
+        pattern of all zeros to the sectors which have been specified by the 
+        Format Track command. 
+
+..rm102
+  NOTE: It is recommended that implementors resassign data blocks which show 
+        repeated errors. 
+
+9.4  Identify Drive 
+
+The Identify Drive command enables the host to receive parameter information 
+from the drive. When the command is issued, the drive sets BSY, stores the 
+required parameter information in the sector buffer, sets DRQ, and generates 
+an interrupt. The host then reads the information out of the sector buffer. 
+The parameter words in the buffer have the arrangement and meanings defined in 
+Table 9-3. All reserved bits or words shall be zero.
+
+ +-------+          TABLE 9-3:  IDENTIFY DRIVE INFORMATION
+ |  Word |
+ +-------+------------------------------------------------------------------+
+ |    0  | General configuration bit-significant information:               |
+ |       |   15  0   reserved for non-magnetic drives                       |
+ |       |   14  1=format speed tolerance gap required                      |
+ |       |   13  1=track offset option available                            |
+ |       |   12  1=data strobe offset option available                      |
+ |       |   11  1=rotational speed tolerance is > 0.5%                     |
+ |       |   10  1=disk transfer rate > 10 Mbs                              |
+ |       |    9  1=disk transfer rate > 5Mbs but <= 10Mbs                   |
+ |       |    8  1=disk transfer rate <= 5Mbs                               |
+ |       |    7  0   reserved for removable cartridge drive                 |
+ |       |    6  1=fixed drive                                              |
+ |       |    5  1=spindle motor control option implemented                 |
+ |       |    4  1=head switch time > 15 usec                               |
+ |       |    3  1=not MFM encoded                                          |
+ |       |    2  1=soft sectored                                            |
+ |       |    1  1=hard sectored                                            |
+ |       |    0  0=reserved                                                 |
+ |    1  | Number of fixed cylinders                                        |
+ |    2  |   reserved                                                       |
+ |    3  | Number of heads                                                  |
+ |    4  | Number of unformatted bytes per track                            |
+ |    5  | Number of unformatted bytes per sector                           |
+ |    6  | Number of sectors per track                                      |
+ |  7-9  |   Vendor Unique                                                  |
+ | 10-19 | Serial number (20 ASCII characters, 0000h=not specified)         |
+ |   20  | Buffer type                                                      |
+ |   21  | Buffer size in 512 byte increments (0000h=not specified)         |
+ |   22  | # of ECC bytes passed on Read/Write Long cmds (0000h=not spec'd) |
+ | 23-26 | Firmware revision (8 ASCII characters, 0000h=not specified)      |
+ | 27-46 | Model number (40 ASCII characters, 0000h=not specified)          |
+ |   47  | 0000h = Read/Write Multiple commands not implemented             |
+ |       |     x = number of sectors that can be transferred per interrupt  |
+ |       |         on Read and Write Multiple commands                      |
+ |   48  | 0000h = cannot perform doubleword I/O                            |
+ |       | 0001h = can perform doubleword I/O                               |
+ |   49  | Capabilities                                                     |
+ |       | 15-9  0=reserved                                                 |
+ |       |    8  1=DMA Supported                                            |
+ |       |  7-0  Vendor Unique                                              |
+ |   50  |   reserved                                                       |
+ |   51  | PIO data transfer cycle timing mode                              |
+ |   52  | DMA data transfer cycle timing mode                              |
+ | 53-127|   reserved                                                       |
+ |128-159| Vendor Unique                                                    |
+ |160-255|   reserved                                                       |
+ +-------+------------------------------------------------------------------+
+
+The fields described in 9.4.1 through 9.4.5 are not affected by the Initialize 
+Drive Parameters command.
+
+9.4.1  Number of fixed cylinders 
+
+The number of translated cylinders in the default translation mode.
+
+9.4.2  Number of heads 
+
+The number of translated heads in the default translation mode.
+
+9.4.3  Number of unformatted bytes per track 
+
+The number of unformatted bytes per translated track in the default 
+translation mode.
+
+9.4.4  Number of unformatted bytes per sector 
+
+The number of unformatted bytes per sector in the default translation mode.
+
+9.4.5  Number of sectors per track 
+
+The number of sectors per track in the default translation mode.
+
+9.4.6  Serial Number
+
+The contents of this field are right justified and padded with spaces (20h). 
+
+9.4.7  Buffer Type           
+
+The contents of the field are determined by the manufacturer. 
+
+  0000h = not specified.
+  0001h = a single ported single sector buffer which is not capable of 
+          simultaneous data transfers to or from the host and the disk. 
+  0002h = a dual ported multi-sector buffer capable of simultaneous data 
+          transfers to or from the host and the disk.
+  0003h = a dual ported multi-sector buffer capable of simultaneous transfers 
+          with a read cacheing capability.
+  0004-FFFFh = reserved                           
+
+These codes are typically not used by the operating system, however, they are 
+useful for diagnostic programs which perform initialization routines e.g. a 
+different interleave may be desirable for 0001h vs 0002h or 0003h.
+
+9.4.8  Firmware Revision
+
+The contents of this field are left justified and padded with spaces (20h). 
+
+9.4.9  Model Number
+
+The contents of this field are left justified and padded with spaces (20h). 
+
+9.4.10  PIO data transfer cycle timing mode   
+
+The PIO transfer timing for each ATA device falls into categories which have 
+unique parametric timing specifications. To determine the proper device timing 
+category, compare the Cycle Time specified in Figure 11-1 with the contents of 
+this field. The value returned should fall into one of the categories 
+specified in Figure 11-1, and if it does not, then Mode 0 shall be used to 
+serve as the default timing.
+
+9.4.11  DMA data transfer cycle timing mode
+
+The DMA transfer timing for each ATA device falls into categories which have 
+unique parametric timing specifications. To determine the proper device timing 
+category, compare the Cycle Time specified in Figure 11-3 with the contents of 
+this field. The value returned should fall into one of the categories 
+specified in Figure 11-3, and if it does not, then Mode 0 shall be used to 
+serve as the default timing.
+
+9.5  Idle
+
+This command causes the drive to set BSY, enter the Idle Mode, clear BSY, and 
+generate an interrupt. The interrupt is generated even though the drive may 
+not have fully transitioned to Idle Mode. 
+
+If the drive is already spinning, the spinup sequence is not executed. 
+
+If the Sector Count Register is non-zero then the automatic power down 
+sequence shall be enabled and the timer begins counting down immediately. If 
+the Sector Count Register is zero then the automatic power down sequence shall 
+be disabled.
+
+9.6  Idle Immediate
+
+This command causes the drive to set BSY, enter the Idle Mode, clear BSY, and 
+generate an interrupt. The interrupt is generated even though the drive may 
+not have fully transitioned to Idle Mode. 
+
+9.7  Initialize Drive Parameters 
+
+..This command enables the host to control certain drive parameters. Some 
+..parameters are standard while others are vendor specific. 
+This command enables the host to set the number of sectors per track and the 
+number of heads minus 1, per cylinder. Upon receipt of the command, the drive 
+sets BSY, saves the parameters, clears BSY, and generates an interrupt. 
+
+The only two register values used by this command are the Sector Count 
+Register which specifies the number of sectors per track, and the Drive/Head 
+Register which specifies the number of heads minus 1. The DRV bit designates 
+these values to Drive 0 or Drive 1, as appropriate. 
+
+The sector count and head values are not checked for validity by this command. 
+If they are invalid, no error will be posted until an illegal access is made 
+by some other command. 
+
+9.8  Recalibrate 
+
+This command moves the read/write heads from anywhere on the disk to cylinder 
+0. Upon receipt of the command, the drive sets BSY and issues a seek to 
+cylinder zero. The drive then waits for the seek to complete before updating 
+status, clearing BSY and generating an interrupt. 
+
+If the drive cannot reach cylinder 0, a Track Not Found error is posted.
+
+9.9  Read Buffer 
+
+The Read Buffer command enables the host to read the current contents of the 
+drive's sector buffer. When this command is issued, the drive sets BSY, sets 
+up the sector buffer for a read operation, sets DRQ, clears BSY, and generates 
+an interrupt. The host then reads up to 512 bytes of data from the buffer. 
+
+The Read Buffer and Write Buffer commands shall be synchronized such that 
+sequential Write Buffer and Read Buffer commands access the same 512 bytes 
+within the buffer. 
+
+9.10  Read DMA 
+
+This command executes in a similar manner to the Read Sectors command except 
+for the following:
+
+ - the host initializes a slave-DMA channel prior to issuing the command
+ - data transfers are qualified by DMARQ and are performed by the slave-DMA 
+   channel 
+ - the drive issues only one interrupt per command to indicate that data 
+   transfer has terminated and status is available.
+
+Any error encountered during execution of a Read DMA command results in the 
+termination of data transfer at the sector where the error was detected. The 
+sector in error is not transferred. The drive generates an interrupt to 
+indicate that data transfer has terminated and status is available. The error 
+posting is the same as that of the Read Sectors command. 
+
+9.11  Read Long 
+
+The Read Long command performs similarly to the Read Sectors command except 
+that it returns the data and the ECC bytes contained in the data field of the 
+desired sector. During a Read Long command, the drive does not check the ECC 
+bytes to determine if there has been a data error. Only single sector read 
+long operations are supported. 
+
+The transfer of the ECC bytes shall be 8-bits wide.
+
+9.12  Read Multiple Command 
+
+The Read Multiple command performs similarly to the Read Sectors command. 
+Interrupts are not generated on every sector, but on the transfer of a block 
+which contains the number of sectors defined by a Set Multiple command. 
+
+Command execution is identical to the Read Sectors operation except that the 
+number of sectors defined by a Set Multiple command are transferred without 
+intervening interrupts. DRQ qualification of the transfer is required only at 
+the start of the data block, not on each sector. 
+
+The block count of sectors to be transferred without intervening interrupts is 
+programmed by the Set Multiple Mode command, which shall be executed prior to 
+the Read Multiple command. 
+
+When the Read Multiple command is issued, the Sector Count Register contains 
+the number of sectors (not the number of blocks or the block count) requested. 
+
+If the number of requested sectors is not evenly divisible by the block count, 
+as many full blocks as possible are transferred, followed by a final, partial 
+block transfer. The partial block transfer shall be for n sectors, where 
+
+          n = (sector count) - modulo (block count)  
+
+If the Read Multiple command is attempted before the Set Multiple Mode command 
+has been executed or when Read Multiple commands are disabled, the Read 
+Multiple operation shall be rejected with an Aborted Command error. 
+
+Disk errors encountered during Read Multiple commands are posted at the 
+beginning of the block or partial block transfer, but DRQ is still set and the 
+data transfer shall take place as it normally would, including transfer of 
+corrupted data, if any. 
+
+The contents of the Command Block Registers following the transfer of a data 
+block which had a sector in error are undefined. The host should retry the 
+transfer as individual requests to obtain valid error information.
+
+Subsequent blocks or partial blocks are transferred only if the error was a 
+correctable data error. All other errors cause the command to stop after 
+transfer of the block which contained the error. Interrupts are generated when 
+DRQ is set at the beginning of each block or partial block. 
+
+..The error reporting is the same as that on a Read Sectors command.
+..
+9.13  Read Sector(s)
+
+This command reads from 1 to 256 sectors as specified in the Sector Count 
+register. A sector count of 0 requests 256 sectors. The transfer begins at the 
+sector specified in the Sector Number Register. See 10.1 for the DRQ, IRQ and 
+BSY protocol on data transfers.
+
+If the drive is not already on the desired track, an implied seek is 
+performed. Once at the desired track, the drive searches for the appropriate 
+ID field. 
+
+If retries are disabled and two index pulses have occurred without error free 
+reading of the requested ID, an ID Not Found error is posted. 
+
+If retries are enabled, up to a vendor specific number of attempts may be made 
+to read the requested ID before posting an error. 
+
+If the ID is read correctly, the data address mark shall be recognized within 
+a specified number of bytes, or the Address Mark Not Found error is posted. 
+
+..Once the data address mark is found, the data field is read into the sector 
+..buffer, error bits are set if an error was encountered, DRQ is set, and an 
+..interrupt is generated. 
+..
+DRQ is always set regardless of the presence or absence of an error condition 
+at the end of the sector. 
+
+At command completion, the Command Block Registers contain the cylinder, head, 
+and sector number of the last sector read. 
+
+If an error occurs, the read terminates at the sector where the error 
+occurred. The Command Block Registers contain the cylinder, head, and sector 
+number of the sector where the error occurred. 
+
+The flawed data is pending in the sector buffer. 
+
+9.14  Read Verify Sector(s) 
+
+This command is identical to the Read Sectors command, except that DRQ is 
+never set, and no data is transferred to the host. See 10.3 for protocol.
+..When the command is accepted, the drive sets BSY. 
+
+When the requested sectors have been verified, the drive clears BSY and 
+generates an interrupt. Upon command completion, the Command Block Registers 
+contain the cylinder, head, and sector number of the last sector verified. 
+
+If an error occurs, the verify terminates at the sector where the error 
+occurs. The Command Block Registers contain the cylinder, head, and sector 
+number of the sector where the error occurred. The Sector Count Register shall 
+contain the number of sectors not yet verified. 
+
+9.15  Seek 
+
+This command initiates a seek to the track and selects the head specified in 
+the command block. The drive need not be formatted for a seek to execute 
+properly. See 10.3 for protocol. The drive shall not set DSC=1 until the 
+action of seeking has completed. The drive may return the interrupt before the 
+seek is completed. 
+
+If another command is issued to the drive while a seek is being executed, the 
+drive sets BSY=1, waits for the seek to complete, and then begins execution of 
+the command. 
+
+..The Sector Number Register is used to translate between perceived and real 
+..geometry. 
+..
+9.16  Set Features 
+
+This command is used by the host to establish the following parameters which 
+affect the execution of certain drive features: 
+
+     44h  Vendor unique length of ECC on Read Long/Write Long commands
+     55h  Disable read look-ahead feature
+     AAh  Enable read look-ahead feature 
+     BBh  4 bytes of ECC apply on Read Long/Write Long commands
+
+See 10.3 for protocol. If the value in the register is not supported or is 
+invalid, the drive posts an Aborted Command error. 
+
+At power on, or after a software or hardware reset, the default mode is read 
+look-ahead enabled and 4 bytes of ECC.
+
+9.17  Set Multiple Mode 
+
+This command enables the drive to perform Read and Write Multiple operations 
+and establishes the block count for these commands. See 10.3 for protocol. 
+
+The Sector Count Register is loaded with the number of sectors per block. 
+Drives shall support block sizes of 2, 4, 8, and 16 sectors, if their buffer 
+size is at least 8,192 bytes, and may also support other block sizes. Upon 
+receipt of the command, the drive sets BSY=1 and checks the Sector Count 
+Register. 
+
+If the Sector Count Register contains a valid value and the block count is 
+supported, the value is loaded for all subsequent Read Multiple and Write 
+Multiple commands and execution of those commands is enabled. If a block count 
+is not supported, an Aborted Command error is posted, and Read Multiple and 
+Write Multiple commands are disabled. 
+
+If the Sector Count Register contains 0 when the command is issued, Read and 
+Write Multiple commands are disabled. 
+
+At power on, or after a hardware or software reset, the default mode is Read 
+and Write Multiple disabled. 
+
+9.18  Sleep
+
+This command is the only way to cause the drive to enter Sleep Mode. The drive 
+is spun down, and when it is stopped, BSY is cleared, an interrupt is 
+generated, and the interface becomes inactive. 
+
+The only way to recover from Sleep mode without a reset or power on, is for 
+the host to issue a software reset. 
+
+A drive shall not power on in Sleep Mode nor remain in Sleep Mode following a 
+reset sequence. If the drive is already spun down, the spin down sequence is 
+not executed. 
+
+9.19  Standby
+
+This command causes the drive to enter the Standby Mode. See 10.3 for 
+protocol. The drive may return the interrupt before the transition to Standby 
+Mode is completed. 
+
+If the drive is already spun down, the spin down sequence is not executed. 
+
+If the Sector Count Register is non-zero then the automatic power down 
+sequence shall be enabled and the timer will begin counting down when the 
+drive returns to Idle mode. If the Sector Count Register is zero then the 
+automatic power down sequence shall be disabled.
+
+9.20  Standby Immediate
+
+This command causes the drive to enter the Standby Mode. See 10.3 for 
+protocol. The drive may return the interrupt before the transition to Standby 
+Mode is completed. 
+
+If the drive is already spun down, the spin down sequence is not executed. 
+
+9.21  Write Buffer 
+
+This command enables the host to overwrite the contents of the drive's sector 
+buffer with any data pattern desired. See 10.2 for protocol.
+
+The Read Buffer and Write Buffer commands shall be synchronized within the 
+drive such that sequential Write Buffer and Read Buffer commands access the 
+same 512 bytes within the buffer. 
+
+9.22  Write DMA 
+
+This command executes in a similar manner to Write Sectors except for the 
+following:
+
+ - the host initializes a slave-DMA channel prior to issuing the command 
+ - data transfers are qualified by DMARQ and are performed by the slave-DMA 
+   channel 
+ - the drive issues only one interrupt per command to indicate that data 
+   transfer has terminated and status is available. 
+
+Any error encountered during Write DMA execution results in the termination of 
+data transfer. The drive issues an interrupt to indicate that data transfer 
+has terminated and status is available in the Error Register. The error 
+posting is the same as that of the Write Sectors command. 
+
+9.23  Write Multiple Command 
+
+This command is similar to the Write Sectors command. The drive sets BSY 
+within 400 nsec of accepting the command, and interrupts are not presented on 
+each sector but on the transfer of a block which contains the number of 
+sectors defined by Set Multiple. 
+
+Command execution is identical to the Write Sectors operation except that the 
+number of sectors defined by the Set Multiple command are transferred without 
+intervening interrupts. DRQ qualification of the transfer is required only at 
+the start of the data block, not on each sector. 
+
+The block count of sectors to be transferred without intervening interrupts is 
+programmed by the Set Multiple Mode command, which shall be executed prior to 
+the Read Multiple command. 
+
+When the Write Multiple command is issued, the Sector Count Register contains 
+the number of sectors (not the number of blocks or the block count) requested. 
+
+If the number of requested sectors is not evenly divisible by the block count, 
+as many full blocks as possible are transferred, followed by a final, partial 
+block transfer. The partial block transfer is for n sectors, where 
+
+         n = (sector count) - modulo (block count)  
+
+If the Write Multiple command is attempted before the Set Multiple Mode 
+command has been executed or when Write Multiple commands are disabled, the 
+Write Multiple operation shall be rejected with an aborted command error. 
+
+Disk errors encountered during Write Multiple commands are posted after the 
+attempted disk write of the block or partial block transferred. The Write 
+command ends with the sector in error, even if it was in the middle of a 
+block. Subsequent blocks are not transferred in the event of an error. 
+Interrupts are generated when DRQ is set at the beginning of each block or 
+partial block. 
+
+..The Command Block Registers contain the cylinder, head, and sector number of 
+..the sector where the error occurred and the Sector Count Register contains the 
+..residual of sectors that need to be transferred for successful completion of 
+..the command e.g. each block has 4 sectors, a request for 8 sectors is issued, 
+..and an error occurs on the third sector. The Sector Count Register contains 6 
+..and the address is that of the third sector. 
+..
+The contents of the Command Block Registers following the transfer of a data 
+block which had a sector in error are undefined. The host should retry the 
+transfer as individual requests to obtain valid error information.
+
+9.24  Write Same 
+
+This command executes in a similar manner to Write Sectors except that only 
+one sector of data is transferred. The contents of the sector are written to 
+the medium one or more times.
+
+NOTE: The Write Same command allows for initialization of part or all of the 
+medium to the specified data with a single command.
+
+If the Features Register is 22h, the drive shall write that part of the medium 
+specified by the sector count, sector number, cylinder and drive/head 
+registers. If the Features Register contains DDh, the drive shall initialize 
+all the user accessible medium. If the register contains a value other than 
+22h or DDh, the command shall be rejected with an aborted command error. 
+
+The drive issues an interrupt to indicate that the command is complete. Any 
+error encountered during execution results in the termination of the write 
+operation. Status is available in the Error Register if an error occurs. The 
+error posting is the same as that of the Write Sectors command. 
+
+9.25  Write Long 
+
+This command is similar to the Write Sectors command except that it writes the 
+data and the ECC bytes directly from the sector buffer; the drive does not 
+generate the ECC bytes itself. Only single sector Write Long operations are 
+supported. 
+
+The transfer of the ECC bytes shall be 8-bits wide.
+
+9.26  Write Sector(s) 
+
+This command writes from 1 to 256 sectors as specified in the Sector Count 
+Register (a sector count of zero requests 256 sectors), beginning at the 
+specified sector. See 10.1 for the DRQ, IRQ and BSY protocol on data 
+transfers.
+
+..When this command is accepted, the drive sets DRQ and waits 
+..for the host to fill the sector buffer with the data to be written. No 
+..interrupt is generated to start the first buffer fill operation. Once the 
+..buffer is full, the drive clears DRQ, sets BSY and begins command execution. 
+..
+If the drive is not already on the desired track, an implied seek is 
+performed. Once at the desired track, the drive searches for the appropriate 
+ID field. 
+
+If retries are disabled and two index pulses have occurred without error free 
+reading of the requested ID, an ID Not Found error is posted. 
+
+If retries are enabled, up to a vendor specific number of attempts may be made 
+to read the requested ID before posting an error. 
+
+If the ID is read correctly, the data loaded in the buffer is written to the 
+data field of the sector, followed by the ECC bytes. Upon command completion, 
+the Command Block Registers contain the cylinder, head, and sector number of 
+the last sector written. 
+
+If an error occurs during a write of more than one sector, writing terminates 
+at the sector where the error occurs. The Command Block Registers contain the 
+cylinder, head, and sector number of the sector where the error occurred. The 
+host may then read the command block to determine what error has occurred, and 
+on which sector. 
+
+9.27  Write Verify 
+
+This command is similar to the Write Sectors command, except that each sector 
+is verified immediately after being written. The verify operation is a read 
+without transfer and a check for data errors. Any errors encountered during 
+the verify operation are posted. Multiple sector write verify commands write 
+all the requested sectors and then verify all the requested sectors before 
+generating the final interrupt.
+

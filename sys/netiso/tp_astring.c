@@ -31,12 +31,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_astring.c	7.4 (Berkeley) 5/6/91
- *	$Id: tp_astring.c,v 1.2 1993/10/16 21:05:33 rgrimes Exp $
+ *	$Id: tp_astring.c,v 1.3 1993/12/19 00:53:29 wollman Exp $
  */
 
 #ifndef _NFILE
 #include <stdio.h>
-#endif _NFILE
+#endif /* _NFILE */
 char *tp_sstring[] = {
 "ST_ERROR(0x0)",
 "TP_CLOSED(0x1)",

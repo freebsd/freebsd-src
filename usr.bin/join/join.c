@@ -309,16 +309,16 @@ slurp(F)
 		}
 		if ((bp = fgetline(F->fp, &len)) == NULL)
 			return;
-		if (lp->linealloc <= len) {
+		while (lp->linealloc <= len) {
 			lp->linealloc += 100;
 			if ((lp->line = realloc(lp->line,
 			    lp->linealloc * sizeof(char))) == NULL)
 				enomem();
 		}
-		bcopy(bp, lp->line, len);
+		bcopy(bp, lp->line, len+1);
 
 		/* Split the line into fields, allocate space as necessary. */
-		token = bp;
+		token = lp->line;
 		lp->fieldcnt = 0;
 		while ((fieldp = strsep(&token, tabchar)) != NULL) {
 			if (spans && *fieldp == '\0')

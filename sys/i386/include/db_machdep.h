@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id: db_machdep.h,v 1.2 1993/10/16 14:39:10 rgrimes Exp $
+ *	$Id: db_machdep.h,v 1.3 1993/11/07 17:42:50 wollman Exp $
  */
 
 #ifndef	_I386_DB_MACHDEP_H_
@@ -54,7 +54,7 @@ typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	int		db_expr_t;	/* expression - signed */
 
 typedef struct i386_saved_state db_regs_t;
-db_regs_t	ddb_regs;	/* register state */
+extern db_regs_t	ddb_regs;	/* register state */
 #define	DDB_REGS	(&ddb_regs)
 
 #define	PC_REGS(regs)	((db_addr_t)(regs)->tf_eip)

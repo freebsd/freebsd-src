@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_quota.c	7.11 (Berkeley) 6/21/91
- *	$Id: ufs_quota.c,v 1.2 1993/10/16 18:17:57 rgrimes Exp $
+ *	$Id: ufs_quota.c,v 1.4 1993/11/25 01:38:37 wollman Exp $
  */
 
 #include "param.h"
@@ -65,6 +65,7 @@ static char *quotatypes[] = INITQFNAMES;
  * MAXQUOTAS value in quotas.h should be increased, and the
  * additional dquots set up here.
  */
+int
 getinoquota(ip)
 	register struct inode *ip;
 {
@@ -97,6 +98,7 @@ getinoquota(ip)
 /*
  * Update disk usage, and take corrective action.
  */
+int
 chkdq(ip, change, cred, flags)
 	register struct inode *ip;
 	long change;
@@ -119,7 +121,7 @@ chkdq(ip, change, cred, flags)
 				continue;
 			while (dq->dq_flags & DQ_LOCK) {
 				dq->dq_flags |= DQ_WANT;
-				sleep((caddr_t)dq, PINOD+1);
+				tsleep((caddr_t)dq, PINOD+1, "chkdq", 0);
 			}
 			ncurblocks = dq->dq_curblocks + change;
 			if (ncurblocks >= 0)
@@ -144,7 +146,7 @@ chkdq(ip, change, cred, flags)
 			continue;
 		while (dq->dq_flags & DQ_LOCK) {
 			dq->dq_flags |= DQ_WANT;
-			sleep((caddr_t)dq, PINOD+1);
+			tsleep((caddr_t)dq, PINOD+1, "chkdq", 0);
 		}
 		dq->dq_curblocks += change;
 		dq->dq_flags |= DQ_MOD;
@@ -156,11 +158,12 @@ chkdq(ip, change, cred, flags)
  * Check for a valid change to a users allocation.
  * Issue an error message if appropriate.
  */
+int
 chkdqchg(ip, change, cred, type)
 	struct inode *ip;
 	long change;
 	struct ucred *cred;
-	int type;
+	enum quotatype type;
 {
 	register struct dquot *dq = ip->i_dquot[type];
 	long ncurblocks = dq->dq_curblocks + change;
@@ -208,6 +211,7 @@ chkdqchg(ip, change, cred, type)
 /*
  * Check the inode limit, applying corrective action.
  */
+int
 chkiq(ip, change, cred, flags)
 	register struct inode *ip;
 	long change;
@@ -230,7 +234,7 @@ chkiq(ip, change, cred, flags)
 				continue;
 			while (dq->dq_flags & DQ_LOCK) {
 				dq->dq_flags |= DQ_WANT;
-				sleep((caddr_t)dq, PINOD+1);
+				tsleep((caddr_t)dq, PINOD+1, "chkiq", 0);
 			}
 			ncurinodes = dq->dq_curinodes + change;
 			if (ncurinodes >= 0)
@@ -255,7 +259,7 @@ chkiq(ip, change, cred, flags)
 			continue;
 		while (dq->dq_flags & DQ_LOCK) {
 			dq->dq_flags |= DQ_WANT;
-			sleep((caddr_t)dq, PINOD+1);
+			tsleep((caddr_t)dq, PINOD+1, "chkiq", 0);
 		}
 		dq->dq_curinodes += change;
 		dq->dq_flags |= DQ_MOD;
@@ -267,11 +271,12 @@ chkiq(ip, change, cred, flags)
  * Check for a valid change to a users allocation.
  * Issue an error message if appropriate.
  */
+int
 chkiqchg(ip, change, cred, type)
 	struct inode *ip;
 	long change;
 	struct ucred *cred;
-	int type;
+	enum quotatype type;
 {
 	register struct dquot *dq = ip->i_dquot[type];
 	long ncurinodes = dq->dq_curinodes + change;
@@ -322,6 +327,7 @@ chkiqchg(ip, change, cred, type)
  * it is an error for a file to change size and not
  * to have a dquot structure associated with it.
  */
+void
 chkdquot(ip)
 	register struct inode *ip;
 {
@@ -347,10 +353,11 @@ chkdquot(ip)
 /*
  * Q_QUOTAON - set up a quota file for a particular file system.
  */
+int
 quotaon(p, mp, type, fname)
 	struct proc *p;
 	struct mount *mp;
-	register int type;
+	enum quotatype type;
 	caddr_t fname;
 {
 	register struct ufsmount *ump = VFSTOUFS(mp);
@@ -426,10 +433,11 @@ again:
 /*
  * Q_QUOTAOFF - turn off disk quotas for a filesystem.
  */
+int
 quotaoff(p, mp, type)
 	struct proc *p;
 	struct mount *mp;
-	register int type;
+	enum quotatype type;
 {
 	register struct vnode *vp;
 	struct vnode *qvp, *nextvp;
@@ -478,10 +486,11 @@ again:
 /*
  * Q_GETQUOTA - return current values in a dqblk structure.
  */
+int
 getquota(mp, id, type, addr)
 	struct mount *mp;
 	u_long id;
-	int type;
+	enum quotatype type;
 	caddr_t addr;
 {
 	struct dquot *dq;
@@ -497,10 +506,11 @@ getquota(mp, id, type, addr)
 /*
  * Q_SETQUOTA - assign an entire dqblk structure.
  */
+int
 setquota(mp, id, type, addr)
 	struct mount *mp;
 	u_long id;
-	int type;
+	enum quotatype type;
 	caddr_t addr;
 {
 	register struct dquot *dq;
@@ -516,7 +526,7 @@ setquota(mp, id, type, addr)
 	dq = ndq;
 	while (dq->dq_flags & DQ_LOCK) {
 		dq->dq_flags |= DQ_WANT;
-		sleep((caddr_t)dq, PINOD+1);
+		tsleep((caddr_t)dq, PINOD+1, "setquota", 0);
 	}
 	/*
 	 * Copy all but the current values.
@@ -555,10 +565,11 @@ setquota(mp, id, type, addr)
 /*
  * Q_SETUSE - set current inode and block usage.
  */
+int
 setuse(mp, id, type, addr)
 	struct mount *mp;
 	u_long id;
-	int type;
+	enum quotatype type;
 	caddr_t addr;
 {
 	register struct dquot *dq;
@@ -574,7 +585,7 @@ setuse(mp, id, type, addr)
 	dq = ndq;
 	while (dq->dq_flags & DQ_LOCK) {
 		dq->dq_flags |= DQ_WANT;
-		sleep((caddr_t)dq, PINOD+1);
+		tsleep((caddr_t)dq, PINOD+1, "setuse", 0);
 	}
 	/*
 	 * Reset time limit if have a soft limit and were
@@ -600,6 +611,7 @@ setuse(mp, id, type, addr)
 /*
  * Q_SYNC - sync quota files to disk.
  */
+int
 qsync(mp)
 	struct mount *mp;
 {
@@ -669,6 +681,7 @@ long numdquot, desireddquot = DQUOTINC;
 /*
  * Initialize the quota system.
  */
+void
 dqinit()
 {
 	register union dqhead *dhp;
@@ -690,11 +703,12 @@ dqinit()
  * Obtain a dquot structure for the specified identifier and quota file
  * reading the information from the file if necessary.
  */
+int
 dqget(vp, id, ump, type, dqp)
 	struct vnode *vp;
 	u_long id;
 	register struct ufsmount *ump;
-	register int type;
+	enum quotatype type;
 	struct dquot **dqp;
 {
 	register struct dquot *dq;
@@ -820,6 +834,7 @@ dqget(vp, id, ump, type, dqp)
 /*
  * Obtain a reference to a dquot.
  */
+void
 dqref(dq)
 	struct dquot *dq;
 {
@@ -830,6 +845,7 @@ dqref(dq)
 /*
  * Release a reference to a dquot.
  */
+void
 dqrele(vp, dq)
 	struct vnode *vp;
 	register struct dquot *dq;
@@ -859,6 +875,7 @@ dqrele(vp, dq)
 /*
  * Update the disk quota in the quota file.
  */
+int
 dqsync(vp, dq)
 	struct vnode *vp;
 	register struct dquot *dq;
@@ -878,7 +895,7 @@ dqsync(vp, dq)
 		VOP_LOCK(dqvp);
 	while (dq->dq_flags & DQ_LOCK) {
 		dq->dq_flags |= DQ_WANT;
-		sleep((caddr_t)dq, PINOD+2);
+		tsleep((caddr_t)dq, PINOD+2, "dqsync", 0);
 		if ((dq->dq_flags & DQ_MOD) == 0) {
 			if (vp != dqvp)
 				VOP_UNLOCK(dqvp);
@@ -909,6 +926,7 @@ dqsync(vp, dq)
 /*
  * Flush all entries from the cache for a particular vnode.
  */
+void
 dqflush(vp)
 	register struct vnode *vp;
 {

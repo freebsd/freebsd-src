@@ -1,4 +1,4 @@
-# $Id: files,v 1.7 1993/10/16 16:31:52 rgrimes Exp $
+# $Id: files,v 1.20 1994/01/25 11:16:01 rgrimes Exp $
 #
 ddb/db_access.c		optional ddb
 ddb/db_aout.c		optional ddb
@@ -22,12 +22,14 @@ isofs/isofs_node.c	optional isofs
 isofs/isofs_util.c	optional isofs
 isofs/isofs_vfsops.c	optional isofs
 isofs/isofs_vnops.c	optional isofs
-isofs/isofs_rrip.c      optional isofs
+isofs/isofs_rrip.c	optional isofs
 kern/dead_vnops.c	standard
 kern/fifo_vnops.c	standard
+kern/imgact_aout.c	standard
+kern/imgact_shell.c	standard
 kern/init_main.c	standard
 kern/init_sysent.c	standard
-kern/kern__physio.c	standard
+kern/kern_physio.c	standard
 kern/kern_acct.c	standard
 kern/kern_clock.c	standard
 kern/kern_descrip.c	standard
@@ -54,6 +56,11 @@ kern/subr_xxx.c		standard
 kern/sys_generic.c	standard
 kern/sys_process.c	standard
 kern/sys_socket.c	standard
+kern/sysv_ipc.c		optional sysvmsg
+kern/sysv_ipc.c		optional sysvsem
+kern/sysv_ipc.c		optional sysvshm
+kern/sysv_msg.c		optional sysvmsg
+kern/sysv_sem.c		optional sysvsem
 kern/sysv_shm.c		optional sysvshm
 kern/tty.c		standard
 kern/tty_compat.c	standard
@@ -76,7 +83,6 @@ kern/vfs_lookup.c	standard
 kern/vfs_subr.c		standard
 kern/vfs_syscalls.c	standard
 kern/vfs_vnops.c	standard
-net/af.c		standard
 net/bpf.c		optional bpfilter
 net/bpf_filter.c	optional bpfilter
 net/if.c		standard
@@ -113,11 +119,13 @@ netinet/if_ether.c	optional ether
 netinet/in.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
+netinet/in_mtudisc.c	optional mtudisc
+netinet/in_var.c	optional inet
 netinet/ip_icmp.c	optional inet
 netinet/ip_input.c	optional inet
 netinet/ip_output.c	optional inet
 netinet/raw_ip.c	optional inet
-netinet/tcp_debug.c	optional inet
+netinet/tcp_debug.c	optional tcpdebug
 netinet/tcp_input.c	optional inet
 netinet/tcp_output.c	optional inet
 netinet/tcp_subr.c	optional inet
@@ -179,6 +187,8 @@ netns/ns_pcb.c		optional ns
 netns/ns_proto.c	optional ns
 netns/spp_debug.c	optional ns
 netns/spp_usrreq.c	optional ns
+netrmp/rmp.c		optional rmp
+netrmp/rmp_proto.c	optional rmp
 nfs/nfs_bio.c		optional nfs
 nfs/nfs_node.c		optional nfs
 nfs/nfs_serv.c		optional nfs
@@ -194,12 +204,18 @@ pcfs/pcfs_fat.c		optional pcfs
 pcfs/pcfs_lookup.c	optional pcfs
 pcfs/pcfs_vfsops.c	optional pcfs
 pcfs/pcfs_vnops.c	optional pcfs
+procfs/procfs_vnops.c	standard
+procfs/procfs_vfsops.c	standard
+procfs/procfs_subr.c	standard
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/scsiconf.c		optional scbus
+scsi/scsi_base.c	optional scbus
+scsi/scsi_ioctl.c	optional scbus
 scsi/sd.c		optional sd
-scsi/sg.c		optional sg
 scsi/st.c		optional st
+scsi/su.c		optional su
+scsi/uk.c		optional uk
 ufs/mfs_vfsops.c	optional mfs
 ufs/mfs_vnops.c		optional mfs
 ufs/ufs_alloc.c		standard
@@ -213,9 +229,9 @@ ufs/ufs_subr.c		standard
 ufs/ufs_tables.c	standard
 ufs/ufs_vfsops.c	standard
 ufs/ufs_vnops.c		standard
-vm/device_pager.c	optional devpager
+vm/device_pager.c	standard
 vm/kern_lock.c		standard
-vm/swap_pager.c		optional swappager
+vm/swap_pager.c		standard
 vm/vm_fault.c		standard
 vm/vm_glue.c		standard
 vm/vm_init.c		standard
@@ -230,4 +246,4 @@ vm/vm_pager.c		standard
 vm/vm_swap.c		standard
 vm/vm_unix.c		standard
 vm/vm_user.c		standard
-vm/vnode_pager.c	optional vnodepager
+vm/vnode_pager.c	standard

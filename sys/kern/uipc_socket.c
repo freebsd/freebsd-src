@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)uipc_socket.c	7.28 (Berkeley) 5/4/91
- *	$Id: uipc_socket.c,v 1.8 1993/10/23 16:23:49 davidg Exp $
+ *	$Id: uipc_socket.c,v 1.10 1993/12/19 00:51:46 wollman Exp $
  */
 
 #include "param.h"
@@ -55,7 +55,9 @@
  * switching out to the protocol specific routines.
  */
 /*ARGSUSED*/
+int
 socreate(dom, aso, type, proto)
+	int dom;
 	struct socket **aso;
 	register int type;
 	int proto;
@@ -81,7 +83,8 @@ socreate(dom, aso, type, proto)
 	so->so_proto = prp;
 	error =
 	    (*prp->pr_usrreq)(so, PRU_ATTACH,
-		(struct mbuf *)0, (struct mbuf *)proto, (struct mbuf *)0);
+		(struct mbuf *)0, (struct mbuf *)proto, (struct mbuf *)0,
+			      (struct mbuf *)0);
 	if (error) {
 		so->so_state |= SS_NOFDREF;
 		sofree(so);
@@ -91,6 +94,7 @@ socreate(dom, aso, type, proto)
 	return (0);
 }
 
+int
 sobind(so, nam)
 	struct socket *so;
 	struct mbuf *nam;
@@ -100,11 +104,12 @@ sobind(so, nam)
 
 	error =
 	    (*so->so_proto->pr_usrreq)(so, PRU_BIND,
-		(struct mbuf *)0, nam, (struct mbuf *)0);
+		(struct mbuf *)0, nam, (struct mbuf *)0, (struct mbuf *)0);
 	splx(s);
 	return (error);
 }
 
+int
 solisten(so, backlog)
 	register struct socket *so;
 	int backlog;
@@ -113,7 +118,8 @@ solisten(so, backlog)
 
 	error =
 	    (*so->so_proto->pr_usrreq)(so, PRU_LISTEN,
-		(struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0);
+		(struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0,
+				       (struct mbuf *)0);
 	if (error) {
 		splx(s);
 		return (error);
@@ -127,6 +133,7 @@ solisten(so, backlog)
 	return (0);
 }
 
+void
 sofree(so)
 	register struct socket *so;
 {
@@ -148,6 +155,7 @@ sofree(so)
  * Initiate disconnect if connected.
  * Free socket when disconnect complete.
  */
+int
 soclose(so)
 	register struct socket *so;
 {
@@ -182,7 +190,8 @@ drop:
 	if (so->so_pcb) {
 		int error2 =
 		    (*so->so_proto->pr_usrreq)(so, PRU_DETACH,
-			(struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0);
+			(struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0,
+					       (struct mbuf *)0);
 		if (error == 0)
 			error = error2;
 	}
@@ -198,15 +207,18 @@ discard:
 /*
  * Must be called at splnet...
  */
+int
 soabort(so)
 	struct socket *so;
 {
 
 	return (
 	    (*so->so_proto->pr_usrreq)(so, PRU_ABORT,
-		(struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0));
+		(struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0,
+				       (struct mbuf *)0));
 }
 
+int
 soaccept(so, nam)
 	register struct socket *so;
 	struct mbuf *nam;
@@ -218,11 +230,12 @@ soaccept(so, nam)
 		panic("soaccept: !NOFDREF");
 	so->so_state &= ~SS_NOFDREF;
 	error = (*so->so_proto->pr_usrreq)(so, PRU_ACCEPT,
-	    (struct mbuf *)0, nam, (struct mbuf *)0);
+	    (struct mbuf *)0, nam, (struct mbuf *)0, (struct mbuf *)0);
 	splx(s);
 	return (error);
 }
 
+int
 soconnect(so, nam)
 	register struct socket *so;
 	struct mbuf *nam;
@@ -245,11 +258,12 @@ soconnect(so, nam)
 		error = EISCONN;
 	else
 		error = (*so->so_proto->pr_usrreq)(so, PRU_CONNECT,
-		    (struct mbuf *)0, nam, (struct mbuf *)0);
+		    (struct mbuf *)0, nam, (struct mbuf *)0, (struct mbuf *)0);
 	splx(s);
 	return (error);
 }
 
+int
 soconnect2(so1, so2)
 	register struct socket *so1;
 	struct socket *so2;
@@ -258,11 +272,13 @@ soconnect2(so1, so2)
 	int error;
 
 	error = (*so1->so_proto->pr_usrreq)(so1, PRU_CONNECT2,
-	    (struct mbuf *)0, (struct mbuf *)so2, (struct mbuf *)0);
+	    (struct mbuf *)0, (struct mbuf *)so2, (struct mbuf *)0,
+					    (struct mbuf *)0);
 	splx(s);
 	return (error);
 }
 
+int
 sodisconnect(so)
 	register struct socket *so;
 {
@@ -278,7 +294,8 @@ sodisconnect(so)
 		goto bad;
 	}
 	error = (*so->so_proto->pr_usrreq)(so, PRU_DISCONNECT,
-	    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0);
+	    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0,
+					   (struct mbuf *)0);
 bad:
 	splx(s);
 	return (error);
@@ -301,6 +318,7 @@ bad:
  * must check for short counts if EINTR/ERESTART are returned.
  * Data and control buffers are freed on return.
  */
+int
 sosend(so, addr, uio, top, control, flags)
 	register struct socket *so;
 	struct mbuf *addr;
@@ -424,7 +442,7 @@ nopages:
 		    s = splnet();				/* XXX */
 		    error = (*so->so_proto->pr_usrreq)(so,
 			(flags & MSG_OOB) ? PRU_SENDOOB : PRU_SEND,
-			top, addr, control);
+			top, addr, control, (struct mbuf *)0);
 		    splx(s);
 		    if (dontroute)
 			    so->so_options &= ~SO_DONTROUTE;
@@ -463,6 +481,7 @@ out:
  * an mbuf **mp0 for use in returning the chain.  The uio is then used
  * only for the count in uio_resid.
  */
+int
 soreceive(so, paddr, uio, mp0, controlp, flagsp)
 	register struct socket *so;
 	struct mbuf **paddr;
@@ -476,7 +495,7 @@ soreceive(so, paddr, uio, mp0, controlp, flagsp)
 	register int flags, len, error, s, offset;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
-	int moff, type;
+	int moff, type = 0;
 	int orig_resid = uio->uio_resid;
 
 	mp = mp0;
@@ -491,7 +510,8 @@ soreceive(so, paddr, uio, mp0, controlp, flagsp)
 	if (flags & MSG_OOB) {
 		m = m_get(M_WAIT, MT_DATA);
 		error = (*pr->pr_usrreq)(so, PRU_RCVOOB,
-		    m, (struct mbuf *)(flags & MSG_PEEK), (struct mbuf *)0);
+		    m, (struct mbuf *)(flags & MSG_PEEK), (struct mbuf *)0,
+					 (struct mbuf *)0);
 		if (error)
 			goto bad;
 		do {
@@ -508,7 +528,7 @@ bad:
 		*mp = (struct mbuf *)0;
 	if (so->so_state & SS_ISCONFIRMING && uio->uio_resid)
 		(*pr->pr_usrreq)(so, PRU_RCVD, (struct mbuf *)0,
-		    (struct mbuf *)0, (struct mbuf *)0);
+		    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0);
 
 restart:
 	if (error = sblock(&so->so_rcv))
@@ -759,6 +779,7 @@ release:
 	return (error);
 }
 
+int
 soshutdown(so, how)
 	register struct socket *so;
 	register int how;
@@ -770,10 +791,12 @@ soshutdown(so, how)
 		sorflush(so);
 	if (how & FWRITE)
 		return ((*pr->pr_usrreq)(so, PRU_SHUTDOWN,
-		    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0));
+		    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0,
+					 (struct mbuf *)0));
 	return (0);
 }
 
+void
 sorflush(so)
 	register struct socket *so;
 {
@@ -795,6 +818,7 @@ sorflush(so)
 	sbrelease(&asb);
 }
 
+int
 sosetopt(so, level, optname, m0)
 	register struct socket *so;
 	int level, optname;
@@ -905,6 +929,7 @@ bad:
 	return (error);
 }
 
+int
 sogetopt(so, level, optname, mp)
 	register struct socket *so;
 	int level, optname;
@@ -988,6 +1013,7 @@ sogetopt(so, level, optname, mp)
 	}
 }
 
+void
 sohasoutofband(so)
 	register struct socket *so;
 {

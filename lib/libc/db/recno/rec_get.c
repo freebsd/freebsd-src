@@ -32,7 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rec_get.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)rec_get.c	8.2 (Berkeley) 9/7/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -71,6 +71,15 @@ __rec_get(dbp, key, data, flags)
 	recno_t nrec;
 	int status;
 
+	t = dbp->internal;
+
+	/* Toss any page pinned across calls. */
+	if (t->bt_pinned != NULL) {
+		mpool_put(t->bt_mp, t->bt_pinned, 0);
+		t->bt_pinned = NULL;
+	}
+
+	/* Get currently doesn't take any flags, and keys of 0 are illegal. */
 	if (flags || (nrec = *(recno_t *)key->data) == 0) {
 		errno = EINVAL;
 		return (RET_ERROR);
@@ -80,7 +89,6 @@ __rec_get(dbp, key, data, flags)
 	 * If we haven't seen this record yet, try to find it in the
 	 * original file.
 	 */
-	t = dbp->internal;
 	if (nrec > t->bt_nrecs) {
 		if (ISSET(t, R_EOF | R_INMEM))
 			return (RET_SPECIAL);
@@ -93,7 +101,10 @@ __rec_get(dbp, key, data, flags)
 		return (RET_ERROR);
 
 	status = __rec_ret(t, e, 0, NULL, data);
-	mpool_put(t->bt_mp, e->page, 0);
+	if (ISSET(t, B_DB_LOCK))
+		mpool_put(t->bt_mp, e->page, 0);
+	else
+		t->bt_pinned = e->page;
 	return (status);
 }
 

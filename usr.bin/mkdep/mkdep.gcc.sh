@@ -71,7 +71,7 @@ TMP=/tmp/mkdep$$
 
 trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
 
-cpp -M $* | sed "$SED" > $TMP
+gcc -M $* | sed "$SED" > $TMP
 
 if [ $? != 0 ]; then
 	echo 'mkdep: compile failed.'

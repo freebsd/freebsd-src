@@ -1,5 +1,5 @@
 /*
- * $Header: /a/cvs/386BSD/src/usr.bin/compress/doc/revision.log,v 1.1.1.1 1993/06/12 14:53:55 rgrimes Exp $
+ * $Header: /home/cvs/386BSD/src/usr.bin/compress/doc/revision.log,v 1.1.1.1 1993/06/12 14:53:55 rgrimes Exp $
  * $Log: revision.log,v $
 # Revision 1.1.1.1  1993/06/12  14:53:55  rgrimes
 # Initial import, 0.1 + pk 0.2.4-B1
@@ -116,4 +116,4 @@
  */
 
 static char rcs_ident[] =
-	"$Header: /a/cvs/386BSD/src/usr.bin/compress/doc/revision.log,v 1.1.1.1 1993/06/12 14:53:55 rgrimes Exp $";
+	"$Header: /home/cvs/386BSD/src/usr.bin/compress/doc/revision.log,v 1.1.1.1 1993/06/12 14:53:55 rgrimes Exp $";

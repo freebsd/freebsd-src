@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ *	$Id: grp.h,v 1.2.2.1 1994/05/04 07:37:45 rgrimes Exp $
+ */
 /*-
  * Copyright (c) 1989 The Regents of the University of California.
  * All rights reserved.
@@ -54,7 +63,7 @@ struct group *getgrgid __P((gid_t));
 struct group *getgrnam __P((const char *));
 #ifndef _POSIX_SOURCE
 struct group *getgrent __P((void));
-int setgrent __P((void));
+void setgrent __P((void));
 void endgrent __P((void));
 void setgrfile __P((const char *));
 int setgroupent __P((int));

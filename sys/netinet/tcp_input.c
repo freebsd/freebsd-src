@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_input.c	7.25 (Berkeley) 6/30/90
- *	$Id: tcp_input.c,v 1.2 1993/10/16 18:26:26 rgrimes Exp $
+ *	$Id: tcp_input.c,v 1.9 1994/01/31 09:47:02 davidg Exp $
  */
 
 #include "param.h"
@@ -57,16 +57,23 @@
 #include "tcp_timer.h"
 #include "tcp_var.h"
 #include "tcpip.h"
+#ifdef TCPDEBUG
 #include "tcp_debug.h"
+#endif
+
+static void tcp_dooptions(struct tcpcb *, struct mbuf *, struct tcpiphdr *);
+static void tcp_pulloutofband(struct socket *, struct tcpiphdr *, struct mbuf *);
+static void tcp_xmit_timer(struct tcpcb *);
 
 int	tcprexmtthresh = 3;
 int	tcppredack;	/* XXX debugging: times hdr predict ok for acks */
 int	tcppreddat;	/* XXX # times header prediction ok for data packets */
 int	tcppcbcachemiss;
+#ifdef TCPDEBUG
 struct	tcpiphdr tcp_saveti;
+#endif
 struct	inpcb *tcp_last_inpcb = &tcb;
 
-struct	tcpcb *tcp_newtcpcb();
 
 /*
  * Insert segment ti into reassembly queue of tcp with
@@ -95,6 +102,7 @@ struct	tcpcb *tcp_newtcpcb();
 	} \
 }
 
+int
 tcp_reass(tp, ti, m)
 	register struct tcpcb *tp;
 	register struct tcpiphdr *ti;
@@ -202,6 +210,7 @@ present:
  * TCP input routine, follows pages 65-76 of the
  * protocol specification dated September, 1981 very closely.
  */
+void
 tcp_input(m, iphlen)
 	register struct mbuf *m;
 	int iphlen;
@@ -212,12 +221,14 @@ tcp_input(m, iphlen)
 	int len, tlen, off;
 	register struct tcpcb *tp = 0;
 	register int tiflags;
-	struct socket *so;
+	struct socket *so = 0;
 	int todrop, acked, ourfinisacked, needoutput = 0;
-	short ostate;
 	struct in_addr laddr;
 	int dropsocket = 0;
 	int iss = 0;
+#ifdef TCPDEBUG
+	short ostate = 0;
+#endif
 
 	tcpstat.tcps_rcvtotal++;
 	/*
@@ -321,10 +332,12 @@ findpcb:
 		goto drop;
 	so = inp->inp_socket;
 	if (so->so_options & (SO_DEBUG|SO_ACCEPTCONN)) {
+#ifdef TCPDEBUG
 		if (so->so_options & SO_DEBUG) {
 			ostate = tp->t_state;
 			tcp_saveti = *ti;
 		}
+#endif
 		if (so->so_options & SO_ACCEPTCONN) {
 			so = sonewconn(so, 0);
 			if (so == 0)
@@ -443,7 +456,17 @@ findpcb:
 			m->m_len -= sizeof(struct tcpiphdr);
 			sbappend(&so->so_rcv, m);
 			sorwakeup(so);
-			tp->t_flags |= TF_DELACK;
+			/*
+			 * If this is a small packet, then ACK now - with Nagel
+			 *	congestion avoidance sender won't send more until
+			 *	he gets an ACK.
+			 */
+			if ((unsigned)ti->ti_len < tp->t_maxseg) {
+				tp->t_flags |= TF_ACKNOW;
+				tcp_output(tp);
+			} else {
+				tp->t_flags |= TF_DELACK;
+			}
 			return;
 		}
 	}
@@ -594,7 +617,7 @@ trimthenstep6:
 		 * dropping FIN if necessary.
 		 */
 		ti->ti_seq++;
-		if (ti->ti_len > tp->rcv_wnd) {
+		if ((u_long)ti->ti_len > (u_long)tp->rcv_wnd) {
 			todrop = ti->ti_len - tp->rcv_wnd;
 			m_adj(m, -todrop);
 			ti->ti_len = tp->rcv_wnd;
@@ -1057,7 +1080,7 @@ step6:
 		 * but if two URG's are pending at once, some out-of-band
 		 * data may creep in... ick.
 		 */
-		if (ti->ti_urp <= ti->ti_len
+		if ((u_long)ti->ti_urp <= (u_long)ti->ti_len
 #ifdef SO_OOBINLINE
 		     && (so->so_options & SO_OOBINLINE) == 0
 #endif
@@ -1144,8 +1167,18 @@ dodata:							/* XXX */
 			break;
 		}
 	}
+#ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, &tcp_saveti, 0);
+#endif
+
+	/*
+	 * If this is a small packet, then ACK now - with Nagel
+	 *	congestion avoidance sender won't send more until
+	 *	he gets an ACK.
+	 */
+	if (ti->ti_len && ((unsigned)ti->ti_len < tp->t_maxseg))
+		tp->t_flags |= TF_ACKNOW;
 
 	/*
 	 * Return any desired output.
@@ -1197,8 +1230,10 @@ drop:
 	/*
 	 * Drop space held by incoming segment and return.
 	 */
+#ifdef TCPDEBUG
 	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_DROP, ostate, tp, &tcp_saveti, 0);
+#endif
 	m_freem(m);
 	/* destroy temporarily created socket */
 	if (dropsocket)
@@ -1206,6 +1241,7 @@ drop:
 	return;
 }
 
+static void
 tcp_dooptions(tp, om, ti)
 	struct tcpcb *tp;
 	struct mbuf *om;
@@ -1253,6 +1289,7 @@ tcp_dooptions(tp, om, ti)
  * It is still reflected in the segment length for
  * sequencing purposes.
  */
+static void
 tcp_pulloutofband(so, ti, m)
 	struct socket *so;
 	struct tcpiphdr *ti;
@@ -1283,6 +1320,7 @@ tcp_pulloutofband(so, ti, m)
  * Collect new round-trip time estimate
  * and update averages and current timeout.
  */
+static void
 tcp_xmit_timer(tp)
 	register struct tcpcb *tp;
 {
@@ -1366,7 +1404,7 @@ tcp_xmit_timer(tp)
  * While looking at the routing entry, we also initialize other path-dependent
  * parameters from pre-set or cached values in the routing entry.
  */
-
+int
 tcp_mss(tp, offer)
 	register struct tcpcb *tp;
 	u_short offer;
@@ -1462,20 +1500,22 @@ tcp_mss(tp, offer)
 			bufsize = so->so_snd.sb_hiwat;
 		if (bufsize < mss)
 			mss = bufsize;
-		else {
+		else
 			bufsize = min(bufsize, SB_MAX) / mss * mss;
-			(void) sbreserve(&so->so_snd, bufsize);
-		}
+
+		(void) sbreserve(&so->so_snd, bufsize);
 		tp->t_maxseg = mss;
 
 #ifdef RTV_RPIPE
 		if ((bufsize = rt->rt_rmx.rmx_recvpipe) == 0)
 #endif
 			bufsize = so->so_rcv.sb_hiwat;
-		if (bufsize > mss) {
+		if (bufsize < mss)
+			bufsize = mss;
+		else
 			bufsize = min(bufsize, SB_MAX) / mss * mss;
-			(void) sbreserve(&so->so_rcv, bufsize);
-		}
+
+		(void) sbreserve(&so->so_rcv, bufsize);
 	}
 	tp->snd_cwnd = mss;
 

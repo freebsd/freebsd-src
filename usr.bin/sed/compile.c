@@ -208,6 +208,8 @@ nonsel:		/* Now parse the command */
 				p = NULL;
 			cmd2 = xmalloc(sizeof(struct s_command));
 			cmd2->code = '}';
+			cmd2->a1 = cmd2->a2 = NULL;
+			cmd2->nonsel = 0;
 			*compile_stream("}", &cmd->u.c, p) = cmd2;
 			cmd->next = cmd2;
 			link = &cmd2->next;

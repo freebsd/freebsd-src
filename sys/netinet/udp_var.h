@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)udp_var.h	7.7 (Berkeley) 6/28/90
- *	$Id: udp_var.h,v 1.2 1993/10/16 18:26:44 rgrimes Exp $
+ *	$Id: udp_var.h,v 1.4 1993/12/19 00:52:57 wollman Exp $
  */
+
+#ifndef _NETINET_UDP_VAR_H_
+#define _NETINET_UDP_VAR_H_ 1
 
 /*
  * UDP kernel structures and variables.
@@ -70,6 +73,14 @@ struct	udpstat {
 #define	UDP_TTL		30	/* default time to live for UDP packets */
 
 #ifdef KERNEL
-struct	inpcb udb;
-struct	udpstat udpstat;
-#endif
+extern struct	inpcb udb;
+extern struct	udpstat udpstat;
+
+/* From in_var.h: */
+extern int udpcksum;
+extern int udp_ttl;
+extern u_long udp_sendspace;
+extern u_long udp_recvspace;
+
+#endif /* KERNEL */
+#endif /* _NETINET_UDP_VAR_H_ */

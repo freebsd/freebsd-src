@@ -1,6 +1,6 @@
                                  RELEASE NOTES
                                     FreeBSD
-                                  Release 1.0
+                                  Release 1.1
 
 1. Technical overview
 ---------------------
@@ -16,21 +16,21 @@ releases in the GAMMA distribution.  This 1.0 distribution fixes
 many of the first-run problems our GAMMA and EPSILON users reported back
 to us.
 
-Additionally, many packages such as XFree86 1.3, xview 3.2, elm, nntp,
-mh and dozens of other miscellaneous utilities have been ported and
-are now available as add-ons.  See then next section of this document
+Additionally, many packages such as XFree86 2.1, xview 3.2, elm, nntp,
+mh, InterViews and dozens of other miscellaneous utilities have been ported
+and are now available as add-ons.  See then next section of this document
 for more details.
 
-For a list of contributors, please see the file "CONTRIB.FreeBSD",
-which should be bundled with your distribution.
+For a list of contributors, please see the files "CONTRIB.FreeBSD" and
+"CONTRIB.386BSD", which should be bundled with your distribution.
 
 The core of FreeBSD does not contain DES code which would inhibit its
 being exported outside the United States.  There is an add-on package
 to the core distribution, for use only in the United States, that
 contains the programs that normally use DES.  The auxilliary packages
-provided separately can be used by anyone.  Work is in progress to
-provide a freely (from outside the U.S.) exportable European distribution
-of DES for our non U.S. users.
+provided separately can be used by anyone.   A freely (from outside the U.S.)
+exportable European distribution of DES for our non U.S. users also exists
+and is described in the FreeBSD FAQ.
 
 
 2. Supported Configurations
@@ -52,17 +52,20 @@ this.
 WD1003 (any generic MFM/RLL)
 WD1007 (any generic IDE/ESDI)
 
-Adaptec 154x series ISA SCSI controller as long as you have
-less than 16MB of memory.
+Adaptec 154x series ISA SCSI controller (as long as you have less than
+16MB of main memory).
 
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 
+[Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S.
+Buslogic 445S VLB SCSI controller
+Buslogic 742A and 747.
+Please see special notes in /usr/src/KNOWNBUGS (filed under bt742a.c) for
+details concerning possible buggy firmware and undocumented switch settings
+that may be necessary for proper operation of your controller.
 
-Bustec 742A.
-
-DTC 3290 EISA SCSI controller in 1542 emulation mode as long as
-you have less than 16MB of memory.
+DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
 Ultra Store 14F and 34F.
 
@@ -73,26 +76,52 @@ inteface card) is the only way a CD ROM drive may be currently
 attached to a FreeBSD system; we do not support SoundBlaster CDROM
 interface, or other "mini SCSI" adapters.
 
+Some controllers have limitations with the way they deal with >16MB of memory,
+due to the fact that the ISA bus only has a DMA address space of 24 bits.
+If you do your arithmetic, you'll see that this makes it impossible to do
+direct DMA to any address >16MB.  This limitation is even true of some
+EISA controllers (which are normally 32 bit) when they're configured to
+emulate an ISA card, which they then do in *all* respects.  This problem
+is avoided entirely by IDE controllers (which do not use DMA), true EISA
+controllers (like the UltraStor or Adaptec 1742A) and most VLB (local bus)
+controllers.
+
 
 2.2. Ethernet cards
 
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
-WD8003EBT, WD8003S, WD8003SBT and WD8013EBT based clones.
+WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
+based clones.
 
 Isolan AT 4141-0 (16 bit)
 
 Isolink 4110     (8 bit)
 
-Novell NE1000 and NE2000 ethernet interface.
+Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C503 Etherlink II
+
+3Com 3C509 Ethernet cards
+
+Toshiba ethernet cards
+
+SMC Elite Ultra
 
 
 2.3. Misc
 
 Various 2 and 4 port serial/parallel cards.
 
-Mitsumi CDROM interface and drive.
+Simple (AST-like) multiport serial cards.
+
+BOCA ATIO66 6 port serial card using shared IRQ.
+
+STB 4 port card using shared IRQ.
+
+Mitsumi (all models) CDROM interface and drive.
+
+Adlib, Soundblaster, Soundblaster Pro, ProAudioSpectrum, Gravis UltraSound
+and Roland MPU-401 sound cards.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus, but
 support is apparently close to materializing.  Details will be posted
@@ -109,16 +138,9 @@ You may obtain FreeBSD in a variety of ways:
 You can ftp FreeBSD and any or all of its optional packages from
 `freebsd.cdrom.com' - the offical FreeBSD release site.
 
-The FreeBSD software is being mirrored at the following locations:
-
-Country		Site/Directory
-=======		=====================================================
-
-Austria		ftp.tu-graz.ac.at:/pub/FreeBSD
-Germany		ftp.informatik.tu-muenchen.de:pub/comp/os/bsd/FreeBSD
-Germany		ftp.uni-duisburg.de:/pub/unix/FreeBSD
-Hong Kong	ftp.cs.cuhk.hk:/pub/FreeBSD
-
+For other locations that mirror the FreeBSD software see the file
+MIRROR.SITES.  Please ftp the distribution from the nearest site
+to you netwise.
 
 If you do not have access to the internet and electronic mail is your
 only recourse, then you may still fetch the files by sending mail to
@@ -152,31 +174,6 @@ unconditional return policy.
 Note that Walnut Creek CDROM does NOT provide technical support for FreeBSD,
 you need to contact the FreeBSD team for that.  Please see section 4 for
 more information.
-
-
-3. 1/4" Tape, 4mm DAT, floppy
-
-  Winning Strategies, Inc.  61 Crestwood Drive #18,  Daly City, CA 94015
-  <jtc@wimsey.com>
-
-  3.5" & 5.25" floppies				$200.00
-   Contains "core" FreeBSD.
-   Shipping - add $15 for U.S. and Canada, $25 for overseas.
-
-  150MB QIC tape				$100.00
-   Contains "core" FreeBSD + XFree86.
-   Choice of either 3.5" or 5.25" boot floppies.
-   Shipping - add $10 for U.S. and Canada, $30 for overseas.
-
-  DAT & Exabyte tapes				$100.00
-   Contains everything on the Walnut Creek CD ROM.
-   Choice of either 3.5" or 5.25" boot floppies.
-   Shipping - same as for QIC tape.
-
-  All packages contain printed copies of the release and installation notes.
-
-  Visa, Mastercard, U.S. $ Money Orders, or U.S. $ checks drawn on a
-  U.S. bank accepted for payment.
 
 
 It should be noted, lest you get the wrong impression that "FreeBSD"
@@ -217,6 +214,14 @@ on technical matters, or with offers of help, you may send mail to:
 
 		FreeBSD-hackers@freefall.cdrom.com
 
+Since these mailing lists can experience significant amounts of
+traffic, if you've got slow or expensive mail access and you're
+only interested in keeping up with significant FreeBSD events, you may
+find it preferable to subscribe to:
+
+		FreeBSD-announce@freefall.cdrom.com
+
+
 All but the FreeBSD-bugs groups can be freely joined by anyone wishing to
 do so.  Send mail to MajorDomo@freefall.cdrom.com and include the keyword
 `help' on a line by itself somewhere in the body of the message.  This
@@ -242,7 +247,8 @@ Bill Jolitz, for his extensive work with 386BSD.
 
 The FreeBSD "core" group:
 
-		J.T. Conklin
+		Andrew A. Chernov
+		John Dyson
 		David Greenman
 		Rodney W. Grimes
 		Jordan K. Hubbard
@@ -253,6 +259,7 @@ The FreeBSD "core" group:
 		Christoph Robitschko
 		Andreas Schulz
 		Nate Williams
+		Garrett A. Wollman
 
 
 Special mention to:
@@ -269,14 +276,15 @@ Special mention to:
 	Additional FreeBSD helpers and beta testers:
 
 	Gary Browing				Jon Cargille
-	Chris Demetriou				Julian Elischer
-	Bruce Evans				Sean Eric Fagan
-	Guy Helmer				Terry Lambert
+	J.T. Conklin				Chris Demetriou
+	Julian Elischer				Bruce Evans
+	Sean Eric Fagan				Guy Helmer
+	Jeffrey Hsu				Terry Lambert
 	Gary Moyer				Jaye Mathisen
-	L Jonas Olsson				Chris Provenzano
-	Dave Rivers				Guido van Rooij
-	Steven Wallace				Rick Weldon
-	Terry Williams				Garrett Wollman
+	Curt Mayer				L Jonas Olsson
+	Chris Provenzano 			Dave Rivers
+	Guido van Rooij				Steven Wallace
+	Rick Weldon				Terry Williams
 
 	And everyone at Montana State University for their initial support.
 
@@ -287,4 +295,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Group
 
-$Id: RELNOTES.FreeBSD,v 1.15 1993/10/18 19:32:45 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.23.2.4 1994/05/02 02:23:48 rgrimes Exp $

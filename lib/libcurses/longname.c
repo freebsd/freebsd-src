@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,29 +32,25 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)longname.c	5.4 (Berkeley) 6/1/90";
-#endif /* not lint */
-
-# define	reg	register
+static char sccsid[] = "@(#)longname.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
 /*
- *	This routine fills in "def" with the long name of the terminal.
- *
+ * longname --
+ *	Fill in "def" with the long name of the terminal.
  */
 char *
 longname(bp, def)
-reg char	*bp, *def; {
-
-	reg char	*cp;
+	register char *bp, *def;
+{
+	register char *cp;
 
 	while (*bp && *bp != ':' && *bp != '|')
 		bp++;
 	if (*bp == '|') {
-		bp++;
-		cp = def;
-		while (*bp && *bp != ':' && *bp != '|')
+		for (cp = def, ++bp; *bp && *bp != ':' && *bp != '|';)
 			*cp++ = *bp++;
-		*cp = 0;
+		*cp = '\0';
 	}
-	return def;
+	return (def);
 }

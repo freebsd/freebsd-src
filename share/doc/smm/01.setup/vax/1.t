@@ -37,12 +37,13 @@
 .ds RH Introduction
 .ds CF \*(DY
 .LP
-.nr H1 1
+.\".nr H1 1
 .bp
 .LG
 .B
 .ce
-1. INTRODUCTION
+.NH 1
+INTRODUCTION
 .sp 2
 .R
 .NL

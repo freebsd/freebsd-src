@@ -1,0 +1,159 @@
+                           TABLE OF CONTENTS
+
+  1.          Scope                                                     1
+  1.1         Description of Clauses                                    1
+
+  2.          References                                                1
+  3.          General Description                                       1
+  3.1         Structure                                                 2
+
+  4.          Definitions and Conventions                               2
+  4.1         Definitions                                               2
+  4.2         Conventions                                               2
+
+  5.          Interface Cabling Requirements                            3
+  5.1         Configuration                                             3
+  5.2         Addressing Considerations                                 4
+  5.3         DC Cable and Connector                                    4
+  5.3.1       4-Pin Power                                               4
+  5.3.2       3-Pin Power                                               5
+  5.3.3       Device Grounding                                          5
+
+  5.4         I/O Connector                                             5
+  5.5         I/O Cable                                                 6
+
+  6.          Physical Interface                                        6
+  6.1         Signal Conventions                                        6
+  6.2         Signal Summary                                            7
+  6.3         Signal Descriptions                                       9
+  6.3.1       CS1FX- (Drive chip Select 0)                              9
+  6.3.2       CS3FX- (Drive chip Select 1)                              9
+  6.3.3       DA0-2 (Drive Address Bus)                                 10
+  6.3.4       DASP- (Drive Active/Drive 1 Present)                      10
+  6.3.5       DD0-DD15 (Drive Data Bus)                                 10
+  6.3.6       DIOR- (Drive I/O Read)                                    10
+  6.3.7       DIOW- (Drive I/O Write)                                   10
+  6.3.8       DMACK- (DMA Acknowledge) (Optional)                       10
+  6.3.9       DMARQ (DMA Request) (Optional)                            11
+  6.3.10      INTRQ (Drive Interrupt)                                   11
+  6.3.11      IOCS16- (Drive 16-bit I/O)                                11
+  6.3.12      IORDY (I/O Channel Ready) (Optional)                      12
+  6.3.13      PDIAG- (Passed Diagnostics)                               12
+  6.3.14      RESET- (Drive Reset)                                      12
+  6.3.15      SPSYNC (Spindle Synchronization) (Optional)               12
+
+  7.          Logical Interface                                         13
+  7.1         General                                                   13
+  7.1.1       Bit Conventions                                           13
+  7.1.2       Environment                                               13
+
+  7.2         I/O Register Descriptions                                 14
+  7.2.1       Alternate Status Register                                 14
+  7.2.2       Command Register                                          15
+  7.2.3       Cylinder High Register                                    15
+  7.2.4       Cylinder Low Register                                     15
+  7.2.5       Data Register                                             15
+  7.2.6       Device Control Register                                   15
+  7.2.7       Drive Address Register                                    16
+  7.2.8       Drive/Head Register                                       16
+  7.2.9       Error Register                                            16
+  7.2.10      Features Register                                         17
+  7.2.11      Sector Count Register                                     17
+  7.2.12      Sector Number Register                                    17
+  7.2.13      Status Register                                           18
+
+  8.          Programming Requirements                                  19
+  8.1         Reset Response                                            19
+  8.2         Translate Mode                                            19
+  8.3         Power Conditions                                          20
+  8.4         Error Posting                                             20
+
+  9.          Command Descriptions                                      21
+  9.1         Check Power Mode                                          24
+  9.2         Execute Drive Diagnostic                                  24
+  9.3         Format Track                                              24
+  9.4         Identify Drive                                            25
+  9.4.1       Number of fixed cylinders                                 26
+  9.4.2       Number of heads                                           27
+  9.4.3       Number of unformatted bytes per track                     27
+  9.4.4       Number of unformatted bytes per sector                    27
+  9.4.5       Number of sectors per track                               27
+  9.4.6       Serial Number                                             27
+  9.4.7       Buffer Type                                               27
+  9.4.8       Firmware Revision                                         27
+  9.4.9       Model Number                                              27
+  9.4.10      PIO data transfer cycle timing mode                       27
+  9.4.11      DMA data transfer cycle timing mode                       28
+
+  9.5         Idle                                                      28
+  9.6         Idle Immediate                                            28
+  9.7         Initialize Drive Parameters                               28
+  9.8         Recalibrate                                               28
+  9.9         Read Buffer                                               28
+  9.10        Read DMA                                                  29
+  9.11        Read Long                                                 29
+  9.12        Read Multiple Command                                     29
+  9.13        Read Sector(s)                                            30
+  9.14        Read Verify Sector(s)                                     30
+  9.15        Seek                                                      31
+  9.16        Set Features                                              31
+  9.17        Set Multiple Mode                                         31
+  9.18        Sleep                                                     32
+  9.19        Standby                                                   32
+  9.20        Standby Immediate                                         32
+  9.21        Write Buffer                                              32
+  9.22        Write DMA                                                 32
+  9.23        Write Multiple Command                                    33
+  9.24        Write Same                                                33
+  9.25        Write Long                                                34
+  9.26        Write Sector(s)                                           34
+  9.27        Write Verify                                              34
+
+  10.         Protocol Overview                                         35
+  10.1        PIO Data In Commands                                      35
+  10.1.1      PIO Read Command                                          35
+  10.1.2      PIO Read Aborted Command                                  36
+
+  10.2        PIO Data Out Commands                                     36
+  10.2.1      PIO Write Command                                         36
+  10.2.2      PIO Write Aborted Command                                 37
+
+  10.3        Non-Data Commands                                         37
+  10.4        Miscellaneous Commands                                    37
+  10.5        DMA Data Transfer Commands (Optional)                     37
+  10.5.1      Normal DMA Transfer                                       38
+  10.5.2      Aborted DMA Transfer                                      38
+  10.5.3      Aborted DMA Command                                       38
+
+  11.         Timing                                                    39
+  11.1        Deskewing                                                 39
+  11.2        Symbols                                                   39
+  11.3        Terms                                                     39
+  11.4        Data Transfers                                            40
+  11.5        Power On and Hard Reset                                   42
+
+                                   FIGURES
+
+  FIGURE 5-1:  ATA INTERFACE TO EMBEDDED BUS PERIPHERALS                3
+  FIGURE 5-2:  HOST BUS ADAPTER AND PERIPHERAL DEVICES                  4
+  FIGURE 5-3:  ATA INTERFACE TO CONTROLLER AND PERIPHERAL DEVICES       4
+  FIGURE 5-4:  40-PIN CONNECTOR MOUNTING                                6
+  FIGURE 11-1:  PIO DATA TRANSFER TO/FROM DRIVE                         40
+  FIGURE 11-2:  IORDY TIMING REQUIRMENTS                                41
+  FIGURE 11-3:  DMA DATA TRANSFER                                       41
+  FIGURE 11-4  RESET SEQUENCE                                           42
+
+                                   TABLES
+
+  TABLE 5-1:  DC INTERFACE                                              5
+  TABLE 5-2:  DC INTERFACE                                              5
+  TABLE 5-3:  CABLE PARAMETERS                                          6
+  TABLE 6-1:  INTERFACE SIGNALS                                         8
+  TABLE 6-2:  INTERFACE SIGNALS DESCRIPTION                             9
+  TABLE 7-1:  I/O PORT FUNCTIONS/SELECTION ADDRESSES                    14
+  TABLE 8-1:  POWER CONDITIONS                                          20
+  TABLE 8-2:  REGISTER CONTENTS                                         21
+  TABLE 9-1:  COMMAND CODES AND PARAMETERS                              23
+  TABLE 9-2:  DIAGNOSTIC CODES                                          24
+
+

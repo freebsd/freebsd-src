@@ -1,0 +1,45 @@
+   Information Processing Systems --
+
+   Common Access Method --
+
+   AT Attachment
+
+
+1. Scope
+
+This standard defines the CAM (Common Access Method) AT Attachment. 
+
+The CAM Committee was formed in October, 1988 and the first working document 
+of the AT Attachment was introduced in March, 1989. 
+
+1.1  Description of Clauses
+
+Clause 1 contains the Scope and Purpose. 
+
+Clause 2 contains Referenced and Related International Standards.
+
+Clause 3 contains the General Description. 
+
+Clause 4 contains the Glossary.
+
+Clause 5 contains the electrical and mechanical characteristics; covering 
+the interface cabling requirements of the DC, data cables and connectors. 
+
+Clause 6 contains the signal descriptions of the AT Attachment interface.
+
+Clause 7 contains descriptions of the registers of the AT Attachment 
+interface.
+
+Clause 8 describes the programming requirements of the AT Attachment 
+interface.
+
+Clause 9 contains descriptions of the commands of the AT Attachment interface.
+
+Clause 10 contains an overview of the protocol of the AT Attachment interface.
+
+Clause 11 contains the interface timing diagrams. 
+
+Annex A is informative. 
+
+Annex B is informative. 
+

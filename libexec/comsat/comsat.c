@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)comsat.c	5.24 (Berkeley) 2/25/91";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -59,6 +60,7 @@ static char sccsid[] = "@(#)comsat.c	5.24 (Berkeley) 2/25/91";
 #include <ctype.h>
 #include <string.h>
 #include <paths.h>
+#include <pwd.h>
 
 int	debug = 0;
 #define	dsyslog	if (debug) syslog
@@ -165,22 +167,33 @@ mailfor(name)
 {
 	register struct utmp *utp = &utmp[nutmp];
 	register char *cp;
+	char *file;
 	off_t offset;
+	int folder;
+	char buf[sizeof(_PATH_MAILDIR) + sizeof(utmp[0].ut_name) + 1];
 
 	if (!(cp = index(name, '@')))
 		return;
 	*cp = '\0';
 	offset = atoi(cp + 1);
+	if (!(cp = index(cp + 1, ':')))
+		file = name;
+	else
+		file = cp + 1;
+	sprintf(buf, "%s/%.*s", _PATH_MAILDIR, sizeof(utmp[0].ut_name), name);
+	folder = strcmp(buf, file);
 	while (--utp >= utmp)
 		if (!strncmp(utp->ut_name, name, sizeof(utmp[0].ut_name)))
-			notify(utp, offset);
+			notify(utp, file, offset, folder);
 }
 
 static char *cr;
 
-notify(utp, offset)
+notify(utp, file, offset, folder)
 	register struct utmp *utp;
+	char *file;
 	off_t offset;
+	int folder;
 {
 	static char tty[20] = _PATH_DEV;
 	struct sgttyb gttybuf;
@@ -208,9 +221,11 @@ notify(utp, offset)
 	    "\n" : "\n\r";
 	(void)strncpy(name, utp->ut_name, sizeof(utp->ut_name));
 	name[sizeof(name) - 1] = '\0';
-	(void)fprintf(tp, "%s\007New mail for %s@%.*s\007 has arrived:%s----%s",
-	    cr, name, sizeof(hostname), hostname, cr, cr);
-	jkfprintf(tp, name, offset);
+	(void)fprintf(tp, "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
+	    cr, name, sizeof(hostname), hostname,
+	    folder ? cr : "", folder ? "to " : "", folder ? file : "",
+	    cr, cr);
+	jkfprintf(tp, file, offset);
 	(void)fclose(tp);
 	_exit(0);
 }
@@ -220,10 +235,19 @@ jkfprintf(tp, name, offset)
 	char name[];
 	off_t offset;
 {
-	register char *cp, ch;
+	register char *cp;
+	unsigned char ch;
 	register FILE *fi;
 	register int linecnt, charcnt, inheader;
 	char line[BUFSIZ];
+	struct passwd *pw;
+
+	if((pw = getpwnam(name))==NULL) {
+		/* Should not happen */
+		return;
+	}
+	setgid(pw->pw_gid);
+	setuid(pw->pw_uid);
 
 	if ((fi = fopen(name, "r")) == NULL)
 		return;
@@ -253,10 +277,17 @@ jkfprintf(tp, name, offset)
 		}
 		/* strip weird stuff so can't trojan horse stupid terminals */
 		for (cp = line; (ch = *cp) && ch != '\n'; ++cp, --charcnt) {
-			ch = toascii(ch);
-			if (!isprint(ch) && !isspace(ch))
-				ch |= 0x40;
-			(void)fputc(ch, tp);
+			char dest;
+			/* XXX:
+			 * because *BSD don't have setlocale() (yet)
+			 * here simple hack that allows ISO8859-x
+			 * and koi8-r charsets in terminal mode.
+			 * Note: range 0x80-0x9F skipped to avoid
+			 * some kinda security hole on poor DEC VTs
+			 */
+			dest = (ch >= 0xA0 || isprint(ch)) ? ch : '?';
+
+			(void)fputc(dest, tp);
 		}
 		(void)fputs(cr, tp);
 		--linecnt;

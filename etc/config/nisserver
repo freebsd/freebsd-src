@@ -1,0 +1,4 @@
+# $Id: nisserver,v 1.1 1993/11/12 03:46:14 wollman Exp $
+# This file determines whether the Yellow Pages/NIS server software
+# is automatically started at boot time.  The default is off.
+off

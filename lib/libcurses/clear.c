@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,19 +32,22 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)clear.c	5.4 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)clear.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
 
 /*
- *	This routine clears the window.
- *
+ * wclear --
+ *	Clear the window.
  */
+int
 wclear(win)
-reg WINDOW	*win; {
-
-	werase(win);
-	win->_clear = TRUE;
-	return OK;
+	register WINDOW *win;
+{
+	if (werase(win) == OK) {
+		win->flags |= __CLEAROK;
+		return (OK);
+	}
+	return (ERR);
 }

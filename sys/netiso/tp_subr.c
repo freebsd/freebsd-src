@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_subr.c	7.9 (Berkeley) 6/27/91
- *	$Id: tp_subr.c,v 1.3 1993/10/16 21:06:03 rgrimes Exp $
+ *	$Id: tp_subr.c,v 1.5 1993/11/25 01:36:12 wollman Exp $
  */
 
 /***********************************************************
@@ -94,6 +94,20 @@ SOFTWARE.
 #include "tp_trace.h"
 #include "tp_meas.h"
 #include "tp_seq.h"
+#include "tp_clnp.h"
+
+struct isopcb tp_isopcb;
+struct inpcb tp_inpcb;
+u_int tp_start_win;
+struct tp_stat tp_stat;
+#ifndef TP_PERF_MEAS
+int PStat_Junk;
+#endif
+#ifdef TPPT
+int tp_Tracen = 0;
+#endif
+
+
 
 int 		tp_emit();
 static void tp_sbdrop();
@@ -424,6 +438,7 @@ tp_sbdrop(tpcb, seq)
  * RETURN VALUE:
  * 	the highest seq # sent successfully.
  */
+int
 tp_send(tpcb)
 	register struct tp_pcb	*tpcb;
 {
@@ -474,8 +489,10 @@ tp_send(tpcb)
 	ENDTRACE
 
 
-	if	( SEQ_GT(tpcb, lowseq, highseq) )
-			return ; /* don't send, don't change hiwat, don't set timers */
+	if( SEQ_GT(tpcb, lowseq, highseq) ) {
+		/* don't send, don't change hiwat, don't set timers */
+		return 0;
+	}
 
 	ASSERT( SEQ_LEQ(tpcb, lowseq, highseq) );
 	SEQ_DEC(tpcb, lowseq);
@@ -639,6 +656,8 @@ done:
 			tpcb->tp_sndhiwat, lowseq, eotsdu_reached, tpcb->tp_sock->so_error);
 		
 	ENDTRACE
+	  ;
+	return 0;
 }
 
 /*

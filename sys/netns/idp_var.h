@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)idp_var.h	7.4 (Berkeley) 6/28/90
- *	$Id: idp_var.h,v 1.2 1993/10/16 19:54:12 rgrimes Exp $
+ *	$Id: idp_var.h,v 1.4 1993/12/19 00:53:53 wollman Exp $
  */
+
+#ifndef _NETNS_IDP_VAR_H_
+#define _NETNS_IDP_VAR_H_ 1
 
 /*
  * IDP Kernel Structures and Variables
@@ -46,5 +49,18 @@ struct	idpstat {
 };
 
 #ifdef KERNEL
-struct	idpstat	idpstat;
-#endif
+extern struct	idpstat	idpstat;
+struct nspcb;
+extern void idp_input(struct mbuf *, struct nspcb *);
+extern void idp_abort(struct nspcb *, int);
+extern void idp_drop(struct nspcb *, int);
+extern int idp_output(struct nspcb *, struct mbuf *);
+extern int idp_ctloutput(int, struct socket *, int, int, struct mbuf **);
+extern int idp_usrreq(struct socket *, int, struct mbuf *, struct mbuf *, 
+		      struct mbuf *, struct mbuf *);
+extern int idp_raw_usrreq(struct socket *, int, struct mbuf *, struct mbuf *,
+			  struct mbuf *, struct mbuf *);
+
+
+#endif /* KERNEL */
+#endif /* _NETNS_IDP_VAR_H_ */

@@ -32,7 +32,9 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)unix.c	5.11 (Berkeley) 7/1/91";
+/* from: static char sccsid[] = "@(#)unix.c	5.11 (Berkeley) 7/1/91"; */
+static const char unix_c_rcsid[] =
+	"$Id: unix.c,v 1.5 1994/02/04 03:17:15 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -133,7 +135,7 @@ unixdomainpr(so, soaddr)
 	} else
 		m = (struct mbuf *)0;
 	if (first) {
-		printf("Active UNIX domain sockets\n");
+		printf("Active local domain sockets\n");
 		printf(
 "%-8.8s %-6.6s %-6.6s %-6.6s %8.8s %8.8s %8.8s %8.8s Addr\n",
 		    "Address", "Type", "Recv-Q", "Send-Q",
@@ -145,7 +147,7 @@ unixdomainpr(so, soaddr)
 	    unp->unp_vnode, unp->unp_conn,
 	    unp->unp_refs, unp->unp_nextref);
 	if (m)
-		printf(" %.*s", m->m_len - sizeof(sa->sun_family),
+		printf(" %.*s", m->m_len - sizeof(sa->sun_family) - 1,
 		    sa->sun_path);
 	putchar('\n');
 }

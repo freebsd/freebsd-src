@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)spec_vnops.c	7.37 (Berkeley) 5/30/91
- *	$Id: spec_vnops.c,v 1.2 1993/10/16 15:24:37 rgrimes Exp $
+ *	$Id: spec_vnops.c,v 1.3 1993/11/25 01:33:15 wollman Exp $
  */
 
 #include "param.h"
@@ -52,13 +52,13 @@
 #include "disklabel.h"
 
 /* symbolic sleep message strings for devices */
-char	devopn[] = "devopn";
-char	devio[] = "devio";
-char	devwait[] = "devwait";
-char	devin[] = "devin";
-char	devout[] = "devout";
-char	devioc[] = "devioc";
-char	devcls[] = "devcls";
+const char	devopn[] = "devopn";
+const char	devio[] = "devio";
+const char	devwait[] = "devwait";
+const char	devin[] = "devin";
+const char	devout[] = "devout";
+const char	devioc[] = "devioc";
+const char	devcls[] = "devcls";
 
 struct vnodeops spec_vnodeops = {
 	spec_lookup,		/* lookup */
@@ -99,6 +99,7 @@ struct vnodeops spec_vnodeops = {
 /*
  * Trivial lookup routine that always fails.
  */
+int
 spec_lookup(vp, ndp, p)
 	struct vnode *vp;
 	struct nameidata *ndp;
@@ -116,6 +117,7 @@ spec_lookup(vp, ndp, p)
  * Otherwise, call device driver open function.
  */
 /* ARGSUSED */
+int
 spec_open(vp, mode, cred, p)
 	register struct vnode *vp;
 	int mode;
@@ -153,6 +155,7 @@ spec_open(vp, mode, cred, p)
  * Vnode op for read
  */
 /* ARGSUSED */
+int
 spec_read(vp, uio, ioflag, cred)
 	register struct vnode *vp;
 	register struct uio *uio;
@@ -237,6 +240,7 @@ spec_read(vp, uio, ioflag, cred)
  * Vnode op for write
  */
 /* ARGSUSED */
+int
 spec_write(vp, uio, ioflag, cred)
 	register struct vnode *vp;
 	register struct uio *uio;
@@ -319,6 +323,7 @@ spec_write(vp, uio, ioflag, cred)
  * Device ioctl operation.
  */
 /* ARGSUSED */
+int
 spec_ioctl(vp, com, data, fflag, cred, p)
 	struct vnode *vp;
 	int com;
@@ -351,6 +356,7 @@ spec_ioctl(vp, com, data, fflag, cred, p)
 }
 
 /* ARGSUSED */
+int
 spec_select(vp, which, fflags, cred, p)
 	struct vnode *vp;
 	int which, fflags;
@@ -373,6 +379,7 @@ spec_select(vp, which, fflags, cred, p)
 /*
  * Just call the device strategy routine
  */
+int
 spec_strategy(bp)
 	register struct buf *bp;
 {
@@ -384,6 +391,7 @@ spec_strategy(bp)
 /*
  * This is a noop, simply returning what one has been given.
  */
+int
 spec_bmap(vp, bn, vpp, bnp)
 	struct vnode *vp;
 	daddr_t bn;
@@ -402,6 +410,7 @@ spec_bmap(vp, bn, vpp, bnp)
  * At the moment we do not do any locking.
  */
 /* ARGSUSED */
+int
 spec_lock(vp)
 	struct vnode *vp;
 {
@@ -410,6 +419,7 @@ spec_lock(vp)
 }
 
 /* ARGSUSED */
+int
 spec_unlock(vp)
 	struct vnode *vp;
 {
@@ -421,6 +431,7 @@ spec_unlock(vp)
  * Device close routine
  */
 /* ARGSUSED */
+int
 spec_close(vp, flag, cred, p)
 	register struct vnode *vp;
 	int flag;
@@ -428,7 +439,7 @@ spec_close(vp, flag, cred, p)
 	struct proc *p;
 {
 	dev_t dev = vp->v_rdev;
-	int (*devclose) __P((dev_t, int, int, struct proc *));
+	int (*devclose) __P((int /*dev_t*/, int, int, struct proc *));
 	int mode;
 
 	switch (vp->v_type) {
@@ -479,6 +490,7 @@ spec_close(vp, flag, cred, p)
 /*
  * Print out the contents of a special device vnode.
  */
+void
 spec_print(vp)
 	struct vnode *vp;
 {
@@ -491,6 +503,7 @@ spec_print(vp)
  * Special device advisory byte-level locks.
  */
 /* ARGSUSED */
+int
 spec_advlock(vp, id, op, fl, flags)
 	struct vnode *vp;
 	caddr_t id;
@@ -505,6 +518,7 @@ spec_advlock(vp, id, op, fl, flags)
 /*
  * Special device failed operation
  */
+int
 spec_ebadf()
 {
 
@@ -514,6 +528,7 @@ spec_ebadf()
 /*
  * Special device bad operation
  */
+int
 spec_badop()
 {
 

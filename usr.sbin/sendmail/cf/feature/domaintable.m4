@@ -34,7 +34,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)domaintable.m4	8.1 (Berkeley) 7/8/93')
+VERSIONID(`@(#)domaintable.m4	8.2 (Berkeley) 8/9/93')
 divert(-1)
 
-define(`DOMAIN_TABLE', ifelse(_ARG_, `', `hash /etc/domaintable -o', `_ARG_'))dnl
+define(`DOMAIN_TABLE', ifelse(_ARG_, `', `hash -o /etc/domaintable', `_ARG_'))dnl

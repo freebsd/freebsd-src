@@ -33,12 +33,13 @@
 .\"
 .\".ds RH "Advanced Topics
 .bp
-.nr H1 5
-.nr H2 0
+.\".nr H1 5
+.\".nr H2 0
 .LG
 .B
 .ce
-5. ADVANCED TOPICS
+.NH 1
+ADVANCED TOPICS
 .sp 2
 .R
 .NL

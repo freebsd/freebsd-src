@@ -388,14 +388,14 @@ void cmd_global(frommark, tomark, cmd, bang, extra)
 
 	/* parse & compile the search pattern */
 	cmdptr = parseptrn(extra);
+#ifdef REGEX
+	re = optpat(extra + 1);
+#else
 	if (!extra[1])
 	{
 		msg("Can't use empty regular expression with '%c' command", cmd == CMD_GLOBAL ? 'g' : 'v');
 		return;
 	}
-#ifdef REGEX
-	re = optpat(extra + 1);
-#else
 	re = regcomp(extra + 1);
 #endif
 	if (!re)

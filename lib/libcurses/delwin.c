@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,48 +32,48 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)delwin.c	5.4 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)delwin.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
+#include <stdlib.h>
 
 /*
- *	This routine deletes a window and releases it back to the system.
- *
+ * delwin --
+ *	Delete a window and release it back to the system.
  */
+int
 delwin(win)
-reg WINDOW	*win; {
+	register WINDOW *win;
+{
 
-	reg int		i;
-	reg WINDOW	*wp, *np;
+	register WINDOW *wp, *np;
 
-	if (win->_orig == NULL) {
+	if (win->orig == NULL) {
 		/*
-		 * If we are the original window, delete the space for
-		 * all the subwindows, and the array of space as well.
+		 * If we are the original window, delete the space for all
+		 * the subwindows, the line space and the window space.
 		 */
-		for (i = 0; i < win->_maxy && win->_y[i]; i++)
-			free(win->_y[i]);
-		free(win->_firstch);
-		free(win->_lastch);
-		wp = win->_nextp;
+		free(win->lspace);
+		free(win->wspace);
+		free(win->lines);
+		wp = win->nextp;
 		while (wp != win) {
-			np = wp->_nextp;
+			np = wp->nextp;
 			delwin(wp);
 			wp = np;
 		}
-	}
-	else {
+	} else {
 		/*
-		 * If we are a subwindow, take ourselves out of the
-		 * list.  NOTE: if we are a subwindow, the minimum list
-		 * is orig followed by this subwindow, so there are
-		 * always at least two windows in the list.
+		 * If we are a subwindow, take ourselves out of the list.
+		 * NOTE: if we are a subwindow, the minimum list is orig
+		 * followed by this subwindow, so there are always at least
+		 * two windows in the list.
 		 */
-		for (wp = win->_nextp; wp->_nextp != win; wp = wp->_nextp)
+		for (wp = win->nextp; wp->nextp != win; wp = wp->nextp)
 			continue;
-		wp->_nextp = win->_nextp;
+		wp->nextp = win->nextp;
 	}
-	free(win->_y);
 	free(win);
+	return (OK);
 }

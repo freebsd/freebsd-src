@@ -1,5 +1,5 @@
 #
-#	@(#)aliases	8.1 (Berkeley) 6/9/93
+#	@(#)aliases	8.2 (Berkeley) 3/5/94
 #
 #  Aliases in this file will NOT be expanded in the header from
 #  Mail, but WILL be visible over networks or from /bin/mail.
@@ -34,6 +34,7 @@ decode:		root
 # OFFICIAL CSRG/BUG ADDRESSES
 
 # Ftp maintainer.
+ftp: ftp-bugs
 ftp-bugs: bigbug@cs.berkeley.edu
 
 # Distribution office.

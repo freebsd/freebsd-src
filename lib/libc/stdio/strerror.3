@@ -47,7 +47,7 @@
 .Sh SYNOPSIS
 .Vt extern int errno;
 .Vt extern char *sys_errlist[];
-.Fd #include <stdio.h>
+.Fd #include <string.h>
 .Ft void
 .Fn perror "const char *string"
 .Ft char *
@@ -61,7 +61,7 @@ functions lookup the error message string affiliated with an
 error number.
 .Pp
 The
-.Fn sterror
+.Fn strerror
 function accepts an error number argument
 .Fa errnum
 and

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isofs_inode.c
- *	$Id: isofs_node.c,v 1.4 1993/10/25 03:39:55 rgrimes Exp $
+ *	$Id: isofs_node.c,v 1.6 1993/11/25 01:32:23 wollman Exp $
  */
 
 #include "param.h"
@@ -65,6 +65,7 @@ int prtactive;	/* 1 => print out reclaim of active vnodes */
 /*
  * Initialize hash links for inodes.
  */
+void
 isofs_init()
 {
 	register int i;
@@ -87,6 +88,7 @@ isofs_init()
  * return the inode locked. Detection and handling of mount
  * points must be done by the calling routine.
  */
+int
 iso_iget(xp, ino, ipp, isodir)
 	struct iso_node *xp;
 	ino_t ino;
@@ -102,7 +104,7 @@ iso_iget(xp, ino, ipp, isodir)
 	struct buf *bp;
 	struct dinode *dp;
 	union iso_ihead *ih;
-	int i, error, result;
+	int i, error, result = 0;
 	struct iso_mnt *imp;
 
 	ih = &iso_ihead[INOHASH(dev, ino)];
@@ -114,7 +116,7 @@ loop:
 			continue;
 		if ((ip->i_flag&ILOCKED) != 0) {
 			ip->i_flag |= IWANT;
-			sleep((caddr_t)ip, PINOD);
+			tsleep((caddr_t)ip, PINOD, "isoiget", 0);
 			goto loop;
 		}
 		if (vget(ITOV(ip)))
@@ -207,6 +209,7 @@ FlameOff:
 /*
  * Unlock and decrement the reference count of an inode structure.
  */
+void
 iso_iput(ip)
 	register struct iso_node *ip;
 {
@@ -221,6 +224,7 @@ iso_iput(ip)
  * Last reference to an inode, write the inode out and if necessary,
  * truncate and deallocate the file.
  */
+int
 isofs_inactive(vp, p)
 	struct vnode *vp;
 	struct proc *p;
@@ -252,6 +256,7 @@ isofs_inactive(vp, p)
 /*
  * Reclaim an inode so that it can be used for other purposes.
  */
+int
 isofs_reclaim(vp)
 	register struct vnode *vp;
 {
@@ -281,6 +286,7 @@ isofs_reclaim(vp)
 /*
  * Lock an inode. If its already locked, set the WANT bit and sleep.
  */
+void
 iso_ilock(ip)
 	register struct iso_node *ip;
 {
@@ -290,7 +296,7 @@ iso_ilock(ip)
 		if (ip->i_spare0 == curproc->p_pid)
 			panic("locking against myself");
 		ip->i_spare1 = curproc->p_pid;
-		(void) sleep((caddr_t)ip, PINOD);
+		(void) tsleep((caddr_t)ip, PINOD, "isoilck", 0);
 	}
 	ip->i_spare1 = 0;
 	ip->i_spare0 = curproc->p_pid;
@@ -300,6 +306,7 @@ iso_ilock(ip)
 /*
  * Unlock an inode.  If WANT bit is on, wakeup.
  */
+void
 iso_iunlock(ip)
 	register struct iso_node *ip;
 {

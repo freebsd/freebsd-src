@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)raw_cb.h	7.6 (Berkeley) 6/28/90
- *	$Id: raw_cb.h,v 1.2 1993/10/16 17:43:36 rgrimes Exp $
+ *	$Id: raw_cb.h,v 1.4 1993/12/19 00:52:05 wollman Exp $
  */
+
+#ifndef _NET_RAW_CB_H_
+#define _NET_RAW_CB_H_ 1
 
 /*
  * Raw protocol interface control block.  Used
@@ -56,5 +59,13 @@ struct rawcb {
 #define	RAWRCVQ		8192
 
 #ifdef KERNEL
-struct rawcb rawcb;			/* head of list */
-#endif
+extern struct rawcb rawcb;	/* head of list */
+extern void raw_init(void);
+extern int raw_input(struct mbuf *, struct sockproto *, struct sockaddr *,
+		     struct sockaddr *);
+extern void raw_ctlinput(int, struct sockaddr *);
+extern int raw_usrreq(struct socket *, int, struct mbuf *, struct mbuf *,
+		      struct mbuf *, struct mbuf *);
+
+#endif /* KERNEL */
+#endif /* _NET_RAW_CB_H_ */

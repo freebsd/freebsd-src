@@ -1,5 +1,5 @@
 .\"
-.\"	@(#) m4.1,v 1.1 1993/06/18 21:50:31 glass Exp
+.\"	@(#) $Id: m4.1,v 1.4 1994/01/16 00:30:31 swallace Exp $
 .\"
 .Dd January 26, 1993
 .Dt m4 1
@@ -13,14 +13,16 @@
 .Fl D Ns Ar name Ns Op Ar =value
 .Oc
 .Op Fl U Ns Ar name
+.Op Ar filename 
+\|.\|.\|.
 .Sh DESCRIPTION
 The
 .Nm m4
 utility is a macro processor that can be used as a front end to any
 language (e.g., C, ratfor, fortran, lex, and yacc).
-.Nm m4
-reads from the standard input and writes
-the processed text to the standard output.
+Each of the argument files is processed in order.
+If there are no files, or if a filename is \`-\', the standard input is read.
+The processed text is sent to the standard output.
 .Pp
 Macro calls have the form name(argument1[, argument2, ...,] argumentN).
 .Pp

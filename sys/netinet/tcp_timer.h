@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_timer.h	7.8 (Berkeley) 6/28/90
- *	$Id: tcp_timer.h,v 1.2 1993/10/16 18:26:35 rgrimes Exp $
+ *	$Id: tcp_timer.h,v 1.4 1993/11/25 01:35:19 wollman Exp $
  */
+
+#ifndef _NETINET_TCP_TIMER_H_
+#define _NETINET_TCP_TIMER_H_ 1
 
 /*
  * Definitions of the TCP timers.  These timers are counted
@@ -106,7 +109,7 @@
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
 
 #ifdef	TCPTIMERS
-char *tcptimers[] =
+const char *tcptimers[] =
     { "REXMT", "PERSIST", "KEEP", "2MSL" };
 #endif
 
@@ -115,9 +118,9 @@ char *tcptimers[] =
  */
 #define	TCPT_RANGESET(tv, value, tvmin, tvmax) { \
 	(tv) = (value); \
-	if ((tv) < (tvmin)) \
+	if ((u_long)(tv) < (u_long)(tvmin)) \
 		(tv) = (tvmin); \
-	else if ((tv) > (tvmax)) \
+	else if ((u_long)(tv) > (u_long)(tvmax)) \
 		(tv) = (tvmax); \
 }
 
@@ -128,3 +131,4 @@ extern int tcp_maxidle;			/* time to drop after starting probes */
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 #endif
+#endif /* _NETINET_TCP_TIMER_H_ */

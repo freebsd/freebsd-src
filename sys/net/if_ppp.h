@@ -19,9 +19,12 @@
  * Modified by Paul Mackerras (paulus@cs.anu.edu.au)
  * Added PPP_MRU, sc_outm, sc_fastq, sc_bpf.
  *
- *	$Id: if_ppp.h,v 1.2 1993/08/31 05:40:38 rgrimes Exp $
+ *	$Id: if_ppp.h,v 1.3 1993/11/07 17:46:59 wollman Exp $
  *	From: if_ppp.h,v 1.4 1993/08/29 11:22:37 paulus Exp $
  */
+
+#ifndef _NET_IF_PPP_H_
+#define _NET_IF_PPP_H_ 1
 
 /*
  * Standard PPP header.
@@ -117,3 +120,4 @@ struct ppp_softc {
 #define ifr_mtu	ifr_metric
 #endif
 
+#endif /* _NET_IF_PPP_H_ */

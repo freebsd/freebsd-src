@@ -425,8 +425,20 @@ cmd:		USER SP username CRLF
 		= {
 #ifdef unix
 #ifdef BSD
+			/* UNIX is a registered trademark of
+			  somebody (it's changed hands so many times
+			  that I can't keep track of who owns it
+			  today).  FreeBSD is not UNIX, but we
+			  continue to use this response because it's
+			  a mandatory part of the protocol we participate
+			  in with users' `ftp' commands. */
+#ifdef __FreeBSD__
+			reply(215, "UNIX Type: L%d Version: FreeBSD",
+				NBBY);
+#else
 			reply(215, "UNIX Type: L%d Version: BSD-%d",
 				NBBY, BSD);
+#endif /* not FreeBSD */
 #else /* BSD */
 			reply(215, "UNIX Type: L%d", NBBY);
 #endif /* BSD */

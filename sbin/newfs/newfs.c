@@ -61,7 +61,10 @@ char copyright[] =
 #include <stdlib.h>
 #include <paths.h>
 
-int fatal(char *fmt, ...);
+int	fatal(char *fmt, ...);
+caddr_t	mfs_malloc(unsigned long);
+void	mfs_mountfile(char *, char *, int);
+void	mfs_mount(caddr_t, unsigned long, char *, char *, int);
 
 #define	COMPAT			/* allow non-labeled disks */
 
@@ -319,15 +322,19 @@ main(argc, argv)
 		usage();
 
 	special = argv[0];
-	cp = rindex(special, '/');
-	if (cp == 0) {
-		/*
-		 * No path prefix; try /dev/r%s then /dev/%s.
-		 */
-		(void)sprintf(device, "%sr%s", _PATH_DEV, special);
-		if (stat(device, &st) == -1)
-			(void)sprintf(device, "%s%s", _PATH_DEV, special);
-		special = device;
+	/*
+	 * try to open Special. Look for it as Special, then /dev/rSpecial,
+	 * then /dev/Special. If it contains a slash (/) only look for Special.
+	 */
+	special = argv[0];
+	if ((stat(special, &st) == -1) && (rindex(special, '/') == 0)) {
+		sprintf(device, "%sr%s", _PATH_DEV, special);
+		if (stat(device, &st) == -1) {
+			sprintf(device, "%s%s", _PATH_DEV, special);
+			if (stat(device, &st) == 0)
+				special = device;
+		} else
+			special = device;
 	}
 	if (!Nflag) {
 		fso = open(special, O_WRONLY);
@@ -340,7 +347,12 @@ main(argc, argv)
 		fatal("%s: %s", special, strerror(errno));
 	if (fstat(fsi, &st) < 0)
 		fatal("%s: %s", special, strerror(errno));
-	if ((st.st_mode & S_IFMT) != S_IFCHR && !mfs)
+	if (mfs && S_ISREG(st.st_mode)) {
+		(void)close(fsi);
+		mfs_mountfile(special, argv[1], mntflags);
+		/* NOTREACHED */
+	}
+	if (!S_ISCHR(st.st_mode) && !mfs)
 		printf("%s: %s: not a character-special device\n",
 		    progname, special);
 	cp = index(argv[0], '\0') - 1;
@@ -447,6 +459,9 @@ main(argc, argv)
 		pp->p_size /= secperblk;
 	}
 #endif
+	if (mfs)
+		membase = mfs_malloc(fssize*sectorsize);
+
 	mkfs(pp, special, fsi, fso);
 #ifdef tahoe
 	if (realsectorsize != DEV_BSIZE)
@@ -457,18 +472,9 @@ main(argc, argv)
 	if (!Nflag)
 		close(fso);
 	close(fsi);
-#ifdef MFS
-	if (mfs) {
-		struct mfs_args args;
 
-		sprintf(buf, "mfs:%d", getpid());
-		args.name = buf;
-		args.base = membase;
-		args.size = fssize * sectorsize;
-		if (mount(MOUNT_MFS, argv[1], mntflags, &args) < 0)
-			fatal("%s: %s", argv[1], strerror(errno));
-	}
-#endif
+	if (mfs)
+		mfs_mount(membase, fssize*sectorsize, 0, argv[1], mntflags);
 	exit(0);
 }
 
@@ -574,10 +580,10 @@ usage()
 {
 	if (mfs) {
 		fprintf(stderr,
-		    "usage: mfs [ -fsoptions ] special-device mount-point\n");
+		    "usage: %s [ -fsoptions ] special-device mount-point\n", progname);
 	} else
 		fprintf(stderr,
-		    "usage: newfs [ -fsoptions ] special-device%s\n",
+		    "usage: %s [ -fsoptions ] special-device%s\n", progname,
 #ifdef COMPAT
 		    " [device-type]");
 #else

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_eon.c	7.16 (Berkeley) 6/27/91
- *	$Id: if_eon.c,v 1.2 1993/10/16 21:05:13 rgrimes Exp $
+ *	$Id: if_eon.c,v 1.5 1993/12/19 00:53:20 wollman Exp $
  */
 
 /***********************************************************
@@ -108,17 +108,20 @@ SOFTWARE.
 extern struct timeval time;
 extern struct ifnet loif;
 
+struct eon_stat eonstat;
+
 #define EOK 0
 
-int						eoninput();
-int						eonoutput();
-int						eonioctl();
-int						eonattach();
-int						eoninit();
-int						eonrtrequest();
+void eoninput(struct mbuf *, int);
+static int eonoutput(struct ifnet *, struct mbuf *, struct sockaddr *, struct rtentry *);
+static int eonioctl(struct ifnet *, int, caddr_t);
+static void eonattach(void);
+static void eoninit(int);
+static void eonrtrequest(int, struct rtentry *, struct sockaddr *);
 extern 	int				ip_output();
 struct ifnet			eonif[1];
 
+void
 eonprotoinit() {
 	(void) eonattach();
 }
@@ -135,6 +138,7 @@ struct eon_llinfo eon_llinfo;
  * RETURNS:			void
  */
 
+void
 eonattach()
 {
 	register struct ifnet *ifp = eonif;
@@ -176,6 +180,7 @@ eonattach()
  *
  * RETURNS:			nothing
  */
+int
 eonioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;
@@ -204,11 +209,13 @@ eonioctl(ifp, cmd, data)
 	return(error);
 }
 
-
+void
 eoniphdr(hdr, loc, ro, class, zero)
-struct route *ro;
-register struct eon_iphdr *hdr;
-caddr_t loc;
+	struct route *ro;
+	register struct eon_iphdr *hdr;
+	caddr_t loc;
+	int class;
+	int zero;
 {
 	struct mbuf mhead;
 	register struct sockaddr_in *sin = (struct sockaddr_in *)&ro->ro_dst;
@@ -261,9 +268,11 @@ caddr_t loc;
  *
  * RETURNS:			nothing
  */
+void
 eonrtrequest(cmd, rt, gate)
-register struct rtentry *rt;
-register struct sockaddr *gate;
+	int cmd;
+	register struct rtentry *rt;
+	register struct sockaddr *gate;
 {
 	unsigned long zerodst = 0;
 	caddr_t	ipaddrloc = (caddr_t) &zerodst;
@@ -325,6 +334,7 @@ register struct sockaddr *gate;
  * RETURNS:			nothing
  */
 
+void
 eoninit(unit)
 	int unit;
 {
@@ -346,19 +356,21 @@ eoninit(unit)
  * NOTES:			
  *
  */
-eonoutput(ifp, m, dst, rt)
+int
+eonoutput(ifp, m, xdst, rt)
 	struct ifnet 	*ifp;
 	register struct mbuf	*m;		/* packet */
-	struct sockaddr_iso		*dst;		/* destination addr */
+	struct sockaddr *xdst;
 	struct rtentry *rt;
 {
+	struct sockaddr_iso *dst = (struct sockaddr_iso *)xdst;
 	register struct eon_llinfo *el;
 	register struct eon_iphdr *ei;
 	struct route *ro;
 	int	datalen;
 	struct mbuf *mh;
 	int	error = 0, class = 0, alen = 0;
-	caddr_t ipaddrloc;
+	caddr_t ipaddrloc = 0;
 	static struct eon_iphdr eon_iphdr;
 	static struct route route;
 
@@ -444,6 +456,7 @@ flush:
 	return error;
 }
 
+void
 eoninput(m, iphlen)
 	register struct mbuf	*m;
 	int iphlen;
@@ -566,7 +579,7 @@ eonctlinput(cmd, sin)
 
 	IFDEBUG(D_EON)
 		printf("eonctlinput: cmd 0x%x addr: ", cmd);
-		dump_isoaddr(sin);
+		dump_isoaddr((struct sockaddr_iso *)sin);
 		printf("\n");
 	ENDDEBUG
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)spp_debug.c	7.7 (Berkeley) 6/28/90
- *	$Id: spp_debug.c,v 1.2 1993/10/16 19:54:35 rgrimes Exp $
+ *	$Id: spp_debug.c,v 1.5 1993/12/19 00:54:03 wollman Exp $
  */
 
 #include "param.h"
@@ -58,10 +58,14 @@
 #define	SANAMES
 #include "spp_debug.h"
 
+struct 	spp_debug spp_debug[SPP_NDEBUG];
+int	spp_debx;
+
 int	sppconsdebug = 0;
 /*
  * spp debug routines
  */
+void
 spp_trace(act, ostate, sp, si, req)
 	short act;
 	u_char ostate;
@@ -130,7 +134,7 @@ spp_trace(act, ostate, sp, si, req)
 		if (flags) {
 			char *cp = "<";
 #ifndef lint
-#define pf(f) { if (flags&SP_/**/f) { printf("%s%s", cp, "f"); cp = ","; } }
+#define pf(f) { if (flags& SP_##f) { printf("%s" #f, cp); cp = ","; } }
 			pf(SP); pf(SA); pf(OB); pf(EM);
 #else
 			cp = cp;
@@ -138,7 +142,7 @@ spp_trace(act, ostate, sp, si, req)
 			printf(">");
 		}
 #ifndef lint
-#define p2(f)  { printf("%s = %x, ", "f", si->si_/**/f); }
+#define p2(f)  { printf("%s = %x, ", "f", si->si_##f); }
 		p2(sid);p2(did);p2(dt);p2(pt);
 #endif
 		ns_printhost(&si->si_sna);
@@ -163,7 +167,7 @@ spp_trace(act, ostate, sp, si, req)
 	if (sp == 0)
 		return;
 #ifndef lint
-#define p3(f)  { printf("%s = %x, ", "f", sp->s_/**/f); }
+#define p3(f)  { printf("%s = %x, ", "f", sp->s_##f); }
 	printf("\t"); p3(rack);p3(ralo);p3(smax);p3(flags); printf("\n");
 #endif
 #endif

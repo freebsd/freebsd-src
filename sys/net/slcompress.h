@@ -2,7 +2,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Id: slcompress.h,v 1.2 1993/08/27 02:10:32 rgrimes Exp $
+ * $Id: slcompress.h,v 1.3 1993/11/07 17:47:11 wollman Exp $
  * From: slcompress.h,v 1.13 1993/08/09 02:37:32 paulus Exp
  * From: slcompress.h,v 1.10 89/12/31 08:53:02 van Exp 
  *
@@ -43,6 +43,9 @@
  *	Paul Mackerras (paulus@cs.anu.edu.au), June 1993:
  *	- added sl_uncompress_tcp_part.
  */
+
+#ifndef _NET_SLCOMPRESS_H_
+#define _NET_SLCOMPRESS_H_ 1
 
 #define MAX_STATES 16		/* must be > 2 and < 256 */
 #define MAX_HDR MLEN		/* XXX 4bsd-ism: should really be 128 */
@@ -164,3 +167,4 @@ extern int sl_uncompress_tcp __P((u_char **bufp, int len, u_int type,
 extern int sl_uncompress_tcp_part __P((u_char **bufp, int buflen,
 				       int total_len, u_int type,
 				       struct slcompress *));
+#endif /* _NET_SLCOMPRESS_H_ */

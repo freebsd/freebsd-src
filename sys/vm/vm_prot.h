@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_prot.h	7.2 (Berkeley) 4/21/91
- *	$Id: vm_prot.h,v 1.2 1993/10/16 16:20:54 rgrimes Exp $
+ *	$Id: vm_prot.h,v 1.4 1994/01/17 09:34:07 davidg Exp $
  */
 
 /*
@@ -77,7 +77,7 @@
  *	vm_prot_t		VM protection values.
  */
 
-typedef int		vm_prot_t;
+typedef char		vm_prot_t;
 
 /*
  *	Protection values, defined as bits within the vm_prot_t type
@@ -101,4 +101,4 @@ typedef int		vm_prot_t;
 
 #define VM_PROT_ALL	(VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE)
 
-#endif	_VM_PROT_
+#endif /* _VM_PROT_ */

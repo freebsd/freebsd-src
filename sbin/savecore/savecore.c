@@ -51,6 +51,8 @@ static char sccsid[] = "@(#)savecore.c	5.26 (Berkeley) 4/8/91";
 #include <stdio.h>
 #include <nlist.h>
 #include <paths.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
 
 #define	DAY	(60L*60L*24L)
 #define	LEEWAY	(3*DAY)
@@ -63,7 +65,7 @@ static char sccsid[] = "@(#)savecore.c	5.26 (Berkeley) 4/8/91";
 #define ok(number) ((number)&~0xc0000000)
 #else
 #ifdef i386
-#define ok(number) ((number)&~0xfe000000)
+#define ok(number) (((number)-KERNBASE))
 #else
 #define ok(number) (number)
 #endif

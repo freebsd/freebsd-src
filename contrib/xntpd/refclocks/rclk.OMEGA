@@ -1,0 +1,29 @@
+#!/bin/sh -
+CMD="$1"
+shift;
+
+. refclocks/setup
+
+case "$CMD" in
+  info)
+	echo "	OMEGA		- Kinemetrics/TrueTime OM-DC OMEGA receiver"
+	;;
+  check)
+	if check "$RCONFIG" '$0 ~ /OMEGA/'; then
+	  echo "OMEGA		- Kinemetrics/TrueTime OM-DC OMEGA receiver"
+	fi
+	;;
+  config)
+	if check "$REFCONF" '$0 ~ /OMEGA/' ||
+	   ( [ ! "$REFCONF" ] && query "Include Kinemetrics/TrueTime OM-DC OMEGA receiver (OMEGA)" n); then
+          if check "$PPSFEATURES" '$0 ~ /CD/' &&
+	     [ "$PPSOK" -eq 1 ] &&
+             (check "$REFCONF" '$0 ~ /OMEGAPPS/' ||
+	     ( [ ! "$REFCONF" ] && query "	Use OMEGA for PPS" n)); then
+                 echo "-DOMEGAPPS" >> $RCONFIG
+	  else
+	    echo "-DOMEGA" >> $RCONFIG
+          fi
+	fi
+	;;
+esac

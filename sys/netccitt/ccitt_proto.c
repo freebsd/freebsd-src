@@ -36,10 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ccitt_proto.c	7.5 (Berkeley) 8/30/90
- *	$Id: ccitt_proto.c,v 1.2 1993/10/16 19:46:33 rgrimes Exp $
+ *	$Id: ccitt_proto.c,v 1.3 1993/12/19 00:52:12 wollman Exp $
  */
 #define HDLC
 #include "param.h"
+#include "systm.h"
 #include "socket.h"
 #include "protosw.h"
 #include "domain.h"
@@ -58,12 +59,21 @@ extern	struct domain ccittdomain;
 #endif
 
 #ifdef XE
-int	xe_output (), xe_ctlinput (), xe_init(), xe_timer();
+int	xe_output ();
+void xe_ctlinput ();
+void xe_init();
+void xe_timer();
 #endif
 #ifdef HDLC
-int	hd_output (), hd_ctlinput (), hd_init (), hd_timer ();
+int	hd_output ();
+void hd_ctlinput ();
+void hd_init ();
+void hd_timer ();
 #endif
-int	pk_usrreq (), pk_timer (), pk_init (), pk_ctloutput ();
+int	pk_usrreq ();
+void pk_timer ();
+int pk_ctloutput ();
+void pk_init ();
 
 struct protosw ccittsw[] = {
 #ifdef XE

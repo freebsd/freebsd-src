@@ -31,15 +31,18 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_malloc.c	7.25 (Berkeley) 5/8/91
- *	$Id: kern_malloc.c,v 1.3 1993/10/18 03:46:54 davidg Exp $
+ *	$Id: kern_malloc.c,v 1.8 1994/02/10 08:04:07 davidg Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
 #include "kernel.h"
 #include "malloc.h"
 #include "vm/vm.h"
 #include "vm/vm_kern.h"
+
+extern int vm_page_count;
 
 struct kmembuckets bucket[MINBUCKET + 16];
 struct kmemstats kmemstats[M_LAST];
@@ -63,7 +66,7 @@ malloc(size, type, flags)
 #ifdef KMEMSTATS
 	register struct kmemstats *ksp = &kmemstats[type];
 
-	if (((unsigned long)type) > M_LAST)
+	if (((unsigned long)type) >= M_LAST)
 		panic("malloc - bogus type");
 #endif
 
@@ -224,18 +227,19 @@ free(addr, type)
 /*
  * Initialize the kernel memory allocator
  */
+void
 kmeminit()
 {
 	register long indx;
 	int npg;
 
 #if	(MAXALLOCSAVE > MINALLOCSIZE * 32768)
-		ERROR!_kmeminit:_MAXALLOCSAVE_too_big
+#  error "kmeminit: MAXALLOCSAVE too big"
 #endif
 #if	(MAXALLOCSAVE < CLBYTES-1)
-		ERROR!_kmeminit:_MAXALLOCSAVE_too_small
+#  error "kmeminit: MAXALLOCSAVE too small"
 #endif
-	npg = VM_KMEM_SIZE/ NBPG;
+	npg = (VM_KMEM_SIZE + VM_MBUF_SIZE) / NBPG;
 	kmemusage = (struct kmemusage *) kmem_alloc(kernel_map,
 		(vm_size_t)(npg * sizeof(struct kmemusage)));
 	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,
@@ -250,5 +254,8 @@ kmeminit()
 	}
 	for (indx = 0; indx < M_LAST; indx++)
 		kmemstats[indx].ks_limit = npg * NBPG * 6 / 10;
+
+	/* limit the amount of mbuf space to 1/16 of system memory */
+	kmemstats[M_MBUF].ks_limit = (vm_page_count * NBPG) / 16;
 #endif
 }

@@ -1,0 +1,122 @@
+.\" Copyright (C) 1993 by Andrew A. Chernov, Moscow, Russia.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 15, 1993
+.Dt ADJKERNTZ 8
+.Os FreeBSD
+.Sh NAME
+.Nm adjkerntz
+.Nd "adjusts the kernel time if the machine runs wall CMOS clock"
+.Sh SYNOPSIS
+.Nm adjkerntz
+.Fl i
+.Op Fl v
+.Nm adjkerntz
+.Fl a
+.Op Fl v
+.Sh DESCRIPTION
+.Nm Adjkerntz
+fixes kernel time (makes it UTC) using the current wall CMOS clock value,
+the current time zone rule and the kernel timezone value. The adjustment is
+enabled only if the file
+.Pa /etc/wall_cmos_clock
+exists, in other cases it is assumed that the machine runs UTC CMOS clock and
+.Nm adjkerntz
+does nothing.
+.Pp
+The adjustment is needed at boot stage and when a time zone
+change occurs, so
+.Nm adjkerntz
+can be called in two forms:
+.Bl -tag -width 4n
+.It Cm Fl i
+initialization call from
+.Pa /etc/rc
+(before any daemons are started).
+.Nm Adjkerntz
+makes the first adjustment and the initial time zone offset is stored into
+.Pa /var/run/.adjkerntz
+for following subsequent
+.Nm adjkerntz
+calls.
+.It Cm Fl a
+This form is needed, when time zone changes occur.
+.Nm Adjkerntz
+uses the previously stored
+time zone offset and the changed time zone rule to
+produce the new time zone offset, fix the kernel time and store the new
+offset into
+.Pa /var/run/.adjkerntz
+too.
+It is recommended to use this form in root's
+.Xr crontab 5
+near 3am,
+since this time matches most modern time zone changes.
+.It Cm Fl v
+This option is for diagnostic purposes. It causes
+.Nm adjkerntz
+to print differences between the old and new time zone offsets
+to stdout.
+.El
+.Pp
+.Nm Adjkerntz
+clears the kernel timezone structure and makes kernel always run at UTC
+time zone.
+Super-user privilege is required for all operations.
+.Sh ENVIRONMENT
+.Bl -tag -width Fl
+.It Ev TZ
+Time zone change rule, see
+.Xr tzset 3 ;
+not needed when
+.Xr zic 8
+is used.
+.Sh FILES
+.Bl -tag -width /etc/wall_cmos_clock -compact
+.It Pa /etc/localtime
+Link to the current zone info file, see
+.Xr zic 8 .
+.It Pa /etc/wall_cmos_clock
+Empty file.
+Presence of it indicates that the machine runs wall CMOS clock,
+absence indicates UTC CMOS clock.
+.It Pa /var/run/.adjkerntz
+Text file with the stored current time zone offset in seconds.
+.Sh SEE ALSO
+.Xr tzset 3 ,
+.Xr zic 8 ,
+.Xr rc 8 ,
+.Xr crontab 5
+.Sh DIAGNOSTICS
+No diagnostics, unless \-v option is specified.
+If any error occurs, an error message printed to stderr and
+.Nm adjkerntz
+exits with return code greater than zero.
+.Sh AUTHOR
+Andrew A. Chernov <ache@astral.msk.su>
+.Sh HISTORY
+The
+.Nm adjkerntz
+command appeared in FreeBSD 1.0.1
+

@@ -14,14 +14,19 @@ device snd1 at isa? port 0x388 irq 0 drq 0 vector sbintr
                 4 for GUS
                 5 for MPU-401
 
-      If you have ProAudioSpectrum, uncomment units 3, 2 and 1
+      If you have ProAudioSpectrum, uncomment units 3 and 2.
       If you have SoundBlaster, uncomment 2 and 1.
       If you have GravisUltrasound, uncomment 4
       If you have MPU-401, uncomment 5
 
 NOTE:  The MPU-401 driver may or may not work, and is unfortunately
 unverifiable since no one I know has one.  If you can test this,
-please let me know!
+please let me know!  Also note that you will have to change these
+settings if your soundcard is set for a non-standard address or IRQ.
+Please check your documentation (or verify with any provided DOS utilities
+that may have come with your card) and set the IRQ or address fields
+accordingly.
+
 
 Also:  Some systems with the OPTI chipset will require you to #define
 BROKEN_BUS_CLOCK in /sys/i386/sound/pas2_card.c.  Symptoms are that

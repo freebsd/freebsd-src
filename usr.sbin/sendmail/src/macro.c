@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)macro.c	8.1 (Berkeley) 6/7/93";
+static char sccsid[] = "@(#)macro.c	8.3 (Berkeley) 2/7/94";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -83,7 +83,7 @@ expand(s, buf, buflim, e)
 		s = "";
 	for (xp = xbuf; *s != '\0'; s++)
 	{
-		char c;
+		int c;
 
 		/*
 		**  Check for non-ordinary (special?) character.
@@ -115,8 +115,14 @@ expand(s, buf, buflim, e)
 			continue;
 
 		  case MACROEXPAND:	/* macro interpolation */
-			c = *++s;
-			q = macvalue(c & 0177, e);
+			c = *++s & 0177;
+			if (c != '\0')
+				q = macvalue(c, e);
+			else
+			{
+				s--;
+				q = NULL;
+			}
 			if (q == NULL)
 				continue;
 			break;
@@ -230,7 +236,7 @@ expand(s, buf, buflim, e)
 
 void
 define(n, v, e)
-	char n;
+	int n;
 	char *v;
 	register ENVELOPE *e;
 {
@@ -257,7 +263,7 @@ define(n, v, e)
 
 char *
 macvalue(n, e)
-	char n;
+	int n;
 	register ENVELOPE *e;
 {
 	n &= 0177;

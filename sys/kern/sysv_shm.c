@@ -37,7 +37,7 @@
  *
  *	from: Utah $Hdr: uipc_shm.c 1.9 89/08/14$
  *	from: @(#)sysv_shm.c	7.15 (Berkeley) 5/13/91
- *	$Id: sysv_shm.c,v 1.4 1993/10/16 15:24:52 rgrimes Exp $
+ *	$Id: sysv_shm.c,v 1.9 1994/01/21 09:56:31 davidg Exp $
  */
 
 /*
@@ -59,13 +59,18 @@
 #include "vm/vm_kern.h"
 #include "vm/vm_inherit.h"
 #include "vm/vm_pager.h"
+#include "vm/vm_user.h"
 
 #ifdef HPUXCOMPAT
 #include "hp300/hpux/hpux.h"
 #endif
 
-int	shmat(), shmctl(), shmdt(), shmget();
-int	(*shmcalls[])() = { shmat, shmctl, shmdt, shmget };
+/* From shm.h */
+struct	shmid_ds	*shmsegs;
+struct	shminfo		shminfo;
+
+int	shmat(), shmctl(), shmdt(), shmget(); /* XXX */
+int	(*shmcalls[])() = { shmat, shmctl, shmdt, shmget }; /* XXX */
 int	shmtot = 0;
 
 /*
@@ -85,8 +90,15 @@ struct	shmhandle {
 	caddr_t		shmh_id;
 };
 
+static int ipcaccess(struct ipc_perm *, int, struct ucred *);
+static void shmufree(struct proc *, struct shmdesc *);
+static void shmfree(struct shmid_ds *);
+static int shmvalid(int);
+
+
 vm_map_t shm_map;	/* address space for shared memory segments */
 
+void
 shminit()
 {
 	register int i;
@@ -102,6 +114,8 @@ shminit()
 	}
 }
 
+TEXT_SET(pseudo_set, shminit);
+
 /*
  * Entry point for all SHM calls
  */
@@ -110,6 +124,7 @@ struct shmsys_args {
 	u_int which;
 };
 
+int
 shmsys(p, uap, retval)
 	struct proc *p;
 	struct shmsys_args *uap;
@@ -131,6 +146,7 @@ struct shmget_args {
 	int shmflg;
 };
 
+int
 shmget(p, uap, retval)
 	struct proc *p;
 	register struct shmget_args *uap;
@@ -183,7 +199,7 @@ shmget(p, uap, retval)
 		shmh = (struct shmhandle *)
 			malloc(sizeof(struct shmhandle), M_SHM, M_WAITOK);
 		shmh->shmh_kva = 0;
-		shmh->shmh_id = (caddr_t)(0xc0000000|rval);	/* XXX */
+		shmh->shmh_id = (caddr_t)(0xc0000000UL|rval);	/* XXX */
 		error = vm_mmap(shm_map, &shmh->shmh_kva, ctob(size),
 				VM_PROT_ALL, VM_PROT_DEFAULT, MAP_ANON, shmh->shmh_id, 0);
 		if (error) {
@@ -228,6 +244,7 @@ struct shmctl_args {
 };
 
 /* ARGSUSED */
+int
 shmctl(p, uap, retval)
 	struct proc *p;
 	register struct shmctl_args *uap;
@@ -299,6 +316,7 @@ struct shmat_args {
 	int	shmflg;
 };
 
+int
 shmat(p, uap, retval)
 	struct proc *p;
 	register struct shmat_args *uap;
@@ -356,9 +374,11 @@ shmat(p, uap, retval)
 	if (uva)
 		flags |= MAP_FIXED;
 	else
-		uva = (caddr_t)0x1000000;	/* XXX */
-	error = vm_mmap(&p->p_vmspace->vm_map, &uva, (vm_size_t)size, prot, VM_PROT_DEFAULT,
-	    flags, ((struct shmhandle *)shp->shm_handle)->shmh_id, 0);
+		uva = (caddr_t)0x1000000UL;	/* XXX */
+	error = vm_mmap(&p->p_vmspace->vm_map, (vm_offset_t *)&uva,
+			(vm_size_t)size, prot, VM_PROT_DEFAULT,
+			flags, ((struct shmhandle *)shp->shm_handle)->shmh_id,
+			0);
 	if (error)
 		return(error);
 	shmd->shmd_uva = (vm_offset_t)uva;
@@ -382,6 +402,7 @@ struct shmdt_args {
 };
 
 /* ARGSUSED */
+int
 shmdt(p, uap, retval)
 	struct proc *p;
 	struct shmdt_args *uap;
@@ -399,8 +420,10 @@ shmdt(p, uap, retval)
 		return(EINVAL);
 	shmufree(p, shmd);
 	shmsegs[shmd->shmd_id % SHMMMNI].shm_lpid = p->p_pid;
+	return 0;
 }
 
+void
 shmfork(p1, p2, isvfork)
 	struct proc *p1, *p2;
 	int isvfork;
@@ -423,6 +446,7 @@ shmfork(p1, p2, isvfork)
 			shmsegs[shmd->shmd_id % SHMMMNI].shm_nattch++;
 }
 
+void
 shmexit(p)
 	struct proc *p;
 {
@@ -437,6 +461,7 @@ shmexit(p)
 	p->p_vmspace->vm_shm = NULL;
 }
 
+static int
 shmvalid(id)
 	register int id;
 {
@@ -454,6 +479,7 @@ shmvalid(id)
 /*
  * Free user resources associated with a shared memory segment
  */
+static void
 shmufree(p, shmd)
 	struct proc *p;
 	struct shmdesc *shmd;
@@ -473,6 +499,7 @@ shmufree(p, shmd)
 /*
  * Deallocate resources associated with a shared memory segment
  */
+static void
 shmfree(shp)
 	register struct shmid_ds *shp;
 {
@@ -499,36 +526,5 @@ shmfree(shp)
 	shp->shm_perm.seq++;
 	if ((int)(shp->shm_perm.seq * SHMMMNI) < 0)
 		shp->shm_perm.seq = 0;
-}
-
-/*
- * XXX This routine would be common to all sysV style IPC
- *     (if the others were implemented).
- */
-ipcaccess(ipc, mode, cred)
-	register struct ipc_perm *ipc;
-	int mode;
-	register struct ucred *cred;
-{
-	register int m;
-
-	if (cred->cr_uid == 0)
-		return(0);
-	/*
-	 * Access check is based on only one of owner, group, public.
-	 * If not owner, then check group.
-	 * If not a member of the group, then check public access.
-	 */
-	mode &= 0700;
-	m = ipc->mode;
-	if (cred->cr_uid != ipc->uid && cred->cr_uid != ipc->cuid) {
-		m <<= 3;
-		if (!groupmember(ipc->gid, cred) &&
-		    !groupmember(ipc->cgid, cred))
-			m <<= 3;
-	}
-	if ((mode&m) == mode)
-		return (0);
-	return (EACCES);
 }
 #endif /* SYSVSHM */

@@ -14,7 +14,7 @@ SRCS+=	gethostnamadr.c getnetbyaddr.c getnetbyname.c getnetent.c \
 .if   (${MACHINE} == "hp300")
 SRCS+=	htonl.s htons.s ntohl.s ntohs.s
 .elif (${MACHINE} == "i386")
-SRCS+=	htonl.s htons.s ntohl.s ntohs.s
+SRCS+=	htonl.S htons.S ntohl.S ntohs.S
 .elif (${MACHINE} == "tahoe")
 SRCS+=	htonl.s htons.s ntohl.s ntohs.s
 .elif (${MACHINE} == "vax")

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_init.c	7.3 (Berkeley) 4/21/91
- *	$Id: vm_init.c,v 1.2 1993/10/16 16:20:28 rgrimes Exp $
+ *	$Id: vm_init.c,v 1.3 1994/01/14 16:27:17 davidg Exp $
  */
 
 /*
@@ -81,7 +81,8 @@
  *	The start and end address of physical memory is passed in.
  */
 
-void vm_mem_init()
+void
+vm_mem_init()
 {
 	extern vm_offset_t	avail_start, avail_end;
 	extern vm_offset_t	virtual_avail, virtual_end;

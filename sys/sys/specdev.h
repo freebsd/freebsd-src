@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specdev.h	7.4 (Berkeley) 4/19/91
- *	$Id: specdev.h,v 1.2 1993/10/16 17:17:47 rgrimes Exp $
+ *	$Id: specdev.h,v 1.4 1993/11/25 01:38:04 wollman Exp $
  */
+
+#ifndef _SYS_SPECDEV_H_
+#define _SYS_SPECDEV_H_ 1
 
 /*
  * This structure defines the information maintained about
@@ -68,7 +71,7 @@ struct specinfo {
 #define	SPECHASH(rdev)	(((unsigned)((rdev>>5)+(rdev)))%SPECHSZ)
 #endif
 
-struct vnode *speclisth[SPECHSZ];
+extern struct vnode *speclisth[SPECHSZ];
 
 /*
  * Prototypes for special file operations on vnodes.
@@ -209,7 +212,7 @@ int	spec_bmap __P((
 		daddr_t *bnp));
 int	spec_strategy __P((
 		struct buf *bp));
-int	spec_print __P((
+void	spec_print __P((
 		struct vnode *vp));
 #define spec_islocked ((int (*) __P(( \
 		struct vnode *vp))) nullop)
@@ -219,3 +222,4 @@ int	spec_advlock __P((
 		int op,
 		struct flock *fl,
 		int flags));
+#endif /* _SYS_SPECDEV_H_ */

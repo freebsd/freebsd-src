@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_iso.c	7.11 (Berkeley) 5/6/91
- *	$Id: tp_iso.c,v 1.3 1993/10/16 21:05:47 rgrimes Exp $
+ *	$Id: tp_iso.c,v 1.5 1993/12/19 00:53:37 wollman Exp $
  */
 
 /***********************************************************
@@ -110,13 +110,17 @@ SOFTWARE.
 #include "tp_clnp.h"
 #include "cltp_var.h"
 
+int clnp_output();		/* XXX */
+void tpclnp_ctlinput();		/* XXX */
+int tp_driver();		/* XXX */
+
 /*
  * CALLED FROM:
  * 	pr_usrreq() on PRU_BIND, PRU_CONNECT, PRU_ACCEPT, and PRU_PEERADDR
  * FUNCTION, ARGUMENTS:
  * 	The argument (which) takes the value TP_LOCAL or TP_FOREIGN.
  */
-
+void
 iso_getsufx(isop, lenp, data_out, which)
 	struct isopcb *isop;
 	u_short *lenp;
@@ -260,6 +264,7 @@ iso_putnetaddr(isop, name, which)
  * 	with that implicitly stored in an isopcb (isop).
  * 	The argument (which) takes values TP_LOCAL or TP_FOREIGN.
  */ 
+int
 iso_cmpnetaddr(isop, name, which)
 	register struct isopcb	*isop;
 	register struct sockaddr_iso	*name;
@@ -629,7 +634,7 @@ tpiso_quench(isop)
  *	(cmd) is the type of ICMP error.   
  * 	(siso) is the address of the guy who sent the ER CLNPDU
  */
-ProtoHook
+void
 tpclnp_ctlinput(cmd, siso)
 	int cmd;
 	struct sockaddr_iso *siso;
@@ -646,9 +651,9 @@ tpclnp_ctlinput(cmd, siso)
 	ENDDEBUG
 
 	if (cmd < 0 || cmd > PRC_NCMDS)
-		return 0;
+		return;
 	if (siso->siso_family != AF_ISO)
-		return 0;
+		return;
 	switch (cmd) {
 
 		case	PRC_QUENCH2:
@@ -690,7 +695,7 @@ tpclnp_ctlinput(cmd, siso)
 		iso_pcbnotify(&tp_isopcb, siso, (int)inetctlerrmap[cmd], tpiso_abort);
 		break;
 	}
-	return 0;
+	return;
 }
 /*
  * XXX - Variant which is called by clnp_er.c with an isoaddr rather
@@ -698,6 +703,8 @@ tpclnp_ctlinput(cmd, siso)
  */
 
 static struct sockaddr_iso siso = {sizeof(siso), AF_ISO};
+
+void
 tpclnp_ctlinput1(cmd, isoa)
 	int cmd;
 	struct iso_addr *isoa;

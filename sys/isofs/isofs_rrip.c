@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isofs_rrip.c,v 1.3 1993/10/25 19:43:04 rgrimes Exp $
+ *	$Id: isofs_rrip.c,v 1.5 1993/12/19 00:51:05 wollman Exp $
  */
 
 #include "param.h"
@@ -51,31 +51,32 @@
  * POSIX file attribute
  */
 static int isofs_rrip_attr( p, ana )
-ISO_RRIP_ATTR	 *p;
-ISO_RRIP_ANALYZE *ana;
+	ISO_RRIP_ATTR	 *p;
+	ISO_RRIP_ANALYZE *ana;
 {
 	ana->inode.iso_mode  = isonum_731(p->mode_l);
 	ana->inode.iso_uid   = (uid_t)isonum_731(p->uid_l);
 	ana->inode.iso_gid   = (gid_t)isonum_731(p->gid_l);
 /*	ana->inode.iso_links = isonum_731(p->links_l); */
-	return;
+	return 0;
 }
 
 int isofs_rrip_defattr(  isodir, ana )
-struct iso_directory_record 	*isodir;
-ISO_RRIP_ANALYZE 		*ana;
+	struct iso_directory_record 	*isodir;
+	ISO_RRIP_ANALYZE 		*ana;
 {
 	ana->inode.iso_mode  = (VREAD|VEXEC|(VREAD|VEXEC)>>3|(VREAD|VEXEC)>>6);
 	ana->inode.iso_uid   = (uid_t)0;
 	ana->inode.iso_gid   = (gid_t)0;
+	return 0;
 }
 
 /*
  * POSIX device modes
  */
 static int isofs_rrip_device( p, ana )
-ISO_RRIP_DEVICE  *p;
-ISO_RRIP_ANALYZE *ana;
+	ISO_RRIP_DEVICE  *p;
+	ISO_RRIP_ANALYZE *ana;
 {
 	char   buf[3];
 
@@ -89,35 +90,35 @@ ISO_RRIP_ANALYZE *ana;
 				isonum_731(p->dev_t_high_l),
 				isonum_731(p->dev_t_low_l)
 					 );
-	return;
+	return 0;
 }
 
 /*
  * Symbolic Links
  */
 static int isofs_rrip_slink( p, ana )
-ISO_RRIP_SLINK  *p;
-ISO_RRIP_ANALYZE *ana;
+	ISO_RRIP_SLINK  *p;
+	ISO_RRIP_ANALYZE *ana;
 {
-	return;
+	return 0;
 }
 
 /*
  * Alternate name
  */
 static int isofs_rrip_altname( p, ana )
-ISO_RRIP_ALTNAME *p;
-ISO_RRIP_ANALYZE *ana;
+	ISO_RRIP_ALTNAME *p;
+	ISO_RRIP_ANALYZE *ana;
 {
-	return;
+	return 0;
 }
 
 /*
  * Child Link
  */
 static int isofs_rrip_clink( p, ana )
-ISO_RRIP_CLINK  *p;
-ISO_RRIP_ANALYZE *ana;
+	ISO_RRIP_CLINK  *p;
+	ISO_RRIP_ANALYZE *ana;
 {
 	char   buf[3];
 	buf[0] = p->h.type[0];
@@ -129,7 +130,7 @@ ISO_RRIP_ANALYZE *ana;
 				isonum_733(p->dir_loc)
 							);
 	ana->inode.iso_cln = isonum_733(p->dir_loc);
-	return;
+	return 0;
 }
 
 /*
@@ -150,7 +151,7 @@ ISO_RRIP_ANALYZE *ana;
 				isonum_733(p->dir_loc)
 							);
 	ana->inode.iso_pln = isonum_733(p->dir_loc);
-	return;
+	return 0;
 }
 
 /*
@@ -167,7 +168,7 @@ ISO_RRIP_ANALYZE *ana;
 	buf[2]	= 0x00;
 
 	printf("isofs:%s[%d]\n",buf, isonum_711(p->h.length) );
-	return;
+	return 0;
 }
 
 /*
@@ -298,16 +299,17 @@ ISO_RRIP_ANALYZE *ana;
 			else
         			ana->inode.iso_atime = ana->inode.iso_ctime;
 	}
-	return;
+	return 0;
 }
 
 int isofs_rrip_deftstamp( isodir, ana )
-struct iso_directory_record  *isodir;
-ISO_RRIP_ANALYZE *ana;
+	struct iso_directory_record  *isodir;
+	ISO_RRIP_ANALYZE *ana;
 {
        	isofs_rrip_tstamp_conv7(isodir->date, &ana->inode.iso_ctime );
 	ana->inode.iso_atime = ana->inode.iso_ctime;
 	ana->inode.iso_mtime = ana->inode.iso_ctime;
+	return 0;
 }
 
 
@@ -329,7 +331,7 @@ ISO_RRIP_ANALYZE *ana;
 				buf,
 				isonum_711(p->h.length),
 				p->flags );
-	return;
+	return 0;
 }
 
 /*
@@ -350,7 +352,7 @@ ISO_RRIP_ANALYZE *ana;
 				buf,
 				isonum_711(p->h.length),
 				p->flags );
-	return;
+	return 0;
 }
 
 /*
@@ -358,10 +360,10 @@ ISO_RRIP_ANALYZE *ana;
  *   Nothing to do....
  */
 static int isofs_rrip_unknown( p, ana )
-ISO_RRIP_EXFLAG  *p;
-ISO_RRIP_ANALYZE *ana;
+	ISO_RRIP_EXFLAG  *p;
+	ISO_RRIP_ANALYZE *ana;
 {
-	return;
+	return 0;
 }
 
 typedef struct {
@@ -462,9 +464,9 @@ setdefault:
  *    it will be return the translated ISO9660 name,
  */
 int	isofs_rrip_getname( isodir, outbuf, outlen )
-struct iso_directory_record 	*isodir;
-char				*outbuf;
-int				*outlen;
+	struct iso_directory_record *isodir;
+	char *outbuf;
+	int *outlen;
 {
 	ISO_SUSP_HEADER  *phead, *pend;
 	ISO_RRIP_ALTNAME *p;
@@ -657,4 +659,5 @@ int isofs_hexdump( p, size )
 		printf("\n");
 	}
 	printf("\n");
+	return 0;
 }

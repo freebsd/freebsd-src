@@ -89,7 +89,7 @@ A job control shell
 operating interactively (that is, reading commands from a terminal)
 normally groups related processes together by placing them into the
 same process group.  A set of processes in the same process group
-is collectively refered to as a "job". When the foreground process
+is collectively referred to as a "job". When the foreground process
 group of the terminal is the same as the process group of a particular
 job, that job is said to be in the "foreground".  When the process
 group of the terminal is different than the process group of
@@ -105,7 +105,7 @@ be started in the background (as denoted by the shell operator "&"),
 it never changes the process group of the terminal and doesn't
 wait for the job to complete (that is, it immediately attempts to read the next
 command).  If the job is started in the foreground, the user may
-type a key (ususally
+type a key (usually
 .Ql \&^Z )
 which generates the terminal stop signal
 .Pq Dv SIGTSTP
@@ -226,7 +226,7 @@ when this limit is exceeded depends on the setting of the
 flag in the termios
 .Fa c_iflag .
 If this flag is set, the terminal
-is a sent an
+is sent an
 .Tn ASCII
 .Dv BEL
 character each time a character is recieved
@@ -952,7 +952,7 @@ characters are transmitted are implementation defined.
 If
 .Dv IMAXBEL
 is set and the input queue is full, subsequent input
-shall causes an
+shall cause an
 .Tn ASCII
 .Dv BEL
 character to be transmitted to the

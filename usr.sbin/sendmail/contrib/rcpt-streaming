@@ -1,10 +1,11 @@
-(Message /home/auspex/a/staff/eric/.mh/inbox:2575)
-From:    John Gardiner Myers <jgm+@cmu.edu>
+Message-ID: <wgKo1lW00WBw46OU8k@andrew.cmu.edu>
+Date: Sun,  1 Aug 1993 00:02:57 -0400 (EDT)
+From: John Gardiner Myers <jgm+@CMU.EDU>
+To: sendmail@cs.berkeley.edu
 Subject: contrib/rcpt-streaming
-Date:    Fri,  4 Jun 1993 13:54:06 -0400 (EDT)
-To:      sendmail@cs.berkeley.edu
+Beak: Is
 
-This patch implements "RCPT streaming" in sendmail version 6.  This
+This patch implements "RCPT streaming" in sendmail version 8.  This
 patch is not an official part of sendmail.  Please report all problems
 with this patch to jgm+@cmu.edu.
 
@@ -15,12 +16,12 @@ the replies, matching them up with the apropriate addresses.
 Apply to the sendmail src directory (your line numbers may vary) and
 compile with -DRCPTSTREAM
 
-diff -cr src.orig/deliver.c src/deliver.c
-*** src.orig/deliver.c	Thu May 27 14:38:22 1993
---- src/deliver.c	Fri Jun  4 13:50:02 1993
+diff -cr ./src/deliver.c /afs/andrew.cmu.edu/system/src/local/../host/oldsmail/016/src/deliver.c
+*** ./src/deliver.c	Thu Jul 22 14:28:19 1993
+--- /afs/andrew.cmu.edu/system/src/local/../host/oldsmail/016/src/deliver.c	Fri Jul 30 21:11:16 1993
 ***************
-*** 1325,1330 ****
---- 1325,1345 ----
+*** 1334,1339 ****
+--- 1334,1354 ----
   			register int i;
   
   			/* send the recipient list */
@@ -42,9 +43,9 @@ diff -cr src.orig/deliver.c src/deliver.c
   			tobuf[0] = '\0';
   			for (to = tochain; to != NULL; to = to->q_tchain)
   			{
-diff -cr src.orig/usersmtp.c src/usersmtp.c
-*** src.orig/usersmtp.c	Thu May 27 14:38:09 1993
---- src/usersmtp.c	Fri Jun  4 13:48:24 1993
+diff -cr ./src/usersmtp.c /afs/andrew.cmu.edu/system/src/local/../host/oldsmail/016/src/usersmtp.c
+*** ./src/usersmtp.c	Mon Jul 19 23:50:43 1993
+--- /afs/andrew.cmu.edu/system/src/local/../host/oldsmail/016/src/usersmtp.c	Fri Jul 30 21:12:00 1993
 ***************
 *** 44,49 ****
 --- 44,61 ----
@@ -85,19 +86,21 @@ diff -cr src.orig/usersmtp.c src/usersmtp.c
   #endif
 ***************
 *** 404,410 ****
---- 424,432 ----
+--- 424,434 ----
   {
   	register int r;
   
-+ #ifndef RCPTSTREAM
++ #ifdef RCPTSTREAM
++ 	sprintf(SmtpMsgBuffer, "RCPT To:<%s>", to->q_user);
++ #else
   	smtpmessage("RCPT To:<%s>", m, mci, to->q_user);
 + #endif
   
-  	SmtpPhase = mci->mci_phase = "RCPT wait";
+  	SmtpPhase = mci->mci_phase = "client RCPT";
   	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
 ***************
-*** 626,631 ****
---- 648,657 ----
+*** 667,672 ****
+--- 694,703 ----
   	bool firstline = TRUE;
   	char junkbuf[MAXLINE];
   
@@ -109,8 +112,8 @@ diff -cr src.orig/usersmtp.c src/usersmtp.c
   		(void) fflush(mci->mci_out);
   
 ***************
-*** 641,646 ****
---- 667,709 ----
+*** 682,687 ****
+--- 713,755 ----
   		register char *p;
   		extern time_t curtime();
   
@@ -155,8 +158,8 @@ diff -cr src.orig/usersmtp.c src/usersmtp.c
   		if (e->e_xfp != NULL)
   			(void) fflush(e->e_xfp);	/* for debugging */
 ***************
-*** 742,747 ****
---- 805,880 ----
+*** 792,797 ****
+--- 860,937 ----
   
   	return (r);
   }
@@ -197,6 +200,8 @@ diff -cr src.orig/usersmtp.c src/usersmtp.c
 + 
 + 	if (tTd(18, 1) || Verbose)
 + 		nmessage(">>> %s", SmtpMsgBuffer);
++ 	if (TrafficLogFile != NULL)
++ 		fprintf(TrafficLogFile, "%05d >>> %s\n", getpid(), SmtpMsgBuffer);
 + 
 + 	if (mci->mci_out == NULL) {
 + 	    if (tTd(18, 1)) printf("smtpstreammessage: NULL mci_out\n");
@@ -233,15 +238,13 @@ diff -cr src.orig/usersmtp.c src/usersmtp.c
   /*
   **  SMTPMESSAGE -- send message to server
   **
-Only in src: usersmtp.c.orig
-Only in src: usersmtp.c~
-Only in src: usersmtp.o
-diff -cr src.orig/util.c src/util.c
-*** src.orig/util.c	Thu May 27 14:38:20 1993
---- src/util.c	Wed Jun  2 16:39:15 1993
+Only in /afs/andrew.cmu.edu/system/src/local/../host/oldsmail/016/src: usersmtp.c~
+diff -cr ./src/util.c /afs/andrew.cmu.edu/system/src/local/../host/oldsmail/016/src/util.c
+*** ./src/util.c	Mon Jul 19 23:50:45 1993
+--- /afs/andrew.cmu.edu/system/src/local/../host/oldsmail/016/src/util.c	Mon Jul 26 17:17:10 1993
 ***************
-*** 955,960 ****
---- 955,1004 ----
+*** 1034,1039 ****
+--- 1034,1091 ----
   			return (FALSE);
   	return (TRUE);
   }
@@ -281,10 +284,18 @@ diff -cr src.orig/util.c src/util.c
 + 
 +     flags = fcntl(fd, F_GETFL, 0);
 +     if (mode) {
++ #ifdef FNONBIO
 + 	flags |= FNONBIO;
++ #else
++ 	flags |= O_NDELAY;
++ #endif
 +     }
 +     else {
++ #ifdef FNONBIO
 + 	flags &= ~FNONBIO;
++ #else
++ 	flags &= ~O_NDELAY;
++ #endif
 +     }
 +     fcntl(fd, F_SETFL, flags);
 + }
@@ -292,6 +303,3 @@ diff -cr src.orig/util.c src/util.c
   /*
   **  STRCONTAINEDIN -- tell if one string is contained in another
   **
-Only in src: util.c.orig
-Only in src: util.o
-Only in src: version.o

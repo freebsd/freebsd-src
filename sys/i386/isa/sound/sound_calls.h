@@ -56,8 +56,6 @@ int sequencer_ioctl (int dev, struct fileinfo *file,
 	   unsigned int cmd, unsigned int arg);
 int sequencer_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long sequencer_init (long mem_start);
-void sequencer_midi_input(int dev, unsigned char data);
-void sequencer_midi_output(int dev);
 void sequencer_timer(void);
 int note_to_freq(int note_num);
 unsigned long compute_finetune(unsigned long base_freq, int bend, int range);
@@ -101,8 +99,8 @@ int   CMIDI_close (int dev, struct fileinfo *file);
 long pro_midi_attach(long mem_start);
 int  pro_midi_open(int dev, int mode);
 void pro_midi_close(int dev);
-int pro_midi_write(int dev, struct uio *uio);
-int pro_midi_read(int dev, struct uio *uio);
+int pro_midi_write(int dev, snd_rw_buf *uio);
+int pro_midi_read(int dev, snd_rw_buf *uio);
 
 /*	From soundcard.c	*/
 long soundcard_init(long mem_start);

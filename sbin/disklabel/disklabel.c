@@ -63,7 +63,9 @@ static char sccsid[] = "@(#)disklabel.c	5.20 (Berkeley) 2/9/91";
 #include <sys/disklabel.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <unistd.h>
 #include "pathnames.h"
+
 
 /*
  * Disklabel: read and write disklabels.
@@ -367,7 +369,6 @@ writelabel(f, boot, lp)
 {
 	register int i;
 	int flag;
-	off_t lseek();
 #ifdef	__386BSD__
 	off_t lbl_off; struct partition *pp = lp->d_partitions;
 #endif

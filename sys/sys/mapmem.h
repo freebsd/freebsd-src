@@ -37,8 +37,11 @@
  *
  *	from: Utah $Hdr: mmap.h 1.4 89/08/14$
  *	from: @(#)mapmem.h	7.2 (Berkeley) 6/6/90
- *	$Id: mapmem.h,v 1.2 1993/10/16 17:17:06 rgrimes Exp $
+ *	$Id: mapmem.h,v 1.3 1993/11/07 17:52:46 wollman Exp $
  */
+
+#ifndef _SYS_MAPMEM_H_
+#define _SYS_MAPMEM_H_ 1
 
 /*
  * Mapped memory descriptors.
@@ -110,3 +113,4 @@ struct mapmem {
 #define MMFREE(mp) \
 	free((caddr_t)(mp), M_MAPMEM)
 #endif
+#endif /* _SYS_MAPMEM_H_ */

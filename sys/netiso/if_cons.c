@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_cons.c	7.10 (Berkeley) 5/29/91
- *	$Id: if_cons.c,v 1.2 1993/10/16 21:05:10 rgrimes Exp $
+ *	$Id: if_cons.c,v 1.4 1993/12/19 22:45:41 wollman Exp $
  */
 
 /***********************************************************
@@ -121,6 +121,9 @@ unsigned LAST_CALL_PCB;
 
 #define DONTCLEAR	 -1
 
+static int parse_facil(struct pklcd *, struct isopcb *, caddr_t, 
+		       int /*u_char*/);
+
 /*********************************************************************	
  * cons.c - CONS interface to the x.25 layer
  *
@@ -156,6 +159,10 @@ NOTE:
 
  *********************************************************************/
 
+
+/* struct cons_stat cons_stat; */
+u_char x25_error_stats[CONL_ERROR_MAX + 1];
+struct ifqueue consintrq;
 
 #define CONS_IFQMAXLEN 5
 
@@ -298,9 +305,10 @@ nibble_match( src_octet, src_nibble, dst_octet, dst_nibble, len)
  * FUNCTION:
  *	initialize the protocol
  */
+void
 cons_init()
 {
-	int tp_incoming(), clnp_incoming();
+	void tp_incoming(), clnp_incoming();
 
 
 	CLNP_proto = pffindproto(AF_ISO, ISOPROTO_CLNP, SOCK_DGRAM); 
@@ -318,13 +326,14 @@ cons_init()
 #endif
 }
 
+void
 tp_incoming(lcp, m)
-struct pklcd *lcp;
-register struct mbuf *m;
+	struct pklcd *lcp;
+	register struct mbuf *m;
 {
 	register struct isopcb *isop;
 	extern struct isopcb tp_isopcb;
-	int cons_tpinput();
+	void cons_tpinput();
 
 	if (iso_pcballoc((struct socket *)0, &tp_incoming_pending)) {
 		pk_close(lcp);
@@ -339,13 +348,14 @@ register struct mbuf *m;
 	isop->isop_faddr = &isop->isop_sfaddr;
 	DTEtoNSAP(isop->isop_laddr, &lcp->lcd_laddr);
 	DTEtoNSAP(isop->isop_faddr, &lcp->lcd_faddr);
-	parse_facil(isop, lcp, &(mtod(m, struct x25_packet *)->packet_data),
+	parse_facil(lcp, isop, &(mtod(m, struct x25_packet *)->packet_data),
 		m->m_pkthdr.len - PKHEADERLN);
 }
 
+void
 cons_tpinput(lcp, m0)
-struct mbuf *m0;
-struct pklcd *lcp;
+	struct mbuf *m0;
+	struct pklcd *lcp;
 {
 	register struct isopcb *isop = (struct isopcb *)lcp->lcd_upnext;
 	register struct x25_packet *xp;
@@ -401,11 +411,12 @@ struct pklcd *lcp;
  * RETURN VALUE:
  *  returns E*
  */
+int
 cons_connect(isop)
 	register struct isopcb *isop;
 {
 	register struct pklcd *lcp = (struct pklcd *)isop->isop_chan;
-	register struct mbuf 	*m;
+	register struct mbuf 	*m = 0;
 	struct ifaddr 			*ifa;
 	int error;
 
@@ -448,6 +459,7 @@ cons_connect(isop)
  * NOTE: this takes 3rd arg. because cons uses it to inform itself
  *  of things (timeouts, etc) but has a pcb instead of an address.
  */
+void
 cons_ctlinput(cmd, sa, copcb)
 	int cmd;
 	struct sockaddr *sa;
@@ -455,7 +467,7 @@ cons_ctlinput(cmd, sa, copcb)
 {
 }
 
-
+int
 find_error_reason( xp )
 	register struct x25_packet *xp;
 {
@@ -554,9 +566,9 @@ done:
 
 #ifdef X25_1984 
 int cons_use_facils = 1;
-#else X25_1984 
+#else /* X25_1984 */
 int cons_use_facils = 0;
-#endif X25_1984 
+#endif /* X25_1984  */
 
 int cons_use_udata = 1; /* KLUDGE FOR DEBUGGING */
 
@@ -565,15 +577,15 @@ make_partial_x25_packet(isop, lcp)
 	struct isopcb *isop;
 	struct pklcd *lcp;
 {
-	u_int				proto;
-	int					flag;
+	u_int				proto = 0;
+	int					flag = 0;
 	caddr_t 			buf;
 	register caddr_t	ptr;
 	register int		len	= 0;
 	int 				buflen	=0;
 	caddr_t				facil_len;
 	int 				oddness	= 0;
-	struct mbuf *m;
+	struct mbuf *m = 0;
 
 
 	IFDEBUG(D_CCONN)
@@ -728,7 +740,8 @@ NSAPtoDTE(siso, sx25)
 		dtelen = out - sx25->x25_addr;
 		*out++ = 0;
 	} else {
-		register struct rtentry *rt = rtalloc1(siso, 1);
+		register struct rtentry *rt = rtalloc1((struct sockaddr *)siso,
+						       1);
 		/* error = iso_8208snparesolve(addr, x121string, &x121strlen);*/
 
 		if (rt) {
@@ -764,7 +777,7 @@ FACILtoNSAP(addr, buf)
 	register struct sockaddr_iso *addr;
 {
 	int len_in_nibbles, param_len = *buf++;
-	u_char			buf_len; /* in bytes */
+	u_char			buf_len = 0; /* in bytes */
 
 	IFDEBUG(D_CADDR)
 		printf("FACILtoNSAP( 0x%x, 0x%x, 0x%x )\n", 
@@ -797,9 +810,9 @@ FACILtoNSAP(addr, buf)
 	return param_len;
 }
 
-static
+static void
 init_siso(siso)
-register struct sockaddr_iso *siso;
+	register struct sockaddr_iso *siso;
 {
 	siso->siso_len = sizeof (*siso);
 	siso->siso_family = AF_ISO;

@@ -230,13 +230,13 @@ setsockopt	set socket option
 .in -5
 .h 2.4 "Terminals, block and character devices
 .in +5
-.TS
-lw(1.6i) aw(3i).
-.TE
+.\".TS
+.\"lw(1.6i) aw(3i).
+.\".TE
 .in -5
 .h 2.5 "Processes and kernel hooks
 .in +5
-.TS
-lw(1.6i) aw(3i).
-.TE
+.\".TS
+.\"lw(1.6i) aw(3i).
+.\".TE
 .in -5

@@ -58,12 +58,12 @@ static char sccsid[] = "@(#)wwwrite.c	3.33 (Berkeley) 6/6/90";
  */
 wwwrite(w, p, n)
 register struct ww *w;
-register char *p;
+register unsigned char *p;
 int n;
 {
 	char hascursor;
-	char *savep = p;
-	char *q = p + n;
+	unsigned char *savep = p;
+	unsigned char *q = p + n;
 	char *r = 0;
 	char *s;
 

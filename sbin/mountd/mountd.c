@@ -101,7 +101,8 @@ struct grouplist {
 };
 
 /* Global defs */
-int mntsrv(), umntall_each(), xdr_fhs(), xdr_mlist(), xdr_dir(), xdr_explist();
+void mntsrv();
+int umntall_each(), xdr_fhs(), xdr_mlist(), xdr_dir(), xdr_explist();
 void add_mlist(), del_mlist(), get_exportlist(), get_mountlist();
 void send_umntall();
 struct exportlist exphead;
@@ -183,7 +184,7 @@ main(argc, argv)
 /*
  * The mount rpc service
  */
-mntsrv(rqstp, transp)
+void mntsrv(rqstp, transp)
 	register struct svc_req *rqstp;
 	register SVCXPRT *transp;
 {
@@ -347,7 +348,7 @@ xdr_fhs(xdrsp, nfh)
 	XDR *xdrsp;
 	nfsv2fh_t *nfh;
 {
-	int ok = 0;
+	long ok = 0;
 
 	if (!xdr_long(xdrsp, &ok))
 		return (0);

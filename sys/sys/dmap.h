@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dmap.h	7.3 (Berkeley) 2/15/91
- *	$Id: dmap.h,v 1.2 1993/10/16 17:16:37 rgrimes Exp $
+ *	$Id: dmap.h,v 1.3 1993/11/07 17:52:31 wollman Exp $
  */
 
 #ifndef _DMAP_H_
@@ -49,8 +49,8 @@ struct dmap {
 	swblk_t dm_map[NDMAP];	/* first disk block number in each chunk */
 };
 #ifdef KERNEL
-struct dmap zdmap;
-int dmmin, dmmax, dmtext;
+extern struct dmap zdmap;
+extern int dmmin, dmmax, dmtext;
 #endif
 
 /* The following structure is that ``returned'' from a call to vstodb(). */

@@ -34,7 +34,7 @@ char copyright[] =
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/usr.bin/lex/main.c,v 1.2 1993/06/29 03:27:15 nate Exp $ (LBL)";
+    "@(#) $Header: /home/cvs/386BSD/src/usr.bin/lex/main.c,v 1.2 1993/06/29 03:27:15 nate Exp $ (LBL)";
 #endif
 
 

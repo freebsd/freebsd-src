@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)hd_input.c	7.7 (Berkeley) 5/29/91
- *	$Id: hd_input.c,v 1.2 1993/09/09 23:20:21 rgrimes Exp $
+ *	$Id: hd_input.c,v 1.3 1993/11/25 01:34:18 wollman Exp $
  */
 
 #include "param.h"
@@ -58,13 +58,13 @@
 /*
  * forward references
  */
-static
+static void
 frame_reject (struct hdcb *hdp, int rejectcode, struct Hdlc_iframe *frame);
 
-static
+static void
 rej_routine (struct hdcb *hdp, int rejnr);
 
-static
+static void
 free_iframes (struct hdcb *hdp, int *nr, int finalbit);
 
 /*
@@ -74,6 +74,7 @@ free_iframes (struct hdcb *hdp, int *nr, int finalbit);
  *      completed reading a frame.
  */
 
+void
 hdintr ()
 {
 	register struct mbuf *m;
@@ -128,9 +129,10 @@ hdintr ()
 		pkintr ();
 }
 
+int
 process_rxframe (hdp, fbuf)
-register struct hdcb *hdp;
-register struct mbuf *fbuf;
+	register struct hdcb *hdp;
+	register struct mbuf *fbuf;
 {
 	register int queued = FALSE, frametype, pf;
 	register struct Hdlc_frame *frame;
@@ -326,10 +328,11 @@ register struct mbuf *fbuf;
 	return (queued);
 }
 
+int
 process_iframe (hdp, fbuf, frame)
-register struct hdcb *hdp;
-struct mbuf *fbuf;
-register struct Hdlc_iframe *frame;
+	register struct hdcb *hdp;
+	struct mbuf *fbuf;
+	register struct Hdlc_iframe *frame;
 {
 	register int    nr = frame -> nr,
 	                ns = frame -> ns,
@@ -454,11 +457,11 @@ int     rear,
  *  condition Y (frame length error) are handled elsewhere.
  */
 
-static
+static void
 frame_reject (hdp, rejectcode, frame)
-struct hdcb *hdp;
-int rejectcode;
-struct Hdlc_iframe *frame;
+	struct hdcb *hdp;
+	int rejectcode;
+	struct Hdlc_iframe *frame;
 {
 	register struct Frmr_frame *frmr = &hd_frmr;
 
@@ -502,10 +505,11 @@ struct Hdlc_iframe *frame;
  *  frames is done here.
  */
 
+void
 process_sframe (hdp, frame, frametype)
-register struct hdcb *hdp;
-register struct Hdlc_sframe *frame;
-int frametype;
+	register struct hdcb *hdp;
+	register struct Hdlc_sframe *frame;
+	int frametype;
 {
 	register int nr = frame -> nr, pf = frame -> pf, pollbit = 0;
 
@@ -559,8 +563,9 @@ int frametype;
 
 bool
 valid_nr (hdp, nr, finalbit)
-register struct hdcb *hdp;
-register int finalbit;
+	register struct hdcb *hdp;
+	int nr;
+	register int finalbit;
 {
 	/* Make sure it really does acknowledge something. */
 	if (hdp->hd_lastrxnr == nr)
@@ -604,10 +609,10 @@ register int finalbit;
  *  It then resets the Send State Variable V(S) to accomplish this.
  */
 
-static
+static void
 rej_routine (hdp, rejnr)
-register struct hdcb *hdp;
-register int rejnr;
+	register struct hdcb *hdp;
+	register int rejnr;
 {
 	register int anchor;
 
@@ -648,11 +653,11 @@ register int rejnr;
  *  when a previously written iframe is acknowledged.
  */
 
-static
+static void
 free_iframes (hdp, nr, finalbit)
-register struct hdcb *hdp;
-int *nr;
-register int finalbit;
+	register struct hdcb *hdp;
+	int *nr;
+	register int finalbit;
 
 {
 	register int    i, k;

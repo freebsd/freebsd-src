@@ -23,27 +23,32 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.2 1993/10/16 14:14:55 rgrimes Exp $
+ *	$Id: db_interface.c,v 1.5 1993/12/19 00:50:00 wollman Exp $
  */
 
 /*
  * Interface to new debugger.
  */
 #include "param.h"
+#include "systm.h"
+#include "kernel.h"
 #include "proc.h"
-#include <machine/db_machdep.h>
+#include "ddb/ddb.h"
 
 #include <sys/reboot.h>
 #include <vm/vm_statistics.h>
 #include <vm/pmap.h>
 
 #include <setjmp.h>
-#include <sys/systm.h> /* just for boothowto --eichin */
+
 int	db_active = 0;
+
+db_regs_t ddb_regs;
 
 /*
  * Received keyboard interrupt sequence.
  */
+void
 kdb_kbd_trap(regs)
 	struct i386_saved_state *regs;
 {
@@ -59,6 +64,7 @@ kdb_kbd_trap(regs)
 
 static jmp_buf *db_nofault = 0;
 
+int
 kdb_trap(type, code, regs)
 	int	type, code;
 	register struct i386_saved_state *regs;
@@ -140,6 +146,7 @@ kdb_trap(type, code, regs)
 /*
  * Print trap reason.
  */
+void
 kdbprinttrap(type, code)
 	int	type, code;
 {
@@ -227,8 +234,9 @@ db_write_bytes(addr, size, data)
 	}
 }
 
+void
 Debugger (msg)
-char *msg;
+	const char *msg;
 {
 	asm ("int $3");
 }

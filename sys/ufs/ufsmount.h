@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufsmount.h	7.9 (Berkeley) 5/8/91
- *	$Id: ufsmount.h,v 1.2 1993/10/16 18:18:05 rgrimes Exp $
+ *	$Id: ufsmount.h,v 1.4 1993/11/25 01:38:41 wollman Exp $
  */
+
+#ifndef _UFS_UFSMOUNT_H_
+#define _UFS_UFSMOUNT_H_ 1
 
 /*
  * This structure describes the UFS specific mount structure data.
@@ -59,7 +62,6 @@ struct	ufsmount {
  * Convert mount ptr to ufsmount ptr.
  */
 #define VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
-#endif /* KERNEL */
 
 /*
  * Prototypes for UFS mount operations
@@ -75,4 +77,6 @@ int ufs_statfs __P((struct mount *mp, struct statfs *sbp, struct proc *p));
 int ufs_sync __P((struct mount *mp, int waitfor));
 int ufs_fhtovp __P((struct mount *mp, struct fid *fhp, struct vnode **vpp));
 int ufs_vptofh __P((struct vnode *vp, struct fid *fhp));
-int ufs_init __P(());
+void ufs_init __P(());
+#endif /* KERNEL */
+#endif /* _UFS_UFSMOUNT_H_ */

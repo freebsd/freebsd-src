@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.2 1993/10/08 20:50:59 rgrimes Exp $
+ *	$Id: frame.h,v 1.8 1994/01/31 10:27:09 davidg Exp $
  */
+
+#ifndef _MACHINE_FRAME_H_
+#define _MACHINE_FRAME_H_ 1
 
 #include <sys/signal.h>
 
@@ -68,6 +71,8 @@ struct trapframe {
 	int	tf_esp;
 	int	tf_ss;
 };
+
+extern int kdb_trap(int, int, struct trapframe *);
 
 /* Interrupt stack frame */
 
@@ -102,32 +107,8 @@ struct sigframe {
 	int	sf_signum;
 	int	sf_code;
 	struct	sigcontext *sf_scp;
+	char	*sf_addr;
 	sig_t	sf_handler;
-	int	sf_eax;	
-	int	sf_edx;	
-	int	sf_ecx;	
 	struct	sigcontext sf_sc;
-} ;
-
-/*
- * Call Gate/System Call Stack Frame
- */
-
-struct syscframe {
-	int	sf_edi;
-	int	sf_esi;
-	int	sf_ebp;
-	int	:32;		/* redundant save of isp */
-	int	sf_ebx;
-	int	sf_edx;
-	int	sf_ecx;
-	int	sf_eax;
-	int	sf_eflags;
-	/* below portion defined in 386 hardware */
-/*	int	sf_args[N]; 	/* if call gate copy args enabled!*/
-	int	sf_eip;
-	int	sf_cs;
-	/* below only when transitting rings (e.g. user to kernel) */
-	int	sf_esp;
-	int	sf_ss;
 };
+#endif /* _MACHINE_FRAME_H_ */

@@ -137,11 +137,14 @@ nbf:
 		flags |= __SLBF;
 	if (flags & __SRW)
 		flags &= ~(__SRD | __SWR);
-	fp->_w = 0;
 	fp->_flags = flags;
 	fp->_bf._base = fp->_p = (unsigned char *)buf;
 	fp->_bf._size = size;
 	fp->_lbfsize = 0;
+	if (flags & __SWR)
+		__swsetup(fp);
+	else
+		fp->_w = 0;
 	__cleanup = _cleanup;
 
 	return (ret);

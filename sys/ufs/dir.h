@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1982, 1986, 1989 The Regents of the University of California.
  * All rights reserved.
  *
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dir.h	7.10 (Berkeley) 3/25/91
- *	$Id: dir.h,v 1.2 1993/10/16 18:17:37 rgrimes Exp $
+ *	$Id: dir.h,v 1.2.4.1 1994/05/04 07:59:08 rgrimes Exp $
  */
 
 #ifndef _DIR_H_

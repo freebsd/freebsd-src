@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1980, 1986, 1989 Regents of the University of California.
  * All rights reserved.
  *
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.c	7.20 (Berkeley) 6/27/91
- *	$Id: param.c,v 1.3 1993/10/16 16:31:57 rgrimes Exp $
+ *	$Id: param.c,v 1.9.2.1 1994/05/04 07:44:02 rgrimes Exp $
  */
 
 #include "sys/param.h"
@@ -49,6 +56,12 @@
 #include "machine/vmparam.h"
 #include "sys/shm.h"
 #endif
+#ifdef SYSVSEM
+#include "sys/sem.h"
+#endif
+#ifdef SYSVMSG
+#include "sys/msg.h"
+#endif
 
 /*
  * System parameter formulae.
@@ -65,12 +78,17 @@
 #endif
 int	hz = HZ;
 int	tick = 1000000 / HZ;
+#ifndef TICKADJ
 int	tickadj = 240000 / (60 * HZ);		/* can adjust 240ms in 60s */
+#else
+int     tickadj = TICKADJ;      /* NTP users may prefer a smaller value */
+#endif
 struct	timezone tz = { TIMEZONE, DST };
 #define	NPROC (20 + 16 * MAXUSERS)
 int	maxproc = NPROC;
-#define	NTEXT (80 + NPROC / 8)			/* actually the object cache */
-#define	NVNODE (NPROC + NTEXT + 100)
+#define	NTEXT NPROC		/* actually the object cache */
+int	vm_cache_max = NTEXT / 2 + 16;
+#define	NVNODE (NPROC + NTEXT + 100 + 16)
 long	desiredvnodes = NVNODE;
 int	maxfdescs = MAXFDESCS;
 int	maxfiles = 3 * (NPROC + MAXUSERS) + 80;
@@ -95,6 +113,43 @@ struct	shminfo shminfo = {
 	SHMMNI,
 	SHMSEG,
 	SHMALL
+};
+#endif
+
+/*
+ * Values in support of System V compatible semaphores.
+ */
+
+#ifdef SYSVSEM
+
+struct seminfo seminfo = {
+                SEMMAP,         /* # of entries in semaphore map */
+                SEMMNI,         /* # of semaphore identifiers */
+                SEMMNS,         /* # of semaphores in system */
+                SEMMNU,         /* # of undo structures in system */
+                SEMMSL,         /* max # of semaphores per id */
+                SEMOPM,         /* max # of operations per semop call */
+                SEMUME,         /* max # of undo entries per process */
+                SEMUSZ,         /* size in bytes of undo structure */
+                SEMVMX,         /* semaphore maximum value */
+                SEMAEM          /* adjust on exit max value */
+};
+#endif
+
+/*
+ * Values in support of System V compatible messages.
+ */
+
+#ifdef SYSVMSG
+
+struct msginfo msginfo = {
+                MSGMAX,         /* max chars in a message */
+                MSGMNI,         /* # of message queue identifiers */
+                MSGMNB,         /* max chars in a queue */
+                MSGTQL,         /* max messages in system */
+                MSGSSZ,         /* size of a message segment */
+                		/* (must be small power of 2 greater than 4) */
+                MSGSEG          /* number of message segments */
 };
 #endif
 
@@ -138,3 +193,28 @@ char	*buffers;
 struct	proc *pidhash[PIDHSZ];
 struct	pgrp *pgrphash[PIDHSZ];
 int	pidhashmask = PIDHSZ - 1;
+
+/* From kernel.h: */
+long hostid;
+char hostname[MAXHOSTNAMELEN];
+int hostnamelen;
+char domainname[MAXHOSTNAMELEN];
+int domainnamelen;
+
+struct timeval boottime;
+struct timeval time;
+
+int phz;
+int lbolt;
+
+fixpt_t avenrunnable[3];
+#if defined(COMPAT_43) && (defined(vax) || defined(tahoe))
+double	avenrun[3];
+#endif /* COMPAT_43 */
+
+#ifdef GPROF
+u_long s_textsize;
+int profiling;
+u_short *kcount;
+char *s_lowpc;
+#endif

@@ -55,7 +55,7 @@ function obtains information about the file pointed to by
 .Fa path .
 Read, write or execute
 permission of the named file is not required, but all directories
-listed in the path name leading to the file must be seachable.
+listed in the path name leading to the file must be searchable.
 .Pp
 .Fn Lstat
 is like
@@ -91,7 +91,7 @@ struct stat {
     dev_t    st_dev;    /* device inode resides on */
     ino_t    st_ino;    /* inode's number */
     mode_t   st_mode;   /* inode protection mode */
-    nlink_t  st_nlink;  /* number or hard links to the file */
+    nlink_t  st_nlink;  /* number of hard links to the file */
     uid_t    st_uid;    /* user-id of owner */
     gid_t    st_gid;    /* group-id of owner */
     dev_t    st_rdev;   /* device type, for special file inode */

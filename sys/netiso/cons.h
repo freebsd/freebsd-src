@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.3 (Berkeley) 5/6/91
- *	$Id: cons.h,v 1.2 1993/10/16 21:05:02 rgrimes Exp $
+ *	$Id: cons.h,v 1.3 1993/11/07 17:49:29 wollman Exp $
  */
 
 /***********************************************************
@@ -61,6 +61,9 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 
+#ifndef _NETISO_CONS_H_
+#define _NETISO_CONS_H_ 1
+
 /*
  * interface between TP and CONS
  */
@@ -88,4 +91,5 @@ struct dte_addr {
 
 #define PRC_CONS_SEND_DONE 2 /* something unused in protosw.h */
 
-#endif	KERNEL
+#endif	/* KERNEL */
+#endif /* _NETISO_CONS_H_ */

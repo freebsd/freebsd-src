@@ -1,0 +1,2 @@
+# $Id: timed.flags,v 1.1 1993/11/12 00:00:06 wollman Exp $
+# This file contains the flags passed to timed at start-up time, if enabled.

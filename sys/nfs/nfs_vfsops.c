@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_vfsops.c	7.31 (Berkeley) 5/6/91
- *	$Id: nfs_vfsops.c,v 1.2 1993/09/09 22:06:11 rgrimes Exp $
+ *	$Id: nfs_vfsops.c,v 1.4 1994/01/16 20:10:01 martin Exp $
  */
 
 #include "param.h"
@@ -50,6 +50,7 @@
 #include "socket.h"
 #include "socketvar.h"
 #include "systm.h"
+#include "kernel.h"
 
 #include "../net/if.h"
 #include "../net/route.h"
@@ -62,6 +63,9 @@
 #include "xdr_subs.h"
 #include "nfsm_subs.h"
 #include "nfsdiskless.h"
+
+static int mountnfs(struct nfs_args *, struct mount *, struct mbuf *,
+		    char *, char *, struct vnode **);
 
 /*
  * nfs vfs operations.
@@ -271,9 +275,7 @@ nfs_mountroot()
 	mp->mnt_vnodecovered = NULLVP;
 	vfs_unlock(mp);
 	rootvp = vp;
-#ifndef __386BSD__
 	inittodr((time_t)0);	/* There is no time in the nfs fsstat so ?? */
-#endif
 	return (0);
 }
 
@@ -327,7 +329,7 @@ nfs_mount(mp, path, data, ndp, p)
 /*
  * Common code for mount and mountroot
  */
-int
+static int
 mountnfs(argp, mp, nam, pth, hst, vpp)
 	register struct nfs_args *argp;
 	register struct mount *mp;

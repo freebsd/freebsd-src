@@ -199,6 +199,7 @@ monthly(month, year)
 		for (col = 0, p = lineout; col < 7; col++,
 		    p += julian ? J_DAY_LEN : DAY_LEN)
 			ascii_day(p, days[row * 7 + col]);
+		*p = 0;
 		trim_trailing_spaces(lineout);
 		(void)printf("%s\n", lineout);
 	}

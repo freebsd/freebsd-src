@@ -1,0 +1,164 @@
+.\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
+.\"
+.\"	$Header: /home/cvs/386BSD/src/libexec/bootpd/bootpd.8,v 1.1.2.1 1994/05/01 16:06:34 jkh Exp $
+.\"
+.TH BOOTPD 8 "November 11, 1991" "Carnegie Mellon University"
+.UC 6
+
+.SH NAME
+bootpd \- Internet Boot Protocol server
+.SH SYNOPSIS
+.B /usr/libexec/bootpd
+[
+.B \-i
+.B \-s
+.B \-t
+timeout
+.B \-d
+level
+]
+[
+.I configfile
+[
+.I dumpfile
+] ]
+.SH DESCRIPTION
+.I Bootpd
+implements an Internet Bootstrap Protocol server as defined in RFC951,
+RFC1048, and RFC1084.  It is normally run by
+.I /usr/sbin/inetd
+by including the following line in the file
+.IR /etc/inetd.conf :
+.PP
+.br
+	bootps	dgram	udp	wait	root	/usr/libexec/bootpd	bootpd
+.PP
+This mode of operation is referred to as "inetd mode" and causes
+.I bootpd
+to be started only when a boot request arrives.  If
+.I bootpd
+does not receive another boot request within fifteen minutes of the last one
+it received, it will exit to conserve system resources.  The
+.B \-t
+switch may be used to specify a different timeout value in minutes (e.g.
+-t 20).  A timeout value of zero means forever.
+.PP
+It is also possible to run
+.I bootpd
+in "standalone mode" (without
+.IR inetd )
+by simply invoking it from a shell like any other regular command.
+Standalone mode is probably the desired mode of operation for large network
+installations with many BOOTP clients.  (The greater the number of clients
+listed in the configuration database,
+.IR /etc/bootptab ,
+the longer it takes
+.I bootpd
+to start up.  To ensure quick response to clients in a large network,
+it is better to start
+.I bootpd
+once during the server machine's bootup sequence.  This can be done by invoking
+.I bootpd
+from within
+.IR /etc/rc.local ,
+for example.)
+. 
+In standalone mode, the
+.B \-t
+switch has no effect since
+.I bootpd
+will never exit.
+.PP
+The server automatically detects whether it was invoked from inetd or from a
+shell and automatically selects the appropriate mode.  For compatibility with
+older versions of
+.IR bootpd ,
+the
+.B \-s
+switch may be used to force standalone operation.  Similarly, the
+.B \-i
+switch may be used to force the inetd mode of operation.  Normally, though,
+it should be unnecessary to use these switches.
+.PP
+The
+.B \-d
+switch takes a numeric parameter which sets the level of debugging output.
+For example, -d4 or -d 4 will set the debugging level to 4.
+For compatibility with older versions of
+.IR bootpd ,
+omitting the numeric parameter (i.e. just -d) will
+simply increment the debug level by one.
+.PP
+Upon startup,
+.I bootpd
+first reads its configuration file,
+.IR /etc/bootptab ,
+and then begins listening for BOOTREQUEST packets.
+.PP
+.I Bootpd
+looks in
+.I /etc/services
+to find the UDP port numbers it should use.  Two entries are extracted:
+.BR bootps ,
+the bootp server listening port, and
+.BR bootpc ,
+the destination port used to reply to clients.  If the port numbers cannot
+be determined this way,
+.I bootpd
+defaults to using 67 for the server and 68 for the client.
+.PP
+.I Bootpd
+completely reloads its configuration file when it receives a hangup signal,
+SIGHUP, or when it receives a BOOTREQUEST packet and detects that the file
+has been updated.  If
+.I bootpd
+is compiled with the -DDEBUG option, receipt of a SIGUSR1 signal causes it
+to dump its memory-resident database to
+the file
+.I /etc/bootpd.dump
+or the command-line-specified dumpfile.
+
+.SH FILES
+/etc/bootptab
+.br
+/etc/bootpd.dump
+.br
+/etc/services
+
+.SH BUGS
+Individual host entries must not exceed 1024 characters.
+
+.SH HISTORY
+.TP
+22-Jan-86  Bill Croft at Stanford University
+.br
+Created.
+
+.TP
+30-Jul-86  David Kovar at Carnegie Mellon University
+.br
+Modified to CMU specifications.
+
+.TP
+24-Jul-87  Drew D. Perkins at Carnegie Mellon University
+.br
+Modified to use syslog.  Added debugging dumps.  Other bug fixes.
+
+.TP
+17-Jul-88  Walter L. Wimer at Carnegie Mellon University
+.br
+Added vendor information to conform to RFC1048.
+Adopted termcap-like file format to allow variable data.
+
+.TP
+11-Nov-91  Walter L. Wimer at Carnegie Mellon University
+.br
+Added TFTP directory- and server-specification features.  Added automatic
+detection of inetd/standalone mode, making -s switch no longer necessary.
+Other minor improvements and bug fixes.
+
+.SH "SEE ALSO"
+.br
+bootptab(5), inetd(8), tftpd(8),
+.br
+DARPA Internet Request For Comments RFC951, RFC1048, RFC1084, Assigned Numbers

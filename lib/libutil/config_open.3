@@ -1,0 +1,103 @@
+.\" Copyright (c) 1994 Christoph M. Robitschko
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christoph M. Robitschko
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software withough specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$Id: config_open.3,v 1.2 1994/02/23 09:56:39 rgrimes Exp $
+.\"
+.Dd January 28, 1994
+.Dt config_open 3
+.Os FreeBSD
+.Sh NAME
+.Nm config_open ,
+.Nm config_close ,
+.Nm config_next ,
+.Nm config_skip
+.Nd read config files
+.Sh SYNOPSIS
+.Ft char *
+.Fn config_open "const char *filename" "int contlines"
+.Ft void
+.Fn config_close
+.Ft char *
+.Fn config_next
+.Ft char *
+.Fn config_skip "char **string"
+.Sh DESCRIPTION
+These functions are used to read config files with the following syntax:
+.Bl -bullet -compact
+.It
+Lines starting in
+.Sq #
+are comments.
+.It
+An entry starts with the first 
+.Sq !isspace()
+character found.
+.It
+If continuation-lines are enabled, an entry ends before the first
+empty line or before the first line not starting in an
+.Sq isspace()
+character, whichever comes first.
+.It
+Otherwise, an entry ends at the first
+.Sq Li \en
+.Li .
+.El
+.Pp
+.Fn config_open
+will open the specified
+.Fa filename
+and read it into a private malloced area, and close the file again. If
+.Fa contlines
+is non-zero, continuation lines will be allowed.
+In case of trouble, the name of the system-call causing the trouble will
+be returned. If successful,
+.Fn config_open
+returns NULL.
+.Pp
+.Fn config_close
+will free the malloced area.
+.Pp
+.Fn config_next
+returns the next entry in the area. NULL is returned to indicate End-of-file.
+The returned string is null-terminated, and
+.Sq \en
+characters (if continuation lines are enabled) are converted to
+space characters.
+.Pp
+.Fn config_skip
+returns the next word from the string
+.Fa *string
+.Li .
+.Fa *string
+will be advanced to point to the next word.
+NULL is returned to indicate the end of the string.
+.Sh FILES
+.Pa /usr/lib/libutil.a
+The name of the library these functions are part of.
+.Sh AUTHOR
+Poul-Henning Kamp <phk@login.dkuug.dk>

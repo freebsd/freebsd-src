@@ -133,7 +133,7 @@ struct nlist nl[] = {
 #define X_UBDINIT	(X_END+2)
 	{ "_ubdinit" },
 #endif
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 #define	X_FREE		(X_END+1)
 	{ "_vm_page_free_count" },
 #define	X_ACTIVE	(X_END+2)
@@ -146,7 +146,7 @@ struct nlist nl[] = {
 	{ "_page_size" },
 #define	X_ISA_BIO	(X_END+6)
 	{ "_isa_devtab_bio" },
-#endif /* __386BSD__ */
+#endif /* __FreeBSD__ */
 	{ "" },
 };
 
@@ -160,7 +160,7 @@ struct	vmmeter sum, osum;
 char	*vmunix = _PATH_UNIX;
 char	**dr_name;
 int	*dr_select, dk_ndrive, ndrives;
-#ifdef __386BSD__
+#ifdef __FreeBSD__
       /* to make up for statistics that don't get updated */
 int	size, free_count, active_count, inactive, wired; 
 #endif
@@ -370,7 +370,7 @@ getdrivedata(argv)
 	return(argv);
 }
 
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 /* 
  * Make up for the fact that under 0.1, VM doesn't update all of the
  * fields in the statistics structures.
@@ -438,7 +438,7 @@ dovmstat(interval, reps)
 		kread(X_SUM, &sum, sizeof(sum));
 		kread(X_TOTAL, &total, sizeof(total));
 		kread(X_VMSTAT, &vm_stat, sizeof(vm_stat));
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 		fill_in_vm_stat (&vm_stat);
 #endif
 #ifdef notdef
@@ -449,7 +449,7 @@ dovmstat(interval, reps)
 #define pgtok(a) ((a)*NBPG >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
 		(void)printf("%5ld %5ld ",
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 		    pgtok(vm_stat.active_count), pgtok(vm_stat.free_count));
 #else
 		    pgtok(total.t_avm), pgtok(total.t_free));
@@ -550,15 +550,16 @@ dotimes()
 }
 #endif
 
+int
 pct(top, bot)
-	long top, bot;
+	u_long top, bot;
 {
 	if (bot == 0)
 		return(0);
-	return((top * 100) / bot);
+	return (int)((100.0 * top) / bot);
 }
 
-#define	PCT(top, bot) pct((long)(top), (long)(bot))
+#define	PCT(top, bot) pct((u_long)(top), (u_long)(bot))
 
 #if defined(tahoe)
 #include <machine/cpu.h>
@@ -579,7 +580,7 @@ dosum()
 	kread(X_SUM, &sum, sizeof(sum));
 #ifdef NEWVM
 	kread(X_VMSTAT, &vm_stat, sizeof(vm_stat));
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 	fill_in_vm_stat(&vm_stat);
 #endif
 #else
@@ -807,11 +808,11 @@ domem()
 	kread(X_KMEMSTAT, kmemstats, sizeof(kmemstats));
 	(void)printf("\nMemory statistics by type\n");
 	(void)printf(
-"       Type  In Use   MemUse   HighUse  Limit Requests  TypeLimit KernLimit\n");
+"        Type  In Use   MemUse   HighUse  Limit Requests  TypeLimit KernLimit\n");
 	for (i = 0, ks = &kmemstats[0]; i < M_LAST; i++, ks++) {
 		if (ks->ks_calls == 0)
 			continue;
-		(void)printf("%11s %7ld %7ldK %8ldK %5ldK %8ld %6u %9u\n",
+		(void)printf("%12s %7ld %7ldK %8ldK %5ldK %8ld %6u %9u\n",
 		    kmemnames[i] ? kmemnames[i] : "undefined",
 		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
 		    (ks->ks_maxused + 1023) / 1024,

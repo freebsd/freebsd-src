@@ -1,26 +1,16 @@
-Return-Path: mmuegel@cssmp.corp.mot.com
-Received: from hofmann.CS.Berkeley.EDU by auspex.Berkeley.EDU (ALPHA-6.30/6.9) id AA02096; Sun, 11 Apr 1993 19:50:02 -0700
-Received: from motgate.mot.com by hofmann.CS.Berkeley.EDU (ALPHA-6.35/6.16) id AA14977; Sun, 11 Apr 1993 19:49:57 -0700
-Received: from pobox.mot.com ([129.188.137.100]) by motgate.mot.com with SMTP (5.65c/IDA-1.4.4/MOT-2.13 for <eric@cs.berkeley.edu>)
-          id AA05603; Sun, 11 Apr 1993 21:49:54 -0500
-Received: from cssmp.corp.mot.com by pobox.mot.com with SMTP (5.65c/IDA-1.4.4/MOT-2.12 for <eric@cs.berkeley.edu>)
-          id AA08281; Sun, 11 Apr 1993 21:49:51 -0500
-Received: by cssmp.corp.mot.com (5.65c/IDA-1.4.4/MOT-2.12 for eric@cs.berkeley.edu)
-          id AA02812; Sun, 11 Apr 1993 21:49:48 -0500
-From: "Michael S. Muegel" <mmuegel@cssmp.corp.mot.com>
-Message-Id: <199304120249.AA02812@cssmp.corp.mot.com>
-Subject: Sendmail tools README
+From: "Michael S. Muegel" <mmuegel@cssun6.corp.mot.com>
+Message-Id: <199307280818.AA08111@cssun6.corp.mot.com>
+Subject: Re: contributed software
 To: eric@cs.berkeley.edu (Eric Allman)
-Date: Sun, 11 Apr 1993 21:49:48 -0500 (CDT)
-Cc: costales@icsi.berkeley.edu (Bryan Costales)
-X-Mailer: ELM [version 2.4 PL17]
+Date: Wed, 28 Jul 1993 03:18:02 -0500 (CDT)
+In-Reply-To: <199307221853.LAA04266@mastodon.CS.Berkeley.EDU> from "Eric Allman" at Jul 22, 93 11:53:47 am
+X-Mailer: ELM [version 2.4 PL22]
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Length: 67910     
+Content-Length: 69132     
 
-
-As promised, here is a new distribution with a decent README.
+OK. Here is a new shell archive.
 
 Cheers,
 -Mike
@@ -31,26 +21,26 @@ Cheers,
 # To extract the files from this archive, save it to a file, remove
 # everything above the "!/bin/sh" line above, and type "sh file_name".
 #
-# made 04/12/1993 02:34 UTC by mmuegel@mot.com (Michael S. Muegel)
-# Source directory /usr/var/rtmp/shar2336
+# made 07/28/1993 08:13 UTC by mmuegel@mot.com (Michael S. Muegel)
+# Source directory /home/ustart/NeXT/src/mail-tools/dist/foo
 #
 # existing files will NOT be overwritten unless -c is specified
 #
 # This shar contains:
 # length  mode       name
 # ------ ---------- ------------------------------------------
-#   4367 -r--r--r-- README
-#  11619 -r--r--r-- libs/date.pl
-#   3243 -r--r--r-- libs/elapsed.pl
-#   4379 -r--r--r-- libs/mail.pl
-#   6953 -r--r--r-- libs/mqueue.pl
-#   7030 -r--r--r-- libs/newgetopts.pl
-#   4718 -r--r--r-- libs/strings1.pl
-#   1637 -r--r--r-- libs/timespec.pl
-#   5229 -r--r--r-- man/cqueue.1
-#   2097 -r--r--r-- man/postclip.1
-#   6702 -r-xr-xr-x src/cqueue
-#   1900 -r-xr-xr-x src/postclip
+#   4308 -r--r--r-- README
+#  12339 -r--r--r-- libs/date.pl
+#   3198 -r--r--r-- libs/elapsed.pl
+#   4356 -r--r--r-- libs/mail.pl
+#   6908 -r--r--r-- libs/mqueue.pl
+#   7024 -r--r--r-- libs/newgetopts.pl
+#   4687 -r--r--r-- libs/strings1.pl
+#   1609 -r--r--r-- libs/timespec.pl
+#   5212 -r--r--r-- man/cqueue.1
+#   2078 -r--r--r-- man/postclip.1
+#   6647 -r-xr-xr-x src/cqueue
+#   1836 -r-xr-xr-x src/postclip
 #
 # ============= README ==============
 if test -f 'README' -a X"$1" != X"-c"; then
@@ -60,9 +50,9 @@ echo 'x - extracting README (Text)'
 sed 's/^X//' << 'SHAR_EOF' > 'README' &&
 -------------------------------------------------------------------------------
 Document Revision Control Information:
-X   $Author: nate $
-X   $Source: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v $
-X   $Revision: 1.2 $ of $Date: 1993/07/30 17:20:45 $
+X   mmuegel
+X   /usr/local/ustart/src/mail-tools/dist/foo/README,v
+X   1.1 of 1993/07/28 08:12:53
 -------------------------------------------------------------------------------
 X
 1. Introduction
@@ -154,8 +144,8 @@ SHAR_EOF
 chmod 0444 README ||
 echo 'restore of README failed'
 Wc_c="`wc -c < 'README'`"
-test 4367 -eq "$Wc_c" ||
-	echo 'README: original size 4367, current size' "$Wc_c"
+test 4308 -eq "$Wc_c" ||
+	echo 'README: original size 4308, current size' "$Wc_c"
 fi
 # ============= libs/date.pl ==============
 if test ! -d 'libs'; then
@@ -202,7 +192,7 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/date.pl' &&
 ;#		%m		month of year - 01 to 12
 ;#		%M		minute - 00 to 59
 ;#		%n		insert a newline character
-;#		%p		AM or PM
+;#		%p		ante-meridiem or post-meridiem indicator (AM or PM)
 ;#		%r		time in AM/PM notation
 ;#		%R		time as HH:MM
 ;#		%S		second - 00 to 59
@@ -228,7 +218,7 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/date.pl' &&
 ;#	specificaiton is removed if present.
 ;#
 ;# Remarks
-;#	This is version 3.3 of date.pl
+;#	This is version 3.4 of date.pl
 ;#
 ;#	An extension of `ctime.pl' by Waldemar Kebsch (kebsch.pad@nixpbe.UUCP),
 ;#	as modified by Marion Hakanson (hakanson@ogicse.ogi.edu).
@@ -249,12 +239,12 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/date.pl' &&
 ;#	the Perl 4.0 release.  See the COPYING file in your Perl kit for
 ;#	more information.
 ;#
-;#	Please send any bug reports or comments to tmcgonigal@gvc.com
+;#	Please send any bug reports or comments to tmcgonigal@gallium.com
 ;#
 ;# Modification History
 ;#	Nmemonic	Version	Date		Who
 ;#
-;#	NONE		1.0		02feb91		Terry McGonigal (tmcgonigal@gvc.com)
+;#	NONE		1.0		02feb91		Terry McGonigal (tmcgonigal@gallium.com)
 ;#		Created from ctime.pl
 ;#
 ;#	NONE		2.0		07feb91		tmcgonigal
@@ -298,12 +288,23 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/date.pl' &&
 ;#		this is the behaviour you were looking for, it seems more
 ;#		correct to me...
 ;#
+;#	NONE		3.4		26jul93		tmcgonigal
+;#		Incorporated some fixes provided by DaviD W. Sanderson
+;#		(dws@ssec.wisc.edu): February was spelled incorrectly and
+;#		&wkno() was always using the current year while calculating
+;#		week numbers, regardless of year implied by the time value
+;#		passed to &date().  DaviD also contributed an improved &date()
+;#		test script, thanks DaviD, I appreciate the effort.  Finally,
+;#		changed my mailling address from @gvc.com to @gallium.com
+;#		to reflect, well, my new address!
+;#
 ;# SccsId = "%W% %E%"
 ;#
+require 'timelocal.pl';
 package date;
 X
 # Months of the year
-@MoY = ('January',	'Febuary',	'March',	'April',	'May',		'June',
+@MoY = ('January',	'February',	'March',	'April',	'May',		'June',
 X		'July',		'August',	'September','October',	'November', 'December');
 X
 # days of the week
@@ -356,10 +357,10 @@ X		  '%S', q|$rep = &date'pad($sec, 2, "0")|,			# second - 00 to 59
 X		  '%t',	q|$rep = "\t"|,								# insert a tab
 X		  '%T',	q|$rep = '%H:%M:%S'|,						# time as HH:MM:SS
 X		  '%u', q|$rep = '%y%m%d%H%M.%S'|,					# daaate/time in date(1) required format
-X		  '%U',	q|$rep = &date'wkno($yday, 0)|,				# week number (weeks start on Sun) - 00 to 53
+X		  '%U',	q|$rep = &date'wkno($year, $yday, 0)|,		# week number (weeks start on Sun) - 00 to 53
 X		  '%V', q|$rep = '%m%d%H%M%y'|,						# SysV touch(1) date-time format (mmddHHMMyy)
 X		  '%w', q|$rep = $wday; 1|,							# day of week - Sunday = 0
-X		  '%W', q|$rep = &date'wkno($yday, 1)|,				# week number (weeks start on Mon) - 00 to 53
+X		  '%W', q|$rep = &date'wkno($year, $yday, 1)|,		# week number (weeks start on Mon) - 00 to 53
 X		  '%x', q|$rep = $locDF; 1|,						# date in local format
 X		  '%X', q|$rep = $locTF; 1|,						# time in local format
 X		  '%y', q|($rep = $year) =~ s/..(..)/\1/|,			# last 2 digits of year - 00 to 99
@@ -409,7 +410,7 @@ X		if (defined $Tags{$tag}) {
 X
 X			# trap dead evals...
 X			if (! eval $Tags{$tag}) {
-X				print STDERR "date.pl: internal error: eval for $tag failed.\n";
+X				print STDERR "date.pl: internal error: eval for $tag failed: $@\n";
 X				return "";
 X			}
 X		} else {
@@ -436,12 +437,11 @@ X	return $mday . 'th';
 X	
 # weekno - figure out week number
 sub wkno {
-X	local ($yday, $firstweekday) = @_;   
+X	local ($year, $yday, $firstweekday) = @_;   
 X	local ($jan1, @jan1, $wks);
-X	local ($now) = time;
 X
-X	# figure out the `time' value for January 1
-X	$jan1 = $now - ((&gettime ($TZ, $now))[7] * 86400);		# 86400 sec/day
+X	# figure out the `time' value for January 1 of the given year
+X	$jan1 = &maketime ($TZ, 0, 0, 0, 1, 0, $year-1900);
 X
 X	# figure out what day of the week January 1 was
 X	@jan1= &gettime ($TZ, $jan1);
@@ -463,6 +463,9 @@ X
 # gettime - get the time via {local,gmt}time
 sub gettime { ((shift @_) eq 'GMT') ? gmtime(shift @_) : localtime(shift @_); }
 X
+# maketime - make a time via time{local,gmt}
+sub maketime { ((shift @_) eq 'GMT') ? &main'timegm(@_) : &main'timelocal(@_); }
+X
 # ls - generate the time/year portion of an ls(1) style date
 sub ls {
 X	return ((&gettime ($TZ, time))[5] == @_[0]) ? "%R" : " %Y";
@@ -482,8 +485,8 @@ SHAR_EOF
 chmod 0444 libs/date.pl ||
 echo 'restore of libs/date.pl failed'
 Wc_c="`wc -c < 'libs/date.pl'`"
-test 11619 -eq "$Wc_c" ||
-	echo 'libs/date.pl: original size 11619, current size' "$Wc_c"
+test 12339 -eq "$Wc_c" ||
+	echo 'libs/date.pl: original size 12339, current size' "$Wc_c"
 fi
 # ============= libs/elapsed.pl ==============
 if test -f 'libs/elapsed.pl' -a X"$1" != X"-c"; then
@@ -498,9 +501,9 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/elapsed.pl' &&
 ;#    Michael S. Muegel <mmuegel@mot.com>
 ;#
 ;# RCS INFORMATION
-;#    $Author: nate $
-;#    $Source: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v $
-;#    $Revision: 1.2 $ of $Date: 1993/07/30 17:20:45 $
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/elapsed.pl,v
+;#    1.1 of 1993/07/28 08:07:19
 X
 package elapsed;
 X
@@ -618,8 +621,8 @@ SHAR_EOF
 chmod 0444 libs/elapsed.pl ||
 echo 'restore of libs/elapsed.pl failed'
 Wc_c="`wc -c < 'libs/elapsed.pl'`"
-test 3243 -eq "$Wc_c" ||
-	echo 'libs/elapsed.pl: original size 3243, current size' "$Wc_c"
+test 3198 -eq "$Wc_c" ||
+	echo 'libs/elapsed.pl: original size 3198, current size' "$Wc_c"
 fi
 # ============= libs/mail.pl ==============
 if test -f 'libs/mail.pl' -a X"$1" != X"-c"; then
@@ -634,8 +637,8 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/mail.pl' &&
 ;#    Michael S. Muegel (mmuegel@mot.com)
 ;#
 ;# RCS INFORMATION
-;#    $Author: nate $
-;#    $Header: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v 1.2 1993/07/30 17:20:45 nate Exp $
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/mail.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
 X
 package mail;
 X
@@ -771,8 +774,8 @@ SHAR_EOF
 chmod 0444 libs/mail.pl ||
 echo 'restore of libs/mail.pl failed'
 Wc_c="`wc -c < 'libs/mail.pl'`"
-test 4379 -eq "$Wc_c" ||
-	echo 'libs/mail.pl: original size 4379, current size' "$Wc_c"
+test 4356 -eq "$Wc_c" ||
+	echo 'libs/mail.pl: original size 4356, current size' "$Wc_c"
 fi
 # ============= libs/mqueue.pl ==============
 if test -f 'libs/mqueue.pl' -a X"$1" != X"-c"; then
@@ -792,9 +795,9 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/mqueue.pl' &&
 ;#    Michael S. Muegel (mmuegel@mot.com)  
 ;#
 ;# RCS INFORMATION
-;#    $Author: nate $
-;#    $Source: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v $
-;#    $Revision: 1.2 $ of $Date: 1993/07/30 17:20:45 $
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/mqueue.pl,v
+;#    1.1 of 1993/07/28 08:07:19
 X
 package mqueue;
 X
@@ -999,8 +1002,8 @@ SHAR_EOF
 chmod 0444 libs/mqueue.pl ||
 echo 'restore of libs/mqueue.pl failed'
 Wc_c="`wc -c < 'libs/mqueue.pl'`"
-test 6953 -eq "$Wc_c" ||
-	echo 'libs/mqueue.pl: original size 6953, current size' "$Wc_c"
+test 6908 -eq "$Wc_c" ||
+	echo 'libs/mqueue.pl: original size 6908, current size' "$Wc_c"
 fi
 # ============= libs/newgetopts.pl ==============
 if test -f 'libs/newgetopts.pl' -a X"$1" != X"-c"; then
@@ -1015,8 +1018,8 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/newgetopts.pl' &&
 ;# AUTHOR
 ;#    Mike Muegel (mmuegel@mot.com)
 ;#
-;# $Author: nate $
-;# $Header: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v 1.2 1993/07/30 17:20:45 nate Exp $
+;# mmuegel
+;# /usr/local/ustart/src/mail-tools/dist/foo/libs/newgetopts.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
 X
 ;###############################################################################
 ;# New_Getopts
@@ -1225,8 +1228,8 @@ SHAR_EOF
 chmod 0444 libs/newgetopts.pl ||
 echo 'restore of libs/newgetopts.pl failed'
 Wc_c="`wc -c < 'libs/newgetopts.pl'`"
-test 7030 -eq "$Wc_c" ||
-	echo 'libs/newgetopts.pl: original size 7030, current size' "$Wc_c"
+test 7024 -eq "$Wc_c" ||
+	echo 'libs/newgetopts.pl: original size 7024, current size' "$Wc_c"
 fi
 # ============= libs/strings1.pl ==============
 if test -f 'libs/strings1.pl' -a X"$1" != X"-c"; then
@@ -1245,8 +1248,8 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/strings1.pl' &&
 ;#    Michael S. Muegel (mmuegel@mot.com)
 ;#
 ;# RCS INFORMATION
-;#    $Author: nate $
-;#    $Header: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v 1.2 1993/07/30 17:20:45 nate Exp $
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/strings1.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
 X
 package strings1;
 X
@@ -1385,8 +1388,8 @@ SHAR_EOF
 chmod 0444 libs/strings1.pl ||
 echo 'restore of libs/strings1.pl failed'
 Wc_c="`wc -c < 'libs/strings1.pl'`"
-test 4718 -eq "$Wc_c" ||
-	echo 'libs/strings1.pl: original size 4718, current size' "$Wc_c"
+test 4687 -eq "$Wc_c" ||
+	echo 'libs/strings1.pl: original size 4687, current size' "$Wc_c"
 fi
 # ============= libs/timespec.pl ==============
 if test -f 'libs/timespec.pl' -a X"$1" != X"-c"; then
@@ -1401,8 +1404,8 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/timespec.pl' &&
 ;#    Michael S. Muegel (mmuegel@mot.com)
 ;#
 ;# RCS INFORMATION
-;#    $Author: nate $
-;#    $Header: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v 1.2 1993/07/30 17:20:45 nate Exp $
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/timespec.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
 X
 package timespec;
 X
@@ -1458,8 +1461,8 @@ SHAR_EOF
 chmod 0444 libs/timespec.pl ||
 echo 'restore of libs/timespec.pl failed'
 Wc_c="`wc -c < 'libs/timespec.pl'`"
-test 1637 -eq "$Wc_c" ||
-	echo 'libs/timespec.pl: original size 1637, current size' "$Wc_c"
+test 1609 -eq "$Wc_c" ||
+	echo 'libs/timespec.pl: original size 1609, current size' "$Wc_c"
 fi
 # ============= man/cqueue.1 ==============
 if test ! -d 'man'; then
@@ -1473,8 +1476,8 @@ echo 'x - extracting man/cqueue.1 (Text)'
 sed 's/^X//' << 'SHAR_EOF' > 'man/cqueue.1' &&
 .TH CQUEUE 1L
 \"
-\" $Author: nate $
-\" $Header: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v 1.2 1993/07/30 17:20:45 nate Exp $
+\" mmuegel
+\" /usr/local/ustart/src/mail-tools/dist/foo/man/cqueue.1,v 1.1 1993/07/28 08:08:25 mmuegel Exp
 \"
 .ds mp \fBcqueue\fR
 .de IB
@@ -1641,8 +1644,8 @@ SHAR_EOF
 chmod 0444 man/cqueue.1 ||
 echo 'restore of man/cqueue.1 failed'
 Wc_c="`wc -c < 'man/cqueue.1'`"
-test 5229 -eq "$Wc_c" ||
-	echo 'man/cqueue.1: original size 5229, current size' "$Wc_c"
+test 5212 -eq "$Wc_c" ||
+	echo 'man/cqueue.1: original size 5212, current size' "$Wc_c"
 fi
 # ============= man/postclip.1 ==============
 if test -f 'man/postclip.1' -a X"$1" != X"-c"; then
@@ -1652,8 +1655,8 @@ echo 'x - extracting man/postclip.1 (Text)'
 sed 's/^X//' << 'SHAR_EOF' > 'man/postclip.1' &&
 .TH POSTCLIP 1L
 \"
-\" $Author: nate $
-\" $Header: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v 1.2 1993/07/30 17:20:45 nate Exp $
+\" mmuegel
+\" /usr/local/ustart/src/mail-tools/dist/foo/man/postclip.1,v 1.1 1993/07/28 08:08:25 mmuegel Exp
 \"
 .ds mp \fBpostclip\fR
 .SH NAME
@@ -1713,8 +1716,8 @@ SHAR_EOF
 chmod 0444 man/postclip.1 ||
 echo 'restore of man/postclip.1 failed'
 Wc_c="`wc -c < 'man/postclip.1'`"
-test 2097 -eq "$Wc_c" ||
-	echo 'man/postclip.1: original size 2097, current size' "$Wc_c"
+test 2078 -eq "$Wc_c" ||
+	echo 'man/postclip.1: original size 2078, current size' "$Wc_c"
 fi
 # ============= src/cqueue ==============
 if test ! -d 'src'; then
@@ -1738,8 +1741,8 @@ X
 #    Michael S. Muegel <mmuegel@mot.com>
 #
 # RCS INFORMATION
-#    $Author: nate $
-#    $Header: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v 1.2 1993/07/30 17:20:45 nate Exp $
+#    mmuegel
+#    /usr/local/ustart/src/mail-tools/dist/foo/src/cqueue,v 1.1 1993/07/28 08:09:02 mmuegel Exp
 X
 # So that date.pl does not yell (Domain/OS version does a ``)
 $ENV{'PATH'}    = "";
@@ -1763,7 +1766,7 @@ $DATE_FORMAT    = "%r %D";
 X
 # Constants that probably should not be changed
 $USAGE          = "Usage: $Script_Name [ -abdms ] [ -q queue-dir ] [ -t time ] [ -u user ] [ -w width ]\n";
-$VERSION        = "${Script_Name} by \$Author: nate $; \$Revision: 1.2 $ of \$Date: 1993/07/30 17:20:45 $";
+$VERSION        = "${Script_Name} by mmuegel; 1.1 of 1993/07/28 08:09:02";
 $SWITCHES       = "abdmst:u:q:w:";
 $SPLIT_EXPR	= '\s,\.@!%:';
 $ADDR_PART_EXPR	= '[^!@%]+';
@@ -1972,8 +1975,8 @@ SHAR_EOF
 chmod 0555 src/cqueue ||
 echo 'restore of src/cqueue failed'
 Wc_c="`wc -c < 'src/cqueue'`"
-test 6702 -eq "$Wc_c" ||
-	echo 'src/cqueue: original size 6702, current size' "$Wc_c"
+test 6647 -eq "$Wc_c" ||
+	echo 'src/cqueue: original size 6647, current size' "$Wc_c"
 fi
 # ============= src/postclip ==============
 if test -f 'src/postclip' -a X"$1" != X"-c"; then
@@ -1993,8 +1996,8 @@ X
 #    Michael S. Muegel <mmuegel@mot.com>
 #
 # RCS INFORMATION
-#    $Source: /a/cvs/386BSD/src/usr.sbin/sendmail/contrib/mmuegel,v $
-#    $Revision: 1.2 $ of $Date: 1993/07/30 17:20:45 $
+#    /usr/local/ustart/src/mail-tools/dist/foo/src/postclip,v
+#    1.1 of 1993/07/28 08:09:02
 X
 # We use this to send off the mail
 require "newgetopts.pl";
@@ -2005,7 +2008,7 @@ X
 X
 # Some famous constants
 $USAGE          = "Usage: $Script_Name [ -v ] [ to ... ]\n";
-$VERSION        = "${Script_Name} by \$Author: nate $; \$Revision: 1.2 $ of \$Date: 1993/07/30 17:20:45 $";
+$VERSION        = "${Script_Name} by mmuegel; 1.1 of 1993/07/28 08:09:02";
 $SWITCHES       = "v";
 X
 # Let getopts parse for switches
@@ -2059,8 +2062,8 @@ SHAR_EOF
 chmod 0555 src/postclip ||
 echo 'restore of src/postclip failed'
 Wc_c="`wc -c < 'src/postclip'`"
-test 1900 -eq "$Wc_c" ||
-	echo 'src/postclip: original size 1900, current size' "$Wc_c"
+test 1836 -eq "$Wc_c" ||
+	echo 'src/postclip: original size 1836, current size' "$Wc_c"
 fi
 exit 0
 
@@ -2071,3 +2074,6 @@ exit 0
 | Corporate Information Office         | Voice:              (708) 576-0507  |
 | Motorola                             | Fax:                (708) 576-4153  |
 +----------------------------------------------------------------------------+
+
+      "I'm disturbed, I'm depressed, I'm inadequate -- I've got it all!"
+	  -- George from _Seinfeld_

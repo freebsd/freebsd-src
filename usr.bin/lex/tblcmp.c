@@ -28,7 +28,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/usr.bin/lex/tblcmp.c,v 1.2 1993/06/29 03:27:20 nate Exp $ (LBL)";
+    "@(#) $Header: /home/cvs/386BSD/src/usr.bin/lex/tblcmp.c,v 1.2 1993/06/29 03:27:20 nate Exp $ (LBL)";
 #endif
 
 #include "flexdef.h"

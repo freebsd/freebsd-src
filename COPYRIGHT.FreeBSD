@@ -1,0 +1,118 @@
+This software contains software developed by the University of
+California, Berkeley, and its contributors; by the Free Software
+Foundation; by the University of Illinois; by the Massachusetts
+Institute of Technology; by the University of Vermont and State
+Agricultural College; by Carnegie Mellon University; and by a large
+number of contributors, whose names are listed in the notices below.
+
+Portions of this software are subject to one or more of the following
+copyright notices.  Please see the individual files for the terms and
+conditions.
+
+
+Copyright (C) 1980, 1983, 1986, 1988, 1990, 1991, Regents of the
+	University of California
+Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, Free
+	Software Foundation, Inc.
+Copyright (C) 1976, Board of Trustees of the University of Illinois
+Copyright (C) 1980, 1981, Ken Harrenstien
+Copyright (C) 1982, 1988, 1989, Walter Tichy
+Copyright (C) 1983, 1986, 1992, 1993, Eric P. Allman
+Copyright (C) 1983, Kenneth L. Greer
+Copyright (C) 1984, 1985, 1986, 1987, 1992, Sun Microsystems, Inc.
+Copyright (C) 1984, 1987, Stephen L. Moshier
+Copyright (C) 1984, 1989, 1990, Bob Corbett and Richard Stallman
+Copyright (C) 1984, University of British Columbia
+Copyright (C) 1985, 1986, Wayne A. Christopher
+Copyright (C) 1985, 1987, 1988, 1989, Adobe Systems, Inc.
+Copyright (C) 1985, Stichting Mathematisch Centrum
+Copyright (C) 1986, 1987, 1989, 1990, 1991, 1992, Ian F. Darwin
+Copyright (C) 1986, 1987, 1989, Frame Technology, Inc.
+Copyright (C) 1986, 1987, 1992, Daniel D. Lanciani
+Copyright (C) 1986, 1987, Ed James
+Copyright (C) 1986, Breslow
+Copyright (C) 1986, Gary S. Brown
+Copyright (C) 1986, Larry Wall
+Copyright (C) 1986, Noah Morgan
+Copyright (C) 1986, Stephen Satchell
+Copyright (C) 1987, 1988, 1989, 1990, 1991, 1992, Carnegie Mellon University
+Copyright (C) 1987, 1988, 1989, Sony Corp.
+Copyright (C) 1987, 1988, John Stanback
+Copyright (C) 1987, 1988, Ronald S. Karr and Landon Curt Noll
+Copyright (C) 1987, 1989, 1990, 1991, Massachusetts Institute of Technology
+Copyright (C) 1987, David C. Elliott.
+Copyright (C) 1987, IBM Corporation
+Copyright (C) 1987, Stuart Cracraft
+Copyright (C) 1987, United States Army
+Copyright (C) 1988, 1989, 1990, 1993, 1994, Paul A. Vixie
+Copyright (C) 1988, 1989, Adam de Boor
+Copyright (C) 1988, 1990, University of Utah
+Copyright (C) 1988, Julian Onions
+Copyright (C) 1988, Mark Nudleman
+Copyright (C) 1988, Rayan S. Zachariassen
+Copyright (C) 1989, 1990, 1991, 1992, 1993, Frank Kardel
+Copyright (C) 1989, 1990, 1991, 1992, 1993, William S. Jolitz
+Copyright (C) 1989, 1990, 1991, 1992, Brian Berliner
+Copyright (C) 1989, Berkeley Softworks
+Copyright (C) 1989, Dale Schumacher
+Copyright (C) 1989, Dave Taylor
+Copyright (C) 1989, Kenneth Almquist
+Copyright (C) 1989, Matthew Self
+Copyright (C) 1989, Robert V. Baron
+Copyright (C) 1990, 1991, 1992, 1993, AT&T Bell Laboratories and Bellcore
+Copyright (C) 1990, 1991, John W. Eaton
+Copyright (C) 1990, 1991, Paul Eggert
+Copyright (C) 1990, 1993, Andrew Moore
+Copyright (C) 1990, John Robert LoVerso
+Copyright (C) 1990, Open Software Foundation, Inc.
+Copyright (C) 1990, RSA Data Security, Inc.
+Copyright (C) 1991, 1992, 1993, 1994, Chris Provenzano
+Copyright (C) 1991, 1992, 1993, Ian Lance Taylor
+Copyright (C) 1991, 1992, Per Bothner
+Copyright (C) 1991, 1992, Per Cederqvist
+Copyright (C) 1991, Gregory M. Christy
+Copyright (C) 1991, Inge Wallin
+Copyright (C) 1991, Joseph Friedman
+Copyright (C) 1992, 1993, 1994, David L. Mills
+Copyright (C) 1992, 1993, Christopher G. Demetriou
+Copyright (C) 1992, 1993, Garrett A. Wollman
+Copyright (C) 1992, 1993, HD Associates
+Copyright (C) 1992, 1993, Holger Veit
+Copyright (C) 1992, 1993, Jean-Loup Gailly
+Copyright (C) 1992, 1993, Joerg Wunsch
+Copyright (C) 1992, 1993, John Brezak
+Copyright (C) 1992, 1993, Motorola, Inc.
+Copyright (C) 1992, 1993, Soeren Schmidt
+Copyright (C) 1992, 1993, Theo de Raadt
+Copyright (C) 1992, 1993, University of Vermont and State Agricultural College
+Copyright (C) 1992, Cygnus Support
+Copyright (C) 1992, Diomidis Spinellis
+Copyright (C) 1992, Henry Spencer
+Copyright (C) 1992, Jeff Polk
+Copyright (C) 1992, Terrence R. Lambert
+Copyright (C) 1992, University of Guelph
+Copyright (C) 1993, 1994, Andrew A. Chernov
+Copyright (C) 1993, 1994, David Greenman
+Copyright (C) 1993, 1994, John S. Dyson
+Copyright (C) 1993, Adam Glass
+Copyright (C) 1993, Atsushi Murai
+Copyright (C) 1993, Brian Moore
+Copyright (C) 1993, Daniel Boulet and RTMX Inc.
+Copyright (C) 1993, David Muir Sharnoff
+Copyright (C) 1993, David Parsons
+Copyright (C) 1993, Gary Clark II
+Copyright (C) 1993, Hannu Savolainen
+Copyright (C) 1993, Herb Peyerl
+Copyright (C) 1993, Herve Schauer Consultants
+Copyright (C) 1993, Julian Elischer
+Copyright (C) 1993, Julian Stacey
+Copyright (C) 1993, K. J. Dryllerakis
+Copyright (C) 1993, Martin Birgmeier
+Copyright (C) 1993, Paul Kranenburg
+Copyright (C) 1993, Paul Richards
+Copyright (C) 1993, Thomas Koenig
+Copyright (C) 1993, Winning Strategies, Inc.
+Copyright (C) 1994, Christoph M. Robitschko
+Copyright (C) 1994, University of Maryland
+
+$Id: COPYRIGHT.FreeBSD,v 1.2 1994/02/20 02:51:25 rgrimes Exp $

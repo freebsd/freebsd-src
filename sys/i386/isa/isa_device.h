@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.2 1993/10/16 13:45:59 rgrimes Exp $
+ *	$Id: isa_device.h,v 1.5 1994/01/04 20:06:30 nate Exp $
  */
+
+#ifndef _I386_ISA_ISA_DEVICE_H_
+#define _I386_ISA_ISA_DEVICE_H_ 1
 
 /*
  * ISA Bus Autoconfiguration
@@ -48,7 +51,7 @@ struct isa_device {
 	short	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
 	int	id_msize;	/* size of i/o memory */
-	int	(*id_intr)();	/* interrupt interface routine */
+	void	(*id_intr)();	/* interrupt interface routine */
 	int	id_unit;	/* unit number */
 	int	id_flags;	/* flags */
 	int	id_scsiid;	/* scsi id if needed */
@@ -69,6 +72,11 @@ struct isa_driver {
 };
 
 extern struct isa_device isa_devtab_bio[], isa_devtab_tty[], isa_devtab_net[],
-		isa_devtab_null[];
+		isa_devtab_null[], isa_biotab_wdc[], isa_biotab_fdc[];
 
 extern struct isa_device *find_isadev(/* table, driver, unit*/);
+
+extern void isa_dmastart(int, caddr_t, unsigned, unsigned);
+extern void isa_dmadone(int, caddr_t, int, int);
+
+#endif /* _I386_ISA_ISA_DEVICE_H_ */

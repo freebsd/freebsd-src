@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)msgs.c	5.8 (Berkeley) 2/4/91";
  * msgs - a user bulletin board program
  *
  * usage:
- *	msgs [fhlopq] [[-]number]	to read messages
+ *	msgs [fhlopqr] [[-]number]	to read messages
  *	msgs -s				to place messages
  *	msgs -c [-days]			to clean up the bulletin board
  *
@@ -145,6 +145,7 @@ bool	locomode = NO;
 bool	use_pager = NO;
 bool	clean = NO;
 bool	lastcmd = NO;
+bool	restricted = NO;
 jmp_buf	tstpbuf;
 
 main(argc, argv)
@@ -215,13 +216,17 @@ int argc; char *argv[];
 				qopt = YES;
 				break;
 
+			case 'r':		/* restricted */
+				restricted = YES;
+				break;
+
 			case 's':		/* sending TO msgs */
 				send_msg = YES;
 				break;
 
 			default:
 				fprintf(stderr,
-					"usage: msgs [fhlopq] [[-]number]\n");
+					"usage: msgs [fhlopqr] [[-]number]\n");
 				exit(1);
 			}
 		}
@@ -596,11 +601,16 @@ prmesg(length)
 int length;
 {
 	FILE *outf;
+	char *env_pager;
 
 	if (use_pager && length > Lpp) {
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
-		sprintf(cmdbuf, _PATH_PAGER, Lpp);
+		if ((env_pager = getenv("PAGER")) == NULL) {
+			sprintf(cmdbuf, _PATH_PAGER, Lpp);
+		} else {
+			strcpy(cmdbuf, env_pager);
+		}
 		outf = popen(cmdbuf, "w");
 		if (!outf)
 			outf = stdout;
@@ -714,7 +724,7 @@ char *prompt;
 	/*
 	 * Handle 'mail' and 'save' here.
 	 */
-	if ((inch = inbuf[0]) == 's' || inch == 'm') {
+	if (((inch = inbuf[0]) == 's' || inch == 'm') && !restricted) {
 		if (inbuf[1] == '-')
 			cmsg = prevmsg;
 		else if (isdigit(inbuf[1]))

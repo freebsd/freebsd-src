@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_meter.c	7.11 (Berkeley) 4/20/91
- *	$Id: vm_meter.c,v 1.2 1993/10/16 16:20:37 rgrimes Exp $
+ *	$Id: vm_meter.c,v 1.4 1993/11/25 01:39:07 wollman Exp $
  */
 
 #include "param.h"
@@ -42,12 +42,32 @@
 #include "vm_param.h"
 #include "vmmeter.h"
 
+struct vmtotal total;
+struct vmmeter cnt, rate, sum;
+
+#include "dkstat.h"		/* a convenient place to put these */
+long cp_time[CPUSTATES];	/* cpu time per state */
+int dk_busy;			/* number of busy disks */
+long dk_time[DK_NDRIVE];	/* access time per disk */
+long dk_seek[DK_NDRIVE];	/* seeks per disk */
+long dk_wds[DK_NDRIVE];		/*  */
+long dk_wpms[DK_NDRIVE];	/*  */
+long dk_xfer[DK_NDRIVE];	/*  */
+long tk_nin;			/* total characters in */
+long tk_nout;			/* total characters out */
+long tk_cancc;			/* total canonical characters */
+long tk_rawcc;			/* total raw characters */
+
 fixpt_t	averunnable[3];		/* load average, of runnable procs */
+
+static void vmtotal(void);
+static void loadav(fixpt_t *, int);
 
 int	maxslp = MAXSLP;
 int	saferss = SAFERSS;
 
 
+void
 vmmeter()
 {
 	register unsigned *cp, *rp, *sp;
@@ -58,6 +78,7 @@ vmmeter()
 		wakeup((caddr_t)&proc0);
 }
 
+static void
 vmtotal()
 {
 	register struct proc *p;
@@ -128,6 +149,7 @@ fixpt_t	cexp[3] = {
  * Compute a tenex style load average of a quantity on
  * 1, 5 and 15 minute intervals.
  */
+void
 loadav(avg, n)
 	register fixpt_t *avg;
 	int n;

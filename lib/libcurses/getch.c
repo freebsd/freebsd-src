@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,43 +32,46 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)getch.c	5.6 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)getch.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
 
 /*
- *	This routine reads in a character from the window.
- *
+ * wgetch --
+ *	Read in a character from the window.
  */
+int
 wgetch(win)
-reg WINDOW	*win; {
+	register WINDOW *win;
+{
+	register int inp, weset;
 
-	reg bool	weset = FALSE;
-	reg int         inp;
-
-	if (!win->_scroll && (win->_flags&_FULLWIN)
-	    && win->_curx == win->_maxx - 1 && win->_cury == win->_maxy - 1)
-		return ERR;
-# ifdef DEBUG
-	fprintf(outf, "WGETCH: _echoit = %c, _rawmode = %c\n", _echoit ? 'T' : 'F', _rawmode ? 'T' : 'F');
-# endif
-	if (_echoit && !_rawmode) {
+	if (!(win->flags & __SCROLLOK) && (win->flags & __FULLWIN)
+	    && win->curx == win->maxx - 1 && win->cury == win->maxy - 1)
+		return (ERR);
+#ifdef DEBUG
+	__CTRACE("wgetch: __echoit = %d, __rawmode = %d\n",
+	    __echoit, __rawmode);
+#endif
+	if (__echoit && !__rawmode) {
 		cbreak();
-		weset++;
-	}
+		weset = 1;
+	} else
+		weset = 0;
+
 	inp = getchar();
 	if (inp != EOF) {
-# ifdef DEBUG
-	fprintf(outf,"WGETCH got '%s'\n",unctrl(inp));
-# endif
-	if (_echoit) {
-		mvwaddch(curscr, win->_cury + win->_begy,
-				win->_curx + win->_begx, (unsigned char) inp);
-			waddch(win, (unsigned char) inp);
+#ifdef DEBUG
+		__CTRACE("wgetch got '%s'\n", unctrl(inp));
+#endif
+		if (__echoit) {
+			mvwaddch(curscr,
+			    win->cury + win->begy, win->curx + win->begx, inp);
+			waddch(win, inp);
 		}
 	}
 	if (weset)
 		nocbreak();
-	return inp;
+	return (inp);
 }

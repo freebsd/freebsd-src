@@ -1,0 +1,40 @@
+.Dd August 24, 1993
+.Dt MOUNT_PROCFS 8
+.Os FreeBSD 1.1
+.Sh NAME
+.Nm mount_procfs
+.Nd mount the proc file system
+.Sh SYNOPSIS
+.Nm mount_procfs
+.Op Fl F Ar fsoptions
+.Pa proc
+.Pa mount_point
+.Sh DESCRIPTION
+The
+.Nm mount_procfs
+command attaches an instance of the proc filesystem
+to the global filesystem namespace.
+The conventional mount point is
+.Pa /proc .
+This command is normally executed by
+.Xr mount 8
+at boot time.
+.Pp
+The proc filesystem presents a directory entry for each process in the system.
+The name of an entry is process id in decimal notation.
+Opening an entry for reading and/or writing gives access to the process
+address space. Several ioctl(2) operations are available to gain additional
+control over the process.
+.Sh FILES
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr fstab 5
+.Sh CAVEATS
+This filesystem may not be NFS-exported.
+The interface and implementation of the proc filesystem are still under
+development.
+.Sh HISTORY
+The
+.Nm mount_procfs
+utility first appeared in FreeBSD 1.1.

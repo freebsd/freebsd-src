@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)pass5.c	5.13 (Berkeley) 7/20/90";
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sbin/fsck/pass5.c,v 1.2 1993/07/22 16:51:58 jkh Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/pass5.c,v 1.2 1993/07/22 16:51:58 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -119,6 +119,7 @@ double	j0 __P((double));
 double	j1 __P((double));
 double	jn __P((int, double));
 double	lgamma __P((double));
+double	gamma __P((double));
 double	log1p __P((double));
 double	logb __P((double));
 double	rint __P((double));

@@ -1,0 +1,4 @@
+# $Id: nfsserver.flags,v 1.1 1993/11/12 03:46:12 wollman Exp $
+# This file lists the flags passed to the NFS server `nfsd' when started
+# at boot time.
+-u 0,0,4 -t 0,0

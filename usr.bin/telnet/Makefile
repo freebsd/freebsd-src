@@ -4,7 +4,7 @@
 
 PROG=	telnet
 
-CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO
+CFLAGS+=-DTERMCAP -DUSE_TERMIO
 CFLAGS+=-I${.CURDIR}/../../lib
 
 .if exists(/usr/lib/libcrypt.a)

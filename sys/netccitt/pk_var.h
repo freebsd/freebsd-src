@@ -36,9 +36,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pk_var.h	7.11 (Berkeley) 5/29/91
- *	$Id: pk_var.h,v 1.2 1993/10/16 19:46:58 rgrimes Exp $
+ *	$Id: pk_var.h,v 1.5 1993/12/19 00:52:25 wollman Exp $
  */
 
+
+#ifndef _NETCCITT_PK_VAR_H_
+#define _NETCCITT_PK_VAR_H_ 1
 
 /*
  *
@@ -51,7 +54,8 @@ struct pklcd {
 		struct	pklcd_q *q_forw;	/* debugging chain */
 		struct	pklcd_q *q_back;	/* debugging chain */
 	} lcd_q;
-	int	(*lcd_upper)();		/* switch to socket vs datagram vs ...*/
+	void	(*lcd_upper)(struct pklcd *, struct mbuf *);
+				/* switch to socket vs datagram vs ...*/
 	caddr_t	lcd_upnext;		/* reference for lcd_upper() */
 	int	(*lcd_send)();		/* if X.25 front end, direct connect */
 	caddr_t lcd_downnext;		/* reference for lcd_send() */
@@ -121,7 +125,7 @@ struct x25_ifaddr {
 #define	ia_flags ia_ifa.ifa_flags
 	struct	x25config ia_xc;	/* network specific configuration */
 #define ia_maxlcn ia_xc.xc_maxlcn
-	int	(*ia_start) ();		/* connect, confirm method */
+	int	(*ia_start) (struct pklcd *); /* connect, confirm method */
 	struct	sockaddr_x25 ia_dstaddr; /* reserve space for route dst */
 };
 
@@ -168,8 +172,77 @@ struct mbuf_cache {
 #if defined(KERNEL) && defined(CCITT)
 struct	pkcb *pkcbhead;		/* head of linked list of networks */
 struct	pklcd *pk_listenhead;
-struct	pklcd *pk_attach();
 
-extern char	*pk_name[], *pk_state[];
-int	pk_t20, pk_t21, pk_t22, pk_t23;
+struct sockaddr_in;
+struct sockaddr_x25;
+
+extern void x25_connect_callback(struct pklcd *, struct mbuf *);
+extern void x25_rtrequest(int, struct rtentry *, struct sockaddr *);
+extern void x25_rtinvert(int, struct sockaddr *, struct rtentry *);
+extern void x25_ddnip_to_ccitt(struct sockaddr_in *, struct rtentry *);
+extern void x25_rtattach(struct pklcd *, struct rtentry *);
+
+/* From pk_subr.c: */
+extern struct pklcd *pk_attach(struct socket *);
+extern void pk_disconnect(struct pklcd *);
+extern void pk_close(struct pklcd *);
+extern struct mbuf *pk_template(int, int);
+extern void pk_restart(struct pkcb *, int);
+extern void pk_freelcd(struct pklcd *);
+extern int pk_bind(struct pklcd *, struct mbuf *);
+extern int pk_listen(struct pklcd *);
+extern int pk_protolisten(int, int, void (*)(/* XXX */));
+extern void pk_assoc(struct pkcb *, struct pklcd *, struct sockaddr_x25 *);
+extern int pk_connect(struct pklcd *, struct sockaddr_x25 *);
+extern void pk_callrequest(struct pklcd *, struct sockaddr_x25 *, struct x25config *);
+extern void pk_build_facilities(struct mbuf *, struct sockaddr_x25 *, int);
+extern int pk_getlcn(struct pkcb *);
+extern void pk_clear(struct pklcd *, int, int);
+extern void pk_flowcontrol(struct pklcd *, int, int);
+extern void pk_flush(struct pklcd *);
+extern void pk_procerror(int, struct pklcd *, const char *, int);
+extern int pk_ack(struct pklcd *, unsigned);
+extern int pk_decode(struct x25_packet *);
+extern void pk_restartcause(struct pkcb *, struct x25_packet *);
+extern void pk_resetcause(struct pkcb *, struct x25_packet *);
+extern void pk_clearcause(struct pkcb *, struct x25_packet *);
+extern void pk_message(int, struct x25config *, const char *, ...);
+extern int pk_fragment(struct pklcd *, struct mbuf *, int, int, int);
+
+/* From pk_input.c: */
+extern struct pkcb *pk_newlink(struct x25_ifaddr *, caddr_t);
+extern int pk_resize(struct pkcb *);
+extern int /*void*/ pk_ctlinput(int, struct pkcb *);
+extern struct ifqueue pkintrq;
+extern void pkintr(void);	/* called from locore */
+extern void pk_input(struct mbuf *);
+extern void pk_incoming_call(struct pkcb *, struct mbuf *);
+extern void pk_call_accepted(struct pklcd *, struct mbuf *);
+extern void pk_parse_facilities(octet *, struct sockaddr_x25 *);
+
+/* From pk_output.c: */
+extern int pk_output(struct pklcd *, struct mbuf *);
+
+/* From pk_acct.c: */
+extern int pk_accton(char *);
+extern void pk_acct(struct pklcd *);
+
+/* From pk_debug.c: */
+extern const char *const pk_name[], *const pk_state[];
+extern void pk_trace(struct x25config *, struct mbuf *, const char *);
+extern void mbuf_cache(struct mbuf_cache *, struct mbuf *);
+
+/* From pk_timer.c: */
+extern int pk_t20, pk_t21, pk_t23;
+extern void pk_timer(void);
+
+/* From pk_usrreq.c: */
+extern int pk_usrreq(struct socket *, int, struct mbuf *, struct mbuf *, struct mbuf *);
+extern int pk_start(struct pklcd *);
+extern int pk_control(struct socket *, int, caddr_t, struct ifnet *);
+extern int pk_ctloutput(int, struct socket *, int, int, struct mbuf **);
+extern int pk_checksockaddr(struct mbuf *);
+extern int pk_send(struct pklcd *, struct mbuf *);
+
 #endif
+#endif /* _NETCCITT_PK_VAR_H_ */

@@ -75,6 +75,7 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 
 #include "res.h"
 extern char rootServerName[];
+extern void PrintHelp();
 
 %}
 WS	[ \t]
@@ -151,7 +152,6 @@ NAME	[A-Za-z0-9.*=_/-]
 					    return(1);
 					}
 ^{WS}*help{WS}*$			{
-					    extern void PrintHelp();
 
 					    PrintHelp();
 					    return(1);

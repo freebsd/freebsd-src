@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sp.h	7.4 (Berkeley) 6/28/90
- *	$Id: sp.h,v 1.2 1993/10/16 19:54:32 rgrimes Exp $
+ *	$Id: sp.h,v 1.3 1993/11/07 17:50:33 wollman Exp $
  */
+
+#ifndef _NETNS_SP_H_
+#define _NETNS_SP_H_ 1
 
 /*
  * Definitions for Xerox NS style sequenced packet protocol
@@ -51,3 +54,4 @@ struct sphdr {
 	u_short	sp_ack;		/* acknowledge number */
 	u_short	sp_alo;		/* allocation number */
 };
+#endif /* _NETNS_SP_H_ */

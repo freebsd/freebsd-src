@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_input.c	7.19 (Berkeley) 6/27/91
- *	$Id: tp_input.c,v 1.2 1993/10/16 21:05:44 rgrimes Exp $
+ *	$Id: tp_input.c,v 1.4 1993/12/19 00:53:35 wollman Exp $
  */
 
 /***********************************************************
@@ -209,7 +209,7 @@ static u_char tpdu_info[][4] =
 	if (Phrase) {error = (Erval); errlen = (int)(Loc); IncStat(Stat); tpibrk();\
 	goto Whattodo; }
 
-tpibrk() {}
+void tpibrk() {}
 
 /* 
  * WHENEVER YOU USE THE FOLLOWING MACRO,
@@ -348,7 +348,7 @@ tp_newsocket(so, fname, cons_channel, class_to_use, netservice)
 			 * the passive open case
 			 */
 			tpcb->tp_dont_change_params = 0;
-			err = tp_route_to( m, tpcb, cons_channel);
+			err = tp_route_to( m, tpcb, (caddr_t)cons_channel);
 			m_free(m);
 
 			if (!err)
@@ -370,11 +370,12 @@ ok:
 }
 
 #ifndef TPCONS
+int
 tpcons_output()
 {
 	return(0);
 }
-#endif !CONS
+#endif /* !CONS */
 
 /* 
  * NAME: 	tp_input()
@@ -412,18 +413,18 @@ tp_input(m, faddr, laddr, cons_channel, dgout_routine, ce_bit)
 
 {
 	register struct tp_pcb 	*tpcb = (struct tp_pcb *)0;
-	register struct tpdu 	*hdr;
-	struct socket 			*so;
-	struct tp_event 		e;
-	int 					error = 0;
-	unsigned 				dutype;
-	u_short 				dref, sref = 0, acktime = 2, subseq = 0; /*VAX*/
-	u_char 					preferred_class = 0, class_to_use = 0;
-	u_char					opt, dusize = TP_DFL_TPDUSIZE, addlopt = 0, version;
+	register struct tpdu *hdr;
+	struct socket *so;
+	struct tp_event e;
+	int error = 0;
+	unsigned dutype;
+	u_short dref, sref = 0, acktime = 2, subseq = 0; /*VAX*/
+	u_char preferred_class = 0, class_to_use = 0;
+	u_char opt, dusize = TP_DFL_TPDUSIZE, addlopt = 0, version = 0;
 #ifdef TP_PERF_MEAS
-	u_char					perf_meas;
+	u_char perf_meas;
 #endif TP_PERF_MEAS
-	u_char					fsufxlen = 0, lsufxlen = 0, intercepted = 0;
+	u_char fsufxlen = 0, lsufxlen = 0, intercepted = 0;
 	caddr_t					fsufxloc = 0, lsufxloc = 0;
 	int						tpdu_len = 0;
 	u_int 					takes_data = FALSE;
@@ -916,7 +917,7 @@ again:
 			/* we've now made the error reporting thing check for
 			multiple channels and not close out if more than
 			one in use */
-#endif old_history
+#endif /* old_history */
 		{
 
 			CHECK( ((int)dref <= 0 || dref >= N_TPREF) ,
@@ -1233,7 +1234,7 @@ again:
 #else
 				e.ATTR(AK_TPDU).e_cdt = hdr->tpdu_AKcdtX;
 				e.ATTR(AK_TPDU).e_seq = hdr->tpdu_AKseqX;
-#endif BYTE_ORDER
+#endif /* BYTE_ORDER */
 			} else {
 				e.ATTR(AK_TPDU).e_cdt = hdr->tpdu_AKcdt;
 				e.ATTR(AK_TPDU).e_seq = hdr->tpdu_AKseq;
@@ -1258,7 +1259,7 @@ again:
 				e.ATTR(XAK_TPDU).e_seq = seqeotX.s_seq;
 #else
 				e.ATTR(XAK_TPDU).e_seq = hdr->tpdu_XAKseqX;
-#endif BYTE_ORDER
+#endif /* BYTE_ORDER */
 			} else {
 				e.ATTR(XAK_TPDU).e_seq = hdr->tpdu_XAKseq;
 			}
@@ -1276,7 +1277,7 @@ again:
 				e.ATTR(XPD_TPDU).e_seq = seqeotX.s_seq;
 #else
 				e.ATTR(XPD_TPDU).e_seq = hdr->tpdu_XPDseqX;
-#endif BYTE_ORDER
+#endif /* BYTE_ORDER */
 			} else {
 				e.ATTR(XPD_TPDU).e_seq = hdr->tpdu_XPDseq;
 			}
@@ -1311,7 +1312,7 @@ again:
 #else
 				e.ATTR(DT_TPDU).e_seq = hdr->tpdu_DTseqX;
 				e.ATTR(DT_TPDU).e_eot = hdr->tpdu_DTeotX;
-#endif BYTE_ORDER
+#endif /* BYTE_ORDER */
 			} else {
 				e.ATTR(DT_TPDU).e_seq = hdr->tpdu_DTseq;
 				e.ATTR(DT_TPDU).e_eot = hdr->tpdu_DTeot;

@@ -32,6 +32,7 @@
 .\"	@(#)0.t	6.6 (Berkeley) 5/7/91
 .\"
 .nr Vx 1		\" VAX version
+.nr Th 0
 .ds Vx \s-1VAX\s0
 .ds Ux \s-1UNIX\s0
 .ds Bs \s-1BSD\s0

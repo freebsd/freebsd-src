@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso_map.h	7.3 (Berkeley) 5/6/91
- *	$Id: iso_map.h,v 1.2 1993/10/16 21:05:21 rgrimes Exp $
+ *	$Id: iso_map.h,v 1.3 1993/11/07 17:49:43 wollman Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,12 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
+#ifndef _NETISO_ISO_MAP_H_
+#define _NETISO_ISO_MAP_H_ 1
+
 struct maptab {
 	struct iso_addr	map_isoa;		/* iso address */
 	u_char			map_enaddr[6];	/* ethernet address */
 	u_char			map_valid;		/* true if entry is valid */
 };
+#endif /* _NETISO_ISO_MAP_H_ */

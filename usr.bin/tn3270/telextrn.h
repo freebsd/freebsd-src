@@ -60,7 +60,6 @@ extern void
 	outputPurge(),
 	EmptyTerminal(),
 	StringToTerminal(),
-	_putchar(),
 	ExitPerror(),
 	setcommandmode();
 

@@ -1,0 +1,426 @@
+Annex A: Diagnostic and Reset Considerations 
+         (informative). 
+
+This annex describes the following timing relationships during:
+
+ a) Power On and Hardware Resets 
+    - One drive 
+    - Two drives 
+ b) Software Reset 
+    - One drive 
+    - Two drives 
+ c) Diagnostic Command Execution 
+    - One drive 
+    - Two drives 
+    - Two drives - Drive1 failed 
+
+The timing assumes the following: 
+
+ o DASP- is asserted by Drive1 and received by Drive0 at power-on or 
+   hardware reset to indicate the presence of Drive1. At all other times it 
+   is asserted by Drive0 and Drive1 to indicate when a drive is active. 
+ o PDIAG- is asserted by Drive1 and detected by Drive0. It is used by 
+   Drive1 to indicate to Drive0 that it has completed diagnostics and is 
+   ready to accept commands from the Host (BSY bit is cleared). This does not 
+   indicate that the drive is ready, only that it can accept commands. This 
+   line may remain asserted until the next reset occurs or an Execute 
+   Diagnostic command is received. 
+ o Unless indicated otherwise, all times are relative to the event that 
+   triggers the operation (RESET-, SRST=1, Execute Diagnostic Command). 
+
+A.1 Power On and Hardware Resets 
+
+A.1.1 Power On and Hardware Resets - One Drive
+
+ - Host asserts RESET- for a minimum of 25 usec. 
+ - Drive0 sets BSY within 400 nsecs after RESET- is negated. 
+ - Drive0 negates DASP- within 1 msec after RESET- negated. 
+ - Drive0 performs hardware initialization 
+ - Drive0 may revert to its default condition 
+ - Drive0 waits 1 msec then samples for at least 450 msec for DASP- to be 
+   asserted from Drive1. 
+ - Drive0 clears BSY when ready to accept commands (within 31 seconds). 
+
+A.1.2  Power On and Hardware Resets - Two Drives 
+
+ - Host asserts RESET- for a minimum of 25 usec. 
+ - Drive0 and Drive1 set BSY within 400 nsec after RESET- negated. 
+ - DASP- is negated within 1 msec after RESET- is negated. 
+
+A.1.2.1  Drive1 
+
+ - Drive1 negates PDIAG- before asserting DASP-.
+ - Drive1 asserts DASP- within 400 msecs after RESET- (to show presence). 
+ - Drive1 performs hardware initialization and executes its internal 
+   diagnostics. 
+ - Drive1 may revert to its default condition 
+ - Drive1 posts diagnostic results to the Error Register 
+ - Drive1 clears BSY when ready to accept commands. 
+ - Drive1 asserts PDIAG- to indicate that it is ready to accept commands 
+   (within 30 seconds from RESET-). 
+ - Drive1 negates DASP- after the first command is received or negates DASP- 
+   if no command is received within 30 seconds after RESET-. 
+
+A.1.2.2  Drive0 
+
+ - Drive0 performs hardware initialization and executes its internal 
+   diagnostics. 
+ - Drive0 may revert to its default condition 
+ - Drive0 posts diagnostic results to the Error Register 
+ - After 1 msec, Drive0 waits at least 450 msec for DASP- to be asserted 
+   (from Drive1). If DASP- is not asserted, no Drive1 is present (see POWER-
+   ON RESET - One Driveoperation). 
+ - Drive0 waits up to 31 seconds for Drive1 to assert PDIAG-. If PDIAG- is 
+   not asserted, Drive0 sets Bit7=1 in the Error Register. 
+ - Drive0 clears BSY when ready to accept commands (within 31 seconds). 
+
+A.2  Software Reset 
+
+A.2.1  Software Reset - One Drive
+
+ - Host sets SRST=1 in the Device Control Register. 
+.. - Drive0 waits for SRST to be cleared by Host. 
+.. - Drive0 sets BSY within 400 nsec after SRST=0. 
+ - Drive0 sets BSY within 400 nsec after detecting that SRST=1. 
+ - Drive0 performs hardware initialization and executes its internal 
+   diagnostics. 
+ - Drive0 may revert to its default condition. 
+ - Drive0 posts diagnostic results to the Error Register. 
+ - Drive0 clears BSY when ready to accept commands (within 31 seconds). 
+
+A.2.2  Software Reset - Two Drives 
+
+ - Host sets SRST=1 in the Device Control Register. 
+.. - Drives wait for host to clear SRST.
+.. - Drive0 and Drive1 set BSY within 400 nsec after SRST=0.
+ - Drive0 and Drive1 set BSY within 400 nsec after detecting that SRST=1.
+ - Drive0 and Drive1 perform hardware initialization.
+ - Drive0 and Drive1 may revert to their default condition.
+
+A.2.2.1  Drive1 
+
+ - Drive1 negates PDIAG- within 1 msec. 
+ - Drive1 clears BSY when ready to accept commands. 
+ - Drive1 asserts PDIAG- to indicate that it is ready to accept commands 
+   (within 30 seconds). 
+
+A.2.2.2  Drive0 
+
+ - Drive0 waits up to 31 seconds for Drive1 to assert PDIAG-. 
+ - Drive0 clears BSY when ready to accept commands (within 31 seconds). 
+
+A.3  Diagnostic Command Execution 
+
+A.3.1  Diagnostic Command Execution - One Drive(Passed) 
+ 
+ - Drive0 sets BSY within 400 nsec after the Execute Diagnostic command was 
+   received. 
+ - Drive0 performs hardware initialization and internal diagnostics. 
+ - Drive0 resets Command Block registers to default condition. 
+ - Drive0 posts diagnostic results to the Error Register 
+ - Drive0 clears BSY when ready to accept commands (within 6 seconds). 
+
+A.3.2  Diagnostic Command - Two Drives (Passed) 
+
+ - Drive0 and Drive1 set BSY within 400 nsec after the Execute Diagnostic 
+   command was received. 
+
+A.3.2.1  Drive1 
+
+ - Drive1 negates PDIAG- within 1 msec after command received. 
+ - Drive1 performs hardware initialization and internal diagnostics. 
+ - Drive1 resets the Command Block registers to their default condition. 
+ - Drive1 posts diagnostic results to the Error Register 
+ - Drive1 clears BSY when ready to accept commands. 
+ - Drive1 asserts PDIAG- to indicate that it is ready to accept commands 
+   (within 5 seconds). 
+
+A.3.2.2  Drive0 
+
+ - Drive0 performs hardware initialization and internal diagnostics. 
+ - Drive0 resets the Command Block registers to their default condition. 
+ - Drive0 waits up to <5 seconds for Drive1 to assert PDIAG-. 
+ - Drive0 posts diagnostic results to the Error Register 
+ - Drive0 clears BSY when ready to accept commands (within 6 seconds). 
+
+A.3.3  Diagnostic Command Execution - One Drive(Failed) 
+
+ - Drive0 sets BSY within 400 nsec after Diagnostic command received. 
+ - Drive0 performs hardware initialization and internal diagnostics. 
+ - Drive0 resets Command Block registers to default condition. 
+ - Drive0 posts a Diagnostic Code to the Error Register indicating a failure. 
+ - Drive0 clears BSY when ready to accept commands (within 6 seconds) 
+
+A.3.4  Diagnostic Command Execution - Two Drives (Drive1 Failed) 
+
+ - Drive0 and Drive1 set BSY within 400 nsec after Diagnostic command 
+   received. 
+
+A.3.4.1  Drive1 
+
+ - Drive1 negates PDIAG- within 1 msec after command received. 
+ - Drive1 performs hardware initialization and internal diagnostics. 
+ - Drive1 resets the Command Block registers to their default condition. 
+ - Drive1 posts a Diagnostic Code to the Error Register indicating failure. 
+ - Drive1 clears BSY. 
+ - Drive1 does not assert PDIAG-, indicating that it failed diagnostics. 
+
+A.3.4.2  Drive0 
+
+ - Drive0 performs hardware initialization and internal diagnostics. 
+ - Drive0 resets the Command Block registers to their default condition. 
+ - Drive0 waits 6 seconds for Drive1 to assert PDIAG- but PDIAG- is not 
+   asserted by Drive1. 
+ - Drive0 posts a Diagnostic Code to the Error Register setting Bit7=1 to 
+   indicate that Drive1 failed diagnostics.
+ - Drive0 clears BSY when ready to accept commands (within 6 seconds). 
+
+..rm102
+  NOTE: The 6 seconds referenced above is a host-oriented value. 
+
+Annex B: Diagnostic and Reset Considerations  
+         (informative). 
+
+B.1  Power on and hardware reset (RESET-) 
+
+DASP- is read by Drive0 to determine if Drive1 is present. If Drive1 is 
+present Drive0 will read PDIAG- to determine when it is valid to clear BSY 
+and whether Drive1 has powered on or reset without error, otherwise Drive0 
+clears BSY whenever it is ready to accept commands. Drive 0 may assert DASP- 
+to indicate drive activity.
+
+B.2  Software reset 
+
+If Drive1 is present Drive0 will read PDIAG- to determine when it is valid 
+to clear BSY and whether Drive1 has reset without any errors, otherwise 
+Drive 0 will simply reset and clear BSY.  DASP- is asserted by Drive0 (and 
+Drive1 if it is present) in order to indicate drive active. 
+
+B.3  DriveDiagnostic Command 
+
+If Drive1 is present, Drive0 will read PDIAG- to determine when it is valid 
+to clear BSY and if Drive1 passed or failed the Execute DriveDiagnostic 
+command, otherwise Drive0 will simply execute its diagnostics and then clear 
+BSY.  DASP- is asserted by Drive0 (and Drive1 if it is present) in order to 
+indicate the drive is active. 
+
+B.4  Truth Table 
+
+In all the above cases:  Power on, RESET-, software reset, and the Execute 
+DriveDiagnostics command the Drive0 Error Register is calculated as follows: 
+
+        Drive1           PDIAG-         Drive0         Error 
+        Present?        Asserted?        Passed        Register 
+
+          Yes             Yes             Yes           01h 
+          Yes             Yes              No           0xh 
+          Yes              No             Yes           81h 
+          Yes              No              No           8xh 
+           No           (not read)        Yes           01h 
+           No           (not read)         No           0xh 
+
+Where x indicates the appropriate Diagnostic Code for the Power on, RESET-, 
+software reset, or drivediagnostics error. 
+
+B.5  Power On or Hardware Reset Algorithm  
+
+ 1) Power on or hardware reset 
+ 2) The hardware should automatically do the following: 
+         a) Set up the hardware to post both Drive0 and Drive1 status 
+         b) Set the Drive0 Status Register to 80h (set BSY and clear 
+            all the other status bits) 
+         c) Set the Drive1 Status Register to 80h (set BSY and clear all 
+            the other status bits) 
+ 3) Read the single Drive0/Drive1 jumper and note its state 
+ 4) Perform any remaining time critical hardware initialization including 
+    starting the spin up of the disk if needed 
+ 5) If Drive1 
+         a) Negate the PDIAG- signal 
+         b) Set up PDIAG- as an output 
+         c) Assert the DASP- output 
+         d) Set up DASP- as an output if necessary 
+         e) Set up the hardware so it posts Drive1 status only and 
+            continue to post 80h for Drive1 status 
+         NOTE: all this must happen within 400 msec after power on or RESET- 
+    If Drive0 
+         a) Set up PDIAG- as an input 
+         b) Release DASP- and set up DASP- as an input 
+         c) Test DASP- for 450 msec or until DASP- is asserted by Drive1 
+         d) If DASP- is asserted within 450 msec 
+                 i)   Note that Drive1 is present 
+                 ii)  Set up the hardware so it posts Drive0 status only 
+                      and continue to post 80h for the Drive0 status 
+            If DASP- is not asserted within 450 msec 
+                    i)   note that Drive1 is not present
+         e) Assert DASP- to indicate drive activity 
+ 6) Complete all the hardware initialization needed to get the drive ready, 
+    including: 
+         a) Set the Sector Count Register to 01h 
+         b) Set the Sector Number Register to 01h 
+         c) Set the Cylinder Low Register to 00h 
+         d) Set the Cylinder High Register to 00h 
+         e) Set the Drive/Head Register to 00h 
+ 7) If Drive1 and power on, or RESET- is valid 
+         a) Set the Error Register to Diagnostic Code 01h 
+         b) Set the Drive1 Status Register to 00h 
+         c) Assert PDIAG- 
+         NOTE:  All this must happen within 5 seconds of power on or the 
+                negation of RESET- 
+    If Drive1 and power on or RESET- bad 
+         a) Set the Error Register to the appropriate Diagnostic Code 
+         b) Set the Drive1 Status Register to 00h 
+         NOTE:  All this must happen within 5 seconds of power on or the 
+                negation of RESET- 
+    If Drive0, power on or RESET- valid, and a Drive1 is present 
+         a) Test PDIAG- for 6 seconds or until PDIAG- is asserted by Drive1 
+         b) If PDIAG- is asserted within 6 seconds 
+                 i)  Set the Error Register to Diagnostic Code 01h 
+         c) If PDIAG- is not asserted within 6 seconds 
+                 i)  Set the Error Register to 81h 
+         d) Set the Drive0 Status Register to 00h 
+    If Drive0, power on or RESET- bad, and a Drive1 is present 
+         a) Test PDIAG- for 6 seconds or until PDIAG- is asserted by 
+            Drive1 
+         b) If PDIAG- is asserted within 6 seconds 
+                 i)  Set the Error Register to the appropriate Diagnostic Code 
+         c) If PDIAG- is not asserted within 6 seconds 
+                 i)  Set the Error Register to 80h + the appropriate code 
+         d) Set the Drive0 Status Register to 00h 
+    If Drive0, power on or RESET- valid, and no Drive1 is present 
+         a) Set the Error Register to Diagnostic Code 01h 
+         b) Set the Drive1 Status Register to 00h 
+         c) Set the Drive0 Status Register to 00h 
+    If Drive0, power on or RESET- bad, and no Drive1 is present 
+         a) Set the Error Register to the appropriate Diagnostic Code 
+         b) Set the Drive1 Status Register to 00h 
+         c) Set the Drive0 Status Register to 00h 
+ 8) Finish spin up if needed 
+ 9) If Drive1 
+         a) Set the Drive1 Status Register to 50h 
+         b) Negate DASP- if a command is not received within 30 seconds 
+    If Drive0 and a Drive1 is present 
+         a) Set the Drive0 Status Register to 50h 
+         b) Negate DASP- 
+    If Drive0 and no Drive1 is present 
+         a) Leave the Drive1 Status Register 00h 
+         b) Set the Drive0 Status Register to 50h 
+         c) Negate DASP- 
+
+B.6  Software Reset Algorithm 
+
+ 1) The software reset bit is set 
+ 2) If Drive1 
+         a) The hardware should set BUSY in the Drive1 Status Register 
+         b) Negate the PDIAG- signal 
+         NOTE: this must happen within 1 msec of the software reset 
+    If Drive0 and Drive1 is present 
+            a) The hardware should set BUSY in the Drive0 Status Register 
+    If Drive0 and there is no Drive1 the hardware should: 
+            a) Set BUSY in the Drive0 Status Register 
+         b) Set the Drive1 Status Register to 80h 
+ 3) Assert DASP- 
+ 4) Finish all the hardware initialization needed to place the drive in reset 
+ 5) Wait for the software reset bit to clear 
+ 6) Finish all hardware initialization needed to get the drive ready 
+    to receive any type of command from the host including: 
+         a) Set the Sector Count Register to 01h 
+         b) Set the Sector Number Register to 01h 
+         c) Set the Cylinder Low Register to 00h 
+         d) Set the Cylinder High Register to 00h 
+         e) Set the Drive/Head Register to 00h 
+ 7) If Drive1 and reset valid 
+         a) Set the Error Register to Diagnostic Code 01h 
+         b) Set the Drive1 Status Register to 50h 
+         c) Assert PDIAG- 
+         NOTE:  All this must happen within 5 seconds of the clearing of 
+                the software reset bit 
+    If Drive1 and reset bad 
+         a) Set the Error Register to the appropriate Diagnostic Code 
+         b) Set the Drive1 Status Register to 50h 
+         NOTE:  All this must happen within 5 seconds of the clearing of 
+                the software reset bit 
+    If Drive0, reset valid, and a Drive1 is present 
+            a) Test PDIAG- for 6 seconds or until PDIAG- is asserted by 
+            Drive1 
+            b) If PDIAG- is asserted within 6 seconds 
+                 i)  Set the Error Register to Diagnostic Code 01h 
+         c) If PDIAG- is not asserted within 6 seconds 
+                 i)  Set the Error Register to 81h 
+         d) Set the Drive0 Status Register to 50h 
+    If Drive0, reset bad, and a Drive1 is present 
+            a) Test PDIAG- for 31 seconds or until PDIAG- is asserted by
+            Drive1 
+            b) If PDIAG- is asserted within 31 seconds 
+                 i)  Set the Error Register to the appropriate Diagnostic Code 
+         c) If PDIAG- is not asserted within 31 seconds 
+                 i)  Set the Error Register to 80h + the appropriate code 
+         d) Set the Drive0 Status Register to 50h 
+    If Drive0, reset valid, and no Drive1 is present 
+            a) Set the Error Register to Diagnostic Code 01h 
+         b) Set the Drive1 Status Register to 00h 
+            c) Set the Drive0 Status Register to 50h 
+    If Drive0, reset bad, and no Drive1 is present 
+            a) Set the Error Register to the appropriate Diagnostic Code 
+         b) Set the Drive1 Status Register to 00h 
+            c) Set the Drive0 Status Register to 50h 
+
+B.7  Diagnostic Command Algorithm 
+
+ 1) The diagnostics command is received 
+ 2) If Drive1 
+         a) The hardware should set BUSY in the Drive1 Status Register 
+         b) Negate the PDIAG- signal 
+         NOTE: this must happen within 1 msec after command acceptance 
+    If Drive0 and Drive1 is present 
+            a) The hardware should set BUSY in the Drive0 Status Register 
+    If Drive0 and there is no Drive1 the hardware should 
+            a) Set BUSY in the Drive0 Status Register 
+         b) Set BUSY in the Drive1 Status Register 
+ 3) Assert DASP- 
+ 4) Perform all the drive diagnostics and note their results 
+ 5) Finish all the hardware initialization needed to get the drive ready 
+    to receive any type of command from the host including: 
+         a) Set the Sector Count Register to 01h 
+         b) Set the Sector Number Register to 01h 
+         c) Set the Cylinder Low Register to 00h 
+         d) Set the Cylinder High Register to 00h 
+         e) Set the Drive/Head Register to 00h 
+ 6) If Drive1 and passed 
+         a) Set the Error Register to Diagnostic Code 01h 
+         b) Set the Drive1 status to 50h 
+         c) Assert PDIAG- 
+         NOTE:  All this must happen within 5 seconds of the acceptance 
+                of the diagnostic command 
+    If Drive1 and did not pass 
+            a) Set the Error Register to the appropriate Diagnostic Code 
+         b) Set the Drive1 status to 50h 
+         NOTE:  All this must happen within 5 seconds of the acceptance 
+                of the diagnostic command 
+    If Drive0, passed, and a Drive1 is present 
+            a) Test PDIAG- for 6 seconds or until PDIAG- is asserted by 
+            Drive1 
+            b) If PDIAG- is asserted within 6 seconds 
+                 i)  Set the Error Register to Diagnostic Code 01h 
+         c) If PDIAG- is not asserted within 6 seconds 
+                 i)  Set the Error Register to 81h 
+         d) Set the Drive0 status to 50h 
+         e) Issue interrupt to the host 
+    If Drive0, did not pass, and a Drive1 is present 
+         a) Test PDIAG- for 6 seconds or until PDIAG- is asserted by Drive1 
+         b) If PDIAG- is asserted within 6 seconds 
+                 i)  Set the Error Register to the appropriate Diagnostic Code 
+         c) If PDIAG- is not asserted within  seconds 
+                 i)  Set the Error Register to 80h + the appropriate code 
+         d) Set the Drive0 Status Register to 50h 
+         e) Issue interrupt to the host 
+    If Drive0, passed, and no Drive1 is present 
+         a) Set the Error Register to Diagnostic Code 01h 
+         b) Set the Drive1 Status Register to 00h 
+         c) Set the Drive0 Status Register to 50h 
+         d) Issue interrupt to the host 
+    If Drive0, did not pass, and no Drive1 is present 
+         a) Set the Error Register to the appropriate Diagnostic Code 
+         b) Set the Drive1 Status Register to 00h 
+         c) Set the Drive0 Status Register to 50h 
+         d) Issue interrupt to the host 
+

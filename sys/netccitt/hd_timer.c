@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)hd_timer.c	7.4 (Berkeley) 5/29/91
- *	$Id: hd_timer.c,v 1.2 1993/10/16 19:46:40 rgrimes Exp $
+ *	$Id: hd_timer.c,v 1.3 1993/11/25 01:34:22 wollman Exp $
  */
 
 #include "param.h"
@@ -71,6 +71,7 @@ int	hd_n2 = N2;
  *  amount - if expired then process the event.
  */
 
+void
 hd_timer ()
 {
 	register struct hdcb *hdp;

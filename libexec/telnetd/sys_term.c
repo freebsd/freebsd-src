@@ -611,17 +611,11 @@ tty_israw()
 tty_binaryin(on)
 	int on;
 {
+/* Make 8-bit clean mode in any case */
 #ifndef	USE_TERMIO
-	if (on)
-		termbuf.lflags |= LPASS8;
-	else
-		termbuf.lflags &= ~LPASS8;
+	termbuf.lflags |= LPASS8;
 #else
-	if (on) {
-		termbuf.c_iflag &= ~ISTRIP;
-	} else {
-		termbuf.c_iflag |= ISTRIP;
-	}
+	termbuf.c_iflag &= ~ISTRIP;
 #endif
 }
 

@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1982, 1986, 1989 Regents of the University of California.
  * All rights reserved.
  *
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_acct.c	7.18 (Berkeley) 5/11/91
- *	$Id: kern_acct.c,v 1.5 1993/10/19 05:46:05 davidg Exp $
+ *	$Id: kern_acct.c,v 1.9.2.1 1994/05/04 07:54:32 rgrimes Exp $
  */
 
 #include "param.h"
@@ -57,9 +64,11 @@
  */
 int	acctsuspend = 2;	/* stop accounting when < 2% free space left */
 int	acctresume = 4;		/* resume when free space risen to > 4% */
-struct	timeval chk = { 15, 0 };/* frequency to check space for accounting */
+struct  timeval chk;            /* frequency to check space for accounting */
 struct  vnode *acctp = NULL;	/* file to which to do accounting */
 struct  vnode *savacctp = NULL;	/* file to which to do accounting when space */
+
+static void acctwatch(caddr_t, int);
 
 /*
  * Enable or disable process accounting.
@@ -80,6 +89,7 @@ struct sysacct_args {
 };
 
 /* ARGSUSED */
+int
 sysacct(p, uap, retval)
 	struct proc *p;
 	struct sysacct_args *uap;
@@ -89,7 +99,7 @@ sysacct(p, uap, retval)
 	register struct nameidata *ndp;
 	struct nameidata nd;
 	struct vattr attr;
-	int rv, acctwatch();
+	int rv;
 
 	if (p->p_ucred->cr_uid != 0)
 		return(EPERM);		/* must be root */
@@ -147,8 +157,8 @@ sysacct(p, uap, retval)
 
 	acctp  = nd.ni_vp;
 	savacctp = NULL;
-	acctwatch(&chk);		/* look for full system */
 	VOP_UNLOCK(acctp);
+	acctwatch((caddr_t)&chk, 0); /* look for full system */
 	return(0);		/* end successfully */
 
 acct_fail:
@@ -161,10 +171,14 @@ acct_fail:
  * Periodically check the file system to see if accounting
  * should be turned on or off.
  */
-acctwatch(resettime)
-	struct timeval *resettime;
+static void
+acctwatch(arg1, arg2)
+	caddr_t arg1;
+	int arg2;
 {
+	struct timeval *resettime = (struct timeval *)arg1;
 	struct statfs sb;
+	int s;
 
 	if (savacctp) {
 		(void)VFS_STATFS(savacctp->v_mount, &sb, (struct proc *)0);
@@ -183,6 +197,8 @@ acctwatch(resettime)
 		acctp = NULL;
 		log(LOG_NOTICE, "Accounting suspended\n");
 	}
+	s = splhigh(); *resettime = time; splx(s);
+	resettime->tv_sec += 15;
 	timeout(acctwatch, (caddr_t)resettime, hzto(resettime));
 }
 
@@ -193,6 +209,7 @@ acctwatch(resettime)
 
 /* Mark Tinguely (tinguely@plains.NoDak.edu) 8/10/93 */
 
+void
 acct(p)
 	register struct proc *p;
 {

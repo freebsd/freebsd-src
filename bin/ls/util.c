@@ -36,7 +36,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)util.c	5.8 (Berkeley) 7/22/90";
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/bin/ls/util.c,v 1.2 1993/06/29 02:59:34 nate Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/bin/ls/util.c,v 1.3 1993/11/13 01:40:24 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -47,11 +47,18 @@ prcopy(src, dest, len)
 	register char *src, *dest;
 	register int len;
 {
-	register int ch;
+	register unsigned char ch;
 
 	while(len--) {
 		ch = *src++;
-		*dest++ = isprint(ch) ? ch : '?';
+		/* XXX:
+		 * because *BSD don't have setlocale() (yet)
+		 * here simple hack that allows ISO8859-x
+		 * and koi8-r charsets in terminal mode.
+		 * Note: range 0x80-0x9F skipped to avoid
+		 * some kinda security hole on poor DEC VTs
+		 */
+		*dest++ = (ch >= 0xA0 || isprint(ch)) ? ch : '?';
 	}
 }
 

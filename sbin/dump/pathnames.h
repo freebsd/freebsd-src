@@ -32,7 +32,7 @@
  *
  *	@(#)pathnames.h	5.6 (Berkeley) 2/28/91
  *
- *	$Header: /a/cvs/386BSD/src/sbin/dump/pathnames.h,v 1.2 1993/07/22 16:49:21 jkh Exp $
+ *	$Header: /home/cvs/386BSD/src/sbin/dump/pathnames.h,v 1.2 1993/07/22 16:49:21 jkh Exp $
  */
 
 #include <paths.h>

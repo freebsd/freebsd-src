@@ -33,15 +33,15 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.3 (Berkeley) 7/13/93";
+static char sccsid[] = "@(#)conf.c	8.82 (Berkeley) 3/6/94";
 #endif /* not lint */
 
-# include <sys/ioctl.h>
-# include <sys/param.h>
-# include <signal.h>
-# include <pwd.h>
 # include "sendmail.h"
 # include "pathnames.h"
+# include <sys/ioctl.h>
+# include <sys/param.h>
+# include <netdb.h>
+# include <pwd.h>
 
 /*
 **  CONF.C -- Sendmail Configuration Tables.
@@ -87,7 +87,7 @@ struct hdrinfo	HdrInfo[] =
 	"from",			H_FROM,
 	"reply-to",		H_FROM,
 	"full-name",		H_ACHECK,
-	"return-receipt-to",	H_FROM /* |H_RECEIPTTO */,
+	"return-receipt-to",	H_FROM|H_RECEIPTTO,
 	"errors-to",		H_FROM|H_ERRORSTO,
 
 		/* destination fields */
@@ -128,8 +128,6 @@ struct hdrinfo	HdrInfo[] =
 **  Location of system files/databases/etc.
 */
 
-char	*ConfFile =	_PATH_SENDMAILCF;	/* runtime configuration */
-char	*FreezeFile =	_PATH_SENDMAILFC;	/* frozen version of above */
 char	*PidFile =	_PATH_SENDMAILPID;	/* stores daemon proc id */
 
 
@@ -146,7 +144,8 @@ struct prival PrivacyValues[] =
 	"needvrfyhelo",		PRIV_NEEDVRFYHELO,
 	"noexpn",		PRIV_NOEXPN,
 	"novrfy",		PRIV_NOVRFY,
-	"restrictmailq",	PRIV_RESTRMAILQ,
+	"restrictmailq",	PRIV_RESTRICTMAILQ,
+	"restrictqrun",		PRIV_RESTRICTQRUN,
 	"authwarnings",		PRIV_AUTHWARNINGS,
 	"goaway",		PRIV_GOAWAY,
 	NULL,			0,
@@ -159,6 +158,25 @@ struct prival PrivacyValues[] =
 */
 
 int	DtableSize =	50;		/* max open files; reset in 4.2bsd */
+
+
+/*
+**  Following should be config parameters (and probably will be in
+**  future releases).  In the meantime, setting these is considered
+**  unsupported, and is intentionally undocumented.
+*/
+
+#ifdef BROKENSMTPPEERS
+bool	BrokenSmtpPeers = TRUE;		/* set if you have broken SMTP peers */
+#else
+bool	BrokenSmtpPeers = FALSE;	/* set if you have broken SMTP peers */
+#endif
+#ifdef NOLOOPBACKCHECK
+bool	CheckLoopBack = FALSE;		/* set to check HELO loopback */
+#else
+bool	CheckLoopBack = TRUE;		/* set to check HELO loopback */
+#endif
+
 /*
 **  SETDEFAULTS -- set default values
 **
@@ -491,7 +509,12 @@ checkcompat(to, e)
 # ifdef lint
 	if (to == NULL)
 		to++;
-# endif lint
+# endif /* lint */
+
+	if (tTd(49, 1))
+		printf("checkcompat(to=%s, from=%s)\n",
+			to->q_paddr, e->e_from.q_paddr);
+
 # ifdef EXAMPLE_CODE
 	/* this code is intended as an example only */
 	register STAB *s;
@@ -506,6 +529,29 @@ checkcompat(to, e)
 	}
 # endif /* EXAMPLE_CODE */
 	return (EX_OK);
+}
+/*
+**  SETSIGNAL -- set a signal handler
+**
+**	This is essentially old BSD "signal(3)".
+*/
+
+sigfunc_t
+setsignal(sig, handler)
+	int sig;
+	sigfunc_t handler;
+{
+#if defined(SYS5SIGNALS) || defined(BSD4_3) || defined(_AUX_SOURCE)
+	return signal(sig, handler);
+#else
+	struct sigaction n, o;
+
+	bzero(&n, sizeof n);
+	n.sa_handler = handler;
+	if (sigaction(sig, &n, &o) < 0)
+		return SIG_ERR;
+	return o.sa_handler;
+#endif
 }
 /*
 **  HOLDSIGS -- arrange to hold all signals
@@ -542,6 +588,25 @@ rlsesigs()
 {
 }
 /*
+**  INIT_MD -- do machine dependent initializations
+**
+**	Systems that have global modes that should be set should do
+**	them here rather than in main.
+*/
+
+#ifdef _AUX_SOURCE
+# include	<compat.h>
+#endif
+
+init_md(argc, argv)
+	int argc;
+	char **argv;
+{
+#ifdef _AUX_SOURCE
+	setcompat(getcompat() | COMPAT_BSDPROT);
+#endif
+}
+/*
 **  GETLA -- get the current load average
 **
 **	This code stolen from la.c.
@@ -558,71 +623,37 @@ rlsesigs()
 
 /* try to guess what style of load average we have */
 #define LA_ZERO		1	/* always return load average as zero */
-#define LA_INT		2	/* read kmem for avenrun; interpret as int */
+#define LA_INT		2	/* read kmem for avenrun; interpret as long */
 #define LA_FLOAT	3	/* read kmem for avenrun; interpret as float */
 #define LA_SUBR		4	/* call getloadavg */
+#define LA_MACH		5	/* MACH load averages (as on NeXT boxes) */
+#define LA_SHORT	6	/* read kmem for avenrun; interpret as short */
+#define LA_PROCSTR	7	/* read string ("1.17") from /proc/loadavg */
 
+/* do guesses based on general OS type */
 #ifndef LA_TYPE
-#  if defined(sun) && !defined(BSD)
-#    define LA_TYPE		LA_INT
-#  endif
-#  if defined(mips) || defined(__alpha)
-     /* Ultrix or OSF/1 or RISC/os */
-#    define LA_TYPE		LA_INT
-#    define LA_AVENRUN		"avenrun"
-#  endif
-#  if defined(__hpux)
-#    define LA_TYPE		LA_FLOAT
-#    define LA_AVENRUN		"avenrun"
-#  endif
-#  if defined(__NeXT__)
-#    define LA_TYPE		LA_ZERO
-#  endif
-
-/* now do the guesses based on general OS type */
-#  ifndef LA_TYPE
-#   if defined(SYSTEM5)
-#    define LA_TYPE		LA_INT
-#    define LA_AVENRUN		"avenrun"
-#   else
-#    if defined(BSD)
-#     define LA_TYPE		LA_SUBR
-#    else
-#     define LA_TYPE		LA_ZERO
-#    endif
-#   endif
-#  endif
+# define LA_TYPE	LA_ZERO
 #endif
 
-#if (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT)
+#if (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT)
 
 #include <nlist.h>
 
 #ifndef LA_AVENRUN
-#define LA_AVENRUN	"_avenrun"
+# ifdef SYSTEM5
+#  define LA_AVENRUN	"avenrun"
+# else
+#  define LA_AVENRUN	"_avenrun"
+# endif
 #endif
 
 /* _PATH_UNIX should be defined in <paths.h> */
 #ifndef _PATH_UNIX
-#  if defined(__hpux)
-#    define _PATH_UNIX		"/hp-ux"
-#  endif
-#  if defined(mips) && !defined(ultrix)
-     /* powerful RISC/os */
-#    define _PATH_UNIX		"/unix"
-#  endif
-#  if defined(Solaris2)
-     /* Solaris 2 */
-#    define _PATH_UNIX		"/kernel/unix"
-#  endif
-#  if defined(SYSTEM5)
-#    ifndef _PATH_UNIX
-#      define _PATH_UNIX	"/unix"
-#    endif
-#  endif
-#  ifndef _PATH_UNIX
-#    define _PATH_UNIX		"/vmunix"
-#  endif
+# if defined(SYSTEM5)
+#  define _PATH_UNIX	"/unix"
+# else
+#  define _PATH_UNIX	"/vmunix"
+# endif
 #endif
 
 struct	nlist Nl[] =
@@ -641,12 +672,12 @@ struct	nlist Nl[] =
 #  define FSHIFT	10
 # endif
 
-# if (LA_TYPE == LA_INT)
+# if (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT)
 #  define FSHIFT	8
 # endif
 #endif
 
-#if (LA_TYPE == LA_INT) && !defined(FSCALE)
+#if ((LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT)) && !defined(FSCALE)
 #  define FSCALE	(1 << FSHIFT)
 #endif
 
@@ -656,7 +687,11 @@ getla()
 #if LA_TYPE == LA_INT
 	long avenrun[3];
 #else
+# if LA_TYPE == LA_SHORT
+	short avenrun[3];
+# else
 	double avenrun[3];
+# endif
 #endif
 	extern off_t lseek();
 	extern int errno;
@@ -697,7 +732,7 @@ getla()
 			printf("getla: lseek or read: %s\n", errstring(errno));
 		return (-1);
 	}
-#if LA_TYPE == LA_INT
+#if (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT)
 	if (tTd(3, 5))
 	{
 		printf("getla: avenrun = %d", avenrun[0]);
@@ -725,6 +760,22 @@ getla()
 #else
 #if LA_TYPE == LA_SUBR
 
+#ifdef DGUX
+
+#include <sys/dg_sys_info.h>
+
+int getla()
+{
+	struct dg_sys_info_load_info load_info;
+
+	dg_sys_info((long *)&load_info,
+		DG_SYS_INFO_LOAD_INFO_TYPE, DG_SYS_INFO_LOAD_VERSION_0);
+
+	return((int) (load_info.one_minute + 0.5));
+}
+
+#else
+
 getla()
 {
 	double avenrun[3];
@@ -740,6 +791,88 @@ getla()
 	return ((int) (avenrun[0] + 0.5));
 }
 
+#endif /* DGUX */
+#else
+#if LA_TYPE == LA_MACH
+
+/*
+**  This has been tested on NEXTSTEP release 2.1/3.X.
+*/
+
+#if defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0
+# include <mach/mach.h>
+#else
+# include <mach.h>
+#endif
+
+getla()
+{
+	processor_set_t default_set;
+	kern_return_t error;
+	unsigned int info_count;
+	struct processor_set_basic_info info;
+	host_t host;
+
+	error = processor_set_default(host_self(), &default_set);
+	if (error != KERN_SUCCESS)
+		return -1;
+	info_count = PROCESSOR_SET_BASIC_INFO_COUNT;
+	if (processor_set_info(default_set, PROCESSOR_SET_BASIC_INFO,
+			       &host, (processor_set_info_t)&info,
+			       &info_count) != KERN_SUCCESS)
+	{
+		return -1;
+	}
+	return (int) (info.load_average + (LOAD_SCALE / 2)) / LOAD_SCALE;
+}
+
+
+#else
+#if LA_TYPE == LA_PROCSTR
+
+/*
+**  Read /proc/loadavg for the load average.  This is assumed to be
+**  in a format like "0.15 0.12 0.06".
+**
+**	Initially intended for Linux.  This has been in the kernel
+**	since at least 0.99.15.
+*/
+
+# ifndef _PATH_LOADAVG
+#  define _PATH_LOADAVG	"/proc/loadavg"
+# endif
+
+int
+getla()
+{
+	double avenrun;
+	register int result;
+	FILE *fp;
+
+	fp = fopen(_PATH_LOADAVG, "r");
+	if (fp == NULL) 
+	{
+		if (tTd(3, 1))
+			printf("getla: fopen(%s): %s\n",
+				_PATH_LOADAVG, errstring(errno));
+		return -1;
+	}
+	result = fscanf(fp, "%lf", &avenrun);
+	fclose(fp);
+	if (result != 1)
+	{
+		if (tTd(3, 1))
+			printf("getla: fscanf() = %d: %s\n",
+				result, errstring(errno));
+		return -1;
+	}
+
+	if (tTd(3, 1))
+		printf("getla(): %.2f\n", avenrun);
+
+	return ((int) (avenrun + 0.5));
+}
+
 #else
 
 getla()
@@ -751,6 +884,55 @@ getla()
 
 #endif
 #endif
+#endif
+#endif
+
+
+/*
+ * Copyright 1989 Massachusetts Institute of Technology
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of M.I.T. not be used in advertising or
+ * publicity pertaining to distribution of the software without specific,
+ * written prior permission.  M.I.T. makes no representations about the
+ * suitability of this software for any purpose.  It is provided "as is"
+ * without express or implied warranty.
+ *
+ * M.I.T. DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL M.I.T.
+ * BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Authors:  Many and varied...
+ */
+
+/* Non Apollo stuff removed by Don Lewis 11/15/93 */
+#ifndef lint
+static char  rcsid[] = "@(#)$Id: conf.c,v 1.5.2.1 1994/04/18 03:53:45 rgrimes Exp $";
+#endif /* !lint */
+
+#ifdef apollo
+# undef volatile
+#    include <apollo/base.h>
+
+/* ARGSUSED */
+int getloadavg( call_data )
+     caddr_t	call_data;	/* pointer to (double) return value */
+{
+     double *avenrun = (double *) call_data;
+     int i;
+     status_$t      st;
+     long loadav[3];
+     proc1_$get_loadav(loadav, &st);
+     *avenrun = loadav[0] / (double) (1 << 16);
+     return(0);
+}
+#   endif /* apollo */
 /*
 **  SHOULDQUEUE -- should this message be queued or sent?
 **
@@ -822,12 +1004,19 @@ refuseconnections()
 */
 
 #ifdef SETPROCTITLE
+# ifdef HASSETPROCTITLE
+   *** ERROR ***  Cannot have both SETPROCTITLE and HASSETPROCTITLE defined
+# endif
 # ifdef __hpux
 #  include <sys/pstat.h>
 # endif
 # ifdef BSD4_4
 #  include <machine/vmparam.h>
 #  include <sys/exec.h>
+#  ifdef __bsdi__
+#   undef PS_STRINGS	/* BSDI 1.0 doesn't do PS_STRINGS as we expect */
+#   define PROCTITLEPAD	'\0'
+#  endif
 #  ifdef PS_STRINGS
 #   define SETPROC_STATIC static
 #  endif
@@ -836,6 +1025,12 @@ refuseconnections()
 #  define SETPROC_STATIC
 # endif
 #endif
+
+#ifndef PROCTITLEPAD
+# define PROCTITLEPAD	' '
+#endif
+
+#ifndef HASSETPROCTITLE
 
 /*VARARGS1*/
 #ifdef __STDC__
@@ -886,11 +1081,13 @@ setproctitle(fmt, va_alist)
 	(void) strcpy(Argv[0], buf);
 	p = &Argv[0][i];
 	while (p < LastArgv)
-		*p++ = ' ';
+		*p++ = PROCTITLEPAD;
 #   endif
 #  endif
 # endif /* SETPROCTITLE */
 }
+
+#endif
 /*
 **  REAPCHILD -- pick up the body of my child, lest it become a zombie
 **
@@ -904,12 +1101,11 @@ setproctitle(fmt, va_alist)
 **		Picks up extant zombies.
 */
 
-# include <sys/wait.h>
-
 void
 reapchild()
 {
-# if defined(WIFEXITED) && !defined(__NeXT__)
+	int olderrno = errno;
+# ifdef HASWAITPID
 	auto int status;
 	int count;
 	int pid;
@@ -937,9 +1133,10 @@ reapchild()
 		continue;
 # endif /* WNOHANG */
 # endif
-# ifdef SYSTEM5
-	(void) signal(SIGCHLD, reapchild);
+# ifdef SYS5SIGNALS
+	(void) setsignal(SIGCHLD, reapchild);
 # endif
+	errno = olderrno;
 }
 /*
 **  UNSETENV -- remove a variable from the environment
@@ -960,7 +1157,7 @@ reapchild()
 **		Modifies environ.
 */
 
-#ifdef UNSETENV
+#ifndef HASUNSETENV
 
 void
 unsetenv(name)
@@ -981,7 +1178,7 @@ unsetenv(name)
 		*pp = pp[1];
 }
 
-#endif /* UNSETENV */
+#endif
 /*
 **  GETDTABLESIZE -- return number of file descriptors
 **
@@ -1011,11 +1208,11 @@ getdtsize()
 		return rl.rlim_cur;
 #endif
 
-# if defined(_SC_OPEN_MAX) && !defined(NO_SYSCONF)
-	return sysconf(_SC_OPEN_MAX);
-# else
-#  ifdef HASGETDTABLESIZE
+# ifdef HASGETDTABLESIZE
 	return getdtablesize();
+# else
+#  ifdef _SC_OPEN_MAX
+	return sysconf(_SC_OPEN_MAX);
 #  else
 	return NOFILE;
 #  endif
@@ -1090,12 +1287,6 @@ uname(name)
 */
 
 #ifndef HASINITGROUPS
-# if !defined(SYSTEM5) || defined(__hpux)
-#  define HASINITGROUPS
-# endif
-#endif
-
-#ifndef HASINITGROUPS
 
 initgroups(name, basegid)
 	char *name;
@@ -1114,61 +1305,317 @@ initgroups(name, basegid)
 pid_t
 setsid __P ((void))
 {
-# ifdef SYSTEM5
+#ifdef TIOCNOTTY
+	int fd;
+
+	fd = open("/dev/tty", 2);
+	if (fd >= 0)
+	{
+		(void) ioctl(fd, (int) TIOCNOTTY, (char *) 0);
+		(void) close(fd);
+	}
+#endif /* TIOCNOTTY */
+# ifdef SYS5SETPGRP
 	return setpgrp();
 # else
-	return 0;
+	return setpgid(0, getpid());
 # endif
 }
 
 #endif
 /*
-**  ENOUGHSPACE -- check to see if there is enough free space on the queue fs
+**  DGUX_INET_ADDR -- inet_addr for DG/UX
+**
+**	Data General DG/UX version of inet_addr returns a struct in_addr
+**	instead of a long.  This patches things.
+*/
+
+#ifdef DGUX
+
+#undef inet_addr
+
+long
+dgux_inet_addr(host)
+	char *host;
+{
+	struct in_addr haddr;
+
+	haddr = inet_addr(host);
+	return haddr.s_addr;
+}
+
+#endif
+/*
+**  GETOPT -- for old systems or systems with bogus implementations
+*/
+
+#ifdef NEEDGETOPT
+
+/*
+ * Copyright (c) 1985 Regents of the University of California.
+ * All rights reserved.  The Berkeley software License Agreement
+ * specifies the terms and conditions for redistribution.
+ */
+
+
+/*
+** this version hacked to add `atend' flag to allow state machine
+** to reset if invoked by the program to scan args for a 2nd time
+*/
+
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)getopt.c	4.3 (Berkeley) 3/9/86";
+#endif /* LIBC_SCCS and not lint */
+
+#include <stdio.h>
+
+/*
+ * get option letter from argument vector
+ */
+#ifdef _CONVEX_SOURCE
+extern int	optind, opterr;
+#else
+int	opterr = 1;		/* if error message should be printed */
+int	optind = 1;		/* index into parent argv vector */
+#endif
+int	optopt;			/* character checked for validity */
+char	*optarg;		/* argument associated with option */
+
+#define BADCH	(int)'?'
+#define EMSG	""
+#define tell(s)	if (opterr) {fputs(*nargv,stderr);fputs(s,stderr); \
+		fputc(optopt,stderr);fputc('\n',stderr);return(BADCH);}
+
+getopt(nargc,nargv,ostr)
+	int		nargc;
+	char *const	*nargv;
+	const char	*ostr;
+{
+	static char	*place = EMSG;	/* option letter processing */
+	static char	atend = 0;
+	register char	*oli;		/* option letter list index */
+
+	if (atend) {
+		atend = 0;
+		place = EMSG;
+	}
+	if(!*place) {			/* update scanning pointer */
+		if (optind >= nargc || *(place = nargv[optind]) != '-' || !*++place) {
+			atend++;
+			return(EOF);
+		}
+		if (*place == '-') {	/* found "--" */
+			++optind;
+			atend++;
+			return(EOF);
+		}
+	}				/* option letter okay? */
+	if ((optopt = (int)*place++) == (int)':' || !(oli = strchr(ostr,optopt))) {
+		if (!*place) ++optind;
+		tell(": illegal option -- ");
+	}
+	if (*++oli != ':') {		/* don't need argument */
+		optarg = NULL;
+		if (!*place) ++optind;
+	}
+	else {				/* need an argument */
+		if (*place) optarg = place;	/* no white space */
+		else if (nargc <= ++optind) {	/* no arg */
+			place = EMSG;
+			tell(": option requires an argument -- ");
+		}
+	 	else optarg = nargv[optind];	/* white space */
+		place = EMSG;
+		++optind;
+	}
+	return(optopt);			/* dump back option letter */
+}
+
+#endif
+/*
+**  VFPRINTF, VSPRINTF -- for old 4.3 BSD systems missing a real version
+*/
+
+#ifdef NEEDVPRINTF
+
+#define MAXARG	16
+
+vfprintf(fp, fmt, ap)
+	FILE *	fp;
+	char *	fmt;
+	char **	ap;
+{
+	char *	bp[MAXARG];
+	int	i = 0;
+
+	while (*ap && i < MAXARG)
+		bp[i++] = *ap++;
+	fprintf(fp, fmt, bp[0], bp[1], bp[2], bp[3],
+			 bp[4], bp[5], bp[6], bp[7],
+			 bp[8], bp[9], bp[10], bp[11],
+			 bp[12], bp[13], bp[14], bp[15]);
+}
+
+vsprintf(s, fmt, ap)
+	char *	s;
+	char *	fmt;
+	char **	ap;
+{
+	char *	bp[MAXARG];
+	int	i = 0;
+
+	while (*ap && i < MAXARG)
+		bp[i++] = *ap++;
+	sprintf(s, fmt, bp[0], bp[1], bp[2], bp[3],
+			bp[4], bp[5], bp[6], bp[7],
+			bp[8], bp[9], bp[10], bp[11],
+			bp[12], bp[13], bp[14], bp[15]);
+}
+
+#endif
+/*
+**  USERSHELLOK -- tell if a user's shell is ok for unrestricted use
+**
+**	Parameters:
+**		shell -- the user's shell from /etc/passwd
+**
+**	Returns:
+**		TRUE -- if it is ok to use this for unrestricted access.
+**		FALSE -- if the shell is restricted.
+*/
+
+#if !HASGETUSERSHELL
+
+# ifndef _PATH_SHELLS
+#  define _PATH_SHELLS	"/etc/shells"
+# endif
+
+char	*DefaultUserShells[] =
+{
+	"/bin/sh",
+	"/usr/bin/sh",
+	"/bin/csh",
+	"/usr/bin/csh",
+#ifdef __hpux
+	"/bin/rsh",
+	"/bin/ksh",
+	"/bin/rksh",
+	"/bin/pam",
+	"/usr/bin/keysh",
+	"/bin/posix/sh",
+#endif
+	NULL
+};
+
+#endif
+
+#define WILDCARD_SHELL	"/SENDMAIL/ANY/SHELL/"
+
+bool
+usershellok(shell)
+	char *shell;
+{
+#if HASGETUSERSHELL
+	register char *p;
+	extern char *getusershell();
+
+	setusershell();
+	while ((p = getusershell()) != NULL)
+		if (strcmp(p, shell) == 0 || strcmp(p, WILDCARD_SHELL) == 0)
+			break;
+	endusershell();
+	return p != NULL;
+#else
+	register FILE *shellf;
+	char buf[MAXLINE];
+
+	shellf = fopen(_PATH_SHELLS, "r");
+	if (shellf == NULL)
+	{
+		/* no /etc/shells; see if it is one of the std shells */
+		char **d;
+
+		for (d = DefaultUserShells; *d != NULL; d++)
+		{
+			if (strcmp(shell, *d) == 0)
+				return TRUE;
+		}
+		return FALSE;
+	}
+
+	while (fgets(buf, sizeof buf, shellf) != NULL)
+	{
+		register char *p, *q;
+
+		p = buf;
+		while (*p != '\0' && *p != '#' && *p != '/')
+			p++;
+		if (*p == '#' || *p == '\0')
+			continue;
+		q = p;
+		while (*p != '\0' && *p != '#' && !isspace(*p))
+			p++;
+		*p = '\0';
+		if (strcmp(shell, q) == 0 || strcmp(WILDCARD_SHELL, q) == 0)
+		{
+			fclose(shellf);
+			return TRUE;
+		}
+	}
+	fclose(shellf);
+	return FALSE;
+#endif
+}
+/*
+**  FREESPACE -- see how much free space is on the queue filesystem
 **
 **	Only implemented if you have statfs.
 **
 **	Parameters:
-**		msize -- the size to check against.  If zero, we don't yet
-**			know how big the message will be, so just check for
-**			a "reasonable" amount.
+**		dir -- the directory in question.
+**		bsize -- a variable into which the filesystem
+**			block size is stored.
 **
 **	Returns:
-**		TRUE if there is enough space.
-**		FALSE otherwise.
+**		The number of bytes free on the queue filesystem.
+**		-1 if the statfs call fails.
+**
+**	Side effects:
+**		Puts the filesystem block size into bsize.
 */
 
-#ifndef HASSTATFS
-# if defined(BSD4_4) || defined(__osf__)
-#  define HASSTATFS
-# endif
+/* statfs types */
+#define SFS_NONE	0	/* no statfs implementation */
+#define SFS_USTAT	1	/* use ustat */
+#define SFS_4ARGS	2	/* use four-argument statfs call */
+#define SFS_VFS		3	/* use <sys/vfs.h> implementation */
+#define SFS_MOUNT	4	/* use <sys/mount.h> implementation */
+#define SFS_STATFS	5	/* use <sys/statfs.h> implementation */
+
+#ifndef SFS_TYPE
+# define SFS_TYPE	SFS_NONE
 #endif
 
-#ifdef HASSTATFS
-# undef HASUSTAT
-#endif
-
-#if defined(HASUSTAT)
+#if SFS_TYPE == SFS_USTAT
 # include <ustat.h>
 #endif
-
-#ifdef HASSTATFS
-# if defined(sgi) || defined(apollo)
-#  include <sys/statfs.h>
-# else
-#  if (defined(sun) && !defined(BSD)) || defined(__hpux)
-#   include <sys/vfs.h>
-#  else
-#   include <sys/mount.h>
-#  endif
-# endif
+#if SFS_TYPE == SFS_4ARGS || SFS_TYPE == SFS_STATFS
+# include <sys/statfs.h>
+#endif
+#if SFS_TYPE == SFS_VFS
+# include <sys/vfs.h>
+#endif
+#if SFS_TYPE == SFS_MOUNT
+# include <sys/mount.h>
 #endif
 
-bool
-enoughspace(msize)
-	long msize;
+long
+freespace(dir, bsize)
+	char *dir;
+	long *bsize;
 {
-#if defined(HASSTATFS) || defined(HASUSTAT)
-# if defined(HASUSTAT)
+#if SFS_TYPE != SFS_NONE
+# if SFS_TYPE == SFS_USTAT
 	struct ustat fs;
 	struct stat statbuf;
 #  define FSBLOCKSIZE	DEV_BSIZE
@@ -1181,9 +1628,54 @@ enoughspace(msize)
 #  else
 	struct statfs fs;
 #   define FSBLOCKSIZE	fs.f_bsize
+#   if defined(_SCO_unix_) || defined(IRIX) || defined(apollo)
+#    define f_bavail f_bfree
+#   endif
 #  endif
 # endif
 	extern int errno;
+
+# if SFS_TYPE == SFS_USTAT
+	if (stat(dir, &statbuf) == 0 && ustat(statbuf.st_dev, &fs) == 0)
+# else
+#  if SFS_TYPE == SFS_4ARGS
+	if (statfs(dir, &fs, sizeof fs, 0) == 0)
+#  else
+#   if defined(ultrix)
+	if (statfs(dir, &fs) > 0)
+#   else
+	if (statfs(dir, &fs) == 0)
+#   endif
+#  endif
+# endif
+	{
+		if (bsize != NULL)
+			*bsize = FSBLOCKSIZE;
+		return (fs.f_bavail);
+	}
+#endif
+	return (-1);
+}
+/*
+**  ENOUGHSPACE -- check to see if there is enough free space on the queue fs
+**
+**	Only implemented if you have statfs.
+**
+**	Parameters:
+**		msize -- the size to check against.  If zero, we don't yet
+**		know how big the message will be, so just check for
+**		a "reasonable" amount.
+**
+**	Returns:
+**		TRUE if there is enough space.
+**		FALSE otherwise.
+*/
+
+bool
+enoughspace(msize)
+	long msize;
+{
+	long bfree, bsize;
 
 	if (MinBlocksFree <= 0 && msize <= 0)
 	{
@@ -1192,35 +1684,25 @@ enoughspace(msize)
 		return TRUE;
 	}
 
-# if defined(HASUSTAT)
-	if (stat(QueueDir, &statbuf) == 0 && ustat(statbuf.st_dev, &fs) == 0)
-# else
-#  if defined(sgi) || defined(apollo)
-	if (statfs(QueueDir, &fs, sizeof fs, 0) == 0)
-#  else
-#   if defined(ultrix)
-	if (statfs(QueueDir, &fs) > 0)
-#   else
-	if (statfs(QueueDir, &fs) == 0)
-#   endif
-#  endif
-# endif
+	if ((bfree = freespace(QueueDir, &bsize)) >= 0)
 	{
 		if (tTd(4, 80))
 			printf("enoughspace: bavail=%ld, need=%ld\n",
-				fs.f_bavail, msize);
+				bfree, msize);
 
 		/* convert msize to block count */
-		msize = msize / FSBLOCKSIZE + 1;
+		msize = msize / bsize + 1;
 		if (MinBlocksFree >= 0)
 			msize += MinBlocksFree;
 
-		if (fs.f_bavail < msize)
+		if (bfree < msize)
 		{
 #ifdef LOG
 			if (LogLevel > 0)
-				syslog(LOG_ALERT, "%s: low on space (have %ld, need %ld)",
-					QueueDir, fs.f_bavail, msize);
+				syslog(LOG_ALERT,
+					"%s: low on space (have %ld, %s needs %ld in %s)",
+					CurEnv->e_id, bfree,
+					CurHostName, msize, QueueDir);
 #endif
 			return FALSE;
 		}
@@ -1228,7 +1710,6 @@ enoughspace(msize)
 	else if (tTd(4, 80))
 		printf("enoughspace failure: min=%ld, need=%ld: %s\n",
 			MinBlocksFree, msize, errstring(errno));
-#endif
 	return TRUE;
 }
 /*
@@ -1322,7 +1803,10 @@ transienterror(err)
 #ifdef EADDRNOTAVAIL
 	  case EADDRNOTAVAIL:		/* Can't assign requested address */
 #endif
-#ifdef ENOSR
+#ifdef ETXTBSY
+	  case ETXTBSY:			/* (Apollo) file locked */
+#endif
+#if defined(ENOSR) && (!defined(ENOBUFS) || (ENOBUFS != ENOSR))
 	  case ENOSR:			/* Out of streams resources */
 #endif
 		return TRUE;
@@ -1332,11 +1816,12 @@ transienterror(err)
 	return FALSE;
 }
 /*
-**  LOCKFILE -- lock a file using flock or (shudder) lockf
+**  LOCKFILE -- lock a file using flock or (shudder) fcntl locking
 **
 **	Parameters:
 **		fd -- the file descriptor of the file.
 **		filename -- the file name (for error messages).
+**		ext -- the filename extension.
 **		type -- type of the lock.  Bits can be:
 **			LOCK_EX -- exclusive lock.
 **			LOCK_NB -- non-blocking.
@@ -1347,15 +1832,20 @@ transienterror(err)
 */
 
 bool
-lockfile(fd, filename, type)
+lockfile(fd, filename, ext, type)
 	int fd;
 	char *filename;
+	char *ext;
 	int type;
 {
-# ifdef LOCKF
+# if !HASFLOCK
 	int action;
 	struct flock lfd;
 
+	if (ext == NULL)
+		ext = "";
+		
+	bzero(&lfd, sizeof lfd);
 	if (bitset(LOCK_UN, type))
 		lfd.l_type = F_UNLCK;
 	else if (bitset(LOCK_EX, type))
@@ -1368,19 +1858,492 @@ lockfile(fd, filename, type)
 	else
 		action = F_SETLKW;
 
-	lfd.l_whence = lfd.l_start = lfd.l_len = 0;
+	if (tTd(55, 60))
+		printf("lockfile(%s%s, action=%d, type=%d): ",
+			filename, ext, action, lfd.l_type);
 
 	if (fcntl(fd, action, &lfd) >= 0)
+	{
+		if (tTd(55, 60))
+			printf("SUCCESS\n");
 		return TRUE;
+	}
+
+	if (tTd(55, 60))
+		printf("(%s) ", errstring(errno));
+
+	/*
+	**  On SunOS, if you are testing using -oQ/tmp/mqueue or
+	**  -oA/tmp/aliases or anything like that, and /tmp is mounted
+	**  as type "tmp" (that is, served from swap space), the
+	**  previous fcntl will fail with "Invalid argument" errors.
+	**  Since this is fairly common during testing, we will assume
+	**  that this indicates that the lock is successfully grabbed.
+	*/
+
+	if (errno == EINVAL)
+	{
+		if (tTd(55, 60))
+			printf("SUCCESS\n");
+		return TRUE;
+	}
 
 	if (!bitset(LOCK_NB, type) || (errno != EACCES && errno != EAGAIN))
-		syserr("cannot lockf(%s, %o)", filename, type);
+	{
+		int omode = -1;
+#  ifdef F_GETFL
+		int oerrno = errno;
+
+		(void) fcntl(fd, F_GETFL, &omode);
+		errno = oerrno;
+#  endif
+		syserr("cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
+			filename, ext, fd, type, omode, geteuid());
+	}
 # else
+	if (ext == NULL)
+		ext = "";
+
+	if (tTd(55, 60))
+		printf("lockfile(%s%s, type=%o): ", filename, ext, type);
+
 	if (flock(fd, type) >= 0)
+	{
+		if (tTd(55, 60))
+			printf("SUCCESS\n");
 		return TRUE;
+	}
+
+	if (tTd(55, 60))
+		printf("(%s) ", errstring(errno));
 
 	if (!bitset(LOCK_NB, type) || errno != EWOULDBLOCK)
-		syserr("cannot flock(%s, %o)", filename, type);
+	{
+		int omode = -1;
+#  ifdef F_GETFL
+		int oerrno = errno;
+
+		(void) fcntl(fd, F_GETFL, &omode);
+		errno = oerrno;
+#  endif
+		syserr("cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
+			filename, ext, fd, type, omode, geteuid());
+	}
 # endif
+	if (tTd(55, 60))
+		printf("FAIL\n");
 	return FALSE;
 }
+/*
+**  CHOWNSAFE -- tell if chown is "safe" (executable only by root)
+**
+**	Parameters:
+**		fd -- the file descriptor to check.
+**
+**	Returns:
+**		TRUE -- if only root can chown the file to an arbitrary
+**			user.
+**		FALSE -- if an arbitrary user can give away a file.
+*/
+
+#if defined(__FreeBSD__) && defined(_POSIX_CHOWN_RESTRICTED)
+#	undef _POSIX_CHOWN_RESTRICTED
+#	define _POSIX_CHOWN_RESTRICTED 1
+#endif
+
+bool
+chownsafe(fd)
+	int fd;
+{
+#ifdef __hpux
+	char *s;
+	int tfd;
+	uid_t o_uid, o_euid;
+	gid_t o_gid, o_egid;
+	bool rval;
+	struct stat stbuf;
+
+	o_uid = getuid();
+	o_euid = geteuid();
+	o_gid = getgid();
+	o_egid = getegid();
+	fstat(fd, &stbuf);
+	setresuid(stbuf.st_uid, stbuf.st_uid, -1);
+	setresgid(stbuf.st_gid, stbuf.st_gid, -1);
+	s = tmpnam(NULL);
+	tfd = open(s, O_RDONLY|O_CREAT, 0600);
+	rval = fchown(tfd, DefUid, DefGid) != 0;
+	close(tfd);
+	unlink(s);
+	setreuid(o_uid, o_euid);
+	setresgid(o_gid, o_egid, -1);
+	return rval;
+#else
+# ifdef _POSIX_CHOWN_RESTRICTED
+#  if _POSIX_CHOWN_RESTRICTED == -1
+	return FALSE;
+#  else
+	return TRUE;
+#  endif
+# else
+#  ifdef _PC_CHOWN_RESTRICTED
+	return fpathconf(fd, _PC_CHOWN_RESTRICTED) > 0;
+#  else
+#   ifdef BSD
+	return TRUE;
+#   else
+	return FALSE;
+#   endif
+#  endif
+# endif
+#endif
+}
+/*
+**  GETCFNAME -- return the name of the .cf file.
+**
+**	Some systems (e.g., NeXT) determine this dynamically.
+*/
+
+char *
+getcfname()
+{
+	if (ConfFile != NULL)
+		return ConfFile;
+#ifdef NETINFO
+	{
+		extern char *ni_propval();
+		char *cflocation;
+
+		cflocation = ni_propval("/locations/sendmail", "sendmail.cf");
+		if (cflocation != NULL)
+			return cflocation;
+	}
+#endif
+	return _PATH_SENDMAILCF;
+}
+/*
+**  SETVENDOR -- process vendor code from V configuration line
+**
+**	Parameters:
+**		vendor -- string representation of vendor.
+**
+**	Returns:
+**		TRUE -- if ok.
+**		FALSE -- if vendor code could not be processed.
+**
+**	Side Effects:
+**		It is reasonable to set mode flags here to tweak
+**		processing in other parts of the code if necessary.
+**		For example, if you are a vendor that uses $%y to
+**		indicate YP lookups, you could enable that here.
+*/
+
+bool
+setvendor(vendor)
+	char *vendor;
+{
+	if (strcasecmp(vendor, "Berkeley") == 0)
+		return TRUE;
+
+	/* add vendor extensions here */
+
+	return FALSE;
+}
+/*
+**  STRTOL -- convert string to long integer
+**
+**	For systems that don't have it in the C library.
+**
+**	This is taken verbatim from the 4.4-Lite C library.
+*/
+
+#ifdef NEEDSTRTOL
+
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
+#endif /* LIBC_SCCS and not lint */
+
+#include <limits.h>
+
+/*
+ * Convert a string to a long integer.
+ *
+ * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * alphabets and digits are each contiguous.
+ */
+
+long
+strtol(nptr, endptr, base)
+	const char *nptr;
+	char **endptr;
+	register int base;
+{
+	register const char *s = nptr;
+	register unsigned long acc;
+	register int c;
+	register unsigned long cutoff;
+	register int neg = 0, any, cutlim;
+
+	/*
+	 * Skip white space and pick up leading +/- sign if any.
+	 * If base is 0, allow 0x for hex and 0 for octal, else
+	 * assume decimal; if base is already 16, allow 0x.
+	 */
+	do {
+		c = *s++;
+	} while (isspace(c));
+	if (c == '-') {
+		neg = 1;
+		c = *s++;
+	} else if (c == '+')
+		c = *s++;
+	if ((base == 0 || base == 16) &&
+	    c == '0' && (*s == 'x' || *s == 'X')) {
+		c = s[1];
+		s += 2;
+		base = 16;
+	}
+	if (base == 0)
+		base = c == '0' ? 8 : 10;
+
+	/*
+	 * Compute the cutoff value between legal numbers and illegal
+	 * numbers.  That is the largest legal value, divided by the
+	 * base.  An input number that is greater than this value, if
+	 * followed by a legal input character, is too big.  One that
+	 * is equal to this value may be valid or not; the limit
+	 * between valid and invalid numbers is then based on the last
+	 * digit.  For instance, if the range for longs is
+	 * [-2147483648..2147483647] and the input base is 10,
+	 * cutoff will be set to 214748364 and cutlim to either
+	 * 7 (neg==0) or 8 (neg==1), meaning that if we have accumulated
+	 * a value > 214748364, or equal but the next digit is > 7 (or 8),
+	 * the number is too big, and we will return a range error.
+	 *
+	 * Set any if any `digits' consumed; make it negative to indicate
+	 * overflow.
+	 */
+	cutoff = neg ? -(unsigned long)LONG_MIN : LONG_MAX;
+	cutlim = cutoff % (unsigned long)base;
+	cutoff /= (unsigned long)base;
+	for (acc = 0, any = 0;; c = *s++) {
+		if (isdigit(c))
+			c -= '0';
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else
+			break;
+		if (c >= base)
+			break;
+		if (any < 0 || acc > cutoff || acc == cutoff && c > cutlim)
+			any = -1;
+		else {
+			any = 1;
+			acc *= base;
+			acc += c;
+		}
+	}
+	if (any < 0) {
+		acc = neg ? LONG_MIN : LONG_MAX;
+		errno = ERANGE;
+	} else if (neg)
+		acc = -acc;
+	if (endptr != 0)
+		*endptr = (char *)(any ? s - 1 : nptr);
+	return (acc);
+}
+
+#endif
+/*
+**  SOLARIS_GETHOSTBY{NAME,ADDR} -- compatibility routines for gethostbyXXX
+**
+**	Solaris versions prior through 2.3 don't properly deliver a
+**	canonical h_name field.  This tries to work around it.
+*/
+
+#ifdef SOLARIS
+
+struct hostent *
+solaris_gethostbyname(name)
+	const char *name;
+{
+# ifdef SOLARIS_2_3
+	static struct hostent hp;
+	static char buf[1000];
+	extern struct hostent *_switch_gethostbyname_r();
+
+	return _switch_gethostbyname_r(name, &hp, buf, sizeof(buf), &h_errno);
+# else
+	extern struct hostent *__switch_gethostbyname();
+
+	return __switch_gethostbyname(name);
+# endif
+}
+
+struct hostent *
+solaris_gethostbyaddr(addr, len, type)
+	const char *addr;
+	int len;
+	int type;
+{
+# ifdef SOLARIS_2_3
+	static struct hostent hp;
+	static char buf[1000];
+	extern struct hostent *_switch_gethostbyaddr_r();
+
+	return _switch_gethostbyaddr_r(addr, len, type, &hp, buf, sizeof(buf), &h_errno);
+# else
+	extern struct hostent *__switch_gethostbyaddr();
+
+	return __switch_gethostbyaddr(addr, len, type);
+# endif
+}
+
+#endif
+/*
+**  NI_PROPVAL -- netinfo property value lookup routine
+**
+**	Parameters:
+**		directory -- the Netinfo directory name.
+**		propname -- the Netinfo property name.
+**
+**	Returns:
+**		NULL -- if:
+**			1. the directory is not found
+**			2. the property name is not found
+**			3. the property contains multiple values
+**			4. some error occured
+**		else -- the location of the config file.
+**
+**	Notes:
+**      	Caller should free the return value of ni_proval
+*/
+
+#ifdef NETINFO
+
+# include <netinfo/ni.h>
+
+# define LOCAL_NETINFO_DOMAIN    "."
+# define PARENT_NETINFO_DOMAIN   ".."
+# define MAX_NI_LEVELS           256
+
+char *
+ni_propval(directory, propname)
+	char *directory;
+	char *propname;
+{
+	char *propval = NULL;
+	int i;
+	void *ni = NULL;
+	void *lastni = NULL;
+	ni_status nis;
+	ni_id nid;
+	ni_namelist ninl;
+
+	/*
+	**  If the passed directory and property name are found
+	**  in one of netinfo domains we need to search (starting
+	**  from the local domain moving all the way back to the
+	**  root domain) set propval to the property's value
+	**  and return it.
+	*/
+
+	for (i = 0; i < MAX_NI_LEVELS; ++i)
+	{
+		if (i == 0)
+		{
+			nis = ni_open(NULL, LOCAL_NETINFO_DOMAIN, &ni);
+		}
+		else
+		{
+			if (lastni != NULL)
+				ni_free(lastni);
+			lastni = ni;
+			nis = ni_open(lastni, PARENT_NETINFO_DOMAIN, &ni);
+		}
+
+		/*
+		**  Don't bother if we didn't get a handle on a
+		**  proper domain.  This is not necessarily an error.
+		**  We would get a positive ni_status if, for instance
+		**  we never found the directory or property and tried
+		**  to open the parent of the root domain!
+		*/
+
+		if (nis != 0)
+			break;
+
+		/*
+		**  Find the path to the server information.
+		*/
+
+		if (ni_pathsearch(ni, &nid, directory) != 0)
+			continue;
+
+		/*
+		**  Find "host" information.
+		*/
+
+		if (ni_lookupprop(ni, &nid, propname, &ninl) != 0)
+			continue;
+
+		/*
+		**  If there's only one name in
+		**  the list, assume we've got
+		**  what we want.
+		*/
+
+		if (ninl.ni_namelist_len == 1)
+		{
+			propval = ni_name_dup(ninl.ni_namelist_val[0]);
+			break;
+		}
+	}
+
+	/*
+	**  Clean up.
+	*/
+
+	if (ni != NULL)
+		ni_free(ni);
+	if (lastni != NULL && ni != lastni)
+		ni_free(lastni);
+
+	return propval;
+}
+
+#endif /* NETINFO */
+/*
+**  HARD_SYSLOG -- call syslog repeatedly until it works
+**
+**	Needed on HP-UX, which apparently doesn't guarantee that
+**	syslog succeeds during interrupt handlers.
+*/
+
+#ifdef __hpux
+
+# define MAXSYSLOGTRIES	100
+# undef syslog
+
+# ifdef __STDC__
+hard_syslog(int pri, char *msg, ...)
+# else
+hard_syslog(pri, msg, va_alist)
+	int pri;
+	char *msg;
+	va_dcl
+# endif
+{
+	int i;
+	char buf[SYSLOG_BUFSIZE * 2];
+	VA_LOCAL_DECL;
+
+	VA_START(msg);
+	vsprintf(buf, msg, ap);
+	VA_END;
+
+	for (i = MAXSYSLOGTRIES; --i >= 0 && syslog(pri, "%s", buf) < 0; )
+		continue;
+}
+
+#endif

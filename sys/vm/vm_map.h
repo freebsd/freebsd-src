@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_map.h	7.3 (Berkeley) 4/21/91
- *	$Id: vm_map.h,v 1.2 1993/10/16 16:20:36 rgrimes Exp $
+ *	$Id: vm_map.h,v 1.5 1994/01/17 09:33:43 davidg Exp $
  */
 
 /*
@@ -100,6 +100,7 @@ typedef union vm_map_object	vm_map_object_t;
  *	and user-exported inheritance and protection information.
  *	Also included is control information for virtual copy operations.
  */
+
 struct vm_map_entry {
 	struct vm_map_entry	*prev;		/* previous entry */
 	struct vm_map_entry	*next;		/* next entry */
@@ -107,11 +108,11 @@ struct vm_map_entry {
 	vm_offset_t		end;		/* end address */
 	union vm_map_object	object;		/* object I point to */
 	vm_offset_t		offset;		/* offset into object */
-	boolean_t		is_a_map;	/* Is "object" a map? */
-	boolean_t		is_sub_map;	/* Is "object" a submap? */
+	unsigned char		is_a_map:1,	/* Is "object" a map? */
+				is_sub_map:1,	/* Is "object" a submap? */
 		/* Only in sharing maps: */
-	boolean_t		copy_on_write;	/* is data copy-on-write */
-	boolean_t		needs_copy;	/* does object need to be copied */
+				copy_on_write:1,/* is data copy-on-write */
+				needs_copy:1;/* does object need to be copied */
 		/* Only in task maps: */
 	vm_prot_t		protection;	/* protection code */
 	vm_prot_t		max_protection;	/* maximum protection */
@@ -176,22 +177,50 @@ typedef struct {
 /*
  *	Exported procedures that operate on vm_map_t.
  */
+extern int vm_map_pageable(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
+extern void vm_map_startup(void);
+struct pmap; struct vm_object;
+extern vm_map_t vm_map_create(struct pmap *, vm_offset_t, vm_offset_t,
+			      boolean_t);
+extern void vm_map_init(struct vm_map *, vm_offset_t, vm_offset_t, boolean_t);
+extern vm_map_entry_t vm_map_entry_create(vm_map_t);
+extern void vm_map_entry_dispose(vm_map_t, vm_map_entry_t);
+extern void vm_map_reference(vm_map_t);
+extern void vm_map_deallocate(vm_map_t);
+extern int vm_map_insert(vm_map_t, struct vm_object *, vm_offset_t, vm_offset_t,
+			 vm_offset_t);
+extern boolean_t vm_map_lookup_entry(vm_map_t, vm_offset_t, vm_map_entry_t *);
+extern int vm_map_find(vm_map_t, struct vm_object *, vm_offset_t, vm_offset_t*,
+		       vm_size_t, boolean_t);
+extern void vm_map_simplify_entry(vm_map_t, vm_map_entry_t);
+extern int vm_map_submap(vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
+extern int vm_map_protect(vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t,
+			  boolean_t);
+extern int vm_map_inherit(vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t);
+extern int vm_map_pageable(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
+extern void vm_map_entry_unwire(vm_map_t, vm_map_entry_t);
+extern void vm_map_entry_delete(vm_map_t, vm_map_entry_t);
+extern int vm_map_delete(vm_map_t, vm_offset_t, vm_offset_t);
+extern int vm_map_remove(vm_map_t, vm_offset_t, vm_offset_t);
+extern boolean_t vm_map_check_protection(vm_map_t, vm_offset_t, vm_offset_t,
+					 vm_prot_t);
+extern void vm_map_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, 
+			      vm_map_entry_t);
+extern int vm_map_copy(vm_map_t, vm_map_t, vm_offset_t, vm_size_t, vm_offset_t,
+		       boolean_t, boolean_t);
+extern int vm_map_lookup(vm_map_t *, vm_offset_t, vm_prot_t,
+			 vm_map_entry_t *, struct vm_object **, vm_offset_t *,
+			 vm_prot_t *, boolean_t *, boolean_t *);
+extern void vm_map_lookup_done(vm_map_t, vm_map_entry_t);
+extern void vm_map_simplify(vm_map_t, vm_offset_t);
+extern void vm_map_print(vm_map_t, boolean_t); /* f defined(DEBUG) || NDDB>0 */
 
-void		vm_map_init();
-vm_map_t	vm_map_create();
-void		vm_map_deallocate();
-void		vm_map_reference();
-int		vm_map_find();
-int		vm_map_remove();
-int		vm_map_lookup();
-void		vm_map_lookup_done();
-int		vm_map_protect();
-int		vm_map_inherit();
-int		vm_map_copy();
-void		vm_map_print();
-void		vm_map_copy_entry();
-boolean_t	vm_map_verify();
-void		vm_map_verify_done();
+extern int vm_fault(struct vm_map *, vm_offset_t, vm_prot_t, boolean_t);
+extern void vm_fault_wire(struct vm_map *, vm_offset_t, vm_offset_t);
+extern void vm_fault_unwire(struct vm_map *, vm_offset_t, vm_offset_t);
+extern void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t,
+				vm_map_entry_t);
+
 
 /*
  *	Functions implemented as macros
@@ -203,10 +232,6 @@ void		vm_map_verify_done();
 /* XXX: number of kernel maps and entries to statically allocate */
 #define MAX_KMAP	10
 
-#ifdef OMIT
-#define MAX_KMAPENT     500
-#else   /* !OMIT*/
-#define MAX_KMAPENT     1000	/* 15 Aug 92*/
-#endif  /* !OMIT*/
+#define MAX_KMAPENT	128
 
 #endif	_VM_MAP_

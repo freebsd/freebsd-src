@@ -84,6 +84,7 @@ static struct zone {
 } zonetab[] = {
 	-1*60,	"MET",	"MET DST",	/* Middle European */
 	-2*60,	"EET",	"EET DST",	/* Eastern European */
+	-3*60,  "MSK",  "MSD",          /* Moscow */
 	4*60,	"AST",	"ADT",		/* Atlantic */
 	5*60,	"EST",	"EDT",		/* Eastern */
 	6*60,	"CST",	"CDT",		/* Central */

@@ -78,7 +78,7 @@ special
 character when sending mail is only active in interactive mode.
 .It Fl n
 Inhibits reading
-.Pa /usr/share/misc/Mail.rc
+.Pa /etc/mail.rc
 upon startup.
 .It Fl N
 Inhibits the initial display of message headers
@@ -108,7 +108,7 @@ writes undeleted messages back to this file.
 .It Fl u
 Is equivalent to:
 .Pp
-.Dl mail -f /var/spool/mail/user
+.Dl mail -f /var/mail/user
 .El
 .Ss Sending mail
 To send a message to one or more people,
@@ -795,7 +795,7 @@ Causes messages saved in
 .Ar mbox
 to be appended to the end rather than prepended.
 This should always be set (perhaps in
-.Pa /usr/share/misc/Mail.rc ) .
+.Pa /etc/mail.rc ) .
 .It Ar ask
 Causes
 .Nm mail
@@ -981,7 +981,7 @@ and
 environment variables.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/Mail.help* -compact
-.It Pa /var/spool/mail/*
+.It Pa /var/mail/*
 Post office.
 .It ~/mbox
 User's old mail.
@@ -991,7 +991,7 @@ File giving initial mail commands.
 Temporary files.
 .It Pa /usr/share/misc/Mail.help*
 Help files.
-.It Pa /usr/share/misc/Mail.rc
+.It Pa /etc/mail.rc
 System initialization file.
 .El
 .Sh SEE ALSO

@@ -1,0 +1,37 @@
+Subject: Updated RFC1048 BOOTP server now available
+
+Well, no surprise, bootpd 2.0 had a few bugs.  A new improved version,
+bootpd 2.1, is now available for anonymous FTP from lancaster.andrew.cmu.edu
+(128.2.13.21).  The new server can be found in pub/bootp.2.1.tar.
+
+Bug fixes and improvements in version 2.1 include:
+
+o  The definition of "access to the bootfile" has been changed to require the
+   public read access bit to be set.  This is required by tftpd(8), so the
+   server will not reply with a file which a client cannot obtain via TFTP.
+o  The RFC1084 bootfile size tag has been implemented.  It allows either
+   automatic or manual specification of the bootfile size in 512-octet blocks.
+o  Generic tags now work as advertised.
+o  A subtle bug which caused strange parsing behavior under certain conditions
+   has been fixed.
+o  The RFC1048 vendor information now has the correct byte order on
+   little-endien machines such as the VAX.
+o  Failure to specify the bootfile home directory and/or default bootfile in
+   the configuration file no longer causes server crashes.  The server now
+   makes a reasonably intelligent choice if this configuration information is
+   missing.  This is documented in the man page.
+o  BOOTP requests from clients which already know their IP addresses no longer
+   cause server crashes.
+
+
+
+Please direct questions, comments, and bug reports to
+Walt Wimer <ww0n@andrew.cmu.edu> or Drew Perkins <ddp@andrew.cmu.edu>.
+
+
+
+Good luck,
+
+Walt Wimer
+Network Development
+Carnegie Mellon University

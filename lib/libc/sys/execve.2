@@ -29,18 +29,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)execve.2	6.9 (Berkeley) 3/10/91
+.\"     From: @(#)execve.2	6.9 (Berkeley) 3/10/91
+.\"	$Id: execve.2,v 1.2.2.1 1994/05/01 16:06:05 jkh Exp $
 .\"
-.Dd March 10, 1991
+.Dd March 16, 1994
 .Dt EXECVE 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm execve
 .Nd execute a file
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft int
-.Fn execve "const char *path" "const * char *argv" "const * char *envp"
+.Fn execve "const char *path" "char *const *argv" "char *const *envp"
 .Sh DESCRIPTION
 .Fn Execve
 transforms the calling process into a new process.
@@ -134,6 +135,15 @@ of the new process image file.
 The real user ID, real group ID and
 supplementary group IDs of the new process image remain the same as the calling
 process image.
+In either case, the
+.Dv SUGID
+process flag bit is set, and remains set until
+cleared by another call to
+.Nm
+which does not execute a set-id executable.  This flag can be inspected
+by the
+.Xr ps 1
+utility.
 .Pp
 The new process also inherits the following attributes from
 the calling process:
@@ -224,10 +234,10 @@ is allowed by the imposed maximum
 .It Bq Er E2BIG
 The number of bytes in the new process's argument list
 is larger than the system-imposed limit.
-The limit in the system as released is 20480 bytes
-.Pf ( Dv NCARGS
+The limit in the system as released is 32768 bytes
+.Pf ( Dv ARG_MAX
 in
-.Ao Pa sys/param.h Ac ) .
+.Ao Pa limits.h Ac ) .
 .It Bq Er EFAULT
 The new process file is not as long as indicated by
 the size values in its header.
@@ -250,6 +260,7 @@ the real
 is ``root'', then the program has some of the powers
 of a super-user as well.
 .Sh SEE ALSO
+.Xr ps 1 ,
 .Xr exit 2 ,
 .Xr fork 2 ,
 .Xr execl 3 ,

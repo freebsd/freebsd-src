@@ -39,15 +39,13 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 7/13/93";
+static char sccsid[] = "@(#)main.c	8.52 (Berkeley) 3/11/94";
 #endif /* not lint */
 
 #define	_DEFINE
 
 #include "sendmail.h"
-#include <signal.h>
-#include <sgtty.h>
-#ifdef NAMED_BIND
+#if NAMED_BIND
 #include <arpa/nameser.h>
 #include <resolv.h>
 #endif
@@ -55,7 +53,7 @@ static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 7/13/93";
 
 # ifdef lint
 char	edata, end;
-# endif lint
+# endif /* lint */
 
 /*
 **  SENDMAIL -- Post mail to a set of destinations.
@@ -96,15 +94,15 @@ ENVELOPE	BlankEnvelope;	/* a "blank" envelope */
 ENVELOPE	MainEnvelope;	/* the envelope around the basic letter */
 ADDRESS		NullAddress =	/* a null address */
 		{ "", "", NULL, "" };
-char		*UserEnviron[MAXUSERENVIRON + 1];
+char		*UserEnviron[MAXUSERENVIRON + 2];
 				/* saved user environment */
 char		RealUserName[256];	/* the actual user id on this host */
+char		*CommandLineArgs;	/* command line args for pid file */
+bool		Warn_Q_option = FALSE;	/* warn about Q option use */
 
 /*
 **  Pointers for setproctitle.
 **	This allows "ps" listings to give more useful information.
-**	These must be kept out of BSS for frozen configuration files
-**		to work.
 */
 
 # ifdef SETPROCTITLE
@@ -120,7 +118,7 @@ ERROR %%%%   Cannot have daemon mode without SMTP   %%%% ERROR
 #endif /* SMTP */
 #endif /* DAEMON */
 
-#define MAXCONFIGLEVEL	4	/* highest config version level known */
+#define MAXCONFIGLEVEL	5	/* highest config version level known */
 
 main(argc, argv, envp)
 	int argc;
@@ -128,7 +126,6 @@ main(argc, argv, envp)
 	char **envp;
 {
 	register char *p;
-	register char *q;
 	char **av;
 	extern int finis();
 	extern char Version[];
@@ -137,10 +134,10 @@ main(argc, argv, envp)
 	STAB *st;
 	register int i;
 	int j;
-	bool readconfig = TRUE;
 	bool queuemode = FALSE;		/* process queue requests */
-	bool nothaw;
 	bool safecf = TRUE;
+	bool warn_C_flag = FALSE;
+	char warn_f_flag = '\0';
 	static bool reenter = FALSE;
 	char *argv0 = argv[0];
 	struct passwd *pw;
@@ -154,8 +151,10 @@ main(argc, argv, envp)
 	extern char **myhostname();
 	extern char *arpadate();
 	extern char *getauthinfo();
+	extern char *getcfname();
 	extern char *optarg;
 	extern char **environ;
+	extern void dumpstate();
 
 	/*
 	**  Check to see if we reentered.
@@ -170,9 +169,12 @@ main(argc, argv, envp)
 	}
 	reenter = TRUE;
 
-#ifndef SYS5TZ
-	/* enforce use of kernel-supplied time zone information */
-	unsetenv("TZ");
+	/* do machine-dependent initializations */
+	init_md(argc, argv);
+
+	/* arrange to dump state on signal */
+#ifdef SIGUSR1
+	setsignal(SIGUSR1, dumpstate);
 #endif
 
 	/* in 4.4BSD, the table can be huge; impose a reasonable limit */
@@ -186,13 +188,14 @@ main(argc, argv, envp)
 	*/
 
 	i = open("/dev/null", O_RDWR);
-	if (fstat(STDIN_FILENO, &stb) < 0)
+	if (fstat(STDIN_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
 		(void) dup2(i, STDIN_FILENO);
-	if (fstat(STDOUT_FILENO, &stb) < 0)
+	if (fstat(STDOUT_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
 		(void) dup2(i, STDOUT_FILENO);
-	if (fstat(STDERR_FILENO, &stb) < 0)
+	if (fstat(STDERR_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
 		(void) dup2(i, STDERR_FILENO);
-	(void) close(i);
+	if (i != STDIN_FILENO && i != STDOUT_FILENO && i != STDERR_FILENO)
+		(void) close(i);
 
 	i = DtableSize;
 	while (--i > 0)
@@ -232,42 +235,43 @@ main(argc, argv, envp)
 	else
 		(void) sprintf(RealUserName, "Unknown UID %d", RealUid);
 
-	/* our real uid will have to be root -- we will trash this later */
-	setuid((uid_t) 0);
+	/* save command line arguments */
+	i = 0;
+	for (av = argv; *av != NULL; )
+		i += strlen(*av++) + 1;
+	CommandLineArgs = xalloc(i);
+	p = CommandLineArgs;
+	for (av = argv; *av != NULL; )
+	{
+		if (av != argv)
+			*p++ = ' ';
+		strcpy(p, *av++);
+		p += strlen(p);
+	}
 
 	/* Handle any non-getoptable constructions. */
 	obsolete(argv);
 
 	/*
 	**  Do a quick prescan of the argument list.
-	**	We do this to find out if we can potentially thaw the
-	**	configuration file.  If not, we do the thaw now so that
-	**	the argument processing applies to this run rather than
-	**	to the run that froze the configuration.
 	*/
-	nothaw = FALSE;
+
 #if defined(__osf__) || defined(_AIX3)
-#define OPTIONS		"B:b:C:cd:e:F:f:h:Iimno:p:q:r:sTtvX:x"
-#else
-#define OPTIONS		"B:b:C:cd:e:F:f:h:Iimno:p:q:r:sTtvX:"
+# define OPTIONS	"B:b:C:cd:e:F:f:h:Iimno:p:q:r:sTtvX:x"
+#endif
+#if defined(ultrix)
+# define OPTIONS	"B:b:C:cd:e:F:f:h:IiM:mno:p:q:r:sTtvX:"
+#endif
+#if defined(NeXT)
+# define OPTIONS	"B:b:C:cd:e:F:f:h:IimnOo:p:q:r:sTtvX:"
+#endif
+#ifndef OPTIONS
+# define OPTIONS	"B:b:C:cd:e:F:f:h:Iimno:p:q:r:sTtvX:"
 #endif
 	while ((j = getopt(argc, argv, OPTIONS)) != EOF)
 	{
 		switch (j)
 		{
-		  case 'b':
-			if (optarg[0] == 'z' && optarg[1] == '\0')
-				nothaw = TRUE;
-			break;
-
-		  case 'C':
-			ConfFile = optarg;
-			(void) setgid(RealGid);
-			(void) setuid(RealUid);
-			safecf = FALSE;
-			nothaw = TRUE;
-			break;
-
 		  case 'd':
 			tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
 			tTflag(optarg);
@@ -280,14 +284,6 @@ main(argc, argv, envp)
 	InChannel = stdin;
 	OutChannel = stdout;
 
-# ifdef FROZENCONFIG
-	if (!nothaw)
-		readconfig = !thaw(FreezeFile, argv0);
-# else
-	readconfig = TRUE;
-# endif
-
-# ifdef SETPROCTITLE
 	/*
 	**  Move the environment so setproctitle can use the space at
 	**  the top of memory.
@@ -302,6 +298,7 @@ main(argc, argv, envp)
 	UserEnviron[j] = NULL;
 	environ = UserEnviron;
 
+# ifdef SETPROCTITLE
 	/*
 	**  Save start and extent of argv for setproctitle.
 	*/
@@ -313,17 +310,17 @@ main(argc, argv, envp)
 		LastArgv = argv[argc - 1] + strlen(argv[argc - 1]);
 # endif /* SETPROCTITLE */
 
-	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
-		(void) signal(SIGINT, intsig);
-	if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
-		(void) signal(SIGHUP, intsig);
-	(void) signal(SIGTERM, intsig);
-	(void) signal(SIGPIPE, SIG_IGN);
+	if (setsignal(SIGINT, SIG_IGN) != SIG_IGN)
+		(void) setsignal(SIGINT, intsig);
+	if (setsignal(SIGHUP, SIG_IGN) != SIG_IGN)
+		(void) setsignal(SIGHUP, intsig);
+	(void) setsignal(SIGTERM, intsig);
+	(void) setsignal(SIGPIPE, SIG_IGN);
 	OldUmask = umask(022);
 	OpMode = MD_DELIVER;
 	FullName = getenv("NAME");
 
-#ifdef NAMED_BIND
+#if NAMED_BIND
 	if (tTd(8, 8))
 		_res.options |= RES_DEBUG;
 #endif
@@ -331,14 +328,11 @@ main(argc, argv, envp)
 	errno = 0;
 	from = NULL;
 
-	if (readconfig)
-	{
-		/* initialize some macros, etc. */
-		initmacros();
+	/* initialize some macros, etc. */
+	initmacros(CurEnv);
 
-		/* version */
-		define('v', Version, CurEnv);
-	}
+	/* version */
+	define('v', Version, CurEnv);
 
 	/* hostname */
 	av = myhostname(jbuf, sizeof jbuf);
@@ -348,23 +342,33 @@ main(argc, argv, envp)
 
 		if (tTd(0, 4))
 			printf("canonical name: %s\n", jbuf);
-		p = newstr(jbuf);
-		define('w', p, CurEnv);
-		setclass('w', p);
+		define('w', newstr(jbuf), CurEnv);	/* must be new string */
+		define('j', newstr(jbuf), CurEnv);
+		setclass('w', jbuf);
 
-		q = strchr(jbuf, '.');
-		if (q != NULL)
+		p = strchr(jbuf, '.');
+		if (p != NULL)
 		{
-			*q++ = '\0';
-			define('m', q, CurEnv);
-			p = newstr(jbuf);
-			setclass('w', p);
+			if (p[1] != '\0')
+			{
+				define('m', newstr(&p[1]), CurEnv);
+				setclass('m', &p[1]);
+			}
+			while (p != NULL && strchr(&p[1], '.') != NULL)
+			{
+				*p = '\0';
+				setclass('w', jbuf);
+				*p++ = '.';
+				p = strchr(p, '.');
+			}
 		}
 
 		if (uname(&utsname) >= 0)
 			p = utsname.nodename;
 		else
 		{
+			if (tTd(0, 22))
+				printf("uname failed (%s)\n", errstring(errno));
 			makelower(jbuf);
 			p = jbuf;
 		}
@@ -372,6 +376,7 @@ main(argc, argv, envp)
 			printf("UUCP nodename: %s\n", p);
 		p = newstr(p);
 		define('k', p, CurEnv);
+		setclass('k', p);
 		setclass('w', p);
 	}
 	while (av != NULL && *av != NULL)
@@ -437,18 +442,16 @@ main(argc, argv, envp)
 			  case MD_TEST:
 			  case MD_INITALIAS:
 			  case MD_PRINT:
-#ifdef FROZENCONFIG
-			  case MD_FREEZE:
+#ifdef MAYBE_NEXT_RELEASE
+			  case MD_ARPAFTP:
 #endif
 				OpMode = j;
 				break;
 
-#ifndef FROZENCONFIG
 			  case MD_FREEZE:
 				usrerr("Frozen configurations unsupported");
 				ExitStat = EX_USAGE;
 				break;
-#endif
 
 			  default:
 				usrerr("Invalid operation mode %c", j);
@@ -463,15 +466,14 @@ main(argc, argv, envp)
 
 		  case 'C':	/* select configuration file (already done) */
 			if (RealUid != 0)
-				auth_warning(CurEnv,
-					"Processed by %s with -C %s",
-					RealUserName, optarg);
+				warn_C_flag = TRUE;
+			ConfFile = optarg;
+			(void) setgid(RealGid);
+			(void) setuid(RealUid);
+			safecf = FALSE;
 			break;
 
-		  case 'd':	/* debugging -- redo in case frozen */
-			tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
-			tTflag(optarg);
-			setbuf(stdout, (char *) NULL);
+		  case 'd':	/* debugging -- already done */
 			break;
 
 		  case 'f':	/* from address */
@@ -484,9 +486,7 @@ main(argc, argv, envp)
 			}
 			from = newstr(optarg);
 			if (strcmp(RealUserName, from) != 0)
-				auth_warning(CurEnv,
-					"%s set sender to %s using -%c",
-					RealUserName, from, j);
+				warn_f_flag = j;
 			break;
 
 		  case 'F':	/* set full name */
@@ -512,13 +512,13 @@ main(argc, argv, envp)
 			break;
 
 		  case 'p':	/* set protocol */
-			q = strchr(optarg, ':');
-			if (q != NULL)
-				*q++ = '\0';
+			p = strchr(optarg, ':');
+			if (p != NULL)
+				*p++ = '\0';
 			if (*optarg != '\0')
 				define('r', newstr(optarg), CurEnv);
-			if (q != NULL && *q != '\0')
-				define('s', newstr(q), CurEnv);
+			if (p != NULL && *p != '\0')
+				define('s', newstr(p), CurEnv);
 			break;
 
 		  case 'q':	/* run queue files at intervals */
@@ -563,7 +563,7 @@ main(argc, argv, envp)
 				break;
 			}
 #ifdef HASSETVBUF
-			setvbuf(TrafficLogFile, NULL, _IOLBF, BUFSIZ);
+			setvbuf(TrafficLogFile, NULL, _IOLBF, 0);
 #else
 			setlinebuf(TrafficLogFile);
 #endif
@@ -579,6 +579,9 @@ main(argc, argv, envp)
 			break;
 
 		  case 'e':	/* error message disposition */
+# if defined(ultrix)
+		  case 'M':	/* define macro */
+# endif
 			setoption(j, optarg, FALSE, TRUE, CurEnv);
 			break;
 
@@ -596,6 +599,10 @@ main(argc, argv, envp)
 		  case 'x':	/* random flag that OSF/1 & AIX mailx passes */
 			break;
 # endif
+# if defined(NeXT)
+		  case 'O':	/* random flag that NeXT Mail.app passes */
+			break;
+# endif
 
 		  default:
 			ExitStat = EX_USAGE;
@@ -611,21 +618,61 @@ main(argc, argv, envp)
 	**	Extract special fields for local use.
 	*/
 
-	if (OpMode == MD_FREEZE || readconfig)
-		readcf(ConfFile, safecf, CurEnv);
+#ifdef XDEBUG
+	checkfd012("before readcf");
+#endif
+	readcf(getcfname(), safecf, CurEnv);
 
-#ifdef SYS5TZ
+	if (tTd(0, 1))
+	{
+		printf("SYSTEM IDENTITY (after readcf):");
+		printf("\n\t    (short domain name) $w = ");
+		xputs(macvalue('w', CurEnv));
+		printf("\n\t(canonical domain name) $j = ");
+		xputs(macvalue('j', CurEnv));
+		printf("\n\t       (subdomain name) $m = ");
+		xputs(macvalue('m', CurEnv));
+		printf("\n\t            (node name) $k = ");
+		xputs(macvalue('k', CurEnv));
+		printf("\n");
+	}
+
+	/*
+	**  Process authorization warnings from command line.
+	*/
+
+	if (warn_C_flag)
+		auth_warning(CurEnv, "Processed by %s with -C %s",
+			RealUserName, ConfFile);
+/*
+	if (warn_f_flag != '\0')
+		auth_warning(CurEnv, "%s set sender to %s using -%c",
+			RealUserName, from, warn_f_flag);
+*/
+	if (Warn_Q_option)
+		auth_warning(CurEnv, "Processed from queue %s", QueueDir);
+
 	/* Enforce use of local time (null string overrides this) */
 	if (TimeZoneSpec == NULL)
 		unsetenv("TZ");
 	else if (TimeZoneSpec[0] != '\0')
 	{
-		p = xalloc(strlen(TimeZoneSpec) + 4);
-		(void) strcpy(p, "TZ=");
-		(void) strcat(p, TimeZoneSpec);
-		putenv(p);
+		char **evp = UserEnviron;
+		char tzbuf[100];
+
+		strcpy(tzbuf, "TZ=");
+		strcpy(&tzbuf[3], TimeZoneSpec);
+
+		while (*evp != NULL && strncmp(*evp, "TZ=", 3) != 0)
+			evp++;
+		if (*evp == NULL)
+		{
+			*evp++ = newstr(tzbuf);
+			*evp = NULL;
+		}
+		else
+			*evp++ = newstr(tzbuf);
 	}
-#endif
 
 	if (ConfigLevel > MAXCONFIGLEVEL)
 	{
@@ -633,9 +680,11 @@ main(argc, argv, envp)
 			ConfigLevel, MAXCONFIGLEVEL);
 	}
 
+	if (MeToo)
+		BlankEnvelope.e_flags |= EF_METOO;
 
 # ifdef QUEUE
-	if (queuemode && RealUid != 0)
+	if (queuemode && RealUid != 0 && bitset(PRIV_RESTRICTQRUN, PrivacyFlags))
 	{
 		struct stat stbuf;
 
@@ -645,7 +694,7 @@ main(argc, argv, envp)
 		if (stbuf.st_uid != RealUid)
 		{
 			/* nope, really a botch */
-			usrerr("Permission denied");
+			usrerr("You do not have permission to process the queue");
 			exit (EX_NOPERM);
 		}
 	}
@@ -653,17 +702,6 @@ main(argc, argv, envp)
 
 	switch (OpMode)
 	{
-# ifdef FROZENCONFIG
-	  case MD_FREEZE:
-		/* this is critical to avoid forgeries of the frozen config */
-		(void) setgid(RealGid);
-		(void) setuid(RealUid);
-
-		/* freeze the configuration */
-		freeze(FreezeFile);
-		exit(EX_OK);
-# endif
-
 	  case MD_INITALIAS:
 		Verbose = TRUE;
 		break;
@@ -671,13 +709,6 @@ main(argc, argv, envp)
 	  case MD_DAEMON:
 		/* remove things that don't make sense in daemon mode */
 		FullName = NULL;
-		break;
-
-	  case MD_SMTP:
-		if (RealUid != 0)
-			auth_warning(CurEnv,
-				"%s owned process doing -bs",
-				RealUserName);
 		break;
 	}
 
@@ -699,6 +730,9 @@ main(argc, argv, envp)
 	/* our name for SMTP codes */
 	expand("\201j", jbuf, &jbuf[sizeof jbuf - 1], CurEnv);
 	MyHostName = jbuf;
+
+	/* make certain that this name is part of the $=w class */
+	setclass('w', MyHostName);
 
 	/* the indices of built-in mailers */
 	st = stab("local", ST_MAILER, ST_FIND);
@@ -727,7 +761,7 @@ main(argc, argv, envp)
 
 
 	/* operate in queue directory */
-	if (chdir(QueueDir) < 0)
+	if (OpMode != MD_TEST && chdir(QueueDir) < 0)
 	{
 		syserr("cannot chdir(%s)", QueueDir);
 		ExitStat = EX_SOFTWARE;
@@ -739,6 +773,10 @@ main(argc, argv, envp)
 		setuid(RealUid);
 		exit(ExitStat);
 	}
+
+#ifdef XDEBUG
+	checkfd012("before main() initmaps");
+#endif
 
 	/*
 	**  Do operation-mode-dependent initialization.
@@ -838,6 +876,7 @@ main(argc, argv, envp)
 			char *q;
 			auto char *delimptr;
 			extern bool invalidaddr();
+			extern char *crackaddr();
 
 			if (Verbose)
 				printf("> ");
@@ -846,8 +885,20 @@ main(argc, argv, envp)
 				finis();
 			if (!Verbose)
 				printf("> %s", buf);
-			if (buf[0] == '#')
+			switch (buf[0])
+			{
+			  case '#':
 				continue;
+
+#ifdef MAYBENEXTRELEASE
+			  case 'C':		/* try crackaddr */
+			  	q = crackaddr(&buf[1]);
+			  	xputs(q);
+			  	printf("\n");
+			  	continue;
+#endif
+			}
+
 			for (p = buf; isascii(*p) && isspace(*p); p++)
 				continue;
 			q = p;
@@ -859,13 +910,14 @@ main(argc, argv, envp)
 				continue;
 			}
 			*p = '\0';
-			if (invalidaddr(p + 1))
+			if (invalidaddr(p + 1, NULL))
 				continue;
 			do
 			{
 				char pvpbuf[PSBUFSIZE];
 
-				pvp = prescan(++p, ',', pvpbuf, &delimptr);
+				pvp = prescan(++p, ',', pvpbuf, sizeof pvpbuf,
+					      &delimptr);
 				if (pvp == NULL)
 					continue;
 				p = q;
@@ -873,7 +925,7 @@ main(argc, argv, envp)
 				{
 					int stat;
 
-					stat = rewrite(pvp, atoi(p), CurEnv);
+					stat = rewrite(pvp, atoi(p), 0, CurEnv);
 					if (stat != EX_OK)
 						printf("== Ruleset %s status %d\n",
 							p, stat);
@@ -919,7 +971,7 @@ main(argc, argv, envp)
 				exit(0);
 
 			/* disconnect from our controlling tty */
-			disconnect(TRUE, CurEnv);
+			disconnect(2, CurEnv);
 		}
 
 		dtype[0] = '\0';
@@ -971,22 +1023,24 @@ main(argc, argv, envp)
 	**  commands.  This will never return.
 	*/
 
-	if (OpMode == MD_SMTP)
+	if (OpMode == MD_SMTP || OpMode == MD_DAEMON)
 		smtp(CurEnv);
 # endif /* SMTP */
+
+	if (OpMode == MD_VERIFY)
+	{
+		CurEnv->e_sendmode = SM_VERIFY;
+		CurEnv->e_errormode = EM_QUIET;
+	}
+	else
+	{
+		/* interactive -- all errors are global */
+		CurEnv->e_flags |= EF_GLOBALERRS;
+	}
 
 	/*
 	**  Do basic system initialization and set the sender
 	*/
-
-	/* make sendmail immune from process group signals */
-# ifdef _POSIX_JOB_CONTROL
-	(void) setpgid(0, getpid());
-# else
-#  ifndef SYSTEM5
-	(void) setpgrp(0, getpid());
-#  endif
-# endif
 
 	initsys(CurEnv);
 	setsender(from, CurEnv, NULL, FALSE);
@@ -995,17 +1049,13 @@ main(argc, argv, envp)
 
 	if (*av == NULL && !GrabTo)
 	{
+		CurEnv->e_flags |= EF_GLOBALERRS;
 		usrerr("Recipient names must be specified");
 
 		/* collect body for UUCP return */
 		if (OpMode != MD_VERIFY)
 			collect(FALSE, FALSE, CurEnv);
 		finis();
-	}
-	if (OpMode == MD_VERIFY)
-	{
-		CurEnv->e_sendmode = SM_VERIFY;
-		CurEnv->e_errormode = EM_QUIET;
 	}
 
 	/*
@@ -1024,12 +1074,11 @@ main(argc, argv, envp)
 
 	CurEnv->e_to = NULL;
 	if (OpMode != MD_VERIFY || GrabTo)
+	{
+		CurEnv->e_flags |= EF_GLOBALERRS;
 		collect(FALSE, FALSE, CurEnv);
+	}
 	errno = 0;
-
-	/* collect statistics */
-	if (OpMode != MD_VERIFY)
-		markstats(CurEnv, (ADDRESS *) NULL);
 
 	if (tTd(1, 1))
 		printf("From person = \"%s\"\n", CurEnv->e_from.q_paddr);
@@ -1071,7 +1120,11 @@ main(argc, argv, envp)
 finis()
 {
 	if (tTd(2, 1))
-		printf("\n====finis: stat %d e_flags %o\n", ExitStat, CurEnv->e_flags);
+		printf("\n====finis: stat %d e_flags %o, e_id=%s\n",
+			ExitStat, CurEnv->e_flags,
+			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id);
+	if (tTd(2, 9))
+		printopenfds(FALSE);
 
 	/* clean up temp files */
 	CurEnv->e_to = NULL;
@@ -1167,7 +1220,8 @@ struct metamac	MetaMacros[] =
 	'\0'
 };
 
-initmacros()
+initmacros(e)
+	register ENVELOPE *e;
 {
 	register struct metamac *m;
 	char buf[5];
@@ -1177,208 +1231,34 @@ initmacros()
 	{
 		buf[0] = m->metaval;
 		buf[1] = '\0';
-		define(m->metaname, newstr(buf), CurEnv);
+		define(m->metaname, newstr(buf), e);
 	}
 	buf[0] = MATCHREPL;
 	buf[2] = '\0';
 	for (c = '0'; c <= '9'; c++)
 	{
 		buf[1] = c;
-		define(c, newstr(buf), CurEnv);
+		define(c, newstr(buf), e);
 	}
+
+	/* set defaults for some macros sendmail will use later */
+	define('e', "\201j Sendmail \201v ready at \201b", e);
+	define('l', "From \201g  \201d", e);
+	define('n', "MAILER-DAEMON", e);
+	define('o', ".:@[]", e);
+	define('q', "<\201g>", e);
 }
-/*
-**  FREEZE -- freeze BSS & allocated memory
-**
-**	This will be used to efficiently load the configuration file.
-**
-**	Parameters:
-**		freezefile -- the name of the file to freeze to.
-**
-**	Returns:
-**		none.
-**
-**	Side Effects:
-**		Writes BSS and malloc'ed memory to freezefile
-*/
-
-# ifdef FROZENCONFIG
-
-union frz
-{
-	char		frzpad[BUFSIZ];	/* insure we are on a BUFSIZ boundary */
-	struct
-	{
-		time_t	frzstamp;	/* timestamp on this freeze */
-		char	*frzbrk;	/* the current break */
-		char	*frzedata;	/* address of edata */
-		char	*frzend;	/* address of end */
-		char	frzver[252];	/* sendmail version */
-	} frzinfo;
-};
-
-#if defined(__hpux) || defined(__alpha)
-#define BRK_TYPE        int
-#define SBRK_TYPE       void *
-#else
-#define BRK_TYPE        char *
-#define SBRK_TYPE       char *
-#endif
-
-freeze(freezefile)
-	char *freezefile;
-{
-	int f;
-	union frz fhdr;
-	extern SBRK_TYPE sbrk();
-	extern char edata, end;
-	extern char Version[];
-
-	if (freezefile == NULL)
-		return;
-
-	/* try to open the freeze file */
-	f = creat(freezefile, FileMode);
-	if (f < 0)
-	{
-		syserr("Cannot freeze %s", freezefile);
-		errno = 0;
-		return;
-	}
-
-	/* build the freeze header */
-	fhdr.frzinfo.frzstamp = curtime();
-	fhdr.frzinfo.frzbrk = sbrk(0);
-	fhdr.frzinfo.frzedata = &edata;
-	fhdr.frzinfo.frzend = &end;
-	(void) strcpy(fhdr.frzinfo.frzver, Version);
-
-	/* write out the freeze header */
-	if (write(f, (char *) &fhdr, sizeof fhdr) != sizeof fhdr ||
-	    write(f, (char *) &edata, (int) (fhdr.frzinfo.frzbrk - &edata)) !=
-					(int) (fhdr.frzinfo.frzbrk - &edata))
-	{
-		syserr("Cannot freeze %s", freezefile);
-	}
-
-	/* fine, clean up */
-	(void) close(f);
-}
-/*
-**  THAW -- read in the frozen configuration file.
-**
-**	Parameters:
-**		freezefile -- the name of the file to thaw from.
-**		binfile -- the name of the sendmail binary (ok to guess).
-**
-**	Returns:
-**		TRUE if it successfully read the freeze file.
-**		FALSE otherwise.
-**
-**	Side Effects:
-**		reads freezefile in to BSS area.
-*/
-
-thaw(freezefile, binfile)
-	char *freezefile;
-	char *binfile;
-{
-	int f;
-	register char *p;
-	union frz fhdr;
-	char hbuf[60];
-	struct stat fst, sst;
-	extern char edata, end;
-	extern char Version[];
-	extern char **myhostname();
-	extern BRK_TYPE brk();
-
-	if (freezefile == NULL)
-		return (FALSE);
-
-	/* open the freeze file */
-	f = open(freezefile, 0);
-	if (f < 0)
-	{
-		errno = 0;
-		return (FALSE);
-	}
-
-	if (fstat(f, &fst) < 0 || stat(ConfFile, &sst) < 0 ||
-	    fst.st_mtime < sst.st_mtime)
-	{
-		syslog(LOG_WARNING, "Freeze file older than config file");
-		(void) close(f);
-		return (FALSE);
-	}
-
-	if (strchr(binfile, '/') != NULL && stat(binfile, &sst) == 0 &&
-	    fst.st_mtime < sst.st_mtime)
-	{
-		syslog(LOG_WARNING, "Freeze file older than binary file");
-		(void) close(f);
-		return (FALSE);
-	}
-
-	/* read in the header */
-	if (read(f, (char *) &fhdr, sizeof fhdr) < sizeof fhdr)
-	{
-		syslog(LOG_WARNING, "Cannot read frozen config file");
-		(void) close(f);
-		return (FALSE);
-	}
-	if (fhdr.frzinfo.frzedata != &edata ||
-	    fhdr.frzinfo.frzend != &end ||
-	    strcmp(fhdr.frzinfo.frzver, Version) != 0)
-	{
-		fprintf(stderr, "Wrong version of frozen config file\n");
-		syslog(LOG_WARNING, "Wrong version of frozen config file");
-		(void) close(f);
-		return (FALSE);
-	}
-
-	/* arrange to have enough space */
-	if (brk(fhdr.frzinfo.frzbrk) == (BRK_TYPE) -1)
-	{
-		syserr("Cannot break to %x", fhdr.frzinfo.frzbrk);
-		(void) close(f);
-		return (FALSE);
-	}
-
-	/* now read in the freeze file */
-	if (read(f, (char *) &edata, (int) (fhdr.frzinfo.frzbrk - &edata)) !=
-					(int) (fhdr.frzinfo.frzbrk - &edata))
-	{
-		syserr("Cannot read frozen config file");
-		/* oops!  we have trashed memory..... */
-		(void) write(2, "Cannot read freeze file\n", 24);
-		_exit(EX_SOFTWARE);
-	}
-
-	(void) close(f);
-
-	/* verify that the host name was correct on the freeze */
-	(void) myhostname(hbuf, sizeof hbuf);
-	p = macvalue('w', CurEnv);
-	if (p == NULL)
-		p = "";
-	if (strcmp(hbuf, macvalue('w', CurEnv)) == 0)
-		return (TRUE);
-	syslog(LOG_WARNING, "Hostname changed since freeze (%s => %s)",
-		p, hbuf);
-	return (FALSE);
-}
-
-# endif /* FROZENCONFIG */
 /*
 **  DISCONNECT -- remove our connection with any foreground process
 **
 **	Parameters:
-**		fulldrop -- if set, we should also drop the controlling
-**			TTY if possible -- this should only be done when
-**			setting up the daemon since otherwise UUCP can
-**			leave us trying to open a dialin, and we will
-**			wait for the carrier.
+**		droplev -- how "deeply" we should drop the line.
+**			0 -- ignore signals, mail back errors, make sure
+**			     output goes to stdout.
+**			1 -- also, make stdout go to transcript.
+**			2 -- also, disconnect from controlling terminal
+**			     (only for daemon mode).
+**		e -- the current envelope.
 **
 **	Returns:
 **		none
@@ -1388,8 +1268,8 @@ thaw(freezefile, binfile)
 **		the controlling tty.
 */
 
-disconnect(fulldrop, e)
-	bool fulldrop;
+disconnect(droplev, e)
+	int droplev;
 	register ENVELOPE *e;
 {
 	int fd;
@@ -1404,14 +1284,15 @@ disconnect(fulldrop, e)
 	}
 
 	/* be sure we don't get nasty signals */
-	(void) signal(SIGHUP, SIG_IGN);
-	(void) signal(SIGINT, SIG_IGN);
-	(void) signal(SIGQUIT, SIG_IGN);
+	(void) setsignal(SIGHUP, SIG_IGN);
+	(void) setsignal(SIGINT, SIG_IGN);
+	(void) setsignal(SIGQUIT, SIG_IGN);
 
 	/* we can't communicate with our caller, so.... */
 	HoldErrs = TRUE;
 	CurEnv->e_errormode = EM_MAIL;
 	Verbose = FALSE;
+	DisConnected = TRUE;
 
 	/* all input from /dev/null */
 	if (InChannel != stdin)
@@ -1427,31 +1308,29 @@ disconnect(fulldrop, e)
 		(void) fclose(OutChannel);
 		OutChannel = stdout;
 	}
-	if (e->e_xfp == NULL)
-		fd = open("/dev/null", O_WRONLY, 0666);
-	else
-		fd = fileno(e->e_xfp);
-	(void) fflush(stdout);
-	dup2(fd, STDOUT_FILENO);
-	dup2(fd, STDERR_FILENO);
-	if (e->e_xfp == NULL)
-		close(fd);
+	if (droplev > 0)
+	{
+		if (e->e_xfp == NULL)
+			fd = open("/dev/null", O_WRONLY, 0666);
+		else
+			fd = fileno(e->e_xfp);
+		(void) fflush(stdout);
+		dup2(fd, STDOUT_FILENO);
+		dup2(fd, STDERR_FILENO);
+		if (e->e_xfp == NULL)
+			close(fd);
+	}
 
 	/* drop our controlling TTY completely if possible */
-	if (fulldrop)
+	if (droplev > 1)
 	{
 		(void) setsid();
-#ifdef TIOCNOTTY
-		fd = open("/dev/tty", 2);
-		if (fd >= 0)
-		{
-			(void) ioctl(fd, (int) TIOCNOTTY, (char *) 0);
-			(void) close(fd);
-		}
-		(void) setpgrp(0, 0);
-#endif /* TIOCNOTTY */
 		errno = 0;
 	}
+
+#ifdef XDEBUG
+	checkfd012("disconnect");
+#endif
 
 # ifdef LOG
 	if (LogLevel > 71)
@@ -1465,7 +1344,8 @@ static void
 obsolete(argv)
 	char *argv[];
 {
-	char *ap;
+	register char *ap;
+	register char *op;
 
 	while ((ap = *++argv) != NULL)
 	{
@@ -1473,10 +1353,18 @@ obsolete(argv)
 		if (ap[0] != '-' || ap[1] == '-')
 			return;
 
+		/* skip over options that do have a value */
+		op = strchr(OPTIONS, ap[1]);
+		if (op != NULL && *++op == ':' && ap[2] == '\0' &&
+		    ap[1] != 'd' && argv[1] != NULL && argv[1][0] != '-')
+		{
+			argv++;
+			continue;
+		}
+
 		/* If -C doesn't have an argument, use sendmail.cf. */
 #define	__DEFPATH	"sendmail.cf"
-		if (ap[1] == 'C' && ap[2] == '\0' &&
-		    (argv[1] == NULL || argv[1][0] == '-'))
+		if (ap[1] == 'C' && ap[2] == '\0')
 		{
 			*argv = xalloc(sizeof(__DEFPATH) + 2);
 			argv[0][0] = '-';
@@ -1485,13 +1373,11 @@ obsolete(argv)
 		}
 
 		/* If -q doesn't have an argument, run it once. */
-		if (ap[1] == 'q' && ap[2] == '\0' &&
-		    (argv[1] == NULL || argv[1][0] == '-'))
+		if (ap[1] == 'q' && ap[2] == '\0')
 			*argv = "-q0";
 
 		/* if -d doesn't have an argument, use 0-99.1 */
-		if (ap[1] == 'd' && ap[2] == '\0' &&
-		    (argv[1] == NULL || !isdigit(argv[1][0])))
+		if (ap[1] == 'd' && ap[2] == '\0')
 			*argv = "-d0-99.1";
 	}
 }
@@ -1536,4 +1422,41 @@ auth_warning(e, msg, va_alist)
 		VA_END;
 		addheader("X-Authentication-Warning", buf, e);
 	}
+}
+/*
+**  DUMPSTATE -- dump state on user signal
+**
+**	For debugging.
+*/
+
+void
+dumpstate()
+{
+#ifdef LOG
+	register char *j = macvalue('j', CurEnv);
+	register STAB *s;
+
+	syslog(LOG_DEBUG, "--- dumping state on user signal: $j = %s ---", j);
+	s = stab(j, ST_CLASS, ST_FIND);
+	if (s == NULL || !bitnset('w', s->s_class))
+		syslog(LOG_DEBUG, "*** $j not in $=w ***");
+	syslog(LOG_DEBUG, "--- open file descriptors: ---");
+	printopenfds(TRUE);
+	syslog(LOG_DEBUG, "--- connection cache: ---");
+	mci_dump_all(TRUE);
+	if (RewriteRules[89] != NULL)
+	{
+		int stat;
+		register char **pvp;
+		char *pv[MAXATOM + 1];
+
+		pv[0] = NULL;
+		stat = rewrite(pv, 89, 0, CurEnv);
+		syslog(LOG_DEBUG, "--- ruleset 89 returns stat %d, pv: ---",
+			stat);
+		for (pvp = pv; *pvp != NULL; pvp++)
+			syslog(LOG_DEBUG, "%s", *pvp);
+	}
+	syslog(LOG_DEBUG, "--- end of state dump ---");
+#endif
 }

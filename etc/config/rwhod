@@ -1,0 +1,4 @@
+# $Id: rwhod,v 1.1 1993/11/12 00:00:02 wollman Exp $
+# This file determins whether rwhod is automatically started at boot
+# time.  The default is off.
+off

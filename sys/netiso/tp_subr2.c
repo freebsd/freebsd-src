@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_subr2.c	7.10 (Berkeley) 6/27/91
- *	$Id: tp_subr2.c,v 1.3 1993/10/16 21:06:04 rgrimes Exp $
+ *	$Id: tp_subr2.c,v 1.5 1993/12/19 00:53:44 wollman Exp $
  */
 
 /***********************************************************
@@ -187,10 +187,10 @@ tp_protocol_error(e,tpcb)
 
 
 /* Not used at the moment */
-ProtoHook
-tp_drain()
+void
+tp_drain(void)
 {
-	return 0;
+	return;
 }
 
 
@@ -391,6 +391,7 @@ tp_quench( tpcb, cmd )
  *
  * NOTES:			
  */
+void
 tp_netcmd( tpcb, cmd )
 	struct tp_pcb *tpcb;
 	int cmd;
@@ -417,7 +418,7 @@ tp_netcmd( tpcb, cmd )
 		printf("tp_netcmd(0x%x, 0x%x) NOT IMPLEMENTED\n", tpcb, cmd);
 		break;
 	}
-#else TPCONS
+#else /* TPCONS */
 	printf("tp_netcmd(): X25 NOT CONFIGURED!!\n");
 #endif
 }
@@ -452,7 +453,7 @@ tp_mask_to_num(x)
 	return j;
 }
 
-static 
+static  void
 copyQOSparms(src, dst)
 	struct tp_conn_param *src, *dst;
 {
@@ -635,8 +636,8 @@ done:
 	return error;
 }
 
-#ifndef TPCONS
-static
+#ifndef CCITT
+static void
 pk_flowcontrol() {}
 #endif
 
@@ -747,6 +748,7 @@ tp_setup_perf(tpcb)
 #endif TP_PERF_MEAS
 
 #ifdef ARGO_DEBUG
+void
 dump_addr (addr)
 	register struct sockaddr *addr;
 {
@@ -758,7 +760,7 @@ dump_addr (addr)
 		case AF_ISO:
 			dump_isoaddr((struct sockaddr_iso *)addr);
 			break;
-#endif ISO
+#endif /* ISO */
 		default:
 			printf("BAD AF: 0x%x\n", addr->sa_family);
 			break;
@@ -773,9 +775,10 @@ dump_addr (addr)
  *		columns of hex/dec numbers will be printed, followed by the
  *		character representations (if printable).
  */
+void
 Dump_buf(buf, len)
-caddr_t	buf;
-int		len;
+	char *buf;
+	int len;
 {
 	int		i,j;
 #define Buf ((u_char *)buf)
@@ -803,5 +806,5 @@ int		len;
 }
 
 
-#endif ARGO_DEBUG
+#endif /* ARGO_DEBUG */
 

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)route.h	7.13 (Berkeley) 4/25/91
- *	$Id: route.h,v 1.2 1993/10/16 17:43:41 rgrimes Exp $
+ *	$Id: route.h,v 1.5 1993/12/19 00:52:07 wollman Exp $
  */
+
+#ifndef _NET_ROUTE_H_
+#define _NET_ROUTE_H_ 1
 
 /*
  * Kernel resident routing tables.
@@ -197,7 +200,7 @@ struct route_cb {
 #define RTA_AUTHOR	0x40	/* sockaddr for author of redirect */
 
 #ifdef KERNEL
-struct route_cb route_cb;
+extern struct route_cb route_cb;
 #endif
 
 #ifdef KERNEL
@@ -217,8 +220,23 @@ struct route_cb route_cb;
 #else
 #define RTHASHMOD(h)	((h) % RTHASHSIZ)
 #endif
-struct	mbuf *rthost[RTHASHSIZ];
-struct	mbuf *rtnet[RTHASHSIZ];
-struct	rtstat	rtstat;
-struct	rtentry *rtalloc1();
-#endif
+extern struct	mbuf *rthost[RTHASHSIZ];
+extern struct	mbuf *rtnet[RTHASHSIZ];
+extern struct	rtstat	rtstat;
+
+extern void rtalloc(struct route *);
+extern struct rtentry *rtalloc1(struct sockaddr *, int);
+extern void rtfree(struct rtentry *);
+extern void rt_maskedcopy(struct sockaddr *, struct sockaddr *,
+			  struct sockaddr *);
+extern int rtrequest(int, struct sockaddr *, struct sockaddr *, 
+		     struct sockaddr *, int, struct rtentry **);
+extern void rtredirect(struct sockaddr *, struct sockaddr *, struct sockaddr *,
+		       int, struct sockaddr *, struct rtentry **);
+extern void rt_missmsg(int, struct sockaddr *, struct sockaddr *, 
+		       struct sockaddr *, struct sockaddr *,
+		       int, int);
+extern int rtinit(struct ifaddr *, int, int);
+
+#endif /* KERNEL */
+#endif /* _NET_ROUTE_H_ */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bpf.c	7.5 (Berkeley) 7/15/91
- *	$Id: bpf.c,v 1.2 1993/10/16 17:43:03 rgrimes Exp $
+ *	$Id: bpf.c,v 1.4 1994/01/31 07:34:36 davidg Exp $
  */
 
 #include "bpfilter.h"
@@ -200,6 +200,14 @@ bpf_movein(uio, linktype, mp, sockp)
 		error = UIOMOVE((caddr_t)sockp->sa_data, hlen, UIO_WRITE, uio);
 		if (error)
 			goto bad;
+
+		if (linktype == DLT_EN10MB) {
+			/* Adjust the protocol field. */
+			struct ether_header *eh;
+			eh = (struct ether_header *)sockp->sa_data;
+			eh->ether_type = ntohs(eh->ether_type);
+		}
+
 	}
 	error = UIOMOVE(mtod(m, caddr_t), len - hlen, UIO_WRITE, uio);
 	if (!error)
@@ -1220,41 +1228,6 @@ bpfattach(driverp, ifp, dlt, hdrlen)
 
 	printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
-
-#if BSD >= 199103
-/* XXX This routine belongs in net/if.c. */
-/*
- * Set/clear promiscuous mode on interface ifp based on the truth value
- * of pswitch.  The calls are reference counted so that only the first
- * "on" request actually has an effect, as does the final "off" request.
- * Results are undefined if the "off" and "on" requests are not matched.
- */
-int
-ifpromisc(ifp, pswitch)
-	struct ifnet *ifp;
-	int pswitch;
-{
-	struct ifreq ifr;
-	/*
-	 * If the device is not configured up, we cannot put it in
-	 * promiscuous mode.
-	 */
-	if ((ifp->if_flags & IFF_UP) == 0)
-		return (ENETDOWN);
-
-	if (pswitch) {
-		if (ifp->if_pcount++ != 0)
-			return (0);
-		ifp->if_flags |= IFF_PROMISC;
-	} else {
-		if (--ifp->if_pcount > 0)
-			return (0);
-		ifp->if_flags &= ~IFF_PROMISC;
-	}
-	ifr.ifr_flags = ifp->if_flags;
-	return ((*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr));
-}
-#endif
 
 #if BSD < 199103
 /*

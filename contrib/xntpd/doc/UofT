@@ -1,0 +1,146 @@
+This file is the original README, and is a little out of date.  It
+is also very specific to UofT, since there was a time when the daemon
+was only run here.
+
+To run this:
+
+(1) Fix your kernel's value of tickadj.  Tickadj sets both the
+    precision with which time slews can be performed and the amount
+    of slew you can do in a given interval.  Xntpd operates by making
+    a bunch of little adjustments.  Make tickadj too large (the default
+    value almost always is) and xntpd will perform poorly since the
+    slews will disappear in the roundoff.  Make tickadj too small
+    and large slews won't complete before the next adjustment is
+    ready.
+
+    To determine a good value of tickadj to use, first determine your
+    kernel's value of hz (50 on a Sun 3, 100 on Sun 4's and vaxes).
+    Divide that number into 500 (i.e. compute 500/hz) and use an
+    integer near there as tickadj (say, 10 on Sun 3's, 5 on Sun 4's
+    and vaxes).  Then adb your kernel and write the new value.  You
+    should probably do both the running kernel and the disk image.
+
+    If your machine doesn't come with adb, or if the kernel is of a
+    non-Berkeley flavour, take a look at the util directory, particularly
+    util/tickadj.
+
+(2) Edit the Config file in this directory.  You *must* tell it whether
+    your machine uses big endian or little endian byte order.  Also,
+    Suns running SunOS 3.x require special consideration, as well as Vaxes
+    running Ultrix 2.0 and compilers which don't understand `signed char'
+    declarations.  When you've got all this worked out, type `make makefiles'
+    to distribute configuration information to Makefiles for individual
+    programs, followed by `make' to compile everything.
+
+(2a) Note that, among other things, two programs were made in the authstuff
+    directory, authcert and authspeed.  The last two are utilities for
+    checking the authentication code.  Type `authcert < certdata'.  If
+    this provokes a massive failure you probably got the byte order wrong
+    in the Config file.  Type `authspeed -n 10000 auth.samplekeys', or
+    something, a couple of times to get a value of authdelay to stick in
+    the configuration file.  The numbers for machines I've tried look like:
+
+	uVax II		0.001450
+	Sun 3/180	0.000620
+	uVax III	0.000515
+	Sun 3/60	0.000455
+	IBM RT Mdl 125	0.000323
+	Sun 3/280	0.000302
+	Sun 4/280	0.000110
+	MIPS M/1000	0.000100
+
+(3) Typing `make install' will nstall xntpd, xntpdc, ntpdate and ntpq.  Watch
+    the install location in the Config file.
+
+(4) If you will be running xntpd (see 4a below for the alternative),
+    configure it (configuration is necessary for all machines now, though
+    this restriction will go away when I get broadcast time fully tested).
+    xntpd reads its configuration from /etc/ntp.conf (by default) and
+    you must tell it which machines it is to get its time from in
+    here.
+
+    Note that NTP operates in a hierarchy.  Machines with radio clocks
+    (which are stratum 1 servers) are at the top of the heap, in that
+    all time originates with them.  The situation with servers locally
+    is in a state of flux.  We currently have one semi-reliable stratum 1
+    server on campus (suzuki.ccie), and maintain three other stratum 2
+    servers which (gently) access other people's off-campus stratum 1
+    servers.  All of these machines are lightly loaded and have good
+    quality clocks, and so will probably do until we get some more stratum 1
+    weight.
+
+    Thus you are probably faced with choosing whether your hosts should
+    be stratum 2 or stratum 3 (or stratum 3 or 4 when suzuki's clock is down).
+    The rule of thumb is to make your best clocks and/or your file servers
+    stratum 2 (or 3) by peering them with the four campus servers, and make
+    lesser clocks and clients stratum 3 (or 4) by peering them with near
+    by servers which are synchonized to the campus servers.  The second rule
+    of thumb is that more servers are better.  It is quite possible to
+    synchronize with just a single server, but if you do your xtnpd daemon
+    won't have any cross checks to tell it when the server has gone
+    wonky. 3 or 4 lower stratum peers is about right.  Note that while
+    you can also peer with same-stratum peers, you shouldn't do this
+    unless the same-stratum peer is exchanging time with a lower stratum
+    peer you don't talk to directly.
+
+    Anyway, for your stratum 2 servers you can probably use ntp.conf
+    from the conf directory directly.  You will have to handcraft the
+    peer assocations for your stratum 3 servers.
+
+    Oh, and a note about the drift file (see ntp.conf).  One of the
+    things xntpd does is accumulate a correction for the frequency of
+    the crystal in your computer.  It usually takes a day or so of
+    running to figure this out, after which the value will usually remain
+    pretty stable, especially if the computer is in a machine room.  The
+    value is printed in your syslog file (once a minute, currently, though
+    this will change), and can be obtained from the daemon using xntpdc.
+
+    To avoid having to wait a day after restarts before the computer
+    synchronizes really well, xntpd will optionally write its current
+    value of the frequency correction into a file, once an hour.  When
+    it is killed and restarted, xntpd reinitializes itself to this
+    value on start up.  This is an advantageous feature, so a driftfile
+    line should always be included in the configuration file.
+
+(4a) Xntpd is a daemon.  It will keep your time exquisitely precise under
+     normal conditions (it is quite capable of keeping a good clock within
+     a millisecond of a good server.  Our servers aren't normally this
+     good, yet, but may become so when we get a few more stable local
+     stratum 1 peers).  Even when cut off entirely from its servers xntpd
+     will prevent your clock from drifting seriously by continuing to apply
+     its accumulated frequency correction.  The cost of this is that xntpd
+     will permanently consume memory while it is running, and real memory
+     at that since xntpd is unlikely to ever swap out.  This cost is
+     currently over 100 kb.
+
+     If you aren't too worried about millisecond timing and feel religious
+     about keeping memory consumption at a minimum (perhaps on memory-poor
+     workstations), a passable alternative might be to run ntpdate instead.
+     Ntpdate is the NTP equivalent of rdate, a one shot date setting
+     program, and implements the same multiple sample/multiple server
+     filter algorithms as xntpd.  Ntpdate was explicitly designed to be
+     run repeatly from cron, though it also makes a good boot time date
+     setter.  Running ntpdate from cron on an hourly basis will keep all
+     but seriously broken clocks within 100 ms of on-time, and for most
+     clocks will probably do better than 50 ms.  If this is an attractive
+     alternative see the manual page.  You should choose ntpdate's servers
+     as you would the peer associations for a stratum 3 xntpd server.
+
+(5) Once everything is configured, start the daemon(s).  ntpq can be
+    used to see what xntpd is doing.  It runs both interactive and from
+    the command line, type ? to see the interactive commands and ? command
+    to see what a command does.  The `peers' command is a good one.  ntpq
+    can also be used to see what other peoples' servers are doing, in
+    particular the fuzzball primary servers.
+
+(6) If you want to use the authentication facility (this might be useful
+    if, for example, you were running Kerberos since this prevents people
+    from setting your time back and doing replay attacks on the server),
+    you might find a couple of useful programs in the auth_stuff directory.
+    mkrandkeys will generate some very random keys to use.  keyparity
+    generates odd parity bits for keys (needed for the key file) and will
+    convert between key formats.
+
+All bug reports gratefully received.
+
+Dennis

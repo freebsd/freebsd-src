@@ -521,7 +521,10 @@ evalbackcmd(n, result)
 	result->buf = NULL;
 	result->nleft = 0;
 	result->jp = NULL;
-	if (n->type == NCMD) {
+	/* No command inside the backqotes, so do nothing. */
+	if (n == NULL)
+		;
+	else if (n->type == NCMD) {
 		evalcommand(n, EV_BACKCMD, result);
 	} else {
 		if (pipe(pip) < 0)

@@ -37,7 +37,7 @@
  *
  *	from: Utah $Hdr: vm_mmap.c 1.3 90/01/21$
  *	from: @(#)vm_mmap.c	7.5 (Berkeley) 6/28/91
- *	$Id: vm_mmap.c,v 1.8 1993/10/16 16:20:39 rgrimes Exp $
+ *	$Id: vm_mmap.c,v 1.21 1994/01/31 04:20:26 davidg Exp $
  */
 
 /*
@@ -58,6 +58,10 @@
 #include "vm_pager.h"
 #include "vm_prot.h"
 #include "vm_statistics.h"
+#include "vm_user.h"
+
+static boolean_t vm_map_is_allocated(vm_map_t, vm_offset_t, vm_offset_t,
+				     boolean_t);
 
 #ifdef DEBUG
 int mmapdebug = 0;
@@ -67,6 +71,7 @@ int mmapdebug = 0;
 #endif
 
 /* ARGSUSED */
+int
 getpagesize(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -82,6 +87,7 @@ struct sbrk_args {
 };
 
 /* ARGSUSED */
+int
 sbrk(p, uap, retval)
 	struct proc *p;
 	struct sbrk_args *uap;
@@ -97,6 +103,7 @@ struct sstk_args {
 };
 
 /* ARGSUSED */
+int
 sstk(p, uap, retval)
 	struct proc *p;
 	struct sstk_args *uap;
@@ -116,13 +123,14 @@ struct smmap_args {
 	off_t	pos;
 };
 
+int
 smmap(p, uap, retval)
 	struct proc *p;
 	register struct smmap_args *uap;
 	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
-	register struct file *fp;
+	register struct file *fp = 0;
 	struct vnode *vp;
 	vm_offset_t addr;
 	vm_size_t size;
@@ -138,6 +146,7 @@ smmap(p, uap, retval)
 		       p->p_pid, uap->addr, uap->len, uap->prot,
 		       uap->flags, uap->fd, uap->pos);
 #endif
+
 	/*
 	 * Make sure one of the sharing types is specified
 	 */
@@ -149,16 +158,16 @@ smmap(p, uap, retval)
 	default:
 		return(EINVAL);
 	}
+
 	/*
 	 * Address (if FIXED) must be page aligned.
 	 * Size is implicitly rounded to a page boundary.
 	 */
 	addr = (vm_offset_t) uap->addr;
-	if ((flags & MAP_FIXED) && (addr & page_mask) || uap->len < 0)
+	if ((flags & MAP_FIXED) && (addr & PAGE_MASK) || uap->len < 0)
 		return(EINVAL);
 	size = (vm_size_t) round_page(uap->len);
-	if ((uap->flags & MAP_FIXED) && (addr + size > VM_MAXUSER_ADDRESS))
-		return(EINVAL);
+
 	/*
 	 * XXX if no hint provided for a non-fixed mapping place it after
 	 * the end of the largest possible heap.
@@ -168,6 +177,15 @@ smmap(p, uap, retval)
 	 */
 	if (addr == 0 && (flags & MAP_FIXED) == 0)
 		addr = round_page(p->p_vmspace->vm_daddr + MAXDSIZ);
+
+	/*
+	 * Check address range for validity
+	 */
+	if (addr + size >= VM_MAXUSER_ADDRESS)
+		return(EINVAL);
+	if (addr > addr + size)
+		return(EINVAL);
+
 	/*
 	 * Mapping file or named anonymous, get fp for validation
 	 */
@@ -176,6 +194,23 @@ smmap(p, uap, retval)
 		    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
 			return(EBADF);
 	}
+
+	/*
+	 * Set initial maximum protection
+	 */
+	maxprot = VM_PROT_ALL;
+
+	/*
+	 * Map protections to MACH style
+	 */
+	prot = VM_PROT_NONE;
+	if (uap->prot & PROT_READ)
+		prot |= VM_PROT_READ;
+	if (uap->prot & PROT_WRITE)
+		prot |= VM_PROT_WRITE;
+	if (uap->prot & PROT_EXEC)
+		prot |= VM_PROT_EXECUTE;
+
 	/*
 	 * If we are mapping a file we need to check various
 	 * file/vnode related things.
@@ -189,45 +224,36 @@ smmap(p, uap, retval)
 		vp = (struct vnode *)fp->f_data;
 		if (vp->v_type != VREG && vp->v_type != VCHR)
 			return(EINVAL);
+
 		/*
-		 * Ensure that file protection and desired protection
-		 * are compatible.  Note that we only worry about writability
-		 * if mapping is shared.
+		 * Set maxprot according to file protection.
+		 * If the file is the backing store, enable maxprot write
+		 *	if the file protection allows. If the file isn't
+		 *	the backing store, enable writes.
 		 */
-		if ((uap->prot & PROT_READ) && (fp->f_flag & FREAD) == 0 ||
-		    ((flags & MAP_SHARED) &&
-		     (uap->prot & PROT_WRITE) && (fp->f_flag & FWRITE) == 0))
-			return(EACCES);
-		handle = (caddr_t)vp;
-		/*
-		 * PATCH GVR 25-03-93
-		 * Map protections to MACH style
-		 */
-		if(uap->flags & MAP_SHARED) {
-			maxprot = VM_PROT_EXECUTE;
-			if (fp->f_flag & FREAD)
-				maxprot |= VM_PROT_READ;
+		maxprot = VM_PROT_NONE;
+		if (fp->f_flag & FREAD)
+			maxprot |= VM_PROT_READ|VM_PROT_EXECUTE;
+		if (uap->flags & MAP_SHARED) {
 			if (fp->f_flag & FWRITE)
 				maxprot |= VM_PROT_WRITE;
-		} else
-			maxprot = VM_PROT_ALL;
+		} else {
+			maxprot |= VM_PROT_WRITE;
+		}
+
+		/*
+		 * Ensure that calculated maximum protection and desired
+		 * protection are compatible.
+		 */
+		if ((maxprot & prot) != prot)
+			return(EACCES);
+
+		handle = (caddr_t)vp;
 	} else if (uap->fd != -1) {
-		maxprot = VM_PROT_ALL;
 		handle = (caddr_t)fp;
 	} else {
-		maxprot = VM_PROT_ALL;
 		handle = NULL;
 	}
-	/*
-	 * Map protections to MACH style
-	 */
-	prot = VM_PROT_NONE;
-	if (uap->prot & PROT_READ)
-		prot |= VM_PROT_READ;
-	if (uap->prot & PROT_WRITE)
-		prot |= VM_PROT_WRITE;
-	if (uap->prot & PROT_EXEC)
-		prot |= VM_PROT_EXECUTE;
 
 	error = vm_mmap(&p->p_vmspace->vm_map, &addr, size, prot, maxprot,
 			flags, handle, (vm_offset_t)uap->pos);
@@ -241,6 +267,7 @@ struct msync_args {
 	int	len;
 };
 
+int
 msync(p, uap, retval)
 	struct proc *p;
 	struct msync_args *uap;
@@ -259,7 +286,7 @@ msync(p, uap, retval)
 		printf("msync(%d): addr %x len %x\n",
 		       p->p_pid, uap->addr, uap->len);
 #endif
-	if (((int)uap->addr & page_mask) || uap->len < 0)
+	if (((int)uap->addr & PAGE_MASK) || uap->len < 0)
 		return(EINVAL);
 	addr = oaddr = (vm_offset_t)uap->addr;
 	osize = (vm_size_t)uap->len;
@@ -315,6 +342,7 @@ struct munmap_args {
 	int	len;
 };
 
+int
 munmap(p, uap, retval)
 	register struct proc *p;
 	register struct munmap_args *uap;
@@ -330,12 +358,14 @@ munmap(p, uap, retval)
 #endif
 
 	addr = (vm_offset_t) uap->addr;
-	if ((addr & page_mask) || uap->len < 0)
+	if ((addr & PAGE_MASK) || uap->len < 0)
 		return(EINVAL);
 	size = (vm_size_t) round_page(uap->len);
 	if (size == 0)
 		return(0);
 	if (addr + size >= VM_MAXUSER_ADDRESS)
+		return(EINVAL);
+	if (addr >= addr + size)
 		return(EINVAL);
 	if (!vm_map_is_allocated(&p->p_vmspace->vm_map, addr, addr+size,
 	    FALSE))
@@ -345,8 +375,10 @@ munmap(p, uap, retval)
 	return(0);
 }
 
+int
 munmapfd(p, fd)
 	register struct proc *p;
+	int fd;
 {
 #ifdef DEBUG
 	if (mmapdebug & MDB_FOLLOW)
@@ -357,6 +389,7 @@ munmapfd(p, fd)
 	 * XXX -- should vm_deallocate any regions mapped to this file
 	 */
 	p->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
+	return 0;
 }
 
 struct mprotect_args {
@@ -365,6 +398,7 @@ struct mprotect_args {
 	int	prot;
 };
 
+int
 mprotect(p, uap, retval)
 	struct proc *p;
 	struct mprotect_args *uap;
@@ -381,7 +415,7 @@ mprotect(p, uap, retval)
 #endif
 
 	addr = (vm_offset_t) uap->addr;
-	if ((addr & page_mask) || uap->len < 0)
+	if ((addr & PAGE_MASK) || uap->len < 0)
 		return(EINVAL);
 	size = (vm_size_t) uap->len;
 	/*
@@ -412,6 +446,7 @@ struct madvise_args {
 };
 
 /* ARGSUSED */
+int
 madvise(p, uap, retval)
 	struct proc *p;
 	struct madvise_args *uap;
@@ -429,6 +464,7 @@ struct mincore_args {
 };
 
 /* ARGSUSED */
+int
 mincore(p, uap, retval)
 	struct proc *p;
 	struct mincore_args *uap;
@@ -446,6 +482,7 @@ mincore(p, uap, retval)
  *	MAP_FILE: a vnode pointer
  *	MAP_ANON: NULL or a file pointer
  */
+int
 vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	register vm_map_t map;
 	register vm_offset_t *addr;
@@ -459,7 +496,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	register vm_pager_t pager;
 	boolean_t fitit;
 	vm_object_t object;
-	struct vnode *vp;
+	struct vnode *vp = 0;
 	int type;
 	int rv = KERN_SUCCESS;
 
@@ -485,11 +522,11 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		vp = (struct vnode *)handle;
 		if (vp->v_type == VCHR) {
 			type = PG_DEVICE;
-			handle = (caddr_t)vp;
+			handle = (caddr_t)(u_long)vp->v_rdev;
 		} else
 			type = PG_VNODE;
 	}
-	pager = vm_pager_allocate(type, handle, size, prot);
+	pager = vm_pager_allocate(type, handle, size, prot, foff);
 	if (pager == NULL)
 		return (type == PG_DEVICE ? EINVAL : ENOMEM);
 	/*
@@ -511,13 +548,6 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 				vm_object_deallocate(object);
 			goto out;
 		}
-		/*
-		 * The object of unnamed anonymous regions was just created
-		 * find it for pager_cache.
-		 */
-		if (handle == NULL)
-			object = vm_object_lookup(pager);
-
 		/*
 		 * Don't cache anonymous objects.
 		 * Loses the reference gained by vm_pager_allocate.
@@ -675,17 +705,25 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	 * Changed again: indeed set maximum protection based on
 	 * object permissions.
 	 */
-		rv = vm_map_protect(map, *addr, *addr+size, prot, FALSE);
-		if (rv != KERN_SUCCESS) {
-			(void) vm_deallocate(map, *addr, size);
-			goto out;
-		}
 	/*
 	 * We only need to set max_protection in case it's
 	 * unequal to its default, which is VM_PROT_DEFAULT.
 	 */
-	if(maxprot != VM_PROT_DEFAULT) {
+	if (maxprot != VM_PROT_DEFAULT) {
 		rv = vm_map_protect(map, *addr, *addr+size, maxprot, TRUE);
+		if (rv != KERN_SUCCESS) {
+			(void) vm_deallocate(map, *addr, size);
+			goto out;
+		}
+	}
+	/*
+	 * We only need to set the protection if it is unequal
+	 * to the maximum (if it is equal to maxprot, and isn't
+	 * the default, then it would have been set above when
+	 * maximum prot was set.
+	 */
+	if (prot != maxprot) {
+		rv = vm_map_protect(map, *addr, *addr+size, prot, FALSE);
 		if (rv != KERN_SUCCESS) {
 			(void) vm_deallocate(map, *addr, size);
 			goto out;
@@ -724,6 +762,7 @@ out:
  * Given address and size it returns map attributes as well
  * as the (locked) object mapped at that location. 
  */
+int
 vm_region(map, addr, size, prot, max_prot, inheritance, shared, object, objoff)
 	vm_map_t	map;
 	vm_offset_t	*addr;		/* IN/OUT */
@@ -799,6 +838,7 @@ vm_region(map, addr, size, prot, max_prot, inheritance, shared, object, objoff)
 /*
  * Yet another bastard routine.
  */
+int
 vm_allocate_with_pager(map, addr, size, fitit, pager, poffset, internal)
 	register vm_map_t	map;
 	register vm_offset_t	*addr;
@@ -826,7 +866,8 @@ vm_allocate_with_pager(map, addr, size, fitit, pager, poffset, internal)
 	vm_stat.lookups++;
 	if (object == NULL) {
 		object = vm_object_allocate(size);
-		vm_object_enter(object, pager);
+		if (!internal)
+			vm_object_enter(object, pager);
 	} else
 		vm_stat.hits++;
 	object->internal = internal;
@@ -848,7 +889,7 @@ vm_allocate_with_pager(map, addr, size, fitit, pager, poffset, internal)
  *
  * start and end should be page aligned.
  */
-boolean_t
+static boolean_t
 vm_map_is_allocated(map, start, end, single_entry)
 	vm_map_t map;
 	vm_offset_t start, end;

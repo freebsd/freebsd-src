@@ -32,10 +32,11 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.2 1993/10/16 14:15:00 rgrimes Exp $
+ *	$Id: in_cksum.c,v 1.4 1993/12/19 00:50:02 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "sys/mbuf.h"
 
 /*
@@ -59,6 +60,7 @@
 #define ADD(n)  asm("adcl " #n "(%2), %0": "=r"(sum): "0"(sum), "r"(w))
 #define MOP     asm("adcl $0, %0":         "=r"(sum): "0"(sum))
 
+int
 in_cksum(m, len)
 	register struct mbuf *m;
 	register int len;

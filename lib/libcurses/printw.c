@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,8 +32,16 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)printw.c	5.8 (Berkeley) 4/15/91";
-#endif /* not lint */
+static char sccsid[] = "@(#)printw.c	8.2 (Berkeley) 10/5/93";
+#endif	/* not lint */
+
+#include <curses.h>
+
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
 /*
  * printw and friends.
@@ -42,17 +50,14 @@ static char sccsid[] = "@(#)printw.c	5.8 (Berkeley) 4/15/91";
  * is not in effect.
  */
 
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-#include "curses.ext"
+static int __winwrite __P((void *, const char *, int));
 
 /*
- *	This routine implements a printf on the standard screen.
+ * printw --
+ *	Printf on the standard screen.
  */
-#if __STDC__
+int
+#ifdef __STDC__
 printw(const char *fmt, ...)
 #else
 printw(fmt, va_alist)
@@ -60,24 +65,26 @@ printw(fmt, va_alist)
 	va_dcl
 #endif
 {
-	va_list	ap;
-	int	ret;
+	va_list ap;
+	int ret;
 
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	va_start(ap);
 #endif
-	ret = _sprintw(stdscr, fmt, ap);
+	ret = vwprintw(stdscr, fmt, ap);
 	va_end(ap);
 	return (ret);
 }
 
 /*
- *	This routine implements a printf on the given window.
+ * wprintw --
+ *	Printf on the given window.
  */
-#if __STDC__
-wprintw(WINDOW *win, const char *fmt, ...)
+int
+#ifdef __STDC__
+wprintw(WINDOW * win, const char *fmt, ...)
 #else
 wprintw(win, fmt, va_alist)
 	WINDOW *win;
@@ -85,56 +92,109 @@ wprintw(win, fmt, va_alist)
 	va_dcl
 #endif
 {
-	va_list	ap;
-	int	ret;
+	va_list ap;
+	int ret;
 
 #ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	va_start(ap);
 #endif
-	ret = _sprintw(win, fmt, ap);
+	ret = vwprintw(win, fmt, ap);
 	va_end(ap);
 	return (ret);
 }
 
 /*
- *	Internal write-buffer-to-window function.
+ * mvprintw, mvwprintw --
+ *	Implement the mvprintw commands.  Due to the variable number of
+ *	arguments, they cannot be macros.  Sigh....
  */
-static int
-_winwrite(cookie, buf, n)
-	void *cookie;
-	register char *buf;
-	int n;
+int
+#ifdef __STDC__
+mvprintw(register int y, register int x, const char *fmt, ...)
+#else
+mvprintw(y, x, fmt, va_alist)
+	register int y, x;
+	char *fmt;
+	va_dcl
+#endif
 {
-	register WINDOW *win = (WINDOW *)cookie;
-	register int c = n;
+	va_list ap;
+	int ret;
 
-	while (--c >= 0) {
-		if (waddch(win, (unsigned char) *buf++) == ERR)
-			return (-1);
-	}
-	return n;
+#ifdef __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+	if (move(y, x) != OK)
+		return (ERR);
+	ret = vwprintw(stdscr, fmt, ap);
+	va_end(ap);
+	return (ret);
+}
+
+int
+#ifdef __STDC__
+mvwprintw(register WINDOW * win, register int y, register int x,
+    const char *fmt, ...)
+#else
+mvwprintw(win, y, x, fmt, va_alist)
+	register WINDOW *win;
+	register int y, x;
+	char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
+	int ret;
+
+#ifdef __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+	if (wmove(win, y, x) != OK)
+		return (ERR);
+
+	ret = vwprintw(win, fmt, ap);
+	va_end(ap);
+	return (ret);
 }
 
 /*
- *	This routine actually executes the printf and adds it to the window.
- *	It must not be declared static as it is used in mvprintw.c.
- *	THIS SHOULD BE RENAMED vwprintw AND EXPORTED
+ * Internal write-buffer-to-window function.
  */
-_sprintw(win, fmt, ap)
+static int
+__winwrite(cookie, buf, n)
+	void *cookie;
+	register const char *buf;
+	int n;
+{
+	register WINDOW *win;
+	register int c;
+
+	for (c = n, win = cookie; --c >= 0;)
+		if (waddch(win, *buf++) == ERR)
+			return (-1);
+	return (n);
+}
+
+/*
+ * vwprintw --
+ *	This routine actually executes the printf and adds it to the window.
+ */
+int
+vwprintw(win, fmt, ap)
 	WINDOW *win;
-#if __STDC__
 	const char *fmt;
-#else
-	char *fmt;
-#endif
-	va_list	ap;
+	va_list ap;
 {
 	FILE *f;
 
-	if ((f = fwopen((void *)win, _winwrite)) == NULL)
-		return ERR;
-	(void) vfprintf(f, fmt, ap);
-	return fclose(f) ? ERR : OK;
+	if ((f = funopen(win, NULL, __winwrite, NULL, NULL)) == NULL)
+		return (ERR);
+	(void)vfprintf(f, fmt, ap);
+	return (fclose(f) ? ERR : OK);
 }

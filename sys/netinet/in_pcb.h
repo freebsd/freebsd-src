@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)in_pcb.h	7.6 (Berkeley) 6/28/90
- *	$Id: in_pcb.h,v 1.2 1993/10/16 18:26:03 rgrimes Exp $
+ *	$Id: in_pcb.h,v 1.5 1993/11/25 01:35:06 wollman Exp $
  */
+
+#ifndef _NETINET_IN_PCB_H_
+#define _NETINET_IN_PCB_H_ 1
 
 /*
  * Common structure pcb for internet protocol implementation.
@@ -56,12 +59,24 @@ struct inpcb {
 	int	inp_flags;		/* generic IP/datagram flags */
 	struct	ip inp_ip;		/* header prototype; should have more */
 	struct	mbuf *inp_options;	/* IP options */
+#ifdef MTUDISC
+	int	inp_pmtu;		/* path mtu if INP_MTUDISCOVERED */
+	int	inp_mtutimer;		/* decremented once a minute to
+					   try to increase mtu */
+	int	(*inp_mtunotify)(struct inpcb *, int);
+				/* function to call when MTU may have
+				 * changed */
+#endif /* MTUDISC */
 };
 
 /* flags in inp_flags: */
 #define	INP_RECVOPTS		0x01	/* receive incoming IP options */
 #define	INP_RECVRETOPTS		0x02	/* receive IP options for reply */
 #define	INP_RECVDSTADDR		0x04	/* receive IP dst address */
+#ifdef MTUDISC
+#define	INP_DISCOVERMTU		0x08	/* practice Path MTU discovery */
+#define	INP_MTUDISCOVERED	0x10	/* we were able to get such a route */
+#endif /* MTUDISC */
 #define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR)
 
 #ifdef sotorawcb
@@ -88,5 +103,24 @@ struct raw_inpcb {
 #define	sotorawinpcb(so)	((struct raw_inpcb *)(so)->so_pcb)
 
 #ifdef KERNEL
-struct	inpcb *in_pcblookup();
-#endif
+/* From in_pcb.h: */
+extern int in_pcballoc(struct socket *, struct inpcb *);
+extern int in_pcbbind(struct inpcb *, struct mbuf *);
+extern int in_pcbconnect(struct inpcb *, struct mbuf *);
+extern void in_pcbdisconnect(struct inpcb *);
+extern void in_pcbdetach(struct inpcb *);
+extern void in_setsockaddr(struct inpcb *, struct mbuf *);
+extern void in_setpeeraddr(struct inpcb *, struct mbuf *);
+extern void in_pcbnotify(struct inpcb *, struct sockaddr *, int, struct in_addr, int, int, void (*)(struct inpcb *, int));
+extern void in_losing(struct inpcb *);
+extern void in_rtchange(struct inpcb *, int);
+extern struct inpcb *in_pcblookup(struct inpcb *, struct in_addr, int, struct in_addr, int, int);
+
+
+#ifdef MTUDISC
+extern void	in_pcbmtu(struct inpcb *);
+extern void	in_mtunotify(struct inpcb *);
+extern void	in_bumpmtu(struct inpcb *);
+#endif /* MTUDISC */
+#endif /* KERNEL */
+#endif /* _NETINET_IN_PCB_H_ */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons_pcb.h	7.4 (Berkeley) 5/6/91
- *	$Id: cons_pcb.h,v 1.2 1993/10/16 21:05:03 rgrimes Exp $
+ *	$Id: cons_pcb.h,v 1.3 1993/11/07 17:49:31 wollman Exp $
  */
 
 /***********************************************************
@@ -60,6 +60,9 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
+
+#ifndef _NETISO_CONS_PCB_H_
+#define _NETISO_CONS_PCB_H_ 1
 
 /*
  * protocol control block for the connection oriented network service
@@ -175,11 +178,13 @@ struct cons_stat {
 	u_int co_parse_facil_err;
 	u_int co_addr_proto_consist_err;
 	u_int co_no_copcb;
-} cons_stat;
+};
 
-u_char x25_error_stats[CONL_ERROR_MAX + 1];
+extern struct cons_stat cons_stat;
 
-struct ifqueue consintrq; 
+extern u_char x25_error_stats[CONL_ERROR_MAX + 1];
+
+extern struct ifqueue consintrq; 
 
 /* reasons for clear are in a data mbuf chained to a clear ecn_request */
 struct e_clear_data 				{
@@ -190,3 +195,4 @@ struct e_clear_data 				{
 #ifdef KERNEL
 #define IncStat(XYZ) cons_stat.XYZ++
 #endif KERNEL
+#endif /* _NETISO_CONS_PCB_H_ */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clnp_raw.c	7.8 (Berkeley) 5/6/91
- *	$Id: clnp_raw.c,v 1.2 1993/10/16 21:04:53 rgrimes Exp $
+ *	$Id: clnp_raw.c,v 1.4 1993/12/19 00:53:15 wollman Exp $
  */
 
 /***********************************************************
@@ -62,6 +62,7 @@ SOFTWARE.
  */
 
 #include "param.h"
+#include "systm.h"
 #include "mbuf.h"
 #include "domain.h"
 #include "protosw.h"
@@ -97,6 +98,7 @@ struct sockproto	rclnp_proto	= { PF_ISO, 0 };
  * NOTES:			The protocol field of rclnp_proto is set to zero indicating
  *					no protocol.
  */
+void
 rclnp_input(m, src, dst, hdrlen)
 struct mbuf 		*m;		/* ptr to packet */
 struct sockaddr_iso	*src;	/* ptr to src address */
@@ -131,6 +133,7 @@ int					hdrlen; /* length (in bytes) of clnp header */
  *
  * NOTES:			
  */
+int
 rclnp_output(m0, so)
 struct mbuf		*m0;		/* packet to send */
 struct socket	*so;	/* socket to send from */
@@ -184,6 +187,7 @@ bad:
  *
  * NOTES:			
  */
+int
 rclnp_ctloutput(op, so, level, optname, m)
 int				op;				/* type of operation */
 struct socket	*so;			/* ptr to socket */
@@ -271,6 +275,7 @@ struct mbuf		**m;			/* ptr to ptr to option data */
 }
 
 /*ARGSUSED*/
+int
 clnp_usrreq(so, req, m, nam, control)
 	register struct socket *so;
 	int req;
@@ -347,7 +352,7 @@ clnp_usrreq(so, req, m, nam, control)
 		return (0);
 	    }
 	}
-	error =  raw_usrreq(so, req, m, nam, control);
+	error =  raw_usrreq(so, req, m, nam, control, 0);
 
 	if (error && req == PRU_ATTACH && so->so_pcb)
 		free((caddr_t)rp, M_PCB);

@@ -33,12 +33,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)bitstring.h	5.5 (Berkeley) 4/3/91
+ *	from: @(#)bitstring.h	5.5 (Berkeley) 4/3/91
+ *	$Id: bitstring.h,v 1.2 1994/02/17 08:54:00 rgrimes Exp $
  */
 
 #ifndef _BITSTRING_H_
-#define	_BITSTRING_H_
+#define _BITSTRING_H_
 
+/* modified for SV/AT and bitstring bugfix by M.R.Murphy, 11oct91
+ * bitstr_size changed gratuitously, but shorter
+ * bit_alloc   spelling error fixed
+ * the following were efficient, but didn't work, they've been made to
+ * work, but are no longer as efficient :-)
+ * bit_nclear, bit_nset, bit_ffc, bit_ffs
+ */
 typedef	unsigned char bitstr_t;
 
 /* internal macros */
@@ -53,12 +61,11 @@ typedef	unsigned char bitstr_t;
 /* external macros */
 				/* bytes in a bitstring of nbits bits */
 #define	bitstr_size(nbits) \
-	((((nbits) - 1) >> 3) + 1)
+	(((nbits) + 7) >> 3)
 
 				/* allocate a bitstring */
 #define	bit_alloc(nbits) \
-	(bitstr_t *)calloc(1, \
-	    (unsigned int)_bitstr_size(nbits) * sizeof(bitstr_t))
+	(bitstr_t *)calloc((size_t)bitstr_size(nbits), sizeof(bitstr_t))
 
 				/* allocate a bitstring on the stack */
 #define	bit_decl(name, nbits) \
@@ -80,36 +87,29 @@ typedef	unsigned char bitstr_t;
 #define	bit_nclear(name, start, stop) { \
 	register bitstr_t *_name = name; \
 	register int _start = start, _stop = stop; \
-	register int _startbyte = _bit_byte(_start); \
-	register int _stopbyte = _bit_byte(_stop); \
-	_name[_startbyte] &= 0xff >> (8 - (_start&0x7)); \
-	while (++_startbyte < _stopbyte) \
-		_name[_startbyte] = 0; \
-	_name[_stopbyte] &= 0xff << ((_stop&0x7) + 1); \
+	while (_start <= _stop) { \
+		bit_clear(_name, _start); \
+		_start++; \
+		} \
 }
 
 				/* set bits start ... stop in bitstring */
 #define	bit_nset(name, start, stop) { \
 	register bitstr_t *_name = name; \
 	register int _start = start, _stop = stop; \
-	register int _startbyte = _bit_byte(_start); \
-	register int _stopbyte = _bit_byte(_stop); \
-	_name[_startbyte] |= 0xff << ((start)&0x7); \
-	while (++_startbyte < _stopbyte) \
-	    _name[_startbyte] = 0xff; \
-	_name[_stopbyte] |= 0xff >> (7 - (_stop&0x7)); \
+	while (_start <= _stop) { \
+		bit_set(_name, _start); \
+		_start++; \
+		} \
 }
 
 				/* find first bit clear in name */
 #define	bit_ffc(name, nbits, value) { \
 	register bitstr_t *_name = name; \
-	register int _byte, _nbits = nbits; \
-	register int _stopbyte = _bit_byte(_nbits), _value = -1; \
-	for (_byte = 0; _byte <= _stopbyte; ++_byte) \
-		if (_name[_byte] != 0xff) { \
-			_value = _byte << 3; \
-			for (_stopbyte = _name[_byte]; (_stopbyte&0x1); \
-			    ++_value, _stopbyte >>= 1); \
+	register int _bit, _nbits = nbits, _value = -1; \
+	for (_bit = 0; _bit < _nbits; ++_bit) \
+		if (!bit_test(_name, _bit)) { \
+			_value = _bit; \
 			break; \
 		} \
 	*(value) = _value; \
@@ -118,13 +118,10 @@ typedef	unsigned char bitstr_t;
 				/* find first bit set in name */
 #define	bit_ffs(name, nbits, value) { \
 	register bitstr_t *_name = name; \
-	register int _byte, _nbits = nbits; \
-	register int _stopbyte = _bit_byte(_nbits), _value = -1; \
-	for (_byte = 0; _byte <= _stopbyte; ++_byte) \
-		if (_name[_byte]) { \
-			_value = _byte << 3; \
-			for (_stopbyte = _name[_byte]; !(_stopbyte&0x1); \
-			    ++_value, _stopbyte >>= 1); \
+	register int _bit, _nbits = nbits, _value = -1; \
+	for (_bit = 0; _bit < _nbits; ++_bit) \
+		if (bit_test(_name, _bit)) { \
+			_value = _bit; \
 			break; \
 		} \
 	*(value) = _value; \

@@ -32,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)basename.1	6.7 (Berkeley) 6/27/91
+.\"     from: @(#)basename.1	6.7 (Berkeley) 6/27/91
+.\"	$Id: basename.1,v 1.2.2.1 1994/05/01 16:08:06 jkh Exp $
 .\"
 .Dd June 27, 1991
 .Dt BASENAME 1
@@ -56,15 +57,7 @@ and a
 .Ar suffix ,
 if given.
 The resulting filename is written to the standard output.
-If
-.Ar string
-ends in the slash character,
-.Ql / ,
-or is the same as the
-.Ar suffix
-argument,
-a newline is output.
-A non-existant suffix is ignored.
+A non-existent suffix is ignored.
 .Pp
 .Nm Dirname
 deletes the filename portion, beginning
@@ -85,13 +78,15 @@ Both the
 .Nm basename
 and
 .Nm dirname
+utilities
 exit 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
-.Xr csh 1
+.Xr csh 1 ,
 .Xr sh 1
 .Sh STANDARDS
 The
 .Nm basename
 and
 .Nm dirname
-functions are expected to be POSIX 1003.2 compatible.
+utilities conform to
+.St -p1003.2-92 .

@@ -192,12 +192,12 @@ Those options that take a value are specified
 using the syntax -option=value.
 For example, the mount command:
 .Bd -literal -offset indent
-mount -t mfs -o nosuid,-N,-s=4000 /dev/dk0b /tmp
+mount -t mfs -o nosuid,-N,-s=4000 /dev/wd0b /tmp
 .Ed
 .Pp
 causes mount to attempt to execute:
 .Bd -literal -offset indent
-/sbin/mount_mfs -F 8 -N -s 4000 /dev/dk0b /tmp
+/sbin/mount_mfs -F 8 -N -s 4000 /dev/wd0b /tmp
 .Ed
 .Pp
 The following list can be used to override
@@ -293,7 +293,11 @@ file system table
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
-.Xr fstab 5
+.Xr fstab 5 ,
+.Xr mount_isofs 8 ,
+.Xr mount_mfs 8 ,
+.Xr mount_pcfs 8 ,
+.Xr mount_procfs 8
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
 .Sh HISTORY

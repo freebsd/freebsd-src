@@ -40,14 +40,14 @@
 .Sh NAME
 .Nm reboot
 .Nd
-.Tn UNIX
+.Tn FreeBSD
 bootstrapping procedures
 .Sh SYNOPSIS
 .Nm reboot
 .Op Fl n
 .Op Fl q
 .Sh DESCRIPTION
-.Tn UNIX ,
+.Tn FreeBSD,
 an ordinary executable file,
 is placed into memory by bootstrap at location absolute zero, and
 entered at the executable's entry point
@@ -60,7 +60,7 @@ a disk file.
 .Pp
 .Sy Rebooting a running system .
 When a
-.Tn UNIX
+.Tn FreeBSD
 is running and a reboot is desired,
 .Xr shutdown 8
 is normally used.

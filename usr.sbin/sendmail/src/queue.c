@@ -36,13 +36,12 @@
 
 #ifndef lint
 #ifdef QUEUE
-static char sccsid[] = "@(#)queue.c	8.3 (Berkeley) 7/13/93 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.40 (Berkeley) 3/6/94 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.3 (Berkeley) 7/13/93 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.40 (Berkeley) 3/6/94 (without queueing)";
 #endif
 #endif /* not lint */
 
-# include <signal.h>
 # include <errno.h>
 # include <pwd.h>
 # include <dirent.h>
@@ -95,49 +94,79 @@ queueup(e, queueall, announce)
 	bool newid;
 	register char *p;
 	MAILER nullmailer;
+	MCI mcibuf;
 	char buf[MAXLINE], tf[MAXLINE];
 
 	/*
 	**  Create control file.
 	*/
 
-	newid = (e->e_id == NULL);
+	newid = (e->e_id == NULL) || !bitset(EF_INQUEUE, e->e_flags);
+
+	/* if newid, queuename will create a locked qf file in e->lockfp */
 	strcpy(tf, queuename(e, 't'));
 	tfp = e->e_lockfp;
 	if (tfp == NULL)
 		newid = FALSE;
-	if (newid)
-	{
-		tfp = e->e_lockfp;
-	}
-	else
+
+	/* if newid, just write the qf file directly (instead of tf file) */
+	if (!newid)
 	{
 		/* get a locked tf file */
-		for (i = 100; --i >= 0; )
+		for (i = 0; i < 128; i++)
 		{
 			fd = open(tf, O_CREAT|O_WRONLY|O_EXCL, FileMode);
 			if (fd < 0)
 			{
-				if (errno == EEXIST)
-					continue;
-notemp:
-				syserr("!queueup: cannot create temp file %s", tf);
+				if (errno != EEXIST)
+					break;
+#ifdef LOG
+				if (LogLevel > 0 && (i % 32) == 0)
+					syslog(LOG_ALERT, "queueup: cannot create %s, uid=%d: %s",
+						tf, geteuid(), errstring(errno));
+#endif
+			}
+			else
+			{
+				if (lockfile(fd, tf, NULL, LOCK_EX|LOCK_NB))
+					break;
+#ifdef LOG
+				else if (LogLevel > 0 && (i % 32) == 0)
+					syslog(LOG_ALERT, "queueup: cannot lock %s: %s",
+						tf, errstring(errno));
+#endif
+				close(fd);
 			}
 
-			if (lockfile(fd, tf, LOCK_EX|LOCK_NB))
-				break;
-
-			close(fd);
-			sleep(i);
+			if ((i % 32) == 31)
+			{
+				/* save the old temp file away */
+				(void) rename(tf, queuename(e, 'T'));
+			}
+			else
+				sleep(i % 32);
 		}
-		if (fd < 0)
-			goto notemp;
-
-		tfp = fdopen(fd, "w");
+		if (fd < 0 || (tfp = fdopen(fd, "w")) == NULL)
+		{
+			printopenfds(TRUE);
+			syserr("!queueup: cannot create queue temp file %s, uid=%d",
+				tf, geteuid());
+		}
 	}
 
 	if (tTd(40, 1))
-		printf("queueing %s\n", e->e_id);
+		printf("\n>>>>> queueing %s%s >>>>>\n", e->e_id,
+			newid ? " (new id)" : "");
+	if (tTd(40, 9))
+	{
+		printf("  tfp=");
+		dumpfd(fileno(tfp), TRUE, FALSE);
+		printf("  lockfp=");
+		if (e->e_lockfp == NULL)
+			printf("NULL\n");
+		else
+			dumpfd(fileno(e->e_lockfp), TRUE, FALSE);
+	}
 
 	/*
 	**  If there is no data file yet, create one.
@@ -148,12 +177,16 @@ notemp:
 		register FILE *dfp;
 		extern putbody();
 
-		e->e_df = newstr(queuename(e, 'd'));
+		e->e_df = queuename(e, 'd');
+		e->e_df = newstr(e->e_df);
 		fd = open(e->e_df, O_WRONLY|O_CREAT, FileMode);
-		if (fd < 0)
-			syserr("!queueup: cannot create %s", e->e_df);
-		dfp = fdopen(fd, "w");
-		(*e->e_putbody)(dfp, FileMailer, e, NULL);
+		if (fd < 0 || (dfp = fdopen(fd, "w")) == NULL)
+			syserr("!queueup: cannot create data temp file %s, uid=%d",
+				e->e_df, geteuid());
+		bzero(&mcibuf, sizeof mcibuf);
+		mcibuf.mci_out = dfp;
+		mcibuf.mci_mailer = FileMailer;
+		(*e->e_putbody)(&mcibuf, e, NULL);
 		(void) xfclose(dfp, "queueup dfp", e->e_id);
 		e->e_putbody = putbody;
 	}
@@ -224,7 +257,7 @@ notemp:
 				e->e_to = q->q_paddr;
 				message("queued");
 				if (LogLevel > 8)
-					logdelivery(NULL, NULL, "queued", e);
+					logdelivery(NULL, NULL, "queued", NULL, e);
 				e->e_to = NULL;
 			}
 			if (tTd(40, 1))
@@ -249,6 +282,9 @@ notemp:
 	nullmailer.m_re_rwset = nullmailer.m_rh_rwset =
 			nullmailer.m_se_rwset = nullmailer.m_sh_rwset = -1;
 	nullmailer.m_eol = "\n";
+	bzero(&mcibuf, sizeof mcibuf);
+	mcibuf.mci_mailer = &nullmailer;
+	mcibuf.mci_out = tfp;
 
 	define('g', "\201f", e);
 	for (h = e->e_header; h != NULL; h = h->h_link)
@@ -262,6 +298,14 @@ notemp:
 		/* don't output resent headers on non-resent messages */
 		if (bitset(H_RESENT, h->h_flags) && !bitset(EF_RESENT, e->e_flags))
 			continue;
+
+		/* expand macros; if null, don't output header at all */
+		if (bitset(H_DEFAULT, h->h_flags))
+		{
+			(void) expand(h->h_value, buf, &buf[sizeof buf], e);
+			if (buf[0] == '\0')
+				continue;
+		}
 
 		/* output this header */
 		fprintf(tfp, "H");
@@ -281,7 +325,6 @@ notemp:
 		/* output the header: expand macros, convert addresses */
 		if (bitset(H_DEFAULT, h->h_flags))
 		{
-			(void) expand(h->h_value, buf, &buf[sizeof buf], e);
 			fprintf(tfp, "%s: %s\n", h->h_field, buf);
 		}
 		else if (bitset(H_FROM|H_RCPT, h->h_flags))
@@ -294,8 +337,7 @@ notemp:
 			if (bitset(H_FROM, h->h_flags))
 				oldstyle = FALSE;
 
-			commaize(h, h->h_value, tfp, oldstyle,
-				 &nullmailer, e);
+			commaize(h, h->h_value, oldstyle, &mcibuf, e);
 
 			TrafficLogFile = savetrace;
 		}
@@ -307,9 +349,7 @@ notemp:
 	**  Clean up.
 	*/
 
-	fflush(tfp);
-	fsync(fileno(tfp));
-	if (ferror(tfp))
+	if (fflush(tfp) < 0 || fsync(fileno(tfp)) < 0 || ferror(tfp))
 	{
 		if (newid)
 			syserr("!552 Error writing control file %s", tf);
@@ -319,9 +359,13 @@ notemp:
 
 	if (!newid)
 	{
+		/* rename (locked) tf to be (locked) qf */
 		qf = queuename(e, 'q');
 		if (rename(tf, qf) < 0)
-			syserr("cannot rename(%s, %s), df=%s", tf, qf, e->e_df);
+			syserr("cannot rename(%s, %s), df=%s, uid=%d",
+				tf, qf, e->e_df, geteuid());
+
+		/* close and unlock old (locked) qf */
 		if (e->e_lockfp != NULL)
 			(void) xfclose(e->e_lockfp, "queueup lockfp", e->e_id);
 		e->e_lockfp = tfp;
@@ -329,12 +373,16 @@ notemp:
 	else
 		qf = tf;
 	errno = 0;
+	e->e_flags |= EF_INQUEUE;
 
 # ifdef LOG
 	/* save log info */
 	if (LogLevel > 79)
 		syslog(LOG_DEBUG, "%s: queueup, qf=%s, df=%s\n", e->e_id, qf, e->e_df);
 # endif /* LOG */
+
+	if (tTd(40, 1))
+		printf("<<<<< done queueing %s <<<<<\n\n", e->e_id);
 	return;
 }
 
@@ -350,7 +398,7 @@ printctladdr(a, tfp)
 	static uid_t lastuid;
 
 	/* initialization */
-	if (a == NULL || tfp == NULL)
+	if (a == NULL || a->q_alias == NULL || tfp == NULL)
 	{
 		if (lastctladdr != NULL && tfp != NULL)
 			fprintf(tfp, "C\n");
@@ -365,10 +413,7 @@ printctladdr(a, tfp)
 		uid = 0;
 	else
 		uid = q->q_uid;
-
-	/* if a is an alias, use that for printing */
-	if (a->q_alias != NULL)
-		a = a->q_alias;
+	a = a->q_alias;
 
 	/* check to see if this is the same as last time */
 	if (lastctladdr != NULL && uid == lastuid &&
@@ -434,17 +479,18 @@ runqueue(forkflag)
 	if (forkflag)
 	{
 		int pid;
+#ifdef SIGCHLD
+		extern void reapchild();
+
+		(void) setsignal(SIGCHLD, reapchild);
+#endif
 
 		pid = dofork();
 		if (pid != 0)
 		{
-			extern void reapchild();
-
 			/* parent -- pick up intermediate zombie */
 #ifndef SIGCHLD
 			(void) waitfor(pid);
-#else /* SIGCHLD */
-			(void) signal(SIGCHLD, reapchild);
 #endif /* SIGCHLD */
 			if (QueueIntvl != 0)
 				(void) setevent(QueueIntvl, runqueue, TRUE);
@@ -455,7 +501,7 @@ runqueue(forkflag)
 		if (fork() != 0)
 			exit(EX_OK);
 #else /* SIGCHLD */
-		(void) signal(SIGCHLD, SIG_DFL);
+		(void) setsignal(SIGCHLD, SIG_DFL);
 #endif /* SIGCHLD */
 	}
 
@@ -474,6 +520,9 @@ runqueue(forkflag)
 # ifdef DAEMON
 	clrdaemon();
 # endif /* DAEMON */
+
+	/* force it to run expensive jobs */
+	NoConnect = FALSE;
 
 	/*
 	**  Create ourselves an envelope
@@ -517,7 +566,13 @@ runqueue(forkflag)
 		}
 		else
 		{
-			dowork(w->w_name + 2, ForkQueueRuns, FALSE, e);
+			pid_t pid;
+			extern pid_t dowork();
+
+			pid = dowork(w->w_name + 2, ForkQueueRuns, FALSE, e);
+			errno = 0;
+			if (pid != 0)
+				(void) waitfor(pid);
 		}
 		free(w->w_name);
 		free((char *) w);
@@ -597,6 +652,7 @@ orderq(doall)
 	while ((d = readdir(f)) != NULL)
 	{
 		FILE *cf;
+		register char *p;
 		char lbuf[MAXNAME];
 		extern bool strcontainedin();
 
@@ -613,8 +669,16 @@ orderq(doall)
 		**  both old and new type ids.
 		*/
 
-		i = strlen(d->d_name);
-		if (i != 9 && i != 10)
+		p = d->d_name + 2;
+		if (isupper(p[0]) && isupper(p[2]))
+			p += 3;
+		else if (isupper(p[1]))
+			p += 2;
+		else
+			p = d->d_name;
+		for (i = 0; isdigit(*p); p++)
+			i++;
+		if (i < 5 || *p != '\0')
 		{
 			if (Verbose)
 				printf("orderq: bogus qf name %s\n", d->d_name);
@@ -775,19 +839,20 @@ workcmpf(a, b)
 **		e - the envelope in which to run it.
 **
 **	Returns:
-**		none.
+**		process id of process that is running the queue job.
 **
 **	Side Effects:
 **		The work request is satisfied if possible.
 */
 
+pid_t
 dowork(id, forkflag, requeueflag, e)
 	char *id;
 	bool forkflag;
 	bool requeueflag;
 	register ENVELOPE *e;
 {
-	register int i;
+	register pid_t pid;
 	extern bool readqf();
 
 	if (tTd(40, 1))
@@ -799,19 +864,24 @@ dowork(id, forkflag, requeueflag, e)
 
 	if (forkflag)
 	{
-		i = fork();
-		if (i < 0)
+		pid = fork();
+		if (pid < 0)
 		{
 			syserr("dowork: cannot fork");
-			return;
+			return 0;
+		}
+		else if (pid > 0)
+		{
+			/* parent -- clean out connection cache */
+			mci_flush(FALSE, NULL);
 		}
 	}
 	else
 	{
-		i = 0;
+		pid = 0;
 	}
 
-	if (i == 0)
+	if (pid == 0)
 	{
 		/*
 		**  CHILD
@@ -824,9 +894,16 @@ dowork(id, forkflag, requeueflag, e)
 		/* set basic modes, etc. */
 		(void) alarm(0);
 		clearenvelope(e, FALSE);
-		e->e_flags |= EF_QUEUERUN;
+		e->e_flags |= EF_QUEUERUN|EF_GLOBALERRS;
 		e->e_errormode = EM_MAIL;
 		e->e_id = id;
+		GrabTo = UseErrorsTo = FALSE;
+		ExitStat = EX_OK;
+		if (forkflag)
+		{
+			disconnect(1, e);
+			OpMode = MD_DELIVER;
+		}
 # ifdef LOG
 		if (LogLevel > 76)
 			syslog(LOG_DEBUG, "%s: dowork, pid=%d", e->e_id,
@@ -844,7 +921,7 @@ dowork(id, forkflag, requeueflag, e)
 			if (forkflag)
 				exit(EX_OK);
 			else
-				return;
+				return 0;
 		}
 
 		e->e_flags |= EF_INQUEUE;
@@ -862,15 +939,8 @@ dowork(id, forkflag, requeueflag, e)
 		else
 			dropenvelope(e);
 	}
-	else if (!requeueflag)
-	{
-		/*
-		**  Parent -- pick up results.
-		*/
-
-		errno = 0;
-		(void) waitfor(i);
-	}
+	e->e_id = NULL;
+	return pid;
 }
 /*
 **  READQF -- read queue file and set up environment.
@@ -915,37 +985,7 @@ readqf(e)
 		return FALSE;
 	}
 
-	/*
-	**  Check the queue file for plausibility to avoid attacks.
-	*/
-
-	if (fstat(fileno(qfp), &st) < 0)
-	{
-		/* must have been being processed by someone else */
-		if (tTd(40, 8))
-			printf("readqf(%s): fstat failure (%s)\n",
-				qf, errstring(errno));
-		fclose(qfp);
-		return FALSE;
-	}
-
-	if (st.st_uid != geteuid() || (st.st_mode & 07777) != FileMode)
-	{
-# ifdef LOG
-		if (LogLevel > 0)
-		{
-			syslog(LOG_ALERT, "%s: bogus queue file, uid=%d, mode=%o",
-				e->e_id, st.st_uid, st.st_mode);
-		}
-# endif /* LOG */
-		if (tTd(40, 8))
-			printf("readqf(%s): bogus file\n", qf);
-		fclose(qfp);
-		rename(qf, queuename(e, 'Q'));
-		return FALSE;
-	}
-
-	if (!lockfile(fileno(qfp), qf, LOCK_EX|LOCK_NB))
+	if (!lockfile(fileno(qfp), qf, NULL, LOCK_EX|LOCK_NB))
 	{
 		/* being processed by another queuer */
 		if (tTd(40, 8))
@@ -960,6 +1000,36 @@ readqf(e)
 		return FALSE;
 	}
 
+	/*
+	**  Check the queue file for plausibility to avoid attacks.
+	*/
+
+	if (fstat(fileno(qfp), &st) < 0)
+	{
+		/* must have been being processed by someone else */
+		if (tTd(40, 8))
+			printf("readqf(%s): fstat failure (%s)\n",
+				qf, errstring(errno));
+		fclose(qfp);
+		return FALSE;
+	}
+
+	if (st.st_uid != geteuid())
+	{
+# ifdef LOG
+		if (LogLevel > 0)
+		{
+			syslog(LOG_ALERT, "%s: bogus queue file, uid=%d, mode=%o",
+				e->e_id, st.st_uid, st.st_mode);
+		}
+# endif /* LOG */
+		if (tTd(40, 8))
+			printf("readqf(%s): bogus file\n", qf);
+		rename(qf, queuename(e, 'Q'));
+		fclose(qfp);
+		return FALSE;
+	}
+
 	if (st.st_size == 0)
 	{
 		/* must be a bogus file -- just remove it */
@@ -968,14 +1038,27 @@ readqf(e)
 		return FALSE;
 	}
 
-	/* save this lock */
+	if (st.st_nlink == 0)
+	{
+		/*
+		**  Race condition -- we got a file just as it was being
+		**  unlinked.  Just assume it is zero length.
+		*/
+
+		fclose(qfp);
+		return FALSE;
+	}
+
+	/* good file -- save this lock */
 	e->e_lockfp = qfp;
 
 	/* do basic system initialization */
 	initsys(e);
+	define('i', e->e_id, e);
 
-	FileName = qf;
 	LineNumber = 0;
+	e->e_flags |= EF_GLOBALERRS;
+	OpMode = MD_DELIVER;
 	if (Verbose)
 		printf("\nRunning %s\n", e->e_id);
 	ctladdr = NULL;
@@ -1005,7 +1088,7 @@ readqf(e)
 			break;
 
 		  case 'M':		/* message */
-			e->e_message = newstr(&bp[1]);
+			/* ignore this; we want a new message next time */
 			break;
 
 		  case 'S':		/* sender */
@@ -1060,8 +1143,8 @@ readqf(e)
 			break;
 
 		  default:
-			syserr("readqf: bad line \"%s\"", e->e_id,
-				LineNumber, bp);
+			syserr("readqf: %s: line %d: bad line \"%s\"",
+				qf, LineNumber, bp);
 			fclose(qfp);
 			rename(qf, queuename(e, 'Q'));
 			return FALSE;
@@ -1070,8 +1153,6 @@ readqf(e)
 		if (bp != buf)
 			free(bp);
 	}
-
-	FileName = NULL;
 
 	/*
 	**  If we haven't read any lines, this queue file is empty.
@@ -1109,12 +1190,12 @@ printqueue()
 	**  Check for permission to print the queue
 	*/
 
-	if (bitset(PRIV_RESTRMAILQ, PrivacyFlags) && RealUid != 0)
+	if (bitset(PRIV_RESTRICTMAILQ, PrivacyFlags) && RealUid != 0)
 	{
 		struct stat st;
 # ifdef NGROUPS
 		int n;
-		int gidset[NGROUPS];
+		GIDSET_T gidset[NGROUPS];
 # endif
 
 		if (stat(QueueDir, &st) < 0)
@@ -1175,14 +1256,15 @@ printqueue()
 		char message[MAXLINE];
 		char bodytype[MAXNAME];
 
+		printf("%8s", w->w_name + 2);
 		f = fopen(w->w_name, "r");
 		if (f == NULL)
 		{
+			printf(" (job completed)\n");
 			errno = 0;
 			continue;
 		}
-		printf("%8s", w->w_name + 2);
-		if (!lockfile(fileno(f), w->w_name, LOCK_SH|LOCK_NB))
+		if (!lockfile(fileno(f), w->w_name, NULL, LOCK_SH|LOCK_NB))
 			printf("*");
 		else if (shouldqueue(w->w_pri, w->w_ctime))
 			printf("X");
@@ -1344,11 +1426,11 @@ queuename(e, type)
 			{
 				if (errno == EEXIST)
 					continue;
-				syserr("queuename: Cannot create \"%s\" in \"%s\"",
-					qf, QueueDir);
+				syserr("queuename: Cannot create \"%s\" in \"%s\" (euid=%d)",
+					qf, QueueDir, geteuid());
 				exit(EX_UNAVAILABLE);
 			}
-			if (lockfile(i, qf, LOCK_EX|LOCK_NB))
+			if (lockfile(i, qf, NULL, LOCK_EX|LOCK_NB))
 			{
 				e->e_lockfp = fdopen(i, "w");
 				break;
@@ -1359,14 +1441,19 @@ queuename(e, type)
 		}
 		if (c1 >= '~' && c2 >= 'Z')
 		{
-			syserr("queuename: Cannot create \"%s\" in \"%s\"",
-				qf, QueueDir);
+			syserr("queuename: Cannot create \"%s\" in \"%s\" (euid=%d)",
+				qf, QueueDir, geteuid());
 			exit(EX_OSERR);
 		}
 		e->e_id = newstr(&qf[2]);
 		define('i', e->e_id, e);
 		if (tTd(7, 1))
 			printf("queuename: assigned id %s, env=%x\n", e->e_id, e);
+		if (tTd(7, 9))
+		{
+			printf("  lockfd=");
+			dumpfd(fileno(e->e_lockfp), TRUE, FALSE);
+		}
 # ifdef LOG
 		if (LogLevel > 93)
 			syslog(LOG_DEBUG, "%s: assigned id", e->e_id);
@@ -1445,8 +1532,8 @@ setctluser(user)
 	**  See if this clears our concept of controlling user.
 	*/
 
-	if (user == NULL)
-		user = "";
+	if (user == NULL || *user == '\0')
+		return NULL;
 
 	/*
 	**  Set up addr fields for controlling user.
@@ -1460,7 +1547,10 @@ setctluser(user)
 		*p++ = '\0';
 	if (*user != '\0' && (pw = getpwnam(user)) != NULL)
 	{
-		a->q_home = newstr(pw->pw_dir);
+		if (strcmp(pw->pw_dir, "/") == 0)
+			a->q_home = "";
+		else
+			a->q_home = newstr(pw->pw_dir);
 		a->q_uid = pw->pw_uid;
 		a->q_gid = pw->pw_gid;
 		a->q_user = newstr(user);

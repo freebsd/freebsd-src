@@ -1,0 +1,55 @@
+.\"
+.\" Written By Julian ELischer
+.\" Copyright julian Elischer 1993.
+.\" Permission is granted to use or redistribute this file in any way as long
+.\" as this notice remains. Julian Elischer does not guarantee that this file 
+.\" is totally correct for any given task and users of this file must 
+.\" accept responsibility for any damage that occurs from the application of this
+.\" file.
+.\" 
+.\" (julian@tfs.com julian@dialix.oz.au)
+.\"
+.\"	$Id: scsi.1,v 1.1 1993/11/18 05:05:27 rgrimes Exp $
+.\"
+.Dd October 11, 1993
+.Dt SCSI 1
+.Os BSD 4
+.Sh NAME
+.Nm scsi
+.Nd simple program to assist with scsi devices.
+.Sh SYNOPSIS
+usage: scsi -f devicename [-d level] [-i] [-r [-b bus] [-t targ] [-l lun]]
+.Pp
+where r = reprobe, i = inquire, d = debug
+.Pp
+If debugging is not compiled in the kernel, 'd' will have no effect
+.Sh DESCRIPTION
+The
+.Nm Scsi
+program is used to give some simple commands to a scsi device. It is also
+really a sample usage of the general scsi commands. A more comprehensive
+program should be written.
+.Pp
+This program allows the operator to ask the systen to reprobe for
+more devices, and also to set any debug level on any scsi device. As
+a sample of a generic scsi command, it also can also perform a scsi 
+.Em Enquiry
+command against the device against which it is openned. The
+reprobe can be aimed at any specific bus or target or even lun.
+By default it reprobes lun0 of all possible targets not yet taken.
+an lun of -1 will force testing of all LUNs. As a word of warning, this
+will override the system's caution about attaching devices not on lun0
+so if a device responds to the 
+.Em inquiry
+command on all luns (as many erroneously do), the system may think it has
+found a lot more devices, which are really just the bad luns of an existing
+device.
+
+.Pp
+.Sh SEE ALSO
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm scsi
+command appeared in 386BSD 0.1.2.4/FreeBSD
+

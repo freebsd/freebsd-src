@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfsdiskless.h	7.1 (Berkeley) 3/4/91
- *	$Id: nfsdiskless.h,v 1.2 1993/09/09 22:06:18 rgrimes Exp $
+ *	$Id: nfsdiskless.h,v 1.3 1994/01/16 02:26:56 martin Exp $
  */
 
 #ifndef __h_nfsdiskless
@@ -48,17 +48,18 @@
  * For now it is statically initialized in swapvmunix.c, but someday a primary
  * bootstrap should fill it in.
  */
+#define NFSMNAMELEN	64
 struct nfs_diskless {
 	struct ifaliasreq myif;		/* Info. for partial ifconfig */
 	struct sockaddr	mygateway;	/* Default gateway for "route add" */
 	struct nfs_args	swap_args;	/* Mount args for swap file */
 	u_char		swap_fh[NFS_FHSIZE]; /* Swap file's file handle */
 	struct sockaddr	swap_saddr;	/* Address of swap server */
-	char		*swap_hostnam;	/* Host name for mount pt */
+	char		swap_hostnam[NFSMNAMELEN]; /* Host name for mount pt */
 	struct nfs_args	root_args;	/* Mount args for root fs */
 	u_char		root_fh[NFS_FHSIZE]; /* File handle of root dir */
 	struct sockaddr	root_saddr;	/* Address of root server */
-	char		*root_hostnam;	/* Host name for mount pt */
+	char		root_hostnam[NFSMNAMELEN]; /* Host name for mount pt */
 };
 
 #endif /* __h_nfsdiskless */

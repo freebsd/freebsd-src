@@ -1,0 +1,108 @@
+
+Technical support for this product is NOT provided by Walnut Creek CDROM.
+
+You need to contact one of the following companies and/or people for
+technical support.
+
+Accurate Automation Company
+6005 S.E. Laurel Street
+Milwaukie, OR  97222
+Telephone: +1-503-653-7376
+Email: rgrimes@agora.rain.com
+
+Accurate Automation provides support for FreeBSD including installation,
+system configuration, hardware and software trouble shooting, and related
+issues.  Rates depend upon the type of work being done.  Hours are from
+10:00 am to 10:00pm PST.
+
+
+Gary Clark II
+GB Data Consulting
+3801 Polk
+Houston, Texas 77003 USA
+Telephone: +1-713-587-1644
+Email: gclarkii@radon.gbdata.com
+
+GB Data Consulting provides support for FreeBSD including installation, usage
+and system administration.  We also provide classes, on-site service and 
+distribution sets on floppy.  Please email info@radon.gbdata.com or call for
+rates and information.
+
+
+Cronyx Ltd.
+Research Computer Center,
+Moscow State University,
+Moscow 199899, Russia
+Phone: +7-095-939-5678
+Email: info@cronyx.msk.su
+
+Cronyx Ltd. provides support for FreeBSD including installation,
+configuration, Relcom network connection via UUCP, dialup and leased
+line IP.  We also provide X Windows configuration and localization,
+as well as additional packages installation.  Distribution sets on
+floppies and tape cartridges available.  System software development
+including drivers for non-standard equipment.
+
+
+Guy Helmer <ghelmer@alpha.dsu.edu>
+519 West Ave. South
+Madison, SD  57042
+Home: 605-256-2788
+Expires on 1995/06/30
+
+Interests: supporting FreeBSD & XFree86 installation, configuration,
+operation; Internet connection support; training.  Prefer short-term
+part-time projects in the northern midwest United States.  I reserve the
+right to refuse work.  Rates negotiable. 
+
+Degree: SDSM&T BS CS, 1989
+
+
+Jordan Hubbard
+Timberline Associates (est 1978)
+Dublin, Ireland
+Support hours:  1000 - 2300 GMT
+Tel #:          00353-1-332796
+Email:          jkh@al.org
+
+
+Telephone and on-site consulting for FreeBSD for Ireland, the United
+Kingdom and most parts of Europe.  Services include installation,
+system configuration and custom software projects, graphical user
+interfaces a specialty (actively involved with The X Window System
+since Version 9).  Reasonable and flexible rates comeasurate with
+location and duration of assignment.
+
+
+
+Vector Systems Ltd,
+Julian H. Stacey, Holz Strasse 27d, 80469, Munich (Muenchen), Germany.
+Tel. +49 89 268616	09:00-19:00 Timezone=GMT+01:00
+email: <stacey@guug.de>	(later changing to <stacey@vector.guug.de>)
+
+COMMERCIAL Independent Consultancy:
+	Custom Project Designs, provision, & support, targeting all modern 
+	Unix like platforms. Prefered development & target platform: FreeBSD. 
+	Expertise in C, FSF/GNU tools, X Windows, multi lingual systems 
+	(inc. Cyrillic), systems engineering, hardware interfacing,
+	communications & scientific & industrial programming.
+	Generally avoiding: cobol, basic, payroll applications.
+	Support & Provision available for combinations of 
+		FreeBSD, X-Windows, FSF/GNU & range of own C tools for
+		all Unix + MSDOS.
+        Rate: ~125 DM/hour, (~2.5DM=#1UK, ~1.5DM=$1USA @ Nov. 93).
+On Request:
+        Personal Resume, Company Profile, Index of own purchasable tools,
+        Index of public domain tools.
+Deutsch + Francais:
+	Man kann mir in Deutsch schreiben, (oder mich anrufen).
+	Je comprend Francais, mais je n'ecris pas des responses en Francais.
+	(Contact me in English, German, or French.
+Public Domain Copies:
+	Selections of FreeBSD, X-Windows, FSF/GNU Sources & Binaries available.
+	525, 150, & 60 Mbyte QIC Cartridge, TEAC 60M Cassette, 1.2&4M Floppies.
+	From about 100DM per Cartridge for labour, media, postage.
+
+
+
+$Id: SUPPORT.TXT,v 1.1.2.1 1994/04/21 19:06:31 rgrimes Exp $

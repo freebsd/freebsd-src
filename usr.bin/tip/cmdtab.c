@@ -45,8 +45,8 @@ esctable_t etable[] = {
 	{ '!',	NORM,	"shell",			 shell },
 	{ '<',	NORM,	"receive file from remote host", getfl },
 	{ '>',	NORM,	"send file to remote host",	 sendfile },
-	{ 't',	NORM,	"take file from remote UNIX",	 cu_take },
-	{ 'p',	NORM,	"put file to remote UNIX",	 cu_put },
+	{ 't',	NORM,	"take file from remote UNIX-like system", cu_take },
+	{ 'p',	NORM,	"put file to remote UNIX-like system", cu_put },
 	{ '|',	NORM,	"pipe remote file",		 pipefile },
 	{ '$',	NORM,	"pipe local command to remote host", pipeout },
 #ifdef CONNECT

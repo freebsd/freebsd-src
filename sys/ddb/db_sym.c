@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.2 1993/10/16 16:47:25 rgrimes Exp $
+ *	$Id: db_sym.c,v 1.4 1994/01/03 07:54:10 davidg Exp $
  */
 
 /*
@@ -31,8 +31,9 @@
  *	Date:	7/90
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>
+#include "ddb/ddb.h"
 #include <ddb/db_sym.h>
 
 /*
@@ -46,7 +47,9 @@ extern void	X_db_symbol_values();
 /*
  * Multiple symbol tables
  */
+#ifndef MAXNOSYMTABS
 #define	MAXNOSYMTABS	3	/* mach, ux, emulator */
+#endif
 
 db_symtab_t	db_symtabs[MAXNOSYMTABS] = {{0,},};
 int db_nsymtab = 0;
@@ -310,9 +313,21 @@ db_printsym(off, strategy)
 	}
 }
 
-
 boolean_t
 db_line_at_pc( sym, filename, linenum, pc)
+	int sym;
+	int filename;
+	int linenum;
+	int pc;
 {
 	return X_db_line_at_pc( db_last_symtab, sym, filename, linenum, pc);
+}
+
+int
+db_sym_numargs(sym, nargp, argnames)
+	db_sym_t	sym;
+	int		*nargp;
+	char		**argnames;
+{
+	return X_db_sym_numargs(db_last_symtab, sym, nargp, argnames);
 }

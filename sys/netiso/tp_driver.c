@@ -1,6 +1,6 @@
 /*
  *	from: unknown
- *	$Id: tp_driver.c,v 1.3 1993/10/16 21:05:37 rgrimes Exp $
+ *	$Id: tp_driver.c,v 1.5 1993/12/19 00:53:31 wollman Exp $
  */
 
 #define _XEBEC_PG static
@@ -51,7 +51,7 @@ void	tp_indicate(),				tp_getoptions(),
 		tp_cuntimeout(),			tp_ctimeout_MIN(),
 		tp_freeref(),				tp_detach(),
 		tp0_stash(), 				tp0_send(),
-		tp_netcmd(),				tp_send()
+		tp_netcmd();
 ;
 
 typedef  struct tp_pcb tpcb_struct;
@@ -1044,6 +1044,8 @@ static int inx[26][9] = { {0,0,0,0,0,0,0,0,0,},
  {0x0,0x49,-1,0x45,-1,0x44,0x48,-1,0x0, },
  {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,-1, },
 };
+
+int
 tp_driver(p, e)
 register tp_PCB_ *p;
 register struct tp_event *e;

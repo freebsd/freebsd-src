@@ -35,85 +35,102 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.6 1993/09/23 15:22:57 rgrimes Exp $
+ *	$Id: fd.c,v 1.21.2.1 1994/03/07 02:08:43 rgrimes Exp $
  *
  */
 
+#include "ft.h"
+#if NFT < 1
+#undef NFDC
+#endif
 #include "fd.h"
-#if NFD > 0
 
-#include "param.h"
-#include "dkbad.h"
-#include "systm.h"
-#include "conf.h"
-#include "file.h"
-#include "ioctl.h"
-#include "disklabel.h"
-#include "buf.h"
-#include "uio.h"
-#include "syslog.h"
+#if NFDC > 0
+
+#include <sys/param.h>
+#include <sys/dkbad.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <machine/ioctl_fd.h>
+#include <sys/disklabel.h>
+#include <sys/buf.h>
+#include <sys/uio.h>
+#include <sys/malloc.h>
+#include <sys/syslog.h>
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/fdreg.h"
+#include "i386/isa/fdc.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/rtc.h"
-#undef NFD
-#define NFD 2
 
-#define	FDUNIT(s)	((s>>3)&1)
-#define	FDTYPE(s)	((s)&7)
+#if NFT > 0
+extern int ftopen(), ftintr(), ftattach(), ftclose(), ftioctl();
+#endif
 
 #define b_cylin b_resid
 #define FDBLK 512
-#define NUMTYPES 4
 
-struct fd_type {
-	int	sectrac;		/* sectors per track         */
-	int	secsize;		/* size code for sectors     */
-	int	datalen;		/* data len when secsize = 0 */
-	int	gap;			/* gap len between sectors   */
-	int	tracks;			/* total num of tracks       */
-	int	size;			/* size of disk in sectors   */
-	int	steptrac;		/* steps per cylinder        */
-	int	trans;			/* transfer speed code       */
-	int	heads;			/* number of heads	     */
-};
+/* misuse a flag to identify format operation */
+#define B_FORMAT B_XXX
+
+#define NUMTYPES 14
+#define NUMDENS  (NUMTYPES - 6)
+
+/* This defines (-1) must match index for fd_types */
+#define F_TAPE_TYPE	0x020	/* bit for fd_types to indicate tape */
+#define NO_TYPE		0	/* must match NO_TYPE in ft.c */
+#define FD_1720         1
+#define FD_1480         2
+#define FD_1440         3
+#define FD_1200         4
+#define FD_820          5
+#define FD_800          6
+#define FD_720          7
+#define FD_360          8
+
+#define FD_1480in5_25   9
+#define FD_1440in5_25   10
+#define FD_820in5_25    11
+#define FD_800in5_25    12
+#define FD_720in5_25    13
+#define FD_360in5_25    14
+
 
 struct fd_type fd_types[NUMTYPES] =
 {
- 	{ 18,2,0xFF,0x1B,80,2880,1,0,2 }, /* 1.44 meg HD 3.5in floppy    */
-	{ 15,2,0xFF,0x1B,80,2400,1,0,2 }, /* 1.2 meg HD floppy           */
-	{ 9,2,0xFF,0x23,40,720,2,1,2 },	/* 360k floppy in 1.2meg drive */
-	{ 9,2,0xFF,0x2A,40,720,1,1,2 },	/* 360k floppy in DD drive     */
+{ 21,2,0xFF,0x04,82,3444,1,FDC_500KBPS,2,0x0C,2 }, /* 1.72M in HD 3.5in */
+{ 18,2,0xFF,0x1B,82,2952,1,FDC_500KBPS,2,0x6C,1 }, /* 1.48M in HD 3.5in */
+{ 18,2,0xFF,0x1B,80,2880,1,FDC_500KBPS,2,0x6C,1 }, /* 1.44M in HD 3.5in */
+{ 15,2,0xFF,0x1B,80,2400,1,FDC_500KBPS,2,0x54,1 }, /*  1.2M in HD 5.25/3.5 */
+{ 10,2,0xFF,0x10,82,1640,1,FDC_250KBPS,2,0x2E,1 }, /*  820K in HD 3.5in */
+{ 10,2,0xFF,0x10,80,1600,1,FDC_250KBPS,2,0x2E,1 }, /*  800K in HD 3.5in */
+{  9,2,0xFF,0x20,80,1440,1,FDC_250KBPS,2,0x50,1 }, /*  720K in HD 3.5in */
+{  9,2,0xFF,0x2A,40, 720,1,FDC_250KBPS,2,0x50,1 }, /*  360K in DD 5.25in */
+
+{ 18,2,0xFF,0x02,82,2952,1,FDC_500KBPS,2,0x02,2 }, /* 1.48M in HD 5.25in */
+{ 18,2,0xFF,0x02,80,2880,1,FDC_500KBPS,2,0x02,2 }, /* 1.44M in HD 5.25in */
+{ 10,2,0xFF,0x10,82,1640,1,FDC_300KBPS,2,0x2E,1 }, /*  820K in HD 5.25in */
+{ 10,2,0xFF,0x10,80,1600,1,FDC_300KBPS,2,0x2E,1 }, /*  800K in HD 5.25in */
+{  9,2,0xFF,0x20,80,1440,1,FDC_300KBPS,2,0x50,1 }, /*  720K in HD 5.25in */
+{  9,2,0xFF,0x23,40, 720,2,FDC_300KBPS,2,0x50,1 }, /*  360K in HD 5.25in */
 };
 
-#define DRVS_PER_CTLR 2
+#define DRVS_PER_CTLR 2		/* 2 floppies */
 /***********************************************************************\
 * Per controller structure.						*
 \***********************************************************************/
-struct fdc_data
-{
-	int	fdcu;		/* our unit number */
-	int	baseport;
-	int	dmachan;
-	int	flags;
-#define FDC_ATTACHED	0x01
-	struct	fd_data *fd;
-	int fdu;		/* the active drive	*/
-	struct buf head;	/* Head of buf chain      */
-	struct buf rhead;	/* Raw head of buf chain  */
-	int state;
-	int retry;
-	int status[7];		/* copy of the registers */
-}fdc_data[(NFD+1)/DRVS_PER_CTLR];
+struct fdc_data fdc_data[NFDC];
 
 /***********************************************************************\
 * Per drive structure.							*
-* N per controller (presently 2) (DRVS_PER_CTLR)			*
+* N per controller  (DRVS_PER_CTLR)					*
 \***********************************************************************/
 struct fd_data {
-	struct	fdc_data *fdc;
-	int	fdu;		/* this unit number */
+	struct	fdc_data *fdc;	/* pointer to controller structure */
 	int	fdsu;		/* this units number on this controller */
 	int	type;		/* Drive type (HD, DD     */
 	struct	fd_type *ft;	/* pointer to the type descriptor */
@@ -135,11 +152,11 @@ struct fd_data {
 * fdcu is the floppy controller unit number				*
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
-typedef int	fdu_t;
-typedef int	fdcu_t;
-typedef int	fdsu_t;
-typedef	struct fd_data *fd_p;
-typedef struct fdc_data *fdc_p;
+
+#define	id_physid id_scsiid	/* this biotab field doubles as a field */
+				/* for the physical unit number on the controller */
+
+static int retrier(fdcu_t);
 
 #define DEVIDLE		0
 #define FINDWORK	1
@@ -175,28 +192,31 @@ char *fdstates[] =
 int	fd_debug = 1;
 #define TRACE0(arg) if(fd_debug) printf(arg)
 #define TRACE1(arg1,arg2) if(fd_debug) printf(arg1,arg2)
-#else	DEBUG
+#else /* DEBUG */
 #define TRACE0(arg)
 #define TRACE1(arg1,arg2)
-#endif	DEBUG
+#endif /* DEBUG */
 
-extern int hz;
-/* state needed for current transfer */
+static void fdstart(fdcu_t);
+void fdintr(fdcu_t);
+static void fd_turnoff(caddr_t, int);
 
 /****************************************************************************/
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
-int fdprobe(), fdattach(), fd_turnoff();
+static int fdprobe(struct isa_device *);
+static int fdattach(struct isa_device *);
 
-struct	isa_driver fddriver = {
-	fdprobe, fdattach, "fd",
+struct	isa_driver fdcdriver = {
+	fdprobe, fdattach, "fdc",
 };
 
 /*
  * probe for existance of controller
  */
+int
 fdprobe(dev)
-struct isa_device *dev;
+	struct isa_device *dev;
 {
 	fdcu_t	fdcu = dev->id_unit;
 	if(fdc_data[fdcu].flags & FDC_ATTACHED)
@@ -206,6 +226,12 @@ struct isa_device *dev;
 	}
 
 	fdc_data[fdcu].baseport = dev->id_iobase;
+
+	/* First - lets reset the floppy controller */
+
+	outb(dev->id_iobase+fdout,0);
+	DELAY(100);
+	outb(dev->id_iobase+fdout,FDO_FRST);
 
 	/* see if it can handle a command */
 	if (out_fdc(fdcu,NE7CMD_SPECIFY) < 0)
@@ -220,8 +246,9 @@ struct isa_device *dev;
 /*
  * wire controller into system, look for floppy units
  */
+int
 fdattach(dev)
-struct isa_device *dev;
+	struct isa_device *dev;
 {
 	unsigned fdt,st0, cyl;
 	int	hdr;
@@ -230,24 +257,49 @@ struct isa_device *dev;
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
 	int	fdsu;
+	struct isa_device *fdup;
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
 	fdc->dmachan = dev->id_drq;
 	fdc->state = DEVIDLE;
-
-	fdt = rtcin(RTC_FDISKETTE);
 	hdr = 0;
+	printf("fdc%d:", fdcu);
 
 	/* check for each floppy drive */
-	for (fdu = (fdcu * DRVS_PER_CTLR),fdsu = 0;
-	   ((fdu < NFD) && (fdsu < DRVS_PER_CTLR));
-	   fdu++,fdsu++)
-	{
+	for (fdup = isa_biotab_fdc; fdup->id_driver != 0; fdup++) {
+		if (fdup->id_iobase != dev->id_iobase)
+			continue;
+		fdu = fdup->id_unit;
+		fd = &fd_data[fdu];
+		if (fdu >= (NFD+NFT))
+			continue;
+		fdsu = fdup->id_physid;
+				/* look up what bios thinks we have */
+		switch (fdu) {
+			case 0: fdt = (rtcin(RTC_FDISKETTE) & 0xf0);
+				break;
+			case 1: fdt = ((rtcin(RTC_FDISKETTE) << 4) & 0xf0);
+				break;
+			default: fdt = RTCFDT_NONE;
+				break;
+		}
 		/* is there a unit? */
-		if ((fdt & 0xf0) == RTCFDT_NONE) {
-#define NO_TYPE NUMTYPES
-			fd_data[fdu].type = NO_TYPE;
+		if ((fdt == RTCFDT_NONE)
+#if NFT > 0
+		|| (fdsu >= DRVS_PER_CTLR)) {
+#else
+		) {
+			fd->type = NO_TYPE;
+#endif
+#if NFT > 0
+				/* If BIOS says no floppy, or > 2nd device */
+				/* Probe for and attach a floppy tape.     */
+			if (ftattach(dev, fdup))
+				continue;
+			if (fdsu < DRVS_PER_CTLR) 
+				fd->type = NO_TYPE;
+#endif
 			continue;
 		}
 
@@ -267,35 +319,47 @@ struct isa_device *dev;
 			continue;
 
 #endif
-		fd_data[fdu].track = -2;
-		fd_data[fdu].fdc = fdc;
-		fd_data[fdu].fdsu = fdsu;
-		printf("fd%d: unit %d type ", fdcu, fdu);
+		fd->track = -2;
+		fd->fdc = fdc;
+		fd->fdsu = fdsu;
+		printf(" [%d: fd%d: ", fdsu, fdu);
 		
-		if ((fdt & 0xf0) == RTCFDT_12M) {
-			printf("1.2MB 5.25in\n");
-			fd_data[fdu].type = 1;
-			fd_data[fdu].ft = fd_types + 1;
-			
-		}
-		if ((fdt & 0xf0) == RTCFDT_144M) {
-			printf("1.44MB 3.5in\n");
-			fd_data[fdu].type = 0;
-			fd_data[fdu].ft = fd_types + 0;
+		switch (fdt) {
+		case RTCFDT_12M:
+			printf("1.2MB 5.25in]");
+			fd->type = FD_1200;
+			break;
+		case RTCFDT_144M:
+			printf("1.44MB 3.5in]");
+			fd->type = FD_1440;
+			break;
+		case RTCFDT_360K:
+			printf("360KB 5.25in]");
+			fd->type = FD_360;
+			break;
+		case RTCFDT_720K:
+			printf("720KB 3.5in]");
+			fd->type = FD_720;
+			break;
+		default:
+			printf("unknown]");
+			fd->type = NO_TYPE;
+			break;
 		}
 
-		fdt <<= 4;
-		fd_turnoff(fdu);
+		fd_turnoff((caddr_t)fdu, 0);
 		hdr = 1;
 	}
+	printf("\n");
 
 	/* Set transfer to 500kbps */
 	outb(fdc->baseport+fdctl,0); /*XXX*/
+	return 1;
 }
 
 int
 fdsize(dev)
-dev_t	dev;
+	dev_t	dev;
 {
 	return(0);
 }
@@ -303,8 +367,7 @@ dev_t	dev;
 /****************************************************************************/
 /*                               fdstrategy                                 */
 /****************************************************************************/
-fdstrategy(bp)
-	register struct buf *bp;	/* IO operation to perform */
+void fdstrategy(struct buf *bp)
 {
 	register struct buf *dp,*dp0,*dp1;
 	long nblocks,blknum;
@@ -318,8 +381,15 @@ fdstrategy(bp)
 	fd = &fd_data[fdu];
 	fdc = fd->fdc;
 	fdcu = fdc->fdcu;
- 	/*type = FDTYPE(minor(bp->b_dev));*/
 
+#if NFT > 0
+	/* check for controller already busy with tape */
+	if (fdc->flags & FDC_TAPE_BUSY) {
+		bp->b_error = EBUSY;
+		bp->b_flags |= B_ERROR;
+		return; 
+		}
+#endif
 	if ((fdu >= NFD) || (bp->b_blkno < 0)) {
 		printf("fdstrat: fdu = %d, blkno = %d, bcount = %d\n",
 			fdu, bp->b_blkno, bp->b_bcount);
@@ -346,19 +416,21 @@ fdstrategy(bp)
 	dp = &(fdc->head);
 	s = splbio();
 	disksort(dp, bp);
-	untimeout(fd_turnoff,fdu); /* a good idea */
+	untimeout(fd_turnoff, (caddr_t)fdu); /* a good idea */
 	fdstart(fdcu);
 	splx(s);
 	return;
 
 bad:
 	biodone(bp);
+	return;
 }
 
 /****************************************************************************/
 /*                            motor control stuff                           */
 /*		remember to not deselect the drive we're working on         */
 /****************************************************************************/
+void
 set_motor(fdcu, fdu, reset)
 	fdcu_t fdcu;
 	fdu_t fdu;
@@ -389,9 +461,10 @@ set_motor(fdcu, fdu, reset)
 		| (m1 ? FDO_MOEN1 : 0)));
 }
 
-fd_turnoff(fdu)
-	fdu_t fdu;
+static void
+fd_turnoff(caddr_t arg1, int arg2)
 {
+	fdu_t fdu = (fdu_t)arg1;
 	int	s;
 
 	fd_p fd = fd_data + fdu;
@@ -401,9 +474,10 @@ fd_turnoff(fdu)
 	splx(s);
 }
 
-fd_motor_on(fdu)
-	fdu_t fdu;
+void
+fd_motor_on(caddr_t arg1, int arg2)
 {
+	fdu_t fdu = (fdu_t)arg1;
 	int	s;
 
 	fd_p fd = fd_data + fdu;
@@ -416,6 +490,9 @@ fd_motor_on(fdu)
 	splx(s);
 }
 
+static void fd_turnon1(fdu_t);
+
+void
 fd_turnon(fdu) 
 	fdu_t fdu;
 {
@@ -424,12 +501,12 @@ fd_turnon(fdu)
 	{
 		fd_turnon1(fdu);
 		fd->flags |= FD_MOTOR_WAIT;
-		timeout(fd_motor_on,fdu,hz); /* in 1 sec its ok */
+		timeout(fd_motor_on, (caddr_t)fdu, hz); /* in 1 sec its ok */
 	}
 }
 
-fd_turnon1(fdu) 
-	fdu_t fdu;
+static void
+fd_turnon1(fdu_t fdu) 
 {
 	fd_p fd = fd_data + fdu;
 	fd->flags |= FD_MOTOR;
@@ -459,6 +536,7 @@ in_fdc(fdcu)
 #endif
 }
 
+int
 out_fdc(fdcu, x)
 	fdcu_t fdcu;
 	int x;
@@ -485,26 +563,96 @@ out_fdc(fdcu, x)
 /****************************************************************************/
 /*                           fdopen/fdclose                                 */
 /****************************************************************************/
+int
 Fdopen(dev, flags)
 	dev_t	dev;
 	int	flags;
 {
  	fdu_t fdu = FDUNIT(minor(dev));
- 	/*int type = FDTYPE(minor(dev));*/
-	int s;
+	int type = FDTYPE(minor(dev));
+	fdc_p	fdc;
 
+#if NFT > 0
+	/* check for a tape open */
+	if (type & F_TAPE_TYPE)
+		return(ftopen(dev, flags));
+#endif
 	/* check bounds */
-	if (fdu >= NFD || fd_data[fdu].type == NO_TYPE) return(ENXIO);
-	/*if (type >= NUMTYPES) return(ENXIO);*/
+	if (fdu >= NFD) 
+		return(ENXIO);
+	fdc = fd_data[fdu].fdc;
+	if ((fdc == NULL) || (fd_data[fdu].type == NO_TYPE))
+		return(ENXIO);
+	if (type > NUMDENS)
+		return(ENXIO);
+	if (type == 0)
+		type = fd_data[fdu].type;
+	else {
+		if (type != fd_data[fdu].type) {
+			switch (fd_data[fdu].type) {
+			case FD_360:
+				return(ENXIO);
+			case FD_720:
+				if (   type != FD_820
+				    && type != FD_800
+				   )
+					return(ENXIO);
+				break;
+			case FD_1200:
+				switch (type) {
+				case FD_1480:
+					type = FD_1480in5_25;
+					break;
+				case FD_1440:
+					type = FD_1440in5_25;
+					break;
+				case FD_820:
+					type = FD_820in5_25;
+					break;
+				case FD_800:
+					type = FD_800in5_25;
+					break;
+				case FD_720:
+					type = FD_720in5_25;
+					break;
+				case FD_360:
+					type = FD_360in5_25;
+					break;
+				default:
+					return(ENXIO);
+				}
+				break;
+			case FD_1440:
+				if (   type != FD_1720
+				    && type != FD_1480
+				    && type != FD_1200
+				    && type != FD_820
+				    && type != FD_800
+				    && type != FD_720
+				    )
+					return(ENXIO);
+				break;
+			}
+		}
+	}
+	fd_data[fdu].ft = fd_types + type - 1;
 	fd_data[fdu].flags |= FD_OPEN;
 
 	return 0;
 }
 
+int
 fdclose(dev, flags)
 	dev_t dev;
+	int flags;
 {
  	fdu_t fdu = FDUNIT(minor(dev));
+	int type = FDTYPE(minor(dev));
+
+#if NFT > 0
+	if (type & F_TAPE_TYPE)
+		return ftclose(0);
+#endif
 	fd_data[fdu].flags &= ~FD_OPEN;
 	return(0);
 }
@@ -519,6 +667,7 @@ fdclose(dev, flags)
 * If the controller is already busy, we need do nothing, as it	*
 * will pick up our work when the present work completes		*
 \***************************************************************/
+static void
 fdstart(fdcu)
 	fdcu_t fdcu;
 {
@@ -534,9 +683,10 @@ fdstart(fdcu)
 	splx(s);
 }
 
-fd_timeout(fdcu)
-	fdcu_t fdcu;
+static void
+fd_timeout(caddr_t arg1, int arg2)
 {
+	fdcu_t fdcu = (fdcu_t)arg1;
 	fdu_t fdu = fdc_data[fdcu].fdu;
 	int st0, st3, cyl;
 	struct buf *dp,*bp;
@@ -580,9 +730,10 @@ fd_timeout(fdcu)
 }
 
 /* just ensure it has the right spl */
-fd_pseudointr(fdcu)
-	fdcu_t fdcu;
+static void
+fd_pseudointr(caddr_t arg1, int arg2)
 {
+	fdcu_t fdcu = (fdcu_t)arg1;
 	int	s;
 	s = splbio();
 	fdintr(fdcu);
@@ -594,26 +745,36 @@ fd_pseudointr(fdcu)
 * keep calling the state machine until it returns a 0			*
 * ALWAYS called at SPLBIO 						*
 \***********************************************************************/
-fdintr(fdcu)
-	fdcu_t fdcu;
+void
+fdintr(fdcu_t fdcu)
 {
 	fdc_p fdc = fdc_data + fdcu;
-	while(fdstate(fdcu, fdc));
+#if NFT > 0
+	fdu_t fdu = fdc->fdu;
+
+	if (fdc->flags & FDC_TAPE_BUSY)
+		(ftintr(fdu));
+	else
+#endif
+	while(fdstate(fdcu, fdc))
+	  ;
 }
 
 /***********************************************************************\
 * The controller state machine.						*
 * if it returns a non zero value, it should be called again immediatly	*
 \***********************************************************************/
-int fdstate(fdcu, fdc)
+int
+fdstate(fdcu, fdc)
 	fdcu_t fdcu;
 	fdc_p fdc;
 {
-	int read,head,trac,sec,i,s,sectrac,cyl,st0;
+	int read, format, head, trac, sec = 0, i = 0, s, sectrac, cyl, st0;
 	unsigned long blknum;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
 	register struct buf *dp,*bp;
+	struct fd_formb *finfo = NULL;
 
 	dp = &(fdc->head);
 	bp = dp->b_actf;
@@ -641,11 +802,14 @@ int fdstate(fdcu, fdc)
 		printf("confused fd pointers\n");
 	}
 	read = bp->b_flags & B_READ;
+	format = bp->b_flags & B_FORMAT;
+	if(format)
+		finfo = (struct fd_formb *)bp->b_un.b_addr;
 	TRACE1("fd%d",fdu);
 	TRACE1("[%s]",fdstates[fdc->state]);
 	TRACE1("(0x%x)",fd->flags);
-	untimeout(fd_turnoff, fdu);
-	timeout(fd_turnoff,fdu,4 * hz);
+	untimeout(fd_turnoff, (caddr_t)fdu);
+	timeout(fd_turnoff, (caddr_t)fdu, 4 * hz);
 	switch (fdc->state)
 	{
 	case DEVIDLE:
@@ -689,12 +853,12 @@ int fdstate(fdcu, fdc)
 		out_fdc(fdcu,bp->b_cylin * fd->ft->steptrac);
 		fd->track = -2;
 		fdc->state = SEEKWAIT;
-		timeout(fd_timeout,fdcu,2 * hz);
+		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case SEEKWAIT:
-		untimeout(fd_timeout,fdcu);
+		untimeout(fd_timeout, (caddr_t)fdcu);
 		/* allow heads to settle */
-		timeout(fd_pseudointr,fdcu,hz/50);
+		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 50);
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
 		break;
@@ -709,15 +873,18 @@ int fdstate(fdcu, fdc)
 			cyl = in_fdc(fdcu);
 			if (cyl != descyl)
 			{
-				printf("fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n", fdu,
-				descyl, cyl, i, NE7_ST0BITS);
+				printf("fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n",
+				fdu, descyl, cyl, i, NE7_ST0BITS);
 				return(retrier(fdcu));
 			}
 		}
 
 		fd->track = bp->b_cylin;
+		if(format)
+			fd->skip = (char *)&(finfo->fd_formb_cylno(0))
+				- (char *)finfo;
 		isa_dmastart(bp->b_flags, bp->b_un.b_addr+fd->skip,
-			FDBLK, fdc->dmachan);
+			format ? bp->b_bcount : FDBLK, fdc->dmachan);
 		blknum = (unsigned long)bp->b_blkno*DEV_BSIZE/FDBLK
 			+ fd->skip/FDBLK;
 		sectrac = fd->ft->sectrac;
@@ -726,41 +893,63 @@ int fdstate(fdcu, fdc)
 		sec = sec % sectrac + 1;
 /*XXX*/		fd->hddrv = ((head&1)<<2)+fdu;
 
-		if (read)
+		if(format)
 		{
-			out_fdc(fdcu,NE7CMD_READ);	/* READ */
-		}
+			/* formatting */
+			out_fdc(fdcu,/* NE7CMD_FORMAT */ 0x4d);
+			out_fdc(fdcu,head << 2 | fdu);
+			out_fdc(fdcu,finfo->fd_formb_secshift);
+			out_fdc(fdcu,finfo->fd_formb_nsecs);
+			out_fdc(fdcu,finfo->fd_formb_gaplen);
+			out_fdc(fdcu,finfo->fd_formb_fillbyte);
+		}			
 		else
 		{
-			out_fdc(fdcu,NE7CMD_WRITE);	/* WRITE */
+			if (read)
+			{
+				out_fdc(fdcu,NE7CMD_READ);      /* READ */
+			}
+			else
+			{
+				out_fdc(fdcu,NE7CMD_WRITE);     /* WRITE */
+			}
+			out_fdc(fdcu,head << 2 | fdu);  /* head & unit */
+			out_fdc(fdcu,fd->track);        /* track */
+			out_fdc(fdcu,head);
+			out_fdc(fdcu,sec);              /* sector XXX +1? */
+			out_fdc(fdcu,fd->ft->secsize);  /* sector size */
+			out_fdc(fdcu,sectrac);          /* sectors/track */
+			out_fdc(fdcu,fd->ft->gap);      /* gap size */
+			out_fdc(fdcu,fd->ft->datalen);  /* data length */
 		}
-		out_fdc(fdcu,head << 2 | fdu);	/* head & unit */
-		out_fdc(fdcu,fd->track);		/* track */
-		out_fdc(fdcu,head);
-		out_fdc(fdcu,sec);			/* sector XXX +1? */
-		out_fdc(fdcu,fd->ft->secsize);		/* sector size */
-		out_fdc(fdcu,sectrac);		/* sectors/track */
-		out_fdc(fdcu,fd->ft->gap);		/* gap size */
-		out_fdc(fdcu,fd->ft->datalen);		/* data length */
 		fdc->state = IOCOMPLETE;
-		timeout(fd_timeout,fdcu,2 * hz);
+		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case IOCOMPLETE: /* IO DONE, post-analyze */
-		untimeout(fd_timeout,fdcu);
+		untimeout(fd_timeout, (caddr_t)fdcu);
 		for(i=0;i<7;i++)
 		{
 			fdc->status[i] = in_fdc(fdcu);
 		}
 	case IOTIMEDOUT: /*XXX*/
 		isa_dmadone(bp->b_flags, bp->b_un.b_addr+fd->skip,
-			FDBLK, fdc->dmachan);
+			format ? bp->b_bcount : FDBLK, fdc->dmachan);
 		if (fdc->status[0]&0xF8)
 		{
+                        if (fdc->status[1] & 0x10) {
+                                /*
+				 * Operation not completed in reasonable time.
+				 * Just restart it, don't increment retry count.
+				 * (vak)
+                                 */
+                                fdc->state = SEEKCOMPLETE;
+                                return (1);
+                        }
 			return(retrier(fdcu));
 		}
 		/* All OK */
 		fd->skip += FDBLK;
-		if (fd->skip < bp->b_bcount)
+		if (!format && fd->skip < bp->b_bcount)
 		{
 			/* set up next transfer */
 			blknum = (unsigned long)bp->b_blkno*DEV_BSIZE/FDBLK
@@ -800,7 +989,7 @@ int fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case RECALWAIT:
 		/* allow heads to settle */
-		timeout(fd_pseudointr,fdcu,hz/30);
+		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 30);
 		fdc->state = RECALCOMPLETE;
 		return(0);	/* will return later */
 	case RECALCOMPLETE:
@@ -848,6 +1037,7 @@ int fdstate(fdcu, fdc)
 	return(1); /* Come back immediatly to new state */
 }
 
+static int
 retrier(fdcu)
 	fdcu_t fdcu;
 {
@@ -872,8 +1062,12 @@ retrier(fdcu)
 		break;
 	default:
 		{
+			dev_t sav_b_dev = bp->b_dev;
+			/* Trick diskerr */
+			bp->b_dev = makedev(major(bp->b_dev), (FDUNIT(minor(bp->b_dev))<<3)|3);
 			diskerr(bp, "fd", "hard error", LOG_PRINTF,
 				fdc->fd->skip, (struct disklabel *)NULL);
+			bp->b_dev = sav_b_dev;
 			printf(" (ST0 %b ", fdc->status[0], NE7_ST0BITS);
 			printf(" ST1 %b ", fdc->status[1], NE7_ST1BITS);
 			printf(" ST2 %b ", fdc->status[2], NE7_ST2BITS);
@@ -896,6 +1090,63 @@ retrier(fdcu)
 	return(1);
 }
 
+static int
+fdformat(dev, finfo, p)
+	dev_t dev;
+	struct fd_formb *finfo;
+	struct proc *p;
+{
+ 	fdu_t	fdu;
+ 	fd_p	fd;
+
+	struct buf *bp;
+	int rv = 0, s;
+	
+ 	fdu = FDUNIT(minor(dev));
+	fd = &fd_data[fdu];
+
+	/* set up a buffer header for fdstrategy() */
+	bp = (struct buf *)malloc(sizeof(struct buf), M_TEMP, M_NOWAIT);
+	if(bp == 0)
+		return ENOBUFS;
+	bzero((void *)bp, sizeof(struct buf));
+	bp->b_flags = B_BUSY | B_PHYS | B_FORMAT;
+	bp->b_proc = p;
+	bp->b_dev = dev;
+
+	/*
+	 * calculate a fake blkno, so fdstrategy() would initiate a
+	 * seek to the requested cylinder
+	 */
+	bp->b_blkno = (finfo->cyl * (fd->ft->sectrac * fd->ft->heads)
+		+ finfo->head * fd->ft->sectrac) * FDBLK / DEV_BSIZE;
+
+	bp->b_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
+	bp->b_un.b_addr = (caddr_t)finfo;
+	
+	/* now do the format */
+	fdstrategy(bp);
+
+	/* ...and wait for it to complete */
+	s = splbio();
+	while(!(bp->b_flags & B_DONE))
+	{
+		rv = tsleep((caddr_t)bp, PRIBIO, "fdform", 20 * hz);
+		if(rv == EWOULDBLOCK)
+			break;
+	}
+	splx(s);
+	
+	if(rv == EWOULDBLOCK)
+	{
+		/* timed out */
+		biodone(bp);
+		rv = EIO;
+	}
+	free(bp, M_TEMP);
+	return rv;
+}
+
 /*
  * fdioctl() from jc@irbs.UUCP (John Capo)
  * i386/i386/conf.c needs to have fdioctl() declared and remove the line that
@@ -905,73 +1156,98 @@ retrier(fdcu)
  *       Think about allocating buffer off stack.
  *       Don't pass uncast 0's and NULL's to read/write/setdisklabel().
  *       Watch out for NetBSD's different *disklabel() interface.
+ *
+ * Added functionality for floppy formatting
+ * joerg_wunsch@uriah.sax.de (Joerg Wunsch)
  */
 
 int
-fdioctl (dev, cmd, addr, flag)
-dev_t dev;
-int cmd;
-caddr_t addr;
-int flag;
+fdioctl (dev, cmd, addr, flag, p)
+	dev_t dev;
+	int cmd;
+	caddr_t addr;
+	int flag;
+	struct proc *p;
 {
-    struct fd_type *fdt;
-    struct disklabel *dl;
-    char buffer[DEV_BSIZE];
-    int error;
+	struct fd_type *fdt;
+	struct disklabel *dl;
+	char buffer[DEV_BSIZE];
+	int error;
 
-    error = 0;
+#if NFT > 0
+	int type = FDTYPE(minor(dev));
 
-    switch (cmd)
-    {
-    case DIOCGDINFO:
-        bzero(buffer, sizeof (buffer));
-        dl = (struct disklabel *)buffer;
-        dl->d_secsize = FDBLK;
-        fdt = fd_data[FDUNIT(minor(dev))].ft;
-        dl->d_secpercyl = fdt->size / fdt->tracks;
-        dl->d_type = DTYPE_FLOPPY;
+	/* check for a tape ioctl */
+	if (type & F_TAPE_TYPE)
+		return ftioctl(dev, cmd, addr, flag, p);
+#endif
 
-        if (readdisklabel(dev, fdstrategy, dl, NULL, 0, 0) == NULL)
-            error = 0;
-        else
-            error = EINVAL;
+	error = 0;
 
-        *(struct disklabel *)addr = *dl;
-        break;
+	switch (cmd)
+	{
+	case DIOCGDINFO:
+		bzero(buffer, sizeof (buffer));
+		dl = (struct disklabel *)buffer;
+		dl->d_secsize = FDBLK;
+		fdt = fd_data[FDUNIT(minor(dev))].ft;
+		dl->d_secpercyl = fdt->size / fdt->tracks;
+		dl->d_type = DTYPE_FLOPPY;
 
-    case DIOCSDINFO:
+		if (readdisklabel(dev, fdstrategy, dl, NULL, 0, 0) == NULL)
+			error = 0;
+		else
+			error = EINVAL;
 
-        if ((flag & FWRITE) == 0)
-            error = EBADF;
+		*(struct disklabel *)addr = *dl;
+		break;
 
-        break;
+	case DIOCSDINFO:
+		if ((flag & FWRITE) == 0)
+			error = EBADF;
+		break;
 
-    case DIOCWLABEL:
-        if ((flag & FWRITE) == 0)
-            error = EBADF;
+	case DIOCWLABEL:
+		if ((flag & FWRITE) == 0)
+			error = EBADF;
+		break;
 
-        break;
+	case DIOCWDINFO:
+		if ((flag & FWRITE) == 0)
+		{
+			error = EBADF;
+			break;
+		}
 
-    case DIOCWDINFO:
-        if ((flag & FWRITE) == 0)
-        {
-            error = EBADF;
-            break;
-        }
+		dl = (struct disklabel *)addr;
 
-        dl = (struct disklabel *)addr;
+		if (error = setdisklabel ((struct disklabel *)buffer,
+		    dl, 0, NULL))
+			break;
 
-        if (error = setdisklabel ((struct disklabel *)buffer, dl, 0, NULL))
-            break;
+		error = writedisklabel(dev, fdstrategy,
+			(struct disklabel *)buffer, NULL);
+		break;
 
-        error = writedisklabel(dev, fdstrategy, (struct disklabel *)buffer, NULL);
-        break;
+	case FD_FORM:
+		if((flag & FWRITE) == 0)
+			error = EBADF;	/* must be opened for writing */
+		else if(((struct fd_formb *)addr)->format_version !=
+			FD_FORMAT_VERSION)
+			error = EINVAL;	/* wrong version of formatting prog */
+		else
+			error = fdformat(dev, (struct fd_formb *)addr, p);
+		break;
 
-     default:
-        error = EINVAL;
-        break;
-    }
-    return (error);
+	case FD_GTYPE:                  /* get drive type */
+		*(struct fd_type *)addr = *fd_data[FDUNIT(minor(dev))].ft;
+		break;
+
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
 }
 
 #endif

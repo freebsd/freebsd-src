@@ -901,7 +901,15 @@ telnet(f, p, host)
 		if (IM == 0)
 			IM = "";
 	} else {
+#ifdef __FreeBSD__
+		static char issue_message[256];
+		extern char *_osnamever();
+		snprintf(issue_message, sizeof issue_message,
+			 DEFAULT_IM, _osnamever());
+		IM = issue_message;
+#else
 		IM = DEFAULT_IM;
+#endif
 		HE = 0;
 	}
 	edithost(HE, host_name);

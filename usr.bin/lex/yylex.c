@@ -28,7 +28,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/usr.bin/lex/yylex.c,v 1.2 1993/06/29 03:27:21 nate Exp $ (LBL)";
+    "@(#) $Header: /home/cvs/386BSD/src/usr.bin/lex/yylex.c,v 1.2 1993/06/29 03:27:21 nate Exp $ (LBL)";
 #endif
 
 #include <ctype.h>

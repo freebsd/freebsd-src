@@ -648,3 +648,4 @@
 .\" couple of miscellaneous requests
 .bd S 3 3				\" embolden special font chars if B
 .hy 2					\" don't hyphenate last lines
+.za					\" save everything

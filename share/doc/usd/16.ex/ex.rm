@@ -33,6 +33,7 @@
 .\"
 .EH 'USD:16-%''Ex Reference Manual'
 .OH 'Ex Reference Manual''USD:16-%'
+.nr )P 0
 .de ZP
 .nr pd \\n()P
 .nr )P 0

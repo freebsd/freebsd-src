@@ -27,11 +27,11 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_isofs.8,v 1.1 1993/07/21 07:51:50 cgd Exp $
+.\"	$Id: mount_isofs.8,v 1.5 1994/02/07 02:47:56 rgrimes Exp $
 .\"
 .Dd July 19, 1993
-.Dt MOUNT_MSDOS 8
-.Os NetBSD 0.9
+.Dt MOUNT_ISOFS 8
+.Os
 .Sh NAME
 .Nm mount_isofs
 .Nd mount an ISO-9660 filesystem
@@ -62,10 +62,10 @@ flag is used.  If that option is given to
 then the Rockridge extensions will be ignored.
 .Sh EXAMPLES
 .Bd -literal -offset indent -compact
-mount_isofs /dev/cd0d /cdrom
-mount_isofs \-norrip /dev/cd0d /cdrom
-mount \-t isofs /dev/cd0d /cdrom
-mount \-t isofs \-o \-norrip /dev/cd0d /cdrom
+mount_isofs /dev/cd0a /cdrom
+mount_isofs \-norrip /dev/cd0a /cdrom
+mount \-t isofs /dev/cd0a /cdrom
+mount \-t isofs \-o \-norrip /dev/cd0a /cdrom
 .Ed
 .Sh SEE ALSO
 .Xr mount 2 ,

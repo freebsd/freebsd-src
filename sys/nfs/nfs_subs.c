@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_subs.c	7.41 (Berkeley) 5/15/91
- *	$Id: nfs_subs.c,v 1.2 1993/09/09 22:06:08 rgrimes Exp $
+ *	$Id: nfs_subs.c,v 1.5 1993/12/19 00:54:15 wollman Exp $
  */
 
 /*
@@ -70,6 +70,8 @@
 
 #define TRUE	1
 #define	FALSE	0
+
+struct nfsstats nfsstats;
 
 /*
  * Data items converted to xdr at startup, since they are constant
@@ -271,8 +273,8 @@ nfsm_uiotombuf(uiop, mq, siz, bpos)
 	caddr_t *bpos;
 {
 	register char *uiocp;
-	register struct mbuf *mp, *mp2;
-	register int xfer, left, len;
+	register struct mbuf *mp = 0, *mp2;
+	register int xfer, left, len = 0;
 	int uiosiz, clflg, rem;
 	char *cp;
 
@@ -452,7 +454,7 @@ nfsm_strtmbuf(mb, bpos, cp, siz)
 	char *cp;
 	long siz;
 {
-	register struct mbuf *m1, *m2;
+	register struct mbuf *m1 = 0, *m2;
 	long left, xfer, len, tlen;
 	u_long *tl;
 	int putsize;
@@ -541,7 +543,7 @@ nfs_init()
 	 * Initialize reply list and start timer
 	 */
 	nfsreqh.r_prev = nfsreqh.r_next = &nfsreqh;
-	nfs_timer();
+	nfs_timer(0);
 }
 
 /*
@@ -649,7 +651,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	 */
 	np = VTONFS(vp);
 	if (vp->v_type == VNON) {
-		if (type == VCHR && rdev == 0xffffffff)
+		if (type == VCHR && rdev == 0xffffffffUL)
 			vp->v_type = type = VFIFO;
 		else
 			vp->v_type = type;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)quota.h	7.9 (Berkeley) 2/22/91
- *	$Id: quota.h,v 1.2 1993/10/16 18:17:47 rgrimes Exp $
+ *	$Id: quota.h,v 1.3 1993/11/25 01:38:27 wollman Exp $
  */
 
 #ifndef _QUOTA_
@@ -60,9 +60,11 @@
  * generically and need not be inspected when changing the size of
  * the array.
  */
-#define	MAXQUOTAS	2
-#define	USRQUOTA	0	/* element used for user quotas */
-#define	GRPQUOTA	1	/* element used for group quotas */
+enum quotatype {
+	USRQUOTA = 0,	/* element used for user quotas */
+	GRPQUOTA = 1,	/* element used for group quotas */
+	MAXQUOTAS = 2
+};
 
 /*
  * Definitions for the default names of the quotas files.
@@ -170,6 +172,29 @@ struct	dquot {
 #else
 #define	DQREF(dq)	dqref(dq)
 #endif /* DIAGNOSTIC */
+
+struct inode; struct ucred; struct mount; struct vnode;
+
+int getinoquota(struct inode *);
+int chkdq(struct inode *, long, struct ucred *, int);
+int chkdqchg(struct inode *, long, struct ucred *, enum quotatype);
+int chkiq(struct inode *, long, struct ucred *, int);
+int chkiqchg(struct inode *, long, struct ucred *, enum quotatype);
+#ifdef DIAGNOSTIC
+void chkdquot(struct inode *);
+#endif
+int quotaon(struct proc *, struct mount *, enum quotatype, caddr_t);
+int quotaoff(struct proc *, struct mount *, enum quotatype);
+int getquota(struct mount *, u_long, enum quotatype, caddr_t);
+int setquota(struct mount *, u_long, enum quotatype, caddr_t);
+int setuse(struct mount *, u_long, enum quotatype, caddr_t);
+int qsync(struct mount *);
+void dqinit(void);
+int dqget(struct vnode *, u_long, struct ufsmount *, enum quotatype, struct dquot **);
+void dqref(struct dquot *);
+void dqrele(struct vnode *, struct dquot *);
+int dqsync(struct vnode *, struct dquot *);
+void dqflush(struct vnode *);
 
 #else
 

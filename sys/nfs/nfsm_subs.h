@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfsm_subs.h	7.11 (Berkeley) 4/16/91
- *	$Id: nfsm_subs.h,v 1.2 1993/09/09 22:06:21 rgrimes Exp $
+ *	$Id: nfsm_subs.h,v 1.3 1993/12/19 00:54:20 wollman Exp $
  */
 
 #ifndef __h_nfsm_subs
@@ -291,7 +291,7 @@ extern struct mbuf *nfsm_reqh();
 	fp->fa_size = txdr_unsigned(vap->va_size); \
 	fp->fa_blocksize = txdr_unsigned(vap->va_blocksize); \
 	if (vap->va_type == VFIFO) \
-		fp->fa_rdev = 0xffffffff; \
+		fp->fa_rdev = 0xffffffffUL; \
 	else \
 		fp->fa_rdev = txdr_unsigned(vap->va_rdev); \
 	fp->fa_blocks = txdr_unsigned(vap->va_bytes / NFS_FABLKSIZE); \
@@ -303,8 +303,7 @@ extern struct mbuf *nfsm_reqh();
 	fp->fa_ctime.tv_sec = txdr_unsigned(vap->va_ctime.tv_sec); \
 	fp->fa_ctime.tv_usec = txdr_unsigned(vap->va_gen)
 
-/* These are here to provide prototypes for everything in the NFS system.
- * Added 8.6.-93, Garrett A. Wollman, University of Vermont. */
+#ifdef KERNEL
 struct nfsmount;
 
 void nfs_updatetimer __P((struct nfsmount *));
@@ -316,5 +315,34 @@ void nfs_sounlock __P((int *));
 int nfs_netaddr_match __P((struct mbuf *, struct mbuf *));
 int nfs_badnam __P((struct mbuf *, struct mbuf *, struct mbuf *));
 
+extern int nfs_rephead(int, u_long, int, struct mbuf **, struct mbuf **, 
+		       caddr_t *);
+extern struct mbuf *nfsm_reqh(u_long, u_long, u_long, struct ucred *, int,
+			      caddr_t *, struct mbuf **, u_long *);
+extern int nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
+extern int nfsm_uiotombuf(struct uio *, struct mbuf **, int, caddr_t *);
+extern int nfsm_disct(struct mbuf **, caddr_t *, int, int, int, caddr_t *);
+extern int nfs_adv(struct mbuf **, caddr_t *, int, int);
+extern int nfsm_strtmbuf(struct mbuf **, char **, char *, long);
+extern void nfs_init(void);
+extern void nfsm_adj(struct mbuf *, int, int);
+extern struct mbuf *nfs_compress(struct mbuf *);
+extern struct mbuf *nfs_uncompress(struct mbuf *);
 
+extern int nfs_request(struct vnode *, struct mbuf *, u_long, int,
+		       struct proc *, int, struct mount *, struct mbuf **,
+		       struct mbuf **, caddr_t *);
+struct nfsreq;
+extern int nfs_receive(struct socket *, struct mbuf **, struct mbuf **,
+		       struct nfsreq *);
+extern int nfs_send(struct socket *, struct mbuf *, struct mbuf *,
+		    struct nfsreq *);
+extern int nfs_getreq(struct socket *so, u_long, u_long, int, struct mbuf **,
+		      struct mbuf **, struct mbuf **, caddr_t *, u_long *,
+		      u_long *, struct ucred *, struct mbuf *, struct mbuf *,
+		      int *, int *);
+extern int nfs_netaddr_match(struct mbuf *, struct mbuf *);
+extern int nfs_badnam(struct mbuf *, struct mbuf *, struct mbuf *);
+
+#endif /* KERNEL */
 #endif /* __h_nfsm_subs */

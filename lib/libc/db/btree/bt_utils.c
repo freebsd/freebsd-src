@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_utils.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)bt_utils.c	8.2 (Berkeley) 9/7/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -70,11 +70,17 @@ __bt_ret(t, e, key, data)
 
 	bl = GETBLEAF(e->page, e->index);
 
+	/*
+	 * We always copy big keys/data to make them contigous.  Otherwise,
+	 * we leave the page pinned and don't copy unless the user specified
+	 * concurrent access.
+	 */
 	if (bl->flags & P_BIGDATA) {
 		if (__ovfl_get(t, bl->bytes + bl->ksize,
 		    &data->size, &t->bt_dbuf, &t->bt_dbufsz))
 			return (RET_ERROR);
-	} else {
+		data->data = t->bt_dbuf;
+	} else if (ISSET(t, B_DB_LOCK)) {
 		/* Use +1 in case the first record retrieved is 0 length. */
 		if (bl->dsize + 1 > t->bt_dbufsz) {
 			if ((p = realloc(t->bt_dbuf, bl->dsize + 1)) == NULL)
@@ -84,8 +90,11 @@ __bt_ret(t, e, key, data)
 		}
 		memmove(t->bt_dbuf, bl->bytes + bl->ksize, bl->dsize);
 		data->size = bl->dsize;
+		data->data = t->bt_dbuf;
+	} else {
+		data->size = bl->dsize;
+		data->data = bl->bytes + bl->ksize;
 	}
-	data->data = t->bt_dbuf;
 
 	if (key == NULL)
 		return (RET_SUCCESS);
@@ -94,7 +103,8 @@ __bt_ret(t, e, key, data)
 		if (__ovfl_get(t, bl->bytes,
 		    &key->size, &t->bt_kbuf, &t->bt_kbufsz))
 			return (RET_ERROR);
-	} else {
+		key->data = t->bt_kbuf;
+	} else if (ISSET(t, B_DB_LOCK)) {
 		if (bl->ksize > t->bt_kbufsz) {
 			if ((p = realloc(t->bt_kbuf, bl->ksize)) == NULL)
 				return (RET_ERROR);
@@ -103,8 +113,11 @@ __bt_ret(t, e, key, data)
 		}
 		memmove(t->bt_kbuf, bl->bytes, bl->ksize);
 		key->size = bl->ksize;
+		key->data = t->bt_kbuf;
+	} else {
+		key->size = bl->ksize;
+		key->data = bl->bytes;
 	}
-	key->data = t->bt_kbuf;
 	return (RET_SUCCESS);
 }
 

@@ -116,6 +116,8 @@ connect()
 			return ("can't open phone number file");
 		}
 		while (fgets(string, sizeof(string), fd) != NOSTR) {
+			if(*string == '#')
+				continue;
 			for (cp = string; !any(*cp, " \t\n"); cp++)
 				;
 			if (*cp == '\n') {

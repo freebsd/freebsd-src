@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_open.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)bt_open.c	8.3 (Berkeley) 9/16/93";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -83,9 +83,9 @@ static int tmp __P((void));
  *
  */
 DB *
-__bt_open(fname, flags, mode, openinfo)
+__bt_open(fname, flags, mode, openinfo, dflags)
 	const char *fname;
-	int flags, mode;
+	int flags, mode, dflags;
 	const BTREEINFO *openinfo;
 {
 	BTMETA m;
@@ -156,19 +156,17 @@ __bt_open(fname, flags, mode, openinfo)
 	/* Allocate and initialize DB and BTREE structures. */
 	if ((t = malloc(sizeof(BTREE))) == NULL)
 		goto err;
-	t->bt_fd = -1;			/* Don't close unopened fd on error. */
-	if ((t->bt_dbp = dbp = malloc(sizeof(DB))) == NULL)
-		goto err;
+	memset(t, 0, sizeof(BTREE));
 	t->bt_bcursor.pgno = P_INVALID;
-	t->bt_bcursor.index = 0;
-	t->bt_stack = NULL;
-	t->bt_sp = t->bt_maxstack = 0;
-	t->bt_kbuf = t->bt_dbuf = NULL;
-	t->bt_kbufsz = t->bt_dbufsz = 0;
+	t->bt_fd = -1;			/* Don't close unopened fd on error. */
 	t->bt_lorder = b.lorder;
 	t->bt_order = NOT;
 	t->bt_cmp = b.compare;
 	t->bt_pfx = b.prefix;
+	t->bt_rfd = -1;
+
+	if ((t->bt_dbp = dbp = malloc(sizeof(DB))) == NULL)
+		goto err;
 	t->bt_flags = 0;
 	if (t->bt_lorder != machine_lorder)
 		SET(t, B_NEEDSWAP);
@@ -199,8 +197,7 @@ __bt_open(fname, flags, mode, openinfo)
 			goto einval;
 		}
 		
-		if ((t->bt_fd =
-		    open(fname, flags & __USE_OPEN_FLAGS, mode)) < 0)
+		if ((t->bt_fd = open(fname, flags, mode)) < 0)
 			goto err;
 
 	} else {
@@ -314,6 +311,14 @@ __bt_open(fname, flags, mode, openinfo)
 	if (nroot(t) == RET_ERROR)
 		goto err;
 
+	/* Global flags. */
+	if (dflags & DB_LOCK)
+		SET(t, B_DB_LOCK);
+	if (dflags & DB_SHMEM)
+		SET(t, B_DB_SHMEM);
+	if (dflags & DB_TXN)
+		SET(t, B_DB_TXN);
+
 	return (dbp);
 
 einval:	errno = EINVAL;
@@ -420,6 +425,13 @@ __bt_fd(dbp)
 
 	t = dbp->internal;
 
+	/* Toss any page pinned across calls. */
+	if (t->bt_pinned != NULL) {
+		mpool_put(t->bt_mp, t->bt_pinned, 0);
+		t->bt_pinned = NULL;
+	}
+
+	/* In-memory database can't have a file descriptor. */
 	if (ISSET(t, B_INMEM)) {
 		errno = ENOENT;
 		return (-1);

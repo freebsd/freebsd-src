@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_inode.c	7.40 (Berkeley) 5/8/91
- *	$Id: ufs_inode.c,v 1.3 1993/10/16 18:17:52 rgrimes Exp $
+ *	$Id: ufs_inode.c,v 1.6 1993/11/25 01:38:33 wollman Exp $
  */
 
 #include "param.h"
@@ -56,6 +56,8 @@
 #define	INOHASH(dev,ino)	(((unsigned)((dev)+(ino)))%INOHSZ)
 #endif
 
+u_long	nextgennumber;		/* next generation number to assign */
+
 union ihead {
 	union  ihead *ih_head[2];
 	struct inode *ih_chain[2];
@@ -66,6 +68,7 @@ int prtactive;	/* 1 => print out reclaim of active vnodes */
 /*
  * Initialize hash links for inodes.
  */
+void
 ufs_init()
 {
 	register int i;
@@ -91,6 +94,7 @@ ufs_init()
  * return the inode locked. Detection and handling of mount
  * points must be done by the calling routine.
  */
+int
 iget(xp, ino, ipp)
 	struct inode *xp;
 	ino_t ino;
@@ -115,7 +119,7 @@ loop:
 			continue;
 		if ((ip->i_flag&ILOCKED) != 0) {
 			ip->i_flag |= IWANT;
-			sleep((caddr_t)ip, PINOD);
+			tsleep((caddr_t)ip, PINOD, "iget", 0);
 			goto loop;
 		}
 		if (vget(ITOV(ip)))
@@ -242,6 +246,7 @@ loop:
 /*
  * Unlock and decrement the reference count of an inode structure.
  */
+void
 iput(ip)
 	register struct inode *ip;
 {
@@ -256,6 +261,7 @@ iput(ip)
  * Last reference to an inode, write the inode out and if necessary,
  * truncate and deallocate the file.
  */
+int
 ufs_inactive(vp, p)
 	struct vnode *vp;
 	struct proc *p;
@@ -301,6 +307,7 @@ ufs_inactive(vp, p)
 /*
  * Reclaim an inode so that it can be used for other purposes.
  */
+int
 ufs_reclaim(vp)
 	register struct vnode *vp;
 {
@@ -344,6 +351,7 @@ ufs_reclaim(vp)
  * time is always taken from the current time. If waitfor is set,
  * then wait for the disk write of the inode to complete.
  */
+int
 iupdat(ip, ta, tm, waitfor)
 	register struct inode *ip;
 	struct timeval *ta, *tm;
@@ -392,6 +400,7 @@ iupdat(ip, ta, tm, waitfor)
  *
  * NB: triple indirect blocks are untested.
  */
+int
 itrunc(oip, length, flags)
 	register struct inode *oip;
 	u_long length;
@@ -583,6 +592,7 @@ done:
  *
  * NB: triple indirect blocks are untested.
  */
+int
 indirtrunc(ip, bn, lastbn, level, countp)
 	register struct inode *ip;
 	daddr_t bn, lastbn;
@@ -673,6 +683,7 @@ indirtrunc(ip, bn, lastbn, level, countp)
 /*
  * Lock an inode. If its already locked, set the WANT bit and sleep.
  */
+void
 ilock(ip)
 	register struct inode *ip;
 {
@@ -682,7 +693,7 @@ ilock(ip)
 		if (ip->i_spare0 == curproc->p_pid)
 			panic("locking against myself");
 		ip->i_spare1 = curproc->p_pid;
-		(void) sleep((caddr_t)ip, PINOD);
+		(void) tsleep((caddr_t)ip, PINOD, "ilock", 0);
 	}
 	ip->i_spare1 = 0;
 	ip->i_spare0 = curproc->p_pid;
@@ -692,6 +703,7 @@ ilock(ip)
 /*
  * Unlock an inode.  If WANT bit is on, wakeup.
  */
+void
 iunlock(ip)
 	register struct inode *ip;
 {

@@ -1,4 +1,13 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ *	$Id: tape.c,v 1.2.2.1 1994/05/04 07:42:57 rgrimes Exp $
+ */
+/*
  * Copyright (c) 1983 The Regents of the University of California.
  * All rights reserved.
  *
@@ -74,6 +83,7 @@ setinput(source)
 	extern int errno;
 #ifdef RRESTORE
 	char *host, *tape;
+	char *ruser;
 #endif RRESTORE
 	char *strerror();
 
@@ -86,6 +96,16 @@ setinput(source)
 #ifdef RRESTORE
 	host = source;
 	tape = index(host, ':');
+	if((host = index(source, '@')))
+	  {
+	   *host++ = '\0';
+	   ruser = source;
+	  }
+	else
+	  {
+	   host = source;
+	   ruser = NULL;
+	  }
 	if (tape == 0) {
 nohost:
 		msg("need keyletter ``f'' and device ``host:tape''\n");
@@ -93,7 +113,7 @@ nohost:
 	}
 	*tape++ = '\0';
 	(void) strcpy(magtape, tape);
-	if (rmthost(host) == 0)
+	if (rmthost(host, ruser) == 0)
 		done(1);
 	setuid(getuid());	/* no longer need or want root privileges */
 #else

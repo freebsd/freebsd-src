@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)hd_var.h	7.4 (Berkeley) 5/29/91
- *	$Id: hd_var.h,v 1.2 1993/10/16 19:46:41 rgrimes Exp $
+ *	$Id: hd_var.h,v 1.4 1993/11/25 01:34:22 wollman Exp $
  */
+
+#ifndef _NETCCITT_HD_VAR_H_
+#define _NETCCITT_HD_VAR_H_ 1
 
 /*
  *
@@ -105,4 +108,13 @@ struct	ifqueue hdintrq;	/* hdlc packet input queue */
 int	hd_t1;			/* timer T1 value */
 int	hd_t3;			/* RR send timer */
 int	hd_n2;			/* frame retransmission limit */
-#endif
+
+extern void process_sframe(struct hdcb *, struct Hdlc_sframe *, int);
+extern void hd_start(struct hdcb *);
+extern void hd_send_iframe(struct hdcb *, struct mbuf *, int);
+extern void hd_writeinternal(struct hdcb *, int, int);
+extern void hd_flush(struct ifnet *);
+extern void hd_message(struct hdcb *, const char *);
+
+#endif /* KERNEL */
+#endif /* _NETCCITT_HD_VAR_H_ */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)spp_usrreq.c	7.15 (Berkeley) 6/27/91
- *	$Id: spp_usrreq.c,v 1.2 1993/10/16 19:54:39 rgrimes Exp $
+ *	$Id: spp_usrreq.c,v 1.5 1993/12/19 00:54:04 wollman Exp $
  */
 
 #include "param.h"
@@ -58,9 +58,18 @@
 #include "spp_var.h"
 #include "spp_debug.h"
 
+static void spp_quench(struct nspcb *, int);
+static void spp_abort(struct nspcb *, int);
+static void spp_setpersist(struct sppcb *);
+static void spp_template(struct sppcb *);
+
+struct spp_istat spp_istat;
+u_short spp_iss;
+
 /*
  * SP protocol implementation.
  */
+void
 spp_init()
 {
 
@@ -74,6 +83,7 @@ int spp_use_delack = 0;
 u_short spp_newchecks[50];
 
 /*ARGSUSED*/
+void
 spp_input(m, nsp)
 	register struct mbuf *m;
 	register struct nspcb *nsp;
@@ -81,7 +91,7 @@ spp_input(m, nsp)
 	register struct sppcb *cb;
 	register struct spidp *si = mtod(m, struct spidp *);
 	register struct socket *so;
-	short ostate;
+	short ostate = 0;
 	int dropsocket = 0;
 
 
@@ -287,9 +297,10 @@ int spprexmtthresh = 3;
  * but its function is somewhat different:  It merely queues
  * packets up, and suppresses duplicates.
  */
+int
 spp_reass(cb, si)
-register struct sppcb *cb;
-register struct spidp *si;
+	register struct sppcb *cb;
+	register struct spidp *si;
 {
 	register struct spidp_q *q;
 	register struct mbuf *m;
@@ -575,15 +586,13 @@ present:
 	return (0);
 }
 
+void
 spp_ctlinput(cmd, arg)
 	int cmd;
 	caddr_t arg;
 {
 	struct ns_addr *na;
-	extern u_char nsctlerrmap[];
-	extern spp_abort(), spp_quench();
-	extern struct nspcb *idp_drop();
-	struct ns_errp *errp;
+	struct ns_errp *errp = 0;
 	struct nspcb *nsp;
 	struct sockaddr_ns *sns;
 	int type;
@@ -639,8 +648,10 @@ spp_ctlinput(cmd, arg)
  * When a source quench is received, close congestion window
  * to one packet.  We will gradually open it again as we proceed.
  */
-spp_quench(nsp)
+static void
+spp_quench(nsp, errno)
 	struct nspcb *nsp;
+	int errno;
 {
 	struct sppcb *cb = nstosppcb(nsp);
 
@@ -697,6 +708,7 @@ register struct nspcb *nsp;
 }
 #endif
 
+int
 spp_output(cb, m0)
 	register struct sppcb *cb;
 	struct mbuf *m0;
@@ -1112,6 +1124,7 @@ send:
 
 int spp_do_persist_panics = 0;
 
+static void
 spp_setpersist(cb)
 	register struct sppcb *cb;
 {
@@ -1129,10 +1142,13 @@ spp_setpersist(cb)
 	if (cb->s_rxtshift < SPP_MAXRXTSHIFT)
 		cb->s_rxtshift++;
 }
+
 /*ARGSUSED*/
+int
 spp_ctloutput(req, so, level, name, value)
 	int req;
 	struct socket *so;
+	int level;
 	int name;
 	struct mbuf **value;
 {
@@ -1255,13 +1271,15 @@ spp_ctloutput(req, so, level, name, value)
 }
 
 /*ARGSUSED*/
-spp_usrreq(so, req, m, nam, controlp)
+int
+spp_usrreq(so, req, m, nam, controlp, dummy)
 	struct socket *so;
 	int req;
 	struct mbuf *m, *nam, *controlp;
+	struct mbuf *dummy;
 {
 	struct nspcb *nsp = sotonspcb(so);
-	register struct sppcb *cb;
+	register struct sppcb *cb = 0;
 	int s = splnet();
 	int error = 0, ostate;
 	struct mbuf *mm;
@@ -1507,12 +1525,14 @@ release:
 	return (error);
 }
 
-spp_usrreq_sp(so, req, m, nam, controlp)
+int
+spp_usrreq_sp(so, req, m, nam, controlp, dummy)
 	struct socket *so;
 	int req;
 	struct mbuf *m, *nam, *controlp;
+	struct mbuf *dummy;
 {
-	int error = spp_usrreq(so, req, m, nam, controlp);
+	int error = spp_usrreq(so, req, m, nam, controlp, dummy);
 
 	if (req == PRU_ATTACH && error == 0) {
 		struct nspcb *nsp = sotonspcb(so);
@@ -1528,6 +1548,7 @@ spp_usrreq_sp(so, req, m, nam, controlp)
  * in a skeletal spp header (choosing connection id),
  * minimizing the amount of work necessary when the connection is used.
  */
+static void
 spp_template(cb)
 	register struct sppcb *cb;
 {
@@ -1622,8 +1643,10 @@ spp_drop(cb, errno)
 	return (spp_close(cb));
 }
 
-spp_abort(nsp)
+static void
+spp_abort(nsp, errno)
 	struct nspcb *nsp;
+	int errno;
 {
 
 	(void) spp_close((struct sppcb *)nsp->nsp_pcb);
@@ -1634,6 +1657,7 @@ int	spp_backoff[SPP_MAXRXTSHIFT+1] =
 /*
  * Fast timeout routine for processing delayed acks
  */
+void
 spp_fasttimo()
 {
 	register struct nspcb *nsp;
@@ -1658,6 +1682,7 @@ spp_fasttimo()
  * Updates the timers in all active pcb's and
  * causes finite state machine actions if timers expire.
  */
+void
 spp_slowtimo()
 {
 	register struct nspcb *ip, *ipnxt;
@@ -1681,9 +1706,11 @@ spp_slowtimo()
 		for (i = 0; i < SPPT_NTIMERS; i++) {
 			if (cb->s_timer[i] && --cb->s_timer[i] == 0) {
 				(void) spp_usrreq(cb->s_nspcb->nsp_socket,
-				    PRU_SLOWTIMO, (struct mbuf *)0,
-				    (struct mbuf *)i, (struct mbuf *)0,
-				    (struct mbuf *)0);
+						  PRU_SLOWTIMO,
+						  (struct mbuf *)0,
+						  (struct mbuf *)i,
+						  (struct mbuf *)0,
+						  (struct mbuf *)0);
 				if (ipnxt->nsp_prev != ip)
 					goto tpgone;
 			}
@@ -1799,7 +1826,7 @@ spp_timers(cb, timer)
 	}
 	return (cb);
 }
-#ifndef lint
+#if 0
 int SppcbSize = sizeof (struct sppcb);
 int NspcbSize = sizeof (struct nspcb);
-#endif lint
+#endif

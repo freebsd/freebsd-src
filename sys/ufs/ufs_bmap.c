@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_bmap.c	7.13 (Berkeley) 5/8/91
- *	$Id: ufs_bmap.c,v 1.2 1993/10/16 18:17:51 rgrimes Exp $
+ *	$Id: ufs_bmap.c,v 1.3 1993/11/25 01:38:30 wollman Exp $
  */
 
 #include "param.h"
@@ -51,6 +51,7 @@
  * is done by using the logical block number to index into
  * the array of block pointers described by the dinode.
  */
+int
 bmap(ip, bn, bnp)
 	register struct inode *ip;
 	register daddr_t bn;
@@ -126,6 +127,7 @@ bmap(ip, bn, bnp)
  * by allocating the physical blocks on a device given
  * the inode and the logical block number in a file.
  */
+int
 balloc(ip, bn, size, bpp, flags)
 	register struct inode *ip;
 	register daddr_t bn;

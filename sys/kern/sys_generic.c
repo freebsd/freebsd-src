@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_generic.c	7.30 (Berkeley) 5/30/91
- *	$Id: sys_generic.c,v 1.4 1993/10/16 15:24:47 rgrimes Exp $
+ *	$Id: sys_generic.c,v 1.6 1993/12/19 00:51:34 wollman Exp $
  */
 
 #include "param.h"
@@ -45,6 +45,7 @@
 #include "kernel.h"
 #include "stat.h"
 #include "malloc.h"
+#include "signalvar.h"
 #ifdef KTRACE
 #include "ktrace.h"
 #endif
@@ -59,6 +60,7 @@ struct read_args {
  * Read system call.
  */
 /* ARGSUSED */
+int
 read(p, uap, retval)
 	struct proc *p;
 	register struct read_args *uap;
@@ -117,6 +119,7 @@ struct readv_args {
 };
 
 /* ARGSUSED */
+int
 readv(p, uap, retval)
 	struct proc *p;
 	register struct readv_args *uap;
@@ -126,7 +129,7 @@ readv(p, uap, retval)
 	register struct filedesc *fdp = p->p_fd;
 	struct uio auio;
 	register struct iovec *iov;
-	struct iovec *saveiov;
+	struct iovec *saveiov = 0;
 	struct iovec aiov[UIO_SMALLIOV];
 	long i, cnt, error = 0;
 	unsigned iovlen;
@@ -207,6 +210,7 @@ struct write_args {
 	unsigned count;
 };
 
+int
 write(p, uap, retval)
 	struct proc *p;
 	register struct write_args *uap;
@@ -268,6 +272,7 @@ struct writev_args {
 	unsigned iovcnt;
 };
 
+int
 writev(p, uap, retval)
 	struct proc *p;
 	register struct writev_args *uap;
@@ -277,7 +282,7 @@ writev(p, uap, retval)
 	register struct filedesc *fdp = p->p_fd;
 	struct uio auio;
 	register struct iovec *iov;
-	struct iovec *saveiov;
+	struct iovec *saveiov = 0;
 	struct iovec aiov[UIO_SMALLIOV];
 	long i, cnt, error = 0;
 	unsigned iovlen;
@@ -362,6 +367,7 @@ struct ioctl_args {
 };
 
 /* ARGSUSED */
+int
 ioctl(p, uap, retval)
 	struct proc *p;
 	register struct ioctl_args *uap;
@@ -500,6 +506,7 @@ struct select_args {
 		struct	timeval *tv;
 };
 
+int
 select(p, uap, retval)
 	register struct proc *p;
 	register struct select_args *uap;
@@ -605,6 +612,7 @@ selscan(struct proc *p, fd_set *ibits, fd_set *obits, int nfd, int *retval)
 		case 1:
 			flag = FWRITE; break;
 
+		default:	/* pacify GCC */
 		case 2:
 			flag = 0; break;
 		}
@@ -630,14 +638,14 @@ selscan(struct proc *p, fd_set *ibits, fd_set *obits, int nfd, int *retval)
 
 /*ARGSUSED*/
 int
-seltrue(dev_t dev, int which, struct proc *p)
+seltrue(int /*dev_t*/ dev, int which, struct proc *p)
 {
 
 	return (1);
 }
 
 void
-selwakeup(pid_t pid, int coll)
+selwakeup(int /*pid_t*/ pid, int coll)
 {
 	register struct proc *p;
 

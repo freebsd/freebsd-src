@@ -271,6 +271,9 @@ onalrm()
 		utmptime = stb.st_mtime;
 		if (stb.st_size > utmpsize) {
 			utmpsize = stb.st_size + 10 * sizeof(struct utmp);
+/* Commented out the following line, because it disturbs many people
+   that are booting/rebooting their machines often */
+/*			syslog(LOG_WARNING, "utmpsize(%d)", utmpsize); */
 			if (utmp)
 				utmp = (struct utmp *)realloc(utmp, utmpsize);
 			else
@@ -428,11 +431,15 @@ configure(s)
 		bcopy((char *)&ifr->ifr_addr, np->n_addr, np->n_addrlen);
 		if (ioctl(s, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
 			syslog(LOG_ERR, "ioctl (get interface flags)");
+			free(np->n_addr);
+			free(np->n_name);
 			free((char *)np);
 			continue;
 		}
 		if ((ifreq.ifr_flags & IFF_UP) == 0 ||
 		    (ifreq.ifr_flags & (IFF_BROADCAST|IFF_POINTOPOINT)) == 0) {
+			free(np->n_addr);
+			free(np->n_name);
 			free((char *)np);
 			continue;
 		}
@@ -440,6 +447,8 @@ configure(s)
 		if (np->n_flags & IFF_POINTOPOINT) {
 			if (ioctl(s, SIOCGIFDSTADDR, (char *)&ifreq) < 0) {
 				syslog(LOG_ERR, "ioctl (get dstaddr)");
+				free(np->n_addr);
+				free(np->n_name);
 				free((char *)np);
 				continue;
 			}
@@ -450,6 +459,8 @@ configure(s)
 		if (np->n_flags & IFF_BROADCAST) {
 			if (ioctl(s, SIOCGIFBRDADDR, (char *)&ifreq) < 0) {
 				syslog(LOG_ERR, "ioctl (get broadaddr)");
+				free(np->n_addr);
+				free(np->n_name);
 				free((char *)np);
 				continue;
 			}

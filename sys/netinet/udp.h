@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)udp.h	7.4 (Berkeley) 6/28/90
- *	$Id: udp.h,v 1.2 1993/10/16 18:26:41 rgrimes Exp $
+ *	$Id: udp.h,v 1.3 1993/11/07 17:48:13 wollman Exp $
  */
+
+#ifndef _NETINET_UDP_H_
+#define _NETINET_UDP_H_ 1
 
 /*
  * Udp protocol header.
@@ -44,3 +47,4 @@ struct udphdr {
 	short	uh_ulen;		/* udp length */
 	u_short	uh_sum;			/* udp checksum */
 };
+#endif /* _NETINET_UDP_H_ */

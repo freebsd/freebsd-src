@@ -1,0 +1,201 @@
+11.  Timing
+
+11.1  Deskewing
+
+The host shall provide cable deskewing for all signals originating from the 
+controller. The drive shall provide cable deskewing for all signals 
+originating at the host. 
+
+11.2  Symbols
+
+Certain symbols are used in the timing diagrams. These symbols and their 
+respective definitions are listed below.
+
+ / or \    -  signal transition (asserted or negated) *
+ < or >    -  data transition (asserted or negated)
+ XXXXXX    -  undefined but not necessarily released
+ .  .  .   -  the "other" condition if a signal is shown with no change
+   #n      -  used to number the sequence in which events occur e.g. #a, #b
+   _ _ __
+__/_ _/    -  a degree of uncertainty as to when a signal may be asserted
+
+__ _ _
+  \_ _\__  -  a degree of uncertainty as to when a signal may be negated 
+
+..    T      -  Nominal Clock Period
+..
+ * All signals are shown with the Asserted condition facing to the top of 
+   the page. The negated condition is shown towards the bottom of the page 
+   relative to the asserted condition. 
+
+..Within each figure the timing terms i.e. tA, tB etc are repeated. There is 
+..no continuity of definition of tA from one figure to another. 
+..
+11.3  Terms
+
+The interface uses a mixture of negative and positive signals for control and 
+data. The terms asserted and negated are used for consistency and are 
+independent of electrical characteristics. 
+
+In all timing diagrams, the lower line indicates negated, and the upper line 
+indicates asserted e.g. the following illustrates the representation of a 
+signal named TEST going from negated to asserted and back to negated, based on 
+the polarity of the signal. 
+
+                              Assert          Negate
+                                   |          | 
+         Bit Setting=1             |__________|
+         Bit Setting=0  TEST  _____/          \_______ 
+ 
+                              Assert          Negate
+                                   |          | 
+         Bit Setting=0             |__________|
+         Bit Setting=1  TEST- _____/          \_______ 
+
+.. Processor I/O Write, 16 Bit: 
+11.4  Data Transfers
+
+Figure 11-1 defines the relationships between the interface signals for both 
+16-bit and 8-bit data transfers. 
+
+                              |<------------ t0 -------------------->|
+                        __________________________________________   |
+ Address Valid *1 ...../                                          \________
+                       |<-t1->|                            ->| t9 |<-
+                     ->|t7|<- |<----------- t2 ------------->|  ->|t8|<-
+                       |  |   |______________________________|    |  |_____
+ DIOR-/DIOW-      ____________/                              \_______/
+                       |  |   |_ _ _ _ _ _ _ _ _ _ _____________     |
+ Write Data Valid *2__________/_ _ _ _ _ _ _ _ _ _/             \__________
+                       |  |   |                   |<--t3---->|  |  
+                       |  |   |                            ->|t4|<-  |
+                       |  |   |_ _ _ _ _ _ _ _ _ _ _ ___________     |
+ Read Data Valid  *2__________/_ _ _ _ _ _ _ _ _ _ _/        |  \__________
+                       |  |   |                     |<--t5-->|  |    |
+                       |  |   |                            ->|t6|<-  | 
+                       |  |   |                              |  |    |
+                       |  |__________________________________________|
+ IOCS16-          ________/                                          \_____
+
+        *1  Drive Address consists of signals CS1FX-, CS3FX- and DA2-0 
+        *2  Data consists of DD0-15 (16-bit) or DD0-7 (8-bit)
+
+      +------------------------------------------+-------+-------+-------+
+      | PIO                                      | Mode 0| Mode 1| Mode 2|
+      | Timing Parameters                        |  nsec |  nsec |  nsec |
+ +----+------------------------------------------+-------+-------+-------+
+ | t0 | Cycle Time                         (Min) |  600  |  383  |  240  |
+ | t1 | Address Valid to DIOR-/DIOW- Setup (Min) |   70  |   50  |   30  |
+ | t2 | DIOR-/DIOW-      16-bit            (Min) |  165  |  125  |  100  |
+ |    |   Pulse Width     8-bit            (Min) |  290  |  290  |  290  |
+ | t3 | DIOW- Data Setup                   (Min) |   60  |   45  |   30  |
+ | t4 | DIOW- Data Hold                    (Min) |   30  |   20  |   15  |
+ | t5 | DIOR- Data Setup                   (Min) |   50  |   35  |   20  |
+ | t6 | DIOR- Data Hold                    (Min) |    5  |    5  |    5  |
+ | t7 | Addr Valid to IOCS16- Assertion    (Max) |   90  |   50  |   40  |
+ | t8 | Addr Valid to IOCS16- Negation     (Max) |   60  |   45  |   30  |
+ | t9 | DIOR-/DIOW- to Address Valid Hold  (Min) |   20  |   15  |   10  |
+ +----+------------------------------------------+-------+-------+-------+
+..rm102
+..  NOTE: These are minimum acceptable interface timing requirements. 
+
+                 FIGURE 11-1:  PIO DATA TRANSFER TO/FROM DRIVE 
+
+                        ___________________________________
+ DIOR-/DIOW- __________/                                   \______________
+                       | 
+                       |<- tA ->|<---    tB    ---->|
+             ___________________|                   |_____________________
+ IORDY                          \___________________/
+
+ Label               Description                          Min  Max  Units
+
+ tA  IORDY  Setup time                                     -     35 nsecs 
+ tB  IORDY  Pulse Width                                    -  1,250 nsecs 
+
+  WARNING: The use of IORDY for data transfers is a system integration issue 
+           which requires control of both ends of the cable.
+
+                   FIGURE 11-2:  IORDY TIMING REQUIRMENTS
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+                    |<----------------------- t0 ---------------------->|  
+                 ____________                                        _______
+ DMARQ       ___/            \______________________________________/   |
+                    |<- tC ->|                                          |   
+                    |_____________________________________________      |___ 
+ DMACK-      _______/                                             \_____/  
+                    |<--- tI --->|________________|<----- tJ -----|     |   
+ DIOR-/DIOW- ____________________/                \_________________________
+                    |            |                |                     |   
+                    |            |<------ tD ---->|                     |   
+ Read               |                        ______________             |   
+ DD0-15      -------------------------------<______________>----------------
+                    |            |<-- tE -->|     |<- tF ->|            |   
+ Write              |                  _________________________        |   
+ DD0-15     --------------------------<_________________________>-----------
+                    |                 |           |             |       |  
+                    |                 |<--  tG -->|<--  tH   -->|       |   
+
+          +----------------------------------+-------+-------+-------+
+          | DMA                              | Mode 0| Mode 1| Mode 2|
+          | Timing Parameters                |  nsec |  nsec |  nsec |
+     +----+----------------------------------+-------+-------+-------+
+     | t0 | Cycle Time                 (Min) |  960  |  480  |  240  |
+     | tC | DMACK to DMREQ Delay       (Max) |  200  |  100  |   80  |
+     | tD | DIOR-/DIOW-      16-bit    (Min) |  480  |  240  |  120  |
+     | tE | DIOR- Data Setup           (Min) |  250  |  150  |   50  |
+     | tF | DIOR- Data Hold            (Min) |    5  |    5  |    5  |
+     | tG | DIOW- Data Setup           (Min) |  250  |  100  |   35  |
+     | tH | DIOW- Data Hold            (Min) |   50  |   30  |   20  |
+     | tI | DMACK to DIOR-/DIOW- Setup (Min) |    0  |    0  |    0  |
+     | tJ | DIOR-/DIOW- to DMACK Hold  (Min) |    0  |    0  |    0  |
+     +----+----------------------------------+-------+-------+-------+
+
+                      FIGURE 11-3:  DMA DATA TRANSFER 
+
+11.5 Power On and Hard Reset
+
+              ______         
+ RESET- _____/      \_____________________________________________________
+             |<-tM->|                                                     
+             |      |          Drive 0                                    
+          _ _ _ _ _ _ _ _______ _ _ _ _ _ _ _ _ _ _ _ _ _|                
+ BSY      _ _ _ _ _ _ _/       \_ _ _ _ _ *1  _ _ _ _ _ _\________________
+                  ->|tN|<-
+          _ _ _ _ _ _ _ _         _ _ _ _ _ _ _ _ _ _ _ _ _ _ _           
+ DASP-    _ _ _ _ _ _ _ _\_______/_ _ _ _ *2 _ _ _ _ _ _ _ _ _ _\=== *3 ==
+                  ->| tP |<-     |                       |_ _ _ __________
+ Control Registers_______________________________________/_ _ _ /         
+                    |  | |                                                
+                    |  | |     Drive 1                                    
+        _ _ _ _ _ _ _ _ _________________________________|                
+ BSY    _ _ _ _ _ _ _ _/                                 \________________
+         _ _ _ _ _ _ _ _ _ _                              ______ _ _ _ _ _
+ PDIAG-  _ _ _ _ _ _ _ _ _ _\____________________________/      \_ _ _ _ _
+                    |  | |     |<----------- tQ -------->|                
+        _ _ _ _ _ _ _ _ _       _________________________ _ _ _           
+ DASP-  _ _ _ _ _ _ _ _ _\_____/                         \ _ _ _\=== *3 ==
+                    |<-  tR  ->|<------------ tS -------------->|         
+                                                          _ _ _ __________
+ Control Registers_______________________________________/_ _ _ /
+
+     *1 Drive 0 can set BSY=0 if Drive 1 not present
+     *2 Drive 0 can use DASP- to indicate it is active if Drive 1 is not 
+        present
+     *3 DASP- can be asserted to indicate that the drive is active
+                      +-------------------+------------+
+                      | Label             |   Units    |
+                      +-------------------+------------+
+                      | tM         (Min)  |  25   usec |
+                      | tN         (Max)  | 400   nsec |
+                      | tP         (Max)  |   1   msec |
+                      | tQ         (Max)  |  30   secs |
+                      | tR Drive 0 (Max)  | 450   msec |
+                      | tR Drive 1 (Max)  | 400   msec |
+                      | tS         (Max)  |  30.5 secs |
+                      +-------------------+------------+
+
+                         FIGURE 11-4  RESET SEQUENCE
+

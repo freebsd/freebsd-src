@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_meas.c	7.4 (Berkeley) 5/6/91
- *	$Id: tp_meas.c,v 1.2 1993/10/16 21:05:49 rgrimes Exp $
+ *	$Id: tp_meas.c,v 1.3 1993/12/19 00:53:38 wollman Exp $
  */
 
 /***********************************************************
@@ -67,11 +67,11 @@ SOFTWARE.
  */
 
 #include "types.h"
+#include "systm.h"
+#include "kernel.h"
 #include "time.h"
 #include "argo_debug.h"
 #include "tp_meas.h"
-
-extern struct timeval time;
 
 #ifdef TP_PERF_MEAS
 int		tp_Measn = 0;

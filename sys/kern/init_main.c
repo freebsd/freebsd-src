@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)init_main.c	7.41 (Berkeley) 5/15/91
- *	$Id: init_main.c,v 1.7 1993/10/08 10:50:42 rgrimes Exp $
+ *	$Id: init_main.c,v 1.14 1994/01/14 16:24:45 davidg Exp $
  */
 
 #include "param.h"
@@ -57,7 +57,7 @@
 
 #include "vm/vm.h"
 
-char	copyright[] =
+const char	copyright[] =
 "Copyright (c) 1989,1990,1991,1992 William F. Jolitz. All rights reserved.\n\
 Copyright (c) 1982,1986,1989,1991 The Regents of the University\n\
 of California.  All rights reserved.\n\n";
@@ -86,9 +86,20 @@ extern	int (*mountroot)();
 struct	vnode *rootvp, *swapdev_vp;
 int	boothowto;
 
+struct	proc *updateproc;
+
 #if __GNUC__ >= 2
-__main() {}
+void __main() {}
 #endif
+
+/*
+ * This table is filled in by the linker with functions that need to be
+ * called to initialize various pseudo-devices and whatnot.
+ */
+typedef void (*pseudo_func_t)(void);
+extern const struct linker_set pseudo_set;
+static const pseudo_func_t *pseudos = 
+  (const pseudo_func_t *)&pseudo_set.ls_items[0];
 
 /*
  * System startup; initialize the world, create process 0,
@@ -97,13 +108,14 @@ __main() {}
  * routines including startup(), which does memory initialization
  * and autoconfiguration.
  */
+void
 main()
 {
 	register int i;
 	register struct proc *p;
 	register struct filedesc0 *fdp;
 	int s, rval[2];
-	char *cp;
+	const char *cp;
 
 	/*
 	 * Initialize curproc before any possible traps/probes
@@ -220,21 +232,11 @@ main()
 	 * Initialize tables, protocols, and set up well-known inodes.
 	 */
 	mbinit();
-#ifdef SYSVSHM
-	shminit();
-#endif
-#include "sl.h"
-#if NSL > 0
-	slattach();			/* XXX */
-#endif
-#include "ppp.h"
-#if NPPP > 0
-	pppattach();			/* XXX */
-#endif
-#include "loop.h"
-#if NLOOP > 0
-	loattach();			/* XXX */
-#endif
+
+	while(*pseudos) {
+		(**pseudos++)();
+	}
+
 	/*
 	 * Block reception of incoming packets
 	 * until protocols have been initialized.
@@ -249,8 +251,8 @@ main()
 #endif
 
 	/* kick off timeout driven events by calling first time */
-	roundrobin();
-	schedcpu();
+	roundrobin(0, 0);
+	schedcpu(0, 0);
 	enablertclock();		/* enable realtime clock interrupts */
 
 	/*
@@ -281,22 +283,20 @@ main()
 	 * XXX probably should go elsewhere.
 	 */
 	bzero(utsname.sysname, sizeof(utsname.sysname));
-	for (cp = version, i= 0;
-	     *cp && *cp != ' ' && i <= sizeof(utsname.sysname);
-	     )
-	  utsname.sysname[i++] = *cp++;
+	for (cp = version, i= 0; *cp && *cp != ' ' && i <= sizeof(utsname.sysname);)
+		utsname.sysname[i++] = *cp++;
 	bzero(utsname.release, sizeof(utsname.release));
 	for (cp++, i= 0; *cp && *cp != ' ' && i <= sizeof(utsname.release);)
-	  utsname.release[i++] = *cp++;
+		utsname.release[i++] = *cp++;
 	bzero(utsname.version, sizeof(utsname.version));
 	for (; *cp != '('; cp++);
 	for (cp++, i= 0; *cp && *cp != ')' && i <= sizeof(utsname.version);)
-	  utsname.version[i++] = *cp++;
+		utsname.version[i++] = *cp++;
 	for (; *cp != '#'; cp++);
 	if(i <= sizeof(utsname.version))
-	  utsname.version[i++] = '#';
+		utsname.version[i++] = '#';
 	for (cp++; *cp && *cp != ':' && i <= sizeof(utsname.version);)
-	  utsname.version[i++] = *cp++;
+		utsname.version[i++] = *cp++;
 	strncpy(utsname.machine, MACHINE, sizeof(utsname.machine));
 	utsname.machine[sizeof(utsname.machine)-1] = '\0';
 
@@ -326,6 +326,8 @@ main()
 		if (boothowto&RB_FASTBOOT)
 			*ip++ = 'f';
 #endif
+		if (ip == initflags + 1)
+			*ip++ = '-';
 		*ip++ = '\0';
 
 		if (vm_allocate(&p->p_vmspace->vm_map, &addr,
@@ -359,6 +361,20 @@ main()
 		p->p_flag |= SLOAD|SSYS;		/* XXX */
 		bcopy("pagedaemon", curproc->p_comm, sizeof ("pagedaemon"));
 		vm_pageout();
+		/*NOTREACHED*/
+	}
+
+	/*
+	 * Start update daemon (process 3).
+	 */
+	if (fork(p, (void *) NULL, rval))
+		panic("fork update");
+	if (rval[1]) {
+		p = curproc;
+		updateproc = p;
+		p->p_flag |= SLOAD|SSYS;
+		bcopy("update", p->p_comm, sizeof("update"));
+		vfs_update();
 		/*NOTREACHED*/
 	}
 

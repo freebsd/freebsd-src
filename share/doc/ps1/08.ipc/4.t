@@ -33,14 +33,15 @@
 .\"
 .\".ds RH "Client/Server Model
 .bp
-.nr H1 4
-.nr H2 0
+.\".nr H1 4
+.\".nr H2 0
 .sp 8i
 .bp
 .LG
 .B
 .ce
-4. CLIENT/SERVER MODEL
+.NH 1
+CLIENT/SERVER MODEL
 .sp 2
 .R
 .NL

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clnp_frag.c	7.12 (Berkeley) 5/6/91
- *	$Id: clnp_frag.c,v 1.3 1993/10/16 21:04:46 rgrimes Exp $
+ *	$Id: clnp_frag.c,v 1.5 1993/12/19 00:53:10 wollman Exp $
  */
 
 /***********************************************************
@@ -82,57 +82,61 @@ SOFTWARE.
 /* all fragments are hung off this list */
 struct clnp_fragl	*clnp_frags = NULL;
 
+static void clnp_insert_frag(struct clnp_fragl *, struct mbuf *, struct clnp_segment *);
+
+
 struct mbuf	*clnp_comp_pdu();
 
 
 /*
- * FUNCTION:		clnp_fragment
+ * FUNCTION:	clnp_fragment
  *
- * PURPOSE:			Fragment a datagram, and send the itty bitty pieces
- *					out over an interface.
+ * PURPOSE:	Fragment a datagram, and send the itty bitty pieces
+ *		out over an interface.
  *
- * RETURNS:			success - 0
- *					failure - unix error code
+ * RETURNS:	success - 0
+ *		failure - unix error code
  *
  * SIDE EFFECTS:	
  *
- * NOTES:			If there is an error sending the packet, clnp_discard
- *					is called to discard the packet and send an ER. If
- *					clnp_fragment was called from clnp_output, then
- *					we generated the packet, and should not send an 
- *					ER -- clnp_emit_er will check for this. Otherwise,
- *					the packet was fragmented during forwarding. In this
- *					case, we ought to send an ER back.
+ * NOTES: 	If there is an error sending the packet, clnp_discard
+ *		is called to discard the packet and send an ER. If
+ *		clnp_fragment was called from clnp_output, then
+ *		we generated the packet, and should not send an 
+ *		ER -- clnp_emit_er will check for this. Otherwise,
+ *		the packet was fragmented during forwarding. In this
+ *		case, we ought to send an ER back.
  */
+int
 clnp_fragment(ifp, m, first_hop, total_len, segoff, flags, rt)
-struct ifnet	*ifp;		/* ptr to outgoing interface */
-struct mbuf		*m;			/* ptr to packet */
-struct sockaddr	*first_hop;	/* ptr to first hop */
-int				total_len;	/* length of datagram */
-int				segoff;		/* offset of segpart in hdr */
-int				flags;		/* flags passed to clnp_output */
-struct rtentry *rt;			/* route if direct ether */
+	struct ifnet *ifp;	/* ptr to outgoing interface */
+	struct mbuf *m;		/* ptr to packet */
+	struct sockaddr	*first_hop; /* ptr to first hop */
+	int total_len;		/* length of datagram */
+	int segoff;		/* offset of segpart in hdr */
+	int flags;		/* flags passed to clnp_output */
+	struct rtentry *rt;	/* route if direct ether */
 {
-	struct clnp_fixed		*clnp = mtod(m, struct clnp_fixed *);
-	int						hdr_len = (int)clnp->cnf_hdr_len;
-	int						frag_size = (SN_MTU(ifp, rt) - hdr_len) & ~7;
+	struct clnp_fixed *clnp = mtod(m, struct clnp_fixed *);
+	int hdr_len = (int)clnp->cnf_hdr_len;
+	int frag_size = (SN_MTU(ifp, rt) - hdr_len) & ~7;
 
 	total_len -= hdr_len;
 	if ((clnp->cnf_type & CNF_SEG_OK) &&
 		(total_len >= 8) &&
 		(frag_size > 8 || (frag_size == 8 && !(total_len & 7)))) {
 
-		struct mbuf			*hdr = NULL;		/* save copy of clnp hdr */
-		struct mbuf			*frag_hdr = NULL;
-		struct mbuf			*frag_data = NULL;
-		struct clnp_segment	seg_part;			/* segmentation header */
-		int					frag_base;
-		int					error = 0;
+		struct mbuf *hdr = NULL; /* save copy of clnp hdr */
+		struct mbuf *frag_hdr = NULL;
+		struct mbuf *frag_data = NULL;
+		struct clnp_segment seg_part; /* segmentation header */
+		int frag_base;
+		int error = 0;
 
 
 		INCSTAT(cns_fragmented);
-        (void) bcopy(segoff + mtod(m, caddr_t), (caddr_t)&seg_part,
-            sizeof(seg_part));
+		(void) bcopy(segoff + mtod(m, caddr_t), (caddr_t)&seg_part,
+			     sizeof(seg_part));
 		frag_base = ntohs(seg_part.cng_off);
 		/*
 		 *	Duplicate header, and remove from packet
@@ -246,33 +250,33 @@ struct rtentry *rt;			/* route if direct ether */
 #endif	TROLL
 
 			/*
-			 *	Tough situation: if the error occured on the last 
-			 *	fragment, we can not send an ER, as the if_output
-			 *	routine consumed the packet. If the error occured
-			 *	on any intermediate packets, we can send an ER
-			 *	because we still have the original header in (m).
+			 * Tough situation: if the error occured on the last 
+			 * fragment, we can not send an ER, as the if_output
+			 * routine consumed the packet. If the error occured
+			 * on any intermediate packets, we can send an ER
+			 * because we still have the original header in (m).
 			 */
 			if (error) {
 				if (frag_hdr != hdr) {
-					/* 
-					 *	The error was not on the last fragment. We must
-					 *	free hdr and m before returning
-					 */
+			/* 
+			 * The error was not on the last fragment. We must
+			 * free hdr and m before returning
+			 */
 					clnp_discard(hdr, GEN_NOREAS);
 					m_freem(m);
 				}
 				return(error);
 			}
 
-			/* bump segment offset, trim data mbuf, and decrement count left */
+/* bump segment offset, trim data mbuf, and decrement count left */
 #ifdef	TROLL
-			/*
-			 *	Decrement frag_size by some fraction. This will cause the
-			 *	next fragment to start 'early', thus duplicating the end
-			 *	of the current fragment.  troll.tr_dup_size controls
-			 *	the fraction. If positive, it specifies the fraction. If
-			 *	negative, a random fraction is used.
-			 */
+	/*
+	 * Decrement frag_size by some fraction. This will cause the
+	 * next fragment to start 'early', thus duplicating the end
+	 * of the current fragment.  troll.tr_dup_size controls
+	 * the fraction. If positive, it specifies the fraction. If
+	 * negative, a random fraction is used.
+	 */
 			if ((trollctl.tr_ops & TR_DUPEND) && (!last_frag)) {
 				int num_bytes = frag_size;
 
@@ -381,6 +385,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
  *
  * NOTES:			Failure is only due to insufficient resources.
  */
+int
 clnp_newpkt(m, src, dst, seg)
 struct mbuf 		*m;		/* new fragment */
 struct iso_addr		*src;	/* src of new fragment */
@@ -445,6 +450,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
  *					The clnp_frag structure actually lies on top of
  *					part of the old clnp header.
  */
+static void
 clnp_insert_frag(cfh, m, seg)
 struct clnp_fragl	*cfh;	/* header of list of packet fragments */
 struct mbuf 		*m;		/* new fragment */
@@ -819,6 +825,7 @@ float troll_random()
  * NOTES:			The operation of this procedure is regulated by the
  *					troll control structure (Troll).
  */
+int
 troll_output(ifp, m, dst, rt)
 struct ifnet	*ifp;
 struct mbuf		*m;
@@ -853,6 +860,7 @@ struct rtentry *rt;
 		err = (*ifp->if_output)(ifp, m, dst, rt);
 		return(err);
 	}
+	return 0;
 }
 
 #endif	TROLL

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clnp_stat.h	7.4 (Berkeley) 5/6/91
- *	$Id: clnp_stat.h,v 1.2 1993/10/16 21:04:55 rgrimes Exp $
+ *	$Id: clnp_stat.h,v 1.3 1993/11/07 17:49:24 wollman Exp $
  */
 
 /***********************************************************
@@ -92,7 +92,9 @@ struct clnp_stat {
 	int cns_congest_rcvd;	/* congestion experienced bit received */
 	int cns_er_inhist[CLNP_ERRORS + 1];
 	int cns_er_outhist[CLNP_ERRORS + 1];
-} clnp_stat ;
+} ;
+
+extern struct clnp_stat  clnp_stat;
 
 #ifdef INCSTAT
 #undef INCSTAT

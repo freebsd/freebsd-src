@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,26 +32,27 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)scroll.c	5.4 (Berkeley) 6/1/90";
+static char sccsid[] = "@(#)scroll.c	8.2 (Berkeley) 1/9/94";
 #endif /* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
 
 /*
- *	This routine scrolls the window up a line.
- *
+ * scroll --
+ *	Scroll the window up a line.
  */
+int
 scroll(win)
-register  WINDOW	*win;
+	register WINDOW *win;
 {
-	register int	oy, ox;
+	register int oy, ox;
 
-# ifdef DEBUG
-	fprintf(outf, "SCROLL(%0.2o)\n", win);
-# endif
+#ifdef DEBUG
+	__CTRACE("scroll: (%0.2o)\n", win);
+#endif
 
-	if (!win->_scroll)
-		return ERR;
+	if (!(win->flags & __SCROLLOK))
+		return (ERR);
 
 	getyx(win, oy, ox);
 	wmove(win, 0, 0);
@@ -59,11 +60,12 @@ register  WINDOW	*win;
 	wmove(win, oy, ox);
 
 	if (win == curscr) {
-		_putchar('\n');
+		putchar('\n');
 		if (!NONL)
-			win->_curx = 0;
-# ifdef DEBUG
-		fprintf(outf, "SCROLL: win == curscr\n");
-# endif
+			win->curx = 0;
+#ifdef DEBUG
+		__CTRACE("scroll: win == curscr\n");
+#endif
 	}
+	return (OK);
 }

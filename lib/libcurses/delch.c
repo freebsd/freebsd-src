@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,28 +32,31 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)delch.c	5.4 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)delch.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
+#include <string.h>
 
 /*
- *	This routine performs an insert-char on the line, leaving
- * (_cury,_curx) unchanged.
- *
+ * wdelch --
+ *	Do an insert-char on the line, leaving (cury, curx) unchanged.
  */
+int
 wdelch(win)
-reg WINDOW	*win; {
+	register WINDOW *win;
+{
+	register __LDATA *end, *temp1, *temp2;
 
-	reg chtype      *temp1, *temp2;
-	reg chtype      *end;
-
-	end = &win->_y[win->_cury][win->_maxx - 1];
-	temp1 = &win->_y[win->_cury][win->_curx];
+	end = &win->lines[win->cury]->line[win->maxx - 1];
+	temp1 = &win->lines[win->cury]->line[win->curx];
 	temp2 = temp1 + 1;
-	while (temp1 < end)
-		*temp1++ = *temp2++;
-	*temp1 = ' ';
-	touchline(win, win->_cury, win->_curx, win->_maxx - 1);
-	return OK;
+	while (temp1 < end) {
+		(void)memcpy(temp1, temp2, sizeof(__LDATA));
+		temp1++, temp2++;
+	}
+	temp1->ch = ' ';
+	temp1->attr = 0;
+	__touchline(win, win->cury, win->curx, win->maxx - 1, 0);
+	return (OK);
 }

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.3 (Berkeley) 7/13/93";
+static char sccsid[] = "@(#)recipient.c	8.44 (Berkeley) 2/28/94";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -75,6 +75,13 @@ sendtolist(list, ctladdr, sendq, e)
 	bool firstone;		/* set on first address sent */
 	char delimiter;		/* the address delimiter */
 	int naddrs;
+	char *oldto = e->e_to;
+
+	if (list == NULL)
+	{
+		syserr("sendtolist: null list");
+		return 0;
+	}
 
 	if (tTd(25, 1))
 	{
@@ -103,7 +110,7 @@ sendtolist(list, ctladdr, sendq, e)
 		/* parse the address */
 		while ((isascii(*p) && isspace(*p)) || *p == ',')
 			p++;
-		a = parseaddr(p, (ADDRESS *) NULL, 1, delimiter, &delimptr, e);
+		a = parseaddr(p, NULLADDR, RF_COPYALL, delimiter, &delimptr, e);
 		p = delimptr;
 		if (a == NULL)
 			continue;
@@ -135,7 +142,7 @@ sendtolist(list, ctladdr, sendq, e)
 		naddrs++;
 	}
 
-	e->e_to = NULL;
+	e->e_to = oldto;
 	return (naddrs);
 }
 /*
@@ -182,6 +189,15 @@ recipient(a, sendq, e)
 		printaddr(a, FALSE);
 	}
 
+	/* if this is primary, add it to the original recipient list */
+	if (a->q_alias == NULL)
+	{
+		if (e->e_origrcpt == NULL)
+			e->e_origrcpt = a->q_paddr;
+		else if (e->e_origrcpt != a->q_paddr)
+			e->e_origrcpt = "";
+	}
+
 	/* break aliasing loops */
 	if (AliasLevel > MAXRCRSN)
 	{
@@ -206,11 +222,25 @@ recipient(a, sendq, e)
 	stripquotes(buf);
 
 	/* check for direct mailing to restricted mailers */
-	if (a->q_alias == NULL && m == ProgMailer &&
-	    !bitset(EF_QUEUERUN, e->e_flags))
+	if (m == ProgMailer)
 	{
-		a->q_flags |= QBADADDR;
-		usrerr("550 Cannot mail directly to programs", m->m_name);
+		if (a->q_alias == NULL)
+		{
+			a->q_flags |= QBADADDR;
+			usrerr("550 Cannot mail directly to programs");
+		}
+		else if (bitset(QBOGUSSHELL, a->q_alias->q_flags))
+		{
+			a->q_flags |= QBADADDR;
+			usrerr("550 User %s@%s doesn't have a valid shell for mailing to programs",
+				a->q_alias->q_ruser, MyHostName);
+		}
+		else if (bitset(QUNSAFEADDR, a->q_alias->q_flags))
+		{
+			a->q_flags |= QBADADDR;
+			usrerr("550 Address %s is unsafe for mailing to programs",
+				a->q_alias->q_paddr);
+		}
 	}
 
 	/*
@@ -237,7 +267,10 @@ recipient(a, sendq, e)
 					message("duplicate suppressed");
 				q->q_flags |= a->q_flags;
 			}
-			return (q);
+			else if (bitset(QSELFREF, q->q_flags))
+				q->q_flags |= a->q_flags & ~QDONTSEND;
+			a = q;
+			goto testselfdestruct;
 		}
 	}
 
@@ -254,12 +287,12 @@ recipient(a, sendq, e)
 		printf("at trylocaluser %s\n", a->q_user);
 
 	if (bitset(QDONTSEND|QBADADDR|QVERIFIED, a->q_flags))
-		return (a);
+		goto testselfdestruct;
 
 	if (m == InclMailer)
 	{
 		a->q_flags |= QDONTSEND;
-		if (a->q_alias == NULL && !bitset(EF_QUEUERUN, e->e_flags))
+		if (a->q_alias == NULL)
 		{
 			a->q_flags |= QBADADDR;
 			usrerr("550 Cannot mail directly to :include:s");
@@ -274,38 +307,49 @@ recipient(a, sendq, e)
 			{
 #ifdef LOG
 				if (LogLevel > 2)
-					syslog(LOG_ERR, "%s: include %s: transient error: %e",
-						e->e_id, a->q_user, errstring(ret));
+					syslog(LOG_ERR, "%s: include %s: transient error: %s",
+						e->e_id == NULL ? "NOQUEUE" : e->e_id,
+						a->q_user, errstring(ret));
 #endif
-				a->q_flags |= QQUEUEUP|QDONTSEND;
+				a->q_flags |= QQUEUEUP;
+				a->q_flags &= ~QDONTSEND;
 				usrerr("451 Cannot open %s: %s",
 					a->q_user, errstring(ret));
 			}
 			else if (ret != 0)
 			{
+				a->q_flags |= QBADADDR;
 				usrerr("550 Cannot open %s: %s",
 					a->q_user, errstring(ret));
-				a->q_flags |= QBADADDR;
 			}
 		}
 	}
 	else if (m == FileMailer)
 	{
-		struct stat stb;
 		extern bool writable();
 
-		p = strrchr(buf, '/');
 		/* check if writable or creatable */
-		if (a->q_alias == NULL && !bitset(EF_QUEUERUN, e->e_flags))
+		if (a->q_alias == NULL)
 		{
 			a->q_flags |= QBADADDR;
 			usrerr("550 Cannot mail directly to files");
 		}
-		else if ((stat(buf, &stb) >= 0) ? (!writable(&stb)) :
-		    (*p = '\0', safefile(buf, RealUid, TRUE, S_IWRITE|S_IEXEC) != 0))
+		else if (bitset(QBOGUSSHELL, a->q_alias->q_flags))
 		{
 			a->q_flags |= QBADADDR;
-			giveresponse(EX_CANTCREAT, m, NULL, e);
+			usrerr("550 User %s@%s doesn't have a valid shell for mailing to files",
+				a->q_alias->q_ruser, MyHostName);
+		}
+		else if (bitset(QUNSAFEADDR, a->q_alias->q_flags))
+		{
+			a->q_flags |= QBADADDR;
+			usrerr("550 Address %s is unsafe for mailing to files",
+				a->q_alias->q_paddr);
+		}
+		else if (!writable(buf, getctladdr(a), SFF_ANYFILE))
+		{
+			a->q_flags |= QBADADDR;
+			giveresponse(EX_CANTCREAT, m, NULL, a->q_alias, e);
 		}
 	}
 
@@ -313,7 +357,7 @@ recipient(a, sendq, e)
 	{
 		if (!bitset(QDONTSEND, a->q_flags))
 			e->e_nrcpts++;
-		return (a);
+		goto testselfdestruct;
 	}
 
 	/* try aliasing */
@@ -324,29 +368,29 @@ recipient(a, sendq, e)
 	if (!bitset(QDONTSEND|QNOTREMOTE|QVERIFIED, a->q_flags))
 	{
 		extern int udbexpand();
-		extern int errno;
 
 		if (udbexpand(a, sendq, e) == EX_TEMPFAIL)
 		{
-			a->q_flags |= QQUEUEUP|QDONTSEND;
+			a->q_flags |= QQUEUEUP;
 			if (e->e_message == NULL)
 				e->e_message = newstr("Deferred: user database error");
 # ifdef LOG
 			if (LogLevel > 8)
 				syslog(LOG_INFO, "%s: deferred: udbexpand: %s",
-					e->e_id, errstring(errno));
+					e->e_id == NULL ? "NOQUEUE" : e->e_id,
+					errstring(errno));
 # endif
 			message("queued (user database error): %s",
 				errstring(errno));
 			e->e_nrcpts++;
-			return (a);
+			goto testselfdestruct;
 		}
 	}
 # endif
 
 	/* if it was an alias or a UDB expansion, just return now */
 	if (bitset(QDONTSEND|QQUEUEUP|QVERIFIED, a->q_flags))
-		return (a);
+		goto testselfdestruct;
 
 	/*
 	**  If we have a level two config file, then pass the name through
@@ -383,7 +427,7 @@ recipient(a, sendq, e)
 		if (pw == NULL)
 		{
 			a->q_flags |= QBADADDR;
-			giveresponse(EX_NOUSER, m, NULL, e);
+			giveresponse(EX_NOUSER, m, NULL, a->q_alias, e);
 		}
 		else
 		{
@@ -405,7 +449,10 @@ recipient(a, sendq, e)
 				(void) strcpy(buf, pw->pw_name);
 				goto trylocaluser;
 			}
-			a->q_home = newstr(pw->pw_dir);
+			if (strcmp(pw->pw_dir, "/") == 0)
+				a->q_home = "";
+			else
+				a->q_home = newstr(pw->pw_dir);
 			a->q_uid = pw->pw_uid;
 			a->q_gid = pw->pw_gid;
 			a->q_ruser = newstr(pw->pw_name);
@@ -413,12 +460,36 @@ recipient(a, sendq, e)
 			buildfname(pw->pw_gecos, pw->pw_name, nbuf);
 			if (nbuf[0] != '\0')
 				a->q_fullname = newstr(nbuf);
+			if (pw->pw_shell != NULL && pw->pw_shell[0] != '\0' &&
+			    !usershellok(pw->pw_shell))
+			{
+				a->q_flags |= QBOGUSSHELL;
+			}
 			if (!quoted)
 				forward(a, sendq, e);
 		}
 	}
 	if (!bitset(QDONTSEND, a->q_flags))
 		e->e_nrcpts++;
+
+  testselfdestruct:
+	if (tTd(26, 8))
+	{
+		printf("testselfdestruct: ");
+		printaddr(a, TRUE);
+	}
+	if (a->q_alias == NULL && a != &e->e_from &&
+	    bitset(QDONTSEND, a->q_flags))
+	{
+		q = *sendq;
+		while (q != NULL && bitset(QDONTSEND, q->q_flags))
+			q = q->q_next;
+		if (q == NULL)
+		{
+			a->q_flags |= QBADADDR;
+			usrerr("554 aliasing/forwarding loop broken");
+		}
+	}
 	return (a);
 }
 /*
@@ -458,6 +529,17 @@ finduser(name, fuzzyp)
 		printf("finduser(%s): ", name);
 
 	*fuzzyp = FALSE;
+
+	/* DEC Hesiod getpwnam accepts numeric strings -- short circuit it */
+	for (p = name; *p != '\0'; p++)
+		if (!isascii(*p) || !isdigit(*p))
+			break;
+	if (*p == '\0')
+	{
+		if (tTd(29, 4))
+			printf("failed (numeric input)\n");
+		return NULL;
+	}
 
 	/* look up this login name using fast path */
 	if ((pw = getpwnam(name)) != NULL)
@@ -517,7 +599,9 @@ finduser(name, fuzzyp)
 **	not writable.  This is also enforced by mailfile.
 **
 **	Parameters:
-**		s -- pointer to a stat struct for the file.
+**		filename -- the file name to check.
+**		ctladdr -- the controlling address for this file.
+**		flags -- SFF_* flags to control the function.
 **
 **	Returns:
 **		TRUE -- if we will be able to write this file.
@@ -528,35 +612,98 @@ finduser(name, fuzzyp)
 */
 
 bool
-writable(s)
-	register struct stat *s;
+writable(filename, ctladdr, flags)
+	char *filename;
+	ADDRESS *ctladdr;
+	int flags;
 {
 	uid_t euid;
 	gid_t egid;
 	int bits;
+	register char *p;
+	char *uname;
+	struct stat stb;
+	extern char RealUserName[];
 
-	if (bitset(0111, s->st_mode))
+	if (tTd(29, 5))
+		printf("writable(%s, %x)\n", filename, flags);
+
+#ifdef HASLSTAT
+	if ((bitset(SFF_NOSLINK, flags) ? lstat(filename, &stb)
+					: stat(filename, &stb)) < 0)
+#else
+	if (stat(filename, &stb) < 0)
+#endif
+	{
+		/* file does not exist -- see if directory is safe */
+		p = strrchr(filename, '/');
+		if (p == NULL)
+		{
+			errno = ENOTDIR;
+			return FALSE;
+		}
+		*p = '\0';
+		errno = safefile(filename, RealUid, RealGid, RealUserName,
+				 SFF_MUSTOWN, S_IWRITE|S_IEXEC);
+		*p = '/';
+		return errno == 0;
+	}
+
+#ifdef SUID_ROOT_FILES_OK
+	/* really ought to be passed down -- and not a good idea */
+	flags |= SFF_ROOTOK;
+#endif
+
+	/*
+	**  File does exist -- check that it is writable.
+	*/
+
+	if (bitset(0111, stb.st_mode))
+	{
+		if (tTd(29, 5))
+			printf("failed (mode %o: x bits)\n", stb.st_mode);
+		errno = EPERM;
 		return (FALSE);
-	euid = RealUid;
-	egid = RealGid;
+	}
+
+	if (ctladdr != NULL && geteuid() == 0)
+	{
+		euid = ctladdr->q_uid;
+		egid = ctladdr->q_gid;
+		uname = ctladdr->q_user;
+	}
+	else
+	{
+		euid = RealUid;
+		egid = RealGid;
+		uname = RealUserName;
+	}
+	if (euid == 0)
+	{
+		euid = DefUid;
+		uname = DefUser;
+	}
+	if (egid == 0)
+		egid = DefGid;
 	if (geteuid() == 0)
 	{
-		if (bitset(S_ISUID, s->st_mode))
-			euid = s->st_uid;
-		if (bitset(S_ISGID, s->st_mode))
-			egid = s->st_gid;
+		if (bitset(S_ISUID, stb.st_mode) &&
+		    (stb.st_uid != 0 || bitset(SFF_ROOTOK, flags)))
+		{
+			euid = stb.st_uid;
+			uname = NULL;
+		}
+		if (bitset(S_ISGID, stb.st_mode) &&
+		    (stb.st_gid != 0 || bitset(SFF_ROOTOK, flags)))
+			egid = stb.st_gid;
 	}
 
-	if (euid == 0)
-		return (TRUE);
-	bits = S_IWRITE;
-	if (euid != s->st_uid)
-	{
-		bits >>= 3;
-		if (egid != s->st_gid)
-			bits >>= 3;
-	}
-	return ((s->st_mode & bits) != 0);
+	if (tTd(29, 5))
+		printf("\teu/gid=%d/%d, st_u/gid=%d/%d\n",
+			euid, egid, stb.st_uid, stb.st_gid);
+
+	errno = safefile(filename, euid, egid, uname, flags, S_IWRITE);
+	return errno == 0;
 }
 /*
 **  INCLUDE -- handle :include: specification.
@@ -577,9 +724,32 @@ writable(s)
 **	Side Effects:
 **		reads the :include: file and sends to everyone
 **		listed in that file.
+**
+**	Security Note:
+**		If you have restricted chown (that is, you can't
+**		give a file away), it is reasonable to allow programs
+**		and files called from this :include: file to be to be
+**		run as the owner of the :include: file.  This is bogus
+**		if there is any chance of someone giving away a file.
+**		We assume that pre-POSIX systems can give away files.
+**
+**		There is an additional restriction that if you
+**		forward to a :include: file, it will not take on
+**		the ownership of the :include: file.  This may not
+**		be necessary, but shouldn't hurt.
 */
 
 static jmp_buf	CtxIncludeTimeout;
+static int	includetimeout();
+
+#ifndef S_IWOTH
+# define S_IWOTH	(S_IWRITE >> 6)
+#endif
+
+#if defined(__FreeBSD__) && defined(_POSIX_CHOWN_RESTRICTED)
+#	undef _POSIX_CHOWN_RESTRICTED
+#	define _POSIX_CHOWN_RESTRICTED 1
+#endif
 
 int
 include(fname, forwarding, ctladdr, sendq, e)
@@ -589,84 +759,184 @@ include(fname, forwarding, ctladdr, sendq, e)
 	ADDRESS **sendq;
 	ENVELOPE *e;
 {
-	register FILE *fp;
+	register FILE *fp = NULL;
 	char *oldto = e->e_to;
 	char *oldfilename = FileName;
 	int oldlinenumber = LineNumber;
 	register EVENT *ev = NULL;
 	int nincludes;
-	int ret;
-	ADDRESS *ca;
-	uid_t uid;
+	register ADDRESS *ca;
+	uid_t saveduid, uid;
+	gid_t savedgid, gid;
+	char *uname;
+	int rval = 0;
+	int sfflags = forwarding ? SFF_MUSTOWN : SFF_ANYFILE;
+	struct stat st;
 	char buf[MAXLINE];
-	static int includetimeout();
+#ifdef _POSIX_CHOWN_RESTRICTED
+# if _POSIX_CHOWN_RESTRICTED == -1
+#  define safechown	FALSE
+# else
+#  define safechown	TRUE
+# endif
+#else
+# ifdef _PC_CHOWN_RESTRICTED
+	bool safechown;
+# else
+#  ifdef BSD
+#   define safechown	TRUE
+#  else
+#   define safechown	FALSE
+#  endif
+# endif
+#endif
+	extern bool chownsafe();
 
 	if (tTd(27, 2))
 		printf("include(%s)\n", fname);
+	if (tTd(27, 4))
+		printf("   ruid=%d euid=%d\n", getuid(), geteuid());
 	if (tTd(27, 14))
 	{
 		printf("ctladdr ");
 		printaddr(ctladdr, FALSE);
 	}
 
+	if (tTd(27, 9))
+		printf("include: old uid = %d/%d\n", getuid(), geteuid());
+
+	ca = getctladdr(ctladdr);
+	if (ca == NULL)
+	{
+		uid = DefUid;
+		gid = DefGid;
+		uname = DefUser;
+		saveduid = -1;
+	}
+	else
+	{
+		uid = ca->q_uid;
+		gid = ca->q_gid;
+		uname = ca->q_user;
+#ifdef HASSETREUID
+		saveduid = geteuid();
+		savedgid = getegid();
+		if (saveduid == 0)
+		{
+			initgroups(uname, gid);
+			if (uid != 0)
+				(void) setreuid(0, uid);
+		}
+#endif                   
+	}
+
+	if (tTd(27, 9))
+		printf("include: new uid = %d/%d\n", getuid(), geteuid());
+
 	/*
 	**  If home directory is remote mounted but server is down,
 	**  this can hang or give errors; use a timeout to avoid this
 	*/
 
-	ca = getctladdr(ctladdr);
-	if (ca == NULL)
-		uid = 0;
-	else
-		uid = ca->q_uid;
-
 	if (setjmp(CtxIncludeTimeout) != 0)
 	{
-		ctladdr->q_flags |= QQUEUEUP|QDONTSEND;
+		ctladdr->q_flags |= QQUEUEUP;
 		errno = 0;
-		usrerr("451 open timeout on %s", fname);
-		return ETIMEDOUT;
+
+		/* return pseudo-error code */
+		rval = EOPENTIMEOUT;
+		goto resetuid;
 	}
 	ev = setevent((time_t) 60, includetimeout, 0);
 
 	/* the input file must be marked safe */
-	if ((ret = safefile(fname, uid, forwarding, S_IREAD)) != 0)
+	rval = safefile(fname, uid, gid, uname, sfflags, S_IREAD);
+	if (rval != 0)
 	{
-		/* don't use this .forward file */
-		clrevent(ev);
+		/* don't use this :include: file */
 		if (tTd(27, 4))
 			printf("include: not safe (uid=%d): %s\n",
-				uid, errstring(ret));
-		return ret;
+				uid, errstring(rval));
 	}
-
-	fp = fopen(fname, "r");
-	if (fp == NULL)
+	else
 	{
-		int ret = errno;
-
-		clrevent(ev);
-		return ret;
-	}
-
-	if (ca == NULL)
-	{
-		struct stat st;
-
-		if (fstat(fileno(fp), &st) < 0)
+		fp = fopen(fname, "r");
+		if (fp == NULL)
 		{
-			int ret = errno;
-
-			clrevent(ev);
-			syserr("Cannot fstat %s!", fname);
-			return ret;
+			rval = errno;
+			if (tTd(27, 4))
+				printf("include: open: %s\n", errstring(rval));
 		}
+	}
+	clrevent(ev);
+
+resetuid:
+
+#ifdef HASSETREUID
+	if (saveduid == 0)
+	{
+		if (uid != 0)
+			if (setreuid(-1, 0) < 0 || setreuid(RealUid, 0) < 0)
+				syserr("setreuid(%d, 0) failure (real=%d, eff=%d)",
+					RealUid, getuid(), geteuid());
+		setgid(savedgid);
+	}
+#endif
+
+	if (tTd(27, 9))
+		printf("include: reset uid = %d/%d\n", getuid(), geteuid());
+
+	if (rval == EOPENTIMEOUT)
+		usrerr("451 open timeout on %s", fname);
+
+	if (fp == NULL)
+		return rval;
+
+	if (fstat(fileno(fp), &st) < 0)
+	{
+		rval = errno;
+		syserr("Cannot fstat %s!", fname);
+		return rval;
+	}
+
+#ifndef safechown
+	safechown = chownsafe(fileno(fp));
+#endif
+	if (ca == NULL && safechown)
+	{
 		ctladdr->q_uid = st.st_uid;
 		ctladdr->q_gid = st.st_gid;
 		ctladdr->q_flags |= QGOODUID;
 	}
+	if (ca != NULL && ca->q_uid == st.st_uid)
+	{
+		/* optimization -- avoid getpwuid if we already have info */
+		ctladdr->q_flags |= ca->q_flags & QBOGUSSHELL;
+		ctladdr->q_ruser = ca->q_ruser;
+	}
+	else
+	{
+		char *sh;
+		register struct passwd *pw;
 
-	clrevent(ev);
+		sh = "/SENDMAIL/ANY/SHELL/";
+		pw = getpwuid(st.st_uid);
+		if (pw != NULL)
+		{
+			ctladdr->q_ruser = newstr(pw->pw_name);
+			if (safechown)
+				sh = pw->pw_shell;
+		}
+		if (pw == NULL)
+			ctladdr->q_flags |= QBOGUSSHELL;
+		else if(!usershellok(sh))
+		{
+			if (safechown)
+				ctladdr->q_flags |= QBOGUSSHELL;
+			else
+				ctladdr->q_flags |= QUNSAFEADDR;
+		}
+	}
 
 	if (bitset(EF_VRFYONLY, e->e_flags))
 	{
@@ -674,8 +944,21 @@ include(fname, forwarding, ctladdr, sendq, e)
 		ctladdr->q_flags |= QVERIFIED;
 		e->e_nrcpts++;
 		xfclose(fp, "include", fname);
-		return 0;
+		return rval;
 	}
+
+	/*
+	** Check to see if some bad guy can write this file
+	**
+	**	This should really do something clever with group
+	**	permissions; currently we just view world writable
+	**	as unsafe.  Also, we don't check for writable
+	**	directories in the path.  We've got to leave
+	**	something for the local sysad to do.
+	*/
+
+	if (bitset(S_IWOTH, st.st_mode))
+		ctladdr->q_flags |= QUNSAFEADDR;
 
 	/* read the file -- each line is a comma-separated list. */
 	FileName = fname;
@@ -697,13 +980,17 @@ include(fname, forwarding, ctladdr, sendq, e)
 #ifdef LOG
 		if (forwarding && LogLevel > 9)
 			syslog(LOG_INFO, "%s: forward %s => %s",
-				e->e_id, oldto, buf);
+				e->e_id == NULL ? "NOQUEUE" : e->e_id,
+				oldto, buf);
 #endif
 
 		AliasLevel++;
 		nincludes += sendtolist(buf, ctladdr, sendq, e);
 		AliasLevel--;
 	}
+
+	if (ferror(fp) && tTd(27, 3))
+		printf("include: read error: %s\n", errstring(errno));
 	if (nincludes > 0 && !bitset(QSELFREF, ctladdr->q_flags))
 	{
 		if (tTd(27, 5))
@@ -717,7 +1004,8 @@ include(fname, forwarding, ctladdr, sendq, e)
 	(void) xfclose(fp, "include", fname);
 	FileName = oldfilename;
 	LineNumber = oldlinenumber;
-	return 0;
+	e->e_to = oldto;
+	return rval;
 }
 
 static
@@ -748,7 +1036,7 @@ sendtoargv(argv, e)
 
 	while ((p = *argv++) != NULL)
 	{
-		(void) sendtolist(p, (ADDRESS *) NULL, &e->e_sendqueue, e);
+		(void) sendtolist(p, NULLADDR, &e->e_sendqueue, e);
 	}
 }
 /*

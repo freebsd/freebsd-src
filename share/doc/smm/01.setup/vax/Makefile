@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	6.3 (Berkeley) 5/7/91
 #	Makefile,v 1.2 1993/07/31 15:33:08 mycroft Exp
 
-DIR=	smm/01.setup/vax
+VOLUME=	smm
 DOC=	01.setup
 
 RSRC=	../common/renohints.t

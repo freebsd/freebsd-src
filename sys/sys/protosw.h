@@ -31,8 +31,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)protosw.h	7.8 (Berkeley) 4/28/91
- *	$Id: protosw.h,v 1.2 1993/10/16 17:17:22 rgrimes Exp $
+ *	$Id: protosw.h,v 1.5 1993/12/19 00:55:22 wollman Exp $
  */
+
+#ifndef _SYS_PROTOSW_H_
+#define _SYS_PROTOSW_H_ 1
+
+struct mbuf;			/* forward declarations */
+struct socket;
 
 /*
  * Protocol switch table.
@@ -48,13 +54,17 @@
  *
  * Protocols pass data between themselves as chains of mbufs using
  * the pr_input and pr_output hooks.  Pr_input passes data up (towards
- * UNIX) and pr_output passes it down (towards the imps); control
+ * UNIX) and pr_output passes it down (towards the interfaces); control
  * information passes up and down on pr_ctlinput and pr_ctloutput.
  * The protocol is responsible for the space occupied by any the
  * arguments to these entries and must dispose it.
  *
  * The userreq routine interfaces protocols to the system and is
  * described below.
+ *
+ * Beware that protocol families may make puns of this structure with
+ * pr_{ctl,}{in,out}put routines having prototypes appropriate for that
+ * protocol's conventions.  (See, for example, netinet/in_var.h.)
  */
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -64,15 +74,19 @@ struct protosw {
 /* protocol-protocol hooks */
 	int	(*pr_input)();		/* input to protocol (from below) */
 	int	(*pr_output)();		/* output to protocol (from above) */
-	int	(*pr_ctlinput)();	/* control input (from below) */
-	int	(*pr_ctloutput)();	/* control output (from above) */
+	void	(*pr_ctlinput)();	/* control input (from below) */
+	int	(*pr_ctloutput)(int, struct socket *, int, int, 
+				struct mbuf **);
+				/* control output (from above) */
 /* user-protocol hook */
-	int	(*pr_usrreq)();		/* user request: see list below */
+	int	(*pr_usrreq)(struct socket *, int, struct mbuf *, 
+			     struct mbuf *, struct mbuf *, struct mbuf *);
+				/* user request: see list below */
 /* utility hooks */
-	int	(*pr_init)();		/* initialization hook */
-	int	(*pr_fasttimo)();	/* fast timeout (200ms) */
-	int	(*pr_slowtimo)();	/* slow timeout (500ms) */
-	int	(*pr_drain)();		/* flush any excess space possible */
+	void	(*pr_init)(void); /* initialization hook */
+	void	(*pr_fasttimo)(void); /* fast timeout (200ms) */
+	void	(*pr_slowtimo)(void); /* slow timeout (500ms) */
+	void	(*pr_drain)(void); /* flush any excess space possible */
 };
 
 #define	PR_SLOWHZ	2		/* 2 slow timeouts per second */
@@ -157,27 +171,41 @@ char *prurequests[] = {
 #define	PRC_UNREACH_PORT	11	/* bad port # */
 /* was	PRC_UNREACH_NEEDFRAG	12	   (use PRC_MSGSIZE) */
 #define	PRC_UNREACH_SRCFAIL	13	/* source route failed */
-#define	PRC_REDIRECT_NET	14	/* net routing redirect */
-#define	PRC_REDIRECT_HOST	15	/* host routing redirect */
-#define	PRC_REDIRECT_TOSNET	16	/* redirect for type of service & net */
-#define	PRC_REDIRECT_TOSHOST	17	/* redirect for tos & host */
-#define	PRC_TIMXCEED_INTRANS	18	/* packet lifetime expired in transit */
-#define	PRC_TIMXCEED_REASS	19	/* lifetime expired on reass q */
-#define	PRC_PARAMPROB		20	/* header incorrect */
+#define PRC_UNREACH_NETUNKNOWN	14	/* network unknown */
+#define PRC_UNREACH_HOSTUNKNOWN	15	/* host unknown */
+#define PRC_UNREACH_ISOLATED	16	/* source host is isolated */
+#define PRC_UNREACH_NETADMIN	17	/* communication administratively */
+#define PRC_UNREACH_HOSTADMIN	18	/* prohibited with net/host */
+#define PRC_UNREACH_TOSNET	19	/* net unreachable with this TOS */
+#define PRC_UNREACH_TOSHOST	20	/* host unreachable with this TOS */
 
-#define	PRC_NCMDS		21
+#define	PRC_REDIRECT_NET	21	/* net routing redirect */
+#define	PRC_REDIRECT_HOST	22	/* host routing redirect */
+#define	PRC_REDIRECT_TOSNET	23	/* redirect for type of service & net */
+#define	PRC_REDIRECT_TOSHOST	24	/* redirect for tos & host */
+#define	PRC_TIMXCEED_INTRANS	25	/* packet lifetime expired in transit */
+#define	PRC_TIMXCEED_REASS	26	/* lifetime expired on reass q */
+#define	PRC_PARAMPROB		27	/* header incorrect */
+#define PRC_OPTION_MISSING	28	/* required option missing */
+#define PRC_MTUCHANGED		29	/* lower layer MTU has changed */
+
+#define	PRC_NCMDS		30
 
 #define	PRC_IS_REDIRECT(cmd)	\
 	((cmd) >= PRC_REDIRECT_NET && (cmd) <= PRC_REDIRECT_TOSHOST)
+#define PRC_IS_UNREACH(cmd)	\
+	((cmd) >= PRC_UNREACH_NET && (cmd) <= PRC_UNREACH_TOSHOST)
 
 #ifdef PRCREQUESTS
 char	*prcrequests[] = {
 	"IFDOWN", "ROUTEDEAD", "#2", "DEC-BIT-QUENCH2",
 	"QUENCH", "MSGSIZE", "HOSTDEAD", "#7",
 	"NET-UNREACH", "HOST-UNREACH", "PROTO-UNREACH", "PORT-UNREACH",
-	"#12", "SRCFAIL-UNREACH", "NET-REDIRECT", "HOST-REDIRECT",
+	"#12", "SRCFAIL-UNREACH", "NET-UNKNOWN", "HOST-UNKNOWN",
+	"HOST-ISOLATED", "NET-ADMIN-UNREACH", "HOST-ADMIN-UNREACH",
+	"TOSNET-UNREACH", "TOSHOST-UNREACH", "NET-REDIRECT", "HOST-REDIRECT",
 	"TOSNET-REDIRECT", "TOSHOST-REDIRECT", "TX-INTRANS", "TX-REASS",
-	"PARAMPROB"
+	"PARAMPROB", "OPTION-MISSING", "MTU-CHANGED"
 };
 #endif
 
@@ -206,5 +234,10 @@ char	*prcorequests[] = {
 #endif
 
 #ifdef KERNEL
-extern	struct protosw *pffindproto(), *pffindtype();
-#endif
+extern void domaininit(void);
+extern struct protosw *pffindtype(int, int);
+extern struct protosw *pffindproto(int, int, int);
+struct sockaddr;
+extern void pfctlinput(int, struct sockaddr *);
+#endif /* KERNEL */
+#endif /* _SYS_PROTOSW_H_ */

@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)setup.c	5.33 (Berkeley) 2/22/91";
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sbin/fsck/setup.c,v 1.2 1993/07/22 16:52:00 jkh Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/setup.c,v 1.2 1993/07/22 16:52:00 jkh Exp $";
 #endif /* not lint */
 
 #define DKTYPENAMES

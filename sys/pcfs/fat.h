@@ -15,8 +15,11 @@
  *
  *  October 1992
  *
- *	$Id: fat.h,v 1.2 1993/10/16 19:29:29 rgrimes Exp $
+ *	$Id: fat.h,v 1.3 1993/11/07 17:51:15 wollman Exp $
  */
+
+#ifndef _PCFS_FAT_H_
+#define _PCFS_FAT_H_ 1
 
 /*
  *  Some useful cluster numbers.
@@ -65,3 +68,4 @@ int fatentry __P((int function, struct pcfsmount *pmp,
 	u_long cluster, u_long *oldcontents, u_long newcontents));
 int freeclusterchain __P((struct pcfsmount *pmp, u_long startchain));
 #endif /* defined(KERNEL) */
+#endif /* _PCFS_FAT_H_ */

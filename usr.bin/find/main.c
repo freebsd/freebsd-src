@@ -113,6 +113,9 @@ main(argc, argv)
 	if ((dotfd = open(".", O_RDONLY, 0)) < 0)
 		err(1, ".:");
 
+	/* make output interperse properly with subprocesses */
+	setlinebuf(stdout);
+
 	find_execute(find_formplan(argv), start);
 	exit(0);
 }

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1982, 1986, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tty_conf.c	7.6 (Berkeley) 5/9/91
- *	$Id: tty_conf.c,v 1.3 1993/10/16 15:24:58 rgrimes Exp $
+ *	$Id: tty_conf.c,v 1.6.2.1 1994/05/04 07:54:52 rgrimes Exp $
  */
 
 #include "param.h"
@@ -43,10 +50,12 @@
 
 int	enodev();
 int	nullop();
+static int nullioctl(struct tty *, int, caddr_t, int);
 
-int	ttyopen(),ttylclose(),ttread(),ttwrite(),nullioctl(),ttstart();
-int	ttymodem(), nullmodem(), ttyinput();
+#define VE(x) ((void (*)())x)	/* XXX */
+#define IE(x) ((int (*)())x)	/* XXX */
 
+/* XXX - doesn't work */
 #include "tb.h"
 #if NTB > 0
 int	tbopen(),tbclose(),tbread(),tbinput(),tbioctl();
@@ -68,31 +77,32 @@ struct	linesw linesw[] =
 	ttyopen, ttylclose, ttread, ttwrite, nullioctl,
 	ttyinput, enodev, nullop, ttstart, ttymodem,	/* 0- termios */
 
-	enodev, enodev, enodev, enodev, enodev,		/* 1- defunct */
-	enodev, enodev, enodev, enodev, enodev,
+	IE(enodev), VE(enodev), IE(enodev), IE(enodev), IE(enodev), /* 1- defunct */
+	VE(enodev), IE(enodev), IE(enodev), VE(enodev), IE(enodev),
 
-	enodev, enodev, enodev, enodev, enodev,		/* 2- defunct */
-	enodev, enodev, enodev, enodev, enodev,
+	ttyopen, ttylclose, ttread, ttwrite, nullioctl,
+	ttyinput, enodev, nullop, ttstart, ttymodem,    /* 2- NTTYDISC */
+
 #if NTB > 0
-	tbopen, tbclose, tbread, enodev, tbioctl,
+	tbopen, tbclose, tbread, IE(enodev), tbioctl,
 	tbinput, enodev, nullop, ttstart, nullmodem,	/* 3- TABLDISC */
 #else
-	enodev, enodev, enodev, enodev, enodev,
-	enodev, enodev, enodev, enodev, enodev,
+	IE(enodev), VE(enodev), IE(enodev), IE(enodev), IE(enodev),
+	VE(enodev), IE(enodev), IE(enodev), VE(enodev), IE(enodev),
 #endif
 #if NSL > 0
-	slopen, slclose, enodev, enodev, sltioctl,
-	slinput, enodev, nullop, slstart, nullmodem,	/* 4- SLIPDISC */
+	slopen, VE(slclose), IE(enodev), IE(enodev), sltioctl,
+	VE(slinput), enodev, nullop, VE(slstart), nullmodem, /* 4- SLIPDISC */
 #else
-	enodev, enodev, enodev, enodev, enodev,
-	enodev, enodev, enodev, enodev, enodev,
+	IE(enodev), VE(enodev), IE(enodev), IE(enodev), IE(enodev),
+	VE(enodev), IE(enodev), IE(enodev), VE(enodev), IE(enodev),
 #endif
 #if NPPP > 0
-	pppopen, pppclose, pppread, pppwrite, ppptioctl,
-	pppinput, enodev, nullop, pppstart, ttymodem,	/* 5- PPPDISC */
+	pppopen, VE(pppclose), pppread, pppwrite, ppptioctl,
+	VE(pppinput), enodev, nullop, VE(pppstart), ttymodem, /* 5- PPPDISC */
 #else
-	enodev, enodev, enodev, enodev, enodev,
-	enodev, enodev, enodev, enodev, enodev,
+	IE(enodev), VE(enodev), IE(enodev), IE(enodev), IE(enodev),
+	VE(enodev), IE(enodev), IE(enodev), VE(enodev), IE(enodev),
 #endif
 };
 
@@ -103,8 +113,10 @@ int	nldisp = sizeof (linesw) / sizeof (linesw[0]);
  * discipline specific ioctl command.
  */
 /*ARGSUSED*/
+static int
 nullioctl(tp, cmd, data, flags)
 	struct tty *tp;
+	int cmd;
 	char *data;
 	int flags;
 {

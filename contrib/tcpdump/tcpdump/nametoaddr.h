@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/nametoaddr.h,v 1.1.1.1 1993/06/12 14:42:11 rgrimes Exp $ (LBL)
+ * @(#) $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/nametoaddr.h,v 1.1.1.1 1993/06/12 14:42:11 rgrimes Exp $ (LBL)
  *
  * Address to name translation routines.
  */

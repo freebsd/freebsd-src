@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns.h	7.8 (Berkeley) 2/22/91
- *	$Id: ns.h,v 1.2 1993/10/16 19:54:16 rgrimes Exp $
+ *	$Id: ns.h,v 1.4 1993/12/19 00:53:56 wollman Exp $
  */
+
+#ifndef _NETNS_NS_H_
+#define _NETNS_NS_H_ 1
 
 /*
  * Constants and Structures defined by the Xerox Network Software
@@ -134,12 +137,53 @@ struct sockaddr_ns {
 
 #ifdef KERNEL
 extern struct domain nsdomain;
-union ns_host ns_thishost;
-union ns_host ns_zerohost;
-union ns_host ns_broadhost;
-union ns_net ns_zeronet;
-union ns_net ns_broadnet;
+extern union ns_host ns_thishost;
+extern union ns_host ns_zerohost;
+extern union ns_host ns_broadhost;
+extern union ns_net ns_zeronet;
+extern union ns_net ns_broadnet;
 u_short ns_cksum();
+extern int ns_err_x(int);
+extern void ns_error(struct mbuf *, int, int);
+extern void ns_printhost(struct ns_addr *);
+extern void ns_err_input(struct mbuf *);
+extern int ns_echo(struct mbuf *);
+extern void idpip_input(struct mbuf *, struct ifnet *);
+extern int nsip_route(struct mbuf *);
+extern void nsip_ctlinput(int, struct sockaddr *);
+struct in_addr;
+extern void nsip_rtchange(struct in_addr *);
+extern void ns_init(void);
+extern void nsintr(void);
+extern u_char nsctlerrmap[];
+extern void idp_ctlinput(int, caddr_t);
+struct route;
+extern int idp_do_route(struct ns_addr *, struct route *);
+extern void ns_watch_output(struct mbuf *, struct ifnet *);
+extern int ns_output(struct mbuf *, struct route *, int);
+
+struct nspcb;
+
+/* This is a pun for struct protosw in sys/protosw.h: */
+struct ns_protosw {
+	short	pr_type;		/* socket type used for */
+	struct	domain *pr_domain;	/* domain protocol a member of */
+	short	pr_protocol;		/* protocol number */
+	short	pr_flags;
+	void	(*pr_input)(struct mbuf *, struct nspcb *);
+	int	(*pr_output)(struct nspcb *, struct mbuf *);
+	void	(*pr_ctlinput)(int, caddr_t);
+	int	(*pr_ctloutput)(int, struct socket *, int, int, 
+				struct mbuf **);
+	int	(*pr_usrreq)(struct socket *, int, struct mbuf *, 
+			     struct mbuf *, struct mbuf *, struct mbuf *);
+	void	(*pr_init)(void); /* initialization hook */
+	void	(*pr_fasttimo)(void); /* fast timeout (200ms) */
+	void	(*pr_slowtimo)(void); /* slow timeout (500ms) */
+	void	(*pr_drain)(void); /* flush any excess space possible */
+};
+
+extern struct ns_protosw nssw[];
 #else
 
 #include <sys/cdefs.h>
@@ -149,4 +193,5 @@ extern struct ns_addr ns_addr __P((const char *));
 extern char *ns_ntoa __P((struct ns_addr));
 __END_DECLS
 
-#endif
+#endif /* not KERNEL */
+#endif /* _NETNS_NS_H_ */

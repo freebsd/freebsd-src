@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ufs_subr.c	7.13 (Berkeley) 6/28/90
- *	$Id: ufs_subr.c,v 1.2 1993/10/16 18:17:59 rgrimes Exp $
+ *	$Id: ufs_subr.c,v 1.4 1993/12/19 00:55:45 wollman Exp $
  */
 
 #ifdef KERNEL
 #include "param.h"
+#include "systm.h"
 #include "../ufs/fs.h"
 #else
 #include <sys/param.h>
@@ -50,6 +51,7 @@ extern	u_char *fragtbl[];
  * Update the frsum fields to reflect addition or deletion 
  * of some frags.
  */
+void
 fragacct(fs, fragmap, fraglist, cnt)
 	struct fs *fs;
 	int fragmap;
@@ -85,6 +87,7 @@ fragacct(fs, fragmap, fraglist, cnt)
  *
  * check if a block is available
  */
+int
 isblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
@@ -113,6 +116,7 @@ isblock(fs, cp, h)
 /*
  * take a block out of the map
  */
+void
 clrblock(fs, cp, h)
 	struct fs *fs;
 	u_char *cp;
@@ -140,6 +144,7 @@ clrblock(fs, cp, h)
 /*
  * put a block into the map
  */
+void
 setblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
@@ -171,6 +176,7 @@ setblock(fs, cp, h)
  * C definitions of special instructions.
  * Normally expanded with inline.
  */
+int
 scanc(size, cp, table, mask)
 	u_int size;
 	register u_char *cp, table[];
@@ -185,6 +191,7 @@ scanc(size, cp, table, mask)
 #endif
 
 #if !defined(vax) && !defined(tahoe) && !defined(hp300)
+int
 skpc(mask, size, cp)
 	register u_char mask;
 	u_int size;
@@ -197,6 +204,7 @@ skpc(mask, size, cp)
 	return (end - cp);
 }
 
+int
 locc(mask, size, cp)
 	register u_char mask;
 	u_int size;

@@ -38,10 +38,10 @@
 l l l l. 
 @	IN	SOA	ucbvax\fB.\fPBerkeley\fB.\fPEdu. kjd\fB.\fPucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP (
 			1       ; Serial
-			10800	; Refresh
-			1800	; Retry
-			3600000	; Expire
-			86400 )	; Minimum
+			10800   ; Refresh
+			1800    ; Retry
+			3600000 ; Expire
+			86400 ) ; Minimum
 	IN	NS	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
 1	IN	PTR	localhost\fB.\fP
 .TE

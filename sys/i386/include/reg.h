@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.2 1993/10/16 14:39:29 rgrimes Exp $
+ *	$Id: reg.h,v 1.7 1994/01/31 10:27:11 davidg Exp $
  */
+
+#ifndef _MACHINE_REG_H_
+#define _MACHINE_REG_H_ 1
 
 /*
  * Location of the users' stored
@@ -51,11 +54,13 @@
 #define	tEDI	(2)
 #define	tESI	(3)
 #define	tEBP	(4)
-
+#define	tISP	(5)
 #define	tEBX	(6)
 #define	tEDX	(7)
 #define	tECX	(8)
 #define	tEAX	(9)
+
+#define	tERR	(11)
 
 #define	tEIP	(12)
 #define	tCS	(13)
@@ -63,32 +68,29 @@
 #define	tESP	(15)
 #define	tSS	(16)
 
-/* During a system call, registers are at these offsets instead of above. */
-
-#define	sEDI	(0)
-#define	sESI	(1)
-#define	sEBP	(2)
-
-#define	sEBX	(4)
-#define	sEDX	(5)
-#define	sECX	(6)
-#define	sEAX	(7)
-#define	sEFLAGS	(8)
-#define	sEIP	(9)
-#define	sCS	(10)
-#define	sESP	(11)
-#define	sSS	(12)
-
-#define	PC	sEIP
-#define	SP	sESP
-#define	PS	sEFLAGS
-#define	R0	sEDX
-#define	R1	sECX
 /*
  * Registers accessible to ptrace(2) syscall for debugger
+ * The machine-dependent code for PT_{SET,GET}REGS needs to
+ * use whichver order, defined above, is correct, so that it
+ * is all invisible to the user.
  */
-#ifdef IPCREG
-#define	NIPCREG 14
-int ipcreg[NIPCREG] =
-  { tES,tDS,tEDI,tESI,tEBP,tEBX,tEDX,tECX,tEAX,tEIP,tCS,tEFLAGS,tESP,tSS };
-#endif
+struct regs {
+	unsigned int	r_es;
+	unsigned int	r_ds;
+	unsigned int	r_edi;
+	unsigned int	r_esi;
+	unsigned int	r_ebp;
+	unsigned int	r_ebx;
+	unsigned int	r_edx;
+	unsigned int	r_ecx;
+	unsigned int	r_eax;
+	unsigned int	r_eip;
+	unsigned int	r_cs;
+	unsigned int	r_eflags;
+	unsigned int	r_esp;
+	unsigned int	r_ss;
+	unsigned int	r_fs;
+	unsigned int	r_gs;
+};
+
+#endif /* _MACHINE_REG_H_ */

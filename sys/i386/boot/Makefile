@@ -20,7 +20,7 @@
 # the rights to redistribute these changes.
 #
 #	from: Mach, Revision 2.2	92/04/04  11:33:46  rpd
-#	$Id: Makefile,v 1.3 1993/10/16 19:11:23 rgrimes Exp $
+#	$Id: Makefile,v 1.5 1993/12/11 20:35:15 ats Exp $
 #
 
 wd0:
@@ -48,7 +48,7 @@ OBJS = start.o table.o boot2.o boot.o asm.o bios.o io.o disk.o sys.o
 	$(CC)  $(CFLAGS) -c $<
 
 boot: $(OBJS)
-	$(LD) -N -T 0 -o boot $(OBJS) $(LIBS)
+	$(LD) -Bstatic -N -T 0 -o boot $(OBJS) $(LIBS)
 	cp boot boot.sym
 	@strip boot
 	@sh ${.CURDIR}/rmaouthdr boot boot.tmp
@@ -97,7 +97,7 @@ fd0:
 
 install: wd sd fd
 
-clean cleandir:
+clean:
 	/bin/rm -f *.o *.d boot bootbios biosboot boot.sym
 
 .include <bsd.prog.mk>

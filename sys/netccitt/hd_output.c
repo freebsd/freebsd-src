@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)hd_output.c	7.6 (Berkeley) 5/29/91
- *	$Id: hd_output.c,v 1.2 1993/10/16 19:46:36 rgrimes Exp $
+ *	$Id: hd_output.c,v 1.3 1993/11/25 01:34:20 wollman Exp $
  */
 
 #include "param.h"
@@ -64,9 +64,10 @@
  *      by the input and control routines of the HDLC layer.
  */
 
+void
 hd_output (hdp, m0)
-register struct hdcb *hdp;
-struct mbuf *m0;
+	register struct hdcb *hdp;
+	struct mbuf *m0;
 {
 	struct x25config *xcp;
 	register struct mbuf *m = m0;
@@ -100,8 +101,9 @@ struct mbuf *m0;
 	hd_start (hdp);
 }
 
+void
 hd_start (hdp)
-register struct hdcb *hdp;
+	register struct hdcb *hdp;
 {
 	register struct mbuf *m;
 
@@ -141,10 +143,11 @@ register struct hdcb *hdp;
  *       of old frames is required.
  */
 
+void
 hd_send_iframe (hdp, buf, poll_bit)
-register struct hdcb *hdp;
-register struct mbuf *buf;
-int poll_bit;
+	register struct hdcb *hdp;
+	register struct mbuf *buf;
+	int poll_bit;
 {
 	register struct Hdlc_iframe *iframe;
 	struct mbuf *m;
@@ -192,9 +195,10 @@ int poll_bit;
 	SET_TIMER (hdp);
 }
 
+void
 hd_ifoutput(hdp, m)
-register struct mbuf *m;
-register struct hdcb *hdp;
+	register struct mbuf *m;
+	register struct hdcb *hdp;
 {
 	/*
 	 * Queue message on interface, and start output if interface
@@ -222,8 +226,9 @@ register struct hdcb *hdp;
  *  received an acknowledgement for a iframe.
  */
 
+void
 hd_resend_iframe (hdp)
-register struct hdcb *hdp;
+	register struct hdcb *hdp;
 {
 
 	if (hdp->hd_retxcnt++ < hd_n2) {

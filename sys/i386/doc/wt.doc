@@ -1,0 +1,77 @@
+This is the streamer tape driver for 386bsd and FreeBSD, which
+supports Wangtek and Archive compatible QIC-02/QIC-36 controllers.
+It was developed as a replacement of the old Wangtek tape driver from CMU.
+
+In comparison with the CMU driver, this version has the following enhancements:
+1) Support for Archive SC402 and SC499 tape controllers added.
+2) Support for up to three tape controllers on the same machine.
+3) Support for BSD-style ioctls MTIOCGET, MTIOCTOP.
+   Mt command now works adequately with this driver.
+2) Asynchronous REWIND and FSF operations, close() will not wait
+   until they finish.  The next open() will wait for it instead.
+4) Use of WTQICMD ioctl is limited to ERASE and RETENS operations.
+   This prevents the user from locking the tape driver by strange
+   tape operations.
+5) Tape density switching added.
+6) The status of the process, blocked on the tape operation,
+   is displayed at the WCHAN column of the `ps' command as:
+
+	wtread    reading data from the tape
+	wtwrite   writing data to the tape
+	wtrfm     reading the tape marker
+	wtwfm     writing the tape marker
+	wtrew     rewinding the tape
+	wterase   doing WTQICMD ERASE operation
+	wtretens  doing WTQICMD RETENS operation
+	wtorew    doing MTIOCTOP REW/OFFL operation
+	wtorfm    doing MTIOCTOP FSF operation
+	wtowfm    doing MTIOCTOP WEOF operation
+
+7) It's possible to use the tape with "default density",
+   useful for devices which don't support density switching
+   or do automatic format determination.
+8) Some controllers support only 1024 block length.
+   Setting WT_BSIZE bit in device minor number turns on this mode.
+
+Minor number structure:
+	0bfffuuu
+Fields:
+	uuu   - Unit number. It's possible to install
+		up to three tape controllers on the same machine,
+		using DRQs 1..3.  Hence, unit number can lie
+		in range 0..2.
+	fff   - Tape format number:
+		0 - /dev/rwt0  - default density (auto select)
+		1 - /dev/rwt0a - QIC 11 (obsolete)
+		2 - /dev/rwt0b - QIC 24 (60 megabytes)
+		3 - /dev/rwt0c - QIC 120 (120 megabytes)
+		4 - /dev/rwt0d - QIC 150 (150 megabytes)
+		5 - /dev/rwt0e - QIC 300 (300 megabytes?)
+		6 - /dev/rwt0f - QIC 600 (600 megabytes?)
+	b     - Long block size flag.  With this bit set,
+		the driver will perform all i/o operations
+		with the controller using 1024-byte
+		blocks, instead of 512 ones.
+		Some controllers need it (CMS for example).
+		If you Wangtek controller does not stream well,
+		you can try to use /dev/rWt0 device instead
+		of /dev/rwt0 (uncomment needed lines in /dev/MAKEDEV
+		to create it).
+
+Block interface (writing blocks less than 2048 bytes) is not functioning
+pwoperly.  Use raw interface instead.
+
+Thanks to all who helped to test it on the following hardware:
+
+Controller           Drive            Volume    Interface     Thanks to
+---------------------------------------------------------------------------
+Archive SC-499       Archive 2150L    150 Meg   QIC-02        KIAE
+CMS?                 ?                150 Meg   QIC-02        KIAE
+Everex EV 831/833    ?                ?         QIC-36        Joergen Haegg
+Wangtek ASSY         Wangtek          60 Meg    QIC-02        Ken Whedbee
+Tecmar QT150i?       Wangtek 5150EQ   ?         QIC-02?       Marko Teiste
+?                    Wangtek 5099EK   60 Meg    QIC-36        Robert Shien
+Archive SC400S       ?                60 Meg    ?             Warren Toomey
+
+Sergey Ryzhkov, Serge Vakulenko
+E-mail: <sir@kiae.su>, <vak@zebub.msk.su>

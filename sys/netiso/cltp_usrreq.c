@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cltp_usrreq.c	7.6 (Berkeley) 6/27/91
- *	$Id: cltp_usrreq.c,v 1.3 1993/10/16 21:04:59 rgrimes Exp $
+ *	$Id: cltp_usrreq.c,v 1.5 1993/11/25 01:35:50 wollman Exp $
  */
 
 #ifndef CLTPOVAL_SRC /* XXX -- till files gets changed */
@@ -56,10 +56,15 @@
 #include "cltp_var.h"
 #endif
 
+struct isopcb cltb;
+struct cltpstat cltpstat;
+
+
 /*
  * CLTP protocol implementation.
  * Per ISO 8602, December, 1987.
  */
+void
 cltp_init()
 {
 
@@ -70,6 +75,7 @@ int cltp_cksum = 1;
 
 
 /* ARGUSED */
+int
 cltp_input(m0, srcsa, dstsa, cons_channel, output)
 	struct mbuf *m0;
 	struct sockaddr *srcsa, *dstsa;
@@ -82,7 +88,7 @@ cltp_input(m0, srcsa, dstsa, cons_channel, output)
 	register struct sockaddr_iso *src = (struct sockaddr_iso *)srcsa;
 	int len, hdrlen = *up + 1, dlen = 0;
 	u_char *uplim = up + hdrlen;
-	caddr_t dtsap;
+	caddr_t dtsap = 0;
 
 	for (len = 0; m; m = m->m_next)
 		len += m->m_len;
@@ -156,6 +162,7 @@ bad:
  * Notify a cltp user of an asynchronous error;
  * just wake up so that he can collect error status.
  */
+void
 cltp_notify(isop)
 	register struct isopcb *isop;
 {
@@ -164,6 +171,7 @@ cltp_notify(isop)
 	sowwakeup(isop->isop_socket);
 }
 
+void
 cltp_ctlinput(cmd, sa)
 	int cmd;
 	struct sockaddr *sa;
@@ -198,6 +206,7 @@ cltp_ctlinput(cmd, sa)
 	}
 }
 
+int
 cltp_output(isop, m)
 	register struct isopcb *isop;
 	register struct mbuf *m;
@@ -263,13 +272,14 @@ u_long	cltp_recvspace = 40 * (1024 + sizeof(struct sockaddr_iso));
 
 
 /*ARGSUSED*/
+int
 cltp_usrreq(so, req, m, nam, control)
 	struct socket *so;
 	int req;
 	struct mbuf *m, *nam, *control;
 {
 	struct isopcb *isop = sotoisopcb(so);
-	int s, error = 0;
+	int s = 0, error = 0;
 
 	if (req == PRU_CONTROL)
 		return (iso_control(so, (int)m, (caddr_t)nam,

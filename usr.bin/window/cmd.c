@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)cmd.c	3.40 (Berkeley) 6/6/90";
 
 docmd()
 {
-	register char c;
+	register c;
 	register struct ww *w;
 	char out = 0;
 

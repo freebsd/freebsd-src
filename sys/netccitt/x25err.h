@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)x25err.h	7.2 (Berkeley) 5/11/90
- *	$Id: x25err.h,v 1.2 1993/10/16 19:47:02 rgrimes Exp $
+ *	$Id: x25err.h,v 1.3 1993/11/07 17:47:31 wollman Exp $
  */
+
+#ifndef _NETCCITT_X25ERR_H_
+#define _NETCCITT_X25ERR_H_ 1
 
 /* 
  *  
@@ -63,3 +66,4 @@
 #define EXCNCG		118	/* Clear: network congestion		*/
 #define EXCNOB		119	/* Clear: not obtainable		*/
 
+#endif /* _NETCCITT_X25ERR_H_ */

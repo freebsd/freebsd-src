@@ -51,9 +51,14 @@
 41	queue.c		orderq
 42	mci.c		mci_get
 45	envelope.c	setsender
+46	envelope.c	openxscript
+49	conf.c		checkcompat
 50	envelope.c	dropenvelope
 51	queue.c		unlockqueue
 52	main.c		disconnect
 53	util.c		xfclose
+54	err.c		putoutmsg
+55	conf.c		lockfile
 59	Extended Load Average implementation from Christophe Wolfhugel
 60	map.c
+91	mci.c		syslogging of MCI cache information

@@ -45,17 +45,45 @@
 #define	__LDPGSZ	1024
 #endif
 
+#define N_GETMAGIC(ex) \
+	( (ex).a_midmag & 0xffff )
+#define N_GETMID(ex) \
+	( (N_GETMAGIC_NET(ex) == ZMAGIC) ? N_GETMID_NET(ex) : \
+	((ex).a_midmag >> 16) & 0x03ff )
+#define N_GETFLAG(ex) \
+	( (N_GETMAGIC_NET(ex) == ZMAGIC) ? N_GETFLAG_NET(ex) : \
+	((ex).a_midmag >> 26) & 0x3f )
+#define N_SETMAGIC(ex,mag,mid,flag) \
+	( (ex).a_midmag = (((flag) & 0x3f) <<26) | (((mid) & 0x03ff) << 16) | \
+	((mag) & 0xffff) )
+
+#define N_GETMAGIC_NET(ex) \
+	(ntohl((ex).a_midmag) & 0xffff)
+#define N_GETMID_NET(ex) \
+	((ntohl((ex).a_midmag) >> 16) & 0x03ff)
+#define N_GETFLAG_NET(ex) \
+	((ntohl((ex).a_midmag) >> 26) & 0x3f)
+#define N_SETMAGIC_NET(ex,mag,mid,flag) \
+	( (ex).a_midmag = htonl( (((flag)&0x3f)<<26) | (((mid)&0x03ff)<<16) | \
+	(((mag)&0xffff)) ) )
+
 #define N_ALIGN(ex,x) \
-	((ex).a_magic == ZMAGIC || (ex).a_magic == QMAGIC ? \
+	(N_GETMAGIC(ex) == ZMAGIC || N_GETMAGIC(ex) == QMAGIC || \
+	 N_GETMAGIC_NET(ex) == ZMAGIC || N_GETMAGIC_NET(ex) == QMAGIC ? \
 	 ((x) + __LDPGSZ - 1) & ~(__LDPGSZ - 1) : (x))
 
 /* Valid magic number check. */
 #define	N_BADMAG(ex) \
-	((ex).a_magic != NMAGIC && (ex).a_magic != OMAGIC && \
-	    (ex).a_magic != ZMAGIC && (ex).a_magic != QMAGIC)
+	(N_GETMAGIC(ex) != OMAGIC && N_GETMAGIC(ex) != NMAGIC && \
+	 N_GETMAGIC(ex) != ZMAGIC && N_GETMAGIC(ex) != QMAGIC && \
+	 N_GETMAGIC_NET(ex) != OMAGIC && N_GETMAGIC_NET(ex) != NMAGIC && \
+	 N_GETMAGIC_NET(ex) != ZMAGIC && N_GETMAGIC_NET(ex) != QMAGIC)
+
 
 /* Address of the bottom of the text segment. */
-#define N_TXTADDR(ex)	((ex).a_magic == QMAGIC ? __LDPGSZ : 0)
+#define N_TXTADDR(ex) \
+	((N_GETMAGIC(ex) == OMAGIC || N_GETMAGIC(ex) == NMAGIC || \
+	N_GETMAGIC(ex) == ZMAGIC) ? 0 : __LDPGSZ)
 
 /* Address of the bottom of the data segment. */
 #define N_DATADDR(ex) \
@@ -63,8 +91,8 @@
 
 /* Text segment offset. */
 #define	N_TXTOFF(ex) \
-	((ex).a_magic == ZMAGIC ? __LDPGSZ \
-	 : ((ex).a_magic == QMAGIC ? 0 : sizeof(struct exec)))
+	(N_GETMAGIC(ex) == ZMAGIC ? __LDPGSZ : (N_GETMAGIC(ex) == QMAGIC || \
+	N_GETMAGIC_NET(ex) == ZMAGIC) ? 0 : sizeof(struct exec)) 
 
 /* Data segment offset. */
 #define	N_DATOFF(ex) \
@@ -83,12 +111,15 @@
 
 /* Relocation format. */
 struct relocation_info {
-	int r_address;			/* offset in text or data segment */
-	unsigned int r_symbolnum : 24,	/* ordinal number of add symbol */
-			 r_pcrel :  1,	/* 1 if value should be pc-relative */
-			r_length :  2,	/* log base 2 of value's width */
-			r_extern :  1,	/* 1 if need to add symbol to value */
-				 :  4;	/* reserved */
+	int r_address;			  /* offset in text or data segment */
+	unsigned int   r_symbolnum : 24,  /* ordinal number of add symbol */
+			   r_pcrel :  1,  /* 1 if value should be pc-relative */
+			  r_length :  2,  /* log base 2 of value's width */
+			  r_extern :  1,  /* 1 if need to add symbol to value */
+			 r_baserel :  1,  /* linkage table relative */
+			r_jmptable :  1,  /* relocate to jump table */
+			r_relative :  1,  /* load address relative */
+			    r_copy :  1;  /* run time copy */
 };
 
 #define _AOUT_INCLUDE_

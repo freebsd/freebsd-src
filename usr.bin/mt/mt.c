@@ -97,19 +97,7 @@ main(argc, argv)
 		if ((tape = getenv("TAPE")) == NULL)
 			tape = DEFTAPE;
 	if (argc < 2) {
-usage:          fprintf(stderr, "Usage:\n");
-		fprintf(stderr, "\tmt [ -f device ] command [ count ]\n");
-		fprintf(stderr, "Commands:\n");
-		fprintf(stderr, "\teof, weof - write tape mmrk\n");
-		fprintf(stderr, "\tfsf       - seek forward for tape mark\n");
-		fprintf(stderr, "\tbsf       - seek backward for tape mark\n");
-		fprintf(stderr, "\tfsr       - seek record forward\n");
-		fprintf(stderr, "\tbsr       - seek record backward\n");
-		fprintf(stderr, "\trewind    - rewind the tape\n");
-		fprintf(stderr, "\toffline   - rewind and unload the tape\n");
-		fprintf(stderr, "\tstatus    - get tape status\n");
-		fprintf(stderr, "\terase     - erase the tape\n");
-		fprintf(stderr, "\tretension - retension the tape\n");
+usage:          fprintf(stderr, "Usage: mt [ -f device ] command [ count ]\n");
 		exit(1);
 	}
 	cp = argv[1];

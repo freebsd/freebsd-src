@@ -32,7 +32,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getopt.c	4.13 (Berkeley) 2/23/91";
+/*static char *sccsid = "from: @(#)getopt.c	4.13 (Berkeley) 2/23/91";*/
+static char *rcsid = "$Id: getopt.c,v 1.2 1993/11/23 00:08:37 jtc Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -42,11 +43,12 @@ static char sccsid[] = "@(#)getopt.c	4.13 (Berkeley) 2/23/91";
 /*
  * get option letter from argument vector
  */
-int	opterr = 1,		/* if error message should be printed */
-	optind = 1,		/* index into parent argv vector */
-	optopt;			/* character checked for validity */
+int	opterr = 1;		/* if error message should be printed */
+int	optind = 1;		/* index into parent argv vector */
+int	optopt;			/* character checked for validity */
 char	*optarg;		/* argument associated with option */
 
+#define NOOPT	(int)':'	/* No option */
 #define	BADCH	(int)'?'
 #define	EMSG	""
 
@@ -63,26 +65,27 @@ getopt(nargc, nargv, ostr)
 	if (!*place) {				/* update scanning pointer */
 		if (optind >= nargc || *(place = nargv[optind]) != '-') {
 			place = EMSG;
-			return(EOF);
+			return(-1);
 		}
 		if (place[1] && *++place == '-') {	/* found "--" */
 			++optind;
 			place = EMSG;
-			return(EOF);
+			return(-1);
 		}
-	}					/* option letter okay? */
+	}
+						/* option letter okay? */
 	if ((optopt = (int)*place++) == (int)':' ||
-	    !(oli = index(ostr, optopt))) {
+	    !(oli = strchr(ostr, optopt))) {
 		/*
 		 * if the user didn't specify '-' as an option,
-		 * assume it means EOF.
+		 * assume it means -1.
 		 */
 		if (optopt == (int)'-')
-			return(EOF);
+			return(-1);
 		if (!*place)
 			++optind;
-		if (opterr) {
-			if (!(p = rindex(*nargv, '/')))
+		if (opterr && *ostr != ':') {
+			if (!(p = strrchr(*nargv, '/')))
 				p = *nargv;
 			else
 				++p;
@@ -91,25 +94,26 @@ getopt(nargc, nargv, ostr)
 		}
 		return(BADCH);
 	}
+
 	if (*++oli != ':') {			/* don't need argument */
 		optarg = NULL;
 		if (!*place)
 			++optind;
-	}
-	else {					/* need an argument */
+	} else {				/* need an argument */
 		if (*place)			/* no white space */
 			optarg = place;
 		else if (nargc <= ++optind) {	/* no arg */
 			place = EMSG;
-			if (!(p = rindex(*nargv, '/')))
-				p = *nargv;
-			else
-				++p;
-			if (opterr)
+			if (opterr && *ostr != ':') {
+				if (!(p = strrchr(*nargv, '/')))
+					p = *nargv;
+				else
+					++p;
 				(void)fprintf(stderr,
 				    "%s: option requires an argument -- %c\n",
 				    p, optopt);
-			return(BADCH);
+			}
+			return((*ostr == ':') ? NOOPT : BADCH);
 		}
 	 	else				/* white space */
 			optarg = nargv[optind];

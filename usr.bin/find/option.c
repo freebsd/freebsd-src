@@ -77,6 +77,8 @@ static OPTION options[] = {
 	{ "-path", 	N_PATH,		c_path,		O_ARGV },
 	{ "-perm",	N_PERM,		c_perm,		O_ARGV },
 	{ "-print",	N_PRINT,	c_print,	O_ZERO },
+	{ "-print0",	N_PRINT,	c_print0,	O_ZERO },
+	{ "-printf",	N_PRINT,	c_printf,	O_ARGV },
 	{ "-prune",	N_PRUNE,	c_prune,	O_ZERO },
 	{ "-size",	N_SIZE,		c_size,		O_ARGV },
 	{ "-type",	N_TYPE,		c_type,		O_ARGV },

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_timer.c	7.18 (Berkeley) 6/28/90
- *	$Id: tcp_timer.c,v 1.2 1993/10/16 18:26:33 rgrimes Exp $
+ *	$Id: tcp_timer.c,v 1.4 1993/12/19 00:52:52 wollman Exp $
  */
 
 #include "param.h"
@@ -58,12 +58,10 @@
 #include "tcp_var.h"
 #include "tcpip.h"
 
-int	tcp_keepidle = TCPTV_KEEP_IDLE;
-int	tcp_keepintvl = TCPTV_KEEPINTVL;
-int	tcp_maxidle;
 /*
  * Fast timeout routine for processing delayed acks
  */
+void
 tcp_fasttimo()
 {
 	register struct inpcb *inp;
@@ -88,6 +86,7 @@ tcp_fasttimo()
  * Updates the timers in all active tcb's and
  * causes finite state machine actions if timers expire.
  */
+void
 tcp_slowtimo()
 {
 	register struct inpcb *ip, *ipnxt;
@@ -113,7 +112,8 @@ tcp_slowtimo()
 			if (tp->t_timer[i] && --tp->t_timer[i] == 0) {
 				(void) tcp_usrreq(tp->t_inpcb->inp_socket,
 				    PRU_SLOWTIMO, (struct mbuf *)0,
-				    (struct mbuf *)i, (struct mbuf *)0);
+				    (struct mbuf *)i, (struct mbuf *)0,
+						  (struct mbuf *)0);
 				if (ipnxt->inp_prev != ip)
 					goto tpgone;
 			}
@@ -135,6 +135,7 @@ tpgone:
 /*
  * Cancel all timers for TCP tp.
  */
+void
 tcp_canceltimers(tp)
 	struct tcpcb *tp;
 {

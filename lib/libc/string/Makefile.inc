@@ -12,11 +12,11 @@ SRCS+=	bcmp.s bcopy.s bzero.s ffs.s index.s memchr.c memcmp.c memset.c \
 	strncat.c strncmp.s strncpy.s strpbrk.c strsep.c \
 	strspn.c strstr.c
 .elif (${MACHINE} == "i386")
-SRCS+=	bcmp.s bcopy.s bzero.s ffs.s index.s memchr.s memcmp.s memset.s \
-	rindex.s strcat.s strcmp.s strcpy.s strcspn.c strlen.s \
-	strncat.c strncmp.s strncpy.c strpbrk.c strsep.c \
+SRCS+=	bcmp.S bcopy.S bzero.S ffs.S index.S memchr.S memcmp.S memset.S \
+	rindex.S strcat.S strcmp.S strcpy.S strcspn.c strlen.S \
+	strncat.c strncmp.S strncpy.c strpbrk.c strsep.c \
 	strspn.c strstr.c
-SRCS+=	memmove.s strchr.s strrchr.s
+SRCS+=	memmove.S strchr.S strrchr.S
 .elif (${MACHINE} == "tahoe")
 SRCS+=	bcmp.s bcopy.s bzero.s ffs.s index.c memchr.c memcmp.s memset.c \
 	rindex.c strcat.s strcmp.s strcpy.s strcspn.c strlen.s \
@@ -33,7 +33,9 @@ SRCS+=	memmove.s strchr.s strrchr.s
 
 # if no machine specific memmove(3), build one out of bcopy(3).
 .if empty(SRCS:Mmemcpy.s)
+.if empty(SRCS:Mmemcpy.S)
 .if empty(SRCS:Mmemmove.s)
+.if empty(SRCS:Mmemmove.S)
 OBJS+=	memmove.o
 memmove.o: bcopy.c
 	${CC} -DMEMMOVE ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
@@ -46,9 +48,12 @@ memmove.po: bcopy.c
 	@mv a.out ${.TARGET}
 .endif
 .endif
+.endif
+.endif
 
 # if no machine specific strchr(3), build one out of index(3).
 .if empty(SRCS:Mstrchr.s)
+.if empty(SRCS:Mstrchr.S)
 OBJS+=	strchr.o
 strchr.o: index.c
 	${CC} -DSTRCHR ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
@@ -60,9 +65,11 @@ strchr.po: index.c
 	@${LD} -X -r ${.TARGET}
 	@mv a.out ${.TARGET}
 .endif
+.endif
 
 # if no machine specific strrchr(3), build one out of rindex(3).
 .if empty(SRCS:Mstrrchr.s)
+.if empty(SRCS:Mstrrchr.S)
 OBJS+=	strrchr.o
 strrchr.o: rindex.c
 	${CC} -DSTRRCHR ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
@@ -73,6 +80,7 @@ strrchr.po: rindex.c
 	${CC} -DSTRRCHR ${CFLAGS} -c -p ${.ALLSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
 	@mv a.out ${.TARGET}
+.endif
 .endif
 
 MAN3+=	string/bcmp.3 string/bcopy.3 string/bstring.3 string/bzero.3 \

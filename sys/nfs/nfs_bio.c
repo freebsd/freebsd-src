@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_bio.c	7.19 (Berkeley) 4/16/91
- *	$Id: nfs_bio.c,v 1.3 1993/09/09 22:06:00 rgrimes Exp $
+ *	$Id: nfs_bio.c,v 1.5 1994/02/06 22:20:09 davidg Exp $
  */
 
 #include "param.h"
@@ -244,7 +244,7 @@ nfs_write(vp, uio, ioflag, cred)
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
 	 */
-	if (uio->uio_offset + uio->uio_resid >
+	if (p && uio->uio_offset + uio->uio_resid >
 	      p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
 		psignal(p, SIGXFSZ);
 		return (EFBIG);
@@ -256,7 +256,9 @@ nfs_write(vp, uio, ioflag, cred)
 	 */
 	biosize = VFSTONFS(vp->v_mount)->nm_rsize;
 	np->n_flag |= NMODIFIED;
-	vnode_pager_uncache(vp);
+	if ((ioflag & IO_PAGER) == 0)
+		vnode_pager_uncache(vp);
+
 	do {
 		nfsstats.biocache_writes++;
 		lbn = uio->uio_offset / biosize;

@@ -163,6 +163,16 @@ gread(tp, s)
 			tp->c_cc[VSUSP] = tmp;
 			continue;
 		}
+		if (CHK("vmin")) {
+			(void)sscanf(ep, "%ld", &tmp);
+			tp->c_cc[VMIN] = tmp;
+			continue;
+		}
+		if (CHK("vtime")) {
+			(void)sscanf(ep, "%ld", &tmp);
+			tp->c_cc[VTIME] = tmp;
+			continue;
+		}
 		if (CHK("werase")) {
 			tp->c_cc[VWERASE] = tmp;
 			continue;

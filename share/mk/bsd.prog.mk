@@ -1,11 +1,11 @@
-#	@(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
+#	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
+#	$Id: bsd.prog.mk,v 1.18 1994/01/31 06:10:37 rgrimes Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
-#.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s
-.SUFFIXES: .out .o .c .y .l .s
+.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
 CFLAGS+=${COPTS}
 
@@ -32,11 +32,14 @@ LIBMP?=		/usr/lib/libmp.a
 LIBPC?=		/usr/lib/libpc.a
 LIBPLOT?=	/usr/lib/libplot.a
 LIBRESOLV?=	/usr/lib/libresolv.a
-LIBRPC?=	/usr/lib/librpc.a
 LIBRPCSVC?=	/usr/lib/librpcsvc.a
 LIBTELNET?=	/usr/lib/libtelnet.a
 LIBTERM?=	/usr/lib/libterm.a
 LIBUTIL?=	/usr/lib/libutil.a
+
+.if defined(NOSHARED)
+LDFLAGS+= -static
+.endif
 
 .if defined(SHAREDSTRINGS)
 CLEANFILES+=strings
@@ -45,10 +48,10 @@ CLEANFILES+=strings
 	@${CC} ${CFLAGS} -c x.c -o ${.TARGET}
 	@rm -f x.c
 
-#.cc.o .cxx.o .C.o:
-#	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
-#	@mv -f x.c x.cc
-#	@${CXX} ${CXXFLAGS} -c x.cc -o ${.TARGET}
+.cc.o .cxx.o .C.o:
+	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
+	@mv -f x.c x.cc
+	@${CXX} ${CXXFLAGS} -c x.cc -o ${.TARGET}
 
 .endif
 
@@ -116,23 +119,6 @@ cleandir: _PROGSUBDIR
 	cd ${.CURDIR}; rm -rf obj;
 .endif
 
-# some of the rules involve .h sources, so remove them from mkdep line
-.if !target(depend)
-depend: .depend _PROGSUBDIR
-.depend: ${DPSRCS} ${SRCS}
-.if defined(PROG)
-	rm -f .depend
-	files="${.ALLSRC:M*.c}"; \
-	if [ "$$files" != "" ]; then \
-	  mkdep -a ${MKDEP} ${CFLAGS:M-[ID]*} $$files; \
-	fi
-#	files="${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}"; \
-#	if [ "$$files" != "  " ]; then \
-#	  mkdep -a ${MKDEP} -+ ${CXXFLAGS:M-[ID]*} $$files; \
-#	fi
-.endif
-.endif
-
 .if !target(install)
 .if !target(beforeinstall)
 beforeinstall:
@@ -185,7 +171,7 @@ obj: _PROGSUBDIR
 .else
 obj: _PROGSUBDIR
 	@cd ${.CURDIR}; rm -rf obj; \
-	here=`pwd`; dest=/usr/obj/`echo $$here | sed 's,/usr/src/,,'`; \
+	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
 	echo "$$here -> $$dest"; ln -s $$dest obj; \
 	if test -d /usr/obj -a ! -d $$dest; then \
 		mkdir -p $$dest; \
@@ -208,3 +194,5 @@ tags: ${SRCS} _PROGSUBDIR
 .elif !target(maninstall)
 maninstall:
 .endif
+
+.include <bsd.dep.mk>

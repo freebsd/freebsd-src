@@ -36,17 +36,20 @@
 .Os BSD 4.2
 .Sh NAME
 .Nm newfs ,
-.Nm mfs
+.Nm mount_mfs
 .Nd construct a new file system
 .Sh SYNOPSIS
 .Nm newfs
 .Op Fl N
 .Op Ar newfs-options
 .Ar special
-.Nm mfs
+.Nm mount_mfs
 .Op Fl F Ar mount_flags
 .Op Ar newfs-options
 .Ar special node
+.Nm mount_mfs
+.Op Fl F Ar mount_flags
+.Ar file node
 .Sh DESCRIPTION
 .Nm Newfs
 replaces the more obtuse
@@ -55,7 +58,7 @@ program.
 Before running 
 .Nm newfs
 or
-.Nm mfs ,
+.Nm mount_mfs ,
 the disk must be labeled using 
 .Xr disklabel 8 .
 .Nm Newfs
@@ -65,20 +68,22 @@ Typically the defaults are reasonable, however
 .Nm newfs
 has numerous options to allow the defaults to be selectively overridden.
 .Pp
-.Nm Mfs
+.Nm Mount_mfs
 is used to build a file system in virtual memory and then mount it
 on a specified node.
-.Nm Mfs
+.Nm Mount_mfs
 exits and the contents of the file system are lost
 when the file system is unmounted.
+Using the third syntax given above, you can also
+mount a regular file (useful for floppy images).
 If
-.Nm mfs
+.Nm mount_mfs
 is sent a signal while running,
 for example during system shutdown,
 it will attempt to unmount its
 corresponding file system.
 The parameters to
-.Nm mfs
+.Nm mount_mfs
 are the same as those to
 .Nm newfs .
 The special file is only used to read the disk label which provides
@@ -205,13 +210,13 @@ relative to sector 0 on track N-1 on the same cylinder.
 .Pp
 .El
 The following option applies only to
-.Nm mfs .
+.Nm mount_mfs .
 .Bl -tag -width Fl
 .It Fl F Ar mount flags
 Used to pass in a decimal numeric value to be passed
 as mount flags when running as a memory based file system.
 This option is primarily intended for use when
-.Nm mfs
+.Nm mount_mfs
 is started by the
 .Xr mount 8
 command.
@@ -223,7 +228,8 @@ command.
 .Xr diskpart 8 ,
 .Xr fsck 8 ,
 .Xr format 8 ,
-.Xr tunefs 8
+.Xr tunefs 8 ,
+.Xr mount 8
 .Rs
 .%A M. McKusick
 .%A W. Joy

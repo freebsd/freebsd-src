@@ -1,6 +1,6 @@
 /*
  *	from: debug.h, part of Bruce Evans interrupt code
- *	$Id: debug.h,v 1.2.2.1 1993/11/14 18:12:59 rgrimes Exp $
+ *	$Id: debug.h,v 1.3 1993/11/13 02:25:20 davidg Exp $
  */
 
 #define	SHOW_A_LOT_NOT

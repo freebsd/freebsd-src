@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	from: "@(#)daemon.c	5.3 (Berkeley) 12/28/90
+ *	$Id: daemon.c,v 1.3 1994/02/23 09:56:41 rgrimes Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -62,4 +65,5 @@ daemon(nochdir, noclose)
 				(void) close(devnull);
 		}
 	}
+	return 0;
 }

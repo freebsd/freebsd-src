@@ -33,8 +33,6 @@
  *	@(#)mpool.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _MPOOL_H_
-#define _MPOOL_H
 /*
  * The memory pool scheme is a simple one.  Each in memory page is referenced
  * by a bucket which is threaded in three ways.  All active pages are threaded
@@ -135,5 +133,3 @@ int	 mpool_close __P((MPOOL *));
 void	 mpool_stat __P((MPOOL *));
 #endif
 __END_DECLS
-
-#endif /* _MPOOL_H_ */

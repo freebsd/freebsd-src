@@ -36,13 +36,14 @@
 .ds RH "Upgrading a 4.2BSD or \*(Ps System
 .ds CF \*(DY
 .LP
-.nr H1 3
-.nr H2 0
+.\".nr H1 3
+.\".nr H2 0
 .bp
 .LG
 .B
 .ce
-3. UPGRADING A 4.2BSD OR \*(Ps SYSTEM
+.NH 1
+UPGRADING A 4.2BSD OR \*(Ps SYSTEM
 .sp 2
 .R
 .NL

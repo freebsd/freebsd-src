@@ -1,0 +1,321 @@
+7.  Logical Interface 
+
+7.1  General 
+
+7.1.1  Bit Conventions
+
+Bit names are shown in all upper case letters except where a lower case n 
+precedes a bit name. This indicates that when nBIT=0 (bit is zero) the action 
+is true and when nBIT=1 (bit is one) the action is false. If there is no 
+preceding n, then when BIT=1 it is true, and when BIT=0 it is false. 
+
+A bit can be set to one or cleared to zero and polarity influences whether it 
+is to be interpreted as true or false:
+
+          True      BIT=1       nBIT=0 
+          False     BIT=0       nBIT=1 
+
+7.1.2  Environment
+
+The drives using this interface shall be programmed by the host computer to 
+perform commands and return status to the host at command completion. When two 
+drives are daisy chained on the interface, commands are written in parallel to 
+both drives, and for all except the Execute Diagnostics command, only the 
+selected drive executes the command. On an Execute Diagnostics command 
+addressed to Drive 0, both drives shall execute the command, and Drive 1 shall 
+post its status to Drive 0 via PDIAG-.
+
+Drives are selected by the DRV bit in the Drive/Head Register (see 7.2.8), and 
+by a jumper or switch on the drive designating it as either a Drive 0 or as 
+Drive 1. When DRV=0, Drive 0 is selected. When DRV=1, Drive 1 is selected. 
+When drives are daisy chained, one shall be set as Drive 0 and the other as 
+Drive 1. When a single drive is attached to the interface it shall be set as 
+Drive 0. 
+
+Prior to the adoption of this standard, some drives may have provided jumpers 
+to indicate Drive 0 with no Drive 1 present, or Drive 0 with Drive 1 present.
+
+Throughout this document, drive selection always refers to the state of the 
+DRV bit, and the position of the Drive 0/Drive 1 jumper or switch. 
+
+7.2  I/O Register Descriptions 
+
+Communication to or from the drive is through an I/O Register that routes the 
+input or output data to or from registers (selected) by a code on signals from 
+the host (CS1FX-, CS3FX-, DA2, DA1, DA0, DIOR- and DIOW-). 
+
+The Command Block Registers are used for sending commands to the drive or 
+posting status from the drive. 
+
+The Control Block Registers are used for drive control and to post alternate 
+status. 
+
+Table 7-1 lists these registers and the addresses that select them. 
+
+Logic conventions are:   A = signal asserted
+                         N = signal negated
+                         x = does not matter which it is
+
+            TABLE 7-1:  I/O PORT FUNCTIONS/SELECTION ADDRESSES 
+ +-------------------------------+-----------------------------------------+
+ |         Addresses             |                 Functions               |
+ |CS1FX-|CS3FX-| DA2 | DA1 | DA0 |    READ (DIOR-)     |   WRITE (DIOW-)   |
+ +------+------+-----+-----+-----+---------------------+-------------------+
+ |                                        Control Block Registers          |
+ +------+------+-----+-----+-----+---------------------+-------------------+
+ |  N   |  N   |  x  |  x  |  x  | Data Bus High Imped | Not used          |
+ |  N   |  A   |  0  |  x  |  X  | Data Bus High Imped | Not used          |
+ |  N   |  A   |  1  |  0  |  x  | Data Bus High Imped | Not used          |
+ |  N   |  A   |  1  |  1  |  0  | Alternate Status    | Device Control    | 
+ |  N   |  A   |  1  |  1  |  1  | Drive Address       | Not used          |
+ +------+------+-----+-----+-----+---------------------+-------------------+
+ |                                        Command Block Registers          |
+ +------+------+-----+-----+-----+---------------------+-------------------+
+ |  A   |  N   |  0  |  0  |  0  | Data                | Data              |
+ |  A   |  N   |  0  |  0  |  1  | Error Register      | Features          |
+ |  A   |  N   |  0  |  1  |  0  | Sector Count        | Sector Count      |
+ |  A   |  N   |  0  |  1  |  1  | Sector Number       | Sector Number     | 
+ |  A   |  N   |  1  |  0  |  0  | Cylinder Low        | Cylinder Low      |
+ |  A   |  N   |  1  |  0  |  1  | Cylinder High       | Cylinder High     | 
+ |  A   |  N   |  1  |  1  |  0  | Drive/Head          | Drive/Head        |
+ |  A   |  N   |  1  |  1  |  1  | Status              | Command           |
+ |  A   |  A   |  x  |  x  |  x  | Invalid Address     | Invalid Address   |
+ +------+------+-----+-----+-----+---------------------+-------------------+
+
+7.2.1  Alternate Status Register
+
+This register contains the same information as the Status Register in the 
+command block. The only difference being that reading this register does not 
+imply interrupt acknowledge or clear a pending interrupt. 
+
+         7       6       5       4       3       2       1       0 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+     |  BSY  | DRDY  |  DWF  |  DSC  |  DRQ  | CORR  |  IDX  |  ERR  | 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+
+See 7.2.13 for definitions of the bits in this register. 
+
+7.2.2  Command Register 
+
+This register contains the command code being sent to the drive. Command 
+execution begins immediately after this register is written. The executable 
+commands, the command codes, and the necessary parameters for each command are 
+listed in Table 9-1.
+
+7.2.3  Cylinder High Register
+
+This register contains the high order bits of the starting cylinder address 
+for any disk access. At the end of the command, this register is updated to 
+reflect the current cylinder number. The most significant bits of the cylinder 
+address shall be loaded into the cylinder high Register. 
+
+..rm102
+  NOTE: Prior to the introduction of this standard, only the lower 2 bits of 
+        this register were valid, limiting cylinder address to 10 bits i.e. 
+        1,024 cylinders.
+
+7.2.4  Cylinder Low Register
+
+This register contains the low order 8 bits of the starting cylinder address 
+for any disk access. At the end of the command, this register is updated to 
+reflect the current cylinder number. 
+
+7.2.5  Data Register
+
+This 16-bit register is used to transfer data blocks between the device data 
+buffer and the host. It is also the register through which sector information 
+is transferred on a Format command. Data transfers may be either PIO or DMA. 
+
+7.2.6  Device Control Register
+
+The bits in this register are as follows: 
+
+         7       6       5       4       3       2       1       0 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+     |   x   |   x   |   x   |   x   |   1   | SRST  |  nIEN |   0   | 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+
+ - SRST is the host software reset bit. The drive is held reset when this bit 
+   is set. If two disk drives are daisy chained on the interface, this bit 
+   resets both simultaneously. Drive 1 is not required to execute the DASP- 
+   handshake procedure.
+ - nIEN is the enable bit for the drive interrupt to the host. When nIEN=0, 
+   and the drive is selected, INTRQ shall be enabled through a tri-state 
+   buffer. When nIEN=1, or the drive is not selected, the INTRQ signal shall 
+   be in a high impedance state. 
+
+7.2.7  Drive Address Register
+
+This register contains the inverted drive select and head select addresses of 
+the currently selected drive. The bits in this register are as follows: 
+
+         7       6       5       4       3       2       1       0 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+     |  HiZ  |  nWTG |  nHS3 |  nHS2 |  nHS1 |  nHS0 |  nDS1 |  nDS0 | 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+
+ - HiZ shall always be in a high impedance state. 
+ - nWTG is the Write Gate bit. When writing to the disk drive is in progress, 
+   nWTG=0.
+ - nHS3 through nHS0 are the one's complement of the binary coded address of 
+   the currently selected head. For example, if nHS3 through nHS0 are 1100b, 
+   respectively, head 3 is selected. nHS3 is the most significant bit. 
+ - nDS1 is the drive select bit for drive 1. When drive 1 is selected and 
+   active, nDS1=0. 
+ - nDS0 is the drive select bit for drive 0. When drive 0 is selected and 
+   active, nDS0=0.
+
+..rm102
+  NOTE: Care should be used when interpreting these bits, as they do not 
+        always represent the expected status of drive operations at the 
+        instant the status was put into this register. This is because of the 
+        use of cacheing, translate mode and the Drive 0/Drive 1 concept with 
+        each drive having its own embedded controller. 
+
+7.2.8  Drive/Head Register
+
+This register contains the drive and head numbers. The contents of this 
+register define the number of heads minus 1, when executing an Initialize 
+Drive Parameters command. 
+
+         7       6       5       4       3       2       1       0 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+     |   1   |   0   |   1   |  DRV  |  HS3  |  HS2  |  HS1  |  HS0  | 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+
+ - DRV is the binary encoded drive select number. When DRV=0, Drive 0 is 
+   selected. When DRV=1, Drive 1 is selected.
+ - HS3 through HS0 contain the binary coded address of the head to be selected 
+   e.g. if HS3 through HS0 are 0011b, respectively, head 3 will be selected. 
+   HS3 is the most significant bit. At command completion, this register is 
+   updated to reflect the currently selected head. 
+
+7.2.9  Error Register 
+
+This register contains status from the last command executed by the drive or a 
+Diagnostic Code. 
+
+At the completion of any command except Execute Drive Diagnostic, the contents 
+of this register are valid when ERR=1 in the Status Register. 
+
+Following a power on, a reset, or completion of an Execute Drive Diagnostic 
+command, this register contains a Diagnostic Code (see Table 9-2). 
+
+         7       6       5       4       3       2       1       0 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+     | BBK   |  UNC  |   0   |  IDNF |   0   | ABRT  | TK0NF |  AMNF |
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+
+ - BBK (Bad Block Detected) indicates a bad block mark was detected in the 
+   requested sector's ID field. 
+ - UNC (Uncorrectable Data Error) indicates an uncorrectable data error has 
+   been encountered. 
+ - IDNF (ID Not Found) indicates the requested sector's ID field could not be 
+   found. 
+ - ABRT (Aborted Command) indicates the requested command has been aborted due 
+   to a drive status error (Not Ready, Write Fault, etc.) or because the 
+   command code is invalid. 
+ - TK0NF (Track 0 Not Found) indicates track 0 has not been found during a 
+   Recalibrate command. 
+ - AMNF (Address Mark Not Found) indicates the data address mark has not been 
+   found after finding the correct ID field. 
+ - Unused bits are cleared to zero. 
+
+7.2.10  Features Register
+
+This register is command specific and may be used to enable and disable 
+features of the interface e.g. by the Set Features Command to enable and 
+disable cacheing. 
+
+This register may be ignored by some drives. 
+
+Some hosts, based on definitions prior to the completion of this standard, set 
+values in this register to designate a recommended Write Precompensation 
+Cylinder value. 
+
+7.2.11  Sector Count Register
+
+This register contains the number of sectors of data requested to be 
+transferred on a read or write operation between the host and the drive. If 
+the value in this register is zero, a count of 256 sectors is specified. 
+
+If this register is zero at command completion, the command was successful. If 
+not successfully completed, the register contains the number of sectors which 
+need to be transferred in order to complete the request.
+
+The contents of this register may be defined otherwise on some commands e.g. 
+Initialize Drive Parameters, Format Track or Write Same commands. 
+
+7.2.12  Sector Number Register
+
+This register contains the starting sector number for any disk data access for 
+the subsequent command. The sector number may be from 1 to the maximum number 
+of sectors per track. 
+
+See the command descriptions for contents of the register at command 
+completion (whether successful or unsuccessful).
+
+..Typically, when a read or write command completes successfully, the value 
+..in the register is the last sector number accessed modulo the number of 
+..sectors per track. Typically, if a command does not complete successfully, 
+..the register contains the sector number at which an error occurred on a 
+..multiple sector transfer. 
+..
+7.2.13  Status Register
+
+This register contains the drive status. The contents of this register are 
+updated at the completion of each command. When BSY is cleared, the other bits 
+in this register shall be valid within 400 nsec. If BSY=1, no other bits in 
+this register are valid. If the host reads this register when an interrupt is 
+pending, it is considered to be the interrupt acknowledge. Any pending 
+interrupt is cleared whenever this register is read. 
+
+..rm102
+  NOTE: If Drive 1 is not detected as being present, Drive 0 clears the Drive 
+        1 Status Register to 00h (indicating that the drive is Not Ready).
+
+         7       6       5       4       3       2       1       0 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+     |  BSY  | DRDY  |  DWF  |  DSC  |  DRQ  | CORR  |  IDX  |  ERR  | 
+     +-------+-------+-------+-------+-------+-------+-------+-------+
+
+ - BSY (Busy) is set whenever the drive has access to the Command Block 
+   Registers. The host should not access the Command Block Register when 
+   BSY=1. When BSY=1, a read of any Command Block Register shall return the 
+   contents of the Status Register. This bit is set by the drive (which may be 
+   able to respond at times when the media cannot be accessed) under the 
+   following circumstances: 
+   a) within 400 nsec after the negation of RESET- or after SRST has been set 
+      in the Device Control Register. Following acceptance of a reset it is 
+      recommended that BSY be set for no longer than 30 seconds by Drive 1 and 
+      no longer than 31 seconds by Drive 0.
+   b) within 400 nsec of a host write of the Command Register with a Read, 
+      Read Long, Read Buffer, Seek, Recalibrate, Initialize Drive Parameters, 
+      Read Verify, Identify Drive, or Execute Drive Diagnostic command. 
+   c) within 5 usecs following transfer of 512 bytes of data during execution 
+      of a Write, Format Track, or Write Buffer command, or 512 bytes of data 
+      and the appropriate number of ECC bytes during the execution of a Write 
+      Long command. 
+ - DRDY (Drive Ready) indicates that the drive is capable of responding to a 
+   command. When there is an error, this bit is not changed until the Status 
+   Register is read by the host, at which time the bit again indicates the 
+   current readiness of the drive. This bit shall be cleared at power on and 
+   remain cleared until the drive is ready to accept a command. 
+ - DWF (Drive Write Fault) indicates the current write fault status. When an 
+   error occurs, this bit shall not be changed until the Status Register is 
+   read by the host, at which time the bit again indicates the current write 
+   fault status. 
+ - DSC (Drive Seek Complete) indicates that the drive heads are settled over a 
+   track. When an error occurs, this bit shall not be changed until the Status 
+   Register is read by the host, at which time the bit again indicates the 
+   current Seek Complete status. 
+ - DRQ (Data Request) indicates that the drive is ready to transfer a word or 
+   byte of data between the host and the drive.
+ - CORR (Corrected Data) indicates that a correctable data error was 
+   encountered and the data has been corrected. This condition does not 
+   terminate a data transfer. 
+ - IDX (Index) is set once per disk revolution. 
+ - ERR (Error) indicates that an error occurred during execution of the 
+   previous command. The bits in the Error Register have additional 
+   information regarding the cause of the error. 
+

@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	1.3 (Berkeley) 5/7/91
 #	Makefile,v 1.2 1993/07/31 15:33:14 mycroft Exp
 
-DIR=	smm/01.setup/tahoe
+VOLUME=	smm
 DOC=	01.setup
 
 RSRC=	../common/renohints.t

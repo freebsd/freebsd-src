@@ -1,11 +1,22 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.3 1993/10/16 17:16:25 rgrimes Exp $
+ *	$Id: cdio.h,v 1.6 1994/02/05 09:14:24 swallace Exp $
  */
 /* Shared between kernel & process */
-#ifndef SYS_CDIO_H
-#define SYS_CDIO_H
+#ifndef _SYS_CDIO_H_
+#define _SYS_CDIO_H_
+
+union msf_lba {
+	struct {
+		unsigned char   unused;
+		unsigned char   minute;
+		unsigned char   second;
+		unsigned char   frame;
+	} msf;
+	int     lba;
+	u_char	addr[4];
+};
 
 struct cd_toc_entry {
 	u_char	:8;
@@ -13,7 +24,7 @@ struct cd_toc_entry {
 	u_char	addr_type:4;
 	u_char  track;
 	u_char	:8;
-	u_char	addr[4];
+	union msf_lba  addr;
 };
 
 struct cd_sub_channel_header {
@@ -34,8 +45,8 @@ struct cd_sub_channel_position_data {
 	u_char	addr_type:4;
 	u_char	track_number;
 	u_char	index_number;
-	u_char	absaddr[4];
-	u_char	reladdr[4];
+	union msf_lba  absaddr;
+	union msf_lba  reladdr;
 };
 
 struct cd_sub_channel_media_catalog {
@@ -142,6 +153,8 @@ struct	ioc_vol
 #define	CDIOCSTART	_IO('c',22)
 #define	CDIOCSTOP	_IO('c',23)
 #define	CDIOCEJECT	_IO('c',24)
+#define	CDIOCALLOW	_IO('c',25)
+#define	CDIOCPREVENT	_IO('c',26)
 
 struct ioc_play_msf
 {
@@ -154,6 +167,4 @@ struct ioc_play_msf
 };
 #define	CDIOCPLAYMSF	_IOW('c',25,struct ioc_play_msf)
 
-
-
-#endif /* SYS_CDIO_H */
+#endif /* _SYS_CDIO_H_ */

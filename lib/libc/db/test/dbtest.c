@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)dbtest.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)dbtest.c	8.7 (Berkeley) 1/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -91,18 +91,22 @@ main(argc, argv)
 	DB *dbp;
 	DBT data, key, keydata;
 	size_t len;
-	int ch;
+	int ch, oflags;
 	char *fname, *infoarg, *p, buf[8 * 1024];
 
 	infoarg = NULL;
 	fname = NULL;
-	while ((ch = getopt(argc, argv, "f:i:o:")) != EOF)
+	oflags = O_CREAT | O_RDWR;
+	while ((ch = getopt(argc, argv, "f:i:lo:")) != EOF)
 		switch(ch) {
 		case 'f':
 			fname = optarg;
 			break;
 		case 'i':
 			infoarg = optarg;
+			break;
+		case 'l':
+			oflags |= DB_LOCK;
 			break;
 		case 'o':
 			if ((ofd = open(optarg,
@@ -145,7 +149,7 @@ main(argc, argv)
 		(void)unlink(buf);
 	}
 	if ((dbp = dbopen(fname,
-	    O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, type, infop)) == NULL)
+	    oflags, S_IRUSR | S_IWUSR, type, infop)) == NULL)
 		err("dbopen: %s", strerror(errno));
 	XXdbp = dbp;
 
@@ -238,7 +242,7 @@ ldata:			switch(command) {
 				err("line %lu: not expecting a key", lineno);
 			if (type == DB_RECNO) {
 				static recno_t recno;
-				recno = strtol(p + 1, NULL, 0);
+				recno = atoi(p + 1);
 				key.data = &recno;
 				key.size = sizeof(recno);
 			} else {
@@ -284,6 +288,10 @@ lkey:			switch(command) {
 			    p, lineno);
 		}
 	}
+#ifdef STATISTICS
+	if (type == DB_BTREE)
+		__bt_stat(dbp);
+#endif
 	if (dbp->close(dbp))
 		err("db->close: %s", strerror(errno));
 	(void)close(ofd);
@@ -502,75 +510,75 @@ setinfo(type, s)
 	switch(type) {
 	case DB_BTREE:
 		if (!strcmp("flags", s)) {
-			ib.flags = strtoul(eq, NULL, 0);
+			ib.flags = atoi(eq);
 			return (&ib);
 		}
 		if (!strcmp("cachesize", s)) {
-			ib.cachesize = strtoul(eq, NULL, 0);
+			ib.cachesize = atoi(eq);
 			return (&ib);
 		}
 		if (!strcmp("maxkeypage", s)) {
-			ib.maxkeypage = strtoul(eq, NULL, 0);
+			ib.maxkeypage = atoi(eq);
 			return (&ib);
 		}
 		if (!strcmp("minkeypage", s)) {
-			ib.minkeypage = strtoul(eq, NULL, 0);
+			ib.minkeypage = atoi(eq);
 			return (&ib);
 		}
 		if (!strcmp("lorder", s)) {
-			ib.lorder = strtoul(eq, NULL, 0);
+			ib.lorder = atoi(eq);
 			return (&ib);
 		}
 		if (!strcmp("psize", s)) {
-			ib.psize = strtoul(eq, NULL, 0);
+			ib.psize = atoi(eq);
 			return (&ib);
 		}
 		break;
 	case DB_HASH:
 		if (!strcmp("bsize", s)) {
-			ih.bsize = strtoul(eq, NULL, 0);
+			ih.bsize = atoi(eq);
 			return (&ih);
 		}
 		if (!strcmp("ffactor", s)) {
-			ih.ffactor = strtoul(eq, NULL, 0);
+			ih.ffactor = atoi(eq);
 			return (&ih);
 		}
 		if (!strcmp("nelem", s)) {
-			ih.nelem = strtoul(eq, NULL, 0);
+			ih.nelem = atoi(eq);
 			return (&ih);
 		}
 		if (!strcmp("cachesize", s)) {
-			ih.cachesize = strtoul(eq, NULL, 0);
+			ih.cachesize = atoi(eq);
 			return (&ih);
 		}
 		if (!strcmp("lorder", s)) {
-			ih.lorder = strtoul(eq, NULL, 0);
+			ih.lorder = atoi(eq);
 			return (&ih);
 		}
 		break;
 	case DB_RECNO:
 		if (!strcmp("flags", s)) {
-			rh.flags = strtoul(eq, NULL, 0);
+			rh.flags = atoi(eq);
 			return (&rh);
 		}
 		if (!strcmp("cachesize", s)) {
-			rh.cachesize = strtoul(eq, NULL, 0);
+			rh.cachesize = atoi(eq);
 			return (&rh);
 		}
 		if (!strcmp("lorder", s)) {
-			rh.lorder = strtoul(eq, NULL, 0);
+			rh.lorder = atoi(eq);
 			return (&rh);
 		}
 		if (!strcmp("reclen", s)) {
-			rh.reclen = strtoul(eq, NULL, 0);
+			rh.reclen = atoi(eq);
 			return (&rh);
 		}
 		if (!strcmp("bval", s)) {
-			rh.bval = strtoul(eq, NULL, 0);
+			rh.bval = atoi(eq);
 			return (&rh);
 		}
 		if (!strcmp("psize", s)) {
-			rh.psize = strtoul(eq, NULL, 0);
+			rh.psize = atoi(eq);
 			return (&rh);
 		}
 		break;
@@ -595,8 +603,10 @@ rfile(name, lenp)
 	if ((fd = open(name, O_RDONLY, 0)) < 0 ||
 	    fstat(fd, &sb))
 		err("%s: %s\n", name, strerror(errno));
+#ifdef NOT_PORTABLE
 	if (sb.st_size > (off_t)SIZE_T_MAX)
 		err("%s: %s\n", name, strerror(E2BIG));
+#endif
 	if ((p = malloc((u_int)sb.st_size)) == NULL)
 		err("%s", strerror(errno));
 	(void)read(fd, p, (int)sb.st_size);
@@ -622,7 +632,7 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: dbtest [-f file] [-i info] [-o file] type script\n");
+	    "usage: dbtest [-l] [-f file] [-i info] [-o file] type script\n");
 	exit(1);
 }
 

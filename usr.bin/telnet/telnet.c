@@ -57,8 +57,6 @@ static char sccsid[] = "@(#)telnet.c	5.53 (Berkeley) 3/22/91";
 #include "general.h"
 
 
-#define	strip(x)	((x)&0x7f)
-
 static unsigned char	subbuffer[SUBBUFSIZE],
 			*subpointer, *subend;	 /* buffer for sub-options */
 #define	SB_CLEAR()	subpointer = subbuffer;
@@ -1918,7 +1916,7 @@ telsnd()
 		break;
 	    }
 	}
-	c = *tbp++ & 0xff, sc = strip(c), tcc--; count++;
+	c = *tbp++, sc = c, tcc--; count++;
 	if (rlogin != _POSIX_VDISABLE) {
 		if (bol) {
 			bol = 0;
@@ -1959,7 +1957,7 @@ telsnd()
 	    /*
 	     * Double escape is a pass through of a single escape character.
 	     */
-	    if (tcc && strip(*tbp) == escape) {
+	    if (tcc && *tbp == escape) {
 		tbp++;
 		tcc--;
 		count++;
@@ -1976,7 +1974,7 @@ telsnd()
 	    bol = 0;
 #ifdef	KLUDGELINEMODE
 	if (kludgelinemode && (globalmode&MODE_EDIT) && (sc == echoc)) {
-	    if (tcc > 0 && strip(*tbp) == echoc) {
+	    if (tcc > 0 && *tbp == echoc) {
 		tcc--; tbp++; count++;
 	    } else {
 		dontlecho = !dontlecho;

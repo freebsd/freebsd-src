@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)malloc.h	7.25 (Berkeley) 5/15/91
- *	$Id: malloc.h,v 1.3 1993/10/16 17:17:04 rgrimes Exp $
+ *	$Id: malloc.h,v 1.4 1993/11/07 17:52:43 wollman Exp $
  */
 
 #ifndef _MALLOC_H_
@@ -95,7 +95,8 @@
 #define	M_TEMP		49	/* misc temporary data buffers */
 #define	M_PCFSMNT	50	/* PCFS mount structure */
 #define	M_PCFSFAT	51	/* PCFS fat table */
-#define	M_LAST		52
+#define M_IOBUF		52	/* buffer cache buffers */
+#define	M_LAST		53
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -146,6 +147,7 @@
 	"temp",		/* 49 M_TEMP */ \
 	"PCFS mount",	/* 50 M_PCFSMNT */ \
 	"PCFS fat",	/* 51 M_PCFSFAT */ \
+	"buffer cache",	/* 52 M_IOBUF */ \
 }
 
 struct kmemstats {

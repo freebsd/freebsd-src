@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_seq.h	7.4 (Berkeley) 6/28/90
- *	$Id: tcp_seq.h,v 1.2 1993/10/16 18:26:30 rgrimes Exp $
+ *	$Id: tcp_seq.h,v 1.3 1993/11/07 17:48:07 wollman Exp $
  */
+
+#ifndef _NETINET_TCP_SEQ_H_
+#define _NETINET_TCP_SEQ_H_ 1
 
 /*
  * TCP sequence numbers are 32 bit integers operated
@@ -59,5 +62,6 @@
 #define	TCP_ISSINCR	(125*1024)	/* increment for tcp_iss each second */
 
 #ifdef KERNEL
-tcp_seq	tcp_iss;		/* tcp initial send seq # */
+extern tcp_seq	tcp_iss;		/* tcp initial send seq # */
 #endif
+#endif /* _NETINET_TCP_SEQ_H_ */

@@ -96,6 +96,7 @@ show(count, name)
 	}
 	if (read(fd, &head, sizeof(head)) != sizeof(head) || N_BADMAG(head)) {
 		err("%s: not in a.out format", name);
+		(void)close(fd);
 		return (1);
 	}
 	(void)close(fd);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso_proto.c	7.8 (Berkeley) 5/6/91
- *	$Id: iso_proto.c,v 1.2 1993/10/16 21:05:25 rgrimes Exp $
+ *	$Id: iso_proto.c,v 1.3 1993/12/19 00:53:25 wollman Exp $
  */
 
 /***********************************************************
@@ -69,8 +69,8 @@ SOFTWARE.
  */
 
 #ifdef	ISO
-#include "types.h"
 #include "param.h"
+#include "systm.h"
 #include "socket.h"
 #include "protosw.h"
 #include "domain.h"
@@ -78,19 +78,25 @@ SOFTWARE.
 
 #include "iso.h"
 
-int clnp_output(), clnp_init(),clnp_slowtimo(),clnp_drain();
+int clnp_output();
+void clnp_init(),clnp_slowtimo(),clnp_drain();
 int rclnp_input(), rclnp_output(), rclnp_ctloutput(), raw_usrreq();
 int	clnp_usrreq();
 
 int	tp_ctloutput();
-int	tpclnp_ctlinput();
+void	tpclnp_ctlinput();
 int	tpclnp_input();
 int	tp_usrreq();
-int	tp_init(), tp_slowtimo(), tp_drain();
-int	cons_init(), tpcons_input();
+void	tp_init(), tp_slowtimo(), tp_drain();
+void	cons_init();
+int tpcons_input();
 
-int	esis_input(), esis_ctlinput(), esis_init(), esis_usrreq();
-int	cltp_input(), cltp_ctlinput(), cltp_init(), cltp_usrreq(), cltp_output();
+int	esis_input();
+void esis_ctlinput(), esis_init();
+int esis_usrreq();
+int	cltp_input(); 
+void cltp_ctlinput(), cltp_init();
+int cltp_usrreq(), cltp_output();
 int isis_input();
 
 struct protosw isosw[] = {
@@ -102,10 +108,10 @@ struct protosw isosw[] = {
  *  pffindtype, which gets the first entry that matches the type.
  *  sigh.
  */
-{ SOCK_DGRAM,	&isodomain,		ISOPROTO_CLTP,		PR_ATOMIC|PR_ADDR,
-	0,			cltp_output,	0,					0,
-	cltp_usrreq,
-	cltp_init,	0, 				0,					0
+{ SOCK_DGRAM,	&isodomain,	ISOPROTO_CLTP,		PR_ATOMIC|PR_ADDR,
+  0,		cltp_output,	0,			0,
+  cltp_usrreq,  cltp_init,	0,			0,
+  0
 },
 
 /*
@@ -172,4 +178,4 @@ struct domain isodomain = {
 	isosw,				/* protosw */
 	&isosw[sizeof(isosw)/sizeof(isosw[0])] /* NPROTOSW */
 };
-#endif	ISO
+#endif /* ISO */

@@ -1,0 +1,4 @@
+# $Id: nfsclient.flags,v 1.1 1993/11/12 03:46:11 wollman Exp $
+# This file lists options provided to the NFS I/O daemon `nfsiod', when
+# started at boot time.
+4

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1982, 1986, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ioctl.h	7.19 (Berkeley) 6/26/91
- *	$Id: ioctl.h,v 1.4 1993/10/12 04:57:33 rgrimes Exp $
+ *	$Id: ioctl.h,v 1.6.2.1 1994/05/04 07:57:16 rgrimes Exp $
  */
 
 #ifndef	_IOCTL_H_
@@ -71,11 +78,11 @@ struct ttysize {
 #define	IOCGROUP(x)	(((x) >> 8) & 0xff)
 
 #define	IOCPARM_MAX	NBPG		/* max size of ioctl, mult. of NBPG */
-#define	IOC_VOID	0x20000000	/* no parameters */
-#define	IOC_OUT		0x40000000	/* copy out parameters */
-#define	IOC_IN		0x80000000	/* copy in parameters */
+#define	IOC_VOID	0x20000000UL	/* no parameters */
+#define	IOC_OUT		0x40000000UL	/* copy out parameters */
+#define	IOC_IN		0x80000000UL	/* copy in parameters */
 #define	IOC_INOUT	(IOC_IN|IOC_OUT)
-#define	IOC_DIRMASK	0xe0000000	/* mask for IN/OUT/VOID */
+#define	IOC_DIRMASK	0xe0000000UL	/* mask for IN/OUT/VOID */
 
 #define	_IOC(inout,group,num,len) \
 	(inout | ((len & IOCPARM_MASK) << 16) | ((group) << 8) | (num))
@@ -149,6 +156,8 @@ struct ttysize {
 #define	TIOCDRAIN	_IO('t', 94)		/* wait till output drained */
 #define	TIOCMSBIDIR	_IOW('t', 93, int)	/* modem: set bidir cap. */
 #define	TIOCMGBIDIR	_IOR('t', 92, int)	/* modem: get bidir cap. */
+#define TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */
+#define TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
 
 #define	TTYDISC		0		/* termios tty line discipline */
 #define	NETLDISC	1		/* line discip for berk net */

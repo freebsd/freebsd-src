@@ -260,9 +260,11 @@ void cmd_substitute(frommark, tomark, cmd, bang, extra)
 
 					/* substitute for the matched part */
 #ifdef REGEX
-					regsub(rm, startp, endp, subst, d);
+					if (regsub(rm, startp, endp, subst, d) < 0)
+						return;
 #else
-					regsub(re, subst, d);
+					if (regsub(re, subst, d) < 0)
+						return;
 #endif
 #ifdef REGEX
 					s = endp;

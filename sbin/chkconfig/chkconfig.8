@@ -1,0 +1,160 @@
+.\" Copyright 1993, Garrett A. Wollman.
+.\" Copyright 1993, University of Vermont and State Agricultural College.
+.\" All Rights Reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE UNIVERSITY AND AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE UNIVERSITY OR AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: chkconfig.8,v 1.4 1993/11/12 03:58:43 wollman Exp $
+.\"
+.Dd November 10, 1993
+.Dt CHKCONFIG 8
+.Os "FreeBSD"
+.Sh NAME
+.Nm chkconfig
+.Nd "set and inquire the state of system configuration files"
+.Sh SYNOPSIS
+.Nm chkconfig
+.Op Fl d Ar dirname
+.Op Fl s
+.Nm chkconfig
+.Op Fl d Ar dirname
+.Op Fl v
+.Ar option
+.Nm chkconfig
+.Op Fl d Ar dirname
+.Fl o
+.Ar option
+.Nm chkconfig
+.Op Fl d Ar dirname
+.Op Fl f
+.Op Fl v
+.Ar option
+.Ar state
+.Sh DESCRIPTION
+The
+.Nm chkconfig
+program is used to set and inquire the state of the system
+configuration files.  These files are used by the system startup
+scripts
+.Pa /etc/rc ,
+.Pa /etc/netstart ,
+and
+.Pa /etc/rc.local
+to determine which programs and services to start when the system
+boots.  The configuration files are normally located in the directory
+.Pa /etc/config ,
+but an alternate location can be specified with the
+.Fl d
+flag.
+By convention, configuration file names do not contain dots (which are
+reserved for files containing command-line options for various
+programs), but this is not strictly enforced.
+.Pp
+There are four forms of the
+.Nm chkconfig
+command.  The first form, with no
+.Ar option
+argument, lists the state of the entire set of options.  If the
+.Fl s
+flag is specified, the files are first sorted according to the state
+of each option; by default, they are sorted in ASCII collation order.
+If there is a
+.Pa .flags
+file with the same basename as an option file, the flags listed therein are
+also printed.
+.Pp
+The second form, with only a
+.Ar option
+argument (and no state) specified, retrieves the current value of the
+specified option.  If the appropriate file exists and contains only
+the word ``on'', then the option is considered to be on; otherwise it
+is considered to be off.  Comments are allowed, using the `#'
+character, but must begin in the first column of the file.
+If the
+.Fl v
+flag is specified,
+.Nm chkconfig
+displays the status on the standard output.  In either case,
+.Nm chkconfig
+exits with a status of zero (true) if the option is on, or 1 (false)
+otherwise.
+.Pp
+The third form, with the
+.Fl o
+flag specified, does not actually have anything to do with options,
+but was included in
+.Nm chkconfig
+for convenience.  It looks in the configuration directory for a file
+named
+.Ar option Ns No .flags ,
+and skips any comment lines, then prints the next line on the standard
+output.
+.Pp
+The fourth form, with both
+.Ar option
+and
+.Ar state
+specified, attempts to change the state of
+.Ar option
+to be
+.Ar state ,
+which is interpreted in the same way as the file contents (above).  If
+the configuration file does not already exist, the
+.Fl f
+flag must be specified to force creation of a new file.  If the
+.Fl v
+flag is specified,
+.Nm chkconfig
+displays the new status on the standard output if successful.
+If unsuccessful,
+.Nm chkconfig
+displays an error message and exits with a non-zero return value.
+.Sh SEE ALSO
+.Xr rc 8
+.Sh FILES
+.Bl -tag -width /etc/netstart -compact
+.It Pa /etc/rc
+system startup file
+.It Pa /etc/netstart
+network startup file
+.It Pa /etc/rc.local
+secondary system startup file
+.It Pa /etc/config
+default location for system configuration files
+.El
+.Sh BUGS
+The
+.Fl f
+option is bogus, and kept only for SGI compatibility.
+.Sh HISTORY
+The
+.Nm chkconfig
+command is modeled after the command of the same name in Silicon
+Graphics' IRIX.  The
+.Fl d
+and
+.Fl o
+flags are extensions to the SGI version, as is the ability to have
+comments in the configuration files.
+.Sh AUTHOR
+.Nm chkconfig
+was written by Garrett A. Wollman, University of Vermont.

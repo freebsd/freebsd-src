@@ -30,7 +30,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/usr.bin/lex/scan.l,v 1.2 1993/06/29 03:27:19 nate Exp $ (LBL)";
+    "@(#) $Header: /home/cvs/386BSD/src/usr.bin/lex/scan.l,v 1.2 1993/06/29 03:27:19 nate Exp $ (LBL)";
 #endif
 
 #undef yywrap

@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_get.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)bt_get.c	8.2 (Berkeley) 9/7/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -70,11 +70,20 @@ __bt_get(dbp, key, data, flags)
 	EPG *e;
 	int exact, status;
 
+	t = dbp->internal;
+
+	/* Toss any page pinned across calls. */
+	if (t->bt_pinned != NULL) {
+		mpool_put(t->bt_mp, t->bt_pinned, 0);
+		t->bt_pinned = NULL;
+	}
+
+	/* Get currently doesn't take any flags. */
 	if (flags) {
 		errno = EINVAL;
 		return (RET_ERROR);
 	}
-	t = dbp->internal;
+
 	if ((e = __bt_search(t, key, &exact)) == NULL)
 		return (RET_ERROR);
 	if (!exact) {
@@ -99,7 +108,14 @@ __bt_get(dbp, key, data, flags)
 	}
 
 	status = __bt_ret(t, e, NULL, data);
-	mpool_put(t->bt_mp, e->page, 0);
+	/*
+	 * If the user is doing concurrent access, we copied the
+	 * key/data, toss the page.
+	 */
+	if (ISSET(t, B_DB_LOCK))
+		mpool_put(t->bt_mp, e->page, 0);
+	else
+		t->bt_pinned = e->page;
 	return (status);
 }
 

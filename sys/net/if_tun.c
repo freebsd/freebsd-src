@@ -7,7 +7,7 @@
  *	from: Revision 1.13  88/07/11  08:28:51  jpo
  *	from: 90/02/06 15:03 - Fixed a bug in where
  *				TIOCGPGRP and TIOCSPGRP were mixed up
- *	$Id: if_tun.c,v 1.2 1993/10/16 17:43:24 rgrimes Exp $
+ *	$Id: if_tun.c,v 1.3 1993/11/07 21:47:52 wollman Exp $
  */
 
 /* if_tun.c - tunnel interface module & driver */
@@ -429,7 +429,7 @@ struct uio     *uio;
                                 return EWOULDBLOCK;
                         }
                         tp->tun_flags |= TUN_RWAIT;
-                        sleep ((caddr_t) tp, PZERO + 1);
+                        tsleep ((caddr_t) tp, PZERO + 1, "tunread", 0);
                 }
         } while (m0 == 0);
         splx (s);

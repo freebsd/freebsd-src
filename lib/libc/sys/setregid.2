@@ -29,11 +29,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)setregid.2	6.4 (Berkeley) 3/10/91
+.\"     From: @(#)setregid.2	6.4 (Berkeley) 3/10/91
+.\"	$Id: setregid.2,v 1.1.1.1.2.1 1994/05/01 16:06:13 jkh Exp $
 .\"
-.Dd March 10, 1991
+.Dd March 16, 1994
 .Dt SETREGID 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm setregid
 .Nd set real and effective group ID
@@ -42,15 +43,42 @@
 .Ft int
 .Fn setregid "int rgid" "int egid"
 .Sh DESCRIPTION
-The real and effective group ID's of the current process
-are set to the arguments.
-Unprivileged users may change the real group
-ID to the effective group ID and vice-versa; only the super-user may
-make other changes.
+NB: In
+.Fx 1.0.2
+and earlier versions, this function would set the real and effective
+group ID's of the current process according to the arguments.  In
+.Fx 1.1 ,
+we have adopted the behavior of
+.Bx 4.4 .
 .Pp
-Supplying a value of -1 for either the real or effective
-group ID forces the system to substitute the current
-ID in place of the -1 parameter.
+The
+.Nm
+function is normally used by programs which wish to temporarily
+renounce special privileges they have gained (usually as a result of
+being set-gid executables), by swapping real and effective
+group ID's, so that the renunciation is reversible.
+This can result in a security hole, and does not integrate well with
+the
+.Tn POSIX
+saved group ID.  In
+.Fx 1.1 ,
+the
+.Nm
+function will never actually set the real group ID; however, it will
+check its value to ensure that a future
+.Xr setegid 2
+call with the
+.Fa rgid
+argument will succeed.
+.Pp
+If
+.Fa rgid
+or 
+.Fa egid
+is -1, the current ID is filled in by the system.
+The effective group ID is set, if requested, as if
+.Xr setegid 2
+had been called.
 .Sh RETURN VALUES
 Upon successful completion, a value of 0 is returned.  Otherwise,
 a value of -1 is returned and

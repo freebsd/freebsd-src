@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -31,17 +38,22 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)callout.h	7.2 (Berkeley) 2/15/91
- *	$Id: callout.h,v 1.2 1993/10/16 17:16:23 rgrimes Exp $
+ *	$Id: callout.h,v 1.4.2.1 1994/05/04 07:57:02 rgrimes Exp $
  */
+
+#ifndef _SYS_CALLOUT_H_
+#define _SYS_CALLOUT_H_ 1
 
 struct callout {
 	struct callout *c_next;		/* next callout in queue */
 	caddr_t c_arg;			/* function argument */
-	int (*c_func)();		/* function to call */
+	void (*c_func)(caddr_t, int);	/* function to call */
 	int c_time;			/* ticks to the event */
 };
 
 #ifdef KERNEL
-struct callout *callfree, *callout, calltodo;
-int ncallout;
+extern struct callout *callfree, *callout, calltodo;
+extern int ncallout;
 #endif
+
+#endif /* _SYS_CALLOUT_H_ */

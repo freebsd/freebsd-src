@@ -198,6 +198,7 @@ char **argv;
 	port = srvp->s_port;
 	server.sin_port = srvp->s_port;
 	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = htonl(INADDR_ANY);
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
 		syslog(LOG_ERR, "socket: %m");

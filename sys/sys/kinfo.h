@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kinfo.h	7.9 (Berkeley) 6/26/91
- *	$Id: kinfo.h,v 1.2 1993/10/16 17:16:57 rgrimes Exp $
+ *	$Id: kinfo.h,v 1.3 1993/11/07 17:52:40 wollman Exp $
  */
+
+#ifndef _SYS_KINFO_H_
+#define _SYS_KINFO_H_ 1
 
 /*
  * Get kernel info
@@ -90,3 +93,4 @@ __BEGIN_DECLS
 int	getkerninfo __P((int, void *, int *, int));
 __END_DECLS
 #endif
+#endif /* _SYS_KINFO_H_ */

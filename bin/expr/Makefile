@@ -3,8 +3,6 @@
 PROG=		expr
 SRCS=		expr.c 
 CLEANFILES+=	expr.c y.tab.h
-LDADD+=		-lgnuregex
-DPADD+=		/usr/lib/libgnuregex.a
 
 expr.c:
 	${YACC} -d ${.IMPSRC}

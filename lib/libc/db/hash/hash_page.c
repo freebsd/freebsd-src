@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)hash_page.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)hash_page.c	8.2 (Berkeley) 9/6/93";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -302,12 +302,8 @@ ugly_split(hashp, obucket, old_bufp, new_bufp, copyto, moved)
 	n = ino[0] - 1;
 	while (n < ino[0]) {
 		if (ino[2] < REAL_KEY && ino[2] != OVFLPAGE) {
-			/*
-			 * Ov_addr gets set before reaching this point; there's
-			 * always an overflow page before a big key/data page.
-			 */
 			if (__big_split(hashp, old_bufp,
-			    new_bufp, bufp, ov_addr, obucket, &ret))
+			    new_bufp, bufp, bufp->addr, obucket, &ret))
 				return (-1);
 			old_bufp = ret.oldp;
 			if (!old_bufp)
@@ -409,11 +405,14 @@ __addel(hashp, bufp, key, val)
 
 	bp = (u_short *)bufp->page;
 	do_expand = 0;
-	while (bp[0] && (bp[bp[0]] < REAL_KEY))
+	while (bp[0] && (bp[2] < REAL_KEY || bp[bp[0]] < REAL_KEY))
 		/* Exception case */
-		if (bp[2] < REAL_KEY && bp[bp[0]] != OVFLPAGE) {
-			/* This is a big-keydata pair */
-			bufp = __add_ovflpage(hashp, bufp);
+		if (bp[2] == FULL_KEY_DATA && bp[0] == 2)
+			/* This is the last page of a big key/data pair
+			   and we need to add another page */
+			break;
+		else if (bp[2] < REAL_KEY && bp[bp[0]] != OVFLPAGE) {
+			bufp = __get_buf(hashp, bp[bp[0] - 1], bufp, 0);
 			if (!bufp)
 				return (-1);
 			bp = (u_short *)bufp->page;

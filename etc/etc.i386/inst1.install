@@ -226,17 +226,21 @@ if [ $sysid_cnt -eq 0 ]; then
 elif [ "$have_opsys_part" ]; then
 	echo
 	echo "386/Net/FreeBSD partition already exists!"
-	echo -n "Overwrite existing partition? [n] "
+	echo "${OPSYSTEM} cannot be installed alongside an existing BSD partition."
+	echo -n "Overwrite existing partition? [y] "
 	read resp junk
-	case "$resp" in
+	case "${resp:-y}" in
 	y*|Y*)
 		opsys_part=${have_opsys_part}
 		set_existing_part
 		return 0
 		;;
 	*)
-		have_opsys_part=
-		# FALL THROUGH
+		echo
+		echo	"Installation aborted.  Enter \`halt' to halt the machine."
+		echo	"Once the machine has halted, remove the floppy,"
+		echo	"and press any key to reboot."
+		exit
 		;;
 	esac
 fi
@@ -381,6 +385,8 @@ fi
 
 }
 
+echo
+echo
 echo	"Welcome to ${OPSYSTEM}."
 echo
 echo	"This program is designed to help put ${OPSYSTEM} on a hard disk with"
@@ -413,15 +419,15 @@ y*|Y*)
 	;;
 *)
 	echo
-	echo	"OK, then.  Enter \`halt' to halt the machine."
+	echo	"Installation aborted.  Enter \`halt' to halt the machine."
 	echo	"Once the machine has halted, remove the floppy,"
 	echo	"and press any key to reboot."
 	exit
 	;;
 esac
 
-mount -u /dev/fd0a / || {
-	if mount -u /dev/fd1a / ; then
+mount -u /dev/fd0 / || {
+	if mount -u /dev/fd1 / ; then
 		echo "[Please ignore the above error message, that's normal.]"
 	else
 		echo "Oh boy, we're in trouble here: Could not mount floppy read-write."
@@ -478,7 +484,7 @@ echo
 echo	"Disk is of device type $drivetype."
 if [ ! "$partition" ]; then
 	echo
-	echo	"Please wait.  Examining device /dev/r${drivename}d..."
+	echo	"Examining device /dev/r${drivename}d..."
 	get_fdisk_data
 	if [ $? -gt 1 ]; then
 		echo "Hm  - we can't seem to read that drive."
@@ -494,7 +500,7 @@ if [ ! "$partition" ]; then
 			;;
 		*)
 			echo
-			echo "Okay.  Let's start again from the top."
+			echo "Oops.  Let's start again from the top."
 			continue
 			;;
 		esac
@@ -754,8 +760,8 @@ while [ $part_used -lt $partition ]; do
 		part_used=partition
 	fi
 done
-if [ "$have_dos_part" != "$opsys_part" -a "$RUN_FDISK" != "overwrite" -a \
-    ! "$hname" ]; then
+if [ "$have_dos_part" -a "$have_dos_part" != "$opsys_part" -a \
+    "$RUN_FDISK" != "" -a "$RUN_FDISK" != "overwrite" -a ! "$hname" ]; then
 	echo
 	echo	"There appears to be a MS-DOS filesystem on the hard disk."
 	echo -n "Make this be accessible from ${OPSYSTEM}? [y] "
@@ -811,7 +817,7 @@ esac
 
 
 echo
-echo	"OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
+echo	"THIS IS THE LAST CHANCE!!!  Data on the hard disk will be lost!"
 echo -n "Are you sure you want to install on the hard drive? (yes/no) "
 resp=""
 while [ ! "$resp" ]; do
@@ -820,7 +826,7 @@ while [ ! "$resp" ]; do
 	Yes|yes|YES)
 		verified_install=1
 		echo
-		echo	"OK!  Here we go..."
+		echo	"Here we go..."
 		;;
 	No|no|NO)
 		echo
@@ -832,7 +838,7 @@ while [ ! "$resp" ]; do
 			;;
 		*)
 			echo
-			echo	"OK, then.  Enter 'halt' to halt the machine."
+			echo	"Installation aborted.  Enter 'halt' to halt the machine."
 			echo	"Once the machine has halted, remove the floppy,"
 			echo	"and press any key to reboot."
 			exit
@@ -855,6 +861,10 @@ echo -n "Labelling disk..."
 echo y | 
 /sbin/disklabel -w -r ${drivename} $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype} >/dev/null 2>&1
 echo	" done."
+
+# XXX - Do it again, incase we disklabeled sector 0!
+# XXX - this is not working for some reason, need to look at it closer!
+put_fdisk_data
 
 if [ "$sect_fwd" = "sf:" ]; then
 	echo -n "Initializing bad144 badblock table..."
@@ -902,7 +912,7 @@ if [ "$hname" != "" ]; then
 		echo	"Initializing $hname filesystem, and mounting..."
 		newfs ${rotdelay} /dev/r${drivename}h $name
 	else
-		echo	"Initializing $hname filesystem..."
+		echo	"Preparing for $hname filesystem, and mounting..."
 	fi
 	mkdir -p /mnt/$hname
 	[ ! "$have_dos_part" ] &&
@@ -910,19 +920,17 @@ if [ "$hname" != "" ]; then
 fi
 
 echo
-echo "Please wait.  Copying to disk..."
+echo -n "Copying to disk... "
 cd /
-# cat filelist | cpio -pdamu${cpioverbose} /mnt
-OIFS=$IFS
-IFS='
-'
-while read data; do 
-	echo $data
-done <filelist | cpio -pdamu${cpioverbose} /mnt
-IFS=$OIFS
-
+cpio -pdamu${cpioverbose} /mnt <filelist
+echo -n "Copying more to disk... "
 cd /mnt
-echo "/dev/${drivename}a	/	ufs	rw 1 1" >etc/fstab
+gzcat < /inst1.cpio.gz | cpio -idmu${cpioverbose}
+
+echo -n "Building /etc/fstab... "
+echo "proc		/proc	procfs	rw 0 0" >etc/fstab
+echo "/dev/${drivename}b	none	swap	sw 0 0" >>etc/fstab
+echo "/dev/${drivename}a	/	ufs	rw 1 1" >>etc/fstab
 if [ "$ename" != "" ]; then
 	echo "/dev/${drivename}e	/$ename	ufs	rw 1 2" >>etc/fstab
 fi
@@ -936,7 +944,7 @@ if [ "$hname" != "" ]; then
 	if [ ! "$have_dos_part" ]; then
 		echo "/dev/${drivename}h	/$hname	ufs	rw 1 5" >>etc/fstab
 	else
-		echo "/dev/${drivename}h	/$hname	pcfs	rw 0 0" >>etc/fstab
+		echo "/dev/${drivename}h	/$hname	pcfs	ro 0 0" >>etc/fstab
 	fi
 fi
 
@@ -948,10 +956,11 @@ while read data; do
 	echo $data
 done </etc/disktab >etc/disktab.install
 IFS=$OIFS
+echo "done."
 
-# cat << EOF >.profile
+echo -n "Building /etc/rc... "
 (
-echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/distbin:.:"
+echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/distbin:"
 echo "export PATH"
 echo "HOME=/root"
 echo "export HOME"
@@ -959,11 +968,12 @@ echo "TERM=pc3"
 echo "export TERM"
 echo "mount -at ufs"
 echo "echo" 
+echo "echo" 
 echo "echo	\"Insert cpio installation floppy in drive and\""
-echo "echo -n	\"enter that drive's number (0 or 1): [0] \""
+echo "echo -n	\"enter that drive's number (0 = A:,  1 = B:): [0] \""
 echo "read resp junk"
 echo "driveno=\${resp:-0}"
-echo "mount -o ro /dev/fd\${driveno}a /mnt"
+echo "mount -o ro /dev/fd\${driveno} /mnt"
 echo "cd /mnt"
 echo "install"
 echo "cd /"
@@ -974,15 +984,16 @@ echo "read resp junk"
 echo "case \"\$resp\" in"
 echo "y*|Y*)"
 echo "	echo"	
-echo "	echo	\"Remove cpio floppy from drive, insert dos floppy, and\""
+echo "	echo	\"Insert dos floppy in drive, and then\""
 echo "	echo -n	\"enter that drive's number (0 or 1): [0] \""
 echo "	read resp junk"
 echo "	driveno=\${resp:-0}"
-echo "	mount -t pcfs -o ro /dev/fd\${driveno}a /mnt"
+echo "  echo	\"Copying files to /usr/distbin...\""
+echo "	mount -t pcfs -o ro /dev/fd\${driveno} /mnt"
 echo "	mkdir -p /usr/distbin"
 echo "	cp /mnt/* /usr/distbin/ >/dev/null 2>&1"
-echo "	sync"
 echo "	umount /mnt >/dev/null 2>&1"
+echo "	sync"
 echo "	;;"
 echo "esac"
 echo "echo"
@@ -994,7 +1005,9 @@ echo "echo"
 echo "echo	\"Enter 'halt' now at the prompt to halt the machine.\""
 echo "echo	\"After the machine has halted, remove the floppy from the disk\""
 echo "echo	\"drive, and hit any key to reboot from the hard disk.\""
-) >.profile
+echo "exit 1"
+) >etc/rc
+echo "done."
 
 sync
 
@@ -1010,6 +1023,9 @@ echo	"floppy this time, just hit RETURN without changing floppies."
 echo
 echo	"If all goes well, you can enter the command \`copy' at the prompt to"
 echo	"copy the kernel to the hard disk.  When asked for which partition to"
-echo	"copy to, enter  to \`${drivename}a' (without the quotes)."
+echo	"copy to, enter \`${drivename}a' (without the quotes)."
 echo
 echo	"Okay, that's all for now.  I'm waiting for you to enter \`halt'..."
+
+sync;sync;sync;sync
+

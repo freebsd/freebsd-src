@@ -6,8 +6,8 @@
 #	  27.eqnguide 28.tbl 29.refer 30.invert 31.bib 32.diction
 
 BINDIR=	/usr/share/doc/usd
-FILES=	00.contents Makefile Title
-SUBDIR=	04.csh 07.Mail \
+SUBDIR=	Title 00.contents \
+	04.csh 07.Mail \
 	09.newsread 10.etiq 11.notes 14.edit 15.vi \
 	16.ex 21.msdiffs 22.memacros \
 	23.meref \
@@ -22,7 +22,5 @@ beforeinstall:
         else \
                 true ; \
         fi
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
-	    ${DESTDIR}${BINDIR}
 
 .include <bsd.subdir.mk>

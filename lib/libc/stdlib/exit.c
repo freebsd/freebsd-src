@@ -57,4 +57,6 @@ exit(status)
 	if (__cleanup)
 		(*__cleanup)();
 	_exit(status);
+	/* We'll never get here; this just surpresses a warning. */
+	while(1) { ; }
 }

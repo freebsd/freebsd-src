@@ -15,7 +15,7 @@
  *
  *  October 1992
  *
- *	$Id: pcfs_lookup.c,v 1.4 1993/10/17 01:48:37 rgrimes Exp $
+ *	$Id: pcfs_lookup.c,v 1.7 1993/12/19 00:54:31 wollman Exp $
  */
 
 #include "param.h"
@@ -63,8 +63,8 @@ pcfs_lookup(vdp, ndp, p)
 	int slotstatus;
 #define	NONE	0
 #define	FOUND	1
-	int slotoffset;
-	int slotcluster;
+	int slotoffset = 0;
+	int slotcluster = 0;
 	int frcn;
 	u_long cluster;
 	int rootreloff;
@@ -76,7 +76,7 @@ pcfs_lookup(vdp, ndp, p)
 	struct denode *tdp;
 	struct pcfsmount *pmp;
 	struct buf *bp = 0;
-	struct direntry *dep;
+	struct direntry *dep = 0;
 	u_char dosfilename[12];
 
 #if defined(PCFSDEBUG)
@@ -165,7 +165,7 @@ printf("pcfs_lookup(): cache hit, vnode %08x, file %s\n", vdp, dp->de_Name);
 #if defined(PCFSDEBUG)
 printf("pcfs_lookup(): looking for . or .. in root directory\n");
 #endif /* defined(PCFSDEBUG) */
-		cluster == PCFSROOT;
+		cluster = PCFSROOT;
 		diroff = PCFSROOT_OFS;
 		goto foundroot;
 	}
@@ -296,7 +296,7 @@ printf("pcfs_lookup(): saving empty slot location\n");
 			ndp->ni_pcfs.pcfs_cluster = slotcluster;
 			ndp->ni_pcfs.pcfs_count   = 1;
 		}
-/*		dp->de_flag |= DEUPD; /* never update dos directories */
+/*		dp->de_flag |= DEUPD;*/ /* never update dos directories */
 		ndp->ni_nameiop |= SAVENAME;
 		if (!lockparent)	/* leave searched dir locked?	*/
 			DEUNLOCK(dp);
@@ -427,7 +427,8 @@ createde(dep, ndp, depp)
 {
 	int bn;
 	int error;
-	u_long dirclust, diroffset;
+	u_int dirclust;
+	u_long diroffset;
 	struct direntry *ndep;
 	struct denode *ddep = VTODE(ndp->ni_dvp);	/* directory to add to */
 	struct pcfsmount *pmp = dep->de_pmp;

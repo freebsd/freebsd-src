@@ -32,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)mv.1	6.9 (Berkeley) 7/27/91
+.\"	from: @(#)mv.1	6.9 (Berkeley) 7/27/91
+.\"	$Id: mv.1,v 1.2 1993/11/22 23:54:23 jtc Exp $
 .\"
 .Dd July 27, 1991
 .Dt MV 1
@@ -42,13 +43,12 @@
 .Nd move files
 .Sh SYNOPSIS
 .Nm mv
-.Op Fl f | Fl i
+.Op Fl fi
 .Ar source target
 .Nm mv
-.Op  Fl f | Fl i
-.Ar source ... source directory
+.Op Fl fi
+.Ar source ... target
 .Sh DESCRIPTION
-.Pp
 In its first form, the
 .Nm mv
 utility renames the file named by the
@@ -73,20 +73,15 @@ component of the named file.
 The following options are available:
 .Bl -tag -width flag
 .It Fl f
-Do not prompt for confirmation before overwriting the destination
-path.
-(The
+Do not prompt for confirmation if the destination path exists.
+Any previous occurances of the
 .Fl i
-option is ignored if the
-.Fl f
-option is specified.)
+option will be ignored.
 .It Fl i
-Causes
-.Nm mv
-to write a prompt to standard error before moving a file that would
-overwrite an existing file.
-If the response from the standard input begins with the character ``y'',
-the move is attempted.
+Prompt for confirmation if the destination path exists.
+Any previous occurances of the 
+.Fl f 
+option will be ignored.
 .El
 .Pp
 It is an error for either the
@@ -95,9 +90,10 @@ operand or the destination path to specify a directory unless both do.
 .Pp
 If the destination path does not have a mode which permits writing,
 .Nm mv
-prompts the user for confirmation as specified for the
-.Fl i
-option.
+prompts the user for confirmation.  If the response from the
+standard input begins with the character 
+.Sq y ,
+the move is attempted.
 .Pp
 As the
 .Xr rename  2
@@ -123,6 +119,5 @@ utility exits 0 on success, and >0 if an error occurs.
 .Sh STANDARDS
 The
 .Nm mv
-utility is expected to be
-.St -p1003.2
-compatible.
+utility conforms to 
+.St -p1003.2-92 .

@@ -1,0 +1,245 @@
+
+Configuring a Diskless FreeBSD Client and Boot Server
+-----------------------------------------------------
+
+Prepared by:	Todd Pfaff <todd@flex.eng.mcmaster.ca>
+		Martin Renters <martin@innovus.com>
+
+Last update:	Jan. 31, 1994
+
+
+Notes
+-----
+
+Martin Renters developed the diskless boot code for FreeBSD and has tested
+it with an HPUX server.
+
+Todd Pfaff has used a SunOS 4.1.2 Sun 4 server to support a diskless FreeBSD
+client.  The following procedure applies to that environment so your mileage
+may vary.
+
+The following Ethernet cards have been tested with netboot:
+
+  WD8003E
+  WD8013EPC
+
+Currently, diskless clients must be on the same subnet as the NFS server.
+Code has been added to the diskless_cfg program to allow for booting clients
+across a gateway, but the kernel code (in /usr/src/sys/nfs/nfs_vfsops.c) to
+add a default route at boot time is not yet working.
+
+
+Notation
+--------
+
+<server>	- host name of root/swap NFS server
+<client>	- host name of diskless FreeBSD client
+<tftp_root>	- path to TFTP root directory on TFTP server
+		  (usually /tftpboot on SunOS 4.1.x)
+<client_root>	- path to client root filesystem on NFS server
+		  (eg. /export/root/<client>)
+<client_swap>	- path to client swap file on NFS server
+		  (eg. /export/swap/<client>)
+<client_usr>	- path to client usr filesystem on NFS server
+<swap_size>	- size of swap file in 512 byte blocks
+
+
+
+Procedure
+---------
+
+1) Configure a bootp server.
+
+CMU bootp-2.1 has been verified to do the job on a Sun 4/SunOS 4.1.2.
+
+Create a bootptab entry for the diskless client.  For example:
+
+client:\
+        :ht=ethernet:\
+        :ha=0123456789ab:\
+        :sm=255.255.255.0:\
+        :ip=1.2.3.4:\
+        :hn:\
+        :vm=rfc1048:\
+        :ds=1.2.3.1 1.2.3.2:\
+        :gw=1.2.3.1:\
+        :hd=/:\
+        :bf=386bsd:
+
+
+2) Configure a tftp server.
+
+I already had this set up for diskless SunOS clients so I didn't have to do
+anything here.
+
+You will later place the client kernel and diskless configuration file in
+the tftp root directory.
+
+
+3) Build a diskless kernel.
+
+You must have a standalone FreeBSD system running to create a kernel
+for the diskless client.
+
+Make sure you are running a current config.  If not, rebuild and install
+/usr/src/usr.sbin/config.
+
+Create a kernel configuration with:
+
+  option DISKLESS
+  config "386bsd" swap on nfs size <swap_size>
+
+and config and make this kernel.
+
+Install the kernel in <tftp_root> and <server>:<client_root>.
+
+Here's a minimal diskless kernel config file:
+
+machine         "i386"
+cpu             "I486_CPU"
+ident           "NODISK"
+timezone        8 dst
+maxusers        10
+maxfdescs       2048
+options         INET
+options         NFS
+options         "COMPAT_43"
+options         "TCP_COMPAT_42"
+options         XSERVER
+options         UCONSOLE
+options         DISKLESS
+config          "386bsd"        swap on nfs size 50000
+controller      isa0
+controller      fd0     at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk            fd0     at fd0 drive 0
+disk            fd1     at fd0 drive 1
+device          pc0     at isa? port "IO_KBD" tty irq 1 vector pcrint
+device          npx0    at isa? port "IO_NPX" irq 13 vector npxintr
+device          sio0    at isa? port "IO_COM1" tty irq 4 vector siointr
+device          sio1    at isa? port "IO_COM2" tty irq 3 vector siointr
+device          lpt0    at isa? port "IO_LPT1" tty irq 7 vector lptintr
+device		ed0 	at isa? port 0x300 net irq 5 iomem 0xd0000 vector edintr
+pseudo-device   loop
+pseudo-device   ether
+pseudo-device   log
+pseudo-device   pty     8
+pseudo-device   speaker
+pseudo-device   swappager
+pseudo-device   vnodepager
+pseudo-device   devpager
+
+
+4) Create a client root filesystem and swap file on the NFS server.
+
+Make a new directory which will be the client's root filesystem.
+This should include /bin, /dev, /etc, /sbin, /tmp, /var, a mountpoint
+for /usr, and the client kernel (386bsd or whatever is given in the
+bf field of the bootptab entry).
+
+For example, you can copy the root filesystem from a standalone FreeBSD
+system to your server:
+
+  <server># mkdir <client_root>
+  <server># mount freebsdhost:/ /mnt
+  <server># cd /mnt
+  <server># find * -print | cpio -pm <client_root>
+
+To create a swap file:
+
+  <server># touch <client_swap>
+
+or under SunOS 4.1.x:
+
+  <server># mkfile -n <swap_size>b <client_swap>
+
+Export this root and swap to <client>.
+
+A few things to modify in the client root directory:
+
+/dev/...
+	Make sure all the devices you need are there.
+	If not you will have to mount this directory on a running
+	FreeBSD system and use MAKEDEV.
+	[This one bit me because I used tar to copy an root filesystem and
+	none of the device files were copied.  Use cpio if you want to copy
+	a root filesystem and preserve device files. -TP]
+
+/etc/exports
+	Delete this.  You probably don't want your diskless client to be an
+	NFS server.
+
+/etc/fstab
+	You need at least the following entries:
+
+	<server>:<client_root> / nfs rw 0 0
+	<server>:<client_usr> /usr nfs rw 0 0
+
+/etc/myname
+	Client hostname.
+
+/etc/netstart
+	Set interface config and default route.
+
+/etc/rc
+	change:
+		mount -a -t nonfs
+	to:
+		mount -a
+
+	and remove the final 'mount -a -t nfs' at the end of rc.
+
+/etc/rc.local
+/etc/sendmail.cf
+
+
+5) Create a diskless configuration file.
+
+The program /sbin/diskless_cfg is used to create a configuration file
+which is loaded via tftp from the server by the netboot program.
+
+This program must be run on the NFS server from which root and swap
+will be mounted because it stores the server hostname and file handles
+of the root path and swap file in a file.
+
+Build /usr/src/usr.sbin/diskless_cfg on your NFS server.
+The supplied Makefile is meant to build diskless_cfg under a FreeBSD
+source tree, but you can compile diskless_cfg manually with:
+
+  cc -DNFS diskless_cfg.c -o diskless_cfg
+
+Run the program as follows:
+
+  diskless_cfg -rootfs <client_root> -swap <client_swap> -hostname <client>
+
+and this will create a file cfg.X.X.X.X where X.X.X.X is the decimal IP
+address of <client>.
+
+Copy cfg.X.X.X.X to <tftp_root>.
+
+
+6) Compile the netboot.com program.
+
+cd /sys/i386/netboot; make
+
+*** NOTE ***
+
+At the top of wd80x3.c in /sys/i386/netboot/wd80x3.c is a line:
+
+  #define WE_DEFAULT_MEM  0xD0000
+
+which defines the Ethernet adapter RAM buffer address.  Make sure you edit 
+this to reflect the address given in your diskless kernel config file:
+
+  device ed0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector edintr
+
+Copy netboot.com to a DOS disk or put netboot.rom into a boot PROM for
+your Ethernet adapter.
+
+Run netboot.com from DOS to initiate the diskless client boot.
+
+If your bootp server is not responding you can set the IP addresses of the
+client and server manually and continue.  Press escape during the boot to
+to the netboot monitor.  Type help in the netboot monitor for a list of
+commands.
+
+

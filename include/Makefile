@@ -10,17 +10,18 @@ SUBDIR=	rpcsvc
 # Missing: mp.h
 
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
-	err.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h locale.h \
-	math.h memory.h mpool.h ndbm.h netdb.h nlist.h paths.h pwd.h \
-	ranlib.h regexp.h resolv.h setjmp.h sgtty.h stab.h stdarg.h \
-	stddef.h stdio.h stdlib.h string.h strings.h struct.h sysexits.h \
-	time.h ttyent.h tzfile.h unistd.h utime.h utmp.h varargs.h vis.h
+	err.h f2c.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h \
+	link.h locale.h math.h memory.h mpool.h ndbm.h netdb.h nlist.h \
+	paths.h pwd.h queue.h ranlib.h regex.h resolv.h setjmp.h \
+	sgtty.h stab.h stdarg.h stddef.h stdio.h stdlib.h string.h strings.h \
+	struct.h sysexits.h time.h ttyent.h tzfile.h unistd.h utime.h utmp.h \
+	varargs.h vis.h
 
 MFILES=	float.h floatingpoint.h frame.h
 LFILES=	errno.h fcntl.h signal.h syslog.h syscall.h termios.h
 
 DIRS=arpa protocols
-LDIRS=	net netccitt netinet netiso netns nfs sys ufs vm
+LDIRS=	net netccitt netinet netiso netns nfs scsi sys ufs vm
 # removed netimp depricated?
 
 NOOBJ=	noobj
@@ -69,7 +70,7 @@ copies:
 	@echo copies: ${LDIRS}
 	@-for i in ${LDIRS}; do \
 		rm -rf ${DESTDIR}/usr/include/$$i; \
-		cd /sys; \
+		cd ../sys; \
 		tar cf - $$i/*.h | (cd ${DESTDIR}/usr/include; tar xpfB -); \
 		chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
 		chmod -R 444 ${DESTDIR}/usr/include/$$i; \
@@ -77,7 +78,7 @@ copies:
 	done
 	rm -rf ${DESTDIR}/usr/include/machine
 	mkdir ${DESTDIR}/usr/include/machine
-	cd /sys/${MACHINE}/include; \
+	cd ../sys/${MACHINE}/include; \
 	tar cf - *.h | (cd ${DESTDIR}/usr/include/machine; tar xpfB -);
 	chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/machine;
 	chmod -R 444 ${DESTDIR}/usr/include/machine;

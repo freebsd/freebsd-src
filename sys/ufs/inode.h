@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)inode.h	7.17 (Berkeley) 5/8/91
- *	$Id: inode.h,v 1.3 1993/10/16 18:17:40 rgrimes Exp $
+ *	$Id: inode.h,v 1.6 1993/12/19 00:55:37 wollman Exp $
  */
+
+#ifndef _UFS_INODE_H_
+#define _UFS_INODE_H_ 1
 
 #ifdef KERNEL
 #include "../ufs/dinode.h"
@@ -121,7 +124,7 @@ extern int		vttoif_tab[];
 
 #define MAKEIMODE(indx, mode)	(int)(VTTOIF(indx) | (mode))
 
-u_long	nextgennumber;		/* next generation number to assign */
+extern u_long	nextgennumber;	/* next generation number to assign */
 
 extern ino_t	dirpref();
 
@@ -227,8 +230,52 @@ int ufs_unlock __P((struct vnode *vp));
 int ufs_bmap __P((struct vnode *vp, daddr_t bn, struct vnode **vpp,
 	daddr_t *bnp));
 int ufs_strategy __P((struct buf *bp));
-int ufs_print __P((struct vnode *vp));
+void ufs_print __P((struct vnode *vp));
 int ufs_islocked __P((struct vnode *vp));
 int ufs_advlock __P((struct vnode *vp, caddr_t id, int op, struct flock *fl,
 	int flags));
+
+extern void blkfree(struct inode *, daddr_t, off_t);
+extern void ifree(struct inode *, ino_t, int);
+extern void iput(struct inode *);
+extern void ilock(struct inode *);
+extern void iunlock(struct inode *);
+extern void dirbad(struct inode *, off_t, char *);
+
+extern int alloc(struct inode *, daddr_t, daddr_t, int, daddr_t *);
+extern int realloccg(struct inode *, off_t, daddr_t, int, int, struct buf **);
+extern int ialloc(struct inode *, ino_t, int, struct ucred *, struct inode **);
+extern daddr_t blkpref(struct inode *, daddr_t, int, daddr_t *);
+extern u_long hashalloc(struct inode *, int, long, int, 
+			u_long (*)(struct inode *, int, long, int));
+extern daddr_t fragextend(struct inode *, int, long, int, int);
+extern daddr_t alloccg(struct inode *, int, daddr_t, int);
+
+struct cg;			/* I really don't want to know why */
+struct direct;			/* this header is required by NFS... */
+
+extern daddr_t alloccgblk(struct fs *, struct cg *, daddr_t);
+extern ino_t ialloccg(struct inode *, int, daddr_t, int);
+extern int ufs_lookup(struct vnode *, struct nameidata *, struct proc *);
+extern int dirbadentry(struct direct *, int);
+extern int direnter(struct inode *, struct nameidata *);
+extern int dirremove(struct nameidata *);
+extern int dirrewrite(struct inode *, struct inode *, struct nameidata *);
+extern int blkatoff(struct inode *, off_t, char **, struct buf **);
+extern int dirempty(struct inode *, ino_t, struct ucred *);
+extern int checkpath(struct inode *, struct inode *, struct ucred *);
+
+extern void ufs_init(void);
+extern int iget(struct inode *, ino_t, struct inode **);
+extern int ufs_inactive(struct vnode *, struct proc *);
+extern int ufs_reclaim(struct vnode *);
+extern int iupdat(struct inode *, struct timeval *, struct timeval *,
+		  int);
+extern int itrunc(struct inode *, u_long, int);
+extern int indirtrunc(struct inode *, daddr_t, daddr_t, int, long *);
+
+extern int bmap(struct inode *, daddr_t, daddr_t *);
+extern int balloc(struct inode *, daddr_t, int, struct buf **, int);
+
 #endif /* KERNEL */
+#endif /* _UFS_INODE_H_ */

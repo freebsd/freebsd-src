@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_clnp.h	7.3 (Berkeley) 5/6/91
- *	$Id: tp_clnp.h,v 1.2 1993/10/16 21:05:34 rgrimes Exp $
+ *	$Id: tp_clnp.h,v 1.3 1993/11/07 17:49:50 wollman Exp $
  */
 
 /***********************************************************
@@ -87,7 +87,7 @@ SOFTWARE.
 #endif
 #include "../netiso/iso_var.h"
 
-struct isopcb tp_isopcb;	
+extern struct isopcb tp_isopcb;	
 	/* queue of active inpcbs for tp ; for tp with dod ip */
 
 #endif __TP_CLNP__

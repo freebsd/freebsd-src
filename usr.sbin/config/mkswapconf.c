@@ -79,6 +79,18 @@ do_swap(fl)
 	}
 	fprintf(fp, "#include \"sys/param.h\"\n");
 	fprintf(fp, "#include \"sys/conf.h\"\n");
+	if (eq(fl->f_fn, "nfs")) {
+		fprintf(fp, "#include \"../sys/socket.h\"\n");
+		fprintf(fp, "#include \"../sys/mount.h\"\n");
+		fprintf(fp, "#include \"../net/if.h\"\n");
+		fprintf(fp, "#include \"../nfs/nfsv2.h\"\n");
+		fprintf(fp, "#include \"../nfs/nfsdiskless.h\"\n");
+		fprintf(fp, "\nextern int nfs_mountroot();\n");
+		fprintf(fp, "int (*mountroot)() = nfs_mountroot;\n");
+	} else {
+		fprintf(fp, "\nextern int ufs_mountroot();\n");
+		fprintf(fp, "int (*mountroot)() = ufs_mountroot;\n");
+	}
 	fprintf(fp, "\n");
 	/*
 	 * If there aren't any swap devices
@@ -105,6 +117,10 @@ do_swap(fl)
 	} while (swap && swap->f_type == SWAPSPEC);
 	fprintf(fp, "\t{ 0, 0, 0 }\n");
 	fprintf(fp, "};\n");
+	if (eq(fl->f_fn, "nfs")) {
+		fprintf(fp, "struct nfs_diskless nfs_diskless = {0};\n");
+		fprintf(fp, "int nfs_diskless_size = sizeof(struct nfs_diskless);\n");
+	}
 	fclose(fp);
 	return (swap);
 }

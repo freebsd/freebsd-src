@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ip_var.h	7.7 (Berkeley) 6/28/90
- *	$Id: ip_var.h,v 1.2 1993/10/16 18:26:17 rgrimes Exp $
+ *	$Id: ip_var.h,v 1.3 1993/11/07 17:48:00 wollman Exp $
  */
+
+#ifndef _NETINET_IP_VAR_H_
+#define _NETINET_IP_VAR_H_ 1
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
@@ -129,9 +132,10 @@ struct	ipstat {
 #define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
 #define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
 
-struct	ipstat	ipstat;
-struct	ipq	ipq;			/* ip reass. queue */
-u_short	ip_id;				/* ip packet ctr, for ids */
+extern struct	ipstat	ipstat;
+extern struct	ipq	ipq;	/* ip reass. queue */
+extern u_short	ip_id;		/* ip packet ctr, for ids */
 
 struct	mbuf *ip_srcroute();
 #endif
+#endif /* _NETINET_IP_VAR_H_ */

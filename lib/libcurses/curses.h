@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,190 +30,361 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)curses.h	5.9 (Berkeley) 7/1/90
+ *	@(#)curses.h	8.2 (Berkeley) 1/2/94
  */
 
-#ifndef WINDOW
+#ifndef _CURSES_H_
+#define	_CURSES_H_
 
-#include	<stdio.h>
- 
-#define USE_OLD_TTY
-#include	<sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/cdefs.h>
+
+#include <stdio.h>
+
+#ifndef _BSD_VA_LIST_
+#define _BSD_VA_LIST_ char *
+#endif
+
+/*
+ * The following #defines and #includes are present for backward
+ * compatibility only.  They should not be used in future code.
+ *
+ * START BACKWARD COMPATIBILITY ONLY.
+ */
+#ifndef _CURSES_PRIVATE
+
 #undef USE_OLD_TTY
+#undef B0
+#undef B50
+#undef B75
+#undef B110
+#undef B134
+#undef B150
+#undef B200
+#undef B300
+#undef B600
+#undef B1200
+#undef B1800
+#undef B2400
+#undef B4800
+#undef B9600
+#undef EXTA
+#undef EXTB
+#undef B57600
+#undef B115200
+
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <sys/ioctl_compat.h>           /* For sgttyb and related */
 
 #define	bool	char
 #define	reg	register
 
-typedef unsigned short chtype;
-
+#ifndef TRUE
 #define	TRUE	(1)
+#endif
+#ifndef FALSE
 #define	FALSE	(0)
-#define	ERR	(0)
-#define	OK	(1)
+#endif
 
-#define	_ENDLINE	001
-#define	_FULLWIN	002
-#define	_SCROLLWIN	004
-#define	_FLUSH		010
-#define	_FULLLINE	020
-#define	_IDLINE		040
-#define _STANDOUT       0400
-#define	_NOCHANGE	-1
+#define _puts(s)        tputs(s, 0, _putchar)
 
-#define	_puts(s)	tputs(s, 0, _putchar)
+/* Old-style terminal modes access. */
+#define	baudrate()	(cfgetospeed(&__baset))
+#define	crmode()	cbreak()
+#define	erasechar()	(__baset.c_cc[VERASE])
+#define	killchar()	(__baset.c_cc[VKILL])
+#define	nocrmode()	nocbreak()
+#define	ospeed		(cfgetospeed(&__baset))
 
-typedef	struct sgttyb	SGTTY;
+/* WINDOW structure members name compatibility */
+#define _curx   curx
+#define _cury   cury
+#define _begx   begx
+#define _begy   begy
+#define _maxx   maxx
+#define _maxy   maxy
 
-/*
- * Capabilities from termcap
- */
+#define _tty __baset
 
-extern bool     AM, BS, CA, DA, DB, EO, HC, HZ, IN, MI, MS, NC, NS, OS, UL,
-		XB, XN, XT, XS, XX;
+#endif /* _CURSES_PRIVATE */
+
+extern char	 GT;			/* Gtty indicates tabs. */
+extern char	 NONL;			/* Term can't hack LF doing a CR. */
+extern char	 UPPERCASE;		/* Terminal is uppercase only. */
+
+extern int	 My_term;		/* Use Def_term regardless. */
+extern char	*Def_term;		/* Default terminal type. */
+
+/* Termcap capabilities. */
+extern char	AM, BS, CA, DA, EO, HC, IN, MI, MS, NC, NS, OS,
+		PC, UL, XB, XN, XT, XS, XX;
 extern char	*AL, *BC, *BT, *CD, *CE, *CL, *CM, *CR, *CS, *DC, *DL,
 		*DM, *DO, *ED, *EI, *K0, *K1, *K2, *K3, *K4, *K5, *K6,
 		*K7, *K8, *K9, *HO, *IC, *IM, *IP, *KD, *KE, *KH, *KL,
 		*KR, *KS, *KU, *LL, *MA, *ND, *NL, *RC, *SC, *SE, *SF,
 		*SO, *SR, *TA, *TE, *TI, *UC, *UE, *UP, *US, *VB, *VS,
-		*VE, *AL_PARM, *DL_PARM, *UP_PARM, *DOWN_PARM,
-		*LEFT_PARM, *RIGHT_PARM;
-extern char	PC;
+		*VE, *al, *dl, *sf, *sr,
+		*AL_PARM, *DL_PARM, *UP_PARM, *DOWN_PARM, *LEFT_PARM,
+		*RIGHT_PARM;
+
+/* END BACKWARD COMPATIBILITY ONLY. */
+
+/* 8-bit ASCII characters. */
+#define	unctrl(c)		__unctrl[(c) & 0xff]
+#define	unctrllen(ch)		__unctrllen[(ch) & 0xff]
+
+extern char	*__unctrl[256];	/* Control strings. */
+extern char	 __unctrllen[256];	/* Control strings length. */
 
 /*
- * From the tty modes...
+ * A window an array of __LINE structures pointed to by the 'lines' pointer.
+ * A line is an array of __LDATA structures pointed to by the 'line' pointer.
+ *
+ * IMPORTANT: the __LDATA structure must NOT induce any padding, so if new
+ * fields are added -- padding fields with *constant values* should ensure 
+ * that the compiler will not generate any padding when storing an array of
+ *  __LDATA structures.  This is to enable consistent use of memcmp, and memcpy
+ * for comparing and copying arrays.
  */
+typedef struct {
+	char ch;			/* the actual character */
 
-extern bool	GT, NONL, UPPERCASE, normtty, _pfast;
+#define	__STANDOUT	0x01  		/* Added characters are standout. */
+	char attr;			/* attributes of character */
+} __LDATA;
 
-struct _win_st {
-	short		_cury, _curx;
-	short		_maxy, _maxx;
-	short		_begy, _begx;
-	short		_flags;
-	short		_ch_off;
-	bool		_clear;
-	bool		_leave;
-	bool		_scroll;
-	chtype          **_y;
-	short		*_firstch;
-	short		*_lastch;
-	struct _win_st	*_nextp, *_orig;
-};
+#define __LDATASIZE	(sizeof(__LDATA))
 
-#define	WINDOW	struct _win_st
+typedef struct {
+#define	__ISDIRTY	0x01		/* Line is dirty. */
+#define __ISPASTEOL	0x02		/* Cursor is past end of line */
+#define __FORCEPAINT	0x04		/* Force a repaint of the line */
+	u_int flags;
+	u_int hash;			/* Hash value for the line. */
+	size_t *firstchp, *lastchp;	/* First and last chngd columns ptrs */
+	size_t firstch, lastch;		/* First and last changed columns. */
+	__LDATA *line;			/* Pointer to the line text. */
+} __LINE;
 
-extern bool	My_term, _echoit, _rawmode, _endwin;
+typedef struct __window {		/* Window structure. */
+	struct __window	*nextp, *orig;	/* Subwindows list and parent. */
+	size_t begy, begx;		/* Window home. */
+	size_t cury, curx;		/* Current x, y coordinates. */
+	size_t maxy, maxx;		/* Maximum values for curx, cury. */
+	short ch_off;			/* x offset for firstch/lastch. */
+	__LINE **lines;			/* Array of pointers to the lines */
+	__LINE  *lspace;		/* line space (for cleanup) */
+	__LDATA *wspace;		/* window space (for cleanup) */
 
-extern char	*Def_term, ttytype[];
+#define	__ENDLINE	0x001		/* End of screen. */
+#define	__FLUSH		0x002		/* Fflush(stdout) after refresh. */
+#define	__FULLLINE	0x004		/* Line width = terminal width. */
+#define	__FULLWIN	0x008		/* Window is a screen. */
+#define	__IDLINE	0x010		/* Insert/delete sequences. */
+#define	__SCROLLWIN	0x020		/* Last char will scroll window. */
+#define	__SCROLLOK	0x040		/* Scrolling ok. */
+#define	__CLEAROK	0x080		/* Clear on next refresh. */
+#define __WSTANDOUT	0x100		/* Standout window */
+#define __LEAVEOK	0x200		/* If curser left */	
+	u_int flags;
+} WINDOW;
 
-extern int	LINES, COLS, _tty_ch, _res_flg;
+/* Curses external declarations. */
+extern WINDOW	*curscr;		/* Current screen. */
+extern WINDOW	*stdscr;		/* Standard screen. */
 
-extern SGTTY	_tty;
+typedef struct termios SGTTY;
 
-extern WINDOW	*stdscr, *curscr;
+extern SGTTY          __orig_termios;   /* Terminal state before curses */
+extern SGTTY          __baset;          /* Our base terminal state */
+extern int __tcaction;			/* If terminal hardware set. */
 
-/*
- *	Define VOID to stop lint from generating "null effect"
- * comments.
- */
-#ifdef lint
-int	__void__;
-#define	VOID(x)	(__void__ = (int) (x))
+extern int	 COLS;			/* Columns on the screen. */
+extern int	 LINES;			/* Lines on the screen. */
+
+extern char	*ttytype;		/* Full name of current terminal. */
+
+#define	ERR	(0)			/* Error return. */
+#define	OK	(1)			/* Success return. */
+
+/* Standard screen pseudo functions. */
+#define	addbytes(s, n)			__waddbytes(stdscr, s, n, 0)
+#define	addch(ch)			waddch(stdscr, ch)
+#define	addnstr(s, n)			waddnstr(stdscr, s, n)
+#define	addstr(s)			__waddbytes(stdscr, s, strlen(s), 0)
+#define	clear()				wclear(stdscr)
+#define	clrtobot()			wclrtobot(stdscr)
+#define	clrtoeol()			wclrtoeol(stdscr)
+#define	delch()				wdelch(stdscr)
+#define	deleteln()			wdeleteln(stdscr)
+#define	erase()				werase(stdscr)
+#define	getch()				wgetch(stdscr)
+#define	getstr(s)			wgetstr(stdscr, s)
+#define	inch()				winch(stdscr)
+#define	insch(ch)			winsch(stdscr, ch)
+#define	insertln()			winsertln(stdscr)
+#define	move(y, x)			wmove(stdscr, y, x)
+#define	refresh()			wrefresh(stdscr)
+#define	standend()			wstandend(stdscr)
+#define	standout()			wstandout(stdscr)
+#define	waddbytes(w, s, n)		__waddbytes(w, s, n, 0)
+#define	waddstr(w, s)			__waddbytes(w, s, strlen(s), 0)
+
+/* Standard screen plus movement pseudo functions. */
+#define	mvaddbytes(y, x, s, n)		mvwaddbytes(stdscr, y, x, s, n)
+#define	mvaddch(y, x, ch)		mvwaddch(stdscr, y, x, ch)
+#define	mvaddnstr(y, x, s, n)		mvwaddnstr(stdscr, y, x, s, n)
+#define	mvaddstr(y, x, s)		mvwaddstr(stdscr, y, x, s)
+#define	mvdelch(y, x)			mvwdelch(stdscr, y, x)
+#define	mvgetch(y, x)			mvwgetch(stdscr, y, x)
+#define	mvgetstr(y, x, s)		mvwgetstr(stdscr, y, x, s)
+#define	mvinch(y, x)			mvwinch(stdscr, y, x)
+#define	mvinsch(y, x, c)		mvwinsch(stdscr, y, x, c)
+#define	mvwaddbytes(w, y, x, s, n) \
+	(wmove(w, y, x) == ERR ? ERR : __waddbytes(w, s, n, 0))
+#define	mvwaddch(w, y, x, ch) \
+	(wmove(w, y, x) == ERR ? ERR : waddch(w, ch))
+#define	mvwaddnstr(w, y, x, s, n) \
+	(wmove(w, y, x) == ERR ? ERR : waddnstr(w, s, n))
+#define	mvwaddstr(w, y, x, s) \
+	(wmove(w, y, x) == ERR ? ERR : __waddbytes(w, s, strlen(s), 0))
+#define	mvwdelch(w, y, x) \
+	(wmove(w, y, x) == ERR ? ERR : wdelch(w))
+#define	mvwgetch(w, y, x) \
+	(wmove(w, y, x) == ERR ? ERR : wgetch(w))
+#define	mvwgetstr(w, y, x, s) \
+	(wmove(w, y, x) == ERR ? ERR : wgetstr(w, s))
+#define	mvwinch(w, y, x) \
+	(wmove(w, y, x) == ERR ? ERR : winch(w))
+#define	mvwinsch(w, y, x, c) \
+	(wmove(w, y, x) == ERR ? ERR : winsch(w, c))
+
+/* Psuedo functions. */
+#define	clearok(w, bf) \
+	((bf) ? ((w)->flags |= __CLEAROK) : ((w)->flags &= ~__CLEAROK))
+#define	flushok(w, bf) \
+	((bf) ? ((w)->flags |= __FLUSH) : ((w)->flags &= ~__FLUSH))
+#define	getyx(w, y, x) \
+	(y) = (w)->cury, (x) = (w)->curx
+#define	leaveok(w, bf) \
+	((bf) ? ((w)->flags |= __LEAVEOK) : ((w)->flags &= ~__LEAVEOK))
+#define	scrollok(w, bf) \
+	((bf) ? ((w)->flags |= __SCROLLOK) : ((w)->flags &= ~__SCROLLOK))
+#define	winch(w) \
+	((w)->lines[(w)->cury]->line[(w)->curx].ch & 0xff)
+
+/* Public function prototypes. */
+int      box __P((WINDOW *, char, char));
+int	 cbreak __P((void));
+int	 delwin __P((WINDOW *));
+int	 echo __P((void));
+int	 endwin __P((void));
+char	*fullname __P((char *, char *));
+char	*getcap __P((char *));
+int	 gettmode __P((void));
+void	 idlok __P((WINDOW *, int));
+WINDOW	*initscr __P((void));
+char	*longname __P((char *, char *));
+int	 mvcur __P((int, int, int, int));
+int	 mvprintw __P((int, int, const char *, ...));
+int	 mvscanw __P((int, int, const char *, ...));
+int	 mvwin __P((WINDOW *, int, int));
+int	 mvwprintw __P((WINDOW *, int, int, const char *, ...));
+int	 mvwscanw __P((WINDOW *, int, int, const char *, ...));
+WINDOW	*newwin __P((int, int, int, int));
+int	 nl __P((void));
+int	 nocbreak __P((void));
+int	 noecho __P((void));
+int	 nonl __P((void));
+int	 noraw __P((void));
+int	 overlay __P((WINDOW *, WINDOW *));
+int	 overwrite __P((WINDOW *, WINDOW *));
+int	 printw __P((const char *, ...));
+int	 raw __P((void));
+int	 resetty __P((void));
+int	 savetty __P((void));
+int	 scanw __P((const char *, ...));
+int	 scroll __P((WINDOW *));
+int	 setterm __P((char *));
+int	 sscans __P((WINDOW *, const char *, ...));
+WINDOW	*subwin __P((WINDOW *, int, int, int, int));
+int	 suspendwin __P((void));
+int	 touchline __P((WINDOW *, int, int, int));
+int	 touchoverlap __P((WINDOW *, WINDOW *));
+int	 touchwin __P((WINDOW *));
+int 	 vwprintw __P((WINDOW *, const char *, _BSD_VA_LIST_));
+int      vwscanw __P((WINDOW *, const char *, _BSD_VA_LIST_));
+int      waddch __P((WINDOW *, char));
+int	 waddnstr __P((WINDOW *, const char *, int));
+int	 wclear __P((WINDOW *));
+int	 wclrtobot __P((WINDOW *));
+int	 wclrtoeol __P((WINDOW *));
+int	 wdelch __P((WINDOW *));
+int	 wdeleteln __P((WINDOW *));
+int	 werase __P((WINDOW *));
+int	 wgetch __P((WINDOW *));
+int	 wgetstr __P((WINDOW *, char *));
+int      winsch __P((WINDOW *, char));
+int	 winsertln __P((WINDOW *));
+int	 wmove __P((WINDOW *, int, int));
+int	 wprintw __P((WINDOW *, const char *, ...));
+int	 wrefresh __P((WINDOW *));
+int	 wscanw __P((WINDOW *, const char *, ...));
+int      wstandend __P((WINDOW *));
+int      wstandout __P((WINDOW *));
+int	 vwprintw __P((WINDOW *, const char *, _BSD_VA_LIST_));
+
+/* Private functions that are needed for user programs prototypes. */
+int	 __waddbytes __P((WINDOW *, const char *, int, int));
+
+/* Private functions. */
+#ifdef _CURSES_PRIVATE
+
+#define __cputchar _putchar
+void     _putchar __P((int));
+
+void	 __CTRACE __P((const char *, ...));
+u_int	 __hash __P((char *, int));
+void	 __id_subwins __P((WINDOW *));
+int	 __mvcur __P((int, int, int, int, int));
+void	 __restore_stophandler __P((void));
+void	 __set_stophandler __P((void));
+void	 __set_subwin __P((WINDOW *, WINDOW *));
+void     __set_scroll_region __P((int, int));
+void	 __startwin __P((void));
+void	 __stop_signal_handler __P((int));
+void	 __swflags __P((WINDOW *));
+int	 __touchline __P((WINDOW *, int, int, int, int));
+int	 __touchwin __P((WINDOW *));
+char	*__tscroll __P((const char *, int));
+int	 __waddch __P((WINDOW *, __LDATA *));
+
+/* Private #defines. */
+#define	min(a,b)	(a < b ? a : b)
+#define	max(a,b)	(a > b ? a : b)
+
+/* Private externs. */
+extern int	 __echoit;
+extern int	 __endwin;
+extern int	 __pfast;
+extern int	 __rawmode;
+extern int	 __noqch;
+extern int       __usecs;
+
+int      tputs __P((char *, int, void (*)(int)));
+
 #else
-#define	VOID(x)	(x)
+
+int      tputs __P((char *, int, int (*)(int)));
+
 #endif
 
-/*
- * psuedo functions for standard screen
- */
-#define	addch(ch)	VOID(waddch(stdscr, ch))
-#define	getch()		VOID(wgetch(stdscr))
-#define	addbytes(da,co)	VOID(waddbytes(stdscr, da,co))
-#define addstr(str)     VOID(waddstr(stdscr, str))
-#define	getstr(str)	VOID(wgetstr(stdscr, str))
-#define	move(y, x)	VOID(wmove(stdscr, y, x))
-#define	clear()		VOID(wclear(stdscr))
-#define	erase()		VOID(werase(stdscr))
-#define	clrtobot()	VOID(wclrtobot(stdscr))
-#define	clrtoeol()	VOID(wclrtoeol(stdscr))
-#define	insertln()	VOID(winsertln(stdscr))
-#define	deleteln()	VOID(wdeleteln(stdscr))
-#define	refresh()	VOID(wrefresh(stdscr))
-#define	inch()		VOID(winch(stdscr))
-#define	insch(c)	VOID(winsch(stdscr,c))
-#define	delch()		VOID(wdelch(stdscr))
-#define	standout()	VOID(wstandout(stdscr))
-#define	standend()	VOID(wstandend(stdscr))
+/* Termcap functions. */
+int	 tgetent __P((char *, char *));
+int	 tgetnum __P((char *));
+int	 tgetflag __P((char *));
+char	*tgetstr __P((char *, char **));
+char	*tgoto __P((char *, int, int));
 
-/*
- * mv functions
- */
-#define	mvwaddch(win,y,x,ch)	VOID(wmove(win,y,x)==ERR?ERR:waddch(win,ch))
-#define	mvwgetch(win,y,x)	VOID(wmove(win,y,x)==ERR?ERR:wgetch(win))
-#define	mvwaddbytes(win,y,x,da,co) \
-		VOID(wmove(win,y,x)==ERR?ERR:waddbytes(win,da,co))
-#define	mvwaddstr(win,y,x,str) \
-		VOID(wmove(win,y,x)==ERR?ERR:waddstr(win,str))
-#define mvwgetstr(win,y,x,str)  VOID(wmove(win,y,x)==ERR?ERR:wgetstr(win,str))
-#define	mvwinch(win,y,x)	VOID(wmove(win,y,x) == ERR ? ERR : winch(win))
-#define	mvwdelch(win,y,x)	VOID(wmove(win,y,x) == ERR ? ERR : wdelch(win))
-#define	mvwinsch(win,y,x,c)	VOID(wmove(win,y,x) == ERR ? ERR:winsch(win,c))
-#define	mvaddch(y,x,ch)		mvwaddch(stdscr,y,x,ch)
-#define	mvgetch(y,x)		mvwgetch(stdscr,y,x)
-#define	mvaddbytes(y,x,da,co)	mvwaddbytes(stdscr,y,x,da,co)
-#define	mvaddstr(y,x,str)	mvwaddstr(stdscr,y,x,str)
-#define mvgetstr(y,x,str)       mvwgetstr(stdscr,y,x,str)
-#define	mvinch(y,x)		mvwinch(stdscr,y,x)
-#define	mvdelch(y,x)		mvwdelch(stdscr,y,x)
-#define	mvinsch(y,x,c)		mvwinsch(stdscr,y,x,c)
-
-/*
- * psuedo functions
- */
-
-#define	clearok(win,bf)	 (win->_clear = bf)
-#define	leaveok(win,bf)	 (win->_leave = bf)
-#define	scrollok(win,bf) (win->_scroll = bf)
-#define flushok(win,bf)	 (bf ? (win->_flags |= _FLUSH):(win->_flags &= ~_FLUSH))
-#define	getyx(win,y,x)	 y = win->_cury, x = win->_curx
-#define winch(win)       (win->_y[win->_cury][win->_curx] & 0xFF)
-
-#define raw()	 (_tty.sg_flags|=RAW, _pfast=_rawmode=TRUE, \
-	ioctl(_tty_ch, TIOCSETP, &_tty))
-#define noraw()	 (_tty.sg_flags&=~RAW,_rawmode=FALSE,\
-	_pfast=!(_tty.sg_flags&CRMOD),ioctl(_tty_ch, TIOCSETP, &_tty))
-#define cbreak() (_tty.sg_flags |= CBREAK, _rawmode = TRUE, \
-	ioctl(_tty_ch, TIOCSETP, &_tty))
-#define nocbreak() (_tty.sg_flags &= ~CBREAK,_rawmode=FALSE, \
-	ioctl(_tty_ch, TIOCSETP, &_tty))
-#define crmode() cbreak()	/* backwards compatability */
-#define nocrmode() nocbreak()	/* backwards compatability */
-#define echo()	 (_tty.sg_flags |= ECHO, _echoit = TRUE, \
-	ioctl(_tty_ch, TIOCSETP, &_tty))
-#define noecho() (_tty.sg_flags &= ~ECHO, _echoit = FALSE, \
-	ioctl(_tty_ch, TIOCSETP, &_tty))
-#define nl()	 (_tty.sg_flags |= CRMOD,_pfast = _rawmode, \
-	ioctl(_tty_ch, TIOCSETP, &_tty))
-#define nonl()	 (_tty.sg_flags &= ~CRMOD, _pfast = TRUE, \
-	ioctl(_tty_ch, TIOCSETP, &_tty))
-#define	savetty() ((void) ioctl(_tty_ch, TIOCGETP, &_tty), \
-	_res_flg = _tty.sg_flags)
-#define	resetty() (_tty.sg_flags = _res_flg, \
-	_echoit = ((_res_flg & ECHO) == ECHO), \
-	_rawmode = ((_res_flg & (CBREAK|RAW)) != 0), \
-	_pfast = ((_res_flg & CRMOD) ? _rawmode : TRUE), \
-	(void) ioctl(_tty_ch, TIOCSETP, &_tty))
-
-#define	erasechar()	(_tty.sg_erase)
-#define	killchar()	(_tty.sg_kill)
-#define baudrate()	(_tty.sg_ospeed)
-
-WINDOW	*initscr(), *newwin(), *subwin();
-char	*longname(), *getcap();
-
-/*
- * Used to be in unctrl.h.
- */
-#define	unctrl(c)	_unctrl[(c) & 0177]
-extern char *_unctrl[];
-#endif
+#endif /* !_CURSES_H_ */

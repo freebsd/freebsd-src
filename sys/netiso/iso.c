@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso.c	7.14 (Berkeley) 6/27/91
- *	$Id: iso.c,v 1.3 1993/10/16 21:05:15 rgrimes Exp $
+ *	$Id: iso.c,v 1.6 1993/12/19 00:53:22 wollman Exp $
  */
 
 /***********************************************************
@@ -65,7 +65,6 @@ SOFTWARE.
  * iso.c: miscellaneous routines to support the iso address family
  */
 
-#include "types.h"
 #include "param.h"
 #include "systm.h"
 #include "ioctl.h"
@@ -78,7 +77,6 @@ SOFTWARE.
 
 #include "../net/if.h"
 #include "../net/route.h"
-#include "../net/af.h"
 
 #include "iso.h"
 #include "iso_var.h"
@@ -89,9 +87,14 @@ SOFTWARE.
 
 #ifdef ISO
 
+static void iso_ifscrub(struct ifnet *, struct iso_ifaddr *);
+
+struct iso_ifaddr *iso_ifaddr;
+struct ifqueue clnlintrq;
+
 int	iso_interfaces = 0;		/* number of external interfaces */
-extern	struct ifnet loif;	/* loopback interface */
-int ether_output(), llc_rtrequest();
+int ether_output();
+void llc_rtrequest();
 
 
 /*
@@ -107,6 +110,8 @@ int ether_output(), llc_rtrequest();
  * NOTES:			
  */
 struct radix_node_head *iso_rnhead;
+
+void
 iso_init()
 {
 	static iso_init_done;
@@ -128,6 +133,7 @@ iso_init()
  *
  * NOTES:			
  */
+int
 iso_addrmatch1(isoaa, isoab)
 register struct iso_addr *isoaa, *isoab;		/* addresses to check */
 {
@@ -191,6 +197,7 @@ register struct iso_addr *isoaa, *isoab;		/* addresses to check */
  *
  * NOTES:			
  */
+int
 iso_addrmatch(sisoa, sisob)
 struct sockaddr_iso	*sisoa, *sisob;		/* addresses to check */
 {
@@ -229,7 +236,7 @@ struct sockaddr_iso *sisoa, *sisob;
 
 	return ((lena == lenb) && (!bcmp(bufa, bufb, lena)));
 }
-#endif notdef
+#endif /* notdef */
 
 /*
  * FUNCTION:		iso_hashchar
@@ -246,8 +253,8 @@ struct sockaddr_iso *sisoa, *sisob;
  */
 u_long
 iso_hashchar(buf, len)
-register caddr_t	buf;		/* buffer to pack from */
-register int		len;		/* length of buffer */
+	register caddr_t buf;	/* buffer to pack from */
+	register int len;	/* length of buffer */
 {
 	register u_long	h = 0;
 	register int	i;
@@ -426,12 +433,14 @@ caddr_t			buf;		/* RESULT: network portion of address here */
 	ENDDEBUG
 	return len;
 }
-#endif notdef
+#endif /* notdef */
+
 /*
  * Generic iso control operations (ioctl's).
  * Ifp is 0 if not an interface-specific ioctl.
  */
 /* ARGSUSED */
+int
 iso_control(so, cmd, data, ifp)
 	struct socket *so;
 	int cmd;
@@ -591,6 +600,7 @@ iso_control(so, cmd, data, ifp)
 /*
  * Delete any existing route for an interface.
  */
+static void
 iso_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
 	register struct iso_ifaddr *ia;
@@ -614,10 +624,12 @@ iso_ifscrub(ifp, ia)
  * Initialize an interface's internet address
  * and routing table entry.
  */
+int
 iso_ifinit(ifp, ia, siso, scrub)
 	register struct ifnet *ifp;
 	register struct iso_ifaddr *ia;
 	struct sockaddr_iso *siso;
+	int scrub;
 {
 	struct sockaddr_iso oldaddr;
 	int s = splimp(), error, nsellength;
@@ -629,7 +641,8 @@ iso_ifinit(ifp, ia, siso, scrub)
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl && (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, ia))) {
+	if (ifp->if_ioctl && (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, 
+						       (caddr_t)ia))) {
 		splx(s);
 		ia->ia_addr = oldaddr;
 		return (error);
@@ -723,7 +736,7 @@ iso_ifwithidi(addr)
 	return ((struct ifaddr *)0);
 }
 
-#endif notdef
+#endif /* notdef */
 /*
  * FUNCTION:		iso_ck_addr
  *
@@ -735,8 +748,9 @@ iso_ifwithidi(addr)
  * SIDE EFFECTS:	
  *
  */
+int
 iso_ck_addr(isoa)
-struct iso_addr	*isoa;	/* address to check */
+	struct iso_addr	*isoa;	/* address to check */
 {
 	return (isoa->isoa_len <= 20);
 
@@ -772,7 +786,8 @@ struct iso_addr	*isoab;		/* other addr to check */
 	}
 	return(0);
 }
-#endif notdef
+#endif /* notdef */
+
 /*
  * FUNCTION:		iso_localifa()
  *
@@ -828,7 +843,7 @@ iso_localifa(siso)
 
 #ifdef	TPCONS
 #include "cons.h"
-#endif	TPCONS
+#endif /* TPCONS */
 /*
  * FUNCTION:		iso_nlctloutput
  *
@@ -841,11 +856,12 @@ iso_localifa(siso)
  * NOTES:			This could embody some of the functions of
  *					rclnp_ctloutput and cons_ctloutput.
  */
+int
 iso_nlctloutput(cmd, optname, pcb, m)
-int			cmd;		/* command:set or get */
-int			optname;	/* option of interest */
-caddr_t		pcb;		/* nl pcb */
-struct mbuf	*m;			/* data for set, buffer for get */
+	int cmd;		/* command:set or get */
+	int optname;		/* option of interest */
+	caddr_t pcb;		/* nl pcb */
+	struct mbuf *m;		/* data for set, buffer for get */
 {
 	struct isopcb	*isop = (struct isopcb *)pcb;
 	int				error = 0;	/* return value */
@@ -889,7 +905,7 @@ struct mbuf	*m;			/* data for set, buffer for get */
 			bcopy(data, (caddr_t)isop->isop_x25crud, (unsigned)data_len);
 			isop->isop_x25crud_len = data_len;
 			break;
-#endif	TPCONS
+#endif /* TPCONS */
 
 		default:
 			error = EOPNOTSUPP;
@@ -897,7 +913,7 @@ struct mbuf	*m;			/* data for set, buffer for get */
 
 	return error;
 }
-#endif ISO
+#endif /* ISO */
 
 #ifdef ARGO_DEBUG
 
@@ -909,6 +925,7 @@ struct mbuf	*m;			/* data for set, buffer for get */
  * RETURNS:			nada 
  *
  */
+void
 dump_isoaddr(s)
 	struct sockaddr_iso *s;
 {
@@ -931,4 +948,4 @@ dump_isoaddr(s)
 	}
 }
 
-#endif ARGO_DEBUG
+#endif /* ARGO_DEBUG */

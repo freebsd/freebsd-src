@@ -69,7 +69,7 @@
  */
 
 # undef		CTRL
-# define	CTRL(X)	('X' - 'A' + 1)
+# define        CTRL(X) ((X) - 'A' + 1)
 
 /*
  * type definitions

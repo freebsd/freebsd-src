@@ -30,12 +30,15 @@
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
 #	st*	"NEW type scsi tapes" (old driver uses the
 #		block devices of the disks to get access)
+#	ft*	QIC-40/QIC-80 3M cartridge tape (interfaced
+#		via the floppy disk controller)
 #
 # Disks:
 #	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
 #	sd*	"scsi disks"
-#	cd*	"cdrom disks"
+#	cd*	"scsi cdrom disks"
+#	mcd*	"mitsumi cdrom disks"
 #
 # Console ports:
 #	pc*	devices for stock pccons
@@ -46,9 +49,14 @@
 #	psm*	PS/2 mouse
 #
 # Terminal ports:
+#       ttyd*   dialin ports
+#       cua*    dialout ports
+#       tty*    hardwired terminals
 #	com*	standard PC COM ports (really makes tty* entries for com)
-#	sio*	fast interrupt PC COM ports (really makes tty* entries for sio)
-#	tty*	alias for sio ports, this is what the system really wants
+#		Note that the `com' driver is not configured in the 
+#		supplied kernels and is usually not what you want.  In
+#		a future release it may be completely desupported.  Fair
+#		warning.
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
@@ -67,7 +75,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.13 1993/10/23 22:24:35 jkh Exp $
+#	$Id: MAKEDEV,v 1.28.2.1 1994/03/07 00:58:43 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -78,15 +86,15 @@ case $i in
 
 all)
 	sh MAKEDEV std						# standard
-	sh MAKEDEV wd0 wd1 fd0 fd1 wt0 sd0 sd1 st0 cd0		# bdev
-	sh MAKEDEV pty0 tty0 tty1 tty2 tty3 pc0 lpt0 lpt1 lpt2	# cdev
+	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0 mcd0	# bdev
+	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
-	sh MAKEDEV speaker mse0 sio0 sio1 sio2 sio3		# cdev
+	sh MAKEDEV speaker mse0 ttyd2 ttyd3                     # cdev
 	# NOTE: co0 and vty04 are not done by a "sh MAKEDEV all"
 	# these are for codrv and interfere with other devices! - rgrimes
 	;;
 std)
-	rm -f console drum mem kmem null tty klog stdin stdout stderr
+	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
 	mknod console	c 0 0;	chmod 600 console;	chown root.wheel console
 	mknod drum	c 4 0;	chmod 640 drum;		chown root.kmem drum
 	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
@@ -114,21 +122,134 @@ std)
 wt*)
 	umask 2 ; u=`expr $i : '..\(.*\)'`
 	if [ x$u = x ]; then u=0; fi
-	rm -f rwt$u nrwt$u rwt${u}a nrwt${u}a rwt${u}b nrwt${u}b
-	mknod rwt${u}   c 10 `expr  0 + $u`     # 150 megabytes
+	rm -f r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
+	mknod rwt${u}   c 10 `expr  0 + $u`	# default density, 512b blocks
 	mknod nrwt${u}  c 10 `expr  4 + $u`
-	mknod rwt${u}a  c 10 `expr  8 + $u`     # 120 megabytes
-	mknod nrwt${u}a c 10 `expr 12 + $u`
-	mknod rwt${u}b  c 10 `expr 16 + $u`     # 60 megabytes
+#	mknod rWt${u}   c 10 `expr 64 + $u`	# default density, 1024b blocks
+#	mknod nrWt${u}  c 10 `expr 68 + $u`
+	mknod rwt${u}b  c 10 `expr 16 + $u`	# 60 megabytes
 	mknod nrwt${u}b c 10 `expr 20 + $u`
-	chown root.operator rwt$u nrwt$u rwt${u}a nrwt${u}a rwt${u}b nrwt${u}b
-	umask 77;
+	mknod rwt${u}c  c 10 `expr 24 + $u`     # 120 megabytes
+	mknod nrwt${u}c c 10 `expr 28 + $u`
+	mknod rwt${u}d  c 10 `expr 32 + $u`	# 150 megabytes
+	mknod nrwt${u}d c 10 `expr 36 + $u`
+#	mknod rwt${u}e  c 10 `expr 40 + $u`	# 300 megabytes?
+#	mknod nrwt${u}e c 10 `expr 44 + $u`
+#	mknod rwt${u}f  c 10 `expr 48 + $u`	# 600 megabytes?
+#	mknod nrwt${u}f c 10 `expr 52 + $u`
+	chown root.operator r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
+	umask 77
 	;;
 
-fd*|sd*|wd*)
+fd*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	name=fd; blk=2; chr=9;
+	rm -f $name$unit* r$name$unit*
+	case $unit in
+	0|1|2|3)
+		mknod ${name}${unit}   b $blk `expr $unit '*' 64`
+		mknod r${name}${unit}  c $chr `expr $unit '*' 64`
+		# Fake BSD partitions
+		for i in a b c d e f g h
+		do
+			ln ${name}${unit} ${name}${unit}$i
+			ln r${name}${unit} r${name}${unit}$i
+		done
+		# User-readable and programmer-readable name sets
+
+		mknod ${name}${unit}.1720  b $blk `expr $unit '*' 64 + 1`
+		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1`
+		# ln ${name}${unit}.1720 ${name}${unit}135hs21
+		# ln r${name}${unit}.1720 r${name}${unit}135hs21
+
+		mknod ${name}${unit}.1480  b $blk `expr $unit '*' 64 + 2`
+		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2`
+		# ln ${name}${unit}.1480 ${name}${unit}135hs18
+		# ln r${name}${unit}.1480 r${name}${unit}135hs18
+		# ln ${name}${unit}.1480 ${name}${unit}96hs18
+		# ln r${name}${unit}.1480 r${name}${unit}96hs18
+
+		mknod ${name}${unit}.1440  b $blk `expr $unit '*' 64 + 3`
+		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3`
+		# ln ${name}${unit}.1440 ${name}${unit}135
+		# ln r${name}${unit}.1440 r${name}${unit}135
+		# ln ${name}${unit}.1440 ${name}${unit}135ds18
+		# ln r${name}${unit}.1440 r${name}${unit}135ds18
+		# ln ${name}${unit}.1440 ${name}${unit}96ds18
+		# ln r${name}${unit}.1440 r${name}${unit}96ds18
+
+		mknod ${name}${unit}.1200  b $blk `expr $unit '*' 64 + 4`
+		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4`
+		# ln ${name}${unit}.1200 ${name}${unit}96
+		# ln r${name}${unit}.1200 r${name}${unit}96
+		# ln ${name}${unit}.1200 ${name}${unit}96ds15
+		# ln r${name}${unit}.1200 r${name}${unit}96ds15
+		# ln ${name}${unit}.1200 ${name}${unit}135ds15
+		# ln r${name}${unit}.1200 r${name}${unit}135ds15
+
+		mknod ${name}${unit}.820  b $blk `expr $unit '*' 64 + 5`
+		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5`
+		# ln ${name}${unit}.820 ${name}${unit}96hs10
+		# ln r${name}${unit}.820 r${name}${unit}96hs10
+		# ln ${name}${unit}.820 ${name}${unit}135hs10
+		# ln r${name}${unit}.820 r${name}${unit}135hs10
+
+		mknod ${name}${unit}.800  b $blk `expr $unit '*' 64 + 6`
+		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6`
+		# ln ${name}${unit}.800 ${name}${unit}96ds10
+		# ln r${name}${unit}.800 r${name}${unit}96ds10
+		# ln ${name}${unit}.800 ${name}${unit}135ds10
+		# ln r${name}${unit}.800 r${name}${unit}135ds10
+
+		mknod ${name}${unit}.720  b $blk `expr $unit '*' 64 + 7`
+		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7`
+		# ln ${name}${unit}.720 ${name}${unit}96ds9
+		# ln r${name}${unit}.720 r${name}${unit}96ds9
+		# ln ${name}${unit}.720 ${name}${unit}135ds9
+		# ln r${name}${unit}.720 r${name}${unit}135ds9
+
+		mknod ${name}${unit}.360  b $blk `expr $unit '*' 64 + 8`
+		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8`
+		# ln ${name}${unit}.360 ${name}${unit}48
+		# ln r${name}${unit}.360 r${name}${unit}48
+		# ln ${name}${unit}.360 ${name}${unit}48ds9
+		# ln r${name}${unit}.360 r${name}${unit}48ds9
+
+		chgrp operator ${name}${unit}* r${name}${unit}*
+		chmod 640 ${name}${unit}* r${name}${unit}*
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+
+ft*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	name=ft; blk=2; chr=9;
+	rm -f $name$unit* r$name$unit*
+	case $unit in
+	0|1|2|3)
+		mknod ${name}${unit}   b $blk `expr $unit '*' 64 + 32`
+		mknod r${name}${unit}  c $chr `expr $unit '*' 64 + 32`
+		ln ${name}${unit} ${name}${unit}a
+		ln r${name}${unit} r${name}${unit}a
+		chgrp operator ${name}${unit}* r${name}${unit}*
+		chmod 640 ${name}${unit}* r${name}${unit}*
+		;;
+	*)
+		echo bad unit for tape in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+
+sd*|wd*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
 	case $i in
-	fd*) name=fd; blk=2; chr=9;;
 	sd*) name=sd; blk=4; chr=13;;
 	wd*) name=wd; blk=0; chr=3;;
 	esac
@@ -161,6 +282,12 @@ fd*|sd*|wd*)
 	umask 77
 	;;
 
+uk*)
+	unit=`expr $i : 'uk\(.*\)'`
+	rm -f uk$unit
+	mknod uk$unit c 27 $unit
+	;;
+
 com*)
 	unit=`expr $i : '...\(.*\)'`
 	rm -f tty0$unit
@@ -188,58 +315,47 @@ pty*)
 					rm -f pty%s%x; mknod pty%s%x c 6 %d; ", \
 					n, i, n, i, b+i, n, i, n, i, b+i); }'`
 		umask 77
-		if [ $class = 1 ]; then
-			mv ttyqf ttyv0; mv ptyqf ptyv0
-		fi
 		;;
 	esac
 	;;
 
 st*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
-	case $i in
-	st*) name=st;  chr=14;;
-	esac
-	rm -f r$name$unit nr$name$unit er$name$unit enr$name$unit 
-	rm -f hr$name$unit hnr$name$unit her$name$unit henr$name$unit 
-	rm -f mr$name$unit mnr$name$unit mer$name$unit menr$name$unit 
-	rm -f lr$name$unit lnr$name$unit ler$name$unit lenr$name$unit 
+	chr=14;
+
+	#remove old stype names
+	rm -f [hml]rst[0123456] [hml][en]rst[0123456] [hml]enrst[0123456]  
+	#remove new style names
+	rm -f rst${unit} [en]rst${unit} enrst${unit}  
+	rm -f rst${unit}.[0123] nrst${unit}.[0123]\
+		 erst${unit}.[0123] st${unit}ctl.[0123]
+
 	case $unit in
 	0|1|2|3|4|5|6)
-		mknod r${name}${unit}	c $chr `expr $unit '*' 16 + 0`
-		mknod nr${name}${unit}	c $chr `expr $unit '*' 16 + 1`
-		mknod er${name}${unit}	c $chr `expr $unit '*' 16 + 2`
-		mknod hr${name}${unit}	c $chr `expr $unit '*' 16 + 4`
-		mknod hnr${name}${unit}	c $chr `expr $unit '*' 16 + 5`
-		mknod her${name}${unit}	c $chr `expr $unit '*' 16 + 6`
-		mknod mr${name}${unit}	c $chr `expr $unit '*' 16 + 8`
-		mknod mnr${name}${unit}	c $chr `expr $unit '*' 16 + 9`
-		mknod mer${name}${unit}	c $chr `expr $unit '*' 16 + 10`
-		mknod lr${name}${unit}	c $chr `expr $unit '*' 16 + 12`
-		mknod lnr${name}${unit}	c $chr `expr $unit '*' 16 + 13`
-		mknod ler${name}${unit}	c $chr `expr $unit '*' 16 + 14`
-		chgrp operator r${name}${unit} nr${name}${unit} \
-			er${name}${unit}  
-		chgrp operator hr${name}${unit} hnr${name}${unit} \
-			her${name}${unit}  
-		chgrp operator mr${name}${unit} mnr${name}${unit} \
-			mer${name}${unit}  
-		chgrp operator lr${name}${unit} lnr${name}${unit} \
-			ler${name}${unit}  
-		chmod 640 r${name}${unit} nr${name}${unit} \
-			er${name}${unit} 
-		chmod 640 hr${name}${unit} hnr${name}${unit} \
-			her${name}${unit} 
-		chmod 640 mr${name}${unit} mnr${name}${unit} \
-			mer${name}${unit} 
-		chmod 640 lr${name}${unit} lnr${name}${unit} \
-			ler${name}${unit} 
+		for mode in 0 1 2 3
+		do
+			mknod rst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 0`
+			mknod nrst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 1`
+			mknod erst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 2`
+			mknod st${unit}ctl.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 3`
+			chgrp operator 	rst${unit}.${mode}\
+					nrst${unit}.${mode} \
+					erst${unit}.${mode} \
+					st${unit}ctl.${mode}
+			chmod 644 	rst${unit}.${mode}\
+					nrst${unit}.${mode} \
+					erst${unit}.${mode} 
+			chmod 660	st${unit}ctl.${mode}
+		done
+		ln rst${unit}.0 rst${unit}
+		ln nrst${unit}.0 nrst${unit}
+		ln erst${unit}.0 erst${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
-		;;
-	esac
-	umask 77
+  		;;
+  	esac
+  	umask 77
 	;;
 
 ch*)
@@ -261,10 +377,11 @@ ch*)
 	umask 77
 	;;
 
-cd*)
-	umask 2 ; unit=`expr $i : '..\(.*\)'`
+cd*|mcd*)
+	umask 2 ;
 	case $i in
-	cd*) name=cd; blk=6; chr=15;;
+	cd*) unit=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
+	mcd*) unit=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
 	esac
 	rm -f $name$unit? r$name$unit?
 	case $unit in
@@ -302,10 +419,11 @@ tw*)
 pc*)
 	chr=12
 	minor=0
- 	name=vga
-	rm -f ${name} kbd kbdco vgaco ttyv[0-9][0-9]
+ 	name=ttyv0
+	rm -f ${name} vga kbd kbdco vgaco ttyv[0-9][0-9]
 	mknod ${name} c ${chr} ${minor}
 	chown root.wheel $name
+	ln -s ${name} vga
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
@@ -351,11 +469,20 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-sio*|tty*)
-	unit=`expr $i : '...\(.*\)'`
-	rm -f tty0$unit
+cua*|ttyd*)
+	unit=`expr $i : '...d*\(.\)'`
+	rm -f tty0$unit cua0$unit ttyd$unit
+	mknod ttyd$unit c 28 $unit
+	mknod cua0$unit c 28 `expr $unit + 128`
+	chown uucp.wheel ttyd$unit cua0$unit
+	;;
+
+tty*)
+	unit=`expr $i : 'tty\(.\)'`
+	rm -f tty0$unit cua0$unit ttyd$unit
+	umask 0
 	mknod tty0$unit c 28 $unit
-	chown uucp.wheel tty0$unit
+	umask 77
 	;;
 
 mse*)

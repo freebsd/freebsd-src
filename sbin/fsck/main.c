@@ -39,7 +39,7 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)main.c	5.27 (Berkeley) 8/7/90";
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sbin/fsck/main.c,v 1.2 1993/07/22 16:51:51 jkh Exp $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sbin/fsck/main.c,v 1.3 1994/02/04 03:03:05 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -275,9 +275,10 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	if (!fsmodified)
 		return (0);
 	if (!preen) {
+		extern char *_osname();
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 		if (hotroot)
-			printf("\n***** REBOOT UNIX *****\n");
+			printf("\n***** REBOOT %s *****\n", _osname());
 	}
 	if (hotroot) {
 		sync();

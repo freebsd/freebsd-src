@@ -272,8 +272,8 @@ void dochc(argv, argc)
 		ecommt = ECOMMT;
 	    }
 	} else {
-	    scommt = SCOMMT;
-	    ecommt = ECOMMT;
+	    scommt = '\0';	/* assuming no nulls in input */
+	    ecommt = '\0';
 	}
     }
 

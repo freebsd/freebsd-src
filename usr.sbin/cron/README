@@ -1,0 +1,25 @@
+This is Vixie cron 3.0. This version fixes all known security bugs. 
+Further it implements crontab -e.
+I moved cron from /usr/libexec to /usr/sbin where most daemons are
+that are run from rc. That also gets rid of the ugly path crond
+used to have in ps(1) outputs. Further I renamed it to cron, as
+Paul Vixie likes it and is done by NetBSD.
+
+NOTE VERY WELL THE FOLLOWING:
+
+1) Systems crontab changed. Every users crontab resides in /var/cron
+   *EXCEPT* root's. This is a special crontab as it resides in
+   /etc. Further it is the *ONLY* crontab file in which you specify
+   usernames. See /usr/src/etc/crontab. This is also done by BSDI's
+   BSD/386 as far as I know (they provided the patches for it anyway)
+2) So you *must* delete root's crontab and reinstall the copy
+   in /etc from /usr/src/etc.
+   'Must' is to much: the old installed crontab will work but cron
+   will also try to 'run' /etc/crontab. 
+3) Last but not least: cron's logging is now done via syslog. Note
+   that logging by cron is done lowercase when it logs about itsself
+   and uppercase when it logs user events, like installing a new crontab.
+   The default logfile file is the same as before:
+   	syslog.conf:cron.*	/var/cron/log
+
+-Guido

@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ *	$Id: pwd.h,v 1.3.2.1 1994/05/04 07:37:52 rgrimes Exp $
+ */
 /*-
  * Copyright (c) 1989 The Regents of the University of California.
  * All rights reserved.
@@ -82,7 +91,7 @@ struct passwd	*getpwnam __P((const char *));
 #ifndef _POSIX_SOURCE
 struct passwd	*getpwent __P((void));
 int		 setpassent __P((int));
-int		 setpwent __P((void));
+void		 setpwent __P((void));
 void		 endpwent __P((void));
 #endif
 __END_DECLS

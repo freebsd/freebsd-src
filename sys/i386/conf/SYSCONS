@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.12 1993/10/19 01:28:09 rgrimes Exp $
+#	$Id: SYSCONS,v 1.18 1994/02/07 10:42:04 rgrimes Exp $
 #
 
 machine		"i386"
@@ -21,19 +21,25 @@ options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		XSERVER			#Xserver
 options		UCONSOLE		#X Console support
 options		"NCONS=8"		#8 virtual consoles
+options		"FAT_CURSOR"		#block cursor in syscons
+options		"STAR_SAVER"		#syscons "stars" screen saver
 #options	GATEWAY			#Host is a Gateway (forwards packets)
 
-config		"386bsd"	root on wd0 swap on wd0 and sd0
+config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
 controller	isa0
 
-controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
-disk		fd0	at fd0 drive 0
-disk		fd1	at fd0 drive 1
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+disk		fd1	at fdc0 drive 1
 
-controller	wd0	at isa? port "IO_WD1" bio irq 14 vector wdintr
-disk		wd0	at wd0 drive 0
-disk		wd1	at wd0 drive 1
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+disk		wd0	at wdc0 drive 0
+disk		wd1	at wdc0 drive 1
+
+controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+disk		wd2	at wdc1 drive 0
+disk		wd3	at wdc1 drive 1
 
 controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
@@ -52,13 +58,6 @@ device		cd0	#Only need one of these, the code dynamically grows
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
-#The old drivers are rarely needed anymore...
-#device		com0	at isa? port "IO_COM1" tty irq 4 vector comintr
-#device		com1	at isa? port "IO_COM2" tty irq 3 vector comintr
-#device		com2	at isa? port "IO_COM3" tty irq 5 vector comintr
-#device		com3	at isa? port "IO_COM4" tty irq 9 vector comintr
-
-#For high speed serial lines.
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
 device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr

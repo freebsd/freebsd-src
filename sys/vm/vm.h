@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm.h	7.1 (Berkeley) 5/5/91
- *	$Id: vm.h,v 1.2 1993/10/16 16:20:22 rgrimes Exp $
+ *	$Id: vm.h,v 1.6 1993/12/19 00:55:58 wollman Exp $
  */
 
-#ifndef VM_H
-#define VM_H
+#ifndef _VM_H_
+#define _VM_H_ 1
+
 #include <vm/vm_param.h>
 #include <vm/lock.h>
 #include <vm/queue.h>
@@ -66,10 +67,19 @@ struct vmspace {
 	caddr_t	vm_taddr;	/* user virtual address of text XXX */
 	caddr_t	vm_daddr;	/* user virtual address of data XXX */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
+	caddr_t vm_minsaddr;	/* user VA of initial stack base */
 };
 
 struct	vmspace *vmspace_alloc __P((vm_offset_t min, vm_offset_t max,
 			int pageable));
 struct	vmspace *vmspace_fork __P((struct vmspace *));
 void	vmspace_free __P((struct vmspace *));
-#endif /* VM_H */
+
+extern void thread_block(const char *);
+
+/* This really doesn't belong here, but the VM code doesn't distinguish
+ * very well between internal and interface code. */
+#define assert_wait(e, r) (curproc->p_thread = (e))
+#define thread_wakeup(e) (wakeup((caddr_t)(e)))
+
+#endif /* _VM_H_ */

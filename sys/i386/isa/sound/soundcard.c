@@ -1,10 +1,31 @@
 /*
  * sound/386bsd/soundcard.c
  * 
- * Soundcard driver for 386BSD.
+ * Soundcard driver for FreeBSD.
  * 
- * (C) 1992  Hannu Savolainen (hsavolai@cs.helsinki.fi)
- * See COPYING for further details. Should be distributed with this file.
+ * Copyright by Hannu Savolainen 1993
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  */
 
 #include "sound_config.h"
@@ -54,7 +75,7 @@ int             sndwrite (int dev, struct uio *uio);
 int             sndselect (int dev, int rw);
 static void	sound_mem_init(void);
 
-int
+long
 get_time()
 {
 extern struct timeval time;
@@ -72,7 +93,7 @@ sndread (int dev, struct uio *buf)
 
   DEB (printk ("sound_read(dev=%d, count=%d)\n", dev, count));
 
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */
+  switch (dev & 0x0f) /* It really has to be 0x0f */
     {
     case SND_DEV_AUDIO:
       FIX_RETURN (audio_read (dev, &files[dev], buf, count));
@@ -116,7 +137,7 @@ sndwrite (int dev, struct uio *buf)
 
   dev = minor (dev);
 
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */ 
+  switch (dev & 0x0f) /* It really has to be 0x0f */ 
     {
 
     case SND_DEV_SEQ:
@@ -177,7 +198,7 @@ sndopen (dev_t dev, int flags)
   else if (flags & FWRITE)
     files[dev].mode = OPEN_WRITE;
 
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */ 
+  switch (dev & 0x0f) /* It has to be 0x0f. Trust me */ 
     {
     case SND_DEV_CTL:
       if (!soundcards_installed)
@@ -243,7 +264,7 @@ sndclose (dev_t dev, int flags)
 
   DEB (printk ("sound_release(dev=%d)\n", dev));
 
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */
+  switch (dev & 0x0f) /* Has to be 0x0f */
     {
     case SND_DEV_SEQ:
       sequencer_release (dev, &files[dev]);
@@ -336,8 +357,8 @@ sndselect (int dev, int rw)
   FIX_RETURN (0);
 }
 
-static short
-ipri_to_irq (short ipri)
+static unsigned short
+ipri_to_irq (unsigned short ipri)
 {
   /*
    * Converts the ipri (bitmask) to the corresponding irq number
@@ -372,7 +393,7 @@ sndattach (struct isa_device *dev)
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
   static int 	  generic_midi_initialized = 0; 
-  unsigned long	  mem_start = 0xefffffff;
+  unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
 
   hw_config.io_base = dev->id_iobase;
@@ -395,6 +416,8 @@ sndattach (struct isa_device *dev)
       printf (" <No such hardware>");
       return FALSE;		/* No cards detected */
     }
+
+  printf("\n");
 
 #ifndef EXCLUDE_AUDIO
   soundcard_configured = 1;
@@ -457,7 +480,7 @@ tenmicrosec (void)
 void
 gusintr (int unit)
 {
-  return (0);
+  return;
 }
 #endif
 
@@ -468,7 +491,7 @@ request_sound_timer (int count)
   int             tmp = count;
 
   if (count < 0)
-    timeout (sequencer_timer, 0, -count);
+    timeout ((timeout_func_t)sequencer_timer, 0, -count);
   else
     {
 
@@ -482,7 +505,7 @@ request_sound_timer (int count)
       if (!count)
 	count = 1;
 
-      timeout (sequencer_timer, 0, count);
+      timeout ((timeout_func_t)sequencer_timer, 0, count);
     }
   timer_running = 1;
 }
@@ -491,7 +514,7 @@ void
 sound_stop_timer (void)
 {
   if (timer_running)
-    untimeout (sequencer_timer, 0);
+    untimeout ((timeout_func_t)sequencer_timer, 0); /* XXX should fix */
   timer_running = 0;
 }
 
@@ -511,7 +534,7 @@ sound_mem_init (void)
 
 	  if (sound_dma_automode[dev])
 	    {
-	      sound_dma_automode[dev] = 0;	/* Not possible with 386BSD */
+	      sound_dma_automode[dev] = 0;	/* Not possible with FreeBSD */
 	    }
 
 	  if (sound_buffcounts[dev] == 1)
@@ -523,16 +546,19 @@ sound_mem_init (void)
 	  if (sound_buffsizes[dev] > 65536)	/* Larger is not possible (yet) */
 	    sound_buffsizes[dev] = 65536;
 
+#if 0
 	  if (sound_dsp_dmachan[dev] > 3 && sound_buffsizes[dev] > 65536)
 	    dma_pagesize = 131072;	/* 128k */
 	  else
 	    dma_pagesize = 65536;
+#endif
+	  dma_pagesize = 4096;          /* use bounce buffer */
 
 	  /* More sanity checks */
 
 	  if (sound_buffsizes[dev] > dma_pagesize)
 	    sound_buffsizes[dev] = dma_pagesize;
-	  sound_buffsizes[dev] &= 0xfffff000;	/* Truncate to n*4k */
+	  sound_buffsizes[dev] &= ~0xfff;	/* Truncate to n*4k */
 	  if (sound_buffsizes[dev] < 4096)
 	    sound_buffsizes[dev] = 4096;
 

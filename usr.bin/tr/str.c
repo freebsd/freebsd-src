@@ -145,7 +145,7 @@ bracket(s)
 
 int isalnum __P((int)),
     isalpha __P((int)),
-    isblank __P((int)),
+/*    isblank __P((int)), until 4.4 */
     isspace __P((int)),
     iscntrl __P((int)),
     isdigit __P((int)),

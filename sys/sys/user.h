@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)user.h	7.19 (Berkeley) 5/4/91
- *	$Id: user.h,v 1.2 1993/10/16 17:18:20 rgrimes Exp $
+ *	$Id: user.h,v 1.3 1993/11/07 17:53:17 wollman Exp $
  */
+
+#ifndef _SYS_USER_H_
+#define _SYS_USER_H_ 1
 
 #include <machine/pcb.h>
 #ifndef KERNEL
@@ -89,3 +92,4 @@ struct	user {
 #define	u_sig	U_sig
 #define	u_code	U_code
 #endif /* KERNEL */
+#endif /* _SYS_USER_H_ */

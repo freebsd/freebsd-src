@@ -35,18 +35,32 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.2 1993/10/09 08:30:48 davidg Exp $
+ *	$Id: SYS.h,v 1.3 1993/11/04 00:01:17 paul Exp $
  */
 
 #include <syscall.h>
+#include "DEFS.h"
 
-#ifdef PROF
-#define	ENTRY(x)	.globl _/**/x; \
-			.data; 1:; .long 0; .text; .align 2,0x90; _/**/x: \
-			movl $1b,%eax; call mcount
+#ifdef PIC
+#define PIC_PROLOGUE    \
+        pushl   %ebx;   \
+        call    1f;     \
+1:                      \
+        popl    %ebx;   \
+        addl    $_GLOBAL_OFFSET_TABLE_+[.-1b], %ebx
+#define PIC_EPILOGUE    \
+        popl    %ebx
+#define PIC_PLT(x)      x@PLT
+#define PIC_GOT(x)      x@GOT(%ebx)
+#define PIC_GOTOFF(x)   x@GOTOFF(%ebx)
 #else
-#define	ENTRY(x)	.globl _/**/x; .text; .align 2,0x90; _/**/x: 
-#endif PROF
+#define PIC_PROLOGUE
+#define PIC_EPILOGUE
+#define PIC_PLT(x)      x
+#define PIC_GOT(x)      x
+#define PIC_GOTOFF(x)   x
+#endif
+
 #define	SYSCALL(x)	2: jmp cerror; ENTRY(x); lea SYS_/**/x,%eax; LCALL(7,0); jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret
 #define	PSEUDO(x,y)	ENTRY(x); lea SYS_/**/y, %eax; ; LCALL(7,0); ret

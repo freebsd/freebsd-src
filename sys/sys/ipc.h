@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -36,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ipc.h	7.2 (Berkeley) 2/5/91
- *	$Id: ipc.h,v 1.2 1993/10/16 17:16:54 rgrimes Exp $
+ *	$Id: ipc.h,v 1.3.2.1 1994/05/04 07:57:23 rgrimes Exp $
  */
 
 /*
@@ -71,5 +78,15 @@ struct ipc_perm {
 #define	IPC_RMID	0	/* remove identifier */
 #define	IPC_SET		1	/* set options */
 #define	IPC_STAT	2	/* get options */
+
+#ifdef KERNEL
+
+/* Macros to convert between ipc ids and array indices or sequence ids */
+
+#define IPCID_TO_IX(id)		((id) & 0xffff)
+#define IPCID_TO_SEQ(id)	(((id) >> 16) & 0xffff)
+#define IXSEQ_TO_IPCID(ix,perm)	(((perm.seq) << 16) | (ix & 0xffff))
+
+#endif
 
 #endif /* !_IPC_H_ */

@@ -99,13 +99,16 @@ char *savestr();
 #define equal(s1, s2)	(strcmp(s1, s2) == 0)
 
 
-main(argc, argv)
-	char **argv;
-	{
-	if (argc != 3)
+main(int argc, char **argv)
+{
+	if (argc != 3) {
 		error("usage: mknodes file\n");
-	if ((infp = fopen(argv[1], "r")) == NULL)
+		return(1);
+	}
+	if ((infp = fopen(argv[1], "r")) == NULL) {
 		error("Can't open %s", argv[1]);
+		return(1);
+	}
 	while (readline()) {
 		if (line[0] == ' ' || line[0] == '\t')
 			parsefield();
@@ -113,7 +116,7 @@ main(argc, argv)
 			parsenode();
 	}
 	output(argv[2]);
-	return 0;
+	return(0);
 }
 
 

@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)ppt.c	5.4 (Berkeley) 6/1/90";
 
 #include <stdio.h>
 
-void	putppt();
+static void	putppt();
 
 main(argc, argv)
 	int argc;

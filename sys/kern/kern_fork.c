@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1982, 1986, 1989, 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_fork.c	7.29 (Berkeley) 5/15/91
- *	$Id: kern_fork.c,v 1.2 1993/10/16 15:24:17 rgrimes Exp $
+ *	$Id: kern_fork.c,v 1.6.2.1 1994/05/04 07:54:38 rgrimes Exp $
  */
 
 #include "param.h"
@@ -47,7 +54,10 @@
 #include "ktrace.h"
 #include "vm/vm.h"
 
+static int fork1(struct proc *, int, int *);
+
 /* ARGSUSED */
+int
 fork(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -58,6 +68,7 @@ fork(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 vfork(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -69,6 +80,7 @@ vfork(p, uap, retval)
 
 int	nprocs = 1;		/* process 0 */
 
+static int
 fork1(p1, isvfork, retval)
 	register struct proc *p1;
 	int isvfork, retval[];
@@ -156,26 +168,21 @@ again:
 	 */
 	MALLOC(p2, struct proc *, sizeof(struct proc), M_PROC, M_WAITOK);
 	nprocs++;
+
+	/* Initialize all fields to zero */
+	bzero((struct proc *)p2, sizeof(struct proc));
+
 	p2->p_nxt = allproc;
 	p2->p_nxt->p_prev = &p2->p_nxt;		/* allproc is never NULL */
 	p2->p_prev = &allproc;
 	allproc = p2;
-	p2->p_link = NULL;			/* shouldn't be necessary */
-	p2->p_rlink = NULL;			/* shouldn't be necessary */
 
 	/*
 	 * Make a proc table entry for the new process.
-	 * Start by zeroing the section of proc that is zero-initialized,
-	 * then copy the section that is copied directly from the parent.
+	 * Copy the section that is copied directly from the parent.
 	 */
-	bzero(&p2->p_startzero,
-	    (unsigned) ((caddr_t)&p2->p_endzero - (caddr_t)&p2->p_startzero));
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) ((caddr_t)&p2->p_endcopy - (caddr_t)&p2->p_startcopy));
-	p2->p_spare[0] = 0;	/* XXX - should be in zero range */
-	p2->p_spare[1] = 0;	/* XXX - should be in zero range */
-	p2->p_spare[2] = 0;	/* XXX - should be in zero range */
-	p2->p_spare[3] = 0;	/* XXX - should be in zero range */
 
 	/*
 	 * Duplicate sub-structures as needed.

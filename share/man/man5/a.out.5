@@ -375,6 +375,21 @@ The
 .Pa a.out.h
 include file appeared in
 .At v7 .
+.Pp
+.Em Bss
+stands for ``Block Started by Symbol'', and denotes storage which must be
+initialized to all zero-bits upon loading.
+The term
+.Em BSS
+comes from ancient assemblers, most likely from some of the pre-'360 IBM's.
+This section was introduced in
+days long past, when time_t was still a small number, to save diskspace.
+As dynamic allocation of resources have become increasingly widespread,
+and demand-paged, as opposed to swapped systems have spread, the savings
+in diskspace has almost vanished.
+Only very few programs have a bss section
+of non-zero size nowadays, and it is more often than not at sign that they
+could need a rewrite.
 .Sh BUGS
 Since not all of the supported architectures use the
 .Fa a_mid
@@ -386,10 +401,6 @@ Even with a machine identifier,
 the byte order of the
 .Fa exec
 header is machine-dependent.
-.Pp
-Nobody seems to agree on what
-.Em bss
-stands for.
 .Pp
 New binary file formats may be supported in the future,
 and they probably will not be compatible at any level

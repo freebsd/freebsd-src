@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1982, 1986, 1989 The Regents of the University of California.
  * All rights reserved.
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stat.h	7.11 (Berkeley) 3/3/91
- *	$Id: stat.h,v 1.4 1993/10/16 17:17:50 rgrimes Exp $
+ *	$Id: stat.h,v 1.4.4.1 1994/05/04 07:57:35 rgrimes Exp $
  */
 
 #ifndef _SYS_STAT_H_

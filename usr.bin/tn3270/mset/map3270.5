@@ -38,7 +38,7 @@ map3270 \- database for mapping ascii keystrokes into IBM 3270 keys
 .SH SYNOPSIS
 .B map3270
 .SH DESCRIPTION
-When emulating IBM-syle 3270 terminals under \s-1UNIX\s0 (see \fItn3270\fR(1)),
+When emulating IBM-style 3270 terminals under \s-1FreeBSD\s0 (see \fItn3270\fR(1)),
 a mapping must be performed between sequences of keys hit on
 a user's (ascii) keyboard, and the keys that are
 available on a 3270.  For example, a 3270 has a key labeled
@@ -113,7 +113,7 @@ Note: the ctrl-caret sequence
 (to generate a hexadecimal 1E)
 is represented as `^^' (not `^\e^').
 .PP
-In addition to the caret, a letter may be preceeded by a backslash (`\e').
+In addition to the caret, a letter may be preceded by a backslash (`\e').
 Since this has little effect for most characters,
 its use is usually not recommended.
 For the case of a single quote (`\(aa'), the backslash

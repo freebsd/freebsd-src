@@ -32,8 +32,46 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)makeinfo.sh	8.1 (Berkeley) 6/7/93
+#	@(#)makeinfo.sh	8.4 (Berkeley) 3/4/94
 #
 
-echo '#####' built by `whoami` on `date`
-echo '#####' in `pwd` on `hostname`
+usewhoami=0
+usehostname=0
+for p in `echo $PATH | sed 's/:/ /g'`
+do
+	if [ "x$p" = "x" ]
+	then
+		p="."
+	fi
+	if [ -f $p/whoami ]
+	then
+		usewhoami=1
+		if [ $usehostname -ne 0 ]
+		then
+			break;
+		fi
+	fi
+	if [ -f $p/hostname ]
+	then
+		usehostname=1
+		if [ $usewhoami -ne 0 ]
+		then
+			break;
+		fi
+	fi
+done
+if [ $usewhoami -ne 0 ]
+then
+	user=`whoami`
+else
+	user=$LOGNAME
+fi
+
+if [ $usehostname -ne 0 ]
+then
+	host=`hostname`
+else
+	host=`uname -n`
+fi
+echo '#####' built by $user@$host on `date`
+echo '#####' in `pwd` | sed 's/\/tmp_mnt//'

@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)udp_usrreq.c	7.20 (Berkeley) 4/20/91
- *	$Id: udp_usrreq.c,v 1.2 1993/10/16 18:26:43 rgrimes Exp $
+ *	$Id: udp_usrreq.c,v 1.7 1994/02/07 19:53:25 ache Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "malloc.h"
 #include "mbuf.h"
 #include "protosw.h"
@@ -47,6 +48,7 @@
 
 #include "in.h"
 #include "in_systm.h"
+#include "in_var.h"
 #include "ip.h"
 #include "in_pcb.h"
 #include "ip_var.h"
@@ -54,27 +56,25 @@
 #include "udp.h"
 #include "udp_var.h"
 
-struct	inpcb *udp_last_inpcb = &udb;
+struct   inpcb udb;     /* Can't be static, because of netstat want it */
+static struct	inpcb *udp_last_inpcb = &udb;
+
+static void udp_detach(struct inpcb *);
 
 /*
  * UDP protocol implementation.
  * Per RFC 768, August, 1980.
  */
+void
 udp_init()
 {
 
 	udb.inp_next = udb.inp_prev = &udb;
 }
 
-#ifndef	COMPAT_42
-int	udpcksum = 1;
-#else
-int	udpcksum = 0;		/* XXX */
-#endif
-int	udp_ttl = UDP_TTL;
+static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 
-struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
-
+void
 udp_input(m, iphlen)
 	register struct mbuf *m;
 	int iphlen;
@@ -169,7 +169,10 @@ udp_input(m, iphlen)
 		}
 		*ip = save_ip;
 		ip->ip_len += iphlen;
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT);
+		{
+		  static struct in_addr fake;
+		  icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, fake, 0);
+		}
 		return;
 	}
 
@@ -252,8 +255,10 @@ udp_saveopt(p, size, type)
  * Notify a udp user of an asynchronous error;
  * just wake up so that he can collect error status.
  */
+void
 udp_notify(inp, errno)
 	register struct inpcb *inp;
+	int errno;
 {
 
 	inp->inp_socket->so_error = errno;
@@ -261,6 +266,7 @@ udp_notify(inp, errno)
 	sowwakeup(inp->inp_socket);
 }
 
+void
 udp_ctlinput(cmd, sa, ip)
 	int cmd;
 	struct sockaddr *sa;
@@ -280,6 +286,7 @@ udp_ctlinput(cmd, sa, ip)
 		in_pcbnotify(&udb, sa, 0, zeroin_addr, 0, cmd, udp_notify);
 }
 
+int
 udp_output(inp, m, addr, control)
 	register struct inpcb *inp;
 	register struct mbuf *m;
@@ -288,7 +295,7 @@ udp_output(inp, m, addr, control)
 	register struct udpiphdr *ui;
 	register int len = m->m_pkthdr.len;
 	struct in_addr laddr;
-	int s, error = 0;
+	int s = 0, error = 0;
 
 	if (control)
 		m_freem(control);		/* XXX */
@@ -362,11 +369,8 @@ release:
 	return (error);
 }
 
-u_long	udp_sendspace = 9216;		/* really max datagram size */
-u_long	udp_recvspace = 40 * (1024 + sizeof(struct sockaddr_in));
-					/* 40 1K datagrams */
-
 /*ARGSUSED*/
+int
 udp_usrreq(so, req, m, addr, control)
 	struct socket *so;
 	int req;
@@ -503,6 +507,7 @@ release:
 	return (error);
 }
 
+static void
 udp_detach(inp)
 	struct inpcb *inp;
 {

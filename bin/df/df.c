@@ -1,4 +1,13 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ *	$Id: df.c,v 1.3.2.2 1994/05/04 07:35:01 rgrimes Exp $
+ */
+/*
  * Copyright (c) 1980, 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -199,9 +208,9 @@ prtstat(sfsp, maxwidth)
 	used = sfsp->f_blocks - sfsp->f_bfree;
 	availblks = sfsp->f_bavail + used;
 	(void)printf(" %*ld %7ld %7ld", headerlen,
-	    sfsp->f_blocks * sfsp->f_fsize / blocksize,
-	    used * sfsp->f_fsize / blocksize,
-	    sfsp->f_bavail * sfsp->f_fsize / blocksize);
+	    (long)((double)sfsp->f_blocks * (double)sfsp->f_fsize / (double)blocksize),
+	    (long)((double)used * (double)sfsp->f_fsize / (double)blocksize),
+	    (long)((double)sfsp->f_bavail * (double)sfsp->f_fsize / (double)blocksize));
 	(void)printf(" %5.0f%%",
 	    availblks == 0 ? 100.0 : (double)used / (double)availblks * 100.0);
 	if (iflag) {

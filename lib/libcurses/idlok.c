@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,23 +32,23 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)idlok.c	5.4 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)idlok.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
 
 /*
- * idlok:
- *	Turn on and off using insert/deleteln sequences for the given
- *	window.
- *
+ * idlok --
+ *	Turn on and off using insert/deleteln sequences for the
+ *	given window.
  */
+void
 idlok(win, bf)
-register WINDOW	*win;
-bool		bf;
+	WINDOW *win;
+	int bf;
 {
 	if (bf)
-		win->_flags |= _IDLINE;
+		win->flags |= __IDLINE;
 	else
-		win->_flags &= ~_IDLINE;
+		win->flags &= ~__IDLINE;
 }

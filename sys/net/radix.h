@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)radix.h	7.4 (Berkeley) 6/28/90
- *	$Id: radix.h,v 1.2 1993/10/16 17:43:32 rgrimes Exp $
+ *	$Id: radix.h,v 1.3 1993/11/07 17:47:03 wollman Exp $
  */
+
+#ifndef _NET_RADIX_H_
+#define _NET_RADIX_H_ 1
 
 /*
  * Radix search tree node layout.
@@ -117,3 +120,4 @@ extern struct radix_node_head {
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_DONTWAIT))
 #define Free(p) free((caddr_t)p, M_RTABLE);
 #endif /*KERNEL*/
+#endif /* _NET_RADIX_H_ */

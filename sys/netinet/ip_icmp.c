@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ip_icmp.c	7.15 (Berkeley) 4/20/91
- *	$Id: ip_icmp.c,v 1.2 1993/10/16 18:26:11 rgrimes Exp $
+ *	$Id: ip_icmp.c,v 1.6 1993/12/19 00:52:42 wollman Exp $
  */
 
 #include "param.h"
@@ -58,27 +58,29 @@
  * routines to turnaround packets back to the originator, and
  * host table maintenance routines.
  */
-#ifdef ICMPPRINTFS
-int	icmpprintfs = 0;
-#endif
 
-extern	struct protosw inetsw[];
+#define satosin(sa) ((struct sockaddr_in *)(sa))
+static void icmp_reflect(struct mbuf *);
+static void icmp_send(struct mbuf *, struct mbuf *);
+
 
 /*
  * Generate an error packet of type error
  * in response to bad packet ip.
  */
-/*VARARGS3*/
-icmp_error(n, type, code, dest)
+void
+icmp_error(n, type, code, dest, mtu)
 	struct mbuf *n;
 	int type, code;
 	struct in_addr dest;
+	int mtu;		/* mtu for ICMP_UNREACH_SRCFRAG */
 {
 	register struct ip *oip = mtod(n, struct ip *), *nip;
 	register unsigned oiplen = oip->ip_hl << 2;
 	register struct icmp *icp;
-	register struct mbuf *m;
+	register struct mbuf *m = 0;
 	unsigned icmplen;
+	u_long oaddr;
 
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)
@@ -86,6 +88,61 @@ icmp_error(n, type, code, dest)
 #endif
 	if (type != ICMP_REDIRECT)
 		icmpstat.icps_error++;
+
+	/*
+	 * Quoth RFC 1122 (Requirements for Internet Hosts):
+	 *
+	 * An ICMP error message MUST NOT be sent as the result of
+	 * receiving:
+	 * - an ICMP error message, or
+	 * - a datagram destined to an IP broadcast or IP multicast
+	 *   address, or
+	 * - a datagram sent as a link-layer broadcast, or
+	 * - a non-initial fragment, or
+	 * - a datagram whose source address does not define a single
+	 *   host -- e.g., a zero address, a loopback address, a
+	 *   broadcast address, a multicast address, or a Class E
+	 *   address.
+	 *
+	 * NOTE: THESE RESTRICTIONS TAKE PRECEDENCE OVER ANY REQUIREMENT
+	 * ELSEWHERE IN THIS DOCUMENT FOR SENDING ICMP ERROR MESSAGES.
+	 */
+
+	oaddr = ntohl(oip->ip_src.s_addr);
+
+	/*
+	 * Don't send error messages to multicast or broadcast addresses.
+	 */
+	if (IN_MULTICAST(oaddr)
+	    || oaddr == INADDR_BROADCAST
+	    || n->m_flags & (M_BCAST | M_MCAST)) {
+	  icmpstat.icps_oldmcast++;
+	  goto freeit;
+	}
+
+	/*
+	 * Don't send error messages to zero addresses or class E's.
+	 */
+	if (IN_EXPERIMENTAL(oaddr)
+	    || ! in_lnaof(oip->ip_src)
+	    || ! in_netof(oip->ip_src)) {
+	  icmpstat.icps_oldbadaddr++;
+	  goto freeit;
+	}
+
+	/*
+	 * Don't send error messages to loopback addresses.
+	 * As a special (unauthorized) exception, we check to see
+	 * if the packet came from the loopback interface.  If it
+	 * did, then we should allow the errors through, because
+	 * the upper layers rely on them.
+	 */
+	if(in_netof(oip->ip_src) == IN_LOOPBACKNET
+	   && !(m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK)) {
+	  icmpstat.icps_oldbadaddr++;
+	  goto freeit;
+	}
+
 	/*
 	 * Don't send error if not the first fragment of message.
 	 * Don't error if the old packet protocol was ICMP
@@ -116,8 +173,12 @@ icmp_error(n, type, code, dest)
 	icp->icmp_type = type;
 	if (type == ICMP_REDIRECT)
 		icp->icmp_gwaddr = dest;
-	else
+	else if (type == ICMP_UNREACH && code == ICMP_UNREACH_NEEDFRAG) {
+		icp->icmp_mtu = htons(mtu);
+		icp->icmp_mtuvoid = 0;
+	} else {
 		icp->icmp_void = 0;
+	}
 	if (type == ICMP_PARAMPROB) {
 		icp->icmp_pptr = code;
 		code = 0;
@@ -152,12 +213,11 @@ static struct sockproto icmproto = { AF_INET, IPPROTO_ICMP };
 static struct sockaddr_in icmpsrc = { sizeof (struct sockaddr_in), AF_INET };
 static struct sockaddr_in icmpdst = { sizeof (struct sockaddr_in), AF_INET };
 static struct sockaddr_in icmpgw = { sizeof (struct sockaddr_in), AF_INET };
-struct sockaddr_in icmpmask = { 8, 0 };
-struct in_ifaddr *ifptoia();
 
 /*
  * Process a received ICMP message.
  */
+void
 icmp_input(m, hlen)
 	register struct mbuf *m;
 	int hlen;
@@ -167,9 +227,8 @@ icmp_input(m, hlen)
 	int icmplen = ip->ip_len;
 	register int i;
 	struct in_ifaddr *ia;
-	int (*ctlfunc)(), code;
-	extern u_char ip_protox[];
-	extern struct in_addr in_makeaddr();
+	in_ctlinput_t *ctlfunc;
+	int code;
 
 	/*
 	 * Locate icmp structure in mbuf, and check
@@ -214,21 +273,35 @@ icmp_input(m, hlen)
 	switch (icp->icmp_type) {
 
 	case ICMP_UNREACH:
-		if (code > 5)
+		if (code > ICMP_UNREACH_MAXCODE)
 			goto badcode;
-		code += PRC_UNREACH_NET;
+		if (code == ICMP_UNREACH_NEEDFRAG) {
+#ifdef MTUDISC
+			/*
+			 * Need to adjust the routing tables immediately;
+			 * when ULP's get the PRC_MSGSIZE, it is their
+			 * responsibility to notice it and update their
+			 * internal ideas of MTU-derived protocol parameters.
+			 */
+			in_mtureduce(icp->icmp_ip.ip_dst, 
+				     ntohs(icp->icmp_mtu));
+			code = PRC_MSGSIZE;
+#endif /* MTUDISC */
+		} else {
+			code += PRC_UNREACH_NET;
+		}
 		goto deliver;
 
 	case ICMP_TIMXCEED:
-		if (code > 1)
+		if (code > ICMP_TIMXCEED_MAXCODE)
 			goto badcode;
 		code += PRC_TIMXCEED_INTRANS;
 		goto deliver;
 
 	case ICMP_PARAMPROB:
-		if (code)
+		if (code > ICMP_PARAMPROB_MAXCODE)
 			goto badcode;
-		code = PRC_PARAMPROB;
+		code += PRC_PARAMPROB;
 		goto deliver;
 
 	case ICMP_SOURCEQUENCH:
@@ -252,14 +325,36 @@ icmp_input(m, hlen)
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
 		if (ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
-			    (caddr_t) &icp->icmp_ip);
+				   &icp->icmp_ip);
 		break;
 
 	badcode:
 		icmpstat.icps_badcode++;
 		break;
 
+		/*
+		 * Always respond to pings from valid addresses.
+		 * Don't respond to broadcast pings unless ipbroadcastecho
+		 * is set.  Don't respond to multicast pings unless
+		 * ipbraodcastecho is set AND we support multicasting
+		 * to begin with.  (Per RFC 1122, we may choose either.)
+		 */
 	case ICMP_ECHO:
+		{
+		  u_long srcaddr = ntohl(icp->icmp_ip.ip_src.s_addr);
+#ifdef MULTICAST
+		  if(IN_MULTICAST(srcaddr) && !ipbroadcastecho)
+		    break;
+#else /* not MULTICAST */
+		  if(IN_MULTICAST(srcaddr))
+		    break;
+#endif /* not MULTICAST */
+		  if((srcaddr == INADDR_BROADCAST
+		      || m->m_flags & M_BCAST)
+		     && !ipbroadcastecho)
+		    break;
+		}
+
 		icp->icmp_type = ICMP_ECHOREPLY;
 		goto reflect;
 
@@ -273,16 +368,14 @@ icmp_input(m, hlen)
 		icp->icmp_ttime = icp->icmp_rtime;	/* bogus, do later! */
 		goto reflect;
 		
-	case ICMP_IREQ:
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
-		if (in_netof(ip->ip_src) == 0 &&
-		    (ia = ifptoia(m->m_pkthdr.rcvif)))
-			ip->ip_src = in_makeaddr(in_netof(IA_SIN(ia)->sin_addr),
-			    in_lnaof(ip->ip_src));
-		icp->icmp_type = ICMP_IREQREPLY;
-		goto reflect;
-
+		/*
+		 * Per RFC 1122, only respond to ICMP mask requests
+		 * if the administrator has SPECIFICALLY CONFIGURED
+		 * this host as an address mask agent.
+		 */
 	case ICMP_MASKREQ:
+		if (!ipmaskagent)
+		  break;
 		if (icmplen < ICMP_MASKLEN ||
 		    (ia = ifptoia(m->m_pkthdr.rcvif)) == 0)
 			break;
@@ -320,8 +413,21 @@ reflect:
 			printf("redirect dst %x to %x\n", icp->icmp_ip.ip_dst,
 				icp->icmp_gwaddr);
 #endif
+		/*
+		 * Per RFC 1122, throw away redirects that
+		 * suggested places we can't get to, or
+		 * an interface other than the one the packet
+		 * arrived on.
+		 *
+		 * It also says that we SHOULD throw away
+		 * redirects that come from someone other
+		 * than the current first-hop gateway for the
+		 * specified destination.
+		 *
+		 * These are both implemented as general policy
+		 * by rtredirect().
+		 */
 		if (code == ICMP_REDIRECT_NET || code == ICMP_REDIRECT_TOSNET) {
-			u_long in_netof();
 			icmpsrc.sin_addr =
 			 in_makeaddr(in_netof(icp->icmp_ip.ip_dst), INADDR_ANY);
 			in_sockmaskof(icp->icmp_ip.ip_dst, &icmpmask);
@@ -369,6 +475,7 @@ freeit:
 /*
  * Reflect the ip packet back to the source
  */
+static void
 icmp_reflect(m)
 	struct mbuf *m;
 {
@@ -485,6 +592,7 @@ ifptoia(ifp)
  * Send an icmp packet back to the ip level,
  * after supplying a checksum.
  */
+static void
 icmp_send(m, opts)
 	register struct mbuf *m;
 	struct mbuf *opts;

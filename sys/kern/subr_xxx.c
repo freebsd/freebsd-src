@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)subr_xxx.c	7.10 (Berkeley) 4/20/91
- *	$Id: subr_xxx.c,v 1.2 1993/10/16 15:24:45 rgrimes Exp $
+ *	$Id: subr_xxx.c,v 1.3 1993/11/25 01:33:19 wollman Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 /*
  * Unsupported device function (e.g. writing to read-only device).
  */
+int
 enodev()
 {
 
@@ -54,6 +55,7 @@ enodev()
 /*
  * Unconfigured device function; driver not configured.
  */
+int
 enxio()
 {
 
@@ -63,6 +65,7 @@ enxio()
 /*
  * Unsupported ioctl function.
  */
+int
 enoioctl()
 {
 
@@ -74,6 +77,7 @@ enoioctl()
  * This is used for an otherwise-reasonable operation
  * that is not supported by the current system binary.
  */
+int
 enosys()
 {
 
@@ -84,6 +88,7 @@ enosys()
  * Return error for operation not supported
  * on a specific object or file type.
  */
+int
 eopnotsupp()
 {
 
@@ -93,6 +98,7 @@ eopnotsupp()
 /*
  * Generic null operation, always returns success.
  */
+int
 nullop()
 {
 

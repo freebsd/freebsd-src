@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.4 1993/10/16 14:14:48 rgrimes Exp $
+ *	$Id: autoconf.c,v 1.8.2.1 1994/03/23 23:45:08 rgrimes Exp $
  */
 
 /*
@@ -52,8 +52,12 @@
 #include "conf.h"
 #include "dmap.h"
 #include "reboot.h"
+#include "kernel.h"
 
 #include "machine/pte.h"
+
+static void swapconf(void);
+static void setroot(void);
 
 /*
  * The following several variables are related to
@@ -66,6 +70,7 @@ extern int	cold;		/* cold start flag initialized in locore.s */
 /*
  * Determine i/o configuration for a machine.
  */
+void
 configure()
 {
 
@@ -74,12 +79,14 @@ configure()
 	isa_configure();
 #endif
 
-#if GENERICxxx
+#if GENERICxxx && !defined(DISKLESS)
 	if ((boothowto & RB_ASKNAME) == 0)
 		setroot();
 	setconf();
 #else
+#ifndef DISKLESS
 	setroot();
+#endif
 #endif
 	/*
 	 * Configure swap area and related system
@@ -92,11 +99,12 @@ configure()
 /*
  * Configure swap space and related parameters.
  */
+static void
 swapconf()
 {
 	register struct swdevt *swp;
 	register int nblks;
-extern int Maxmem;
+	extern int Maxmem;
 
 	for (swp = swdevt; swp->sw_dev > 0; swp++)
 	{
@@ -114,7 +122,6 @@ extern int Maxmem;
 		swp->sw_nblks = ctod(dtoc(swp->sw_nblks));
 	}
 	if (dumplo == 0 && bdevsw[major(dumpdev)].d_psize)
-	/*dumplo = (*bdevsw[major(dumpdev)].d_psize)(dumpdev) - physmem;*/
 		dumplo = (*bdevsw[major(dumpdev)].d_psize)(dumpdev) -
 			Maxmem*NBPG/512;
 	if (dumplo < 0)
@@ -127,6 +134,7 @@ u_long	bootdev = 0;		/* should be dev_t, but not until 32 bits */
 static	char devname[][2] = {
 	'w','d',	/* 0 = wd */
 	's','w',	/* 1 = sw */
+#define FDMAJOR 2
 	'f','d',	/* 2 = fd */
 	'w','t',	/* 3 = wt */
 	's','d',	/* 4 = sd -- new SCSI system */
@@ -134,16 +142,18 @@ static	char devname[][2] = {
 
 #define	PARTITIONMASK	0x7
 #define	PARTITIONSHIFT	3
+#define FDUNITSHIFT     6
 
 /*
  * Attempt to find the device from which we were booted.
  * If we can do so, and not instructed not to do so,
  * change rootdev to correspond to the load device.
  */
+static void
 setroot()
 {
 	int  majdev, mindev, unit, part, adaptor;
-	dev_t temp, orootdev;
+	dev_t temp = 0, orootdev;
 	struct swdevt *swp;
 
 /*printf("howto %x bootdev %x ", boothowto, bootdev);*/
@@ -154,9 +164,15 @@ setroot()
 	if (majdev > sizeof(devname) / sizeof(devname[0]))
 		return;
 	adaptor = (bootdev >> B_ADAPTORSHIFT) & B_ADAPTORMASK;
-	part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
 	unit = (bootdev >> B_UNITSHIFT) & B_UNITMASK;
-	mindev = (unit << PARTITIONSHIFT) + part;
+	if (majdev == FDMAJOR) {
+		part = 3;       /* raw */
+		mindev = unit << FDUNITSHIFT;
+	}
+	else {
+		part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
+		mindev = (unit << PARTITIONSHIFT) + part;
+	}
 	orootdev = rootdev;
 	rootdev = makedev(majdev, mindev);
 	/*
@@ -167,7 +183,8 @@ setroot()
 		return;
 	printf("changing root device to %c%c%d%c\n",
 		devname[majdev][0], devname[majdev][1],
-		mindev >> PARTITIONSHIFT, part + 'a');
+		mindev >> (majdev == FDMAJOR ? FDUNITSHIFT : PARTITIONSHIFT),
+		part + 'a');
 #ifdef DOSWAP
 	mindev &= ~PARTITIONMASK;
 	for (swp = swdevt; swp->sw_dev; swp++) {

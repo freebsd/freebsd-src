@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_swap.c	7.18 (Berkeley) 5/6/91
- *	$Id: vm_swap.c,v 1.4 1993/10/16 16:20:56 rgrimes Exp $
+ *	$Id: vm_swap.c,v 1.7 1993/12/19 00:56:15 wollman Exp $
  */
 
 #include "param.h"
@@ -45,6 +45,9 @@
 #include "specdev.h"
 #include "file.h"
 #include "rlist.h"
+#include "kernel.h"
+
+static int swfree(struct proc *, int);
 
 /*
  * Indirect driver for multi-controller paging.
@@ -59,6 +62,7 @@ int	nswap, nswdev;
  * to buffers, but rather to pages that
  * are being swapped in and out.
  */
+void
 swapinit()
 {
 	register int i;
@@ -87,7 +91,7 @@ swapinit()
 		panic("swapvp");
 	if (error = swfree(&proc0, 0)) {
 		printf("\nwarning: no swap space present (yet)\n");
-		/* printf("(swfree (..., 0) -> %d)\n", error);	/* XXX */
+		/* printf("(swfree (..., 0) -> %d)\n", error);*/	/* XXX */
 		/*panic("swapinit swfree 0");*/
 	}
 
@@ -100,6 +104,7 @@ swapinit()
 	sp->av_forw = NULL;
 }
 
+void
 swstrategy(bp)
 	register struct buf *bp;
 {
@@ -173,6 +178,7 @@ struct swapon_args {
 };
 
 /* ARGSUSED */
+int
 swapon(p, uap, retval)
 	struct proc *p;
 	struct swapon_args *uap;
@@ -227,6 +233,7 @@ swapon(p, uap, retval)
  * space, which is laid out with blocks of dmmax pages circularly
  * among the devices.
  */
+static int
 swfree(p, index)
 	struct proc *p;
 	int index;

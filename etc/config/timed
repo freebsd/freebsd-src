@@ -1,0 +1,4 @@
+# $Id: timed,v 1.1 1993/11/12 00:00:05 wollman Exp $
+# This file determines whether the Berkeley time daemon is
+# automatically started at boot time.  The default is off.
+off

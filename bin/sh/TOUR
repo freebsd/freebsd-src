@@ -325,7 +325,7 @@ put structures allocated.  "Output" represents the standard out-
 put, "errout" the standard error, and "memout" contains output
 which is to be stored in memory.  This last is used when a buil-
 tin command appears in backquotes, to allow its output to be col-
-lected without doing any I/O through the UNIX operating system.
+lected without doing any I/O through the operating system.
 The variables out1 and out2 normally point to output and errout,
 respectively, but they are set to point to memout when appropri-
 ate inside backquotes.

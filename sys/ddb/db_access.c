@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.c,v 1.2 1993/10/16 16:47:04 rgrimes Exp $
+ *	$Id: db_access.c,v 1.4 1993/12/19 00:49:42 wollman Exp $
  */
 
 /*
@@ -31,8 +31,9 @@
  *	Date:	7/90
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>		/* type definitions */
+#include "ddb/ddb.h"
 
 /*
  * Access unaligned data items on aligned (longword)
@@ -42,11 +43,11 @@
 extern void	db_read_bytes();	/* machine-dependent */
 extern void	db_write_bytes();	/* machine-dependent */
 
-int db_extend[] = {	/* table for sign-extending */
+unsigned db_extend[] = {	/* table for sign-extending */
 	0,
-	0xFFFFFF80,
-	0xFFFF8000,
-	0xFF800000
+	0xFFFFFF80U,
+	0xFFFF8000U,
+	0xFF800000U
 };
 
 db_expr_t

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_param.h	7.8 (Berkeley) 6/27/91
- *	$Id: tp_param.h,v 1.2 1993/10/16 21:05:53 rgrimes Exp $
+ *	$Id: tp_param.h,v 1.4 1993/12/19 00:53:40 wollman Exp $
  */
 
 /***********************************************************
@@ -153,8 +153,8 @@ extern int N_TPREF;
 #define		TP_MAX_CR_DATA		TP_MAX_CC_DATA
 #define		TP_MAX_DR_DATA		0x40	/* 64 octets */
 
-#define		TP_XTD_FMT_BIT 	0x80000000
-#define		TP_XTD_FMT_MASK	0x7fffffff
+#define		TP_XTD_FMT_BIT 	0x80000000ul
+#define		TP_XTD_FMT_MASK	0x7ffffffful
 #define		TP_NML_FMT_BIT 	0x80
 #define		TP_NML_FMT_MASK	0x7f
 
@@ -236,7 +236,7 @@ extern int N_TPREF;
 #define 	MT_XPD 				0x44	
 #define 	MT_EOT 				0x40
 
-#define		TP_ENOREF			0x80000000
+#define		TP_ENOREF			0x80000000ul
 
 typedef 	unsigned int	SeqNum;
 typedef		unsigned short	RefNum;
@@ -348,7 +348,7 @@ bcopy((caddr_t)&(((struct tp_vbp *)(src))->tpv_val),(caddr_t)&(dst),sizeof(type)
         (tpcb)->tp_lcredit = xxi; \
     } \
 }
-#endif ARGO_DEBUG
+#endif /* ARGO_DEBUG */
 
 #ifdef KERNEL
 
@@ -361,7 +361,7 @@ bcopy((caddr_t)&(((struct tp_vbp *)(src))->tpv_val),(caddr_t)&(dst),sizeof(type)
 #define ATTR(X) ev_union.EV_ ## X
 #endif /* defined(__STDC__) || defined(__cplusplus) */
 
-#endif  tp_NSTATES 
-#endif KERNEL
+#endif /* tp_NSTATES */
+#endif /* KERNEL */
 
-#endif __TP_PARAM__
+#endif /* __TP_PARAM__ */

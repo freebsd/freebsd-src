@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.3.2.1 1993/11/14 18:13:00 rgrimes Exp $
+ *	$Id: icu.s,v 1.7 1993/12/20 14:58:21 wollman Exp $
  */
 
 /*
@@ -191,7 +191,9 @@ none_to_unpend:
 	testl	$~((1 << NETISR_SCLK) | (1 << NETISR_AST)),%eax
 	je	test_ASTs		# no net stuff, just temporary AST's
 	FASTSPL_VARMASK(_netmask)
+#if 0	
 	DONET(NETISR_RAW, _rawintr, 5)
+#endif
 
 #ifdef	INET
 	DONET(NETISR_IP, _ipintr, 6)
@@ -208,6 +210,11 @@ none_to_unpend:
 #ifdef	ISO
 	DONET(NETISR_ISO, _clnlintr, 9)
 #endif	/* ISO */
+
+#ifdef	CCITT
+	DONET(NETISR_X25, _pkintr, 29)
+	DONET(NETISR_HDLC, _hdintr, 30)
+#endif	/* CCITT */
 
 	FASTSPL($0)
 test_ASTs:
@@ -280,7 +287,9 @@ in_spl0:
 /*
  * XXX - what about other net intrs?
  */
+#if 0
 	DONET(NETISR_RAW, _rawintr, 21)
+#endif
 
 #ifdef	INET
 	DONET(NETISR_IP, _ipintr, 22)

@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dkio.h	5.2 (Berkeley) 1/18/91
- *	$Id: dkio.h,v 1.2 1993/10/16 14:39:12 rgrimes Exp $
+ *	$Id: dkio.h,v 1.3 1993/11/07 17:42:51 wollman Exp $
  */
+
+#ifndef _MACHINE_DKIO_H_
+#define _MACHINE_DKIO_H_ 1
 
 /*
  * Structures and definitions for disk io control commands
@@ -47,3 +50,4 @@
 
 /* disk io control commands */
 #define DKIOCHDR	_IO(d, 1)	/* next I/O will read/write header */
+#endif /* _MACHINE_DKIO_H_ */

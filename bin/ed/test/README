@@ -19,14 +19,6 @@ which look like:
 or:
 	*** Output u.o of script u.ed is incorrect ***
 
-It is assumed that the ed being tested processes escapes (\) in file names.
-This is so that a name starting with bang (!) can be read, via:
-	r \!file
-Without the escape, a POSIX ed would attempt to read the output of
-the shell command `file'.  If the ed being tested does not support escape
-processing on file names, then the script `mkscripts.sh' should be modified
-accordingly.
-
 The POSIX requirement that an address range not be used where at most
 a single address is expected has been relaxed in this version of ed.
 Therefore, the  following scripts  which test for compliance with this
@@ -36,6 +28,3 @@ a1-err.ed
 i1-err.ed
 k1-err.ed
 r1-err.ed
-
-In addition, one of bang1-err.ed or bang2.ed will fail, depending on whether or
-not ed was compiled with the VI_BANG directive.

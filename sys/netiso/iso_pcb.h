@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso_pcb.h	7.5 (Berkeley) 5/6/91
- *	$Id: iso_pcb.h,v 1.2 1993/10/16 21:05:24 rgrimes Exp $
+ *	$Id: iso_pcb.h,v 1.3 1993/11/07 17:49:44 wollman Exp $
  */
 
 /***********************************************************
@@ -60,6 +60,9 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
+
+#ifndef _NETISO_ISO_PCB_H_
+#define _NETISO_ISO_PCB_H_ 1
 
 #define	MAXX25CRUDLEN	16	/* 16 bytes of call request user data */
 
@@ -109,3 +112,4 @@ struct rawisopcb {
 #ifdef KERNEL
 struct	isopcb *iso_pcblookup();
 #endif
+#endif /* _NETISO_ISO_PCB_H_ */

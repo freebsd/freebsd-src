@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_trace.h	7.5 (Berkeley) 6/27/91
- *	$Id: tp_trace.h,v 1.2 1993/10/16 21:06:12 rgrimes Exp $
+ *	$Id: tp_trace.h,v 1.4 1993/11/25 01:36:14 wollman Exp $
  */
 
 /***********************************************************
@@ -147,7 +147,7 @@ struct	tp_Trace {
 #define tpt_window tpt_stuff.tpt_Time.tptv_window
 #define tpt_size tpt_stuff.tpt_Time.tptv_size
 
-#endif defined(TP_TRACEFILE)||!defined(KERNEL)
+#endif /* defined(TP_TRACEFILE)||!defined(KERNEL) */
 
 
 #ifdef TPPT
@@ -165,7 +165,7 @@ struct	tp_Trace {
 extern void tpTrace();
 extern struct tp_Trace tp_Trace[];
 extern u_char	tp_traceflags[];
-int tp_Tracen = 0;
+extern int tp_Tracen;
 
 #define IFTRACE(ascii)\
 	if(tp_traceflags[ascii]) {
@@ -176,21 +176,18 @@ int tp_Tracen = 0;
 #define ENDTRACE  }
 
 
-#else  TPPT
+#else /* TPPT */
 
 /***********************************************
  * NO TPPT TRACE STUFF
  **********************************************/
 #define TPTRACEN 1
 
-#define tptrace(A,B,C,D,E,F) 0
-#define tptraceTPCB(A,B,C,D,E,F) 0
+#define tptrace(A,B,C,D,E,F) 
+#define tptraceTPCB(A,B,C,D,E,F) 
 
 #define IFTRACE(ascii)	 if (0) {
 #define ENDTRACE	 }
 
-#endif TPPT
-
-
-
-#endif __TP_TRACE__
+#endif /* TPPT */
+#endif /* __TP_TRACE__ */

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
 /*-
  * Copyright (c) 1982, 1986 The Regents of the University of California.
  * All rights reserved.
@@ -31,20 +38,20 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	7.5 (Berkeley) 2/15/91
- *	$Id: exec.h,v 1.3 1993/10/16 17:16:42 rgrimes Exp $
+ *	$Id: exec.h,v 1.4.2.1 1994/05/04 07:57:10 rgrimes Exp $
  */
 
 #ifndef	_EXEC_H_
 #define	_EXEC_H_
 
-/* Header prepended to each a.out file. */
+/*
+ * Header prepended to each a.out file.
+ * only manipulate the a_midmag field via the
+ * N_SETMAGIC/N_GET{MAGIC,MID,FLAG} macros in a.out.h
+ */
+
 struct exec {
-#if !defined(vax) && !defined(tahoe) && !defined(i386)
-unsigned short	a_mid;		/* machine ID */
-unsigned short	a_magic;	/* magic number */
-#else
-	 long	a_magic;	/* magic number */
-#endif
+unsigned long  a_midmag;   /* htonl(flags<<26 | mid<<16 | magic) */
 unsigned long	a_text;		/* text segment size */
 unsigned long	a_data;		/* initialized data size */
 unsigned long	a_bss;		/* uninitialized data size */
@@ -53,7 +60,7 @@ unsigned long	a_entry;	/* entry point */
 unsigned long	a_trsize;	/* text relocation size */
 unsigned long	a_drsize;	/* data relocation size */
 };
-#define	a_machtype	a_mid	/* SUN compatibility */
+#define a_magic a_midmag /* XXX Hack to work with current kern_execve.c */
 
 /* a_magic */
 #define	OMAGIC		0407	/* old impure format */
@@ -65,9 +72,15 @@ unsigned long	a_drsize;	/* data relocation size */
 #define	MID_ZERO	0	/* unknown - implementation dependent */
 #define	MID_SUN010	1	/* sun 68010/68020 binary */
 #define	MID_SUN020	2	/* sun 68020-only binary */
+#define MID_I386	134	/* i386 BSD binary */
 #define	MID_HP200	200	/* hp200 (68010) BSD binary */
 #define	MID_HP300	300	/* hp300 (68020+68881) BSD binary */
 #define	MID_HPUX	0x20C	/* hp200/300 HP-UX binary */
 #define	MID_HPUX800     0x20B   /* hp800 HP-UX binary */
+
+/*
+ * a_flags
+ */
+#define EX_DYNAMIC   0x20  /* a.out contains run-time link-edit info */
 
 #endif /* !_EXEC_H_ */

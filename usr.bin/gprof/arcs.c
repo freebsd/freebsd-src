@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)arcs.c	5.6 (Berkeley) 6/1/90";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "gprof.h"
 
     /*
@@ -45,7 +46,6 @@ addarc( parentp , childp , count )
     nltype	*childp;
     long	count;
 {
-    arctype		*calloc();
     arctype		*arcp;
 
 #   ifdef DEBUG
@@ -68,7 +68,7 @@ addarc( parentp , childp , count )
 	arcp -> arc_count += count;
 	return;
     }
-    arcp = calloc( 1 , sizeof *arcp );
+    arcp = (arctype *) calloc( 1 , sizeof *arcp );
     arcp -> arc_parentp = parentp;
     arcp -> arc_childp = childp;
     arcp -> arc_count = count;

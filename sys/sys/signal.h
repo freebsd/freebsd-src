@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1982, 1986, 1989, 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)signal.h	7.16 (Berkeley) 3/17/91
- *	$Id: signal.h,v 1.3 1993/10/16 17:17:39 rgrimes Exp $
+ *	$Id: signal.h,v 1.7.2.1 1994/05/04 07:57:33 rgrimes Exp $
  */
 
 #ifndef	_SIGNAL_H_
@@ -41,7 +48,7 @@
 
 #ifndef _POSIX_SOURCE
 #include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
-#endif /* _POSIX_SOURCE */
+#endif /* !_POSIX_SOURCE */
 
 #define	SIGHUP	1	/* hangup */
 #define	SIGINT	2	/* interrupt */
@@ -49,27 +56,27 @@
 #define	SIGILL	4	/* illegal instruction (not reset when caught) */
 #ifndef _POSIX_SOURCE
 #define	SIGTRAP	5	/* trace trap (not reset when caught) */
-#endif
+#endif /* !_POSIX_SOURCE */
 #define	SIGABRT	6	/* abort() */
 #ifndef _POSIX_SOURCE
 #define	SIGIOT	SIGABRT	/* compatibility */
 #define	SIGEMT	7	/* EMT instruction */
-#endif
+#endif /* !_POSIX_SOURCE */
 #define	SIGFPE	8	/* floating point exception */
 #define	SIGKILL	9	/* kill (cannot be caught or ignored) */
 #ifndef _POSIX_SOURCE
 #define	SIGBUS	10	/* bus error */
-#endif
+#endif /* !_POSIX_SOURCE */
 #define	SIGSEGV	11	/* segmentation violation */
 #ifndef _POSIX_SOURCE
 #define	SIGSYS	12	/* bad argument to system call */
-#endif
+#endif /* !_POSIX_SOURCE */
 #define	SIGPIPE	13	/* write on a pipe with no one to read it */
 #define	SIGALRM	14	/* alarm clock */
 #define	SIGTERM	15	/* software termination signal from kill */
 #ifndef _POSIX_SOURCE
 #define	SIGURG	16	/* urgent condition on IO channel */
-#endif
+#endif /* !_POSIX_SOURCE */
 #define	SIGSTOP	17	/* sendable stop signal not from tty */
 #define	SIGTSTP	18	/* stop signal from tty */
 #define	SIGCONT	19	/* continue a stopped process */
@@ -84,7 +91,7 @@
 #define	SIGPROF	27	/* profiling time alarm */
 #define SIGWINCH 28	/* window size changes */
 #define SIGINFO	29	/* information request */
-#endif
+#endif /* !_POSIX_SOURCE */
 #define SIGUSR1 30	/* user defined signal 1 */
 #define SIGUSR2 31	/* user defined signal 2 */
 
@@ -92,7 +99,7 @@
 
 #ifndef _POSIX_SOURCE
 typedef	void (*sig_t) __P((int));
-#endif
+#endif /* !_POSIX_SOURCE */
 
 typedef void (*__sighandler_t) __P((int));
 typedef unsigned int sigset_t;
@@ -115,14 +122,14 @@ __END_DECLS
  * Signal vector "template" used in sigaction call.
  */
 struct	sigaction {
-	__sighandler_t  sa_handler;     /* signal handler */
+	__sighandler_t	sa_handler;	/* signal handler */
 	sigset_t sa_mask;		/* signal mask to apply */
 	int	sa_flags;		/* see signal options below */
 };
 #ifndef _POSIX_SOURCE
 #define SA_ONSTACK	0x0001	/* take signal on signal stack */
 #define SA_RESTART	0x0002	/* do not restart system on signal return */
-#endif
+#endif /* !_POSIX_SOURCE */
 #define SA_NOCLDSTOP	0x0004	/* do not generate SIGCHLD on child stop */
 
 /*
@@ -173,11 +180,27 @@ struct	sigstack {
 struct	sigcontext {
 	int	sc_onstack;		/* sigstack state to restore */
 	int	sc_mask;		/* signal mask to restore */
-	int	sc_sp;			/* sp to restore */
-	int	sc_fp;			/* fp to restore */
-	int	sc_ap;			/* ap to restore */
-	int	sc_pc;			/* pc to restore */
-	int	sc_ps;			/* psl to restore */
+# ifdef i386
+	int	sc_esp;			/* machine state */
+	int	sc_ebp;
+	int	sc_isp;
+	int	sc_eip;
+	int	sc_efl;
+	int	sc_es;
+	int	sc_ds;
+	int	sc_cs;
+	int	sc_ss;
+	int	sc_edi;
+	int	sc_esi;
+	int	sc_ebx;
+	int	sc_edx;
+	int	sc_ecx;
+	int	sc_eax;
+#  define sc_sp sc_esp
+#  define sc_fp sc_ebp
+#  define sc_pc sc_eip
+#  define sc_ps sc_efl
+# endif
 };
 
 /*
@@ -186,9 +209,9 @@ struct	sigcontext {
  */
 #define sigmask(m)	(1 << ((m)-1))
 
+#endif /* !_POSIX_SOURCE */
+
 #define	SIG_ERR		((__sighandler_t) -1)
-#endif	/* _POSIX_SOURCE */
-  
 #define	SIG_DFL		((__sighandler_t) 0)
 #define	SIG_IGN		((__sighandler_t) 1)
 

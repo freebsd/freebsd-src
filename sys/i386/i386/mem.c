@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.3 1993/10/16 14:15:06 rgrimes Exp $
+ *	$Id: mem.c,v 1.7 1994/01/03 07:55:23 davidg Exp $
  */
 
 /*
@@ -59,22 +59,23 @@
 #include "vm/vm_param.h"
 #include "vm/lock.h"
 #include "vm/vm_statistics.h"
-#include "vm/pmap.h"
 #include "vm/vm_prot.h"
+#include "vm/pmap.h"
 
 extern        char *vmmap;            /* poor name! */
 /*ARGSUSED*/
+int
 mmclose(dev, uio, flags)
 	dev_t dev;
 	struct uio *uio;
 	int flags;
 {
-	struct syscframe *fp;
+	struct trapframe *fp;
 
 	switch (minor(dev)) {
 	case 14:
-		fp = (struct syscframe *)curproc->p_regs;
-		fp->sf_eflags &= ~PSL_IOPL;
+		fp = (struct trapframe *)curproc->p_regs;
+		fp->tf_eflags &= ~PSL_IOPL;
 		break;
 	default:
 		break;
@@ -82,17 +83,18 @@ mmclose(dev, uio, flags)
 	return(0);
 }
 /*ARGSUSED*/
+int
 mmopen(dev, uio, flags)
 	dev_t dev;
 	struct uio *uio;
 	int flags;
 {
-	struct syscframe *fp;
+	struct trapframe *fp;
 
 	switch (minor(dev)) {
 	case 14:
-		fp = (struct syscframe *)curproc->p_regs;
-		fp->sf_eflags |= PSL_IOPL;
+		fp = (struct trapframe *)curproc->p_regs;
+		fp->tf_eflags |= PSL_IOPL;
 		break;
 	default:
 		break;
@@ -100,6 +102,7 @@ mmopen(dev, uio, flags)
 	return(0);
 }
 /*ARGSUSED*/
+int
 mmrw(dev, uio, flags)
 	dev_t dev;
 	struct uio *uio;
@@ -125,7 +128,7 @@ mmrw(dev, uio, flags)
 /* minor device 0 is physical memory */
 		case 0:
 			v = uio->uio_offset;
-			pmap_enter(pmap_kernel(), vmmap, v,
+			pmap_enter(pmap_kernel(), (vm_offset_t)vmmap, v,
 				uio->uio_rw == UIO_READ ? VM_PROT_READ : VM_PROT_WRITE,
 				TRUE);
 			o = (int)uio->uio_offset & PGOFSET;
@@ -133,7 +136,8 @@ mmrw(dev, uio, flags)
 			c = MIN(c, (u_int)(NBPG - o));
 			c = MIN(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&vmmap[o], (int)c, uio);
-			pmap_remove(pmap_kernel(), vmmap, &vmmap[NBPG]);
+			pmap_remove(pmap_kernel(), (vm_offset_t)vmmap,
+				    (vm_offset_t)&vmmap[NBPG]);
 			continue;
 
 /* minor device 1 is kernel memory */
@@ -228,3 +232,29 @@ mmrw(dev, uio, flags)
 		free(zbuf, M_TEMP);
 	return (error);
 }
+
+
+
+
+/*******************************************************\
+* allow user processes to MMAP some memory sections	*
+* instead of going through read/write			*
+\*******************************************************/
+int memmmap(dev_t dev, int offset, int nprot)
+{
+	switch (minor(dev))
+	{
+
+/* minor device 0 is physical memory */
+	case 0:
+        	return i386_btop(offset);
+
+/* minor device 1 is kernel memory */
+	case 1:
+        	return i386_btop(vtophys(offset));
+
+	default:
+		return -1;
+	}
+}
+

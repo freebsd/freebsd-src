@@ -36,14 +36,13 @@
 
 #ifndef lint
 #ifdef SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.3 (Berkeley) 7/13/93 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.32 (Berkeley) 3/8/94 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.3 (Berkeley) 7/13/93 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.32 (Berkeley) 3/8/94 (without SMTP)";
 #endif
 #endif /* not lint */
 
 # include <errno.h>
-# include <signal.h>
 
 # ifdef SMTP
 
@@ -83,6 +82,8 @@ struct cmd
 /* non-standard commands */
 # define CMDONEX	16	/* onex -- sending one transaction only */
 # define CMDVERB	17	/* verb -- go into verbose mode */
+/* use this to catch and log "door handle" attempts on your system */
+# define CMDLOGBOGUS	23	/* bogus command that should be logged */
 /* debugging-only commands, only enabled if SMTPDEBUG is defined */
 # define CMDDBGQSHOW	24	/* showq -- show send queue */
 # define CMDDBGDEBUG	25	/* debug -- set debug mode */
@@ -108,13 +109,18 @@ static struct cmd	CmdTab[] =
 	 */
 	"showq",	CMDDBGQSHOW,
 	"debug",	CMDDBGDEBUG,
+	"wiz",		CMDLOGBOGUS,
 	NULL,		CMDERROR,
 };
 
-bool	InChild = FALSE;		/* true if running in a subprocess */
 bool	OneXact = FALSE;		/* one xaction only this run */
+char	*CurSmtpClient;			/* who's at the other end of channel */
 
-#define EX_QUIT		22		/* special code for QUIT command */
+static char	*skipword();
+extern char	RealUserName[];
+
+
+#define MAXBADCOMMANDS	25		/* maximum number of bad commands */
 
 smtp(e)
 	register ENVELOPE *e;
@@ -122,7 +128,6 @@ smtp(e)
 	register char *p;
 	register struct cmd *c;
 	char *cmd;
-	static char *skipword();
 	auto ADDRESS *vrfyqueue;
 	ADDRESS *a;
 	bool gotmail;			/* mail command received */
@@ -131,10 +136,12 @@ smtp(e)
 	char *protocol;			/* sending protocol */
 	char *sendinghost;		/* sending hostname */
 	long msize;			/* approximate maximum message size */
+	char *peerhostname;		/* name of SMTP peer or "localhost" */
 	auto char *delimptr;
 	char *id;
 	int nrcpts;			/* number of RCPT commands */
 	bool doublequeue;
+	int badcommands = 0;		/* count of bad commands */
 	char inp[MAXLINE];
 	char cmdbuf[MAXLINE];
 	extern char Version[];
@@ -146,11 +153,25 @@ smtp(e)
 		(void) dup2(fileno(OutChannel), fileno(stdout));
 	}
 	settime(e);
-	CurHostName = RealHostName;
-	setproctitle("server %s startup", CurHostName);
+	peerhostname = RealHostName;
+	if (peerhostname == NULL)
+		peerhostname = "localhost";
+	CurHostName = peerhostname;
+	CurSmtpClient = macvalue('_', e);
+	if (CurSmtpClient == NULL)
+		CurSmtpClient = CurHostName;
+
+	setproctitle("server %s startup", CurSmtpClient);
 	expand("\201e", inp, &inp[sizeof inp], e);
-	message("220-%s", inp);
-	message("220 ESMTP spoken here");
+	if (BrokenSmtpPeers)
+	{
+		message("220 %s", inp);
+	}
+	else
+	{
+		message("220-%s", inp);
+		message("220 ESMTP spoken here");
+	}
 	protocol = NULL;
 	sendinghost = macvalue('s', e);
 	gothello = FALSE;
@@ -158,16 +179,20 @@ smtp(e)
 	for (;;)
 	{
 		/* arrange for backout */
-		if (setjmp(TopFrame) > 0 && InChild)
+		if (setjmp(TopFrame) > 0)
 		{
-			QuickAbort = FALSE;
-			SuprErrs = TRUE;
-			finis();
+			/* if() nesting is necessary for Cray UNICOS */
+			if (InChild)
+			{
+				QuickAbort = FALSE;
+				SuprErrs = TRUE;
+				finis();
+			}
 		}
 		QuickAbort = FALSE;
 		HoldErrs = FALSE;
 		LogUsrErrs = FALSE;
-		e->e_flags &= ~EF_VRFYONLY;
+		e->e_flags &= ~(EF_VRFYONLY|EF_GLOBALERRS);
 
 		/* setup for the read */
 		e->e_to = NULL;
@@ -184,12 +209,13 @@ smtp(e)
 		if (p == NULL)
 		{
 			/* end of file, just die */
+			disconnect(1, e);
 			message("421 %s Lost input channel from %s",
-				MyHostName, CurHostName);
+				MyHostName, CurSmtpClient);
 #ifdef LOG
-			if (LogLevel > 1)
+			if (LogLevel > (gotmail ? 1 : 19))
 				syslog(LOG_NOTICE, "lost input channel from %s",
-					CurHostName);
+					CurSmtpClient);
 #endif
 			if (InChild)
 				ExitStat = EX_QUIT;
@@ -204,9 +230,9 @@ smtp(e)
 			fprintf(e->e_xfp, "<<< %s\n", inp);
 
 		if (e->e_id == NULL)
-			setproctitle("%s: %s", CurHostName, inp);
+			setproctitle("%s: %.80s", CurSmtpClient, inp);
 		else
-			setproctitle("%s %s: %s", e->e_id, CurHostName, inp);
+			setproctitle("%s %s: %.80s", e->e_id, CurSmtpClient, inp);
 
 		/* break off command */
 		for (p = inp; isascii(*p) && isspace(*p); p++)
@@ -248,21 +274,12 @@ smtp(e)
 				SmtpPhase = "server HELO";
 			}
 			sendinghost = newstr(p);
-			if (strcasecmp(p, RealHostName) != 0)
-			{
-				auth_warning(e, "Host %s claimed to be %s",
-					RealHostName, p);
-			}
-			p = macvalue('_', e);
-			if (p == NULL)
-				p = RealHostName;
-
 			gothello = TRUE;
 			if (c->cmdcode != CMDEHLO)
 			{
 				/* print old message and be done with it */
 				message("250 %s Hello %s, pleased to meet you",
-					MyHostName, p);
+					MyHostName, CurSmtpClient);
 				break;
 			}
 			
@@ -286,7 +303,7 @@ smtp(e)
 			{
 				/* set sending host to our known value */
 				if (sendinghost == NULL)
-					sendinghost = RealHostName;
+					sendinghost = peerhostname;
 
 				if (bitset(PRIV_NEEDMAILHELO, PrivacyFlags))
 				{
@@ -297,6 +314,8 @@ smtp(e)
 			if (gotmail)
 			{
 				message("503 Sender already specified");
+				if (InChild)
+					finis();
 				break;
 			}
 			if (InChild)
@@ -313,15 +332,26 @@ smtp(e)
 			{
 				auth_warning(e,
 					"Host %s didn't use HELO protocol",
-					RealHostName);
+					peerhostname);
 			}
+#ifdef PICKY_HELO_CHECK
+			if (strcasecmp(sendinghost, peerhostname) != 0 &&
+			    (strcasecmp(peerhostname, "localhost") != 0 ||
+			     strcasecmp(sendinghost, MyHostName) != 0))
+			{
+				auth_warning(e, "Host %s claimed to be %s",
+					peerhostname, sendinghost);
+			}
+#endif
+
 			if (protocol == NULL)
 				protocol = "SMTP";
 			define('r', protocol, e);
 			define('s', sendinghost, e);
 			initsys(e);
 			nrcpts = 0;
-			setproctitle("%s %s: %s", e->e_id, CurHostName, inp);
+			e->e_flags |= EF_LOGSENDER;
+			setproctitle("%s %s: %.80s", e->e_id, CurSmtpClient, inp);
 
 			/* child -- go do the processing */
 			p = skipword(p, "from");
@@ -348,12 +378,21 @@ smtp(e)
 			if (p != NULL && *p != '\0')
 				*p++ = '\0';
 
+			/* check for possible spoofing */
+			if (RealUid != 0 && OpMode == MD_SMTP &&
+			    (e->e_from.q_mailer != LocalMailer &&
+			     strcmp(e->e_from.q_user, RealUserName) != 0))
+			{
+				auth_warning(e, "%s owned process doing -bs",
+					RealUserName);
+			}
+
 			/* now parse ESMTP arguments */
 			msize = 0;
 			for (; p != NULL && *p != '\0'; p++)
 			{
 				char *kp;
-				char *vp;
+				char *vp = NULL;
 
 				/* locate the beginning of the keyword */
 				while (isascii(*p) && isspace(*p))
@@ -462,7 +501,7 @@ smtp(e)
 			p = skipword(p, "to");
 			if (p == NULL)
 				break;
-			a = parseaddr(p, (ADDRESS *) NULL, 1, ' ', NULL, e);
+			a = parseaddr(p, NULLADDR, RF_COPYALL, ' ', NULL, e);
 			if (a == NULL)
 				break;
 			a->q_flags |= QPRIMARY;
@@ -474,7 +513,9 @@ smtp(e)
 			e->e_to = p;
 			if (!bitset(QBADADDR, a->q_flags))
 			{
-				message("250 Recipient ok");
+				message("250 Recipient ok%s",
+					bitset(QQUEUEUP, a->q_flags) ?
+						" (will queue)" : "");
 				nrcpts++;
 			}
 			else
@@ -492,7 +533,7 @@ smtp(e)
 				message("503 Need MAIL command");
 				break;
 			}
-			else if (e->e_nrcpts <= 0)
+			else if (nrcpts <= 0)
 			{
 				message("503 Need RCPT (recipient)");
 				break;
@@ -519,9 +560,9 @@ smtp(e)
 			/* collect the text of the message */
 			SmtpPhase = "collect";
 			collect(TRUE, doublequeue, e);
-			e->e_flags &= ~EF_FATALERRS;
 			if (Errors != 0)
 				goto abortmessage;
+			HoldErrs = TRUE;
 
 			/*
 			**  Arrange to send to everyone.
@@ -554,9 +595,6 @@ smtp(e)
 			sendall(e, doublequeue ? SM_QUEUE : SM_DEFAULT);
 			e->e_to = NULL;
 
-			/* save statistics */
-			markstats(e, (ADDRESS *) NULL);
-
 			/* issue success if appropriate and reset */
 			if (Errors == 0 || HoldErrs)
 				message("250 %s Message accepted for delivery", id);
@@ -576,9 +614,10 @@ smtp(e)
 				/* if we just queued, poke it */
 				if (doublequeue && e->e_sendmode != SM_QUEUE)
 				{
+					extern pid_t dowork();
+
 					unlockqueue(e);
-					dowork(id, TRUE, TRUE, e);
-					e->e_id = NULL;
+					(void) dowork(id, TRUE, TRUE, e);
 				}
 			}
 
@@ -596,6 +635,7 @@ smtp(e)
 
 		  case CMDRSET:		/* rset -- reset state */
 			message("250 Reset state");
+			e->e_flags |= EF_CLRQUEUE;
 			if (InChild)
 				finis();
 
@@ -614,7 +654,12 @@ smtp(e)
 				if (vrfy)
 					message("252 Who's to say?");
 				else
-					message("502 That's none of your business");
+					message("502 Sorry, we do not allow this operation");
+#ifdef LOG
+				if (LogLevel > 5)
+					syslog(LOG_INFO, "%s: %s [rejected]",
+						CurSmtpClient, inp);
+#endif
 				break;
 			}
 			else if (!gothello &&
@@ -628,7 +673,7 @@ smtp(e)
 				break;
 #ifdef LOG
 			if (LogLevel > 5)
-				syslog(LOG_INFO, "%s: %s", CurHostName, inp);
+				syslog(LOG_INFO, "%s: %s", CurSmtpClient, inp);
 #endif
 			vrfyqueue = NULL;
 			QuickAbort = TRUE;
@@ -643,8 +688,7 @@ smtp(e)
 			}
 			else
 			{
-				(void) sendtolist(p, (ADDRESS *) NULL,
-						  &vrfyqueue, e);
+				(void) sendtolist(p, NULLADDR, &vrfyqueue, e);
 			}
 			if (Errors != 0)
 			{
@@ -658,16 +702,13 @@ smtp(e)
 			}
 			while (vrfyqueue != NULL)
 			{
-				register ADDRESS *a = vrfyqueue->q_next;
-
-				while (a != NULL && bitset(QDONTSEND|QBADADDR, a->q_flags))
-					a = a->q_next;
-
+				a = vrfyqueue;
+				while ((a = a->q_next) != NULL &&
+				       bitset(QDONTSEND|QBADADDR, a->q_flags))
+					continue;
 				if (!bitset(QDONTSEND|QBADADDR, vrfyqueue->q_flags))
 					printvrfyaddr(vrfyqueue, a == NULL);
-				else if (a == NULL)
-					message("554 Self destructive alias loop");
-				vrfyqueue = a;
+				vrfyqueue = vrfyqueue->q_next;
 			}
 			if (InChild)
 				finis();
@@ -678,14 +719,15 @@ smtp(e)
 			break;
 
 		  case CMDNOOP:		/* noop -- do nothing */
-			message("200 OK");
+			message("250 OK");
 			break;
 
 		  case CMDQUIT:		/* quit -- leave mail */
 			message("221 %s closing connection", MyHostName);
 
+doquit:
 			/* avoid future 050 messages */
-			Verbose = FALSE;
+			disconnect(1, e);
 
 			if (InChild)
 				ExitStat = EX_QUIT;
@@ -721,20 +763,27 @@ smtp(e)
 			break;
 
 # else /* not SMTPDEBUG */
-
 		  case CMDDBGQSHOW:	/* show queues */
 		  case CMDDBGDEBUG:	/* set debug mode */
+# endif /* SMTPDEBUG */
+		  case CMDLOGBOGUS:	/* bogus command */
 # ifdef LOG
 			if (LogLevel > 0)
-				syslog(LOG_NOTICE,
+				syslog(LOG_CRIT,
 				    "\"%s\" command from %s (%s)",
-				    c->cmdname, RealHostName,
+				    c->cmdname, peerhostname,
 				    anynet_ntoa(&RealHostAddr));
 # endif
 			/* FALL THROUGH */
-# endif /* SMTPDEBUG */
 
 		  case CMDERROR:	/* unknown command */
+			if (++badcommands > MAXBADCOMMANDS)
+			{
+				message("421 %s Too many bad commands; closing connection",
+					MyHostName);
+				goto doquit;
+			}
+
 			message("500 Command unrecognized");
 			break;
 
@@ -766,6 +815,7 @@ skipword(p, w)
 	char *w;
 {
 	register char *q;
+	char *firstp = p;
 
 	/* find beginning of word */
 	while (isascii(*p) && isspace(*p))
@@ -780,7 +830,8 @@ skipword(p, w)
 	if (*p != ':')
 	{
 	  syntax:
-		message("501 Syntax error in parameters");
+		message("501 Syntax error in parameters scanning \"%s\"",
+			firstp);
 		Errors++;
 		return (NULL);
 	}
@@ -934,10 +985,16 @@ runinchild(label, e)
 			st = waitfor(childpid);
 			if (st == -1)
 				syserr("%s: lost child", label);
+			else if (!WIFEXITED(st))
+				syserr("%s: died on signal %d",
+					label, st & 0177);
 
 			/* if we exited on a QUIT command, complete the process */
-			if (st == (EX_QUIT << 8))
+			if (WEXITSTATUS(st) == EX_QUIT)
+			{
+				disconnect(1, e);
 				finis();
+			}
 
 			return (1);
 		}

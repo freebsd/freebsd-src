@@ -1,0 +1,189 @@
+5. Interface Cabling Requirements 
+
+5.1  Configuration
+
+This standard provides the capability of operating on the AT Bus in a daisy 
+chained configuration with a second drive that operates in accordance with 
+these standards. One drive (selected as Drive 0) has been referred to as the 
+master in industry terms and the second (selected as Drive 1) has been 
+referred to as the slave (see Figure 5-3). 
+
+The designation as Drive 0 or Drive 1 is made by a jumper plug or switch on 
+the drive.
+
+Data is transferred in parallel (8 or 16 bits) either to or from host memory 
+to the drive's buffer under the direction of commands previously transferred 
+from the host. The drive performs all of the operations necessary to properly 
+write data to, or read data from, the disk media. Data read from the media is 
+stored in the drive's buffer pending transfer to the host memory and data is 
+transferred from the host memory to the drive's buffer to be written to the 
+media. 
+
+         +-----------------------------------------------------+ 
+         |                                                     | 
+         |                       HOST                          | 
+         |                                                     | 
+         +---------------^-------------------------------------+ 
+                         |       ATA Interface 
+                         | _____________________ 
+                         |/                     | 
+                  +------v--+            +------v--+  
+                  | DRIVE 0 |            | DRIVE 1 |  
+                  +---------+            +---------+ 
+
+         FIGURE 5-1:  ATA INTERFACE TO EMBEDDED BUS PERIPHERALS
+
+         +-----------------------------------------------------+ 
+         |                                                     | 
+         |                       HOST                          | 
+         |                                                     | 
+         +------+====== AT Bus ======+-------------------------+ 
+                |                    |
+                |       ADAPTER      |
+                |                    |
+                +--------^-----------+
+                         |       ATA Interface 
+                         | _____________________ 
+                         |/                     | 
+                  +------v--+            +------v--+  
+                  | DRIVE 0 |            | DRIVE 1 |  
+                  +---------+            +---------+ 
+
+            FIGURE 5-2:  HOST BUS ADAPTER AND PERIPHERAL DEVICES 
+
+         +-----------------------------------------------------+ 
+         |                                                     | 
+         |                       HOST                          | 
+         |                                                     | 
+         +---------------^-------------------------------------+ 
+                         |       ATA Interface 
+                  +------v-----+ 
+                  |            | 
+                  | CONTROLLER | 
+                  |            | 
+                  +-^----^---^-+ 
+                    |    |   |__________________   Device Interface 
+                    | ___|_________________     |  e.g. ESDI, SCSI 
+                    |/   |                 |    | 
+                  +-v----v--+            +-v----v--+ 
+                  |  DRIVE  |            |  DRIVE  | 
+                  +---------+            +---------+ 
+
+      FIGURE 5-3:  ATA INTERFACE TO CONTROLLER AND PERIPHERAL DEVICES
+
+5.2  Addressing Considerations
+
+In traditional controller operation, only the selected controller receives 
+commands from the host following selection. In this standard, the register 
+contents go to both drives (and their embedded controllers). The host 
+discriminates between the two by using the DRV bit in the Drive/Head Register.
+
+5.3  DC Cable and Connector 
+
+The drive receives DC power through a 4-pin or a low-power application 3-pin 
+connector. 
+
+5.3.1  4-Pin Power
+
+The pin assignments are shown in Table 5-1. Recommended part numbers for the 
+mating connector to 18AWG cable are shown below, but equivalent parts may be 
+used. 
+
+     Connector (4 Pin)          AMP 1-480424-0 or equivalent.
+     Contacts (Loose Piece)     AMP 60619-4 or equivalent.
+     Contacts (Strip)           AMP 61117-4 or equivalent.
+
+                          TABLE 5-1:  DC INTERFACE 
+                  +------------------------+------------+
+                  | POWER LINE DESIGNATION | PIN NUMBER |
+                  +------------------------+------------+
+                  |      +12 V             |    1-01    |
+                  |      +12 V RETURN      |    1-02    |
+                  |      +5 V RETURN       |    1-03    |
+                  |      +5 V              |    1-04    |
+                  +------------------------+------------+
+
+5.3.2  3-Pin Power
+
+The pin assignments are shown in Table 5-2. Recommended part numbers for the 
+mating connector to 18AWG cable are shown below, but equivalent parts may be 
+used. 
+
+     Connector (3 Pin)          Molex 5484 39-27-0032 or equivalent.
+
+                          TABLE 5-2:  DC INTERFACE 
+                  +------------------------+------------+
+                  | POWER LINE DESIGNATION | PIN NUMBER |
+                  +------------------------+------------+
+                  |      +12 V             |    1-01    |
+                  |      Ground            |    1-02    |
+                  |      +5 V              |    1-03    |
+                  +------------------------+------------+
+
+5.3.3  Device Grounding 
+
+System ground may be connected to a "quick-connect" terminal equivalent to:
+
+     Drive Connector Terminal   AMP 61664-1 or equivalent.
+     Cable Connector Terminal   AMP 62137-2 or equivalent.
+
+Provision for tying the DC Logic ground and the chassis ground together or for 
+separating these two ground planes is vendor specific. 
+
+5.4  I/O Connector 
+
+The I/O connector is a 40-pin connector as shown in Figure 5-4, with pin 
+assignments as shown in Table 6-1. 
+
+The connector should be keyed to prevent the possibility of installing it 
+upside down. A key is provided by the removal of Pin 20. The corresponding pin 
+on the cable connector should be plugged. 
+
+The pin locations are governed by the cable plug, not the receptacle. The way 
+in which the receptacle is mounted on the Printed Circuit Board affects the 
+pin positions, and pin 1 should remain in the same relative position. This 
+means the pin numbers of the receptacle may not reflect the conductor number 
+of the plug. The header receptacle is not polarized, and all the signals are 
+relative to Pin 20, which is keyed. 
+
+By using the plug positions as primary, a straight cable can connect drives. 
+As shown in Figure 5-4, conductor 1 on pin 1 of the plug has to be in the 
+same relative position no matter what the receptacle numbering looks like. 
+If receptacle numbering was followed, the cable would have to twist 180 
+degrees between a drive with top-mounted receptacles, and a drive with 
+bottom-mounted receptacles. 
+
+        +-----------------------+
+        |                      1|
+        |40         20         2|
+      ==+==== Circuit Board ====+==       ==+==== Circuit Board ====+==
+                                            |                      1|
+                                            |40         20         2|
+                                            +-----------------------+
+.. * Location of pin number stamped as 1 when receptacle mounted upside down
+                   FIGURE 5-4:  40-PIN CONNECTOR MOUNTING
+
+Recommended part numbers for the mating connector are shown below, but 
+equivalent parts may be used. 
+
+     Connector (40 Pin)             3M 3417-7000 or equivalent.
+     Strain relief                  3M 3448-2040 or equivalent.
+     Flat Cable (Stranded 28 AWG)   3M 3365-40 or equivalent.
+     Flat Cable (Stranded 28 AWG)   3M 3517-40 (Shielded) or equivalent.
+
+5.5  I/O Cable 
+
+The cable specifications affect system integrity and the maximum length that 
+can be supported in any application. 
+
+                        TABLE 5-3:  CABLE PARAMETERS
+          +-------------------------------------+------+--------+
+          | Cable length of 0.46m (18 inches) * |  Min |   Max  |
+          +-------------------------------------+------+--------+
+          | Driver IoL Sink Current             | 12mA |        |
+          | Driver IoH Source Current           |      | -400uA |
+          | Cable Capacitive Loading            |      |  200pF |
+          +-------------------------------------+------+--------+   
+        * This distance may be exceeded in circumstances where the 
+        characteristics of both ends of the cable can be controlled.
+

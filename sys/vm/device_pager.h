@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1990 University of Utah.
- * Copyright (c) 1991 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1991, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
@@ -35,8 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)device_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: device_pager.h,v 1.2 1993/10/16 16:20:12 rgrimes Exp $
+ *	@(#)device_pager.h	8.1 (Berkeley) 6/11/93
  */
 
 #ifndef	_DEVICE_PAGER_
@@ -46,34 +45,9 @@
  * Device pager private data.
  */
 struct devpager {
-	queue_head_t	devp_list;	/* list of managed devices */
-	dev_t		devp_dev;	/* devno of device */
-	vm_page_t	devp_pages;	/* page structs for device */
-	int		devp_npages;	/* size of device in pages */
-	int		devp_count;	/* reference count */
+	queue_head_t	devp_pglist;	/* list of pages allocated */
 	vm_object_t	devp_object;	/* object representing this device */
 };
 typedef struct devpager	*dev_pager_t;
-
-#define DEV_PAGER_NULL	((dev_pager_t)0)
-
-#ifdef KERNEL
-
-void		dev_pager_init();
-vm_pager_t	dev_pager_alloc();
-void		dev_pager_dealloc();
-boolean_t	dev_pager_getpage(), dev_pager_putpage();
-boolean_t	dev_pager_haspage();
-
-struct pagerops devicepagerops = {
-	dev_pager_init,
-	dev_pager_alloc,
-	dev_pager_dealloc,
-	dev_pager_getpage,
-	dev_pager_putpage,
-	dev_pager_haspage
-};
-
-#endif
 
 #endif	/* _DEVICE_PAGER_ */

@@ -33,11 +33,10 @@
  */
 
 # include "sendmail.h"
-# include <signal.h>
 # include <pwd.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.3 (Berkeley) 7/13/93";
+static char sccsid[] = "@(#)alias.c	8.24 (Berkeley) 2/28/94";
 #endif /* not lint */
 
 
@@ -115,13 +114,15 @@ alias(a, sendq, e)
 	message("aliased to %s", p);
 #ifdef LOG
 	if (LogLevel > 9)
-		syslog(LOG_INFO, "%s: alias %s => %s", e->e_id, a->q_paddr, p);
+		syslog(LOG_INFO, "%s: alias %s => %s",
+			e->e_id == NULL ? "NOQUEUE" : e->e_id,
+			a->q_paddr, p);
 #endif
 	a->q_flags &= ~QSELFREF;
 	AliasLevel++;
 	naliases = sendtolist(p, a, sendq, e);
 	AliasLevel--;
-	if (naliases > 0 && !bitset(QSELFREF, a->q_flags))
+	if (!bitset(QSELFREF, a->q_flags))
 	{
 		if (tTd(27, 5))
 		{
@@ -145,7 +146,7 @@ alias(a, sendq, e)
 	owner = aliaslookup(obuf, e);
 	if (owner != NULL)
 	{
-		if (strchr(owner, ',') != NULL)
+		if (strpbrk(owner, ",:/|\"") != NULL)
 			owner = obuf;
 		a->q_owner = newstr(owner);
 	}
@@ -280,13 +281,27 @@ setalias(spec)
 **  ALIASWAIT -- wait for distinguished @:@ token to appear.
 **
 **	This can decide to reopen or rebuild the alias file
+**
+**	Parameters:
+**		map -- a pointer to the map descriptor for this alias file.
+**		ext -- the filename extension (e.g., ".db") for the
+**			database file.
+**		isopen -- if set, the database is already open, and we
+**			should check for validity; otherwise, we are
+**			just checking to see if it should be created.
+**
+**	Returns:
+**		TRUE -- if the database is open when we return.
+**		FALSE -- if the database is closed when we return.
 */
 
-aliaswait(map, ext)
+bool
+aliaswait(map, ext, isopen)
 	MAP *map;
 	char *ext;
+	int isopen;
 {
-	int atcnt;
+	bool attimeout = FALSE;
 	time_t mtime;
 	struct stat stb;
 	char buf[MAXNAME];
@@ -294,26 +309,41 @@ aliaswait(map, ext)
 	if (tTd(27, 3))
 		printf("aliaswait(%s:%s)\n",
 			map->map_class->map_cname, map->map_file);
+	if (bitset(MF_ALIASWAIT, map->map_mflags))
+		return isopen;
+	map->map_mflags |= MF_ALIASWAIT;
 
-	atcnt = SafeAlias * 2;
-	if (atcnt > 0)
+	if (SafeAlias > 0)
 	{
 		auto int st;
+		time_t toolong = curtime() + SafeAlias;
+		unsigned int sleeptime = 2;
 
-		while (atcnt-- >= 0 &&
+		while (isopen &&
 		       map->map_class->map_lookup(map, "@", NULL, &st) == NULL)
 		{
+			if (curtime() > toolong)
+			{
+				/* we timed out */
+				attimeout = TRUE;
+				break;
+			}
+
 			/*
 			**  Close and re-open the alias database in case
 			**  the one is mv'ed instead of cp'ed in.
 			*/
 
 			if (tTd(27, 2))
-				printf("aliaswait: sleeping\n");
+				printf("aliaswait: sleeping for %d seconds\n",
+					sleeptime);
 
 			map->map_class->map_close(map);
-			sleep(30);
-			map->map_class->map_open(map, O_RDONLY);
+			sleep(sleeptime);
+			sleeptime *= 2;
+			if (sleeptime > 60)
+				sleeptime = 60;
+			isopen = map->map_class->map_open(map, O_RDONLY);
 		}
 	}
 
@@ -322,25 +352,30 @@ aliaswait(map, ext)
 	{
 		if (tTd(27, 3))
 			printf("aliaswait: not rebuildable\n");
-		return;
+		map->map_mflags &= ~MF_ALIASWAIT;
+		return isopen;
 	}
 	if (stat(map->map_file, &stb) < 0)
 	{
 		if (tTd(27, 3))
 			printf("aliaswait: no source file\n");
-		return;
+		map->map_mflags &= ~MF_ALIASWAIT;
+		return isopen;
 	}
 	mtime = stb.st_mtime;
 	(void) strcpy(buf, map->map_file);
 	if (ext != NULL)
 		(void) strcat(buf, ext);
-	if (stat(buf, &stb) < 0 || stb.st_mtime < mtime || atcnt < 0)
+	if (stat(buf, &stb) < 0 || stb.st_mtime < mtime || attimeout)
 	{
 		/* database is out of date */
 		if (AutoRebuild && stb.st_ino != 0 && stb.st_uid == geteuid())
 		{
 			message("auto-rebuilding alias database %s", buf);
+			if (isopen)
+				map->map_class->map_close(map);
 			rebuildaliases(map, TRUE);
+			isopen = map->map_class->map_open(map, O_RDONLY);
 		}
 		else
 		{
@@ -352,6 +387,8 @@ aliaswait(map, ext)
 			message("Warning: alias database %s out of date", buf);
 		}
 	}
+	map->map_mflags &= ~MF_ALIASWAIT;
+	return isopen;
 }
 /*
 **  REBUILDALIASES -- rebuild the alias database.
@@ -373,31 +410,37 @@ rebuildaliases(map, automatic)
 	bool automatic;
 {
 	FILE *af;
-	void (*oldsigint)();
+	bool nolock = FALSE;
+	sigfunc_t oldsigint;
 
 	if (!bitset(MCF_REBUILDABLE, map->map_class->map_cflags))
 		return;
 
-#ifdef LOG
-	if (LogLevel > 7)
-	{
-		syslog(LOG_NOTICE, "alias database %s %srebuilt by %s",
-			map->map_file, automatic ? "auto" : "", username());
-	}
-#endif /* LOG */
-
 	/* try to lock the source file */
 	if ((af = fopen(map->map_file, "r+")) == NULL)
 	{
-		if (tTd(27, 1))
-			printf("Can't open %s: %s\n",
-				map->map_file, errstring(errno));
-		errno = 0;
-		return;
+		if ((errno != EACCES && errno != EROFS) || automatic ||
+		    (af = fopen(map->map_file, "r")) == NULL)
+		{
+			int saveerr = errno;
+
+			if (tTd(27, 1))
+				printf("Can't open %s: %s\n",
+					map->map_file, errstring(saveerr));
+			if (!automatic)
+				message("newaliases: cannot open %s: %s",
+					map->map_file, errstring(saveerr));
+			errno = 0;
+			return;
+		}
+		nolock = TRUE;
+		message("warning: cannot lock %s: %s",
+			map->map_file, errstring(errno));
 	}
 
 	/* see if someone else is rebuilding the alias file */
-	if (!lockfile(fileno(af), map->map_file, LOCK_EX|LOCK_NB))
+	if (!nolock &&
+	    !lockfile(fileno(af), map->map_file, NULL, LOCK_EX|LOCK_NB))
 	{
 		/* yes, they are -- wait until done */
 		message("Alias file %s is already being rebuilt",
@@ -405,18 +448,26 @@ rebuildaliases(map, automatic)
 		if (OpMode != MD_INITALIAS)
 		{
 			/* wait for other rebuild to complete */
-			(void) lockfile(fileno(af), map->map_file,
+			(void) lockfile(fileno(af), map->map_file, NULL,
 					LOCK_EX);
 		}
-		(void) fclose(af);
+		(void) xfclose(af, "rebuildaliases1", map->map_file);
 		errno = 0;
 		return;
 	}
 
-	oldsigint = signal(SIGINT, SIG_IGN);
+	oldsigint = setsignal(SIGINT, SIG_IGN);
 
 	if (map->map_class->map_open(map, O_RDWR))
 	{
+#ifdef LOG
+		if (LogLevel > 7)
+		{
+			syslog(LOG_NOTICE, "alias database %s %srebuilt by %s",
+				map->map_file, automatic ? "auto" : "",
+				username());
+		}
+#endif /* LOG */
 		map->map_mflags |= MF_OPEN|MF_WRITABLE;
 		readaliases(map, af, automatic);
 	}
@@ -431,14 +482,14 @@ rebuildaliases(map, automatic)
 	}
 
 	/* close the file, thus releasing locks */
-	fclose(af);
+	xfclose(af, "rebuildaliases2", map->map_file);
 
 	/* add distinguished entries and close the database */
 	if (bitset(MF_OPEN, map->map_mflags))
 		map->map_class->map_close(map);
 
 	/* restore the old signal */
-	(void) signal(SIGINT, oldsigint);
+	(void) setsignal(SIGINT, oldsigint);
 }
 /*
 **  READALIASES -- read and process the alias file.
@@ -519,9 +570,9 @@ readaliases(map, af, automatic)
 			syserr("554 missing colon");
 			continue;
 		}
-		if (parseaddr(line, &al, 1, ':', NULL, CurEnv) == NULL)
+		if (parseaddr(line, &al, RF_COPYALL, ':', NULL, CurEnv) == NULL)
 		{
-			syserr("554 illegal alias name");
+			syserr("554 %.40s... illegal alias name", line);
 			continue;
 		}
 
@@ -555,7 +606,8 @@ readaliases(map, af, automatic)
 						p++;
 					if (*p == '\0')
 						break;
-					if (parseaddr(p, &bl, -1, ',', &delimptr, CurEnv) == NULL)
+					if (parseaddr(p, &bl, RF_COPYNONE, ',',
+						      &delimptr, CurEnv) == NULL)
 						usrerr("553 %s... bad address", p);
 					p = delimptr;
 				}
@@ -586,7 +638,8 @@ readaliases(map, af, automatic)
 		}
 		if (al.q_mailer != LocalMailer)
 		{
-			syserr("554 cannot alias non-local names");
+			syserr("554 %s... cannot alias non-local names",
+				al.q_paddr);
 			continue;
 		}
 
@@ -653,10 +706,6 @@ forward(user, sendq, e)
 {
 	char *pp;
 	char *ep;
-#ifdef HASSETEUID
-	register ADDRESS *ca;
-	uid_t saveduid, uid;
-#endif
 
 	if (tTd(27, 1))
 		printf("forward(%s)\n", user->q_paddr);
@@ -676,14 +725,6 @@ forward(user, sendq, e)
 	if (ForwardPath == NULL)
 		ForwardPath = newstr("\201z/.forward");
 
-#ifdef HASSETEUID
-	ca = getctladdr(user);
-	if (ca != NULL)
-		uid = ca->q_uid;
-	else
-		uid = DefUid;
-#endif
-
 	for (pp = ForwardPath; pp != NULL; pp = ep)
 	{
 		int err;
@@ -698,33 +739,10 @@ forward(user, sendq, e)
 		if (tTd(27, 3))
 			printf("forward: trying %s\n", buf);
 
-		if (tTd(27, 9))
-			printf("forward: old uid = %d/%d\n", getuid(), geteuid());
-
-#ifdef HASSETEUID
-		saveduid = geteuid();
-		if (saveduid == 0 && uid != 0)
-			(void) seteuid(uid);
-#endif                   
-
-		if (tTd(27, 9))
-			printf("forward: new uid = %d/%d\n", getuid(), geteuid());
-
 		err = include(buf, TRUE, user, sendq, e);
-
-#ifdef HASSETEUID
-		if (saveduid == 0 && uid != 0)
-			if (seteuid(saveduid) < 0)
-				syserr("seteuid(%d) failure (real=%d, eff=%d)",
-					saveduid, getuid(), geteuid());
-#endif
-
-		if (tTd(27, 9))
-			printf("forward: reset uid = %d/%d\n", getuid(), geteuid());
-
 		if (err == 0)
 			break;
-		if (transienterror(err))
+		else if (transienterror(err))
 		{
 			/* we have to suspend this message */
 			if (tTd(27, 2))
@@ -732,10 +750,11 @@ forward(user, sendq, e)
 #ifdef LOG
 			if (LogLevel > 2)
 				syslog(LOG_ERR, "%s: forward %s: transient error: %s",
-					e->e_id, buf, errstring(err));
+					e->e_id == NULL ? "NOQUEUE" : e->e_id,
+					buf, errstring(err));
 #endif
 			message("%s: %s: message queued", buf, errstring(err));
-			user->q_flags |= QQUEUEUP|QDONTSEND;
+			user->q_flags |= QQUEUEUP;
 			return;
 		}
 	}

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reboot.h	7.6 (Berkeley) 6/28/90
- *	$Id: reboot.h,v 1.2 1993/10/16 17:17:26 rgrimes Exp $
+ *	$Id: reboot.h,v 1.4 1993/12/19 00:55:23 wollman Exp $
  */
+
+#ifndef _SYS_REBOOT_H_
+#define _SYS_REBOOT_H_ 1
 
 /*
  * Arguments to reboot system call.
@@ -79,10 +82,11 @@
 #define	B_TYPEMASK		0xff
 #define	B_TYPE(val)		(((val) >> B_TYPESHIFT) & B_TYPEMASK)
 
-#define	B_MAGICMASK	((u_long)0xf0000000)
-#define	B_DEVMAGIC	((u_long)0xa0000000)
+#define	B_MAGICMASK	(0xf0000000UL)
+#define	B_DEVMAGIC	(0xa0000000UL)
 
 #define MAKEBOOTDEV(type, adaptor, controller, unit, partition) \
 	(((type) << B_TYPESHIFT) | ((adaptor) << B_ADAPTORSHIFT) | \
 	((controller) << B_CONTROLLERSHIFT) | ((unit) << B_UNITSHIFT) | \
 	((partition) << B_PARTITIONSHIFT) | B_DEVMAGIC)
+#endif /* _SYS_REBOOT_H_ */

@@ -33,6 +33,7 @@
 .\"
 .ds CH
 .ds CF
+.nr 1T 0
 .de TS
 .br
 .if !\\n(1T .RT

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_ether.c	7.13 (Berkeley) 10/31/90
- *	$Id: if_ether.c,v 1.3 1993/10/16 18:25:54 rgrimes Exp $
+ *	$Id: if_ether.c,v 1.4 1993/11/25 01:34:57 wollman Exp $
  */
 
 /*
@@ -59,6 +59,9 @@
 #include "in_var.h"
 #include "ip.h"
 #include "if_ether.h"
+
+static void in_arpinput(struct arpcom *, struct mbuf *);
+static void arptfree(struct arptab *);
 
 #ifdef GATEWAY
 #define	ARPTAB_BSIZ	16		/* bucket size */
@@ -100,6 +103,7 @@ extern struct ifnet loif;
 /*
  * Timeout routine.  Age arp_tab entries once a minute.
  */
+void
 arptimer()
 {
 	register struct arptab *at;
@@ -121,6 +125,7 @@ arptimer()
 /*
  * Broadcast an ARP packet, asking who has addr on interface ac.
  */
+void
 arpwhohas(ac, addr)
 	register struct arpcom *ac;
 	struct in_addr *addr;
@@ -172,6 +177,7 @@ int	useloopback = 1;	/* use loopback interface for local traffic */
  * arptab is also altered from input interrupt service (ecintr/ilintr
  * calls arpinput when ETHERTYPE_ARP packets come in).
  */
+int
 arpresolve(ac, m, destip, desten, usetrailers)
 	register struct arpcom *ac;
 	struct mbuf *m;
@@ -270,6 +276,7 @@ arpresolve(ac, m, destip, desten, usetrailers)
  * is received.  Common length and type checks are done here,
  * then the protocol-specific routine is called.
  */
+void
 arpinput(ac, m)
 	struct arpcom *ac;
 	struct mbuf *m;
@@ -314,13 +321,14 @@ out:
  * We reply to requests for ETHERTYPE_TRAIL protocol as well,
  * but don't normally send requests.
  */
+void
 in_arpinput(ac, m)
 	register struct arpcom *ac;
 	struct mbuf *m;
 {
 	register struct ether_arp *ea;
 	struct ether_header *eh;
-	register struct arptab *at;  /* same as "merge" flag */
+	register struct arptab *at = 0;	/* same as "merge" flag */
 	register struct in_ifaddr *ia;
 	struct in_ifaddr *maybe_ia = 0;
 	struct mbuf *mcopy = 0;
@@ -469,6 +477,7 @@ out:
 /*
  * Free an arptab entry.
  */
+void
 arptfree(at)
 	register struct arptab *at;
 {
@@ -524,6 +533,7 @@ out:
 	return (at);
 }
 
+int
 arpioctl(cmd, data)
 	int cmd;
 	caddr_t data;

@@ -1,8 +1,9 @@
-# @(#)factory	1.1
+# $Id: factory,v 1.3 1993/11/17 02:27:04 ache Exp $
+# From ado: @(#)factory	7.1
 
 # For companies who don't want to put time zone specification in
 # their installation procedures.  When users run date, they'll get the message.
 # Also useful for the "comp.sources" version.
 
 # Zone	NAME	GMTOFF	RULES	FORMAT
-Zone	Factory	0	- "Local time zone must be set--see zic manual page"
+Zone    Factory 0       - "See zic(8) or link /etc/localtime directly"

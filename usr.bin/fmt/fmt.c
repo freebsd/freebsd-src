@@ -151,7 +151,7 @@ fmt(fi)
 				c = getc(fi);
 				continue;
 			}
-			if ((c < ' ' || c >= 0177) && c != '\t') {
+			if (c < ' '  && c != '\t' || c == 0177) {
 				c = getc(fi);
 				continue;
 			}
@@ -172,7 +172,7 @@ fmt(fi)
 		col = 0;
 		cp = linebuf;
 		cp2 = canonb;
-		while (c = *cp++) {
+		while (c = (unsigned char) *cp++) {
 			if (c != '\t') {
 				col++;
 				if (cp2-canonb < BUFSIZ-1)
@@ -269,7 +269,7 @@ split(line)
 		 * space. 
 		 */
 		while (*cp && *cp != ' ') {
-			if (*cp == '\\' && isspace(cp[1]))
+			if (*cp == '\\' && isspace((unsigned char)cp[1]))
 				*cp2++ = *cp++;
 			*cp2++ = *cp++;
 			wordl++;/* LIZ@UOM 6/18/85 */

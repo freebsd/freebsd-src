@@ -29,11 +29,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)setreuid.2	6.4 (Berkeley) 3/10/91
+.\"     From: @(#)setreuid.2	6.4 (Berkeley) 3/10/91
+.\"	$Id: setreuid.2,v 1.1.1.1.2.1 1994/05/01 16:06:14 jkh Exp $
 .\"
-.Dd March 10, 1991
+.Dd March 16, 1994
 .Dt SETREUID 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm setreuid
 .Nd set real and effective user ID's
@@ -42,16 +43,42 @@
 .Ft int
 .Fn setreuid "int ruid" "int euid"
 .Sh DESCRIPTION
-The real and effective user ID's of the
-current process are set according to the arguments.
+Note: In
+.Fx 1.0.2
+and earlier versions, this function would set the real and effective
+user ID's of the current process according to the arguments.  In
+.Fx 1.1
+we have adopted the behavior of
+.Bx 4.4 .
+.Pp
+The
+.Nm
+function is normally used by programs which wish to temporarily
+renounce special privileges they have gained (usually as a result of
+being set-uid executables), by swapping real and effective
+user ID's, so that the renunciation is reversible.
+This can result in a security hole, and does not integrate well with
+the
+.Tn POSIX
+saved user ID.  In
+.Fx 1.1 ,
+the
+.Nm
+function will never actually set the real user ID; however, it will
+check its value to ensure that a future
+.Xr seteuid 2
+call with the
+.Fa ruid
+argument will succeed.
+.Pp
 If
 .Fa ruid
 or 
 .Fa euid
-is -1, the current uid is filled in by the system.
-Unprivileged users may change the real user
-ID to the effective user ID and vice-versa; only the super-user may
-make other changes.
+is -1, the current ID is filled in by the system.
+The effective user ID is set, if requested, as if
+.Xr seteuid 2
+had been called.
 .Sh RETURN VALUES
 Upon successful completion, a value of 0 is returned.  Otherwise,
 a value of -1 is returned and

@@ -55,7 +55,7 @@ Ex/Edit Command Summary (Version 2.0)
 .nr VS 11
 .nr PS 9
 .nr HM 0.5i
-.nr CW
+.\".nr CW
 .2C
 .PP
 .I Ex
@@ -251,9 +251,8 @@ rather than with its special meaning,
 precede it by a backslash (\\).
 The backslash always has a special meaning.
 .1C
-.rm LF
-.rm RF
-.rm CF
+.ds LF
+.ds RF
 .nr FM 0.4
 .TS
 cp10 cp10 cp10 cp10
@@ -402,7 +401,7 @@ be added prior to line 1.
 \&.
 \fR:
 .fi
-T}	\^
+T}
 .SP
 \fR(.,.+1)\fBjoin	j	T{
 Join lines together, adjusting white space (spaces
@@ -413,7 +412,7 @@ T}	T{
 Resulting line is printed
 :
 .fi
-T}	\^
+T}
 .TE
 .bp
 .TS

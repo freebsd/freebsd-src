@@ -174,6 +174,7 @@ main(argc, argv)
 			syslog(LOG_ERR, "printer/tcp: unknown service");
 			mcleanup();
 		}
+		sin.sin_addr.s_addr=INADDR_ANY;
 		sin.sin_family = AF_INET;
 		sin.sin_port = sp->s_port;
 		if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {

@@ -1,0 +1,4 @@
+# $Id: kerberos,v 1.1 1993/11/11 23:59:56 wollman Exp $
+# This file determines whether the Kerberos server should be
+# automatically started.  The default is off.
+off

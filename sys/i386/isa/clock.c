@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.2 1993/10/16 13:45:44 rgrimes Exp $
+ *	$Id: clock.c,v 1.6 1994/02/06 22:48:13 davidg Exp $
  */
 
 /*
@@ -50,16 +50,17 @@
 #include "i386/isa/rtc.h"
 #include "i386/isa/timerreg.h"
 
-#define DAYST 119
-#define DAYEN 303
-
 /* X-tals being what they are, it's nice to be able to fudge this one... */
 /* Note, the name changed here from XTALSPEED to TIMER_FREQ rgrimes 4/26/93 */
 #ifndef TIMER_FREQ
 #define	TIMER_FREQ	1193182	/* XXX - should be in isa.h */
 #endif
 
-startrtclock() {
+static void findcpuspeed(void);
+
+void
+startrtclock() 
+{
 	int s;
 
 	findcpuspeed();		/* use the clock (while it's free)
@@ -80,13 +81,12 @@ startrtclock() {
 	outb (IO_RTC, RTC_DIAG);
 	if (s = inb (IO_RTC+1))
 		printf("RTC BIOS diagnostic error %b\n", s, RTCDG_BITS);
-	outb (IO_RTC, RTC_DIAG);
-	outb (IO_RTC+1, 0);
 }
 
 unsigned int delaycount;	/* calibrated loop variable (1 millisecond) */
 
 #define FIRST_GUESS	0x2000
+static void
 findcpuspeed()
 {
 	unsigned char low;
@@ -110,8 +110,9 @@ findcpuspeed()
 
 
 /* convert 2 digit BCD number */
+int
 bcd(i)
-int i;
+	int i;
 {
 	return ((i/16)*10 + (i%16));
 }
@@ -160,6 +161,7 @@ int m,leap;
  * Initialize the time of day register, based on the time base which is, e.g.
  * from a filesystem.
  */
+void
 inittodr(base)
 	time_t base;
 {
@@ -186,13 +188,6 @@ inittodr(base)
 	sec += bcd(rtcin(RTC_MIN)) * 60;			/* minutes */
 	sec += bcd(rtcin(RTC_SEC));				/* seconds */
 
-	/* XXX off by one? Need to calculate DST on SUNDAY */
-	/* Perhaps we should have the RTC hold GMT time to save */
-	/* us the bother of converting. */
-	yd = yd / (24*60*60);
-	if ((yd >= DAYST) && ( yd <= DAYEN)) {
-		sec -= 60*60;
-	}
 	sec += tz.tz_minuteswest * 60;
 
 	time.tv_sec = sec;
@@ -227,6 +222,7 @@ test_inittodr(base)
 /*
  * Restart the clock.
  */
+void
 resettodr()
 {
 }
@@ -235,8 +231,11 @@ resettodr()
  * Wire clock interrupt in.
  */
 #define V(s)	__CONCAT(V, s)
-extern V(clk)();
-enablertclock() {
+extern void V(clk)();
+
+void
+enablertclock() 
+{
 	setidt(ICU_OFFSET+0, &V(clk), SDT_SYS386IGT, SEL_KPL);
 	INTREN(IRQ0);
 }

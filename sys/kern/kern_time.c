@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_time.c	7.15 (Berkeley) 3/17/91
- *	$Id: kern_time.c,v 1.3 1993/10/16 15:24:33 rgrimes Exp $
+ *	$Id: kern_time.c,v 1.4 1993/11/25 01:33:14 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "resourcevar.h"
 #include "kernel.h"
 #include "proc.h"
@@ -57,6 +58,7 @@ struct gettimeofday_args {
 };
 
 /* ARGSUSED */
+int
 gettimeofday(p, uap, retval)
 	struct proc *p;
 	register struct gettimeofday_args *uap;
@@ -83,6 +85,7 @@ struct settimeofday_args {
 };
 
 /* ARGSUSED */
+int
 settimeofday(p, uap, retval)
 	struct proc *p;
 	struct settimeofday_args *uap;
@@ -120,6 +123,7 @@ struct adjtime_args {
 };
 
 /* ARGSUSED */
+int
 adjtime(p, uap, retval)
 	struct proc *p;
 	register struct adjtime_args *uap;
@@ -185,6 +189,7 @@ struct getitimer_args {
 };
 
 /* ARGSUSED */
+int
 getitimer(p, uap, retval)
 	struct proc *p;
 	register struct getitimer_args *uap;
@@ -222,6 +227,7 @@ struct setitimer_args {
 };
 
 /* ARGSUSED */
+int
 setitimer(p, uap, retval)
 	struct proc *p;
 	register struct setitimer_args *uap;
@@ -265,9 +271,10 @@ setitimer(p, uap, retval)
  * This is where delay in processing this timeout causes multiple
  * SIGALRM calls to be compressed into one.
  */
-realitexpire(p)
-	register struct proc *p;
+void
+realitexpire(caddr_t arg1, int arg2)
 {
+	register struct proc *p = (struct proc *)arg1;
 	int s;
 
 	psignal(p, SIGALRM);
@@ -295,6 +302,7 @@ realitexpire(p)
  * fix it to have at least minimal value (i.e. if it is less
  * than the resolution of the clock, round it up.)
  */
+int
 itimerfix(tv)
 	struct timeval *tv;
 {
@@ -317,6 +325,7 @@ itimerfix(tv)
  * that it is called in a context where the timers
  * on which it is operating cannot change in value.
  */
+int
 itimerdecr(itp, usec)
 	register struct itimerval *itp;
 	int usec;
@@ -356,6 +365,7 @@ expire:
  * it just gets very confused in this case.
  * Caveat emptor.
  */
+void
 timevaladd(t1, t2)
 	struct timeval *t1, *t2;
 {
@@ -365,6 +375,7 @@ timevaladd(t1, t2)
 	timevalfix(t1);
 }
 
+void
 timevalsub(t1, t2)
 	struct timeval *t1, *t2;
 {
@@ -374,6 +385,7 @@ timevalsub(t1, t2)
 	timevalfix(t1);
 }
 
+void
 timevalfix(t1)
 	struct timeval *t1;
 {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_cons.c	7.8 (Berkeley) 5/9/91
- *	$Id: tp_cons.c,v 1.2 1993/10/16 21:05:36 rgrimes Exp $
+ *	$Id: tp_cons.c,v 1.4 1993/12/19 22:45:43 wollman Exp $
  */
 
 /***********************************************************
@@ -79,6 +79,7 @@ SOFTWARE.
 #ifdef TPCONS
 
 #include "param.h"
+#include "systm.h"
 #include "socket.h"
 #include "domain.h"
 #include "mbuf.h"
@@ -117,9 +118,10 @@ int tpcons_output();
  *  version of the previous procedure for X.25
  */
 
+int
 tpcons_pcbconnect(isop, nam)
-struct isopcb *isop;
-register struct mbuf *nam;
+	struct isopcb *isop;
+	register struct mbuf *nam;
 {
 	int error;
 	if (error = iso_pcbconnect(isop, nam))
@@ -221,7 +223,8 @@ tpcons_input(m, faddr, laddr, channel)
 		printf("tpcons_input before tp_input(m 0x%x)\n", m);
 		dump_buf( m, 12+ m->m_len);
 	ENDDEBUG
-	tp_input(m, faddr, laddr, channel, tpcons_output, 0);
+	tp_input(m, (struct sockaddr *)faddr, (struct sockaddr *)laddr,
+		 (u_long)channel, tpcons_output, 0);
 	return 0;
 }
 
@@ -262,7 +265,7 @@ tpcons_output(isop, m0, datalen, nochksum)
 		m->m_next = m0;
 	}
 	m->m_pkthdr.len = datalen;
-	error = pk_send(isop->isop_chan, m);
+	error = pk_send((void *)isop->isop_chan, m);
 	IncStat(ts_tpdu_sent);
 
 	return error;
@@ -286,5 +289,5 @@ tpcons_dg_output(chan, m0, datalen)
 {
 	return tpcons_output(((struct pklcd *)chan)->lcd_upnext, m0, datalen, 0);
 }
-#endif TPCONS
-#endif ISO
+#endif /* TPCONS */
+#endif /* ISO */

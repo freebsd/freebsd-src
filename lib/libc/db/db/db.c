@@ -32,12 +32,13 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)db.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)db.c	8.3 (Berkeley) 9/13/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -51,14 +52,24 @@ dbopen(fname, flags, mode, type, openinfo)
 	DBTYPE type;
 	const void *openinfo;
 {
-	switch (type) {
-	case DB_BTREE:
-		return (__bt_open(fname, flags, mode, openinfo));
-	case DB_HASH:
-		return (__hash_open(fname, flags, mode, openinfo));
-	case DB_RECNO:
-		return (__rec_open(fname, flags, mode, openinfo));
-	}
+
+#define	DB_FLAGS	(DB_LOCK | DB_SHMEM | DB_TXN)
+#define	USE_OPEN_FLAGS							\
+	(O_CREAT | O_EXCL | O_EXLOCK | O_NONBLOCK | O_RDONLY |		\
+	 O_RDWR | O_SHLOCK | O_TRUNC)
+
+	if ((flags & ~(USE_OPEN_FLAGS | DB_FLAGS)) == 0)
+		switch (type) {
+		case DB_BTREE:
+			return (__bt_open(fname, flags & USE_OPEN_FLAGS,
+			    mode, openinfo, flags & DB_FLAGS));
+		case DB_HASH:
+			return (__hash_open(fname, flags & USE_OPEN_FLAGS,
+			    mode, openinfo, flags & DB_FLAGS));
+		case DB_RECNO:
+			return (__rec_open(fname, flags & USE_OPEN_FLAGS,
+			    mode, openinfo, flags & DB_FLAGS));
+		}
 	errno = EINVAL;
 	return (NULL);
 }

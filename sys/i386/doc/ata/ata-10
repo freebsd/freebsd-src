@@ -1,0 +1,213 @@
+10. Protocol Overview
+
+Commands can be grouped into different classes according to the protocols 
+followed for command execution. The command classes with their associated 
+protocols are defined below.
+
+For all commands, the host first checks if BSY=1, and should proceed no 
+further unless and until BSY=0. For most commands, the host will also wait for 
+DRDY=1 before proceeding. Those commands shown with DRDY=x can be executed 
+when DRDY=0. 
+
+Data transfers may be accomplished in more ways than are described below, but 
+these sequences should work with all known implementations of ATA drives. 
+
+10.1  PIO Data In Commands
+
+This class includes:
+
+ - Identify Drive
+ - Read Buffer
+ - Read Long
+ - Read Sector(s)
+
+Execution includes the transfer of one or more 512 byte (>512 bytes on Read 
+Long) sectors of data from the drive to the host. 
+
+ a) The host writes any required parameters to the Features, Sector Count, 
+    Sector Number, Cylinder and Drive/Head registers.
+ b) The host writes the command code to the Command Register.
+ c) The drive sets BSY and prepares for data transfer.
+ d) When a sector of data is available, the drive sets DRQ and clears BSY 
+    prior to asserting INTRQ.
+ e) After detecting INTRQ, the host reads the Status Register, then reads one 
+    sector of data via the Data Register. In response to the Status Register 
+    being read, the drive negates INTRQ. 
+ f) The drive clears DRQ. If transfer of another sector is required, the drive 
+    also sets BSY and the above sequence is repeated from d).
+
+10.1.1  PIO Read Command
+
+ +- a) -+-- b) -+        +- e) -+--------+       +- e) -+--------+ 
+ |Setup | Issue |        | Read |Transfer|       | Read |Transfer| 
+ |      |Command|        |Status|  Data  |:::::::|Status|  Data  | 
+ +------+-------+        +------+--------+       +------+--------+ 
+ |BSY=0 |       |BSY=1   |BSY=0 |        |BSY=1  |BSY=0 |        |BSY=1
+        |DRDY=1          |      |        |       |      |        |
+                         |DRQ=1 |        |DRQ=0  |DRQ=1 |        |DRQ=0
+                         |Assert|Negate  |       |Assert|Negate
+                          INTRQ  INTRQ            INTRQ  INTRQ 
+
+If Error Status is presented, the drive is prepared to transfer data, and it 
+is at the host's discretion that the data is transferred. 
+
+10.1.2  PIO Read Aborted Command
+
+ +- a) -+-- b) -+        +- e) -+
+ |Setup | Issue |        | Read |
+ |      |Command|        |Status|
+ +------+-------+        +------+
+ |BSY=0 |       |BSY=1   |BSY=0 |      
+        |DRDY=1          |      |
+                         |DRQ=1 |DRQ=0
+                         |Assert|Negate
+                          INTRQ  INTRQ
+
+Although DRQ=1, there is no data to be transferred under this condition.
+
+10.2  PIO Data Out Commands
+
+This class includes:
+
+ - Format 
+ - Write Buffer
+ - Write Long
+ - Write Sector(s)
+
+Execution includes the transfer of one or more 512 byte (>512 bytes on Write 
+Long) sectors of data from the drive to the host. 
+
+ a) The host writes any required parameters to the Features, Sector Count, 
+    Sector Number, Cylinder and Drive/Head registers.
+ b) The host writes the command code to the Command Register.
+ c) The drive sets DRQ when it is ready to accept the first sector of data.
+ d) The host writes one sector of data via the Data Register.
+ e) The drive clears DRQ and sets BSY.
+ f) When the drive has completed processing of the sector, it clears BSY and 
+    asserts INTRQ. If transfer of another sector is required, the drive also 
+    sets DRQ.
+ g) After detecting INTRQ, the host reads the Status Register.
+ h) The drive clears the interrupt.
+ i) If transfer of another sector is required, the above sequence is repeated 
+    from d).
+
+10.2.1  PIO Write Command
+
+ +- a) -+-- b) -+      +--------+      +- e) -+--------+       +- e) -+
+ |Setup | Issue |      |Transfer|      | Read |Transfer|       | Read |
+ |      |Command|      |  Data  |      |Status|  Data  |:::::::|Status|
+ +------+-------+      +--------+      +------+--------+       +------+
+ |BSY=0 |       |BSY=1 |BSY=0   |BSY=1 |BSY=0 |        |BSY=1  |BSY=0 |
+        |DRDY=1        |        |      |      |        |       |      |
+                       |DRQ=1   |DRQ=0 |DRQ=1 |        |DRQ=0  |      |
+                       |        |      |Assert|Negate  |       |Assert|Negate
+                                        INTRQ  INTRQ            INTRQ  INTRQ 
+
+10.2.2  PIO Write Aborted Command
+
+ +- a) -+-- b) -+       +- e) -+
+ |Setup | Issue |       | Read |
+ |      |Command|       |Status|
+ +------+-------+       +------+
+ |BSY=0 |       |BSY=1  |BSY=0 |
+        |DRDY=1         |      |
+        |               |Assert|Negate
+                         INTRQ  INTRQ 
+
+10.3  Non-Data Commands
+
+This class includes:
+
+ - Execute Drive Diagnostic (DRDY=x)
+ - Idle
+ - Initialize Drive Parameters (DRDY=x)
+ - Read Power Mode
+ - Read Verify Sector(s)
+ - Recalibrate
+ - Seek
+ - Set Features 
+ - Set Multiple Mode
+ - Standby
+
+Execution of these commands involves no data transfer.
+
+ a) The host writes any required parameters to the Features, Sector Count, 
+    Sector Number, Cylinder and Drive/Head registers.
+ b) The host writes the command code to the Command Register.
+ c) The drive sets BSY. 
+ d) When the drive has completed processing, it clears BSY and asserts INTRQ. 
+ g) The host reads the Status Register.
+ h) The drive negates INTRQ.
+
+10.4  Miscellaneous Commands
+
+This class includes:
+
+ - Read Multiple
+ - Sleep
+ - Write Multiple
+ - Write Same
+
+The protocol for these commands is contained in the individual command 
+descriptions.
+
+10.5  DMA Data Transfer Commands (Optional)
+
+This class comprises:
+
+ - Read DMA
+ - Write DMA
+
+Data transfers using DMA commands differ in two ways from PIO transfers:
+
+ - data transfers are performed using the slave-DMA channel 
+ - no intermediate sector interrupts are issued on multi-sector commands 
+
+Initiation of the DMA transfer commands is identical to the Read Sector or 
+Write Sector commands except that the host initializes the slave-DMA channel 
+prior to issuing the command.
+
+The interrupt handler for DMA transfers is different in that:
+
+ - no intermediate sector interrupts are issued on multi-sector commands
+ - the host resets the DMA channel prior to reading status from the drive.
+
+The DMA protocol allows high performance multi-tasking operating systems to 
+eliminate processor overhead associated with PIO transfers. 
+
+ a) Command Phase
+    1) Host initializes the slave-DMA channel
+    2) Host updates the Command Block Registers
+    3) Host writes command code to the Command Register
+ b) Data Phase - the register contents are not valid during a DMA Data Phase.
+    1) The slave-DMA channel qualifies data transfers to and from the drive 
+       with DMARQ
+ c) Status Phase
+    1) Drive generates the interrupt to the host
+    2) Host resets the slave-DMA channel
+    3) Host reads the Status Register and Error Register
+
+10.5.1  Normal DMA Transfer
+
+ +--------------+-------+      +---------------------+  +---------+------+
+ |Initialize DMA|Command|      |  DMA Data Transfer  |  |Reset DMA|Status|
+ +--------------+-------+      +---------------------+  +---------+------+
+ |BSY=0                 |BSY=1 |BSY=x                   |BSY=1    |BSY=0
+                               |DRQ=x                   |nIEN=0
+
+10.5.2  Aborted DMA Transfer
+
+ +--------------+-------+      +-------------+  +---------+------+
+ |Initialize DMA|Command|      |    DMA Data |  |Reset DMA|Status|
+ +--------------+-------+      +-------------+  +---------+------+
+ |BSY=0                 |BSY=1 |BSY=x           |BSY=1    |BSY=0
+                               |DRQ=1           |nIEN=0
+
+10.5.3  Aborted DMA Command
+
+ +--------------+-------+      +---------+------+
+ |Initialize DMA|Command|      |Reset DMA|Status|
+ +--------------+-------+      +---------+------+
+ |BSY=0                 |BSY=1 |BSY=1    |BSY=0
+                               |nIEN=0
+

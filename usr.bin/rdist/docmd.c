@@ -36,6 +36,7 @@ static char sccsid[] = "@(#)docmd.c	5.8 (Berkeley) 3/1/91";
 #endif /* not lint */
 
 #include "defs.h"
+#include <stdlib.h>
 #include <setjmp.h>
 #include <netdb.h>
 
@@ -506,6 +507,7 @@ notify(file, rhost, to, lmod)
 	 * Create a pipe to mailling program.
 	 */
 	(void)sprintf(buf, "%s -oi -t", _PATH_SENDMAIL);
+	unsetenv("IFS");
 	pf = popen(buf, "w");
 	if (pf == NULL) {
 		error("notify: \"%s\" failed\n", _PATH_SENDMAIL);

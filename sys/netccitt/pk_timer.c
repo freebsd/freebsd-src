@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pk_timer.c	7.5 (Berkeley) 5/29/91
- *	$Id: pk_timer.c,v 1.2 1993/10/16 19:46:55 rgrimes Exp $
+ *	$Id: pk_timer.c,v 1.4 1993/12/19 00:52:23 wollman Exp $
  */
 
 #include "param.h"
@@ -60,9 +60,10 @@
 int	pk_t20 = 18 * PR_SLOWHZ;	/* restart timer */
 int	pk_t21 = 20 * PR_SLOWHZ;	/* call timer */
 /* XXX pk_t22 is never used */
-int	pk_t22 = 18 * PR_SLOWHZ;	/* reset timer */
+/*int	pk_t22 = 18 * PR_SLOWHZ;*/	/* reset timer */
 int	pk_t23 = 18 * PR_SLOWHZ;	/* clear timer */
 
+void
 pk_timer ()
 {
 	register struct pkcb *pkp;

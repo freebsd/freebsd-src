@@ -10,5 +10,6 @@ all clean cleandir depend lint tags:
 install:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
 	    ${DESTDIR}${BINDIR}/dict
+	(cd ${DESTDIR}${BINDIR}/dict; rm -f words; ln -s web2 words)
 
 .include <bsd.prog.mk>

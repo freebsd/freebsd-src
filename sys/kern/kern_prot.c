@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1982, 1986, 1989, 1990, 1991 Regents of the University
  * of California.  All rights reserved.
  *
@@ -31,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_prot.c	7.21 (Berkeley) 5/3/91
- *	$Id: kern_prot.c,v 1.3 1993/10/16 15:24:24 rgrimes Exp $
+ *	$Id: kern_prot.c,v 1.5.2.2 1994/05/04 07:54:41 rgrimes Exp $
  */
 
 /*
@@ -39,8 +46,8 @@
  */
 
 #include "param.h"
-#include "acct.h"
 #include "systm.h"
+#include "acct.h"
 #include "ucred.h"
 #include "proc.h"
 #include "timeb.h"
@@ -48,6 +55,7 @@
 #include "malloc.h"
 
 /* ARGSUSED */
+int
 getpid(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -62,6 +70,7 @@ getpid(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 getppid(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -73,6 +82,7 @@ getppid(p, uap, retval)
 }
 
 /* Get process group ID; note that POSIX getpgrp takes no parameter */
+int
 getpgrp(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -84,6 +94,7 @@ getpgrp(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 getuid(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -98,6 +109,7 @@ getuid(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 geteuid(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -109,6 +121,7 @@ geteuid(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 getgid(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -128,6 +141,7 @@ getgid(p, uap, retval)
  * correctly in a library function.
  */
 /* ARGSUSED */
+int
 getegid(p, uap, retval)
 	struct proc *p;
 	void *uap;
@@ -143,6 +157,7 @@ struct getgroups_args {
 	int	*gidset;		/* XXX not yet POSIX */
 };
 
+int
 getgroups(p, uap, retval)
 	struct proc *p;
 	register struct getgroups_args *uap;
@@ -172,6 +187,7 @@ getgroups(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 setsid(p, uap, retval)
 	register struct proc *p;
 	void *uap;
@@ -207,6 +223,7 @@ struct setpgid_args {
 };
 
 /* ARGSUSED */
+int
 setpgid(curp, uap, retval)
 	struct proc *curp;
 	register struct setpgid_args *uap;
@@ -241,6 +258,7 @@ struct setuid_args {
 };
 
 /* ARGSUSED */
+int
 setuid(p, uap, retval)
 	struct proc *p;
 	struct setuid_args *uap;
@@ -262,6 +280,7 @@ setuid(p, uap, retval)
 	pc->pc_ucred->cr_uid = uid;
 	pc->p_ruid = uid;
 	pc->p_svuid = uid;
+	p->p_flag |= SUGID;
 	return (0);
 }
 
@@ -270,6 +289,7 @@ struct seteuid_args {
 };
 
 /* ARGSUSED */
+int
 seteuid(p, uap, retval)
 	struct proc *p;
 	struct seteuid_args *uap;
@@ -289,6 +309,7 @@ seteuid(p, uap, retval)
 	 */
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	pc->pc_ucred->cr_uid = euid;
+	p->p_flag |= SUGID;
 	return (0);
 }
 
@@ -297,6 +318,7 @@ struct setgid_args {
 };
 
 /* ARGSUSED */
+int
 setgid(p, uap, retval)
 	struct proc *p;
 	struct setgid_args *uap;
@@ -312,7 +334,8 @@ setgid(p, uap, retval)
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	pc->pc_ucred->cr_groups[0] = gid;
 	pc->p_rgid = gid;
-	pc->p_svgid = gid;		/* ??? */
+	pc->p_svgid = gid;
+	p->p_flag |= SUGID;
 	return (0);
 }
 
@@ -321,6 +344,7 @@ struct setegid_args {
 };
 
 /* ARGSUSED */
+int
 setegid(p, uap, retval)
 	struct proc *p;
 	struct setegid_args *uap;
@@ -336,6 +360,7 @@ setegid(p, uap, retval)
 		return (error);
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	pc->pc_ucred->cr_groups[0] = egid;
+	p->p_flag |= SUGID;
 	return (0);
 }
 
@@ -347,44 +372,37 @@ struct osetreuid_args {
 };
 
 /* ARGSUSED */
+int
 osetreuid(p, uap, retval)
 	register struct proc *p;
 	struct osetreuid_args *uap;
 	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
-	register uid_t ruid, euid;
-	int error;
+	struct seteuid_args e_args;
 
-	if (uap->ruid == -1)
-		ruid = pc->p_ruid;
-	else
-		ruid = uap->ruid;
 	/*
-	 * Allow setting real uid to previous effective, for swapping real and
-	 * effective.  This should be:
-	 *
-	 * if (ruid != pc->p_ruid &&
-	 *     (error = suser(pc->pc_ucred, &p->p_acflag)))
+	 * Most calls to setreuid() are done in order to swap real and
+	 * effective uids.  In old versions of BSD, this was the only
+	 * way to temporarily renounce privileges and be able to get
+	 * them back.  In the presence of the POSIX saved id, however,
+	 * we can do this without modifying the real uid, which could have
+	 * opened up a security hole.  So, we implement this: when the user
+	 * attempts to set its real uid, we just check to make sure
+	 * that they will be able to seteuid() back to that id at some
+	 * later time, but don't actually change the real uid.
+	 * Logic taken from 4.4BSD.
 	 */
-	if (ruid != pc->p_ruid && ruid != pc->pc_ucred->cr_uid /* XXX */ &&
-	    (error = suser(pc->pc_ucred, &p->p_acflag)))
-		return (error);
-	if (uap->euid == -1)
-		euid = pc->pc_ucred->cr_uid;
-	else
-		euid = uap->euid;
-	if (euid != pc->pc_ucred->cr_uid && euid != pc->p_ruid &&
-	    euid != pc->p_svuid && (error = suser(pc->pc_ucred, &p->p_acflag)))
-		return (error);
-	/*
-	 * Everything's okay, do it.  Copy credentials so other references do
-	 * not see our changes.
-	 */
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	pc->pc_ucred->cr_uid = euid;
-	pc->p_ruid = ruid;
-	return (0);
+	if(uap->ruid != -1 && uap->ruid != pc->p_ruid
+	   && uap->ruid != pc->p_svuid) {
+		return EPERM;
+	}
+
+	if(uap->euid == -1) {
+		return 0;
+	}
+	e_args.euid = uap->euid;
+	return seteuid(p, &e_args, retval);
 }
 
 struct osetregid_args {
@@ -393,41 +411,29 @@ struct osetregid_args {
 };
 
 /* ARGSUSED */
+int
 osetregid(p, uap, retval)
 	register struct proc *p;
 	struct osetregid_args *uap;
 	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
-	register gid_t rgid, egid;
-	int error;
+	struct setegid_args e_args;
 
-	if (uap->rgid == -1)
-		rgid = pc->p_rgid;
-	else
-		rgid = uap->rgid;
 	/*
-	 * Allow setting real gid to previous effective, for swapping real and
-	 * effective.  This didn't really work correctly in 4.[23], but is
-	 * preserved so old stuff doesn't fail.  This should be:
-	 *
-	 * if (rgid != pc->p_rgid &&
-	 *     (error = suser(pc->pc_ucred, &p->p_acflag)))
+	 * Same comments as for setreuid() apply here.
 	 */
-	if (rgid != pc->p_rgid && rgid != pc->pc_ucred->cr_groups[0] /* XXX */ &&
-	    (error = suser(pc->pc_ucred, &p->p_acflag)))
-		return (error);
-	if (uap->egid == -1)
-		egid = pc->pc_ucred->cr_groups[0];
-	else
-		egid = uap->egid;
-	if (egid != pc->pc_ucred->cr_groups[0] && egid != pc->p_rgid &&
-	    egid != pc->p_svgid && (error = suser(pc->pc_ucred, &p->p_acflag)))
-		return (error);
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	pc->pc_ucred->cr_groups[0] = egid;
-	pc->p_rgid = rgid;
-	return (0);
+	if(uap->rgid != -1
+	   && uap->rgid != pc->p_rgid
+	   && uap->rgid != pc->p_svgid) {
+		return EPERM;
+	}
+
+	if(uap->egid == -1) {
+		return 0;
+	}
+	e_args.egid = uap->egid;
+	return setegid(p, &e_args, retval);
 }
 #endif
 
@@ -437,6 +443,7 @@ struct setgroups_args {
 };
 
 /* ARGSUSED */
+int
 setgroups(p, uap, retval)
 	struct proc *p;
 	struct setgroups_args *uap;
@@ -466,6 +473,7 @@ setgroups(p, uap, retval)
 /*
  * Check if gid is a member of the group set.
  */
+int
 groupmember(gid, cred)
 	gid_t gid;
 	register struct ucred *cred;
@@ -486,6 +494,7 @@ groupmember(gid, cred)
  * indicating use of super-powers.
  * Returns 0 or error.
  */
+int
 suser(cred, acflag)
 	struct ucred *cred;
 	u_short *acflag;
@@ -516,10 +525,11 @@ crget()
  * Free a cred structure.
  * Throws away space when ref count gets to 0.
  */
+void
 crfree(cr)
 	struct ucred *cr;
 {
-	int s = splimp();			/* ??? */
+	int s = splimp();			/* ??? XXX FIXME */
 
 	if (--cr->cr_ref != 0) {
 		(void) splx(s);
@@ -572,6 +582,7 @@ struct getlogin_args {
 };
 
 /* ARGSUSED */
+int
 getlogin(p, uap, retval)
 	struct proc *p;
 	struct getlogin_args *uap;
@@ -593,6 +604,7 @@ struct setlogin_args {
 };
 
 /* ARGSUSED */
+int
 setlogin(p, uap, retval)
 	struct proc *p;
 	struct setlogin_args *uap;

@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	6.3 (Berkeley) 6/30/90
 #	Makefile,v 1.4 1993/07/31 15:30:11 mycroft Exp
 
-DIR=	usd/15.vi
+VOLUME=	usd
 DOC=	15.vi
 
 SRCS=	vi.in vi.chars

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.2 (Berkeley) 7/11/93";
+static char sccsid[] = "@(#)headers.c	8.30 (Berkeley) 2/25/94";
 #endif /* not lint */
 
 # include <errno.h>
@@ -70,6 +70,7 @@ chompheader(line, def, e)
 	struct hdrinfo *hi;
 	bool cond = FALSE;
 	BITMAP mopts;
+	char buf[MAXNAME];
 
 	if (tTd(31, 6))
 		printf("chompheader: %s\n", line);
@@ -96,16 +97,18 @@ chompheader(line, def, e)
 
 	/* find canonical name */
 	fname = p;
-	p = strchr(p, ':');
-	if (p == NULL)
+	while (isascii(*p) && isgraph(*p) && *p != ':')
+		p++;
+	fvalue = p;
+	while (isascii(*p) && isspace(*p))
+		p++;
+	if (*p++ != ':' || fname == fvalue)
 	{
 		syserr("553 header syntax error, line \"%s\"", line);
 		return (0);
 	}
-	fvalue = &p[1];
-	while (isascii(*--p) && isspace(*p))
-		continue;
-	*++p = '\0';
+	*fvalue = '\0';
+	fvalue = p;
 
 	/* strip field value on front */
 	if (*fvalue == ' ')
@@ -118,6 +121,14 @@ chompheader(line, def, e)
 			break;
 	}
 
+	if (tTd(31, 9))
+	{
+		if (hi->hi_field == NULL)
+			printf("no header match\n");
+		else
+			printf("header match, hi_flags=%o\n", hi->hi_flags);
+	}
+
 	/* see if this is a resent message */
 	if (!def && bitset(H_RESENT, hi->hi_flags))
 		e->e_flags |= EF_RESENT;
@@ -126,7 +137,12 @@ chompheader(line, def, e)
 	if (bitset(H_EOH, hi->hi_flags))
 		return (hi->hi_flags);
 
-	/* drop explicit From: if same as what we would generate -- for MH */
+	/*
+	**  Drop explicit From: if same as what we would generate.
+	**  This is to make MH (which doesn't always give a full name)
+	**  insert the full name information in all circumstances.
+	*/
+
 	p = "resent-from";
 	if (!bitset(EF_RESENT, e->e_flags))
 		p += 7;
@@ -141,6 +157,46 @@ chompheader(line, def, e)
 		    (strcmp(fvalue, e->e_from.q_paddr) == 0 ||
 		     strcmp(fvalue, e->e_from.q_user) == 0))
 			return (hi->hi_flags);
+#ifdef MAYBENEXTRELEASE		/* XXX UNTESTED XXX UNTESTED XXX UNTESTED XXX */
+#ifdef USERDB
+		else
+		{
+			auto ADDRESS a;
+			char *fancy;
+			bool oldSuprErrs = SuprErrs;
+			extern char *crackaddr();
+			extern char *udbsender();
+
+			/*
+			**  Try doing USERDB rewriting even on fully commented
+			**  names; this saves the "comment" information (such
+			**  as full name) and rewrites the electronic part.
+			**
+			** XXX	This code doesn't belong here -- parsing should
+			** XXX	not be done during collect() phase because
+			** XXX	error messages can confuse the SMTP phase.
+			** XXX	Setting SuprErrs is a crude hack around this
+			** XXX	problem.
+			*/
+
+			if (OpMode == MD_SMTP || OpMode == MD_ARPAFTP)
+				SuprErrs = TRUE;
+			fancy = crackaddr(fvalue);
+			if (parseaddr(fvalue, &a, RF_COPYNONE, '\0', NULL, e) != NULL &&
+			    a.q_mailer == LocalMailer &&
+			    (p = udbsender(a.q_user)) != NULL)
+			{
+				char *oldg = macvalue('g', e);
+
+				define('g', p, e);
+				expand(fancy, buf, &buf[sizeof buf], e);
+				define('g', oldg, e);
+				fvalue = buf;
+			}
+			SuprErrs = oldSuprErrs;
+		}
+#endif
+#endif
 	}
 
 	/* delete default value for this header */
@@ -155,7 +211,7 @@ chompheader(line, def, e)
 	/* create a new node */
 	h = (HDR *) xalloc(sizeof *h);
 	h->h_field = newstr(fname);
-	h->h_value = NULL;
+	h->h_value = newstr(fvalue);
 	h->h_link = NULL;
 	bcopy((char *) mopts, (char *) h->h_mflags, sizeof mopts);
 	*hp = h;
@@ -164,9 +220,6 @@ chompheader(line, def, e)
 		h->h_flags |= H_DEFAULT;
 	if (cond)
 		h->h_flags |= H_CHECK;
-	if (h->h_value != NULL)
-		free((char *) h->h_value);
-	h->h_value = newstr(fvalue);
 
 	/* hack to see if this is a new format message */
 	if (!def && bitset(H_RCPT|H_FROM, h->h_flags) &&
@@ -323,14 +376,30 @@ eatheader(e, full)
 
 	define('f', e->e_sender, e);
 	define('g', e->e_sender, e);
+	if (e->e_origrcpt != NULL && *e->e_origrcpt != '\0')
+		define('u', e->e_origrcpt, e);
+	else
+		define('u', NULL, e);
+
+	/* full name of from person */
+	p = hvalue("full-name", e);
+	if (p != NULL)
+		define('x', p, e);
 
 	if (tTd(32, 1))
 		printf("----- collected header -----\n");
 	msgid = "<none>";
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
+		if (h->h_value == NULL)
+		{
+			if (tTd(32, 1))
+				printf("%s: <NULL>\n", h->h_field);
+			continue;
+		}
+
 		/* do early binding */
-		if (bitset(H_DEFAULT, h->h_flags) && h->h_value != NULL)
+		if (bitset(H_DEFAULT, h->h_flags))
 		{
 			expand(h->h_value, buf, &buf[sizeof buf], e);
 			if (buf[0] != '\0')
@@ -341,7 +410,11 @@ eatheader(e, full)
 		}
 
 		if (tTd(32, 1))
-			printf("%s: %s\n", h->h_field, h->h_value);
+		{
+			printf("%s: ", h->h_field);
+			xputs(h->h_value);
+			printf("\n");
+		}
 
 		/* count the number of times it has been processed */
 		if (bitset(H_TRACE, h->h_flags))
@@ -352,13 +425,18 @@ eatheader(e, full)
 		    !bitset(H_DEFAULT, h->h_flags) &&
 		    (!bitset(EF_RESENT, e->e_flags) || bitset(H_RESENT, h->h_flags)))
 		{
-			(void) sendtolist(h->h_value, (ADDRESS *) NULL,
+			int saveflags = e->e_flags;
+
+			(void) sendtolist(h->h_value, NULLADDR,
 					  &e->e_sendqueue, e);
+
+			/* delete fatal errors generated by this address */
+			if (!GrabTo && !bitset(EF_FATALERRS, saveflags))
+				e->e_flags &= ~EF_FATALERRS;
 		}
 
 		/* save the message-id for logging */
-		if (full && h->h_value != NULL &&
-		    strcasecmp(h->h_field, "message-id") == 0)
+		if (full && strcasecmp(h->h_field, "message-id") == 0)
 		{
 			msgid = h->h_value;
 			while (isascii(*msgid) && isspace(*msgid))
@@ -371,7 +449,7 @@ eatheader(e, full)
 
 		/* see if this is an errors-to header */
 		if (UseErrorsTo && bitset(H_ERRORSTO, h->h_flags))
-			(void) sendtolist(h->h_value, (ADDRESS *) NULL,
+			(void) sendtolist(h->h_value, NULLADDR,
 					  &e->e_errorqueue, e);
 	}
 	if (tTd(32, 1))
@@ -394,11 +472,6 @@ eatheader(e, full)
 				 - e->e_class * WkClassFact
 				 + e->e_nrcpts * WkRecipFact;
 
-	/* full name of from person */
-	p = hvalue("full-name", e);
-	if (p != NULL)
-		define('x', p, e);
-
 	/* date message originated */
 	p = hvalue("posted-date", e);
 	if (p == NULL)
@@ -407,53 +480,130 @@ eatheader(e, full)
 		define('a', p, e);
 
 	/*
+	**  From person in antiquated ARPANET mode
+	**	required by UK Grey Book e-mail gateways (sigh)
+	*/
+
+	if (OpMode == MD_ARPAFTP)
+	{
+		register struct hdrinfo *hi;
+
+		for (hi = HdrInfo; hi->hi_field != NULL; hi++)
+		{
+			if (bitset(H_FROM, hi->hi_flags) &&
+			    (!bitset(H_RESENT, hi->hi_flags) ||
+			     bitset(EF_RESENT, e->e_flags)) &&
+			    (p = hvalue(hi->hi_field, e)) != NULL)
+				break;
+		}
+		if (hi->hi_field != NULL)
+		{
+			if (tTd(32, 2))
+				printf("eatheader: setsender(*%s == %s)\n",
+					hi->hi_field, p);
+			setsender(p, e, NULL, TRUE);
+		}
+	}
+
+	/*
 	**  Log collection information.
 	*/
 
 # ifdef LOG
 	if (full && LogLevel > 4)
-	{
-		char *name;
-		register char *sbp;
-		char hbuf[MAXNAME];
-		char sbuf[MAXLINE];
-
-		if (bitset(EF_RESPONSE, e->e_flags))
-			name = "[RESPONSE]";
-		else if ((name = macvalue('_', e)) != NULL)
-			;
-		else if (RealHostName[0] == '[')
-			name = RealHostName;
-		else
-		{
-			name = hbuf;
-			(void) sprintf(hbuf, "%.80s", RealHostName);
-			if (RealHostAddr.sa.sa_family != 0)
-			{
-				p = &hbuf[strlen(hbuf)];
-				(void) sprintf(p, " (%s)",
-					anynet_ntoa(&RealHostAddr));
-			}
-		}
-
-		/* some versions of syslog only take 5 printf args */
-		sbp = sbuf;
-		sprintf(sbp, "from=%.200s, size=%ld, class=%d, pri=%ld, nrcpts=%d, msgid=%.100s",
-		    e->e_from.q_paddr, e->e_msgsize, e->e_class,
-		    e->e_msgpriority, e->e_nrcpts, msgid);
-		sbp += strlen(sbp);
-		if (e->e_bodytype != NULL)
-		{
-			(void) sprintf(sbp, ", bodytype=%.20s", e->e_bodytype);
-			sbp += strlen(sbp);
-		}
-		p = macvalue('r', e);
-		if (p != NULL)
-			(void) sprintf(sbp, ", proto=%.20s", p);
-		syslog(LOG_INFO, "%s: %s, relay=%s",
-		    e->e_id, sbuf, name);
-	}
+		logsender(e, msgid);
 # endif /* LOG */
+	e->e_flags &= ~EF_LOGSENDER;
+}
+/*
+**  LOGSENDER -- log sender information
+**
+**	Parameters:
+**		e -- the envelope to log
+**		msgid -- the message id
+**
+**	Returns:
+**		none
+*/
+
+logsender(e, msgid)
+	register ENVELOPE *e;
+	char *msgid;
+{
+	char *name;
+	register char *sbp;
+	register char *p;
+	char hbuf[MAXNAME];
+	char sbuf[MAXLINE];
+
+	if (bitset(EF_RESPONSE, e->e_flags))
+		name = "[RESPONSE]";
+	else if ((name = macvalue('_', e)) != NULL)
+		;
+	else if (RealHostName == NULL)
+		name = "localhost";
+	else if (RealHostName[0] == '[')
+		name = RealHostName;
+	else
+	{
+		name = hbuf;
+		(void) sprintf(hbuf, "%.80s", RealHostName);
+		if (RealHostAddr.sa.sa_family != 0)
+		{
+			p = &hbuf[strlen(hbuf)];
+			(void) sprintf(p, " (%s)",
+				anynet_ntoa(&RealHostAddr));
+		}
+	}
+
+	/* some versions of syslog only take 5 printf args */
+#  if (SYSLOG_BUFSIZE) >= 256
+	sbp = sbuf;
+	sprintf(sbp, "from=%.200s, size=%ld, class=%d, pri=%ld, nrcpts=%d",
+	    e->e_from.q_paddr, e->e_msgsize, e->e_class,
+	    e->e_msgpriority, e->e_nrcpts);
+	sbp += strlen(sbp);
+	if (msgid != NULL)
+	{
+		sprintf(sbp, ", msgid=%.100s", msgid);
+		sbp += strlen(sbp);
+	}
+	if (e->e_bodytype != NULL)
+	{
+		(void) sprintf(sbp, ", bodytype=%.20s", e->e_bodytype);
+		sbp += strlen(sbp);
+	}
+	p = macvalue('r', e);
+	if (p != NULL)
+		(void) sprintf(sbp, ", proto=%.20s", p);
+	syslog(LOG_INFO, "%s: %s, relay=%s",
+	    e->e_id, sbuf, name);
+
+#  else			/* short syslog buffer */
+
+	syslog(LOG_INFO, "%s: from=%s",
+		e->e_id, shortenstring(e->e_from.q_paddr, 83));
+	syslog(LOG_INFO, "%s: size=%ld, class=%ld, pri=%ld, nrcpts=%d",
+		e->e_id, e->e_msgsize, e->e_class,
+		e->e_msgpriority, e->e_nrcpts);
+	if (msgid != NULL)
+		syslog(LOG_INFO, "%s: msgid=%s", e->e_id, msgid);
+	sbp = sbuf;
+	sprintf(sbp, "%s:", e->e_id);
+	sbp += strlen(sbp);
+	if (e->e_bodytype != NULL)
+	{
+		sprintf(sbp, " bodytype=%s,", e->e_bodytype);
+		sbp += strlen(sbp);
+	}
+	p = macvalue('r', e);
+	if (p != NULL)
+	{
+		sprintf(sbp, " proto=%s,", p);
+		sbp += strlen(sbp);
+	}
+	syslog(LOG_INFO, "%s relay=%s", sbuf, name);
+#  endif
 }
 /*
 **  PRIENCODE -- encode external priority names into internal values.
@@ -525,6 +675,7 @@ crackaddr(addr)
 	bool skipping;
 	bool putgmac = FALSE;
 	bool quoteit = FALSE;
+	bool gotangle = FALSE;
 	register char *bp;
 	char *buflim;
 	static char buf[MAXNAME];
@@ -579,7 +730,7 @@ crackaddr(addr)
 		}
 
 		/* check for quoted strings */
-		if (c == '"')
+		if (c == '"' && cmtlev <= 0)
 		{
 			qmode = !qmode;
 			if (copylev > 0 && !skipping)
@@ -623,13 +774,12 @@ crackaddr(addr)
 		else if (c == ')')
 		{
 			/* syntax error: unmatched ) */
-			if (!skipping)
+			if (copylev > 0 && !skipping)
 				bp--;
 		}
 
-
 		/* check for characters that may have to be quoted */
-		if (strchr(".'@,;:\\()", c) != NULL)
+		if (strchr(".'@,;:\\()[]", c) != NULL)
 		{
 			/*
 			**  If these occur as the phrase part of a <>
@@ -647,10 +797,15 @@ crackaddr(addr)
 		{
 			register char *q;
 
+			/* assume first of two angles is bogus */
+			if (gotangle)
+				quoteit = TRUE;
+			gotangle = TRUE;
+
 			/* oops -- have to change our mind */
-			anglelev++;
+			anglelev = 1;
 			if (!skipping)
-				realanglelev++;
+				realanglelev = 1;
 
 			bp = buf;
 			if (quoteit)
@@ -675,7 +830,10 @@ crackaddr(addr)
 			}
 			if (quoteit)
 			{
-				*bp++ = '"';
+				if (bp == &buf[1])
+					bp--;
+				else
+					*bp++ = '"';
 				while ((c = *p++) != '<')
 				{
 					if (bp < buflim)
@@ -704,6 +862,7 @@ crackaddr(addr)
 				/* syntax error: unmatched > */
 				if (copylev > 0)
 					bp--;
+				quoteit = TRUE;
 				continue;
 			}
 			if (copylev++ <= 0)
@@ -739,8 +898,7 @@ crackaddr(addr)
 **  PUTHEADER -- put the header part of a message from the in-core copy
 **
 **	Parameters:
-**		fp -- file to put it on.
-**		m -- mailer to use.
+**		mci -- the connection information.
 **		e -- envelope to use.
 **
 **	Returns:
@@ -757,9 +915,8 @@ crackaddr(addr)
 # define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
-putheader(fp, m, e)
-	register FILE *fp;
-	register MAILER *m;
+putheader(mci, e)
+	register MCI *mci;
 	register ENVELOPE *e;
 {
 	char buf[MAX(MAXLINE,BUFSIZ)];
@@ -767,7 +924,8 @@ putheader(fp, m, e)
 	char obuf[MAXLINE];
 
 	if (tTd(34, 1))
-		printf("--- putheader, mailer = %s ---\n", m->m_name);
+		printf("--- putheader, mailer = %s ---\n",
+			mci->mci_mailer->m_name);
 
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
@@ -781,7 +939,7 @@ putheader(fp, m, e)
 		}
 
 		if (bitset(H_CHECK|H_ACHECK, h->h_flags) &&
-		    !bitintersect(h->h_mflags, m->m_flags))
+		    !bitintersect(h->h_mflags, mci->mci_mailer->m_flags))
 		{
 			if (tTd(34, 11))
 				printf(" (skipped)\n");
@@ -795,18 +953,23 @@ putheader(fp, m, e)
 				printf(" (skipped (resent))\n");
 			continue;
 		}
-		if (tTd(34, 11))
-			printf("\n");
 
+		/* macro expand value if generated internally */
 		p = h->h_value;
 		if (bitset(H_DEFAULT, h->h_flags))
 		{
-			/* macro expand value if generated internally */
 			expand(p, buf, &buf[sizeof buf], e);
 			p = buf;
 			if (p == NULL || *p == '\0')
+			{
+				if (tTd(34, 11))
+					printf(" (skipped -- null value)\n");
 				continue;
+			}
 		}
+
+		if (tTd(34, 11))
+			printf("\n");
 
 		if (bitset(H_FROM|H_RCPT, h->h_flags))
 		{
@@ -815,7 +978,7 @@ putheader(fp, m, e)
 
 			if (bitset(H_FROM, h->h_flags))
 				oldstyle = FALSE;
-			commaize(h, p, fp, oldstyle, m, e);
+			commaize(h, p, oldstyle, mci, e);
 		}
 		else
 		{
@@ -828,12 +991,12 @@ putheader(fp, m, e)
 				*nlp = '\0';
 				(void) strcat(obuf, p);
 				*nlp = '\n';
-				putline(obuf, fp, m);
+				putline(obuf, mci);
 				p = ++nlp;
 				obuf[0] = '\0';
 			}
 			(void) strcat(obuf, p);
-			putline(obuf, fp, m);
+			putline(obuf, mci);
 		}
 	}
 }
@@ -843,10 +1006,8 @@ putheader(fp, m, e)
 **	Parameters:
 **		h -- the header field to output.
 **		p -- the value to put in it.
-**		fp -- file to put it to.
 **		oldstyle -- TRUE if this is an old style header.
-**		m -- a pointer to the mailer descriptor.  If NULL,
-**			don't transform the name at all.
+**		mci -- the connection information.
 **		e -- the envelope containing the message.
 **
 **	Returns:
@@ -856,16 +1017,17 @@ putheader(fp, m, e)
 **		outputs "p" to file "fp".
 */
 
-commaize(h, p, fp, oldstyle, m, e)
+void
+commaize(h, p, oldstyle, mci, e)
 	register HDR *h;
 	register char *p;
-	FILE *fp;
 	bool oldstyle;
-	register MAILER *m;
+	register MCI *mci;
 	register ENVELOPE *e;
 {
 	register char *obp;
 	int opos;
+	int omax;
 	bool firstone = TRUE;
 	char obuf[MAXLINE + 3];
 
@@ -881,6 +1043,9 @@ commaize(h, p, fp, oldstyle, m, e)
 	(void) sprintf(obp, "%s: ", h->h_field);
 	opos = strlen(h->h_field) + 2;
 	obp += opos;
+	omax = mci->mci_mailer->m_linelimit - 2;
+	if (omax < 0 || omax > 78)
+		omax = 78;
 
 	/*
 	**  Run through the list of values.
@@ -911,7 +1076,8 @@ commaize(h, p, fp, oldstyle, m, e)
 			auto char *oldp;
 			char pvpbuf[PSBUFSIZE];
 
-			(void) prescan(p, oldstyle ? ' ' : ',', pvpbuf, &oldp);
+			(void) prescan(p, oldstyle ? ' ' : ',', pvpbuf,
+				       sizeof pvpbuf, &oldp);
 			p = oldp;
 
 			/* look to see if we have an at sign */
@@ -943,7 +1109,7 @@ commaize(h, p, fp, oldstyle, m, e)
 		if (bitset(H_FROM, h->h_flags))
 			flags |= RF_SENDERADDR;
 		stat = EX_OK;
-		name = remotename(name, m, flags, &stat, e);
+		name = remotename(name, mci->mci_mailer, flags, &stat, e);
 		if (*name == '\0')
 		{
 			*p = savechar;
@@ -954,19 +1120,19 @@ commaize(h, p, fp, oldstyle, m, e)
 		opos += strlen(name);
 		if (!firstone)
 			opos += 2;
-		if (opos > 78 && !firstone)
+		if (opos > omax && !firstone)
 		{
 			(void) strcpy(obp, ",\n");
-			putline(obuf, fp, m);
+			putline(obuf, mci);
 			obp = obuf;
-			(void) sprintf(obp, "        ");
+			(void) strcpy(obp, "        ");
 			opos = strlen(obp);
 			obp += opos;
 			opos += strlen(name);
 		}
 		else if (!firstone)
 		{
-			(void) sprintf(obp, ", ");
+			(void) strcpy(obp, ", ");
 			obp += 2;
 		}
 
@@ -976,7 +1142,7 @@ commaize(h, p, fp, oldstyle, m, e)
 		*p = savechar;
 	}
 	(void) strcpy(obp, "\n");
-	putline(obuf, fp, m);
+	putline(obuf, mci);
 }
 /*
 **  COPYHEADER -- copy header list

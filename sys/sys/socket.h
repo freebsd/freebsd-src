@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)socket.h	7.13 (Berkeley) 4/20/91
- *	$Id: socket.h,v 1.2 1993/10/16 17:17:43 rgrimes Exp $
+ *	$Id: socket.h,v 1.4 1993/11/07 22:55:27 wollman Exp $
  */
+
+#ifndef _SYS_SOCKET_H_
+#define _SYS_SOCKET_H_ 1
 
 /*
  * Definitions related to sockets: types, address families, options.
@@ -109,8 +112,8 @@ struct	linger {
 #define	AF_ROUTE	17		/* Internal Routing Protocol */
 #define	AF_LINK		18		/* Link layer interface */
 #define	pseudo_AF_XTP	19		/* eXpress Transfer Protocol (no AF) */
-
-#define	AF_MAX		20
+#define AF_RMP		20		/* HP's Remote Maint Protocol */
+#define	AF_MAX		21
 
 /*
  * Structure used by kernel to store most
@@ -155,6 +158,7 @@ struct sockproto {
 #define	PF_ROUTE	AF_ROUTE
 #define	PF_LINK		AF_LINK
 #define	PF_XTP		pseudo_AF_XTP	/* really just proto family, no AF */
+#define PF_RMP		AF_RMP
 
 #define	PF_MAX		AF_MAX
 
@@ -259,3 +263,4 @@ int	socketpair __P((int, int, int, int *));
 __END_DECLS
 
 #endif	/* !KERNEL */
+#endif /* _SYS_SOCKET_H_ */

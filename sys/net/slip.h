@@ -15,8 +15,11 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * 	from: unknown
- *	$Id: slip.h,v 1.2 1993/10/16 17:43:44 rgrimes Exp $
+ *	$Id: slip.h,v 1.3 1993/11/07 17:47:12 wollman Exp $
  */
+
+#ifndef _NET_SLIP_H_
+#define _NET_SLIP_H_ 1
 
 /*
  * Definitions that user level programs might need to know to interact
@@ -46,3 +49,4 @@
 #define SLIPDIR_IN 0
 #define SLIPDIR_OUT 1
 
+#endif /* _NET_SLIP_H_ */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)unpcb.h	7.6 (Berkeley) 6/28/90
- *	$Id: unpcb.h,v 1.2 1993/10/16 17:18:19 rgrimes Exp $
+ *	$Id: unpcb.h,v 1.4 1993/11/25 01:38:10 wollman Exp $
  */
+
+#ifndef _SYS_UNPCB_H_
+#define _SYS_UNPCB_H_ 1
 
 /*
  * Protocol control block for an active
@@ -72,3 +75,30 @@ struct	unpcb {
 };
 
 #define	sotounpcb(so)	((struct unpcb *)((so)->so_pcb))
+
+#ifdef KERNEL
+struct file;
+
+/* From uipc_usrreq.c: */
+/* XXX - most if not all of these should be be static to unpcb.h but this
+ * was easer to do in emacs -GAW */
+
+extern int uipc_usrreq(struct socket *, int, struct mbuf *, struct mbuf *, struct mbuf *);
+extern int unp_attach(struct socket *);
+extern void unp_detach(struct unpcb *);
+extern int unp_bind(struct unpcb *, struct mbuf *, struct proc *);
+extern int unp_connect(struct socket *, struct mbuf *, struct proc *);
+extern int unp_connect2(struct socket *, struct socket *);
+extern void unp_disconnect(struct unpcb *);
+extern void unp_shutdown(struct unpcb *);
+extern void unp_drop(struct unpcb *, int);
+extern int unp_externalize(struct mbuf *); /* XXX */
+extern int unp_internalize(struct mbuf *, struct proc *);
+extern void unp_gc(void);
+extern void unp_dispose(struct mbuf *);
+extern void unp_scan(struct mbuf *, void (*)(struct file *));
+extern void unp_mark(struct file *);
+extern void unp_discard(struct file *);
+
+#endif /* KERNEL */
+#endif /* _SYS_UNPCB_H_ */

@@ -99,7 +99,7 @@ destination host and network.  The combination of wildcard
 routes and routing redirects can provide an economical
 mechanism for routing traffic.
 .Pp
-One opens the channel for passing routing control messasges
+One opens the channel for passing routing control messages
 by using the socket call shown in the synopsis above:
 .Pp
 The
@@ -197,7 +197,7 @@ A message header consists of:
 .Bd -literal
 struct rt_msghdr {
     u_short rmt_msglen;  /* to skip over non-understood messages */
-    u_char  rtm_version; /* future binary compatability */
+    u_char  rtm_version; /* future binary compatibility */
     u_char  rtm_type;    /* message type */
     u_short rmt_index;   /* index for associated ifp */
     pid_t   rmt_pid;     /* identify sender */
@@ -228,7 +228,7 @@ struct rt_metrics {
 .Pp
 Flags include the values:
 .Bd -literal
-#define	RTF_UP        0x1    /* route useable */
+#define	RTF_UP        0x1    /* route usable */
 #define	RTF_GATEWAY   0x2    /* destination is a gateway */
 #define	RTF_HOST      0x4    /* host entry (net otherwise) */
 #define	RTF_NORMAL    0x8    /* subnet mask is cannonical */
@@ -238,7 +238,7 @@ Flags include the values:
 #define	RTF_MASK      0x80   /* subnet mask present */
 .Ed
 .Pp
-Specfiers for metric values in rmx_locks and rtm_inits are:
+Specifiers for metric values in rmx_locks and rtm_inits are:
 .Bd -literal
 #define	RTV_SSTHRESH  0x1    /* init or lock _ssthresh */
 #define	RTV_RPIPE     0x2    /* init or lock _recvpipe */

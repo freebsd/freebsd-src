@@ -130,6 +130,22 @@ Internet
 addresses and 10Mb/s Ethernet addresses.
 .It Fl arp
 Disable the use of the Address Resolution Protocol.
+.It Cm altphys
+Instruct the adapter to use a physical network connection other than
+the default, such as the AUI port rather than a built-in transceiver.
+(See
+.Cm aui ,
+which is another name for the same flag, below.)
+.It Fl altphys
+Disable the use of the alternate physical network connection.
+.It Cm aui
+On certain Ethernet drivers, configures the adapter to use the AUI
+port rather than the default built-in transceiver.  (See also
+.Cm altphys ) .
+.It Cm bnc
+On certain Ethernet drivers, configures the adapter to use the
+built-in transceiver rather than the AUI port.  (See also
+.Cm Fl altphys ) .
 .It Cm broadcast
 (Inet only)
 Specify the address to use to represent broadcasts to the
@@ -165,6 +181,20 @@ of the destination.
 IP encapsulation of
 .Tn CLNP
 packets is done differently.
+.It Cm llc0
+Enable use of IEEE 802.2 LLC class 0.  (Currently
+unimplemented.)
+.It Fl llc0
+Disable IEEE 802.2 LLC class 0.  Not all interfaces may permit this,
+as most 802 networks have no alternative link layer other than 802.2.
+.It Cm llc1
+Enable use of IEEE 802.2 LLC class 1.  (Currently unimplemented.)
+.It Fl llc1
+Disable use of IEEE 802.2 LLC class 1.
+.It Cm llc2
+Enable use of IEEE 802.2 LLC class 2.  (Currently unimplemented.)
+.It Fl llc2
+Disable use of IEEE 802.2 LLC class 2.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,

@@ -1,17 +1,19 @@
 #	@(#)Makefile	5.4.1.1 (Berkeley) 5/7/91
+#	$Id: Makefile,v 1.10 1994/02/07 05:23:06 alm Exp $
 #
 
-SUBDIR=	XNSrouted badsect comcontrol clri disklabel dmesg dump dumpfs fastboot fdisk \
-	fsck halt ifconfig mknod mount mount_isofs mount_pcfs mountd \
-	newfs nfsd nfsiod ping quotacheck reboot restore route routed \
-	savecore shutdown slattach st swapon tunefs umount
+SUBDIR=	XNSrouted adjkerntz badsect chkconfig clri comcontrol disklabel dmesg \
+	dump dumpfs fastboot fdisk fsck ft halt ifconfig mknod mount \
+	mount_isofs mount_pcfs mount_procfs mountd newfs nfsd nfsiod ping \
+	quotacheck reboot restore route routed savecore scsi shutdown \
+	slattach st swapon tunefs umount 
 
-.if defined(INIT_BSDI)
-SUBDIR+= init.bsdi
+.if defined(INIT_ORIG)
+SUBDIR+= init
 .elif defined(INIT_CHMR)
 SUBDIR+= init.chmr
 .else
-SUBDIR+= init
+SUBDIR+= init.bsdi
 .endif
 
 

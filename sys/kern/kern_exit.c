@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_exit.c	7.35 (Berkeley) 6/27/91
- *	$Id: kern_exit.c,v 1.9 1993/10/19 01:01:20 nate Exp $
+ *	$Id: kern_exit.c,v 1.14 1994/01/29 04:04:23 davidg Exp $
  */
 
 #include "param.h"
@@ -48,6 +48,7 @@
 #include "vnode.h"
 #include "syslog.h"
 #include "malloc.h"
+#include "signalvar.h"
 #include "resourcevar.h"
 
 #include "machine/cpu.h"
@@ -117,6 +118,10 @@ kexit(p, rv)
 	 */
 	fdfree(p);
 
+#ifdef SYSVSEM
+	semexit(p);
+#endif
+
 	/* The next two chunks should probably be moved to vmspace_exit. */
 #ifdef SYSVSHM
 	if (p->p_vmspace->vm_shm)
@@ -153,7 +158,7 @@ kexit(p, rv)
 				(void) ttywait(sp->s_ttyp);
 				vgoneall(sp->s_ttyvp);
 			}
-			vrele(sp->s_ttyvp);
+			vn_close(sp->s_ttyvp, FREAD, p->p_ucred, p);
 			sp->s_ttyvp = NULL;
 			/*
 			 * s_ttyp is not zero'd; we use this to indicate
@@ -170,18 +175,8 @@ kexit(p, rv)
 	 * release trace file
 	 */
 	if (p->p_tracep)
-		vrele(p->p_tracep);
+		vn_close(p->p_tracep, FREAD|FWRITE, p->p_ucred, p);
 #endif
-
-	/* current process does not exist, as far as other parts of the
-	 * system (clock) is concerned, since parts of it might not be
-	 * there anymore */
-	curproc = NULL;
-
-	if (--p->p_limit->p_refcnt == 0) {
-		FREE(p->p_limit, M_SUBPROC);
-		p->p_limit = (struct plimit *) -1;
-	}
 
 	/*
 	 * Remove proc from allproc queue and pidhash chain.
@@ -246,6 +241,18 @@ done:
 	p->p_addr->u_pcb.pcb_savacc.faddr = (float *)NULL;
 #endif
 	/*
+	 * current process does not exist, as far as other parts of the
+	 * system (clock) is concerned, since parts of it might not be
+	 * there anymore
+	 */
+	curproc = NULL;
+
+	if (--p->p_limit->p_refcnt == 0) {
+		FREE(p->p_limit, M_SUBPROC);
+		p->p_limit = (struct plimit *) -1;
+	}
+
+	/*
 	 * Finally, call machine-dependent code to release the remaining
 	 * resources including address space, the kernel stack and pcb.
 	 * The address space is released by "vmspace_free(p->p_vmspace)";
@@ -257,51 +264,6 @@ done:
 	cpu_exit(p);
 	/* NOTREACHED */
 }
-
-#ifdef COMPAT_43
-
-struct owait_args {
-	int	pid;
-	int	*status;
-	int	options;
-	struct	rusage *rusage;
-	int	compat;
-};
-
-owait(p, uap, retval)
-	struct proc *p;
-	register struct owait_args *uap;
-	int *retval;
-{
-
-	uap->options = 0;
-	uap->rusage = 0;
-	uap->pid = WAIT_ANY;
-	uap->status = 0;
-	uap->compat = 1;
-	return (wait1(p, uap, retval));
-}
-
-struct wait4_args {
-	int	pid;
-	int	*status;
-	int	options;
-	struct	rusage *rusage;
-	int	compat;
-};
-
-wait4(p, uap, retval)
-	struct proc *p;
-	struct wait4_args *uap;
-	int *retval;
-{
-
-	uap->compat = 0;
-	return (wait1(p, uap, retval));
-}
-#else
-#define	wait1	wait4
-#endif
 
 /*
  * Wait: check child processes to see if any have exited,
@@ -319,6 +281,55 @@ struct wait1_args {
 #endif
 };
 
+#ifdef COMPAT_43
+static int wait1(struct proc *, struct wait1_args *, int *);
+
+struct owait_args {
+	int	pid;
+	int	*status;
+	int	options;
+	struct	rusage *rusage;
+	int	compat;
+};
+
+int
+owait(p, uap, retval)
+	struct proc *p;
+	register struct owait_args *uap;
+	int *retval;
+{
+
+	uap->options = 0;
+	uap->rusage = 0;
+	uap->pid = WAIT_ANY;
+	uap->status = 0;
+	uap->compat = 1;
+	return (wait1(p, (struct wait1_args *)uap, retval));
+}
+
+struct wait4_args {
+	int	pid;
+	int	*status;
+	int	options;
+	struct	rusage *rusage;
+	int	compat;
+};
+
+int
+wait4(p, uap, retval)
+	struct proc *p;
+	struct wait4_args *uap;
+	int *retval;
+{
+
+	uap->compat = 0;
+	return (wait1(p, (struct wait1_args *)uap, retval));
+}
+#else
+#define	wait1	wait4
+#endif
+
+static int
 wait1(q, uap, retval)
 	register struct proc *q;
 	register struct wait1_args *uap;

@@ -31,20 +31,23 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ktrace.h	7.4 (Berkeley) 5/7/91
- *	$Id: ktrace.h,v 1.2 1993/10/16 17:17:01 rgrimes Exp $
+ *	$Id: ktrace.h,v 1.4 1993/12/19 00:55:18 wollman Exp $
  */
+
+#ifndef _SYS_KTRACE_H_
+#define _SYS_KTRACE_H_ 1
 
 /*
  * operations to ktrace system call  (KTROP(op))
  */
-#define KTROP_SET		0	/* set trace points */
-#define KTROP_CLEAR		1	/* clear trace points */
-#define KTROP_CLEARFILE		2	/* stop all tracing to file */
+#define KTROP_SET		0UL	/* set trace points */
+#define KTROP_CLEAR		1UL	/* clear trace points */
+#define KTROP_CLEARFILE		2UL	/* stop all tracing to file */
 #define	KTROP(o)		((o)&3)	/* macro to extract operation */
 /*
  * flags (ORed in with operation)
  */
-#define KTRFLAG_DESCEND		4	/* perform op on all children too */
+#define KTRFLAG_DESCEND		4UL	/* perform op on all children too */
 
 /*
  * ktrace record header
@@ -122,20 +125,31 @@ struct ktr_psig {
 /*
  * kernel trace points (in p_traceflag)
  */
-#define KTRFAC_MASK	0x00ffffff
-#define KTRFAC_SYSCALL	(1<<KTR_SYSCALL)
-#define KTRFAC_SYSRET	(1<<KTR_SYSRET)
-#define KTRFAC_NAMEI	(1<<KTR_NAMEI)
-#define KTRFAC_GENIO	(1<<KTR_GENIO)
-#define	KTRFAC_PSIG	(1<<KTR_PSIG)
+#define KTRFAC_MASK	0x00ffffffUL
+#define KTRFAC_SYSCALL	(1UL<<KTR_SYSCALL)
+#define KTRFAC_SYSRET	(1UL<<KTR_SYSRET)
+#define KTRFAC_NAMEI	(1UL<<KTR_NAMEI)
+#define KTRFAC_GENIO	(1UL<<KTR_GENIO)
+#define	KTRFAC_PSIG	(1UL<<KTR_PSIG)
 /*
  * trace flags (also in p_traceflags)
  */
-#define KTRFAC_ROOT	0x80000000	/* root set this trace */
-#define KTRFAC_INHERIT	0x40000000	/* pass trace flags to children */
+#define KTRFAC_ROOT	0x80000000UL	/* root set this trace */
+#define KTRFAC_INHERIT	0x40000000UL	/* pass trace flags to children */
 
-#ifndef	KERNEL
+#ifdef KERNEL
+struct vnode;
+struct iovec;
+enum uio_rw;			/* XXX GCC extension */
 
+extern void ktrsyscall(struct vnode *, int, int, int *);
+extern void ktrsysret(struct vnode *, int, int, int);
+extern void ktrnamei(struct vnode *, char *);
+extern void ktrgenio(struct vnode *, int, enum uio_rw, struct iovec *, int, int);
+extern void ktrpsig(struct vnode *, int, void (*)(int), int, int);
+
+
+#else /* not KERNEL */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -143,3 +157,4 @@ int	ktrace __P((const char *, int, int, pid_t));
 __END_DECLS
 
 #endif	/* !KERNEL */
+#endif /* _SYS_KTRACE_H_ */

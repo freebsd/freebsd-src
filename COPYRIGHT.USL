@@ -1,0 +1,45 @@
+Copyright (c) UNIX System Laboratories, Inc.
+All or some portions of this software are derived from
+material licensed to the University of California by
+American Telephone and Telegraph Co. or UNIX System Laboratories, Inc.
+and are reporduced herein with the permission of
+UNIX System Laboratories, Inc.
+
+Additionally, the following files contained herein constitute
+trade secrets of UNIX System Laboratories, Inc. and their contents
+are not to be disclosed to any third party:
+
+sys/kern/init_main.c
+sys/kern/kern_clock.c
+sys/kern/kern_exec.c		[*]
+sys/kern/kern_exit.c
+sys/kern/kern_physio.c		[**]
+sys/kern/kern_sig.c
+sys/kern/kern_synch.c
+sys/kern/subr_rmap.c		[*]
+sys/kern/sys_generic.c
+sys/kern/sys_process.c
+sys/kern/sysv_shm.c
+sys/kern/tty.c
+sys/kern/tty_subr.c		[*]
+sys/kern/vfs_bio.c		[*]
+sys/kern/vfs_syscalls.c
+sys/sys/buf.h
+sys/sys/proc.h
+sys/sys/shm.h
+sys/sys/tty.h
+sys/ufs/dinode.h
+sys/ufs/inode.h
+sys/ufs/ufs_bmap.c
+sys/ufs/ufs_disksubr.c
+sys/ufs/ufs_inode.c
+sys/ufs/ufs_vnops.c
+usr.bin/cpio/cpio.c		[*]
+
+[*]  These file are NOT contained in FreeBSD
+
+[**] The version of this file in FreeBSD is belived to be clear of any USL
+     copyright and/or trade secret.
+    
+
+$Id: COPYRIGHT.USL,v 1.1.2.1 1994/05/04 06:32:01 rgrimes Exp $

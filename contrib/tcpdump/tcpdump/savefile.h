@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/savefile.h,v 1.1.1.1 1993/06/12 14:42:06 rgrimes Exp $
+ * $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/savefile.h,v 1.1.1.1 1993/06/12 14:42:06 rgrimes Exp $
  *
  * Header for offline storage info.
  * Extraction/creation by Jeffrey Mogul, DECWRL.

@@ -1,4 +1,11 @@
 /*
+ * Copyright (c) UNIX System Laboratories, Inc.  All or some portions
+ * of this file are derived from material licensed to the
+ * University of California by American Telephone and Telegraph Co.
+ * or UNIX System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+/*
  * Copyright (c) 1982, 1986, 1991 Regents of the University of California.
  * All rights reserved. 
  *
@@ -31,18 +38,20 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_subr.c	7.7 (Berkeley) 4/15/91
- *	$Id: kern_subr.c,v 1.2 1993/10/16 15:24:30 rgrimes Exp $
+ *	$Id: kern_subr.c,v 1.5.2.1 1994/05/04 07:54:46 rgrimes Exp $
  */
 
 #include "param.h"
 #include "systm.h"
 #include "proc.h"
 
-uiomove(cp, n, uio)
-	register caddr_t cp;
+int
+uiomove(xcp, n, uio)
+	register void *xcp;
 	register int n;
 	register struct uio *uio;
 {
+	caddr_t cp = (caddr_t)xcp;
 	register struct iovec *iov;
 	u_int cnt;
 	int error = 0;
@@ -93,8 +102,11 @@ uiomove(cp, n, uio)
 	return (error);
 }
 
+int
 uioapply(func, arg1, arg2, uio)
 	int (*func)() ;
+	caddr_t arg1;
+	caddr_t arg2;
 	register struct uio *uio;
 {
 	register struct iovec *iov;
@@ -117,7 +129,7 @@ uioapply(func, arg1, arg2, uio)
 			continue;
 		}
 		cnt1 = cnt;
-		error = (*func)(arg1, arg2, uio->uio_offset, uio->uio_rw,
+		error = (*func)(arg1, arg2, NULL, uio->uio_offset, uio->uio_rw,
 			iov->iov_base, &cnt1, uio->uio_procp);
 		cnt -= cnt1;
 		iov->iov_base += cnt;
@@ -133,6 +145,7 @@ uioapply(func, arg1, arg2, uio)
 /*
  * Give next character to user as result of read.
  */
+int
 ureadc(c, uio)
 	register int c;
 	register struct uio *uio;
@@ -171,32 +184,43 @@ again:
 	return (0);
 }
 
+char *
 strcat(src, append)
-	register char *src, *append;
+	register char *src;
+	const char *append;
 {
+	char *old = src;
 
 	for (; *src; ++src)
 		;
 	while (*src++ = *append++)
 		;
+	return old;
 }
 
+char *
 strcpy(to, from)
-	register char *to, *from;
+	char *to;
+	const char *from;
 {
-
+	char *old = to;
 	for (; *to = *from; ++from, ++to)
 		;
+	return old;
 }
 
+char *
 strncpy(to, from, cnt)
-	register char *to, *from;
-	register int cnt;
+	char *to;
+	const char *from;
+	int cnt;
 {
+	char *old = to;
 
 	for (; cnt && (*to = *from); --cnt, ++from, ++to)
 		;
 	*to = '\0';
+	return old;
 }
 
 
@@ -215,10 +239,11 @@ strcmp(s1, s2)
 	
 
 
-#ifndef lint	/* unused except by ct.c, other oddities XXX */
+#ifdef notdef	/* unused except by ct.c, other oddities XXX */
 /*
  * Get next character written in by user from uio.
  */
+int
 uwritec(uio)
 	struct uio *uio;
 {

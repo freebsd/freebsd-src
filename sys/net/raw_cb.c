@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)raw_cb.c	7.11 (Berkeley) 6/28/90
- *	$Id: raw_cb.c,v 1.2 1993/10/16 17:43:34 rgrimes Exp $
+ *	$Id: raw_cb.c,v 1.4 1993/11/25 01:34:08 wollman Exp $
  */
 
 #include "param.h"
@@ -62,10 +62,13 @@
 u_long	raw_sendspace = RAWSNDQ;
 u_long	raw_recvspace = RAWRCVQ;
 
+struct rawcb rawcb;
+
 /*
  * Allocate a control block and a nominal amount
  * of buffer space for the socket.
  */
+int
 raw_attach(so, proto)
 	register struct socket *so;
 	int proto;
@@ -93,6 +96,7 @@ raw_attach(so, proto)
  * Detach the raw connection block and discard
  * socket resources.
  */
+void
 raw_detach(rp)
 	register struct rawcb *rp;
 {
@@ -112,6 +116,7 @@ raw_detach(rp)
 /*
  * Disconnect and possibly release resources.
  */
+void
 raw_disconnect(rp)
 	struct rawcb *rp;
 {

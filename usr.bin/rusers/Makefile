@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.1 1993/09/16 01:15:46 jtc Exp $
+#	$Id: Makefile,v 1.2 1993/11/10 03:47:23 smace Exp $
 
 PROG = rusers
 MAN1 = rusers.1
 
-DPADD=	${LIBRPCSVC} ${LIBRPC}
-LDADD=	-lrpcsvc -lrpc
+DPADD=	${LIBRPCSVC}
+LDADD=	-lrpcsvc
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
-#	@(#)Makefile	5.4 (Berkeley) 6/5/91
+#	$Id: Makefile,v 1.2 1993/11/18 05:05:39 rgrimes Exp $
 
 PROG=	st
-MAN8=   st.8
+MAN1=   st.1
 
 .include <bsd.prog.mk>

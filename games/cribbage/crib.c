@@ -48,6 +48,8 @@ static char sccsid[] = "@(#)crib.c	5.6 (Berkeley) 2/28/91";
 # include	"cribcur.h"
 # include	"pathnames.h"
 
+extern char	*getline();
+
 main(argc, argv)
 int	argc;
 char	*argv[];
@@ -60,7 +62,7 @@ char	*argv[];
 	char			*s;		/* for reading arguments */
 	FILE			*f;
 	FILE			*fopen();
-	char			*getline(), *getlogin();
+	char			*getlogin();
 	void			rint();
 
 	while ((ch = getopt(argc, argv, "eqr")) != EOF)

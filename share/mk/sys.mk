@@ -1,9 +1,9 @@
-#	@(#)sys.mk	5.11 (Berkeley) 3/13/91
+#	from: @(#)sys.mk	5.11 (Berkeley) 3/13/91
+#	$Id: sys.mk,v 1.5 1994/02/04 03:19:16 wollman Exp $
 
-unix=		We run UNIX.
+unix=		We run FreeBSD, not UNIX.
 
-#.SUFFIXES: .out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .s .cl .p .h 
-.SUFFIXES: .out .a .ln .o .c .F .f .e .r .y .l .s .cl .p .h 
+.SUFFIXES: .out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .s .cl .p .h 
 
 .LIBS:		.a
 
@@ -51,8 +51,8 @@ YFLAGS=-d
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
 
-#.cc.o .cxx.o .C.o:
-#	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
+.cc.o .cxx.o .C.o:
+	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
 
 .p.o:
 	${PC} ${PFLAGS} -c ${.IMPSRC}

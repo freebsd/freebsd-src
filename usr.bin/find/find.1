@@ -189,19 +189,6 @@ True if the difference between the file last modification time and the time
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
-.It Ic \&-ok Ar utility Ns Op argument ... ; 
-The
-.Ic \&-ok
-primary is identical to the
-.Ic -exec
-primary with the exception that
-.Nm find
-requests user affirmation for the execution of the utility by printing
-a message to the terminal and reading a response.
-If the response is other than ``y'' the command is not executed and the
-value of the
-.Ar \&ok
-expression is false.
 .It Ic -name Ar pattern 
 True if the last component of the pathname being examined matches
 .Ar pattern  .
@@ -217,6 +204,19 @@ True if the current file has a more recent last modification time than
 True if the file belongs to an unknown user.
 .It Ic -nogroup
 True if the file belongs to an unknown group.
+.It Ic \&-ok Ar utility Ns Op argument ... ; 
+The
+.Ic \&-ok
+primary is identical to the
+.Ic -exec
+primary with the exception that
+.Nm find
+requests user affirmation for the execution of the utility by printing
+a message to the terminal and reading a response.
+If the response is other than ``y'' the command is not executed and the
+value of the
+.Ar \&ok
+expression is false.
 .It Ic -path Ar pattern 
 True if the pathname being examined matches
 .Ar pattern  .
@@ -258,12 +258,28 @@ Note, the first character of a symbolic mode may not be a dash (``\-'').
 .It Ic -print
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output.
-The expression is appended to the user specified expression if neither
+The expression is appended to the user specified expression if none of
 .Ic -exec ,
-.Ic -ls
-or
+.Ic -ls ,
+.Ic -print0 ,
+.Ic -printf
+and
 .Ic \&-ok
-is specified.
+are specified.
+.It Ic -print0
+This primary prints the pathname of the current file to standard output,
+followed by a NUL (ASCII 0) character.  No newline is output.  It
+is intended for use when the files being reported may contain newlines or
+other special characters.
+.It Ic -printf
+This primary takes one argument, which is interpreted as a format string
+to be passed to 
+.Xr printf 3 .
+It must contain exactly one 
+.Dq Li \&%s
+format specifier, with or without modifier flags, which receives the
+full pathname of the current file.  No C-style escape processing is
+performed.
 .It Ic -prune
 This primary always evaluates to true.
 It causes
@@ -375,14 +391,21 @@ and owned by ``wnj''.
 .It Li "find  /  \e(  -newer  ttt  -or  -user wnj  \e)  -print"
 Print out a list of all the files that are either owned by ``wnj'' or
 that are newer than ``ttt''.
+.It Li "find / -name \e*~ -print0 | perl -n0e unlink"
+Find all the
+.Xr emacs 1
+backup files and delete them quickly using
+.Xr perl 1 .
 .El
 .Sh SEE ALSO
 .Xr chmod 1 ,
 .Xr locate 1 ,
+.Xr xargs 1 ,
 .Xr stat 2 ,
 .Xr fts 3 ,
 .Xr getpwent 3 ,
 .Xr getgrent 3 ,
+.Xr printf 3 ,
 .Xr strmode 3 ,
 .Xr symlink 7
 .Sh STANDARDS
@@ -397,9 +420,11 @@ The
 and
 .Fl X
 options and the
-.Ic -inum
+.Ic -inum ,
+.Ic -ls ,
+.Ic -print0 ,
 and
-.Ic -ls
+.Ic -printf
 primaries are extensions to
 .St -p1003.2 .
 .Pp

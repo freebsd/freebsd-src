@@ -1,0 +1,142 @@
+MINI INFO:
+The following info pertains mainly to SunOS4.x in respect to installation.
+Installation for SunOS5.x (Solaris 2.x) is very simple - just drop the parse
+module into /kernel/strmod.
+All others notes about the software structure refer to both environments.
+
+#ifdef ENGLISH
+Installation of a Streams module requires knowledge in kernel generation
+and possession of "superuser" rights.
+
+This directory contains the STREAMS module code for the supported DCF/GPS
+receivers of the "parse" driver.
+The dataformat should be easy to adept for other clocks.
+
+A suitable kernel module can be generated in two ways:
+	1) loadable driver
+	2) linking into the kernel
+
+Solution 1 has the advantage that the kernel module is present right at system startup,
+while solution 2 avoids reconfigurating the kernel (except for VDDRV).
+
+Loadable Driver: (Kernel must be configured with VDDRV option like e.g. GENERIC)
+	make -f Makefile.kernel
+
+#	make one module for each kernel architecture you intend to use this module for
+
+	make -f Makefile.kernel mparsestreams.o
+# use the above command for a version with increased time stamp precision
+# (available only for sun4c and sun4m architectures (thanks Craig Leres)
+
+Integration into kernel (refer to the Manual for complete instructions)
+	Still possible, but not recommended
+
+if you run into trouble: time@informatik.uni-erlangen.de
+
+Porting to different clock formats:
+The streams module is designed to be able to parse different time code
+packets. The parser is very simple and expects at least a start or end of packet
+character. In order to be able to distinguish time code packets a list
+of several start/end pairs and conversion routines can be defined in the
+clockformats structure. Whenever a packet delimited by any start/end pair is 
+detected the conversion routines are called in a RR fashion for converting the 
+time code into a clocktime structure. A return code of CVT_OK indicates a 
+correct conversion.
+(This routine will be called first on the next conversion attempt). CVT_FAIL
+indicates the the packet format was detected, but the actual conversion failed 
+(e.g.  illegal time codes). A CVT_NONE indicates that this conversion routine
+did not recognize the packet format.
+See the simpleformat conversion routines for Meinberg clocks for examples.
+It might be possible to parse other periodically sent time codes with a fixed
+format with these simple conversion routines.
+The parser can be found in parse/*.c
+
+The actual STREAMS module is parsestreams.c. It contains some fudge factors.
+These are needed if a PPS hardware signal is sampled via the serial CD input.
+There are some emperically determined valued for sun4c type machine in there.
+Measurements have shown, that for full precision these values have to be
+determined in the actual environment, as line lengths and capacities DO matter.
+So for absolute precision you need a good oscilloscope and the license for
+hardware work.
+WARNING: DO NOT ATTEMPT TO MEASURE IF YOU ARE NOT ABSOLUTELY CERTAIN WHAT YOU 
+ARE DOING.
+
+This instructions are distributed in the hope that they will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+I will not be in any case responsible for any damage cause by this 
+Software/Instruction.
+
+USE AT YOUR OWN RISK.
+
+#else
+
+Die folgenden Hinweise zur Uebersetzung und Installation besiehen sich auf
+SunOS 4.x (Solaris1.x). Die Installation auf SunOS5.x (Solaris 2.x) gestaltet
+sich erheblich einfacher. Man muss nur die Daten "parse" in dem Verzeichnis
+/kernel/strmod ablegen.
+Alle anderen Hinweise zur Softwarestruktur sind fuer beide Umgebungen gueltig.
+
+Installation eines STREAMS Moduls setzt Kenntnisse in der Kerngenerierung
+und "Superuser"-Rechte vorraus.
+
+Dieses Inhaltsverzeichnis enthaelt das aktuelle Streams Modul fuer Sun.
+
+Man kann dieses Modul auf zwei Weisen in den Kern integrieren:
+	1) direkt durch Einbinden (neuer Kern)
+	2) als ladbarer Treiber
+
+Loesung 1 hat den Vorteil, dass das Modul gleich nach Systemstart zur 
+Verfuegung steht.
+Loesung 2 besticht dadurch, das man das Modul nachtraeglich laden und 
+auch debuggen kann, ohne einen neuen Kern zu booten.
+
+Fuer ein ladbares Modul muss der Kern mit der VDDRV option konfiguriert sein und das
+parsestreams.c muss mit -DVDDRV uebersetzt werden.
+
+Uebersetzung fuer ladbaren Treiber (Kern muss mit VDDRV konfiguriert sein):
+	make -f Makefile.kernel
+	bitte einmal fuer jede Kernelarchitektur, fuer die dieses Modul
+	benoetigt wird durchfuehren.
+
+	make -f Makefile.kernel mparsestreams.o
+	Das obige make erstellt eine Version, die die Rechneruhr besser
+	als SunOS abliest. Nur fur sun4c und sun4m Architekturen verfuegbar
+
+Uebersetzung als .o Modul oder vorherige Einbindung in die Kernbauumgebung:
+	Immer noch moeglich, wird aber nicht mehr empfohlen.
+
+Anpassung an andere Datenformate:
+Das Streamsmodul ist in der Lage verschiedene Datenformate zu erkennen und
+umzusetzen. Der Parser ist einfach gehalten und kann Datenpakete anhand von
+Start und Endekennzeichen unterscheiden. Jedes so erkannte Paket wird einer 
+Liste von Konvertierroutinen vorgelegt (clockformats Struktur). Die 
+Konvertierroutinen koennen mit drei verschiedenen Rueckgabewerten angeben,
+wie die Konvertierung verlaufen ist. CVT_OK heisst, dass die Konvertierung 
+in die clocktime Struktur erfolgreich verlaufen ist. Beim naechsten 
+Umsetzungsversuch wird diese Routine als erstes wieder befragt werden 
+(Optimierung). CVT_FAIL bedeutet, dass zwar das Format erkannt wurde, aber 
+die eigentliche Konvertierung fehlgeschlagen ist (z. B.  illegale Feldwerte). 
+CVT_NONE heisst, dass das Format dieser Konvertierroutine nicht erkannt wurde.
+Die simpleformat Routinen fuer Meinberg Uhren koennen als Vorlage fuer eigene
+Anpassungen an Uhren mit periodischem Zeittelegramm und festem Format genommen werden.
+Der Parser ist in parse/*.c zu finden.
+
+Das eigentliche STREAMSmodul ist parsestreams.c. Es enthaelt einige 
+Korrekturfaktoren, die beim Einsatz von Hardware-PPS Signalen benoetigt werden.
+Einige empirische Werte fuer sun4c Maschinen sind schon vorgegeben. Bei exterm 
+hohen Genauigkeitsanforderungen muessen diese Werte aber in der aktuellen 
+Installation NEU ermittelt werden, weil die Zeiten unter anderem von 
+Leitunglaengen der PPS Leitung abhaengen.  Wenn Sie diese Abstimmung 
+durchfuehren, benoetigen Sie ein gutes Oszilloskop und die Lizenz fuer 
+Hardwarearbeiten.
+
+ACHTUNG: VERSUCHEN SIE NICHT DIESE MESSUNGEN ZU MACHEN, WENN IHNEN DIE
+VORAUSSETZUNGEN DAFUER FEHLEN !
+
+WIR GEBEN KEINE GARANTIEN
+
+Bei Schwierigkeiten email an: time@informatik.uni-erlangen.de
+
+#endif

@@ -1,6 +1,9 @@
 /*
- *	$Id: isofs_util.c,v 1.2 1993/07/20 03:27:33 jkh Exp $
+ *	$Id: isofs_util.c,v 1.4 1993/12/19 00:51:06 wollman Exp $
  */
+
+#include "param.h"
+#include "systm.h"
 
 int
 isonum_711 (p)
@@ -11,19 +14,19 @@ char *p;
 
 int
 isonum_712 (p)
-char *p;
+	char *p;
 {
 	int val;
 
 	val = *p;
 	if (val & 0x80)
-		val |= 0xffffff00;
+		val |= ~0xff;
 	return (val);
 }
 
 int
 isonum_721 (p)
-char *p;
+	char *p;
 {
 	return ((p[0] & 0xff) | ((p[1] & 0xff) << 8));
 }
@@ -88,6 +91,7 @@ unsigned char *p;
 /*
  * translate and compare a filename
  */
+int
 isofncmp(char *fn, int fnlen, char *isofn, int isolen) {
 	int fnidx;
 

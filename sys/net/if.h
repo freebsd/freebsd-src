@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if.h	7.11 (Berkeley) 3/19/91
- *	$Id: if.h,v 1.5 1993/10/16 17:43:12 rgrimes Exp $
+ *	$Id: if.h,v 1.11 1993/12/19 00:52:02 wollman Exp $
  */
+
+#ifndef _NET_IF_H_
+#define _NET_IF_H_ 1
 
 /*
  * Structures defining a network interface, providing a packet
@@ -72,10 +75,12 @@
  * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
 
+struct rtentry;
+
 struct ifnet {
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	short	if_unit;		/* sub-unit for lower level driver */
-	short	if_mtu;			/* maximum transmission unit */
+	u_short	if_mtu;			/* maximum transmission unit */
 	short	if_flags;		/* up/down, broadcast, etc. */
 	short	if_timer;		/* time 'til if_watchdog called */
 	int	if_metric;		/* routing metric (external only) */
@@ -88,13 +93,14 @@ struct ifnet {
 		int	ifq_drops;
 	} if_snd;			/* output queue */
 /* procedure handles */
-	int	(*if_init)();		/* init routine */
-	int	(*if_output)();		/* output routine (enqueue) */
-	int	(*if_start)();		/* initiate output routine */
-	int	(*if_done)();		/* output complete routine */
-	int	(*if_ioctl)();		/* ioctl routine */
-	int	(*if_reset)();		/* bus reset routine */
-	int	(*if_watchdog)();	/* timer routine */
+	void	(*if_init)(int); /* init routine */
+	int (*if_output)(struct ifnet *, struct mbuf *, struct sockaddr *, 
+			 struct rtentry *); /* output routine (enqueue) */
+	void (*if_start)(struct ifnet *); /* initiate output routine */
+	int (*if_done)(struct ifnet *);	/* output complete routine */
+	int (*if_ioctl)(struct ifnet *, int, caddr_t); /* ioctl routine */
+	void (*if_reset)(int, int); /* bus reset routine */
+	void (*if_watchdog)(int); /* timer routine */
 /* generic interface statistics */
 	int	if_ipackets;		/* packets received on interface */
 	int	if_ierrors;		/* input errors on interface */
@@ -132,13 +138,17 @@ struct ifnet {
 #define	IFF_ALLMULTI	0x200		/* receive all multicast packets */
 #define	IFF_OACTIVE	0x400		/* transmission in progress */
 #define	IFF_SIMPLEX	0x800		/* can't hear own transmissions */
-#define	IFF_LLC0	0x1000		/* interface driver control/status */
-#define	IFF_LLC1	0x2000		/* interface driver control/status */
-#define	IFF_LLC2	0x4000		/* interface driver control/status */
+#define	IFF_LLC0	0x1000		/* IEEE 802.2 LLC class 0 */
+#define	IFF_LLC1	0x2000		/* IEEE 802.2 LLC class 1 */
+#define	IFF_LLC2	0x4000		/* IEEE 802.2 LLC class 2 */
+#define IFF_ALTPHYS	0x8000	/* alternative physical connection */
+#define IFF_MULTICAST	0x10000	/* i'face supports multicast */
+#define IFF_VIRTUAL	0x20000	/* i'face is really a VIF */
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
-	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|IFF_SIMPLEX)
+	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|IFF_SIMPLEX\
+	 |IFF_MULTICAST|IFF_VIRTUAL)
 
 /*
  * Output queues (ifp->if_snd) and internetwork datagram level (pup level 1)
@@ -183,6 +193,8 @@ struct ifnet {
  * are allocated and attached when an address is set, and are linked
  * together so all addresses for an interface can be located.
  */
+struct rtentry;
+
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
@@ -190,7 +202,8 @@ struct ifaddr {
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	ifaddr *ifa_next;	/* next address for interface */
-	int	(*ifa_rtrequest)();	/* check or clean routes (+ or -)'d */
+	void	(*ifa_rtrequest)(int, struct rtentry *, struct sockaddr *);
+					/* check or clean routes (+ or -)'d */
 	struct 	rtentry *ifa_rt;	/* ??? for ROUTETOIF */
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 	u_short	ifa_llinfolen;		/* extra to malloc for link info */
@@ -246,10 +259,18 @@ struct	ifconf {
 
 #ifdef KERNEL
 #include "../net/if_arp.h"
-struct	ifqueue rawintrq;		/* raw packet input queue */
-struct	ifnet *ifnet;
+extern struct	ifqueue rawintrq;		/* raw packet input queue */
+extern struct	ifnet *ifnet;
 struct	ifaddr *ifa_ifwithaddr(), *ifa_ifwithnet();
 struct	ifaddr *ifa_ifwithdstaddr();
-#else KERNEL
+extern int ifpromisc(struct ifnet *, int);
+
+/* Loopback interface, used internally by non-loopback code */
+extern struct	ifnet loif;
+extern int looutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct rtentry *);
+
+#else /* KERNEL */
 #include <net/if_arp.h>
-#endif KERNEL
+#endif /* KERNEL */
+#endif /* _NET_IF_H_ */

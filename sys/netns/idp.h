@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)idp.h	7.4 (Berkeley) 6/28/90
- *	$Id: idp.h,v 1.2 1993/10/16 19:54:08 rgrimes Exp $
+ *	$Id: idp.h,v 1.3 1993/11/07 17:50:19 wollman Exp $
  */
+
+#ifndef _NETNS_IDP_H_
+#define _NETNS_IDP_H_ 1
 
 /*
  * Definitions for NS(tm) Internet Datagram Protocol
@@ -45,3 +48,4 @@ struct idp {
 	struct ns_addr	idp_dna;	/* Destination Network Address */
 	struct ns_addr	idp_sna;	/* Source Network Address */
 };
+#endif /* _NETNS_IDP_H_ */

@@ -1,23 +1,22 @@
 #	@(#)Makefile.inc	5.21 (Berkeley) 5/24/91
 
 # gen sources
-.PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen ${.CURDIR}/gen/regexp
+.PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
 
 SRCS+=	alarm.c assert.c clock.c crypt.c ctermid.c ctime.c ctype_.c \
 	directory.c difftime.c disklabel.c err.c errlst.c exec.c \
 	fnmatch.c frexp.c fstab.c fts.c getcap.c getcwd.c getgrent.c \
 	getlogin.c getmntinfo.c getpass.c getpwent.c getsubopt.c getttyent.c \
 	getusershell.c glob.c infinity.c initgroups.c insque.c isatty.c \
-	isctype.c isinf.c mktemp.c nice.c nlist.c pause.c popen.c psignal.c \
-	raise.c setjmperr.c setmode.c setrgid.c setruid.c \
+	isctype.c isinf.c mktemp.c msgctl.c msgget.c msgsnd.c msgrcv.c \
+	nice.c nlist.c pause.c popen.c psignal.c raise.c scandir.c \
+	semconfig.c semctl.c semget.c semop.c \
+	setjmperr.c setmode.c setrgid.c setruid.c \
 	shmat.c shmctl.c shmdt.c shmget.c \
-	siginterrupt.c \
-	scandir.c siglist.c signal.c sigsetops.c sleep.c syslog.c termios.c \
-	time.c times.c timezone.c ttyname.c ttyslot.c ualarm.c unvis.c \
-	usleep.c utime.c valloc.c vis.c wait.c wait3.c waitpid.c
-
-# gen/regexp sources
-SRCS+=	regerror.c regexp.c regsub.c
+	siginterrupt.c siglist.c signal.c sigsetops.c sleep.c syslog.c \
+	termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
+	ualarm.c unvis.c usleep.c utime.c valloc.c vis.c \
+	wait.c wait3.c waitpid.c
 
 .if   (${MACHINE} == "hp300")
 SRCS+=	_setjmp.s alloca.s fabs.s ldexp.s modf.s setjmp.s
@@ -27,8 +26,8 @@ SRCS+=	adddf3.s addsf3.s ashlsi3.s ashrsi3.s cmpdf2.s cmpsf2.s divdf3.s \
 	negdf2.s negsf2.s saveregs.c subdf3.s subsf3.s truncdfsf2.s udivsi3.s \
 	umodsi3.s umulsi3.s
 .elif (${MACHINE} == "i386")
-SRCS+=	_setjmp.s alloca.s fabs.s ldexp.c modf.s setjmp.s sigsetjmp.s
-SRCS+=	divsi3.s fixdfsi.s fixunsdfsi.s udivsi3.s
+SRCS+=	_setjmp.S alloca.S fabs.S ldexp.c modf.S setjmp.S sigsetjmp.S
+SRCS+=	divsi3.S fixdfsi.S fixunsdfsi.S udivsi3.S
 .elif (${MACHINE} == "tahoe")
 CFLAGS+=-I/sys
 SRCS+=	_setjmp.s alloca.s fabs.s ldexp.s modf.s setjmp.s
@@ -48,14 +47,14 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/crypt.3 gen/ctermid.3 gen/ctime.3 \
 	gen/islower.3 gen/isprint.3 gen/ispunct.3 gen/isspace.3 \
 	gen/isupper.3 gen/isxdigit.3 gen/ldexp.3 gen/modf.3 gen/nice.3 \
 	gen/nlist.3 gen/pause.3 gen/popen.3 gen/psignal.3 gen/raise.3 \
-	gen/regexp.3 gen/scandir.3 gen/setjmp.3 gen/setmode.3 gen/setuid.3 \
+	gen/scandir.3 gen/setjmp.3 gen/setmode.3 gen/setuid.3 \
 	gen/siginterrupt.3 gen/signal.3 gen/sigsetops.3 gen/sleep.3 \
-	gen/syslog.3 gen/tcsendbreak.3 gen/time.3 gen/times.3  \
-	gen/timezone.3 gen/tolower.3 gen/toupper.3 gen/ttyname.3 \
-	gen/tzset.3 gen/ualarm.3 gen/unvis.3 gen/usleep.3 gen/utime.3 \
-	gen/valloc.3 gen/vis.3
+	gen/syslog.3 gen/tcgetpgrp.3 gen/tcsendbreak.3 gen/tcsetattr.3 \
+	gen/tcsetpgrp.3 gen/time.3 gen/times.3  gen/timezone.3 gen/tolower.3 \
+	gen/toupper.3 gen/ttyname.3 gen/tzset.3 gen/ualarm.3 gen/unvis.3 \
+	gen/usleep.3 gen/utime.3 gen/valloc.3 gen/vis.3
 
-MLINKS=	crypt.3 encrypt.3 crypt.3 setkey.3
+MLINKS+=crypt.3 encrypt.3 crypt.3 setkey.3
 MLINKS+=ctime.3 asctime.3 ctime.3 difftime.3 ctime.3 gmtime.3 \
 	ctime.3 localtime.3 ctime.3 mktime.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
@@ -83,8 +82,6 @@ MLINKS+=insque.3 remque.3
 MLINKS+=isinf.3 isnan.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 sys_siglist.3
-MLINKS+=regexp.3 regcomp.3 regexp.3 regexec.3 regexp.3 regsub.3 \
-	regexp.3 regerror.3
 MLINKS+=scandir.3 alphasort.3
 MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 sigsetjmp.3 setjmp.3 siglongjmp.3 setjmp.3 longjmperror.3
@@ -97,8 +94,10 @@ MLINKS+=sigsetops.3 sigemptyset.3 sigsetops.3 sigfillset.3 \
 MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
 MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflush.3 tcsendbreak.3 tcflow.3
-
-
+MLINKS+=tcsetattr.3 cfgetispeed.3 tcsetattr.3 cfsetispeed.3 \
+	tcsetattr.3 cfgetospeed.3 tcsetattr.3 cfsetospeed.3 \
+	tcsetattr.3 cfsetspeed.3 tcsetattr.3 cfmakeraw.3 \
+	tcsetattr.3 tcgetattr.3
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyslot.3
 MLINKS+=tzset.3 tzsetwall.3
 

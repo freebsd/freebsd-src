@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tty.h	7.10 (Berkeley) 6/26/91
- *	$Id: tty.h,v 1.4 1993/10/16 17:18:06 rgrimes Exp $
+ *	$Id: tty.h,v 1.8 1994/01/28 23:15:17 ache Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -81,22 +81,24 @@ struct ringb {
  * (low, high, timeout).
  */
 struct tty {
-	int	(*t_oproc)();		/* device */
-	int	(*t_param)();		/* device */
+	void	(*t_oproc)(struct tty *); /* device */
+	int	(*t_param)(struct tty *, struct termios *); /* device */
 	pid_t	t_rsel;			/* tty */
 	pid_t	t_wsel;
 	caddr_t	T_LINEP; 		/* XXX */
+#if 0
 	caddr_t	t_addr;			/* ??? */
+#endif
 	dev_t	t_dev;			/* device */
 	int	t_flags;		/* (compat) some of both */
 	int	t_state;		/* some of both */
 	struct	session *t_session;	/* tty */
 	struct	pgrp *t_pgrp;		/* foreground process group */
-	char	t_line;			/* glue */
-	short	t_col;			/* tty */
-	short	t_rocount, t_rocol;	/* tty */
-	short	t_hiwat;		/* hi water mark */
-	short	t_lowat;		/* low water mark */
+	int     t_line;                 /* glue */
+	int     t_col;                  /* tty */
+	int     t_rocount, t_rocol;     /* tty */
+	int     t_hiwat;                /* hi water mark */
+	int     t_lowat;                /* low water mark */
 	struct	winsize t_winsize;	/* window size */
 	struct	termios t_termios;	/* termios state */
 #define	t_iflag		t_termios.c_iflag
@@ -111,8 +113,10 @@ struct tty {
 	long	t_cancc;		/* stats */
 	long	t_rawcc;
 	long	t_outcc;
-	short	t_gen;			/* generation number */
-	short	t_mask;			/* interrupt mask */
+	int     t_gen;                  /* generation number */
+#if 0
+	int     t_mask;                 /* interrupt mask */
+#endif
 	struct	ringb t_raw;		/* ring buffers */
 	struct	ringb t_can;
 	struct	ringb t_out;
@@ -134,27 +138,32 @@ extern	struct ttychars ttydefaults;
 #endif /* KERNEL */
 
 /* internal state bits */
-#define	TS_TIMEOUT	0x000001	/* delay timeout in progress */
-#define	TS_WOPEN	0x000002	/* waiting for open to complete */
-#define	TS_ISOPEN	0x000004	/* device is open */
-#define	TS_FLUSH	0x000008	/* outq has been flushed during DMA */
-#define	TS_CARR_ON	0x000010	/* software copy of carrier-present */
-#define	TS_BUSY		0x000020	/* output in progress */
-#define	TS_ASLEEP	0x000040	/* wakeup when output done */
-#define	TS_XCLUDE	0x000080	/* exclusive-use flag against open */
-#define	TS_TTSTOP	0x000100	/* output stopped by ctl-s */
-/* was	TS_HUPCLS	0x000200 	 * hang up upon last close */
-#define	TS_TBLOCK	0x000400	/* tandem queue blocked */
-#define	TS_RCOLL	0x000800	/* collision in read select */
-#define	TS_WCOLL	0x001000	/* collision in write select */
-#define	TS_ASYNC	0x004000	/* tty in async i/o mode */
+#define	TS_TIMEOUT	0x000001UL	/* delay timeout in progress */
+#define	TS_WOPEN	0x000002UL	/* waiting for open to complete */
+#define	TS_ISOPEN	0x000004UL	/* device is open */
+#define	TS_FLUSH	0x000008UL	/* outq has been flushed during DMA */
+#define	TS_CARR_ON	0x000010UL	/* software copy of carrier-present */
+#define	TS_BUSY		0x000020UL	/* output in progress */
+#define	TS_ASLEEP	0x000040UL	/* wakeup when output done */
+#define	TS_XCLUDE	0x000080UL	/* exclusive-use flag against open */
+#define	TS_TTSTOP	0x000100UL	/* output stopped by ctl-s */
+/* was	TS_HUPCLS	0x000200UL 	 * hang up upon last close */
+#define	TS_TBLOCK	0x000400UL	/* tandem queue blocked */
+#define	TS_RCOLL	0x000800UL	/* collision in read select */
+#define	TS_WCOLL	0x001000UL	/* collision in write select */
+#define	TS_ASYNC	0x004000UL	/* tty in async i/o mode */
 /* state for intra-line fancy editing work */
-#define	TS_BKSL		0x010000	/* state for lowercase \ work */
-#define	TS_ERASE	0x040000	/* within a \.../ for PRTRUB */
-#define	TS_LNCH		0x080000	/* next character is literal */
-#define	TS_TYPEN	0x100000	/* retyping suspended input (PENDIN) */
-#define	TS_CNTTB	0x200000	/* counting tab width, ignore FLUSHO */
+#define	TS_BKSL		0x010000UL	/* state for lowercase \ work */
+#define	TS_ERASE	0x040000UL	/* within a \.../ for PRTRUB */
+#define	TS_LNCH		0x080000UL	/* next character is literal */
+#define	TS_TYPEN	0x100000UL	/* retyping suspended input (PENDIN) */
+#define	TS_CNTTB	0x200000UL	/* counting tab width, ignore FLUSHO */
+/* flow-control-invoked bits */
+#define	TS_CAR_OFLOW	0x0400000UL	/* for MDMBUF (XXX handle in driver) */
+#define	TS_DTR_IFLOW	0x2000000UL	/* not implemented */
+#define	TS_RTS_IFLOW	0x4000000UL	/* for CRTS_IFLOW */
 
+#define	TS_HW_IFLOW	(TS_DTR_IFLOW | TS_RTS_IFLOW)
 #define	TS_LOCAL	(TS_BKSL|TS_ERASE|TS_LNCH|TS_TYPEN|TS_CNTTB)
 
 /* define partab character types */
@@ -173,11 +182,11 @@ struct speedtab {
 /*
  * Flags on character passed to ttyinput
  */
-#define TTY_CHARMASK    0x000000ff      /* Character mask */
-#define TTY_QUOTE       0x00000100      /* Character quoted */
-#define TTY_ERRORMASK   0xff000000      /* Error mask */
-#define TTY_FE          0x01000000      /* Framing error or BREAK condition */
-#define TTY_PE          0x02000000      /* Parity error */
+#define TTY_CHARMASK    0x000000ffUL /* Character mask */
+#define TTY_QUOTE       0x00000100UL /* Character quoted */
+#define TTY_ERRORMASK   0xff000000UL /* Error mask */
+#define TTY_FE          0x01000000UL /* Framing error or BREAK condition */
+#define TTY_PE          0x02000000UL /* Parity error */
 
 /*
  * Is tp controlling terminal for p
@@ -199,7 +208,48 @@ struct speedtab {
 
 #ifdef KERNEL
 /* symbolic sleep message strings */
-extern	 char ttyin[], ttyout[], ttopen[], ttclos[], ttybg[], ttybuf[];
-#endif
+extern const char ttyin[], ttyout[], ttopen[], ttclos[], ttybg[], ttybuf[];
 
+struct uio;
+
+/* From tty.c: */
+extern void ttychars(struct tty *);
+extern int ttwflush(struct tty *);
+extern int ttywait(struct tty *);
+extern void ttyflush(struct tty *, int);
+extern void ttstart(struct tty *);
+extern void ttrstrt(struct tty *);
+extern int ttioctl(struct tty *, int, caddr_t, int);
+extern int ttnread(struct tty *);
+extern int ttselect(int /*dev_t*/, int, struct proc *);
+extern int ttyopen(int /*dev_t*/, struct tty *, int);
+extern void ttylclose(struct tty *, int);
+extern int ttyclose(struct tty *);
+extern int ttymodem(struct tty *, int);
+extern int nullmodem(struct tty *, int);
+extern void ttyinput(int, struct tty *);
+extern int ttread(struct tty *, struct uio *, int);
+extern int ttycheckoutq(struct tty *, int);
+extern int ttwrite(struct tty *, struct uio *, int);
+extern void ttwakeup(struct tty *);
+extern int ttspeedtab(int, struct speedtab *);
+extern void ttsetwater(struct tty *);
+extern void ttyinfo(struct tty *);
+extern int tputchar(int, struct tty *);
+extern int ttysleep(struct tty *, caddr_t, int, const char *, int);
+
+/* From tty_ring.c: */
+extern int putc(int, struct ringb *);
+extern int getc(struct ringb *);
+extern int nextc(char **, struct ringb *);
+extern int ungetc(int, struct ringb *);
+extern int unputc(struct ringb *);
+extern void initrb(struct ringb *);
+extern void catb(struct ringb *, struct ringb *);
+extern size_t rb_write(struct ringb *, char *, size_t);
+
+/* From tty_compat.c: */
+extern int ttcompat(struct tty *, int, caddr_t, int);
+
+#endif /* KERNEL */
 #endif	/* _SYS_TTY_H_ */

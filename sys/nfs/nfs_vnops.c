@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	From:	@(#)nfs_vnops.c	7.60 (Berkeley) 5/24/91
- *	$Id: nfs_vnops.c,v 1.4 1993/10/25 17:56:56 davidg Exp $
+ *	$Id: nfs_vnops.c,v 1.7 1994/01/31 23:40:50 martin Exp $
  */
 
 /*
@@ -776,7 +776,7 @@ nfs_mknod(ndp, vap, cred, p)
 		rdev = txdr_unsigned(vap->va_rdev);
 #ifdef FIFO
 	else if (vap->va_type == VFIFO)
-		rdev = 0xffffffff;
+		rdev = 0xffffffffUL;
 #endif /* FIFO */
 	else {
 		VOP_ABORTOP(ndp);
@@ -1258,11 +1258,11 @@ nfs_readdirrpc(vp, uiop, cred)
 	struct ucred *cred;
 {
 	register long len;
-	register struct direct *dp;
+	register struct direct *dp = 0;
 	register u_long *tl;
 	register caddr_t cp;
 	register long t1;
-	long tlen, lastlen;
+	long tlen, lastlen = 0;
 	caddr_t bpos, dpos, cp2;
 	u_long xid;
 	int error = 0;
@@ -1271,8 +1271,8 @@ nfs_readdirrpc(vp, uiop, cred)
 	caddr_t dpos2;
 	int siz;
 	int more_dirs = 1;
-	off_t off, savoff;
-	struct direct *savdp;
+	off_t off, savoff = 0;
+	struct direct *savdp = 0;
 	struct nfsmount *nmp;
 	struct nfsnode *np = VTONFS(vp);
 	long tresid;
@@ -1743,19 +1743,15 @@ nfs_advlock(vp, id, op, fl, flags)
 	struct flock *fl;
 	int flags;
 {
-#ifdef notyet
 	register struct nfsnode *np = VTONFS(vp);
 
 	return (lf_advlock(&(np->n_lockf), np->n_size, id, op, fl, flags));
-#else
-	return (EOPNOTSUPP);
-#endif
 }
 
 /*
  * Print out the contents of an nfsnode.
  */
-int
+void
 nfs_print(vp)
 	struct vnode *vp;
 {
@@ -1774,5 +1770,4 @@ nfs_print(vp)
 	if (np->n_lockwaiter)
 		printf(" waiting pid %d", np->n_lockwaiter);
 	printf("\n");
-	return(0);
 }

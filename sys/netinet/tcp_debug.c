@@ -31,16 +31,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tcp_debug.c	7.6 (Berkeley) 6/28/90
- *	$Id: tcp_debug.c,v 1.2 1993/10/16 18:26:22 rgrimes Exp $
+ *	$Id: tcp_debug.c,v 1.7 1994/01/24 05:12:31 davidg Exp $
  */
 
-#ifdef TCPDEBUG
 /* load symbolic names */
 #define PRUREQUESTS
 #define TCPSTATES
 #define	TCPTIMERS
 #define	TANAMES
-#endif
 
 #include "param.h"
 #include "systm.h"
@@ -66,12 +64,13 @@
 #include "tcpip.h"
 #include "tcp_debug.h"
 
-#ifdef TCPDEBUG
-int	tcpconsdebug = 0;
-#endif
+struct	tcp_debug tcp_debug[TCP_NDEBUG];
+int	tcp_debx;
+
 /*
  * Tcp debug routines
  */
+void
 tcp_trace(act, ostate, tp, ti, req)
 	short act, ostate;
 	struct tcpcb *tp;
@@ -97,7 +96,6 @@ tcp_trace(act, ostate, tp, ti, req)
 	else
 		bzero((caddr_t)&td->td_ti, sizeof (*ti));
 	td->td_req = req;
-#ifdef TCPDEBUG
 	if (tcpconsdebug == 0)
 		return;
 	if (tp)
@@ -131,8 +129,9 @@ tcp_trace(act, ostate, tp, ti, req)
 		if (flags) {
 #ifndef lint
 			char *cp = "<";
-#define pf(f) { if (ti->ti_flags&TH_/**/f) { printf("%s%s", cp, "f"); cp = ","; } }
+#define pf(f) { if (ti->ti_flags& TH_ ## f) { printf("%s" #f, cp); cp = ","; } }
 			pf(SYN); pf(ACK); pf(FIN); pf(RST); pf(PUSH); pf(URG);
+#undef pf
 #endif
 			printf(">");
 		}
@@ -155,5 +154,4 @@ tcp_trace(act, ostate, tp, ti, req)
 	    tp->snd_max);
 	printf("\tsnd_(wl1,wl2,wnd) (%x,%x,%x)\n",
 	    tp->snd_wl1, tp->snd_wl2, tp->snd_wnd);
-#endif /* TCPDEBUG */
 }

@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)from.c	5.7 (Berkeley) 3/1/91";
 #include <pwd.h>
 #include <stdio.h>
 #include <paths.h>
+#include <errno.h>
 
 main(argc, argv)
 	int argc;
@@ -94,7 +95,8 @@ main(argc, argv)
 		file = buf;
 	}
 	if (!freopen(file, "r", stdin)) {
-		fprintf(stderr, "from: can't read %s.\n", file);
+		if(errno != ENOENT)
+			fprintf(stderr, "from: can't read %s.\n", file);
 		exit(1);
 	}
 	for (newline = 1; fgets(buf, sizeof(buf), stdin);) {

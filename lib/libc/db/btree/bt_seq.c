@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_seq.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)bt_seq.c	8.2 (Berkeley) 9/7/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -86,12 +86,19 @@ __bt_seq(dbp, key, data, flags)
 	EPG e;
 	int status;
 
+	t = dbp->internal;
+
+	/* Toss any page pinned across calls. */
+	if (t->bt_pinned != NULL) {
+		mpool_put(t->bt_mp, t->bt_pinned, 0);
+		t->bt_pinned = NULL;
+	}
+
 	/*
 	 * If scan unitialized as yet, or starting at a specific record, set
 	 * the scan to a specific key.  Both bt_seqset and bt_seqadv pin the
 	 * page the cursor references if they're successful.
 	 */
-	t = dbp->internal;
 	switch(flags) {
 	case R_NEXT:
 	case R_PREV:
@@ -116,7 +123,15 @@ __bt_seq(dbp, key, data, flags)
 		/* Update the actual cursor. */
 		t->bt_bcursor.pgno = e.page->pgno;
 		t->bt_bcursor.index = e.index;
-		mpool_put(t->bt_mp, e.page, 0);
+
+		/*
+		 * If the user is doing concurrent access, we copied the
+		 * key/data, toss the page.
+		 */
+		if (ISSET(t, B_DB_LOCK))
+			mpool_put(t->bt_mp, e.page, 0);
+		else
+			t->bt_pinned = e.page;
 		SET(t, B_SEQINIT);
 	}
 	return (status);

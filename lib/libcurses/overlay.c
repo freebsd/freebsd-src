@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,46 +32,49 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)overlay.c	5.6 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)overlay.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
-
-# define	min(a,b)	(a < b ? a : b)
-# define	max(a,b)	(a > b ? a : b)
+#include <curses.h>
 
 /*
- *	This routine writes win1 on win2 non-destructively.
- *
+ * overlay --
+ *	Writes win1 on win2 non-destructively.
  */
+int
 overlay(win1, win2)
-reg WINDOW	*win1, *win2; {
+	register WINDOW *win1, *win2;
+{
 
-	reg chtype      *sp, *end;
-	reg int		x, y, endy, endx, starty, startx;
-	reg int 	y1,y2;
+	register int x, y, y1, y2, endy, endx, starty, startx;
+	register __LDATA *sp, *end;
 
-# ifdef DEBUG
-	fprintf(outf, "OVERLAY(%0.2o, %0.2o);\n", win1, win2);
-# endif
-	starty = max(win1->_begy, win2->_begy);
-	startx = max(win1->_begx, win2->_begx);
-	endy = min(win1->_maxy + win1->_begy, win2->_maxy + win2->_begx);
-	endx = min(win1->_maxx + win1->_begx, win2->_maxx + win2->_begx);
-# ifdef DEBUG
-	fprintf(outf, "OVERLAY:from (%d,%d) to (%d,%d)\n", starty, startx, endy, endx);
-# endif
+#ifdef DEBUG
+	__CTRACE("overlay: (%0.2o, %0.2o);\n", win1, win2);
+#endif
+	starty = max(win1->begy, win2->begy);
+	startx = max(win1->begx, win2->begx);
+	endy = min(win1->maxy + win1->begy, win2->maxy + win2->begx);
+	endx = min(win1->maxx + win1->begx, win2->maxx + win2->begx);
+#ifdef DEBUG
+	__CTRACE("overlay: from (%d,%d) to (%d,%d)\n",
+	    starty, startx, endy, endx);
+#endif
 	if (starty >= endy || startx >= endx)
-		return;
-	y1 = starty - win1->_begy;
-	y2 = starty - win2->_begy;
+		return (OK);
+	y1 = starty - win1->begy;
+	y2 = starty - win2->begy;
 	for (y = starty; y < endy; y++, y1++, y2++) {
-		end = &win1->_y[y1][endx - win1->_begx];
-		x = startx - win2->_begx;
-		for (sp = &win1->_y[y1][startx - win1->_begx]; sp < end; sp++) {
-			if (*sp != ' ')
-				mvwaddch(win2, y2, x, *sp);
+		end = &win1->lines[y1]->line[endx - win1->begx];
+		x = startx - win2->begx;
+		for (sp = &win1->lines[y1]->line[startx - win1->begx]; 
+		     sp < end; sp++) {
+			if (sp->ch != ' ') {
+				wmove(win2, y2, x);
+				__waddch(win2, sp);
+			}
 			x++;
 		}
 	}
+	return (OK);
 }

@@ -33,13 +33,14 @@
 .\"
 .\".ds RH "Basics
 .bp
-.nr H1 2
-.nr H2 0
+.\".nr H1 2
+.\".nr H2 0
 .bp
 .LG
 .B
 .ce
-2. BASICS
+.NH 1
+BASICS
 .sp 2
 .R
 .NL

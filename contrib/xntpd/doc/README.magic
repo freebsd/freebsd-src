@@ -1,0 +1,346 @@
+                 Magic Tricks for Precision Timekeeping
+
+                       Revised 19 September 1993
+
+Note: This information file is included in the NTP Version 3
+distribution (xntp3.tar.Z) as the file README.magic. This distribution
+can be obtained via anonymous ftp from louie.udel.edu in the directory
+pub/ntp.
+
+1. Introduction
+
+It most cases it is possible using NTP to synchronize a number of hosts
+on an Ethernet or moderately loaded T1 network to a radio clock within a
+few tens of milliseconds with no particular care in selecting the radio
+clock or configuring the servers on the network. This may be adequate
+for the majority of applications; however, modern workstations and high
+speed networks can do much better than that, generally to within some
+fraction of a millisecond, by using special care in the design of the
+hardware and software interfaces.
+
+The timekeeping accuracy of a NTP-synchronized host depends on two
+quantities: the delay due to hardware and software processing and the
+accumulated jitter due to such things as clock reading precision and
+varying latencies in hardware and software queuing. Processing delays
+directly affect the timekeeping accuracy, unless minimized by systematic
+analysis and adjustment. Jitter, on the other hand, can be essentially
+removed, as long as the statistical properties are unbiased, by the low-
+pass filtering of the phase-lock loop incorporated in the NTP local
+clock model.
+
+This note discusses issues in the connection of external time sources
+such as radio clocks and related timing signals to a primary (stratum-1)
+NTP time server. Of principal concern are various techniques that can be
+utilized to improve the accuracy and precision of the time accuracy and
+frequency stability. Radio clocks are most often connected to a time
+server using a serial asynchronous port. Much of the discussion in this
+memorandum has to do with ways in which the delay incurred in this type
+of connection can be controlled and ways in which the jitter due to
+various causes can be minimized.
+
+However, there are ways other than serial ports to connect a radio
+clock, including special purpose hardware devices for some
+architectures, and even unusual applications of existing interface
+devices, such as the audio codec provided in some systems. Many of these
+methods can yield accuracies as good as any attainable with a serial
+port. For those radio clocks equipped with an IRIG-B signal output, for
+example, a hardware device is available for the Sun SPARCstation; see
+the xntpd.8 manual page in the doc directory of the NTP Version 3
+distribution for further information. In addition, it is possible to
+decode the IRIG-B signal using the audio codec included in the Sun
+SPARCstation and a special kernel driver described in the irig.txt file
+in the doc directory of the NTP Version 3 distribution. These devices
+will not be discussed further in this memorandum.
+
+2. Connection via Serial Port
+
+Most radio clocks produce an ASCII timecode with a precision only to the
+millisecond. This results in a maximum peak-to-peak (p-p) jitter in the
+clock readings of one millisecond. However, assuming the read requests
+are statistically independent of the clock update times, the reading
+error is uniformly distributed over the millisecond, so that the average
+over a large number of readings will make the clock appear 0.5 ms late.
+To compensate for this, it is only necessary to add 0.5 ms to its
+reading before further processing by the NTP algorithms.
+
+Radio clocks are usually connected to the host computer using a serial
+port operating at a typical speed of 9600 baud. The on-time reference
+epoch for the timecode is usually the start bit of a designated
+character, usually <CR>, which is part of the timecode. The UART chip
+implementing the serial port most often has a sample clock of eight to
+16 times the basic baud rate. Assuming the sample clock starts midway in
+the start bit and continues to midway in the first stop bit, this
+creates a processing delay of 10.5 baud times, or about 1.1 ms, relative
+to the start bit of the character. The jitter contribution is usually no
+more than a couple of sample-clock periods, or about 26 usec p-p. This
+is small compared to the clock reading jitter and can be ignored. Thus,
+the UART delay can be considered constant, so the hardware contribution
+to the total mean delay budget is 0.5 + 1.1 = 1.6 ms.
+
+In some kernel serial port drivers, in particular, the Sun zs driver,
+an intentional delay is introduce in input character processing when the
+first character is received after an idle period. A batch of characters
+is passed to the calling program when either (a) a timeout in the
+neighborhood of 10 ms expires or (b) an input buffer fills up. The
+intent in this design is to reduce the interrupt load on the processor
+by batching the characters where possible. Obviously, this can cause
+severe problems for precision timekeeping. It is possible to patch the
+zs driver to eliminate the jitter due to this cause; contact the author
+for further details. However, there is a better solution which will be
+described later in this note. The problem does not appear to be present
+in the Serial/Parallel Controller (SPC) for the SBus, which contains
+eight serial asynchronous ports along with a parallel port. The
+measurements referred to below were made using this controller.
+
+Good timekeeping depends strongly on the means available to capture an
+accurate sample of the local clock or timestamp at the instant the stop
+bit of the on-time character is found; therefore, the code path delay
+between the character interrupt routine and the first place a timestamp
+can be captured is very important, since on some systems such as Sun
+SPARCstations, this path can be astonishingly long. The Sun scheduling
+mechanisms involve both a hardware interrupt queue and a software
+interrupt queue. Entries are made on the hardware queue as the interrupt
+is signalled and generally with the lowest latency, estimated at 20-30
+microseconds (usec) for a SPARC 4/65 IPC. Then, after minimal
+processing, an entry is made on the software queue for later processing
+in order of software interrupt priority. Finally, the software interrupt
+unblocks the NTP daemon which calculates the current local clock offset
+and introduces corrections as required.
+
+Opportunities exist to capture timestamps at the hardware interrupt
+time, software interrupt time and at the time the NTP daemon is
+activated, but these involve various degrees of kernel trespass and
+hardware gimmicks. To gain some idea of the severity of the errors
+introduced at each of these stages, measurements were made using a Sun
+4/65 IPC and a test setup that results in an error between the host
+clock and a precision time source (calibrated cesium clock) no greater
+than 0.1 ms. The total delay from the on-time epoch to when the NTP
+daemon is activated was measured at 8.3 ms in an otherwise idle system,
+but increased on rare occasion to over 25 ms under load, even when the
+NTP daemon was operated at the highest available software priority
+level. Since 1.6 ms of the total delay is due to the hardware, the
+remaining 6.7 ms represents the total code path delay accounting for all
+software processing from the hardware interrupt to the NTP daemon.
+
+It is commonly observed that the latency variations (jitter) in typical
+real-time applications scale as the processing delay. In the case above,
+the ratio of the maximum observed delay (25 ms) to the baseline code
+path delay (8.3 ms) is about three. It is natural to expect that this
+ratio remain the same or less as the code path between the hardware
+interrupt and where the timestamp is captured is reduced. However, in
+general this requires trespass on kernel facilities and/or making use of
+features not common to all or even most Unix implementations. In order
+to assess the cost and benefits of increasingly more aggressive insult
+to the hardware and software of the system, it is useful to construct a
+budget of the code path delay at each of the timestamp opportunity
+times. For instance, on Unix systems which include support for the SIGIO
+facility, it is possible to intervene at the time the software interrupt
+is serviced. The NTP daemon code uses this facility, when available, to
+capture a timestamp and save it along with the data in a buffer for
+later processing. This reduces the total code path delay from 6.7 ms to
+3.5 ms on an otherwise idle system. This reduction applies to all input
+processing, including network interfaces and serial ports.
+
+3. The CLK Mode
+
+By far the best place to capture the timestamp is right in the kernel
+interrupt routine, but this gerally requires intruding in the code
+itself, which can be intricate and architecture dependent. The next best
+place is in some routine close to the interrupt routine on the code
+path. There are two ways to do this, depending on the ancestry of the
+Unix operating system variant. Older systems based primarily on the
+original Unix 4.3bsd support what is called a line discipline module,
+which is a hunk of code with more-or-less well defined interface
+specifications that can get in the way, so to speak, of the code path
+between the interrupt routine and the remainder of the serial port
+processing. Newer systems based on System V STREAMS can do the same
+thing using what is called a streams module. Both approaches are
+supported in the NTP Version 3 distribution, as described in the README
+files in the kernel directory of the distribution. In either case,
+header and source files have to be copied to the kernel build tree and
+certain tables in the kernel have to be modified. In neither case,
+however, are kernel sources required. In order to take advantage of
+this, the clock driver must include code to activate the feature and
+extract the timestamp. At present, this support is included in the clock
+drivers for the Spectracom WWVB clock (WWVB define), the PSTI/Traconex
+WWV/WWVH clock (PST define) and a special one-pulse-per-second (pps)
+signal (PPSCLK define) described later. If justified, support can be
+easily added to most other clock drivers as well. For future reference,
+these modules operating with supported drivers will be called the CLK
+support.
+
+The CLK line discipline and STREAMS modules operate in the same way.
+They look for a designated character, usually <CR>, and stuff a Unix
+timestamp in the data stream following that character whenever it is
+found. Eventually, the data arrive at the particular clock driver
+configured in the NTP Version 3 distribution. The driver then uses the
+timestamp as a precise reference epoch, subject to the earlier
+processing delays and jitter budget, for future reference. In order to
+gain some insight as to the effectiveness of this approach, measurements
+were made using the same test setup described above. The total delay
+from the on-time epoch to the instant when the timestamp is captured was
+measured at 3.5 ms. Thus, the code path delay is this value less the
+hardware delay 3.5 - 1.6 = 1.9 ms.
+
+While the improvement in accuracy in the baseline case is significant,
+there is another factor, at least in Sun systems, that makes it even
+more worthwhile. When processing the code path up to the CLK module, the
+priority is apparently higher than for processing beyond it. In case of
+heavy CPU activity, this can lead to relatively long tails in the
+processing delays for the driver, which of course are avoided by
+capturing the timestamp early in the code path.
+
+4. The PPSCLK Mode
+
+Many timing receivers can produce a 1-pps signal of considerably better
+precision than the ASCII timecode. Using this signal, it is possible to
+avoid the 1-ms p-p jitter and 1.6 ms hardware timecode adjustment
+entirely. However, a device is required to interface this signal to the
+hardware and operating system. In general, this requires some sort of
+level converter and pulse generator that can turn the 1-pps signal on-
+time transition into a valid character. An example of such a device is
+described in the gadget directory of the NTP Version 3 distribution.
+Although many different circuit designs could be used as well, this
+particular device generates a single 26-usec start bit for each 1-pps
+signal on-time transition. This appears to the UART operating at 38.4K
+baud as an ASCII DEL (hex FF).
+
+Now, assuming a serial port can be dedicated to this purpose, a source
+of 1-pps character interrupts is available and can be used to provide a
+precision reference. The NTP Version 3 daemon can be configured to
+utilize this feature by specifying the PPSCLK define, which requires the
+CLK module and gadget box described above. The character resulting from
+each 1-pps signal on-time transition is intercepted by the CLK module
+and a timestamp is inserted in the data stream. An interrupt is created
+for the device driver, which reads the timestamp and discards the DEL
+character. Since the timestamp is captured at the on-time transition,
+the seconds-fraction portion is the offset between the local clock and
+the on-time epoch less the UART delay of 273 usec at 38.4K baud. If the
+local clock is within +-0.5 second of this epoch, as determined by other
+means, the local clock correction is taken as the offset itself, if
+between zero and 0.5 s, and the offset minus one second, if between 0.5
+and 1.0 s. In the NTP daemon the resulting correction is first processed
+by a multi-stage median/trimmed mean filter to remove residual jitter
+and then processed by the usual NTP algorithms.
+
+The baseline delay between the on-time transition and the timestamp
+capture was measured at 400+-10 usec on an otherwise idle test system.
+As the UART delay at 38.4K baud is about 270 usec, the difference, 130
+usec, must be due to the hardware interrupt latency plus the time to
+call the microtime() routine which actually reads the system clock and
+microsecond counter. For these measurements the assembly-coded version
+of this routine described in the ppsclock directory of the NTP Version 3
+distribution was used. This routine reduces the time to read the system
+clock from 42-85 usec with the native Sun C-coded routine to about 3
+usec using the microtime() assembly-coded routine and can be ignored.
+Thus, the 130 usec must be accounted for in interrupt service, register
+window, context switching, streams operations and measurement
+uncertainty, which is probably not unreasonable. The reason for the
+difference between the this figure and the previously calculated value
+of 1.9 ms for the CLK module and serial ASCII timecode is probably due
+to the fact that all STREAMS modules other than the CLK module were
+removed, since the serial port is not used for ordinary ASCII data.
+
+An interesting feature of this approach is that the 1-pps signal is not
+necessarily associated with any particular radio clock and, indeed,
+there may be no such clock at all. Some precision timekeeping equipment,
+such as cesium clocks, VLF receivers and LORAN-C timing receivers
+produce only a precision 1-pps signal and rely on other mechanisms to
+resolve the second of the day and day of the year. It is possible for an
+NTP-synchronized host to derive the latter information using other NTP
+peers, presumably properly synchronized within +-0.5 second, and to
+remove residual jitter using the 1-pps signal. This makes it quite
+practical to deliver precision time to local clients when the subnet
+paths to remote primary servers are heavily congested. In extreme cases
+like this, it has been found useful to increase the tracking aperture
+from +-128 ms to as high as +-512 ms.
+
+In the current implementation the radio timecode and 1-pps signal are
+separately processed. The timecode capture and CLK support, if provided
+by the radio driver, operate the same way whether or not the PPSCLK
+support is enabled. If the local clock is reliably synchronized within
++-0.5 s and the 1-pps signal has been valid for some number of seconds,
+its offset rather than whatever synchronization source has been selected
+is used instead. However, while a this procedure delivers a new offset
+estimate every second, the local clock is updated only as each valid
+update is computed for the peer selected as the source of
+synchronization.
+
+However, there is a hazard to the use of the 1-pps signal in this way if
+the radio generating the 1-pps signal misbehaves or loses
+synchronization with its transmitter. In such a case the radio might
+indicate the error, but the system has no way to associate the error
+with the 1-pps signal. To deal with this problem the prefer parameter
+described in the xntpd.8 man page in the doc directory of the NTP
+Version 3 distribution can be used both to cause the clock selection
+algorithm to choose a preferred peer, all other things being equal, as
+well as associate the error indications in such a way that the 1-pps
+signal will be disregarded if the peer stops providing valid updates,
+such as would occur in an error condition. The prefer parameter can be
+used in other situations as well when preference is to be given a
+particular source of synchronization.
+
+5. The PPS Mode
+
+For the ultimate accuracy and lowest jitter, it would be best to
+eliminate the UART and capture the 1-pps on-time transition directly
+using an appropriate interface. This is in fact possible using a
+modified serial port driver and data lead in the serial port interface
+cable. In this scheme, described in detail in the ppsclock directory of
+the NTP Version 3 distribution, the 1-pps source is connected via the
+previously described gadget box to the carrier-detect lead of a serial
+port. Happily, this can be the same port used for a radio clock, for
+example, or another unrelated serial device. The scheme, referred to
+subsequently as the PPS mode, is specific to the SunOS 4.1.x kernel and
+requires a special STREAMS module. Instructions on how to build the
+kernel are also included in that directory.
+
+Except for special-purpose interface modules, such as the KSI/Odetics
+TPRO IRIG-B decoder and the modified audio driver for the IRIG-B signal
+mentioned previously, the PPS mode provides the most accurate and
+precise timestamp available. There is essentially no latency and the
+timestamp is captured within 20-30 usec of the on-time epoch.
+
+The PPS mode requires the PPSPPS define and one of the radio clock
+serial ports to be selected as the PPS interface. This is the port which
+handles the 1-pps signal; however, the signal path has nothing to do
+with the ordinary serial data path; the two signals are not related,
+other than by the need to activate the PPS mode and pass the file
+descriptor to a common processing routine. Thus, for the port to be
+selected for the PPS function, the define for the associated radio clock
+needs to have a PPS suffix. In case of multiple radio clocks on a single
+time server, the PPS suffix is necessary on only one of them; more than
+one PPS suffix would be an error.
+
+The PPS mode works just like the CLK mode in the treatment of the prefer
+parameter and indicated peer errors. As in the CLK mode, only the offset
+within the second is used and only when the offset is less than +-0.5 s.
+However, the precision of the clock adjustments is usually so fine that
+the error budget is dominated by the inherent short-term stability of
+typical computer local clock oscillators. Therefore, it is advisable to
+reduce the poll interval for the preferred peer from the default 64 s to
+something less, like 16 s. This is done using the minpoll and maxpoll
+parameters of the peer or server command associated with the clock.
+These parameters take as arguments a power of 2, in seconds, which
+becomes the poll interval and, indirectly, affects the bandwidth of the
+tracking loop.
+
+6. Results and Conclusions
+
+It is clear from the above that substantial improvements in timekeeping
+accuracy are possible with varying degrees of hardware and software
+intrusion. While the ultimate accuracy depends on the jitter and wander
+characteristics of the computer local oscillator, it is possible to
+reduce jitter to a negligible degree simply by processing with the NTP
+phase-lock loop and local clock algorithms. The residual jitter using
+the PPS mode on a Sun4 IPC is typically in the 40-100 usec range, while
+the wander is rarely more than twice that under typical environmental
+room conditions.
+
+David L. Mills <mills@udel.edu>
+Electrical Engineering Department
+University of Delaware
+Newark, DE 19716
+302 831 8247 fax 302 831 4316
+
+25 August 1993

@@ -1,12 +1,10 @@
 /*
- * spkr.c -- device driver for console speaker on 80386
+ * spkr.c -- device driver for console speaker
  *
- * v1.1 by Eric S. Raymond (esr@snark.thyrsus.com) Feb 1990
- *      modified for 386bsd by Andrew A. Chernov <ache@astral.msk.su>
- *      386bsd only clean version, all SYSV stuff removed
- *      use hz value from param.c
+ * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
+ * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *	$Id: spkr.c,v 1.3 1993/10/16 13:46:21 rgrimes Exp $
+ *    $Id: spkr.c,v 1.7 1994/01/25 23:04:27 ache Exp $
  */
 
 #include "speaker.h"
@@ -19,7 +17,8 @@
 #include "errno.h"
 #include "buf.h"
 #include "uio.h"
-#include "spkr.h"
+
+#include "machine/speaker.h"
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
@@ -60,28 +59,24 @@
  */
 #define TIMER_CLK	1193180L	/* corresponds to 18.2 MHz tick rate */
 
-static int endtone()
-/* turn off the speaker, ending current tone */
-{
-    wakeup((caddr_t)endtone);
-    outb(PPI, inb(PPI) & ~PPI_SPKR);
-}
+#define SPKRPRI PSOCK
+static char endtone, endrest;
 
-static void tone(hz, ticks)
-/* emit tone of frequency hz for given number of ticks */
-unsigned int hz, ticks;
+static void tone(thz, ticks)
+/* emit tone of frequency thz for given number of ticks */
+unsigned int thz, ticks;
 {
-    unsigned int divisor = TIMER_CLK / hz;
+    unsigned int divisor = TIMER_CLK / thz;
     int sps;
 
 #ifdef DEBUG
-    printf("tone: hz=%d ticks=%d\n", hz, ticks);
+    (void) printf("tone: thz=%d ticks=%d\n", thz, ticks);
 #endif /* DEBUG */
 
     /* set timer to generate clicks at given frequency in Hertz */
     sps = spltty();
     outb(PIT_CTRL, PIT_MODE);		/* prepare timer */
-    outb(PIT_COUNT, (unsigned char) divisor);  /* send lo byte */
+    outb(PIT_COUNT, (divisor & 0xff));	/* send lo byte */
     outb(PIT_COUNT, (divisor >> 8));	/* send hi byte */
     splx(sps);
 
@@ -93,14 +88,8 @@ unsigned int hz, ticks;
      * This is so other processes can execute while the tone is being
      * emitted.
      */
-    timeout((caddr_t)endtone, (caddr_t)NULL, ticks);
-    sleep((caddr_t)endtone, PZERO - 1);
-}
-
-static int endrest()
-/* end a rest */
-{
-    wakeup((caddr_t)endrest);
+    (void) tsleep((caddr_t)&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
+    outb(PPI, inb(PPI) & ~PPI_SPKR);
 }
 
 static void rest(ticks)
@@ -113,16 +102,16 @@ int	ticks;
      * waited out.
      */
 #ifdef DEBUG
-    printf("rest: %d\n", ticks);
+    (void) printf("rest: %d\n", ticks);
 #endif /* DEBUG */
-    timeout((caddr_t)endrest, (caddr_t)NULL, ticks);
-    sleep((caddr_t)endrest, PZERO - 1);
+    (void) tsleep((caddr_t)&endrest, SPKRPRI | PCATCH, "spkrrs", ticks);
 }
 
 /**************** PLAY STRING INTERPRETER BEGINS HERE **********************
  *
  * Play string interpretation is modelled on IBM BASIC 2.0's PLAY statement;
- * M[LNS] are missing and the ~ synonym and octave-tracking facility is added.
+ * M[LNS] are missing; the ~ synonym and the _ slur mark and the octave-
+ * tracking facility are added.
  * Requires tone(), rest(), and endtone(). String play is not interruptible
  * except possibly at physical block boundaries.
  */
@@ -200,6 +189,7 @@ int	pitch, value, sustain;
     /* this weirdness avoids floating-point arithmetic */
     for (; sustain; sustain--)
     {
+	/* See the BUGS section in the man page for discussion */
 	snum *= NUM_MULT;
 	sdenom *= DENOM_MULT;
     }
@@ -213,7 +203,7 @@ int	pitch, value, sustain;
 	silence = whole * (FILLTIME-fill) * snum / (FILLTIME * value * sdenom);
 
 #ifdef DEBUG
-	printf("playtone: pitch %d for %d ticks, rest for %d ticks\n",
+	(void) printf("playtone: pitch %d for %d ticks, rest for %d ticks\n",
 			pitch, sound, silence);
 #endif /* DEBUG */
 
@@ -237,7 +227,7 @@ static void playstring(cp, slen)
 char	*cp;
 size_t	slen;
 {
-    int		pitch, lastpitch = OCTAVE_NOTES * DFLT_OCTAVE;
+    int		pitch, oldfill, lastpitch = OCTAVE_NOTES * DFLT_OCTAVE;
 
 #define GETNUM(cp, v)	for(v=0; isdigit(cp[1]) && slen > 0; ) \
 				{v = v * 10 + (*++cp - '0'); slen--;}
@@ -247,7 +237,7 @@ size_t	slen;
 	register char	c = toupper(*cp);
 
 #ifdef DEBUG
-	printf("playstring: %c (%x)\n", c, c);
+	(void) printf("playstring: %c (%x)\n", c, c);
 #endif /* DEBUG */
 
 	switch (c)
@@ -305,8 +295,19 @@ size_t	slen;
 		sustain++;
 	    }
 
+	    /* ...and/or a slur mark */
+	    oldfill = fill;
+	    if (cp[1] == '_')
+	    {
+		fill = LEGATO;
+		++cp;
+		slen--;
+	    }
+
 	    /* time to emit the actual tone */
 	    playtone(pitch, timeval, sustain);
+
+	    fill = oldfill;
 	    break;
 
 	case 'O':
@@ -350,7 +351,15 @@ size_t	slen;
 		slen--;
 		sustain++;
 	    }
+	    oldfill = fill;
+	    if (cp[1] == '_')
+	    {
+		fill = LEGATO;
+		++cp;
+		slen--;
+	    }
 	    playtone(pitch - 1, value, sustain);
+	    fill = oldfill;
 	    break;
 
 	case 'L':
@@ -410,14 +419,14 @@ size_t	slen;
  * endtone(), and rest() functions defined above.
  */
 
-static int spkr_active;	/* exclusion flag */
-static struct buf *spkr_inbuf; /* incoming buf */
+static int spkr_active = FALSE; /* exclusion flag */
+static struct buf *spkr_inbuf;  /* incoming buf */
 
 int spkropen(dev)
 dev_t	dev;
 {
 #ifdef DEBUG
-    printf("spkropen: entering with dev = %x\n", dev);
+    (void) printf("spkropen: entering with dev = %x\n", dev);
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
@@ -426,20 +435,20 @@ dev_t	dev;
 	return(EBUSY);
     else
     {
+#ifdef DEBUG
+	(void) printf("spkropen: about to perform play initialization\n");
+#endif /* DEBUG */
 	playinit();
 	spkr_inbuf = geteblk(DEV_BSIZE);
-	spkr_active = 1;
+	spkr_active = TRUE;
+	return(0);
     }
-    return(0);
 }
 
 int spkrwrite(dev, uio)
-dev_t	dev;
-struct uio *uio;
+dev_t		dev;
+struct uio	*uio;
 {
-    register unsigned n;
-    char *cp;
-    int error;
 #ifdef DEBUG
     printf("spkrwrite: entering with dev = %x, count = %d\n",
 		dev, uio->uio_resid);
@@ -447,12 +456,17 @@ struct uio *uio;
 
     if (minor(dev) != 0)
 	return(ENXIO);
+    else if (uio->uio_resid > DEV_BSIZE)     /* prevent system crashes */
+	return(E2BIG);
     else
     {
-	n = MIN(DEV_BSIZE, uio->uio_resid);
+	unsigned n;
+	char *cp;
+	int error;
+
+	n = uio->uio_resid;
 	cp = spkr_inbuf->b_un.b_addr;
-	error = uiomove(cp, n, uio);
-	if (!error)
+	if (!(error = uiomove(cp, n, uio)))
 		playstring(cp, n);
 	return(error);
     }
@@ -462,27 +476,28 @@ int spkrclose(dev)
 dev_t	dev;
 {
 #ifdef DEBUG
-    printf("spkrclose: entering with dev = %x\n", dev);
+    (void) printf("spkrclose: entering with dev = %x\n", dev);
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
 	return(ENXIO);
     else
     {
-	endtone();
+	wakeup((caddr_t)&endtone);
+	wakeup((caddr_t)&endrest);
 	brelse(spkr_inbuf);
-	spkr_active = 0;
+	spkr_active = FALSE;
+	return(0);
     }
-    return(0);
 }
 
 int spkrioctl(dev, cmd, cmdarg)
 dev_t	dev;
 int	cmd;
-caddr_t cmdarg;
+caddr_t	cmdarg;
 {
 #ifdef DEBUG
-    printf("spkrioctl: entering with dev = %x, cmd = %x\n", dev, cmd);
+    (void) printf("spkrioctl: entering with dev = %x, cmd = %x\n");
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
@@ -495,6 +510,7 @@ caddr_t cmdarg;
 	    rest(tp->duration);
 	else
 	    tone(tp->frequency, tp->duration);
+	return 0;
     }
     else if (cmd == SPKRTUNE)
     {
@@ -509,14 +525,13 @@ caddr_t cmdarg;
 	    if (ttp.duration == 0)
 		    break;
 	    if (ttp.frequency == 0)
-		rest(ttp.duration);
+		 rest(ttp.duration);
 	    else
-		tone(ttp.frequency, ttp.duration);
+		 tone(ttp.frequency, ttp.duration);
 	}
+	return(0);
     }
-    else
-	return(EINVAL);
-    return(0);
+    return(EINVAL);
 }
 
 #endif  /* NSPEAKER > 0 */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.2 1993/10/16 14:15:09 rgrimes Exp $
+ *	$Id: swapgeneric.c,v 1.3 1993/11/03 18:05:42 nate Exp $
  */
 
 #include "machine/pte.h"
@@ -60,6 +60,7 @@ long	dumplo;
 int	dmmin, dmmax, dmtext;
 
 extern	struct driver wddriver;
+extern	struct driver wxdriver;
 
 struct	genericconf {
 	caddr_t	gc_driver;
@@ -67,6 +68,7 @@ struct	genericconf {
 	dev_t	gc_root;
 } genericconf[] = {
 	{ (caddr_t)&wddriver,	"wd",	makedev(0, 0),	},
+	{ (caddr_t)&wxdriver,	"wx",	makedev(0, 0),	},
 	{ 0 },
 };
 

@@ -7,8 +7,8 @@
 # Broken:   04.pascal 07.ipctut
 
 BINDIR=	/usr/share/doc/ps1
-FILES=	00.contents Makefile Title
-SUBDIR=	06.sysman \
+SUBDIR=	Title 00.contents \
+	06.sysman \
 	08.ipc 13.rcs 14.sccs \
 	18.curses
 
@@ -21,7 +21,5 @@ beforeinstall:
         else \
                 true ; \
         fi
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
-	    ${DESTDIR}${BINDIR}
 
 .include <bsd.subdir.mk>

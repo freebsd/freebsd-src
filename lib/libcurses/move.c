@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1981 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1981, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,27 +32,31 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)move.c	5.5 (Berkeley) 6/1/90";
-#endif /* not lint */
+static char sccsid[] = "@(#)move.c	8.1 (Berkeley) 6/4/93";
+#endif	/* not lint */
 
-# include	"curses.ext"
+#include <curses.h>
 
 /*
- *	This routine moves the cursor to the given point
- *
+ * wmove --
+ *	Moves the cursor to the given point.
  */
+int
 wmove(win, y, x)
-reg WINDOW	*win;
-reg int		y, x; {
+	register WINDOW *win;
+	register int y, x;
+{
 
-# ifdef DEBUG
-	fprintf(outf, "MOVE to (%d, %d)\n", y, x);
-# endif
+#ifdef DEBUG
+	__CTRACE("wmove: (%d, %d)\n", y, x);
+#endif
 	if (x < 0 || y < 0)
-		return ERR;
-	if (x >= win->_maxx || y >= win->_maxy)
-		return ERR;
-	win->_curx = x;
-	win->_cury = y;
-	return OK;
+		return (ERR);
+	if (x >= win->maxx || y >= win->maxy)
+		return (ERR);
+	win->curx = x;
+	win->lines[win->cury]->flags &= ~__ISPASTEOL;
+	win->cury = y;
+	win->lines[y]->flags &= ~__ISPASTEOL;
+	return (OK);
 }

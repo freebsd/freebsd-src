@@ -23,8 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.h,v 1.2 1993/10/16 16:47:12 rgrimes Exp $
+ *	$Id: db_command.h,v 1.3 1993/11/07 17:39:22 wollman Exp $
  */
+
+#ifndef _DDB_DB_COMMAND_H_
+#define _DDB_DB_COMMAND_H_ 1
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
@@ -51,3 +54,4 @@ extern db_addr_t	db_next;	/* next address to be examined
 					   or written */
 
 
+#endif /* _DDB_DB_COMMAND_H_ */

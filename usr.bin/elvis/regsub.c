@@ -13,16 +13,17 @@
 # include "regexp.h"
 #endif
 
+char	*last_repl;	/* a copy of the text from the previous subst */
 
 /* perform substitutions after a regexp match */
 #ifdef REGEX
-void regsub(rm, startp, endp, src, dst)
+int regsub(rm, startp, endp, src, dst)
 	regmatch_t	*rm;	/* the regexp with pointers into matched text */
 	char		*startp, *endp;
 	REG char	*src;	/* the replacement string */
 	REG char	*dst;	/* where to put the result of the subst */
 #else
-void regsub(re, src, dst)
+int regsub(re, src, dst)
 	regexp		*re;	/* the regexp with pointers into matched text */
 	REG char	*src;	/* the replacement string */
 	REG char	*dst;	/* where to put the result of the subst */
@@ -35,7 +36,6 @@ void regsub(re, src, dst)
 #ifndef CRUNCH
 	int		mod = 0;/* used to track \U, \L, \u, \l, and \E */
 	int		len;	/* used to calculate length of subst string */
-	static char	*prev;	/* a copy of the text from the previous subst */
 
 	/* replace \~ (or maybe ~) by previous substitution text */
 
@@ -48,13 +48,13 @@ void regsub(re, src, dst)
 		if (c == (*o_magic ? '\0' : '\\') && *cpy == '~')
 # endif
 		{
-			if (!prev)
+			if (!last_repl)
 			{
 				regerr("No prev text to substitute for ~");
 
-				return;
+				return -1;
 			}
-			len += strlen(prev) - 1;
+			len += strlen(last_repl) - 1;
 # ifndef NO_MAGIC
 			if (!*o_magic)
 # endif
@@ -74,7 +74,7 @@ void regsub(re, src, dst)
 	if (!cpy)
 	{
 		regerr("Not enough memory for ~ expansion");
-		return;
+		return -1;
 	}
 
 	/* copy src into start, replacing the ~s by the previous text */
@@ -83,8 +83,8 @@ void regsub(re, src, dst)
 # ifndef NO_MAGIC
 		if (*o_magic && *src == '~')
 		{
-			strcpy(cpy, prev);
-			cpy += strlen(prev);
+			strcpy(cpy, last_repl);
+			cpy += strlen(last_repl);
 			src++;
 		}
 		else if (!*o_magic && *src == '\\' && *(src + 1) == '~')
@@ -92,9 +92,13 @@ void regsub(re, src, dst)
 		if (*src == '\\' && *(src + 1) == '~')
 # endif /* NO_MAGIC */
 		{
-			strcpy(cpy, prev);
-			cpy += strlen(prev);
+			strcpy(cpy, last_repl);
+			cpy += strlen(last_repl);
 			src += 2;
+		}
+		else if (*o_magic && *src == '\\' && *(src + 1) == '~') {
+			*cpy++ = *src++;
+			*cpy++ = *src++;
 		}
 		else
 		{
@@ -111,9 +115,9 @@ void regsub(re, src, dst)
 	checkmem();
 
 	/* remember this as the "previous" for next time */
-	if (prev)
-		_free_(prev);
-	prev = src = start;
+	if (last_repl)
+		_free_(last_repl);
+	last_repl = src = start;
 
 #endif /* undef CRUNCH */
 
@@ -275,4 +279,5 @@ void regsub(re, src, dst)
 		}
 	}
 	*dst = '\0';
+	return 0;
 }

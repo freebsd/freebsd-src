@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pk_output.c	7.10 (Berkeley) 5/29/91
- *	$Id: pk_output.c,v 1.2 1993/10/16 19:46:51 rgrimes Exp $
+ *	$Id: pk_output.c,v 1.4 1993/12/19 00:52:19 wollman Exp $
  */
 
 #include "param.h"
@@ -54,10 +54,17 @@
 #include "pk_var.h"
 
 struct mbuf_cache pk_output_cache = {0 };
-struct	mbuf *nextpk ();
+static struct mbuf *nextpk (struct pklcd *);
 
-pk_output (lcp)
-register struct pklcd *lcp;
+/*
+ * The `n' argument is just there to make if_x25subr.c happy.  We
+ * don't actually do anything with it, although meybe we should.
+ * All the other code passes in a null pointer.
+ */
+int
+pk_output (lcp, n)
+	register struct pklcd *lcp;
+	struct mbuf *n;
 {
 	register struct x25_packet *xp;
 	register struct mbuf *m;
@@ -65,7 +72,7 @@ register struct pklcd *lcp;
 
 	if (lcp == 0 || pkp == 0) {
 		printf ("pk_output: zero arg\n");
-		return;
+		return -1;
 	}
 
 	while ((m = nextpk (lcp)) != NULL) {
@@ -166,7 +173,7 @@ register struct pklcd *lcp;
 
 		default: 
 			m_freem (m);
-			return;
+			return 0;
 		}
 
 		/* Trace the packet. */
@@ -177,6 +184,7 @@ register struct pklcd *lcp;
 			mbuf_cache(&pk_output_cache, m);
 		(*pkp -> pk_lloutput) (pkp -> pk_llnext, m);
 	}
+	return 0;
 }
 
 /* 
@@ -184,9 +192,9 @@ register struct pklcd *lcp;
  *  packet is composed of one or more mbufs.
  */
 
-struct mbuf *
+static struct mbuf *
 nextpk (lcp)
-struct pklcd *lcp;
+	struct pklcd *lcp;
 {
 	register struct mbuf *m, *n;
 	struct socket *so = lcp -> lcd_so;

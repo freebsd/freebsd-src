@@ -37,13 +37,14 @@
 .ds RH Network setup
 .ds CF \*(DY
 .LP
-.nr H1 5
-.nr H2 0
+.\".nr H1 5
+.\".nr H2 0
 .bp
 .LG
 .B
 .ce
-5. NETWORK SETUP
+.NH 1
+NETWORK SETUP
 .sp 2
 .R
 .NL

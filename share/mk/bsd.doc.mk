@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.5 1993/10/11 03:48:05 rgrimes Exp $
+#	$Id: bsd.doc.mk,v 1.6 1994/02/03 19:58:23 jkh Exp $
 
 PRINTER?=	ps
 
@@ -55,22 +55,25 @@ obj:
 .endif
 .endif
 
-clean cleandir:
+clean:
 	rm -f ${DOC}.* [eE]rrs mklog ${CLEANFILES}
-	rm -rf obj
+
+cleandir:
+	rm -f ${DOC}.* [eE]rrs mklog ${CLEANFILES}
+	cd ${.CURDIR}; rm -rf obj
 
 FILES?=	${SRCS}
 install:
-	@if [ ! -d "${DESTDIR}${BINDIR}/${DIR}" ]; then \
-                /bin/rm -f ${DESTDIR}${BINDIR}/${DIR}  ; \
-                mkdir -p ${DESTDIR}${BINDIR}/${DIR}  ; \
-                chown root.wheel ${DESTDIR}${BINDIR}/${DIR}  ; \
-                chmod 755 ${DESTDIR}${BINDIR}/${DIR}  ; \
+	@if [ ! -d "${DESTDIR}${BINDIR}/${VOLUME}" ]; then \
+                /bin/rm -f ${DESTDIR}${BINDIR}/${VOLUME}  ; \
+                mkdir -p ${DESTDIR}${BINDIR}/${VOLUME}  ; \
+                chown root.wheel ${DESTDIR}${BINDIR}/${VOLUME}  ; \
+                chmod 755 ${DESTDIR}${BINDIR}/${VOLUME}  ; \
         else \
                 true ; \
         fi
-	( cd ${.CURDIR} ; install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    Makefile ${FILES} ${EXTRA} ${DESTDIR}${BINDIR}/${DIR} )
+	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${DOC}.* \
+	${DESTDIR}${BINDIR}/${VOLUME}
 
 spell: ${SRCS}
 	(cd ${.CURDIR};  spell ${SRCS} ) | sort | \

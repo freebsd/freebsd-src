@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.4 1993/10/18 14:21:48 davidg Exp $
+ *	$Id: cons.c,v 1.11 1994/01/26 20:42:18 davidg Exp $
  */
 
 
@@ -49,11 +49,19 @@
 #include "sys/tty.h"
 #include "sys/file.h"
 #include "sys/conf.h"
+#include "sys/vnode.h"
+#include "machine/stdarg.h"
 
-#include "cons.h"
+#include "machine/cons.h"
 
 /* XXX - all this could be autoconfig()ed */
 int pccnprobe(), pccninit(), pccngetc(), pccnputc();
+
+#include "sio.h"
+#if NSIO > 0
+int siocnprobe(), siocninit(), siocngetc(), siocnputc();
+#endif
+
 #include "com.h"
 #if NCOM > 0
 int comcnprobe(), comcninit(), comcngetc(), comcnputc();
@@ -61,6 +69,9 @@ int comcnprobe(), comcninit(), comcngetc(), comcnputc();
 
 struct	consdev constab[] = {
 	{ pccnprobe,	pccninit,	pccngetc,	pccnputc },
+#if NSIO > 0
+	{ siocnprobe,	siocninit,	siocngetc,	siocnputc },
+#endif
 #if NCOM > 0
 	{ comcnprobe,	comcninit,	comcngetc,	comcnputc },
 #endif
@@ -72,6 +83,7 @@ struct	tty *constty = 0;	/* virtual console output device */
 struct	consdev *cn_tab;	/* physical console device info */
 struct	tty *cn_tty;		/* XXX: console tty struct for tprintf */
 
+void
 cninit()
 {
 	register struct consdev *cp;
@@ -98,31 +110,47 @@ cninit()
 	(*cp->cn_init)(cp);
 }
 
+int
 cnopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
 	struct proc *p;
 {
+	struct vnode *vp = 0;
+
 	if (cn_tab == NULL)
 		return (0);
+
 	dev = cn_tab->cn_dev;
+	if ((vfinddev(dev, VCHR, &vp) == 0) && vcount(vp))
+		return (0);
+
 	return ((*cdevsw[major(dev)].d_open)(dev, flag, mode, p));
 }
  
+int
 cnclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
 	struct proc *p;
 {
+	struct vnode *vp = 0;
+
 	if (cn_tab == NULL)
 		return (0);
+
 	dev = cn_tab->cn_dev;
+	if ((vfinddev(dev, VCHR, &vp) == 0) && vcount(vp))
+		return (0);
+
 	return ((*cdevsw[major(dev)].d_close)(dev, flag, mode, p));
 }
  
+int
 cnread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	if (cn_tab == NULL)
 		return (0);
@@ -130,22 +158,27 @@ cnread(dev, uio, flag)
 	return ((*cdevsw[major(dev)].d_read)(dev, uio, flag));
 }
  
+int
 cnwrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	if (cn_tab == NULL)
 		return (0);
-	if (constty)					/* 16 Aug 92*/
+	if (constty)
 		dev = constty->t_dev;
 	else
 		dev = cn_tab->cn_dev;
 	return ((*cdevsw[major(dev)].d_write)(dev, uio, flag));
 }
  
+int
 cnioctl(dev, cmd, data, flag, p)
 	dev_t dev;
+	int cmd;
 	caddr_t data;
+	int flag;
 	struct proc *p;
 {
 	int error;
@@ -168,6 +201,7 @@ cnioctl(dev, cmd, data, flag, p)
 }
 
 /*ARGSUSED*/
+int
 cnselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -178,6 +212,7 @@ cnselect(dev, rw, p)
 	return (ttselect(cn_tab->cn_dev, rw, p));
 }
 
+int
 cngetc()
 {
 	if (cn_tab == NULL)
@@ -185,6 +220,7 @@ cngetc()
 	return ((*cn_tab->cn_getc)(cn_tab->cn_dev));
 }
 
+void
 cnputc(c)
 	register int c;
 {
@@ -197,10 +233,12 @@ cnputc(c)
 	}
 }
 
-pg(p,q,r,s,t,u,v,w,x,y,z) char *p; {
-	printf(p,q,r,s,t,u,v,w,x,y,z);
-	printf("\n>");
-	return(cngetc());
+int
+pg(const char *p, ...) {
+  va_list args;
+  va_start(args, p);
+  printf("%r\n>", p, args);
+  return(cngetc());
 }
 
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)iso_errno.h	7.5 (Berkeley) 5/6/91
- *	$Id: iso_errno.h,v 1.2 1993/10/16 21:05:19 rgrimes Exp $
+ *	$Id: iso_errno.h,v 1.3 1993/11/07 17:49:41 wollman Exp $
  */
 
 /***********************************************************
@@ -272,4 +272,4 @@ SOFTWARE.
 
 #define CONL_ERROR_MAX 0x1c3
 
-#endif __ISO_ERRNO__
+#endif /* __ISO_ERRNO__*/

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trace.h	7.6 (Berkeley) 5/5/91
- *	$Id: trace.h,v 1.2 1993/10/16 17:18:04 rgrimes Exp $
+ *	$Id: trace.h,v 1.3 1993/11/07 17:53:12 wollman Exp $
  */
+
+#ifndef _SYS_TRACE_H_
+#define _SYS_TRACE_H_ 1
 
 /*
  * File system buffer tracing points; all trace <pack(dev, size), bn>
@@ -113,3 +116,4 @@ int	tracewhich;
 #define	trace(a,b,c)	;
 #endif
 #endif
+#endif /* _SYS_TRACE_H_ */

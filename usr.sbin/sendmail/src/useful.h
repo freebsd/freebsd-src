@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)useful.h	8.1 (Berkeley) 6/7/93
+ *	@(#)useful.h	8.2 (Berkeley) 9/24/93
  */
 
 # include <sys/types.h>
@@ -67,7 +67,11 @@ typedef char	bool;
 
 /* sccs id's */
 # ifndef lint
-# define SCCSID(arg)	static char SccsId[] = "arg";
+#  ifdef __STDC__
+#   define SCCSID(arg)	static char SccsId[] = #arg;
+#  else
+#   define SCCSID(arg)	static char SccsId[] = "arg";
+#  endif
 # else
-# define SCCSID(arg)
+#  define SCCSID(arg)
 # endif

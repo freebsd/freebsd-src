@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns_proto.c	7.4 (Berkeley) 6/28/90
- *	$Id: ns_proto.c,v 1.2 1993/10/16 19:54:31 rgrimes Exp $
+ *	$Id: ns_proto.c,v 1.3 1993/12/19 00:54:02 wollman Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "socket.h"
 #include "protosw.h"
 #include "domain.h"
@@ -42,20 +43,21 @@
 
 #include "ns.h"
 
+#include "idp.h"
+#include "idp_var.h"
+#include "sp.h"
+#include "spidp.h"
+#include "spp_timer.h"
+#include "spp_var.h"
+
 /*
  * NS protocol family: IDP, ERR, PE, SPP, ROUTE.
  */
-int	ns_init();
-int	idp_input(), idp_output(), idp_ctlinput(), idp_usrreq();
-int	idp_raw_usrreq(), idp_ctloutput();
-int	spp_input(), spp_ctlinput();
-int	spp_usrreq(), spp_usrreq_sp(), spp_ctloutput();
-int	spp_init(), spp_fasttimo(), spp_slowtimo();
 extern	int raw_usrreq();
 
 extern	struct domain nsdomain;
 
-struct protosw nssw[] = {
+struct ns_protosw nssw[] = {
 { 0,		&nsdomain,	0,		0,
   0,		idp_output,	0,		0,
   0,
@@ -82,13 +84,15 @@ struct protosw nssw[] = {
   0,		0,		0,		0,
 },
 { SOCK_RAW,	&nsdomain,	NSPROTO_ERROR,	PR_ATOMIC|PR_ADDR,
-  idp_ctlinput,	idp_output,	0,		idp_ctloutput,
+  idp_input,	idp_output,	idp_ctlinput,	idp_ctloutput,
   idp_raw_usrreq,
   0,		0,		0,		0,
 },
 };
 
-struct domain nsdomain =
-    { AF_NS, "network systems", 0, 0, 0, 
-      nssw, &nssw[sizeof(nssw)/sizeof(nssw[0])] };
-
+struct domain nsdomain = 
+{ 
+	AF_NS, "network systems", 0, 0, 0, 
+	(struct protosw *)nssw, 
+	(struct protosw *)&nssw[sizeof(nssw)/sizeof(nssw[0])] 
+};

@@ -1,6 +1,9 @@
 /*
- *	$Id: isofs_node.h,v 1.2 1993/07/20 03:27:31 jkh Exp $
+ *	$Id: isofs_node.h,v 1.5 1993/12/19 00:51:04 wollman Exp $
  */
+
+#ifndef _ISOFS_ISOFS_NODE_H_
+#define _ISOFS_ISOFS_NODE_H_ 1
 
 
 typedef	struct	{
@@ -87,6 +90,19 @@ int isofs_reclaim __P((struct vnode *vp));
 int isofs_lock __P((struct vnode *vp));
 int isofs_unlock __P((struct vnode *vp));
 int isofs_strategy __P((struct buf *bp));
-int isofs_print __P((struct vnode *vp));
+void isofs_print __P((struct vnode *vp));
 int isofs_islocked __P((struct vnode *vp));
 
+/* From isofs_node.c: */
+struct iso_directory_record;
+extern void isofs_init(void);
+extern int iso_iget(struct iso_node *, ino_t, struct iso_node **, 
+		    struct iso_directory_record *);
+extern void iso_iput(struct iso_node *);
+extern void iso_ilock(struct iso_node *);
+extern void iso_iunlock(struct iso_node *);
+
+
+extern int iso_blkatoff(struct iso_node *, off_t, char **, struct buf **);
+
+#endif /* _ISOFS_ISOFS_NODE_H_ */

@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* @(#) $Header: /a/cvs/386BSD/src/usr.bin/lex/flexdef.h,v 1.3 1993/07/06 18:06:49 nate Exp $ (LBL) */
+/* @(#) $Header: /home/cvs/386BSD/src/usr.bin/lex/flexdef.h,v 1.3 1993/07/06 18:06:49 nate Exp $ (LBL) */
 
 #ifndef FILE
 #include <stdio.h>

@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)commands.c	5.5 (Berkeley) 3/22/91";
 #endif	/* defined(unix) */
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #ifdef	CRAY
 #include <fcntl.h>
 #endif	/* CRAY */
@@ -75,6 +76,10 @@ static char sccsid[] = "@(#)commands.c	5.5 (Berkeley) 3/22/91";
 #endif /* CRAY */
 #include <netinet/ip.h>
 
+extern void send_do();
+extern void send_dont();
+extern void send_will();
+extern void send_wont();
 
 #ifndef       MAXHOSTNAMELEN
 #define       MAXHOSTNAMELEN 64
@@ -246,7 +251,7 @@ struct sendlist {
 };
 
 
-extern int
+static int
 	send_esc P((void)),
 	send_help P((void)),
 	send_docmd P((char *)),
@@ -381,7 +386,6 @@ send_esc()
 send_docmd(name)
     char *name;
 {
-    void send_do();
     return(send_tncmd(send_do, "do", name));
 }
 
@@ -389,21 +393,18 @@ send_docmd(name)
 send_dontcmd(name)
     char *name;
 {
-    void send_dont();
     return(send_tncmd(send_dont, "dont", name));
 }
     static int
 send_willcmd(name)
     char *name;
 {
-    void send_will();
     return(send_tncmd(send_will, "will", name));
 }
     static int
 send_wontcmd(name)
     char *name;
 {
-    void send_wont();
     return(send_tncmd(send_wont, "wont", name));
 }
 
@@ -602,7 +603,7 @@ togxbinary(val)
 }
 
 
-extern int togglehelp P((void));
+static int togglehelp P((void));
 #if	defined(AUTHENTICATE)
 extern int auth_togdebug P((int));
 #endif
@@ -1464,7 +1465,7 @@ struct slclist {
 	int	arg;
 };
 
-extern void slc_help();
+static void slc_help();
 
 struct slclist SlcList[] = {
     { "export",	"Use local special character definitions",
@@ -1547,7 +1548,8 @@ extern void
 	env_export P((unsigned char *)),
 	env_unexport P((unsigned char *)),
 	env_send P((unsigned char *)),
-	env_list P((void)),
+	env_list P((void));
+static void
 	env_help P((void));
 
 struct envlist EnvList[] = {
@@ -2388,7 +2390,7 @@ static char
 	envhelp[] =	"change environment variables ('environ ?' for more)",
 	modestring[] = "try to enter line or character mode ('mode ?' for more)";
 
-extern int	help();
+static int	help();
 
 static Command cmdtab[] = {
 	{ "close",	closehelp,	bye,		1 },

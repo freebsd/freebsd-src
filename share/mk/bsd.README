@@ -1,4 +1,5 @@
-#	@(#)bsd.README	5.1 (Berkeley) 5/11/90
+#	from:@(#)bsd.README	5.1 (Berkeley) 5/11/90
+#	$Id: bsd.README,v 1.6 1994/01/31 06:10:29 rgrimes Exp $
 
 This is the README file for the new make "include" files for the BSD
 source tree.  The files are installed in /usr/share/mk, and are, by
@@ -227,7 +228,6 @@ DPADD		Additional dependencies for the program.  Usually used for
 			LIBMP		/usr/lib/libmp.a
 			LIBPC		/usr/lib/libpc.a
 			LIBPLOT		/usr/lib/libplot.a
-			LIBRPC		/usr/lib/sunrpc.a
 			LIBTELNET	/usr/lib/libtelnet.a
 			LIBTERM		/usr/lib/libterm.a
 			LIBUTIL		/usr/lib/libutil.a

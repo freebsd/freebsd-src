@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clnp_er.c	7.7 (Berkeley) 5/6/91
- *	$Id: clnp_er.c,v 1.2 1993/10/16 21:04:45 rgrimes Exp $
+ *	$Id: clnp_er.c,v 1.4 1993/12/19 00:53:07 wollman Exp $
  */
 
 /***********************************************************
@@ -62,6 +62,7 @@ SOFTWARE.
  */
 
 #include "param.h"
+#include "systm.h"
 #include "mbuf.h"
 #include "domain.h"
 #include "protosw.h"
@@ -101,10 +102,11 @@ static struct clnp_fixed er_template = {
  *
  * NOTES:			
  */
+void
 clnp_er_input(m, src, reason)
-struct mbuf		*m;		/* ptr to packet itself */
-struct iso_addr	*src;	/* ptr to src of er */
-u_char			reason;	/* reason code of er */
+	struct mbuf		*m;		/* ptr to packet itself */
+	struct iso_addr	*src;	/* ptr to src of er */
+	u_char			reason;	/* reason code of er */
 {
 	int	cmd = -1;
 	extern u_char clnp_protox[];
@@ -189,9 +191,10 @@ u_char			reason;	/* reason code of er */
  * NOTES:			This code assumes that we have previously tried to pull
  *					up the header of the datagram into one mbuf.
  */
+void
 clnp_discard(m, reason)
-struct mbuf	*m;		/* header of packet to discard */
-char					reason;	/* reason for discard */
+	struct mbuf *m;		/* header of packet to discard */
+	char reason;		/* reason for discard */
 {
 	IFDEBUG(D_DISCARD)
 		printf("clnp_discard: m x%x, reason x%x\n", m, reason);
@@ -228,9 +231,10 @@ char					reason;	/* reason for discard */
  *					was created by us; in this case, do not send
  *					an ER.
  */
+void
 clnp_emit_er(m, reason)
-struct mbuf	*m;		/* header of packet to discard */
-char					reason;	/* reason for discard */
+	struct mbuf	*m;		/* header of packet to discard */
+	char reason;		/* reason for discard */
 {
 	register struct clnp_fixed	*clnp = mtod(m, struct clnp_fixed *);
 	register struct clnp_fixed	*er;
@@ -361,8 +365,9 @@ done:
 		RTFREE(route.ro_rt);
 }
 
+int
 clnp_er_index(p)
-u_char p;
+	u_char p;
 {
 	register u_char *cp = clnp_er_codes + CLNP_ERRORS;
 	while (cp > clnp_er_codes) {

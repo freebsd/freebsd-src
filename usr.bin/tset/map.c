@@ -242,6 +242,12 @@ SPEEDS speeds[] = {
 	"38400",	B38400,
 	"exta",		B19200,
 	"extb",		B38400,
+#ifdef B57600
+	"57600",	B57600,
+#endif
+#ifdef B115200
+	"115200",	B115200,
+#endif
 	NULL
 };
 

@@ -29,8 +29,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isofs_rrip.h
- *	$Id: isofs_rrip.h,v 1.2 1993/10/16 19:26:45 rgrimes Exp $
+ *	$Id: isofs_rrip.h,v 1.3 1993/11/07 17:46:05 wollman Exp $
  */
+
+#ifndef _ISOFS_ISOFS_RRIP_H_
+#define _ISOFS_ISOFS_RRIP_H_ 1
 
 typedef struct {
 	char 	      type		[ISODCL (  0,    1)];
@@ -122,3 +125,4 @@ typedef struct {
 	unsigned char flags		[ISODCL (  4,    4)];
 } ISO_RRIP_EXFLAG;
 
+#endif /* _ISOFS_ISOFS_RRIP_H_ */

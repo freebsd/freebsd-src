@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_tpdu.h	7.4 (Berkeley) 5/6/91
- *	$Id: tp_tpdu.h,v 1.2 1993/10/16 21:06:09 rgrimes Exp $
+ *	$Id: tp_tpdu.h,v 1.3 1993/11/07 17:50:05 wollman Exp $
  */
 
 /***********************************************************
@@ -71,21 +71,7 @@ SOFTWARE.
 #ifndef __TP_TPDU__
 #define __TP_TPDU__
 
-#ifndef BYTE_ORDER
-/*
- * Definitions for byte order,
- * according to byte significance from low address to high.
- */
-#define	LITTLE_ENDIAN	1234	/* least-significant byte first (vax) */
-#define	BIG_ENDIAN	4321	/* most-significant byte first (IBM, net) */
-#define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long (pdp) */
-
-#ifdef vax
-#define	BYTE_ORDER	LITTLE_ENDIAN
-#else
-#define	BYTE_ORDER	BIG_ENDIAN	/* mc68000, tahoe, most others */
-#endif
-#endif BYTE_ORDER
+#include <machine/endian.h>
 
 /* This much of a tpdu is the same for all types of tpdus  (except
  * DT tpdus in class 0; their exceptions are handled by the data
@@ -130,12 +116,12 @@ struct tp0du {
  * This is used when the extended format seqence numbers are
  * being sent and received. 
  */
-				/*
-				 * the seqeot field is an int that overlays the seq
-				 * and eot fields, this allows the htonl operation
-				 * to be applied to the entire 32 bit quantity, and
-				 * simplifies the structure definitions.
-				 */
+			/*
+			 * the seqeot field is an int that overlays the seq
+			 * and eot fields, this allows the htonl operation
+			 * to be applied to the entire 32 bit quantity, and
+			 * simplifies the structure definitions.
+			 */
 union seq_type {
 	struct {
 #if BYTE_ORDER == BIG_ENDIAN
@@ -160,14 +146,14 @@ union  tpdu_fixed_rest {
 		struct {
 			u_short		_tpdufr_sref, 		/* source reference */
 #if BYTE_ORDER == BIG_ENDIAN
-						_tpdufr_class: 4,	/* class [ ISO 8073 13.3.3.e ] */
-						_tpdufr_opt: 4,		/* options [ ISO 8073 13.3.3.e ] */
+			_tpdufr_class: 4,	/* class [ ISO 8073 13.3.3.e ] */
+			_tpdufr_opt: 4,		/* options [ ISO 8073 13.3.3.e ] */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN
-						_tpdufr_opt: 4,		/* options [ ISO 8073 13.3.3.e ] */
-						_tpdufr_class: 4,	/* class [ ISO 8073 13.3.3.e ] */
+			_tpdufr_opt: 4,		/* options [ ISO 8073 13.3.3.e ] */
+			_tpdufr_class: 4,	/* class [ ISO 8073 13.3.3.e ] */
 #endif
-						_tpdufr_xx: 8;		/* unused */
+			_tpdufr_xx: 8;		/* unused */
 		} CRCC;
 
 #define tpdu_CRli _tpduf._tpduf_li
@@ -215,21 +201,21 @@ union  tpdu_fixed_rest {
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
 			unsigned char _tpdufr_eot:1,	/* end-of-tsdu */
-						  _tpdufr_seq:7; 	/* 7 bit sequence number */
+			_tpdufr_seq:7; 	/* 7 bit sequence number */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN
 			unsigned char	_tpdufr_seq:7, 	/* 7 bit sequence number */
-							_tpdufr_eot:1;	/* end-of-tsdu */
+			_tpdufr_eot:1;	/* end-of-tsdu */
 #endif
 		}SEQEOT;
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
 			unsigned int	_tpdufr_Xeot:1,		/* end-of-tsdu */
-					 		_tpdufr_Xseq:31;	/* 31 bit sequence number */
+			_tpdufr_Xseq:31;	/* 31 bit sequence number */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN
 			unsigned int	_tpdufr_Xseq:31,	/* 31 bit sequence number */
-							_tpdufr_Xeot:1;		/* end-of-tsdu */
+			_tpdufr_Xeot:1;		/* end-of-tsdu */
 #endif
 		}SEQEOT31;
 		unsigned int _tpdufr_Xseqeot;
@@ -254,11 +240,11 @@ union  tpdu_fixed_rest {
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
 			unsigned	_tpdufr_yrseq0:1,	/* always zero */
-						_tpdufr_yrseq:31; 	/* [ ISO 8073 13.9.3.d ] */
+			_tpdufr_yrseq:31; 	/* [ ISO 8073 13.9.3.d ] */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN
 			unsigned	_tpdufr_yrseq:31, 	/* [ ISO 8073 13.9.3.d ] */
-						_tpdufr_yrseq0:1;	/* always zero */
+			_tpdufr_yrseq0:1;	/* always zero */
 #endif
 			unsigned short _tpdufr_cdt; /* [ ISO 8073 13.9.3.b ] */
 		} AK31;
@@ -292,4 +278,4 @@ struct tpdu {
 	union 	tpdu_fixed_rest _tpdufr;
 };
 
-#endif __TP_TPDU__
+#endif /* __TP_TPDU__ */

@@ -37,7 +37,7 @@ Vi Command & Function Reference
 Alan P.W. Hewett
 .sp
 Revised for version 2.12 by Mark Horton
-.CB
+.\".CB
 .NH 1
 Author's Disclaimer
 .LP
@@ -83,7 +83,7 @@ be denoted using the \fIupper case\fR character, but
 example, \fB<^D>\fR is equal to \fB<^d>\fR.
 The most common character abbreviations
 used in this list are as follows:
-.VL 8
+.\".VL 8
 .IP <esc> 8
 escape, octal 033
 .IP <cr> 8
@@ -104,7 +104,7 @@ formfeed, ^L, octal 014
 space, octal 040
 .IP <del> 8
 delete, octal 0177
-.LE
+.\".LE
 .sp 1
 .NH 1
 Basics
@@ -216,7 +216,7 @@ be necessary to type <esc> first.
 .NH 2
 Cursor and Page Motion
 .LP
-.VL 16
+.\".VL 16
 .B NOTE:
 The arrow keys (see the next four commands)
 on certain kinds of terminals will not work with the
@@ -378,12 +378,12 @@ cursor or scrolling the screen.
 .IP "\(ga\(ga" 16
 Move the cursor back to the exact spot on the line where it was located
 before the last "non-relative" move.
-.LE
+.\".LE
 .NH 2
 Searches
 .LP
 The following commands allow you to search for items in a file.
-.VL 16
+.\".VL 16
 .IP [cnt]f{chr} 16
 .sp 1
 Search forward on the line for the next or "cnt"'th occurrence of
@@ -431,7 +431,7 @@ direction.
 .sp 1
 Using the \fB:\fR syntax it is possible to do global searches ala the
 standard UNIX "ed" editor.
-.LE
+.\".LE
 .NH 2
 Text Insertion
 .LP
@@ -440,7 +440,7 @@ text insertions are terminated with an <esc> character.
 The last change
 can always be \fBundone\fR by typing a \fBu\fR.
 The text insert in insertion mode can contain newlines.
-.VL 16
+.\".VL 16
 .IP a{text}<esc> 16
 Insert text immediately following the cursor position.
 Mnemonic: \fBa\fRppend
@@ -458,13 +458,13 @@ insert text there.  Mnemonic:  \fBo\fRpen new line
 .IP O{text}<esc> 16
 Insert a new line preceding the line on which the cursor appears
 and insert text there.
-.LE
+.\".LE
 .NH 2
 Text Deletion
 .LP
 The following commands allow the user to delete text in various ways.
 All changes can always be \fBundone\fR by typing the \fBu\fR command.
-.VL 16
+.\".VL 16
 .IP "[cnt]x" 16
 Delete the character or characters starting at the cursor position.
 .IP "[cnt]X" 16
@@ -478,14 +478,14 @@ Mnemonic: \fBD\fRelete the rest of line
 Deletes one or more occurrences of the specified motion.
 Any motion from sections 4.1 and 4.2 can be used here.
 The d can be stuttered (e.g. [cnt]dd) to delete cnt lines.
-.LE
+.\".LE
 .NH 2
 Text Replacement
 .LP
 The following commands allow the user to simultaneously delete and
 insert new text.  All such actions can be \fBundone\fR by typing
 \fBu\fR following the command.
-.VL 16
+.\".VL 16
 .IP "r<chr>" 16
 Replaces the character at the current cursor position with <chr>.  This
 is a one character replacement.  No <esc> is required for termination.
@@ -510,7 +510,7 @@ insertion text.  A "$" will appear at the end of the last item
 that is being deleted unless the deletion involves whole lines.
 Motion's can be any motion from sections 4.1 or 4.2.
 Stuttering the c (e.g. [cnt]cc) changes cnt lines.
-.LE
+.\".LE
 .NH 2
 Moving Text
 .LP
@@ -534,7 +534,7 @@ in such a buffer is appended to it instead of replacing it.
 .FE
 There are two more basic commands and
 some variations useful in getting and putting text into a file.
-.VL 16
+.\".VL 16
 .IP ["<a-z>][cnt]y{motion} 16
 .sp 1
 Yank the specified item or "cnt" items and put in the "undo" buffer or
@@ -584,13 +584,13 @@ Prettyprints the indicated area according to
 .B lisp
 conventions.
 The area should be a lisp s-expression.
-.LE
+.\".LE
 .NH 2
 Miscellaneous Commands
 .LP
 \fBVi\fR has a number of miscellaneous commands that are very
 useful.  They are:
-.VL 16
+.\".VL 16
 .IP ZZ 16
 This is the normal way to exit from vi.
 If any changes have been made, the file is written out.
@@ -656,13 +656,13 @@ To just escape to the shell for one command,
 use :!{cmd}<nl>, see section 5.
 .IP z{cnt}<nl> 16
 This resets the current window size to "cnt" lines and redraws the screen.
-.LE
+.\".LE
 .NH 2
 Special Insert Characters
 .LP
 There are some characters that have special meanings during
 insert modes.  They are:
-.VL 16
+.\".VL 16
 .IP ^V 16
 During inserts, typing a ^V allows you to quote control characters
 into the file.  Any character typed after the ^V will be inserted
@@ -686,7 +686,7 @@ Mnemonic: erase \fBW\fRord
 The backspace always serves as an erase during insert modes in addition
 to your normal "erase" character.  To insert a <bs> into your file, use
 the <^V> to quote it.
-.LE
+.\".LE
 .NH 1
 \fB:\fR Commands
 .LP
@@ -696,7 +696,7 @@ the bottom on the screen in preparation for a command.  In the
 also from this mode that you exit from \fBvi\fR or switch to different
 files.  All commands of this variety are terminated by a <nl>, <cr>,
 or <esc>.
-.VL 16
+.\".VL 16
 .IP ":w[!] [file]" 16
 Causes \fBvi\fR to write out the current text to the disk.  It is
 written to the file you are editing unless "file" is supplied.  If
@@ -767,7 +767,7 @@ programs so that by saying
 \fB:ta function<nl>\fR you will be switched to that function.
 It could also be useful when editing multi-file documents, though the
 \fBtags\fR file would have to be generated manually.
-.LE
+.\".LE
 .NH 1
 Special Arrangements for Startup
 .PP
@@ -865,7 +865,7 @@ These are usually placed in your .profile or .login.
 If you are running a system without environments (such as version 6)
 you can place the set command in the file .exrc in your home
 directory.
-.VL 16
+.\".VL 16
 .IP autoindent\ ai 16
 Default: noai Type: toggle
 .br
@@ -1076,4 +1076,4 @@ Default: nowa Type: toggle
 \fBVi\fR normally makes a number of checks before it writes out a file.
 This prevents the user from inadvertently destroying a file.  When the
 "writeany" option is enabled, \fBvi\fR no longer makes these checks.
-.LE
+.\".LE

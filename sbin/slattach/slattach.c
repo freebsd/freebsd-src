@@ -81,6 +81,12 @@
  * rid of redundant syslog()'s to minimize console log output. Improved
  * logging of improper command line options or number of command
  * arguments. Removed spurious newline characters from syslog() calls.
+ *
+ * gjung@gjbsd.franken.de
+ *
+ * sighup_handler changed to set CLOCAL before running redial_cmd.
+ * added flag exiting, so exit_handler is not run twice.
+ *
  */
 
 #ifndef lint
@@ -135,7 +141,10 @@ int	speed = DEFAULT_BAUD;
 int	slflags = 0;		/* compression flags */
 int	unit = -1;		/* slip device unit number */
 int	foreground = 0;
+int	exiting = 0;		/* allready running exit_handler */
 FILE	*console;
+
+struct	termios tty;
 
 char	devname[32];
 char	hostname[MAXHOSTNAMELEN];
@@ -281,8 +290,6 @@ int main(int argc, char **argv)
 
 void setup_line()
 {
-	struct termios tty;
-
 	tty.c_lflag = tty.c_iflag = tty.c_oflag = 0;
 	tty.c_cflag = CREAD | CS8 | flow_control | modem_control;
 	tty.c_ispeed = tty.c_ospeed = speed;
@@ -343,6 +350,7 @@ void attach_line()
 /* Signal handler for SIGHUP when carrier is dropped. */
 void sighup_handler()
 {
+	if(exiting) return;
 again:
 	/* reset discipline */
 	if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
@@ -353,9 +361,21 @@ again:
 	if (redial_cmd) {
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
+		if (!(modem_control & CLOCAL)) {
+			tty.c_cflag |= CLOCAL;
+			if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
+				syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
+				exit_handler(1);
+			}
+		}
 		system(redial_cmd);
 		/* Now check again for carrier (dial command is done): */
 		if (!(modem_control & CLOCAL)) {
+			tty.c_cflag &= ~CLOCAL;
+			if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
+				syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
+				exit_handler(1);
+			}
 			ioctl(fd, TIOCMGET, &comstate);
 			if (!(comstate & TIOCM_CD)) { /* check for carrier */
 				/* force a redial if no carrier */
@@ -405,18 +425,22 @@ again:
 /* Signal handler for SIGINT.  We just log and exit. */
 void sigint_handler()
 {
+	if(exiting) return;
 	syslog(LOG_NOTICE,"sl%d on %s caught SIGINT, exiting.",unit,dev);
 	exit_handler(0);
 }
 /* Signal handler for SIGTERM.  We just log and exit. */
 void sigterm_handler()
 {
+	if(exiting) return;
 	syslog(LOG_NOTICE,"SIGTERM on %s (sl%d); exiting",dev,unit);
 	exit_handler(0);
 }
 /* Run config_cmd if specified before exiting. */
 void exit_handler(int ret)
 {
+	if(exiting) return;
+	exiting = 1;
 	/*
 	 * First close the slip line in case exit_cmd wants it (like to hang
 	 * up a modem or something).

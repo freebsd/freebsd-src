@@ -119,6 +119,32 @@
 .de Ud
 \&currently under development.
 ..
+.\" Ns Fx macro - FreeBSD
+.de Fx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(.$==2 \{\
+.	if "\\$1"Pk024"  \&\\*(tN386BSD\\*(aa patchkit 0.2.4\\$2
+.	if "\\$1"1.0a"  \&\\*(tNFreeBSD\\*(aa version 1.0 ALPHA\\$2
+.	if "\\$1"1.0b"  \&\\*(tNFreeBSD\\*(aa version 1.0 BETA\\$2
+.	if "\\$1"1.0g"  \&\\*(tNFreeBSD\\*(aa version 1.0 GAMMA\\$2
+.	if "\\$1"1.0e"  \&\\*(tNFreeBSD\\*(aa version 1.0 EPSILON\\$2
+.	if "\\$1"1.0"  \&\\*(tNFreeBSD\\*(aa version 1.0\\$2
+.	if "\\$1"1.0.2"  \&\\*(tNFreeBSD\\*(aa version 1.0.2\\$2
+.	if "\\$1"1.1"  \&\\*(tNFreeBSD\\*(aa version 1.1\\$2
+.\}
+.if \\n(.$==1 \{\
+.\}
+.	if "\\$1"Pk024"  \&\\*(tN386BSD\\*(aa patchkit 0.2.4
+.	if "\\$1"1.0a"  \&\\*(tNFreeBSD\\*(aa version 1.0 ALPHA
+.	if "\\$1"1.0b"  \&\\*(tNFreeBSD\\*(aa version 1.0 BETA
+.	if "\\$1"1.0g"  \&\\*(tNFreeBSD\\*(aa version 1.0 GAMMA
+.	if "\\$1"1.0e"  \&\\*(tNFreeBSD\\*(aa version 1.0 EPSILON
+.	if "\\$1"1.0"  \&\\*(tNFreeBSD\\*(aa version 1.0
+.	if "\\$1"1.0.2"  \&\\*(tNFreeBSD\\*(aa version 1.0.2
+.	if "\\$1"1.1"  \&\\*(tNFreeBSD\\*(aa version 1.1
+..
 .\" Ns At macro - AT&T UNIX
 .de At
 .nr cF \\n(.f
@@ -130,6 +156,8 @@
 .	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa\\$2
 .	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa\\$2
 .	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.2"  \&\\*(tNAT&T\\*(aa System V.2 \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.3"  \&\\*(tNAT&T\\*(aa System V.3 \\*(tNUNIX\\*(aa\\$2
 .	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa\\$2
 .\}
 .if \\n(.$==1 \{\
@@ -138,6 +166,8 @@
 .	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa
 .	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa
 .	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa
+.	if "\\$1"V.2"  \&\\*(tNAT&T\\*(aa System V.2 \\*(tNUNIX\\*(aa
+.	if "\\$1"V.3"  \&\\*(tNAT&T\\*(aa System V.3 \\*(tNUNIX\\*(aa
 .	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa
 .\}
 ..
@@ -152,7 +182,7 @@
 .de St
 .if \\n(aC==0 \{\
 .	ie \\n(.$==0 \{\
-.tm Usage: .St [-p1003.1-88 | -p1003.2 | -ansiC-89 | -iso ] \\*(Pu ... (#\\n(.c)
+.tm Usage: .St [-p1003.2-92 | -p1003.1-88 | -p1003.2 | -ansiC-89 | -iso ] \\*(Pu ... (#\\n(.c)
 .	\}
 .	el \{\
 .		ds mN St
@@ -182,6 +212,16 @@
 .		\}
 .		el \{\
 .			ds b1 \&\\*(tNIEEE Std\\*(aa1003.1-1988\\*(sV
+.			as b1 (``\\*(tN\\*(Px\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-p1003.2-92" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNIEEE Std\\*(aa1003.2-1992\\*(sV
+.			as b1 (``\\*(tN\\*(Px\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNIEEE Std\\*(aa1003.2-1992\\*(sV
 .			as b1 (``\\*(tN\\*(Px\\*(aa'')
 .		\}
 .       \}

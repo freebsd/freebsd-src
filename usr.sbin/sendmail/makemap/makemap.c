@@ -33,11 +33,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.1 (Berkeley) 6/7/93";
+static char sccsid[] = "@(#)makemap.c	8.6 (Berkeley) 11/22/93";
 #endif /* not lint */
 
 #include <stdio.h>
 #include <sysexits.h>
+#include <sys/types.h>
 #include <sys/file.h>
 #include <ctype.h>
 #include <string.h>
@@ -80,11 +81,12 @@ main(argc, argv)
 	bool notrunc = FALSE;
 	bool allowreplace = FALSE;
 	bool verbose = FALSE;
-	bool foldcase = FALSE;
+	bool foldcase = TRUE;
 	int exitstat;
 	int opt;
 	char *typename;
 	char *mapname;
+	char *ext;
 	int lineno;
 	int st;
 	int mode;
@@ -101,6 +103,7 @@ main(argc, argv)
 	} dbp;
 	union dbent key, val;
 	char ibuf[BUFSIZE];
+	char fbuf[MAXNAME];
 	extern char *optarg;
 	extern int optind;
 
@@ -115,7 +118,7 @@ main(argc, argv)
 			break;
 
 		  case 'f':
-			foldcase = TRUE;
+			foldcase = FALSE;
 			break;
 
 		  case 'o':
@@ -144,13 +147,22 @@ main(argc, argv)
 	{
 		typename = argv[0];
 		mapname = argv[1];
+		ext = NULL;
 
 		if (strcmp(typename, "dbm") == 0)
+		{
 			type = T_DBM;
+		}
 		else if (strcmp(typename, "btree") == 0)
+		{
 			type = T_BTREE;
+			ext = ".db";
+		}
 		else if (strcmp(typename, "hash") == 0)
+		{
 			type = T_HASH;
+			ext = ".db";
+		}
 		else
 			type = T_UNKNOWN;
 	}
@@ -176,6 +188,24 @@ main(argc, argv)
 		fprintf(stderr, "%s: Type %s not supported in this version\n",
 			progname, typename);
 		exit(EX_UNAVAILABLE);
+	}
+
+	/*
+	**  Adjust file names.
+	*/
+
+	if (ext != NULL)
+	{
+		int el, fl;
+
+		el = strlen(ext);
+		fl = strlen(mapname);
+		if (fl < el || strcmp(&mapname[fl - el], ext) != 0)
+		{
+			strcpy(fbuf, mapname);
+			strcat(fbuf, ext);
+			mapname = fbuf;
+		}
 	}
 
 	/*
@@ -232,8 +262,15 @@ main(argc, argv)
 		*/
 
 		p = strchr(ibuf, '\n');
-		if (*p != '\0')
+		if (p != NULL)
 			*p = '\0';
+		else if (!feof(stdin))
+		{
+			fprintf(stderr, "%s: %s: line %d: line too long (%d bytes max)\n",
+				progname, mapname, lineno, sizeof ibuf);
+			continue;
+		}
+			
 		if (ibuf[0] == '\0' || ibuf[0] == '#')
 			continue;
 		if (isspace(ibuf[0]))

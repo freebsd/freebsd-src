@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_put.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)bt_put.c	8.3 (Berkeley) 9/16/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -81,6 +81,12 @@ __bt_put(dbp, key, data, flags)
 	char *dest, db[NOVFLSIZE], kb[NOVFLSIZE];
 
 	t = dbp->internal;
+
+	/* Toss any page pinned across calls. */
+	if (t->bt_pinned != NULL) {
+		mpool_put(t->bt_mp, t->bt_pinned, 0);
+		t->bt_pinned = NULL;
+	}
 
 	switch (flags) {
 	case R_CURSOR:
@@ -260,7 +266,6 @@ bt_fast(t, key, data, exactp)
 	const DBT *key, *data;
 	int *exactp;
 {
-	EPG e;
 	PAGE *h;
 	size_t nbytes;
 	int cmp;
@@ -269,8 +274,8 @@ bt_fast(t, key, data, exactp)
 		t->bt_order = NOT;
 		return (NULL);
 	}
-	e.page = h;
-	e.index = t->bt_last.index;
+	t->bt_cur.page = h;
+	t->bt_cur.index = t->bt_last.index;
 
 	/*
 	 * If won't fit in this page or have too many keys in this page, have
@@ -281,19 +286,19 @@ bt_fast(t, key, data, exactp)
 		goto miss;
 
 	if (t->bt_order == FORWARD) {
-		if (e.page->nextpg != P_INVALID)
+		if (t->bt_cur.page->nextpg != P_INVALID)
 			goto miss;
-		if (e.index != NEXTINDEX(h) - 1)
+		if (t->bt_cur.index != NEXTINDEX(h) - 1)
 			goto miss;
-		if ((cmp = __bt_cmp(t, key, &e)) < 0)
+		if ((cmp = __bt_cmp(t, key, &t->bt_cur)) < 0)
 			goto miss;
-		t->bt_last.index = cmp ? ++e.index : e.index;
+		t->bt_last.index = cmp ? ++t->bt_cur.index : t->bt_cur.index;
 	} else {
-		if (e.page->prevpg != P_INVALID)
+		if (t->bt_cur.page->prevpg != P_INVALID)
 			goto miss;
-		if (e.index != 0)
+		if (t->bt_cur.index != 0)
 			goto miss;
-		if ((cmp = __bt_cmp(t, key, &e)) > 0)
+		if ((cmp = __bt_cmp(t, key, &t->bt_cur)) > 0)
 			goto miss;
 		t->bt_last.index = 0;
 	}
@@ -301,7 +306,7 @@ bt_fast(t, key, data, exactp)
 #ifdef STATISTICS
 	++bt_cache_hit;
 #endif
-	return (&e);
+	return (&t->bt_cur);
 
 miss:
 #ifdef STATISTICS

@@ -1,4 +1,4 @@
-# $Header: /a/cvs/386BSD/src/usr.bin/tn3270/Makefile,v 1.1 1993/06/29 11:39:52 nate Exp $
+# $Header: /home/cvs/386BSD/src/usr.bin/tn3270/Makefile,v 1.1 1993/06/29 11:39:52 nate Exp $
 
 .if !make(install)
 SUBDIR += tools

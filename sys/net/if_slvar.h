@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_slvar.h	7.7 (Berkeley) 5/7/91
- *	$Id: if_slvar.h,v 1.2 1993/10/16 17:43:22 rgrimes Exp $
+ *	$Id: if_slvar.h,v 1.3 1993/11/07 17:47:00 wollman Exp $
  */
+
+#ifndef _NET_IF_SLVAR_H_
+#define _NET_IF_SLVAR_H_ 1
 
 /*
  * Definitions for SLIP interface data structures
@@ -72,3 +75,4 @@ struct sl_softc {
 #define	SLIOCGFLAGS	_IOR('t', 90, int)	/* get configuration flags */
 #define	SLIOCSFLAGS	_IOW('t', 89, int)	/* set configuration flags */
 #define	SLIOCGUNIT	_IOR('t', 88, int)	/* get slip unit number */
+#endif /* _NET_IF_SLVAR_H_ */

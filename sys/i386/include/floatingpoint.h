@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#) floatingpoint.h	1.0 (Berkeley) 9/23/93
- *	$Id: floatingpoint.h,v 1.3 1993/10/16 14:39:18 rgrimes Exp $
+ *	$Id: floatingpoint.h,v 1.4 1993/11/07 17:42:55 wollman Exp $
  */
 
 /*
@@ -46,12 +46,13 @@
 
 #ifdef __GNUC__
 
+#ifdef __i386__
+
 #define fnstcw(addr)	__asm("fnstcw %0" : "=m" (*addr) : "0" (*addr))
 #define fnstsw(addr)	__asm("fnstsw %0" : "=m" (*addr) : "0" (*addr))
 #define fnstenv(addr)	__asm("fnstenv %0" : "=m" (*addr) : "0" (*addr))
 #define fldenv(addr)	__asm("fldenv %0" : : "m" (*addr))
 
-#ifdef __i386__
 
 /*
  * return the contents of a FP register

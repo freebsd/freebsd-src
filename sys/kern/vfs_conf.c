@@ -31,18 +31,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vfs_conf.c	7.3 (Berkeley) 6/28/90
- *	$Id: vfs_conf.c,v 1.2 1993/10/16 15:25:21 rgrimes Exp $
+ *	$Id: vfs_conf.c,v 1.5 1994/01/16 02:26:39 martin Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "mount.h"
-
-/*
- * This specifies the filesystem used to mount the root.
- * This specification should be done by /etc/config.
- */
-extern int ufs_mountroot();
-int (*mountroot)() = ufs_mountroot;
 
 /*
  * These define the root filesystem and device.
@@ -72,6 +66,8 @@ extern	struct vfsops pcfs_vfsops;
 extern	struct vfsops isofs_vfsops;
 #endif
 
+extern	struct vfsops procfs_vfsops;
+
 struct vfsops *vfssw[] = {
 	(struct vfsops *)0,	/* 0 = MOUNT_NONE */
 	&ufs_vfsops,		/* 1 = MOUNT_UFS */
@@ -95,4 +91,5 @@ struct vfsops *vfssw[] = {
 #else
 	(struct vfsops *)0,
 #endif
+	&procfs_vfsops,		/* 6 = MOUNT_PROCFS */
 };

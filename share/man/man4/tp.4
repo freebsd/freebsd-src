@@ -146,7 +146,7 @@ connect, confirm, and disconnect data.
 See
 .Xr sendmsg 2
 and
-.Xr recmsgv 2 ,
+.Xr recvmsg 2 ,
 and further discussion
 below for the formats of the data in the ancillary data buffer.
 If the
@@ -349,7 +349,7 @@ nonzero short integer [various]
 .br
 Number of clock ticks that the local TP entity
 will wait before sending an acknowledgment for normal data
-(not applicable if the acknowlegement strategy is
+(not applicable if the acknowledgement strategy is
 .Dv TPACK_EACH ) .
 This parameter applies only to class 4.
 .It Ar p_ref_ticks

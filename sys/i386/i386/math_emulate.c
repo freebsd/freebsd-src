@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.4 1993/10/16 14:15:04 rgrimes Exp $
+ *	$Id: math_emulate.c,v 1.7 1994/01/29 22:07:16 nate Exp $
  */
 
 /*
@@ -33,7 +33,6 @@
  * The other files also don't care about ST(x) etc - they just get addresses
  * to 80-bit temporary reals, and do with them as they please. I wanted to
  * hide most of the 387-specific things here.
- *
  */
 
 #include "machine/cpu.h"
@@ -67,10 +66,11 @@ static temp_real_unaligned * __st(int i);
 unsigned char get_fs_byte(char *adr) { return(fubyte(adr)); }
 unsigned short get_fs_word(unsigned short *adr) { return(fuword(adr)); }
 unsigned long get_fs_long(unsigned long *adr) { return(fuword(adr)); }
-put_fs_byte(unsigned char val, char *adr) { (void)subyte(adr,val); }
-put_fs_word(unsigned short val, short *adr) { (void)susword(adr,val); }
-put_fs_long(unsigned long val, unsigned long *adr) { (void)suword(adr,val); }
+void put_fs_byte(unsigned char val, char *adr) { (void)subyte(adr,val); }
+void put_fs_word(unsigned short val, short *adr) { (void)susword(adr,val); }
+void put_fs_long(u_long val, unsigned long *adr) { (void)suword(adr,val); }
 
+int
 math_emulate(struct trapframe * info)
 {
 	unsigned short code;
@@ -207,12 +207,10 @@ math_emulate(struct trapframe * info)
 			real_to_real(&tmp,&ST(0));
 			return(0);
 		case 0x1a:
-			fcom(PST(code & 7),&tmp);
-			real_to_real(&tmp,&ST(0));
+			fcom(PST(code & 7),PST(0));
 			return(0);
 		case 0x1b:
-			fcom(PST(code & 7),&tmp);
-			real_to_real(&tmp,&ST(0));
+			fcom(PST(code & 7),PST(0));
 			fpop();
 			return(0);
 		case 0x1c:
@@ -521,7 +519,7 @@ static void fpop(void)
 {
 	unsigned long tmp;
 
-	tmp = I387.swd & 0xffffc7ff;
+	tmp = I387.swd & 0xffffc7ffUL;
 	I387.swd += 0x00000800;
 	I387.swd &= 0x00003800;
 	I387.swd |= tmp;
@@ -531,7 +529,7 @@ static void fpush(void)
 {
 	unsigned long tmp;
 
-	tmp = I387.swd & 0xffffc7ff;
+	tmp = I387.swd & 0xffffc7ffUL;
 	I387.swd += 0x00003800;
 	I387.swd &= 0x00003800;
 	I387.swd |= tmp;
@@ -992,7 +990,7 @@ static void div64(int * a, int * b, int * c)
 	for (i = 0 ; i<64 ; i++) {
 		if (!(mask >>= 1)) {
 			c--;
-			mask = 0x80000000;
+			mask = 0x80000000UL;
 		}
 		tmp[0] = a[0]; tmp[1] = a[1];
 		tmp[2] = a[2]; tmp[3] = a[3];
@@ -1236,7 +1234,7 @@ void short_to_temp(const short_real * a, temp_real * b)
 	b->exponent = ((*a>>23) & 0xff)-127+16383;
 	if (*a<0)
 		b->exponent |= 0x8000;
-	b->b = (*a<<8) | 0x80000000;
+	b->b = (*a<<8) | 0x80000000UL;
 	b->a = 0;
 }
 
@@ -1253,21 +1251,21 @@ void long_to_temp(const long_real * a, temp_real * b)
 	b->exponent = ((a->b >> 20) & 0x7ff)-1023+16383;
 	if (a->b<0)
 		b->exponent |= 0x8000;
-	b->b = 0x80000000 | (a->b<<11) | (((unsigned long)a->a)>>21);
+	b->b = 0x80000000UL | (a->b<<11) | (((unsigned long)a->a)>>21);
 	b->a = a->a<<11;
 }
 
 void temp_to_short(const temp_real * a, short_real * b)
 {
 	if (!(a->exponent & 0x7fff)) {
-		*b = (a->exponent)?0x80000000:0;
+		*b = (a->exponent)?0x80000000UL:0;
 		return;
 	}
 	*b = ((((long) a->exponent)-16383+127) << 23) & 0x7f800000;
 	if (a->exponent < 0)
-		*b |= 0x80000000;
+		*b |= 0x80000000UL;
 	*b |= (a->b >> 8) & 0x007fffff;
-	switch (ROUNDING) {
+	switch ((int)ROUNDING) {
 		case ROUND_NEAREST:
 			if ((a->b & 0xff) > 0x80)
 				++*b;
@@ -1287,16 +1285,16 @@ void temp_to_long(const temp_real * a, long_real * b)
 {
 	if (!(a->exponent & 0x7fff)) {
 		b->a = 0;
-		b->b = (a->exponent)?0x80000000:0;
+		b->b = (a->exponent)?0x80000000UL:0;
 		return;
 	}
 	b->b = (((0x7fff & (long) a->exponent)-16383+1023) << 20) & 0x7ff00000;
 	if (a->exponent < 0)
-		b->b |= 0x80000000;
+		b->b |= 0x80000000UL;
 	b->b |= (a->b >> 11) & 0x000fffff;
 	b->a = a->b << 21;
 	b->a |= (a->a >> 11) & 0x001fffff;
-	switch (ROUNDING) {
+	switch ((int)ROUNDING) {
 		case ROUND_NEAREST:
 			if ((a->a & 0x7ff) > 0x400)
 				__asm__("addl $1,%0 ; adcl $0,%1"
@@ -1353,7 +1351,7 @@ void frndint(const temp_real * a, temp_real * b)
 	__asm__("shrl %1,%0"
 		:"=r" (b->b)
 		:"c" ((char) shift),"0" (b->b));
-	switch (ROUNDING) {
+	switch ((int)ROUNDING) {
 		case ROUND_NEAREST:
 			__asm__("addl %4,%5 ; adcl $0,%0 ; adcl $0,%1"
 				:"=r" (b->a),"=r" (b->b)
@@ -1433,7 +1431,7 @@ void real_to_int(const temp_real * a, temp_int * b)
 	__asm__("shrl %1,%0"
 		:"=r" (b->b)
 		:"c" ((char) shift),"0" (b->b));
-	switch (ROUNDING) {
+	switch ((int)ROUNDING) {
 		case ROUND_NEAREST:
 			__asm__("addl %4,%5 ; adcl $0,%0 ; adcl $0,%1"
 				:"=r" (b->a),"=r" (b->b)

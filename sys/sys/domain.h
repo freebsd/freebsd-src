@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)domain.h	7.4 (Berkeley) 6/28/90
- *	$Id: domain.h,v 1.2 1993/10/16 17:16:39 rgrimes Exp $
+ *	$Id: domain.h,v 1.3 1993/11/07 17:52:32 wollman Exp $
  */
+
+#ifndef _SYS_DOMAIN_H_
+#define _SYS_DOMAIN_H_ 1
 
 /*
  * Structure per communications domain.
@@ -48,5 +51,6 @@ struct	domain {
 };
 
 #ifdef KERNEL
-struct	domain *domains;
+extern struct	domain *domains;
 #endif
+#endif /* _SYS_DOMAIN_H_ */

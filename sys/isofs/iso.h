@@ -1,6 +1,9 @@
 /*
- *	$Id: iso.h,v 1.2 1993/07/20 03:27:24 jkh Exp $
+ *	$Id: iso.h,v 1.5 1993/12/19 00:51:02 wollman Exp $
  */
+
+#ifndef _ISOFS_ISO_H_
+#define _ISOFS_ISO_H_ 1
 
 #define ISODCL(from, to) (to - from + 1)
 
@@ -109,5 +112,18 @@ int isofs_statfs __P((struct mount *mp, struct statfs *sbp, struct proc *p));
 int isofs_sync __P((struct mount *mp, int waitfor));
 int isofs_fhtovp __P((struct mount *mp, struct fid *fhp, struct vnode **vpp));
 int isofs_vptofh __P((struct vnode *vp, struct fid *fhp));
-int isofs_init __P(());
+void isofs_init __P((void));
 
+/* From isofs_util.c: */
+extern int isonum_711(char *);
+extern int isonum_712(char *);
+extern int isonum_721(char *);
+extern int isonum_722(char *);
+extern int isonum_723(char *);
+extern int isonum_731(u_char *);
+extern int isonum_732(u_char *);
+extern int isonum_733(u_char *);
+extern int isofncmp(char *, int, char *, int);
+extern void isofntrans(char *, int, char *, int *);
+
+#endif /* _ISOFS_ISO_H_ */

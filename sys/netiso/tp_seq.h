@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tp_seq.h	7.5 (Berkeley) 5/6/91
- *	$Id: tp_seq.h,v 1.2 1993/10/16 21:05:58 rgrimes Exp $
+ *	$Id: tp_seq.h,v 1.3 1993/11/07 17:49:58 wollman Exp $
  */
 
 /***********************************************************
@@ -120,4 +120,4 @@ SOFTWARE.
 #define IN_SWINDOW(tpcb, seq, lwe, uwe)\
 	( SEQ_GT(tpcb, seq, lwe) && SEQ_LEQ(tpcb, seq, uwe) )
 
-#endif __TP_SEQ__
+#endif /* __TP_SEQ__ */

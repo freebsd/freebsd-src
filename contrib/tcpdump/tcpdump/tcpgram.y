@@ -23,7 +23,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/tcpgram.y,v 1.1.1.1 1993/06/12 14:42:05 rgrimes Exp $ (LBL)";
+    "@(#) $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/tcpgram.y,v 1.1.1.1 1993/06/12 14:42:05 rgrimes Exp $ (LBL)";
 #endif
 
 #include <stdio.h>

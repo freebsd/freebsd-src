@@ -31,8 +31,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.2 1993/10/16 14:39:15 rgrimes Exp $
+ *	$Id: endian.h,v 1.4 1993/12/19 05:14:45 alm Exp $
  */
+
+#ifndef _MACHINE_ENDIAN_H_
+#define _MACHINE_ENDIAN_H_ 1
+
+/*
+ * Define the order of 32-bit words in 64-bit words.
+ */
+#define	_QUAD_HIGHWORD 1
+#define	_QUAD_LOWWORD 0
 
 /*
  * Definitions for byte order, according to byte significance from low
@@ -108,3 +117,4 @@
 #define	HTONL(x)	(x) = htonl((u_long)x)
 #define	HTONS(x)	(x) = htons((u_short)x)
 #endif
+#endif /* _MACHINE_ENDIAN_H_ */

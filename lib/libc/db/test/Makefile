@@ -1,10 +1,14 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/4/93
+#	@(#)Makefile	8.7 (Berkeley) 1/2/94
 
 PROG=	dbtest
-SRCS=	dbtest.c
+OBJS=	dbtest.o
 
-CFLAGS+=	-g -DDEBUG -DSTATISTICS
-NOMAN=		noman
+# Add -DSTATISTICS to CFLAGS to get btree statistical use info.
+# Note, the db library has to be compiled for statistics as well.
+CFLAGS=	-O -DDEBUG
 
-NOINCLUDE=1
-.include <bsd.prog.mk>
+dbtest: ${OBJS} ${LIB}
+	${CC} -o $@ ${OBJS} ${LIB}
+
+clean:
+	rm -f gmon.out ${OBJS} ${PROG} t1 t2 t3

@@ -2,7 +2,5 @@
 
 PROG=	showmount
 MAN8=	showmount.8
-DPADD=	${LIBRPC}
-LDADD=	-lrpc
 
 .include <bsd.prog.mk>

@@ -19,10 +19,10 @@ register char let;
 int roomno;
 register struct monst *shk;
 #ifdef WIZARD
+extern char *getenv();
+register char *ep = getenv("SHOPTYPE");
 	/* first determine shoptype */
 	if(wizard){
-		extern char *getenv();
-		register char *ep = getenv("SHOPTYPE");
 		if(ep){
 			if(*ep == 'z' || *ep == 'Z'){
 				mkzoo(ZOO);
@@ -58,7 +58,7 @@ gottype:
 			continue;
 		if(
 #ifdef WIZARD
-		   (wizard && getenv("SHOPTYPE") && sroom->doorct != 0) ||
+		   (wizard && ep != NULL && sroom->doorct != 0) ||
 #endif WIZARD
 			sroom->doorct <= 2 && sroom->doorct > 0) break;
 	}

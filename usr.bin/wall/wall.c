@@ -156,7 +156,7 @@ makemsg(fname)
 	}
 	(void)fprintf(fp, "%79s\r\n", " ");
 
-	if (*fname && !(freopen(fname, "r", stdin))) {
+	if (fname && *fname && !(freopen(fname, "r", stdin))) {
 		(void)fprintf(stderr, "wall: can't read %s.\n", fname);
 		exit(1);
 	}

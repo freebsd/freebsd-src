@@ -161,6 +161,8 @@ getcmd(name)
 	longest = 0;
 	nmatches = 0;
 	found = 0;
+	if (name == NULL)
+		return NULL;
 	for (c = cmdtab; c < &cmdtab[NCMDS]; c++) {
 		p = c->c_name;
 		for (q = name; *q == *p++; q++)

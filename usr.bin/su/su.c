@@ -76,8 +76,9 @@ main(argc, argv)
 	uid_t ruid, getuid();
 	int asme, ch, asthem, fastlogin, prio;
 	enum { UNSET, YES, NO } iscsh = UNSET;
-	char *user, *shell, *username, *cleanenv[2], *nargv[4], **np;
+	char *user, *shell, *username, *cleanenv[20], *nargv[4], **np;
 	char shellbuf[MAXPATHLEN];
+	char avshellbuf[MAXPATHLEN];
 	char *crypt(), *getpass(), *getenv(), *getlogin(), *ontty();
 
 	np = &nargv[3];
@@ -215,9 +216,9 @@ main(argc, argv)
 	if (!asme) {
 		if (asthem) {
 			p = getenv("TERM");
-			cleanenv[0] = _PATH_DEFPATH;
-			cleanenv[1] = NULL;
+			cleanenv[0] = NULL;
 			environ = cleanenv;
+			(void)setenv("PATH", _PATH_DEFPATH, 1);
 			(void)setenv("TERM", p, 1);
 			if (chdir(pwd->pw_dir) < 0) {
 				fprintf(stderr, "su: no directory\n");
@@ -237,8 +238,27 @@ main(argc, argv)
 			*np-- = "-m";
 	}
 
-	/* csh strips the first character... */
-	*np = asthem ? "-su" : iscsh == YES ? "_su" : "su";
+	/*  Setup argv[0] to show the shell; -shell if login shell  */
+	if (p = rindex(shell, '/')) {
+		++p;
+	} else {
+		p = shell;
+	}
+
+	if (asthem) {
+	    avshellbuf[0] = '-';
+	    strcpy(avshellbuf+1, p);
+	} else {
+	    /* csh strips the first character... */
+	    if (iscsh == YES) {
+		avshellbuf[0] = '_';
+		strcpy(avshellbuf+1, p);
+	    } else {
+		strcpy(avshellbuf, p);
+	    }
+	}
+
+	*np = avshellbuf;
 
 	if (ruid != 0)
 		syslog(LOG_NOTICE|LOG_AUTH, "%s to %s%s",

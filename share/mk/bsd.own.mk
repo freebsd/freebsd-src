@@ -1,4 +1,4 @@
-#	@(#)bsd.own.mk	0.1 (RGrimes) 4/4/93
+#	$Id: bsd.own.mk,v 1.3 1994/01/31 06:10:35 rgrimes Exp $
 
 BINGRP?=	bin
 BINOWN?=	bin

@@ -36,9 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.2 1993/10/16 14:14:51 rgrimes Exp $
+ *	$Id: cons.h,v 1.4 1993/11/27 19:19:19 wollman Exp $
  */
 
+#ifndef _MACHINE_CONS_H_
+#define _MACHINE_CONS_H_ 1
 
 struct consdev {
 	int	(*cn_probe)();	/* probe hardware and fill in consdev info */
@@ -63,4 +65,22 @@ struct consdev {
 extern	struct consdev constab[];
 extern	struct consdev *cn_tab;
 extern	struct tty *cn_tty;
-#endif
+
+struct proc; struct uio;
+
+/* cdevsw[] entries */
+extern int cnopen(int /*dev_t*/, int, int, struct proc *);
+extern int cnclose(int /*dev_t*/, int, int, struct proc *);
+extern int cnread(int /*dev_t*/, struct uio *, int);
+extern int cnwrite(int /*dev_t*/, struct uio *, int);
+extern int cnioctl(int /*dev_t*/, int, caddr_t, int, struct proc *);
+extern int cnselect(int /*dev_t*/, int, struct proc *);
+
+/* other kernel entry points */
+extern void cninit(void);
+extern int cngetc(void);
+extern void cnputc(int /*char*/);
+extern int pg(const char *, ...);
+
+#endif /* KERNEL */
+#endif /* _MACHINE_CONS_H_ */

@@ -372,7 +372,7 @@ will be as if a new shell had been invoked to handle the shell procedure,
 except that the location of commands located in the parent shell will
 be remembered by the child.  If the program is a file beginning with
 ``#!'', the remainder of the first line specifies an interpreter for
-the program.  The shell (or the operating system, under Berkeley UNIX)
+the program.  The operating system
 will run the interpreter in this case.  The arguments to the interpreter
 will consist of any arguments given on the first line of the program,
 followed by the name of the program, followed by the arguments passed
@@ -486,7 +486,7 @@ fields separated by a separator character, is used.
 When performing splitting, the shell scans the replacement text looking
 for a character (when IFS does not begin with a space) or a sequence of
 characters (when IFS does begin with a space), deletes the character or
-sequence of characters, and spits the word into two strings at that
+sequence of characters, and splits the word into two strings at that
 point.  When IFS begins with a space, the shell deletes either of the
 strings if they are null.  As a special case, if the word containing
 the replacement text is the null string, the word is deleted.

@@ -3,8 +3,27 @@
  * 
  * The low level driver for the SoundBlaster DS chips.
  * 
- * (C) 1992  Hannu Savolainen (hsavolai@cs.helsinki.fi) See COPYING for further
- * details. Should be distributed with this file.
+ * Copyright by Hannu Savolainen 1993
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. 2.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  * 
  * The mixer support is based on the SB-BSD 1.5 driver by (C) Steve Haehnichen
  * <shaehnic@ucsd.edu>
@@ -113,7 +132,8 @@ static volatile int irq_mode = IMODE_NONE;	/* IMODE_INPUT, IMODE_OUTPUT
 						 * or IMODE_NONE */
 static volatile int irq_ok = 0;
 
-static int      dsp_model = 1;	/* 1=SB, 2=SB Pro */
+static int      dsp_model = 1;  /* DSP version */
+static int      dsp_mono = 1;   /* 1 SB, 0 SB Pro */
 static int      duplex_midi = 0;
 static int      my_dev = 0;
 
@@ -205,7 +225,7 @@ sbintr (int unused)
 static int
 set_dsp_irq (int interrupt_level)
 {
-  int             retcode;
+  int             retcode = EINVAL;
 
 #ifdef linux
   struct sigaction sa;
@@ -338,7 +358,7 @@ dsp_set_stereo (int mode)
 {
   dsp_stereo = 0;
 
-  if (dsp_model == 1)
+  if (dsp_mono == 1)
     return 0;			/* Sorry no stereo */
 
   if (mode && midi_busy)
@@ -1021,7 +1041,10 @@ sb_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 /* Midi code */
 
 static int
-sb_midi_open (int dev, int mode)
+sb_midi_open (int dev, int mode,
+	      void            (*input) (int dev, unsigned char data),
+	      void            (*output) (int dev)
+)
 {
   int             ret;
 
@@ -1033,7 +1056,8 @@ sb_midi_open (int dev, int mode)
 
   if (mode != OPEN_WRITE && !duplex_midi)
     {
-      printk ("SoundBlaster: Midi input not currently supported\n");
+      if (num_midis == 1)
+	printk ("SoundBlaster: Midi input not currently supported\n");
       return RET_ERROR (EPERM);
     }
 
@@ -1238,20 +1262,17 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 	    }
 	}
     }
+    dsp_model = major;
 
 #ifndef EXCLUDE_SBPRO
   if (detect_mixer ())
     {
+      dsp_mono = 0;
       sprintf (sb_dsp_operations.name, "SoundBlaster Pro %d.%d", major, minor);
       init_mixer ();
-#if SBC_DMA < 4
-      /* This is a kludge for SB16 cards */
-      if (major == 3)
-	dsp_model = 2;		/* Do not enable if SB16 */
-#endif
       mixer_devs[num_mixers++] = &sb_mixer_operations;
 
-      if (major == 2 || major == 3)
+      if (major >= 2)
 	duplex_midi = 1;
 
 #ifndef EXCLUDE_YM8312
@@ -1290,7 +1311,6 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 #endif
 
   sb_dsp_ok = 1;
-  printk("\n");
   return mem_start;
 }
 

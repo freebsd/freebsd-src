@@ -112,7 +112,7 @@ main(argc, argv)
 
 	if (argc < 2)
 		fp = stdin;
-	else if (argc == 2) {
+	else if (argc > 2) {
 		(void)fprintf(stderr, "usage: tsort [ inputfile ]\n");
 		exit(1);
 	} else if (!(fp = fopen(argv[1], "r"))) {
@@ -271,7 +271,7 @@ add_node(name)
 void
 tsort()
 {
-	register NODE *n, *next;
+	register NODE *n, *m, *next;
 	register int cnt;
 
 	while (graph) {
@@ -310,6 +310,8 @@ tsort()
 		}
 		for (n = graph; n; n = n->n_next)
 			if (!(n->n_flags & NF_ACYCLIC)) {
+				for (m=graph; m; m=m->n_next)
+					m->n_flags &= ~NF_MARK;
 				if (cnt = find_cycle(n, n, 0, 0)) {
 					register int i;
 
@@ -350,7 +352,7 @@ remove_node(n)
 		n->n_next->n_prevp = n->n_prevp;
 }
 
-/* look for the longest cycle from node from to node to. */
+/* look for a path from node from to node to. */
 find_cycle(from, to, longest_len, depth)
 	NODE *from, *to;
 	int depth, longest_len;
@@ -377,11 +379,12 @@ find_cycle(from, to, longest_len, depth)
 			}
 		} else {
 			len = find_cycle(*np, to, longest_len, depth + 1);
-			if (len > longest_len)
+			if (len > longest_len) {
 				longest_len = len;
+				break;
+			}
 		}
 	}
-	from->n_flags &= ~NF_MARK;
 	return(longest_len);
 }
 

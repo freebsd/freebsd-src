@@ -120,6 +120,7 @@ checkout(uname)
 			CUMBER = 3;
 			WEIGHT = 9;	/* that'll get him! */
 			clock = 10;
+			location = dayfile;
 			setbit(location[7].objects, WOODSMAN);	/* viper room */
 			setbit(location[20].objects, WOODSMAN);	/* laser " */
 			setbit(location[13].objects, DARK);	/* amulet " */

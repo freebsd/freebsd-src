@@ -64,20 +64,24 @@ max(a,b)
  */
 display(win, text, size)
 	register xwin_t *win;
-	register char *text;
+	register unsigned char *text;
 	int size;
 {
 	register int i;
 	char cch;
 
 	for (i = 0; i < size; i++) {
-		if (*text == '\n') {
-			xscroll(win, 0);
+		if (*text == '\n' || *text == '\r') {
+			waddch(win->x_win, '\n');
+			getyx(win->x_win, win->x_line, win->x_col);
 			text++;
 			continue;
 		}
 		/* erase character */
-		if (*text == win->cerase) {
+		if (   *text == win->cerase
+		    || *text == 010     /* backspace */
+		    || *text == 0177    /* del */
+		   ) {
 			wmove(win->x_win, win->x_line, max(--win->x_col, 0));
 			getyx(win->x_win, win->x_line, win->x_col);
 			waddch(win->x_win, ' ');
@@ -91,7 +95,9 @@ display(win, text, size)
 		 * the beginning of a word or the beginning of
 		 * the line.
 		 */
-		if (*text == win->werase) {
+		if (   *text == win->werase
+		    || *text == 027     /* ^W */
+		   ) {
 			int endcol, xcol, i, c;
 
 			endcol = win->x_col;
@@ -116,7 +122,9 @@ display(win, text, size)
 			continue;
 		}
 		/* line kill */
-		if (*text == win->kill) {
+		if (   *text == win->kill
+		    || *text == 025     /* ^U */
+		   ) {
 			wmove(win->x_win, win->x_line, 0);
 			wclrtoeol(win->x_win);
 			getyx(win->x_win, win->x_line, win->x_col);
@@ -129,15 +137,14 @@ display(win, text, size)
 			text++;
 			continue;
 		}
-		if (win->x_col == COLS-1) {
-			/* check for wraparound */
-			xscroll(win, 0);
+		if (*text == '\7') {
+			_putchar(*text);
+			text++;
+			continue;
 		}
 		if (*text < ' ' && *text != '\t') {
 			waddch(win->x_win, '^');
 			getyx(win->x_win, win->x_line, win->x_col);
-			if (win->x_col == COLS-1) /* check for wraparound */
-				xscroll(win, 0);
 			cch = (*text & 63) + 64;
 			waddch(win->x_win, cch);
 		} else
@@ -162,28 +169,4 @@ readwin(win, line, col)
 	c = winch(win);
 	wmove(win, oldline, oldcol);
 	return (c);
-}
-
-/*
- * Scroll a window, blanking out the line following the current line
- * so that the current position is obvious
- */
-xscroll(win, flag)
-	register xwin_t *win;
-	int flag;
-{
-
-	if (flag == -1) {
-		wmove(win->x_win, 0, 0);
-		win->x_line = 0;
-		win->x_col = 0;
-		return;
-	}
-	win->x_line = (win->x_line + 1) % win->x_nlines;
-	win->x_col = 0;
-	wmove(win->x_win, win->x_line, win->x_col);
-	wclrtoeol(win->x_win);
-	wmove(win->x_win, (win->x_line + 1) % win->x_nlines, win->x_col);
-	wclrtoeol(win->x_win);
-	wmove(win->x_win, win->x_line, win->x_col);
 }

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.5 1993/10/24 06:19:58 paul Exp $
+	$Id: syscalls.master,v 1.8 1994/01/31 10:27:25 davidg Exp $
 ;	from: @(#)syscalls.master	7.26 (Berkeley) 3/25/91
 ; System call name/number master file.
 ; Processed to created init_sysent.c, syscalls.c and syscall.h.
@@ -221,12 +221,20 @@
 162	STD	2 getdomainname
 163	STD	2 setdomainname
 164	STD	1 uname
-165	UNIMPL	0 nosys
+165	STD	2 sysarch
 166	UNIMPL	0 nosys
 167	UNIMPL	0 nosys
 168	UNIMPL	0 nosys
+#ifdef SYSVSEM
+169	STD	5 semsys
+#else
 169	UNIMPL	0 nosys
+#endif
+#ifdef SYSVMSG
+170	STD	6 msgsys
+#else
 170	UNIMPL	0 nosys
+#endif
 #ifdef SYSVSHM
 171	STD	4 shmsys
 #else
@@ -237,10 +245,17 @@
 174	UNIMPL	0 nosys
 175	UNIMPL	0 nosys
 176	UNIMPL	0 nosys
+#ifdef MACHVMCOMPAT
+177	STD	4 svm_allocate vm_allocate
+178	STD	3 svm_deallocate vm_deallocate
+179	STD	4 svm_inherit vm_inherit
+180	STD	5 svm_protect vm_protect
+#else
 177	UNIMPL	0 nosys
 178	UNIMPL	0 nosys
 179	UNIMPL	0 nosys
 180	UNIMPL	0 nosys
+#endif
 
 ; Syscalls 180-199 are used by/reserved for BSD
 181	STD	1 setgid

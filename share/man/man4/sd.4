@@ -52,6 +52,7 @@ and the next,
 .Em sd1
 etc.
 .Pp
+.Sh PARTITIONING
 The 
 .Nm
 driver allows the disk to have two levels of partitioning.
@@ -122,7 +123,10 @@ The fourth partition is special. No matter what the disklabel
 says, the fourth partition (partition d) reflectls the entire disk, including 
 those areas OUTSIDE the BSD partitions. At some times it is suggested that
 the c partition might be used to represent the entire BSD partition, so these
-two partitions should be avoided when laying out filesystems.
+two partitions should be avoided when laying out filesystems. The fourth
+partition must be used for general
+.Xr scsi 4
+ioctls.
 .Pp
 While partitions are only theoretically valid within the BSD partition, they
 are specified in terms of absolute block numbers, so it is possible to
@@ -130,6 +134,7 @@ specify a partition that lies outside of the BSD partition. This is useful
 if one wants to have a /dev entry that points to a partition belonging
 to another OS (e.g. DOS).
 .Pp
+.Sh KERNEL CONFIGURATION
 In configuring, if an optional
 .Ar count
 is given in
@@ -138,6 +143,7 @@ Most storage for them is allocated only when found so a large number
 of configured devices is cheap. (once the first has included the driver).
 
 .Pp
+.Sh IOCTLS
 The following 
 .Xr ioctl 2
 calls apply to scsi disks as well as to other disks. They are defined
@@ -166,8 +172,26 @@ write protect of the disklabel on the disk.
 .It Dv DIOCWDINFO
 Give the driver a new disklabel to use. The driver WILL try write the new
 disklabel to the disk.
-.Pp
 .El
+.Pp
+In addition, the 
+.Xr scsi 4
+general ioctls may be used with the 
+.Nm
+driver, but only against the fourth (whole disk) partition.
+.Sh NOTES
+If a removable device is attached to the 
+.Nm
+driver, then the act of changing the media will invalidate the 
+disklabel and information held within the kernel. To stop corruption,
+All accesses to the device will be discarded until there are no more
+open file descriptors referencing the device. During this period, all 
+new open attempts will be rejected. When No more open file descriptors
+reference the device, the first next open will load a new set of
+figures (including disklabel) for the drive.
+
+An ioctl to map out a bad block is planned. (the code is already present
+in the driver).
 
 .Sh FILES
 .Bl -tag -width /dev/rsd[0-9][a-h] -compact

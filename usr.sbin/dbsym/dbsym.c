@@ -3,7 +3,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: dbsym.c,v 1.2 1993/09/26 16:40:41 rgrimes Exp $";
+static char rcsid[] = "$Id: dbsym.c,v 1.3 1994/01/19 03:52:25 nate Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -11,6 +11,11 @@ static char rcsid[] = "$Id: dbsym.c,v 1.2 1993/09/26 16:40:41 rgrimes Exp $";
 #include <a.out.h>
 #include <stab.h>
 #include <machine/param.h>
+#include <vm/vm_param.h>
+#include <vm/lock.h>
+#include <vm/vm_statistics.h>
+#include <machine/pmap.h>
+#include <machine/vmparam.h>
 
 #define FILE_OFFSET(vadr) (((vadr) - text_adr) - N_DATADDR(hdr) + \
 			   N_DATOFF(hdr) + N_TXTADDR(hdr))

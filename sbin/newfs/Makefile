@@ -2,10 +2,10 @@
 
 PROG=	newfs
 CFLAGS+=-DMFS
-SRCS=	dkcksum.c newfs.c mkfs.c
+SRCS=	dkcksum.c newfs.c mkfs.c mfs.c
 MAN8=	newfs.8
 LINKS=	${BINDIR}/newfs ${BINDIR}/mount_mfs
-MLINKS=	newfs.8 mfs.8
+MLINKS=	newfs.8 mount_mfs.8
 .PATH:	${.CURDIR}/../disklabel
 
 .include <bsd.prog.mk>

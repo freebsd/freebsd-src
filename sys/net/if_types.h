@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)if_types.h	7.3 (Berkeley) 6/28/90
- *	$Id: if_types.h,v 1.3 1993/10/16 17:43:25 rgrimes Exp $
+ *	$Id: if_types.h,v 1.4 1993/11/07 17:47:01 wollman Exp $
  */
+
+#ifndef _NET_IF_TYPES_H_
+#define _NET_IF_TYPES_H_ 1
 
 
 /* interface types for benefit of parsing media address headers */
@@ -64,3 +67,4 @@
 #define	IFT_NSIP	0x1b		/* XNS over IP */
 #define	IFT_SLIP	0x1c		/* IP over generic TTY */
 #define	IFT_PPP		0x1d		/* PPP over generic TTY */
+#endif /* _NET_IF_TYPES_H_ */
