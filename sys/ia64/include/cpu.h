@@ -107,34 +107,34 @@ struct trapframe;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected, mc_received;
 
-int	badaddr	__P((void *, size_t));
-int	badaddr_read __P((void *, size_t, void *));
-u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
-void	do_sir __P((void));
-void	dumpconf __P((void));
-void	exception_restore __P((void));				/* MAGIC */
-void	frametoreg __P((struct trapframe *, struct reg *));
-long	fswintrberr __P((void));				/* MAGIC */
-int	ia64_pa_access __P((u_long));
-void	ia64_init __P((u_int64_t, u_int64_t));
-void	ia64_fpstate_check __P((struct thread *p));
-void	ia64_fpstate_save __P((struct thread *p, int write));
-void	ia64_fpstate_drop __P((struct thread *p));
-void	ia64_fpstate_switch __P((struct thread *p));
-void	init_prom_interface __P((struct rpb*));
-void	interrupt __P((u_int64_t, struct trapframe *));
+int	badaddr	(void *, size_t);
+int	badaddr_read(void *, size_t, void *);
+u_int64_t console_restart(u_int64_t, u_int64_t, u_int64_t);
+void	do_sir(void);
+void	dumpconf(void);
+void	exception_restore(void);				/* MAGIC */
+void	frametoreg(struct trapframe *, struct reg *);
+long	fswintrberr(void);				/* MAGIC */
+int	ia64_pa_access(u_long);
+void	ia64_init(u_int64_t, u_int64_t);
+void	ia64_fpstate_check(struct thread *p);
+void	ia64_fpstate_save(struct thread *p, int write);
+void	ia64_fpstate_drop(struct thread *p);
+void	ia64_fpstate_switch(struct thread *p);
+void	init_prom_interface(struct rpb*);
+void	interrupt(u_int64_t, struct trapframe *);
 void	machine_check
-	__P((unsigned long, struct trapframe *, unsigned long, unsigned long));
-u_int64_t hwrpb_checksum __P((void));
-void	hwrpb_restart_setup __P((void));
-void	regdump __P((struct trapframe *));
-void	regtoframe __P((struct reg *, struct trapframe *));
-int	savectx __P((struct pcb *));
-void	restorectx __P((struct pcb *));
-void	set_iointr __P((void (*)(void *, unsigned long)));
-void	fork_trampoline __P((void));				/* MAGIC */
-void	syscall __P((int, u_int64_t *, struct trapframe *));
-void	trap __P((int vector, int imm, struct trapframe *framep));
+	(unsigned long, struct trapframe *, unsigned long, unsigned long);
+u_int64_t hwrpb_checksum(void);
+void	hwrpb_restart_setup(void);
+void	regdump(struct trapframe *);
+void	regtoframe(struct reg *, struct trapframe *);
+int	savectx(struct pcb *);
+void	restorectx(struct pcb *);
+void	set_iointr(void (*)(void *, unsigned long));
+void	fork_trampoline(void);				/* MAGIC */
+void	syscall(int, u_int64_t *, struct trapframe *);
+void	trap(int vector, int imm, struct trapframe *framep);
 void	ia64_probe_sapics(void);
 int	ia64_count_aps(void);
 void	map_pal_code(void);

@@ -130,18 +130,18 @@ extern vm_offset_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-vm_offset_t pmap_steal_memory __P((vm_size_t));
-void	pmap_bootstrap __P((void));
-void	pmap_setdevram __P((unsigned long long basea, vm_offset_t sizea));
-int	pmap_uses_prom_console __P((void));
-pmap_t	pmap_kernel __P((void));
-void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
-void	pmap_unmapdev __P((vm_offset_t, vm_size_t));
-unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
-void	pmap_set_opt	__P((unsigned *));
-void	pmap_set_opt_bsp	__P((void));
-struct pmap *pmap_install __P((struct pmap *pmap));
+vm_offset_t pmap_steal_memory(vm_size_t);
+void	pmap_bootstrap(void);
+void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
+int	pmap_uses_prom_console(void);
+pmap_t	pmap_kernel(void);
+void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	pmap_unmapdev(vm_offset_t, vm_size_t);
+unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;
+vm_page_t pmap_use_pt(pmap_t, vm_offset_t);
+void	pmap_set_opt	(unsigned *);
+void	pmap_set_opt_bsp	(void);
+struct pmap *pmap_install(struct pmap *pmap);
 
 #endif /* _KERNEL */
 
