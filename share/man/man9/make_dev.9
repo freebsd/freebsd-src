@@ -36,12 +36,12 @@
 .Vt dev_t Ns 's
 and DEVFS registration for devices
 .Sh SYNOPSIS
-.In sys/types.h
+.In sys/param.h
 .In sys/conf.h
 .Ft dev_t
-.Fn make_dev "struct cdevsw *cdevsw" "int minor" "uid_t uid" "gid_t gid" "int perms" "char *fmt" ...
+.Fn make_dev "struct cdevsw *cdevsw" "int minor" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
 .Ft dev_t
-.Fn make_dev_alias "dev_t pdev" "char *fmt" ...
+.Fn make_dev_alias "dev_t pdev" "const char *fmt" ...
 .Ft void
 .Fn destroy_dev "dev_t dev"
 .Ft void
