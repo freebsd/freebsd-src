@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.25 1999/10/12 04:38:20 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.26 1999/12/30 07:38:33 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -312,6 +312,7 @@ launch_requests(struct request *rq, int reviveok)
     int rqno;						    /* loop index */
     struct rqelement *rqe;				    /* current element */
     struct drive *drive;
+    int rcount;						    /* request count */
 
     /*
      * First find out whether we're reviving, and the
@@ -336,9 +337,9 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
 	    log(LOG_DEBUG,
-		"Revive conflict sd %d: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
+		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		rq->sdno,
-		(u_int) rq,
+		rq,
 		rq->bp->b_flags & B_READ ? "Read" : "Write",
 		major(rq->bp->b_dev),
 		minor(rq->bp->b_dev),
@@ -351,14 +352,14 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "Request: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
-	    (u_int) rq,
+	    "Request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+	    rq,
 	    rq->bp->b_flags & B_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
 	    minor(rq->bp->b_dev),
 	    rq->bp->b_blkno,
 	    rq->bp->b_bcount);
-    vinum_conf.lastrq = (int) rq;
+    vinum_conf.lastrq = rq;
     vinum_conf.lastbuf = rq->bp;
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_user_bpl, (union rqinfou) rq->bp, rq->bp);
@@ -383,22 +384,33 @@ launch_requests(struct request *rq, int reviveok)
     }
 
     /* Now fire off the requests */
-    s = splbio();					    /* lock out the interrupt routines */
-    for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
-	for (rqno = 0; rqno < rqg->count; rqno++) {
+    for (rqg = rq->rqg; rqg != NULL;) {			    /* through the whole request chain */
+	if (rqg->lockbase >= 0)				    /* this rqg needs a lock first */
+	    rqg->lock = lockrange(rqg->lockbase, rqg->rq->bp, &PLEX[rqg->plexno]);
+	rcount = rqg->count;
+	for (rqno = 0; rqno < rcount;) {
 	    rqe = &rqg->rqe[rqno];
+
+	    /*
+	     * Point to next rqg before the bottom end
+	     * changes the structures.
+	     */
+	    if (++rqno >= rcount)
+		rqg = rqg->next;
 	    if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {	    /* this subdisk is good, */
 		/* Check that we're not overloading things */
 		drive = &DRIVE[rqe->driveno];		    /* look at drive */
+		s = splbio();				    /* lock out the interrupt routines */
 		while ((drive->active >= DRIVE_MAXACTIVE)   /* it has too much to do already, */
 		||(vinum_conf.active >= VINUM_MAXACTIVE))   /* or too many requests globally */
-		    tsleep(&launch_requests, PRIBIO, "vinbuf", 0); /* wait for it to subside, XXX: should PCATCH */
+		    tsleep(&launch_requests, PRIBIO | PCATCH, "vinbuf", 0); /* wait for it to subside */
 		drive->active++;
 		if (drive->active >= drive->maxactive)
 		    drive->maxactive = drive->active;
 		vinum_conf.active++;
 		if (vinum_conf.active >= vinum_conf.maxactive)
 		    vinum_conf.maxactive = vinum_conf.active;
+		splx(s);
 
 #if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
@@ -430,7 +442,6 @@ launch_requests(struct request *rq, int reviveok)
 	    }
 	}
     }
-    splx(s);
     return 0;
 }
 
@@ -1048,6 +1059,7 @@ allocrqg(struct request *rq, int elements)
 	rqg->rq = rq;					    /* point back to the parent request */
 	rqg->count = elements;				    /* number of requests in the group */
     }
+    rqg->lockbase = -1;					    /* no lock required yet */
     return rqg;
 }
 
