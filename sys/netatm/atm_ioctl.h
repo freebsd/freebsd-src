@@ -73,7 +73,7 @@ struct atmsetreq {
 			Atm_addr	asru_arp_addr;	/* ARP srvr address */
 			Atm_addr	asru_arp_subaddr;/* ARP srvr subaddr */
 			caddr_t		asru_arp_pbuf;	/* Prefix buffer addr */
-			int		asru_arp_plen;	/* Prefix buffer len */
+			size_t		asru_arp_plen;	/* Prefix buffer len */
 		} asru_asrvr;
 		/* MAC address */
 		struct {
@@ -84,7 +84,7 @@ struct atmsetreq {
 		struct {
 			char	asru_nif_intf[IFNAMSIZ];/* Interface name */
 			char	asru_nif_pref[IFNAMSIZ];/* I/f prefix name */
-			int	asru_nif_cnt;		/* Number of i/fs */
+			u_int	asru_nif_cnt;		/* Number of i/fs */
 		} asru_nif;
 		/* NSAP prefix */
 		struct {
@@ -198,7 +198,7 @@ struct atmdelreq {
 struct atminfreq {
 	int		air_opcode;		/* Sub-operation */
 	caddr_t		air_buf_addr;		/* Buffer for returned info */
-	int		air_buf_len;		/* Buffer length */
+	size_t		air_buf_len;		/* Buffer length */
 	union {
 		/* Vendor info */
 		char		airu_vinfo_intf[IFNAMSIZ];/* Interface name */
@@ -247,7 +247,7 @@ struct atminfreq {
  */
 struct air_vinfo_rsp {
 	char		avsp_intf[IFNAMSIZ];	/* Interface name */
-	int		avsp_len;		/* Length of returned
+	size_t		avsp_len;		/* Length of returned
 							Vendor Info block */
 						/* Vendor info ... */
 };
@@ -311,7 +311,7 @@ struct air_int_rsp {
 	u_char		anp_sig_proto;		/* Signalling protocol */
 	u_char		anp_sig_state;		/* Signalling protocol state */
 	char		anp_nif_pref[IFNAMSIZ]; /* Netif prefix */
-	int		anp_nif_cnt;		/* No. of netifs */
+	u_int		anp_nif_cnt;		/* No. of netifs */
 };
 
 /*
@@ -341,12 +341,12 @@ struct air_vcc_rsp {
 	char		avp_owners[(T_ATM_APP_NAME_LEN+1)*O_CNT];/* VCC users */
 	Atm_addr	avp_daddr;		/* Address of far end */
 	Atm_addr	avp_dsubaddr;		/* Subaddress of far end */
-	long		avp_ipdus;		/* PDUs received from VCC */
-	long		avp_opdus;		/* PDUs sent to VCC */
-	long		avp_ibytes;		/* Bytes received from VCC */
-	long		avp_obytes;		/* Bytes sent to VCC */
-	long		avp_ierrors;		/* Errors receiving from VCC */
-	long		avp_oerrors;		/* Errors sending to VCC */
+	u_long		avp_ipdus;		/* PDUs received from VCC */
+	u_long		avp_opdus;		/* PDUs sent to VCC */
+	u_long		avp_ibytes;		/* Bytes received from VCC */
+	u_long		avp_obytes;		/* Bytes sent to VCC */
+	u_long		avp_ierrors;		/* Errors receiving from VCC */
+	u_long		avp_oerrors;		/* Errors sending to VCC */
 	time_t		avp_tstamp;		/* State transition timestamp */
 };
 

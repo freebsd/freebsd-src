@@ -555,9 +555,11 @@ sigpvc_ioctl(code, data, arg1)
 	Atm_connection	*cop;
 	caddr_t		cp;
 	u_int	vpi, vci;
-	int	i, space, err = 0;
+	int err;
+	size_t space;
+	size_t tlen;
 
-
+	err = 0;
 	switch (code) {
 
 	case AIOCS_DEL_PVC:
@@ -633,10 +635,10 @@ sigpvc_ioctl(code, data, arg1)
 			else
 				avr.avp_encaps = 0;
 			bzero(avr.avp_owners, sizeof(avr.avp_owners));
-			for (i = 0; cop && i < sizeof(avr.avp_owners);
+			for (tlen = 0; cop && tlen < sizeof(avr.avp_owners);
 					cop = cop->co_next,
-					i += T_ATM_APP_NAME_LEN+1) {
-				strncpy(&avr.avp_owners[i],
+					tlen += T_ATM_APP_NAME_LEN + 1) {
+				strncpy(&avr.avp_owners[tlen],
 					cop->co_endpt->ep_getname(cop->co_toku),
 					T_ATM_APP_NAME_LEN);
 			}

@@ -58,12 +58,12 @@ struct vccb {
 	u_short		vc_vpi;		/* Virtual Path Identifier */
 	u_short		vc_vci;		/* Virtual Channel Identifier */
 	Atm_connvc	*vc_connvc;	/* CM connection VCC instance */
-	long		vc_ipdus;	/* PDUs received from VCC */
-	long		vc_opdus;	/* PDUs sent to VCC */
-	long		vc_ibytes;	/* Bytes received from VCC */
-	long		vc_obytes;	/* Bytes sent to VCC */
-	long		vc_ierrors;	/* Errors receiving from VCC */
-	long		vc_oerrors;	/* Errors sending to VCC */
+	u_long		vc_ipdus;	/* PDUs received from VCC */
+	u_long		vc_opdus;	/* PDUs sent to VCC */
+	u_long		vc_ibytes;	/* Bytes received from VCC */
+	u_long		vc_obytes;	/* Bytes sent to VCC */
+	u_long		vc_ierrors;	/* Errors receiving from VCC */
+	u_long		vc_oerrors;	/* Errors sending to VCC */
 	time_t		vc_tstamp;	/* State transition timestamp */
 };
 #endif	/* _KERNEL */

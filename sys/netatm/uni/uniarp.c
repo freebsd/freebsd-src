@@ -864,7 +864,9 @@ uniarp_ioctl(code, data, arg1)
 	struct in_addr		ip;
 	Atm_addr		atmsub;
 	u_long			dst;
-	int			err = 0, i, buf_len;
+	int			err = 0;
+	size_t			buf_len, tlen;
+	u_int			i;
 	caddr_t			buf_addr;
 
 	switch (code) {
@@ -962,7 +964,7 @@ uniarp_ioctl(code, data, arg1)
 		 */
 		if (asp->asr_arp_addr.address_format == T_ATM_ABSENT) {
 			i = asp->asr_arp_plen / sizeof(struct uniarp_prf);
-			if (i <= 0) {
+			if (i == 0) {
 				err = EINVAL;
 				break;
 			}
@@ -1215,16 +1217,17 @@ updbuf:
 			 * Copy the prefix list into the user's buffer
 			 */
 			if (uip->uip_nprefix) {
-				i = uip->uip_nprefix 
-						* sizeof(struct uniarp_prf);
-				if (buf_len < i) {
+				tlen = uip->uip_nprefix *
+				    sizeof(struct uniarp_prf);
+				if (buf_len < tlen) {
 					err = ENOSPC;
 					break;
 				}
-				if ((err = copyout(uip->uip_prefix, buf_addr, i)) != 0)
+				err = copyout(uip->uip_prefix, buf_addr, tlen);
+				if (err != 0)
 					break;
-				buf_addr += i;
-				buf_len -= i;
+				buf_addr += tlen;
+				buf_len -= tlen;
 			}
 		}
 
