@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.91 1996/06/17 19:49:17 wollman Exp $
+#	$Id: Makefile,v 1.92 1996/06/23 12:13:02 sos Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
@@ -29,8 +29,6 @@ SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol iostat \
 SUBDIR+=config iostat
 .elif ${MACHINE} == "mips"
 SUBDIR+=config iostat
-.elif ${MACHINE} == "sparc"
-SUBDIR+=eeprom
 .elif ${MACHINE} == "tahoe"
 SUBDIR+=config iostat
 .endif
