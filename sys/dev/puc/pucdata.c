@@ -51,6 +51,16 @@ int puc_config_win877(struct puc_softc *);
 
 const struct puc_device_description puc_devices[] = {
 
+	{   "Sunix SUN1889",
+	    NULL,
+	    {	0x0009,	0x7168,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 8 },
+	    },
+	},
+
 	{   "Diva Serial [GSP] Multiport UART",
 	    NULL,
 	    {   0x103c, 0x1048, 0x103c, 0x1282 },
@@ -1219,16 +1229,6 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x78, COM_FREQ * 8, 0x200000 },
 	    },
 	    PUC_ILR_TYPE_DIGI, { 0x07, 0x47 },
-	},
-
-	{   "Sunix SUN1889",
-	    NULL,
-	    {	0x0009,	0x7168,	0,	0	},
-	    {	0xffff,	0xffff,	0,	0	},
-	    {
-		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8 },
-		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 8 },
-	    },
 	},
 
 	{ 0 }
