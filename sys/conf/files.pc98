@@ -362,6 +362,7 @@ i4b/layer1/itjc/i4b_itjc_l1fsm.c	optional	itjc
 isa/psm.c			optional	psm
 kern/imgact_aout.c		standard
 kern/imgact_gzip.c		optional	gzip
+kern/kern_poll.c		optional	device_polling
 kern/link_aout.c		standard
 kern/md4c.c			optional	netsmb
 kern/subr_diskmbr.c		count		compat_atdisk
