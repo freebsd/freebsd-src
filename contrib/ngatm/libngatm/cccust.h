@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: libunimsg/libngatm/cccust.h,v 1.1 2004/07/08 08:35:37 brandt Exp $
+ * $Begemot: libunimsg/libngatm/cccust.h,v 1.2 2004/07/16 18:48:24 brandt Exp $
  *
  * Customisation of call control source to user space.
  */
@@ -45,3 +45,5 @@
 #define	CCMALLOC(S)	(malloc((S)))
 #define	CCZALLOC(S)	(calloc(1, (S)))
 #define	CCFREE(P)	do { free(P); } while (0)
+
+#define	CCGETERRNO()	(errno)
