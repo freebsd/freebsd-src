@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.26 1995/03/10 19:41:50 davidg Exp $
+ *	$Id: ld.c,v 1.27 1995/05/30 05:01:44 rgrimes Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -2463,12 +2463,16 @@ write_output()
 {
 	struct stat	statbuf;
 	int		filemode;
-
+	mode_t		u_mask;
+	
 	if (lstat(output_filename, &statbuf) == 0) {
 		if (S_ISREG(statbuf.st_mode))
 			(void)unlink(output_filename);
 	}
 
+	u_mask = umask(0);
+	(void)umask(u_mask);
+	
 	outstream = fopen(output_filename, "w");
 	if (outstream == NULL)
 		err(1, "open: %s", output_filename);
@@ -2502,7 +2506,7 @@ write_output()
 	/* Output the RSS section */
 	write_rrs();
 
-	if (chmod (output_filename, filemode | 0111) == -1)
+	if (chmod (output_filename, filemode | (0111 & ~u_mask)) == -1)
 		err(1, "chmod: %s", output_filename);
 
 	fflush(outstream);
