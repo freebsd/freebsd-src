@@ -3,7 +3,6 @@
 .PATH:	${.CURDIR}/../../nwfs
 
 KMOD=	nwfs
-KMODDEPS= ncp
 
 SRCS=	vnode_if.h \
 	nwfs_node.c nwfs_ioctl.c nwfs_io.c nwfs_vfsops.c nwfs_vnops.c \
