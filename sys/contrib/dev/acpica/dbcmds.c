@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 90 $
+ *              $Revision: 97 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -215,7 +215,7 @@ AcpiDbWalkForReferences (
 
 void
 AcpiDbFindReferences (
-    NATIVE_CHAR             *ObjectArg)
+    char                    *ObjectArg)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
@@ -273,7 +273,7 @@ AcpiDbDisplayLocks (void)
 
 void
 AcpiDbDisplayTableInfo (
-    NATIVE_CHAR             *TableArg)
+    char                    *TableArg)
 {
     UINT32                  i;
 
@@ -283,7 +283,7 @@ AcpiDbDisplayTableInfo (
         if (AcpiGbl_AcpiTables[i].Pointer)
         {
             AcpiOsPrintf ("%s at %p length %X\n", AcpiGbl_AcpiTableData[i].Name,
-                        AcpiGbl_AcpiTables[i].Pointer, 
+                        AcpiGbl_AcpiTables[i].Pointer,
                         (UINT32) AcpiGbl_AcpiTables[i].Length);
         }
     }
@@ -307,8 +307,8 @@ AcpiDbDisplayTableInfo (
 
 void
 AcpiDbUnloadAcpiTable (
-    NATIVE_CHAR             *TableArg,
-    NATIVE_CHAR             *InstanceArg)
+    char                    *TableArg,
+    char                    *InstanceArg)
 {
     UINT32                  i;
     ACPI_STATUS             Status;
@@ -359,7 +359,7 @@ AcpiDbUnloadAcpiTable (
 
 void
 AcpiDbSetMethodBreakpoint (
-    NATIVE_CHAR             *Location,
+    char                    *Location,
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -432,7 +432,7 @@ AcpiDbSetMethodCallBreakpoint (
 
 void
 AcpiDbDisassembleAml (
-    NATIVE_CHAR             *Statements,
+    char                    *Statements,
     ACPI_PARSE_OBJECT       *Op)
 {
     UINT32                  NumStatements = 8;
@@ -449,9 +449,7 @@ AcpiDbDisassembleAml (
         NumStatements = ACPI_STRTOUL (Statements, NULL, 0);
     }
 
-#ifdef ACPI_DISASSEMBLER
     AcpiDmDisassemble (NULL, Op, NumStatements);
-#endif
 }
 
 
@@ -471,8 +469,8 @@ AcpiDbDisassembleAml (
 
 void
 AcpiDbDumpNamespace (
-    NATIVE_CHAR             *StartArg,
-    NATIVE_CHAR             *DepthArg)
+    char                    *StartArg,
+    char                    *DepthArg)
 {
     ACPI_HANDLE             SubtreeEntry = AcpiGbl_RootNode;
     UINT32                  MaxDepth = ACPI_UINT32_MAX;
@@ -547,8 +545,8 @@ AcpiDbDumpNamespace (
 
 void
 AcpiDbDumpNamespaceByOwner (
-    NATIVE_CHAR             *OwnerArg,
-    NATIVE_CHAR             *DepthArg)
+    char                    *OwnerArg,
+    char                    *DepthArg)
 {
     ACPI_HANDLE             SubtreeEntry = AcpiGbl_RootNode;
     UINT32                  MaxDepth = ACPI_UINT32_MAX;
@@ -591,7 +589,7 @@ AcpiDbDumpNamespaceByOwner (
 
 void
 AcpiDbSendNotify (
-    NATIVE_CHAR             *Name,
+    char                    *Name,
     UINT32                  Value)
 {
     ACPI_NAMESPACE_NODE     *Node;
@@ -647,11 +645,11 @@ AcpiDbSendNotify (
 
 void
 AcpiDbSetMethodData (
-    NATIVE_CHAR             *TypeArg,
-    NATIVE_CHAR             *IndexArg,
-    NATIVE_CHAR             *ValueArg)
+    char                    *TypeArg,
+    char                    *IndexArg,
+    char                    *ValueArg)
 {
-    NATIVE_CHAR             Type;
+    char                    Type;
     UINT32                  Index;
     UINT32                  Value;
     ACPI_WALK_STATE         *WalkState;
@@ -703,7 +701,7 @@ AcpiDbSetMethodData (
 
         /* Set a method argument */
 
-        if (Index > MTH_MAX_ARG)
+        if (Index > ACPI_METHOD_MAX_ARG)
         {
             AcpiOsPrintf ("Arg%d - Invalid argument name\n", Index);
             return;
@@ -725,7 +723,7 @@ AcpiDbSetMethodData (
 
         /* Set a method local */
 
-        if (Index > MTH_MAX_LOCAL)
+        if (Index > ACPI_METHOD_MAX_LOCAL)
         {
             AcpiOsPrintf ("Local%d - Invalid local variable name\n", Index);
             return;
@@ -796,12 +794,12 @@ AcpiDbWalkForSpecificObjects (
         switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
         {
         case ACPI_TYPE_METHOD:
-            AcpiOsPrintf ("  #Args %d  Concurrency %X", 
+            AcpiOsPrintf ("  #Args %d  Concurrency %X",
                     ObjDesc->Method.ParamCount, ObjDesc->Method.Concurrency);
             break;
 
         case ACPI_TYPE_INTEGER:
-            AcpiOsPrintf ("  Value %8.8X%8.8X", 
+            AcpiOsPrintf ("  Value %8.8X%8.8X",
                     ACPI_HIDWORD (ObjDesc->Integer.Value),
                     ACPI_LODWORD (ObjDesc->Integer.Value));
             break;
@@ -811,7 +809,7 @@ AcpiDbWalkForSpecificObjects (
             break;
 
         case ACPI_TYPE_REGION:
-            AcpiOsPrintf ("  SpaceId %X Length %X Address %8.8X%8.8X", 
+            AcpiOsPrintf ("  SpaceId %X Length %X Address %8.8X%8.8X",
                     ObjDesc->Region.SpaceId,
                     ObjDesc->Region.Length,
                     ACPI_HIDWORD (ObjDesc->Region.Address),
@@ -852,8 +850,8 @@ AcpiDbWalkForSpecificObjects (
 
 ACPI_STATUS
 AcpiDbDisplayObjects (
-    NATIVE_CHAR             *ObjTypeArg,
-    NATIVE_CHAR             *DisplayCountArg)
+    char                    *ObjTypeArg,
+    char                    *DisplayCountArg)
 {
     ACPI_OBJECT_TYPE        Type;
 
@@ -904,7 +902,7 @@ AcpiDbWalkAndMatchName (
     void                    **ReturnValue)
 {
     ACPI_STATUS             Status;
-    NATIVE_CHAR             *RequestedName = (NATIVE_CHAR *) Context;
+    char                    *RequestedName = (char *) Context;
     UINT32                  i;
     ACPI_BUFFER             Buffer;
 
@@ -959,7 +957,7 @@ AcpiDbWalkAndMatchName (
 
 ACPI_STATUS
 AcpiDbFindNameInNamespace (
-    NATIVE_CHAR             *NameArg)
+    char                    *NameArg)
 {
 
     if (ACPI_STRLEN (NameArg) > 4)
@@ -993,7 +991,7 @@ AcpiDbFindNameInNamespace (
 
 void
 AcpiDbSetScope (
-    NATIVE_CHAR             *Name)
+    char                    *Name)
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
@@ -1060,7 +1058,7 @@ ErrorExit:
 
 void
 AcpiDbDisplayResources (
-    NATIVE_CHAR             *ObjectArg)
+    char                    *ObjectArg)
 {
 #if ACPI_MACHINE_WIDTH != 16
 
@@ -1184,12 +1182,6 @@ Cleanup:
 }
 
 
-typedef struct
-{
-    UINT32              Nodes;
-    UINT32              Objects;
-} ACPI_INTEGRITY_INFO;
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbIntegrityWalk
@@ -1271,6 +1263,44 @@ AcpiDbCheckIntegrity (void)
                     AcpiDbIntegrityWalk, (void *) &Info, NULL);
 
     AcpiOsPrintf ("Verified %d namespace nodes with %d Objects\n", Info.Nodes, Info.Objects);
+
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbGenerateGpe
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Generate a GPE
+ *
+ ******************************************************************************/
+
+void
+AcpiDbGenerateGpe (
+    char                    *GpeArg,
+    char                    *BlockArg)
+{
+    UINT32                  BlockNumber;
+    UINT32                  GpeNumber;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+
+
+    GpeNumber   = ACPI_STRTOUL (GpeArg, NULL, 10);
+    BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 10);
+
+
+    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeNumber);
+    if (!GpeEventInfo)
+    {
+        AcpiOsPrintf ("Invalid GPE\n");
+        return;
+    }
+
+    AcpiEvGpeDispatch (GpeEventInfo);
 
 }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 90 $
+ *              $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -260,7 +260,7 @@ AcpiExAccessRegion (
     ACPI_FUNCTION_TRACE ("ExAccessRegion");
 
 
-    /* 
+    /*
      * Ensure that the region operands are fully evaluated and verify
      * the validity of the request
      */
