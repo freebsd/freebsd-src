@@ -1779,8 +1779,8 @@ static void matcdstrategy(struct bio *bp)
 	cd= &matcd_data[ldrive];
 
 #ifdef DEBUGIO
-	printf("matcd%d: Strategy: buf=0x%lx, block#=%lx bcount=%ld\n",
-		ldrive,(unsigned long)bp,(unsigned long)bp->bio_blkno,
+	printf("matcd%d: Strategy: buf=0x%lx, offset#=%jx bcount=%ld\n",
+		ldrive,(unsigned long)bp,(intmax_t)bp->bio_offset,
 		bp->bio_bcount);
 
 
@@ -1789,7 +1789,7 @@ static void matcdstrategy(struct bio *bp)
 #endif /*DEBUGIO*/
 
 
-	if (ldrive >= TOTALDRIVES || bp->bio_blkno < 0) {
+	if (ldrive >= TOTALDRIVES || bp->bio_offset < 0) {
 		printf("matcd%d: Bogus parameters received - kernel may be corrupted\n",ldrive);
 		bp->bio_error=EINVAL;
 		goto bad;
@@ -1816,7 +1816,6 @@ static void matcdstrategy(struct bio *bp)
 		}
 	}
 #endif /*NOTEDIT42*/
-	bp->bio_pblkno=bp->bio_blkno;
 	bp->bio_resid=0;
 
 	s=splbio();			/*Make sure we don't get intr'ed*/
@@ -2344,11 +2343,11 @@ loop:
 		mbx->skip=0;
 nextblock:
 #ifdef DEBUGIO
-		printf("matcd%d: at Nextblock b_blkno %d\n",
-		       ldrive,(unsigned int)bp->bio_blkno);
+		printf("matcd%d: at Nextblock b_offset %jd\n",
+		       ldrive,(intmax_t)bp->bio_offset);
 #endif /*DEBUGIO*/
 
-		blknum=(bp->bio_blkno/(mbx->sz/DEV_BSIZE))+
+		blknum=bp->bio_offset/mbx->sz+
 		       mbx->p_offset+mbx->skip/mbx->sz;
 
 		blk_to_msf(blknum,rbuf.start_msf);
@@ -2431,8 +2430,8 @@ nextblock:
 #endif /*DEBUGIO*/
 			if (status & MATCD_ST_ERROR) {
 				i=get_error(port,ldrive,cdrive);
-				printf("matcd%d: %s while reading block %d [Soft]\n",
-				       ldrive,matcderrors[i],(int)bp->bio_blkno);
+				printf("matcd%d: %s while reading offset %jd [Soft]\n",
+				       ldrive,matcderrors[i],(intmax_t)bp->bio_offset);
 				media_chk(cd,i,ldrive,0);/*<14>was wrong place*/
 			}
 
@@ -2463,8 +2462,8 @@ nextblock:
 */
 
 			errtyp=get_error(port,ldrive,cdrive);
-			printf("matcd%d: %s while reading block %d\n",
-				ldrive,matcderrors[errtyp],(int)bp->bio_blkno);
+			printf("matcd%d: %s while reading offset %jd\n",
+				ldrive,matcderrors[errtyp],(intmax_t)bp->bio_offset);
 
 			if (media_chk(cd,errtyp,ldrive,0)==0) {
 				errtyp=chk_error(errtyp);
