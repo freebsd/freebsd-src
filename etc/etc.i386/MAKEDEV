@@ -76,7 +76,7 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.31 1994/04/03 14:24:52 ache Exp $
+#	$Id: MAKEDEV,v 1.32 1994/04/21 14:08:27 sos Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -293,7 +293,6 @@ com*)
 	unit=`expr $i : '...\(.*\)'`
 	rm -f tty0$unit
 	mknod tty0$unit c 8 $unit
-	chown uucp.wheel tty0$unit
 	;;
 
 pty*)
@@ -483,7 +482,8 @@ cua0?|cua?|ttyd?)
 	esac
 	mknod ttyd$unit c 28 $m
 	mknod cua0$unit c 28 `expr $m + 128`
-	chown uucp.wheel ttyd$unit cua0$unit
+	chown uucp.dialer cua0$unit
+	chmod 660 cua0$unit
 	;;
 
 tty0?|tty?)
