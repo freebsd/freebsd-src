@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,9 +67,20 @@ static int	LogStat = 0;		/* status bits, set by openlog() */
 static const char *LogTag = NULL;	/* string to tag the entry with */
 static int	LogFacility = LOG_USER;	/* default facility code */
 static int	LogMask = 0xff;		/* mask of priorities to be logged */
+static pthread_mutex_t	syslog_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#define	THREAD_LOCK()							\
+	do { 								\
+		if (__isthreaded) _pthread_mutex_lock(&syslog_mutex);	\
+	} while(0)
+#define	THREAD_UNLOCK()							\
+	do {								\
+		if (__isthreaded) _pthread_mutex_unlock(&syslog_mutex);	\
+	} while(0)
 
 static void	disconnectlog(void); /* disconnect from syslogd */
 static void	connectlog(void);	/* (re)connect to syslogd */
+static void	openlog_unlocked(const char *, int, int);
 
 enum {
 	NOCONN = 0,
@@ -134,7 +146,7 @@ vsyslog(pri, fmt, ap)
 	char ch, *p;
 	time_t now;
 	int fd, saved_errno;
-	char *stdp, tbuf[2048], fmt_cpy[1024], timbuf[26];
+	char *stdp, tbuf[2048], fmt_cpy[1024], timbuf[26], errstr[64];
 	FILE *fp, *fmt_fp;
 	struct bufcookie tbuf_cookie;
 	struct bufcookie fmt_cookie;
@@ -147,9 +159,13 @@ vsyslog(pri, fmt, ap)
 		pri &= LOG_PRIMASK|LOG_FACMASK;
 	}
 
+	THREAD_LOCK();
+
 	/* Check priority against setlogmask values. */
-	if (!(LOG_MASK(LOG_PRI(pri)) & LogMask))
+	if (!(LOG_MASK(LOG_PRI(pri)) & LogMask)) {
+		THREAD_UNLOCK();
 		return;
+	}
 
 	saved_errno = errno;
 
@@ -161,8 +177,10 @@ vsyslog(pri, fmt, ap)
 	tbuf_cookie.base = tbuf;
 	tbuf_cookie.left = sizeof(tbuf);
 	fp = fwopen(&tbuf_cookie, writehook);
-	if (fp == NULL)
+	if (fp == NULL) {
+		THREAD_UNLOCK();
 		return;
+	}
 
 	/* Build the message. */
 	(void)time(&now);
@@ -192,6 +210,7 @@ vsyslog(pri, fmt, ap)
 		fmt_fp = fwopen(&fmt_cookie, writehook);
 		if (fmt_fp == NULL) {
 			fclose(fp);
+			THREAD_UNLOCK();
 			return;
 		}
 
@@ -203,7 +222,8 @@ vsyslog(pri, fmt, ap)
 		for ( ; (ch = *fmt); ++fmt) {
 			if (ch == '%' && fmt[1] == 'm') {
 				++fmt;
-				fputs(strerror(saved_errno), fmt_fp);
+				strerror_r(saved_errno, errstr, sizeof(errstr));
+				fputs(errstr, fmt_fp);
 			} else if (ch == '%' && fmt[1] == '%') {
 				++fmt;
 				fputc(ch, fmt_fp);
@@ -247,7 +267,7 @@ vsyslog(pri, fmt, ap)
 
 	/* Get connected, output the message to the local logger. */
 	if (!opened)
-		openlog(LogTag, LogStat | LOG_NDELAY, 0);
+		openlog_unlocked(LogTag, LogStat | LOG_NDELAY, 0);
 	connectlog();
 
 	/*
@@ -272,13 +292,17 @@ vsyslog(pri, fmt, ap)
 		}
 		do {
 			usleep(1);
-			if (send(LogFile, tbuf, cnt, 0) >= 0)
+			if (send(LogFile, tbuf, cnt, 0) >= 0) {
+				THREAD_UNLOCK();
 				return;
+			}
 			if (status == CONNPRIV)
 				break;
 		} while (errno == ENOBUFS);
-	} else
+	} else {
+		THREAD_UNLOCK();
 		return;
+	}
 
 	/*
 	 * Output the message to the console; try not to block
@@ -299,7 +323,11 @@ vsyslog(pri, fmt, ap)
 		(void)_writev(fd, iov, 2);
 		(void)_close(fd);
 	}
+
+	THREAD_UNLOCK();
 }
+
+/* Should be called with mutex acquired */
 static void
 disconnectlog()
 {
@@ -315,6 +343,7 @@ disconnectlog()
 	status = NOCONN;			/* retry connect */
 }
 
+/* Should be called with mutex acquired */
 static void
 connectlog()
 {
@@ -366,8 +395,8 @@ connectlog()
 	}
 }
 
-void
-openlog(ident, logstat, logfac)
+static void
+openlog_unlocked(ident, logstat, logfac)
 	const char *ident;
 	int logstat, logfac;
 {
@@ -384,12 +413,25 @@ openlog(ident, logstat, logfac)
 }
 
 void
+openlog(ident, logstat, logfac)
+	const char *ident;
+	int logstat, logfac;
+{
+	THREAD_LOCK();
+	openlog_unlocked(ident, logstat, logfac);
+	THREAD_UNLOCK();
+}
+
+
+void
 closelog()
 {
+	THREAD_LOCK();
 	(void)_close(LogFile);
 	LogFile = -1;
 	LogTag = NULL;
 	status = NOCONN;
+	THREAD_UNLOCK();
 }
 
 /* setlogmask -- set the log mask level */
@@ -399,8 +441,10 @@ setlogmask(pmask)
 {
 	int omask;
 
+	THREAD_LOCK();
 	omask = LogMask;
 	if (pmask != 0)
 		LogMask = pmask;
+	THREAD_UNLOCK();
 	return (omask);
 }
