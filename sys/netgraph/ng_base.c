@@ -2075,9 +2075,9 @@ ng_flush_input_queue(struct ng_queue * ngq)
 		}
 		atomic_add_long(&ngq->q_flags, add_arg);
 
-		mtx_lock_spin(&ngq->q_mtx);
-		NG_FREE_ITEM(item);
 		mtx_unlock_spin(&ngq->q_mtx);
+		NG_FREE_ITEM(item);
+		mtx_lock_spin(&ngq->q_mtx);
 	}
 	/*
 	 * Take us off the work queue if we are there.
