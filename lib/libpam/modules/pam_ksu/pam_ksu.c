@@ -67,7 +67,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	pamret = pam_get_item(pamh, PAM_RUSER, &ruser);
 	if (pamret != PAM_SUCCESS)
 		return (pamret);
-	PAM_LOG("Got ruser: %s", ruser);
+	PAM_LOG("Got ruser: %s", (const char *)ruser);
 	rv = krb5_init_context(&context);
 	if (rv != 0) {
 		PAM_LOG("krb5_init_context failed: %s",
