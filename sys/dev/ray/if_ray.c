@@ -3509,12 +3509,12 @@ ray_ccs_free(struct ray_softc *sc, size_t ccs)
 
 #if 1 | (RAY_DEBUG & RAY_DBG_CCS)
 	if (!sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)])
-		RAY_RECERR(sc, "freeing free ccs 0x%02x", (uint8_t)RAY_CCS_INDEX(ccs));
+		RAY_RECERR(sc, "freeing free ccs 0x%02zx", RAY_CCS_INDEX(ccs));
 #endif /* RAY_DEBUG & RAY_DBG_CCS */
 	if (!sc->sc_gone)
 		RAY_CCS_FREE(sc, ccs);
 	sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)] = 0;
-	RAY_DPRINTF(sc, RAY_DBG_CCS, "freed 0x%02x", RAY_CCS_INDEX(ccs));
+	RAY_DPRINTF(sc, RAY_DBG_CCS, "freed 0x%02zx", RAY_CCS_INDEX(ccs));
 	wakeup(ray_ccs_alloc);
 }
 
