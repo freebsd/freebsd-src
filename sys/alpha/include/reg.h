@@ -73,6 +73,15 @@
 #define	R_SP	30
 #define	R_ZERO	31
 
+/*
+ * Register extensions used in mcontext_t
+ */
+#define	R_PS		32
+#define	R_PC		33
+#define	R_TRAPARG_A0	34
+#define	R_TRAPARG_A1	35
+#define	R_TRAPARG_A2	36
+
 struct reg {
 	u_int64_t	r_regs[32];
 };

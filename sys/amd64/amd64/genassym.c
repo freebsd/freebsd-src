@@ -69,10 +69,9 @@
 #include <machine/apic.h>
 #endif
 #include <machine/segments.h>
+#include <machine/sigframe.h>
 #include <machine/globaldata.h>
 #include <machine/vm86.h>
-
-#include <machine/sigframe.h>
 
 #define	OS(s, m)	((u_int)offsetof(struct s, m))
 
@@ -157,7 +156,8 @@ main()
 	printf("#define\tSC_FS %#x\n", OS(osigcontext, sc_fs));
 	printf("#define\tSC_GS %#x\n", OS(osigcontext, sc_gs));
 
-	printf("#define\tUC_EFLAGS %#x\n", OS(__ucontext, uc_mcontext.mc_tf.tf_eflags));
+	printf("#define\tUC_EFLAGS %#x\n",
+	    OS(__ucontext, uc_mcontext.mc_tf.tf_eflags));
 	printf("#define\tUC_GS %#x\n", OS(__ucontext, uc_mcontext.mc_gs));
 
 	printf("#define\tB_READ %#x\n", B_READ);

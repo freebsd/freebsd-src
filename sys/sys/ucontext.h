@@ -29,16 +29,25 @@
  */
 
 #ifndef _SYS_UCONTEXT_H_
-#define _SYS_UCONTEXT_H_ 1
+#define	_SYS_UCONTEXT_H_
 
 #include <machine/ucontext.h>
 
 typedef struct __ucontext {
-        struct __ucontext *uc_link;
-        stack_t         uc_stack;
-        sigset_t        uc_sigmask;
-        mcontext_t      uc_mcontext;
-        int             __spare__[8];
+	/*
+	 * Keep the order of the first three fields. Also,
+	 * keep them the first to fields in the structure.
+	 * This way we can have a union with struct
+	 * sigcontext and ucontext_t. This allows us to
+	 * support them both at the same time.
+	 * note: the union is not defined, though.
+	 */
+	sigset_t	uc_sigmask;
+	stack_t		uc_stack;
+	mcontext_t	uc_mcontext;
+
+	struct __ucontext_t *uc_link;
+	int		__spare__[8];
 } ucontext_t;
 
-#endif /* _SYS_UCONTEXT_H_ */
+#endif /* !_SYS_UCONTEXT_H_ */
