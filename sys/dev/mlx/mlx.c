@@ -1777,8 +1777,10 @@ mlx_startio(struct mlx_softc *sc)
 	blkcount = (MLX_BIO_LENGTH(bp) + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
 
 	if ((MLX_BIO_LBA(bp) + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
-	    device_printf(sc->mlx_dev, "I/O beyond end of unit (%llu,%d > %u)\n", 
-		MLX_BIO_LBA(bp), blkcount, sc->mlx_sysdrive[driveno].ms_size);
+	    device_printf(sc->mlx_dev,
+			  "I/O beyond end of unit (%lld,%d > %lu)\n", 
+			  (long long)MLX_BIO_LBA(bp), blkcount,
+			  (u_long)sc->mlx_sysdrive[driveno].ms_size);
 
 	/*
 	 * Build the I/O command.  Note that the SG list type bits are set to zero,
