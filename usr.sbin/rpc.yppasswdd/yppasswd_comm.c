@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswd_comm.c,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $
+ *	$Id: yppasswd_comm.c,v 1.2 1996/11/15 14:12:21 peter Exp $
  */
 
 /*
@@ -73,7 +73,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswd_comm.c,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswd_comm.c,v 1.2 1996/11/15 14:12:21 peter Exp $";
 #endif
 
 char *sockname = "/var/run/ypsock";
@@ -147,7 +147,8 @@ int makeservsock()
 	bzero((char *)&us, sizeof(us));
 	us.sun_family = AF_UNIX;
 	strcpy((char *)&us.sun_path, sockname);
-	len = strlen(us.sun_path) + sizeof(us.sun_family) + 1;
+	us.sun_len = len = sizeof(us.sun_len) + sizeof(us.sun_family) + 
+		strlen(us.sun_path) + 1;
 	
 	if (bind(ypsock, (struct sockaddr *)&us, len) == -1)
 		err(1,"failed to bind UNIX domain socket");
@@ -175,7 +176,8 @@ static int makeclntsock()
 	bzero((char *)&us, sizeof(us));
 	us.sun_family = AF_UNIX;
 	strcpy((char *)&us.sun_path, sockname);
-	len = strlen(us.sun_path) + sizeof(us.sun_family) + 1;
+	us.sun_len = len = sizeof(us.sun_len) + sizeof(us.sun_family) + 
+		strlen(us.sun_path) + 1;
 
 	if (connect(ypsock, (struct sockaddr *)&us, len) == -1) {
 		warn("failed to connect to server");
