@@ -2,32 +2,33 @@
                          SERIAL CONSOLE USAGE NOTES
 				Written by
                       Bill Paul <wpaul@ctr.columbia.edu>
+                          	Revised by
+            Kazutaka Yokota <yokota@zodiac.mech.utsunomiya-u.ac.jp>
 
 The FreeBSD boot block can now be used to boot FreeBSD on a system with
-only a dumb terminal on a serial port (COM1) as a console. This feature
+only a dumb terminal on a serial port as a console. This feature
 is provided for the benefit of people who wish to install FreeBSD on
 dedicated file/compute/terminal server machines that have no keyboard
 (or monitor) attached, just as is possible with Sun workstations and
 servers. People who don't need this extra functionality shouldn't notice
 the changes at all (unless I've screwed something up horribly).
 
-Note that 'options COMCONSOLE' can still be used to force the kernel to
-boot in 'serial console' mode regardless of what boot options you use.
-
 To boot FreeBSD in serial console mode, you must do the following:
 
 - UNPLUG YOUR KEYBOARD. Most PC systems probe for the keyboard during the
   Power-On Self-Test (POST) and will generate an error if the keyboard
-  isn't detected. Additionally, many machines will pause the boot process
-  and wait for you to reattach the keyboard and press a key before
-  proceeding any further. If your computer complains about the lack of a
-  keyboard but boots anyway, then you don't have to do anything special.
-  (One machine with a PHOENIX BIOS that I have here merely says 'Keyboard
-  failed' then continues to boot normally.) If your machine complains
-  loudly about the lack of a keyboard and won't continue to boot until you
-  plug it back in, you'll have to go into your CMOS configuration menu and
-  change the 'Keyboard' setting to 'Not installed' in order to bypass the
-  keyboard probe.
+  isn't detected. Some BIOSes may be set to ignore this error.  Many other 
+  machines will pause the boot process and wait for you to reattach the 
+  keyboard and press a key before proceeding any further. Consult the manual
+  of your motherboard to see how it responds to the error and how to
+  set the BIOS to ignore the error. If your computer complains about 
+  the lack of a keyboard but boots anyway, then you don't have to do 
+  anything special. (One machine with a PHOENIX BIOS that I have here 
+  merely says 'Keyboard failed' then continues to boot normally.) If your 
+  machine complains loudly about the lack of a keyboard and won't continue 
+  to boot until you plug it back in, you'll have to go into your CMOS 
+  configuration menu and change the 'Keyboard' setting to 'Not installed' 
+  in order to bypass the keyboard probe.
 
   NOTE #1:
   Setting the keyboard to 'Not installed' in the CMOS configuration
@@ -51,8 +52,8 @@ To boot FreeBSD in serial console mode, you must do the following:
 - PLUG A DUMB TERMINAL INTO COM1. If you don't have a dumb terminal, you
   can use an old PC/XT with a modem program, or the serial port on
   another UNIX box. If you don't have a COM1, get one. At this time,
-  there is no way to select a port other than COM1 without recompiling
-  both the kernel and the boot blocks. If you're already using COM1 for
+  there is no way to select a port other than COM1 for the boot blocks
+  without recompiling the boot blocks. If you're already using COM1 for
   another device, you'll have to temporarily remove that device and
   install a new boot block and kernel once you get FreeBSD up and running.
   (It is assumed that COM1 will be available on a file/compute/terminal
@@ -62,7 +63,16 @@ To boot FreeBSD in serial console mode, you must do the following:
 
   NOTE #1:
   The serial port settings are hardcoded to 9600 baud, 8 bits, no parity,
-  1 stop bit.
+  1 stop bit, by default. If you wish to change the speed, you need to 
+  recompile the boot blocks and the kernel.  Add the following line to
+  /etc/make.conf and compile new boot blocks:
+
+	BOOT_COMCONSOLE_SPEED=115200
+
+  Then add the following option to the kernel configuration file and 
+  compile a new kernel:
+
+        options	CONSPEED=115200
 
   NOTE #2:
   In addition to a serial cable, you will need a null modem adapter
@@ -78,44 +88,57 @@ To boot FreeBSD in serial console mode, you must do the following:
 	options BREAK_TO_DEBUGGER
 	options DDB
 
-- BOOT THE MACHINE. The boot block will probe for a keyboard on your
-  system. If it fails to find one, you'll see a prompt appear on the
-  terminal that looks something like this:
+- CREATE THE FILE "boot.config" IN THE ROOT DIRECTORY of the `a' partition
+  on the boot drive.  Put the kernel name and options in one line.   The
+  kernel name is optional.  Options are subset of those described in boot(8): 
+  -h	toggle internal and serial consoles. You can use this to switch 
+	console devices. For instance, if you boot from the VGA console, 
+	you can use -h to force the kernel to use the serial port as its 
+	console device. Alternatively, if you boot from the serial port, 
+	you can use the -h to force the kernel to use the VGA display 
+	as the console instead. (Can you say 'toggle' boys and girls? 
+  	I knew you could. :)
+  -D	toggle single and dual console configurations. In the single
+	configuration the console will be either the VGA display (internal 
+	console) or the serial port, depending on the state of the -h option
+	above. In the dual console configuration, both the VGA display 
+	and the serial port will become the console at the same time, 
+	regardless of the state of the -h option.
+	However, the dual console configuration takes effect only during
+	the boot prompt. Once the kernel is loaded, the console specified 
+	by the -h option becomes the only console.
+  -P	probe the keyboard. If no keyboard is found, the -D and -h options
+	are automatically set.
 
-  No keyboard found.
+  Use either the -P option to select the console automatically, or the -h
+  option to force the serial console.
 
-  >> FreeBSD BOOT @ 0x10000: 640/7168 k of memory
-  Usage: [[[0:][fd](0,a)]/kernel][-abcCdhrsv]
-  Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1
-  Use ? for file list or press Enter for defaults
-  Boot:
+  NOTE #1:
+  If you want to force the kernel to use the serial console regardless
+  of the state of the -h option above, compile your kernel with the
+  following option:
+
+	options COMCONSOLE
+
+- BOOT THE MACHINE. You'll see a prompt appear on the terminal that looks 
+  something like this:
+
+  No keyboard found
+
+  >> FreeBSD BOOT @ 0x10000: 640/7168 k of memory, serial console
+  Boot default: 0:wd(0,a)kernel
+
+  boot:
 
   This is identical to the prompt that normally appears on the VGA console,
   except for the 'No keyboard found' message that indicates a keyboard
-  couldn't be detected. (If a keyboard is detected, the boot prompt will
-  appear on the VGA display as usual.)
+  couldn't be detected, if the -P option is in `boot.config'. 
 
   From here you can boot the system (or let it autoboot by itself) just
   like you can from the VGA console and the kernel will automatically
-  use COM1 as the console device. No recompilation or 'options COMCONSOLE'
-  is required. This is done by passing a special flag to the kernel in
-  the 'boothowto' word. (The curious can refer to <sys/reboot.h> and the
-  sio driver sources for details.)
-
-- You will notice that there's a new boot flag: -h. You can use this to
-  force the kernel to switch console devices. For instance, if you boot
-  from the VGA console, you can use -h to force the kernel to use the
-  serial port as its console device. Alternatively, if you boot from
-  the serial port, you can use the -h to force the kernel to use the VGA
-  display as the console instead. (Can you say 'toggle' boys and girls? 
-  I knew you could. :)
-
-
-Should you wish to force booting off a serial console no matter if
-there's a keyboard connected or not, you can also uncomment the line
-with the ``FORCE_COMCONSOLE'' definition in the Makefile.  Remake and
-reinstall your bootblocks, and finally relabel your disk (disklabel -B)
-to pick up those boot blocks.
+  use COM1 as the console device. This is done by passing a special flag 
+  to the kernel in the 'boothowto' word. (The curious can refer to 
+  <sys/reboot.h> and the sio driver sources for details.)
 
 
 CAVEATS:
@@ -138,27 +161,20 @@ CAVEATS:
   you'll never need to do this. But if you feel you must change the console
   to a different port, here's how:
 
-	o Get the kerndist kernel source package.
-	o Edit /sys/i386/boot/biosboot/Makefile and set COMCONSOLE to the
+	o Get the kernel source package.
+	o Edit /etc/make.conf and set BOOT_COMCONSOLE_PORT to the
 	  address of the port you want to use (0x3F8, 0x2F8, 0x3E8 or
 	  0x2E8). Only COM1 through COM4 can be used; multiport serial
 	  cards will not work. No interrupt setting is needed.
-	o Create a custom kernel configuration file and add the following
-	  lines:
+	o Create a custom kernel configuration file and add appropriate
+	  options. For example, if you want to make COM2 the console:
 
-	  options "CONADDR=0x3F8"
-	  options "CONUNIT=0"
+	  options "CONUNIT=1"
+	  options "CONADDR=0x2F8"
 
-	  Set CONADDR to the same address that you selected for COMCONSOLE
-	  in the bootbios Makefile. Set CONUNIT to the unit number of the
-	  serial port that this address corresponds to (0 = sio0, 1 = sio1,
-	  etc). This implies that the serial port you want to use must be
-	  configured into the kernel in the normal way first. I'm not
-	  going to list all the possible combinations here; just use your
-	  head and you should be okay.
 	o Recompile both the boot blocks and the kernel.
 	o Install the boot blocks with the disklabel command and boot
 	  from the new kernel.
 
 
-$Id: README.serial,v 1.5 1996/04/13 11:57:18 jkh Exp $
+$Id: README.serial,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
