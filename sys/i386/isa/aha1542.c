@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.61 1996/09/06 23:07:06 phk Exp $
+ *      $Id: aha1542.c,v 1.62 1996/09/10 23:30:48 bde Exp $
  */
 
 /*
@@ -297,7 +297,7 @@ int     aha_debug = 1;
 #endif /*AHADEBUG */
 
 static struct aha_data {
-	short   aha_base;	/* base port for each board */
+	int   aha_base;		/* base port for each board */
 	/*
 	 * xor this with a physaddr to get a kv addr and visa versa
 	 * for items in THIS STRUCT only.
