@@ -101,6 +101,7 @@ MAN4=	adv.4 \
 	pass.4 \
 	pci.4 \
 	pcm.4 \
+	pcn.4 \
 	pcvt.4 \
 	ppbus.4 \
 	ppc.4 \
