@@ -60,8 +60,7 @@
 #include "opt_inet.h"
 #endif
 #if __FreeBSD__ >= 4
-#include "bpf.h"
-#define	NBPFILTER	NBPF
+#define	NBPFILTER	1
 #else
 #include "bpfilter.h"
 #endif
