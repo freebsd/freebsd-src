@@ -1,6 +1,6 @@
-/*-
- * Copyright (c) 2000
- *	Paul Richards.  All rights reserved.
+/*
+ * Copyright (c) 1994-2000
+ *	Paul Richards. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,190 +31,41 @@
  */
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
+
+#include <machine/bus_memio.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
+#include <net/if_arp.h>
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <isa/isavar.h>
 
-#include <i386/isa/isa_device.h>
-#include <dev/lnc/if_lncvar.h>
-#include <dev/lnc/if_lncreg.h>
+#include <dev/lnc/if_lnc.h>
 
-int ne2100_probe __P((lnc_softc_t *, unsigned));
-int bicc_probe __P((lnc_softc_t *, unsigned));
-int depca_probe __P((lnc_softc_t *, unsigned));
-#ifdef PC98
-int cnet98s_probe __P((lnc_softc_t *, unsigned));
-#endif
-int lance_probe __P((lnc_softc_t *));
-int pcnet_probe __P((lnc_softc_t *));
-int lnc_probe __P((struct isa_device *));
-int lnc_attach __P((struct isa_device *));
+static struct isa_pnp_id lnc_pnp_ids[] = {
+	{0,	NULL}
+};
 
-static int dec_macaddr_extract __P((u_char[], lnc_softc_t *));
-static ointhand2_t lncintr;
+extern void write_csr(struct lnc_softc *, u_short, u_short);
+extern u_short read_csr(struct lnc_softc *, u_short);
+extern void lnc_release_resources(device_t);
 
-extern int lnc_attach_sc __P((lnc_softc_t *, int));
-extern void lncintr_sc __P((lnc_softc_t *));
-
-static lnc_softc_t *
-lnc_getsoftc(int unit)
-{
-	static lnc_softc_t **sc;
-	static int units;
-
-	if (unit >= units) {
-		/* Reallocate more softc pointers */
-
-		lnc_softc_t **nsc;
-		int n;
-
-		n = unit + 1;
-		nsc = malloc(sizeof(lnc_softc_t *) * n, M_DEVBUF, M_WAITOK);
-		if (units)
-			bcopy(sc, nsc, sizeof(lnc_softc_t *) * units);
-		bzero(nsc + units, sizeof(lnc_softc_t *) * (n - units));
-		if (sc)
-			free(sc, M_DEVBUF);
-		units = n;
-		sc = nsc;
-	}
-
-	if (sc[unit] == NULL)
-		sc[unit] = malloc(sizeof(lnc_softc_t), M_DEVBUF, M_WAITOK);
-
-	return sc[unit];
-}
-
-int
-ne2100_probe(lnc_softc_t *sc, unsigned iobase)
-{
-	int i;
-
-	sc->rap = iobase + PCNET_RAP;
-	sc->rdp = iobase + PCNET_RDP;
-
-	sc->nic.ic = pcnet_probe(sc);
-	if ((sc->nic.ic > 0) && (sc->nic.ic < PCnet_PCI)) {
-		sc->nic.ident = NE2100;
-		sc->nic.mem_mode = DMA_FIXED;
-
-		/* XXX - For now just use the defines */
-		sc->nrdre = NRDRE;
-		sc->ntdre = NTDRE;
-
-		/* Extract MAC address from PROM */
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->arpcom.ac_enaddr[i] = inb(iobase + i);
-		return (NE2100_IOSIZE);
-	} else {
-		return (0);
-	}
-}
-
-int
-bicc_probe(lnc_softc_t *sc, unsigned iobase)
-{
-	int i;
-
-	/*
-	 * There isn't any way to determine if a NIC is a BICC. Basically, if
-	 * the lance probe succeeds using the i/o addresses of the BICC then
-	 * we assume it's a BICC.
-	 *
-	 */
-
-	sc->rap = iobase + BICC_RAP;
-	sc->rdp = iobase + BICC_RDP;
-
-	/* I think all these cards us the Am7990 */
-
-	if ((sc->nic.ic = lance_probe(sc))) {
-		sc->nic.ident = BICC;
-		sc->nic.mem_mode = DMA_FIXED;
-
-		/* XXX - For now just use the defines */
-		sc->nrdre = NRDRE;
-		sc->ntdre = NTDRE;
-
-		/* Extract MAC address from PROM */
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->arpcom.ac_enaddr[i] = inb(iobase + (i * 2));
-
-		return (BICC_IOSIZE);
-	} else {
-		return (0);
-	}
-}
-
-/*
- * I don't have data sheets for the dec cards but it looks like the mac
- * address is contained in a 32 byte ring. Each time you read from the port
- * you get the next byte in the ring. The mac address is stored after a
- * signature so keep searching for the signature first.
- */
 static int
-dec_macaddr_extract(u_char ring[], lnc_softc_t * sc)
-{
-	const unsigned char signature[] = {0xff, 0x00, 0x55, 0xaa, 0xff, 0x00, 0x55, 0xaa};
-
-	int i, j, rindex;
-
-	for (i = 0; i < sizeof ring; i++) {
-		for (j = 0, rindex = i; j < sizeof signature; j++) {
-			if (ring[rindex] != signature[j])
-				break;
-			if (++rindex > sizeof ring)
-				rindex = 0;
-		}
-		if (j == sizeof signature) {
-			for (j = 0, rindex = i; j < ETHER_ADDR_LEN; j++) {
-				sc->arpcom.ac_enaddr[j] = ring[rindex];
-				if (++rindex > sizeof ring)
-					rindex = 0;
-			}
-			return (1);
-		}
-	}
-	return (0);
-}
-
-int
-depca_probe(lnc_softc_t *sc, unsigned iobase)
-{
-	int i;
-	unsigned char maddr_ring[DEPCA_ADDR_ROM_SIZE];
-
-	sc->rap = iobase + DEPCA_RAP;
-	sc->rdp = iobase + DEPCA_RDP;
-
-	if ((sc->nic.ic = lance_probe(sc))) {
-		sc->nic.ident = DEPCA;
-		sc->nic.mem_mode = SHMEM;
-
-		/* Extract MAC address from PROM */
-		for (i = 0; i < DEPCA_ADDR_ROM_SIZE; i++)
-			maddr_ring[i] = inb(iobase + DEPCA_ADP);
-		if (dec_macaddr_extract(maddr_ring, sc)) {
-			return (DEPCA_IOSIZE);
-		}
-	}
-	return (0);
-}
-
-int
-lance_probe(lnc_softc_t *sc)
+lance_probe(struct lnc_softc *sc)
 {
 	write_csr(sc, CSR0, STOP);
 
-	if ((inw(sc->rdp) & STOP) && !(read_csr(sc, CSR3))) {
+	if ((bus_space_read_2(sc->lnc_btag, sc->lnc_bhandle, sc->rdp) & STOP) &&
+	    ! (read_csr(sc, CSR3))) {
 		/*
 		 * Check to see if it's a C-LANCE. For the LANCE the INEA bit
 		 * cannot be set while the STOP bit is. This restriction is
@@ -229,105 +80,237 @@ lance_probe(lnc_softc_t *sc)
 		return (UNKNOWN);
 }
 
-int
-pcnet_probe(lnc_softc_t *sc)
+static int
+lnc_legacy_probe(device_t dev)
 {
-	u_long chip_id;
-	int type;
+	struct lnc_softc *sc = device_get_softc(dev);
 
-	/*
-	 * The PCnet family don't reset the RAP register on reset so we'll
-	 * have to write during the probe :-) It does have an ID register
-	 * though so the probe is just a matter of reading it.
-	 */
+	sc->portrid = 0;
+	sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->portrid,
+					 0, ~0, 1, RF_ACTIVE);
 
-	if ((type = lance_probe(sc))) {
-		chip_id = read_csr(sc, CSR89);
-		chip_id <<= 16;
-		chip_id |= read_csr(sc, CSR88);
-		if (chip_id & AMD_MASK) {
-			chip_id >>= 12;
-			switch (chip_id & PART_MASK) {
-			case Am79C960:
-				return (PCnet_ISA);
-			case Am79C961:
-				return (PCnet_ISAplus);
-			case Am79C961A:
-				return (PCnet_ISA_II);
-			case Am79C965:
-				return (PCnet_32);
-			case Am79C970:
-				return (PCnet_PCI);
-			case Am79C970A:
-				return (PCnet_PCI_II);
-			case Am79C971:
-				return (PCnet_FAST);
-			case Am79C972:
-			case Am79C973:
-				return (PCnet_FASTplus);
-			case Am79C978:
-				return (PCnet_Home);
-			default:
-				break;
-			}
-		}
+	if (! sc->portres) {
+		device_printf(dev, "Failed to allocate I/O ports\n");
+		lnc_release_resources(dev);
+		return (ENXIO);
 	}
-	return (type);
-}
 
-int
-lnc_probe(struct isa_device * isa_dev)
-{
-	int nports;
-	int unit = isa_dev->id_unit;
-	lnc_softc_t *sc = lnc_getsoftc(unit);
-	unsigned iobase = isa_dev->id_iobase;
+	sc->lnc_btag = rman_get_bustag(sc->portres);
+	sc->lnc_bhandle = rman_get_bushandle(sc->portres);
 
-#ifdef DIAGNOSTIC
-	int vsw;
-	vsw = inw(isa_dev->id_iobase + PCNET_VSW);
-	printf("Vendor Specific Word = %x\n", vsw);
-#endif
-
-	nports = bicc_probe(sc, iobase);
-	if (nports == 0)
-		nports = ne2100_probe(sc, iobase);
-	if (nports == 0)
-		nports = depca_probe(sc, iobase);
-#ifdef PC98
-	if (nports == 0)
-		nports = cnet98s_probe(sc, iobase);
-#endif
-	return (nports);
-}
-
-int
-lnc_attach(struct isa_device * isa_dev)
-{
-	int unit = isa_dev->id_unit;
-	lnc_softc_t *sc = lnc_getsoftc(unit);
-	int result;
-
-	isa_dev->id_ointr = lncintr;
-	result = lnc_attach_sc (sc, unit);
-	if (result == 0)
-		return (0);
-
-#ifndef PC98
 	/*
-	 * XXX - is it safe to call isa_dmacascade() after
-	 *       ether_ifattach() has been called in lnc_attach() ???
+	 * There isn't any way to determine if a NIC is a BICC. Basically, if
+	 * the lance probe succeeds using the i/o addresses of the BICC then
+	 * we assume it's a BICC.
+	 *
 	 */
-	if ((sc->nic.mem_mode != SHMEM) &&
-	    (sc->nic.ic < PCnet_32))
-		isa_dmacascade(isa_dev->id_drq);
-#endif
+	sc->rap = BICC_RAP;
+	sc->rdp = BICC_RDP;
+	sc->nic.mem_mode = DMA_FIXED;
+	/* XXX Should set BICC_IOSIZE et al somewhere to alloc
+	   resources correctly */
 
-	return result;
+	if ((sc->nic.ic = lance_probe(sc))) {
+		device_set_desc(dev, "BICC Isolan");
+		sc->nic.ident = BICC;
+		lnc_release_resources(dev);
+		return (0);
+	} else {
+	    /* It's not a BICC so try the standard NE2100 ports */
+	    sc->rap = PCNET_RAP;
+	    sc->rdp = PCNET_RDP;
+	    if ((sc->nic.ic = lance_probe(sc))) {
+		sc->nic.ident = NE2100;
+		device_set_desc(dev, "NE2100");
+		lnc_release_resources(dev);
+		return (0);
+	    } else {
+		lnc_release_resources(dev);
+		return (ENXIO);
+	    }
+	}
+}
+
+static int
+lnc_isa_probe(device_t dev)
+{
+	int pnp;
+
+	pnp = ISA_PNP_PROBE(device_get_parent(dev), dev, lnc_pnp_ids);
+	if (pnp == ENOENT) {
+		/* It's not a PNP card, see if we support it by probing it */
+		return (lnc_legacy_probe(dev));
+	} else if (pnp == ENXIO) {
+		return (ENXIO);
+	} else {
+		/* Found PNP card we support */
+		return (0);
+	}
 }
 
 static void
-lncintr(int unit)
+lnc_alloc_callback(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
-	lncintr_sc(lnc_getsoftc(unit));
+	/* Do nothing */
+	return;
 }
+
+static int
+lnc_isa_attach(device_t dev)
+{
+	lnc_softc_t *sc = device_get_softc(dev);
+	int err = 0;
+	bus_size_t lnc_mem_size;
+
+	device_printf(dev, "Attaching %s\n", device_get_desc(dev));
+
+	sc->portrid = 0;
+	sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->portrid,
+					 0, ~0, 1, RF_ACTIVE);
+
+	if (! sc->portres) {
+		device_printf(dev, "Failed to allocate I/O ports\n");
+		lnc_release_resources(dev);
+		return (ENXIO);
+	}
+
+	sc->drqrid = 0;
+	sc->drqres = bus_alloc_resource(dev, SYS_RES_DRQ, &sc->drqrid,
+					 0, ~0, 1, RF_ACTIVE);
+
+	if (! sc->drqres) {
+		device_printf(dev, "Failed to allocate DMA channel\n");
+		lnc_release_resources(dev);
+		return (ENXIO);
+	}
+
+	if (isa_get_irq(dev) == -1)
+		bus_set_resource(dev, SYS_RES_IRQ, 0, 10, 1);
+
+	sc->irqrid = 0;
+	sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqrid, 0, ~0, 1,
+	                                RF_ACTIVE);
+
+	if (! sc->irqres) {
+		device_printf(dev, "Failed to allocate irq\n");
+		lnc_release_resources(dev);
+		return (ENXIO);
+	}
+
+	err = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET, lncintr,
+	                     sc, &sc->intrhand);
+
+	if (err) {
+		device_printf(dev, "Failed to setup irq handler\n");
+		lnc_release_resources(dev);
+		return (err);
+	}
+
+	/* XXX temp setting for nic */
+	sc->nic.mem_mode = DMA_FIXED;
+	sc->nrdre  = NRDRE;
+	sc->ntdre  = NTDRE;
+
+	if (sc->nic.ident == NE2100) {
+	    sc->rap = PCNET_RAP;
+	    sc->rdp = PCNET_RDP;
+	    sc->bdp = PCNET_BDP;
+	} else {
+	    sc->rap = BICC_RAP;
+	    sc->rdp = BICC_RDP;
+	}
+
+	printf("rap = %x\n", sc->rap);
+
+	/* Create a DMA tag describing the ring memory we need */
+
+	lnc_mem_size = ((NDESC(sc->nrdre) + NDESC(sc->ntdre)) *
+			 sizeof(struct host_ring_entry));
+
+	lnc_mem_size += (NDESC(sc->nrdre) * RECVBUFSIZE) +
+			(NDESC(sc->ntdre) * TRANSBUFSIZE);
+
+	err = bus_dma_tag_create(NULL,			/* parent */
+				 4,			/* alignement */
+				 0,			/* boundary */
+				 BUS_SPACE_MAXADDR_24BIT,	/* lowaddr */
+				 BUS_SPACE_MAXADDR,	/* highaddr */
+				 NULL, NULL,		/* filter, filterarg */
+				 lnc_mem_size,		/* segsize */
+				 1,			/* nsegments */
+				 BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+				 0,			/* flags */
+				 &sc->dmat);
+
+	if (err) {
+		device_printf(dev, "Can't create DMA tag\n");
+		lnc_release_resources(dev);
+		return (ENOMEM);
+	}
+
+	err = bus_dmamem_alloc(sc->dmat, (void **)&sc->recv_ring,
+	                       BUS_DMA_NOWAIT, &sc->dmamap);
+
+	if (err) {
+		device_printf(dev, "Couldn't allocate memory\n");
+		lnc_release_resources(dev);
+		return (ENOMEM);
+	}
+
+	err = bus_dmamap_load(sc->dmat, sc->dmamap, sc->recv_ring, lnc_mem_size,
+			lnc_alloc_callback, sc->recv_ring, BUS_DMA_NOWAIT);
+
+	if (err) {
+		device_printf(dev, "Couldn't load DMA map\n");
+		lnc_release_resources(dev);
+		return (ENOMEM);
+	}
+
+	isa_dmacascade(rman_get_start(sc->drqres));
+
+	/* Call generic attach code */
+	if (! lnc_attach_common(dev)) {
+		device_printf(dev, "Generic attach code failed\n");
+		lnc_release_resources(dev);
+		return (ENXIO);
+	}
+	return (0);
+}
+
+static int
+lnc_isa_detach(device_t dev)
+{
+	lnc_softc_t *sc = device_get_softc(dev);
+	int s = splimp();
+
+	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	splx(s);
+
+	lnc_stop(sc);
+	lnc_release_resources(dev);
+
+	return (0);
+}
+
+static device_method_t lnc_isa_methods[] = {
+/*	DEVMETHOD(device_identify,	lnc_isa_identify), */
+	DEVMETHOD(device_probe,		lnc_isa_probe),
+	DEVMETHOD(device_attach,	lnc_isa_attach),
+	DEVMETHOD(device_detach,	lnc_isa_detach),
+#ifdef notyet
+	DEVMETHOD(device_suspend,	lnc_isa_suspend),
+	DEVMETHOD(device_resume,	lnc_isa_resume),
+	DEVMETHOD(device_shutdown,	lnc_isa_shutdown),
+#endif
+	{ 0, 0 }
+};
+
+static driver_t lnc_isa_driver = {
+	"lnc",
+	lnc_isa_methods,
+	sizeof(struct lnc_softc),
+};
+
+static devclass_t lnc_devclass;
+
+DRIVER_MODULE(lnc_isa, isa, lnc_isa_driver, lnc_devclass, 0, 0);
