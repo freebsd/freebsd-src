@@ -110,7 +110,7 @@
 
 
 #ifndef XE_DEBUG
-#define XE_DEBUG 1	/* Increase for more voluminous output! */
+#define XE_DEBUG 2	/* Increase for more voluminous output! */
 #endif
 
 #include <sys/param.h>
@@ -317,7 +317,9 @@ static int
 xe_probe(device_t dev)
 {
   struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
-  u_char *buf;
+  bus_space_tag_t bst;
+  bus_space_handle_t bsh;
+  int buf;
   u_char ver_str[CISTPL_BUFSIZE>>1];
   off_t offs;
   int success, rc, i;
@@ -331,6 +333,7 @@ xe_probe(device_t dev)
 #endif
 
   /* Map in the CIS */
+  rid = 0;
   r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 4 << 10, RF_ACTIVE);
   if (!r) {
 #ifdef XE_DEBUG
@@ -338,7 +341,9 @@ xe_probe(device_t dev)
 #endif
     return ENOMEM;
   }
-  buf = (u_char *) rman_get_start(r);
+  bsh = rman_get_bushandle(r);
+  bst = rman_get_bustag(r);
+  buf = 0;
 
   CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, rid,
       PCCARD_A_MEM_ATTR);
@@ -516,12 +521,14 @@ xe_detach(device_t dev) {
 static int
 xe_attach (device_t dev) {
   struct xe_softc *scp = device_get_softc(dev);
+  int err;
 
 #ifdef XE_DEBUG
   device_printf(dev, "attach\n");
 #endif
 
-  xe_activate(dev);
+  if ((err = xe_activate(dev)) != 0)
+    return (err);
 
   /* Fill in some private data */
   scp->ifp = &scp->arpcom.ac_if;
@@ -1398,7 +1405,7 @@ static void xe_setmedia(void *xscp) {
    case IFM_10_T:	/* Force 10baseT */
     xe_soft_reset(scp);
 #if XE_DEBUG > 1
-    device_printf(csp->dev, "Selecting 10baseT\n");
+    device_printf(scp->dev, "Selecting 10baseT\n");
 #endif
     if (scp->phy_ok) {
       xe_phy_writereg(scp, PHY_BMCR, 0x0000);
@@ -2234,7 +2241,7 @@ xe_activate(device_t dev)
 		xe_deactivate(dev);
 		return err;
 	}
-	
+
 	sc->bst = rman_get_bustag(sc->port_res);
 	sc->bsh = rman_get_bushandle(sc->port_res);
 	return (0);
