@@ -52,7 +52,7 @@ struct thread;
  * respective subsystem header files.
  */
 
-#define CTL_MAXNAME	12	/* largest number of components supported */
+#define CTL_MAXNAME	24	/* largest number of components supported */
 
 /*
  * Each subsystem defined by sysctl defines a list of variables
