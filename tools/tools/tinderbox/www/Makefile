@@ -12,8 +12,11 @@ all: ${IMAGES}
 
 realinstall:
 	${INSTALL} -m0755 -o${WWWOWN} -g${WWWGRP} ${.CURDIR}/${CGI} ${WWWDIR}
-.for FILE in ${DATA} ${IMAGES}
-	${INSTALL} -m0644 -o${WWWOWN} -g${WWWGRP} ${.CURDIR}/${FILE} ${WWWDIR}
+.for _data in ${DATA}
+	${INSTALL} -m0644 -o${WWWOWN} -g${WWWGRP} ${.CURDIR}/${_data} ${WWWDIR}
+.endfor
+.for _image in ${IMAGES}
+	${INSTALL} -m0644 -o${WWWOWN} -g${WWWGRP} ${_image} ${WWWDIR}
 .endfor
 
 ${IMAGES}: ${.TARGET}.uu
