@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 #
-# (c) Copyright 1995 Wolfram Schneider. All rights reserved.
+# Copyright (c) 1995 Wolfram Schneider. All rights reserved.
+# Alle Rechte vorbehalten. Es gilt das kontinentaleuropische Urheberrecht.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,10 +30,9 @@
 #
 # /usr/sbin/adduser - add new user(s)
 #
-# Bugs: my english, silly code
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser,v 1.57 1995/03/07 18:40:37 w Exp w $
+# $Id: adduser.perl,v 1.4 1995/03/08 22:44:37 ache Exp $
 #
 
 # read variables
@@ -790,22 +790,24 @@ sub uniq {
     return @array;
 }
 
-# see /usr/src/usr.bin/passwd/local_passwd.c or librcypt
+# see /usr/src/usr.bin/passwd/local_passwd.c or librcypt, crypt(3)
 sub salt {
-    local($salt) = '_';
-    local($i);
+    local($salt) = '_';		# initialization
+    local($i, $rand);
+    local(@itoa64) = ( 0 .. 9, a .. z, A .. Z ); # 0 .. 63
 
-    srand;
-
+    warn "calculate salt\n" if $verbose > 1;
     # to64
-    while(1) {
-	$i = sprintf("%c", rand(256));
-	$salt .= $i if $i =~ /[A-Za-z0-9]/;
-	last if length($salt) == 8;
+    for ($i = 0; $i < 8; $i++) {
+	srand(time + $rand + $$); 
+	$rand = rand(25*29*17 + $rand);
+	$salt .=  $itoa64[$rand & $#itoa64];
     }
+    warn "Salt is: $salt\n" if $verbose > 1;
 
     return $salt;
 }
+
 
 # print banner
 sub copyright {
@@ -1181,11 +1183,16 @@ sub append_file {
     local($file,@list) = @_;
     local($e);
     local($LOCK_EX) = 2;
+    local($LOCK_NB) = 4;
     local($LOCK_UN) = 8;
 
     open(F, ">> $file") || die "$file: $!\n";
     print "Lock $file.\n" if $verbose > 1;
-    flock(F, $LOCK_EX);
+    while(!flock(F, $LOCK_EX | $LOCK_NB)) {
+	warn "Cannot lock file: $file\a\n";
+	die "Sorry, give up\n"
+	    unless &confirm_yn("Try again?", "yes");
+    }
     print F join("\n", @list) . "\n";
     close F;
     print "Unlock $file.\n" if $verbose > 1;
