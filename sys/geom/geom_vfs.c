@@ -78,9 +78,7 @@ g_vfs_done(struct bio *bip)
 		bp->b_ioflags |= BIO_ERROR;
 	bp->b_resid = bp->b_bcount - bip->bio_completed;
 	g_destroy_bio(bip);
-	mtx_lock(&Giant);
 	bufdone(bp);
-	mtx_unlock(&Giant);
 }
 
 void
