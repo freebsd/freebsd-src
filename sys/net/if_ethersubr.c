@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.23 1996/08/04 11:45:37 phk Exp $
+ * $Id: if_ethersubr.c,v 1.24 1996/08/05 14:03:10 phk Exp $
  */
 
 #include <sys/param.h>
@@ -68,6 +68,9 @@
 #ifdef NS
 #include <netns/ns.h>
 #include <netns/ns_if.h>
+extern ushort ns_nettype;
+int ether_outputdebug = 0;
+int ether_inputdebug = 0;
 #endif
 
 #ifdef ISO
@@ -117,13 +120,14 @@ ether_output(ifp, m0, dst, rt0)
 {
 	short type;
 	int s, error = 0;
- 	u_char edst[6];
-	register struct mbuf *m = m0;
+ 	u_char *cp, edst[6];
+	register struct mbuf *m2, *m = m0;
 	register struct rtentry *rt;
 	struct mbuf *mcopy = (struct mbuf *)0;
 	register struct ether_header *eh;
 	int off, len = m->m_pkthdr.len;
 	struct arpcom *ac = (struct arpcom *)ifp;
+	register struct ifqueue *inq;
 #ifdef NETATALK
 	struct at_ifaddr *aa;
 #endif NETATALK
@@ -220,16 +224,57 @@ ether_output(ifp, m0, dst, rt0)
 #endif NETATALK
 #ifdef NS
 	case AF_NS:
-		type = htons(ETHERTYPE_NS);
+		switch(ns_nettype){
+		default:
+		case 0x8137: /* Novell Ethernet_II Ethernet TYPE II */
+			type = 0x8137;
+			break;
+		case 0x0: /* Novell 802.3 */
+			type = htons( m->m_pkthdr.len);
+			break;
+		case 0xe0e0: /* Novell 802.2 and Token-Ring */
+			M_PREPEND(m, 3, M_WAIT);
+			type = htons( m->m_pkthdr.len);
+			cp = mtod(m, u_char *);
+			*cp++ = 0xE0;
+			*cp++ = 0xE0;
+			*cp++ = 0x03;
+			break;
+		}
  		bcopy((caddr_t)&(((struct sockaddr_ns *)dst)->sns_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
-		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst)))
-			return (looutput(ifp, m, dst, rt));
+		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst))){
+			m->m_pkthdr.rcvif = ifp;
+			schednetisr(NETISR_NS);
+			inq = &nsintrq;
+			s = splimp();
+			if (IF_QFULL(inq)) {
+				IF_DROP(inq);
+				m_freem(m);
+			} else
+				IF_ENQUEUE(inq, m);
+			splx(s);
+			return (error);
+		}
+		if (!bcmp((caddr_t)edst, (caddr_t)&ns_broadhost, sizeof(edst))){
+			m2 = m_copy(m, 0, (int)M_COPYALL);
+			m2->m_pkthdr.rcvif = ifp;
+			schednetisr(NETISR_NS);
+			inq = &nsintrq;
+			s = splimp();
+			if (IF_QFULL(inq)) {
+				IF_DROP(inq);
+				m_freem(m2);
+			} else
+				IF_ENQUEUE(inq, m2);
+			splx(s);
+		}
 		/* If broadcasting on a simplex interface, loopback a copy */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
+		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX)){
 			mcopy = m_copy(m, 0, (int)M_COPYALL);
+		}
 		break;
-#endif
+#endif /* NS */
 #ifdef	ISO
 	case AF_ISO: {
 		int	snpalen;
@@ -379,7 +424,7 @@ ether_input(ifp, eh, m)
 	struct mbuf *m;
 {
 	register struct ifqueue *inq;
-	u_short ether_type;
+	u_short ether_type, *checksum;
 	int s;
 #if defined (ISO) || defined (LLC) || defined(NETATALK)
 	register struct llc *l;
@@ -419,11 +464,12 @@ ether_input(ifp, eh, m)
 		break;
 #endif
 #ifdef NS
-	case ETHERTYPE_NS:
+	case 0x8137: /* Novell Ethernet_II Ethernet TYPE II */
 		schednetisr(NETISR_NS);
 		inq = &nsintrq;
 		break;
-#endif
+
+#endif /* NS */
 #ifdef NETATALK
         case ETHERTYPE_AT:
                 schednetisr(NETISR_ATALK);
@@ -435,6 +481,21 @@ ether_input(ifp, eh, m)
                 return;
 #endif NETATALK
 	default:
+#ifdef NS
+		checksum = mtod(m, ushort *);
+		/* Novell 802.3 */
+		if ((ether_type <= ETHERMTU) &&
+			((*checksum == 0xffff) || (*checksum == 0xE0E0))){
+			if(*checksum == 0xE0E0) {
+				m->m_pkthdr.len -= 3;
+				m->m_len -= 3;
+				m->m_data += 3;
+			}
+				schednetisr(NETISR_NS);
+				inq = &nsintrq;
+				break;
+		}
+#endif /* NS */
 #if defined (ISO) || defined (LLC) || defined(NETATALK)
 		if (ether_type > ETHERMTU)
 			goto dropanyway;
