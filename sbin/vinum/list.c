@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.12 1998/08/10 05:15:06 grog Exp grog $
+ * $Id: list.c,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $
  */
 
 #include <ctype.h>
@@ -124,17 +124,21 @@ vinum_li(int object, enum objecttype type)
 void 
 vinum_ldi(int driveno, int recurse)
 {
+    time_t t;
+
     get_drive_info(&drive, driveno);
     if (drive.state != drive_unallocated) {
 	if (verbose) {
 	    printf("Drive %s:\tDevice %s\n",
 		drive.label.name,
 		drive.devicename);
+	    t = drive.label.date_of_birth.tv_sec;
 	    printf("\t\tCreated on %s at %s",
 		drive.label.sysname,
-		ctime(&drive.label.date_of_birth.tv_sec));
+		ctime(&t));
+	    t = drive.label.last_update.tv_sec;
 	    printf("\t\tConfig last updated %s",	    /* care: \n at end */
-		ctime(&drive.label.last_update.tv_sec));
+		ctime(&t));
 	    printf("\t\tSize: %16qd bytes (%qd MB)\n\t\tUsed: %16qd bytes (%qd MB)\n"
 		"\t\tAvailable: %11qd bytes (%d MB)\n",
 		drive.label.drive_size,			    /* bytes used */
