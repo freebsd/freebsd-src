@@ -1395,7 +1395,11 @@ adjust_pc_after_break (struct execution_control_state *ecs)
       || (software_breakpoint_inserted_here_p (stop_pc)
 	  && !(currently_stepping (ecs)
 	       && prev_pc != stop_pc
+#if 1
+	       && !(step_range_end))))
+#else
 	       && !(step_range_end && INNER_THAN (read_sp (), (step_sp - 16))))))
+#endif
     write_pc_pid (stop_pc, ecs->ptid);
 }
 
