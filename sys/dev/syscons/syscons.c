@@ -2989,22 +2989,21 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ysize = info.vi_height;
 	scp->xpixel = scp->xsize*info.vi_cwidth;
 	scp->ypixel = scp->ysize*info.vi_cheight;
+	scp->font_size = info.vi_cheight;
+	scp->font_width = info.vi_cwidth;
 	if (info.vi_cheight < 14) {
-	    scp->font_size = 8;
 #ifndef SC_NO_FONT_LOADING
 	    scp->font = sc->font_8;
 #else
 	    scp->font = NULL;
 #endif
 	} else if (info.vi_cheight >= 16) {
-	    scp->font_size = 16;
 #ifndef SC_NO_FONT_LOADING
 	    scp->font = sc->font_16;
 #else
 	    scp->font = NULL;
 #endif
 	} else {
-	    scp->font_size = 14;
 #ifndef SC_NO_FONT_LOADING
 	    scp->font = sc->font_14;
 #else

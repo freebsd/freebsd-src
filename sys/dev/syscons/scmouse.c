@@ -129,7 +129,8 @@ sc_mouse_move(scr_stat *scp, int x, int y)
 	scp->mouse_pos = scp->mouse_oldpos = 0;
     else
 	scp->mouse_pos = scp->mouse_oldpos = 
-	    (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
+	    (y/scp->font_size - scp->yoff)*scp->xsize + x/scp->font_width -
+	    scp->xoff;
     scp->status |= MOUSE_MOVED;
     splx(s);
 }
@@ -138,8 +139,8 @@ sc_mouse_move(scr_stat *scp, int x, int y)
 static void
 set_mouse_pos(scr_stat *scp)
 {
-    if (scp->mouse_xpos < scp->xoff*8)
-	scp->mouse_xpos = scp->xoff*8;
+    if (scp->mouse_xpos < scp->xoff*scp->font_width)
+	scp->mouse_xpos = scp->xoff*scp->font_width;
     if (scp->mouse_ypos < scp->yoff*scp->font_size)
 	scp->mouse_ypos = scp->yoff*scp->font_size;
     if (ISGRAPHSC(scp)) {
@@ -149,8 +150,8 @@ set_mouse_pos(scr_stat *scp)
 	    scp->mouse_ypos = scp->ypixel-1;
 	return;
     } else {
-	if (scp->mouse_xpos > (scp->xsize + scp->xoff)*8 - 1)
-	    scp->mouse_xpos = (scp->xsize + scp->xoff)*8 - 1;
+	if (scp->mouse_xpos > (scp->xsize + scp->xoff)*scp->font_width - 1)
+	    scp->mouse_xpos = (scp->xsize + scp->xoff)*scp->font_width - 1;
 	if (scp->mouse_ypos > (scp->ysize + scp->yoff)*scp->font_size - 1)
 	    scp->mouse_ypos = (scp->ysize + scp->yoff)*scp->font_size - 1;
     }
@@ -159,7 +160,7 @@ set_mouse_pos(scr_stat *scp)
 	scp->status |= MOUSE_MOVED;
     	scp->mouse_pos =
 	    (scp->mouse_ypos/scp->font_size - scp->yoff)*scp->xsize 
-		+ scp->mouse_xpos/8 - scp->xoff;
+		+ scp->mouse_xpos/scp->font_width - scp->xoff;
 #ifndef SC_NO_CUTPASTE
 	if ((scp->status & MOUSE_VISIBLE) && (scp->status & MOUSE_CUTTING))
 	    mouse_cut(scp);
@@ -195,7 +196,8 @@ sc_remove_mouse_image(scr_stat *scp)
 
     ++scp->sc->videoio_in_progress;
     (*scp->rndr->draw_mouse)(scp,
-			     (scp->mouse_oldpos%scp->xsize + scp->xoff)*8,
+			     (scp->mouse_oldpos%scp->xsize + scp->xoff)
+			         * scp->font_width,
 			     (scp->mouse_oldpos/scp->xsize + scp->yoff)
 				 * scp->font_size,
 			     FALSE);
