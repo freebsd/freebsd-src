@@ -90,6 +90,9 @@
  */
 int DialogX, DialogY;
 
+/* This "secret" global allows you to change the behavior of an input field */
+int DialogInputAttrs;
+
 /*
  * Do some initialization for dialog
  */
