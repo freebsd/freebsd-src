@@ -1,0 +1,22 @@
+#! /bin/sh
+set x $*
+. ./.param
+
+for dir in $DIRLST
+do
+	date > $TMPDIR/names$dir
+	echo >> $TMPDIR/names$dir
+	cd $MANDIR/man$dir
+	for file in $FILLST
+	do
+		so=`line < $file | sed "s/ .*//"`
+		if test "$so" = ".so" 
+		then
+			continue
+		fi
+		ed - $file >> $TMPDIR/names$dir <<!
+			/^.SH NAME/+
+			q
+!
+	done
+done

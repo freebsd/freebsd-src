@@ -1,0 +1,186 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)iso.4	8.2 (Berkeley) 11/30/93
+.\"
+.Dd November 30, 1993
+.Dt ISO 4
+.Os
+.Sh NAME
+.Nm iso
+.Nd
+.Tn ISO
+protocol family
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <netiso/iso.h>
+.Sh DESCRIPTION
+The
+.Tn ISO
+protocol family is a collection of protocols
+that uses the
+.Tn ISO
+address format.
+The
+.Tn ISO
+family provides protocol support for the
+.Dv SOCK_SEQPACKET
+abstraction through the
+.Tn TP
+protocol
+.Pf ( Tn ISO
+8073), 
+for the
+.Dv SOCK_DGRAM
+abstraction through the connectionless transport
+protocol
+.Pf ( Tn ISO
+8602),
+and for the
+.Dv SOCK_RAW
+abstraction
+by providing direct access (for debugging) to the
+.Tn CLNP 
+.Pf ( Tn ISO
+8473) network layer protocol.
+.Sh ADDRESSING
+.Tn ISO
+addresses are based upon
+.Tn ISO
+8348/AD2, 
+.%T "Addendum to the Network Service Definition Covering Network Layer Addressing."
+.Pp
+Sockets bound to the OSI protocol family use
+the following address structure:
+.Bd -literal
+struct iso_addr {
+     u_char    isoa_len;  /* length, not including this byte */
+     char      isoa_genaddr[20];  /* general opaque address */
+};
+
+struct sockaddr_iso {
+     u_char    siso_len;      /* size of this sockaddr */
+     u_char    siso_family;   /* addressing domain, AF_ISO */
+     u_char    siso_plen;     /* presentation selector length */
+     u_char    siso_slen;     /* session selector length */
+     u_char    siso_tlen;     /* transport selector length */
+     struct    iso_addr siso_addr; /* network address */
+     u_char    siso_pad[6];    /* space for gosip v2 SELs */
+};
+#define siso_nlen siso_addr.isoa_len
+#define siso_data siso_addr.isoa_genaddr
+.Ed
+.Pp
+The fields of this structure are:
+.Bl -tag -width Ds
+.It Ar siso_len:
+Length of the entire address structure, in bytes, which may grow to
+be longer than the 32 bytes shown above.
+.It Ar siso_family:
+Identifies the domain:
+.Dv AF_ISO .
+.It Ar siso_tlen:
+Length of the transport selector.
+.It Ar siso_slen:
+Length of the session selector.
+This is not currently supported by the kernel and is provided as
+a convenience for user level programs.
+.It Ar siso_plen:
+Length of the presentation selector.
+This is not currently supported by the kernel and is provided as
+a convenience for user level programs.
+.It Ar siso_addr:
+The network part of the address, described below.
+.El
+.Sh TRANSPORT ADDRESSING
+.Pp
+An
+.Tn ISO
+transport address is similar to an Internet address in that
+it contains a network-address portion and a portion that the
+transport layer uses to multiplex its services among clients.
+In the Internet domain, this portion of the address is called a
+.Em port .
+In the
+.Tn ISO
+domain, this is called a
+.Em transport selector
+(also known at one time as a
+.Em transport suffix ) .
+While ports are always 16 bits, 
+transport selectors may be
+of (almost) arbitrary size.
+.Pp
+Since the C language does not provide convenient variable
+length structures, we have separated the selector lengths
+from the data themselves.
+The network address and various selectors are stored contiguously,
+with the network address first, then the transport selector, and so
+on.  Thus, if you had a nework address of less then 20 bytes,
+the transport selector would encroach on space normally reserved
+for the network address.
+.Pp
+.Sh NETWORK ADDRESSING.
+.Tn ISO
+network addresses are limited to 20 bytes in length.
+.Tn ISO
+network addresses can take any format.
+.Sh PROTOCOLS
+The
+.Tn ARGO
+1.0 implementation of the 
+.Tn ISO
+protocol family comprises
+the Connectionless-Mode Network Protocol
+.Pq Tn CLNP , 
+and the Transport Protocol
+.Pq Tn TP ,
+classes 4 and 0,
+and
+.Tn X.25 .
+.Tn TP
+is used to support the
+.Dv SOCK_SEQPACKET
+abstraction.
+A raw interface to
+.Tn CLNP
+is available
+by creating an
+.Tn ISO
+socket of type
+.Dv SOCK_RAW .
+This is used for
+.Tn CLNP
+debugging only.
+.Sh SEE ALSO
+.Xr tp 4 ,
+.Xr clnp 4 ,
+.Xr cltp 4

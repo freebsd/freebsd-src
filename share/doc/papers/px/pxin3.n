@@ -1,0 +1,597 @@
+.\" Copyright (c) 1979 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)pxin3.n	5.2 (Berkeley) 4/17/91
+.\"
+.if !\n(xx .so tmac.p
+.ta 8n 16n 24n
+.nr H1 2
+.if n .ND
+.NH
+Input/output
+.NH 2
+The files structure
+.PP
+Each file in the Pascal environment is represented by a pointer
+to a
+.I files
+structure in the heap.
+At the location addressed by the pointer is the element
+in the file's window variable.
+Behind this window variable is information about the file,
+at the following offsets:
+.so table3.1.n
+.PP
+Here
+.SM FBUF
+is a pointer to the system FILE block for the file.
+The standard system I/O library is
+used that provides block buffered input/output,
+with 1024 characters normally transferred at each read or write.
+.PP
+The files in the
+Pascal environment,
+are all linked together on a single file chain through the
+.SM FCHAIN
+links.
+For each file the
+.SM FLEV
+pointer gives its associated file variable.
+These are used to free files at block exit as described in section 3.3
+below.
+.PP
+The
+FNAME
+and
+PFNAME
+give the associated
+file name for the file and the name to be used when printing
+error diagnostics respectively.
+Although these names are usually the same,
+.I input
+and
+.I output
+usually have no associated
+file name so the distinction is necessary.
+.PP
+The
+FUNIT
+word contains 
+a set of flags.
+whose representations are:
+.TS
+center;
+l l l.
+EOF	0x0100	At end-of-file
+EOLN	0x0200	At end-of-line (text files only)
+SYNC	0x0400	File window is out of sync
+TEMP	0x0800	File is temporary
+FREAD	0x1000	File is open for reading
+FWRITE	0x2000	File is open for writing
+FTEXT	0x4000	File is a text file; process EOLN
+FDEF	0x8000	File structure created, but file not opened
+.TE
+.PP
+The
+EOF
+and
+EOLN
+bits here reflect the associated built-in function values.
+TEMP
+specifies that the file has a generated temporary name and that
+it should therefore be removed when its block exits.
+FREAD
+and
+FWRITE
+specify that
+.I reset
+and
+.I rewrite
+respectively have been done on the file so that
+input or output operations can be done.
+FTEXT
+specifies the file is a text file so that
+EOLN
+processing should be done,
+with newline characters turned into blanks, etc.
+.PP
+The
+SYNC
+bit,
+when true,
+specifies that there is no usable image in the file buffer window.
+As discussed in the
+.I "Berkeley Pascal User's Manual,"
+the interactive environment necessitates having
+``input^'' undefined at the beginning
+of execution so that a program may print a prompt
+before the user is required to type input.
+The
+SYNC
+bit implements this.
+When it is set,
+it specifies that the element in the window
+must be updated before it can be used.
+This is never done until necessary.
+.NH 2
+Initialization of files
+.PP
+All the variables in the Pascal runtime environment are cleared to zero on
+block entry.
+This is necessary for simple processing of files.
+If a file is unused, its pointer will be
+.B nil.
+All references to an inactive file are thus references through a
+.B nil
+pointer.
+If the Pascal system did not clear storage to zero before execution
+it would not be possible to detect inactive files in this simple way;
+it would probably be necessary to generate (possibly complicated)
+code to initialize
+each file on block entry.
+.PP
+When a file is first mentioned in a
+.I reset
+or
+.I rewrite
+call,
+a buffer of the form described above is associated with it,
+and the necessary information about the file is placed in this
+buffer.
+The file is also linked into the active file chain.
+This chain is kept sorted by block mark address, the
+FLEV
+entries.
+.NH 2
+Block exit
+.PP
+When block exit occurs the interpreter must free the files that are in
+use in the block
+and their associated buffers.
+This is simple and efficient because the files in the active file chain are 
+sorted by increasing block mark address.
+This means that the files for the current block will be at the front
+of the chain.
+For each file that is no longer accessible
+the interpreter first flushes the files buffer
+if it is an output file.
+The interpreter then returns the file buffer and the files structure and window
+to the free space in the heap and removes the file from the active file chain.
+.NH 2
+Flushing
+.PP
+Flushing all the file buffers at abnormal termination,
+or on a call to the procedure
+.I flush
+or
+.I message
+is done by flushing 
+each file on the file chain that has the
+FWRITE
+bit set in its flags word.
+.NH 2
+The active file
+.PP
+For input-output,
+.I px
+maintains a notion of an active file.
+Each operation that references a file makes the file
+it will be using the active file and then does its operation.
+A subtle point here is that one may do a procedure call to
+.I write
+that involves a call to a function that references another file,
+thereby destroying the active file set up before the
+.I write.
+Thus the active file is saved at block entry
+in the block mark and restored at block exit.\*(Dg
+.FS
+\*(dg\ It would probably be better to dispense with the notion of
+active file and use another mechanism that did not involve extra
+overhead on each procedure and function call.
+.FE
+.NH 2
+File operations
+.PP
+Files in Pascal can be used in two distinct ways:
+as the object of
+.I read,
+.I write,
+.I get,
+and
+.I put
+calls, or indirectly as though they were pointers.
+The second use as pointers must be careful
+not to destroy the active file in a reference such as
+.LS
+write(output, input\(ua)
+.LE
+or the system would incorrectly write on the input device.
+.PP
+The fundamental operator related to the use of a file is
+.SM FNIL.
+This takes the file variable, as a pointer,
+insures that the pointer is not
+.B nil,
+and also that a usable image is in the file window,
+by forcing the
+.SM SYNC
+bit to be cleared.
+.PP
+A simple example that demonstrates the use of the file operators
+is given by
+.LS
+writeln(f)
+.LE
+that produces
+.DS
+.mD
+.TS
+lp-2w(8) l.
+RV:\fIl	f\fP
+UNIT
+WRITLN
+.TE
+.DE
+.NH 2
+Read operations
+.SH
+GET
+.IP
+Advance the active file to the next input element.
+.SH
+FNIL
+.IP
+A file pointer is on the stack. Insure that the associated file is active
+and that the file is synced so that there is input available in the window.
+.SH
+READ*
+.IP
+If the file is a text file, read a block of text
+and convert it to the internal type of the specified
+operand. If the file is not a text file then 
+do an unformatted read of the next record.
+The procedure
+.SM READLN
+reads upto and including the next end of line character.
+.SH
+READE A
+.IP
+The operator
+.SM READE
+reads a string name of an enumerated type and converts it
+to its internal value.
+.SM READE 
+takes a pointer to a data structure as shown in figure 3.2.
+.so fig3.2.n
+See the description of
+.SM NAM
+in the next section for an example.
+.NH 2
+Write operations
+.SH
+PUT
+.IP
+Output the element in the active file window.
+.SH
+WRITEF s
+.IP
+The argument(s) on the stack are output
+by the
+.I fprintf
+standard
+.SM I/O
+library routine.
+The sub-opcode 
+.I s
+specifies the number
+of longword arguments on the stack.
+.SH
+WRITEC
+.IP
+The character on the top of the stack is output
+without formatting. Formatted characters must be output with 
+.SM WRITEF .
+.SH
+WRITES
+.IP
+The string specified by the pointer on the top of the stack is output
+by the
+.I fwrite
+standard
+.SM I/O
+library routine.
+All characters including nulls are printed.
+.SH
+WRITLN
+.IP
+A linefeed is output to the active file.
+The line-count for the file is
+incremented and checked against the line limit.
+.SH
+PAGE
+.IP
+A formfeed is output to the active file.
+.SH
+NAM A
+.IP
+The value on the top of the stack is converted to a pointer
+to an enumerated type string name.
+The address 
+.SM A
+points to an enumerated type structure identical
+to that used by
+.SM READE .
+An error is raised if the value is out of range.
+The form of this structure for the predefined type
+.B boolean
+is shown in figure 3.3.
+.so fig3.3.n
+The code for 
+.SM NAM 
+is
+.DS
+.mD
+_NAM:
+	\fBincl\fR	lc
+	\fBaddl3\fR	(lc)+,ap,r6	#r6 points to scalar name list
+	\fBmovl\fR	(sp)+,r3	#r3 has data value
+	\fBcmpw\fR	r3,(r6)+	#check value out of bounds
+	\fBbgequ\fR	enamrng
+	\fBmovzwl\fR	(r6)[r3],r4	#r4 has string index
+	\fBpushab\fR	(r6)[r4]	#push string pointer
+	\fBjmp\fR	(loop)
+enamrng:
+	\fBmovw\fR	$ENAMRNG,_perrno
+	\fBjbr\fR	error
+.DE
+The address of the table is calculated by adding the base address
+of the interpreter code,
+.I ap
+to the offset pointed to by
+.I lc .
+The first word of the table gives the number of records and
+provides a range check of the data to be output.
+The pointer is then calculated as
+.DS
+.mD
+tblbase = ap + A;
+size = *tblbase++;
+return(tblbase + tblbase[value]);
+.DE
+.SH
+MAX s,w
+.IP
+The sub-opcode
+.I s
+is subtracted from the integer on the top of the stack.
+The maximum of the result and the second argument,
+.I w ,
+replaces the value on the top of the stack.
+This function verifies that variable specified
+width arguments are non-negative, and meet certain minimum width
+requirements.
+.SH
+MIN s
+.IP
+The minimum of the value on the top of the stack
+and the sub-opcode replaces the value on the top
+of the stack.
+.sp 1
+.LP
+The uses of files and the file operations are summarized
+in an example which outputs a real variable (r) with a variable
+width field (i).
+.LS
+writeln('r =',r:i,' ',true);
+.LE
+that generates the code
+.DS
+.mD
+.TS
+lp-2w(8) l.
+UNITOUT
+FILE
+CON14:1
+CON14:3
+LVCON:4	"r ="
+WRITES
+RV8\fI:l	r\fP
+RV4\fI:l	i\fP
+MAX:8	1 
+RV4\fI:l	i\fP
+MAX:1	1 
+LVCON:8	" %*.*E"
+FILE
+WRITEF:6
+CONC4	\' \'
+WRITEC
+CON14:1
+NAM	\fIbool\fP 
+LVCON:4	"%s"
+FILE
+WRITEF:3
+WRITLN
+.TE
+.DE
+.PP
+Here the operator
+.SM UNITOUT
+is an abbreviated form of the operator
+.SM UNIT
+that is used when the file to be made active is
+.I output .
+A file descriptor, record count, string size, and a pointer
+to the constant string ``r ='' are pushed 
+and then output by
+.SM WRITES .
+Next the value of 
+.I r
+is pushed on the stack
+and the precision size is calculated by taking
+seven less than the width, but not less than one.
+This is followed by the width that is reduced by
+one to leave space for the required leading blank.
+If the width is too narrow, it
+is expanded by
+.I fprintf .
+A pointer to the format string is pushed followed
+by a file descriptor and the operator
+.SM WRITEF
+that prints out
+.I r .
+The value of six on 
+.SM WRITEF
+comes from two longs for
+.I r
+and a long each for the precision, width, format string pointer,
+and file descriptor.
+The operator
+.SM CONC4
+pushes the
+.I blank
+character onto a long on the stack that is then printed out by
+.SM WRITEC .
+The internal representation for
+.I true
+is pushed as a long onto the stack and is
+then replaced by a pointer to the string ``true''
+by the operator
+.SM NAM
+using the table
+.I bool
+for conversion.
+This string is output by the operator
+.SM WRITEF
+using the format string ``%s''.
+Finally the operator
+.SM WRITLN
+appends a newline to the file.
+.NH 2
+File activation and status operations
+.SH
+UNIT*
+.IP
+The file pointed to by the file pointer on the top
+of the stack is converted to be the active file.
+The opcodes
+.SM UNITINP
+and
+.SM UNITOUT
+imply standard input and output respectively
+instead of explicitly pushing their file pointers.
+.SH
+FILE
+.IP
+The standard 
+.SM I/O
+library file descriptor associated with the active file 
+is pushed onto the stack.
+.SH
+EOF
+.IP
+The file pointed to by the file pointer on the top
+of the stack is checked for end of file. A boolean
+is returned with 
+.I true
+indicating the end of file condition.
+.SH
+EOLN
+.IP
+The file pointed to by the file pointer on the top
+of the stack is checked for end of line. A boolean
+is returned with
+.I true
+indicating the end of line condition.
+Note that only text files can check for end of line.
+.NH 2
+File housekeeping operations
+.SH
+DEFNAME
+.IP
+Four data items are passed on the stack;
+the size of the data type associated with the file,
+the maximum size of the file name,
+a pointer to the file name,
+and a pointer to the file variable.
+A file record is created with the specified window size
+and the file variable set to point to it.
+The file is marked as defined but not opened.
+This allows
+.B program
+statement association of file names with file variables
+before their use by a 
+.SM RESET
+or a
+.SM REWRITE .
+.SH
+BUFF s
+.IP
+The sub-opcode is placed in the external variable
+.I _bufopt
+to specify the amount of I/O buffering that is desired.
+The current options are:
+.DS
+0 \- character at a time buffering
+1 \- line at a time buffering
+2 \- block buffering
+.DE
+The default value is 1.
+.SH
+RESET
+.br
+REWRITE
+.IP
+Four data items are passed on the stack;
+the size of the data type associated with the file,
+the maximum size of the name (possibly zero),
+a pointer to the file name (possibly null),
+and a pointer to the file variable.
+If the file has never existed it is created as in 
+.SM DEFNAME .
+If no file name is specified and no previous name exists
+(for example one created by
+.SM DEFNAME
+) then a system temporary name is created.
+.SM RESET
+then opens the file for input, while
+.SM REWRITE
+opens the file for output.
+.sp 1
+.PP
+The three remaining file operations are
+.SM FLUSH 
+that flushes the active file,
+.SM REMOVE
+that takes the pointer to a file name and removes the
+specified file, and
+.SM MESSAGE
+that flushes all the output files and sets the 
+standard error file to be the active file.

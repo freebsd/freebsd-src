@@ -1,0 +1,2007 @@
+.\" Copyright (c) 1993 The Usenix Association. All rights reserved.
+.\"
+.\" This document is derived from software contributed to Berkeley by
+.\" Rick Macklem at The University of Guelph with the permission of
+.\" the Usenix Association.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)nqnfs.me	8.1 (Berkeley) 4/20/94
+.\"
+.lp
+.nr PS 12
+.ps 12
+Reprinted with permission from the "Proceedings of the Winter 1994 Usenix
+Conference", January 1994, San Francisco, CA, Copyright The Usenix
+Association.
+.nr PS 14
+.ps 14
+.sp
+.ce
+\fBNot Quite NFS, Soft Cache Consistency for NFS\fR
+.nr PS 12
+.ps 12
+.sp
+.ce
+\fIRick Macklem\fR
+.ce
+\fIUniversity of Guelph\fR
+.sp
+.nr PS 12
+.ps 12
+.ce
+\fBAbstract\fR
+.nr PS 10
+.ps 10
+.pp
+There are some constraints inherent in the NFS\(tm\(mo protocol
+that result in performance limitations
+for high performance
+workstation environments.
+This paper discusses an NFS-like protocol named Not Quite NFS (NQNFS),
+designed to address some of these limitations.
+This protocol provides full cache consistency during normal
+operation, while permitting more effective client-side caching in an
+effort to improve performance.
+There are also a variety of minor protocol changes, in order to resolve
+various NFS issues.
+The emphasis is on observed performance of a
+preliminary implementation of the protocol, in order to show
+how well this design works
+and to suggest possible areas for further improvement.
+.sh 1 "Introduction"
+.pp
+It has been observed that
+overall workstation performance has not been scaling with
+processor speed and that file system I/O is a limiting factor [Ousterhout90].
+Ousterhout
+notes
+that a principal challenge for operating system developers is the
+decoupling of system calls from their underlying I/O operations, in order
+to improve average system call response times.
+For distributed file systems, every synchronous Remote Procedure Call (RPC)
+takes a minimum of a few milliseconds and, as such, is analogous to an
+underlying I/O operation.
+This suggests that client caching with a very good
+hit ratio for read type operations, along with asynchronous writing, is required in order to avoid delays waiting for RPC replies.
+However, the NFS protocol requires that the server be stateless\**
+.(f
+\**The server must not require any state that may be lost due to a crash, to
+function correctly.
+.)f
+and does not provide any explicit mechanism for client cache
+consistency, putting
+constraints on how the client may cache data.
+This paper describes an NFS-like protocol that includes a cache consistency
+component designed to enhance client caching performance. It does provide
+full consistency under normal operation, but without requiring that hard
+state information be maintained on the server.
+Design tradeoffs were made towards simplicity and
+high performance over cache consistency under abnormal conditions.
+The protocol design uses a variation of Leases [Gray89]
+to provide state on the server that does not need to be recovered after a
+crash.
+.pp
+The protocol also includes changes designed to address other limitations
+of NFS in a modern workstation environment.
+The use of TCP transport is optionally available to avoid
+the pitfalls of Sun RPC over UDP transport when running across an internetwork [Nowicki89].
+Kerberos [Steiner88] support is available
+to do proper user authentication, in order to provide improved security and
+arbitrary client to server user ID mappings.
+There are also a variety of other changes to accommodate large file systems,
+such as 64bit file sizes and offsets, as well as lifting the 8Kbyte I/O size
+limit.
+The remainder of this paper gives an overview of the protocol, highlighting
+performance related components, followed by an evaluation of resultant performance
+for the 4.4BSD implementation.
+.sh 1 "Distributed File Systems and Caching"
+.pp
+Clients using distributed file systems cache recently-used data in order
+to reduce the number of synchronous server operations, and therefore improve
+average response times for system calls.
+Unfortunately, maintaining consistency between these caches is a problem
+whenever write sharing occurs; that is, when a process on a client writes
+to a file and one or more processes on other client(s) read the file.
+If the writer closes the file before any reader(s) open the file for reading,
+this is called sequential write sharing. Both the Andrew ITC file system
+[Howard88] and NFS [Sandberg85] maintain consistency for sequential write
+sharing by requiring the writer to push all the writes through to the
+server on close and having readers check to see if the file has been
+modified upon open. If the file has been modified, the client throws away
+all cached data for that file, as it is now stale.
+NFS implementations typically detect file modification by checking a cached
+copy of the file's modification time; since this cached value is often
+several seconds out of date and only has a resolution of one second, an NFS
+client often uses stale cached data for some time after the file has
+been updated on the server.
+.pp
+A more difficult case is concurrent write sharing, where write operations are intermixed
+with read operations.
+Consistency for this case, often referred to as "full cache consistency,"
+requires that a reader always receives the most recently written data.
+Neither NFS nor the Andrew ITC file system maintain consistency for this
+case.
+The simplest mechanism for maintaining full cache consistency is the one
+used by Sprite [Nelson88], which disables all client caching of the
+file whenever concurrent write sharing might occur.
+There are other mechanisms described in the literature [Kent87a,
+Burrows88], but they appeared to be too elaborate for incorporation
+into NQNFS (for example, Kent's requires specialized hardware).
+NQNFS differs from Sprite in the way it
+detects write sharing. The Sprite server maintains a list of files currently open
+by the various clients and detects write sharing when a file open request
+for writing is received and the file is already open for reading
+(or vice versa).
+This list of open files is hard state information that must be recovered
+after a server crash, which is a significant problem in its own
+right [Mogul93, Welch90].
+.pp
+The approach used by NQNFS is a variant of the Leases mechanism [Gray89].
+In this model, the server issues to a client a promise, referred to as a
+"lease," that the client may cache a specific object without fear of
+conflict.
+A lease has a limited duration and must be renewed by the client if it
+wishes to continue to cache the object.
+In NQNFS, clients hold short-term (up to one minute) leases on files
+for reading or writing.
+The leases are analogous to entries in the open file list, except that
+they expire after the lease term unless renewed by the client.
+As such, one minute after issuing the last lease there are no current
+leases and therefore no lease records to be recovered after a crash, hence
+the term "soft server state."
+.pp
+A related design consideration is the way client writing is done.
+Synchronous writing requires that all writes be pushed through to the server
+during the write system call.
+This is the simplest variant, from a consistency point of view, since the
+server always has the most recently written data. It also permits any write
+errors, such as "file system out of space" to be propagated back to the
+client's process via the write system call return.
+Unfortunately this approach limits the client write rate, based on server write
+performance and client/server RPC round trip time (RTT).
+.pp
+An alternative to this is delayed writing, where the write system call returns
+as soon as the data is cached on the client and the data is written to the
+server sometime later.
+This permits client writing to occur at the rate of local storage access
+up to the size of the local cache.
+Also, for cases where file truncation/deletion occurs shortly after writing,
+the write to the server may be avoided since the data has already been
+deleted, reducing server write load.
+There are some obvious drawbacks to this approach.
+For any Sprite-like system to maintain
+full consistency, the server must "callback" to the client to cause the
+delayed writes to be written back to the server when write sharing is about to
+occur.
+There are also problems with the propagation of errors
+back to the client process that issued the write system call.
+The reason for this is that
+the system call has already returned without reporting an error and the
+process may also have already terminated.
+As well, there is a risk of the loss of recently written data if the client
+crashes before the data is written back to the server.
+.pp
+A compromise between these two alternatives is asynchronous writing, where
+the write to the server is initiated during the write system call but the write system
+call returns before the write completes.
+This approach minimizes the risk of data loss due to a client crash, but negates
+the possibility of reducing server write load by throwing writes away when
+a file is truncated or deleted.
+.pp
+NFS implementations usually do a mix of asynchronous and delayed writing
+but push all writes to the server upon close, in order to maintain open/close
+consistency.
+Pushing the delayed writes on close
+negates much of the performance advantage of delayed writing, since the
+delays that were avoided in the write system calls are observed in the close
+system call.
+Akin to Sprite, the NQNFS protocol does delayed writing in an effort to achieve
+good client performance and uses a callback mechanism to maintain full cache
+consistency.
+.sh 1 "Related Work"
+.pp
+There has been a great deal of effort put into improving the performance and
+consistency of the NFS protocol. This work can be put in two categories.
+The first category are implementation enhancements for the NFS protocol and
+the second involve modifications to the protocol.
+.pp
+The work done on implementation enhancements have attacked two problem areas,
+NFS server write performance and RPC transport problems.
+Server write performance is a major problem for NFS, in part due to the
+requirement to push all writes to the server upon close and in part due
+to the fact that, for writes, all data and meta-data must be committed to
+non-volatile storage before the server replies to the write RPC.
+The Prestoserve\(tm\(dg
+[Moran90]
+system uses non-volatile RAM as a buffer for recently written data on the server,
+so that the write RPC replies can be returned to the client before the data is written to the
+disk surface.
+Write gathering [Juszczak94] is a software technique used on the server where a write
+RPC request is delayed for a short time in the hope that another contiguous
+write request will arrive, so that they can be merged into one write operation.
+Since the replies to all of the merged writes are not returned to the client until the write
+operation is completed, this delay does not violate the protocol.
+When write operations are merged, the number of disk writes can be reduced,
+improving server write performance.
+Although either of the above reduces write RPC response time for the server,
+it cannot be reduced to zero, and so, any client side caching mechanism
+that reduces write RPC load or client dependence on server RPC response time
+should still improve overall performance.
+Good client side caching should be complementary to these server techniques,
+although client performance improvements as a result of caching may be less
+dramatic when these techniques are used.
+.pp
+In NFS, each Sun RPC request is packaged in a UDP datagram for transmission
+to the server. A timer is started, and if a timeout occurs before the corresponding
+RPC reply is received, the RPC request is retransmitted.
+There are two problems with this model.
+First, when a retransmit timeout occurs, the RPC may be redone, instead of
+simply retransmitting the RPC request message to the server. A recent-request
+cache can be used on the server to minimize the negative impact of redoing
+RPCs [Juszczak89].
+The second problem is that a large UDP datagram, such as a read request or
+write reply, must be fragmented by IP and if any one IP fragment is lost in
+transit, the entire UDP datagram is lost [Kent87]. Since entire requests and replies
+are packaged in a single UDP datagram, this puts an upper bound on the read/write
+data size (8 kbytes).
+.pp
+Adjusting the retransmit timeout (RTT) interval dynamically and applying a
+congestion window on outstanding requests has been shown to be of some help
+[Nowicki89] with the retransmission problem.
+An alternative to this is to use TCP transport to delivery the RPC messages
+reliably [Macklem90] and one of the performance results in this paper
+shows the effects of this further.
+.pp
+Srinivasan and Mogul [Srinivasan89] enhanced the NFS protocol to use the Sprite cache
+consistency algorithm in an effort to improve performance and to provide
+full client cache consistency.
+This experimental implementation demonstrated significantly better
+performance than NFS, but suffered from a lack of crash recovery support.
+The NQNFS protocol design borrowed heavily from this work, but differed
+from the Sprite algorithm by using Leases instead of file open state
+to detect write sharing.
+The decision to use Leases was made primarily to avoid the crash recovery
+problem.
+More recent work by the Sprite group [Baker91] and Mogul [Mogul93] have
+addressed the crash recovery problem, making this design tradeoff more
+questionable now.
+.pp
+Sun has recently updated the NFS protocol to Version 3 [SUN93], using some
+changes similar to NQNFS to address various issues. The Version 3 protocol
+uses 64bit file sizes and offsets, provides a Readdir_and_Lookup RPC and
+an access RPC.
+It also provides cache hints, to permit a client to be able to determine
+whether a file modification is the result of that client's write or some
+other client's write.
+It would be possible to add either Spritely NFS or NQNFS support for cache
+consistency to the NFS Version 3 protocol.
+.sh 1 "NQNFS Consistency Protocol and Recovery"
+.pp
+The NQNFS cache consistency protocol uses a somewhat Sprite-like [Nelson88]
+mechanism, but is based on Leases [Gray89] instead of hard server state information
+about open files.
+The basic principle is that the server disables client caching of files whenever
+concurrent write sharing could occur, by performing a server-to-client
+callback,
+forcing the client to flush its caches and to do all subsequent I/O on the file with
+synchronous RPCs.
+A Sprite server maintains a record of the open state of files for
+all clients and uses this to determine when concurrent write sharing might
+occur.
+This \fIopen state\fR information might also be referred to as an infinite-term
+lease for the file, with explicit lease cancellation.
+NQNFS, on the other hand, uses a short-term lease that expires due to timeout
+after a maximum of one minute, unless explicitly renewed by the client.
+The fundamental difference is that an NQNFS client must keep renewing
+a lease to use cached data whereas a Sprite client assumes the data is valid until canceled
+by the server
+or the file is closed.
+Using leases permits the server to remain "stateless," since the soft
+state information, which consists of the set of current leases, is
+moot after one minute, when all the leases expire.
+.pp
+Whenever a client wishes to access a file's data it must hold one of
+three types of lease: read-caching, write-caching or non-caching.
+The latter type requires that all file operations be done synchronously with
+the server via the appropriate RPCs.
+.pp
+A read-caching lease allows for client data caching but no modifications
+may be done.
+It may, however, be shared between multiple clients. Diagram 1 shows a typical
+read-caching scenario. The vertical solid black lines depict the lease records.
+Note that the time lines are nowhere near to scale, since a client/server
+interaction will normally take less than one hundred milliseconds, whereas the
+normal lease duration is thirty seconds.
+Every lease includes a \fImodrev\fR value, which changes upon every modification
+of the file. It may be used to check to see if data cached on the client is
+still current.
+.pp
+A write-caching lease permits delayed write caching,
+but requires that all data be pushed to the server when the lease expires
+or is terminated by an eviction callback.
+When a write-caching lease has almost expired, the client will attempt to
+extend the lease if the file is still open, but is required to push the delayed writes to the server
+if renewal fails (as depicted by diagram 2).
+The writes may not arrive at the server until after the write lease has
+expired on the client, but this does not result in a consistency problem,
+so long as the write lease is still valid on the server.
+Note that, in diagram 2, the lease record on the server remains current after
+the expiry time, due to the conditions mentioned in section 5.
+If a write RPC is done on the server after the write lease has expired on
+the server, this could be considered an error since consistency could be
+lost, but it is not handled as such by NQNFS.
+.pp
+Diagram 3 depicts how read and write leases are replaced by a non-caching
+lease when there is the potential for write sharing.
+.(z
+.sp
+.PS
+.ps
+.ps 50
+line from 0.738,5.388 to 1.238,5.388
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 1.488,10.075 to 1.488,5.450
+line dashed from 2.987,10.075 to 2.987,5.450
+line dashed from 4.487,10.075 to 4.487,5.450
+.ps
+.ps 50
+line from 4.487,7.013 to 4.487,5.950
+line from 2.987,7.700 to 2.987,5.950 to 2.987,6.075
+line from 1.488,7.513 to 1.488,5.950
+line from 2.987,9.700 to 2.987,8.325
+line from 1.488,9.450 to 1.488,8.325
+.ps
+.ps 10
+line from 2.987,6.450 to 4.487,6.200
+line from 4.385,6.192 to 4.487,6.200 to 4.393,6.241
+line from 4.487,6.888 to 2.987,6.575
+line from 3.080,6.620 to 2.987,6.575 to 3.090,6.571
+line from 2.987,7.263 to 4.487,7.013
+line from 4.385,7.004 to 4.487,7.013 to 4.393,7.054
+line from 4.487,7.638 to 2.987,7.388
+line from 3.082,7.429 to 2.987,7.388 to 3.090,7.379
+line from 2.987,6.888 to 1.488,6.575
+line from 1.580,6.620 to 1.488,6.575 to 1.590,6.571
+line from 1.488,7.200 to 2.987,6.950
+line from 2.885,6.942 to 2.987,6.950 to 2.893,6.991
+line from 2.987,7.700 to 1.488,7.513
+line from 1.584,7.550 to 1.488,7.513 to 1.590,7.500
+line from 1.488,8.012 to 2.987,7.763
+line from 2.885,7.754 to 2.987,7.763 to 2.893,7.804
+line from 2.987,9.012 to 1.488,8.825
+line from 1.584,8.862 to 1.488,8.825 to 1.590,8.813
+line from 1.488,9.325 to 2.987,9.137
+line from 2.885,9.125 to 2.987,9.137 to 2.891,9.175
+line from 2.987,9.637 to 1.488,9.450
+line from 1.584,9.487 to 1.488,9.450 to 1.590,9.438
+line from 1.488,9.887 to 2.987,9.700
+line from 2.885,9.688 to 2.987,9.700 to 2.891,9.737
+.ps
+.ps 12
+.ft
+.ft R
+"Lease valid on machine" at 1.363,5.296 ljust
+"with same modrev" at 1.675,7.421 ljust
+"miss)" at 2.612,9.233 ljust
+"(cache" at 2.300,9.358 ljust
+.ps
+.ps 14
+"Diagram #1: Read Caching Leases" at 0.738,5.114 ljust
+"Client B" at 4.112,10.176 ljust
+"Server" at 2.612,10.176 ljust
+"Client A" at 0.925,10.176 ljust
+.ps
+.ps 12
+"from cache" at 4.675,6.546 ljust
+"Read syscalls" at 4.675,6.796 ljust
+"Reply" at 3.737,6.108 ljust
+"(cache miss)" at 3.675,6.421 ljust
+"Read  req" at 3.737,6.608 ljust
+"to lease" at 3.112,6.796 ljust
+"Client B added" at 3.112,6.983 ljust
+"Reply" at 3.237,7.296 ljust
+"Read + lease req" at 3.175,7.671 ljust
+"Read syscall" at 4.675,7.608 ljust
+"Reply" at 1.675,6.796 ljust
+"miss)" at 2.487,7.108 ljust
+"Read req (cache" at 1.675,7.233 ljust
+"from cache" at 0.425,6.296 ljust
+"Read  syscalls" at 0.425,6.546 ljust
+"cache" at 0.425,6.858 ljust
+"so can still" at 0.425,7.108 ljust
+"Modrev  same" at 0.425,7.358 ljust
+"Reply" at 1.675,7.671 ljust
+"Get lease req" at 1.675,8.108 ljust
+"Read syscall" at 0.425,7.983 ljust
+"Lease times out" at 0.425,8.296 ljust
+"from cache" at 0.425,9.046 ljust
+"Read syscalls" at 0.425,9.296 ljust
+"for Client A" at 3.112,9.296 ljust
+"Read caching lease" at 3.112,9.483 ljust
+"Reply" at 1.675,8.983 ljust
+"Read req" at 1.675,9.358 ljust
+"Reply" at 1.675,9.608 ljust
+"Read + lease req" at 1.675,9.921 ljust
+"Read syscall" at 0.425,9.921 ljust
+.ps
+.ft
+.PE
+.sp
+.)z
+.(z
+.sp
+.PS
+.ps
+.ps 50
+line from 1.175,5.700 to 1.300,5.700
+line from 0.738,5.700 to 1.175,5.700
+line from 2.987,6.638 to 2.987,6.075
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 2.987,6.575 to 2.987,5.950
+line dashed from 1.488,6.575 to 1.488,5.888
+.ps
+.ps 50
+line from 2.987,9.762 to 2.987,6.638
+line from 1.488,9.450 to 1.488,7.700
+.ps
+.ps 10
+line from 2.987,6.763 to 1.488,6.575
+line from 1.584,6.612 to 1.488,6.575 to 1.590,6.563
+line from 1.488,7.013 to 2.987,6.825
+line from 2.885,6.813 to 2.987,6.825 to 2.891,6.862
+line from 2.987,7.325 to 1.488,7.075
+line from 1.582,7.116 to 1.488,7.075 to 1.590,7.067
+line from 1.488,7.700 to 2.987,7.388
+line from 2.885,7.383 to 2.987,7.388 to 2.895,7.432
+line from 2.987,8.575 to 1.488,8.325
+line from 1.582,8.366 to 1.488,8.325 to 1.590,8.317
+line from 1.488,8.887 to 2.987,8.637
+line from 2.885,8.629 to 2.987,8.637 to 2.893,8.679
+line from 2.987,9.637 to 1.488,9.450
+line from 1.584,9.487 to 1.488,9.450 to 1.590,9.438
+line from 1.488,9.887 to 2.987,9.762
+line from 2.886,9.746 to 2.987,9.762 to 2.890,9.796
+line dashed from 2.987,10.012 to 2.987,6.513
+line dashed from 1.488,10.012 to 1.488,6.513
+.ps
+.ps 12
+.ft
+.ft R
+"write" at 4.237,5.921 ljust
+"Lease valid on machine" at 1.425,5.733 ljust
+.ps
+.ps 14
+"Diagram #2: Write Caching Lease" at 0.738,5.551 ljust
+"Server" at 2.675,10.114 ljust
+"Client A" at 1.113,10.114 ljust
+.ps
+.ps 12
+"seconds after last" at 3.112,5.921 ljust
+"Expires write_slack" at 3.112,6.108 ljust
+"due to write activity" at 3.112,6.608 ljust
+"Expiry delayed" at 3.112,6.796 ljust
+"Lease times out" at 3.112,7.233 ljust
+"Lease renewed" at 3.175,8.546 ljust
+"Lease for client A" at 3.175,9.358 ljust
+"Write caching" at 3.175,9.608 ljust
+"Reply" at 1.675,6.733 ljust
+"Write req" at 1.988,7.046 ljust
+"Reply" at 1.675,7.233 ljust
+"Write req" at 1.675,7.796 ljust
+"Lease expires" at 0.487,7.733 ljust
+"Close syscall" at 0.487,8.108 ljust
+"lease granted" at 1.675,8.546 ljust
+"Get write lease" at 1.675,8.921 ljust
+"before expiry" at 0.487,8.608 ljust
+"Lease renewal" at 0.487,8.796 ljust
+"syscalls" at 0.487,9.046 ljust
+"Delayed write" at 0.487,9.233 ljust
+"lease granted" at 1.675,9.608 ljust
+"Get write lease req" at 1.675,9.921 ljust
+"Write syscall" at 0.487,9.858 ljust
+.ps
+.ft
+.PE
+.sp
+.)z
+.(z
+.sp
+.PS
+.ps
+.ps 50
+line from 0.613,2.638 to 1.238,2.638
+line from 1.488,4.075 to 1.488,3.638
+line from 2.987,4.013 to 2.987,3.575
+line from 4.487,4.013 to 4.487,3.575
+.ps
+.ps 10
+line from 2.987,3.888 to 4.487,3.700
+line from 4.385,3.688 to 4.487,3.700 to 4.391,3.737
+line from 4.487,4.138 to 2.987,3.950
+line from 3.084,3.987 to 2.987,3.950 to 3.090,3.938
+line from 2.987,4.763 to 4.487,4.450
+line from 4.385,4.446 to 4.487,4.450 to 4.395,4.495
+.ps
+.ps 50
+line from 4.487,4.438 to 4.487,4.013
+.ps
+.ps 10
+line from 4.487,5.138 to 2.987,4.888
+line from 3.082,4.929 to 2.987,4.888 to 3.090,4.879
+.ps
+.ps 50
+line from 4.487,6.513 to 4.487,5.513
+line from 4.487,6.513 to 4.487,6.513 to 4.487,5.513
+line from 2.987,5.450 to 2.987,5.200
+line from 1.488,5.075 to 1.488,4.075
+line from 2.987,5.263 to 2.987,4.013
+line from 2.987,7.700 to 2.987,5.325
+line from 4.487,7.575 to 4.487,6.513
+line from 1.488,8.512 to 1.488,8.075
+line from 2.987,8.637 to 2.987,8.075
+line from 2.987,9.637 to 2.987,8.825
+line from 1.488,9.450 to 1.488,8.950
+.ps
+.ps 10
+line from 2.987,4.450 to 1.488,4.263
+line from 1.584,4.300 to 1.488,4.263 to 1.590,4.250
+line from 1.488,4.888 to 2.987,4.575
+line from 2.885,4.571 to 2.987,4.575 to 2.895,4.620
+line from 2.987,5.263 to 1.488,5.075
+line from 1.584,5.112 to 1.488,5.075 to 1.590,5.063
+line from 4.487,5.513 to 2.987,5.325
+line from 3.084,5.362 to 2.987,5.325 to 3.090,5.313
+line from 2.987,5.700 to 4.487,5.575
+line from 4.386,5.558 to 4.487,5.575 to 4.390,5.608
+line from 4.487,6.013 to 2.987,5.825
+line from 3.084,5.862 to 2.987,5.825 to 3.090,5.813
+line from 2.987,6.200 to 4.487,6.075
+line from 4.386,6.058 to 4.487,6.075 to 4.390,6.108
+line from 4.487,6.450 to 2.987,6.263
+line from 3.084,6.300 to 2.987,6.263 to 3.090,6.250
+line from 2.987,6.700 to 4.487,6.513
+line from 4.385,6.500 to 4.487,6.513 to 4.391,6.550
+line from 1.488,6.950 to 2.987,6.763
+line from 2.885,6.750 to 2.987,6.763 to 2.891,6.800
+line from 2.987,7.700 to 4.487,7.575
+line from 4.386,7.558 to 4.487,7.575 to 4.390,7.608
+line from 4.487,7.950 to 2.987,7.763
+line from 3.084,7.800 to 2.987,7.763 to 3.090,7.750
+line from 2.987,8.637 to 1.488,8.512
+line from 1.585,8.546 to 1.488,8.512 to 1.589,8.496
+line from 1.488,8.887 to 2.987,8.700
+line from 2.885,8.688 to 2.987,8.700 to 2.891,8.737
+line from 2.987,9.637 to 1.488,9.450
+line from 1.584,9.487 to 1.488,9.450 to 1.590,9.438
+line from 1.488,9.950 to 2.987,9.762
+line from 2.885,9.750 to 2.987,9.762 to 2.891,9.800
+dashwid = 0.050i
+line dashed from 4.487,10.137 to 4.487,2.825
+line dashed from 2.987,10.137 to 2.987,2.825
+line dashed from 1.488,10.137 to 1.488,2.825
+.ps
+.ps 12
+.ft
+.ft R
+"(not cached)" at 4.612,3.858 ljust
+.ps
+.ps 14
+"Diagram #3: Write sharing case" at 0.613,2.239 ljust
+.ps
+.ps 12
+"Write syscall" at 4.675,7.546 ljust
+"Read syscall" at 0.550,9.921 ljust
+.ps
+.ps 14
+"Lease valid on machine" at 1.363,2.551 ljust
+.ps
+.ps 12
+"(can still cache)" at 1.675,8.171 ljust
+"Reply" at 3.800,3.858 ljust
+"Write" at 3.175,4.046 ljust
+"writes" at 4.612,4.046 ljust
+"synchronous" at 4.612,4.233 ljust
+"write syscall" at 4.675,5.108 ljust
+"non-caching lease" at 3.175,4.296 ljust
+"Reply " at 3.175,4.483 ljust
+"req" at 3.175,4.983 ljust
+"Get write lease" at 3.175,5.108 ljust
+"Vacated msg" at 3.175,5.483 ljust
+"to the server" at 4.675,5.858 ljust
+"being flushed to" at 4.675,6.046 ljust
+"Delayed writes" at 4.675,6.233 ljust
+.ps
+.ps 16
+"Server" at 2.675,10.182 ljust
+"Client B" at 3.925,10.182 ljust
+"Client A" at 0.863,10.182 ljust
+.ps
+.ps 12
+"(not cached)" at 0.550,4.733 ljust
+"Read data" at 0.550,4.921 ljust
+"Reply  data" at 1.675,4.421 ljust
+"Read request" at 1.675,4.921 ljust
+"lease" at 1.675,5.233 ljust
+"Reply non-caching" at 1.675,5.421 ljust
+"Reply" at 3.737,5.733 ljust
+"Write" at 3.175,5.983 ljust
+"Reply" at 3.737,6.171 ljust
+"Write" at 3.175,6.421 ljust
+"Eviction Notice" at 3.175,6.796 ljust
+"Get read lease" at 1.675,7.046 ljust
+"Read syscall" at 0.550,6.983 ljust
+"being cached" at 4.675,7.171 ljust
+"Delayed writes" at 4.675,7.358 ljust
+"lease" at 3.175,7.233 ljust
+"Reply write caching" at 3.175,7.421 ljust
+"Get  write lease" at 3.175,7.983 ljust
+"Write syscall" at 4.675,7.983 ljust
+"with same modrev" at 1.675,8.358 ljust
+"Lease" at 0.550,8.171 ljust
+"Renewed" at 0.550,8.358 ljust
+"Reply" at 1.675,8.608 ljust
+"Get Lease Request" at 1.675,8.983 ljust
+"Read syscall" at 0.550,8.733 ljust
+"from cache" at 0.550,9.108 ljust
+"Read syscall" at 0.550,9.296 ljust
+"Reply " at 1.675,9.671 ljust
+"plus lease" at 2.050,9.983 ljust
+"Read Request" at 1.675,10.108 ljust
+.ps
+.ft
+.PE
+.sp
+.)z
+A write-caching lease is not used in the Stanford V Distributed System [Gray89],
+since synchronous writing is always used. A side effect of this change
+is that the five to ten second lease duration recommended by Gray was found
+to be insufficient to achieve good performance for the write-caching lease.
+Experimentation showed that thirty seconds was about optimal for cases where
+the client and server are connected to the same local area network, so
+thirty seconds is the default lease duration for NQNFS.
+A maximum of twice that value is permitted, since Gray showed that for some
+network topologies, a larger lease duration functions better.
+Although there is an explicit get_lease RPC defined for the protocol,
+most lease requests are piggybacked onto the other RPCs to minimize the
+additional overhead introduced by leasing.
+.sh 2 "Rationale"
+.pp
+Leasing was chosen over hard server state information for the following
+reasons:
+.ip 1.
+The server must maintain state information about all current
+client leases.
+Since at most one lease is allocated for each RPC and the leases expire
+after their lease term,
+the upper bound on the number of current leases is the product of the
+lease term and the server RPC rate.
+In practice, it has been observed that less than 10% of RPCs request new leases
+and since most leases have a term of thirty seconds, the following rule of
+thumb should estimate the number of server lease records:
+.sp
+.nf
+	Number of Server Lease Records \(eq 0.1 * 30 * RPC rate
+.fi
+.sp
+Since each lease record occupies 64 bytes of server memory, storing the lease
+records should not be a serious problem.
+If a server has exhausted lease storage, it can simply wait a few seconds
+for a lease to expire and free up a record.
+On the other hand, a Sprite-like server must store records for all files
+currently open by all clients, which can require significant storage for
+a large, heavily loaded server.
+In [Mogul93], it is proposed that a mechanism vaguely similar to paging could be
+used to deal with this for Spritely NFS, but this
+appears to introduce a fair amount of complexity and may limit the
+usefulness of open records for storing other state information, such
+as file locks.
+.ip 2.
+After a server crashes it must recover lease records for
+the current outstanding leases, which actually implies that if it waits
+until all leases have expired, there is no state to recover.
+The server must wait for the maximum lease duration of one minute, and it must serve
+all outstanding write requests resulting from terminated write-caching
+leases before issuing new leases. The one minute delay can be overlapped with
+file system consistency checking (eg. fsck).
+Because no state must be recovered, a lease-based server, like an NFS server,
+avoids the problem of state recovery after a crash.
+.sp
+There can, however, be problems during crash recovery
+because of a potentially large number of write backs due to terminated
+write-caching leases.
+One of these problems is a "recovery storm" [Baker91], which could occur when
+the server is overloaded by the number of write RPC requests.
+The NQNFS protocol deals with this by replying
+with a return status code called
+try_again_later to all
+RPC requests (except write) until the write requests subside.
+At this time, there has not been sufficient testing of server crash
+recovery while under heavy server load to determine if the try_again_later
+reply is a sufficient solution to the problem.
+The other problem is that consistency will be lost if other RPCs are performed
+before all of the write backs for terminated write-caching leases have completed.
+This is handled by only performing write RPCs until
+no write RPC requests arrive
+for write_slack seconds, where write_slack is set to several times
+the client timeout retransmit interval,
+at which time it is assumed all clients have had an opportunity to send their writes
+to the server.
+.ip 3.
+Another advantage of leasing is that, since leases are required at times when other I/O operations occur,
+lease requests can almost always be piggybacked on other RPCs, avoiding some of the
+overhead associated with the explicit open and close RPCs required by a Sprite-like system.
+Compared with Sprite cache consistency,
+this can result in a significantly lower RPC load (see table #1).
+.sh 1 "Limitations of the NQNFS Protocol"
+.pp
+There is a serious risk when leasing is used for delayed write
+caching.
+If the server is simply too busy to service a lease renewal before a write-caching
+lease terminates, the client will not be able to push the write
+data to the server before the lease has terminated, resulting in
+inconsistency.
+Note that the danger of inconsistency occurs when the server assumes that
+a write-caching lease has terminated before the client has
+had the opportunity to write the data back to the server.
+In an effort to avoid this problem, the NQNFS server does not assume that
+a write-caching lease has terminated until three conditions are met:
+.sp
+.(l
+1 - clock time > (expiry time + clock skew)
+2 - there is at least one server daemon (nfsd) waiting for an RPC request
+3 - no write RPCs received for leased file within write_slack after the corrected expiry time
+.)l
+.lp
+The first condition ensures that the lease has expired on the client.
+The clock_skew, by default three seconds, must be
+set to a value larger than the maximum time-of-day clock error that is likely to occur
+during the maximum lease duration.
+The second condition attempts to ensure that the client
+is not waiting for replies to any writes that are still queued for service by
+an nfsd. The third condition tries to guarantee that the client has
+transmitted all write requests to the server, since write_slack is set to
+several times the client's timeout retransmit interval.
+.pp
+There are also certain file system semantics that are problematic for both NFS and NQNFS,
+due to the
+lack of state information maintained by the
+server. If a file is unlinked on one client while open on another it will
+be removed from the file server, resulting in failed file accesses on the
+client that has the file open.
+If the file system on the server is out of space or the client user's disk
+quota has been exceeded, a delayed write can fail long after the write system
+call was successfully completed.
+With NFS this error will be detected by the close system call, since
+the delayed writes are pushed upon close. With NQNFS however, the delayed write
+RPC may not occur until after the close system call, possibly even after the process
+has exited.
+Therefore,
+if a process must check for write errors,
+a system call such as \fIfsync\fR must be used.
+.pp
+Another problem occurs when a process on one client is
+running an executable file
+and a process on another client starts to write to the file. The read lease on
+the first client is terminated by the server, but the client has no recourse but
+to terminate the process, since the process is already in progress on the old
+executable.
+.pp
+The NQNFS protocol does not support file locking, since a file lock would have
+to involve hard, recovered after a crash, state information.
+.sh 1 "Other NQNFS Protocol Features"
+.pp
+NQNFS also includes a variety of minor modifications to the NFS protocol, in an
+attempt to address various limitations.
+The protocol uses 64bit file sizes and offsets in order to handle large files.
+TCP transport may be used as an alternative to UDP
+for cases where UDP does not perform well.
+Transport mechanisms
+such as TCP also permit the use of much larger read/write data sizes,
+which might improve performance in certain environments.
+.pp
+The NQNFS protocol replaces the Readdir RPC with a Readdir_and_Lookup
+RPC that returns the file handle and attributes for each file in the
+directory as well as name and file id number.
+This additional information may then be loaded into the lookup and file-attribute
+caches on the client.
+Thus, for cases such as "ls -l", the \fIstat\fR system calls can be performed
+locally without doing any lookup or getattr RPCs.
+Another additional RPC is the Access RPC that checks for file
+accessibility against the server. This is necessary since in some cases the
+client user ID is mapped to a different user on the server and doing the
+access check locally on the client using file attributes and client credentials is
+not correct.
+One case where this becomes necessary is when the NQNFS mount point is using
+Kerberos authentication, where the Kerberos authentication ticket is translated
+to credentials on the server that are mapped to the client side user id.
+For further details on the protocol, see [Macklem93].
+.sh 1 "Performance"
+.pp
+In order to evaluate the effectiveness of the NQNFS protocol,
+a benchmark was used that was
+designed to typify
+real work on the client workstation.
+Benchmarks, such as Laddis [Wittle93], that perform server load characterization
+are not appropriate for this work, since it is primarily client caching
+efficiency that needs to be evaluated.
+Since these tests are measuring overall client system performance and
+not just the performance of the file system,
+each sequence of runs was performed on identical hardware and operating system in order to factor out the system
+components affecting performance other than the file system protocol.
+.pp
+The equipment used for the all the benchmarks are members of the DECstation\(tm\(dg
+family of workstations using the MIPS\(tm\(sc RISC architecture.
+The operating system running on these systems was a pre-release version of
+4.4BSD Unix\(tm\(dd.
+For all benchmarks, the file server was a DECstation 2100 (10 MIPS) with 8Mbytes of
+memory and a local RZ23 SCSI disk (27msec average access time).
+The clients range in speed from DECstation 2100s
+to a DECstation 5000/25, and always run with six block I/O daemons
+and a 4Mbyte buffer cache, except for the test runs where the
+buffer cache size was the independent variable.
+In all cases /tmp is mounted on the local SCSI disk\**, all machines were
+attached to the same uncongested Ethernet, and ran in single user mode during the benchmarks.
+.(f
+\**Testing using the 4.4BSD MFS [McKusick90] resulted in slightly degraded performance,
+probably since the machines only had 16Mbytes of memory, and so paging
+increased.
+.)f
+Unless noted otherwise, test runs used UDP RPC transport
+and the results given are the average values of four runs.
+.pp
+The benchmark used is the Modified Andrew Benchmark (MAB)
+[Ousterhout90],
+which is a slightly modified version of the benchmark used to characterize
+performance of the Andrew ITC file system [Howard88].
+The MAB was set up with the executable binaries in the remote mounted file
+system and the final load step was commented out, due to a linkage problem
+during testing under 4.4BSD.
+Therefore, these results are not directly comparable to other reported MAB
+results.
+The MAB is made up of five distinct phases:
+.sp
+.ip "1." 10
+Makes five directories (no significant cost)
+.ip "2." 10
+Copy a file system subtree to a working directory
+.ip "3." 10
+Get file attributes (stat) of all the working files
+.ip "4." 10
+Search for strings (grep) in the files
+.ip "5." 10
+Compile a library of C sources and archive them
+.lp
+Of the five phases, the fifth is by far the largest and is the one affected most
+by client caching mechanisms.
+The results for phase #1 are invariant over all
+the caching mechanisms.
+.sh 2 "Buffer Cache Size Tests"
+.pp
+The first experiment was done to see what effect changing the size of the
+buffer cache would have on client performance. A single DECstation 5000/25
+was used to do a series of runs of MAB with different buffer cache sizes
+for four variations of the file system protocol. The four variations are
+as follows:
+.ip "Case 1:" 10
+NFS - The NFS protocol as implemented in 4.4BSD
+.ip "Case 2:" 10
+Leases - The NQNFS protocol using leases for cache consistency
+.ip "Case 3:" 10
+Leases, Rdirlookup - The NQNFS protocol using leases for cache consistency
+and with the readdir RPC replaced by Readdir_and_Lookup
+.ip "Case 4:" 10
+Leases, Attrib leases, Rdirlookup - The NQNFS protocol using leases for
+cache consistency, with the readdir
+RPC replaced by the Readdir_and_Lookup,
+and requiring a valid lease not only for file-data access, but also for file-attribute access.
+.lp
+As can be seen in figure 1, the buffer cache achieves about optimal
+performance for the range of two to ten megabytes in size. At eleven
+megabytes in size, the system pages heavily and the runs did not
+complete in a reasonable time. Even at 64Kbytes, the buffer cache improves
+performance over no buffer cache by a significant margin of 136-148 seconds
+versus 239 seconds.
+This may be due, in part, to the fact that the Compile Phase of the MAB
+uses a rather small working set of file data.
+All variants of NQNFS achieve about
+the same performance, running around 30% faster than NFS, with a slightly
+larger difference for large buffer cache sizes.
+Based on these results, all remaining tests were run with the buffer cache
+size set to 4Mbytes.
+Although I do not know what causes the local peak in the curves between 0.5 and 2 megabytes,
+there is some indication that contention for buffer cache blocks, between the update process
+(which pushes delayed writes to the server every thirty seconds) and the I/O
+system calls, may be involved.
+.(z
+.PS
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 0.900,7.888 to 4.787,7.888
+line dashed from 0.900,7.888 to 0.900,10.262
+line from 0.900,7.888 to 0.963,7.888
+line from 4.787,7.888 to 4.725,7.888
+line from 0.900,8.188 to 0.963,8.188
+line from 4.787,8.188 to 4.725,8.188
+line from 0.900,8.488 to 0.963,8.488
+line from 4.787,8.488 to 4.725,8.488
+line from 0.900,8.775 to 0.963,8.775
+line from 4.787,8.775 to 4.725,8.775
+line from 0.900,9.075 to 0.963,9.075
+line from 4.787,9.075 to 4.725,9.075
+line from 0.900,9.375 to 0.963,9.375
+line from 4.787,9.375 to 4.725,9.375
+line from 0.900,9.675 to 0.963,9.675
+line from 4.787,9.675 to 4.725,9.675
+line from 0.900,9.963 to 0.963,9.963
+line from 4.787,9.963 to 4.725,9.963
+line from 0.900,10.262 to 0.963,10.262
+line from 4.787,10.262 to 4.725,10.262
+line from 0.900,7.888 to 0.900,7.950
+line from 0.900,10.262 to 0.900,10.200
+line from 1.613,7.888 to 1.613,7.950
+line from 1.613,10.262 to 1.613,10.200
+line from 2.312,7.888 to 2.312,7.950
+line from 2.312,10.262 to 2.312,10.200
+line from 3.025,7.888 to 3.025,7.950
+line from 3.025,10.262 to 3.025,10.200
+line from 3.725,7.888 to 3.725,7.950
+line from 3.725,10.262 to 3.725,10.200
+line from 4.438,7.888 to 4.438,7.950
+line from 4.438,10.262 to 4.438,10.200
+line from 0.900,7.888 to 4.787,7.888
+line from 4.787,7.888 to 4.787,10.262
+line from 4.787,10.262 to 0.900,10.262
+line from 0.900,10.262 to 0.900,7.888
+line from 3.800,8.775 to 4.025,8.775
+line from 0.925,10.088 to 0.925,10.088
+line from 0.925,10.088 to 0.938,9.812
+line from 0.938,9.812 to 0.988,9.825
+line from 0.988,9.825 to 1.075,9.838
+line from 1.075,9.838 to 1.163,9.938
+line from 1.163,9.938 to 1.250,9.838
+line from 1.250,9.838 to 1.613,9.825
+line from 1.613,9.825 to 2.312,9.750
+line from 2.312,9.750 to 3.025,9.713
+line from 3.025,9.713 to 3.725,9.850
+line from 3.725,9.850 to 4.438,9.875
+dashwid = 0.037i
+line dotted from 3.800,8.625 to 4.025,8.625
+line dotted from 0.925,9.912 to 0.925,9.912
+line dotted from 0.925,9.912 to 0.938,9.887
+line dotted from 0.938,9.887 to 0.988,9.713
+line dotted from 0.988,9.713 to 1.075,9.562
+line dotted from 1.075,9.562 to 1.163,9.562
+line dotted from 1.163,9.562 to 1.250,9.562
+line dotted from 1.250,9.562 to 1.613,9.675
+line dotted from 1.613,9.675 to 2.312,9.363
+line dotted from 2.312,9.363 to 3.025,9.375
+line dotted from 3.025,9.375 to 3.725,9.387
+line dotted from 3.725,9.387 to 4.438,9.450
+line dashed from 3.800,8.475 to 4.025,8.475
+line dashed from 0.925,10.000 to 0.925,10.000
+line dashed from 0.925,10.000 to 0.938,9.787
+line dashed from 0.938,9.787 to 0.988,9.650
+line dashed from 0.988,9.650 to 1.075,9.537
+line dashed from 1.075,9.537 to 1.163,9.613
+line dashed from 1.163,9.613 to 1.250,9.800
+line dashed from 1.250,9.800 to 1.613,9.488
+line dashed from 1.613,9.488 to 2.312,9.375
+line dashed from 2.312,9.375 to 3.025,9.363
+line dashed from 3.025,9.363 to 3.725,9.325
+line dashed from 3.725,9.325 to 4.438,9.438
+dashwid = 0.075i
+line dotted from 3.800,8.325 to 4.025,8.325
+line dotted from 0.925,9.963 to 0.925,9.963
+line dotted from 0.925,9.963 to 0.938,9.750
+line dotted from 0.938,9.750 to 0.988,9.662
+line dotted from 0.988,9.662 to 1.075,9.613
+line dotted from 1.075,9.613 to 1.163,9.613
+line dotted from 1.163,9.613 to 1.250,9.700
+line dotted from 1.250,9.700 to 1.613,9.438
+line dotted from 1.613,9.438 to 2.312,9.463
+line dotted from 2.312,9.463 to 3.025,9.312
+line dotted from 3.025,9.312 to 3.725,9.387
+line dotted from 3.725,9.387 to 4.438,9.425
+.ps
+.ps -1
+.ft
+.ft I
+"0" at 0.825,7.810 rjust
+"20" at 0.825,8.110 rjust
+"40" at 0.825,8.410 rjust
+"60" at 0.825,8.697 rjust
+"80" at 0.825,8.997 rjust
+"100" at 0.825,9.297 rjust
+"120" at 0.825,9.597 rjust
+"140" at 0.825,9.885 rjust
+"160" at 0.825,10.185 rjust
+"0" at 0.900,7.660
+"2" at 1.613,7.660
+"4" at 2.312,7.660
+"6" at 3.025,7.660
+"8" at 3.725,7.660
+"10" at 4.438,7.660
+"Time (sec)" at 0.150,8.997
+"Buffer Cache Size (MBytes)" at 2.837,7.510
+"Figure #1: MAB Phase 5 (compile)" at 2.837,10.335
+"NFS" at 3.725,8.697 rjust
+"Leases" at 3.725,8.547 rjust
+"Leases, Rdirlookup" at 3.725,8.397 rjust
+"Leases, Attrib leases, Rdirlookup" at 3.725,8.247 rjust
+.ps
+.ft
+.PE
+.)z
+.sh 2 "Multiple Client Load Tests"
+.pp
+During preliminary runs of the MAB, it was observed that the server RPC
+counts were reduced significantly by NQNFS as compared to NFS (table 1).
+(Spritely NFS and Ultrix\(tm4.3/NFS numbers were taken from [Mogul93]
+and are not directly comparable, due to numerous differences in the
+experimental setup including deletion of the load step from phase 5.)
+This suggests
+that the NQNFS protocol might scale better with
+respect to the number of clients accessing the server.
+The experiment described in this section
+ran the MAB on from one to ten clients concurrently, to observe the
+effects of heavier server load.
+The clients were started at roughly the same time by pressing all the
+<return> keys together and, although not synchronized beyond that point,
+all clients would finish the test run within about two seconds of each
+other.
+This was not a realistic load of N active clients, but it did
+result in a reproducible increasing client load on the server.
+The results for the four variants
+are plotted in figures 2-5.
+.(z
+.ps -1
+.R
+.TS
+box, center;
+c s s s s s s s
+c c c c c c c c
+l | n n n n n n n.
+Table #1: MAB RPC Counts
+RPC	Getattr	Read	Write	Lookup	Other	GetLease/Open-Close	Total
+_
+BSD/NQNFS	277	139	306	575	294	127	1718
+BSD/NFS	1210	506	451	489	238	0	2894
+Spritely NFS	259	836	192	535	306	1467	3595
+Ultrix4.3/NFS	1225	1186	476	810	305	0	4002
+.TE
+.ps
+.)z
+.pp
+For the MAB benchmark, the NQNFS protocol reduces the RPC counts significantly,
+but with a minimum of extra overhead (the GetLease/Open-Close count).
+.(z
+.PS
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 0.900,7.888 to 4.787,7.888
+line dashed from 0.900,7.888 to 0.900,10.262
+line from 0.900,7.888 to 0.963,7.888
+line from 4.787,7.888 to 4.725,7.888
+line from 0.900,8.225 to 0.963,8.225
+line from 4.787,8.225 to 4.725,8.225
+line from 0.900,8.562 to 0.963,8.562
+line from 4.787,8.562 to 4.725,8.562
+line from 0.900,8.900 to 0.963,8.900
+line from 4.787,8.900 to 4.725,8.900
+line from 0.900,9.250 to 0.963,9.250
+line from 4.787,9.250 to 4.725,9.250
+line from 0.900,9.588 to 0.963,9.588
+line from 4.787,9.588 to 4.725,9.588
+line from 0.900,9.925 to 0.963,9.925
+line from 4.787,9.925 to 4.725,9.925
+line from 0.900,10.262 to 0.963,10.262
+line from 4.787,10.262 to 4.725,10.262
+line from 0.900,7.888 to 0.900,7.950
+line from 0.900,10.262 to 0.900,10.200
+line from 1.613,7.888 to 1.613,7.950
+line from 1.613,10.262 to 1.613,10.200
+line from 2.312,7.888 to 2.312,7.950
+line from 2.312,10.262 to 2.312,10.200
+line from 3.025,7.888 to 3.025,7.950
+line from 3.025,10.262 to 3.025,10.200
+line from 3.725,7.888 to 3.725,7.950
+line from 3.725,10.262 to 3.725,10.200
+line from 4.438,7.888 to 4.438,7.950
+line from 4.438,10.262 to 4.438,10.200
+line from 0.900,7.888 to 4.787,7.888
+line from 4.787,7.888 to 4.787,10.262
+line from 4.787,10.262 to 0.900,10.262
+line from 0.900,10.262 to 0.900,7.888
+line from 3.800,8.900 to 4.025,8.900
+line from 1.250,8.325 to 1.250,8.325
+line from 1.250,8.325 to 1.613,8.500
+line from 1.613,8.500 to 2.312,8.825
+line from 2.312,8.825 to 3.025,9.175
+line from 3.025,9.175 to 3.725,9.613
+line from 3.725,9.613 to 4.438,10.012
+dashwid = 0.037i
+line dotted from 3.800,8.750 to 4.025,8.750
+line dotted from 1.250,8.275 to 1.250,8.275
+line dotted from 1.250,8.275 to 1.613,8.412
+line dotted from 1.613,8.412 to 2.312,8.562
+line dotted from 2.312,8.562 to 3.025,9.088
+line dotted from 3.025,9.088 to 3.725,9.375
+line dotted from 3.725,9.375 to 4.438,10.000
+line dashed from 3.800,8.600 to 4.025,8.600
+line dashed from 1.250,8.250 to 1.250,8.250
+line dashed from 1.250,8.250 to 1.613,8.438
+line dashed from 1.613,8.438 to 2.312,8.637
+line dashed from 2.312,8.637 to 3.025,9.088
+line dashed from 3.025,9.088 to 3.725,9.525
+line dashed from 3.725,9.525 to 4.438,10.075
+dashwid = 0.075i
+line dotted from 3.800,8.450 to 4.025,8.450
+line dotted from 1.250,8.262 to 1.250,8.262
+line dotted from 1.250,8.262 to 1.613,8.425
+line dotted from 1.613,8.425 to 2.312,8.613
+line dotted from 2.312,8.613 to 3.025,9.137
+line dotted from 3.025,9.137 to 3.725,9.512
+line dotted from 3.725,9.512 to 4.438,9.988
+.ps
+.ps -1
+.ft
+.ft I
+"0" at 0.825,7.810 rjust
+"20" at 0.825,8.147 rjust
+"40" at 0.825,8.485 rjust
+"60" at 0.825,8.822 rjust
+"80" at 0.825,9.172 rjust
+"100" at 0.825,9.510 rjust
+"120" at 0.825,9.847 rjust
+"140" at 0.825,10.185 rjust
+"0" at 0.900,7.660
+"2" at 1.613,7.660
+"4" at 2.312,7.660
+"6" at 3.025,7.660
+"8" at 3.725,7.660
+"10" at 4.438,7.660
+"Time (sec)" at 0.150,8.997
+"Number of Clients" at 2.837,7.510
+"Figure #2: MAB Phase 2 (copying)" at 2.837,10.335
+"NFS" at 3.725,8.822 rjust
+"Leases" at 3.725,8.672 rjust
+"Leases, Rdirlookup" at 3.725,8.522 rjust
+"Leases, Attrib leases, Rdirlookup" at 3.725,8.372 rjust
+.ps
+.ft
+.PE
+.)z
+.(z
+.PS
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 0.900,7.888 to 4.787,7.888
+line dashed from 0.900,7.888 to 0.900,10.262
+line from 0.900,7.888 to 0.963,7.888
+line from 4.787,7.888 to 4.725,7.888
+line from 0.900,8.188 to 0.963,8.188
+line from 4.787,8.188 to 4.725,8.188
+line from 0.900,8.488 to 0.963,8.488
+line from 4.787,8.488 to 4.725,8.488
+line from 0.900,8.775 to 0.963,8.775
+line from 4.787,8.775 to 4.725,8.775
+line from 0.900,9.075 to 0.963,9.075
+line from 4.787,9.075 to 4.725,9.075
+line from 0.900,9.375 to 0.963,9.375
+line from 4.787,9.375 to 4.725,9.375
+line from 0.900,9.675 to 0.963,9.675
+line from 4.787,9.675 to 4.725,9.675
+line from 0.900,9.963 to 0.963,9.963
+line from 4.787,9.963 to 4.725,9.963
+line from 0.900,10.262 to 0.963,10.262
+line from 4.787,10.262 to 4.725,10.262
+line from 0.900,7.888 to 0.900,7.950
+line from 0.900,10.262 to 0.900,10.200
+line from 1.613,7.888 to 1.613,7.950
+line from 1.613,10.262 to 1.613,10.200
+line from 2.312,7.888 to 2.312,7.950
+line from 2.312,10.262 to 2.312,10.200
+line from 3.025,7.888 to 3.025,7.950
+line from 3.025,10.262 to 3.025,10.200
+line from 3.725,7.888 to 3.725,7.950
+line from 3.725,10.262 to 3.725,10.200
+line from 4.438,7.888 to 4.438,7.950
+line from 4.438,10.262 to 4.438,10.200
+line from 0.900,7.888 to 4.787,7.888
+line from 4.787,7.888 to 4.787,10.262
+line from 4.787,10.262 to 0.900,10.262
+line from 0.900,10.262 to 0.900,7.888
+line from 3.800,8.775 to 4.025,8.775
+line from 1.250,8.975 to 1.250,8.975
+line from 1.250,8.975 to 1.613,8.963
+line from 1.613,8.963 to 2.312,8.988
+line from 2.312,8.988 to 3.025,9.037
+line from 3.025,9.037 to 3.725,9.062
+line from 3.725,9.062 to 4.438,9.100
+dashwid = 0.037i
+line dotted from 3.800,8.625 to 4.025,8.625
+line dotted from 1.250,9.312 to 1.250,9.312
+line dotted from 1.250,9.312 to 1.613,9.287
+line dotted from 1.613,9.287 to 2.312,9.675
+line dotted from 2.312,9.675 to 3.025,9.262
+line dotted from 3.025,9.262 to 3.725,9.738
+line dotted from 3.725,9.738 to 4.438,9.512
+line dashed from 3.800,8.475 to 4.025,8.475
+line dashed from 1.250,9.400 to 1.250,9.400
+line dashed from 1.250,9.400 to 1.613,9.287
+line dashed from 1.613,9.287 to 2.312,9.575
+line dashed from 2.312,9.575 to 3.025,9.300
+line dashed from 3.025,9.300 to 3.725,9.613
+line dashed from 3.725,9.613 to 4.438,9.512
+dashwid = 0.075i
+line dotted from 3.800,8.325 to 4.025,8.325
+line dotted from 1.250,9.400 to 1.250,9.400
+line dotted from 1.250,9.400 to 1.613,9.412
+line dotted from 1.613,9.412 to 2.312,9.700
+line dotted from 2.312,9.700 to 3.025,9.537
+line dotted from 3.025,9.537 to 3.725,9.938
+line dotted from 3.725,9.938 to 4.438,9.812
+.ps
+.ps -1
+.ft
+.ft I
+"0" at 0.825,7.810 rjust
+"5" at 0.825,8.110 rjust
+"10" at 0.825,8.410 rjust
+"15" at 0.825,8.697 rjust
+"20" at 0.825,8.997 rjust
+"25" at 0.825,9.297 rjust
+"30" at 0.825,9.597 rjust
+"35" at 0.825,9.885 rjust
+"40" at 0.825,10.185 rjust
+"0" at 0.900,7.660
+"2" at 1.613,7.660
+"4" at 2.312,7.660
+"6" at 3.025,7.660
+"8" at 3.725,7.660
+"10" at 4.438,7.660
+"Time (sec)" at 0.150,8.997
+"Number of Clients" at 2.837,7.510
+"Figure #3: MAB Phase 3 (stat/find)" at 2.837,10.335
+"NFS" at 3.725,8.697 rjust
+"Leases" at 3.725,8.547 rjust
+"Leases, Rdirlookup" at 3.725,8.397 rjust
+"Leases, Attrib leases, Rdirlookup" at 3.725,8.247 rjust
+.ps
+.ft
+.PE
+.)z
+.(z
+.PS
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 0.900,7.888 to 4.787,7.888
+line dashed from 0.900,7.888 to 0.900,10.262
+line from 0.900,7.888 to 0.963,7.888
+line from 4.787,7.888 to 4.725,7.888
+line from 0.900,8.188 to 0.963,8.188
+line from 4.787,8.188 to 4.725,8.188
+line from 0.900,8.488 to 0.963,8.488
+line from 4.787,8.488 to 4.725,8.488
+line from 0.900,8.775 to 0.963,8.775
+line from 4.787,8.775 to 4.725,8.775
+line from 0.900,9.075 to 0.963,9.075
+line from 4.787,9.075 to 4.725,9.075
+line from 0.900,9.375 to 0.963,9.375
+line from 4.787,9.375 to 4.725,9.375
+line from 0.900,9.675 to 0.963,9.675
+line from 4.787,9.675 to 4.725,9.675
+line from 0.900,9.963 to 0.963,9.963
+line from 4.787,9.963 to 4.725,9.963
+line from 0.900,10.262 to 0.963,10.262
+line from 4.787,10.262 to 4.725,10.262
+line from 0.900,7.888 to 0.900,7.950
+line from 0.900,10.262 to 0.900,10.200
+line from 1.613,7.888 to 1.613,7.950
+line from 1.613,10.262 to 1.613,10.200
+line from 2.312,7.888 to 2.312,7.950
+line from 2.312,10.262 to 2.312,10.200
+line from 3.025,7.888 to 3.025,7.950
+line from 3.025,10.262 to 3.025,10.200
+line from 3.725,7.888 to 3.725,7.950
+line from 3.725,10.262 to 3.725,10.200
+line from 4.438,7.888 to 4.438,7.950
+line from 4.438,10.262 to 4.438,10.200
+line from 0.900,7.888 to 4.787,7.888
+line from 4.787,7.888 to 4.787,10.262
+line from 4.787,10.262 to 0.900,10.262
+line from 0.900,10.262 to 0.900,7.888
+line from 3.800,8.775 to 4.025,8.775
+line from 1.250,9.412 to 1.250,9.412
+line from 1.250,9.412 to 1.613,9.425
+line from 1.613,9.425 to 2.312,9.463
+line from 2.312,9.463 to 3.025,9.600
+line from 3.025,9.600 to 3.725,9.875
+line from 3.725,9.875 to 4.438,10.075
+dashwid = 0.037i
+line dotted from 3.800,8.625 to 4.025,8.625
+line dotted from 1.250,9.450 to 1.250,9.450
+line dotted from 1.250,9.450 to 1.613,9.438
+line dotted from 1.613,9.438 to 2.312,9.438
+line dotted from 2.312,9.438 to 3.025,9.525
+line dotted from 3.025,9.525 to 3.725,9.550
+line dotted from 3.725,9.550 to 4.438,9.662
+line dashed from 3.800,8.475 to 4.025,8.475
+line dashed from 1.250,9.438 to 1.250,9.438
+line dashed from 1.250,9.438 to 1.613,9.412
+line dashed from 1.613,9.412 to 2.312,9.450
+line dashed from 2.312,9.450 to 3.025,9.500
+line dashed from 3.025,9.500 to 3.725,9.613
+line dashed from 3.725,9.613 to 4.438,9.675
+dashwid = 0.075i
+line dotted from 3.800,8.325 to 4.025,8.325
+line dotted from 1.250,9.387 to 1.250,9.387
+line dotted from 1.250,9.387 to 1.613,9.600
+line dotted from 1.613,9.600 to 2.312,9.625
+line dotted from 2.312,9.625 to 3.025,9.738
+line dotted from 3.025,9.738 to 3.725,9.850
+line dotted from 3.725,9.850 to 4.438,9.800
+.ps
+.ps -1
+.ft
+.ft I
+"0" at 0.825,7.810 rjust
+"5" at 0.825,8.110 rjust
+"10" at 0.825,8.410 rjust
+"15" at 0.825,8.697 rjust
+"20" at 0.825,8.997 rjust
+"25" at 0.825,9.297 rjust
+"30" at 0.825,9.597 rjust
+"35" at 0.825,9.885 rjust
+"40" at 0.825,10.185 rjust
+"0" at 0.900,7.660
+"2" at 1.613,7.660
+"4" at 2.312,7.660
+"6" at 3.025,7.660
+"8" at 3.725,7.660
+"10" at 4.438,7.660
+"Time (sec)" at 0.150,8.997
+"Number of Clients" at 2.837,7.510
+"Figure #4: MAB Phase 4 (grep/wc/find)" at 2.837,10.335
+"NFS" at 3.725,8.697 rjust
+"Leases" at 3.725,8.547 rjust
+"Leases, Rdirlookup" at 3.725,8.397 rjust
+"Leases, Attrib leases, Rdirlookup" at 3.725,8.247 rjust
+.ps
+.ft
+.PE
+.)z
+.(z
+.PS
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 0.900,7.888 to 4.787,7.888
+line dashed from 0.900,7.888 to 0.900,10.262
+line from 0.900,7.888 to 0.963,7.888
+line from 4.787,7.888 to 4.725,7.888
+line from 0.900,8.150 to 0.963,8.150
+line from 4.787,8.150 to 4.725,8.150
+line from 0.900,8.412 to 0.963,8.412
+line from 4.787,8.412 to 4.725,8.412
+line from 0.900,8.675 to 0.963,8.675
+line from 4.787,8.675 to 4.725,8.675
+line from 0.900,8.938 to 0.963,8.938
+line from 4.787,8.938 to 4.725,8.938
+line from 0.900,9.213 to 0.963,9.213
+line from 4.787,9.213 to 4.725,9.213
+line from 0.900,9.475 to 0.963,9.475
+line from 4.787,9.475 to 4.725,9.475
+line from 0.900,9.738 to 0.963,9.738
+line from 4.787,9.738 to 4.725,9.738
+line from 0.900,10.000 to 0.963,10.000
+line from 4.787,10.000 to 4.725,10.000
+line from 0.900,10.262 to 0.963,10.262
+line from 4.787,10.262 to 4.725,10.262
+line from 0.900,7.888 to 0.900,7.950
+line from 0.900,10.262 to 0.900,10.200
+line from 1.613,7.888 to 1.613,7.950
+line from 1.613,10.262 to 1.613,10.200
+line from 2.312,7.888 to 2.312,7.950
+line from 2.312,10.262 to 2.312,10.200
+line from 3.025,7.888 to 3.025,7.950
+line from 3.025,10.262 to 3.025,10.200
+line from 3.725,7.888 to 3.725,7.950
+line from 3.725,10.262 to 3.725,10.200
+line from 4.438,7.888 to 4.438,7.950
+line from 4.438,10.262 to 4.438,10.200
+line from 0.900,7.888 to 4.787,7.888
+line from 4.787,7.888 to 4.787,10.262
+line from 4.787,10.262 to 0.900,10.262
+line from 0.900,10.262 to 0.900,7.888
+line from 3.800,8.675 to 4.025,8.675
+line from 1.250,8.800 to 1.250,8.800
+line from 1.250,8.800 to 1.613,8.912
+line from 1.613,8.912 to 2.312,9.113
+line from 2.312,9.113 to 3.025,9.438
+line from 3.025,9.438 to 3.725,9.750
+line from 3.725,9.750 to 4.438,10.088
+dashwid = 0.037i
+line dotted from 3.800,8.525 to 4.025,8.525
+line dotted from 1.250,8.637 to 1.250,8.637
+line dotted from 1.250,8.637 to 1.613,8.700
+line dotted from 1.613,8.700 to 2.312,8.713
+line dotted from 2.312,8.713 to 3.025,8.775
+line dotted from 3.025,8.775 to 3.725,8.887
+line dotted from 3.725,8.887 to 4.438,9.037
+line dashed from 3.800,8.375 to 4.025,8.375
+line dashed from 1.250,8.675 to 1.250,8.675
+line dashed from 1.250,8.675 to 1.613,8.688
+line dashed from 1.613,8.688 to 2.312,8.713
+line dashed from 2.312,8.713 to 3.025,8.825
+line dashed from 3.025,8.825 to 3.725,8.887
+line dashed from 3.725,8.887 to 4.438,9.062
+dashwid = 0.075i
+line dotted from 3.800,8.225 to 4.025,8.225
+line dotted from 1.250,8.700 to 1.250,8.700
+line dotted from 1.250,8.700 to 1.613,8.688
+line dotted from 1.613,8.688 to 2.312,8.762
+line dotted from 2.312,8.762 to 3.025,8.812
+line dotted from 3.025,8.812 to 3.725,8.925
+line dotted from 3.725,8.925 to 4.438,9.025
+.ps
+.ps -1
+.ft
+.ft I
+"0" at 0.825,7.810 rjust
+"50" at 0.825,8.072 rjust
+"100" at 0.825,8.335 rjust
+"150" at 0.825,8.597 rjust
+"200" at 0.825,8.860 rjust
+"250" at 0.825,9.135 rjust
+"300" at 0.825,9.397 rjust
+"350" at 0.825,9.660 rjust
+"400" at 0.825,9.922 rjust
+"450" at 0.825,10.185 rjust
+"0" at 0.900,7.660
+"2" at 1.613,7.660
+"4" at 2.312,7.660
+"6" at 3.025,7.660
+"8" at 3.725,7.660
+"10" at 4.438,7.660
+"Time (sec)" at 0.150,8.997
+"Number of Clients" at 2.837,7.510
+"Figure #5: MAB Phase 5 (compile)" at 2.837,10.335
+"NFS" at 3.725,8.597 rjust
+"Leases" at 3.725,8.447 rjust
+"Leases, Rdirlookup" at 3.725,8.297 rjust
+"Leases, Attrib leases, Rdirlookup" at 3.725,8.147 rjust
+.ps
+.ft
+.PE
+.)z
+.pp
+In figure 2, where a subtree of seventy small files is copied, the difference between the protocol variants is minimal,
+with the NQNFS variants performing slightly better.
+For this case, the Readdir_and_Lookup RPC is a slight hindrance under heavy
+load, possibly because it results in larger directory blocks in the buffer
+cache.
+.pp
+In figure 3, for the phase that gets file attributes for a large number
+of files, the leasing variants take about 50% longer, indicating that
+there are performance problems in this area. For the case where valid
+current leases are required for every file when attributes are returned,
+the performance is significantly worse than when the attributes are allowed
+to be stale by a few seconds on the client.
+I have not been able to explain the oscillation in the curves for the
+Lease cases.
+.pp
+For the string searching phase depicted in figure 4, the leasing variants
+that do not require valid leases for files when attributes are returned
+appear to scale better with server load than NFS.
+However, the effect appears to be
+negligible until the server load is fairly heavy.
+.pp
+Most of the time in the MAB benchmark is spent in the compilation phase
+and this is where the differences between caching methods are most
+pronounced.
+In figure 5 it can be seen that any protocol variant using Leases performs
+about a factor of two better than NFS
+at a load of ten clients. This indicates that the use of NQNFS may
+allow servers to handle significantly more clients for this type of
+workload.
+.pp
+Table 2 summarizes the MAB run times for all phases for the single client
+DECstation 5000/25. The \fILeases\fR case refers to using leases, whereas
+the \fILeases, Rdirl\fR case uses the Readdir_and_Lookup RPC as well and
+the \fIBCache Only\fR case uses leases, but only the buffer cache and not
+the attribute or name caches.
+The \fINo Caching\fR cases does not do any client side caching, performing
+all system calls via synchronous RPCs to the server.
+.(z
+.ps -1
+.R
+.TS
+box, center;
+c s s s s s s
+c c c c c c c c
+l | n n n n n n n.
+Table #2: Single DECstation 5000/25 Client Elapsed Times (sec)
+Phase	1	2	3	4	5	Total	% Improvement
+_
+No Caching	6	35	41	40	258	380	-93
+NFS	5	24	15	20	133	197	0
+BCache Only	5	20	24	23	116	188	5
+Leases, Rdirl	5	20	21	20	105	171	13
+Leases	5	19	21	21	99	165	16
+.TE
+.ps
+.)z
+.sh 2 "Processor Speed Tests"
+.pp
+An important goal of client-side file system caching is to decouple the
+I/O system calls from the underlying distributed file system, so that the
+client's system performance might scale with processor speed. In order
+to test this, a series of MAB runs were performed on three
+DECstations that are similar except for processor speed.
+In addition to the four protocol variants used for the above tests, runs
+were done with the client caches turned off, for
+worst case performance numbers for caching mechanisms with a 100% miss rate. The CPU utilization
+was measured, as an indicator of how much the processor was blocking for
+I/O system calls. Note that since the systems were running in single user mode
+and otherwise quiescent, almost all CPU activity was directly related
+to the MAB run.
+The results are presented in
+table 3.
+The CPU time is simply the product of the CPU utilization and
+elapsed running time and, as such, is the optimistic bound on performance
+achievable with an ideal client caching scheme that never blocks for I/O.
+.(z
+.ps -1
+.R
+.TS
+box, center;
+c s s s s s s s s s
+c c s s c s s c s s
+c c c c c c c c c c
+c c c c c c c c c c
+l | n n n n n n n n n.
+Table #3: MAB Phase 5 (compile)
+	DS2100 (10.5 MIPS)	DS3100 (14.0 MIPS)	DS5000/25 (26.7 MIPS)
+	Elapsed	CPU	CPU	Elapsed	CPU	CPU	Elapsed	CPU	CPU
+	time	Util(%)	time	time	Util(%)	time	time	Util(%)	time
+_
+Leases	143	89	127	113	87	98	99	89	88
+Leases, Rdirl	150	89	134	110	91	100	105	88	92
+BCache Only	169	85	144	129	78	101	116	75	87
+NFS	172	77	132	135	74	100	133	71	94
+No Caching	330	47	155	256	41	105	258	39	101
+.TE
+.ps
+.)z
+As can be seen in the table, any caching mechanism achieves significantly
+better performance than when caching is disabled, roughly doubling the CPU
+utilization with a corresponding reduction in run time. For NFS, the CPU
+utilization is dropping with increase in CPU speed, which would suggest that
+it is not scaling with CPU speed. For the NQNFS variants, the CPU utilization
+remains at just below 90%, which suggests that the caching mechanism is working
+well and scaling within this CPU range.
+Note that for this benchmark, the ratio of CPU times for
+the DECstation 3100 and DECstation 5000/25 are quite different than the
+Dhrystone MIPS ratings would suggest.
+.pp
+Overall, the results seem encouraging, although it remains to be seen whether
+or not the caching provided by NQNFS can continue to scale with CPU
+performance.
+There is a good indication that NQNFS permits a server to scale
+to more clients than does NFS, at least for workloads akin to the MAB compile phase.
+A more difficult question is "What if the server is much faster doing
+write RPCs?" as a result of some technology such as Prestoserve
+or write gathering.
+Since a significant part of the difference between NFS and NQNFS is
+the synchronous writing, it is difficult to predict how much a server
+capable of fast write RPCs will negate the performance improvements of NQNFS.
+At the very least, table 1 indicates that the write RPC load on the server
+has decreased by approximately 30%, and this reduced write load should still
+result in some improvement.
+.pp
+Indications are that the Readdir_and_Lookup RPC has not improved performance
+for these tests and may in fact be degrading performance slightly.
+The results in figure 3 indicate some problems, possibly with handling
+of the attribute cache. It seems logical that the Readdir_and_Lookup RPC
+should be permit priming of the attribute cache improving hit rate, but the
+results are counter to that.
+.sh 2 "Internetwork Delay Tests"
+.pp
+This experimental setup was used to explore how the different protocol
+variants might perform over internetworks with larger RPC RTTs. The
+server was moved to a separate Ethernet, using a MicroVAXII\(tm as an
+IP router to the other Ethernet. The 4.3Reno BSD Unix system running on the
+MicroVAXII was modified to delay IP packets being forwarded by a tunable N
+millisecond delay. The implementation was rather crude and did not try to
+simulate a distribution of delay times nor was it programmed to drop packets
+at a given rate, but it served as a simple emulation of a long,
+fat network\** [Jacobson88].
+.(f
+\**Long fat networks refer to network interconnections with
+a Bandwidth X RTT product > 10\u5\d bits.
+.)f
+The MAB was run using both UDP and TCP RPC transports
+for a variety of RTT delays from five to two hundred milliseconds,
+to observe the effects of RTT delay on RPC transport.
+It was found that, due to a high variability between runs, four runs was not
+suffice, so eight runs at each value was done.
+The results in figure 6 and table 4 are the average for the eight runs.
+.(z
+.PS
+.ps
+.ps 10
+dashwid = 0.050i
+line dashed from 0.900,7.888 to 4.787,7.888
+line dashed from 0.900,7.888 to 0.900,10.262
+line from 0.900,7.888 to 0.963,7.888
+line from 4.787,7.888 to 4.725,7.888
+line from 0.900,8.350 to 0.963,8.350
+line from 4.787,8.350 to 4.725,8.350
+line from 0.900,8.800 to 0.963,8.800
+line from 4.787,8.800 to 4.725,8.800
+line from 0.900,9.262 to 0.963,9.262
+line from 4.787,9.262 to 4.725,9.262
+line from 0.900,9.713 to 0.963,9.713
+line from 4.787,9.713 to 4.725,9.713
+line from 0.900,10.175 to 0.963,10.175
+line from 4.787,10.175 to 4.725,10.175
+line from 0.900,7.888 to 0.900,7.950
+line from 0.900,10.262 to 0.900,10.200
+line from 1.825,7.888 to 1.825,7.950
+line from 1.825,10.262 to 1.825,10.200
+line from 2.750,7.888 to 2.750,7.950
+line from 2.750,10.262 to 2.750,10.200
+line from 3.675,7.888 to 3.675,7.950
+line from 3.675,10.262 to 3.675,10.200
+line from 4.600,7.888 to 4.600,7.950
+line from 4.600,10.262 to 4.600,10.200
+line from 0.900,7.888 to 4.787,7.888
+line from 4.787,7.888 to 4.787,10.262
+line from 4.787,10.262 to 0.900,10.262
+line from 0.900,10.262 to 0.900,7.888
+line from 4.125,8.613 to 4.350,8.613
+line from 0.988,8.400 to 0.988,8.400
+line from 0.988,8.400 to 1.637,8.575
+line from 1.637,8.575 to 2.375,8.713
+line from 2.375,8.713 to 3.125,8.900
+line from 3.125,8.900 to 3.862,9.137
+line from 3.862,9.137 to 4.600,9.425
+dashwid = 0.037i
+line dotted from 4.125,8.463 to 4.350,8.463
+line dotted from 0.988,8.375 to 0.988,8.375
+line dotted from 0.988,8.375 to 1.637,8.525
+line dotted from 1.637,8.525 to 2.375,8.850
+line dotted from 2.375,8.850 to 3.125,8.975
+line dotted from 3.125,8.975 to 3.862,9.137
+line dotted from 3.862,9.137 to 4.600,9.625
+line dashed from 4.125,8.312 to 4.350,8.312
+line dashed from 0.988,8.525 to 0.988,8.525
+line dashed from 0.988,8.525 to 1.637,8.688
+line dashed from 1.637,8.688 to 2.375,8.838
+line dashed from 2.375,8.838 to 3.125,9.150
+line dashed from 3.125,9.150 to 3.862,9.275
+line dashed from 3.862,9.275 to 4.600,9.588
+dashwid = 0.075i
+line dotted from 4.125,8.162 to 4.350,8.162
+line dotted from 0.988,8.525 to 0.988,8.525
+line dotted from 0.988,8.525 to 1.637,8.838
+line dotted from 1.637,8.838 to 2.375,8.863
+line dotted from 2.375,8.863 to 3.125,9.137
+line dotted from 3.125,9.137 to 3.862,9.387
+line dotted from 3.862,9.387 to 4.600,10.200
+.ps
+.ps -1
+.ft
+.ft I
+"0" at 0.825,7.810 rjust
+"100" at 0.825,8.272 rjust
+"200" at 0.825,8.722 rjust
+"300" at 0.825,9.185 rjust
+"400" at 0.825,9.635 rjust
+"500" at 0.825,10.097 rjust
+"0" at 0.900,7.660
+"50" at 1.825,7.660
+"100" at 2.750,7.660
+"150" at 3.675,7.660
+"200" at 4.600,7.660
+"Time (sec)" at 0.150,8.997
+"Round Trip Delay (msec)" at 2.837,7.510
+"Figure #6: MAB Phase 5 (compile)" at 2.837,10.335
+"Leases,UDP" at 4.050,8.535 rjust
+"Leases,TCP" at 4.050,8.385 rjust
+"NFS,UDP" at 4.050,8.235 rjust
+"NFS,TCP" at 4.050,8.085 rjust
+.ps
+.ft
+.PE
+.)z
+.(z
+.ps -1
+.R
+.TS
+box, center;
+c s s s s s s s s
+c c s c s c s c s
+c c c c c c c c c
+c c c c c c c c c
+l | n n n n n n n n.
+Table #4: MAB Phase 5 (compile) for Internetwork Delays
+	NFS,UDP	NFS,TCP	Leases,UDP	Leases,TCP
+Delay	Elapsed	Standard	Elapsed	Standard	Elapsed	Standard	Elapsed	Standard
+(msec)	time (sec)	Deviation	time (sec)	Deviation	time (sec)	Deviation	time (sec)	Deviation
+_
+5	139	2.9	139	2.4	112	7.0	108	6.0
+40	175	5.1	208	44.5	150	23.8	139	4.3
+80	207	3.9	213	4.7	180	7.7	210	52.9
+120	276	29.3	273	17.1	221	7.7	238	5.8
+160	304	7.2	328	77.1	275	21.5	274	10.1
+200	372	35.0	506	235.1	338	25.2	379	69.2
+.TE
+.ps
+.)z
+.pp
+I found these results somewhat surprising, since I had assumed that stability
+across an internetwork connection would be a function of RPC transport
+protocol.
+Looking at the standard deviations observed between the eight runs, there is an indication
+that the NQNFS protocol plays a larger role in
+maintaining stability than the underlying RPC transport protocol.
+It appears that NFS over TCP transport
+is the least stable variant tested.
+It should be noted that the TCP implementation used was roughly at 4.3BSD Tahoe
+release and that the 4.4BSD TCP implementation was far less stable and would
+fail intermittently, due to a bug I was not able to isolate.
+It would appear that some of the recent enhancements to the 4.4BSD TCP
+implementation have a detrimental effect on the performance of
+RPC-type traffic loads, which intermix small and large
+data transfers in both directions.
+It is obvious that more exploration of this area is needed before any
+conclusions can be made
+beyond the fact that over a local area network, TCP transport provides
+performance comparable to UDP.
+.sh 1 "Lessons Learned"
+.pp
+Evaluating the performance of a distributed file system is fraught with
+difficulties, due to the many software and hardware factors involved.
+The limited benchmarking presented here took a considerable amount of time
+and the results gained by the exercise only give indications of what the
+performance might be for a few scenarios.
+.pp
+The IP router with delay introduction proved to be a valuable tool for protocol debugging\**,
+.(f
+\**It exposed two bugs in the 4.4BSD networking, one a problem in the Lance chip
+driver for the DECstation and the other a TCP window sizing problem that I was
+not able to isolate.
+.)f
+and may be useful for a more extensive study of performance over internetworks
+if enhanced to do a better job of simulating internetwork delay and packet loss.
+.pp
+The Leases mechanism provided a simple model for the provision of cache
+consistency and did seem to improve performance for various scenarios.
+Unfortunately, it does not provide the server state information that is required
+for file system semantics, such as locking, that many software systems demand.
+In production environments on my campus, the need for file locking and the correct
+generation of the ETXTBSY error code
+are far more important that full cache consistency, and leasing
+does not satisfy these needs.
+Another file system semantic that requires hard server state is the delay
+of file removal until the last close system call. Although Spritely NFS
+did not support this semantic either, it is logical that the open file
+state maintained by that system would facilitate the implementation of
+this semantic more easily than would the Leases mechanism.
+.sh 1 "Further Work"
+.pp
+The current implementation uses a fixed, moderate sized buffer cache designed
+for the local UFS [McKusick84] file system.
+The results in figure 1 suggest that this is adequate so long as the cache
+is of an appropriate size.
+However, a mechanism permitting the cache to vary in size
+has been shown to outperform fixed sized buffer caches [Nelson90], and could
+be beneficial. It could also be useful to allow the buffer cache to grow very
+large by making use of local backing store for cases where server performance
+is limited.
+A very large buffer cache size would in turn permit experimentation with
+much larger read/write data sizes, facilitating bulk data transfers
+across long fat networks, such as will characterize the Internet of the
+near future.
+A careful redesign of the buffer cache mechanism to provide
+support for these features would probably be the next implementation step.
+.pp
+The results in figure 3 indicate that the mechanics of caching file
+attributes and maintaining the attribute cache's consistency needs to
+be looked at further.
+There also needs to be more work done on the interaction between a
+Readdir_and_Lookup RPC and the name and attribute caches, in an effort
+to reduce Getattr and Lookup RPC loads.
+.pp
+The NQNFS protocol has never been used in a production environment and doing
+so would provide needed insight into how well the protocol saisfies the
+needs of real workstation environments.
+It is hoped that the distribution of the implementation in 4.4BSD will
+facilitate use of the protocol in production environments elsewhere.
+.pp
+The big question that needs to be resolved is whether Leases are an adequate
+mechanism for cache consistency or whether hard server state is required.
+Given the work presented here and in the papers related to Sprite and Spritely
+NFS, there are clear indications that a cache consistency algorithm can
+improve both performance and file system semantics.
+As yet, however, it is unclear what the best approach to maintain consistency is.
+It would appear that hard state information is required for file locking and
+other mechanisms and, if so, it seems appropriate to use it for cache
+consistency as well.
+.sh 1 "Acknowledgements"
+.pp
+I would like to thank the members of the CSRG at the University of California,
+Berkeley for their continued support over the years. Without their encouragement and assistance this
+software would never have been implemented.
+Prof. Jim Linders and Prof. Tom Wilson here at the University of Guelph helped
+proofread this paper and Jeffrey Mogul provided a great deal of
+assistance, helping to turn my gibberish into something at least moderately
+readable.
+.sh 1 "References"
+.ip [Baker91] 15
+Mary Baker and John Ousterhout, Availability in the Sprite Distributed
+File System, In \fIOperating System Review\fR, (25)2, pg. 95-98,
+April 1991.
+.ip [Baker91a] 15
+Mary Baker, private communication, May 1991.
+.ip [Burrows88] 15
+Michael Burrows, Efficient Data Sharing, Technical Report #153,
+Computer Laboratory, University of Cambridge, Dec. 1988.
+.ip [Gray89] 15
+Cary G. Gray and David R. Cheriton, Leases: An Efficient Fault-Tolerant
+Mechanism for Distributed File Cache Consistency, In \fIProc. of the
+Twelfth ACM Symposium on Operating Systems Principals\fR, Litchfield Park,
+AZ, Dec. 1989.
+.ip [Howard88] 15
+John H. Howard, Michael L. Kazar, Sherri G. Menees, David A. Nichols,
+M. Satyanarayanan, Robert N. Sidebotham and Michael J. West,
+Scale and Performance in a Distributed File System, \fIACM Trans. on
+Computer Systems\fR, (6)1, pg 51-81, Feb. 1988.
+.ip [Jacobson88] 15
+Van Jacobson and R. Braden, \fITCP Extensions for Long-Delay Paths\fR,
+ARPANET Working Group Requests for Comment, DDN Network Information Center,
+SRI International, Menlo Park, CA, October 1988, RFC-1072.
+.ip [Jacobson89] 15
+Van Jacobson, Sun NFS Performance Problems, \fIPrivate Communication,\fR
+November, 1989.
+.ip [Juszczak89] 15
+Chet Juszczak, Improving the Performance and Correctness of an NFS Server,
+In \fIProc. Winter 1989 USENIX Conference,\fR pg. 53-63, San Diego, CA, January 1989.
+.ip [Juszczak94] 15
+Chet Juszczak, Improving the Write Performance of an NFS Server,
+to appear in \fIProc. Winter 1994 USENIX Conference,\fR San Francisco, CA, January 1994.
+.ip [Kazar88] 15
+Michael L. Kazar, Synchronization and Caching Issues in the Andrew File System,
+In \fIProc. Winter 1988 USENIX Conference,\fR pg. 27-36, Dallas, TX, February
+1988.
+.ip [Kent87] 15
+Christopher. A. Kent and Jeffrey C. Mogul, \fIFragmentation Considered Harmful\fR, Research Report 87/3,
+Digital Equipment Corporation Western Research Laboratory, Dec. 1987.
+.ip [Kent87a] 15
+Christopher. A. Kent, \fICache Coherence in Distributed Systems\fR, Research Report 87/4,
+Digital Equipment Corporation Western Research Laboratory, April 1987.
+.ip [Macklem90] 15
+Rick Macklem, Lessons Learned Tuning the 4.3BSD Reno Implementation of the
+NFS Protocol,
+In \fIProc. Winter 1991 USENIX Conference,\fR pg. 53-64, Dallas, TX,
+January 1991.
+.ip [Macklem93] 15
+Rick Macklem, The 4.4BSD NFS Implementation,
+In \fIThe System Manager's Manual\fR, 4.4 Berkeley Software Distribution,
+University of California, Berkeley, June 1993.
+.ip [McKusick84] 15
+Marshall K. McKusick, William N. Joy, Samuel J. Leffler and Robert S. Fabry,
+A Fast File System for UNIX, \fIACM Transactions on Computer Systems\fR,
+Vol. 2, Number 3, pg. 181-197, August 1984.
+.ip [McKusick90] 15
+Marshall K. McKusick, Michael J. Karels and Keith Bostic, A Pageable Memory
+Based Filesystem,
+In \fIProc. Summer 1990 USENIX Conference,\fR pg. 137-143, Anaheim, CA, June
+1990.
+.ip [Mogul93] 15
+Jeffrey C. Mogul, Recovery in Spritely NFS,
+Research Report 93/2, Digital Equipment Corporation Western Research
+Laboratory, June 1993.
+.ip [Moran90] 15
+Joseph Moran, Russel Sandberg, Don Coleman, Jonathan Kepecs and Bob Lyon,
+Breaking Through the NFS Performance Barrier,
+In \fIProc. Spring 1990 EUUG Conference,\fR pg. 199-206, Munich, FRG,
+April 1990.
+.ip [Nelson88] 15
+Michael N. Nelson, Brent B. Welch, and John K. Ousterhout, Caching in the
+Sprite Network File System, \fIACM Transactions on Computer Systems\fR (6)1
+pg. 134-154, February 1988.
+.ip [Nelson90] 15
+Michael N. Nelson, \fIVirtual Memory vs. The File System\fR, Research Report
+90/4, Digital Equipment Corporation Western Research Laboratory, March 1990.
+.ip [Nowicki89] 15
+Bill Nowicki, Transport Issues in the Network File System, In \fIComputer
+Communication Review\fR, pg. 16-20, March 1989.
+.ip [Ousterhout90] 15
+John K. Ousterhout, Why Aren't Operating Systems Getting Faster As Fast as
+Hardware? In \fIProc. Summer 1990 USENIX Conference\fR, pg. 247-256, Anaheim,
+CA, June 1990.
+.ip [Sandberg85] 15
+Russel Sandberg, David Goldberg, Steve Kleiman, Dan Walsh, and Bob Lyon,
+Design and Implementation of the Sun Network filesystem, In \fIProc. Summer
+1985 USENIX Conference\fR, pages 119-130, Portland, OR, June 1985.
+.ip [Srinivasan89] 15
+V. Srinivasan and Jeffrey. C. Mogul, Spritely NFS: Experiments with
+Cache-Consistency Protocols,
+In \fIProc. of the
+Twelfth ACM Symposium on Operating Systems Principals\fR, Litchfield Park,
+AZ, Dec. 1989.
+.ip [Steiner88] 15
+J. G. Steiner, B. C. Neuman and J. I. Schiller, Kerberos: An Authentication
+Service for Open Network Systems,
+In \fIProc. Winter 1988 USENIX Conference,\fR pg. 191-202, Dallas, TX, February
+1988.
+.ip [SUN89] 15
+Sun Microsystems Inc., \fINFS: Network File System Protocol Specification\fR,
+ARPANET Working Group Requests for Comment, DDN Network Information Center,
+SRI International, Menlo Park, CA, March 1989, RFC-1094.
+.ip [SUN93] 15
+Sun Microsystems Inc., \fINFS: Network File System Version 3 Protocol Specification\fR,
+Sun Microsystems Inc., Mountain View, CA, June 1993.
+.ip [Wittle93] 15
+Mark Wittle and Bruce E. Keith, LADDIS: The Next Generation in NFS File
+Server Benchmarking,
+In \fIProc. Summer 1993 USENIX Conference,\fR pg. 111-128, Cincinnati, OH, June
+1993.
+.(f
+\(mo
+NFS is believed to be a trademark of Sun Microsystems, Inc.
+.)f
+.(f
+\(dg
+Prestoserve is a trademark of Legato Systems, Inc.
+.)f
+.(f
+\(sc
+MIPS is a trademark of Silicon Graphics, Inc.
+.)f
+.(f
+\(dg
+DECstation, MicroVAXII and Ultrix are trademarks of Digital Equipment Corp.
+.)f
+.(f
+\(dd
+Unix is a trademark of Novell, Inc.
+.)f
