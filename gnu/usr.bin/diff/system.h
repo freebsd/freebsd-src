@@ -190,20 +190,20 @@ void *memchr ();
 #if STDC_HEADERS
 #define CTYPE_DOMAIN(c) 1
 #else
-#define CTYPE_DOMAIN(c) ((unsigned) (c) <= 0177)
+#define CTYPE_DOMAIN(c) ((unsigned char) (c) <= 0177)
 #endif
 #ifndef ISPRINT
-#define ISPRINT(c) (CTYPE_DOMAIN (c) && isprint (c))
+#define ISPRINT(c) (CTYPE_DOMAIN (c) && isprint ((unsigned char)c))
 #endif
 #ifndef ISSPACE
-#define ISSPACE(c) (CTYPE_DOMAIN (c) && isspace (c))
+#define ISSPACE(c) (CTYPE_DOMAIN (c) && isspace ((unsigned char)c))
 #endif
 #ifndef ISUPPER
-#define ISUPPER(c) (CTYPE_DOMAIN (c) && isupper (c))
+#define ISUPPER(c) (CTYPE_DOMAIN (c) && isupper ((unsigned char)c))
 #endif
 
 #ifndef ISDIGIT
-#define ISDIGIT(c) ((unsigned) (c) - '0' <= 9)
+#define ISDIGIT(c) ((unsigned char) (c) - '0' <= 9)
 #endif
 
 #include <errno.h>
