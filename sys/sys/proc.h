@@ -422,7 +422,7 @@ struct vm_zone;
 extern struct vm_zone *proc_zone;
 
 int	chgproccnt __P((uid_t uid, int diff, int max));
-int	chgsbsize __P((uid_t uid, rlim_t diff, rlim_t max));
+int	chgsbsize __P((uid_t uid, u_long *hiwat, u_long to, rlim_t max));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
 int	inferior __P((struct proc *p));
