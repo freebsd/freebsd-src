@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.8 1995/02/03 06:46:20 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.9 1995/04/15 02:30:17 davidg Exp $
  */
 
 /*
@@ -368,11 +368,15 @@ procfs_getattr(ap)
 	switch (pfs->pfs_type) {
 	case Pregs:
 	case Pfpregs:
-	case Pmem:
 		if (procp->p_flag & P_SUGID)
 			vap->va_mode &= ~((VREAD|VWRITE)|
 					  ((VREAD|VWRITE)>>3)|
 					  ((VREAD|VWRITE)>>6));
+		break;
+	case Pmem:
+		/* Retain group kmem readablity. */
+		if (procp->p_flag & P_SUGID)
+			vap->va_mode &= ~(VREAD|VWRITE);
 		break;
 	default:
 		break;
