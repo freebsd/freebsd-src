@@ -8,6 +8,8 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
 
+#include "opt_sysvipc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -15,9 +17,12 @@
 #include <sys/proc.h>
 #include <sys/sem.h>
 #include <sys/sysent.h>
+#include <sys/sysctl.h>
+#include <sys/malloc.h>
+
+static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 
 static void seminit __P((void *));
-SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
 
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args;
@@ -40,19 +45,135 @@ static sy_call_t *semcalls[] = {
 };
 
 static int	semtot = 0;
-struct semid_ds *sema;		/* semaphore id pool */
-struct sem *sem;		/* semaphore pool */
-static struct sem_undo *semu_list; 	/* list of active undo structures */
-int	*semu;			/* undo structure pool */
+static struct semid_ds *sema;	/* semaphore id pool */
+static struct sem *sem;		/* semaphore pool */
+static struct sem_undo *semu_list; /* list of active undo structures */
+static int	*semu;		/* undo structure pool */
 
-void
+struct sem {
+	u_short	semval;		/* semaphore value */
+	pid_t	sempid;		/* pid of last operation */
+	u_short	semncnt;	/* # awaiting semval > cval */
+	u_short	semzcnt;	/* # awaiting semval = 0 */
+};
+
+/*
+ * Undo structure (one per process)
+ */
+struct sem_undo {
+	struct	sem_undo *un_next;	/* ptr to next active undo structure */
+	struct	proc *un_proc;		/* owner of this structure */
+	short	un_cnt;			/* # of active entries */
+	struct undo {
+		short	un_adjval;	/* adjust on exit values */
+		short	un_num;		/* semaphore # */
+		int	un_id;		/* semid */
+	} un_ent[1];			/* undo entries */
+};
+
+/*
+ * Configuration parameters
+ */
+#ifndef SEMMNI
+#define SEMMNI	10		/* # of semaphore identifiers */
+#endif
+#ifndef SEMMNS
+#define SEMMNS	60		/* # of semaphores in system */
+#endif
+#ifndef SEMUME
+#define SEMUME	10		/* max # of undo entries per process */
+#endif
+#ifndef SEMMNU
+#define SEMMNU	30		/* # of undo structures in system */
+#endif
+
+/* shouldn't need tuning */
+#ifndef SEMMAP
+#define SEMMAP	30		/* # of entries in semaphore map */
+#endif
+#ifndef SEMMSL
+#define SEMMSL	SEMMNS		/* max # of semaphores per id */
+#endif
+#ifndef SEMOPM
+#define SEMOPM	100		/* max # of operations per semop call */
+#endif
+
+#define SEMVMX	32767		/* semaphore maximum value */
+#define SEMAEM	16384		/* adjust on exit max value */
+
+/*
+ * Due to the way semaphore memory is allocated, we have to ensure that
+ * SEMUSZ is properly aligned.
+ */
+
+#ifndef offsetof
+#define	offsetof(type, member)	((size_t)(&((type *)0)->member))
+#endif
+
+#define SEM_ALIGN(bytes) (((bytes) + (sizeof(long) - 1)) & ~(sizeof(long) - 1))
+
+/* actual size of an undo structure */
+#define SEMUSZ	SEM_ALIGN(offsetof(struct sem_undo, un_ent[SEMUME]))
+
+/*
+ * Macro to find a particular sem_undo vector
+ */
+#define SEMU(ix)	((struct sem_undo *)(((intptr_t)semu)+ix * seminfo.semusz))
+
+/*
+ * semaphore info struct
+ */
+struct seminfo seminfo = {
+                SEMMAP,         /* # of entries in semaphore map */
+                SEMMNI,         /* # of semaphore identifiers */
+                SEMMNS,         /* # of semaphores in system */
+                SEMMNU,         /* # of undo structures in system */
+                SEMMSL,         /* max # of semaphores per id */
+                SEMOPM,         /* max # of operations per semop call */
+                SEMUME,         /* max # of undo entries per process */
+                SEMUSZ,         /* size in bytes of undo structure */
+                SEMVMX,         /* semaphore maximum value */
+                SEMAEM          /* adjust on exit max value */
+};
+
+SYSCTL_DECL(_kern_ipc);
+SYSCTL_INT(_kern_ipc, OID_AUTO, semmap, CTLFLAG_RW, &seminfo.semmap, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semmni, CTLFLAG_RD, &seminfo.semmni, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semmns, CTLFLAG_RD, &seminfo.semmns, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semmnu, CTLFLAG_RD, &seminfo.semmnu, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semmsl, CTLFLAG_RW, &seminfo.semmsl, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semopm, CTLFLAG_RD, &seminfo.semopm, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semume, CTLFLAG_RD, &seminfo.semume, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semusz, CTLFLAG_RD, &seminfo.semusz, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RW, &seminfo.semvmx, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RW, &seminfo.semaem, 0, "");
+
+#if 0
+RO seminfo.semmap	/* SEMMAP unused */
+RO seminfo.semmni
+RO seminfo.semmns
+RO seminfo.semmnu	/* undo entries per system */
+RW seminfo.semmsl
+RO seminfo.semopm	/* SEMOPM unused */
+RO seminfo.semume
+RO seminfo.semusz	/* param - derived from SEMUME for per-proc sizeof */
+RO seminfo.semvmx	/* SEMVMX unused - user param */
+RO seminfo.semaem	/* SEMAEM unused - user param */
+#endif
+
+static void
 seminit(dummy)
 	void *dummy;
 {
 	register int i;
 
+	sem = malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, M_WAITOK);
+	if (sem == NULL)
+		panic("sem is NULL");
+	sema = malloc(sizeof(struct semid_ds) * seminfo.semmni, M_SEM, M_WAITOK);
 	if (sema == NULL)
 		panic("sema is NULL");
+	semu = malloc(seminfo.semmnu * seminfo.semusz, M_SEM, M_WAITOK);
 	if (semu == NULL)
 		panic("semu is NULL");
 
@@ -66,6 +187,7 @@ seminit(dummy)
 	}
 	semu_list = NULL;
 }
+SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
 
 /*
  * Entry point for all SEM calls
@@ -708,15 +830,8 @@ semop(p, uap)
 		 * Make sure that the semaphore still exists
 		 */
 		if ((semaptr->sem_perm.mode & SEM_ALLOC) == 0 ||
-		    semaptr->sem_perm.seq != IPCID_TO_SEQ(uap->semid)) {
-			/* The man page says to return EIDRM. */
-			/* Unfortunately, BSD doesn't define that code! */
-#ifdef EIDRM
+		    semaptr->sem_perm.seq != IPCID_TO_SEQ(uap->semid))
 			return(EIDRM);
-#else
-			return(EINVAL);
-#endif
-		}
 
 		/*
 		 * The semaphore is still alive.  Readjust the count of

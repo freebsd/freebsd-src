@@ -19,6 +19,8 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
 
+#include "opt_sysvipc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -26,23 +28,16 @@
 #include <sys/proc.h>
 #include <sys/msg.h>
 #include <sys/sysent.h>
+#include <sys/sysctl.h>
+#include <sys/malloc.h>
+
+static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 
 static void msginit __P((void *));
-SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
 
 #define MSG_DEBUG
 #undef MSG_DEBUG_OK
 
-#ifndef _SYS_SYSPROTO_H_
-struct msgctl_args;
-int msgctl __P((struct proc *p, struct msgctl_args *uap));
-struct msgget_args;
-int msgget __P((struct proc *p, struct msgget_args *uap));
-struct msgsnd_args;
-int msgsnd __P((struct proc *p, struct msgsnd_args *uap));
-struct msgrcv_args;
-int msgrcv __P((struct proc *p, struct msgrcv_args *uap));
-#endif
 static void msg_freehdr __P((struct msg *msghdr));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
@@ -51,19 +46,99 @@ static sy_call_t *msgcalls[] = {
 	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
 };
 
+struct msg {
+	struct	msg *msg_next;	/* next msg in the chain */
+	long	msg_type;	/* type of this message */
+    				/* >0 -> type of this message */
+    				/* 0 -> free header */
+	u_short	msg_ts;		/* size of this message */
+	short	msg_spot;	/* location of start of msg in buffer */
+};
+
+
+#ifndef MSGSSZ
+#define MSGSSZ	8		/* Each segment must be 2^N long */
+#endif
+#ifndef MSGSEG
+#define MSGSEG	2048		/* must be less than 32767 */
+#endif
+#define MSGMAX	(MSGSSZ*MSGSEG)
+#ifndef MSGMNB
+#define MSGMNB	2048		/* max # of bytes in a queue */
+#endif
+#ifndef MSGMNI
+#define MSGMNI	40
+#endif
+#ifndef MSGTQL
+#define MSGTQL	40
+#endif
+
+/*
+ * Based on the configuration parameters described in an SVR2 (yes, two)
+ * config(1m) man page.
+ *
+ * Each message is broken up and stored in segments that are msgssz bytes
+ * long.  For efficiency reasons, this should be a power of two.  Also,
+ * it doesn't make sense if it is less than 8 or greater than about 256.
+ * Consequently, msginit in kern/sysv_msg.c checks that msgssz is a power of
+ * two between 8 and 1024 inclusive (and panic's if it isn't).
+ */
+struct msginfo msginfo = {
+                MSGMAX,         /* max chars in a message */
+                MSGMNI,         /* # of message queue identifiers */
+                MSGMNB,         /* max chars in a queue */
+                MSGTQL,         /* max messages in system */
+                MSGSSZ,         /* size of a message segment */
+                		/* (must be small power of 2 greater than 4) */
+                MSGSEG          /* number of message segments */
+};
+
+/*
+ * macros to convert between msqid_ds's and msqid's.
+ * (specific to this implementation)
+ */
+#define MSQID(ix,ds)	((ix) & 0xffff | (((ds).msg_perm.seq << 16) & 0xffff0000))
+#define MSQID_IX(id)	((id) & 0xffff)
+#define MSQID_SEQ(id)	(((id) >> 16) & 0xffff)
+
+/*
+ * The rest of this file is specific to this particular implementation.
+ */
+
+struct msgmap {
+	short	next;		/* next segment in buffer */
+    				/* -1 -> available */
+    				/* 0..(MSGSEG-1) -> index of next segment */
+};
+
+#define MSG_LOCKED	01000	/* Is this msqid_ds locked? */
+
 static int nfree_msgmaps;	/* # of free map entries */
 static short free_msgmaps;	/* head of linked list of free map entries */
-static struct msg *free_msghdrs;	/* list of free msg headers */
-char *msgpool;			/* MSGMAX byte long msg buffer pool */
-struct msgmap *msgmaps;		/* MSGSEG msgmap structures */
-struct msg *msghdrs;		/* MSGTQL msg headers */
-struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
+static struct msg *free_msghdrs;/* list of free msg headers */
+static char *msgpool;		/* MSGMAX byte long msg buffer pool */
+static struct msgmap *msgmaps;	/* MSGSEG msgmap structures */
+static struct msg *msghdrs;	/* MSGTQL msg headers */
+static struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
-void
+static void
 msginit(dummy)
 	void *dummy;
 {
 	register int i;
+
+	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
+	if (msgpool == NULL)
+		panic("msgpool is NULL");
+	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
+	if (msgmaps == NULL)
+		panic("msgmaps is NULL");
+	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
+	if (msghdrs == NULL)
+		panic("msghdrs is NULL");
+	msqids = malloc(sizeof(struct msqid_ds) * msginfo.msgmni, M_MSG, M_WAITOK);
+	if (msqids == NULL)
+		panic("msqids is NULL");
 
 	/*
 	 * msginfo.msgssz should be a power of two for efficiency reasons.
@@ -115,6 +190,7 @@ msginit(dummy)
 		msqids[i].msg_perm.seq = 0;	/* reset to a known value */
 	}
 }
+SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
 
 /*
  * Entry point for all MSG calls
@@ -559,14 +635,7 @@ msgsnd(p, uap)
 #ifdef MSG_DEBUG_OK
 				printf("msqid deleted\n");
 #endif
-				/* The SVID says to return EIDRM. */
-#ifdef EIDRM
 				return(EIDRM);
-#else
-				/* Unfortunately, BSD doesn't define that code
-				   yet! */
-				return(EINVAL);
-#endif
 			}
 
 		} else {
@@ -708,13 +777,7 @@ msgsnd(p, uap)
 	if (msqptr->msg_qbytes == 0) {
 		msg_freehdr(msghdr);
 		wakeup((caddr_t)msqptr);
-		/* The SVID says to return EIDRM. */
-#ifdef EIDRM
 		return(EIDRM);
-#else
-		/* Unfortunately, BSD doesn't define that code yet! */
-		return(EINVAL);
-#endif
 	}
 
 	/*
@@ -935,13 +998,7 @@ msgrcv(p, uap)
 #ifdef MSG_DEBUG_OK
 			printf("msqid deleted\n");
 #endif
-			/* The SVID says to return EIDRM. */
-#ifdef EIDRM
 			return(EIDRM);
-#else
-			/* Unfortunately, BSD doesn't define that code yet! */
-			return(EINVAL);
-#endif
 		}
 	}
 
