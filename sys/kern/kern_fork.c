@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.8 1994/10/09 07:34:55 davidg Exp $
+ * $Id: kern_fork.c,v 1.9 1994/10/10 01:00:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -289,9 +289,8 @@ again:
 		/*
 		 * Child process.  Set start time and get to work.
 		 */
-		(void) splclock();
-		p2->p_stats->p_start = time;
-		(void) spl0();
+		microtime(&runtime);
+		p2->p_stats->p_start = runtime;
 		p2->p_acflag = AFORK;
 		return (0);
 	}
