@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.28 1995/10/25 15:38:01 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.29 1996/02/06 22:49:11 jdp Exp $";
 #endif
 
 /*
@@ -223,6 +223,7 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 	barf("Cannot fork process for tar: %s", strerror(errno));
     if (pid == 0) {	/* The child */
 	dup2(pipefds[0], 0);
+	close(pipefds[0]);
 	close(pipefds[1]);
 	execv("/usr/bin/tar", args);
 	barf("Failed to execute tar command: %s", strerror(errno));
