@@ -245,7 +245,8 @@ struct host_info *host;
 		      host->name,
 		      (sin->sa_family == AF_INET) ? "AF_INET" : "AF_INET6");
 
-	} else if (STR_NE(host->name, res0->ai_canonname)
+	} else if ((res0->ai_canonname == NULL
+		    || STR_NE(host->name, res0->ai_canonname))
 		   && STR_NE(host->name, "localhost")) {
 
 	    /*
@@ -255,7 +256,8 @@ struct host_info *host;
 	     */
 
 	    tcpd_warn("host name/name mismatch: %s != %.*s",
-		      host->name, STRING_LENGTH, res0->ai_canonname);
+		      host->name, STRING_LENGTH,
+		      (res0->ai_canonname == NULL) ? "" : res0->ai_canonname);
 
 	} else {
 
@@ -294,7 +296,8 @@ struct host_info *host;
 	    getnameinfo(sin, salen, hname, sizeof(hname),
 			NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
 	    tcpd_warn("host name/address mismatch: %s != %.*s",
-		      hname, STRING_LENGTH, res0->ai_canonname);
+		      hname, STRING_LENGTH,
+		      (res0->ai_canonname == NULL) ? "" : res0->ai_canonname);
 	}
 	strcpy(host->name, paranoid);		/* name is bad, clobber it */
 	if (res0)
