@@ -17,6 +17,8 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -138,7 +140,7 @@ static char *lcpconfopts[] = {
 	"Numbered-Mode",
 	"Multi-Link-Procedure",
 	"Call-Back",
-	"Connect-Time"
+	"Connect-Time",
 	"Compund-Frames",
 	"Nominal-Data-Encap",
 	"Multilink-MRRU",
@@ -189,11 +191,52 @@ static char *papcode[] = {
 #define IPCP_CP		2
 #define IPCP_ADDR	3
 
+/* PPPoE */
+
+struct typenames {
+	u_short type;
+	char *name;
+};
+
+static struct typenames typenames[] = {
+	/*
+	 * PPPoE type field values
+	 */
+	0x00,	"DATA",			/* PPPoE Data packet                */
+	0x09,	"PADI",			/* Active Discovery Initiation      */
+	0x07,	"PADO",			/* Active Discovery Offer           */
+	0x19,	"PADR",			/* Active Discovery Request         */
+	0x65,	"PADS",			/* Active Discovery Session-Confirm */
+	0xa7,	"PADT",			/* Active Discovery Terminate       */
+};
+
+struct tagnames {
+	u_short tag;
+	char *name;
+	int isascii;
+};
+
+static struct tagnames tagnames[] = {
+  /*
+   * PPPoE tag field values
+   */
+  0x0000, "End-Of-List",	0,	/* Optional last tag (len 0) */
+  0x0101, "Service-Name",	1,	/* The (ascii) service */
+  0x0102, "AC-Name",		-1,	/* Access Concentrator */
+  0x0103, "Host-Uniq",		0,	/* Associate PAD[OS] with PAD[IR] */
+  0x0104, "AC-Cookie",		0,	/* Optional at PADO time */
+  0x0105, "Vendor-Specific",	0,	/* First 4 bytes special (ignore) */
+  0x0110, "Relay-Session-Id",	0,	/* Max 12 octets, added by gateway */
+  0x0201, "Service-Name-Error",	-1,	/* Request not honoured */
+  0x0203, "Generic-Error",	1	/* Access Concentrator error */
+};
+
 static int handle_lcp(const u_char *p, int length);
 static int print_lcp_config_options(u_char *p);
 static int handle_chap(const u_char *p, int length);
 static int handle_ipcp(const u_char *p, int length);
 static int handle_pap(const u_char *p, int length);
+static void do_ppp_print(const u_char *p, u_int length, u_int caplen);
 
 /* Standard PPP printer */
 void
@@ -491,8 +534,8 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 	ts_print(&h->ts);
 
 	if (caplen < PPP_HDRLEN) {
-		printf("[|ppp]");
-		goto out;
+		puts("[|ppp]");
+		return;
 	}
 
 	/*
@@ -503,6 +546,118 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 	packetp = p;
 	snapend = p + caplen;
 
+	do_ppp_print(p, length, caplen);
+}
+
+/*
+ * Print PPPoE discovery & session packets
+ */
+void
+pppoe_print(const u_char *p, u_int length)
+{
+	u_short tag, len, tlen;
+	u_char type;
+	int f, asc;
+
+	fputs("PPPoE ", stdout);
+
+	/*
+	 * A PPPoE header:
+	 *
+	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 * |  VER  | TYPE  |      CODE     |          SESSION_ID           |
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 * |            LENGTH             |           payload             ~
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+
+	type = p[1];
+	for (f = sizeof typenames / sizeof typenames[0] - 1; f >= 0; f--)
+		if (typenames[f].type == type) {
+			fputs(typenames[f].name, stdout);
+			break;
+		}
+
+	if (f == -1) {
+		printf("<0x%02x>\n", type);
+	}
+
+	len = ntohs(*(u_short *)(p + 4));
+	printf(" v%d, type %d, sess %d len %d", p[0] >> 4, p[0] & 0xf,
+	    ntohs(*(u_short *)(p + 2)), len);
+
+	if (type == 0x00) {
+		p += 4;
+		length -= 4;
+		if (len > length)
+			len = length;	/* puke ! */
+		/* This is a data packet */
+		fputs("] ", stdout);
+		do_ppp_print(p, len, len);
+		return;
+	}
+
+	p += 6;
+	length -= 6;
+	if (len > length)
+		len = length;	/* puke ! */
+
+	/*
+	 * A PPPoE tag:
+	 *
+	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 * |          TAG_TYPE             |        TAG_LENGTH             |
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 * |          TAG_VALUE ...                                        ~
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+
+	while (len >= 4) {
+		tag = ntohs(*(u_short *)p);
+		tlen = ntohs(*(u_short *)(p + 2));
+
+		fputs(" [", stdout);
+		for (f = sizeof tagnames / sizeof tagnames[0] - 1; f >= 0; f--)
+			if (tagnames[f].tag == tag) {
+				asc = tagnames[f].isascii;
+				fputs(tagnames[f].name, stdout);
+        			break;
+      			}
+
+		if (f == -1) {
+			printf("<0x%04x>", tag);
+			asc = -1;
+		}
+
+		p += 4;
+		if (tlen > 0) {
+			if (asc == -1) {
+				for (f = 0; f < tlen; f++)
+					if (!isascii(p[f]))
+						break;
+				asc = f == tlen;
+			}
+			fputc(' ', stdout);
+			if (asc)
+				printf("%.*s", (int)tlen, p);
+			else for (f = 0; f < tlen; f++)
+				printf("%02x", p[f]);
+		}
+		fputc(']', stdout);
+
+		p += tlen;
+		len -= tlen + 4;
+	}
+}
+
+/*
+ * Actually do the job
+ */
+static void
+do_ppp_print(const u_char *p, u_int length, u_int caplen)
+{
 	if (eflag)
 		ppp_hdlc_print(p, length);
 

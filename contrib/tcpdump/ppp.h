@@ -14,17 +14,25 @@
  * University.  Carnegie Mellon makes no representations about the
  * suitability of this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
+ *
+ * $FreeBSD$
  */
+#undef PPP_ADDRESS
 #define PPP_ADDRESS	0xff	/* The address byte value */
+#undef PPP_CONTROL
 #define PPP_CONTROL	0x03	/* The control byte value */
 
 /* Protocol numbers */
+#ifndef PPP_IP
 #define PPP_IP		0x0021	/* Raw IP */
+#endif
 #define PPP_OSI		0x0023	/* OSI Network Layer */
 #define PPP_NS		0x0025	/* Xerox NS IDP */
 #define PPP_DECNET	0x0027	/* DECnet Phase IV */
 #define PPP_APPLE	0x0029	/* Appletalk */
+#ifndef PPP_IPX
 #define PPP_IPX		0x002b	/* Novell IPX */
+#endif
 #define PPP_VJC		0x002d	/* Van Jacobson Compressed TCP/IP */
 #define PPP_VJNC	0x002f	/* Van Jacobson Uncompressed TCP/IP */
 #define PPP_BRPDU	0x0031	/* Bridging PDU */
