@@ -23,12 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.2 1999/01/19 23:15:56 abial Exp $
+ * $Id: kget.c,v 1.1 1999/01/20 12:31:43 jkh Exp $
  */
 
 #include "sysinstall.h"
-#include "i386/isa/isa_device.h"
 #include <sys/sysctl.h>
+#include "i386/isa/isa_device.h"
+#include "i386/isa/pnp.h"
 
 int
 kget(char *out)
@@ -36,9 +37,11 @@ kget(char *out)
     int len, i, bytes_written = 0;
     char *buf;
     char *mib = "machdep.uc_devlist";
+    char *mib2 = "machdep.uc_pnplist";
     char name[9];
     FILE *fout;
     struct isa_device *id;
+    struct pnp_cinfo *c;
     char *p;
  
     fout = fopen(out, "w");
@@ -94,11 +97,51 @@ kget(char *out)
 	}
 	i += sizeof(struct isa_device) + 8;
     }
-    if (bytes_written)
-	fprintf(fout, "q\n");
-    else
-        unlink(out);
-    fclose(fout);
     free(buf);
+    /* Now, print the changes to PnP override table */
+    i = sysctlbyname(mib2, NULL, &len, NULL, NULL);
+    if (i) {
+	msgDebug("kget: error sizing buffer\n");
+	return -1;
+    }
+    buf = (char *)malloc(len * sizeof(char));
+    i = sysctlbyname(mib2, buf, &len, NULL, NULL);
+    if (i) {
+	msgDebug("kget: error retrieving data\n");
+	return -1;
+    }
+    i = 0;
+    /* Print the PnP override table. Taken from userconfig.c */
+    do {
+	c = (struct pnp_cinfo *)(buf + i);
+	if (c->csn >0 && c->csn != 255) {
+	    int pmax, mmax;
+
+	    if (c->enable == 0) {
+		bytes_written += fprintf(fout, "pnp %d %d disable\n",
+					 c->csn, c->ldn);
+		continue;
+	    }
+	    bytes_written += fprintf(fout, "pnp %d %d %s irq0 %d irq1 %d drq0 %d drq1 %d",
+				     c->csn, c->ldn, c->override ? "os":"bios",
+				     c->irq[0], c->irq[1], c->drq[0], c->drq[1]);
+	    if (c->flags)
+		bytes_written += fprintf(fout, " flags 0x%lx", c->flags);
+	    pmax = 0;
+	    while (c->port[pmax] != 0 && pmax < 8) {
+		bytes_written += fprintf(fout, " port%d %d", pmax, c->port[pmax]);
+		pmax++;
+	    }
+	    mmax = 0;
+	    while (c->mem[mmax].base != 0 && mmax < 8) {
+		bytes_written += fprintf(fout, " mem%d %d",
+					 mmax, (int)c->mem[mmax].base);
+		mmax++;
+	    }
+	    bytes_written += fprintf(fout,"\n");
+        }
+    } while ((i += sizeof(struct pnp_cinfo)) < len);
+    fprintf(fout, "q\n");
+    fclose(fout);
     return 0;
 }
