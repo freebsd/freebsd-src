@@ -30,23 +30,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.44 1997/09/07 22:03:37 fsmp Exp $
+ *	$Id: exception.s,v 1.45 1997/10/10 09:43:57 peter Exp $
  */
 
-
-#include "npx.h"				/* NNPX */
+#include "npx.h"
 #include "opt_vm86.h"
 
-#include "assym.s"				/* system defines */
-#include <machine/ipl.h>			/* SWI_AST_MASK ... */
-#include <machine/psl.h>			/* PSL_I */
-#include <machine/trap.h>			/* trap codes */
 #include <machine/asmacros.h>
-
+#include <machine/ipl.h>
+#include <machine/lock.h>
+#ifdef VM86
+#include <machine/psl.h>
+#endif
+#include <machine/trap.h>
 #ifdef SMP
-#include <machine/smptests.h>	/** CPL_AND_CML, REAL_ */
-#else
-#define ECPL_LOCK		/* make these nops */
+#include <machine/smptests.h>		/** CPL_AND_CML, REAL_ */
+#endif
+
+#include "assym.s"
+
+#ifndef SMP
+#define ECPL_LOCK			/* make these nops */
 #define ECPL_UNLOCK
 #define ICPL_LOCK
 #define ICPL_UNLOCK
@@ -57,11 +61,8 @@
 #define AVCPL_UNLOCK
 #endif /* SMP */
 
-#include <machine/lock.h>
-
-
-#define	KCSEL		0x08			/* kernel code selector */
-#define	KDSEL		0x10			/* kernel data selector */
+#define	KCSEL		0x08		/* kernel code selector */
+#define	KDSEL		0x10		/* kernel data selector */
 #define	SEL_RPL_MASK	0x0003
 #define	TRAPF_CS_OFF	(13 * 4)
 
