@@ -22,20 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.1 1997/04/26 11:45:15 peter Exp $
+ *	$Id: mp_machdep.c,v 1.2 1997/04/27 21:17:24 fsmp Exp $
  */
 
 #include "opt_smp.h"
-#include "opt_smp_invltlb.h"
-#if defined(APIC_IO)
-#if !defined(SMP_INVLTLB)
-#error you must define BOTH APIC_IO and SMP_INVLTLB or NEITHER
-#endif
-#else				/* APIC_IO */
-#if defined(SMP_INVLTLB)
-#error you must define BOTH APIC_IO and SMP_INVLTLB or NEITHER
-#endif
-#endif				/* APIC_IO */
+
 #define FIX_MP_TABLE_WORKS_NOT
 
 #include "opt_serial.h"
@@ -60,9 +51,11 @@
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
-#if defined(SMP_INVLTLB)
-#include <i386/isa/icu.h>
-#endif				/* SMP_INVLTLB */
+#if defined(APIC_IO)
+#include <i386/include/md_var.h>	/* setidt() */
+#include <i386/isa/icu.h>		/* Xinvltlb() */
+#include <i386/isa/isa_device.h>	/* Xinvltlb() */
+#endif	/* APIC_IO */
 
 #define WARMBOOT_TARGET	0
 #define WARMBOOT_OFF	(KERNBASE + 0x0467)
@@ -309,11 +302,6 @@ found:				/* please forgive the 'goto'! */
 static int parse_mp_table(void);
 static void default_mp_table(int type);
 static int start_all_aps(u_int boot_addr);
-
-#if defined(APIC_IO)
-#include <i386/include/md_var.h>	/* setidt() */
-#include <i386/isa/isa_device.h>	/* Xinvltlb() */
-#endif	/* APIC_IO */
 
 static void
 mp_enable(u_int boot_addr)
@@ -1466,26 +1454,24 @@ start_ap(int logical_cpu, u_int boot_addr)
 }
 
 
-#ifdef SMP_INVLTLB
 /*
  * Flush the TLB on all other CPU's
  *
  * XXX: Needs to handshake and wait for completion before proceding.
  */
-
 void
-smp_invltlb()
+smp_invltlb(void)
 {
-	if (smp_active) {
-		if (invldebug & 2)
-			all_but_self_ipi(ICU_OFFSET + 32);
-	}
+	if (smp_active && invltlb_ok)
+		all_but_self_ipi(ICU_OFFSET + XINVLTLB_OFFSET);
 }
 
 void
 invlpg(u_int addr)
 {
 	__asm   __volatile("invlpg (%0)"::"r"(addr):"memory");
+
+	/* send a message to the other CPUs */
 	smp_invltlb();
 }
 
@@ -1493,29 +1479,13 @@ void
 invltlb(void)
 {
 	u_long  temp;
+
 	/*
 	 * This should be implemented as load_cr3(rcr3()) when load_cr3() is
 	 * inlined.
 	 */
 	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3":"=r"(temp) :: "memory");
+
+	/* send a message to the other CPUs */
 	smp_invltlb();
 }
-/*
- * Handles recieving an "IRQ 27", the invalidate tlb IPI..
- */
-void
-ipi_invltlb(void)
-{
-	u_long  temp;
-
-	if (invldebug & 4) {
-		/*
-		 * This should be implemented as load_cr3(rcr3()) when
-		 * load_cr3() is inlined.
-		 */
-		__asm   __volatile("movl %%cr3, %0; movl %0, %%cr3":"=r"(temp)
-		    ::      "memory");
-
-	}
-}
-#endif	/* SMP_INVLTLB */
