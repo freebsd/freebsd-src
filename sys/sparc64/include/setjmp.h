@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: FreeBSD: src/sys/i386/include/setjmp.h,v 1.5 2000/10/06
+ *	From: FreeBSD: src/sys/i386/include/setjmp.h,v 1.5 2000/10/06
  * $FreeBSD$
  */
 
@@ -50,9 +50,9 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-typedef struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef	struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif
 
-typedef struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef	struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
 
 #endif /* !_MACHINE_SETJMP_H_ */

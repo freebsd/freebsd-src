@@ -1,5 +1,4 @@
-/* $FreeBSD$ */
-/*
+/*-
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -30,7 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
+
+#ifndef _MACHINE_SETJMP_H_
+#define	_MACHINE_SETJMP_H_
 
 #define	_JBLEN	11		/* Size of the jmp_buf on x86. */
 
@@ -40,7 +43,9 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-typedef struct _sigjmp_buf { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
-#endif /* not ANSI */
+typedef	struct _sigjmp_buf { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+#endif
 
-typedef struct _jmp_buf { int _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef	struct _jmp_buf { int _jb[_JBLEN + 1]; } jmp_buf[1];
+
+#endif /* !_MACHINE_SETJMP_H_ */

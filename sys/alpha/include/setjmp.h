@@ -1,7 +1,4 @@
-/* $FreeBSD$ */
-/* From: NetBSD: setjmp.h,v 1.2 1997/04/06 08:47:41 cgd Exp */
-
-/*
+/*-
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
  * All rights reserved.
  *
@@ -26,13 +23,19 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ *	$NetBSD: setjmp.h,v 1.2 1997/04/06 08:47:41 cgd Exp $
+ * $FreeBSD$
  */
 
 /*
  * machine/setjmp.h: machine dependent setjmp-related information.
  */
 
-#define _JBLEN  81              /* size, in longs, of a jmp_buf */
+#ifndef _MACHINE_SETJMP_H_
+#define	_MACHINE_SETJMP_H_
+
+#define	_JBLEN	81		/* Size, in longs, of a jmp_buf. */
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
@@ -40,7 +43,9 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-typedef struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
-#endif /* not ANSI */
+typedef	struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+#endif
 
-typedef struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef	struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
+
+#endif /* !_MACHINE_SETJMP_H_ */
