@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <sys/types.h>
 #include <syslog.h>
+#include "yp_extern.h"
 
 int debug;
 extern int _rpcpmstart;
@@ -55,6 +56,8 @@ extern char *progname;
 #else
 #include <varargs.h>
 #endif
+
+static void __verr(const char *fmt, _BSD_VA_LIST_ ap) __printflike(1, 0);
 
 static void __verr(fmt, ap)
 	const char *fmt;
