@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.24 1999/01/15 17:10:31 wollman Exp $
+ *	$Id: http.c,v 1.25 1999/02/03 20:24:53 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -703,7 +703,6 @@ got100reply:
 	line[linelen - 1] = '\0'; /* turn line into a string */
 	status = http_first_line(line);
 
-	/* In the future, we might handle redirection and other responses. */
 	switch(status) {
 	case 100:		/* Continue */
 		goto got100reply;
@@ -715,17 +714,29 @@ got100reply:
 		/* can only happen when restarting */
 		break;
 	case 301:		/* Resource has moved permanently */
-		if (!fs->fs_auto_retry)
+		if (fs->fs_auto_retry < 1)
 			errstr = safe_strdup(line);
 		else
 			redirection = 301;
 		break;
 	case 302:		/* Resource has moved temporarily */
 		/*
-		 * We don't test fs->fs_auto_retry here so that this
-		 * sort of redirection is transparent to the user.
+		 * We formerly didn't test fs->fs_auto_retry here,
+		 * so that this sort of redirection would be transparent
+		 * to the user.  Unfortunately, there are a lot of idiots
+		 * out there running Web sites, and some of them have
+		 * decided to implement the following stupidity: rather
+		 * than returning the correct `404 Not Found' error
+		 * when something is not found, they instead return
+		 * a 302 redirect, giving the erroneous impression that
+		 * the requested resource actually exists.  This
+		 * breaks any client which expects a non-existent resource
+		 * to elicit a 40x response.  Grrr.
 		 */
-		redirection = 302;
+		if (fs->fs_auto_retry < 0) /* -A flag */
+			errstr = safe_strdup(line);
+		else
+			redirection = 302;
 		break;
 	case 304:		/* Object is unmodified */
 		if (fs->fs_mirror) {

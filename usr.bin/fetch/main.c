@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.48 1998/11/08 23:18:48 des Exp $ */
+/* $Id: main.c,v 1.49 1998/12/08 13:00:49 cracauer Exp $ */
 
 #include <sys/types.h>
 
@@ -49,10 +49,11 @@ static sigjmp_buf sigbuf;
 static int get(struct fetch_state *volatile fs);
 
 static void
-usage()
+usage(void)
 {
-	fprintf(stderr, "%s\n%s\n", 
-		"usage: fetch [-DHILMNPRTVablmnpqrstv] [-o outputfile] [-S bytes]",
+	fprintf(stderr,
+		"usage: fetch [-ADHILMNPRTVablmnpqrstv] [-o outputfile] "
+		"[-S bytes]\n"
 		"             [-f file -h host [-c dir] | URL]");
 	exit(EX_USAGE);
 }
@@ -75,8 +76,13 @@ main(int argc, char *const *argv)
     fs.fs_expectedsize = -1;
     change_to_dir = file_to_get = hostname = 0;
 
-    while ((c = getopt(argc, argv, "abc:D:f:h:HIlLmMnNo:pPqRrS:stT:vV:")) != -1) {
+#define OPT_STRING	"Aabc:D:f:h:HIlLmMnNo:pPqRrS:stT:vV:"
+    while ((c = getopt(argc, argv, OPT_STRING)) != -1) {
 	    switch (c) {
+	    case 'A':
+		    fs.fs_auto_retry = -1;
+		    break;
+
 	    case 'D': case 'H': case 'I': case 'L': case 'N': case 'V': 
 		    break;	/* ncftp compatibility */
 	    

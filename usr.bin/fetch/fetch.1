@@ -1,13 +1,13 @@
-.\" $Id: fetch.1,v 1.27 1999/01/15 16:56:22 wollman Exp $
-.Dd January 15, 1999
+.\" $Id: fetch.1,v 1.28 1999/02/03 20:43:28 fenner Exp $
+.Dd February 22, 1999
 .Dt FETCH 1
-.Os FreeBSD 3.1
+.Os FreeBSD 4.0
 .Sh NAME
 .Nm fetch
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl MPablmnpqrtv
+.Op Fl AMPablmnpqrtv
 .Op Fl S Ar size
 .Op Fl T Ar timeout
 .Op Fl o Ar file
@@ -49,6 +49,10 @@ flags.
 .Pp
 The following options are available:
 .Bl -tag -width Fl
+.It Fl A
+Do not automatically follow ``temporary'' (302) redirects.  Some
+broken Web sites will return a redirect instead of a not-found error
+when the requested object does not exist.
 .It Fl a
 Automatically retry the transfer upon soft failures.
 .It Fl b
@@ -192,7 +196,7 @@ proxy client passes the remote username, host and port as the
 .Tn FTP
 session's username, in the form
 .Do Va remoteuser Ns Li \&@ Ns Va remotehost
-.Op Li \^@ Ns Va port
+.Op Li \&@ Ns Va port
 .Dc .
 The
 .Tn HTTP
@@ -254,7 +258,7 @@ or
 .Pp
 and
 .Nm
-will prompt for the missing information if it is required.  She might
+will prompt for any missing information when it is required.  She might
 also specify a realm of
 .Dq Li \&*
 instead of
