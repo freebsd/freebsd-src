@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "lomac.h"
 #include "ps.h"
 
-static void printval(char *, VAR *);
+static void printval(void *, VAR *);
 
 void
 printheader(void)
@@ -668,7 +668,7 @@ priorityr(KINFO *k, VARENT *ve)
  * structures.
  */
 static void
-printval(char *bp, VAR *v)
+printval(void *bp, VAR *v)
 {
 	static char ofmt[32] = "%";
 	const char *fcp;
