@@ -58,19 +58,19 @@ options 	SYSVSEM			#SYSV-style semaphores
 #options 	NAPIC=1			# number of IO APICs
 #options 	NINTR=24		# number of INTs
 
-controller	isa0
-controller	eisa0
-controller	pci0
+device	isa0
+device	eisa0
+device	pci0
 
 # Floppy drives
-controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+device	fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 device		fd1	at fdc0 drive 1
 
 # ATA and ATAPI devices
-controller	ata0	at isa? port IO_WD1 irq 14
-controller	ata1	at isa? port IO_WD2 irq 15
-controller	ata2
+device	ata0	at isa? port IO_WD1 irq 14
+device	ata1	at isa? port IO_WD2 irq 15
+device	ata2
 device		atadisk0	# ATA disk drives
 device		atapicd0	# ATAPI CDROM drives
 device		atapifd0	# ATAPI floppy drives
@@ -81,23 +81,23 @@ options 	ATA_STATIC_ID		#Static device numbering
 # SCSI Controllers
 # A single entry for any of these controllers (ahb, ahc, amd, ncr, etc...) is
 # sufficient for any number of installed devices.
-# controller	ahb0		# EISA AHA1742 family
-controller	ahc0		# AHA2940 and onboard AIC7xxx devices
-# controller	amd0		# AMD 53C974 (Teckram DC-390(T))
-# controller	dpt0		# DPT Smartcache - See LINT for options!
-# controller	isp0		# Qlogic family
-# controller	ncr0		# NCR/Symbios Logic
-controller	sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
+# device	ahb0		# EISA AHA1742 family
+device	ahc0		# AHA2940 and onboard AIC7xxx devices
+# device	amd0		# AMD 53C974 (Teckram DC-390(T))
+# device	dpt0		# DPT Smartcache - See LINT for options!
+# device	isp0		# Qlogic family
+# device	ncr0		# NCR/Symbios Logic
+device	sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
 
-# controller	adv0	at isa? port ? irq ?
-# controller	adw0
-# controller	bt0	at isa? port ? irq ?
-# controller	aha0	at isa? port ? irq ?
-# controller	aic0	at isa? port ? irq ?
+# device	adv0	at isa? port ? irq ?
+# device	adw0
+# device	bt0	at isa? port ? irq ?
+# device	aha0	at isa? port ? irq ?
+# device	aic0	at isa? port ? irq ?
 
 # SCSI peripherals
 # Only one of each of these is needed, they are dynamically allocated.
-controller	scbus0		# SCSI bus (required)
+device	scbus0		# SCSI bus (required)
 device		da0		# Direct Access (disks)
 device		sa0		# Sequential Access (tape etc)
 device		cd0		# CD
@@ -114,7 +114,7 @@ device		pass0		# Passthrough device (direct SCSI access)
 # device		scd0	at isa? port 0x230
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-controller	atkbdc0	at isa? port IO_KBD
+device	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
 
@@ -140,7 +140,7 @@ device		npx0	at nexus? port IO_NPX irq 13
 device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-#controller	card0
+#device	card0
 #device		pcic0	at isa?
 #device		pcic1	at isa?
 
@@ -152,11 +152,11 @@ device		sio3	at isa? disable port IO_COM4 irq 9
 
 # Parallel port
 device		ppc0	at isa? port? flags 0x40 irq 7
-controller	ppbus0		# Parallel port bus (required)
+device	ppbus0		# Parallel port bus (required)
 device		lpt0		# Printer
 device		plip0		# TCP/IP over parallel
 device		ppi0		# Parallel port interface device
-#controller	vpo0		# Requires scbus and da0
+#device	vpo0		# Requires scbus and da0
 
 
 # PCI Ethernet NICs.
@@ -166,7 +166,7 @@ device		tx0		# SMC 9432TX (83c170 ``EPIC'')
 device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-controller	miibus0		# MII bus support
+device	miibus0		# MII bus support
 device		dc0		# DEC/Intel 21143 and various workalikes
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
@@ -210,12 +210,12 @@ pseudo-device	md		# Memory "disks"
 pseudo-device	bpf		#Berkeley packet filter
 
 # USB support
-#controller	uhci0		# UHCI PCI->USB interface
-#controller	ohci0		# OHCI PCI->USB interface
-#controller	usb0		# USB Bus (required)
+#device	uhci0		# UHCI PCI->USB interface
+#device	ohci0		# OHCI PCI->USB interface
+#device	usb0		# USB Bus (required)
 #device		ugen0		# Generic
 #device		uhid0		# "Human Interface Devices"
 #device		ukbd0		# Keyboard
 #device		ulpt0		# Printer
-#controller	umass0		# Disks/Mass storage - Requires scbus and da0
+#device	umass0		# Disks/Mass storage - Requires scbus and da0
 #device		ums0		# Mouse
