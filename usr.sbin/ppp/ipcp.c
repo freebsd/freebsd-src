@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.46 1997/12/27 13:45:50 brian Exp $
+ * $Id: ipcp.c,v 1.47 1998/01/05 01:35:18 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -32,6 +32,7 @@
 
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -146,10 +147,12 @@ ReportIpcpStatus(struct cmdargs const *arg)
   if (!VarTerm)
     return 1;
   fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
-  fprintf(VarTerm, " his side: %s, %s\n",
-	  inet_ntoa(IpcpInfo.his_ipaddr), vj2asc(IpcpInfo.his_compproto));
-  fprintf(VarTerm, " my  side: %s, %s\n",
-	  inet_ntoa(IpcpInfo.want_ipaddr), vj2asc(IpcpInfo.want_compproto));
+  if (IpcpFsm.state == ST_OPENED) {
+    fprintf(VarTerm, " his side: %s, %s\n",
+	    inet_ntoa(IpcpInfo.his_ipaddr), vj2asc(IpcpInfo.his_compproto));
+    fprintf(VarTerm, " my  side: %s, %s\n",
+	    inet_ntoa(IpcpInfo.want_ipaddr), vj2asc(IpcpInfo.want_compproto));
+  }
 
   fprintf(VarTerm, "Defaults:\n");
   fprintf(VarTerm, " My Address:  %s/%d\n",
@@ -188,6 +191,44 @@ IpcpDefAddress()
   }
 }
 
+static int VJInitSlots = MAX_STATES;
+static int VJInitComp = 1;
+
+int
+SetInitVJ(struct cmdargs const *args)
+{
+  if (args->argc != 2)
+    return -1;
+  if (!strcasecmp(args->argv[0], "slots")) {
+    int slots;
+
+    slots = atoi(args->argv[1]);
+    if (slots < 4 || slots > 16)
+      return 1;
+    VJInitSlots = slots;
+    return 0;
+  } else if (!strcasecmp(args->argv[0], "slotcomp")) {
+    if (!strcasecmp(args->argv[1], "on"))
+      VJInitComp = 1;
+    else if (!strcasecmp(args->argv[1], "off"))
+      VJInitComp = 0;
+    else
+      return 2;
+    return 0;
+  }
+  return -1;
+}
+
+int
+ShowInitVJ(struct cmdargs const *args)
+{
+  if (VarTerm) {
+    fprintf(VarTerm, "Initial slots: %d\n", VJInitSlots);
+    fprintf(VarTerm, "Initial compression: %s\n", VJInitComp ? "on" : "off");
+  }
+  return 0;
+}
+
 void
 IpcpInit()
 {
@@ -212,7 +253,8 @@ IpcpInit()
     LogPrintf(LogIPCP, "Using trigger address %s\n", inet_ntoa(TriggerAddress));
   }
   if (Enabled(ConfVjcomp))
-    IpcpInfo.want_compproto = (PROTO_VJCOMP << 16) | ((MAX_STATES - 1) << 8) | 1;
+    IpcpInfo.want_compproto = (PROTO_VJCOMP << 16) | ((VJInitSlots - 1) << 8) |
+                              VJInitComp;
   else
     IpcpInfo.want_compproto = 0;
   IpcpInfo.heis1172 = 0;
