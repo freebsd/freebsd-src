@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.169 1999/06/17 05:49:00 alc Exp $
+ * $Id: vm_map.c,v 1.170 1999/06/17 21:29:38 alc Exp $
  */
 
 /*
@@ -2876,7 +2876,7 @@ vm_freeze_copyopts(object, froma, toa)
 				if (m_in->valid == 0) {
 					rv = vm_pager_get_pages(object, &m_in, 1, 0);
 					if (rv != VM_PAGER_OK) {
-						printf("vm_freeze_copyopts: cannot read page from file: %x\n", m_in->pindex);
+						printf("vm_freeze_copyopts: cannot read page from file: %lx\n", (long)m_in->pindex);
 						continue;
 					}
 					vm_page_deactivate(m_in);
