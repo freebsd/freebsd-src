@@ -60,7 +60,7 @@ struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-static void badsb(int listerr, char *s);
+static void badsb(int listerr, const char *s);
 static int calcsb(char *dev, int devfd, struct fs *fs);
 static struct disklabel *getdisklabel(char *s, int fd);
 
@@ -74,7 +74,6 @@ setup(char *dev)
 {
 	long cg, asked, i, j;
 	long bmapsize;
-	off_t sizepb;
 	struct stat statb;
 	struct fs proto;
 	size_t size;
@@ -389,7 +388,7 @@ readsb(int listerr)
 }
 
 static void
-badsb(int listerr, char *s)
+badsb(int listerr, const char *s)
 {
 
 	if (!listerr)

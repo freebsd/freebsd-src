@@ -149,7 +149,8 @@ ino_t cursnapshot;
 
 struct inodesc {
 	enum fixstate id_fix;	/* policy on fixing errors */
-	int (*id_func)();	/* function to be applied to blocks of inode */
+	int (*id_func)(struct inodesc *);
+				/* function to be applied to blocks of inode */
 	ino_t id_number;	/* inode number described */
 	ino_t id_parent;	/* for DATA nodes, their parent */
 	ufs_lbn_t id_lbn;	/* logical block number of current block */
@@ -253,7 +254,7 @@ char	*blockmap;		/* ptr to primary blk allocation map */
 ino_t	maxino;			/* number of inodes in filesystem */
 
 ino_t	lfdir;			/* lost & found directory inode number */
-char	*lfname;		/* lost & found directory name */
+const char *lfname;		/* lost & found directory name */
 int	lfmode;			/* lost & found directory creation mode */
 
 ufs2_daddr_t n_blks;		/* number of blocks in use */
@@ -289,7 +290,7 @@ void		adjust(struct inodesc *, int lcnt);
 ufs2_daddr_t	allocblk(long frags);
 ino_t		allocdir(ino_t parent, ino_t request, int mode);
 ino_t		allocino(ino_t request, int type);
-void		blkerror(ino_t ino, char *type, ufs2_daddr_t blk);
+void		blkerror(ino_t ino, const char *type, ufs2_daddr_t blk);
 char	       *blockcheck(char *name);
 int		bread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
@@ -297,20 +298,20 @@ void		bwrite(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
-int		changeino(ino_t dir, char *name, ino_t newnum);
+int		changeino(ino_t dir, const char *name, ino_t newnum);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);
-void		clri(struct inodesc *, char *type, int flag);
+void		clri(struct inodesc *, const char *type, int flag);
 int		clearentry(struct inodesc *);
-void		direrror(ino_t ino, char *errmesg);
+void		direrror(ino_t ino, const char *errmesg);
 int		dirscan(struct inodesc *);
-int		dofix(struct inodesc *, char *msg);
+int		dofix(struct inodesc *, const char *msg);
 void		ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
 void		ffs_fragacct(struct fs *, int, int32_t [], int);
 int		ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 void		ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
-void		fileerror(ino_t cwd, ino_t ino, char *errmesg);
+void		fileerror(ino_t cwd, ino_t ino, const char *errmesg);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
 void		flush(int fd, struct bufarea *bp);
@@ -329,7 +330,7 @@ void		inocleanup(void);
 void		inodirty(void);
 struct inostat *inoinfo(ino_t inum);
 int		linkup(ino_t orphan, ino_t parentdir, char *name);
-int		makeentry(ino_t parent, ino_t ino, char *name);
+int		makeentry(ino_t parent, ino_t ino, const char *name);
 void		panic(const char *fmt, ...) __printflike(1, 2);
 void		pass1(void);
 void		pass1b(void);
@@ -344,8 +345,8 @@ void		pinode(ino_t ino);
 void		propagate(void);
 void		pwarn(const char *fmt, ...) __printflike(1, 2);
 int		readsb(int listerr);
-int		reply(char *question);
-void		rwerror(char *mesg, ufs2_daddr_t blk);
+int		reply(const char *question);
+void		rwerror(const char *mesg, ufs2_daddr_t blk);
 void		sblock_init(void);
 void		setinodebuf(ino_t);
 int		setup(char *dev);

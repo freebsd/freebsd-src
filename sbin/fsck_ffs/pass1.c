@@ -190,7 +190,6 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	off_t kernmaxfilesize;
 	ufs2_daddr_t ndb;
 	mode_t mode;
-	char *symbuf;
 	int j;
 
 	dp = getnextinode(inumber);
@@ -347,8 +346,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 			cmd.value = idesc->id_number;
 			cmd.size = idesc->id_entryno - DIP(dp, di_blocks);
 			if (debug)
-				printf("adjblkcnt ino %qu amount %ld\n",
-				    cmd.value, cmd.size);
+				printf("adjblkcnt ino %qu amount %lld\n",
+				    cmd.value, (long long)cmd.size);
 			if (sysctl(adjblkcnt, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST INODE BLOCK COUNT", cmd.value);
