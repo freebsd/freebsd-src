@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.49 1998/12/07 21:58:29 archie Exp $
+ * $Id: uipc_syscalls.c,v 1.49.2.1 1999/01/22 05:26:39 dillon Exp $
  */
 
 #include "opt_compat.h"
@@ -290,7 +290,8 @@ gotnoname:
 			error = copyout((caddr_t)&namelen,
 			    (caddr_t)uap->anamelen, sizeof (*uap->anamelen));
 	}
-	FREE(sa, M_SONAME);
+	if (sa)
+		FREE(sa, M_SONAME);
 	splx(s);
 	return (error);
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.31 1998/11/11 10:04:13 truckman Exp $
+ *	$Id: socketvar.h,v 1.32 1998/11/11 10:56:07 truckman Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -127,6 +127,7 @@ struct socket {
 
 #define	SS_INCOMP		0x0800	/* unaccepted, incomplete connection */
 #define	SS_COMP			0x1000	/* unaccepted, complete connection */
+#define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
 
 /*
  * Externalized form of struct socket used by the sysctl(3) interface.
