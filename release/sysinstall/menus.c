@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.66 1996/06/12 17:09:32 jkh Exp $
+ * $Id: menus.c,v 1.67 1996/06/13 17:07:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -210,7 +210,7 @@ option by pressing [ENTER].",				/* prompt */
     "Press F1 for usage instructions",			/* help line */
     "usage",						/* help file */
 { { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
-  { "2 Doc",	"More detailed documentation on FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
+  { "2 Doc",	"Installation instructions, README, etc.",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
   { "3 Options", "Go to the options editor",				NULL, optionsEditor },
   { "4 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
   { "5 Express", "Begin a quick installation (for the impatient)",	NULL, installExpress },
