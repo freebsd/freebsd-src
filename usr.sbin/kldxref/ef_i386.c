@@ -37,27 +37,30 @@
 #include "ef.h"
 
 /*
- * Apply relocations to the values we got from the file.
+ * Apply relocations to the values we got from the file. `relbase' is the
+ * target relocation address of the section, and `dataoff' is the target
+ * relocation address of the data in `dest'.
  */
 int
-ef_reloc(struct elf_file *ef, const void *data, int type, Elf_Off offset,
-    size_t len, void *dest)
+ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
+    Elf_Off dataoff, size_t len, void *dest)
 {
 	Elf_Addr *where, addr, addend;
 	Elf_Word rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
 
-	switch (type) {
+	switch (reltype) {
 	case EF_RELOC_REL:
-		rel = (const Elf_Rel *)data;
-		where = (Elf_Addr *)(dest + rel->r_offset - offset);
+		rel = (const Elf_Rel *)reldata;
+		where = (Elf_Addr *)(dest + relbase + rel->r_offset - dataoff);
+		addend = 0;
 		rtype = ELF_R_TYPE(rel->r_info);
 		symidx = ELF_R_SYM(rel->r_info);
 		break;
 	case EF_RELOC_RELA:
-		rela = (const Elf_Rela *)data;
-		where = (Elf_Addr *)(dest + rela->r_offset - offset);
+		rela = (const Elf_Rela *)reldata;
+		where = (Elf_Addr *)(dest + relbase + rela->r_offset - dataoff);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
@@ -69,12 +72,12 @@ ef_reloc(struct elf_file *ef, const void *data, int type, Elf_Off offset,
 	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
 		return (0);
 
-	if (type == EF_RELOC_REL)
+	if (reltype == EF_RELOC_REL)
 		addend = *where;
 
 	switch (rtype) {
 	case R_386_RELATIVE:	/* A + B */
-		addr = (Elf_Addr)addend;
+		addr = (Elf_Addr)addend + relbase;
 		*where = addr;
 		break;
 	case R_386_32:	/* S + A - P */

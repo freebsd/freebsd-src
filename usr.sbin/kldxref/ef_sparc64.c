@@ -35,25 +35,27 @@
 #include "ef.h"
 
 /*
- * Apply relocations to the values we got from the file.
+ * Apply relocations to the values we got from the file. `relbase' is the
+ * target relocation address of the section, and `dataoff' is the target
+ * relocation address of the data in `dest'.
  */
 int
-ef_reloc(struct elf_file *ef, const void *data, int type, Elf_Off offset,
-    size_t len, void *dest)
+ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
+    Elf_Off dataoff, size_t len, void *dest)
 {
 	const Elf_Rela *a;
 	Elf_Word w;
 
-	switch (type) {
+	switch (reltype) {
 	case EF_RELOC_RELA:
-		a = data;
-		if (a->r_offset >= offset && a->r_offset < offset + len) {
+		a = reldata;
+		if (relbase + a->r_offset >= dataoff && relbase + a->r_offset <
+		    dataoff + len) {
 			switch (ELF_R_TYPE(a->r_info)) {
 			case R_SPARC_RELATIVE:
-				/* load address is 0 */
-				w = a->r_addend;
-				memcpy((u_char *)dest + (a->r_offset - offset),
-				    &w, sizeof(w));
+				w = a->r_addend + relbase;
+				memcpy((u_char *)dest + (relbase + a->r_offset -
+				    dataoff), &w, sizeof(w));
 				break;
 			default:
 				warnx("unhandled relocation type %u",
