@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.12 1996/12/17 14:37:43 kato Exp $
+#	$Id: GENERIC98,v 1.13 1996/12/19 15:48:55 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -110,7 +110,9 @@ controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0 vector bsintr
 # ELECOM type
 #controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x30000 vector bsintr
 # SMIT
-#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000 vector bsintr
+#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 iomem 0xdc000 iosiz 0x1000 flags 0x40000 vector bsintr
+# Logitec LHA-20x
+#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x50000 vector bsintr
 
 controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
 
@@ -180,7 +182,7 @@ device ed4 at isa? port 0x56d0 net irq 5 flags 0x500000 vector edintr
 device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000 vector edintr
 device ed6 at isa? port 0x00d0 net irq 6 flags 0x800000 vector edintr
 device ed7 at isa? port 0x00d0 net irq 6 flags 0x900000 vector edintr
-device ed8 at isa? port 0x00d0 net irq 6 flags 0xa00000 vector edintr
+device ed8 at isa? port 0x03d0 net irq 6 flags 0xa00000 vector edintr
 device ed9 at isa? port 0x03d0 net irq 6 flags 0xb00000 vector edintr
 
 device ep0 at isa? port 0x40d0 net irq 3 vector epintr
