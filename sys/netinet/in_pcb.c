@@ -189,17 +189,56 @@ in_pcbbind(inp, nam, td)
 	struct sockaddr *nam;
 	struct thread *td;
 {
-	register struct socket *so = inp->inp_socket;
+	int anonport, error;
+
+	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
+		return (EINVAL);
+	anonport = inp->inp_lport == 0 && (nam == NULL ||
+	    ((struct sockaddr_in *)nam)->sin_port == 0);
+	error = in_pcbbind_setup(inp, nam, &inp->inp_laddr.s_addr,
+	    &inp->inp_lport, td);
+	if (error)
+		return (error);
+	if (in_pcbinshash(inp) != 0) {
+		inp->inp_laddr.s_addr = INADDR_ANY;
+		inp->inp_lport = 0;
+		return (EAGAIN);
+	}
+	if (anonport)
+		inp->inp_flags |= INP_ANONPORT;
+	return (0);
+}
+
+/*
+ * Set up a bind operation on a PCB, performing port allocation
+ * as required, but do not actually modify the PCB. Callers can
+ * either complete the bind by setting inp_laddr/inp_lport and
+ * calling in_pcbinshash(), or they can just use the resulting
+ * port and address to authorise the sending of a once-off packet.
+ *
+ * On error, the values of *laddrp and *lportp are not changed.
+ */
+int
+in_pcbbind_setup(inp, nam, laddrp, lportp, td)
+	struct inpcb *inp;
+	struct sockaddr *nam;
+	in_addr_t *laddrp;
+	u_short *lportp;
+	struct thread *td;
+{
+	struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
 	struct sockaddr_in *sin;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+	struct in_addr laddr;
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error, prison = 0;
 
 	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
-	if (inp->inp_lport || inp->inp_laddr.s_addr != INADDR_ANY)
+	laddr.s_addr = *laddrp;
+	if (nam != NULL && laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = 1;
@@ -218,7 +257,13 @@ in_pcbbind(inp, nam, td)
 		if (sin->sin_addr.s_addr != INADDR_ANY)
 			if (prison_ip(td->td_ucred, 0, &sin->sin_addr.s_addr))
 				return(EINVAL);
-		lport = sin->sin_port;
+		if (sin->sin_port != *lportp) {
+			/* Don't allow the port to change. */
+			if (*lportp != 0)
+				return (EINVAL);
+			lport = sin->sin_port;
+		}
+		/* NB: lport is left as 0 if the port isn't being changed. */
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			/*
 			 * Treat SO_REUSEADDR as SO_REUSEPORT for multicast;
@@ -235,6 +280,7 @@ in_pcbbind(inp, nam, td)
 			if (ifa_ifwithaddr((struct sockaddr *)sin) == 0)
 				return (EADDRNOTAVAIL);
 		}
+		laddr = sin->sin_addr;
 		if (lport) {
 			struct inpcb *t;
 			/* GROSS */
@@ -284,28 +330,25 @@ in_pcbbind(inp, nam, td)
 				return (EADDRINUSE);
 			}
 		}
-		inp->inp_laddr = sin->sin_addr;
 	}
+	if (*lportp != 0)
+		lport = *lportp;
 	if (lport == 0) {
 		ushort first, last;
 		int count;
 
-		if (inp->inp_laddr.s_addr != INADDR_ANY)
-			if (prison_ip(td->td_ucred, 0, &inp->inp_laddr.s_addr )) {
-				inp->inp_laddr.s_addr = INADDR_ANY;
+		if (laddr.s_addr != INADDR_ANY)
+			if (prison_ip(td->td_ucred, 0, &laddr.s_addr))
 				return (EINVAL);
-			}
-		inp->inp_flags |= INP_ANONPORT;
 
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = ipport_hifirstauto;	/* sysctl */
 			last  = ipport_hilastauto;
 			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (td && (error = suser_cred(td->td_ucred, PRISON_ROOT))) {
-				inp->inp_laddr.s_addr = INADDR_ANY;
+			if (td && (error = suser_cred(td->td_ucred,
+			    PRISON_ROOT)) != 0)
 				return error;
-			}
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
 			lastport = &pcbinfo->lastlow;
@@ -328,16 +371,14 @@ in_pcbbind(inp, nam, td)
 			count = first - last;
 
 			do {
-				if (count-- < 0) {	/* completely used? */
-					inp->inp_laddr.s_addr = INADDR_ANY;
+				if (count-- < 0)	/* completely used? */
 					return (EADDRNOTAVAIL);
-				}
 				--*lastport;
 				if (*lastport > first || *lastport < last)
 					*lastport = first;
 				lport = htons(*lastport);
-			} while (in_pcblookup_local(pcbinfo,
-				 inp->inp_laddr, lport, wild));
+			} while (in_pcblookup_local(pcbinfo, laddr, lport,
+			    wild));
 		} else {
 			/*
 			 * counting up
@@ -345,33 +386,20 @@ in_pcbbind(inp, nam, td)
 			count = last - first;
 
 			do {
-				if (count-- < 0) {	/* completely used? */
-					/*
-					 * Undo any address bind that may have
-					 * occurred above.
-					 */
-					inp->inp_laddr.s_addr = INADDR_ANY;
+				if (count-- < 0)	/* completely used? */
 					return (EADDRNOTAVAIL);
-				}
 				++*lastport;
 				if (*lastport < first || *lastport > last)
 					*lastport = first;
 				lport = htons(*lastport);
-			} while (in_pcblookup_local(pcbinfo,
-				 inp->inp_laddr, lport, wild));
+			} while (in_pcblookup_local(pcbinfo, laddr, lport,
+			    wild));
 		}
 	}
-	inp->inp_lport = lport;
-	if (prison_ip(td->td_ucred, 0, &inp->inp_laddr.s_addr)) {
-		inp->inp_laddr.s_addr = INADDR_ANY;
-		inp->inp_lport = 0;
+	if (prison_ip(td->td_ucred, 0, &laddr.s_addr))
 		return (EINVAL);
-	}
-	if (in_pcbinshash(inp) != 0) {
-		inp->inp_laddr.s_addr = INADDR_ANY;
-		inp->inp_lport = 0;
-		return (EAGAIN);
-	}
+	*laddrp = laddr.s_addr;
+	*lportp = lport;
 	return (0);
 }
 
