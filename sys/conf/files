@@ -1609,7 +1609,6 @@ pci/if_vr.c		optional vr pci
 pci/if_wb.c		optional wb pci
 pci/if_xl.c		optional xl pci
 pci/intpm.c		optional intpm pci
-pci/meteor.c		count meteor pci nowerror
 pci/ncr.c		optional ncr pci
 pci/viapm.c		optional viapm pci
 pci/xrpu.c		optional xrpu pci
