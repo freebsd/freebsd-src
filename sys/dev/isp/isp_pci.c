@@ -1,5 +1,5 @@
-/* $Id: isp_pci.c,v 1.16 1999/03/17 05:07:18 mjacob Exp $ */
-/* release_03_25_99 */
+/* $Id: isp_pci.c,v 1.17 1999/03/25 22:53:56 mjacob Exp $ */
+/* release_4_3_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -65,8 +65,11 @@ static int isp_pci_dmasetup __P((struct ispsoftc *, ISP_SCSI_XFER_T *,
 #if	__FreeBSD_version >= 300004
 static void
 isp_pci_dmateardown __P((struct ispsoftc *, ISP_SCSI_XFER_T *, u_int32_t));
+#define	PROBETYPE	const char *
 #else
+typedef u_int16_t pci_port_t;
 #define	isp_pci_dmateardown	NULL
+#define	PROBETYPE	char *
 #endif
 
 static void isp_pci_reset1 __P((struct ispsoftc *));
@@ -162,6 +165,10 @@ static struct ispmdvec mdvec_2100 = {
 #define	PCIR_LATTIMER			0x0d
 #endif
 
+#ifndef	PCIR_ROMADDR
+#define	PCIR_ROMADDR			0x30
+#endif
+
 #ifndef	PCI_VENDOR_QLOGIC
 #define	PCI_VENDOR_QLOGIC	0x1077
 #endif
@@ -199,7 +206,7 @@ static struct ispmdvec mdvec_2100 = {
 #define	PCI_DFLT_LTNCY	0x40
 #define	PCI_DFLT_LNSZ	0x10
 
-static const char *isp_pci_probe __P((pcici_t tag, pcidi_t type));
+static PROBETYPE isp_pci_probe __P((pcici_t tag, pcidi_t type));
 static void isp_pci_attach __P((pcici_t config_d, int unit));
 
 /* This distinguishing define is not right, but it does work */
@@ -209,6 +216,8 @@ static void isp_pci_attach __P((pcici_t config_d, int unit));
 #define	MEM_SPACE_MAPPING	1
 typedef int bus_space_tag_t;
 typedef u_long bus_space_handle_t;
+typedef unsigned int            __uintptr_t;
+typedef __uintptr_t     uintptr_t;
 #ifdef __alpha__
 #define	bus_space_read_2(st, sh, offset)	\
 	alpha_mb(),
@@ -265,7 +274,7 @@ struct pci_device isp_pci_driver = {
 DATA_SET (pcidevice_set, isp_pci_driver);
 
 
-static const char *
+static PROBETYPE
 isp_pci_probe(pcici_t tag, pcidi_t type)
 {
 	static int oneshot = 1;
@@ -308,7 +317,7 @@ isp_pci_attach(pcici_t config_id, int unit)
 {
 	int mapped;
 	pci_port_t io_port;
-	u_int32_t data;
+	u_int32_t data, linesz;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp;
 	vm_offset_t vaddr, paddr;
@@ -324,6 +333,7 @@ isp_pci_attach(pcici_t config_id, int unit)
 
 	vaddr = paddr = NULL;
 	mapped = 0;
+	linesz = PCI_DFLT_LNSZ;
 	/*
 	 * Note that pci_conf_read is a 32 bit word aligned function.
 	 */
@@ -404,11 +414,23 @@ isp_pci_attach(pcici_t config_id, int unit)
 		isp->isp_param = &pcs->_z._y;
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
+
+		data = pci_conf_read(config_id, PCI_CLASS_REG);
+		if ((data & 0xff) < 3) {
+			/*
+			 * XXX: Need to get the actual revision
+			 * XXX: number of the 2100 FB. At any rate,
+			 * XXX: lower cache line size for early revision
+			 * XXX; boards.
+			 */
+			linesz = 1;
+		}
 	}
 #endif
 
 #if	__FreeBSD_version >= 300004
 	ISP_LOCK(isp);
+
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
 	 * are set.
@@ -419,15 +441,17 @@ isp_pci_attach(pcici_t config_id, int unit)
 		PCIM_CMD_BUSMASTEREN	|
 		PCIM_CMD_INVEN;
 	pci_cfgwrite(config_id, PCIR_COMMAND, 2, data);
+
 	/*
 	 * Make sure the CACHE Line Size register is set sensibly.
 	 */
 	data = pci_cfgread(config_id, PCIR_CACHELNSZ, 1);
-	if (data != PCI_DFLT_LNSZ) {
+	if (data != linesz) {
 		data = PCI_DFLT_LNSZ;
 		printf("%s: set PCI line size to %d\n", isp->isp_name, data);
 		pci_cfgwrite(config_id, PCIR_CACHELNSZ, data, 1);
 	}
+
 	/*
 	 * Make sure the Latency Timer is sane.
 	 */
@@ -437,6 +461,14 @@ isp_pci_attach(pcici_t config_id, int unit)
 		printf("%s: set PCI latency to %d\n", isp->isp_name, data);
 		pci_cfgwrite(config_id, PCIR_LATTIMER, data, 1);
 	}
+
+	/*
+	 * Make sure we've disabled the ROM.
+	 */
+	data = pci_cfgread(config_id, PCIR_ROMADDR, 4);
+	data &= ~1;
+	pci_cfgwrite(config_id, PCIR_ROMADDR, data, 4);
+
 	ISP_UNLOCK(isp);
 
 	if (bus_dma_tag_create(NULL, 0, 0, BUS_SPACE_MAXADDR_32BIT,
@@ -446,7 +478,31 @@ isp_pci_attach(pcici_t config_id, int unit)
 		free(pcs, M_DEVBUF);
 		return;
 	}
+#else
+	ISP_LOCK(isp);
+	data = pci_conf_read(config_id, PCIR_COMMAND);
+	data |=	PCIM_CMD_SEREN		|
+		PCIM_CMD_PERRESPEN	|
+		PCIM_CMD_BUSMASTEREN	|
+		PCIM_CMD_INVEN;
+	pci_conf_write(config_id, PCIR_COMMAND, data);
+	data = pci_conf_read(config_id, PCIR_CACHELNSZ);
+	if ((data & ~0xffff) != ((PCI_DFLT_LTNCY << 8) | linesz)) {
+		data &= ~0xffff;
+		data |= (PCI_DFLT_LTNCY << 8) | linesz;
+		pci_conf_write(config_id, PCIR_CACHELNSZ, data);
+		printf("%s: set PCI line size to %d\n", isp->isp_name, linesz);
+		printf("%s: set PCI latency to %d\n", isp->isp_name,
+		    PCI_DFLT_LTNCY);
+	}
 
+	/*
+	 * Make sure we've disabled the ROM.
+	 */
+	data = pci_conf_read(config_id, PCIR_ROMADDR);
+	data &= ~1;
+	pci_conf_write(config_id, PCIR_ROMADDR, data);
+	ISP_UNLOCK(isp);
 #endif
 	if (pci_map_int(config_id, (void (*)(void *))isp_intr,
 	    (void *)isp, &IMASK) == 0) {
@@ -461,8 +517,10 @@ isp_pci_attach(pcici_t config_id, int unit)
 		isp->isp_confopts |= ISP_CFG_NORELOAD;
 #endif
 #ifdef	SCSI_ISP_NO_NVRAM_MASK
-	if (SCSI_ISP_NO_NVRAM_MASK && (SCSI_ISP_NO_NVRAM_MASK & (1 << unit)))
+	if (SCSI_ISP_NO_NVRAM_MASK && (SCSI_ISP_NO_NVRAM_MASK & (1 << unit))) {
+		printf("%s: ignoring NVRAM\n", isp->isp_name);
 		isp->isp_confopts |= ISP_CFG_NONVRAM;
+	}
 #endif
 	ISP_LOCK(isp);
 	isp_reset(isp);
@@ -973,7 +1031,12 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	if (isp->isp_type & ISP_HA_FC) {
 		fcparam *fcp = isp->isp_param;
 		len = ISP2100_SCRLEN;
-		fcp->isp_scratch = (volatile caddr_t) &pci->_z._y._b;
+		fcp->isp_scratch = (volatile caddr_t)
+		    malloc(ISP2100_SCRLEN, M_DEVBUF, M_NOWAIT);
+		if (fcp->isp_scratch == NULL) {
+			printf("%s: cannot alloc scratch\n", isp->isp_name);
+			return (1);
+		}
 		fcp->isp_scdma = vtophys(fcp->isp_scratch);
 	}
 	return (0);
