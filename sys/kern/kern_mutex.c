@@ -789,15 +789,17 @@ mtx_sysinit(void *arg)
 {
 	struct mtx_args *margs = arg;
 
-	mtx_init(margs->ma_mtx, margs->ma_desc, margs->ma_opts);
+	mtx_init(margs->ma_mtx, margs->ma_desc, NULL, margs->ma_opts);
 }
 
 /*
  * Mutex initialization routine; initialize lock `m' of type contained in
- * `opts' with options contained in `opts' and description `description.'
+ * `opts' with options contained in `opts' and name `name.'  The optional
+ * lock type `type' is used as a general lock category name for use with
+ * witness.
  */ 
 void
-mtx_init(struct mtx *m, const char *description, int opts)
+mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 {
 	struct lock_object *lock;
 
@@ -811,13 +813,14 @@ mtx_init(struct mtx *m, const char *description, int opts)
 
 	lock = &m->mtx_object;
 	KASSERT((lock->lo_flags & LO_INITIALIZED) == 0,
-	    ("mutex %s %p already initialized", description, m));
+	    ("mutex %s %p already initialized", name, m));
 	bzero(m, sizeof(*m));
 	if (opts & MTX_SPIN)
 		lock->lo_class = &lock_class_mtx_spin;
 	else
 		lock->lo_class = &lock_class_mtx_sleep;
-	lock->lo_name = description;
+	lock->lo_name = name;
+	lock->lo_type = type != NULL ? type : name;
 	if (opts & MTX_QUIET)
 		lock->lo_flags = LO_QUIET;
 	if (opts & MTX_RECURSE)
@@ -877,9 +880,9 @@ mutex_init(void)
 	/*
 	 * Initialize mutexes.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF | MTX_DUPOK);
+	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
+	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 	mtx_lock(&Giant);
 }
 
