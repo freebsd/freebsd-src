@@ -263,8 +263,8 @@ out:
 	 * or some other trap.
 	 */
 	case PROCFS_CTL_RUN:
-		PROC_UNLOCK(p);
 		p->p_flag &= ~P_STOPPED_SIG;	/* this uses SIGSTOP */
+		PROC_UNLOCK(p);
 		break;
 
 	/*
@@ -349,9 +349,9 @@ procfs_doprocctl(PFS_FILL_ARGS)
 				/* XXXKSE: */
 				FIX_SSTEP(FIRST_THREAD_IN_PROC(p));
 #endif
-				mtx_lock_spin(&sched_lock);
 				/* XXXKSE: */
 				p->p_flag &= ~P_STOPPED_SIG;
+				mtx_lock_spin(&sched_lock);
 				thread_unsuspend(p);
 				mtx_unlock_spin(&sched_lock);
 			} else
