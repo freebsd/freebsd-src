@@ -1,8 +1,8 @@
-# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.8 1994/05/27 10:53:33 csgr Exp $
+# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.9 1994/09/15 19:52:50 bde Exp $
 
 
 LIB=	gnuregex
-CFLAGS+=-DHAVE_STRING_H=1
+CFLAGS+=-DHAVE_STRING_H=1 -DSTDC_HEADERS=1
 SRCS=	regex.c
 NOMAN=	noman
 
