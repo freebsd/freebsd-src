@@ -1,4 +1,4 @@
-#	$Id: cpio.rc,v 1.1 1994/02/21 21:51:53 rgrimes Exp $
+#	$Id: cpio.rc,v 1.2 1994/02/25 23:34:09 alm Exp $
 #
 
 stty status '^T'
@@ -56,10 +56,18 @@ rm -f /fastboot
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
 
 OPSYSTEM=FreeBSD
-RELEASE="1.1"
+RELEASE="1.1.5"
+NVTTYS="4"
 echo "${OPSYSTEM} Base System Release ${RELEASE}"
 echo ""
 echo "Congratulations, you've got ${OPSYSTEM} on the hard disk!"
+echo
+echo "Your system has been configured with ${NVTTYS} virtual terminals,"
+echo "though one has been reserved for X (should you need it) and has no"
+echo "login prompt on it.  You can access these virtual terminals by pressing"
+echo "ALT-F<n>, where n is the function key number representing the virtual"
+echo "terminal you want to use.  For more information, read the screen(4),"
+echo "kbdcontrol(1) and vidcontrol(1) man pages."
 echo
 echo "Press the return key for more installation instructions"
 read junkit
