@@ -2,9 +2,9 @@
 
 MAINTAINER=	des@freebsd.org
 PROG=		fetch
-CFLAGS+=	-Wall -Wwrite-strings -Wmissing-prototypes
-SRCS=		file.c ftp.c http.c main.c util.c uri.c
-DPADD=		${LIBFTPIO} ${LIBMD}
-LDADD=		-lftpio -lmd
+CFLAGS+=	-Wall -pedantic
+SRCS=		fetch.c
+DPADD=		${LIBFETCH}
+LDADD=		-lfetch
 
 .include <bsd.prog.mk>

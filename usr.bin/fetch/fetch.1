@@ -1,378 +1,218 @@
-.\" $FreeBSD$
-.Dd February 22, 1999
+.\"-
+.\" Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\" Portions Copyright (c) 1999 Massachusetts Institute of Technology; used
+.\" by permission.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"      $FreeBSD$
+.\"
+.Dd June 28, 2000
 .Dt FETCH 1
-.Os FreeBSD 4.0
+.Os
 .Sh NAME
 .Nm fetch
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
-.Nm fetch
-.Op Fl AFMPablmnpqrtv
-.Op Fl S Ar size
-.Op Fl T Ar timeout
+.Nm
+.Op Fl 146AFHMPRadlmnpqrsv
+.Op Fl B Ar bytes
+.Op Fl S Ar bytes
+.Op Fl T Ar seconds
 .Op Fl o Ar file
-.Ar URL
-.Op Ar ...
-.Nm fetch
-.Op Fl FMPRlmnpqrv
-.Op Fl S Ar size
-.Op Fl o Ar file
+.Op Fl w Ar seconds
+.Op Fl h Ar host
 .Op Fl c Ar dir
-.Fl f Ar file
-.Fl h Ar host
+.Op Fl f Ar file
+.Op Ar URL ...
 .Sh DESCRIPTION
-.Nm fetch
-allows a user to transfer files from a remote network site using
-either the
-.Tn FTP
-or the
-.Tn HTTP
-protocol.
-In the first form of the command, the
-.Ar URL
-may be of the form 
-.Li http://site.domain/path/to/the/file
-or
-.Li ftp://site.domain/path/to/the/file .
-To denote a local filename to be copied or linked to (see the
-.Fl l
-flag below), the
-.Em file:/path/to/the/file
-URL form is used.  See URL SYNTAX, below.
-.Pp
-The second form of the command can be used to get a file using the
-.Tn FTP
-protocol, specifying the file name and the remote host with the 
-.Fl h
-and the 
-.Fl f
-flags.
+.Nm Fetch
+provides a command-line interface to the
+.Xr fetch 3
+library.
+Its purpose is to retrieve the file(s) pointed to by the URL(s) on the
+command line.
 .Pp
 The following options are available:
 .Bl -tag -width Fl
+.It Fl \&1
+Stop and return exit code 0 at the first successfully retrieved file.
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
 .It Fl A
-Do not automatically follow ``temporary'' (302) redirects.  Some
-broken Web sites will return a redirect instead of a not-found error
-when the requested object does not exist.
+Do not automatically follow ``temporary'' (302) redirects.
+Some broken Web sites will return a redirect instead of a not-found
+error when the requested object does not exist.
 .It Fl a
 Automatically retry the transfer upon soft failures.
-.It Fl b
-Work around a bug in some
-.Tn HTTP
-servers which fail to correctly implement the
-.Tn TCP
-protocol.
+.It Fl B Ar bytes
+Specify the read buffer size in bytes.
+The default is 4096 bytes.
+Attempts to set a buffer size lower than this will be silently
+ignored.
+The number of reads actually performed is reported at verbosity level
+two or higher (see the
+.Fl v
+flag).
 .It Fl c Ar dir
 The file to retrieve is in directory
 .Ar dir
 on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl d
+Use a direct connection even if a proxy is configured.
 .It Fl F
-Force restart without checking for the local file's date matching
-that of the remote file.  Use this with
+In combination with the
 .Fl r
-to restart a transfer of a partial file where the modification
-time on the local file has been changed and you are sure that the
-remote file is still the same, as this will prevent retrieval from
-starting anew.
+flag, forces a restart even if the local and remote files have
+different modification times.
 .It Fl f Ar file
 The file to retrieve is named
 .Ar file
 on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl H
+When using passive FTP, allocate a high port for the data connection.
+See
+.Xr ip 4
+for details on how to specify which port range this corresponds to.
 .It Fl h Ar host
 The file to retrieve is located on the host
 .Ar host .
+This option is deprecated and is provided for backward compatibility
+only.
 .It Fl l
-If target is a
-.Ar file:/
-style of URL, make a link to the target rather than trying
-to copy it.
+If the target is a file-scheme URL, make a symbolic link to the target
+rather than trying to copy it.
 .It Fl M
 .It Fl m
-Mirror mode: Set the modification time of the file so that it is
-identical to the modification time of the file at the remote host.
-If the file already exists on the local host and is identical (as
-gauged by size and modification time), no transfer is done.
+Mirror mode: if the file already exists locally and has the same size
+and modification time as the remote file, it will not be fetched.
 .It Fl n
-Don't preserve the modtime of the transferred file, use the current time.
+Don't preserve the modification time of the transferred file.
 .It Fl o Ar file
 Set the output file name to 
 .Ar file .
 By default, a ``pathname'' is extracted from the specified URI, and
-its basename is used as the name of the output file.  A
+its basename is used as the name of the output file.
+A
 .Ar file
 argument of
 .Sq Li \&-
 indicates that results are to be directed to the standard output.
 .It Fl P
 .It Fl p
-Use the passive mode of the
-.Tn FTP
-protocol.  This is useful for crossing certain sorts of firewalls.
+Use passive FTP.
+This is useful if you are behind a firewall which blocks incoming
+connections.
+Try this flag if
+.Nm
+seems to hang when retrieving FTP URLs.
 .It Fl q
 Quiet mode.
-Do not report transfer progress on the terminal.
+This works by setting the verbosity level to zero; see the
+.Fl v
+option.
 .It Fl R
-The filenames specified are ``precious'', and should not be deleted
-under any circumstances, even if the transfer failed or was incomplete.
+The output files are precious, and should not be deleted under any
+circumstances, even if the transfer failed or was incomplete.
 .It Fl r
 Restart a previously interrupted transfer.
 .It Fl S Ar bytes
-Require the file size reported by
-.Tn FTP
-or 
-.Tn HTTP
-server to match the value specified with this option. 
-On mismatch, a message is printed and the file will not be fetched.
-If the server does not support reporting of file sizes, the option
-will be ignored and the file will be retrieved anyway. 
-This option is useful to prevent
-.Nm fetch
-from downloading a file that is either incomplete or the wrong version,
-given the correct size of the file in advance.
+Require the file size reported by the server to match the specified
+value.
+If it does not, a message is printed and the file is not fetched.
+If the server does not support reporting file sizes, this option is
+ignored and the file is fetched unconditionally.
 .It Fl s
-Ask server for size of file in bytes and print it to stdout.
-Do not
-actually fetch the file.
+Print the size in bytes of each requested file, without fetching it.
 .It Fl T Ar seconds
 Set timeout value to
 .Ar seconds.
 Overrides the environment variables
 .Ev FTP_TIMEOUT
-for ftp transfers or
+for FTP transfers or
 .Ev HTTP_TIMEOUT 
-for http transfers if set.
+for HTTP transfers if set.
 .It Fl t
 Work around a different set of buggy
 .Tn TCP
 implementations.
 .It Fl v
-Increase verbosity.  More
-.Fl v Ns \&'s
-result in more information.
+Each instance of this flag increases the verbosity level by one.
+Level one (the default) only gives a summary after each file; level
+two show a running count during the transfer, provided that the
+standard output goes to a terminal; level three enables messages from
+the
+.Xr fetch 3
+library.
+.It Fl w Ar seconds
+When the
+.Fl a
+flag is specified, wait this many seconds between successive retries.
 .El
-.Pp
-Many options are also controlled solely by the environment (this is a
-bug).
-.Sh URL SYNTAX
-.Nm
-accepts
-.Tn http
-and
-.Tn ftp
-URL's, as described in RFC1738.  For
-.Tn ftp
-URL's, a username and password may be specified, using the syntax
-.Li ftp://user:password@host/.
-If the path is to be absolute, as opposed to relative to the user's
-home directory, it must start with %2F, as in
-.Li ftp://root:mypass@localhost/%2Fetc/passwd .
-.Nm Fetch
-condenses multiple slashes in an
-.Tn ftp
-URL into a single slash; literal multiple slashes translate to an
-.Tn ftp
-protocol error.
-.Sh PROXY SERVERS
-Many sites use application gateways (``proxy servers'') in their
-firewalls in order to allow communication across the firewall using a
-trusted protocol.  The
-.Nm fetch
-program can use both the
-.Tn FTP
-and the
-.Tn HTTP
-protocol with a proxy server.
-.Tn FTP
-proxy servers can only relay
-.Tn FTP
-requests;
-.Tn HTTP
-proxy servers can relay both
-.Tn FTP
-and
-.Tn HTTP
-requests.
-A proxy server can be configured by defining an environment variable
-named
-.Dq Va PROTO Ns Ev _PROXY ,
-where
-.Va PROTO
-is the name of the protocol in upper case.  The value of the
-environment variable specifies a hostname, optionally followed by a
-colon and a port number.
-.Pp
-The
-.Tn FTP
-proxy client passes the remote username, host and port as the
-.Tn FTP
-session's username, in the form
-.Do Va remoteuser Ns Li \&@ Ns Va remotehost
-.Op Li \&@ Ns Va port
-.Dc .
-The
-.Tn HTTP
-proxy client simply passes the originally-requested URI to the remote
-server in an
-.Tn HTTP
-.Dq Li GET
-request.  HTTP proxy authentication is not yet implemented.
-.Sh HTTP AUTHENTICATION
-The
-.Tn HTTP
-protocol includes support for various methods of authentication.
-Currently, the
-.Dq basic
-method, which provides no security from packet-sniffing or
-man-in-the-middle attacks, is the only method supported in
-.Nm fetch .
-Authentication is enabled by the
-.Ev HTTP_AUTH
-and
-.Ev HTTP_PROXY_AUTH
-environment variables.  Both variables have the same format, which
-consists of space-separated list of parameter settings, where each
-setting consists of a colon-separated list of parameters.  The first
-two parameters are always the (case-insensitive) authentication scheme
-name and the realm in which authentication is to be performed.  If the
-realm is specified as
-.Sq Li \&* ,
-then it will match all realms not specified otherwise.
-.Pp
-The
-.Li basic
-authentication scheme uses two additional optional parameters; the
-first is a user name, and the second is the password associated with
-it.  If either the password or both parameters are not specified in
-the environment, and the standard input of
-.Nm
-is connected to a terminal, then
-.Nm
-will prompt the user to enter the missing parameters.  Thus, if the
-user is known as
-.Dq Li jane
-in the
-.Dq Li WallyWorld
-realm, and has a password of
-.Dq Li QghiLx79
-there, then she might set her
-.Ev HTTP_AUTH
-variable to:
-.Bl -enum -offset indent
-.It
-.Dq Li basic:WallyWorld:jane:QghiLx79
-.It
-.Dq Li basic:WallyWorld:jane ,
-or
-.It
-.Dq Li basic:WallyWorld
-.El
-.Pp
-and
-.Nm
-will prompt for any missing information when it is required.  She might
-also specify a realm of
-.Dq Li \&*
-instead of
-.Dq Li WallyWorld
-to indicate that the parameters can be applied to any realm.  (This is
-most commonly used in a construction such as
-.Dq Li basic:* ,
-which indicates to
-.Nm
-that it may offer to do
-.Li basic
-authentication for any realm.
-.Sh ERRORS
+.Sh DIAGNOSTICS
 The
 .Nm
-command returns zero on success, or a non-zero value from
-.Aq Pa sysexits.h
-on failure.  If multiple URIs are given for retrieval,
+command returns zero on success, or one on failure.
+If multiple URLs are listed on the command line,
 .Nm
-will attempt all of them and return zero only if all succeeded
-(otherwise it will return the error from the last failure).
+will attempt to retrieve them each of them in turn, and return zero
+only if they were all successfully retrieved.
 .Sh ENVIRONMENT
 .Bl -tag -width FTP_PASSIVE_MODE -offset indent
 .It Ev FTP_TIMEOUT
 maximum time, in seconds, to wait before aborting an 
 .Tn FTP
 connection.
-.It Ev FTP_LOGIN
-the login name used for
-.Tn FTP
-transfers (default
-.Dq Li anonymous )
-.It Ev FTP_PASSIVE_MODE
-force the use of passive mode FTP
-.It Ev FTP_PASSWORD
-the password used for
-.Tn FTP
-transfers (default
-.Dq Va yourname Ns Li \&@ Ns Va yourhost )
-.It Ev FTP_PROXY
-the address (in the form
-.Do Va hostname Ns
-.Op Li : Ns Va port
-.Dc )
-of a proxy server which understands
-.Tn FTP
-.It Ev HTTP_AUTH
-defines authentication parameters for
-.Tn HTTP
-.It Ev HTTP_PROXY
-the address (in the form
-.Do Va hostname Ns
-.Op Li : Ns Va port
-.Dc )
-of a proxy server which understands
-.Tn HTTP
-.It Ev HTTP_PROXY_AUTH
-defines authentication parameters for
-.Tn HTTP
-proxy servers
 .It Ev HTTP_TIMEOUT
 maximum time, in seconds, to wait before aborting an
 .Tn HTTP
 connection.
+.El
+.Pp
+All environment variables mentioned in the documentation for the
+.Xr fetch 3
+library are supported.
 .Sh SEE ALSO
-.Xr ftp 1 ,
-.Xr tftp 1
-.Rs
-.%A R. Fielding
-.%A J. Gettys
-.%A J. Mogul
-.%A H. Frystyk
-.%A T. Berners-Lee
-.%T "Hypertext Transfer Protocol \-\- HTTP/1.1"
-.%O RFC 2068
-.%D January 1997
-.Re
-.Rs
-.%A T. Berners-Lee
-.%A L. Masinter
-.%A M. McCahill
-.%T "Uniform Resource Locators (URL)"
-.%O RFC 1738
-.%D December 1994
-.Re
-.Rs
-.%A J. Postel
-.%A J.K. Reynolds
-.%T "File Transfer Protocol"
-.%O RFC 959 / STD 9
-.%D October 1985
-.Re
-.Rs
-.%A M.R. Horton
-.%T "Standard for interchange of USENET messages."
-.%O RFC 850
-.%D June 1983
-.Re
+.Xr fetch 3
 .Sh HISTORY
 The 
-.Nm fetch
+.Nm
 command appeared in
 .Fx 2.1.5 .
+This implementation first appeared in
+.Fx 4.1 .
 .Sh AUTHORS
 The original implementation of
 .Nm
@@ -381,63 +221,22 @@ was done by
 It was extensively re-worked for
 .Fx 2.2
 by
-.An Garrett Wollman .
-.Sh BUGS
-There are too many environment variables and command-line options.
-.Pp
+.An Garrett Wollman ,
+and later completely rewritten to use the
+.Xr fetch 3
+library by
+.An Dag-Erling Smørgrav .
+.Sh NOTES
 The
-.Fl a
-option is only implemented for certain kinds of
-.Tn HTTP
-failures, and no
-.Tn FTP
-failures.
-.Pp
-Only the
-.Dq basic
-authentication mode is implemented for
-.Tn HTTP .
-This should be replaced by digest authentication.
-.Pp
-Some 
-.Tn TCP
-implementations (other than
-.Tn FreeBSD ) 
-fail to correctly implement cases where the
-.Dv SYN
-and/or
-.Dv FIN
-control flags are specified in packets which also contain data.
-The
-.Sq Fl t
-flag works around the latter deficiency and the
-.Sq Fl b
-flag works around the former.  Since these are errors of the server's
-.Tn TCP
-stack, the best we can do is provide these workarounds.  Given a correct
-server, an optimal 
-.Tn HTTP
-transfer without
-.Fl t
-and
 .Fl b
-involves a minimum of two round trips (for small replies), one less than
-other implementations.
+and
+.Fl t
+options are no longer supported and will generate warnings.
+They were workarounds for bugs in other OSes which this implementation
+does not trigger.
 .Pp
-The
-.Tn HTTP
-standard requires interpretation of the
-.Tn RFC 850
-date format, which does not provide a century indication.  Versions of
-.Nm fetch
-prior to
-.Fx 3.1
-would interpret all such dates as being in the 1900s.  This version of
-.Nm fetch
-interprets such dates according to the rule given in
-.Tn RFC 2068 :
-.Bd -literal -offset indent
-  o  HTTP/1.1 clients and caches should assume that an RFC-850 date
-     which appears to be more than 50 years in the future is in fact
-     in the past (this helps solve the "year 2000" problem).
-.Ed
+One cannot both use the
+.Fl h ,
+.Fl c and
+.Fl f
+options and specify URLs on the command line.
