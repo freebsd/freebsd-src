@@ -47,6 +47,7 @@ SRCS=	openpam_borrow_cred.c \
 	openpam_dynamic.c \
 	openpam_findenv.c \
 	openpam_free_data.c \
+	openpam_free_envlist.c \
 	openpam_get_option.c \
 	openpam_load.c \
 	openpam_log.c \
@@ -86,6 +87,7 @@ SRCS+=	pam_debug_log.c
 MAN=	openpam.3 \
 	openpam_borrow_cred.3 \
 	openpam_free_data.3 \
+	openpam_free_envlist.3 \
 	openpam_get_option.3 \
 	openpam_log.3 \
 	openpam_nullconv.3 \
