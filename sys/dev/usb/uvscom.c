@@ -1,6 +1,6 @@
 /*	$NetBSD: usb/uvscom.c,v 1.1 2002/03/19 15:08:42 augustss Exp $	*/
 /*-
- * Copyright (c) 2001-2002, Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
+ * Copyright (c) 2001-2003, 2005 Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/poll.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -173,6 +174,8 @@ struct	uvscom_softc {
 
 	uint16_t		sc_lcr;		/* Line control */
 	u_char			sc_usr;		/* unit status */
+
+	struct task		sc_task;
 };
 
 /*
@@ -205,6 +208,7 @@ Static	int  uvscom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
 Static	int  uvscom_param(void *, int, struct termios *);
 Static	int  uvscom_open(void *, int);
 Static	void uvscom_close(void *, int);
+Static	void uvscom_notify(void *, int);
 
 struct ucom_callback uvscom_callback = {
 	uvscom_get_status,
@@ -436,6 +440,7 @@ USB_ATTACH(uvscom)
 	DPRINTF(("uvscom: in = 0x%x out = 0x%x intr = 0x%x\n",
 		 ucom->sc_bulkin_no, ucom->sc_bulkout_no, sc->sc_intr_number));
 
+	TASK_INIT(&sc->sc_task, 0, uvscom_notify, sc);
 	ucom_attach(&sc->sc_ucom);
 
 	free(devinfo, M_USBDEV);
@@ -903,6 +908,18 @@ uvscom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	if (ISSET(pstatus, UVSCOM_DCD))
 		SET(sc->sc_msr, UMSR_DCD);
 
+	/* Deferred notifying to the ucom layer */
+	taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
+}
+
+Static void
+uvscom_notify(void *arg, int count)
+{
+	struct uvscom_softc *sc;
+
+	sc = (struct uvscom_softc *)arg;
+	if (sc->sc_ucom.sc_dying)
+		return;
 	ucom_status_change(&sc->sc_ucom);
 }
 

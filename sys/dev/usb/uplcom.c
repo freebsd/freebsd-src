@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/poll.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 
@@ -174,6 +175,8 @@ struct	uplcom_softc {
 	u_char			sc_msr;		/* uplcom status register */
 
 	int			sc_chiptype;	/* Type of chip */
+
+	struct task		sc_task;
 };
 
 /*
@@ -201,6 +204,7 @@ Static	int  uplcom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
 Static	int  uplcom_param(void *, int, struct termios *);
 Static	int  uplcom_open(void *, int);
 Static	void uplcom_close(void *, int);
+Static	void uplcom_notify(void *, int);
 
 struct ucom_callback uplcom_callback = {
 	uplcom_get_status,
@@ -528,6 +532,7 @@ USB_ATTACH(uplcom)
 	DPRINTF(("uplcom: in = 0x%x, out = 0x%x, intr = 0x%x\n",
 		 ucom->sc_bulkin_no, ucom->sc_bulkout_no, sc->sc_intr_number));
 
+	TASK_INIT(&sc->sc_task, 0, uplcom_notify, sc);
 	ucom_attach(&sc->sc_ucom);
 
 	free(devinfo, M_USBDEV);
@@ -940,6 +945,19 @@ uplcom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		sc->sc_msr |= UMSR_DSR;
 	if (ISSET(pstatus, RSAQ_STATUS_DCD))
 		sc->sc_msr |= UMSR_DCD;
+
+	/* Deferred notifying to the ucom layer */
+	taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
+}
+
+Static void
+uplcom_notify(void *arg, int count)
+{
+	struct uplcom_softc *sc;
+
+	sc = (struct uplcom_softc *)arg;
+	if (sc->sc_ucom.sc_dying)
+		return;
 	ucom_status_change(&sc->sc_ucom);
 }
 
