@@ -191,7 +191,6 @@ vm_map_zfini(void *mem, int size)
 {
 	vm_map_t map;
 
-	GIANT_REQUIRED;
 	map = (vm_map_t)mem;
 
 	lockdestroy(&map->lock);
@@ -201,8 +200,6 @@ static void
 vm_map_zinit(void *mem, int size)
 {
 	vm_map_t map;
-
-	GIANT_REQUIRED;
 
 	map = (vm_map_t)mem;
 	map->nentries = 0;
@@ -426,12 +423,6 @@ _vm_map_clear_recursive(vm_map_t map, const char *file, int line)
 {
 }
 
-struct pmap *
-vmspace_pmap(struct vmspace *vmspace)
-{
-	return &vmspace->vm_pmap;
-}
-
 long
 vmspace_resident_count(struct vmspace *vmspace)
 {
@@ -449,8 +440,6 @@ vm_map_t
 vm_map_create(pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
 	vm_map_t result;
-
-	GIANT_REQUIRED;
 
 	result = uma_zalloc(mapzone, M_WAITOK);
 	CTR1(KTR_VM, "vm_map_create: %p", result);
@@ -544,39 +533,35 @@ vm_map_entry_splay(vm_offset_t address, vm_map_entry_t root)
 	if (root == NULL)
 		return (root);
 	lefttreemax = righttreemin = &dummy;
-	for (;;) {
+	for (;; root = y) {
 		if (address < root->start) {
-			if (root->left == NULL)
+			if ((y = root->left) == NULL)
 				break;
-			if (address < root->left->start) {
+			if (address < y->start) {
 				/* Rotate right. */
-				y = root->left;
 				root->left = y->right;
 				y->right = root;
 				root = y;
-				if (root->left == NULL)
+				if ((y = root->left) == NULL)
 					break;
 			}
 			/* Link into the new root's right tree. */
 			righttreemin->left = root;
 			righttreemin = root;
-			root = root->left;
 		} else if (address >= root->end) {
-			if (root->right == NULL)
+			if ((y = root->right) == NULL)
 				break;
-			if (address >= root->right->end) {
+			if (address >= y->end) {
 				/* Rotate left. */
-				y = root->right;
 				root->right = y->left;
 				y->left = root;
 				root = y;
-				if (root->right == NULL)
+				if ((y = root->right) == NULL)
 					break;
 			}
 			/* Link into the new root's left tree. */
 			lefttreemax->right = root;
 			lefttreemax = root;
-			root = root->right;
 		} else
 			break;
 	}
@@ -1175,8 +1160,6 @@ vm_map_submap(
 {
 	vm_map_entry_t entry;
 	int result = KERN_INVALID_ARGUMENT;
-
-	GIANT_REQUIRED;
 
 	vm_map_lock(map);
 
