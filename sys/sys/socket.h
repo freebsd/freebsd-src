@@ -398,6 +398,7 @@ struct msghdr {
 #endif
 #ifdef _KERNEL
 #define	MSG_SOCALLBCK   0x10000		/* for use by socket callbacks - soreceive (TCP) */
+#define	MSG_NOSIGNAL	0x20000		/* for use with emulation layers */
 #endif
 
 /*

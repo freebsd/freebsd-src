@@ -322,6 +322,8 @@ linux_to_bsd_msg_flags(int flags)
 		ret_flags |= MSG_EOR;
 	if (flags & LINUX_MSG_WAITALL)
 		ret_flags |= MSG_WAITALL;
+	if (flags & LINUX_MSG_NOSIGNAL)
+		ret_flags |= MSG_NOSIGNAL;
 #if 0 /* not handled */
 	if (flags & LINUX_MSG_PROXY)
 		;
@@ -334,8 +336,6 @@ linux_to_bsd_msg_flags(int flags)
 	if (flags & LINUX_MSG_RST)
 		;
 	if (flags & LINUX_MSG_ERRQUEUE)
-		;
-	if (flags & LINUX_MSG_NOSIGNAL)
 		;
 #endif
 	return ret_flags;
@@ -816,41 +816,18 @@ linux_send(struct thread *td, struct linux_send_args *args)
 		caddr_t to;
 		int tolen;
 	} */ bsd_args;
-	int error, nosigpipe, onosigpipe;
-	socklen_t valsize;
+	int error;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
 
-	if (linux_args.flags & LINUX_MSG_NOSIGNAL) {
-		valsize = sizeof(onosigpipe);
-		error = kern_getsockopt(td, linux_args.s, SOL_SOCKET,
-		    SO_NOSIGPIPE, &onosigpipe, UIO_SYSSPACE,
-		    &valsize);
-		if (error != 0)
-			return error;
-		if (onosigpipe == 0) {
-			nosigpipe = 1;
-			error = kern_setsockopt(td, linux_args.s, SOL_SOCKET,
-			    SO_NOSIGPIPE, &nosigpipe, UIO_SYSSPACE,
-			    sizeof(nosigpipe));
-			if (error != 0)
-				return error;
-		}
-	}
 	bsd_args.s = linux_args.s;
 	bsd_args.buf = (caddr_t)PTRIN(linux_args.msg);
 	bsd_args.len = linux_args.len;
 	bsd_args.flags = linux_args.flags;
 	bsd_args.to = NULL;
 	bsd_args.tolen = 0;
-	error = sendto(td, &bsd_args);
-	if ((linux_args.flags & LINUX_MSG_NOSIGNAL) && (onosigpipe == 0)) {
-		kern_setsockopt(td, linux_args.s, SOL_SOCKET,
-		    SO_NOSIGPIPE, &onosigpipe, UIO_SYSSPACE,
-		    sizeof(onosigpipe));
-	}
-	return error;
+	return sendto(td, &bsd_args);
 }
 
 struct linux_recv_args {

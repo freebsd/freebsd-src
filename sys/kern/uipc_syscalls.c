@@ -755,7 +755,8 @@ kern_sendit(td, s, mp, flags, control, segflg)
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		/* Generation of SIGPIPE can be controlled per socket */
-		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE)) {
+		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
+		    !(flags & MSG_NOSIGNAL)) {
 			PROC_LOCK(td->td_proc);
 			psignal(td->td_proc, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
