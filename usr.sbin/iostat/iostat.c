@@ -109,7 +109,6 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <kvm.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,13 +134,13 @@ struct statinfo cur, last;
 int num_devices;
 struct device_selection *dev_select;
 int maxshowdevs;
+volatile sig_atomic_t headercount;
 int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
-volatile sig_atomic_t phdr_flag = 0;
 
 /* local function declarations */
 static void usage(void);
-static void phdr(int signo);
-static void do_phdr();
+static void needhdr(int signo);
+static void phdr(void);
 static void devstats(int perf_select, long double etime, int havelast);
 static void cpustats(void);
 static int readvar(kvm_t *kd, const char *name, int nlid, void *ptr,
@@ -173,7 +172,6 @@ main(int argc, char **argv)
 	int num_matches = 0;
         char errbuf[_POSIX2_LINE_MAX];
 	kvm_t *kd = NULL;
-	int headercount;
 	long generation;
 	int num_devices_specified;
 	int num_selected, num_selections;
@@ -419,7 +417,7 @@ main(int argc, char **argv)
 	 * If the user stops the program (control-Z) and then resumes it,
 	 * print out the header again.
 	 */
-	(void)signal(SIGCONT, phdr);
+	(void)signal(SIGCONT, needhdr);
 
 	for (headercount = 1;;) {
 		struct devinfo *tmp_dinfo;
@@ -436,11 +434,6 @@ main(int argc, char **argv)
 			}
 		 }
 
-		if (phdr_flag) {
-			phdr_flag = 0;
-			do_phdr();
-		}
-		
 		if (Cflag > 0) {
 			if (readvar(kd, "kern.cp_time", X_CP_TIME,
 			    &cur.cp_time, sizeof(cur.cp_time)) != 0) {
@@ -450,7 +443,7 @@ main(int argc, char **argv)
 		}
 
 		if (!--headercount) {
-			do_phdr();
+			phdr();
 			headercount = 20;
 		}
 
@@ -492,7 +485,7 @@ main(int argc, char **argv)
 				errx(1, "%s", devstat_errbuf);
 				break;
 			case 1:
-				do_phdr();
+				phdr();
 				headercount = 20;
 				break;
 			default:
@@ -527,7 +520,7 @@ main(int argc, char **argv)
 				errx(1,"%s", devstat_errbuf);
 				break;
 			case 1:
-				do_phdr();
+				phdr();
 				headercount = 20;
 				break;
 			default:
@@ -577,15 +570,18 @@ main(int argc, char **argv)
 	exit(0);
 }
 
-static void
-phdr(int signo)
+/*
+ * Force a header to be prepended to the next output.
+ */
+void
+needhdr(int signo)
 {
-
-	phdr_flag = 1;	
+        
+        headercount = 1;
 }
 
 static void
-do_phdr() 
+phdr(void)
 {
 	register int i;
 	int printed;
@@ -637,6 +633,7 @@ do_phdr()
 		(void)printf(" us ni sy in id\n");
 	else
 		printf("\n");
+
 }
 
 static void
