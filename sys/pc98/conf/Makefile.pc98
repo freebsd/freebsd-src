@@ -166,7 +166,6 @@ setdef1.o: setdef1.c setdefs.h
 	${NORMAL_C}
 
 setdef0.c setdef1.c setdefs.h: ${OBJS}
-	@echo generating linker set emulation glue for ELF
 	@gensetdefs ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
@@ -198,9 +197,9 @@ cleandepend:
 	rm -f .depend
 
 links:
-	egrep '#if' ${CFILES:Nswapkernel.c} | sed -f $S/conf/defines | \
+	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
 	  sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	echo ${CFILES:Nswapkernel.c} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
+	echo ${CFILES} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
 	  sort -u | comm -23 - dontlink | \
 	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
 	sh makelinks && rm -f dontlink
