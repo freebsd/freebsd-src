@@ -107,7 +107,7 @@ random_open(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 random_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	if ((flags & FWRITE) && (securelevel > 0 || suser(p)))
+	if ((flags & FWRITE) && !(securelevel > 0 || suser(p)))
 		random_reseed();
 	return 0;
 }
