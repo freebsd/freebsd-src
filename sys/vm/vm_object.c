@@ -867,7 +867,7 @@ shadowlookup:
 			 * can without actually taking the step of unmapping
 			 * it.
 			 */
-			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+			pmap_clear_modify(m);
 			m->dirty = 0;
 			m->act_count = 0;
 			vm_page_dontneed(m);

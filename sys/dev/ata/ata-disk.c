@@ -274,11 +274,9 @@ addump(dev_t dev)
     while (count > 0) {
 	DELAY(1000);
 	if (is_physical_memory(addr))
-	    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-		       trunc_page(addr), VM_PROT_READ, TRUE);
+	    pmap_kenter((vm_offset_t)CADDR1, trunc_page(addr));
 	else
-	    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-		       trunc_page(0), VM_PROT_READ, TRUE);
+	    pmap_kenter((vm_offset_t)CADDR1, trunc_page(0));
 
 	bzero(&request, sizeof(struct ad_request));
 	request.device = adp;
