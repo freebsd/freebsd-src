@@ -176,17 +176,15 @@
     that can boot from IDE disks and CDROMs. Check the machine
     specific section for details.</para>
 
-    <para>&os; 4.0 and later can be booted from the
-    distribution CDROM.  Earlier versions needed booting from a
-    2 disk floppy set.</para>
-
     <para>In order to be bootable the root partition (partition a)
     must be at offset 0 of the disk drive. This means you have to 
     use the installer's partitioning menu and start with assigning 
     partition a at offset 0 to the root partition. Subsequently layout
     the rest of the partitions to your liking. If you do not adhere
     to this rule the install will proceed just fine, but the system
-    will not be bootable from the freshly installed disk.</para>
+    will not be bootable from the freshly installed disk.  Note that fdisk
+    is not used on &os; running on Alpha, disks are directly
+    labeled using disklabel.</para>
 
     <para>If you don't have/want a local disk drive you can boot via
     the Ethernet.  This assumes an Ethernet adapter/chip that is
