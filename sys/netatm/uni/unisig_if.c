@@ -275,14 +275,11 @@ unisig_attach(smp, pip)
 	/*
 	 * Allocate UNISIG protocol instance control block
 	 */
-	usp = (struct unisig *)
-			KM_ALLOC(sizeof(struct unisig), M_DEVBUF, M_NOWAIT);
+	usp = malloc(sizeof(struct unisig), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (usp == NULL) {
 		err = ENOMEM;
 		goto done;
 	}
-	KM_ZERO(usp, sizeof(struct unisig));
-
 	/*
 	 * Set state in UNISIG protocol instance control block
 	 */
@@ -343,7 +340,7 @@ done:
 			UNISIG_CANCEL(usp);
 			UNLINK((struct siginst *)usp, struct siginst,
 					smp->sm_prinst, si_next);
-			KM_FREE(usp, sizeof(struct unisig), M_DEVBUF);
+			free(usp, M_DEVBUF);
 		}
 		s = splimp();
 		pip->pif_sigmgr = NULL;
@@ -795,7 +792,7 @@ unisig_free(vcp)
 
 		UNLINK((struct siginst *)usp, struct siginst,
 				smp->sm_prinst, si_next);
-		KM_FREE(usp, sizeof(struct unisig), M_DEVBUF);
+		free(usp, M_DEVBUF);
 	}
 
 	return (0);
@@ -945,7 +942,7 @@ unisig_ioctl(code, data, arg1)
 			rsp.avp_ierrors = uvp->uv_ierrors;
 			rsp.avp_oerrors = uvp->uv_oerrors;
 			rsp.avp_tstamp = uvp->uv_tstamp;
-			KM_ZERO(rsp.avp_owners,
+			bzero(rsp.avp_owners,
 					sizeof(rsp.avp_owners));
 			for (i = 0; cop && i < sizeof(rsp.avp_owners);
 					cop = cop->co_next,
@@ -989,17 +986,17 @@ unisig_ioctl(code, data, arg1)
 		usp = (struct unisig *)arg1;
 		pip = usp->us_pif;
 		if (usp->us_addr.address_format != T_ATM_ABSENT) {
-			if (KM_CMP(asp->asr_prf_pref, usp->us_addr.address,
+			if (bcmp(asp->asr_prf_pref, usp->us_addr.address,
 					sizeof(asp->asr_prf_pref)) != 0)
 				err = EALREADY;
 			break;
 		}
 		usp->us_addr.address_format = T_ATM_ENDSYS_ADDR;
 		usp->us_addr.address_length = sizeof(Atm_addr_nsap);
-		KM_COPY(&pip->pif_macaddr,
+		bcopy(&pip->pif_macaddr,
 			((Atm_addr_nsap *)usp->us_addr.address)->aan_esi,
 			sizeof(pip->pif_macaddr));
-		KM_COPY((caddr_t) asp->asr_prf_pref,
+		bcopy((caddr_t) asp->asr_prf_pref,
 			&((Atm_addr_nsap *)usp->us_addr.address)->aan_afi,
 			sizeof(asp->asr_prf_pref));
 		log(LOG_INFO, "uni: set address %s on interface %s\n",

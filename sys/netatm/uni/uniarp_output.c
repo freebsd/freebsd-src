@@ -141,7 +141,7 @@ uniarp_arp_req(uip, tip)
 		ahp->ah_shtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(sip->si_addr.address, cp, len - 1);
+		bcopy(sip->si_addr.address, cp, len - 1);
 		((struct atm_addr_nsap *)cp)->aan_sel = nip->nif_sel;
 		cp += len;
 
@@ -152,7 +152,7 @@ uniarp_arp_req(uip, tip)
 		ahp->ah_shtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(sip->si_addr.address, cp, len);
+		bcopy(sip->si_addr.address, cp, len);
 		cp += len;
 
 		if (sip->si_subaddr.address_format == T_ATM_ENDSYS_ADDR) {
@@ -160,7 +160,7 @@ uniarp_arp_req(uip, tip)
 			ahp->ah_sstl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 			/* ah_ssa */
-			KM_COPY(sip->si_subaddr.address, cp, len - 1);
+			bcopy(sip->si_subaddr.address, cp, len - 1);
 			((struct atm_addr_nsap *)cp)->aan_sel = nip->nif_sel;
 			cp += len;
 		} else
@@ -176,7 +176,7 @@ uniarp_arp_req(uip, tip)
 	ahp->ah_spln = sizeof(struct in_addr);
 
 	/* ah_spa */
-	KM_COPY((caddr_t)&(IA_SIN(inp->inf_addr)->sin_addr), cp, 
+	bcopy((caddr_t)&(IA_SIN(inp->inf_addr)->sin_addr), cp, 
 		sizeof(struct in_addr));
 	cp += sizeof(struct in_addr);
 
@@ -186,7 +186,7 @@ uniarp_arp_req(uip, tip)
 	ahp->ah_tpln = sizeof(struct in_addr);
 
 	/* ah_tpa */
-	KM_COPY((caddr_t)tip, cp, sizeof(struct in_addr));
+	bcopy((caddr_t)tip, cp, sizeof(struct in_addr));
 
 	/*
 	 * Finally, send the pdu to the ATMARP server
@@ -294,7 +294,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 		ahp->ah_shtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(amp->am_dstatm.address, cp, len);
+		bcopy(amp->am_dstatm.address, cp, len);
 		cp += len;
 
 		ahp->ah_sstl = 0;
@@ -304,7 +304,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 		ahp->ah_shtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(amp->am_dstatm.address, cp, len);
+		bcopy(amp->am_dstatm.address, cp, len);
 		cp += len;
 
 		if (amp->am_dstatmsub.address_format == T_ATM_ENDSYS_ADDR) {
@@ -312,7 +312,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 			ahp->ah_sstl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 			/* ah_ssa */
-			KM_COPY(amp->am_dstatmsub.address, cp, len);
+			bcopy(amp->am_dstatmsub.address, cp, len);
 			cp += len;
 		} else
 			ahp->ah_sstl = 0;
@@ -327,7 +327,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 	ahp->ah_spln = sizeof(struct in_addr);
 
 	/* ah_spa */
-	KM_COPY((caddr_t)&amp->am_dstip, cp, sizeof(struct in_addr));
+	bcopy((caddr_t)&amp->am_dstip, cp, sizeof(struct in_addr));
 	cp += sizeof(struct in_addr);
 
 	len = tatm->address_length;
@@ -336,7 +336,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 		ahp->ah_thtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* ah_tha */
-		KM_COPY(tatm->address, cp, len);
+		bcopy(tatm->address, cp, len);
 		cp += len;
 
 		ahp->ah_tstl = 0;
@@ -346,7 +346,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 		ahp->ah_thtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* ah_tha */
-		KM_COPY(tatm->address, cp, len);
+		bcopy(tatm->address, cp, len);
 		cp += len;
 
 		if (tsub->address_format == T_ATM_ENDSYS_ADDR) {
@@ -354,7 +354,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 			ahp->ah_tstl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 			/* ah_tsa */
-			KM_COPY(tsub->address, cp, len);
+			bcopy(tsub->address, cp, len);
 			cp += len;
 		} else
 			ahp->ah_tstl = 0;
@@ -368,7 +368,7 @@ uniarp_arp_rsp(uip, amp, tip, tatm, tsub, ivp)
 	ahp->ah_tpln = sizeof(struct in_addr);
 
 	/* ah_tpa */
-	KM_COPY((caddr_t)tip, cp, sizeof(struct in_addr));
+	bcopy((caddr_t)tip, cp, sizeof(struct in_addr));
 
 	/*
 	 * Finally, send the pdu to the vcc peer
@@ -533,7 +533,7 @@ uniarp_inarp_req(uip, tatm, tsub, ivp)
 		ahp->ah_shtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(sip->si_addr.address, cp, len - 1);
+		bcopy(sip->si_addr.address, cp, len - 1);
 		((struct atm_addr_nsap *)cp)->aan_sel = nip->nif_sel;
 		cp += len;
 
@@ -544,7 +544,7 @@ uniarp_inarp_req(uip, tatm, tsub, ivp)
 		ahp->ah_shtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(sip->si_addr.address, cp, len);
+		bcopy(sip->si_addr.address, cp, len);
 		cp += len;
 
 		if (sip->si_subaddr.address_format == T_ATM_ENDSYS_ADDR) {
@@ -552,7 +552,7 @@ uniarp_inarp_req(uip, tatm, tsub, ivp)
 			ahp->ah_sstl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 			/* ah_ssa */
-			KM_COPY(sip->si_subaddr.address, cp, len - 1);
+			bcopy(sip->si_subaddr.address, cp, len - 1);
 			((struct atm_addr_nsap *)cp)->aan_sel = nip->nif_sel;
 			cp += len;
 		} else
@@ -568,7 +568,7 @@ uniarp_inarp_req(uip, tatm, tsub, ivp)
 	ahp->ah_spln = sizeof(struct in_addr);
 
 	/* ah_spa */
-	KM_COPY((caddr_t)&(IA_SIN(inp->inf_addr)->sin_addr), cp, 
+	bcopy((caddr_t)&(IA_SIN(inp->inf_addr)->sin_addr), cp, 
 		sizeof(struct in_addr));
 	cp += sizeof(struct in_addr);
 
@@ -578,7 +578,7 @@ uniarp_inarp_req(uip, tatm, tsub, ivp)
 		ahp->ah_thtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* ah_tha */
-		KM_COPY(tatm->address, cp, len);
+		bcopy(tatm->address, cp, len);
 		cp += len;
 
 		ahp->ah_tstl = 0;
@@ -588,7 +588,7 @@ uniarp_inarp_req(uip, tatm, tsub, ivp)
 		ahp->ah_thtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* ah_tha */
-		KM_COPY(tatm->address, cp, len);
+		bcopy(tatm->address, cp, len);
 		cp += len;
 
 		if (tsub->address_format == T_ATM_ENDSYS_ADDR) {
@@ -596,7 +596,7 @@ uniarp_inarp_req(uip, tatm, tsub, ivp)
 			ahp->ah_tstl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 			/* ah_tsa */
-			KM_COPY(tsub->address, cp, len);
+			bcopy(tsub->address, cp, len);
 			cp += len;
 		} else
 			ahp->ah_tstl = 0;
@@ -719,7 +719,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 		ahp->ah_shtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(sip->si_addr.address, cp, len - 1);
+		bcopy(sip->si_addr.address, cp, len - 1);
 		((struct atm_addr_nsap *)cp)->aan_sel = nip->nif_sel;
 		cp += len;
 
@@ -730,7 +730,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 		ahp->ah_shtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* ah_sha */
-		KM_COPY(sip->si_addr.address, cp, len);
+		bcopy(sip->si_addr.address, cp, len);
 		cp += len;
 
 		if (sip->si_subaddr.address_format == T_ATM_ENDSYS_ADDR) {
@@ -738,7 +738,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 			ahp->ah_sstl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 			/* ah_ssa */
-			KM_COPY(sip->si_subaddr.address, cp, len - 1);
+			bcopy(sip->si_subaddr.address, cp, len - 1);
 			((struct atm_addr_nsap *)cp)->aan_sel = nip->nif_sel;
 			cp += len;
 		} else
@@ -754,7 +754,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 	ahp->ah_spln = sizeof(struct in_addr);
 
 	/* ah_spa */
-	KM_COPY((caddr_t)&(IA_SIN(inp->inf_addr)->sin_addr), cp, 
+	bcopy((caddr_t)&(IA_SIN(inp->inf_addr)->sin_addr), cp, 
 		sizeof(struct in_addr));
 	cp += sizeof(struct in_addr);
 
@@ -764,7 +764,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 		ahp->ah_thtl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 		/* ah_tha */
-		KM_COPY(tatm->address, cp, len);
+		bcopy(tatm->address, cp, len);
 		cp += len;
 
 		ahp->ah_tstl = 0;
@@ -774,7 +774,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 		ahp->ah_thtl = ARP_TL_E164 | (len & ARP_TL_LMASK);
 
 		/* ah_tha */
-		KM_COPY(tatm->address, cp, len);
+		bcopy(tatm->address, cp, len);
 		cp += len;
 
 		if (tsub->address_format == T_ATM_ENDSYS_ADDR) {
@@ -782,7 +782,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 			ahp->ah_tstl = ARP_TL_NSAPA | (len & ARP_TL_LMASK);
 
 			/* ah_tsa */
-			KM_COPY(tsub->address, cp, len);
+			bcopy(tsub->address, cp, len);
 			cp += len;
 		} else
 			ahp->ah_tstl = 0;
@@ -796,7 +796,7 @@ uniarp_inarp_rsp(uip, tip, tatm, tsub, ivp)
 	ahp->ah_tpln = sizeof(struct in_addr);
 
 	/* ah_tpa */
-	KM_COPY((caddr_t)tip, cp, sizeof(struct in_addr));
+	bcopy((caddr_t)tip, cp, sizeof(struct in_addr));
 
 	/*
 	 * Finally, send the pdu to the vcc peer

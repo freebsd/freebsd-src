@@ -261,10 +261,8 @@ uniip_ipdact(inp)
 	 */
 	UNLINK(uip, struct uniip, uniip_head, uip_next);
 	if (uip->uip_prefix != NULL)
-		KM_FREE(uip->uip_prefix, 
-			uip->uip_nprefix * sizeof(struct uniarp_prf), M_DEVBUF);
+		free(uip->uip_prefix, M_DEVBUF);
 	atm_free((caddr_t)uip);
-
 	return (0);
 }
 

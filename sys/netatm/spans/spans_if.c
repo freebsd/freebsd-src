@@ -144,13 +144,11 @@ spans_start()
 	/*
 	 * Allocate protocol definition structure
 	 */
-	spans_mgr = (struct sigmgr *)KM_ALLOC(sizeof(struct sigmgr),
-			M_DEVBUF, M_NOWAIT);
+	spans_mgr = malloc(sizeof(struct sigmgr), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (spans_mgr == NULL) {
 		err = ENOMEM;
 		goto done;
 	}
-	KM_ZERO(spans_mgr, sizeof(struct sigmgr));
 
 	/*
 	 * Initialize protocol invariant values
@@ -233,7 +231,7 @@ spans_stop()
 		/*
 		 * Free up protocol block
 		 */
-		KM_FREE(spans_mgr, sizeof(struct sigmgr), M_DEVBUF);
+		free(spans_mgr, M_DEVBUF);
 		spans_mgr = NULL;
 
 		/*
@@ -299,13 +297,11 @@ spans_attach(smp, pip)
 	/*
 	 * Allocate SPANS protocol instance control block
 	 */
-	spp = (struct spans *)KM_ALLOC(sizeof(struct spans),
-			M_DEVBUF, M_NOWAIT);
+	spp = malloc(sizeof(struct spans), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (spp == NULL) {
 		err = ENOMEM;
 		goto done;
 	}
-	KM_ZERO(spp, sizeof(struct spans));
 
 	/*
 	 * Set variables in SPANS protocol instance control block
@@ -362,7 +358,7 @@ done:
 			SPANS_CANCEL(spp);
 			UNLINK((struct siginst *)spp, struct siginst,
 					smp->sm_prinst, si_next);
-			KM_FREE(spp, sizeof(struct spans), M_DEVBUF);
+			free(spp, M_DEVBUF);
 		}
 		s = splimp();
 		pip->pif_sigmgr = NULL;
@@ -471,7 +467,7 @@ spans_detach(pip)
 		pip->pif_siginst = NULL;
 		UNLINK((struct siginst *)spp, struct siginst,
 				smp->sm_prinst, si_next);
-		KM_FREE(spp, sizeof(struct spans), M_DEVBUF);
+		free(spp, M_DEVBUF);
 	} else {
 		/*
 		 * Otherwise, wait for protocol instance to be freed
@@ -878,7 +874,7 @@ spans_free(vcp)
 		pip->pif_siginst = NULL;
 		UNLINK((struct siginst *)spp, struct siginst, smp->sm_prinst,
 				si_next);
-		KM_FREE(spp, sizeof(struct spans), M_DEVBUF);
+		free(spp, M_DEVBUF);
 	}
 
 	return (0);
@@ -1011,7 +1007,7 @@ spans_ioctl(code, data, arg1)
 			else
 				rsp.avp_encaps = 0;
 			rsp.avp_state = svp->sv_sstate;
-			KM_ZERO(rsp.avp_owners, sizeof(rsp.avp_owners));
+			bzero(rsp.avp_owners, sizeof(rsp.avp_owners));
 			for (i = 0; cop && i < sizeof(rsp.avp_owners);
 					cop = cop->co_next,
 					i += T_ATM_APP_NAME_LEN+1) {

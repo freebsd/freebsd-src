@@ -858,7 +858,7 @@ unisig_sigmgr_act14(usp, m)
 
 		UNLINK((struct siginst *)usp, struct siginst,
 				smp->sm_prinst, si_next);
-		KM_FREE(usp, sizeof(struct unisig), M_DEVBUF);
+		free(usp, M_DEVBUF);
 	} else {
 		/*
 		 * Otherwise, set new signalling manager state and

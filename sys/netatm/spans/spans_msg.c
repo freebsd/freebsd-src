@@ -121,7 +121,7 @@ spans_host_link(spp, host_epoch)
 		spans_switch_reset(spp, SPANS_UNI_UP);
 		spp->sp_addr.address_format = T_ATM_SPANS_ADDR;
 		spp->sp_addr.address_length = sizeof(spans_addr);
-		KM_COPY(&pip->pif_macaddr.ma_data[2],
+		bcopy(&pip->pif_macaddr.ma_data[2],
 				&spp->sp_addr.address[4],
 				4);
 		log(LOG_INFO,
@@ -698,7 +698,7 @@ spans_open_req(spp, msg)
 	/*
 	 * Set up the ATM attributes block
 	 */
-	KM_ZERO(&call_attrs, sizeof(call_attrs));
+	bzero(&call_attrs, sizeof(call_attrs));
 	call_attrs.nif = svp->sv_nif;
 	call_attrs.api = CMAPI_CPCS;
 
@@ -917,7 +917,7 @@ spans_open_rsp(spp, msg)
 				T_ATM_LOC_USER;
 		svp->sv_connvc->cvc_attr.cause.v.cause_value =
 				T_ATM_CAUSE_CALL_REJECTED;
-		KM_ZERO(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
+		bzero(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
 				sizeof(svp->sv_connvc->cvc_attr.cause.v.diagnostics));
 		atm_cm_cleared(svp->sv_connvc);
 		break;
@@ -1025,7 +1025,7 @@ spans_close_req(spp, msg)
 		cvp->cvc_attr.cause.v.location = T_ATM_LOC_USER;
 		cvp->cvc_attr.cause.v.cause_value =
 				T_ATM_CAUSE_NORMAL_CALL_CLEARING;
-		KM_ZERO(cvp->cvc_attr.cause.v.diagnostics,
+		bzero(cvp->cvc_attr.cause.v.diagnostics,
 				sizeof(cvp->cvc_attr.cause.v.diagnostics));
 		atm_cm_cleared(svp->sv_connvc);
 		break;
@@ -1115,7 +1115,7 @@ spans_close_rsp(spp, msg)
 				T_ATM_LOC_USER;
 		svp->sv_connvc->cvc_attr.cause.v.cause_value =
 				T_ATM_CAUSE_NORMAL_CALL_CLEARING;
-		KM_ZERO(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
+		bzero(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
 				sizeof(svp->sv_connvc->cvc_attr.cause.v.diagnostics));
 		atm_cm_cleared(svp->sv_connvc);
 		break;
@@ -1135,7 +1135,7 @@ spans_close_rsp(spp, msg)
 				T_ATM_LOC_USER;
 		svp->sv_connvc->cvc_attr.cause.v.cause_value =
 				T_ATM_CAUSE_UNSPECIFIED_NORMAL;
-		KM_ZERO(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
+		bzero(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
 				sizeof(svp->sv_connvc->cvc_attr.cause.v.diagnostics));
 		atm_cm_cleared(svp->sv_connvc);
 		break;
