@@ -1,9 +1,9 @@
-#	$Id$
+#	$Id: Makefile,v 1.19 1996/02/09 20:57:53 phk Exp $
 
 LIB=	md
 NOPIC=	true
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
-MAN3+=	mdX.3 md2.3 md4.3 md5.3
+MAN3+=  md2.3 md4.3 md5.3
 MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
 MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2Data.3
 MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
