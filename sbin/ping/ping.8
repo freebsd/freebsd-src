@@ -157,13 +157,13 @@ mode of behavior.
 Only the super-user may use this option.
 .It Fl M Ar mask | time
 Use ICMP_MASKREQ or ICMP_TSTAMP instead of ICMP_ECHO.  For
-.Ar mask
+.Ar mask ,
 print the netmask of the remote machine.  Set the
 .Va net.inet.icmp.maskrepl
 MIB variable to enable ICMP_MASKREPLY.
 For
-.Ar time
-print the origination, reception and transmition timestamps.
+.Ar time ,
+print the origination, reception and transmission timestamps.
 .It Fl m Ar ttl
 Set the IP Time To Live for outgoing packets.
 If not specified, the kernel uses the value of the
