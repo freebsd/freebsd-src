@@ -29,6 +29,9 @@
 
 #include <dev/sound/pcm/sound.h>
 
+#include "feeder_if.h"
+
+MALLOC_DEFINE(M_CHANNEL, "channel", "pcm channel");
 #define MIN_CHUNK_SIZE 		256	/* for uiomove etc. */
 #define	DMA_ALIGN_THRESHOLD	4
 #define	DMA_ALIGN_MASK		(~(DMA_ALIGN_THRESHOLD - 1))
@@ -326,13 +329,13 @@ chn_wrfeed2nd(pcm_channel *c, struct uio *buf)
 		l = min(bs->fl, bs->bufsize - bs->fp);
 		/* Move the samples, update the markers and pointers. */
 		if (l < 64) {
-			w = c->feeder->feed(c->feeder, c, hackbuf, 64, buf);
+			w = FEEDER_FEED(c->feeder, c, hackbuf, 64, buf);
 			l = min(w, bs->bufsize - bs->fp);
 			bcopy(hackbuf, bs->buf + bs->fp, l);
 			if (w > l)
 				bcopy(hackbuf + l, bs->buf, w - l);
 		} else
-			w = c->feeder->feed(c->feeder, c, bs->buf + bs->fp, l, buf);
+			w = FEEDER_FEED(c->feeder, c, bs->buf + bs->fp, l, buf);
 		if (w == 0)
 			panic("no feed");
 		bs->rl += w;
@@ -639,7 +642,7 @@ chn_rdfeed2nd(pcm_channel *c, struct uio *buf)
 		 */
 		l = min(bs->rl, bs->bufsize - bs->rp);
 		/* Move the samples, update the markers and pointers. */
-		w = c->feeder->feed(c->feeder, c, bs->buf + bs->rp, l, buf);
+		w = FEEDER_FEED(c->feeder, c, bs->buf + bs->rp, l, buf);
 		if (w == 0)
 			panic("no feed");
 		bs->fl += w;
@@ -1128,8 +1131,7 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 
 	chn_abort(c);
 	c->flags &= CHN_F_RESET;
-	if (c->reset)
-		c->reset(c->devinfo);
+	CHANNEL_RESET(c->methods, c->devinfo);
 	r = chn_setblocksize(c, CHN_2NDBUFBLKNUM, CHN_2NDBUFBLKSIZE);
 	if (r)
 		return r;
@@ -1145,8 +1147,7 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 			r = chn_setvolume(c, 100, 100);
 	}
 	chn_resetbuf(c);
-	if (c->resetdone)
-		c->resetdone(c->devinfo);
+	CHANNEL_RESETDONE(c->methods, c->devinfo);
 	/* c->flags |= CHN_F_INIT; */
 	return 0;
 }
@@ -1167,26 +1168,25 @@ chn_reinit(pcm_channel *c)
 int
 chn_init(pcm_channel *c, void *devinfo, int dir)
 {
-	snd_dbuf       *bs = &c->buffer2nd;
+	struct feeder_class *fc;
+	snd_dbuf *bs = &c->buffer2nd;
 
 	/* Initialize the hardware and DMA buffer first. */
-	c->feeder = malloc(sizeof(*(c->feeder)), M_DEVBUF, M_NOWAIT);
-	*(c->feeder) = *feeder_getroot();
-	c->feederdesc = malloc(sizeof(*(c->feeder)), M_DEVBUF, M_NOWAIT);
-	c->feederdesc->type = FEEDER_ROOT;
-	c->feederdesc->in = 0;
-	c->feederdesc->out = 0;
-	c->feederdesc->flags = 0;
-	c->feederdesc->idx = 0;
-	c->feeder->desc = c->feederdesc;
-	c->feeder->source = NULL;
+	c->feeder = NULL;
+	fc = feeder_getclass(NULL);
+	if (fc == NULL)
+		return EINVAL;
+	if (chn_addfeeder(c, fc, NULL))
+		return EINVAL;
 
 	c->flags = 0;
 	c->feederflags = 0;
 	c->buffer.chan = -1;
-	c->devinfo = c->init(devinfo, &c->buffer, c, dir);
-	if (c->devinfo == NULL || c->buffer.bufsize == 0)
-		return 1;
+	c->devinfo = CHANNEL_INIT(c->methods, devinfo, &c->buffer, c, dir);
+	if (c->devinfo == NULL)
+		return ENODEV;
+	if (c->buffer.bufsize == 0)
+		return ENOMEM;
 	chn_setdir(c, dir);
 
 	/* And the secondary buffer. */
@@ -1201,11 +1201,7 @@ chn_kill(pcm_channel *c)
 	if (c->flags & CHN_F_TRIGGERED)
 		chn_trigger(c, PCMTRIG_ABORT);
 	while (chn_removefeeder(c) == 0);
-	free(c->feeder->desc, M_DEVBUF);
-	free(c->feeder, M_DEVBUF);
-	if (c->free)
-		c->free(c->devinfo);
-	else
+	if (CHANNEL_FREE(c->methods, c->devinfo))
 		chn_freebuf(&c->buffer);
 	c->flags |= CHN_F_DEAD;
 	return 0;
@@ -1217,7 +1213,7 @@ chn_setdir(pcm_channel *c, int dir)
 	int r;
 
 	c->direction = dir;
-	r = c->setdir? c->setdir(c->devinfo, c->direction) : 0;
+	r = CHANNEL_SETDIR(c->methods, c->devinfo, c->direction);
 	if (!r && ISA_DMA(&c->buffer))
 		c->buffer.dir = (dir == PCMDIR_PLAY)? ISADMA_WRITE : ISADMA_READ;
 	return r;
@@ -1250,7 +1246,7 @@ chn_setspeed(pcm_channel *c, int speed)
 		hwspd = speed;
 		RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
 		DEB(printf("try speed %d, ", hwspd));
-		hwspd = c->setspeed(c->devinfo, hwspd);
+		hwspd = CHANNEL_SETSPEED(c->methods, c->devinfo, hwspd);
 		DEB(printf("got speed %d, ", hwspd));
 		delta = hwspd - speed;
 		if (delta < 0)
@@ -1270,11 +1266,11 @@ chn_setspeed(pcm_channel *c, int speed)
 		DEB(printf("feedrate = %p\n", f));
 		if (f == NULL)
 			return EINVAL;
-		r = feeder_set(f, FEEDRATE_SRC, speed);
+		r = FEEDER_SET(f, FEEDRATE_SRC, speed);
 		DEB(printf("feeder_set(FEEDRATE_SRC, %d) = %d\n", speed, r));
 		if (r)
 			return r;
-		r = feeder_set(f, FEEDRATE_DST, hwspd);
+		r = FEEDER_SET(f, FEEDRATE_DST, hwspd);
 		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", hwspd, r));
 		if (r)
 			return r;
@@ -1296,7 +1292,6 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 	if (CANCHANGE(c)) {
 		DEB(printf("want format %d\n", fmt));
 		c->format = fmt;
-		c->feederdesc->out = c->format;
 		hwfmt = c->format;
 		c->feederflags &= ~(1 << FEEDER_FMT);
 		if (!fmtvalid(hwfmt, chn_getcaps(c)->fmtlist))
@@ -1308,7 +1303,7 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 		b->fmt = hwfmt;
 		bs->fmt = hwfmt;
 		chn_resetbuf(c);
-		c->setformat(c->devinfo, hwfmt);
+		CHANNEL_SETFORMAT(c->methods, c->devinfo, hwfmt);
 		return chn_setspeed(c, c->speed);
 	}
 	c->format = fmt;
@@ -1368,7 +1363,7 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 	bs->blkcnt = blkcnt;
 	bs->blksz = blksz;
 	RANGE(blksz, 16, b->bufsize / 2);
-	b->blksz = c->setblocksize(c->devinfo, blksz);
+	b->blksz = CHANNEL_SETBLOCKSIZE(c->methods, c->devinfo, blksz);
 	splx(s);
 
 	return 0;
@@ -1377,7 +1372,7 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 int
 chn_trigger(pcm_channel *c, int go)
 {
-	return c->trigger(c->devinfo, go);
+	return CHANNEL_TRIGGER(c->methods, c->devinfo, go);
 }
 
 int
@@ -1387,7 +1382,7 @@ chn_getptr(pcm_channel *c)
 	int a = (1 << c->align) - 1;
 	snd_dbuf *b = &c->buffer;
 
-	hwptr = b->dl? c->getptr(c->devinfo) : 0;
+	hwptr = b->dl? CHANNEL_GETPTR(c->methods, c->devinfo) : 0;
 	/* don't allow unaligned values in the hwa ptr */
 	hwptr &= ~a ; /* Apply channel align mask */
 	hwptr &= DMA_ALIGN_MASK; /* Apply DMA align mask */
@@ -1397,7 +1392,7 @@ chn_getptr(pcm_channel *c)
 pcmchan_caps *
 chn_getcaps(pcm_channel *c)
 {
-	return c->getcaps(c->devinfo);
+	return CHANNEL_GETCAPS(c->methods, c->devinfo);
 }
 
 u_int32_t
@@ -1417,12 +1412,20 @@ chn_getformats(pcm_channel *c)
 static int
 chn_buildfeeder(pcm_channel *c)
 {
-	pcm_feeder *f;
+	struct feeder_class *fc;
 	struct pcm_feederdesc desc;
 	u_int32_t tmp[2], src, dst, type, flags;
 
 	while (chn_removefeeder(c) == 0);
+	KASSERT((c->feeder == NULL), ("feeder chain not empty"));
 	c->align = 0;
+	fc = feeder_getclass(NULL);
+	if (fc == NULL)
+		return EINVAL;
+	if (chn_addfeeder(c, fc, NULL))
+		return EINVAL;
+	c->feeder->desc->out = c->format;
+
 	flags = c->feederflags;
 	src = c->feeder->desc->out;
 	if ((c->flags & CHN_F_MAPPED) && (flags != 0))
@@ -1435,11 +1438,11 @@ chn_buildfeeder(pcm_channel *c)
 			desc.out = 0;
 			desc.flags = 0;
 			DEB(printf("find feeder type %d, ", type));
-			f = feeder_get(&desc);
+			fc = feeder_getclass(&desc);
 			DEB(printf("got %p\n", f));
-			if (f == NULL)
+			if (fc == NULL)
 				return EINVAL;
-			dst = f->desc->in;
+			dst = fc->desc->in;
 			if (src != dst) {
  				DEB(printf("build fmtchain from %x to %x: ", src, dst));
 				tmp[0] = dst;
@@ -1448,9 +1451,9 @@ chn_buildfeeder(pcm_channel *c)
 					return EINVAL;
  				DEB(printf("ok\n"));
 			}
-			if (chn_addfeeder(c, f))
+			if (chn_addfeeder(c, fc, fc->desc))
 				return EINVAL;
-			src = f->desc->out;
+			src = fc->desc->out;
 			DEB(printf("added feeder %p, output %x\n", f, src));
 			dst = 0;
 			flags &= ~(1 << type);

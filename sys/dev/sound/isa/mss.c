@@ -34,6 +34,8 @@
 #include <dev/sound/isa/mss.h>
 #include <dev/sound/chip.h>
 
+#include "mixer_if.h"
+
 #define MSS_BUFFSIZE (4096)
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
 #define MSS_INDEXED_REGS 0x20
@@ -105,41 +107,7 @@ static int 		pnpmss_attach(device_t dev);
 
 static driver_intr_t 	opti931_intr;
 
-static int mssmix_init(snd_mixer *m);
-static int mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int mssmix_setrecsrc(snd_mixer *m, u_int32_t src);
-static snd_mixer mss_mixer = {
-    	"MSS mixer",
-    	mssmix_init,
-	NULL,
-	NULL,
-    	mssmix_set,
-    	mssmix_setrecsrc,
-};
-
-static int ymmix_init(snd_mixer *m);
-static int ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int ymmix_setrecsrc(snd_mixer *m, u_int32_t src);
-static snd_mixer yamaha_mixer = {
-    	"OPL3-SAx mixer",
-    	ymmix_init,
-	NULL,
-	NULL,
-    	ymmix_set,
-    	ymmix_setrecsrc,
-};
-
 static devclass_t pcm_devclass;
-
-/* channel interface */
-static void *msschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int msschan_setdir(void *data, int dir);
-static int msschan_setformat(void *data, u_int32_t format);
-static int msschan_setspeed(void *data, u_int32_t speed);
-static int msschan_setblocksize(void *data, u_int32_t blocksize);
-static int msschan_trigger(void *data, int go);
-static int msschan_getptr(void *data);
-static pcmchan_caps *msschan_getcaps(void *data);
 
 static u_int32_t mss_fmt[] = {
 	AFMT_U8,
@@ -173,25 +141,6 @@ static u_int32_t opti931_fmt[] = {
 	0
 };
 static pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
-
-static pcm_channel mss_chantemplate = {
-	msschan_init,
-	msschan_setdir,
-	msschan_setformat,
-	msschan_setspeed,
-	msschan_setblocksize,
-	msschan_trigger,
-	msschan_getptr,
-	msschan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
 
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
@@ -361,6 +310,214 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
     	return ok;
 }
 
+/* -------------------------------------------------------------------- */
+/* only one source can be set... */
+static int
+mss_set_recsrc(struct mss_info *mss, int mask)
+{
+    	u_char   recdev;
+
+    	switch (mask) {
+    	case SOUND_MASK_LINE:
+    	case SOUND_MASK_LINE3:
+		recdev = 0;
+		break;
+
+    	case SOUND_MASK_CD:
+    	case SOUND_MASK_LINE1:
+		recdev = 0x40;
+		break;
+
+    	case SOUND_MASK_IMIX:
+		recdev = 0xc0;
+		break;
+
+    	case SOUND_MASK_MIC:
+    	default:
+		mask = SOUND_MASK_MIC;
+		recdev = 0x80;
+    	}
+    	ad_write(mss, 0, (ad_read(mss, 0) & 0x3f) | recdev);
+    	ad_write(mss, 1, (ad_read(mss, 1) & 0x3f) | recdev);
+    	return mask;
+}
+
+/* there are differences in the mixer depending on the actual sound card. */
+static int
+mss_mixer_set(struct mss_info *mss, int dev, int left, int right)
+{
+    	int        regoffs;
+    	mixer_tab *mix_d = (mss->bd_id == MD_OPTI931)? &opti931_devices : &mix_devices;
+    	u_char     old, val;
+
+    	if ((*mix_d)[dev][LEFT_CHN].nbits == 0) {
+		DEB(printf("nbits = 0 for dev %d\n", dev));
+		return -1;
+    	}
+
+    	if ((*mix_d)[dev][RIGHT_CHN].nbits == 0) right = left; /* mono */
+
+    	/* Set the left channel */
+
+    	regoffs = (*mix_d)[dev][LEFT_CHN].regno;
+    	old = val = ad_read(mss, regoffs);
+    	/* if volume is 0, mute chan. Otherwise, unmute. */
+    	if (regoffs != 0) val = (left == 0)? old | 0x80 : old & 0x7f;
+    	change_bits(mix_d, &val, dev, LEFT_CHN, left);
+    	ad_write(mss, regoffs, val);
+
+    	DEB(printf("LEFT: dev %d reg %d old 0x%02x new 0x%02x\n",
+		dev, regoffs, old, val));
+
+    	if ((*mix_d)[dev][RIGHT_CHN].nbits != 0) { /* have stereo */
+		/* Set the right channel */
+		regoffs = (*mix_d)[dev][RIGHT_CHN].regno;
+		old = val = ad_read(mss, regoffs);
+		if (regoffs != 1) val = (right == 0)? old | 0x80 : old & 0x7f;
+		change_bits(mix_d, &val, dev, RIGHT_CHN, right);
+		ad_write(mss, regoffs, val);
+
+		DEB(printf("RIGHT: dev %d reg %d old 0x%02x new 0x%02x\n",
+	    	dev, regoffs, old, val));
+    	}
+    	return 0; /* success */
+}
+
+/* -------------------------------------------------------------------- */
+
+static int
+mssmix_init(snd_mixer *m)
+{
+	struct mss_info *mss = mix_getdevinfo(m);
+
+	mix_setdevs(m, MODE2_MIXER_DEVICES);
+	mix_setrecdevs(m, MSS_REC_DEVICES);
+	switch(mss->bd_id) {
+	case MD_OPTI931:
+		mix_setdevs(m, OPTI931_MIXER_DEVICES);
+		ad_write(mss, 20, 0x88);
+		ad_write(mss, 21, 0x88);
+		break;
+
+	case MD_AD1848:
+		mix_setdevs(m, MODE1_MIXER_DEVICES);
+		break;
+
+	case MD_GUSPNP:
+	case MD_GUSMAX:
+		/* this is only necessary in mode 3 ... */
+		ad_write(mss, 22, 0x88);
+		ad_write(mss, 23, 0x88);
+		break;
+	}
+	return 0;
+}
+
+static int
+mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+{
+	struct mss_info *mss = mix_getdevinfo(m);
+
+	mss_mixer_set(mss, dev, left, right);
+
+	return left | (right << 8);
+}
+
+static int
+mssmix_setrecsrc(snd_mixer *m, u_int32_t src)
+{
+	struct mss_info *mss = mix_getdevinfo(m);
+
+	src = mss_set_recsrc(mss, src);
+	return src;
+}
+
+static kobj_method_t mssmix_mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		mssmix_init),
+    	KOBJMETHOD(mixer_set,		mssmix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	mssmix_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(mssmix_mixer);
+
+/* -------------------------------------------------------------------- */
+
+static int
+ymmix_init(snd_mixer *m)
+{
+	struct mss_info *mss = mix_getdevinfo(m);
+
+	mssmix_init(m);
+	mix_setdevs(m, mix_getdevs(m) | SOUND_MASK_VOLUME | SOUND_MASK_MIC
+				      | SOUND_MASK_BASS | SOUND_MASK_TREBLE);
+	/* Set master volume */
+	conf_wr(mss, OPL3SAx_VOLUMEL, 7);
+	conf_wr(mss, OPL3SAx_VOLUMER, 7);
+
+	return 0;
+}
+
+static int
+ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+{
+	struct mss_info *mss = mix_getdevinfo(m);
+	int t, l, r;
+
+	switch (dev) {
+	case SOUND_MIXER_VOLUME:
+		if (left) t = 15 - (left * 15) / 100;
+		else t = 0x80; /* mute */
+		conf_wr(mss, OPL3SAx_VOLUMEL, t);
+		if (right) t = 15 - (right * 15) / 100;
+		else t = 0x80; /* mute */
+		conf_wr(mss, OPL3SAx_VOLUMER, t);
+		break;
+
+	case SOUND_MIXER_MIC:
+		t = left;
+		if (left) t = 31 - (left * 31) / 100;
+		else t = 0x80; /* mute */
+		conf_wr(mss, OPL3SAx_MIC, t);
+		break;
+
+	case SOUND_MIXER_BASS:
+		l = (left * 7) / 100;
+		r = (right * 7) / 100;
+		t = (r << 4) | l;
+		conf_wr(mss, OPL3SAx_BASS, t);
+		break;
+
+	case SOUND_MIXER_TREBLE:
+		l = (left * 7) / 100;
+		r = (right * 7) / 100;
+		t = (r << 4) | l;
+		conf_wr(mss, OPL3SAx_TREBLE, t);
+		break;
+
+	default:
+		mss_mixer_set(mss, dev, left, right);
+	}
+
+	return left | (right << 8);
+}
+
+static int
+ymmix_setrecsrc(snd_mixer *m, u_int32_t src)
+{
+	struct mss_info *mss = mix_getdevinfo(m);
+	src = mss_set_recsrc(mss, src);
+	return src;
+}
+
+static kobj_method_t ymmix_mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		ymmix_init),
+    	KOBJMETHOD(mixer_set,		ymmix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	ymmix_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(ymmix_mixer);
+
+/* -------------------------------------------------------------------- */
 /*
  * XXX This might be better off in the gusc driver.
  */
@@ -502,6 +659,464 @@ mss_init(struct mss_info *mss, device_t dev)
     	ad_unmute(mss);
 	return 0;
 }
+
+
+/*
+ * main irq handler for the CS423x. The OPTi931 code is
+ * a separate one.
+ * The correct way to operate for a device with multiple internal
+ * interrupt sources is to loop on the status register and ack
+ * interrupts until all interrupts are served and none are reported. At
+ * this point the IRQ line to the ISA IRQ controller should go low
+ * and be raised at the next interrupt.
+ *
+ * Since the ISA IRQ controller is sent EOI _before_ passing control
+ * to the isr, it might happen that we serve an interrupt early, in
+ * which case the status register at the next interrupt should just
+ * say that there are no more interrupts...
+ */
+
+static void
+mss_intr(void *arg)
+{
+    	struct mss_info *mss = arg;
+    	u_char c = 0, served = 0;
+    	int i;
+
+    	DEB(printf("mss_intr\n"));
+    	ad_read(mss, 11); /* fake read of status bits */
+
+    	/* loop until there are interrupts, but no more than 10 times. */
+    	for (i = 10; i > 0 && io_rd(mss, MSS_STATUS) & 1; i--) {
+		/* get exact reason for full-duplex boards */
+		c = FULL_DUPLEX(mss)? ad_read(mss, 24) : 0x30;
+		c &= ~served;
+		if (mss->pch.buffer->dl && (c & 0x10)) {
+	    		served |= 0x10;
+	    		chn_intr(mss->pch.channel);
+		}
+		if (mss->rch.buffer->dl && (c & 0x20)) {
+	    		served |= 0x20;
+	    		chn_intr(mss->rch.channel);
+		}
+		/* now ack the interrupt */
+		if (FULL_DUPLEX(mss)) ad_write(mss, 24, ~c); /* ack selectively */
+		else io_wr(mss, MSS_STATUS, 0);	/* Clear interrupt status */
+    	}
+    	if (i == 10) {
+		BVDDB(printf("mss_intr: irq, but not from mss\n"));
+	} else if (served == 0) {
+		BVDDB(printf("mss_intr: unexpected irq with reason %x\n", c));
+		/*
+	 	* this should not happen... I have no idea what to do now.
+	 	* maybe should do a sanity check and restart dmas ?
+	 	*/
+		io_wr(mss, MSS_STATUS, 0);	/* Clear interrupt status */
+    	}
+}
+
+/*
+ * AD_WAIT_INIT waits if we are initializing the board and
+ * we cannot modify its settings
+ */
+static int
+ad_wait_init(struct mss_info *mss, int x)
+{
+    	int arg = x, n = 0; /* to shut up the compiler... */
+    	for (; x > 0; x--)
+		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10);
+		else return n;
+    	printf("AD_WAIT_INIT FAILED %d 0x%02x\n", arg, n);
+    	return n;
+}
+
+static int
+ad_read(struct mss_info *mss, int reg)
+{
+    	u_long   flags;
+    	int             x;
+
+    	flags = spltty();
+    	ad_wait_init(mss, 201);
+    	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
+    	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
+    	x = io_rd(mss, MSS_IDATA);
+    	splx(flags);
+	/* printf("ad_read %d, %x\n", reg, x); */
+    	return x;
+}
+
+static void
+ad_write(struct mss_info *mss, int reg, u_char data)
+{
+    	u_long   flags;
+
+    	int x;
+	/* printf("ad_write %d, %x\n", reg, data); */
+    	flags = spltty();
+    	ad_wait_init(mss, 1002);
+    	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
+    	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
+    	io_wr(mss, MSS_IDATA, data);
+    	splx(flags);
+}
+
+static void
+ad_write_cnt(struct mss_info *mss, int reg, u_short cnt)
+{
+    	ad_write(mss, reg+1, cnt & 0xff);
+    	ad_write(mss, reg, cnt >> 8); /* upper base must be last */
+}
+
+static void
+wait_for_calibration(struct mss_info *mss)
+{
+    	int t;
+
+    	/*
+     	 * Wait until the auto calibration process has finished.
+     	 *
+     	 * 1) Wait until the chip becomes ready (reads don't return 0x80).
+     	 * 2) Wait until the ACI bit of I11 gets on
+     	 * 3) Wait until the ACI bit of I11 gets off
+     	 */
+
+    	t = ad_wait_init(mss, 1000);
+    	if (t & MSS_IDXBUSY) printf("mss: Auto calibration timed out(1).\n");
+
+	/*
+	 * The calibration mode for chips that support it is set so that
+	 * we never see ACI go on.
+	 */
+	if (mss->bd_id == MD_GUSMAX || mss->bd_id == MD_GUSPNP) {
+		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--);
+	} else {
+       		/*
+		 * XXX This should only be enabled for cards that *really*
+		 * need it.  Are there any?
+		 */
+  		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--) DELAY(100);
+	}
+    	for (t = 100; t > 0 && ad_read(mss, 11) & 0x20; t--) DELAY(100);
+}
+
+static void
+ad_unmute(struct mss_info *mss)
+{
+    	ad_write(mss, 6, ad_read(mss, 6) & ~I6_MUTE);
+    	ad_write(mss, 7, ad_read(mss, 7) & ~I6_MUTE);
+}
+
+static void
+ad_enter_MCE(struct mss_info *mss)
+{
+    	int prev;
+
+    	mss->bd_flags |= BD_F_MCE_BIT;
+    	ad_wait_init(mss, 203);
+    	prev = io_rd(mss, MSS_INDEX);
+    	prev &= ~MSS_TRD;
+    	io_wr(mss, MSS_INDEX, prev | MSS_MCE);
+}
+
+static void
+ad_leave_MCE(struct mss_info *mss)
+{
+    	u_long   flags;
+    	u_char   prev;
+
+    	if ((mss->bd_flags & BD_F_MCE_BIT) == 0) {
+		DEB(printf("--- hey, leave_MCE: MCE bit was not set!\n"));
+		return;
+    	}
+
+    	ad_wait_init(mss, 1000);
+
+    	flags = spltty();
+    	mss->bd_flags &= ~BD_F_MCE_BIT;
+
+    	prev = io_rd(mss, MSS_INDEX);
+    	prev &= ~MSS_TRD;
+    	io_wr(mss, MSS_INDEX, prev & ~MSS_MCE); /* Clear the MCE bit */
+    	wait_for_calibration(mss);
+    	splx(flags);
+}
+
+static int
+mss_speed(struct mss_chinfo *ch, int speed)
+{
+    	struct mss_info *mss = ch->parent;
+    	/*
+     	* In the CS4231, the low 4 bits of I8 are used to hold the
+     	* sample rate.  Only a fixed number of values is allowed. This
+     	* table lists them. The speed-setting routines scans the table
+     	* looking for the closest match. This is the only supported method.
+     	*
+     	* In the CS4236, there is an alternate metod (which we do not
+     	* support yet) which provides almost arbitrary frequency setting.
+     	* In the AD1845, it looks like the sample rate can be
+     	* almost arbitrary, and written directly to a register.
+     	* In the OPTi931, there is a SB command which provides for
+     	* almost arbitrary frequency setting.
+     	*
+     	*/
+    	ad_enter_MCE(mss);
+    	if (mss->bd_id == MD_AD1845) { /* Use alternate speed select regs */
+		ad_write(mss, 22, (speed >> 8) & 0xff);	/* Speed MSB */
+		ad_write(mss, 23, speed & 0xff);	/* Speed LSB */
+		/* XXX must also do something in I27 for the ad1845 */
+    	} else {
+        	int i, sel = 0; /* assume entry 0 does not contain -1 */
+        	static int speeds[] =
+      	    	{8000, 5512, 16000, 11025, 27429, 18900, 32000, 22050,
+	    	-1, 37800, -1, 44100, 48000, 33075, 9600, 6615};
+
+        	for (i = 1; i < 16; i++)
+   		    	if (speeds[i] > 0 &&
+			    abs(speed-speeds[i]) < abs(speed-speeds[sel])) sel = i;
+        	speed = speeds[sel];
+        	ad_write(mss, 8, (ad_read(mss, 8) & 0xf0) | sel);
+    	}
+    	ad_leave_MCE(mss);
+
+    	return speed;
+}
+
+/*
+ * mss_format checks that the format is supported (or defaults to AFMT_U8)
+ * and returns the bit setting for the 1848 register corresponding to
+ * the desired format.
+ *
+ * fixed lr970724
+ */
+
+static int
+mss_format(struct mss_chinfo *ch, u_int32_t format)
+{
+    	struct mss_info *mss = ch->parent;
+    	int i, arg = format & ~AFMT_STEREO;
+
+    	/*
+     	* The data format uses 3 bits (just 2 on the 1848). For each
+     	* bit setting, the following array returns the corresponding format.
+     	* The code scans the array looking for a suitable format. In
+     	* case it is not found, default to AFMT_U8 (not such a good
+     	* choice, but let's do it for compatibility...).
+     	*/
+
+    	static int fmts[] =
+        	{AFMT_U8, AFMT_MU_LAW, AFMT_S16_LE, AFMT_A_LAW,
+		-1, AFMT_IMA_ADPCM, AFMT_U16_BE, -1};
+
+	ch->fmt = format;
+    	for (i = 0; i < 8; i++) if (arg == fmts[i]) break;
+    	arg = i << 1;
+    	if (format & AFMT_STEREO) arg |= 1;
+    	arg <<= 4;
+    	ad_enter_MCE(mss);
+    	ad_write(mss, 8, (ad_read(mss, 8) & 0x0f) | arg);
+    	if (FULL_DUPLEX(mss)) ad_write(mss, 28, arg); /* capture mode */
+    	ad_leave_MCE(mss);
+    	return format;
+}
+
+static int
+mss_trigger(struct mss_chinfo *ch, int go)
+{
+    	struct mss_info *mss = ch->parent;
+    	u_char m;
+    	int retry, wr, cnt, ss;
+
+	ss = 1;
+	ss <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
+	ss <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
+
+	wr = (ch->dir == PCMDIR_PLAY)? 1 : 0;
+    	m = ad_read(mss, 9);
+    	switch (go) {
+    	case PCMTRIG_START:
+		cnt = (ch->buffer->dl / ss) - 1;
+
+		DEB(if (m & 4) printf("OUCH! reg 9 0x%02x\n", m););
+		m |= wr? I9_PEN : I9_CEN; /* enable DMA */
+		ad_write_cnt(mss, (wr || !FULL_DUPLEX(mss))? 14 : 30, cnt);
+		break;
+
+    	case PCMTRIG_STOP:
+    	case PCMTRIG_ABORT: /* XXX check this... */
+		m &= ~(wr? I9_PEN : I9_CEN); /* Stop DMA */
+#if 0
+		/*
+	 	* try to disable DMA by clearing count registers. Not sure it
+	 	* is needed, and it might cause false interrupts when the
+	 	* DMA is re-enabled later.
+	 	*/
+		ad_write_cnt(mss, (wr || !FULL_DUPLEX(mss))? 14 : 30, 0);
+#endif
+    	}
+    	/* on the OPTi931 the enable bit seems hard to set... */
+    	for (retry = 10; retry > 0; retry--) {
+        	ad_write(mss, 9, m);
+        	if (ad_read(mss, 9) == m) break;
+    	}
+    	if (retry == 0) BVDDB(printf("stop dma, failed to set bit 0x%02x 0x%02x\n", \
+			       m, ad_read(mss, 9)));
+    	return 0;
+}
+
+
+/*
+ * the opti931 seems to miss interrupts when working in full
+ * duplex, so we try some heuristics to catch them.
+ */
+static void
+opti931_intr(void *arg)
+{
+    	struct mss_info *mss = (struct mss_info *)arg;
+    	u_char masked = 0, i11, mc11, c = 0;
+    	u_char reason; /* b0 = playback, b1 = capture, b2 = timer */
+    	int loops = 10;
+
+#if 0
+    	reason = io_rd(mss, MSS_STATUS);
+    	if (!(reason & 1)) {/* no int, maybe a shared line ? */
+		DEB(printf("intr: flag 0, mcir11 0x%02x\n", ad_read(mss, 11)));
+		return;
+    	}
+#endif
+    	i11 = ad_read(mss, 11); /* XXX what's for ? */
+	again:
+
+    	c = mc11 = FULL_DUPLEX(mss)? opti_rd(mss, 11) : 0xc;
+    	mc11 &= 0x0c;
+    	if (c & 0x10) {
+		DEB(printf("Warning: CD interrupt\n");)
+		mc11 |= 0x10;
+    	}
+    	if (c & 0x20) {
+		DEB(printf("Warning: MPU interrupt\n");)
+		mc11 |= 0x20;
+    	}
+    	if (mc11 & masked) BVDDB(printf("irq reset failed, mc11 0x%02x, 0x%02x\n",\
+                              	  mc11, masked));
+    	masked |= mc11;
+    	/*
+     	* the nice OPTi931 sets the IRQ line before setting the bits in
+     	* mc11. So, on some occasions I have to retry (max 10 times).
+     	*/
+    	if (mc11 == 0) { /* perhaps can return ... */
+		reason = io_rd(mss, MSS_STATUS);
+		if (reason & 1) {
+	    		DEB(printf("one more try...\n");)
+	    		if (--loops) goto again;
+	    		else DDB(printf("intr, but mc11 not set\n");)
+		}
+		if (loops == 0) BVDDB(printf("intr, nothing in mcir11 0x%02x\n", mc11));
+		return;
+    	}
+
+    	if (mss->rch.buffer->dl && (mc11 & 8)) chn_intr(mss->rch.channel);
+    	if (mss->pch.buffer->dl && (mc11 & 4)) chn_intr(mss->pch.channel);
+    	opti_wr(mss, 11, ~mc11); /* ack */
+    	if (--loops) goto again;
+    	DEB(printf("xxx too many loops\n");)
+}
+
+/* -------------------------------------------------------------------- */
+/* channel interface */
+static void *
+msschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	struct mss_info *mss = devinfo;
+	struct mss_chinfo *ch = (dir == PCMDIR_PLAY)? &mss->pch : &mss->rch;
+
+	ch->parent = mss;
+	ch->channel = c;
+	ch->buffer = b;
+	ch->buffer->bufsize = MSS_BUFFSIZE;
+	ch->buffer->chan = (dir == PCMDIR_PLAY)? mss->pdma : mss->rdma;
+	ch->dir = dir;
+	if (chn_allocbuf(ch->buffer, mss->parent_dmat) == -1) return NULL;
+	return ch;
+}
+
+static int
+msschan_setformat(kobj_t obj, void *data, u_int32_t format)
+{
+	struct mss_chinfo *ch = data;
+
+	mss_format(ch, format);
+	return 0;
+}
+
+static int
+msschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+{
+	struct mss_chinfo *ch = data;
+
+	return mss_speed(ch, speed);
+}
+
+static int
+msschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+{
+	return blocksize;
+}
+
+static int
+msschan_trigger(kobj_t obj, void *data, int go)
+{
+	struct mss_chinfo *ch = data;
+
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
+	buf_isadma(ch->buffer, go);
+	mss_trigger(ch, go);
+	return 0;
+}
+
+static int
+msschan_getptr(kobj_t obj, void *data)
+{
+	struct mss_chinfo *ch = data;
+	return buf_isadmaptr(ch->buffer);
+}
+
+static pcmchan_caps *
+msschan_getcaps(kobj_t obj, void *data)
+{
+	struct mss_chinfo *ch = data;
+
+	switch(ch->parent->bd_id) {
+	case MD_OPTI931:
+		return &opti931_caps;
+		break;
+
+	case MD_GUSPNP:
+	case MD_GUSMAX:
+		return &guspnp_caps;
+		break;
+
+	default:
+		return &mss_caps;
+		break;
+	}
+}
+
+static kobj_method_t msschan_methods[] = {
+    	KOBJMETHOD(channel_init,		msschan_init),
+    	KOBJMETHOD(channel_setformat,		msschan_setformat),
+    	KOBJMETHOD(channel_setspeed,		msschan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	msschan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		msschan_trigger),
+    	KOBJMETHOD(channel_getptr,		msschan_getptr),
+    	KOBJMETHOD(channel_getcaps,		msschan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(msschan);
+
+/* -------------------------------------------------------------------- */
 
 /*
  * mss_probe() is the probe routine. Note, it is not necessary to
@@ -919,7 +1534,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
 		io_wr(mss, 0, bits);
 		printf("drq/irq conf %x\n", io_rd(mss, 0));
     	}
-    	mixer_init(dev, (mss->bd_id == MD_YM0020)? &yamaha_mixer : &mss_mixer, mss);
+    	mixer_init(dev, (mss->bd_id == MD_YM0020)? &ymmix_mixer_class : &mssmix_mixer_class, mss);
     	switch (mss->bd_id) {
     	case MD_OPTI931:
 		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &mss->ih);
@@ -945,8 +1560,8 @@ mss_doattach(device_t dev, struct mss_info *mss)
         	SND_STATUSLEN - strlen(status), ":%d", mss->rdma);
 
     	if (pcm_register(dev, mss, 1, 1)) goto no;
-    	pcm_addchan(dev, PCMDIR_REC, &mss_chantemplate, mss);
-    	pcm_addchan(dev, PCMDIR_PLAY, &mss_chantemplate, mss);
+    	pcm_addchan(dev, PCMDIR_REC, &msschan_class, mss);
+    	pcm_addchan(dev, PCMDIR_PLAY, &msschan_class, mss);
     	pcm_setstatus(dev, status);
 
     	return 0;
@@ -1084,384 +1699,6 @@ DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_mss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_mss, 1);
 
-
-/*
- * main irq handler for the CS423x. The OPTi931 code is
- * a separate one.
- * The correct way to operate for a device with multiple internal
- * interrupt sources is to loop on the status register and ack
- * interrupts until all interrupts are served and none are reported. At
- * this point the IRQ line to the ISA IRQ controller should go low
- * and be raised at the next interrupt.
- *
- * Since the ISA IRQ controller is sent EOI _before_ passing control
- * to the isr, it might happen that we serve an interrupt early, in
- * which case the status register at the next interrupt should just
- * say that there are no more interrupts...
- */
-
-static void
-mss_intr(void *arg)
-{
-    	struct mss_info *mss = arg;
-    	u_char c = 0, served = 0;
-    	int i;
-
-    	DEB(printf("mss_intr\n"));
-    	ad_read(mss, 11); /* fake read of status bits */
-
-    	/* loop until there are interrupts, but no more than 10 times. */
-    	for (i = 10; i > 0 && io_rd(mss, MSS_STATUS) & 1; i--) {
-		/* get exact reason for full-duplex boards */
-		c = FULL_DUPLEX(mss)? ad_read(mss, 24) : 0x30;
-		c &= ~served;
-		if (mss->pch.buffer->dl && (c & 0x10)) {
-	    		served |= 0x10;
-	    		chn_intr(mss->pch.channel);
-		}
-		if (mss->rch.buffer->dl && (c & 0x20)) {
-	    		served |= 0x20;
-	    		chn_intr(mss->rch.channel);
-		}
-		/* now ack the interrupt */
-		if (FULL_DUPLEX(mss)) ad_write(mss, 24, ~c); /* ack selectively */
-		else io_wr(mss, MSS_STATUS, 0);	/* Clear interrupt status */
-    	}
-    	if (i == 10) {
-		BVDDB(printf("mss_intr: irq, but not from mss\n"));
-	} else if (served == 0) {
-		BVDDB(printf("mss_intr: unexpected irq with reason %x\n", c));
-		/*
-	 	* this should not happen... I have no idea what to do now.
-	 	* maybe should do a sanity check and restart dmas ?
-	 	*/
-		io_wr(mss, MSS_STATUS, 0);	/* Clear interrupt status */
-    	}
-}
-
-/*
- * AD_WAIT_INIT waits if we are initializing the board and
- * we cannot modify its settings
- */
-static int
-ad_wait_init(struct mss_info *mss, int x)
-{
-    	int arg = x, n = 0; /* to shut up the compiler... */
-    	for (; x > 0; x--)
-		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10);
-		else return n;
-    	printf("AD_WAIT_INIT FAILED %d 0x%02x\n", arg, n);
-    	return n;
-}
-
-static int
-ad_read(struct mss_info *mss, int reg)
-{
-    	u_long   flags;
-    	int             x;
-
-    	flags = spltty();
-    	ad_wait_init(mss, 201);
-    	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
-    	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
-    	x = io_rd(mss, MSS_IDATA);
-    	splx(flags);
-	/* printf("ad_read %d, %x\n", reg, x); */
-    	return x;
-}
-
-static void
-ad_write(struct mss_info *mss, int reg, u_char data)
-{
-    	u_long   flags;
-
-    	int x;
-	/* printf("ad_write %d, %x\n", reg, data); */
-    	flags = spltty();
-    	ad_wait_init(mss, 1002);
-    	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
-    	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
-    	io_wr(mss, MSS_IDATA, data);
-    	splx(flags);
-}
-
-static void
-ad_write_cnt(struct mss_info *mss, int reg, u_short cnt)
-{
-    	ad_write(mss, reg+1, cnt & 0xff);
-    	ad_write(mss, reg, cnt >> 8); /* upper base must be last */
-}
-
-static void
-wait_for_calibration(struct mss_info *mss)
-{
-    	int t;
-
-    	/*
-     	 * Wait until the auto calibration process has finished.
-     	 *
-     	 * 1) Wait until the chip becomes ready (reads don't return 0x80).
-     	 * 2) Wait until the ACI bit of I11 gets on
-     	 * 3) Wait until the ACI bit of I11 gets off
-     	 */
-
-    	t = ad_wait_init(mss, 1000);
-    	if (t & MSS_IDXBUSY) printf("mss: Auto calibration timed out(1).\n");
-
-	/*
-	 * The calibration mode for chips that support it is set so that
-	 * we never see ACI go on.
-	 */
-	if (mss->bd_id == MD_GUSMAX || mss->bd_id == MD_GUSPNP) {
-		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--);
-	} else {
-       		/*
-		 * XXX This should only be enabled for cards that *really*
-		 * need it.  Are there any?
-		 */
-  		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--) DELAY(100);
-	}
-    	for (t = 100; t > 0 && ad_read(mss, 11) & 0x20; t--) DELAY(100);
-}
-
-static void
-ad_unmute(struct mss_info *mss)
-{
-    	ad_write(mss, 6, ad_read(mss, 6) & ~I6_MUTE);
-    	ad_write(mss, 7, ad_read(mss, 7) & ~I6_MUTE);
-}
-
-static void
-ad_enter_MCE(struct mss_info *mss)
-{
-    	int prev;
-
-    	mss->bd_flags |= BD_F_MCE_BIT;
-    	ad_wait_init(mss, 203);
-    	prev = io_rd(mss, MSS_INDEX);
-    	prev &= ~MSS_TRD;
-    	io_wr(mss, MSS_INDEX, prev | MSS_MCE);
-}
-
-static void
-ad_leave_MCE(struct mss_info *mss)
-{
-    	u_long   flags;
-    	u_char   prev;
-
-    	if ((mss->bd_flags & BD_F_MCE_BIT) == 0) {
-		DEB(printf("--- hey, leave_MCE: MCE bit was not set!\n"));
-		return;
-    	}
-
-    	ad_wait_init(mss, 1000);
-
-    	flags = spltty();
-    	mss->bd_flags &= ~BD_F_MCE_BIT;
-
-    	prev = io_rd(mss, MSS_INDEX);
-    	prev &= ~MSS_TRD;
-    	io_wr(mss, MSS_INDEX, prev & ~MSS_MCE); /* Clear the MCE bit */
-    	wait_for_calibration(mss);
-    	splx(flags);
-}
-
-/*
- * only one source can be set...
- */
-static int
-mss_set_recsrc(struct mss_info *mss, int mask)
-{
-    	u_char   recdev;
-
-    	switch (mask) {
-    	case SOUND_MASK_LINE:
-    	case SOUND_MASK_LINE3:
-		recdev = 0;
-		break;
-
-    	case SOUND_MASK_CD:
-    	case SOUND_MASK_LINE1:
-		recdev = 0x40;
-		break;
-
-    	case SOUND_MASK_IMIX:
-		recdev = 0xc0;
-		break;
-
-    	case SOUND_MASK_MIC:
-    	default:
-		mask = SOUND_MASK_MIC;
-		recdev = 0x80;
-    	}
-    	ad_write(mss, 0, (ad_read(mss, 0) & 0x3f) | recdev);
-    	ad_write(mss, 1, (ad_read(mss, 1) & 0x3f) | recdev);
-    	return mask;
-}
-
-/* there are differences in the mixer depending on the actual sound card. */
-static int
-mss_mixer_set(struct mss_info *mss, int dev, int left, int right)
-{
-    	int        regoffs;
-    	mixer_tab *mix_d = (mss->bd_id == MD_OPTI931)? &opti931_devices : &mix_devices;
-    	u_char     old, val;
-
-    	if ((*mix_d)[dev][LEFT_CHN].nbits == 0) {
-		DEB(printf("nbits = 0 for dev %d\n", dev));
-		return -1;
-    	}
-
-    	if ((*mix_d)[dev][RIGHT_CHN].nbits == 0) right = left; /* mono */
-
-    	/* Set the left channel */
-
-    	regoffs = (*mix_d)[dev][LEFT_CHN].regno;
-    	old = val = ad_read(mss, regoffs);
-    	/* if volume is 0, mute chan. Otherwise, unmute. */
-    	if (regoffs != 0) val = (left == 0)? old | 0x80 : old & 0x7f;
-    	change_bits(mix_d, &val, dev, LEFT_CHN, left);
-    	ad_write(mss, regoffs, val);
-
-    	DEB(printf("LEFT: dev %d reg %d old 0x%02x new 0x%02x\n",
-		dev, regoffs, old, val));
-
-    	if ((*mix_d)[dev][RIGHT_CHN].nbits != 0) { /* have stereo */
-		/* Set the right channel */
-		regoffs = (*mix_d)[dev][RIGHT_CHN].regno;
-		old = val = ad_read(mss, regoffs);
-		if (regoffs != 1) val = (right == 0)? old | 0x80 : old & 0x7f;
-		change_bits(mix_d, &val, dev, RIGHT_CHN, right);
-		ad_write(mss, regoffs, val);
-
-		DEB(printf("RIGHT: dev %d reg %d old 0x%02x new 0x%02x\n",
-	    	dev, regoffs, old, val));
-    	}
-    	return 0; /* success */
-}
-
-static int
-mss_speed(struct mss_chinfo *ch, int speed)
-{
-    	struct mss_info *mss = ch->parent;
-    	/*
-     	* In the CS4231, the low 4 bits of I8 are used to hold the
-     	* sample rate.  Only a fixed number of values is allowed. This
-     	* table lists them. The speed-setting routines scans the table
-     	* looking for the closest match. This is the only supported method.
-     	*
-     	* In the CS4236, there is an alternate metod (which we do not
-     	* support yet) which provides almost arbitrary frequency setting.
-     	* In the AD1845, it looks like the sample rate can be
-     	* almost arbitrary, and written directly to a register.
-     	* In the OPTi931, there is a SB command which provides for
-     	* almost arbitrary frequency setting.
-     	*
-     	*/
-    	ad_enter_MCE(mss);
-    	if (mss->bd_id == MD_AD1845) { /* Use alternate speed select regs */
-		ad_write(mss, 22, (speed >> 8) & 0xff);	/* Speed MSB */
-		ad_write(mss, 23, speed & 0xff);	/* Speed LSB */
-		/* XXX must also do something in I27 for the ad1845 */
-    	} else {
-        	int i, sel = 0; /* assume entry 0 does not contain -1 */
-        	static int speeds[] =
-      	    	{8000, 5512, 16000, 11025, 27429, 18900, 32000, 22050,
-	    	-1, 37800, -1, 44100, 48000, 33075, 9600, 6615};
-
-        	for (i = 1; i < 16; i++)
-   		    	if (speeds[i] > 0 &&
-			    abs(speed-speeds[i]) < abs(speed-speeds[sel])) sel = i;
-        	speed = speeds[sel];
-        	ad_write(mss, 8, (ad_read(mss, 8) & 0xf0) | sel);
-    	}
-    	ad_leave_MCE(mss);
-
-    	return speed;
-}
-
-/*
- * mss_format checks that the format is supported (or defaults to AFMT_U8)
- * and returns the bit setting for the 1848 register corresponding to
- * the desired format.
- *
- * fixed lr970724
- */
-
-static int
-mss_format(struct mss_chinfo *ch, u_int32_t format)
-{
-    	struct mss_info *mss = ch->parent;
-    	int i, arg = format & ~AFMT_STEREO;
-
-    	/*
-     	* The data format uses 3 bits (just 2 on the 1848). For each
-     	* bit setting, the following array returns the corresponding format.
-     	* The code scans the array looking for a suitable format. In
-     	* case it is not found, default to AFMT_U8 (not such a good
-     	* choice, but let's do it for compatibility...).
-     	*/
-
-    	static int fmts[] =
-        	{AFMT_U8, AFMT_MU_LAW, AFMT_S16_LE, AFMT_A_LAW,
-		-1, AFMT_IMA_ADPCM, AFMT_U16_BE, -1};
-
-	ch->fmt = format;
-    	for (i = 0; i < 8; i++) if (arg == fmts[i]) break;
-    	arg = i << 1;
-    	if (format & AFMT_STEREO) arg |= 1;
-    	arg <<= 4;
-    	ad_enter_MCE(mss);
-    	ad_write(mss, 8, (ad_read(mss, 8) & 0x0f) | arg);
-    	if (FULL_DUPLEX(mss)) ad_write(mss, 28, arg); /* capture mode */
-    	ad_leave_MCE(mss);
-    	return format;
-}
-
-static int
-mss_trigger(struct mss_chinfo *ch, int go)
-{
-    	struct mss_info *mss = ch->parent;
-    	u_char m;
-    	int retry, wr, cnt, ss;
-
-	ss = 1;
-	ss <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
-	ss <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
-
-	wr = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-    	m = ad_read(mss, 9);
-    	switch (go) {
-    	case PCMTRIG_START:
-		cnt = (ch->buffer->dl / ss) - 1;
-
-		DEB(if (m & 4) printf("OUCH! reg 9 0x%02x\n", m););
-		m |= wr? I9_PEN : I9_CEN; /* enable DMA */
-		ad_write_cnt(mss, (wr || !FULL_DUPLEX(mss))? 14 : 30, cnt);
-		break;
-
-    	case PCMTRIG_STOP:
-    	case PCMTRIG_ABORT: /* XXX check this... */
-		m &= ~(wr? I9_PEN : I9_CEN); /* Stop DMA */
-#if 0
-		/*
-	 	* try to disable DMA by clearing count registers. Not sure it
-	 	* is needed, and it might cause false interrupts when the
-	 	* DMA is re-enabled later.
-	 	*/
-		ad_write_cnt(mss, (wr || !FULL_DUPLEX(mss))? 14 : 30, 0);
-#endif
-    	}
-    	/* on the OPTi931 the enable bit seems hard to set... */
-    	for (retry = 10; retry > 0; retry--) {
-        	ad_write(mss, 9, m);
-        	if (ad_read(mss, 9) == m) break;
-    	}
-    	if (retry == 0) BVDDB(printf("stop dma, failed to set bit 0x%02x 0x%02x\n", \
-			       m, ad_read(mss, 9)));
-    	return 0;
-}
-
 static struct isa_pnp_id pnpmss_ids[] = {
 	{0x0000630e, "CS423x"},				/* CSC0000 */
 	{0x0001630e, "CS423x-PCI"},			/* CSC0100 */
@@ -1582,64 +1819,6 @@ DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_pnpmss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_pnpmss, 1);
 
-
-/*
- * the opti931 seems to miss interrupts when working in full
- * duplex, so we try some heuristics to catch them.
- */
-static void
-opti931_intr(void *arg)
-{
-    	struct mss_info *mss = (struct mss_info *)arg;
-    	u_char masked = 0, i11, mc11, c = 0;
-    	u_char reason; /* b0 = playback, b1 = capture, b2 = timer */
-    	int loops = 10;
-
-#if 0
-    	reason = io_rd(mss, MSS_STATUS);
-    	if (!(reason & 1)) {/* no int, maybe a shared line ? */
-		DEB(printf("intr: flag 0, mcir11 0x%02x\n", ad_read(mss, 11)));
-		return;
-    	}
-#endif
-    	i11 = ad_read(mss, 11); /* XXX what's for ? */
-	again:
-
-    	c = mc11 = FULL_DUPLEX(mss)? opti_rd(mss, 11) : 0xc;
-    	mc11 &= 0x0c;
-    	if (c & 0x10) {
-		DEB(printf("Warning: CD interrupt\n");)
-		mc11 |= 0x10;
-    	}
-    	if (c & 0x20) {
-		DEB(printf("Warning: MPU interrupt\n");)
-		mc11 |= 0x20;
-    	}
-    	if (mc11 & masked) BVDDB(printf("irq reset failed, mc11 0x%02x, 0x%02x\n",\
-                              	  mc11, masked));
-    	masked |= mc11;
-    	/*
-     	* the nice OPTi931 sets the IRQ line before setting the bits in
-     	* mc11. So, on some occasions I have to retry (max 10 times).
-     	*/
-    	if (mc11 == 0) { /* perhaps can return ... */
-		reason = io_rd(mss, MSS_STATUS);
-		if (reason & 1) {
-	    		DEB(printf("one more try...\n");)
-	    		if (--loops) goto again;
-	    		else DDB(printf("intr, but mc11 not set\n");)
-		}
-		if (loops == 0) BVDDB(printf("intr, nothing in mcir11 0x%02x\n", mc11));
-		return;
-    	}
-
-    	if (mss->rch.buffer->dl && (mc11 & 8)) chn_intr(mss->rch.channel);
-    	if (mss->pch.buffer->dl && (mc11 & 4)) chn_intr(mss->pch.channel);
-    	opti_wr(mss, 11, ~mc11); /* ack */
-    	if (--loops) goto again;
-    	DEB(printf("xxx too many loops\n");)
-}
-
 static int
 guspcm_probe(device_t dev)
 {
@@ -1726,205 +1905,3 @@ MODULE_DEPEND(snd_guspcm, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_guspcm, 1);
 
 
-static int
-mssmix_init(snd_mixer *m)
-{
-	struct mss_info *mss = mix_getdevinfo(m);
-
-	mix_setdevs(m, MODE2_MIXER_DEVICES);
-	mix_setrecdevs(m, MSS_REC_DEVICES);
-	switch(mss->bd_id) {
-	case MD_OPTI931:
-		mix_setdevs(m, OPTI931_MIXER_DEVICES);
-		ad_write(mss, 20, 0x88);
-		ad_write(mss, 21, 0x88);
-		break;
-
-	case MD_AD1848:
-		mix_setdevs(m, MODE1_MIXER_DEVICES);
-		break;
-
-	case MD_GUSPNP:
-	case MD_GUSMAX:
-		/* this is only necessary in mode 3 ... */
-		ad_write(mss, 22, 0x88);
-		ad_write(mss, 23, 0x88);
-		break;
-	}
-	return 0;
-}
-
-static int
-mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
-{
-	struct mss_info *mss = mix_getdevinfo(m);
-
-	mss_mixer_set(mss, dev, left, right);
-
-	return left | (right << 8);
-}
-
-static int
-mssmix_setrecsrc(snd_mixer *m, u_int32_t src)
-{
-	struct mss_info *mss = mix_getdevinfo(m);
-
-	src = mss_set_recsrc(mss, src);
-	return src;
-}
-
-static int
-ymmix_init(snd_mixer *m)
-{
-	struct mss_info *mss = mix_getdevinfo(m);
-
-	mssmix_init(m);
-	mix_setdevs(m, mix_getdevs(m) | SOUND_MASK_VOLUME | SOUND_MASK_MIC
-				      | SOUND_MASK_BASS | SOUND_MASK_TREBLE);
-	/* Set master volume */
-	conf_wr(mss, OPL3SAx_VOLUMEL, 7);
-	conf_wr(mss, OPL3SAx_VOLUMER, 7);
-
-	return 0;
-}
-
-static int
-ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
-{
-	struct mss_info *mss = mix_getdevinfo(m);
-	int t, l, r;
-
-	switch (dev) {
-	case SOUND_MIXER_VOLUME:
-		if (left) t = 15 - (left * 15) / 100;
-		else t = 0x80; /* mute */
-		conf_wr(mss, OPL3SAx_VOLUMEL, t);
-		if (right) t = 15 - (right * 15) / 100;
-		else t = 0x80; /* mute */
-		conf_wr(mss, OPL3SAx_VOLUMER, t);
-		break;
-
-	case SOUND_MIXER_MIC:
-		t = left;
-		if (left) t = 31 - (left * 31) / 100;
-		else t = 0x80; /* mute */
-		conf_wr(mss, OPL3SAx_MIC, t);
-		break;
-
-	case SOUND_MIXER_BASS:
-		l = (left * 7) / 100;
-		r = (right * 7) / 100;
-		t = (r << 4) | l;
-		conf_wr(mss, OPL3SAx_BASS, t);
-		break;
-
-	case SOUND_MIXER_TREBLE:
-		l = (left * 7) / 100;
-		r = (right * 7) / 100;
-		t = (r << 4) | l;
-		conf_wr(mss, OPL3SAx_TREBLE, t);
-		break;
-
-	default:
-		mss_mixer_set(mss, dev, left, right);
-	}
-
-	return left | (right << 8);
-}
-
-static int
-ymmix_setrecsrc(snd_mixer *m, u_int32_t src)
-{
-	struct mss_info *mss = mix_getdevinfo(m);
-	src = mss_set_recsrc(mss, src);
-	return src;
-}
-
-/* channel interface */
-static void *
-msschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
-{
-	struct mss_info *mss = devinfo;
-	struct mss_chinfo *ch = (dir == PCMDIR_PLAY)? &mss->pch : &mss->rch;
-
-	ch->parent = mss;
-	ch->channel = c;
-	ch->buffer = b;
-	ch->buffer->bufsize = MSS_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, mss->parent_dmat) == -1) return NULL;
-	return ch;
-}
-
-static int
-msschan_setdir(void *data, int dir)
-{
-	struct mss_chinfo *ch = data;
-
-	ch->buffer->chan = (dir == PCMDIR_PLAY)? ch->parent->pdma : ch->parent->rdma;
-	ch->dir = dir;
-	return 0;
-}
-
-static int
-msschan_setformat(void *data, u_int32_t format)
-{
-	struct mss_chinfo *ch = data;
-
-	mss_format(ch, format);
-	return 0;
-}
-
-static int
-msschan_setspeed(void *data, u_int32_t speed)
-{
-	struct mss_chinfo *ch = data;
-
-	return mss_speed(ch, speed);
-}
-
-static int
-msschan_setblocksize(void *data, u_int32_t blocksize)
-{
-	return blocksize;
-}
-
-static int
-msschan_trigger(void *data, int go)
-{
-	struct mss_chinfo *ch = data;
-
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
-		return 0;
-
-	buf_isadma(ch->buffer, go);
-	mss_trigger(ch, go);
-	return 0;
-}
-
-static int
-msschan_getptr(void *data)
-{
-	struct mss_chinfo *ch = data;
-	return buf_isadmaptr(ch->buffer);
-}
-
-static pcmchan_caps *
-msschan_getcaps(void *data)
-{
-	struct mss_chinfo *ch = data;
-
-	switch(ch->parent->bd_id) {
-	case MD_OPTI931:
-		return &opti931_caps;
-		break;
-
-	case MD_GUSPNP:
-	case MD_GUSMAX:
-		return &guspnp_caps;
-		break;
-
-	default:
-		return &mss_caps;
-		break;
-	}
-}

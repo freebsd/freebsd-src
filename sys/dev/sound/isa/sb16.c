@@ -36,19 +36,10 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
+#include "mixer_if.h"
+
 #define SB16_BUFFSIZE	4096
 #define PLAIN_SB16(x) ((((x)->bd_flags) & (BD_F_SB16|BD_F_SB16X)) == BD_F_SB16)
-
-/* channel interface */
-static void *sb16chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int sb16chan_setformat(void *data, u_int32_t format);
-static int sb16chan_setspeed(void *data, u_int32_t speed);
-static int sb16chan_setblocksize(void *data, u_int32_t blocksize);
-static int sb16chan_trigger(void *data, int go);
-static int sb16chan_getptr(void *data);
-static pcmchan_caps *sb16chan_getcaps(void *data);
-static int sb16chan_reset(void *data);
-static int sb16chan_resetdone(void *data);
 
 static u_int32_t sb16_fmt8[] = {
 	AFMT_U8,
@@ -72,25 +63,6 @@ static u_int32_t sb16x_fmt[] = {
 	0
 };
 static pcmchan_caps sb16x_caps = {5000, 49000, sb16x_fmt, 0};
-
-static pcm_channel sb_chantemplate = {
-	sb16chan_init,
-	NULL,
-	sb16chan_setformat,
-	sb16chan_setspeed,
-	sb16chan_setblocksize,
-	sb16chan_trigger,
-	sb16chan_getptr,
-	sb16chan_getcaps,
-	NULL, 			/* free */
-	sb16chan_reset,		/* reset */
-	sb16chan_resetdone,	/* resetdone */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
 
 struct sb_info;
 
@@ -118,7 +90,6 @@ struct sb_info {
 
 static int sb_rd(struct sb_info *sb, int reg);
 static void sb_wr(struct sb_info *sb, int reg, u_int8_t val);
-static int sb_dspready(struct sb_info *sb);
 static int sb_cmd(struct sb_info *sb, u_char val);
 /* static int sb_cmd1(struct sb_info *sb, u_char cmd, int val); */
 static int sb_cmd2(struct sb_info *sb, u_char cmd, int val);
@@ -128,19 +99,6 @@ static int sb_getmixer(struct sb_info *sb, u_int port);
 static int sb_reset_dsp(struct sb_info *sb);
 
 static void sb_intr(void *arg);
-
-static int sb16mix_init(snd_mixer *m);
-static int sb16mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int sb16mix_setrecsrc(snd_mixer *m, u_int32_t src);
-
-static snd_mixer sb16_mixer = {
-    	"SoundBlaster 16 mixer",
-    	sb16mix_init,
-	NULL,
-	NULL,
-    	sb16mix_set,
-    	sb16mix_setrecsrc,
-};
 
 static devclass_t pcm_devclass;
 
@@ -178,22 +136,17 @@ sb_wr(struct sb_info *sb, int reg, u_int8_t val)
 }
 
 static int
-sb_dspready(struct sb_info *sb)
-{
-	return ((sb_rd(sb, SBDSP_STATUS) & 0x80) == 0);
-}
-
-static int
 sb_dspwr(struct sb_info *sb, u_char val)
 {
     	int  i;
 
     	for (i = 0; i < 1000; i++) {
-		if (sb_dspready(sb)) {
-	    		sb_wr(sb, SBDSP_CMD, val);
-	    		return 1;
+		if ((sb_rd(sb, SBDSP_STATUS) & 0x80))
+	    		DELAY((i > 100)? 1000 : 10);
+	    	else {
+			sb_wr(sb, SBDSP_CMD, val);
+			return 1;
 		}
-		if (i > 10) DELAY((i > 100)? 1000 : 10);
     	}
     	printf("sb_dspwr(0x%02x) timed out.\n", val);
     	return 0;
@@ -397,6 +350,14 @@ sb16mix_setrecsrc(snd_mixer *m, u_int32_t src)
 
 	return src;
 }
+
+static kobj_method_t sb16mix_mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		sb16mix_init),
+    	KOBJMETHOD(mixer_set,		sb16mix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	sb16mix_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(sb16mix_mixer);
 
 /************************************************************/
 
@@ -626,7 +587,7 @@ sb_setup(struct sb_info *sb)
 
 /* channel interface */
 static void *
-sb16chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+sb16chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sb_info *sb = devinfo;
 	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
@@ -644,7 +605,7 @@ sb16chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-sb16chan_setformat(void *data, u_int32_t format)
+sb16chan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sb_chinfo *ch = data;
 	struct sb_info *sb = ch->parent;
@@ -657,7 +618,7 @@ sb16chan_setformat(void *data, u_int32_t format)
 }
 
 static int
-sb16chan_setspeed(void *data, u_int32_t speed)
+sb16chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sb_chinfo *ch = data;
 
@@ -666,7 +627,7 @@ sb16chan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-sb16chan_setblocksize(void *data, u_int32_t blocksize)
+sb16chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sb_chinfo *ch = data;
 
@@ -675,7 +636,7 @@ sb16chan_setblocksize(void *data, u_int32_t blocksize)
 }
 
 static int
-sb16chan_trigger(void *data, int go)
+sb16chan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sb_chinfo *ch = data;
 	struct sb_info *sb = ch->parent;
@@ -694,7 +655,7 @@ sb16chan_trigger(void *data, int go)
 }
 
 static int
-sb16chan_getptr(void *data)
+sb16chan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 
@@ -702,7 +663,7 @@ sb16chan_getptr(void *data)
 }
 
 static pcmchan_caps *
-sb16chan_getcaps(void *data)
+sb16chan_getcaps(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 	struct sb_info *sb = ch->parent;
@@ -714,17 +675,7 @@ sb16chan_getcaps(void *data)
 }
 
 static int
-sb16chan_reset(void *data)
-{
-/*
-	struct sb_chinfo *ch = data;
-	struct sb_info *sb = ch->parent;
-*/
-	return 0;
-}
-
-static int
-sb16chan_resetdone(void *data)
+sb16chan_resetdone(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 	struct sb_info *sb = ch->parent;
@@ -733,6 +684,19 @@ sb16chan_resetdone(void *data)
 
 	return 0;
 }
+
+static kobj_method_t sb16chan_methods[] = {
+    	KOBJMETHOD(channel_init,		sb16chan_init),
+    	KOBJMETHOD(channel_resetdone,		sb16chan_resetdone),
+    	KOBJMETHOD(channel_setformat,		sb16chan_setformat),
+    	KOBJMETHOD(channel_setspeed,		sb16chan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	sb16chan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		sb16chan_trigger),
+    	KOBJMETHOD(channel_getptr,		sb16chan_getptr),
+    	KOBJMETHOD(channel_getcaps,		sb16chan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(sb16chan);
 
 /************************************************************/
 
@@ -780,7 +744,7 @@ sb16_attach(device_t dev)
 		goto no;
     	if (sb_reset_dsp(sb))
 		goto no;
-	if (mixer_init(dev, &sb16_mixer, sb))
+	if (mixer_init(dev, &sb16mix_mixer_class, sb))
 		goto no;
 	if (bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih))
 		goto no;
@@ -812,8 +776,8 @@ sb16_attach(device_t dev)
 
     	if (pcm_register(dev, sb, 1, 1))
 		goto no;
-	pcm_addchan(dev, PCMDIR_REC, &sb_chantemplate, sb);
-	pcm_addchan(dev, PCMDIR_PLAY, &sb_chantemplate, sb);
+	pcm_addchan(dev, PCMDIR_REC, &sb16chan_class, sb);
+	pcm_addchan(dev, PCMDIR_PLAY, &sb16chan_class, sb);
 
     	pcm_setstatus(dev, status);
 

@@ -119,6 +119,7 @@ struct isa_device { int dummy; };
 #define AFMT_BIGENDIAN (AFMT_S16_BE | AFMT_U16_BE)
 
 int fkchan_setup(pcm_channel *c);
+int fkchan_kill(pcm_channel *c);
 
 /*
  * Minor numbers for the sound driver.
@@ -161,14 +162,13 @@ int fkchan_setup(pcm_channel *c);
 #define DEB(x)
 #endif
 
-int pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo);
+int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
 int pcm_unregister(device_t dev);
 int pcm_setstatus(device_t dev, char *str);
 u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
 void *pcm_getdevinfo(device_t dev);
-void pcm_setswap(device_t dev, pcm_swap_t *swap);
 
 #endif /* _KERNEL */
 

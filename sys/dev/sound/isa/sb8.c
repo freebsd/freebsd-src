@@ -36,16 +36,9 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
-#define SB_BUFFSIZE	4096
+#include "mixer_if.h"
 
-/* channel interface */
-static void *sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int sbchan_setformat(void *data, u_int32_t format);
-static int sbchan_setspeed(void *data, u_int32_t speed);
-static int sbchan_setblocksize(void *data, u_int32_t blocksize);
-static int sbchan_trigger(void *data, int go);
-static int sbchan_getptr(void *data);
-static pcmchan_caps *sbchan_getcaps(void *data);
+#define SB_BUFFSIZE	4096
 
 static u_int32_t sb_fmt[] = {
 	AFMT_U8,
@@ -63,25 +56,6 @@ static u_int32_t sbpro_fmt[] = {
 };
 static pcmchan_caps sbpro_playcaps = {4000, 44100, sbpro_fmt, 0};
 static pcmchan_caps sbpro_reccaps = {4000, 44100, sbpro_fmt, 0};
-
-static pcm_channel sb_chantemplate = {
-	sbchan_init,
-	NULL,
-	sbchan_setformat,
-	sbchan_setspeed,
-	sbchan_setblocksize,
-	sbchan_trigger,
-	sbchan_getptr,
-	sbchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
 
 struct sb_info;
 
@@ -120,32 +94,6 @@ static void sb_intr(void *arg);
 static int sb_speed(struct sb_chinfo *ch);
 static int sb_start(struct sb_chinfo *ch);
 static int sb_stop(struct sb_chinfo *ch);
-
-static int sbmix_init(snd_mixer *m);
-static int sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int sbmix_setrecsrc(snd_mixer *m, u_int32_t src);
-
-static int sbpromix_init(snd_mixer *m);
-static int sbpromix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int sbpromix_setrecsrc(snd_mixer *m, u_int32_t src);
-
-static snd_mixer sb_mixer = {
-    	"SoundBlaster 2.0 mixer",
-    	sbmix_init,
-	NULL,
-	NULL,
-    	sbmix_set,
-    	sbmix_setrecsrc,
-};
-
-static snd_mixer sbpro_mixer = {
-    	"SoundBlaster Pro mixer",
-    	sbpromix_init,
-	NULL,
-	NULL,
-    	sbpromix_set,
-    	sbpromix_setrecsrc,
-};
 
 static devclass_t pcm_devclass;
 
@@ -432,6 +380,14 @@ sbpromix_setrecsrc(snd_mixer *m, u_int32_t src)
 	return src;
 }
 
+static kobj_method_t sbpromix_mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		sbpromix_init),
+    	KOBJMETHOD(mixer_set,		sbpromix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	sbpromix_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(sbpromix_mixer);
+
 /************************************************************/
 
 static int
@@ -491,6 +447,14 @@ sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
 {
 	return 0;
 }
+
+static kobj_method_t sbmix_mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		sbmix_init),
+    	KOBJMETHOD(mixer_set,		sbmix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	sbmix_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(sbmix_mixer);
 
 /************************************************************/
 
@@ -593,7 +557,7 @@ sb_stop(struct sb_chinfo *ch)
 
 /* channel interface */
 static void *
-sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+sbchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sb_info *sb = devinfo;
 	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
@@ -610,7 +574,7 @@ sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-sbchan_setformat(void *data, u_int32_t format)
+sbchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sb_chinfo *ch = data;
 
@@ -619,7 +583,7 @@ sbchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-sbchan_setspeed(void *data, u_int32_t speed)
+sbchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sb_chinfo *ch = data;
 
@@ -628,13 +592,13 @@ sbchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-sbchan_setblocksize(void *data, u_int32_t blocksize)
+sbchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 static int
-sbchan_trigger(void *data, int go)
+sbchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sb_chinfo *ch = data;
 
@@ -650,7 +614,7 @@ sbchan_trigger(void *data, int go)
 }
 
 static int
-sbchan_getptr(void *data)
+sbchan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 
@@ -658,7 +622,7 @@ sbchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-sbchan_getcaps(void *data)
+sbchan_getcaps(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 	int p = (ch->dir == PCMDIR_PLAY)? 1 : 0;
@@ -669,6 +633,18 @@ sbchan_getcaps(void *data)
 		return p? &sb201_playcaps : &sb201_reccaps;
 	return p? &sbpro_playcaps : &sbpro_reccaps;
 }
+
+static kobj_method_t sbchan_methods[] = {
+    	KOBJMETHOD(channel_init,		sbchan_init),
+    	KOBJMETHOD(channel_setformat,		sbchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		sbchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	sbchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		sbchan_trigger),
+    	KOBJMETHOD(channel_getptr,		sbchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		sbchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(sbchan);
 
 /************************************************************/
 
@@ -717,7 +693,7 @@ sb_attach(device_t dev)
 		goto no;
     	if (sb_reset_dsp(sb))
 		goto no;
-    	if (mixer_init(dev, (sb->bd_id < 0x300)? &sb_mixer : &sbpro_mixer, sb))
+    	if (mixer_init(dev, (sb->bd_id < 0x300)? &sbmix_mixer_class : &sbpromix_mixer_class, sb))
 		goto no;
 	if (bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih))
 		goto no;
@@ -740,8 +716,8 @@ sb_attach(device_t dev)
 
     	if (pcm_register(dev, sb, 1, 1))
 		goto no;
-	pcm_addchan(dev, PCMDIR_REC, &sb_chantemplate, sb);
-	pcm_addchan(dev, PCMDIR_PLAY, &sb_chantemplate, sb);
+	pcm_addchan(dev, PCMDIR_REC, &sbchan_class, sb);
+	pcm_addchan(dev, PCMDIR_PLAY, &sbchan_class, sb);
 
     	pcm_setstatus(dev, status);
 

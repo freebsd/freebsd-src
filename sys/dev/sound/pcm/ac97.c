@@ -29,28 +29,9 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
-struct ac97mixtable_entry {
-	int		reg:8;
-	unsigned	bits:4;
-	unsigned	ofs:4;
-	unsigned	stereo:1;
-	unsigned	mute:1;
-	unsigned	recidx:4;
-	unsigned        mask:1;
-	unsigned	enable:1;
-};
+#include "mixer_if.h"
 
-struct ac97_info {
-	device_t dev;
-	ac97_init *init;
-	ac97_read *read;
-	ac97_write *write;
-	void *devinfo;
-	char *name;
-	char rev;
-	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
-	struct ac97mixtable_entry mix[32];
-};
+MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
 struct ac97_codecid {
 	u_int32_t id, noext:1;
@@ -154,13 +135,13 @@ static char *ac97extfeature[] = {
 static u_int16_t
 rdcd(struct ac97_info *codec, int reg)
 {
-	return codec->read(codec->devinfo, reg);
+	return AC97_READ(codec->methods, codec->devinfo, reg);
 }
 
 static void
 wrcd(struct ac97_info *codec, int reg, u_int16_t val)
 {
-	codec->write(codec->devinfo, reg, val);
+	AC97_WRITE(codec->methods, codec->devinfo, reg, val);
 }
 
 int
@@ -309,14 +290,11 @@ ac97_initmixer(struct ac97_info *codec)
 	for (i = 0; i < 32; i++)
 		codec->mix[i] = ac97mixtable_default[i];
 
-	if (codec->init) {
-		codec->count = codec->init(codec->devinfo);
-		if (codec->count == 0) {
-			device_printf(codec->dev, "ac97 codec init failed\n");
-			return ENODEV;
-		}
-	} else
-		codec->count = 1;
+	codec->count = AC97_INIT(codec->methods, codec->devinfo);
+	if (codec->count == 0) {
+		device_printf(codec->dev, "ac97 codec init failed\n");
+		return ENODEV;
+	}
 
 	wrcd(codec, AC97_REG_POWER, 0);
 	wrcd(codec, AC97_REG_RESET, 0);
@@ -401,14 +379,11 @@ ac97_reinitmixer(struct ac97_info *codec)
 {
 	unsigned i;
 
-	if (codec->init) {
-		codec->count = codec->init(codec->devinfo);
-		if (codec->count == 0) {
-			device_printf(codec->dev, "ac97 codec init failed\n");
-			return ENODEV;
-		}
-	} else
-		codec->count = 1;
+	codec->count = AC97_INIT(codec->methods, codec->devinfo);
+	if (codec->count == 0) {
+		device_printf(codec->dev, "ac97 codec init failed\n");
+		return ENODEV;
+	}
 
 	wrcd(codec, AC97_REG_POWER, 0);
 	wrcd(codec, AC97_REG_RESET, 0);
@@ -428,26 +403,34 @@ ac97_reinitmixer(struct ac97_info *codec)
 }
 
 struct ac97_info *
-ac97_create(device_t dev, void *devinfo, ac97_init *init, ac97_read *rd, ac97_write *wr)
+ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 {
 	struct ac97_info *codec;
 
-	codec = (struct ac97_info *)malloc(sizeof *codec, M_DEVBUF, M_NOWAIT);
-	if (codec != NULL) {
-		codec->dev = dev;
-		codec->init = init;
-		codec->read = rd;
-		codec->write = wr;
-		codec->devinfo = devinfo;
+	codec = (struct ac97_info *)malloc(sizeof *codec, M_AC97, M_NOWAIT);
+	if (codec == NULL)
+		return NULL;
+
+	codec->methods = kobj_create(cls, M_AC97, M_WAITOK);
+	if (codec->methods == NULL) {
+		free(codec, M_AC97);
+		return NULL;
 	}
+
+	codec->dev = dev;
+	codec->devinfo = devinfo;
 	return codec;
 }
 
 void
 ac97_destroy(struct ac97_info *codec)
 {
-	free(codec, M_DEVBUF);
+	if (codec->methods != NULL)
+		kobj_delete(codec->methods, M_AC97);
+	free(codec, M_AC97);
 }
+
+/* -------------------------------------------------------------------- */
 
 static int
 ac97mix_init(snd_mixer *m)
@@ -522,12 +505,22 @@ ac97mix_setrecsrc(snd_mixer *m, u_int32_t src)
 	return (ac97_setrecsrc(codec, i) == 0)? 1 << i : -1;
 }
 
-snd_mixer ac97_mixer = {
-	"AC97 mixer",
-	ac97mix_init,
-	ac97mix_uninit,
-	ac97mix_reinit,
-	ac97mix_set,
-	ac97mix_setrecsrc,
+static kobj_method_t ac97mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		ac97mix_init),
+    	KOBJMETHOD(mixer_uninit,	ac97mix_uninit),
+    	KOBJMETHOD(mixer_reinit,	ac97mix_reinit),
+    	KOBJMETHOD(mixer_set,		ac97mix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	ac97mix_setrecsrc),
+	{ 0, 0 }
 };
+MIXER_DECLARE(ac97mixer);
+
+/* -------------------------------------------------------------------- */
+
+kobj_class_t
+ac97_getmixerclass(void)
+{
+	return &ac97mixer_class;
+}
+
 

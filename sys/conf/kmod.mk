@@ -34,10 +34,10 @@
 #
 # NOMAN		KLD does not have a manual page if set.
 #
-# PROG          The name of the kernel module to build. 
+# PROG          The name of the kernel module to build.
 #		If not supplied, ${KMOD}.o is used.
 #
-# SRCS          List of source files 
+# SRCS          List of source files
 #
 # SUBDIR        A list of subdirectories that should be built as well.
 #               Each of the targets will execute the same target in the
@@ -64,7 +64,7 @@
 #               actions immediately before and after the install target
 #		is executed.
 #
-# 	load:	
+# 	load:
 #		Load KLD.
 #
 # 	unload:
@@ -261,7 +261,8 @@ MFILES?= kern/bus_if.m kern/device_if.m dev/iicbus/iicbb_if.m \
     dev/iicbus/iicbus_if.m isa/isa_if.m dev/mii/miibus_if.m \
     dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
     dev/pci/pcib_if.m dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m \
-    dev/usb/usb_if.m
+    dev/usb/usb_if.m dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \
+    dev/sound/pcm/feeder_if.m dev/sound/pcm/mixer_if.m
 
 .for _srcsrc in ${MFILES}
 .for _ext in c h

@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include "channel_if.h"
+
 int chn_reinit(pcm_channel *c);
 int chn_write(pcm_channel *c, struct uio *buf);
 int chn_read(pcm_channel *c, struct uio *buf);
@@ -85,7 +87,7 @@ int buf_isadmaptr(snd_dbuf *b);
 #define CHN_F_INIT              0x00008000  /* changed parameters. need init */
 #define CHN_F_MAPPED		0x00010000  /* has been mmap()ed */
 #define CHN_F_DEAD		0x00020000
-
+#define CHN_F_BADSETTING	0x00040000
 
 #define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD)
 
@@ -99,3 +101,5 @@ int buf_isadmaptr(snd_dbuf *b);
 #define CHN_2NDBUFBLKNUM	(32)
 /* The size of a whole secondary buffer. */
 #define CHN_2NDBUFMAXSIZE	(131072)
+
+#define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
