@@ -44,17 +44,20 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
-#include <signal.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "pax.h"
+#include "options.h"
 #include "extern.h"
 
 /*
@@ -78,10 +81,13 @@ static struct stat arsb;		/* stat of archive device at open */
 static int invld_rec;			/* tape has out of spec record size */
 static int wr_trail = 1;		/* trailer was rewritten in append */
 static int can_unlnk = 0;		/* do we unlink null archives?  */
-char *arcname;                  	/* printable name of archive */
+char *arcname;		  	/* printable name of archive */
+const char *gzip_program;		/* name of gzip program */
+static pid_t zpid = -1;			/* pid of child process */
 
 static int get_phys __P((void));
 extern sigset_t s_mask;
+static void ar_start_gzip __P((int, const char *, int));
 
 /*
  * ar_open()
@@ -92,7 +98,7 @@ extern sigset_t s_mask;
  *	-1 on failure, 0 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_open(char *name)
 #else
@@ -101,7 +107,7 @@ ar_open(name)
 	char *name;
 #endif
 {
-        struct mtget mb;
+	struct mtget mb;
 
 	if (arfd != -1)
 		(void)close(arfd);
@@ -120,23 +126,27 @@ ar_open(name)
 			arfd = STDIN_FILENO;
 			arcname = STDN;
 		} else if ((arfd = open(name, EXT_MODE, DMOD)) < 0)
-			sys_warn(0, errno, "Failed open to read on %s", name);
+			syswarn(0, errno, "Failed open to read on %s", name);
+		if (arfd != -1 && gzip_program != NULL)
+			ar_start_gzip(arfd, gzip_program, 0);
 		break;
 	case ARCHIVE:
 		if (name == NULL) {
 			arfd = STDOUT_FILENO;
 			arcname = STDO;
 		} else if ((arfd = open(name, AR_MODE, DMOD)) < 0)
-			sys_warn(0, errno, "Failed open to write on %s", name);
+			syswarn(0, errno, "Failed open to write on %s", name);
 		else
 			can_unlnk = 1;
+		if (arfd != -1 && gzip_program != NULL)
+			ar_start_gzip(arfd, gzip_program, 1);
 		break;
 	case APPND:
 		if (name == NULL) {
 			arfd = STDOUT_FILENO;
 			arcname = STDO;
 		} else if ((arfd = open(name, APP_MODE, DMOD)) < 0)
-			sys_warn(0, errno, "Failed open to read/write on %s",
+			syswarn(0, errno, "Failed open to read/write on %s",
 				name);
 		break;
 	case COPY:
@@ -150,18 +160,21 @@ ar_open(name)
 	if (arfd < 0)
 		return(-1);
 
+	if (chdname != NULL)
+		if (chdir(chdname) != 0)
+			syswarn(1, errno, "Failed chdir to %s", chdname);
 	/*
 	 * set up is based on device type
 	 */
 	if (fstat(arfd, &arsb) < 0) {
-		sys_warn(0, errno, "Failed stat on %s", arcname);
+		syswarn(0, errno, "Failed stat on %s", arcname);
 		(void)close(arfd);
 		arfd = -1;
 		can_unlnk = 0;
 		return(-1);
 	}
 	if (S_ISDIR(arsb.st_mode)) {
-		pax_warn(0, "Cannot write an archive on top of a directory %s",
+		paxwarn(0, "Cannot write an archive on top of a directory %s",
 		    arcname);
 		(void)close(arfd);
 		arfd = -1;
@@ -290,7 +303,7 @@ ar_open(name)
  * ar_close()
  *	closes archive device, increments volume number, and prints i/o summary
  */
-#if __STDC__
+#ifdef __STDC__
 void
 ar_close(void)
 #else
@@ -298,17 +311,11 @@ void
 ar_close()
 #endif
 {
-	FILE *outf;
 
 	if (arfd < 0) {
 		did_io = io_ok = flcnt = 0;
 		return;
 	}
-
-	if (act == LIST)
-		outf = stdout;
-	else
-		outf = stderr;
 
 	/*
 	 * Close archive file. This may take a LONG while on tapes (we may be
@@ -318,11 +325,11 @@ ar_close()
 	 */
 	if (vflag && (artyp == ISTAPE)) {
 		if (vfpart)
-			(void)putc('\n', outf);
-		(void)fprintf(outf,
+			(void)putc('\n', listf);
+		(void)fprintf(listf,
 			"%s: Waiting for tape drive close to complete...",
 			argv0);
-		(void)fflush(outf);
+		(void)fflush(listf);
 	}
 
 	/*
@@ -335,12 +342,22 @@ ar_close()
 		can_unlnk = 0;
 	}
 
+	/*
+	 * for a quick extract/list, pax frequently exits before the child
+	 * process is done
+	 */
+	if ((act == LIST || act == EXTRACT) && nflag && zpid > 0) {
+		int status;
+		kill(zpid, SIGINT);
+		waitpid(zpid, &status, 0);
+	}
+
 	(void)close(arfd);
 
 	if (vflag && (artyp == ISTAPE)) {
-		(void)fputs("done.\n", outf);
+		(void)fputs("done.\n", listf);
 		vfpart = 0;
-		(void)fflush(outf);
+		(void)fflush(listf);
 	}
 	arfd = -1;
 
@@ -366,7 +383,7 @@ ar_close()
 	 * Print out a summary of I/O for this archive volume.
 	 */
 	if (vfpart) {
-		(void)putc('\n', outf);
+		(void)putc('\n', listf);
 		vfpart = 0;
 	}
 
@@ -377,24 +394,27 @@ ar_close()
 	 */
 	if (frmt == NULL) {
 #	ifdef NET2_STAT
-		(void)fprintf(outf, "%s: unknown format, %lu bytes skipped.\n",
+		(void)fprintf(listf, "%s: unknown format, %lu bytes skipped.\n",
 #	else
-		(void)fprintf(outf, "%s: unknown format, %qu bytes skipped.\n",
+		(void)fprintf(listf, "%s: unknown format, %qu bytes skipped.\n",
 #	endif
 		    argv0, rdcnt);
-		(void)fflush(outf);
+		(void)fflush(listf);
 		flcnt = 0;
 		return;
 	}
 
-	(void)fprintf(outf,
+	if (strcmp(NM_CPIO, argv0) == 0)
+		(void)fprintf(listf, "%qu blocks\n", (rdcnt ? rdcnt : wrcnt) / 5120);
+	else if (strcmp(NM_TAR, argv0) != 0)
+		(void)fprintf(listf,
 #	ifdef NET2_STAT
-	    "%s: %s vol %d, %lu files, %lu bytes read, %lu bytes written.\n",
+		    "%s: %s vol %d, %lu files, %lu bytes read, %lu bytes written.\n",
 #	else
-	    "%s: %s vol %d, %lu files, %qu bytes read, %qu bytes written.\n",
+		    "%s: %s vol %d, %lu files, %qu bytes read, %qu bytes written.\n",
 #	endif
-	    argv0, frmt->name, arvol-1, flcnt, rdcnt, wrcnt);
-	(void)fflush(outf);
+		    argv0, frmt->name, arvol-1, flcnt, rdcnt, wrcnt);
+	(void)fflush(listf);
 	flcnt = 0;
 }
 
@@ -405,7 +425,7 @@ ar_close()
  *	other side of the pipe from getting a SIGPIPE (pax will stop
  *	reading an archive once a format dependent trailer is detected).
  */
-#if __STDC__
+#ifdef __STDC__
 void
 ar_drain(void)
 #else
@@ -442,7 +462,7 @@ ar_drain()
  *	0 if all ready to write, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_set_wr(void)
 #else
@@ -470,7 +490,7 @@ ar_set_wr()
 	 */
 	if (((cpos = lseek(arfd, (off_t)0L, SEEK_CUR)) < 0) ||
 	    (ftruncate(arfd, cpos) < 0)) {
-		sys_warn(1, errno, "Unable to truncate archive file");
+		syswarn(1, errno, "Unable to truncate archive file");
 		return(-1);
 	}
 	return(0);
@@ -485,7 +505,7 @@ ar_set_wr()
  *	0 if we can append, -1 otherwise.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_app_ok(void)
 #else
@@ -494,13 +514,13 @@ ar_app_ok()
 #endif
 {
 	if (artyp == ISPIPE) {
-		pax_warn(1, "Cannot append to an archive obtained from a pipe.");
+		paxwarn(1, "Cannot append to an archive obtained from a pipe.");
 		return(-1);
 	}
 
 	if (!invld_rec)
 		return(0);
-	pax_warn(1,"Cannot append, device record size %d does not support %s spec",
+	paxwarn(1,"Cannot append, device record size %d does not support %s spec",
 		rdblksz, argv0);
 	return(-1);
 }
@@ -514,7 +534,7 @@ ar_app_ok()
  *	Number of bytes in buffer. 0 for end of file, -1 for a read error.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_read(register char *buf, register int cnt)
 #else
@@ -587,9 +607,9 @@ ar_read(buf, cnt)
 	 */
 	lstrval = res;
 	if (res < 0)
-		sys_warn(1, errno, "Failed read on archive volume %d", arvol);
+		syswarn(1, errno, "Failed read on archive volume %d", arvol);
 	else
-		pax_warn(0, "End of archive volume %d reached", arvol);
+		paxwarn(0, "End of archive volume %d reached", arvol);
 	return(res);
 }
 
@@ -604,7 +624,7 @@ ar_read(buf, cnt)
  *	error in the archive occured.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_write(register char *buf, register int bsz)
 #else
@@ -668,7 +688,7 @@ ar_write(buf, bsz)
 		if (res >= 0)
 			break;
 		if (errno == EACCES) {
-			pax_warn(0, "Write failed, archive is write protected.");
+			paxwarn(0, "Write failed, archive is write protected.");
 			res = lstrval = 0;
 			return(0);
 		}
@@ -706,18 +726,18 @@ ar_write(buf, bsz)
 	 * must quit right away.
 	 */
 	if (!wr_trail && (res <= 0)) {
-		pax_warn(1,"Unable to append, trailer re-write failed. Quitting.");
+		paxwarn(1,"Unable to append, trailer re-write failed. Quitting.");
 		return(res);
 	}
 
 	if (res == 0)
-		pax_warn(0, "End of archive volume %d reached", arvol);
+		paxwarn(0, "End of archive volume %d reached", arvol);
 	else if (res < 0)
-		sys_warn(1, errno, "Failed write to archive volume: %d", arvol);
+		syswarn(1, errno, "Failed write to archive volume: %d", arvol);
 	else if (!frmt->blkalgn || ((res % frmt->blkalgn) == 0))
-		pax_warn(0,"WARNING: partial archive write. Archive MAY BE FLAWED");
+		paxwarn(0,"WARNING: partial archive write. Archive MAY BE FLAWED");
 	else
-		pax_warn(1,"WARNING: partial archive write. Archive IS FLAWED");
+		paxwarn(1,"WARNING: partial archive write. Archive IS FLAWED");
 	return(res);
 }
 
@@ -729,7 +749,7 @@ ar_write(buf, bsz)
  *	0 when ok to try i/o again, -1 otherwise.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_rdsync(void)
 #else
@@ -740,7 +760,7 @@ ar_rdsync()
 	long fsbz;
 	off_t cpos;
 	off_t mpos;
-        struct mtop mb;
+	struct mtop mb;
 
 	/*
 	 * Fail resync attempts at user request (done) or this is going to be
@@ -751,7 +771,7 @@ ar_rdsync()
 		return(-1);
 
 	if ((act == APPND) || (act == ARCHIVE)) {
-		pax_warn(1, "Cannot allow updates to an archive with flaws.");
+		paxwarn(1, "Cannot allow updates to an archive with flaws.");
 		return(-1);
 	}
 	if (io_ok)
@@ -803,10 +823,10 @@ ar_rdsync()
 		break;
 	}
 	if (lstrval <= 0) {
-		pax_warn(1, "Unable to recover from an archive read failure.");
+		paxwarn(1, "Unable to recover from an archive read failure.");
 		return(-1);
 	}
-	pax_warn(0, "Attempting to recover from an archive read failure.");
+	paxwarn(0, "Attempting to recover from an archive read failure.");
 	return(0);
 }
 
@@ -820,7 +840,7 @@ ar_rdsync()
  *	partial move (the amount moved is in skipped)
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_fow(off_t sksz, off_t *skipped)
 #else
@@ -870,7 +890,7 @@ ar_fow(sksz, skipped)
 		if (lseek(arfd, mpos, SEEK_SET) >= 0)
 			return(0);
 	}
-	sys_warn(1, errno, "Forward positioning operation on archive failed");
+	syswarn(1, errno, "Forward positioning operation on archive failed");
 	lstrval = -1;
 	return(-1);
 }
@@ -886,7 +906,7 @@ ar_fow(sksz, skipped)
  *	0 if moved the requested distance, -1 on complete failure
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_rev(off_t sksz)
 #else
@@ -896,7 +916,7 @@ ar_rev(sksz)
 #endif
 {
 	off_t cpos;
-        struct mtop mb;
+	struct mtop mb;
 	register int phyblk;
 
 	/*
@@ -912,7 +932,7 @@ ar_rev(sksz)
 		/*
 		 * cannot go backwards on these critters
 		 */
-		pax_warn(1, "Reverse positioning on pipes is not supported.");
+		paxwarn(1, "Reverse positioning on pipes is not supported.");
 		lstrval = -1;
 		return(-1);
 	case ISREG:
@@ -930,7 +950,7 @@ ar_rev(sksz)
 		 * First we figure out where we are in the archive.
 		 */
 		if ((cpos = lseek(arfd, (off_t)0L, SEEK_CUR)) < 0) {
-			sys_warn(1, errno,
+			syswarn(1, errno,
 			   "Unable to obtain current archive byte offset");
 			lstrval = -1;
 			return(-1);
@@ -948,14 +968,14 @@ ar_rev(sksz)
 				/*
 				 * this should never happen
 				 */
-				pax_warn(1,"Reverse position on previous volume.");
+				paxwarn(1,"Reverse position on previous volume.");
 				lstrval = -1;
 				return(-1);
 			}
 			cpos = (off_t)0L;
 		}
 		if (lseek(arfd, cpos, SEEK_SET) < 0) {
-			sys_warn(1, errno, "Unable to seek archive backwards");
+			syswarn(1, errno, "Unable to seek archive backwards");
 			lstrval = -1;
 			return(-1);
 		}
@@ -990,7 +1010,7 @@ ar_rev(sksz)
 		 * ok we have to move. Make sure the tape drive can do it.
 		 */
 		if (sksz % phyblk) {
-			pax_warn(1,
+			paxwarn(1,
 			    "Tape drive unable to backspace requested amount");
 			lstrval = -1;
 			return(-1);
@@ -1002,7 +1022,7 @@ ar_rev(sksz)
 		mb.mt_op = MTBSR;
 		mb.mt_count = sksz/phyblk;
 		if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-			sys_warn(1,errno, "Unable to backspace tape %d blocks.",
+			syswarn(1,errno, "Unable to backspace tape %d blocks.",
 			    mb.mt_count);
 			lstrval = -1;
 			return(-1);
@@ -1024,7 +1044,7 @@ ar_rev(sksz)
  *	physical block size if ok (ok > 0), -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 get_phys(void)
 #else
@@ -1050,7 +1070,7 @@ get_phys()
 		while ((res = read(arfd, scbuf, sizeof(scbuf))) > 0)
 			padsz += res;
 		if (res < 0) {
-			sys_warn(1, errno, "Unable to locate tape filemark.");
+			syswarn(1, errno, "Unable to locate tape filemark.");
 			return(-1);
 		}
 	}
@@ -1062,7 +1082,7 @@ get_phys()
 	mb.mt_op = MTBSF;
 	mb.mt_count = 1;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		sys_warn(1, errno, "Unable to backspace over tape filemark.");
+		syswarn(1, errno, "Unable to backspace over tape filemark.");
 		return(-1);
 	}
 
@@ -1073,11 +1093,11 @@ get_phys()
 	mb.mt_op = MTBSR;
 	mb.mt_count = 1;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		sys_warn(1, errno, "Unable to backspace over last tape block.");
+		syswarn(1, errno, "Unable to backspace over last tape block.");
 		return(-1);
 	}
 	if ((phyblk = read(arfd, scbuf, sizeof(scbuf))) <= 0) {
-		sys_warn(1, errno, "Cannot determine archive tape blocksize.");
+		syswarn(1, errno, "Cannot determine archive tape blocksize.");
 		return(-1);
 	}
 
@@ -1088,13 +1108,13 @@ get_phys()
 	while ((res = read(arfd, scbuf, sizeof(scbuf))) > 0)
 		;
 	if (res < 0) {
-		sys_warn(1, errno, "Unable to locate tape filemark.");
+		syswarn(1, errno, "Unable to locate tape filemark.");
 		return(-1);
 	}
 	mb.mt_op = MTBSF;
 	mb.mt_count = 1;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		sys_warn(1, errno, "Unable to backspace over tape filemark.");
+		syswarn(1, errno, "Unable to backspace over tape filemark.");
 		return(-1);
 	}
 
@@ -1114,7 +1134,7 @@ get_phys()
 	 * never fail).
 	 */
 	if (padsz % phyblk) {
-		pax_warn(1, "Tape drive unable to backspace requested amount");
+		paxwarn(1, "Tape drive unable to backspace requested amount");
 		return(-1);
 	}
 
@@ -1125,7 +1145,7 @@ get_phys()
 	mb.mt_op = MTBSR;
 	mb.mt_count = padsz/phyblk;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		sys_warn(1,errno,"Unable to backspace tape over %d pad blocks",
+		syswarn(1,errno,"Unable to backspace tape over %d pad blocks",
 		    mb.mt_count);
 		return(-1);
 	}
@@ -1142,7 +1162,7 @@ get_phys()
  *	0 when ready to continue, -1 when all done
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ar_next(void)
 #else
@@ -1160,12 +1180,12 @@ ar_next()
 	 * also be called via a signal handler, so we must prevent a race.
 	 */
 	if (sigprocmask(SIG_BLOCK, &s_mask, &o_mask) < 0)
-		sys_warn(0, errno, "Unable to set signal mask");
+		syswarn(0, errno, "Unable to set signal mask");
 	ar_close();
-	if (sigprocmask(SIG_SETMASK, &o_mask, (sigset_t *)NULL) < 0)
-		sys_warn(0, errno, "Unable to restore signal mask");
+	if (sigprocmask(SIG_SETMASK, &o_mask, NULL) < 0)
+		syswarn(0, errno, "Unable to restore signal mask");
 
-	if (done || !wr_trail)
+	if (done || !wr_trail || strcmp(NM_TAR, argv0) == 0)
 		return(-1);
 
 	tty_prnt("\nATTENTION! %s archive volume change required.\n", argv0);
@@ -1256,10 +1276,10 @@ ar_next()
 			tty_prnt("Empty file name, try again\n");
 			continue;
 		}
-                if (!strcmp(buf, "..")) {
-                        tty_prnt("Illegal file name: .. try again\n");
-                        continue;
-                }
+		if (!strcmp(buf, "..")) {
+			tty_prnt("Illegal file name: .. try again\n");
+			continue;
+		}
 		if (strlen(buf) > PAXPATHLEN) {
 			tty_prnt("File name too long, try again\n");
 			continue;
@@ -1276,7 +1296,7 @@ ar_next()
 			if ((arcname = strdup(buf)) == NULL) {
 				done = 1;
 				lstrval = -1;
-				pax_warn(0, "Cannot save archive name.");
+				paxwarn(0, "Cannot save archive name.");
 				return(-1);
 			}
 			freeit = 1;
@@ -1286,4 +1306,48 @@ ar_next()
 		continue;
 	}
 	return(0);
+}
+
+/*
+ * ar_start_gzip()
+ * starts the gzip compression/decompression process as a child, using magic
+ * to keep the fd the same in the calling function (parent).
+ */
+void
+ar_start_gzip(int fd, const char *gzip_program, int wr)
+{
+	int fds[2];
+	char *gzip_flags;
+
+	if (pipe(fds) < 0)
+		err(1, "could not pipe");
+	zpid = fork();
+	if (zpid < 0)
+		err(1, "could not fork");
+
+	/* parent */
+	if (zpid) {
+		if (wr)
+			dup2(fds[1], fd);
+		else
+			dup2(fds[0], fd);
+		close(fds[0]);
+		close(fds[1]);
+	} else {
+		if (wr) {
+			dup2(fds[0], STDIN_FILENO);
+			dup2(fd, STDOUT_FILENO);
+			gzip_flags = "-c";
+		} else {
+			dup2(fds[1], STDOUT_FILENO);
+			dup2(fd, STDIN_FILENO);
+			gzip_flags = "-dc";
+		}
+		close(fds[0]);
+		close(fds[1]);
+		if (execlp(gzip_program, gzip_program, gzip_flags,
+		    (char *)NULL) < 0)
+			err(1, "could not exec");
+		/* NOTREACHED */
+	}
 }

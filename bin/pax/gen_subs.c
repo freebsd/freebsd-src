@@ -76,14 +76,15 @@ static const char rcsid[] =
  *	list the members of an archive in ls format
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
-ls_list(register ARCHD *arcn, time_t now)
+ls_list(register ARCHD *arcn, time_t now, FILE *fp)
 #else
 void
-ls_list(arcn, now)
+ls_list(arcn, now, fp)
 	register ARCHD *arcn;
 	time_t now;
+	FILE *fp;
 #endif
 {
 	register struct stat *sbp;
@@ -95,8 +96,8 @@ ls_list(arcn, now)
 	 * if not verbose, just print the file name
 	 */
 	if (!vflag) {
-		(void)printf("%s\n", arcn->name);
-		(void)fflush(stdout);
+		(void)fprintf(fp, "%s\n", arcn->name);
+		(void)fflush(fp);
 		return;
 	}
 
@@ -119,8 +120,8 @@ ls_list(arcn, now)
 	 */
 	if (strftime(f_date,DATELEN,timefrmt,localtime(&(sbp->st_mtime))) == 0)
 		f_date[0] = '\0';
-	(void)printf("%s%2u %-*s %-*s ", f_mode, sbp->st_nlink, UT_NAMESIZE,
-		name_uid(sbp->st_uid, 1), UT_GRPSIZE,
+	(void)fprintf(fp, "%s%2u %-*s %-*s ", f_mode, sbp->st_nlink,
+		UT_NAMESIZE, name_uid(sbp->st_uid, 1), UT_GRPSIZE,
 		name_gid(sbp->st_gid, 1));
 
 	/*
@@ -128,31 +129,31 @@ ls_list(arcn, now)
 	 */
 	if ((arcn->type == PAX_CHR) || (arcn->type == PAX_BLK))
 #		ifdef NET2_STAT
-		(void)printf("%4u,%4u ", MAJOR(sbp->st_rdev),
+		(void)fprintf(fp, "%4u,%4u ", MAJOR(sbp->st_rdev),
 		    MINOR(sbp->st_rdev));
 #		else
-		(void)printf("%4lu,%4lu ", (unsigned long)MAJOR(sbp->st_rdev),
+		(void)fprintf(fp, "%4lu,%4lu ", (unsigned long)MAJOR(sbp->st_rdev),
 		    (unsigned long)MINOR(sbp->st_rdev));
 #		endif
 	else {
 #		ifdef NET2_STAT
-		(void)printf("%9lu ", sbp->st_size);
+		(void)fprintf(fp, "%9lu ", sbp->st_size);
 #		else
-		(void)printf("%9qu ", sbp->st_size);
+		(void)fprintf(fp, "%9qu ", sbp->st_size);
 #		endif
 	}
 
 	/*
 	 * print name and link info for hard and soft links
 	 */
-	(void)printf("%s %s", f_date, arcn->name);
+	(void)fprintf(fp, "%s %s", f_date, arcn->name);
 	if ((arcn->type == PAX_HLK) || (arcn->type == PAX_HRG))
-		(void)printf(" == %s\n", arcn->ln_name);
+		(void)fprintf(fp, " == %s\n", arcn->ln_name);
 	else if (arcn->type == PAX_SLK)
-		(void)printf(" => %s\n", arcn->ln_name);
+		(void)fprintf(fp, " => %s\n", arcn->ln_name);
 	else
-		(void)putchar('\n');
-	(void)fflush(stdout);
+		(void)putc('\n', fp);
+	(void)fflush(fp);
 	return;
 }
 
@@ -161,7 +162,7 @@ ls_list(arcn, now)
  * 	print a short summary of file to tty.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 ls_tty(register ARCHD *arcn)
 #else
@@ -191,43 +192,15 @@ ls_tty(arcn)
 }
 
 /*
- * zf_strncpy()
- *	copy src to dest up to len chars (stopping at first '\0'), when src is
- *	shorter than len, pads to len with '\0'. big performance win (and
- *	a lot easier to code) over strncpy(), then a strlen() then a
- *	bzero(). (or doing the bzero() first).
- */
-
-#if __STDC__
-void
-zf_strncpy(register char *dest, register char *src, int len)
-#else
-void
-zf_strncpy(dest, src, len)
-	register char *dest;
-	register char *src;
-	int len;
-#endif
-{
-	register char *stop;
-
-	stop = dest + len;
-	while ((dest < stop) && (*src != '\0'))
-		*dest++ = *src++;
-	while (dest < stop)
-		*dest++ = '\0';
-	return;
-}
-
-/*
  * l_strncpy()
- *	copy src to dest up to len chars (stopping at first '\0')
+ *	copy src to dest up to len chars (stopping at first '\0').
+ *	when src is shorter than len, pads to len with '\0'. 
  * Return:
  *	number of chars copied. (Note this is a real performance win over
- *	doing a strncpy() then a strlen()
+ *	doing a strncpy(), a strlen(), and then a possible memset())
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 l_strncpy(register char *dest, register char *src, int len)
 #else
@@ -245,9 +218,10 @@ l_strncpy(dest, src, len)
 	start = dest;
 	while ((dest < stop) && (*src != '\0'))
 		*dest++ = *src++;
-	if (dest < stop)
-		*dest = '\0';
-	return(dest - start);
+	len = dest - start;
+	while (dest < stop)
+		*dest++ = '\0';
+	return(len);
 }
 
 /*
@@ -260,7 +234,7 @@ l_strncpy(dest, src, len)
  *	unsigned long value
  */
 
-#if __STDC__
+#ifdef __STDC__
 u_long
 asc_ul(register char *str, int len, register int base)
 #else
@@ -311,7 +285,7 @@ asc_ul(str, len, base)
  *	NOTE: the string created is NOT TERMINATED.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ul_asc(u_long val, register char *str, register int len, register int base)
 #else
@@ -374,7 +348,7 @@ ul_asc(val, str, len, base)
  *	u_quad_t value
  */
 
-#if __STDC__
+#ifdef __STDC__
 u_quad_t
 asc_uqd(register char *str, int len, register int base)
 #else
@@ -425,7 +399,7 @@ asc_uqd(str, len, base)
  *	NOTE: the string created is NOT TERMINATED.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 uqd_asc(u_quad_t val, register char *str, register int len, register int base)
 #else

@@ -52,7 +52,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "pax.h"
 #include "extern.h"
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -62,7 +62,7 @@ static const char rcsid[] =
  * routines that deal with I/O to and from the user
  */
 
-#define DEVTTY          "/dev/tty"      /* device for interactive i/o */
+#define DEVTTY	  "/dev/tty"      /* device for interactive i/o */
 static FILE *ttyoutf = NULL;		/* output pointing at control tty */
 static FILE *ttyinf = NULL;		/* input pointing at control tty */
 
@@ -72,7 +72,7 @@ static FILE *ttyinf = NULL;		/* input pointing at control tty */
  *	open fails, future ops that require user input will get an EOF
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tty_init(void)
 #else
@@ -82,7 +82,7 @@ tty_init()
 {
 	int ttyfd;
 
-        if ((ttyfd = open(DEVTTY, O_RDWR)) >= 0) {
+	if ((ttyfd = open(DEVTTY, O_RDWR)) >= 0) {
 		if ((ttyoutf = fdopen(ttyfd, "w")) != NULL) {
 			if ((ttyinf = fdopen(ttyfd, "r")) != NULL)
 				return(0);
@@ -92,7 +92,7 @@ tty_init()
 	}
 
 	if (iflag) {
-		pax_warn(1, "Fatal error, cannot open %s", DEVTTY);
+		paxwarn(1, "Fatal error, cannot open %s", DEVTTY);
 		return(-1);
 	}
 	return(0);
@@ -104,18 +104,18 @@ tty_init()
  *	if there is no controlling terminal, just return.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
-tty_prnt(char *fmt, ...)
+tty_prnt(const char *fmt, ...)
 #else
 void
 tty_prnt(fmt, va_alist)
-	char *fmt;
+	const char *fmt;
 	va_dcl
 #endif
 {
 	va_list ap;
-#	if __STDC__
+#	ifdef __STDC__
 	va_start(ap, fmt);
 #	else
 	va_start(ap);
@@ -135,7 +135,7 @@ tty_prnt(fmt, va_alist)
  *	0 if data was read, -1 otherwise.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tty_read(char *str, int len)
 #else
@@ -160,24 +160,24 @@ tty_read(str, len)
 }
 
 /*
- * pax_warn()
- *	write a pax_warning message to stderr. if "set" the exit value of pax
+ * paxwarn()
+ *	write a warning message to stderr. if "set" the exit value of pax
  *	will be non-zero.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
-pax_warn(int set, char *fmt, ...)
+paxwarn(int set, const char *fmt, ...)
 #else
 void
-pax_warn(set, fmt, va_alist)
+paxwarn(set, fmt, va_alist)
 	int set;
-	char *fmt;
+	const char *fmt;
 	va_dcl
 #endif
 {
 	va_list ap;
-#	if __STDC__
+#	ifdef __STDC__
 	va_start(ap, fmt);
 #	else
 	va_start(ap);
@@ -189,6 +189,7 @@ pax_warn(set, fmt, va_alist)
 	 * line by itself
 	 */
 	if (vflag && vfpart) {
+		(void)fflush(listf);
 		(void)fputc('\n', stderr);
 		vfpart = 0;
 	}
@@ -199,25 +200,25 @@ pax_warn(set, fmt, va_alist)
 }
 
 /*
- * sys_warn()
- *	write a pax_warning message to stderr. if "set" the exit value of pax
+ * syswarn()
+ *	write a warning message to stderr. if "set" the exit value of pax
  *	will be non-zero.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
-sys_warn(int set, int errnum, char *fmt, ...)
+syswarn(int set, int errnum, const char *fmt, ...)
 #else
 void
-sys_warn(set, errnum, fmt, va_alist)
+syswarn(set, errnum, fmt, va_alist)
 	int set;
 	int errnum;
-	char *fmt;
+	const char *fmt;
 	va_dcl
 #endif
 {
 	va_list ap;
-#	if __STDC__
+#	ifdef __STDC__
 	va_start(ap, fmt);
 #	else
 	va_start(ap);
@@ -229,6 +230,7 @@ sys_warn(set, errnum, fmt, va_alist)
 	 * line by itself
 	 */
 	if (vflag && vfpart) {
+		(void)fflush(listf);
 		(void)fputc('\n', stderr);
 		vfpart = 0;
 	}
@@ -240,6 +242,6 @@ sys_warn(set, errnum, fmt, va_alist)
 	 * format and print the errno
 	 */
 	if (errnum > 0)
-		(void)fprintf(stderr, " <%s>", sys_errlist[errnum]);
+		(void)fprintf(stderr, " <%s>", strerror(errnum));
 	(void)fputc('\n', stderr);
 }

@@ -53,8 +53,11 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,6 +77,7 @@ static int gen_init __P((void));
 int	act = DEFOP;		/* read/write/append/copy */
 FSUB	*frmt = NULL;		/* archive format type */
 int	cflag;			/* match all EXCEPT pattern/file */
+int	cwdfd;			/* starting cwd */
 int	dflag;			/* directory member match only  */
 int	iflag;			/* interactive file/archive rename */
 int	kflag;			/* do not overwrite existing files */
@@ -91,13 +95,18 @@ int	Zflag;			/* same as uflg except after name mode */
 int	vfpart;			/* is partial verbose output in progress */
 int	patime = 1;		/* preserve file access time */
 int	pmtime = 1;		/* preserve file modification times */
+int	nodirs;			/* do not create directories as needed */
 int	pmode;			/* preserve file mode bits */
 int	pids;			/* preserve file uid/gid */
+int	rmleadslash = 0;	/* remove leading '/' from pathnames */
 int	exit_val;		/* exit value */
 int	docrc;			/* check/create file crc */
 char	*dirptr;		/* destination dir in a copy */
 char	*argv0;			/* root of argv[0] */
 sigset_t s_mask;		/* signal mask for cleanup critical sect */
+FILE	*listf = stderr;	/* file pointer to print file list to */
+char	*tempfile;		/* tempfile to use for mkstemp(3) */
+char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
 
 /*
  *	PAX - Portable Archive Interchange
@@ -219,7 +228,7 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  * Return: 0 if ok, 1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 main(int argc, char **argv)
 #else
@@ -229,12 +238,42 @@ main(argc, argv)
 	char **argv;
 #endif
 {
+	char *tmpdir;
+	size_t tdlen;
+
 	(void) setlocale(LC_ALL, "");
+	/*
+	 * Keep a reference to cwd, so we can always come back home.
+	 */
+	cwdfd = open(".", O_RDONLY);
+	if (cwdfd < 0) {
+		syswarn(0, errno, "Can't open current working directory.");
+		return(exit_val);
+	}
+
+	/*
+	 * Where should we put temporary files?
+	 */
+	if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
+		tmpdir = _PATH_TMP;
+	tdlen = strlen(tmpdir);
+	while(tdlen > 0 && tmpdir[tdlen - 1] == '/')
+		tdlen--;
+	tempfile = malloc(tdlen + 1 + sizeof(_TFILE_BASE));
+	if (tempfile == NULL) {
+		paxwarn(1, "Cannot allocate memory for temp file name.");
+		return(exit_val);
+	}
+	if (tdlen)
+		memcpy(tempfile, tmpdir, tdlen);
+	tempbase = tempfile + tdlen;
+	*tempbase++ = '/';
+
 	/*
 	 * parse options, determine operational mode, general init
 	 */
 	options(argc, argv);
-        if ((gen_init() < 0) || (tty_init() < 0))
+	if ((gen_init() < 0) || (tty_init() < 0))
 		return(exit_val);
 
 	/*
@@ -248,6 +287,8 @@ main(argc, argv)
 		archive();
 		break;
 	case APPND:
+		if (gzip_program != NULL)
+			err(1, "can not gzip while appending");
 		append();
 		break;
 	case COPY:
@@ -270,7 +311,7 @@ main(argc, argv)
  *	never....
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 sig_cleanup(int which_sig)
 #else
@@ -286,9 +327,9 @@ sig_cleanup(which_sig)
 	 */
 	vflag = vfpart = 1;
 	if (which_sig == SIGXCPU)
-		pax_warn(0, "Cpu time limit reached, cleaning up.");
+		paxwarn(0, "Cpu time limit reached, cleaning up.");
 	else
-		pax_warn(0, "Signal caught, cleaning up.");
+		paxwarn(0, "Signal caught, cleaning up.");
 
 	ar_close();
 	proc_dir();
@@ -303,7 +344,7 @@ sig_cleanup(which_sig)
  *	when dealing with a medium to large sized archives.
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 gen_init(void)
 #else
@@ -359,9 +400,10 @@ gen_init()
 	    (sigaddset(&s_mask,SIGINT) < 0)||(sigaddset(&s_mask,SIGHUP) < 0) ||
 	    (sigaddset(&s_mask,SIGPIPE) < 0)||(sigaddset(&s_mask,SIGQUIT)<0) ||
 	    (sigaddset(&s_mask,SIGXCPU) < 0)||(sigaddset(&s_mask,SIGXFSZ)<0)) {
-		pax_warn(1, "Unable to set up signal mask");
+		paxwarn(1, "Unable to set up signal mask");
 		return(-1);
 	}
+	memset(&n_hand, 0, sizeof n_hand);
 	n_hand.sa_mask = s_mask;
 	n_hand.sa_flags = 0;
 	n_hand.sa_handler = sig_cleanup;
@@ -398,6 +440,6 @@ gen_init()
 	return(0);
 
     out:
-	sys_warn(1, errno, "Unable to set up signal handler");
+	syswarn(1, errno, "Unable to set up signal handler");
 	return(-1);
 }
