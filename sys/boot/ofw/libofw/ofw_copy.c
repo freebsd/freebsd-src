@@ -35,10 +35,36 @@
 #include "libofw.h"
 
 #define	READIN_BUF	(4 * 1024)
+#define	PAGE_SIZE	0x1000
+#define	PAGE_MASK	0x0fff
+
+#define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
 
 ssize_t
 ofw_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
+	void	*destp, *addr;
+	size_t	dlen;
+
+	destp = (void *)(dest & ~PAGE_MASK);
+	dlen = roundup(len, PAGE_SIZE);
+
+	if (OF_call_method("claim", memory, 3, 1, destp, dlen, 0, &addr)
+	    == -1) {
+		printf("ofw_copyin: physical claim failed\n");
+		return (0);
+	}
+
+	if (OF_call_method("claim", mmu, 3, 1, destp, dlen, 0, &addr) == -1) {
+		printf("ofw_copyin: virtual claim failed\n");
+		return (0);
+	}
+
+	if (OF_call_method("map", mmu, 4, 0, destp, destp, dlen, 0) == -1) {
+		printf("ofw_copyin: map failed\n");
+		return (0);
+	}
+
 	bcopy(src, (void *)dest, len);
 	return(len);
 }
@@ -76,7 +102,7 @@ ofw_readin(const int fd, vm_offset_t dest, const size_t len)
 			break;
 		}
 
-		bcopy(buf, (void *)p, got);
+		ofw_copyin(buf, p, got);
 	}
 
 	free(buf);

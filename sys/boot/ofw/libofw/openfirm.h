@@ -71,6 +71,7 @@ typedef unsigned long int	cell_t;
 
 extern int		(*openfirmware)(void *);
 extern phandle_t	chosen;
+extern ihandle_t	memory, mmu;
 
 /*
  * This isn't actually an OpenFirmware function, but it seemed like the right
