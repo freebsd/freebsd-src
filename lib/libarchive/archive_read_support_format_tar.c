@@ -701,6 +701,8 @@ pax_attribute(struct archive *a, struct archive_entry *entry, struct stat *st,
 			    tar_atol10(value, strlen(value)));
 		else if (strcmp(key, "SCHILY.fflags")==0)
 			archive_entry_set_fflags(entry, value);
+		else if (strcmp(key, "SCHILY.nlink")==0)
+			st->st_nlink = tar_atol10(value, strlen(value));
 		break;
 	case 'a':
 		if (strcmp(key, "atime")==0)
