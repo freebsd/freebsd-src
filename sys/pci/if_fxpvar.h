@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpvar.h,v 1.1 1997/09/05 10:23:58 davidg Exp $
+ *	$Id: if_fxpvar.h,v 1.2 1997/09/21 22:02:09 gibbs Exp $
  */
 
 /*
@@ -59,6 +59,10 @@ struct fxp_softc {
 	int phy_primary_addr;		/* address of primary PHY */
 	int phy_primary_device;		/* device type of primary PHY */
 	int phy_10Mbps_only;		/* PHY is 10Mbps-only device */
+	int rx_idle_secs;		/* # of seconds RX has been idle */
+	int need_mcsetup;		/* multicast filter needs programming */
+	int all_mcasts;			/* receive all multicasts */
+	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
 };
 
 /* Macros to ease CSR access. */
