@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.89 1997/04/28 10:31:13 jkh Exp $
+ * $Id: config.c,v 1.90 1997/04/29 09:14:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -393,7 +393,7 @@ configRC_conf(char *config)
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
 		if (comment)
-		    sprintf(lines[i], "%s=\"%s\"\t\t%s\n", v->name, v->value, comment);
+		    sprintf(lines[i], "%s=\"%s\"\t\t%s", v->name, v->value, comment);
 		else
 		    sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
 	    }
@@ -632,28 +632,38 @@ configRouter(dialogMenuItem *self)
 			     "will attempt to load if you select gated.  Any other\n"
 			     "choice of routing daemon will be assumed to be something\n"
 			     "the user intends to install themselves before rebooting\n"
-			     "the system.  If you don't want any routing daemon, choose NO") ?
-	DITEM_SUCCESS : DITEM_FAILURE;
-
+			     "the system.  If you don't want any routing daemon, choose NO")
+      ? DITEM_SUCCESS : DITEM_FAILURE;
+  
     if (ret == DITEM_SUCCESS) {
-	char *cp;
-
-	cp = variable_get(VAR_ROUTER);
-	if (strcmp(cp, "NO")) {
+	char *cp = variable_get(VAR_ROUTER);
+    
+	if (cp && strcmp(cp, "NO")) {
+	    variable_set2(VAR_ROUTER_ENABLE, "YES");
 	    if (!strcmp(cp, "gated")) {
 		if (package_add(variable_get(VAR_GATED_PKG)) != DITEM_SUCCESS) {
 		    msgConfirm("Unable to load gated package.  Falling back to no router.");
-		    variable_set2(VAR_ROUTER, "NO");
+		    variable_unset(VAR_ROUTER);
+		    variable_unset(VAR_ROUTERFLAGS);
+		    variable_set2(VAR_ROUTER_ENABLE, "NO");
+		    cp = NULL;
 		}
 	    }
-	    /* Now get the flags, if they chose a router */
-	    ret = variable_get_value(VAR_ROUTERFLAGS, 
-				     "Please Specify the routing daemon flags; if you're running routed\n"
-				     "then -q is the right choice for nodes and -s for gateway hosts.\n") ? DITEM_SUCCESS : DITEM_FAILURE;
-	    if (ret != DITEM_SUCCESS) {
-		variable_unset(VAR_ROUTER);
-		variable_unset(VAR_ROUTERFLAGS);
+	    if (cp) {
+		/* Now get the flags, if they chose a router */
+		ret = variable_get_value(VAR_ROUTERFLAGS, 
+					 "Please Specify the routing daemon flags; if you're running routed\n"
+					 "then -q is the right choice for nodes and -s for gateway hosts.\n")
+		  ? DITEM_SUCCESS : DITEM_FAILURE;
+		if (ret != DITEM_SUCCESS)
+		    variable_unset(VAR_ROUTERFLAGS);
 	    }
+	}
+	else {
+	    /* No router case */
+	    variable_set2(VAR_ROUTER_ENABLE, "NO");
+	    variable_unset(VAR_ROUTERFLAGS);
+	    variable_unset(VAR_ROUTER);
 	}
     }
     return ret | DITEM_RESTORE;
