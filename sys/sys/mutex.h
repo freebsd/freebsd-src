@@ -177,6 +177,16 @@ do {									\
 	return;								\
 } while (0)
 
+#define DROP_GIANT_NOSWITCH()						\
+do {									\
+	int _giantcnt;							\
+	WITNESS_SAVE_DECL(Giant);					\
+									\
+	if (mtx_owned(&Giant))						\
+		WITNESS_SAVE(&Giant, Giant);				\
+	for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)		\
+		mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH)
+
 #define DROP_GIANT()							\
 do {									\
 	int _giantcnt;							\
@@ -209,12 +219,23 @@ do {									\
 #ifdef INVARIANTS
 #define MA_OWNED	1
 #define MA_NOTOWNED	2
+#define MA_RECURSED	4
+#define MA_NOTRECURSED	8
 #define mtx_assert(m, what) do {					\
 	switch ((what)) {						\
 	case MA_OWNED:							\
+	case MA_OWNED | MA_RECURSED:					\
+	case MA_OWNED | MA_NOTRECURSED:					\
 		if (!mtx_owned((m)))					\
 			panic("mutex %s not owned at %s:%d",		\
 			    (m)->mtx_description, __FILE__, __LINE__);	\
+		if (mtx_recursed((m))) {				\
+			if (((what) & MA_NOTRECURSED) != 0)		\
+				panic("mutex %s recursed at %s:%d",	\
+				    (m)->mtx_description, __FILE__, __LINE__); \
+		} else if (((what) & MA_RECURSED) != 0)			\
+				panic("mutex %s unrecursed at %s:%d",	\
+				    (m)->mtx_description, __FILE__, __LINE__); \
 		break;							\
 	case MA_NOTOWNED:						\
 		if (mtx_owned((m)))					\
@@ -416,6 +437,11 @@ void	witness_restore(struct mtx *, const char *, int);
  */
 #define	mtx_owned(m)    (((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)CURTHD)
 
+/*
+ * Return non-zero if a mutex has been recursively acquired.
+ */ 
+#define mtx_recursed(m)	((m)->mtx_recurse != 0)
+
 /* Common strings */
 #ifdef _KERN_MUTEX_C_
 #ifdef KTR_EXTEND
@@ -426,13 +452,13 @@ void	witness_restore(struct mtx *, const char *, int);
  * (from CTR5 to CTR3), but since they're just passed to snprintf as the last
  * parameters, it doesn't do any harm to leave them.
  */
-char	STR_mtx_enter_fmt[] = "GOT %s [%x] r=%d";
-char	STR_mtx_exit_fmt[] = "REL %s [%x] r=%d";
-char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%x] result=%d";
+char	STR_mtx_enter_fmt[] = "GOT %s [%p] r=%d";
+char	STR_mtx_exit_fmt[] = "REL %s [%p] r=%d";
+char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] result=%d";
 #else
-char	STR_mtx_enter_fmt[] = "GOT %s [%x] at %s:%d r=%d";
-char	STR_mtx_exit_fmt[] = "REL %s [%x] at %s:%d r=%d";
-char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%x] at %s:%d result=%d";
+char	STR_mtx_enter_fmt[] = "GOT %s [%p] at %s:%d r=%d";
+char	STR_mtx_exit_fmt[] = "REL %s [%p] at %s:%d r=%d";
+char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] at %s:%d result=%d";
 #endif
 char	STR_mtx_bad_type[] = "((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0";
 char	STR_mtx_owned[] = "mtx_owned(mpp)";
