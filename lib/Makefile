@@ -31,8 +31,10 @@ SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
-.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
+.elif exists(${.CURDIR}/csu/${MACHINE_ARCH}/Makefile)
 _csu=csu/${MACHINE_ARCH}
+.else
+_csu=csu
 .endif
 
 .if !defined(NOLIBC_R)
@@ -51,6 +53,7 @@ _libvgl=	libvgl
 
 .if ${MACHINE_ARCH} == "alpha"
 _libio=		libio
+_compat=	compat
 .endif
 
 .if defined(RELEASEDIR) || \
