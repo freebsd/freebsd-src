@@ -29,11 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.28 1996/05/10 16:14:51 gibbs Exp $
+ *	$Id: aic7770.c,v 1.29 1996/05/30 07:18:52 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
-#include <eisa.h>
+#include "eisa.h"
 #endif
 #if NEISA > 0 || defined(__NetBSD__)
 
