@@ -518,7 +518,7 @@ lcp_SendIdentification(struct lcp *lcp)
              msg + 4);
   fsm_Output(&lcp->fsm, CODE_IDENT, id++, msg, 4 + strlen(msg + 4), MB_LCPOUT);
 
-  free(exp[0]);
+  command_Free(1, exp);
   return 1;
 }
 

@@ -3549,8 +3549,11 @@ This value is available irrespective of whether utmp logging is enabled.
 .El
 .Pp
 These substitutions are also done by the
-.Dq set proctitle
-command.
+.Dq set proctitle ,
+.Dq ident
+and
+.Dq log
+commands.
 .Pp
 If you wish to pause
 .Nm
@@ -3823,6 +3826,12 @@ or
 commands,
 .Nm
 will not attempt to make an immediate connection.
+.It log Ar word Op Ar word Ns No ...
+Send the given word(s) to the log file with the prefix
+.Dq LOG: .
+Word substitutions are done as explained under the
+.Dq !bg
+command above.
 .It open Op lcp|ccp|ipcp
 This is the opposite of the
 .Dq close

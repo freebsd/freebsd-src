@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#define LogLOG		(0)
 #define LogMIN		(1)
 #define LogASYNC	(1)	/* syslog(LOG_INFO, ....)	 */
 #define LogCBCP		(2)
@@ -63,6 +64,7 @@ struct datalink;
 
 /* The first int arg for all of the following is one of the above values */
 extern const char *log_Name(int);
+extern int log_Id(const char *);
 extern void log_Keep(int);
 extern void log_KeepLocal(int, u_long *);
 extern void log_Discard(int);
