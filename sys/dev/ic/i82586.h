@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i82586.h,v 1.5 1997/02/22 09:38:02 peter Exp $
+ *	$Id: i82586.h,v 1.6 1998/04/15 17:45:58 bde Exp $
  */
 
 /*
@@ -311,7 +311,7 @@ ie_setup_config(volatile struct ie_config_cmd *cmd,
 
 static __inline caddr_t
 Align(caddr_t ptr) {
-	unsigned long l = (unsigned long)ptr;
+	uintptr_t l = (uintptr_t)ptr;
 	l = (l + 3) & ~3L;
 	return (caddr_t)l;
 }

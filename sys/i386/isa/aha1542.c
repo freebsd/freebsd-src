@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.77 1998/05/01 18:30:00 bde Exp $
+ *      $Id: aha1542.c,v 1.78 1998/06/21 14:53:07 bde Exp $
  */
 
 /*
@@ -276,7 +276,7 @@ struct	aha_extbios
 
 /*********************************** end of board definitions***************/
 
-#define PHYSTOKV(x)	(((long int)(x)) ^ aha->kv_phys_xor)
+#define PHYSTOKV(x)	((intptr_t)(((long int)(x)) ^ aha->kv_phys_xor))
 #define KVTOPHYS(x)	vtophys(x)
 #define	AHA_DMA_PAGES	AHA_NSEG
 
@@ -582,7 +582,7 @@ ahaprobe(dev)
 	 * span pages)
 	 * eventually use the hash table in aha1742.c
 	 */
-	aha->kv_phys_xor = (long int) aha ^ (KVTOPHYS(aha));
+	aha->kv_phys_xor = (intptr_t) aha ^ (KVTOPHYS(aha));
 
 	/*
 	 * If it's there, put in it's interrupt vectors
