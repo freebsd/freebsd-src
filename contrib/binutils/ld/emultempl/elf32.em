@@ -52,7 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldlang.h"
 #include "ldfile.h"
 #include "ldemul.h"
-#include "ldgram.h"
+#include <ldgram.h>
 #include "elf/common.h"
 
 static void gld${EMULATION_NAME}_before_parse
@@ -78,7 +78,7 @@ static void gld${EMULATION_NAME}_before_allocation
 static boolean gld${EMULATION_NAME}_open_dynamic_archive
   PARAMS ((const char *, search_dirs_type *, lang_input_statement_type *));
 static lang_output_section_statement_type *output_rel_find
-  PARAMS ((void));
+  PARAMS ((asection *));
 static asection *output_prev_sec_find
   PARAMS ((lang_output_section_statement_type *));
 static boolean gld${EMULATION_NAME}_place_orphan
@@ -1067,24 +1067,46 @@ cat >>e${EMULATION_NAME}.c <<EOF
 /* A variant of lang_output_section_find.  Used by place_orphan.  */
 
 static lang_output_section_statement_type *
-output_rel_find ()
+output_rel_find (sec)
+     asection *sec;
 {
   lang_statement_union_type *u;
   lang_output_section_statement_type *lookup;
+  lang_output_section_statement_type *last = NULL;
+  lang_output_section_statement_type *last_rel = NULL;
+  lang_output_section_statement_type *last_rel_alloc = NULL;
+  int rela = sec->name[4] == 'a';
 
-  for (u = lang_output_section_statement.head;
-       u != (lang_statement_union_type *) NULL;
-       u = lookup->next)
+  for (u = lang_output_section_statement.head; u; u = lookup->next)
     {
       lookup = &u->output_section_statement;
-      if (strncmp (".rel", lookup->name, 4) == 0
-	  && lookup->bfd_section != NULL
-	  && (lookup->bfd_section->flags & SEC_ALLOC) != 0)
+      if (strncmp (".rel", lookup->name, 4) == 0)
 	{
-	  return lookup;
+	  /* Don't place after .rel.plt as doing so results in wrong
+	     dynamic tags.  Also, place allocated reloc sections before
+	     non-allocated.  */
+	  int lookrela = lookup->name[4] == 'a';
+
+	  if (strcmp (".plt", lookup->name + 4 + lookrela) == 0
+	      || (lookup->bfd_section != NULL
+		  && (lookup->bfd_section->flags & SEC_ALLOC) == 0))
+	    break;
+	  last = lookup;
+	  if (rela == lookrela)
+	    last_rel = lookup;
+	  if (lookup->bfd_section != NULL
+	      && (lookup->bfd_section->flags & SEC_ALLOC) != 0)
+	    last_rel_alloc = lookup;
 	}
     }
-  return (lang_output_section_statement_type *) NULL;
+
+  if (last_rel_alloc)
+    return last_rel_alloc;
+
+  if (last_rel)
+    return last_rel;
+
+  return last;
 }
 
 /* Find the last output section before given output statement.
@@ -1140,13 +1162,24 @@ gld${EMULATION_NAME}_place_orphan (file, s)
   lang_statement_list_type add;
   etree_type *address;
   const char *secname;
-  const char *outsecname;
   const char *ps = NULL;
   lang_output_section_statement_type *os;
+  int isdyn = 0;
 
   secname = bfd_get_section_name (s->owner, s);
+  if (! link_info.relocateable
+      && link_info.combreloc
+      && (s->flags & SEC_ALLOC)
+      && strncmp (secname, ".rel", 4) == 0)
+    {
+      if (secname[4] == 'a')
+	secname = ".rela.dyn";
+      else
+	secname = ".rel.dyn";
+      isdyn = 1;
+    }
 
-  if (! config.unique_orphan_sections && ! unique_section_p (secname))
+  if (isdyn || (!config.unique_orphan_sections && !unique_section_p (secname)))
     {
       /* Look through the script to see where to place this section.  */
       os = lang_output_section_find (secname);
@@ -1209,27 +1242,10 @@ gld${EMULATION_NAME}_place_orphan (file, s)
 	   && HAVE_SECTION (hold_data, ".data"))
     place = &hold_data;
   else if (strncmp (secname, ".rel", 4) == 0
+	   && (s->flags & SEC_LOAD) != 0
 	   && (hold_rel.os != NULL
-	       || (hold_rel.os = output_rel_find ()) != NULL))
-    {
-      if (! link_info.relocateable && link_info.combreloc)
-	{
-	  if (strncmp (secname, ".rela", 5) == 0)
-	    os = lang_output_section_find (".rela.dyn");
-	  else
-	    os = lang_output_section_find (".rel.dyn");
-
-	  if (os != NULL
-	      && os->bfd_section != NULL
-	      && ((s->flags ^ os->bfd_section->flags)
-		  & (SEC_LOAD | SEC_ALLOC)) == 0)
-	    {
-	      lang_add_section (&os->children, s, os, file);
-	      return true;
-	    }
-	}
-      place = &hold_rel;
-    }
+	       || (hold_rel.os = output_rel_find (s)) != NULL))
+    place = &hold_rel;
   else if ((s->flags & (SEC_CODE | SEC_READONLY)) == SEC_READONLY
 	   && HAVE_SECTION (hold_rodata, ".rodata"))
     place = &hold_rodata;
@@ -1242,13 +1258,10 @@ gld${EMULATION_NAME}_place_orphan (file, s)
   /* Choose a unique name for the section.  This will be needed if the
      same section name appears in the input file with different
      loadable or allocatable characteristics.  */
-  outsecname = secname;
-  if (bfd_get_section_by_name (output_bfd, outsecname) != NULL)
+  if (bfd_get_section_by_name (output_bfd, secname) != NULL)
     {
-      outsecname = bfd_get_unique_section_name (output_bfd,
-						outsecname,
-						&count);
-      if (outsecname == NULL)
+      secname = bfd_get_unique_section_name (output_bfd, secname, &count);
+      if (secname == NULL)
 	einfo ("%F%P: place_orphan failed: %E\n");
     }
 
@@ -1269,7 +1282,7 @@ gld${EMULATION_NAME}_place_orphan (file, s)
     {
       /* If the name of the section is representable in C, then create
 	 symbols to mark the start and the end of the section.  */
-      for (ps = outsecname; *ps != '\0'; ps++)
+      for (ps = secname; *ps != '\0'; ps++)
 	if (! ISALNUM (*ps) && *ps != '_')
 	  break;
       if (*ps == '\0')
@@ -1277,8 +1290,8 @@ gld${EMULATION_NAME}_place_orphan (file, s)
 	  char *symname;
 	  etree_type *e_align;
 
-	  symname = (char *) xmalloc (ps - outsecname + sizeof "__start_");
-	  sprintf (symname, "__start_%s", outsecname);
+	  symname = (char *) xmalloc (ps - secname + sizeof "__start_");
+	  sprintf (symname, "__start_%s", secname);
 	  e_align = exp_unop (ALIGN_K,
 			      exp_intop ((bfd_vma) 1 << s->alignment_power));
 	  lang_add_assignment (exp_assop ('=', symname, e_align));
@@ -1290,7 +1303,7 @@ gld${EMULATION_NAME}_place_orphan (file, s)
   else
     address = NULL;
 
-  os = lang_enter_output_section_statement (outsecname, address, 0,
+  os = lang_enter_output_section_statement (secname, address, 0,
 					    (bfd_vma) 0,
 					    (etree_type *) NULL,
 					    (etree_type *) NULL,
@@ -1311,8 +1324,8 @@ gld${EMULATION_NAME}_place_orphan (file, s)
       if (place != NULL)
 	stat_ptr = &add;
 
-      symname = (char *) xmalloc (ps - outsecname + sizeof "__stop_");
-      sprintf (symname, "__stop_%s", outsecname);
+      symname = (char *) xmalloc (ps - secname + sizeof "__stop_");
+      sprintf (symname, "__stop_%s", secname);
       lang_add_assignment (exp_assop ('=', symname,
 				      exp_nameop (NAME, ".")));
     }
