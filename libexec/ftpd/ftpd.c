@@ -1772,7 +1772,7 @@ dataconn(char *name, off_t size, char *mode)
 {
 	char sizebuf[32];
 	FILE *file;
-	int retry = 0, tos;
+	int retry = 0, tos, conerrno;
 
 	file_size = size;
 	byte_count = 0;
@@ -1840,28 +1840,35 @@ pdata_err:
 	if (usedefault)
 		data_dest = his_addr;
 	usedefault = 1;
-	file = getdatasock(mode);
-	if (file == NULL) {
-		char hostbuf[BUFSIZ], portbuf[BUFSIZ];
-		getnameinfo((struct sockaddr *)&data_source,
-			data_source.su_len, hostbuf, sizeof(hostbuf) - 1,
-			portbuf, sizeof(portbuf),
-			NI_NUMERICHOST|NI_NUMERICSERV);
-		reply(425, "Can't create data socket (%s,%s): %s.",
-			hostbuf, portbuf, strerror(errno));
-		return (NULL);
-	}
-	data = fileno(file);
-	while (connect(data, (struct sockaddr *)&data_dest,
-	    data_dest.su_len) < 0) {
-		if (errno == EADDRINUSE && retry < swaitmax) {
-			sleep((unsigned) swaitint);
-			retry += swaitint;
-			continue;
+	do {
+		file = getdatasock(mode);
+		if (file == NULL) {
+			char hostbuf[BUFSIZ], portbuf[BUFSIZ];
+			getnameinfo((struct sockaddr *)&data_source,
+				data_source.su_len, hostbuf, sizeof(hostbuf) - 1,
+				portbuf, sizeof(portbuf),
+				NI_NUMERICHOST|NI_NUMERICSERV);
+			reply(425, "Can't create data socket (%s,%s): %s.",
+				hostbuf, portbuf, strerror(errno));
+			return (NULL);
 		}
-		perror_reply(425, "Can't build data connection");
+		data = fileno(file);
+		conerrno = 0;
+		if (connect(data, (struct sockaddr *)&data_dest,
+		    data_dest.su_len) == 0)
+			break;
+		conerrno = errno;
 		(void) fclose(file);
 		data = -1;
+		if (conerrno == EADDRINUSE) {
+			sleep((unsigned) swaitint);
+			retry += swaitint;
+		} else {
+			break;
+		}
+	} while (retry <= swaitmax);
+	if (conerrno != 0) {
+		perror_reply(425, "Can't build data connection");
 		return (NULL);
 	}
 	reply(150, "Opening %s mode data connection for '%s'%s.",
