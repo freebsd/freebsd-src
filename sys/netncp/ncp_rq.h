@@ -52,11 +52,6 @@
 #define setdle(buf,ofs,val) getdle(buf,ofs)=val
 #define setdbe(buf,ofs,val) getdle(buf,ofs)=htonl(val)
 
-#define htoles(x)	((u_int16_t)(x))
-#define letohs(x)	((u_int16_t)(x))
-#define	htolel(x)	((u_int32_t)(x))
-#define	letohl(x)	((u_int32_t)(x))
-
 #else
 #error "Macros for Big-Endians are incomplete"
 #define getwle(buf,ofs) ((u_int16_t)(getb(buf, ofs) | (getb(buf, ofs + 1) << 8)))

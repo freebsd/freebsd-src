@@ -111,7 +111,7 @@ struct ucred;
 
 int  ncp_init(void);
 int  ncp_done(void);
-int  ncp_chkintr(struct ncp_conn *conn, struct proc *p);
+int  ncp_chkintr(struct ncp_conn *conn, struct thread *td);
 char*ncp_str_dup(char *s);
 
 /* ncp_crypt.c */

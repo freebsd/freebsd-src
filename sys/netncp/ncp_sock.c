@@ -66,17 +66,19 @@
 
 /*int ncp_poll(struct socket *so, int events);*/
 /*static int ncp_getsockname(struct socket *so, caddr_t asa, int *alen);*/
-static int ncp_soconnect(struct socket *so,struct sockaddr *target, struct proc *p);
+static int ncp_soconnect(struct socket *so, struct sockaddr *target,
+			 struct thread *td);
 
 
 /* This will need only if native IP used, or (unlikely) NCP will be
  * implemented on the socket level
  */
 static int
-ncp_soconnect(struct socket *so,struct sockaddr *target, struct proc *p) {
-	int error,s;
+ncp_soconnect(struct socket *so, struct sockaddr *target, struct thread *td)
+{
+	int error, s;
 
-	error = soconnect(so, (struct sockaddr*)target, p);
+	error = soconnect(so, (struct sockaddr*)target, td);
 	if (error)
 		return error;
 	/*
@@ -129,11 +131,11 @@ ncp_getsockname(struct socket *so, caddr_t asa, int *alen) {
 int ncp_sock_recv(struct socket *so, struct mbuf **mp, int *rlen)
 {
 	struct uio auio;
-	struct proc *p=curproc; /* XXX */
+	struct thread *td = curthread; /* XXX */
 	int error,flags,len;
-	
+
 	auio.uio_resid = len = 1000000;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	flags = MSG_DONTWAIT;
 
 /*	error = so->so_proto->pr_usrreqs->pru_soreceive(so, 0, &auio,
@@ -155,23 +157,23 @@ int ncp_sock_recv(struct socket *so, struct mbuf **mp, int *rlen)
 int
 ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 {
-	struct proc *p = curproc; /* XXX */
+	struct thread *td = curthread; /* XXX */
 	struct sockaddr *to = 0;
 	struct ncp_conn *conn = rqp->nr_conn;
 	struct mbuf *m;
 	int error, flags=0;
 	int sendwait;
 
-	for(;;) {
+	for (;;) {
 		m = m_copym(top, 0, M_COPYALL, M_TRYWAIT);
 /*		NCPDDEBUG(m);*/
-		error = so->so_proto->pr_usrreqs->pru_sosend(so, to, 0, m, 0, flags, p);
+		error = so->so_proto->pr_usrreqs->pru_sosend(so, to, 0, m, 0, flags, td);
 		if (error == 0 || error == EINTR || error == ENETDOWN)
 			break;
 		if (rqp->rexmit == 0) break;
 		rqp->rexmit--;
 		tsleep(&sendwait, PWAIT, "ncprsn", conn->li.timeout * hz);
-		error = ncp_chkintr(conn, p);
+		error = ncp_chkintr(conn, td);
 		if (error == EINTR) break;
 	}
 	if (error) {
@@ -181,20 +183,23 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 }
 
 int
-ncp_poll(struct socket *so, int events){
-    struct proc *p = curproc;
-    struct ucred *cred=NULL;
-    return so->so_proto->pr_usrreqs->pru_sopoll(so, events, cred, p);
+ncp_poll(struct socket *so, int events)
+{
+    struct thread *td = curthread;
+    struct ucred *cred = NULL;
+
+    return so->so_proto->pr_usrreqs->pru_sopoll(so, events, cred, td);
 }
 
 int
-ncp_sock_rselect(struct socket *so,struct proc *p, struct timeval *tv, int events)
+ncp_sock_rselect(struct socket *so, struct thread *td, struct timeval *tv,
+		 int events)
 {
-	struct timeval atv,rtv,ttv;
-	int timo,error=0;
+	struct timeval atv, rtv, ttv;
+	int ncoll, timo, error = 0;
 
 	if (tv) {
-		atv=*tv;
+		atv = *tv;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
 			goto done_noproclock;
@@ -203,56 +208,65 @@ ncp_sock_rselect(struct socket *so,struct proc *p, struct timeval *tv, int event
 		timevaladd(&atv, &rtv);
 	}
 	timo = 0;
-	PROC_LOCK(p);
-	p->p_flag |= P_SELECT;
-	PROC_UNLOCK(p);
+	mtx_lock(&sellock);
+
+retry:
+	ncoll = nselcoll;
+	mtx_lock_spin(&sched_lock);
+	td->td_flags |= TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
+	mtx_unlock(&sellock);
+
+	TAILQ_INIT(&td->td_selq);
 	error = ncp_poll(so, events);
-	PROC_LOCK(p);
+	mtx_lock(&sellock);
 	if (error) {
 		error = 0;
 		goto done;
 	}
 	if (tv) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) {
-			/*
-			 * An event of our interest may occur during locking a process.
-			 * In order to avoid missing the event that occured during locking
-			 * the process, test P_SELECT and rescan file descriptors if
-			 * necessary.
-			 */
-			if ((p->p_flag & P_SELECT) == 0) {
-				p->p_flag |= P_SELECT;
-				PROC_UNLOCK(p);
-				error = ncp_poll(so, events);
-				PROC_LOCK(p);
-			}
+		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
-		}
-		ttv=atv;
+		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
 	}
-	p->p_flag &= ~P_SELECT;
+	/*
+	 * An event of our interest may occur during locking a thread.
+	 * In order to avoid missing the event that occurred during locking
+	 * the process, test TDF_SELECT and rescan file descriptors if
+	 * necessary.
+	 */
+	mtx_lock_spin(&sched_lock);
+	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
+		mtx_unlock_spin(&sched_lock);
+		goto retry;
+	}
+	mtx_unlock_spin(&sched_lock);
+
 	if (timo > 0)
-		error = cv_timedwait(&selwait, &p->p_mtx, timo);
+		error = cv_timedwait(&selwait, &sellock, timo);
 	else {
-		cv_wait(&selwait, &p->p_mtx);
+		cv_wait(&selwait, &sellock);
 		error = 0;
 	}
 
 done:
-	p->p_flag &= ~P_SELECT;
-	PROC_UNLOCK(p);
+	clear_selinfo_list(td);
+
+	mtx_lock_spin(&sched_lock);
+	td->td_flags &= ~TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
+	mtx_unlock(&sellock);
+
 done_noproclock:
-	if (error == ERESTART) {
-/*		printf("Signal: %x", cursig(p));*/
+	if (error == ERESTART)
 		error = 0;
-	}
 	return (error);
 }
 
-/* 
+/*
  * Connect to specified server via IPX
  */
 static int
@@ -260,7 +274,7 @@ ncp_sock_connect_ipx(struct ncp_conn *conn)
 {
 	struct sockaddr_ipx sipx;
 	struct ipxpcb *npcb;
-	struct proc *p = conn->procp;
+	struct thread *td = conn->td;
 	int addrlen, error, count;
 
 	sipx.sipx_port = htons(0);
@@ -271,15 +285,15 @@ ncp_sock_connect_ipx(struct ncp_conn *conn)
 			goto bad;
 		}
 		conn->ncp_so = conn->wdg_so = NULL;
-		checkbad(socreate(AF_IPX, &conn->ncp_so, SOCK_DGRAM, 0, p));
+		checkbad(socreate(AF_IPX, &conn->ncp_so, SOCK_DGRAM, 0, td->td_ucred, td));
 		if (conn->li.opt & NCP_OPT_WDOG)
-			checkbad(socreate(AF_IPX, &conn->wdg_so, SOCK_DGRAM,0,p));
+			checkbad(socreate(AF_IPX, &conn->wdg_so, SOCK_DGRAM, 0, td->td_ucred, td));
 		addrlen = sizeof(sipx);
 		sipx.sipx_family = AF_IPX;
 		ipx_setnullnet(sipx.sipx_addr);
 		ipx_setnullhost(sipx.sipx_addr);
 		sipx.sipx_len = addrlen;
-		error = sobind(conn->ncp_so, (struct sockaddr *)&sipx, p);
+		error = sobind(conn->ncp_so, (struct sockaddr *)&sipx, td);
 		if (error == 0) {
 			if ((conn->li.opt & NCP_OPT_WDOG) == 0)
 				break;
@@ -287,7 +301,7 @@ ncp_sock_connect_ipx(struct ncp_conn *conn)
 			sipx.sipx_port = htons(ntohs(sipx.sipx_port) + 1);
 			ipx_setnullnet(sipx.sipx_addr);
 			ipx_setnullhost(sipx.sipx_addr);
-			error = sobind(conn->wdg_so, (struct sockaddr *)&sipx, p);
+			error = sobind(conn->wdg_so, (struct sockaddr *)&sipx, td);
 		}
 		if (!error) break;
 		if (error != EADDRINUSE) goto bad;
@@ -300,7 +314,7 @@ ncp_sock_connect_ipx(struct ncp_conn *conn)
 	npcb->ipxp_dpt = IPXPROTO_NCP;
 	/* IPXrouted must be running, i.e. route must be presented */
 	conn->li.ipxaddr.sipx_len = sizeof(struct sockaddr_ipx);
-	checkbad(ncp_soconnect(conn->ncp_so, &conn->li.saddr, p));
+	checkbad(ncp_soconnect(conn->ncp_so, &conn->li.saddr, td));
 	if (conn->wdg_so) {
 		sotoipxpcb(conn->wdg_so)->ipxp_laddr.x_net = npcb->ipxp_laddr.x_net;
 		sotoipxpcb(conn->wdg_so)->ipxp_laddr.x_host= npcb->ipxp_laddr.x_host;
@@ -310,11 +324,11 @@ ncp_sock_connect_ipx(struct ncp_conn *conn)
 	}
 #ifdef NCPBURST
 	if (ncp_burst_enabled) {
-		checkbad(socreate(AF_IPX, &conn->bc_so, SOCK_DGRAM, 0, p));
+		checkbad(socreate(AF_IPX, &conn->bc_so, SOCK_DGRAM, 0, td));
 		bzero(&sipx, sizeof(sipx));
 		sipx.sipx_len = sizeof(sipx);
-		checkbad(sobind(conn->bc_so, (struct sockaddr *)&sipx, p));
-		checkbad(ncp_soconnect(conn->bc_so, &conn->li.saddr, p));
+		checkbad(sobind(conn->bc_so, (struct sockaddr *)&sipx, td));
+		checkbad(ncp_soconnect(conn->bc_so, &conn->li.saddr, td));
 	}
 #endif
 	if (!error) {
@@ -339,24 +353,24 @@ ncp_sock_checksum(struct ncp_conn *conn, int enable)
 	return 0;
 }
 
-/* 
+/*
  * Connect to specified server via IP
  */
 static int
 ncp_sock_connect_in(struct ncp_conn *conn)
 {
 	struct sockaddr_in sin;
-	struct proc *p=conn->procp;
-	int addrlen=sizeof(sin), error;
+	struct thread *td = conn->td;
+	int addrlen = sizeof(sin), error;
 
 	conn->flags = 0;
 	bzero(&sin,addrlen);
 	conn->ncp_so = conn->wdg_so = NULL;
-	checkbad(socreate(AF_INET, &conn->ncp_so, SOCK_DGRAM, IPPROTO_UDP, p));
+	checkbad(socreate(AF_INET, &conn->ncp_so, SOCK_DGRAM, IPPROTO_UDP, td->td_ucred, td));
 	sin.sin_family = AF_INET;
 	sin.sin_len = addrlen;
-	checkbad(sobind(conn->ncp_so, (struct sockaddr *)&sin, p));
-	checkbad(ncp_soconnect(conn->ncp_so,(struct sockaddr*)&conn->li.addr, p));
+	checkbad(sobind(conn->ncp_so, (struct sockaddr *)&sin, td));
+	checkbad(ncp_soconnect(conn->ncp_so,(struct sockaddr*)&conn->li.addr, td));
 	if  (!error)
 		conn->flags |= NCPFL_SOCONN;
 	return error;
@@ -426,9 +440,9 @@ ncp_watchdog(struct ncp_conn *conn) {
 	while (conn->wdg_so) { /* not a loop */
 		so = conn->wdg_so;
 		auio.uio_resid = len = 1000000;
-		auio.uio_procp = curproc;
+		auio.uio_td = curthread;
 		flags = MSG_DONTWAIT;
-		error = so->so_proto->pr_usrreqs->pru_soreceive(so, 
+		error = so->so_proto->pr_usrreqs->pru_soreceive(so,
 		    (struct sockaddr**)&sa, &auio, &m, (struct mbuf**)0, &flags);
 		if (error) break;
 		len -= auio.uio_resid;
@@ -437,7 +451,7 @@ ncp_watchdog(struct ncp_conn *conn) {
 		buf = mtod(m, char*);
 		if (buf[1] != '?') break;
 		buf[1] = 'Y';
-		error = so->so_proto->pr_usrreqs->pru_sosend(so, (struct sockaddr*)sa, 0, m, 0, 0, curproc);
+		error = so->so_proto->pr_usrreqs->pru_sosend(so, (struct sockaddr*)sa, 0, m, 0, 0, curthread);
 		NCPSDEBUG("send watch dog %d\n",error);
 		break;
 	}
