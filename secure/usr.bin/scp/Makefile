@@ -16,7 +16,3 @@ SRCS=	scp.c
 
 LDADD+=	-lcrypto -lutil -lz -L${.OBJDIR}/../../lib/libssh -lssh
 DPADD+=	${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
-.if defined(RSAREF) && ${RSAREF} == YES
-LDADD+=	-lRSAglue
-DPADD+= ${LIBRSAGLUE}
-.endif

@@ -18,7 +18,7 @@ LOCALBASE?=	/usr/local
 CFLAGS+= -DNO_RSA -DNO_SSL2
 .else
 CFLAGS+= -DRSAref
-LDADD+=	-lRSAglue ${LOCALBASE}/lib/librsaref.a
+LDADD+=	${LOCALBASE}/lib/librsaref.a
 .endif
 .endif
 

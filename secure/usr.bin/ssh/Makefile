@@ -35,7 +35,3 @@ DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR}
 
 LDADD+=	-L${.OBJDIR}/../../lib/libssh -lssh -lcrypto -lutil -lz
 DPADD+=	${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
-.if defined(RSAREF) && ${RSAREF} == YES
-LDADD+=	-lRSAglue
-DPADD+= ${LIBRSAGLUE}
-.endif
