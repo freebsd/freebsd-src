@@ -890,6 +890,7 @@ sendit(pp, file)
 			}
 		} else if (line[0] == 'P') {
 			strncpy(logname, line+1, sizeof(logname) - 1);
+			logname[sizeof(logname) - 1] = '\0';
 			if (pp->restricted) { /* restricted */
 				if (getpwnam(logname) == NULL) {
 					sendmail(pp, line+1, NOACCT);
@@ -899,6 +900,7 @@ sendit(pp, file)
 			}
 		} else if (line[0] == 'I') {
 			strncpy(indent+2, line+1, sizeof(indent) - 3);
+			indent[2 + sizeof(indent) - 3] = '\0';
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			strcpy(last, line);
 			while ((i = getline(cfp)) != 0)
