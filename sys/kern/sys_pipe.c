@@ -93,10 +93,11 @@ static int pipe_write __P((struct file *fp, struct uio *uio,
 static int pipe_close __P((struct file *fp, struct proc *p));
 static int pipe_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
+static int pipe_stat __P((struct file *fp, struct stat *sb, struct proc *p));
 static int pipe_ioctl __P((struct file *fp, u_long cmd, caddr_t data, struct proc *p));
 
 static struct fileops pipeops =
-    { pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_close };
+    { pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_stat, pipe_close };
 
 /*
  * Default pipe buffer size(s), this can be kind-of large now because pipe
@@ -1010,11 +1011,14 @@ pipe_poll(fp, events, cred, p)
 	return (revents);
 }
 
-int
-pipe_stat(pipe, ub)
-	register struct pipe *pipe;
-	register struct stat *ub;
+static int
+pipe_stat(fp, ub, p)
+	struct file *fp;
+	struct stat *ub;
+	struct proc *p;
 {
+	struct pipe *pipe = (struct pipe *)fp->f_data;
+
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFIFO;
 	ub->st_blksize = pipe->pipe_buffer.size;
