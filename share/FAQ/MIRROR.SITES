@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.12 1994/12/04 21:15:59 gpalmer Exp $
+$Id: MIRROR.SITES,v 1.13 1994/12/06 16:07:16 smace Exp $
 
 The FreeBSD 2.0 distribution (or later) is being mirrored at the following
 locations:
@@ -37,6 +37,9 @@ USA		ftp://ftp.cybernetics.net/pub/FreeBSD
 
 USA		ftp://ftp.neosoft.com/systems/FreeBSD
 		<smace@NeoSoft.COM>
+
+USA		ftp://kryten.atinc.com/pub/FreeBSD/2.0-RELEASE
+		<jmb@kryten.atinc.com>
 
 Japan		ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-2.0-RELEASE
 		Ashida Hiroyuki <assie@bpel.tutics.tut.ac.jp>
