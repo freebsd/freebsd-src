@@ -51,16 +51,16 @@ hid_get_report_desc(fd)
 	struct usb_ctl_report_desc rep;
 	report_desc_t r;
 
-	rep.size = 0;
+	rep.ucrd_size = 0;
 	if (ioctl(fd, USB_GET_REPORT_DESC, &rep) < 0)
 		return (0);
-	r = malloc(sizeof *r + rep.size);
+	r = malloc(sizeof *r + rep.ucrd_size);
 	if (r == 0) {
 		errno = ENOMEM;
 		return (0);
 	}
-	r->size = rep.size;
-	memcpy(r->data, rep.data, (unsigned int)rep.size);
+	r->size = rep.ucrd_size;
+	memcpy(r->data, rep.ucrd_data, (unsigned int)rep.ucrd_size);
 	return (r);
 }
 

@@ -456,11 +456,11 @@ usbioctl(devt, cmd, data, flag, p)
 	case USB_REQUEST:
 	{
 		struct usb_ctl_request *ur = (void *)data;
-		int len = UGETW(ur->request.wLength);
+		int len = UGETW(ur->ucr_request.wLength);
 		struct iovec iov;
 		struct uio uio;
 		void *ptr = 0;
-		int addr = ur->addr;
+		int addr = ur->ucr_addr;
 		usbd_status err;
 		int error = 0;
 
@@ -471,7 +471,7 @@ usbioctl(devt, cmd, data, flag, p)
 		    sc->sc_bus->devices[addr] == 0)
 			return (EINVAL);
 		if (len != 0) {
-			iov.iov_base = (caddr_t)ur->data;
+			iov.iov_base = (caddr_t)ur->ucr_data;
 			iov.iov_len = len;
 			uio.uio_iov = &iov;
 			uio.uio_iovcnt = 1;
@@ -479,7 +479,7 @@ usbioctl(devt, cmd, data, flag, p)
 			uio.uio_offset = 0;
 			uio.uio_segflg = UIO_USERSPACE;
 			uio.uio_rw =
-				ur->request.bmRequestType & UT_READ ? 
+				ur->ucr_request.bmRequestType & UT_READ ? 
 				UIO_READ : UIO_WRITE;
 			uio.uio_procp = p;
 			ptr = malloc(len, M_TEMP, M_WAITOK);
@@ -490,7 +490,7 @@ usbioctl(devt, cmd, data, flag, p)
 			}
 		}
 		err = usbd_do_request_flags(sc->sc_bus->devices[addr],
-			  &ur->request, ptr, ur->flags, &ur->actlen);
+			  &ur->ucr_request, ptr, ur->ucr_flags, &ur->ucr_actlen);
 		if (err) {
 			error = EIO;
 			goto ret;
@@ -511,7 +511,7 @@ usbioctl(devt, cmd, data, flag, p)
 	case USB_DEVICEINFO:
 	{
 		struct usb_device_info *di = (void *)data;
-		int addr = di->addr;
+		int addr = di->udi_addr;
 		usbd_device_handle dev;
 
 		if (addr < 1 || addr >= USB_MAX_DEVICES)
