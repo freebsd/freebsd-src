@@ -225,6 +225,7 @@
 #define Am79C972  0x2624
 #define Am79C973  0x2625
 #define Am79C978  0x2626
+#define Am79C975  0x2627
 #define Am79C976  0x2628
 
 /*
