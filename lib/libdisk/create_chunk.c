@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.15 1995/05/12 18:49:57 phk Exp $
+ * $Id: create_chunk.c,v 1.16 1995/05/15 00:58:25 phk Exp $
  *
  */
 
@@ -180,7 +180,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	return 0;
     found:
 	if (c1->flags & CHUNK_BAD144) {
-		edge = c1->end - (d->bios_hd * d->bios_sect);
+		edge = c1->end - d->bios_sect - 127;
 		if (offset > edge)
 			return 0;
 		if (offset + size > edge)
