@@ -893,13 +893,11 @@ getnewvnode(tag, mp, vops, vpp)
 	vop_t **vops;
 	struct vnode **vpp;
 {
-	int s;
 	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp = NULL;
 	struct vpollinfo *pollinfo = NULL;
 	struct mount *vnmp;
 
-	s = splbio();
 	mtx_lock(&vnode_free_list_mtx);
 
 	/*
