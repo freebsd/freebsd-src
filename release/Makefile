@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.13 1995/06/09 06:52:44 jkh Exp $
+#	$Id: Makefile,v 1.192.2.14 1995/06/09 14:50:24 jkh Exp $
 #
 # How to roll a release:
 #
@@ -286,7 +286,7 @@ release.6:
 	touch release.6
 
 
-# Make source dists, and finish of DES too
+# Make source dists, and finish off DES too
 release.7:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
@@ -303,6 +303,8 @@ release.7:
 	if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
 	@echo "src distribution is finished."
+	mv ${RD}/dists/krb/* ${RD}/dists/des
+	rmdir ${RD}/dists/krb
 	touch release.7
 
 # Complete the bootfd
