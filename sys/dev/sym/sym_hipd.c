@@ -60,6 +60,7 @@
 #define SYM_DRIVER_NAME	"sym-1.6.5-20000902"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
+/* #define CAM_NEW_TRAN_CODE */
 
 #include <pci.h>
 #include <sys/param.h>
@@ -137,6 +138,13 @@ typedef	int32_t   s32;
 typedef u_int8_t  u8;
 typedef u_int16_t u16;
 typedef	u_int32_t u32;
+
+/*
+ *  From 'cam.error_recovery_diffs.20010313.context' patch.
+ */
+#ifdef  CAM_NEW_TRAN_CODE
+#define FreeBSD_New_Tran_Settings
+#endif  /* CAM_NEW_TRAN_CODE */
 
 /*
  *  Driver definitions.
@@ -1242,6 +1250,10 @@ typedef struct sym_hcb *hcb_p;
  *  Gather negotiable parameters value
  */
 struct sym_trans {
+#ifdef	FreeBSD_New_Tran_Settings
+	u8 scsi_version;
+	u8 spi_version;
+#endif
 	u8 period;
 	u8 offset;
 	u8 width;
@@ -2945,6 +2957,10 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	for (i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
 		tcb_p tp = &np->target[i];
 
+#ifdef	FreeBSD_New_Tran_Settings
+		tp->tinfo.user.scsi_version = tp->tinfo.current.scsi_version= 2;
+		tp->tinfo.user.spi_version  = tp->tinfo.current.spi_version = 2;
+#endif
 		tp->tinfo.user.period = np->minsync;
 		tp->tinfo.user.offset = np->maxoffs;
 		tp->tinfo.user.width  = np->maxwide ? BUS_16_BIT : BUS_8_BIT;
@@ -2962,6 +2978,9 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 			    tp->tinfo.user.width == BUS_16_BIT) {
 				tp->tinfo.user.options |= PPR_OPT_DT;
 				tp->tinfo.user.offset   = np->maxoffs_dt;
+#ifdef	FreeBSD_New_Tran_Settings
+				tp->tinfo.user.spi_version = 3;
+#endif
 			}
 		}
 
@@ -3631,13 +3650,91 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 }
 
 /*
+ *  Tell the SCSI layer about the new transfer parameters.
+ */
+static void 
+sym_xpt_async_transfer_neg(hcb_p np, int target, u_int spi_valid)
+{
+	struct ccb_trans_settings cts;
+	struct cam_path *path;
+	int sts;
+	tcb_p tp = &np->target[target];
+
+	sts = xpt_create_path(&path, NULL, cam_sim_path(np->sim), target,
+	                      CAM_LUN_WILDCARD);
+	if (sts != CAM_REQ_CMP)
+		return;
+
+	bzero(&cts, sizeof(cts));
+
+#ifdef	FreeBSD_New_Tran_Settings
+#define	cts__scsi (cts.proto_specific.scsi)
+#define	cts__spi  (cts.xport_specific.spi)
+
+	cts.type      = CTS_TYPE_CURRENT_SETTINGS;
+	cts.protocol  = PROTO_SCSI;
+	cts.transport = XPORT_SPI;
+	cts.protocol_version  = tp->tinfo.current.scsi_version;
+	cts.transport_version = tp->tinfo.current.spi_version;
+
+	cts__spi.valid = spi_valid;
+	if (spi_valid & CTS_SPI_VALID_SYNC_RATE)
+		cts__spi.sync_period = tp->tinfo.current.period;
+	if (spi_valid & CTS_SPI_VALID_SYNC_OFFSET)
+		cts__spi.sync_offset = tp->tinfo.current.offset;
+	if (spi_valid & CTS_SPI_VALID_BUS_WIDTH)
+		cts__spi.bus_width   = tp->tinfo.current.width;
+	if (spi_valid & CTS_SPI_VALID_PPR_OPTIONS)
+		cts__spi.ppr_options = tp->tinfo.current.options;
+#undef cts__spi
+#undef cts__scsi
+#else
+	cts.valid = spi_valid;
+	if (spi_valid & CCB_TRANS_SYNC_RATE_VALID)
+		cts.sync_period = tp->tinfo.current.period;
+	if (spi_valid & CCB_TRANS_SYNC_OFFSET_VALID)
+		cts.sync_offset = tp->tinfo.current.offset;
+	if (spi_valid & CCB_TRANS_BUS_WIDTH_VALID)
+		cts.bus_width   = tp->tinfo.current.width;
+#endif
+	xpt_setup_ccb(&cts.ccb_h, path, /*priority*/1);
+	xpt_async(AC_TRANSFER_NEG, path, &cts);
+	xpt_free_path(path);
+}
+
+#ifdef	FreeBSD_New_Tran_Settings
+#define SYM_SPI_VALID_WDTR		\
+	CTS_SPI_VALID_BUS_WIDTH |	\
+	CTS_SPI_VALID_SYNC_RATE |	\
+	CTS_SPI_VALID_SYNC_OFFSET
+#define SYM_SPI_VALID_SDTR		\
+	CTS_SPI_VALID_SYNC_RATE |	\
+	CTS_SPI_VALID_SYNC_OFFSET
+#define SYM_SPI_VALID_PPR		\
+	CTS_SPI_VALID_PPR_OPTIONS |	\
+	CTS_SPI_VALID_BUS_WIDTH |	\
+	CTS_SPI_VALID_SYNC_RATE |	\
+	CTS_SPI_VALID_SYNC_OFFSET
+#else
+#define SYM_SPI_VALID_WDTR		\
+	CCB_TRANS_BUS_WIDTH_VALID |	\
+	CCB_TRANS_SYNC_RATE_VALID |	\
+	CCB_TRANS_SYNC_OFFSET_VALID
+#define SYM_SPI_VALID_SDTR		\
+	CCB_TRANS_SYNC_RATE_VALID |	\
+	CCB_TRANS_SYNC_OFFSET_VALID
+#define SYM_SPI_VALID_PPR		\
+	CCB_TRANS_BUS_WIDTH_VALID |	\
+	CCB_TRANS_SYNC_RATE_VALID |	\
+	CCB_TRANS_SYNC_OFFSET_VALID
+#endif
+
+/*
  *  We received a WDTR.
  *  Let everything be aware of the changes.
  */
 static void sym_setwide(hcb_p np, ccb_p cp, u_char wide)
 {
-	struct	ccb_trans_settings neg;
-	union ccb *ccb = cp->cam_ccb;
 	tcb_p tp = &np->target[cp->target];
 
 	sym_settrans(np, cp, 0, 0, 0, wide, 0, 0);
@@ -3649,14 +3746,8 @@ static void sym_setwide(hcb_p np, ccb_p cp, u_char wide)
 	tp->tinfo.current.offset = 0;
 	tp->tinfo.current.period = 0;
 	tp->tinfo.current.options = 0;
-	neg.bus_width = wide ? BUS_16_BIT : BUS_8_BIT;
-	neg.sync_period = tp->tinfo.current.period;
-	neg.sync_offset = tp->tinfo.current.offset;
-	neg.valid = CCB_TRANS_BUS_WIDTH_VALID
-		  | CCB_TRANS_SYNC_RATE_VALID
-		  | CCB_TRANS_SYNC_OFFSET_VALID;
-	xpt_setup_ccb(&neg.ccb_h, ccb->ccb_h.path, /*priority*/1);
-	xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);
+
+	sym_xpt_async_transfer_neg(np, cp->target, SYM_SPI_VALID_WDTR);
 }
 
 /*
@@ -3666,8 +3757,6 @@ static void sym_setwide(hcb_p np, ccb_p cp, u_char wide)
 static void
 sym_setsync(hcb_p np, ccb_p cp, u_char ofs, u_char per, u_char div, u_char fak)
 {
-	struct	ccb_trans_settings neg;
-	union ccb *ccb = cp->cam_ccb;
 	tcb_p tp = &np->target[cp->target];
 	u_char wide = (cp->phys.select.sel_scntl3 & EWS) ? 1 : 0;
 
@@ -3679,12 +3768,8 @@ sym_setsync(hcb_p np, ccb_p cp, u_char ofs, u_char per, u_char div, u_char fak)
 	tp->tinfo.goal.period	= tp->tinfo.current.period  = per;
 	tp->tinfo.goal.offset	= tp->tinfo.current.offset  = ofs;
 	tp->tinfo.goal.options	= tp->tinfo.current.options = 0;
-	neg.sync_period = tp->tinfo.current.period;
-	neg.sync_offset = tp->tinfo.current.offset;
-	neg.valid = CCB_TRANS_SYNC_RATE_VALID
-		  | CCB_TRANS_SYNC_OFFSET_VALID;
-	xpt_setup_ccb(&neg.ccb_h, ccb->ccb_h.path, /*priority*/1);
-	xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);
+
+	sym_xpt_async_transfer_neg(np, cp->target, SYM_SPI_VALID_SDTR);
 }
 
 /*
@@ -3694,8 +3779,6 @@ sym_setsync(hcb_p np, ccb_p cp, u_char ofs, u_char per, u_char div, u_char fak)
 static void sym_setpprot(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 			 u_char per, u_char wide, u_char div, u_char fak)
 {
-	struct	ccb_trans_settings neg;
-	union ccb *ccb = cp->cam_ccb;
 	tcb_p tp = &np->target[cp->target];
 
 	sym_settrans(np, cp, dt, ofs, per, wide, div, fak);
@@ -3707,14 +3790,8 @@ static void sym_setpprot(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	tp->tinfo.goal.period	= tp->tinfo.current.period = per;
 	tp->tinfo.goal.offset	= tp->tinfo.current.offset = ofs;
 	tp->tinfo.goal.options	= tp->tinfo.current.options = dt;
-	neg.sync_period = tp->tinfo.current.period;
-	neg.sync_offset = tp->tinfo.current.offset;
-	neg.bus_width = wide ? BUS_16_BIT : BUS_8_BIT;
-	neg.valid = CCB_TRANS_BUS_WIDTH_VALID
-		  | CCB_TRANS_SYNC_RATE_VALID
-		  | CCB_TRANS_SYNC_OFFSET_VALID;
-	xpt_setup_ccb(&neg.ccb_h, ccb->ccb_h.path, /*priority*/1);
-	xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);
+
+	sym_xpt_async_transfer_neg(np, cp->target, SYM_SPI_VALID_PPR);
 }
 
 /*
@@ -4945,6 +5022,10 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		 */
 		cp->sensecmd[0]		= 0x03;
 		cp->sensecmd[1]		= cp->lun << 5;
+#ifdef	FreeBSD_New_Tran_Settings
+		if (tp->tinfo.current.scsi_version > 2 || cp->lun > 7)
+			cp->sensecmd[1]	= 0;
+#endif
 		cp->sensecmd[4]		= SYM_SNS_BBUF_LEN;
 		cp->data_len		= SYM_SNS_BBUF_LEN;
 
@@ -8368,27 +8449,27 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		tp = &np->target[ccb_h->target_id];
 
 		/*
-		 *  Update our transfer settings (basically WIDE/SYNC). 
-		 *  These features are to be handled in a per target 
-		 *  basis according to SCSI specifications.
-		 */
-		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
-			sym_update_trans(np, tp, &tp->tinfo.user, cts);
-
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
-			sym_update_trans(np, tp, &tp->tinfo.goal, cts);
-
-		/*
-		 *  Update our disconnect and tag settings.
-		 *  SCSI requires CmdQue feature to be handled in a per 
-		 *  device (logical unit) basis.
+		 *  Update SPI transport settings in TARGET control block.
+		 *  Update SCSI device settings in LUN control block.
 		 */
 		lp = sym_lp(np, tp, ccb_h->target_lun);
-		if (lp) {
-			if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
-				sym_update_dflags(np, &lp->user_flags, cts);
-			if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
+#ifdef	FreeBSD_New_Tran_Settings
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+#else
+		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
+#endif
+			sym_update_trans(np, tp, &tp->tinfo.goal, cts);
+			if (lp)
 				sym_update_dflags(np, &lp->current_flags, cts);
+		}
+#ifdef	FreeBSD_New_Tran_Settings
+		if (cts->type == CTS_TYPE_USER_SETTINGS) {
+#else
+		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
+#endif
+			sym_update_trans(np, tp, &tp->tinfo.user, cts);
+			if (lp)
+				sym_update_dflags(np, &lp->user_flags, cts);
 		}
 
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
@@ -8404,6 +8485,45 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		tp = &np->target[ccb_h->target_id];
 		lp = sym_lp(np, tp, ccb_h->target_lun);
 
+#ifdef	FreeBSD_New_Tran_Settings
+#define	cts__scsi (&cts->proto_specific.scsi)
+#define	cts__spi  (&cts->xport_specific.spi)
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+			tip = &tp->tinfo.current;
+			dflags = lp ? lp->current_flags : 0;
+		}
+		else {
+			tip = &tp->tinfo.user;
+			dflags = lp ? lp->user_flags : tp->usrflags;
+		}
+
+		cts->protocol  = PROTO_SCSI;
+		cts->transport = XPORT_SPI;
+		cts->protocol_version  = tip->scsi_version;
+		cts->transport_version = tip->spi_version;
+		
+		cts__spi->sync_period = tip->period;
+		cts__spi->sync_offset = tip->offset;
+		cts__spi->bus_width   = tip->width;
+		cts__spi->ppr_options = tip->options;
+
+		cts__spi->valid = CTS_SPI_VALID_SYNC_RATE
+		                | CTS_SPI_VALID_SYNC_OFFSET
+		                | CTS_SPI_VALID_BUS_WIDTH
+		                | CTS_SPI_VALID_PPR_OPTIONS;
+ 
+		cts__spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+		if (dflags & SYM_DISC_ENABLED)
+			cts__spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+		cts__spi->valid |= CTS_SPI_VALID_DISC;
+
+		cts__scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+		if (dflags & SYM_TAGS_ENABLED)
+			cts__scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+		cts__scsi->valid |= CTS_SCSI_VALID_TQ;
+#undef	cts__spi
+#undef	cts__scsi
+#else
 		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
 			tip = &tp->tinfo.current;
 			dflags = lp ? lp->current_flags : 0;
@@ -8421,19 +8541,17 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 			   | CCB_TRANS_SYNC_OFFSET_VALID
 			   | CCB_TRANS_BUS_WIDTH_VALID;
 
-		if (lp) {
-			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
+		cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
 
-			if (dflags & SYM_DISC_ENABLED)
-				cts->flags |= CCB_TRANS_DISC_ENB;
+		if (dflags & SYM_DISC_ENABLED)
+			cts->flags |= CCB_TRANS_DISC_ENB;
 
-			if (dflags & SYM_TAGS_ENABLED)
-				cts->flags |= CCB_TRANS_TAG_ENB;
+		if (dflags & SYM_TAGS_ENABLED)
+			cts->flags |= CCB_TRANS_TAG_ENB;
 
-			cts->valid |= CCB_TRANS_DISC_VALID;
-			cts->valid |= CCB_TRANS_TQ_VALID;
-		}
-
+		cts->valid |= CCB_TRANS_DISC_VALID;
+		cts->valid |= CCB_TRANS_TQ_VALID;
+#endif
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -8490,6 +8608,19 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Symbios", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
+
+#ifdef	FreeBSD_New_Tran_Settings
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
+		cpi->transport = XPORT_SPI;
+		cpi->transport_version = 2;
+		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_ST;
+		if (np->features & FE_ULTRA3) {
+			cpi->transport_version = 3;
+			cpi->xport_specific.spi.ppr_options =
+			    SID_SPI_CLOCK_DT_ST;
+		}
+#endif
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -8588,13 +8719,31 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	/*
 	 *  Update the infos.
 	 */
+#ifdef	FreeBSD_New_Tran_Settings
+#define cts__spi (&cts->xport_specific.spi)
+	if ((cts__spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
+		tip->width = cts__spi->bus_width;
+	if ((cts__spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0)
+		tip->offset = cts__spi->sync_offset;
+	if ((cts__spi->valid & CTS_SPI_VALID_SYNC_RATE) != 0)
+		tip->period = cts__spi->sync_period;
+	if ((cts__spi->valid & CTS_SPI_VALID_PPR_OPTIONS) != 0)
+		tip->options = (cts__spi->ppr_options & PPR_OPT_DT);
+	if (cts->protocol_version != PROTO_VERSION_UNSPECIFIED &&
+	    cts->protocol_version != PROTO_VERSION_UNKNOWN)
+		tip->scsi_version = cts->protocol_version;
+	if (cts->transport_version != XPORT_VERSION_UNSPECIFIED &&
+	    cts->transport_version != XPORT_VERSION_UNKNOWN)
+		tip->spi_version = cts->transport_version;
+#undef cts__spi
+#else
 	if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
 		tip->width = cts->bus_width;
 	if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
 		tip->offset = cts->sync_offset;
 	if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
 		tip->period = cts->sync_period;
-
+#endif
 	/*
 	 *  Scale against driver configuration limits.
 	 */
@@ -8608,6 +8757,15 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	if (tip->width > np->maxwide)
 		tip->width  = np->maxwide;
 
+#ifdef	FreeBSD_New_Tran_Settings
+	/*
+	 *  Only accept DT if controller supports and SYNC/WIDE asked.
+	 */
+	if (!((np->features & (FE_C10|FE_ULTRA3)) == (FE_C10|FE_ULTRA3)) ||
+	    !(tip->width == BUS_16_BIT && tip->offset)) {
+		tip->options &= ~PPR_OPT_DT;
+	}
+#else
 	/*
 	 *  For now, only assume DT if period <= 9, BUS 16 and offset != 0.
 	 */
@@ -8616,6 +8774,7 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	    tip->period <= 9 && tip->width == BUS_16_BIT && tip->offset) {
 		tip->options |= PPR_OPT_DT;
 	}
+#endif
 
 	/*
 	 *  Scale period factor and offset against controller limits.
@@ -8644,6 +8803,25 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 static void 
 sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 {
+#ifdef	FreeBSD_New_Tran_Settings
+#define	cts__scsi (&cts->proto_specific.scsi)
+#define	cts__spi  (&cts->xport_specific.spi)
+	if ((cts__spi->valid & CTS_SPI_VALID_DISC) != 0) {
+		if ((cts__spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
+			*flags |= SYM_DISC_ENABLED;
+		else
+			*flags &= ~SYM_DISC_ENABLED;
+	}
+
+	if ((cts__scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
+		if ((cts__scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
+			*flags |= SYM_TAGS_ENABLED;
+		else
+			*flags &= ~SYM_TAGS_ENABLED;
+	}
+#undef	cts__spi
+#undef	cts__scsi
+#else
 	if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
 		if ((cts->flags & CCB_TRANS_DISC_ENB) != 0)
 			*flags |= SYM_DISC_ENABLED;
@@ -8657,6 +8835,7 @@ sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 		else
 			*flags &= ~SYM_TAGS_ENABLED;
 	}
+#endif
 }
 
 
