@@ -1591,7 +1591,6 @@ delete_insn_for_stacker (insn)
   PUT_CODE (insn, NOTE);
   NOTE_LINE_NUMBER (insn) = NOTE_INSN_DELETED;
   NOTE_SOURCE_FILE (insn) = 0;
-  INSN_DELETED_P (insn) = 1;
 }
 
 /* Emit an insn to pop virtual register REG before or after INSN.
@@ -2581,7 +2580,7 @@ subst_stack_regs (insn, regstack)
   /* subst_stack_regs_pat may have deleted a no-op insn.  If so, any
      REG_UNUSED will already have been dealt with, so just return. */
 
-  if (INSN_DELETED_P (insn))
+  if (GET_CODE (insn) == NOTE)
     return;
 
   /* If there is a REG_UNUSED note on a stack register on this insn,

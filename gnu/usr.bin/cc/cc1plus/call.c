@@ -700,9 +700,15 @@ compute_conversion_costs (function, tta_in, cp, arglen)
 
   int strike_index = 0, win;
   struct harshness_code lose;
+  extern int cp_silent;
 
 #ifdef GATHER_STATISTICS
   n_compute_conversion_costs++;
+#endif
+
+#ifndef DEBUG_MATCHING
+  /* We don't emit any warnings or errors while trying out each candidate.  */
+  cp_silent = 1;
 #endif
 
   cp->function = function;
@@ -712,7 +718,7 @@ compute_conversion_costs (function, tta_in, cp, arglen)
   cp->h.code = 0;
   cp->h.distance = 0;
   cp->h.int_penalty = 0;
-  bzero (cp->harshness,
+  bzero ((char *) cp->harshness,
 	 (cp->h_len + 1) * sizeof (struct harshness_code));
 
   while (ttf && tta)
@@ -812,6 +818,7 @@ compute_conversion_costs (function, tta_in, cp, arglen)
 	{
 	  cp->h.code = EVIL_CODE;
 	  cp->u.bad_arg = -1;
+	  cp_silent = 0;
 	  return;
 	}
       else
@@ -833,6 +840,7 @@ compute_conversion_costs (function, tta_in, cp, arglen)
 	{
 	  cp->h.code = EVIL_CODE;
 	  cp->u.bad_arg = -2;
+	  cp_silent = 0;
 	  return;
 	}
       /* Store index of first default.  */
@@ -855,6 +863,7 @@ compute_conversion_costs (function, tta_in, cp, arglen)
       if (dont_convert_types)
 	{
 	  cp->h.code = EVIL_CODE;
+	  cp_silent = 0;
 	  return;
 	}
 
@@ -1002,6 +1011,7 @@ compute_conversion_costs (function, tta_in, cp, arglen)
     cp->h.code |= ELLIPSIS_CODE;
   if (user_strikes)
     cp->h.code |= USER_CODE;
+  cp_silent = 0;
 #ifdef DEBUG_MATCHING
   cp_error ("final eval %s", print_harshness (&cp->h));
 #endif
@@ -1428,11 +1438,11 @@ build_scoped_method_call (exp, scopes, name, parms)
       if (type != basetype)
 	cp_error ("type of `%E' does not match destructor type `%T' (type was `%T')",
 		  exp, basetype, type);
-      name = IDENTIFIER_TYPE_VALUE (TREE_OPERAND (name, 0));
-      if (basetype != name)
-	cp_error ("qualified type `%T' does not match destructor type `%T'",
+      name = TREE_OPERAND (name, 0);
+      if (basetype != get_type_value (name))
+	cp_error ("qualified type `%T' does not match destructor name `~%T'",
 		  basetype, name);
-      return void_zero_node;
+      return convert (void_type_node, exp);
     }
 
   if (! is_aggr_typedef (basename, 1))
@@ -1460,15 +1470,16 @@ build_scoped_method_call (exp, scopes, name, parms)
 	{
 	  /* Explicit call to destructor.  */
 	  name = TREE_OPERAND (name, 0);
-	  if (name != constructor_name (TREE_TYPE (decl)))
+	  if (! (name == constructor_name (TREE_TYPE (decl))
+		 || TREE_TYPE (decl) == get_type_value (name)))
 	    {
 	      cp_error
-		("qualified type `%T' does not match destructor type `%T'",
+		("qualified type `%T' does not match destructor name `~%T'",
 		 TREE_TYPE (decl), name);
 	      return error_mark_node;
 	    }
 	  if (! TYPE_HAS_DESTRUCTOR (TREE_TYPE (decl)))
-	    return void_zero_node;
+	    return convert (void_type_node, exp);
 	  
 	  return build_delete (TREE_TYPE (decl), decl, integer_two_node,
 			       LOOKUP_NORMAL|LOOKUP_NONVIRTUAL|LOOKUP_DESTRUCTOR,
@@ -1604,23 +1615,19 @@ build_method_call (instance, name, parms, basetype_path, flags)
       if (parms)
 	error ("destructors take no parameters");
       basetype = TREE_TYPE (instance);
-      if (IS_AGGR_TYPE (basetype))
+      if (TREE_CODE (basetype) == REFERENCE_TYPE)
+	basetype = TREE_TYPE (basetype);
+      if (! ((IS_AGGR_TYPE (basetype)
+	      && name == constructor_name (basetype))
+	     || basetype == get_type_value (name)))
 	{
-	  if (name == constructor_name (basetype))
-	    goto huzzah;
+	  cp_error ("destructor name `~%D' does not match type `%T' of expression",
+		    name, basetype);
+	  return convert (void_type_node, instance);
 	}
-      else
-	{
-	  if (basetype == get_type_value (name))
-	    goto huzzah;
-	}
-      cp_error ("destructor name `~%D' does not match type `%T' of expression",
-		name, basetype);
-      return void_zero_node;
 
-    huzzah:
       if (! TYPE_HAS_DESTRUCTOR (basetype))
-	return void_zero_node;
+	return convert (void_type_node, instance);
       instance = default_conversion (instance);
       instance_ptr = build_unary_op (ADDR_EXPR, instance, 0);
       return build_delete (build_pointer_type (basetype),
@@ -1806,7 +1813,11 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	    }
 	  else
 	    {
-	      if (TREE_CODE (instance) != CALL_EXPR)
+	      if (TREE_CODE (instance) != CALL_EXPR
+#ifdef PCC_STATIC_STRUCT_RETURN
+		  && TREE_CODE (instance) != RTL_EXPR
+#endif
+		  )
 		my_friendly_abort (125);
 	      if (TYPE_NEEDS_CONSTRUCTING (basetype))
 		instance = build_cplus_new (basetype, instance, 0);
@@ -1897,6 +1908,8 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	{
 	  TREE_VALUE (parm) = build_unary_op (ADDR_EXPR, TREE_VALUE (parm), 0);
 	}
+#if 0
+      /* This breaks reference-to-array parameters.  */
       if (TREE_CODE (t) == ARRAY_TYPE)
 	{
 	  /* Perform the conversion from ARRAY_TYPE to POINTER_TYPE in place.
@@ -1904,6 +1917,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	  TREE_VALUE (parm) = default_conversion (TREE_VALUE (parm));
 	  t = TREE_TYPE (TREE_VALUE (parm));
 	}
+#endif
       if (t == error_mark_node)
 	return error_mark_node;
       last = build_tree_list (NULL_TREE, t);
@@ -1932,7 +1946,9 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	{
 	  constp = 0;
 	  volatilep = 0;
-	  parms = tree_cons (NULL_TREE, build1 (NOP_EXPR, TYPE_POINTER_TO (basetype), integer_zero_node), parms);
+	  parms = tree_cons (NULL_TREE,
+			     build1 (NOP_EXPR, TYPE_POINTER_TO (basetype),
+				     integer_zero_node), parms);
 	}
       else
 	{
@@ -1945,6 +1961,10 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	  TREE_CALLS_NEW (instance_ptr) = 1;
 	  instance = build_indirect_ref (instance_ptr, NULL_PTR);
 
+#if 0
+	  /* This breaks initialization of a reference from a new
+             expression of a different type.  And it doesn't appear to
+             serve its original purpose any more, either.  jason 10/12/94 */
 	  /* If it's a default argument initialized from a ctor, what we get
 	     from instance_ptr will match the arglist for the FUNCTION_DECL
 	     of the constructor.  */
@@ -1953,6 +1973,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	      && TREE_CALLS_NEW (TREE_VALUE (TREE_OPERAND (TREE_VALUE (parms), 1))))
 	    parms = build_tree_list (NULL_TREE, instance_ptr);
 	  else
+#endif
 	    parms = tree_cons (NULL_TREE, instance_ptr, parms);
 	}
     }
@@ -2012,6 +2033,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
     return error_mark_node;
 
 
+#if 0
   /* Now, go look for this method name.  We do not find destructors here.
 
      Putting `void_list_node' on the end of the parmtypes
@@ -2021,6 +2043,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 				     1 + (name == constructor_name (save_basetype)
 					  || name == constructor_name_full (save_basetype)));
   TREE_CHAIN (last) = NULL_TREE;
+#endif
 
   for (pass = 0; pass < 2; pass++)
     {
@@ -2040,7 +2063,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	  candidates
 	    = (struct candidate *) alloca ((ever_seen+1)
 					   * sizeof (struct candidate));
-	  bzero (candidates, (ever_seen + 1) * sizeof (struct candidate));
+	  bzero ((char *) candidates, (ever_seen + 1) * sizeof (struct candidate));
 	  cp = candidates;
 	  len = list_length (parms);
 	  ever_seen = 0;
@@ -2062,7 +2085,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 		{
 		  tree new_type;
 		  parm = build_indirect_ref (parm, "friendifying parms (compiler error)");
-		  new_type = c_build_type_variant (TREE_TYPE (parm), constp,
+		  new_type = cp_build_type_variant (TREE_TYPE (parm), constp,
 						   volatilep);
 		  new_type = build_reference_type (new_type);
 		  parm = convert (new_type, parm);
@@ -2147,9 +2170,11 @@ build_method_call (instance, name, parms, basetype_path, flags)
 		  && ! DECL_STATIC_FUNCTION_P (function))
 		continue;
 
+#if 0
 	      if (pass == 0
 		  && DECL_ASSEMBLER_NAME (function) == method_name)
 		goto found;
+#endif
 
 	      if (pass > 0)
 		{
@@ -2244,6 +2269,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	  if (cp - candidates > 1)
 	    {
 	      int n_candidates = cp - candidates;
+	      extern int warn_synth;
 	      TREE_VALUE (parms) = instance_ptr;
 	      cp = ideal_candidate (save_basetype, candidates,
 				    n_candidates, parms, len);
@@ -2251,14 +2277,25 @@ build_method_call (instance, name, parms, basetype_path, flags)
 		{
 		  if (flags & LOOKUP_COMPLAIN)
 		    {
-		      cp_error ("call of overloaded %s `%D' is ambiguous",
-				name_kind, name);
+		      TREE_CHAIN (last) = void_list_node;
+		      cp_error ("call of overloaded %s `%D(%A)' is ambiguous",
+				name_kind, name, TREE_CHAIN (parmtypes));
 		      print_n_candidates (candidates, n_candidates);
 		    }
 		  return error_mark_node;
 		}
 	      if (cp->h.code & EVIL_CODE)
 		return error_mark_node;
+	      if (warn_synth
+		  && DECL_NAME (cp->function) == ansi_opname[MODIFY_EXPR]
+		  && DECL_ARTIFICIAL (cp->function)
+		  && n_candidates == 2)
+		{
+		  cp_warning ("using synthesized `%#D' for copy assignment",
+			      cp->function);
+		  cp_warning_at ("  where cfront would use `%#D'",
+				 candidates->function);
+		}
 	    }
 	  else if (cp[-1].h.code & EVIL_CODE)
 	    {
@@ -2664,7 +2701,11 @@ build_overload_call_real (fnname, parms, flags, final_cp, buildxxx)
 	    final_cp->h.code = EVIL_CODE;
 	  return error_mark_node;
 	}
-      if (TREE_CODE (t) == ARRAY_TYPE || TREE_CODE (t) == OFFSET_TYPE)
+      if (TREE_CODE (t) == OFFSET_TYPE)
+#if 0
+      /* This breaks reference-to-array parameters.  */
+	  || TREE_CODE (t) == ARRAY_TYPE
+#endif
 	{
 	  /* Perform the conversion from ARRAY_TYPE to POINTER_TYPE in place.
 	     Also convert OFFSET_TYPE entities to their normal selves.
@@ -2738,7 +2779,7 @@ build_overload_call_real (fnname, parms, flags, final_cp, buildxxx)
     {
       candidates
 	= (struct candidate *)alloca ((length+1) * sizeof (struct candidate));
-      bzero (candidates, (length + 1) * sizeof (struct candidate));
+      bzero ((char *) candidates, (length + 1) * sizeof (struct candidate));
     }
 
   cp = candidates;

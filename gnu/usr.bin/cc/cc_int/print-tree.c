@@ -109,10 +109,22 @@ print_node_brief (file, prefix, node, indent)
 	fprintf (file, " overflow");
 
       if (TREE_INT_CST_HIGH (node) == 0)
-	fprintf (file, " %1u", TREE_INT_CST_LOW (node));
+	fprintf (file,
+#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
+		 " %1u",
+#else
+		 " %1lu",
+#endif
+		 TREE_INT_CST_LOW (node));
       else if (TREE_INT_CST_HIGH (node) == -1
 	       && TREE_INT_CST_LOW (node) != 0)
-	fprintf (file, " -%1u", -TREE_INT_CST_LOW (node));
+	fprintf (file,
+#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
+		 " -%1u",
+#else
+		 " -%1lu",
+#endif
+		 -TREE_INT_CST_LOW (node));
       else
 	fprintf (file,
 #if HOST_BITS_PER_WIDE_INT == 64
@@ -132,8 +144,24 @@ print_node_brief (file, prefix, node, indent)
     }
   if (TREE_CODE (node) == REAL_CST)
     {
-#ifndef REAL_IS_NOT_DOUBLE
-      fprintf (file, " %e", TREE_REAL_CST (node));
+      REAL_VALUE_TYPE d;
+
+      if (TREE_OVERFLOW (node))
+	fprintf (file, " overflow");
+
+#if !defined(REAL_IS_NOT_DOUBLE) || defined(REAL_ARITHMETIC)
+      d = TREE_REAL_CST (node);
+      if (REAL_VALUE_ISINF (d))
+	fprintf (file, " Inf");
+      else if (REAL_VALUE_ISNAN (d))
+	fprintf (file, " Nan");
+      else
+	{
+	  char string[100];
+
+	  REAL_VALUE_TO_DECIMAL (d, "%e", string);
+	  fprintf (file, " %s", string);
+	}
 #else
       {
 	int i;
@@ -143,7 +171,7 @@ print_node_brief (file, prefix, node, indent)
 	  fprintf (file, "%02x", *p++);
 	fprintf (file, "");
       }
-#endif /* REAL_IS_NOT_DOUBLE */
+#endif
     }
 
   fprintf (file, ">");
@@ -324,22 +352,47 @@ print_node (file, prefix, node, indent)
     case 'd':
       mode = DECL_MODE (node);
 
-      if (DECL_EXTERNAL (node))
-	fputs (" external", file);
-      if (DECL_NONLOCAL (node))
-	fputs (" nonlocal", file);
-      if (DECL_REGISTER (node))
-	fputs (" regdecl", file);
-      if (DECL_INLINE (node))
-	fputs (" inline", file);
-      if (DECL_BIT_FIELD (node))
-	fputs (" bit-field", file);
-      if (DECL_VIRTUAL_P (node))
-	fputs (" virtual", file);
       if (DECL_IGNORED_P (node))
 	fputs (" ignored", file);
+      if (DECL_ABSTRACT (node))
+	fputs (" abstract", file);
       if (DECL_IN_SYSTEM_HEADER (node))
 	fputs (" in_system_header", file);
+      if (DECL_COMMON (node))
+	fputs (" common", file);
+      if (DECL_EXTERNAL (node))
+	fputs (" external", file);
+      if (DECL_REGISTER (node))
+	fputs (" regdecl", file);
+      if (DECL_PACKED (node))
+	fputs (" packed", file);
+      if (DECL_NONLOCAL (node))
+	fputs (" nonlocal", file);
+      if (DECL_INLINE (node))
+	fputs (" inline", file);
+
+      if (TREE_CODE (node) == TYPE_DECL && TYPE_DECL_SUPPRESS_DEBUG (node))
+	fputs (" supress-debug", file);
+
+      if (TREE_CODE (node) == FUNCTION_DECL && DECL_BUILT_IN (node))
+	fputs (" built-in", file);
+      if (TREE_CODE (node) == FUNCTION_DECL && DECL_BUILT_IN_NONANSI (node))
+	fputs (" built-in-nonansi", file);
+
+      if (TREE_CODE (node) == FIELD_DECL && DECL_BIT_FIELD (node))
+	fputs (" bit-field", file);
+      if (TREE_CODE (node) == LABEL_DECL && DECL_TOO_LATE (node))
+	fputs (" too-late", file);
+      if (TREE_CODE (node) == VAR_DECL && DECL_IN_TEXT_SECTION (node))
+	fputs (" in-text-section", file);
+
+      if (DECL_VIRTUAL_P (node))
+	fputs (" virtual", file);
+      if (DECL_DEFER_OUTPUT (node))
+	fputs (" defer-output", file);
+      if (DECL_TRANSPARENT_UNION (node))
+	fputs (" transparent-union", file);
+
       if (DECL_LANG_FLAG_0 (node))
 	fputs (" decl_0", file);
       if (DECL_LANG_FLAG_1 (node))
@@ -413,7 +466,14 @@ print_node (file, prefix, node, indent)
 
     case 't':
       if (TYPE_NO_FORCE_BLK (node))
-	fputs (" no_force_blk", file);
+	fputs (" no-force-blk", file);
+      if (TYPE_STRING_FLAG (node))
+	fputs (" string-flag", file);
+      if (TYPE_NEEDS_CONSTRUCTING (node))
+	fputs (" needs-constructing", file);
+      if (TYPE_TRANSPARENT_UNION (node))
+	fputs (" transparent-union", file);
+
       if (TYPE_LANG_FLAG_0 (node))
 	fputs (" type_0", file);
       if (TYPE_LANG_FLAG_1 (node))
@@ -558,10 +618,22 @@ print_node (file, prefix, node, indent)
 	    fprintf (file, " overflow");
 
 	  if (TREE_INT_CST_HIGH (node) == 0)
-	    fprintf (file, " %1u", TREE_INT_CST_LOW (node));
+	    fprintf (file,
+#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
+		     " %1u",
+#else
+		     " %1lu",
+#endif
+		     TREE_INT_CST_LOW (node));
 	  else if (TREE_INT_CST_HIGH (node) == -1
 		   && TREE_INT_CST_LOW (node) != 0)
-	    fprintf (file, " -%1u", -TREE_INT_CST_LOW (node));
+	    fprintf (file,
+#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
+		     " -%1u",
+#else
+		     " -%1lu",
+#endif
+		     -TREE_INT_CST_LOW (node));
 	  else
 	    fprintf (file,
 #if HOST_BITS_PER_WIDE_INT == 64
@@ -581,17 +653,36 @@ print_node (file, prefix, node, indent)
 	  break;
 
 	case REAL_CST:
-#ifndef REAL_IS_NOT_DOUBLE
-	  fprintf (file, " %e", TREE_REAL_CST (node));
-#else
 	  {
-	    char *p = (char *) &TREE_REAL_CST (node);
-	    fprintf (file, " 0x");
-	    for (i = 0; i < sizeof TREE_REAL_CST (node); i++)
-	      fprintf (file, "%02x", *p++);
-	    fprintf (file, "");
+	    REAL_VALUE_TYPE d;
+
+	    if (TREE_OVERFLOW (node))
+	      fprintf (file, " overflow");
+
+#if !defined(REAL_IS_NOT_DOUBLE) || defined(REAL_ARITHMETIC)
+	    d = TREE_REAL_CST (node);
+	    if (REAL_VALUE_ISINF (d))
+	      fprintf (file, " Inf");
+	    else if (REAL_VALUE_ISNAN (d))
+	      fprintf (file, " Nan");
+	    else
+	      {
+		char string[100];
+
+		REAL_VALUE_TO_DECIMAL (d, "%e", string);
+		fprintf (file, " %s", string);
+	      }
+#else
+	    {
+	      int i;
+	      unsigned char *p = (unsigned char *) &TREE_REAL_CST (node);
+	      fprintf (file, " 0x");
+	      for (i = 0; i < sizeof TREE_REAL_CST (node); i++)
+		fprintf (file, "%02x", *p++);
+	      fprintf (file, "");
+	    }
+#endif
 	  }
-#endif /* REAL_IS_NOT_DOUBLE */
 	  break;
 
 	case COMPLEX_CST:

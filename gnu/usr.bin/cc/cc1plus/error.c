@@ -104,6 +104,8 @@ dump_readonly_or_volatile (t, p)
       if (p == before) OB_PUTC (' ');
       if (TYPE_READONLY (t))
 	OB_PUTS ("const");
+      if (TYPE_READONLY (t) && TYPE_VOLATILE (t))
+	OB_PUTC (' ');
       if (TYPE_VOLATILE (t))
 	OB_PUTS ("volatile");
       if (p == after) OB_PUTC (' ');
@@ -569,7 +571,8 @@ dump_decl (t, v)
       {
 	/* Don't say 'typedef class A' */
 	tree type = TREE_TYPE (t);
-        if (IS_AGGR_TYPE (type) && ! TYPE_PTRMEMFUNC_P (type)
+        if (((IS_AGGR_TYPE (type) && ! TYPE_PTRMEMFUNC_P (type))
+	     || TREE_CODE (type) == ENUMERAL_TYPE)
 	    && type == TYPE_MAIN_VARIANT (type))
 	  {
 	    dump_type (type, v);
@@ -666,21 +669,31 @@ dump_decl (t, v)
     case TEMPLATE_DECL:
       {
 	tree args = DECL_TEMPLATE_PARMS (t);
-	int i, len = TREE_VEC_LENGTH (args);
+	int i, len = args ? TREE_VEC_LENGTH (args) : 0;
 	OB_PUTS ("template <");
 	for (i = 0; i < len; i++)
 	  {
 	    tree arg = TREE_VEC_ELT (args, i);
-	    if (TREE_CODE (arg) == IDENTIFIER_NODE)
+	    tree defval = TREE_PURPOSE (arg);
+	    arg = TREE_VALUE (arg);
+	    if (TREE_CODE (arg) == TYPE_DECL)
 	      {
 		OB_PUTS ("class ");
-		OB_PUTID (arg);
+		OB_PUTID (DECL_NAME (arg));
 	      }
 	    else
 	      dump_decl (arg, 1);
+
+	    if (defval)
+	      {
+		OB_PUTS (" = ");
+		dump_decl (defval, 1);
+	      }
+		
 	    OB_PUTC2 (',', ' ');
 	  }
-	OB_UNPUT (2);
+	if (len != 0)
+	  OB_UNPUT (2);
 	OB_PUTC2 ('>', ' ');
 
 	if (DECL_TEMPLATE_IS_CLASS (t))
@@ -1219,6 +1232,14 @@ dump_expr (t, nop)
 	break;
       }
 
+    case TREE_LIST:
+      if (TREE_VALUE (t) && TREE_CODE (TREE_VALUE (t)) == FUNCTION_DECL)
+	{
+	  OB_PUTID (DECL_NAME (TREE_VALUE (t)));
+	  break;
+	}
+      /* else fall through */	
+
       /*  This list is incomplete, but should suffice for now.
 	  It is very important that `sorry' does not call
 	  `report_error_function'.  That could cause an infinite loop.  */
@@ -1331,12 +1352,26 @@ int
 cp_line_of (t)
      tree t;
 {
+  int line = 0;
   if (TREE_CODE (t) == PARM_DECL)
-    return DECL_SOURCE_LINE (DECL_CONTEXT (t));
-  else if (TREE_CODE_CLASS (TREE_CODE (t)) == 't')
-    return DECL_SOURCE_LINE (TYPE_NAME (t));
+    line = DECL_SOURCE_LINE (DECL_CONTEXT (t));
+  if (TREE_CODE (t) == TYPE_DECL && DECL_ARTIFICIAL (t))
+    t = TREE_TYPE (t);
+
+  if (TREE_CODE_CLASS (TREE_CODE (t)) == 't')
+    {
+      if (IS_AGGR_TYPE (t))
+	line = CLASSTYPE_SOURCE_LINE (t);
+      else
+	line = DECL_SOURCE_LINE (TYPE_NAME (t));
+    }
   else
-    return DECL_SOURCE_LINE (t);
+    line = DECL_SOURCE_LINE (t);
+
+  if (line == 0)
+    return lineno;
+
+  return line;
 }
 
 char *

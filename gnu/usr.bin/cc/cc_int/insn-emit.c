@@ -659,6 +659,15 @@ gen_movsi (operand0, operand1)
 
   if (flag_pic && SYMBOLIC_CONST (operands[1]))
     emit_pic_move (operands, SImode);
+
+  /* Don't generate memory->memory moves, go through a register */
+  else if (TARGET_MOVE
+	   && (reload_in_progress | reload_completed) == 0
+	   && GET_CODE (operands[0]) == MEM
+	   && GET_CODE (operands[1]) == MEM)
+    {
+      operands[1] = force_reg (SImode, operands[1]);
+    }
 }
   operand0 = operands[0];
   operand1 = operands[1];
@@ -677,9 +686,32 @@ gen_movhi (operand0, operand1)
      rtx operand0;
      rtx operand1;
 {
-  return gen_rtx (SET, VOIDmode,
+  rtx operands[2];
+  rtx _val = 0;
+  start_sequence ();
+  operands[0] = operand0;
+  operands[1] = operand1;
+
+{
+  /* Don't generate memory->memory moves, go through a register */
+  if (TARGET_MOVE
+      && (reload_in_progress | reload_completed) == 0
+      && GET_CODE (operands[0]) == MEM
+      && GET_CODE (operands[1]) == MEM)
+    {
+      operands[1] = force_reg (HImode, operands[1]);
+    }
+}
+  operand0 = operands[0];
+  operand1 = operands[1];
+  emit_insn (gen_rtx (SET, VOIDmode,
 	operand0,
-	operand1);
+	operand1));
+ _done:
+  _val = gen_sequence ();
+ _fail:
+  end_sequence ();
+  return _val;
 }
 
 rtx
@@ -687,14 +719,154 @@ gen_movstricthi (operand0, operand1)
      rtx operand0;
      rtx operand1;
 {
-  return gen_rtx (SET, VOIDmode,
+  rtx operands[2];
+  rtx _val = 0;
+  start_sequence ();
+  operands[0] = operand0;
+  operands[1] = operand1;
+
+{
+  /* Don't generate memory->memory moves, go through a register */
+  if (TARGET_MOVE
+      && (reload_in_progress | reload_completed) == 0
+      && GET_CODE (operands[0]) == MEM
+      && GET_CODE (operands[1]) == MEM)
+    {
+      operands[1] = force_reg (HImode, operands[1]);
+    }
+}
+  operand0 = operands[0];
+  operand1 = operands[1];
+  emit_insn (gen_rtx (SET, VOIDmode,
 	gen_rtx (STRICT_LOW_PART, VOIDmode,
 	operand0),
-	operand1);
+	operand1));
+ _done:
+  _val = gen_sequence ();
+ _fail:
+  end_sequence ();
+  return _val;
 }
 
 rtx
 gen_movqi (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  rtx operands[2];
+  rtx _val = 0;
+  start_sequence ();
+  operands[0] = operand0;
+  operands[1] = operand1;
+
+{
+  /* Don't generate memory->memory moves, go through a register */
+  if (TARGET_MOVE
+      && (reload_in_progress | reload_completed) == 0
+      && GET_CODE (operands[0]) == MEM
+      && GET_CODE (operands[1]) == MEM)
+    {
+      operands[1] = force_reg (QImode, operands[1]);
+    }
+}
+  operand0 = operands[0];
+  operand1 = operands[1];
+  emit_insn (gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1));
+ _done:
+  _val = gen_sequence ();
+ _fail:
+  end_sequence ();
+  return _val;
+}
+
+rtx
+gen_movstrictqi (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  rtx operands[2];
+  rtx _val = 0;
+  start_sequence ();
+  operands[0] = operand0;
+  operands[1] = operand1;
+
+{
+  /* Don't generate memory->memory moves, go through a register */
+  if (TARGET_MOVE
+      && (reload_in_progress | reload_completed) == 0
+      && GET_CODE (operands[0]) == MEM
+      && GET_CODE (operands[1]) == MEM)
+    {
+      operands[1] = force_reg (QImode, operands[1]);
+    }
+}
+  operand0 = operands[0];
+  operand1 = operands[1];
+  emit_insn (gen_rtx (SET, VOIDmode,
+	gen_rtx (STRICT_LOW_PART, VOIDmode,
+	operand0),
+	operand1));
+ _done:
+  _val = gen_sequence ();
+ _fail:
+  end_sequence ();
+  return _val;
+}
+
+rtx
+gen_movsf (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  rtx operands[2];
+  rtx _val = 0;
+  start_sequence ();
+  operands[0] = operand0;
+  operands[1] = operand1;
+
+{
+  /* Special case memory->memory moves and pushes */
+  if (TARGET_MOVE
+      && (reload_in_progress | reload_completed) == 0
+      && GET_CODE (operands[0]) == MEM
+      && (GET_CODE (operands[1]) == MEM || push_operand (operands[0], SFmode)))
+    {
+      rtx (*genfunc) PROTO((rtx, rtx)) = (push_operand (operands[0], SFmode))
+						? gen_movsf_push
+						: gen_movsf_mem;
+
+      emit_insn ((*genfunc) (operands[0], operands[1]));
+      DONE;
+    }
+
+  /* If we are loading a floating point constant that isn't 0 or 1 into a register,
+     indicate we need the pic register loaded.  This could be optimized into stores
+     of constants if the target eventually moves to memory, but better safe than
+     sorry.  */
+  if (flag_pic
+      && GET_CODE (operands[0]) != MEM
+      && GET_CODE (operands[1]) == CONST_DOUBLE
+      && !standard_80387_constant_p (operands[1]))
+    {
+      current_function_uses_pic_offset_table = 1;
+    }
+}
+  operand0 = operands[0];
+  operand1 = operands[1];
+  emit_insn (gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1));
+ _done:
+  _val = gen_sequence ();
+ _fail:
+  end_sequence ();
+  return _val;
+}
+
+rtx
+gen_movsf_push_nomove (operand0, operand1)
      rtx operand0;
      rtx operand1;
 {
@@ -704,18 +876,147 @@ gen_movqi (operand0, operand1)
 }
 
 rtx
-gen_movstrictqi (operand0, operand1)
+gen_movsf_push (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (2,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
+}
+
+rtx
+gen_movsf_mem (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (2,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
+}
+
+rtx
+gen_movsf_normal (operand0, operand1)
      rtx operand0;
      rtx operand1;
 {
   return gen_rtx (SET, VOIDmode,
-	gen_rtx (STRICT_LOW_PART, VOIDmode,
-	operand0),
+	operand0,
 	operand1);
 }
 
 rtx
-gen_movsf (operand0, operand1)
+gen_swapsf (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (2,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1),
+		gen_rtx (SET, VOIDmode,
+	operand1,
+	operand0)));
+}
+
+rtx
+gen_movdf (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  rtx operands[2];
+  rtx _val = 0;
+  start_sequence ();
+  operands[0] = operand0;
+  operands[1] = operand1;
+
+{
+  /* Special case memory->memory moves and pushes */
+  if (TARGET_MOVE
+      && (reload_in_progress | reload_completed) == 0
+      && GET_CODE (operands[0]) == MEM
+      && (GET_CODE (operands[1]) == MEM || push_operand (operands[0], DFmode)))
+    {
+      rtx (*genfunc) PROTO((rtx, rtx)) = (push_operand (operands[0], DFmode))
+						? gen_movdf_push
+						: gen_movdf_mem;
+
+      emit_insn ((*genfunc) (operands[0], operands[1]));
+      DONE;
+    }
+
+  /* If we are loading a floating point constant that isn't 0 or 1 into a register,
+     indicate we need the pic register loaded.  This could be optimized into stores
+     of constants if the target eventually moves to memory, but better safe than
+     sorry.  */
+  if (flag_pic
+      && GET_CODE (operands[0]) != MEM
+      && GET_CODE (operands[1]) == CONST_DOUBLE
+      && !standard_80387_constant_p (operands[1]))
+    {
+      current_function_uses_pic_offset_table = 1;
+    }
+}
+  operand0 = operands[0];
+  operand1 = operands[1];
+  emit_insn (gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1));
+ _done:
+  _val = gen_sequence ();
+ _fail:
+  end_sequence ();
+  return _val;
+}
+
+rtx
+gen_movdf_push_nomove (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1);
+}
+
+rtx
+gen_movdf_push (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (3,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0)),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
+}
+
+rtx
+gen_movdf_mem (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (3,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0)),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
+}
+
+rtx
+gen_movdf_normal (operand0, operand1)
      rtx operand0;
      rtx operand1;
 {
@@ -739,7 +1040,97 @@ gen_swapdf (operand0, operand1)
 }
 
 rtx
-gen_movdf (operand0, operand1)
+gen_movxf (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  rtx operands[2];
+  rtx _val = 0;
+  start_sequence ();
+  operands[0] = operand0;
+  operands[1] = operand1;
+
+{
+  /* Special case memory->memory moves and pushes */
+  if (TARGET_MOVE
+      && (reload_in_progress | reload_completed) == 0
+      && GET_CODE (operands[0]) == MEM
+      && (GET_CODE (operands[1]) == MEM || push_operand (operands[0], XFmode)))
+    {
+      rtx (*genfunc) PROTO((rtx, rtx)) = (push_operand (operands[0], XFmode))
+						? gen_movxf_push
+						: gen_movxf_mem;
+
+      emit_insn ((*genfunc) (operands[0], operands[1]));
+      DONE;
+    }
+
+  /* If we are loading a floating point constant that isn't 0 or 1 into a register,
+     indicate we need the pic register loaded.  This could be optimized into stores
+     of constants if the target eventually moves to memory, but better safe than
+     sorry.  */
+  if (flag_pic
+      && GET_CODE (operands[0]) != MEM
+      && GET_CODE (operands[1]) == CONST_DOUBLE
+      && !standard_80387_constant_p (operands[1]))
+    {
+      current_function_uses_pic_offset_table = 1;
+    }
+}
+  operand0 = operands[0];
+  operand1 = operands[1];
+  emit_insn (gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1));
+ _done:
+  _val = gen_sequence ();
+ _fail:
+  end_sequence ();
+  return _val;
+}
+
+rtx
+gen_movxf_push_nomove (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1);
+}
+
+rtx
+gen_movxf_push (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (3,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0)),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
+}
+
+rtx
+gen_movxf_mem (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (3,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0)),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
+}
+
+rtx
+gen_movxf_normal (operand0, operand1)
      rtx operand0;
      rtx operand1;
 {
@@ -763,23 +1154,18 @@ gen_swapxf (operand0, operand1)
 }
 
 rtx
-gen_movxf (operand0, operand1)
-     rtx operand0;
-     rtx operand1;
-{
-  return gen_rtx (SET, VOIDmode,
-	operand0,
-	operand1);
-}
-
-rtx
 gen_movdi (operand0, operand1)
      rtx operand0;
      rtx operand1;
 {
-  return gen_rtx (SET, VOIDmode,
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (3,
+		gen_rtx (SET, VOIDmode,
 	operand0,
-	operand1);
+	operand1),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0)),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
 }
 
 rtx
@@ -1477,11 +1863,14 @@ gen_adddi3 (operand0, operand1, operand2)
      rtx operand1;
      rtx operand2;
 {
-  return gen_rtx (SET, VOIDmode,
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (2,
+		gen_rtx (SET, VOIDmode,
 	operand0,
 	gen_rtx (PLUS, DImode,
 	operand1,
-	operand2));
+	operand2)),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
 }
 
 rtx
@@ -1521,6 +1910,16 @@ gen_addqi3 (operand0, operand1, operand2)
 	gen_rtx (PLUS, QImode,
 	operand1,
 	operand2));
+}
+
+rtx
+gen_movsi_lea (operand0, operand1)
+     rtx operand0;
+     rtx operand1;
+{
+  return gen_rtx (SET, VOIDmode,
+	operand0,
+	operand1);
 }
 
 rtx
@@ -1568,11 +1967,14 @@ gen_subdi3 (operand0, operand1, operand2)
      rtx operand1;
      rtx operand2;
 {
-  return gen_rtx (SET, VOIDmode,
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (2,
+		gen_rtx (SET, VOIDmode,
 	operand0,
 	gen_rtx (MINUS, DImode,
 	operand1,
-	operand2));
+	operand2)),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
 }
 
 rtx
@@ -1737,6 +2139,48 @@ gen_mulsidi3 (operand0, operand1, operand2)
 	operand1),
 	gen_rtx (SIGN_EXTEND, DImode,
 	operand2)));
+}
+
+rtx
+gen_umulsi3_highpart (operand0, operand1, operand2)
+     rtx operand0;
+     rtx operand1;
+     rtx operand2;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (2,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	gen_rtx (TRUNCATE, SImode,
+	gen_rtx (LSHIFTRT, DImode,
+	gen_rtx (MULT, DImode,
+	gen_rtx (ZERO_EXTEND, DImode,
+	operand1),
+	gen_rtx (ZERO_EXTEND, DImode,
+	operand2)),
+	GEN_INT (32)))),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
+}
+
+rtx
+gen_smulsi3_highpart (operand0, operand1, operand2)
+     rtx operand0;
+     rtx operand1;
+     rtx operand2;
+{
+  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (2,
+		gen_rtx (SET, VOIDmode,
+	operand0,
+	gen_rtx (TRUNCATE, SImode,
+	gen_rtx (LSHIFTRT, DImode,
+	gen_rtx (MULT, DImode,
+	gen_rtx (SIGN_EXTEND, DImode,
+	operand1),
+	gen_rtx (SIGN_EXTEND, DImode,
+	operand2)),
+	GEN_INT (32)))),
+		gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0))));
 }
 
 rtx
@@ -3554,21 +3998,23 @@ gen_untyped_call (operand0, operand1, operand2)
   operands[2] = operand2;
 
 {
-  rtx addr;
+  int i;
 
-  if (flag_pic)
-    current_function_uses_pic_offset_table = 1;
+  emit_call_insn (gen_call (operands[0], const0_rtx, NULL, const0_rtx));
 
-  /* With half-pic, force the address into a register.  */
-  addr = XEXP (operands[0], 0);
-  if (GET_CODE (addr) != REG && HALF_PIC_P () && !CONSTANT_ADDRESS_P (addr))
-    XEXP (operands[0], 0) = force_reg (Pmode, addr);
+  for (i = 0; i < XVECLEN (operands[2], 0); i++)
+    {
+      rtx set = XVECEXP (operands[2], 0, i);
+      emit_move_insn (SET_DEST (set), SET_SRC (set));
+    }
 
-  operands[1] = change_address (operands[1], DImode, XEXP (operands[1], 0));
-  if (! expander_call_insn_operand (operands[1], QImode))
-    operands[1]
-      = change_address (operands[1], VOIDmode,
-			copy_to_mode_reg (Pmode, XEXP (operands[1], 0)));
+  /* The optimizer does not know that the call sets the function value
+     registers we stored in the result block.  We avoid problems by
+     claiming that all hard registers are used and clobbered at this
+     point.  */
+  emit_insn (gen_blockage ());
+
+  DONE;
 }
   operand0 = operands[0];
   operand1 = operands[1];
@@ -3588,59 +4034,11 @@ gen_untyped_call (operand0, operand1, operand2)
 }
 
 rtx
-gen_untyped_return (operand0, operand1)
-     rtx operand0;
-     rtx operand1;
+gen_blockage ()
 {
-  rtx operands[2];
-  rtx _val = 0;
-  start_sequence ();
-  operands[0] = operand0;
-  operands[1] = operand1;
-
-{
-  rtx valreg1 = gen_rtx (REG, SImode, 0);
-  rtx valreg2 = gen_rtx (REG, SImode, 1);
-  rtx result = operands[0];
-
-  /* Restore the FPU state.  */
-  emit_insn (gen_update_return (change_address (result, SImode,
-						plus_constant (XEXP (result, 0),
-							       8))));
-
-  /* Reload the function value registers.  */
-  emit_move_insn (valreg1, change_address (result, SImode, XEXP (result, 0)));
-  emit_move_insn (valreg2,
-		  change_address (result, SImode,
-				  plus_constant (XEXP (result, 0), 4)));
-
-  /* Put USE insns before the return.  */
-  emit_insn (gen_rtx (USE, VOIDmode, valreg1));
-  emit_insn (gen_rtx (USE, VOIDmode, valreg2));
-
-  /* Construct the return.  */
-  expand_null_return ();
-
-  DONE;
-}
-  operand0 = operands[0];
-  operand1 = operands[1];
-  emit (operand0);
-  emit (operand1);
- _done:
-  _val = gen_sequence ();
- _fail:
-  end_sequence ();
-  return _val;
-}
-
-rtx
-gen_update_return (operand0)
-     rtx operand0;
-{
-  return gen_rtx (UNSPEC, SImode,
+  return gen_rtx (UNSPEC_VOLATILE, VOIDmode,
 	gen_rtvec (1,
-		operand0),
+		const0_rtx),
 	0);
 }
 
@@ -3916,22 +4314,40 @@ add_clobbers (pattern, insn_code_number)
 
   switch (insn_code_number)
     {
-    case 264:
-      XVECEXP (pattern, 0, 1) = gen_rtx (CLOBBER, VOIDmode,
-	gen_rtx (SCRATCH, SImode, 0));
-      break;
-
-    case 95:
-    case 94:
-    case 93:
+    case 114:
+    case 113:
+    case 112:
       XVECEXP (pattern, 0, 3) = gen_rtx (CLOBBER, VOIDmode,
 	gen_rtx (SCRATCH, SImode, 0));
       break;
 
-    case 89:
-    case 88:
-    case 87:
+    case 108:
+    case 107:
+    case 106:
       XVECEXP (pattern, 0, 4) = gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0));
+      break;
+
+    case 84:
+    case 83:
+    case 80:
+    case 79:
+    case 74:
+    case 73:
+      XVECEXP (pattern, 0, 1) = gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0));
+      XVECEXP (pattern, 0, 2) = gen_rtx (CLOBBER, VOIDmode,
+	gen_rtx (SCRATCH, SImode, 0));
+      break;
+
+    case 285:
+    case 151:
+    case 150:
+    case 135:
+    case 127:
+    case 68:
+    case 67:
+      XVECEXP (pattern, 0, 1) = gen_rtx (CLOBBER, VOIDmode,
 	gen_rtx (SCRATCH, SImode, 0));
       break;
 

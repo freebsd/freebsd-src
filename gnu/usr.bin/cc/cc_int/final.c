@@ -824,9 +824,13 @@ asm_insn_count (body)
   char *template;
   int count = 1;
 
-  for (template = decode_asm_operands (body, NULL_PTR, NULL_PTR,
-				       NULL_PTR, NULL_PTR);
-       *template; template++)
+  if (GET_CODE (body) == ASM_INPUT)
+    template = XSTR (body, 0);
+  else
+    template = decode_asm_operands (body, NULL_PTR, NULL_PTR,
+				    NULL_PTR, NULL_PTR);
+
+  for ( ; *template; template++)
     if (IS_ASM_LOGICAL_LINE_SEPARATOR(*template) || *template == '\n')
       count++;
 
@@ -953,18 +957,14 @@ static void
 profile_function (file)
      FILE *file;
 {
-#ifndef NO_PROFILE_DATA
   int align = MIN (BIGGEST_ALIGNMENT, POINTER_SIZE);
-#endif /* not NO_PROFILE_DATA */
   int sval = current_function_returns_struct;
   int cxt = current_function_needs_context;
 
-#ifndef NO_PROFILE_DATA
   data_section ();
   ASM_OUTPUT_ALIGN (file, floor_log2 (align / BITS_PER_UNIT));
   ASM_OUTPUT_INTERNAL_LABEL (file, "LP", profile_label_no);
   assemble_integer (const0_rtx, POINTER_SIZE / BITS_PER_UNIT, 1);
-#endif /* not NO_PROFILE_DATA */
 
   text_section ();
 

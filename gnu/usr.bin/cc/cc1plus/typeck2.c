@@ -329,7 +329,7 @@ ack (s, v, v2)
    silly.  So instead, we just do the equivalent of a call to fatal in the
    same situation (call exit).  */
 
-/* First used: 0 (reserved), Last used: 360.  Free:  */
+/* First used: 0 (reserved), Last used: 360.  Free: 261.  */
 
 static int abortcount = 0;
 
@@ -599,6 +599,7 @@ store_init_value (decl, init)
 	       ))
 
     return value;
+#if 0 /* No, that's C.  jason 9/19/94 */
   else
     {
       if (pedantic && TREE_CODE (value) == CONSTRUCTOR
@@ -613,6 +614,7 @@ store_init_value (decl, init)
 	    pedwarn ("ANSI C++ forbids non-constant aggregate initializer expressions");
 	}
     }
+#endif
   DECL_INITIAL (decl) = value;
   return NULL_TREE;
 }
@@ -631,7 +633,7 @@ digest_init (type, init, tail)
      tree type, init, *tail;
 {
   enum tree_code code = TREE_CODE (type);
-  tree element = 0;
+  tree element = NULL_TREE;
   tree old_tail_contents;
   /* Nonzero if INIT is a braced grouping, which comes in as a CONSTRUCTOR
      tree node which has no TREE_TYPE.  */
@@ -659,8 +661,9 @@ digest_init (type, init, tail)
 
   if (init && TYPE_PTRMEMFUNC_P (type)
       && ((TREE_CODE (init) == ADDR_EXPR
-	   && TREE_CODE (TREE_TYPE (init)) == POINTER_TYPE
-	   && TREE_CODE (TREE_TYPE (TREE_TYPE (init))) == METHOD_TYPE)
+	   && ((TREE_CODE (TREE_TYPE (init)) == POINTER_TYPE
+		&& TREE_CODE (TREE_TYPE (TREE_TYPE (init))) == METHOD_TYPE)
+	       || TREE_CODE (TREE_OPERAND (init, 0)) == TREE_LIST))
 	  || TREE_CODE (init) == TREE_LIST
 	  || integer_zerop (init)
 	  || (TREE_TYPE (init) && TYPE_PTRMEMFUNC_P (TREE_TYPE (init)))))
@@ -903,7 +906,7 @@ process_init_constructor (type, init, elts)
 		{
 		  error ("non-empty initializer for array of empty elements");
 		  /* Just ignore what we were supposed to use.  */
-		  tail1 = 0;
+		  tail1 = NULL_TREE;
 		}
 	      tail = tail1;
 	    }
@@ -1151,7 +1154,9 @@ build_scoped_ref (datum, types)
   if (TREE_CODE (types) == SCOPE_REF)
     {
       /* We have some work to do.  */
-      struct type_chain { tree type; struct type_chain *next; } *chain = 0, *head = 0, scratch;
+      struct type_chain
+	{ tree type; struct type_chain *next; }
+      *chain = NULL, *head = NULL, scratch;
       ref = build_unary_op (ADDR_EXPR, datum, 0);
       while (TREE_CODE (types) == SCOPE_REF)
 	{

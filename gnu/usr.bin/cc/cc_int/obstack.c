@@ -31,7 +31,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #if defined (_LIBC) || !defined (__GNU_LIBRARY__)
 
 
-#ifdef __STDC__
+#if defined (__STDC__) && __STDC__
 #define POINTER void *
 #else
 #define POINTER char *
@@ -267,7 +267,7 @@ _obstack_newchunk (h, length)
    This is here for debugging.
    If you use it in a program, you are probably losing.  */
 
-#ifdef __STDC__
+#if defined (__STDC__) && __STDC__
 /* Suppress -Wmissing-prototypes warning.  We don't want to declare this in
    obstack.h because it is just for debugging.  */
 int _obstack_allocated_p (struct obstack *h, POINTER obj);
@@ -374,7 +374,7 @@ obstack_free (h, obj)
 /* Now define the functional versions of the obstack macros.
    Define them to simply use the corresponding macros to do the job.  */
 
-#ifdef __STDC__
+#if defined (__STDC__) && __STDC__
 /* These function definitions do not work with non-ANSI preprocessors;
    they won't pass through the macro names in parentheses.  */
 

@@ -55,13 +55,27 @@ struct arglist {
 #endif
 #endif
 
+/* Find the largest host integer type and set its size and type.  */
+
+#ifndef HOST_BITS_PER_WIDE_INT
+
+#if HOST_BITS_PER_LONG > HOST_BITS_PER_INT
+#define HOST_BITS_PER_WIDE_INT HOST_BITS_PER_LONG
+#define HOST_WIDE_INT long
+#else
+#define HOST_BITS_PER_WIDE_INT HOST_BITS_PER_INT
+#define HOST_WIDE_INT int
+#endif
+
+#endif
+
 #ifndef NULL_PTR
 #define NULL_PTR ((GENERIC_PTR)0)
 #endif
 
 int yylex ();
 void yyerror ();
-int expression_value;
+HOST_WIDE_INT expression_value;
 
 static jmp_buf parse_return_error;
 
@@ -119,7 +133,7 @@ static void integer_overflow ();
 static long left_shift ();
 static long right_shift ();
 
-#line 127 "cexp.y"
+#line 141 "cexp.y"
 typedef union {
   struct constant {long value; int unsignedp;} integer;
   struct name {U_CHAR *address; int length;} name;
@@ -218,10 +232,10 @@ static const short yyrhs[] = {    35,
 
 #if YYDEBUG != 0
 static const short yyrline[] = { 0,
-   159,   164,   165,   172,   177,   180,   182,   185,   189,   191,
-   196,   201,   213,   228,   239,   246,   253,   259,   265,   268,
-   271,   277,   283,   289,   295,   298,   301,   304,   307,   310,
-   313,   315,   317,   322,   324,   337
+   173,   178,   179,   186,   191,   194,   196,   199,   203,   205,
+   210,   215,   227,   242,   253,   260,   267,   273,   279,   282,
+   285,   291,   297,   303,   309,   312,   315,   318,   321,   324,
+   327,   329,   331,   336,   338,   351
 };
 
 static const char * const yytname[] = {   "$","error","$illegal.","INT","CHAR",
@@ -805,59 +819,59 @@ yyreduce:
   switch (yyn) {
 
 case 1:
-#line 160 "cexp.y"
+#line 174 "cexp.y"
 { expression_value = yyvsp[0].integer.value; ;
     break;}
 case 3:
-#line 166 "cexp.y"
+#line 180 "cexp.y"
 { if (pedantic)
 			    pedwarn ("comma operator in operand of `#if'");
 			  yyval.integer = yyvsp[0].integer; ;
     break;}
 case 4:
-#line 173 "cexp.y"
+#line 187 "cexp.y"
 { yyval.integer.value = - yyvsp[0].integer.value;
 			  if ((yyval.integer.value & yyvsp[0].integer.value) < 0 && ! yyvsp[0].integer.unsignedp)
 			    integer_overflow ();
 			  yyval.integer.unsignedp = yyvsp[0].integer.unsignedp; ;
     break;}
 case 5:
-#line 178 "cexp.y"
+#line 192 "cexp.y"
 { yyval.integer.value = ! yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 6:
-#line 181 "cexp.y"
+#line 195 "cexp.y"
 { yyval.integer = yyvsp[0].integer; ;
     break;}
 case 7:
-#line 183 "cexp.y"
+#line 197 "cexp.y"
 { yyval.integer.value = ~ yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = yyvsp[0].integer.unsignedp; ;
     break;}
 case 8:
-#line 186 "cexp.y"
+#line 200 "cexp.y"
 { yyval.integer.value = check_assertion (yyvsp[0].name.address, yyvsp[0].name.length,
 						      0, NULL_PTR);
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 9:
-#line 190 "cexp.y"
+#line 204 "cexp.y"
 { keyword_parsing = 1; ;
     break;}
 case 10:
-#line 192 "cexp.y"
+#line 206 "cexp.y"
 { yyval.integer.value = check_assertion (yyvsp[-4].name.address, yyvsp[-4].name.length,
 						      1, yyvsp[-1].keywords);
 			  keyword_parsing = 0;
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 11:
-#line 197 "cexp.y"
+#line 211 "cexp.y"
 { yyval.integer = yyvsp[-1].integer; ;
     break;}
 case 12:
-#line 202 "cexp.y"
+#line 216 "cexp.y"
 { yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp;
 			  if (yyval.integer.unsignedp)
 			    yyval.integer.value = (unsigned long) yyvsp[-2].integer.value * yyvsp[0].integer.value;
@@ -871,7 +885,7 @@ case 12:
 			    } ;
     break;}
 case 13:
-#line 214 "cexp.y"
+#line 228 "cexp.y"
 { if (yyvsp[0].integer.value == 0)
 			    {
 			      error ("division by zero in #if");
@@ -888,7 +902,7 @@ case 13:
 			    } ;
     break;}
 case 14:
-#line 229 "cexp.y"
+#line 243 "cexp.y"
 { if (yyvsp[0].integer.value == 0)
 			    {
 			      error ("division by zero in #if");
@@ -901,7 +915,7 @@ case 14:
 			    yyval.integer.value = yyvsp[-2].integer.value % yyvsp[0].integer.value; ;
     break;}
 case 15:
-#line 240 "cexp.y"
+#line 254 "cexp.y"
 { yyval.integer.value = yyvsp[-2].integer.value + yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp;
 			  if (! yyval.integer.unsignedp
@@ -910,7 +924,7 @@ case 15:
 			    integer_overflow (); ;
     break;}
 case 16:
-#line 247 "cexp.y"
+#line 261 "cexp.y"
 { yyval.integer.value = yyvsp[-2].integer.value - yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp;
 			  if (! yyval.integer.unsignedp
@@ -919,7 +933,7 @@ case 16:
 			    integer_overflow (); ;
     break;}
 case 17:
-#line 254 "cexp.y"
+#line 268 "cexp.y"
 { yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp;
 			  if (yyvsp[0].integer.value < 0 && ! yyvsp[0].integer.unsignedp)
 			    yyval.integer.value = right_shift (&yyvsp[-2].integer, -yyvsp[0].integer.value);
@@ -927,7 +941,7 @@ case 17:
 			    yyval.integer.value = left_shift (&yyvsp[-2].integer, yyvsp[0].integer.value); ;
     break;}
 case 18:
-#line 260 "cexp.y"
+#line 274 "cexp.y"
 { yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp;
 			  if (yyvsp[0].integer.value < 0 && ! yyvsp[0].integer.unsignedp)
 			    yyval.integer.value = left_shift (&yyvsp[-2].integer, -yyvsp[0].integer.value);
@@ -935,17 +949,17 @@ case 18:
 			    yyval.integer.value = right_shift (&yyvsp[-2].integer, yyvsp[0].integer.value); ;
     break;}
 case 19:
-#line 266 "cexp.y"
+#line 280 "cexp.y"
 { yyval.integer.value = (yyvsp[-2].integer.value == yyvsp[0].integer.value);
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 20:
-#line 269 "cexp.y"
+#line 283 "cexp.y"
 { yyval.integer.value = (yyvsp[-2].integer.value != yyvsp[0].integer.value);
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 21:
-#line 272 "cexp.y"
+#line 286 "cexp.y"
 { yyval.integer.unsignedp = 0;
 			  if (yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp)
 			    yyval.integer.value = (unsigned long) yyvsp[-2].integer.value <= yyvsp[0].integer.value;
@@ -953,7 +967,7 @@ case 21:
 			    yyval.integer.value = yyvsp[-2].integer.value <= yyvsp[0].integer.value; ;
     break;}
 case 22:
-#line 278 "cexp.y"
+#line 292 "cexp.y"
 { yyval.integer.unsignedp = 0;
 			  if (yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp)
 			    yyval.integer.value = (unsigned long) yyvsp[-2].integer.value >= yyvsp[0].integer.value;
@@ -961,7 +975,7 @@ case 22:
 			    yyval.integer.value = yyvsp[-2].integer.value >= yyvsp[0].integer.value; ;
     break;}
 case 23:
-#line 284 "cexp.y"
+#line 298 "cexp.y"
 { yyval.integer.unsignedp = 0;
 			  if (yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp)
 			    yyval.integer.value = (unsigned long) yyvsp[-2].integer.value < yyvsp[0].integer.value;
@@ -969,7 +983,7 @@ case 23:
 			    yyval.integer.value = yyvsp[-2].integer.value < yyvsp[0].integer.value; ;
     break;}
 case 24:
-#line 290 "cexp.y"
+#line 304 "cexp.y"
 { yyval.integer.unsignedp = 0;
 			  if (yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp)
 			    yyval.integer.value = (unsigned long) yyvsp[-2].integer.value > yyvsp[0].integer.value;
@@ -977,54 +991,54 @@ case 24:
 			    yyval.integer.value = yyvsp[-2].integer.value > yyvsp[0].integer.value; ;
     break;}
 case 25:
-#line 296 "cexp.y"
+#line 310 "cexp.y"
 { yyval.integer.value = yyvsp[-2].integer.value & yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp; ;
     break;}
 case 26:
-#line 299 "cexp.y"
+#line 313 "cexp.y"
 { yyval.integer.value = yyvsp[-2].integer.value ^ yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp; ;
     break;}
 case 27:
-#line 302 "cexp.y"
+#line 316 "cexp.y"
 { yyval.integer.value = yyvsp[-2].integer.value | yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp; ;
     break;}
 case 28:
-#line 305 "cexp.y"
+#line 319 "cexp.y"
 { yyval.integer.value = (yyvsp[-2].integer.value && yyvsp[0].integer.value);
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 29:
-#line 308 "cexp.y"
+#line 322 "cexp.y"
 { yyval.integer.value = (yyvsp[-2].integer.value || yyvsp[0].integer.value);
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 30:
-#line 311 "cexp.y"
+#line 325 "cexp.y"
 { yyval.integer.value = yyvsp[-4].integer.value ? yyvsp[-2].integer.value : yyvsp[0].integer.value;
 			  yyval.integer.unsignedp = yyvsp[-2].integer.unsignedp || yyvsp[0].integer.unsignedp; ;
     break;}
 case 31:
-#line 314 "cexp.y"
+#line 328 "cexp.y"
 { yyval.integer = yylval.integer; ;
     break;}
 case 32:
-#line 316 "cexp.y"
+#line 330 "cexp.y"
 { yyval.integer = yylval.integer; ;
     break;}
 case 33:
-#line 318 "cexp.y"
+#line 332 "cexp.y"
 { yyval.integer.value = 0;
 			  yyval.integer.unsignedp = 0; ;
     break;}
 case 34:
-#line 323 "cexp.y"
+#line 337 "cexp.y"
 { yyval.keywords = 0; ;
     break;}
 case 35:
-#line 325 "cexp.y"
+#line 339 "cexp.y"
 { struct arglist *temp;
 			  yyval.keywords = (struct arglist *) xmalloc (sizeof (struct arglist));
 			  yyval.keywords->next = yyvsp[-2].keywords;
@@ -1039,7 +1053,7 @@ case 35:
 			  temp->next->length = 1; ;
     break;}
 case 36:
-#line 338 "cexp.y"
+#line 352 "cexp.y"
 { yyval.keywords = (struct arglist *) xmalloc (sizeof (struct arglist));
 			  yyval.keywords->name = yyvsp[-1].name.address;
 			  yyval.keywords->length = yyvsp[-1].name.length;
@@ -1243,7 +1257,7 @@ yyerrhandle:
   yystate = yyn;
   goto yynewstate;
 }
-#line 343 "cexp.y"
+#line 357 "cexp.y"
 
 
 /* During parsing of a C expression, the pointer to the next character
@@ -1809,7 +1823,7 @@ right_shift (a, b)
 /* We do not support C comments.  They should be removed before
    this function is called.  */
 
-int
+HOST_WIDE_INT
 parse_c_expression (string)
      char *string;
 {
@@ -1858,7 +1872,7 @@ main ()
     if (buf[n] == EOF)
       break;
     buf[n] = '\0';
-    printf ("parser returned %d\n", parse_c_expression (buf));
+    printf ("parser returned %ld\n", parse_c_expression (buf));
   }
 
   return 0;

@@ -2836,12 +2836,14 @@ fold_truthop (code, truth_type, lhs, rhs)
       l_const = convert (unsigned_type (TREE_TYPE (l_const)), l_const);
       l_const = const_binop (LSHIFT_EXPR, convert (type, l_const),
 			     size_int (xll_bitpos), 0);
+      l_const = const_binop (BIT_AND_EXPR, l_const, ll_mask, 0);
     }
   if (r_const)
     {
       r_const = convert (unsigned_type (TREE_TYPE (r_const)), r_const);
       r_const = const_binop (LSHIFT_EXPR, convert (type, r_const),
 			     size_int (xrl_bitpos), 0);
+      r_const = const_binop (BIT_AND_EXPR, r_const, rl_mask, 0);
     }
 
   /* If the right sides are not constant, do the same for it.  Also,
@@ -3420,6 +3422,15 @@ fold (expr)
       return t;
 #endif /* 0 */
 
+    case COMPONENT_REF:
+      if (TREE_CODE (arg0) == CONSTRUCTOR)
+	{
+	  tree m = purpose_member (arg1, CONSTRUCTOR_ELTS (arg0));
+	  if (m)
+	    t = TREE_VALUE (m);
+	}
+      return t;
+
     case RANGE_EXPR:
       TREE_CONSTANT (t) = wins;
       return t;
@@ -3733,8 +3744,8 @@ fold (expr)
 	 Also note that operand_equal_p is always false if an operand
 	 is volatile.  */
 
-      if (operand_equal_p (arg0, arg1,
-			   FLOAT_TYPE_P (type) && ! flag_fast_math))
+      if ((! FLOAT_TYPE_P (type) || flag_fast_math)
+	  && operand_equal_p (arg0, arg1, 0))
 	return convert (type, integer_zero_node);
 
       goto associate;

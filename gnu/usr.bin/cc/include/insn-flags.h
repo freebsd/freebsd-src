@@ -36,10 +36,23 @@ from the machine description file `md'.  */
 #define HAVE_movqi 1
 #define HAVE_movstrictqi 1
 #define HAVE_movsf 1
-#define HAVE_swapdf 1
+#define HAVE_movsf_push_nomove (!TARGET_MOVE)
+#define HAVE_movsf_push 1
+#define HAVE_movsf_mem 1
+#define HAVE_movsf_normal ((!TARGET_MOVE || GET_CODE (operands[0]) != MEM) || (GET_CODE (operands[1]) != MEM))
+#define HAVE_swapsf 1
 #define HAVE_movdf 1
-#define HAVE_swapxf 1
+#define HAVE_movdf_push_nomove (!TARGET_MOVE)
+#define HAVE_movdf_push 1
+#define HAVE_movdf_mem 1
+#define HAVE_movdf_normal ((!TARGET_MOVE || GET_CODE (operands[0]) != MEM) || (GET_CODE (operands[1]) != MEM))
+#define HAVE_swapdf 1
 #define HAVE_movxf 1
+#define HAVE_movxf_push_nomove (!TARGET_MOVE)
+#define HAVE_movxf_push 1
+#define HAVE_movxf_mem 1
+#define HAVE_movxf_normal ((!TARGET_MOVE || GET_CODE (operands[0]) != MEM) || (GET_CODE (operands[1]) != MEM))
+#define HAVE_swapxf 1
 #define HAVE_movdi 1
 #define HAVE_zero_extendhisi2 1
 #define HAVE_zero_extendqihi2 1
@@ -74,6 +87,7 @@ from the machine description file `md'.  */
 #define HAVE_addsi3 1
 #define HAVE_addhi3 1
 #define HAVE_addqi3 1
+#define HAVE_movsi_lea 1
 #define HAVE_addxf3 (TARGET_80387)
 #define HAVE_adddf3 (TARGET_80387)
 #define HAVE_addsf3 (TARGET_80387)
@@ -88,8 +102,10 @@ from the machine description file `md'.  */
 #define HAVE_mulsi3 1
 #define HAVE_umulqihi3 1
 #define HAVE_mulqihi3 1
-#define HAVE_umulsidi3 1
-#define HAVE_mulsidi3 1
+#define HAVE_umulsidi3 (TARGET_WIDE_MULTIPLY)
+#define HAVE_mulsidi3 (TARGET_WIDE_MULTIPLY)
+#define HAVE_umulsi3_highpart (TARGET_WIDE_MULTIPLY)
+#define HAVE_smulsi3_highpart (TARGET_WIDE_MULTIPLY)
 #define HAVE_mulxf3 (TARGET_80387)
 #define HAVE_muldf3 (TARGET_80387)
 #define HAVE_mulsf3 (TARGET_80387)
@@ -191,8 +207,7 @@ from the machine description file `md'.  */
 #define HAVE_call_value_pop 1
 #define HAVE_call_value 1
 #define HAVE_untyped_call 1
-#define HAVE_untyped_return 1
-#define HAVE_update_return 1
+#define HAVE_blockage 1
 #define HAVE_return (simple_386_epilogue ())
 #define HAVE_nop 1
 #define HAVE_movstrsi 1
@@ -236,10 +251,23 @@ extern rtx gen_movstricthi           PROTO((rtx, rtx));
 extern rtx gen_movqi                 PROTO((rtx, rtx));
 extern rtx gen_movstrictqi           PROTO((rtx, rtx));
 extern rtx gen_movsf                 PROTO((rtx, rtx));
-extern rtx gen_swapdf                PROTO((rtx, rtx));
+extern rtx gen_movsf_push_nomove     PROTO((rtx, rtx));
+extern rtx gen_movsf_push            PROTO((rtx, rtx));
+extern rtx gen_movsf_mem             PROTO((rtx, rtx));
+extern rtx gen_movsf_normal          PROTO((rtx, rtx));
+extern rtx gen_swapsf                PROTO((rtx, rtx));
 extern rtx gen_movdf                 PROTO((rtx, rtx));
-extern rtx gen_swapxf                PROTO((rtx, rtx));
+extern rtx gen_movdf_push_nomove     PROTO((rtx, rtx));
+extern rtx gen_movdf_push            PROTO((rtx, rtx));
+extern rtx gen_movdf_mem             PROTO((rtx, rtx));
+extern rtx gen_movdf_normal          PROTO((rtx, rtx));
+extern rtx gen_swapdf                PROTO((rtx, rtx));
 extern rtx gen_movxf                 PROTO((rtx, rtx));
+extern rtx gen_movxf_push_nomove     PROTO((rtx, rtx));
+extern rtx gen_movxf_push            PROTO((rtx, rtx));
+extern rtx gen_movxf_mem             PROTO((rtx, rtx));
+extern rtx gen_movxf_normal          PROTO((rtx, rtx));
+extern rtx gen_swapxf                PROTO((rtx, rtx));
 extern rtx gen_movdi                 PROTO((rtx, rtx));
 extern rtx gen_zero_extendhisi2      PROTO((rtx, rtx));
 extern rtx gen_zero_extendqihi2      PROTO((rtx, rtx));
@@ -274,6 +302,7 @@ extern rtx gen_adddi3                PROTO((rtx, rtx, rtx));
 extern rtx gen_addsi3                PROTO((rtx, rtx, rtx));
 extern rtx gen_addhi3                PROTO((rtx, rtx, rtx));
 extern rtx gen_addqi3                PROTO((rtx, rtx, rtx));
+extern rtx gen_movsi_lea             PROTO((rtx, rtx));
 extern rtx gen_addxf3                PROTO((rtx, rtx, rtx));
 extern rtx gen_adddf3                PROTO((rtx, rtx, rtx));
 extern rtx gen_addsf3                PROTO((rtx, rtx, rtx));
@@ -290,6 +319,8 @@ extern rtx gen_umulqihi3             PROTO((rtx, rtx, rtx));
 extern rtx gen_mulqihi3              PROTO((rtx, rtx, rtx));
 extern rtx gen_umulsidi3             PROTO((rtx, rtx, rtx));
 extern rtx gen_mulsidi3              PROTO((rtx, rtx, rtx));
+extern rtx gen_umulsi3_highpart      PROTO((rtx, rtx, rtx));
+extern rtx gen_smulsi3_highpart      PROTO((rtx, rtx, rtx));
 extern rtx gen_mulxf3                PROTO((rtx, rtx, rtx));
 extern rtx gen_muldf3                PROTO((rtx, rtx, rtx));
 extern rtx gen_mulsf3                PROTO((rtx, rtx, rtx));
@@ -380,8 +411,7 @@ extern rtx gen_indirect_jump         PROTO((rtx));
 extern rtx gen_casesi                PROTO((rtx, rtx, rtx, rtx, rtx));
 extern rtx gen_tablejump             PROTO((rtx, rtx));
 extern rtx gen_untyped_call          PROTO((rtx, rtx, rtx));
-extern rtx gen_untyped_return        PROTO((rtx, rtx));
-extern rtx gen_update_return         PROTO((rtx));
+extern rtx gen_blockage              PROTO((void));
 extern rtx gen_return                PROTO((void));
 extern rtx gen_nop                   PROTO((void));
 extern rtx gen_movstrsi              PROTO((rtx, rtx, rtx, rtx));
@@ -438,10 +468,23 @@ extern rtx gen_movstricthi ();
 extern rtx gen_movqi ();
 extern rtx gen_movstrictqi ();
 extern rtx gen_movsf ();
-extern rtx gen_swapdf ();
+extern rtx gen_movsf_push_nomove ();
+extern rtx gen_movsf_push ();
+extern rtx gen_movsf_mem ();
+extern rtx gen_movsf_normal ();
+extern rtx gen_swapsf ();
 extern rtx gen_movdf ();
-extern rtx gen_swapxf ();
+extern rtx gen_movdf_push_nomove ();
+extern rtx gen_movdf_push ();
+extern rtx gen_movdf_mem ();
+extern rtx gen_movdf_normal ();
+extern rtx gen_swapdf ();
 extern rtx gen_movxf ();
+extern rtx gen_movxf_push_nomove ();
+extern rtx gen_movxf_push ();
+extern rtx gen_movxf_mem ();
+extern rtx gen_movxf_normal ();
+extern rtx gen_swapxf ();
 extern rtx gen_movdi ();
 extern rtx gen_zero_extendhisi2 ();
 extern rtx gen_zero_extendqihi2 ();
@@ -476,6 +519,7 @@ extern rtx gen_adddi3 ();
 extern rtx gen_addsi3 ();
 extern rtx gen_addhi3 ();
 extern rtx gen_addqi3 ();
+extern rtx gen_movsi_lea ();
 extern rtx gen_addxf3 ();
 extern rtx gen_adddf3 ();
 extern rtx gen_addsf3 ();
@@ -492,6 +536,8 @@ extern rtx gen_umulqihi3 ();
 extern rtx gen_mulqihi3 ();
 extern rtx gen_umulsidi3 ();
 extern rtx gen_mulsidi3 ();
+extern rtx gen_umulsi3_highpart ();
+extern rtx gen_smulsi3_highpart ();
 extern rtx gen_mulxf3 ();
 extern rtx gen_muldf3 ();
 extern rtx gen_mulsf3 ();
@@ -582,8 +628,7 @@ extern rtx gen_indirect_jump ();
 extern rtx gen_casesi ();
 extern rtx gen_tablejump ();
 extern rtx gen_untyped_call ();
-extern rtx gen_untyped_return ();
-extern rtx gen_update_return ();
+extern rtx gen_blockage ();
 extern rtx gen_return ();
 extern rtx gen_nop ();
 extern rtx gen_movstrsi ();

@@ -942,7 +942,7 @@ add_method (type, fields, method)
 				   * sizeof (char *)
 				 + len * sizeof (tree));
 		  tmp_vec = (tree) obstack_base (ob);
-		  bcopy (method_vec, tmp_vec,
+		  bcopy ((char *) method_vec, (char *) tmp_vec,
 			 (sizeof (struct tree_common)
 			  + tree_code_length[(int) TREE_VEC] * sizeof (char *)
 			  + (len-1) * sizeof (tree)));
@@ -992,20 +992,18 @@ add_method (type, fields, method)
    not duplicates, they are just anonymous fields.  This happens
    when we have unnamed bitfields, for example.  */
 static tree
-delete_duplicate_fields_1 (field, field_ptr, fields)
-     tree field, *field_ptr, fields;
+delete_duplicate_fields_1 (field, fields)
+     tree field, fields;
 {
   tree x;
-  tree prev = field_ptr ? *field_ptr : 0;
+  tree prev = 0;
   if (DECL_NAME (field) == 0)
     {
       if (TREE_CODE (TREE_TYPE (field)) != UNION_TYPE)
 	return fields;
 
       for (x = TYPE_FIELDS (TREE_TYPE (field)); x; x = TREE_CHAIN (x))
-	fields = delete_duplicate_fields_1 (x, field_ptr, fields);
-      if (prev)
-	TREE_CHAIN (prev) = fields;
+	fields = delete_duplicate_fields_1 (x, fields);
       return fields;
     }
   else
@@ -1017,7 +1015,7 @@ delete_duplicate_fields_1 (field, field_ptr, fields)
 	      if (TREE_CODE (TREE_TYPE (x)) != UNION_TYPE)
 		continue;
 	      TYPE_FIELDS (TREE_TYPE (x))
-		= delete_duplicate_fields_1 (field, (tree *)0, TYPE_FIELDS (TREE_TYPE (x)));
+		= delete_duplicate_fields_1 (field, TYPE_FIELDS (TREE_TYPE (x)));
 	      if (TYPE_FIELDS (TREE_TYPE (x)) == 0)
 		{
 		  if (prev == 0)
@@ -1039,7 +1037,7 @@ delete_duplicate_fields_1 (field, field_ptr, fields)
 				x);
 		  else if (TREE_CODE (field) == TYPE_DECL
 			   && TREE_CODE (x) == TYPE_DECL)
-		    cp_error_at ("duplicate class scope type `%D'", x);
+		    cp_error_at ("duplicate nested type `%D'", x);
 		  else if (TREE_CODE (field) == TYPE_DECL
 			   || TREE_CODE (x) == TYPE_DECL)
 		    cp_error_at ("duplicate field `%D' (as type and non-type)",
@@ -1063,7 +1061,7 @@ delete_duplicate_fields (fields)
 {
   tree x;
   for (x = fields; x && TREE_CHAIN (x); x = TREE_CHAIN (x))
-    TREE_CHAIN (x) = delete_duplicate_fields_1 (x, &x, TREE_CHAIN (x));
+    TREE_CHAIN (x) = delete_duplicate_fields_1 (x, TREE_CHAIN (x));
 }
 
 /* Change the access of FDECL to ACCESS in T.
@@ -1121,10 +1119,14 @@ get_vfield_offset (binfo)
 		     BINFO_OFFSET (binfo));
 }
 
-/* Get the offset to the start of the original binfo that we derived this
-   binfo from.  */
-tree get_derived_offset (binfo)
-     tree binfo;
+/* Get the offset to the start of the original binfo that we derived
+   this binfo from.  If we find TYPE first, return the offset only
+   that far.  The shortened search is useful because the this pointer
+   on method calling is expected to point to a DECL_CONTEXT (fndecl)
+   object, and not a baseclass of it.  */
+static tree
+get_derived_offset (binfo, type)
+     tree binfo, type;
 {
   tree offset1 = get_vfield_offset (TYPE_BINFO (BINFO_TYPE (binfo)));
   tree offset2;
@@ -1133,6 +1135,8 @@ tree get_derived_offset (binfo)
 	 && (i=CLASSTYPE_VFIELD_PARENT (BINFO_TYPE (binfo))) != -1)
     {
       tree binfos = BINFO_BASETYPES (binfo);
+      if (BINFO_TYPE (binfo) == type)
+	break;
       binfo = TREE_VEC_ELT (binfos, i);
     }
   offset2 = get_vfield_offset (TYPE_BINFO (BINFO_TYPE (binfo)));
@@ -1340,7 +1344,7 @@ finish_base_struct (t, b, t_binfo)
   tree binfos = BINFO_BASETYPES (t_binfo);
   int i, n_baseclasses = binfos ? TREE_VEC_LENGTH (binfos) : 0;
   int first_vfn_base_index = -1;
-  bzero (b, sizeof (struct base_info));
+  bzero ((char *) b, sizeof (struct base_info));
 
   for (i = 0; i < n_baseclasses; i++)
     {
@@ -1682,8 +1686,8 @@ finish_struct_bits (t, max_has_virtual)
       tree *tmp;
       int i;
 
-      bzero (first_conversions, sizeof (first_conversions));
-      bzero (last_conversions, sizeof (last_conversions));
+      bzero ((char *) first_conversions, sizeof (first_conversions));
+      bzero ((char *) last_conversions, sizeof (last_conversions));
       for (tmp = &TREE_VEC_ELT (method_vec, 1);
 	   tmp != TREE_VEC_END (method_vec); tmp += 1)
 	{
@@ -1830,8 +1834,7 @@ finish_struct_methods (t, fn_fields, nonprivate_method)
 	{
 	  tree parmtype = TREE_VALUE (FUNCTION_ARG_CHAIN (fn_fields));
 
-	  if (TREE_CODE (parmtype) == REFERENCE_TYPE
-	      && TYPE_MAIN_VARIANT (TREE_TYPE (parmtype)) == t)
+	  if (copy_assignment_arg_p (parmtype, DECL_VIRTUAL_P (fn_fields)))
 	    {
 	      if (TREE_PROTECTED (fn_fields))
 		TYPE_HAS_NONPUBLIC_ASSIGN_REF (t) = 1;
@@ -1938,8 +1941,8 @@ finish_struct_methods (t, fn_fields, nonprivate_method)
 		  && CLASSTYPE_FRIEND_CLASSES (t) == NULL_TREE
 		  && DECL_FRIENDLIST (TYPE_NAME (t)) == NULL_TREE
 		  && warn_ctor_dtor_privacy)
-		warning ("class `%s' only defines a private destructor and has no friends",
-			 TYPE_NAME_STRING (t));
+		cp_warning ("`%#T' only defines a private destructor and has no friends",
+			    t);
 	      break;
 	    }
 	}
@@ -2060,7 +2063,7 @@ duplicate_tag_error (t)
       int interface_only = CLASSTYPE_INTERFACE_ONLY (t);
       int interface_unknown = CLASSTYPE_INTERFACE_UNKNOWN (t);
 
-      bzero (TYPE_LANG_SPECIFIC (t), sizeof (struct lang_type));
+      bzero ((char *) TYPE_LANG_SPECIFIC (t), sizeof (struct lang_type));
       BINFO_BASETYPES(binfo) = NULL_TREE;
 
       CLASSTYPE_AS_LIST (t) = as_list;
@@ -2151,6 +2154,86 @@ overrides (fndecl, base_fndecl)
   return 0;
 }
 
+static tree
+get_class_offset_1 (parent, binfo, context, t, fndecl)
+     tree parent, binfo, context, t, fndecl;
+{
+  tree binfos = BINFO_BASETYPES (binfo);
+  int i, n_baselinks = binfos ? TREE_VEC_LENGTH (binfos) : 0;
+  tree rval = NULL_TREE;
+
+  if (binfo == parent)
+    return error_mark_node;
+
+  for (i = 0; i < n_baselinks; i++)
+    {
+      tree base_binfo = TREE_VEC_ELT (binfos, i);
+      tree nrval;
+
+      if (TREE_VIA_VIRTUAL (base_binfo))
+	base_binfo = binfo_member (BINFO_TYPE (base_binfo),
+				   CLASSTYPE_VBASECLASSES (t));
+      nrval = get_class_offset_1 (parent, base_binfo, context, t, fndecl);
+      /* See if we have a new value */
+      if (nrval && (nrval != error_mark_node || rval==0))
+	{
+	  /* Only compare if we have two offsets */
+	  if (rval && rval != error_mark_node
+	      && ! tree_int_cst_equal (nrval, rval))
+	    {
+	      /* Only give error if the two offsets are different */
+	      error ("every virtual function must have a unique final overrider");
+	      cp_error ("  found two (or more) `%T' class subobjects in `%T'", context, t);
+	      cp_error ("  with virtual `%D' from virtual base class", fndecl);
+	      return rval;
+	    }
+	  rval = nrval;
+	}
+	
+      if (rval && BINFO_TYPE (binfo) == context)
+	{
+	  my_friendly_assert (rval == error_mark_node
+			      || tree_int_cst_equal (rval, BINFO_OFFSET (binfo)), 999);
+	  rval = BINFO_OFFSET (binfo);
+	}
+    }
+  return rval;
+}
+
+/* Get the offset to the CONTEXT subobject that is related to the
+   given BINFO.  */
+static tree
+get_class_offset (context, t, binfo, fndecl)
+     tree context, t, binfo, fndecl;
+{
+  tree first_binfo = binfo;
+  tree offset;
+  int i;
+
+  if (context == t)
+    return integer_zero_node;
+
+  if (BINFO_TYPE (binfo) == context)
+    return BINFO_OFFSET (binfo);
+
+  /* Check less derived binfos first.  */
+  while (BINFO_BASETYPES (binfo)
+	 && (i=CLASSTYPE_VFIELD_PARENT (BINFO_TYPE (binfo))) != -1)
+    {
+      tree binfos = BINFO_BASETYPES (binfo);
+      binfo = TREE_VEC_ELT (binfos, i);
+      if (BINFO_TYPE (binfo) == context)
+	return BINFO_OFFSET (binfo);
+    }
+
+  /* Ok, not found in the less derived binfos, now check the more
+     derived binfos. */
+  offset = get_class_offset_1 (first_binfo, TYPE_BINFO (t), context, t, fndecl);
+  if (offset==0 || TREE_CODE (offset) != INTEGER_CST)
+    my_friendly_abort (999);	/* we have to find it.  */
+  return offset;
+}
+
 static void
 modify_one_vtable (binfo, t, fndecl, pfn)
      tree binfo, t, fndecl, pfn;
@@ -2174,16 +2257,7 @@ modify_one_vtable (binfo, t, fndecl, pfn)
 	  tree vfield = CLASSTYPE_VFIELD (t);
 	  tree this_offset;
 
-	  offset = integer_zero_node;
-	  if (context != t && TYPE_USES_COMPLEX_INHERITANCE (t))
-	    {
-	      offset = virtual_offset (context, CLASSTYPE_VBASECLASSES (t), offset);
-	      if (offset == NULL_TREE)
-		{
-		  tree binfo = get_binfo (context, t, 0);
-		  offset = BINFO_OFFSET (binfo);
-		}
-	    }
+	  offset = get_class_offset (context, t, binfo, fndecl);
 
 	  /* Find the right offset for the this pointer based on the
 	     base class we just found.  We have to take into
@@ -2193,7 +2267,7 @@ modify_one_vtable (binfo, t, fndecl, pfn)
 	     Also, we want just the delta bewteen the most base class
 	     that we derived this vfield from and us.  */
 	  base_offset = size_binop (PLUS_EXPR,
-				    get_derived_offset (binfo),
+				    get_derived_offset (binfo, DECL_CONTEXT (current_fndecl)),
 				    BINFO_OFFSET (binfo));
 	  this_offset = size_binop (MINUS_EXPR, offset, base_offset);
 
@@ -2288,16 +2362,7 @@ fixup_vtable_deltas (binfo, t)
 	  tree vfield = CLASSTYPE_VFIELD (t);
 	  tree this_offset;
 
-	  offset = integer_zero_node;
-	  if (context != t && TYPE_USES_COMPLEX_INHERITANCE (t))
-	    {
-	      offset = virtual_offset (context, CLASSTYPE_VBASECLASSES (t), offset);
-	      if (offset == NULL_TREE)
-		{
-		  tree binfo = get_binfo (context, t, 0);
-		  offset = BINFO_OFFSET (binfo);
-		}
-	    }
+	  offset = get_class_offset (context, t, binfo, fndecl);
 
 	  /* Find the right offset for the this pointer based on the
 	     base class we just found.  We have to take into
@@ -2307,7 +2372,7 @@ fixup_vtable_deltas (binfo, t)
 	     Also, we want just the delta bewteen the most base class
 	     that we derived this vfield from and us.  */
 	  base_offset = size_binop (PLUS_EXPR,
-				    get_derived_offset (binfo),
+				    get_derived_offset (binfo, DECL_CONTEXT (fndecl)),
 				    BINFO_OFFSET (binfo));
 	  this_offset = size_binop (MINUS_EXPR, offset, base_offset);
 
@@ -2684,6 +2749,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	     will fill in the right line number.  (mrs) */
 	  if (DECL_SOURCE_LINE (name))
 	    DECL_SOURCE_LINE (name) = lineno;
+	  CLASSTYPE_SOURCE_LINE (t) = lineno;
 	}
       name = DECL_NAME (name);
     }
@@ -2713,18 +2779,15 @@ finish_struct (t, list_of_fieldlists, warn_anon)
   TYPE_SIZE (t) = NULL_TREE;
   CLASSTYPE_GOT_SEMICOLON (t) = 0;
 
-  /* A signature type will contain the fields of the signature table.
-     Therefore, it's not only an interface.  */
-  if (IS_SIGNATURE (t))
+#if 0
+  /* This is in general too late to do this.  I moved the main case up to
+     left_curly, what else needs to move?  */
+  if (! IS_SIGNATURE (t))
     {
-      CLASSTYPE_INTERFACE_ONLY (t) = 0;
-      SET_CLASSTYPE_INTERFACE_KNOWN (t);
+      my_friendly_assert (CLASSTYPE_INTERFACE_ONLY (t) == interface_only, 999);
+      my_friendly_assert (CLASSTYPE_INTERFACE_KNOWN (t) == ! interface_unknown, 999);
     }
-  else
-    {
-      CLASSTYPE_INTERFACE_ONLY (t) = interface_only;
-      SET_CLASSTYPE_INTERFACE_UNKNOWN_X (t, interface_unknown);
-    }
+#endif
 
   if (flag_dossier)
     build_t_desc (t, 0);
@@ -2787,14 +2850,15 @@ finish_struct (t, list_of_fieldlists, warn_anon)
       needs_virtual_dtor = 0;
     }
 
+#if 0
+  /* Both of these should be done before now.  */
   if (write_virtuals == 3 && CLASSTYPE_INTERFACE_KNOWN (t)
       && ! IS_SIGNATURE (t))
     {
-      CLASSTYPE_INTERFACE_ONLY (t) = interface_only;
-      CLASSTYPE_VTABLE_NEEDS_WRITING (t) = ! interface_only;
+      my_friendly_assert (CLASSTYPE_INTERFACE_ONLY (t) == interface_only, 999);
+      my_friendly_assert (CLASSTYPE_VTABLE_NEEDS_WRITING (t) == ! interface_only, 999);
     }
-  else if (IS_SIGNATURE (t))
-    CLASSTYPE_VTABLE_NEEDS_WRITING (t) = 0;
+#endif
 
   /* The three of these are approximations which may later be
      modified.  Needed at this point to make add_virtual_function
@@ -2950,6 +3014,9 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	      cp_error_at ("field `%D' invalidly declared offset type", x);
 	      TREE_TYPE (x) = build_pointer_type (TREE_TYPE (x));
 	    }
+
+	  if (DECL_NAME (x) == constructor_name (t))
+	    cant_have_default_ctor = cant_synth_copy_ctor = 1;
 
 	  if (TREE_TYPE (x) == error_mark_node)
 	    continue;
@@ -3217,12 +3284,14 @@ finish_struct (t, list_of_fieldlists, warn_anon)
   CLASSTYPE_REF_FIELDS_NEED_INIT (t) = ref_sans_init;
   CLASSTYPE_ABSTRACT_VIRTUALS (t) = abstract_virtuals;
 
+  /* Synthesize any needed methods.  Note that methods will be synthesized
+     for anonymous unions; grok_x_components undoes that.  */
+
   if (TYPE_NEEDS_DESTRUCTOR (t) && !TYPE_HAS_DESTRUCTOR (t)
       && !IS_SIGNATURE (t))
     {
       /* Here we must cons up a destructor on the fly.  */
-      tree dtor = cons_up_default_function (t, name, fields,
-					    needs_virtual_dtor != 0);
+      tree dtor = cons_up_default_function (t, name, needs_virtual_dtor != 0);
 
       /* If we couldn't make it work, then pretend we didn't need it.  */
       if (dtor == void_type_node)
@@ -3251,9 +3320,6 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 
   TYPE_NEEDS_DESTRUCTOR (t) |= TYPE_HAS_DESTRUCTOR (t);
 
-  /* Synthesize any needed methods.  Note that methods will be synthesized
-     for anonymous unions; grok_x_components undoes that.  */
-
   if (! fn_fields)
     nonprivate_method = 1;
 
@@ -3271,7 +3337,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
   if (! TYPE_HAS_CONSTRUCTOR (t) && ! cant_have_default_ctor
       && ! IS_SIGNATURE (t))
     {
-      tree default_fn = cons_up_default_function (t, name, fields, 2);
+      tree default_fn = cons_up_default_function (t, name, 2);
       TREE_CHAIN (default_fn) = fn_fields;
       fn_fields = default_fn;
     }
@@ -3282,9 +3348,8 @@ finish_struct (t, list_of_fieldlists, warn_anon)
     {
       /* ARM 12.18: You get either X(X&) or X(const X&), but
 	 not both.  --Chip  */
-      tree default_fn =
-	cons_up_default_function (t, name, fields,
-				  cant_have_const_ctor ? 4 : 3);
+      tree default_fn = cons_up_default_function (t, name,
+						  3 + cant_have_const_ctor);
       TREE_CHAIN (default_fn) = fn_fields;
       fn_fields = default_fn;
     }
@@ -3298,9 +3363,8 @@ finish_struct (t, list_of_fieldlists, warn_anon)
   if (! TYPE_HAS_ASSIGN_REF (t) && ! cant_synth_asn_ref
       && ! IS_SIGNATURE (t))
     {
-      tree default_fn =
-	cons_up_default_function (t, name, fields,
-				  no_const_asn_ref ? 6 : 5);
+      tree default_fn = cons_up_default_function (t, name,
+						  5 + no_const_asn_ref);
       TREE_CHAIN (default_fn) = fn_fields;
       fn_fields = default_fn;
     }
@@ -3351,7 +3415,7 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	tree flist = NULL_TREE;
 	tree name;
 	enum access_type access = (enum access_type)TREE_PURPOSE(access_decls);
-	int i = 0;
+	int i = TREE_VEC_ELT (method_vec, 0) ? 0 : 1;
 	tree tmp;
 
 	if (TREE_CODE (fdecl) == TREE_LIST)
@@ -3459,6 +3523,27 @@ finish_struct (t, list_of_fieldlists, warn_anon)
   /* Delete all duplicate fields from the fields */
   delete_duplicate_fields (fields);
 
+  /* Catch function/field name conflict.  We don't need to do this for a
+     signature, since it can only contain the fields constructed in
+     append_signature_fields.  */
+  if (! IS_SIGNATURE (t))
+    {
+      int n_methods = method_vec ? TREE_VEC_LENGTH (method_vec) : 0;
+      for (x = fields; x; x = TREE_CHAIN (x))
+	{
+	  tree name = DECL_NAME (x);
+	  int i = /*TREE_VEC_ELT (method_vec, 0) ? 0 : */ 1;
+	  for (; i < n_methods; ++i)
+	    if (DECL_NAME (TREE_VEC_ELT (method_vec, i)) == name)
+	      {
+		cp_error_at ("data member `%#D' conflicts with", x);
+		cp_error_at ("function member `%#D'",
+			     TREE_VEC_ELT (method_vec, i));
+		break;
+	      }
+	}
+    }
+
   /* Now we have the final fieldlist for the data fields.  Record it,
      then lay out the structure or union (including the fields).  */
 
@@ -3498,6 +3583,9 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	    tree uelt = TYPE_FIELDS (TREE_TYPE (field));
 	    for (; uelt; uelt = TREE_CHAIN (uelt))
 	      {
+		if (TREE_CODE (uelt) != FIELD_DECL)
+		  continue;
+
 		DECL_FIELD_CONTEXT (uelt) = DECL_FIELD_CONTEXT (field);
 		DECL_FIELD_BITPOS (uelt) = DECL_FIELD_BITPOS (field);
 	      }
@@ -3552,6 +3640,9 @@ finish_struct (t, list_of_fieldlists, warn_anon)
 	    tree uelt = TYPE_FIELDS (TREE_TYPE (field));
 	    for (; uelt; uelt = TREE_CHAIN (uelt))
 	      {
+		if (TREE_CODE (uelt) != FIELD_DECL)
+		  continue;
+
 		DECL_FIELD_CONTEXT (uelt) = DECL_FIELD_CONTEXT (field);
 		DECL_FIELD_BITPOS (uelt) = DECL_FIELD_BITPOS (field);
 	      }
@@ -4634,11 +4725,42 @@ instantiate_type (lhstype, rhs, complain)
 	  {
 	    elem = get_first_fn (rhs);
 	    while (elem)
-	      if (TREE_TYPE (elem) != lhstype)
+	      if (! comptypes (lhstype, TREE_TYPE (elem), 1))
 		elem = DECL_CHAIN (elem);
 	      else
 		return elem;
-	    /* No exact match found, look for a compatible function.  */
+
+	    /* No exact match found, look for a compatible template.  */
+	    {
+	      tree save_elem = 0;
+	      for (elem = get_first_fn (rhs); elem; elem = DECL_CHAIN (elem))
+		if (TREE_CODE (elem) == TEMPLATE_DECL)
+		  {
+		    int n = TREE_VEC_LENGTH (DECL_TEMPLATE_PARMS (elem));
+		    tree *t = (tree *) alloca (sizeof (tree) * n);
+		    int i, d;
+		    i = type_unification (DECL_TEMPLATE_PARMS (elem), t,
+					  TYPE_ARG_TYPES (TREE_TYPE (elem)),
+					  TYPE_ARG_TYPES (lhstype), &d, 0);
+		    if (i == 0)
+		      {
+			if (save_elem)
+			  {
+			    cp_error ("ambiguous template instantiation converting to `%#T'", lhstype);
+			    return error_mark_node;
+			  }
+			save_elem = instantiate_template (elem, t);
+			/* Check the return type.  */
+			if (! comptypes (TREE_TYPE (lhstype),
+					 TREE_TYPE (TREE_TYPE (save_elem)), 1))
+			  save_elem = 0;
+		      }
+		  }
+	      if (save_elem)
+		return save_elem;
+	    }
+
+	    /* No match found, look for a compatible function.  */
 	    elem = get_first_fn (rhs);
 	    while (elem && ! comp_target_types (lhstype, TREE_TYPE (elem), 1))
 	      elem = DECL_CHAIN (elem);
@@ -4659,18 +4781,6 @@ instantiate_type (lhstype, rhs, complain)
 			cp_error_at ("  and `%#D', at least", elem);
 		      }
 		    return error_mark_node;
-		  }
-		if (TREE_CODE (save_elem) == TEMPLATE_DECL)
-		  {
-		    int ntparms = TREE_VEC_LENGTH
-		      (DECL_TEMPLATE_PARMS (save_elem));
-		    tree *targs = (tree *) alloca (sizeof (tree) * ntparms);
-		    int i, dummy;
-		    i = type_unification
-		      (DECL_TEMPLATE_PARMS (save_elem), targs,
-		       TYPE_ARG_TYPES (TREE_TYPE (save_elem)),
-		       TYPE_ARG_TYPES (lhstype), &dummy, 0);
-		    save_elem = instantiate_template (save_elem, targs);
 		  }
 		return save_elem;
 	      }
@@ -4864,12 +4974,14 @@ instantiate_type (lhstype, rhs, complain)
 	}
       TREE_TYPE (rhs) = lhstype;
       lhstype = TREE_TYPE (lhstype);
-      TREE_OPERAND (rhs, 0)
-	= instantiate_type (lhstype, TREE_OPERAND (rhs, 0), complain);
-      if (TREE_OPERAND (rhs, 0) == error_mark_node)
-	return error_mark_node;
-
-      mark_addressable (TREE_OPERAND (rhs, 0));
+      {
+	tree fn = instantiate_type (lhstype, TREE_OPERAND (rhs, 0), complain);
+	if (fn == error_mark_node)
+	  return error_mark_node;
+	mark_addressable (fn);
+	TREE_OPERAND (rhs, 0) = fn;
+	TREE_CONSTANT (rhs) = staticp (fn);
+      }
       return rhs;
 
     case ENTRY_VALUE_EXPR:
