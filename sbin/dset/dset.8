@@ -1,0 +1,80 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id$
+.\" "
+.Dd May 2, 1996
+.Dt DSET 8
+.Os
+.Sh NAME
+.Nm dset
+.Nd "update the boot file to the current configuration"
+.Sh SYNOPSIS
+.Nm dset
+.Op Fl vqt
+.Sh DESCRIPTION
+.Nm Dset
+records the configuration changes for ISA devices that have been made
+from within
+.Em UserConfig
+after booting with the
+.Fl c
+option.  The changes (if any) are always attempted to be recorded into
+the file as obtained by
+.Xr getbootfile 3 .
+.Nm Dset
+is typically called from within
+.Pa /etc/rc .
+.Pp
+.Nm Dset
+understands the following options:
+.Bl -tag -width indent -compact
+.It Fl v
+Verbose; tell what is being done.
+.It Fl q
+Quiet; don't print any error messages.
+.It Fl t
+Test only; don't actually record any changes to the boot file, print
+only what would have been done.  This implies
+.Fl v .
+.El
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits with status 0 on success, or with status 1 if any
+problem occured.  Unless
+.Fl q
+has been specified, a short message hinting to the cause of the problem
+will be printed to standard error output.
+.Sh SEE ALSO
+.Xr getbootfile 3 ,
+.Xr boot_i386 8 ,
+.Xr rc 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Tn FreeBSD
+2.0.5.
