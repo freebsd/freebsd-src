@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_icmp.c,v 1.31 1998/09/15 10:49:03 jkoshy Exp $
+ *	$Id: ip_icmp.c,v 1.32 1998/12/03 20:23:20 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -71,15 +71,25 @@ SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
 
 #ifdef ICMP_BANDLIM 
  
- /*    
-  * ICMP error-response bandwidth limiting
-  */     
+/*    
+ * ICMP error-response bandwidth limiting sysctl.  If not enabled, sysctl
+ *      variable content is -1 and read-only.
+ */     
     
 static int      icmplim = 100;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
 	&icmplim, 0, "");
-	     
+#else
+
+static int      icmplim = -1;
+SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RD,
+	&icmplim, 0, "");
+	
 #endif 
+
+/*
+ * ICMP broadcast echo sysctl
+ */
 
 static int	icmpbmcastecho = 0;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW, &icmpbmcastecho,
