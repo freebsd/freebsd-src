@@ -194,8 +194,10 @@ disable_slot(struct slot *slt)
 	device_get_children(pccarddev, &kids, &nkids);
 	for (i = 0; i < nkids; i++) {
 		if ((ret = device_delete_child(pccarddev, kids[i])) != 0)
-			printf("pccard: delete failed: %d\n", ret);
+			printf("pccard: delete of %s failed: %d\n",
+				device_get_nameunit(kids[i]), ret);
  	}
+	free(kids, M_TEMP);
 
 	/* Power off the slot 1/2 second after removal of the card */
 	slt->poff_ch = timeout(power_off_slot, (caddr_t)slt, hz / 2);
