@@ -576,7 +576,6 @@ static int pcn_attach(dev)
 	/*
 	 * Do MII setup.
 	 */
-	bootverbose = 1;
 	if (mii_phy_probe(dev, &sc->pcn_miibus,
 	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
 		printf("pcn%d: MII without any PHY!\n", sc->pcn_unit);
