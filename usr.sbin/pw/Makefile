@@ -12,6 +12,4 @@ CFLAGS+= -W -Wall
 LDADD=	-lcrypt -lutil
 DPADD=	${LIBCRYPT} ${LIBUTIL}
 
-BINMODE=0555
-
 .include <bsd.prog.mk>
