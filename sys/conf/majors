@@ -30,7 +30,7 @@ chrdev	name		comments
 10	wt		QIC-02/36 tape
 11	spigot		Video capture?
 12	sc		syscons/pcvt virtual consoles
-13	da		SCSI "direct access devices"
+13
 14	sa		SCSI "sequential access devices"
 15	cd		SCSI "CDROM type"
 16	lpt		PC parallel printer port
@@ -133,7 +133,7 @@ chrdev	name		comments
 113	ulpt		USB Printer <n_hibma>
 114	ugen		USB Generic device <n_hibma>
 115	dag		University of Waikato DAG network capture boards
-116	ad		ATA disks
+116
 117	acd		ATAPI CDROM
 118	afd		ATAPI floppy
 119	ast		ATAPI tape
@@ -174,7 +174,7 @@ chrdev	name		comments
 154	asr		Adaptec SCSI RAID <msmith@freebsd.org>
 155	phone		Quicknet PhoneJACK and LineJACK cards for VoIP <roger>
 156	uscanner	USB Scanners <n_hibma>
-157	ar		ATA "pseudo" RAID device
+157
 158	mly		Mylex RAID control device
 159	ata		ATA control device
 160	spic		Sony Programmable I/O Controller (jogdial)
