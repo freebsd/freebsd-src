@@ -8,8 +8,8 @@ CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	perlmain.c config.h
 NOSHARED= no
 DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
-DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD}
-LDADD=	${DYNALOADER} -lperl -lm -lcrypt -lmd
+DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD} ${LIBXPG4}
+LDADD=	-Wl,-E ${DYNALOADER} -lperl -lm -lcrypt -lmd -lxpg4
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
 	${BINDIR}/${PROG} ${BINDIR}/perl5.00503
 
@@ -54,7 +54,7 @@ autosplit: links Config.pm lib/*.pm lib/*/*.pm
 ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags Config.pm config.h
 	@cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
-		LINKTYPE=static LIBS="-lperl"; \
+		LINKTYPE=static LIBS="-lperl -lm"; \
 	make -B config PERL_SRC=${.OBJDIR}
 
 lib/auto/${I}.a: links ext/${I:H}/Makefile
@@ -70,7 +70,7 @@ STATICS+=	lib/auto/${I}.a
 ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags Config.pm pod2man config.h
 	@cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
-		LINKTYPE=dynamic LIBS="-lperl" \
+		LINKTYPE=dynamic LIBS="-lperl -lm" \
 		INST_LIB=${.OBJDIR}/build/${I:H} \
 		INST_ARCHLIB=${.OBJDIR}/build/${I:H}; \
 	make -B config PERL_SRC=${.OBJDIR}
