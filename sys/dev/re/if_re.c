@@ -194,7 +194,7 @@ static int re_probe		(device_t);
 static int re_attach		(device_t);
 static int re_detach		(device_t);
 
-static int re_encap		(struct rl_softc *, struct mbuf *, int *);
+static int re_encap		(struct rl_softc *, struct mbuf **, int *);
 
 static void re_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
 static void re_dma_map_desc	(void *, bus_dma_segment_t *, int,
@@ -1005,7 +1005,7 @@ re_allocmem(dev, sc)
 	 */
 	error = bus_dma_tag_create(sc->rl_parent_tag, RL_RING_ALIGN,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
+	    NULL, RL_RX_LIST_SZ, 1, RL_RX_LIST_SZ, BUS_DMA_ALLOCNOW,
 	    NULL, NULL, &sc->rl_ldata.rl_rx_list_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -1024,7 +1024,7 @@ re_allocmem(dev, sc)
 
 	error = bus_dmamap_load(sc->rl_ldata.rl_rx_list_tag,
 	     sc->rl_ldata.rl_rx_list_map, sc->rl_ldata.rl_rx_list,
-	     RL_TX_LIST_SZ, re_dma_map_addr,
+	     RL_RX_LIST_SZ, re_dma_map_addr,
 	     &sc->rl_ldata.rl_rx_list_addr, BUS_DMA_NOWAIT);
 
 	/* Create DMA maps for RX buffers */
@@ -1252,7 +1252,7 @@ re_detach(dev)
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
-	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
+	KASSERT(mtx_initialized(&sc->rl_mtx), ("re mutex not initialized"));
 
 	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
@@ -1733,7 +1733,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK_ASSERT(sc);
-	
+
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
 		ether_poll_deregister(ifp);
 		cmd = POLL_DEREGISTER;
@@ -1811,10 +1811,8 @@ re_intr(arg)
 		if ((status & RL_INTRS_CPLUS) == 0)
 			break;
 
-		if (status & RL_ISR_RX_OK)
-			re_rxeof(sc);
-
-		if (status & RL_ISR_RX_ERR)
+		if ((status & RL_ISR_RX_OK) ||
+		    (status & RL_ISR_RX_ERR))
 			re_rxeof(sc);
 
 		if ((status & RL_ISR_TIMEOUT_EXPIRED) ||
@@ -1843,7 +1841,7 @@ done_locked:
 static int
 re_encap(sc, m_head, idx)
 	struct rl_softc		*sc;
-	struct mbuf		*m_head;
+	struct mbuf		**m_head;
 	int			*idx;
 {
 	struct mbuf		*m_new = NULL;
@@ -1866,11 +1864,11 @@ re_encap(sc, m_head, idx)
 
 	arg.rl_flags = 0;
 
-	if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+	if ((*m_head)->m_pkthdr.csum_flags & CSUM_IP)
 		arg.rl_flags |= RL_TDESC_CMD_IPCSUM;
-	if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+	if ((*m_head)->m_pkthdr.csum_flags & CSUM_TCP)
 		arg.rl_flags |= RL_TDESC_CMD_TCPCSUM;
-	if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+	if ((*m_head)->m_pkthdr.csum_flags & CSUM_UDP)
 		arg.rl_flags |= RL_TDESC_CMD_UDPCSUM;
 
 	arg.sc = sc;
@@ -1882,7 +1880,7 @@ re_encap(sc, m_head, idx)
 
 	map = sc->rl_ldata.rl_tx_dmamap[*idx];
 	error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
-	    m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
+	    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
 
 	if (error && error != EFBIG) {
 		printf("re%d: can't map mbuf (error %d)\n", sc->rl_unit, error);
@@ -1892,11 +1890,11 @@ re_encap(sc, m_head, idx)
 	/* Too many segments to map, coalesce into a single mbuf */
 
 	if (error || arg.rl_maxsegs == 0) {
-		m_new = m_defrag(m_head, M_DONTWAIT);
+		m_new = m_defrag(*m_head, M_DONTWAIT);
 		if (m_new == NULL)
-			return (1);
+			return (ENOBUFS);
 		else
-			m_head = m_new;
+			*m_head = m_new;
 
 		arg.sc = sc;
 		arg.rl_idx = *idx;
@@ -1904,7 +1902,7 @@ re_encap(sc, m_head, idx)
 		arg.rl_ring = sc->rl_ldata.rl_tx_list;
 
 		error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
-		    m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
+		    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
 		if (error) {
 			printf("re%d: can't map mbuf (error %d)\n",
 			    sc->rl_unit, error);
@@ -1921,7 +1919,7 @@ re_encap(sc, m_head, idx)
 	    sc->rl_ldata.rl_tx_dmamap[arg.rl_idx];
 	sc->rl_ldata.rl_tx_dmamap[arg.rl_idx] = map;
 
-	sc->rl_ldata.rl_tx_mbuf[arg.rl_idx] = m_head;
+	sc->rl_ldata.rl_tx_mbuf[arg.rl_idx] = *m_head;
 	sc->rl_ldata.rl_tx_free -= arg.rl_maxsegs;
 
 	/*
@@ -1930,7 +1928,7 @@ re_encap(sc, m_head, idx)
 	 * transmission attempt.
 	 */
 
-	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m_head);
+	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, *m_head);
 	if (mtag != NULL)
 		sc->rl_ldata.rl_tx_list[*idx].rl_vlanctl =
 		    htole32(htons(VLAN_TAG_VALUE(mtag)) | RL_TDESC_VLANCTL_TAG);
@@ -1983,7 +1981,7 @@ re_start_locked(ifp)
 		if (m_head == NULL)
 			break;
 
-		if (re_encap(sc, m_head, &idx)) {
+		if (re_encap(sc, &m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
@@ -2111,24 +2109,20 @@ re_init_locked(sc)
 	rxcfg |= RL_RXCFG_RX_INDIV;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (ifp->if_flags & IFF_PROMISC)
 		rxcfg |= RL_RXCFG_RX_ALLPHYS;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	} else {
+	else
 		rxcfg &= ~RL_RXCFG_RX_ALLPHYS;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	}
+	CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
 
 	/*
 	 * Set capture broadcast bit to capture broadcast frames.
 	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
+	if (ifp->if_flags & IFF_BROADCAST)
 		rxcfg |= RL_RXCFG_RX_BROAD;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	} else {
+	else
 		rxcfg &= ~RL_RXCFG_RX_BROAD;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	}
+	CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
 
 	/*
 	 * Program the multicast filter, if necessary.

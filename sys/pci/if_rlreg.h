@@ -603,8 +603,13 @@ struct rl_stats {
 	uint16_t		rl_rx_underruns;
 };
 
-#define RL_RX_DESC_CNT		64
+/*
+ * Rx/Tx descriptor parameters (8139C+ and 8169 only)
+ *
+ * Tx/Rx count must be equal.  Shared code like re_dma_map_desc assumes this.
+ */
 #define RL_TX_DESC_CNT		64
+#define RL_RX_DESC_CNT		RL_TX_DESC_CNT
 #define RL_RX_LIST_SZ		(RL_RX_DESC_CNT * sizeof(struct rl_desc))
 #define RL_TX_LIST_SZ		(RL_TX_DESC_CNT * sizeof(struct rl_desc))
 #define RL_RING_ALIGN		256
@@ -614,8 +619,8 @@ struct rl_stats {
 #define RL_RXBYTES(x)		(le32toh((x)->rl_cmdstat) & sc->rl_rxlenmask)
 #define RL_PKTSZ(x)		((x)/* >> 3*/)
 
-#define RL_ADDR_LO(y)	((uint64_t) (y) & 0xFFFFFFFF)
-#define RL_ADDR_HI(y)	((uint64_t) (y) >> 32)
+#define RL_ADDR_LO(y)		((uint64_t) (y) & 0xFFFFFFFF)
+#define RL_ADDR_HI(y)		((uint64_t) (y) >> 32)
 
 #define RL_JUMBO_FRAMELEN	9018
 #define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
