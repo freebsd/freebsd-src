@@ -1001,25 +1001,25 @@ err:            bzero (&t->toc, sizeof (t->toc));
 	}
 
 	ntracks = t->toc.hdr.ending_track - t->toc.hdr.starting_track + 1;
-	if (ntracks <= 0)
+	if (ntracks <= 0 || ntracks > MAXTRK)
 		goto err;
-	if (ntracks > MAXTRK)
-		ntracks = MAXTRK;
 
 	/* Now read the whole schmeer. */
 	len = sizeof(struct ioc_toc_header) +
-		(ntracks+1) * sizeof(struct cd_toc_entry);
+		ntracks * sizeof(struct cd_toc_entry);
 	if (wcd_request_wait (t, ATAPI_READ_TOC, 0, 0, 0, 0, 0, 0,
 	    len >> 8, len & 0xff, 0, (char*)&t->toc, len) & 0xff)
 		goto err;
 
 	t->toc.hdr.len = ntohs (t->toc.hdr.len);
-	for (i=0; i<=ntracks; i++)
+	for (i=0; i<ntracks; i++)
 		t->toc.tab[i].addr.lba = ntohl (t->toc.tab[i].addr.lba);
 
-	/* Decrement the total length of the disc.
-	 * Some drives (e.g. Sony-55E) have this value too big. */
-	--t->toc.tab[ntracks].addr.lba;
+	/* make fake leadout entry */
+	t->toc.tab[ntracks].control = t->toc.tab[ntracks-1].control;
+	t->toc.tab[ntracks].addr_type = t->toc.tab[ntracks-1].addr_type;
+	t->toc.tab[ntracks].track = 170; /* magic */
+	t->toc.tab[ntracks].addr.lba = t->toc.hdr.len;
 
 	/* Read disc capacity. */
 	if (wcd_request_wait (t, ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0,
