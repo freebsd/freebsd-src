@@ -99,7 +99,7 @@ static uint8_t	pci_pir_search_irq(int bus, int device, int pin);
 static int	pci_pir_valid_irq(struct pci_link *pci_link, int irq);
 static void	pci_pir_walk_table(pir_entry_handler *handler, void *arg);
 
-MALLOC_DEFINE(M_PIR, "$PIR", "$PIR structures");
+static MALLOC_DEFINE(M_PIR, "$PIR", "$PIR structures");
 
 static struct PIR_table *pci_route_table;
 static device_t pir_device;

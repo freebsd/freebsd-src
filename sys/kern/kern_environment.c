@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/kenv.h>
 
-MALLOC_DEFINE(M_KENV, "kenv", "kernel environment");
+static MALLOC_DEFINE(M_KENV, "kenv", "kernel environment");
 
 #define KENV_SIZE	512	/* Maximum number of environment strings */
 

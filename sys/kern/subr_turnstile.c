@@ -136,7 +136,7 @@ SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
 static struct mtx td_contested_lock;
 static struct turnstile_chain turnstile_chains[TC_TABLESIZE];
 
-MALLOC_DEFINE(M_TURNSTILE, "turnstiles", "turnstiles");
+static MALLOC_DEFINE(M_TURNSTILE, "turnstiles", "turnstiles");
 
 /*
  * Prototypes for non-exported routines.

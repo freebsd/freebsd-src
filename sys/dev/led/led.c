@@ -42,7 +42,7 @@ static struct sx led_sx;
 static LIST_HEAD(, ledsc) led_list = LIST_HEAD_INITIALIZER(&led_list);
 static struct callout led_ch;
 
-MALLOC_DEFINE(M_LED, "LED", "LED driver");
+static MALLOC_DEFINE(M_LED, "LED", "LED driver");
 
 static void
 led_timeout(void *p)
