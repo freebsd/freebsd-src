@@ -31,17 +31,18 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)set.c	8.2 (Berkeley) 2/28/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
 
+__FBSDID("$FreeBSD$");
+
+#ifndef lint
+static const char sccsid[] = "@(#)set.c	8.2 (Berkeley) 2/28/94";
+#endif
+
+#include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
-#include <stdio.h>
+
 #include "extern.h"
 
 #define	CHK(val, dft)	(val <= 0 ? dft : val)
@@ -285,8 +286,9 @@ set_tabs()
 {
 	int c;
 	char *capsp, *clear_tabs;
-	char *set_column, *set_pos, *Set_tab, *tg_out;
+	char *set_column, *set_pos, *Set_tab;
 	char caps[1024];
+	const char *tg_out;
 
 	capsp = caps;
 	Set_tab = tgetstr("st", &capsp);
