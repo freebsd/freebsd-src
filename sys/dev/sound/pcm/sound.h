@@ -68,6 +68,12 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#if __FreeBSD_version > 500000
+#define USING_MUTEX
+#define USING_DEVFS
+#define SND_DYNSYSCTL
+#endif
+
 #else
 struct isa_device { int dummy; };
 #define d_open_t void
