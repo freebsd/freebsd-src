@@ -470,9 +470,6 @@ extern DMenu		MenuXF86;		/* XFree86 main menu				*/
 extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
 extern DMenu		MenuXF86SelectCore;	/* XFree86 core distribution menu		*/
 extern DMenu		MenuXF86SelectServer;	/* XFree86 server distribution menu		*/
-#if !defined(X_AS_PKG) && defined(__i386__) && defined(PC98)
-extern DMenu		MenuXF86SelectPC98Server; /* XFree86 server distribution menu		*/
-#endif
 extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
 extern DMenu		MenuXDesktops;		/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
@@ -665,9 +662,6 @@ extern int	installFixitHoloShell(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);
 extern int	installFixupBase(dialogMenuItem *self);
-#ifndef X_AS_PKG
-extern int	installFixupXFree(dialogMenuItem *self);
-#endif
 extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
