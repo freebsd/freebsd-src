@@ -42,7 +42,6 @@
  */
 
 #include "opt_npx.h"
-#include "opt_user_ldt.h"
 #ifdef PC98
 #include "opt_pc98.h"
 #endif
@@ -126,7 +125,6 @@ cpu_fork(p1, p2, flags)
 	struct pcb *pcb2;
 
 	if ((flags & RFPROC) == 0) {
-#ifdef USER_LDT
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
 			struct pcb *pcb1 = &p1->p_addr->u_pcb;
@@ -138,7 +136,6 @@ cpu_fork(p1, p2, flags)
 				set_user_ldt(pcb1);
 			}
 		}
-#endif
 		return;
 	}
 
@@ -188,7 +185,6 @@ cpu_fork(p1, p2, flags)
 	 */
 	pcb2->pcb_ext = 0;
 
-#ifdef USER_LDT
         /* Copy the LDT, if necessary. */
         if (pcb2->pcb_ldt != 0) {
 		if (flags & RFMEM) {
@@ -198,7 +194,6 @@ cpu_fork(p1, p2, flags)
 				pcb2->pcb_ldt->ldt_len);
 		}
         }
-#endif
 
 	/*
 	 * Now, cpu_switch() can schedule the new process.
@@ -249,9 +244,8 @@ cpu_exit(p)
 		    ctob(IOPAGES + 1));
 		pcb->pcb_ext = 0;
 	}
-#ifdef USER_LDT
-	user_ldt_free(pcb);
-#endif
+	if (pcb->pcb_ldt)
+		user_ldt_free(pcb);
         if (pcb->pcb_flags & PCB_DBREGS) {
                 /*
                  * disable all hardware breakpoints

@@ -53,11 +53,9 @@ struct pcb_ldt {
 
 #ifdef _KERNEL
 
-#ifdef USER_LDT
 void set_user_ldt __P((struct pcb *));
 struct pcb_ldt *user_ldt_alloc __P((struct pcb *, int));
 void user_ldt_free __P((struct pcb *));
-#endif
 
 #endif
 
