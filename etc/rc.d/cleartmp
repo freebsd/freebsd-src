@@ -27,20 +27,20 @@ cleartmp_start()
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
 	    find -x . ! -name . ! -name lost+found ! -name quota.user \
 		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
-
-	case ${OSTYPE} in
-	FreeBSD)
-		# Remove X lock files, since they will prevent you from
-		# restarting X
-		#
-		rm -f /tmp/.X*-lock
-		rm -fr /tmp/.X11-unix
-		mkdir -m 1777 /tmp/.X11-unix
-		;;
-	NetBSD)
-		;;
-	esac
 }
 
 load_rc_config $name
 run_rc_command "$1"
+
+case ${OSTYPE} in
+FreeBSD)
+	# Remove X lock files, since they will prevent you from
+	# restarting X
+	#
+	rm -f /tmp/.X*-lock
+	rm -fr /tmp/.X11-unix
+	mkdir -m 1777 /tmp/.X11-unix
+	;;
+NetBSD)
+	;;
+esac
