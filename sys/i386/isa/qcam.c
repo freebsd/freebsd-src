@@ -5,6 +5,8 @@
  * This driver is based in part on the Linux QuickCam driver which is
  * Copyright (c) 1996, Thomas Davis.
  *
+ * Additional ideas from code written by Michael Chinn.
+ *
  * QuickCam(TM) is a registered trademark of Connectix Inc.
  * Use this driver at your own risk, it is not warranted by
  * Connectix or the authors.
@@ -102,7 +104,7 @@ static struct kern_devconf kdc_qcam_template = {
 	&kdc_isa0,			/* kdc_parent */
 	0,				/* kdc_parentdata */
 	DC_UNCONFIGURED,		/* kdc_state */
-	"",				/* kdc_description */
+	"QuickCam video input", 	/* kdc_description */
 	DC_CLS_MISC			/* class */
 };
 
@@ -132,7 +134,7 @@ static	d_close_t	qcam_close;
 static	d_read_t	qcam_read;
 static	d_ioctl_t	qcam_ioctl;
 
-#define CDEV_MAJOR 73			/* XXX change this! */
+#define CDEV_MAJOR 73
 
 static struct cdevsw qcam_cdevsw = 
 	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
@@ -229,7 +231,7 @@ qcam_waitfor_bi (u_int port)
 {
 	u_char s1, s2;
 
-	write_control(port, 0x28);
+	write_control(port, 0x26);
 	READ_STATUS_BYTE_HIGH(port, s1);
 
 	write_control(port, 0x2f);
@@ -435,7 +437,7 @@ qcam_scan (struct qcam_softc *qs)
 }
 
 static void
-qcam_registerdev (struct isa_device *id, const char *descr)
+qcam_registerdev (struct isa_device *id)
 {
 	struct kern_devconf *kdc = &qcam_softc[id->id_unit].kdc;
 
@@ -443,7 +445,6 @@ qcam_registerdev (struct isa_device *id, const char *descr)
 
 	kdc->kdc_unit = id->id_unit;
 	kdc->kdc_parentdata = id;
-	kdc->kdc_description = descr;
 
 	dev_attach(kdc);
 }
@@ -465,41 +466,50 @@ qcam_probe (struct isa_device *devp)
 		return 0;
 	}
 
-	/* write 0's to control and data ports */
-	write_control(devp->id_iobase, 0x20);
-	write_control(devp->id_iobase, 0x0b);
-	write_control(devp->id_iobase, 0x0e);
-
 	/*
-	 * Attempt a non-destructive probe for the QuickCam.
-	 * Current models appear to toggle the upper 4 bits of
-	 * the status register at approximately 5-10 Hz.
-	 *
-	 * Be aware that this isn't the way that Connectix detects the
-	 * camera (they send a reset and try to handshake),  but this
-	 * way is safe.
+	 * XXX The probe code is reported to be flakey on parallel port
+	 *     cards set up for bidirectional transfers.
+	 *     We need to work on this some more, so temporarily,
+	 *     allow bit one of the "flags" parameter to bypass this
+	 *     check.
 	 */
-	last = reg = read_status(devp->id_iobase);
 
-	for (i = 0; i < QC_PROBELIMIT; i++) {
+	if (!(devp->id_flags & 1)) {
+	    write_control(devp->id_iobase, 0x20);
+	    write_control(devp->id_iobase, 0x0b);
+	    write_control(devp->id_iobase, 0x0e);
 
-	    reg = read_status(devp->id_iobase) & 0xf0;
+	    /*
+	     * Attempt a non-destructive probe for the QuickCam.
+	     * Current models appear to toggle the upper 4 bits of
+	     * the status register at approximately 5-10 Hz.
+	     *
+	     * Be aware that this isn't the way that Connectix detects the
+	     * camera (they send a reset and try to handshake),  but this
+	     * way is safe.
+	     */
+	    last = reg = read_status(devp->id_iobase);
 
-	    if (reg != last)	/* if we got a toggle, count it */
-		transitions++;
+	    for (i = 0; i < QC_PROBELIMIT; i++) {
 
-	    last = reg;
-	    DELAY(100000);	/* 100ms */
+		reg = read_status(devp->id_iobase) & 0xf0;
+
+		if (reg != last)	/* if we got a toggle, count it */
+		    transitions++;
+
+		last = reg;
+		DELAY(100000);	/* 100ms */
+	    }
+
+	    if (transitions <= QC_PROBECNTLOW || transitions >= QC_PROBECNTHI) {
+		if (bootverbose)
+		    printf("qcam%d: not found, probed %d, got %d transitions\n",
+			   devp->id_unit, i, transitions);
+		return 0;
+	    }
 	}
 
-	if (transitions <= QC_PROBECNTLOW || transitions >= QC_PROBECNTHI) {
-	    if (bootverbose)
-		printf("qcam%d: not found, probed %d, got %d transitions\n",
-		       devp->id_unit, i, transitions);
-	    return 0;
-	}
-
-	qcam_registerdev(devp, "QuickCam video input");
+	qcam_registerdev(devp);
 	return 1;		/* found */
 }
 
@@ -526,8 +536,12 @@ qcam_attach (struct isa_device *devp)
 	qs->kdc.kdc_state = DC_IDLE;
 	qs->flags |= QC_ALIVE;
 
+	qcam_reset(qs);
 	qcam_default(qs);
 	qcam_xferparms(qs);
+
+	printf("qcam%d: %sdirectional parallel port\n",
+	       qs->unit, qs->flags & QC_BIDIR_HW ? "bi" : "uni");
 
 #ifdef DEVFS
 {
@@ -562,6 +576,7 @@ qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
 
 	qs->flags |= QC_OPEN;
 	qs->kdc.kdc_state = DC_BUSY;
+
 	return 0;
 }
 
@@ -608,7 +623,7 @@ static int
 qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct qcam_softc *qs = (struct qcam_softc *)&qcam_softc[UNIT(dev)];
-	struct qcam      *info= (struct qcam *)data;
+	struct qcam      *info = (struct qcam *)data;
 
 	if (!data)
 		return(EINVAL);
@@ -677,8 +692,9 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #ifdef	ACTUALLY_LKM_NOT_KERNEL
 /*
  * Loadable QuickCam driver stubs
- * XXX This isn't quite working yet, but the template work is done.
- * XXX do not attempt to use this driver as a LKM (yet)
+ * This isn't quite working yet, but the template work is done.
+ *
+ * XXX Do not attempt to use this driver as a LKM (yet).
  */
 #include <sys/exec.h>
 #include <sys/sysent.h>
