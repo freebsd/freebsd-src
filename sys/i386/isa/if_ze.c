@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.49 1998/02/04 04:41:37 eivind Exp $
+ * $Id: if_ze.c,v 1.50 1998/02/13 06:49:15 bde Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -76,9 +76,7 @@ static char const zedummy[] = "code to use the includes of card.h and pcic.h";
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
 
 #ifdef INET
 #include <netinet/in.h>
