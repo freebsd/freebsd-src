@@ -92,7 +92,8 @@ static char *alt_system_name;
 
 #ifdef __FreeBSD__
 /* short_locale without country suffix */
-static char *locale, *short_locale, *locale_nroff;
+static char *locale, *short_locale;
+static char *locale_nroff = " -Tascii";
 static int use_original;
 struct ltable {
 	char *lcode;
@@ -101,7 +102,7 @@ struct ltable {
 static struct ltable ltable[] = {
 	{"KOI8-R", " -Tkoi8-r"},
 	{"ISO_8859-1", " -Tlatin1"},
-	{NULL, " -Tascii"}
+	{NULL, NULL}
 };
 #endif
 
@@ -479,10 +480,11 @@ man_getopt (argc, argv)
 
 		tmp = short_locale + 3;
 		for (pltable = ltable; pltable->lcode != NULL; pltable++) {
-			if (strcmp(pltable->lcode, tmp) == 0)
+			if (strcmp(pltable->lcode, tmp) == 0) {
+				locale_nroff = pltable->nroff;
 				break;
+			}
 		}
-		locale_nroff = pltable->nroff;
 	}
   }
 #endif
