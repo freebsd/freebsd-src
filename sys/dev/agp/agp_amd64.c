@@ -80,7 +80,7 @@ agp_amd64_match(device_t dev)
 	switch (pci_get_devid(dev)) {
 	case 0x74541022:
 		return ("AMD 8151 AGP graphics tunnel");
-	case 0x10221039:
+	case 0x07551039:
 		return ("SiS 755 host to AGP bridge");
 	case 0x02041106:
 		return ("VIA 8380 host to PCI bridge");
