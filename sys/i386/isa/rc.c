@@ -111,7 +111,7 @@ static	d_devtotty_t	rcdevtotty;
 #define CDEV_MAJOR 63
 static struct cdevsw rc_cdevsw = 
 	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
-	  rcioctl,      rcstop,         nxreset,        rcdevtotty,/* rc */
+	  rcioctl,      rcstop,         noreset,        rcdevtotty,/* rc */
 	  ttselect,	nommap,		NULL,	"rc",	NULL,	-1 };
 
 /* Per-board structure */
