@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/cfg_var.h>
+#include <compat/ndis/usbd_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
 #define NDIS_DUMMY_PATH "\\\\some\\bogus\\path"
@@ -150,6 +151,7 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		hal_libinit();
 		ndis_libinit();
 		ntoskrnl_libinit();
+		usbd_libinit();
 
 		patch = kernndis_functbl;
 		while (patch->ipt_func != NULL) {
@@ -176,6 +178,7 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 			hal_libfini();
 			ndis_libfini();
 			ntoskrnl_libfini();
+			usbd_libfini();
 			windrv_libfini();
 
 			patch = kernndis_functbl;
@@ -196,6 +199,7 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		hal_libfini();
 		ndis_libfini();
 		ntoskrnl_libfini();
+		usbd_libfini();
 		windrv_libfini();
 
 		patch = kernndis_functbl;
