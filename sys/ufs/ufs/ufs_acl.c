@@ -256,13 +256,13 @@ ufs_getacl(ap)
 			ap->a_aclp->acl_cnt = 3;
 			ap->a_aclp->acl_entry[0].ae_tag = ACL_USER_OBJ;
 			ap->a_aclp->acl_entry[0].ae_id = ACL_UNDEFINED_ID;
-			ap->a_aclp->acl_entry[0].ae_perm = 0;
+			ap->a_aclp->acl_entry[0].ae_perm = ACL_PERM_NONE;
 			ap->a_aclp->acl_entry[1].ae_tag = ACL_GROUP_OBJ;
 			ap->a_aclp->acl_entry[1].ae_id = ACL_UNDEFINED_ID;
-			ap->a_aclp->acl_entry[1].ae_perm = 0;
+			ap->a_aclp->acl_entry[1].ae_perm = ACL_PERM_NONE;
 			ap->a_aclp->acl_entry[2].ae_tag = ACL_OTHER;
 			ap->a_aclp->acl_entry[2].ae_id = ACL_UNDEFINED_ID;
-			ap->a_aclp->acl_entry[2].ae_perm = 0;
+			ap->a_aclp->acl_entry[2].ae_perm = ACL_PERM_NONE;
 			ufs_sync_acl_from_inode(ip, ap->a_aclp);
 			error = 0;
 			break;
