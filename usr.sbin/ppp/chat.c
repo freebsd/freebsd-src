@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.58 1999/06/26 02:54:24 brian Exp $
+ *	$Id: chat.c,v 1.59 1999/06/26 02:54:36 brian Exp $
  */
 
 #include <sys/param.h>
@@ -682,7 +682,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   pid_t pid;
   int fids[2];
   char *argv[MAXARGS], *vector[MAXARGS], *startout, *endout;
-  int stat, nb, argc;
+  int stat, nb, argc, i;
 
   log_Printf(LogCHAT, "Exec: %s\n", command);
   argc = MakeArgs(command, vector, VECSIZE(vector));
@@ -698,19 +698,20 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   if ((pid = fork()) == 0) {
     close(fids[0]);
     timer_TermService();
-    fids[1] = fcntl(fids[1], F_DUPFD, 4);
+    if (fids[1] == STDIN_FILENO)
+      fids[1] = dup(fids[1]);
     dup2(physical->fd, STDIN_FILENO);
-    dup2(STDIN_FILENO, STDOUT_FILENO);
     dup2(fids[1], STDERR_FILENO);
+    dup2(STDIN_FILENO, STDOUT_FILENO);
     close(3);
-    if (open(_PATH_TTY, O_RDWR) == 3)
-      fcntl(3, F_SETFD, 0);	/* Clear close-on-exec flag */
-    else
-      fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
+    if (open(_PATH_TTY, O_RDWR) != 3)
+      open(_PATH_DEVNULL, O_RDWR);	/* Leave it closed if it fails... */
+    for (i = getdtablesize(); i > 3; i--)
+      fcntl(i, F_SETFD, 1);
     setuid(geteuid());
     execvp(argv[0], argv);
     fprintf(stderr, "execvp: %s: %s\n", argv[0], strerror(errno));
-    exit(127);
+    _exit(127);
   } else {
     char *name = strdup(vector[0]);
 
