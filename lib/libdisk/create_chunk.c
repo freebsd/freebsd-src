@@ -233,20 +233,3 @@ Create_Chunk_DWIM(struct disk *d, const struct chunk *parent , u_long size, chun
 	/* barfout(1, "Serious internal trouble"); */
 	return 0;
 }
-
-int
-MakeDevChunk(const struct chunk *c1, const char *path)
-{
-
-	if (c1->next)
-		MakeDevChunk(c1->next, path);
-	if (c1->part)
-		MakeDevChunk(c1->part, path);
-	return 1;
-}
-
-int
-MakeDevDisk(struct disk *d, const char *path)
-{
-	return MakeDevChunk(d->chunks, path);
-}
