@@ -242,7 +242,8 @@ dumpfs(const char *name)
 	ufs_disk_close(&disk);
 	return (0);
 
-err:	ufs_disk_close(&disk);
+err:	libufs_printerror(&disk);
+	ufs_disk_close(&disk);
 	warn("%s", name);
 	return (1);
 }
