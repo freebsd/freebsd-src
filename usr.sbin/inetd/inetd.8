@@ -29,7 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)inetd.8	8.3 (Berkeley) 4/13/94
+.\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
+.\"	$Id$
 .\"
 .Dd April 13, 1994
 .Dt INETD 8
@@ -97,6 +98,19 @@ server program
 server program arguments
 .Ed
 .Pp
+To specify a
+.Em Sun-RPC
+based service, the entry would contain these fields:
+.Pp
+.Bd -unfilled -offset indent -compact
+service name/version
+socket type
+rpc/protocol
+user
+server program
+server program arguments
+.Ed
+.Pp
 There are two types of services that 
 .Nm inetd
 can start: standard and TCPMUX.
@@ -127,6 +141,17 @@ name
 .Em must
 be the official name of the service (that is, the first entry in
 .Pa /etc/services ) .
+When used to specify a
+.Em Sun-RPC
+based service, this field is a valid RPC service name in
+the file
+.Pa /etc/rpc . 
+The part on the right of the 
+.Dq /
+is the RPC version number. This
+can simply be a single numeric argument or a range of versions.
+A range is bounded by the low version to the high version - 
+.Dq rusers/1-3 .
 For TCPMUX services, the value of the
 .Em service-name
 field consists of the string
@@ -163,6 +188,11 @@ Examples might be
 .Dq tcp
 or
 .Dq udp .
+Rpc based services are specified with the 
+.Dq rpc/tcp
+or 
+.Dq rpc/udp 
+service type.
 TCPMUX services must use 
 .Dq tcp .
 .Pp
@@ -305,10 +335,11 @@ to list TCPMUX services in
 .Pp
 Here are several example service entries for the various types of services:
 .Bd -literal
-ftp           stream  tcp   nowait root  /usr/libexec/ftpd       ftpd -l
-ntalk         dgram   udp   wait   root  /usr/libexec/ntalkd     ntalkd
-tcpmux/+date  stream  tcp   nowait guest /bin/date               date
+ftp          stream  tcp   nowait root  /usr/libexec/ftpd        ftpd -l
+ntalk        dgram   udp   wait   root  /usr/libexec/ntalkd      ntalkd
+tcpmux/+date stream  tcp   nowait guest /bin/date                date
 tcpmux/phonebook stream tcp nowait guest /usr/local/bin/phonebook phonebook
+rstatd/1-3   dgram   rpc/udp wait root  /usr/libexec/rpc.rstatd  rpc.rstatd
 .Ed
 .Sh "ERROR MESSAGES"
 The
@@ -366,10 +397,17 @@ is invalid.
 .Xr rlogind 8 ,
 .Xr rshd 8 ,
 .Xr telnetd 8 ,
-.Xr tftpd 8
+.Xr tftpd 8 ,
+.Xr portmap 8 ,
+.Xr rpc 5
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Bx 4.3 .
 TCPMUX is based on code and documentation by Mark Lottor.
+Support for
+.Em Sun-RPC 
+based services is modelled after that
+provided by
+.Em SunOS 4.1 .
