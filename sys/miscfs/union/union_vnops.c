@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.36 1997/08/14 03:52:27 kato Exp $
+ * $Id: union_vnops.c,v 1.37 1997/08/15 02:35:00 kato Exp $
  */
 
 #include <sys/param.h>
@@ -438,6 +438,14 @@ union_lookup(ap)
 		if (*ap->a_vpp != dvp)
 			if (!lockparent || !(cnp->cn_flags & ISLASTCN))
 				VOP_UNLOCK(dvp, 0, p);
+#ifdef DIAGNOSTIC
+        if (cnp->cn_namelen == 1 &&
+            cnp->cn_nameptr[0] == '.' &&
+            *ap->a_vpp != dvp) {
+            panic("union_lookup returning . (%p) not same as startdir (%p)",
+				  ap->a_vpp, dvp);
+		}
+#endif
 	}
 
 	return (error);
