@@ -6,7 +6,7 @@ PROG=	geom
 MAN=	geom.8
 SRCS=	geom.c subr.c
 
-CFLAGS+= -DCLASS_DIR=\"${CLASS_DIR}\" -DCLASS_MAJOR=${CLASS_MAJOR}
+CFLAGS+= -DCLASS_DIR=\"${CLASS_DIR}\"
 CFLAGS+= -I${.CURDIR}/../../../sys -I${.CURDIR} -I${.CURDIR}/..
 
 DPADD=	${LIBGEOM} ${LIBSBUF} ${LIBBSDXML} ${LIBUTIL}
