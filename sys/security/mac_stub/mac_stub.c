@@ -1,14 +1,14 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 McAfee, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
  *
- * This software was developed for the FreeBSD Project in part by Network
- * Associates Laboratories, the Security Research Division of Network
- * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
- * as part of the DARPA CHATS research program.
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Security Research Division of McAfee, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -880,14 +880,6 @@ stub_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
-    struct label *label, int prot)
-{
-
-	return (0);
-}
-
-static int
 stub_check_vnode_open(struct ucred *cred, struct vnode *vp,
     struct label *filelabel, int acc_mode)
 {
@@ -1169,7 +1161,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_listextattr = stub_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = stub_check_vnode_lookup,
 	.mpo_check_vnode_mmap = stub_check_vnode_mmap,
-	.mpo_check_vnode_mprotect = stub_check_vnode_mprotect,
 	.mpo_check_vnode_open = stub_check_vnode_open,
 	.mpo_check_vnode_poll = stub_check_vnode_poll,
 	.mpo_check_vnode_read = stub_check_vnode_read,

@@ -1,14 +1,14 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 McAfee, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
  *
- * This software was developed for the FreeBSD Project in part by Network
- * Associates Laboratories, the Security Research Division of Network
- * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
- * as part of the DARPA CHATS research program.
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Security Research Division of McAfee, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2532,7 +2532,6 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_vnode_listextattr = mac_mls_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = mac_mls_check_vnode_lookup,
 	.mpo_check_vnode_mmap = mac_mls_check_vnode_mmap,
-	.mpo_check_vnode_mprotect = mac_mls_check_vnode_mmap,
 	.mpo_check_vnode_open = mac_mls_check_vnode_open,
 	.mpo_check_vnode_poll = mac_mls_check_vnode_poll,
 	.mpo_check_vnode_read = mac_mls_check_vnode_read,
