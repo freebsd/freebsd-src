@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$FreeBSD$
+ * @(#)$Id$
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.

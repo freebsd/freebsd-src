@@ -34,7 +34,7 @@
 
 #ifndef	lint
 static char *moduleid =
-	"@(#)$FreeBSD$";
+	"@(#)$Id$";
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \

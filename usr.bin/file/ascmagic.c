@@ -36,7 +36,7 @@
 
 #ifndef	lint
 static char *moduleid =
-	"@(#)$FreeBSD$";
+	"@(#)$Id$";
 #endif	/* lint */
 
 			/* an optimisation over plain strcmp() */

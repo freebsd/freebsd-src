@@ -34,7 +34,7 @@
 
 #ifndef	lint
 static char *moduleid =
-	"@(#)$FreeBSD$";
+	"@(#)$Id$";
 #endif	/* lint */
 
 static int match	__P((unsigned char *, int));
