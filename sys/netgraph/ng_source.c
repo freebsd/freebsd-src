@@ -217,10 +217,9 @@ ng_source_constructor(node_p node)
 {
 	sc_p sc;
 
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
-	bzero(sc, sizeof(*sc));
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
