@@ -395,6 +395,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       for more details.</para>
 
+    <para>&new.461; A race condition in &man.pppd.8;, which could be used to
+      change the permissions of an arbitrary file, has been corrected.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
@@ -636,6 +641,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  </note>
 
 	</para>
+
+      <para>&new.461; <application>OpenSSL</application> has been updated to
+	0.9.6e.</para>
 
       <para><application>texinfo</application> has been updated to
 	4.1.</para>
