@@ -8,7 +8,7 @@
  * i.e., users or services.
  *
  *	from: kdb_edit.c,v 4.2 90/01/09 16:05:09 raeburn Exp $
- *	$Id: kdb_edit.c,v 1.5 1995/09/07 21:37:17 markm Exp $
+ *	$Id$
  */
 
 /*
@@ -18,7 +18,7 @@
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_edit.c,v 1.5 1995/09/07 21:37:17 markm Exp $";
+"$Id$";
 #endif	lint
 #endif
 
@@ -243,6 +243,7 @@ change_principal()
 		    "\nPrincipal: %s, Instance: %s, kdc_key_ver: %d",
 		    principal_data[i].name, principal_data[i].instance,
 		    principal_data[i].kdc_key_ver);
+	    fflush(stdout);
 	    editpw = 1;
 	    changed = 0;
 	    if (!creating) {
