@@ -1,0 +1,1 @@
+#define RELEASE_NAME	"__RELEASE"

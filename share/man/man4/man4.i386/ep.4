@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 1994 Herb Peyerl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Herb Peyerl
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$Id: ep.4,v 1.1 1996/07/11 00:22:46 mpp Exp $
+.\"
+.Dd February 04, 1993
+.Dt EP 4
+.Os
+.Sh NAME
+.Nm ep
+.Nd Ethernet driver for 3Com Etherlink III (3c5x9)
+.Sh SYNOPSIS
+.Cd "device ep0 at isa? port 0x300 net irq 10 vector epintr"
+.Sh DESCRIPTION
+The
+.Nm ep
+device driver supports the 3c509 (ISA) and 3c579 (EISA) cards.
+Various models of these cards come with a different assortment of
+connectors:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It AUI/DIX
+Standard 15 pin connector
+.It 10Base2
+BNC, also known as thin-net
+.It 10BaseT
+UTP, also known as twisted pair
+.El
+.Pp
+The default port to use is the BNC. To choose an alternate port,
+use the following flag combinations with
+.Xr ifconfig 8
+or in your /etc/hostname.ep? file.
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It -link0
+Use the BNC port (default).
+.It \ link0 -link1
+Use the AUI port.
+.It \ link0 \ link1
+Use the UTP port.
+.El
+.Pp
+If there are multiple cards in the computer, they are searched for
+in the following order:
+The 3c579 EISA cards are searched for first -- they will be found
+in EISA slot# order.
+Next, the 3c509 ISA cards are searched -- they are found in increasing
+ethernet address order.
+This is an example of how they will probe:
+.Pp
+ep0 at isa0 port 0x6000-0x600f irq 10: aui/bnc address 00:60:8c:70:e5:c5
+ep1 at isa0 port 0x300-0x30f irq 3: aui/bnc/utp address 00:20:af:10:62:ab
+.Pp
+You may specify the port and irq numbers that the cards are expected
+to be found at, but it is not necessary.
+The cards are sufficiently intelligent to tell us where they
+actually live on the ISA bus.
+.Pp
+.Sh NOTES
+The 3c509 card has no jumpers to set the address.
+3Com supplies software to set the address of the card in software.
+To find the card on the ISA bus, the kernel performs a complex
+scan operation at IO address 0x100.
+Beware!
+Avoid placing other cards at that address!
+.Pp
+Some models of 3c5x9 have all three connectors on them.
+In the case of these cards; you must configure the transceiver type
+with the 3Com supplied DOS configuration disk before the link0/link1
+flags will operate correctly.
+.Pp
+.Sh DIAGNOSTICS
+ep0: reset (status: %x)
+.in +4
+the driver has encountered a FIFO underrun or overrun. The driver will reset
+the card and the packet will be lost. This is not fatal.
+.in -4
+ep0: eeprom failed to come ready
+.in +4
+The eeprom failed to come ready.  This probably means the card is wedged.
+.in -4
+ep0: 3c509 in test mode. Erase pencil mark!
+.in +4
+This means that someone has scribbled with pencil in the test area on the
+card.  Erase the pencil mark and reboot.  (This is not a joke).
+.in -4
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr intro 4 ,
+.Xr ed 4 ,
+.Xr eg 4 ,
+.Xr el 4 ,
+.Xr ie 4 ,
+.Xr le 4
+.Sh STANDARDS
+are great. There's so many to choose from.
