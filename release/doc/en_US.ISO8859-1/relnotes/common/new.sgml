@@ -207,7 +207,7 @@
       control display switching and backlight brightness using the
       ACPI Video Extensions.</para>
 
-    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx-Tau
+    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
       synchronous serial adapters. This driver was known for a long time as
       <quote>ct</quote> in its previous life outside the &os; source tree. &merged;
 
@@ -215,6 +215,10 @@
 	<para>The driver name has changed, but the network interface still
 	  has the <quote>ct</quote> name.</para>
       </note>
+    </para>
+
+    <para arch="i386">The &man.cp.4; driver has been added for Cronyx Tau-PCI
+      synchronous serial adapters.
     </para>
 
     <para>&man.devfs.5; path rules now work correctly on
