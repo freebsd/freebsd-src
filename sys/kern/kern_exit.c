@@ -222,6 +222,11 @@ exit1(p, rv)
 		sp->s_leader = NULL;
 	}
 	fixjobc(p, p->p_pgrp, 0);
+	if (p->p_limit->p_refcnt > 1 &&
+	    (p->p_limit->p_lflags & PL_SHAREMOD) == 0) {
+		p->p_limit->p_refcnt--;
+		p->p_limit = limcopy(p->p_limit);
+	}
 	p->p_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 	(void)acct_process(p);
 #ifdef KTRACE
