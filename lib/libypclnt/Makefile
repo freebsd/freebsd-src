@@ -12,9 +12,10 @@ SRCS		+= ypclnt_passwd.c
 SRCS		+= ${GENSRCS}
 INCS		 = ypclnt.h
 CLEANFILES	+= ${GENSRCS}
+CFLAGS		+= -I.
+WARNS		?= 4
 DPADD		+= ${LIBRPCSVC}
 LDADD		+= -lrpcsvc
-WARNS		?= 4
 
 GENSRCS		 =
 GENSRCS		+= yp.h
