@@ -53,7 +53,7 @@ export HOME PATH
 . /etc/rc.subr
 
 # Note: the system configuration files are loaded as part of
-# the RCNG system (rc.d/rccond).  Do not load them here as it may
+# the RCNG system (rc.d/rcconf.sh).  Do not load them here as it may
 # interfere with diskless booting.
 #
 if [ "$1" = autoboot ]; then
