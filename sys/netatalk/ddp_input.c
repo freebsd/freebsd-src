@@ -5,9 +5,12 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -394,6 +397,13 @@ ddp_input( m, ifp, elh, phase )
 	m_freem( m );
 	return;
     }
+
+#ifdef MAC
+    if (mac_check_socket_deliver(ddp->ddp_socket, m) != 0) {
+	m_freem( m );
+	return;
+    }
+#endif
 
     /* 
      * If we found one, deliver th epacket to the socket
