@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "defs.h"
 #include <ctype.h>
 #include "gdb_string.h"
@@ -895,7 +897,7 @@ xmrealloc (md, ptr, size)
    the caller wanting to allocate zero bytes.  */
 
 PTR
-xmalloc (size)
+USE_FROM_LIBIBERTY_NOW_xmalloc (size)
      size_t size;
 {
   return (xmmalloc ((PTR) NULL, size));
@@ -904,7 +906,7 @@ xmalloc (size)
 /* Like mrealloc but get error if no storage available.  */
 
 PTR
-xrealloc (ptr, size)
+USE_FROM_LIBIBERTY_NOW_xrealloc (ptr, size)
      PTR ptr;
      size_t size;
 {
