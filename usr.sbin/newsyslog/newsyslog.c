@@ -32,6 +32,9 @@ static const char rcsid[] =
 #ifndef COMPRESS_POSTFIX
 #define COMPRESS_POSTFIX ".gz"
 #endif
+#ifndef	BZCOMPRESS_POSTFIX
+#define	BZCOMPRESS_POSTFIX ".bz2"
+#endif
 
 #include <ctype.h>
 #include <err.h>
@@ -61,6 +64,7 @@ static const char rcsid[] =
 
 #define CE_COMPACT 1		/* Compact the achived log files */
 #define CE_BINARY  2		/* Logfile is in binary, don't add */
+#define CE_BZCOMPACT 8		/* Compact the achived log files with bzip2 */
 				/*  status messages */
 #define	CE_TRIMAT  4		/* trim at a specific time */
 
@@ -76,7 +80,7 @@ struct conf_entry {
 	int hours;		/* Hours between log trimming */
 	time_t trim_at;		/* Specific time to do trimming */
 	int permissions;	/* File permissions on the log */
-	int flags;		/* Flags (CE_COMPACT & CE_BINARY)  */
+	int flags;		/* CE_COMPACT, CE_BZCOMPACT, CE_BINARY */
 	int sig;		/* Signal to send */
 	struct conf_entry *next;/* Linked list pointer */
 };
@@ -87,7 +91,7 @@ int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
 int force = 0;			/* Force the trim no matter what */
 char *archdirname;		/* Directory path to old logfiles archive */
-char *conf = _PATH_CONF;	/* Configuration file to use */
+const char *conf = _PATH_CONF;	/* Configuration file to use */
 time_t timenow;
 
 #define MIN_PID         5
@@ -101,15 +105,18 @@ static char *son(char *p);
 static char *missing_field(char *p, char *errline);
 static void do_entry(struct conf_entry * ent);
 static void PRS(int argc, char **argv);
-static void usage();
-static void dotrim(char *log, char *pid_file, int numdays, int falgs, int perm, int owner_uid, int group_gid, int sig);
+static void usage(void);
+static void dotrim(char *log, const char *pid_file, int numdays, int falgs,
+		int perm, int owner_uid, int group_gid, int sig);
 static int log_trim(char *log);
 static void compress_log(char *log);
+static void bzcompress_log(char *log);
 static int sizefile(char *file);
 static int age_old_log(char *file);
-static pid_t get_pid(char *pid_file);
+static pid_t get_pid(const char *pid_file);
 static time_t parse8601(char *s);
-static void movefile(char *from, char *to, int perm, int owner_uid, int group_gid);
+static void movefile(char *from, char *to, int perm, int owner_uid,
+		int group_gid);
 static void createdir(char *dirpart);
 static time_t parseDWM(char *s);
 
@@ -136,11 +143,13 @@ static void
 do_entry(struct conf_entry * ent)
 {
 	int size, modtime;
-	char *pid_file;
+	const char *pid_file;
 
 	if (verbose) {
 		if (ent->flags & CE_COMPACT)
 			printf("%s <%dZ>: ", ent->log, ent->numlogs);
+		else if (ent->flags & CE_BZCOMPACT)
+			printf("%s <%dJ>: ", ent->log, ent->numlogs);
 		else
 			printf("%s <%d>: ", ent->log, ent->numlogs);
 	}
@@ -175,6 +184,9 @@ do_entry(struct conf_entry * ent)
 				if (ent->flags & CE_COMPACT)
 					printf("%s <%dZ>: trimming\n",
 					    ent->log, ent->numlogs);
+				else if (ent->flags & CE_BZCOMPACT)
+					printf("%s <%dJ>: trimming\n",
+					    ent->log, ent->numlogs);
 				else
 					printf("%s <%d>: trimming\n",
 					    ent->log, ent->numlogs);
@@ -189,7 +201,8 @@ do_entry(struct conf_entry * ent)
 					pid_file = NULL;
 			}
 			dotrim(ent->log, pid_file, ent->numlogs,
-			    ent->flags, ent->permissions, ent->uid, ent->gid, ent->sig);
+			    ent->flags, ent->permissions, ent->uid, ent->gid,
+			    ent->sig);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
@@ -243,7 +256,9 @@ PRS(int argc, char **argv)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: newsyslog [-Fnrv] [-f config-file] [-a directory]\n");
+
+	fprintf(stderr,
+	    "usage: newsyslog [-Fnrv] [-f config-file] [-a directory]\n");
 	exit(1);
 }
 
@@ -258,11 +273,12 @@ parse_file(char **files)
 	char line[BUFSIZ], *parse, *q;
 	char *errline, *group;
 	char **p;
-	struct conf_entry *first = NULL;
-	struct conf_entry *working = NULL;
+	struct conf_entry *first, *working;
 	struct passwd *pass;
 	struct group *grp;
 	int eol;
+
+	first = working = NULL;
 
 	if (strcmp(conf, "-"))
 		f = fopen(conf, "r");
@@ -278,7 +294,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(line), errline);
 		parse = son(line);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 
 		if (*files) {
@@ -290,11 +307,13 @@ parse_file(char **files)
 		}
 
 		if (!first) {
-			if ((working = (struct conf_entry *) malloc(sizeof(struct conf_entry))) == NULL)
+			if ((working = malloc(sizeof(struct conf_entry))) ==
+			    NULL)
 				err(1, "malloc");
 			first = working;
 		} else {
-			if ((working->next = (struct conf_entry *) malloc(sizeof(struct conf_entry))) == NULL)
+			if ((working->next = malloc(sizeof(struct conf_entry)))
+			    == NULL)
 				err(1, "malloc");
 			working = working->next;
 		}
@@ -304,7 +323,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 		if ((group = strchr(q, ':')) != NULL ||
 		    (group = strrchr(q, '.')) != NULL) {
@@ -313,7 +333,7 @@ parse_file(char **files)
 				if (!(isnumber(*q))) {
 					if ((pass = getpwnam(q)) == NULL)
 						errx(1,
-						    "error in config file; unknown user:\n%s",
+				     "error in config file; unknown user:\n%s",
 						    errline);
 					working->uid = pass->pw_uid;
 				} else
@@ -326,7 +346,7 @@ parse_file(char **files)
 				if (!(isnumber(*q))) {
 					if ((grp = getgrnam(q)) == NULL)
 						errx(1,
-						    "error in config file; unknown group:\n%s",
+				    "error in config file; unknown group:\n%s",
 						    errline);
 					working->gid = grp->gr_gid;
 				} else
@@ -337,7 +357,8 @@ parse_file(char **files)
 			q = parse = missing_field(sob(++parse), errline);
 			parse = son(parse);
 			if (!*parse)
-				errx(1, "malformed line (missing fields):\n%s", errline);
+				errx(1, "malformed line (missing fields):\n%s",
+				    errline);
 			*parse = '\0';
 		} else
 			working->uid = working->gid = NONE;
@@ -349,7 +370,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 		if (!sscanf(q, "%d", &working->numlogs))
 			errx(1, "error in config file; bad number:\n%s",
@@ -358,7 +380,8 @@ parse_file(char **files)
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
+			errx(1, "malformed line (missing fields):\n%s",
+			    errline);
 		*parse = '\0';
 		if (isdigit(*q))
 			working->size = atoi(q);
@@ -384,7 +407,8 @@ parse_file(char **files)
 			else
 				working->hours = ul;
 
-			if (*ep != '\0' && *ep != '@' && *ep != '*' && *ep != '$')
+			if (*ep != '\0' && *ep != '@' && *ep != '*' &&
+			    *ep != '$')
 				errx(1, "malformed interval/at:\n%s", errline);
 			if (*ep == '@') {
 				if ((working->trim_at = parse8601(ep + 1))
@@ -412,10 +436,13 @@ parse_file(char **files)
 		while (q && *q && !isspace(*q)) {
 			if ((*q == 'Z') || (*q == 'z'))
 				working->flags |= CE_COMPACT;
+			else if ((*q == 'J') || (*q == 'j'))
+				working->flags |= CE_BZCOMPACT;
 			else if ((*q == 'B') || (*q == 'b'))
 				working->flags |= CE_BINARY;
 			else if (*q != '-')
-				errx(1, "illegal flag in config file -- %c", *q);
+				errx(1, "illegal flag in config file -- %c",
+				    *q);
 			q++;
 		}
 
@@ -436,7 +463,9 @@ parse_file(char **files)
 			else if (isdigit(*q))
 				goto got_sig;
 			else
-				errx(1, "illegal pid file or signal number in config file:\n%s", errline);
+				errx(1,
+			"illegal pid file or signal number in config file:\n%s",
+				    errline);
 		}
 		if (eol)
 			q = NULL;
@@ -452,7 +481,9 @@ parse_file(char **files)
 				working->sig = atoi(q);
 			} else {
 		err_sig:
-				errx(1, "illegal signal number in config file:\n%s", errline);
+				errx(1,
+				    "illegal signal number in config file:\n%s",
+				    errline);
 			}
 			if (working->sig < 1 || working->sig >= NSIG)
 				goto err_sig;
@@ -468,18 +499,20 @@ parse_file(char **files)
 static char *
 missing_field(char *p, char *errline)
 {
+
 	if (!p || !*p)
 		errx(1, "missing field in config file:\n%s", errline);
 	return (p);
 }
 
 static void
-dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
+dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
     int owner_uid, int group_gid, int sig)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
+	char jfile1[MAXPATHLEN];
 	int notified, need_notification, fd, _numdays;
 	struct stat st;
 	pid_t pid;
@@ -521,22 +554,29 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 			strlcpy(namepart, p + 1, sizeof(namepart));
 
 		/* name of oldest log */
-		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart, namepart, numdays);
+		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart,
+		    namepart, numdays);
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
+		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
+		    BZCOMPRESS_POSTFIX);
 	} else {
 		/* name of oldest log */
 		(void) snprintf(file1, sizeof(file1), "%s.%d", log, numdays);
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
+		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
+		    BZCOMPRESS_POSTFIX);
 	}
 
 	if (noaction) {
 		printf("rm -f %s\n", file1);
 		printf("rm -f %s\n", zfile1);
+		printf("rm -f %s\n", jfile1);
 	} else {
 		(void) unlink(file1);
 		(void) unlink(zfile1);
+		(void) unlink(jfile1);
 	}
 
 	/* Move down log files */
@@ -546,22 +586,34 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 		(void) strlcpy(file2, file1, sizeof(file2));
 
 		if (archtodir)
-			(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart, namepart, numdays);
+			(void) snprintf(file1, sizeof(file1), "%s/%s.%d",
+			    dirpart, namepart, numdays);
 		else
-			(void) snprintf(file1, sizeof(file1), "%s.%d", log, numdays);
+			(void) snprintf(file1, sizeof(file1), "%s.%d", log,
+			    numdays);
 
 		(void) strlcpy(zfile1, file1, sizeof(zfile1));
 		(void) strlcpy(zfile2, file2, sizeof(zfile2));
 		if (lstat(file1, &st)) {
-			(void) strlcat(zfile1, COMPRESS_POSTFIX, sizeof(zfile1));
-			(void) strlcat(zfile2, COMPRESS_POSTFIX, sizeof(zfile2));
-			if (lstat(zfile1, &st))
-				continue;
+			(void) strlcat(zfile1, COMPRESS_POSTFIX,
+			    sizeof(zfile1));
+			(void) strlcat(zfile2, COMPRESS_POSTFIX,
+			    sizeof(zfile2));
+			if (lstat(zfile1, &st)) {
+				strlcpy(zfile1, file1, sizeof(zfile1));
+				strlcpy(zfile2, file2, sizeof(zfile2));
+				strlcat(zfile1, BZCOMPRESS_POSTFIX,
+				    sizeof(zfile1));
+				strlcat(zfile2, BZCOMPRESS_POSTFIX,
+				    sizeof(zfile2));
+				if (lstat(zfile1, &st))
+					continue;
+			}
 		}
 		if (noaction) {
 			printf("mv %s %s\n", zfile1, zfile2);
 			printf("chmod %o %s\n", perm, zfile2);
-			printf("chown %d.%d %s\n",
+			printf("chown %d:%d %s\n",
 			    owner_uid, group_gid, zfile2);
 		} else {
 			(void) rename(zfile1, zfile2);
@@ -582,7 +634,8 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 			printf("mv %s to %s\n", log, file1);
 		else {
 			if (archtodir)
-				movefile(log, file1, perm, owner_uid, group_gid);
+				movefile(log, file1, perm, owner_uid,
+				    group_gid);
 			else
 				(void) rename(log, file1);
 		}
@@ -624,9 +677,11 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 				printf("daemon pid %d notified\n", (int) pid);
 		}
 	}
-	if ((flags & CE_COMPACT)) {
+	if ((flags & CE_COMPACT) || (flags & CE_BZCOMPACT)) {
 		if (need_notification && !notified)
-			warnx("log %s not compressed because daemon not notified", log);
+			warnx(
+			    "log %s not compressed because daemon not notified",
+			    log);
 		else if (noaction)
 			printf("Compress %s.0\n", log);
 		else {
@@ -636,10 +691,17 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 				sleep(10);
 			}
 			if (archtodir) {
-				(void) snprintf(file1, sizeof(file1), "%s/%s", dirpart, namepart);
-				compress_log(file1);
+				(void) snprintf(file1, sizeof(file1), "%s/%s",
+				    dirpart, namepart);
+				if (flags & CE_COMPACT)
+					compress_log(file1);
+				else if (flags & CE_BZCOMPACT)
+					bzcompress_log(file1);
 			} else {
-				compress_log(log);
+				if (flags & CE_COMPACT)
+					compress_log(log);
+				else if (flags & CE_BZCOMPACT)
+					bzcompress_log(log);
 			}
 		}
 	}
@@ -670,10 +732,27 @@ compress_log(char *log)
 	(void) snprintf(tmp, sizeof(tmp), "%s.0", log);
 	pid = fork();
 	if (pid < 0)
-		err(1, "fork");
+		err(1, "gzip fork");
 	else if (!pid) {
-		(void) execl(_PATH_GZIP, _PATH_GZIP, "-f", tmp, 0);
+		(void) execl(_PATH_GZIP, _PATH_GZIP, "-f", tmp, (char *)0);
 		err(1, _PATH_GZIP);
+	}
+}
+
+/* Fork of bzip2 to compress the old log file */
+static void
+bzcompress_log(char *log)
+{
+	pid_t pid;
+	char tmp[MAXPATHLEN];
+
+	snprintf(tmp, sizeof(tmp), "%s.0", log);
+	pid = fork();
+	if (pid < 0)
+		err(1, "bzip2 fork");
+	else if (!pid) {
+		execl(_PATH_BZIP2, _PATH_BZIP2, "-f", tmp, (char *)0);
+		err(1, _PATH_BZIP2);
 	}
 }
 
@@ -729,7 +808,7 @@ age_old_log(char *file)
 }
 
 static pid_t
-get_pid(char *pid_file)
+get_pid(const char *pid_file)
 {
 	FILE *f;
 	char line[BUFSIZ];
@@ -742,7 +821,8 @@ get_pid(char *pid_file)
 		if (fgets(line, BUFSIZ, f)) {
 			pid = atol(line);
 			if (pid < MIN_PID || pid > MAX_PID) {
-				warnx("preposterous process number: %d", (int) pid);
+				warnx("preposterous process number: %d",
+				   (int)pid);
 				pid = 0;
 			}
 		} else
@@ -805,7 +885,7 @@ parse8601(char *s)
 		tm.tm_year = ((ul / 1000000) - 19) * 100;
 		ul = ul % 1000000;
 	case 6:
-		tm.tm_year = tm.tm_year - (tm.tm_year % 100);
+		tm.tm_year -= tm.tm_year % 100;
 		tm.tm_year += ul / 10000;
 		ul = ul % 10000;
 	case 4:
@@ -926,7 +1006,7 @@ parseDWM(char *s)
 {
 	char *t;
 	struct tm tm, *tmp;
-	u_long ul;
+	long l;
 	int nd;
 	static int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 	int WMseen = 0;
@@ -955,10 +1035,10 @@ parseDWM(char *s)
 				return -1;
 			Dseen++;
 			s++;
-			ul = strtoul(s, &t, 10);
-			if (ul < 0 || ul > 23)
+			l = strtol(s, &t, 10);
+			if (l < 0 || l > 23)
 				return -1;
-			tm.tm_hour = ul;
+			tm.tm_hour = l;
 			break;
 
 		case 'W':
@@ -966,17 +1046,17 @@ parseDWM(char *s)
 				return -1;
 			WMseen++;
 			s++;
-			ul = strtoul(s, &t, 10);
-			if (ul < 0 || ul > 6)
+			l = strtol(s, &t, 10);
+			if (l < 0 || l > 6)
 				return -1;
-			if (ul != tm.tm_wday) {
+			if (l != tm.tm_wday) {
 				int save;
 
-				if (ul < tm.tm_wday) {
+				if (l < tm.tm_wday) {
 					save = 6 - tm.tm_wday;
-					save += (ul + 1);
+					save += (l + 1);
 				} else {
-					save = ul - tm.tm_wday;
+					save = l - tm.tm_wday;
 				}
 
 				tm.tm_mday += save;
@@ -998,13 +1078,13 @@ parseDWM(char *s)
 				s++;
 				t = s;
 			} else {
-				ul = strtoul(s, &t, 10);
-				if (ul < 1 || ul > 31)
+				l = strtol(s, &t, 10);
+				if (l < 1 || l > 31)
 					return -1;
 
-				if (ul > nd)
+				if (l > nd)
 					return -1;
-				tm.tm_mday = ul;
+				tm.tm_mday = l;
 			}
 			break;
 
