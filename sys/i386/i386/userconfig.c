@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.67 1996/11/12 09:51:16 bde Exp $
+ **      $Id: userconfig.c,v 1.68 1996/11/12 20:00:24 bde Exp $
  **/
 
 /**
@@ -149,18 +149,14 @@ getchar(void)
 
 #define putchar(x)	cnputc(x)
 
-#ifdef VISUAL_USERCONFIG
-static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
-				     isa_devtab_null, NULL };
-
-
-
-
 #ifndef FALSE
 #define FALSE	(0)
 #define TRUE	(!FALSE)
 #endif
 
+#ifdef VISUAL_USERCONFIG
+static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
+				     isa_devtab_null, NULL };
 
 typedef struct
 {
@@ -2223,7 +2219,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.67 1996/11/12 09:51:16 bde Exp $
+ *      $Id: userconfig.c,v 1.68 1996/11/12 20:00:24 bde Exp $
  */
 
 #include "scbus.h"
