@@ -169,7 +169,6 @@ struct ehci_pipe {
 };
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-Static void		ehci_shutdown(void *);
 Static void		ehci_power(int, void *);
 #endif
 
@@ -1057,7 +1056,6 @@ OOO
 /*
  * Shut down the controller when the system is going down.
  */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 void
 ehci_shutdown(void *v)
 {
@@ -1067,7 +1065,6 @@ ehci_shutdown(void *v)
 	EOWRITE4(sc, EHCI_USBCMD, 0);	/* Halt controller */
 	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
 }
-#endif
 
 usbd_status
 ehci_allocm(struct usbd_bus *bus, usb_dma_t *dma, u_int32_t size)
