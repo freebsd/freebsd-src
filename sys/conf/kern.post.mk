@@ -165,8 +165,9 @@ kernel-tags:
 	rm -f tags1
 	sed -e 's,      ../,    ,' tags > tags1
 
-kernel-install:
+.if ${MACHINE_ARCH} != "ia64"
 .if exists(${DESTDIR}/boot)
+kernel-install-check:
 	@if [ ! -f ${DESTDIR}/boot/device.hints ] ; then \
 		echo "You must set up a ${DESTDIR}/boot/device.hints file first." ; \
 		exit 1 ; \
@@ -175,7 +176,12 @@ kernel-install:
 		echo "You must activate /boot/device.hints in loader.conf." ; \
 		exit 1 ; \
 	fi
+
+kernel-install: kernel-install-check
 .endif
+.endif
+
+kernel-install:
 	@if [ ! -f ${FULLKERNEL} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
