@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.29 1998/03/01 22:46:27 msmith Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.30 1998/03/08 09:57:48 julian Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -369,10 +369,6 @@ mountmsdosfs(devvp, mp, p, argp)
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
-#ifdef	PC98
-	u_int	pc98_wrk;
-	u_int	Phy_Sector_Size;
-#endif
 	struct byte_bpb710 *b710;
 	u_int8_t SecPerClust;
 	int	ronly, error;
@@ -434,7 +430,6 @@ mountmsdosfs(devvp, mp, p, argp)
 	 * boot signature.  If not a dos boot sector then error out.
 	 */
 #ifdef	PC98
-	devvp->v_flag &= 0xffff; 
 	error = bread(devvp, 0, 1024, NOCRED, &bp);
 #else
 	error = bread(devvp, 0, 512, NOCRED, &bp);
@@ -515,41 +510,6 @@ mountmsdosfs(devvp, mp, p, argp)
 		pmp->pm_HiddenSects = getushort(b33->bpbHiddenSecs);
 		pmp->pm_HugeSectors = pmp->pm_Sectors;
 	}
-#ifdef	PC98	/* for PC98		added Satoshi Yasuda	*/
-	Phy_Sector_Size = 512;
-	if ((devvp->v_rdev>>8) == 2) {	/* floppy check */
-		if (((devvp->v_rdev&077) == 2) && (pmp->pm_HugeSectors == 1232)) {
-				Phy_Sector_Size = 1024;	/* 2HD */
-				/*
-				 * 1024byte/sector support
-				 */
-				devvp->v_flag |= 0x10000;
-		} else {
-			if ((((devvp->v_rdev&077) == 3)	/* 2DD 8 or 9 sector */
-				&& (pmp->pm_HugeSectors == 1440)) /* 9 sector */
-				|| (((devvp->v_rdev&077) == 4)
-				&& (pmp->pm_HugeSectors == 1280)) /* 8 sector */
-				|| (((devvp->v_rdev&077) == 5)
-				&& (pmp->pm_HugeSectors == 2880))) { /* 1.44M */
-					Phy_Sector_Size = 512;
-			} else {
-				if (((devvp->v_rdev&077) != 1)
-				    && ((devvp->v_rdev&077) != 0)) { /* 2HC */
-					error = EINVAL;
-					goto error_exit;
-				}
-			}
-		}
-	}			
-	pc98_wrk = pmp->pm_BytesPerSec / Phy_Sector_Size;
-	pmp->pm_BytesPerSec = Phy_Sector_Size;
-	SecPerClust = SecPerClust * pc98_wrk;
-	pmp->pm_HugeSectors = pmp->pm_HugeSectors * pc98_wrk;
-	pmp->pm_ResSectors = pmp->pm_ResSectors * pc98_wrk;
-	pmp->pm_FATsecs = pmp->pm_FATsecs * pc98_wrk;
-	pmp->pm_SecPerTrack = pmp->pm_SecPerTrack * pc98_wrk;
-	pmp->pm_HiddenSects = pmp->pm_HiddenSects * pc98_wrk;
-#endif			/*						*/ 
 	if (pmp->pm_HugeSectors > 0xffffffff / pmp->pm_BytesPerSec + 1) {
 		/*
 		 * We cannot deal currently with this size of disk
