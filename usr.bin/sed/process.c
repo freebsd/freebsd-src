@@ -557,7 +557,8 @@ regsub(sp, string, src)
 	char c, *dst;
 
 #define	NEEDSP(reqlen)							\
-	if (sp->len >= sp->blen - (reqlen) - 1) {			\
+	/* XXX What is the +1 for? */					\
+	if (sp->len + (reqlen) + 1 >= sp->blen) {			\
 		sp->blen += (reqlen) + 1024;				\
 		if ((sp->space = sp->back = realloc(sp->back, sp->blen)) \
 		    == NULL)						\
