@@ -60,6 +60,7 @@ struct	lock_class {
 #define	LC_SPINLOCK	0x00000002	/* Spin lock. */
 #define	LC_SLEEPABLE	0x00000004	/* Sleeping allowed with this lock. */
 #define	LC_RECURSABLE	0x00000008	/* Locks of this type may recurse. */
+#define	LC_UPGRADABLE	0x00000010	/* Upgrades and downgrades permitted. */
 
 #define	LO_CLASSFLAGS	0x0000ffff	/* Class specific flags. */
 #define	LO_INITIALIZED	0x00010000	/* Lock has been initialized. */
@@ -67,6 +68,7 @@ struct	lock_class {
 #define	LO_QUIET	0x00040000	/* Don't log locking operations. */
 #define	LO_RECURSABLE	0x00080000	/* Lock may recurse. */
 #define	LO_SLEEPABLE	0x00100000	/* Lock may be held while sleeping. */
+#define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
 
 #define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
 #define	LI_SLEPT	0x00010000	/* Lock instance has been slept with. */
@@ -174,6 +176,8 @@ extern struct lock_class lock_class_sx;
 void	witness_init(struct lock_object *);
 void	witness_destroy(struct lock_object *);
 void	witness_lock(struct lock_object *, int, const char *, int);
+void	witness_upgrade(struct lock_object *, int, const char *, int);
+void	witness_downgrade(struct lock_object *, int, const char *, int);
 void	witness_unlock(struct lock_object *, int, const char *, int);
 void	witness_save(struct lock_object *, const char **, int *);
 void	witness_restore(struct lock_object *, const char *, int);
@@ -191,6 +195,12 @@ void	witness_assert(struct lock_object *, int, const char *, int);
 
 #define	WITNESS_LOCK(lock, flags, file, line)				\
 	witness_lock((lock), (flags), (file), (line))
+
+#define	WITNESS_UPGRADE(lock, flags, file, line)			\
+	witness_upgrade((lock), (flags), (file), (line))
+
+#define	WITNESS_DOWNGRADE(lock, flags, file, line)			\
+	witness_downgrade((lock), (flags), (file), (line))
 
 #define	WITNESS_UNLOCK(lock, flags, file, line)				\
 	witness_unlock((lock), (flags), (file), (line))
@@ -212,6 +222,8 @@ void	witness_assert(struct lock_object *, int, const char *, int);
 #define	WITNESS_INIT(lock)	(lock)->lo_flags |= LO_INITIALIZED
 #define WITNESS_DESTROY(lock)	(lock)->lo_flags &= ~LO_INITIALIZED
 #define	WITNESS_LOCK(lock, flags, file, line)
+#define	WITNESS_UPGRADE(lock, flags, file, line)
+#define	WITNESS_DOWNGRADE(lock, flags, file, line)
 #define	WITNESS_UNLOCK(lock, flags, file, line)
 #define	WITNESS_SLEEP(check, lock)
 #define	WITNESS_SAVE_DECL(n)
