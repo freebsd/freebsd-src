@@ -132,28 +132,25 @@ char partab[] = {
 
 #define	puts	Gputs
 
-static void	dingdong __P((int));
-static int	getname __P((void));
-static void	interrupt __P((int));
-static void	oflush __P((void));
-static void	prompt __P((void));
-static void	putchr __P((int));
-static void	putf __P((const char *));
-static void	putpad __P((const char *));
-static void	puts __P((const char *));
-static void	timeoverrun __P((int));
-static char	*getline __P((int));
-static void	setttymode __P((const char *, int));
-static void	setdefttymode __P((const char *));
-static int	opentty __P((const char *, int));
-
-int		main __P((int, char **));
+static void	dingdong(int);
+static int	getname(void);
+static void	interrupt(int);
+static void	oflush(void);
+static void	prompt(void);
+static void	putchr(int);
+static void	putf(const char *);
+static void	putpad(const char *);
+static void	puts(const char *);
+static void	timeoverrun(int);
+static char	*getline(int);
+static void	setttymode(const char *, int);
+static void	setdefttymode(const char *);
+static int	opentty(const char *, int);
 
 jmp_buf timeout;
 
 static void
-dingdong(signo)
-	int signo;
+dingdong(int signo)
 {
 	alarm(0);
 	longjmp(timeout, 1);
@@ -162,8 +159,7 @@ dingdong(signo)
 jmp_buf	intrupt;
 
 static void
-interrupt(signo)
-	int signo;
+interrupt(int signo)
 {
 	longjmp(intrupt, 1);
 }
@@ -172,8 +168,7 @@ interrupt(signo)
  * Action to take when getty is running too long.
  */
 static void
-timeoverrun(signo)
-	int signo;
+timeoverrun(int signo)
 {
 
 	syslog(LOG_ERR, "getty exiting due to excessive running time");
@@ -181,9 +176,7 @@ timeoverrun(signo)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	extern	char **environ;
 	const char *tname;
@@ -377,7 +370,7 @@ main(argc, argv)
 			syslog(LOG_ERR, "%s: %m", PP);
 			exit(1);
 		} else if (rval || AL) {
-			register int i;
+			int i;
 
 			oflush();
 			alarm(0);
@@ -461,8 +454,7 @@ opentty(const char *ttyn, int flags)
 }
 
 static void
-setdefttymode(tname)
-	const char * tname;
+setdefttymode(const char *tname)
 {
 	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
 		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
@@ -477,9 +469,7 @@ setdefttymode(tname)
 }
 
 static void
-setttymode(tname, raw)
-	const char * tname;
-	int raw;
+setttymode(const char *tname, int raw)
 {
 	int off = 0;
 
@@ -511,10 +501,10 @@ setttymode(tname, raw)
 
 
 static int
-getname()
+getname(void)
 {
-	register int c;
-	register char *np;
+	int c;
+	char *np;
 	unsigned char cs;
 	int ppp_state = 0;
 	int ppp_connection = 0;
@@ -622,10 +612,9 @@ getname()
 }
 
 static void
-putpad(s)
-	register const char *s;
+putpad(const char *s)
 {
-	register pad = 0;
+	int pad = 0;
 	speed_t ospeed = cfgetospeed(&tmode);
 
 	if (isdigit(*s)) {
@@ -660,8 +649,7 @@ putpad(s)
 }
 
 static void
-puts(s)
-	register const char *s;
+puts(const char *s)
 {
 	while (*s)
 		putchr(*s++);
@@ -671,8 +659,7 @@ char	outbuf[OBUFSIZ];
 int	obufcnt = 0;
 
 static void
-putchr(cc)
-	int cc;
+putchr(int cc)
 {
 	char c;
 
@@ -691,7 +678,7 @@ putchr(cc)
 }
 
 static void
-oflush()
+oflush(void)
 {
 	if (obufcnt)
 		write(STDOUT_FILENO, outbuf, obufcnt);
@@ -699,7 +686,7 @@ oflush()
 }
 
 static void
-prompt()
+prompt(void)
 {
 
 	putf(LM);
@@ -709,8 +696,7 @@ prompt()
 
 
 static char *
-getline(fd)
-	int fd;
+getline(int fd)
 {
 	int i = 0;
 	static char linebuf[512];
@@ -734,8 +720,7 @@ getline(fd)
 }
 
 static void
-putf(cp)
-	register const char *cp;
+putf(const char *cp)
 {
 	extern char editedhost[];
 	time_t t;

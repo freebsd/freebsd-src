@@ -61,17 +61,15 @@ int tocrc;
 int intro;
 int typeflag;
 
-void doname __P((char *));
-void dorefname __P((char *));
-void getfrom __P((char *));
-void split __P((char *, char *));
-void trimln __P((char *));
-static void usage __P((void));
+void doname(char *);
+void dorefname(char *);
+void getfrom(char *);
+void split(char *, char *);
+void trimln(char *);
+static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 
@@ -101,8 +99,7 @@ main(argc, argv)
 }
 
 void
-getfrom(pathname)
-	char *pathname;
+getfrom(char *pathname)
 {
 	int i = 0;
 	char *name, *loc;
@@ -246,8 +243,7 @@ newman:
 }
 
 void
-trimln(cp)
-	register char *cp;
+trimln(char *cp)
 {
 
 	while (*cp)
@@ -257,10 +253,9 @@ trimln(cp)
 }
 
 void
-doname(name)
-	char *name;
+doname(char *name)
 {
-	register char *dp = name, *ep;
+	char *dp = name, *ep;
 
 again:
 	while (*dp && *dp != '.')
@@ -281,10 +276,9 @@ again:
 }
 
 void
-split(line, name)
-	char *line, *name;
+split(char *line, char *name)
 {
-	register char *cp, *dp;
+	char *cp, *dp;
 	char *sp, *sep;
 
 	cp = strchr(line, '-');
@@ -299,7 +293,7 @@ split(line, name)
 	for (sep = "", dp = line; dp && *dp; dp = cp, sep = "\n") {
 		cp = strchr(dp, ',');
 		if (cp) {
-			register char *tp;
+			char *tp;
 
 			for (tp = cp - 1; *tp == ' ' || *tp == '\t'; tp--)
 				;
@@ -314,10 +308,9 @@ split(line, name)
 }
 
 void
-dorefname(name)
-	char *name;
+dorefname(char *name)
 {
-	register char *dp = name, *ep;
+	char *dp = name, *ep;
 
 again:
 	while (*dp && *dp != '.')
@@ -336,7 +329,7 @@ again:
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: getNAME [-itw] file ...\n");
 	exit(1);
