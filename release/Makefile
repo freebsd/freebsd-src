@@ -384,6 +384,12 @@ rerelease release:
 .if defined(KERNEL_FLAGS)
 	echo "export KERNEL_FLAGS=\"${KERNEL_FLAGS}\"" >> ${CHROOTDIR}/mk
 .endif
+.if defined(TARGET)
+	echo "export TARGET=\"${TARGET}\"" >> ${CHROOTDIR}/mk
+.endif
+.if defined(TARGET_ARCH)
+	echo "export TARGET_ARCH=\"${TARGET_ARCH}\"" >> ${CHROOTDIR}/mk
+.endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=$${PATH}:${LOCALDIR}"	>> ${CHROOTDIR}/mk
