@@ -347,7 +347,6 @@ union_unmount(mp, mntflags, td)
 	 * in the filesystem.
 	 */
 	for (freeing = 0; (error = vflush(mp, 0, flags)) != 0;) {
-		struct vnode *vp;
 		int n;
 
 		/* count #vnodes held on mount list */
