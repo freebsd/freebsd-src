@@ -944,6 +944,11 @@ ifinfo(argc, argv)
 #undef SETFLAG
 	}
 
+	if (!ND.initialized) {
+		errx(1, "%s: not initialized yet", ifname);
+		/* NOTREACHED */
+	}
+
 	printf("linkmtu=%d", ND.linkmtu);
 	printf(", curhlim=%d", ND.chlim);
 	printf(", basereachable=%ds%dms",
