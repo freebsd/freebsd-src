@@ -114,12 +114,14 @@ struct bufarea *pbp;		/* current inode block */
 #define	cgrp		(*cgblk.b_un.b_cg)
 
 enum fixstate {DONTKNOW, NOFIX, FIX, IGNORE};
+ino_t cursnapshot;
 
 struct inodesc {
 	enum fixstate id_fix;	/* policy on fixing errors */
 	int (*id_func)();	/* function to be applied to blocks of inode */
 	ino_t id_number;	/* inode number described */
 	ino_t id_parent;	/* for DATA nodes, their parent */
+	int id_lbn;		/* logical block number of current block */
 	ufs_daddr_t id_blkno;	/* current block number being examined */
 	int id_numfrags;	/* number of frags contained in block */
 	quad_t id_filesize;	/* for DATA nodes, the size of the directory */
@@ -130,8 +132,9 @@ struct inodesc {
 	char id_type;		/* type of descriptor, DATA or ADDR */
 };
 /* file types */
-#define	DATA	1
-#define	ADDR	2
+#define	DATA	1	/* a directory */
+#define	SNAP	2	/* a snapshot */
+#define	ADDR	3	/* anything but a directory or a snapshot */
 
 /*
  * Linked list of duplicate blocks.
