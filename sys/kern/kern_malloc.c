@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.7 1995/01/09 16:04:50 davidg Exp $
+ * $Id: kern_malloc.c,v 1.8 1995/02/02 08:49:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,7 @@ long addrmask[] = { 0,
  * that modifications after frees can be detected.
  */
 #define WEIRD_ADDR	0xdeadbeef
-#define MAX_COPY	32
+#define MAX_COPY	256
 
 /*
  * Normally the first word of the structure is used to hold the list
@@ -263,6 +263,16 @@ free(addr, type)
 	register struct kmemstats *ksp = &kmemstats[type];
 #endif
 
+#ifdef DIAGNOSTIC
+	if ((char *)addr < kmembase || (char *)addr >= kmemlimit) {
+		printf("free: address 0x%x out of range\n", addr);
+		panic("free: bogus address");
+	}
+	if ((u_long)type > M_LAST) {
+		printf("free: type %d out of range\n", type);
+		panic("free: bogus type");
+	}
+#endif
 	kup = btokup(addr);
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
