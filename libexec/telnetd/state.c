@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static const char sccsid[] = "@(#)state.c	8.2 (Berkeley) 12/15/93";
+static const char sccsid[] = "@(#)state.c	8.5 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -41,9 +41,6 @@ static const char rcsid[] =
 
 #include <stdarg.h>
 #include "telnetd.h"
-#if	defined(AUTHENTICATION)
-#include <libtelnet/auth.h>
-#endif
 
 unsigned char	doopt[] = { IAC, DO, '%', 'c', 0 };
 unsigned char	dont[] = { IAC, DONT, '%', 'c', 0 };
@@ -449,9 +446,6 @@ send_do(option, init)
 	DIAG(TD_OPTIONS, printoption("td: send do", option));
 }
 
-#ifdef	AUTHENTICATION
-extern void auth_request();
-#endif
 #ifdef	LINEMODE
 extern void doclientstat();
 #endif
@@ -561,12 +555,6 @@ willoption(option)
 			break;
 #endif	/* LINEMODE */
 
-#ifdef	AUTHENTICATION
-		case TELOPT_AUTHENTICATION:
-			func = auth_request;
-			changeok++;
-			break;
-#endif
 
 
 		default:
@@ -621,11 +609,6 @@ willoption(option)
 			break;
 #endif	/* LINEMODE */
 
-#ifdef	AUTHENTICATION
-		case TELOPT_AUTHENTICATION:
-			func = auth_request;
-			break;
-#endif
 
 		case TELOPT_LFLOW:
 			func = flowstat;
@@ -720,11 +703,6 @@ wontoption(option)
 			slctab[SLC_XOFF].defset.flag |= SLC_CANTCHANGE;
 			break;
 
-#if	defined(AUTHENTICATION)
-		case TELOPT_AUTHENTICATION:
-			auth_finished(0, AUTH_REJECT);
-			break;
-#endif
 
 		/*
 		 * For options that we might spin waiting for
@@ -773,11 +751,6 @@ wontoption(option)
 #endif	/* defined(LINEMODE) && defined(KLUDGELINEMODE) */
 			break;
 
-#if	defined(AUTHENTICATION)
-		case TELOPT_AUTHENTICATION:
-			auth_finished(0, AUTH_REJECT);
-			break;
-#endif
 		default:
 			break;
 		}
@@ -1163,7 +1136,7 @@ suboption()
 	if (SB_EOF())
 	    break;		/* another garbage check */
 
-	if (request == LM_SLC) {  /* SLC is not preceded by WILL or WONT */
+	if (request == LM_SLC) {  /* SLC is not preceeded by WILL or WONT */
 		/*
 		 * Process suboption buffer of slc's
 		 */
@@ -1411,27 +1384,6 @@ suboption()
 		unsetenv(varp);
 	break;
     }  /* end of case TELOPT_NEW_ENVIRON */
-#if	defined(AUTHENTICATION)
-    case TELOPT_AUTHENTICATION:
-	if (SB_EOF())
-		break;
-	switch(SB_GET()) {
-	case TELQUAL_SEND:
-	case TELQUAL_REPLY:
-		/*
-		 * These are sent by us and cannot be sent by
-		 * the client.
-		 */
-		break;
-	case TELQUAL_IS:
-		auth_is(subpointer, SB_LEN());
-		break;
-	case TELQUAL_NAME:
-		auth_name(subpointer, SB_LEN());
-		break;
-	}
-	break;
-#endif
 
     default:
 	break;
@@ -1446,7 +1398,7 @@ doclientstat()
 }
 
 #define	ADD(c)	 *ncp++ = c
-#define	ADD_DATA(c) { *ncp++ = c; if (c == SE) *ncp++ = c; }
+#define	ADD_DATA(c) { *ncp++ = c; if (c == SE || c == IAC) *ncp++ = c; }
 	void
 send_status()
 {
@@ -1505,7 +1457,6 @@ send_status()
 				ADD(LFLOW_RESTART_XON);
 			}
 			ADD(SE);
-			ADD(SB);
 		}
 	}
 
@@ -1518,8 +1469,6 @@ send_status()
 		ADD(TELOPT_LINEMODE);
 		ADD(LM_MODE);
 		ADD_DATA(editmode);
-		if (editmode == IAC)
-			ADD(IAC);
 		ADD(SE);
 
 		ADD(SB);

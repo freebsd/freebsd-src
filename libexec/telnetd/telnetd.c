@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
+static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -89,10 +89,6 @@ struct	socket_security ss;
 # endif /* SO_SEC_MULTI */
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-#if	defined(AUTHENTICATION)
-#include <libtelnet/auth.h>
-int	auth_level = 0;
-#endif
 #if	defined(SecurID)
 int	require_SecurID = 0;
 #endif
@@ -120,8 +116,6 @@ char	ptyibuf2[BUFSIZ];
 unsigned char ctlbuf[BUFSIZ];
 struct	strbuf strbufc, strbufd;
 
-int readstream();
-
 #else	/* ! STREAMPTY */
 
 /*
@@ -130,6 +124,13 @@ int readstream();
  */
 char	ptyibuf[BUFSIZ], *ptyip = ptyibuf;
 char	ptyibuf2[BUFSIZ];
+
+# include <termcap.h>
+
+int readstream(int p, char *ibuf, int bufsize);
+void doit(struct sockaddr *who);
+int terminaltypeok(char *s);
+void startslave(char *host, int autologin, char *autoname);
 
 #endif /* ! STREAMPTY */
 
@@ -157,9 +158,6 @@ extern void usage P((void));
 char valid_opts[] = {
 	'd', ':', 'h', 'k', 'n', 'p', ':', 'S', ':', 'u', ':', 'U',
 	'4', '6',
-#ifdef	AUTHENTICATION
-	'a', ':', 'X', ':',
-#endif
 #ifdef BFTPDAEMON
 	'B',
 #endif
@@ -225,32 +223,6 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, valid_opts)) != -1) {
 		switch(ch) {
 
-#ifdef	AUTHENTICATION
-		case 'a':
-			/*
-			 * Check for required authentication level
-			 */
-			if (strcmp(optarg, "debug") == 0) {
-				extern int auth_debug_mode;
-				auth_debug_mode = 1;
-			} else if (strcasecmp(optarg, "none") == 0) {
-				auth_level = 0;
-			} else if (strcasecmp(optarg, "other") == 0) {
-				auth_level = AUTH_OTHER;
-			} else if (strcasecmp(optarg, "user") == 0) {
-				auth_level = AUTH_USER;
-			} else if (strcasecmp(optarg, "valid") == 0) {
-				auth_level = AUTH_VALID;
-			} else if (strcasecmp(optarg, "off") == 0) {
-				/*
-				 * This hack turns off authentication
-				 */
-				auth_level = -1;
-			} else {
-				warnx("unknown authorization level for -a");
-			}
-			break;
-#endif	/* AUTHENTICATION */
 
 #ifdef BFTPDAEMON
 		case 'B':
@@ -382,14 +354,6 @@ main(argc, argv)
 			registerd_host_only = 1;
 			break;
 
-#ifdef	AUTHENTICATION
-		case 'X':
-			/*
-			 * Check for invalid authentication types
-			 */
-			auth_disable_name(optarg);
-			break;
-#endif	/* AUTHENTICATION */
 
 		case '4':
 			family = AF_INET;
@@ -476,7 +440,7 @@ main(argc, argv)
 		int szi = sizeof(int);
 #endif /* SO_SEC_MULTI */
 
-		bzero((char *)&dv, sizeof(dv));
+		memset((char *)&dv, 0, sizeof(dv));
 
 		if (getsysv(&sysv, sizeof(struct sysv)) != 0)
 			err(1, "getsysv");
@@ -555,18 +519,12 @@ main(argc, argv)
 usage()
 {
 	fprintf(stderr, "usage: telnetd");
-#ifdef	AUTHENTICATION
-	fprintf(stderr, " [-a (debug|other|user|valid|off|none)]\n\t");
-#endif
 #ifdef BFTPDAEMON
 	fprintf(stderr, " [-B]");
 #endif
 	fprintf(stderr, " [-debug]");
 #ifdef DIAGNOSTICS
 	fprintf(stderr, " [-D (options|report|exercise|netdata|ptydata)]\n\t");
-#endif
-#ifdef	AUTHENTICATION
-	fprintf(stderr, " [-edebug]");
 #endif
 	fprintf(stderr, " [-h]");
 #if	defined(CRAY) && defined(NEWINIT)
@@ -588,9 +546,6 @@ usage()
 #endif
 #ifdef	HAS_GETTOS
 	fprintf(stderr, " [-S tos]");
-#endif
-#ifdef	AUTHENTICATION
-	fprintf(stderr, " [-X auth-type]");
 #endif
 	fprintf(stderr, " [-u utmp_hostname_length] [-U]");
 	fprintf(stderr, " [port]\n");
@@ -615,17 +570,6 @@ getterminaltype(name)
     void _gettermname();
 
     settimer(baseline);
-#if	defined(AUTHENTICATION)
-    /*
-     * Handle the Authentication option before we do anything else.
-     */
-    send_do(TELOPT_AUTHENTICATION, 1);
-    while (his_will_wont_is_changing(TELOPT_AUTHENTICATION))
-	ttloop();
-    if (his_state_is_will(TELOPT_AUTHENTICATION)) {
-	retval = auth_wait(name);
-    }
-#endif
 
     send_do(TELOPT_TTYPE, 1);
     send_do(TELOPT_TSPEED, 1);
@@ -645,28 +589,34 @@ getterminaltype(name)
 			{ IAC, SB, TELOPT_TSPEED, TELQUAL_SEND, IAC, SE };
 
 	output_datalen(sb, sizeof sb);
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_XDISPLOC)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_XDISPLOC, TELQUAL_SEND, IAC, SE };
 
 	output_datalen(sb, sizeof sb);
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_NEW_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_NEW_ENVIRON, TELQUAL_SEND, IAC, SE };
 
 	output_datalen(sb, sizeof sb);
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     else if (his_state_is_will(TELOPT_OLD_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_OLD_ENVIRON, TELQUAL_SEND, IAC, SE };
 
 	output_datalen(sb, sizeof sb);
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_TTYPE)) {
 
 	output_datalen(ttytype_sbbuf, sizeof ttytype_sbbuf);
+	DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
+					sizeof ttytype_sbbuf - 2););
     }
     if (his_state_is_will(TELOPT_TSPEED)) {
 	while (sequenceIs(tspeedsubopt, baseline))
@@ -744,6 +694,8 @@ _gettermname()
 	return;
     settimer(baseline);
     output_datalen(ttytype_sbbuf, sizeof ttytype_sbbuf);
+    DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
+					sizeof ttytype_sbbuf - 2););
     while (sequenceIs(ttypesubopt, baseline))
 	ttloop();
 }
@@ -832,7 +784,7 @@ doit(who)
 	if (realhostname_sa(remote_hostname, sizeof(remote_hostname) - 1,
 	    who, who->sa_len) == HOSTNAME_INVALIDADDR && registerd_host_only)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
-         Please contact your net administrator");
+	Please contact your net administrator");
 	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
 
 	trimdomain(remote_hostname, UT_HOSTSIZE);
@@ -846,9 +798,6 @@ doit(who)
 	host_name[sizeof(host_name) - 1] = '\0';
 	hostname = host_name;
 
-#if	defined(AUTHENTICATION)
-	auth_encrypt_init(hostname, remote_hostname, "TELNETD", 1);
-#endif
 
 	init_env();
 	/*
@@ -904,10 +853,7 @@ telnet(f, p, host)
 	char *HE;
 	char *HN;
 	char *IM;
-	char *IF;
-	char *if_buf;
-	int if_fd;
-	struct stat statbuf;
+	int nfd;
 
 	/*
 	 * Initialize the slc mapping table.
@@ -1103,11 +1049,8 @@ telnet(f, p, host)
 		HE = Getstr("he", &cp);
 		HN = Getstr("hn", &cp);
 		IM = Getstr("im", &cp);
-		IF = Getstr("if", &cp);
 		if (HN && *HN)
 			(void) strlcpy(host_name, HN, sizeof(host_name));
-		if (IF && (if_fd = open(IF, O_RDONLY, 000)) != -1)
-			IM = 0;
 		if (IM == 0)
 			IM = "";
 	} else {
@@ -1117,14 +1060,6 @@ telnet(f, p, host)
 	edithost(HE, host_name);
 	if (hostinfo && *IM)
 		putf(IM, ptyibuf2);
-	else if (IF && if_fd != -1) {
-		fstat (if_fd, &statbuf);
-		if_buf = (char *) mmap (0, statbuf.st_size, PROT_READ, 
-		    0, if_fd, 0);
-		putf(if_buf, ptyibuf2);
-		munmap (if_buf, statbuf.st_size);
-		close (if_fd);
-	}
 
 	if (pcc)
 		(void) strncat(ptyibuf2, ptyip, pcc+1);
@@ -1147,6 +1082,7 @@ telnet(f, p, host)
 	 */
 	startslave(host, level, user_name);
 
+	nfd = ((f > p) ? f : p) + 1;
 	for (;;) {
 		fd_set ibits, obits, xbits;
 		register int c;
@@ -1178,7 +1114,7 @@ telnet(f, p, host)
 		if (!SYNCHing) {
 			FD_SET(f, &xbits);
 		}
-		if ((c = select(16, &ibits, &obits, &xbits,
+		if ((c = select(nfd, &ibits, &obits, &xbits,
 						(struct timeval *)0)) < 1) {
 			if (c == -1) {
 				if (errno == EINTR) {
@@ -1315,6 +1251,9 @@ telnet(f, p, host)
 					 */
 					output_data("%c%c", IAC, DM);
 					neturg = nfrontp-1; /* off by one XXX */
+					DIAG(TD_OPTIONS,
+					    printoption("td: send IAC", DM));
+
 #endif
 				}
 				if (his_state_is_will(TELOPT_LFLOW) &&
@@ -1329,6 +1268,9 @@ telnet(f, p, host)
 							flowmode ? LFLOW_ON
 								 : LFLOW_OFF,
 							IAC, SE);
+						DIAG(TD_OPTIONS, printsub('>',
+						    (unsigned char *)nfrontp-4,
+						    4););
 					}
 				}
 				pcc--;
@@ -1494,6 +1436,14 @@ interrupt()
 {
 	ptyflush();	/* half-hearted */
 
+#if defined(STREAMSPTY) && defined(TIOCSIGNAL)
+	/* Streams PTY style ioctl to post a signal */
+	{
+		int sig = SIGINT;
+		(void) ioctl(pty, TIOCSIGNAL, &sig);
+		(void) ioctl(pty, I_FLUSH, FLUSHR);
+	}
+#else
 #ifdef	TCSIG
 	(void) ioctl(pty, TCSIG, (char *)SIGINT);
 #else	/* TCSIG */
@@ -1501,6 +1451,7 @@ interrupt()
 	*pfrontp++ = slctab[SLC_IP].sptr ?
 			(unsigned char)*slctab[SLC_IP].sptr : '\177';
 #endif	/* TCSIG */
+#endif
 }
 
 /*
