@@ -436,7 +436,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		critical_enter();
 		ih->ih_handler(ih->ih_argument);
 		/* XXX */
-		td->td_pflags &= ~TDP_OWEPREEMPT;
+		curthread->td_pflags &= ~TDP_OWEPREEMPT;
 		critical_exit();
 		return;
 	}
