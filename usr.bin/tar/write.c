@@ -1196,6 +1196,7 @@ lookup_uname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
 
 	(void)bsdtar; /* UNUSED */
 
+	errno = 0;
 	pwent = getpwuid((uid_t)id);
 	if (pwent == NULL) {
 		*name = NULL;
@@ -1222,6 +1223,7 @@ lookup_gname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
 
 	(void)bsdtar; /* UNUSED */
 
+	errno = 0;
 	grent = getgrgid((gid_t)id);
 	if (grent == NULL  && errno != 0) {
 		*name = NULL;
