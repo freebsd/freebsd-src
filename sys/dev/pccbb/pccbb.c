@@ -172,12 +172,12 @@ struct yenta_chipinfo {
 	{PCIC_ID_CLPD6834, "CLPD6834 PCI-CardBus Bridge", CB_CIRRUS},
 
 	/* 02Micro */
-	{PCIC_ID_OZ6832, "O2Micro OZ6832/6833 PCI-CardBus Bridge", CB_CIRRUS},
-	{PCIC_ID_OZ6860, "O2Micro OZ6836/6860 PCI-CardBus Bridge", CB_CIRRUS},
-	{PCIC_ID_OZ6872, "O2Micro OZ6812/6872 PCI-CardBus Bridge", CB_CIRRUS},
-	{PCIC_ID_OZ6912, "O2Micro OZ6912/6972 PCI-CardBus Bridge", CB_CIRRUS},
-	{PCIC_ID_OZ6922, "O2Micro OZ6922 PCI-CardBus Bridge", CB_CIRRUS},
-	{PCIC_ID_OZ6933, "O2Micro OZ6933 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6832, "O2Micro OZ6832/6833 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ6860, "O2Micro OZ6836/6860 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ6872, "O2Micro OZ6812/6872 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ6912, "O2Micro OZ6912/6972 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ6922, "O2Micro OZ6922 PCI-CardBus Bridge", CB_O2MICRO},
+	{PCIC_ID_OZ6933, "O2Micro OZ6933 PCI-CardBus Bridge", CB_O2MICRO},
 
 	/* sentinel */
 	{0 /* null id */, "unknown", CB_UNKNOWN},
@@ -402,7 +402,7 @@ cbb_probe(device_t brdev)
 static void
 cbb_chipinit(struct cbb_softc *sc)
 {
-	uint32_t mux, sysctrl;
+	uint32_t mux, sysctrl, reg;
 
 	/* Set CardBus latency timer */
 	if (pci_read_config(sc->dev, PCIR_SECLAT_1, 1) < 0x20)
@@ -487,6 +487,36 @@ cbb_chipinit(struct cbb_softc *sc)
 		 */
 		pci_write_config(sc->dev, CBBR_MMCTRL, 0, 4);
 		break;
+	case CB_O2MICRO:
+		/*
+		 * Issue #1: INT# generated at the same time as
+		 * selected ISA IRQ.  When IREQ# or STSCHG# is active,
+		 * in addition to the ISA IRQ being generated, INT#
+		 * will also be generated at the same time.
+		 *
+		 * Some of our older controllers have an issue in
+		 * which the slot's PCI INT# will be asserted whenever
+		 * IREQ# or STSCGH# is asserted even if ExCA registers
+		 * 03h or 05h have an ISA IRQ selected.
+		 *
+		 * The fix for this issue, which will work for any
+		 * controller (old or new), is to set ExCA registers
+		 * 3Ah (slot 0) & 7Ah (slot 1) bits 7:4 = 1010b.
+		 * These bits are undocumented.  By setting this
+		 * register (of each slot) to '1010xxxxb' a routing of
+		 * IREQ# to INTC# and STSCHG# to INTC# is selected.
+		 * Since INTC# isn't connected there will be no
+		 * unexpected PCI INT when IREQ# or STSCHG# is active.
+		 * However, INTA# (slot 0) or INTB# (slot 1) will
+		 * still be correctly generated if NO ISA IRQ is
+		 * selected (ExCA regs 03h or 05h are cleared).
+		 */
+		reg = exca_getb(&sc->exca, EXCA_O2MICRO_CTRL_C);
+		reg = (reg & 0x0f) |
+		    EXCA_O2CC_IREQ_INTC | EXCA_O2CC_STSCHG_INTC;
+		exca_putb(&sc->exca, EXCA_O2MICRO_CTRL_C, reg);
+
+		break;
 	case CB_TOPIC97:
 		/*
 		 * Disable Zoom Video, ToPIC 97, 100.
@@ -555,6 +585,45 @@ cbb_chipinit(struct cbb_softc *sc)
 	pci_write_config(sc->dev, CBBR_IOLIMIT1, 0, 4);
 }
 
+static void
+cbb_powerstate_d0(device_t dev)
+{
+	u_int32_t membase, irq;
+
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		/* Save important PCI config data. */
+		membase = pci_read_config(dev, CBBR_SOCKBASE, 4);
+		irq = pci_read_config(dev, PCIR_INTLINE, 4);
+
+		/* Reset the power state. */
+		device_printf(dev, "chip is in D%d power mode "
+		    "-- setting to D0\n", pci_get_powerstate(dev));
+
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+
+		/* Restore PCI config data. */
+		pci_write_config(dev, CBBR_SOCKBASE, membase, 4);
+		pci_write_config(dev, PCIR_INTLINE, irq, 4);
+	}
+}
+
+/*
+ * Print out the config space
+ */
+static void
+cbb_print_config(device_t dev)
+{
+	int i;
+	
+	device_printf(dev, "PCI Configuration space:");
+	for (i = 0; i < 256; i += 4) {
+		if (i % 16 == 0)
+			printf("\n  0x%02x: ", i);
+		printf("0x%08x ", pci_read_config(dev, i, 4));
+	}
+	printf("\n");
+}
+
 static int
 cbb_attach(device_t brdev)
 {
@@ -571,6 +640,8 @@ cbb_attach(device_t brdev)
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	SLIST_INIT(&sc->rl);
 	STAILQ_INIT(&sc->intr_handlers);
+
+	cbb_powerstate_d0(brdev);
 
 #ifndef	BURN_THE_BOATS
 	/*
@@ -621,8 +692,11 @@ cbb_attach(device_t brdev)
 		DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
 		    rman_get_start(sc->base_res)));
 #endif
+	} else {
+		DEVPRINTF((brdev, "Found memory at %08lx\n",
+		    rman_get_start(sc->base_res)));
 	}
-
+		
 	sc->bst = rman_get_bustag(sc->base_res);
 	sc->bsh = rman_get_bushandle(sc->base_res);
 	exca_init(&sc->exca, brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
@@ -674,11 +748,14 @@ cbb_attach(device_t brdev)
 	/* reset interrupt */
 	cbb_set(sc, CBB_SOCKET_EVENT, cbb_get(sc, CBB_SOCKET_EVENT));
 
+	if (bootverbose)
+		cbb_print_config(brdev);
+
 	/* Start the thread */
 	if (kthread_create(cbb_event_thread, sc, &sc->event_thread, 0, 0,
-		"%s%d", device_get_name(sc->dev), device_get_unit(sc->dev))) {
-		device_printf (sc->dev, "unable to create event thread.\n");
-		panic ("cbb_create_event_thread");
+		"%s%d", device_get_name(brdev), device_get_unit(brdev))) {
+		device_printf(brdev, "unable to create event thread.\n");
+		panic("cbb_create_event_thread");
 	}
 
 	return (0);
@@ -1041,13 +1118,60 @@ cbb_detect_voltage(device_t brdev)
 	return (vol);
 }
 
+static uint8_t
+cbb_o2micro_power_hack(struct cbb_softc *sc)
+{
+	uint8_t reg;
+
+	/*
+	 * Issue #2: INT# not qualified with IRQ Routing Bit.  An
+	 * unexpected PCI INT# may be generated during PC-Card
+	 * initialization even with the IRQ Routing Bit Set with some
+	 * PC-Cards.
+	 *
+	 * This is a two part issue.  The first part is that some of
+	 * our older controllers have an issue in which the slot's PCI
+	 * INT# is NOT qualified by the IRQ routing bit (PCI reg. 3Eh
+	 * bit 7).  Regardless of the IRQ routing bit, if NO ISA IRQ
+	 * is selected (ExCA register 03h bits 3:0, of the slot, are
+	 * cleared) we will generate INT# if IREQ# is asserted.  The
+	 * second part is because some PC-Cards prematurally assert
+	 * IREQ# before the ExCA registers are fully programmed.  This
+	 * in turn asserts INT# because ExCA register 03h bits 3:0
+	 * (ISA IRQ Select) are not yet programmed.
+	 *
+	 * The fix for this issue, which will work for any controller
+	 * (old or new), is to set ExCA register 03h bits 3:0 = 0001b
+	 * (select IRQ1), of the slot, before turning on slot power.
+	 * Selecting IRQ1 will result in INT# NOT being asserted
+	 * (because IRQ1 is selected), and IRQ1 won't be asserted
+	 * because our controllers don't generate IRQ1.
+	 */
+	reg = exca_getb(&sc->exca, EXCA_INTR);
+	exca_putb(&sc->exca, EXCA_INTR, (reg & 0xf0) | 1);
+	return (reg);
+}
+
+/*
+ * Restore the damage that cbb_o2micro_power_hack does to EXCA_INTR so
+ * we don't have an interrupt storm on power on.  This has the efect of
+ * disabling card status change interrupts for the duration of poweron.
+ */
+static void
+cbb_o2micro_power_hack2(struct cbb_softc *sc, uint8_t reg)
+{
+	exca_putb(&sc->exca, EXCA_INTR, reg);
+}
+
 static int
 cbb_power(device_t brdev, int volts)
 {
 	uint32_t status, sock_ctrl;
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int timeout;
+	int retval = 0;
 	uint32_t sockevent;
+	uint8_t reg = 0;
 
 	DEVPRINTF((sc->dev, "cbb_power: %s and %s [%x]\n",
 	    (volts & CARD_VCCMASK) == CARD_VCC_UC ? "CARD_VCC_UC" :
@@ -1113,6 +1237,8 @@ cbb_power(device_t brdev, int volts)
 
 	if (cbb_get(sc, CBB_SOCKET_CONTROL) == sock_ctrl)
 		return (1); /* no change necessary */
+	if (volts != 0 && sc->chipset == CB_O2MICRO)
+		reg = cbb_o2micro_power_hack(sc);
 
 	cbb_set(sc, CBB_SOCKET_CONTROL, sock_ctrl);
 	status = cbb_get(sc, CBB_SOCKET_STATE);
@@ -1133,7 +1259,7 @@ cbb_power(device_t brdev, int volts)
 	cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
 	if (timeout < 0) {
 		printf ("VCC supply failed.\n");
-		return (0);
+		goto done;
 	}
 
 	/* XXX
@@ -1162,9 +1288,13 @@ cbb_power(device_t brdev, int volts)
 		    (volts & CARD_VPPMASK) == CARD_VPP_0V ? "CARD_VPP_0V" :
 		    "VPP-UNKNOWN",
 		    volts);
-		return (0);
+		goto done;
 	}
-	return (1);		/* power changed correctly */
+	retval = 1;
+done:;
+	if (volts != 0 && sc->chipset == CB_O2MICRO)
+		cbb_o2micro_power_hack2(sc, reg);
+	return (retval);
 }
 
 /*
