@@ -32,9 +32,11 @@
 #include <sys/syscall.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/queue.h>
+
+#include <nfs4client/nfs4_dev.h>
+#include <nfs4client/nfs4_idmap.h>
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -45,22 +47,16 @@
 #include <pwd.h>
 #include <grp.h>
 
-#include <nfs4client/nfs4_dev.h>
-#include <nfs4client/nfs4_idmap.h>
-
-/* #include "idmap.h" */
-
 #define DEV_PATH "/dev/nfs4"
 
-#define DOMAIN "@FreeBSD.org"
-#define BADUSER "nobody"
+#define DOMAIN	"@FreeBSD.org"
+#define BADUSER	"nobody"
 #define BADGROUP "nogroup"
-#define BADUID (-2)
-#define BADGID (-2)
+#define BADUID	65534
+#define BADGID	65533
 
 struct idmap_e {
 	struct nfs4dev_msg msg;
-
 	TAILQ_ENTRY(idmap_e) next;
 };
 
@@ -243,7 +239,7 @@ idmap_service(struct idmap_e * e)
 
 			if (pwd == NULL) {
 				fprintf(stderr, "unknown uid %d!\n",
-				    (uint32_t)m->id_id.uid);
+					(uint32_t)m->id_id.uid);
 				name = BADUSER;
 			} else
 			  	name = pwd->pw_name;
@@ -271,7 +267,7 @@ idmap_service(struct idmap_e * e)
 			if (idmap_id(m, id))
 				return -1;
 		}
-	break;
+		break;
 	case IDMAP_TYPE_GID:
 		if (m->id_namelen == 0) {
 			/* id to name */
@@ -279,7 +275,7 @@ idmap_service(struct idmap_e * e)
 
 			if (grp == NULL) {
 				fprintf(stderr, "unknown gid %d!\n",
-				    (uint32_t)m->id_id.gid);
+					(uint32_t)m->id_id.gid);
 				name = BADGROUP;
 			} else
 			  	name = grp->gr_name;
@@ -290,7 +286,7 @@ idmap_service(struct idmap_e * e)
 		  	/* name to id */
 		  	name = idmap_prune_domain(m);
 			if (name == NULL)
-			  return -1;
+				return -1;
 
 			grp = getgrnam(name);
 
@@ -306,11 +302,11 @@ idmap_service(struct idmap_e * e)
 			if (idmap_id(m, id))
 				return -1;
 		}
-	break;
+		break;
 	default:
 		fprintf(stderr, "bad idmap type: %d\n", m->id_type);
 		return -1;
-	break;
+		break;
 	}
 
 	return 0;
