@@ -278,21 +278,14 @@ pcic_pci_ti_init(device_t dev)
 	devcntl  = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
 	cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL,   1);
 
-	switch (ti113x) {
-	case 0 :
-		device_printf(dev, "TI12XX PCI Config Reg: ");
-		diagctl = pci_read_config(dev, TI12XX_PCI_DIAGNOSTIC, 1);
-		diagctl |= TI12XX_DIAG_CSC_INTR;
-		pci_write_config(dev, TI12XX_PCI_DIAGNOSTIC, diagctl, 1);
-		break;
-	case 1 :
+	if (ti113x) {
 		device_printf(dev, "TI113X PCI Config Reg: ");
-		/* 
-		 * Default card control register setting is
-		 * PCI interrupt.  The method of this code
-		 * switches PCI INT and ISA IRQ by bit 7 of
-		 * Bridge Control Register(Offset:0x3e,0x13e).
-		 * Takeshi Shibagaki(shiba@jp.freebsd.org) 
+
+		/*
+		 * The TI-1130 (and 1030 and 1131) have a different
+		 * interrupt routing control than the newer cards.  The
+		 * newer cards also use offset 0x3e (the Bridge Control
+		 * register).
 		 */
 		if (sc->func_route >= pci_parallel) {
 			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
@@ -312,8 +305,34 @@ pcic_pci_ti_init(device_t dev)
 			else
 				printf("[clkrun irq 10]");
 		}
-		break;
+	} else {
+		device_printf(dev, "TI12XX PCI Config Reg: ");
+
+		/*
+		 * Turn on async CSC interrupts.  This appears to
+		 * be the default, but the old, pre pci-aware, code
+		 * did this and it appears PAO does as well.
+		 */
+		diagctl = pci_read_config(dev, TI12XX_PCI_DIAGNOSTIC, 1);
+		diagctl |= TI12XX_DIAG_CSC_INTR;
+		pci_write_config(dev, TI12XX_PCI_DIAGNOSTIC, diagctl, 1);
+
+		/*
+		 * Turn off Zoom Video.  Some cards have this enabled,
+		 * some do not but it causes problems when enabled.  This
+		 * register doesn't exist on the 1130 (and likely the 1131,
+		 * but without a datasheet it is impossible to know).
+		 * Some 12xx chips may not have it, but setting it is
+		 * believed to be harmless.
+		 */
+		pci_write_config(dev, TI12XX_PCI_MULTIMEDIA_CONTROL, 0, 4);
 	}
+	/* 
+	 * Default card control register setting is PCI interrupt.
+	 * The method of this code switches PCI INT and ISA IRQ by bit
+	 * 7 of Bridge Control Register(Offset:0x3e,0x13e).  
+	 * Takeshi Shibagaki(shiba@jp.freebsd.org)
+	 */
 	if (sc->func_route >= pci_parallel) {
 		devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
 		pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL, devcntl, 1);
@@ -655,8 +674,10 @@ pcic_pci_attach(device_t dev)
 		pcic_pci_pd683x_init(dev);
 		pcic_pci_cardbus_init(dev);
 		break;
+#ifdef notyet
 	case PCI_DEVICE_ID_PCIC_CLPD6729:
 		pcic_pci_pd6729_init(dev);
+#endif
 	default:
 		pcic_pci_cardbus_init(dev);
 		break;

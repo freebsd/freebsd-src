@@ -42,6 +42,7 @@
 /* End of CL-PD6832 defines */
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
 #define TI113X_PCI_SYSTEM_CONTROL	0x80	/* System Control */
+#define TI12XX_PCI_MULTIMEDIA_CONTROL	0x84	/* Zoom Video */
 #define TI113X_PCI_RETRY_STATUS		0x90	/* Retry Status */
 #define TI113X_PCI_CARD_CONTROL		0x91	/* Card Control */
 #define TI113X_PCI_DEVICE_CONTROL	0x92	/* Device Control */
