@@ -64,7 +64,7 @@ Attributes which are not being modified by
 should be set to the value
 .Dv VNOVAL .
 .Sh LOCKS
-The file should not be locked on entry.
+The file will not be locked on entry and should not be locked on return.
 .Sh RETURN VALUES
 .Xr VOP_GETATTR 9
 returns information about the file in
