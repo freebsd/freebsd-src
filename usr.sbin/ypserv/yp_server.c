@@ -31,8 +31,8 @@
  *
  */
 
-#include "yp_extern.h"
 #include "yp.h"
+#include "yp_extern.h"
 #include <stdlib.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -45,12 +45,11 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.10 1996/05/31 16:01:51 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.17 1997/01/07 06:07:20 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
 int children = 0;
-static DB *spec_dbp = NULL;	/* Special global DB handle for ypproc_all. */
 static char *master_string = "YP_MASTER_NAME";
 static char *order_string = "YP_LAST_MODIFIED";
 static int master_sz = sizeof("YP_MASTER_NAME") - 1;
@@ -124,7 +123,6 @@ ypresp_val *
 ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 {
 	static ypresp_val  result;
-	DBT key, data;
 
 	result.val.valdat_val = "";
 	result.val.valdat_len = 0;
@@ -143,14 +141,12 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	key.size = argp->key.keydat_len;
-	key.data = argp->key.keydat_val;
-
-	if ((result.stat = yp_get_record(argp->domain, argp->map,
-						&key, &data, 1)) == YP_TRUE) {
-		result.val.valdat_len = data.size;
-		result.val.valdat_val = data.data;
+	if (yp_select_map(argp->map, argp->domain, &argp->key, 1) != YP_TRUE) {
+		result.stat = yp_errno;
+		return(&result);
 	}
+
+	result.stat = yp_getbykey(&argp->key, &result.val);
 
 	/*
 	 * Do DNS lookups for hosts maps if database lookup failed.
@@ -163,50 +159,24 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 #else
 	if (do_dns && result.stat != YP_TRUE && strstr(argp->map, "hosts")) {
 #endif
-		char *rval = NULL;
-
-	/* DNS lookups can take time -- do them in a subprocess */
-
-		if (!debug && children < MAX_CHILDREN && fork()) {
-			children++;
-			forked = 0;
-			/*
-			 * Returning NULL here prevents svc_sendreply()
-			 * from being called by the parent. This is vital
-			 * since having both the parent and the child process
-			 * call it would confuse the client.
-			 */
-			return (NULL);
-		} else {
-			forked++;
-		}
+	
+		/* NUL terminate! NUL terminate!! NUL TERMINATE!!! */
+		argp->key.keydat_val[argp->key.keydat_len] = '\0';
 
 		if (debug)
 			yp_error("Doing DNS lookup of %.*s",
 			 	  argp->key.keydat_len,
 				  argp->key.keydat_val);
 
-		/* NUL terminate! NUL terminate!! NUL TERMINATE!!! */
-		argp->key.keydat_val[argp->key.keydat_len] = '\0';
-
 		if (!strcmp(argp->map, "hosts.byname"))
-			rval = yp_dnsname((char *)argp->key.keydat_val);
+			result.stat = yp_async_lookup_name(rqstp,
+					(char *)argp->key.keydat_val);
 		else if (!strcmp(argp->map, "hosts.byaddr"))
-			rval = yp_dnsaddr((const char *)argp->key.keydat_val);
+			result.stat = yp_async_lookup_addr(rqstp,
+					(char *)argp->key.keydat_val);
 
-
-		if (rval) {
-			if (debug)
-				yp_error("DNS lookup successful. Result: %s",
-									rval);
-			result.val.valdat_len = strlen(rval);
-			result.val.valdat_val = rval;
-			result.stat = YP_TRUE;
-		} else {
-			if (debug)
-				yp_error("DNS lookup failed.");
-			result.stat = YP_NOKEY;
-		}
+		if (result.stat == YP_TRUE)
+			return(NULL);
 	}
 
 	return (&result);
@@ -216,8 +186,6 @@ ypresp_key_val *
 ypproc_first_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_key_val  result;
-	DBT key, data;
-	DB *dbp;
 
 	result.val.valdat_val = result.key.keydat_val = "";
 	result.val.valdat_len = result.key.keydat_len = 0;
@@ -236,27 +204,13 @@ ypproc_first_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-#ifdef DB_CACHE
-	if ((dbp = yp_open_db_cache(argp->domain, argp->map, NULL, 0)) == NULL) {
-#else
-	if ((dbp = yp_open_db(argp->domain, argp->map)) == NULL) {
-#endif
+	if (yp_select_map(argp->map, argp->domain, &result.key, 0) != YP_TRUE) {
 		result.stat = yp_errno;
 		return(&result);
 	}
 
-	key.data = NULL;
-	key.size = 0;
+	result.stat = yp_firstbykey(&result.key, &result.val);
 
-	if ((result.stat = yp_first_record(dbp, &key, &data, 0)) == YP_TRUE) {
-		result.key.keydat_len = key.size;
-		result.key.keydat_val = key.data;
-		result.val.valdat_len = data.size;
-		result.val.valdat_val = data.data;
-	}
-#ifndef DB_CACHE
-	(void)(dbp->close)(dbp);
-#endif
 	return (&result);
 }
 
@@ -264,8 +218,6 @@ ypresp_key_val *
 ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 {
 	static ypresp_key_val  result;
-	DBT key, data;
-	DB *dbp;
 
 	result.val.valdat_val = result.key.keydat_val = "";
 	result.val.valdat_len = result.key.keydat_len = 0;
@@ -284,29 +236,16 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-#ifdef DB_CACHE
-	if ((dbp = yp_open_db_cache(argp->domain, argp->map, 
-					argp->key.keydat_val,
-					argp->key.keydat_len)) == NULL) {
-#else
-	if ((dbp = yp_open_db(argp->domain, argp->map)) == NULL) {
-#endif
+	if (yp_select_map(argp->map, argp->domain, &argp->key, 0) != YP_TRUE) {
 		result.stat = yp_errno;
 		return(&result);
 	}
 
-	key.size = argp->key.keydat_len;
-	key.data = argp->key.keydat_val;
+	result.key.keydat_len = argp->key.keydat_len;
+	result.key.keydat_val = argp->key.keydat_val;
 
-	if ((result.stat = yp_next_record(dbp, &key, &data,0,0)) == YP_TRUE) {
-		result.key.keydat_len = key.size;
-		result.key.keydat_val = key.data;
-		result.val.valdat_len = data.size;
-		result.val.valdat_val = data.data;
-	}
-#ifndef DB_CACHE
-	(void)(dbp->close)(dbp);
-#endif
+	result.stat = yp_nextbykey(&result.key, &result.val);
+
 	return (&result);
 }
 
@@ -480,16 +419,11 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
 static bool_t
 xdr_my_ypresp_all(register XDR *xdrs, ypresp_all *objp)
 {
-	DBT key = { NULL, 0 } , data = { NULL, 0 };
-
 	while (1) {
 		/* Get a record. */
 		if ((objp->ypresp_all_u.val.stat =
-	    		yp_next_record(spec_dbp,&key,&data,1,0)) == YP_TRUE) {
-			objp->ypresp_all_u.val.val.valdat_len = data.size;
-			objp->ypresp_all_u.val.val.valdat_val = data.data;
-			objp->ypresp_all_u.val.key.keydat_len = key.size;
-			objp->ypresp_all_u.val.key.keydat_val = key.data;
+			yp_nextbykey(&objp->ypresp_all_u.val.key,
+				     &objp->ypresp_all_u.val.val)) == YP_TRUE) {
 			objp->more = TRUE;
 		} else {
 			objp->more = FALSE;
@@ -532,6 +466,16 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	}
 
 	/*
+	 * XXX If we hit the child limit, fail the request.
+	 * If we don't, and the map is large, we could block for
+	 * a long time in the parent.
+	 */
+	if (children >= MAX_CHILDREN) {
+		result.ypresp_all_u.val.stat = YP_YPERR;
+		return(&result);
+	}
+
+	/*
 	 * The ypproc_all procedure can take a while to complete.
 	 * Best to handle it in a subprocess so the parent doesn't
 	 * block. (Is there a better way to do this? Maybe with
@@ -545,24 +489,15 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		forked++;
 	}
 
-#ifndef DB_CACHE
-	if ((spec_dbp = yp_open_db(argp->domain, argp->map)) == NULL) {
+	if (yp_select_map(argp->map, argp->domain,
+				&result.ypresp_all_u.val.key, 0) != YP_TRUE) {
 		result.ypresp_all_u.val.stat = yp_errno;
 		return(&result);
 	}
-#else
-	if ((spec_dbp = yp_open_db_cache(argp->domain, argp->map, NULL, 0)) == NULL) {
-		result.ypresp_all_u.val.stat = yp_errno;
-		return(&result);
-	}
-#endif
 
 	/* Kick off the actual data transfer. */
 	svc_sendreply(rqstp->rq_xprt, xdr_my_ypresp_all, (char *)&result);
 
-#ifndef DB_CACHE
-	(void)(spec_dbp->close)(spec_dbp);
-#endif
 	/*
 	 * Returning NULL prevents the dispatcher from calling
 	 * svc_sendreply() since we already did it.
@@ -575,7 +510,8 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_master  result;
 	static char ypvalbuf[YPMAXRECORD];
-	DBT key = { master_string, master_sz }, data;
+	keydat key = { master_sz, master_string };
+	valdat val;
 
 	result.peer = "";
 
@@ -593,6 +529,11 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
+	if (yp_select_map(argp->map, argp->domain, &key, 1) != YP_TRUE) {
+		result.stat = yp_errno;
+		return(&result);
+	}
+
 	/*
 	 * Note that we copy the data retrieved from the database to
 	 * a private buffer and NUL terminate the buffer rather than
@@ -601,10 +542,11 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * allocated by the DB package. This is a bad thing now that we
 	 * cache DB handles rather than closing the database immediately.
 	 */
-	if ((result.stat = yp_get_record(argp->domain, argp->map,
-						&key, &data, 1)) == YP_TRUE) {
-		bcopy((char *)data.data, (char *)&ypvalbuf, data.size);
-		ypvalbuf[data.size] = '\0';
+	result.stat = yp_getbykey(&key, &val);
+	if (result.stat == YP_TRUE) {
+		bcopy((char *)val.valdat_val, (char *)&ypvalbuf,
+						val.valdat_len);
+		ypvalbuf[val.valdat_len] = '\0';
 		result.peer = (char *)&ypvalbuf;
 	} else
 		result.peer = "";
@@ -616,7 +558,8 @@ ypresp_order *
 ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_order  result;
-	DBT key = { order_string, order_sz }, data;
+	keydat key = { order_sz, order_string };
+	valdat val;
 
 	result.ordernum = 0;
 
@@ -641,12 +584,17 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * updated.
 	 */
 
-	if ((result.stat = yp_get_record(argp->domain, argp->map,
-						&key, &data, 1)) == YP_TRUE)
-		result.ordernum = atoi((char *)data.data);
+	if (yp_select_map(argp->map, argp->domain, &key, 1) != YP_TRUE) {
+		result.stat = yp_errno;
+		return(&result);
+	}
+
+	result.stat = yp_getbykey(&key, &val);
+
+	if (result.stat == YP_TRUE)
+		result.ordernum = atoi((char *)val.valdat_val);
 	else
 		result.ordernum = 0;
-
 
 	return (&result);
 }

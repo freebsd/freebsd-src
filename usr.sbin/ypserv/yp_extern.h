@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.4 1996/04/28 04:38:50 wpaul Exp $
+ *	$Id: yp_extern.h,v 1.9 1996/12/25 18:10:33 wpaul Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -39,7 +39,7 @@
 #include <limits.h>
 #include <db.h>
 #include <rpc/rpc.h>
-
+#include <rpcsvc/yp.h>
 
 #ifndef _PATH_YP
 #define _PATH_YP "/var/yp/"
@@ -64,11 +64,16 @@ extern int	debug;
 extern int	ypdb_debug;
 extern int	do_dns;
 extern int	children;
+extern int	resfd;
 extern char 	*progname;
 extern char	*yp_dir;
-extern int	yp_errno;
+extern enum ypstat	yp_errno;
 extern void	yp_error __P((const char *, ...));
+#ifdef DB_CACHE
+extern int	yp_get_record __P(( DB *, const DBT *, DBT *, int));
+#else
 extern int	yp_get_record __P(( const char *, const char *, const DBT *, DBT *, int));
+#endif
 extern int	yp_first_record __P((const DB *, DBT *, DBT *, int));
 extern int	yp_next_record __P((const DB *, DBT *, DBT *, int, int));
 extern char	*yp_dnsname __P(( char * ));
@@ -85,3 +90,23 @@ extern void	yp_flush_all __P(( void ));
 extern void	yp_init_dbs __P(( void ));
 extern int	yp_testflag __P(( char *, char *, int ));
 extern void	load_securenets __P(( void ));
+
+#ifdef DB_CACHE
+extern ypstat	yp_select_map __P(( char *, char *, keydat *, int ));
+extern ypstat	yp_getbykey __P(( keydat *, valdat * ));
+extern ypstat	yp_firstbykey __P(( keydat *, valdat * ));
+extern ypstat	yp_nextbykey __P(( keydat *, valdat * ));
+#endif
+
+extern unsigned long	svcudp_set_xid __P(( SVCXPRT *, unsigned long ));
+extern unsigned long	svcudp_get_xid __P(( SVCXPRT * ));
+
+#ifndef RESOLVER_TIMEOUT
+#define RESOLVER_TIMEOUT 3600
+#endif
+
+extern int	yp_init_resolver __P(( void ));
+extern void	yp_run_dnsq __P(( void ));
+extern void	yp_prune_dnsq __P(( void ));
+extern ypstat	yp_async_lookup_name __P(( struct svc_req *, char * ));
+extern ypstat	yp_async_lookup_addr __P(( struct svc_req *, char * ));
