@@ -89,58 +89,6 @@ SYSCTL_UINT(_hw_atm, OID_AUTO, natm_pcr, CTLFLAG_RW,
     &hatm_natm_pcr, 0, "PCR for NATM connections");
 
 /*
- * Return a table of VCCs in a freshly allocated memory area.
- * Here we have a problem: we first count, how many vccs we need
- * to return. The we allocate the memory and finally fill it in.
- * Because we cannot lock while calling malloc, the number of active
- * vccs may change while we're in malloc. So we allocate a couple of
- * vccs more and if space anyway is not enough re-iterate.
- */
-static struct atmio_vcctable *
-hatm_getvccs(struct hatm_softc *sc)
-{
-	u_int cid, alloc;
-	size_t len;
-	struct atmio_vcctable *vccs;
-	struct atmio_vcc *v;
-
-	alloc = sc->open_vccs + 10;
-	vccs = NULL;
-
-  again:
-	len = sizeof(*vccs) + alloc * sizeof(vccs->vccs[0]);
-	vccs = reallocf(vccs, len, M_DEVBUF, M_WAITOK);
-	bzero(vccs, len);
-
-	/*
-	 * Fill in
-	 */
-	vccs->count = 0;
-	v = vccs->vccs;
-
-	mtx_lock(&sc->mtx);
-	for (cid = 0; cid < HE_MAX_VCCS; cid++)
-		if (sc->vccs[cid] != NULL &&
-		    (sc->vccs[cid]->vflags & (HE_VCC_RX_OPEN |
-		    HE_VCC_TX_OPEN))) {
-			if (++vccs->count == alloc) {
-				/*
-				 * too many - try again
-				 */
-				break;
-			}
-			*v++ = sc->vccs[cid]->param;
-		}
-	mtx_unlock(&sc->mtx);
-
-	if (cid == HE_MAX_VCCS)
-		return (vccs);
-
-	alloc *= 2;
-	goto again;
-}
-
-/*
  * Try to open the given VCC.
  */
 static int
@@ -420,11 +368,8 @@ hatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	  case SIOCATMGVCCS:
 		/* return vcc table */
-		vtab = hatm_getvccs(sc);
-		if (vtab == NULL) {
-			error = ENOMEM;
-			break;
-		}
+		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
+		    HE_MAX_VCCS, sc->open_vccs, &sc->mtx, 1);
 		error = copyout(vtab, ifr->ifr_data, sizeof(*vtab) +
 		    vtab->count * sizeof(vtab->vccs[0]));
 		free(vtab, M_DEVBUF);
@@ -439,7 +384,9 @@ hatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	  case SIOCATMGETVCCS:	/* netgraph internal use */
-		if ((vtab = hatm_getvccs(sc)) == NULL) {
+		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
+		    HE_MAX_VCCS, sc->open_vccs, &sc->mtx, 0);
+		if (vtab == NULL) {
 			error = ENOMEM;
 			break;
 		}
