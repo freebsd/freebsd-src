@@ -70,7 +70,7 @@
 #
 # just following tradition...
 # %Y년 %b월 %e일 %a요일 %X
-%a %Ex %H:%M:%S %Y
+%a %Ef %H:%M:%S %Y
 #
 # am
 #
@@ -103,6 +103,10 @@ PM
 11월
 12월
 #
-# Ex_fmt
+# Ef_fmt
 #
 %b %e
+#
+# EF_fmt
+#
+%B %e

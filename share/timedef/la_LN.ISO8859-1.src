@@ -65,7 +65,7 @@ dies Saturni
 #
 # c_fmt
 #
-%a %Ex %X %Y
+%a %Ef %X %Y
 #
 # am
 #
@@ -77,7 +77,7 @@ pm
 #
 # date_fmt
 #
-%a %Ex %Y %X %Z
+%a %Ef %Y %X %Z
 #
 # Long months names (alternative)
 #
@@ -94,6 +94,10 @@ October
 November
 December
 #
-# Ex_fmt
+# Ef_fmt
 #
 %e %b
+#
+# EF_fmt
+#
+%e %B
