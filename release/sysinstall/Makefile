@@ -22,9 +22,6 @@ CFLAGS+= -I${.CURDIR}/../../sys
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
-.if ${MACHINE_ARCH} != "i386" || defined(X_AS_PKG)
-CFLAGS+= -DX_AS_PKG
-.endif
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio
