@@ -45,7 +45,6 @@
 .Nd "dump all meta information of an existing ufs file system"
 .Sh SYNOPSIS
 .Nm
-.Op Fl L
 .Op Fl g Ar cylinder_group
 .Op Fl i Ar inode
 .Op Fl l Ar level
@@ -65,9 +64,6 @@ Up to 2 percent of the size of the specified file system is not uncommon.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Fl L
-Specifying this option skips the tests of the disklabel.
-This is done automatically, if the specified filename to dump is a plain file.
 .It Fl g Ar cylinder_group
 This restricts the dump to information about this cylinder group only.
 Here
@@ -104,8 +100,6 @@ inode allocation bitmap
 fragment allocation bitmap
 .It Ar 0x040
 cluster maps and summary
-.It Ar 0x080
-rotational layout tables
 .It Ar 0x100
 inode information
 .It Ar 0x200
@@ -126,13 +120,7 @@ will dump
 .Pa /dev/vinum/testvol
 with all available information.
 .Sh BUGS
-Currently
-.Nm
-can only dump unmounted file systems.
-Do not try dumping a mounted file system, your system may panic and you will
-not be able to use the file system any longer.
-.Pp
-Also snapshots are handled like plain files.
+Snapshots are handled like plain files.
 They should get their own level to provide for independent control of the
 amount of what gets dumped.
 It probably also makes sense to some extend to dump the snapshot as a
