@@ -49,6 +49,62 @@ usage_show(void)
 	exit(1);
 }
 
+static void
+show(int fd __unused)
+{
+	off_t end;
+	map_t *m;
+	struct mbr_part *part;
+	struct gpt_ent *ent;
+	char *s;
+
+	printf("  %*s", lbawidth, "start");
+	printf("  %*s", lbawidth, "end");
+	printf("  %*s", lbawidth, "size");
+	printf("  %s\n", "contents");
+
+	m = map_first();
+	while (m != NULL) {
+		end = m->map_start + m->map_size - 1;
+		printf("  %*llu", lbawidth, (long long)m->map_start);
+		printf("  %*llu", lbawidth, (long long)end);
+		printf("  %*llu", lbawidth, (long long)m->map_size);
+
+		putchar(' '); putchar(' ');
+		switch (m->map_type) {
+		case MAP_TYPE_MBR:
+			printf("MBR");
+			break;
+		case MAP_TYPE_PRI_GPT_HDR:
+			printf("Pri GPT header");
+			break;
+		case MAP_TYPE_SEC_GPT_HDR:
+			printf("Sec GPT header");
+			break;
+		case MAP_TYPE_PRI_GPT_TBL:
+			printf("Pri GPT table");
+			break;
+		case MAP_TYPE_SEC_GPT_TBL:
+			printf("Sec GPT table");
+			break;
+		case MAP_TYPE_MBR_PART:
+			printf("MBR partition: ");
+			part = m->map_data;
+			printf("type=%d", part->part_typ);
+			break;
+		case MAP_TYPE_GPT_PART:
+			printf("GPT partition: ");
+			ent = m->map_data;
+			uuid_to_string(&ent->ent_type, &s, NULL);
+			printf("type=%s", s);
+			free(s);
+			break;
+		}
+		putchar('\n');
+		m = m->map_next;
+	}
+}
+
 int
 cmd_show(int argc, char *argv[])
 {
@@ -71,7 +127,7 @@ cmd_show(int argc, char *argv[])
 			continue;
 		}
 
-		map_dump();
+		show(fd);
 
 		gpt_close(fd);
 	}

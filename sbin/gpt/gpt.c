@@ -127,18 +127,62 @@ unicode16(short *dst, const wchar_t *src, size_t len)
 		*dst = 0;
 }
 
-static char *
-uuid_string(uuid_t *uuid)
+#ifdef NEED_UUID_FUNCTIONS
+void
+uuid_create(uuid_t *u, uint32_t *st __unused)
 {
-	static char buf[48];
+	uuidgen(u, 1);
+}
+
+void
+uuid_from_string(const char *s, uuid_t *u, uint32_t *st)
+{
+	int n;
+
+	*st = uuid_s_invalid_string_uuid;
+
+	if (strlen(s) != 36 || s[8] != '-')
+		return;
+
+	n = sscanf(s,
+	    "%8x-%4hx-%4hx-%2hhx%2hhx-%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
+	    &u->time_low, &u->time_mid, &u->time_hi_and_version,
+	    &u->clock_seq_hi_and_reserved, &u->clock_seq_low, &u->node[0],
+	    &u->node[1], &u->node[2], &u->node[3], &u->node[4], &u->node[5]);
+
+	if (n != 11)
+		return;
+
+	n = u->clock_seq_hi_and_reserved;
+	if ((n & 0x80) != 0x00 &&			/* variant 0? */
+	    (n & 0xc0) != 0x80 &&			/* variant 1? */
+	    (n & 0xe0) != 0xc0)				/* variant 2? */
+		*st = uuid_s_bad_version;
+	else
+		*st = uuid_s_ok;
+}
+
+int32_t
+uuid_is_nil(uuid_t *u, uint32_t *st __unused)
+{
+	uint32_t *p;
+
+	p = (uint32_t*)u;
+	return ((p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 0) ? 1 : 0);
+}
+
+void
+uuid_to_string(uuid_t *u, char **s, uint32_t *st __unused)
+{
+	char buf[40];
 
 	sprintf(buf, "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-	    uuid->time_low, uuid->time_mid, uuid->time_hi_and_version,
-	    uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low,
-	    uuid->node[0], uuid->node[1], uuid->node[2], uuid->node[3],
-	    uuid->node[4], uuid->node[5]);
-	return buf;
+	    u->time_low, u->time_mid, u->time_hi_and_version,
+	    u->clock_seq_hi_and_reserved, u->clock_seq_low, u->node[0],
+	    u->node[1], u->node[2], u->node[3], u->node[4], u->node[5]);
+	*s = strdup(buf);
 }
+#endif
 
 void*
 gpt_read(int fd, off_t lba, size_t count)
@@ -180,7 +224,7 @@ gpt_gpt(int fd, off_t lba)
 	off_t size;
 	struct gpt_ent *ent;
 	struct gpt_hdr *hdr;
-	char *p;
+	char *p, *s;
 	map_t *m;
 	size_t blocks, tblsz;
 	unsigned int i;
@@ -235,20 +279,19 @@ gpt_gpt(int fd, off_t lba)
 		return (0);
 
 	for (i = 0; i < hdr->hdr_entries; i++) {
-		uuid_t unused = GPT_ENT_TYPE_UNUSED;
-
 		ent = (void*)(p + i * hdr->hdr_entsz);
-		if (!memcmp(&ent->ent_type, &unused, sizeof(uuid_t)))
+		if (uuid_is_nil(&ent->ent_type, NULL))
 			continue;
 
 		size = ent->ent_lba_end - ent->ent_lba_start + 1LL;
-
-		if (verbose > 2)
+		if (verbose > 2) {
+			uuid_to_string(&ent->ent_type, &s, NULL);
 			warnx(
-	"%s: GPT partition: type=%s, start=%llu, size=%llu",
-			    device_name, uuid_string(&ent->ent_type),
+	"%s: GPT partition: type=%s, start=%llu, size=%llu", device_name, s,
 			    (long long)ent->ent_lba_start, (long long)size);
-		m = map_add(ent->ent_lba_start, size, MAP_TYPE_GPT_PART, NULL);
+			free(s);
+		}
+		m = map_add(ent->ent_lba_start, size, MAP_TYPE_GPT_PART, ent);
 		if (m == NULL)
 			return (-1);
 	}
@@ -338,19 +381,18 @@ gpt_open(const char *dev)
 			start = (start << 16) + mbr->mbr_part[i].part_start_lo;
 			size = mbr->mbr_part[i].part_size_hi;
 			size = (size << 16) + mbr->mbr_part[i].part_size_lo;
-			if (start != 0 || size != 0) {
-				if (verbose > 2)
-					warnx(
-	"%s: MBR partition: type=%d, start=%llu, size=%llu", device_name,
-					    mbr->mbr_part[i].part_typ,
-					    (long long)start, (long long)size);
-				if (mbr->mbr_part[i].part_typ != 0xee) {
-					m = map_add(start, size,
-					    MAP_TYPE_MBR_PART, NULL);
-					if (m == NULL)
-						goto close;
-				}
-			}
+			if (start == 0 && size == 0)
+				continue;
+			if (verbose > 2)
+				warnx("%s: MBR partition: type=%d, start=%llu, size=%llu",
+				    device_name, mbr->mbr_part[i].part_typ,
+				    (long long)start, (long long)size);
+			if (mbr->mbr_part[i].part_typ == 0xee)
+				continue;
+			m = map_add(start, size, MAP_TYPE_MBR_PART,
+			    mbr->mbr_part + i);
+			if (m == NULL)
+				goto close;
 		}
 	} else {
 		if (verbose)
@@ -384,7 +426,7 @@ static struct {
 	int (*fptr)(int, char *[]);
 	const char *name;
 } cmdsw[] = {
-	{ NULL, "add" },
+	{ cmd_add, "add" },
 	{ cmd_create, "create" },
 	{ NULL, "delete" },
 	{ cmd_destroy, "destroy" },
