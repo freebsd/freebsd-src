@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1994/12/18 19:14:08 bde Exp $
+#	$Id: Makefile,v 1.24 1995/01/20 07:48:14 wpaul Exp $
 #
 
 PROG=	boot
@@ -10,7 +10,7 @@ BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=		-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../.. -DRB_SERIAL=0x1000
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2
 DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
