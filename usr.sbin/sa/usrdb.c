@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: usrdb.c,v 1.6 1997/10/15 06:41:19 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -133,13 +133,13 @@ usracct_add(ci)
 
 	rv = DB_GET(usracct_db, &key, &data, 0);
 	if (rv < 0) {
-		warn("get key %d from user accounting stats", uid);
+		warn("get key %lu from user accounting stats", uid);
 		return (-1);
 	} else if (rv == 0) {	/* it's there; copy whole thing */
 		/* add the old data to the new data */
 		bcopy(data.data, &newui, data.size);
 		if (newui.ui_uid != uid) {
-			warnx("key %d != expected record number %d",
+			warnx("key %lu != expected record number %lu",
 			    newui.ui_uid, uid);
 			warnx("inconsistent user accounting stats");
 			return (-1);
@@ -159,7 +159,7 @@ usracct_add(ci)
 	data.size = sizeof newui;
 	rv = DB_PUT(usracct_db, &key, &data, 0);
 	if (rv < 0) {
-		warn("add key %d to user accounting stats", uid);
+		warn("add key %lu to user accounting stats", uid);
 		return (-1);
 	} else if (rv != 0) {
 		warnx("DB_PUT returned 1");
@@ -254,7 +254,7 @@ usracct_print()
 
 		/* t is always >= 0.0001; see above */
 		if (kflag)
-			printf("%12qu%s", ui->ui_mem / t, "k");
+			printf("%12.0f%s", ui->ui_mem / t, "k");
 		else
 			printf("%12qu%s", ui->ui_mem, "k*sec");
 
