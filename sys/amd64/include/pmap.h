@@ -70,7 +70,7 @@
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2
-#define	PG_FRAME	(~PAGE_MASK)
+#define	PG_FRAME	(~((vm_paddr_t)PAGE_MASK))
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
@@ -168,10 +168,11 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  *		Extract the physical page address associated
  *		kernel virtual address.
  */
-static __inline vm_offset_t
+static __inline vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	vm_offset_t pa;
+	vm_paddr_t pa;
+
 	if ((pa = (vm_offset_t) PTD[va >> PDRSHIFT]) & PG_PS) {
 		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
 	} else {
@@ -237,19 +238,19 @@ extern struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
 
 extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;
-extern vm_offset_t avail_end;
-extern vm_offset_t avail_start;
+extern vm_paddr_t avail_end;
+extern vm_paddr_t avail_start;
 extern vm_offset_t clean_eva;
 extern vm_offset_t clean_sva;
-extern vm_offset_t phys_avail[];
+extern vm_paddr_t phys_avail[];
 extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap(vm_offset_t, vm_offset_t);
-void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
+void	pmap_bootstrap(vm_paddr_t, vm_paddr_t);
+void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kremove(vm_offset_t);
-void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t) __pure2;
 void	pmap_set_opt(void);

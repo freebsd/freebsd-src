@@ -104,7 +104,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 {
 	struct sf_buf *sf;
 	vm_page_t pp;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	struct iovec *iov;
 	struct vmspace *vmspace;
 	struct vm_map *map;

@@ -3,7 +3,7 @@
  */
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-static int DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, vm_offset_t *paddr, 
+static int DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, vm_paddr_t *paddr, 
     int prot)
 #elif defined(__FreeBSD__)
 static int DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, int prot)
@@ -32,7 +32,7 @@ static paddr_t DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, int prot)
 }
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-int DRM(mmap)(dev_t kdev, vm_offset_t offset, vm_offset_t *paddr, 
+int DRM(mmap)(dev_t kdev, vm_offset_t offset, vm_paddr_t *paddr, 
     int prot)
 #elif defined(__FreeBSD__)
 int DRM(mmap)(dev_t kdev, vm_offset_t offset, int prot)

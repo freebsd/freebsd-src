@@ -434,7 +434,7 @@ tdfx_close(dev_t dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-tdfx_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+tdfx_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	/* 
 	 * mmap(2) is called by a user process to request that an area of memory

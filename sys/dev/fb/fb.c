@@ -498,7 +498,7 @@ fbioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 static int
-fbmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+fbmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	int unit;
 

@@ -3384,7 +3384,7 @@ next_code:
 }
 
 static int
-scmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+scmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
     scr_stat *scp;
 

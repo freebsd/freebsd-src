@@ -135,7 +135,7 @@ int
 nommap(dev, offset, paddr, nprot)
 	dev_t dev;
 	vm_offset_t offset;
-	vm_offset_t *paddr;
+	vm_paddr_t *paddr;
 	int nprot;
 {
 

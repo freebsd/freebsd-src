@@ -46,7 +46,7 @@ jumbo_phys_to_kva(vm_offset_t pa)
 
 	pg = PHYS_TO_VM_PAGE(pa);
 	pg->flags &= ~PG_BUSY;
-	return (caddr_t)(ptoa(pg->pindex) + jumbo_basekva);
+	return (caddr_t)(ptoa((vm_offset_t)pg->pindex) + jumbo_basekva);
 }
 
 int		jumbo_vm_init(void);

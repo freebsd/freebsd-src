@@ -1980,7 +1980,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		vm_pindex_t idx, fidx;
 		vm_pindex_t osize;
-		vm_offset_t pa = -1, padiff;
+		vm_paddr_t pa = -1, padiff;
 		int rcount;
 		vm_page_t m;
 

@@ -939,7 +939,7 @@ ed_probe_SIC98(dev, port_rid, flags)
 	for (i = 0; i < sc->mem_size; i++) {
 		if (sc->mem_start[i]) {
 			device_printf(dev, "failed to clear shared memory "
-				"at %lx - check configuration\n",
+				"at %x - check configuration\n",
 				kvtop(sc->mem_start + i));
 
 			return (ENXIO);
@@ -1112,7 +1112,7 @@ ed_probe_CNET98(dev, port_rid, flags)
 	/* Check window area address */
 	tmp_s = kvtop(sc->mem_start) >> 12;
 	if (tmp_s < 0x80) {
-		device_printf(dev, "Please change window address(0x%lx)\n",
+		device_printf(dev, "Please change window address(0x%x)\n",
 			kvtop(sc->mem_start));
 		return (ENXIO);
 	}
@@ -1121,7 +1121,7 @@ ed_probe_CNET98(dev, port_rid, flags)
 	tmp    = rman_get_start(sc->port_res) >> 12;
 	if ((tmp_s <= tmp) && (tmp < (tmp_s + 4))) {
 		device_printf(dev, "Please change iobase address(0x%lx) "
-			"or window address(0x%lx)\n",
+			"or window address(0x%x)\n",
 	   		rman_get_start(sc->port_res), kvtop(sc->mem_start));
 		return (ENXIO);
 	}
@@ -1173,7 +1173,7 @@ ed_probe_CNET98(dev, port_rid, flags)
 	for (i = 0; i < sc->mem_size; i++) {
 		if (sc->mem_start[i]) {
 			device_printf(dev, "failed to clear shared memory "
-				"at %lx - check configuration\n",
+				"at %x - check configuration\n",
 				kvtop(sc->mem_start + i));
 
 			return (ENXIO);
