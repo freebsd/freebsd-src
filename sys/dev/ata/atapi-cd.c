@@ -734,7 +734,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			       sizeof(cdp->subchan)>>8, sizeof(cdp->subchan),
 			       0, 0, 0, 0, 0, 0, 0 };
 
-	    if (args->data_len > sizeof(data) ||
+	    if (args->data_len > sizeof(struct cd_sub_channel_info) ||
 		args->data_len < sizeof(struct cd_sub_channel_header)) {
 		error = EINVAL;
 		break;
@@ -1410,9 +1410,7 @@ acd_select_slot(struct acd_softc *cdp)
 static int
 acd_init_writer(struct acd_softc *cdp, int test_write)
 {
-    struct write_param param;
     int8_t ccb[16];
-    int error;
 
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_REZERO;
@@ -1420,23 +1418,7 @@ acd_init_writer(struct acd_softc *cdp, int test_write)
     ccb[0] = ATAPI_SEND_OPC_INFO;
     ccb[1] = 0x01;
     atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 30, NULL, NULL);
-
-    if ((error = acd_mode_sense(cdp, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
-				(caddr_t)&param, sizeof(param))))
-	return error;
-    param.data_length = 0;
-    param.page_code = ATAPI_CDROM_WRITE_PARAMETERS_PAGE;
-    param.page_length = 0x32;
-    param.test_write = test_write ? 1 : 0;
-    param.write_type = CDR_WTYPE_SESSION;
-    param.session_type = CDR_SESS_NONE;
-    param.fp = 0;
-    param.packet_size = 0;
-    param.track_mode = CDR_TMODE_AUDIO;
-    param.datablock_type = CDR_DB_RAW;
-    param.session_format = CDR_SESS_CDROM;
-
-    return acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10);
+    return 0;
 }
 
 static int
@@ -1616,6 +1598,7 @@ acd_get_progress(struct acd_softc *cdp, int *finished)
 static int
 acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
 {
+    struct write_param param;
     int8_t ccb[16] = { ATAPI_SEND_CUE_SHEET, 0, 0, 0, 0, 0, 
 		       cuesheet->len>>16, cuesheet->len>>8, cuesheet->len,
 		       0, 0, 0, 0, 0, 0, 0 };
@@ -1624,6 +1607,24 @@ acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
 #ifdef ACD_DEBUG
     int i;
 #endif
+
+    if ((error = acd_mode_sense(cdp, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
+				(caddr_t)&param, sizeof(param))))
+	return error;
+    param.data_length = 0;
+    param.page_code = ATAPI_CDROM_WRITE_PARAMETERS_PAGE;
+    param.page_length = 0x32;
+    param.test_write = cuesheet->test_write ? 1 : 0;
+    param.write_type = CDR_WTYPE_SESSION;
+    param.session_type = CDR_SESS_NONE;
+    param.fp = 0;
+    param.packet_size = 0;
+    param.track_mode = CDR_TMODE_AUDIO;
+    param.datablock_type = CDR_DB_RAW;
+    param.session_format = CDR_SESS_CDROM;
+    if ((error = acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10)))
+	return error;
+
     buffer = malloc(cuesheet->len, M_ACD, M_NOWAIT);
     if (!buffer)
 	return ENOMEM;
