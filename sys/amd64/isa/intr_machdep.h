@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.9 1998/02/13 06:59:22 bde Exp $
+ *	$Id: intr_machdep.h,v 1.10 1998/03/03 20:55:24 tegge Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -116,6 +116,9 @@
 /* IPI to generate an additional software trap at the target CPU */
 #define XCPUAST_OFFSET		(ICU_OFFSET +  48)
 
+/* IPI to signal the CPU holding the ISR lock that another IRQ has appeared */
+#define XFORWARD_IRQ_OFFSET	(ICU_OFFSET +  49)
+
 /* IPI to signal CPUs to stop and wait for another CPU to restart them */
 #define XCPUSTOP_OFFSET		(ICU_OFFSET + 128)
 
@@ -174,6 +177,7 @@ inthand_t
 	Xcpucheckstate,	/* Check cpu state */
 #endif
 	Xcpuast,	/* Additional software trap on other cpu */ 
+	Xforward_irq,	/* Forward irq to cpu holding ISR lock */
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
 	Xspuriousint;	/* handle APIC "spurious INTs" */
 

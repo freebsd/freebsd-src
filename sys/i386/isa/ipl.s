@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.18 1997/10/13 00:01:53 fsmp Exp $
+ *	$Id: ipl.s,v 1.19 1997/12/15 02:18:35 tegge Exp $
  */
 
 
@@ -263,6 +263,9 @@ doreti_unpend:
 	cli
 #ifdef SMP
 	pushl	%edx			/* preserve %edx */
+#ifdef APIC_INTR_DIAGNOSTIC
+	pushl	%ecx
+#endif
 	pushl	%eax			/* preserve %eax */
 	ICPL_LOCK
 #ifdef CPL_AND_CML
@@ -271,11 +274,32 @@ doreti_unpend:
 	popl	_cpl
 #endif
 	FAST_ICPL_UNLOCK
+#ifdef APIC_INTR_DIAGNOSTIC
+	popl	%ecx
+#endif
 	popl	%edx
 #else
 	movl	%eax,_cpl
 #endif
 	MEXITCOUNT
+#ifdef APIC_INTR_DIAGNOSTIC
+	lock
+	incl	CNAME(apic_itrace_doreti)(,%ecx,4)
+#ifdef APIC_INTR_DIAGNOSTIC_IRQ	
+	cmpl	$APIC_INTR_DIAGNOSTIC_IRQ,%ecx
+	jne	9f
+	pushl	%eax
+	pushl	%ecx
+	pushl	%edx
+	pushl	$APIC_ITRACE_DORETI
+	call	log_intr_event
+	addl	$4,%esp
+	popl	%edx
+	popl	%ecx
+	popl	%eax
+9:	
+#endif
+#endif
 	jmp	%edx
 
 	ALIGN_TEXT
