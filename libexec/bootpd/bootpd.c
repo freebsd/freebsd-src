@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.7 1997/05/11 14:27:03 phk Exp $
+	$Id: bootpd.c,v 1.8 1998/06/03 20:01:28 joerg Exp $
 
 ************************************************************************/
 
@@ -833,7 +833,7 @@ HW addr type is IEEE 802.  convert to %s and check again\n",
 	 * daemon chroot directory (i.e. /tftpboot).
 	 */
 	if (hp->flags.tftpdir) {
-		strcpy(realpath, hp->tftpdir->string);
+		snprintf(realpath, sizeof(realpath), "%s", hp->tftpdir->string);
 		clntpath = &realpath[strlen(realpath)];
 	} else {
 		realpath[0] = '\0';
