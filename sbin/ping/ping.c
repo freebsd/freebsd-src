@@ -217,6 +217,7 @@ main(argc, argv)
 	char *policy_in = NULL;
 	char *policy_out = NULL;
 #endif
+	int alarmtimeout = 0;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -233,10 +234,10 @@ main(argc, argv)
 
 	datap = &outpack[8 + PHDR_LEN];
 #ifndef IPSEC
-	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:v")) != -1)
+	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:t:v")) != -1)
 #else
 #ifdef IPSEC_POLICY_IPSEC
-	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:vP:")) != -1)
+	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:t:vP:")) != -1)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	{
@@ -339,6 +340,13 @@ main(argc, argv)
 			break;
 		case 'S':
 			source = optarg;
+			break;
+		case 't':
+			alarmtimeout = (int)strtoul(optarg, &ep, 0);
+			if (alarmtimeout < 1)
+				errx(EX_USAGE, "invalid timeout: `%s'",
+				    optarg);
+			alarm(alarmtimeout);
 			break;
 		case 'T':		/* multicast TTL */
 			ultmp = strtoul(optarg, &ep, 0);
@@ -558,6 +566,9 @@ main(argc, argv)
 	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
 		err(EX_OSERR, "sigaction");
 	}
+	si_sa.sa_handler = stopit;
+	if (sigaction(SIGALRM, &si_sa, 0) == -1)
+		err(EX_OSERR, "sigaction SIGALRM");
 
 	bzero(&msg, sizeof(msg));
 	msg.msg_name = (caddr_t)&from;
@@ -1391,7 +1402,7 @@ usage()
 "[-P policy] "
 #endif
 #endif
-"[-s packetsize] [-S src_addr]",
-		"[host | [-L] [-I iface] [-T ttl] mcast-group]");
+"[-s packetsize] [-S src_addr] [-t timeout]",
+"            [host | [-L] [-I iface] [-T ttl] mcast-group]");
 	exit(EX_USAGE);
 }
