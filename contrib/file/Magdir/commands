@@ -13,6 +13,8 @@
 
 #
 # zsh/ash/ae/nawk/gawk magic from cameron@cs.unsw.oz.au (Cameron Simpson)
+0	string/b	#!\ /bin/zsh		Paul Falstad's zsh script text executable
+0	string/b	#!\ /usr/bin/zsh	Paul Falstad's zsh script text executable
 0	string/b	#!\ /usr/local/bin/zsh	Paul Falstad's zsh script text executable
 0	string/b	#!\ /usr/local/bin/ash	Neil Brown's ash script text executable
 0	string/b	#!\ /usr/local/bin/ae	Neil Brown's ae script text executable
@@ -39,17 +41,6 @@
 >15	string		>\0			%s script text executable
 0	string		#!\ /usr/bin/env	a
 >16	string		>\0			%s script text executable
-
-
-# generic shell magic
-0	string		#!\ /			a
->3	string		>\0			%s script text executable
-0	string		#!\	/		a
->3	string		>\0			%s script text executable
-0	string		#!/			a
->2	string		>\0			%s script text executable
-0	string		#!\ 			script text executable
->3	string		>\0			for %s
 
 # PHP scripts
 # Ulf Harnhammar <ulfh@update.uu.se>

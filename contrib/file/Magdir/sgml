@@ -4,14 +4,21 @@
 # HyperText Markup Language (HTML) is an SGML document type,
 # from Daniel Quinlan (quinlan@yggdrasil.com)
 # adapted to string extenstions by Anthon van der Neut <anthon@mnt.org)
-0   string/cB	\<!doctype\ html	HTML document text
+0   string/cB	\<!DOCTYPE\ html	HTML document text
 0   string/cb	\<head			HTML document text
 0   string/cb	\<title			HTML document text
 0   string/cb	\<html			HTML document text
 
 # Extensible markup language (XML), a subset of SGML
 # from Marc Prud'hommeaux (marc@apocalypse.org)
-0   string/cb	\<?xml			XML document text
+0	string/cb	\<?xml			XML document text
+0	string		\<?xml\ version "	XML
+0	string		\<?xml\ version="	XML
+>15	string		>\0			%.3s document text
+>>23	string		\<xsl:stylesheet	(XSL stylesheet)
+>>24	string		\<xsl:stylesheet	(XSL stylesheet)
+0	string/b	\<?xml			XML document text
+0	string/cb	\<?xml			broken XML document text
 
 
 # SGML, mostly from rph@sq

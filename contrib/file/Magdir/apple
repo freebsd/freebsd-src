@@ -28,6 +28,13 @@
 >12	belong	&0x02000000	UseFasterCompression,
 >16	belong	x		version %d
 
+0	string	package4	Newton package,
+>8	byte	8		NOS 1.x,
+>8	byte	9		NOS 2.x,
+>12	belong	&0x80000000	AutoRemove,
+>12	belong	&0x40000000	CopyProtect,
+>12	belong	&0x10000000	NoCompression,
+
 # The following entries for the Apple II are for files that have
 # been transferred as raw binary data from an Apple, without having
 # been encapsulated by any of the above archivers.
@@ -120,3 +127,24 @@
 # Beagle Bros. Apple Mechanic fonts
 
 0	belong&0xFF00FFFF	0x6400D000	Apple Mechanic font
+
+# Apple Universal Disk Image Format (UDIF) - dmg files.
+# From Johan Gade.
+# These entries are disabled for now until we fix the following issues.
+#
+# Note there might be some problems with the "VAX COFF executable" 
+# entry. Note this entry should be placed before the mac filesystem section, 
+# particularly the "Apple Partition data" entry.
+#
+# The intended meaning of these tests is, that the file is only of the 
+# specified type if both of the lines are correct - i.e. if the first
+# line matches and the second doesn't then it is not of that type.
+#
+#0	long	0x7801730d
+#>4	long	0x62626060	UDIF read-only zlib-compressed image (UDZO)
+#
+# Note that this entry is recognized correctly by the "Apple Partition 
+# data" entry - however since this entry is more specific - this
+# information seems to be more useful.
+#0	long	0x45520200
+#>0x410	string	disk\ image	UDIF read/write image (UDRW)

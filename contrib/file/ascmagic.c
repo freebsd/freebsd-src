@@ -1,9 +1,38 @@
 /*
+ * Copyright (c) Ian F. Darwin 1986-1995.
+ * Software written by Ian F. Darwin and others;
+ * maintained 1995-present by Christos Zoulas and others.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    This product includes software developed by Ian F. Darwin and others.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *  
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+/*
  * ASCII magic -- file types that we know based on keywords
  * that can appear anywhere in the file.
- *
- * Copyright (c) Ian F. Darwin, 1987.
- * Written by Ian F. Darwin.
  *
  * Extensively modified by Eric Fischer <enf@pobox.com> in July, 2000,
  * to handle character codes other than ASCII on a unified basis.
@@ -12,29 +41,9 @@
  * international characters, now subsumed into this file.
  */
 
-/*
- * This software is not subject to any license of the American Telephone
- * and Telegraph Company or of the Regents of the University of California.
- *
- * Permission is granted to anyone to use this software for any purpose on
- * any computer system, and to alter it and redistribute it freely, subject
- * to the following restrictions:
- *
- * 1. The author is not responsible for the consequences of use of this
- *    software, no matter how awful, even if they arise from flaws in it.
- *
- * 2. The origin of this software must not be misrepresented, either by
- *    explicit claim or by omission.  Since few users ever read sources,
- *    credits must appear in the documentation.
- *
- * 3. Altered versions must be plainly marked as such, and must not be
- *    misrepresented as being the original software.  Since few users
- *    ever read sources, credits must appear in the documentation.
- *
- * 4. This notice may not be removed or altered.
- */
-
 #include "file.h"
+#include "magic.h"
+#include <stdio.h>
 #include <string.h>
 #include <memory.h>
 #include <ctype.h>
@@ -45,7 +54,7 @@
 #include "names.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: ascmagic.c,v 1.33 2003/02/08 18:33:53 christos Exp $")
+FILE_RCSID("@(#)$Id: ascmagic.c,v 1.40 2003/11/20 00:25:39 christos Exp $")
 #endif	/* lint */
 
 typedef unsigned long unichar;
@@ -54,29 +63,29 @@ typedef unsigned long unichar;
 #define ISSPC(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n' \
 		  || (x) == 0x85 || (x) == '\f')
 
-static int looks_ascii(const unsigned char *, int, unichar *, int *);
-static int looks_utf8(const unsigned char *, int, unichar *, int *);
-static int looks_unicode(const unsigned char *, int, unichar *, int *);
-static int looks_latin1(const unsigned char *, int, unichar *, int *);
-static int looks_extended(const unsigned char *, int, unichar *, int *);
-static void from_ebcdic(const unsigned char *, int, unsigned char *);
-static int ascmatch(const unsigned char *, const unichar *, int);
+private int looks_ascii(const unsigned char *, size_t, unichar *, size_t *);
+private int looks_utf8(const unsigned char *, size_t, unichar *, size_t *);
+private int looks_unicode(const unsigned char *, size_t, unichar *, size_t *);
+private int looks_latin1(const unsigned char *, size_t, unichar *, size_t *);
+private int looks_extended(const unsigned char *, size_t, unichar *, size_t *);
+private void from_ebcdic(const unsigned char *, size_t, unsigned char *);
+private int ascmatch(const unsigned char *, const unichar *, size_t);
 
-/* int nbytes: size actually read */
-int
-ascmagic(unsigned char *buf, int nbytes)
+
+protected int
+file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 {
-	int i;
+	size_t i;
 	unsigned char nbuf[HOWMANY+1];	/* one extra for terminating '\0' */
 	unichar ubuf[HOWMANY+1];	/* one extra for terminating '\0' */
-	int ulen;
+	size_t ulen;
 	struct names *p;
 
-	char *code = NULL;
-	char *code_mime = NULL;
-	char *type = NULL;
-	char *subtype = NULL;
-	char *subtype_mime = NULL;
+	const char *code = NULL;
+	const char *code_mime = NULL;
+	const char *type = NULL;
+	const char *subtype = NULL;
+	const char *subtype_mime = NULL;
 
 	int has_escapes = 0;
 	int has_backspace = 0;
@@ -90,26 +99,16 @@ ascmagic(unsigned char *buf, int nbytes)
 	int has_long_lines = 0;
 
 	/*
-	 * Do the tar test first, because if the first file in the tar
-	 * archive starts with a dot, we can confuse it with an nroff file.
-	 */
-	switch (is_tar(buf, nbytes)) {
-	case 1:
-		ckfputs(iflag ? "application/x-tar" : "tar archive", stdout);
-		return 1;
-	case 2:
-		ckfputs(iflag ? "application/x-tar, POSIX"
-				: "POSIX tar archive", stdout);
-		return 1;
-	}
-
-	/*
 	 * Undo the NUL-termination kindly provided by process()
 	 * but leave at least one byte to look at
 	 */
 
 	while (nbytes > 1 && buf[nbytes - 1] == '\0')
 		nbytes--;
+
+	/* nbuf and ubuf relies on this */
+	if (nbytes > HOWMANY)
+		nbytes = HOWMANY;
 
 	/*
 	 * Then try to determine whether it's any character code we can
@@ -125,7 +124,7 @@ ascmagic(unsigned char *buf, int nbytes)
 		code = "UTF-8 Unicode";
 		code_mime = "utf-8";
 		type = "text";
-	} else if ((i = looks_unicode(buf, nbytes, ubuf, &ulen))) {
+	} else if ((i = looks_unicode(buf, nbytes, ubuf, &ulen)) != 0) {
 		if (i == 1)
 			code = "Little-endian UTF-16 Unicode";
 		else
@@ -171,8 +170,10 @@ ascmagic(unsigned char *buf, int nbytes)
 		while (ISSPC(*tp))
 			++tp;	/* skip leading whitespace */
 		if ((tp[0] == '\\' && tp[1] == '\"') ||
-		    (isascii(tp[0]) && isalnum(tp[0]) &&
-		     isascii(tp[1]) && isalnum(tp[1]) &&
+		    (isascii((unsigned char)tp[0]) &&
+		     isalnum((unsigned char)tp[0]) &&
+		     isascii((unsigned char)tp[1]) &&
+		     isalnum((unsigned char)tp[1]) &&
 		     ISSPC(tp[2]))) {
 			subtype_mime = "text/troff";
 			subtype = "troff or preprocessor input";
@@ -190,7 +191,7 @@ ascmagic(unsigned char *buf, int nbytes)
 
 	i = 0;
 	while (i < ulen) {
-		int end;
+		size_t end;
 
 		/*
 		 * skip past any leading space
@@ -211,7 +212,7 @@ ascmagic(unsigned char *buf, int nbytes)
 		 * compare the word thus isolated against the token list
 		 */
 		for (p = names; p < names + NNAMES; p++) {
-			if (ascmatch((unsigned char *)p->name, ubuf + i,
+			if (ascmatch((const unsigned char *)p->name, ubuf + i,
 			    end - i)) {
 				subtype = types[p->type].human;
 				subtype_mime = types[p->type].mime;
@@ -244,7 +245,7 @@ subtype_identified:
 			n_cr++;
 			last_line_end = i;
 		}
-		if (ubuf[i] == '\n' && (i - 1 <  0    || ubuf[i - 1] != '\r')) {
+		if (ubuf[i] == '\n' && ((int)i - 1 < 0 || ubuf[i - 1] != '\r')){
 			n_lf++;
 			last_line_end = i;
 		}
@@ -254,29 +255,40 @@ subtype_identified:
 		}
 	}
 
-	if (iflag) {
-		if (subtype_mime)
-			ckfputs(subtype_mime, stdout);
-		else
-			ckfputs("text/plain", stdout);
+	if ((ms->flags & MAGIC_MIME)) {
+		if (subtype_mime) {
+			if (file_printf(ms, subtype_mime) == -1)
+				return -1;
+		} else {
+			if (file_printf(ms, "text/plain") == -1)
+				return -1;
+		}
 
 		if (code_mime) {
-			ckfputs("; charset=", stdout);
-			ckfputs(code_mime, stdout);
+			if (file_printf(ms, "; charset=") == -1)
+				return -1;
+			if (file_printf(ms, code_mime) == -1)
+				return -1;
 		}
 	} else {
-		ckfputs(code, stdout);
+		if (file_printf(ms, code) == -1)
+			return -1;
 
 		if (subtype) {
-			ckfputs(" ", stdout);
-			ckfputs(subtype, stdout);
+			if (file_printf(ms, " ") == -1)
+				return -1;
+			if (file_printf(ms, subtype) == -1)
+				return -1;
 		}
 
-		ckfputs(" ", stdout);
-		ckfputs(type, stdout);
+		if (file_printf(ms, " ") == -1)
+			return -1;
+		if (file_printf(ms, type) == -1)
+			return -1;
 
 		if (has_long_lines)
-			ckfputs(", with very long lines", stdout);
+			if (file_printf(ms, ", with very long lines") == -1)
+				return -1;
 
 		/*
 		 * Only report line terminators if we find one other than LF,
@@ -284,44 +296,56 @@ subtype_identified:
 		 */
 		if ((n_crlf == 0 && n_cr == 0 && n_nel == 0 && n_lf == 0) ||
 		    (n_crlf != 0 || n_cr != 0 || n_nel != 0)) {
-			ckfputs(", with", stdout);
+			if (file_printf(ms, ", with") == -1)
+				return -1;
 
-			if (n_crlf == 0 && n_cr == 0 && n_nel == 0 && n_lf == 0)
-				ckfputs(" no", stdout);
-			else {
+			if (n_crlf == 0 && n_cr == 0 && n_nel == 0 && n_lf == 0)			{
+				if (file_printf(ms, " no") == -1)
+					return -1;
+			} else {
 				if (n_crlf) {
-					ckfputs(" CRLF", stdout);
+					if (file_printf(ms, " CRLF") == -1)
+						return -1;
 					if (n_cr || n_lf || n_nel)
-						ckfputs(",", stdout);
+						if (file_printf(ms, ",") == -1)
+							return -1;
 				}
 				if (n_cr) {
-					ckfputs(" CR", stdout);
+					if (file_printf(ms, " CR") == -1)
+						return -1;
 					if (n_lf || n_nel)
-						ckfputs(",", stdout);
+						if (file_printf(ms, ",") == -1)
+							return -1;
 				}
 				if (n_lf) {
-					ckfputs(" LF", stdout);
+					if (file_printf(ms, " LF") == -1)
+						return -1;
 					if (n_nel)
-						ckfputs(",", stdout);
+						if (file_printf(ms, ",") == -1)
+							return -1;
 				}
 				if (n_nel)
-					ckfputs(" NEL", stdout);
+					if (file_printf(ms, " NEL") == -1)
+						return -1;
 			}
 
-			ckfputs(" line terminators", stdout);
+			if (file_printf(ms, " line terminators") == -1)
+				return -1;
 		}
 
 		if (has_escapes)
-			ckfputs(", with escape sequences", stdout);
+			if (file_printf(ms, ", with escape sequences") == -1)
+				return -1;
 		if (has_backspace)
-			ckfputs(", with overstriking", stdout);
+			if (file_printf(ms, ", with overstriking") == -1)
+				return -1;
 	}
 
 	return 1;
 }
 
-static int
-ascmatch(const unsigned char *s, const unichar *us, int ulen)
+private int
+ascmatch(const unsigned char *s, const unichar *us, size_t ulen)
 {
 	size_t i;
 
@@ -393,7 +417,7 @@ ascmatch(const unsigned char *s, const unichar *us, int ulen)
 #define I 2   /* character appears in ISO-8859 text */
 #define X 3   /* character appears in non-ISO extended ASCII (Mac, IBM PC) */
 
-static char text_chars[256] = {
+private char text_chars[256] = {
 	/*                  BEL BS HT LF    FF CR    */
 	F, F, F, F, F, F, F, T, T, T, T, F, T, T, F, F,  /* 0x0X */
         /*                              ESC          */
@@ -415,8 +439,9 @@ static char text_chars[256] = {
 	I, I, I, I, I, I, I, I, I, I, I, I, I, I, I, I   /* 0xfX */
 };
 
-static int
-looks_ascii(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
+private int
+looks_ascii(const unsigned char *buf, size_t nbytes, unichar *ubuf,
+    size_t *ulen)
 {
 	int i;
 
@@ -434,8 +459,8 @@ looks_ascii(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
 	return 1;
 }
 
-static int
-looks_latin1(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
+private int
+looks_latin1(const unsigned char *buf, size_t nbytes, unichar *ubuf, size_t *ulen)
 {
 	int i;
 
@@ -453,8 +478,9 @@ looks_latin1(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
 	return 1;
 }
 
-static int
-looks_extended(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
+private int
+looks_extended(const unsigned char *buf, size_t nbytes, unichar *ubuf,
+    size_t *ulen)
 {
 	int i;
 
@@ -472,8 +498,8 @@ looks_extended(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
 	return 1;
 }
 
-int
-looks_utf8(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
+private int
+looks_utf8(const unsigned char *buf, size_t nbytes, unichar *ubuf, size_t *ulen)
 {
 	int i, n;
 	unichar c;
@@ -534,8 +560,9 @@ done:
 	return gotone;   /* don't claim it's UTF-8 if it's all 7-bit */
 }
 
-static int
-looks_unicode(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
+private int
+looks_unicode(const unsigned char *buf, size_t nbytes, unichar *ubuf,
+    size_t *ulen)
 {
 	int bigend;
 	int i;
@@ -562,7 +589,8 @@ looks_unicode(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
 
 		if (ubuf[*ulen - 1] == 0xfffe)
 			return 0;
-		if (ubuf[*ulen - 1] < 128 && text_chars[ubuf[*ulen - 1]] != T)
+		if (ubuf[*ulen - 1] < 128 &&
+		    text_chars[(size_t)ubuf[*ulen - 1]] != T)
 			return 0;
 	}
 
@@ -596,7 +624,7 @@ looks_unicode(const unsigned char *buf, int nbytes, unichar *ubuf, int *ulen)
  * between old-style and internationalized examples of text.
  */
 
-unsigned char ebcdic_to_ascii[] = {
+private unsigned char ebcdic_to_ascii[] = {
   0,   1,   2,   3, 156,   9, 134, 127, 151, 141, 142,  11,  12,  13,  14,  15,
  16,  17,  18,  19, 157, 133,   8, 135,  24,  25, 146, 143,  28,  29,  30,  31,
 128, 129, 130, 131, 132,  10,  23,  27, 136, 137, 138, 139, 140,   5,   6,   7,
@@ -615,6 +643,7 @@ unsigned char ebcdic_to_ascii[] = {
 '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 250, 251, 252, 253, 254, 255
 };
 
+#ifdef notdef
 /*
  * The following EBCDIC-to-ASCII table may relate more closely to reality,
  * or at least to modern reality.  It comes from
@@ -629,7 +658,7 @@ unsigned char ebcdic_to_ascii[] = {
  * cases for the NEL character can be taken out of the code.
  */
 
-unsigned char ebcdic_1047_to_8859[] = {
+private unsigned char ebcdic_1047_to_8859[] = {
 0x00,0x01,0x02,0x03,0x9C,0x09,0x86,0x7F,0x97,0x8D,0x8E,0x0B,0x0C,0x0D,0x0E,0x0F,
 0x10,0x11,0x12,0x13,0x9D,0x0A,0x08,0x87,0x18,0x19,0x92,0x8F,0x1C,0x1D,0x1E,0x1F,
 0x80,0x81,0x82,0x83,0x84,0x85,0x17,0x1B,0x88,0x89,0x8A,0x8B,0x8C,0x05,0x06,0x07,
@@ -647,12 +676,13 @@ unsigned char ebcdic_1047_to_8859[] = {
 0x5C,0xF7,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0xB2,0xD4,0xD6,0xD2,0xD3,0xD5,
 0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0xB3,0xDB,0xDC,0xD9,0xDA,0x9F
 };
+#endif
 
 /*
  * Copy buf[0 ... nbytes-1] into out[], translating EBCDIC to ASCII.
  */
-static void
-from_ebcdic(const unsigned char *buf, int nbytes, unsigned char *out)
+private void
+from_ebcdic(const unsigned char *buf, size_t nbytes, unsigned char *out)
 {
 	int i;
 

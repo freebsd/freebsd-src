@@ -1,0 +1,4 @@
+#------------------------------------------------------------------------------
+# plan9:  file(1) magic for AT&T Bell Labs' Plan 9 executables
+#
+0	belong		0x000001EB	Plan 9 executable
