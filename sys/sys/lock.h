@@ -35,11 +35,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.7 1997/08/04 19:11:26 fsmp Exp $
+ * $Id: lock.h,v 1.8 1997/08/18 02:06:30 dyson Exp $
  */
 
 #ifndef	_LOCK_H_
 #define	_LOCK_H_
+
+
+#include <machine/lock.h>
 
 /*
  * The general lock structure.  Provides for multiple shared locks,
