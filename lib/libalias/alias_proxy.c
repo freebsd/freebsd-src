@@ -283,7 +283,7 @@ ProxyEncodeTcpStream(struct alias_link *lnk,
 	struct tcphdr *tc;
 
 /* Compute pointer to tcp header */
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)ip_next(pip);
 
 /* Don't modify if once already modified */
 
@@ -392,7 +392,7 @@ ProxyEncodeIpHeader(struct ip *pip,
 
 		memcpy(&option[2], (u_char *) & pip->ip_dst, 4);
 
-		tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+		tc = (struct tcphdr *)ip_next(pip);
 		memcpy(&option[6], (u_char *) & tc->th_sport, 2);
 
 		memcpy(ptr, option, 8);
@@ -451,7 +451,7 @@ ProxyCheck(struct libalias *la, struct ip *pip,
 
 	src_addr = pip->ip_src;
 	dst_addr = pip->ip_dst;
-	dst_port = ((struct tcphdr *)((char *)pip + (pip->ip_hl << 2)))
+	dst_port = ((struct tcphdr *)ip_next(pip))
 	    ->th_dport;
 
 	ptr = la->proxyList;

@@ -155,7 +155,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	struct in_addr null_addr;
 
 	/* Calculate data length of TCP packet */
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)ip_next(pip);
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
 	dlen = tlen - hlen;
@@ -359,7 +359,7 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 				/* Punch hole in firewall */
 				PunchFWHole(pna_links);
 #endif
-				tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+				tc = (struct tcphdr *)ip_next(pip);
 				alias_port = GetAliasPort(pna_links);
 				memcpy(work, &alias_port, 2);
 
@@ -387,7 +387,7 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 
 	(void)maxpacketsize;
 
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)ip_next(pip);
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
 	dlen = tlen - hlen;
