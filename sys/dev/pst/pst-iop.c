@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2001,2002,2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,8 @@
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/stdarg.h>
@@ -45,6 +47,11 @@
 #include <pci/pcireg.h>
 
 #include "dev/pst/pst-iop.h"
+
+struct iop_request {
+    struct i2o_single_reply *reply;
+    u_int32_t mfa;
+};
 
 /* local vars */
 MALLOC_DEFINE(M_PSTIOP, "PSTIOP", "Promise SuperTrak IOP driver");
@@ -136,13 +143,19 @@ iop_attach(struct iop_softc *sc)
 	    continue;
 
 	switch (sc->lct[i].class) {
+	case I2O_CLASS_DDM:
+	    if (sc->lct[i].sub_class == I2O_SUBCLASS_ISM)
+		sc->ism = sc->lct[i].local_tid;
+	    break;
+
 	case I2O_CLASS_RANDOM_BLOCK_STORAGE:
 	    pst_add_raid(sc, &sc->lct[i]);
 	    break;
 	}
     }
+
     /* setup and enable interrupts */
-    bus_setup_intr(sc->dev, sc->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
+    bus_setup_intr(sc->dev, sc->r_irq, INTR_TYPE_BIO|INTR_ENTROPY|INTR_MPSAFE,
 		   iop_intr, sc, &sc->handle);
     sc->reg->oqueue_intr_mask = 0x0;
 }
@@ -155,21 +168,22 @@ iop_intr(void *data)
     u_int32_t mfa;
 
     /* we might get more than one finished request pr interrupt */
+    mtx_lock(&sc->mtx);
     while (1) {
 	if ((mfa = sc->reg->oqueue) == 0xffffffff)
 	    if ((mfa = sc->reg->oqueue) == 0xffffffff)
-		return;
+		break;
 
 	reply = (struct i2o_single_reply *)(sc->obase + (mfa - sc->phys_obase));
 
-	/* If this is an event register reply, shout! */
+	/* if this is an event register reply, shout! */
 	if (reply->function == I2O_UTIL_EVENT_REGISTER) {
 	    struct i2o_util_event_reply_message *event =
 		(struct i2o_util_event_reply_message *)reply;
 
 	    printf("pstiop: EVENT!! idx=%08x data=%08x\n",
 		   event->event_mask, event->event_data[0]);
-	    return;
+	    break;
 	}
 
 	/* if reply is a failurenotice we need to free the original mfa */
@@ -180,6 +194,7 @@ iop_intr(void *data)
 	((void (*)(struct iop_softc *, u_int32_t, struct i2o_single_reply *))
 	    (reply->initiator_context))(sc, mfa, reply);
     }
+    mtx_unlock(&sc->mtx);
 }
 
 int
@@ -226,7 +241,7 @@ iop_init_outqueue(struct iop_softc *sc)
 				   I2O_IOP_OUTBOUND_FRAME_SIZE,
 				   M_PSTIOP, M_NOWAIT,
 				   0x00010000, 0xFFFFFFFF,
-				   sizeof(u_int32_t), 0))) {
+				   PAGE_SIZE, 0))) {
 	printf("pstiop: contigmalloc of outqueue buffers failed!\n");
 	return 0;
     }
@@ -268,7 +283,6 @@ iop_init_outqueue(struct iop_softc *sc)
 	DELAY(1000);
     }
 
-    iop_free_mfa(sc, mfa);
     return 1;
 }
 
@@ -281,7 +295,7 @@ iop_get_lct(struct iop_softc *sc)
 #define ALLOCSIZE	 (PAGE_SIZE + (256 * sizeof(struct i2o_lct_entry)))
 
     if (!(reply = contigmalloc(ALLOCSIZE, M_PSTIOP, M_NOWAIT | M_ZERO,
-			       0x00010000, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
+			       0x00010000, 0xFFFFFFFF, PAGE_SIZE, 0)))
 	return 0;
 
     mfa = iop_get_mfa(sc);
@@ -325,11 +339,11 @@ iop_get_util_params(struct iop_softc *sc, int target, int operation, int group)
     int mfa;
 
     if (!(param = contigmalloc(PAGE_SIZE, M_PSTIOP, M_NOWAIT | M_ZERO,
-			       0x00010000, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
+			       0x00010000, 0xFFFFFFFF, PAGE_SIZE, 0)))
 	return NULL;
 
     if (!(reply = contigmalloc(PAGE_SIZE, M_PSTIOP, M_NOWAIT | M_ZERO,
-			       0x00010000, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
+			       0x00010000, 0xFFFFFFFF, PAGE_SIZE, 0)))
 	return NULL;
 
     mfa = iop_get_mfa(sc);
@@ -395,25 +409,54 @@ iop_free_mfa(struct iop_softc *sc, int mfa)
     sc->reg->iqueue = mfa;
 }
 
+static void
+iop_done(struct iop_softc *sc, u_int32_t mfa, struct i2o_single_reply *reply)
+{
+    struct iop_request *request =
+        (struct iop_request *)reply->transaction_context;
+    
+    request->reply = reply;
+    request->mfa = mfa;
+    wakeup(request);
+}
+
 int
 iop_queue_wait_msg(struct iop_softc *sc, int mfa, struct i2o_basic_message *msg)
 {
     struct i2o_single_reply *reply;
-    int out_mfa, status, timeout = 10000;
+    struct iop_request request;
+    u_int32_t out_mfa;
+    int status, timeout = 10000;
 
-    sc->reg->iqueue = mfa;
-
-    while (--timeout && ((out_mfa = sc->reg->oqueue) == 0xffffffff))
-	DELAY(1000);
-    if (!timeout) {
-	printf("pstiop: timeout waiting for message response\n");
-	iop_free_mfa(sc, mfa);
-	return -1;
+    mtx_lock(&sc->mtx);
+    if (!(sc->reg->oqueue_intr_mask & 0x08)) {
+        msg->transaction_context = (u_int32_t)&request;
+        msg->initiator_context = (u_int32_t)iop_done;
+        sc->reg->iqueue = mfa;
+        if (msleep(&request, &sc->mtx, PRIBIO, "pstwt", 10 * hz)) {
+	    printf("pstiop: timeout waiting for message response\n");
+	    iop_free_mfa(sc, mfa);
+	    mtx_unlock(&sc->mtx);
+	    return -1;
+	}
+        status = request.reply->status;
+        sc->reg->oqueue = request.mfa;
     }
-
-    reply = (struct i2o_single_reply *)(sc->obase + (out_mfa - sc->phys_obase));
-    status = reply->status;
-    sc->reg->oqueue = out_mfa;
+    else {
+	sc->reg->iqueue = mfa;
+	while (--timeout && ((out_mfa = sc->reg->oqueue) == 0xffffffff))
+	    DELAY(1000);
+	if (!timeout) {
+	    printf("pstiop: timeout waiting for message response\n");
+	    iop_free_mfa(sc, mfa);
+	    mtx_unlock(&sc->mtx);
+	    return -1;
+	}
+	reply = (struct i2o_single_reply *)(sc->obase+(out_mfa-sc->phys_obase));
+	status = reply->status;
+	sc->reg->oqueue = out_mfa;
+    }
+    mtx_unlock(&sc->mtx);
     return status;
 }
 

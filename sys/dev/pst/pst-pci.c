@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2001,2002,2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,8 @@
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/stdarg.h>
@@ -93,16 +95,29 @@ iop_pci_attach(device_t dev)
     sc->phys_ibase = vtophys(sc->ibase);
     sc->reg = (struct i2o_registers *)sc->ibase;
     sc->dev = dev;
+    mtx_init(&sc->mtx, "pst lock", MTX_DEF, 0);
 
     if (!iop_init(sc))
 	return 0;
-
     return bus_generic_attach(dev);
 }
+
+static int
+iop_pci_detach(device_t dev)
+{
+    struct iop_softc *sc = device_get_softc(dev);
+
+    bus_teardown_intr(dev, sc->r_irq, sc->handle);
+    bus_release_resource(dev, SYS_RES_IRQ, 0x00, sc->r_irq);
+    bus_release_resource(dev, SYS_RES_MEMORY, 0x10, sc->r_mem);
+    return bus_generic_detach(dev);
+}
+
 
 static device_method_t pst_pci_methods[] = {
     DEVMETHOD(device_probe,		iop_pci_probe),
     DEVMETHOD(device_attach,		iop_pci_attach),
+    DEVMETHOD(device_detach,		iop_pci_detach),
     { 0, 0 }
 };
 
