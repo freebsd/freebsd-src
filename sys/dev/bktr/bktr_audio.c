@@ -85,13 +85,11 @@
 #endif
 
 /*
- * Prototypes for the GV_BCTV specific functions.
+ * Prototypes for the GV_BCTV2 specific functions.
  */
-void    set_bctv_audio( bktr_ptr_t bktr );
-void    bctv_gpio_write( bktr_ptr_t bktr, int port, int val );
-/*int   bctv_gpio_read( bktr_ptr_t bktr, int port );*/ /* Not used */
-
-
+void    set_bctv2_audio( bktr_ptr_t bktr );
+void    bctv2_gpio_write( bktr_ptr_t bktr, int port, int val );
+/*int   bctv2_gpio_read( bktr_ptr_t bktr, int port );*/ /* Not used */
 
 /*
  * init_audio_devices
@@ -171,8 +169,8 @@ set_audio( bktr_ptr_t bktr, int cmd )
 	 * audio source. The I/O_GV card has a more advanced multiplexer
 	 * and requires special handling.
 	 */
-        if ( bktr->bt848_card == CARD_IO_GV ) {
-                set_bctv_audio( bktr );
+        if ( bktr->bt848_card == CARD_IO_BCTV2 ) {
+                set_bctv2_audio( bktr );
                 return( 0 );
 	}
 
@@ -315,87 +313,87 @@ set_BTSC( bktr_ptr_t bktr, int control )
 }
 
 /*
- * CARD_GV_BCTV specific functions.
+ * CARD_GV_BCTV2 specific functions.
  */
 
-#define BCTV_AUDIO_MAIN              0x10    /* main audio program */
-#define BCTV_AUDIO_SUB               0x20    /* sub audio program */
-#define BCTV_AUDIO_BOTH              0x30    /* main(L) + sub(R) program */
+#define BCTV2_AUDIO_MAIN              0x10    /* main audio program */
+#define BCTV2_AUDIO_SUB               0x20    /* sub audio program */
+#define BCTV2_AUDIO_BOTH              0x30    /* main(L) + sub(R) program */
 
-#define BCTV_GPIO_REG0          1
-#define BCTV_GPIO_REG1          3
+#define BCTV2_GPIO_REG0          1
+#define BCTV2_GPIO_REG1          3
 
-#define BCTV_GR0_AUDIO_MODE     3
-#define BCTV_GR0_AUDIO_MAIN     0       /* main program */
-#define BCTV_GR0_AUDIO_SUB      3       /* sub program */
-#define BCTV_GR0_AUDIO_BOTH     1       /* main(L) + sub(R) */
-#define BCTV_GR0_AUDIO_MUTE     4       /* audio mute */
-#define BCTV_GR0_AUDIO_MONO     8       /* force mono */
+#define BCTV2_GR0_AUDIO_MODE     3
+#define BCTV2_GR0_AUDIO_MAIN     0       /* main program */
+#define BCTV2_GR0_AUDIO_SUB      3       /* sub program */
+#define BCTV2_GR0_AUDIO_BOTH     1       /* main(L) + sub(R) */
+#define BCTV2_GR0_AUDIO_MUTE     4       /* audio mute */
+#define BCTV2_GR0_AUDIO_MONO     8       /* force mono */
 
 void
-set_bctv_audio( bktr_ptr_t bktr )
+set_bctv2_audio( bktr_ptr_t bktr )
 {
         int data;
 
         switch (bktr->audio_mux_select) {
         case 1:         /* external */
         case 2:         /* internal */
-                bctv_gpio_write(bktr, BCTV_GPIO_REG1, 0);
+                bctv2_gpio_write(bktr, BCTV2_GPIO_REG1, 0);
                 break;
         default:        /* tuner */
-                bctv_gpio_write(bktr, BCTV_GPIO_REG1, 1);
+                bctv2_gpio_write(bktr, BCTV2_GPIO_REG1, 1);
                 break;
         }
 /*      switch (bktr->audio_sap_select) { */
-        switch (BCTV_AUDIO_BOTH) {
-        case BCTV_AUDIO_SUB:
-                data = BCTV_GR0_AUDIO_SUB;
+        switch (BCTV2_AUDIO_BOTH) {
+        case BCTV2_AUDIO_SUB:
+                data = BCTV2_GR0_AUDIO_SUB;
                 break;
-        case BCTV_AUDIO_BOTH:
-                data = BCTV_GR0_AUDIO_BOTH;
+        case BCTV2_AUDIO_BOTH:
+                data = BCTV2_GR0_AUDIO_BOTH;
                 break;
-        case BCTV_AUDIO_MAIN:
+        case BCTV2_AUDIO_MAIN:
         default:
-                data = BCTV_GR0_AUDIO_MAIN;
+                data = BCTV2_GR0_AUDIO_MAIN;
                 break;
         }
         if (bktr->audio_mute_state == TRUE)
-                data |= BCTV_GR0_AUDIO_MUTE;
+                data |= BCTV2_GR0_AUDIO_MUTE;
 
-        bctv_gpio_write(bktr, BCTV_GPIO_REG0, data);
+        bctv2_gpio_write(bktr, BCTV2_GPIO_REG0, data);
 
         return;
 }
 
 /* gpio_data bit assignment */
-#define BCTV_GPIO_ADDR_MASK     0x000300
-#define BCTV_GPIO_WE            0x000400
-#define BCTV_GPIO_OE            0x000800
-#define BCTV_GPIO_VAL_MASK      0x00f000
+#define BCTV2_GPIO_ADDR_MASK     0x000300
+#define BCTV2_GPIO_WE            0x000400
+#define BCTV2_GPIO_OE            0x000800
+#define BCTV2_GPIO_VAL_MASK      0x00f000
 
-#define BCTV_GPIO_PORT_MASK     3
-#define BCTV_GPIO_ADDR_SHIFT    8
-#define BCTV_GPIO_VAL_SHIFT     12
+#define BCTV2_GPIO_PORT_MASK     3
+#define BCTV2_GPIO_ADDR_SHIFT    8
+#define BCTV2_GPIO_VAL_SHIFT     12
 
 /* gpio_out_en value for read/write */
-#define BCTV_GPIO_OUT_RMASK     0x000f00
-#define BCTV_GPIO_OUT_WMASK     0x00ff00
+#define BCTV2_GPIO_OUT_RMASK     0x000f00
+#define BCTV2_GPIO_OUT_WMASK     0x00ff00
 
-#define BCTV_BITS       100
+#define BCTV2_BITS       100
 
 void
-bctv_gpio_write( bktr_ptr_t bktr, int port, int val )
+bctv2_gpio_write( bktr_ptr_t bktr, int port, int val )
 {
         u_long data, outbits;
 
-        port &= BCTV_GPIO_PORT_MASK;
+        port &= BCTV2_GPIO_PORT_MASK;
         switch (port) {
         case 1:
         case 3:
-                data = ((val << BCTV_GPIO_VAL_SHIFT) & BCTV_GPIO_VAL_MASK) |
-                       ((port << BCTV_GPIO_ADDR_SHIFT) & BCTV_GPIO_ADDR_MASK) |
-                       BCTV_GPIO_WE | BCTV_GPIO_OE;
-                outbits = BCTV_GPIO_OUT_WMASK;
+                data = ((val << BCTV2_GPIO_VAL_SHIFT) & BCTV2_GPIO_VAL_MASK) |
+                       ((port << BCTV2_GPIO_ADDR_SHIFT) & BCTV2_GPIO_ADDR_MASK) |
+                       BCTV2_GPIO_WE | BCTV2_GPIO_OE;
+                outbits = BCTV2_GPIO_OUT_WMASK;
                 break;
         default:
                 return;
@@ -403,28 +401,28 @@ bctv_gpio_write( bktr_ptr_t bktr, int port, int val )
         OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
         OUTL(bktr, BKTR_GPIO_DATA, data);
         OUTL(bktr, BKTR_GPIO_OUT_EN, outbits);
-        DELAY(BCTV_BITS);
-        OUTL(bktr, BKTR_GPIO_DATA, data & ~BCTV_GPIO_WE);
-        DELAY(BCTV_BITS);
+        DELAY(BCTV2_BITS);
+        OUTL(bktr, BKTR_GPIO_DATA, data & ~BCTV2_GPIO_WE);
+        DELAY(BCTV2_BITS);
         OUTL(bktr, BKTR_GPIO_DATA, data);
-        DELAY(BCTV_BITS);
+        DELAY(BCTV2_BITS);
         OUTL(bktr, BKTR_GPIO_DATA, ~0);
         OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
 }
 
 /* Not yet used
 int
-bctv_gpio_read( bktr_ptr_t bktr, int port )
+bctv2_gpio_read( bktr_ptr_t bktr, int port )
 {
         u_long data, outbits, ret;
 
-        port &= BCTV_GPIO_PORT_MASK;
+        port &= BCTV2_GPIO_PORT_MASK;
         switch (port) {
         case 1:
         case 3:
-                data = ((port << BCTV_GPIO_ADDR_SHIFT) & BCTV_GPIO_ADDR_MASK) |
-                       BCTV_GPIO_WE | BCTV_GPIO_OE;
-                outbits = BCTV_GPIO_OUT_RMASK;
+                data = ((port << BCTV2_GPIO_ADDR_SHIFT) & BCTV2_GPIO_ADDR_MASK) |
+                       BCTV2_GPIO_WE | BCTV2_GPIO_OE;
+                outbits = BCTV2_GPIO_OUT_RMASK;
                 break;
         default:
                 return( -1 );
@@ -432,16 +430,16 @@ bctv_gpio_read( bktr_ptr_t bktr, int port )
         OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
         OUTL(bktr, BKTR_GPIO_DATA, data);
         OUTL(bktr, BKTR_GPIO_OUT_EN, outbits);
-        DELAY(BCTV_BITS);
-        OUTL(bktr, BKTR_GPIO_DATA, data & ~BCTV_GPIO_OE);
-        DELAY(BCTV_BITS);
+        DELAY(BCTV2_BITS);
+        OUTL(bktr, BKTR_GPIO_DATA, data & ~BCTV2_GPIO_OE);
+        DELAY(BCTV2_BITS);
         ret = INL(bktr, BKTR_GPIO_DATA);
-        DELAY(BCTV_BITS);
+        DELAY(BCTV2_BITS);
         OUTL(bktr, BKTR_GPIO_DATA, data);
-        DELAY(BCTV_BITS);
+        DELAY(BCTV2_BITS);
         OUTL(bktr, BKTR_GPIO_DATA, ~0);
         OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
-        return( (ret & BCTV_GPIO_VAL_MASK) >> BCTV_GPIO_VAL_SHIFT );
+        return( (ret & BCTV2_GPIO_VAL_MASK) >> BCTV2_GPIO_VAL_SHIFT );
 }
 */
 
