@@ -6997,6 +6997,7 @@ expand_function_end (filename, line, end_bindings)
 			 Pmode);
     }
 
+#ifdef TARGET_PROFILER_EPILOGUE
   if (current_function_profile && TARGET_PROFILER_EPILOGUE)
     {
       static rtx mexitcount_libfunc;
@@ -7009,6 +7010,7 @@ expand_function_end (filename, line, end_bindings)
 	}
       emit_library_call (mexitcount_libfunc, LCT_NORMAL, VOIDmode, 0);
     }
+#endif
 
   /* Let except.c know where it should emit the call to unregister
      the function context for sjlj exceptions.  */
