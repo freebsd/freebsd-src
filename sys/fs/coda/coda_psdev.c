@@ -463,7 +463,7 @@ vc_nb_poll(dev, events, td)
     if (!EMPTY(vcp->vc_requests))
 	return(events & (POLLIN|POLLRDNORM));
 
-    selrecord(curthread, &(vcp->vc_selproc));
+    selrecord(td, &(vcp->vc_selproc));
     
     return(0);
 }
