@@ -2,7 +2,8 @@
 
 .PATH:	${.CURDIR}/../../../contrib/bc/bc \
 	${.CURDIR}/../../../contrib/bc/lib \
-	${.CURDIR}/../../../contrib/bc/doc
+	${.CURDIR}/../../../contrib/bc/doc \
+	${.CURDIR}/../../../contrib/bc/Examples
 
 PROG=	bc
 SRCS=	bc.y execute.c global.c load.c main.c scan.l storage.c util.c \
@@ -11,14 +12,7 @@ CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../../contrib/bc/h -DHAVE_CONFIG_H
 DPADD=	${LIBREADLINE} ${LIBTERMCAP}
 LDADD=	-lreadline -ltermcap
 
-EXAMPLES=	ckbook.b pi.b primes.b twins.b
-EXAMPDIR=	/usr/share/examples/bc
-
-beforeinstall:
-.for file in ${EXAMPLES}
-	cd ${.CURDIR}/../../../contrib/bc/Examples ; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
-		${DESTDIR}${EXAMPDIR}
-.endfor
+FILES=	ckbook.b pi.b primes.b twins.b
+FILESDIR=	${SHAREDIR}/examples/bc
 
 .include <bsd.prog.mk>

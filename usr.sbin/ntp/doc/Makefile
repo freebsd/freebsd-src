@@ -2,9 +2,9 @@
 
 MAINTAINER=	sheldonh
 
-DOCSDIR=	/usr/share/doc/ntp
+FILESDIR=	${SHAREDIR}/doc/ntp
 
-HTMLS=	accopt.htm assoc.htm audio.htm authopt.htm biblio.htm build.htm \
+FILES=	accopt.htm assoc.htm audio.htm authopt.htm biblio.htm build.htm \
 	clockopt.htm \
 	config.htm confopt.htm copyright.htm debug.htm driver1.htm \
 	driver10.htm driver11.htm driver12.htm driver16.htm driver18.htm \
@@ -24,11 +24,6 @@ HTMLS=	accopt.htm assoc.htm audio.htm authopt.htm biblio.htm build.htm \
 MAN=	ntp.conf.5 ntp.keys.5
 MAN+=	ntp-genkeys.8 ntpd.8 ntpdate.8 ntpdc.8 ntpq.8 ntptime.8 ntptrace.8
 
-beforeinstall:
-.for file in ${HTMLS}
-	cd ${.CURDIR}/../../../contrib/ntp/html ; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
-		${DESTDIR}${DOCSDIR}
-.endfor
+.PATH: ${.CURDIR}/../../../contrib/ntp/html
 
 .include <bsd.prog.mk>
