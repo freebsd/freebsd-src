@@ -1011,18 +1011,16 @@ iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 
 void
 iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, bus_dmasync_op_t op)
+    bus_dmamap_t map, int op)
 {
 	struct bus_dmamap_res *r;
 	vm_offset_t va;
 	vm_size_t len;
 
-	switch (op) {
-	case BUS_DMASYNC_PREREAD:
+	/* XXX This is probably bogus. */
+	if (op & BUS_DMASYNC_PREREAD)
 		membar(Sync);
-		break;
-	case BUS_DMASYNC_POSTREAD:
-	case BUS_DMASYNC_PREWRITE:
+	if ((op & BUS_DMASYNC_POSTREAD) || (op & BUS_DMASYNC_PREWRITE)) {
 		SLIST_FOREACH(r, &map->dm_reslist, dr_link) {
 			va = (vm_offset_t)BDR_START(r);
 			len = r->dr_used;
@@ -1034,14 +1032,8 @@ iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 				va += IO_PAGE_SIZE;
 			}
 		}
-		if (op == BUS_DMASYNC_PREWRITE)
+		if (op & BUS_DMASYNC_PREWRITE)
 			membar(Sync);
-		break;
-	case BUS_DMASYNC_POSTWRITE:
-		/* Nothing to do. */
-		break;
-	default:
-		panic("iommu_dvmamap_sync: bogus op %d", op);
 	}
 }
 
