@@ -49,6 +49,9 @@
 #include <sys/systm.h>  
 #include <sys/proc.h>
 
+#ifdef __i386__
+#include <machine/bootinfo.h>
+#endif
 #include <machine/db_machdep.h>
 
 #include <ddb/ddb.h>
@@ -385,9 +388,38 @@ extern void *ksym_start, *ksym_end;
 void
 kdb_init(void)
 {
+	static Elf_Ehdr elf;
+	static Elf_Shdr sh[2];
 
-	if (ksym_end > ksym_start)
-		X_db_sym_init(ksym_start, ksym_end, "kernel");
+#ifdef __i386__
+	ksym_start = (void *)bootinfo.bi_symtab;
+	ksym_end = (void *)bootinfo.bi_esymtab;
+#endif
+	if (ksym_end <= ksym_start)
+		return;
+
+	/*
+	 * The FreeBSD boot program doesn't actually load any headers, so
+	 * fake just enough for the routines in this file to work.
+	 */
+	elf.e_ident[EI_MAG0] = ELFMAG0;
+	elf.e_ident[EI_MAG1] = ELFMAG1;
+	elf.e_ident[EI_MAG2] = ELFMAG2;
+	elf.e_ident[EI_MAG3] = ELFMAG3;
+	elf.e_machine = EM_486;
+	elf.e_shoff = (uintptr_t)(void *)&sh[0] - (uintptr_t)(void *)&elf;
+	sh[0].sh_type = SHT_SYMTAB;
+	sh[0].sh_offset = (uintptr_t)ksym_start + sizeof(long) -
+	    (uintptr_t)(void *)&elf;
+	sh[0].sh_size = *(int *)ksym_start;
+	sh[1].sh_type = SHT_STRTAB;
+	sh[1].sh_offset = sh[0].sh_offset + sh[0].sh_size + sizeof(long);
+	sh[1].sh_size = (uintptr_t)ksym_end - (uintptr_t)ksym_start -
+	    sizeof(long) - sh[0].sh_size - sizeof(long);
+	elf.e_shstrndx = -1;
+	elf.e_shnum = 2;
+
+	X_db_sym_init(&elf, ksym_end, "kernel");
 }
 
 #endif /* DDB_NOKLDSYM */
