@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/sf_buf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
@@ -1885,16 +1886,16 @@ retry_lookup:
 		MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
-			sf_buf_free((void *)sf->kva, sf);
+			sf_buf_free((void *)sf_buf_kva(sf), sf);
 			sbunlock(&so->so_snd);
 			goto done;
 		}
 		/*
 		 * Setup external storage for mbuf.
 		 */
-		MEXTADD(m, sf->kva, PAGE_SIZE, sf_buf_free, sf, M_RDONLY,
+		MEXTADD(m, sf_buf_kva(sf), PAGE_SIZE, sf_buf_free, sf, M_RDONLY,
 		    EXT_SFBUF);
-		m->m_data = (char *) sf->kva + pgoff;
+		m->m_data = (char *)sf_buf_kva(sf) + pgoff;
 		m->m_pkthdr.len = m->m_len = xfsize;
 		/*
 		 * Add the buffer to the socket buffer chain.

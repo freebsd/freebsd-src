@@ -322,12 +322,6 @@ struct sockopt {
 	struct	thread *sopt_td; /* calling thread or null if kernel */
 };
 
-struct sf_buf {
-	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
-	struct		vm_page *m;	/* currently mapped page */
-	vm_offset_t	kva;		/* va of mapping */
-};
-
 struct accept_filter {
 	char	accf_name[16];
 	void	(*accf_callback)
@@ -381,9 +375,6 @@ int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
-struct sf_buf *
-	sf_buf_alloc(struct vm_page *m);
-void	sf_buf_free(void *addr, void *args);
 int	sb_lock(struct sockbuf *sb);
 int	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);

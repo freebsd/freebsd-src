@@ -79,7 +79,7 @@
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/socketvar.h>
+#include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
@@ -367,7 +367,6 @@ sf_buf_alloc(struct vm_page *m)
 	if (sf != NULL) {
 		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 		sf->m = m;
-		sf->kva = IA64_PHYS_TO_RR7(m->phys_addr);
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
