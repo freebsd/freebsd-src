@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.43 1998/02/21 15:52:40 kato Exp $
+ *	$Id: clock.c,v 1.44 1998/02/21 15:54:23 kato Exp $
  */
 
 /*
@@ -1370,6 +1370,7 @@ i8254_get_timecount(void)
 
 	i8254_lastcount = count;
 	count += i8254_offset;
+	CLOCK_UNLOCK();
 	write_eflags(ef);
 	return (count);
 }
