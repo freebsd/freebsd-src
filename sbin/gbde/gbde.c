@@ -507,25 +507,25 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 			err(1, "%s", f_opt);
 		params = properties_read(i);
 		close (i);
-	} else {
+	} else if (i_opt) {
 		/* XXX: Polish */
-		q = strdup("/tmp/temp.XXXXXXXXXX");
+		asprintf(&q, "%stemp.XXXXXXXXXX", _PATH_TMP);
+		if (q == NULL)
+			err(1, "asprintf");
 		i = mkstemp(q);
 		if (i < 0)
 			err(1, "%s", q);
 		write(i, template, strlen(template));
 		close (i);
-		if (i_opt) {
-			p = getenv("EDITOR");
-			if (p == NULL)
-				p = "vi";
-			if (snprintf(cbuf, sizeof(cbuf), "%s %s\n", p, q) >=
-			    (ssize_t)sizeof(cbuf)) {
-				unlink(q);
-				errx(1, "EDITOR is too long");
-			}
-			system(cbuf);
+		p = getenv("EDITOR");
+		if (p == NULL)
+			p = "vi";
+		if (snprintf(cbuf, sizeof(cbuf), "%s %s\n", p, q) >=
+		    (ssize_t)sizeof(cbuf)) {
+			unlink(q);
+			errx(1, "EDITOR is too long");
 		}
+		system(cbuf);
 		i = open(q, O_RDONLY);
 		if (i < 0)
 			err(1, "%s", f_opt);
@@ -533,6 +533,13 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		close (i);
 		unlink(q);
 		free(q);
+	} else {
+		/* XXX: Hack */
+		i = open(_PATH_DEVNULL, O_RDONLY);
+		if (i < 0)
+			err(1, "%s", _PATH_DEVNULL);
+		params = properties_read(i);
+		close (i);
 	}
 
 	/* <sector_size> */
@@ -620,13 +627,15 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 
 	/* <number_of_keys> */
 	p = property_find(params, "number_of_keys");
-	if (p == NULL)
-		errx(1, "Missing number_of_keys property");
-	nkeys = strtoul(p, &q, 0);
-	if (!*p || *q)
-		errx(1, "number_of_keys not a proper number");
-	if (nkeys < 1 || nkeys > G_BDE_MAXKEYS)
-		errx(1, "number_of_keys out of range");
+	if (p != NULL) {
+		nkeys = strtoul(p, &q, 0);
+		if (!*p || *q)
+			errx(1, "number_of_keys not a proper number");
+		if (nkeys < 1 || nkeys > G_BDE_MAXKEYS)
+			errx(1, "number_of_keys out of range");
+	} else {
+		nkeys = 4;
+	}
 	for (u = 0; u < nkeys; u++) {
 		for(;;) {
 			do {
