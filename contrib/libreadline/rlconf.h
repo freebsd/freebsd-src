@@ -32,7 +32,7 @@
 
 /* If defined, readline shows opening parens and braces when closing
    paren or brace entered. */
-#define PAREN_MATCHING
+/* #define PAREN_MATCHING */
 
 /* This definition is needed by readline.c, rltty.c, and signals.c. */
 /* If on, then readline handles signals in a way that doesn't screw. */
@@ -56,8 +56,6 @@
 
 /* Define this if you want code that allows readline to be used in an
    X `callback' style. */
-#if !defined (SHELL)
-#  define READLINE_CALLBACKS
-#endif
+#define READLINE_CALLBACKS
 
 #endif /* _RLCONF_H_ */

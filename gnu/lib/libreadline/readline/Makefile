@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1 1999/05/28 04:26:15 ache Exp $
+#       $Id: Makefile,v 1.2 1999/05/28 04:43:35 ache Exp $
 
 SUBDIR= doc
 

@@ -85,6 +85,15 @@ extern void _rl_move_vert ();
 extern int _rl_vis_botlin;
 extern int rl_display_fixed;
 
+/* If non-zero, then this is the address of a function to call when
+   completing a word would normally display the list of possible matches.
+   This function is called instead of actually doing the display.
+   It takes three arguments: (char **matches, int num_matches, int max_length)
+   where MATCHES is the array of strings that matched, NUM_MATCHES is the
+   number of strings in that array, and MAX_LENGTH is the length of the
+   longest string in that array. */
+VFunction *rl_completion_display_matches_hook = (VFunction *)NULL;
+
 /* Forward declarations for functions defined and used in this file. */
 char *filename_completion_function ();
 char **completion_matches ();
@@ -674,6 +683,7 @@ gen_completion_matches (text, start, end, our_func, found_quote, quote_char)
      we are doing filename completion and the application has defined a
      filename dequoting function. */
   temp = (char *)NULL;
+
   if (found_quote && our_func == (Function *)filename_completion_function &&
       rl_filename_dequoting_function)
     {
@@ -682,7 +692,7 @@ gen_completion_matches (text, start, end, our_func, found_quote, quote_char)
       text = temp;	/* not freeing text is not a memory leak */
     }
 
-  matches = completion_matches (text, our_func);
+  matches = completion_matches (text, (CPFunction *)our_func);
   FREE (temp);
   return matches;  
 }
@@ -813,8 +823,7 @@ compute_lcd_of_matches (match_list, matches, text)
 }
 
 static int
-postprocess_matches (text, matchesp, matching_filenames)
-     char *text;
+postprocess_matches (matchesp, matching_filenames)
      char ***matchesp;
      int matching_filenames;
 {
@@ -845,7 +854,6 @@ postprocess_matches (text, matchesp, matching_filenames)
       if (matches == 0 || matches[0] == 0)
 	{
 	  FREE (matches);
-	  ding ();
 	  *matchesp = (char **)0;
 	  return 0;
         }
@@ -857,7 +865,7 @@ postprocess_matches (text, matchesp, matching_filenames)
 	  if (i > 1 && i < nmatch)
 	    {
 	      t = matches[0];
-	      compute_lcd_of_matches (matches, i - 1, text);
+	      compute_lcd_of_matches (matches, i - 1, t);
 	      FREE (t);
 	    }
 	}
@@ -867,65 +875,18 @@ postprocess_matches (text, matchesp, matching_filenames)
   return (1);
 }
 
-static void
-display_matches (matches)
+/* A convenience function for displaying a list of strings in
+   columnar format on readline's output stream.  MATCHES is the list
+   of strings, in argv format, LEN is the number of strings in MATCHES,
+   and MAX is the length of the longest string in MATCHES. */
+void
+rl_display_match_list (matches, len, max)
      char **matches;
+     int len, max;
 {
-  int len, count, limit, max, printed_len;
+  int count, limit, printed_len;
   int i, j, k, l;
   char *temp;
-
-  /* Move to the last visible line of a possibly-multiple-line command. */
-  _rl_move_vert (_rl_vis_botlin);
-
-  /* Handle simple case first.  What if there is only one answer? */
-  if (matches[1] == 0)
-    {
-      temp = printable_part (matches[0]);
-      crlf ();
-      print_filename (temp, matches[0]);
-      crlf ();
-#if 0
-      rl_on_new_line ();
-#else
-      rl_forced_update_display ();
-      rl_display_fixed = 1;
-#endif
-      return;
-    }
-
-  /* There is more than one answer.  Find out how many there are,
-     and find the maximum printed length of a single entry. */
-  for (max = 0, i = 1; matches[i]; i++)
-    {
-      temp = printable_part (matches[i]);
-      len = strlen (temp);
-
-      if (len > max)
-	max = len;
-    }
-
-  len = i - 1;
-
-  /* If there are many items, then ask the user if she really wants to
-     see them all. */
-  if (len >= rl_completion_query_items)
-    {
-      crlf ();
-      fprintf (rl_outstream, "Display all %d possibilities? (y or n)", len);
-      fflush (rl_outstream);
-      if (get_y_or_n () == 0)
-	{
-	  crlf ();
-#if 0
-	  rl_on_new_line ();
-#else
-	  rl_forced_update_display ();
-	  rl_display_fixed = 1;
-#endif
-	  return;
-	}
-    }
 
   /* How many items of MAX length can we fit in the screen window? */
   max += 2;
@@ -993,13 +954,85 @@ display_matches (matches)
 	}
       crlf ();
     }
+}
 
-#if 0
-  rl_on_new_line ();
-#else
+/* Display MATCHES, a list of matching filenames in argv format.  This
+   handles the simple case -- a single match -- first.  If there is more
+   than one match, we compute the number of strings in the list and the
+   length of the longest string, which will be needed by the display
+   function.  If the application wants to handle displaying the list of
+   matches itself, it sets RL_COMPLETION_DISPLAY_MATCHES_HOOK to the
+   address of a function, and we just call it.  If we're handling the
+   display ourselves, we just call rl_display_match_list.  We also check
+   that the list of matches doesn't exceed the user-settable threshold,
+   and ask the user if he wants to see the list if there are more matches
+   than RL_COMPLETION_QUERY_ITEMS. */
+static void
+display_matches (matches)
+     char **matches;
+{
+  int len, max, i;
+  char *temp;
+
+  /* Move to the last visible line of a possibly-multiple-line command. */
+  _rl_move_vert (_rl_vis_botlin);
+
+  /* Handle simple case first.  What if there is only one answer? */
+  if (matches[1] == 0)
+    {
+      temp = printable_part (matches[0]);
+      crlf ();
+      print_filename (temp, matches[0]);
+      crlf ();
+
+      rl_forced_update_display ();
+      rl_display_fixed = 1;
+
+      return;
+    }
+
+  /* There is more than one answer.  Find out how many there are,
+     and find the maximum printed length of a single entry. */
+  for (max = 0, i = 1; matches[i]; i++)
+    {
+      temp = printable_part (matches[i]);
+      len = strlen (temp);
+
+      if (len > max)
+	max = len;
+    }
+
+  len = i - 1;
+
+  /* If the caller has defined a display hook, then call that now. */
+  if (rl_completion_display_matches_hook)
+    {
+      (*rl_completion_display_matches_hook) (matches, len, max);
+      return;
+    }
+	
+  /* If there are many items, then ask the user if she really wants to
+     see them all. */
+  if (len >= rl_completion_query_items)
+    {
+      crlf ();
+      fprintf (rl_outstream, "Display all %d possibilities? (y or n)", len);
+      fflush (rl_outstream);
+      if (get_y_or_n () == 0)
+	{
+	  crlf ();
+
+	  rl_forced_update_display ();
+	  rl_display_fixed = 1;
+
+	  return;
+	}
+    }
+
+  rl_display_match_list (matches, len, max);
+
   rl_forced_update_display ();
   rl_display_fixed = 1;
-#endif
 }
 
 static char *
@@ -1026,11 +1059,8 @@ make_quoted_replacement (match, mtype, qc)
 			rl_filename_quoting_desired;
 
   if (should_quote)
-#if defined (SHELL)
-    should_quote = should_quote && (!qc || !*qc || *qc == '"' || *qc == '\'');
-#else /* !SHELL */
-    should_quote = should_quote && (!qc || !*qc);
-#endif /* !SHELL */
+    should_quote = should_quote && (!qc || !*qc ||
+		     (rl_completer_quote_characters && strchr (rl_completer_quote_characters, *qc)));
 
   if (should_quote)
     {
@@ -1168,6 +1198,17 @@ insert_all_matches (matches, point, qc)
   rl_end_undo_group ();
 }
 
+static void
+free_match_list (matches)
+     char **matches;
+{
+  register int i;
+
+  for (i = 0; matches[i]; i++)
+    free (matches[i]);
+  free (matches);
+}
+
 /* Complete the word at or before point.
    WHAT_TO_DO says what to do with the completion.
    `?' means list the possible completions.
@@ -1210,26 +1251,33 @@ rl_complete_internal (what_to_do)
 
   text = rl_copy_text (start, end);
   matches = gen_completion_matches (text, start, end, our_func, found_quote, quote_char);
+  free (text);
 
   if (matches == 0)
     {
       ding ();
       FREE (saved_line_buffer);
-      free (text);
       return (0);
     }
 
+#if 0
   /* If we are matching filenames, our_func will have been set to
      filename_completion_function */
   i = our_func == (Function *)filename_completion_function;
-  if (postprocess_matches (text, &matches, i) == 0)
+#else
+  /* If we are matching filenames, the attempted completion function will
+     have set rl_filename_completion_desired to a non-zero value.  The basic
+     filename_completion_function does this. */
+  i = rl_filename_completion_desired;
+#endif
+
+  if (postprocess_matches (&matches, i) == 0)
     {
+      ding ();
       FREE (saved_line_buffer);
-      free (text);
+      completion_changed_buffer = 0;
       return (0);
     }
-
-  free (text);
 
   switch (what_to_do)
     {
@@ -1277,9 +1325,7 @@ rl_complete_internal (what_to_do)
       return 1;
     }
 
-  for (i = 0; matches[i]; i++)
-    free (matches[i]);
-  free (matches);
+  free_match_list (matches);
 
   /* Check to see if the line has changed through all of this manipulation. */
   if (saved_line_buffer)
@@ -1358,10 +1404,10 @@ completion_matches (text, entry_function)
    character (usually `~').  */
 char *
 username_completion_function (text, state)
-     int state;
      char *text;
+     int state;
 {
-#if defined (__GO32__) || defined (__WIN32__)
+#if defined (__GO32__) || defined (__WIN32__) || defined (__OPENNT)
   return (char *)NULL;
 #else /* !__GO32__ */
   static char *username = (char *)NULL;
@@ -1415,8 +1461,8 @@ username_completion_function (text, state)
    completion for a command. */
 char *
 filename_completion_function (text, state)
-     int state;
      char *text;
+     int state;
 {
   static DIR *directory = (DIR *)NULL;
   static char *filename = (char *)NULL;
@@ -1574,7 +1620,7 @@ filename_completion_function (text, state)
 	      strcpy (temp, users_dirname);
 	    }
 
-	  strcpy (temp + dirlen, entry->d_name); /* strcat (temp, entry->d_name); */
+	  strcpy (temp + dirlen, entry->d_name);
 	}
       else
 	temp = savestring (entry->d_name);
@@ -1649,10 +1695,17 @@ rl_menu_complete (count, ignore)
       matches = gen_completion_matches (orig_text, orig_start, orig_end,
 					our_func, found_quote, quote_char);
 
+#if 0
       /* If we are matching filenames, our_func will have been set to
 	 filename_completion_function */
       matching_filenames = our_func == (Function *)filename_completion_function;
-      if (matches == 0 || postprocess_matches (orig_text, &matches, matching_filenames) == 0)
+#else
+      /* If we are matching filenames, the attempted completion function will
+	 have set rl_filename_completion_desired to a non-zero value.  The basic
+	 filename_completion_function does this. */
+      matching_filenames = rl_filename_completion_desired;
+#endif
+      if (matches == 0 || postprocess_matches (&matches, matching_filenames) == 0)
 	{
     	  ding ();
 	  FREE (matches);
@@ -1686,7 +1739,7 @@ rl_menu_complete (count, ignore)
   if (match_list_index < 0)
     match_list_index += match_list_size;
 
-  if (match_list_index == 0)
+  if (match_list_index == 0 && match_list_size > 1)
     {
       ding ();
       insert_match (orig_text, orig_start, MULT_MATCH, &quote_char);

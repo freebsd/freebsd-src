@@ -9,10 +9,12 @@
 
 #if defined (HAVE_POSIX_SIGSETJMP)
 #  define procenv_t	sigjmp_buf
-#  undef setjmp
-#  define setjmp(x)	sigsetjmp((x), 1)
-#  undef longjmp
-#  define longjmp(x, n)	siglongjmp((x), (n))
+#  if !defined (__OPENNT)
+#    undef setjmp
+#    define setjmp(x)	sigsetjmp((x), 1)
+#    undef longjmp
+#    define longjmp(x, n)	siglongjmp((x), (n))
+#  endif /* !__OPENNT */
 #else
 #  define procenv_t	jmp_buf
 #endif

@@ -124,38 +124,13 @@ _rl_any_typein ()
   return any_typein;
 }
 
-/* Add KEY to the buffer of characters to be read. */
-int
-rl_stuff_char (key)
-     int key;
-{
-  if (key == EOF)
-    {
-      key = NEWLINE;
-      rl_pending_input = EOF;
-    }
-  ibuffer[push_index++] = key;
-  if (push_index >= ibuffer_len)
-    push_index = 0;
-  return push_index;
-}
-
-/* Make C be the next command to be executed. */
-int
-rl_execute_next (c)
-     int c;
-{
-  rl_pending_input = c;
-  return 0;
-}
-
-/* Return the amount of space available in the
-   buffer for stuffing characters. */
+/* Return the amount of space available in the buffer for stuffing
+   characters. */
 static int
 ibuffer_space ()
 {
   if (pop_index > push_index)
-    return (pop_index - push_index);
+    return (pop_index - push_index - 1);
   else
     return (ibuffer_len - (push_index - pop_index));
 }
@@ -341,6 +316,36 @@ _rl_insert_typein (c)
   free (string);
 }
 
+/* Add KEY to the buffer of characters to be read.  Returns 1 if the
+   character was stuffed correctly; 0 otherwise. */
+int
+rl_stuff_char (key)
+     int key;
+{
+  if (ibuffer_space () == 0)
+    return 0;
+
+  if (key == EOF)
+    {
+      key = NEWLINE;
+      rl_pending_input = EOF;
+    }
+  ibuffer[push_index++] = key;
+  if (push_index >= ibuffer_len)
+    push_index = 0;
+
+  return 1;
+}
+
+/* Make C be the next command to be executed. */
+int
+rl_execute_next (c)
+     int c;
+{
+  rl_pending_input = c;
+  return 0;
+}
+
 /* **************************************************************** */
 /*								    */
 /*			     Character Input			    */
@@ -408,6 +413,11 @@ rl_getc (stream)
 	 reading from is empty!  Return EOF in that case. */
       if (result == 0)
 	return (EOF);
+
+#if defined (__BEOS__)
+      if (errno == EINTR)
+	continue;
+#endif
 
 #if defined (EWOULDBLOCK)
       if (errno == EWOULDBLOCK)

@@ -36,7 +36,7 @@
 #include "rldefs.h"
 #include "readline.h"
 
-extern void readline_internal_startup ();
+extern void readline_internal_setup ();
 extern char *readline_internal_teardown ();
 extern int readline_internal_char ();
 extern void _rl_init_line_state ();

@@ -151,6 +151,18 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
     *:QNX:*:42*)
 	echo i386-qssl-qnx`echo ${UNAME_VERSION}`
 	exit 0 ;;
+    BeBox:BeOS:*:*)
+	echo powerpc-be-beos
+	exit 0 ;;
+    BeMac:BeOS:*:*)
+	echo powerpc-apple-beos
+	exit 0 ;;
+    BePC:BeOS:*:*)
+	echo i586-pc-beos
+	exit 0 ;;
+    SX-4:SUPER-UX:*:*)
+	echo sx4-nec-superux${UNAME_RELEASE}
+	exit 0 ;;
     # end cases added for Bash
     alpha:OSF1:*:*)
 	if test $UNAME_RELEASE = "V4.0"; then
@@ -212,6 +224,9 @@ EOF
 	exit 0 ;;
     amiga:OpenBSD:*:*)
 	echo m68k-cbm-openbsd${UNAME_RELEASE}
+	exit 0 ;;
+    *:[Aa]miga[Oo][Ss]:*:*)
+	echo ${UNAME_MACHINE}-unknown-amigaos
 	exit 0 ;;
     arc64:OpenBSD:*:*)
 	echo mips64el-unknown-openbsd${UNAME_RELEASE}
@@ -315,10 +330,10 @@ EOF
 	echo m88k-unknown-openbsd${UNAME_RELEASE}
 	exit 0 ;;
     Power?Macintosh:Rhapsody:*:*)
-      echo powerpc-apple-nextstep${UNAME_RELEASE}
+      echo powerpc-apple-rhapsody${UNAME_RELEASE}
       exit 0 ;;
     *:Rhapsody:*:*)
-      echo ${UNAME_MACHINE}-unknown-nextstep${UNAME_RELEASE}
+      echo ${UNAME_MACHINE}-unknown-rhapsody${UNAME_RELEASE}
       exit 0 ;;
     powerpc:machten:*:*)
 	echo powerpc-apple-machten${UNAME_RELEASE}
@@ -737,6 +752,11 @@ EOF
     i?86:DYNIX/ptx:4*:*)
 	echo i386-sequent-sysv4
 	exit 0 ;;
+# added by chet for bash based on usenet posting from <hops@sco.com> and
+# documentation on SCO's web site -- UnixWare 7 (SVR5)
+    i?86:UnixWare:5*:*)
+	echo ${UNAME_MACHINE}-pc-sysv5uw${UNAME_VERSION}
+	exit 0 ;;
     i?86:UNIX_SV:4.2MP:2.*)
 	# Unixware is an offshoot of SVR4, but it has its own version
 	# number series starting with 2...
@@ -862,7 +882,7 @@ EOF
     PENTIUM:CPunix:4.0*:*) # Unisys `ClearPath HMP IX 4000' SVR4/MP effort
                            # says <Richard.M.Bartel@ccMail.Census.GOV>
 	echo i586-unisys-sysv4 
-	exit 0 ;;              
+	exit 0 ;;
 esac
 
 #echo '(No uname command or uname output not recognized.)' 1>&2

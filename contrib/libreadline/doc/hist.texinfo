@@ -6,26 +6,19 @@
 
 @setchapternewpage odd
 
-@ignore
-last change: Thu Apr  2 14:38:22 EST 1998
-@end ignore
+@include manvers.texinfo
 
-@set EDITION 2.2
-@set VERSION 2.2
-@set UPDATED 2 April 1998
-@set UPDATE-MONTH April 1998
-
+@ifinfo
 @dircategory Libraries
 @direntry
 * History: (history).       The GNU history library API
 @end direntry
 
-@ifinfo
 This document describes the GNU History library, a programming tool that
 provides a consistent user interface for recalling lines of previously
 typed input.
 
-Copyright (C) 1988, 1991, 1993, 1995, 1996, 1998 Free Software Foundation, Inc.
+Copyright (C) 1988-1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -46,7 +39,7 @@ notice identical to this one.
 Permission is granted to copy and distribute translations of this manual
 into another language, under the above conditions for modified versions,
 except that this permission notice may be stated in a translation approved
-by the Foundation.
+by the Free Software Foundation.
 @end ifinfo
 
 @titlepage
@@ -77,10 +70,10 @@ notice identical to this one.
 Permission is granted to copy and distribute translations of this manual
 into another language, under the above conditions for modified versions,
 except that this permission notice may be stated in a translation approved
-by the Foundation.
+by the Free Software Foundation.
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1989, 1991 Free Software Foundation, Inc.
+Copyright @copyright{} 1988-1999 Free Software Foundation, Inc.
 @end titlepage
 
 @ifinfo

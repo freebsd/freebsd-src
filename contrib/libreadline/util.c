@@ -64,6 +64,7 @@ extern int _rl_defining_kbd_macro;
 extern char *_rl_executing_macro;
 
 /* Pseudo-global functions imported from other library files. */
+extern void _rl_replace_text ();
 extern void _rl_pop_executing_macro ();
 extern void _rl_set_the_line ();
 extern void _rl_init_argument ();
@@ -124,7 +125,7 @@ rl_tty_status (count, key)
 {
 #if defined (TIOCSTAT)
   ioctl (1, TIOCSTAT, (char *)0);
-  rl_refresh_line ();
+  rl_refresh_line (count, key);
 #else
   ding ();
 #endif

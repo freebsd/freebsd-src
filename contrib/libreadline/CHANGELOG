@@ -75,3 +75,142 @@ examples/Makefile.in
 				    ---
 configure.in
 	- bumped LIBVERSION up to 2.2
+
+				   4/18
+				   ----
+[readline-2.2 released]
+
+				   4/20
+				   ----
+Makefile.in
+	- make `libhistory.a' a dependency of `install'
+	- fixed a typo in the recipe for `install' that copied libreadline.a
+	  to libhistory.old right after installing it
+
+				   4/27
+				   ----
+doc/Makefile.in
+	- install {readline,history}.info out of the source directory if
+	  they are not found in the current (build) directory -- only an
+	  issue if the libraries are built in a different directory than
+	  the source directory
+
+				    5/1
+				    ---
+support/shobj-conf
+	- script from the bash distribution to do shared object and library
+	  configuration
+
+shlib/Makefile.in
+	- new directory and makefile to handle building shared versions of
+	  libreadline and libhistory, controlled by support/shobj-conf
+
+				    5/7
+				    ---
+doc/Makefile.in
+	- set SHELL to /bin/sh, rather than relying on make to be correct
+
+				   5/14
+				   ----
+savestring.c
+	- new file, moved from shell.c, for backwards compatibility
+
+Makefile.in, shlib/Makefile.in
+	- make sure savestring.c is compiled and added to libreadline and
+	  libhistory
+
+[THERE ARE NO MORE #ifdef SHELL LINES IN THE C SOURCE FILES.]
+
+				   5/15
+				   ----
+README
+	- updated description of shared library creation for the new scheme
+
+[THERE ARE NO MORE #ifdef SHELL LINES IN ANY OF THE SOURCE FILES.]
+
+Makefile.in
+	- bumped SHLIB_MAJOR up to 4 since we've augmented the library
+	  API
+	- rlconf.h is now one of the installed headers, so applications can
+	  find out whether things like vi-mode are available in the installed
+	  libreadline
+
+				   5/20
+				   ----
+configure.in
+	- changed RL_LIBRARY_VERSION to 4.0 to match the version of the
+	  installed shared libraries
+
+				    6/5
+				    ---
+rlstdc.h
+	- new file
+
+Makefile.in
+	- rlstdc.h is now one of the installed headers
+
+				    8/3
+				    ---
+shlib/Makefile.in
+	- made the suffix rule that creates xx.so from xx.c write the
+	  compiler output to `a.o', which is then mv'd to xx.so, because
+	  some compilers (Sun WSpro 4.2, for example) don't allow any
+	  suffixes other than `.o' for `cc -c' (not even `a.out')
+
+				   9/15
+				   ----
+
+Makefile.in
+	- AR and ARFLAGS are now substituted by configure, used in recipes
+	  that build the libraries
+
+configure.in
+	- use AC_CHECK_PROG to check for ar
+	- set ARFLAGS if it has not already been set in the environment
+
+				   10/5
+				   ----
+Makefile.in
+	- removed savestring.o from object file list
+
+				   10/28
+				   -----
+shlib/Makefile.in
+	- don't use a fixed filename in the .c.so suffix rule to avoid
+	  problems with parallel makes
+
+				   12/21
+				   -----
+support/shlib-install
+	- new script to install shared readline and history libraries
+
+shlib/Makefile.in
+	- changed to call shlib-install for install and uninstall targets
+
+[readline-4.0-beta1 frozen]
+
+				   12/22
+				   -----
+configure.in
+	- call AC_SUBST for SHOBJ_XLDFLAGS and SHLIB_LIBS
+
+shlib/Makefile.in
+	- SHOBJ_XLDFLAGS and SHLIB_LIBS are now substituted by configure
+	- add $(SHLIB_LIBS) at end of command line that builds the shared
+	  libraries (currently needed only by AIX 4.2)
+
+				   12/31
+				   -----
+MANIFEST, MANIFEST.doc
+	- the TOC html files are no longer generated and no longer part of
+	  the distribution
+
+				 2/18/1999
+				 ---------
+configure.in
+	- set MAKE_SHELL to /bin/sh and substitute into the Makefiles
+
+Makefile.in,{doc,examples,shlib}/Makefile.in
+	- set SHELL from @MAKE_SHELL@
+
+[readline-4.0 released]
