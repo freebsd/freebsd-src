@@ -234,7 +234,7 @@ newfile(void)
 {
 	FILE *fp;
 
-	if (snprintf(currfile, sizeof(currfile), "%s%0*ld", prefix,
+	if ((size_t)snprintf(currfile, sizeof(currfile), "%s%0*ld", prefix,
 	    (int)sufflen, nfiles) >= sizeof(currfile)) {
 		errno = ENAMETOOLONG;
 		err(1, NULL);
