@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.6 1998/08/12 13:04:24 abial Exp $
+#	$Id: populate,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 
 pwd=`pwd`
@@ -45,7 +45,7 @@ fi
 
 echo "-> Making and installing crunch1..."
 cd ../crunch1
-make "SRC=${SRC}" && make install 2>&1 >/dev/null
+make OBJFORMAT=aout "SRC=${SRC}" && make install 2>&1 >/dev/null
 if [ "X$?" != "X0" ]
 then
 	echo "-> ERROR while building ../${TYPE}/crunch1..."
