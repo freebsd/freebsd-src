@@ -24,7 +24,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: comconsole.c,v 1.2 1998/09/17 23:52:09 msmith Exp $
+ *	$Id: comconsole.c,v 1.3 1998/10/02 16:32:45 msmith Exp $
  */
 
 #include <stand.h>
@@ -37,6 +37,8 @@ static int	comc_init(int arg);
 static void	comc_putchar(int c);
 static int	comc_getchar(void);
 static int	comc_ischar(void);
+
+static int	comc_started;
 
 struct console comconsole = {
     "comconsole",
@@ -61,12 +63,21 @@ comc_probe(struct console *cp)
 static int
 comc_init(int arg)
 {
-    v86.ctl = V86_FLAGS;
+    int		i;
+
+    if (comc_started && arg == 0)
+	return 0;
+    comc_started = 1;
+    v86.ctl = 0;
     v86.addr = 0x14;
     v86.eax = 0xe3;		/* 9600N81 */
     v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
     v86int();
-    return(v86.efl & 1);
+
+    for(i = 0; i < 10 && comc_ischar(); i++)
+        (void)comc_getchar();
+
+    return(0);
 }
 
 static void
@@ -74,7 +85,8 @@ comc_putchar(int c)
 {
     v86.ctl = 0;
     v86.addr = 0x14;
-    v86.eax = 0x100 | c;
+    v86.eax = 0x100 | c;	/* Function 1 = write */
+    v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
     v86int();
 }
 
@@ -84,7 +96,8 @@ comc_getchar(void)
     if (comc_ischar()) {
 	v86.ctl = 0;
 	v86.addr = 0x14;
-	v86.eax = 0x300;
+	v86.eax = 0x200;	/* Function 2 = read */
+	v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
 	v86int();
 	return(v86.eax & 0xff);
     } else {
@@ -97,7 +110,8 @@ comc_ischar(void)
 {
     v86.ctl = 0;
     v86.addr = 0x14;
-    v86.eax = 0x200;
+    v86.eax = 0x300;		/* Function 3 = status */
+    v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
     v86int();
-    return(v86.eax & 0x1);
+    return(v86.eax & 0x100);	/* AH bit 1 is "receive data ready" */
 }
