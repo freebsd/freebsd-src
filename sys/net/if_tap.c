@@ -346,19 +346,24 @@ tapopen(dev, flag, mode, td)
 	if ((dev2unit(dev) & CLONE_UNITMASK) > TAPMAXUNIT)
 		return (ENXIO);
 
+	/*
+	 * XXXRW: Non-atomic test-and-set of si_drv1.  Currently protected
+	 * by Giant, but the race actually exists under memory pressure as
+	 * well even when running with Giant, as malloc() may sleep.
+	 */
 	tp = dev->si_drv1;
 	if (tp == NULL) {
 		tapcreate(dev);
 		tp = dev->si_drv1;
 	}
 
-	/* Unlocked read. */
-	KASSERT(!(tp->tap_flags & TAP_OPEN), 
-		("%s flags is out of sync", tp->tap_if.if_xname));
+	mtx_lock(&tp->tap_mtx);
+	if (tp->tap_flags & TAP_OPEN) {
+		mtx_unlock(&tp->tap_mtx);
+		return (EBUSY);
+	}
 
 	bcopy(tp->arpcom.ac_enaddr, tp->ether_addr, sizeof(tp->ether_addr));
-
-	mtx_lock(&tp->tap_mtx);
 	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
 	mtx_unlock(&tp->tap_mtx);
@@ -679,11 +684,15 @@ tapioctl(dev, cmd, data, flag, td)
 
 		case OSIOCGIFADDR:	/* get MAC address of the remote side */
 		case SIOCGIFADDR:
+			mtx_lock(&tp->tap_mtx);
 			bcopy(tp->ether_addr, data, sizeof(tp->ether_addr));
+			mtx_unlock(&tp->tap_mtx);
 			break;
 
 		case SIOCSIFADDR:	/* set MAC address of the remote side */
+			mtx_lock(&tp->tap_mtx);
 			bcopy(data, tp->ether_addr, sizeof(tp->ether_addr));
+			mtx_unlock(&tp->tap_mtx);
 			break;
 
 		default:
