@@ -136,8 +136,20 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 						cnt = 0;
 					}
 				}
-			}
+			} else if (n == 0) {
+				/*
+				 * Avoid an infinite loop if the last iov_len is
+				 * 0.
+				 */
+				while (idx < iovcnt && p_iov[idx].iov_len == 0)
+					idx++;
 
+				if (idx == iovcnt) {
+					ret = num;
+					break;
+				}
+			}
+                       
 			/*
 			 * If performing a blocking write, check if the
 			 * write would have blocked or if some bytes
