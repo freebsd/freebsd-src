@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.15.4.6 1996/06/25 03:16:36 alex Exp $
+ * $Id: ipfw.c,v 1.15.4.7 1996/06/29 03:55:46 alex Exp $
  *
  */
 
@@ -693,7 +693,7 @@ add(ac,av)
 				for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
 					continue;
 				if (*q == '*')
-					rule.fw_flg = IP_FW_F_IFUWILD;
+					rule.fw_flg |= IP_FW_F_IFUWILD;
 				else
 					rule.fw_via_unit = atoi(q);
 				*q = '\0';
