@@ -97,8 +97,8 @@ union_mount(mp, path, data, ndp, p)
 	int len;
 	u_int size;
 
-#ifdef UNION_DIAGNOSTIC
-	printf("union_mount(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("union_mount(mp = %p)\n", (void *)mp);
 #endif
 
 	/*
@@ -270,7 +270,7 @@ union_mount(mp, path, data, ndp, p)
 
 	(void)union_statfs(mp, &mp->mnt_stat, p);
 
-#ifdef UNION_DIAGNOSTIC
+#ifdef DEBUG
 	printf("union_mount: from %s, on %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
 #endif
@@ -318,8 +318,8 @@ union_unmount(mp, mntflags, p)
 	int freeing;
 	int flags = 0;
 
-#ifdef UNION_DIAGNOSTIC
-	printf("union_unmount(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("union_unmount(mp = %p)\n", (void *)mp);
 #endif
 
 	if (mntflags & MNT_FORCE)
@@ -361,7 +361,7 @@ union_unmount(mp, mntflags, p)
 		return (EBUSY);
 	}
 
-#ifdef UNION_DIAGNOSTIC
+#ifdef DEBUG
 	vprint("union root", um_rootvp);
 #endif	 
 	/*
@@ -456,10 +456,9 @@ union_statfs(mp, sbp, p)
 	struct statfs mstat;
 	int lbsize;
 
-#ifdef UNION_DIAGNOSTIC
-	printf("union_statfs(mp = %x, lvp = %x, uvp = %x)\n", mp,
-			um->um_lowervp,
-	       		um->um_uppervp);
+#ifdef DEBUG
+	printf("union_statfs(mp = %p, lvp = %p, uvp = %p)\n",
+	    (void *)mp, (void *)um->um_lowervp, (void *)um->um_uppervp);
 #endif
 
 	bzero(&mstat, sizeof(mstat));
