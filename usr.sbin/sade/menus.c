@@ -1262,7 +1262,7 @@ DMenu MenuStartup = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Startup Services Menu",
     "This menu allows you to configure various aspects of your system's\n"
-    "startup configuration.  Use [SPACE] or [ENTER] to select items, and\n",
+    "startup configuration.  Use [SPACE] or [ENTER] to select items, and\n"
     "[TAB] to move to the buttons.  Select Exit to leave this menu.",
     NULL,
     NULL,
