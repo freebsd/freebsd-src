@@ -746,8 +746,8 @@ AAA
 	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
 	uniqtag.data.pointer = sp;
 	init_tags(sp);
-	insert_tag(sp, &uniqtag.hdr);
 	insert_tag(sp, &sp->neg->service.hdr);
+	insert_tag(sp, &uniqtag.hdr);
 	make_packet(sp);
 	sendpacket(sp);
 }
@@ -769,7 +769,7 @@ ng_pppoe_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	u_int16_t		session;
 	u_int16_t		length;
 	u_int8_t		code;
-	struct pppoe_tag	*tag = NULL;
+	struct pppoe_tag	*utag = NULL, *tag = NULL;
 	hook_p 			sendhook;
 	struct {
 		struct pppoe_tag hdr;
@@ -865,14 +865,14 @@ AAA
 				 * Received #2, now send #3
 				 * For now simply accept the first we receive.
 				 */
-				tag = get_tag(ph, PTT_HOST_UNIQ);
-				if ((tag == NULL)
-				|| (ntohs(tag->tag_len) != sizeof(sp))) {
+				utag = get_tag(ph, PTT_HOST_UNIQ);
+				if ((utag == NULL)
+				|| (ntohs(utag->tag_len) != sizeof(sp))) {
 					printf("no host unique field\n");
 					LEAVE(ENETUNREACH);
 				}
 
-				sendhook = pppoe_finduniq(node, tag);
+				sendhook = pppoe_finduniq(node, utag);
 				if (sendhook == NULL) {
 					printf("no matching session\n");
 					LEAVE(ENETUNREACH);
@@ -904,13 +904,11 @@ AAA
 				neg->pkt->pkt_header.ph.code = PADR_CODE;
 				init_tags(sp);
 				insert_tag(sp, &neg->service.hdr); /* Service */
-				insert_tag(sp, tag);	      /* Host Unique */
-				tag = get_tag(ph, PTT_AC_COOKIE);
-				if (tag)
+				if ((tag = get_tag(ph, PTT_AC_COOKIE)))
 					insert_tag(sp, tag); /* return cookie */
-				tag = get_tag(ph, PTT_AC_NAME);
-				if (tag)
-					insert_tag(sp, tag); /* return cookie */
+				if ((tag = get_tag(ph, PTT_AC_NAME)))
+					insert_tag(sp, tag); /* return it */
+				insert_tag(sp, utag);      /* Host Unique */
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_SREQ;
@@ -923,13 +921,13 @@ AAA
 				 * Use the ac_cookie tag to find the 
 				 * hook this is in response to.
 				 */
-				tag = get_tag(ph, PTT_AC_COOKIE);
-				if ((tag == NULL)
-				|| (ntohs(tag->tag_len) != sizeof(sp))) {
+				utag = get_tag(ph, PTT_AC_COOKIE);
+				if ((utag == NULL)
+				|| (ntohs(utag->tag_len) != sizeof(sp))) {
 					LEAVE(ENETUNREACH);
 				}
 
-				sendhook = pppoe_finduniq(node, tag);
+				sendhook = pppoe_finduniq(node, utag);
 				if (sendhook == NULL) {
 					LEAVE(ENETUNREACH);
 				}
@@ -968,15 +966,11 @@ AAA
 				 */
 				init_tags(sp);
 				insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
-				insert_tag(sp, tag);	/* ac_cookie */
-				tag = get_tag(ph, PTT_SRV_NAME);
-				if (tag) {
+				if ((get_tag(ph, PTT_SRV_NAME)))
 					insert_tag(sp, tag);/* return service */
-				}
-				tag = get_tag(ph, PTT_HOST_UNIQ);
-				if (tag && ntohs(tag->tag_len) != sizeof(sp)) {
+				if ((tag = get_tag(ph, PTT_HOST_UNIQ)))
 					insert_tag(sp, tag); /* return it */
-				}
+				insert_tag(sp, utag);	/* ac_cookie */
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_NEWCONNECTED;
@@ -1006,13 +1000,13 @@ AAA
 				 * Also make sure the pre-made header is
 				 * correct and set us into Session mode.
 				 */
-				tag = get_tag(ph, PTT_HOST_UNIQ);
-				if ((tag == NULL)
-				|| (ntohs(tag->tag_len) != sizeof(sp))) {
+				utag = get_tag(ph, PTT_HOST_UNIQ);
+				if ((utag == NULL)
+				|| (ntohs(utag->tag_len) != sizeof(sp))) {
 					LEAVE (ENETUNREACH);
 					break;
 				}
-				sendhook = pppoe_finduniq(node, tag);
+				sendhook = pppoe_finduniq(node, utag);
 				if (sendhook == NULL) {
 					LEAVE(ENETUNREACH);
 				}
@@ -1185,15 +1179,11 @@ AAA
 			uniqtag.data.pointer = sp;
 			init_tags(sp);
 			insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
-			tag = get_tag(ph, PTT_HOST_UNIQ);
-			if (tag && ntohs(tag->tag_len) == sizeof(sp)) {
-				insert_tag(sp, tag); /* returned hostunique */
-			}
-			insert_tag(sp, &uniqtag.hdr);      /* AC cookie */
-			tag = get_tag(ph, PTT_SRV_NAME);
-			if (tag) {
+			if ((tag = get_tag(ph, PTT_SRV_NAME)))
 				insert_tag(sp, tag);	  /* return service */
-			}
+			if ((tag = get_tag(ph, PTT_HOST_UNIQ)))
+				insert_tag(sp, tag); /* returned hostunique */
+			insert_tag(sp, &uniqtag.hdr);
 			/* XXX maybe put the tag in the session store */
 			scan_tags(sp, ph);
 			make_packet(sp);
