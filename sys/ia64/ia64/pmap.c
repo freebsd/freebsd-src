@@ -229,7 +229,9 @@ static vm_zone_t pvzone;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
+#if 0
 static struct pv_entry *pvinit;
+#endif
 static struct pv_entry *pvbootentries;
 static int pvbootnext, pvbootmax;
 
@@ -238,7 +240,9 @@ static int pvbootnext, pvbootmax;
  */
 static vm_zone_t ptezone;
 static struct vm_object ptezone_obj;
+#if 0
 static struct ia64_lpte *pteinit;
+#endif
 
 /*
  * VHPT instrumentation.
