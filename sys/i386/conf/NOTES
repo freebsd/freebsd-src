@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.145 1995/02/17 09:33:29 jkh Exp $
+#	$Id: LINT,v 1.146 1995/02/19 14:07:28 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -330,10 +330,6 @@ controller	isa0
 # than 16 megabytes of memory.  It doesn't hurt on other machines.
 # Some broken EISA and VLB hardware may need this, too.
 #
-# DISKSLICE provides support for slicing up a disk into virtual disks.
-# It isn't really ISA-specific, but the on-disk slice table is currently
-# required to be a DOS partition table.
-#
 # DUMMY_NOPS disables extra delays for some bus operations.  The delays
 # are mostly for older systems and aren't used consistently.  Probably
 # works OK on most EISA bus machines.
@@ -348,7 +344,6 @@ controller	isa0
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
-options		DISKSLICE
 #options	DUMMY_NOPS
 #options	TUNE_1542
 
