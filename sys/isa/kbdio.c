@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.10 1997/03/07 10:22:55 yokota Exp $
+ * $Id: kbdio.c,v 1.11 1997/07/20 14:10:05 bde Exp $
  */
 
 #include "sc.h"
@@ -76,16 +76,13 @@
 
 /* constants */
 
-#define NKBDC		max(max(NSC, NVT), NPSM)
+#define NKBDC		MAX(MAX(NSC, NVT), NPSM)
 #define KBDQ_BUFSIZE	32
 
 /* macros */
 
-#ifndef max
-#define max(x,y)	((x) > (y) ? (x) : (y))
-#endif
-#ifndef min
-#define min(x,y)	((x) < (y) ? (x) : (y))
+#ifndef MAX
+#define MAX(x, y)	((x) > (y) ? (x) : (y))
 #endif
 
 #define kbdcp(p)	((struct kbdc_softc *)(p))
