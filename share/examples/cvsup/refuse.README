@@ -23,19 +23,23 @@ buildworld.  Modify /etc/mail/`hostname`.mc instead.
 If you are an English speaker and don't wish to receive the
 foreign-language documentation or ports, use the following patterns:
 
+    doc/bn_*
     doc/da_*
     doc/de_*
-    doc/es_*
     doc/el_*
+    doc/es_*
     doc/fr_*
+    doc/id_*
     doc/it_*
     doc/ja_*
     doc/nl_*
     doc/no_*
     doc/pl_*
     doc/pt_*
+    doc/ro_*
     doc/ru_*
     doc/sr_*
+    doc/tr_*
     doc/zh_*
     ports/arabic
     ports/chinese
