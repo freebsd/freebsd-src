@@ -54,7 +54,7 @@
 #define	memset(s,c,n)		if (c == 0) { \
 				    bzero(s,n); \
 				} else { \
-				    register char *src = s; \
+				    register char *src = (char *)s; \
 				    register int count = n; \
 					\
 				    while (count--) { \
