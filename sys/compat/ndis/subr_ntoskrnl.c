@@ -95,11 +95,13 @@ __stdcall static void ntoskrnl_init_nplookaside(npaged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
 __stdcall static void ntoskrnl_delete_nplookaside(npaged_lookaside_list *);
-static slist_entry *ntoskrnl_push_slist(slist_entry *, slist_entry *);
-static slist_entry *ntoskrnl_pop_slist(slist_entry *);
-static slist_entry *ntoskrnl_push_slist_ex(slist_entry *,
-	slist_entry *, kspin_lock *);
-static slist_entry *ntoskrnl_pop_slist_ex(slist_entry *, kspin_lock *);
+__stdcall static slist_entry *ntoskrnl_push_slist(/*slist_entry *,
+	slist_entry * */ void);
+__stdcall static slist_entry *ntoskrnl_pop_slist(/*slist_entry * */ void);
+__stdcall static slist_entry *ntoskrnl_push_slist_ex(/*slist_entry *,
+	slist_entry *,*/ kspin_lock *);
+__stdcall static slist_entry *ntoskrnl_pop_slist_ex(/*slist_entry *,
+	kspin_lock * */void);
 __stdcall static void dummy(void);
 
 static struct mtx ntoskrnl_interlock;
@@ -434,64 +436,79 @@ ntoskrnl_delete_nplookaside(lookaside)
 
 /*
  * Note: the interlocked slist push and pop routines are
- * declared to be _fastcall in Windows, which means they
- * use the _cdecl calling convention here.
+ * declared to be _fastcall in Windows. gcc 3.4 is supposed
+ * to have support for this calling convention, however we
+ * don't have that version available yet, so we kludge things
+ * up using some inline assembly.
  */
-static slist_entry *
-ntoskrnl_push_slist(head, entry)
-	slist_entry		*head;
-	slist_entry		*entry;
+
+__stdcall static slist_entry *
+ntoskrnl_push_slist(/*head, entry*/ void)
 {
+	slist_header		*head;
+	slist_entry		*entry;
 	slist_entry		*oldhead;
+
+	__asm__("movl %%ecx, %%ecx" : "=c" (head));
+	__asm__("movl %%edx, %%edx" : "=d" (entry));
+
 	mtx_lock(&ntoskrnl_interlock);
-	oldhead = head->sl_next;
-	entry->sl_next = head->sl_next;
-	head->sl_next = entry;
+	oldhead = head->slh_list.slh_next;
+	entry->sl_next = head->slh_list.slh_next;
+	head->slh_list.slh_next = entry;
 	mtx_unlock(&ntoskrnl_interlock);
 	return(oldhead);
 }
 
-static slist_entry *
-ntoskrnl_pop_slist(head)
-	slist_entry		*head;
+__stdcall static slist_entry *
+ntoskrnl_pop_slist(/*head*/ void)
 {
+	slist_header		*head;
 	slist_entry		*first;
+
+	__asm__("movl %%ecx, %%ecx" : "=c" (head));
+
 	mtx_lock(&ntoskrnl_interlock);
-	first = head->sl_next;
+	first = head->slh_list.slh_next;
 	if (first != NULL)
-		head->sl_next = first->sl_next;
+		head->slh_list.slh_next = first->sl_next;
 	mtx_unlock(&ntoskrnl_interlock);
 	return(first);
 }
 
 __stdcall static slist_entry *
-ntoskrnl_push_slist_ex(head, entry, lock)
-	slist_entry		*head;
-	slist_entry		*entry;
+ntoskrnl_push_slist_ex(/*head, entry,*/ lock)
 	kspin_lock		*lock;
 {
+	slist_header		*head;
+	slist_entry		*entry;
 	slist_entry		*oldhead;
-	return(NULL);
+
+	__asm__("movl %%ecx, %%ecx" : "=c" (head));
+	__asm__("movl %%edx, %%edx" : "=d" (entry));
+
 	mtx_lock((struct mtx *)*lock);
-	oldhead = head->sl_next;
-	entry->sl_next = head->sl_next;
-	head->sl_next = entry;
+	oldhead = head->slh_list.slh_next;
+	entry->sl_next = head->slh_list.slh_next;
+	head->slh_list.slh_next = entry;
 	mtx_unlock((struct mtx *)*lock);
 	return(oldhead);
 }
 
 __stdcall static slist_entry *
-ntoskrnl_pop_slist_ex(head, lock)
-	slist_entry		*head;
-	kspin_lock		*lock;
+ntoskrnl_pop_slist_ex(/*head, lock*/ void)
 {
+	slist_header		*head;
+	kspin_lock		*lock;
 	slist_entry		*first;
 
-	return(NULL);
+	__asm__("movl %%ecx, %%ecx" : "=c" (head));
+	__asm__("movl %%edx, %%edx" : "=d" (lock));
+
 	mtx_lock((struct mtx *)*lock);
-	first = head->sl_next;
+	first = head->slh_list.slh_next;
 	if (first != NULL)
-		head->sl_next = first->sl_next;
+		head->slh_list.slh_next = first->sl_next;
 	mtx_unlock((struct mtx *)*lock);
 	return(first);
 }

@@ -54,6 +54,13 @@ union slist_header {
 
 typedef union slist_header slist_header;
 
+struct list_entry {
+        struct list_entry *nle_flink;
+        struct list_entry *nle_blink;
+};
+
+typedef struct list_entry list_entry;
+
 struct general_lookaside {
 	slist_header		gl_listhead;
 	uint16_t		gl_depth;
@@ -73,6 +80,7 @@ struct general_lookaside {
 	uint32_t		gl_size;
 	void			*gl_allocfunc;
 	void			*gl_freefunc;
+	list_entry		gl_listent;
 	uint32_t		gl_lasttotallocs;
 	union {
 		uint32_t		gl_lastallocmisses;
