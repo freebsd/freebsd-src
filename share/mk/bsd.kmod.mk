@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.47 1998/03/12 20:02:11 eivind Exp $
+#	$Id: bsd.kmod.mk,v 1.48 1998/03/19 13:22:46 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -238,11 +238,12 @@ _sysregress:	${_INLINKS} ${PROG}
 
 regress:	_sysregress
 
-.include <bsd.obj.mk>
 .include <bsd.dep.mk>
 
 .if !exists(${DEPENDFILE})
 ${OBJS}: ${SRCS:M*.h}
 .endif
+
+.include <bsd.obj.mk>
 
 .include <bsd.kern.mk>
