@@ -11,7 +11,7 @@ CFLAGS+=	-DPC98
 
 # architecture-specific loader code
 SRCS=		main.c conf.c
-.PATH:		${.CURDIR}/../../i386/loader ${.CURDIR}/../../i386/libi386
+.PATH:		${.CURDIR}/../../i386/loader
 
 # Enable PXE TFTP or NFS support, not both.
 CFLAGS+=	-DLOADER_NFS_SUPPORT
