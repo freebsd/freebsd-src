@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.6 1994/10/11 23:16:37 wollman Exp $
+ * $Id: if_ether.c,v 1.7 1994/11/02 00:58:29 wollman Exp $
  */
 
 /*
@@ -520,7 +520,7 @@ reply:
 			sin.sin_len = sizeof sin;
 			sin.sin_addr = itaddr;
 
-			rt = rtalloc1((struct sockaddr *)&sin, 0);
+			rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
 			if( !rt )
 				goto out;
 			/*
@@ -603,7 +603,7 @@ arplookup(addr, create, proxy)
 
 	sin.sin_addr.s_addr = addr;
 	sin.sin_other = proxy ? SIN_PROXY : 0;
-	rt = rtalloc1((struct sockaddr *)&sin, create);
+	rt = rtalloc1((struct sockaddr *)&sin, create, 0UL);
 	if (rt == 0)
 		return (0);
 	rt->rt_refcnt--;
