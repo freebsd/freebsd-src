@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.37 1997/12/26 20:41:35 phk Exp $
+ *	$Id: microtime.s,v 1.38 1997/12/28 13:36:05 phk Exp $
  */
 
 #include <machine/asmacros.h>
@@ -47,7 +47,6 @@
 
 ENTRY(microtime)
 
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	movl	_tsc_freq, %ecx
 	testl	%ecx, %ecx
 	je	i8254_microtime
@@ -57,11 +56,8 @@ ENTRY(microtime)
 	subl	_tsc_bias, %eax
 	mull	_tsc_multiplier
 	movl	%edx, %eax
+	popfl			/* restore interrupt mask */
 	jmp	common_microtime
-	ALIGN_TEXT
-#else
-	xorl	%ecx, %ecx	/* clear ecx */
-#endif
 
 i8254_microtime:
 	movb	$TIMER_SEL0|TIMER_LATCH, %al	/* prepare to latch */
@@ -205,10 +201,6 @@ overflow:
 #endif /* 0 */
 	shr	$15, %eax
 
-common_microtime:
-	addl	_time+4, %eax	/* usec += time.tv_sec */
-	movl	_time, %edx	/* sec = time.tv_sec */
-
 #ifdef USE_CLOCKLOCK
 	pushl	%eax		/* s_lock destroys %eax, %ecx */
 	pushl	%edx		/* during profiling, %edx is also destroyed */
@@ -219,6 +211,11 @@ common_microtime:
 	popl	%eax
 #endif /* USE_CLOCKLOCK */
 	popfl			/* restore interrupt mask */
+
+common_microtime:
+
+	addl	_time+4, %eax	/* usec += time.tv_sec */
+	movl	_time, %edx	/* sec = time.tv_sec */
 
 	cmpl	$1000000, %eax	/* usec valid? */
 	jb	1f
