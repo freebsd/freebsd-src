@@ -1,0 +1,186 @@
+.\" Copyright (c) 1980, 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)bad144.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt BAD144 8
+.Os BSD 4
+.Sh NAME
+.Nm bad144
+.Nd read/write dec standard 144 bad sector information
+.Sh SYNOPSIS
+.Nm bad144
+.Op Fl c
+.Op Fl f
+.Op Fl v
+.Ar disk
+.Oo
+.Ar sno
+.Op Ar bad ...
+.Oc
+.Nm bad144
+.Fl a
+.Op Fl c
+.Op Fl f
+.Op Fl v
+.Ar disk
+.Op Ar bad ...
+.Sh DESCRIPTION
+.Nm Bad144
+can be used to inspect the information stored on a disk that is used by
+the disk drivers to implement bad sector forwarding.
+.Pp
+Available options:
+.Pp
+.Bl -tag -width Ds
+.It Fl a
+The argument list consists of new bad sectors to be added to an existing
+list.
+The new sectors are sorted into the list,
+which must have been in order.
+Replacement sectors are moved to accommodate the additions;
+the new replacement sectors are cleared.
+.It Fl c
+Forces an attempt to copy the old sector to the replacement,
+and may be useful when replacing an unreliable sector.
+.It Fl f
+For a RP06, RM03, RM05, Fujitsu Eagle,
+or
+.Tn SMD
+disk on a Massbus, the
+.Fl f
+option may be used to mark the new bad sectors as ``bad''
+by reformatting them as unusable sectors.
+This option is
+.Em required unless
+the sectors have already been marked bad,
+or the system will not be notified that it should use the replacement sector.
+This option may be used while running multiuser; it is no longer necessary
+to perform format operations while running single-user.
+.It Fl v
+The entire process is described as it happens in gory detail if
+.Fl v
+(verbose) is given.
+.El
+.Pp
+The format of
+the information is specified by
+.Tn DEC
+standard 144, as follows.
+The bad sector information is located in the first 5 even numbered sectors
+of the last track of the disk pack.  There are five identical copies of
+the information, described by the
+.Ar dkbad
+structure.
+.Pp
+Replacement sectors are allocated starting with the first sector before
+the bad sector information and working backwards towards the beginning
+of the disk.  A maximum of 126 bad sectors are supported.  The position
+of the bad sector in the bad sector table determines the replacement
+sector to which it corresponds.
+The bad sectors must be listed in ascending order.
+.Pp
+The bad sector information and replacement sectors are conventionally
+only accessible through the ``c'' file system partition of the disk.  If
+that partition is used for a file system, the user is responsible for
+making sure that it does not overlap the bad sector information or any
+replacement sectors.
+Thus, one track plus 126 sectors must be reserved to allow use
+of all of the possible bad sector replacements.
+.Pp
+The bad sector structure is as follows:
+.Bd -literal
+struct dkbad {
+	long	bt_csn;		 /* cartridge serial number */
+	u_short	bt_mbz;		 /* unused; should be 0 */
+	u_short	bt_flag;	 /* -1 => alignment cartridge */
+	struct bt_bad {
+	      u_short bt_cyl;    /* bad sector cylinder number */
+	      u_short bt_trksec; /* track and sector number */
+	} bt_bad[126];
+};
+.Ed
+.Pp
+Unused slots in the
+.Ar bt_bad
+array are filled with all bits set, a putatively
+illegal value.
+.Pp
+.Nm Bad144
+is invoked by giving a device name (e.g. hk0, hp1, etc.).
+With no optional arguments
+it reads the first sector of the last track
+of the corresponding disk and prints out the bad sector information.
+It issues a warning if the bad sectors are out of order.
+.Nm Bad144
+may also be invoked with a serial number for the pack and a list
+of bad sectors.
+It will write the supplied information into all copies
+of the bad-sector file, replacing any previous information.
+Note, however, that 
+.Nm bad144
+does not arrange for the specified sectors to be marked bad in this case.
+This procedure should only be used to restore known bad sector information which
+was destroyed.
+.Pp
+It is no longer necessary to reboot to allow the kernel
+to reread the bad-sector table from the drive.
+.Sh SEE ALSO
+.Xr badsect 8 ,
+.Xr format 8
+.Sh BUGS
+It should be possible to format disks on-line under
+.Tn UNIX .
+.Pp
+It should be possible to mark bad sectors on drives of all type.
+.Pp
+On an 11/750,
+the standard bootstrap drivers used to boot the system do
+not understand bad sectors,
+handle
+.Tn ECC
+errors, or the special
+.Tn SSE
+(skip sector) errors of RM80-type disks.
+This means that none of these errors can occur when reading the file
+.Pa /vmunix
+to boot.  Sectors 0-15 of the disk drive
+must also not have any of these errors.
+.Pp
+The drivers which write a system core image on disk after a crash do not
+handle errors; thus the crash dump area must be free of errors and bad
+sectors.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.1 .

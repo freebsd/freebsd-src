@@ -1,0 +1,81 @@
+#
+#  This Makefile is designed to work on the old "make" program.  It does
+#  not use the obj subdirectory.  It also does not install documentation
+#  automatically -- think of it as a quick start for sites that have the
+#  old make program (I recommend that you get and port the new make if you
+#  are going to be doing any signficant work on sendmail).
+#
+#	@(#)Makefile.dist	8.2 (Berkeley) 11/27/93
+#
+
+# use O=-O (usual) or O=-g (debugging)
+O=	-O
+
+# location of sendmail source directory
+SRCDIR=	../src
+
+# define the database mechanisms available for map & alias lookups:
+#	-DNDBM -- use new DBM
+#	-DNEWDB -- use new Berkeley DB
+# The really old (V7) DBM library is no longer supported.
+#
+DBMDEF=	-DNDBM -DNEWDB
+
+# environment definitions (e.g., -D_AIX3)
+ENVDEF=
+
+# see also conf.h for additional compilation flags
+
+# include directories
+INCDIRS=-I${SRCDIR} -I/usr/sww/include/db
+
+# loader options
+LDOPTS=
+
+# library directories
+LIBDIRS=-L/usr/sww/lib
+
+# libraries required on your system
+LIBS=	-ldb -ldbm
+
+# location of makemap binary (usually /usr/sbin or /usr/etc)
+BINDIR=	${DESTDIR}/usr/sbin
+
+# additional .o files needed
+OBJADD=
+
+###################  end of user configuration flags  ######################
+
+CFLAGS=	-I. $O ${INCDIRS} ${DBMDEF} ${ENVDEF}
+
+OBJS=	makemap.o ${OBJADD}
+
+LINKS=	${DESTDIR}/usr/ucb/newaliases ${DESTDIR}/usr/ucb/mailq
+BINOWN=	bin
+BINGRP=	bin
+BINMODE=555
+
+ALL=	makemap makemap.0
+
+all: ${ALL}
+
+makemap: ${BEFORE} ${OBJS}
+	${CC} -o makemap ${LDOPTS} ${OBJS} ${LIBDIRS} ${LIBS}
+
+makemap.0: makemap.8
+	nroff -h -mandoc makemap.8 > makemap.0
+
+install: install-makemap install-docs
+
+install-makemap: makemap
+	install -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} makemap ${BINDIR}
+
+# doesn't actually install them -- you may want to install pre-nroff versions
+install-docs: makemap.0
+
+clean:
+	rm -f ${OBJS} makemap makemap.0
+
+# dependencies
+#   gross overkill, and yet still not quite enough....
+${OBJS}: ${SRCDIR}/conf.h

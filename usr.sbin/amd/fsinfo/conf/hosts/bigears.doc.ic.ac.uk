@@ -1,0 +1,3 @@
+#include "../diskless_sun3_sos4"
+
+DISKLESS_SUN3_SOS4(bigears,doc.ic.ac.uk,toytown.doc.ic.ac.uk)

@@ -1,0 +1,58 @@
+cpyr
+cpyr	Copyright (c) 1983  Eric P. Allman
+cpyr	Copyright (c) 1988, 1993
+cpyr	    The Regents of the University of California.  All rights reserved.
+cpyr	
+cpyr	@(#)sendmail.hf	8.2 (Berkeley) 7/16/93
+cpyr
+smtp	Commands:
+smtp		HELO	EHLO	MAIL	RCPT	DATA
+smtp		RSET	NOOP	QUIT	HELP	VRFY
+smtp		EXPN	VERB
+smtp	For more info use "HELP <topic>".
+smtp	To report bugs in the implementation send email to
+smtp		sendmail@CS.Berkeley.EDU.
+smtp	For local information send email to Postmaster at your site.
+help	HELP [ <topic> ]
+help		The HELP command gives help info.
+helo	HELO <hostname>
+helo		Introduce yourself.
+ehlo	EHLO <hostname>
+ehlo		Introduce yourself, and request extended SMTP mode.
+mail	MAIL FROM: <sender>
+mail		Specifies the sender.
+rcpt	RCPT TO: <recipient>
+rcpt		Specifies the recipient.  Can be used any number of times.
+data	DATA
+data		Following text is collected as the message.
+data		End with a single dot.
+rset	RSET
+rset		Resets the system.
+quit	QUIT
+quit		Exit sendmail (SMTP).
+verb	VERB
+verb		Go into verbose mode.  This sends 0xy responses that are
+verb		are not RFC821 standard (but should be)  They are recognized
+verb		by humans and other sendmail implementations.
+vrfy	VRFY <recipient>
+vrfy		Verify an address.  If you want to see what it aliases
+vrfy		to, use EXPN instead.
+expn	EXPN <recipient>
+expn		Expand an address.  If the address indicates a mailing
+expn		list, return the contents of that list.
+noop	NOOP
+noop		Do nothing.
+send	SEND FROM: <sender>
+send		replaces the MAIL command, and can be used to send
+send		directly to a users terminal.  Not supported in this
+send		implementation.
+soml	SOML FROM: <sender>
+soml		Send or mail.  If the user is logged in, send directly,
+soml		otherwise mail.  Not supported in this implementation.
+saml	SAML FROM: <sender>
+saml		Send and mail.  Send directly to the user's terminal,
+saml		and also mail a letter.  Not supported in this
+saml		implementation.
+turn	TURN
+turn		Reverses the direction of the connection.  Not currently
+turn		implemented.

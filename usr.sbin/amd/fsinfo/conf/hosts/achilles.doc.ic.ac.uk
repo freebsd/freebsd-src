@@ -1,0 +1,116 @@
+// mkfsinfo
+
+host achilles.doc.ic.ac.uk
+
+/*
+arch sun4
+os sos4
+cluster theory
+dumphost achilles.doc.ic.ac.uk
+*/
+
+// SWAP Partitions
+fs /dev/xd0b {
+	fstype = swap
+}
+
+fs /dev/xd1b {
+	fstype = swap
+}
+
+// ROOT
+fs /dev/xd0a {
+	fstype = 4.2
+	opts = rw,noquota,grpid
+	passno = 1;
+	freq = 1;
+	mount / { }
+}
+
+// ROOT Backup
+fs /dev/xd1a {
+	fstype = ignore
+	opts = rw,noquota,grpid
+	passno = 1;
+	freq = 1;
+	mount /backup { }
+}
+
+fs /dev/xd1d {
+	fstype = 4.2
+	opts = rw,noquota,grpid
+	passno = 1;
+	freq = 1;
+	mount /export {
+		root {
+			truth { exportfs "-root=truth,access=truth" }
+		}
+		swap {
+			truth { exportfs "-root=truth,access=truth" }
+		}
+		exec {
+			sun4 { exportfs "-access=toytown_clients:hangers_on:gummo:harpo:opus,rw=dylan:truth:florence:toytown" }
+		}
+	}
+}
+
+fs /dev/xd1f {
+	fstype = 4.2
+	opts = rw,noquota,grpid
+	passno = 1;
+	freq = 1;
+	mount /var {
+		clients {
+			truth { exportfs "-root=truth,access=truth" }
+			truth.tmp { exportfs "-root=truth,access=truth" }
+		}
+		spool {
+			mail { exportfs "-root=truth,access=truth" }
+			rwho { exportfs "ro" volname /vol/rwho sel "byte==big" }
+		}
+	}
+}
+
+fs /dev/xd0d {
+	fstype = 4.2
+	opts = rw,noquota,grpid
+	passno = 1;
+	freq = 1;
+	mount /tmp {
+		X11NeWS { exportfs "-ro" }
+	}
+}
+
+fs /dev/xd0g {
+	fstype = 4.2
+	opts = rw,noquota,grpid
+	passno = 1
+	freq = 1
+	mount default {
+		exportfs "-access=toytown_clients:hangers_on"
+		volname /home/achilles
+	}
+}
+
+fs /dev/xd1g {
+	fstype = 4.2
+	opts = rw,noquota
+	passno = 1
+	freq = 1
+	mount /usr {
+		exportfs "-access=toytown_clients:hangers_on:gummo:harpo:opus,rw=dylan:truth:florence:toytown"
+		share {
+			volname "/usr/share"
+			//exportfs "blah"
+		}
+		src {
+			local {
+			//exportfs "-access=toytown:zebedee:dougal:dylan:florence:opus,rw=dylan:florence,root=dylan:florence"
+				bits { gnu { volname "/vol/src/gnu" } }
+				athena { volname "/vol/src/athena" }
+			}
+		}
+	}
+}
+
+/*mount /export/exec/sun3 fstype nfs from gould.doc.ic.ac.uk as /usr opts "rw"*/

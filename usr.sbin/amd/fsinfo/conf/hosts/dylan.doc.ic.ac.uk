@@ -1,0 +1,68 @@
+// mkfsinfo
+
+host dylan.doc.ic.ac.uk
+
+// SWAP
+fs /dev/dsk/0s0 {
+	fstype = swap
+}
+
+// SWAP
+fs /dev/dsk/1s0 {
+	fstype = swap
+}
+
+// ROOT
+fs /dev/dsk/0s0 {
+	fstype = hfs
+	opts = rw,noquota,grpid
+	passno = 0;
+	freq = 1;
+	mount / { }
+}
+
+fs /dev/dsk/1s0 {
+	fstype = hfs
+	opts = defaults
+	passno = 1;
+	freq = 1;
+	mount /usr {
+		local {
+			exportfs "dougal eden dylan zebedee brian"
+			volname /nfs/hp300/local
+		}
+	}
+}
+
+fs /dev/dsk/2s0 {
+	fstype = hfs
+	opts = defaults
+	passno = 1;
+	freq = 1;
+	mount default {
+		exportfs "toytown_clients hangers_on"
+		volname /home/dylan/dk2
+	}
+}
+
+fs /dev/dsk/3s0 {
+	fstype = hfs
+	opts = defaults
+	passno = 1;
+	freq = 1;
+	mount default {
+		exportfs "toytown_clients hangers_on"
+		volname /home/dylan/dk3
+	}
+}
+
+fs /dev/dsk/5s0 {
+	fstype = hfs
+	opts = defaults
+	passno = 1;
+	freq = 1;
+	mount default {
+		exportfs "toytown_clients hangers_on"
+		volname /home/dylan/dk5
+	}
+}

@@ -1,0 +1,220 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sliplogin.8	8.2 (Berkeley) 1/5/94
+.\"
+.Dd January 5, 1994
+.Dt SLIPLOGIN 8
+.Os
+.Sh NAME
+.Nm sliplogin
+.Nd attach a serial line network interface
+.Sh SYNOPSIS
+.Nm sliplogin
+.Op Ar loginname
+.Sh DESCRIPTION
+.Nm Sliplogin
+is used to turn the terminal line on standard input into
+a Serial Line IP
+.Pq Tn SLIP
+link to a remote host.  To do this, the program
+searches the file
+.Pa /etc/sliphome/slip.hosts
+for an entry matching
+.Ar loginname
+(which defaults to the current login name if omitted).
+If a matching entry is found, the line is configured appropriately
+for slip (8-bit transparent i/o) and converted to
+.Tn SLIP
+line
+discipline.  Then a shell script is invoked to initialize the slip
+interface with the appropriate local and remote
+.Tn IP
+address,
+netmask, etc.
+.Pp
+The usual initialization script is
+.Pa /etc/sliphome/slip.login
+but, if particular hosts need special initialization, the file
+.Pa /etc/sliphome/slip.login. Ns Ar loginname
+will be executed instead if it exists.
+The script is invoked with the parameters
+.Bl -tag -width slipunit
+.It Em slipunit
+The unit number of the slip interface assigned to this line.  E.g.,
+.Sy 0
+for
+.Sy sl0 .
+.It Em speed
+The speed of the line.
+.It Em args
+The arguments from the
+.Pa /etc/sliphome/slip.hosts
+entry, in order starting with
+.Ar loginname .
+.El
+.Pp
+Only the super-user may attach a network interface.  The interface is
+automatically detached when the other end hangs up or the
+.Nm sliplogin
+process dies.  If the kernel slip
+module has been configured for it, all routes through that interface will
+also disappear at the same time.  If there is other processing a site
+would like done on hangup, the file
+.Pa /etc/sliphome/slip.logout
+or
+.Pa /etc/sliphome/slip.logout. Ns Ar loginname
+is executed if it exists.  It is given the same arguments as the login script.
+.Ss Format of /etc/sliphome/slip.hosts
+Comments (lines starting with a `#') and blank lines are ignored.
+Other lines must start with a
+.Ar loginname
+but the remaining arguments can be whatever is appropriate for the
+.Pa  slip.login
+file that will be executed for that name.
+Arguments are separated by white space and follow normal
+.Xr sh 1
+quoting conventions (however,
+.Ar loginname
+cannot be quoted).
+Usually, lines have the form
+.Bd -literal -offset indent
+loginname local-address remote-address netmask opt-args
+.Ed
+.Pp
+where
+.Em local-address
+and
+.Em remote-address
+are the IP host names or addresses of the local and remote ends of the
+slip line and
+.Em netmask
+is the appropriate IP netmask.  These arguments are passed
+directly to
+.Xr ifconfig 8 .
+.Em Opt-args
+are optional arguments used to configure the line.
+.Sh EXAMPLE
+The normal use of
+.Nm sliplogin
+is to create a
+.Pa /etc/passwd
+entry for each legal, remote slip site with
+.Nm sliplogin
+as the shell for that entry.  E.g.,
+.Bd -literal
+Sfoo:ikhuy6:2010:1:slip line to foo:/tmp:/usr/sbin/sliplogin
+.Ed
+.Pp
+(Our convention is to name the account used by remote host
+.Ar hostname
+as
+.Em Shostname . )
+Then an entry is added to
+.Pa slip.hosts
+that looks like:
+.Pp
+.Bd -literal -offset indent -compact
+Sfoo	`hostname`	foo	netmask
+.Ed
+.Pp
+where
+.Em `hostname`
+will be evaluated by
+.Xr sh
+to the local host name and
+.Em netmask
+is the local host IP netmask.
+.Pp
+Note that
+.Nm sliplogin
+must be setuid to root and, while not a security hole, moral defectives
+can use it to place terminal lines in an unusable state and/or deny
+access to legitimate users of a remote slip line.  To prevent this,
+a site can create a group, say
+.Em slip ,
+that only the slip login accounts are put in then make sure that
+.Pa /usr/sbin/sliplogin
+is in group
+.Em slip
+and mode 4550 (setuid root, only group
+.Em slip
+can execute binary).
+.Sh DIAGNOSTICS
+.Nm Sliplogin
+logs various information to the system log daemon,
+.Xr syslogd 8 ,
+with a facility code of
+.Em daemon .
+The messages are listed here, grouped by severity level.
+.Pp
+.Sy Error Severity
+.Bl -tag -width Ds -compact
+.It Sy ioctl (TCGETS): Em reason
+A
+.Dv TCGETS
+.Fn ioctl
+to get the line parameters failed.
+.Pp
+.It Sy ioctl (TCSETS): Em reason
+A
+.Dv TCSETS
+.Fn ioctl
+to set the line parameters failed.
+.Pp
+.It Sy /etc/sliphome/slip.hosts: Em reason
+The
+.Pa /etc/sliphome/slip.hosts
+file could not be opened.
+.Pp
+.It Sy access denied for Em user
+No entry for
+.Em user
+was found in
+.Pa /etc/sliphome/slip.hosts .
+.El
+.Pp
+.Sy Notice Severity
+.Bl -tag -width Ds -compact
+.It Sy "attaching slip unit" Em unit Sy for Ar loginname
+.Tn SLIP
+unit
+.Em unit
+was successfully attached.
+.El
+.Sh SEE ALSO
+.Xr slattach 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+command
+.Bt
