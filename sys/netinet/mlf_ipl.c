@@ -32,6 +32,7 @@
 #endif
 #include <sys/conf.h>
 #include <sys/file.h>
+#include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
@@ -39,7 +40,7 @@
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
+#include <sys/socket.h>
 #include <sys/exec.h>
 #include <sys/mbuf.h>
 #if	BSD >= 199506
