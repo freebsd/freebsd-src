@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1996/09/12 11:09:14 asami Exp $
+#	$Id: Makefile,v 1.2 1996/10/23 07:24:42 asami Exp $
 #
 
 PROG=	boot
@@ -75,7 +75,7 @@ BOOTWAIT?=	5000
 #TIMEOUT?=	30000
 
 # Location that boot2 is loaded at
-BOOTSEG=	0x9000
+BOOTSEG=	0x1000
 
 # Offset in BOOTSEG for the top of the stack, keep this 16 byte aligned
 BOOTSTACK=	0xFFF0

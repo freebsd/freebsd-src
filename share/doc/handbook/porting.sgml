@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.34 1996/11/05 09:42:59 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.32.2.1 1996/11/06 08:46:42 phk Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -157,7 +157,7 @@ The pattern is the year followed by the month.
  # Date created:	5 December 1994
  # Whom:		asami
  #
- # $Id: porting.sgml,v 1.34 1996/11/05 09:42:59 max Exp $
+ # &dollar;Id&dollar;
  #
  
  DISTNAME=	oneko-1.1b
@@ -1149,10 +1149,9 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.34 1996/11/05 09:42:59 max Exp $
- [ ^^^^ do not worry about this, I know it says "porting.sgml"...it
-  will be automatically filled in by CVS when it is committed to our
-  repository]
+ # &dollar;Id&dollar;
+ [ ^^^^ do not worry about this, it will be automatically filled in by
+  CVS when it is committed to our repository]
  #
  
  [section to describe the port itself and the master site - DISTNAME
@@ -1160,7 +1159,7 @@ lib/libtcl.so.7.3
   and then MASTER_SITES, and optionally EXTRACT_SUFX or DISTFILES]
  DISTNAME=	xdvi
  PKGNAME=	xdvi-pl18
- CATEGORIES+=	printing
+ CATEGORIES+=	print
  [do not forget the trailing slash ("/")!]
  MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
  [set this if the source is not in the standard ".tar.gz" form]

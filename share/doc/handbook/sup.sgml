@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.18 1996/09/14 02:32:30 asami Exp $ -->
+<!-- $Id: sup.sgml,v 1.19 1996/10/24 11:23:06 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -126,6 +126,7 @@ ports-japanese:	  /usr/ports/japanese	Japanese support
 ports-lang:	  /usr/ports/lang	programming languages
 ports-mail:	  /usr/ports/mail	mail software
 ports-math:	  /usr/ports/math	numerical computation software
+ports-mbone:	  /usr/ports/mbone	MBone applications
 ports-misc:	  /usr/ports/misc	miscellaneous utilities
 ports-net:	  /usr/ports/net	networking software
 ports-news:	  /usr/ports/news	USENET news software
