@@ -697,15 +697,23 @@ mac_init_ifnet(struct ifnet *ifp)
 	mac_init_ifnet_label(&ifp->if_label);
 }
 
-void
-mac_init_ipq(struct ipq *ipq)
+int
+mac_init_ipq(struct ipq *ipq, int flag)
 {
+	int error;
 
 	mac_init_label(&ipq->ipq_label);
-	MAC_PERFORM(init_ipq_label, &ipq->ipq_label);
+
+	MAC_CHECK(init_ipq_label, &ipq->ipq_label, flag);
+	if (error) {
+		MAC_PERFORM(destroy_ipq_label, &ipq->ipq_label);
+		mac_destroy_label(&ipq->ipq_label);
+	}
 #ifdef MAC_DEBUG
-	atomic_add_int(&nmacipqs, 1);
+	if (error == 0)
+		atomic_add_int(&nmacipqs, 1);
 #endif
+	return (error);
 }
 
 int

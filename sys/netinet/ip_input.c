@@ -983,7 +983,10 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
 #ifdef MAC
-		mac_init_ipq(fp);
+		if (mac_init_ipq(fp, M_NOWAIT) != 0) {
+			m_free(t);
+			goto dropfrag;
+		}
 		mac_create_ipq(m, fp);
 #endif
 		TAILQ_INSERT_HEAD(head, fp, ipq_list);
