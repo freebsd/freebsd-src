@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 1998
+.Dd July 4, 2004
 .Dt AHB 4
 .Os
 .Sh NAME
@@ -39,10 +39,25 @@
 This driver provides access to the
 .Tn SCSI
 bus connected to an Adaptec
-AHA-1740, AHA-1742, AHA-1740A, AHA-1742A host adapters in
+AHA-174X host adapters in
 .Dq Em enhanced
 mode.
 Tagged queueing and synchronous SCSI transfers are supported.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following SCSI host adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec AHA-1740
+.It
+Adaptec AHA-1742
+.It
+Adaptec AHA-1740A
+.It
+Adaptec AHA-1742A
+.El
 .Sh CAVEATS
 The Adaptec 174X is very sensitive to SCSI bus termination and cable
 length.
