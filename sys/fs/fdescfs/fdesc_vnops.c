@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.12 1993/04/06 16:17:17 jsp Exp $
+ * $Id: fdesc_vnops.c,v 1.2 1994/05/25 09:07:13 rgrimes Exp $
  */
 
 /*
@@ -72,8 +72,8 @@ dev_t devctty;
 FD_STDIN, FD_STDOUT, FD_STDERR must be a sequence n, n+1, n+2
 #endif
 
-#define	NFDCACHE 3
-#define	FD_NHASH(ix) ((ix) & NFDCACHE)
+#define	NFDCACHE 4
+#define	FD_NHASH(ix) ((ix) & NFDCACHE-1)
 
 /*
  * Cache head
