@@ -1,3 +1,4 @@
+/*	$NetBSD: usb/uvscom.c,v 1.1 2002/03/19 15:08:42 augustss Exp $	*/
 /*-
  * Copyright (c) 2001-2002, Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
  * All rights reserved.
@@ -37,16 +38,21 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/bus.h>
-#include <sys/ioccom.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/file.h>
+#if defined(__FreeBSD__)
+#include <sys/bus.h>
+#include <sys/ioccom.h>
 #if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
 #else
 #include <sys/select.h>
+#endif
+#else
+#include <sys/ioctl.h>
+#include <sys/device.h>
 #endif
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -63,13 +69,15 @@
 #include <dev/usb/ucomvar.h>
 
 #ifdef UVSCOM_DEBUG
-#include <sys/sysctl.h>
-
 static int	uvscomdebug = 1;
+
+#if defined(__FreeBSD__)
+#include <sys/sysctl.h>
 
 SYSCTL_DECL(_debug_usb);
 SYSCTL_INT(_debug_usb, OID_AUTO, uvscom, CTLFLAG_RW,
 	   &uvscomdebug, 0, "uvscom debug level");
+#endif
 
 #define DPRINTFN(n, x)  do { \
 				if (uvscomdebug > (n)) \
