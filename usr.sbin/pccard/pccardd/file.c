@@ -115,6 +115,41 @@ static void    file_include(char *);
 static void    addcmd(struct cmd **);
 static void    parse_card(int);
 
+static void
+delete_card(struct card *cp)
+{
+	struct ether	*etherp, *ether_next;
+	struct card_config *configp, *config_next;
+	struct cmd	*cmdp, *cmd_next;
+
+	/* free characters */
+	if (cp->manuf[0] != NULL)
+		free(cp->manuf);
+	if (cp->version[0] != NULL)
+		free(cp->version);
+
+	/* free structures */
+	for (etherp = cp->ether; etherp; etherp = ether_next) {
+		ether_next = etherp->next;
+		free(etherp);
+	}
+	for (configp = cp->config; configp; configp = config_next) {
+		config_next = configp->next;
+		free(configp);
+	}
+	for (cmdp = cp->insert; cmdp; cmdp = cmd_next) {
+		cmd_next = cmdp->next;
+		free(cmdp->line);
+		free(cmdp);
+	}
+	for (cmdp = cp->remove; cmdp; cmdp = cmd_next) {
+		cmd_next = cmdp->next;
+		free(cmdp->line);
+		free(cmdp);
+	}
+	free(cp);
+}
+
 /*
  * Read a file and parse the pcmcia configuration data.
  * After parsing, verify the links.
@@ -122,19 +157,81 @@ static void    parse_card(int);
 void
 readfile(char *name)
 {
-	int i;
-	struct card *cp;
+	int i, inuse;
+	struct card *cp, *card_next;
+	struct card *genericp, *tail_gp;
+	struct card_config *configp;
 
-	in = fopen(name, "r");
-	if (in == 0) {
-		logerr(name);
-		die("readfile");
+	/* delete all card configuration data before we proceed */
+	genericp = 0;
+	cp = cards;
+	cards = last_card = 0;
+	while (cp) {
+		card_next = cp->next;
+
+		/* check whether this card is in use */
+		inuse = 0;
+		for (configp = cp->config; configp; configp = configp->next) {
+			if (configp->inuse) {
+				inuse = 1;
+				break;
+			}
+		}
+
+		/*
+		 * don't delete entry in use for consistency.
+		 * leave normal entry in the cards list,
+		 * insert generic entry into the list after re-loading config files.
+		 */
+		if (inuse == 1) {
+			cp->next = 0;	/* unchain from the cards list */
+			switch (cp->deftype) {
+			case DT_VERS:
+				/* don't delete this entry for consistency */
+				if (debug_level >= 1) {
+					logmsg("Card \"%s\"(\"%s\") is in use, "
+					    "can't change configuration\n",
+					    cp->manuf, cp->version);
+				}
+				/* add this to the card list */
+				if (!last_card) {
+					cards = last_card = cp;
+				} else {
+					last_card->next = cp;
+					last_card = cp;
+				}
+				break;
+
+			case DT_FUNC:
+				/* generic entry must be inserted to the list later */
+				if (debug_level >= 1) {
+					logmsg("Generic entry is in use, "
+					    "can't change configuration\n");
+				}
+				cp->next = genericp;
+				genericp = cp;
+				break;
+			}
+		} else {
+			delete_card(cp);
+		}
+
+		cp = card_next;
 	}
+
 	for (i = 0; i < MAXINCLUDES; i++) {
 		if (configfiles[i].filep) {
 			fclose(configfiles[i].filep);
 			configfiles[i].filep = NULL;
+			if (i > 0) {
+				free(configfiles[i].filename);
+			}
 		}
+	}
+	in = fopen(name, "r");
+	if (in == 0) {
+		logerr(name);
+		die("readfile");
 	}
 	includes = 0;
 	configfiles[includes].filep = in;
@@ -146,6 +243,57 @@ readfile(char *name)
 			logmsg("warning: card %s(%s) has no valid configuration\n",
 			    cp->manuf, cp->version);
 	}
+
+	/* insert generic entries in use into the top of generic entries */
+	if (genericp) {
+		/* search tail of generic entries in use */
+		for (tail_gp = genericp; tail_gp->next; tail_gp = tail_gp->next)
+			;
+
+		/*
+		 * if the top of cards list is generic entry,
+		 * insert generic entries in use before it.
+		 */
+		if (cards && cards->deftype == DT_FUNC) {
+			tail_gp->next = cards;
+			cards = genericp;
+			goto generic_done;
+		}
+
+		/* search top of generic entries */
+		for (cp = cards; cp; cp = cp->next) {
+			if (cp->next && cp->next->deftype == DT_FUNC) {
+				break;
+			}
+		}
+
+		/*
+		 * if we have generic entry in the cards list,
+		 * insert generic entries in use into there.
+		 */
+		if (cp) {
+			tail_gp->next = cp->next;
+			cp->next = genericp;
+			goto generic_done;
+		}
+
+		/*
+		 * otherwise we don't have generic entries in
+		 * cards list, just add them to the list.
+		 */
+		if (!last_card) {
+			cards = genericp;
+		} else {
+			last_card->next = genericp;
+			last_card = tail_gp;
+		}
+generic_done:
+	}
+
+	/* save the initial state of resource pool */
+	bcopy(io_avail, io_init, bitstr_size(IOPORTS));
+	bcopy(mem_avail, mem_init, bitstr_size(MEMBLKS));
+	bcopy(pool_irq, irq_init, sizeof(pool_irq));
 }
 
 static void

@@ -139,11 +139,14 @@ struct slot {
 EXTERN struct allocblk *pool_ioblks;            /* I/O blocks in the pool */
 EXTERN struct allocblk *pool_mem;               /* Memory in the pool */
 EXTERN int     pool_irq[16];			/* IRQ allocations */
+EXTERN int     irq_init[16];			/* initial IRQ allocations */
 EXTERN struct driver *drivers;			/* List of drivers */
 EXTERN struct card *cards;
 EXTERN struct card *last_card;
 EXTERN bitstr_t *mem_avail;
+EXTERN bitstr_t *mem_init;
 EXTERN bitstr_t *io_avail;
+EXTERN bitstr_t *io_init;
 EXTERN int pccard_init_sleep;			/* Time to sleep on init */
 EXTERN int debug_level;
 
