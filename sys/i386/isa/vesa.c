@@ -27,6 +27,7 @@
  */
 
 #include "opt_vga.h"
+#include "opt_vesa.h"
 
 #ifndef VGA_NO_MODE_CHANGE
 
@@ -678,8 +679,16 @@ vesa_bios_init(void)
 			continue;
 #else
 		if ((vmode.v_modeattr & (V_MODEOPTINFO | V_MODENONVGA))
-		    != (V_MODEOPTINFO))
+		    != (V_MODEOPTINFO)) {
+#if VESA_DEBUG > 1
+			printf(
+		"Rejecting VESA %s mode: %d x %d x %d bpp  attr = %x\n",
+			    vmode.v_modeattr & V_MODEGRAPHICS ? "graphics" : "text",
+			    vmode.v_width, vmode.v_height, vmode.v_bpp,
+			    vmode.v_modeattr);
+#endif
 			continue;
+		}
 #endif
 
 		/* expand the array if necessary */
@@ -698,6 +707,11 @@ vesa_bios_init(void)
 			vesa_vmode = p;
 		}
 
+#if VESA_DEBUG > 1
+		printf("Found VESA %s mode: %d x %d x %d bpp\n",
+		    vmode.v_modeattr & V_MODEGRAPHICS ? "graphics" : "text",
+		    vmode.v_width, vmode.v_height, vmode.v_bpp);
+#endif
 		/* copy some fields */
 		bzero(&vesa_vmode[modes], sizeof(vesa_vmode[modes]));
 		vesa_vmode[modes].vi_mode = vesa_vmodetab[i];
