@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
+#include <sys/serial.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
