@@ -215,6 +215,10 @@ lat-amer.kbd:en:Latin American
 lat-amer.kbd:de:Latein Amerikanisch
 lat-amer.kbd:pt,es:América Latina
 
+lat-amer.iso.acc.kbd:en:Latin American (accent keys)
+lat-amer.iso.acc.kbd:de:Latein Amerikanisch (mit Akzenten)
+lat-amer.iso.acc.kbd:pt,es:América Latina (con acentos)
+
 lt.iso4.kbd:en:Lithuanian ISO-8859-4
 lt.iso4.kbd:es:Lituano ISO-8859-4
 
