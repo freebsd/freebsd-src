@@ -118,10 +118,10 @@ stage1()
 	    mvprintw(j++, 50, "|it will NOT be enabled."); 
 	    mvprintw(j++, 50, "|");
 	    mvprintw(j++, 50, "|We suggest that you invoke");
-	    mvprintw(j++, 50, "|(F)disk then (D)isklabel");
-	    mvprintw(j++, 50, "|in setting up your disk.");
+	    mvprintw(j++, 50, "|(F)disk, (W)rite the bootcode");
+	    mvprintw(j++, 50, "|then (D)isklabel your disk.");
 	    mvprintw(j++, 50, "|If installing on a drive");
-	    mvprintw(j++, 50, "|other than 0, read the");
+	    mvprintw(j++, 50, "|other than 0, also read the");
 	    mvprintw(j++, 50, "|TROUBLESHOOTING doc first");
 	}
 
