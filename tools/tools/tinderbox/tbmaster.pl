@@ -355,6 +355,11 @@ MAIN:{
     chomp($config);
     $config =~ s/^(\w+)(\..*)?/$1/;
     $CONFIG{'HOSTNAME'} = `/usr/bin/uname -n`;
+    if ($CONFIG{'HOSTNAME'} =~ m/^([0-9a-z-]+(?:\.[0-9a-z-]+)*)$/) {
+	$CONFIG{'HOSTNAME'} = $1;
+    } else {
+	$CONFIG{'HOSTNAME'} = 'unknown';
+    }
     if ($ENV{'HOME'} =~ m/^((?:\/[\w\.-]+)+)\/*$/) {
 	$CONFIG{'HOME'} = $1;
 	$etcdir = "$1/etc";
