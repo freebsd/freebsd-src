@@ -831,8 +831,7 @@ if_clone_list(ifcr)
 	return (error);
 }
 
-#define	equal(a1, a2) \
-  (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
+#define	equal(a1, a2)	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
 
 /*
  * Locate an interface based on a complete address.
@@ -912,7 +911,7 @@ ifa_ifwithnet(addr)
 	 * so do that if we can.
 	 */
 	if (af == AF_LINK) {
-	    register struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
+	    struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
 	    if (sdl->sdl_index && sdl->sdl_index <= if_index)
 		return (ifaddr_byindex(sdl->sdl_index));
 	}
@@ -1049,18 +1048,21 @@ link_rtrequest(cmd, rt, info)
 	register struct rtentry *rt;
 	struct rt_addrinfo *info;
 {
-	register struct ifaddr *ifa;
+	register struct ifaddr *ifa, *oifa;
 	struct sockaddr *dst;
 	struct ifnet *ifp;
+
+	RT_LOCK_ASSERT(rt);
 
 	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
 	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
 		return;
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
-		IFAFREE(rt->rt_ifa);
 		IFAREF(ifa);		/* XXX */
+		oifa = rt->rt_ifa;
 		rt->rt_ifa = ifa;
+		IFAFREE(oifa);
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);
 	}

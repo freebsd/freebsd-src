@@ -1986,7 +1986,7 @@ ip_setmoptions(sopt, imop)
 				break;
 			}
 			ifp = ro.ro_rt->rt_ifp;
-			rtfree(ro.ro_rt);
+			RTFREE(ro.ro_rt);
 		}
 		else {
 			ifp = ip_multicast_if(&mreq.imr_interface, NULL);

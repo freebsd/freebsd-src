@@ -194,6 +194,8 @@ discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 static void
 discrtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
+	RT_LOCK_ASSERT(rt);
+
 	if (rt)
 		rt->rt_rmx.rmx_mtu = DSMTU;
 }
