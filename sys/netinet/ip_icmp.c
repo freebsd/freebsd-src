@@ -339,7 +339,7 @@ icmp_input(m, off, proto)
 			 */
 			case ICMP_UNREACH_PROTOCOL:
 			case ICMP_UNREACH_PORT:
-				code = PRC_UNREACH_ADMIN_PROHIB;
+				code = PRC_UNREACH_PORT;
 				break;
 
 			case ICMP_UNREACH_NET_PROHIB:
