@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.7 1998/10/15 21:56:47 dfr Exp $
+ *	$Id: load_elf.c,v 1.8 1998/10/16 03:04:15 peter Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,7 @@
 
 #include "bootstrap.h"
 
-static int	elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, Elf_Ehdr *ehdr, Elf_Phdr *phdr, int kernel);
+static int	elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, Elf_Ehdr *ehdr, int kernel, caddr_t firstpage, int firstlen);
 
 char	*elf_kerneltype = "elf kernel";
 char	*elf_moduletype = "elf module";
@@ -54,15 +54,15 @@ int
 elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 {
     struct loaded_module	*mp, *kmp;
-    Elf_Ehdr			ehdr;
-    Elf_Phdr			*phdr;
+    Elf_Ehdr			*ehdr;
     int				fd;
     int				err, kernel;
     u_int			pad;
     char			*s;
+    caddr_t			firstpage;
+    int				firstlen;
 
     mp = NULL;
-    phdr = NULL;
     
     /*
      * Open the image, read and validate the ELF header 
@@ -71,21 +71,26 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	return(EFTYPE);
     if ((fd = open(filename, O_RDONLY)) == -1)
 	return(errno);
-    if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr)) {
+    firstpage = malloc(PAGE_SIZE);
+    if (firstpage == NULL)
+	return(ENOMEM);
+    firstlen = read(fd, firstpage, PAGE_SIZE);
+    if (firstlen <= sizeof(ehdr)) {
 	err = EFTYPE;		/* could be EIO, but may be small file */
 	goto oerr;
     }
+    ehdr = (Elf_Ehdr *)firstpage;
 
     /* Is it ELF? */
-    if (!IS_ELF(ehdr)) {
+    if (!IS_ELF(*ehdr)) {
 	err = EFTYPE;
 	goto oerr;
     }
-    if (ehdr.e_ident[EI_CLASS] != ELF_TARG_CLASS ||	/* Layout ? */
-	ehdr.e_ident[EI_DATA] != ELF_TARG_DATA ||
-	ehdr.e_ident[EI_VERSION] != EV_CURRENT ||	/* Version ? */
-	ehdr.e_version != EV_CURRENT ||
-	ehdr.e_machine != ELF_TARG_MACH) {		/* Machine ? */
+    if (ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||	/* Layout ? */
+	ehdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
+	ehdr->e_ident[EI_VERSION] != EV_CURRENT ||	/* Version ? */
+	ehdr->e_version != EV_CURRENT ||
+	ehdr->e_machine != ELF_TARG_MACH) {		/* Machine ? */
 	err = EFTYPE;
 	goto oerr;
     }
@@ -95,7 +100,7 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
      * Check to see what sort of module we are.
      */
     kmp = mod_findmodule(NULL, NULL);
-    if (ehdr.e_type == ET_DYN) {
+    if (ehdr->e_type == ET_DYN) {
 	/* Looks like a kld module */
 	if (kmp == NULL) {
 	    printf("elf_loadmodule: can't load module before kernel\n");
@@ -116,7 +121,7 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	    pad = PAGE_SIZE - pad;
 	    dest += pad;
 	}
-    } else if (ehdr.e_type == ET_EXEC) {
+    } else if (ehdr->e_type == ET_EXEC) {
 	/* Looks like a kernel */
 	if (kmp != NULL) {
 	    printf("elf_loadmodule: kernel already loaded\n");
@@ -126,7 +131,7 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	/* 
 	 * Calculate destination address based on kernel entrypoint 	
 	 */
-	dest = (vm_offset_t) ehdr.e_entry;
+	dest = (vm_offset_t) ehdr->e_entry;
 	if (dest == 0) {
 	    printf("elf_loadmodule: not a kernel (maybe static binary?)\n");
 	    err = EPERM;
@@ -164,36 +169,12 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     printf("%s ", filename);
 #endif
 
-    phdr = malloc(ehdr.e_phnum * sizeof(*phdr));
-    if (phdr == NULL) {
-	err = ENOMEM;
-	goto out;
-    }
-
-    if (lseek(fd, ehdr.e_phoff, SEEK_SET) == -1) {
-	printf("elf_loadexec: lseek for phdr failed\n");
-	goto ioerr;
-    }
-    if (read(fd, phdr, ehdr.e_phnum * sizeof(*phdr)) !=
-	ehdr.e_phnum * sizeof(*phdr)) {
-	printf("elf_loadmodule: cannot read program header\n");
-	goto ioerr;
-    }
-    if (lseek(fd, 0, SEEK_SET) == -1) {
-	close(fd);
-	if ((fd = open(filename, O_RDONLY)) == -1) {
-	    printf("elf_loadmodule: cannot reset file position\n");
-	    mod_discard(mp);
-	    return errno;
-	}
-    }
-
-    mp->m_size = elf_loadimage(mp, fd, dest, &ehdr, phdr, kernel);
+    mp->m_size = elf_loadimage(mp, fd, dest, ehdr, kernel, firstpage, firstlen);
     if (mp->m_size == 0 || mp->m_addr == 0)
 	goto ioerr;
 
     /* save exec header as metadata */
-    mod_addmetadata(mp, MODINFOMD_ELFHDR, sizeof(ehdr), &ehdr);
+    mod_addmetadata(mp, MODINFOMD_ELFHDR, sizeof(*ehdr), ehdr);
 
     /* Load OK, return module pointer */
     *result = (struct loaded_module *)mp;
@@ -205,8 +186,8 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
  oerr:
     mod_discard(mp);
  out:
-    if (phdr)
-	free(phdr);
+    if (firstpage)
+	free(firstpage);
     close(fd);
     return(err);
 }
@@ -217,9 +198,10 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
  */
 static int
 elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
-	      Elf_Ehdr *ehdr, Elf_Phdr *phdr, int kernel)
+	      Elf_Ehdr *ehdr, int kernel, caddr_t firstpage, int firstlen)
 {
     int 	i, j;
+    Elf_Phdr	*phdr;
     Elf_Shdr	*shdr;
     int		ret;
     vm_offset_t firstaddr;
@@ -239,6 +221,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     int		symstrindex;
     int		symtabindex;
     long	size;
+    int		fpcopy;
 
     dp = NULL;
     shdr = NULL;
@@ -251,6 +234,12 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	off = 0;		/* alpha is direct mapped for kernels */
 #endif
     }
+
+    if ((ehdr->e_phoff + ehdr->e_phnum * sizeof(*phdr)) > firstlen) {
+	printf("elf_loadimage: program header not within first page\n");
+	goto out;
+    }
+    phdr = (Elf_Phdr *)(firstpage + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
 	/* We want to load PT_LOAD segments only.. */
@@ -272,15 +261,22 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	    printf(" ");
 	}
 #endif
-
-	if (lseek(fd, phdr[i].p_offset, SEEK_SET) == -1) {
-	    printf("\nelf_loadexec: cannot seek\n");
-	    goto out;
+	fpcopy = 0;
+	if (firstlen > phdr[i].p_offset) {
+	    fpcopy = firstlen - phdr[i].p_offset;
+	    archsw.arch_copyin(firstpage + phdr[i].p_offset,
+			       phdr[i].p_vaddr + off, fpcopy);
 	}
-	if (archsw.arch_readin(fd, phdr[i].p_vaddr + off, phdr[i].p_filesz) !=
-	    phdr[i].p_filesz) {
-	    printf("\nelf_loadexec: archsw.readin failed\n");
-	    goto out;
+	if (phdr[i].p_filesz > fpcopy) {
+	    if (lseek(fd, phdr[i].p_offset + fpcopy, SEEK_SET) == -1) {
+		printf("\nelf_loadexec: cannot seek\n");
+		goto out;
+	    }
+	    if (archsw.arch_readin(fd, phdr[i].p_vaddr + off + fpcopy,
+		phdr[i].p_filesz - fpcopy) != phdr[i].p_filesz - fpcopy) {
+		printf("\nelf_loadexec: archsw.readin failed\n");
+		goto out;
+	    }
 	}
 	/* clear space from oversized segments; eg: bss */
 	if (phdr[i].p_filesz < phdr[i].p_memsz) {
