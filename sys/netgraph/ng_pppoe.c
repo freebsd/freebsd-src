@@ -942,8 +942,8 @@ send_sessionid(sessp sp)
 
 /*
  * Receive data, and do something with it.
- * The caller will never free m or meta, so
- * if we use up this data or abort we must free BOTH of these.
+ * The caller will never free m, so if we use up this data
+ * or abort we must free it.
  */
 static int
 ng_pppoe_rcvdata(hook_p hook, item_p item)

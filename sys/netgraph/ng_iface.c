@@ -428,7 +428,6 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 {
 	const priv_p priv = (priv_p) ifp->if_softc;
 	const iffam_p iffam = get_iffam_from_af(dst->sa_family);
-	meta_p meta = NULL;
 	int len, error = 0;
 
 	/* Check interface flags */
@@ -462,7 +461,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	len = m->m_pkthdr.len;
 
 	/* Send packet; if hook is not connected, mbuf will get freed. */
-	NG_SEND_DATA(error, *get_hook_from_iffam(priv, iffam), m, meta);
+	NG_SEND_DATA_ONLY(error, *get_hook_from_iffam(priv, iffam), m);
 
 	/* Update stats */
 	if (error == 0) {
