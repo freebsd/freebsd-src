@@ -196,6 +196,9 @@ void ascopyfrom(u_long sasi, vm_offset_t src, caddr_t dst, size_t len);
 void ascopyto(caddr_t src, u_long dasi, vm_offset_t dst, size_t len);
 void aszero(u_long asi, vm_offset_t dst, size_t len);
 
+void spitfire_block_copy(void *src, void *dst, size_t len);
+void spitfire_block_zero(void *dst, size_t len);
+
 /*
  * Ultrasparc II doesn't implement popc in hardware.  Suck.
  */
