@@ -47,6 +47,7 @@ static const char rcsid[] =
 #define PRINTOPTIONS
 #include "telnetd.h"
 
+
 /*
  * utility functions performing io related tasks
  */
@@ -88,11 +89,10 @@ ttloop()
 /*
  * Check a descriptor to see if out of band data exists on it.
  */
-    int
-stilloob(s)
-    int	s;		/* socket number */
+int
+stilloob(int s)
 {
-    static struct timeval timeout = { 0 };
+    static struct timeval timeout = { 0, 0 };
     fd_set	excepts;
     int value;
 
@@ -113,8 +113,8 @@ stilloob(s)
     }
 }
 
-	void
-ptyflush()
+void
+ptyflush(void)
 {
 	int n;
 
@@ -144,9 +144,8 @@ ptyflush()
  * if the current address is a TELNET IAC ("I Am a Command")
  * character.
  */
-    char *
-nextitem(current)
-    char	*current;
+static char *
+nextitem(char *current)
 {
     if ((*current&0xff) != IAC) {
 	return current+1;
@@ -159,7 +158,7 @@ nextitem(current)
 	return current+3;
     case SB:		/* loop forever looking for the SE */
 	{
-	    register char *look = current+2;
+	    char *look = current+2;
 
 	    for (;;) {
 		if ((*look++&0xff) == IAC) {
@@ -173,7 +172,6 @@ nextitem(current)
 	return current+2;
     }
 }  /* end of nextitem */
-
 
 /*
  * netclear()
@@ -191,10 +189,10 @@ nextitem(current)
  * caller should be setting the urgent data pointer AFTER calling
  * us in any case.
  */
-    void
-netclear()
+void
+netclear(void)
 {
-    register char *thisitem, *next;
+    char *thisitem, *next;
     char *good;
 #define	wewant(p)	((nfrontp > p) && ((*p&0xff) == IAC) && \
 				((*(p+1)&0xff) != EC) && ((*(p+1)&0xff) != EL))
@@ -236,8 +234,8 @@ netclear()
  *		Send as much data as possible to the network,
  *	handling requests for urgent data.
  */
-    void
-netflush()
+void
+netflush(void)
 {
     int n;
     extern int not42;
@@ -295,10 +293,8 @@ netflush()
  */
 
 
-	void
-fatal(f, msg)
-	int f;
-	char *msg;
+void
+fatal(int f, const char *msg)
 {
 	char buf[BUFSIZ];
 
@@ -308,12 +304,10 @@ fatal(f, msg)
 	exit(1);
 }
 
-	void
-fatalperror(f, msg)
-	int f;
-	char *msg;
+void
+fatalperror(int f, const char *msg)
 {
-	char buf[BUFSIZ], *strerror();
+	char buf[BUFSIZ];
 
 	(void) snprintf(buf, sizeof(buf), "%s: %s", msg, strerror(errno));
 	fatal(f, buf);
@@ -321,15 +315,13 @@ fatalperror(f, msg)
 
 char editedhost[32];
 
-	void
-edithost(pat, host)
-	register char *pat;
-	register char *host;
+void
+edithost(char *pat, char *host)
 {
-	register char *res = editedhost;
+	char *res = editedhost;
 
 	if (!pat)
-		pat = "";
+		pat = strdup("");
 	while (*pat) {
 		switch (*pat) {
 
@@ -363,18 +355,16 @@ edithost(pat, host)
 
 static char *putlocation;
 
-	void
-putstr(s)
-	register char *s;
+static void
+putstr(const char *s)
 {
 
 	while (*s)
 		putchr(*s++);
 }
 
-	void
-putchr(cc)
-	int cc;
+void
+putchr(int cc)
 {
 	*putlocation++ = cc;
 }
@@ -382,18 +372,11 @@ putchr(cc)
 #ifdef __FreeBSD__
 static char fmtstr[] = { "%+" };
 #else
-/*
- * This is split on two lines so that SCCS will not see the M
- * between two % signs and expand it...
- */
-static char fmtstr[] = { "%l:%M\
-%P on %A, %d %B %Y" };
+static char fmtstr[] = { "%l:%M%P on %A, %d %B %Y" };
 #endif
 
-	void
-putf(cp, where)
-	register char *cp;
-	char *where;
+void
+putf(char *cp, char *where)
 {
 	char *slash;
 	time_t t;
@@ -474,10 +457,8 @@ putf(cp, where)
 /*
  * Print telnet options and commands in plain text, if possible.
  */
-	void
-printoption(fmt, option)
-	register char *fmt;
-	register int option;
+void
+printoption(const char *fmt, int option)
 {
 	if (TELOPT_OK(option))
 		output_data("%s %s\r\n", fmt, TELOPT(option));
@@ -488,13 +469,10 @@ printoption(fmt, option)
 	return;
 }
 
-    void
-printsub(direction, pointer, length)
-    char		direction;	/* '<' or '>' */
-    unsigned char	*pointer;	/* where suboption data sits */
-    int			length;		/* length of suboption data */
+void
+printsub(char direction, unsigned char *pointer, int length)
 {
-    register int i = 0;
+    int i = 0;
 
 	if (!(diagnostic & TD_OPTIONS))
 		return;
@@ -503,7 +481,7 @@ printsub(direction, pointer, length)
 	    output_data("td: %s suboption ",
 					direction == '<' ? "recv" : "send");
 	    if (length >= 3) {
-		register int j;
+		int j;
 
 		i = pointer[length-2];
 		j = pointer[length-1];
@@ -723,8 +701,8 @@ printsub(direction, pointer, length)
 	    break;
 
 	case TELOPT_STATUS: {
-	    register char *cp;
-	    register int j, k;
+	    const char *cp;
+	    int j, k;
 
 	    output_data("STATUS");
 
@@ -825,7 +803,7 @@ printsub(direction, pointer, length)
 		output_data("INFO ");
 	    env_common:
 		{
-		    register int noquote = 2;
+		    int noquote = 2;
 		    for (i = 2; i < length; i++ ) {
 			switch (pointer[i]) {
 			case NEW_ENV_VAR:
@@ -888,13 +866,10 @@ printsub(direction, pointer, length)
 /*
  * Dump a data buffer in hex and ascii to the output data stream.
  */
-	void
-printdata(tag, ptr, cnt)
-	register char *tag;
-	register char *ptr;
-	register int cnt;
+void
+printdata(const char *tag, char *ptr, int cnt)
 {
-	register int i;
+	int i;
 	char xbuf[30];
 
 	while (cnt) {
