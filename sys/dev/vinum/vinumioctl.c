@@ -69,6 +69,8 @@ vinumioctl(dev_t dev,
 {
     unsigned int objno;
     int error = 0;
+    struct sd *sd;
+    struct plex *plex;
     struct volume *vol;
     unsigned int index;					    /* for transferring config info */
     unsigned int sdno;					    /* for transferring config info */
@@ -295,6 +297,7 @@ vinumioctl(dev_t dev,
 	    /* FALLTHROUGH */
 	}
 
+    case VINUM_DRIVE_TYPE:
     default:
 	log(LOG_WARNING,
 	    "vinumioctl: invalid ioctl from process %d (%s): %lx\n",
@@ -303,21 +306,60 @@ vinumioctl(dev_t dev,
 	    cmd);
 	return EINVAL;
 
-    case VINUM_DRIVE_TYPE:
-    case VINUM_PLEX_TYPE:
-	return EAGAIN;					    /* try again next week */
-
     case VINUM_SD_TYPE:
+    case VINUM_RAWSD_TYPE:
 	objno = Sdno(dev);
+
+	sd = &SD[objno];
 
 	switch (cmd) {
 	case VINUM_INITSD:				    /* initialize subdisk */
 	    return initsd(objno);
 
+	case DIOCGDINFO:				    /* get disk label */
+	    get_volume_label(sd->name, 1, sd->sectors, (struct disklabel *) data);
+	    break;
+
+	    /*
+	     * We don't have this stuff on hardware,
+	     * so just pretend to do it so that
+	     * utilities don't get upset.
+	     */
+	case DIOCWDINFO:				    /* write partition info */
+	case DIOCSDINFO:				    /* set partition info */
+	    return 0;					    /* not a titty */
+
 	default:
-	    return EINVAL;
+	    return ENOTTY;				    /* not my kind of ioctl */
 	}
-	break;
+
+	return 0;					    /* pretend we did it */
+
+    case VINUM_RAWPLEX_TYPE:
+    case VINUM_PLEX_TYPE:
+	objno = Plexno(dev);
+
+	plex = &PLEX[objno];
+
+	switch (cmd) {
+	case DIOCGDINFO:				    /* get disk label */
+	    get_volume_label(plex->name, 1, plex->length, (struct disklabel *) data);
+	    break;
+
+	    /*
+	     * We don't have this stuff on hardware,
+	     * so just pretend to do it so that
+	     * utilities don't get upset.
+	     */
+	case DIOCWDINFO:				    /* write partition info */
+	case DIOCSDINFO:				    /* set partition info */
+	    return 0;					    /* not a titty */
+
+	default:
+	    return ENOTTY;				    /* not my kind of ioctl */
+	}
+
+	return 0;					    /* pretend we did it */
 
     case VINUM_VOLUME_TYPE:
 	objno = Volno(dev);
@@ -330,16 +372,16 @@ vinumioctl(dev_t dev,
 
 	switch (cmd) {
 	case DIOCGDINFO:				    /* get disk label */
-	    get_volume_label(vol, (struct disklabel *) data);
+	    get_volume_label(vol->name, vol->plexes, vol->size, (struct disklabel *) data);
 	    break;
 
 	    /*
 	     * Care!  DIOCGPART returns *pointers* to
-	     * the caller, so we need to store this crap as well.
-	     * And yes, we need it.
+	     * the caller, so we need to store this crap
+	     * as well.  And yes, we need it.
 	     */
 	case DIOCGPART:					    /* get partition information */
-	    get_volume_label(vol, &vol->label);
+	    get_volume_label(vol->name, vol->plexes, vol->size, &vol->label);
 	    ((struct partinfo *) data)->disklab = &vol->label;
 	    ((struct partinfo *) data)->part = &vol->label.d_partitions[0];
 	    break;
@@ -679,6 +721,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 		    &vol->plex[plexno],
 		    (vol->plexes - 1 - plexno) * sizeof(int));
 	    vol->plexes--;
+	    vol->last_plex_read = 0;			    /* don't go beyond the end */
 	    if (!bcmp(vol->name, plex->name, strlen(vol->name))) { /* this plex is named after the volume */
 		/* First, check if the subdisks are the same */
 		if (msg->recurse) {
@@ -798,3 +841,7 @@ replaceobject(struct vinum_ioctl_msg *msg)
     strcpy(reply->msg, "replace not implemented yet");
 /*      save_config (); */
 }
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
