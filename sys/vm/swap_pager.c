@@ -187,8 +187,8 @@ static void swapdev_strategy(struct buf *, struct swdevt *sw);
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
 
-int swap_pager_full;		/* swap space exhaustion (task killing) */
-static int swap_pager_almost_full; /* swap space exhaustion (w/ hysteresis)*/
+int swap_pager_full = 2;	/* swap space exhaustion (task killing) */
+static int swap_pager_almost_full = 1; /* swap space exhaustion (w/hysteresis)*/
 static int nsw_rcount;		/* free read buffers			*/
 static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
 static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
@@ -2267,6 +2267,10 @@ found:
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
 	nswapdev--;
+	if (nswapdev == 0) {
+		swap_pager_full = 2;
+		swap_pager_almost_full = 1;
+	}
 	if (swdevhd == sp)
 		swdevhd = NULL;
 	mtx_unlock(&sw_dev_mtx);
