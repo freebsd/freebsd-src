@@ -31,6 +31,7 @@ const struct snmp_node ctree[] = {
     {{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 1, 2, }}, "begemotSnmpdReceiveBuffer", SNMP_NODE_LEAF, SNMP_SYNTAX_INTEGER, op_snmpd_config, 0|SNMP_NODE_CANSET, 0, NULL },
     {{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 1, 3, }}, "begemotSnmpdCommunityDisable", SNMP_NODE_LEAF, SNMP_SYNTAX_INTEGER, op_snmpd_config, 0|SNMP_NODE_CANSET, 0, NULL },
     {{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 1, 4, }}, "begemotSnmpdTrap1Addr", SNMP_NODE_LEAF, SNMP_SYNTAX_IPADDRESS, op_snmpd_config, 0|SNMP_NODE_CANSET, 0, NULL },
+    {{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 1, 5, }}, "begemotSnmpdVersionEnable", SNMP_NODE_LEAF, SNMP_SYNTAX_GAUGE, op_snmpd_config, 0|SNMP_NODE_CANSET, 0, NULL },
     {{ 13, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 2, 1, 3, }}, "begemotTrapSinkStatus", SNMP_NODE_COLUMN, SNMP_SYNTAX_INTEGER, op_trapsink, 0|SNMP_NODE_CANSET, 0x142, NULL },
     {{ 13, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 2, 1, 4, }}, "begemotTrapSinkComm", SNMP_NODE_COLUMN, SNMP_SYNTAX_OCTETSTRING, op_trapsink, 0|SNMP_NODE_CANSET, 0x142, NULL },
     {{ 13, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 2, 1, 5, }}, "begemotTrapSinkVersion", SNMP_NODE_COLUMN, SNMP_SYNTAX_INTEGER, op_trapsink, 0|SNMP_NODE_CANSET, 0x142, NULL },
@@ -46,7 +47,10 @@ const struct snmp_node ctree[] = {
     {{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 8, 1, }}, "begemotSnmpdDebugDumpPdus", SNMP_NODE_LEAF, SNMP_SYNTAX_INTEGER, op_debug, 0|SNMP_NODE_CANSET, 0, NULL },
     {{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 8, 2, }}, "begemotSnmpdDebugSnmpTrace", SNMP_NODE_LEAF, SNMP_SYNTAX_GAUGE, op_debug, 0|SNMP_NODE_CANSET, 0, NULL },
     {{ 12, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 8, 3, }}, "begemotSnmpdDebugSyslogPri", SNMP_NODE_LEAF, SNMP_SYNTAX_INTEGER, op_debug, 0|SNMP_NODE_CANSET, 0, NULL },
-    {{ 13, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 9, 1, 2, }}, "begemotSnmpdLocalPortStatus", SNMP_NODE_COLUMN, SNMP_SYNTAX_INTEGER, op_local_port, 0|SNMP_NODE_CANSET, 0x21, NULL },
+    {{ 13, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 9, 1, 2, }}, "begemotSnmpdLocalPortStatus", SNMP_NODE_COLUMN, SNMP_SYNTAX_INTEGER, op_lsock_port, 0|SNMP_NODE_CANSET, 0x21, NULL },
+    {{ 13, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 9, 1, 3, }}, "begemotSnmpdLocalPortType", SNMP_NODE_COLUMN, SNMP_SYNTAX_INTEGER, op_lsock_port, 0|SNMP_NODE_CANSET, 0x21, NULL },
+    {{ 14, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 10, 1, 1, 2, }}, "begemotSnmpdTransportStatus", SNMP_NODE_COLUMN, SNMP_SYNTAX_INTEGER, op_transport_table, 0, 0x21, NULL },
+    {{ 14, { 1, 3, 6, 1, 4, 1, 12325, 1, 1, 1, 10, 1, 1, 3, }}, "begemotSnmpdTransportOid", SNMP_NODE_COLUMN, SNMP_SYNTAX_OID, op_transport_table, 0, 0x21, NULL },
     {{ 10, { 1, 3, 6, 1, 6, 3, 1, 1, 6, 1, }}, "snmpSetSerialNo", SNMP_NODE_LEAF, SNMP_SYNTAX_INTEGER, op_snmp_set, 0|SNMP_NODE_CANSET, 0, NULL },
 };
 
