@@ -8,10 +8,8 @@
 	(i.e. Ethernet interfaces), list broad groups of devices
 	alphabetically as paragraphs sorted alphabetically (frequently
 	these groups will be arranged by manufacturer, i.e. 3Com
-	Ethernet interfaces).  In cases where a group of devices
-	consists of multiple models (such as the 3C501, 3C503, etc.),
-	list each specific model or set of closely-related models as
-	a separate item in an itemized list, sorted alphabetically.
+	Ethernet interfaces).
+
 	Where applicable, a "Miscellaneous" section may follow all
 	other named sections.
 
@@ -29,7 +27,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.163
+        Original revision: 1.183
 -->
 
 <sect1 id="support">
@@ -47,7 +45,17 @@
 
   <para>可能なものについては、各々のデバイスやデバイス群に対応するドライバも併記してあります。
     また、そのドライバのマニュアルページがある場合
-    (ほとんどあるはずですが) は、その参照先も記載してあります。</para>
+    (ほとんどあるはずですが) は、その参照先も記載してあります。
+    対応しているデバイスやコントローラなどの特定のモデルについての情報は
+    マニュアルページをご覧ください。</para>
+
+  <note>
+    <para>特定の対応デバイスのリストは、
+      重複している (そして潜在的には古くなっている) 記述を減らすために、
+      徐々にこの文書から削除されています。
+      この作業が完了した時には、各ドライバのマニュアルページは
+      対応デバイスの権威あるリストとして参考にすべきです。</para>
+  </note>
   
   <sect2>
     <title>ディスクコントローラ</title>
@@ -133,19 +141,14 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Adaptec 1510、152X、1535、および 154X シリーズ
+      ISA SCSI コントローラおよびその互換品 (&man.aha.4; ドライバ)</para>
+
+    <para arch="i386">Adaptec 164X シリーズ MCA SCSI コントローラ
+      (&man.aha.4; ドライバ)</para>
+
     <para arch="i386,pc98,alpha,sparc64">Adaptec SCSI コントローラ
       <itemizedlist>
-        <listitem arch="i386">
-	  <para>Adaptec 1535 ISA SCSI コントローラ</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 154x シリーズ ISA SCSI コントローラ 
-            (&man.aha.4; ドライバ)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 164x シリーズ MCA SCSI コントローラ (&man.aha.4; 
-            ドライバ)</para>
-	</listitem>
 	<listitem arch="i386">
 	  <para>Adaptec 174x シリーズ EISA SCSI コントローラ。
             スタンダードモードおよびエンハンスドモード
@@ -169,14 +172,6 @@
 	<listitem arch="i386,alpha">
 	  <para>Adaptec AIC7770, AIC7850, AIC7860, AIC7870, AIC7880, AIC789x
             オンボード SCSI コントローラ (&man.ahc.4; ドライバ)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 1510 シリーズ ISA SCSI コントローラ
-            (起動デバイスとしては非対応)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 152x シリーズ ISA SCSI コントローラ (&man.aha.4;
-            ドライバ)</para>
 	</listitem>
 	<listitem arch="i386">
 	  <para>Adaptec AIC-6260, AIC-6360 ベースのボード。
@@ -207,53 +202,8 @@
         </listitem>
       </itemizedlist>
     </para>
-    
-    <para arch="i386">Adaptec 21x0S/32x0S/34x0S SCSI RAID
-      コントローラ (&man.asr.4; ドライバ)</para>
-    
-    <para arch="i386">Adaptec 2000S/2005S Zero-Channel RAID コントローラ
-      (&man.asr.4; ドライバ)</para>
-    
-    <para arch="i386">Adaptec 2400A ATA-100 RAID コントローラ
-      (&man.asr.4; ドライバ)</para>
-    
-    <para arch="i386">Adaptec FSA ファミリ RAID コントローラ (&man.aac.4; ドライバ)
-      <itemizedlist>
-	<listitem>
-	  <para>Adaptec AAC-2622</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec AAC-364</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec RAID 2120S</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec RAID 2200S</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec SCSI RAID 5400S</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/QC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/Si</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/Di</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/QC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/Si</para>
-	</listitem>
-	<listitem>
-	  <para>HP NetRAID-4M</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+
+    <para arch="i386">Adaptec FSA ファミリ RAID コントローラ (&man.aac.4; ドライバ)</para>
 
     <para arch="pc98">NEC PC-9801-55, 92 およびその互換 C-Bus SCSI インタフェース (ct ドライバ)
       <itemizedlist>
@@ -369,205 +319,45 @@
       </itemizedlist>
     </para>
     
-    <para arch="i386">BusLogic MultiMaster <quote>W</quote> シリーズホストアダプタ
-      (&man.bt.4; ドライバ):
-      <itemizedlist>
-	<listitem>
-	  <para>BT-948</para>
-	</listitem>
-	<listitem>
-	  <para>BT-958</para>
-	</listitem>
-	<listitem>
-	  <para>BT-958D</para>
-	</listitem>
-      </itemizedlist>
+    <para arch="i386">BusLogic MultiMaster <quote>W</quote>,
+      <quote>C</quote>、<quote>S</quote>、および <quote>A</quote> シリーズ
+      ホストアダプタ (&man.bt.4; ドライバ)
+
+      <note arch="i386">
+	<para>BusLogic/Mylex <quote>Flashpoint</quote>
+	アダプタには、まだ対応していません。</para>
+      </note>
+
+      <note arch="i386">
+	<para>BusLogic MultiMaster の完全なクローンである
+	  AMI FastDisk コントローラにも対応しています。</para>
+      </note>
+    
+      <note arch="i386">
+	<para>Buslogic/Bustek BT-640 および
+	  Storage Dimensions SDC3211B, SDC3211F マイクロチャネル (MCA)
+	  バスアダプタにも対応しています。</para>
+      </note>
+    
     </para>
-    
-    <para arch="i386">BusLogic MultiMaster <quote>C</quote> シリーズホストアダプタ
-      (&man.bt.4; ドライバ):
-      <itemizedlist>
-        <listitem>
-	  <para>BT-946C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-956C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-956CD</para>
-	</listitem>
-	<listitem>
-	  <para>BT-445C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-747C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757CD</para>
-	</listitem>
-	<listitem>
-	  <para>BT-545C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-540CF</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-    
-    <para arch="i386">BusLogic MultiMaster <quote>S</quote> シリーズホストアダプタ
-      (&man.bt.4; ドライバ):
-      <itemizedlist>
-	<listitem>
-	  <para>BT-445S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-747S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-747D</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757D</para>
-	</listitem>
-	<listitem>
-	  <para>BT-545S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-542D</para>
-	</listitem>
-	<listitem>
-	  <para>BT-742A</para>
-	</listitem>
-	<listitem>
-	  <para>BT-542B</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-    
-    <para arch="i386">BusLogic MultiMaster <quote>A</quote> シリーズホストアダプタ
-      (&man.bt.4; ドライバ):
-      <itemizedlist>
-        <listitem>
-	  <para>BT-742A</para>
-	</listitem>
-	<listitem>
-	  <para>BT-542B</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-    
-    <note arch="i386">
-      <para>BusLogic/Mylex <quote>Flashpoint</quote>
-        アダプタには、まだ対応していません。</para>
-    </note>
-    <note arch="i386">
-      <para>BusLogic MultiMaster の完全なクローンである
-        AMI FastDisk コントローラにも対応しています。</para>
-    </note>
-    
-    <note arch="i386">
-      <para>Buslogic/Bustek BT-640 および
-        Storage Dimensions SDC3211B, SDC3211F マイクロチャネル (MCA)
-        バスアダプタにも対応しています。</para>
-    </note>
     
     <para arch="i386">DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV,
       SmartRAID IV SCSI/RAID コントローラ (&man.dpt.4; ドライバ)</para>
+
+    <para arch="i386">Adaptec 21x0S/32x0S/34x0S SCSI RAID
+      コントローラ (&man.asr.4; ドライバ)</para>
+
+    <para arch="i386">Adaptec 2000S/2005S Zero-Channel RAID コントローラ
+      (&man.asr.4; ドライバ)</para>
+
+    <para arch="i386">Adaptec 2400A ATA-100 RAID コントローラ
+      (&man.asr.4; ドライバ)</para>
     
     <para arch="i386">DPT SmartRAID V, VI SCSI RAID コントローラ
-      (&man.asr.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>PM1554</para>
-	</listitem>
-        <listitem>
-	  <para>PM2554</para>
-	</listitem>
-        <listitem>
-	  <para>PM2654</para>
-	</listitem>
-        <listitem>
-	  <para>PM2865</para>
-	</listitem>
-        <listitem>
-	  <para>PM2754</para>
-	</listitem>
-        <listitem>
-	  <para>PM3755</para>
-	</listitem>
-        <listitem>
-	  <para>PM3757</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+      (&man.asr.4; ドライバ)</para>
 
     <para arch="i386,alpha">AMI MegaRAID Express, Enterprise ファミリ RAID コントローラ
       (&man.amr.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-          <para>MegaRAID シリーズ 418</para>
-        </listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1200 (シリーズ 428)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1300 (シリーズ 434)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1400 (シリーズ 438)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1500 (シリーズ 467)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1600 (シリーズ 471)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Elite 1500 (シリーズ 467)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Elite 1600 (シリーズ 493)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 100 (シリーズ 466WS)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 200 (シリーズ 466)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 300 (シリーズ 490)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 500 (シリーズ 475)</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/SC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/DC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/DCL</para>
-	</listitem>
-	<listitem>
-	  <para>HP NetRaid-1si</para>
-	</listitem>
-	<listitem>
-	  <para>HP NetRaid-3si</para>
-	</listitem>
-	<listitem>
-	  <para>HP Embedded NetRaid</para>
-	</listitem>
-      </itemizedlist>
 
       <note>
 	<para arch="i386">これらのコントローラからの起動にも対応しています。
@@ -580,35 +370,6 @@
 
     <para arch="i386,alpha">Mylex DAC960 および DAC1100 RAID コントローラ。
       2.x, 3.x, 4.x, 5.x の各ファームウェアに対応。(&man.mlx.4; ドライバ)
-      <itemizedlist>
-	<listitem>
-	  <para>DAC960P</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PD</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PDU</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PL</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PJ</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PG</para>
-	</listitem>
-	<listitem>
-	  <para>AcceleRAID 150</para>
-	</listitem>
-	<listitem>
-	  <para>AcceleRAID 250</para>
-	</listitem>
-	<listitem>
-	  <para>eXtremeRAID 1100</para>
-	</listitem>
-      </itemizedlist>
 
       <note>
 	<para arch="i386">これらのコントローラからの起動にも対応しています。
@@ -616,10 +377,13 @@
 
 	<para arch="alpha">SRM の制限のため、
           これらのコントローラからの起動には対応していません。
-          このリストある StorageWorks ファミリには、
-          Digital/Compaq が Alpha
-          システムに組み込んで販売しているもの、
-          たとえば KZPSC や KZPAC も含まれています。</para>
+          StorageWorks ファミリの一部として
+          Digital/Compaq が Alpha システムに組み込んで販売している
+          DAC960 コントローラ、たとえば KZPSC や KZPACは、
+          SRM から起動することができます。
+          これらのカードは 2.x のファームウェアを使用しています。
+          それより新しいファームウェアで
+          SRM から起動できるかどうかは不明です。</para>
       </note>
     </para>
 
@@ -651,19 +415,6 @@
     </para>
 
     <para arch="i386">3ware Escalade ATA RAID コントローラ (&man.twe.4; ドライバ)
-      <itemizedlist>
-        <listitem arch="i386">
-          <para>5000 シリーズ</para>
-	</listitem>
-
-        <listitem arch="i386">
-          <para>6000 シリーズ</para>
-	</listitem>
-
-        <listitem arch="i386">
-          <para>7000 シリーズ</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha,sparc64">LSI/SymBios (以前の NCR) 53C810, 53C810a, 53C815, 53C825,
@@ -737,68 +488,11 @@
     </para>
 
     <para arch="i386,pc98">TMC 18C30, 18C50 ベースの ISA/PC-Card SCSI
-      ホストアダプタ (stg ドライバ)
-      <itemizedlist>
-        <listitem>
-          <para>Future Domain SCSI2GO</para>
-        </listitem>
-	<listitem>
-	  <para>IBM SCSI PCMCIA Card</para>
-        </listitem>
-	<listitem>
-	  <para>ICM PSC-2401 SCSI</para>
-        </listitem>
-	<listitem>
-	  <para>MELCO IFC-SC</para>
-        </listitem>
-	<listitem>
-	  <para>RATOC REX-5536, REX-5536AM, REX-5536M,
-            REX-9836A</para>
-        </listitem>
-      </itemizedlist>
+      ホストアダプタ (&man.stg.4; ドライバ)
     </para>
 
     <para arch="i386,pc98,alpha,ia64,sparc64">Qlogic コントローラ。すべての変種に対応。
       (&man.isp.4; ドライバ)
-      <itemizedlist>
-        <listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 1020, 1040 SCSI および Ultra SCSI
-            ホストアダプタ</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 1240 dual Ultra SCSI コントローラ</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 1080 Ultra2 LVD および 1280 Dual Ultra2 LVD
-            コントローラ</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 12160 Ultra3 LVD コントローラ</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 2100 および Qlogic 2200 Fibre Channel SCSI
-            コントローラ</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 2300 および Qlogic 2312 2-Gigabit Fibre Channel SCSI
-            コントローラ</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Performance Technology SBS440 ISP1000 および、その変種</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Performance Technology SBS450 ISP1040 および、その変種</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Performance Technology SBS470 ISP2100 および、その変種</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Antares Microsystems P-0033 ISP2100 および、その変種</para>
-	</listitem>
-        <listitem arch="pc98">
-           <para>Qlogic SCSI interface</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">DTC 3290 EISA SCSI コントローラ。
@@ -1023,77 +717,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Allied-Telesis AT1700 および RE2000 カード
-      (&man.fe.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-          <para>CONTEC C-NET(PC)C PCMCIA Ethernet</para>
-        </listitem>
-        <listitem>
-          <para>Fujitsu MBH10303, MBH10302 Ethernet PCMCIA</para>
-        </listitem>
-        <listitem>
-          <para>Fujitsu Towa LA501 Ethernet</para>
-        </listitem>
-        <listitem>
-          <para>Fujitsu FMV-J182, FMV-J182A</para>
-        </listitem>
-        <listitem>
-          <para>RATOC REX-5588, REX-9822, REX-4886, REX-R280</para>
-        </listitem>
-        <listitem>
-          <para>Eiger Labs EPX-10BT</para>
-        </listitem>
-        <listitem>
-          <para>HITACHI HT-4840-11</para>
-        </listitem>
-        <listitem>
-          <para>NextCom J Link NC5310</para>
-        </listitem>
-        <listitem>
-          <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-      
     <para arch="i386,pc98">Tigon 1, Tigon 2 チップセットベースの
-      Alteon Networks PCI Gigabit Ethernet NIC (&man.ti.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-          <para>3Com 3c985-SX (Tigon 1 および 2)</para>
-        </listitem>
-        <listitem>
-          <para>Alteon AceNIC (Tigon 1 および 2)</para>
-        </listitem>
-        <listitem>
-          <para>Alteon AceNIC 1000baseT (Tigon 2)</para>
-        </listitem>
-	<listitem>
-	  <para>Asante PCI 1000BASE-SX Gigabit Ethernet アダプタ</para>
-	</listitem>
-	<listitem>
-	  <para>Asante GigaNIX1000T Gigabit Ethernet アダプタ</para>
-	</listitem>
-	<listitem>
-	  <para>DEC/Compaq EtherWORKS 1000</para>
-        </listitem>
-	<listitem>
-	  <para>Farallon PN9000SX</para>
-	</listitem>
-	<listitem>
-	  <para>NEC Gigabit Ethernet</para>
-        </listitem>
-	<listitem>
-	  <para>Netgear GA620 (Tigon 2)</para>
-        </listitem>
-	<listitem>
-	  <para>Netgear GA620T (Tigon 2, 1000baseT)</para>
-        </listitem>
-	<listitem>
-	  <para>Silicon Graphics Gigabit Ethernet</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      Alteon Networks PCI Gigabit Ethernet NIC (&man.ti.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">AMD PCnet NICs (&man.lnc.4; および &man.pcn.4; ドライバ)
       <itemizedlist>
@@ -1429,7 +1054,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Lite-On 82c168/82c169 PNIC Fast Ethernet NIC
+    <para arch="i386,alpha,sparc64">Lite-On 82c168/82c169 PNIC Fast Ethernet NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
 	<listitem>
@@ -1447,7 +1072,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Macronix 98713, 98713A, 98715, 98715A, 98725 Fast
+    <para arch="i386,pc98,alpha,sparc64">Macronix 98713, 98713A, 98715, 98715A, 98725 Fast
       Ethernet NIC (&man.dc.4; ドライバ)
       <itemizedlist>
 	<listitem>
@@ -1474,7 +1099,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NIC
+    <para arch="i386,pc98,alpha,sparc64">Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1493,28 +1118,7 @@
 
     <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>,
       VT86C100A <quote>Rhine II</quote>,
-      VT86C105/VT86C105M <quote>Rhine III</quote> Fast Ethernet NIC (&man.vr.4; ドライバ)
-      <itemizedlist>
-        <listitem arch="i386,alpha">
-	  <para>AOpen/Acer ALN-320</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>D-Link DFE-530TX</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>Hawking Technologies PN102TX</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>MELCO LGY-PCI-TXR (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>CO-100MV (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Corega FastEtherII PCI-TX (PCI)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      VT86C105/VT86C105M <quote>Rhine III</quote> Fast Ethernet NIC (&man.vr.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">Silicon Integrated Systems SiS 900
       および SiS 7016 PCI Fast Ethernet NIC (&man.sis.4; ドライバ)
@@ -1611,38 +1215,12 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NIC (&man.tl.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Compaq Netelligent 10, 10/100, 10/100 Dual-Port</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Compaq Netelligent 10/100 Proliant</para>
-        </listitem>
-        <listitem>
-	  <para>Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI
-            UTP/Coax, 10/100 TX UTP</para>
-        </listitem>
-        <listitem>
-	  <para>Compaq NetFlex 3P, 3P Integrated, 3P w/BNC</para>
-        </listitem>
-        <listitem>
-	  <para>Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP</para>
-        </listitem>
-        <listitem>
-	  <para>Racore 8165 10/100baseTX</para>
-        </listitem>
-        <listitem>
-	  <para>Racore 8148 10baseT/100baseTX/100baseFX
-            multi-personality</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NIC (&man.tl.4; ドライバ)</para>
 
-    <para arch="i386,pc98,alpha">ADMtek Inc. AL981-based PCI Fast Ethernet NIC
+    <para arch="i386,pc98,alpha,sparc64">ADMtek Inc. AL981 ベースの PCI Fast Ethernet NIC
       (&man.dc.4; ドライバ)</para>
 
-    <para arch="i386,pc98,alpha">ADMtek Inc. AN985-based PCI Fast Ethernet NIC
+    <para arch="i386,pc98,alpha,sparc64">ADMtek Inc. AN985 ベースの PCI Fast Ethernet NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1652,156 +1230,21 @@
     </para>
 
     <para arch="i386,pc98">ADMtek Inc. AN986 ベースの USB Ethernet NIC
-      (&man.aue.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Abocom UFE1000, DSB650TX_NA</para>
-	</listitem>
-        <listitem>
-	  <para>Accton USB320-EC, SpeedStream</para>
-        </listitem>
-        <listitem>
-	  <para>ADMtek AN986, AN8511</para>
-        </listitem>
-        <listitem>
-	  <para>Billionton USB100, USB100LP, USB100EL, USBE100</para>
-        </listitem>
-        <listitem>
-	  <para>Corega Ether FEther USB-T, FEther USB-TX, FEther USB-TXS</para>
-        </listitem>
-        <listitem>
-	  <para>D-Link DSB-650, DSB-650TX, DSB-650TX-PNA</para>
-        </listitem>
-        <listitem>
-	  <para>Elecom LD-USBL/TX</para>
-        </listitem>
-        <listitem>
-	  <para>Elsa Microlink USB2Ethernet</para>
-        </listitem>
-        <listitem>
-	  <para>I-O Data USB ETTX</para>
-        </listitem>
-        <listitem>
-	  <para>Kingston KNU101TX</para>
-        </listitem>
-        <listitem>
-	  <para>LinkSys USB10T, USB10TA, USB10TX, USB100TX, USB100H1</para>
-        </listitem>
-        <listitem>
-	  <para>MELCO LUA-TX, LUA2-TX</para>
-        </listitem>
-        <listitem>
-	  <para>Planex UE-200TX</para>
-        </listitem>
-        <listitem>
-	  <para>Siemens Speedstream</para>
-        </listitem>
-        <listitem>
-	  <para>SmartBridges smartNIC</para>
-        </listitem>
-        <listitem>
-	  <para>SMC 2202USB</para>
-        </listitem>
-        <listitem>
-	  <para>SOHOware NUB100</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.aue.4; ドライバ)</para>
 
-    <para arch="i386,pc98">CATC USB-EL1210A-based USB Ethernet NIC
-      (&man.cue.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Belkin F5U011, F5U111</para>
-        </listitem>
-        <listitem>
-	  <para>CATC Netmate, Netmate II</para>
-        </listitem>
-        <listitem>
-	  <para>SmartBridges SmartLink</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98">CATC USB-EL1210A ベースの USB Ethernet NIC
+      (&man.cue.4; ドライバ)</para>
 
     <para arch="i386,pc98">Kawasaki LSI KU5KUSB101B ベースの USB Ethernet NIC
-      (&man.kue.4; ドライバ)
-      <itemizedlist>
-	<listitem>
-	  <para>3Com 3c19250</para>
-        </listitem>
-	<listitem>
-	  <para>AOX USB101</para>
-        </listitem>
-	<listitem>
-	  <para>Abocom URE 450</para>
-        </listitem>
-	<listitem>
-	  <para>ADS Technologies USB-10BT</para>
-        </listitem>
-	<listitem>
-	  <para>ATen UC10T</para>
-        </listitem>
-	<listitem>
-	  <para>Corega USB-T</para>
-        </listitem>
-	<listitem>
-	  <para>D-Link DSB-650C</para>
-        </listitem>
-	<listitem>
-	  <para>Entrega NET-USB-E45</para>
-        </listitem>
-        <listitem>
-          <para>I/O Data USB ETT</para>
-        </listitem>
-        <listitem>
-          <para>Kawasaki DU-H3E</para>
-        </listitem>
-        <listitem>
-          <para>LinkSys USB10T</para>
-        </listitem>
-	<listitem>
-	  <para>Netgear EA101</para>
-        </listitem>
-	<listitem>
-	  <para>Peracom USB Ethernet アダプタ</para>
-        </listitem>
-	<listitem>
-	  <para>SMC 2102USB, 2104USB</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386,pc98">RealTek RTL8150 ベースの USB Ethernet NIC
-      (&man.rue.4; ドライバ)
-
-      <itemizedlist>
-        <listitem>
-          <para>GREEN HOUSE GH-USB100B</para>
-        </listitem>
-        <listitem>
-          <para>MELCO LUA-KTX</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.kue.4; ドライバ)</para>
 
     <para arch="i386,pc98">ASIX Electronics AX88172 ベースの USB Ethernet NIC
-      (&man.axe.4; ドライバ)
+      (&man.axe.4; ドライバ)</para>
 
-      <itemizedlist>
-        <listitem>
-	  <para>D-Link DUBE100</para>
-        </listitem>
-        <listitem>
-	  <para>Linksys USB200M</para>
-        </listitem>
-        <listitem>
-	  <para>Netgear FA120</para>
-        </listitem>
-      </itemizedlist>
+    <para arch="i386,pc98">RealTek RTL8150 ベースの USB Ethernet NIC
+      (&man.rue.4; ドライバ)</para>
 
-      </para>
-
-    <para arch="i386,pc98,alpha">ASIX Electronics AX88140A PCI NIC
+    <para arch="i386,pc98,alpha,sparc64">ASIX Electronics AX88140A PCI NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1854,7 +1297,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">DEC/Intel 21143 ベースの Fast Ethernet NIC
+    <para arch="i386,pc98,alpha,sparc64">DEC/Intel 21143 ベースの Fast Ethernet NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1875,7 +1318,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Davicom DM9009, DM9100,
+    <para arch="i386,pc98,alpha,sparc64">Davicom DM9009, DM9100,
       DM9102 PCI Fast Ethernet NIC (&man.dc.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -1893,52 +1336,7 @@
     <para arch="pc98">MELCO LGY-PCI-TXL (PCI) (&man.dc.4; ドライバ)</para>
 
     <para arch="i386,pc98">Fujitsu MB86960A/MB86965A ベースの Fast Ethernet NIC
-      <itemizedlist>
-        <listitem arch="i386">
-          <para>CONTEC C-NET(PC)C Ethernet</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>Eiger Labs EPX-10BT</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>Fujitsu FMV-J182, FMV-J182A, MBH10302, MBH10303
-            Ethernet PCMCIA</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>Fujitsu Towa LA501 Ethernet</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>HITACHI HT-4840-11</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>NextCom J Link NC5310</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>RATOC REX-5588, REX-9822, REX-4886, REX-R280</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
-        </listitem>
-	<listitem arch="pc98">
-	  <para>Allied Telesis RE1000, RE1000Plus, ME1500 (110pin)</para>
-        </listitem>
-	<listitem arch="pc98">
-	  <para>Contec C-NET(98)P2, C-NET(9N)E (110pin),
-	  C-NET(9N)C(ExtCard)</para>
-        </listitem>
-	<listitem arch="pc98">
-          <para>Ungermann-Bass Access/PC N98C+(PC85152,PC85142),
-	  Access/NOTE N98 (PC86132) (110pin)</para>
-        </listitem>
-	<listitem arch="pc98">
-          <para>TDK LAC-98012, LAC-98013, LAC-98025, LAC-9N011
-	  (110pin)</para>
-        </listitem>
-	<listitem arch="pc98">
-          <para>Ratoc REX-9880/9881/9882/9883</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.fe.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha,ia64,sparc64">Intel 82557, 82258, 82559, 82550,
       82562 ベースの Fast Ethernet NIC (&man.fxp.4; ドライバ)
@@ -2008,43 +1406,12 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">3Com 3C5x9 Etherlink III NIC (&man.ep.4; ドライバ)
-      <itemizedlist>
-        <listitem arch="i386">
-	  <para>3C509</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C529 MCA</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C579 EISA</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>3CXE589EC, 3CXE589ET PCMCIA</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>3C589/589B/589C/589D/589E/574TX/574B
-            PC-card/PCMCIA</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>OfficeConnect 3CXSH572BT</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Farallon EtherMac</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>3Com 3C569, 3C569-TPO, 3C569B, 3C569B-COMBO</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98">3Com 3C5x9 Etherlink III NIC (&man.ep.4; ドライバ)</para>
 
     <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
       (&man.el.4; ドライバ)</para>
 
-    <para arch="i386,pc98,alpha,sparc64">3Com Etherlink XL-based NIC (&man.xl.4; ドライバ)
+    <para arch="i386,pc98,alpha,sparc64">3Com Etherlink XL ベースの NIC (&man.xl.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>3C900/905/905B/905C PCI</para>
@@ -2081,17 +1448,6 @@
     </para>
 
     <para arch="i386,pc98">3Com 3C59X シリーズ NIC (&man.vx.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>3C590 Etherlink III (PCI)</para>
-	</listitem>
-        <listitem>
-	  <para>3C595 Fast Etherlink III (PCI)</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>3C592/3C597 (EISA)</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Crystal Semiconductor CS89x0 ベースの NIC 
@@ -2250,21 +1606,20 @@
     </para>
 
     <para arch="sparc64">Sun HME Ethernet および QFE Ethernet NIC
-      (hme ドライバ)</para>
+      (&man.hme.4; ドライバ)</para>
     
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) および ERI (Fast
-      Ethernet) NIC (gem ドライバ)</para>
+      Ethernet) NIC (&man.gem.4; ドライバ)</para>
 
-    <para arch="i386,pc98">Myson Ethernet NICs (my ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Myson MTD80X Based Fast Ethernet Card</para>
-	</listitem>
-        <listitem>
-	  <para>Myson MTD89X Based Gigabit Ethernet Card</para>
-	</listitem>
-      </itemizedlist>
+    <para arch="i386,pc98">Myson Ethernet NICs (&man.my.4; ドライバ)
     </para>
+
+    <para arch="i386">Broadcom BCM4401 ベースの Fast Ethernet アダプタ
+      (&man.bfe.4; ドライバ)</para>
+
+    <para arch="i386,pc98">RealTek RTL8139C+, RTL8169, RTL8169S,
+      RTL8110S ベースの PCI Fast Ethernet および Gigabit Ethernet
+      コントローラ (&man.re.4; ドライバ)</para>
 
   </sect2>
 
@@ -2280,8 +1635,20 @@
     <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p
       ATM PCI アダプタ (hea ドライバ)</para>
 
-    <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM
-      PCI アダプタ (hfa ドライバ)</para>
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. PCA-200E ATM
+      PCI アダプタ (hfa ドライバおよび &man.fatm.4; ドライバ)</para>
+
+    <para arch="i386,pc98">IDT 77201/211 NICStAR ATM アダプタ
+      (idt ドライバ)</para>
+ 
+    <para arch="i386,pc98">FORE Systems, Inc. LE155 ATM アダプタ
+      (idt ドライバ)</para>
+
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. HE155 および HE622
+      ATM インタフェース (&man.hatm.4; ドライバ)</para>
+
+    <para arch="i386,pc98">IDT77252 ベースの ATM カード
+      (&man.patm.4; ドライバ)</para>
 
     <para arch="i386,pc98">&os; の ATM サポートは、
       次のシグナリングプロトコルに対応しています。
