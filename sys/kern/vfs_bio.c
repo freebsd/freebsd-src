@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.33 1995/03/03 22:13:00 davidg Exp $
+ * $Id: vfs_bio.c,v 1.34 1995/03/04 15:16:07 davidg Exp $
  */
 
 /*
@@ -54,7 +54,6 @@ struct buf *buf;		/* buffer header pool */
 int nbuf;			/* number of buffer headers calculated
 				 * elsewhere */
 struct swqueue bswlist;
-int nvmio, nlru;
 
 extern vm_map_t buffer_map, io_map, kernel_map, pager_map;
 
@@ -151,8 +150,6 @@ bremfree(struct buf * bp)
 	int s = splbio();
 
 	if (bp->b_qindex != QUEUE_NONE) {
-		if (bp->b_qindex == QUEUE_LRU)
-			--nlru;
 		TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
 		bp->b_qindex = QUEUE_NONE;
 	} else {
@@ -345,21 +342,6 @@ bawrite(struct buf * bp)
 	vp = bp->b_vp;
 	bp->b_flags |= B_ASYNC;
 	(void) bwrite(bp);
-	/*
-	 * this code supports limits on the amount of outstanding
-	 * writes to a disk file.  this helps keep from overwhelming
-	 * the buffer cache with writes, thereby allowing other files
-	 * to be operated upon.
-	 */
-	if (vp->v_numoutput > (nbuf/2)) {
-		int s = splbio();
-
-		while (vp->v_numoutput > (nbuf/4)) {
-			vp->v_flag |= VBWAIT;
-			tsleep((caddr_t) &vp->v_numoutput, PRIBIO, "bawnmo", 0);
-		}
-		splx(s);
-	}
 }
 
 /*
@@ -458,10 +440,13 @@ brelse(struct buf * bp)
 					if (m->valid == 0) {
 						vm_page_protect(m, VM_PROT_NONE);
 						vm_page_free(m);
-					} else if ((m->dirty & m->valid) == 0 &&
+					}
+#if 1
+					else if ((m->dirty & m->valid) == 0 &&
 						(m->flags & PG_REFERENCED) == 0 &&
 							!pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
 						vm_page_cache(m);
+#endif
 					else if ((m->flags & PG_ACTIVE) == 0) {
 						vm_page_activate(m);
 						m->act_count = 0;
@@ -475,7 +460,6 @@ brelse(struct buf * bp)
 			bp->b_flags &= ~B_VMIO;
 			if (bp->b_vp)
 				brelvp(bp);
-			--nvmio;
 		}
 	}
 	if (bp->b_qindex != QUEUE_NONE)
@@ -506,13 +490,8 @@ brelse(struct buf * bp)
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_AGE], bp, b_freelist);
 		/* buffers with valid and quite potentially reuseable contents */
 	} else {
-		if (bp->b_flags & B_VMIO)
-			bp->b_qindex = QUEUE_VMIO;
-		else {
-			bp->b_qindex = QUEUE_LRU;
-			++nlru;
-		}
-		TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
+		bp->b_qindex = QUEUE_LRU;
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
 	}
 
 	/* unlock */
@@ -600,36 +579,12 @@ trytofreespace:
 	 * This is desirable because file data is cached in the
 	 * VM/Buffer cache even if a buffer is freed.
 	 */
-	if (bp = bufqueues[QUEUE_AGE].tqh_first) {
+	if ((bp = bufqueues[QUEUE_AGE].tqh_first)) {
 		if (bp->b_qindex != QUEUE_AGE)
 			panic("getnewbuf: inconsistent AGE queue");
-	} else if ((nvmio > nbuf - minbuf)
-	    && (bp = bufqueues[QUEUE_VMIO].tqh_first)) {
-		if (bp->b_qindex != QUEUE_VMIO)
-			panic("getnewbuf: inconsistent VMIO queue");
-	} else if ((nlru > nbuf - minbuf) &&
-	    (bp = bufqueues[QUEUE_LRU].tqh_first)) {
+	} else if ((bp = bufqueues[QUEUE_LRU].tqh_first)) {
 		if (bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue");
-	}
-	if (!bp) {
-		if (doingvmio) {
-			if (bp = bufqueues[QUEUE_VMIO].tqh_first) {
-				if (bp->b_qindex != QUEUE_VMIO)
-					panic("getnewbuf: inconsistent VMIO queue");
-			} else if (bp = bufqueues[QUEUE_LRU].tqh_first) {
-				if (bp->b_qindex != QUEUE_LRU)
-					panic("getnewbuf: inconsistent LRU queue");
-			}
-		} else {
-			if (bp = bufqueues[QUEUE_LRU].tqh_first) {
-				if (bp->b_qindex != QUEUE_LRU)
-					panic("getnewbuf: inconsistent LRU queue");
-			} else if (bp = bufqueues[QUEUE_VMIO].tqh_first) {
-				if (bp->b_qindex != QUEUE_VMIO)
-					panic("getnewbuf: inconsistent VMIO queue");
-			}
-		}
 	}
 	if (!bp) {
 		/* wait for a free buffer of any kind */
@@ -638,6 +593,7 @@ trytofreespace:
 		splx(s);
 		return (0);
 	}
+
 	/* if we are a delayed write, convert to an async write */
 	if ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) {
 		vfs_bio_awrite(bp);
@@ -648,7 +604,7 @@ trytofreespace:
 		goto start;
 	}
 
-	if( bp->b_flags & B_WANTED) {
+	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~(B_WANTED|B_PDWANTED);
 		wakeup((caddr_t) bp);
 	}
@@ -659,6 +615,7 @@ trytofreespace:
 		brelse(bp);
 		bremfree(bp);
 	}
+
 	if (bp->b_vp)
 		brelvp(bp);
 
@@ -790,6 +747,7 @@ loop:
 			}
 			if (!tsleep((caddr_t) bp, PRIBIO | slpflag, "getblk", slptimeo))
 				goto loop;
+			
 			splx(s);
 			return (struct buf *) NULL;
 		}
@@ -848,10 +806,7 @@ loop:
 			if (vp->v_type != VREG)
 				printf("getblk: vmioing file type %d???\n", vp->v_type);
 #endif
-			++nvmio;
 		} else {
-			if (bp->b_flags & B_VMIO)
-				--nvmio;
 			bp->b_flags &= ~B_VMIO;
 		}
 		splx(s);
@@ -1177,10 +1132,6 @@ biodone(register struct buf * bp)
 	if ((bp->b_flags & B_READ) == 0) {
 		struct vnode *vp = bp->b_vp;
 		vwakeup(bp);
-		if (vp && (vp->v_numoutput == (nbuf/4)) && (vp->v_flag & VBWAIT)) {
-			vp->v_flag &= ~VBWAIT;
-			wakeup((caddr_t) &vp->v_numoutput);
-		}
 	}
 #ifdef BOUNCE_BUFFERS
 	if (bp->b_flags & B_BOUNCE)
