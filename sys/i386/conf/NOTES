@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.181 1995/05/14 02:59:45 davidg Exp $
+#	$Id: LINT,v 1.182 1995/05/18 09:16:53 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -55,10 +55,10 @@ options		MATH_EMULATE		#Support for x87 emulation
 # This directive defines a number of things:
 #  - The compiled kernel is to be called `kernel'
 #  - The root filesystem might be on partition wd0a
-#  - The kernel can swap on wd0b and sd0b, defaulting to the former
-#  - Crash dumps will be written to wd0b, if possible
+#  - Crash dumps will be written to wd0b, if possible.  Specifying the
+#    dump device here is not recommended.  Use dumpon(8).
 #
-config		kernel	root on wd0 
+config		kernel	root on wd0 dumps on wd0
 
 
 #####################################################################
@@ -94,13 +94,6 @@ options		SYSVMSG
 # Enable the kernel debugger.
 #
 options		DDB
-
-#
-# Enable dumping of the kernel image to swap for panics.  This is not
-# the default because writing to misconfigured swap may wipe out file
-# systems.
-#
-options		DODUMP
 
 # 
 # KTRACE enables the system-call tracing facility ktrace(2).
