@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.9 1996/09/22 21:53:26 wosch Exp $
+.\"	$Id: ftpd.8,v 1.10 1996/11/30 12:00:23 torstenb Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -72,7 +72,12 @@ Each successful and failed
 session is logged using syslog with a facility of LOG_FTP.
 If this option is specified twice, the retrieve (get), store (put), append,
 delete, make directory, remove directory and rename operations and
-their filename arguments are also logged.
+their filename arguments are also logged.  Note: LOG_FTP messages
+are not displayed by
+.Xr syslogd 8
+by default, and may have to be enabled in
+.Xr syslogd 8 Ns 's
+configuration file.
 .It Fl D
 With this option set,
 .Nm ftpd
