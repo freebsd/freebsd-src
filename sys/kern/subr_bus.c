@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.35 1999/08/11 22:55:39 peter Exp $
+ *	$Id: subr_bus.c,v 1.36 1999/08/14 05:11:01 wpaul Exp $
  */
 
 #include <sys/param.h>
@@ -128,7 +128,7 @@ register_method(struct device_op_desc *desc)
 	    desc->offset = m->offset;
 	    desc->method = m;
 	    m->refs++;
-	    PDEBUG(("methods %p has the same name, %s, with offset %d",
+	    PDEBUG(("method %p has the same name, %s, with offset %d",
 		    (void *)m, desc->name, desc->offset));
 	    return;
 	}
