@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.150 1998/11/15 09:06:20 jkh Exp $
+ * $Id: sysinstall.h,v 1.151 1998/11/24 00:18:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -584,6 +584,7 @@ extern Boolean	mediaExtractDist(char *dir, char *dist, FILE *fp);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);
 extern Boolean	mediaVerify(void);
+extern FILE	*mediaGenericGet(char *base, const char *file);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);

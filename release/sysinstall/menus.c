@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.175 1998/12/02 03:34:14 jkh Exp $
+ * $Id: menus.c,v 1.176 1998/12/09 02:46:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -303,13 +303,13 @@ DMenu MenuInitial = {
       { "2 Doc",	"Installation instructions, README, etc.",	NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "3 Keymap",	"Select keyboard type",				NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
       { "4 Options",	"View/Set various installation options",	NULL, optionsEditor },
-      { "5 Novice",	"Begin a novice installation (for beginners)",	NULL, installNovice },
-      { "6 Express",	"Begin a quick installation (for the impatient)", NULL, installExpress },
-      { "7 Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-      { "8 Fixit",	"Enter repair mode with CDROM/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
-      { "9 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
-      { "c Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
-      { "l Load Config","Load default install configuration",		NULL, dispatch_load_floppy },
+      { "5 Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
+      { "6 Novice",	"Begin a novice installation (for beginners)",	NULL, installNovice },
+      { "7 Express",	"Begin a quick installation (for the impatient)", NULL, installExpress },
+      { "8 Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
+      { "9 Fixit",	"Enter repair mode with CDROM/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "U Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
+      { "L Load Config","Load default install configuration",		NULL, dispatch_load_floppy },
       { "0 Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
 };
@@ -489,8 +489,6 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://current.freebsd.org/pub/FreeBSD/" },
       { "2.2 SNAP Server", "releng22.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://releng22.freebsd.org/pub/FreeBSD/" },
-      { "2.1 SNAP Server", "releng210.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://releng210.freebsd.org/pub/FreeBSD/" },
       { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ar.freebsd.org/pub/FreeBSD/" },
       { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -1214,7 +1212,7 @@ DMenu MenuNetworking = {
       { "Gateway",	"This machine will route packets between interfaces",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
       { "Ntpdate",	"Select a clock-synchronization server",
-	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', "ntpdate_enable=YES" },
+	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate_enable=YES" },
       { "router",	"Select routing daemon (default: routed)",
 	dmenuVarCheck, configRouter, NULL, "router" },
       { "Rwhod",	"This machine wants to run the rwho daemon",

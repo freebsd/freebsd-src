@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.92 1998/11/02 10:42:18 obrien Exp $
+ * $Id: media.c,v 1.93 1998/12/02 03:27:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -204,8 +204,6 @@ mediaSetFloppy(dialogMenuItem *self)
     }
     else
 	mediaDevice = devs[0];
-    if (mediaDevice)
-	mediaDevice->private = "/dist";
     return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
@@ -764,3 +762,23 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
+
+/* A generic open which follows a well-known "path" of places to look */
+FILE *
+mediaGenericGet(char *base, const char *file)
+{
+    char	buf[PATH_MAX];
+
+    snprintf(buf, PATH_MAX, "%s/%s", base, file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "%s/releases/%s", base, file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "%s/%s/%s", base, variable_get(VAR_RELNAME), file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "%s/releases/%s/%s", base, variable_get(VAR_RELNAME), file);
+    return fopen(buf, "r");
+}
+

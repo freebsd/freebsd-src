@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.34 1997/10/03 14:00:09 jkh Exp $
+ * $Id: ftp.c,v 1.35 1998/01/28 04:42:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,9 +79,6 @@ mediaInitFTP(Device *dev)
 
     if (ftpInitted)
 	return TRUE;
-
-    if (isDebug())
-	msgDebug("Init routine for FTP called.\n");
 
     if (OpenConn) {
 	fclose(OpenConn);
@@ -167,8 +164,6 @@ try:
 	else
 	    goto punt;
     }
-    if (isDebug())
-	msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
     ftpInitted = TRUE;
     return TRUE;
 
@@ -221,7 +216,7 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 	    /* Try some alternatives */
 	    switch (nretries++) {
 	    case 1:
-		sprintf(buf, "dists/%s", file);
+		sprintf(buf, "releases/%s", file);
 		try = buf;
 		break;
 
@@ -231,7 +226,7 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 		break;
 
 	    case 3:
-		sprintf(buf, "%s/dists/%s", variable_get(VAR_RELNAME), file);
+		sprintf(buf, "%s/releases/%s", variable_get(VAR_RELNAME), file);
 		try = buf;
 		break;
 
@@ -250,7 +245,6 @@ mediaShutdownFTP(Device *dev)
     if (!ftpInitted)
 	return;
 
-    msgDebug("FTP shutdown called.  OpenConn = %x\n", OpenConn);
     if (OpenConn != NULL) {
 	fclose(OpenConn);
 	OpenConn = NULL;
