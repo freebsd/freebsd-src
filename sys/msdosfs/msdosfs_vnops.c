@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.33 1996/09/19 18:20:47 nate Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.34 1996/10/02 05:01:17 dyson Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -817,7 +817,7 @@ errexit:
 			if (uio->uio_resid != resid)
 				error = 0;
 		}
-	} else {
+	} else if (ioflag & IO_SYNC) {
 		TIMEVAL_TO_TIMESPEC(&time, &ts);
 		error = deupdat(dep, &ts, 1);
 	}
