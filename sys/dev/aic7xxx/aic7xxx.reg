@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.7 1998/09/15 07:24:16 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.8 1998/11/23 01:33:47 gibbs Exp $
  */
 
 /*
@@ -675,20 +675,20 @@ register INTSTAT {
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
-	mask	EXTENDED_MSG	0x40|SEQINT	/* Extended message received */
 	mask	ABORT_REQUESTED 0x50|SEQINT	/* Reconect of aborted SCB */
 	mask	REJECT_MSG	0x60|SEQINT	/* Reject message received */
 	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
 	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
-	mask	AWAITING_MSG	0xa0|SEQINT	/*
-						 * Kernel requested to specify
-						 * a message to this target
-						 * (command was null), so tell
-						 * it that it can fill the
-						 * message buffer.
+	mask	HOST_MSG_LOOP	0xa0|SEQINT	/*
+						 * The bus is ready for the
+						 * host to perform another
+						 * message transaction.  This
+						 * mechanism is used for things
+						 * like sync/wide negotiation
+						 * that require a kernel based
+						 * message state engine.
 						 */
 	mask	TARGET_MSG_HELP	0xb0|SEQINT
-	mask	TARGET_SYNC_CMD	0xc0|SEQINT
 	mask	TRACEPOINT	0xd0|SEQINT
 	mask	MSGIN_PHASEMIS	0xe0|SEQINT	/*
 						 * Target changed phase on us
@@ -1277,10 +1277,13 @@ scratch_ram {
 	}
 	ARG_1 {
 		size		1
-		mask	SEND_MSG	0x80
-		mask	SEND_SENSE	0x40
-		mask	SEND_REJ	0x20
-		mask	MSGOUT_PHASEMIS	0x10
+		mask	SEND_MSG		0x80
+		mask	SEND_SENSE		0x40
+		mask	SEND_REJ		0x20
+		mask	MSGOUT_PHASEMIS		0x10
+		mask	EXIT_MSG_LOOP		0x08
+		mask	CONT_MSG_LOOP		0x04
+		mask	CONT_TARG_SESSION	0x02
 		alias	RETURN_1
 	}
 	ARG_2 {
@@ -1303,6 +1306,14 @@ scratch_ram {
 		size		1
 	}
 
+	/*
+	 * Interrupt kernel for a message to this target on
+	 * the next transaction.  This is usually used for
+	 * negotiation requests.
+	 */
+	TARGET_MSG_REQUEST {
+		size		2
+	}
 
 	/*
 	 * These are reserved registers in the card's scratch ram.  Some of
