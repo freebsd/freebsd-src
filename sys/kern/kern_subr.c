@@ -134,6 +134,10 @@ out:
 	return (error);
 }
 
+#ifdef ENABLE_VFS_IOOPT
+/*
+ * Experimental support for zero-copy I/O
+ */
 int
 uiomoveco(cp, n, uio, obj)
 	caddr_t cp;
@@ -207,8 +211,9 @@ uiomoveco(cp, n, uio, obj)
 	return (0);
 }
 
-#ifdef ENABLE_VFS_IOOPT
-
+/*
+ * Experimental support for zero-copy I/O
+ */
 int
 uioread(n, uio, obj, nread)
 	int n;
@@ -274,7 +279,6 @@ uioread(n, uio, obj, nread)
 	}
 	return error;
 }
-
 #endif
 
 /*
