@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_param.h,v 1.3 1994/08/02 07:55:37 davidg Exp $
+ * $Id: vm_param.h,v 1.4 1995/01/09 16:05:57 davidg Exp $
  */
 
 /*
@@ -72,14 +72,6 @@
 #define	_VM_PARAM_
 
 #include <machine/vmparam.h>
-
-/*
- * This belongs in types.h, but breaks too many existing programs.
- */
-typedef int boolean_t;
-
-#define	TRUE	1
-#define	FALSE	0
 
 /*
  *	The machine independent pages are refered to as PAGES.  A page
