@@ -825,6 +825,7 @@ nfs_lookup(ap)
 	struct proc *p = cnp->cn_proc;
 
 	*vpp = NULLVP;
+	cnp->cn_flags &= ~PDIRUNLOCK;
 	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
@@ -854,13 +855,19 @@ nfs_lookup(ap)
 			error = 0;
 		} else if (flags & ISDOTDOT) {
 			VOP_UNLOCK(dvp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
 			error = vget(newvp, LK_EXCLUSIVE, p);
-			if (!error && lockparent && (flags & ISLASTCN))
+			if (!error && lockparent && (flags & ISLASTCN)) {
 				error = vn_lock(dvp, LK_EXCLUSIVE, p);
+				if (error == 0)
+					cnp->cn_flags &= ~PDIRUNLOCK;
+			}
 		} else {
 			error = vget(newvp, LK_EXCLUSIVE, p);
-			if (!lockparent || error || !(flags & ISLASTCN))
+			if (!lockparent || error || !(flags & ISLASTCN)) {
 				VOP_UNLOCK(dvp, 0, p);
+				cnp->cn_flags |= PDIRUNLOCK;
+			}
 		}
 		if (!error) {
 			if (vpid == newvp->v_id) {
@@ -880,8 +887,11 @@ nfs_lookup(ap)
 		}
 		error = vn_lock(dvp, LK_EXCLUSIVE, p);
 		*vpp = NULLVP;
-		if (error)
+		if (error) {
+			cnp->cn_flags |= PDIRUNLOCK;
 			return (error);
+		}
+		cnp->cn_flags &= ~PDIRUNLOCK;
 	}
 	error = 0;
 	newvp = NULLVP;
@@ -922,8 +932,10 @@ nfs_lookup(ap)
 		*vpp = newvp;
 		m_freem(mrep);
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
+		if (!lockparent) {
 			VOP_UNLOCK(dvp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (0);
 	}
 
@@ -935,11 +947,15 @@ nfs_lookup(ap)
 			return (error);
 		}
 		newvp = NFSTOV(np);
-		if (lockparent && (flags & ISLASTCN) &&
-		    (error = vn_lock(dvp, LK_EXCLUSIVE, p))) {
-		    	vput(newvp);
-			return (error);
-		}
+		if (lockparent && (flags & ISLASTCN)) {
+			error = vn_lock(dvp, LK_EXCLUSIVE, p);
+			if (error) {
+				cnp->cn_flags |= PDIRUNLOCK;
+		    		vput(newvp);
+				return (error);
+			}
+		} else
+			cnp->cn_flags |= PDIRUNLOCK;
 	} else if (NFS_CMPFH(np, fhp, fhsize)) {
 		VREF(dvp);
 		newvp = dvp;
@@ -949,8 +965,10 @@ nfs_lookup(ap)
 			m_freem(mrep);
 			return (error);
 		}
-		if (!lockparent || !(flags & ISLASTCN))
+		if (!lockparent || !(flags & ISLASTCN)) {
+			cnp->cn_flags |= PDIRUNLOCK;
 			VOP_UNLOCK(dvp, 0, p);
+		}
 		newvp = NFSTOV(np);
 	}
 	if (v3) {
@@ -974,8 +992,10 @@ nfs_lookup(ap)
 		}
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
 		    (flags & ISLASTCN) && error == ENOENT) {
-			if (!lockparent)
+			if (!lockparent) {
 				VOP_UNLOCK(dvp, 0, p);
+				cnp->cn_flags |= PDIRUNLOCK;
+			}
 			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
 				error = EROFS;
 			else
