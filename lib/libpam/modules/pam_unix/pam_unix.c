@@ -152,6 +152,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 		retval = strcmp(encrypted, pwd->pw_passwd) == 0 ?
 		    PAM_SUCCESS : PAM_AUTH_ERR;
+		if (pwd->pw_expire && time(NULL) >= pwd->pw_expire)
+			retval = PAM_AUTH_ERR;
 	}
 	else {
 
