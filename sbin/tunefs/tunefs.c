@@ -42,16 +42,18 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tunefs.c	8.2 (Berkeley) 4/19/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tunefs.c,v 1.6 1998/08/03 06:41:20 charnier Exp $";
 #endif /* not lint */
 
 /*
  * tunefs: change layout parameters to an existing file system.
  */
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -59,6 +61,7 @@ static const char rcsid[] =
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 /* the optimization warning string template */
@@ -78,6 +81,7 @@ int bread(daddr_t, char *, int);
 void getsb(struct fs *, char *);
 void usage __P((void));
 void printfs __P((void));
+char *rawname __P((char *, char *));
 
 int
 main(argc, argv)
@@ -87,17 +91,27 @@ main(argc, argv)
 	char *cp, *special, *name, *action;
 	struct stat st;
 	int i;
-	int Aflag = 0;
+	int Aflag = 0, active = 0;
 	struct fstab *fs;
 	char *chg[2], device[MAXPATHLEN];
+	struct ufs_args args;
+	struct statfs stfs;
 
 	argc--, argv++;
 	if (argc < 2)
 		usage();
 	special = argv[argc - 1];
 	fs = getfsfile(special);
-	if (fs)
-		special = fs->fs_spec;
+	if (fs) {
+		if (statfs(special, &stfs) == 0) {
+		    	if ((stfs.f_flags & MNT_RDONLY) == 0) {
+				errx(1, "cannot work on read-write mounted file system");
+			}
+			active = 1;
+			special = rawname(fs->fs_spec, device);
+		} else
+			special = fs->fs_spec;
+	}
 again:
 	if (stat(special, &st) < 0) {
 		if (*special != '/') {
@@ -245,6 +259,13 @@ again:
 			bwrite(fsbtodb(&sblock, cgsblock(&sblock, i)),
 			    (char *)&sblock, SBSIZE);
 	close(fi);
+	if (active) {
+		bzero(&args, sizeof(args));
+		if (mount("ufs", fs->fs_file,
+		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD, &args) < 0)
+			err(9, "%s: reload", special);
+		warnx("file system reloaded");
+	}
 	exit(0);
 }
 
@@ -326,4 +347,26 @@ bread(bno, buf, cnt)
 		return (1);
 	}
 	return (0);
+}
+
+char *
+rawname(special, pathbuf)
+	char *special;
+	char *pathbuf;
+{
+	char *p;
+	int n;
+
+	p = strrchr(special, '/');
+	if (p) {
+		n = ++p - special;
+		bcopy(special, pathbuf, n);
+	} else {
+		strcpy(pathbuf, _PATH_DEV);
+		n = strlen(pathbuf);
+		p = special;
+	}
+	pathbuf[n++] = 'r';
+	strcpy(pathbuf + n, p);
+	return pathbuf;
 }
