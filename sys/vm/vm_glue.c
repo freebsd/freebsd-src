@@ -660,21 +660,18 @@ retry:
 		int minslptime = 100000;
 		
 		/*
-		 * Do not swapout a process that
-		 * is waiting for VM data
-		 * structures there is a possible
-		 * deadlock.  Test this first as
-		 * this may block.
-		 *
-		 * Lock the map until swapout
-		 * finishes, or a thread of this
-		 * process may attempt to alter
-		 * the map.
-		 *
 		 * Watch out for a process in
 		 * creation.  It may have no
-		 * address space yet.
-		 *
+		 * address space or lock yet.
+		 */
+		mtx_lock_spin(&sched_lock);
+		if (p->p_state == PRS_NEW) {
+			mtx_unlock_spin(&sched_lock);
+			continue;
+		}
+		mtx_unlock_spin(&sched_lock);
+
+		/*
 		 * An aio daemon switches its
 		 * address space while running.
 		 * Perform a quick check whether
@@ -685,17 +682,23 @@ retry:
 			PROC_UNLOCK(p);
 			continue;
 		}
-		mtx_lock_spin(&sched_lock);
-		if (p->p_state == PRS_NEW) {
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			continue;
-		}
+
+		/*
+		 * Do not swapout a process that
+		 * is waiting for VM data
+		 * structures as there is a possible
+		 * deadlock.  Test this first as
+		 * this may block.
+		 *
+		 * Lock the map until swapout
+		 * finishes, or a thread of this
+		 * process may attempt to alter
+		 * the map.
+		 */
 		vm = p->p_vmspace;
 		KASSERT(vm != NULL,
 			("swapout_procs: a process has no address space"));
 		++vm->vm_refcnt;
-		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		if (!vm_map_trylock(&vm->vm_map))
 			goto nextproc1;
