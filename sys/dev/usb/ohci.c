@@ -1102,9 +1102,24 @@ ohci_process_done(sc, done)
 
 	DPRINTFN(10,("ohci_process_done: done=0x%08lx\n", (u_long)done));
 
-	/* Reverse the done list. */
-	for (sdone = 0; done; done = LE(std->td.td_nexttd)) {
-		std = ohci_hash_find_td(sc, done);
+	/* Reverse the done list and store the reversed list in sdone */
+	sdone = NULL;
+	for (; done; done = LE(std->td.td_nexttd)) {
+		std = ohci_hash_find_td(sc, done & LE(OHCI_TAILMASK));
+		if (std == NULL) {
+#ifdef OHCI_DEBUG
+			DPRINTF(("%s: Invalid done queue 0x%08x",
+				USBDEVNAME(sc->sc_bus.bdev), done));
+			ohci_dumpregs(sc);
+#endif
+			/* XXX Should we compare the list of active TDs with
+			 * the list of TDs queued at EDs to handle the ones that
+			 * are not listed on any of the ED queues and therefore
+			 * must be finished?
+			 */
+			return;
+		}
+
 		std->dnext = sdone;
 		sdone = std;
 	}
@@ -1572,7 +1587,9 @@ ohci_hash_find_td(sc, a)
 		if (std->physaddr == a)
 			return (std);
 
-	panic("ohci_hash_find_td: addr 0x%08lx not found\n", (u_long)a);
+	DPRINTF(("%s: ohci_hash_find_td: addr 0x%08lx not found\n",
+		USBDEVNAME(sc->sc_bus.bdev), (u_long) a));
+	return NULL;
 }
 
 void
