@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.429 1998/11/11 08:46:52 jkh Exp $
+#	$Id: Makefile,v 1.430 1998/11/12 20:40:45 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -206,11 +206,7 @@ rerelease release:
 	# Add version information to those things that need it.
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	  mv newvers.sh foo && \
-	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh&& rm foo )
-	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
-	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && \
-	  mv version.h.new version.h && \
-	  echo XXXX )
+	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh && rm foo )
 	echo OBJFORMAT=${OBJFORMAT} > ${CHROOTDIR}/etc/objformat
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
