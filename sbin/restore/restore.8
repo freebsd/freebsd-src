@@ -42,32 +42,32 @@
 .Sh SYNOPSIS
 .Nm restore
 .Fl i
-.Op Fl chkmuvy
+.Op Fl chkmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm restore
 .Fl R
-.Op Fl ckuvy
+.Op Fl ckNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm restore
 .Fl r
-.Op Fl ckuvy
+.Op Fl ckNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm restore
 .Fl t
-.Op Fl chkuvy
+.Op Fl chkNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Op file ...
 .Nm restore
 .Fl x
-.Op Fl chkmuvy
+.Op Fl chkmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
@@ -312,6 +312,10 @@ Extract by inode numbers rather than by file name.
 This is useful if only a few files are being extracted,
 and one wants to avoid regenerating the complete pathname
 to the file.
+.It Fl N
+Do the extraction normally, but do not actually write any changes 
+to disk. This can be used to check the integrity of dump media 
+or other test purposes.
 .It Fl s Ar fileno
 Read from the specified
 .Ar fileno
