@@ -54,6 +54,13 @@ specifically marked as [MERGED] features.
 1.1. KERNEL CHANGES
 -------------------
 
+A new event notification facility called kqueue was added to the
+FreeBSD kernel.  This is a new interface which is able to replace
+poll/select, offering improved performance, as well as the ability
+to report many different types of events.  Support for monitoring
+changes in sockets, pipes, fifos, and files are present, as well as
+for signals and processes. [MERGED]
+   
 Support for named extended attributes was added to the FreeBSD kernel.
 This allows the kernel, and appropriately privileged userland processes,
 to tag files and directories with attribute data.  Extended attributes
