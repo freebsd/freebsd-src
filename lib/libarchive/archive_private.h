@@ -29,6 +29,8 @@
 #ifndef ARCHIVE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_PRIVATE_H_INCLUDED
 
+#include <wchar.h>
+
 #include "archive.h"
 #include "archive_string.h"
 
@@ -228,5 +230,19 @@ int	__archive_read_register_compression(struct archive *a,
 	    int (*init)(struct archive *, const void *,	size_t));
 
 #define err_combine(a,b)	((a) < (b) ? (a) : (b))
+
+
+/*
+ * Private ACL handling:  parse and generate ACL strings.
+ * These are private because they handle a lot of very weird formats
+ * that clients should not be messing with.  Clients should only
+ * deal with their platform-native formats.  Because of the need to
+ * support many formats cleanly, new arguments are likely to get added
+ * on a regular basis.  Clients who try to use this interface are
+ * likely to be surprised when it changes.
+ */
+int		 __archive_entry_acl_parse_w(struct archive_entry *,
+		     const wchar_t *, int type);
+const wchar_t	*__archive_entry_acl_text_w(struct archive_entry *, int type);
 
 #endif

@@ -1,13 +1,13 @@
 # Makefile for libarchive.
 #
 # $FreeBSD$
-
+DEBUG_FLAGS=-g
 LIB=	archive
 SHLIB_MAJOR=	1
 
 # I'm not yet ready for a shared version of this library, as
-# there are still a couple of API changes still in the works.
-NOSHLIBS=	1
+# there are a couple of API changes still in the works.
+NOPIC=	1
 
 SRCS=	archive_check_magic.c				\
 	archive_entry.c					\
@@ -15,6 +15,7 @@ SRCS=	archive_check_magic.c				\
 	archive_read_data_into_buffer.c			\
 	archive_read_data_into_fd.c			\
 	archive_read_extract.c				\
+	archive_read_open_fd.c				\
 	archive_read_open_file.c			\
 	archive_read_support_compression_all.c		\
 	archive_read_support_compression_bzip2.c	\
@@ -28,6 +29,7 @@ SRCS=	archive_check_magic.c				\
 	archive_string_sprintf.c			\
 	archive_util.c					\
 	archive_write.c					\
+	archive_write_open_fd.c				\
 	archive_write_open_file.c			\
 	archive_write_set_compression_bzip2.c		\
 	archive_write_set_compression_gzip.c		\
@@ -80,8 +82,8 @@ MLINKS += archive_read.3 archive_read_finish.3
 MLINKS += archive_read.3 archive_read_new.3
 MLINKS += archive_read.3 archive_read_next_header.3
 MLINKS += archive_read.3 archive_read_open.3
+MLINKS += archive_read.3 archive_read_open_fd.3
 MLINKS += archive_read.3 archive_read_open_file.3
-MLINKS += archive_read.3 archive_read_open_tar.3
 MLINKS += archive_read.3 archive_read_set_bytes_per_block.3
 MLINKS += archive_read.3 archive_read_support_compression_all.3
 MLINKS += archive_read.3 archive_read_support_compression_bzip2.3
@@ -102,6 +104,7 @@ MLINKS += archive_write.3 archive_write_finish.3
 MLINKS += archive_write.3 archive_write_header.3
 MLINKS += archive_write.3 archive_write_new.3
 MLINKS += archive_write.3 archive_write_open.3
+MLINKS += archive_write.3 archive_write_open_fd.3
 MLINKS += archive_write.3 archive_write_open_file.3
 MLINKS += archive_write.3 archive_write_prepare.3
 MLINKS += archive_write.3 archive_write_set_bytes_per_block.3
@@ -120,7 +123,7 @@ DEBUG_FLAGS+= -DDEBUG -g
 CFLAGS+= -DHAVE_DMALLOC -I/usr/local/include
 LDFLAGS+= -L/usr/local/lib -ldmalloc
 .endif
-CFLAGS+= -O3
+#CFLAGS+= -O3
 
 WARNS?=	6
 

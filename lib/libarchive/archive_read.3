@@ -39,6 +39,7 @@
 .Nm archive_read_support_format_cpio ,
 .Nm archive_read_support_format_all ,
 .Nm archive_read_open ,
+.Nm archive_read_open_fd ,
 .Nm archive_read_open_file ,
 .Nm archive_read_next_header ,
 .Nm archive_read_data ,
@@ -72,6 +73,8 @@
 .Fn archive_read_support_format_all "struct archive *"
 .Ft int
 .Fn archive_read_open "struct archive *" "void *client_data" "archive_read_archive_callback *" "archive_open_archive_callback *" "archive_close_archive_callback *"
+.Ft int
+.Fn archive_read_open_fd "struct archive *" "int fd"
 .Ft int
 .Fn archive_read_open_file "struct archive *" "const char *filename"
 .Ft int
@@ -133,6 +136,21 @@ This is the most generic version of this call, which accepts
 three callback functions.
 The library invokes these client-provided functions to obtain
 raw bytes from the archive.
+Note: The API permits a decompression method to fork and invoke the
+callbacks from another process.
+Although none of the current decompression methods use this technique,
+future decompression methods may utilize this technique.
+If the decompressor forks, it will ensure that the open and close
+callbacks are invoked within the same process as the read callback.
+In particular, clients should not attempt to use shared variables to
+communicate between the open/read/close callbacks and the mainline code.
+.It Fn archive_read_open_fd
+Like
+.Fn archive_read_open ,
+except that it accepts a file descriptor rather than
+a trio of function pointers.
+Note that the file descriptor will not be automatically closed at
+end-of-archive.
 .It Fn archive_read_open_file
 Like
 .Fn archive_read_open ,

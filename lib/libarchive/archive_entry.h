@@ -66,14 +66,14 @@ struct archive_entry	*archive_entry_new(void);
  * Retrieve fields from an archive_entry.
  */
 
-const char		*archive_entry_acl(struct archive_entry *);
-const char		*archive_entry_acl_default(struct archive_entry *);
 dev_t			 archive_entry_devmajor(struct archive_entry *);
 dev_t			 archive_entry_devminor(struct archive_entry *);
 const char		*archive_entry_fflags(struct archive_entry *);
 const char		*archive_entry_gname(struct archive_entry *);
 const char		*archive_entry_hardlink(struct archive_entry *);
 mode_t			 archive_entry_mode(struct archive_entry *);
+time_t			 archive_entry_mtime(struct archive_entry *);
+long			 archive_entry_mtime_nsec(struct archive_entry *);
 const char		*archive_entry_pathname(struct archive_entry *);
 const wchar_t		*archive_entry_pathname_w(struct archive_entry *);
 int64_t			 archive_entry_size(struct archive_entry *);
@@ -90,10 +90,6 @@ const char		*archive_entry_uname(struct archive_entry *);
  */
 
 void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
-void	archive_entry_set_acl(struct archive_entry *, const char *);
-void	archive_entry_copy_acl_w(struct archive_entry *, const wchar_t *);
-void	archive_entry_set_acl_default(struct archive_entry *, const char *);
-void	archive_entry_copy_acl_default_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_fflags(struct archive_entry *, const char *);
 void	archive_entry_copy_fflags_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_devmajor(struct archive_entry *, dev_t);
@@ -113,5 +109,67 @@ void	archive_entry_set_tartype(struct archive_entry *, char);
 void	archive_entry_set_uid(struct archive_entry *, uid_t);
 void	archive_entry_set_uname(struct archive_entry *, const char *);
 void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);
+
+/*
+ * ACL routines.  This used to simply store and return text-format ACL
+ * strings, but that proved insufficient.  The intent here is to allow
+ * libarchive internals to fetch/store text-format strings, but
+ * clients use the more involved interface that allows them control
+ * over uid/uname/gid/gname lookups.
+ */
+
+/*
+ * Permission bits mimic POSIX.1e.  Note that I've not followed POSIX.1e's
+ * "permset"/"perm" abstract type nonsense.  A permset is just a simple
+ * bitmap, following long-standing Unix tradition.
+ */
+#define ARCHIVE_ENTRY_ACL_EXECUTE	1
+#define ARCHIVE_ENTRY_ACL_WRITE		2
+#define ARCHIVE_ENTRY_ACL_READ		4
+
+/* We need to be able to specify either or both of these. */
+#define	ARCHIVE_ENTRY_ACL_TYPE_ACCESS	256
+#define	ARCHIVE_ENTRY_ACL_TYPE_DEFAULT	512
+
+/* Tag values mimic POSIX.1e */
+#define	ARCHIVE_ENTRY_ACL_USER		10001	/* Specified user. */
+#define	ARCHIVE_ENTRY_ACL_USER_OBJ 	10002	/* User who owns the file. */
+#define	ARCHIVE_ENTRY_ACL_GROUP		10003	/* Specified group. */
+#define	ARCHIVE_ENTRY_ACL_GROUP_OBJ	10004	/* Group who owns the file. */
+#define	ARCHIVE_ENTRY_ACL_MASK		10005	/* Modify group access. */
+#define	ARCHIVE_ENTRY_ACL_OTHER		10006	/* Public. */
+
+
+/*
+ * Set the ACL by clearing it and adding entries one at a time.
+ * Unlike the POSIX.1e ACL routines, you must specify the type
+ * (access/default) for each entry.  Internally, the ACL data is just
+ * a soup of entries.  API calls here allow you to retrieve just the
+ * entries of interest.  This design (which goes against the spirit of
+ * POSIX.1e) is useful for handling archive formats that combine
+ * default and access information in a single ACL list.
+ */
+void	 archive_entry_acl_clear(struct archive_entry *);
+void	 archive_entry_acl_add_entry(struct archive_entry *,
+	     int type, int permset, int tag, int qual, const char *name);
+void	 archive_entry_acl_add_entry_w(struct archive_entry *,
+	     int type, int permset, int tag, int qual, const wchar_t *name);
+
+/*
+ * To retrieve the ACL, first "reset", then repeatedly ask for the
+ * "next" entry.  The want_type parameter allows you to request only
+ * access entries or only default entries.
+ */
+int	 archive_entry_acl_reset(struct archive_entry *, int want_type);
+int	 archive_entry_acl_next(struct archive_entry *, int want_type,
+	     int *type, int *permset, int *tag, int *qual, const char **name);
+int	 archive_entry_acl_next_w(struct archive_entry *, int want_type,
+	     int *type, int *permset, int *tag, int *qual,
+	     const wchar_t **name);
+
+/* Return a count of entries matching 'want_type' */
+int	 archive_entry_acl_count(struct archive_entry *, int want_type);
+
+
 
 #endif /* !ARCHIVE_ENTRY_H_INCLUDED */
