@@ -146,10 +146,13 @@ fileGetURL(char *base, char *spec)
     char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp;
     char fname[FILENAME_MAX];
     char pen[FILENAME_MAX];
+    char buf[8192];
     struct passwd *pw;
     FILE *ftp;
     pid_t tpid;
+    int pfd[2], pstat;
     int i, status;
+    size_t r, w;
     char *hint;
 
     rp = NULL;
@@ -197,25 +200,44 @@ fileGetURL(char *base, char *spec)
     if (isatty(0) || Verbose)
 	printf("Fetching %s...", fname), fflush(stdout);
     pen[0] = '\0';
-    if ((rp = make_playpen(pen, 0)) != NULL) {
-	tpid = fork();
-	if (!tpid) {
-	    dup2(fileno(ftp), 0);
-	    i = execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
-	    exit(i);
-	}
-	else {
-	    int pstat;
-
-	    fclose(ftp);
-	    tpid = waitpid(tpid, &pstat, 0);
-	    if (Verbose)
-		printf("tar command returns %d status\n", WEXITSTATUS(pstat));
-	}
-    }
-    else
+    if ((rp = make_playpen(pen, 0)) == NULL) {
 	printf("Error: Unable to construct a new playpen for FTP!\n");
+	fclose(ftp);
+	return NULL;
+    }
+    if (pipe(pfd) == -1) {
+	warn("pipe()");
+	cleanup(0);
+	exit(2);
+    }
+    if ((tpid = fork()) == -1) {
+	warn("pipe()");
+	cleanup(0);
+	exit(2);
+    }
+    if (!tpid) {
+	close(pfd[1]);
+	dup2(pfd[0], 0);
+	close(pfd[0]);
+	execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
+	_exit(2);
+    }
+    close(pfd[0]);
+    for (;;) {
+	if ((r = fread(buf, 1, sizeof buf, ftp)) < 1)
+	    break;
+	if ((w = write(pfd[1], buf, r)) != r)
+	    break;
+    }
     fclose(ftp);
+    close(pfd[1]);
+    if (r == -1)
+	warn("warning: error reading from server");
+    if (w == -1)
+	warn("warning: error writing to tar");
+    tpid = waitpid(tpid, &pstat, 0);
+    if (Verbose)
+	printf("tar command returns %d status\n", WEXITSTATUS(pstat));
     if (rp && (isatty(0) || Verbose))
 	printf(" Done.\n");
     return rp;
