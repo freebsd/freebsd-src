@@ -863,6 +863,15 @@ output_defines()
     register int c, i;
     register char *s;
 
+    ++outline;
+    fprintf(code_file, "#define YYERRCODE %d\n", symbol_value[1]);
+
+    if(dflag)
+    {
+        fprintf(defines_file, "#ifndef YYERRCODE\n");
+        fprintf(defines_file, "#define YYERRCODE %d\n", symbol_value[1]);
+        fprintf(defines_file, "#endif\n\n");
+    }
     for (i = 2; i < ntokens; ++i)
     {
 	s = symbol_name[i];
@@ -893,9 +902,6 @@ output_defines()
 	    if (dflag) fprintf(defines_file, " %d\n", symbol_value[i]);
 	}
     }
-
-    ++outline;
-    fprintf(code_file, "#define YYERRCODE %d\n", symbol_value[1]);
 
     if (dflag && unionized)
     {
