@@ -57,7 +57,7 @@ Boston, MA 02111-1307, USA.  */
 #undef LIB_SPEC
 #define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_p}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
 
-/* Let gcc locate this for us according to the -m rules.  */
+/* Tell gcc to locate libgcc.a for us according to the -m rules.  */
 #undef LIBGCC_SPEC
 #define LIBGCC_SPEC \
  "%{!shared:%{!pthread:%{!kthread:libgcc.a%s}}%{pthread|kthread:libgcc_r.a%s}}"
@@ -66,7 +66,7 @@ Boston, MA 02111-1307, USA.  */
 /* Code generation parameters.  */
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
-   we want to retain compatibility with older gcc versions  
+   we want to retain compatibility with older gcc versions
    (even though the svr4 ABI for the i386 says that records and unions are
    returned in memory).  */
 #undef DEFAULT_PCC_STRUCT_RETURN
@@ -82,12 +82,12 @@ Boston, MA 02111-1307, USA.  */
 #undef DEFAULT_VTABLE_THUNKS
 #define DEFAULT_VTABLE_THUNKS 1
 
-/* Our malloc can allocte pagesized blocks efficiently.  The default size 
-   of 4072 bytes is not optimal on the i386 nor the Alpha.  */
-#define OBSTACK_CHUNK_SIZE	(getpagesize())
-
 
 /* Miscellaneous parameters.  */
 
 /* Tell libgcc2.c that FreeBSD targets support atexit(3).  */
 #define HAVE_ATEXIT
+
+/* Our malloc can allocte pagesized blocks efficiently.  The default size 
+   of 4072 bytes is not optimal on the i386 nor the Alpha.  */
+#define OBSTACK_CHUNK_SIZE	(getpagesize())
