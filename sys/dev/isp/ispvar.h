@@ -1,4 +1,4 @@
-/* $Id: ispvar.h,v 1.17 1998/09/14 23:22:51 mjacob Exp $ */
+/* $FreeBSD$ */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -174,24 +174,6 @@ typedef struct {
 #define	FW_ERROR		0x0005
 #define	FW_REINIT		0x0006
 #define	FW_NON_PART		0x0007
-
-static __inline char *fw_statename __P((u_int8_t x));
-static __inline char *
-fw_statename(x)
-	u_int8_t x;
-{
-	switch(x) {
-	case FW_CONFIG_WAIT:	return "Config Wait";
-	case FW_WAIT_AL_PA:	return "Waiting for AL/PA";
-	case FW_WAIT_LOGIN:	return "Wait Login";
-	case FW_READY:		return "Ready";
-	case FW_LOSS_OF_SYNC:	return "Loss Of Sync";
-	case FW_ERROR:		return "Error";
-	case FW_REINIT:		return "Re-Init";
-	case FW_NON_PART:	return "Nonparticipating";
-	default:		return "eh?";
-	}
-}
 
 /*
  * Soft Structure per host adapter
