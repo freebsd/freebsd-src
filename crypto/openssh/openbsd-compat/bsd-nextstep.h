@@ -1,4 +1,8 @@
+/* $Id: bsd-nextstep.h,v 1.9 2003/08/29 16:59:52 mouring Exp $ */
+
 /*
+ * Copyright (c) 2000,2001 Ben Lindstrom.  All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -21,8 +25,6 @@
  *
  */
 
-/* $Id: bsd-nextstep.h,v 1.6 2001/03/19 13:42:22 mouring Exp $ */
-
 #ifndef _NEXT_POSIX_H
 #define _NEXT_POSIX_H
 
@@ -37,22 +39,21 @@
 #define dirent direct
 
 /* Swap out NeXT's BSD wait() for a more POSIX complient one */
-pid_t posix_wait(int *status);
+pid_t posix_wait(int *);
 #define wait(a) posix_wait(a)
 
 /* #ifdef wrapped functions that need defining for clean compiling */
 pid_t getppid(void);
 void vhangup(void);
-int innetgr(const char *netgroup, const char *host, const char *user, 
-            const char *domain);
+int innetgr(const char *, const char *, const char *, const char *);
 
 /* TERMCAP */
-int tcgetattr(int fd, struct termios *t);
-int tcsetattr(int fd, int opt, const struct termios *t);
-int tcsetpgrp(int fd, pid_t pgrp);
-speed_t cfgetospeed(const struct termios *t);
-speed_t cfgetispeed(const struct termios *t);
-int cfsetospeed(struct termios *t, int speed);
-int cfsetispeed(struct termios *t, int speed);
+int tcgetattr(int, struct termios *);
+int tcsetattr(int, int, const struct termios *);
+int tcsetpgrp(int, pid_t);
+speed_t cfgetospeed(const struct termios *);
+speed_t cfgetispeed(const struct termios *);
+int cfsetospeed(struct termios *, int);
+int cfsetispeed(struct termios *, int);
 #endif /* HAVE_NEXT */
 #endif /* _NEXT_POSIX_H */

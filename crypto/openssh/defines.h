@@ -1,7 +1,31 @@
+/*
+ * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.97 2003/01/24 00:50:32 djm Exp $ */
+/* $Id: defines.h,v 1.103 2003/09/16 01:52:19 dtucker Exp $ */
 
 
 /* Constants */
@@ -188,27 +212,20 @@ typedef unsigned long  u_int32_t;
 #ifndef HAVE_INT64_T
 # if (SIZEOF_LONG_INT == 8)
 typedef long int int64_t;
-#   define HAVE_INT64_T 1
 # else
 #  if (SIZEOF_LONG_LONG_INT == 8)
 typedef long long int int64_t;
-#   define HAVE_INT64_T 1
 #  endif
 # endif
 #endif
 #ifndef HAVE_U_INT64_T
 # if (SIZEOF_LONG_INT == 8)
 typedef unsigned long int u_int64_t;
-#   define HAVE_U_INT64_T 1
 # else
 #  if (SIZEOF_LONG_LONG_INT == 8)
 typedef unsigned long long int u_int64_t;
-#   define HAVE_U_INT64_T 1
 #  endif
 # endif
-#endif
-#if !defined(HAVE_LONG_LONG_INT) && (SIZEOF_LONG_LONG_INT == 8)
-# define HAVE_LONG_LONG_INT 1
 #endif
 
 #ifndef HAVE_U_CHAR
@@ -302,6 +319,10 @@ struct winsize {
 
 #ifndef _PATH_STDPATH
 # define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
+#endif
+
+#ifndef SUPERUSER_PATH
+# define SUPERUSER_PATH	_PATH_STDPATH
 #endif
 
 #ifndef _PATH_DEVNULL
@@ -420,6 +441,23 @@ struct winsize {
 #define	CMSG_SPACE(len)	(__CMSG_ALIGN(sizeof(struct cmsghdr)) + __CMSG_ALIGN(len))
 #endif
 
+/* given pointer to struct cmsghdr, return pointer to data */
+#ifndef CMSG_DATA
+#define CMSG_DATA(cmsg) ((u_char *)(cmsg) + __CMSG_ALIGN(sizeof(struct cmsghdr)))
+#endif /* CMSG_DATA */
+
+/*
+ * RFC 2292 requires to check msg_controllen, in case that the kernel returns
+ * an empty list for some reasons.
+ */
+#ifndef CMSG_FIRSTHDR
+#define CMSG_FIRSTHDR(mhdr) \
+	((mhdr)->msg_controllen >= sizeof(struct cmsghdr) ? \
+	 (struct cmsghdr *)(mhdr)->msg_control : \
+	 (struct cmsghdr *)NULL)
+#endif /* CMSG_FIRSTHDR */
+
+
 /* Function replacement / compatibility hacks */
 
 #if !defined(HAVE_GETADDRINFO) && (defined(HAVE_OGETADDRINFO) || defined(HAVE_NGETADDRINFO))
@@ -485,6 +523,10 @@ struct winsize {
 #  define __func__ __FUNCTION__
 #elif !defined(HAVE___func__)
 #  define __func__ ""
+#endif
+
+#if defined(KRB5) && !defined(HEIMDAL)
+#  define krb5_get_err_text(context,code) error_message(code)
 #endif
 
 /*

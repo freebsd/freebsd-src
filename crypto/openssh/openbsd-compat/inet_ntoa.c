@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
 #if defined(BROKEN_INET_NTOA) || !defined(HAVE_INET_NTOA)
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD: inet_ntoa.c,v 1.3 2002/06/27 10:14:01 itojun Exp $";
+static char rcsid[] = "$OpenBSD: inet_ntoa.c,v 1.4 2003/06/02 20:18:35 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -47,7 +43,6 @@ static char rcsid[] = "$OpenBSD: inet_ntoa.c,v 1.3 2002/06/27 10:14:01 itojun Ex
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdio.h>
-#include "inet_ntoa.h"
 
 char *inet_ntoa(struct in_addr in)
 {

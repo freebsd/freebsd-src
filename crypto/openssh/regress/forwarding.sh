@@ -2,6 +2,7 @@
 #	Placed in the Public Domain.
 
 tid="local and remote forwarding"
+DATA=/bin/ls${EXEEXT}
 
 start_sshd
 
@@ -25,9 +26,9 @@ for p in 1 2; do
 
 	trace "transfer over forwarded channels and check result"
 	${SSH} -$q -F $OBJ/ssh_config -p$last -o 'ConnectionAttempts=4' \
-		somehost cat /bin/ls > $OBJ/ls.copy
-	test -f $OBJ/ls.copy			|| fail "failed copy /bin/ls"
-	cmp /bin/ls $OBJ/ls.copy		|| fail "corrupted copy of /bin/ls"
+		somehost cat $DATA > $OBJ/ls.copy
+	test -f $OBJ/ls.copy			|| fail "failed copy $DATA"
+	cmp $DATA $OBJ/ls.copy			|| fail "corrupted copy of $DATA"
 
 	sleep 10
 done

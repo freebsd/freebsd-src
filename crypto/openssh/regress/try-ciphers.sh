@@ -1,10 +1,11 @@
-#	$OpenBSD: try-ciphers.sh,v 1.7 2002/04/03 09:30:01 markus Exp $
+#	$OpenBSD: try-ciphers.sh,v 1.8 2003/06/12 15:40:01 markus Exp $
 #	Placed in the Public Domain.
 
 tid="try ciphers"
 
 ciphers="aes128-cbc 3des-cbc blowfish-cbc cast128-cbc arcfour 
-	aes192-cbc aes256-cbc rijndael-cbc@lysator.liu.se"
+	aes192-cbc aes256-cbc rijndael-cbc@lysator.liu.se
+	aes128-ctr aes192-ctr aes256-ctr"
 macs="hmac-sha1 hmac-md5 hmac-sha1-96 hmac-md5-96"
 
 for c in $ciphers; do

@@ -3,7 +3,7 @@
 
 tid="transfer data"
 
-DATA=/bin/ls
+DATA=/bin/ls${EXEEXT}
 COPY=${OBJ}/copy
 
 for p in 1 2; do

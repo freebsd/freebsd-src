@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.228 2003/03/21 00:34:34 mouring Exp $
+# $Id: Makefile.in,v 1.249.2.1 2003/09/22 01:00:12 dtucker Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -46,6 +46,7 @@ LIBS=@LIBS@
 LIBPAM=@LIBPAM@
 LIBWRAP=@LIBWRAP@
 AR=@AR@
+AWK=@AWK@
 RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 PERL=@PERL@
@@ -61,13 +62,14 @@ INSTALL_SSH_RAND_HELPER=@INSTALL_SSH_RAND_HELPER@
 TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-agent$(EXEEXT) scp$(EXEEXT) ssh-rand-helper${EXEEXT} sftp-server$(EXEEXT) sftp$(EXEEXT)
 
 LIBSSH_OBJS=authfd.o authfile.o bufaux.o buffer.o canohost.o channels.o \
-	cipher.o compat.o compress.o crc32.o deattack.o fatal.o \
-	hostfile.o log.o match.o mpaux.o nchan.o packet.o readpass.o \
-	rsa.o tildexpand.o ttymodes.o xmalloc.o atomicio.o \
+	cipher.o  cipher-aes.o cipher-bf1.o cipher-ctr.o cipher-3des1.o \
+	compat.o compress.o crc32.o deattack.o fatal.o \
+	hostfile.o log.o match.o moduli.o mpaux.o nchan.o packet.o \
+	readpass.o rsa.o tildexpand.o ttymodes.o xmalloc.o atomicio.o \
 	key.o dispatch.o kex.o mac.o uuencode.o misc.o \
 	rijndael.o ssh-dss.o ssh-rsa.o dh.o kexdh.o kexgex.o \
-	kexdhc.o kexgexc.o scard.o msg.o progressmeter.o \
-	entropy.o
+	kexdhc.o kexgexc.o scard.o msg.o progressmeter.o dns.o \
+	entropy.o scard-opensc.o gss-genr.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 	sshconnect.o sshconnect1.o sshconnect2.o
@@ -80,8 +82,9 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	auth2-none.o auth2-passwd.o auth2-pubkey.o \
 	monitor_mm.o monitor.o monitor_wrap.o monitor_fdpass.o \
 	kexdhs.o kexgexs.o \
-	auth-krb5.o auth-krb4.o \
-	loginrec.o auth-pam.o auth2-pam.o auth-sia.o md5crypt.o
+	auth-krb5.o \
+	auth2-gss.o gss-serv.o gss-serv-krb5.o \
+	loginrec.o auth-pam.o auth-sia.o md5crypt.o
 
 MANPAGES	= scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-rand-helper.8.out ssh-keysign.8.out sshd_config.5.out ssh_config.5.out
 MANPAGES_IN	= scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-rand-helper.8 ssh-keysign.8 sshd_config.5 ssh_config.5
@@ -109,11 +112,11 @@ PATHSUBS	= \
 
 FIXPATHSCMD	= $(SED) $(PATHSUBS)
 
-all: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
+all: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS)
 
-$(LIBSSH_OBJS): config.h
-$(SSHOBJS): config.h
-$(SSHDOBJS): config.h
+$(LIBSSH_OBJS): Makefile.in config.h
+$(SSHOBJS): Makefile.in config.h
+$(SSHDOBJS): Makefile.in config.h
 
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
@@ -171,7 +174,7 @@ $(MANPAGES): $(MANPAGES_IN)
 		manpage=$(srcdir)/`echo $@ | sed 's/\.out$$//'`; \
 	fi; \
 	if test "$(MANTYPE)" = "man"; then \
-		$(FIXPATHSCMD) $${manpage} | $(PERL) $(srcdir)/mdoc2man.pl > $@; \
+		$(FIXPATHSCMD) $${manpage} | $(AWK) -f $(srcdir)/mdoc2man.awk > $@; \
 	else \
 		$(FIXPATHSCMD) $${manpage} > $@; \
 	fi
@@ -180,12 +183,21 @@ $(CONFIGFILES): $(CONFIGFILES_IN)
 	conffile=`echo $@ | sed 's/.out$$//'`; \
 	$(FIXPATHSCMD) $(srcdir)/$${conffile} > $@
 
-clean:
+ssh_prng_cmds.out:	ssh_prng_cmds
+	if test ! -z "$(INSTALL_SSH_PRNG_CMDS)"; then \
+		$(PERL) $(srcdir)/fixprogs ssh_prng_cmds $(ENT); \
+	fi
+
+# fake rule to stop make trying to compile moduli.o into a binary "modulo"
+moduli:
+	echo
+
+clean:	regressclean
 	rm -f *.o *.a $(TARGETS) logintest config.cache config.log 
 	rm -f *.out core 
 	(cd openbsd-compat && $(MAKE) clean)
 
-distclean:
+distclean:	regressclean
 	rm -f *.o *.a $(TARGETS) logintest config.cache config.log 
 	rm -f *.out core
 	rm -f Makefile config.h config.status ssh_prng_cmds *~
@@ -193,15 +205,12 @@ distclean:
 	(cd openbsd-compat && $(MAKE) distclean)
 	(cd scard && $(MAKE) distclean)
 
-veryclean:
+veryclean: distclean
 	rm -f configure config.h.in *.0
-	rm -f *.o *.a $(TARGETS) logintest config.cache config.log 
-	rm -f *.out core
-	rm -f Makefile config.h config.status ssh_prng_cmds *~
-	(cd openbsd-compat && $(MAKE) distclean)
-	(cd scard && $(MAKE) distclean)
 
-mrproper: distclean
+mrproper: veryclean
+
+realclean: veryclean
 
 catman-do:
 	@for f in $(MANPAGES_IN) ; do \
@@ -215,8 +224,8 @@ distprep: catman-do
 	$(AUTORECONF)
 	(cd scard && $(MAKE) -f Makefile.in distprep)
 
-install: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files host-key check-config
-install-nokeys: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files
+install: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files host-key check-config
+install-nokeys: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files
 
 check-config:
 	-$(DESTDIR)$(sbindir)/sshd -t -f $(DESTDIR)$(sysconfdir)/sshd_config
@@ -280,7 +289,6 @@ install-files: scard-install
 		echo "$(DESTDIR)$(sysconfdir)/sshd_config already exists, install will not overwrite"; \
 	fi
 	@if [ -f ssh_prng_cmds -a ! -z "$(INSTALL_SSH_PRNG_CMDS)" ]; then \
-		$(PERL) $(srcdir)/fixprogs ssh_prng_cmds $(ENT); \
 		if [ ! -f $(DESTDIR)$(sysconfdir)/ssh_prng_cmds ] ; then \
 			$(INSTALL) -m 644 ssh_prng_cmds.out $(DESTDIR)$(sysconfdir)/ssh_prng_cmds; \
 		else \
@@ -359,3 +367,39 @@ uninstall:
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
+
+tests:	$(TARGETS)
+	BUILDDIR=`pwd`; \
+	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress; \
+	[ -f `pwd`/regress/Makefile ]  || \
+	    ln -s $(srcdir)/regress/Makefile `pwd`/regress/Makefile ; \
+	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
+	TEST_SSH_SSHD="$${BUILDDIR}/sshd"; \
+	TEST_SSH_SSHAGENT="$${BUILDDIR}/ssh-agent"; \
+	TEST_SSH_SSHADD="$${BUILDDIR}/ssh-add"; \
+	TEST_SSH_SSHKEYGEN="$${BUILDDIR}/ssh-keygen"; \
+	TEST_SSH_SSHKEYSCAN="$${BUILDDIR}/ssh-keyscan"; \
+	TEST_SSH_SFTP="$${BUILDDIR}/sftp"; \
+	TEST_SSH_SFTPSERVER="$${BUILDDIR}/sftp-server"; \
+	cd $(srcdir)/regress || exit $$?; \
+	$(MAKE) \
+		.OBJDIR="$${BUILDDIR}/regress" \
+		.CURDIR="`pwd`" \
+		BUILDDIR="$${BUILDDIR}" \
+		OBJ="$${BUILDDIR}/regress/" \
+		PATH="$${BUILDDIR}:$${PATH}" \
+		TEST_SSH_SSH="$${TEST_SSH_SSH}" \
+		TEST_SSH_SSHD="$${TEST_SSH_SSHD}" \
+		TEST_SSH_SSHAGENT="$${TEST_SSH_SSHAGENT}" \
+		TEST_SSH_SSHADD="$${TEST_SSH_SSHADD}" \
+		TEST_SSH_SSHKEYGEN="$${TEST_SSH_SSHKEYGEN}" \
+		TEST_SSH_SSHKEYSCAN="$${TEST_SSH_SSHKEYSCAN}" \
+		TEST_SSH_SFTP="$${TEST_SSH_SFTP}" \
+		TEST_SSH_SFTPSERVER="$${TEST_SSH_SFTPSERVER}" \
+		EXEEXT="$(EXEEXT)" \
+		$@
+
+regressclean:
+	if [ -f regress/Makefile -a -r regress/Makefile ]; then \
+		(cd regress && $(MAKE) clean) \
+	fi

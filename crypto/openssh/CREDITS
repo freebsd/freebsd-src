@@ -5,7 +5,7 @@ Theo de Raadt, and Dug Song - Creators of OpenSSH
 
 Alain St-Denis <Alain.St-Denis@ec.gc.ca> - Irix fix
 Alexandre Oliva <oliva@lsd.ic.unicamp.br> - AIX fixes
-Andre Lucas <andre.lucas@dial.pipex.com> - new login code, many fixes
+Andre Lucas <andre@ae-35.com> - new login code, many fixes
 Andreas Steinmetz <ast@domdv.de> - Shadow password expiry support
 Andrew McGill <andrewm@datrix.co.za> - SCO fixes
 Andrew Morgan <morgan@transmeta.com> - PAM bugfixes
@@ -23,7 +23,7 @@ Chris Saia <csaia@wtower.com> - SuSE packaging
 Chris, the Young One <cky@pobox.com> - Password auth fixes
 Christos Zoulas <christos@zoulas.com> - Autoconf fixes
 Chun-Chung Chen <cjj@u.washington.edu> - RPM fixes
-Corinna Vinschen <vinschen@cygnus.com> - Cygwin support
+Corinna Vinschen <vinschen@redhat.com> - Cygwin support
 Dan Brosemer <odin@linuxfreak.com> - Autoconf support, build fixes
 Darren Hall <dhall@virage.org> - AIX patches
 Darren Tucker <dtucker@zip.com.au> - AIX BFF package scripts
@@ -49,6 +49,7 @@ Juergen Keil <jk@tools.de> - scp bugfixing
 KAMAHARA Junzo <kamahara@cc.kshosen.ac.jp> - Configure fixes
 Kees Cook <cook@cpoint.net> - scp fixes
 Kenji Miyake <kenji@miyake.org> - Configure fixes
+Kevin Cawlfield <cawlfiel@us.ibm.com> - AIX fixes.
 Kevin O'Connor <kevin_oconnor@standardandpoors.com> - RSAless operation
 Kevin Steves <stevesk@pobox.com> - HP support, bugfixes, improvements
 Kiyokazu SUTO <suto@ks-and-ks.ne.jp> - Bugfixes
@@ -69,11 +70,13 @@ Pavel Kankovsky <peak@argo.troja.mff.cuni.cz> - Security fixes
 Pavel Troller <patrol@omni.sinus.cz> - Bugfixes
 Pekka Savola <pekkas@netcore.fi> - Bugfixes
 Peter Kocks <peter.kocks@baygate.com> - Makefile fixes
+Peter Stuge <stuge@cdy.org> - mdoc2man.awk script
 Phil Hands <phil@hands.com> - Debian scripts, assorted patches
 Phil Karn <karn@ka9q.ampr.org> - Autoconf fixes
 Philippe WILLEM <Philippe.WILLEM@urssaf.fr> - Bugfixes
 Phill Camp <P.S.S.Camp@ukc.ac.uk> - login code fix
 Rip Loomis <loomisg@cist.saic.com> - Solaris package support, fixes
+Roumen Petrov <openssh@roumenpetrov.info> - Compile & configure fixes
 SAKAI Kiyotaka <ksakai@kso.netwk.ntt-at.co.jp> - Multiple bugfixes
 Simon Wilkinson <sxw@dcs.ed.ac.uk> - PAM fixes, Compat with MIT KrbV
 Solar Designer <solar@openwall.com> - many patches and technical assistance
@@ -91,5 +94,5 @@ Apologies to anyone I have missed.
 
 Damien Miller <djm@mindrot.org>
 
-$Id: CREDITS,v 1.67 2002/07/28 20:31:19 stevesk Exp $
+$Id: CREDITS,v 1.74 2003/09/07 02:34:54 dtucker Exp $
 
