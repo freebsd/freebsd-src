@@ -57,6 +57,16 @@ The pcm(4) driver now supports the ESS Solo 1, Maestro-1, Maestro-2,
 and Maestro-2e; Forte Media fm801, ESS Maestro-2e, and VIA Technologies
 VT82C686A sound card/chipsets, and has received some other updates.
 
+Replace the PQ_*CACHE options with a single PQ_CACHESIZE option to be
+set to the cache size in kilobytes.  The old options are still
+supported for backwards compatibility.
+
+The NCPU, NAPIC, NBUS, and NINTR kernel configuration options,
+for configuring SMP kernels, have been removed.  NCPU is now set to a 
+maximum of 16, and the other, aforementioned options are now dynamic.
+
+The ahc(4) driver has been updated.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -67,6 +77,10 @@ rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 
 1.3. USERLAND CHANGES
 ---------------------
+
+tcpdump(1) has received some updates and bugfixes.
+
+User-land ppp(8) has received a number of updates and bugfixes.
 
 
 2. Supported Configurations
