@@ -273,7 +273,6 @@ restartjob(struct job *jp)
 int
 jobscmd(int argc, char *argv[])
 {
-	struct job *jp;
 	char *id;
 	int ch, sformat, lformat;
 
@@ -926,7 +925,6 @@ dowait(int block, struct job *job)
 	struct job *thisjob;
 	int done;
 	int stopped;
-	int core;
 	int sig;
 
 	in_dowait++;
