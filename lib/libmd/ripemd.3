@@ -18,6 +18,7 @@
 .Nm RIPEMD160_Final ,
 .Nm RIPEMD160_End ,
 .Nm RIPEMD160_File ,
+.Nm RIPEMD160_FileChunk ,
 .Nm RIPEMD160_Data
 .Nd calculate the RIPEMD160 message digest
 .Sh LIBRARY
@@ -35,6 +36,8 @@
 .Fn RIPEMD160_End "RIPEMD160_CTX *context" "char *buf"
 .Ft "char *"
 .Fn RIPEMD160_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn RIPEMD160_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn RIPEMD160_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
@@ -72,6 +75,23 @@ calculates the digest of a file, and uses
 .Fn RIPEMD160_End
 to return the result.
 If the file cannot be opened, a null pointer is returned.
+.Fn RIPEMD160_FileChunk
+is similar to
+.Fn RIPEMD160_File ,
+but it only calculates the digest over a byte-range of the file specified,
+starting at
+.Ar offset
+and spanning
+.Ar length
+bytes.
+If the
+.Ar length
+parameter is specified as 0, or more than the length of the remaining part
+of the file,
+.Fn RIPEMD160_FileChunk
+calculates the digest from
+.Ar offset
+to the end of file.
 .Fn RIPEMD160_Data
 calculates the digest of a chunk of data in memory, and uses
 .Fn RIPEMD160_End

@@ -18,12 +18,14 @@
 .Nm SHA_Final ,
 .Nm SHA_End ,
 .Nm SHA_File ,
+.Nm SHA_FileChunk ,
 .Nm SHA_Data ,
 .Nm SHA1_Init ,
 .Nm SHA1_Update ,
 .Nm SHA1_Final ,
 .Nm SHA1_End ,
 .Nm SHA1_File ,
+.Nm SHA1_FileChunk ,
 .Nm SHA1_Data
 .Nd calculate the FIPS 160 and 160-1 ``SHA'' message digests
 .Sh LIBRARY
@@ -42,6 +44,8 @@
 .Ft "char *"
 .Fn SHA_File "const char *filename" "char *buf"
 .Ft "char *"
+.Fn SHA_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
 .Fn SHA_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .Ft void
 .Fn SHA1_Init "SHA_CTX *context"
@@ -53,6 +57,8 @@
 .Fn SHA1_End "SHA_CTX *context" "char *buf"
 .Ft "char *"
 .Fn SHA1_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SHA1_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA1_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
@@ -101,6 +107,23 @@ calculates the digest of a file, and uses
 .Fn SHA1_End
 to return the result.
 If the file cannot be opened, a null pointer is returned.
+.Fn SHA1_FileChunk
+is similar to
+.Fn SHA1_File ,
+but it only calculates the digest over a byte-range of the file specified,
+starting at
+.Ar offset
+and spanning
+.Ar length
+bytes.
+If the
+.Ar length
+parameter is specified as 0, or more than the length of the remaining part
+of the file,
+.Fn SHA1_FileChunk
+calculates the digest from
+.Ar offset
+to the end of file.
 .Fn SHA1_Data
 calculates the digest of a chunk of data in memory, and uses
 .Fn SHA1_End
