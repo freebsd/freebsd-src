@@ -36,6 +36,13 @@
 
 #include <security/pam_appl.h>
 
+/*
+ * XSSO 4.2.1
+ * XSSO 6 page 64
+ *
+ * Set a username
+ */
+
 int
 pam_set_mapped_username(pam_handle_t *pamh,
 	char *src_username,
@@ -48,3 +55,7 @@ pam_set_mapped_username(pam_handle_t *pamh,
 
 	return (PAM_SYSTEM_ERR);
 }
+
+/*
+ * NODOC
+ */

@@ -54,3 +54,11 @@ pam_open_session(pam_handle_t *pamh,
 
 	return (openpam_dispatch(pamh, PAM_SM_OPEN_SESSION, flags));
 }
+
+/*
+ * Error codes:
+ *
+ *	=openpam_dispatch
+ *	=pam_sm_open_session
+ *	!PAM_IGNORE
+ */

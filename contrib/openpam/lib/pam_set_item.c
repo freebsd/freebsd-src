@@ -88,7 +88,7 @@ pam_set_item(pam_handle_t *pamh,
 		}
 		break;
 	default:
-		return (PAM_SYSTEM_ERR);
+		return (PAM_SYMBOL_ERR);
 	}
 	if (*slot != NULL) {
 		memset(*slot, 0xd0, size);
@@ -97,3 +97,18 @@ pam_set_item(pam_handle_t *pamh,
 	*slot = tmp;
 	return (PAM_SUCCESS);
 }
+
+/*
+ * Error codes:
+ *
+ *	PAM_SYMBOL_ERR
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ */
+
+/**
+ * The =pam_set_item function sets the item specified by the =item_type
+ * argument to a copy of the object pointed to by the =item argument.
+ * The item is stored in the PAM context specified by the =pamh argument.
+ * See =pam_get_item for a list of recognized item types.
+ */

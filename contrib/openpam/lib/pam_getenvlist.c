@@ -40,6 +40,7 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+
 /*
  * XSSO 4.2.1
  * XSSO 6 page 45
@@ -56,15 +57,48 @@ pam_getenvlist(pam_handle_t *pamh)
 	if (pamh == NULL)
 		return (NULL);
 
-	if ((envlist = malloc(sizeof(char *) * (pamh->env_count + 1))) == NULL)
+	envlist = malloc(sizeof(char *) * (pamh->env_count + 1));
+	if (envlist == NULL) {
+		openpam_log(PAM_LOG_ERROR, "%s",
+			pam_strerror(pamh, PAM_BUF_ERR));
 		return (NULL);
+	}
 	for (i = 0; i < pamh->env_count; ++i) {
 		if ((envlist[i] = strdup(pamh->env[i])) == NULL) {
 			while (i)
 				free(envlist[--i]);
 			free(envlist);
+			openpam_log(PAM_LOG_ERROR, "%s",
+				pam_strerror(pamh, PAM_BUF_ERR));
 			return (NULL);
 		}
 	}
+	envlist[i] = NULL;
+	openpam_log(PAM_LOG_DEBUG, "returning %d variables\n", pamh->env_count);
 	return (envlist);
 }
+
+/**
+ * The =pam_getenvlist function returns a copy of the given PAM context's
+ * environment list as a pointer to an array of strings.
+ * The last element in the array is =NULL.
+ * The pointer is suitable for assignment to {Va environ}.
+ *
+ * The array and the strings it lists are allocated using =malloc, and
+ * should be released using =free after use:
+ *
+ *     char **envlist, **env;
+ *     
+ *     envlist = environ;
+ *     environ = pam_getenvlist(pamh);
+ *     \/\* do something nifty \*\/
+ *     for (env = environ; *env != NULL; env++)
+ *         free(*env);
+ *     free(environ);
+ *     environ = envlist;
+ *
+ * >environ 7
+ * >pam_getenv
+ * >pam_putenv
+ * >pam_setenv
+ */

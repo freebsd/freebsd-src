@@ -61,7 +61,7 @@ pam_strerror(pam_handle_t *pamh,
 	case PAM_OPEN_ERR:
 		return ("failed to load module");
 	case PAM_SYMBOL_ERR:
-		return ("symbol not found in module");
+		return ("invalid symbol");
 	case PAM_SERVICE_ERR:
 		return ("error in service module");
 	case PAM_SYSTEM_ERR:
@@ -103,7 +103,7 @@ pam_strerror(pam_handle_t *pamh,
 	case PAM_AUTHTOK_LOCK_BUSY:
 		return ("authentication token lock busy");
 	case PAM_AUTHTOK_DISABLE_AGING:
-		return ("authentication token ageing disabled");
+		return ("authentication token aging disabled");
 	case PAM_NO_MODULE_DATA:
 		return ("module data not found");
 	case PAM_IGNORE:
@@ -121,3 +121,10 @@ pam_strerror(pam_handle_t *pamh,
 		return (unknown);
 	}
 }
+
+/**
+ * The =pam_strerror function returns a pointer to a string containing a
+ * textual description of the error indicated by the =error_number
+ * argument, in the context of the PAM transaction described by the =pamh
+ * argument.
+ */

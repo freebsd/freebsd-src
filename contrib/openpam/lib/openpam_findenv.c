@@ -41,6 +41,8 @@
 #include "openpam_impl.h"
 
 /*
+ * OpenPAM internal
+ *
  * Locate an environment variable
  */
 
@@ -60,3 +62,7 @@ openpam_findenv(pam_handle_t *pamh,
 			return (i);
 	return (-1);
 }
+
+/*
+ * NODOC
+ */

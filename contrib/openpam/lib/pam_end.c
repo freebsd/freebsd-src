@@ -82,3 +82,17 @@ pam_end(pam_handle_t *pamh,
 
 	return (PAM_SUCCESS);
 }
+
+/*
+ * Error codes:
+ *
+ *	PAM_SYSTEM_ERR
+ */
+
+/**
+ * The =pam_end function terminates a PAM transaction and destroys the
+ * corresponding PAM context, releasing all resources allocated to it.
+ *
+ * The =status argument should be set to the error code returned by the
+ * last API call before the call to =pam_end.
+ */
