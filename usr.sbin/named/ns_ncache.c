@@ -53,7 +53,7 @@ cache_n_resp(msg, msglen)
 		    dname, type, class));
 
 #ifdef VALIDATE
-	Vcode = validate(dname, &from_addr, type, class, NULL, 0,
+	Vcode = validate(dname, dname, &from_addr, type, class, NULL, 0,
 			 hp->rcode == NXDOMAIN ? NXDOMAIN : NOERROR_NODATA);
 	if (Vcode == INVALID || Vcode == VALID_NO_CACHE) {
 		/*Valid_no_cache should never occur but doesn't hurt to check*/
