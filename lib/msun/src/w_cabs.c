@@ -18,3 +18,10 @@ cabs(z)
 {
 	return hypot(z.x, z.y);
 }
+
+double
+z_abs(z)
+	struct complex *z;
+{
+	return hypot(z->x, z->y);
+}
