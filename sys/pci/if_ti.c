@@ -147,11 +147,15 @@ static const char rcsid[] =
 
 static struct ti_type ti_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC,
-		"Alteon AceNIC Gigabit Ethernet" },
+		"Alteon AceNIC 1000baseSX Gigabit Ethernet" },
+	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC_COPPER,
+		"Alteon AceNIC 1000baseT Gigabit Ethernet" },
 	{ TC_VENDORID,	TC_DEVICEID_3C985,
 		"3Com 3c985-SX Gigabit Ethernet" },
 	{ NG_VENDORID, NG_DEVICEID_GA620,
-		"Netgear GA620 Gigabit Ethernet" },
+		"Netgear GA620 1000baseSX Gigabit Ethernet" },
+	{ NG_VENDORID, NG_DEVICEID_GA620T,
+		"Netgear GA620 1000baseT Gigabit Ethernet" },
 	{ SGI_VENDORID, SGI_DEVICEID_TIGON,
 		"Silicon Graphics Gigabit Ethernet" },
 	{ DEC_VENDORID, DEC_DEVICEID_FARALLON_PN9000SX,
@@ -958,7 +962,7 @@ static int ti_init_rx_ring_jumbo(sc)
 	register int		i;
 	struct ti_cmd_desc	cmd;
 
-	for (i = 0; i < (TI_JSLOTS - 20); i++) {
+	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 		if (ti_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
 			return(ENOBUFS);
 	};
@@ -1700,6 +1704,21 @@ static int ti_attach(dev)
 		goto fail;
 	}
 
+	/*
+	 * We really need a better way to tell a 1000baseTX card
+	 * from a 1000baseSX one, since in theory there could be
+	 * OEMed 1000baseTX cards from lame vendors who aren't
+	 * clever enough to change the PCI ID. For the moment
+	 * though, the AceNIC is the only copper card available.
+	 */
+	if (pci_get_vendor(dev) == ALT_VENDORID &&
+	    pci_get_device(dev) == ALT_DEVICEID_ACENIC_COPPER)
+		sc->ti_copper = 1;
+	/* Ok, it's not the only copper card available. */
+	if (pci_get_vendor(dev) == NG_VENDORID &&
+	    pci_get_device(dev) == NG_DEVICEID_GA620T)
+		sc->ti_copper = 1;
+
 	/* Set default tuneable values. */
 	sc->ti_stat_ticks = 2 * TI_TICKS_PER_SEC;
 	sc->ti_rx_coal_ticks = TI_TICKS_PER_SEC / 5000;
@@ -1724,12 +1743,30 @@ static int ti_attach(dev)
 
 	/* Set up ifmedia support. */
 	ifmedia_init(&sc->ifmedia, IFM_IMASK, ti_ifmedia_upd, ti_ifmedia_sts);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL|IFM_FDX, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_FX, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_FX|IFM_FDX, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_1000_SX, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_1000_SX|IFM_FDX, 0, NULL);
+	if (sc->ti_copper) {
+		/*
+		 * Copper cards allow manual 10/100 mode selection,
+		 * but not manual 1000baseTX mode selection. Why?
+		 * Becuase currently there's no way to specify the
+		 * master/slave setting through the firmware interface,
+		 * so Alteon decided to just bag it and handle it
+		 * via autonegotiation.
+		 */
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+		    IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+		    IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_1000_TX, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+		    IFM_ETHER|IFM_1000_TX|IFM_FDX, 0, NULL);
+	} else {
+		/* Fiber cards don't support 10/100 modes. */
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_1000_SX, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+		    IFM_ETHER|IFM_1000_SX|IFM_FDX, 0, NULL);
+	}
 	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->ifmedia, IFM_ETHER|IFM_AUTO);
 
@@ -2309,17 +2346,24 @@ static int ti_ifmedia_upd(ifp)
 		    TI_CMD_CODE_NEGOTIATE_BOTH, 0);
 		break;
 	case IFM_1000_SX:
+	case IFM_1000_TX:
 		CSR_WRITE_4(sc, TI_GCR_GLINK, TI_GLNK_PREF|TI_GLNK_1000MB|
-		    TI_GLNK_FULL_DUPLEX|TI_GLNK_RX_FLOWCTL_Y|TI_GLNK_ENB);
+		    TI_GLNK_RX_FLOWCTL_Y|TI_GLNK_ENB);
 		CSR_WRITE_4(sc, TI_GCR_LINK, 0);
+		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
+			TI_SETBIT(sc, TI_GCR_GLINK, TI_GLNK_FULL_DUPLEX);
+		}
 		TI_DO_CMD(TI_CMD_LINK_NEGOTIATION,
 		    TI_CMD_CODE_NEGOTIATE_GIGABIT, 0);
 		break;
 	case IFM_100_FX:
 	case IFM_10_FL:
+	case IFM_100_TX:
+	case IFM_10_T:
 		CSR_WRITE_4(sc, TI_GCR_GLINK, 0);
 		CSR_WRITE_4(sc, TI_GCR_LINK, TI_LNK_ENB|TI_LNK_PREF);
-		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_100_FX) {
+		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_100_FX ||
+		    IFM_SUBTYPE(ifm->ifm_media) == IFM_100_TX) {
 			TI_SETBIT(sc, TI_GCR_LINK, TI_LNK_100MB);
 		} else {
 			TI_SETBIT(sc, TI_GCR_LINK, TI_LNK_10MB);
@@ -2345,6 +2389,7 @@ static void ti_ifmedia_sts(ifp, ifmr)
 	struct ifmediareq	*ifmr;
 {
 	struct ti_softc		*sc;
+	u_int32_t		media = 0;
 
 	sc = ifp->if_softc;
 
@@ -2356,15 +2401,29 @@ static void ti_ifmedia_sts(ifp, ifmr)
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
-	if (sc->ti_linkstat == TI_EV_CODE_GIG_LINK_UP)
-		ifmr->ifm_active |= IFM_1000_SX|IFM_FDX;
-	else if (sc->ti_linkstat == TI_EV_CODE_LINK_UP) {
-		u_int32_t		media;
+	if (sc->ti_linkstat == TI_EV_CODE_GIG_LINK_UP) {
+		media = CSR_READ_4(sc, TI_GCR_GLINK_STAT);
+		if (sc->ti_copper)
+			ifmr->ifm_active |= IFM_1000_TX;
+		else
+			ifmr->ifm_active |= IFM_1000_SX;
+		if (media & TI_GLNK_FULL_DUPLEX)
+			ifmr->ifm_active |= IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_HDX;
+	} else if (sc->ti_linkstat == TI_EV_CODE_LINK_UP) {
 		media = CSR_READ_4(sc, TI_GCR_LINK_STAT);
-		if (media & TI_LNK_100MB)
-			ifmr->ifm_active |= IFM_100_FX;
-		if (media & TI_LNK_10MB)
-			ifmr->ifm_active |= IFM_10_FL;
+		if (sc->ti_copper) {
+			if (media & TI_LNK_100MB)
+				ifmr->ifm_active |= IFM_100_TX;
+			if (media & TI_LNK_10MB)
+				ifmr->ifm_active |= IFM_10_T;
+		} else {
+			if (media & TI_LNK_100MB)
+				ifmr->ifm_active |= IFM_100_FX;
+			if (media & TI_LNK_10MB)
+				ifmr->ifm_active |= IFM_10_FL;
+		}
 		if (media & TI_LNK_FULL_DUPLEX)
 			ifmr->ifm_active |= IFM_FDX;
 		if (media & TI_LNK_HALF_DUPLEX)
