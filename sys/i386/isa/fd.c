@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.62.2.1 1996/03/31 18:09:00 joerg Exp $
+ *	$Id: fd.c,v 1.62.2.2 1996/06/25 17:39:20 joerg Exp $
  *
  */
 
@@ -833,6 +833,17 @@ fd_turnoff(void *arg1)
 	fd_p fd = fd_data + fdu;
 
 	TRACE1("[fd%d: turnoff]", fdu);
+
+	/*
+	 * Don't turn off the motor yet if the drive is active.
+	 * XXX shouldn't even schedule turnoff until drive is inactive
+	 * and nothing is queued on it.
+	 */
+	if (fd->fdc->state != DEVIDLE && fd->fdc->fdu == fdu) {
+		timeout(fd_turnoff, arg1, 4 * hz);
+		return;
+	}
+
 	s = splbio();
 	fd->flags &= ~FD_MOTOR;
 	set_motor(fd->fdc->fdcu, fd->fdsu, TURNOFF);
