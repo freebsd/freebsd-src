@@ -1,52 +1,65 @@
-#	$Id$
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
+#	$Id$
+
+# To satisfy shared library or ELF linkage when only the libraries being
+# built are visible:
+#
+# libcom_err must be built before libss.
+# libcrypt and libmd must be built before libskey.
+# libm must be built before libtcl.
+# libmytinfo must be built before libncurses.
+# libtermcap must be built before libcurses and libedit.
+#
+# Otherwise, the SUBDIR list should be in alphabetical order.
+
+SUBDIR=	libcom_err ${_libcrypt} ${_libm} libmytinfo libtermcap \
+	compat ${_csu} libalias libc ${_libc_r} libcalendar \
+	libcompat libcurses ${_libdisk} libedit libf2c libftpio \
+	libgnumalloc libipx ${_libkvm} libmd libncurses libopie \
+	libpcap libresolv librpcsvc ${_libscsi} libskey libss \
+	${_libtcl} ${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${BINFORMAT})
-SUBDIR=csu/${MACHINE_ARCH}-${BINFORMAT}
+_csu=csu/${MACHINE_ARCH}-${BINFORMAT}
 .elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
-SUBDIR=csu/${MACHINE_ARCH}
+_csu=csu/${MACHINE_ARCH}
 .endif
 
-# XXX MISSING:		libplot
-SUBDIR+=libalias libc libcalendar libcompat libcom_err libcurses \
-	libedit libf2c libftpio libgnumalloc libipx libmd libmytinfo \
-	libncurses libopie libpcap libresolv librpcsvc \
-	libskey libss libtermcap libutil libxpg4 liby libz
-	
 .if !defined(NOLIBC_R)
-SUBDIR+= libc_r
-.endif
-
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=libdisk libkvm libscsi libvgl
-
-.if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
-	exists(${.CURDIR}/../usr.bin/tclsh) && exists (${.CURDIR}/libtcl)
-SUBDIR+=libtcl
-.endif
+_libc_r=	libc_r
 .endif
 
 .if !exists(${.CURDIR}/../secure) || defined(NOSECURE) || defined(NOCRYPT)
-SUBDIR+= libcrypt
+_libcrypt=	libcrypt
 .else
-SUBDIR+= ../secure/lib/libcrypt
+_libcrypt=	../secure/lib/libcrypt
+# Releases need both libraries.
 .if defined(RELEASEDIR)
-# releases do need both libraries
-SUBDIR+= libcrypt
+_libcrypt+=	libcrypt
 .endif
 .endif
 
-.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
-# releases do need both libraries
-SUBDIR+= libtelnet
+.if ${MACHINE_ARCH} == "i386"
+_libdisk=	libdisk
+_libkvm=	libkvm
+_libscsi=	libscsi
+_libvgl=	libvgl
+
+.if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
+    exists(${.CURDIR}/../usr.bin/tclsh) && exists (${.CURDIR}/libtcl)
+_libtcl=	libtcl
+.endif
 .endif
 
 .if defined(WANT_CSRG_LIBM)
-SUBDIR+= libm
+_libm=		libm
 .else
-SUBDIR+= msun
+_libm=		msun
 .endif
 
-SUBDIR+= compat
+.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || \
+    defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
+_libtelnet=	libtelnet
+.endif
 
 .include <bsd.subdir.mk>
