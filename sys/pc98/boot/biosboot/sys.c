@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.3 1996/09/12 11:09:00 asami Exp $
+ *	$Id: sys.c,v 1.4 1996/09/12 11:36:09 asami Exp $
  */
 
 /*
@@ -32,7 +32,7 @@
  */
 
 #include "boot.h"
-#include <sys/dir.h>
+#include <sys/dirent.h>
 #include <sys/reboot.h>
 
 #ifdef 0
@@ -50,6 +50,8 @@ char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 
 char mapbuf[MAPBUFSIZE];
 int mapblock;
+
+int poff;
 
 #ifdef RAWBOOT
 #define STARTBYTE	8192	/* Where on the media the kernel starts */
@@ -135,7 +137,7 @@ find(char *path)
 {
 	char *rest, ch;
 	int block, off, loc, ino = ROOTINO;
-	struct direct *dp;
+	struct dirent *dp;
 	char list_only;
 
 	list_only = (path[0] == '?' && path[1] == '\0');
@@ -167,12 +169,12 @@ loop:
 			devread(iobuf, fsbtodb(fs, block_map(block)) + boff,
 				blksize(fs, &inode, block));
 		}
-		dp = (struct direct *)(iobuf + off);
+		dp = (struct dirent *)(iobuf + off);
 		loc += dp->d_reclen;
-		if (dp->d_ino && list_only)
+		if (dp->d_fileno && list_only)
 			printf("%s ", dp->d_name);
-	} while (!dp->d_ino || strcmp(path, dp->d_name));
-	ino = dp->d_ino;
+	} while (!dp->d_fileno || strcmp(path, dp->d_name));
+	ino = dp->d_fileno;
 	*(path = rest) = ch;
 	goto loop;
 }
@@ -195,8 +197,8 @@ block_map(int file_block)
 int
 openrd(void)
 {
-	char **devp, *cp = name;
-	int biosdrive, ret;
+	char **devp, *name0 = name, *cp = name0;
+	int biosdrive, dosdev_copy, ret;
 
 #ifdef PC98
 	int i;
@@ -210,7 +212,7 @@ openrd(void)
 		cp++;
 	if (!*cp)
 	{
-		cp = name;
+		cp = name0;
 	}
 	else
 	{
@@ -219,16 +221,16 @@ openrd(void)
 		 * by a colon).
 		 */
 		biosdrivedigit = '\0';
-		if (*(name + 1) == ':' && *name >= '0' && *name <= '9') {
-			biosdrivedigit = *name;
-			name += 2;
+		if (*(name0 + 1) == ':' && *name0 >= '0' && *name0 <= '9') {
+			biosdrivedigit = *name0;
+			name0 += 2;
 		}
 
-		if (cp++ != name)
+		if (cp++ != name0)
 		{
 			for (devp = devs; *devp; devp++)
-				if (name[0] == (*devp)[0] &&
-				    name[1] == (*devp)[1])
+				if (name0[0] == (*devp)[0] &&
+				    name0[1] == (*devp)[1])
 					break;
 			if (!*devp)
 			{
@@ -271,29 +273,30 @@ openrd(void)
 	{
 	case 4: /* sd */
 #ifdef PC98
-		dosdev = unit | 0xa0;
+		dosdev_copy = unit | 0xa0;
 		disk_equips = *(unsigned char *)0x11482;
 		unit = 0;
 		for (i = 0; i < unit; i++)
 			unit += ((disk_equips >> i) & 0x01);
 #else	/* IBM-PC */
-		dosdev = biosdrive | 0x80;
+		dosdev_copy = biosdrive | 0x80;
 #endif
 		break;
 	case 0:
 	case 2:
 #ifdef PC98
-		dosdev = (maj << 3) | unit | 0x80;
+		dosdev_copy = (maj << 3) | unit | 0x80;
 #else
-		dosdev = biosdrive;
+		dosdev_copy = biosdrive;
 #endif
 		break;
 	case 3:
 		printf("Unknown device\n");
 		return 1;
 	}
-	printf("dosdev = %x, biosdrive = %d, unit = %d, maj = %d\n",
-		dosdev, biosdrive, unit, maj);
+	dosdev = dosdev_copy;
+	printf("dosdev= %x, biosdrive = %d, unit = %d, maj = %d\n",
+		dosdev_copy, biosdrive, unit, maj);
 
 	/***********************************************\
 	* Now we know the disk unit and part,		*

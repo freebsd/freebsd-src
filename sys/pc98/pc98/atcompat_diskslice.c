@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.20 1996/04/07 17:32:09 bde Exp $
+ *	$Id: atcompat_diskslice.c,v 1.1.1.1 1996/06/14 10:04:42 asami Exp $
  */
 
 /*
@@ -47,6 +47,7 @@
 #include <stddef.h>
 #include <sys/param.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #ifdef PC98
 #undef PC98
 #endif

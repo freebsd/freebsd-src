@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.6 1996/09/07 02:13:48 asami Exp $
+ *	$Id: if_ed.c,v 1.7 1996/09/10 09:38:04 asami Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
  *    NEC PC-9801-108
  *    MELCO LPC-TJ, LPC-TS, LGY-98, LGH-98, IND-SP, IND-SS, EGY-98
  *    PLANET SMART COM CREDITCARD/2000 PCMCIA, EN-2298
+ *    Contec C-NET(98), C-NET(98)E, C-NET(98)L, C-NET(98)E-A, C-NET(98)L-A
  *
  * Modified for FreeBSD(98) 2.2 by KATO T. of Nagoya University.
  *
@@ -181,6 +182,8 @@ static int ed_probe_Novell	__P((struct isa_device *));
 static int ed_probe_Novell_generic __P((struct ed_softc *, int, int, int));
 #ifdef PC98
 static int ed_probe_SIC98	__P((struct isa_device *));
+static int ed_probe_CNET98	__P((struct isa_device *));
+static int ed_probe_CNET98EL	__P((struct isa_device *));
 #endif
 static int ed_probe_HP_pclanp	__P((struct isa_device *));
 
@@ -404,6 +407,10 @@ ed_probe(isa_dev)
 {
 	int     nports;
 
+#ifdef PC98
+	ed_softc[isa_dev->id_unit].unit = isa_dev->id_unit;
+#endif
+
 #if NCRD > 0
 	/*
 	 * If PC-Card probe required, then register driver with
@@ -419,9 +426,8 @@ ed_probe(isa_dev)
 	 * PLANET SMART COM CREDITCARD/2000 PCMCIA
 	 * IO-DATA PCLA/T
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_LPC)) {
-		ed_softc[isa_dev->id_unit].unit = isa_dev->id_unit;
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LPC)) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LPC;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LPC);
 		nports = ed_probe_Novell(isa_dev);
@@ -436,7 +442,7 @@ ed_probe(isa_dev)
 	ed_softc[isa_dev->id_unit].type = ED_TYPE98_GENERIC;
 	pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_GENERIC);
 
-	if (ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) {
 #endif
 	nports = ed_probe_WD80x3(isa_dev);
 	if (nports)
@@ -455,8 +461,8 @@ ed_probe(isa_dev)
 	/*
 	 * Allied Telesis SIC-98
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_SIC)) {
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_SIC)) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_SIC;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_SIC);
 		nports = ed_probe_SIC98(isa_dev);
@@ -468,8 +474,8 @@ ed_probe(isa_dev)
 	 * ELECOM LANEED LD-BDN
 	 * PLANET SMART COM 98 EN-2298
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_BDN)) {
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_BDN)) {
 		/* LD-BDN */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_BDN;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_BDN);
@@ -482,8 +488,8 @@ ed_probe(isa_dev)
 	 * MELCO LGY-98, IND-SP, IND-SS
 	 * MACNICA NE2098
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_LGY)) {
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LGY)) {
 		/* LGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LGY;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LGY);
@@ -496,8 +502,8 @@ ed_probe(isa_dev)
 	 * ICM DT-ET-25, DT-ET-T5, IF-2766ET, IF-2771ET
 	 * D-Link DE-298P, DE-298
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_ICM)) {
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_ICM)) {
 		/* ICM */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_ICM;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_ICM);
@@ -508,9 +514,10 @@ ed_probe(isa_dev)
 
 	/*
 	 * MELCO EGY-98
+	 * Contec C-NET(98)E-A, C-NET(98)L-A
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_EGY)) {
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_EGY)) {
 		/* EGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_EGY;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_EGY);
@@ -522,8 +529,8 @@ ed_probe(isa_dev)
 	/*
 	 * IO-DATA LA/T-98
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_LA98)) {
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LA98)) {
 		/* LA-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LA98;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LA98);
@@ -535,12 +542,38 @@ ed_probe(isa_dev)
 	/*
 	 * NEC PC-9801-108
 	 */
-	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev) == ED_TYPE98_108)) {
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_108)) {
 		/* PC-9801-108 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_108;
 		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_108);
 		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
+
+	/*
+	 * Contec C-NET(98)E/L
+	 */
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98EL)) {
+		/* C-NET(98)E/L */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98EL;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_CNET98EL);
+		nports = ed_probe_CNET98EL(isa_dev);
+		if (nports)
+			return (nports);
+	}
+
+	/*
+	 * Contec C-NET(98)
+	 */
+	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98)) {
+		/* C-NET(98) */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_CNET98);
+		nports = ed_probe_CNET98(isa_dev);
 		if (nports)
 			return (nports);
 	}
@@ -598,9 +631,11 @@ ed_probe_generic8390(sc)
 		return (0);
 #ifdef PC98
   }
-#endif
+	inb(sc->nic_addr + ED_P0_ISR);
+#else
 	if ((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) != ED_ISR_RST)
 		return (0);
+#endif
 
 	return (1);
 }
@@ -2058,6 +2093,329 @@ static int ed_probe_SIC98(struct isa_device* pc98_dev)
 
 	return (1);
 }
+
+/*
+ * Probe and vendor-specific initialization routine for CNET98 boards
+ */
+static int
+ed_probe_CNET98(isa_dev)
+	struct isa_device *isa_dev;
+
+{
+	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	int     i;
+	u_char  sum;
+
+	/*
+	 * Setup card RAM area and i/o addresses
+	 * Kernel Virtual to segment C0000-DFFFF?????
+	 */
+
+	sc->isa16bit       = 0;						/* 16bit mode off = 0 */
+	sc->cr_proto       = ED_CR_RD2;
+	sc->vendor         = ED_VENDOR_MISC;		/* vendor name */
+	sc->asic_addr      = isa_dev->id_iobase;
+	sc->nic_addr       = sc->asic_addr;			/* 0xa3d0      */
+	sc->is790          = 0;						/* special chip */
+	sc->mem_start      = (caddr_t)isa_dev->id_maddr;
+	sc->mem_end        = sc->mem_start + isa_dev->id_msize;
+	sc->mem_ring       = sc->mem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE);
+	sc->mem_size       = isa_dev->id_msize;		/*  16kbyte */
+	sc->mem_shared     = 1;						/* sharedmemory on=1,off=0 */
+	sc->txb_cnt        = 1;						/* tx buffer counter 1 */
+	sc->tx_page_start  = 0;						/* page offset 0 */
+	sc->rec_page_start = ED_TXBUF_SIZE;			/* page offset 6 */
+	sc->rec_page_stop  = isa_dev->id_msize / ED_PAGE_SIZE;
+												/* page offset 40 */
+
+	if (sc->asic_addr == 0xa3d0) {
+		/*
+		 * reset card to force it into a known state.
+		 */
+		outb(ED_CNET98_INIT_ADDR, 0x00);    /* Request */
+		DELAY(5000);
+		outb(ED_CNET98_INIT_ADDR, 0x01);    /* Cancel  */
+		DELAY(5000);
+		/*
+		 * set i/o address and cpu type
+		 */
+		sc->asic_addr = (0xf000 & sc->asic_addr) >> 8;
+		sc->asic_addr = sc->asic_addr & 0xf0;
+		sc->asic_addr = sc->asic_addr | 0x09;
+		/* debug printf(" Board status %x \n",sc->asic_addr); */
+		outb((ED_CNET98_INIT_ADDR + 2), sc->asic_addr);
+		DELAY(1000);
+		sc->asic_addr = sc->nic_addr;
+		/*
+		 *  set window ethernet address area
+		 *    board memory base 0x480000  data 256byte 
+		 *    window   base     0xc40000
+		 *
+		 *    FreeBSD address 0xf00c4000
+		 */
+		outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x48);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
+		DELAY(10);
+
+		outb((sc->asic_addr + ED_CNET98_WIN_REG),0xc4);
+		DELAY(10);
+		/*
+		 * CNET98 checksum code
+		 *
+		 * for (sum = 0, i = 0; i < ETHER_ADDR_LEN; ++i)
+		 *   sum ^= *((caddr_t)(isa_dev -> id_maddr + i));
+		 * printf(" checkusum = %x \n",sum);
+		 */
+
+		/*
+		 * Get station address from on-board ROM
+		 */
+		for (i = 0; i < ETHER_ADDR_LEN; ++i) 
+			sc->arpcom.ac_enaddr[i] = *((caddr_t)(isa_dev -> id_maddr + i));
+
+		outb((sc->asic_addr + ED_CNET98_WIN_REG),0x44);
+		DELAY(10);
+
+		/*
+		 *  set window buffer memory area
+		 *    board memory base 0x400000  data 16kbyte 
+		 *    window   base     0xc40000
+		 *
+		 *    FreeBSD address 0xf00c4000
+		 */
+		outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x40);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
+		DELAY(10);
+		outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
+		DELAY(10);
+
+		outb((sc->asic_addr + ED_CNET98_WIN_REG),0xc4);
+		DELAY(10);
+
+		/*
+		 * clear interface memory, then sum to make sure its valid
+		 */
+		for (i = 0; i < sc->mem_size; ++i)
+			sc->mem_start[i] = 0x0;
+		for (sum = 0, i = 0; i < sc->mem_size; ++i)
+			sum |= sc->mem_start[i];
+		if (sum != 0x0) {
+			printf("ed%d: CNET98 dual port RAM address error\n",
+				   isa_dev->id_unit);
+			return (0);
+		}
+		/*
+		 *   interrupt set
+		 *   irq 12 set
+		 */
+		/* int 5 set */
+		outb((sc->asic_addr + ED_CNET98_INT_MASK),0x7e);
+		DELAY(1000);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),0x20);
+		DELAY(1000);
+
+		return (32); /* 0xa3d0 -- 0xa3df , 0xa7d0 -- 0xa7df */
+
+	} else {
+		return(0); /* error no board */
+	}
+}
+
+
+static int ed_probe_CNET98EL(struct isa_device* isa_dev)
+{
+	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	u_int   memsize, n;
+	u_char  romdata[ETHER_ADDR_LEN * 2], tmp;
+	static char test_pattern[32] = "THIS is A memory TEST pattern";
+	char    test_buffer[32];
+	u_short	init_addr = ED_CNET98EL_INIT;
+	int unit = isa_dev->id_unit;
+
+	sc->asic_addr = isa_dev->id_iobase + ED_NOVELL_ASIC_OFFSET;
+	sc->nic_addr  = isa_dev->id_iobase + ED_NOVELL_NIC_OFFSET;
+
+	/* Choice initial register address */
+	if (ED_TYPE98SUB(isa_dev->id_flags) != 0) {
+		init_addr = ED_CNET98EL_INIT2;
+	}
+#ifdef ED_DEBUG
+	printf("ed%d: initial register=%x\n", isa_dev->id_unit, init_addr);
+#endif
+
+	/* Check i/o address. CNET98E/L only allows ?3d0h */
+	if ((sc->nic_addr & (u_short) 0x0fff) != 0x03d0) {
+		printf("ed%d: Invalid i/o port configuration (%x) must be "
+			   "?3d0h for CNET98E/L\n",
+		isa_dev->id_unit, sc->nic_addr);
+		return (0);
+	}
+
+	/*
+	 * Reset the board to force it into a known state.
+	 */
+	outb(init_addr, 0x00);	/* request */
+	DELAY(5000);
+	outb(init_addr, 0x01);	/* cancel */
+
+	/*
+	 * Set i/o address(A15-12) and cpu type
+	 */
+	tmp = (sc->nic_addr & (u_short) 0xf000) >> 8;
+	tmp |= (0x08 | 0x01);
+	/*
+	 * bit0 is 1:above 80286 or 0:not.
+	 * But FreeBSD runs under i386 or higher.
+	 * Therefore bit0 must be 1.
+	 */
+#ifdef ED_DEBUG
+	printf("ed%d: outb(%x, %x)\n", isa_dev->id_unit, init_addr + 2, tmp);
+#endif
+	outb(init_addr + 2, tmp);
+
+	/* Make sure that we really have a DL9800 board */
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
+	DELAY(5000);
+	tmp = inb(sc->nic_addr + ED_P0_CR);
+#ifdef ED_DEBUG
+	printf("ed%d: inb(%x) = %x\n", isa_dev->id_unit, sc->nic_addr + ED_P0_CR,
+		   tmp);
+#endif
+	if ((tmp & ~ED_CR_STA) != (ED_CR_RD2 | ED_CR_STP))
+		return (0);
+	if ((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) != ED_ISR_RST)
+		return (0);
+
+	sc->vendor = ED_VENDOR_NOVELL;
+	sc->mem_shared = 0;
+	sc->cr_proto = ED_CR_RD2;
+	isa_dev->id_maddr = 0;
+
+	/* Test the ability to read and write to the NIC memory. */
+
+	/*
+	 * This prevents packets from being stored in the NIC memory when the
+	 * readmem routine turns on the start bit in the CR.
+	 */
+	outb(sc->nic_addr + ED_P0_RCR, ED_RCR_MON);
+
+	/* initialize DCR for word operations */
+	outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+
+	sc->isa16bit = 1;
+
+	/* CNET98E/L board has 16k of memory */
+	memsize = 16384;
+
+	/* NIC memory start at zero on a CNET98E/L board */
+	sc->mem_start = (char *) ED_CNET98EL_PAGE_OFFSET;
+	sc->mem_end = sc->mem_start + memsize;
+	sc->tx_page_start = ED_CNET98EL_PAGE_OFFSET / ED_PAGE_SIZE;
+
+	/*
+	 * Write a test pattern in word mode. If failure page is not 16k, then
+	 * we don't know what this board is.
+	 */
+	for (n = ED_CNET98EL_PAGE_OFFSET; n < 65536; n += 1024) {
+		ed_pio_writemem(sc, test_pattern, n, sizeof(test_pattern));
+		ed_pio_readmem(sc, n, test_buffer, sizeof(test_pattern));
+
+		if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)))
+			break;
+	}
+	if (n != (ED_CNET98EL_PAGE_OFFSET + memsize)) {
+#ifdef ED_DEBUG
+		printf("ed%d: CNET98E/L memory failure at %x\n", isa_dev->id_unit, n);
+#endif
+		return (0);     /* not a CNET98E/L */
+	}
+
+	/*
+	 * Set IRQ. CNET98E/L only allows a choice of irq 3,5,6.
+	 */
+	switch (isa_dev->id_irq) {
+	case IRQ3:
+		outb(sc->asic_addr + ED_CNET98EL_ICR, ED_CNET98EL_ICR_IRQ3);
+		break;
+	case IRQ5:
+		outb(sc->asic_addr + ED_CNET98EL_ICR, ED_CNET98EL_ICR_IRQ5);
+		break;
+	case IRQ6:
+		outb(sc->asic_addr + ED_CNET98EL_ICR, ED_CNET98EL_ICR_IRQ6);
+		break;
+#if 0
+	case IRQ12:
+		outb(sc->asic_addr + ED_CNET98EL_ICR, ED_CNET98EL_ICR_IRQ12);
+		break;
+#endif
+	default:
+		printf(
+		  "ed%d: Invalid irq configuration (%d) must be 3,5,6 for CNET98E/L\n",
+		isa_dev->id_unit, ffs(isa_dev->id_irq) - 1);
+		return (0);
+	}
+	outb(sc->asic_addr + ED_CNET98EL_IMR, 0x7e);
+
+	sc->type_str = "CNET98E/L";
+
+#if 0 /* probably not useful - NE boards only come two ways */
+	/* allow kernel config file overrides */
+	if (isa_dev->id_msize)
+		memsize = isa_dev->id_msize;
+#endif
+
+	sc->mem_size = memsize;
+
+	/*
+	 * Use one xmit buffer if < 16k, two buffers otherwise (if not told
+	 * otherwise).
+	 */
+	if ((memsize < 16384) || (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING))
+		sc->txb_cnt = 1;
+	else
+		sc->txb_cnt = 2;
+
+	sc->rec_page_start = sc->tx_page_start + sc->txb_cnt * ED_TXBUF_SIZE;
+	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
+
+	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+
+	/*
+	 * Get station address from on-board ROM
+	 */
+	ed_pio_readmem(sc, 16384, romdata, sizeof(romdata));
+	for (n = 0; n < ETHER_ADDR_LEN; n++)
+		sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
+
+	/* clear any pending interrupts that might have occurred above */
+	outb(sc->nic_addr + ED_P0_ISR, 0xff);
+
+	return (ED_CNET98EL_IO_PORTS);
+}
 #endif
 
 /*
@@ -3244,8 +3602,8 @@ ed_pio_readmem(sc, src, dst, amount)
 	} else
 		insb(sc->asic_addr + ED_NOVELL_DATA, dst, amount);
 #ifdef PC98
-		if (sc->type == ED_TYPE98_LPC)
-			LPCT_1d0_OFF();
+	if (sc->type == ED_TYPE98_LPC)
+		LPCT_1d0_OFF();
 #endif
 }
 
@@ -3286,8 +3644,8 @@ ed_pio_writemem(sc, src, dst, len)
 		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
 
 #ifdef PC98
-	if (sc->type == ED_TYPE98_LPC)
-		LPCT_1d0_ON();
+		if (sc->type == ED_TYPE98_LPC)
+			LPCT_1d0_ON();
 #endif
 
 		if (sc->isa16bit)
@@ -3296,8 +3654,8 @@ ed_pio_writemem(sc, src, dst, len)
 			outsb(sc->asic_addr + ED_NOVELL_DATA, src, len);
 
 #ifdef PC98
-	if (sc->type == ED_TYPE98_LPC)
-		LPCT_1d0_OFF();
+		if (sc->type == ED_TYPE98_LPC)
+			LPCT_1d0_OFF();
 #endif
 
 		/*

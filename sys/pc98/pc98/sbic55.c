@@ -26,7 +26,7 @@
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
-#include <pc98/pc98/ic/i8237.h>
+#include <i386/isa/ic/i8237.h>
 #include <pc98/pc98/scsireg.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>

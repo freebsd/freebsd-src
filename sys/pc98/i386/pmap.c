@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.3 1996/09/12 11:09:34 asami Exp $
+ *	$Id: pmap.c,v 1.4 1996/10/09 19:47:39 bde Exp $
  */
 
 /*
@@ -294,7 +294,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	virtual_avail = va;
 
 	*(int *) CMAP1 = *(int *) CMAP2 = *(int *) PTD = 0;
-	pmap_update();
+	invltlb();
 
 }
 
@@ -407,32 +407,28 @@ pmap_track_modified( vm_offset_t va) {
 		return 0;
 }
 
-/*
- * The below are finer grained pmap_update routines.  These eliminate
- * the gratuitious tlb flushes on non-i386 architectures.
- */
 static PMAP_INLINE void
-pmap_update_1pg( vm_offset_t va) {
-#if defined(I386_CPU) || defined(CYRIX_486DLC)
-	/* CYRIX Bug? */
-	if (cpu_class == CPUCLASS_386 || cpu == CPU_486DLC)
-		pmap_update();
-	else
-#endif
-		__asm __volatile(".byte 0xf,0x1,0x38": :"a" (va));
-}
-
-static PMAP_INLINE void
-pmap_update_2pg( vm_offset_t va1, vm_offset_t va2) {
-#if defined(I386_CPU) || defined(CYRIX_486DLC)
-	/* CYRIX Bug? */
-	if (cpu_class == CPUCLASS_386 || cpu == CPU_486DLC) {
-		pmap_update();
+invltlb_1pg( vm_offset_t va) {
+#if defined(I386_CPU)
+	if (cpu_class == CPUCLASS_386) {
+		invltlb();
 	} else
 #endif
 	{
-		__asm __volatile(".byte 0xf,0x1,0x38": :"a" (va1));
-		__asm __volatile(".byte 0xf,0x1,0x38": :"a" (va2));
+		invlpg(va);
+	}
+}
+
+static PMAP_INLINE void
+invltlb_2pg( vm_offset_t va1, vm_offset_t va2) {
+#if defined(I386_CPU)
+	if (cpu_class == CPUCLASS_386) {
+		invltlb();
+	} else
+#endif
+	{
+		invlpg(va1);
+		invlpg(va2);
 	}
 }
 
@@ -501,7 +497,7 @@ get_ptbase(pmap)
 	/* otherwise, we are alternate address space */
 	if (frame != (((unsigned) APTDpde) & PG_FRAME)) {
 		APTDpde = (pd_entry_t) (frame | PG_RW | PG_V);
-		pmap_update();
+		invltlb();
 	}
 	return (unsigned *) APTmap;
 }
@@ -527,9 +523,9 @@ pmap_pte(pmap, va)
 /*
  * Super fast pmap_pte routine best used when scanning
  * the pv lists.  This eliminates many coarse-grained
- * pmap_update calls.  Note that many of the pv list
+ * invltlb calls.  Note that many of the pv list
  * scans are across different pmaps.  It is very wasteful
- * to do an entire pmap_update for checking a single mapping.
+ * to do an entire invltlb for checking a single mapping.
  */
 
 unsigned * 
@@ -549,7 +545,7 @@ pmap_pte_quick(pmap, va)
 		newpf = pde & PG_FRAME;
 		if ( ((* (unsigned *) PMAP1) & PG_FRAME) != newpf) {
 			* (unsigned *) PMAP1 = newpf | PG_RW | PG_V;
-			pmap_update_1pg((vm_offset_t) PADDR1);
+			invltlb_1pg((vm_offset_t) PADDR1);
 		}
 		return PADDR1 + ((unsigned) index & (NPTEPG - 1));
 	}
@@ -630,7 +626,7 @@ pmap_qenter(va, m, count)
 		opte = *pte;
 		*pte = npte;
 		if (opte)
-			pmap_update_1pg(tva);
+			invltlb_1pg(tva);
 	}
 }
 
@@ -649,7 +645,7 @@ pmap_qremove(va, count)
 	for (i = 0; i < count; i++) {
 		pte = (unsigned *)vtopte(va);
 		*pte = 0;
-		pmap_update_1pg(va);
+		invltlb_1pg(va);
 		va += PAGE_SIZE;
 	}
 }
@@ -657,7 +653,7 @@ pmap_qremove(va, count)
 /*
  * add a wired page to the kva
  * note that in order for the mapping to take effect -- you
- * should do a pmap_update after doing the pmap_kenter...
+ * should do a invltlb after doing the pmap_kenter...
  */
 PMAP_INLINE void 
 pmap_kenter(va, pa)
@@ -672,7 +668,7 @@ pmap_kenter(va, pa)
 	opte = *pte;
 	*pte = npte;
 	if (opte)
-		pmap_update_1pg(va);
+		invltlb_1pg(va);
 }
 
 /*
@@ -686,7 +682,7 @@ pmap_kremove(va)
 
 	pte = (unsigned *)vtopte(va);
 	*pte = 0;
-	pmap_update_1pg(va);
+	invltlb_1pg(va);
 }
 
 static vm_page_t
@@ -755,11 +751,11 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 		if ((((unsigned)pmap->pm_pdir[PTDPTDI]) & PG_FRAME) ==
 			(((unsigned) PTDpde) & PG_FRAME)) {
 			/*
-			 * Do a pmap_update to make the invalidated mapping
+			 * Do a invltlb to make the invalidated mapping
 			 * take effect immediately.
 			 */
 			pteva = UPT_MIN_ADDRESS + i386_ptob(m->pindex);
-			pmap_update_1pg(pteva);
+			invltlb_1pg(pteva);
 		}
 
 #if defined(PTPHINT)
@@ -1110,7 +1106,6 @@ retry:
 		kmem_free(kernel_map, (vm_offset_t) pmap->pm_pdir, PAGE_SIZE);
 	}
 	pmap->pm_pdir = 0;
-	pmap_update();
 }
 
 /*
@@ -1458,7 +1453,7 @@ pmap_remove_page(pmap, va)
 	ptq = get_ptbase(pmap) + i386_btop(va);
 	if (*ptq) {
 		(void) pmap_remove_pte(pmap, ptq, va);
-		pmap_update_1pg(va);
+		invltlb_1pg(va);
 	}
 	return;
 }
@@ -1546,7 +1541,7 @@ pmap_remove(pmap, sva, eva)
 	}
 
 	if (anyvalid) {
-		pmap_update();
+		invltlb();
 	}
 	pmap_unlock(pmap);
 }
@@ -1592,29 +1587,31 @@ pmap_remove_all(pa)
 	while ((pv = TAILQ_FIRST(&ppv->pv_list)) != NULL) {
 		pmap_lock(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-		if (tpte = *pte) {
-			pv->pv_pmap->pm_stats.resident_count--;
-			*pte = 0;
-			if (tpte & PG_W)
-				pv->pv_pmap->pm_stats.wired_count--;
-			/*
-			 * Update the vm_page_t clean and reference bits.
-			 */
-			if (tpte & PG_M) {
+
+		pv->pv_pmap->pm_stats.resident_count--;
+
+		tpte = *pte;
+		*pte = 0;
+		if (tpte & PG_W)
+			pv->pv_pmap->pm_stats.wired_count--;
+		/*
+		 * Update the vm_page_t clean and reference bits.
+		 */
+		if (tpte & PG_M) {
 #if defined(PMAP_DIAGNOSTIC)
-				if (pmap_nw_modified((pt_entry_t) tpte)) {
-					printf("pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n", pv->pv_va, tpte);
-				}
+			if (pmap_nw_modified((pt_entry_t) tpte)) {
+				printf("pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n", pv->pv_va, tpte);
+			}
 #endif
-				if (pmap_track_modified(pv->pv_va))
-					ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
-			}
-			if (!update_needed &&
-				((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
-				(pv->pv_pmap == kernel_pmap))) {
-				update_needed = 1;
-			}
+			if (pmap_track_modified(pv->pv_va))
+				ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
 		}
+		if (!update_needed &&
+			((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
+			(pv->pv_pmap == kernel_pmap))) {
+			update_needed = 1;
+		}
+
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		--ppv->pv_list_count;
@@ -1624,7 +1621,7 @@ pmap_remove_all(pa)
 	}
 
 	if (update_needed)
-		pmap_update();
+		invltlb();
 	splx(s);
 	return;
 }
@@ -1700,7 +1697,7 @@ pmap_protect(pmap, sva, eva, prot)
 	}
 	pmap_unlock(pmap);
 	if (anychanged)
-		pmap_update();
+		invltlb();
 }
 
 /*
@@ -1848,7 +1845,7 @@ validate:
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
 		*pte = newpte;
 		if (origpte)
-			pmap_update_1pg(va);
+			invltlb_1pg(va);
 	}
 	pmap_unlock(pmap);
 }
@@ -2206,7 +2203,7 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 	dst_frame = ((unsigned) dst_pmap->pm_pdir[PTDPTDI]) & PG_FRAME;
 	if (dst_frame != (((unsigned) APTDpde) & PG_FRAME)) {
 		APTDpde = (pd_entry_t) (dst_frame | PG_RW | PG_V);
-		pmap_update();
+		invltlb();
 	}
 
 	for(addr = src_addr; addr < end_addr; addr = pdnxt) {
@@ -2300,7 +2297,7 @@ pmap_zero_page(phys)
 	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME);
 	bzero(CADDR2, PAGE_SIZE);
 	*(int *) CMAP2 = 0;
-	pmap_update_1pg((vm_offset_t) CADDR2);
+	invltlb_1pg((vm_offset_t) CADDR2);
 }
 
 /*
@@ -2324,7 +2321,7 @@ pmap_copy_page(src, dst)
 
 	*(int *) CMAP1 = 0;
 	*(int *) CMAP2 = 0;
-	pmap_update_2pg( (vm_offset_t) CADDR1, (vm_offset_t) CADDR2);
+	invltlb_2pg( (vm_offset_t) CADDR1, (vm_offset_t) CADDR2);
 }
 
 
@@ -2384,12 +2381,14 @@ pmap_page_exists(pmap, pa)
 	return (FALSE);
 }
 
-#ifdef NOT_USED_YET
 #define PMAP_REMOVE_PAGES_CURPROC_ONLY
 /*
  * Remove all pages from specified address space
  * this aids process exit speeds.  Also, this code
- * is special cased for current process only.
+ * is special cased for current process only, but
+ * can have the more generic (and slightly slower)
+ * mode enabled.  This is much faster than pmap_remove
+ * in the case of running down an entire address space.
  */
 void
 pmap_remove_pages(pmap, sva, eva)
@@ -2452,10 +2451,9 @@ pmap_remove_pages(pmap, sva, eva)
 		free_pv_entry(pv);
 	}
 	splx(s);
-	pmap_update();
+	invltlb();
 	pmap_unlock(pmap);
 }
-#endif
 
 /*
  * pmap_testbit tests bits in pte's
@@ -2530,7 +2528,6 @@ pmap_changebit(pa, bit, setem)
 	register pv_entry_t pv;
 	pv_table_t *ppv;
 	register unsigned *pte;
-	vm_offset_t va;
 	int changed;
 	int s;
 
@@ -2549,8 +2546,6 @@ pmap_changebit(pa, bit, setem)
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 
-		va = pv->pv_va;
-
 		/*
 		 * don't write protect pager mappings
 		 */
@@ -2561,13 +2556,13 @@ pmap_changebit(pa, bit, setem)
 
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%lx\n", va);
+			printf("Null pmap (cb) at va: 0x%lx\n", pv->pv_va);
 			continue;
 		}
 #endif
 
 		pmap_lock(pv->pv_pmap);
-		pte = pmap_pte_quick(pv->pv_pmap, va);
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		if (pte == NULL) {
 			pmap_unlock(pv->pv_pmap);
 			continue;
@@ -2593,7 +2588,7 @@ pmap_changebit(pa, bit, setem)
 	}
 	splx(s);
 	if (changed)
-		pmap_update();
+		invltlb();
 }
 
 /*
@@ -2729,7 +2724,7 @@ pmap_ts_referenced(vm_offset_t pa)
 	}
 	splx(s);
 	if (rtval) {
-		pmap_update();
+		invltlb();
 	}
 	return (rtval);
 }
@@ -2765,17 +2760,6 @@ pmap_clear_reference(vm_offset_t pa)
 {
 	pmap_changebit((pa), PG_A, FALSE);
 }
-
-#if 0
-void
-pmap_update_map(pmap_t pmap) {
-	unsigned frame = (unsigned) pmap->pm_pdir[PTDPTDI] & PG_FRAME;
-	if ((pmap == kernel_pmap) ||
-		(frame == (((unsigned) PTDpde) & PG_FRAME))) {
-		pmap_update();
-	}
-}
-#endif
 
 /*
  * Miscellaneous support routines follow
@@ -2838,7 +2822,7 @@ pmap_mapdev(pa, size)
 		tmpva += PAGE_SIZE;
 		pa += PAGE_SIZE;
 	}
-	pmap_update();
+	invltlb();
 
 	return ((void *) va);
 }
@@ -2985,10 +2969,12 @@ static void
 pmap_pvdump(pa)
 	vm_offset_t pa;
 {
+	pv_table_t *ppv;
 	register pv_entry_t pv;
 
 	printf("pa %x", pa);
-	for (pv = TAILQ_FIRST(pa_to_pvh(pa));
+	ppv = pa_to_pvh(pa);
+	for (pv = TAILQ_FIRST(&ppv->pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 #ifdef used_to_be

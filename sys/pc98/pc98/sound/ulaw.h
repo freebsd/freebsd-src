@@ -33,6 +33,7 @@ static unsigned char ulaw_dsp[] = {
    129,  129,  129,  129,  128,  128,  128,  128, 
 };
 
+#ifndef DSP_ULAW_NOT_WANTED
 static unsigned char dsp_ulaw[] = {
     31,   31,   31,   32,   32,   32,   32,   33, 
     33,   33,   33,   34,   34,   34,   34,   35, 
@@ -67,3 +68,4 @@ static unsigned char dsp_ulaw[] = {
    163,  163,  162,  162,  162,  162,  161,  161, 
    161,  161,  160,  160,  160,  160,  159,  159, 
 };
+#endif /* !DSP_ULAW_NOT_WANTED */

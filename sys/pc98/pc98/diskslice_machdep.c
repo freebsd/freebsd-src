@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
+ *	$Id: diskslice_machdep.c,v 1.2 1996/07/23 07:46:09 asami Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 #include <stddef.h>
 #include <sys/param.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/disklabel.h>
 #ifndef PC98
 #define	DOSPTYP_EXTENDED	5
