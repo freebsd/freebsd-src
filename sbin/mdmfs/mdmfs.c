@@ -65,6 +65,7 @@ struct mtpt_info {
 	bool		 mi_have_mode;
 };
 
+static	bool compat;		/* Full compatibility with mount_mfs? */
 static	bool debug;		/* Emit debugging information? */
 static	bool loudsubs;		/* Suppress output from helper programs? */
 static	bool norun;		/* Actually run the helper programs? */
@@ -115,8 +116,12 @@ main(int argc, char **argv)
 	newfs_arg = strdup("");
 	mount_arg = strdup("");
 
+	/* If we were started as mount_*, imply -C. */
+	if (strncmp(getprogname(), "mount_", 6) == 0)
+		compat = true;
+
 	while ((ch = getopt(argc, argv,
-	    "a:b:c:Dd:e:F:f:hi:LMm:Nn:O:o:p:Ss:t:w:X")) != -1)
+	    "a:b:Cc:Dd:e:F:f:hi:LMm:Nn:O:o:p:Ss:t:Uw:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -124,10 +129,17 @@ main(int argc, char **argv)
 		case 'b':
 			argappend(&newfs_arg, "-b %s", optarg);
 			break;
+		case 'C':
+			if (compat)
+				usage();
+			compat = true;
+			break;
 		case 'c':
 			argappend(&newfs_arg, "-c %s", optarg);
 			break;
 		case 'D':
+			if (compat)
+				usage();
 			detach = false;
 			break;
 		case 'd':
@@ -153,6 +165,8 @@ main(int argc, char **argv)
 			argappend(&newfs_arg, "-i %s", optarg);
 			break;
 		case 'L':
+			if (compat)
+				usage();
 			loudsubs = true;
 			break;
 		case 'M':
@@ -165,6 +179,8 @@ main(int argc, char **argv)
 			argappend(&newfs_arg, "-m %s", optarg);
 			break;
 		case 'N':
+			if (compat)
+				usage();
 			norun = true;
 			break;
 		case 'n':
@@ -177,6 +193,8 @@ main(int argc, char **argv)
 			argappend(&mount_arg, "-o %s", optarg);
 			break;
 		case 'p':
+			if (compat)
+				usage();
 			if (*optarg >= '0' && *optarg <= '7')
 				mi.mi_mode = strtol(optarg, NULL, 8);
 			if ((mi.mi_mode & ~07777) != 0)
@@ -184,15 +202,24 @@ main(int argc, char **argv)
 			mi.mi_have_mode = true;
 			break;
 		case 'S':
+			if (compat)
+				usage();
 			softdep = false;
 			break;
 		case 's':
 			argappend(&mdconfig_arg, "-s %s", optarg);
 			break;
+		case 'U':
+			softdep = true;
+			break;
 		case 'w':
+			if (compat)
+				usage();
 			extract_ugid(optarg, &mi);
 			break;
 		case 'X':
+			if (compat)
+				usage();
 			debug = true;
 			break;
 		default:
@@ -202,6 +229,12 @@ main(int argc, char **argv)
 	argv += optind;
 	if (argc < 2)
 		usage();
+
+	/* Make compatibility assumptions. */
+	if (compat) {
+		mi.mi_mode = 01777;
+		mi.mi_have_mode = true;
+	}
 
 	/* Derive 'unit' (global). */
 	unitstr = argv[0];
@@ -634,12 +667,23 @@ run(int *ofd, const char *cmdline, ...)
 static void
 usage(void)
 {
+	const char *name;
 
-	fprintf(stderr,
-"usage: %s [-DLMNSX] [-a maxcontig] [-b block-size] [-c cylinders]\n"
+	if (compat)
+		name = getprogname();
+	else
+		name = "mdmfs";
+	if (!compat)
+		fprintf(stderr,
+"Usage: %s [-DLMNSUX] [-a maxcontig [-b block-size] [-c cylinders]\n"
 "\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
 "\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
 "\t[-o mount-options] [-p permissions] [-s size] [-w user:group]\n"
-"\tmd-device mount-point\n", getprogname());
+"\tmd-device mount-point\n", name);
+	fprintf(stderr,
+"Usage: %s -C [-NU] [-a maxcontig] [-b block-size] [-c cylinders]\n"
+"\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
+"\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
+"\t[-o mount-options] [-s size] md-device mount-point\n", name);
 	exit(1);
 }
