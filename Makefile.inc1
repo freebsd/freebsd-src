@@ -684,7 +684,7 @@ buildkernel:
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
-	cd ${.CURDIR}/sys/modules/aic7xxx/aicasm; \
+	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
 	    ${MAKE} -DNO_CPU_CFLAGS ${target}
 .endfor
