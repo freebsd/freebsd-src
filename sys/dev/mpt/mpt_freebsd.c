@@ -512,7 +512,8 @@ mpt_start(union ccb *ccb)
 				 * physical buffer.
 				 */
 				struct bus_dma_segment seg;
-				seg.ds_addr = (bus_addr_t)csio->data_ptr;
+				seg.ds_addr = 
+				    (bus_addr_t)(vm_offset_t)csio->data_ptr;
 				seg.ds_len = csio->dxfer_len;
 				mpt_execute_req(req, &seg, 1, 0);
 			}
