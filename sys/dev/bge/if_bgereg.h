@@ -2131,6 +2131,7 @@ struct bge_softc {
 	u_int8_t		bge_unit;	/* interface number */
 	u_int8_t		bge_extram;	/* has external SSRAM */
 	u_int8_t		bge_tbi;
+	u_int8_t		bge_rx_alignment_bug;
 	u_int32_t		bge_asicrev;
 	struct bge_ring_data	*bge_rdata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
