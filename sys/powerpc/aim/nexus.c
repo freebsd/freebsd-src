@@ -214,12 +214,6 @@ nexus_probe(device_t dev)
 	}
 	device_set_desc(dev, "OpenFirmware Nexus device");
 
-	{
-		u_int	*foo = 0xf8000020;
-		pmap_kenter(0xf8000000, 0xf8000000);
-		printf(">>> uni_n_clock_ctl = %08x\n", *foo);
-		pmap_kremove(0xf8000000);
-	}
 	return (0);
 }
 
