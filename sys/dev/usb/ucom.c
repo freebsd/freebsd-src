@@ -1,5 +1,5 @@
 /*	$NetBSD: ucom.c,v 1.4 1998/12/30 17:46:20 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: ucom.c,v 1.5 1999/01/07 23:31:31 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -99,7 +99,7 @@ USB_MATCH(ucom)
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id &&
 	    id->bInterfaceClass != UCLASS_CDC ||
-	    id->bInterfaceSubClass != USUBCLASS_MODEM)
+	    id->bInterfaceSubClass != USUBCLASS_ABSTRACT_CONTROL_MODEL)
 		return (UMATCH_NONE);
 	return (UMATCH_IFACECLASS_IFACESUBCLASS);
 }
