@@ -10,7 +10,7 @@ ITEMS:'
 
 20000204:
 	libipsec version number changed from 2 to 0.  The original
-	commit of Feb 3 incorrectly set this to 0.  Remove
+	commit of Jan 6 incorrectly set this to 2.  Remove
 	/usr/lib/libipsec.so.2* before the buildworld and rebuild
 	anything that uses libipsec.so after you install the new
 	version.
