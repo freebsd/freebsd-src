@@ -1652,13 +1652,13 @@ NODE *n;
 		return 0;
 	while (*p && strchr(" +-#", *p) != NULL)	/* flags */
 		p++;
-	while (*p && isdigit(*p))	/* width - %*.*g is NOT allowed */
+	while (*p && isdigit((unsigned char)*p))       /* width - %*.*g is NOT allowed */
 		p++;
-	if (*p == '\0' || (*p != '.' && ! isdigit(*p)))
+	if (*p == '\0' || (*p != '.' && ! isdigit((unsigned char)*p)))
 		return 0;
 	if (*p == '.')
 		p++;
-	while (*p && isdigit(*p))	/* precision */
+	while (*p && isdigit((unsigned char)*p))       /* precision */
 		p++;
 	if (*p == '\0' || strchr("efgEG", *p) == NULL)
 		return 0;
