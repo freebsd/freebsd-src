@@ -1113,8 +1113,8 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp,
 
 	/* Done */
 	*destp = node;
-	if (lasthook && hook)
-		*lasthook = hook->peer;
+	if (lasthook != NULL)
+		*lasthook = hook ? hook->peer : NULL;
 	return (0);
 }
 
