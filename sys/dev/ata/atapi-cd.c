@@ -1018,7 +1018,7 @@ acd_geom_start(struct bio *bp)
 	u_int pos, size = cdp->iomax - cdp->iomax % bp->bio_to->sectorsize;
 	struct bio *bp2;
 
-	for (pos = 0; pos < bp->bio_length; pos += bp->bio_length) {
+	for (pos = 0; pos < bp->bio_length; pos += size) {
 	    if (!(bp2 = g_clone_bio(bp))) {
 		bp->bio_error = ENOMEM;
 		break;
