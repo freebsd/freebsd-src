@@ -149,6 +149,7 @@ main(int argc, char *argv[])
 	
 	if (ioctl(targfd, TARGIODEBUG, &debug) == -1) {
 		perror("TARGIODEBUG");
+		(void) ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
 		exit(EX_SOFTWARE);
 	}
 
@@ -156,6 +157,11 @@ main(int argc, char *argv[])
 
 	if (buf == NULL) {
 		fprintf(stderr, "%s: Could not malloc I/O buffer", appname);
+		if (debug) {
+			debug = 0;
+			(void) ioctl(targfd, TARGIODEBUG, &debug);
+		}
+		(void) ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
 		exit(EX_OSERR);
 	}
 
@@ -173,6 +179,10 @@ main(int argc, char *argv[])
 static void
 cleanup()
 {
+	if (debug) {
+		debug = 0;
+		(void) ioctl(targfd, TARGIODEBUG, &debug);
+	}
 	close(targfd);
 
 	if (ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit) == -1) {
