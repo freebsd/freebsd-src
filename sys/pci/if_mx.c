@@ -764,12 +764,13 @@ static void mx_setcfg(sc, media)
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
+		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_HEARTBEAT);
 		if (sc->mx_type == MX_TYPE_98713) {
 			MX_SETBIT(sc, MX_WATCHDOG, MX_WDOG_JABBERDIS);
 			MX_CLRBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
 			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
 			MX_SETBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
-			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+			    MX_NETCFG_SCRAMBLER));
 		} else {
 			MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL|
 				MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER);
@@ -778,12 +779,12 @@ static void mx_setcfg(sc, media)
 
 	if (IFM_SUBTYPE(media) == IFM_10_T) {
 		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
+		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_HEARTBEAT);
 		if (sc->mx_type == MX_TYPE_98713) {
 			MX_SETBIT(sc, MX_WATCHDOG, MX_WDOG_JABBERDIS);
 			MX_CLRBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
 			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
-			MX_SETBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
-			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+			MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PCS);
 		} else {
 			MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
 			MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PCS);
@@ -1418,13 +1419,25 @@ static void mx_tick(xsc)
 {
 	struct mx_softc		*sc;
 	struct mii_data		*mii;
+	struct ifnet		*ifp;
 	int			s;
 
 	s = splimp();
 
 	sc = xsc;
+	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->mx_miibus);
 	mii_tick(mii);
+
+	if (!sc->mx_link) {
+		mii_pollstat(mii);
+		if (mii->mii_media_status & IFM_ACTIVE &&
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+			sc->mx_link++;
+			if (ifp->if_snd.ifq_head != NULL)
+				mx_start(ifp);
+		}
+	}
 
 	sc->mx_stat_ch = timeout(mx_tick, sc, hz);
 
@@ -1617,6 +1630,9 @@ static void mx_start(ifp)
 
 	sc = ifp->if_softc;
 
+	if (!sc->mx_link)
+		return;
+
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 
@@ -1683,7 +1699,6 @@ static void mx_init(xsc)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
 	int			s;
-	u_int32_t		tmp;
 
 	s = splimp();
 
@@ -1717,7 +1732,6 @@ static void mx_init(xsc)
 	}
 
 	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_NO_RXCRC);
-	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_HEARTBEAT);
 	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_STORENFWD);
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_TX_BACKOFF);
 
@@ -1735,13 +1749,14 @@ static void mx_init(xsc)
 	else
 		MX_SETBIT(sc, MX_MAGICPACKET, MX_MAGIC_98715);
 
+#ifdef notdef
 	if (sc->mx_type == MX_TYPE_98713) {
 		MX_CLRBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
 		    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
 		MX_SETBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
 		    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
 	}
-
+#endif
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_TX_THRESH);
 	/*MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);*/
 
@@ -1774,6 +1789,8 @@ static void mx_init(xsc)
 	 */
 	mx_setfilt(sc);
 
+	mii_mediachg(mii);
+
 	/*
 	 * Enable interrupts.
 	 */
@@ -1783,14 +1800,6 @@ static void mx_init(xsc)
 	/* Enable receiver and transmitter. */
 	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_TX_ON|MX_NETCFG_RX_ON);
 	CSR_WRITE_4(sc, MX_RXSTART, 0xFFFFFFFF);
-
-	tmp = mii->mii_media.ifm_cur->ifm_media;
-	mii->mii_media.ifm_cur->ifm_media = IFM_ETHER|IFM_10_T;
-	mii_mediachg(mii);
-	mii->mii_media.ifm_cur->ifm_media = IFM_ETHER|IFM_100_TX;
-	mii_mediachg(mii);
-	mii->mii_media.ifm_cur->ifm_media = tmp;
-	mii_mediachg(mii);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -1813,8 +1822,8 @@ static int mx_ifmedia_upd(ifp)
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->mx_miibus);
-
 	mii_mediachg(mii);
+	sc->mx_link = 0;
 
 	return(0);
 }
@@ -1934,6 +1943,7 @@ static void mx_stop(sc)
 	CSR_WRITE_4(sc, MX_IMR, 0x00000000);
 	CSR_WRITE_4(sc, MX_TXADDR, 0x00000000);
 	CSR_WRITE_4(sc, MX_RXADDR, 0x00000000);
+	sc->mx_link = 0;
 
 	/*
 	 * Free data in the RX lists.
