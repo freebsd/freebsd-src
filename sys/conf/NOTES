@@ -139,8 +139,14 @@ options 	APIC_IO			# Symmetric (APIC) I/O
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
 # WITNESS enables the mutex witness code which detects deadlocks and cycles
 #         during locking operations.
+# WITNESS_DDB causes the witness code to drop into the kernel debugger if
+#	  a lock heirarchy violation occurs or if locks are held when going to
+#	  sleep.
+# WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
 options 	MUTEX_DEBUG
 options 	WITNESS
+options 	WITNESS_DDB
+options 	WITNESS_SKIPSPIN
 
 
 #####################################################################
