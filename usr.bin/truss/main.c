@@ -4,7 +4,7 @@
  * do a lot of the work :).
  */
 /*
- * $Id: main.c,v 1.3 1997/12/06 14:41:41 peter Exp $
+ * $Id: main.c,v 1.4 1997/12/06 17:13:54 sef Exp $
  */
 
 #include <stdio.h>
@@ -196,7 +196,7 @@ main(int ac, char **av) {
 	break;
       }
     }
-    if (ioctl(Procfd, PIOCCONT, &val) == -1)
+    if (ioctl(Procfd, PIOCCONT, val) == -1)
       perror("PIOCCONT");
   } while (pfs.why != S_EXIT);
   return 0;
