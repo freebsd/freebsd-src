@@ -1,0 +1,99 @@
+<HTML><HEAD><TITLE>
+Quick Start
+</TITLE></HEAD><BODY><H3>
+Quick Start
+</H3>
+
+<img align=left src=pic/panda.gif>FAX test image for SATNET (1979).
+
+<p>The baby panda was scanned at University College London and used
+as a FAX test image for a demonstration of the DARPA Atlantic
+SATNET Program and the first transatlantic Internet connection in 1978.
+The computing system used for that demonstration was called the <A
+HREF="http://www.eecis.udel.edu/~mills/database/papers/fuzz.ps">Fuzzball
+</A>. As it happened, this was also the first Internet multimedia
+presentation and the first to use NTP in regular operation. The image
+was widely copied and used for testing purpose throughout much of the
+1980s.
+<br clear=left>
+
+<H4>Introduction</H4>
+
+<p>This page describes what to expect when the NTP daemon <tt>ntpd</tt>
+is started for the first time. The discussion presumes the programs in
+this distribution have been compiled and installed as described in the
+<a href=build.htm>Building and Installing the Distribution</a> page.
+
+<p>When the daemon is started, whether for the first or subsequent
+times, a number of roundtrip samples are required to accumulate reliable
+measurements of network path delay and clock offset relative to the
+server. Normally, this takes about four minutes, after which the local
+clock is synchronized to the server. The daemon behavior at startup
+depends on whether a drift file <tt>ntp.drift</tt> exists. This file
+contains the latest estimate of local clock frequency error. When the
+daemon is started for the first time, it is created after about one hour
+of operation and updated once each hour after that. When the daemon is
+started and the file does not exist, the daemon enters a special mode
+designed to quickly adapt to the particular system clock oscillator time
+and frequency error. This takes approximately 15 minutes, after which
+the time and frequency are set to nominal values and the daemon enters
+normal mode, where the time and frequency are continuously tracked
+relative to the server.
+
+<p>As a practical matter, once the local clock has been set, it very
+rarely strays more than 128 ms relative to the server, even under
+extreme cases of network path congestion and jitter. Sometimes, in
+particular when the daemon is first started, the relative clock offset
+exceeds 128 ms. In such cases the normal behavior of the daemon is to
+set the clock directly, rather than rely on gradual corrections. This
+may cause the clock to be set backwards, if the local clock time is more
+than 128 s in the future relative to the server. In some applications,
+this behavior may be unacceptable. If the <tt>-x</tt> option is included
+on the command line that starts the daemon, the clock will never be
+stepped and only slew corrections will be used.
+
+<p>The issues should be carefully explored before deciding to use the
+<tt>-x</tt> option. The maximum slew rate possible is limited to 500
+parts-per-million (PPM) as a consequence of the correctness principles
+on which the NTP protocol and algorithm design are based. As a result,
+the local clock can take a long time to converge to an acceptable
+offset, about 2000 s for each second the clock is outside the acceptable
+range. During this interval the local clock will not be consistent with
+any other network clock and the system cannot be used for distributed
+applications that require correctly synchronized network time.
+
+<p>There may be an occasional outlyer, where an individual measurement
+exceeds 128 ms. When the frequency of occurrence of these outlyers is
+low, the measurement is discarded and operation continues with the next
+one. However, if the outlyers persist for an interval longer than about
+15 minutes, the next value is believed and the clock stepped or slewed
+as determined by the <tt>-x</tt> option. The usual reason for this
+behavior is when a leap second has occurred, but the reference clock
+receiver has not synchronized to it. When leap second support is
+implemented in the kernel, the kernel implements it as directed by the
+NTP daemon. If this happens and the reference clock source
+resynchronizes correctly within 15 minutes, the transient misbehavior of
+the source is transparent.
+
+<p>It has been observed that, as the result of extreme network
+congestion, the roundtrip delays can exceed three seconds and the
+synchronization distance, which is equal to one-half the roundtrip delay
+plus the error budget terms, can become very large. When the
+synchronization distance exceeds one second, the offset measurement is
+discarded. If this condition persists for several poll intervals, the
+server may be declared unreachable. Sometimes the large jitter results
+in  large frequency errors which result in straying outside the
+acceptable offset range and an eventual step or slew time correction. If
+following such a correction the frequency error is so large that the
+first sample is outside the acceptable range, the daemon enters the same
+state as when the <tt>ntp.drift</tt> file is not present. The intent of
+this behavior is to quickly correct the frequency and restore operation
+to the normal tracking mode. In the most extreme cases
+(<tt>time.ien.it</tt> comes to mind), there may be occasional step/slew
+corrections and subsequent frequency corrections. It helps in these
+cases to use burst mode when configuring the server.
+
+<hr><a href=index.htm><img align=left src=pic/home.gif></a><address><a
+href=mailto:mills@udel.edu> David L. Mills &lt;mills@udel.edu&gt;</a>
+</address></a></body></html>
+
