@@ -1127,7 +1127,7 @@ acd_done(struct atapi_request *request)
 	if ((bp->b_flags & B_READ) == B_WRITE)
 	    cdp->flags |= F_WRITTEN;
     }
-    devstat_end_transaction_buf(&cdp->stats, bp);
+    devstat_end_transaction_buf(cdp->stats, bp);
     biodone(bp);
     acd_start(cdp);
 }
