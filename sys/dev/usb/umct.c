@@ -126,7 +126,7 @@ Static device_method_t umct_methods[] = {
 };
 
 Static driver_t umct_driver = {
-	"umct",
+	"ucom",
 	umct_methods,
 	sizeof(struct umct_softc)
 };
