@@ -171,8 +171,6 @@ makefile()
 		else
 			fprintf(ofp, " -D%s", op->op_name);
 	fprintf(ofp, "\n");
-	if (hadtz == 0)
-		printf("timezone not specified; gmt assumed\n");
 	if ((unsigned)machine > NUSERS) {
 		printf("maxusers config info isn't present, using vax\n");
 		up = &users[MACHINE_VAX-1];
