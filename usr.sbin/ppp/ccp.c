@@ -175,9 +175,9 @@ ccp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "           DEFLATE24:  %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE24]));
 #ifdef HAVE_DES
-  prompt_Printf(arg->prompt, "           MPPE:       %s\n",
+  prompt_Printf(arg->prompt, "           MPPE:       %s",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_MPPE]));
-  prompt_Printf(arg->prompt, "Key Size = %d-bits\n", ccp->cfg.mppe.keybits);
+  prompt_Printf(arg->prompt, " (Key Size = %d-bits)\n", ccp->cfg.mppe.keybits);
 #endif
   return 0;
 }
