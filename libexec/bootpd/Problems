@@ -1,6 +1,11 @@
 
 Common problems and ways to work around them:
 
+Bootpd complains: "bind: Address already in use" and fails to start.
+	You are already running something that has bound the
+	BOOTP listening port number.  Check /etc/inetd.conf or
+	the equivalent for a bootp line (or in startup files).
+
 Bootpd complains that it "can not get IP addr for HOSTNAME"
 
 	If the entry is a "dummy" (not a real host) used only for
@@ -44,4 +49,17 @@ not a fully specified path.
 	Make sure the TFTP directory or home directory tags are set:
 	:td=/tftpboot:	(or)
 	:hd=/usr/boot:	(for example)
+
+My PC clients running Sun's PC-NFS Pro v1.1 fail to receive
+acceptable responses from the bootp server.
+
+	These clients send a request with the DHCP "message length"
+	option and the (new) BOOTP "broadcast flag" both set.
+	The bootp server (on SunOS) will send a fragmented reply
+	unless you override the length with :ms=1024: (or less).
+	The "broadcast flag" is not yet supported, but there is
+	a simple work-around, just add :ra=255.255.255.255:
+	for any clients that need their reply broadcasted.
+	You may need to use a differnet broadcast address.
+	(Thanks to Ivan Auger <ivan.auger@wadsworth.org>)
 

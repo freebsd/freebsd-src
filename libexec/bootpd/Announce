@@ -45,6 +45,7 @@ Problems fixed in this version:
 	When lookup_hwa fails, assume numeric HW address.
 
 Systems on which I have seen this code work:
+	NetBSD-1.0 (BSD-4.4 derivative)
 	SunOS 4.X (Solaris 1.X)
 	SunOS 5.X (Solaris 2.X)
 	System V/386 Rel. 4.0
@@ -52,7 +53,7 @@ Systems on which I have seen this code work:
 Systems on which others say this code works:
 	CDC EP/IX (1.4.3, 2.1.1)
 	DEC Ultrix (4.2, 4.3)
-	NetBSD (Current-8/94)
+	Linux 1.1.81
 	OSF/1 (DEC Alpha CPU)
 
 Please direct questions, comments, and bug reports to:

@@ -23,7 +23,7 @@ extern int hwinfocnt;
 #define P(args) ()
 #endif
 
-extern void setarp P((int, struct in_addr *, u_char *, int));
+extern void setarp P((int, struct in_addr *, int, u_char *, int));
 extern char *haddrtoa P((u_char *, int));
 extern void haddr_conv802 P((u_char *, u_char *, int));
 

@@ -20,11 +20,6 @@ ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ************************************************************************/
 
-#ifndef lint
-static char rcsid[] = "$Id: hash.c,v 1.1.1.1 1994/09/10 14:44:55 csgr Exp $";
-#endif
-
-
 /*
  * Generalized hash table ADT
  *
