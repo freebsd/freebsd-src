@@ -137,9 +137,14 @@ The
 .Fn gets
 function cannot be used securely.
 Because of its lack of bounds checking,
+and the inability for the calling program
+to reliably determine the length of the next incoming line,
 the use of this function enables malicious users
 to arbitrarily change a running program's functionality through
 a buffer overflow attack.
+It is strongly suggested that the
+.Fn fgets
+function be used in all cases.
 (See
 the FSA.)
 .Sh SEE ALSO
@@ -156,17 +161,4 @@ The functions
 and
 .Fn gets
 conform to
-.St -isoC .
-.Sh BUGS
-Since it is usually impossible to ensure that the next input line
-is less than some arbitrary length, and because overflowing the
-input buffer is almost invariably a security violation, programs
-should
-.Em NEVER
-use
-.Fn gets .
-The
-.Fn gets
-function
-exists purely to conform to
 .St -isoC .
