@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.60 1994/11/06 00:23:45 bde Exp $
+ *	$Id: sio.c,v 1.61 1994/12/01 23:48:09 ache Exp $
  */
 
 #include "sio.h"
@@ -534,7 +534,7 @@ static struct kern_devconf kdc_sio[NSIO] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
+	DC_UNCONFIGURED,
 	"RS-232 serial port"
 } };
 
@@ -549,6 +549,7 @@ sioregisterdev(id)
 		kdc_sio[unit] = kdc_sio[0];
 	kdc_sio[unit].kdc_unit = unit;
 	kdc_sio[unit].kdc_isa = id;
+	kdc_sio[unit].kdc_state = DC_IDLE;
 	dev_attach(&kdc_sio[unit]);
 }
 
@@ -771,6 +772,7 @@ open_top:
 		if (error != 0)
 			goto out;
 	}
+	kdc_sio[unit].kdc_state = DC_BUSY;
 	if (tp->t_state & TS_ISOPEN) {
 		/*
 		 * The device is open, so everything has been initialized.
@@ -961,6 +963,8 @@ comhardclose(com)
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
+	if (!(com->state & CS_DTR_OFF))
+		kdc_sio[unit].kdc_state = DC_IDLE;
 	splx(s);
 }
 
@@ -1015,6 +1019,7 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
+	kdc_sio[DEV_TO_UNIT(com->tp->t_dev)].kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }
 
