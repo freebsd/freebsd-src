@@ -1,4 +1,6 @@
 /*
+ * $Id: scsi_sa.c,v 1.23 1999/05/09 01:25:34 ken Exp $
+ *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
  * Copyright (c) 1997 Justin T. Gibbs
@@ -25,7 +27,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.22 1999/05/07 07:03:02 phk Exp $
+ *
+ * Substantial subsequent modifications
+ * Copyright (c) 1999 Matthew Jacob
+ *  NASA Ames Research Center,
+ *  Feral Software
  */
 
 #include <sys/param.h>
@@ -86,7 +92,7 @@
 #endif
 
 typedef enum {
-	SA_STATE_NORMAL
+	SA_STATE_NORMAL, SA_STATE_ABNORMAL
 } sa_state;
 
 typedef enum {
@@ -111,7 +117,9 @@ typedef enum {
 				   SA_FLAG_EOF_PENDING),
 	SA_FLAG_INVALID		= 0x0200,
 	SA_FLAG_COMP_ENABLED	= 0x0400,
-	SA_FLAG_COMP_UNSUPP	= 0x0800
+	SA_FLAG_COMP_SUPP	= 0x0800,
+	SA_FLAG_COMP_UNSUPP	= 0x1000,
+	SA_FLAG_TAPE_FROZEN	= 0x2000
 } sa_flags;
 
 typedef enum {
@@ -146,6 +154,7 @@ struct sa_softc {
 	sa_flags	flags;
 	sa_quirks	quirks;
 	struct		buf_queue_head buf_queue;
+	int		queue_count;
 	struct		devstat device_stats;
 	int		blk_gran;
 	int		blk_mask;
@@ -164,6 +173,7 @@ struct sa_softc {
 	int		buffer_mode;
 	int		filemarks;
 	union		ccb saved_ccb;
+
 	/*
 	 * Relative to BOT Location.
 	 */
@@ -213,7 +223,11 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
-		  "VIPER 2525*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
+		  "VIPER 2525*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 1024
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
+		  "T20*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
@@ -238,6 +252,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
 		  " TDC 4200", "*"}, SA_QUIRK_NOCOMP|SA_QUIRK_1FM, 512
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
+		  " SLR*", "*"}, SA_QUIRK_1FM, 0
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "WANGTEK",
@@ -272,7 +290,7 @@ static int		sagetparams(struct cam_periph *periph,
 				    u_int8_t *write_protect, u_int8_t *speed,
 				    int *comp_supported, int *comp_enabled,
 				    u_int32_t *comp_algorithm,
-				  struct scsi_data_compression_page *comp_page);
+				    sa_comp_t *comp_page);
 static int		sasetparams(struct cam_periph *periph,
 				    sa_params params_to_set,
 				    u_int32_t blocksize, u_int8_t density,
@@ -364,9 +382,8 @@ saopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	softc = (struct sa_softc *)periph->softc;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("saaopen: dev=0x%x (unit %d , mode %d, density %d)\n", dev,
-	     unit, mode, density));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE|CAM_DEBUG_INFO,
+	    ("saopen(%d): dev=0x%x softc=0x%x\n", unit, unit, softc->flags));
 
 	s = splsoftcam();
 
@@ -423,9 +440,7 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct	cam_periph *periph;
 	struct	sa_softc *softc;
-	int	unit;
-	int	mode;
-	int	error;
+	int	unit, mode, error, writing, tmp;
 	int	closedbits = SA_FLAG_OPEN;
 
 	unit = SAUNIT(dev);
@@ -436,23 +451,34 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	softc = (struct sa_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE|CAM_DEBUG_INFO,
+	    ("saclose(%d): dev=0x%x softc=0x%x\n", unit, unit, softc->flags));
+
+
 	if (SA_IS_CTRL(dev)) {
 		softc->ctrl_mode = 0;
 		return (0);
 	}
 
 	if ((error = cam_periph_lock(periph, PRIBIO)) != 0) {
-		return (error); /* error code from tsleep */
+		return (error);
 	}
 
 	/*
-	 * See whether or not we need to write filemarks...
+	 * Were we writing the tape?
+	 */
+	writing = (softc->flags & SA_FLAG_TAPE_WRITTEN) != 0;
+
+	/*
+	 * See whether or not we need to write filemarks. If this
+	 * fails, we probably have to assume we've lost tape
+	 * position.
 	 */
 	error = sacheckeod(periph);
 	if (error) {
 		xpt_print_path(periph->path);
-		printf("failure at writing filemarks - opting for safety\n");
-		mode = SA_MODE_OFFLINE;
+		printf("failed to write terminating filemark(s)\n");
+		softc->flags |= SA_FLAG_TAPE_FROZEN;
 	}
 
 	/*
@@ -464,18 +490,35 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	 * Decide how to end...
 	 */
 	switch (mode) {
-	default:
-		xpt_print_path(periph->path);
-		printf("unknown close mode %x- opting for safety\n", mode);
-		/* FALLTHROUGH */
 	case SA_MODE_OFFLINE:
-		sarewind(periph);
-		saloadunload(periph, FALSE);
-		closedbits |= SA_FLAG_TAPE_MOUNTED;	/* not mounted now */
+		/*
+		 * An 'offline' close is an unconditional release of
+		 * frozen && mount conditions, irrespective of whether
+		 * these operations succeeded. The reason for this is
+		 * to allow at least some kind of programmatic way
+		 * around our state getting all fouled up. If somebody
+		 * issues an 'offline' command, that will be allowed
+		 * to clear state.
+		 */
+		(void) sarewind(periph);
+		(void) saloadunload(periph, FALSE);
+		closedbits |= SA_FLAG_TAPE_MOUNTED|SA_FLAG_TAPE_FROZEN;
 		break;
 	case SA_MODE_REWIND:
-		sarewind(periph);
-		closedbits |= SA_FLAG_TAPE_MOUNTED;	/* not mounted now */
+		/*
+		 * If the rewind fails, return an error- if anyone cares,
+		 * but not overwriting any previous error.
+		 *
+		 * We don't clear the notion of mounted here, but we do
+		 * clear the notion of frozen if we successfully rewound.
+		 */
+		tmp = sarewind(periph);
+		if (tmp) {
+			if (error != 0)
+				error = tmp;
+		} else {
+			closedbits |= SA_FLAG_TAPE_FROZEN;
+		}
 		break;
 	case SA_MODE_NOREWIND:
 		/*
@@ -484,18 +527,23 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 		 * we wrote (if we wrote two filemarks) so that appends
 		 * from this point on will be sane.
 		 */
-		if ((softc->quirks & SA_QUIRK_2FM) && 
-		    (softc->flags & SA_FLAG_TAPE_WRITTEN)) {
-			error = saspace(periph, -1, SS_FILEMARKS);
-			if (error) {
+		if (error == 0 && writing && (softc->quirks & SA_QUIRK_2FM)) {
+			tmp = saspace(periph, -1, SS_FILEMARKS);
+			if (tmp) {
 				xpt_print_path(periph->path);
 				printf("unable to backspace over one of double"
-				   " filemarks at EOD- opting for safety\n");
-				sarewind(periph);
-				saloadunload(periph, FALSE);
-				closedbits |= SA_FLAG_TAPE_MOUNTED;
+				   " filemarks at end of tape\n");
+				xpt_print_path(periph->path);
+				printf("it is possible that this device "
+				   " needs a SA_QUIRK_1FM quirk set for it\n");
+				softc->flags |= SA_FLAG_TAPE_FROZEN;
 			}
 		}
+		break;
+	default:
+		xpt_print_path(periph->path);
+		panic("unknown mode 0x%x in saclose\n", mode);
+		/* NOTREACHED */
 		break;
 	}
 
@@ -509,6 +557,15 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	 * And we are no longer open for business.
 	 */
 	softc->flags &= ~closedbits;
+
+	/*
+	 * Inform users if tape state if frozen....
+	 */
+	if (softc->flags & SA_FLAG_TAPE_FROZEN) {
+		xpt_print_path(periph->path);
+		printf("tape is now frozen- use an OFFLINE, REWIND or MTEOM "
+		    "command to clear this state.\n");
+	}
 	
 	/* release the device */
 	sareservereleaseunit(periph, FALSE);
@@ -516,7 +573,7 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 
-	return (0);	
+	return (error);	
 }
 
 /*
@@ -549,6 +606,12 @@ sastrategy(struct buf *bp)
 	if (softc->flags & SA_FLAG_INVALID) {
 		splx(s);
 		bp->b_error = ENXIO;
+		goto bad;
+	}
+
+	if (softc->flags & SA_FLAG_TAPE_FROZEN) {
+		splx(s);
+		bp->b_error = EPERM;
 		goto bad;
 	}
 
@@ -605,6 +668,12 @@ sastrategy(struct buf *bp)
 	 */
 	bufq_insert_tail(&softc->buf_queue, bp);
 
+	softc->queue_count++;
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("sastrategy: enqueuing a %d "
+	    "%s byte %s queue count now %d\n", (int) bp->b_bcount,
+	     (softc->flags & SA_FLAG_FIXED)?  "fixed" : "variable",
+	     (bp->b_flags & B_READ)? "read" : "write", softc->queue_count));
+
 	splx(s);
 	
 	/*
@@ -656,6 +725,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 
 	if (SA_IS_CTRL(dev)) {
 		switch (cmd) {
+		case MTIOCGETEOTMODEL:
 		case MTIOCGET:
 			break;
 		case MTIOCERRSTAT:
@@ -679,6 +749,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			}
 			break;
 
+		case MTIOCSETEOTMODEL:
 		case MTSETBSIZ:
 		case MTSETDNSTY:
 		case MTCOMP:
@@ -709,36 +780,31 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	{
 		struct mtget *g = (struct mtget *)arg;
 
-		CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-		    ("saioctl: MTIOGET\n"));
-
 		bzero(g, sizeof(struct mtget));
 		g->mt_type = MT_ISAR;
-		g->mt_density = softc->media_density;
-		g->mt_blksiz = softc->media_blksize;
 		if (softc->flags & SA_FLAG_COMP_UNSUPP) {
 			g->mt_comp = MT_COMP_UNSUPP;
 			g->mt_comp0 = MT_COMP_UNSUPP;
 			g->mt_comp1 = MT_COMP_UNSUPP;
 			g->mt_comp2 = MT_COMP_UNSUPP;
 			g->mt_comp3 = MT_COMP_UNSUPP;
-		} else if ((softc->flags & SA_FLAG_COMP_ENABLED) == 0) {
-			g->mt_comp = MT_COMP_DISABLED;
-			g->mt_comp0 = MT_COMP_DISABLED;
-			g->mt_comp1 = MT_COMP_DISABLED;
-			g->mt_comp2 = MT_COMP_DISABLED;
-			g->mt_comp3 = MT_COMP_DISABLED;
 		} else {
-			g->mt_comp = softc->comp_algorithm;
+			if ((softc->flags & SA_FLAG_COMP_ENABLED) == 0) {
+				g->mt_comp = MT_COMP_DISABLED;
+			} else {
+				g->mt_comp = softc->comp_algorithm;
+			}
 			g->mt_comp0 = softc->comp_algorithm;
 			g->mt_comp1 = softc->comp_algorithm;
 			g->mt_comp2 = softc->comp_algorithm;
 			g->mt_comp3 = softc->comp_algorithm;
 		}
+		g->mt_density = softc->media_density;
 		g->mt_density0 = softc->media_density;
 		g->mt_density1 = softc->media_density;
 		g->mt_density2 = softc->media_density;
 		g->mt_density3 = softc->media_density;
+		g->mt_blksiz = softc->media_blksize;
 		g->mt_blksiz0 = softc->media_blksize;
 		g->mt_blksiz1 = softc->media_blksize;
 		g->mt_blksiz2 = softc->media_blksize;
@@ -789,6 +855,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		count = mt->mt_count;
 		switch (mt->mt_op) {
 		case MTWEOF:	/* write an end-of-file marker */
+			/* XXXX: NEED TO CLEAR SA_TAPE_WRITTEN */
 			error = sawritefilemarks(periph, count, FALSE);
 			break;
 		case MTWSS:	/* write a setmark */
@@ -862,7 +929,8 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			 * action the user application takes will set again
 			 * whether we need to write filemarks.
 			 */
-			softc->flags &= ~SA_FLAG_TAPE_WRITTEN;
+			softc->flags &=
+			    ~(SA_FLAG_TAPE_WRITTEN|SA_FLAG_TAPE_FROZEN);
 			softc->filemarks = 0;
 			break;
 		}
@@ -871,14 +939,18 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			error = sarewind(periph);
 			/* see above */
 			softc->flags &=
-			    ~SA_FLAG_TAPE_WRITTEN|SA_FLAG_TAPE_MOUNTED;
+			    ~(SA_FLAG_TAPE_WRITTEN|SA_FLAG_TAPE_FROZEN);
 			softc->filemarks = 0;
 			break;
 		case MTERASE:	/* erase */
 			error = saerase(periph, count);
+			softc->flags &=
+			    ~(SA_FLAG_TAPE_WRITTEN|SA_FLAG_TAPE_FROZEN);
 			break;
 		case MTRETENS:	/* re-tension tape */
 			error = saretension(periph);		
+			softc->flags &=
+			    ~(SA_FLAG_TAPE_WRITTEN|SA_FLAG_TAPE_FROZEN);
 			break;
 		case MTOFFL:	/* rewind and put the drive offline */
 
@@ -887,26 +959,29 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			softc->flags &= ~SA_FLAG_TAPE_WRITTEN;
 			softc->filemarks = 0;
 
+			error = sarewind(periph);
+
 			/*
 			 * Be sure to allow media removal before
 			 * attempting the eject.
 			 */
-			saprevent(periph, PR_ALLOW);
-			error = sarewind(periph);
 
+			saprevent(periph, PR_ALLOW);
 			if (error == 0)
 				error = saloadunload(periph, FALSE);
 			else
 				break;
-
-			softc->flags &= ~SA_FLAG_TAPE_LOCKED;
-			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
+			softc->flags &= ~(SA_FLAG_TAPE_LOCKED|
+			    SA_FLAG_TAPE_WRITTEN| SA_FLAG_TAPE_WRITTEN|
+			    SA_FLAG_TAPE_FROZEN);
 			break;
+
 		case MTNOP:	/* no operation, sets status only */
 		case MTCACHE:	/* enable controller cache */
 		case MTNOCACHE:	/* disable controller cache */
 			error = 0;
 			break;
+
 		case MTSETBSIZ:	/* Set block size for device */
 
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE, count,
@@ -994,6 +1069,30 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	case MTIOCHLOCATE:
 		error = sasetpos(periph, 1, (u_int32_t *) arg);
 		break;
+	case MTIOCGETEOTMODEL:
+		error = 0;
+		if (softc->quirks & SA_QUIRK_1FM)
+			mode = 1;
+		else
+			mode = 2;
+		*((u_int32_t *) arg) = mode;
+		break;
+	case MTIOCSETEOTMODEL:
+		error = 0;
+		switch (*((u_int32_t *) arg)) {
+		case 1:
+			softc->quirks &= ~SA_QUIRK_2FM;
+			softc->quirks |= SA_QUIRK_1FM;
+			break;
+		case 2:
+			softc->quirks &= ~SA_QUIRK_1FM;
+			softc->quirks |= SA_QUIRK_2FM;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
 	default:
 		error = cam_periph_ioctl(periph, cmd, arg, saerror);
 		break;
@@ -1031,7 +1130,7 @@ sainit(void)
 					  * This is an immediate CCB,
 					  * so using the stack is OK
 					  */
-		xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
+		xpt_setup_ccb(&csa.ccb_h, path, 5);
 		csa.ccb_h.func_code = XPT_SASYNC_CB;
 		csa.event_enable = AC_FOUND_DEVICE;
 		csa.callback = saasync;
@@ -1092,6 +1191,7 @@ saoninvalidate(struct cam_periph *periph)
 		q_bp->b_flags |= B_ERROR;
 		biodone(q_bp);
 	}
+	softc->queue_count = 0;
 	splx(s);
 
 	xpt_print_path(periph->path);
@@ -1219,9 +1319,8 @@ saregister(struct cam_periph *periph, void *arg)
 
 	/*
  	 * The SA driver supports a blocksize, but we don't know the
-	 * blocksize until we sense the media.  So, set a flag to
+	 * blocksize until we media is inserted.  So, set a flag to
 	 * indicate that the blocksize is unavailable right now.
-	 * We'll clear the flag as soon as we've done a read capacity.
 	 */
 	devstat_add_entry(&softc->device_stats, "sa",
 			  periph->unit_number, 0,
@@ -1280,6 +1379,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			xpt_release_ccb(start_ccb);
 		} else if ((softc->flags & SA_FLAG_ERR_PENDING) != 0) {
 			struct buf *done_bp;
+			softc->queue_count--;
 			bufq_remove(&softc->buf_queue, bp);
 			bp->b_resid = bp->b_bcount;
 			bp->b_flags |= B_ERROR;
@@ -1304,10 +1404,10 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			if (bp == NULL)
 				softc->flags &= ~SA_FLAG_ERR_PENDING;
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-			    ("sastart- coping with pending error %x, %smore "
-			     "buffers queued up\n",
+			    ("sastart- ERR_PENDING now 0x%x, bp is %sNULL, "
+			    "%d more buffers queued up\n",
 			    (softc->flags & SA_FLAG_ERR_PENDING),
-			    (bp == NULL)? "no " : " "));
+			    (bp != NULL)? "not " : " ", softc->queue_count));
 			splx(s);
 			xpt_release_ccb(start_ccb);
 			biodone(done_bp);
@@ -1315,6 +1415,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			u_int32_t length;
 
 			bufq_remove(&softc->buf_queue, bp);
+			softc->queue_count--;
 
 			if ((softc->flags & SA_FLAG_FIXED) != 0) {
 				if (softc->blk_shift != 0) {
@@ -1340,7 +1441,6 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 				    ("Variable Record Count is %d\n", length));
 			}
 			devstat_start_transaction(&softc->device_stats);
-
 			/*
 			 * Some people have theorized that we should
 			 * suppress illegal length indication if we are
@@ -1363,18 +1463,11 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			 */
 			softc->dsreg = (bp->b_flags & B_READ)?
 			    MTIO_DSREG_RD : MTIO_DSREG_WR;
-			scsi_sa_read_write(&start_ccb->csio,
-					   /* No Retries */0,
-					   sadone,
-					   MSG_SIMPLE_Q_TAG,
-					   bp->b_flags & B_READ,
-					   /*SILI*/FALSE,
-					   softc->flags & SA_FLAG_FIXED,
-					   length,
-					   bp->b_data,
-					   bp->b_bcount,
-					   SSD_FULL_SIZE,
-					   120 * 60 * 1000); /* 2min */
+			scsi_sa_read_write(&start_ccb->csio, 0, sadone,
+			    MSG_SIMPLE_Q_TAG, (bp->b_flags & B_READ) != 0,
+			    FALSE, (softc->flags & SA_FLAG_FIXED) != 0,
+			    length, bp->b_data, bp->b_bcount, SSD_FULL_SIZE,
+			    120 * 60 * 1000);
 			start_ccb->ccb_h.ccb_type = SA_CCB_BUFFER_IO;
 			start_ccb->ccb_h.ccb_bp = bp;
 			bp = bufq_first(&softc->buf_queue);
@@ -1384,10 +1477,14 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 		
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, /* XXX priority */1);
+			xpt_schedule(periph, 1);
 		}
 		break;
 	}
+	case SA_STATE_ABNORMAL:
+	default:
+		panic("state 0x%x in sastart", softc->state);
+		break;
 	}
 }
 
@@ -1446,7 +1543,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->b_resid = bp->b_bcount;
 			bp->b_error = error;
 			bp->b_flags |= B_ERROR;
-			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
 			/*
 			 * In the error case, position is updated in saerror.
 			 */
@@ -1476,6 +1572,12 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 				}
 			}
 		}
+		/*
+		 * If we had an error (immediate or pending),
+		 * release the device queue now.
+		 */
+		if (error || (softc->flags & SA_FLAG_ERR_PENDING))
+			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
 #ifdef	CAMDEBUG
 		if (error || bp->b_resid) {
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
@@ -1500,7 +1602,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	xpt_release_ccb(done_ccb);
 }
-
 
 /*
  * Mount the tape (make sure it's ready for I/O).
@@ -1527,19 +1628,21 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 	error = 0;
 
 	/*
-	 * Determine if something has happend since the last
-	 * open/mount that would invalidate a mount.  This
-	 * will also eat any pending UAs.
+	 * This *should* determine if something has happend since the last
+	 * open/mount that would invalidate the mount, but is currently
+	 * broken.
+	 *
+	 * This will also eat any pending UAs.
 	 */
 	scsi_test_unit_ready(csio, 1, sadone,
-	    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, 5000);
+	    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, 5 * 60 * 1000);
 
+	/*
+	 * Because we're not supplying a error routine, cam_periph_runccb
+	 * will unfreeze the queue if there was an error.
+	 */
 	cam_periph_runccb(ccb, NULL, 0, 0, &softc->device_stats);
 
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {	
-		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
-		softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
-	}
 
 	if ((softc->flags & SA_FLAG_TAPE_MOUNTED) == 0) {
 		struct	scsi_read_block_limits_data *rblim = NULL;
@@ -1551,7 +1654,7 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		 */
 		softc->flags &= ~(SA_FLAG_TAPE_WP|SA_FLAG_TAPE_WRITTEN|
 				  SA_FLAG_ERR_PENDING|SA_FLAG_COMP_ENABLED|
-				  SA_FLAG_COMP_UNSUPP);
+				  SA_FLAG_COMP_SUPP|SA_FLAG_COMP_UNSUPP);
 		softc->filemarks = 0;
 
 		/*
@@ -1664,14 +1767,16 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 					SCSI_DENSITY_HALFINCH_6250,
 					SCSI_DENSITY_HALFINCH_1600,
 					SCSI_DENSITY_HALFINCH_800,
-					SCSI_DENSITY_QIC_3080,
-					SCSI_DENSITY_QIC_1320,
+					SCSI_DENSITY_QIC_4GB,
+					SCSI_DENSITY_QIC_2GB,
 					SCSI_DENSITY_QIC_525_320,
 					SCSI_DENSITY_QIC_150,
 					SCSI_DENSITY_QIC_120,
 					SCSI_DENSITY_QIC_24,
 					SCSI_DENSITY_QIC_11_9TRK,
 					SCSI_DENSITY_QIC_11_4TRK,
+					SCSI_DENSITY_QIC_1320,
+					SCSI_DENSITY_QIC_3080,
 					0
 				};
 				for (i = 0; ctry[i]; i++) {
@@ -1690,11 +1795,18 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 			case SCSI_DENSITY_QIC_24:
 			case SCSI_DENSITY_QIC_120:
 			case SCSI_DENSITY_QIC_150:
-			case SCSI_DENSITY_QIC_525_320:
 			case SCSI_DENSITY_QIC_1320:
 			case SCSI_DENSITY_QIC_3080:
+				softc->quirks &= ~SA_QUIRK_2FM;
 				softc->quirks |= SA_QUIRK_FIXED|SA_QUIRK_1FM;
 				softc->last_media_blksize = 512;
+				break;
+			case SCSI_DENSITY_QIC_4GB:
+			case SCSI_DENSITY_QIC_2GB:
+			case SCSI_DENSITY_QIC_525_320:
+				softc->quirks &= ~SA_QUIRK_2FM;
+				softc->quirks |= SA_QUIRK_FIXED|SA_QUIRK_1FM;
+				softc->last_media_blksize = 1024;
 				break;
 			default:
 				softc->last_media_blksize =
@@ -1716,6 +1828,7 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 			case SCSI_DENSITY_HALFINCH_6250:
 			case SCSI_DENSITY_HALFINCH_6250C:
 			case SCSI_DENSITY_HALFINCH_PE:
+				softc->quirks &= ~SA_QUIRK_1FM;
 				softc->quirks |= SA_QUIRK_2FM;
 				break;
 			default:
@@ -1835,7 +1948,9 @@ tryagain:
 			if (softc->saved_comp_algorithm == 0)
 				softc->saved_comp_algorithm =
 				    softc->comp_algorithm;
-			softc->flags |= SA_FLAG_COMP_ENABLED;
+			softc->flags |= SA_FLAG_COMP_SUPP;
+			if (comp_enabled)
+				softc->flags |= SA_FLAG_COMP_ENABLED;
 		} else
 			softc->flags |= SA_FLAG_COMP_UNSUPP;
 
@@ -1862,8 +1977,11 @@ exit:
 			softc->dsreg = MTIO_DSREG_REST;
 		}
 #if	SA_2FM_AT_EOD == 1
-		if ((softc->quirks & SA_QUIRK_1FM) == 0) 
+		if ((softc->quirks & SA_QUIRK_1FM) == 0)
 			softc->quirks |= SA_QUIRK_2FM;
+#else
+		if ((softc->quirks & SA_QUIRK_2FM) == 0)
+			softc->quirks |= SA_QUIRK_1FM;
 #endif
 	} else
 		xpt_release_ccb(ccb);
@@ -1883,8 +2001,7 @@ sacheckeod(struct cam_periph *periph)
 
 	if ((softc->flags & SA_FLAG_TAPE_WRITTEN) != 0) {
 		markswanted++;
-		if ((softc->quirks & (SA_QUIRK_2FM|SA_QUIRK_1FM)) ==
-		    SA_QUIRK_2FM)
+		if (softc->quirks & SA_QUIRK_2FM)
 			markswanted++;
 	}
 
@@ -1898,15 +2015,18 @@ sacheckeod(struct cam_periph *periph)
 }
 
 static int
-saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 {
+	static const char *toobig =
+	    "%d-byte tape record bigger than suplied buffer\n";
 	struct	cam_periph *periph;
 	struct	sa_softc *softc;
 	struct	ccb_scsiio *csio;
 	struct	scsi_sense_data *sense;
-	u_int32_t info, resid;
+	u_int32_t resid;
+	int32_t	info;
 	int	error_code, sense_key, asc, ascq;
-	int	error;
+	int	error, defer_action;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct sa_softc *)periph->softc;
@@ -1914,9 +2034,13 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	sense = &csio->sense_data;
 	scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
 	error = 0;
+
+	/*
+	 * Calculate/latch up, any residuals...
+	 */
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR) {
 		if ((sense->error_code & SSD_ERRCODE_VALID) != 0) {
-			info = scsi_4btoul(sense->info);
+			info = (int32_t) scsi_4btoul(sense->info);
 			resid = info;
 			if ((softc->flags & SA_FLAG_FIXED) != 0)
 				resid *= softc->media_blksize;
@@ -1943,77 +2067,115 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		}
 	}
 
-	if (((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR)
-	 && ((sense->flags & (SSD_EOM|SSD_FILEMARK|SSD_ILI)) != 0)
-	 && ((sense_key == SSD_KEY_NO_SENSE)
-	  || (sense_key == SSD_KEY_BLANK_CHECK))) {
-		int	defer_action;
+	/*
+	 * If it's neither a SCSI Check Condition Error nor a non-read/write
+	 * command, let the common code deal with it the error setting.
+	 */
+	if ((csio->ccb_h.status & CAM_STATUS_MASK) != CAM_SCSI_STATUS_ERROR ||
+	    (csio->ccb_h.ccb_type == SA_CCB_WAITING)) {
+		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
+	}
 
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-		    ("Key 0x%x ASC/ASCQ 0x%x 0x%x flags 0x%x resid %d "
-		    "dxfer_len %d\n", sense_key, asc, ascq,
-		    sense->flags & ~SSD_KEY_RESERVED, resid,
-		    csio->dxfer_len));
+	/*
+	 * Calculate whether we'll defer action.
+	 */
+
+	if (resid > 0 && resid < csio->dxfer_len &&
+	    (softc->flags & SA_FLAG_FIXED) != 0) {
+		defer_action = TRUE;
+	} else {
+		defer_action = FALSE;
+	}
+
+	/*
+	 * Handle filemark, end of tape, mismatched record sizes....
+	 * From this point out, we're only handling read/write cases.
+	 * Handle writes && reads differently.
+	 */
+	
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ 0x%x "
+	    "0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key, asc, ascq,
+	    sense->flags & ~SSD_KEY_RESERVED, resid, csio->dxfer_len));
 		 
-		if (resid > 0 && resid < csio->dxfer_len &&
-		    (softc->flags & SA_FLAG_FIXED) != 0)
-			defer_action = TRUE;
-		else
-			defer_action = FALSE;
-
-		if ((sense->flags & SSD_EOM) != 0
-		 || (sense_key == 0x8 /* BLANK CHECK*/)) {
-			csio->resid = resid;
-			if (defer_action) {
-				softc->flags |= SA_FLAG_EOM_PENDING;
-			} else {
-				if (csio->cdb_io.cdb_bytes[0] == SA_WRITE)
-					error = ENOSPC;
-				else
-					error = EIO;
-			}
-		}
-		if ((sense->flags & SSD_FILEMARK) != 0) {
-			csio->resid = resid;
-			if (defer_action)
-				softc->flags |= SA_FLAG_EOF_PENDING;
+	if (csio->cdb_io.cdb_bytes[0] == SA_WRITE) {
+		if (sense->flags & SSD_FILEMARK) {
+			xpt_print_path(csio->ccb_h.path);
+			printf("filemark detected on write?\n");
 			if (softc->fileno != (daddr_t) -1) {
 				softc->fileno++;
 				softc->blkno = 0;
 			}
 		}
-		if (sense->flags & SSD_ILI) {
-			if (info < 0) {
-				/*
-				 * The record was too big.
-				 */
-				xpt_print_path(csio->ccb_h.path);
-				printf("%d-byte tape record bigger "
-				       "than suplied read buffer\n",
-				       csio->dxfer_len - info);
-				csio->resid = csio->dxfer_len;
-				error = EIO;
+		if (sense->flags & SSD_EOM) {
+			csio->resid = resid;
+			if (defer_action) {
+				error = -1;
+				softc->flags |= SA_FLAG_EOM_PENDING;
 			} else {
-				csio->resid = resid;
-				if ((softc->flags & SA_FLAG_FIXED) != 0) {
-					if (defer_action)
-						softc->flags |=
-						    SA_FLAG_EIO_PENDING;
-					else
-						error = EIO;
-				} else if ((sense->flags & SSD_FILEMARK) == 0) {
-					if (softc->blkno != (daddr_t) -1) {
-						softc->blkno++;
-					}
+				error = ENOSPC;
+			}
+		}
+	} else {
+		if (sense_key == SSD_KEY_BLANK_CHECK) {
+			csio->resid = resid;
+			if (defer_action) {
+				error = -1;
+				softc->flags |= SA_FLAG_EOM_PENDING;
+			} else {
+				error = EIO;
+			}
+		}
+		if (sense->flags & SSD_FILEMARK) {
+			csio->resid = resid;
+			if (defer_action) {
+				error = -1;
+				softc->flags |= SA_FLAG_EOF_PENDING;
+			}
+			/*
+			 * Unconditionally, if we detected a filemark on a read,
+			 * mark that we've run moved a file ahead.
+			 */
+			if (softc->fileno != (daddr_t) -1) {
+				softc->fileno++;
+				softc->blkno = 0;
+			}
+		}
+	}
+	/*
+	 * Incorrect Length usually applies to read, but can apply to writes.
+	 */
+	if (error == 0 && (sense->flags & SSD_ILI)) {
+		if (info < 0) {
+			xpt_print_path(csio->ccb_h.path);
+			printf(toobig, csio->dxfer_len - info);
+			csio->resid = csio->dxfer_len;
+			error = EIO;
+		} else {
+			csio->resid = resid;
+			if ((softc->flags & SA_FLAG_FIXED) != 0) {
+				if (defer_action)
+					softc->flags |= SA_FLAG_EIO_PENDING;
+				else
+					error = EIO;
+			}
+			/*
+			 * Bump the block number if we hadn't seen a filemark.
+			 * Do this independent of errors (we've moved anyway).
+			 */
+			if ((sense->flags & SSD_FILEMARK) == 0) {
+				if (softc->blkno != (daddr_t) -1) {
+					softc->blkno++;
 				}
 			}
 		}
 	}
 	if (error == 0)
-		error = cam_periph_error(ccb, cam_flags, sense_flags,
-					 &softc->saved_ccb);
+		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
 
-	return (error);
+	if (error == -1)
+		return (0);
+	else
+		return (error);
 }
 
 static int
@@ -2021,21 +2183,29 @@ sagetparams(struct cam_periph *periph, sa_params params_to_get,
 	    u_int32_t *blocksize, u_int8_t *density, u_int32_t *numblocks,
 	    int *buff_mode, u_int8_t *write_protect, u_int8_t *speed,
 	    int *comp_supported, int *comp_enabled, u_int32_t *comp_algorithm,
-	    struct scsi_data_compression_page *comp_page)
+	    sa_comp_t *tcs)
 {
+	sa_comp_t *ntcs;
+        struct scsi_data_compression_page *comp_page;
 	union ccb *ccb;
 	void *mode_buffer;
 	struct scsi_mode_header_6 *mode_hdr;
 	struct scsi_mode_blk_desc *mode_blk;
-	struct scsi_data_compression_page *ncomp_page;
 	int mode_buffer_len;
 	struct sa_softc *softc;
+	u_int8_t cpage;
 	int error;
 	cam_status status;
 
+	if (tcs)
+		comp_page = &tcs->dcomp;
+	else
+		comp_page = NULL;
+
 	softc = (struct sa_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, 1);
+	cpage = SA_DATA_COMPRESSION_PAGE;
 
 retry:
 	mode_buffer_len = sizeof(*mode_hdr) + sizeof(*mode_blk);
@@ -2045,10 +2215,8 @@ retry:
 			*comp_supported = FALSE;
 			params_to_get &= ~SA_PARAM_COMPRESSION;
 		} else
-			mode_buffer_len +=
-				sizeof(struct scsi_data_compression_page);
+			mode_buffer_len += sizeof (sa_comp_t);
 	}
-
 	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK);
 
 	bzero(mode_buffer, mode_buffer_len);
@@ -2057,15 +2225,15 @@ retry:
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
 
 	if (params_to_get & SA_PARAM_COMPRESSION)
-		ncomp_page = (struct scsi_data_compression_page *)&mode_blk[1];
+		ntcs = (sa_comp_t *) &mode_blk[1];
 	else
-		ncomp_page = NULL;
+		ntcs = NULL;
 
 	/* it is safe to retry this */
 	scsi_mode_sense(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
 	    SMS_PAGE_CTRL_CURRENT, (params_to_get & SA_PARAM_COMPRESSION) ?
-	    SA_DATA_COMPRESSION_PAGE : SMS_VENDOR_SPECIFIC_PAGE,
-	    mode_buffer, mode_buffer_len, SSD_FULL_SIZE, 5000);
+	    cpage : SMS_VENDOR_SPECIFIC_PAGE, mode_buffer, mode_buffer_len,
+	    SSD_FULL_SIZE, 5000);
 
 	error = cam_periph_runccb(ccb, saerror, 0,
 	    SF_NO_PRINT, &softc->device_stats);
@@ -2077,112 +2245,120 @@ retry:
 
 	if (error == EINVAL && (params_to_get & SA_PARAM_COMPRESSION) != 0) {
 		/*
-		 * Most likely doesn't support the compression
-		 * page.  Remember this for the future and attempt
-		 * the request without asking for compression info.
+		 * Hmm. Let's see if we can try another page...
+		 * If we've already done that, give up on compression
+		 * for this device and remember this for the future
+		 * and attempt the request without asking for compression
+		 * info.
 		 */
+		if (cpage == SA_DATA_COMPRESSION_PAGE) {
+			cpage = SA_DEVICE_CONFIGURATION_PAGE;
+			goto retry;
+		}
 		softc->quirks |= SA_QUIRK_NOCOMP;
 		free(mode_buffer, M_TEMP);
 		goto retry;
-	} else if (error == 0) {
-		struct scsi_data_compression_page *temp_comp_page;
-
-		temp_comp_page = NULL;
-
-		/*
-		 * If the user only wants the compression information, and
-		 * the device doesn't send back the block descriptor, it's
-		 * no big deal.  If the user wants more than just
-		 * compression, though, and the device doesn't pass back the
-		 * block descriptor, we need to send another mode sense to
-		 * get the block descriptor.
-		 */
-		if ((mode_hdr->blk_desc_len == 0) 
-		 && (params_to_get & SA_PARAM_COMPRESSION)
-		 && ((params_to_get & ~(SA_PARAM_COMPRESSION)) != 0)) {
-
-			/*
-			 * Decrease the mode buffer length by the size of
-			 * the compression page, to make sure the data
-			 * there doesn't get overwritten.
-			 */
-			mode_buffer_len -= sizeof(*ncomp_page);
-
-			/*
-			 * Now move the compression page that we presumably
-			 * got back down the memory chunk a little bit so
-			 * it doesn't get spammed.
-			 */
-			temp_comp_page =
-			      (struct scsi_data_compression_page *)&mode_hdr[1];
-			bcopy(temp_comp_page, ncomp_page, sizeof(*ncomp_page));
-
-			/*
-			 * Now, we issue another mode sense and just ask
-			 * for the block descriptor, etc.
-			 */
-			scsi_mode_sense(&ccb->csio,
-					/*retries*/ 1,
-					/*cbfcnp*/ sadone,
-					/*tag_action*/ MSG_SIMPLE_Q_TAG,
-					/*dbd*/ FALSE,
-					/*page_code*/ SMS_PAGE_CTRL_CURRENT,
-					/*page*/ SMS_VENDOR_SPECIFIC_PAGE,
-					/*param_buf*/ mode_buffer,
-					/*param_len*/ mode_buffer_len,
-					/*sense_len*/ SSD_FULL_SIZE,
-					/*timeout*/ 5000);
-
-			error = cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
-						  /*sense_flags*/ 0,
-						  &softc->device_stats);
-
-			if (error != 0)
-				goto sagetparamsexit;
-
-		}
-
-		if (params_to_get & SA_PARAM_BLOCKSIZE)
-			*blocksize = scsi_3btoul(mode_blk->blklen);
-
-		if (params_to_get & SA_PARAM_NUMBLOCKS)
-			*numblocks = scsi_3btoul(mode_blk->nblocks);
-
-		if (params_to_get & SA_PARAM_BUFF_MODE)
-			*buff_mode = mode_hdr->dev_spec & SMH_SA_BUF_MODE_MASK;
-
-		if (params_to_get & SA_PARAM_DENSITY)
-			*density = mode_blk->density;
-
-		if (params_to_get & SA_PARAM_WP)
-			*write_protect = (mode_hdr->dev_spec & SMH_SA_WP) ?
-					 TRUE : FALSE;
-		if (params_to_get & SA_PARAM_SPEED)
-			*speed = mode_hdr->dev_spec & SMH_SA_SPEED_MASK;
-
-		if (params_to_get & SA_PARAM_COMPRESSION) {
-			*comp_supported =(ncomp_page->dce_and_dcc & SA_DCP_DCC)?
-					 TRUE : FALSE;
-			*comp_enabled = (ncomp_page->dce_and_dcc & SA_DCP_DCE)?
-					TRUE : FALSE;
-			*comp_algorithm =
-				scsi_4btoul(ncomp_page->comp_algorithm);
-			if (comp_page != NULL)
-				bcopy(ncomp_page, comp_page,sizeof(*comp_page));
-		}
-
-		if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
-			int idx;
-			char *xyz = mode_buffer;
-			xpt_print_path(periph->path);
-			printf("Mode Sense Data=");
-			for (idx = 0; idx < mode_buffer_len; idx++)
-				printf(" 0x%02x", xyz[idx] & 0xff);
-			printf("\n");
-		}
 	} else if (status == CAM_SCSI_STATUS_ERROR) {
 		/* Tell the user about the fatal error. */
 		scsi_sense_print(&ccb->csio);
+		goto sagetparamsexit;
+	}
+
+	/*
+	 * If the user only wants the compression information, and
+	 * the device doesn't send back the block descriptor, it's
+	 * no big deal.  If the user wants more than just
+	 * compression, though, and the device doesn't pass back the
+	 * block descriptor, we need to send another mode sense to
+	 * get the block descriptor.
+	 */
+	if ((mode_hdr->blk_desc_len == 0) &&
+	    (params_to_get & SA_PARAM_COMPRESSION) &&
+	    (params_to_get & ~(SA_PARAM_COMPRESSION))) {
+
+		/*
+		 * Decrease the mode buffer length by the size of
+		 * the compression page, to make sure the data
+		 * there doesn't get overwritten.
+		 */
+		mode_buffer_len -= sizeof (sa_comp_t);
+
+		/*
+		 * Now move the compression page that we presumably
+		 * got back down the memory chunk a little bit so
+		 * it doesn't get spammed.
+		 */
+		bcopy(&mode_hdr[1], ntcs, sizeof (sa_comp_t));
+
+		/*
+		 * Now, we issue another mode sense and just ask
+		 * for the block descriptor, etc.
+		 */
+
+		scsi_mode_sense(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+		    SMS_PAGE_CTRL_CURRENT, SMS_VENDOR_SPECIFIC_PAGE,
+		    mode_buffer, mode_buffer_len, SSD_FULL_SIZE, 5000);
+
+		error = cam_periph_runccb(ccb, saerror, 0, 0,
+		    &softc->device_stats);
+
+		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
+
+		if (error != 0)
+			goto sagetparamsexit;
+	}
+
+	if (params_to_get & SA_PARAM_BLOCKSIZE)
+		*blocksize = scsi_3btoul(mode_blk->blklen);
+
+	if (params_to_get & SA_PARAM_NUMBLOCKS)
+		*numblocks = scsi_3btoul(mode_blk->nblocks);
+
+	if (params_to_get & SA_PARAM_BUFF_MODE)
+		*buff_mode = mode_hdr->dev_spec & SMH_SA_BUF_MODE_MASK;
+
+	if (params_to_get & SA_PARAM_DENSITY)
+		*density = mode_blk->density;
+
+	if (params_to_get & SA_PARAM_WP)
+		*write_protect = (mode_hdr->dev_spec & SMH_SA_WP)? TRUE : FALSE;
+
+	if (params_to_get & SA_PARAM_SPEED)
+		*speed = mode_hdr->dev_spec & SMH_SA_SPEED_MASK;
+
+	if (params_to_get & SA_PARAM_COMPRESSION) {
+		if (cpage == SA_DATA_COMPRESSION_PAGE) {
+			struct scsi_data_compression_page *cp = &ntcs->dcomp;
+			*comp_supported =
+			    (cp->dce_and_dcc & SA_DCP_DCC)? TRUE : FALSE;
+			*comp_enabled =
+			    (cp->dce_and_dcc & SA_DCP_DCE)? TRUE : FALSE;
+			*comp_algorithm = scsi_4btoul(cp->comp_algorithm);
+		} else {
+			struct scsi_dev_conf_page *cp = &ntcs->dconf;
+			/*
+			 * We don't really know whether this device supports
+			 * Data Compression if the the algorithm field is
+			 * zero. Just say we do.
+			 */
+			*comp_supported = TRUE;
+			*comp_enabled =
+			    (cp->sel_comp_alg != SA_COMP_NONE)? TRUE : FALSE;
+			*comp_algorithm = cp->sel_comp_alg;
+		}
+		if (tcs != NULL)
+			bcopy(ntcs, tcs , sizeof (sa_comp_t));
+	}
+
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
+		int idx;
+		char *xyz = mode_buffer;
+		xpt_print_path(periph->path);
+		printf("Mode Sense Data=");
+		for (idx = 0; idx < mode_buffer_len; idx++)
+			printf(" 0x%02x", xyz[idx] & 0xff);
+		printf("\n");
 	}
 
 sagetparamsexit:
@@ -2210,12 +2386,12 @@ sagetparamsexit:
  */
 static int
 sasetparams(struct cam_periph *periph, sa_params params_to_set,
-	    u_int32_t blocksize, u_int8_t density, u_int32_t comp_algorithm,
+	    u_int32_t blocksize, u_int8_t density, u_int32_t calg,
 	    u_int32_t sense_flags)
 {
 	struct sa_softc *softc;
 	u_int32_t current_blocksize;
-	u_int32_t current_comp_algorithm;
+	u_int32_t current_calg;
 	u_int8_t current_density;
 	u_int8_t current_speed;
 	int comp_enabled, comp_supported;
@@ -2223,18 +2399,14 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 	int mode_buffer_len;
 	struct scsi_mode_header_6 *mode_hdr;
 	struct scsi_mode_blk_desc *mode_blk;
-	struct scsi_data_compression_page *comp_page;
-	struct scsi_data_compression_page *current_comp_page;
+	sa_comp_t *ccomp, *cpage;
 	int buff_mode;
-	union ccb *ccb;
+	union ccb *ccb = NULL;
 	int error;
 
 	softc = (struct sa_softc *)periph->softc;
 
-	/* silence the compiler */
-	ccb = NULL;
-
-	current_comp_page = malloc(sizeof(*current_comp_page),M_TEMP, M_WAITOK);
+	ccomp = malloc(sizeof (sa_comp_t), M_TEMP, M_WAITOK);
 
 	/*
 	 * Since it doesn't make sense to set the number of blocks, or
@@ -2242,33 +2414,32 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 	 * always want to get the blocksize, so we can set it back to the
 	 * proper value.
 	 */
-	error = sagetparams(periph, params_to_set | SA_PARAM_BLOCKSIZE |
-			    SA_PARAM_SPEED, &current_blocksize,
-			    &current_density, NULL, &buff_mode, NULL,
-			    &current_speed, &comp_supported, &comp_enabled,
-			    &current_comp_algorithm, current_comp_page);
+	error = sagetparams(periph,
+	    params_to_set | SA_PARAM_BLOCKSIZE | SA_PARAM_SPEED,
+	    &current_blocksize, &current_density, NULL, &buff_mode, NULL,
+	    &current_speed, &comp_supported, &comp_enabled,
+	    &current_calg, ccomp);
 
 	if (error != 0) {
-		free(current_comp_page, M_TEMP);
+		free(ccomp, M_TEMP);
 		return(error);
 	}
 
 	mode_buffer_len = sizeof(*mode_hdr) + sizeof(*mode_blk);
 	if (params_to_set & SA_PARAM_COMPRESSION)
-		mode_buffer_len += sizeof(struct scsi_data_compression_page);
+		mode_buffer_len += sizeof (sa_comp_t);
 
 	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK);
-
 	bzero(mode_buffer, mode_buffer_len);
 
 	mode_hdr = (struct scsi_mode_header_6 *)mode_buffer;
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
 
 	if (params_to_set & SA_PARAM_COMPRESSION) {
-		comp_page = (struct scsi_data_compression_page *)&mode_blk[1];
-		bcopy(current_comp_page, comp_page, sizeof(*comp_page));
+		cpage = (sa_comp_t *)&mode_blk[1];
+		bcopy(ccomp, cpage, sizeof (sa_comp_t));
 	} else
-		comp_page = NULL;
+		cpage = NULL;
 
 	/*
 	 * If the caller wants us to set the blocksize, use the one they
@@ -2312,9 +2483,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 	 * just turn compression on, check to make sure that this drive
 	 * supports compression.
 	 */
-	if ((params_to_set & SA_PARAM_COMPRESSION) 
-	 && (current_comp_page->dce_and_dcc & SA_DCP_DCC)) {
-
+	if (params_to_set & SA_PARAM_COMPRESSION) {
 		/*
 		 * If the compression algorithm is 0, disable compression.
 		 * If the compression algorithm is non-zero, enable
@@ -2327,81 +2496,81 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		 * compression was enabled before, set the compression to
 		 * the saved value.
 		 */
-		if (comp_algorithm == 0) {
-			/* disable compression */
-			comp_page->dce_and_dcc &= ~SA_DCP_DCE;
-		} else {
-			/* enable compression */
-			comp_page->dce_and_dcc |= SA_DCP_DCE;
-
-			/* enable decompression */
-			comp_page->dde_and_red |= SA_DCP_DDE;
-
-			if (comp_algorithm != MT_COMP_ENABLE) {
-				/* set the compression algorithm */
-				scsi_ulto4b(comp_algorithm,
-					    comp_page->comp_algorithm);
-
-			} else if ((scsi_4btoul(comp_page->comp_algorithm) == 0)
-				&& (softc->saved_comp_algorithm != 0)) {
-				scsi_ulto4b(softc->saved_comp_algorithm,
-					    comp_page->comp_algorithm);
+		switch (ccomp->hdr.pagecode) {
+		case SA_DATA_COMPRESSION_PAGE:
+		if (ccomp->dcomp.dce_and_dcc & SA_DCP_DCC) {
+			struct scsi_data_compression_page *dcp = &cpage->dcomp;
+			if (calg == 0) {
+				/* disable compression */
+				dcp->dce_and_dcc &= ~SA_DCP_DCE;
+				break;
 			}
+			/* enable compression */
+			dcp->dce_and_dcc |= SA_DCP_DCE;
+			/* enable decompression */
+			dcp->dde_and_red |= SA_DCP_DDE;
+			if (calg != MT_COMP_ENABLE) {
+				scsi_ulto4b(calg, dcp->comp_algorithm);
+			} else if (scsi_4btoul(dcp->comp_algorithm) == 0 &&
+			    softc->saved_comp_algorithm != 0) {
+				scsi_ulto4b(softc->saved_comp_algorithm,
+				    dcp->comp_algorithm);
+			}
+			break;
 		}
-	} else if (params_to_set & SA_PARAM_COMPRESSION) {
-		/*
-		 * The drive doesn't support compression, so turn off the
-		 * set compression bit.
-		 */
-		params_to_set &= ~SA_PARAM_COMPRESSION;
-
-
-		/*
-		 * Should probably do something other than a printf...like
-		 * set a flag in the softc saying that this drive doesn't
-		 * support compression.
-		 */
-		xpt_print_path(periph->path);
-		printf("sasetparams: device does not support compression\n");
-
-		/*
-		 * If that was the only thing the user wanted us to set,
-		 * clean up allocated resources and return with 'operation
-		 * not supported'.
-		 */
-		if (params_to_set == SA_PARAM_NONE) {
-			free(mode_buffer, M_TEMP);
-			return(ENODEV);
+		case SA_DEVICE_CONFIGURATION_PAGE:	/* NOT YET */
+		{
+			struct scsi_dev_conf_page *dcp = &cpage->dconf;
+			if (calg == 0) {
+				dcp->sel_comp_alg = SA_COMP_NONE;
+				break;
+			}
+			if (calg != MT_COMP_ENABLE) {
+				dcp->sel_comp_alg = calg;
+			} else if (dcp->sel_comp_alg == SA_COMP_NONE &&
+			    softc->saved_comp_algorithm != 0) {
+				dcp->sel_comp_alg = softc->saved_comp_algorithm;
+			}
+			break;
 		}
-	
-		/*
-		 * That wasn't the only thing the user wanted us to set.
-		 * So, decrease the stated mode buffer length by the size
-		 * of the compression mode page.
-		 */
-		mode_buffer_len -= sizeof(*comp_page);
+		default:
+			/*
+			 * The drive doesn't support compression,
+			 * so turn off the set compression bit.
+			 */
+			params_to_set &= ~SA_PARAM_COMPRESSION;
+			xpt_print_path(periph->path);
+			printf("device does not support compression\n");
+			/*
+			 * If that was the only thing the user wanted us to set,
+			 * clean up allocated resources and return with
+			 * 'operation not supported'.
+			 */
+			if (params_to_set == SA_PARAM_NONE) {
+				free(mode_buffer, M_TEMP);
+				return(ENODEV);
+			}
+		
+			/*
+			 * That wasn't the only thing the user wanted us to set.
+			 * So, decrease the stated mode buffer length by the
+			 * size of the compression mode page.
+			 */
+			mode_buffer_len -= sizeof(sa_comp_t);
+		}
 	}
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, 1);
 
+	/* It is safe to retry this operation */
+	scsi_mode_select(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
+	    (params_to_set & SA_PARAM_COMPRESSION)? TRUE : FALSE,
+	    FALSE, mode_buffer, mode_buffer_len, SSD_FULL_SIZE, 5000);
 
-	scsi_mode_select(&ccb->csio,
-			/*retries*/1,
-			/*cbfcnp*/ sadone,
-			/*tag_action*/ MSG_SIMPLE_Q_TAG,
-			/*scsi_page_fmt*/(params_to_set & SA_PARAM_COMPRESSION)?
-					 TRUE : FALSE,
-			/*save_pages*/ FALSE,
-			/*param_buf*/ mode_buffer,
-			/*param_len*/ mode_buffer_len,
-			/*sense_len*/ SSD_FULL_SIZE,
-			/*timeout*/ 5000);
+	error = cam_periph_runccb(ccb, saerror, 0,
+	    sense_flags, &softc->device_stats);
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
-				  sense_flags, &softc->device_stats);
-
-	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO) ||
-	    params_to_set == SA_PARAM_BUFF_MODE) {
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
 		int idx;
 		char *xyz = mode_buffer;
 		xpt_print_path(periph->path);
@@ -2439,8 +2608,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		}
 
 		if (params_to_set & SA_PARAM_COMPRESSION)
-			bcopy(current_comp_page, comp_page,
-			      sizeof(struct scsi_data_compression_page));
+			bcopy(ccomp, cpage, sizeof (sa_comp_t));
 
 		/*
 		 * The retry count is the only CCB field that might have been
@@ -2455,17 +2623,23 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		xpt_release_ccb(ccb);
 	}
 
-	if (current_comp_page != NULL)
-		free(current_comp_page, M_TEMP);
+	if (ccomp != NULL)
+		free(ccomp, M_TEMP);
 
 	if (params_to_set & SA_PARAM_COMPRESSION) {
 		if (error) {
 			softc->flags &= ~SA_FLAG_COMP_ENABLED;
+			/*
+			 * Even if we get an error setting compression,
+			 * do not say that we don't support it. We could
+			 * have been wrong, or it may be media specific.
+			 *	softc->flags &= ~SA_FLAG_COMP_SUPP;
+			 */
 			softc->saved_comp_algorithm = softc->comp_algorithm;
 			softc->comp_algorithm = 0;
 		} else {
 			softc->flags |= SA_FLAG_COMP_ENABLED;
-			softc->comp_algorithm = comp_algorithm;
+			softc->comp_algorithm = calg;
 		}
 	}
 
@@ -2525,10 +2699,10 @@ sarewind(struct cam_periph *periph)
 		
 	softc = (struct sa_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, 1);
 
 	/* It is safe to retry this operation */
-	scsi_rewind(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	scsi_rewind(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG, FALSE,
 	    SSD_FULL_SIZE, (SA_REWIND_TIMEOUT) * 60 * 1000);
 
 	softc->dsreg = MTIO_DSREG_REW;
@@ -2555,7 +2729,7 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 		
 	softc = (struct sa_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, 1);
 
 	/* This cannot be retried */
 
@@ -2602,7 +2776,7 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 
 	softc = (struct sa_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, 1);
 
 	softc->dsreg = MTIO_DSREG_FMK;
 	/* this *must* not be retried */
@@ -2643,24 +2817,24 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 {
 	struct scsi_tape_position_data loc;
 	union ccb *ccb;
-	struct sa_softc *softc;
+	struct sa_softc *softc = (struct sa_softc *)periph->softc;
 	int error;
 
 	/*
-	 * First flush any pending writes...
+	 * We have to try and flush any buffered writes here if we were writing.
+	 *
+	 * The SCSI specification is vague enough about situations like
+	 * different sized blocks in a tape drive buffer as to make one
+	 * wary about trying to figure out the actual block location value
+	 * if data is in the tape drive buffer.
 	 */
-	error = sawritefilemarks(periph, 0, 0);
+	ccb = cam_periph_getccb(periph, 1);
 
-	/*
-	 * The latter case is for 'write protected' tapes
-	 * which are too stupid to recognize a zero count
-	 * for writing filemarks as a no-op.
-	 */
-	if (error != 0 && error != EACCES)
-		return (error);
-
-	softc = (struct sa_softc *)periph->softc;
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	if (softc->flags & SA_FLAG_TAPE_WRITTEN) {
+		error = sawritefilemarks(periph, 0, 0);
+		if (error && error != EACCES)
+			return (error);
+	}
 
 	scsi_read_position(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
 	    hard, &loc, SSD_FULL_SIZE, 5000);
@@ -2674,7 +2848,23 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 		if (loc.flags & SA_RPOS_UNCERTAIN) {
 			error = EINVAL;		/* nothing is certain */
 		} else {
+#if	0
+			u_int32_t firstblk, lastblk, nbufblk, nbufbyte;
+
+			firstblk = scsi_4btoul(loc.firstblk);
+			lastblk = scsi_4btoul(loc.lastblk);
+			nbufblk = scsi_4btoul(loc.nbufblk);
+			nbufbyte = scsi_4btoul(loc.nbufbyte);
+			if (lastblk || nbufblk || nbufbyte) {
+				xpt_print_path(periph->path);
+				printf("rdpos firstblk 0x%x lastblk 0x%x bufblk"
+				    " 0x%x bufbyte 0x%x\n", firstblk, lastblk,
+				    nbufblk, nbufbyte);
+			}
+			*blkptr = firstblk;
+#else
 			*blkptr = scsi_4btoul(loc.firstblk);
+#endif
 		}
 	}
 
@@ -2690,20 +2880,15 @@ sasetpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 	int error;
 
 	/*
-	 * First flush any pending writes...
-	 */
-	error = sawritefilemarks(periph, 0, 0);
-
-	/*
-	 * The latter case is for 'write protected' tapes
-	 * which are too stupid to recognize a zero count
-	 * for writing filemarks as a no-op.
-	 */
-	if (error != 0 && error != EACCES)
-		return (error);
+	 * We used to try and flush any buffered writes here.
+	 * Now we push this onto user applications to either
+	 * flush the pending writes themselves (via a zero count
+	 * WRITE FILEMARKS command) or they can trust their tape
+	 * drive to do this correctly for them.
+ 	 */
 
 	softc = (struct sa_softc *)periph->softc;
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, 1);
 
 	
 	scsi_set_position(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
@@ -2716,15 +2901,11 @@ sasetpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
 	xpt_release_ccb(ccb);
 	/*
-	 * Note relative file && block number position now unknown (if
-	 * these things ever start being maintained in this driver).
-	 *
-	 * Do this for any kind of error (to be safe).
+	 * Note relative file && block number position as now unknown.
 	 */
 	softc->fileno = softc->blkno = (daddr_t) -1;
 	return (error);
 }
-
 
 static int
 saretension(struct cam_periph *periph)
@@ -2735,7 +2916,7 @@ saretension(struct cam_periph *periph)
 
 	softc = (struct sa_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, 1);
 
 	/* It is safe to retry this operation */
 	scsi_load_unload(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
@@ -2811,7 +2992,7 @@ saloadunload(struct cam_periph *periph, int load)
 
 	softc = (struct sa_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, 1);
 
 	/* It is safe to retry this operation */
 	scsi_load_unload(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
@@ -2842,7 +3023,7 @@ saerase(struct cam_periph *periph, int longerase)
 
 	softc = (struct sa_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, 1);
 
 	scsi_erase(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG, FALSE, longerase,
 	    SSD_FULL_SIZE, (SA_ERASE_TIMEOUT) * 60 * 1000);
@@ -2871,16 +3052,9 @@ scsi_read_block_limits(struct ccb_scsiio *csio, u_int32_t retries,
 {
 	struct scsi_read_block_limits *scsi_cmd;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/CAM_DIR_IN,
-		      tag_action,
-		      /*data_ptr*/(u_int8_t *)rlimit_buf,
-		      /*dxfer_len*/sizeof(*rlimit_buf),
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_IN, tag_action,
+	     (u_int8_t *)rlimit_buf, sizeof(*rlimit_buf), sense_len,
+	     sizeof(*scsi_cmd), timeout);
 
 	scsi_cmd = (struct scsi_read_block_limits *)&csio->cdb_io.cdb_bytes;
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
@@ -2906,16 +3080,9 @@ scsi_sa_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_ulto3b(length, scsi_cmd->length);
 	scsi_cmd->control = 0;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/readop ? CAM_DIR_IN : CAM_DIR_OUT,
-		      tag_action,
-		      data_ptr,
-		      dxfer_len, 
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp, readop ? CAM_DIR_IN : CAM_DIR_OUT,
+	    tag_action, data_ptr, dxfer_len, sense_len,
+	    sizeof(*scsi_cmd), timeout);
 }
 
 void
@@ -2939,16 +3106,8 @@ scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,
 	if (load)
 		scsi_cmd->eot_reten_load |= SLU_LOAD;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);	
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action,
+	    NULL, 0, sense_len, sizeof(*scsi_cmd), timeout);	
 }
 
 void
@@ -2965,16 +3124,8 @@ scsi_rewind(struct ccb_scsiio *csio, u_int32_t retries,
 	if (immediate)
 		scsi_cmd->immediate = SREW_IMMED;
 	
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action, NULL,
+	    0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
@@ -2991,16 +3142,8 @@ scsi_space(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_ulto3b(count, scsi_cmd->count);
 	scsi_cmd->control = 0;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action, NULL,
+	    0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
@@ -3022,16 +3165,8 @@ scsi_write_filemarks(struct ccb_scsiio *csio, u_int32_t retries,
 	
 	scsi_ulto3b(num_marks, scsi_cmd->num_marks);
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action, NULL,
+	    0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 /*
@@ -3060,16 +3195,8 @@ scsi_reserve_release_unit(struct ccb_scsiio *csio, u_int32_t retries,
 			((third_party_id << SRRU_3RD_SHAMT) & SRRU_3RD_MASK);
 	}
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/ NULL,
-		      /*dxfer_len*/ 0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action, NULL,
+	    0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
@@ -3091,16 +3218,8 @@ scsi_erase(struct ccb_scsiio *csio, u_int32_t retries,
 	if (long_erase)
 		scsi_cmd->lun_imm_long |= SE_LONG;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/ NULL,
-		      /*dxfer_len*/ 0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action, NULL,
+	    0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 /*
