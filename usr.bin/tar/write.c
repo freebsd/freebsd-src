@@ -117,7 +117,8 @@ static void		 write_archive(struct archive *, struct bsdtar *);
 static void		 write_entry(struct bsdtar *, struct archive *,
 			     struct stat *, const char *pathname,
 			     unsigned pathlen, const char *accpath);
-static int		 write_file_data(struct archive *, int fd);
+static int		 write_file_data(struct bsdtar *, struct archive *,
+			     int fd);
 static void		 write_heirarchy(struct bsdtar *, struct archive *,
 			     const char *);
 
@@ -727,10 +728,8 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	archive_entry_set_gname(entry, lookup_gname(bsdtar, st->st_gid));
 
 #ifdef HAVE_CHFLAGS
-	if (st->st_flags != 0) {
-		fflags = fflagstostr(st->st_flags);
-		archive_entry_set_fflags(entry, fflags);
-	}
+	if (st->st_flags != 0)
+		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
         archive_entry_copy_stat(entry, st);
@@ -772,7 +771,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	 * that case, just skip the write.
 	 */
 	if (fd >= 0 && archive_entry_size(entry) > 0)
-		write_file_data(a, fd);
+		write_file_data(bsdtar, a, fd);
 
 cleanup:
 	if (fd >= 0)
@@ -790,11 +789,15 @@ cleanup:
 
 /* Helper function to copy file to archive, with stack-allocated buffer. */
 static int
-write_file_data(struct archive *a, int fd)
+write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 {
-	char	buff[8192];
+	char	buff[64*1024];
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
+
+	/* XXX TODO: Allocate buffer on heap and store pointer to
+	 * it in bsdtar structure; arrange cleanup as well. XXX */
+	(void)bsdtar;
 
 	bytes_read = read(fd, buff, sizeof(buff));
 	while (bytes_read > 0) {
