@@ -331,26 +331,22 @@ driver was written by
 This man page comes from
 .Ox .
 .Sh CAVEATS
-The original Lucent WaveLAN cards usually default to channel 3;
-newer cards use channel 10 by default.
-Non-Lucent cards vary, for instance the Addtron cards use channel
-11 by default.
-Different regulatory domains have different default channels.
+Different regulatory domains have different default channels for adhoc
+mode.
+See
+.Xr ifconfig 8
+for information on how to change the channel.
 See
 .Xr wicontrol 8
-for information on how to change the channel.
+for information on different regulatory domains.
 .Pp
-IBSS creation does not currently work with Symbol cards.
-.Pp
-Prism2 host-based access point mode has bugs for firmware versions
-prior to 0.8.3.
+The Intersil Prism family of chips' host-based access point mode has
+bugs for firmware versions prior to 0.8.3.
+The driver currently precludes hostap functionality on old firmware.
 .Pp
 Lucent cards prior to firmware version 6.0.4 do not support IBSS
 mode.
-.Pp
-Symbol LA-4100 series CF cards need firmware downloaded into their RAM
-before they will function.
-This functionality is not presently in
-.Fx Ns 's
-.Nm
-driver.
+.Sh BUGS
+Not all the new messages are documented here, and many of them are
+indications of transient errors that are not indications of serious
+problems.
