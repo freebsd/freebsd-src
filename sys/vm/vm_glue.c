@@ -186,19 +186,22 @@ useracc(addr, len, rw)
 int
 vslock(void *addr, size_t len)
 {
-	vm_offset_t end, start;
-	int error, npages;
+	vm_offset_t end, last, start;
+	vm_size_t npages;
+	int error;
 
+	last = (vm_offset_t)addr + len;
 	start = trunc_page((vm_offset_t)addr);
-	end = round_page((vm_offset_t)addr + len);
-	if (end <= start)
+	end = round_page(last);
+	if (last < (vm_offset_t)addr || end < (vm_offset_t)addr)
 		return (EINVAL);
 	npages = atop(end - start);
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
 	PROC_LOCK(curproc);
-	if (npages + pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map)) >
-	    atop(lim_cur(curproc, RLIMIT_MEMLOCK))) {
+	if (ptoa(npages +
+	    pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))) >
+	    lim_cur(curproc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(curproc);
 		return (ENOMEM);
 	}
