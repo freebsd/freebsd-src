@@ -101,6 +101,11 @@ deinstall or require script fails.
 does pretty much what it says.  It examines installed package records in 
 .Pa /var/db/pkg/<pkg-name> ,
 deletes the package contents, and finally removes the package records.
+If the environment variable
+.Ev PKG_DBDIR
+is set, this overrides the
+.Pa /var/db/pkg/
+path shown above.
 .Pp
 If a package is required by other installed packages,
 .Nm
@@ -218,6 +223,14 @@ option when running
 .Nm
 or
 .Cm pkg_add .
+.Sh ENVIRONMENT
+The environment variable
+.Ev PKG_DBDIR
+specifies an alternative location for the installed package database.
+.Sh FILES
+.Bl -tag -width /var/db/pkg -compact
+.It Pa /var/db/pkg
+Default location of the installed package database.
 .Sh SEE ALSO
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
