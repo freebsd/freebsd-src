@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.53 1998/02/12 08:15:51 kato Exp $
+#	$Id: options.pc98,v 1.54 1998/02/21 15:50:26 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -118,3 +118,11 @@ PCVT_SCANSET		opt_pcvt.h
 PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
+
+# bs driver options
+SCSI_BOUNCE_SIZE	opt_bs.h
+
+# PC98 options
+PC98			opt_global.h
+EPSON_MEMWIN		opt_pc98.h
+COMPAT_ATDISK		opt_pc98.h
