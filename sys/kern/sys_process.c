@@ -203,7 +203,7 @@ ptrace(curp, uap)
 	struct proc *curp;
 	struct ptrace_args *uap;
 {
-	struct proc *p;
+	struct proc *p, *pp;
 	struct iovec iov;
 	struct uio uio;
 	int error = 0;
@@ -240,6 +240,12 @@ ptrace(curp, uap)
 		/* Already traced */
 		if (p->p_flag & P_TRACED)
 			return EBUSY;
+
+		if (curp->p_flag & P_TRACED)
+			for (pp = curp->p_pptr; pp != NULL; pp = pp->p_pptr)
+				if (pp == p)
+					return (EINVAL);
+		  
 
 		/* not owned by you, has done setuid (unless you're root) */
 		if ((p->p_cred->p_ruid != curp->p_cred->p_ruid) ||
