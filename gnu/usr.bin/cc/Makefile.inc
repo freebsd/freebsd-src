@@ -27,7 +27,7 @@ USE_EGCS_HAIFA=	1
 
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 
-CFLAGS+=	-DFREEBSD_NATIVE -DIN_GCC -DHAVE_CONFIG_H
+CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 
 # If building 64-bit longs for the i386, "_LARGE_LONG" should also be defined
