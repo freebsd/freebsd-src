@@ -342,7 +342,7 @@ static void lge_miibus_statchg(dev)
 
 	LGE_CLRBIT(sc, LGE_GMIIMODE, LGE_GMIIMODE_SPEED);
 	switch (IFM_SUBTYPE(mii->mii_media_active)) {
-	case IFM_1000_TX:
+	case IFM_1000_T:
 	case IFM_1000_SX:
 		LGE_SETBIT(sc, LGE_GMIIMODE, LGE_SPEED_1000);
 		break;
@@ -1121,7 +1121,7 @@ static void lge_tick(xsc)
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->lge_link++;
 			if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX||
-			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX)
+			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T)
 				printf("lge%d: gigabit link up\n",
 				    sc->lge_unit);
 			if (ifp->if_snd.ifq_head != NULL)
