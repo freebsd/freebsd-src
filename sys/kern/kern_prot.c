@@ -1301,18 +1301,14 @@ suser_xxx(cred, proc, flag)
 
 
 /*
- * Test securelevel values against passed required securelevel.
- * _gt implements (level > securelevel), and _ge implements
+ * Test (local, globale) securelevel values against passed required
+ * securelevel.  _gt implements (level > securelevel), and _ge implements
  * (level >= securelevel).  Returns 0 oer EPERM.
  *
  * cr is permitted to be NULL for the time being, as there were some
  * existing securelevel checks that occurred without a process/credential
  * context.  In the future this will be disallowed, so a kernel
  * message is displayed.
- *
- * XXX: The redundant construction below is to facilitate the merging
- * of support for per-jail securelevels, which maintain a local
- * jail securelevel in the process credential.
  */
 int
 securelevel_gt(struct ucred *cr, int level)
@@ -1324,12 +1320,18 @@ securelevel_gt(struct ucred *cr, int level)
 			return (0);
 		else
 			return (EPERM);
-	} else {
+	} else if (cr->cr_prison == NULL) {
 		if (level > securelevel)
 			return (0);
 		else
 			return (EPERM);
+	} else {
+		if (level > imax(cr->cr_prison->pr_securelevel, securelevel))
+			return (0);
+		else
+			return (EPERM);
 	}
+
 }
 
 int
@@ -1342,8 +1344,13 @@ securelevel_ge(struct ucred *cr, int level)
 			return (0);
 		else
 			return (EPERM);
-	} else {
+	} if (cr->cr_prison == NULL) {
 		if (level >= securelevel)
+			return (0);
+		else
+			return (EPERM);
+	} else {
+		if (level >= imax(cr->cr_prison->pr_securelevel, securelevel))
 			return (0);
 		else
 			return (EPERM);
