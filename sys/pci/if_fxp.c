@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21 1996/10/12 19:49:43 bde Exp $
+ *	$Id: if_fxp.c,v 1.21.2.1 1996/11/18 02:44:50 davidg Exp $
  */
 
 /*
@@ -674,8 +674,7 @@ fxp_stats_update(arg)
 	    sp->rx_crc_errors +
 	    sp->rx_alignment_errors +
 	    sp->rx_rnr_errors +
-	    sp->rx_overrun_errors +
-	    sp->rx_shortframes;
+	    sp->rx_overrun_errors;
 	/*
 	 * If any transmit underruns occured, bump up the transmit
 	 * threshold by another 512 bytes (64 * 8).
@@ -712,7 +711,6 @@ fxp_stats_update(arg)
 		sp->rx_alignment_errors = 0;
 		sp->rx_rnr_errors = 0;
 		sp->rx_overrun_errors = 0;
-		sp->rx_shortframes = 0;;
 	}
 	/*
 	 * Schedule another timeout one second from now.
