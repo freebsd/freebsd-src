@@ -137,7 +137,8 @@ ad_attach(struct ata_device *atadev)
 	adp->total_secs = atadev->param->lba_size;
 
     /* use the 48bit LBA size if valid */
-    if (atadev->param->support.address48)
+    if (atadev->param->support.address48 &&
+	atadev->param->lba_size48 > 268435455)
 	adp->total_secs = atadev->param->lba_size48;
     
     /* use multiple sectors/interrupt if device supports it */
