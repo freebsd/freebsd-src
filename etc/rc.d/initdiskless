@@ -58,10 +58,9 @@
 #
 # If a subdirectory contains the file 'md_size', the contents of the
 # file is used to determine the size of the memory filesystem, in 512
-# byte sectors.  The default is 8192 (4MB).  You only have to specify an
+# byte sectors.  The default is 10240 (5MB).  You only have to specify an
 # md_size if the default doesn't work for you (i.e. if it is too big or
-# too small).  Note that in -current the default is 4096 (2MB).  For
-# example, /conf/base/etc/md_size might contain '16384'.
+# too small).  For example, /conf/base/etc/md_size might contain '16384'.
 #
 # If /conf/<special_dir>/SUBDIR.cpio.gz exists, the file is cpio'd into
 # the specified /SUBDIR (and a memory filesystem is created for /SUBDIR
@@ -112,7 +111,7 @@ mount_md() {
 create_md() {
     if [ "x`eval echo \\$md_created_$1`" = "x" ]; then
 	if [ "x`eval echo \\$md_size_$1`" = "x" ]; then
-	    md_size=4096
+	    md_size=10240
 	else
 	    md_size=`eval echo \\$md_size_$1`
 	fi
