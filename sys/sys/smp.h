@@ -13,7 +13,6 @@
 #define _SYS_SMP_H_
 
 #ifdef _KERNEL
-#include <machine/smp.h>
 
 #ifndef LOCORE
 
