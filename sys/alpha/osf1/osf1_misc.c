@@ -683,16 +683,7 @@ osf1_fstat(td, uap)
 }
 
 
-#if 1
 #define	bsd2osf_dev(dev)	(umajor(dev) << 20 | uminor(dev))
-#define	osf2bsd_dev(dev)	umakedev((umajor(dev) >> 20) & 0xfff, uminor(dev) & 0xfffff)
-#else
-#define	minor(x)		((int)((x)&0xffff00ff))
-#define	major(x)		((int)(((u_int)(x) >> 8)&0xff))
-#define	makedev(x,y)		((dev_t)(((x) << 8) | (y)))
-#define	bsd2osf_dev(dev)	(major(dev) << 20 | minor(dev))
-#define	osf2bsd_dev(dev)	makedev(((dev) >> 20) & 0xfff, (dev) & 0xfffff)
-#endif
 /*
  * Convert from a stat structure to an osf1 stat structure.
  */
@@ -728,19 +719,7 @@ osf1_mknod(td, uap)
 	struct thread *td;
 	struct osf1_mknod_args *uap;
 {
-#if notanymore
-	struct mknod_args a;
-	caddr_t sg;
 
-	sg = stackgap_init();
-        CHECKALTEXIST(td, &sg, uap->path);
-
-	a.path = uap->path;
-	a.mode = uap->mode;
-	a.dev = osf2bsd_dev(uap->dev);
-
-	return mknod(td, &a);
-#endif
 	printf("osf1_mknod no longer implemented\n");
 	return ENOSYS;
 }
