@@ -310,7 +310,7 @@ typedef struct IOAPIC ioapic_t;
 
 
 /* fields in ICR_HIGH */
-#define APIC_ID_MASK		0x0f000000
+#define APIC_ID_MASK		0xff000000
 
 
 /* fields in LVT1/2 */
