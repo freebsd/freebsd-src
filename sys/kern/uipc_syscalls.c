@@ -1713,6 +1713,7 @@ retry_lookup:
 		MGETHDR(m, M_WAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
+			sf_buf_free((void *)sf->kva, PAGE_SIZE);
 			goto done;
 		}
 		m->m_ext.ext_free = sf_buf_free;
