@@ -541,7 +541,7 @@ write_vc(xprtp, buf, len)
 	if (cd->nonblock)
 		gettimeofday(&tv0, NULL);
 	
-	for (cnt = len; cnt > 0; cnt -= i, buf += i) {
+	for (cnt = len; cnt > 0; cnt -= i, buf = (char *)buf + i) {
 		i = _write(xprt->xp_fd, buf, (size_t)cnt);
 		if (i  < 0) {
 			if (errno != EAGAIN || !cd->nonblock) {
