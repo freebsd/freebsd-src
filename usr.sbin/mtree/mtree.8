@@ -40,7 +40,7 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm mtree
-.Op Fl PUcdeinrux
+.Op Fl cdeiLnrUux
 .Bk -words
 .Op Fl f Ar spec
 .Ek
@@ -97,6 +97,10 @@ to the current set of keywords.
 Use the ``type'' keyword plus the specified (whitespace or comma separated)
 .Ar keywords
 instead of the current set of keywords.
+.It Fl L
+Follow all symbolic links in the file hierarchy (by default
+.Nm mtree
+consider the symbolic link itself).
 .It Fl n
 Do not emit pathname comments when creating a specification.  Normally 
 a comment is emitted before each directory and before the close of that
@@ -105,9 +109,6 @@ directory when using the
 option.
 .It Fl p Ar path
 Use the file hierarchy rooted in
-.It Fl P
-Don't follow symbolic links in the file hierarchy, instead consider
-the symbolic link itself in any comparisons.
 .Ar path  ,
 instead of the current directory.
 .It Fl r
