@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef _MACHINE_PROFILE_H_
+#define	_MACHINE_PROFILE_H_
+
 #define	_MCOUNT_DECL	void __mcount
 #define	MCOUNT
 
@@ -41,6 +44,16 @@ typedef unsigned long	fptrdiff_t;
 #define	MCOUNT_EXIT(s)	intr_restore(s)
 #define	MCOUNT_DECL(s)	register_t s;
 
+void bintr(void);
+void btrap(void);
+void eintr(void);
+void user(void);
+
+#define	MCOUNT_FROMPC_USER(pc)		\
+	((pc < (uintfptr_t)VM_MAXUSER_ADDRESS) ? ~0UL : pc)
+
+#define	MCOUNT_FROMPC_INTR(pc)		(~0UL)
+
 _MCOUNT_DECL(uintfptr_t, uintfptr_t);
 
 #else /* !_KERNEL */
@@ -48,3 +61,5 @@ _MCOUNT_DECL(uintfptr_t, uintfptr_t);
 typedef unsigned long	uintfptr_t;
 
 #endif
+
+#endif /* _MACHINE_PROFILE_H_ */

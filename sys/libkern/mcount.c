@@ -39,10 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-void	bintr(void);
-void	btrap(void);
-void	eintr(void);
-void	user(void);
 #endif
 
 /*
@@ -61,16 +57,16 @@ void	user(void);
  * perform this optimization.
  */
 _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
-	register uintfptr_t frompc, selfpc;
+	uintfptr_t frompc, selfpc;
 {
 #ifdef GUPROF
 	int delta;
 #endif
-	register fptrdiff_t frompci;
-	register u_short *frompcindex;
-	register struct tostruct *top, *prevtop;
-	register struct gmonparam *p;
-	register long toindex;
+	fptrdiff_t frompci;
+	u_short *frompcindex;
+	struct tostruct *top, *prevtop;
+	struct gmonparam *p;
+	long toindex;
 #ifdef _KERNEL
 	MCOUNT_DECL(s)
 #endif
@@ -89,23 +85,19 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 #else
 	p->state = GMON_PROF_BUSY;
 #endif
-	frompci = frompc - p->lowpc;
 
 #ifdef _KERNEL
 	/*
-	 * When we are called from an exception handler, frompci may be
-	 * for a user address.  Convert such frompci's to the index of
-	 * user() to merge all user counts.
+	 * When we are called from an exception handler, frompc may be
+	 * a user address.  Convert such frompc's to some representation
+	 * in kernel address space.
 	 */
-	if (frompci >= p->textsize) {
-		if (frompci + p->lowpc
-		    >= (uintfptr_t)(VM_MAXUSER_ADDRESS))
-			goto done;
-		frompci = (uintfptr_t)user - p->lowpc;
-		if (frompci >= p->textsize)
-		    goto done;
-	}
+	frompc = MCOUNT_FROMPC_USER(frompc);
 #endif
+
+	frompci = frompc - p->lowpc;
+	if (frompci >= p->textsize)
+		goto done;
 
 #ifdef GUPROF
 	if (p->state == GMON_PROF_HIRES) {
@@ -141,18 +133,14 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	/*
 	 * When we are called from an exception handler, frompc is faked
 	 * to be for where the exception occurred.  We've just solidified
-	 * the count for there.  Now convert frompci to the index of btrap()
-	 * for trap handlers and bintr() for interrupt handlers to make
-	 * exceptions appear in the call graph as calls from btrap() and
-	 * bintr() instead of calls from all over.
+	 * the count for there.  Now convert frompci to an index that
+	 * represents the kind of exception so that interruptions appear
+	 * in the call graph as calls from those index instead of calls
+	 * from all over.
 	 */
-	if ((uintfptr_t)selfpc >= (uintfptr_t)btrap
-	    && (uintfptr_t)selfpc < (uintfptr_t)eintr) {
-		if ((uintfptr_t)selfpc >= (uintfptr_t)bintr)
-			frompci = (uintfptr_t)bintr - p->lowpc;
-		else
-			frompci = (uintfptr_t)btrap - p->lowpc;
-	}
+	frompc = MCOUNT_FROMPC_INTR(selfpc);
+	if ((frompc - p->lowpc) < p->textsize)
+		frompci = frompc - p->lowpc;
 #endif
 
 	/*
