@@ -1,5 +1,13 @@
 .\" opieftpd.8: Manual page describing the FTP daemon.
 .\"
+.\" %%% portions-copyright-cmetz-98
+.\" Portions of this software are Copyright 1998-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\"
 .\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
 .\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
 .\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
@@ -7,6 +15,7 @@
 .\"
 .\"	History:
 .\"
+.\"	Modified by cmetz for OPIE 2.4. Document -u option.
 .\"	Modified at NRL for OPIE 2.0.
 .\"	Originally from BSD.
 .\"
@@ -59,6 +68,8 @@ opieftpd \- File Transfer Protocol server that uses OPIE authentication
 .I timeout
 ] [\-T
 .I maxtimeout
+] [\-u
+.I umask
 ]
 
 .SH DESCRIPTION
@@ -90,6 +101,9 @@ the maximum period allowed may be set to
 seconds with the
 .B \-T
 option. The default limit is 2 hours.
+.B \-u
+Set the default umask value to 
+.I umask.
 .SH COMMANDS
 The ftp server currently supports the following ftp
 requests; case is not distinguished:

@@ -1,7 +1,7 @@
 /* opieftpd.c: Main program for an FTP daemon.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Add id parameter to opielogwtmp. Use
+		opiestrncpy(). Fix incorrect use of setproctitle().
 	Modified by cmetz for OPIE 2.32. Remove include of dirent.h here; it's
 		done already (and conditionally) in opie_cfg.h.
 	Modified by cmetz for OPIE 2.31. Merged in some 4.4BSD-Lite changes.
@@ -243,7 +245,7 @@ static int receive_data __P((FILE *, FILE *));
 static char *gunique __P((char *));
 static char *sgetsave __P((char *));
 
-int opielogwtmp __P((char *, char *, char *));
+int opielogwtmp __P((char *, char *, char *, char *));
 
 int fclose __P((FILE *));
 
@@ -510,7 +512,7 @@ static VOIDRET end_login FUNCTION_NOARGS
   if (seteuid((uid_t) 0))
     syslog(LOG_ERR, "Can't set euid");
   if (logged_in)
-    opielogwtmp(ttyline, "", "");
+    opielogwtmp(ttyline, "", "", "ftp");
   pw = NULL;
   logged_in = 0;
 #if DOANONYMOUS
@@ -564,7 +566,7 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
 
   /* open wtmp before chroot */
   sprintf(ttyline, "ftp%d", getpid());
-  opielogwtmp(ttyline, pw->pw_name, remotehost);
+  opielogwtmp(ttyline, pw->pw_name, remotehost, "ftp");
   logged_in = 1;
 
 #if DOANONYMOUS
@@ -631,10 +633,10 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
   if (guest) {
     reply(230, "Guest login ok, access restrictions apply.");
 #if DOTITLE
-    snprintf(proctitle, sizeof(proctitle), "%s: anonymous/%s", remotehost,
-	passwd);
-    setproctitle("%s", proctitle);
-#endif	/* DOTITLE */
+    setproctitle("%s: anonymous/%.*s", remotehost,
+            sizeof(proctitle) - sizeof(remotehost) - sizeof(": anonymous/"),
+	    passwd);
+#endif /* DOTITLE */
     syslog(LOG_NOTICE, "ANONYMOUS FTP login from %s with ID %s",
             remotehost, passwd);
   } else
@@ -643,9 +645,8 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
     reply(230, "User %s logged in.", pw->pw_name);
 
 #if DOTITLE
-    snprintf(proctitle, sizeof(proctitle), "%s: %s", remotehost, pw->pw_name);
-    setproctitle("%s", proctitle);
-#endif	/* DOTITLE */
+    setproctitle("%s: %s", remotehost, pw->pw_name);
+#endif /* DOTITLE */
     syslog(LOG_INFO, "FTP login from %s with user name %s", remotehost, pw->pw_name);
   }
   home = pw->pw_dir;	/* home dir for globbing */
@@ -1256,13 +1257,11 @@ static VOIDRET dolog FUNCTION((sin), struct sockaddr_in *sin)
   time_t t, time();
 
   if (hp)
-    strncpy(remotehost, hp->h_name, sizeof(remotehost));
+    opiestrncpy(remotehost, hp->h_name, sizeof(remotehost));
   else
-    strncpy(remotehost, inet_ntoa(sin->sin_addr), sizeof(remotehost));
-  remotehost[sizeof(remotehost) - 1] = '\0';
+    opiestrncpy(remotehost, inet_ntoa(sin->sin_addr), sizeof(remotehost));
 #if DOTITLE
-  snprintf(proctitle, sizeof(proctitle), "%s: connected", remotehost);
-  setproctitle("%s", proctitle);
+  setproctitle("%s: connected", remotehost);
 #endif	/* DOTITLE */
 
   t = time((time_t *) 0);
@@ -1280,7 +1279,7 @@ VOIDRET dologout FUNCTION((status), int status)
   if (logged_in) {
     if (seteuid((uid_t) 0))
       syslog(LOG_ERR, "Can't set euid");
-    opielogwtmp(ttyline, "", "");
+    opielogwtmp(ttyline, "", "", "ftp");
   }
   /* beware of flushing buffers after a SIGPIPE */
   _exit(status);

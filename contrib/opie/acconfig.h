@@ -1,7 +1,7 @@
 /* acconfig.h: Extra commentary for Autoheader
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -117,6 +117,15 @@ you didn't get a copy, you may request one from <license@inner.net>.
 /* Define if there is a ut_host field in struct utmp */
 #undef HAVE_UT_HOST
 
+/* Define if there is a ut_id field in struct utmp */
+#undef HAVE_UT_ID
+
+/* Define if there is a ut_syslen field in struct utmp */
+#undef HAVE_UT_SYSLEN
+
+/* Define if there is a utx_syslen field in struct utmpx */
+#undef HAVE_UTX_SYSLEN
+
 /* Define if the system has getutline() */
 #undef HAVE_GETUTLINE
 
@@ -149,3 +158,69 @@ you didn't get a copy, you may request one from <license@inner.net>.
 
 /* Defined if user locking is to be used */
 #undef USER_LOCKING
+
+/* Defined if opieauto is to be used */
+#undef OPIEAUTO
+
+/* Define if you have the atexit function.  */
+#undef HAVE_ATEXIT
+
+/* Define if you have the endutent function.  */
+#undef HAVE_ENDUTENT
+
+/* Define if you have the initgroups function.  */
+#undef HAVE_INITGROUPS
+
+/* Define if you have the memcmp function.  */
+#undef HAVE_MEMCMP
+
+/* Define if you have the memcpy function.  */
+#undef HAVE_MEMCPY
+
+/* Define if you have the memset function.  */
+#undef HAVE_MEMSET
+
+/* Define if you have the getcwd function.  */
+#undef HAVE_GETCWD
+
+/* Define if you have the getenv function.  */
+#undef HAVE_GETENV
+
+/* Define if you have the getutline function.  */
+#undef HAVE_GETUTLINE
+
+/* Define if you have the pututline function.  */
+#undef HAVE_PUTUTLINE
+
+/* Define if you have the setenv function.  */
+#undef HAVE_SETENV
+
+/* Define if you have the setegid function.  */
+#undef HAVE_SETEGID
+
+/* Define if you have the seteuid function.  */
+#undef HAVE_SETEUID
+
+/* Define if you have the setutent function.  */
+#undef HAVE_SETUTENT
+
+/* Define if you have the sigprocmask function.  */
+#undef HAVE_SIGPROCMASK
+
+/* Define if you have the strchr function.  */
+#undef HAVE_STRCHR
+
+/* Define if you have the strrchr function.  */
+#undef HAVE_STRRCHR
+
+/* Define if you have the strtoul function.  */
+#undef HAVE_STRTOUL
+
+/* Define if you have the sysconf function.  */
+#undef HAVE_SYSCONF
+
+/* Define if you have the uname function.  */
+#undef HAVE_UNAME
+
+/* Define if you have the unsetenv function.  */
+#undef HAVE_UNSETENV

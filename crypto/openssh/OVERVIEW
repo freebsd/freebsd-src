@@ -1,9 +1,15 @@
+[Note: This file has not been updated for OpenSSH versions after
+OpenSSH-1.2 and should be considered OBSOLETE.  It has been left in
+the distribution because some of its information may still be useful
+to developers.]
+
 This document is intended for those who wish to read the ssh source
 code.  This tries to give an overview of the structure of the code.
       
 Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>
 Updated 17 Nov 1995.
 Updated 19 Oct 1999 for OpenSSH-1.2
+Updated 20 May 2001 note obsolete for > OpenSSH-1.2
 
 The software consists of ssh (client), sshd (server), scp, sdist, and
 the auxiliary programs ssh-keygen, ssh-agent, ssh-add, and

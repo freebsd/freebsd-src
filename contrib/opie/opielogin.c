@@ -1,7 +1,7 @@
 /* opielogin.c: The infamous /bin/login
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,13 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Omit "/dev/" in lastlog entry.
+		Don't chdir for invalid users. Fixed bug where getloginname()
+		didn't actually change spaces to underscores. Use struct
+		opie_key for key blocks. Do the home directory chdir() after
+		doing the setuid() in case we're on superuser-mapped NFS.
+		Initialize some variables explicitly. Call opieverify() if
+		login times out. Use opiestrncpy().	
 	Modified by cmetz for OPIE 2.32. Partially handle environment
 		variables on the command line (a better implementation is
 		coming soon). Handle failure to issue a challenge more
@@ -157,13 +164,13 @@ License Agreement applies to this software.
 
 static int rflag = 0;
 static int usererr = -1;
-static int stopmotd;
+static int stopmotd = 0;
 static char rusername[NMAX + 1];
 static char name[NMAX + 1] = "";
 static char minusnam[16] = "-";
 static char *envinit[1];	/* now set by setenv calls */
-static char term[64] = "\0";	/* important to initialise to a NULL string */
-static char host[HMAX + 1] = "\0";
+static char term[64] = "";	/* important to initialise to a NULL string */
+static char host[HMAX + 1] = "";
 static struct passwd nouser;
 static struct passwd thisuser;
 
@@ -207,6 +214,9 @@ static void getstr __P((char *, int, char *));
 
 #undef TRUE
 #define TRUE -1
+
+static int need_opieverify = 0;
+static struct opie opie;
 
 #ifdef TIOCSWINSZ
 /* Windowing variable relating to JWINSIZE/TIOCSWINSZ/TIOCGWINSZ. This is
@@ -276,8 +286,7 @@ lookupuserbad:
 
 static VOIDRET getloginname FUNCTION_NOARGS
 {
-  register char *namep;
-  char c, d;
+  char *namep, d;
   int flags;
   static int first = 1;
 
@@ -291,7 +300,7 @@ static VOIDRET getloginname FUNCTION_NOARGS
 	flags = 4;
 	first--;
       } else
-	printf("%s", ttyprompt);
+	printf(ttyprompt);
     } else
       printf("login: ");
     fflush(stdout);
@@ -302,8 +311,8 @@ static VOIDRET getloginname FUNCTION_NOARGS
       exit(0);
     }
     for (namep = name; *namep; namep++) {
-        if (c == ' ')
-          c = '_'; 
+      if (*namep == ' ')
+        *namep = '_'; 
     }
   }
 }
@@ -313,6 +322,10 @@ static VOIDRET timedout FUNCTION((i), int i)
   /* input variable declared just to keep the compiler quiet */
   printf("Login timed out after %d seconds\n", timeout);
   syslog(LOG_CRIT, "Login timed out after %d seconds!", timeout);
+
+  if (need_opieverify)
+    opieverify(&opie, NULL);
+
   exit(0);
 }
 
@@ -632,7 +645,6 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 {
   extern char **environ;
   register char *namep;
-  struct opie opie;
 
   int invalid, quietlog;
   FILE *nlfd;
@@ -643,7 +655,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   char *p;
   char opieprompt[OPIE_CHALLENGE_MAX + 1];
   int af_pwok;
-  int authsok;
+  int authsok = 0;
   char *pp;
   char buf[256];
   int uid;
@@ -651,7 +663,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 
 #ifndef DEBUG
   if (geteuid()) {
-    fprintf(stderr, "This program requires super-user priveleges.\n");
+    fprintf(stderr, "This program requires super-user privileges.\n");
     exit(1);
   }
 #endif /* DEBUG */
@@ -669,7 +681,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 #ifdef DEBUG
     syslog(LOG_DEBUG, "environment TERM=%s", p);
 #endif /* DEBUG */
-    strncpy(term, p, sizeof(term));
+    opiestrncpy(term, p, sizeof(term));
   };
   
   memset(&nouser, 0, sizeof(nouser));
@@ -696,13 +708,9 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 #endif
 
 #ifdef DEBUG
-  {
-    int foo;
-
-    syslog(LOG_DEBUG, "my args are: (argc=%d)", foo = argc);
-    while (--foo)
-      syslog(LOG_DEBUG, "%d: %s", foo, argv[foo]);
-  }
+  syslog(LOG_DEBUG, "my args are: (argc=%d)", i = argc);
+  while (--i)
+    syslog(LOG_DEBUG, "%d: %s", i, argv[i]);
 #endif /* DEBUG */
 
 /* Implement our own getopt()-like functionality, but do so in a much more
@@ -742,7 +750,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	    if (!doremotelogin(ouroptarg))
 	      rflag = 1;
 	    
-	    strncpy(host, ouroptarg, sizeof(host));
+	    opiestrncpy(host, ouroptarg, sizeof(host));
 	    break;
 
 	  case 'h':
@@ -759,7 +767,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	      if (!(ouroptarg = argv[ouroptind]))
 		exit(1);
 	      
-	      strncpy(host, ouroptarg, sizeof(host));
+	      opiestrncpy(host, ouroptarg, sizeof(host));
 	    }
 	    break;
 
@@ -776,7 +784,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	    if (!(ouroptarg = argv[ouroptind]))
 	      exit(1);
 
-	    strncpy(name, ouroptarg, sizeof(name));
+	    opiestrncpy(name, ouroptarg, sizeof(name));
 	    break;
 	  case 'p':
 	    pflag = 1;
@@ -788,8 +796,8 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 
     if (strchr(argv[ouroptind], '=')) {
       if (!strncmp(argv[ouroptind], "TERM=", 5)) {
-	strncpy(term, &(argv[ouroptind][5]), sizeof(term));
-	term[sizeof(term) - 1] = 0;
+	opiestrncpy(term, &(argv[ouroptind][5]), sizeof(term));
+
 #ifdef DEBUG
 	syslog(LOG_DEBUG, "passed TERM=%s, ouroptind = %d", term, ouroptind);
 #endif /* DEBUG */
@@ -801,7 +809,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
       continue;
     };
 
-    strncpy(name, argv[ouroptind], sizeof(name));
+    opiestrncpy(name, argv[ouroptind], sizeof(name));
   };
 
 #ifdef TIOCNXCL
@@ -1088,6 +1096,7 @@ completeness, but these are set within appropriate defines for portability. */
 
       /* Attempt a one-time password challenge */
       i = opiechallenge(&opie, name, opieprompt);
+      need_opieverify = TRUE;
 
       if ((i < 0) || (i > 1)) {
         syslog(LOG_ERR, "error: opiechallenge() returned %d, errno=%d!\n", i, errno);
@@ -1126,7 +1135,7 @@ completeness, but these are set within appropriate defines for portability. */
       if (!opiereadpass(buf, sizeof(buf), !(authsok & 2)))
         invalid = TRUE;
 #else /* NEW_PROMPTS */
-      if (!(authsok & 1) && authsok)
+      if ((authsok & 3) == 1)
 	printf("(OTP response required)\n");
       printf("Password:");
       fflush(stdout);
@@ -1150,6 +1159,7 @@ completeness, but these are set within appropriate defines for portability. */
       if (authsok & 1) {
         i = opiegetsequence(&opie);
         opiepassed = !opieverify(&opie, buf);
+	need_opieverify = 0;
 
 #ifdef DEBUG
       syslog(LOG_DEBUG, "opiepassed = %d", opiepassed);
@@ -1209,15 +1219,6 @@ completeness, but these are set within appropriate defines for portability. */
     }
     if (*thisuser.pw_shell == '\0')
       thisuser.pw_shell = "/bin/sh";
-    if ((chdir(thisuser.pw_dir) < 0) && !invalid) {
-      if (chdir("/") < 0) {
-	printf("No directory!\n");
-	invalid = TRUE;
-      } else {
-	printf("No directory! %s\n", "Logging in with HOME=/");
-        strcpy(thisuser.pw_dir, "/");
-      }
-    }
     /* Remote login invalid must have been because of a restriction of some
        sort, no extra chances. */
     if (invalid) {
@@ -1271,8 +1272,11 @@ completeness, but these are set within appropriate defines for portability. */
     lseek(f, (long)thisuser.pw_uid * sizeof(struct lastlog), 0);
 
     time(&ll.ll_time);
-    strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
-    strncpy(ll.ll_host, host, sizeof(ll.ll_host));
+    if (!strncmp(tty, "/dev/", 5))
+      opiestrncpy(ll.ll_line, tty + 5, sizeof(ll.ll_line));
+    else
+      opiestrncpy(ll.ll_line, tty, sizeof(ll.ll_line));
+    opiestrncpy(ll.ll_host, host, sizeof(ll.ll_host));
     write(f, (char *) &ll, sizeof ll);
     close(f);
   }
@@ -1312,6 +1316,21 @@ interested in hearing of a more portable approach. rja */
     environ = envinit;
   setenv("HOME", thisuser.pw_dir, 1);
   setenv("SHELL", thisuser.pw_shell, 1);
+
+  if (chdir(thisuser.pw_dir) < 0) {
+#if DEBUG
+    syslog(LOG_DEBUG, "chdir(%s): %s(%d)", thisuser.pw_dir, strerror(errno),
+	   errno);
+#endif /* DEBUG */
+    if (chdir("/") < 0) {
+      printf("No directory!\n");
+      invalid = TRUE;
+    } else {
+      printf("No directory! %s\n", "Logging in with HOME=/");
+      strcpy(thisuser.pw_dir, "/");
+    }
+  }
+
   if (!term[0]) {
 #if HAVE_GETTTYNAM
 /*
@@ -1328,7 +1347,7 @@ interested in hearing of a more portable approach. rja */
     c = tty;
 
   if (t = getttynam(c))
-    strncpy(term, t->ty_type, sizeof(term));
+    opiestrncpy(term, t->ty_type, sizeof(term));
   else
 #endif /* HAVE_GETTTYNAM */
     strcpy(term, "unknown");
@@ -1407,8 +1426,7 @@ interested in hearing of a more portable approach. rja */
     char buf[128];
     int len;
 
-    strncpy(buf, PATH_MAIL, sizeof(buf) - 2);
-    buf[sizeof(buf) - 2] = 0;
+    opiestrncpy(buf, PATH_MAIL, sizeof(buf) - 2);
 
     len = strlen(buf);
     if (*(buf + len - 1) != '/') {

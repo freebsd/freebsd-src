@@ -1,7 +1,7 @@
 /* randomchallenge.c: The opierandomchallenge() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Use snprintf().
 	Modified by cmetz for OPIE 2.32. Initialize algids[] with 0s
 	     instead of NULL.
         Modified by cmetz for OPIE 2.3. Add sha support.
@@ -35,11 +36,12 @@ static char *algids[] = { 0, 0, 0, "sha1", "md4", "md5" };
    most situations; it is certainly better than a fixed string */
 VOIDRET opierandomchallenge FUNCTION((prompt), char *prompt)
 {
-  char buf[OPIE_SEED_MAX + 1];
+  char buf[OPIE_SEED_MAX+1];
 
   buf[0] = 0;
   if (opienewseed(buf))
     strcpy(buf, "ke4452");
 
-  sprintf(prompt, "otp-%s %d %s ext", algids[MDX], (rand() % 499) + 1, buf);
+  snprintf(prompt, OPIE_CHALLENGE_MAX+1, "otp-%s %d %s ext", algids[MDX],
+  	(rand() % 499) + 1, buf);
 }
