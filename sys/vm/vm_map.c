@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.130 1998/07/11 07:46:12 bde Exp $
+ * $Id: vm_map.c,v 1.131 1998/07/11 11:30:43 bde Exp $
  */
 
 /*
@@ -2842,10 +2842,9 @@ DB_SHOW_COMMAND(map, vm_map_print)
 
 	vm_map_entry_t entry;
 
-	db_iprintf("%s map 0x%lx: pmap=0x%lx, nentries=%d, version=%d\n",
-	    (map->is_main_map ? "Task" : "Share"),
-	    (long) map, (long) (map->pmap), map->nentries,
-	    map->timestamp);
+	db_iprintf("%s map %p: pmap=%p, nentries=%d, version=%u\n",
+	    (map->is_main_map ? "Task" : "Share"), (void *)map,
+	    (void *)map->pmap, map->nentries, map->timestamp);
 	nlines++;
 
 	if (!full && db_indent)
@@ -2878,23 +2877,26 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_printf(", wired");
 		}
 		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
-			db_printf(", share=0x%lx, offset=0x%lx\n",
-			    (long) entry->object.share_map,
-			    (long) entry->offset);
+			/* XXX no %qd in kernel.  Truncate entry->offset. */
+			db_printf(", share=%p, offset=0x%lx\n",
+			    (void *)entry->object.share_map,
+			    (long)entry->offset);
 			nlines++;
 			if ((entry->prev == &map->header) ||
 			    ((entry->prev->eflags & MAP_ENTRY_IS_A_MAP) == 0) ||
 			    (entry->prev->object.share_map !=
 				entry->object.share_map)) {
 				db_indent += 2;
-				vm_map_print((long)entry->object.share_map,
+				vm_map_print((db_expr_t)(intptr_t)
+					     entry->object.share_map,
 					     full, 0, (char *)0);
 				db_indent -= 2;
 			}
 		} else {
-			db_printf(", object=0x%lx, offset=0x%lx",
-			    (long) entry->object.vm_object,
-			    (long) entry->offset);
+			/* XXX no %qd in kernel.  Truncate entry->offset. */
+			db_printf(", object=%p, offset=0x%lx",
+			    (void *)entry->object.vm_object,
+			    (long)entry->offset);
 			if (entry->eflags & MAP_ENTRY_COW)
 				db_printf(", copy (%s)",
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
@@ -2906,7 +2908,8 @@ DB_SHOW_COMMAND(map, vm_map_print)
 			    (entry->prev->object.vm_object !=
 				entry->object.vm_object)) {
 				db_indent += 2;
-				vm_object_print((long)entry->object.vm_object,
+				vm_object_print((db_expr_t)(intptr_t)
+						entry->object.vm_object,
 						full, 0, (char *)0);
 				nlines += 4;
 				db_indent -= 2;
@@ -2933,7 +2936,7 @@ DB_SHOW_COMMAND(procvm, procvm)
 	    (void *)p, (void *)p->p_vmspace, (void *)&p->p_vmspace->vm_map,
 	    (void *)&p->p_vmspace->vm_pmap);
 
-	vm_map_print ((long) &p->p_vmspace->vm_map, 1, 0, NULL);
+	vm_map_print((db_expr_t)(intptr_t)&p->p_vmspace->vm_map, 1, 0, NULL);
 }
 
 #endif /* DDB */
