@@ -141,6 +141,7 @@ again:	if (stat(name, &st) < 0) {
 	}
 
 	disk->d_bsize = 1;
+	disk->d_ccg = 0;
 	disk->d_fd = fd;
 	disk->d_inoblock = NULL;
 	disk->d_inomin = 0;
