@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.73 1999/02/02 00:28:29 dillon Exp $
+ * $Id: if_sl.c,v 1.74 1999/04/27 11:17:02 phk Exp $
  */
 
 /*
@@ -249,7 +249,8 @@ slinit(sc)
 		if (p)
 			sc->sc_ep = (u_char *)p + SLBUFSIZE;
 		else {
-			printf("sl%d: can't allocate buffer\n", sc - sl_softc);
+			printf("sl%ld: can't allocate buffer\n",
+			    (long)(sc - sl_softc));
 			return (0);
 		}
 	}
