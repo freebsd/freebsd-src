@@ -31,20 +31,36 @@ struct val {
 } ;
 
 struct val *result;
-struct val *op_or ();
-struct val *op_and ();
-struct val *op_eq ();
-struct val *op_gt ();
-struct val *op_lt ();
-struct val *op_ge ();
-struct val *op_le ();
-struct val *op_ne ();
-struct val *op_plus ();
-struct val *op_minus ();
-struct val *op_times ();
-struct val *op_div ();
-struct val *op_rem ();
-struct val *op_colon ();
+
+int		chk_div __P((quad_t, quad_t));
+int		chk_minus __P((quad_t, quad_t, quad_t));
+int		chk_plus __P((quad_t, quad_t, quad_t));
+int		chk_times __P((quad_t, quad_t, quad_t));
+void		free_value __P((struct val *));
+int		is_zero_or_null __P((struct val *));
+int		isstring __P((struct val *));
+int		main __P((int, char **));
+struct val	*make_integer __P((quad_t));
+struct val	*make_str __P((const char *));
+struct val	*op_and __P((struct val *, struct val *));
+struct val	*op_colon __P((struct val *, struct val *));
+struct val	*op_div __P((struct val *, struct val *));
+struct val	*op_eq __P((struct val *, struct val *));
+struct val	*op_ge __P((struct val *, struct val *));
+struct val	*op_gt __P((struct val *, struct val *));
+struct val	*op_le __P((struct val *, struct val *));
+struct val	*op_lt __P((struct val *, struct val *));
+struct val	*op_minus __P((struct val *, struct val *));
+struct val	*op_ne __P((struct val *, struct val *));
+struct val	*op_or __P((struct val *, struct val *));
+struct val	*op_plus __P((struct val *, struct val *));
+struct val	*op_rem __P((struct val *, struct val *));
+struct val	*op_times __P((struct val *, struct val *));
+quad_t		to_integer __P((struct val *));
+void		to_string __P((struct val *));
+int		yyerror __P((const char *));
+int		yylex __P((void));
+int		yyparse __P((void));
 
 char **av;
 %}
@@ -107,10 +123,11 @@ quad_t i;
 
 struct val *
 make_str (s)
-char *s;
+const char *s;
 {
 	struct val *vp;
-	int i, isint;
+	size_t i;
+	int isint;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
@@ -176,12 +193,12 @@ struct val *vp;
 	if (vp->type == string || vp->type == numeric_string)
 		return;
 
-	tmp = malloc (25);
+	tmp = malloc ((size_t)25);
 	if (tmp == NULL) {
 		errx (2, "malloc() failed");
 	}
 
-	sprintf (tmp, "%qd", vp->u.i);
+	sprintf (tmp, "%lld", (long long)vp->u.i);
 	vp->type = string;
 	vp->u.s  = tmp;
 }
@@ -233,11 +250,9 @@ struct val *vp;
 	/* NOTREACHED */
 }
 
-int yyparse ();
-
 int
 main (argc, argv)
-int argc;
+int argc __unused;
 char **argv;
 {
 	setlocale (LC_ALL, "");
@@ -247,7 +262,7 @@ char **argv;
 	yyparse ();
 
 	if (result->type == integer)
-		printf ("%qd\n", result->u.i);
+		printf ("%lld\n", (long long)result->u.i);
 	else
 		printf ("%s\n", result->u.s);
 
@@ -256,7 +271,7 @@ char **argv;
 
 int
 yyerror (s)
-char *s;
+const char *s __unused;
 {
 	errx (2, "syntax error");
 }
@@ -515,8 +530,8 @@ struct val *a, *b;
 }
 
 int
-chk_div (a, b, r)
-quad_t a, b, r;
+chk_div (a, b)
+quad_t a, b;
 {
 	/* div by zero has been taken care of before */
 	/* only QUAD_MIN / -1 causes overflow */
@@ -541,7 +556,7 @@ struct val *a, *b;
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
-	if (chk_div (a->u.i, b->u.i, r->u.i)) {
+	if (chk_div (a->u.i, b->u.i)) {
 		errx (2, "overflow");
 	}
 	free_value (a);
@@ -592,7 +607,7 @@ struct val *a, *b;
 
 	/* compare string against pattern */
 	/* remember that patterns are anchored to the beginning of the line */
-	if (regexec(&rp, a->u.s, 2, rm, 0) == 0 && rm[0].rm_so == 0) {
+	if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0) {
 		if (rm[1].rm_so >= 0) {
 			*(a->u.s + rm[1].rm_eo) = '\0';
 			v = make_str (a->u.s + rm[1].rm_so);
