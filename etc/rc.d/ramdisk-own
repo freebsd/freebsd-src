@@ -39,7 +39,6 @@ start_cmd="ramdisk_own_start"
 
 ramdisk_own_start()
 {
-set -x
 	for unit in $ramdisk_units; do
 		device="/dev/md$unit"
 		dir=`mount | grep $device | cut -d' ' -f3`
