@@ -1721,6 +1721,25 @@ witness_list_lock(struct lock_instance *instance)
 	    instance->li_line);
 }
 
+static int
+witness_thread_has_locks(struct thread *td)
+{
+
+	return (td->td_sleeplocks != NULL);
+}
+
+static int
+witness_proc_has_locks(struct proc *p)
+{
+	struct thread *td;
+
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (witness_thread_has_locks(td))
+			return (1);
+	}
+	return (0);
+}
+
 int
 witness_list_locks(struct lock_list_entry **lock_list)
 {
@@ -1914,6 +1933,29 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 	} else {
 		td = curthread;
 		witness_list(td);
+	}
+}
+
+DB_SHOW_COMMAND(alllocks, db_witness_list_all)
+{
+	struct thread *td;
+	struct proc *p;
+
+	/*
+	 * It would be nice to list only threads and processes that actually
+	 * held sleep locks, but that information is currently not exported
+	 * by WITNESS.
+	 */
+	FOREACH_PROC_IN_SYSTEM(p) {
+		if (!witness_proc_has_locks(p))
+			continue;
+		printf("Process %d (%s)\n", p->p_pid, p->p_comm);
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (!witness_thread_has_locks(td))
+				continue;
+			printf("Thread 0x%x\n", td->td_tid);
+			witness_list(td);
+		}
 	}
 }
 
