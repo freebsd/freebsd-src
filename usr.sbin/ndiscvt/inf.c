@@ -61,7 +61,7 @@ static void	dump_deviceids_pci	(void);
 static void	dump_deviceids_pcmcia	(void);
 static void	dump_pci_id	(const char *);
 static void	dump_pcmcia_id	(const char *);
-/*static*/ void	dump_regvals	(void);
+static void	dump_regvals	(void);
 static void	dump_paramreg	(const struct section *,
 				const struct reg *, int);
 
@@ -559,7 +559,7 @@ dump_paramreg(const struct section *s, const struct reg *r, int devidx)
 	return;
 }
 
-/*static*/ void
+static void
 dump_regvals(void)
 {
 	struct assign *manf, *dev;
