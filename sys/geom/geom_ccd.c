@@ -947,8 +947,9 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_IO)
-		printf("ccdbuffer(%p, %p, %d, %p, %ld)\n",
-		       cs, bp, bn, addr, bcount);
+		printf("ccdbuffer(%p, %p, %lld, %p, %ld)\n",
+		    (void *)cs, (void *)bp, (long long)bn, (void *)addr,
+		    bcount);
 #endif
 	/*
 	 * Determine which component bn falls in.
@@ -1741,8 +1742,9 @@ printiinfo(struct ccdiinfo *ii)
 	int ix, i;
 
 	for (ix = 0; ii->ii_ndisk; ix++, ii++) {
-		printf(" itab[%d]: #dk %d sblk %d soff %d",
-		       ix, ii->ii_ndisk, ii->ii_startblk, ii->ii_startoff);
+		printf(" itab[%d]: #dk %d sblk %lld soff %lld",
+		    ix, ii->ii_ndisk, (long long)ii->ii_startblk,
+		    (long long)ii->ii_startoff);
 		for (i = 0; i < ii->ii_ndisk; i++)
 			printf(" %d", ii->ii_index[i]);
 		printf("\n");
