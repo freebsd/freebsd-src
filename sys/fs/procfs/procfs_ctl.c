@@ -246,7 +246,7 @@ out:
 
 	/*
 	 * Step.  Let the target process execute a single instruction.
-	 * What does it mean to single step a threaded program? 
+	 * What does it mean to single step a threaded program?
 	 */
 	case PROCFS_CTL_STEP:
 		PROC_UNLOCK(p);
