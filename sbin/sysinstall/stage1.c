@@ -50,9 +50,12 @@ int whole_disk = 0;
 int custom_install = 0;
 int dialog_active = 0;
 
-void exit_sysinstall();
-void exit_prompt();
+/* Forward decls */
+void exit_sysinstall(void);
+void exit_prompt(void);
 extern char *part_type(int);
+void Fdisk(void);
+void DiskLabel(void);
 
 char selection[30];
 char boot1[] = BOOT1;
