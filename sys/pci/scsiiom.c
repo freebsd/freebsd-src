@@ -1269,7 +1269,7 @@ NO_DEV:
 	    {
 		pACB->DeviceCnt++;
 		pPrevDCB = pDCB;
-		pACB->pDCB_free = (PDCB) ((ULONG) (pACB->pDCB_free) + sizeof( DC390_DCB ));
+		pACB->pDCB_free = (PDCB) ((uintptr_t) (pACB->pDCB_free) + sizeof( DC390_DCB ));
 		pDCB->DevType = bval1;
 		if(bval1 == SCSI_DASD || bval1 == SCSI_OPTICAL)
 		{
