@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.59 1997/06/21 15:40:32 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.60 1997/08/05 03:49:48 asami Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -8,7 +8,9 @@
 
 .if exists(${.CURDIR}/shlib_version)
 SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major
+.if ${BINFORMAT} == aout
 SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
+.endif
 .endif
 
 .if defined(DESTDIR)
@@ -113,8 +115,14 @@ _LIBS=lib${LIB}.a
 .endif
 
 .if !defined(NOPIC)
+.if ${BINFORMAT} == aout
 .if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
 _LIBS+=lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+.endif
+.else
+.if defined(SHLIB_MAJOR)
+_LIBS+=lib${LIB}.so.${SHLIB_MAJOR}
+.endif
 .endif
 .if defined(INSTALL_PIC_ARCHIVE)
 _LIBS+=lib${LIB}_pic.a
@@ -150,12 +158,23 @@ LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}/usr/lib
 
 .if !defined(NOPIC)
 SOBJS+= ${OBJS:.o=.so}
+
+.if ${BINFORMAT} == aout
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 	@${LDDESTDIRENV} ${CC} -shared -Wl,-x -Wl,-assert -Wl,pure-text \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
+.else
+lib${LIB}.so.${SHLIB_MAJOR}: ${SOBJS}
+	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}\)
+	@rm -f lib${LIB}.so.${SHLIB_MAJOR}
+	@${LDDESTDIRENV} ${CC} -shared -Wl,-x \
+	    -o lib${LIB}.so.${SHLIB_MAJOR} \
+	    -Wl,-soname,lib${LIB}.so.${SHLIB_MAJOR} \
+	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
+.endif
 
 lib${LIB}_pic.a:: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
@@ -188,9 +207,16 @@ _EXTRADEPEND::
 .endif
 .if !defined(NOEXTRADEPEND)
 _EXTRADEPEND::
+.if ${BINFORMAT} == aout
 	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
 	    `${LDDESTDIRENV} ${CC} -shared -Wl,-f ${LDDESTDIR} ${LDADD}` \
 	    >> ${DEPENDFILE}
+.else
+.if defined(DPADD) && ${DPADD} != ""
+	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
+	    ${DPADD} >> ${DEPENDFILE}
+.endif
+.endif
 .endif
 
 .if !target(install)
@@ -212,11 +238,22 @@ realinstall: beforeinstall
 .endif
 .endif
 .if !defined(NOPIC)
+.if ${BINFORMAT} == aout
 .if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} ${SHLINSTALLFLAGS} \
 	    lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	    ${DESTDIR}${SHLIBDIR}
+.endif
+.else
+.if defined(SHLIB_MAJOR)
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${INSTALLFLAGS} ${SHLINSTALLFLAGS} \
+	    lib${LIB}.so.${SHLIB_MAJOR} \
+	    ${DESTDIR}${SHLIBDIR}
+	ln ${LN_FLAGS} -sf lib${LIB}.so.${SHLIB_MAJOR} \
+	    ${DESTDIR}${SHLIBDIR}/lib${LIB}.so
+.endif
 .endif
 .if defined(INSTALL_PIC_ARCHIVE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
