@@ -82,6 +82,10 @@ KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
+.if defined(KMODDEPS)
+.error "Do not use KMODDEPS on 5.0+, use MODULE_VERSION/MODULE_DEPEND"
+.endif
+
 .include <bsd.init.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
