@@ -164,15 +164,15 @@ pread(td, uap)
 	fp = holdfp(td->td_proc->p_fd, uap->fd, FREAD);
 	if (fp == NULL)
 		return (EBADF);
+	mtx_lock(&Giant);
 	if (fp->f_type != DTYPE_VNODE) {
 		error = ESPIPE;
 	} else {
-		mtx_lock(&Giant);
 		error = dofileread(td, fp, uap->fd, uap->buf, uap->nbyte, 
 			    uap->offset, FOF_OFFSET);
-		mtx_unlock(&Giant);
 	}
 	fdrop(fp, td);
+	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -395,15 +395,15 @@ pwrite(td, uap)
 	int error;
 
 	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
+		mtx_lock(&Giant);
 		if (fp->f_type == DTYPE_VNODE) {
-			mtx_lock(&Giant);
 			error = dofilewrite(td, fp, uap->fd, uap->buf,
 				    uap->nbyte, uap->offset, FOF_OFFSET);
-			mtx_unlock(&Giant);
 		} else {
 			error = ESPIPE;
 		}
 		fdrop(fp, td);
+		mtx_unlock(&Giant);
 	} else {
 		error = EBADF;	/* this can't be right */
 	}
@@ -619,8 +619,10 @@ ioctl(td, uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
+	mtx_lock(&Giant);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
+		mtx_unlock(&Giant);
 		return (EBADF);
 	}
 	fdp = td->td_proc->p_fd;
@@ -630,12 +632,14 @@ ioctl(td, uap)
 		fdp->fd_ofileflags[uap->fd] &= ~UF_EXCLOSE;
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp, td);
+		mtx_unlock(&Giant);
 		return (0);
 	case FIOCLEX:
 		FILEDESC_LOCK(fdp);
 		fdp->fd_ofileflags[uap->fd] |= UF_EXCLOSE;
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp, td);
+		mtx_unlock(&Giant);
 		return (0);
 	}
 
@@ -646,10 +650,10 @@ ioctl(td, uap)
 	size = IOCPARM_LEN(com);
 	if (size > IOCPARM_MAX) {
 		fdrop(fp, td);
+		mtx_unlock(&Giant);
 		return (ENOTTY);
 	}
 
-	mtx_lock(&Giant);
 	memp = NULL;
 	if (size > sizeof (ubuf.stkbuf)) {
 		memp = (caddr_t)malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
