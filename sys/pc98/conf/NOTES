@@ -66,9 +66,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # Options for CPU features.
 #
-# CPU_ATHLON_SSE_HACK tries to enable SSE instructions when the BIOS has
-# forgotten to enable them.
-#
 # CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
 # BlueLightning CPU.  It works only with Cyrix FPU, and this option
 # should not be used with Intel FPU.
@@ -157,7 +154,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # NOTE 3: This option may cause failures for software that requires
 # locked cycles in order to operate correctly.
 #
-options 	CPU_ATHLON_SSE_HACK
 options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
 options 	CPU_BLUELIGHTNING_3X
 options 	CPU_BTB_EN
@@ -948,8 +944,13 @@ nodevice	atkbdc
 nodevice	atkbd
 nodevice	psm
 nodevice	vga
-nodevice	aha
 nodevice	bt
+nodevice	adw
+nodevice	aha
+nodevice	ahb
+nodevice	ahd
+nodevice	mpt
+nodevice	trm
 nodevice	wds
 nodevice	asr
 nodevice	dpt
@@ -960,9 +961,19 @@ nodevice	ida		# Compaq Smart RAID
 nodevice	mlx		# Mylex DAC960
 nodevice	amr		# AMI MegaRAID
 nodevice	twe		# 3ware ATA RAID
+nodevice	cm
+nodevice	cs
+nodevice	ex
+nodevice	fea
 nodevice	cbb
 nodevice	pccard
 nodevice	cardbus
+nodevice	intpm
+nodevice	alpm
+nodevice	ichsmb
+nodevice	viapm
+nodevice	amdpm
+nodevice	nfpm
 
 
 #####################################################################
@@ -975,10 +986,16 @@ nooption	VGA_ALT_SEQACCESS
 nooption	PSM_RESETAFTERSUSPEND
 nooption	PSM_HOOKRESUME
 nooption	ATKBD_DFLT_KEYMAP
+nooption	AHD_DEBUG
+nooption	AHD_DEBUG_OPTS
+nooption	AHD_REG_PRETTY_PRINT
+nooption	ADW_ALLOW_MEMIO
 nooption	DPT_ALLOW_MEMIO
 nooption	DPT_LOST_IRQ
 nooption	DPT_RESET_HBA
 nooption	DPT_TIMEOUT_FACTOR
+nooption	AAC_DEBUG
+nooption	ACPI_MAX_THREADS
 
 
 #####################################################################
