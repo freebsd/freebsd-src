@@ -302,8 +302,8 @@ mi_switch(int flags, struct thread *newtd)
 	 * process was running, and add that to its total so far.
 	 */
 	binuptime(&new_switchtime);
-	bintime_add(&p->p_rux.rux_runtime, &new_switchtime);
-	bintime_sub(&p->p_rux.rux_runtime, PCPU_PTR(switchtime));
+	bintime_add(&p->p_runtime, &new_switchtime);
+	bintime_sub(&p->p_runtime, PCPU_PTR(switchtime));
 
 	td->td_generation++;	/* bump preempt-detect counter */
 
@@ -322,7 +322,7 @@ mi_switch(int flags, struct thread *newtd)
 	 * over max, arrange to kill the process in ast().
 	 */
 	if (p->p_cpulimit != RLIM_INFINITY &&
-	    p->p_rux.rux_runtime.sec > p->p_cpulimit) {
+	    p->p_runtime.sec > p->p_cpulimit) {
 		p->p_sflag |= PS_XCPU;
 		td->td_flags |= TDF_ASTPENDING;
 	}

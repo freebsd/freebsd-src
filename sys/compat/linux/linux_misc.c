@@ -689,9 +689,9 @@ struct l_times_argv {
 int
 linux_times(struct thread *td, struct linux_times_args *args)
 {
-	struct timeval tv, utime, stime, cutime, cstime;
+	struct timeval tv;
 	struct l_times_argv tms;
-	struct proc *p;
+	struct rusage ru;
 	int error;
 
 #ifdef DEBUG
@@ -699,17 +699,15 @@ linux_times(struct thread *td, struct linux_times_args *args)
 		printf(ARGS(times, "*"));
 #endif
 
-	p = td->td_proc;
-	PROC_LOCK(p);
-	calcru(p, &utime, &stime);
-	calccru(p, &cutime, &cstime);
-	PROC_UNLOCK(p);
+	mtx_lock_spin(&sched_lock);
+	calcru(td->td_proc, &ru.ru_utime, &ru.ru_stime, NULL);
+	mtx_unlock_spin(&sched_lock);
 
-	tms.tms_utime = CONVTCK(utime);
-	tms.tms_stime = CONVTCK(stime);
+	tms.tms_utime = CONVTCK(ru.ru_utime);
+	tms.tms_stime = CONVTCK(ru.ru_stime);
 
-	tms.tms_cutime = CONVTCK(cutime);
-	tms.tms_cstime = CONVTCK(cstime);
+	tms.tms_cutime = CONVTCK(td->td_proc->p_stats->p_cru.ru_utime);
+	tms.tms_cstime = CONVTCK(td->td_proc->p_stats->p_cru.ru_stime);
 
 	if ((error = copyout(&tms, args->buf, sizeof(tms))))
 		return error;
@@ -853,7 +851,7 @@ int
 linux_wait4(struct thread *td, struct linux_wait4_args *args)
 {
 	int error, options, tmpstat;
-	struct rusage ru, *rup;
+	struct rusage ru;
 	struct proc *p;
 
 #ifdef DEBUG
@@ -868,11 +866,7 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	if (args->options & __WCLONE)
 		options |= WLINUXCLONE;
 
-	if (args->rusage != NULL)
-		rup = &ru;
-	else
-		rup = NULL;
-	error = kern_wait(td, args->pid, &tmpstat, options, rup);
+	error = kern_wait(td, args->pid, &tmpstat, options, &ru);
 	if (error)
 		return error;
 

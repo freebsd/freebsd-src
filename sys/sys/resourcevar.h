@@ -106,13 +106,12 @@ struct uidinfo {
 #define	UIDINFO_UNLOCK(ui)	mtx_unlock((ui)->ui_mtxp)
 
 struct proc;
-struct rusage_ext;
 struct thread;
 
 void	 addupc_intr(struct thread *td, uintptr_t pc, u_int ticks);
 void	 addupc_task(struct thread *td, uintptr_t pc, u_int ticks);
-void	 calccru(struct proc *p, struct timeval *up, struct timeval *sp);
-void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp);
+void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp,
+	    struct timeval *ip);
 int	 chgproccnt(struct uidinfo *uip, int diff, int maxval);
 int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t maxval);
@@ -126,8 +125,7 @@ struct plimit
 	*lim_hold(struct plimit *limp);
 rlim_t	 lim_max(struct proc *p, int which);
 void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
-void	 ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
-	    struct rusage_ext *rux2);
+void	 ruadd(struct rusage *ru, struct rusage *ru2);
 int	 suswintr(void *base, int word);
 struct uidinfo
 	*uifind(uid_t uid);

@@ -416,16 +416,20 @@ retry:
 	}
 
 	/*
-	 * Save exit status and finalize rusage info except for times,
-	 * adding in child rusage info.
+	 * Save exit status and final rusage info, adding in child rusage
+	 * info and self times.
 	 */
+	mtx_lock(&Giant);	
 	PROC_LOCK(p);
 	p->p_xstat = rv;
 	p->p_xthread = td;
-	p->p_stats->p_ru.ru_nvcsw++;
 	*p->p_ru = p->p_stats->p_ru;
-	ruadd(p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
+	mtx_lock_spin(&sched_lock);
+	calcru(p, &p->p_ru->ru_utime, &p->p_ru->ru_stime, NULL);
+	mtx_unlock_spin(&sched_lock);
+	ruadd(p->p_ru, &p->p_stats->p_cru);
 
+	mtx_unlock(&Giant);	
 	/*
 	 * Notify interested parties of our demise.
 	 */
@@ -488,6 +492,9 @@ retry:
 	PROC_LOCK(p->p_pptr);
 	sx_xunlock(&proctree_lock);
 
+	while (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
+
 	/*
 	 * We have to wait until after acquiring all locks before
 	 * changing p_state.  We need to avoid any possibly context
@@ -507,8 +514,8 @@ retry:
 
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
 	binuptime(&new_switchtime);
-	bintime_add(&p->p_rux.rux_runtime, &new_switchtime);
-	bintime_sub(&p->p_rux.rux_runtime, PCPU_PTR(switchtime));
+	bintime_add(&p->p_runtime, &new_switchtime);
+	bintime_sub(&p->p_runtime, PCPU_PTR(switchtime));
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
 
@@ -551,14 +558,10 @@ owait(struct thread *td, struct owait_args *uap __unused)
 int
 wait4(struct thread *td, struct wait_args *uap)
 {
-	struct rusage ru, *rup;
+	struct rusage ru;
 	int error, status;
 
-	if (uap->rusage != NULL)
-		rup = &ru;
-	else
-		rup = NULL;
-	error = kern_wait(td, uap->pid, &status, uap->options, rup);
+	error = kern_wait(td, uap->pid, &status, uap->options, &ru);
 	if (uap->status != NULL && error == 0)
 		error = copyout(&status, uap->status, sizeof(status));
 	if (uap->rusage != NULL && error == 0)
@@ -611,10 +614,8 @@ loop:
 			td->td_retval[0] = p->p_pid;
 			if (status)
 				*status = p->p_xstat;	/* convert to int */
-			if (rusage) {
-				bcopy(p->p_ru, rusage, sizeof(struct rusage));
-				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
-			}
+			if (rusage)
+				*rusage = *p->p_ru;
 
 			/*
 			 * If we got the child via a ptrace 'attach',
@@ -649,15 +650,16 @@ loop:
 			 * all other writes to this proc are visible now, so
 			 * no more locking is needed for p.
 			 */
+			mtx_lock(&Giant);
 			PROC_LOCK(p);
 			p->p_xstat = 0;		/* XXX: why? */
 			PROC_UNLOCK(p);
 			PROC_LOCK(q);
-			ruadd(&q->p_stats->p_cru, &q->p_crux, p->p_ru,
-			    &p->p_rux);
+			ruadd(&q->p_stats->p_cru, p->p_ru);
 			PROC_UNLOCK(q);
 			FREE(p->p_ru, M_ZOMBIE);
 			p->p_ru = NULL;
+			mtx_unlock(&Giant);
 
 			/*
 			 * Decrement the count of procs running with this uid.

@@ -489,26 +489,6 @@ struct ksegrp {
 };
 
 /*
- * XXX: Does this belong in resource.h or resourcevar.h instead?
- * Resource usage extension.  The times in rusage structs in the kernel are
- * never up to date.  The actual times are kept as runtimes and tick counts
- * (with control info in the "previous" times), and are converted when
- * userland asks for rusage info.  Backwards compatibility prevents putting
- * this directly in the user-visible rusage struct.
- *
- * Locking: (cj) means (j) for p_rux and (c) for p_crux.
- */
-struct rusage_ext {
-	struct bintime	rux_runtime;    /* (cj) Real time. */
-	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
-	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
-	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
-	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
-	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
-	u_int64_t	rux_iu;         /* (c) Previous intr time in usec. */
-};
-
-/*
  * The old fashionned process. May have multiple threads, KSEGRPs
  * and KSEs. Starts off with a single embedded KSEGRP and THREAD.
  */
@@ -550,8 +530,13 @@ struct proc {
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtime;	/* (j) Time swapped in or out. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
-	struct rusage_ext p_rux;	/* (cj) Internal resource usage. */
-	struct rusage_ext p_crux;	/* (c) Internal child resource usage. */
+	struct bintime	p_runtime;	/* (j) Real time. */
+	u_int64_t	p_uu;		/* (j) Previous user time in usec. */
+	u_int64_t	p_su;		/* (j) Previous system time in usec. */
+	u_int64_t	p_iu;		/* (j) Previous intr time in usec. */
+	u_int64_t	p_uticks;	/* (j) Statclock hits in user mode. */
+	u_int64_t	p_sticks;	/* (j) Statclock hits in system mode. */
+	u_int64_t	p_iticks;	/* (j) Statclock hits in intr. */
 	int		p_profthreads;	/* (c) Num threads in addupc_task. */
 	int		p_maxthrwaits;	/* (c) Max threads num waiters */
 	int		p_traceflag;	/* (o) Kernel trace points. */

@@ -344,7 +344,7 @@ nopgrp:
 				    kp->ki_lockname, LOCKNAMELEN);
 			kp->ki_lockname[LOCKNAMELEN] = 0;
 		}
-		bintime2timeval(&proc.p_rux.rux_runtime, &tv);
+		bintime2timeval(&proc.p_runtime, &tv);
 		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 		kp->ki_pid = proc.p_pid;
 		kp->ki_siglist = proc.p_siglist;

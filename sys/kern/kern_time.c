@@ -156,23 +156,21 @@ clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 {
 	struct timespec ats;
 	struct timeval sys, user;
-	struct proc *p;
 
-	p = td->td_proc;
 	switch (uap->clock_id) {
 	case CLOCK_REALTIME:
 		nanotime(&ats);
 		break;
 	case CLOCK_VIRTUAL:
-		PROC_LOCK(p);
-		calcru(p, &user, &sys);
-		PROC_UNLOCK(p);
+		mtx_lock_spin(&sched_lock);
+		calcru(td->td_proc, &user, &sys, NULL);
+		mtx_unlock_spin(&sched_lock);
 		TIMEVAL_TO_TIMESPEC(&user, &ats);
 		break;
 	case CLOCK_PROF:
-		PROC_LOCK(p);
-		calcru(p, &user, &sys);
-		PROC_UNLOCK(p);
+		mtx_lock_spin(&sched_lock);
+		calcru(td->td_proc, &user, &sys, NULL);
+		mtx_unlock_spin(&sched_lock);
 		timevaladd(&user, &sys);
 		TIMEVAL_TO_TIMESPEC(&user, &ats);
 		break;

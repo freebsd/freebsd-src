@@ -363,7 +363,7 @@ stopprofclock(p)
  * Statistics clock.  Grab profile sample, and if divider reaches 0,
  * do process and kernel statistics.  Most of the statistics are only
  * used by user-level statistics programs.  The main exceptions are
- * ke->ke_uticks, p->p_rux.rux_sticks, p->p_rux.rux_iticks, and p->p_estcpu.
+ * ke->ke_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.
  * This should be called by all active processors.
  */
 void
@@ -386,7 +386,7 @@ statclock(frame)
 		 */
 		if (p->p_flag & P_SA)
 			thread_statclock(1);
-		p->p_rux.rux_uticks++;
+		p->p_uticks++;
 		if (p->p_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
@@ -405,13 +405,13 @@ statclock(frame)
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
 		if ((td->td_ithd != NULL) || td->td_intr_nesting_level >= 2) {
-			p->p_rux.rux_iticks++;
+			p->p_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
 			if (p->p_flag & P_SA)
 				thread_statclock(0);
 			td->td_sticks++;
-			p->p_rux.rux_sticks++;
+			p->p_sticks++;
 			if (p != PCPU_GET(idlethread)->td_proc)
 				cp_time[CP_SYS]++;
 			else
