@@ -148,7 +148,7 @@ static u_long ngpdg_sendspace = 20 * 1024;	/* really max datagram size */
 static u_long ngpdg_recvspace = 20 * 1024;
 
 /* List of all sockets */
-LIST_HEAD(, ngpcb) ngsocklist;
+static LIST_HEAD(, ngpcb) ngsocklist;
 
 #define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
 
