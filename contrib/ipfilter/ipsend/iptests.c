@@ -74,10 +74,14 @@
 #endif
 #include "ipsend.h"
 
+#if 0
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1.4.2 2001/07/15 22:00:14 darrenr Exp $";
 #endif
+#endif
+
+__FBSDID("$FreeBSD$");
 
 
 #define	PAUSE()	tv.tv_sec = 0; tv.tv_usec = 10000; \
