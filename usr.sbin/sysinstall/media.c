@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.48 1996/07/08 11:07:08 jkh Exp $
+ * $Id: media.c,v 1.49 1996/07/08 12:00:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -473,7 +473,7 @@ mediaExtractDistEnd(int zpid, int cpid)
     int i,j;
 
     i = waitpid(zpid, &j, 0);
-    /* Don't check status - gunzip seems to return a bogus one! */
+    /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
@@ -545,7 +545,7 @@ mediaExtractDist(char *dir, int fd)
     close(pfd[1]);
 
     i = waitpid(zpid, &j, 0);
-    /* Don't check status - gunzip seems to return a bogus one! */
+    /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
