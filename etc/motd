@@ -8,7 +8,7 @@ o  Security advisories and updated errata information for all releases are
    at http://www.FreeBSD.org/releases/ - always consult the ERRATA section
    for your release first as it's updated frequently.
 
-o  The Handbook and FAQ documents are at http://www.freebsd.org/ and,
+o  The Handbook and FAQ documents are at http://www.FreeBSD.org/ and,
    along with the mailing lists, can be searched by going to
    http://www.FreeBSD.org/search.html.  If the doc distribution has
    been installed, they're also available formatted in /usr/share/doc.
