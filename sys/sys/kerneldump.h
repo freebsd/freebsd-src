@@ -60,6 +60,7 @@
 struct kerneldumpheader {
 	char		magic[20];
 #define	KERNELDUMPMAGIC		"FreeBSD Kernel Dump"
+#define	KERNELDUMPMAGIC_CLEARED	"Cleared Kernel Dump"
 	char		architecture[12];
 	uint32_t	version;
 #define	KERNELDUMPVERSION	1
