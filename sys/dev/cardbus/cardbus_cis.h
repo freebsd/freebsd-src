@@ -80,7 +80,7 @@ int cardbus_do_cis(device_t dev, device_t child);
 
 /* BAR */
 #define TPL_BAR_REG_ASI_MASK	0x07
-#define TPL_BAR_REG_AS		0x08
+#define TPL_BAR_REG_AS		0x10
 
 /* CISTPL_FUNC */
 #define TPL_FUNC_MF		0	/* multi function tuple */
