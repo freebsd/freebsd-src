@@ -1,5 +1,5 @@
 /*
- * Copyright by UWM -- comments to soft-eng@cs.uwm.edu
+ * Copyright by UWM - comments to soft-eng@cs.uwm.edu
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,140 +37,148 @@
 /** Structure for handling operations **/
 
 
-static struct generic_midi_operations pro_midi_operations = {
+static struct generic_midi_operations pro_midi_operations =
+{
 
-	{"Pro_Audio_Spectrum 16 MV101", 0},
- 	pro_midi_open,
-	pro_midi_close,
-	pro_midi_write,
-	pro_midi_read
+  {"Pro_Audio_Spectrum 16 MV101", 0},
+  pro_midi_open,
+  pro_midi_close,
+  pro_midi_write,
+  pro_midi_read
 };
 
 /*
- * Note! Note! Note!
- * Follow the same model for any other attach function you
+ * Note! Note! Note! Follow the same model for any other attach function you
  * may write
  */
 
-long pro_midi_attach( long mem_start)
+long
+pro_midi_attach (long mem_start)
 {
   pro_midi_dev = num_generic_midis;
   generic_midi_devs[num_generic_midis++] = &pro_midi_operations;
   return mem_start;
-} 
+}
 
-int pro_midi_open(int dev, int mode)
+int
+pro_midi_open (int dev, int mode)
 {
 
-   int intr_mask, s;
+  int             intr_mask, s;
 
 
-   s = splhigh();
+  s = splhigh ();
 
 
-   /* Reset the input and output FIFO pointers */
+  /* Reset the input and output FIFO pointers */
 
 
-  outb(MIDI_CONTROL,M_C_RESET_INPUT_FIFO | M_C_RESET_OUTPUT_FIFO);
+  outb (MIDI_CONTROL, M_C_RESET_INPUT_FIFO | M_C_RESET_OUTPUT_FIFO);
 
-   /* Get the interrupt status */
+  /* Get the interrupt status */
 
-   intr_mask = inb(INTERRUPT_MASK);
+  intr_mask = inb (INTERRUPT_MASK);
 
 
-   /* Enable MIDI IRQ */
+  /* Enable MIDI IRQ */
 
-   intr_mask |= I_M_MIDI_IRQ_ENABLE;
-   outb(INTERRUPT_MASK, intr_mask);
+  intr_mask |= I_M_MIDI_IRQ_ENABLE;
+  outb (INTERRUPT_MASK, intr_mask);
 
 
   /* Enable READ/WRITE on MIDI port. This part is quite unsure though */
 
-    outb(MIDI_CONTROL,M_C_ENA_OUTPUT_IRQ | M_C_ENA_INPUT_IRQ);
+  outb (MIDI_CONTROL, M_C_ENA_OUTPUT_IRQ | M_C_ENA_INPUT_IRQ);
 
   /* Acknowledge pending interrupts */
 
-    outb(MIDI_STATUS,0xff);
+  outb (MIDI_STATUS, 0xff);
 
 
-     splx(s);
+  splx (s);
 
-    return(ESUCCESS);
+  return (ESUCCESS);
 
 
 }
 
 
-void pro_midi_close(int dev)
+void
+pro_midi_close (int dev)
 {
 
-    int intr_mask;
+  int             intr_mask;
 
-	/* Clean up */
+  /* Clean up */
 
-   outb(MIDI_CONTROL,M_C_RESET_INPUT_FIFO | M_C_RESET_OUTPUT_FIFO);
-   intr_mask = inb(INTERRUPT_MASK);
-   intr_mask &= ~I_M_MIDI_IRQ_ENABLE;
-   outb(INTERRUPT_MASK,intr_mask);
+  outb (MIDI_CONTROL, M_C_RESET_INPUT_FIFO | M_C_RESET_OUTPUT_FIFO);
+  intr_mask = inb (INTERRUPT_MASK);
+  intr_mask &= ~I_M_MIDI_IRQ_ENABLE;
+  outb (INTERRUPT_MASK, intr_mask);
 
-   return;
+  return;
 }
 
-int pro_midi_write(int dev, struct uio *uio)
+int
+pro_midi_write (int dev, struct uio *uio)
 {
 
-   int s;
-   unsigned char data;
+  int             s;
+  unsigned char   data;
 
-   /* printf("midi: Going to do write routine..\n"); */
-   while(uio->uio_resid) {
+  /* printf("midi: Going to do write routine..\n"); */
+  while (uio->uio_resid)
+    {
 
-      if ( uiomove(&data,1,uio) ) return(ENOTTY);
+      if (uiomove (&data, 1, uio))
+	return (ENOTTY);
 
-      s = splhigh();
+      s = splhigh ();
 
-      DELAY(30);
-      outb(MIDI_DATA,data);
-      DELAY(70);		/* Ze best pause.. find a better one if
-				 * you can :) 
-				 */
-      splx(s);
-                         }
+      DELAY (30);
+      outb (MIDI_DATA, data);
+      DELAY (70);		/* Ze best pause.. find a better one if you
+				 * can :) */
+      splx (s);
+    }
 
-   return(ESUCCESS);
+  return (ESUCCESS);
 
 }
 
 
-int pro_midi_read(int dev, struct uio *uio)
+int
+pro_midi_read (int dev, struct uio *uio)
 {
 
-    int s;
-    unsigned char data;
+  int             s;
+  unsigned char   data;
 
-   s = splhigh();
+  s = splhigh ();
 
-   /* For each uio_iov[] entry .... */
+  /* For each uio_iov[] entry .... */
 
-  while (uio->uio_resid) {
+  while (uio->uio_resid)
+    {
 
-     if((( inb(MIDI_STATUS) & M_S_INPUT_AVAIL)  == 0 ) &&
-                ((inb(MIDI_FIFO_STATUS) & MIDI_INPUT_AVAILABLE) == 0 ) )
+      if (((inb (MIDI_STATUS) & M_S_INPUT_AVAIL) == 0) &&
+	  ((inb (MIDI_FIFO_STATUS) & MIDI_INPUT_AVAILABLE) == 0))
 
-                data = 0xfe;
-     else
-        data = inb(MIDI_DATA);
+	data = 0xfe;
+      else
+	data = inb (MIDI_DATA);
 
-        if ( uiomove(&data, 1 , uio)) {
+      if (uiomove (&data, 1, uio))
+	{
 
-                        printf("midi: Bad copyout()!\n");
-                        return(ENOTTY);
+	  printf ("midi: Bad copyout()!\n");
+	  return (ENOTTY);
 
-                                       }
+	}
 
-                         }
-      splx(s);
-      return(ESUCCESS);
+    }
+  splx (s);
+  return (ESUCCESS);
 
 }
 

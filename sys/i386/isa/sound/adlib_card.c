@@ -1,6 +1,5 @@
-
 /*
- * linux/kernel/chr_drv/sound/adlib_card.c
+ * sound/adlib_card.c
  * 
  * Detection routine for the AdLib card.
  * 
