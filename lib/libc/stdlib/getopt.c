@@ -37,9 +37,13 @@ static char sccsid[] = "@(#)getopt.c	8.3 (Berkeley) 4/27/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "un-namespace.h"
+
+#include "libc_private.h"
 
 int	opterr = 1,		/* if error message should be printed */
 	optind = 1,		/* index into parent argv vector */
@@ -61,7 +65,6 @@ getopt(nargc, nargv, ostr)
 	char * const *nargv;
 	const char *ostr;
 {
-	extern char *__progname;
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
 
@@ -88,8 +91,8 @@ getopt(nargc, nargv, ostr)
 		if (!*place)
 			++optind;
 		if (opterr && *ostr != ':' && optopt != BADCH)
-			(void)fprintf(stderr,
-			    "%s: illegal option -- %c\n", __progname, optopt);
+			(void)fprintf(stderr, "%s: illegal option -- %c\n",
+			    _getprogname(), optopt);
 		return (BADCH);
 	}
 	if (*++oli != ':') {			/* don't need argument */
@@ -107,7 +110,7 @@ getopt(nargc, nargv, ostr)
 			if (opterr)
 				(void)fprintf(stderr,
 				    "%s: option requires an argument -- %c\n",
-				    __progname, optopt);
+				    _getprogname(), optopt);
 			return (BADCH);
 		}
 	 	else				/* white space */

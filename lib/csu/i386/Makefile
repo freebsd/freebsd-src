@@ -1,7 +1,8 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
 # $FreeBSD$
 
-CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer
+CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer \
+		-I${.CURDIR}/../../libc/include
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
 CLEANFILES=	a.out crt0.o.tmp c++rt0.o.tmp gcrt0.o.tmp scrt0.o.tmp \
 		sgcrt0.o.tmp

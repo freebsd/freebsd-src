@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include "collate.h"
 #include "setlocale.h"
 
+#include "libc_private.h"
+
 int __collate_load_error = 1;
 int __collate_substitute_nontrivial;
 char __collate_version[STR_LEN];
@@ -176,11 +178,10 @@ __collate_strdup(s)
 void
 __collate_err(int ex, const char *f)
 {
-	extern char *__progname;                /* Program name, from crt0. */
 	const char *s;
 	int serrno = errno;
 
-	s = __progname;
+	s = _getprogname();
 	_write(STDERR_FILENO, s, strlen(s));
 	_write(STDERR_FILENO, ": ", 2);
 	s = f;

@@ -29,6 +29,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include "libc_private.h"
 #include "crtbrand.c"
 
 typedef void (*fptr)(void);
@@ -57,7 +58,7 @@ extern int _DYNAMIC;
 #endif
 
 char **environ;
-char *__progname = "";
+const char *__progname = "";
 
 void
 _start(char *arguments, ...)
@@ -66,6 +67,7 @@ _start(char *arguments, ...)
     int argc;
     char **argv;
     char **env;
+    const char *s;
 
     rtld_cleanup = get_rtld_cleanup();
     argv = &arguments;
@@ -73,7 +75,6 @@ _start(char *arguments, ...)
     env = argv + argc + 1;
     environ = env;
     if (argc > 0 && argv[0] != NULL) {
-	char *s;
 	__progname = argv[0];
 	for (s = __progname; *s != '\0'; s++)
 	    if (*s == '/')

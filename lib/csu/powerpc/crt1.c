@@ -43,6 +43,7 @@
 #endif
 
 #include <stdlib.h>
+#include "libc_private.h"
 #include "crtbrand.c"
 
 struct Struct_Obj_Entry;
@@ -63,7 +64,7 @@ extern int etext;
 #endif
 
 char **environ;
-char *__progname = "";
+const char *__progname = "";
 struct ps_strings *__ps_strings;
 
 /* The entry function.
@@ -80,11 +81,11 @@ _start(argc, argv, envp, obj, cleanup, ps_strings)
 	struct ps_strings *ps_strings;		/* BSD extension */
 {
 	char *namep;
+	const char *s;
 
 	environ = envp;
 
 	if (argc > 0 && argv[0] != NULL) {
-		char *s;
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)
 			if (*s == '/')

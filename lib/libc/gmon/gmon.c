@@ -43,22 +43,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/gmon.h>
 #include <sys/sysctl.h>
 
-#include "namespace.h"
 #include <err.h>
-#include "un-namespace.h"
-#include <stdio.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "un-namespace.h"
+
+#include "libc_private.h"
 
 #if defined(__ELF__) && (defined(i386) || defined(__sparc64__))
 extern char *minbrk asm (".minbrk");
 #else
 extern char *minbrk asm ("minbrk");
 #endif
-
-extern char *__progname;
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
@@ -175,7 +174,7 @@ _mcleanup()
 	}
 
 	moncontrol(0);
-	snprintf(outname, sizeof(outname), "%s.gmon", __progname);
+	snprintf(outname, sizeof(outname), "%s.gmon", _getprogname());
 	fd = _open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 	if (fd < 0) {
 		_warn("_mcleanup: %s", outname);

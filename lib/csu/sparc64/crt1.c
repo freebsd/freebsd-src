@@ -34,6 +34,7 @@
 #endif
 
 #include <stdlib.h>
+#include "libc_private.h"
 #include "crtbrand.c"
 
 struct Struct_Obj_Entry;
@@ -55,7 +56,7 @@ extern int etext;
 #endif
 
 char **environ;
-char *__progname = "";
+const char *__progname = "";
 
 /* The entry function. */
 /*
@@ -77,6 +78,7 @@ _start(char **ap,
 	int argc;
 	char **argv;
 	char **env;
+	const char *s;
 #if 0
 	void (*term)(void);	
 
@@ -91,7 +93,6 @@ _start(char **ap,
 	env  = ap + 2 + argc;
 	environ = env;
 	if (argc > 0 && argv[0] != NULL) {
-		char *s;
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)
 			if (*s == '/')

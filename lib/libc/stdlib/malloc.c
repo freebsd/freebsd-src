@@ -297,14 +297,12 @@ wrtmessage(char *p1, char *p2, char *p3, char *p4)
 
 void (*_malloc_message)(char *p1, char *p2, char *p3, char *p4) = wrtmessage;
 
-extern char *__progname;
-
 static void
 wrterror(char *p)
 {
 
     suicide = 1;
-    _malloc_message(__progname, malloc_func, " error: ", p);
+    _malloc_message(_getprogname(), malloc_func, " error: ", p);
     abort();
 }
 
@@ -314,7 +312,7 @@ wrtwarning(char *p)
 
     if (malloc_abort)
 	wrterror(p);
-    _malloc_message(__progname, malloc_func, " warning: ", p);
+    _malloc_message(_getprogname(), malloc_func, " warning: ", p);
 }
 
 /*
