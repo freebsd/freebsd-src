@@ -438,10 +438,10 @@ vsystem(char *fmt, ...)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	if (!RunningAsInit)
-	    execl("/bin/sh", "/bin/sh", "-c", cmd, (char *)NULL);
-	else
+	if (RunningAsInit)
 	    execl("/stand/sh", "/stand/sh", "-c", cmd, (char *)NULL);
+	else
+	    execl("/bin/sh", "/bin/sh", "-c", cmd, (char *)NULL);
 	exit(1);
     }
     else {
