@@ -17,7 +17,7 @@ RELOC?=		0x6c0000
 CFLAGS+=	-DRELOC=${RELOC}
 
 # architecture-specific loader code
-SRCS=		conf.c
+SRCS=		conf.c metadata.c
 
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../ofw/common
