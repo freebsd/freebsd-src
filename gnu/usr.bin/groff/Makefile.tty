@@ -26,9 +26,10 @@
 RES=240
 CPI=10
 LPI=6
-FONTS=R I B BI
+FONTS=R I B BI S L
 
-FONTFILES=$(FONTS) DESC
+DEVFILES=$(FONTS) DESC
+CLEANFILES=$(DEVFILES)
 
 $(FONTS): R.proto
 	@${ECHO} Making $@
@@ -41,7 +42,7 @@ $(FONTS): R.proto
 	     -e "/^internalname/s/B/2/" \
 	     -e "/^internalname/s/I/1/" \
 	     -e "/^internalname .*[^ 0-9]/d" \
-	     $(.CURDIR)/R.proto >$@)
+	     ${DISTDIR}/R.proto >$@)
 
 DESC: DESC.proto
 	@${ECHO} Making $@
@@ -49,4 +50,6 @@ DESC: DESC.proto
 	    -e "s/^hor .*$$/hor `echo $(RES) / $(CPI) | bc`/" \
 	    -e "s/^vert .*$$/vert `echo $(RES) / $(LPI) | bc`/" \
 	    -e "s/^fonts .*$$/fonts `set $(FONTS); echo $$#` $(FONTS)/" \
-	    $(.CURDIR)/DESC.proto >$@
+	    ${DISTDIR}/DESC.proto >$@
+
+beforeinstall:: ${DEVFILES}

@@ -1,25 +1,16 @@
-# Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-#      Written by James Clark (jjc@jclark.com)
-# 
-# This file is part of groff.
-# 
-# groff is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free
-# Software Foundation; either version 2, or (at your option) any later
-# version.
-# 
-# groff is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-# for more details.
-# 
-# You should have received a copy of the GNU General Public License along
-# with groff; see the file COPYING.  If not, write to the Free Software
-# Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+# Makefile for groff
+#
+# $Id$
 
-SHELL=/bin/sh
+SUBDIR=		libgroff libdriver libbib \
+		addftinfo eqn \
+		grodvi groff grolj4 grops grotty \
+		indxbib lkbib lookbib man mm nroff \
+		pfbtops pic psbb refer tbl tfmtodit tmac troff \
+		devX100 devX100-12 devX75 devX75-12 devascii devdvi \
+		devlatin1 devkoi8-r devlj4 devps
 
-.PHONY: all
-all:
-	$(SHELL) configure
-	$(MAKE) all
+# BSD already provides soelim and we don't want xditview compiled be default
+MISC=		soelim afmtodit doc grog hpftodit xditview
+
+.include <bsd.subdir.mk>
