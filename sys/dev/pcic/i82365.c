@@ -177,6 +177,8 @@ pcic_attach(device_t dev)
 	struct pcic_handle *h;
 	int vendor, count, i, reg;
 
+	sc->dev = dev;
+
 	/* now check for each controller/socket */
 
 	/*
@@ -339,6 +341,7 @@ pcic_attach(device_t dev)
 		h->memalloc = 0;
 		h->ioalloc = 0;
 		h->ih_irq = 0;
+		h->sc = sc;
 		h->dev = device_add_child(dev, "pccard", -1);
 		device_set_ivars(h->dev, h);
 		pcic_init_socket(h);
@@ -374,6 +377,9 @@ pcic_create_event_thread(void *arg)
 		    "cannot create event thread for sock 0x%02x\n", h->sock);
 		panic("pcic_create_event_thread");
 	}
+	config_intrhook_disestablish(h->hook);
+	free(h->hook, M_TEMP);
+	h->hook = 0;
 }
 
 void
@@ -468,6 +474,7 @@ pcic_init_socket(struct pcic_handle *h)
 {
 	int reg;
 	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
+	struct intr_config_hook *hook;
 
 	/*
 	 * queue creation of a kernel thread to handle insert/removal events.
@@ -476,7 +483,17 @@ pcic_init_socket(struct pcic_handle *h)
 	if (h->event_thread != NULL)
 		panic("pcic_init_socket: event thread");
 #endif
-	pcic_create_event_thread(h);
+	hook = 
+	    (struct intr_config_hook *)malloc(sizeof(struct intr_config_hook),
+		M_TEMP, M_NOWAIT);
+	if (!hook) {
+		printf("ini socket failed\n");
+		return;
+	}
+	hook->ich_func = pcic_create_event_thread;
+	hook->ich_arg = h;
+	h->hook = hook;
+	config_intrhook_establish(hook);
 
 	/* set up the card to interrupt on card detect */
 
@@ -605,7 +622,7 @@ pcic_attach_card(struct pcic_handle *h)
 
 	if (!(h->flags & PCIC_FLAG_CARDP)) {
 		/* call the MI attach function */
-		pccard_card_attach(h->pccard);
+		/* XXX pccard_card_attach(h->pccard); */
 
 		h->flags |= PCIC_FLAG_CARDP;
 	} else {
@@ -621,7 +638,7 @@ pcic_detach_card(struct pcic_handle *h, int flags)
 		h->flags &= ~PCIC_FLAG_CARDP;
 
 		/* call the MI detach function */
-		pccard_card_detach(h->pccard, flags);
+		/* XXX pccard_card_detach(h->pccard, flags); */
 	} else {
 		DPRINTF(("pcic_detach_card: already detached"));
 	}

@@ -50,6 +50,7 @@ struct pcic_handle {
 	struct pcic_softc *sc;
 	struct device *ph_parent;
 	device_t *dev;
+	struct intr_config_hook *hook;
 	bus_space_tag_t ph_bus_t;	/* I/O or MEM?  I don't mind */
 	bus_space_handle_t ph_bus_h;
 	u_int8_t (* ph_read)(struct pcic_handle*, int);
