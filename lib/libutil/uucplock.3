@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: uucplock.3,v 1.8 1997/08/10 18:42:38 ache Exp $
+.\" $Id: uucplock.3,v 1.9 1997/09/29 19:11:25 wosch Exp $
 .\" "
 .Dd March 30, 1997
 .Os
@@ -151,18 +151,6 @@ for further details.
 .Xr read 2 ,
 .Xr write 2
 .Sh BUGS
-Locking is not atomic.  Should a race condition occur, it's
-possible that the
-.Dq losing
-process fails to identify the
-.Dq winning
-process.  If this happens,
-.Fn uu_lock
-returns
-.Dv UU_LOCK_READ_ERR
-and errno is set to
-.Er EINVAL .
-.Pp
 It is possible that a stale lock is not recognised as such if a new
 processes is assigned the same processes id as the program that left
 the stale lock.
