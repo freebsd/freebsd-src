@@ -36,11 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)utmp.h	8.2 (Berkeley) 1/21/94
- *	$Id$
+ *	$Id: utmp.h,v 1.5 1997/02/23 09:17:16 peter Exp $
  */
 
 #ifndef	_UTMP_H_
 #define	_UTMP_H_
+
+#include <sys/types.h>
 
 #define	_PATH_UTMP	"/var/run/utmp"
 #define	_PATH_WTMP	"/var/log/wtmp"

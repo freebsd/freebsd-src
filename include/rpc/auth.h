@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.8 1997/02/23 09:17:21 peter Exp $
+ *	$Id: auth.h,v 1.9 1997/05/07 00:58:23 bde Exp $
  */
 
 /*
@@ -44,6 +44,8 @@
 #ifndef _RPC_AUTH_H
 #define _RPC_AUTH_H
 #include <sys/cdefs.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
 
 #define MAX_AUTH_BYTES	400
 #define MAXNETNAMELEN	255	/* maximum length of network user's name */
@@ -174,7 +176,9 @@ extern AUTH *authdes_create		__P((char *, u_int,
 					    struct sockaddr_in *, des_block *));
 __END_DECLS
 
+#ifndef AUTH_NONE /* Protect against <login_cap.h>
 #define AUTH_NONE	0		/* no authentication */
+#endif
 #define	AUTH_NULL	0		/* backward compatibility */
 #define	AUTH_UNIX	1		/* unix style (uid, gids) */
 #define	AUTH_SHORT	2		/* short hand unix style */

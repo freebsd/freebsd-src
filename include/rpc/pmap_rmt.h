@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_rmt.h 1.2 88/02/08 SMI
  *	from: @(#)pmap_rmt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id$
+ *	$Id: pmap_rmt.h,v 1.6 1997/02/23 09:17:23 peter Exp $
  */
 
 /*
@@ -41,6 +41,8 @@
 #ifndef _RPC_PMAPRMT_H
 #define _RPC_PMAPRMT_H
 #include <sys/cdefs.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
 
 struct rmtcallargs {
 	u_long prog, vers, proc, arglen;

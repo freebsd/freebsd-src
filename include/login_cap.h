@@ -21,11 +21,13 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.h,v 1.6 1997/02/23 09:17:13 peter Exp $
+ *	$Id: login_cap.h,v 1.7 1997/03/14 17:53:35 peter Exp $
  */
 
 #ifndef _LOGIN_CAP_H_
 #define _LOGIN_CAP_H_
+
+#include <sys/types.h>
 
 #define LOGIN_DEFCLASS		"default"
 #define LOGIN_DEFSTYLE		"passwd"
@@ -54,7 +56,9 @@
 #define BI_SECURE		"secure"
 #define BI_SETENV		"setenv"
 
+#ifndef AUTH_NONE /* Protect against <rpc/auth.h> */
 #define AUTH_NONE		0x00
+#endif
 #define AUTH_OKAY		0x01
 #define AUTH_ROOTOKAY		0x02	/* root login okay */
 #define AUTH_SECURE		0x04	/* secure login */

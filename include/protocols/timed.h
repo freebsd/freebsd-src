@@ -36,6 +36,10 @@
 #ifndef	_PROTOCOLS_TIMED_H_
 #define	_PROTOCOLS_TIMED_H_
 
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/param.h>
+
 /*
  * Time Synchronization Protocol
  */
