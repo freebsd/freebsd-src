@@ -50,6 +50,7 @@
 #include <sys/queue.h>
 
 struct cam_path;
+union ccb;
 
 typedef u_int8_t target_bit_vector;
 #define	TARGET_BIT_VECTOR_SET -1
