@@ -273,7 +273,7 @@ net_getparams(sock)
     /*  
      * If present, strip the server's address off of the rootpath
      * before passing it along.  This allows us to be compatible with
-     * the kernel's diskless (BOOTP_NFSROOT) booting conventions
+     * the kernel's diskless (kenv bootp.nfsroot=1) booting conventions
      */
     for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
 	    if (rootpath[i] == ':')
