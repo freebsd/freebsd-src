@@ -126,6 +126,7 @@ static 	int			packetDirection;
 static  int			dropIgnoredIncoming;
 static  int			logDropped;
 static	int			logFacility;
+static	int			log_ipfw_denied;
 
 int main (int argc, char** argv)
 {
@@ -160,6 +161,7 @@ int main (int argc, char** argv)
 	dynamicMode		= 0;
  	logDropped		= 0;
  	logFacility		= LOG_DAEMON;
+	log_ipfw_denied		= 0;
 /*
  * Mark packet buffer empty.
  */
@@ -614,7 +616,7 @@ static void FlushPacketBuffer (int fd)
 						  (struct ip*) packetBuf,
 						  ifMTU - aliasOverhead);
 		}
-		else {
+		else if (errno == EACCES && log_ipfw_denied) {
 
 			sprintf (msgBuf, "failed to write packet back");
 			Warn (msgBuf);
@@ -870,7 +872,8 @@ enum Option {
 	ProxyRule,
  	LogDenied,
  	LogFacility,
-	PunchFW
+	PunchFW,
+	LogIpfwDenied
 };
 
 enum Param {
@@ -1088,7 +1091,15 @@ static struct OptionInfo optionTable[] = {
 	        "basenumber:count",
 		"punch holes in the firewall for incoming FTP/IRC DCC connections",
 		"punch_fw",
-		NULL }
+		NULL },
+
+	{ LogIpfwDenied,
+		0,
+		YesNo,
+	        "[yes|no]",
+		"log packets converted by natd, but denied by ipfw",
+		"log_ipfw_denied",
+		NULL },
 };
 	
 static void ParseOption (const char* option, const char* parms)
@@ -1272,6 +1283,8 @@ static void ParseOption (const char* option, const char* parms)
 	case PunchFW:
 		SetupPunchFW(strValue);
 		break;
+	case LogIpfwDenied:
+		log_ipfw_denied=1;
 	}
 }
 
