@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 
+#include "opt_ddb.h"
+
 #define __regparm __attribute__((regparm(3)))
 
 #define FUNC void(*)(void)
@@ -166,6 +168,8 @@ __stdcall static ndis_status ntoskrnl_objref(ndis_handle, uint32_t, void *,
     uint8_t, void **, void **);
 __stdcall static void ntoskrnl_objderef(/*void * */ void);
 __stdcall static uint32_t ntoskrnl_zwclose(ndis_handle);
+static uint32_t ntoskrnl_dbgprint(char *, ...);
+__stdcall static void ntoskrnl_debugger(void);
 __stdcall static void dummy(void);
 
 static struct mtx *ntoskrnl_interlock;
@@ -1604,6 +1608,30 @@ ntoskrnl_thread_exit(status)
 	return(0);	/* notreached */
 }
 
+static uint32_t
+ntoskrnl_dbgprint(char *fmt, ...)
+{
+	va_list			ap;
+
+	if (bootverbose) {
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
+	}
+
+	return(STATUS_SUCCESS);
+}
+
+__stdcall static void
+ntoskrnl_debugger(void)
+{
+#ifdef DDB
+	Debugger("debug from winkernel module");
+#else
+	printf("ntoskrnl_debugger(): DDB not present\n");
+#endif
+	return;
+}
+
 __stdcall static void
 dummy()
 {
@@ -1625,7 +1653,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "RtlUnicodeStringToInteger",	(FUNC)ntoskrnl_unicode_to_int },
 	{ "sprintf",			(FUNC)sprintf },
 	{ "vsprintf",			(FUNC)vsprintf },
-	{ "DbgPrint",			(FUNC)printf },
+	{ "DbgPrint",			(FUNC)ntoskrnl_dbgprint },
+	{ "DbgBreakPoint",		(FUNC)ntoskrnl_debugger },
 	{ "strncmp",			(FUNC)strncmp },
 	{ "strcmp",			(FUNC)strcmp },
 	{ "strncpy",			(FUNC)strncpy },
