@@ -90,14 +90,9 @@ struct privatespace {
 	struct globaldata globaldata;
 	char		__filler0[PAGE_SIZE - sizeof(struct globaldata)];
 
-	/* page 1..4 - CPAGE1,CPAGE2,CPAGE3,PPAGE1 */
-	char		CPAGE1[PAGE_SIZE];
-	char		CPAGE2[PAGE_SIZE];
-	char		CPAGE3[PAGE_SIZE];
-	char		PPAGE1[PAGE_SIZE];
-
-	/* page 5..4+UPAGES - idle stack (UPAGES pages) */
+	/* page 1 - idle stack (UPAGES pages) */
 	char		idlestack[UPAGES * PAGE_SIZE];
+	/* page 1+UPAGES... */
 };
 
 extern struct privatespace SMP_prvspace[];
