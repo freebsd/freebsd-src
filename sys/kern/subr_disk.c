@@ -116,7 +116,7 @@ disk_enumerate(struct disk *disk)
 }
 
 static int
-sysctl_disks SYSCTL_HANDLER_ARGS
+sysctl_disks (SYSCTL_HANDLER_ARGS)
 {
 	struct disk *disk;
 	int error, first;
