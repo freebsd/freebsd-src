@@ -281,8 +281,6 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 	    /* Pass in BIOS device number. */
 	    bi.bi_bios_dev = bc_unit2bios(rootdev->d_kind.bioscd.unit);
 	    bootdevnr = bc_getdev(rootdev);
-	    if (bootdevnr != -1)
-		    *howtop |= RB_CDROM;
 	    break;
 
     case DEVT_DISK:
