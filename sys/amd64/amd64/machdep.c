@@ -156,6 +156,7 @@ int	_udatasel, _ucodesel, _ucode32sel;
 int cold = 1;
 
 long Maxmem = 0;
+long realmem = 0;
 
 vm_paddr_t phys_avail[20];
 
@@ -188,6 +189,7 @@ cpu_startup(dummy)
 #endif
 	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
 	    ptoa((uintmax_t)Maxmem) / 1048576);
+	realmem = Maxmem;
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
