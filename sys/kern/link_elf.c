@@ -492,7 +492,7 @@ link_elf_link_preload(linker_class_t cls,
 
     error = parse_dynamic(ef);
     if (error) {
-	linker_file_unload(lf);
+	linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	return error;
     }
     link_elf_reloc_local(lf);
@@ -846,7 +846,7 @@ nosyms:
 
 out:
     if (error && lf)
-	linker_file_unload(lf);
+	linker_file_unload(lf, LINKER_UNLOAD_FORCE);
     if (shdr)
 	free(shdr, M_LINKER);
     if (firstpage)

@@ -466,7 +466,7 @@ out:
 }
 
 int
-linker_file_unload(linker_file_t file)
+linker_file_unload(linker_file_t file, int flags)
 {
 	module_t mod, next;
 	modlist_t ml, nextml;
@@ -500,7 +500,7 @@ linker_file_unload(linker_file_t file)
 			/*
 			 * Give the module a chance to veto the unload.
 			 */
-			if ((error = module_unload(mod)) != 0) {
+			if ((error = module_unload(mod, flags)) != 0) {
 				KLD_DPF(FILE, ("linker_file_unload: module %p"
 				    " vetoes unload\n", mod));
 				goto out;
@@ -536,7 +536,7 @@ linker_file_unload(linker_file_t file)
 
 	if (file->deps) {
 		for (i = 0; i < file->ndeps; i++)
-			linker_file_unload(file->deps[i]);
+			linker_file_unload(file->deps[i], flags);
 		free(file->deps, M_LINKER);
 		file->deps = NULL;
 	}
@@ -789,8 +789,8 @@ out:
 /*
  * MPSAFE
  */
-int
-kldunload(struct thread *td, struct kldunload_args *uap)
+static int
+kern_kldunload(struct thread *td, int fileid, int flags)
 {
 	linker_file_t lf;
 	int error = 0;
@@ -803,17 +803,20 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 	if ((error = suser(td)) != 0)
 		goto out;
 
-	lf = linker_find_file_by_id(uap->fileid);
+	lf = linker_find_file_by_id(fileid);
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 		if (lf->userrefs == 0) {
+			/*
+			 * XXX: maybe LINKER_UNLOAD_FORCE should override ?
+			 */
 			printf("kldunload: attempt to unload file that was"
 			    " loaded by the kernel\n");
 			error = EBUSY;
 			goto out;
 		}
 		lf->userrefs--;
-		error = linker_file_unload(lf);
+		error = linker_file_unload(lf, flags);
 		if (error)
 			lf->userrefs++;
 	} else
@@ -821,6 +824,29 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 out:
 	mtx_unlock(&Giant);
 	return (error);
+}
+
+/*
+ * MPSAFE
+ */
+int
+kldunload(struct thread *td, struct kldunload_args *uap)
+{
+
+	return (kern_kldunload(td, uap->fileid, LINKER_UNLOAD_NORMAL));
+}
+
+/*
+ * MPSAFE
+ */
+int
+kldunloadf(struct thread *td, struct kldunloadf_args *uap)
+{
+
+	if (uap->flags != LINKER_UNLOAD_NORMAL &&
+	    uap->flags != LINKER_UNLOAD_FORCE)
+		return (EINVAL);
+	return (kern_kldunload(td, uap->fileid, uap->flags));
 }
 
 /*
@@ -1250,7 +1276,8 @@ restart:
 					    nver) != NULL) {
 						printf("module %s already"
 						    " present!\n", modname);
-						linker_file_unload(lf);
+						linker_file_unload(lf,
+						    LINKER_UNLOAD_FORCE);
 						TAILQ_REMOVE(&loaded_files,
 						    lf, loaded);
 						/* we changed tailq next ptr */
@@ -1276,7 +1303,7 @@ restart:
 	 */
 	TAILQ_FOREACH(lf, &loaded_files, loaded) {
 		printf("KLD file %s is missing dependencies\n", lf->filename);
-		linker_file_unload(lf);
+		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 		TAILQ_REMOVE(&loaded_files, lf, loaded);
 	}
 
@@ -1317,7 +1344,7 @@ restart:
 		if (error) {
 			printf("KLD file %s - could not finalize loading\n",
 			    lf->filename);
-			linker_file_unload(lf);
+			linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 			continue;
 		}
 		linker_file_register_modules(lf);
@@ -1676,7 +1703,7 @@ linker_load_module(const char *kldname, const char *modname,
 			break;
 		if (modname && verinfo &&
 		    modlist_lookup2(modname, verinfo) == NULL) {
-			linker_file_unload(lfdep);
+			linker_file_unload(lfdep, LINKER_UNLOAD_FORCE);
 			error = ENOENT;
 			break;
 		}
