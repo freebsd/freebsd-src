@@ -85,14 +85,6 @@
 #define	KTR_COMPILE	(KTR_GEN)
 #endif
 
-#ifndef KTR_MASK
-#define	KTR_MASK	(KTR_GEN)
-#endif
-
-#ifndef KTR_CPUMASK
-#define	KTR_CPUMASK	(~0)
-#endif
-
 #ifndef LOCORE
 
 #include <sys/time.h>
@@ -126,6 +118,7 @@ extern int ktr_extend;
 extern int ktr_cpumask;
 extern int ktr_mask;
 extern int ktr_entries;
+extern int ktr_verbose;
 
 extern volatile int ktr_idx;
 extern struct ktr_entry ktr_buf[];
@@ -138,138 +131,38 @@ extern struct ktr_entry ktr_buf[];
 #endif
 
 #ifdef KTR_EXTEND
-#ifndef _TR_CPU
-#ifdef SMP
-#define _TR_CPU		cpuid
+void	ktr_tracepoint(u_int mask, char *filename, u_int line,
+		       char *format, ...);
 #else
-#define _TR_CPU		0
+void	ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2,
+		       u_long arg3, u_long arg4, u_long arg5);
 #endif
-#endif
-#ifndef _TR
-#define _TR()							\
-        struct ktr_entry *_ktrptr;				\
-	int _ktr_newidx, _ktr_saveidx;				\
-	int _tr_intrsave = save_intr();				\
-	disable_intr();						\
-	do {							\
-		_ktr_saveidx = ktr_idx;				\
-		_ktr_newidx = (ktr_idx + 1) & (KTR_ENTRIES - 1); \
-	} while (atomic_cmpset_int(&ktr_idx, _ktr_saveidx, _ktr_newidx) == 0); \
-	_ktrptr = &ktr_buf[_ktr_saveidx];			\
-	restore_intr(_tr_intrsave);				\
-	nanotime(&_ktrptr->ktr_tv);				\
-	snprintf (_ktrptr->ktr_filename, KTRFILENAMESIZE, "%s", __FILE__); \
-        _ktrptr->ktr_line = __LINE__;				\
-	_ktrptr->ktr_cpu = _TR_CPU;
-#endif
-#define	CTR0(m, _desc) 						\
-	if (KTR_COMPILE & (m)) {				\
-		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
-			_TR()					\
-			memcpy (_ktrptr->ktr_desc, _desc, KTRDESCSIZE);	\
-		}						\
-	}
-#define	CTR1(m, _desc, _p1)					\
-	if (KTR_COMPILE & (m)) {				\
-		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
-			_TR()					\
-			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1);	\
-		}						\
-	}
-#define	CTR2(m, _desc, _p1, _p2) 				\
-	if (KTR_COMPILE & (m)) {				\
-		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
-			_TR()					\
-			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2);	\
-		}						\
-	}
-#define	CTR3(m, _desc, _p1, _p2, _p3) 				\
-	if (KTR_COMPILE & (m)) {				\
-		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
-			_TR()					\
-			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2, _p3);	\
-		}						\
-	}
-#define	CTR4(m, _desc, _p1, _p2, _p3, _p4) 			\
-	if (KTR_COMPILE & (m)) {				\
-		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
-			_TR()					\
-			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2, _p3, _p4);	\
-		}						\
-	}
-#define	CTR5(m, _desc, _p1, _p2, _p3, _p4, _p5) 		\
-	if (KTR_COMPILE & (m)) {					\
-		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
-			_TR()					\
-			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2, _p3, _p4, _p5);	\
-		}						\
-	}
 
+#ifdef KTR_EXTEND
+#define CTR(m, format, args...) do {					\
+	if (KTR_COMPILE & (m))						\
+		ktr_tracepoint((m), __FILE__, __LINE__, format , ##args); \
+	} while(0)
+
+#define	CTR0(m, format)			CTR(m, format)
+#define	CTR1(m, format, p1)		CTR(m, format, p1)
+#define	CTR2(m, format, p1, p2)		CTR(m, format, p1, p2)
+#define	CTR3(m, format, p1, p2, p3)	CTR(m, format, p1, p2, p3)
+#define	CTR4(m, format, p1, p2, p3, p4)	CTR(m, format, p1, p2, p3, p4)
+#define	CTR5(m, format, p1, p2, p3, p4, p5)				\
+	CTR(m, format, p1, p2, p3, p4, p5)
 #else							    /* not extended */
-#ifndef _TR
-#define _TR(_desc)						\
-        struct ktr_entry *_ktrptr;				\
-	int _ktr_newidx, _ktr_saveidx;				\
-	do {							\
-		_ktr_saveidx = ktr_idx;				\
-		_ktr_newidx = (ktr_idx + 1) & (KTR_ENTRIES - 1); \
-	} while (atomic_cmpset_int(&ktr_idx, _ktr_saveidx, _ktr_newidx) == 0); \
-	_ktrptr = &ktr_buf[_ktr_saveidx];			\
-	nanotime(&_ktrptr->ktr_tv);				\
-	_ktrptr->ktr_desc = (_desc);
-#endif
-#define	CTR0(m, _desc) 						\
-	if (KTR_COMPILE & (m)) {				\
-		if (ktr_mask & (m)) {				\
-			_TR(_desc)				\
-		}						\
-	}
-#define	CTR1(m, _desc, _p1)					\
-	if (KTR_COMPILE & (m)) {				\
-		if (ktr_mask & (m)) {				\
-			_TR(_desc)				\
-			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
-		}						\
-	}
-#define	CTR2(m, _desc, _p1, _p2) 				\
-	if (KTR_COMPILE & (m)) {				\
-		if (ktr_mask & (m)) {				\
-			_TR(_desc)				\
-			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
-			_ktrptr->ktr_parm2 = (u_long)(_p2);	\
-		}						\
-	}
-#define	CTR3(m, _desc, _p1, _p2, _p3) 				\
-	if (KTR_COMPILE & (m)) {				\
-		if (ktr_mask & (m)) {				\
-			_TR(_desc)				\
-			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
-			_ktrptr->ktr_parm2 = (u_long)(_p2);	\
-			_ktrptr->ktr_parm3 = (u_long)(_p3);	\
-		}						\
-	}
-#define	CTR4(m, _desc, _p1, _p2, _p3, _p4) 			\
-	if (KTR_COMPILE & (m)) {				\
-		if (ktr_mask & (m)) {				\
-			_TR(_desc)				\
-			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
-			_ktrptr->ktr_parm2 = (u_long)(_p2);	\
-			_ktrptr->ktr_parm3 = (u_long)(_p3);	\
-			_ktrptr->ktr_parm4 = (u_long)(_p4);	\
-		}						\
-	}
-#define	CTR5(m, _desc, _p1, _p2, _p3, _p4, _p5) 		\
-	if (KTR_COMPILE & (m)) {				\
-		if (ktr_mask & (m)) {				\
-			_TR(_desc)				\
-			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
-			_ktrptr->ktr_parm2 = (u_long)(_p2);	\
-			_ktrptr->ktr_parm3 = (u_long)(_p3);	\
-			_ktrptr->ktr_parm4 = (u_long)(_p4);	\
-			_ktrptr->ktr_parm5 = (u_long)(_p5);	\
-		}						\
-	}
-#endif
+#define CTR5(m, format, p1, p2, p3, p4, p5) do {			\
+	if (KTR_COMPILE & (m))						\
+		ktr_tracepoint((m), format, (u_long)p1, (u_long)p2,	\
+		    (u_long)p3, (u_long)p4, (u_long)p5);		\
+	} while(0)
+#define CTR0(m, format)			CTR5(m, format, 0, 0, 0, 0, 0)
+#define CTR1(m, format, p1)		CTR5(m, format, p1, 0, 0, 0, 0)
+#define	CTR2(m, format, p1, p2)		CTR5(m, format, p1, p2, 0, 0, 0)
+#define	CTR3(m, format, p1, p2, p3)	CTR5(m, format, p1, p2, p3, 0, 0)
+#define	CTR4(m, format, p1, p2, p3, p4)	CTR5(m, format, p1, p2, p3, p4, 0)
+#endif	/* KTR_EXTEND */
 #else	/* KTR */
 #undef KTR_COMPILE
 #define KTR_COMPILE 0
