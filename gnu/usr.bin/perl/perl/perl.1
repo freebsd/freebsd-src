@@ -1,7 +1,13 @@
 .rn '' }`
-''' $RCSfile: perl.1,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:36 $
+''' $RCSfile: perl.1,v $$Revision: 1.2 $$Date: 1994/10/27 23:16:52 $
 ''' 
 ''' $Log: perl.1,v $
+''' Revision 1.2  1994/10/27 23:16:52  wollman
+''' Convince Perl to that is is part of the system, as /usr/bin/perl (binary)
+''' and /usr/share/perl (library).  The latter was chosen as analogous to other
+''' directories already present in /usr/share, like /usr/share/groff_font and
+''' (particularly) /usr/share/mk.
+'''
 .\" Revision 1.1.1.1  1994/09/10  06:27:36  gclarkii
 .\" Initial import of Perl 4.046 bmaked
 .\"
@@ -505,7 +511,7 @@ If a directory name is specified, Perl will switch to that directory
 before running the script.
 The
 .B \-x
-switch only controls the the disposal of leading garbage.
+switch only controls the disposal of leading garbage.
 The script must be terminated with _\|_END_\|_ if there is trailing garbage
 to be ignored (the script can process any or all of the trailing garbage
 via the DATA filehandle if desired).

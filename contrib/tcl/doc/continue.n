@@ -6,6 +6,7 @@
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
 '\" SCCS: @(#) continue.n 1.6 96/03/25 20:12:09
+'\" $Id$
 '\" 
 .so man.macros
 .TH continue n "" Tcl "Tcl Built-In Commands"
@@ -24,7 +25,7 @@ such as \fBfor\fR or \fBforeach\fR or \fBwhile\fR.
 It returns a TCL_CONTINUE code, which causes a continue exception
 to occur.
 The exception causes the current script to be aborted
-out to the the innermost containing loop command, which then
+out to the innermost containing loop command, which then
 continues with the next iteration of the loop.
 Catch exceptions are also handled in a few other situations, such
 as the \fBcatch\fR command and the outermost scripts of procedure
