@@ -239,6 +239,7 @@ long	lrint(double);
 long	lround(double);
 double	nextafter(double, double);
 double	remainder(double, double);
+double	remquo(double, double, int *);
 double	rint(double);
 #endif /* __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE */
 
@@ -341,6 +342,7 @@ long	lroundf(float);
 float	nearbyintf(float);
 float	nextafterf(float, float);
 float	remainderf(float, float);
+float	remquof(float, float, int *);
 float	rintf(float);
 float	scalblnf(float, long);
 float	scalbnf(float, int);

@@ -32,12 +32,14 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2005
+.Dd March 24, 2005
 .Dt REMAINDER 3
 .Os
 .Sh NAME
 .Nm remainder ,
-.Nm remainderf
+.Nm remainderf ,
+.Nm remquo ,
+.Nm remquof
 .Nd minimal residue functions
 .Sh LIBRARY
 .Lb libm
@@ -47,10 +49,16 @@
 .Fn remainder "double x" "double y"
 .Ft float
 .Fn remainderf "float x" "float y"
+.Ft double
+.Fn remquo "double x" "double y" "int *quo"
+.Ft float
+.Fn remquo "float x" "float y" "int *quo"
 .Sh DESCRIPTION
-.Fn remainder
+.Fn remainder ,
+.Fn remainderf ,
+.Fn remquo ,
 and
-.Fn remainderf
+.Fn remquof
 return the remainder
 .Fa r
 :=
@@ -83,23 +91,42 @@ the remainder is computed exactly and
 .Sm off
 .Pf \\*(Ba Fa y No \\*(Ba/2 .
 .Sm on
-But
-.Fn remainder x 0
+But attempting to take the remainder when
+.Fa y
+is 0 or
+.Fa x
+is \*(Pm\*(If is an invalid operation that produces a \*(Na.
+.Pp
+The
+.Fn remquo
 and
-.Fn remainder \*(If 0
-are invalid operations that produce a \*(Na.
+.Fn remquof
+functions also store the last
+.Va k
+bits of
+.Fa n
+in the location pointed to by
+.Fa quo ,
+provided that
+.Fa n
+exists.
+The number of bits
+.Va k
+is platform-specific, but is guaranteed to be at least 3.
 .Sh SEE ALSO
 .Xr fmod 3 ,
 .Xr ieee 3 ,
 .Xr math 3
 .Sh STANDARDS
 The
-.Fn remainder
+.Fn remainder ,
+.Fn remainderf ,
+.Fn remquo ,
 and
-.Fn remainderf
+.Fn remquof
 routines conform to
-.St -isoC-99
-and
+.St -isoC-99 .
+The remainder is as defined in
 .St -ieee754 .
 .Sh HISTORY
 The
@@ -111,3 +138,9 @@ functions appeared in
 and
 .Fx 2.0 ,
 respectively.
+The
+.Fn remquo
+and
+.Fn remquof
+functions were added in
+.Fx 5.5 .
