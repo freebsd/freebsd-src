@@ -56,23 +56,33 @@ description	:	QUOTED_STRING
 
 %%
 /*
+ *
  * Copyright 1986, 1987 by the MIT Student Information Processing Board
- * For copyright info, see Copyright.SIPB.
+ *
+ * For copyright info, see mit-sipb-copyright.h.
  */
 
-#include <stdlib.h>
-#include <strings.h>
+#include <string.h>
+#include <assert.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include "internal.h"
 #include "error_table.h"
+#include "mit-sipb-copyright.h"
 
+#ifndef	lint
+static char const rcsid_error_table_y[] =
+    "$Header: error_table.y,v 1.7 89/01/01 07:23:17 raeburn Locked $";
+#endif
+
+char *malloc(), *realloc();
 extern FILE *hfile, *cfile;
 
 static long gensym_n = 0;
 char *
 gensym(x)
-	char *x;
+	char const *x;
 {
 	char *symbol;
 	if (!gensym_n) {
@@ -89,7 +99,7 @@ gensym(x)
 
 char *
 ds(string)
-	char *string;
+	char const *string;
 {
 	char *rv;
 	rv = malloc(strlen(string)+1);
@@ -99,7 +109,7 @@ ds(string)
 
 char *
 quote(string)
-	char *string;
+	char const *string;
 {
 	char *rv;
 	rv = malloc(strlen(string)+3);
@@ -109,12 +119,12 @@ quote(string)
 	return(rv);
 }
 
-int table_number;
+long table_number;
 int current = 0;
 char **error_codes = (char **)NULL;
 
 add_ec(name, description)
-	char *name, *description;
+	char const *name, *description;
 {
 	fprintf(cfile, "\t\"%s\",\n", description);
 	if (error_codes == (char **)NULL) {
@@ -128,9 +138,9 @@ add_ec(name, description)
 }
 
 add_ec_val(name, val, description)
-	char *name, *val, *description;
+	char const *name, *val, *description;
 {
-	int ncurrent = atoi(val);
+	const int ncurrent = atoi(val);
 	if (ncurrent < current) {
 		printf("Error code %s (%d) out of order", name,
 		       current);
@@ -156,8 +166,8 @@ put_ecs()
 	int i;
 	for (i = 0; i < current; i++) {
 	     if (error_codes[i] != (char *)NULL)
-		  fprintf(hfile, "#define %-40s ((%s)%d)\n",
-			  error_codes[i], ERROR_CODE, table_number + i);
+		  fprintf(hfile, "#define %-40s (%ldL)\n",
+			  error_codes[i], table_number + i);
 	}
 }
 
@@ -168,26 +178,43 @@ put_ecs()
  *	digits    -> 53-62
  *	underscore-> 63
  */
-int
-char_to_num(c)
+
+static const char char_set[] =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+
+int char_to_num(c)
 	char c;
 {
-	if (isupper(c))
-		return(c-'A'+1);
-	else if (islower(c))
-		return(c-'a'+27);
-	else if (isdigit(c))
-		return(c-'0'+53);
-	else {
-		fprintf(stderr, "Illegal character in name: %c\n", c);
-		exit(1);
-		/*NOTREACHED*/
+	const char *where;
+	int diff;
+
+	where = strchr (char_set, c);
+	if (where) {
+		diff = where - char_set + 1;
+		assert (diff < (1 << ERRCODE_RANGE));
+		return diff;
 	}
+	else if (isprint (c))
+		fprintf (stderr,
+			 "Illegal character `%c' in error table name\n",
+			 c);
+	else
+		fprintf (stderr,
+			 "Illegal character %03o in error table name\n",
+			 c);
+	exit (1);
 }
 
 set_table_num(string)
 	char *string;
 {
+	if (char_to_num (string[0]) > char_to_num ('z')) {
+		fprintf (stderr, "%s%s%s%s",
+			 "First character of error table name must be ",
+			 "a letter; name ``",
+			 string, "'' rejected\n");
+		exit (1);
+	}
 	if (strlen(string) > 4) {
 		fprintf(stderr, "Table name %s too long, truncated ",
 			string);
