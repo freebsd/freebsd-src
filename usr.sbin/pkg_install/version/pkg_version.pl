@@ -31,6 +31,7 @@
 # $FreeBSD$
 #
 
+use Cwd;
 use Getopt::Std;
 
 #
@@ -40,8 +41,11 @@ $Version = '0.1';
 $CurrentPackagesCommand = '/usr/sbin/pkg_info -aI';
 $CatProgram = "cat ";
 $FetchProgram = "fetch -o - ";
+$OriginCommand = '/usr/sbin/pkg_info -qo';
+$GetPkgNameCommand = 'make -V PKGNAME';
 
 #$IndexFile = "ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/ports/INDEX";
+$PortsDirectory = '/usr/ports';
 $IndexFile = '/usr/ports/INDEX';
 $ShowCommandsFlag = 0;
 $DebugFlag = 0;
@@ -105,7 +109,7 @@ sub CompareNumbers {
 # 1.349 of ports/Mk/bsd.port.mk for more information.
 #
 sub CompareVersions {
-    local($fv1, $fv2, $v1, $v2, $v1, $r2, $e1, $e2, $rc);
+    local($fv1, $fv2, $v1, $v2, $r1, $r2, $e1, $e2, $rc);
 
     $fv1 = $_[0];
     $fv2 = $_[1];
@@ -198,7 +202,7 @@ Usage: pkg_version [-c] [-d debug] [-h] [-v] [index]
 -d debug	Debugging output (debug controls level of output)
 -h		Help (this message)
 -l limchar	Limit output to status flags that match
--L limchar	Limit output to status flags that DON'T match
+-L limchar	Limit output to status flags that DON\'T match
 -v		Verbose output
 index		URL or filename of index file
 		(Default is $IndexFile)
@@ -243,7 +247,7 @@ else {
 }
 
 #
-# Slurp in files
+# Get the current list of installed packages
 #
 if ($DebugFlag) {
     print STDERR "$CurrentPackagesCommand\n";
@@ -254,17 +258,51 @@ while (<CURRENT>) {
     ($packageString, $rest) = split;
 
     ($packageName, $packageFullversion) = &GetNameAndVersion($packageString);
-    $currentPackages{$packageName}{'name'} = $packageName;
-    if (defined $currentPackages{$packageName}{'fullversion'}) {
-	$currentPackages{$packageName}{'fullversion'} .= "|" . $packageFullversion;
-    }
-    else {
-	$currentPackages{$packageName}{'fullversion'} = $packageFullversion;
-    }
-    $currentPackages{$packageName}{'refcount'}++;
+    $currentPackages{$packageString}{'name'} = $packageName;
+    $currentPackages{$packageString}{'fullversion'} = $packageFullversion;
 }
 close CURRENT;
 
+#
+# Iterate over installed packages, get origin directory (if it
+# exists) and PORTVERSION
+#
+$dir = cwd();
+foreach $packageString (sort keys %currentPackages) {
+
+    open ORIGIN, "$OriginCommand $packageString|";
+    $origin = <ORIGIN>;
+    close ORIGIN;
+
+    # If there is an origin variable for this package, then store it.
+    if ($origin ne "") {
+	chomp $origin;
+
+	# Try to get the version out of the makefile.
+	# The chdir needs to be successful or our make -V invocation
+	# will fail.
+	chdir "$PortsDirectory/$origin" or next;
+
+	open PKGNAME, "$GetPkgNameCommand|";
+	$pkgname = <PKGNAME>;
+	close PKGNAME;
+
+	if ($pkgname ne "") {
+	    chomp $pkgname;
+
+	    $pkgname =~ /(.+)-(.+)/;
+	    $portversion = $2;
+	    
+	    $currentPackages{$packageString}{'origin'} = $origin;
+	    $currentPackages{$packageString}{'portversion'} = $portversion;
+	}
+    }
+}
+chdir "$dir";
+
+#
+# Slurp in the index file
+#
 if ($DebugFlag) {
     print STDERR "$IndexPackagesCommand\n";
 }
@@ -296,24 +334,49 @@ close INDEX;
 # to commas before we output anything so the reports look the
 # same as they did before.
 #
-foreach $packageName (sort keys %currentPackages) {
+foreach $packageString (sort keys %currentPackages) {
     $~ = "STDOUT_VERBOSE"  if $VerboseFlag;
     $~ = "STDOUT_COMMANDS" if $ShowCommandsFlag;
 
-    $packageNameVer = "$packageName-$currentPackages{$packageName}{'fullversion'}";
-    $packageNameVer =~ s/\|/,/g;
+    $packageNameVer = $packageString;
+    $packageName = $currentPackages{$packageString}{'name'};
 
-    if (defined $indexPackages{$packageName}{'fullversion'}) {
+    $currentVersion = $currentPackages{$packageString}{'fullversion'};
+
+    if (defined $currentPackages{$packageString}{'portversion'}) {
+	$portVersion = $currentPackages{$packageString}{'portversion'};
+
+	$portPath = "$PortsDirectory/$currentPackages{$packageString}{'origin'}";
+
+	# Do the comparison
+	$rc = &CompareVersions($currentVersion, $portVersion);
+	    
+	if ($rc == 0) {
+	    $versionCode = "=";
+	    $Comment = "up-to-date with port";
+	}
+	elsif ($rc < 0) {
+	    $versionCode = "<";
+	    $Comment = "needs updating (port has $portVersion)";
+	}
+	elsif ($rc > 0) {
+	    $versionCode = ">";
+	    $Comment = "succeeds port (port has $portVersion)";
+	}
+	else {
+	    $versionCode = "!";
+	    $Comment = "Comparison failed";
+	}
+    }
+
+    elsif (defined $indexPackages{$packageName}{'fullversion'}) {
 
 	$indexVersion = $indexPackages{$packageName}{'fullversion'};
-	$currentVersion = $currentPackages{$packageName}{'fullversion'};
-
 	$indexRefcount = $indexPackages{$packageName}{'refcount'};
-	$currentRefcount = $currentPackages{$packageName}{'refcount'};
 
-	$packagePath = $indexPackages{$packageName}{'path'};
-	
-	if (($indexRefcount > 1) || ($currentRefcount > 1)) {
+	$portPath = $indexPackages{$packageName}{'path'};
+
+	if ($indexRefcount > 1) {
 	    $versionCode = "*";
 	    $Comment = "multiple versions (index has $indexVersion)";
 	    $Comment =~ s/\|/,/g;
@@ -322,12 +385,11 @@ foreach $packageName (sort keys %currentPackages) {
 
 	    # Do the comparison
 	    $rc = 
-		&CompareVersions($currentPackages{$packageName}{'fullversion'},
-				 $indexPackages{$packageName}{'fullversion'});
+		&CompareVersions($currentVersion, $indexVersion);
 	    
 	    if ($rc == 0) {
 		$versionCode = "=";
-		$Comment = "up-to-date";
+		$Comment = "up-to-date with index";
 	    }
 	    elsif ($rc < 0) {
 		$versionCode = "<";
@@ -400,7 +462,7 @@ $CommentChar, $Comment
 @<
 $CommentChar
 cd @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-$packagePath
+$portPath
 make && pkg_delete -f @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
               $packageNameVer
 make install

@@ -42,27 +42,55 @@ The
 command is used to produce a report of non-base software packages
 installed using the 
 .Xr pkg_add 1
-command.  Version numbers are compared against an
-index file, to see which packages might need updating.
+command.  
+.Pp
+Each package's version number is checked against one of two sources to
+see if that package may require updating.  If the package contains
+information about its origin in the
+.Fx
+ports tree, and a version number can be determined from the port's
+.Pa Makefile ,
+then the version number from the 
+.Pa Makefile
+will be used to determine whether the installed package is up-to-date
+or requires updating.
+.Pp
+If no origin for a package can be found, or if the port's 
+.Pa Makefile
+cannot be located, 
+.Nm
+will search for the package in the ports collection index file
+(typically
+.Pa /usr/ports/INDEX ).  
+Any matching version number(s) there will be used to determine whether
+the installed package is up-to-date or requires updating.
+.Pp
+Generally, using the version number from a port's 
+.Pa Makefile
+will provide a more accurate result, since, unlike the index file, it 
+provides an unambiguous current version number, even when multiple
+versions of a port exist in the ports collection.
+Moreover, the ports collection index file is only updated at
+intervals, meaning that it may not completely reflect the version
+numbers of the software contained in the ports collection.
 .Pp
 Each package name is printed, along with a one-character status flag:
 .Bl -tag -width indent
 .It Li =
-The installed version of the package matches the index.
+The installed version of the package is current.
 .It Li <
-The installed version of the package is older than the version listed
-in the index.
+The installed version of the package is older than the current version.
 .It Li >
-The installed version of the package is newer than listed in the
-index.
+The installed version of the package is newer than the current version.
+This situation can arise with an out-of-date index file, or when
+testing new ports.
 .It Li ?
 The installed package does not appear in the index. 
 This could be due to an out of date index or a package taken from a PR 
 that has not yet been committed.
 .It Li *
 There are multiple versions of a particular software package
-installed or there are multiple versions of a package listed in 
-the index file.
+listed in the index file.
 Examples from the
 .Fx
 ports collection are the Tcl toolkit or the
@@ -81,14 +109,26 @@ supports several command-line arguments:
 Enable commands output.  Commands output includes the commands you should
 type to update your installed packages to the latest versions in the ports
 system.
+This feature does
+.Bf Em
+not
+.Ef
+constitute an automated packages updating system.
+The output of this command 
+.Bf Em
+must
+.Ef
+be edited, in order to avoid destroying dependencies between installed
+packages.
 .It Fl d
 Enable debugging output.
 .It Fl h
 Print help message.
 .It Fl l
-Limit the output to those packages whose status flag matches
+Limit the output to those packages whose status flag matches the 
+character(s) in
 .Ar limchar .
-You may specify more than one character to match in
+More than one character can be specified in
 .Ar limchar .  
 Note that because some of the status flag characters are also special
 to the shell, it is best to quote
@@ -145,13 +185,16 @@ the version numbers in the on-line ports collection:
 .Pp
 The command below generates a file of commands to run to update the installed
 files.
-It is
+These commands must
 .Bf Em
 not
 .Ef
-suggested that you run these commands automatically.
-Always review the
-suggestions, and then cut-and-paste (or retype) the commands you want to run.
+be run without suitable editing.
+They should be treated as suggestions, and may need to be reordered 
+to account for dependencies between installed packages, or may need to
+be disregarded if multiple versions of an installed package can coexist.
+Blindly running the output of this command may leave a system in an
+unusable state.
 .Pp
 .Dl % pkg_version -c > do_update
 .Sh AUTHOR
@@ -162,22 +205,18 @@ suggestions, and then cut-and-paste (or retype) the commands you want to run.
 .An Mark Ovens Aq marko@FreeBSD.org ,
 .An Doug Barton Aq DougB@gorean.org
 .Sh BUGS
-There should be a better way of dealing with packages that
-can have more than one installed version.
 .Pp
 Patch levels aren't handled
 very well (i.e. version numbers of the form 1.2p3 or 1.2pl3).
 .Pp
-Updates to packages
-that don't change the version number (e.g. small delta bugfixes in the
-package/port itself) aren't detected.
-.Pp
-Commands output doesn't know about dependencies between packages.
-For
-example, you might have two versions of Tcl installed because two other
-packages require the different versions.
-.Nm
-will suggest removing the out-of-date version.
+The commands output feature is 
+.Bf Em 
+not
+.Ef
+an automated ports/packages updating system.
+It does not even attempt to handle dependencies between installed 
+packages correctly, and can produce incorrect results if multiple
+versions of a package can coexist on a system.
 .Pp
 Commands output assumes you install new software using the ports system,
 rather than using
