@@ -110,6 +110,10 @@ printf "\nFlags: "
 output/x rq->prq[0].rqe[1].b.b_flags
 echo \n
 end
+document rqq0
+Print important information on Vinum request structures.
+end
+
 define rqq1
 printf "\nrq->prq [1].rqe[0].sdno: " 
 output/x rq->prq[1].rqe[0].sdno
@@ -137,21 +141,10 @@ printf "\nFlags: "
 output/x rq->prq[1].rqe[1].b.b_flags
 echo \n
 end
-define xy
-bpp
-echo stripeoffset
-p stripeoffset
-echo stripebase
-p stripebase
-echo sdno
-p sdno
-echo sdoffset
-p sdoffset
-echo rqe->sectors
-p rqe->sectors
-echo rqe->sdoffset
-p rqe->sdoffset
+document rqq1
+Print important information on Vinum request structures.
 end
+
 # kernel equivalent of 'info -V'
 define rqi
    set $rqipe = rqip
@@ -183,6 +176,10 @@ define rqi
       end
    end
 end
+document rqi
+Print out the same information as 'vinum info -V'.
+end
+
 define rqinfo
    set $rqipe = rqip
    set $rqip = $rqipe + 1
@@ -299,7 +296,7 @@ define rqinfo
    end
 end 
 document rqinfo
-Show the Vinum request log buffer, like 'vinum info -V'
+Show the Vinum request log buffer like 'vinum info -V'
 end
 define meminfo
 y
@@ -330,5 +327,5 @@ while $j < 64
 end
 end
 document finfo
-Equivalent of 'vinum info -v' command
+Show recently freed Vinum memory blocks.
 end
