@@ -2074,7 +2074,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.fold.1; now supports a <option>-b</option> flag to
       break at byte positions and a <option>-s</option> flag to break at
-      word boundaries.</para>
+      word boundaries. &merged;</para>
 
     <para role="historic">&man.fsdb.8; now supports a <literal>blocks</literal>
       command to list the blocks allocated by a particular
@@ -2678,7 +2678,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       paths. &merged;</para>
 
     <para>&man.pwd.1; now supports the <option>-L</option> flag to
-      print the logical current working directory.</para>
+      print the logical current working directory. &merged;</para>
 
     <para>The pseudo-random number generator implemented by
       &man.rand.3; has been improved to provide less biased
@@ -2707,7 +2707,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>The &man.renice.8; command implements a <option>-n</option>
       option, which specifies an increment to be applied to the
-      priority of a process.</para>
+      priority of a process. &merged;</para>
 
     <para role="historic">The &man.resolver.3; in &os; now implements EDNS0 support,
       which will be necessary when working with IPv6 transport-ready
@@ -2980,7 +2980,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename role="package">net/freebsd-uucp</filename>.</para>
 
     <para>&man.unexpand.1; now supports a <option>-t</option> to
-      specify tabstabs analogous to &man.expand.1;.</para>
+      specify tabstabs analogous to &man.expand.1;. &merged;</para>
 
     <para role="historic">&man.units.1; has received some updates and
       bugfixes. &merged;</para>
@@ -3054,11 +3054,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       input at specific points in the command line arguments rather
       than at the end.  (A &os;-specific <option>-J</option> option is
       similar, but is now deprecated in favor of the more portable
-      <option>-I</option> option.)</para>
+      <option>-I</option> option.) &merged;</para>
 
     <para>&man.xargs.1; now supports a <option>-L</option> option to
       force its utility argument to be called after some number of
-      lines.</para>
+      lines. &merged;</para>
 
     <para role="historic">The compiler chain now uses the FSF-supplied C/C++ runtime
       initialization code.  This change brings about better
@@ -3261,6 +3261,20 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         requiring its functionality can install this utility as a part
         of the <filename role="package">textproc/textutils</filename>
         port.</para>
+
+      <para>The <literal>rc.d</literal> framework from NetBSD has been
+        imported.  It breaks down the system startup functionality
+        into a number of small, <quote>task-oriented</quote> scripts
+        in <filename>/etc/rc.d</filename>, with dynamic-determined
+        ordering of startup scripts performed at boot-time.
+
+	<note>
+	  <para>This feature is currently disabled by default.  It can
+	    be enabled by setting <literal>rc_ng="YES"</literal> in
+	    <filename>/etc/rc.conf</filename>.</para>
+	</note>
+
+	</para>
 
       <para role="historic">&man.routed.8; has been updated to version
 	2.22. &merged;</para>
