@@ -283,7 +283,7 @@ main(argc, argv)
 	in_port_t svcport = 0;
 
 	udp6conf = tcp6conf = NULL;
-	udp6sock = tcp6sock = NULL;
+	udp6sock = tcp6sock = 0;
 
 	/* Check that another mountd isn't already running. */
 	if ((mountdlockfd = (open(MOUNTDLOCK, O_RDONLY|O_CREAT, 0444))) == -1)

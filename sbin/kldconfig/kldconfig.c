@@ -113,14 +113,14 @@ getpath(void)
 
 	if (miblen == 0)
 		getmib();
-	if (sysctl(mib, miblen, NULL, &sz, NULL, NULL) == -1)
+	if (sysctl(mib, miblen, NULL, &sz, NULL, 0) == -1)
 		err(1, "getting path: sysctl(%s) - size only", pathctl);
 	if ((path = malloc(sz + 1)) == NULL) {
 		errno = ENOMEM;
 		err(1, "allocating %lu bytes for the path",
 		    (unsigned long)sz+1);
 	}
-	if (sysctl(mib, miblen, path, &sz, NULL, NULL) == -1)
+	if (sysctl(mib, miblen, path, &sz, NULL, 0) == -1)
 		err(1, "getting path: sysctl(%s)", pathctl);
 	modpath = path;
 }

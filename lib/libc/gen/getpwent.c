@@ -1624,7 +1624,7 @@ docompat:
 			case '@':
 				setnetgrent(&pw_name[2]);
 				while (getnetgrent(&host, &user, &domain) !=
-				    NULL) {
+				    0) {
 					if (user != NULL && user[0] != '\0')
 						compat_exclude(user,
 						    &st->exclude);

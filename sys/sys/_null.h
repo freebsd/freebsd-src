@@ -28,14 +28,14 @@
 
 #ifndef NULL
 
-#ifdef _KERNEL
-#define	NULL	(void *)0
+#if defined(_KERNEL) || !defined(__cplusplus)
+#define	NULL	((void *)0)
 #else
 #if defined(__LP64__)
-#define	NULL	0L
+#define	NULL	(0L)
 #else
 #define	NULL	0
-#endif
-#endif	/* _KERNEL */
+#endif	/* __LP64__ */
+#endif	/* _KERNEL || !__cplusplus */
 
 #endif

@@ -291,7 +291,7 @@ bt_aton(char const *str, bdaddr_t *ba)
 	memset(ba, 0, sizeof(*ba));
 
 	for (i = 5, end = strchr(str, ':');
-	     i > 0 && *str != NULL && end != NULL;
+	     i > 0 && *str != '\0' && end != NULL;
 	     i --, str = end + 1, end = strchr(str, ':')) {
 		switch (end - str) {
 		case 1:

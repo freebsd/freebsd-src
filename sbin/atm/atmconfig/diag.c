@@ -232,7 +232,7 @@ phy_fetch(const char *ifname, const char *var, void *val, size_t len,
 
 	if (asprintf(&str, "hw.atm.%s.phy_%s", ifname, var) == -1)
 		err(1, NULL);
-	if (sysctlbyname(str, val, &len, NULL, NULL) == -1) {
+	if (sysctlbyname(str, val, &len, NULL, 0) == -1) {
 		if (err_fatal || errno != ENOENT)
 			err(1, "%s", str);
 		free(str);

@@ -249,7 +249,7 @@ rf_MakeConfig(configname, cfgPtr)
 			}
 			/* Get rid of the newline at the end of the string */
 			if ((bfr1 = strchr(&bfr[0], '\n')) != NULL)
-				*bfr1 = NULL;
+				*bfr1 = '\0';
 			/* Make sure the device exists */
 			if ((devfd = open(&bfr[0], O_RDWR)) < 0) {
 				RF_ERRORMSG2(
