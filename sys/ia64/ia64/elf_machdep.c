@@ -141,8 +141,8 @@ lookup_fdesc(linker_file_t lf, Elf_Word symidx)
 }
 
 /* Process one elf relocation with addend. */
-int
-elf_reloc(linker_file_t lf, const void *data, int type)
+static int
+elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 {
 	Elf_Addr relocbase = (Elf_Addr)lf->address;
 	Elf_Addr *where;
@@ -179,6 +179,12 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 		panic("%s: invalid ELF relocation (0x%x)\n", __func__, type);
 	}
 
+	if (local) {
+		if (rtype == R_IA64_REL64LSB)
+			*where = relocbase + addend;
+		return (0);
+	}
+
 	switch (rtype) {
 	case R_IA64_NONE:
 		break;
@@ -199,7 +205,6 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 		*where = addr;
 		break;
 	case R_IA64_REL64LSB:	/* word64 LSB	BD + A */
-		*where = relocbase + addend;
 		break;
 	case R_IA64_IPLTLSB:
 		addr = lookup_fdesc(lf, symidx);
@@ -215,6 +220,20 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 	}
 
 	return (0);
+}
+
+int
+elf_reloc(linker_file_t lf, const void *data, int type)
+{
+
+	return (elf_reloc_internal(lf, data, type, 0));
+}
+
+int
+elf_reloc_local(linker_file_t lf, const void *data, int type)
+{
+
+	return (elf_reloc_internal(lf, data, type, 1));
 }
 
 int

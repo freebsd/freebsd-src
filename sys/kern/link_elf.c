@@ -116,6 +116,7 @@ static int	link_elf_lookup_set(linker_file_t, const char *,
 static int	link_elf_each_function_name(linker_file_t,
 				int (*)(const char *, void *),
 				void *);
+static void	link_elf_reloc_local(linker_file_t);
 
 static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
@@ -488,6 +489,7 @@ link_elf_link_preload(linker_class_t cls,
 	linker_file_unload(lf);
 	return error;
     }
+    link_elf_reloc_local(lf);
     *result = lf;
     return (0);
 }
@@ -748,6 +750,8 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     error = parse_dynamic(ef);
     if (error)
 	goto out;
+    link_elf_reloc_local(lf);
+
     error = linker_load_dependencies(lf);
     if (error)
 	goto out;
@@ -1265,4 +1269,32 @@ elf_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 		return (0);
 
 	return ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
+}
+
+static void
+link_elf_reloc_local(linker_file_t lf)
+{
+    const Elf_Rel *rellim;
+    const Elf_Rel *rel;
+    const Elf_Rela *relalim;
+    const Elf_Rela *rela;
+    elf_file_t ef = (elf_file_t)lf;
+
+    /* Perform relocations without addend if there are any: */
+    if ((rel = ef->rel) != NULL) {
+	rellim = (const Elf_Rel *)((const char *)ef->rel + ef->relsize);
+	while (rel < rellim) {
+	    elf_reloc_local(lf, rel, ELF_RELOC_REL);
+	    rel++;
+	}
+    }
+
+    /* Perform relocations with addend if there are any: */
+    if ((rela = ef->rela) != NULL) {
+	relalim = (const Elf_Rela *)((const char *)ef->rela + ef->relasize);
+	while (rela < relalim) {
+	    elf_reloc_local(lf, rela, ELF_RELOC_RELA);
+	    rela++;
+	}
+    }
 }
