@@ -20,12 +20,10 @@
 SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
 	libncurses libradius libskey libtacplus \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
-	libcompat libdevstat libdisk libedit libfetch \
-	libftpio libgnumalloc ${_libio} libipx libkvm libopie libpam \
-	libpcap libresolv librpcsvc libss libstand \
+	libcompat libdevstat libdisk libedit libfetch libform \
+	libftpio libgnumalloc ${_libio} libipx libkvm libmenu libopie libpam \
+	libpanel libpcap libresolv librpcsvc libss libstand \
 	${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
-
-#SUBDIR+=libform libmenu libpanel
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
