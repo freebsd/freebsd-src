@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $Id: ttycom.h,v 1.4 1994/08/18 09:16:37 davidg Exp $
+ * $Id: ttycom.h,v 1.5 1994/09/13 03:19:19 phk Exp $
  */
 
 #ifndef	_SYS_TTYCOM_H_
@@ -115,7 +115,7 @@ struct winsize {
 #define	TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
 #define	TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
 #define	TIOCUCNTL	_IOW('t', 102, int)	/* pty: set/clr usr cntl mode */
-#define	TIOCSTAT	_IOW('t', 101, int)	/* simulate a control-T status msg */
+#define	TIOCSTAT	 _IO('t', 101)		/* simulate a control-T status msg */
 #define		UIOCCMD(n)	_IO('u', n)	/* usr cntl op "n" */
 #define	TIOCCONS	_IOW('t', 98, int)	/* become virtual console */
 #define	TIOCSCTTY	 _IO('t', 97)		/* become controlling tty */
