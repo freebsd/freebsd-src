@@ -110,6 +110,7 @@ static struct pcn_type pcn_devs[] = {
 };
 
 static u_int32_t pcn_csr_read	__P((struct pcn_softc *, int));
+static u_int16_t pcn_csr_read16	__P((struct pcn_softc *, int));
 static void pcn_csr_write	__P((struct pcn_softc *, int, int));
 static u_int32_t pcn_bcr_read	__P((struct pcn_softc *, int));
 static void pcn_bcr_write	__P((struct pcn_softc *, int, int));
@@ -201,6 +202,14 @@ static u_int32_t pcn_csr_read(sc, reg)
 {
 	CSR_WRITE_4(sc, PCN_IO32_RAP, reg);
 	return(CSR_READ_4(sc, PCN_IO32_RDP));
+}
+
+static u_int16_t pcn_csr_read16(sc, reg)
+	struct pcn_softc	*sc;
+	int			reg;
+{
+	CSR_WRITE_2(sc, PCN_IO16_RAP, reg);
+	return(CSR_READ_2(sc, PCN_IO16_RDP));
 }
 
 static void pcn_csr_write(sc, reg, val)
@@ -401,10 +410,20 @@ static int pcn_probe(dev)
 			mtx_init(&sc->pcn_mtx,
 			    device_get_nameunit(dev), MTX_DEF);
 			PCN_LOCK(sc);
-			pcn_reset(sc);
-			chip_id = pcn_csr_read(sc, PCN_CSR_CHIPID1);
+			/*
+			 * Note: we can *NOT* put the chip into
+			 * 32-bit mode yet. The lnc driver will only
+			 * work in 16-bit mode, and once the chip
+			 * goes into 32-bit mode, the only way to
+			 * get it out again is with a hardware reset.
+			 * So if pcn_probe() is called before the
+			 * lnc driver's probe routine, the chip will
+			 * be locked into 32-bit operation and the lnc
+			 * driver will be unable to attach to it.
+			 */
+			chip_id = pcn_csr_read16(sc, PCN_CSR_CHIPID1);
 			chip_id <<= 16;
-			chip_id |= pcn_csr_read(sc, PCN_CSR_CHIPID0);
+			chip_id |= pcn_csr_read16(sc, PCN_CSR_CHIPID0);
 			bus_release_resource(dev, PCN_RES,
 			    PCN_RID, sc->pcn_res);
 			PCN_UNLOCK(sc);
