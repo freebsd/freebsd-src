@@ -400,7 +400,7 @@
                     New NetBSD code from Bernd Ernesti<bernd@arresum.inka.de>
 
 2.00  25 Sep 1999 Roger Hardiman <roger@freebsd.org>
-                  Split the driver into seperate tuner, card and audio sections.
+                  Split the driver into separate tuner, card and audio sections.
 		  Update tuner code for FM radio to use datasheet equations.
 
 2.01  27 Sep 1999 Roger Hardiman <roger@freebsd.org>
