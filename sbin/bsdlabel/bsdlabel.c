@@ -139,6 +139,7 @@ enum	{
 
 
 static int	disable_write;   /* set to disable writing to disk label */
+static int	is_file;	/* work on a file (abs. pathname), "-f" opt. */
 
 int
 main(int argc, char *argv[])
@@ -147,7 +148,7 @@ main(int argc, char *argv[])
 	int ch, error = 0;
 	char const *name = 0;
 
-	while ((ch = getopt(argc, argv, "ABb:em:nRrs:w")) != -1)
+	while ((ch = getopt(argc, argv, "ABb:efm:nRrs:w")) != -1)
 		switch (ch) {
 			case 'A':
 				allfields = 1;
@@ -157,6 +158,9 @@ main(int argc, char *argv[])
 				break;
 			case 'b':
 				xxboot = optarg;
+				break;
+			case 'f':
+				is_file=1;
 				break;
 			case 'm':
 				if (!strcmp(optarg, "i386") ||
@@ -213,7 +217,9 @@ main(int argc, char *argv[])
 		errx(1, "a -m <architecture> option must be specified");
 
 	/* Figure out the names of the thing we're working on */
-	if (argv[0][0] != '/') {
+	if (is_file) {
+		dkname = specname = argv[0];
+	} else if (argv[0][0] != '/') {
 		dkname = argv[0];
 		asprintf(&specname, "%s%s", _PATH_DEV, argv[0]);
 	} else {
@@ -393,6 +399,10 @@ writelabel(void)
 
 	fd = open(specname, O_RDWR);
 	if (fd < 0) {
+		if (is_file) {
+			warn("cannot open file %s for writing label", specname);
+			return(1);
+		}
 		grq = gctl_get_handle();
 		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "class", -1, "BSD");
@@ -431,6 +441,21 @@ writelabel(void)
 	return (0);
 }
 
+static void
+get_file_parms(int f)
+{
+	int i;
+	struct stat sb;
+
+	if (fstat(f, &sb) != 0)
+		err(4, "fstat failed");
+	i = sb.st_mode & S_IFMT;
+	if (i != S_IFREG && i != S_IFLNK)
+		errx(4, "%s is not a valid file or link", specname);
+	secsize = DEV_BSIZE;
+	mediasize = sb.st_size;
+}
+
 /*
  * Fetch disklabel for disk.
  * Use ioctl to get label unless -r flag is given.
@@ -446,8 +471,9 @@ readlabel(int flag)
 	f = open(specname, O_RDONLY);
 	if (f < 0)
 		err(1, specname);
-	/* New world order */
-	if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
+	if (is_file)
+		get_file_parms(f);
+	else if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
 	    (ioctl(f, DIOCGSECTORSIZE, &secsize) != 0)) {
 		err(4, "cannot get disk geometry");
 	}
@@ -1329,8 +1355,9 @@ getvirginlabel(void)
 		return (NULL);
 	}
 
-	/* New world order */
-	if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
+	if (is_file)
+		get_file_parms(f);
+	else if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
 	    (ioctl(f, DIOCGSECTORSIZE, &secsize) != 0)) {
 		close (f);
 		return (NULL);
