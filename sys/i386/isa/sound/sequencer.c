@@ -46,7 +46,7 @@ static int      midi_opened[MAX_MIDI_DEV] =
 static int      midi_written[MAX_MIDI_DEV] =
 {0};
 
-long            seq_time = 0;	/* Reference point for the timer */
+unsigned long            seq_time = 0;   /* Reference point for the timer */
 
 #include "tuning.h"
 
