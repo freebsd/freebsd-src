@@ -340,7 +340,7 @@ xtmpfopen (const char *file)
   FILE *fp;
   int fd;
 
-  fd = open (file, O_EXCL | O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  fd = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0 || (fp = fdopen (fd, "w")) == NULL)
     {
       error (0, errno, "%s", file);
@@ -420,22 +420,24 @@ xfwrite (const char *buf, int size, int nelem, FILE *fp)
 static char *
 tempname (void)
 {
-  static unsigned int seq;
+  int fd;
   int len = strlen (temp_file_prefix);
   char *name = xmalloc (len + 1 + sizeof ("sort") - 1 + 5 + 5 + 1);
   struct tempnode *node;
 
   node = (struct tempnode *) xmalloc (sizeof (struct tempnode));
   sprintf (name,
-	   "%s%ssort%5.5d%5.5d",
+	   "%s%ssortXXXXXX",
 	   temp_file_prefix,
-	   (len && temp_file_prefix[len - 1] != '/') ? "/" : "",
-	   (unsigned int) getpid () & 0xffff, seq);
+	   (len && temp_file_prefix[len - 1] != '/') ? "/" : "");
 
-  /* Make sure that SEQ's value fits in 5 digits.  */
-  ++seq;
-  if (seq >= 100000)
-    seq = 0;
+  if ((fd = mkstemp(name)) == -1)
+    {
+      error (0, errno, _("mkstemp error"));
+      cleanup ();
+      exit (2);
+    }
+  close(fd);
 
   node->name = name;
   node->next = temphead.next;
