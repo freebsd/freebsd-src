@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.8 1995/11/14 23:39:39 peter Exp $";
+	"$Id: syslogd.c,v 1.9 1996/07/22 16:35:50 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -212,6 +212,7 @@ void	reapchild __P((int));
 char   *ttymsg __P((struct iovec *, int, char *, int));
 void	usage __P((void));
 void	wallmsg __P((struct filed *, struct iovec *));
+int	waitdaemon __P((int, int, int));
 
 int
 main(argc, argv)
@@ -223,6 +224,8 @@ main(argc, argv)
 	struct sockaddr_in sin, frominet;
 	FILE *fp;
 	char *p, line[MSG_BSIZE + 1];
+	struct timeval tv, *tvp;
+	pid_t ppid;
 
 	while ((ch = getopt(argc, argv, "dsf:Im:p:")) != EOF)
 		switch(ch) {
@@ -249,9 +252,11 @@ main(argc, argv)
 	if ((argc -= optind) != 0)
 		usage();
 
-	if (!Debug)
-		(void)daemon(0, 0);
-	else
+	if (!Debug) {
+		ppid = waitdaemon(0, 0, 30);
+		if (ppid < 0)
+			err(1, "could not become daemon");
+	} else
 		setlinebuf(stdout);
 
 	consfile.f_type = F_CONSOLE;
@@ -333,14 +338,23 @@ main(argc, argv)
 	init(0);
 	(void)signal(SIGHUP, init);
 
+	tvp = &tv;
+	tv.tv_sec = tv.tv_usec = 0;
+
 	for (;;) {
 		int nfds, readfds = FDMASK(funix) | inetm | klogm;
 
 		dprintf("readfds = %#x\n", readfds);
 		nfds = select(20, (fd_set *)&readfds, (fd_set *)NULL,
-		    (fd_set *)NULL, (struct timeval *)NULL);
-		if (nfds == 0)
+		    (fd_set *)NULL, tvp);
+		if (nfds == 0) {
+			if (tvp) {
+				tvp = NULL;
+				if (ppid != 1)
+					kill(ppid, SIGALRM);
+			}
 			continue;
+		}
 		if (nfds < 0) {
 			if (errno != EINTR)
 				logerror("select");
@@ -1211,4 +1225,55 @@ decode(name, codetab)
 			return (c->c_val);
 
 	return (-1);
+}
+
+static char *exitmsg;
+
+void
+timeout(sig)
+	int sig __unused;
+{
+	int left;
+	left = alarm(0);
+	signal(SIGALRM, SIG_DFL);
+	if (left == 0)
+		exitmsg = "timed out waiting for child";
+	return;
+}
+
+int
+waitdaemon(nochdir, noclose, maxwait)
+	int nochdir, noclose, maxwait;
+{
+	int fd;
+
+	switch (fork()) {
+	case -1:
+		return (-1);
+	case 0:
+		break;
+	default:
+		signal(SIGALRM, timeout);
+		alarm(maxwait);
+		pause();
+		if (exitmsg)
+			err(1, exitmsg);
+		else
+			exit(0);
+	}
+
+	if (setsid() == -1)
+		return (-1);
+
+	if (!nochdir)
+		(void)chdir("/");
+
+	if (!noclose && (fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
+		(void)dup2(fd, STDIN_FILENO);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+		if (fd > 2)
+			(void)close (fd);
+	}
+	return (getppid());
 }
