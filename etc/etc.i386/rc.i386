@@ -42,6 +42,7 @@ case ${ibcs2_enable} in
 		done
 		;;
 	esac
+	;;
 esac
 
 case ${xtend_enable} in
