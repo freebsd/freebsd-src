@@ -880,7 +880,7 @@ nsp_negate_signal(sc, mask, s)
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
 	int tout = 0;
-	int s;
+	int ss;
 #ifdef __FreeBSD__
 	struct callout_handle ch;
 #endif
@@ -899,16 +899,16 @@ nsp_negate_signal(sc, mask, s)
 	}
 	while ((regv & mask) != 0 && tout == 0);
 
-	s = splhigh();
+	ss = splhigh();
 	if (tout == 0) {
 #ifdef __FreeBSD__
 		untimeout(settimeout, &tout, ch);
 #else
 		untimeout(settimeout, &tout);
 #endif
-		splx(s);
+		splx(ss);
 	} else {
-		splx(s);
+		splx(ss);
 		printf("%s: %s singla off timeout \n", slp->sl_xname, s);
 	}
 
