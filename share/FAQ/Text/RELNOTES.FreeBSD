@@ -40,7 +40,7 @@ you only need enough disk space to build the ports you want.  Each
 port is also provided as a pre-compiled "package" which can be
 installed with a simple command (pkg_add) for those who do not wish to
 compile their own ports from source.  See the file:
-	/usr/share/FAQ/Text/ports.FAQ
+        /usr/share/FAQ/Text/ports.FAQ
 for a more complete description of the ports collection.
 
 
@@ -101,8 +101,8 @@ A merged VM/buffer cache design greatly enhances overall system
 performance and makes it possible to do a number of more optimal
 memory allocation strategies that were not possible before.
 
-Owner:			David Greenman (davidg@FreeBSD.org) and
-			John Dyson (dyson@implode.root.com)
+Owner:                  David Greenman (davidg@FreeBSD.org) and
+                        John Dyson (dyson@implode.root.com)
 
 
 Network PCB hash optimization
@@ -111,7 +111,7 @@ For systems with a great number of active TCP connections (WEB and ftp
 servers, for example), this greatly speeds up the lookup time required
 to match an incoming packet up to its associated connection.
 
-Owner:			David Greenman (davidg@FreeBSD.org)
+Owner:                  David Greenman (davidg@FreeBSD.org)
 
 
 Hard Wired SCSI Devices
@@ -125,8 +125,8 @@ based on SCSI ID and bus.  SCSI configuration occurs in the kernel
 config file.  Samples of the configuration syntax can be found in the
 scsi(4) man page or the LINT kernel config file.
 
-Owner:			Peter Dufault (dufault@hda.com)
-Sources involved:	sys/scsi/* usr.sbin/config/*
+Owner:                  Peter Dufault (dufault@hda.com)
+Sources involved:       sys/scsi/* usr.sbin/config/*
 
 
 Slice Support
@@ -136,16 +136,16 @@ completely interoperable with other operating system partitions.  This
 support will eventually allow FreeBSD to inhabit DOS extended
 partitions.
 
-Owner:			Bruce Evans (bde@FreeBSD.org)
-Sources involved:	sys/disklabel.h sys/diskslice.h sys/dkbad.h
-			kern/subr_diskslice.c kern/subr_dkbad.c
-			i386/isa/diskslice_machdep.c
-			i386/isa/wd.c scsi/sd.c dev/vn/vn.c
+Owner:                  Bruce Evans (bde@FreeBSD.org)
+Sources involved:       sys/disklabel.h sys/diskslice.h sys/dkbad.h
+                        kern/subr_diskslice.c kern/subr_dkbad.c
+                        i386/isa/diskslice_machdep.c
+                        i386/isa/wd.c scsi/sd.c dev/vn/vn.c
 
 
 NEW DEVICE SUPPORT:
 
-			SCSI and CDROM Devices
+                        SCSI and CDROM Devices
 
 Matsushita/Panasonic (Creative) CD-ROM driver
 ---------------------------------------------
@@ -155,8 +155,8 @@ to four host adapters are supported for a total of 16 CD-ROM drives.
 The audio functions are supported with the Karoke variable speed
 playback.
 
-Owner:			Frank Durda IV   bsdmail@nemesis.lonestar.org
-Sources involved:	isa/matcd
+Owner:                  Frank Durda IV   bsdmail@nemesis.lonestar.org
+Sources involved:       isa/matcd
 
 
 ProAudioSpectrum SCSI driver
@@ -167,8 +167,8 @@ attach disks, cdroms and tapes, but due to the nature of the hardware
 involved, the transfer rate is limited to < 690 kbyte/sec.  For CD-ROM
 use, this is generally more than enough.
 
-Owner:			phk
-Sources involved:	isa/pas.c
+Owner:                  phk
+Sources involved:       isa/pas.c
 
 
 Adaptec 2742/2842 SCSI driver
@@ -182,51 +182,51 @@ corrected and there is even experimental tagged queuing support
 sequencer code under a "Berkeley style" copyright making the driver
 entirely clean of the GPL.
 
-Owner:			Justin Gibbs (gibbs@FreeBSD.org)
-Sources involved:	isa/aic7770.c pci/aic7870.c i386/scsi/*
-			sys/dev/aic7xxx/*
+Owner:                  Justin Gibbs (gibbs@FreeBSD.org)
+Sources involved:       isa/aic7770.c pci/aic7870.c i386/scsi/*
+                        sys/dev/aic7xxx/*
 
 
 NCR5380/NCR53400 SCSI ("ProAudio Spectrum") driver
 --------------------------------------------------
-Owner:			core
-Submitted by:		Serge Vakulenko (vak@cronyx.ru)
-Sources involved:	isa/ncr5380.c
+Owner:                  core
+Submitted by:           Serge Vakulenko (vak@cronyx.ru)
+Sources involved:       isa/ncr5380.c
 
 
 Sony CDROM driver
 -----------------
-Owner:			core
-Submitted by:		Mikael Hybsch (micke@dynas.se)
-Sources involved:	isa/scd.c
+Owner:                  core
+Submitted by:           Mikael Hybsch (micke@dynas.se)
+Sources involved:       isa/scd.c
 
 
-			Serial Devices
+                        Serial Devices
 
 SDL Communications Riscom/8 Serial Board Driver
 -----------------------------------------------
-Owner:			Andrey Chernov (ache@FreeBSD.org)
-Sources involved:	isa/rc.c isa/rcreg.h
+Owner:                  Andrey Chernov (ache@FreeBSD.org)
+Sources involved:       isa/rc.c isa/rcreg.h
 
 
 Cyclades Cyclom-y Serial Board Driver
 -------------------------------------
-Owner:			Bruce Evans (bde@FreeBSD.org)
-Submitted by:		Andrew Werple (andrew@werple.apana.org.au) and
-	                Heikki Suonsivu (hsu@cs.hut.fi)
-Obtained from:		NetBSD
-Sources involved:	isa/cy.c
+Owner:                  Bruce Evans (bde@FreeBSD.org)
+Submitted by:           Andrew Werple (andrew@werple.apana.org.au) and
+                        Heikki Suonsivu (hsu@cs.hut.fi)
+Obtained from:          NetBSD
+Sources involved:       isa/cy.c
 
 
 Cronyx/Sigma sync/async serial driver
 -------------------------------------
-Owner:			core
-Submitted by:		Serge Vakulenko
-Sources involved:	isa/cronyx.c		
+Owner:                  core
+Submitted by:           Serge Vakulenko
+Sources involved:       isa/cronyx.c            
 
 
 
-			Networking
+                        Networking
 
 Diskless booting
 ----------------
@@ -242,120 +242,120 @@ DEC DC21140 Fast Ethernet driver
 This driver any of the numerous NICs using the DC21140 chipset including
 the 100Mb DEC DE-500-XA and SMC 9332.
 
-Owner:			core
-Submitted by:		Matt Thomas (thomas@lkg.dec.com)
-Sources involved:	pci/if_de.c pci/dc21040.h
+Owner:                  core
+Submitted by:           Matt Thomas (thomas@lkg.dec.com)
+Sources involved:       pci/if_de.c pci/dc21040.h
 
 
 DEC FDDI (DEFPA/DEFEA) driver
 -----------------------------
-Owner:			core
-Submitted by:		Matt Thomas (thomas@lkg.dec.com)
-Sources involved:	pci/if_pdq.c pci/pdq.c pci/pdq_os.h pci/pdqreg.h
+Owner:                  core
+Submitted by:           Matt Thomas (thomas@lkg.dec.com)
+Sources involved:       pci/if_pdq.c pci/pdq.c pci/pdq_os.h pci/pdqreg.h
 
 
 3Com 3c505 NIC driver
 ---------------------
-Owner:			core
-Submitted by:		Dean Huxley (dean@fsa.ca)
-Obtained from:		NetBSD
-Sources involved:	isa/if_eg.c
+Owner:                  core
+Submitted by:           Dean Huxley (dean@fsa.ca)
+Obtained from:          NetBSD
+Sources involved:       isa/if_eg.c
 
 
 Fujitsu MB86960A family of NICs driver
 -------------------------------------
-Owner:			core
-Submitted by:		M.S. (seki@sysrap.cs.fujitsu.co.jp)
-Sources involved:	isa/if_fe.c
+Owner:                  core
+Submitted by:           M.S. (seki@sysrap.cs.fujitsu.co.jp)
+Sources involved:       isa/if_fe.c
 
 
 Intel EtherExpress driver
 -------------------------
-Owner:			Rodney W. Grimes (rgrimes@FreeBSD.org)
-Sources involved:	isa/if_ix.c isa/if_ixreg.h
+Owner:                  Rodney W. Grimes (rgrimes@FreeBSD.org)
+Sources involved:       isa/if_ix.c isa/if_ixreg.h
 
 
 3Com 3c589 driver
 -----------------
-Owner:			core
-Submitted by:		"HOSOKAWA Tatsumi" (hosokawa@mt.cs.keio.ac.jp),
-			Seiji Murata (seiji@mt.cs.keio.ac.jp) and
-			Noriyuki Takahashi (hor@aecl.ntt.jp)
-Sources involved:	isa/if_zp.c
+Owner:                  core
+Submitted by:           "HOSOKAWA Tatsumi" (hosokawa@mt.cs.keio.ac.jp),
+                        Seiji Murata (seiji@mt.cs.keio.ac.jp) and
+                        Noriyuki Takahashi (hor@aecl.ntt.jp)
+Sources involved:       isa/if_zp.c
 
 
 IBM Credit Card Adapter driver
 ------------------------------
-Owner:			core
-Submitted by:		"HOSOKAWA Tatsumi" (hosokawa@mt.cs.keio.ac.jp),
-Sources involved:	isa/pcic.c isa/pcic.h
+Owner:                  core
+Submitted by:           "HOSOKAWA Tatsumi" (hosokawa@mt.cs.keio.ac.jp),
+Sources involved:       isa/pcic.c isa/pcic.h
 
 
 EDSS1 and 1TR6 ISDN interface driver
 ------------------------------------
-Owner:			core
-Submitted by:		Dietmar Friede (dfriede@drnhh.neuhaus.de) and
-		        Juergen Krause (jkr@saarlink.de)
-Sources involved:	gnu/isdn/*
+Owner:                  core
+Submitted by:           Dietmar Friede (dfriede@drnhh.neuhaus.de) and
+                        Juergen Krause (jkr@saarlink.de)
+Sources involved:       gnu/isdn/*
 
 
-			Miscellaneous Drivers
+                        Miscellaneous Drivers
 
 Joystick driver
 ---------------
-Owner:			Jean-Marc Zucconi (jmz@FreeBSD.org)
-Sources involved:	isa/joy.c
+Owner:                  Jean-Marc Zucconi (jmz@FreeBSD.org)
+Sources involved:       isa/joy.c
 
 
 National Instruments "LabPC" driver
 -----------------------------------
-Owner:			Peter Dufault (dufault@hda.com)
-Sources involved:	isa/labpc.c
+Owner:                  Peter Dufault (dufault@hda.com)
+Sources involved:       isa/labpc.c
 
 
 WD7000 driver
 -------------
-Owner:			Olof Johansson (offe@ludd.luth.se)
+Owner:                  Olof Johansson (offe@ludd.luth.se)
 
 
 Pcvt Console driver
 -------------------
-Owner:			Joerg Wunsch (joerg@FreeBSD.org)
-Submitted by:		Hellmuth Michaelis (hm@altona.hamburg.com)
-Sources involved:	isa/pcvt/*
+Owner:                  Joerg Wunsch (joerg@FreeBSD.org)
+Submitted by:           Hellmuth Michaelis (hm@altona.hamburg.com)
+Sources involved:       isa/pcvt/*
 
 
 BSD-audio emulator for VAT driver
 ---------------------------------
-Owner:			Amancio Hasty (ahasty@FreeBSD.org) and
-			Paul Traina (pst@FreeBSD.org)
-Sources involved:	isa/sound/vat_audio.c isa/sound/vat_audioio.h
+Owner:                  Amancio Hasty (ahasty@FreeBSD.org) and
+                        Paul Traina (pst@FreeBSD.org)
+Sources involved:       isa/sound/vat_audio.c isa/sound/vat_audioio.h
 
 
 National Instruments AT-GPIB and AT-GPIB/TNT GPIB driver
 --------------------------------------------------------
-Owner:			core
-Submitted by:		Fred Cawthorne (fcawth@delphi.umd.edu)
-Sources involved:	isa/gpib.c isa/gpib.h isa/gpibreg.h
+Owner:                  core
+Submitted by:           Fred Cawthorne (fcawth@delphi.umd.edu)
+Sources involved:       isa/gpib.c isa/gpib.h isa/gpibreg.h
 
 
 Genius GS-4500 hand scanner driver
 ----------------------------------
-Owner:			core
-Submitted by:		Gunther Schadow (gusw@fub46.zedat.fu-berlin.de)
-Sources involved:	isa/gsc.c isa/gscreg.h
+Owner:                  core
+Submitted by:           Gunther Schadow (gusw@fub46.zedat.fu-berlin.de)
+Sources involved:       isa/gsc.c isa/gscreg.h
 
 
 CORTEX-I Frame Grabber
 ----------------------
-Owner:			core
-Submitted by:		Paul S. LaFollette, Jr. (
-Sources involved:	isa/ctx.c isa/ctxreg.h
+Owner:                  core
+Submitted by:           Paul S. LaFollette, Jr. (
+Sources involved:       isa/ctx.c isa/ctxreg.h
 
 
 Video Spigot video capture card
 -------------------------------
-Owner:			Jim Lowe
+Owner:                  Jim Lowe
 
 
 
@@ -377,8 +377,8 @@ for SCO. Further testing is nessesary to complete this project. There
 is also work under way for ELF & XOUT loaders, and most of the svr4
 syscall wrappers have been written.
 
-Owner:			Soren Schmidt (sos) & Sean Eric Fagan (sef)
-Sources involved:	sys/i386/ibcs2/* + misc kernel changes.
+Owner:                  Soren Schmidt (sos) & Sean Eric Fagan (sef)
+Sources involved:       sys/i386/ibcs2/* + misc kernel changes.
 =======
 
 
@@ -442,10 +442,10 @@ With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
 DAT) and CD ROM drives.
 The following CD-ROM type systems are supported at this time:
-(cd)	SCSI (also includes ProAudio Spectrum and SoundBlaster SCSI)
-(mcd)	Mitsumi proprietary interface 
-(matcd)	Matsushita/Panasonic (Creative) proprietary interface
-(scd)	Sony proprietary interface
+(cd)    SCSI (also includes ProAudio Spectrum and SoundBlaster SCSI)
+(mcd)   Mitsumi proprietary interface 
+(matcd) Matsushita/Panasonic (Creative) proprietary interface
+(scd)   Sony proprietary interface
 
 Note: Drives with IDE interfaces are not supported at this time.
 
@@ -554,14 +554,14 @@ resort!
 
 FreeBSD 2.0.5 may be ordered on CDROM from:
 
-	Walnut Creek CDROM
-	4041 Pike Lane, Suite D
-	Concord CA  94520
-	1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
+        Walnut Creek CDROM
+        4041 Pike Lane, Suite D
+        Concord CA  94520
+        1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
 
 Or via the internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp as:
-	ftp://ftp.cdrom.com/cdrom/catalog.
+        ftp://ftp.cdrom.com/cdrom/catalog.
 
 Cost is $39.95.  Shipping (per order not per disc) is $5 in the US,
 Canada, or Mexico and $10.00 overseas.  They accept Visa, Mastercard,
@@ -588,26 +588,26 @@ as possible.
 If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
 
-		bugs@FreeBSD.org
+                bugs@FreeBSD.org
 
 
 Otherwise, for any questions or suggestions, please send mail to:
 
-		questions@FreeBSD.org
+                questions@FreeBSD.org
 
 Additionally, being a volunteer effort, we are always happy to have
 extra hands willing to help - there are already far more enhancements
 to be done than we can ever manage to do by ourselves!  To contact us
 on technical matters, or with offers of help, you may send mail to:
 
-		hackers@FreeBSD.org
+                hackers@FreeBSD.org
 
 Since these mailing lists can experience significant amounts of
 traffic, if you have slow or expensive mail access and you are
 only interested in keeping up with significant FreeBSD events, you may
 find it preferable to subscribe to:
 
-		announce@FreeBSD.org
+                announce@FreeBSD.org
 
 
 All but the freebsd-bugs groups can be freely joined by anyone wishing
@@ -638,50 +638,50 @@ Bill Jolitz, for his initial work with 386BSD.
 The FreeBSD Core Team
 (in alphabetical order by first name):
 
-	Andreas Schulz <ats@FreeBSD.org>
-	Andrey A. Chernov <ache@FreeBSD.org>
-	Bruce Evans <bde@FreeBSD.org>
-	David Greenman <davidg@FreeBSD.org>
-	Garrett A. Wollman <wollman@FreeBSD.org>
-	Gary Palmer <gpalmer@FreeBSD.org>
-	Geoff Rehmet <csgr@FreeBSD.org>
-	Jack Vogel <jackv@FreeBSD.org>
-	John Dyson <dyson@FreeBSD.org>
-	Jordan K. Hubbard <jkh@FreeBSD.org>
-	Justin Gibbs <gibbs@FreeBSD.org>
-	Paul Richards <paul@FreeBSD.org>
-	Poul-Henning Kamp <phk@FreeBSD.org>
-	Rich Murphey <rich@FreeBSD.org>
-	Rodney W. Grimes <rgrimes@FreeBSD.org>
-	Satoshi Asami <asami@FreeBSD.org>
-	Søren Schmidt <sos@FreeBSD.org>
+        Andreas Schulz <ats@FreeBSD.org>
+        Andrey A. Chernov <ache@FreeBSD.org>
+        Bruce Evans <bde@FreeBSD.org>
+        David Greenman <davidg@FreeBSD.org>
+        Garrett A. Wollman <wollman@FreeBSD.org>
+        Gary Palmer <gpalmer@FreeBSD.org>
+        Geoff Rehmet <csgr@FreeBSD.org>
+        Jack Vogel <jackv@FreeBSD.org>
+        John Dyson <dyson@FreeBSD.org>
+        Jordan K. Hubbard <jkh@FreeBSD.org>
+        Justin Gibbs <gibbs@FreeBSD.org>
+        Paul Richards <paul@FreeBSD.org>
+        Poul-Henning Kamp <phk@FreeBSD.org>
+        Rich Murphey <rich@FreeBSD.org>
+        Rodney W. Grimes <rgrimes@FreeBSD.org>
+        Satoshi Asami <asami@FreeBSD.org>
+        Søren Schmidt <sos@FreeBSD.org>
 
 Special mention to:
 
-	Walnut Creek CDROM, without whose help (and continuing support)
-	this release would never have been possible.
+        Walnut Creek CDROM, without whose help (and continuing support)
+        this release would never have been possible.
 
-	Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
-	drive.
+        Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
+        drive.
 
-	Additional FreeBSD helpers and beta testers:
+        Additional FreeBSD helpers and beta testers:
 
-	J.T. Conklin				Julian Elischer
-	Frank Durda IV				Peter Dufault
-	Sean Eric Fagan				Jeffrey Hsu
-	Terry Lambert				L Jonas Olsson
-	Chris Provenzano 			Dave Rivers
-	Guido van Rooij				Steven Wallace
-	Atsushi Murai				Scott Mace
-	Nate Williams
+        J.T. Conklin                            Julian Elischer
+        Frank Durda IV                          Peter Dufault
+        Sean Eric Fagan                         Jeffrey Hsu
+        Terry Lambert                           L Jonas Olsson
+        Chris Provenzano                        Dave Rivers
+        Guido van Rooij                         Steven Wallace
+        Atsushi Murai                           Scott Mace
+        Nate Williams
 
-	And everyone at Montana State University for their initial support.
+        And everyone at Montana State University for their initial support.
 
 
 Thanks to everyone, especially those not mentioned, and we sincerely
 hope you enjoy this release of FreeBSD!
 
 
-			The FreeBSD Core Team
+                        The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.2 1995/05/28 02:48:07 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.3 1995/05/28 09:08:53 jkh Exp $
