@@ -464,7 +464,7 @@ icmp_input(m, off, proto)
 			break;
 		}
 		icp->icmp_type = ICMP_ECHOREPLY;
-		if (badport_bandlim(BANDLIM_ECHO) < 0)
+		if (badport_bandlim(BANDLIM_ICMP_ECHO) < 0)
 			goto freeit;
 		else
 			goto reflect;
@@ -482,7 +482,7 @@ icmp_input(m, off, proto)
 		icp->icmp_type = ICMP_TSTAMPREPLY;
 		icp->icmp_rtime = iptime();
 		icp->icmp_ttime = icp->icmp_rtime;	/* bogus, do later! */
-		if (badport_bandlim(BANDLIM_TSTAMP) < 0)
+		if (badport_bandlim(BANDLIM_ICMP_TSTAMP) < 0)
 			goto freeit;
 		else
 			goto reflect;
@@ -847,10 +847,10 @@ badport_bandlim(int which)
 	int dticks;
 	const char *bandlimittype[] = {
 		"Limiting icmp unreach response",
-		"Limiting closed port RST response",
-		"Limiting open port RST response",
 		"Limiting icmp ping response",
-		"Limiting icmp tstamp response"
+		"Limiting icmp tstamp response",
+		"Limiting closed port RST response",
+		"Limiting open port RST response"
 		};
 
 	/*
