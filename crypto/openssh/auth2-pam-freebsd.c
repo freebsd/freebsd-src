@@ -169,8 +169,6 @@ pam_thread_conv(int n,
 	buffer_free(&buffer);
 	return (PAM_SUCCESS);
  fail:
-	while (i)
-		xfree(resp[--i]);
 	xfree(*resp);
 	*resp = NULL;
 	buffer_free(&buffer);
@@ -560,8 +558,6 @@ pam_chauthtok_conv(int n,
 	}
 	return (PAM_SUCCESS);
  fail:
-	while (i)
-		xfree(resp[--i]);
 	xfree(*resp);
 	*resp = NULL;
 	return (PAM_CONV_ERR);
