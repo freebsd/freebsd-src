@@ -1,4 +1,4 @@
-#       $Id: Makefile.Vinum,v 1.1 1999/01/18 04:49:18 grog Exp grog $ 
+#       $Id: Makefile,v 1.7 1999/01/21 00:25:47 grog Exp $ 
 
 SOURCE=	${.CURDIR}/../../dev/vinum
 
@@ -27,4 +27,4 @@ maketabs: maketabs.c
 
 .include <bsd.kmod.mk>
 
-CFLAGS += -I${SOURCE} -g -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
+CFLAGS += -g -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
