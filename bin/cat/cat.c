@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cat.c,v 1.2 1994/09/24 02:53:26 davidg Exp $
  */
 
 #ifndef lint
@@ -128,6 +128,7 @@ cook_args(argv)
 				fp = stdin;
 			else if ((fp = fopen(*argv, "r")) == NULL) {
 				warn("%s", *argv);
+				rval = 1;
 				++argv;
 				continue;
 			}
@@ -196,6 +197,7 @@ cook_buf(fp)
 	}
 	if (ferror(fp)) {
 		warn("%s", filename);
+		rval = 1;
 		clearerr(fp);
 	}
 	if (ferror(stdout))
@@ -216,6 +218,7 @@ raw_args(argv)
 				fd = fileno(stdin);
 			else if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 				warn("%s", *argv);
+				rval = 1;
 				++argv;
 				continue;
 			}
@@ -248,6 +251,8 @@ raw_cat(rfd)
 		for (off = 0; nr; nr -= nw, off += nw)
 			if ((nw = write(wfd, buf + off, nr)) < 0)
 				err(1, "stdout");
-	if (nr < 0)
+	if (nr < 0) {
 		warn("%s", filename);
+		rval = 1;
+	}
 }
