@@ -157,6 +157,8 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
+#include <sys/uio.h>
+
 #if defined(METEOR_FreeBSD_210)
 #include <machine/cpu.h>	/* bootverbose */
 #endif

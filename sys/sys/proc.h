@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.54 1998/02/20 13:52:15 bde Exp $
+ * $Id: proc.h,v 1.55 1998/03/04 10:26:37 dufault Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -46,9 +46,12 @@
 #include <sys/callout.h>		/* For struct callout_handle. */
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/select.h>			/* For struct selinfo. */
+#include <sys/signal.h>
+#ifndef KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
+#endif
+#include <sys/ucred.h>
 #include <sys/queue.h>
-#include <sys/param.h>
 
 /*
  * One structure allocated per session.

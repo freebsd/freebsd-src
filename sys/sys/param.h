@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.26 1997/03/03 09:51:10 ache Exp $
+ * $Id: param.h,v 1.27 1997/09/21 22:09:16 gibbs Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -78,21 +78,21 @@
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/ucred.h>
-#include <sys/uio.h>
-#include <sys/rtprio.h>
 
 #define	FALSE	0
 #define	TRUE	1
 #endif
 
+#ifndef KERNEL
 /* Signals. */
 #include <sys/signal.h>
+#endif
 
 /* Machine type dependent parameters. */
 #include <machine/param.h>
+#ifndef KERNEL
 #include <machine/limits.h>
+#endif
 
 /*
  * Priorities.  Note that with 32 run queues, differences less than 4 are

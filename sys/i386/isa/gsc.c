@@ -46,6 +46,7 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+#include <sys/uio.h>
 
 #include <machine/gsc.h>
 

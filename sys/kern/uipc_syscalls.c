@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.35 1997/12/16 17:40:30 eivind Exp $
+ * $Id: uipc_syscalls.c,v 1.36 1998/02/09 06:09:27 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -50,6 +50,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
+#include <sys/uio.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif

@@ -31,14 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.68 1998/03/08 09:58:35 julian Exp $
+ * $Id: vnode.h,v 1.69 1998/03/16 01:55:35 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
 #define	_SYS_VNODE_H_
 
 #include <sys/queue.h>
-#include <sys/select.h>		/* needed for struct selinfo in vnodes */
+#include <sys/select.h>
+#include <sys/uio.h>
 
 #include <machine/lock.h>
 

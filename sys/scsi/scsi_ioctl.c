@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.28 1998/02/01 04:13:00 wollman Exp $
+ * $Id: scsi_ioctl.c,v 1.29 1998/02/01 18:09:46 wollman Exp $
  *
  *
  */
@@ -54,6 +54,7 @@
 
 #include <sys/fcntl.h>
 #include <sys/proc.h>
+#include <sys/uio.h>
 
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
