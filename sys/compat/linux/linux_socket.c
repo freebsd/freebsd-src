@@ -405,20 +405,20 @@ static int
 linux_check_hdrincl(struct thread *td, caddr_t *sg, int s)
 {
 	struct getsockopt_args /* {
-		int s;
-		int level;
-		int name;
-		caddr_t val;
-		int *avalsize;
+		int	s;
+		int	level;
+		int	name;
+		void * __restrict val;
+		socklen_t * __restrict avalsize;
 	} */ bsd_args;
-	int error;
-	caddr_t val, valsize;
-	int size_val = sizeof val;
-	int optval;
+	void * __restrict val;
+	socklen_t * __restrict valsize;
+	int error, optval, size_val;
 
-	val = stackgap_alloc(sg, sizeof(int));
-	valsize = stackgap_alloc(sg, sizeof(int));
+	val = stackgap_alloc(sg, sizeof(size_val));
+	valsize = stackgap_alloc(sg, sizeof(socklen_t));
 
+	size_val = sizeof(val);
 	if ((error = copyout(&size_val, valsize, sizeof(size_val))))
 		return (error);
 
@@ -426,7 +426,7 @@ linux_check_hdrincl(struct thread *td, caddr_t *sg, int s)
 	bsd_args.level = IPPROTO_IP;
 	bsd_args.name = IP_HDRINCL;
 	bsd_args.val = val;
-	bsd_args.avalsize = (int *)valsize;
+	bsd_args.avalsize = valsize;
 	if ((error = getsockopt(td, &bsd_args)))
 		return (error);
 
@@ -701,17 +701,17 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 {
 	struct linux_accept_args linux_args;
 	struct accept_args /* {
-		int s;
-		caddr_t name;
-		int *anamelen;
+		int	s;
+		struct sockaddr * __restrict name;
+		socklen_t * __restrict anamelen;
 	} */ bsd_args;
 	struct close_args /* {
 		int     fd;
 	} */ c_args;
 	struct fcntl_args /* {
-		int fd;
-		int cmd;
-		long arg;
+		int	fd;
+		int	cmd;
+		long	arg;
 	} */ f_args;
 	int error;
 
@@ -719,8 +719,9 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 		return (error);
 
 	bsd_args.s = linux_args.s;
-	bsd_args.name = (caddr_t)linux_args.addr;
-	bsd_args.anamelen = linux_args.namelen;
+	/* XXX: */
+	bsd_args.name = (struct sockaddr * __restrict)linux_args.addr;
+	bsd_args.anamelen = linux_args.namelen;		/* XXX */
 	error = oaccept(td, &bsd_args);
 	if (error)
 		return (error);
@@ -757,9 +758,9 @@ linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 {
 	struct linux_getsockname_args linux_args;
 	struct getsockname_args /* {
-		int fdes;
-		caddr_t asa;
-		int *alen;
+		int	fdes;
+		struct sockaddr * __restrict asa;
+		socklen_t * __restrict alen;
 	} */ bsd_args;
 	int error;
 
@@ -767,8 +768,9 @@ linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 		return (error);
 
 	bsd_args.fdes = linux_args.s;
-	bsd_args.asa = (caddr_t) linux_args.addr;
-	bsd_args.alen = linux_args.namelen;
+	/* XXX: */
+	bsd_args.asa = (struct sockaddr * __restrict)linux_args.addr;
+	bsd_args.alen = linux_args.namelen;	/* XXX */
 	error = ogetsockname(td, &bsd_args);
 	if (error)
 		return (error);
@@ -942,12 +944,12 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 {
 	struct linux_recvfrom_args linux_args;
 	struct recvfrom_args /* {
-		int s;
-		caddr_t buf;
-		size_t len;
-		int flags;
-		caddr_t from;
-		int *fromlenaddr;
+		int	s;
+		caddr_t	buf;
+		size_t	len;
+		int	flags;
+		struct sockaddr * __restrict from;
+		socklen_t * __restrict fromlenaddr;
 	} */ bsd_args;
 	int error;
 
@@ -958,8 +960,9 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	bsd_args.buf = linux_args.buf;
 	bsd_args.len = linux_args.len;
 	bsd_args.flags = linux_to_bsd_msg_flags(linux_args.flags);
-	bsd_args.from = linux_args.from;
-	bsd_args.fromlenaddr = linux_args.fromlen;
+	/* XXX: */
+	bsd_args.from = (struct sockaddr * __restrict)linux_args.from;
+	bsd_args.fromlenaddr = linux_args.fromlen;	/* XXX */
 	error = orecvfrom(td, &bsd_args);
 	if (error)
 		return (error);
