@@ -1155,12 +1155,12 @@ end_login(void)
 	int e;
 #endif
 
-	(void) seteuid((uid_t)0);
+	(void) seteuid(0);
 	if (logged_in && dowtmp)
 		ftpd_logwtmp(ttyline, "", NULL);
 	pw = NULL;
 #ifdef	LOGIN_CAP
-	setusercontext(NULL, getpwuid(0), (uid_t)0,
+	setusercontext(NULL, getpwuid(0), 0,
 		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK|
 		       LOGIN_SETMAC);
 #endif
@@ -1429,7 +1429,7 @@ skip:
 			return;
 		}
 	}
-	setusercontext(lc, pw, (uid_t)0,
+	setusercontext(lc, pw, 0,
 		LOGIN_SETLOGIN|LOGIN_SETGROUP|LOGIN_SETPRIORITY|
 		LOGIN_SETRESOURCES|LOGIN_SETUMASK|LOGIN_SETMAC);
 #else
@@ -1526,7 +1526,7 @@ skip:
 	 * b) NFS mounted homedirs w/restrictive permissions will be accessible
 	 *    (uid 0 has no root power over NFS if not mapped explicitly.)
 	 */
-	if (seteuid((uid_t)pw->pw_uid) < 0) {
+	if (seteuid(pw->pw_uid) < 0) {
 		reply(550, "Can't set uid.");
 		goto bad;
 	}
@@ -1819,7 +1819,7 @@ getdatasock(char *mode)
 	/* anchor socket to avoid multi-homing problems */
 	data_source = ctrl_addr;
 	data_source.su_port = htons(dataport);
-	(void) seteuid((uid_t)0);
+	(void) seteuid(0);
 	for (tries = 1; ; tries++) {
 		/*
 		 * We should loop here since it's possible that
@@ -1837,7 +1837,7 @@ getdatasock(char *mode)
 			goto bad;
 		sleep(tries);
 	}
-	(void) seteuid((uid_t)pw->pw_uid);
+	(void) seteuid(pw->pw_uid);
 #ifdef IP_TOS
 	if (data_source.su_family == AF_INET)
       {
@@ -1867,7 +1867,7 @@ getdatasock(char *mode)
 bad:
 	/* Return the real value of errno (close may change it) */
 	t = errno;
-	(void) seteuid((uid_t)pw->pw_uid);
+	(void) seteuid(pw->pw_uid);
 	(void) close(s);
 	errno = t;
 	return (NULL);
@@ -2621,7 +2621,7 @@ dologout(int status)
 	transflag = 0;
 
 	if (logged_in && dowtmp) {
-		(void) seteuid((uid_t)0);
+		(void) seteuid(0);
 		ftpd_logwtmp(ttyline, "", NULL);
 	}
 	/* beware of flushing buffers after a SIGPIPE */
@@ -2688,7 +2688,7 @@ passive(void)
 	if (setsockopt(pdata, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "pdata setsockopt (SO_REUSEADDR): %m");
 
-	(void) seteuid((uid_t)0);
+	(void) seteuid(0);
 
 #ifdef IP_PORTRANGE
 	if (ctrl_addr.su_family == AF_INET) {
@@ -2716,7 +2716,7 @@ passive(void)
 	if (bind(pdata, (struct sockaddr *)&pasv_addr, pasv_addr.su_len) < 0)
 		goto pasv_error;
 
-	(void) seteuid((uid_t)pw->pw_uid);
+	(void) seteuid(pw->pw_uid);
 
 	len = sizeof(pasv_addr);
 	if (getsockname(pdata, (struct sockaddr *) &pasv_addr, &len) < 0)
@@ -2740,7 +2740,7 @@ passive(void)
 	return;
 
 pasv_error:
-	(void) seteuid((uid_t)pw->pw_uid);
+	(void) seteuid(pw->pw_uid);
 	(void) close(pdata);
 	pdata = -1;
 	perror_reply(425, "Can't open passive connection");
@@ -2798,7 +2798,7 @@ long_passive(char *cmd, int pf)
 	if (setsockopt(pdata, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "pdata setsockopt (SO_REUSEADDR): %m");
 
-	(void) seteuid((uid_t)0);
+	(void) seteuid(0);
 
 	pasv_addr = ctrl_addr;
 	pasv_addr.su_port = 0;
@@ -2828,7 +2828,7 @@ long_passive(char *cmd, int pf)
 	if (bind(pdata, (struct sockaddr *)&pasv_addr, len) < 0)
 		goto pasv_error;
 
-	(void) seteuid((uid_t)pw->pw_uid);
+	(void) seteuid(pw->pw_uid);
 
 	if (getsockname(pdata, (struct sockaddr *) &pasv_addr, &len) < 0)
 		goto pasv_error;
@@ -2877,7 +2877,7 @@ long_passive(char *cmd, int pf)
 	}
 
 pasv_error:
-	(void) seteuid((uid_t)pw->pw_uid);
+	(void) seteuid(pw->pw_uid);
 	(void) close(pdata);
 	pdata = -1;
 	perror_reply(425, "Can't open passive connection");
