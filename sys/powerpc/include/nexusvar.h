@@ -32,6 +32,7 @@ enum nexus_ivars {
 	NEXUS_IVAR_NODE,
 	NEXUS_IVAR_NAME,
 	NEXUS_IVAR_DEVICE_TYPE,
+	NEXUS_IVAR_COMPATIBLE,
 };
 
 /*
@@ -45,6 +46,7 @@ enum nexus_ivars {
 NEXUS_ACCESSOR(node,		NODE,			phandle_t)
 NEXUS_ACCESSOR(name,		NAME,			char *)
 NEXUS_ACCESSOR(device_type,	DEVICE_TYPE,		char *)
+NEXUS_ACCESSOR(compatible,	COMPATIBLE,		char *)
 
 #undef NEXUS_ACCESSOR
 
