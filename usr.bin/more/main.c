@@ -254,7 +254,7 @@ main(argc, argv)
 	int envargc, argcnt;
 	char *envargv[2];
 
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 	/*
 	 * Process command line arguments and MORE environment arguments.
