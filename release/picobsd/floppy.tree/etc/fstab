@@ -1,3 +1,4 @@
+proc				/proc		procfs	rw 0 0
 /dev/fd0c			/fd	ufs	rw,noauto 0 0
 /dev/wd0s1			/dos		msdos	rw,noauto 0 0
 /dev/wd0s1a			/wd		ufs	rw,noauto 0 0
