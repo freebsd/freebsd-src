@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.8 1999/01/23 01:29:05 peter Exp $
+ * $Id: vinumio.c,v 1.21 1998/12/30 06:04:31 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -79,8 +79,8 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     drive->p = p;
 
     if (drive->vp->v_usecount > 1) {			    /* already in use? */
-    if (verbose)
-	printf("open_drive %s: use count %d, ignoring\n",   /* XXX where does this come from? */
+	if (verbose)
+	    printf("open_drive %s: use count %d, ignoring\n", /* XXX where does this come from? */
 		drive->devicename,
 		drive->vp->v_usecount);
 	drive->vp->v_usecount = 1;			    /* will this work? */
@@ -511,171 +511,120 @@ sappend(char *txt, char *s)
     return s - 1;
 }
 
-/* Kludge: kernel printf doesn't handle quads */
-static char *lltoa (long long l, char *s);
+static char *lltoa(long long l, char *s);
 
-static char *lltoa (long long l, char *s)
+static char *
+lltoa(long long l, char *s)
 {
-  if (l < 0)
-    {
-    *s++ = '-';
-    l = -l;
+    if (l < 0) {
+	*s++ = '-';
+	l = -l;
     }
-  if (l > 9)
-    {
-    s = lltoa (l / 10, s);
-    l %= 10;
+    if (l > 9) {
+	s = lltoa(l / 10, s);
+	l %= 10;
     }
-  *s++ = l + '0';
-  return s;
-  }
+    *s++ = l + '0';
+    return s;
+}
 /* Format the configuration in text form into the buffer
  * at config.  Don't go beyond len bytes
  * XXX this stinks.  Fix soon. */
-void format_config (char *config, int len)
+void 
+format_config(char *config, int len)
 {
-#if __FreeBSD__ == 2
-  BROKEN_GDB
-#endif
-  int i;
-  int j;
-  char *s = config;
-  
-  bzero (config, len);
-  
-#if 0							    /* XXX die, die */
-  /* First write the drive configuration */
-  for (i = 0; i < vinum_conf.drives_used; i++)
-    {
-    struct drive *drive;
-    
-    drive = &vinum_conf.drive [i];
-    if (drive->state != drive_unallocated)
-      {
-      sprintf (s,
-	       "drive %s state %s device %s\n",
-	       drive->label.name,
-	       drive_state (drive->state),
-	       drive->devicename);
-      while (*s)
-	s++;						    /* find the end */
-      if (s > &config [len - 80])
-	{
-	printf ("vinum: configuration data overflow\n");
-	return;
+    int i;
+    int j;
+    char *s = config;
+
+    bzero(config, len);
+
+
+    /* Then the volume configuration */
+    for (i = 0; i < vinum_conf.volumes_used; i++) {
+	struct volume *vol;
+
+	vol = &vinum_conf.volume[i];
+	if (vol->state != volume_unallocated) {
+	    if (vol->preferred_plex >= 0)		    /* preferences, */
+		sprintf(s,
+		    "volume %s state %s readpol prefer %s",
+		    vol->name,
+		    volume_state(vol->state),
+		    vinum_conf.plex[vol->preferred_plex].name);
+	    else					    /* default round-robin */
+		sprintf(s,
+		    "volume %s state %s",
+		    vol->name,
+		    volume_state(vol->state));
+	    while (*s)
+		s++;					    /* find the end */
+	    s = sappend("\n", s);
+	    if (s > &config[len - 80]) {
+		printf("vinum: configuration data overflow\n");
+		return;
+	    }
 	}
-      }
-    }
-#endif
-  
-  /* Then the volume configuration */
-  for (i = 0; i < vinum_conf.volumes_used; i++)
-    {
-    struct volume *vol;
-    
-    vol = &vinum_conf.volume [i];
-    if (vol->state != volume_unallocated)
-      {
-      if (vol->preferred_plex >= 0)			    /* preferences, */
-	sprintf (s,
-		 "volume %s state %s readpol prefer %s",
-		 vol->name,
-		 volume_state (vol->state),
-		 vinum_conf.plex [vol->preferred_plex].name);
-      else						    /* default round-robin */
-	sprintf (s,
-		 "volume %s state %s",
-		 vol->name,
-		 volume_state (vol->state));
-      while (*s)
-	s++;						    /* find the end */
-#if 0
-      /* Do we need to state the plexes? */
-      for (j = 0; j < vol->plexes; j++)
-	{
-	sprintf (s, " plex %s", vinum_conf.plex [vol->plex [j]].name);
-	while (*s)
-	  s++;						    /* find the end */
-	}
-#endif
-      s = sappend ("\n", s);
-      if (s > &config [len - 80])
-	{
-	printf ("vinum: configuration data overflow\n");
-	return;
-	}
-      }
     }
 
-  /* Then the plex configuration */
-  for (i = 0; i < vinum_conf.plexes_used; i++)
-    {
-    struct plex *plex;
-    
-    plex = &vinum_conf.plex [i];
-    if (plex->state != plex_unallocated)
-      {
-      sprintf (s, "plex name %s state %s org %s ",
-	       plex->name,
-	       plex_state (plex->state), 
-	       plex_org (plex->organization) );
-      while (*s)
-	s++;						    /* find the end */
-      if ((plex->organization == plex_striped)
-#ifdef RAID5
-	  || (plex->organization == plex_raid5)
-#endif
-	  )
-	{
-	sprintf (s, "%db ", (int) plex->stripesize);
-	while (*s)
-	  s++;						    /* find the end */
+    /* Then the plex configuration */
+    for (i = 0; i < vinum_conf.plexes_used; i++) {
+	struct plex *plex;
+
+	plex = &vinum_conf.plex[i];
+	if (plex->state != plex_unallocated) {
+	    sprintf(s, "plex name %s state %s org %s ",
+		plex->name,
+		plex_state(plex->state),
+		plex_org(plex->organization));
+	    while (*s)
+		s++;					    /* find the end */
+	    if ((plex->organization == plex_striped)
+		) {
+		sprintf(s, "%db ", (int) plex->stripesize);
+		while (*s)
+		    s++;				    /* find the end */
+	    }
+	    if (plex->volno >= 0)			    /* we have a volume */
+		sprintf(s, "vol %s ", vinum_conf.volume[plex->volno].name);
+	    while (*s)
+		s++;					    /* find the end */
+	    for (j = 0; j < plex->subdisks; j++) {
+		sprintf(s, " sd %s", vinum_conf.sd[plex->sdnos[j]].name);
+	    }
+	    s = sappend("\n", s);
+	    if (s > &config[len - 80]) {
+		printf("vinum: configuration data overflow\n");
+		return;
+	    }
 	}
-      if (plex->volno >= 0)				    /* we have a volume */
-	sprintf (s, "vol %s ", vinum_conf.volume [plex->volno].name);
-      while (*s)
-	s++;						    /* find the end */
-      for (j = 0; j < plex->subdisks; j++)
-	{
-	sprintf (s, " sd %s", vinum_conf.sd [plex->sdnos [j]].name);
-	}
-      s = sappend ("\n", s);
-      if (s > &config [len - 80])
-	{
-	printf ("vinum: configuration data overflow\n");
-	return;
-	}
-      }
     }
-  
-  /* And finally the subdisk configuration */
-  for (i = 0; i < vinum_conf.subdisks_used; i++)
-    {
-    struct sd *sd = &vinum_conf.sd [i];			    /* XXX */
-    if (vinum_conf.sd [i].state != sd_unallocated)
-      {
-      sprintf (s,
-	       "sd name %s drive %s plex %s state %s len ",
-	       sd->name,
-	       vinum_conf.drive [sd->driveno].label.name,
-	       vinum_conf.plex [sd->plexno].name,
-	       sd_state (sd->state) );
-      while (*s)
-	s++;						    /* find the end */
-      s = lltoa (sd->sectors, s);
-      s = sappend ("b driveoffset ", s);
-      s = lltoa (sd->driveoffset, s);
-      s = sappend ("b plexoffset ", s);
-      s = lltoa (sd->plexoffset, s);
-      s = sappend ("b\n", s);
-      if (s > &config [len - 80])
-	{
-	printf ("vinum: configuration data overflow\n");
-	return;
+
+    /* And finally the subdisk configuration */
+    for (i = 0; i < vinum_conf.subdisks_used; i++) {
+	struct sd *sd = &vinum_conf.sd[i];		    /* XXX */
+	if (vinum_conf.sd[i].state != sd_unallocated) {
+	    sprintf(s,
+		"sd name %s drive %s plex %s state %s len ",
+		sd->name,
+		vinum_conf.drive[sd->driveno].label.name,
+		vinum_conf.plex[sd->plexno].name,
+		sd_state(sd->state));
+	    while (*s)
+		s++;					    /* find the end */
+	    s = lltoa(sd->sectors, s);
+	    s = sappend("b driveoffset ", s);
+	    s = lltoa(sd->driveoffset, s);
+	    s = sappend("b plexoffset ", s);
+	    s = lltoa(sd->plexoffset, s);
+	    s = sappend("b\n", s);
+	    if (s > &config[len - 80]) {
+		printf("vinum: configuration data overflow\n");
+		return;
+	    }
 	}
-      }
     }
-  }
+}
 
 /* issue a save config request to the dæmon.  The actual work
  * is done in process context by daemon_save_config */
@@ -926,7 +875,8 @@ vinum_scandisk(char *drivename[], int drives)
 		    drivename[driveno],
 		    part);
 		drive = check_drive(partname);		    /* try to open it */
-		if (drive->lasterror != 0)		    /* didn't work, */
+		if ((drive->lasterror != 0)		    /* didn't work, */
+		||(drive->state != drive_up))
 		    free_drive(drive);			    /* get rid of it */
 		else if (drive->flags & VF_CONFIGURED)	    /* already read this config, */
 		    printf("vinum: already read config from %s\n", /* say so */
@@ -1017,8 +967,8 @@ vinum_scandisk(char *drivename[], int drives)
 int 
 drivecmp(const void *va, const void *vb)
 {
-    const struct drive *a = *(const struct drive * const *) va;
-    const struct drive *b = *(const struct drive * const *) vb;
+    const struct drive *a = *(const struct drive **) va;
+    const struct drive *b = *(const struct drive **) vb;
 
     if ((a->label.last_update.tv_sec == b->label.last_update.tv_sec)
 	&& (a->label.last_update.tv_usec == b->label.last_update.tv_usec))
