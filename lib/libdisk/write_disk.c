@@ -183,7 +183,10 @@ Cfg_Boot_Mgr(u_char *mbr, int edd)
 int
 Write_Disk(struct disk *d1)
 {
-	int fd,i,j;
+	int fd,i;
+#ifdef __i386__
+	int j;
+#endif
 	struct disk *old = 0;
 	struct chunk *c1;
 	int ret = 0;
