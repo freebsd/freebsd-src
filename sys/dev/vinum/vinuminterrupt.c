@@ -203,6 +203,10 @@ sdio_done(struct buf *bp)
 	bp->b_flags |= B_ERROR;
 	bp->b_error = sbp->b.b_error;
     }
+#ifdef VINUMDEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_sdiodone, (union rqinfou) bp, bp);
+#endif
     sbp->bp->b_resid = sbp->b.b_resid;			    /* copy the resid field */
     biodone(sbp->bp);					    /* complete the caller's I/O */
     /* Now update the statistics */
