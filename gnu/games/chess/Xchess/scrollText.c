@@ -624,9 +624,15 @@ struct txtWin *textInfo;	/* Text window information */
     XFillRectangle(display, textInfo->scrollBar,
 		   textInfo->bgGC, 
 		   0, 0, BARSIZE, top-1);
+#ifdef __386BSD__
+    XFillRectangle(display, textInfo->scrollBar,
+		   DEFAULT_GC, top, BARSIZE - (2*BARBORDER) - 2,
+		   BARSIZE, bottom - top);
+#else
     XFillRectangle(display, textInfo->scrollBar,
 		   DEFAULT_GC, top, BARSIZE - (2*BARBORDER) - 2,
 		   bottom - top);
+#endif
     XFillRectangle(display, textInfo->scrollBar, DEFAULT_GC,
 		   0, bottom+1, BARSIZE,
 		   textInfo->h - (2 * BARBORDER) - bottom);
@@ -1051,10 +1057,17 @@ int col;			/* Color of indicator            */
 					     (XID) win);
 
     /* First,  draw the arrow */
+#ifdef __386BSD__
+    XCopyArea(display, textInfo->arrowMap, textInfo->mainWindow,
+	       textInfo->CursorGC,
+	       0, 0, arrow_width, arrow_height,
+	       x, y + h - arrow_height);
+#else
     XCopyArea(display, textInfo->arrowMap, textInfo->mainWindow,
 	       textInfo->CursorGC,
 	       0, 0, arrow_width, arrow_height,
 	       x, y + h - arrow_height, 1);
+#endif
 
     /* Then draw the stem */
     XDrawLine(display, textInfo->mainWindow, textInfo->CursorGC,
@@ -1567,9 +1580,15 @@ struct txtWin *textInfo;	/* Text window information   */
     textInfo->endLine = FindEndLine(textInfo, &(textInfo->bottomSpace));
 
     /* Clear out bottom space region */
+#ifdef __386BSD__
+    XClearArea(display, textInfo->mainWindow,
+	       0, textInfo->h - textInfo->bottomSpace,
+	       textInfo->w, textInfo->bottomSpace, 1);
+#else
     XClearArea(display, textInfo->mainWindow,
 	       0, textInfo->h - textInfo->bottomSpace,
 	       textInfo->w, textInfo->bottomSpace);
+#endif
     
     UpdateExposures(display, textInfo);
     UpdateScroll(display, textInfo);
