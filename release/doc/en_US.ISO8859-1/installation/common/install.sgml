@@ -37,7 +37,7 @@ from {alpha,i386}/INSTALL.TXT.
     release of &os; can be found in <filename>README.TXT</filename>,
     which can usually be found in the same location as this file; most
     of these documents, such as the release notes and the hardware
-    compatability list, are also accessible in the Documentation menu
+    compatibility list, are also accessible in the Documentation menu
     of the installer.</para>
 
     <para>Note that on-line versions of the &os; <ulink
@@ -189,7 +189,7 @@ from {alpha,i386}/INSTALL.TXT.
             (usually an option which can be selectively enabled in the
             controller's setup menu or in the PC BIOS for some
             systems) and you have it enabled, &os; supports the
-            <quote>El Torrito</quote> bootable CD standard.  Simply
+            <quote>El Torito</quote> bootable CD standard.  Simply
             put the installation CD in your CDROM drive and boot the
             system to begin installation.</para>
 	  </listitem>
@@ -296,7 +296,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
     and shows three disks attached to the machine. The first is a
     CDROM called <devicename>dka0</devicename> and the other two are
     disks and are called <devicename>dkc0</devicename> and
-    <devicename>dkc100</devicename> repectively.</para>
+    <devicename>dkc100</devicename> respectively.</para>
 
     <para arch="alpha">You can specify which kernel file to load and what boot
     options to use with the <option>-file</option> and
