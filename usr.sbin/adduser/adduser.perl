@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.5 1995/04/09 03:34:10 ache Exp $
+# $Id: adduser.perl,v 1.6 1995/04/30 19:20:25 ache Exp $
 #
 
 # read variables
@@ -796,7 +796,7 @@ sub uniq {
 
 # see /usr/src/usr.bin/passwd/local_passwd.c or librcypt, crypt(3)
 sub salt {
-    local($salt) = '_';		# initialization
+    local($salt);		# initialization
     local($i, $rand);
     local(@itoa64) = ( 0 .. 9, a .. z, A .. Z ); # 0 .. 63
 
