@@ -1,4 +1,4 @@
-#	$Id: options,v 1.33 1997/09/10 03:07:12 peter Exp $
+#	$Id: options,v 1.34 1997/09/16 18:35:56 joerg Exp $
 
 # Format:
 # Option name	filename
@@ -25,6 +25,7 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # options in a never-included header.
 FDESC		opt_dontuse.h
 KERNFS		opt_dontuse.h
+MFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 PORTAL		opt_dontuse.h
 PROCFS		opt_dontuse.h
