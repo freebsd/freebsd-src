@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
 static void	addalias(struct vnode *vp, struct cdev *nvp_rdev);
+static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);
 static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
@@ -836,40 +837,45 @@ getnewvnode(tag, mp, vops, vpp)
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
 		mac_associate_vnode_singlelabel(mp, vp);
 #endif
+	delmntque(vp);
 	insmntque(vp, mp);
 
 	return (0);
 }
 
 /*
- * Move a vnode from one mount queue to another.
+ * Delete from old mount point vnode list, if on one.
  */
 static void
-insmntque(vp, mp)
-	register struct vnode *vp;
-	register struct mount *mp;
+delmntque(struct vnode *vp)
+{
+	struct mount *mp;
+
+	if (vp->v_mount == NULL)
+		return;
+	mp = vp->v_mount;
+	MNT_ILOCK(mp);
+	vp->v_mount = NULL;
+	KASSERT(mp->mnt_nvnodelistsize > 0,
+		("bad mount point vnode list size"));
+	TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+	mp->mnt_nvnodelistsize--;
+	MNT_IUNLOCK(mp);
+}
+
+/*
+ * Insert into list of vnodes for the new mount point, if available.
+ */
+static void
+insmntque(struct vnode *vp, struct mount *mp)
 {
 
-	/*
-	 * Delete from old mount point vnode list, if on one.
-	 */
-	if (vp->v_mount != NULL) {
-		MNT_ILOCK(vp->v_mount);
-		KASSERT(vp->v_mount->mnt_nvnodelistsize > 0,
-			("bad mount point vnode list size"));
-		TAILQ_REMOVE(&vp->v_mount->mnt_nvnodelist, vp, v_nmntvnodes);
-		vp->v_mount->mnt_nvnodelistsize--;
-		MNT_IUNLOCK(vp->v_mount);
-	}
-	/*
-	 * Insert into list of vnodes for the new mount point, if available.
-	 */
-	if ((vp->v_mount = mp) != NULL) {
-		MNT_ILOCK(vp->v_mount);
-		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-		mp->mnt_nvnodelistsize++;
-		MNT_IUNLOCK(vp->v_mount);
-	}
+	vp->v_mount = mp;
+	KASSERT(mp != NULL, ("Don't call insmntque(foo, NULL)"));
+	MNT_ILOCK(vp->v_mount);
+	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+	mp->mnt_nvnodelistsize++;
+	MNT_IUNLOCK(vp->v_mount);
 }
 
 /*
@@ -1885,6 +1891,7 @@ addaliasu(nvp, nvp_rdev)
 		vn_lock(ovp, LK_EXCLUSIVE | LK_RETRY, curthread);
 	}
 	nvp->v_op = ops;
+	delmntque(ovp);
 	insmntque(ovp, nvp->v_mount);
 	vrele(nvp);
 	vgone(nvp);
@@ -2219,14 +2226,7 @@ vflush(mp, rootrefs, flags)
 	}
 	MNT_ILOCK(mp);
 loop:
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
-		/*
-		 * Make sure this vnode wasn't reclaimed in getnewvnode().
-		 * Start over if it has (it won't be on the list anymore).
-		 */
-		if (vp->v_mount != mp)
-			goto loop;
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+	MNT_VNODE_FOREACH(vp, mp, nvp) {
 
 		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
@@ -2466,8 +2466,7 @@ vclean(vp, flags, td)
 	/*
 	 * Delete from old mount point vnode list.
 	 */
-	if (vp->v_mount != NULL)
-		insmntque(vp, (struct mount *)0);
+	delmntque(vp);
 	cache_purge(vp);
 	VI_LOCK(vp);
 	if (VSHOULDFREE(vp))
@@ -2594,8 +2593,7 @@ vgonechrl(struct vnode *vp, struct thread *td)
 		vp->v_vnlock = &vp->v_lock;
 		vp->v_tag = "orphanchr";
 		vp->v_op = spec_vnodeop_p;
-		if (vp->v_mount != NULL)
-			insmntque(vp, (struct mount *)0);
+		delmntque(vp);
 		cache_purge(vp);
 		vrele(vp);
 		VI_LOCK(vp);
@@ -3082,13 +3080,12 @@ vfs_msync(struct mount *mp, int flags)
 	tries = 5;
 	MNT_ILOCK(mp);
 loop:
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
+	TAILQ_FOREACH_SAFE(vp, &mp->mnt_nvnodelist, v_nmntvnodes, nvp) {
 		if (vp->v_mount != mp) {
 			if (--tries > 0)
 				goto loop;
 			break;
 		}
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_XLOCK) {
