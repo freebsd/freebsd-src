@@ -33,9 +33,12 @@
  * $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
 
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #endif /* LIBC_SCCS and not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -126,7 +129,7 @@ fts_open(argv, options, compar)
 		return (NULL);
 	}
 
-	/* Allocate/initialize the stream */
+	/* Allocate/initialize the stream. */
 	if ((priv = malloc(sizeof(*priv))) == NULL)
 		return (NULL);
 	memset(priv, 0, sizeof(*priv));
@@ -384,7 +387,7 @@ fts_read(sp)
 			if (fts_safe_changedir(sp, p, -1, p->fts_accpath)) {
 				p->fts_errno = errno;
 				p->fts_flags |= FTS_DONTCHDIR;
-				for (p = sp->fts_child; p != NULL; 
+				for (p = sp->fts_child; p != NULL;
 				    p = p->fts_link)
 					p->fts_accpath =
 					    p->fts_parent->fts_accpath;
@@ -480,7 +483,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 		}
 		(void)_close(p->fts_symfd);
 	} else if (!(p->fts_flags & FTS_DONTCHDIR) &&
-		   fts_safe_changedir(sp, p->fts_parent, -1, "..")) {
+	    fts_safe_changedir(sp, p->fts_parent, -1, "..")) {
 		SET(FTS_STOP);
 		return (NULL);
 	}
@@ -645,9 +648,9 @@ fts_build(sp, type)
 	 */
 #ifdef FTS_WHITEOUT
 	if (ISSET(FTS_WHITEOUT))
-		oflag = DTF_NODUP|DTF_REWIND;
+		oflag = DTF_NODUP | DTF_REWIND;
 	else
-		oflag = DTF_HIDEW|DTF_NODUP|DTF_REWIND;
+		oflag = DTF_HIDEW | DTF_NODUP | DTF_REWIND;
 #else
 #define __opendir2(path, flag) opendir(path)
 #endif
@@ -904,10 +907,10 @@ fts_stat(sp, p, follow)
 	sbp = ISSET(FTS_NOSTAT) ? &sb : p->fts_statp;
 
 #ifdef FTS_WHITEOUT
-	/* check for whiteout */
+	/* Check for whiteout. */
 	if (p->fts_flags & FTS_ISW) {
 		if (sbp != &sb) {
-			memset(sbp, '\0', sizeof (*sbp));
+			memset(sbp, '\0', sizeof(*sbp));
 			sbp->st_mode = S_IFWHT;
 		}
 		return (FTS_W);
