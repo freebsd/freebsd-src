@@ -14,12 +14,12 @@ if [ "${apmd_enable}" = "YES" ] ; then
 	echo -n ' apmd';	apmd ${apmd_flags}
 fi
 
-# Start the SCO binary emulation if requested.
+# Start the SCO binary compatibility if requested.
 if [ "X${ibcs2_enable}" = X"YES" ]; then
 	echo -n ' ibcs2';		ibcs2 > /dev/null 2>&1
 fi
 
-# Start the Linux binary emulation if requested.
+# Start the Linux binary compatibility if requested.
 if [ "X${linux_enable}" = X"YES" ]; then
 	echo -n ' linux';		linux > /dev/null 2>&1
 fi
