@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.32 1999/07/29 01:02:58 mdodd Exp $
+ *	$Id: subr_bus.c,v 1.33 1999/07/29 01:51:49 mdodd Exp $
  */
 
 #include <sys/param.h>
@@ -2300,17 +2300,8 @@ print_driver_short(driver_t *driver, int indent)
 	if (!driver)
 		return;
 
-	indentprintf(("driver %s: type = %s%s%s%s, softc size = %d\n",
-		driver->name,
-		/* yes, I know this looks silly, but going to bed at
-		 * two o'clock and having to get up at 7:30 again is silly
-		 * as well. As is sticking your head in a bucket of water.
-		 */
-		(driver->type == DRIVER_TYPE_TTY? "tty":""),
-		(driver->type == DRIVER_TYPE_BIO? "bio":""),
-		(driver->type == DRIVER_TYPE_NET? "net":""),
-		(driver->type == DRIVER_TYPE_MISC? "misc":""),
-		driver->softc));
+	indentprintf(("driver %s: softc size = %d\n",
+		driver->name, driver->softc));
 }
 
 static void
