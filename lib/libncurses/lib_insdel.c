@@ -86,10 +86,6 @@ chtype	blank = ' ';
     if (win->_maxx == columns && win->_idlok == TRUE) {
 
 		wrefresh(win);
-		if (back_color_erase) {
-			T(("back_color_erase, turning attributes off"));
-			vidattr(curscr->_attrs = A_NORMAL);
-		}
 		if (n > 0) {
 			mvcur(-1, -1, win->_cury, 0);
 			if (parm_insert_line) {
