@@ -160,6 +160,7 @@ ata_generic_intr(void *data)
 static void
 ata_generic_setmode(struct ata_device *atadev, int mode)
 {
+    mode = ata_limit_mode(atadev, mode, ATA_UDMA2);
     mode = ata_check_80pin(atadev, mode);
     if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
 	atadev->mode = mode;
@@ -2050,7 +2051,7 @@ ata_via_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
-    if (!(idx = ata_find_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_find_chip(dev, ids, pci_get_slot(dev))))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));

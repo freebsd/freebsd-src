@@ -68,42 +68,64 @@ ata_pci_probe(device_t dev)
 
     switch (pci_get_vendor(dev)) {
     case ATA_ACARD_ID: 
-	return ata_acard_ident(dev);
+ 	if (!ata_acard_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_ACER_LABS_ID:
-	return ata_ali_ident(dev);
+ 	if (!ata_ali_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_AMD_ID:
-	return ata_amd_ident(dev);
+ 	if (!ata_amd_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_CYRIX_ID:
-	return ata_cyrix_ident(dev);
+ 	if (!ata_cyrix_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_CYPRESS_ID:
-	return ata_cypress_ident(dev);
+ 	if (!ata_cypress_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_HIGHPOINT_ID: 
-	return ata_highpoint_ident(dev);
+ 	if (!ata_highpoint_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_INTEL_ID:
-	return ata_intel_ident(dev);
-    case ATA_NATIONAL_ID:
-	return ata_national_ident(dev);
+ 	if (!ata_intel_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_NVIDIA_ID:
-	return ata_nvidia_ident(dev);
+ 	if (!ata_nvidia_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_PROMISE_ID:
-	return ata_promise_ident(dev);
+ 	if (!ata_promise_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_SERVERWORKS_ID: 
-	return ata_serverworks_ident(dev);
+ 	if (!ata_serverworks_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_SILICON_IMAGE_ID:
-	return ata_sii_ident(dev);
+ 	if (!ata_sii_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_SIS_ID:
-	return ata_sis_ident(dev);
+ 	if (!ata_sis_ident(dev))
+ 	    return 0;
+ 	break;
     case ATA_VIA_ID: 
-	return ata_via_ident(dev);
-
+ 	if (!ata_via_ident(dev))
+ 	    return 0;
+ 	break;
     case 0x16ca:
 	if (pci_get_devid(dev) == 0x000116ca) {
 	    ata_generic_ident(dev);
 	    device_set_desc(dev, "Cenatek Rocket Drive controller");
 	    return 0;
 	}
-	return ENXIO;
-
+	break;
     case 0x1042:
 	if (pci_get_devid(dev)==0x10001042 || pci_get_devid(dev)==0x10011042) {
 	    ata_generic_ident(dev);
@@ -111,14 +133,14 @@ ata_pci_probe(device_t dev)
 		"RZ 100? ATA controller !WARNING! buggy HW data loss possible");
 	    return 0;
 	}
-	return ENXIO;
+	break;
+    }
 
     /* unknown chipset, try generic DMA if it seems possible */
-    default:
-	if (pci_get_class(dev) == PCIC_STORAGE &&
-	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE))
-	    return ata_generic_ident(dev);
-    }
+    if ((pci_get_class(dev) == PCIC_STORAGE) &&
+	(pci_get_subclass(dev) == PCIS_STORAGE_IDE))
+	return ata_generic_ident(dev);
+
     return ENXIO;
 }
 
