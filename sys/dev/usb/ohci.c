@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.83 2000/03/29 01:46:26 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.85 2000/04/01 09:27:35 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -831,9 +831,14 @@ ohci_init(ohci_softc_t *sc)
 	desca = OREAD4(sc, OHCI_RH_DESCRIPTOR_A);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca | OHCI_NOCP);
 	OWRITE4(sc, OHCI_RH_STATUS, OHCI_LPSC); /* Enable port power */
-	usb_delay_ms(&sc->sc_bus, 5);
+	usb_delay_ms(&sc->sc_bus, OHCI_ENABLE_POWER_DELAY);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca);
 
+	/*
+	 * The AMD756 requires a delay before re-reading the register,
+	 * otherwise it will occasionally report 0 ports.
+	 */
+	usb_delay_ms(&sc->sc_bus, OHCI_READ_DESC_DELAY);
 	sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 
 #ifdef OHCI_DEBUG
