@@ -39,7 +39,11 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
+#ifdef CPU_ARM9
+#define NIRQ		64
+#else
 #define NIRQ		32
+#endif
 
 #include <machine/psl.h>
 
