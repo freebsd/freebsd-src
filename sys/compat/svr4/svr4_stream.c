@@ -2248,6 +2248,8 @@ svr4_do_getmsg(td, uap, fp)
 	}
 
 	if (uap->ctl) {
+		if (ctl.len > sizeof(sc))
+			ctl.len = sizeof(sc);
 		if (ctl.len != -1)
 			if ((error = copyout(&sc, ctl.buf, ctl.len)) != 0)
 				return error;
