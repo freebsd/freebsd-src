@@ -185,6 +185,12 @@ Enumeration values are all uppercase.
 enum enumtype { ONE, TWO } et;
 .Ed
 .Pp
+In declarations, do not put any whitespace between asterisks and
+adjacent tokens, except for tokens that are identifiers related to
+types.  (These identifiers are the names of basic types, type
+qualifiers, and typedef-names other than the one being declared.)
+Separate these identifers from asterisks using a single space.
+.Pp
 When declaring variables in structures, declare them sorted by use, then
 by size, and then in alphabetical order.
 The first category normally does not apply, but there are exceptions.
