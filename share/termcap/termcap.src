@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.66 1996/10/19 22:50:25 pst Exp $
+#	$Id: termcap.src,v 1.67 1996/11/18 01:29:09 ache Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2481,9 +2481,29 @@ vt200|vt220|vt220am|dec-vt220|dec vt200 series with jump scroll:\
 	:F2=\E[24~:kP=\E[5~:kN=\E[6~:\
 	:K1=\EOw:K2=\EOy:K3=\EOu:K4=\EOq:K5=\EOs:\
 	:tc=vt102:
-# SC needed for screen(1)        ache
-SC|screen|Screen VT/ANSI emulator:\
-	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:bt=\E[Z:tc=vt220:
+#
+# SC,SW names needed for screen(1)        ache
+SC|screen|VT 100/ANSI X3.64 virtual terminal:\
+	:am:xn:ms:mi:G0:km:\
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:bs:bt=\E[Z:\
+	:cb=\E[1K:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:ct=\E[3g:\
+	:do=^J:nd=\E[C:pt:rc=\E8:rs=\Ec:sc=\E7:st=\EH:up=\EM:\
+	:le=^H:bl=^G:cr=^M:it#8:ho=\E[H:nw=\EE:ta=^I:is=\E)0:\
+	:li#24:co#80:us=\E[4m:ue=\E[24m:so=\E[3m:se=\E[23m:\
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:sr=\EM:al=\E[L:\
+	:AL=\E[%dL:dl=\E[M:DL=\E[%dM:cs=\E[%i%d;%dr:dc=\E[P:\
+	:DC=\E[%dP:im=\E[4h:ei=\E[4l:IC=\E[%d@:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:vb=\Eg:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:kH=\E[4~:kP=\E[5~:kN=\E[6~:\
+	:eA=\E(B\E)0:as=^N:ae=^O:\
+	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
+	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhII00:
+SW|screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols:\
+	:co#132:tc=screen:
 vt200-nam|dec-vt200-nam|vt200nam|vt200 w/no am:\
 	:tc=vt220nam:
 vt220-nam|dec-vt220-nam|vt220nam|vt220 w/no am:\
