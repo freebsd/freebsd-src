@@ -142,7 +142,6 @@ ftpd_popen(program, type)
 			(void)close(pdes[1]);
 		}
 		if (strcmp(gargv[0], _PATH_LS) == 0) {
-			extern	int optreset;
 			/* Reset getopt for ls_main() */
 			optreset = optind = optopt = 1;
 			/* Close syslogging to remove pwd.db missing msgs */
