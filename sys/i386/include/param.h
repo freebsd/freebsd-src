@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.48 1999/01/07 06:35:18 peter Exp $
+ *	$Id: param.h,v 1.49 1999/02/19 19:34:48 luoqi Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -43,10 +43,18 @@
 /*
  * Machine dependent constants for Intel 386.
  */
+#ifndef _MACHINE
 #define	_MACHINE	i386
+#endif
+#ifndef MACHINE
 #define MACHINE		"i386"
+#endif
+#ifndef _MACHINE_ARCH
 #define	_MACHINE_ARCH	i386
+#endif
+#ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"i386"
+#endif
 #define MID_MACHINE	MID_I386
 
 /*
