@@ -46,9 +46,10 @@ static const char rcsid[] =
 #include <ufs/ufs/dir.h>
 #include <protocols/dumprestore.h>
 
-#include <setjmp.h>
+#include <ctype.h>
 #include <glob.h>
 #include <limits.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -421,7 +422,7 @@ copynext(char *input, char *output)
 		 */
 		quote = *cp++;
 		while (*cp != quote && *cp != '\0')
-			*bp++ = *cp++ | 0200;
+			*bp++ = *cp++;
 		if (*cp++ == '\0') {
 			fprintf(stderr, "missing %c\n", quote);
 			cp--;
@@ -581,7 +582,7 @@ mkentry(char *name, struct direct *dp, struct afile *fp)
 	fp->fnum = dp->d_ino;
 	fp->fname = savename(dp->d_name);
 	for (cp = fp->fname; *cp; cp++)
-		if (!vflag && (*cp < ' ' || *cp >= 0177))
+		if (!vflag && !isprint((unsigned char)*cp))
 			*cp = '?';
 	fp->len = cp - fp->fname;
 	if (dflag && TSTINO(fp->fnum, dumpmap) == 0)
@@ -748,7 +749,7 @@ glob_stat(const char *name, struct stat *stp)
 static int
 fcmp(const void *f1, const void *f2)
 {
-	return (strcmp(((struct afile *)f1)->fname,
+	return (strcoll(((struct afile *)f1)->fname,
 	    ((struct afile *)f2)->fname));
 }
 
