@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.45 1998/06/24 06:14:01 jkh Exp $
+ * $Id: dist.c,v 1.73.2.46 1998/07/21 05:42:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,7 +117,7 @@ static Distribution XF86DistTable[] = {
 { "XF86332",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
 { "XF86332",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { "X332src-1",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
-{ "X332contrib", "/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
+{ "X332ctrb",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
 { "X332bin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
 { "X332cfg",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_CFG,		NULL		},
 { "X332doc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},
