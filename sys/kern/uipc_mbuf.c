@@ -221,23 +221,38 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 void
 mb_free_ext(struct mbuf *m)
 {
+	u_int cnt;
 
-	MEXT_REM_REF(m);
-	if (atomic_cmpset_int(m->m_ext.ref_cnt, 0, 1)) {
-		if (m->m_ext.ext_type == EXT_PACKET) {
-			uma_zfree(zone_pack, m);
-			return;
-		} else if (m->m_ext.ext_type == EXT_CLUSTER) {
-			uma_zfree(zone_clust, m->m_ext.ext_buf);
-			m->m_ext.ext_buf = NULL;
-		} else {
-			(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
-			    m->m_ext.ext_args);
-			if (m->m_ext.ext_type != EXT_EXTREF)
-				free(m->m_ext.ref_cnt, M_MBUF);
+	/*
+	 * This is tricky.  We need to make sure to decrement the
+	 * refcount in a safe way but to also clean up if we're the
+	 * last reference.  This method seems to do it without race.
+	 */
+	do {
+		cnt = *(m->m_ext.ref_cnt);
+		if (atomic_cmpset_int(m->m_ext.ref_cnt, cnt, cnt - 1)) {
+			if (cnt == 1) {
+				/*
+				 * Do the free, should be safe.
+				 */
+				if (m->m_ext.ext_type == EXT_PACKET) {
+					uma_zfree(zone_pack, m);
+					break;
+				} else if (m->m_ext.ext_type == EXT_CLUSTER) {
+					uma_zfree(zone_clust, m->m_ext.ext_buf);
+					m->m_ext.ext_buf = NULL;
+				} else {
+					(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
+					    m->m_ext.ext_args);
+					if (m->m_ext.ext_type != EXT_EXTREF)
+						free(m->m_ext.ref_cnt, M_MBUF);
+				}
+				uma_zfree(zone_mbuf, m);
+			}
+			/* Decrement (and potentially free) done, safely. */
+			break;
 		}
-	}
-	uma_zfree(zone_mbuf, m);
+	} while (1);
 }
 
 /*
