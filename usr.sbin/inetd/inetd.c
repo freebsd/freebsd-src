@@ -40,7 +40,7 @@ static char copyright[] __attribute__ ((unused)) =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id: inetd.c,v 1.15.2.2 1997/02/05 23:25:10 joerg Exp $";
+	"$Id: inetd.c,v 1.15.2.3 1997/05/10 19:57:55 davidn Exp $";
 #endif /* not lint */
 
 /*
@@ -387,9 +387,10 @@ main(argc, argv, envp)
 	    readable = allsock;
 	    if ((n = select(maxsock + 1, &readable, (fd_set *)0,
 		(fd_set *)0, (struct timeval *)0)) <= 0) {
-		    if (n < 0 && errno != EINTR)
+		    if (n < 0 && errno != EINTR) {
 			syslog(LOG_WARNING, "select: %m");
-		    sleep(1);
+			sleep(1);
+		    }
 		    continue;
 	    }
 	    for (sep = servtab; n && sep; sep = sep->se_next)
