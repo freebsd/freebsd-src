@@ -1,5 +1,5 @@
-/*	$NetBSD$	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: usb_port.h,v 1.5 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: usb_port.h,v 1.8 1999/01/07 23:31:38 n_hibma Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -38,7 +38,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Macro's to cope with the differences between NetBSD and FreeBSD
+
+/*
+ * Macro's to cope with the differences between operating systems.
  */
 
 /*
@@ -55,7 +57,7 @@ typedef struct device bdevice;			/* base device */
 #define usb_timeout(f, d, t, h) timeout((f), (d), (t))
 #define usb_untimeout(f, d, h) untimeout((f), (d))
 
-#define USB_DECLARE_DRIVER_NAME_INIT(_1, dname, _2...)  \
+#define USB_DECLARE_DRIVER_NAME_INIT(_1, dname, _2)  \
 int __CONCAT(dname,_match) __P((struct device *, struct cfdata *, void *)); \
 void __CONCAT(dname,_attach) __P((struct device *, struct device *, void *)); \
 \
@@ -118,7 +120,8 @@ __CONCAT(dname,_attach)(parent, self, aux) \
  */
 
 #include "opt_usb.h"
-/* The following is not a type def to avoid error messages
+/*
+ * The following is not a type def to avoid error messages
  * because of includes in the wrong order.
  */
 #define bdevice device_t

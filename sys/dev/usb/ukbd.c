@@ -1,5 +1,5 @@
-/*      $NetBSD: ukbd.c,v 1.20 1998/12/30 19:25:27 augustss Exp $        */
-/*	FreeBSD $Id$ */
+/*      $NetBSD: ukbd.c,v 1.22 1999/01/09 12:10:36 drochner Exp $        */
+/*	FreeBSD $Id: ukbd.c,v 1.5 1999/01/07 23:31:34 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -274,8 +274,6 @@ USB_ATTACH(ukbd)
 	char devinfo[1024];
 #if defined(__NetBSD__)
 	struct wskbddev_attach_args a;
-#else
-	int i;
 #endif
 	
 	sc->sc_disconnected = 1;

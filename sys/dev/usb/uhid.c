@@ -1,5 +1,5 @@
-/*	$NetBSD: uhid.c,v 1.12 1998/12/26 12:53:02 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: uhid.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: uhid.c,v 1.5 1999/01/07 23:31:34 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -200,7 +200,6 @@ USB_ATTACH(uhid)
 static int
 uhid_detach(device_t self)
 {       
-        struct uhid_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
 	if (devinfo) {

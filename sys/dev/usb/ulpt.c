@@ -1,5 +1,5 @@
-/*	$NetBSD: ulpt.c,v 1.9 1998/12/30 17:46:20 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: ulpt.c,v 1.10 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: ulpt.c,v 1.4 1999/01/07 23:31:35 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -400,7 +400,6 @@ ulptioctl(dev, cmd, data, flag, p)
 static int
 ulpt_detach(device_t self)
 {       
-        struct ulpt_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
 	if (devinfo) {

@@ -1,10 +1,10 @@
-/*	$NetBSD$	*/
+/*	FreeBSD $Id$	*/
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: usbdevs,v 1.14 1998/12/30 03:52:30 augustss Exp 
+ *	NetBSD: usbdevs,v 1.19 1999/01/08 11:18:38 augustss Exp 
  */
 
 /*
@@ -56,11 +56,13 @@
 #define	USB_VENDOR_UNIXTAR	0x0451		/* Unixtar */
 #define	USB_VENDOR_GENIUS	0x0458		/* Genius */
 #define	USB_VENDOR_MICROSOFT	0x045e		/* Microsoft */
+#define	USB_VENDOR_KENSINGTON	0x0461		/* Kensington */
 #define	USB_VENDOR_CHERRY	0x046a		/* Cherry */
 /* Behavior Technology Corporation */
 #define	USB_VENDOR_BTC	0x046e		/* BTC */
 #define	USB_VENDOR_PHILIPS	0x0471		/* Philips */
 #define	USB_VENDOR_CONNECTIX	0x0478		/* Connectix */
+#define	USB_VENDOR_ACER	0x04a5		/* Acer Peripherals */
 #define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
 #define	USB_VENDOR_3COM	0x04c1		/* 3Com */
 #define	USB_VENDOR_SHUTTLE	0x04e6		/* Shuttle Technology */
@@ -92,12 +94,8 @@
 /* CATC products */
 #define	USB_PRODUCT_CATC_ANDROMEDA	0x1237		/* Andromeda hub */
 
-/* Nanao products */
-#define	USB_PRODUCT_NANAO_HUB	0x0000		/* hub */
-#define	USB_PRODUCT_NANAO_MONITOR	0x0001		/* monitor */
-
 /* Unixtar products */
-#define	USB_PRODUCT_UNIXTAR_UTUSB41	0x1446		/* UT-USB41 */
+#define	USB_PRODUCT_UNIXTAR_UTUSB41	0x1446		/* UT-USB41 hub */
 
 /* Genius products */
 #define	USB_PRODUCT_GENIUS_NICHE	0x0001		/* Niche mouse */
@@ -105,6 +103,9 @@
 
 /* Microsoft products */
 #define	USB_PRODUCT_MICROSOFT_INTELLIMOUSE	0x0009		/* IntelliMouse */
+
+/* Kensington products */
+#define	USB_PRODUCT_KENSINGTON_MOUSEINABOX	0x4d02		/* Mouse-in-a-Box */
 
 /* Cherry products */
 #define	USB_PRODUCT_CHERRY_MY3000KBD	0x0001		/* My3000 keyboard */
@@ -119,6 +120,9 @@
 
 /* Connectix products */
 #define	USB_PRODUCT_CONNECTIX_QUICKCAM	0x0001		/* QuickCam */
+
+/* Acer products */
+#define	USB_PRODUCT_ACER_ACERSCAN_C310U	0x12a6		/* Acerscan C310U */
 
 /* Cypress Semiconduuctor products */
 #define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
@@ -152,10 +156,6 @@
 #define	USB_PRODUCT_LOGITECH_M2452	0x0203		/* M2452 keyboard */
 #define	USB_PRODUCT_LOGITECH_M4848	0x0301		/* M4848 mouse */
 
-/* EIZO Nanao products */
-#define	USB_PRODUCT_EIZONANAO_HUB	0x0000		/* hub */
-#define	USB_PRODUCT_EIZONANAO_MONITOR	0x0001		/* monitor */
-
 /* Chic Technology products */
 #define	USB_PRODUCT_CHIC_MOUSE1	0x0001		/* mouse */
 
@@ -166,7 +166,7 @@
 #define	USB_PRODUCT_PLX_TESTBOARD	0x9060		/* test board */
 
 /* Inside Out Networks products */
-#define	USB_PRODUCT_INSIDEOUT_EDGEPORT4	0x0001		/* EdgePort/4 */
+#define	USB_PRODUCT_INSIDEOUT_EDGEPORT4	0x0001		/* EdgePort/4 serial ports */
 
 /* Intel products */
 #define	USB_PRODUCT_INTEL_TESTBOARD	0x9890		/* 82930 test board */
