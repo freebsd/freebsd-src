@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.h,v 1.5 1998/09/04 19:03:57 dfr Exp $
+ *      $Id: rtld.h,v 1.6 1999/04/09 00:28:31 jdp Exp $
  */
 
 #ifndef RTLD_H /* { */
@@ -123,8 +123,8 @@ typedef struct Struct_Obj_Entry {
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
 
-extern void _rtld_error(const char *, ...);
-extern Obj_Entry *map_object(int);
+extern void _rtld_error(const char *, ...) __printflike(1, 2);
+extern Obj_Entry *map_object(int, const char *);
 extern void *xcalloc(size_t);
 extern void *xmalloc(size_t);
 extern char *xstrdup(const char *);
