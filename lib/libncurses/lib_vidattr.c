@@ -44,7 +44,7 @@
 #include "curses.priv.h"
 #include "terminfo.h"
 
-static void do_color(int pair, int  (*outc)(char))
+static void do_color(int pair, int  (*outc)(int))
 {
 int fg, bg;
 
@@ -69,7 +69,7 @@ int fg, bg;
 
 #define previous_attr SP->_current_attr
 
-int vidputs(chtype newmode, int  (*outc)(char))
+int vidputs(chtype newmode, int  (*outc)(int))
 {
 chtype	turn_off = (~newmode & previous_attr) & ~A_COLOR;
 chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;

@@ -253,7 +253,7 @@ extern int tputs(const char *,int,int (*)(int));
 extern int typeahead(int);
 extern int ungetch(int);
 extern int vidattr(chtype);
-extern int vidputs(chtype,int (*)(char));
+extern int vidputs(chtype,int (*)(int));
 extern int vwscanw(WINDOW *,char *,va_list);
 extern int vwprintw(WINDOW *,char *,va_list);
 extern int waddch(WINDOW *,chtype);
