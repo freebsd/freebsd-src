@@ -299,6 +299,20 @@ no reseeding will occur.
 Reseeding should not be necessary, and will break
 .Dv TIME_WAIT
 recycling for a few minutes.
+.It tcp.inet.tcp.rexmit_{min,slop}
+Adjust the retransmit timer calculation for TCP.  The slop is
+typically added to the raw calculation to take into account
+occassional variances that the SRTT (smoothed round trip time)
+is unable to accomodate, while the minimum specifies an
+absolute minimum.  While a number of TCP RFCs suggest a 1
+second minimum these RFCs tend to focus on streaming behavior
+and fail to deal with the fact that a 1 second minimum has severe
+detrimental effects over lossy interactive connections, such
+as a 802.11b wireless link, and over very fast but lossy
+connections for those cases not covered by the fast retransmit
+code.  For this reason we suggest changing the slop to 200ms and
+setting the minimum to something out of the way, like 20ms,
+which gives you an effective minimum of 200ms (similar to Linux).
 .It tcp.inflight_enable
 Enable
 .Tn TCP
