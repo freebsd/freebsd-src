@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 /* Define this symbol to try out the "new order" for work items. */
 #define	TRY_NEWORDER
 #ifndef USE_NEWORDER
-#define	USE_NEWORDER	0	/* Initial value for dbg_new_order */
+#define	USE_NEWORDER	1	/* Initial value for dbg_new_order */
 #endif
 
 /*
