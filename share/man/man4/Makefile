@@ -278,6 +278,7 @@ MAN=	aac.4 \
 	ubsec.4 \
 	ubtbcmfw.4 \
 	ucom.4 \
+	udav.4 \
 	udbp.4 \
 	udp.4 \
 	ufm.4 \
@@ -399,6 +400,7 @@ MLINKS+=tl.4 if_tl.4
 MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
+MLINKS+=udav.4 if_udav.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
