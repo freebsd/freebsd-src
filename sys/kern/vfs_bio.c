@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.164 1998/05/01 15:10:59 peter Exp $
+ * $Id: vfs_bio.c,v 1.165 1998/07/04 20:45:31 julian Exp $
  */
 
 /*
@@ -1458,7 +1458,8 @@ loop1:
 					bp->b_flags |= B_NOCACHE;
 					VOP_BWRITE(bp);
 				} else {
-					if (bp->b_flags & B_VMIO) {
+					if ((bp->b_flags & B_VMIO) &&
+					   (LIST_FIRST(&bp->b_dep) == NULL)) {
 						bp->b_flags |= B_RELBUF;
 						brelse(bp);
 					} else {
@@ -1571,7 +1572,7 @@ geteblk(int size)
 	while ((bp = getnewbuf(0, (daddr_t) 0, 0, 0, size, MAXBSIZE)) == 0);
 	splx(s);
 	allocbuf(bp, size);
-	bp->b_flags |= B_INVAL;
+	bp->b_flags |= B_INVAL; /* b_dep cleared by getnewbuf() */
 	return (bp);
 }
 
