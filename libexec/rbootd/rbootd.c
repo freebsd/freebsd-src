@@ -39,6 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rbootd.c	8.2 (Berkeley) 2/22/94
+ *	$Id$
  *
  * Utah $Hdr: rbootd.c 3.1 92/07/06$
  * Author: Jeff Forys, University of Utah CSS

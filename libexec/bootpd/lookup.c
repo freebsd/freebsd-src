@@ -1,5 +1,7 @@
 /*
  * lookup.c - Lookup IP address, HW address, netmask
+ *
+ *	$Id$
  */
 
 #include <sys/types.h>

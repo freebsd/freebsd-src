@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/15/93
+#	$Id$
 
 PROG=	telnetd
 CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS

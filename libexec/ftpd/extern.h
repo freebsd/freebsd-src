@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/4/94
+ *	$Id$
  */
 
 void	blkfree __P((char **));
