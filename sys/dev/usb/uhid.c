@@ -45,7 +45,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/signalvar.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>

@@ -29,19 +29,20 @@
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 #include <sys/linker.h>
+
 #include <machine/elf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #ifdef SPARSE_MAPPING
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
@@ -49,6 +50,7 @@
 #endif
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+
 #ifdef __AOUT__
 #include <nlist.h>
 #endif

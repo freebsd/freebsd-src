@@ -48,22 +48,26 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
+#include <sys/dirent.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/fcntl.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/time.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/namei.h>
-#include <sys/dirent.h>
-#include <sys/malloc.h>
+
 #include <machine/reg.h>
+
 #include <vm/vm_zone.h>
+
 #include <compat/linprocfs/linprocfs.h>
-#include <sys/pioctl.h>
 
 extern struct vnode *procfs_findtextvp __P((struct proc *));
 extern int	procfs_kmemaccess __P((struct proc *));

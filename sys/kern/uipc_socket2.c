@@ -40,9 +40,11 @@
 #include <sys/domain.h>
 #include <sys/file.h>	/* for maxfiles */
 #include <sys/kernel.h>
-#include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>

@@ -34,6 +34,8 @@
 
 #ifndef LOCORE
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 #ifdef _KERNEL
 #include <sys/ktr.h>
@@ -76,21 +78,6 @@
 #endif	/* _KERNEL */
 
 #ifndef LOCORE
-
-/*
- * Sleep/spin mutex
- */
-
-struct lock_object;
-
-struct	mtx {
-	struct	lock_object mtx_object;	/* Common lock properties. */
-	volatile uintptr_t mtx_lock;	/* owner (and state for sleep locks) */
-	volatile u_int mtx_recurse;	/* number of recursive holds */
-	critical_t mtx_savecrit;	/* saved flags (for spin locks) */
-	TAILQ_HEAD(, proc) mtx_blocked;	/* threads blocked on this lock */
-	LIST_ENTRY(mtx)	mtx_contested;	/* list of all contested locks */
-};
 
 /*
  * XXX: Friendly reminder to fix things in MP code that is presently being

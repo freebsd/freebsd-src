@@ -37,20 +37,22 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
-#include <sys/reboot.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
+#include <sys/consio.h>
+#include <sys/eventhandler.h>
+#include <sys/fbio.h>
+#include <sys/kbio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/random.h>
+#include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/cons.h>
-#include <sys/random.h>
-#include <sys/consio.h>
-#include <sys/fbio.h>
-#include <sys/kbio.h>
 
 #include <machine/clock.h>
 #include <machine/psl.h>

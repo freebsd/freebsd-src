@@ -44,12 +44,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
-
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif

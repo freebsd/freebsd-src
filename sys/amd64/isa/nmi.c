@@ -42,23 +42,24 @@
 #include "opt_mca.h"
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/syslog.h>
+#include <sys/bus.h> 
+#include <sys/errno.h>
+#include <sys/interrupt.h>
 #include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/syslog.h>
+#include <sys/systm.h>
 #include <sys/unistd.h>
-#include <sys/errno.h>
-#include <sys/interrupt.h>
+
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #include <machine/intrcnt.h>
-#include <sys/bus.h> 
 
 #if defined(APIC_IO)
 #include <machine/smptests.h>			/** FAST_HI */

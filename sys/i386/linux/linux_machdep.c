@@ -29,13 +29,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/mman.h>
-#include <sys/proc.h>
-#include <sys/sysproto.h>
 #include <sys/systm.h>
-#include <sys/unistd.h>
+#include <sys/mman.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/sysproto.h>
+#include <sys/unistd.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>

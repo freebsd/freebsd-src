@@ -41,11 +41,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/ttycom.h>
 #include <sys/vnode.h>
-#include <sys/kernel.h>
 
 static	d_open_t	cttyopen;
 static	d_read_t	cttyread;

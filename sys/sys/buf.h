@@ -44,6 +44,7 @@
 
 #include <sys/queue.h>
 #include <sys/lock.h>
+#include <sys/lockmgr.h>
 
 struct bio;
 struct buf;

@@ -34,8 +34,10 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/ttycom.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
+#include <sys/ttycom.h>
 
 #include <i386/ibcs2/ibcs2_fcntl.h>
 #include <i386/ibcs2/ibcs2_signal.h>

@@ -36,6 +36,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -46,6 +48,7 @@
 #include <sys/time.h>
 #include <sys/timetc.h>
 #include <sys/vnode.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 

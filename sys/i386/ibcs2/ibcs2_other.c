@@ -32,6 +32,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 
 #include <i386/ibcs2/ibcs2_types.h>

@@ -33,10 +33,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/ioccom.h>
 #include <sys/fcntl.h>
+#include <sys/ioccom.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>

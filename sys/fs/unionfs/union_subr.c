@@ -40,20 +40,23 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/vnode.h>
-#include <sys/namei.h>
-#include <sys/malloc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mount.h>
+#include <sys/namei.h>
 #include <sys/stat.h>
+#include <sys/vnode.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>	/* for vnode_pager_setsize */
 #include <vm/vm_zone.h>
 #include <vm/vm_object.h>	/* for vm cache coherency */
+
 #include <miscfs/union/union.h>
 
 #include <sys/proc.h>

@@ -70,8 +70,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 
 /*
  * ensure that [off, off + len) is contiguous on the mbuf chain "m".

@@ -32,23 +32,25 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
-#include <sys/mman.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/imgact_aout.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/time.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
-#include <sys/time.h>
-#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

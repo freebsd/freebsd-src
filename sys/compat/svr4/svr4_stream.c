@@ -41,25 +41,27 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/file.h>
-#include <sys/filedesc.h>
 #include <sys/fcntl.h>
+#include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/un.h>
-#include <netinet/in.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/file.h> 		/* Must come after sys/malloc.h */
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/stat.h>
-
 #include <sys/sysproto.h>
+#include <sys/uio.h>
+#include <sys/ktrace.h>		/* Must come after sys/uio.h */
+#include <sys/un.h>
+
+#include <netinet/in.h>
 
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>

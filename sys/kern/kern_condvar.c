@@ -30,11 +30,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/condvar.h>
-#include <sys/mutex.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #ifdef KTRACE

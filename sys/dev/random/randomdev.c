@@ -27,23 +27,25 @@
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/filio.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
+#include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
-#include <sys/selinfo.h>
+#include <sys/queue.h>
 #include <sys/random.h>
+#include <sys/selinfo.h>
 #include <sys/sysctl.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 #include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>

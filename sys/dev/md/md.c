@@ -66,16 +66,18 @@
 #include <sys/conf.h>
 #include <sys/devicestat.h>
 #include <sys/disk.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/linker.h>
-#include <sys/queue.h>
-#include <sys/mdioctl.h>
-#include <sys/vnode.h>
-#include <sys/namei.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mdioctl.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
+#include <sys/vnode.h>
+
 #include <machine/atomic.h>
 
 #include <vm/vm.h>

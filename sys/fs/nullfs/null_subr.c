@@ -41,9 +41,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/vnode.h>
+
 #include <miscfs/nullfs/null.h>
 
 #define LOG2_SIZEVNODE 7		/* log2(sizeof struct vnode) */

@@ -37,9 +37,15 @@
 #ifndef _SYS_VNODE_H_
 #define	_SYS_VNODE_H_
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
+/*
+ * XXX - compatability until lockmgr() goes away or all the #includes are
+ * updated.
+ */
+#include <sys/lockmgr.h>
+
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>

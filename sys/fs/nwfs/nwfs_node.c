@@ -34,17 +34,20 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/proc.h>
-#include <sys/mount.h>
-#include <sys/vnode.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/vnode.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <sys/queue.h>
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>

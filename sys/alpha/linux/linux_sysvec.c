@@ -37,20 +37,24 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/sysent.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
-#include <sys/signalvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
+#include <sys/sysent.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
-#include <sys/exec.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
+
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
