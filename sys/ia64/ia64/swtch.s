@@ -625,6 +625,9 @@ END(restorehighfp)
  * fork_exit() is in r5, and the argument is in r6.
  */
 ENTRY(fork_trampoline, 0)
+	.prologue
+	.save	rp,r0
+	.body
 	alloc	r14=ar.pfs,0,0,3,0
 	;;
 	mov	b0=r5
@@ -632,7 +635,8 @@ ENTRY(fork_trampoline, 0)
 	mov	out1=r6
 	add	out2=16,sp
 	;;
-	br.call.sptk.few b6=fork_exit
+	br.call.sptk.few rp=fork_exit
+	;; 
+	br.cond.sptk.many exception_restore
 
 	END(fork_trampoline)
-
