@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.20 1996/08/27 19:45:56 pst Exp $
+ *	$Id: db_interface.c,v 1.21 1996/08/28 17:49:33 pst Exp $
  */
 
 /*
@@ -90,7 +90,15 @@ kdb_trap(type, code, regs)
 		break;
 
 	    default:
-		db_printf("kernel: type %d trap, code=%x\n", type, code);
+		/*
+		 * XXX this is almost useless now.  In most cases,
+		 * trap_fatal() has already printed a much more verbose
+		 * message.  However, it is dangerous to print things in
+		 * trap_fatal() - printf() might be reentered and trap.
+		 * The debugger should be given control first.
+		 */
+		if (ddb_mode)
+		    db_printf("kernel: type %d trap, code=%x\n", type, code);
 
 		if (db_nofault) {
 		    jmp_buf *no_fault = db_nofault;
@@ -105,7 +113,7 @@ kdb_trap(type, code, regs)
 	ddb_regs = *regs;
 
 	/*
-	 * Kernel mode - esp and ss not saved, so dummy them up
+	 * If in kernel mode, esp and ss are not saved, so dummy them up.
 	 */
 	if (ISPL(regs->tf_cs) == 0) {
 	    ddb_regs.tf_esp = (int)&regs->tf_esp;
@@ -129,7 +137,7 @@ kdb_trap(type, code, regs)
 	regs->tf_ebx    = ddb_regs.tf_ebx;
 
 	/*
-	 * If in user mode, the saved ESP and SS were valid, restore them
+	 * If in user mode, the saved ESP and SS were valid, restore them.
 	 */
 	if (ISPL(regs->tf_cs)) {
 	    regs->tf_esp = ddb_regs.tf_esp;
@@ -192,7 +200,7 @@ db_write_bytes(addr, size, data)
 
 	    addr1 = trunc_page(addr + size - 1);
 
-	    /* data crosses a page boundary */
+	    /* Map another page if the data crosses a page boundary. */
 	    if (trunc_page(addr) != addr1) {
 		ptep1 = pmap_pte(kernel_pmap, addr1);
 		oldmap1 = *ptep1;
