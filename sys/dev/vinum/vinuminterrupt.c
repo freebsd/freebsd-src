@@ -83,14 +83,14 @@ complete_rqe(struct buf *bp)
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
 	SD[rqe->sdno].lasterror = rq->error;
 	if (bp->b_flags & B_READ) {
-	    printf("%s: fatal read I/O error\n", SD[rqe->sdno].name);
+	    log(LOG_ERR, "%s: fatal read I/O error\n", SD[rqe->sdno].name);
 	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
 	} else {					    /* write operation */
-	    printf("%s: fatal write I/O error\n", SD[rqe->sdno].name);
+	    log(LOG_ERR, "%s: fatal write I/O error\n", SD[rqe->sdno].name);
 	    set_sd_state(rqe->sdno, sd_stale, setstate_force); /* subdisk is stale */
 	}
 	if (rq->error == ENXIO) {			    /* the drive's down too */
-	    printf("%s: fatal drive I/O error\n", DRIVE[rqe->driveno].label.name);
+	    log(LOG_ERR, "%s: fatal drive I/O error\n", DRIVE[rqe->driveno].label.name);
 	    DRIVE[rqe->driveno].lasterror = rq->error;
 	    set_drive_state(rqe->driveno,		    /* take the drive down */
 		drive_down,
@@ -126,7 +126,8 @@ complete_rqe(struct buf *bp)
 		int i;
 		for (i = 0; i < ubp->b_bcount; i += 512)    /* XXX debug */
 		    if (((char *) ubp->b_data)[i] != '<') { /* and not what we expected */
-			printf("At 0x%x (offset 0x%x): '%c' (0x%x)\n",
+			log(LOG_DEBUG,
+			    "At 0x%x (offset 0x%x): '%c' (0x%x)\n",
 			    (int) (&((char *) ubp->b_data)[i]),
 			    i,
 			    ((char *) ubp->b_data)[i],
@@ -177,7 +178,7 @@ void
 free_rqg(struct rqgroup *rqg)
 {
     if ((rqg->flags & XFR_GROUPOP)			    /* RAID 5 request */
-    &&(rqg->rqe) /* got a buffer structure */
+&&(rqg->rqe) /* got a buffer structure */
     &&(rqg->rqe->b.b_data))				    /* and it has a buffer allocated */
 	Free(rqg->rqe->b.b_data);			    /* free it */
 }
