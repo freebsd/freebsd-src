@@ -114,9 +114,6 @@ CDROM_SET_1="${CDROM_SET_1} irc/xchat2"
 CDROM_SET_1="${CDROM_SET_1} mail/fetchmail"
 CDROM_SET_1="${CDROM_SET_1} mail/mutt"
 CDROM_SET_1="${CDROM_SET_1} mail/pine4"
-CDROM_SET_1="${CDROM_SET_1} mail/popd"
-CDROM_SET_1="${CDROM_SET_1} mail/xfmail"
-CDROM_SET_1="${CDROM_SET_1} misc/bsdiff"
 CDROM_SET_1="${CDROM_SET_1} misc/screen"
 CDROM_SET_1="${CDROM_SET_1} net/cvsup"
 CDROM_SET_1="${CDROM_SET_1} net/rsync"
@@ -124,12 +121,6 @@ CDROM_SET_1="${CDROM_SET_1} net/samba"
 CDROM_SET_1="${CDROM_SET_1} news/slrn"
 CDROM_SET_1="${CDROM_SET_1} news/tin"
 CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
-if [ "X${PKG_ARCH}" = "Xalpha" ]; then
-CDROM_SET_1="${CDROM_SET_1} print/acroread4"
-fi
-if [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} print/acroread5"
-fi
 CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
 CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/gv"
@@ -143,22 +134,12 @@ CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
 CDROM_SET_1="${CDROM_SET_1} sysutils/portupgrade"
 CDROM_SET_1="${CDROM_SET_1} www/lynx"
-CDROM_SET_1="${CDROM_SET_1} www/mozilla"
-CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
-CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
-CDROM_SET_1="${CDROM_SET_1} www/netscape48-communicator"
-CDROM_SET_1="${CDROM_SET_1} www/opera"
-CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
 # VERY common build dependencies
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} graphics/png"
-if [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} misc/compat22"
-fi
 if [ "X${PKG_ARCH}" = "Xi386" -o "X${PKG_ARCH}" = "Xalpha" ]; then
-CDROM_SET_1="${CDROM_SET_1} misc/compat3x"
 CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 fi
 
