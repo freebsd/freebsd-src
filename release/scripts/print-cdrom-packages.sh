@@ -121,7 +121,7 @@ CDROM_SET_1="${CDROM_SET_1} misc/screen"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 CDROM_SET_1="${CDROM_SET_1} astro/xearth"
 
-# VERY common build dependancies
+# VERY common build dependencies
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
