@@ -125,8 +125,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
 	if (cache == MAP_FAILED)
 	    cache = NULL;
-	if (cache != NULL)
-	    memset(cache, 0, bytes);
 
 	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
 	for (rel = obj->rel;  rel < rellim;  rel++) {
