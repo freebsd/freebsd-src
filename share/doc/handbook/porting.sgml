@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.32 1996/10/29 11:55:06 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.33 1996/11/04 00:27:07 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -157,7 +157,7 @@ The pattern is the year followed by the month.
  # Date created:	5 December 1994
  # Whom:		asami
  #
- # $Id: porting.sgml,v 1.32 1996/10/29 11:55:06 max Exp $
+ # $Id: porting.sgml,v 1.33 1996/11/04 00:27:07 max Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -417,7 +417,7 @@ ftp://freefall.FreeBSD.ORG/pub/FreeBSD/LOCAL_PORTS/
 	  site other than where you got the main source tarball,
 	  we have a way to handle these situations (see the
 	  description of <ref id="porting:patchfiles"
-	  name="<tt>&dollar;{PATCHFILES}</tt>"> below).
+	  name="&dollar;{PATCHFILES}"> below).
 
       <sect3>
 	<heading>Modifying the port</heading>
@@ -623,6 +623,10 @@ work/foozolix-1.0/
 	<heading>MAINTAINER</heading>
 
 	<p>Set your mail-address here.  Please. <tt>:)</tt>
+
+	<p>For detailed description of the responsibility of maintainers,
+	  refer to <ref id="policies:maintainer"
+	  name="MAINTAINER on Makefiles"> section.
 
       <sect3>
 	<heading>Dependencies</heading>
@@ -1145,7 +1149,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.32 1996/10/29 11:55:06 max Exp $
+ # $Id: porting.sgml,v 1.33 1996/11/04 00:27:07 max Exp $
  [ ^^^^ do not worry about this, I know it says "porting.sgml"...it
   will be automatically filled in by CVS when it is committed to our
   repository]
