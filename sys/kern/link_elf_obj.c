@@ -878,6 +878,8 @@ elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 				break;
 			}
 		}
+		if (ret == 0)
+			return (0);
 		return ret + sym->st_value;
 	}
 
