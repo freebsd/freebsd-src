@@ -238,8 +238,8 @@ updatepwd(dir)
 		curdir = NULL;
 		if (getpwd() == NULL)
 			error("getcwd() failed: %s", strerror(errno));
-		setvar("PWD", curdir, VEXPORT | VTEXTFIXED);
-		setvar("OLDPWD", prevdir, VEXPORT | VTEXTFIXED);
+		setvar("PWD", curdir, VEXPORT);
+		setvar("OLDPWD", prevdir, VEXPORT);
 		INTON;
 		return;
 	}
@@ -270,8 +270,8 @@ updatepwd(dir)
 		ckfree(prevdir);
 	prevdir = curdir;
 	curdir = savestr(stackblock());
-	setvar("PWD", curdir, VEXPORT | VTEXTFIXED);
-	setvar("OLDPWD", prevdir, VEXPORT | VTEXTFIXED);
+	setvar("PWD", curdir, VEXPORT);
+	setvar("OLDPWD", prevdir, VEXPORT);
 	INTON;
 }
 
