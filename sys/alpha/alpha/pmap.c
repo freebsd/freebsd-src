@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.15 1999/02/19 14:25:32 luoqi Exp $
+ *	$Id: pmap.c,v 1.16 1999/04/05 19:38:27 julian Exp $
  */
 
 /*
@@ -623,11 +623,6 @@ pmap_uses_prom_console()
 #endif
 
 	return 1;
-}
-
-void
-pmap_setdevram(unsigned long long basea, vm_offset_t sizea)
-{
 }
 
 /*
