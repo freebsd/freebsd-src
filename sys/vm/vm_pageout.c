@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.15 1994/10/07 07:23:04 phk Exp $
+ * $Id: vm_pageout.c,v 1.16 1994/10/09 01:52:15 phk Exp $
  */
 
 /*
@@ -517,13 +517,12 @@ redeact:
 		(cache_size >= vm_desired_cache_size)) {
 		vm_object_cache_unlock();
 
-		if (object != vm_object_lookup(object->pager))
-			panic("vm_object_deactivate: I'm sooo confused.");
-
 		/*
 		 * if there are no resident pages -- get rid of the object
 		 */
 		if( object->resident_page_count == 0) {
+			if (object != vm_object_lookup(object->pager))
+				panic("vm_object_deactivate: I'm sooo confused.");
 			pager_cache(object, FALSE);
 			goto redeact;
 		} else {
