@@ -355,7 +355,7 @@ nmchan_setspeed(void *data, u_int32_t speed)
 	struct sc_chinfo *ch = data;
 
 	ch->spd = speed;
-	return nm_setch(ch);
+	return nm_setch(ch)? 0 : ch->spd;
 }
 
 static int
