@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: do_command.c,v 1.12 1997/03/14 14:45:30 peter Exp $";
+	"$Id: do_command.c,v 1.13 1997/09/15 06:39:06 charnier Exp $";
 #endif
 
 
@@ -83,6 +83,7 @@ child_process(e, u)
 	int		children = 0;
 # if defined(LOGIN_CAP)
 	struct passwd	*pwd;
+	login_cap_t *lc;
 # endif
 
 	Debug(DPROC, ("[%d] child_process('%s')\n", getpid(), e->cmd))
@@ -223,9 +224,16 @@ child_process(e, u)
 		/* Set user's entire context, but skip the environment
 		 * as cron provides a separate interface for this
 		 */
-		pwd = getpwuid(e->uid);
+		if ((pwd = getpwnam(usernm)) == NULL)
+			pwd = getpwuid(e->uid);
+		lc = NULL;
+		if (pwd != NULL) {
+			pwd->pw_gid = e->gid;
+			if (e->class != NULL)
+				lc = login_getclass(e->class);
+		}
 		if (pwd &&
-		    setusercontext(NULL, pwd, e->uid,
+		    setusercontext(lc, pwd, e->uid,
 			    LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV)) == 0)
 			(void) endpwent();
 		else {
@@ -237,7 +245,7 @@ child_process(e, u)
 			 */
 			setgid(e->gid);
 # if defined(BSD)
-			initgroups(env_get("LOGNAME", e->envp), e->gid);
+			initgroups(usernm, e->gid);
 # endif
 			setlogin(usernm);
 			setuid(e->uid);		/* we aren't root after this..*/
