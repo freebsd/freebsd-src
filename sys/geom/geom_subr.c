@@ -186,9 +186,11 @@ g_modevent(module_t mod, int type, void *data)
 		error = g_waitfor_event(g_unload_class, hh, M_WAITOK, NULL);
 		if (error == 0)
 			error = hh->error;
-		g_waitidle();
-		KASSERT(LIST_EMPTY(&hh->mp->geom),
-		    ("Unloaded class (%s) still has geom", hh->mp->name));
+		if (error == 0) {
+			g_waitidle();
+			KASSERT(LIST_EMPTY(&hh->mp->geom),
+			    ("Unloaded class (%s) still has geom", hh->mp->name));
+		}
 		g_free(hh);
 		break;
 	}
