@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.57 1996/03/10 07:13:10 gibbs Exp $
+ *      $Id: scsiconf.c,v 1.58 1996/04/07 17:32:42 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -235,6 +235,16 @@ static st_modes mode_unktape =
 	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_6250}	/* minor 12,13,14,15 */
 	};
 
+/***********************************************************************
+ * A list of known devices and their "quirks".  Matching is based
+ * first on device type, then on the manufacturer, model, and revision
+ * strings returned by the device.  The returned strings are fixed lengths
+ * of 8, 16 and 4 bytes respectively.  In the matching pattern, a
+ * question mark (?) matches any single character and a trailing 
+ * asterisk (*) matches remaining characters.  For patterns shorter 
+ * than their respective fields, trailing spaces are implied.
+ */
+
 static struct scsidevs knowndevs[] =
 {
 /* od's must be probed before sd's since some of them identify as T_DIRECT */
@@ -276,7 +286,7 @@ static struct scsidevs knowndevs[] =
 		"st", SC_ONE_LU, 0, mode_archive2525
 	},
 	{
-		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 150", "*",
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 150 *", "*",
 		"st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_archive150
 	},
 	{
