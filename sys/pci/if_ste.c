@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -161,6 +162,9 @@ static devclass_t ste_devclass;
 
 DRIVER_MODULE(ste, pci, ste_driver, ste_devclass, 0, 0);
 DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
+
+static int ste_rxsyncs;
+SYSCTL_INT(_hw, OID_AUTO, ste_rxsyncs, CTLFLAG_RW, &ste_rxsyncs, 0, "");
 
 #define STE_SETBIT4(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))
@@ -758,6 +762,19 @@ ste_rxeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
+	if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
+		cur_rx = sc->ste_cdata.ste_rx_head;
+		do {
+			cur_rx = cur_rx->ste_next;
+			/* If the ring is empty, just return. */
+			if (cur_rx == sc->ste_cdata.ste_rx_head)
+				return;
+		} while (cur_rx->ste_ptr->ste_status == 0);
+		/* We've fallen behind the chip: catch it. */
+		sc->ste_cdata.ste_rx_head = cur_rx;
+		++ste_rxsyncs;
+	};
+
 	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
 	      & STE_RXSTAT_DMADONE) {
 #ifdef DEVICE_POLLING
@@ -1309,7 +1326,7 @@ ste_init(xsc)
 	}
 
 	/* Set RX polling interval */
-	CSR_WRITE_1(sc, STE_RX_DMAPOLL_PERIOD, 1);
+	CSR_WRITE_1(sc, STE_RX_DMAPOLL_PERIOD, 64);
 
 	/* Init TX descriptors */
 	ste_init_tx_list(sc);
