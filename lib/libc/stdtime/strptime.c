@@ -67,6 +67,8 @@ static char sccsid[] = "@(#)strptime.c	0.1 (Powerdog) 94/03/27";
 #include "namespace.h"
 #include <time.h>
 #include <ctype.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include "un-namespace.h"
@@ -443,6 +445,20 @@ label:
 			if (*buf != 0 && isspace((unsigned char)*buf))
 				while (*ptr != 0 && !isspace((unsigned char)*ptr))
 					ptr++;
+			break;
+
+		case 's':
+			{
+			char *cp;
+			time_t t;
+
+			t = strtol(buf, &cp, 10);
+			if (t == LONG_MAX)
+				return 0;
+			buf = cp;
+			gmtime_r(&t, tm);
+			got_GMT = 1;
+			}
 			break;
 
 		case 'Y':
