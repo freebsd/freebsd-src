@@ -576,12 +576,13 @@ dconschat_init_socket(struct dcons_state *dc, int port, char *host, int sport)
 static int
 dconschat_accept_socket(struct dcons_state *dc, struct dcons_port *p)
 {
-	int foo, ns, flags;
+	socklen_t addrlen;
+	int ns, flags;
 	struct kevent kev;
 
 	/* accept connection */
-	foo = p->res->ai_addrlen;
-	ns = accept(p->s, p->res->ai_addr, &foo);
+	addrlen = p->res->ai_addrlen;
+	ns = accept(p->s, p->res->ai_addr, &addrlen);
 	if (ns < 0)
 		err(1, "accept");
 	if (verbose)

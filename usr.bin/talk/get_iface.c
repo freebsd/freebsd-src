@@ -53,7 +53,8 @@ get_iface(dst, iface)
 {
 	static struct sockaddr_in local;
 	struct sockaddr_in remote;
-	int s, rv, namelen;
+	socklen_t namelen;
+	int s, rv;
 
 	memcpy(&remote.sin_addr, dst, sizeof remote.sin_addr);
 	remote.sin_port = htons(60000);
