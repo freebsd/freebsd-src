@@ -77,7 +77,7 @@ struct acpi_cx_stats {
 struct acpi_cpu_softc {
     device_t		 cpu_dev;
     ACPI_HANDLE		 cpu_handle;
-    uint32_t		 cpu_id;	/* ACPI processor id */
+    uint32_t		 acpi_id;	/* ACPI processor id */
     uint32_t		 cpu_p_blk;	/* ACPI P_BLK location */
     uint32_t		 cpu_p_blk_len;	/* P_BLK length (must be 6). */
     struct resource	*cpu_p_cnt;	/* Throttling control register */
@@ -130,9 +130,7 @@ static int		 cpu_cx_count;	/* Number of valid states */
 static uint32_t		 cpu_cx_next;	/* State to use for next sleep. */
 static uint32_t		 cpu_non_c3;	/* Index of lowest non-C3 state. */
 static struct acpi_cx_stats cpu_cx_stats[MAX_CX_STATES];
-#ifdef SMP
 static int		 cpu_idle_busy;	/* Count of CPUs in acpi_cpu_idle. */
-#endif
 
 /* Values for sysctl. */
 static uint32_t		 cpu_current_state;
@@ -151,6 +149,8 @@ static struct sysctl_oid	*acpi_cpu_sysctl_tree;
 
 static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
+static int	acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id,
+				 uint32_t *cpu_id);
 static int	acpi_cpu_shutdown(device_t dev);
 static int	acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_cx_probe(struct acpi_cpu_softc *sc);
@@ -230,40 +230,14 @@ acpi_cpu_attach(device_t dev)
 	return_VALUE (ENXIO);
     }
 
-    cpu_id = 0;
-#ifdef SMP
     /*
-     * Search all processors for one that matches our ACPI id.  This id
-     * is set in MD code early in the boot process from the MADT.  If
-     * UP or there is only one installed processor and the ACPI id has
-     * not yet been set, set the id ourselves.
+     * Find the processor associated with our unit.  We could use the
+     * ProcId as a key, however, some boxes do not have the same values
+     * in their Processor object as the ProcId values in the MADT.
      */
-    cpu_id = pobj.Processor.ProcId;
-    if (cpu_id > MAXCPU - 1) {
-	device_printf(dev, "CPU id %d too large (%d max)\n", cpu_id,
-		      MAXCPU - 1);
+    sc->acpi_id = pobj.Processor.ProcId;
+    if (acpi_pcpu_get_id(device_get_unit(dev), &sc->acpi_id, &cpu_id) != 0)
 	return_VALUE (ENXIO);
-    }
-    if (mp_ncpus > 1) {
-	struct pcpu	*pcpu_data;
-	int		 i;
-
-	for (i = 0; i < MAXCPU; i++) {
-	    if (CPU_ABSENT(i))
-		continue;
-	    pcpu_data = pcpu_find(i);
-	    KASSERT(pcpu_data != NULL, ("No pcpu data for %d", i));
-	    if (pcpu_data->pc_acpi_id == cpu_id)
-		break;
-	}
-	if (i == MAXCPU) {
-	    device_printf(dev, "Couldn't find CPU for id %d\n", cpu_id);
-	    return_VALUE (ENXIO);
-	}
-    } else
-#endif /* SMP */
-    if (PCPU_GET(acpi_id) == 0xffffffff)
-	PCPU_SET(acpi_id, cpu_id);
 
     /*
      * Check if we already probed this processor.  We scan the bus twice
@@ -272,7 +246,6 @@ acpi_cpu_attach(device_t dev)
     if (cpu_softc[cpu_id] != NULL)
 	return (ENXIO);
     cpu_softc[cpu_id] = sc;
-    sc->cpu_id = cpu_id;
 
     /*
      * XXX Temporarily call any _INI function under the processor.
@@ -315,6 +288,42 @@ acpi_cpu_attach(device_t dev)
     return_VALUE (0);
 }
 
+/*
+ * Find the nth present CPU and return its pc_cpuid as well as set the
+ * pc_acpi_id from the most reliable source.
+ */
+static int
+acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
+{
+    struct pcpu	*pcpu_data;
+    uint32_t	 i;
+  
+    KASSERT(acpi_id != NULL, ("Null acpi_id"));
+    KASSERT(cpu_id != NULL, ("Null cpu_id"));
+    for (i = 0; i < MAXCPU; i++) {
+	if (CPU_ABSENT(i))
+	    continue;
+	pcpu_data = pcpu_find(i);
+	KASSERT(pcpu_data != NULL, ("no pcpu data for %d", i));
+	if (idx-- == 0) {
+	    /*
+	     * If pc_acpi_id was not initialized (e.g., a non-APIC UP box)
+	     * override it with the value from the ASL.  Otherwise, if the
+	     * two don't match, prefer the MADT-derived value.  Finally,
+	     * return the pc_cpuid to reference this processor.
+	     */
+	    if (pcpu_data->pc_acpi_id == 0xffffffff)
+		 pcpu_data->pc_acpi_id = *acpi_id;
+	    else if (pcpu_data->pc_acpi_id != *acpi_id)
+		*acpi_id = pcpu_data->pc_acpi_id;
+	    *cpu_id = pcpu_data->pc_cpuid;
+	    return (0);
+	}
+    }
+
+    return (ESRCH);
+}
+          
 static int
 acpi_cpu_shutdown(device_t dev)
 {
@@ -326,9 +335,9 @@ acpi_cpu_shutdown(device_t dev)
 #ifdef SMP
     /* Wait for all processors to exit acpi_cpu_idle(). */
     smp_rendezvous(NULL, NULL, NULL, NULL);
+#endif
     while (cpu_idle_busy > 0)
 	DELAY(1);
-#endif
 
     return_VALUE (0);
 }
@@ -798,13 +807,9 @@ acpi_cpu_idle()
     uint32_t	start_time, end_time;
     int		bm_active, i, asleep;
 
-#ifdef SMP
     /* Look up our CPU id and to get our softc. */
-    sc = cpu_softc[PCPU_GET(acpi_id)];
-#else
-    sc = cpu_softc[0];
-#endif
-    KASSERT(sc != NULL, ("NULL softc for %d", PCPU_GET(acpi_id)));
+    sc = cpu_softc[PCPU_GET(cpuid)];
+    KASSERT(sc != NULL, ("NULL softc for %d", PCPU_GET(cpuid)));
 
     /* If disabled, return immediately. */
     if (cpu_cx_count == 0) {
@@ -812,10 +817,8 @@ acpi_cpu_idle()
 	return;
     }
 
-#ifdef SMP
     /* Record that a CPU is in the idle function. */
     atomic_add_int(&cpu_idle_busy, 1);
-#endif
 
     /*
      * Check for bus master activity.  If there was activity, clear
@@ -915,10 +918,8 @@ acpi_cpu_idle()
 	}
     }
 
-#ifdef SMP
     /* Decrement reference count checked by acpi_cpu_shutdown(). */
     atomic_subtract_int(&cpu_idle_busy, 1);
-#endif
 }
 
 /* Put the CPU in C1 in a machine-dependant way. */
@@ -974,14 +975,12 @@ static int
 acpi_cpu_quirks(struct acpi_cpu_softc *sc)
 {
 
-#ifdef SMP
     /*
      * C3 is not supported on multiple CPUs since this would require
      * flushing all caches which is currently too expensive.
      */
-    if (mp_ncpus > 1)
+    if (cpu_ndevices > 1)
 	cpu_quirks |= CPU_QUIRK_NO_C3;
-#endif
 
 #ifdef notyet
     /* Look for various quirks of the PIIX4 part. */
