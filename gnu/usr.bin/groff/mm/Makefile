@@ -14,9 +14,9 @@ CLEANFILES+=	${MANDEPEND}
 
 afterinstall:
 	${INSTALL} -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
-		${DISTDIR}/tmac.m $(DESTDIR)$(TMACDIR)/tmac.m
+		${DIST_DIR}/tmac.m $(DESTDIR)$(TMACDIR)/tmac.m
 	${INSTALL} -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
-		${DISTDIR}/tmac.m $(DESTDIR)$(TMACDIR)/tmac.mse
+		${DIST_DIR}/tmac.m $(DESTDIR)$(TMACDIR)/tmac.mse
 
 	test -d $(DESTDIR)$(TMACDIR)/mm || mkdir $(DESTDIR)$(TMACDIR)/mm
 	chown $(TMACOWN).$(TMACGRP) $(DESTDIR)$(TMACDIR)/mm
@@ -24,7 +24,7 @@ afterinstall:
 
 	for f in $(FILES); do \
 		$(INSTALL) -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
-			${DISTDIR}/mm/$$f $(DESTDIR)$(TMACDIR)/mm/$$f; \
+			${DIST_DIR}/mm/$$f $(DESTDIR)$(TMACDIR)/mm/$$f; \
 	done
 	for f in $(LOCALE); do \
 		test -f $(DESTDIR)$(TMACDIR)/mm/$$f || \

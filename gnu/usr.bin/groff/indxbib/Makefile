@@ -15,7 +15,7 @@ CLEANFILES+=	${MANDEPEND}
 #
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${DISTDIR}/eign ${DESTDIR}${SHAREDIR}/dict
+		${DIST_DIR}/eign ${DESTDIR}${SHAREDIR}/dict
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
