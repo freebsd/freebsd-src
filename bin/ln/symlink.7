@@ -106,9 +106,10 @@ the system call
 would return a file descriptor to the file
 .Dq afile .
 .Pp
-There are six system calls that do not follow links, and which operate
+There are seven system calls that do not follow links, and which operate
 on the symbolic link itself.
 They are:
+.Xr lchmod 2 ,
 .Xr lchown 2 ,
 .Xr lstat 2 ,
 .Xr readlink 2 ,
@@ -441,6 +442,7 @@ whether specified on the command line or encountered in the tree walk.
 .Xr pax 1 ,
 .Xr rm 1 ,
 .Xr tar 1 ,
+.Xr lchmod 2 ,
 .Xr lchown 2 ,
 .Xr lstat 2 ,
 .Xr readlink 2 ,
