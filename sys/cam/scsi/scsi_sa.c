@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.18 1999/02/05 08:49:34 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.19 1999/02/10 00:03:15 ken Exp $
  */
 
 #include <sys/param.h>
@@ -217,7 +217,7 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
-		  "T4000S*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
+		  "T4000*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
@@ -1296,15 +1296,14 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			xpt_release_ccb(start_ccb);
 		} else if ((softc->flags & SA_FLAG_ERR_PENDING) != 0) {
 			struct buf *done_bp;
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-			    ("sastart- coping with pending error %x\n",
-			    softc->flags & SA_FLAG_ERR_PENDING));
 			bufq_remove(&softc->buf_queue, bp);
 			bp->b_resid = bp->b_bcount;
 			bp->b_flags |= B_ERROR;
 			if ((softc->flags & SA_FLAG_EOM_PENDING) != 0) {
 				if ((bp->b_flags & B_READ) == 0)
 					bp->b_error = ENOSPC;
+				else
+					bp->b_error = EIO;
 			}
 			if ((softc->flags & SA_FLAG_EOF_PENDING) != 0) {
 				bp->b_error = EIO;
@@ -1312,10 +1311,21 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			if ((softc->flags & SA_FLAG_EIO_PENDING) != 0) {
 				bp->b_error = EIO;
 			}
-			softc->flags &= ~SA_FLAG_ERR_PENDING;
 			done_bp = bp;
 			bp = bufq_first(&softc->buf_queue);
+			/*
+			 * Only if we have no other buffers queued up
+			 * do we clear the pending error flag.
+			 */
+			if (bp == NULL)
+				softc->flags &= ~SA_FLAG_ERR_PENDING;
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    ("sastart- coping with pending error %x, %smore "
+			     "buffers queued up\n",
+			    (softc->flags & SA_FLAG_ERR_PENDING),
+			    (bp == NULL)? "no " : " "));
 			splx(s);
+			xpt_release_ccb(start_ccb);
 			biodone(done_bp);
 		} else {
 			u_int32_t length;
@@ -1429,8 +1439,8 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 			struct buf *q_bp;
 
 			/*
-			 * Catastrophic error.  Mark our pack as invalid,
-			 * return all queued I/O with EIO, and unfreeze
+			 * Catastrophic error. Mark the tape as not mounted.
+			 * Return all queued I/O with EIO, and unfreeze
 			 * our queue so that future transactions that
 			 * attempt to fix this problem can get to the
 			 * device.
@@ -1439,7 +1449,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 			s = splbio();
 			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
-
 			while ((q_bp = bufq_first(&softc->buf_queue)) != NULL) {
 				bufq_remove(&softc->buf_queue, q_bp);
 				q_bp->b_resid = q_bp->b_bcount;
@@ -1566,14 +1575,14 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		 */
 		scsi_load_unload(&ccb->csio, 2, sadone, MSG_SIMPLE_Q_TAG, FALSE,
 		    FALSE, FALSE, 1, SSD_FULL_SIZE, 60000);
-		error = cam_periph_runccb(ccb, saerror, 0, 0,
+		error = cam_periph_runccb(ccb, saerror, 0, SF_QUIET_IR,
 		    &softc->device_stats);
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 		/*
-		 * In case device doesn't support it, do a REWIND instead
+		 * In case this doesn't work, do a REWIND instead
 		 */
-		if (error == EINVAL) {
+		if (error) {
 			scsi_rewind(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
 			    FALSE, SSD_FULL_SIZE,
 			    (SA_REWIND_TIMEOUT) * 60 * 1000);
@@ -1854,8 +1863,9 @@ tryagain:
 		}
 
 
-		if (error == 0)
+		if (error == 0) {
 			softc->flags |= SA_FLAG_TAPE_MOUNTED;
+		}
 exit:
 		if (rblim != NULL)
 			free(rblim, M_TEMP);
@@ -1863,8 +1873,10 @@ exit:
 		if (error != 0) {
 			cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
 			softc->dsreg = MTIO_DSREG_NIL;
-		} else
+		} else {
+			softc->fileno = softc->blkno = 0;
 			softc->dsreg = MTIO_DSREG_REST;
+		}
 #if	SA_2FM_AT_EOD == 1
 		if ((softc->quirks & SA_QUIRK_1FM) == 0) 
 			softc->quirks |= SA_QUIRK_2FM;
@@ -1973,6 +1985,8 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 			} else {
 				if (csio->cdb_io.cdb_bytes[0] == SA_WRITE)
 					error = ENOSPC;
+				else
+					error = EIO;
 			}
 		}
 		if ((sense->flags & SSD_FILEMARK) != 0) {
