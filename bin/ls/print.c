@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: print.c,v 1.2 1994/09/24 02:55:56 davidg Exp $
  */
 
 #ifndef lint
@@ -188,7 +188,7 @@ printcol(dp)
 			    dp->s_block);
 			if ((base += numrows) >= num)
 				break;
-			while ((cnt = (chcnt + TAB & ~(TAB - 1))) <= endcol) {
+			while ((cnt = ((chcnt + TAB) & ~(TAB - 1))) <= endcol){
 				(void)putchar('\t');
 				chcnt = cnt;
 			}

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bdes.c	5.5 (Berkeley) 6/27/91
- *	$Id$
+ *	$Id: cbc.c,v 1.4 1994/09/24 02:55:24 davidg Exp $
  */
 
 #ifndef lint
@@ -115,7 +115,7 @@ init_des_cipher()
 
 	des_ct = des_n = 0;
 
-	/* initialize the initialization vctor */
+	/* initialize the initialization vector */
 	MEMZERO(ivec, 8);
 
 	/* intialize the padding vector */
@@ -137,6 +137,8 @@ get_des_char(fp)
 		des_ct = cbc_decode(des_buf, fp);
 	}
 	return (des_ct > 0) ? des_buf[des_n++] : EOF;
+#else
+	return (getc(fp));
 #endif
 }
 
@@ -153,6 +155,8 @@ put_des_char(c, fp)
 		des_n = 0;
 	}
 	return (des_ct >= 0) ? (des_buf[des_n++] = c) : EOF;
+#else
+	return (fputc(c, fp));
 #endif
 }
 
@@ -168,6 +172,8 @@ flush_des_file(fp)
 		des_n = 0;
 	}
 	return (des_ct >= 0 && cbc_encode(des_buf, des_n, fp) >= 0) ? 0 : EOF;
+#else
+	return (fflush(fp));
 #endif
 }
 

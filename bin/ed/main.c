@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.3 1994/09/24 02:55:28 davidg Exp $
  */
 
 #ifndef lint
@@ -154,9 +154,9 @@ top:
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGINT, signal_int);
 #ifdef _POSIX_SOURCE
-	if (status = sigsetjmp(env, 1))
+	if ((status = sigsetjmp(env, 1)))
 #else
-	if (status = setjmp(env))
+	if ((status = setjmp(env)))
 #endif
 	{
 		fputs("\n?\n", stderr);
@@ -213,7 +213,7 @@ top:
 		isglobal = 0;
 		if ((status = extract_addr_range()) >= 0 &&
 		    (status = exec_command()) >= 0)
-			if (!status || status &&
+			if (!status || 
 			    (status = display_lines(current_addr, current_addr,
 			        status)) >= 0)
 				continue;
@@ -544,7 +544,7 @@ exec_command()
 			return ERR;
 		else if (build_active_list(c == 'g' || c == 'G') < 0)
 			return ERR;
-		else if (n = (c == 'G' || c == 'V'))
+		else if ((n = (c == 'G' || c == 'V')))
 			GET_COMMAND_SUFFIX();
 		isglobal++;
 		if (exec_global(n, gflag) < 0)
@@ -840,7 +840,7 @@ exec_command()
 		break;
 	case '=':
 		GET_COMMAND_SUFFIX();
-		printf("%d\n", addr_cnt ? second_addr : addr_last);
+		printf("%ld\n", addr_cnt ? second_addr : addr_last);
 		break;
 	case '!':
 		if (addr_cnt > 0) {
@@ -902,7 +902,7 @@ get_matching_node_addr(pat, dir)
 
 	if (!pat) return ERR;
 	do {
-		if (n = dir ? INC_MOD(n, addr_last) : DEC_MOD(n, addr_last)) {
+	       if ((n = dir ? INC_MOD(n, addr_last) : DEC_MOD(n, addr_last))) {
 			lp = get_addressed_line_node(n);
 			if ((s = get_sbuf_line(lp)) == NULL)
 				return ERR;
@@ -910,7 +910,7 @@ get_matching_node_addr(pat, dir)
 				NUL_TO_NEWLINE(s, lp->len);
 			if (!regexec(pat, s, 0, NULL, 0))
 				return n;
-		}
+	       }
 	} while (n != current_addr);
 	sprintf(errmsg, "no match");
 	return  ERR;
@@ -1339,7 +1339,7 @@ strip_escapes(s)
 
 	REALLOC(file, filesz, MAXPATHLEN + 1, NULL);
 	/* assert: no trailing escape */
-	while (file[i++] = (*s == '\\') ? *++s : *s)
+	while ((file[i++] = (*s == '\\') ? *++s : *s))
 		s++;
 	return file;
 }

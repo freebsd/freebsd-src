@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: key.c,v 1.2 1994/09/24 02:58:58 davidg Exp $
  */
 
 #ifndef lint
@@ -286,7 +286,7 @@ f_speed(ip)
 	struct info *ip;
 {
 
-	(void)printf("%d\n", cfgetospeed(&ip->t));
+	(void)printf("%ld\n", cfgetospeed(&ip->t));
 }
 
 void
