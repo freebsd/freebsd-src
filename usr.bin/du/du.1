@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
-.\"	$Id$
+.\"	$Id: du.1,v 1.8 1997/02/22 19:54:52 peter Exp $
 .\"
 .Dd April 1, 1994
 .Dt DU 1
@@ -42,6 +42,7 @@
 .Nm du
 .Op Fl H | Fl L | Fl P
 .Op Fl a | s | d Ar depth
+.Op Fl k
 .Op Fl x
 .Op Ar file ...
 .Sh DESCRIPTION
@@ -55,6 +56,10 @@ the current directory is displayed.
 The number of blocks are in the same units as that returned by the
 .Xr stat 2
 system call, i.e. 512-byte blocks.
+If the
+.Fl k
+flag is specified, the number displayed is the number of 1024-byte
+blocks.
 Partial numbers of blocks are rounded up.
 .Pp
 The options are as follows:
@@ -108,12 +113,15 @@ Files having multiple hard links are counted (and displayed) a single
 time per
 .Nm du
 execution.
-.Sh ENVIRONMENTAL VARIABLES
+.Sh ENVIRONMENT VARIABLES
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
-If the environmental variable
+If the environment variable
 .Ev BLOCKSIZE
-is set, the block counts will be displayed in units of that size block.
+is set, and the
+.Fl k
+option is not specified, the block counts will be displayed in units of that
+size block.
 .El
 .Sh SEE ALSO
 .Xr df 1 ,
