@@ -1,11 +1,11 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.3 1995/07/26 13:52:56 wollman Exp $
+#	$Id: Makefile,v 1.4 1995/07/30 08:04:33 bde Exp $
 
 VOLUME=	usd/10.exref
 SRCS=	ex.rm
 MACROS=	-ms
 CLEANFILES=summary.*
-SRCDIR=	${.CURDIR}/../../../../usr.bin/vi/USD.doc/exref
+SRCDIR=	${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/exref
 USE_TBL=	yes
 
 .include <bsd.doc.mk>
