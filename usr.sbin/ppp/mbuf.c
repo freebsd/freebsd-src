@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.28 1999/08/09 22:56:18 brian Exp $
+ * $Id: mbuf.c,v 1.29 1999/08/19 18:15:50 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -300,7 +300,7 @@ mbuf_Contiguous(struct mbuf *bp)
       bp = nbp;
     }
 #ifndef __i386__	/* Do any other archs not care about alignment ? */
-    else if ((bp->offset & 0x03) != 0) {
+    else if ((bp->offset & (sizeof(long) - 1)) != 0) {
       bcopy(MBUF_CTOP(bp), bp + 1, bp->cnt);
       bp->offset = 0;
     }
