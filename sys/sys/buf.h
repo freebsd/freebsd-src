@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.66 1999/05/02 23:56:34 alc Exp $
+ * $Id: buf.h,v 1.67 1999/05/06 17:06:32 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -97,7 +97,6 @@ struct buf {
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
-	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_usecount;	/* buffer use count */
@@ -126,6 +125,8 @@ struct buf {
 	void	*b_saveaddr;		/* Original b_addr for physio. */
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
+	void	*b_caller1;		/* for private use by the driver */
+	void	*b_caller2;		/* for private use by the driver */
 	union	pager_info {
 		void	*pg_spc;
 		int	pg_reqpage;

@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.46 1999/04/28 01:04:28 luoqi Exp $
+ * $Id: vfs_aio.c,v 1.47 1999/05/06 18:44:42 peter Exp $
  */
 
 /*
@@ -1005,7 +1005,7 @@ aio_qphysio(p, aiocbe)
 	/*
 	 * get a copy of the kva from the physical buffer
 	 */
-	bp->b_proc = p;
+	bp->b_caller1 = p;
 	bp->b_dev = dev;
 	error = bp->b_error = 0;
 
@@ -1963,7 +1963,7 @@ aio_physwakeup(bp)
 
 	aiocbe = (struct aiocblist *)bp->b_spc;
 	if (aiocbe) {
-		p = bp->b_proc;
+		p = bp->b_caller1;
 
 		aiocbe->jobstate = JOBST_JOBBFINISHED;
 		aiocbe->uaiocb._aiocb_private.status -= bp->b_resid;

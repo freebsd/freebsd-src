@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.126 1999/05/03 20:59:14 alc Exp $
+ * $Id: nfs_vnops.c,v 1.127 1999/05/06 18:13:05 peter Exp $
  */
 
 
@@ -2668,7 +2668,7 @@ nfs_strategy(ap)
 	 * otherwise just do it ourselves.
 	 */
 	if ((bp->b_flags & B_ASYNC) == 0 ||
-		nfs_asyncio(bp, NOCRED))
+		nfs_asyncio(bp, NOCRED, p))
 		error = nfs_doio(bp, cr, p);
 	return (error);
 }
@@ -3026,7 +3026,7 @@ nfs_bwrite(ap)
 		struct vnode *a_bp;
 	} */ *ap;
 {
-	return (nfs_writebp(ap->a_bp, 1));
+	return (nfs_writebp(ap->a_bp, 1, curproc));
 }
 
 /*
@@ -3035,9 +3035,10 @@ nfs_bwrite(ap)
  * B_CACHE if this is a VMIO buffer.
  */
 int
-nfs_writebp(bp, force)
+nfs_writebp(bp, force, procp)
 	register struct buf *bp;
 	int force;
+	struct proc *procp;
 {
 	int s;
 	int oldflags = bp->b_flags;
@@ -3076,7 +3077,7 @@ nfs_writebp(bp, force)
 		off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		bp->b_flags |= B_WRITEINPROG;
 		retv = nfs_commit(bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
-			bp->b_wcred, bp->b_proc);
+			bp->b_wcred, procp);
 		bp->b_flags &= ~B_WRITEINPROG;
 		if (!retv) {
 			bp->b_dirtyoff = bp->b_dirtyend = 0;

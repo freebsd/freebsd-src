@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.30 1999/01/21 08:29:04 dillon Exp $
+ * $Id: kern_physio.c,v 1.31 1999/04/06 03:04:47 peter Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,6 @@ physio(strategy, bp, dev, rw, minp, uio)
 	 * get a copy of the kva from the physical buffer
 	 */
 	sa = bpa->b_data;
-	bp->b_proc = curproc;
 	error = bp->b_error = 0;
 
 	for(i=0;i<uio->uio_iovcnt;i++) {
