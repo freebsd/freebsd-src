@@ -147,15 +147,21 @@ vendor COMPEX			0x8a01	Compex Corporation
 vendor ZONET			0x8a01	Zonet Technology Inc.
 vendor ELSA			0xd601	Elsa 
 
+/* 
+ * The following vendor IDs are the vendor's PCI ID, not their PCMCIA
+ * IDs.  NEWMEDIA2 should likely be 'Advansys' since that's who owns
+ * the PCI ID.
+ */
+vendor NEWMEDIA2		0x10cd	NewMedia
+vendor PLANEX			0x14ea	PLANEX
+vendor ACTIONTEC		0x1668	ACTIONTEC
+
 /*
  * The following vendor IDs are not, as far as I can tell, actually
  * assigned to these people by the pcmcia.  However, all the ones starting
  * with '0xc' look coherent enough that maybe somebody other than PCMCIA is
- * assigning numbers in that range.
+ * assigning numbers in that range.  Maybe JEITA?
  */
-vendor NEWMEDIA2		0x10cd	NewMedia
-vendor PLANEX_2			0x14ea	PLANEX
-vendor ACTIONTEC		0x1668	ACTIONTEC
 vendor AIRVAST			0x50c2	AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
@@ -425,7 +431,7 @@ product PANASONIC KXLC005_1	0x2904 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
 
 /* Planex */
-product PLANEX_2 GWNS11H	0xb001 Planex GW-NS11H
+product PLANEX GWNS11H		0xb001 Planex GW-NS11H
 
 /* Proxim */
 product PROXIM HARMONY		0x0002 Proxim HARMONY 80211B
@@ -560,7 +566,6 @@ vendor NDC			-1	NDC
 vendor NEC			-1	NEC
 vendor OEM2			-1	Generic OEM
 vendor PLANET			-1 	Planet
-vendor PLANEX			-1	Planex Communications Inc
 vendor PREMAX			-1 	Premax
 vendor RPTI			-1 	RPTI
 vendor SVEC			-1	SVEC/Hawking Technology
@@ -639,12 +644,6 @@ product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NU
 product OEM2 CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL } Generic PCMCIA CD-ROM
 product OEM2 IDE	{ "PCMCIA", "IDE&spCARD", NULL, NULL } Generic PCMCIA IDE CARD
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
-/*
- * vendor ID of both FNW-3600-T and FNW-3700-T is LINKSYS (0x0149) and
- * product ID is 0xc1ab, but it conflicts with LINKSYS Combo EthernetCard.
- */
-product PLANEX FNW3600T		-1 Planex FNW-3600-T
-product PLANEX FNW3700T		-1 Planex FNW-3700-T
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
 product RPTI EP401		{ "RPTI", "EP401&spEthernet&spNE2000&spCompatible", NULL, NULL } RPTI EP401
 product PREMAX PE200		{ "PMX&sp&sp&sp", "PE-200", NULL, NULL } PreMax PE-200
