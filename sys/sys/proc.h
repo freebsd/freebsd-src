@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.23 1996/04/07 16:46:28 bde Exp $
+ * $Id: proc.h,v 1.24 1996/05/01 02:52:05 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -47,6 +47,7 @@
 #include <sys/select.h>			/* For struct selinfo. */
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #include <sys/queue.h>
+#include <sys/param.h>
 
 /*
  * One structure allocated per session.
