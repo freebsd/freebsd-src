@@ -516,7 +516,7 @@ init_transport(struct netconfig *nconf)
 		struct pmaplist *pml;
 
 		if (!svc_register(my_xprt, PMAPPROG, PMAPVERS,
-			pmap_service, NULL)) {
+			pmap_service, 0)) {
 			syslog(LOG_ERR, "could not register on %s",
 					nconf->nc_netid);
 			goto error;
