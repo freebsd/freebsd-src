@@ -102,12 +102,14 @@ main(int argc, char *argv[])
 			continue;
 		}
 		if (which == PRIO_USER) {
-			pwd = getpwnam(*argv);
-			if (pwd == NULL) {
-				warnx("%s: unknown user", *argv);
+			if ((pwd = getpwnam(*argv)) != NULL)
+				who = pwd->pw_uid;
+			else if (getnum("uid", *argv, &who))
+				continue;
+			else if (who < 0) {
+				warnx("%s: bad value", *argv);
 				continue;
 			}
-			who = pwd->pw_uid;
 		} else {
 			if (getnum("pid", *argv, &who))
 				continue;
