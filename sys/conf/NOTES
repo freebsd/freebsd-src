@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.622 1999/08/06 14:01:54 hm Exp $
+#	$Id: LINT,v 1.623 1999/08/06 15:59:01 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -682,7 +682,7 @@ options 	_KPOSIX_VERSION=199309L
 # disk 		da0 at scbus0 target 0 unit 0
 # disk		da1 at scbus3 target 1
 # disk		da2 at scbus2 target 3
-# tape		st1 at scbus1 target 6
+# tape		sa1 at scbus1 target 6
 # device	cd0 at scbus?
 
 # "units" (SCSI logical unit number) that are not specified are
