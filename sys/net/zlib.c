@@ -10,7 +10,7 @@
  * - added inflateIncomp and deflateOutputPending
  * - allow strm->next_out to be NULL, meaning discard the output
  *
- * $Id: zlib.c,v 1.6 1998/03/21 20:56:15 peter Exp $
+ * $Id: zlib.c,v 1.7 1998/06/20 16:28:04 peter Exp $
  */
 
 /* 
@@ -99,7 +99,7 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #define ERR_MSG(err) z_errmsg[Z_NEED_DICT-(err)]
 
 #define ERR_RETURN(strm,err) \
-  return (strm->msg = (char*)ERR_MSG(err), (err))
+  return (strm->msg = (const char*)ERR_MSG(err), (err))
 /* To be used only when the state is known to be valid */
 
         /* common constants */
@@ -807,7 +807,7 @@ int deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
         s->pending_buf == Z_NULL) {
-        strm->msg = (char*)ERR_MSG(Z_MEM_ERROR);
+        strm->msg = (const char*)ERR_MSG(Z_MEM_ERROR);
         deflateEnd (strm);
         return Z_MEM_ERROR;
     }

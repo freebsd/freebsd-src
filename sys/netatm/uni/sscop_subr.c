@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_subr.c,v 1.2 1998/09/17 09:35:01 phk Exp $
+ *	@(#) $Id: sscop_subr.c,v 1.3 1998/10/31 20:07:00 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/uni/sscop_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sscop_subr.c,v 1.2 1998/09/17 09:35:01 phk Exp $");
+__RCSID("@(#) $Id: sscop_subr.c,v 1.3 1998/10/31 20:07:00 phk Exp $");
 #endif
 
 
@@ -297,7 +297,7 @@ sscop_rexmit_insert(sop, php)
 	 * Otherwise, loop thru the queue until we find the
 	 * proper insertion point for the PDU
 	 */
-	while (next = curr->ph_rexmit_lk) {
+	while ((next = curr->ph_rexmit_lk) != NULL) {
 		if (SEQ_LT(seq, next->ph_ns, sop->so_ack)) {
 			php->ph_rexmit_lk = next;
 			curr->ph_rexmit_lk = php;
@@ -396,7 +396,7 @@ sscop_xmit_drain(sop)
 	/*
 	 * Free transmission queue buffers
 	 */
-	while (m = sop->so_xmit_hd) {
+	while ((m = sop->so_xmit_hd) != NULL) {
 		sop->so_xmit_hd = KB_QNEXT(m);
 		KB_FREEALL(m);
 	}
@@ -415,7 +415,7 @@ sscop_xmit_drain(sop)
 	/*
 	 * Free pending ack queue buffers
 	 */
-	while (php = sop->so_pack_hd) {
+	while ((php = sop->so_pack_hd) != NULL) {
 		sop->so_pack_hd = php->ph_pack_lk;
 		KB_FREEALL(php->ph_buf);
 	}
@@ -475,7 +475,7 @@ sscop_recv_insert(sop, php)
 	 * to make sure there isn't a PDU already on the queue
 	 * with a matching sequence number.
 	 */
-	while (next = curr->ph_recv_lk) {
+	while ((next = curr->ph_recv_lk) != NULL) {
 		if (SEQ_LT(seq, next->ph_ns, sop->so_rcvnext)) {
 			if (seq == curr->ph_ns)
 				return (1);
@@ -518,7 +518,7 @@ sscop_rcvr_drain(sop)
 	/*
 	 * Free receive queue buffers
 	 */
-	while (php = sop->so_recv_hd) {
+	while ((php = sop->so_recv_hd) != NULL) {
 		sop->so_recv_hd = php->ph_recv_lk;
 		KB_FREEALL(php->ph_buf);
 	}
@@ -557,7 +557,7 @@ sscop_service_xmit(sop)
 	 * (Congestion control will be added later)
 	 */
 	while (1) {
-		if (php = sop->so_rexmit_hd) {
+		if ((php = sop->so_rexmit_hd) != NULL) {
 
 			/*
 			 * Send SD PDU from retransmit queue

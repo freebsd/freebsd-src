@@ -404,7 +404,7 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
 
     if ( aat == 0 && tpa.s_net == ma.s_net && tpa.s_node == ma.s_node
 	    && op != AARPOP_PROBE ) {
-	if ( aat = aarptnew( &spa )) {
+	if ((aat = aarptnew( &spa )) != NULL) {
 	    bcopy(( caddr_t )ea->aarp_sha, ( caddr_t )aat->aat_enaddr,
 		    sizeof( ea->aarp_sha ));
 	    aat->aat_flags |= ATF_COM;

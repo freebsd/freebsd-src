@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.78 1998/12/16 00:10:51 eivind Exp $
+ * $Id: spec_vnops.c,v 1.79 1999/01/21 08:29:07 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -210,7 +210,7 @@ spec_open(ap)
 		error = (*cdevsw[maj]->d_open)(dev, ap->a_mode, S_IFCHR, p);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
-
+		/* NOT REACHED */
 	case VBLK:
 		if ((u_int)maj >= nblkdev)
 			return (ENXIO);
@@ -233,6 +233,9 @@ spec_open(ap)
 		if (error)
 			return (error);
 		return ((*bdevsw[maj]->d_open)(dev, ap->a_mode, S_IFBLK, p));
+		/* NOT REACHED */
+	default:
+		break;
 	}
 	return (0);
 }

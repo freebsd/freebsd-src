@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.39 1998/12/07 21:58:31 archie Exp $
+ * $Id: fdesc_vnops.c,v 1.40 1998/12/14 05:00:57 dillon Exp $
  */
 
 /*
@@ -283,7 +283,7 @@ fdesc_lookup(ap)
 
 	case Fdevfd:
 		if (cnp->cn_namelen == 2 && bcmp(pname, "..", 2) == 0) {
-			if (error = fdesc_root(dvp->v_mount, vpp))
+			if ((error = fdesc_root(dvp->v_mount, vpp)) != 0)
 				goto bad;
 			return (0);
 		}

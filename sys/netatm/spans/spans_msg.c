@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_msg.c,v 1.2 1998/09/17 09:35:00 phk Exp $
+ *	@(#) $Id: spans_msg.c,v 1.3 1998/10/31 20:06:56 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/spans/spans_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_msg.c,v 1.2 1998/09/17 09:35:00 phk Exp $");
+__RCSID("@(#) $Id: spans_msg.c,v 1.3 1998/10/31 20:06:56 phk Exp $");
 #endif
 
 /*
@@ -545,7 +545,7 @@ spans_open_req(spp, msg)
 	/*
 	 * See if the connection is new
 	 */
-	if (svp = spans_find_conn(spp, &msg->sm_open_req.opreq_conn)) {
+	if ((svp = spans_find_conn(spp, &msg->sm_open_req.opreq_conn)) != NULL) {
 		/*
 		 * We already have a VCCB that matches the connection in
 		 * the request

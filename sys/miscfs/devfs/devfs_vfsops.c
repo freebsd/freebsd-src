@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.34 1998/10/31 15:31:23 peter Exp $
+ *	$Id: devfs_vfsops.c,v 1.35 1998/12/07 21:58:30 archie Exp $
  *
  */
 
@@ -129,7 +129,7 @@ DBPRINT(("mount "));
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_stat.f_type;
 	mp->mnt_flag |= MNT_LOCAL;
 
-	if(error = dev_dup_plane(devfs_mp_p))
+	if((error = dev_dup_plane(devfs_mp_p)) != 0)
 	{
 		mp->mnt_data = (qaddr_t)0;
 		free((caddr_t)devfs_mp_p, M_DEVFSMNT);

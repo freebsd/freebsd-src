@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_if.c,v 1.3 1998/10/31 20:06:56 phk Exp $
+ *	@(#) $Id: spans_if.c,v 1.4 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/spans/spans_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_if.c,v 1.3 1998/10/31 20:06:56 phk Exp $");
+__RCSID("@(#) $Id: spans_if.c,v 1.4 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 /*
@@ -428,7 +428,7 @@ spans_detach(pip)
 	/*
 	 * Now close the SPANS signalling VCC
 	 */
-	if (cop = spp->sp_conn) {
+	if ((cop = spp->sp_conn) != NULL) {
 		err = atm_cm_release(cop, &spans_cause);
 		if (err)
 			ATM_DEBUG2(
@@ -727,7 +727,7 @@ spans_reject(vcp, errp)
 	 * Clean up the VCCB--the connection manager will free it
 	 * spans_close_vcc will send a SPANS open response
 	 */
-	if (*errp = spans_close_vcc(spp, svp, TRUE)) {
+	if ((*errp = spans_close_vcc(spp, svp, TRUE)) != 0) {
 		ATM_DEBUG0("spans_reject: spans_close_vcc failed\n");
 		return(CALL_FAILED);
 	}
@@ -1018,8 +1018,8 @@ spans_ioctl(code, data, arg1)
 			/*
 			 * Copy the response into the user's buffer
 			 */
-			if (err = copyout((caddr_t)&rsp, buf_addr,
-					sizeof(rsp)))
+			if ((err = copyout((caddr_t)&rsp, buf_addr,
+					sizeof(rsp))) != 0)
 				break;
 			buf_addr += sizeof(rsp);
 			buf_len -= sizeof(rsp);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.111 1999/01/12 12:25:00 eivind Exp $
+ * $Id: ip_input.c,v 1.112 1999/01/22 16:50:45 wollman Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -129,7 +129,7 @@ SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RD,
 #define IPREASS_NHASH           (1 << IPREASS_NHASH_LOG2)
 #define IPREASS_HMASK           (IPREASS_NHASH - 1)
 #define IPREASS_HASH(x,y) \
-	((((x) & 0xF | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
+	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
 
 static struct ipq ipq[IPREASS_NHASH];
 static int    nipq = 0;         /* total # of reass queues */
