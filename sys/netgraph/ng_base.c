@@ -1777,6 +1777,8 @@ ng_dequeue(struct ng_queue *ngq)
 	item_p item;
 	u_int		add_arg;
 
+	mtx_assert(&ngq->q_mtx, MA_OWNED);
+
 	if (CAN_GET_READ(ngq->q_flags)) {
 		/*
 		 * Head of queue is a reader and we have no write active.
@@ -1903,6 +1905,8 @@ ng_dequeue(struct ng_queue *ngq)
 static __inline void
 ng_queue_rw(struct ng_queue * ngq, item_p  item, int rw)
 {
+	mtx_assert(&ngq->q_mtx, MA_OWNED);
+
 	item->el_next = NULL;	/* maybe not needed */
 	*ngq->last = item;
 	/*
