@@ -263,6 +263,7 @@ zstty_attach(device_t dev)
 	sc->sc_oget = sc->sc_obuf;
 
 	tp = ttyalloc();
+	tp->t_sc = sc;
 	sc->sc_si = make_dev(&zstty_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_WHEEL, 0600, "%s", device_get_desc(dev));
 	sc->sc_si->si_drv1 = sc;
@@ -525,7 +526,7 @@ zsttystart(struct tty *tp)
 	struct zstty_softc *sc;
 	uint8_t c;
 
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 
 	if ((tp->t_state & TS_TBLOCK) != 0)
 		/* XXX clear RTS */;
@@ -582,7 +583,7 @@ zsttystop(struct tty *tp, int flag)
 {
 	struct zstty_softc *sc;
 
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 
 	if ((flag & FREAD) != 0) {
 		/* XXX stop reading, anything to do? */;
@@ -602,7 +603,7 @@ zsttyparam(struct tty *tp, struct termios *t)
 {
 	struct zstty_softc *sc;
 
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 	return (zstty_param(sc, tp, t));
 }
 
@@ -612,7 +613,7 @@ zsttybreak(struct tty *tp, int brk)
 {
 	struct zstty_softc *sc;
 
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 
 	if (brk)
 		ZS_WRITE_REG(sc, 5, ZS_READ_REG(sc, 5) | ZSWR5_BREAK);
