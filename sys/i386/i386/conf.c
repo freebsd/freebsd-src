@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.89 1995/07/22 13:56:06 bde Exp $
+ *	$Id: conf.c,v 1.90 1995/07/31 22:06:55 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -918,6 +918,28 @@ d_ttycv_t	cydevtotty;
 #define	cydevtotty	nxdevtotty
 #endif
 
+/* Specialix serial driver */
+#include "si.h"
+#if	NSI > 0
+d_open_t        siopen;
+d_close_t       siclose;
+d_read_t        siread;
+d_write_t       siwrite;
+d_ioctl_t	siioctl;
+d_stop_t        sistop;
+d_ttycv_t	sidevtotty;
+#define sireset	nxreset
+#else
+#define	siopen		nxopen
+#define siclose		nxclose
+#define siread		nxread
+#define siwrite		nxwrite
+#define siioctl		nxioctl
+#define sistop		nxstop
+#define sireset		nxreset
+#define	sidevtotty	nxdevtotty
+#endif
+
 #include "ity.h"
 #if NITY > 0
 d_open_t	ityopen;
@@ -1250,6 +1272,9 @@ struct cdevsw	cdevsw[] =
         { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
           meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
           seltrue, meteor_mmap, NULL },
+	{ siopen,	siclose,	siread,		siwrite,	/*68*/
+	  siioctl,	sistop,		sireset,	sidevtotty,/* slxos */
+	  ttselect,	nxmmap,		NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
