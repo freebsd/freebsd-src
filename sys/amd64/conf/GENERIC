@@ -80,10 +80,6 @@ device		acpi
 device		isa
 device		pci
 
-
-# Sound (no modules)
-device		pcm
-
 # Floppy drives
 device		fdc
 
