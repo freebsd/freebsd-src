@@ -22,12 +22,7 @@ static char rcsid[] = "$FreeBSD$";
 
 extern int signgam;
 
-#ifdef __STDC__
 	float gammaf(float x)
-#else
-	float gammaf(x)
-	float x;
-#endif
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_gammaf_r(x,&signgam);

@@ -48,12 +48,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	double __generic_cos(double x)
-#else
-	double __generic_cos(x)
-	double x;
-#endif
 {
 	double y[2],z=0.0;
 	int32_t n, ix;

@@ -26,19 +26,10 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const double zero = 0.0;
-#else
-static double zero = 0.0;
-#endif
 
 
-#ifdef __STDC__
 	double __generic___ieee754_remainder(double x, double p)
-#else
-	double __generic___ieee754_remainder(x,p)
-	double x,p;
-#endif
 {
 	int32_t hx,hp;
 	u_int32_t sx,lx,lp;

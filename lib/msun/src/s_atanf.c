@@ -20,33 +20,21 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const float atanhi[] = {
-#else
-static float atanhi[] = {
-#endif
   4.6364760399e-01, /* atan(0.5)hi 0x3eed6338 */
   7.8539812565e-01, /* atan(1.0)hi 0x3f490fda */
   9.8279368877e-01, /* atan(1.5)hi 0x3f7b985e */
   1.5707962513e+00, /* atan(inf)hi 0x3fc90fda */
 };
 
-#ifdef __STDC__
 static const float atanlo[] = {
-#else
-static float atanlo[] = {
-#endif
   5.0121582440e-09, /* atan(0.5)lo 0x31ac3769 */
   3.7748947079e-08, /* atan(1.0)lo 0x33222168 */
   3.4473217170e-08, /* atan(1.5)lo 0x33140fb4 */
   7.5497894159e-08, /* atan(inf)lo 0x33a22168 */
 };
 
-#ifdef __STDC__
 static const float aT[] = {
-#else
-static float aT[] = {
-#endif
   3.3333334327e-01, /* 0x3eaaaaaa */
  -2.0000000298e-01, /* 0xbe4ccccd */
   1.4285714924e-01, /* 0x3e124925 */
@@ -60,20 +48,11 @@ static float aT[] = {
   1.6285819933e-02, /* 0x3c8569d7 */
 };
 
-#ifdef __STDC__
 	static const float
-#else
-	static float
-#endif
 one   = 1.0,
 huge   = 1.0e30;
 
-#ifdef __STDC__
 	float atanf(float x)
-#else
-	float atanf(x)
-	float x;
-#endif
 {
 	float w,s1,s2,z;
 	int32_t ix,hx,id;

@@ -26,12 +26,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	float copysignf(float x, float y)
-#else
-	float copysignf(x,y)
-	float x,y;
-#endif
 {
 	u_int32_t ix,iy;
 	GET_FLOAT_WORD(ix,x);

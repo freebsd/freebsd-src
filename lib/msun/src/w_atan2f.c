@@ -25,12 +25,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-#ifdef __STDC__
 	float atan2f(float y, float x)		/* wrapper atan2f */
-#else
-	float atan2f(y,x)			/* wrapper atan2 */
-	float y,x;
-#endif
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_atan2f(y,x);

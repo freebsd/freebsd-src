@@ -21,19 +21,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 #ifdef _SCALB_INT
-#ifdef __STDC__
 	float __ieee754_scalbf(float x, int fn)
 #else
-	float __ieee754_scalbf(x,fn)
-	float x; int fn;
-#endif
-#else
-#ifdef __STDC__
 	float __ieee754_scalbf(float x, float fn)
-#else
-	float __ieee754_scalbf(x,fn)
-	float x, fn;
-#endif
 #endif
 {
 #ifdef _SCALB_INT

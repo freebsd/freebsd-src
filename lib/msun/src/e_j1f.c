@@ -20,17 +20,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static float ponef(float), qonef(float);
-#else
-static float ponef(), qonef();
-#endif
 
-#ifdef __STDC__
 static const float
-#else
-static float
-#endif
 huge    = 1e30,
 one	= 1.0,
 invsqrtpi=  5.6418961287e-01, /* 0x3f106ebb */
@@ -46,18 +38,9 @@ s03  =  1.1771846857e-06, /* 0x359dffc2 */
 s04  =  5.0463624390e-09, /* 0x31ad6446 */
 s05  =  1.2354227016e-11; /* 0x2d59567e */
 
-#ifdef __STDC__
 static const float zero    = 0.0;
-#else
-static float zero    = 0.0;
-#endif
 
-#ifdef __STDC__
 	float __ieee754_j1f(float x)
-#else
-	float __ieee754_j1f(x)
-	float x;
-#endif
 {
 	float z, s,c,ss,cc,r,u,v,y;
 	int32_t hx,ix;
@@ -98,22 +81,14 @@ static float zero    = 0.0;
 	return(x*(float)0.5+r/s);
 }
 
-#ifdef __STDC__
 static const float U0[5] = {
-#else
-static float U0[5] = {
-#endif
  -1.9605709612e-01, /* 0xbe48c331 */
   5.0443872809e-02, /* 0x3d4e9e3c */
  -1.9125689287e-03, /* 0xbafaaf2a */
   2.3525259166e-05, /* 0x37c5581c */
  -9.1909917899e-08, /* 0xb3c56003 */
 };
-#ifdef __STDC__
 static const float V0[5] = {
-#else
-static float V0[5] = {
-#endif
   1.9916731864e-02, /* 0x3ca3286a */
   2.0255257550e-04, /* 0x3954644b */
   1.3560879779e-06, /* 0x35b602d4 */
@@ -121,12 +96,7 @@ static float V0[5] = {
   1.6655924903e-11, /* 0x2d9281cf */
 };
 
-#ifdef __STDC__
 	float __ieee754_y1f(float x)
-#else
-	float __ieee754_y1f(x)
-	float x;
-#endif
 {
 	float z, s,c,ss,cc,u,v;
 	int32_t hx,ix;
@@ -184,11 +154,7 @@ static float V0[5] = {
  *	| pone(x)-1-R/S | <= 2  ** ( -60.06)
  */
 
-#ifdef __STDC__
 static const float pr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#else
-static float pr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#endif
   0.0000000000e+00, /* 0x00000000 */
   1.1718750000e-01, /* 0x3df00000 */
   1.3239480972e+01, /* 0x4153d4ea */
@@ -196,11 +162,7 @@ static float pr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
   3.8747453613e+03, /* 0x45722bed */
   7.9144794922e+03, /* 0x45f753d6 */
 };
-#ifdef __STDC__
 static const float ps8[5] = {
-#else
-static float ps8[5] = {
-#endif
   1.1420736694e+02, /* 0x42e46a2c */
   3.6509309082e+03, /* 0x45642ee5 */
   3.6956207031e+04, /* 0x47105c35 */
@@ -208,11 +170,7 @@ static float ps8[5] = {
   3.0804271484e+04, /* 0x46f0a88b */
 };
 
-#ifdef __STDC__
 static const float pr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#else
-static float pr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#endif
   1.3199052094e-11, /* 0x2d68333f */
   1.1718749255e-01, /* 0x3defffff */
   6.8027510643e+00, /* 0x40d9b023 */
@@ -220,11 +178,7 @@ static float pr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
   5.1763616943e+02, /* 0x440168b7 */
   5.2871520996e+02, /* 0x44042dc6 */
 };
-#ifdef __STDC__
 static const float ps5[5] = {
-#else
-static float ps5[5] = {
-#endif
   5.9280597687e+01, /* 0x426d1f55 */
   9.9140142822e+02, /* 0x4477d9b1 */
   5.3532670898e+03, /* 0x45a74a23 */
@@ -232,11 +186,7 @@ static float ps5[5] = {
   1.5040468750e+03, /* 0x44bc0180 */
 };
 
-#ifdef __STDC__
 static const float pr3[6] = {
-#else
-static float pr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
-#endif
   3.0250391081e-09, /* 0x314fe10d */
   1.1718686670e-01, /* 0x3defffab */
   3.9329774380e+00, /* 0x407bb5e7 */
@@ -244,11 +194,7 @@ static float pr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
   9.1055007935e+01, /* 0x42b61c2a */
   4.8559066772e+01, /* 0x42423c7c */
 };
-#ifdef __STDC__
 static const float ps3[5] = {
-#else
-static float ps3[5] = {
-#endif
   3.4791309357e+01, /* 0x420b2a4d */
   3.3676245117e+02, /* 0x43a86198 */
   1.0468714600e+03, /* 0x4482dbe3 */
@@ -256,11 +202,7 @@ static float ps3[5] = {
   1.0378793335e+02, /* 0x42cf936c */
 };
 
-#ifdef __STDC__
 static const float pr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#else
-static float pr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#endif
   1.0771083225e-07, /* 0x33e74ea8 */
   1.1717621982e-01, /* 0x3deffa16 */
   2.3685150146e+00, /* 0x401795c0 */
@@ -268,11 +210,7 @@ static float pr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
   1.7693971634e+01, /* 0x418d8d41 */
   5.0735230446e+00, /* 0x40a25a4d */
 };
-#ifdef __STDC__
 static const float ps2[5] = {
-#else
-static float ps2[5] = {
-#endif
   2.1436485291e+01, /* 0x41ab7dec */
   1.2529022980e+02, /* 0x42fa9499 */
   2.3227647400e+02, /* 0x436846c7 */
@@ -280,18 +218,9 @@ static float ps2[5] = {
   8.3646392822e+00, /* 0x4105d590 */
 };
 
-#ifdef __STDC__
 	static float ponef(float x)
-#else
-	static float ponef(x)
-	float x;
-#endif
 {
-#ifdef __STDC__
 	const float *p,*q;
-#else
-	float *p,*q;
-#endif
 	float z,r,s;
         int32_t ix;
 	GET_FLOAT_WORD(ix,x);
@@ -317,11 +246,7 @@ static float ps2[5] = {
  *	| qone(x)/s -0.375-R/S | <= 2  ** ( -61.13)
  */
 
-#ifdef __STDC__
 static const float qr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#else
-static float qr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#endif
   0.0000000000e+00, /* 0x00000000 */
  -1.0253906250e-01, /* 0xbdd20000 */
  -1.6271753311e+01, /* 0xc1822c8d */
@@ -329,11 +254,7 @@ static float qr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
  -1.1849806641e+04, /* 0xc639273a */
  -4.8438511719e+04, /* 0xc73d3683 */
 };
-#ifdef __STDC__
 static const float qs8[6] = {
-#else
-static float qs8[6] = {
-#endif
   1.6139537048e+02, /* 0x43216537 */
   7.8253862305e+03, /* 0x45f48b17 */
   1.3387534375e+05, /* 0x4802bcd6 */
@@ -342,11 +263,7 @@ static float qs8[6] = {
  -2.9449025000e+05, /* 0xc88fcb48 */
 };
 
-#ifdef __STDC__
 static const float qr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#else
-static float qr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#endif
  -2.0897993405e-11, /* 0xadb7d219 */
  -1.0253904760e-01, /* 0xbdd1fffe */
  -8.0564479828e+00, /* 0xc100e736 */
@@ -354,11 +271,7 @@ static float qr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
  -1.3731937256e+03, /* 0xc4aba633 */
  -2.6124443359e+03, /* 0xc523471c */
 };
-#ifdef __STDC__
 static const float qs5[6] = {
-#else
-static float qs5[6] = {
-#endif
   8.1276550293e+01, /* 0x42a28d98 */
   1.9917987061e+03, /* 0x44f8f98f */
   1.7468484375e+04, /* 0x468878f8 */
@@ -367,11 +280,7 @@ static float qs5[6] = {
  -4.7191835938e+03, /* 0xc5937978 */
 };
 
-#ifdef __STDC__
 static const float qr3[6] = {
-#else
-static float qr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
-#endif
  -5.0783124372e-09, /* 0xb1ae7d4f */
  -1.0253783315e-01, /* 0xbdd1ff5b */
  -4.6101160049e+00, /* 0xc0938612 */
@@ -379,11 +288,7 @@ static float qr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
  -2.2824453735e+02, /* 0xc3643e9a */
  -2.1921012878e+02, /* 0xc35b35cb */
 };
-#ifdef __STDC__
 static const float qs3[6] = {
-#else
-static float qs3[6] = {
-#endif
   4.7665153503e+01, /* 0x423ea91e */
   6.7386511230e+02, /* 0x4428775e */
   3.3801528320e+03, /* 0x45534272 */
@@ -392,11 +297,7 @@ static float qs3[6] = {
  -1.3520118713e+02, /* 0xc3073381 */
 };
 
-#ifdef __STDC__
 static const float qr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#else
-static float qr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#endif
  -1.7838172539e-07, /* 0xb43f8932 */
  -1.0251704603e-01, /* 0xbdd1f475 */
  -2.7522056103e+00, /* 0xc0302423 */
@@ -404,11 +305,7 @@ static float qr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
  -4.2325313568e+01, /* 0xc2294d1f */
  -2.1371921539e+01, /* 0xc1aaf9b2 */
 };
-#ifdef __STDC__
 static const float qs2[6] = {
-#else
-static float qs2[6] = {
-#endif
   2.9533363342e+01, /* 0x41ec4454 */
   2.5298155212e+02, /* 0x437cfb47 */
   7.5750280762e+02, /* 0x443d602e */
@@ -417,18 +314,9 @@ static float qs2[6] = {
  -4.9594988823e+00, /* 0xc09eb437 */
 };
 
-#ifdef __STDC__
 	static float qonef(float x)
-#else
-	static float qonef(x)
-	float x;
-#endif
 {
-#ifdef __STDC__
 	const float *p,*q;
-#else
-	float *p,*q;
-#endif
 	float  s,r,z;
 	int32_t ix;
 	GET_FLOAT_WORD(ix,x);

@@ -20,12 +20,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	float ynf(int n, float x)	/* wrapper ynf */
-#else
-	float ynf(n,x)			/* wrapper ynf */
-	float x; int n;
-#endif
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_ynf(n,x);

@@ -84,11 +84,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const double
-#else
-static double
-#endif
 two52=  4.50359962737049600000e+15, /* 0x43300000, 0x00000000 */
 half=  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
 one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
@@ -156,18 +152,9 @@ w4  = -5.95187557450339963135e-04, /* 0xBF4380CB, 0x8C0FE741 */
 w5  =  8.36339918996282139126e-04, /* 0x3F4B67BA, 0x4CDAD5D1 */
 w6  = -1.63092934096575273989e-03; /* 0xBF5AB89D, 0x0B9E43E4 */
 
-#ifdef __STDC__
 static const double zero=  0.00000000000000000000e+00;
-#else
-static double zero=  0.00000000000000000000e+00;
-#endif
 
-#ifdef __STDC__
 	static double sin_pi(double x)
-#else
-	static double sin_pi(x)
-	double x;
-#endif
 {
 	double y,z;
 	int n,ix;
@@ -212,12 +199,7 @@ static double zero=  0.00000000000000000000e+00;
 }
 
 
-#ifdef __STDC__
 	double __ieee754_lgamma_r(double x, int *signgamp)
-#else
-	double __ieee754_lgamma_r(x,signgamp)
-	double x; int *signgamp;
-#endif
 {
 	double t,y,z,nadj,p,p1,p2,p3,q,r,w;
 	int i,hx,lx,ix;

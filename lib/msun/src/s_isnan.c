@@ -22,12 +22,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	int isnan(double x)
-#else
-	int isnan(x)
-	double x;
-#endif
 {
 	int32_t hx,lx;
 	EXTRACT_WORDS(hx,lx,x);

@@ -20,18 +20,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const float one = 1.0;
-#else
-static float one = 1.0;
-#endif
 
-#ifdef __STDC__
 	float modff(float x, float *iptr)
-#else
-	float modff(x, iptr)
-	float x,*iptr;
-#endif
 {
 	int32_t i0,j0;
 	u_int32_t i;
