@@ -1192,13 +1192,14 @@ falloc(td, resultfp, resultfd)
 	struct proc *p = td->td_proc;
 	struct file *fp, *fq;
 	int error, i;
+	int maxuserfiles = maxfiles - (maxfiles / 20);
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	sx_xlock(&filelist_lock);
-	if (nfiles >= maxfiles) {
+	if (((nfiles >= maxuserfiles) && (td->td_ucred->cr_ruid != 0))
+	   || (nfiles >= maxfiles)) {
 		sx_xunlock(&filelist_lock);
 		uma_zfree(file_zone, fp);
-		tablefull("file");
 		return (ENFILE);
 	}
 	nfiles++;
