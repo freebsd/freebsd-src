@@ -478,6 +478,7 @@ pipeselwakeup(cpipe)
 	struct pipe *cpipe;
 {
 
+	PIPE_LOCK_ASSERT(cpipe, MA_OWNED);
 	if (cpipe->pipe_state & PIPE_SEL) {
 		cpipe->pipe_state &= ~PIPE_SEL;
 		selwakeuppri(&cpipe->pipe_sel, PSOCK);
