@@ -1,0 +1,15 @@
+$Id: todo,v 1.25 2000/09/19 22:25:50 lukem Exp $
+
+in configure, check for ansi c compiler and barf if it fails
+
+check if we need #defines for memcpy() et al
+
+we check for fparseln twice; once in libutil and once in general
+
+check for utimes() decls [which system?]
+
+possibly install editline.3 and editrc.5
+
+system specific tests (to remove need for manual intervention):
+- sunos4
+	LIBS+= -lresolv
