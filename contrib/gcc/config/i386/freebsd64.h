@@ -29,7 +29,10 @@ Boston, MA 02111-1307, USA.  */
 #define FBSD_TARGET_CPU_CPP_BUILTINS()		\
   do						\
     {						\
-      builtin_define ("__LP64__");		\
+      if (TARGET_64BIT)				\
+	{					\
+	  builtin_define ("__LP64__");		\
+	}					\
     }						\
   while (0)
 
