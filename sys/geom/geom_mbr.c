@@ -35,21 +35,12 @@
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/endian.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-#include <sys/param.h>
-#include <stdlib.h>
-#include <err.h>
-#else
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 
 #include <sys/diskmbr.h>
 #include <sys/sbuf.h>

@@ -38,14 +38,6 @@
 
 #include <sys/param.h>
 #include <sys/endian.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <sys/errno.h>
-#include <err.h>
-#else
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
@@ -53,7 +45,6 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 #include <machine/endian.h>
