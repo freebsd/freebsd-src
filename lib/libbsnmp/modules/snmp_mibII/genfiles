@@ -1,0 +1,20 @@
+#!/bin/sh
+# $FreeBSD$
+
+CONTRIB="../../../../contrib/bsnmp/snmp_mibII"
+
+XSYM="ipAddrTable ifTable ifRcvAddressEntry ifMIB ipMIB tcpMIB udpMIB	\
+	ipForward ifIndex linkDown linkUp"
+
+gensnmptree <${CONTRIB}/mibII_tree.def -e ${XSYM} >mibII_oid.h
+gensnmptree <${CONTRIB}/mibII_tree.def -l -p mibII_
+
+for i in mibII_tree.h mibII_tree.c mibII_oid.h ; do
+	ex $i <<'EOF'
+0a
+/* $FreeBSD$ */
+/* generated file, don't edit - use ./genfiles */
+.
+wq
+EOF
+done

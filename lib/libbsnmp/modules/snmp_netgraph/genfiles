@@ -1,0 +1,17 @@
+#!/bin/sh
+# $FreeBSD$
+
+XSYM="begemotNg"
+
+gensnmptree <netgraph_tree.def -e ${XSYM} >netgraph_oid.h
+gensnmptree <netgraph_tree.def -l -p netgraph_
+
+for i in netgraph_tree.h netgraph_tree.c netgraph_oid.h ; do
+	ex $i <<'EOF'
+0a
+/* $FreeBSD$ */
+/* generated file, don't edit - use ./genfiles */
+.
+wq
+EOF
+done
