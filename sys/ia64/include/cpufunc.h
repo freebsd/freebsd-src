@@ -45,6 +45,15 @@ breakpoint(void)
 	__asm __volatile("break 0x80100"); /* XXX use linux value */
 }
 
+
+#define HAVE_INLINE_FFS
+
+static __inline int
+ffs(int mask)
+{
+	return (__builtin_ffs(mask));
+}
+
 #endif
 
 extern uint64_t ia64_port_base;

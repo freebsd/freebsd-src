@@ -135,7 +135,6 @@ isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/imgact_elf32.c		optional	ia32
 libkern/bcmp.c			standard
-libkern/ffs.c			standard
 libkern/ia64/__divdi3.S		standard
 libkern/ia64/__divsi3.S		standard
 libkern/ia64/__moddi3.S		standard
