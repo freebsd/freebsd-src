@@ -24,6 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Be shared lib aware */
 #include "solib.h"
+#ifdef FREEBSD_ELF
+#define SVR4_SHARED_LIBS
+#endif
 
 /* This is the amount to subtract from u.u_ar0
    to get the offset in the core file of the register values.  */
@@ -41,6 +44,8 @@ extern int
 i386_register_u_addr PARAMS ((int, int));
 
 #define PTRACE_ARG3_TYPE char*
+
+#ifndef FREEBSD_ELF
 
 /* make structure definitions match up with those expected in solib.c */
 #define link_object	sod
@@ -94,6 +99,8 @@ i386_register_u_addr PARAMS ((int, int));
 #define ldd		d_debug
 #define ld_un		d_un
 #define ld_2		d_sdt
+
+#endif
 
 /* Return sizeof user struct to callers in less machine dependent routines */
 
