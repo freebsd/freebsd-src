@@ -2283,7 +2283,8 @@ maskloop:
 	 */
 	if (nat) {
 		np = nat->nat_ptr;
-		if (natadd && fin->fin_fi.fi_fl & FI_FRAG)
+		if (natadd && (fin->fin_fi.fi_fl & FI_FRAG) &&
+		    np && (np->in_flags & IPN_FRAG))
 			ipfr_nat_newfrag(ip, fin, 0, nat);
 		MUTEX_ENTER(&nat->nat_lock);
 		nat->nat_age = fr_defnatage;
@@ -2488,7 +2489,8 @@ maskloop:
 	if (nat) {
 		np = nat->nat_ptr;
 		fin->fin_fr = nat->nat_fr;
-		if (natadd && fin->fin_fi.fi_fl & FI_FRAG)
+		if (natadd && (fin->fin_fi.fi_fl & FI_FRAG) &&
+		    np && (np->in_flags & IPN_FRAG))
 			ipfr_nat_newfrag(ip, fin, 0, nat);
 		if ((np->in_apr != NULL) && (np->in_dport == 0 ||
 		    (tcp != NULL && sport == np->in_dport))) {
