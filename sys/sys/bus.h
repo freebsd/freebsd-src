@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.1 1998/06/10 10:57:21 dfr Exp $
+ *	$Id: bus.h,v 1.2 1998/06/14 13:46:09 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -83,16 +83,6 @@ extern devclass_t root_devclass;
 void root_bus_configure(void);
 
 /*
- * Access functions for busses.
- */
-device_t device_add_child(device_t dev, const char *name,
-			  int unit, void *ivars);
-device_t device_add_child_after(device_t dev, device_t place, const char *name,
-				int unit, void *ivars);
-int device_delete_child(device_t dev, device_t child);
-device_t device_find_child(device_t dev, const char *classname, int unit);
-
-/*
  * Useful functions for implementing busses.
  */
 int bus_generic_attach(device_t dev);
@@ -107,6 +97,12 @@ int bus_generic_map_intr(device_t dev, device_t child, driver_intr_t *intr, void
  * Access functions for device.
  */
 device_t device_get_parent(device_t dev);
+device_t device_add_child(device_t dev, const char *name,
+			  int unit, void *ivars);
+device_t device_add_child_after(device_t dev, device_t place, const char *name,
+				int unit, void *ivars);
+device_t device_find_child(device_t dev, const char *classname, int unit);
+int device_delete_child(device_t dev, device_t child);
 driver_t *device_get_driver(device_t dev);
 devclass_t device_get_devclass(device_t dev);
 int device_set_devclass(device_t dev, const char *classname);
