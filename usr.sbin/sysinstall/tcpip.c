@@ -575,10 +575,12 @@ netconfig:
 			ipaddr, extras, netmask);
 	    variable_set2(ifn, temp, 1);
 	}
+#ifdef PCCARD_ARCH
 	pccard = variable_get("_pccard_install");
 	if (pccard && strcmp(pccard, "YES") == 0 && ipv4_enable) {
 	    variable_set2("pccard_ifconfig", temp, 1);
 	}
+#endif
 	if (use_rtsol)
 	    variable_set2(VAR_IPV6_ENABLE, "YES", 1);
 	if (!use_dhcp)
