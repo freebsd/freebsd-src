@@ -178,6 +178,9 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 	case 0x70061022:
 		s = "AMD-751 host to PCI bridge";
 		break;
+	case 0x700e1022:
+		s = "AMD-761 host to PCI bridge";
+		break;
 
 		/* SiS -- vendor 0x1039 */
 	case 0x04961039:
