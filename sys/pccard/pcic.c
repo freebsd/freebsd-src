@@ -761,16 +761,16 @@ pcic_reset(void *chan)
 	    case 1: /* Assert reset */
 		clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slt->insert_seq = 2;
-		timeout(pcic_reset, (void *)slt, hz/4);
+		timeout(cinfo.reset, (void *)slt, hz/4);
 		return;
 	    case 2: /* Deassert it again */
 		setb(sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
 		slt->insert_seq = 3;
-		timeout(pcic_reset, (void *)slt, hz/4);
+		timeout(cinfo.reset, (void *)slt, hz/4);
 		return;
 	    case 3: /* Wait if card needs more time */
 		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
-			timeout(pcic_reset, (void *)slt, hz/10);
+			timeout(cinfo.reset, (void *)slt, hz/10);
 			return;
 		}
 	}
@@ -852,7 +852,7 @@ pcicintr(void *arg)
 						pccard_event(sp->slt,
 						    card_inserted);
 					} else {
-						pcic_disable(sp->slt);
+						cinfo.disable(sp->slt);
 						pccard_event(sp->slt,
 						    card_removed);
 					}
@@ -1129,7 +1129,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		ip->flags |= IODF_ACTIVE;
 		ip->start = rman_get_start(r);
 		ip->size = rman_get_end(r) - rman_get_start(r) + 1;
-		err = pcic_io(devi->slt, rid);
+		err = cinfo.mapio(devi->slt, rid);
 		if (err)
 			return err;
 		break;
@@ -1149,7 +1149,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		mp->flags |= MDF_ACTIVE;
 		mp->start = (caddr_t) rman_get_start(r);
 		mp->size = rman_get_end(r) - rman_get_start(r) + 1;
-		err = pcic_memory(devi->slt, rid);
+		err = cinfo.mapmem(devi->slt, rid);
 		if (err)
 			return err;
 		break;
@@ -1172,7 +1172,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_IOPORT: {
 		struct io_desc *ip = &devi->slt->io[rid];
 		ip->flags &= ~IODF_ACTIVE;
-		err = pcic_io(devi->slt, rid);
+		err = cinfo.mapio(devi->slt, rid);
 		if (err) {
 			return err;
 		}
@@ -1183,7 +1183,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_MEMORY: {
 		struct mem_desc *mp = &devi->slt->mem[rid];
 		mp->flags &= ~(MDF_ACTIVE | MDF_ATTR);
-		err = pcic_memory(devi->slt, rid);
+		err = cinfo.mapmem(devi->slt, rid);
 		if (err) {
 			return err;
 		}
@@ -1212,7 +1212,7 @@ pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
 	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg,
 	    cookiep);
 	if (err == 0)
-		pcic_mapirq(devi->slt, rman_get_start(irq));
+		cinfo.mapirq(devi->slt, rman_get_start(irq));
 	else
 		device_printf(dev, "Error %d irq %ld\n", err,
 		    rman_get_start(irq));
@@ -1225,7 +1225,7 @@ pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 
-	pcic_mapirq(devi->slt, 0);
+	cinfo.mapirq(devi->slt, 0);
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
@@ -1250,7 +1250,7 @@ pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
 			mp->flags &= ~MDF_16BITS;
 			break;
 		}
-		err = pcic_memory(devi->slt, rid);
+		err = cinfo.mapmem(devi->slt, rid);
 		break;
 	}
 	default:
@@ -1296,7 +1296,7 @@ pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset,
 	mp->card = offset;
 	if (deltap)
 		*deltap = 0;			/* XXX BAD XXX */
-	return (pcic_memory(devi->slt, rid));
+	return (cinfo.mapmem(devi->slt, rid));
 }
 
 static int
