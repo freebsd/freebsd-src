@@ -193,34 +193,29 @@ static struct {
 		return (0);						\
 	}
 
-static void	filemode __P((void));
-static int	getfiles __P((char **, int *));
-static struct mount *
-	getmnt __P((struct mount *));
-static struct e_vnode *
-	kinfo_vnodes __P((int *));
-static struct e_vnode *
-	loadvnodes __P((int *));
-static void	mount_print __P((struct mount *));
-static void	nfs_header __P((void));
-static int	nfs_print __P((struct vnode *));
-static void	swapmode __P((void));
-static void	ttymode __P((void));
-static void	ttyprt __P((struct tty *, int));
-static void	ttytype __P((struct tty *, char *, int, int, int));
-static void	ufs_header __P((void));
-static int	ufs_print __P((struct vnode *));
-static void	union_header __P((void));
-static int	union_print __P((struct vnode *));
-static void	usage __P((void));
-static void	vnode_header __P((void));
-static void	vnode_print __P((struct vnode *, struct vnode *));
-static void	vnodemode __P((void));
+static void	filemode(void);
+static int	getfiles(char **, int *);
+static struct mount *getmnt(struct mount *);
+static struct e_vnode *kinfo_vnodes(int *);
+static struct e_vnode *loadvnodes(int *);
+static void	mount_print(struct mount *);
+static void	nfs_header(void);
+static int	nfs_print(struct vnode *);
+static void	swapmode(void);
+static void	ttymode(void);
+static void	ttyprt(struct tty *, int);
+static void	ttytype(struct tty *, char *, int, int, int);
+static void	ufs_header(void);
+static int	ufs_print(struct vnode *);
+static void	union_header(void);
+static int	union_print(struct vnode *);
+static void	usage(void);
+static void	vnode_header(void);
+static void	vnode_print(struct vnode *, struct vnode *);
+static void	vnodemode(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, i, quit, ret;
 	int fileflag, ttyflag, vnodeflag;
@@ -317,7 +312,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: %s\n", usagestr);
 	exit (1);
@@ -329,7 +324,7 @@ struct e_vnode {
 };
 
 static void
-vnodemode()
+vnodemode(void)
 {
 	struct e_vnode *e_vnodebase, *endvnode, *evp;
 	struct vnode *vp;
@@ -379,15 +374,13 @@ vnodemode()
 }
 
 static void
-vnode_header()
+vnode_header(void)
 {
 	(void)printf("ADDR     TYP VFLAG  USE HOLD");
 }
 
 static void
-vnode_print(avnode, vp)
-	struct vnode *avnode;
-	struct vnode *vp;
+vnode_print(struct vnode *avnode, struct vnode *vp)
 {
 	char *type, flags[16];
 	char *fp = flags;
@@ -463,14 +456,13 @@ vnode_print(avnode, vp)
 }
 
 static void
-ufs_header()
+ufs_header(void)
 {
 	(void)printf(" FILEID IFLAG RDEV|SZ");
 }
 
 static int
-ufs_print(vp)
-	struct vnode *vp;
+ufs_print(struct vnode *vp)
 {
 	int flag;
 	struct inode inode, *ip = &inode;
@@ -512,14 +504,13 @@ ufs_print(vp)
 }
 
 static void
-nfs_header()
+nfs_header(void)
 {
 	(void)printf(" FILEID NFLAG RDEV|SZ");
 }
 
 static int
-nfs_print(vp)
-	struct vnode *vp;
+nfs_print(struct vnode *vp)
 {
 	struct nfsnode nfsnode, *np = &nfsnode;
 	char flagbuf[16], *flags = flagbuf;
@@ -562,14 +553,13 @@ nfs_print(vp)
 }
 
 static void
-union_header()
+union_header(void)
 {
 	(void)printf("    UPPER    LOWER");
 }
 
 static int
-union_print(vp)
-	struct vnode *vp;
+union_print(struct vnode *vp)
 {
 	struct union_node unode, *up = &unode;
 
@@ -585,8 +575,7 @@ union_print(vp)
  * read it in and return a usable pointer to it.
  */
 static struct mount *
-getmnt(maddr)
-	struct mount *maddr;
+getmnt(struct mount *maddr)
 {
 	static struct mtab {
 		struct mtab *next;
@@ -608,8 +597,7 @@ getmnt(maddr)
 }
 
 static void
-mount_print(mp)
-	struct mount *mp;
+mount_print(struct mount *mp)
 {
 	int flags;
 
@@ -636,8 +624,7 @@ mount_print(mp)
 }
 
 static struct e_vnode *
-loadvnodes(avnodes)
-	int *avnodes;
+loadvnodes(int *avnodes)
 {
 	int mib[2];
 	size_t copysize;
@@ -668,8 +655,7 @@ loadvnodes(avnodes)
  * simulate what a running kernel does in in kinfo_vnode
  */
 static struct e_vnode *
-kinfo_vnodes(avnodes)
-	int *avnodes;
+kinfo_vnodes(int *avnodes)
 {
 	struct mntlist mountlist;
 	struct mount *mp, mount, *mp_next;
@@ -714,7 +700,7 @@ static const char hdr[] =
 int ttyspace = 128;
 
 static void
-ttymode()
+ttymode(void)
 {
 	struct tty *tty;
 	struct tty ttyb[1000];
@@ -754,10 +740,7 @@ ttymode()
 }
 
 static void
-ttytype(tty, name, type, number, indir)
-	struct tty *tty;
-	char *name;
-	int type, number, indir;
+ttytype(struct tty *tty, char *name, int type, int number, int indir)
 {
 	struct tty *tp;
 	int ntty;
@@ -838,9 +821,7 @@ static struct {
 };
 
 static void
-ttyprt(tp, line)
-	struct tty *tp;
-	int line;
+ttyprt(struct tty *tp, int line)
 {
 	int i, j;
 	pid_t pgid;
@@ -886,7 +867,7 @@ ttyprt(tp, line)
 }
 
 static void
-filemode()
+filemode(void)
 {
 	struct file *fp;
 	struct file *addr;
@@ -940,9 +921,7 @@ filemode()
 }
 
 static int
-getfiles(abuf, alen)
-	char **abuf;
-	int *alen;
+getfiles(char **abuf, int *alen)
 {
 	size_t len;
 	int mib[2];
