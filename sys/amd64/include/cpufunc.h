@@ -2,8 +2,11 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id$
+ *	$Id: cpufunc.h,v 1.3 1993/10/16 14:39:08 rgrimes Exp $
  */
+
+#ifndef _MACHINE_CPUFUNC_H_
+#define _MACHINE_CPUFUNC_H_ 1
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -193,3 +196,4 @@ really_void	setidt	__P((int idx, /*XXX*/caddr_t func, int typ, int dpl));
 #undef	really_u_int
 #undef	really_void
 
+#endif /* _MACHINE_CPUFUNC_H_ */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)proc.h	7.1 (Berkeley) 5/15/91
- *	$Id$
+ *	$Id: proc.h,v 1.2 1993/10/16 14:39:24 rgrimes Exp $
  */
+
+#ifndef _MACHINE_PROC_H_
+#define _MACHINE_PROC_H_ 1
 
 /*
  * Machine-dependent part of the proc structure for hp300.
@@ -46,3 +49,4 @@ struct mdproc {
 
 /* md_flags */
 #define	MDP_AST		0x0001	/* async trap pending */
+#endif /* _MACHINE_PROC_H_ */
