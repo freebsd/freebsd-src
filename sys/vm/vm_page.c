@@ -988,32 +988,6 @@ vm_wait(void)
 }
 
 /*
- *	vm_await:	(also see VM_AWAIT macro)
- *
- *	asleep on an event that will signal when free pages are available
- *	for allocation.
- */
-
-void
-vm_await(void)
-{
-	int s;
-
-	s = splvm();
-	if (curproc == pageproc) {
-		vm_pageout_pages_needed = 1;
-		asleep(&vm_pageout_pages_needed, PSWP, "vmwait", 0);
-	} else {
-		if (!vm_pages_needed) {
-			vm_pages_needed++;
-			wakeup(&vm_pages_needed);
-		}
-		asleep(&cnt.v_free_count, PVM, "vmwait", 0);
-	}
-	splx(s);
-}
-
-/*
  *	vm_page_activate:
  *
  *	Put the specified page on the active list (if appropriate).

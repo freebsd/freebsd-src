@@ -100,9 +100,7 @@ extern int vm_pageout_deficit;
 
 extern void pagedaemon_wakeup __P((void));
 #define VM_WAIT vm_wait()
-#define VM_AWAIT vm_await()
 extern void vm_wait __P((void));
-extern void vm_await __P((void));
 
 #ifdef _KERNEL
 void vm_pageout_page __P((vm_page_t, vm_object_t));

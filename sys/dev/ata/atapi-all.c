@@ -199,10 +199,6 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
 
     s = splbio();
 
-    /* if not using callbacks, prepare to sleep for this request */
-    if (!callback)
-	asleep((caddr_t)request, PRIBIO, "atprq", 0);
-
     /* append onto controller queue and try to start controller */
 #ifdef ATAPI_DEBUG
     ata_printf(atp->controller, atp->unit, "queueing %s ", 
@@ -222,7 +218,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
     }
 
     /* wait for request to complete */
-    await(PRIBIO, 0);
+    tsleep((caddr_t)request, PRIBIO, "atprq", 0);
     splx(s);
     error = request->error;
     if (error)
