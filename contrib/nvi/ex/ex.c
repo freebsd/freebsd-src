@@ -7,6 +7,8 @@
  * See the LICENSE file for redistribution information.
  */
 
+/* $FreeBSD$ */
+
 #include "config.h"
 
 #ifndef lint
@@ -2307,7 +2309,7 @@ ex_badaddr(sp, cp, ba, nret)
 	 * underlying file, that's the real problem.
 	 */
 	if (sp->ep == NULL) {
-		ex_emsg(sp, cp->name, EXM_NOFILEYET);
+		ex_emsg(sp, cp ? cp->name : NULL, EXM_NOFILEYET);
 		return;
 	}
 
