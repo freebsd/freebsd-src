@@ -441,7 +441,11 @@ Collapse_Disk(struct disk *d)
 }
 #endif
 
+#ifdef PC98
+static char * device_list[] = {"wd", "ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "fd", 0};
+#else
 static char * device_list[] = {"ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "fd", 0};
+#endif
 
 char **
 Disk_Names()
