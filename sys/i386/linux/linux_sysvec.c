@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.43 1999/01/06 23:05:38 julian Exp $
+ *  $Id: linux_sysvec.c,v 1.44 1999/01/17 20:36:14 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -471,8 +471,16 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
 		    ++brandinfo)
-			if (elf_remove_brand_entry(*brandinfo) < 0)
-				error = EINVAL;
+			if (elf_brand_inuse(*brandinfo)) {
+				error = EBUSY;
+			}
+
+		if (error == 0) {
+			for (brandinfo = &linux_brandlist[0];
+			    *brandinfo != NULL; ++brandinfo)
+				if (elf_remove_brand_entry(*brandinfo) < 0)
+					error = EINVAL;
+		}
 		if (error)
 			printf("Could not deinstall ELF interpreter entry\n");
 		else if (bootverbose)
