@@ -62,8 +62,7 @@ idle_setup(void *dummy)
 
 		p->p_flag |= P_NOLOAD;
 		td = FIRST_THREAD_IN_PROC(p);
-		td->td_state = TDS_RUNQ;	
-		td->td_kse->ke_state = KES_ONRUNQ;	
+		td->td_state = TDS_UNQUEUED;	
 		td->td_kse->ke_flags |= KEF_IDLEKSE; 
 #ifdef SMP
 	}
@@ -84,8 +83,6 @@ idle_proc(void *dummy)
 
 	td = curthread;
 	p = td->td_proc;
-	td->td_state = TDS_RUNNING; 
-	td->td_kse->ke_state = KES_RUNNING;
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
@@ -115,7 +112,6 @@ idle_proc(void *dummy)
 		mtx_lock_spin(&sched_lock);
 		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
-		td->td_kse->ke_state = KES_RUNNING;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
