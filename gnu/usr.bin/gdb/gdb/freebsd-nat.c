@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.3 1994/05/18 12:43:13 pk Exp $
+	$Id: freebsd-nat.c,v 1.2 1994/12/30 23:25:44 jkh Exp $
 */
 
 #include <sys/types.h>
@@ -30,13 +30,14 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 #include "defs.h"
 
-/* this table must line up with REGISTER_NAMES in tm-i386.h */
+/* this table must line up with REGISTER_NAMES in tm-i386v.h */
 /* symbols like 'tEAX' come from <machine/reg.h> */
 static int tregmap[] = 
 {
   tEAX, tECX, tEDX, tEBX,
   tESP, tEBP, tESI, tEDI,
-  tEIP, tEFLAGS, tCS, tSS
+  tEIP, tEFLAGS, tCS, tSS,
+  tDS, tES, tSS, tSS,		/* lies: no fs or gs */
 };
 
 /* blockend is the value of u.u_ar0, and points to the
@@ -85,6 +86,7 @@ i387_to_double (from, to)
   asm ("popl %eax");		/* flush saved copy */
 }
 
+#if 0
 static void
 double_to_i387 (from, to)
      char *from;
@@ -101,6 +103,7 @@ double_to_i387 (from, to)
   asm ("fstpt (%eax)");
   asm ("fwait");
 }
+#endif
 
 struct env387 
 {
@@ -119,7 +122,7 @@ struct env387
   unsigned char regs[8][10];
 };
 
-void
+/* static */ void
 print_387_control_word (control)
 unsigned int control;
 {
@@ -156,7 +159,7 @@ unsigned int control;
 				control & 0xe080);
 }
 
-void
+/* static */ void
 print_387_status_word (status)
      unsigned int status;
 {
@@ -209,7 +212,6 @@ print_387_status (status, ep)
     }
   
   print_387_control_word ((unsigned int)ep->control);
-  printf ("last exception: ");
   printf ("opcode 0x%x; ", ep->opcode);
   printf ("pc 0x%x:0x%x; ", ep->code_seg, ep->eip);
   printf ("operand 0x%x:0x%x\n", ep->operand_seg, ep->operand);
@@ -223,9 +225,9 @@ print_387_status (status, ep)
       double val;
       
       /* The physical regno `fpreg' is only relevant as an index into the
-       * tag word.  Logical `%st' numbers are required for indexing `p->regs.
+       * tag word.  Logical `%st' numbers are required for indexing ep->regs.
        */
-      st_regno = (fpreg + 8 - top) & 0x7;
+      st_regno = (fpreg + 8 - top) & 7;
 
       printf ("%%st(%d) %s ", st_regno, fpreg == top ? "=>" : "  ");
       
@@ -279,10 +281,10 @@ i386_float_info ()
     } 
   else 
     {
-		 printf("float info: can't do a core file (yet)\n");
-		 
-		 return;
-#if 0
+#if 1
+       printf("float info: can't do a core file (yet)\n");
+       return;
+#else
       if (lseek (corechan, uaddr, 0) < 0)
 	perror_with_name ("seek on core file");
       if (myread (corechan, buf, sizeof (struct fpstate)) < 0) 
@@ -291,13 +293,8 @@ i386_float_info ()
 #endif
     }
   
-  print_387_status (0, (struct env387 *)buf);
-}
-
-void
-clear_regs()
-{
-	return;
+  fpstatep = (struct fpstate *)(buf + skip);
+  print_387_status (fpstatep->sv_ex_sw, (struct env387 *)fpstatep);
 }
 
 #ifdef KERNEL_DEBUG
