@@ -35,7 +35,7 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.1 931021
- *	$Id: syscons.c,v 1.21 1993/12/18 22:50:51 ache Exp $
+ *	$Id: syscons.c,v 1.22 1993/12/21 02:49:13 rich Exp $
  *
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
@@ -353,7 +353,7 @@ int pcattach(struct isa_device *dev)
 		if (i > 0) {
 			scp->crt_base = scp->crtat = scp->scr;
 			fillw(scp->term.attr|scr_map[0x20],
-			      (caddr_t)scp->scr, COL*ROW);
+			      scp->scr, COL*ROW);
 		}
 	}
 	/* get cursor going */
@@ -1165,7 +1165,7 @@ static void scrn_saver(int test)
 			bcopy(Crtat, scp->scr, 
 			      scp->max_posx * scp->max_posy * 2);
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
-			      (caddr_t)Crtat, scp->max_posx * scp->max_posy);
+			      Crtat, scp->max_posx * scp->max_posy);
 			set_border(0);
 			i = scp->max_posy * scp->max_posx + 5;
 			outb(crtc_addr, 14);
@@ -1216,7 +1216,7 @@ static void scrn_saver(int test)
 			bcopy(Crtat, scp->scr, 
 			      scp->max_posx * scp->max_posy * 2);
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
-			      (caddr_t)Crtat, scp->max_posx * scp->max_posy);
+			      Crtat, scp->max_posx * scp->max_posy);
 			set_border(0);
 			dirx = (scp->posx ? 1 : -1);
 			diry = (scp->posy ? 
@@ -1305,7 +1305,7 @@ int cursor_pos(void)
 static void clear_screen(scr_stat *scp)
 {
 	move_crsr(scp, 0, 0);
-	fillw(scp->term.attr | scr_map[0x20], (caddr_t)scp->crt_base,
+	fillw(scp->term.attr | scr_map[0x20], scp->crt_base,
 	       scp->max_posx * scp->max_posy);
 }
 
@@ -1430,7 +1430,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 					scp->crt_base + scp->max_posx,
 					(scp->max_posy - 1) * scp->max_posx);
 				fillw(scp->term.attr | scr_map[0x20], 
-				      (caddr_t)scp->crt_base, scp->max_posx);
+				      scp->crt_base, scp->max_posx);
 			}
 			break;
 #if notyet
@@ -1519,13 +1519,13 @@ static void scan_esc(scr_stat *scp, u_char c)
 			switch (n) {
 			case 0: /* clear form cursor to end of display */
 				fillw(scp->term.attr | scr_map[0x20],
-				      (caddr_t)scp->crtat, scp->crt_base + 
+				      scp->crtat, scp->crt_base + 
 				      scp->max_posx * scp->max_posy - 
 				      scp->crtat);
 				break;
 			case 1: /* clear from beginning of display to cursor */
 				fillw(scp->term.attr | scr_map[0x20],
-				      (caddr_t)scp->crt_base, 
+				      scp->crt_base, 
 				      scp->crtat - scp->crt_base);
 				break;
 			case 2: /* clear entire display */
@@ -1542,19 +1542,16 @@ static void scan_esc(scr_stat *scp, u_char c)
 			switch (n) {
 			case 0: /* clear form cursor to end of line */
 				fillw(scp->term.attr | scr_map[0x20],
-				      (caddr_t)scp->crtat,
-				      scp->max_posx - scp->posx);
+				      scp->crtat, scp->max_posx - scp->posx);
 				break;
 			case 1: /* clear from beginning of line to cursor */
-				fillw(scp->term.attr|scr_map[0x20], 
-				      (caddr_t)scp->crtat
-				      - (scp->max_posx - scp->posx),
+				fillw(scp->term.attr|scr_map[0x20],
+				      scp->crtat - (scp->max_posx - scp->posx),
 				      (scp->max_posx - scp->posx) + 1);
 				break;
 			case 2: /* clear entire line */
 				fillw(scp->term.attr|scr_map[0x20], 
-				      (caddr_t)scp->crtat
-				      - (scp->max_posx - scp->posx),
+				      scp->crtat - (scp->max_posx - scp->posx),
 				      scp->max_posx);
 				break;
 			}
@@ -1568,7 +1565,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 			dst = src + n * scp->max_posx;
 			count = scp->max_posy - (scp->posy + n);
 			move_up(src, dst, count * scp->max_posx);
-			fillw(scp->term.attr | scr_map[0x20], (caddr_t)src,
+			fillw(scp->term.attr | scr_map[0x20], src,
 			      n * scp->max_posx);
 			break;
 
@@ -1581,7 +1578,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 			count = scp->max_posy - (scp->posy + n);
 			move_down(src, dst, count * scp->max_posx);
 			src = dst + count * scp->max_posx;
-			fillw(scp->term.attr | scr_map[0x20], (caddr_t)src,
+			fillw(scp->term.attr | scr_map[0x20], src,
 			      n * scp->max_posx);
 			break;
 
@@ -1594,7 +1591,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 			count = scp->max_posx - (scp->posx + n);
 			move_down(src, dst, count);
 			src = dst + count;
-			fillw(scp->term.attr | scr_map[0x20], (caddr_t)src, n);
+			fillw(scp->term.attr | scr_map[0x20], src, n);
 			break;
 
 		case '@':	/* Insert n chars */
@@ -1605,7 +1602,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 			dst = src + n;
 			count = scp->max_posx - (scp->posx + n);
 			move_up(src, dst, count);
-			fillw(scp->term.attr | scr_map[0x20], (caddr_t)src, n);
+			fillw(scp->term.attr | scr_map[0x20], src, n);
 			break;
 
 		case 'S':	/* scroll up n lines */
@@ -1615,7 +1612,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 			      scp->max_posx * (scp->max_posy - n) * 
 			      sizeof(u_short));
 			fillw(scp->term.attr | scr_map[0x20],
-			      (caddr_t)scp->crt_base + scp->max_posx * 
+			      scp->crt_base + scp->max_posx * 
 			      (scp->max_posy - 1), 
 			      scp->max_posx);
 			break;
@@ -1627,13 +1624,13 @@ static void scan_esc(scr_stat *scp, u_char c)
 			      scp->max_posx * (scp->max_posy - n) * 
 			      sizeof(u_short));
 			fillw(scp->term.attr | scr_map[0x20],
-			      (caddr_t)scp->crt_base, scp->max_posx);
+			      scp->crt_base, scp->max_posx);
 			break;
 
 		case 'X':	/* delete n characters in line */
 			n = scp->term.par[0]; if (n < 1)  n = 1;
 			fillw(scp->term.attr | scr_map[0x20], 
-                              (caddr_t)scp->crt_base + scp->posx + 
+                              scp->crt_base + scp->posx + 
 			      ((scp->max_posx*scp->posy) * sizeof(u_short)), n);
 			break;
 
@@ -1892,7 +1889,7 @@ static void ansi_put(scr_stat *scp, u_char c)
 		bcopy(scp->crt_base + scp->max_posx, scp->crt_base,
 			scp->max_posx * (scp->max_posy - 1) * sizeof(u_short));
 		fillw(scp->term.attr | scr_map[0x20],
-		      (caddr_t)scp->crt_base + scp->max_posx
+		      scp->crt_base + scp->max_posx
 		      * (scp->max_posy - 1), scp->max_posx);
 		scp->crtat -= scp->max_posx;
 		scp->posy--;
