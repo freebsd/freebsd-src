@@ -902,7 +902,7 @@ u_long	udp_recvspace = 40 * (1024 +
 #endif
 				      );
 SYSCTL_INT(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
-    &udp_recvspace, 0, "Maximum incoming UDP datagram size");
+    &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
 static int
 udp_abort(struct socket *so)
