@@ -483,6 +483,13 @@ or
 .Dv F_SETLKW ,
 and satisfying the lock or unlock request would result in the
 number of locked regions in the system exceeding a system-imposed limit.
+.It Bq Er EPERM
+.Fa Cmd    
+is 
+.Dv F_SETOWN
+and 
+the process ID or process group given as an argument is in a
+different session than the caller.
 .It Bq Er ESRCH
 .Fa Cmd
 is
