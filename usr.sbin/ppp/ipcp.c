@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.45 1997/12/24 09:29:02 brian Exp $
+ * $Id: ipcp.c,v 1.46 1997/12/27 13:45:50 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -55,6 +55,7 @@
 #include "ip.h"
 #include "throughput.h"
 #include "route.h"
+#include "filter.h"
 
 #ifndef NOMSEXT
 struct in_addr ns_entries[2];
@@ -630,4 +631,40 @@ void
 IpcpInput(struct mbuf * bp)
 {
   FsmInput(&IpcpFsm, bp);
+}
+
+int
+UseHisaddr(const char *hisaddr, int setaddr)
+{
+  memset(&DefHisAddress, '\0', sizeof DefHisAddress);
+  iplist_reset(&DefHisChoice);
+  if (strpbrk(hisaddr, ",-")) {
+    iplist_setsrc(&DefHisChoice, hisaddr);
+    if (iplist_isvalid(&DefHisChoice)) {
+      iplist_setrandpos(&DefHisChoice);
+      IpcpInfo.his_ipaddr = ChooseHisAddr(IpcpInfo.want_ipaddr);
+      if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
+        LogPrintf(LogWARN, "%s: None available !\n", DefHisChoice.src);
+        return(0);
+      }
+      DefHisAddress.ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr;
+      DefHisAddress.mask.s_addr = 0xffffffff;
+      DefHisAddress.width = 32;
+    } else {
+      LogPrintf(LogWARN, "%s: Invalid range !\n", hisaddr);
+      return 0;
+    }
+  } else if (ParseAddr(1, &hisaddr, &DefHisAddress.ipaddr,
+		       &DefHisAddress.mask, &DefHisAddress.width) != 0) {
+    IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
+
+    if (setaddr && OsSetIpaddress
+	(DefMyAddress.ipaddr, DefHisAddress.ipaddr) < 0) {
+      DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
+      return 0;
+    }
+  } else
+    return 0;
+
+  return 1;
 }
