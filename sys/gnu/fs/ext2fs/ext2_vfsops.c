@@ -141,12 +141,10 @@ ext2_mountroot()
 	u_int size;
 	int error;
 	
-	/*
-	 * Get vnodes for swapdev and rootdev.
-	 */
-	if (bdevvp(swapdev, &swapdev_vp) || bdevvp(rootdev, &rootvp))
-		panic("ext2_mountroot: can't setup bdevvp's");
-
+	if ((error = bdevvp(rootdev, &rootvp))) {
+		printf("ext2_mountroot: can't find rootvp");
+		return (error);
+	}
 	mp = bsd_malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = &ext2fs_vfsops;
