@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.110 1998/10/26 07:05:34 bde Exp $
+ *	$Id: autoconf.c,v 1.111 1999/01/19 00:10:59 peter Exp $
  */
 
 /*
@@ -333,19 +333,9 @@ cpu_rootconf()
 	if (!mountrootfsname) {
 		if (bootverbose)
 			printf("Considering MFS root f/s.\n");
-		if (mfs_getimage()) {
+		if (mfs_getimage())
 			mountrootfsname = "mfs";
-			/*
-			 * Ignore the -a flag if this kernel isn't compiled
-			 * with a generic root/swap configuration: if we skip
-			 * setroot() and we aren't a generic kernel, chaos
-			 * will ensue because setconf() will be a no-op.
-			 * (rootdev is always initialized to NODEV in a
-			 * generic configuration, so we test for that.)
-			 */
-			if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
-				setroot();
-		} else if (bootverbose)
+		else if (bootverbose)
 			printf("No MFS image available as root f/s.\n");
 	}
 #endif
@@ -370,15 +360,9 @@ cpu_rootconf()
 		mountrootfsname = "ufs";
 		if (bootverbose)
 			printf("Considering FFS root f/s.\n");
-		/*
-		 * Ignore the -a flag if this kernel isn't compiled
-		 * with a generic root/swap configuration: if we skip
-		 * setroot() and we aren't a generic kernel, chaos
-		 * will ensue because setconf() will be a no-op.
-		 * (rootdev is always initialized to NODEV in a
-		 * generic configuration, so we test for that.)
-		 */
-		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
+		if (boothowto & RB_ASKNAME)
+			setconf();
+		else
 			setroot();
 	}
 #endif
@@ -386,8 +370,6 @@ cpu_rootconf()
 	if (!mountrootfsname) {
 		panic("Nobody wants to mount my root for me");
 	}
-
-	setconf();
 }
 
 

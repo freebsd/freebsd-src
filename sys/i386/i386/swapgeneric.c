@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.25 1998/10/25 19:26:18 bde Exp $
+ *	$Id: swapgeneric.c,v 1.26 1999/04/14 15:20:03 bde Exp $
  */
 
 #include <sys/param.h>
@@ -60,8 +60,6 @@
 /*
  * Generic configuration;  all in one
  */
-dev_t	rootdev = NODEV;
-dev_t	dumpdev = NODEV;
 
 void gets __P((char *));
 
@@ -99,8 +97,6 @@ void setconf(void)
 	char *cp;
 	int bd, unit;
 
-	if (rootdev != NODEV)
-		return;
 	if (boothowto & RB_ASKNAME) {
 		char name[128];
 retry:
