@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
+#include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <sys/eventhandler.h>
@@ -3054,7 +3055,7 @@ bufwait(register struct buf * bp)
   * Call back function from struct bio back up to struct buf.
   * The corresponding initialization lives in sys/conf.h:DEV_STRATEGY().
   */
-void
+static void
 bufdonebio(struct bio *bp)
 {
 
@@ -3062,6 +3063,21 @@ bufdonebio(struct bio *bp)
 	mtx_lock(&Giant);
 	bufdone(bp->bio_caller2);
 	mtx_unlock(&Giant);
+}
+
+void
+dev_strategy(struct buf *bp)
+{
+
+	if ((!bp->b_iocmd) || (bp->b_iocmd & (bp->b_iocmd - 1)))
+		panic("b_iocmd botch");
+	if (bp->b_flags & B_PHYS)
+		bp->b_io.bio_offset = bp->b_offset;
+	else
+		bp->b_io.bio_offset = dbtob(bp->b_blkno);
+	bp->b_io.bio_done = bufdonebio;
+	bp->b_io.bio_caller2 = bp;
+	(*devsw(bp->b_io.bio_dev)->d_strategy)(&bp->b_io);
 }
 
 /*
