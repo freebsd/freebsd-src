@@ -248,9 +248,7 @@ void acquire_line()
 		sleep (1);	/* Wait for parent to die. */
 
 	/* create PID file */
-	if((pidfile = fopen(pidfilename, "w")) == NULL) {
-		syslog(LOG_NOTICE,"cannot create PID file: %m");
-	} else {
+	if((pidfile = fopen(pidfilename, "w"))) {
 		fprintf(pidfile, "%ld\n", getpid());
 		fclose(pidfile);
 	}
