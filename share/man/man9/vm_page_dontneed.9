@@ -43,7 +43,7 @@ The
 .Fn vm_page_dontneed
 function advises the VM system that the given page is no longer
 required.
-If the page is already in the inactive queue or the cache queue this
+If the page is already in the inactive queue or in the cache queue, this
 function does nothing; otherwise the page is deactivated.
 .Pp
 Note that

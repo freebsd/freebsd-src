@@ -34,41 +34,43 @@
 .Nd "check if the vnode belongs to a mounted filesystem"
 .Sh SYNOPSIS
 .In sys/param.h
-.In sys/vnode.h
+.In sys/mount.h
 .Ft int
 .Fn vfs_mountedon "struct vnode *vp"
 .Sh DESCRIPTION
 .Fn vfs_mountedon
-inspects the mount structure in
+inspects the
+.Vt mount
+structure in
 .Fa vp
 to determine if it points to a valid mount point.
-If the mount is valid the vnode is considered to be busy.
+If the mount is valid, the vnode is considered to be busy.
 .Pp
 A common use of
 .Fn vfs_mountedon
-it to call it on device vnodes to determine if they are already associated with
+is to call it on device vnodes to determine if they are already associated with
 a filesystem.
 This is done to prevent multiple mounts on the same device.
 .Sh RETURN VALUES
-.Dv EBUSY
+.Er EBUSY
 is returned if the vnode has a valid mount point; otherwise, 0 is returned.
 .Sh PSEUDOCODE
 .Bd -literal
-	int
-	ffs_mountfs(devvp, mp, td, malloctype)
-		register struct vnode *devvp;
-		struct mount *mp;
-		struct thread *td;
-		struct malloc_type *malloctype;
-	{
-		...
+int
+ffs_mountfs(devvp, mp, td, malloctype)
+	register struct vnode *devvp;
+	struct mount *mp;
+	struct thread *td;
+	struct malloc_type *malloctype;
+{
+	...
 
-		error = vfs_mountedon(devvp);
-		if (error)  
-			return (error);
+	error = vfs_mountedon(devvp);
+	if (error)
+		return (error);
 
-		...
-	}
+	...
+}
 .Ed
 .Sh AUTHORS
 This man page was written by

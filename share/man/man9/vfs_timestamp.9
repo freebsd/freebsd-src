@@ -34,24 +34,30 @@
 .Nd "generate current timestamp"
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/vnode.h
 .Ft void
-.Fn vfs_timespec "struct timespec *tsp"
+.Fn vfs_timestamp "struct timespec *tsp"
 .Sh DESCRIPTION
 The
-.Fn vfs_timespec
+.Fn vfs_timestamp
 function fills in
 .Fa tsp
 with the current time.
 .Pp
 The precision is based on the value of the
-.Dv vfs.timestamp_precision
+.Va vfs.timestamp_precision
 sysctl variable:
-.Bd -literal
-    0 = seconds only; nanoseconds are zeroed.
-    1 = seconds and nanoseconds, accurate within 1/HZ.
-    2 = seconds and nanoseconds, trucated to microseconds.
-  >=3 = seconds and nanoseconds, maximum precision.
-.Ed
+.Pp
+.Bl -tag -width ".No \(>=3" -compact
+.It 0
+seconds only; nanoseconds are zeroed.
+.It 1
+seconds and nanoseconds, accurate within 1/HZ.
+.It 2
+seconds and nanoseconds, trucated to microseconds.
+.It \(>=3
+seconds and nanoseconds, maximum precision.
+.El
 .Sh AUTHORS
 This man page was written by
 .An Chad David Aq davidc@acns.ab.ca .
