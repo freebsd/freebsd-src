@@ -189,24 +189,6 @@ lance_probe(struct lnc_softc *sc)
 		return (UNKNOWN);
 }
 
-static __inline uint32_t
-lnc_mchash(const uint8_t *ether_addr)
-{
-#define LNC_POLYNOMIAL		0xEDB88320UL
-    uint32_t crc = 0xFFFFFFFF;
-    int idx, bit;
-    uint8_t data;
-
-    for (idx = 0; idx < ETHER_ADDR_LEN; idx++) {
-	for (data = *ether_addr++, bit = 0; bit < MULTICAST_FILTER_LEN; bit++) {
-	    crc = (crc >> 1) ^ (((crc ^ data) & 1) ? LNC_POLYNOMIAL : 0);   
-	    data >>= 1;
-	}
-    }
-    return crc;
-#undef LNC_POLYNOMIAL
-}
-
 void
 lnc_release_resources(device_t dev)
 {
@@ -261,8 +243,8 @@ lnc_setladrf(struct lnc_softc *sc)
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 
-		index = lnc_mchash(
-		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) >> 26;
+		index = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		sc->init_block->ladrf[index >> 3] |= 1 << (index & 7);
 	}
 }

@@ -208,7 +208,6 @@ Static int aue_miibus_writereg(device_ptr_t, int, int, int);
 Static void aue_miibus_statchg(device_ptr_t);
 
 Static void aue_setmulti(struct aue_softc *);
-Static uint32_t aue_mchash(const uint8_t *);
 Static void aue_reset(struct aue_softc *);
 
 Static int aue_csr_read_1(struct aue_softc *, int);
@@ -519,26 +518,7 @@ aue_miibus_statchg(device_ptr_t dev)
 	return;
 }
 
-#define AUE_POLY	0xEDB88320
 #define AUE_BITS	6
-
-Static u_int32_t
-aue_mchash(const uint8_t *addr)
-{
-	uint32_t crc;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1)
-			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? AUE_POLY : 0);
-	}
-
-	return (crc & ((1 << AUE_BITS) - 1));
-}
 
 Static void
 aue_setmulti(struct aue_softc *sc)
@@ -569,7 +549,8 @@ aue_setmulti(struct aue_softc *sc)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = aue_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) & ((1 << AUE_BITS) - 1);
 		AUE_SETBIT(sc, AUE_MAR + (h >> 3), 1 << (h & 0x7));
 	}
 

@@ -122,7 +122,6 @@ static void ste_miibus_statchg	(device_t);
 static int ste_eeprom_wait	(struct ste_softc *);
 static int ste_read_eeprom	(struct ste_softc *, caddr_t, int, int, int);
 static void ste_wait		(struct ste_softc *);
-static u_int8_t ste_calchash	(caddr_t);
 static void ste_setmulti	(struct ste_softc *);
 static int ste_init_rx_list	(struct ste_softc *);
 static void ste_init_tx_list	(struct ste_softc *);
@@ -560,33 +559,6 @@ ste_read_eeprom(sc, dest, off, cnt, swap)
 	return(err ? 1 : 0);
 }
 
-static u_int8_t
-ste_calchash(addr)
-	caddr_t			addr;
-{
-
-	u_int32_t		crc, carry;
-	int			i, j;
-	u_int8_t		c;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
-			crc <<= 1;
-			c >>= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
-
-	/* return the filter bit position */
-	return(crc & 0x0000003F);
-}
-
 static void
 ste_setmulti(sc)
 	struct ste_softc	*sc;
@@ -613,7 +585,8 @@ ste_setmulti(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = ste_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) & 0x3F;
 		if (h < 32)
 			hashes[0] |= (1 << h);
 		else

@@ -1405,7 +1405,6 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	struct ifmultiaddr *inm;
 	struct sockaddr_dl *sdl;
-	u_char *cp;
 	u_int32_t crc;
 	u_int32_t hash[4];
 	u_int32_t macc;
@@ -1459,23 +1458,8 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		sdl = (struct sockaddr_dl *)inm->ifma_addr;
-		cp = LLADDR(sdl);
-		crc = 0xffffffff;
-		for (len = sdl->sdl_alen; --len >= 0;) {
-			int octet = *cp++;
-			int i;
+		crc = ether_crc32_le(sdl, ETHER_ADDR_LEN);
 
-#define MC_POLY_LE	0xedb88320UL	/* mcast crc, little endian */
-			for (i = 0; i < 8; i++) {
-				if ((crc & 1) ^ (octet & 1)) {
-					crc >>= 1;
-					crc ^= MC_POLY_LE;
-				} else {
-					crc >>= 1;
-				}
-				octet >>= 1;
-			}
-		}
 		/* Just want the 6 most significant bits. */
 		crc >>= 26;
 

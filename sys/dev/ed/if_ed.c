@@ -104,8 +104,6 @@ static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, long);
 
 static void	ed_setrcr	(struct ed_softc *);
 
-static uint32_t ds_mchash	(const uint8_t *);
-
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
  */
@@ -3520,30 +3518,6 @@ ed_setrcr(sc)
 }
 
 /*
- * Compute crc for ethernet address
- */
-static uint32_t
-ds_mchash(addr)
-	const uint8_t *addr;
-{
-#define ED_POLYNOMIAL 0x04c11db6
-	register uint32_t crc = 0xffffffff;
-	register int carry, idx, bit;
-	register uint8_t data;
-
-	for (idx = 6; --idx >= 0;) {
-		for (data = *addr++, bit = 8; --bit >= 0; data >>=1 ) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ ED_POLYNOMIAL) | carry;
-		}
-	}
-	return crc;
-#undef POLYNOMIAL
-}
-
-/*
  * Compute the multicast address filter from the
  * list of multicast addresses we need to listen to.
  */
@@ -3562,8 +3536,8 @@ ds_getmcaf(sc, mcaf)
 	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = ds_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))
-			>> 26;
+		index = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		af[index >> 3] |= 1 << (index & 7);
 	}
 }

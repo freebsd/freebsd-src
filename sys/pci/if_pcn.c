@@ -137,7 +137,6 @@ static void pcn_miibus_statchg	(device_t);
 
 static void pcn_setfilt		(struct ifnet *);
 static void pcn_setmulti	(struct pcn_softc *);
-static uint32_t pcn_mchash	(const uint8_t *);
 static void pcn_reset		(struct pcn_softc *);
 static int pcn_list_rx_init	(struct pcn_softc *);
 static int pcn_list_tx_init	(struct pcn_softc *);
@@ -307,27 +306,6 @@ pcn_miibus_statchg(dev)
 	return;
 }
 
-#define DC_POLY		0xEDB88320
-
-static u_int32_t
-pcn_mchash(addr)
-	const uint8_t *addr;
-{
-	uint32_t crc;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1)
-			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? DC_POLY : 0);
-	}
-
-	return ((crc >> 26) & 0x3F);
-}
-
 static void
 pcn_setmulti(sc)
 	struct pcn_softc	*sc;
@@ -356,7 +334,8 @@ pcn_setmulti(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = pcn_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		hashes[h >> 4] |= 1 << (h & 0xF);
 	}
 

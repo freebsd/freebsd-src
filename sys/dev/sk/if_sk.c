@@ -723,8 +723,6 @@ sk_marv_miibus_statchg(sc_if)
 	return;
 }
 
-#define XMAC_POLY		0xEDB88320
-#define GMAC_POLY		0x04C11DB7L
 #define HASH_BITS		6
 
 static u_int32_t
@@ -732,16 +730,9 @@ sk_xmchash(addr)
 	const uint8_t *addr;
 {
 	uint32_t crc;
-	int idx, bit;
-	uint8_t data;
 
 	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1)
-			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? XMAC_POLY : 0);
-	}
+	crc = ether_crc32_le(addr, ETHER_ADDR_LEN);
 
 	return (~crc & ((1 << HASH_BITS) - 1));
 }
@@ -751,21 +742,10 @@ static u_int32_t
 sk_gmchash(addr)
 	const uint8_t *addr;
 {
-	uint32_t crc, carry;
-	int idx, bit;
-	uint8_t data;
+	uint32_t crc;
 
 	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ GMAC_POLY) | carry;
-		}
-	}
+	crc = ether_crc32_be(addr, ETHER_ADDR_LEN);
 
 	return (crc & ((1 << HASH_BITS) - 1));
 }

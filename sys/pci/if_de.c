@@ -1992,31 +1992,10 @@ tulip_mii_writereg(
 #endif
 }
 
-#define	tulip_mchash(mca)	(tulip_crc32(mca, 6) & 0x1FF)
+#define	tulip_mchash(mca)	(ether_crc32_le(mca, 6) & 0x1FF)
 #define	tulip_srom_crcok(databuf)	( \
-    ((tulip_crc32(databuf, 126) & 0xFFFFU) ^ 0xFFFFU) == \
+    ((ether_crc32_le(databuf, 126) & 0xFFFFU) ^ 0xFFFFU) == \
      ((databuf)[126] | ((databuf)[127] << 8)))
-
-static unsigned
-tulip_crc32(
-    const unsigned char *databuf,
-    size_t datalen)
-{
-    u_int idx, crc = 0xFFFFFFFFUL;
-    static const u_int crctab[] = {
-	0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
-	0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
-	0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
-	0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
-    };
-
-    for (idx = 0; idx < datalen; idx++) {
-	crc ^= *databuf++;
-	crc = (crc >> 4) ^ crctab[crc & 0xf];
-	crc = (crc >> 4) ^ crctab[crc & 0xf];
-    }
-    return crc;
-}
 
 static void
 tulip_identify_dec_nic(
