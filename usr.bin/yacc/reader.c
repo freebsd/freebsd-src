@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: reader.c,v 1.6 1997/02/22 19:58:01 peter Exp $
  */
 
 #ifndef lint
@@ -329,6 +329,8 @@ keyword()
 	    return (UNION);
 	if (strcmp(cache, "ident") == 0)
 	    return (IDENT);
+	if (strcmp(cache, "expect") == 0)
+	    return (EXPECT);
     }
     else
     {
@@ -974,6 +976,51 @@ int assoc;
 }
 
 
+/*
+ * %expect requires special handling
+ * as it really isn't part of the yacc
+ * grammar only a flag for yacc proper.
+ */
+static void
+declare_expect(assoc)
+int assoc;
+{
+    register int c;
+
+    if (assoc != EXPECT) ++prec;
+
+    /*
+     * Stay away from nextc - doesn't
+     * detect EOL and will read to EOF.
+     */
+    c = *++cptr;
+    if (c == EOF) unexpected_EOF();
+
+    for(;;)
+    {
+	if (isdigit(c))
+	{
+	    SRexpect = get_number();
+	    break;
+	}
+	/*
+	 * Looking for number before EOL.
+	 * Spaces, tabs, and numbers are ok,
+	 * words, punc., etc. are syntax errors.
+	 */
+	else if (c == '\n' || isalpha(c) || !isspace(c))
+	{
+	    syntax_error(lineno, line, cptr);
+	}
+	else
+	{
+	    c = *++cptr;
+	    if (c == EOF) unexpected_EOF();
+	}
+    }
+}
+
+
 static void
 declare_types()
 {
@@ -1058,6 +1105,10 @@ read_declarations()
 	case RIGHT:
 	case NONASSOC:
 	    declare_tokens(k);
+	    break;
+
+	case EXPECT:
+	    declare_expect(k);
 	    break;
 
 	case TYPE:
