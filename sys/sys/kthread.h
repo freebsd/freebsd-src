@@ -47,4 +47,9 @@ int     kthread_create __P((void (*)(void *), void *, struct proc **,
 	    const char *, ...)) __printflike(4, 5);
 void    kthread_exit __P((int)) __dead2;
 
+int	suspend_kproc __P((struct proc *, int));
+int	resume_kproc __P((struct proc *));
+void	kproc_suspend_loop __P((struct proc *));
+void	shutdown_kproc __P((void *, int));
+
 #endif
