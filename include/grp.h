@@ -43,6 +43,7 @@
 #define	_GRP_H_
 
 #include <sys/cdefs.h>
+#include <machine/ansi.h>
 
 #ifndef _POSIX_SOURCE
 #define	_PATH_GROUP		"/etc/group"
@@ -50,7 +51,7 @@
 
 #ifndef _GID_T_DECLARED
 #define	_GID_T_DECLARED
-typedef	u_int32_t	gid_t;
+typedef	__uint32_t	gid_t;
 #endif
 
 struct group {
