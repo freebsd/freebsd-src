@@ -8,7 +8,9 @@ account
 ..
 /set type=dir uname=root gname=wheel mode=0755
 at
-	past
+	jobs
+	..
+	spool
 	..
 ..
 /set type=dir uname=bin gname=bin mode=0755
