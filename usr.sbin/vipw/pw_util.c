@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: pw_util.c,v 1.9 1997/10/27 07:53:19 charnier Exp $";
+	"$Id: pw_util.c,v 1.5.2.3 1997/11/18 07:17:09 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -205,14 +205,14 @@ pw_edit(notsetuid)
 void
 pw_prompt()
 {
-	int c;
+	int c, first;
 
 	(void)printf("re-edit the password file? [y]: ");
 	(void)fflush(stdout);
-	c = getchar();
-	if (c != EOF && c != '\n')
-		while (getchar() != '\n');
-	if (c == 'n')
+	first = c = getchar();
+	while (c != '\n' && c != EOF)
+		c = getchar();
+	if (first == 'n')
 		pw_error(NULL, 0, 0);
 }
 

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: timed.c,v 1.2.6.3 1997/11/07 07:42:20 charnier Exp $";
 #endif /* not lint */
 
 #define TSPTYPES
@@ -176,7 +176,7 @@ main(argc, argv)
 #endif /* sgi */
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "Mtdn:i:F:G:P:")) !=  -1) {
+	while ((c = getopt(argc, argv, "Mtdn:i:F:G:P:")) != -1) {
 		switch (c) {
 		case 'M':
 			Mflag = 1;

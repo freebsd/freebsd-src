@@ -38,9 +38,8 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: stlstats.c,v 1.2.4.1 1997/11/07 07:24:09 charnier Exp $";
 #endif /* not lint */
-
 
 #include <err.h>
 #include <fcntl.h>
@@ -58,7 +57,7 @@ static const char rcsid[] =
 
 /*****************************************************************************/
 
-char	*version = "0.0.5";
+char	*version = "1.0.0";
 char	*defdevice = "/dev/staliomem0";
 
 char	*ctrldevice;
@@ -501,10 +500,9 @@ void localexit(int nr)
 void main(int argc, char *argv[])
 {
 	struct stat	statinfo;
-	int		optind, c, useport;
+	int		c, useport;
 	char		*portdev;
 
-	optind = 0;
 	ctrldevice = defdevice;
 	useport = 0;
 
