@@ -193,9 +193,8 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 # bootstrap-tools stage
 BMAKEENV=	DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		__MAKE_CONF=${.CURDIR}/tools/build/Makefile.boot \
-		OLD_MAKE_CONF=${__MAKE_CONF} \
-		WORLDTMP=${WORLDTMP}
+		WORLDTMP=${WORLDTMP} \
+		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		BOOTSTRAPPING=${OSRELDATE} \
