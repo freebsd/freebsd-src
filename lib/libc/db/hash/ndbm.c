@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)ndbm.c	8.4 (Berkeley) 7/21/94";
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include <ndbm.h>
 #include "hash.h"
@@ -70,6 +71,11 @@ dbm_open(file, flags, mode)
 	info.cachesize = 0;
 	info.hash = NULL;
 	info.lorder = 0;
+
+	if( strlen(file) >= sizeof(path) - strlen(DBM_SUFFIX)) {
+		errno = ENAMETOOLONG;
+		return(NULL);
+	}
 	(void)strcpy(path, file);
 	(void)strcat(path, DBM_SUFFIX);
 	return ((DBM *)__hash_open(path, flags, mode, &info, 0));
