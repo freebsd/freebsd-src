@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_autofs.c,v 1.2 1998/12/27 06:24:47 ezk Exp $
+ * $Id: ops_autofs.c,v 1.4 1999/01/13 23:31:00 ezk Exp $
  *
  */
 
@@ -356,7 +356,7 @@ autofs_program_1(struct svc_req *rqstp, SVCXPRT *transp)
 		   (SVC_IN_ARG_TYPE) &argument)) {
     plog(XLOG_ERROR,
 	 "AUTOFS xdr decode failed for %d %d %d",
-	 rqstp->rq_prog, rqstp->rq_vers, rqstp->rq_proc);
+	 (int) rqstp->rq_prog, (int) rqstp->rq_vers, (int) rqstp->rq_proc);
     svcerr_decode(transp);
     return;
   }
@@ -433,11 +433,13 @@ autofs_unmount_1_svc(struct umntrequest *ur, struct umntres *result, struct auth
   int err = 0;
 
 #ifdef HAVE_FIELD_UMNTREQUEST_RDEVID
-  plog(XLOG_INFO, "XXX: autofs_unmount_1_svc: %d:%u:%lu:0x%x",
-       ur->isdirect, ur->devid, ur->rdevid, ur->next);
+  plog(XLOG_INFO, "XXX: autofs_unmount_1_svc: %d:%lu:%lu:0x%lx",
+       ur->isdirect, (unsigned long) ur->devid, (unsigned long) ur->rdevid,
+       (unsigned long) ur->next);
 #else /* HAVE_FIELD_UMNTREQUEST_RDEVID */
-  plog(XLOG_INFO, "XXX: autofs_unmount_1_svc: %d:%u:0x%x",
-       ur->isdirect, ur->devid, ur->next);
+  plog(XLOG_INFO, "XXX: autofs_unmount_1_svc: %d:%lu:0x%lx",
+       ur->isdirect, (unsigned long) ur->devid,
+       (unsigned long) ur->next);
 #endif /* HAVE_FIELD_UMNTREQUEST_RDEVID */
 
   err = EINVAL;			/* XXX: not implemented yet */
@@ -614,8 +616,8 @@ autofs_bgmount(struct continuation * cp, int mpe)
 	 * Don't try logging the string from mf, since it may be bad!
 	 */
 	if (cp->fs_opts.opt_fs != mf->mf_fo->opt_fs)
-	  plog(XLOG_ERROR, "use %s instead of 0x%x",
-	       cp->fs_opts.opt_fs, mf->mf_fo->opt_fs);
+	  plog(XLOG_ERROR, "use %s instead of 0x%lx",
+	       cp->fs_opts.opt_fs, (unsigned long) mf->mf_fo->opt_fs);
 
 	mp->am_link = str3cat((char *) 0,
 			      cp->fs_opts.opt_fs, "/", link_dir);
@@ -700,7 +702,7 @@ autofs_bgmount(struct continuation * cp, int mpe)
       int i = atoi(mf->mf_fo->opt_delay);
       if (i > 0 && clocktime() < (cp->start + i)) {
 #ifdef DEBUG
-	dlog("Mount of %s delayed by %ds", mf->mf_mount, i - clocktime() + cp->start);
+	dlog("Mount of %s delayed by %lds", mf->mf_mount, i - clocktime() + cp->start);
 #endif /* DEBUG */
 	this_error = -1;
       }
@@ -998,7 +1000,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
   if (error) {
 #ifdef DEBUG
     errno = error;		/* XXX */
-    dlog("Returning error: %m", error);
+    dlog("Returning error: %m");
 #endif /* DEBUG */
     XFREE(fname);
     ereturn(error);

@@ -5,9 +5,12 @@
 # Package:	am-utils-6.0
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 #
-# chkconfig: 345 72 8
-# description: amd is the Berkeley AutoMount Daemon, used for \
-#              automatic filesystem mounting
+# chkconfig: - 72 28
+# description: Runs the automount daemon that mounts devices and NFS hosts \
+#              on demand.
+# processname: amd
+# config: /etc/amd.conf
+#
 
 # set path
 prefix=@prefix@
@@ -107,6 +110,7 @@ case "$1" in
 		echo "NOT restarting amd!"
 	else
 		echo "Restarting amd..."
+		sleep 1
 		ctl-amd start
 	fi
 	;;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wire.c,v 1.1.1.1 1998/11/05 02:04:45 ezk Exp $
+ * $Id: wire.c,v 1.5 1999/09/08 23:36:52 ezk Exp $
  *
  */
 
@@ -61,6 +61,14 @@
 #include <amu.h>
 
 
+#ifdef HAVE_IFADDRS_H
+#include <ifaddrs.h>
+#endif /* HAVE_IFADDRS_H */
+
+#ifdef HAVE_IRS_H
+# include <irs.h>
+#endif /* HAVE_IRS_H */
+
 /*
  * List of locally connected networks
  */
@@ -78,16 +86,9 @@ static addrlist *localnets = NULL;
 # define IFF_LOOPBACK	IFF_LOCAL_LOOPBACK
 #endif /* defined(IFF_LOCAL_LOOPBACK) && !defined(IFF_LOOPBACK) */
 
-#if defined(HAVE_FIELD_STRUCT_IFREQ_IFR_ADDR) && defined(HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN)
-# define SIZE(ifr)	(MAX((ifr)->ifr_addr.sa_len, sizeof((ifr)->ifr_addr)) + sizeof(ifr->ifr_name))
-#else /* not defined(HAVE_FIELD_STRUCT_IFREQ_IFR_ADDR) && defined(HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN) */
-# define SIZE(ifr)	sizeof(struct ifreq)
-#endif /* not defined(HAVE_FIELD_STRUCT_IFREQ_IFR_ADDR) && defined(HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN) */
-
 #define C(x)		((x) & 0xff)
 #define GFBUFLEN	1024
-#define clist		(ifc.ifc_ifcu.ifcu_req)
-#define count		(ifc.ifc_len/sizeof(struct ifreq))
+#define	S2IN(s)		(((struct sockaddr_in *)(s))->sin_addr.s_addr)
 
 
 /* return malloc'ed buffer.  caller must free it */
@@ -101,7 +102,7 @@ print_wires(void)
   int bufcount = 0;
   int buf_size = 1024;
 
-  buf = malloc(1024);
+  buf = SALLOC(1024);
   if (!buf)
     return NULL;
 
@@ -131,217 +132,109 @@ print_wires(void)
 }
 
 
-void
-getwire(char **name1, char **number1)
+static struct addrlist *
+getwire_lookup(u_long address, u_long netmask, int ishost)
 {
-  struct hostent *hp;
-  struct netent *np;
-  struct ifconf ifc;
-  struct ifreq *ifr;
-  caddr_t cp, cplim;
-  u_long address, netmask, subnet;
-  char buf[GFBUFLEN], *s;
-  int fd = -1;
-  u_long net;
-  u_long mask;
-  u_long subnetshift;
+  struct addrlist *al;
+  u_long subnet;
   char netNumberBuf[64];
-  addrlist *al = NULL, *tail = NULL;
-
-#ifndef SIOCGIFFLAGS
-  /* if cannot get interface flags, return nothing */
-  plog(XLOG_ERROR, "getwire unable to get interface flags");
-  localnets = NULL;
-  return;
-#endif /* not SIOCGIFFLAGS */
+  char buf[GFBUFLEN], *s;
+#ifdef HAVE_IRS_H
+  struct nwent *np;
+#else /* not HAVE_IRS_H */
+  struct netent *np;
+#endif /* not HAVE_IRS_H */
 
   /*
-   * Get suitable socket
+   * Add interface to local network singly linked list
    */
-  if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-    goto out;
+  al = ALLOC(struct addrlist);
+  al->ip_addr = address;
+  al->ip_mask = netmask;
+  al->ip_net_name = NO_SUBNET; /* fill in a bit later */
+  al->ip_net_num = "0.0.0.0"; /* fill in a bit later */
+  al->ip_next = NULL;
 
-  /*
-   * Fill in ifconf details
-   */
-  memset(&buf[0], 0, GFBUFLEN);
-  ifc.ifc_len = sizeof(buf);
-  ifc.ifc_buf = buf;
+  subnet = ntohl(address) & ntohl(netmask);
 
-  /*
-   * Get network interface configurations
-   */
-  if (ioctl(fd, SIOCGIFCONF, (caddr_t) & ifc) < 0)
-    goto out;
+  if (ishost)
+    np = NULL;
+  else {
+#ifdef HAVE_IRS_H
+    u_long mask = ntohl(netmask);
+    static struct irs_acc *irs_gen;
+    static struct irs_nw *irs_nw;
+    u_long net;
+    int maskbits;
+    u_char addr[4];
 
-  /*
-   * Upper bound on array
-   */
-  cplim = buf + ifc.ifc_len;
-
-  /*
-   * This is some magic to cope with both "traditional" and the
-   * new 4.4BSD-style struct sockaddrs.  The new structure has
-   * variable length and a size field to support longer addresses.
-   * AF_LINK is a new definition for 4.4BSD.
-   */
-
-  /*
-   * Scan the list looking for a suitable interface
-   */
-  for (cp = buf; cp < cplim; cp += SIZE(ifr)) {
-    ifr = (struct ifreq *) cp;
-
-    if (ifr->ifr_addr.sa_family != AF_INET)
-      continue;
-    else
-      address = ((struct sockaddr_in *) &ifr->ifr_addr)->sin_addr.s_addr;
-
-    /*
-     * Get interface flags
-     */
-    if (ioctl(fd, SIOCGIFFLAGS, (caddr_t) ifr) < 0)
-      continue;
-
-    /*
-     * If the interface is a loopback, or its not running
-     * then ignore it.
-     */
-#ifdef IFF_LOOPBACK
-    if ((ifr->ifr_flags & IFF_LOOPBACK) != 0)
-      continue;
-#endif /* IFF_LOOPBACK */
-    /*
-     * Fix for 0.0.0.0 loopback on SunOS 3.X which defines IFF_ROUTE
-     * instead of IFF_LOOPBACK.
-     */
-#ifdef IFF_ROUTE
-    if (ifr->ifr_flags == (IFF_UP|IFF_RUNNING))
-      continue;
-#endif /* IFF_ROUTE */
-
-    /* if the interface is not UP or not RUNNING, skip it */
-    if ((ifr->ifr_flags & IFF_RUNNING) == 0 ||
-	(ifr->ifr_flags & IFF_UP) == 0)
-      continue;
-
-    /*
-     * Get the netmask of this interface
-     */
-    if (ioctl(fd, SIOCGIFNETMASK, (caddr_t) ifr) < 0)
-      continue;
-
-    netmask = ((struct sockaddr_in *) &ifr->ifr_addr)->sin_addr.s_addr;
-
-    /*
-     * Add interface to local network singly linked list
-     */
-    al = ALLOC(struct addrlist);
-    al->ip_addr = address;
-    al->ip_mask = netmask;
-    al->ip_net_name = NO_SUBNET; /* fill in a bit later */
-    al->ip_net_num = "0.0.0.0"; /* fill in a bit later */
-    al->ip_next = NULL;
-    /* append to the end of the list */
-    if (!localnets) {
-      localnets = tail = al;
-      tail->ip_next = NULL;
-    } else {
-      tail->ip_next = al;
-      tail = al;
-    }
-
-    /*
-     * Figure out the subnet's network address
-     */
-    subnet = address & netmask;
-
-#ifdef IN_CLASSA
-    subnet = htonl(subnet);
-
-    if (IN_CLASSA(subnet)) {
-      mask = IN_CLASSA_NET;
-      subnetshift = 8;
-    } else if (IN_CLASSB(subnet)) {
-      mask = IN_CLASSB_NET;
-      subnetshift = 8;
-    } else {
-      mask = IN_CLASSC_NET;
-      subnetshift = 4;
-    }
-
-    /*
-     * If there are more bits than the standard mask
-     * would suggest, subnets must be in use.
-     * Guess at the subnet mask, assuming reasonable
-     * width subnet fields.
-     * XXX: Or-in at least 1 byte's worth of 1s to make
-     * sure the top bits remain set.
-     */
-    while (subnet & ~mask)
-      mask = (mask >> subnetshift) | 0xff000000;
-
-    net = subnet & mask;
-    while ((mask & 1) == 0)
-      mask >>= 1, net >>= 1;
-
-    /*
-     * Now get a usable name.
-     * First use the network database,
-     * then the host database,
-     * and finally just make a dotted quad.
-     */
-    np = getnetbyaddr(net, AF_INET);
-
-    /* the network address has been masked off */
-    if ((subnet & 0xffffff) == 0) {
-      sprintf(netNumberBuf, "%lu", C(subnet >> 24));
-    } else if ((subnet & 0xffff) == 0) {
-      sprintf(netNumberBuf, "%lu.%lu",
-	      C(subnet >> 24), C(subnet >> 16));
-    } else if ((subnet & 0xff) == 0) {
-      sprintf(netNumberBuf, "%lu.%lu.%lu",
-	      C(subnet >> 24), C(subnet >> 16),
-	      C(subnet >> 8));
-    } else {
-      sprintf(netNumberBuf, "%lu.%lu.%lu.%lu",
-	      C(subnet >> 24), C(subnet >> 16),
-	      C(subnet >> 8), C(subnet));
-    }
-
-    /* fill in network number (string) */
-    al->ip_net_num = strdup(netNumberBuf);
-
-#else /* not IN_CLASSA */
-    /* This is probably very wrong. */
+    if (irs_gen == NULL)
+      irs_gen = irs_gen_acc("");
+    if (irs_gen && irs_nw == NULL)
+      irs_nw = (*irs_gen->nw_map)(irs_gen);
+    net = ntohl(address) & (mask = ntohl(netmask));
+    addr[0] = (0xFF000000 & net) >> 24;
+    addr[1] = (0x00FF0000 & net) >> 16;
+    addr[2] = (0x0000FF00 & net) >> 8;
+    addr[3] = (0x000000FF & net);
+    for (maskbits = 32; !(mask & 1); mask >>= 1)
+      maskbits--;
+    np = (*irs_nw->byaddr)(irs_nw, addr, maskbits, AF_INET);
+#else /* not HAVE_IRS_H */
     np = getnetbyaddr(subnet, AF_INET);
-#endif /* not IN_CLASSA */
-
-    if (np)
-      s = np->n_name;
-    else {
-      subnet = address & netmask;
-      hp = gethostbyaddr((char *) &subnet, 4, AF_INET);
-      if (hp)
-	s = (char *) hp->h_name;
-      else
-	s = inet_dquad(buf, subnet);
+    /*
+     * Some systems (IRIX 6.4) cannot getnetbyaddr on networks such as
+     * "128.59.16.0".  Instead, they need to look for the short form of
+     * the network, "128.59.16".  So if the first getnetbyaddr failed, we
+     * shift the subnet way from zeros and try again.
+     */
+    if (!np) {
+      u_long short_subnet = subnet;
+      while(short_subnet && (short_subnet & 0x000000ff) == 0)
+	short_subnet >>= 8;
+      np = getnetbyaddr(short_subnet, AF_INET);
+      if (np)
+	plog(XLOG_WARNING, "getnetbyaddr failed on 0x%x, succeeded on 0x%x",
+	     (u_int) subnet, (u_int) short_subnet);
     }
-
-    /* fill in network name (string) */
-    al->ip_net_name = strdup(s);
+#endif /* not HAVE_IRS_H */
   }
 
-out:
-  if (fd >= 0)
-    close(fd);
-  if (localnets) {
-    *name1 = localnets->ip_net_name;
-    *number1 = localnets->ip_net_num;
+  if ((subnet & 0xffffff) == 0) {
+    sprintf(netNumberBuf, "%lu", C(subnet >> 24));
+  } else if ((subnet & 0xffff) == 0) {
+    sprintf(netNumberBuf, "%lu.%lu",
+	C(subnet >> 24), C(subnet >> 16));
+  } else if ((subnet & 0xff) == 0) {
+    sprintf(netNumberBuf, "%lu.%lu.%lu",
+	C(subnet >> 24), C(subnet >> 16),
+	C(subnet >> 8));
   } else {
-    *name1 = NO_SUBNET;
-    *number1 = "0.0.0.0";
+    sprintf(netNumberBuf, "%lu.%lu.%lu.%lu",
+	C(subnet >> 24), C(subnet >> 16),
+	C(subnet >> 8), C(subnet));
   }
+
+  /* fill in network number (string) */
+  al->ip_net_num = strdup(netNumberBuf);
+
+  if (np != NULL)
+    s = np->n_name;
+  else {
+    struct hostent *hp;
+
+    subnet = address & netmask;
+    hp = gethostbyaddr((char *) &subnet, 4, AF_INET);
+    if (hp != NULL)
+      s = (char *) hp->h_name;
+    else
+      s = inet_dquad(buf, subnet);
+  }
+
+  /* fill in network name (string) */
+  al->ip_net_name = strdup(s);
+
+  return (al);
 }
 
 
@@ -402,3 +295,207 @@ is_network_member(const char *net)
 
   return FALSE;
 }
+
+
+#ifdef HAVE_GETIFADDRS
+void
+getwire(char **name1, char **number1)
+{
+  addrlist *al = NULL, *tail = NULL;
+  struct ifaddrs *ifaddrs, *ifap;
+#ifndef HAVE_FIELD_STRUCT_IFADDRS_IFA_NEXT
+  int count = 0, i;
+#endif /* not HAVE_FIELD_STRUCT_IFADDRS_IFA_NEXT */
+
+  ifaddrs = NULL;
+#ifdef HAVE_FIELD_STRUCT_IFADDRS_IFA_NEXT
+  if (getifaddrs(&ifaddrs) < 0)
+    goto out;
+
+  for (ifap = ifaddrs; ifap != NULL; ifap = ifap->ifa_next) {
+#else /* not HAVE_FIELD_STRUCT_IFADDRS_IFA_NEXT */
+  if (getifaddrs(&ifaddrs, &count) < 0)
+    goto out;
+
+  for (i = 0,ifap = ifaddrs; i < count; ifap++, i++) {
+#endif /* HAVE_FIELD_STRUCT_IFADDRS_IFA_NEXT */
+
+    if (!ifap || !ifap->ifa_addr || ifap->ifa_addr->sa_family != AF_INET)
+      continue;
+
+    /*
+     * If the interface is a loopback, or its not running
+     * then ignore it.
+     */
+    if ((ifap->ifa_flags & IFF_LOOPBACK) != 0)
+      continue;
+    if ((ifap->ifa_flags & IFF_RUNNING) == 0)
+      continue;
+
+    if ((ifap->ifa_flags & IFF_POINTOPOINT) == 0)
+      al = getwire_lookup(S2IN(ifap->ifa_addr), S2IN(ifap->ifa_netmask), 0);
+    else
+      al = getwire_lookup(S2IN(ifap->ifa_dstaddr), 0xffffffff, 1);
+
+    /* append to the end of the list */
+    if (!localnets) {
+      localnets = tail = al;
+      tail->ip_next = NULL;
+    } else {
+      tail->ip_next = al;
+      tail = al;
+    }
+  }
+
+out:
+  if (ifaddrs)
+    XFREE(ifaddrs);
+
+  if (localnets) {
+    *name1 = localnets->ip_net_name;
+    *number1 = localnets->ip_net_num;
+  } else {
+    *name1 = NO_SUBNET;
+    *number1 = "0.0.0.0";
+  }
+}
+
+#else /* not HAVE_GETIFADDRS */
+
+#if defined(HAVE_FIELD_STRUCT_IFREQ_IFR_ADDR) && defined(HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN)
+# define SIZE(ifr)	(MAX((ifr)->ifr_addr.sa_len, sizeof((ifr)->ifr_addr)) + sizeof(ifr->ifr_name))
+#else /* not defined(HAVE_FIELD_STRUCT_IFREQ_IFR_ADDR) && defined(HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN) */
+# define SIZE(ifr)	sizeof(struct ifreq)
+#endif /* not defined(HAVE_FIELD_STRUCT_IFREQ_IFR_ADDR) && defined(HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN) */
+
+#define clist		(ifc.ifc_ifcu.ifcu_req)
+#define count		(ifc.ifc_len/sizeof(struct ifreq))
+
+
+void
+getwire(char **name1, char **number1)
+{
+  struct ifconf ifc;
+  struct ifreq *ifr;
+  caddr_t cp, cplim;
+  int fd = -1;
+  u_long address;
+  addrlist *al = NULL, *tail = NULL;
+  char buf[GFBUFLEN];
+#if 0
+  u_long net;
+  u_long mask;
+  u_long subnetshift;
+  char buf[GFBUFLEN], *s;
+#endif
+
+#ifndef SIOCGIFFLAGS
+  /* if cannot get interface flags, return nothing */
+  plog(XLOG_ERROR, "getwire unable to get interface flags");
+  localnets = NULL;
+  return;
+#endif /* not SIOCGIFFLAGS */
+
+  /*
+   * Get suitable socket
+   */
+  if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    goto out;
+
+  /*
+   * Fill in ifconf details
+   */
+  memset(&buf[0], 0, GFBUFLEN);
+  ifc.ifc_len = sizeof(buf);
+  ifc.ifc_buf = buf;
+
+  /*
+   * Get network interface configurations
+   */
+  if (ioctl(fd, SIOCGIFCONF, (caddr_t) & ifc) < 0)
+    goto out;
+
+  /*
+   * Upper bound on array
+   */
+  cplim = buf + ifc.ifc_len;
+
+  /*
+   * This is some magic to cope with both "traditional" and the
+   * new 4.4BSD-style struct sockaddrs.  The new structure has
+   * variable length and a size field to support longer addresses.
+   * AF_LINK is a new definition for 4.4BSD.
+   */
+
+  /*
+   * Scan the list looking for a suitable interface
+   */
+  for (cp = buf; cp < cplim; cp += SIZE(ifr)) {
+    ifr = (struct ifreq *) cp;
+
+    if (ifr->ifr_addr.sa_family != AF_INET)
+      continue;
+
+    address = ((struct sockaddr_in *) &ifr->ifr_addr)->sin_addr.s_addr;
+
+    /*
+     * Get interface flags
+     */
+    if (ioctl(fd, SIOCGIFFLAGS, (caddr_t) ifr) < 0)
+      continue;
+
+    /*
+     * If the interface is a loopback, or its not running
+     * then ignore it.
+     */
+#ifdef IFF_LOOPBACK
+    if ((ifr->ifr_flags & IFF_LOOPBACK) != 0)
+      continue;
+#endif /* IFF_LOOPBACK */
+    /*
+     * Fix for 0.0.0.0 loopback on SunOS 3.X which defines IFF_ROUTE
+     * instead of IFF_LOOPBACK.
+     */
+#ifdef IFF_ROUTE
+    if (ifr->ifr_flags == (IFF_UP|IFF_RUNNING))
+      continue;
+#endif /* IFF_ROUTE */
+
+    /* if the interface is not UP or not RUNNING, skip it */
+    if ((ifr->ifr_flags & IFF_RUNNING) == 0 ||
+	(ifr->ifr_flags & IFF_UP) == 0)
+      continue;
+
+    if ((ifr->ifr_flags & IFF_POINTOPOINT) == 0) {
+      /*
+       * Get the netmask of this interface
+       */
+      if (ioctl(fd, SIOCGIFNETMASK, (caddr_t) ifr) < 0)
+	continue;
+
+      al = getwire_lookup(address, S2IN(&ifr->ifr_addr), 0);
+    } else
+      al = getwire_lookup(address, 0xffffffff, 1);
+
+    /* append to the end of the list */
+    if (!localnets) {
+      localnets = tail = al;
+      tail->ip_next = NULL;
+    } else {
+      tail->ip_next = al;
+      tail = al;
+    }
+  }
+
+out:
+  if (fd >= 0)
+    close(fd);
+  if (localnets) {
+    *name1 = localnets->ip_net_name;
+    *number1 = localnets->ip_net_num;
+  } else {
+    *name1 = NO_SUBNET;
+    *number1 = "0.0.0.0";
+  }
+}
+#endif /* not HAVE_GETIFADDRS */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: transp_sockets.c,v 1.2 1998/11/10 16:23:41 ezk Exp $
+ * $Id: transp_sockets.c,v 1.5 1999/08/22 21:12:31 ezk Exp $
  *
  * Socket specific utilities.
  *      -Erez Zadok <ezk@cs.columbia.edu>
@@ -179,21 +179,6 @@ amu_svc_getcaller(SVCXPRT *xprt)
 
 
 /*
- * Bind NFS to a reserved port.
- */
-static int
-bindnfs_port(int so, u_short *nfs_portp)
-{
-  u_short port;
-  int error = bind_resv_port(so, &port);
-
-  if (error == 0)
-    *nfs_portp = port;
-  return error;
-}
-
-
-/*
  * Create the nfs service for amd
  */
 int
@@ -202,13 +187,17 @@ create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*
 
   *soNFSp = socket(AF_INET, SOCK_DGRAM, 0);
 
-  if (*soNFSp < 0 || bindnfs_port(*soNFSp, nfs_portp) < 0) {
+  if (*soNFSp < 0 || bind_resv_port(*soNFSp, NULL) < 0) {
     plog(XLOG_FATAL, "Can't create privileged nfs port");
     return 1;
   }
   if ((*nfs_xprtp = svcudp_create(*soNFSp)) == NULL) {
     plog(XLOG_FATAL, "cannot create rpc/udp service");
     return 2;
+  }
+  if ((*nfs_portp = (*nfs_xprtp)->xp_port) >= IPPORT_RESERVED) {
+    plog(XLOG_FATAL, "Can't create privileged nfs port");
+    return 1;
   }
   if (!svc_register(*nfs_xprtp, NFS_PROGRAM, NFS_VERSION, dispatch_fxn, 0)) {
     plog(XLOG_FATAL, "unable to register (NFS_PROGRAM, NFS_VERSION, 0)");
@@ -340,10 +329,10 @@ try_again:
   if (clnt == NULL) {
 #ifdef HAVE_CLNT_SPCREATEERROR
     plog(XLOG_INFO, "get_nfs_version NFS(%d,%s) failed for %s :%s",
-	 nfs_version, proto, host, clnt_spcreateerror(""));
+	 (int) nfs_version, proto, host, clnt_spcreateerror(""));
 #else /* not HAVE_CLNT_SPCREATEERROR */
     plog(XLOG_INFO, "get_nfs_version NFS(%d,%s) failed for %s",
-	 nfs_version, proto, host);
+	 (int) nfs_version, proto, host);
 #endif /* not HAVE_CLNT_SPCREATEERROR */
     return 0;
   }
@@ -371,12 +360,12 @@ try_again:
 #endif /* HAVE_FS_NFS3 */
     }
     plog(XLOG_INFO, "get_nfs_version NFS(%d,%s) failed for %s",
- 	 nfs_version, proto, host);
+ 	 (int) nfs_version, proto, host);
     return 0;
   }
 
   plog(XLOG_INFO, "get_nfs_version: returning (%d,%s) on host %s",
-       nfs_version, proto, host);
+       (int) nfs_version, proto, host);
   return nfs_version;
 }
 
