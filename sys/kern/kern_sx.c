@@ -95,8 +95,8 @@ _sx_slock(struct sx *sx, const char *file, int line)
 
 	mtx_lock(&sx->sx_lock);
 	KASSERT(sx->sx_xholder != curproc,
-	    ("%s (%s): trying to get slock while xlock is held\n", __FUNCTION__,
-	    sx->sx_object.lo_name));
+	    ("%s (%s): slock while xlock is held @ %s:%d\n", __FUNCTION__,
+	    sx->sx_object.lo_name, file, line));
 
 	/*
 	 * Loop in case we lose the race for lock acquisition.
@@ -114,6 +114,24 @@ _sx_slock(struct sx *sx, const char *file, int line)
 	WITNESS_LOCK(&sx->sx_object, 0, file, line);
 
 	mtx_unlock(&sx->sx_lock);
+}
+
+int
+_sx_try_slock(struct sx *sx, const char *file, int line)
+{
+
+	mtx_lock(&sx->sx_lock);
+	if (sx->sx_cnt >= 0) {
+		sx->sx_cnt++;
+		LOCK_LOG_TRY("SLOCK", &sx->sx_object, 0, 1, file, line);
+		WITNESS_LOCK(&sx->sx_object, LOP_TRYLOCK, file, line);
+		mtx_unlock(&sx->sx_lock);
+		return (1);
+	} else {
+		LOCK_LOG_TRY("SLOCK", &sx->sx_object, 0, 0, file, line);
+		mtx_unlock(&sx->sx_lock);
+		return (0);
+	}
 }
 
 void
@@ -152,12 +170,32 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	mtx_unlock(&sx->sx_lock);
 }
 
+int
+_sx_try_xlock(struct sx *sx, const char *file, int line)
+{
+
+	mtx_lock(&sx->sx_lock);
+	if (sx->sx_cnt == 0) {
+		sx->sx_cnt--;
+		sx->sx_xholder = curproc;
+		LOCK_LOG_TRY("XLOCK", &sx->sx_object, 0, 1, file, line);
+		WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK, file,
+		    line);
+		mtx_unlock(&sx->sx_lock);
+		return (1);
+	} else {
+		LOCK_LOG_TRY("XLOCK", &sx->sx_object, 0, 0, file, line);
+		mtx_unlock(&sx->sx_lock);
+		return (0);
+	}
+}
+
 void
 _sx_sunlock(struct sx *sx, const char *file, int line)
 {
 
 	mtx_lock(&sx->sx_lock);
-	_SX_ASSERT_SLOCKED(sx);
+	_SX_ASSERT_SLOCKED(sx, file, line);
 
 	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
 
@@ -186,7 +224,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 {
 
 	mtx_lock(&sx->sx_lock);
-	_SX_ASSERT_XLOCKED(sx);
+	_SX_ASSERT_XLOCKED(sx, file, line);
 	MPASS(sx->sx_cnt == -1);
 
 	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
