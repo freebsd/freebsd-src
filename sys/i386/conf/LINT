@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.7 1999/03/14 07:07:01 joerg Exp $
+#	$Id: LINT,v 1.539.2.8 1999/03/29 17:59:38 ken Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -2005,10 +2005,6 @@ device        ukbd0
 device        ulpt0
 # USB hub (kind of mandatory, no other driver is available for the root hub)
 device        uhub0
-# USB communications driver
-device        ucom0
-# USB modem driver
-device        umodem0
 # Human Interface Device (anything with buttons and dials)
 device        hid0
 # Generic USB device driver
