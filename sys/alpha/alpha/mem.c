@@ -203,6 +203,7 @@ kmemphys:
 			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
 			error = uiomove((caddr_t)v, c, uio);
+			continue;
 		}
 
 		if (error)
