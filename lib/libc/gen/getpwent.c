@@ -71,7 +71,7 @@ static struct passwd _pw_copy;
 static DBT empty = { NULL, 0 };
 static DB *_ypcache = (DB *)NULL;
 static int _yp_exclusions = 0;
-static int _yp_enabled;			/* set true when yp enabled */
+static int _yp_enabled = -1;
 static int _pw_stepping_yp;		/* set true when stepping thru map */
 static char _ypnam[YPMAXRECORD];
 #define YP_HAVE_MASTER 2
@@ -80,12 +80,18 @@ static char _ypnam[YPMAXRECORD];
 static int _gotmaster;
 static char *_pw_yp_domain;
 static inline int unwind __P(( char * ));
-static inline void _ypinitdb __P(( void ));
+static void _ypinitdb __P(( void ));
 static int _havemaster __P((char *));
 static int _getyppass __P((struct passwd *, const char *, const char * ));
 static int _nextyppass __P((struct passwd *));
+static inline int lookup __P((const char *));
+static inline void store __P((const char *));
+static inline int ingr __P((const char *, const char*));
+static inline int verf __P((const char *));
+static char * _get_adjunct_pw __P((const char *));
 #endif
-static int __hashpw(), __initdb();
+static int __hashpw(DBT *);
+static int __initdb(void);
 
 struct passwd *
 getpwent()
@@ -115,6 +121,8 @@ tryagain:
 	if(!rv) return (struct passwd *)NULL;
 #ifdef YP
 	if(_pw_passwd.pw_name[0] == '+' || _pw_passwd.pw_name[0] == '-') {
+		if (_yp_enabled == -1)
+			_ypinitdb();
 		bzero((char *)&_ypnam, sizeof(_ypnam));
 		bcopy(_pw_passwd.pw_name, _ypnam,
 			strlen(_pw_passwd.pw_name));
@@ -152,8 +160,12 @@ getpwnam(name)
 	rval = __hashpw(&key);
 
 #ifdef YP
-	if (!rval && _yp_enabled)
-		rval = _getyppass(&_pw_passwd, name, "passwd.byname");
+	if (!rval) {
+		if (_yp_enabled == -1)
+			_ypinitdb();
+		if (_yp_enabled)
+			rval = _getyppass(&_pw_passwd, name, "passwd.byname");
+	}
 #endif
 	/*
 	 * Prevent login attempts when YP is not enabled but YP entries
@@ -185,10 +197,14 @@ getpwuid(uid)
 	rval = __hashpw(&key);
 
 #ifdef YP
-	if (!rval && _yp_enabled) {
-		char ypbuf[16];	/* big enough for 32-bit uids and then some */
-		snprintf(ypbuf, sizeof ypbuf, "%u", (unsigned)uid);
-		rval = _getyppass(&_pw_passwd, ypbuf, "passwd.byuid");
+	if (!rval) {
+		if (_yp_enabled == -1)
+			_ypinitdb();
+		if (_yp_enabled) {
+			char ypbuf[16];	/* big enough for 32-bit uids */
+			snprintf(ypbuf, sizeof ypbuf, "%u", (unsigned)uid);
+			rval = _getyppass(&_pw_passwd, ypbuf, "passwd.byuid");
+		}
 	}
 #endif
 	/*
@@ -248,29 +264,8 @@ __initdb()
 
 	p = (geteuid()) ? _PATH_MP_DB : _PATH_SMP_DB;
 	_pw_db = dbopen(p, O_RDONLY, 0, DB_HASH, NULL);
-	if (_pw_db) {
-#ifdef YP
-		DBT key, data;
-		char buf[] = { _PW_KEYYPENABLED };
-		key.data = buf;
-		key.size = 1;
-		if ((_pw_db->get)(_pw_db, &key, &data, 0)) {
-			_yp_enabled = 0;
-		} else {
-			_yp_enabled = (int)*((char *)data.data) - 2;
-		/* Don't even bother with this if we aren't root. */
-			if (!geteuid()) {
-				if (!_pw_yp_domain)
-					if (yp_get_default_domain(&_pw_yp_domain))
-					return(1);
-				_gotmaster = _havemaster(_pw_yp_domain);
-			} else _gotmaster = YP_HAVE_NONE;
-			if (!_ypcache)
-				_ypinitdb();
-		}
-#endif
+	if (_pw_db)
 		return(1);
-	}
 	if (!warned++)
 		syslog(LOG_ERR, "%s: %m", p);
 	return(0);
@@ -317,29 +312,45 @@ __hashpw(key)
 
 #ifdef YP
 
-/*
- * Create a DB hash database in memory. Bet you didn't know you
- * could do a dbopen() will a NULL filename, did you.
- */
-static inline void _ypinitdb()
+static void
+_ypinitdb()
 {
-	if (_ypcache == (DB *)NULL)
-		_ypcache = dbopen(NULL, O_RDWR, 600, DB_HASH, NULL);
-	return;
+	DBT key, data;
+	char buf[] = { _PW_KEYYPENABLED };
+	key.data = buf;
+	key.size = 1;
+	_yp_enabled = 0;
+	if ((_pw_db->get)(_pw_db, &key, &data, 0) == 0) {
+		_yp_enabled = (int)*((char *)data.data) - 2;
+		/* Don't even bother with this if we aren't root. */
+		if (!geteuid()) {
+			if (!_pw_yp_domain)
+				if (yp_get_default_domain(&_pw_yp_domain))
+					return;
+			_gotmaster = _havemaster(_pw_yp_domain);
+		} else _gotmaster = YP_HAVE_NONE;
+		/*
+		 * Create a DB hash database in memory. Bet you didn't know you
+		 * could do a dbopen() with a NULL filename, did you.
+		 */
+		if (_ypcache == (DB *)NULL)
+			_ypcache = dbopen(NULL, O_RDWR, 600, DB_HASH, NULL);
+	}
 }
 
 /*
  * See if a user is in the blackballed list.
  */
-static inline int lookup(name)
-	char *name;
+static inline int
+lookup(name)
+	const char *name;
 {
 	DBT key;
 
 	if (!_yp_exclusions)
 		return(0);
 
-	key.data = name;
+	key.data = (char *)name;
 	key.size = strlen(name);
 
 	if ((_ypcache->get)(_ypcache, &key, &empty, 0)) {
@@ -352,8 +363,9 @@ static inline int lookup(name)
 /*
  * Store a blackballed user in an in-core hash database.
  */
-static inline void store(key)
-	char *key;
+static inline void
+store(key)
+	const char *key;
 {
 	DBT lkey;
 /*
@@ -363,7 +375,7 @@ static inline void store(key)
 
 	_yp_exclusions = 1;
 
-	lkey.data = key;
+	lkey.data = (char *)key;
 	lkey.size = strlen(key);
 
 	(void)(_ypcache->put)(_ypcache, &lkey, &empty, R_NOOVERWRITE);
@@ -381,7 +393,8 @@ static inline void store(key)
  * we don't consider them when processing other + lines that appear
  * later.
  */
-static inline int unwind(grp)
+static inline int
+unwind(grp)
 	char *grp;
 {
 	char *user, *host, *domain;
@@ -448,8 +461,8 @@ again:
 				rv++;
 			}
 			if (!rv && (gr = getgrnam(grp+2)) != NULL) {
-				while(gr->gr_mem) {
-					store(gr->gr_mem);
+				while(*gr->gr_mem) {
+					store(*gr->gr_mem);
 					gr->gr_mem++;
 				}
 			}
@@ -463,9 +476,10 @@ again:
 /*
  * See if a user is a member of a particular group.
  */
-static inline int ingr(grp, name)
-	char *grp;
-	char *name;
+static inline int
+ingr(grp, name)
+	const char *grp;
+	const char *name;
 {
 	register struct group *gr;
 
@@ -490,8 +504,9 @@ static inline int ingr(grp, name)
  * If no netgroup exists that matches +@netgroup/-@netgroup,
  * try searching regular groups with the same name.
  */
-static inline int verf(name)
-	char *name;
+static inline int
+verf(name)
+	const char *name;
 {
 	DBT key;
 	char bf[sizeof(_pw_keynum) + 1];
@@ -553,8 +568,9 @@ again:
 	return(0);
 }
 
-static char * _get_adjunct_pw(name)
-	char *name;
+static char *
+_get_adjunct_pw(name)
+	const char *name;
 {
 	static char adjunctbuf[YPMAXRECORD+2];
 	int rval;
