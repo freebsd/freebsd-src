@@ -485,6 +485,9 @@
       <para><application>BIND</application> has been updated to
 	8.3.3.</para>
 
+      <para><application>Binutils</application> has been updated to
+	2.12.1 (specifically, a post-release snapshot from 22 June 2002).</para>
+
       <para><application>gcc</application> has been updated to
 	2.95.4.</para>
 
