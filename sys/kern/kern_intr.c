@@ -40,6 +40,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/resourcevar.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
@@ -49,6 +50,11 @@
 #include <machine/stdarg.h>
 
 #include <net/netisr.h>		/* prototype for legacy_setsoftnet */
+
+struct	int_entropy {
+	struct	proc *proc;
+	int	vector;
+};
 
 void	*net_ih;
 void	*vm_ih;
@@ -144,11 +150,8 @@ ithread_update(struct ithd *ithd)
 			entropy++;
 	}
 
-	if (entropy) {
-		printf("Warning, ithread (%d, %s) is an entropy source.\n",
-		    p->p_pid, p->p_comm);
+	if (entropy)
 		ithd->it_flags |= IT_ENTROPY;
-	}
 	else
 		ithd->it_flags &= ~IT_ENTROPY;
 }
@@ -161,6 +164,10 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	struct proc *p;
 	int error;
 	va_list ap;
+
+	/* The only valid flag during creation is IT_SOFT. */
+	if ((flags & ~IT_SOFT) != 0)
+		return (EINVAL);
 
 	ithd = malloc(sizeof(struct ithd), M_ITHREAD, M_WAITOK | M_ZERO);
 	ithd->it_vector = vector;
@@ -268,24 +275,23 @@ ithread_remove_handler(void *cookie)
 	struct ithd *ithread;
 #ifdef INVARIANTS
 	struct intrhand *ih;
-	int found;
 #endif
 
-	if (handler == NULL || (ithread = handler->ih_ithread) == NULL)
+	if (handler == NULL)
 		return (EINVAL);
 
+	KASSERT((ithread = handler->ih_ithread) != NULL,
+	    ("interrupt handler \"%s\" has a NULL interrupt thread",
+		handler->ih_name));
 	mtx_lock_spin(&ithread_list_lock);
 #ifdef INVARIANTS
-	found = 0;
 	TAILQ_FOREACH(ih, &ithread->it_handlers, ih_next)
-		if (ih == handler) {
-			found++;
-			break;
-		}
-	if (found == 0) {
-		mtx_unlock_spin(&ithread_list_lock);
-		return (EINVAL);
-	}
+		if (ih == handler)
+			goto ok;
+	mtx_unlock_spin(&ithread_list_lock);
+	panic("interrupt handler \"%s\" not found in interrupt thread \"%s\"",
+	    ih->ih_name, ithread->it_name);
+ok:
 #endif
 	TAILQ_REMOVE(&ithread->it_handlers, handler, ih_next);
 	ithread_update(ithread);
@@ -296,27 +302,89 @@ ithread_remove_handler(void *cookie)
 }
 
 int
+ithread_schedule(struct ithd *ithread, int do_switch)
+{
+	struct int_entropy entropy;
+	struct proc *p;
+	intrmask_t saveintr;
+
+	/*
+	 * If no ithread or no handlers, then we have a stray interrupt.
+	 */
+	if ((ithread == NULL) || TAILQ_EMPTY(&ithread->it_handlers))
+		return (EINVAL);
+
+	/*
+	 * If any of the handlers for this ithread claim to be good
+	 * sources of entropy, then gather some.
+	 */
+	if (harvest.interrupt && ithread->it_flags & IT_ENTROPY) {
+		entropy.vector = ithread->it_vector;
+		entropy.proc = CURPROC;
+		random_harvest(&entropy, sizeof(entropy), 2, 0,
+		    RANDOM_INTERRUPT);
+	}
+
+	p = ithread->it_proc;
+	CTR3(KTR_INTR, __func__ ": pid %d: (%s) need = %d", p->p_pid, p->p_comm,
+	    ithread->it_need);
+
+	/*
+	 * Set it_need to tell the thread to keep running if it is already
+	 * running.  Then, grab sched_lock and see if we actually need to
+	 * put this thread on the runqueue.  If so and the do_switch flag is
+	 * true, then switch to the ithread immediately.  Otherwise, use
+	 * need_resched() to guarantee that this ithread will run before any
+	 * userland processes.
+	 */
+	ithread->it_need = 1;
+	mtx_lock_spin(&sched_lock);
+	if (p->p_stat == SWAIT) {
+		CTR1(KTR_INTR, __func__ ": setrunqueue %d", p->p_pid);
+		p->p_stat = SRUN;
+		setrunqueue(p);
+#if !defined(__alpha__) || defined(PREEMPTION)		
+		if (do_switch) {
+			saveintr = sched_lock.mtx_saveintr;
+			mtx_intr_enable(&sched_lock);
+			if (curproc != PCPU_GET(idleproc))
+				setrunqueue(curproc);
+			curproc->p_stats->p_ru.ru_nvcsw++;
+			mi_switch();
+			sched_lock.mtx_saveintr = saveintr;
+		} else
+#endif
+			need_resched();
+	} else {
+		CTR3(KTR_INTR, __func__ ": pid %d: it_need %d, state %d",
+		    p->p_pid, ithread->it_need, p->p_stat);
+	}
+	mtx_unlock_spin(&sched_lock);
+
+	return (0);
+}
+
+int
 swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler, 
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
-	struct proc *p;
 	struct ithd *ithd;
 	int error;
 
+	if (flags & (INTR_FAST | INTR_ENTROPY))
+		return (EINVAL);
+
 	ithd = (ithdp != NULL) ? *ithdp : NULL;
 
-	if (ithd == NULL) {
+	if (ithd != NULL) {
+		if ((ithd->it_flags & IT_SOFT) == 0)
+			return(EINVAL);
+	} else {
 		error = ithread_create(&ithd, pri, IT_SOFT, NULL, NULL,
 		    "swi%d:", pri);
 		if (error)
 			return (error);
 
-		/* XXX - some hacks are _really_ gross */
-		p = ithd->it_proc;
-		PROC_LOCK(p);
-		if (pri == SWI_CLOCK)
-			p->p_flag |= P_NOLOAD;
-		PROC_UNLOCK(p);
 		if (ithdp != NULL)
 			*ithdp = ithd;
 	}
@@ -334,6 +402,7 @@ swi_sched(void *cookie, int flags)
 	struct intrhand *ih = (struct intrhand *)cookie;
 	struct ithd *it = ih->ih_ithread;
 	struct proc *p = it->it_proc;
+	int error;
 
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
 		
@@ -341,33 +410,14 @@ swi_sched(void *cookie, int flags)
 		p->p_pid, p->p_comm, it->it_need);
 
 	/*
-	 * Set it_need so that if the thread is already running but close
-	 * to done, it will do another go-round.  Then get the sched lock
-	 * and see if the thread is on whichkqs yet.  If not, put it on
-	 * there.  In any case, kick everyone so that if the new thread
-	 * is higher priority than their current thread, it gets run now.
+	 * Set ih_need for this handler so that if the ithread is already
+	 * running it will execute this handler on the next pass.  Otherwise,
+	 * it will execute it the next time it runs.
 	 */
 	atomic_store_rel_int(&ih->ih_need, 1);
 	if (!(flags & SWI_DELAY)) {
-		it->it_need = 1;
-		mtx_lock_spin(&sched_lock);
-		if (p->p_stat == SWAIT) { /* not on run queue */
-			CTR1(KTR_INTR, "swi_sched: setrunqueue %d", p->p_pid);
-			p->p_stat = SRUN;
-			setrunqueue(p);
-			if (!cold && flags & SWI_SWITCH) {
-				if (curproc != PCPU_GET(idleproc))
-					setrunqueue(curproc);
-				curproc->p_stats->p_ru.ru_nvcsw++;
-				mi_switch();
-			} else
-				need_resched();
-		}
-		else {
-			CTR3(KTR_INTR, "swi_sched %d: it_need %d, state %d",
-				p->p_pid, it->it_need, p->p_stat );
-		}
-		mtx_unlock_spin(&sched_lock);
+		error = ithread_schedule(it, !cold && flags & SWI_SWITCH);
+		KASSERT(error == 0, ("stray software interrupt"));
 	}
 }
 
@@ -476,6 +526,10 @@ start_softintr(void *dummy)
 		INTR_MPSAFE, &softclock_ih) ||
 	    swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, 0, &vm_ih))
 		panic("died while creating standard software ithreads");
+
+	PROC_LOCK(clk_ithd->it_proc);
+	clk_ithd->it_proc->p_flag |= P_NOLOAD;
+	PROC_UNLOCK(clk_ithd->it_proc);
 }
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
 
