@@ -1,5 +1,4 @@
 /*	$NetBSD: getgrent.c,v 1.34.2.1 1999/04/27 14:10:58 perry Exp $	*/
-
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,11 +33,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] =
-  "$FreeBSD$";
+static char sccsid[] = "@(#)getgrent.c 8.2 (Berkeley) 3/21/94";
 #endif /* LIBC_SCCS and not lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
