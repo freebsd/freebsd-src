@@ -237,6 +237,7 @@ static int match(char *, char *);
  * if there is no access violation. This function updates
  * the local file and then shuts up.
  */
+int
 localupdate(char *name, char *filename, u_int op, u_int keylen,
     char *key, u_int datalen, char *data)
 {
@@ -323,7 +324,7 @@ localupdate(char *name, char *filename, u_int op, u_int keylen,
 	return (err);
 }
 
-static
+static int
 match(char *line, char *name)
 {
 	int len;
