@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 4 $
+ *              $Revision: 5 $
  *
  *****************************************************************************/
 
@@ -437,8 +437,7 @@ AcpiNsInitOneDevice (
     Status = AcpiNsEvaluateRelative (ObjHandle, "_HID", NULL, &RetObj);
     if (AE_NOT_FOUND == Status)
     {
-         /* No _HID --> Can't be a PCI root bridge */
-
+        /* No _HID --> Can't be a PCI root bridge */
         return_ACPI_STATUS (AE_OK);
     }
 
@@ -508,7 +507,7 @@ Cleanup:
         AcpiCmRemoveReference (RetObj);
     }
 
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (Status);
 }
 
 

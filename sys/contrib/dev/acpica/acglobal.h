@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 85 $
+ *       $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -165,13 +165,12 @@ extern      UINT32                      AcpiGbl_NestingLevel;
  * of each in the system.  Each global points to the actual table.
  *
  */
-ACPI_EXTERN ROOT_SYSTEM_DESCRIPTOR_POINTER      *AcpiGbl_RSDP;
-ACPI_EXTERN ROOT_SYSTEM_DESCRIPTION_TABLE       *AcpiGbl_RSDT;
-ACPI_EXTERN FIRMWARE_ACPI_CONTROL_STRUCTURE     *AcpiGbl_FACS;
-ACPI_EXTERN FIXED_ACPI_DESCRIPTION_TABLE        *AcpiGbl_FACP;
-ACPI_EXTERN APIC_TABLE                          *AcpiGbl_APIC;
-ACPI_EXTERN ACPI_TABLE_HEADER                   *AcpiGbl_DSDT;
-ACPI_EXTERN ACPI_TABLE_HEADER                   *AcpiGbl_SBST;
+ACPI_EXTERN RSDP_DESCRIPTOR             *AcpiGbl_RSDP;
+ACPI_EXTERN XSDT_DESCRIPTOR             *AcpiGbl_XSDT;
+ACPI_EXTERN FADT_DESCRIPTOR             *AcpiGbl_FADT;
+ACPI_EXTERN ACPI_TABLE_HEADER           *AcpiGbl_DSDT;
+ACPI_EXTERN ACPI_COMMON_FACS            *AcpiGbl_FACS;
+
 /*
  * Since there may be multiple SSDTs and PSDTS, a single pointer is not
  * sufficient; Therefore, there isn't one!
@@ -254,6 +253,7 @@ ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_SysNotify;
 extern      BOOLEAN                     AcpiGbl_Shutdown;
 extern      UINT32                      AcpiGbl_SystemFlags;
 extern      UINT32                      AcpiGbl_StartupFlags;
+extern      UINT8                       AcpiGbl_DecodeTo8bit[];
 
 
 /*****************************************************************************
@@ -288,22 +288,7 @@ ACPI_EXTERN ALLOCATION_INFO            *AcpiGbl_TailAllocPtr;
  ****************************************************************************/
 
 
-ACPI_EXTERN UINT32                      AcpiGbl_WhenToParseMethods;
 ACPI_EXTERN ACPI_WALK_LIST             *AcpiGbl_CurrentWalkList;
-
-/* Base of AML block, and pointer to current location in it */
-
-ACPI_EXTERN UINT8                      *AcpiGbl_PCodeBase;
-ACPI_EXTERN UINT8                      *AcpiGbl_PCode;
-
-/*
- * Length of AML block, and remaining length of current package.
- */
-ACPI_EXTERN UINT32                      AcpiGbl_PCodeBlockLen;
-ACPI_EXTERN UINT32                      AcpiGbl_PCodeLen;
-
-ACPI_EXTERN UINT32                      AcpiGbl_BufSeq;             /* Counts allocated Buffer descriptors */
-ACPI_EXTERN UINT32                      AcpiGbl_NodeErr;     /* Indicate if inc_error should be called */
 
 /*
  * Handle to the last method found - used during pass1 of load
@@ -329,10 +314,6 @@ ACPI_EXTERN UINT8                       AcpiGbl_CmSingleStep;
  ****************************************************************************/
 
 ACPI_EXTERN ACPI_PARSE_OBJECT           *AcpiGbl_ParsedNamespaceRoot;
-
-extern ACPI_OPCODE_INFO                 AcpiGbl_AmlOpInfo[];
-extern UINT8                            AcpiGbl_AmlOpInfoIndex[256];
-
 
 /*****************************************************************************
  *
@@ -380,9 +361,10 @@ ACPI_EXTERN UINT32                      AcpiGbl_EventCount[NUM_FIXED_EVENTS];
  *
  ****************************************************************************/
 
+#ifdef ENABLE_DEBUGGER
 ACPI_EXTERN BOOLEAN                     AcpiGbl_MethodExecuting;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbTerminateThreads;
-
+#endif
 
 /* Memory allocation metrics - Debug Only! */
 

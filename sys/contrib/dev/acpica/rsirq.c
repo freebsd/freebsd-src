@@ -4,7 +4,7 @@
  *                      AcpiRsIrqStream
  *                      AcpiRsExtendedIrqResource
  *                      AcpiRsExtendedIrqStream
- *              $Revision: 10 $
+ *              $Revision: 11 $
  *
  ******************************************************************************/
 
@@ -120,6 +120,7 @@
 #define __RSIRQ_C__
 
 #include "acpi.h"
+#include "acresrc.h"
 
 #define _COMPONENT          RESOURCE_MANAGER
         MODULE_NAME         ("rsirq")

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmxface - External interfaces for "global" ACPI functions
- *              $Revision: 51 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -226,9 +226,9 @@ AcpiEnableSubsystem (
     FUNCTION_TRACE ("AcpiEnableSubsystem");
 
 
-    /* Sanity check the FACP for valid values */
+    /* Sanity check the FADT for valid values */
 
-    Status = AcpiCmValidateFacp ();
+    Status = AcpiCmValidateFadt ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -274,7 +274,11 @@ AcpiEnableSubsystem (
     {
         DEBUG_PRINT (TRACE_EXEC, ("[Init] Going into ACPI mode\n"));
 
-        AcpiEnable ();
+        Status = AcpiEnable ();
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
     }
 
     /*
@@ -356,7 +360,7 @@ AcpiTerminate (void)
 
     /* Terminate the AML Debuger if present */
 
-    AcpiGbl_DbTerminateThreads = TRUE;
+    DEBUGGER_EXEC(AcpiGbl_DbTerminateThreads = TRUE);
 
     /* TBD: [Investigate] This is no longer needed?*/
 /*    AcpiCmReleaseMutex (ACPI_MTX_DEBUG_CMD_READY); */

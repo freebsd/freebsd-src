@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 80 $
+ *              $Revision: 81 $
  *
  *****************************************************************************/
 
@@ -521,6 +521,7 @@ AcpiNsDumpObjects (
 }
 
 
+#ifndef _ACPI_ASL_COMPILER
 /****************************************************************************
  *
  * FUNCTION:    AcpiNsDumpOneDevice
@@ -594,6 +595,7 @@ AcpiNsDumpRootDevices (void)
                         AcpiNsDumpOneDevice, NULL, NULL);
 }
 
+#endif
 
 /****************************************************************************
  *

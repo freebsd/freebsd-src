@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: achware.h -- hardware specific interfaces
- *       $Revision: 42 $
+ *       $Revision: 48 $
  *
  *****************************************************************************/
 
@@ -147,11 +147,37 @@ AcpiHwGetModeCapabilities (
 
 /* Register I/O Prototypes */
 
+
 UINT32
-AcpiHwRegisterAccess (
+AcpiHwRegisterBitAccess (
     NATIVE_UINT             ReadWrite,
     BOOLEAN                 UseLock,
-    UINT32                  RegisterId, ... /* DWORD Value */);
+    UINT32                  RegisterId,
+    ... /* DWORD Write Value */);
+
+UINT32
+AcpiHwRegisterRead (
+    BOOLEAN                 UseLock,
+    UINT32                  RegisterId);
+
+void
+AcpiHwRegisterWrite (
+    BOOLEAN                 UseLock,
+    UINT32                  RegisterId,
+    UINT32                  Value);
+
+UINT32
+AcpiHwLowLevelRead (
+    UINT32                  Width,
+    ACPI_GAS                *Reg,
+    UINT32                  Offset);
+
+void
+AcpiHwLowLevelWrite (
+    UINT32                  Width,
+    UINT32                  Value,
+    ACPI_GAS                *Reg,
+    UINT32                  Offset);
 
 void
 AcpiHwClearAcpiStatus (
@@ -216,6 +242,16 @@ ACPI_STATUS
 AcpiHwGetCxInfo (
     UINT32                  CxStates[]);
 
+ACPI_STATUS
+AcpiHwGetCxHandler (
+    UINT32                  CxState,
+    ACPI_C_STATE_HANDLER    *Handler);
+
+ACPI_STATUS
+AcpiHwSetCxHandler (
+    UINT32                  CxState,
+    ACPI_C_STATE_HANDLER    Handler);
+
 
 /* Throttling Prototypes */
 
@@ -255,6 +291,10 @@ AcpiHwPmtTicks (
 UINT32
 AcpiHwPmtResolution (
     void);
+
+ACPI_STATUS
+AcpiGetTimer (
+    UINT32                  *OutTicks);
 
 
 #endif /* __ACHWARE_H__ */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmclib - Local implementation of C library functions
- * $Revision: 26 $
+ * $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -133,10 +133,6 @@
 #define _COMPONENT          MISCELLANEOUS
         MODULE_NAME         ("cmclib")
 
-
-#ifdef _MSC_VER                 /* disable some level-4 warnings for VC++ */
-#pragma warning(disable:4706)   /* warning C4706: assignment within conditional expression */
-#endif
 
 #ifndef ACPI_USE_SYSTEM_CLIBRARY
 
@@ -738,7 +734,7 @@ AcpiCmStrstr (
         return (NULL);
     }
 
-    /* Walk entire string, uppercasing the letters */
+    /* Walk entire string, comparing the letters */
 
     for (String = String1; *String2; )
     {
