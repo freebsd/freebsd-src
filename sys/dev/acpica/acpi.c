@@ -1169,6 +1169,9 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
     }
 
  out:
+    if (result == 0 && ids->ip_desc)
+	device_set_desc(child, ids->ip_desc);
+
     return_VALUE (result);
 }
 
