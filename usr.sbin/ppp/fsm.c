@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.38 1999/01/28 01:56:31 brian Exp $
+ * $Id: fsm.c,v 1.39 1999/02/26 21:28:11 brian Exp $
  *
  *  TODO:
  */
@@ -302,6 +302,7 @@ fsm_Down(struct fsm *fp)
     NewState(fp, ST_INITIAL);
     break;
   case ST_CLOSING:
+    /* This TLF contradicts the RFC (1661), which ``misses it out'' ! */
     (*fp->fn->LayerFinish)(fp);
     NewState(fp, ST_INITIAL);
     (*fp->parent->LayerFinish)(fp->parent->object, fp);
@@ -841,7 +842,8 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case PROTO_CCP:
     if (fp->proto == PROTO_LCP) {
       fp = &fp->link->ccp.fsm;
-      (*fp->fn->LayerFinish)(fp);
+      /* Despite the RFC (1661), don't do an out-of-place TLF */
+      /* (*fp->fn->LayerFinish)(fp); */
       switch (fp->state) {
       case ST_CLOSED:
       case ST_CLOSING:
@@ -850,7 +852,8 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
         NewState(fp, ST_STOPPED);
         break;
       }
-      (*fp->parent->LayerFinish)(fp->parent->object, fp);
+      /* See above */
+      /* (*fp->parent->LayerFinish)(fp->parent->object, fp); */
     }
     break;
   case PROTO_MP:
