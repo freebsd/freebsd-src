@@ -85,15 +85,15 @@ obreak(td, uap)
 	old = base + ctob(vm->vm_dsize);
 	if (new > base) {
 		/*
-		 * We check resource limits here, but alow processes to
-		 * reduce their usage, even if they remain over the limit.
+		 * Check the resource limit, but allow a process to reduce
+		 * its usage, even if it remains over the limit.
 		 */
-		if (new > old &&
-		    (new - base) > (unsigned) td->td_proc->p_rlimit[RLIMIT_DATA].rlim_cur) {
+		if (new - base > td->td_proc->p_rlimit[RLIMIT_DATA].rlim_cur &&
+		    new > old) {
 			error = ENOMEM;
 			goto done;
 		}
-		if (new >= VM_MAXUSER_ADDRESS) {
+		if (new > VM_MAXUSER_ADDRESS) {
 			error = ENOMEM;
 			goto done;
 		}
