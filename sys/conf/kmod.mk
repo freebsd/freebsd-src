@@ -253,7 +253,9 @@ realinstall:
 	done; true
 .endif
 .if !defined(NO_XREF)
+	@echo "FAILURES HERE ARE OK"
 	-kldxref ${DESTDIR}${KMODDIR}
+	@echo "END OF SECTION WHERE FAILURES ARE OK"
 .endif
 .endif
 
