@@ -615,7 +615,7 @@ bootstrap-tools:
     usr.bin/xargs usr.bin/xinstall \
     usr.sbin/config usr.sbin/kbdcontrol \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
-	${ECHODIR} "===> ${_tool}"; \
+	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -648,7 +648,7 @@ build-tools:
 .for _tool in bin/csh bin/sh gnu/usr.bin/cc/cc_tools ${_fortran} \
     ${_libkrb5} lib/libncurses ${_share} \
     ${_aicasm} usr.bin/awk usr.bin/file usr.sbin/sysinstall
-	${ECHODIR} "===> ${_tool}"; \
+	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
@@ -682,7 +682,7 @@ cross-tools:
 .for _tool in ${_btxld} ${_elf2aout} ${_elf2exe} \
     gnu/usr.bin/binutils ${_crunchide} \
     gnu/usr.bin/cc ${_xlint} ${_kgzip}
-	${ECHODIR} "===> ${_tool}"; \
+	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -764,7 +764,7 @@ _generic_libs+=	usr.sbin/pcvt/keycap
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
-	${ECHODIR} "===> ${_lib}"; \
+	@${ECHODIR} "===> ${_lib}"; \
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
 		${MAKE} DIRPRFX=${_lib}/ all; \
@@ -776,7 +776,7 @@ ${_lib}__L: .PHONY
 # static PAM library, and dynamic PAM library before dynamic PAM
 # modules.
 lib/libpam__L: .PHONY
-	${ECHODIR} "===> lib/libpam"; \
+	@${ECHODIR} "===> lib/libpam"; \
 		cd ${.CURDIR}/lib/libpam; \
 		${MAKE} DIRPRFX=lib/libpam/ depend; \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
