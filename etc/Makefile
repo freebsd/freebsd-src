@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.67 1994/06/20 03:39:59 jkh Exp $
+#	$Id: Makefile,v 1.68 1994/06/21 11:02:38 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -220,11 +220,11 @@ crunch:
 
 extract:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/etc.i386/INSTALL_bin.sh ${RELEASEDIR}/tarballs/bindist
+	    ${.CURDIR}/etc.i386/EXTRACT_bin.sh ${RELEASEDIR}/tarballs/bindist
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/etc.i386/INSTALL_src.sh ${RELEASEDIR}/tarballs/srcdist
+	    ${.CURDIR}/etc.i386/EXTRACT_src.sh ${RELEASEDIR}/tarballs/srcdist
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/etc.i386/INSTALL_secr.sh ${RELEASEDIR}/tarballs/secrdist
+	    ${.CURDIR}/etc.i386/EXTRACT_secr.sh ${RELEASEDIR}/tarballs/secrdist
 
 hcx9-distribution:
 	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
