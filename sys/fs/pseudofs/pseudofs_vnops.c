@@ -251,6 +251,47 @@ pfs_ioctl(struct vop_ioctl_args *va)
 }
 
 /*
+ * Perform getextattr
+ */
+static int
+pfs_getextattr(struct vop_getextattr_args *va)
+{
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+	struct proc *proc = NULL;
+	int error;
+
+	PFS_TRACE((pd->pn_name));
+
+	if (pn->pn_getextattr == NULL)
+		PFS_RETURN (EOPNOTSUPP);
+	
+	/*
+	 * This is necessary because either process' privileges may
+	 * have changed since the open() call.
+	 */
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (EIO);
+	
+	/* XXX duplicates bits of pfs_visible() */
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+			PFS_RETURN (EIO);
+		_PHOLD(proc);
+		PROC_UNLOCK(proc);
+	}
+	
+	error = (pn->pn_getextattr)(curthread, proc, pn, va->a_attrnamespace,
+	    va->a_name, va->a_uio, va->a_cred);
+
+	if (proc != NULL)
+		PRELE(proc);
+	
+	PFS_RETURN (error);
+}
+
+/*
  * Look up a file or directory
  */
 static int
@@ -748,6 +789,7 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_close_desc,		(vop_t *)pfs_close	},
 	{ &vop_create_desc,		(vop_t *)pfs_badop	},
 	{ &vop_getattr_desc,		(vop_t *)pfs_getattr	},
+	{ &vop_getextattr_desc,		(vop_t *)pfs_getextattr	},
 	{ &vop_ioctl_desc,		(vop_t *)pfs_ioctl	},
 	{ &vop_link_desc,		(vop_t *)pfs_badop	},
 	{ &vop_lookup_desc,		(vop_t *)pfs_lookup	},
