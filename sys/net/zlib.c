@@ -10,7 +10,7 @@
  * - added inflateIncomp and deflateOutputPending
  * - allow strm->next_out to be NULL, meaning discard the output
  *
- * $Id: zlib.c,v 1.5 1998/02/09 06:10:02 eivind Exp $
+ * $Id: zlib.c,v 1.6 1998/03/21 20:56:15 peter Exp $
  */
 
 /* 
@@ -1151,12 +1151,12 @@ int deflateCopy (dest, source)
         return Z_STREAM_ERROR;
     ss = (deflate_state *) source->state;
 
-    *dest = *source;
+    zmemcpy(dest, source, sizeof(*dest));
 
     ds = (deflate_state *) ZALLOC(dest, 1, sizeof(deflate_state));
     if (ds == Z_NULL) return Z_MEM_ERROR;
     dest->state = (struct internal_state FAR *) ds;
-    *ds = *ss;
+    zmemcpy(ds, ss, sizeof(*ds));
     ds->strm = dest;
 
     ds->window = (Bytef *) ZALLOC(dest, ds->w_size, 2*sizeof(Byte));
