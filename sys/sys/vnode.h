@@ -250,6 +250,7 @@ struct vattr {
 #define	VADMIN	010000		/* permission to administer */
 #define	VSTAT	020000		/* permission to retrieve attrs */
 #define	VAPPEND	040000		/* permission to write/append */
+#define	VALLPERM	(VEXEC | VWRITE | VREAD | VADMIN | VSTAT | VAPPEND)
 
 /*
  * Token indicating no attribute value yet assigned.
