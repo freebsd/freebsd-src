@@ -217,4 +217,28 @@ isp_remove_handle(isp, xs)
 {
 	isp_destroy_handle(isp, isp_find_handle(isp, xs));
 }
+
+static INLINE int
+isp_getrqentry __P((struct ispsoftc *, u_int16_t *, u_int16_t *, void **));
+
+static INLINE int
+isp_getrqentry(isp, iptrp, optrp, resultp)
+	struct ispsoftc *isp;
+	u_int16_t *iptrp;
+	u_int16_t *optrp;
+	void **resultp;
+{
+	volatile u_int16_t iptr, optr;
+
+	optr = isp->isp_reqodx = ISP_READ(isp, OUTMAILBOX4);
+	iptr = isp->isp_reqidx;
+	*resultp = ISP_QUEUE_ENTRY(isp->isp_rquest, iptr);
+	iptr = ISP_NXT_QENTRY(iptr, RQUEST_QUEUE_LEN);
+	if (iptr == optr) {
+		return (1);
+	}
+	*optrp = optr;
+	*iptrp = iptr;
+	return (0);
+}
 #endif	/* _ISP_INLINE_H */
