@@ -486,10 +486,9 @@ wi_detach(device_t dev)
 	ifmedia_removeall(&sc->sc_media);
 
 	ieee80211_ifdetach(ifp);
+	WI_UNLOCK(sc);
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	wi_free(dev);
-
-	WI_UNLOCK(sc);
 #if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->sc_mtx);
 #endif
