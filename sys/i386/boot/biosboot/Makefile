@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.64 1998/05/27 12:13:18 jkoshy Exp $
+#	$Id: Makefile,v 1.65 1998/09/15 09:59:57 gibbs Exp $
 #
 
 PROG=	boot
@@ -13,7 +13,6 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-DDO_BAD144
-CFLAGS+=	-DVESA_SUPPORT
 CFLAGS+=	${CWARNFLAGS}
 
 # By default, if a serial port is going to be used as console, use COM1
