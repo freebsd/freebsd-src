@@ -855,8 +855,6 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	}
 
 	unp_list = malloc(n * sizeof *unp_list, M_TEMP, M_WAITOK);
-	if (unp_list == 0)
-		return ENOMEM;
 	
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {

@@ -303,7 +303,7 @@ nospace:
  * continuing for "len" bytes, into the indicated buffer.
  */
 void
-m_copydata(struct mbuf *m, int off, int len, caddr_t cp)
+m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
 {
 	unsigned count;
 
