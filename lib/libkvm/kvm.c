@@ -253,7 +253,7 @@ kvm_t *
 kvm_openfiles(uf, mf, sf, flag, errout)
 	const char *uf;
 	const char *mf;
-	const char *sf;
+	const char *sf __unused;
 	int flag;
 	char *errout;
 {
@@ -272,7 +272,7 @@ kvm_t *
 kvm_open(uf, mf, sf, flag, errstr)
 	const char *uf;
 	const char *mf;
-	const char *sf;
+	const char *sf __unused;
 	int flag;
 	const char *errstr;
 {
