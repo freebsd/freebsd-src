@@ -135,6 +135,7 @@ static char *read_string(int echo, const char *prompt)
     char line[INPUTSIZE];
     struct sigaction old_sig;
     int delay, nc, have_term=0;
+    sigset_t oset, nset;
 
     D(("called with echo='%s', prompt='%s'.", echo ? "ON":"OFF" , prompt));
 
@@ -150,6 +151,14 @@ static char *read_string(int echo, const char *prompt)
 	    term_tmp.c_lflag &= ~(ECHO);
 	}
 	have_term = 1;
+	/*
+	 * note - blocking signals isn't necessarily the
+	 * right thing, but we leave it for now.
+	 */
+	sigemptyset(&nset);
+	sigaddset(&nset, SIGINT);
+	sigaddset(&nset, SIGTSTP);
+	(void)_sigprocmask(SIG_BLOCK, &nset, &oset);
 
     } else if (!echo) {
 	D(("<warning: cannot turn echo off>"));
@@ -204,8 +213,10 @@ static char *read_string(int echo, const char *prompt)
     }
 
     /* getting here implies that the timer expired */
-    if (have_term)
+    if (have_term) {
+	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
 	(void) tcsetattr(STDIN_FILENO, TCSADRAIN, &term_before);
+    }
 
     memset(line, 0, INPUTSIZE);                      /* clean up */
     return NULL;
