@@ -27,6 +27,7 @@ MLINKS+=	mse.4 ../mse.4
 MLINKS+=	npx.4 ../npx.4
 MLINKS+=	pcvt.4 ../pcvt.4
 MLINKS+=	screen.4 ../screen.4
+MLINKS+=	si.4 ../si.4
 MLINKS+=	sio.4 ../sio.4
 MLINKS+=	spkr.4 ../spkr.4
 MLINKS+=	tw.4 ../tw.4
