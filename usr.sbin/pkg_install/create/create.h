@@ -1,4 +1,4 @@
-/* $Id: create.h,v 1.5 1994/05/19 18:27:38 alm Exp $ */
+/* $Id: create.h,v 1.6 1994/12/06 00:51:35 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -34,6 +34,7 @@ extern char	*Require;
 extern char	*PlayPen;
 extern char	*ExcludeFrom;
 extern char	*Mtree;
+extern char	*Pkgdeps;
 extern int	Dereference;
 
 void		check_list(char *, Package *);

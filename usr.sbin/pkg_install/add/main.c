@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.4 1993/09/14 19:53:01 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.5 1994/12/06 00:51:33 jkh Exp $";
 #endif
 
 /*
@@ -39,6 +39,7 @@ char	*Group		= NULL;
 char	*PkgName	= NULL;
 char	*Directory	= NULL;
 char	*PlayPen	= NULL;
+char	*Home		= NULL;
 add_mode_t AddMode	= NORMAL;
 
 int
