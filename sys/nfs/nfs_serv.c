@@ -2565,10 +2565,9 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap, pathcp);
 	if (error)
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-	else {
+	else
 		vput(nd.ni_vp);
-		nd.ni_vp = NULL;
-	}
+	nd.ni_vp = NULL;
 	/*
 	 * releases directory prior to potential lookup op.
 	 */
