@@ -23,11 +23,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 #include <machine/pte.h>
 #include <assym.s>
 
@@ -576,7 +576,7 @@ END(exception_restore)
  * which will restore the interrupted state before executing an rfi to
  * resume it.
  */
-#define TRAP(_n_, _ifa_)			\
+#define CALL(_func_, _n_, _ifa_)		\
 {	.mib ;					\
 	mov		r17=_ifa_ ;		\
 	mov		r16=ip ;		\
@@ -590,7 +590,7 @@ END(exception_restore)
 {	.mfb ;					\
 	add		out1=16,sp ;		\
 	nop		0 ;			\
-	br.call.sptk	rp=trap ;		\
+	br.call.sptk	rp=_func_ ;		\
 } ;						\
 {	.mfb ;					\
 	nop		0 ;			\
@@ -611,6 +611,12 @@ ivt_##name:
 #define	IVT_END(name)				\
 	.endp	ivt_##name
 
+#ifdef COMPAT_IA32
+#define	IA32_TRAP	ia32_trap
+#else
+#define	IA32_TRAP	trap
+#endif
+
 /*
  * The IA64 Interrupt Vector Table (IVT) contains 20 slots with 64
  * bundles per vector and 48 slots with 16 bundles per vector.
@@ -624,7 +630,7 @@ ivt_##name:
 ia64_vector_table:
 
 IVT_ENTRY(VHPT_Translation, 0x0000)
-	TRAP(0, cr.ifa)
+	CALL(trap, 0, cr.ifa)
 IVT_END(VHPT_Translation)
 
 IVT_ENTRY(Instruction_TLB, 0x0400)
@@ -702,7 +708,7 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 	;;
 	srlz.d
 	;; 
-	TRAP(20, cr.ifa)		// Page Not Present trap
+	CALL(trap, 20, cr.ifa)		// Page Not Present trap
 IVT_END(Instruction_TLB)
 
 IVT_ENTRY(Data_TLB, 0x0800)
@@ -780,7 +786,7 @@ IVT_ENTRY(Data_TLB, 0x0800)
 	;;
 	srlz.d
 	;; 
-	TRAP(20, cr.ifa)		// Page Not Present trap
+	CALL(trap, 20, cr.ifa)		// Page Not Present trap
 IVT_END(Data_TLB)
 
 IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
@@ -807,7 +813,7 @@ IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
 	;;
 	rfi
 9:	mov	pr=r18,0x1ffff		// restore predicates
-	TRAP(3, cr.ifa)
+	CALL(trap, 3, cr.ifa)
 IVT_END(Alternate_Instruction_TLB)
 
 IVT_ENTRY(Alternate_Data_TLB, 0x1000)
@@ -834,7 +840,7 @@ IVT_ENTRY(Alternate_Data_TLB, 0x1000)
 	;;
 	rfi
 9:	mov	pr=r18,0x1ffff		// restore predicates
-	TRAP(4, cr.ifa)
+	CALL(trap, 4, cr.ifa)
 IVT_END(Alternate_Data_TLB)
 
 IVT_ENTRY(Data_Nested_TLB, 0x1400)
@@ -915,11 +921,11 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 IVT_END(Data_Nested_TLB)
 
 IVT_ENTRY(Instruction_Key_Miss, 0x1800)
-	TRAP(6, cr.ifa)
+	CALL(trap, 6, cr.ifa)
 IVT_END(Instruction_Key_Miss)
 
 IVT_ENTRY(Data_Key_Miss, 0x1c00)
-	TRAP(7, cr.ifa)
+	CALL(trap, 7, cr.ifa)
 IVT_END(Data_Key_Miss)
 
 IVT_ENTRY(Dirty_Bit, 0x2000)
@@ -985,7 +991,7 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 	br.cond.sptk.few 1b		// loop
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
-	TRAP(8, cr.ifa)			// die horribly
+	CALL(trap, 8, cr.ifa)			// die horribly
 IVT_END(Dirty_Bit)
 
 IVT_ENTRY(Instruction_Access_Bit, 0x2400)
@@ -1051,7 +1057,7 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	br.cond.sptk.few 1b		// loop
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
-	TRAP(9, cr.ifa)
+	CALL(trap, 9, cr.ifa)
 IVT_END(Instruction_Access_Bit)
 
 IVT_ENTRY(Data_Access_Bit, 0x2800)
@@ -1117,7 +1123,7 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 	br.cond.sptk.few 1b		// loop
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
-	TRAP(10, cr.ifa)
+	CALL(trap, 10, cr.ifa)
 IVT_END(Data_Access_Bit)
 
 IVT_ENTRY(Break_Instruction, 0x2c00)
@@ -1205,221 +1211,221 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 IVT_END(External_Interrupt)
 
 IVT_ENTRY(Reserved_3400, 0x3400)
-	TRAP(13, cr.ifa)
+	CALL(trap, 13, cr.ifa)
 IVT_END(Reserved_3400)
 
 IVT_ENTRY(Reserved_3800, 0x3800)
-	TRAP(14, cr.ifa)
+	CALL(trap, 14, cr.ifa)
 IVT_END(Reserved_3800)
 
 IVT_ENTRY(Reserved_3c00, 0x3c00)
-	TRAP(15, cr.ifa)
+	CALL(trap, 15, cr.ifa)
 IVT_END(Reserved_3c00)
 
 IVT_ENTRY(Reserved_4000, 0x4000)
-	TRAP(16, cr.ifa)
+	CALL(trap, 16, cr.ifa)
 IVT_END(Reserved_4000)
 
 IVT_ENTRY(Reserved_4400, 0x4400)
-	TRAP(17, cr.ifa)
+	CALL(trap, 17, cr.ifa)
 IVT_END(Reserved_4400)
 
 IVT_ENTRY(Reserved_4800, 0x4800)
-	TRAP(18, cr.ifa)
+	CALL(trap, 18, cr.ifa)
 IVT_END(Reserved_4800)
 
 IVT_ENTRY(Reserved_4c00, 0x4c00)
-	TRAP(19, cr.ifa)
+	CALL(trap, 19, cr.ifa)
 IVT_END(Reserved_4c00)
 
 IVT_ENTRY(Page_Not_Present, 0x5000)
-	TRAP(20, cr.ifa)
+	CALL(trap, 20, cr.ifa)
 IVT_END(Page_Not_Present)
 
 IVT_ENTRY(Key_Permission, 0x5100)
-	TRAP(21, cr.ifa)
+	CALL(trap, 21, cr.ifa)
 IVT_END(Key_Permission)
 
 IVT_ENTRY(Instruction_Access_Rights, 0x5200)
-	TRAP(22, cr.ifa)
+	CALL(trap, 22, cr.ifa)
 IVT_END(Instruction_Access_Rights)
 
 IVT_ENTRY(Data_Access_Rights, 0x5300)
-	TRAP(23, cr.ifa)
+	CALL(trap, 23, cr.ifa)
 IVT_END(Data_Access_Rights)
 
 IVT_ENTRY(General_Exception, 0x5400)
-	TRAP(24, cr.ifa)
+	CALL(trap, 24, cr.ifa)
 IVT_END(General_Exception)
 
 IVT_ENTRY(Disabled_FP_Register, 0x5500)
-	TRAP(25, cr.ifa)
+	CALL(trap, 25, cr.ifa)
 IVT_END(Disabled_FP_Register)
 
 IVT_ENTRY(NaT_Consumption, 0x5600)
-	TRAP(26, cr.ifa)
+	CALL(trap, 26, cr.ifa)
 IVT_END(NaT_Consumption)
 
 IVT_ENTRY(Speculation, 0x5700)
-	TRAP(27, cr.iim)
+	CALL(trap, 27, cr.iim)
 IVT_END(Speculation)
 
 IVT_ENTRY(Reserved_5800, 0x5800)
-	TRAP(28, cr.ifa)
+	CALL(trap, 28, cr.ifa)
 IVT_END(Reserved_5800)
 
 IVT_ENTRY(Debug, 0x5900)
-	TRAP(29, cr.ifa)
+	CALL(trap, 29, cr.ifa)
 IVT_END(Debug)
 
 IVT_ENTRY(Unaligned_Reference, 0x5a00)
-	TRAP(30, cr.ifa)
+	CALL(trap, 30, cr.ifa)
 IVT_END(Unaligned_Reference)
 
 IVT_ENTRY(Unsupported_Data_Reference, 0x5b00)
-	TRAP(31, cr.ifa)
+	CALL(trap, 31, cr.ifa)
 IVT_END(Unsupported_Data_Reference)
 
 IVT_ENTRY(Floating_Point_Fault, 0x5c00)
-	TRAP(32, cr.ifa)
+	CALL(trap, 32, cr.ifa)
 IVT_END(Floating_Point_Fault)
 
 IVT_ENTRY(Floating_Point_Trap, 0x5d00)
-	TRAP(33, cr.ifa)
+	CALL(trap, 33, cr.ifa)
 IVT_END(Floating_Point_Trap)
 
 IVT_ENTRY(Lower_Privilege_Transfer_Trap, 0x5e00)
-	TRAP(34, cr.ifa)
+	CALL(trap, 34, cr.ifa)
 IVT_END(Lower_Privilege_Transfer_Trap)
 
 IVT_ENTRY(Taken_Branch_Trap, 0x5f00)
-	TRAP(35, cr.ifa)
+	CALL(trap, 35, cr.ifa)
 IVT_END(Taken_Branch_Trap)
 
 IVT_ENTRY(Single_Step_Trap, 0x6000)
-	TRAP(36, cr.ifa)
+	CALL(trap, 36, cr.ifa)
 IVT_END(Single_Step_Trap)
 
 IVT_ENTRY(Reserved_6100, 0x6100)
-	TRAP(37, cr.ifa)
+	CALL(trap, 37, cr.ifa)
 IVT_END(Reserved_6100)
 
 IVT_ENTRY(Reserved_6200, 0x6200)
-	TRAP(38, cr.ifa)
+	CALL(trap, 38, cr.ifa)
 IVT_END(Reserved_6200)
 
 IVT_ENTRY(Reserved_6300, 0x6300)
-	TRAP(39, cr.ifa)
+	CALL(trap, 39, cr.ifa)
 IVT_END(Reserved_6300)
 
 IVT_ENTRY(Reserved_6400, 0x6400)
-	TRAP(40, cr.ifa)
+	CALL(trap, 40, cr.ifa)
 IVT_END(Reserved_6400)
 
 IVT_ENTRY(Reserved_6500, 0x6500)
-	TRAP(41, cr.ifa)
+	CALL(trap, 41, cr.ifa)
 IVT_END(Reserved_6500)
 
 IVT_ENTRY(Reserved_6600, 0x6600)
-	TRAP(42, cr.ifa)
+	CALL(trap, 42, cr.ifa)
 IVT_END(Reserved_6600)
 
 IVT_ENTRY(Reserved_6700, 0x6700)
-	TRAP(43, cr.ifa)
+	CALL(trap, 43, cr.ifa)
 IVT_END(Reserved_6700)
 
 IVT_ENTRY(Reserved_6800, 0x6800)
-	TRAP(44, cr.ifa)
+	CALL(trap, 44, cr.ifa)
 IVT_END(Reserved_6800)
 
 IVT_ENTRY(IA_32_Exception, 0x6900)
-	TRAP(45, cr.ifa)
+	CALL(IA32_TRAP, 45, cr.ifa)
 IVT_END(IA_32_Exception)
 
 IVT_ENTRY(IA_32_Intercept, 0x6a00)
-	TRAP(46, cr.iim)
+	CALL(IA32_TRAP, 46, cr.iim)
 IVT_END(IA_32_Intercept)
 
 IVT_ENTRY(IA_32_Interrupt, 0x6b00)
-	TRAP(47, cr.ifa)
+	CALL(IA32_TRAP, 47, cr.ifa)
 IVT_END(IA_32_Interrupt)
 
 IVT_ENTRY(Reserved_6c00, 0x6c00)
-	TRAP(48, cr.ifa)
+	CALL(trap, 48, cr.ifa)
 IVT_END(Reserved_6c00)
 
 IVT_ENTRY(Reserved_6d00, 0x6d00)
-	TRAP(49, cr.ifa)
+	CALL(trap, 49, cr.ifa)
 IVT_END(Reserved_6d00)
 
 IVT_ENTRY(Reserved_6e00, 0x6e00)
-	TRAP(50, cr.ifa)
+	CALL(trap, 50, cr.ifa)
 IVT_END(Reserved_6e00)
 
 IVT_ENTRY(Reserved_6f00, 0x6f00)
-	TRAP(51, cr.ifa)
+	CALL(trap, 51, cr.ifa)
 IVT_END(Reserved_6f00)
 
 IVT_ENTRY(Reserved_7000, 0x7000)
-	TRAP(52, cr.ifa)
+	CALL(trap, 52, cr.ifa)
 IVT_END(Reserved_7000)
 
 IVT_ENTRY(Reserved_7100, 0x7100)
-	TRAP(53, cr.ifa)
+	CALL(trap, 53, cr.ifa)
 IVT_END(Reserved_7100)
 
 IVT_ENTRY(Reserved_7200, 0x7200)
-	TRAP(54, cr.ifa)
+	CALL(trap, 54, cr.ifa)
 IVT_END(Reserved_7200)
 
 IVT_ENTRY(Reserved_7300, 0x7300)
-	TRAP(55, cr.ifa)
+	CALL(trap, 55, cr.ifa)
 IVT_END(Reserved_7300)
 
 IVT_ENTRY(Reserved_7400, 0x7400)
-	TRAP(56, cr.ifa)
+	CALL(trap, 56, cr.ifa)
 IVT_END(Reserved_7400)
 
 IVT_ENTRY(Reserved_7500, 0x7500)
-	TRAP(57, cr.ifa)
+	CALL(trap, 57, cr.ifa)
 IVT_END(Reserved_7500)
 
 IVT_ENTRY(Reserved_7600, 0x7600)
-	TRAP(58, cr.ifa)
+	CALL(trap, 58, cr.ifa)
 IVT_END(Reserved_7600)
 
 IVT_ENTRY(Reserved_7700, 0x7700)
-	TRAP(59, cr.ifa)
+	CALL(trap, 59, cr.ifa)
 IVT_END(Reserved_7700)
 
 IVT_ENTRY(Reserved_7800, 0x7800)
-	TRAP(60, cr.ifa)
+	CALL(trap, 60, cr.ifa)
 IVT_END(Reserved_7800)
 
 IVT_ENTRY(Reserved_7900, 0x7900)
-	TRAP(61, cr.ifa)
+	CALL(trap, 61, cr.ifa)
 IVT_END(Reserved_7900)
 
 IVT_ENTRY(Reserved_7a00, 0x7a00)
-	TRAP(62, cr.ifa)
+	CALL(trap, 62, cr.ifa)
 IVT_END(Reserved_7a00)
 
 IVT_ENTRY(Reserved_7b00, 0x7b00)
-	TRAP(63, cr.ifa)
+	CALL(trap, 63, cr.ifa)
 IVT_END(Reserved_7b00)
 
 IVT_ENTRY(Reserved_7c00, 0x7c00)
-	TRAP(64, cr.ifa)
+	CALL(trap, 64, cr.ifa)
 IVT_END(Reserved_7c00)
 
 IVT_ENTRY(Reserved_7d00, 0x7d00)
-	TRAP(65, cr.ifa)
+	CALL(trap, 65, cr.ifa)
 IVT_END(Reserved_7d00)
 
 IVT_ENTRY(Reserved_7e00, 0x7e00)
-	TRAP(66, cr.ifa)
+	CALL(trap, 66, cr.ifa)
 IVT_END(Reserved_7e00)
 
 IVT_ENTRY(Reserved_7f00, 0x7f00)
-	TRAP(67, cr.ifa)
+	CALL(trap, 67, cr.ifa)
 IVT_END(Reserved_7f00)

@@ -81,7 +81,6 @@ SYSCTL_INT(_machdep, OID_AUTO, print_usertrap,
     CTLFLAG_RW, &print_usertrap, 0, "");
 
 static void break_syscall(struct trapframe *tf);
-static void ia32_syscall(struct trapframe *tf);
 
 /*
  * EFI-Provided FPSWA interface (Floating Point SoftWare Assist)
@@ -286,7 +285,7 @@ printtrap(int vector, struct trapframe *tf, int isfatal, int user)
 	printf("\n");
 }
 
-static void
+void
 trap_panic(int vector, struct trapframe *tf)
 {
 
@@ -803,64 +802,10 @@ trap(int vector, struct trapframe *tf)
 		break;
 
 	case IA64_VEC_IA32_EXCEPTION:
-		switch ((tf->tf_special.isr >> 16) & 0xffff) {
-		case IA32_EXCEPTION_DIVIDE:
-			ucode = FPE_INTDIV;
-			sig = SIGFPE;
-			break;
-		case IA32_EXCEPTION_DEBUG:
-		case IA32_EXCEPTION_BREAK:
-			sig = SIGTRAP;
-			break;
-		case IA32_EXCEPTION_OVERFLOW:
-			ucode = FPE_INTOVF;
-			sig = SIGFPE;
-			break;
-		case IA32_EXCEPTION_BOUND:
-			ucode = FPE_FLTSUB;
-			sig = SIGFPE;
-			break;
-		case IA32_EXCEPTION_DNA:
-			ucode = 0;
-			sig = SIGFPE;
-			break;
-		case IA32_EXCEPTION_NOT_PRESENT:
-		case IA32_EXCEPTION_STACK_FAULT:
-		case IA32_EXCEPTION_GPFAULT:
-			ucode = (tf->tf_special.isr & 0xffff) +
-			    BUS_SEGM_FAULT;
-			sig = SIGBUS;
-			break;
-		case IA32_EXCEPTION_FPERROR:
-			ucode = 0;	/* XXX */
-			sig = SIGFPE;
-			break;
-		case IA32_EXCEPTION_ALIGNMENT_CHECK:
-			ucode = tf->tf_special.ifa;	/* VA */
-			sig = SIGBUS;
-			break;
-		case IA32_EXCEPTION_STREAMING_SIMD:
-			ucode = 0; /* XXX */
-			sig = SIGFPE;
-			break;
-		default:
-			trap_panic(vector, tf);
-			break;
-		}
-		break;
-
 	case IA64_VEC_IA32_INTERCEPT:
-		/* XXX Maybe need to emulate ia32 instruction. */
-		trap_panic(vector, tf);
-
 	case IA64_VEC_IA32_INTERRUPT:
-		/* INT n instruction - probably a syscall. */
-		if (((tf->tf_special.isr >> 16) & 0xffff) == 0x80) {
-			ia32_syscall(tf);
-			goto out;
-		}
-		ucode = (tf->tf_special.isr >> 16) & 0xffff;
-		sig = SIGILL;
+		sig = SIGEMT;
+		ucode = tf->tf_special.iip;
 		break;
 
 	default:
@@ -884,7 +829,6 @@ out:
 	}
 	return;
 }
-
 
 /*
  * Handle break instruction based system calls.
@@ -1054,174 +998,4 @@ syscall(struct trapframe *tf)
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	return (error);
-}
-
-#include <i386/include/psl.h>
-
-static void
-ia32_syscall(struct trapframe *tf)
-{
-	caddr_t params;
-	int i;
-	struct sysent *callp;
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
-	register_t orig_eflags;
-	u_int sticks;
-	int error;
-	int narg;
-	u_int32_t args[8];
-	u_int64_t args64[8];
-	u_int code;
-
-	/*
-	 * note: PCPU_LAZY_INC() can only be used if we can afford
-	 * occassional inaccuracy in the count.
-	 */
-	cnt.v_syscall++;
-
-	sticks = td->td_sticks;
-	td->td_frame = tf;
-	if (td->td_ucred != p->p_ucred) 
-		cred_update_thread(td);
-	params = (caddr_t)(tf->tf_special.sp & ((1L<<32)-1))
-	    + sizeof(u_int32_t);
-	code = tf->tf_scratch.gr8;		/* eax */
-	orig_eflags = ia64_get_eflag();
-
-	if (p->p_sysent->sv_prepsyscall) {
-		/*
-		 * The prep code is MP aware.
-		 */
-		(*p->p_sysent->sv_prepsyscall)(tf, args, &code, &params);
-	} else {
-		/*
-		 * Need to check if this is a 32 bit or 64 bit syscall.
-		 * fuword is MP aware.
-		 */
-		if (code == SYS_syscall) {
-			/*
-			 * Code is first argument, followed by actual args.
-			 */
-			code = fuword32(params);
-			params += sizeof(int);
-		} else if (code == SYS___syscall) {
-			/*
-			 * Like syscall, but code is a quad, so as to maintain
-			 * quad alignment for the rest of the arguments.
-			 * We use a 32-bit fetch in case params is not
-			 * aligned.
-			 */
-			code = fuword32(params);
-			params += sizeof(quad_t);
-		}
-	}
-
- 	if (p->p_sysent->sv_mask)
- 		code &= p->p_sysent->sv_mask;
-
- 	if (code >= p->p_sysent->sv_size)
- 		callp = &p->p_sysent->sv_table[0];
-  	else
- 		callp = &p->p_sysent->sv_table[code];
-
-	narg = callp->sy_narg & SYF_ARGMASK;
-
-	/*
-	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
-	 */
-	if (params != NULL && narg != 0)
-		error = copyin(params, (caddr_t)args,
-		    (u_int)(narg * sizeof(int)));
-	else
-		error = 0;
-
-	for (i = 0; i < narg; i++)
-		args64[i] = args[i];
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, narg, args64);
-#endif
-	/*
-	 * Try to run the syscall without Giant if the syscall
-	 * is MP safe.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_lock(&Giant);
-
-	if (error == 0) {
-		td->td_retval[0] = 0;
-		td->td_retval[1] = tf->tf_scratch.gr10;	/* edx */
-
-		STOPEVENT(p, S_SCE, narg);
-
-		error = (*callp->sy_call)(td, args64);
-	}
-
-	switch (error) {
-	case 0:
-		tf->tf_scratch.gr8 = td->td_retval[0];	/* eax */
-		tf->tf_scratch.gr10 = td->td_retval[1];	/* edx */
-		ia64_set_eflag(ia64_get_eflag() & ~PSL_C);
-		break;
-
-	case ERESTART:
-		/*
-		 * Reconstruct pc, assuming lcall $X,y is 7 bytes,
-		 * int 0x80 is 2 bytes. XXX Assume int 0x80.
-		 */
-		tf->tf_special.iip -= 2;
-		break;
-
-	case EJUSTRETURN:
-		break;
-
-	default:
- 		if (p->p_sysent->sv_errsize) {
- 			if (error >= p->p_sysent->sv_errsize)
-  				error = -1;	/* XXX */
-   			else
-  				error = p->p_sysent->sv_errtbl[error];
-		}
-		tf->tf_scratch.gr8 = error;
-		ia64_set_eflag(ia64_get_eflag() | PSL_C);
-		break;
-	}
-
-	/*
-	 * Traced syscall.
-	 */
-	if ((orig_eflags & PSL_T) && !(orig_eflags & PSL_VM)) {
-		ia64_set_eflag(ia64_get_eflag() & ~PSL_T);
-		trapsignal(td, SIGTRAP, 0);
-	}
-
-	/*
-	 * Release Giant if we previously set it.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
-
-	/*
-	 * Handle reschedule and other end-of-syscall issues
-	 */
-	userret(td, tf, sticks);
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(code, error, td->td_retval[0]);
-#endif
-
-	/*
-	 * This works because errno is findable through the
-	 * register set.  If we ever support an emulation where this
-	 * is not the case, this code will need to be revisited.
-	 */
-	STOPEVENT(p, S_SCX, code);
-
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
