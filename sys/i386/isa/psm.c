@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.46 1997/11/21 11:36:21 yokota Exp $
+ * $Id: psm.c,v 1.47 1997/12/07 08:09:17 yokota Exp $
  */
 
 /*
@@ -190,6 +190,25 @@ static struct psm_softc {    /* Driver status information */
  * the standard packet format.
 */
 #define PSM_FLAGS_NATIVEMODE 	0x0200
+
+/* for backward compatibility */
+#define OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
+#define OLD_MOUSE_GETMODE	_IOR('M', 2, old_mousemode_t)
+#define OLD_MOUSE_SETMODE	_IOW('M', 3, old_mousemode_t)
+
+typedef struct old_mousehw {
+    int buttons;
+    int iftype;
+    int type;
+    int hwid;
+} old_mousehw_t;
+
+typedef struct old_mousemode {
+    int protocol;
+    int rate;
+    int resolution;
+    int accelfactor;
+} old_mousemode_t;
 
 /* packet formatting function */
 typedef int packetfunc_t __P((struct psm_softc *, unsigned char *,
@@ -1361,11 +1380,39 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
     /* Perform IOCTL command */
     switch (cmd) {
 
+    case OLD_MOUSE_GETHWINFO:
+	s = spltty();
+        ((old_mousehw_t *)addr)->buttons = sc->hw.buttons;
+        ((old_mousehw_t *)addr)->iftype = sc->hw.iftype;
+        ((old_mousehw_t *)addr)->type = sc->hw.type;
+        ((old_mousehw_t *)addr)->hwid = sc->hw.hwid;
+	splx(s);
+        break;
+
     case MOUSE_GETHWINFO:
 	s = spltty();
         *(mousehw_t *)addr = sc->hw;
 	if (sc->mode.level == PSM_LEVEL_BASE)
 	    ((mousehw_t *)addr)->model = MOUSE_MODEL_GENERIC;
+	splx(s);
+        break;
+
+    case OLD_MOUSE_GETMODE:
+	s = spltty();
+	switch (sc->mode.level) {
+	case PSM_LEVEL_BASE:
+	    ((old_mousemode_t *)addr)->protocol = MOUSE_PROTO_PS2;
+	    break;
+	case PSM_LEVEL_STANDARD:
+	    ((old_mousemode_t *)addr)->protocol = MOUSE_PROTO_SYSMOUSE;
+	    break;
+	case PSM_LEVEL_NATIVE:
+	    ((old_mousemode_t *)addr)->protocol = MOUSE_PROTO_PS2;
+	    break;
+	}
+        ((old_mousemode_t *)addr)->rate = sc->mode.rate;
+        ((old_mousemode_t *)addr)->resolution = sc->mode.resolution;
+        ((old_mousemode_t *)addr)->accelfactor = sc->mode.accelfactor;
 	splx(s);
         break;
 
@@ -1393,8 +1440,26 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	splx(s);
         break;
 
+    case OLD_MOUSE_SETMODE:
     case MOUSE_SETMODE:
-	mode = *(mousemode_t *)addr;
+	if (cmd == OLD_MOUSE_SETMODE) {
+	    mode.rate = ((old_mousemode_t *)addr)->rate;
+	    /*
+	     * resolution  old I/F   new I/F
+	     * default        0         0
+	     * low            1        -2
+	     * medium low     2        -3
+	     * medium high    3        -4
+	     * high           4        -5
+	     */
+	    if (((old_mousemode_t *)addr)->resolution > 0)
+	        mode.resolution = -((old_mousemode_t *)addr)->resolution - 1;
+	    mode.accelfactor = ((old_mousemode_t *)addr)->accelfactor;
+	    mode.level = -1;
+	} else {
+	    mode = *(mousemode_t *)addr;
+	}
+
 	/* adjust and validate parameters. */
 	if (mode.rate > UCHAR_MAX)
 	    return EINVAL;
