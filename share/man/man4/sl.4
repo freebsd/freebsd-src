@@ -49,6 +49,21 @@ interface allows serial lines to be used as network interfaces using the
 protocol.  The
 .Nm sl
 interface can use Van Jacobson TCP header compression and ICMP filtering.
+This is arranged by using the various link-level flags to the
+.Xr ifconfig 8
+command:
+.Pp
+.Bl -tag -width LINK0X -compact
+.It Em link0
+Enable VJ header compression.
+.It Em link1
+Suppress ICMP traffic.
+.It Em link2
+Enable VJ header compression autodetection.  This will turn on the
+.Em link0
+flag as soon as the first VJ-compressed packet has been seen by
+the driver.
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It sl%d: af%d not supported.
