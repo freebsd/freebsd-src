@@ -494,7 +494,7 @@ b_to_q(src, amount, clistp)
 
 		/*
 		 * Clear quote bits if they aren't known to be clear.
-		 * The following could probably be made into a seperate
+		 * The following could probably be made into a separate
 		 * "bitzero()" routine, but why bother?
 		 */
 		if (isset(cblockp->c_quote, CBQSIZE * NBBY - 1)) {

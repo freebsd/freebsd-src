@@ -171,7 +171,7 @@ struct lmc___ctl {
 
 /*
  * Some of the MII16 bits are mirrored in the MII17 register as well,
- * but let's keep thing seperate for now, and get only the cable from
+ * but let's keep thing separate for now, and get only the cable from
  * the MII17.
  */
 #define LMC_MII17_SSI_CABLE_MASK	0x0038	/* mask to extract the cable type */

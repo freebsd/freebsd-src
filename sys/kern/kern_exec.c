@@ -686,7 +686,7 @@ exec_copyout_strings(imgp)
 		destp++;
 	}
 
-	/* a null vector table pointer seperates the argp's from the envp's */
+	/* a null vector table pointer separates the argp's from the envp's */
 	suword(vectp++, 0);
 
 	suword(&arginfo->ps_envstr, (long)(intptr_t)vectp);

@@ -9,7 +9,7 @@ can move 'news' and 'uucp' cron commands into files owned and maintainable
 by those two users.  You also get to rip all the fancy 'su' footwork out
 of the cron commands.  On 4.3, there's no need for the 'su' stuff since the
 user name appears on each command -- but I'd still rather have separate
-crontabs with seperate environments and so on.
+crontabs with separate environments and so on.
 
 Leave the original /usr/lib/crontab!  This cron doesn't use it, so you may
 as well keep it around for a while in case something goes wakko with this
