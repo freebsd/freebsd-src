@@ -83,7 +83,6 @@ struct device {
 	int	d_count;		/* pseudo-device count */
 #define QUES	-1	/* -1 means '?' */
 #define	UNKNOWN -2	/* -2 means not set yet */
-	int	d_dk;			/* if init 1 set to number for iostat */
 	int	d_flags;		/* flags for device init */
 	int	d_conflicts;		/* I'm allowed to conflict */
 	int	d_disabled;		/* nonzero to skip probe/attach */
