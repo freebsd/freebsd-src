@@ -60,6 +60,8 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
+#include <sys/module.h>
+#include <sys/conf.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -614,3 +616,10 @@ exca_is_pcic(struct exca_softc *sc)
 	/* XXX */
 	return (0);
 }
+
+static int exca_modevent(module_t mod, int cmd, void *arg)
+{
+	return 0;
+}
+DEV_MODULE(exca, exca_modevent, NULL);
+MODULE_VERSION(exca, 1);
