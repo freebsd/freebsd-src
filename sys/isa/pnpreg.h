@@ -39,14 +39,6 @@
 /* Maximum Number of PnP Devices.  8 should be plenty */
 #define PNP_MAX_CARDS 8
 
-#if 0
-/*
- * the following is the maximum number of PnP Logical devices that
- * userconfig can handle.
- */
-#define MAX_PNP_LDN	20
-#endif
-
 /* Static ports to access PnP state machine */
 #ifdef PC98
 #define _PNP_ADDRESS		0x259

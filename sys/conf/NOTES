@@ -259,11 +259,6 @@ options 	REGRESSION
 #
 options 	COMPILING_LINT
 
-
-# XXX - this doesn't belong here either
-#options 	USERCONFIG		#boot -c editor
-#options 	INTRO_USERCONFIG	#imply -c and show intro screen
-#options 	VISUAL_USERCONFIG	#visual boot -c editor
 
 #####################################################################
 # NETWORKING OPTIONS
@@ -1222,7 +1217,7 @@ hint.sio.0.irq="4"
 #		access the device in any normal way.
 #	0x80	use this port for serial line gdb support in ddb.
 #
-# PnP `flags' (set via userconfig using pnp x flags y)
+# PnP `flags'
 #	0x1	disable probing of this device.  Used to prevent your modem
 #		from being attached as a PnP modem.
 #
