@@ -204,6 +204,7 @@ should also, of course, be exported!\n\n" \
 			error "Unable to mount $nfs_path"
 		else
 			media_device=$nfs_path
+			message "$nfs_path mounted successfully"
 		fi
 	;;
 	esac
@@ -385,7 +386,7 @@ setup_network()
 extract_dist()
 {
 	if [ -f extract.sh ]; then
-		message "Extracting distribution"
+		message "Extracting distribution\nPlease wait!"
 		sh ./extract.sh > /dev/ttyv1 2>&1
 	else    
 		error "Improper distribution.  No installation script found."  
@@ -448,6 +449,7 @@ install_set()
 	;;
 
 	nfs)
+		message "Extracting from NFS directory"
 		cd /mnt
 		extract_dist
 		cd /
