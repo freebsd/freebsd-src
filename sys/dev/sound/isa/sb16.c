@@ -36,8 +36,6 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
-#include <sys/mutex.h>
-
 #include "mixer_if.h"
 
 #define SB16_BUFFSIZE	4096
@@ -151,8 +149,10 @@ sb_dspwr(struct sb_info *sb, u_char val)
 			return 1;
 		}
     	}
+#if __FreeBSD_version > 50000
 	if (curproc->p_intr_nesting_level == 0)
 		printf("sb_dspwr(0x%02x) timed out.\n", val);
+#endif
     	return 0;
 }
 
