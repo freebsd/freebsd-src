@@ -14,6 +14,10 @@ static char	elsieid[] = "@(#)asctime.c	7.7";
 #include "private.h"
 #include "tzfile.h"
 
+#ifndef _THREAD_SAFE
+static char *asctime_r __P((const struct tm *, char *));
+#endif
+
 /*
 ** A la X3J11, with core dump avoidance.
 */
@@ -28,6 +32,9 @@ const struct tm *	timeptr;
 	return(asctime_r(timeptr, result));
 }
 
+#ifndef _THREAD_SAFE
+static
+#endif
 char *
 asctime_r(timeptr, result)
 const struct tm *	timeptr;
