@@ -387,11 +387,6 @@ many pathname text columns to display
 based on the width provided.
 (See
 .Fl C . )
-.It Ev TZ
-The timezone to use when displaying dates.
-See
-.Xr environ 7
-for more information.
 .It Ev LANG
 The locale to use when determining the order of day and month in the long
 .Fl l
@@ -475,6 +470,11 @@ a dynamically sized column).  Not all
 columns have changeable widths.  The fields are,
 in order: inode, block count, number of links, user name,
 group name, flags, file size, file name.
+.It Ev TZ
+The timezone to use when displaying dates.
+See
+.Xr environ 7
+for more information.
 .El
 .Sh COMPATIBILITY
 The group field is now automatically included in the long listing for
