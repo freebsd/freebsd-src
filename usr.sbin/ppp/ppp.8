@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.189 1999/08/17 17:22:46 brian Exp $
+.\" $Id: ppp.8,v 1.190 1999/08/18 15:35:54 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -8,7 +8,8 @@
 .Nd Point to Point Protocol (a.k.a. user-ppp) 
 .Sh SYNOPSIS
 .Nm
-.Op Fl alias
+.Op Fl nat
+.Op Fl quiet
 .Op Fl Va mode
 .Op Ar system Ns
 .No ...
@@ -26,17 +27,26 @@ is done as a user process with the help of the
 tunnel device driver (tun).
 .Pp
 The
+.Fl nat
+flag (or
 .Fl alias
-flag does the equivalent of an
-.Dq alias enable yes ,
+flag for backwards compatability) does the equivalent of a
+.Dq nat enable yes ,
 enabling
 .Nm ppp Ns No s
-packet aliasing features.  This allows
+network address translation features.  This allows
 .Nm ppp
 to act as a NAT or masquerading engine for all machines on an internal 
 LAN.  Refer to
 .Xr libalias 3
 for details.
+.Pp
+The
+.Fl quiet
+flag tells
+.Nm
+to be silent at startup rather than displaying the mode and interface
+to standard output.
 .Pp
 The following
 .Va mode Ns No s
@@ -81,6 +91,14 @@ goes into the background and the parent process returns an exit code
 of 0.  If it fails,
 .Nm
 exits with a non-zero result.
+.It Fl foreground
+In foreground mode,
+.Nm
+attempts to establish a connection with the peer immediately, but never
+becomes a daemon.  The link is created in background mode.  This is useful
+if you wish to control
+.Nm ppp Ns No s
+invocation from another process.
 .It Fl direct
 This is used for receiving incoming connections.
 .Nm
@@ -1327,10 +1345,12 @@ from "tcp" to "udp".  When using UDP as a transport,
 will operate in synchronous mode.  This is another gain as the incoming
 data does not have to be rearranged into packets.
 .Pp
-.Sh PACKET ALIASING
+.Sh NETWORK ADDRESS TRANSLATION (PACKET ALIASING)
 The
-.Fl alias
-command line option enables packet aliasing.  This allows the
+.Fl nat
+.Pq \&or Fl alias
+command line option enables network address translation (a.k.a. packet
+aliasing).  This allows the
 .Nm
 host to act as a masquerading gateway for other computers over
 a local area network.  Outgoing IP packets are aliased so that
@@ -1343,9 +1363,9 @@ subnets to have Internet access, although they are invisible
 from the outside world.
 In general, correct
 .Nm
-operation should first be verified with packet aliasing disabled.
+operation should first be verified with network address translation disabled.
 Then, the 
-.Fl alias
+.Fl nat
 option should be switched on, and network applications (web browser,
 .Xr telnet 1 ,
 .Xr ftp 1 ,
@@ -2637,24 +2657,24 @@ not to make any utmp or wtmp entries.  This is usually only necessary if
 you require the user to both login and authenticate themselves.
 .It iface-alias
 Default: Enabled if
-.Fl alias
+.Fl nat
 is specified.  This option simply tells
 .Nm
 to add new interface addresses to the interface rather than replacing them.
-The option can only be enabled if IP aliasing is enabled
-.Pq Dq alias enable yes .
+The option can only be enabled if network address translation is enabled
+.Pq Dq nat enable yes .
 .Pp
 With this option enabled,
 .Nm
-will pass traffic for old interface addresses through the IP alias engine
+will pass traffic for old interface addresses through the NAT engine
 .Pq see Xr libalias 5 ,
 resulting in the ability (in
 .Fl auto
 mode) to properly connect the process that caused the PPP link to
 come up in the first place.
 .Pp
-Disabling IP aliasing with
-.Dq alias enable no
+Disabling NAT with
+.Dq nat enable no
 will also disable
 .Sq iface-alias .
 .El
@@ -2796,36 +2816,46 @@ When running in multi-link mode, a section can be loaded if it allows
 of the currently existing line modes.
 .El
 .Pp
-.It alias Ar command Op Ar args
-This command allows the control of the aliasing (or masquerading)
-facilities that are built into
+.It nat Ar command Op Ar args
+This command allows the control of the network address translation (also
+known as masquerading or IP aliasing) facilities that are built into
 .Nm ppp .
-If aliasing is enabled on your system (it may be omitted at compile time),
+NAT is done on the external interface only, and is unlikely to make sense
+if used with the
+.Fl direct
+flag.
+.Pp
+For backwards compatibility, the word
+.Dq alias
+may be used in place of
+.Dq nat .
+If nat is enabled on your system (it may be omitted at compile time),
 the following commands are possible:
 .Bl -tag -width XX
-.It alias enable Op yes|no
-This command either switches aliasing on or turns it off.
+.It nat enable yes|no
+This command either switches network address translation on or turns it off.
 The
-.Fl alias
+.Fl nat
 command line flag is synonymous with
-.Dq alias enable yes .
-.It alias addr Op Ar addr_local addr_alias
+.Dq nat enable yes .
+.It nat addr Op Ar addr_local addr_alias
 This command allows data for
 .Ar addr_alias
 to be redirected to
 .Ar addr_local .
 It is useful if you own a small number of real IP numbers that
 you wish to map to specific machines behind your gateway.
-.It alias deny_incoming Op yes|no
+.It nat deny_incoming yes|no
 If set to yes, this command will refuse all incoming connections
 by dropping the packets in much the same way as a firewall would.
-.It alias help|?
-This command gives a summary of available alias commands.
-.It alias log Op yes|no
-This option causes various aliasing statistics and information to
+.It nat help|?
+This command gives a summary of available nat commands.
+.It nat log yes|no
+This option causes various NAT statistics and information to
 be logged to the file
 .Pa /var/log/alias.log .
-.It alias port Ar proto Ar targetIP Ns Xo
+This file name is likely to change in the near future.
+.It nat port Ar proto Ar targetIP Ns Xo
 .No : Ns Ar targetPort Ns
 .Oo
 .No - Ns Ar targetPort
@@ -2867,10 +2897,10 @@ or a range of ports the same size as the other ranges.
 This option is useful if you wish to run things like Internet phone on
 machines behind your gateway, but is limited in that connections to only
 one interior machine per source machine and target port are possible.
-.It alias pptp Op Ar addr
+.It nat pptp Op Ar addr
 This tells
 .Nm
-to alias any
+to translate any
 .Em G Ns No eneral
 .Em R Ns No outing
 .Em E Ns No encapsulated
@@ -2889,8 +2919,8 @@ If
 .Ar addr
 is not specified,
 .Dv PPTP
-aliasing is disabled.
-.It "alias proxy cmd" Ar arg Ns No ...
+address translation is disabled.
+.It "nat proxy cmd" Ar arg Ns No ...
 This command tells
 .Nm
 to proxy certain connections, redirecting them to a given server.  Refer
@@ -2899,16 +2929,16 @@ to the description of
 in
 .Xr libalias 3
 for details of the available commands.
-.It alias same_ports Op yes|no
-When enabled, this command will tell the alias library attempt to
-avoid changing the port number on outgoing packets.  This is useful
+.It nat same_ports yes|no
+When enabled, this command will tell the network address translation engine to
+ attempt to avoid changing the port number on outgoing packets.  This is useful
 if you want to support protocols such as RPC and LPD which require
 connections to come from a well known port.
-.It alias use_sockets Op yes|no
-When enabled, this option tells the alias library to create a
-socket so that it can guarantee a correct incoming ftp data or
+.It nat use_sockets yes|no
+When enabled, this option tells the network address translation engine to
+create a socket so that it can guarantee a correct incoming ftp data or
 IRC connection.
-.It alias unregistered_only Op yes|no
+.It nat unregistered_only yes|no
 Only alter outgoing packets with an unregistered source ad-
 dress.  According to RFC 1918, unregistered source addresses
 are 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16.
@@ -3905,8 +3935,8 @@ into the machine and the
 filter specifies packets that are allowed out of the machine.
 .Pp
 Filtering is done prior to any IP alterations that might be done by the
-alias engine on outgoing packets and after any IP alterations that might
-be done by the alias engine on incoming packets.  By default all filter
+NAT engine on outgoing packets and after any IP alterations that might
+be done by the NAT engine on incoming packets.  By default all filter
 sets allow all packets to pass.  Rules are processed in order according to
 .Ar rule-no
 (unless skipped by specifying a rule number as the
@@ -4104,7 +4134,7 @@ or
 .Pp
 Note: If you issue the command
 .Dq set mode auto ,
-and have IP aliasing enabled, it may be useful to
+and have network address translation enabled, it may be useful to
 .Dq enable iface-alias
 afterwards.  This will allow
 .Nm
@@ -4579,7 +4609,7 @@ Read the example configuration files.  They are a good source of information.
 .It
 Use
 .Dq help ,
-.Dq alias ? ,
+.Dq nat ? ,
 .Dq enable ? ,
 .Dq set ?
 and

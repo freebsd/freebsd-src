@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.19 1999/08/05 10:32:13 brian Exp $
+ *  $Id: physical.c,v 1.20 1999/08/06 20:04:05 brian Exp $
  *
  */
 
@@ -45,7 +45,7 @@
 #endif
 
 #include "layer.h"
-#ifndef NOALIAS
+#ifndef NONAT
 #include "alias_cmd.h"
 #endif
 #include "proto.h"
@@ -985,8 +985,8 @@ physical_SetupStack(struct physical *p, const char *who, int how)
   link_Stack(&p->link, &lqrlayer);
   link_Stack(&p->link, &ccplayer);
   link_Stack(&p->link, &vjlayer);
-#ifndef NOALIAS
-  link_Stack(&p->link, &aliaslayer);
+#ifndef NONAT
+  link_Stack(&p->link, &natlayer);
 #endif
   if (how == PHYSICAL_FORCE_ASYNC && physical_IsSync(p)) {
     log_Printf(LogWARN, "Sync device setting ignored for ``%s'' device\n", who);

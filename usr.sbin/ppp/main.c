@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.155 1999/05/13 16:34:57 brian Exp $
+ * $Id: main.c,v 1.156 1999/08/09 22:54:51 brian Exp $
  *
  *	TODO:
  */
@@ -39,7 +39,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#ifndef NOALIAS
+#ifndef NONAT
 #ifdef __FreeBSD__
 #include <alias.h>
 #else
@@ -181,35 +181,43 @@ static void
 Usage(void)
 {
   fprintf(stderr,
-	  "Usage: ppp [-auto | -background | -direct | -dedicated | -ddial ]"
+	  "Usage: ppp [-auto | -foreground | -background | -direct | -dedicated | -ddial | -interactive]"
 #ifndef NOALIAS
-          " [ -alias ]"
+          " [-nat]"
 #endif
           " [system ...]\n");
   exit(EX_START);
 }
 
 static int
-ProcessArgs(int argc, char **argv, int *mode, int *alias)
+ProcessArgs(int argc, char **argv, int *mode, int *nat, int *fg, int *quiet)
 {
   int optc, newmode, arg;
   char *cp;
 
   optc = 0;
   *mode = PHYS_INTERACTIVE;
-  *alias = 0;
+  *nat = 0;
+  *fg = 0;
+  *quiet = 0;
   for (arg = 1; arg < argc && *argv[arg] == '-'; arg++, optc++) {
     cp = argv[arg] + 1;
     newmode = Nam2mode(cp);
     switch (newmode) {
       case PHYS_NONE:
-        if (strcmp(cp, "alias") == 0) {
-#ifdef NOALIAS
-          log_Printf(LogWARN, "Cannot load alias library (compiled out)\n");
+        if (strcmp(cp, "nat") == 0 || strcmp(cp, "alias") == 0) {
+#ifdef NONAT
+          log_Printf(LogWARN, "Cannot load libalias (compiled out)\n");
 #else
-          *alias = 1;
+          *nat = 1;
 #endif
           optc--;			/* this option isn't exclusive */
+        } else if (strcmp(cp, "quiet") == 0) {
+          *quiet = 1;
+          optc--;			/* this option isn't exclusive */
+        } else if (strcmp(cp, "foreground") == 0) {
+          *mode = PHYS_BACKGROUND;	/* Kinda like background mode */
+          *fg = 1;
         } else
           Usage();
         break;
@@ -257,7 +265,7 @@ main(int argc, char **argv)
 {
   char *name;
   const char *lastlabel;
-  int nfds, mode, alias, label, arg;
+  int nfds, mode, nat, fg, quiet, label, arg;
   struct bundle *bundle;
   struct prompt *prompt;
 
@@ -274,10 +282,10 @@ main(int argc, char **argv)
   name = strrchr(argv[0], '/');
   log_Open(name ? name + 1 : argv[0]);
 
-#ifndef NOALIAS
+#ifndef NONAT
   PacketAliasInit();
 #endif
-  label = ProcessArgs(argc, argv, &mode, &alias);
+  label = ProcessArgs(argc, argv, &mode, &nat, &fg, &quiet);
 
   /*
    * A FreeBSD & OpenBSD hack to dodge a bug in the tty driver that drops
@@ -325,7 +333,8 @@ main(int argc, char **argv)
   else
     CheckLabel("default", prompt, mode);
 
-  prompt_Printf(prompt, "Working in %s mode\n", mode2Nam(mode));
+  if (!quiet)
+    prompt_Printf(prompt, "Working in %s mode\n", mode2Nam(mode));
 
   if ((bundle = bundle_Create(TUN_PREFIX, mode, (const char **)argv)) == NULL) {
     log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
@@ -336,11 +345,12 @@ main(int argc, char **argv)
 
   if (prompt) {
     prompt->bundle = bundle;	/* couldn't do it earlier */
-    prompt_Printf(prompt, "Using interface: %s\n", bundle->iface->name);
+    if (!quiet)
+      prompt_Printf(prompt, "Using interface: %s\n", bundle->iface->name);
   }
   SignalBundle = bundle;
-  bundle->AliasEnabled = alias;
-  if (alias)
+  bundle->NatEnabled = nat;
+  if (nat)
     bundle->cfg.opt |= OPT_IFACEALIAS;
 
   if (system_Select(bundle, "default", CONFFILE, prompt, NULL) < 0)
@@ -379,68 +389,71 @@ main(int argc, char **argv)
 
   if (mode != PHYS_INTERACTIVE) {
     if (mode != PHYS_DIRECT) {
-      int bgpipe[2];
-      pid_t bgpid;
+      if (!fg) {
+        int bgpipe[2];
+        pid_t bgpid;
 
-      if (mode == PHYS_BACKGROUND && pipe(bgpipe)) {
-        log_Printf(LogERROR, "pipe: %s\n", strerror(errno));
-	AbortProgram(EX_SOCK);
-      }
+        if (mode == PHYS_BACKGROUND && pipe(bgpipe)) {
+          log_Printf(LogERROR, "pipe: %s\n", strerror(errno));
+	  AbortProgram(EX_SOCK);
+        }
 
-      bgpid = fork();
-      if (bgpid == -1) {
-	log_Printf(LogERROR, "fork: %s\n", strerror(errno));
-	AbortProgram(EX_SOCK);
-      }
+        bgpid = fork();
+        if (bgpid == -1) {
+	  log_Printf(LogERROR, "fork: %s\n", strerror(errno));
+	  AbortProgram(EX_SOCK);
+        }
 
-      if (bgpid) {
-	char c = EX_NORMAL;
+        if (bgpid) {
+	  char c = EX_NORMAL;
 
-	if (mode == PHYS_BACKGROUND) {
-	  close(bgpipe[1]);
-	  BGPid = bgpid;
-          /* If we get a signal, kill the child */
-          signal(SIGHUP, KillChild);
-          signal(SIGTERM, KillChild);
-          signal(SIGINT, KillChild);
-          signal(SIGQUIT, KillChild);
+	  if (mode == PHYS_BACKGROUND) {
+	    close(bgpipe[1]);
+	    BGPid = bgpid;
+            /* If we get a signal, kill the child */
+            signal(SIGHUP, KillChild);
+            signal(SIGTERM, KillChild);
+            signal(SIGINT, KillChild);
+            signal(SIGQUIT, KillChild);
 
-	  /* Wait for our child to close its pipe before we exit */
-	  if (read(bgpipe[0], &c, 1) != 1) {
-	    prompt_Printf(prompt, "Child exit, no status.\n");
-	    log_Printf(LogPHASE, "Parent: Child exit, no status.\n");
-	  } else if (c == EX_NORMAL) {
-	    prompt_Printf(prompt, "PPP enabled.\n");
-	    log_Printf(LogPHASE, "Parent: PPP enabled.\n");
-	  } else {
-	    prompt_Printf(prompt, "Child failed (%s).\n", ex_desc((int) c));
-	    log_Printf(LogPHASE, "Parent: Child failed (%s).\n",
-		      ex_desc((int) c));
+	    /* Wait for our child to close its pipe before we exit */
+	    if (read(bgpipe[0], &c, 1) != 1) {
+	      prompt_Printf(prompt, "Child exit, no status.\n");
+	      log_Printf(LogPHASE, "Parent: Child exit, no status.\n");
+	    } else if (c == EX_NORMAL) {
+	      prompt_Printf(prompt, "PPP enabled.\n");
+	      log_Printf(LogPHASE, "Parent: PPP enabled.\n");
+	    } else {
+	      prompt_Printf(prompt, "Child failed (%s).\n", ex_desc((int) c));
+	      log_Printf(LogPHASE, "Parent: Child failed (%s).\n",
+		         ex_desc((int) c));
+	    }
+	    close(bgpipe[0]);
 	  }
+	  return c;
+        } else if (mode == PHYS_BACKGROUND) {
 	  close(bgpipe[0]);
-	}
-	return c;
-      } else if (mode == PHYS_BACKGROUND) {
-	close(bgpipe[0]);
-        bundle->notify.fd = bgpipe[1];
+          bundle->notify.fd = bgpipe[1];
+        }
+
+        bundle_LockTun(bundle);	/* we have a new pid */
       }
 
-      bundle_LockTun(bundle);	/* we have a new pid */
-
-      /* -auto, -dedicated, -ddial & -background */
+      /* -auto, -dedicated, -ddial, -foreground & -background */
       prompt_Destroy(prompt, 0);
       close(STDOUT_FILENO);
       close(STDERR_FILENO);
       close(STDIN_FILENO);
-      setsid();
+      if (!fg)
+        setsid();
     } else {
-      /* -direct: STDIN_FILENO gets used by modem_Open */
+      /* -direct - STDIN_FILENO gets used by physical_Open */
       prompt_TtyInit(NULL);
       close(STDOUT_FILENO);
       close(STDERR_FILENO);
     }
   } else {
-    /* Interactive mode */
+    /* -interactive */
     close(STDERR_FILENO);
     prompt_TtyInit(prompt);
     prompt_TtyCommandMode(prompt);

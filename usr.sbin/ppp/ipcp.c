@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.81 1999/06/08 20:12:06 brian Exp $
+ * $Id: ipcp.c,v 1.82 1999/08/05 10:32:12 brian Exp $
  *
  *	TODO:
  *		o Support IPADDRS properly
@@ -41,7 +41,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#ifndef NOALIAS
+#ifndef NONAT
 #ifdef __FreeBSD__
 #include <alias.h>
 #else
@@ -745,8 +745,8 @@ ipcp_InterfaceUp(struct ipcp *ipcp)
     return 0;
   }
 
-#ifndef NOALIAS
-  if (ipcp->fsm.bundle->AliasEnabled)
+#ifndef NONAT
+  if (ipcp->fsm.bundle->NatEnabled)
     PacketAliasSetAddress(ipcp->my_ip);
 #endif
 

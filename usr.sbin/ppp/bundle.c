@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.61 1999/08/09 22:56:17 brian Exp $
+ *	$Id: bundle.c,v 1.62 1999/08/17 17:22:44 brian Exp $
  */
 
 #include <sys/param.h>
@@ -680,7 +680,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
   bundle.CleaningUp = 0;
-  bundle.AliasEnabled = 0;
+  bundle.NatEnabled = 0;
 
   bundle.fsm.LayerStart = bundle_LayerStart;
   bundle.fsm.LayerUp = bundle_LayerUp;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: layer.h,v 1.1 1999/05/08 11:06:50 brian Exp $
  */
 
 #define	LAYER_ASYNC	2
@@ -34,7 +34,7 @@
 #define	LAYER_LQR	7
 #define	LAYER_CCP	8
 #define	LAYER_VJ	9
-#define	LAYER_ALIAS	10
+#define	LAYER_NAT	10
 
 #define	LAYER_MAX	10	/* How many layers we can handle on a link */
 

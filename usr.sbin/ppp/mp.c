@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.25 1999/06/09 16:54:03 brian Exp $
+ *	$Id: mp.c,v 1.26 1999/08/05 10:32:12 brian Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,7 @@
 #include <unistd.h>
 
 #include "layer.h"
-#ifndef NOALIAS
+#ifndef NONAT
 #include "alias_cmd.h"
 #endif
 #include "vjcomp.h"
@@ -278,8 +278,8 @@ mp_Init(struct mp *mp, struct bundle *bundle)
   link_Stack(&mp->link, &protolayer);
   link_Stack(&mp->link, &ccplayer);
   link_Stack(&mp->link, &vjlayer);
-#ifndef NOALIAS
-  link_Stack(&mp->link, &aliaslayer);
+#ifndef NONAT
+  link_Stack(&mp->link, &natlayer);
 #endif
 }
 
