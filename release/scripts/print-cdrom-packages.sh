@@ -150,6 +150,8 @@ CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 
 ## Start of set for CDROM #3
 CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
+CDROM_SET_3="${CDROM_SET_3} net/cvsup-without-gui"
+CDROM_SET_3="${CDROM_SET_3} print/acroread4"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj"
 
