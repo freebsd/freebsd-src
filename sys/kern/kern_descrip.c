@@ -43,14 +43,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/conf.h>
 #include <sys/filedesc.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
