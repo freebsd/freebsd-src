@@ -183,7 +183,6 @@ cd9660_mount(mp, path, data, ndp, p)
 {
 	struct vnode *devvp;
 	struct iso_args args;
-	struct ucred *uc;
 	size_t size;
 	int error;
 	mode_t accessmode;
@@ -228,12 +227,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	 */
 	accessmode = VREAD;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	error = VOP_ACCESS(devvp, accessmode, uc, p);
-	crfree(uc);
+	error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p);
 	if (error) 
 		error = suser(p);
 	if (error) {
@@ -277,7 +271,6 @@ iso_mountfs(devvp, mp, p, argp)
 	register struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
-	struct ucred *uc;
 	dev_t dev = devvp->v_rdev;
 	int error = EINVAL;
 	int needclose = 0;
@@ -305,13 +298,7 @@ iso_mountfs(devvp, mp, p, argp)
 		return error;
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return EBUSY;
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
-	crfree(uc);
-	if (error)
+	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)))
 		return (error);
 
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);

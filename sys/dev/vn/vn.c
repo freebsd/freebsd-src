@@ -562,7 +562,6 @@ vniocattach_file(vn, vio, dev, flag, p)
 	struct proc *p;
 {
 	struct vattr vattr;
-	struct ucred *uc;
 	struct nameidata nd;
 	int error, flags;
 
@@ -579,15 +578,10 @@ vniocattach_file(vn, vio, dev, flag, p)
 			return (error);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
 	if (nd.ni_vp->v_type != VREG ||
-	    (error = VOP_GETATTR(nd.ni_vp, &vattr, uc, p))) {
+	    (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p))) {
 		VOP_UNLOCK(nd.ni_vp, 0, p);
-		(void) vn_close(nd.ni_vp, flags, uc, p);
-		crfree(uc);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
 		return (error ? error : EINVAL);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, p);
@@ -602,13 +596,11 @@ vniocattach_file(vn, vio, dev, flag, p)
 		vn->sc_size = (quad_t)vio->vn_size * PAGE_SIZE / vn->sc_secsize;
 	else
 		vn->sc_size = vattr.va_size / vn->sc_secsize;
-	error = vnsetcred(vn, uc);
+	error = vnsetcred(vn, p->p_ucred);
 	if (error) {
-		(void) vn_close(nd.ni_vp, flags, uc, p);
-		crfree(uc);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
 		return(error);
 	}
-	crfree(uc);
 	vn->sc_flags |= VNF_INITED;
 	if (flags == FREAD)
 		vn->sc_flags |= VNF_READONLY;
@@ -635,7 +627,6 @@ vniocattach_swap(vn, vio, dev, flag, p)
 	struct proc *p;
 {
 	int error;
-	struct ucred *uc;
 
 	/*
 	 * Range check.  Disallow negative sizes or any size less then the
@@ -667,12 +658,7 @@ vniocattach_swap(vn, vio, dev, flag, p)
 		}
 	}
 	vn->sc_flags |= VNF_INITED;
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	error = vnsetcred(vn, uc);
-	crfree(uc);
+	error = vnsetcred(vn, p->p_ucred);
 	if (error == 0) {
 		IFOPT(vn, VN_FOLLOW) {
 			printf("vnioctl: SET vp %p size %x\n",
