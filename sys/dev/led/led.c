@@ -254,7 +254,8 @@ led_destroy(dev_t dev)
 	mtx_lock(&led_mtx);
 	LIST_REMOVE(sc, list);
 	mtx_unlock(&led_mtx);
-	sbuf_delete(sc->spec);
+	if (sc->spec != NULL)
+		sbuf_delete(sc->spec);
 	destroy_dev(dev);
 	free(sc, M_LED);
 }
