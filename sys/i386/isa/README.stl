@@ -2,8 +2,8 @@
 Stallion Multiport Serial Driver Readme
 ---------------------------------------
 
-Version: 0.0.2 alpha
-Date:    08JAN96
+Version: 0.0.3 alpha
+Date:    05FEB96
 Author:  Greg Ungerer (gerg@stallion.oz.au)
 
 
@@ -32,13 +32,12 @@ other good stuff).
 
 The EasyIO range of cards comes in 3 forms, the EasyIO-4, EasyIO-8 and the
 EasyIO-8M. All of these are non-expandable, low cost, ISA, multiport boards
-with 4, 8 and 8 RS-232C ports respectively. The EasyIO-8M is not currently
-supported by this driver. Though it is pretty easy to support so I'll do
-that when I get a chance. Each EasyIO board requires 8 bytes of IO address
-space and 1 interrupt. On an EISA system it is possible to share 1 interrupt
-between multiple boards. The EasyIO-4 has 10 pin RJ connectors, and the
-EasyIO-8 comes with a dongle cable that can be either 10 pin RJ connectors or
-DB-25 connectors. The EasyIO-8M has 6 pin RJ connectors.
+with 4, 8 and 8 RS-232C ports respectively. Each EasyIO board requires 8
+bytes of IO address space and 1 interrupt. On an EISA system it is possible
+to share 1 interrupt between multiple boards. The EasyIO-4 has 10 pin RJ
+connectors, and the EasyIO-8 comes with a dongle cable that can be either
+10 pin RJ connectors or DB-25 connectors. The EasyIO-8M has 6 pin RJ
+connectors.
 
 The EasyConnection 8/32 family of boards is a relatively low cost modular
 range of multiport serial boards. The EasyConnection 8/32 boards can be
@@ -60,6 +59,19 @@ I am working on drivers for other boards in the Stallion range, so look
 out for those some time soon...
 
 
+1.1 HOW TO GET BOARDS
+
+Stallion Technologies has offices all over the world, as well as many more
+distributors and resellers. To find out about local availability please
+contact the nearest Stallion office and they can give you all the information
+you need. Look in the "Offices" file in the driver package for a current list
+of Stallion Technologies offices.
+
+Another good source of information about the Stallion range of boards and
+local availability is on the Stallion Web page. Check it out at
+http://www.stallion.com.
+
+
 
 2. INSTALLATION
 
@@ -71,8 +83,8 @@ You will need to build a new kernel to use this driver. So the first thing
 you need is to have the full kernel source. Most people will have this
 (I hope!). The following assumes that the kernel source is in /usr/src/sys.
 
-The driver can support up to 8 boards (any combination of EasyIO and
-EasyConnection 8/32 boards). So there is a theoretical maximum of 256 ports.
+The driver can support up to 8 boards, with any combination of EasyIO and
+EasyConnection 8/32 boards. So there is a theoretical maximum of 256 ports.
 (Off-course I have not tested a system with this many!)
 
 Instructions to install:
@@ -82,10 +94,11 @@ Instructions to install:
         cp stallion.c /usr/src/sys/i386/isa
         cp scd1400.h /usr/src/sys/i386/ic
 
-   Note: if you are not using FreeBSD 2.1.0 then you may need to edit the
+   Note: if you are NOT using FreeBSD 2.1.0 then you will need to edit the
    stallion.c file and change the VFREEBSD define to match your version.
 
-2. Add a character device switch table entry for the driver into the cdevsw
+2. (Note: skip to next step if on a FreeBSD kernel later than 2.1.0)
+   Add a character device switch table entry for the driver into the cdevsw
    table structure. This involves adding some code into the kernel conf.c
    file:
 
@@ -150,10 +163,15 @@ i386/isa/stallion.c		optional	stl	device-driver
             - if you already have a kernel config that you use then you
               could just use that (instead of MYKERNEL)
         vi MYKERNEL
+            - if only using ECH-PCI boards then you don't need to enter a
+              configuration line, the kernel will automatically detect
+              the board at boot up, so skip to step 5.
             - enter a line for each board that you want to use, eg:
 
 device		stl0	at isa? port 0x2a0 tty irq 10 vector stlintr
 
+              (I suggest you put them after the sio? entries)
+              (Don't enter lines for ECH-PCI boards)
             - change the io address and irq in this line as required
             - save the file and exit
 
@@ -230,9 +248,6 @@ under FreeBSD:
 Be aware that this driver is still very new, so there is sure to be some bugs
 in it. Please email me any feedback on bugs, problems, or even good
 experiences with this driver!
-
-There is no real smart line discipline bypass code yet (like in the sio
-driver). I will add this for the next driver release.
 
 I will probably also add LKM support some time soon.
 
