@@ -1842,6 +1842,7 @@ txp_capabilities(sc)
 
 	sc->sc_tx_capability = ext->ext_1 & OFFLOAD_MASK;
 	sc->sc_rx_capability = ext->ext_2 & OFFLOAD_MASK;
+	ifp->if_capabilities = 0;
 
 	if (rsp->rsp_par2 & rsp->rsp_par3 & OFFLOAD_VLAN) {
 		sc->sc_tx_capability |= OFFLOAD_VLAN;
@@ -1860,6 +1861,7 @@ txp_capabilities(sc)
 	if (rsp->rsp_par2 & rsp->rsp_par3 & OFFLOAD_IPCKSUM) {
 		sc->sc_tx_capability |= OFFLOAD_IPCKSUM;
 		sc->sc_rx_capability |= OFFLOAD_IPCKSUM;
+		ifp->if_capabilities |= IFCAP_HWCSUM;
 		ifp->if_hwassist |= CSUM_IP;
 	}
 
@@ -1868,9 +1870,7 @@ txp_capabilities(sc)
 		sc->sc_tx_capability |= OFFLOAD_TCPCKSUM;
 #endif
 		sc->sc_rx_capability |= OFFLOAD_TCPCKSUM;
-#if 0
-		ifp->if_capabilities |= CSUM_TCP;
-#endif
+		ifp->if_capabilities |= IFCAP_HWCSUM;
 	}
 
 	if (rsp->rsp_par2 & rsp->rsp_par3 & OFFLOAD_UDPCKSUM) {
@@ -1878,10 +1878,9 @@ txp_capabilities(sc)
 		sc->sc_tx_capability |= OFFLOAD_UDPCKSUM;
 #endif
 		sc->sc_rx_capability |= OFFLOAD_UDPCKSUM;
-#if 0
-		ifp->if_capabilities |= CSUM_UDP;
-#endif
+		ifp->if_capabilities |= IFCAP_HWCSUM;
 	}
+	ifp->if_capenable = ifp->if_capabilities;
 
 	if (txp_command(sc, TXP_CMD_OFFLOAD_WRITE, 0,
 	    sc->sc_tx_capability, sc->sc_rx_capability, NULL, NULL, NULL, 1))
