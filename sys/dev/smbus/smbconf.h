@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,11 @@
 #define SMB_ENOERR	0x0
 #define SMB_EBUSERR	0x1
 #define SMB_ENOTSUPP	0x2
-#define SMB_ENOACK	0x3
+#define SMB_ENOACK	0x4
+#define SMB_ECOLLI	0x8
+#define SMB_EABORT	0x10
+#define SMB_ETIMEOUT	0x20
+#define SMB_EBUSY	0x40
 
 /*
  * How Quick command is executed
@@ -70,6 +74,7 @@
 extern int smbus_request_bus(device_t, device_t, int);
 extern int smbus_release_bus(device_t, device_t);
 extern device_t smbus_alloc_bus(device_t);
+extern int smbus_error(int error);
 
 extern void smbus_intr(device_t, u_char, char low, char high, int error);
 

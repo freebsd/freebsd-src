@@ -109,11 +109,11 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 						IIC_REQUEST_BUS, (caddr_t)&how);
 		if (error)
 			error = iicbus_poll(sc, how);
-	} while (error);
+	} while (error == EWOULDBLOCK);
 
 	while (!error) {
 		s = splhigh();	
-		if (sc->owner) {
+		if (sc->owner && sc->owner != dev) {
 			splx(s);
 
 			error = iicbus_poll(sc, how);
@@ -123,6 +123,11 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 			splx(s);
 			return (0);
 		}
+
+		/* free any allocated resource */
+		if (error)
+			IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS,
+					(caddr_t)&how);
 	}
 
 	return (error);

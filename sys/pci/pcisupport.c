@@ -384,6 +384,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
 		return("AcerLabs M5243 PCI-PCI bridge");
+	case 0x710110b9:
+		return ("AcerLabs M15x3 Power Management Unit");
 
 	/* Cyrix -- vendor 0x1078 */
 	case 0x00001078:

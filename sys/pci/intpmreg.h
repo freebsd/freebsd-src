@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	$FreeBSD$
  */
 
 /*Register Difinition for Intel Chipset with ACPI Support*/

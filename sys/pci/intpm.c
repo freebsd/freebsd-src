@@ -23,9 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	$FreeBSD$
  */
 
+#include "pci.h"
+#include "intpm.h"
+
+#if NPCI > 0
+#if NINTPM >0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -40,8 +45,7 @@
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
+
 #include <dev/smbus/smbconf.h>
 
 #include "smbus_if.h"
@@ -67,6 +71,7 @@ static struct _pcsid
 };
 static int intsmb_probe(device_t);
 static int intsmb_attach(device_t);
+static void intsmb_print_child(device_t, device_t);
 
 static int intsmb_intr(device_t dev);
 static int intsmb_slvintr(device_t dev);
@@ -86,15 +91,16 @@ static void intsmb_start(device_t dev,u_char cmd,int nointr);
 static int intsmb_stop(device_t dev);
 static int intsmb_stop_poll(device_t dev);
 static int intsmb_free(device_t dev);
-static int intpm_probe (device_t dev);
-static int intpm_attach (device_t dev);
+static struct intpm_pci_softc *intpm_alloc(int unit);
+static const char* intpm_probe __P((pcici_t tag, pcidi_t type));
+static void intpm_attach __P((pcici_t config_id, int unit));
 static devclass_t intsmb_devclass;
 
 static device_method_t intpm_methods[]={
         DEVMETHOD(device_probe,intsmb_probe),
         DEVMETHOD(device_attach,intsmb_attach),
 
-        DEVMETHOD(bus_print_child, bus_generic_print_child),
+        DEVMETHOD(bus_print_child, intsmb_print_child),
         
         DEVMETHOD(smbus_callback,intsmb_callback),
         DEVMETHOD(smbus_quick,intsmb_quick),
@@ -110,14 +116,14 @@ static device_method_t intpm_methods[]={
         {0,0}
 };
 
-struct intpm_pci_softc{
+static struct intpm_pci_softc{
         bus_space_tag_t smbst;
         bus_space_handle_t smbsh;
 	bus_space_tag_t pmst;
 	bus_space_handle_t pmsh;
         pcici_t cfg;
 	device_t  smbus;
-};
+}intpm_pci[NINTPM];
 
 
 struct intsmb_softc{
@@ -127,24 +133,22 @@ struct intsmb_softc{
         device_t smbus;
         int isbusy;
 };
-
 static driver_t intpm_driver = {
         "intsmb",
         intpm_methods,
+        DRIVER_TYPE_MISC,
         sizeof(struct intsmb_softc),
 };
+static u_long intpm_count ;
 
-static devclass_t intpm_devclass;
-static device_method_t intpm_pci_methods[] = {
-  DEVMETHOD(device_probe,intpm_probe),
-  DEVMETHOD(device_attach,intpm_attach),
-  {0,0}
+static struct	pci_device intpm_device = {
+	"intpm",
+ 	intpm_probe,
+	intpm_attach,
+	&intpm_count
 };
-static driver_t intpm_pci_driver = {
-  "intpm",
-  intpm_pci_methods,
-  sizeof(struct intpm_pci_softc)
-};
+
+DATA_SET (pcidevice_set, intpm_device);
 
 static int 
 intsmb_probe(device_t dev)
@@ -161,7 +165,7 @@ static int
 intsmb_attach(device_t dev)
 {
         struct intsmb_softc *sc = (struct intsmb_softc *)device_get_softc(dev);
-        sc->pci_sc=device_get_softc(device_get_parent(dev));
+        sc->pci_sc=&intpm_pci[device_get_unit(dev)];
         sc->isbusy=0;
 	sc->sh=sc->pci_sc->smbsh;
 	sc->st=sc->pci_sc->smbst;
@@ -175,6 +179,12 @@ intsmb_attach(device_t dev)
         return (0);
 }
 
+static void
+intsmb_print_child(device_t bus, device_t dev)
+{
+	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
+	return;
+}
 static int 
 intsmb_callback(device_t dev, int index, caddr_t data)
 {
@@ -377,8 +387,8 @@ intsmb_stop_poll(device_t dev){
 static        int
 intsmb_stop(device_t dev){
         int error;
-	intrmask_t s;
         struct intsmb_softc *sc = (struct intsmb_softc *)device_get_softc(dev);
+	intrmask_t s;
 	if(cold){
 		/*So that it can use device during probing device on SMBus.*/
 		error=intsmb_stop_poll(dev);
@@ -639,54 +649,126 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
         return (error);
 }
 
-DRIVER_MODULE(intsmb, intpm , intpm_driver, intsmb_devclass, 0, 0);
+DRIVER_MODULE(intsmb, root , intpm_driver, intsmb_devclass, 0, 0);
 
 
 static void intpm_intr __P((void *arg));
-static int
-intpm_attach(device_t dev)
+
+static const char*
+intpm_probe (pcici_t tag, pcidi_t type)
+{
+        struct _pcsid	*ep =pci_ids;
+        while (ep->type && ep->type != type)
+                ++ep;
+        return (ep->desc);
+}
+
+static struct intpm_pci_softc *intpm_alloc(int unit){
+        if(unit<NINTPM)
+                return &intpm_pci[unit];
+        else
+                return NULL;
+}
+
+/*Same as pci_map_int but this ignores INTPIN*/
+static int force_pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
+{
+        int error;
+#ifdef APIC_IO
+        int nextpin, muxcnt;
+#endif
+	/* Spec sheet claims that it use IRQ 9*/
+        int irq = 9;
+        void *dev_instance = (void *)-1; /* XXX use cfg->devdata        */
+        void *idesc;
+        
+        idesc = intr_create(dev_instance, irq, func, arg, maskptr, 0);
+        error = intr_connect(idesc);
+        if (error != 0)
+                return 0;
+#ifdef APIC_IO
+        nextpin = next_apic_irq(irq);
+        
+        if (nextpin < 0)
+                return 1;
+        
+        /* 
+         * Attempt handling of some broken mp tables.
+         *
+         * It's OK to yell (since the mp tables are broken).
+         * 
+         * Hanging in the boot is not OK
+         */
+        
+        muxcnt = 2;
+        nextpin = next_apic_irq(nextpin);
+        while (muxcnt < 5 && nextpin >= 0) {
+                muxcnt++;
+                nextpin = next_apic_irq(nextpin);
+        }
+        if (muxcnt >= 5) {
+                printf("bogus MP table, more than 4 IO APIC pins connected to the same PCI device or ISA/EISA interrupt\n");
+                return 0;
+        }
+        
+        printf("bogus MP table, %d IO APIC pins connected to the same PCI device or ISA/EISA interrupt\n", muxcnt);
+        
+        nextpin = next_apic_irq(irq);
+        while (nextpin >= 0) {
+                idesc = intr_create(dev_instance, nextpin, func, arg,
+				    maskptr, 0);
+                error = intr_connect(idesc);
+                if (error != 0)
+                        return 0;
+                printf("Registered extra interrupt handler for int %d (in addition to int %d)\n", nextpin, irq);
+                nextpin = next_apic_irq(nextpin);
+        }
+#endif
+        return 1;
+}
+static void
+intpm_attach(config_id, unit)
+     pcici_t config_id;
+     int	unit;
 {
         int value;
-        int unit=device_get_unit(dev);
-	void *ih;
-	int error;
+        
         char * str;
         {
                 struct intpm_pci_softc *sciic;
                 device_t smbinterface;
-		int rid;
-		struct resource *res;
-
-                sciic=device_get_softc(dev);
+                value=pci_cfgread(config_id,PCI_BASE_ADDR_SMB,4);
+                sciic=intpm_alloc(unit);
                 if(sciic==NULL){
-                        return ENOMEM;
+                        return;
                 }
 
-		rid=PCI_BASE_ADDR_SMB;
-		res=bus_alloc_resource(dev,SYS_RES_IOPORT,&rid,
-				       0,~0,1,RF_ACTIVE);
-		if(res==NULL){
-		  device_printf(dev,"Could not allocate Bus space\n");
-		  return ENXIO;
-		}
-		sciic->smbst=rman_get_bustag(res);
-		sciic->smbsh=rman_get_bushandle(res);
-		
-		device_printf(dev,"%s %x\n",
-			      (sciic->smbst==I386_BUS_SPACE_IO)?
-			      "I/O mapped":"Memory",
-			      sciic->smbsh);
-		
+		sciic->smbst=(value&1)?I386_BUS_SPACE_IO:I386_BUS_SPACE_MEM;
 
+		/*Calling pci_map_port is better.But bus_space_handle_t != 
+		 * pci_port_t, so I don't call support routine while 
+		 * bus_space_??? support routine will be appear.
+		 */
+                sciic->smbsh=value&(~1);
+		if(sciic->smbsh==I386_BUS_SPACE_MEM){
+		       /*According to the spec, this will not occur*/
+                       int dummy;
+		       pci_map_mem(config_id,PCI_BASE_ADDR_SMB,&sciic->smbsh,&dummy);
+		}
+                printf("intpm%d: %s %x ",unit,
+		       (sciic->smbst==I386_BUS_SPACE_IO)?"I/O mapped":"Memory",
+		       sciic->smbsh);
 #ifndef NO_CHANGE_PCICONF
-		pci_write_config(dev,PCIR_INTLINE,0x9,1);
-		pci_write_config(dev,PCI_HST_CFG_SMB,
-				 PCI_INTR_SMB_IRQ9|PCI_INTR_SMB_ENABLE,1);
+		pci_cfgwrite(config_id,PCIR_INTLINE,0x09,1);
+                pci_cfgwrite(config_id,PCI_HST_CFG_SMB, 
+			     PCI_INTR_SMB_IRQ9|PCI_INTR_SMB_ENABLE,1);
 #endif
-                value=pci_read_config(dev,PCI_HST_CFG_SMB,1);
+		config_id->intline=pci_cfgread(config_id,PCIR_INTLINE,1);
+		printf("ALLOCED IRQ %d ",config_id->intline);
+                value=pci_cfgread(config_id,PCI_HST_CFG_SMB,1);
                 switch(value&0xe){
                 case PCI_INTR_SMB_SMI:
-		        str="SMI";
+                        str="SMI";
                         break;
                 case PCI_INTR_SMB_IRQ9:
                         str="IRQ 9";
@@ -694,52 +776,22 @@ intpm_attach(device_t dev)
                 default:
                         str="BOGUS";
                 }
-                device_printf(dev,"intr %s %s ",str,((value&1)? "enabled":"disabled"));
-                value=pci_read_config(dev,PCI_REVID_SMB,1);
+                printf("intr %s %s ",str,((value&1)? "enabled":"disabled"));
+                value=pci_cfgread(config_id,PCI_REVID_SMB,1);
                 printf("revision %d\n",value);                
                 /*
                  * Install intr HANDLER here
                  */
-		rid=0;
-		res=bus_alloc_resource(dev,SYS_RES_IRQ,&rid,9,9,1,RF_SHAREABLE|RF_ACTIVE);
-		if(res==NULL){
-		  device_printf(dev,"could not allocate irq");
-		  return ENOMEM;
-		}
-		error=bus_setup_intr(dev,res,INTR_TYPE_MISC, (driver_intr_t *) intpm_intr,sciic,&ih);
-                if(error){
-                        device_printf(dev,"Failed to map intr\n");
-			return error;
+                if(force_pci_map_int(config_id,intpm_intr,sciic,&net_imask)==0){
+                        printf("intpm%d: Failed to map intr\n",unit);
                 }
-                smbinterface=device_add_child(dev,"intsmb",unit,NULL);
-		if(!smbinterface){
-		     printf("intsmb%d:could not add SMBus device\n",unit);
-		}
+                smbinterface=device_add_child(root_bus,"intsmb",unit,NULL);
                 device_probe_and_attach(smbinterface);
         }
-	      
-        value=pci_read_config(dev,PCI_BASE_ADDR_PM,4);
+        value=pci_cfgread(config_id,PCI_BASE_ADDR_PM,4);
         printf("intpm%d: PM %s %x \n",unit,(value&1)?"I/O mapped":"Memory",value&0xfffe);
-        return 0;
+        return;
 }
-static int 
-intpm_probe(device_t dev)
-{
-    struct _pcsid *ep =pci_ids;
-    u_int32_t device_id=pci_get_devid(dev);
-
-    while (ep->type && ep->type != device_id)
-	  ++ep;
-    if(ep->desc!=NULL){
-      device_set_desc(dev,ep->desc);
-      bus_set_resource(dev,SYS_RES_IRQ,0,9,1); /* XXX setup intr resource */
-      return 0;
-    }else{
-      return ENXIO;
-    }
-}
-DRIVER_MODULE(intpm, pci , intpm_pci_driver, intpm_devclass, 0, 0);
-
 static void intpm_intr(void *arg)
 {
         struct intpm_pci_softc *sc;
@@ -748,3 +800,5 @@ static void intpm_intr(void *arg)
 	intsmb_slvintr(sc->smbus);
 	
 }
+#endif /* NPCI > 0 */
+#endif
