@@ -18,7 +18,6 @@
 # $FreeBSD$
 
 machine		i386
-cpu		I386_CPU
 cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
@@ -29,6 +28,7 @@ maxusers	32
 #hints		"GENERIC.hints"		#Default places to look for devices.
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	KERNEL=kernel.GENERIC
 
 options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
