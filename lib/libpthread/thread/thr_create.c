@@ -143,9 +143,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		    || ((kseg = _kseg_alloc(curthread)) == NULL))) {
 			/* Insufficient memory to create a new KSE/KSEG: */
 			ret = EAGAIN;
-#ifndef	KMF_DONE
-#define	KMF_DONE	0x04
-#endif
 			if (kse != NULL) {
 				kse->k_mbx.km_flags |= KMF_DONE;
 				_kse_free(curthread, kse);

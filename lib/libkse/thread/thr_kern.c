@@ -97,10 +97,6 @@ __FBSDID("$FreeBSD$");
 
 #define KSE_RUNQ_THREADS(kse)	((kse)->k_schedq->sq_runq.pq_threads)
 
-#ifndef	KMF_DONE
-#define	KMF_DONE	0x04
-#endif
-
 /*
  * We've got to keep track of everything that is allocated, not only
  * to have a speedy free list, but also so they can be deallocated
