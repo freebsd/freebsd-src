@@ -421,6 +421,8 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		 */
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
 				 VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		if ((m->flags & PG_ZERO) == 0)
+			vm_page_zero_fill(m);
 		AGP_DPF("found page pa=%#x\n", VM_PAGE_TO_PHYS(m));
 		vm_page_wire(m);
 
