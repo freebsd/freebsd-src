@@ -1122,7 +1122,6 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 
     /* Enable and clear fixed events and install handlers. */
     if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->PwrButton == 0) {
-	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
 	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON,
 				     acpi_event_power_button_sleep, sc);
@@ -1130,7 +1129,6 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 	    device_printf(sc->acpi_dev, "Power Button (fixed)\n");
     }
     if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->SleepButton == 0) {
-	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, 0);
 	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON,
 				     acpi_event_sleep_button_sleep, sc);
