@@ -41,7 +41,7 @@
 
 /* hostorder = ntohs(netorder) */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 ENTRY(ntohs)
 	movzwl	4(%esp),%eax

@@ -33,7 +33,7 @@
 	.asciz "$FreeBSD$"
 #endif
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 /*
  * void

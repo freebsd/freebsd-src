@@ -41,7 +41,7 @@
 
 /* netorder = htons(hostorder) */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 ENTRY(htons)
 	movzwl	4(%esp),%eax

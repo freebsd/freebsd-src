@@ -39,7 +39,6 @@
 	.asciz "$FreeBSD$"
 #endif /* SYSLIBC_RCS and not lint */
 
-#include "DEFS.h"
 #include "SYS.h"
 
 /*
