@@ -123,10 +123,8 @@ main(argc, argv)
 
 	/* create connection with server */
 	cl = clnt_create(*argv, SPRAYPROG, SPRAYVERS, "udp");
-	if (cl == NULL) {
-		clnt_pcreateerror("spray");
-		exit(1);
-	}
+	if (cl == NULL)
+		errx(1, "%s", clnt_spcreateerror(NULL));
 
 
 	/*
@@ -140,10 +138,8 @@ main(argc, argv)
 
 
 	/* Clear server statistics */
-	if (clnt_call(cl, SPRAYPROC_CLEAR, xdr_void, NULL, xdr_void, NULL, TIMEOUT) != RPC_SUCCESS) {
-		clnt_perror(cl, "spray");
-		exit(1);
-	}
+	if (clnt_call(cl, SPRAYPROC_CLEAR, xdr_void, NULL, xdr_void, NULL, TIMEOUT) != RPC_SUCCESS)
+		errx(1, "%s", clnt_sperror(cl, NULL));
 
 
 	/* Spray server with packets */
@@ -160,10 +156,8 @@ main(argc, argv)
 
 
 	/* Collect statistics from server */
-	if (clnt_call(cl, SPRAYPROC_GET, xdr_void, NULL, xdr_spraycumul, &host_stats, TIMEOUT) != RPC_SUCCESS) {
-		clnt_perror(cl, "spray");
-		exit(1);
-	}
+	if (clnt_call(cl, SPRAYPROC_GET, xdr_void, NULL, xdr_spraycumul, &host_stats, TIMEOUT) != RPC_SUCCESS)
+		errx(1, "%s", clnt_sperror(cl, NULL));
 
 	xmit_time = host_stats.clock.sec +
 			(host_stats.clock.usec / 1000000.0);
