@@ -48,8 +48,8 @@ cd /var/log
 if [ -f messages.2 ]; then mv -f messages.2 messages.3; fi
 if [ -f messages.1 ]; then mv -f messages.1 messages.2; fi
 if [ -f messages.0 ]; then mv -f messages.0 messages.1; fi
-mv -f messages   messages.0
-cp /dev/null  messages
+mv -f messages messages.0
+cp /dev/null messages
 chmod 644 messages
 kill -1 `cat /var/run/syslog.pid`
 cd /
@@ -59,8 +59,8 @@ cd /var/cron
 if [ -f log.2 ]; then mv -f log.2 log.3; fi
 if [ -f log.1 ]; then mv -f log.1 log.2; fi
 if [ -f log.0 ]; then mv -f log.0 log.1; fi
-mv -f log   log.0
-cp /dev/null  log
+mv -f log log.0
+cp /dev/null log
 chmod 600 log
 cd /
 
@@ -69,7 +69,7 @@ echo "Rebuilding locate database:"
 locdb=/var/db/locate.database
 touch ${locdb}; chown nobody ${locdb}; chmod 644 ${locdb}
 echo /usr/libexec/locate.updatedb | nice -5 su -m nobody 2>&1 |\
-        fgrep -v 'Permission denied'
+	fgrep -v 'Permission denied'
 chmod 444 ${locdb}
 
 echo ""
@@ -80,4 +80,4 @@ makewhatis "${MANPATH}"
 
 #echo ""
 #echo "Reformatting manual pages:"
-#echo catman  "${MANPATH}" | su man
+#echo catman "${MANPATH}" | su man

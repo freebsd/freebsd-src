@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.24 1995/03/29 03:33:55 rgrimes Exp $
+#	$Id: netstart,v 1.25 1995/03/30 06:26:08 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # my-name is my symbolic name
@@ -12,8 +12,8 @@ fi
 
 # Set the domainname if we're using NIS
 if [ -z "`domainname`" -a -e "/etc/defaultdomain" ] ; then
-        domainname=`cat /etc/defaultdomain`
-        domainname $domainname
+	domainname=`cat /etc/defaultdomain`
+	domainname $domainname
 fi
 
 for i in /etc/hostname.*
@@ -45,17 +45,17 @@ fi
 # route add $hostname localhost
 
 if [ "x$gated" != "xNO" -o "x$routedflags" != "xNO" ] ; then
-    echo -n starting routing daemons:
+	echo -n starting routing daemons:
 
-    # $gated and $routedflags are imported from /etc/sysconfig.
-    # If $gated == YES, gated is used; otherwise routed.
-    # If $routedflags == NO, routed isn't run.
+	# $gated and $routedflags are imported from /etc/sysconfig.
+	# If $gated == YES, gated is used; otherwise routed.
+	# If $routedflags == NO, routed isn't run.
 
-    if [ "X${gated}" = X"YES" -a -r /etc/gated.conf ]; then
-	    echo -n ' gated';	gated $gatedflags
-    elif [ "X${routedflags}" != X"NO" ]; then
-	    echo -n ' routed';	routed $routedflags
-    fi
+	if [ "X${gated}" = X"YES" -a -r /etc/gated.conf ]; then
+		echo -n ' gated';	gated $gatedflags
+	elif [ "X${routedflags}" != X"NO" ]; then
+		echo -n ' routed';	routed $routedflags
+	fi
 
-    echo '.'
+	echo '.'
 fi

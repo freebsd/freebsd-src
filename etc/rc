@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.59 1995/03/30 00:01:08 ache Exp $
+#	$Id: rc,v 1.60 1995/03/30 06:26:09 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -129,13 +129,13 @@ fi
 #
 echo -n starting system daemons:
 
-echo ' syslogd.';                       syslogd
+echo ' syslogd.';			syslogd
 
 echo -n starting network daemons:
 
 # $namedflags is imported from /etc/sysconfig
 if [ "X${namedflags}" != "XNO" ]; then
-	echo -n ' named';	named $namedflags
+	echo -n ' named';		named $namedflags
 fi
 
 # $ntpdate and $xntpdflags are imported from /etc/sysconfig.
@@ -169,16 +169,16 @@ fi
 # Start ypserv if we're an NIS server.
 # Run yppasswdd only on the NIS master server
 if [ "X${nis_serverflags}" != X"NO" ]; then
-        echo -n ' ypserv'; ypserv ${nis_serverflags}
+	echo -n ' ypserv'; ypserv ${nis_serverflags}
 
 	if [ "X${yppasswddflags}" != X"NO" ]; then
-	        echo -n ' yppasswdd'; yppasswdd ${yppasswddflags}
+		echo -n ' yppasswdd'; yppasswdd ${yppasswddflags}
 	fi
 fi
 
 # Start ypbind if we're an NIS client
 if [ "X${nis_clientflags}" != X"NO" ]; then
-        echo -n ' ypbind'; ypbind ${nis_clientflags}
+	echo -n ' ypbind'; ypbind ${nis_clientflags}
 fi
 
 # $rwhod is imported from /etc/sysconfig;
@@ -238,7 +238,7 @@ fi
 #
 echo -n standard daemons:
 echo -n ' cron';		cron
-echo -n ' printer';             lpd
+echo -n ' printer';		lpd
 
 # $sendmail_flags is imported from /etc/sysconfig;
 # if $sendmail_flags is something other than NO, sendmail is run.
