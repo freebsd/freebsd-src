@@ -112,6 +112,8 @@ int tokens;						    /* number of tokens */
 int
 main(int argc, char *argv[], char *envp[])
 {
+    struct stat histstat;
+
     if (modfind(VINUMMOD) < 0) {
 	/* need to load the vinum module */
 	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
@@ -125,6 +127,22 @@ main(int argc, char *argv[], char *envp[])
     historyfile = getenv("VINUM_HISTORY");
     if (historyfile == NULL)
 	historyfile = DEFAULT_HISTORYFILE;
+    if (stat(historyfile, &histstat) == 0) {		    /* history file exists */
+	if ((histstat.st_mode & S_IFMT) != S_IFREG) {
+	    fprintf(stderr,
+		"Vinum history file %s must be a regular file\n",
+		historyfile);
+	    exit(1);
+	}
+    } else if ((errno != ENOENT)			    /* not "not there",  */
+    &&(errno != EROFS)) {				    /* and not read-only file system */
+	fprintf(stderr,
+	    "Can't open %s: %s (%d)\n",
+	    historyfile,
+	    strerror(errno),
+	    errno);
+	exit(1);
+    }
     history = fopen(historyfile, "a+");
     if (history != NULL) {
 	timestamp();
@@ -175,11 +193,20 @@ main(int argc, char *argv[], char *envp[])
 	    return -1;
 	parseline(argc - 1, &argv[1]);			    /* do it */
     } else {
+	/*
+	 * Catch a possible race condition which could cause us to
+	 * longjmp() into nowhere if we receive a SIGINT in the next few
+	 * lines.
+	 */
+	if (setjmp(command_fail))			    /* come back here on catastrophic failure */
+	    return 1;
+	setsigs();					    /* set signal handler */
 	for (;;) {					    /* ugh */
 	    char *c;
 	    int childstatus;				    /* from wait4 */
 
-	    setjmp(command_fail);			    /* come back here on catastrophic failure */
+	    if (setjmp(command_fail) == 2)		    /* come back here on catastrophic failure */
+		fprintf(stderr, "*** interrupted ***\n");   /* interrupted */
 
 	    while (wait4(-1, &childstatus, WNOHANG, NULL) > 0);	/* wait for all dead children */
 	    c = readline(VINUMMOD " -> ");		    /* get an input */
@@ -213,6 +240,24 @@ void
 vinum_quit(int argc, char *argv[], char *argv0[])
 {
     exit(0);
+}
+
+/* Set action on receiving a SIGINT */
+void
+setsigs()
+{
+    struct sigaction act;
+
+    act.sa_handler = catchsig;
+    act.sa_flags = 0;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGINT, &act, NULL);
+}
+
+void
+catchsig(int ignore)
+{
+    longjmp(command_fail, 2);
 }
 
 #define FUNKEY(x) { kw_##x, &vinum_##x }		    /* create pair "kw_foo", vinum_foo */
@@ -263,7 +308,8 @@ struct funkey {
 	FUNKEY(resetstats),
 	FUNKEY(setstate),
 	FUNKEY(checkparity),
-	FUNKEY(rebuildparity)
+	FUNKEY(rebuildparity),
+	FUNKEY(dumpconfig)
 };
 
 /* Take args arguments at argv and attempt to perform the operation specified */
@@ -494,7 +540,7 @@ make_devices(void)
     system("mkdir -p " VINUM_DIR "/drive "		    /* and make them again */
 	VINUM_DIR "/plex "
 	VINUM_DIR "/sd "
-	VINUM_DIR "/vol ");
+	VINUM_DIR "/vol");
 
     if (mknod(VINUM_SUPERDEV_NAME,
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
@@ -632,6 +678,7 @@ make_sd_dev(int sdno)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
     }
 }
+
 
 /* command line interface for the 'makedev' command */
 void
