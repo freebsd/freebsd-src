@@ -108,9 +108,9 @@ SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 
 /* Process one elf relocation with addend. */
 static int
-elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
+elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, int local, elf_lookup_fn lookup)
 {
-	Elf_Addr relocbase = (Elf_Addr) lf->address;
 	Elf_Addr *where;
 	Elf_Addr addr;
 	Elf_Addr addend;
@@ -152,7 +152,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 			break;
 
 		case R_ALPHA_REFQUAD:
-			addr = elf_lookup(lf, symidx, 1);
+			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			addr += addend;
@@ -161,7 +161,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 			break;
 
 		case R_ALPHA_GLOB_DAT:
-			addr = elf_lookup(lf, symidx, 1);
+			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			addr += addend;
@@ -171,7 +171,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 
 		case R_ALPHA_JMP_SLOT:
 			/* No point in lazy binding for kernel modules. */
-			addr = elf_lookup(lf, symidx, 1);
+			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			if (*where != addr)
@@ -198,17 +198,19 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 }
 
 int
-elf_reloc(linker_file_t lf, const void *data, int type)
+elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
+    elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, data, type, 0));
+	return (elf_reloc_internal(lf, relocbase, data, type, 0, lookup));
 }
 
 int
-elf_reloc_local(linker_file_t lf, const void *data, int type)
+elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, elf_lookup_fn lookup)
 {
 
-	return (elf_reloc_internal(lf, data, type, 1));
+	return (elf_reloc_internal(lf, relocbase, data, type, 1, lookup));
 }
 
 int
