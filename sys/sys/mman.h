@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.9 1995/11/30 20:59:08 se Exp $
+ * $Id: mman.h,v 1.10 1996/03/02 16:55:26 peter Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -89,7 +89,6 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-/* Some of these int's should probably be size_t's */
 caddr_t	mmap __P((caddr_t, size_t, int, int, int, off_t));
 int	madvise __P((caddr_t, size_t, int));
 int	mprotect __P((caddr_t, size_t, int));
