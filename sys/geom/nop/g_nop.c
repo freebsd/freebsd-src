@@ -72,11 +72,13 @@ g_nop_orphan(struct g_consumer *cp)
 static void
 g_nop_start(struct bio *bp)
 {
+	struct g_nop_softc *sc;
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct bio *cbp;
 
 	gp = bp->bio_to->geom;
+	sc = gp->softc;
 	G_NOP_LOGREQ(bp, "Request received.");
 	cbp = g_clone_bio(bp);
 	if (cbp == NULL) {
@@ -85,17 +87,17 @@ g_nop_start(struct bio *bp)
 	}
 	pp = LIST_FIRST(&gp->provider);
 	KASSERT(pp != NULL, ("NULL pp"));
-	if (pp->index > 0) {
+	if (sc->sc_failprob > 0) {
 		u_int rval;
 
 		rval = arc4random() % 100;
-		if (rval < pp->index) {
+		if (rval < sc->sc_failprob) {
 			g_io_deliver(bp, EIO);
 			return;
 		}
 	}
 	cbp->bio_done = g_std_done;
-	cbp->bio_offset = bp->bio_offset;
+	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
 	cbp->bio_data = bp->bio_data;
 	cbp->bio_length = bp->bio_length;
 	cbp->bio_to = LIST_FIRST(&gp->provider);
@@ -119,8 +121,9 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
-    u_int failprob)
+    u_int failprob, off_t offset, off_t size)
 {
+	struct g_nop_softc *sc;
 	struct g_geom *gp;
 	struct g_provider *newpp;
 	struct g_consumer *cp;
@@ -133,6 +136,24 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	newpp = NULL;
 	cp = NULL;
 
+	if ((offset % pp->sectorsize) != 0) {
+		gctl_error(req, "Invalid offset for provider %s.", pp->name);
+		return (EINVAL);
+	}
+	if ((size % pp->sectorsize) != 0) {
+		gctl_error(req, "Invalid size for provider %s.", pp->name);
+		return (EINVAL);
+	}
+	if (offset >= pp->mediasize) {
+		gctl_error(req, "Invalid offset for provider %s.", pp->name);
+		return (EINVAL);
+	}
+	if (size == 0)
+		size = pp->mediasize - offset;
+	if (offset + size > pp->mediasize) {
+		gctl_error(req, "Invalid size for provider %s.", pp->name);
+		return (EINVAL);
+	}
 	snprintf(name, sizeof(name), "%s%s", pp->name, G_NOP_SUFFIX);
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0) {
@@ -145,7 +166,10 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		gctl_error(req, "Cannot create geom %s.", name);
 		return (ENOMEM);
 	}
-	gp->softc = NULL;
+	sc = g_malloc(sizeof(*sc), M_WAITOK);
+	sc->sc_offset = offset;
+	sc->sc_failprob = failprob;
+	gp->softc = sc;
 	gp->start = g_nop_start;
 	gp->spoiled = g_nop_orphan;
 	gp->orphan = g_nop_orphan;
@@ -158,9 +182,8 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		error = ENOMEM;
 		goto fail;
 	}
-	newpp->mediasize = pp->mediasize;
+	newpp->mediasize = size;
 	newpp->sectorsize = pp->sectorsize;
-	newpp->index = failprob;
 
 	cp = g_new_consumer(gp);
 	if (cp == NULL) {
@@ -185,8 +208,11 @@ fail:
 	}
 	if (newpp != NULL)
 		g_destroy_provider(pp);
-	if (gp != NULL)
+	if (gp != NULL) {
+		if (gp->softc != NULL)
+			g_free(gp->softc);
 		g_destroy_geom(gp);
+	}
 	return (error);
 }
 
@@ -209,6 +235,8 @@ g_nop_destroy(struct g_geom *gp, boolean_t force)
 	} else {
 		G_NOP_DEBUG(0, "Device %s removed.", gp->name);
 	}
+	g_free(gp->softc);
+	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
 
 	return (0);
@@ -225,7 +253,7 @@ static void
 g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
-	intmax_t *failprob;
+	intmax_t *failprob, *offset, *size;
 	const char *name;
 	char param[16];
 	int i, *nargs;
@@ -250,6 +278,24 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Invalid '%s' argument", "failprob");
 		return;
 	}
+	offset = gctl_get_paraml(req, "offset", sizeof(*offset));
+	if (offset == NULL) {
+		gctl_error(req, "No '%s' argument", "offset");
+		return;
+	}
+	if (*offset < 0) {
+		gctl_error(req, "Invalid '%s' argument", "offset");
+		return;
+	}
+	size = gctl_get_paraml(req, "size", sizeof(*size));
+	if (size == NULL) {
+		gctl_error(req, "No '%s' argument", "size");
+		return;
+	}
+	if (*size < 0) {
+		gctl_error(req, "Invalid '%s' argument", "size");
+		return;
+	}
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
@@ -266,14 +312,17 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Provider %s is invalid.", name);
 			return; 
 		}
-		if (g_nop_create(req, mp, pp, (u_int)*failprob) != 0)
+		if (g_nop_create(req, mp, pp, (u_int)*failprob, (off_t)*offset,
+		    (off_t)*size) != 0) {
 			return;
+		}
 	}
 }
 
 static void
 g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 {
+	struct g_nop_softc *sc;
 	struct g_provider *pp;
 	intmax_t *failprob;
 	const char *name;
@@ -316,7 +365,8 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Provider %s is invalid.", name);
 			return; 
 		}
-		pp->index = (u_int)*failprob;
+		sc = pp->geom->softc;
+		sc->sc_failprob = (u_int)*failprob;
 	}
 }
 
@@ -416,11 +466,14 @@ static void
 g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp, struct g_provider *pp)
 {
+	struct g_nop_softc *sc;
 
-	if (pp != NULL) {
-		sbuf_printf(sb, "%s<failprob>%u</failprob>\n", indent,
-		    pp->index);
-	}
+	if (pp == NULL)
+		return;
+	sc = gp->softc;
+	sbuf_printf(sb, "%s<offset>%jd</offset>\n", indent,
+	    (intmax_t)sc->sc_offset);
+	sbuf_printf(sb, "%s<failprob>%u</failprob>\n", indent, sc->sc_failprob);
 }
 
 DECLARE_GEOM_CLASS(g_nop_class, g_nop);

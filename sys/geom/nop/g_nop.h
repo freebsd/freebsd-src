@@ -30,7 +30,7 @@
 #define	_G_NOP_H_
 
 #define	G_NOP_CLASS_NAME	"NOP"
-#define	G_NOP_VERSION		1
+#define	G_NOP_VERSION		2
 #define	G_NOP_SUFFIX		".nop"
 
 #ifdef _KERNEL
@@ -53,6 +53,11 @@
 		printf("\n");						\
 	}								\
 } while (0)
+
+struct g_nop_softc {
+	off_t	sc_offset;
+	u_int	sc_failprob;
+};
 #endif	/* _KERNEL */
 
 #endif	/* _G_NOP_H_ */
