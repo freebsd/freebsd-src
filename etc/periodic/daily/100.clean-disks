@@ -27,10 +27,12 @@ case "$daily_clean_disks_enable" in
 	    rc=2
 	else
 	    echo ""
-	    echo "Removing old temporary files:"
+	    echo "Cleaning disks:"
 	    set -f noglob
-	    args="$args "`echo " ${daily_clean_disks_files% }" |
-		sed 's/[ 	][ 	]*/ -name /g'`
+	    args="$args -name "`echo "$daily_clean_disks_files" |
+		sed -e 's/^[ 	]*//' \
+		    -e 's/[ 	]*$//' \
+		    -e 's/[ 	][ 	]*/ -o -name /g'`
 
 	    case "$daily_clean_tmps_verbose" in
 		[Yy][Ee][Ss])
