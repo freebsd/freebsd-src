@@ -71,11 +71,13 @@ char	*appdstr(char *, char *, size_t);
 void	 downcase(char *);
 void	 err(const char *, ...) __printflike(1, 2);
 void	 get_cats(char *, char *);
-void	 get_file(char *);
+void	 get_file(const char *);
+int	 main(int, char *[]);
 char	*next_cat(char *);
 void	 quiz(void);
 void	 score(u_int, u_int, u_int);
 void	 show_index(void);
+void	 usage(void);
 
 int
 main(argc, argv)
@@ -83,7 +85,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch;
-	char *indexfile;
+	const char *indexfile;
 
 	/* revoke */
 	setgid(getgid());
@@ -122,7 +124,7 @@ main(argc, argv)
 
 void
 get_file(file)
-	char *file;
+	const char *file;
 {
 	FILE *fp;
 	QE *qp;
