@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2001 Jake Burkholder.
- * All rights reserved.
+ * Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +9,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. Berkeley Software Design Inc's name may not be used to endorse or
+ *    promote products derived from this software without specific prior
+ *    written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN INC ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN INC BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -23,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	from: BSDI: asi.h,v 1.3 1997/08/08 14:31:42 torek
  * $FreeBSD$
  */
 
@@ -56,18 +59,17 @@
 #define	ASI_NUCLEUS_QUAD_LDD			0x24
 #define	ASI_NUCLEUS_QUAD_LDD_L			0x2c
 
-#define	ASI_IMMU				0x50
-#define		AA_IMMU_TTR			0x0
-#define		AA_IMMU_SFSR			0x18
-#define		AA_IMMU_TSB			0x28
-#define		AA_IMMU_TAR			0x30
-
 #define	ASI_LSU_CTL_REG				0x45
 
 #define	ASI_INTR_DISPATCH_STATUS		0x48
 #define	ASI_INTR_RECEIVE			0x49
 
-#define	ASI_IMMU_TAG_TARGET_REG			0x4e
+#define	ASI_IMMU_TAG_TARGET_REG			0x50
+#define	ASI_IMMU				0x50
+#define		AA_IMMU_TTR			0x0
+#define		AA_IMMU_SFSR			0x18
+#define		AA_IMMU_TSB			0x28
+#define		AA_IMMU_TAR			0x30
 
 #define	ASI_IMMU_TSB_8KB_PTR_REG		0x51
 #define	ASI_IMMU_TSB_64KB_PTR_REG		0x52
@@ -77,7 +79,6 @@
 #define	ASI_IMMU_DEMAP				0x57
 
 #define	ASI_DMMU_TAG_TARGET_REG			0x58
-
 #define	ASI_DMMU				0x58
 #define		AA_DMMU_TTR			0x0
 #define		AA_DMMU_PCXR			0x8
