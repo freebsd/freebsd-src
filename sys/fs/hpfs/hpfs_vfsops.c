@@ -439,7 +439,7 @@ hpfs_mountfs(devvp, mp, argsp, p)
 #endif
 	mp->mnt_maxsymlinklen = 0;
 	mp->mnt_flag |= MNT_LOCAL;
-	devvp->v_specmountpoint = mp;
+	devvp->v_rdev->si_mountpoint = mp;
 	return (0);
 
 failed:
@@ -447,7 +447,7 @@ failed:
 		brelse (bp);
 	mp->mnt_data = (qaddr_t)NULL;
 #if defined(__FreeBSD__)
-	devvp->v_specmountpoint = NULL;
+	devvp->v_rdev->si_mountpoint = NULL;
 #else
 	devvp->v_specflags &= ~SI_MOUNTEDON;
 #endif
@@ -492,7 +492,7 @@ hpfs_unmount(
 	}
 
 #if defined(__FreeBSD__)
-	hpmp->hpm_devvp->v_specmountpoint = NULL;
+	hpmp->hpm_devvp->v_rdev->si_mountpoint = NULL;
 #else
 	hpmp->hpm_devvp->v_specflags &= ~SI_MOUNTEDON;
 #endif

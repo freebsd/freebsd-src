@@ -92,11 +92,6 @@ struct specinfo {
 #define si_bsize_best	__si_u.__si_disk.__sid_bsize_best
 
 /*
- * Exported shorthand
- */
-#define v_specmountpoint v_rdev->si_mountpoint
-
-/*
  * Special device management
  */
 #define	SPECHSZ	64

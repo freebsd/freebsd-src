@@ -3890,8 +3890,8 @@ softdep_sync_metadata(ap)
 		if (!DOINGSOFTDEP(vp))
 			return (0);
 	} else
-		if (vp->v_specmountpoint == NULL ||
-		    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP) == 0)
+		if (vp->v_rdev->si_mountpoint == NULL ||
+		    (vp->v_rdev->si_mountpoint->mnt_flag & MNT_SOFTDEP) == 0)
 			return (0);
 	/*
 	 * Ensure that any direct block dependencies have been cleared.
@@ -4112,8 +4112,8 @@ loop:
 	 * this happens rarely).
 	 */
 	if (vn_isdisk(vp, NULL) && 
-	    vp->v_specmountpoint && !VOP_ISLOCKED(vp, NULL) &&
-	    (error = VFS_SYNC(vp->v_specmountpoint, MNT_WAIT, ap->a_cred,
+	    vp->v_rdev->si_mountpoint && !VOP_ISLOCKED(vp, NULL) &&
+	    (error = VFS_SYNC(vp->v_rdev->si_mountpoint, MNT_WAIT, ap->a_cred,
 	     ap->a_p)) != 0)
 		return (error);
 	return (0);
