@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.39 1997/05/01 01:15:55 jkh Exp $
+#	$Id: bsd.info.mk,v 1.40 1997/06/21 15:40:31 jkh Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -13,6 +13,9 @@
 # DESTDIR	Change the tree where the info files gets installed. [not set]
 #
 # DISTRIBUTION	Name of distribution. [info]
+#
+# FORMATS 	Indicates which output formats will be generated
+#               (info, dvi, latin1, ps).  [info]
 #
 # ICOMPRESS_CMD	Program to compress info files. Output is to
 #		stdout. [${COMPRESS_CMD}]
@@ -51,9 +54,6 @@
 #
 # +++ targets +++
 #
-#	clean:
-#		remove *.info* Errs errs mklog ${CLEANFILES}
-#
 #	depend:
 #		Dummy target, do nothing.
 #
@@ -83,10 +83,11 @@ INSTALLINFO?=   install-info
 INFOSECTION?=   Miscellaneous
 ICOMPRESS_CMD?=	${COMPRESS_CMD}
 ICOMPRESS_EXT?=	${COMPRESS_EXT}
+FORMATS?=	info
 
 .MAIN: all
 
-.SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo
+.SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo .dvi .ps .latin1
 
 # What to do if there's no dir file there.  This is really gross!!!
 ${DESTDIR}${INFODIR}/${INFODIRFILE}:
@@ -102,13 +103,32 @@ ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 		-o ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
 
+.texi.dvi:
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		tex ${.IMPSRC} </dev/null
+
+.texinfo.dvi:
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		tex ${.IMPSRC} </dev/null
+
+.dvi.ps:
+	dvips -o ${.TARGET} ${.IMPSRC} 	
+
+.ps.latin1:
+	dvips2ascii ${.IMPSRC} > ${.TARGET}.new
+	mv -f ${.TARGET}.new ${.TARGET}
+
 .PATH: ${.CURDIR} ${SRCDIR}
 
-IFILENS= ${INFO:S/$/.info/g}
+.for _f in ${FORMATS}
+IFILENS+= ${INFO:S/$/.${_f}/g}
+.endfor
 
 .if !defined(NOINFO)
 .if !defined(NOINFOCOMPRESS)
-IFILES=	${INFO:S/$/.info${ICOMPRESS_EXT}/g}
+.for _f in ${FORMATS}
+IFILES+=	${INFO:S/$/.${_f}${ICOMPRESS_EXT}/g}
+.endfor
 all: ${IFILES} _SUBDIR
 .else
 IFILES=	${IFILENS}
@@ -118,9 +138,11 @@ all: ${IFILES} _SUBDIR
 all:
 .endif
 
-.for x in ${INFO:S/$/.info/g}
+.for _f in ${FORMATS}
+.for x in ${INFO:S/$/.${_f}/g}
 ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 	${ICOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
+.endfor
 .endfor
 
 .for x in ${INFO}
@@ -147,17 +169,17 @@ distribute: _SUBDIR
 .endif
 
 .if defined(SRCS)
-${INFO}.info: ${SRCS}
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} \
-		${SRCS:S/^/${SRCDIR}\//g} -o ${INFO}.info.new
-	mv -f ${INFO}.info.new ${INFO}.info
+CLEANFILES+=	${INFO}.texi
+${INFO}.texi: ${SRCS}
+	echo "\\input ${SRCS}" > ${.TARGET}
 .endif
 
 depend: _SUBDIR
 	@echo -n
 
-clean: _SUBDIR
-	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
+.for _f in ${FORMATS}
+CLEANFILES+=${INFO:S/$/.${_f}*/g}
+.endfor
 
 .if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS} _SUBDIR
