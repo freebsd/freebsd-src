@@ -246,7 +246,7 @@ getpackagesite(void)
 	if (reldate >= releases[i].lowver && reldate <= releases[i].hiver) {
 	    if (s_strlcat(sitepath, releases[i].directory, sizeof(sitepath)))
 		return NULL;
-	    continue;
+	    break;
 	}
     }
 
