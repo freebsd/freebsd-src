@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.46 1996/05/13 02:21:16 jkh Exp $
+#	$Id: sysconfig,v 1.47 1996/06/23 20:54:26 ache Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -208,6 +208,10 @@ dumpdev=NO
 
 # Set to YES if you want kernel crashdumps to be saved for debugging
 savecore=NO
+
+# Set to an additional swapfile you'd like to have added to preallocated swap
+# space during system boot (or NO for none).
+swapfile=NO
 
 # Set to YES if you want to run Kerberos authentication
 kerberos_server=NO
