@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.159 1999/03/19 10:54:38 jkh Exp $
+ * $Id: sysinstall.h,v 1.160 1999/04/06 08:25:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -409,7 +409,6 @@ extern void	configEnvironmentResolv(char *config);
 extern void	configRC_conf(void);
 extern int	configFstab(dialogMenuItem *self);
 extern int	configRC(dialogMenuItem *self);
-extern int	configRegister(dialogMenuItem *self);
 extern int	configResolv(dialogMenuItem *self);
 extern int	configPackages(dialogMenuItem *self);
 extern int	configSaver(dialogMenuItem *self);
@@ -664,9 +663,6 @@ extern int	packageAdd(dialogMenuItem *self);
 extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
-
-/* register.c */
-extern int	registerOpenDialog(void);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
