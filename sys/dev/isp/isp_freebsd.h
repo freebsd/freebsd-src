@@ -28,7 +28,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	4
-#define	ISP_PLATFORM_VERSION_MINOR	15
+#define	ISP_PLATFORM_VERSION_MINOR	16
 
 #include <sys/param.h>
 #include <sys/param.h>
@@ -57,12 +57,21 @@
 
 #include "opt_ddb.h"
 #include "opt_isp.h"
+/*
+ * Efficiency- get rid of SBus code && tests unless we need them.
+ */
+#if	defined(__sparcv9__ ) || defined(__sparc__)
+#define	ISP_SBUS_SUPPORTED	1
+#else
+#define	ISP_SBUS_SUPPORTED	0
+#endif
 
 #define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
 
 typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 
 #ifdef	ISP_TARGET_MODE
+#define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	256
 typedef struct {
 	u_int32_t	orig_datalen;
@@ -257,14 +266,38 @@ struct isposinfo {
 #define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_nodewwn
 #define	ISP_PORTWWN(isp)	FCPARAM(isp)->isp_portwwn
 
-#define	ISP_UNSWIZZLE_AND_COPY_PDBP(isp, dest, src)	\
-	if((void *)src != (void *)dest) bcopy(src, dest, sizeof (isp_pdb_t))
-#define	ISP_SWIZZLE_ICB(a, b)
-#define	ISP_SWIZZLE_REQUEST(a, b)
-#define	ISP_UNSWIZZLE_RESPONSE(a, b, c)
-#define	ISP_SWIZZLE_SNS_REQ(a, b)
-#define	ISP_UNSWIZZLE_SNS_RSP(a, b, c)
-#define	ISP_SWIZZLE_NVRAM_WORD(isp, x)
+#if	BYTE_ORDER == BIG_ENDIAN
+#ifdef	ISP_SBUS_SUPPORTED
+#define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
+#define	ISP_IOXPUT_16(isp, s, d)				\
+	*(d) = (isp->isp_bustype == ISP_BT_SBUS)? s : bswap16(s)
+#define	ISP_IOXPUT_32(isp, s, d)				\
+	*(d) = (isp->isp_bustype == ISP_BT_SBUS)? s : bswap32(s)
+#define	ISP_IOXGET_8(isp, s, d)		d = (*((u_int8_t *)s))
+#define	ISP_IOXGET_16(isp, s, d)				\
+	d = (isp->isp_bustype == ISP_BT_SBUS)?			\
+	*((u_int16_t *)s) : bswap16(*((u_int16_t *)s))
+#define	ISP_IOXGET_32(isp, s, d)				\
+	d = (isp->isp_bustype == ISP_BT_SBUS)?			\
+	*((u_int32_t *)s) : bswap32(*((u_int32_t *)s))
+#else
+#define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
+#define	ISP_IOXPUT_16(isp, s, d)	*(d) = bswap16(s)
+#define	ISP_IOXPUT_32(isp, s, d)	*(d) = bswap32(s)
+#define	ISP_IOXGET_8(isp, s, d)		d = (*((u_int8_t *)s))
+#define	ISP_IOXGET_16(isp, s, d)	d = bswap16(*((u_int16_t *)s))
+#define	ISP_IOXGET_32(isp, s, d)	d = bswap32(*((u_int32_t *)s))
+#endif
+#define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)	*rp = bswap16(*rp)
+#else
+#define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
+#define	ISP_IOXPUT_16(isp, s, d)	*(d) = s
+#define	ISP_IOXPUT_32(isp, s, d)	*(d) = s
+#define	ISP_IOXGET_8(isp, s, d)		d = *(s)
+#define	ISP_IOXGET_16(isp, s, d)	d = *(s)
+#define	ISP_IOXGET_32(isp, s, d)	d = *(s)
+#define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)
+#endif
 
 /*
  * Includes of common header files

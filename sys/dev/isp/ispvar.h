@@ -54,7 +54,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	2
-#define	ISP_CORE_VERSION_MINOR	4
+#define	ISP_CORE_VERSION_MINOR	5
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -160,10 +160,10 @@ struct ispmdvec {
 #define	ISP_QAVAIL(isp)	\
 	ISP_QFREE(isp->isp_reqidx, isp->isp_reqodx, RQUEST_QUEUE_LEN(isp))
 
-#define	ISP_ADD_REQUEST(isp, iptr)	\
-	MEMORYBARRIER(isp, SYNC_REQUEST, iptr, QENTRY_LEN); \
-	WRITE_REQUEST_QUEUE_IN_POINTER(isp, iptr); \
-	isp->isp_reqidx = iptr
+#define	ISP_ADD_REQUEST(isp, nxti)					\
+	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN);	\
+	WRITE_REQUEST_QUEUE_IN_POINTER(isp, nxti);			\
+	isp->isp_reqidx = nxti
 
 /*
  * SCSI Specific Host Adapter Parameters- per bus, per target
@@ -350,12 +350,13 @@ typedef struct ispsoftc {
 	u_int32_t		isp_maxluns;	/* maximum luns supported */
 
 	u_int32_t		isp_clock	: 8,	/* input clock */
-						: 6,
-				isp_role	: 2,
-						: 1,
+						: 5,
+				isp_failed	: 1,	/* board failed */
+				isp_open	: 1,	/* opened (ioctl) */
 				isp_touched	: 1,	/* board ever seen? */
 				isp_bustype	: 1,	/* SBus or PCI */
 				isp_loaded_fw	: 1,	/* loaded firmware */
+				isp_role	: 2,	/* roles supported */
 				isp_dblev	: 12;	/* debug log mask */
 
 	u_int32_t		isp_confopts;		/* config options */
@@ -376,8 +377,8 @@ typedef struct ispsoftc {
 	 */
 
 	volatile u_int32_t
-		isp_mboxbsy	:	8,	/* mailbox command active */
-				:	1,
+		isp_obits	:	8,	/* mailbox command output */
+		isp_mboxbsy	:	1,	/* mailbox command active */
 		isp_state	:	3,
 		isp_sendmarker	:	2,	/* send a marker entry */
 		isp_update	:	2,	/* update parameters */
@@ -479,6 +480,14 @@ typedef struct ispsoftc {
  */
 #define	ISP_BT_PCI		0	/* PCI Implementations */
 #define	ISP_BT_SBUS		1	/* SBus Implementations */
+
+/*
+ * If we have not otherwise defined SBus support away make sure
+ * it is defined here such that the code is included as default
+ */
+#ifndef	ISP_SBUS_SUPPORTED
+#define	ISP_SBUS_SUPPORTED	1
+#endif
 
 /*
  * Chip Types
@@ -656,9 +665,8 @@ int isp_control(struct ispsoftc *, ispctl_t, void *);
  *
  * ISPASYNC_UNHANDLED_RESPONSE gives outer layers a chance to parse a
  * response queue entry not otherwise handled. The outer layer should
- * return non-zero if it handled it. The 'arg' points to a (possibly only
- * partially) massaged response queue entry (see the platform's
- * ISP_UNSWIZZLE_RESPONSE macro).
+ * return non-zero if it handled it. The 'arg' points to an unmassaged
+ * response queue entry.
  */
 
 typedef enum {
@@ -819,14 +827,16 @@ void isp_prt(struct ispsoftc *, int level, const char *, ...);
  *		Block.
  *
  *	(XXX these do endian specific transformations- in transition XXX)
- *	ISP_SWIZZLE_ICB
- *	ISP_UNSWIZZLE_AND_COPY_PDBP
- *	ISP_SWIZZLE_CONTINUATION
- *	ISP_SWIZZLE_REQUEST
- *	ISP_UNSWIZZLE_RESPONSE
- *	ISP_SWIZZLE_SNS_REQ
- *	ISP_UNSWIZZLE_SNS_RSP
- *	ISP_SWIZZLE_NVRAM_WORD
+ *
+ *	ISP_IOXPUT_8(struct ispsoftc *, u_int8_t srcval, u_int8_t *dstptr)
+ *	ISP_IOXPUT_16(struct ispsoftc *, u_int16_t srcval, u_int16_t *dstptr)
+ *	ISP_IOXPUT_32(struct ispsoftc *, u_int32_t srcval, u_int32_t *dstptr)
+ *
+ *	ISP_IOXGET_8(struct ispsoftc *, u_int8_t *srcptr, u_int8_t dstrval)
+ *	ISP_IOXGET_16(struct ispsoftc *, u_int16_t *srcptr, u_int16_t dstrval)
+ *	ISP_IOXGET_32(struct ispsoftc *, u_int32_t *srcptr, u_int32_t dstrval)
+ *
+ *	ISP_SWIZZLE_NVRAM_WORD(struct ispsoftc *, u_int16_t *)
  */
 
 #endif	/* _ISPVAR_H */
