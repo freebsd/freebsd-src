@@ -932,12 +932,12 @@ nfs_request(vp, mrest, procnum, procp, cred, mrp, mdp, dposp)
 	struct mbuf **mdp;
 	caddr_t *dposp;
 {
-	register struct mbuf *m, *mrep, *m2;
+	register struct mbuf *mrep, *m2;
 	register struct nfsreq *rep;
 	register u_int32_t *tl;
 	register int i;
 	struct nfsmount *nmp;
-	struct mbuf *md, *mheadend;
+	struct mbuf *m, *md, *mheadend;
 	struct nfsnode *np;
 	char nickv[RPCX_NICKVERF];
 	time_t reqtime, waituntil;

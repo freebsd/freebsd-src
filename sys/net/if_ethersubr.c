@@ -170,16 +170,15 @@ static struct ng_type typestruct = {
  * Assumes that ifp is actually pointer to arpcom structure.
  */
 int
-ether_output(ifp, m0, dst, rt0)
+ether_output(ifp, m, dst, rt0)
 	register struct ifnet *ifp;
-	struct mbuf *m0;
+	struct mbuf *m;
 	struct sockaddr *dst;
 	struct rtentry *rt0;
 {
 	short type;
 	int s, error = 0, hdrcmplt = 0;
  	u_char esrc[6], edst[6];
-	register struct mbuf *m = m0;
 	register struct rtentry *rt;
 	register struct ether_header *eh;
 	int off, len = m->m_pkthdr.len, loop_copy = 0;

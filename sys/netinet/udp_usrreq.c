@@ -619,7 +619,7 @@ SYSCTL_PROC(_net_inet_udp, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
 static int
 udp_output(inp, m, addr, control, p)
 	register struct inpcb *inp;
-	register struct mbuf *m;
+	struct mbuf *m;
 	struct sockaddr *addr;
 	struct mbuf *control;
 	struct proc *p;
