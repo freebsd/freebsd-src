@@ -187,15 +187,12 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
-	extern char *optarg;
 	int x, y, h, n;
 	struct worm *w;
 	const struct options *op;
 	short *ip;
 	int CO, LI, last, bottom, ch, length, number, trail;
 	short **ref;
-	long random();
 	const char *field;
 	char *mp;
 	unsigned int delay = 0;
