@@ -40,6 +40,23 @@
 #include <sys/queue.h>
 #include <sys/uio.h>
 
+struct componentname {
+	/*
+	 * Arguments to lookup.
+	 */
+	u_long	cn_nameiop;	/* namei operation */
+	u_long	cn_flags;	/* flags to namei */
+	struct	thread *cn_thread;/* thread requesting lookup */
+	struct	ucred *cn_cred;	/* credentials */
+	/*
+	 * Shared between lookup and commit routines.
+	 */
+	char	*cn_pnbuf;	/* pathname buffer */
+	char	*cn_nameptr;	/* pointer to looked up name */
+	long	cn_namelen;	/* length of looked up component */
+	long	cn_consume;	/* chars to consume in lookup() */
+};
+
 /*
  * Encapsulation of namei parameters.
  */
@@ -75,22 +92,7 @@ struct nameidata {
 	 * information from the nameidata structure that is passed
 	 * through the VOP interface.
 	 */
-	struct componentname {
-		/*
-		 * Arguments to lookup.
-		 */
-		u_long	cn_nameiop;	/* namei operation */
-		u_long	cn_flags;	/* flags to namei */
-		struct	thread *cn_thread;/* thread requesting lookup */
-		struct	ucred *cn_cred;	/* credentials */
-		/*
-		 * Shared between lookup and commit routines.
-		 */
-		char	*cn_pnbuf;	/* pathname buffer */
-		char	*cn_nameptr;	/* pointer to looked up name */
-		long	cn_namelen;	/* length of looked up component */
-		long	cn_consume;	/* chars to consume in lookup() */
-	} ni_cnd;
+	struct componentname ni_cnd;
 };
 
 #ifdef _KERNEL
@@ -149,12 +151,20 @@ struct nameidata {
 static void NDINIT __P((struct nameidata *, u_long, u_long, enum uio_seg,
 	    const char *, struct thread *));
 static __inline void
+#if defined(__STDC__) || defined(__cplusplus)
+NDINIT(struct nameidata *ndp,
+	u_long op, u_long flags,
+	enum uio_seg segflg,
+	const char *namep,
+	struct thread *td)
+#else
 NDINIT(ndp, op, flags, segflg, namep, td)
 	struct nameidata *ndp;
 	u_long op, flags;
 	enum uio_seg segflg;
 	const char *namep;
 	struct thread *td;
+#endif
 {
 	ndp->ni_cnd.cn_nameiop = op;
 	ndp->ni_cnd.cn_flags = flags;
