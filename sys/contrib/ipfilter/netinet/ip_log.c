@@ -247,7 +247,7 @@ mb_t *m;
 	 */
 	bzero((char *)ipfl.fl_ifname, sizeof(ipfl.fl_ifname));
 # if SOLARIS && defined(_KERNEL)
-	ipfl.fl_unit = (u_char)ifp->ill_ppa;
+	ipfl.fl_unit = (u_int)ifp->ill_ppa;
 	bcopy(ifp->ill_name, ipfl.fl_ifname,
 	      MIN(ifp->ill_name_length, sizeof(ipfl.fl_ifname)));
 	mlen = (flags & FR_LOGBODY) ? MIN(msgdsize(m) - hlen, 128) : 0;
@@ -256,7 +256,7 @@ mb_t *m;
 	(defined(OpenBSD) && (OpenBSD >= 199603))
 	strncpy(ipfl.fl_ifname, ifp->if_xname, IFNAMSIZ);
 #  else
-	ipfl.fl_unit = (u_char)ifp->if_unit;
+	ipfl.fl_unit = (u_int)ifp->if_unit;
 	strncpy(ipfl.fl_ifname, ifp->if_name, MIN(sizeof(ipfl.fl_ifname),
 						  sizeof(ifp->if_name)));
 #  endif
