@@ -106,49 +106,82 @@ struct vpollinfo {
 #if defined(_KERNEL) || defined(_KVM_VNODE)
 
 struct vnode {
-	struct	mtx v_interlock;		/* lock for "i" things */
-	u_long	v_iflag;			/* i vnode flags (see below) */
-	int	v_usecount;			/* i ref count of users */
-	struct thread *v_vxthread;		/* i thread owning VXLOCK */
-	int	v_holdcnt;			/* i page & buffer references */
-	struct bufobj	v_bufobj;		/* * Buffer cache object */
-	u_long	v_vflag;			/* v vnode flags */
-	int	v_writecount;			/* v ref count of writers */
-	daddr_t	v_lastw;			/* v last write (write cluster) */
-	daddr_t	v_cstart;			/* v start block of cluster */
-	daddr_t	v_lasta;			/* v last allocation (cluster) */
-	int	v_clen;				/* v length of current cluster */
-	union {
-		struct mount	*vu_mountedhere;/* v ptr to mounted vfs (VDIR) */
-		struct socket	*vu_socket;	/* v unix ipc (VSOCK) */
-		struct cdev	*vu_cdev; /* v device (VCHR, VBLK) */
-		struct fifoinfo	*vu_fifoinfo;	/* v fifo (VFIFO) */
-	} v_un;
-	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
-	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* m vnodes for mount point */
+	/*
+	 * Fields which define the identity of the vnode.  These fields are
+	 * owned by the filesystem (XXX: and vgone() ?)
+	 */
 	enum	vtype v_type;			/* u vnode type */
 	const char *v_tag;			/* u type of underlying data */
-	void	*v_data;			/* u private data for fs */
-	struct	lock v_lock;			/* u used if fs don't have one */
-	struct	lock *v_vnlock;			/* u pointer to vnode lock */
 	struct	vop_vector *v_op;		/* u vnode operations vector */
+	void	*v_data;			/* u private data for fs */
+
+	/*
+	 * Filesystem instance stuff
+	 */
 	struct	mount *v_mount;			/* u ptr to vfs we are in */
+	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* m vnodes for mount point */
+
+	/*
+	 * Type specific fields, only one applies to any given vnode.
+	 * See #defines below for renaming to v_* namespace.
+	 */
+	union {
+		struct mount	*vu_mount;	/* v ptr to mountpoint (VDIR) */
+		struct socket	*vu_socket;	/* v unix domain net (VSOCK) */
+		struct cdev	*vu_cdev; 	/* v device (VCHR, VBLK) */
+		struct fifoinfo	*vu_fifoinfo;	/* v fifo (VFIFO) */
+	} v_un;
+
+	/*
+	 * VFS_namecache stuff
+	 */
 	LIST_HEAD(, namecache) v_cache_src;	/* c Cache entries from us */
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* c Cache entries to us */
 	u_long	v_id;				/* c capability identifier */
 	struct	vnode *v_dd;			/* c .. vnode */
 	u_long	v_ddid;				/* c .. capability identifier */
-	struct vpollinfo *v_pollinfo;		/* G Poll events, p for *v_pi */
-	struct label *v_label;			/* MAC label for vnode */
+
+	/*
+	 * clustering stuff
+	 */
+	daddr_t	v_cstart;			/* v start block of cluster */
+	daddr_t	v_lasta;			/* v last allocation  */
+	daddr_t	v_lastw;			/* v last write  */
+	int	v_clen;				/* v length of cur. cluster */
+
+	/*
+	 * Locking
+	 */
+	struct	lock v_lock;			/* u (if fs don't have one) */
+	struct	mtx v_interlock;		/* lock for "i" things */
+	struct	lock *v_vnlock;			/* u pointer to vnode lock */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
 #endif
+	int	v_holdcnt;			/* i page & buffer references */
+	int	v_usecount;			/* i ref count of users */
+	struct thread *v_vxthread;		/* i thread owning VXLOCK */
+	u_long	v_iflag;			/* i vnode flags (see below) */
+	u_long	v_vflag;			/* v vnode flags */
+	int	v_writecount;			/* v ref count of writers */
+
+	/*
+	 * The machinery of being a vnode
+	 */
+	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
+	struct bufobj	v_bufobj;		/* * Buffer cache object */
+
+	/*
+	 * Hooks for various subsystems and features.
+	 */
+	struct vpollinfo *v_pollinfo;		/* G Poll events, p for *v_pi */
+	struct label *v_label;			/* MAC label for vnode */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 
-#define	v_mountedhere	v_un.vu_mountedhere
+#define	v_mountedhere	v_un.vu_mount
 #define	v_socket	v_un.vu_socket
 #define	v_rdev		v_un.vu_cdev
 #define	v_fifoinfo	v_un.vu_fifoinfo
