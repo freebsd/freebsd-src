@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)startup.c	8.1 (Berkeley) 6/5/93";
 #include <net/if.h>
 #include <net/if_dl.h>
 
+#include <errno.h>
 #include <nlist.h>
 #include <stdlib.h>
 
@@ -68,7 +69,6 @@ void
 quit(s)
 	char *s;
 {
-	extern int errno;
 	int sverrno = errno;
 
 	(void) fprintf(stderr, "IPXroute: ");
