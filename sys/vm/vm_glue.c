@@ -513,14 +513,16 @@ void
 faultin(p)
 	struct proc *p;
 {
+#ifdef NO_SWAPPING
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if ((p->p_sflag & PS_INMEM) == 0)
+		panic("faultin: proc swapped out with NO_SWAPPING!");
+#else /* !NO_SWAPPING */
 	struct thread *td;
 
 	GIANT_REQUIRED;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-#ifdef NO_SWAPPING
-	if ((p->p_sflag & PS_INMEM) == 0)
-		panic("faultin: proc swapped out with NO_SWAPPING!");
-#else
 	/*
 	 * If another process is swapping in this process,
 	 * just wait until it finishes.
@@ -558,7 +560,7 @@ faultin(p)
 		/* Allow other threads to swap p out now. */
 		--p->p_lock;
 	}
-#endif
+#endif /* NO_SWAPPING */
 }
 
 /*
