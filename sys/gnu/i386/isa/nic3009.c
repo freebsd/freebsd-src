@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.7 1995/09/08 11:06:47 bde Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.8 1995/09/19 18:54:42 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.7 1995/09/08 11:06:47 bde E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.8  1995/09/19  18:54:42  bde
+ * Fix benign type mismatches in isa interrupt handlers.  Many returned int
+ * instead of void.
+ *
  * Revision 1.7  1995/09/08  11:06:47  bde
  * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
  * functions were wrong.
@@ -58,6 +62,7 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.7 1995/09/08 11:06:47 bde E
 #include "ioctl.h"
 #include "kernel.h"
 #include "systm.h"
+#include "conf.h"
 #include "proc.h"
 
 #include "i386/isa/isa_device.h"
@@ -84,15 +89,22 @@ extern u_short isdn_state;
 extern isdn_ctrl_t isdn_ctrl[];
 extern int     ispy_applnr;
 extern int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
-extern void isdn_start_out();
 
 static old_spy= 0;
 
-int             nnicprobe(), nnicattach();
-int             nnic_connect(), nnic_listen(), nnic_disconnect(), nnic_accept();
-int             nnic_output(), nnic_state();
+extern int	nnicattach __P((struct isa_device *is));
+extern int	nnicprobe __P((struct isa_device *is));
+extern int	nnic_accept __P((int cn, int an, int rea));
+extern int	nnic_connect __P((int cn, int ap, int b_channel, int inf_mask,
+				  int out_serv, int out_serv_add,
+				  int src_subadr, unsigned ad_len,
+				  char *dest_addr, int spv));
+extern int	nnic_disconnect __P((int cn, int rea));
+extern int	nnic_listen __P((int cn, int ap, int inf_mask,
+				 int subadr_mask, int si_mask, int spv));
+extern int	nnic_output __P((int cn));
+extern int	nnic_state __P((int cn));
 
-static          discon_req(), sel_b2_prot_req(), reset_plci();
 static short    bsintr;
 
 struct isa_driver nnicdriver = {nnicprobe, nnicattach, "nnic"};
@@ -130,6 +142,21 @@ struct nnic_softc
 	chan_t          sc_chan[2];
 }               nnic_sc[NNNIC];
 
+static void	badstate __P((mbx_type *mbx, int n, int mb, dpr_type *dpr));
+static int	con_b3_resp __P((int unit, int mb, u_short ncci, u_short pl,
+				 u_char reject));
+static int	discon_req __P((int w, int unit, int pl, int rea, int err));
+static int	con_resp __P((int unit, int pl, int rea));
+static void	dn_intr __P((unsigned unit, struct nnic_softc *sc));
+static int	en_q __P((int unit, int t, int st, int pl, int l, u_char *b));
+static void	make_intr __P((void *gen));
+static void	nnnicintr __P((void *gen));
+static void	nnic_reset __P((struct nnic_softc *sc, int reset));
+static int	reset_plci __P((int w, chan_t *chan, int p));
+static int	sel_b2_prot_req __P((int unit, int c, int pl, dlpd_t *dlpd));
+static int	sel_b3_prot_req __P((int unit, int mb, u_short pl,
+				     ncpd_t *ncpd));
+static void	up_intr __P((unsigned unit, struct nnic_softc *sc));
 
 int
 nnicprobe(struct isa_device * is)
