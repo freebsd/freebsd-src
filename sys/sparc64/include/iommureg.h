@@ -162,7 +162,7 @@
 	(((pa) & IOTTE_PAMASK) | ((w) ? IOTTE_W : 0) |			\
 	((c) ? IOTTE_C : 0) | ((s) ? IOTTE_STREAM : 0) |		\
 	(IOTTE_V | IOTTE_8K))
-#define IOTSBSLOT(va,sz)						\
+#define IOTSBSLOT(va)						\
 	((u_int)(((vm_offset_t)(va)) - (is->is_dvmabase)) >> IO_PAGE_SHIFT)
 
 #endif /* !_MACHINE_IOMMUREG_H_ */
