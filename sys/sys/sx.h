@@ -88,6 +88,7 @@ struct sx_args {
 #define	SX_LOCKED		LA_LOCKED
 #define	SX_SLOCKED		LA_SLOCKED
 #define	SX_XLOCKED		LA_XLOCKED
+#define	SX_UNLOCKED		LA_UNLOCKED
 #endif	/* INVARIANTS || INVARIANT_SUPPORT */
 
 #ifdef INVARIANTS
