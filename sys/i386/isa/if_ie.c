@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.45 1997/09/02 01:18:14 bde Exp $
+ *	$Id: if_ie.c,v 1.46 1997/09/21 21:41:08 gibbs Exp $
  */
 
 /*
@@ -401,8 +401,9 @@ sl_probe(struct isa_device *dvp)
 		break;
 
 	default:
-		printf("ie%d: unknown AT&T board type code %d\n", unit,
-		       ie_softc[unit].hard_type);
+		if (bootverbose)
+			printf("ie%d: unknown AT&T board type code %d\n", unit,
+		       	ie_softc[unit].hard_type);
 		return (0);
 	}
 
