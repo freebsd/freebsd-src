@@ -39,24 +39,25 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/proc.h>
-#include <sys/filedesc.h>
-#include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/namei.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/stat.h>
+#include <sys/sysproto.h>
+#include <sys/systm.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
+#include <sys/vnode.h>
+
 #include <fs/portalfs/portal.h>
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;
