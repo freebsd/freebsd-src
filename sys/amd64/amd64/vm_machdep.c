@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.95 1998/01/19 04:16:16 tegge Exp $
+ *	$Id: vm_machdep.c,v 1.96 1998/01/22 17:29:32 dyson Exp $
  */
 
 #include "npx.h"
@@ -535,8 +535,15 @@ vm_bounce_init()
 
 	for(i=0;i<bouncepages;i++) {
 		vm_offset_t pa;
-		if( (pa = pmap_kextract((vm_offset_t) bouncememory + i * PAGE_SIZE)) >= SIXTEENMEG)
-			panic("bounce memory out of range");
+		if( (pa = pmap_kextract((vm_offset_t) bouncememory + i * PAGE_SIZE)) >= SIXTEENMEG) {
+			printf("vm_bounce_init: bounce memory out of range -- bounce disabled\n");
+			free(bounceallocarray, M_TEMP);
+			bounceallocarray = NULL;
+			free(bouncepa, M_TEMP);
+			bouncepa = NULL;
+			bouncepages = 0;
+			break;
+		}
 		if( pa == 0)
 			panic("bounce memory not resident");
 		bouncepa[i] = pa;
