@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.46 1997/05/22 04:10:06 jkh Exp $
+ * $Id: install.c,v 1.134.2.47 1997/05/30 00:55:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -966,6 +966,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
     variable_set2(VAR_INSTALL_ROOT,		"/");
+    variable_set2(VAR_INSTALL_CFG,		"install.cfg");
     cp = getenv("EDITOR");
     if (!cp)
 	cp = "/usr/bin/ee";
