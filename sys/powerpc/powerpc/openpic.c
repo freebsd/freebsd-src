@@ -127,12 +127,15 @@ openpic_probe(device_t dev)
 	struct		openpic_softc *sc;
 	phandle_t	node, parent;
 	char		*type;
+	char            *compat;
 	u_int32_t	reg[5], val;
 	vm_offset_t	macio_base;
-
+	vm_offset_t     opic_base;
+	
 	sc = device_get_softc(dev);
 	node = nexus_get_node(dev);
 	type = nexus_get_device_type(dev);
+	compat = nexus_get_compatible(dev);
 
 	if (type == NULL)
 		return (ENXIO);
@@ -140,16 +143,28 @@ openpic_probe(device_t dev)
 	if (strcmp(type, "open-pic") != 0)
 		return (ENXIO);
 
-	parent = OF_parent(node);
-	if (OF_getprop(parent, "assigned-addresses", reg, sizeof(reg)) < 20)
-		return (ENXIO);
-	macio_base = (vm_offset_t)reg[2];
+	if (strcmp(compat, "psim,open-pic") == 0) {
+		sc->sc_psim = 1;
 
-	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
-		return (ENXIO);
+		if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
+			return (ENXIO);
 
-	sc->sc_base = (vm_offset_t)pmap_mapdev(macio_base + reg[0],
-	    OPENPIC_SIZE);
+		opic_base = reg[1];
+	} else {
+		parent = OF_parent(node);
+		if (OF_getprop(parent, "assigned-addresses", 
+			       reg, sizeof(reg)) < 20)
+			return (ENXIO);
+		
+		macio_base = (vm_offset_t)reg[2];
+		
+		if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
+			return (ENXIO);
+
+		opic_base = macio_base + reg[0];
+	}
+
+	sc->sc_base = (vm_offset_t)pmap_mapdev(opic_base, OPENPIC_SIZE);
 
 	val = openpic_read(sc, OPENPIC_FEATURE);
 	switch (val & OPENPIC_FEATURE_VERSION_MASK) {
@@ -168,9 +183,9 @@ openpic_probe(device_t dev)
 	}
 
 	sc->sc_ncpu = ((val & OPENPIC_FEATURE_LAST_CPU_MASK) >>
-	    OPENPIC_FEATURE_LAST_CPU_SHIFT) + 1;
+	    OPENPIC_FEATURE_LAST_CPU_SHIFT);
 	sc->sc_nirq = ((val & OPENPIC_FEATURE_LAST_IRQ_MASK) >>
-	    OPENPIC_FEATURE_LAST_IRQ_SHIFT) + 1;
+	    OPENPIC_FEATURE_LAST_IRQ_SHIFT);
 
 	device_set_desc(dev, "OpenPIC interrupt controller");
 	return (0);
@@ -187,7 +202,7 @@ openpic_attach(device_t dev)
 
 	device_printf(dev,
 	    "Version %s, supports up to %d CPUs and up to %d irqs\n",
-	    sc->sc_version, sc->sc_ncpu, sc->sc_nirq);
+	    sc->sc_version, sc->sc_ncpu+1, sc->sc_nirq+1);
 
 	sc->sc_rman.rm_type = RMAN_ARRAY;
 	sc->sc_rman.rm_descr = device_get_nameunit(dev);
@@ -199,7 +214,7 @@ openpic_attach(device_t dev)
 	}
 
 	/* disable all interrupts */
-	for (irq = 0; irq < 256; irq++)
+	for (irq = 0; irq < sc->sc_nirq; irq++)
 		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), OPENPIC_IMASK);
 
 	openpic_set_priority(sc, 0, 15);
@@ -228,7 +243,7 @@ openpic_attach(device_t dev)
 	openpic_set_priority(sc, 0, 0);
 
 	/* clear all pending interrupts */
-	for (irq = 0; irq < 256; irq++) {
+	for (irq = 0; irq < sc->sc_nirq; irq++) {
 		openpic_read_irq(sc, 0);
 		openpic_eoi(sc, 0);
 	}
@@ -381,7 +396,13 @@ static void
 openpic_eoi(struct openpic_softc *sc, int cpu)
 {
 	openpic_write(sc, OPENPIC_EOI(cpu), 0);
-	openpic_read(sc, OPENPIC_EOI(cpu));
+	if (!sc->sc_psim) {
+		/*
+		 * Probably not needed, since appropriate eieio/sync
+		 * is done in out32rb. See Darwin src.
+		 */
+		openpic_read(sc, OPENPIC_EOI(cpu));
+	}
 }
 
 static void
@@ -434,7 +455,7 @@ openpic_intr(void)
 
 start:
 	openpic_disable_irq(softc, irq);
-	mtmsr(msr | PSL_EE);
+	/*mtmsr(msr | PSL_EE);*/
 
 	/* do the interrupt thang */
 	intr_handle(irq);
