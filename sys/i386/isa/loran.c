@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.3 1998/04/05 19:26:08 phk Exp $
+ * $Id: loran.c,v 1.4 1998/04/19 15:36:12 bde Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -49,6 +49,7 @@ struct datapoint {
 	u_int			gri;
 	u_int			agc;
 	u_int			phase;
+	u_int			width;
 	u_int			par;
 	u_int			isig;
 	u_int			qsig;
@@ -58,7 +59,12 @@ struct datapoint {
 	TAILQ_ENTRY(datapoint)	list;
 	double			ival;
 	double			qval;
+	double			sval;
 	double			mval;
+	u_char			status;
+	u_int			vco;
+	int			count;
+	int			remain;
 };
 
 /*
@@ -70,19 +76,19 @@ struct datapoint {
         #define INTEG_36us      2
         #define INTEG_SHORT     3
     #define GATE 0x0C           /* gate source mask */
-        #define GATE_OPEN       0x4
-        #define GATE_GRI        0x8
-        #define GATE_PCI        0xc
-        #define GATE_STB        0xf
+        #define GATE_OPEN       0x0
+        #define GATE_GRI        0x4
+        #define GATE_PCI        0x8
+        #define GATE_STB        0xc
     #define MSB 0x10            /* load dac high-order bits */
     #define IEN 0x20            /* enable interrupt bit */
     #define EN5 0x40            /* enable counter 5 bit */
     #define ENG 0x80            /* enable gri bit */
 
+#define VCO 2048                /* initial vco dac (0 V)*/
 
 #ifdef KERNEL
 
-#define VCO 2048                /* initial vco dac (0 V)*/
 
 #define PORT 0x0300             /* controller port address */
 
@@ -110,6 +116,11 @@ struct datapoint {
  */
 #define DACA PORT+4             /* vco (dac a) buffer (w) */
 #define DACB PORT+5             /* agc (dac b) buffer (w) */
+
+#define LOAD_DAC(dac, val) if (0) { } else {				\
+	par &= ~MSB; outb(PAR, par); outb((dac), (val) & 0xff);		\
+	par |=  MSB; outb(PAR, par); outb((dac), ((val) >> 8) & 0xff);	\
+	}
 
 /*
  * Pulse-code generator (CODE) hardware definitions
@@ -166,20 +177,17 @@ struct datapoint {
 #define DSABPFW 0xF9            /* disable prefetch for write */
 #define TG_RESET 0xFF              /* master reset */
 
+#define LOAD_9513(index, val) if (0) {} else {		\
+	outb(TGC, TG_LOADDP + (index));			\
+	outb(TGD, (val) & 0xff);					\
+	outb(TGD, ((val) >> 8) & 0xff);				\
+	}
 
 #define NENV 40                 /* size of envelope filter */
 #define CLOCK 50                /* clock period (clock) */
 #define CYCLE 10                /* carrier period (us) */
 #define PCX (NENV * CLOCK)      /* envelope gate (clock) */
 #define STROBE 50               /* strobe gate (clock) */
-
-u_short tg_init[] = {			/* stc initialization vector	*/
-	0x0562,      12,         13,	/* counter 1 (p0)		*/
-	0x0262,  PGUARD,        GRI,	/* counter 2 (gri)		*/
-	0x8562,     PCX, 5000 - PCX,	/* counter 3 (pcx)		*/
-	0xc562,       0,     STROBE,	/* counter 4 (stb)		*/
-	0x052a,	      0,          0	/* counter 5 (out)		*/
-};
 
 /**********************************************************************/
 
@@ -196,7 +204,12 @@ static struct datapoint *this, *next;
 static MALLOC_DEFINE(M_LORAN, "Loran", "Loran datapoints");
 
 static int loranerror;
-static char lorantext[40];
+static char lorantext[80];
+
+static u_int	vco_is;
+static u_int	vco_should;
+
+static int	lorantc_magic;
 
 /**********************************************************************/
 
@@ -221,6 +234,31 @@ loranprobe(struct isa_device *dvp)
 	return (8);
 }
 
+u_short tg_init[] = {			/* stc initialization vector	*/
+	0x0562,      12,         13,	/* counter 1 (p0)		*/
+	0x0262,  PGUARD,        GRI,	/* counter 2 (gri)		*/
+	0x8562,     PCX, 5000 - PCX,	/* counter 3 (pcx)		*/
+	0xc562,       0,     STROBE,	/* counter 4 (stb)		*/
+	0x052a,	      0,          0	/* counter 5 (out)		*/
+};
+
+void
+init_tgc(void)
+{
+	int i;
+
+	/* Initialize the 9513A */
+	outb(TGC, TG_RESET);         outb(TGC, LOAD+0x1f); /* reset STC chip */
+	LOAD_9513(MASTER, 0x8af0);
+	outb(TGC, TG_LOADDP+1);
+	tg_init[4] = 7499 - GRI;
+	for (i = 0; i < 5*3; i++) {
+		outb(TGD, tg_init[i]);
+		outb(TGD, tg_init[i] >> 8);
+	}
+	outb(TGC, TG_LOADARM+0x1f);    /* let the good times roll */
+}
+
 int
 loranattach(struct isa_device *isdp)
 {
@@ -231,29 +269,22 @@ loranattach(struct isa_device *isdp)
 
 	printf("loran0: LORAN-C Receiver\n");
 
-	/* Initialize the 9513A */
-	outb(TGC, TG_RESET);         outb(TGC, LOAD+0x1f); /* reset STC chip */
-	outb(TGC, TG_LOADDP+MASTER); outb(TGD, 0xf0); outb(TGD, 0x8a);
-	outb(TGC, TG_LOADDP+1);
-	tg_init[4] = 7499 - GRI;
-	for (i = 0; i < 5*3; i++) {
-		outb(TGD, tg_init[i]);
-		outb(TGD, tg_init[i] >> 8);
-	}
-	outb(TGC, TG_LOADARM+0x1f);    /* let the good times roll */
-
-	/* Load the VCO DAC */
-	outb(PAR, 0);   outb(DACA, VCO & 0xff);
-	outb(PAR, MSB); outb(DACA, VCO >> 8);
+	vco_is = VCO;
+	LOAD_DAC(DACA, VCO);
 	 
+	init_tgc();
+
 	init_timecounter(loran_timecounter);
 
 	TAILQ_INIT(&qdone);
 	TAILQ_INIT(&qready);
 
-	dummy.agc = 2000;
-	dummy.code = 0x55;
+	dummy.agc = 4095;
+	dummy.code = 0xac;
 	dummy.delay = PGUARD - GRI;
+	dummy.gri = PGUARD;
+	dummy.phase = 50;
+	dummy.width = 50;
 
 	TAILQ_INSERT_HEAD(&qready, &dummy, list);
 	this = &dummy;
@@ -282,6 +313,7 @@ loranopen (dev_t dev, int flags, int fmt, struct proc *p)
 		write_eflags(ef);
 		FREE(this, M_LORAN);
 	}
+	init_tgc();
 	loranerror = 0;
 	return(0);
 }
@@ -369,10 +401,12 @@ loranwrite(dev_t dev, struct uio * uio, int ioflag)
 	err = uiomove((caddr_t)this, c, uio);        
 	if (!err && this->gri == 0)
 		err = EINVAL;
-	if (!err)
+	if (!err) {
 		loranenqueue(this);
-	else
+		vco_should = this->vco;
+	} else {
 		FREE(this, M_LORAN);
+	}
 	return(err);
 }
 
@@ -380,10 +414,32 @@ void
 loranintr(int unit)
 {
 	u_long ef;
-	int status, count = 0;
+	int status = 0, count = 0, i;
 
 	ef = read_eflags();
 	disable_intr();
+
+	if (this != &dummy) {
+		outb(TGC, DSABDPS);
+		outb(TGC, TG_LOADDP + 0x12);	/* hold counter #2 */
+		this->remain = -1;
+		i = 2;
+		for (i = 0; i < 2; i++) {
+			count = this->remain;
+			do {
+				outb(TGC, TG_SAVE + 0x12);
+				this->remain = inb(TGD) & 0xff;
+				this->remain |= inb(TGD) << 8;
+			} while (count == this->remain);
+		}
+		lorantc_magic = 1;
+		nanotime(&this->actual);
+		lorantc_magic = 0;
+		outb(TGC, TG_LOADDP + 0x0a);	
+		this->count = inb(TGD);
+		this->count |= inb(TGD) << 8;
+		LOAD_9513(0x12, GRI)
+	}
 
 	this->ssig = inb(ADC);
 
@@ -407,7 +463,6 @@ loranintr(int unit)
 	this->epoch = ticker;
 
 	if (this != &dummy) {
-		nanotime(&this->actual);	/* XXX */
 		TAILQ_INSERT_TAIL(&qdone, this, list);
 		wakeup((caddr_t)&qdone);
 	}
@@ -433,48 +488,49 @@ loranintr(int unit)
 
 	/* load this->params */
 	par &= ~(INTEG|GATE);
-	par |= this->par;
+	par |= this->par & (INTEG|GATE);
 
-	par &= ~MSB; outb(PAR, par); outb(DACB, this->agc);
-	par |= MSB; outb(PAR, par); outb(DACB, this->agc>>8);
+	LOAD_DAC(DACB, this->agc);
 
-	switch (this->code) {
-		case 256+0:	outb(CODE, MPCA); break;
-		case 256+1:	outb(CODE, MPCB); break;
-		case 256+2:	outb(CODE, SPCA); break;
-		case 256+3:	outb(CODE, SPCB); break;
-		default:	outb(CODE, this->code); break;
+	outb(CODE, this->code);
+
+	LOAD_9513(0x0a, next->delay);
+
+	/*
+	 * We need to load this from the opposite register * due to some 
+	 * weirdness which you can read about in in the 9513 manual on 
+	 * page 1-26 under "LOAD"
+	 */
+	LOAD_9513(0x0c, this->phase);
+	LOAD_9513(0x14, this->phase);
+	outb(TGC, TG_LOADARM + 0x08);
+	LOAD_9513(0x14, this->width);
+
+	if (vco_is != vco_should) {
+		LOAD_DAC(DACA, vco_should);
+		vco_is = vco_should;
 	}
-	
-	outb(TGC, TG_LOADDP + 0x0c);
-	outb(TGD, this->phase);
-	outb(TGD, this->phase >> 8);
 
-	/* load next->delay into 9513 */
-	outb(TGC, TG_LOADDP + 0x0a);
-	outb(TGD, next->delay);
-	outb(TGD, next->delay >> 8);
-
-
-	status = inb(TGC);
-	status &= 0x1c;
+	this->status = inb(TGC);
+#if 1
+	/* Check if we overran */
+	status = this->status & 0x1c;
 
 	if (status) {
 		outb(TGC, TG_SAVE + 2);		/* save counter #2 */
-		outb(TGC, TG_LOADDP +0x12);	/* hold counter #2 */
-		count = inb(TGD & 0xff);
+		outb(TGC, TG_LOADDP + 0x12);	/* hold counter #2 */
+		count = inb(TGD);
 		count |= inb(TGD) << 8;
-		outb(TGC, TG_LOADDP +0x12);	/* hold counter #2 */
-		outb(TGD, GRI & 0xff);
-		outb(TGD, GRI >> 8);
+		LOAD_9513(0x12, GRI)
 	}
+#endif
 
 	par |= ENG | IEN;
 	outb(PAR, par);
 
 	if (status) {
-		sprintf(lorantext, "Missed: %02x %d %d\n", 
-		    status, count, next->delay);
+		sprintf(lorantext, "Missed: %02x %d %d this:%p next:%p (dummy=%p)\n", 
+		    status, count, next->delay, this, next, &dummy);
 		loranerror = 1;
 	}
 	if (next->delay < PGUARD - GRI) {
@@ -488,17 +544,18 @@ loranintr(int unit)
 
 /**********************************************************************/
 
-static u_int64_t
+static unsigned
 loran_get_timecount(void)
 {
-	u_int32_t count;
+	unsigned count;
 	u_long ef;
 	u_int high, low;
 
 	ef = read_eflags();
 	disable_intr();
 
-	outb(TGC, TG_SAVE + 0x10);	/* save counter #5 */
+	if (!lorantc_magic)
+		outb(TGC, TG_SAVE + 0x10);	/* save counter #5 */
 	outb(TGC, TG_LOADDP +0x15);	/* hold counter #5 */
 	count = inb(TGD);
 	count |= inb(TGD) << 8;
@@ -508,7 +565,6 @@ loran_get_timecount(void)
 }
 
 static struct timecounter loran_timecounter[3] = {
-	0,			/* get_timedelta */
 	loran_get_timecount,	/* get_timecount */
 	0xffff,			/* counter_mask */
 	5000000,		/* frequency */
@@ -539,7 +595,7 @@ static void 	loran_drvinit(void *unused)
 {
 	dev_t dev;
 
-	if( ! loran_devsw_installed ) {
+	if(!loran_devsw_installed) {
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&loran_cdevsw, NULL);
 		loran_devsw_installed = 1;
