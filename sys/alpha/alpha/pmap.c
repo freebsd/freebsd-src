@@ -1313,7 +1313,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
 		} else {
-			mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
+			mpte = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -1574,7 +1574,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
+			m = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = m;
 		}
 		m->hold_count++;
@@ -1914,7 +1914,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
-pmap_remove_pte(pmap_t pmap, pt_entry_t* ptq, vm_offset_t va)
+pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 {
 	pt_entry_t oldpte;
 	vm_page_t m;
@@ -2355,10 +2355,11 @@ retry:
 			 */
 			if (l2pte && pmap_pte_v(l2pte)) {
 				if (pmap->pm_ptphint &&
-					(pmap->pm_ptphint->pindex == ptepindex)) {
+				    (pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
+					mpte = pmap_page_lookup(pmap->pm_pteobj,
+					    ptepindex);
 					pmap->pm_ptphint = mpte;
 				}
 				if (mpte == NULL)
@@ -3191,6 +3192,13 @@ pmap_mapdev(pa, size)
 	return (void*) ALPHA_PHYS_TO_K0SEG(pa);
 }
 
+void
+pmap_unmapdev(pa, size)
+	vm_offset_t va;
+	vm_size_t size;
+{
+}
+
 /*
  * perform the pmap work for mincore
  */
@@ -3327,7 +3335,7 @@ pmap_pid_dump(int pid)
 							sx_sunlock(&allproc_lock);
 							return npte;
 						}
-						pte = pmap_pte_quick( pmap, va);
+						pte = pmap_pte_quick(pmap, va);
 						if (pte && pmap_pte_v(pte)) {
 							vm_offset_t pa;
 							vm_page_t m;
