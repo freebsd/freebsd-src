@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.500
+    Original revision: 1.523
 -->
 
 <articleinfo>
@@ -116,6 +116,44 @@
       をご覧ください。
       &merged;</para>
 
+    <para><application>OpenSSL</application> がバージョン
+      0.9.7 にアップグレードされました。これには、
+      攻撃者がある条件下で平文にアクセスできる、
+      <application>OpenSSL</application>
+      へのタイミングベース攻撃への対策が含まれています。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para>&os; ホストの SYN flood サービス妨害攻撃への耐性を高めるため、
+      <quote>syncookies</quote> 機能のセキュリティと性能が改良されました。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para><application>sendmail</application> がバージョン 8.12.8
+      にアップグレードされました。これには、
+      リモートから悪用可能なバッファオーバフロー問題の修正が含まれています。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para>リモートからのサービス妨害攻撃を可能にするような、
+      XDR 実装にあった境界チェックのバグが修正されました。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para>最近公開された <application>OpenSSL</application>
+      の 2 種類のセキュリティ上の弱点が修正されました。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>
+      をご覧ください。
+      &merged;</para>
   </sect2>
 
   <sect2 id="kernel">
@@ -127,6 +165,24 @@
     <para>&man.devfs.5; がオプション機能ではなく、必須になりました。
       <literal>NODEVFS</literal> オプションは、
       指定可能なカーネル設定オプションから削除されています。</para>
+
+    <para arch="i386,pc98">DRM カーネルモジュールが、
+      DRI CVS リポジトリのスナップショットのものに更新されました。
+      これは XFree86 4.3.0 に含まれているものとほぼ同一のものですが、
+      いくつかのバグ修正も追加で含まれています。</para>
+
+    <para><filename>/dev/tty</filename>
+      の許可属性の取り扱いにあった、小さなバグが修正されました。
+      これにより、&man.su.1; の実行後も &man.ssh.1;
+      が使用できるようになっています。</para>
+
+    <para>&man.fstat.2; が、TCP ソケットから読み込めるバイト数として
+      <literal>0</literal> を返してしまうバグが修正されました。</para>
+
+    <para>&man.kqueue.2; が、TCP ソケットから読み込めるバイト数として
+      <literal>0</literal> を返してしまうバグが修正されました。
+      また、<literal>EVFILT_READ</literal> の
+      <literal>NOTE_LOWAT</literal> フラグも修正されています。</para>
 
     <para>Linux エミュレーションモードが IPv6 に対応しました。</para>
 
@@ -140,10 +196,23 @@
       を、新しい (まだ試験段階の) スケジューラを使う場合には
       <literal>options&nbsp;SCHED_ULE</literal> を指定してください。</para>
 
+    <para>デバイスのメジャー番号が、デフォルトで動的に割り当てられるようになりました。
+      この変更により、デバイスドライバに割り当てるメジャー番号のテーブルを、
+      静的に集中管理する必要性がほとんど
+      (互換性を保つため、従来の静的なメジャー番号のままなっているドライバも二・三残っています)
+      なくなり、デバイスのメジャー番号が足りなくなる可能性も低くなっています。</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
-      <para></para>
+      <para arch="i386">&os; に、HyperThreading (HTT)
+        対応の基礎部分が追加されました。
+        <literal>HTT</literal> カーネルオプションを追加した
+        SMP カーネルは、HTT
+        に対応したマシン上で論理プロセッサの検出と初期化を行ないます。
+        この論理プロセッサは、物理プロセッサを追加した場合と同じように、
+        プロセスをスケジューリングするために使われます。
+        &merged;</para>
 
     </sect3>
 
@@ -165,6 +234,20 @@
         メディアからの起動に対応しました。
         &merged;</para>
 
+      <para>(以前、&os; 4.X のモジュールが置かれるデフォルトのディレクトリだった)
+        <filename>/modules</filename> ディレクトリが、
+        デフォルトで <varname>kern.module_path</varname>
+        に含まれなくなりました。
+        サードパーティ製のモジュールは、
+        <filename>/boot/modules</filename>
+        に置かれなければならなくなっています。
+
+	<note>
+	  <para>&os; 4.X 用に設計されたモジュールはパニックをを引き起こしやすいため、
+            利用する場合は十分注意してください。</para>
+	</note>
+      </para>
+
        <!-- Above this line, order bootloader changes by keyword-->
 
     </sect3>
@@ -178,10 +261,20 @@
       <para>802.11 リンク層に対応した wlan モジュールが新しく追加されました。
         この機能は現在、&man.wi.4; ドライバで利用できます。</para>
 
+      <para arch="i386,alpha,pc98,sparc64">インタフェースの設定時にカーネルパニック
+        (や他の問題)
+        を引き起こす可能性があった、&man.xl.4;
+        ドライバのタイミングバグが修正されました。</para>
     </sect3>
 
     <sect3>
       <title>ネットワークプロトコル</title>
+
+      <para>&man.ipfw.4; の <literal>skipto</literal> ルールと
+        <literal>log</literal> キーワードが、
+        以前のように同時に使えるようになりました。
+        また、&man.ipfw.4; の <literal>uid</literal>
+        ルールも動作するようになっています。</para>
 
       <para>同一のカーネルで
         <literal>FAST_IPSEC</literal> と <literal>INET6</literal>
@@ -191,14 +284,78 @@
       <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
         TCP NewReno のバグが修正されました。
         &merged;</para>
-    </sect3>
+
+      <para>TCP が、RFC 3042 で提案されている <quote>Limited
+	Transmit</quote> 機構に対応しました。
+        この機能は、ある特定の条件下における
+        TCP ロスのリカバリ効率を向上させることを目的としたものです。
+        <varname>net.inet.tcp.rfc3042</varname> sysctl
+        変数で有効にすることができ、
+        デフォルトでは無効になっています。
+        詳細については、&man.tcp.4; をご覧ください。</para>
+
+      <para>TCP が、RFC 3390 に記載されている、
+        より大きな初期輻輳ウィンドウサイズに対応するように変更されました。
+        この機能は、短いデータ転送や、広帯域で転送遅延量の大きい接続における
+        スループットを向上させる効果があります。
+        <varname>net.inet.tcp.rfc3390</varname> sysctl 変数で有効にすることができ、
+        デフォルトでは無効になっています。
+        詳細については、&man.tcp.4; をご覧ください。</para>
+
+      <para>IP フラグメントの再組み立てコードが大量のフラグメントパケットを
+        受け取った時の動作が、より洗練されたものになりました
+        (これは、フラグメントパケットを利用したサービス妨害攻撃への
+        耐性を高めるための変更です)。
+        &merged;</para>
+
+      <para><literal>TIME_WAIT</literal> 状態の TCP 接続が、
+        完全な TCP プロトコル制御ブロック (PCB) ではなく、
+        より容量の小さい特別な PCB を使うように変更されました。
+        これにより、<literal>TIME_WAIT</literal>
+        状態が使う構造体やリソースを、
+        従来よりも早く解放することが可能になっています。</para>
+
+      <para><quote>特権ポート (privileged ports)</quote>
+        (&man.bind.2; するのにスーパユーザ権限が必要な
+        TCP と UDP のポート番号) の範囲が設定できるようになりました。
+        設定には、
+        <varname>net.inet.ip.portrange.reservedlow</varname> および
+        <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl
+        変数を使います。デフォルトは、伝統的な UNIX と同じになっています。
+        この機能は、スーパユーザ権限を持たないネットワークサーバが、
+        従来特権が必要だったポートに bind できるようにする目的で追加されました。
+        詳細は &man.ip.4; をご覧ください。</para>
+
+      <para>非ブロッキング RPC コードにあったいくつかのバグが修正されました。
+        これにより、&man.amd.8; を使って &release.current;
+        のサーバからマウントすることができるようになっています。</para>
+
+      <para>7 年間正常に動作していなかった
+        XNS ネットワーク対応が削除されました。</para>
+
+   </sect3>
 
     <sect3>
       <title>ディスク・記憶装置</title>
 
+      <para>&man.aac.4; ドライバが、ジャイアントカーネルロックなしに
+        動作するようになりました。この変更により、SMP システム上の
+        複数の高負荷 I/O において、速度性能がおよそ 20% 向上しています。</para>
+
+      <para>&man.ata.4; ドライバが、現在知られている
+        SiS チップセットすべてに対応しました
+        (詳細はハードウェアノートをご覧ください)。</para>
+
+      <para>&man.cd.4; に数多くの変更が加えられました。
+        ユーザに影響がある主なものとして、
+        ATAPI/USB/Firewire CDROM ドライブとの互換性向上があります。</para>
+
       <para>&man.geom.4; がオプション機能ではなく、必須になりました。
         <literal>NO_GEOM</literal> オプションは、
         指定可能なカーネル設定オプションから削除されています。</para>
+
+      <para>&man.mly.4; ドライバにあった、
+        ハングアップするバグが修正されました。</para>
 
       <para>UFS および UFS2 ファイルシステムが、
         ボリュームラベルに対応しました。ボリュームラベルは、
@@ -222,7 +379,12 @@
     <sect3>
       <title>ファイルシステム</title>
 
-      <para></para>
+      <para>NETNCP および Netware Filesystem 対応 (nwfs)
+        が、正しく動作するようになりました。</para>
+
+      <para>smbfs にあった、アンマウントができない、
+        もしくはアンマウント時にカーネルパニックが発生するというバグが
+        修正されました。</para>
     </sect3>
 
      <sect3>
@@ -240,12 +402,17 @@
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <para></para>
+      <para><application>IPFilter</application> がバージョン
+	3.4.31 に更新されました。
+        &merged;</para>
     </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
+
+    <para>&man.adduser.8; が、シェルの特殊文字を含むパスワードを
+      正しく処理できるようになりました。</para>
 
     <para arch="alpha,i386"><filename>compat4x</filename>
       配布物に、&os; 4.7-RELEASE に含まれる
@@ -256,7 +423,11 @@
     <para>&man.config.8; に、
       カーネルコンフィグファイルの <literal>device</literal>
       指示子の指定を無効にする <literal>nodevice</literal>
-      指示子が追加されました。</para>
+      指示子が追加されました。
+      また、<literal>nooption</literal> と
+      <literal>nomakeoption</literal> 指示子も追加されており、
+      それより前にある <literal>option</literal> および
+      <literal>makeoption</literal> 指示子をそれぞれ無効にします。</para>
 
     <para>&man.disklabel.8; から、
       <option>-N</option> フラグと <option>-W</option>
@@ -335,9 +506,22 @@
     <para>ユーザランドから &man.geom.4; サブシステムの一部へのアクセスを提供する
       &man.libgeom.3; ライブラリが追加されました。</para>
 
+    <para>mac_portacl MAC ポリシモジュールが追加されました。
+      これはユーザとグループに、TCP ポート、UDP ポートへの bind
+      を許可するという単純な ACL 機構です。
+      最近追加された
+      <varname>net.inet.ip.portrange.reservedhigh</varname>
+      sysctl 変数と組み合わせて使うことを想定しています。</para>
+
+    <para>FFS スナップショットの作成を簡単に行なうための
+      &man.mksnap.ffs.8; プログラムが追加されました。
+      これは <groupname>operator</groupname> グループ
+      に所属するユーザから利用することを想定した
+      SUID-<username>root</username> 実行ファイルです。</para>
+
     <para>&man.mount.nfs.8; に、UDP マウントポイントに対して
       &man.connect.2; を行なわないようにする <option>-c</option>
-      オプションが追加されました。このオプションは、サーバが
+      フラグが追加されました。このオプションは、サーバが
       標準の NFS ポート番号である 2049 からの要求に応答しない、
       あるいはその要求に対してサーバが異なる IP アドレスを
       使って応答する (サーバがマルチホーム構成の場合など) 時に使います。
@@ -361,8 +545,9 @@
       <quote>Don't Fragment</quote> ビットをセットする
       <option>-D</option> フラグが追加されました。</para>
 
-    <para>&man.ping.8; に、ICMP echo 要求の代わりに、ICMP マスク要求メッセージを使う
-       <option>-M</option> フラグが追加されました。</para>
+    <para>&man.ping.8; に、ICMP echo 要求の代わりに、
+       ICMP マスク要求メッセージやタイムスタンプ要求メッセージを使う
+       <option>-M</option> オプションが追加されました。</para>
 
     <para>&man.ping.8; に、送出パケットの
       Type of Service ビットをセットする
@@ -372,6 +557,18 @@
       文字で終わるユーザの追加に対応しました。
       これは、主に <application>Samba</application>
       サービスの管理を容易にするための変更です。&merged;</para>
+
+    <para>&man.rand.3; の、乱数列が
+      <literal>0</literal> になってしまう可能性があったバグが修正されました
+      (ただし &man.rand.3; は、依然として実用的な用途には適していません)。</para>
+
+    <para>&man.sem.open.3; が、
+      同じセマフォの複数回オープンを正しく処理できるようになりました。
+      これにより、&man.sem.close.3;
+      で呼び出し元のプログラムがクラッシュすることはなくなっています。</para>
+
+    <para>&man.srandom.3; の乱数シードアルゴリズムが、
+      より強いものになりました。</para>
 
     <para arch="sparc64">Sun ディスクラベルで動作する
       &man.disklabel.8; 風のプログラム、
@@ -404,7 +601,7 @@
       <title>寄贈ソフトウェア</title>
 
       <para>Bell Labs 由来の <application>awk</application>
-        が 2002 年 12 月 13 日時点のスナップショットが統合されました。</para>
+        が 2003 年 3 月 14 日時点のスナップショットが統合されました。</para>
 
       <para><application>BIND</application> がバージョン
         8.3.4 に更新されました。
@@ -419,16 +616,26 @@
         &merged;</para>
 
       <para><application>FILE</application> がバージョン
-	3.40 に更新されました。</para>
+	3.41 に更新されました。
+        &merged;</para>
 
       <para><application>GCC</application> が
         3.2.2 リリースに更新されました。</para>
 
-      <para><application>IPFilter</application> がバージョン
-	3.4.31 に更新されました。</para>
-
       <para><application>ISC DHCP</application> クライアントがバージョン
-        3.0.1RC11 に更新されました。</para>
+        3.0.1RC11 に更新されました。
+        &merged;</para>
+
+      <para><application>Kerberos IV</application> 対応
+        (<application>KTH eBones</application>) が削除されました。
+        この機能を必要としているユーザは、
+        <filename role="port">security/krb4</filename> の port
+        (もしくは package) から入手することができます。
+        Kerberos 5 の Kerberos IV 互換モードも削除され、
+        <literal>k5<replaceable>プログラム名</replaceable></literal>
+        というユーザランドユーティリティは、
+        <literal>k<replaceable>プログラム名</replaceable></literal>
+        という名前に変更されています。</para>
 
       <para><application>libpcap</application> が、
         同一のインタフェース上での複数のデータリンクタイプの選択に対応しました。</para>
@@ -442,28 +649,48 @@
         デバイス対応が含まれています。</para>
 
       <para><application>sendmail</application> がバージョン
-        8.12.7 に更新されました。
+        8.12.8 に更新されました。
         &merged;</para>
 
-      <para>&man.tcpdump.1; に、
-        そのインタフェースで利用可能なデータリンクタイプを一覧表示する
+      <para>&man.tcpdump.1; がバージョン 3.7.2 に更新されました。&merged;
+        また、インタフェースで利用可能なデータリンクタイプを一覧表示する
         <option>-L</option> フラグと、
         パケットキャプチャ中にどのデータリンクタイプを使うのかを指定する
-        <option>-y</option> フラグが追加されました。</para>
+        <option>-y</option> オプションが追加されました。</para>
     </sect3>
 
     <sect3>
       <title>Ports/Packages Collection インフラストラクチャ</title>
 
-    <para></para>
-
+      <para>1 行の <filename>pkg-comment</filename> ファイルが、
+        各 port スケルトンから削除され、その内容が
+        <filename>Makefile</filename> の中に移動しました。
+        この変更により、 ports ツリーで消費するディスク容量と
+        inode 数が少なくなっています。
+        &merged;</para>
     </sect3>
   </sect2>
 
   <sect2>
     <title>リリースエンジニアリングと統合</title>
 
-    <para></para>
+    <para>FreeBSD が公式に対応している <application>GNOME</application>
+      のリリースが、バージョン 2.2 に更新されました。
+      &merged;</para>
+
+    <para>FreeBSD が公式に対応している <application>KDE</application>
+      のリリースが、バージョン 3.1 に更新されました。
+      &merged;</para>
+
+    <para>&man.sysinstall.8; が、<application>XFree86</application> の
+      個々のコンポーネントのインストールに再度対応しました。
+      この変更により、(ユーザが意識することはありませんが)
+      配布物のインストールを package
+      として行なうための汎用の仕組みが組み込まれました。</para>
+
+    <para>FreeBSD が公式に対応している <application>XFree86</application>
+      のリリースが、バージョン 4.3.0 に更新されました。
+      &merged;</para>
   </sect2>
 
   <sect2>
