@@ -142,10 +142,10 @@ typedef struct mtx acl_lock_t;
 #define	ieee80211_node_decref(_ni) \
 	atomic_subtract_int(&(_ni)->ni_refcnt, 1)
 struct ieee80211_node;
-extern	int ieee80211_node_dectestref(struct ieee80211_node *ni);
+int	ieee80211_node_dectestref(struct ieee80211_node *ni);
 #define	ieee80211_node_refcnt(_ni)	(_ni)->ni_refcnt
 
-extern	struct mbuf *ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen);
+struct mbuf *ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen);
 #define	M_LINK0		M_PROTO1		/* WEP requested */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 /*
@@ -172,7 +172,7 @@ extern	struct mbuf *ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen);
 #define	M_AGE_GET(m)		(m->m_pkthdr.csum_data)
 #define	M_AGE_SUB(m,adj)	(m->m_pkthdr.csum_data -= adj)
 
-extern	void get_random_bytes(void *, size_t);
+void	get_random_bytes(void *, size_t);
 
 struct ieee80211com;
 

@@ -130,15 +130,15 @@ struct ieee80211_crypto_state {
 	void			(*cs_key_update_end)(struct ieee80211com *);
 };
 
-extern	void ieee80211_crypto_attach(struct ieee80211com *);
-extern	void ieee80211_crypto_detach(struct ieee80211com *);
-extern	int ieee80211_crypto_newkey(struct ieee80211com *,
+void	ieee80211_crypto_attach(struct ieee80211com *);
+void	ieee80211_crypto_detach(struct ieee80211com *);
+int	ieee80211_crypto_newkey(struct ieee80211com *,
 		int cipher, struct ieee80211_key *);
-extern	int ieee80211_crypto_delkey(struct ieee80211com *,
+int	ieee80211_crypto_delkey(struct ieee80211com *,
 		struct ieee80211_key *);
-extern	int ieee80211_crypto_setkey(struct ieee80211com *,
+int	ieee80211_crypto_setkey(struct ieee80211com *,
 		struct ieee80211_key *, const u_int8_t macaddr[IEEE80211_ADDR_LEN]);
-extern	void ieee80211_crypto_delglobalkeys(struct ieee80211com *);
+void	ieee80211_crypto_delglobalkeys(struct ieee80211com *);
 
 /*
  * Template for a supported cipher.  Ciphers register with the
@@ -163,13 +163,13 @@ struct ieee80211_cipher {
 };
 extern	const struct ieee80211_cipher ieee80211_cipher_none;
 
-extern	void ieee80211_crypto_register(const struct ieee80211_cipher *);
-extern	void ieee80211_crypto_unregister(const struct ieee80211_cipher *);
-extern	int ieee80211_crypto_available(u_int cipher);
+void	ieee80211_crypto_register(const struct ieee80211_cipher *);
+void	ieee80211_crypto_unregister(const struct ieee80211_cipher *);
+int	ieee80211_crypto_available(u_int cipher);
 
-extern	struct ieee80211_key *ieee80211_crypto_encap(struct ieee80211com *,
+struct ieee80211_key *ieee80211_crypto_encap(struct ieee80211com *,
 		struct ieee80211_node *, struct mbuf *);
-extern	struct ieee80211_key *ieee80211_crypto_decap(struct ieee80211com *,
+struct ieee80211_key *ieee80211_crypto_decap(struct ieee80211com *,
 		struct ieee80211_node *, struct mbuf *);
 
 /*
@@ -212,10 +212,10 @@ ieee80211_crypto_resetkey(struct ieee80211com *ic,
 /*
  * Crypt-related notification methods.
  */
-extern	void ieee80211_notify_replay_failure(struct ieee80211com *,
+void	ieee80211_notify_replay_failure(struct ieee80211com *,
 		const struct ieee80211_frame *, const struct ieee80211_key *,
 		u_int64_t rsc);
-extern	void ieee80211_notify_michael_failure(struct ieee80211com *,
+void	ieee80211_notify_michael_failure(struct ieee80211com *,
 		const struct ieee80211_frame *, u_int keyix);
 #endif /* defined(__KERNEL__) || defined(_KERNEL) */
 #endif /* _NET80211_IEEE80211_CRYPTO_H_ */
