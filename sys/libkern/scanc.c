@@ -49,12 +49,7 @@ scanc(size, cp, table, mask0)
 
 	mask = mask0;
 	for (end = &cp[size]; cp < end; ++cp) {
-		/*
-		 * gcc-2.6.3 generates poor (un)sign extension code on i386's.
-		 * The cast to volatile should have no effect, but in fact it
-		 * improves the code on i386's.
-		 */
-		if (table[*(volatile const u_char *)cp] & mask)
+		if (table[*cp] & mask)
 			break;
 	}
 	return (end - cp);
