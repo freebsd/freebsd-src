@@ -66,8 +66,8 @@ pw_copy(ffd, tfd, pw)
 
 	snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
 	snprintf(gidstr, sizeof(gidstr), "%d", pw->pw_gid);
-	snprintf(chgstr, sizeof(chgstr), "%ld", pw->pw_change);
-	snprintf(expstr, sizeof(expstr), "%ld", pw->pw_expire);
+	snprintf(chgstr, sizeof(chgstr), "%ld", (long)pw->pw_change);
+	snprintf(expstr, sizeof(expstr), "%ld", (long)pw->pw_expire);
 
 	if (!(from = fdopen(ffd, "r")))
 		pw_error(_PATH_MASTERPASSWD, 1, 1);
