@@ -284,7 +284,9 @@ rtprio(curp, uap)
 	case RTP_LOOKUP:
 		if ((error = p_cansee(curp, p)))
 			break;
+		mtx_lock_spin(&sched_lock);
 		pri_to_rtp(&p->p_pri, &rtp);
+		mtx_unlock_spin(&sched_lock);
 		error = copyout(&rtp, uap->rtp, sizeof(struct rtprio));
 		break;
 	case RTP_SET:
@@ -314,7 +316,9 @@ rtprio(curp, uap)
 				break;
 			}
 		}
+		mtx_lock_spin(&sched_lock);
 		error = rtp_to_pri(&rtp, &p->p_pri);
+		mtx_unlock_spin(&sched_lock);
 		break;
 	default:
 		error = EINVAL;
