@@ -161,7 +161,7 @@ int ksched_setscheduler(int *ret, struct ksched *ksched,
 			rtp.type = (policy == SCHED_FIFO)
 				? RTP_PRIO_FIFO : RTP_PRIO_REALTIME;
 
-			rtp.prio = p4prio_to_rtpprio(RTP_PRIO_MAX);
+			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			p->p_rtprio = rtp;
 			(void)resetpriority(p);
 		}
@@ -174,7 +174,7 @@ int ksched_setscheduler(int *ret, struct ksched *ksched,
 		case SCHED_OTHER:
 		{
 			rtp.type = RTP_PRIO_NORMAL;
-			rtp.prio = p4prio_to_rtpprio(RTP_PRIO_MIN);
+			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			p->p_rtprio = rtp;
 
 			/* XXX Simply revert to whatever we had for last
