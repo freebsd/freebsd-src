@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.23.2.4 1997/06/24 12:34:34 yokota Exp $
+ *	$Id: syscons.h,v 1.23.2.5 1997/06/29 15:13:47 yokota Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -196,5 +196,7 @@ void set_border(u_char color);
 void set_mode(scr_stat *scp);
 void copy_font(int operation, int font_type, char* font_image);
 void load_palette(char *palette);
+int add_scrn_saver(void (*this)(int));
+int remove_scrn_saver(void (*this)(int));
 
 #endif /* !_I386_ISA_SYSCONS_H_ */
