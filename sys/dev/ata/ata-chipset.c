@@ -979,9 +979,9 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 	pci_write_config(parent, 0x54, reg54 & ~(0x1 << devno), 2);
 
     if (mode >= ATA_UDMA5)
-	pci_write_config(parent, 0x54, reg54 | (0x10000 << devno), 2);
+	pci_write_config(parent, 0x54, reg54 | (0x1000 << devno), 2);
     else 
-	pci_write_config(parent, 0x54, reg54 & ~(0x10000 << devno), 2);
+	pci_write_config(parent, 0x54, reg54 & ~(0x1000 << devno), 2);
 
     reg40 &= ~0x00ff00ff;
     reg40 |= 0x40774077;
