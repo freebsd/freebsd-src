@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.12 2000/05/03 18:03:07 markus Exp $");
+RCSID("$OpenBSD: session.c,v 1.15 2000/05/30 17:23:37 markus Exp $");
 
 #include "xmalloc.h"
 #include "ssh.h"
@@ -315,8 +315,7 @@ do_authenticated(struct passwd * pw)
 				break;
 			}
 			debug("Received authentication agent forwarding request.");
-			auth_input_request_forwarding(pw);
-			success = 1;
+			success = auth_input_request_forwarding(pw);
 			break;
 
 		case SSH_CMSG_PORT_FORWARD_REQUEST:
@@ -723,7 +722,8 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 #endif /* LOGIN_CAP */
 
 		/* Do common processing for the child, such as execing the command. */
-		do_child(command, pw, s->term, s->display, s->auth_proto, s->auth_data, s->tty);
+		do_child(command, pw, s->term, s->display, s->auth_proto,
+		    s->auth_data, s->tty);
 		/* NOTREACHED */
 	}
 	if (pid < 0)
@@ -827,7 +827,10 @@ read_environment_file(char ***env, unsigned int *envsize,
 			fprintf(stderr, "Bad line in %.100s: %.200s\n", filename, buf);
 			continue;
 		}
-		/* Replace the equals sign by nul, and advance value to the value string. */
+		/*
+		 * Replace the equals sign by nul, and advance value to
+		 * the value string.
+		 */
 		*value = '\0';
 		value++;
 		child_set_env(env, envsize, cp, value);
@@ -1059,7 +1062,8 @@ do_child(const char *command, struct passwd * pw, const char *term,
 
 	/* read $HOME/.ssh/environment. */
 	if (!options.use_login) {
-		snprintf(buf, sizeof buf, "%.200s/.ssh/environment", pw->pw_dir);
+		snprintf(buf, sizeof buf, "%.200s/.ssh/environment",
+		    pw->pw_dir);
 		read_environment_file(&env, &envsize, buf);
 	}
 	if (debug_flag) {
@@ -1183,16 +1187,29 @@ do_child(const char *command, struct passwd * pw, const char *term,
 		else {
 			/* Add authority data to .Xauthority if appropriate. */
 			if (auth_proto != NULL && auth_data != NULL) {
-				if (debug_flag)
-					fprintf(stderr, "Running %.100s add %.100s %.100s %.100s\n",
-						XAUTH_PATH, display, auth_proto, auth_data);
-
+				char *screen = strchr(display, ':');
+				if (debug_flag) {
+					fprintf(stderr,
+					    "Running %.100s add %.100s %.100s %.100s\n",
+					    XAUTH_PATH, display, auth_proto, auth_data);
+					if (screen != NULL)
+						fprintf(stderr,
+						    "Adding %.*s/unix%s %s %s\n",
+						    screen-display, display,
+						    screen, auth_proto, auth_data);
+				}
 				f = popen(XAUTH_PATH " -q -", "w");
 				if (f) {
-					fprintf(f, "add %s %s %s\n", display, auth_proto, auth_data);
+					fprintf(f, "add %s %s %s\n", display,
+					    auth_proto, auth_data);
+					if (screen != NULL) 
+						fprintf(f, "add %.*s/unix%s %s %s\n",
+						    screen-display, display,
+						    screen, auth_proto, auth_data);
 					pclose(f);
 				} else
-					fprintf(stderr, "Could not run %s -q -\n", XAUTH_PATH);
+					fprintf(stderr, "Could not run %s -q -\n",
+					    XAUTH_PATH);
 			}
 		}
 #endif /* XAUTH_PATH */
@@ -1222,7 +1239,8 @@ do_child(const char *command, struct passwd * pw, const char *term,
 				struct stat mailstat;
 				mailbox = getenv("MAIL");
 				if (mailbox != NULL) {
-					if (stat(mailbox, &mailstat) != 0 || mailstat.st_size == 0)
+					if (stat(mailbox, &mailstat) != 0 ||
+					    mailstat.st_size == 0)
 #ifdef __FreeBSD__
 						;
 #else /* !__FreeBSD__ */
