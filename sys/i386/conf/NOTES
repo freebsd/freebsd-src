@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.194 1995/08/18 11:26:18 jkh Exp $
+#	$Id: LINT,v 1.195 1995/08/20 15:52:10 ats Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -37,7 +37,8 @@ maxusers	10
 # Under some circumstances it is necessary to make the default max
 # number of processes per user and open files per user more than the
 # defaults on bootup.  (an example is a large news server in which
-# the uid, news, can sometimes need > 100 simultaneous processes running)
+# the uid, news, can sometimes need > 100 simultaneous processes running,
+# or perhaps a user using lots of windows under X).
 options		"CHILD_MAX=128"
 options		"OPEN_MAX=128"
 
