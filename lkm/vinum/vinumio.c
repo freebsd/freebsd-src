@@ -1,0 +1,989 @@
+/*-
+ * Copyright (c) 1997, 1998
+ *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  This software is distributed under the so-called ``Berkeley
+ *  License'':
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by Nan Yang Computer
+ *      Services Limited.
+ * 4. Neither the name of the Company nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *  
+ * This software is provided ``as is'', and any express or implied
+ * warranties, including, but not limited to, the implied warranties of
+ * merchantability and fitness for a particular purpose are disclaimed.
+ * In no event shall the company or contributors be liable for any
+ * direct, indirect, incidental, special, exemplary, or consequential
+ * damages (including, but not limited to, procurement of substitute
+ * goods or services; loss of use, data, or profits; or business
+ * interruption) however caused and on any theory of liability, whether
+ * in contract, strict liability, or tort (including negligence or
+ * otherwise) arising in any way out of the use of this software, even if
+ * advised of the possibility of such damage.
+ *
+ * $Id: vinumio.c,v 1.21 1998/12/30 06:04:31 grog Exp grog $
+ */
+
+#define STATIC						    /* nothing while we're testing XXX */
+
+#include "opt_vinum.h"
+
+#define DTYPE_VINUM		12			    /* vinum volume */
+
+#define REALLYKERNEL
+#include "vinumhdr.h"
+#include "request.h"
+#include <miscfs/specfs/specdev.h>
+
+extern jmp_buf command_fail;				    /* return on a failed command */
+struct _ioctl_reply *ioctl_reply;			    /* data pointer, for returning error messages */
+
+static char *sappend(char *txt, char *s);
+static int drivecmp(const void *va, const void *vb);
+
+/* Open the device associated with the drive, and set drive's vp.
+ * Return an error number */
+int
+open_drive(struct drive *drive, struct proc *p, int verbose)
+{
+    BROKEN_GDB;
+    struct nameidata nd;
+    struct vattr va;
+    int error;
+
+    if (drive->devicename[0] == '\0')			    /* no device name */
+	sprintf(drive->devicename, "/dev/%s", drive->label.name); /* get it from the drive name */
+    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, drive->devicename, p);
+    error = vn_open(&nd, FREAD | FWRITE, 0);		    /* open the device */
+    if (error != 0) {					    /* can't open? */
+	set_drive_state(drive->driveno, drive_down, setstate_force);
+	drive->lasterror = error;
+	if (verbose)
+	    printf("vinum open_drive %s: failed with error %d\n", drive->devicename, error); /* XXX */
+	return error;
+    }
+    drive->vp = nd.ni_vp;
+    drive->p = p;
+
+    if (drive->vp->v_usecount > 1) {			    /* already in use? */
+	if (verbose)
+	    printf("open_drive %s: use count %d, ignoring\n", /* XXX where does this come from? */
+		drive->devicename,
+		drive->vp->v_usecount);
+	drive->vp->v_usecount = 1;			    /* will this work? */
+    }
+    error = VOP_GETATTR(drive->vp, &va, NOCRED, drive->p);
+    if (error) {
+	VOP_UNLOCK(drive->vp);
+	close_drive(drive);
+	set_drive_state(drive->driveno, drive_down, setstate_force);
+	drive->lasterror = error;
+	if (verbose)
+	    printf("vinum open_drive %s: GETAATTR returns error %d\n", drive->devicename, error); /* XXX */
+	return error;
+    }
+    drive->dev = va.va_rdev;				    /* device */
+
+    if (va.va_type != VBLK) {				    /* only consider block devices */
+	VOP_UNLOCK(drive->vp);
+	close_drive(drive);
+	set_drive_state(drive->driveno, drive_down, setstate_force); /* this also closes the drive */
+	drive->lasterror = ENOTBLK;
+	if (verbose)
+	    printf("vinum open_drive %s: Not a block device\n", drive->devicename); /* XXX */
+	return ENOTBLK;
+    }
+    drive->vp->v_numoutput = 0;
+    VOP_UNLOCK(drive->vp);
+    return 0;
+}
+
+/* Set some variables in the drive struct
+ * in more convenient form.  Return error indication */
+int 
+set_drive_parms(struct drive *drive)
+{
+    drive->blocksize = BLKDEV_IOSIZE;			    /* XXX do we need this? */
+    drive->secsperblock = drive->blocksize		    /* number of sectors per block */
+	/ drive->partinfo.disklab->d_secsize;
+
+    /* Now update the label part */
+    bcopy(hostname, drive->label.sysname, VINUMHOSTNAMELEN); /* put in host name */
+    drive->label.date_of_birth = time;			    /* and current time */
+    drive->label.drive_size = ((u_int64_t) drive->partinfo.part->p_size) /* size of the drive in bytes */
+    *((u_int64_t) drive->partinfo.disklab->d_secsize);
+
+    /* number of sectors available for subdisks */
+    drive->sectors_available = drive->label.drive_size / DEV_BSIZE - DATASTART;
+
+    /* XXX Bug in 3.0 as of January 1998: you can open
+     * non-existent slices.  They have a length of 0 */
+    if (drive->label.drive_size < MINVINUMSLICE) {	    /* too small to worry about */
+	set_drive_state(drive->driveno, drive_down, setstate_force);
+	drive->lasterror = ENOSPC;
+	return ENOSPC;
+    }
+    drive->freelist_size = INITIAL_DRIVE_FREELIST;	    /* initial number of entries */
+    drive->freelist = (struct drive_freelist *)
+	Malloc(INITIAL_DRIVE_FREELIST * sizeof(struct drive_freelist));
+    if (drive->freelist == NULL)			    /* can't malloc, dammit */
+	return ENOSPC;
+    drive->freelist_entries = 1;			    /* just (almost) the complete drive */
+    drive->freelist[0].offset = DATASTART;		    /* starts here */
+    drive->freelist[0].sectors = (drive->label.drive_size >> DEV_BSHIFT) - DATASTART; /* and it's this long */
+    if (drive->label.name[0] != '\0')			    /* got a name */
+	set_drive_state(drive->driveno, drive_up, setstate_force); /* our drive is accessible */
+    else						    /* we know about it, but that's all */
+	drive->state = drive_uninit;
+    return 0;
+}
+
+/* Initialize a drive: open the device and add device
+ * information */
+int 
+init_drive(struct drive *drive, int verbose)
+{
+    BROKEN_GDB;
+    int error;
+
+    if (drive->devicename[0] == '\0') {			    /* no device name yet, default to drive name */
+	drive->lasterror = EINVAL;
+	/* This is a bug if it happens internally,
+	 * so print a message regardless */
+	printf("vinum: Can't open drive without drive name\n");	/* XXX */
+	return EINVAL;
+    }
+    error = open_drive(drive, curproc, verbose);	    /* open the drive */
+    if (error)
+	return error;
+
+    error = VOP_IOCTL(drive->vp,			    /* get the partition information */
+	DIOCGPART,
+	(caddr_t) & drive->partinfo,
+	FREAD,
+	NOCRED,
+	curproc);
+    if (error) {
+	if (verbose)
+	    printf("vinum open_drive %s: Can't get partition information, error %d\n",
+		drive->devicename,
+		error);					    /* XXX */
+	close_drive(drive);
+	drive->lasterror = error;
+	set_drive_state(drive->driveno, drive_down, setstate_force);
+	return error;
+    }
+    if (drive->partinfo.part->p_fstype != 0) {		    /* not plain */
+	drive->lasterror = EFTYPE;
+	if (verbose)
+	    printf("vinum open_drive %s: Wrong partition type for vinum\n", drive->devicename);	/* XXX */
+	close_drive(drive);
+	set_drive_state(drive->driveno, drive_down, setstate_force);
+	return EFTYPE;
+    }
+    return set_drive_parms(drive);			    /* set various odds and ends */
+}
+
+/* Close a drive if it's open.  No errors */
+void 
+close_drive(struct drive *drive)
+{
+    if (drive->vp) {
+	lockdrive(drive);				    /* keep the daemon out */
+	vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
+	if (drive->vp->v_usecount) {			    /* XXX shouldn't happen */
+	    printf("close_drive %s: use count still %d\n", drive->devicename, drive->vp->v_usecount);
+	    drive->vp->v_usecount = 0;			    /* will this work? */
+	}
+	drive->vp = NULL;
+	unlockdrive(drive);
+    }
+}
+
+/* Remove drive from the configuration.
+ * Caller must ensure that it isn't active
+ */
+void 
+remove_drive(int driveno)
+{
+    BROKEN_GDB;
+    struct drive *drive = &vinum_conf.drive[driveno];
+    long long int nomagic = VINUM_NOMAGIC;		    /* no magic number */
+
+    write_drive(drive,					    /* obliterate the magic, but leave a hint */
+	(char *) &nomagic,
+	8,
+	VINUM_LABEL_OFFSET);
+    free_drive(drive);					    /* close it and free resources */
+    save_config();					    /* and save the updated configuration */
+}
+
+/* Transfer drive data.  Usually called from one of these defines;
+ * #define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
+ * #define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE)
+ *
+ * length and offset are in bytes, but must be multiples of sector
+ * size.  The function *does not check* for this condition, and
+ * truncates ruthlessly.
+ * Return error number
+ */
+int
+driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
+{
+    BROKEN_GDB;
+    int error;
+    struct buf *bp;
+    char foo[40];
+
+    error = 0;						    /* to keep the compiler happy */
+    while (length) {					    /* divide into small enough blocks */
+	int len = min(length, MAXBSIZE);		    /* maximum block device transfer is MAXBSIZE */
+
+	bp = geteblk(len);				    /* get a buffer header */
+	bp->b_flags = B_BUSY | flag;			    /* get busy */
+	bp->b_proc = curproc;				    /* process */
+	bp->b_dev = drive->vp->v_un.vu_specinfo->si_rdev;   /* device */
+	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
+	bp->b_data = buf;
+	bp->b_bcount = len;
+	bp->b_bufsize = len;
+
+	(*bdevsw[major(bp->b_dev)]->d_strategy) (bp);	    /* initiate the transfer */
+
+	error = biowait(bp);
+	printf("driveio: %s dev 0x%x, block 0x%x, len 0x%lx, error %d\n", /* XXX */
+	    flag ? "read" : "write",
+	    bp->b_dev,
+	    bp->b_blkno,
+	    bp->b_bcount,
+	    error);
+	bcopy(buf, foo, 40);
+	foo[39] = '\0';
+	printf("---> %s\n", foo);			    /* XXXXXX */
+	bp->b_flags |= B_INVAL | B_AGE;
+	brelse(bp);
+	if (error)
+	    break;
+	length -= len;					    /* update pointers */
+	buf += len;
+	offset += len;
+    }
+    return error;
+}
+
+/* Read data from a drive
+
+ * Return error number
+ */
+int
+read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
+{
+    BROKEN_GDB;
+    int error;
+    struct buf *bp;
+    daddr_t nextbn;
+    long bscale;
+
+    struct uio uio;
+    struct iovec iov;
+    daddr_t blocknum;					    /* block number */
+    int blockoff;					    /* offset in block */
+    int count;						    /* amount to transfer */
+
+    iov.iov_base = buf;
+    iov.iov_len = length;
+
+    uio.uio_iov = &iov;
+    uio.uio_iovcnt = length;
+    uio.uio_offset = offset;
+    uio.uio_resid = length;
+    uio.uio_segflg = UIO_SYSSPACE;
+    uio.uio_rw = UIO_READ;
+    uio.uio_procp = curproc;
+
+    bscale = btodb(drive->blocksize);			    /* mask off offset from block number */
+    do {
+	blocknum = btodb(uio.uio_offset) & ~(bscale - 1);   /* get the block number */
+	blockoff = uio.uio_offset % drive->blocksize;	    /* offset in block */
+	count = min((unsigned) (drive->blocksize - blockoff), /* amount to transfer in this block */
+	    uio.uio_resid);
+
+	/* XXX Check this.  I think the test is wrong */
+	if (drive->vp->v_lastr + bscale == blocknum) {	    /* did our last read finish in this block? */
+	    nextbn = blocknum + bscale;			    /* note the end of the transfer */
+	    error = breadn(drive->vp,			    /* and read with read-ahead */
+		blocknum,
+		(int) drive->blocksize,
+		&nextbn,
+		(int *) &drive->blocksize,
+		1,
+		NOCRED,
+		&bp);
+	} else						    /* random read: just read this block */
+	    error = bread(drive->vp, blocknum, (int) drive->blocksize, NOCRED, &bp);
+	drive->vp->v_lastr = blocknum;			    /* note the last block we read */
+	count = min(count, drive->blocksize - bp->b_resid);
+	if (error) {
+	    brelse(bp);
+	    return error;
+	}
+	error = uiomove((char *) bp->b_data + blockoff, count, &uio); /* move the data */
+	brelse(bp);
+    }
+    while (error == 0 && uio.uio_resid > 0 && count != 0);
+    return error;
+}
+
+/* Write data to a drive
+
+ * Return error number
+ */
+int 
+write_drive(struct drive *drive, void *buf, size_t length, off_t offset)
+{
+    BROKEN_GDB;
+    int error;
+    struct buf *bp;
+    struct uio uio;
+    struct iovec iov;
+    daddr_t blocknum;					    /* block number */
+    int blockoff;					    /* offset in block */
+    int count;						    /* amount to transfer */
+    int blockshift;
+
+    if (drive->state == drive_down)			    /* currently down */
+	return 0;					    /* ignore */
+    if (drive->vp == NULL) {
+	drive->lasterror = ENODEV;
+	return ENODEV;					    /* not configured yet */
+    }
+    iov.iov_base = buf;
+    iov.iov_len = length;
+
+    uio.uio_iov = &iov;
+    uio.uio_iovcnt = length;
+    uio.uio_offset = offset;
+    uio.uio_resid = length;
+    uio.uio_segflg = UIO_SYSSPACE;
+    uio.uio_rw = UIO_WRITE;
+    uio.uio_procp = curproc;
+
+    error = 0;
+    blockshift = btodb(drive->blocksize) - 1;		    /* amount to shift block number
+							    * to get sector number */
+    do {
+	blocknum = btodb(uio.uio_offset) & ~blockshift;	    /* get the block number */
+	blockoff = uio.uio_offset % drive->blocksize;	    /* offset in block */
+	count = min((unsigned) (drive->blocksize - blockoff), /* amount to transfer in this block */
+	    uio.uio_resid);
+	if (count == drive->blocksize)			    /* the whole block */
+	    bp = getblk(drive->vp, blocknum, drive->blocksize, 0, 0); /* just transfer it */
+	else						    /* partial block: */
+	    error = bread(drive->vp,			    /* read it first */
+		blocknum,
+		drive->blocksize,
+		NOCRED,
+		&bp);
+	count = min(count, drive->blocksize - bp->b_resid); /* how much will we transfer now? */
+	if (error == 0)
+	    error = uiomove((char *) bp->b_data + blockoff, /* move the data to the block */
+		count,
+		&uio);
+	if (error) {
+	    brelse(bp);
+	    drive->lasterror = error;
+	    switch (error) {
+	    case EIO:
+		set_drive_state(drive->driveno, drive_down, setstate_force);
+		break;
+
+		/* XXX Add other possibilities here */
+	    default:
+	    }
+	    return error;
+	}
+	if (count + blockoff == drive->blocksize)
+	    /* The transfer goes to the end of the block.  There's
+	     * no need to wait for any more data to arrive. */
+	    bawrite(bp);				    /* start the write now */
+	else
+	    bdwrite(bp);				    /* do a delayed write */
+    }
+    while (error == 0 && uio.uio_resid > 0 && count != 0);
+    if (error)
+	drive->lasterror = error;
+    return error;					    /* OK */
+}
+
+/* Wake up on completion */
+void 
+drive_io_done(struct buf *bp)
+{
+    BROKEN_GDB;
+    wakeup((caddr_t) bp);				    /* Wachet auf! */
+    bp->b_flags &= ~B_CALL;				    /* don't do this again */
+}
+
+/* Check a drive for a vinum header.  If found, 
+ * update the drive information.  We come here
+ * with a partially populated drive structure
+ * which includes the device name.
+ *
+ * Return information on what we found.
+ *
+ * This function is called from two places: check_drive,
+ * which wants to find out whether the drive is a
+ * Vinum drive, and config_drive, which asserts that
+ * it is a vinum drive.  In the first case, we don't
+ * print error messages (verbose==0), in the second
+ * we do (verbose==1).
+ */
+enum drive_label_info 
+read_drive_label(struct drive *drive, int verbose)
+{
+    BROKEN_GDB;
+    int error;
+    int result;						    /* result of our search */
+    struct vinum_hdr *vhdr;				    /* and as header */
+
+    error = init_drive(drive, 0);			    /* find the drive */
+    if (error)						    /* find the drive */
+	return DL_CANT_OPEN;				    /* not ours */
+
+    vhdr = (struct vinum_hdr *) Malloc(VINUMHEADERLEN);	    /* allocate buffers */
+    CHECKALLOC(vhdr, "Can't allocate memory");
+
+    error = read_drive(drive, (void *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+    if (vhdr->magic == VINUM_MAGIC) {			    /* ours! */
+	if (drive->label.name[0]			    /* we have a name for this drive */
+	&&(strcmp(drive->label.name, vhdr->label.name))) {  /* but it doesn't match the real name */
+	    drive->lasterror = EINVAL;
+	    result = DL_WRONG_DRIVE;			    /* it's the wrong drive */
+	} else {
+	    drive->state = drive_up;			    /* it's OK by us */
+	    result = DL_OURS;
+	}
+	/* We copy the drive anyway so that we have
+	 * the correct name in the drive info.  This
+	 * may not be the name specified */
+	drive->label = vhdr->label;			    /* put in the label information */
+    } else if (vhdr->magic == VINUM_NOMAGIC)		    /* was ours, but we gave it away */
+	result = DL_DELETED_LABEL;
+    else
+	result = DL_NOT_OURS;				    /* we could have it, but we don't yet */
+    Free(vhdr);						    /* that's all. */
+    return result;
+}
+
+/* Check a drive for a vinum header.  If found, 
+ * read configuration information from the drive and
+ * incorporate the data into the configuration.
+ *
+ * Return 
+ */
+struct drive *
+check_drive(char *drivename)
+{
+    BROKEN_GDB;
+    int driveno;
+    struct drive *drive;
+
+    driveno = find_drive_by_dev(drivename, 1);		    /* entry doesn't exist, create it */
+    drive = &vinum_conf.drive[driveno];			    /* and get a pointer */
+
+    if (read_drive_label(drive, 0) != DL_OURS) {	    /* not ours */
+	if (drive->lasterror == 0)
+	    drive->lasterror = ENODEV;
+	set_drive_state(drive->driveno, drive_down, setstate_force);
+    }
+    return drive;
+}
+
+static char *
+sappend(char *txt, char *s)
+{
+    while (*s++ = *txt++);
+    return s - 1;
+}
+
+/* Kludge: kernel printf doesn't handle quads correctly XXX */
+static char *lltoa(long long l, char *s);
+
+static char *
+lltoa(long long l, char *s)
+{
+    if (l < 0) {
+	*s++ = '-';
+	l = -l;
+    }
+    if (l > 9) {
+	s = lltoa(l / 10, s);
+	l %= 10;
+    }
+    *s++ = l + '0';
+    return s;
+}
+/* Format the configuration in text form into the buffer
+ * at config.  Don't go beyond len bytes
+ * XXX this stinks.  Fix soon. */
+void 
+format_config(char *config, int len)
+{
+    BROKEN_GDB;
+    int i;
+    int j;
+    char *s = config;
+
+    bzero(config, len);
+
+    /* First the volume configuration */
+    for (i = 0; i < vinum_conf.volumes_used; i++) {
+	struct volume *vol;
+
+	vol = &vinum_conf.volume[i];
+	if (vol->state != volume_unallocated) {
+	    if (vol->preferred_plex >= 0)		    /* preferences, */
+		sprintf(s,
+		    "volume %s state %s readpol prefer %s",
+		    vol->name,
+		    volume_state(vol->state),
+		    vinum_conf.plex[vol->preferred_plex].name);
+	    else					    /* default round-robin */
+		sprintf(s,
+		    "volume %s state %s",
+		    vol->name,
+		    volume_state(vol->state));
+	    while (*s)
+		s++;					    /* find the end */
+	    s = sappend("\n", s);
+	    if (s > &config[len - 80]) {
+		printf("vinum: configuration data overflow\n");
+		return;
+	    }
+	}
+    }
+
+    /* Then the plex configuration */
+    for (i = 0; i < vinum_conf.plexes_used; i++) {
+	struct plex *plex;
+
+	plex = &vinum_conf.plex[i];
+	if (plex->state != plex_unallocated) {
+	    sprintf(s, "plex name %s state %s org %s ",
+		plex->name,
+		plex_state(plex->state),
+		plex_org(plex->organization));
+	    while (*s)
+		s++;					    /* find the end */
+	    if ((plex->organization == plex_striped)
+		) {
+		sprintf(s, "%db ", (int) plex->stripesize);
+		while (*s)
+		    s++;				    /* find the end */
+	    }
+	    if (plex->volno >= 0)			    /* we have a volume */
+		sprintf(s, "vol %s ", vinum_conf.volume[plex->volno].name);
+	    while (*s)
+		s++;					    /* find the end */
+	    for (j = 0; j < plex->subdisks; j++) {
+		sprintf(s, " sd %s", vinum_conf.sd[plex->sdnos[j]].name);
+	    }
+	    s = sappend("\n", s);
+	    if (s > &config[len - 80]) {
+		printf("vinum: configuration data overflow\n");
+		return;
+	    }
+	}
+    }
+
+    /* And finally the subdisk configuration */
+    for (i = 0; i < vinum_conf.subdisks_used; i++) {
+	struct sd *sd = &vinum_conf.sd[i];		    /* XXX */
+	if (vinum_conf.sd[i].state != sd_unallocated) {
+	    sprintf(s,
+		"sd name %s drive %s plex %s state %s len ",
+		sd->name,
+		vinum_conf.drive[sd->driveno].label.name,
+		vinum_conf.plex[sd->plexno].name,
+		sd_state(sd->state));
+	    while (*s)
+		s++;					    /* find the end */
+	    s = lltoa(sd->sectors, s);
+	    s = sappend("b driveoffset ", s);
+	    s = lltoa(sd->driveoffset, s);
+	    s = sappend("b plexoffset ", s);
+	    s = lltoa(sd->plexoffset, s);
+	    s = sappend("b\n", s);
+	    if (s > &config[len - 80]) {
+		printf("vinum: configuration data overflow\n");
+		return;
+	    }
+	}
+    }
+}
+
+/* issue a save config request to the dæmon.  The actual work
+ * is done in process context by daemon_save_config */
+void 
+save_config(void)
+{
+    queue_daemon_request(daemonrq_saveconfig, NULL);
+}
+
+/* Write the configuration to all vinum slices.  This
+ * is performed by the dæmon only */
+void 
+daemon_save_config(void)
+{
+    BROKEN_GDB;
+    int error;
+    int written_config;					    /* set when we first write the config to disk */
+    int driveno;
+    struct drive *drive;				    /* point to current drive info */
+    struct vinum_hdr *vhdr;				    /* and as header */
+    char *config;					    /* point to config data */
+    int wlabel_on;					    /* to set writing label on/off */
+
+    /* don't save the configuration while we're still working on it */
+    if (vinum_conf.flags & VF_CONFIGURING)
+	return;
+    written_config = 0;					    /* no config written yet */
+    /* Build a volume header */
+    vhdr = (struct vinum_hdr *) Malloc(VINUMHEADERLEN);	    /* get space for the config data */
+    CHECKALLOC(vhdr, "Can't allocate config data");
+    vhdr->magic = VINUM_MAGIC;				    /* magic number */
+    vhdr->config_length = MAXCONFIG;			    /* length of following config info */
+
+    config = Malloc(MAXCONFIG);				    /* get space for the config data */
+    CHECKALLOC(config, "Can't allocate config data");
+
+    format_config(config, MAXCONFIG);
+    error = 0;						    /* no errors yet */
+    for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+	drive = &vinum_conf.drive[driveno];		    /* point to drive */
+	lockdrive(drive);				    /* don't let it change */
+
+	/* First, do some drive consistency checks.  Some
+	 * of these are kludges, others require a process
+	 * context and couldn't be done before */
+	if ((drive->devicename[0] == '\0')		    /* XXX we keep getting these nameless drives */
+	||(drive->label.name[0] == '\0')) {		    /* XXX we keep getting these nameless drives */
+	    unlockdrive(drive);
+	    printf("Removing incomplete drive, index %d\n", driveno);
+	    if (drive->vp)				    /* how can it be open without a name? */
+		close_drive(drive);
+	    free_drive(drive);				    /* get rid of it */
+	    break;
+	}
+	if ((drive->vp == NULL)				    /* drive not open */
+	&&(drive->state > drive_down)) {		    /* and it thinks it's not down */
+	    unlockdrive(drive);
+	    set_drive_state(driveno, drive_down, setstate_force); /* tell it what's what */
+	}
+	if ((drive->state == drive_down)		    /* it's down */
+	&&(drive->vp != NULL)) {			    /* but open, */
+	    unlockdrive(drive);
+	    close_drive(drive);				    /* close it */
+	} else if (drive->state > drive_down) {
+	    drive->label.last_update = time;		    /* time of last update is now */
+	    bcopy((char *) &drive->label,		    /* and the label info from the drive structure */
+		(char *) &vhdr->label,
+		sizeof(vhdr->label));
+	    if ((drive->state != drive_unallocated)
+		&& (drive->state != drive_uninit)) {
+		wlabel_on = 1;				    /* enable writing the label */
+		error = VOP_IOCTL(drive->vp,		    /* make the label writeable */
+		    DIOCWLABEL,
+		    (caddr_t) & wlabel_on,
+		    FWRITE,
+		    NOCRED,
+		    curproc);
+		if (error == 0)
+		    error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+		if (error == 0)
+		    error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET);	/* first config copy */
+		if (error == 0)
+		    error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET + MAXCONFIG); /* second copy */
+		wlabel_on = 0;				    /* enable writing the label */
+		if (error == 0)
+		    VOP_IOCTL(drive->vp,		    /* make the label non-writeable again */
+			DIOCWLABEL,
+			(caddr_t) & wlabel_on,
+			FWRITE,
+			NOCRED,
+			curproc);
+		unlockdrive(drive);
+		if (error) {
+		    printf("vinum: Can't write config to %s, error %d\n", drive->devicename, error);
+		    set_drive_state(drive->driveno, drive_down, setstate_force);
+		} else
+		    written_config = 1;			    /* we've written it on at least one drive */
+	    }
+	}
+    }
+    Free(vhdr);
+    Free(config);
+}
+
+/* Disk labels are a mess.  The correct way to access them
+ * is with the DIOC[GSW]DINFO ioctls, but some programs, such
+ * as newfs, access the disk directly, so we have to write
+ * things there.  We do this only on request.  If a user
+ * request tries to read it directly, we fake up one on the fly.
+ */
+
+/* get_volume_label returns a label structure to lp, which
+ * is allocated by the caller */
+void 
+get_volume_label(struct volume *vol, struct disklabel *lp)
+{
+    bzero(lp, sizeof(struct disklabel));
+
+    strncpy(lp->d_typename, "vinum", sizeof(lp->d_typename));
+    lp->d_type = DTYPE_VINUM;
+    strncpy(lp->d_packname, vol->name, min(sizeof(lp->d_packname), sizeof(vol->name)));
+    lp->d_rpm = 14400 * vol->plexes;			    /* to keep them guessing */
+    lp->d_interleave = 1;
+    lp->d_flags = 0;
+
+    /* Fitting unto the vine, a vinum has a single
+     *  track with all its sectors */
+    lp->d_secsize = DEV_BSIZE;				    /* bytes per sector */
+    lp->d_nsectors = vol->size;				    /* data sectors per track */
+    lp->d_ntracks = 1;					    /* tracks per cylinder */
+    lp->d_ncylinders = 1;				    /* data cylinders per unit */
+    lp->d_secpercyl = vol->size;			    /* data sectors per cylinder */
+    lp->d_secperunit = vol->size;			    /* data sectors per unit */
+
+    lp->d_bbsize = BBSIZE;
+    lp->d_sbsize = SBSIZE;
+
+    lp->d_magic = DISKMAGIC;
+    lp->d_magic2 = DISKMAGIC;
+
+    /* Set up partitions a, b and c to be identical
+     * and the size of the volume.  a is UFS, b is
+     * swap, c is nothing */
+    lp->d_partitions[0].p_size = vol->size;
+    lp->d_partitions[0].p_fsize = 1024;
+    lp->d_partitions[0].p_fstype = FS_BSDFFS;		    /* FreeBSD File System :-) */
+    lp->d_partitions[0].p_fsize = 1024;			    /* FS fragment size */
+    lp->d_partitions[0].p_frag = 8;			    /* and fragments per block */
+    lp->d_partitions[SWAP_PART].p_size = vol->size;
+    lp->d_partitions[SWAP_PART].p_fstype = FS_SWAP;	    /* swap partition */
+    lp->d_partitions[LABEL_PART].p_size = vol->size;
+    lp->d_npartitions = LABEL_PART + 1;
+    strncpy(lp->d_packname, vol->name, min(sizeof(lp->d_packname), sizeof(vol->name)));
+    lp->d_checksum = dkcksum(lp);
+}
+
+/* Write a volume label.  This implements the VINUM_LABEL ioctl. */
+int 
+write_volume_label(int volno)
+{
+    struct disklabel *lp;
+    struct buf *bp;
+    struct disklabel *dlp;
+    struct volume *vol;
+    int error;
+
+    lp = (struct disklabel *) Malloc((sizeof(struct disklabel) + (DEV_BSIZE - 1)) & (DEV_BSIZE - 1));
+    if (lp == 0)
+	return ENOMEM;
+
+    if ((unsigned) (volno) >= (unsigned) vinum_conf.volumes_used) /* invalid volume */
+	return ENOENT;
+
+    vol = &VOL[volno];					    /* volume in question */
+    if (vol->state == volume_unallocated)		    /* nothing there */
+	return ENOENT;
+
+    get_volume_label(vol, lp);				    /* get the label */
+
+    /* Now write to disk.  This code is derived from the
+     * system writedisklabel (), which does silly things
+     * like reading the label and refusing to write
+     * unless it's already there. */
+    bp = geteblk((int) lp->d_secsize);			    /* get a buffer */
+    bp->b_dev = minor(vol->devno) | (CDEV_MAJOR << MAJORDEV_SHIFT); /* our own raw volume */
+    bp->b_blkno = LABELSECTOR * ((int) lp->d_secsize / DEV_BSIZE);
+    bp->b_bcount = lp->d_secsize;
+    bzero(bp->b_data, lp->d_secsize);
+    dlp = (struct disklabel *) bp->b_data;
+    *dlp = *lp;
+    bp->b_flags &= ~B_INVAL;
+    bp->b_flags |= B_BUSY | B_WRITE;
+    vinumstrategy(bp);					    /* write it out */
+    error = biowait(bp);
+    bp->b_flags |= B_INVAL | B_AGE;
+    brelse(bp);
+    return error;
+}
+
+/* Initialize a subdisk */
+int 
+initsd(int sdno)
+{
+    return 0;
+}
+
+/* Look at all disks on the system for vinum slices */
+void 
+vinum_scandisk(char *drivename[], int drives)
+{
+    struct drive *volatile drive;
+    volatile int driveno;
+    int firstdrive;					    /* first drive in this list */
+    volatile int gooddrives;				    /* number of usable drives found */
+    int firsttime;					    /* set if we have never configured before */
+    int error;
+    struct nameidata nd;				    /* mount point credentials */
+    char *config_text;					    /* read the config info from disk into here */
+    char *volatile cptr;				    /* pointer into config information */
+    char *eptr;						    /* end pointer into config information */
+    char *config_line;					    /* copy the config line to */
+    volatile int status;
+    struct drive **volatile drivelist;
+#define DRIVENAMELEN 64
+#define DRIVEPARTS   35					    /* max partitions per drive, excluding c */
+    char partname[DRIVENAMELEN];			    /* for creating partition names */
+
+    status = 0;						    /* success indication */
+    vinum_conf.flags |= VF_KERNELOP | VF_READING_CONFIG;    /* kernel operation: reading config */
+
+    gooddrives = 0;					    /* number of usable drives found */
+    firstdrive = vinum_conf.drives_used;		    /* the first drive */
+    firsttime = vinum_conf.drives_used == 0;		    /* are we a virgin? */
+
+
+    /* allocate a drive pointer list */
+    drivelist = (struct drive **) Malloc(drives * DRIVEPARTS * sizeof(struct drive *));
+    CHECKALLOC(drivelist, "Can't allocate memory");
+
+    /* Open all drives and find which was modified most recently */
+    for (driveno = 0; driveno < drives; driveno++) {
+	char part;					    /* UNIX partition */
+
+	for (part = 'a'; part < 'i'; part++)
+	    if (part != 'c') {				    /* don't do the c partition */
+		sprintf(partname,			    /* /dev/sd0a */
+		    "%s%c",
+		    drivename[driveno],
+		    part);
+		drive = check_drive(partname);		    /* try to open it */
+		if (drive->lasterror != 0)		    /* didn't work, */
+		    free_drive(drive);			    /* get rid of it */
+		else if (drive->flags & VF_CONFIGURED)	    /* already read this config, */
+		    printf("vinum: already read config from %s\n", /* say so */
+			drive->label.name);
+		else {
+		    drivelist[gooddrives] = drive;	    /* keep a pointer to the drive */
+		    drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
+		    gooddrives++;
+		}
+	    }
+    }
+
+    if (gooddrives == 0) {
+	printf("vinum: no drives found\n");
+	return;
+    }
+    /* We now have at least one drive
+     * open.  Sort them in order of config time
+     * and merge the config info with what we
+     * have already */
+    qsort(drivelist, gooddrives, sizeof(struct drive *), drivecmp);
+    config_text = (char *) Malloc(MAXCONFIG * 2);	    /* allocate buffers */
+    CHECKALLOC(config_text, "Can't allocate memory");
+    config_line = (char *) Malloc(MAXCONFIGLINE * 2);	    /* allocate buffers */
+    CHECKALLOC(config_line, "Can't allocate memory");
+    for (driveno = 0; driveno < gooddrives; driveno++) {    /* now include the config */
+	drive = drivelist[driveno];
+
+	if (firsttime && (driveno == 0))		    /* we've never configured before, */
+	    printf("vinum: reading configuration from %s\n", drive->devicename);
+	else
+	    printf("vinum: updating configuration from %s\n", drive->devicename);
+
+	/* Read in both copies of the configuration information */
+	error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
+
+	if (error != 0) {
+	    printf("vinum: Can't read device %s, error %d\n", drive->devicename, error);
+	    Free(config_text);
+	    Free(config_line);
+	    free_drive(drive);				    /* give it back */
+	    status = error;
+	}
+	/* XXX At this point, check that the two copies are the same, and do something useful if not.
+	 * In particular, consider which is newer, and what this means for the integrity of the
+	 * data on the drive */
+
+	else {
+	    /* Parse the configuration, and add it to the global configuration */
+	    for (cptr = config_text; *cptr != '\0';) {	    /* love this style(9) */
+		volatile int parse_status;		    /* return value from parse_config */
+
+		for (eptr = config_line; (*cptr != '\n') && (*cptr != '\0');) /* until the end of the line */
+		    *eptr++ = *cptr++;
+		*eptr = '\0';				    /* and delimit */
+		if (setjmp(command_fail) == 0) {	    /* come back here on error and continue */
+		    parse_status = parse_config(config_line, &keyword_set, 1); /* parse the config line */
+		    if (parse_status < 0) {		    /* error in config */
+							    /* This config should have been parsed in user
+			   * space.  If we run into problems here, something
+			   * serious is afoot.  Complain and let the user
+			   * snarf the config to see what's wrong */
+			printf("vinum: Config error on drive %s, aborting integration\n", nd.ni_dirp);
+			Free(config_text);
+			Free(config_line);
+			free_drive(drive);		    /* give it back */
+			status = EINVAL;
+		    }
+		}
+		while (*cptr == '\n')
+		    cptr++;				    /* skip to next line */
+	    }
+	}
+	drive->flags |= VF_CONFIGURED;			    /* read this drive's configuration */
+    }
+
+    Free(config_text);
+    Free(drivelist);
+    vinum_conf.flags &= ~(VF_KERNELOP | VF_READING_CONFIG);
+    if (status != 0)
+	throw_rude_remark(status, "Couldn't read configuration");
+    updateconfig(VF_KERNELOP);				    /* update from kernel space */
+}
+
+/* Compare the modification dates of the drives, for qsort.
+ * Return 1 if a < b, 0 if a == b, 01 if a > b: in other
+ * words, sort backwards */
+int 
+drivecmp(const void *va, const void *vb)
+{
+    struct drive *a = *(struct drive **) va;
+    struct drive *b = *(struct drive **) vb;
+
+    if ((a->label.last_update.tv_sec == b->label.last_update.tv_sec)
+	&& (a->label.last_update.tv_usec == b->label.last_update.tv_usec))
+	return 0;
+    else if ((a->label.last_update.tv_sec > b->label.last_update.tv_sec)
+	    || ((a->label.last_update.tv_sec == b->label.last_update.tv_sec)
+	    && (a->label.last_update.tv_usec > b->label.last_update.tv_usec)))
+	return -1;
+    else
+	return 1;
+}
