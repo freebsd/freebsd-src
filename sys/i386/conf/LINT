@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.114 1994/12/11 23:52:18 bde Exp $
+#	$Id: LINT,v 1.115 1994/12/13 20:56:30 wollman Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -98,7 +98,7 @@ options		SYSVMSG
 #
 options		DODUMP			#We dump core-image on panic
 options		DDB			#Kernel debugger
-options		"SYMTAB_SPACE=159100"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=162821"	#This kernel needs LOTS of symtable
 
 # 
 # KTRACE enables the system-call tracing facility ktrace(2).
@@ -340,7 +340,7 @@ controller	isa0
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
-options		DISKSLICE
+#options	DISKSLICE		#uncomment this when it works
 #options	DUMMY_NOPS
 #options	TUNE_1542
 
@@ -378,6 +378,7 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 # aha: Adaptec 154x
 # ahb: Adaptec 174x
+# ahc: Adaptec 274x
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
 # bt: Most Buslogic controllers
 # pas: ProAudioSpectrum cards using the NCR 5380 (slow!)
@@ -389,6 +390,7 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
+controller	ahc0	at isa? bio irq ? vector ahcintr # port??? iomem?
 controller	ahb0	at isa? bio irq ? vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
