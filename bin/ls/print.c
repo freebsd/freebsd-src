@@ -310,7 +310,7 @@ printtime(ftime)
 	char longstring[80];
 	static time_t now;
 	const char *format;
-	static d_first = -1;
+	static int d_first = -1;
 
 	if (d_first < 0)
 		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
