@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ahareg.h,v 1.1 1998/09/15 07:39:52 gibbs Exp $
+ *      $Id: ahareg.h,v 1.2 1998/10/01 04:53:55 imp Exp $
  */
 
 #ifndef _AHAREG_H_
@@ -90,21 +90,10 @@
 #define		IMB_LOADED		0x01	/* Incoming Mailbox loaded */
 
 /*
- * Definitions for the "undocumented" geometry register
+ * Definitions for the "undocumented" geometry register, we just need
+ * its location.
  */
-typedef enum {
-	GEOM_NODISK,
-	GEOM_64x32,
-	GEOM_128x32,
-	GEOM_255x32
-} disk_geom_t;
-
 #define GEOMETRY_REG			0x03
-#define		DISK0_GEOMETRY		0x03
-#define		DISK1_GEOMETRY		0x0c
-#define		EXTENDED_TRANSLATION	0x10
-#define		GEOMETRY_DISK0(g_reg) (g_reg & DISK0_GEOMETRY)
-#define		GEOMETRY_DISK1(g_reg) ((g_reg & DISK1_GEOMETRY) >> 2)
 
 #define AHA_NREGS	(4)
 
@@ -157,30 +146,6 @@ struct	aha_extbios
 	u_int8_t mailboxlock;		/* mail box lock code to unlock it */
 };
 
-/* This is really a bustech command, but we use it to differentiate between */
-/* the aha and bt */
-typedef struct {
-	u_int8_t  bus_type;
-	u_int8_t  bios_addr;
-	u_int16_t max_sg;
-	u_int8_t  num_mboxes;
-	u_int8_t  mbox_base[4];
-	u_int8_t			:2,
-		  sync_neg10MB		:1,
-		  floppy_disable	:1,
-		  floppy_secondary_port	:1,
-		  burst_mode_enabled	:1,
-		  level_trigger_ints	:1,
-					:1;
-	u_int8_t  fw_ver_bytes_2_to_4[3];
-	u_int8_t  wide_bus		:1,
-		  diff_bus		:1,
-		  scam_capable		:1,
-		  ultra_scsi		:1,
-		  auto_term		:1,
-		 			:3;
-} esetup_info_data_t;
-
 typedef struct {
 	u_int8_t num_mboxes;
 	u_int8_t base_addr[3];
@@ -189,7 +154,8 @@ typedef struct {
 typedef struct {
 	u_int8_t board_type;
 /* These values are mostly from the aha-1540CP technical reference, but */
-/* with other values from the old aha1542.c driver. */
+/* with other values from the old aha1542.c driver. The values from the */
+/* aha-1540CP technical manual are used where conflicts arise */
 #define		BOARD_1540_16HEAD_BIOS	0x00
 #define		BOARD_1540_64HEAD_BIOS	0x30
 #define		BOARD_1542		0x41	/* aha-1540/1542 w/64-h bios */
