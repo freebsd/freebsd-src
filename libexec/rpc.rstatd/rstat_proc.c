@@ -115,6 +115,7 @@ stat_init()
 {
     stat_is_init = 1;
     setup();
+    alarm(0);
     updatestat();
     (void) signal(SIGALRM, updatestat);
     alarm(1);
@@ -203,6 +204,7 @@ updatestat()
 #ifdef DEBUG
                 fprintf(stderr, "about to closedown\n");
 #endif
+		kvm_close(kd);
                 if (from_inetd)
                         exit(0);
                 else {
