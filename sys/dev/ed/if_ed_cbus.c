@@ -38,7 +38,6 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 #include <machine/clock.h>
-#include <machine/md_var.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
