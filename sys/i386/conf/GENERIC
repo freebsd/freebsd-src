@@ -27,7 +27,7 @@ ident		GENERIC
 # To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
 
-options 	SCHED_ULE		# 4BSD scheduler
+options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	FFS			# Berkeley Fast Filesystem
