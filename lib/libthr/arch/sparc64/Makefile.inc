@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+.PATH:	${.CURDIR}/sys ${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
