@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
-.\"     $Id: malloc.3,v 1.8 1997/02/22 15:03:10 peter Exp $
+.\"     $Id: malloc.3,v 1.9 1997/03/22 23:48:12 mpp Exp $
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
@@ -148,6 +148,18 @@ This can substantially aid in compacting memory.
 .It U
 ``utrace'' generate entries for ktrace(1) for all operations.
 Consult the source for this one.
+
+.It X
+``xmalloc'' 
+rather than return failure,
+.Xr abort 3
+the program with a diagnostic message on stderr.
+It is the intention that this option be set at compile time by
+including in the source:
+.Bd -literal -offset indent
+extern char *malloc_options;
+malloc_options = "X";
+.Ed
 
 .It Z
 ``zero'' fill some junk into the area allocated (see ``J''),
