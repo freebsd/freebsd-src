@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler for Intel 80386
    running FreeBSD.
-   Copyright (C) 1988, 1992, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992, 1994, 1996, 1997 Free Software Foundation, Inc.
    Contributed by Poul-Henning Kamp <phk@login.dkuug.dk>
 
 This file is part of GNU CC.
@@ -35,10 +35,10 @@ Boston, MA 02111-1307, USA.  */
 #include "i386/perform.h"
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__ -D__386BSD__ -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__ -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
 /* Like the default, except no -lg.  */
-#define LIB_SPEC "%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}"
+#define LIB_SPEC "%{!shared:%{!pg:-lc}%{pg:-lc_p}}"
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
@@ -47,25 +47,28 @@ Boston, MA 02111-1307, USA.  */
 #define PTRDIFF_TYPE "int"
 
 #undef WCHAR_TYPE
-#define WCHAR_TYPE "short unsigned int"
+#define WCHAR_TYPE "int"
 
-#define WCHAR_UNSIGNED 1
+#define WCHAR_UNSIGNED 0
 
 #undef WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE 16
+#define WCHAR_TYPE_SIZE BITS_PER_WORD
 
 #define HAVE_ATEXIT
 
-/* There are conflicting reports about whether this system uses
-   a different assembler syntax.  wilson@cygnus.com says # is right.  */
-#undef COMMENT_BEGIN
-#define COMMENT_BEGIN "#"
+/* Override the default comment-starter of "/".  */
+
+#undef ASM_COMMENT_START
+#define ASM_COMMENT_START "#"
 
 #undef ASM_APP_ON
 #define ASM_APP_ON "#APP\n"
 
 #undef ASM_APP_OFF
 #define ASM_APP_OFF "#NO_APP\n"
+
+/* FreeBSD using a.out does not support DWARF2 unwinding mechanisms.  */
+#define DWARF2_UNWIND_INFO 0
 
 /* The following macros are stolen from i386v4.h */
 /* These have to be defined to get PIC code correct */
@@ -75,17 +78,28 @@ Boston, MA 02111-1307, USA.  */
    i386.md for an explanation of the expression this outputs. */
 
 #undef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, VALUE, REL) \
+#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
   fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
 
 /* Indicate that jump tables go in the text section.  This is
    necessary when compiling PIC code.  */
 
-#define JUMP_TABLES_IN_TEXT_SECTION
+#define JUMP_TABLES_IN_TEXT_SECTION 1
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
    we want to retain compatibility with older gcc versions.  */
 #define DEFAULT_PCC_STRUCT_RETURN 0
+
+/* Ensure we the configuration knows our system correctly so we can link with
+   libraries compiled with the native cc. */
+#undef NO_DOLLAR_IN_LABEL
+
+/* i386 freebsd still uses old binutils that don't insert nops by default
+   when the .align directive demands to insert extra space in the text
+   segment.  */
+#undef ASM_OUTPUT_ALIGN
+#define ASM_OUTPUT_ALIGN(FILE,LOG) \
+  if ((LOG)!=0) fprintf ((FILE), "\t.align %d,0x90\n", (LOG))
 
 /* Profiling routines, partially copied from i386/osfrose.h.  */
 
@@ -220,7 +234,15 @@ do {                                                                    \
 
 #define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
 #define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*}"
+  "%{p:%e`-p' not supported; use `-pg' and gprof(1)} \
+   %{shared:-Bshareable} \
+   %{!shared:%{!nostdlib:%{!r:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} \
+   %{pg:-Bstatic} %{Z}} \
+   %{assert*} %{R*}"
+
+#define STARTFILE_SPEC  \
+  "%{shared:c++rt0.o%s} \
+   %{!shared:%{pg:gcrt0.o%s}%{!pg:%{static:scrt0.o%s}%{!static:crt0.o%s}}}"
 
 /* This is defined when gcc is compiled in the BSD-directory-tree, and must
  * make up for the gap to all the stuff done in the GNU-makefiles.
@@ -229,9 +251,9 @@ do {                                                                    \
 #ifdef FREEBSD_NATIVE
 
 #define INCLUDE_DEFAULTS { \
-	{ "/usr/include", 0 }, \
-	{ "/usr/include/g++", 1 }, \
-	{ 0, 0} \
+	{ "/usr/include", 0, 0, 0 }, \
+	{ "/usr/include/g++", "G++", 1, 1 }, \
+	{ 0, 0, 0, 0} \
 	}
 
 #undef MD_EXEC_PREFIX
