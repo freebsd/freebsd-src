@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.35 1998/04/15 17:45:18 bde Exp $
+ * $Id: if_el.c,v 1.36 1998/06/07 17:10:28 dfr Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -26,7 +26,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -432,7 +431,7 @@ static int el_xmit(struct el_softc *sc,int len)
 void elintr(int unit)
 {
 	register struct el_softc *sc;
-	register base;
+	register int base;
 	int stat, rxstat, len, done;
 
 	/* Get things pointing properly */
