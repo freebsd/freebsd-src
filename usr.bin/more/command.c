@@ -149,9 +149,8 @@ cmd_char(c, bufbeg, bufcur, bufend)
 	int c;          /* The character to process */
 	char *bufbeg;   /* The buffer to add the character to */
 	char **bufcur;  /* The position at which to add the character */
-	char *bufend;   /* The last spot available in the buffer --- remember
-	                 * to leave one after bufend for the '\0'!  (You must
-	                 * add the '\0' yourself!!) */
+	char *bufend;   /* One after the last address available in the buffer.
+	                 * No character will be placed into *bufend. */
 {
 	if (c == erase_char)
 		return(cmd_erase(bufbeg, bufcur));
@@ -583,8 +582,11 @@ commands()
 			continue;  /* process the sigs */
 		}
 
-		if (Nstate == GETTING && !isdigit(c)) {
-			/* mark the end of an input number N, if any */
+		if (Nstate == GETTING && !isdigit(c)
+		    && c != erase_char && c != werase_char && c != kill_char) {
+			/*
+			 * Mark the end of an input number N, if any.
+			 */
 
 			if (!*inbuf) {
 				/* We never actually got an input number */
@@ -596,9 +598,12 @@ commands()
 			*inbuf = '\0';
 			incur = inbuf;
 		}
-		cmd_char(c, inbuf, &incur, inbuf + sizeof(inbuf) - 1);
+		(void) cmd_char(c, inbuf, &incur, inbuf + sizeof(inbuf) - 1);
 		*incur = '\0';
-		if (*inbuf) prmpt(inbuf);
+		if (*inbuf)
+			prmpt(inbuf);
+		else
+			Nstate = GETTING;  /* abort command */
 
 		if (Nstate == GETTING) {
 			/* Still reading in the number N ... don't want to
