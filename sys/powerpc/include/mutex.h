@@ -60,6 +60,9 @@ extern char STR_SIEN[];
 #define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr \
 			       != ALPHA_PSL_IPL_HIGH, STR_SIEN)
 
+#define	mtx_legal2block()						\
+	((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK) == ALPHA_PSL_IPL_HIGH)
+
 /*
  * Assembly macros (for internal use only)
  *--------------------------------------------------------------------------
