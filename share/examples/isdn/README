@@ -1,7 +1,7 @@
 
 $FreeBSD$
 
-Note: This is a modified README from the isdn4bsd 0.90.1 distribution. 
+      Note: This is a modified README from the isdn4bsd 0.95.04 version. 
 
       In December 1998, i4b was integrated into the FreeBSD sourcetree
       and so the following parts about FreeBSD may not apply completely
@@ -15,7 +15,7 @@ Note: This is a modified README from the isdn4bsd 0.90.1 distribution.
                                   isdn4bsd
                                   ========
 
-                      beta Version 0.90.1 / December 1999
+                      beta Version 0.95.04 / October 2000
 
                                  written by:
 
@@ -31,7 +31,7 @@ Note: This is a modified README from the isdn4bsd 0.90.1 distribution.
 
                           The isdn4bsd package is:
 
-     Copyright (c) 1997, 1999 by Hellmuth Michaelis. All rights reserved. 
+     Copyright (c) 1997, 2000 by Hellmuth Michaelis. All rights reserved. 
 
                       For details see the file LICENSE.
 
@@ -122,17 +122,19 @@ machine and now has preliminary dialout capabilities for voice and data calls.
 FreeBSD:
 --------
 
-	FreeBSD >= 3.1 and FreeBSD 4.x (FreeBSD-current) is supported
-	by this version of isdn4bsd. 
+	FreeBSD >= 4.1 and FreeBSD 5.x-CURRENT is supported
+	by this version of isdn4bsd.
 
-	FreeBSD 3.0 and FreeBSD <= 2.x are NOT supported anymore!
+	FreeBSD 4.0 might run with minor tweaks.
+
+	FreeBSD <= 3.x is not supported by this release anymore.
 
 	I4b was integrated into FreeBSD in January 1999, so it is part
-	of FreeBSD-current and FreeBSD 3.x.
+	of the base FreeBSD system since FreeBSD 3.x.
 
 	Usually i will commit a new i4b release as soon as possible to
-	FreeBSD-current, but not to FreeBSD 3.x. In case you like to
-	run the latest i4b version on FreeBSD >= 3.1, i recommend to 
+	FreeBSD-current, but not to FreeBSD-stable. In case you like to
+	run the latest i4b version on FreeBSD-stable, i suggest to 
 	upgrade via the scripts found in the FreeBSD directory of the
 	i4b ftp release.
 
@@ -142,9 +144,10 @@ FreeBSD:
 NetBSD/i386:
 ------------
 	The NetBSD specific support and the Diehl driver was written by 
-	Martin Husemann, (martin@rumolt.teuto.de). Since i do not intend
-	to run NetBSD and/or Diehl cards, i suggest contacting him in 
-	case of problems in this two areas. 
+	Martin Husemann, (martin@netbsd.org). 
+
+	Since i do not intend to run NetBSD and/or Diehl cards, i suggest
+	contacting him in case of problems in this two areas. 
 
 	Martin has NetBSD/i386 running and is supporting isdn4bsd for
 	that platform as his time permits it.
@@ -168,9 +171,9 @@ NetBSD/Alpha:
 
 OpenBSD/i386:
 -------------
-	I have tested OpenBSD/i386 2.5 with isdn4bsd 0.83 and a Teles 16.3.
-	The interest in this was nearly equal to zero so no further testing
-	of any OpenBSD release with any isdn4bsd release was done.
+	Nikolay Sturm (sturm@physik.rwth-aachen.de) sent in patches to
+	support OpenBSD/i386 2.6, they are still experimental and since
+	i don't run OpenBSD i have no idea on the state of affairs.
 
 BSD/OS:
 -------
@@ -199,6 +202,9 @@ BSD/OS:
   and OpenBSD directories, each of these contains a file "INSTALLATION"
   which describes the installation procedure for isdn4bsd on those operating
   systems.
+
+- isdn4bsd has a homepage at http://www.freebsd-support.de/i4b/ where i
+  will try to maintain links to docs, updates and errata.
 
 - handbook/i4b.ps contains a handbook for isdn4bsd describing how i4b is
   unpacked, configured, compiled and run on a FreeBSD system. With minor
