@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.11 1999/05/30 16:53:37 phk Exp $
+ * $Id: xrpu.c,v 1.12 1999/05/31 11:29:04 phk Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -110,7 +110,7 @@ xrpu_poll_pps(struct timecounter *tc)
 				count1 = ppscount;
 				ppscount =  *(sc->assert[i]) & tc->tc_counter_mask;
 			} while (ppscount != count1);
-			pps_event(&sc->pps[i], &sc->tc, ppscount, PPS_CAPTUREASSERT);
+			pps_event(&sc->pps[i], tc, ppscount, PPS_CAPTUREASSERT);
 		}
 		if (sc->clear[i]) {
 			ppscount = *(sc->clear[i]) & tc->tc_counter_mask;
@@ -118,7 +118,7 @@ xrpu_poll_pps(struct timecounter *tc)
 				count1 = ppscount;
 				ppscount =  *(sc->clear[i]) & tc->tc_counter_mask;
 			} while (ppscount != count1);
-			pps_event(&sc->pps[i], &sc->tc, ppscount, PPS_CAPTURECLEAR);
+			pps_event(&sc->pps[i], tc, ppscount, PPS_CAPTURECLEAR);
 		}
 	}
 }
