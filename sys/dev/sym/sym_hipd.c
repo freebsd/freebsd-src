@@ -58,9 +58,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.3.2-20000206"
-
-/* #define	SYM_DEBUG_PM_WITH_WSR (current debugging) */
+#define SYM_DRIVER_NAME	"sym-1.4.1-20000326"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -69,10 +67,14 @@
 /*
  *  Only use the BUS stuff for PCI under FreeBSD 4 and later versions.
  *  Note that the old BUS stuff also works for FreeBSD 4 and spares 
- *  about 1.5KB for the driver objet file.
+ *  about 1.5KB for the driver object file.
  */
 #if 	__FreeBSD_version >= 400000
 #define	FreeBSD_4_Bus
+#endif
+
+#if 	__FreeBSD_version >= 400000
+#define	FreeBSD_Bus_Dma_Abstraction
 #endif
 
 #include <sys/systm.h>
@@ -340,10 +342,13 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
 #define MAX_QUEUE	SYM_CONF_MAX_QUEUE
 
 /*
- *  This one should have been already defined.
+ *  These ones should have been already defined.
  */
 #ifndef offsetof
 #define offsetof(t, m)	((size_t) (&((t *)0)->m))
+#endif
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
 /*
@@ -368,17 +373,9 @@ static int sym_debug = 0;
 #else
 /*	#define DEBUG_FLAGS (0x0631) */
 	#define DEBUG_FLAGS (0x0000)
+
 #endif
 #define sym_verbose	(np->verbose)
-
-/*
- *  Virtual to bus address translation.
- */
-#ifdef	__alpha__
-#define	vtobus(p)	alpha_XXX_dmamap((vm_offset_t)(p))
-#else /*__i386__*/
-#define vtobus(p)	vtophys(p)
-#endif
 
 /*
  *  Copy from main memory to PCI memory space.
@@ -395,12 +392,6 @@ static int sym_debug = 0;
 static void UDELAY(long us) { DELAY(us); }
 static void MDELAY(long ms) { while (ms--) UDELAY(1000); }
 
-/*
- *  Memory allocation/allocator.
- *  We assume allocations are naturally aligned and if it is 
- *  not guaranteed, we may use our internal allocator.
- */
-#ifdef	SYM_CONF_USE_INTERNAL_ALLOCATOR
 /*
  *  Simple power of two buddy-like allocator.
  *
@@ -420,44 +411,68 @@ static void MDELAY(long ms) { while (ms--) UDELAY(1000); }
  */
 
 #define MEMO_SHIFT	4	/* 16 bytes minimum memory chunk */
-#define MEMO_PAGE_ORDER	0	/* 1 PAGE maximum (for now (ever?) */
-typedef unsigned long addr;	/* Enough bits to bit-hack addresses */
-
+#define MEMO_PAGE_ORDER	0	/* 1 PAGE  maximum */
 #if 0
 #define MEMO_FREE_UNUSED	/* Free unused pages immediately */
 #endif
+#define MEMO_WARN	1
+#define MEMO_CLUSTER_SHIFT	(PAGE_SHIFT+MEMO_PAGE_ORDER)
+#define MEMO_CLUSTER_SIZE	(1UL << MEMO_CLUSTER_SHIFT)
+#define MEMO_CLUSTER_MASK	(MEMO_CLUSTER_SIZE-1)
 
-struct m_link {
-	struct m_link *next;	/* Simple links are enough */
-};
+#define get_pages()		malloc(MEMO_CLUSTER_SIZE, M_DEVBUF, M_NOWAIT)
+#define free_pages(p)		free((p), M_DEVBUF)
 
-#ifndef M_DMA_32BIT
-#define M_DMA_32BIT	0	/* Will this flag ever exist */
+typedef u_long m_addr_t;	/* Enough bits to bit-hack addresses */
+
+typedef struct m_link {		/* Link between free memory chunks */
+	struct m_link *next;
+} m_link_s;
+
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+typedef struct m_vtob {		/* Virtual to Bus address translation */
+	struct m_vtob	*next;
+	bus_dmamap_t	dmamap;	/* Map for this chunk */
+	m_addr_t	vaddr;	/* Virtual address */
+	m_addr_t	baddr;	/* Bus physical address */
+} m_vtob_s;
+/* Hash this stuff a bit to speed up translations */
+#define VTOB_HASH_SHIFT		5
+#define VTOB_HASH_SIZE		(1UL << VTOB_HASH_SHIFT)
+#define VTOB_HASH_MASK		(VTOB_HASH_SIZE-1)
+#define VTOB_HASH_CODE(m)	\
+	((((m_addr_t) (m)) >> MEMO_CLUSTER_SHIFT) & VTOB_HASH_MASK)
 #endif
 
-#define get_pages() \
-	malloc(PAGE_SIZE<<MEMO_PAGE_ORDER, M_DEVBUF, M_NOWAIT)
-#define free_pages(p) \
-	free((p), M_DEVBUF)
+typedef struct m_pool {		/* Memory pool of a given kind */
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	bus_dma_tag_t	 dev_dmat;	/* Identifies the pool */
+	bus_dma_tag_t	 dmat;		/* Tag for our fixed allocations */
+	m_addr_t (*getp)(struct m_pool *);
+#ifdef	MEMO_FREE_UNUSED
+	void (*freep)(struct m_pool *, m_addr_t);
+#endif
+#define M_GETP()		mp->getp(mp)
+#define M_FREEP(p)		mp->freep(mp, p)
+	int nump;
+	m_vtob_s *(vtob[VTOB_HASH_SIZE]);
+	struct m_pool *next;
+#else
+#define M_GETP()		get_pages()
+#define M_FREEP(p)		free_pages(p)
+#endif	/* FreeBSD_Bus_Dma_Abstraction */
+	struct m_link h[MEMO_CLUSTER_SHIFT - MEMO_SHIFT + 1];
+} m_pool_s;
 
-/*
- *  Lists of available memory chunks.
- *  Starts with 16 bytes chunks until 1 PAGE chunks.
- */
-static struct m_link h[PAGE_SHIFT-MEMO_SHIFT+MEMO_PAGE_ORDER+1];
-
-/*
- *  Allocate a memory area aligned on the lowest power of 2 
- *  greater than the requested size.
- */
-static void *__sym_malloc(int size)
+static void *___sym_malloc(m_pool_s *mp, int size)
 {
 	int i = 0;
 	int s = (1 << MEMO_SHIFT);
 	int j;
-	addr a ;
+	m_addr_t a;
+	m_link_s *h = mp->h;
 
-	if (size > (PAGE_SIZE << MEMO_PAGE_ORDER))
+	if (size > MEMO_CLUSTER_SIZE)
 		return 0;
 
 	while (size > s) {
@@ -467,8 +482,8 @@ static void *__sym_malloc(int size)
 
 	j = i;
 	while (!h[j].next) {
-		if (s == (PAGE_SIZE << MEMO_PAGE_ORDER)) {
-			h[j].next = (struct m_link *)get_pages();
+		if (s == MEMO_CLUSTER_SIZE) {
+			h[j].next = (m_link_s *) M_GETP();
 			if (h[j].next)
 				h[j].next->next = 0;
 			break;
@@ -476,40 +491,35 @@ static void *__sym_malloc(int size)
 		++j;
 		s <<= 1;
 	}
-	a = (addr) h[j].next;
+	a = (m_addr_t) h[j].next;
 	if (a) {
 		h[j].next = h[j].next->next;
 		while (j > i) {
 			j -= 1;
 			s >>= 1;
-			h[j].next = (struct m_link *) (a+s);
+			h[j].next = (m_link_s *) (a+s);
 			h[j].next->next = 0;
 		}
 	}
 #ifdef DEBUG
-	printf("__sym_malloc(%d) = %p\n", size, (void *) a);
+	printf("___sym_malloc(%d) = %p\n", size, (void *) a);
 #endif
 	return (void *) a;
 }
 
-/*
- *  Free a memory area allocated using sym_malloc().
- *  Coalesce buddies.
- *  Free pages that become unused if MEMO_FREE_UNUSED is 
- *  defined.
- */
-static void __sym_mfree(void *ptr, int size)
+static void ___sym_mfree(m_pool_s *mp, void *ptr, int size)
 {
 	int i = 0;
 	int s = (1 << MEMO_SHIFT);
-	struct m_link *q;
-	addr a, b;
+	m_link_s *q;
+	m_addr_t a, b;
+	m_link_s *h = mp->h;
 
 #ifdef DEBUG
-	printf("sym_mfree(%p, %d)\n", ptr, size);
+	printf("___sym_mfree(%p, %d)\n", ptr, size);
 #endif
 
-	if (size > (PAGE_SIZE << MEMO_PAGE_ORDER))
+	if (size > MEMO_CLUSTER_SIZE)
 		return;
 
 	while (size > s) {
@@ -517,23 +527,23 @@ static void __sym_mfree(void *ptr, int size)
 		++i;
 	}
 
-	a = (addr) ptr;
+	a = (m_addr_t) ptr;
 
 	while (1) {
 #ifdef MEMO_FREE_UNUSED
-		if (s == (PAGE_SIZE << MEMO_PAGE_ORDER)) {
-			free_pages(a);
+		if (s == MEMO_CLUSTER_SIZE) {
+			M_FREEP(a);
 			break;
 		}
 #endif
 		b = a ^ s;
 		q = &h[i];
-		while (q->next && q->next != (struct m_link *) b) {
+		while (q->next && q->next != (m_link_s *) b) {
 			q = q->next;
 		}
 		if (!q->next) {
-			((struct m_link *) a)->next = h[i].next;
-			h[i].next = (struct m_link *) a;
+			((m_link_s *) a)->next = h[i].next;
+			h[i].next = (m_link_s *) a;
 			break;
 		}
 		q->next = q->next->next;
@@ -543,24 +553,11 @@ static void __sym_mfree(void *ptr, int size)
 	}
 }
 
-#else	/* !defined SYSCONF_USE_INTERNAL_ALLOCATOR */
-
-/*
- *  Using directly the system memory allocator.
- */
-
-#define	__sym_mfree(ptr, size)		free((ptr), M_DEVBUF)
-#define	__sym_malloc(size)		malloc((size), M_DEVBUF, M_NOWAIT)
-
-#endif	/* SYM_CONF_USE_INTERNAL_ALLOCATOR */
-
-#define MEMO_WARN	1
-
-static void *sym_calloc2(int size, char *name, int uflags)
+static void *__sym_calloc2(m_pool_s *mp, int size, char *name, int uflags)
 {
 	void *p;
 
-	p = __sym_malloc(size);
+	p = ___sym_malloc(mp, size);
 
 	if (DEBUG_FLAGS & DEBUG_ALLOC)
 		printf ("new %-10s[%4d] @%p.\n", name, size, p);
@@ -568,20 +565,289 @@ static void *sym_calloc2(int size, char *name, int uflags)
 	if (p)
 		bzero(p, size);
 	else if (uflags & MEMO_WARN)
-		printf ("sym_calloc: failed to allocate %s[%d]\n", name, size);
+		printf ("__sym_calloc2: failed to allocate %s[%d]\n", name, size);
 
 	return p;
 }
 
-#define sym_calloc(s, n)	sym_calloc2(s, n, MEMO_WARN)
+#define __sym_calloc(mp, s, n)	__sym_calloc2(mp, s, n, MEMO_WARN)
 
-static void sym_mfree(void *ptr, int size, char *name)
+static void __sym_mfree(m_pool_s *mp, void *ptr, int size, char *name)
 {
 	if (DEBUG_FLAGS & DEBUG_ALLOC)
 		printf ("freeing %-10s[%4d] @%p.\n", name, size, ptr);
 
-	__sym_mfree(ptr, size);
+	___sym_mfree(mp, ptr, size);
+
 }
+
+/*
+ * Default memory pool we donnot need to involve in DMA.
+ */
+#ifndef	FreeBSD_Bus_Dma_Abstraction
+/*
+ * Without the `bus dma abstraction', all the memory is assumed 
+ * DMAable and a single pool is all what we need.
+ */
+static m_pool_s mp0;
+
+#else
+/*
+ * With the `bus dma abstraction', we use a separate pool for 
+ * memory we donnot need to involve in DMA.
+ */
+static m_addr_t ___mp0_getp(m_pool_s *mp)
+{
+	m_addr_t m = (m_addr_t) get_pages();
+	if (m)
+		++mp->nump;
+	return m;
+}
+
+#ifdef	MEMO_FREE_UNUSED
+static void ___mp0_freep(m_pool_s *mp, m_addr_t m)
+{
+	free_pages(m);
+	--mp->nump;
+}
+#endif
+
+#ifdef	MEMO_FREE_UNUSED
+static m_pool_s mp0 = {0, 0, ___mp0_getp, ___mp0_freep};
+#else
+static m_pool_s mp0 = {0, 0, ___mp0_getp};
+#endif
+
+#endif	/* FreeBSD_Bus_Dma_Abstraction */
+
+/*
+ * Actual memory allocation routine for non-DMAed memory.
+ */
+static void *sym_calloc(int size, char *name)
+{
+	void *m;
+	/* Lock */
+	m = __sym_calloc(&mp0, size, name);
+	/* Unlock */
+	return m;
+}
+
+/*
+ * Actual memory allocation routine for non-DMAed memory.
+ */
+static void sym_mfree(void *ptr, int size, char *name)
+{
+	/* Lock */
+	__sym_mfree(&mp0, ptr, size, name);
+	/* Unlock */
+}
+
+/*
+ * DMAable pools.
+ */
+#ifndef	FreeBSD_Bus_Dma_Abstraction
+/*
+ * Without `bus dma abstraction', all the memory is DMAable, and 
+ * only a single pool is needed (vtophys() is our friend).
+ */
+#define __sym_calloc_dma(b, s, n)	sym_calloc(s, n)
+#define __sym_mfree_dma(b, p, s, n)	sym_mfree(p, s, n)
+#ifdef	__alpha__
+#define	__vtobus(b, p)	alpha_XXX_dmamap((vm_offset_t)(p))
+#else /*__i386__*/
+#define __vtobus(b, p)	vtophys(p)
+#endif
+
+#else
+/*
+ * With `bus dma abstraction', we use a separate pool per parent 
+ * BUS handle. A reverse table (hashed) is maintained for virtual 
+ * to BUS address translation.
+ */
+static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg, int error) 
+{
+	bus_addr_t *baddr;
+	baddr = (bus_addr_t *)arg;
+	*baddr = segs->ds_addr;
+}
+
+static m_addr_t ___dma_getp(m_pool_s *mp)
+{
+	m_vtob_s *vbp;
+	void *vaddr = 0;
+	bus_addr_t baddr = 0;
+
+	vbp = __sym_calloc(&mp0, sizeof(*vbp), "VTOB");
+	if (!vbp)
+		goto out_err;
+
+	if (bus_dmamem_alloc(mp->dmat, &vaddr,
+			      BUS_DMA_NOWAIT, &vbp->dmamap))
+		goto out_err;
+	bus_dmamap_load(mp->dmat, vbp->dmamap, vaddr,
+			MEMO_CLUSTER_SIZE, getbaddrcb, &baddr, 0);
+	if (baddr) {
+		int hc = VTOB_HASH_CODE(vaddr);
+		vbp->vaddr = (m_addr_t) vaddr;
+		vbp->baddr = (m_addr_t) baddr;
+		vbp->next = mp->vtob[hc];
+		mp->vtob[hc] = vbp;
+		++mp->nump;
+		return (m_addr_t) vaddr;
+	}
+out_err:
+	if (baddr)
+		bus_dmamap_unload(mp->dmat, vbp->dmamap);
+	if (vaddr)
+		bus_dmamem_free(mp->dmat, vaddr, vbp->dmamap);
+	if (vbp->dmamap)
+		bus_dmamap_destroy(mp->dmat, vbp->dmamap);
+	if (vbp)
+		__sym_mfree(&mp0, vbp, sizeof(*vbp), "VTOB");
+	return 0;
+}
+
+#ifdef	MEMO_FREE_UNUSED
+static void ___dma_freep(m_pool_s *mp, m_addr_t m)
+{
+	m_vtob_s **vbpp, *vbp;
+	int hc = VTOB_HASH_CODE(m);
+
+	vbpp = &mp->vtob[hc];
+	while (*vbpp && (*vbpp)->vaddr != m)
+		vbpp = &(*vbpp)->next;
+	if (*vbpp) {
+		vbp = *vbpp;
+		*vbpp = (*vbpp)->next;
+		bus_dmamap_unload(mp->dmat, vbp->dmamap);
+		bus_dmamem_free(mp->dmat, (void *) vbp->vaddr, vbp->dmamap);
+		bus_dmamap_destroy(mp->dmat, vbp->dmamap);
+		__sym_mfree(&mp0, vbp, sizeof(*vbp), "VTOB");
+		--mp->nump;
+	}
+}
+#endif
+
+static __inline__ m_pool_s *___get_dma_pool(bus_dma_tag_t dev_dmat)
+{
+	m_pool_s *mp;
+	for (mp = mp0.next; mp && mp->dev_dmat != dev_dmat; mp = mp->next);
+	return mp;
+}
+
+static m_pool_s *___cre_dma_pool(bus_dma_tag_t dev_dmat)
+{
+	m_pool_s *mp = 0;
+
+	mp = __sym_calloc(&mp0, sizeof(*mp), "MPOOL");
+	if (mp) {
+		mp->dev_dmat = dev_dmat;
+		if (!bus_dma_tag_create(dev_dmat, 1, MEMO_CLUSTER_SIZE,
+			       BUS_SPACE_MAXADDR_32BIT,
+			       BUS_SPACE_MAXADDR_32BIT,
+			       NULL, NULL, MEMO_CLUSTER_SIZE, 1,
+			       MEMO_CLUSTER_SIZE, 0, &mp->dmat)) {
+			mp->getp = ___dma_getp;
+#ifdef	MEMO_FREE_UNUSED
+			mp->freep = ___dma_freep;
+#endif
+			mp->next = mp0.next;
+			mp0.next = mp;
+			return mp;
+		}
+	}
+	if (mp)
+		__sym_mfree(&mp0, mp, sizeof(*mp), "MPOOL");
+	return 0;
+}
+
+#ifdef	MEMO_FREE_UNUSED
+static void ___del_dma_pool(m_pool_s *p)
+{
+	struct m_pool **pp = &mp0.next;
+
+	while (*pp && *pp != p)
+		pp = &(*pp)->next;
+	if (*pp) {
+		*pp = (*pp)->next;
+		bus_dma_tag_destroy(p->dmat);
+		__sym_mfree(&mp0, p, sizeof(*p), "MPOOL");
+	}
+}
+#endif
+
+static void *__sym_calloc_dma(bus_dma_tag_t dev_dmat, int size, char *name)
+{
+	struct m_pool *mp;
+	void *m = 0;
+
+	/* Lock */
+	mp = ___get_dma_pool(dev_dmat);
+	if (!mp)
+		mp = ___cre_dma_pool(dev_dmat);
+	if (mp)
+		m = __sym_calloc(mp, size, name);
+#ifdef	MEMO_FREE_UNUSED
+	if (mp && !mp->nump)
+		___del_dma_pool(mp);
+#endif
+	/* Unlock */
+
+	return m;
+}
+
+static void 
+__sym_mfree_dma(bus_dma_tag_t dev_dmat, void *m, int size, char *name)
+{
+	struct m_pool *mp;
+
+	/* Lock */
+	mp = ___get_dma_pool(dev_dmat);
+	if (mp)
+		__sym_mfree(mp, m, size, name);
+#ifdef	MEMO_FREE_UNUSED
+	if (mp && !mp->nump)
+		___del_dma_pool(mp);
+#endif
+	/* Unlock */
+}
+
+static m_addr_t __vtobus(bus_dma_tag_t dev_dmat, void *m)
+{
+	m_pool_s *mp;
+	int hc = VTOB_HASH_CODE(m);
+	m_vtob_s *vp = 0;
+	m_addr_t a = ((m_addr_t) m) & ~MEMO_CLUSTER_MASK;
+
+	/* Lock */
+	mp = ___get_dma_pool(dev_dmat);
+	if (mp) {
+		vp = mp->vtob[hc];
+		while (vp && (m_addr_t) vp->vaddr != a)
+			vp = vp->next;
+	}
+	/* Unlock */
+	if (!vp)
+		panic("sym: VTOBUS FAILED!\n");
+	return vp ? vp->baddr + (((m_addr_t) m) - a) : 0;
+}
+
+#endif	/* FreeBSD_Bus_Dma_Abstraction */
+
+/*
+ * Verbs for DMAable memory handling.
+ * The _uvptv_ macro avoids a nasty warning about pointer to volatile 
+ * being discarded.
+ */
+#define _uvptv_(p) ((void *)((vm_offset_t)(p)))
+#define _sym_calloc_dma(np, s, n)	__sym_calloc_dma(np->bus_dmat, s, n)
+#define _sym_mfree_dma(np, p, s, n)	\
+				__sym_mfree_dma(np->bus_dmat, _uvptv_(p), s, n)
+#define sym_calloc_dma(s, n)		_sym_calloc_dma(np, s, n)
+#define sym_mfree_dma(p, s, n)		_sym_mfree_dma(np, p, s, n)
+#define _vtobus(np, p)			__vtobus(np->bus_dmat, _uvptv_(p))
+#define vtobus(p)			_vtobus(np, p)
+
 
 /*
  *  Print a buffer in hexadecimal format.
@@ -756,6 +1022,7 @@ struct sym_nvram {
 #define HS_BUSY		(1)
 #define HS_NEGOTIATE	(2)	/* sync/wide data transfer*/
 #define HS_DISCONNECT	(3)	/* Disconnected by target */
+#define HS_WAIT		(4)	/* waiting for resource	  */
 
 #define HS_DONEMASK	(0x80)
 #define HS_COMPLETE	(4|HS_DONEMASK)
@@ -786,12 +1053,7 @@ struct sym_nvram {
 #define	SIR_RESEL_ABORTED	(18)
 #define	SIR_MSG_OUT_DONE	(19)
 #define	SIR_COMPLETE_ERROR	(20)
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-#define	SIR_PM_WITH_WSR		(21)
-#define	SIR_MAX			(21)
-#else
 #define	SIR_MAX			(20)
-#endif
 
 /*
  *  Extended error bit codes.
@@ -1090,6 +1352,7 @@ struct sym_pmc {
 #define HF_DP_SAVED	(1u<<3)
 #define HF_SENSE	(1u<<4)
 #define HF_EXT_ERR	(1u<<5)
+#define HF_DATA_IN	(1u<<6)
 #ifdef SYM_CONF_IARB_SUPPORT
 #define HF_HINT_IARB	(1u<<7)
 #endif
@@ -1174,6 +1437,9 @@ struct sym_ccb {
 	 *  Pointer to CAM ccb and related stuff.
 	 */
 	union ccb *cam_ccb;	/* CAM scsiio ccb		*/
+	u8	cdb_buf[16];	/* Copy of CDB			*/
+	u8	*sns_bbuf;	/* Bounce buffer for sense data	*/
+#define SYM_SNS_BBUF_LEN	sizeof(struct scsi_sense_data)
 	int	data_len;	/* Total data length		*/
 	int	segments;	/* Number of SG segments	*/
 
@@ -1196,7 +1462,18 @@ struct sym_ccb {
 	u_char	sv_scsi_status;	/* Saved SCSI status 		*/
 	u_char	sv_xerr_status;	/* Saved extended status	*/
 	int	sv_resid;	/* Saved residual		*/
-	
+
+	/*
+	 *  Map for the DMA of user data.
+	 */
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	void		*arg;	/* Argument for some callback	*/
+	bus_dmamap_t	dmamap;	/* DMA map for user data	*/
+	u_char		dmamapped;
+#define SYM_DMA_NONE	0
+#define SYM_DMA_READ	1
+#define SYM_DMA_WRITE	2
+#endif
 	/*
 	 *  Other fields.
 	 */
@@ -1214,7 +1491,7 @@ struct sym_ccb {
 	u_char	to_abort;	/* Want this IO to be aborted	*/
 };
 
-#define CCB_PHYS(cp,lbl)	(cp->ccb_ba + offsetof(struct sym_ccb, lbl))
+#define CCB_BA(cp,lbl)	(cp->ccb_ba + offsetof(struct sym_ccb, lbl))
 
 /*
  *  Host Control Block
@@ -1233,6 +1510,11 @@ struct sym_hcb {
 	 */
 	u32	*badluntbl;	/* Table physical address	*/
 	u32	badlun_sa;	/* SCRIPT handler BUS address	*/
+
+	/*
+	 *  Bus address of this host control block.
+	 */
+	u32	hcb_ba;
 
 	/*
 	 *  Bit 32-63 of the on-chip RAM bus address in LE format.
@@ -1319,6 +1601,13 @@ struct sym_hcb {
 #endif
 
 	/*
+	 *  DMA stuff.
+	 */
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	bus_dma_tag_t	bus_dmat;	/* DMA tag from parent BUS	*/
+	bus_dma_tag_t	data_dmat;	/* DMA tag for user data	*/
+#endif
+	/*
 	 *  Virtual and physical bus addresses of the chip.
 	 */
 	vm_offset_t	mmio_va;	/* MMIO kernel virtual address	*/
@@ -1368,7 +1657,8 @@ struct sym_hcb {
 	 *  SCRIPTS processor in order to start SCSI commands.
 	 */
 	volatile		/* Prevent code optimizations	*/
-	u32	*squeue;	/* Start queue			*/
+	u32	*squeue;	/* Start queue virtual address	*/
+	u32	squeue_ba;	/* Start queue BUS address	*/
 	u_short	squeueput;	/* Next free slot of the queue	*/
 	u_short	actccbs;	/* Number of allocated CCBs	*/
 
@@ -1447,6 +1737,7 @@ struct sym_hcb {
 	u_char		istat_sem;	/* Tells the chip to stop (SEM)	*/
 };
 
+#define HCB_BA(np, lbl)	    (np->hcb_ba      + offsetof(struct sym_hcb, lbl))
 #define SCRIPT_BA(np,lbl)   (np->script_ba   + offsetof(struct sym_scr, lbl))
 #define SCRIPTH_BA(np,lbl)  (np->scripth_ba  + offsetof(struct sym_scrh,lbl))
 #define SCRIPTH0_BA(np,lbl) (np->scripth0_ba + offsetof(struct sym_scrh,lbl))
@@ -1489,7 +1780,8 @@ struct sym_scr {
 	u32 disp_status		[  4];
 	u32 datai_done		[ 26];
 	u32 datao_done		[ 12];
-	u32 dataphase		[  2];
+	u32 datai_phase		[  2];
+	u32 datao_phase		[  2];
 	u32 msg_in		[  2];
 	u32 msg_in2		[ 10];
 #ifdef SYM_CONF_IARB_SUPPORT
@@ -1532,8 +1824,12 @@ struct sym_scr {
 	u32 data_in2		[  4];
 	u32 data_out		[SYM_CONF_MAX_SG * 2];
 	u32 data_out2		[  4];
-	u32 pm0_data		[ 16];
-	u32 pm1_data		[ 16];
+	u32 pm0_data		[ 12];
+	u32 pm0_data_out	[  6];
+	u32 pm0_data_end	[  6];
+	u32 pm1_data		[ 12];
+	u32 pm1_data_out	[  6];
+	u32 pm1_data_end	[  6];
 };
 
 /*
@@ -1583,11 +1879,7 @@ struct sym_scrh {
 	u32 pm1_save		[ 14];
 
 	/* WSR handling */
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-	u32 pm_wsr_handle	[ 44];
-#else
 	u32 pm_wsr_handle	[ 42];
-#endif
 	u32 wsr_ma_helper	[  4];
 
 	/* Data area */
@@ -1675,11 +1967,21 @@ static void sym_reset_dev (hcb_p np, union ccb *ccb);
 static void sym_action (struct cam_sim *sim, union ccb *ccb);
 static void sym_action1 (struct cam_sim *sim, union ccb *ccb);
 static int  sym_setup_cdb (hcb_p np, struct ccb_scsiio *csio, ccb_p cp);
-static int  sym_setup_data(hcb_p np, struct ccb_scsiio *csio, ccb_p cp);
+static void sym_setup_data_and_start (hcb_p np, struct ccb_scsiio *csio,
+				      ccb_p cp);
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+static int sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp, 
+					bus_dma_segment_t *psegs, int nsegs);
+#else
 static int  sym_scatter_virtual (hcb_p np, ccb_p cp, vm_offset_t vaddr,
 				 vm_size_t len);
-static int  sym_scatter_physical (hcb_p np, ccb_p cp, vm_offset_t vaddr,
-				 vm_size_t len);
+static int  sym_scatter_sg_virtual (hcb_p np, ccb_p cp, 
+				    bus_dma_segment_t *psegs, int nsegs);
+static int  sym_scatter_physical (hcb_p np, ccb_p cp, vm_offset_t paddr,
+				  vm_size_t len);
+#endif
+static int sym_scatter_sg_physical (hcb_p np, ccb_p cp, 
+				    bus_dma_segment_t *psegs, int nsegs);
 static void sym_action2 (struct cam_sim *sim, union ccb *ccb);
 static void sym_update_trans (hcb_p np, tcb_p tp, struct sym_trans *tip,
 			      struct ccb_trans_settings *cts);
@@ -1909,9 +2211,9 @@ static struct sym_scr script0 = {
 	SCR_JUMP ^ IFTRUE (WHEN (SCR_MSG_IN)),
 		PADDR (msg_in),
 	SCR_JUMP ^ IFTRUE (IF (SCR_DATA_OUT)),
-		PADDR (dataphase),
+		PADDR (datao_phase),
 	SCR_JUMP ^ IFTRUE (IF (SCR_DATA_IN)),
-		PADDR (dataphase),
+		PADDR (datai_phase),
 	SCR_JUMP ^ IFTRUE (IF (SCR_STATUS)),
 		PADDR (status),
 	SCR_JUMP ^ IFTRUE (IF (SCR_COMMAND)),
@@ -2085,9 +2387,12 @@ static struct sym_scr script0 = {
 		SIR_SODL_UNDERRUN,
 	SCR_JUMP,
 		PADDR (dispatch),
-}/*-------------------------< DATAPHASE >------------------*/,{
+}/*-------------------------< DATAI_PHASE >------------------*/,{
 	SCR_RETURN,
- 		0,
+		0,
+}/*-------------------------< DATAO_PHASE >------------------*/,{
+	SCR_RETURN,
+		0,
 }/*-------------------------< MSG_IN >--------------------*/,{
 	/*
 	 *  Get the first byte of the message.
@@ -2589,28 +2894,60 @@ static struct sym_scr script0 = {
 		PADDR (datao_done),
 	SCR_JUMP,
 		PADDRH (data_ovrun),
+
 }/*-------------------------< PM0_DATA >--------------------*/,{
 	/*
-	 *  Keep track we are executing the PM0 DATA 
-	 *  mini-script.
+	 *  Read our host flags to SFBR, so we will be able 
+	 *  to check against the data direction we expect.
+	 */
+	SCR_FROM_REG (HF_REG),
+		0,
+	/*
+	 *  Check against actual DATA PHASE.
+	 */
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN)),
+		PADDR (pm0_data_out),
+	/*
+	 *  Actual phase is DATA IN.
+	 *  Check against expected direction.
+	 */
+	SCR_JUMP ^ IFFALSE (MASK (HF_DATA_IN, HF_DATA_IN)),
+		PADDRH (data_ovrun),
+	/*
+	 *  Keep track we are moving data from the 
+	 *  PM0 DATA mini-script.
 	 */
 	SCR_REG_REG (HF_REG, SCR_OR, HF_IN_PM0),
 		0,
 	/*
-	 *  MOVE the data according to the actual 
-	 *  DATA direction.
+	 *  Move the data to memory.
 	 */
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
-		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
 		offsetof (struct sym_ccb, phys.pm0.sg),
-	SCR_JUMPR,
-		8,
+	SCR_JUMP,
+		PADDR (pm0_data_end),
+}/*-------------------------< PM0_DATA_OUT >----------------*/,{
+	/*
+	 *  Actual phase is DATA OUT.
+	 *  Check against expected direction.
+	 */
+	SCR_JUMP ^ IFTRUE (MASK (HF_DATA_IN, HF_DATA_IN)),
+		PADDRH (data_ovrun),
+	/*
+	 *  Keep track we are moving data from the 
+	 *  PM0 DATA mini-script.
+	 */
+	SCR_REG_REG (HF_REG, SCR_OR, HF_IN_PM0),
+		0,
+	/*
+	 *  Move the data from memory.
+	 */
 	SCR_CHMOV_TBL ^ SCR_DATA_OUT,
 		offsetof (struct sym_ccb, phys.pm0.sg),
+}/*-------------------------< PM0_DATA_END >----------------*/,{
 	/*
-	 *  Clear the flag that told we were in 
-	 *  the PM0 DATA mini-script.
+	 *  Clear the flag that told we were moving  
+	 *  data from the PM0 DATA mini-script.
 	 */
 	SCR_REG_REG (HF_REG, SCR_AND, (~HF_IN_PM0)),
 		0,
@@ -2625,26 +2962,57 @@ static struct sym_scr script0 = {
 		0,
 }/*-------------------------< PM1_DATA >--------------------*/,{
 	/*
-	 *  Keep track we are executing the PM1 DATA 
-	 *  mini-script.
+	 *  Read our host flags to SFBR, so we will be able 
+	 *  to check against the data direction we expect.
+	 */
+	SCR_FROM_REG (HF_REG),
+		0,
+	/*
+	 *  Check against actual DATA PHASE.
+	 */
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN)),
+		PADDR (pm1_data_out),
+	/*
+	 *  Actual phase is DATA IN.
+	 *  Check against expected direction.
+	 */
+	SCR_JUMP ^ IFFALSE (MASK (HF_DATA_IN, HF_DATA_IN)),
+		PADDRH (data_ovrun),
+	/*
+	 *  Keep track we are moving data from the 
+	 *  PM1 DATA mini-script.
 	 */
 	SCR_REG_REG (HF_REG, SCR_OR, HF_IN_PM1),
 		0,
 	/*
-	 *  MOVE the data according to the actual 
-	 *  DATA direction.
+	 *  Move the data to memory.
 	 */
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
-		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
 		offsetof (struct sym_ccb, phys.pm1.sg),
-	SCR_JUMPR,
-		8,
+	SCR_JUMP,
+		PADDR (pm1_data_end),
+}/*-------------------------< PM1_DATA_OUT >----------------*/,{
+	/*
+	 *  Actual phase is DATA OUT.
+	 *  Check against expected direction.
+	 */
+	SCR_JUMP ^ IFTRUE (MASK (HF_DATA_IN, HF_DATA_IN)),
+		PADDRH (data_ovrun),
+	/*
+	 *  Keep track we are moving data from the 
+	 *  PM1 DATA mini-script.
+	 */
+	SCR_REG_REG (HF_REG, SCR_OR, HF_IN_PM1),
+		0,
+	/*
+	 *  Move the data from memory.
+	 */
 	SCR_CHMOV_TBL ^ SCR_DATA_OUT,
 		offsetof (struct sym_ccb, phys.pm1.sg),
+}/*-------------------------< PM1_DATA_END >----------------*/,{
 	/*
-	 *  Clear the flag that told we were in 
-	 *  the PM1 DATA mini-script.
+	 *  Clear the flag that told we were moving  
+	 *  data from the PM1 DATA mini-script.
 	 */
 	SCR_REG_REG (HF_REG, SCR_AND, (~HF_IN_PM1)),
 		0,
@@ -2946,7 +3314,7 @@ static struct sym_scrh scripth0 = {
 	SCR_JUMP,
 		PADDR (dispatch),
 
-}/*-------------------------< NO_DATA >--------------------*/,{
+}/*-------------------------< DATA_OVRUN >--------------------*/,{
 	/*
 	 *  The target may want to transfer too much data.
 	 *
@@ -2979,7 +3347,7 @@ static struct sym_scrh scripth0 = {
 		PADDR (dispatch),
 	SCR_CHMOV_ABS (1) ^ SCR_DATA_IN,
 		NADDR (scratch),
-}/*-------------------------< NO_DATA1 >--------------------*/,{
+}/*-------------------------< DATA_OVRUN1 >--------------------*/,{
 	/*
 	 *  Set the extended error flag.
 	 */
@@ -3239,15 +3607,7 @@ static struct sym_scrh scripth0 = {
 	 *  Such a condition can occur if the chip wants to 
 	 *  execute a CHMOV(size > 1) when the WSR bit is 
 	 *  set and the target changes PHASE.
-	 */
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-	/*
-	 *  Some debugging may still be needed.:)
-	 */ 
-	SCR_INT,
-		SIR_PM_WITH_WSR,
-#endif
-	/*
+	 *
 	 *  We must move the residual byte to memory.
 	 *
 	 *  UA contains bit 0..31 of the address to 
@@ -3548,7 +3908,7 @@ static void sym_bind_script (hcb_p np, u32 *src, u32 *dst, int len)
 				new = (old & ~RELOC_MASK) + np->scripth_ba;
 				break;
 			case RELOC_SOFTC:
-				new = (old & ~RELOC_MASK) + vtobus(np);
+				new = (old & ~RELOC_MASK) + np->hcb_ba;
 				break;
 #ifdef	RELOC_KVAR
 			case RELOC_KVAR:
@@ -4407,7 +4767,7 @@ static void sym_init (hcb_p np, int reason)
 	/*
 	 *  Clear Start Queue
 	 */
-	phys = vtobus(np->squeue);
+	phys = np->squeue_ba;
 	for (i = 0; i < MAX_QUEUE*2; i += 2) {
 		np->squeue[i]   = cpu_to_scr(np->idletask_ba);
 		np->squeue[i+1] = cpu_to_scr(phys + (i+2)*4);
@@ -4587,7 +4947,7 @@ static void sym_init (hcb_p np, int reason)
 	np->istat_sem = 0;
 
 	MEMORY_BARRIER();
-	OUTL (nc_dsa, vtobus(np));
+	OUTL (nc_dsa, np->hcb_ba);
 	OUTL (nc_dsp, phys);
 
 	/*
@@ -5656,12 +6016,7 @@ static void sym_int_ma (hcb_p np)
 	if ((cmd & 7) == 1 && cp && (cp->phys.select.sel_scntl3 & EWS) &&
 	    (INB (nc_scntl2) & WSR)) {
 		u32 tmp;
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-		PRINT_ADDR(cp);
-		printf ("MA interrupt with WSR set - "
-			"pm->sg.addr=%x - pm->sg.size=%d\n",
-			pm->sg.addr, pm->sg.size);
-#endif
+
 		/*
 		 *  Set up the table indirect for the MOVE
 		 *  of the residual byte and adjust the data 
@@ -5858,6 +6213,9 @@ sym_flush_comp_queue(hcb_p np, int cam_status)
 		union ccb *ccb;
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		sym_insque_tail(&cp->link_ccbq, &np->busy_ccbq);
+		/* Leave quiet CCBs waiting for resources */
+		if (cp->host_status == HS_WAIT)
+			continue;
 		ccb = cp->cam_ccb;
 		if (cam_status)
 			sym_set_cam_status(ccb, cam_status);
@@ -5898,7 +6256,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 	/*
 	 *  Compute the index of the next job to start from SCRIPTS.
 	 */
-	i = (INL (nc_scratcha) - vtobus(np->squeue)) / 4;
+	i = (INL (nc_scratcha) - np->squeue_ba) / 4;
 
 	/*
 	 *  The last CCB queued used for IARB hint may be 
@@ -5982,13 +6340,13 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		/*
 		 *  Message table indirect structure.
 		 */
-		cp->phys.smsg.addr	= cpu_to_scr(CCB_PHYS (cp, scsi_smsg2));
+		cp->phys.smsg.addr	= cpu_to_scr(CCB_BA (cp, scsi_smsg2));
 		cp->phys.smsg.size	= cpu_to_scr(msglen);
 
 		/*
 		 *  sense command
 		 */
-		cp->phys.cmd.addr	= cpu_to_scr(CCB_PHYS (cp, sensecmd));
+		cp->phys.cmd.addr	= cpu_to_scr(CCB_BA (cp, sensecmd));
 		cp->phys.cmd.size	= cpu_to_scr(6);
 
 		/*
@@ -5996,16 +6354,15 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		 */
 		cp->sensecmd[0]		= 0x03;
 		cp->sensecmd[1]		= cp->lun << 5;
-		cp->sensecmd[4]		= cp->cam_ccb->csio.sense_len;
-		cp->data_len		= cp->cam_ccb->csio.sense_len;
+		cp->sensecmd[4]		= SYM_SNS_BBUF_LEN;
+		cp->data_len		= SYM_SNS_BBUF_LEN;
 
 		/*
 		 *  sense data
 		 */
-		cp->phys.sense.addr	=
-			cpu_to_scr(vtobus(&cp->cam_ccb->csio.sense_data));
-		cp->phys.sense.size	=
-			cpu_to_scr(cp->cam_ccb->csio.sense_len);
+		bzero(cp->sns_bbuf, SYM_SNS_BBUF_LEN);
+		cp->phys.sense.addr	= cpu_to_scr(vtobus(cp->sns_bbuf));
+		cp->phys.sense.size	= cpu_to_scr(SYM_SNS_BBUF_LEN);
 
 		/*
 		 *  requeue the command.
@@ -6020,7 +6377,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		cp->actualquirks = SYM_QUIRK_AUTOSAVE;
 		cp->host_status	= cp->nego_status ? HS_NEGOTIATE : HS_BUSY;
 		cp->ssss_status = S_ILLEGAL;
-		cp->host_flags	= HF_SENSE;
+		cp->host_flags	= (HF_SENSE|HF_DATA_IN);
 		cp->xerr_status = 0;
 		cp->phys.extra_bytes = 0;
 
@@ -6200,7 +6557,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 			np->abrt_sel.sel_id	= target;
 			np->abrt_sel.sel_scntl3 = tp->wval;
 			np->abrt_sel.sel_sxfer  = tp->sval;
-			OUTL(nc_dsa, vtobus(np));
+			OUTL(nc_dsa, np->hcb_ba);
 			OUTL (nc_dsp, SCRIPTH_BA (np, sel_for_abort));
 			return;
 		}
@@ -6248,7 +6605,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 		 *  queue the SCRIPTS intends to start and dequeue 
 		 *  all CCBs for that device that haven't been started.
 		 */
-		i = (INL (nc_scratcha) - vtobus(np->squeue)) / 4;
+		i = (INL (nc_scratcha) - np->squeue_ba) / 4;
 		i = sym_dequeue_from_squeue(np, i, cp->target, cp->lun, -1);
 
 		/*
@@ -6431,7 +6788,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 		 *  Complete all the CCBs the device should have 
 		 *  aborted due to our 'kiss of death' message.
 		 */
-		i = (INL (nc_scratcha) - vtobus(np->squeue)) / 4;
+		i = (INL (nc_scratcha) - np->squeue_ba) / 4;
 		(void) sym_dequeue_from_squeue(np, i, target, lun, -1);
 		(void) sym_clear_tasks(np, CAM_REQ_ABORTED, target, lun, task);
 		sym_flush_comp_queue(np, 0);
@@ -6593,11 +6950,6 @@ static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 	return dp_sg;
 
 out_err:
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-	printf("XXXX dp_sg=%d dp_sgmin=%d dp_ofs=%d, SYM_CONF_MAX_SG=%d\n",
-		dp_sg, dp_sgmin, dp_ofs, SYM_CONF_MAX_SG);
-#endif
-
 	return -1;
 }
 
@@ -6803,10 +7155,6 @@ static void sym_print_msg (ccb_p cp, char *label, u_char *msg)
 
 /*
  *  Negotiation for WIDE and SYNCHRONOUS DATA TRANSFER.
- *
- *  We try to negotiate sync and wide transfer only after
- *  a successfull inquire command. We look at byte 7 of the
- *  inquire data to determine the capabilities of the target.
  *
  *  When we try to negotiate, we append the negotiation message
  *  to the identify and (maybe) simple tag message.
@@ -7223,18 +7571,6 @@ void sym_int_sir (hcb_p np)
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("I#%d", num);
 
 	switch (num) {
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-	case SIR_PM_WITH_WSR:
-		printf ("%s:%d: HW PM with WSR bit set - ",
-			sym_name (np), target);
-		tmp =
-		(vtobus(&cp->phys.data[SYM_CONF_MAX_SG]) - INL (nc_esa))/8;
-		printf("RBC=%d - SEG=%d - SIZE=%d - OFFS=%d\n",
-		INL (nc_rbc), cp->segments - tmp,
-		cp->phys.data[SYM_CONF_MAX_SG - tmp].size,
-		INL (nc_ua) - cp->phys.data[SYM_CONF_MAX_SG - tmp].addr);
-		goto out;
-#endif
 	/*
 	 *  Command has been completed with error condition 
 	 *  or has been auto-sensed.
@@ -7655,6 +7991,17 @@ static void sym_free_ccb (hcb_p np, ccb_p cp)
 	if (cp == np->last_cp)
 		np->last_cp = 0;
 #endif
+
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	/*
+	 *  Unmap user data from DMA map if needed.
+	 */
+	if (cp->dmamapped) {
+		bus_dmamap_unload(np->data_dmat, cp->dmamap);
+		cp->dmamapped = 0;
+	}
+#endif
+
 	/*
 	 *  Make this CCB available.
 	 */
@@ -7682,10 +8029,24 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	/*
 	 *  Allocate memory for this CCB.
 	 */
-	cp = sym_calloc(sizeof(struct sym_ccb), "CCB");
+	cp = sym_calloc_dma(sizeof(struct sym_ccb), "CCB");
 	if (!cp)
-		return 0;
+		goto out_free;
 
+	/*
+	 *  Allocate a bounce buffer for sense data.
+	 */
+	cp->sns_bbuf = sym_calloc_dma(SYM_SNS_BBUF_LEN, "SNS_BBUF");
+	if (!cp->sns_bbuf)
+		goto out_free;
+
+	/*
+	 *  Allocate a map for the DMA of user data.
+	 */
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	if (bus_dmamap_create(np->data_dmat, 0, &cp->dmamap))
+		goto out_free;
+#endif
 	/*
 	 *  Count it.
 	 */
@@ -7712,7 +8073,7 @@ static ccb_p sym_alloc_ccb(hcb_p np)
  	/*
 	 *  Initilialyze some other fields.
 	 */
-	cp->phys.smsg_ext.addr = cpu_to_scr(vtobus(&np->msgin[2]));
+	cp->phys.smsg_ext.addr = cpu_to_scr(HCB_BA(np, msgin[2]));
 
 	/*
 	 *  Chain into free ccb queue.
@@ -7720,6 +8081,13 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	sym_insque_head(&cp->link_ccbq, &np->free_ccbq);
 
 	return cp;
+out_free:
+	if (cp) {
+		if (cp->sns_bbuf)
+			sym_mfree_dma(cp->sns_bbuf,SYM_SNS_BBUF_LEN,"SNS_BBUF");
+		sym_mfree_dma(cp, sizeof(*cp), "CCB");
+	}
+	return 0;
 }
 
 /*
@@ -7786,7 +8154,7 @@ static lcb_p sym_alloc_lcb (hcb_p np, u_char tn, u_char ln)
 	if (ln && !tp->luntbl) {
 		int i;
 
-		tp->luntbl = sym_calloc(256, "LUNTBL");
+		tp->luntbl = sym_calloc_dma(256, "LUNTBL");
 		if (!tp->luntbl)
 			goto fail;
 		for (i = 0 ; i < 64 ; i++)
@@ -7808,7 +8176,7 @@ static lcb_p sym_alloc_lcb (hcb_p np, u_char tn, u_char ln)
 	 *  Allocate the lcb.
 	 *  Make it available to the chip.
 	 */
-	lp = sym_calloc(sizeof(struct sym_lcb), "LCB");
+	lp = sym_calloc_dma(sizeof(struct sym_lcb), "LCB");
 	if (!lp)
 		goto fail;
 	if (ln) {
@@ -7858,12 +8226,12 @@ static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln)
 	 *  Allocate the task table and and the tag allocation 
 	 *  circular buffer. We want both or none.
 	 */
-	lp->itlq_tbl = sym_calloc(SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
+	lp->itlq_tbl = sym_calloc_dma(SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
 	if (!lp->itlq_tbl)
 		goto fail;
 	lp->cb_tags = sym_calloc(SYM_CONF_MAX_TASK, "CB_TAGS");
 	if (!lp->cb_tags) {
-		sym_mfree(lp->itlq_tbl, SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
+		sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
 		lp->itlq_tbl = 0;
 		goto fail;
 	}
@@ -7942,7 +8310,7 @@ static int sym_snooptest (hcb_p np)
 	/*
 	 *  Start script (exchange values)
 	 */
-	OUTL (nc_dsa, vtobus(np));
+	OUTL (nc_dsa, np->hcb_ba);
 	OUTL (nc_dsp, pc);
 	/*
 	 *  Wait 'til done (with timeout)
@@ -8315,6 +8683,15 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 			cam_status = sym_xerr_cam_status(CAM_SCSI_STATUS_ERROR,
 							 cp->sv_xerr_status);
 			cam_status |= CAM_AUTOSNS_VALID;
+			/*
+			 *  Bounce back the sense data to user and 
+			 *  fix the residual.
+			 */
+			bzero(&csio->sense_data, csio->sense_len);
+			bcopy(cp->sns_bbuf, &csio->sense_data,
+			      MIN(csio->sense_len, SYM_SNS_BBUF_LEN));
+			csio->sense_resid += csio->sense_len;
+			csio->sense_resid -= SYM_SNS_BBUF_LEN;
 #if 0
 			/*
 			 *  If the device reports a UNIT ATTENTION condition 
@@ -8323,7 +8700,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 			 */
 			if (1) {
 				u_char *p;
-				p  = (u_char *) &cp->cam_ccb->csio.sense_data;
+				p  = (u_char *) csio->sense_data;
 				if (p[0]==0x70 && p[2]==0x6 && p[12]==0x29)
 					sym_clear_tasks(np, CAM_REQ_ABORTED,
 							cp->target,cp->lun, -1);
@@ -8360,7 +8737,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	 *  Dequeue all queued CCBs for that device 
 	 *  not yet started by SCRIPTS.
 	 */
-	i = (INL (nc_scratcha) - vtobus(np->squeue)) / 4;
+	i = (INL (nc_scratcha) - np->squeue_ba) / 4;
 	(void) sym_dequeue_from_squeue(np, i, cp->target, cp->lun, -1);
 
 	/*
@@ -8368,6 +8745,16 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	 */
 	OUTL (nc_dsp, SCRIPT_BA (np, start));
 
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	/*
+	 *  Synchronize DMA map if needed.
+	 */
+	if (cp->dmamapped) {
+		bus_dmamap_sync(np->data_dmat, cp->dmamap,
+			(bus_dmasync_op_t)(cp->dmamapped == SYM_DMA_READ ? 
+				BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE));
+	}
+#endif
 	/*
 	 *  Add this one to the COMP queue.
 	 *  Complete all those commands with either error 
@@ -8429,14 +8816,17 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	 */
 	if (!SYM_CONF_RESIDUAL_SUPPORT)
 		csio->resid  = 0;
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-if (csio->resid) {
-	printf("XXXX %d %d %d\n", csio->dxfer_len,  csio->resid,
-				  csio->dxfer_len - csio->resid);
-	csio->resid = 0;
-}
-#endif
 
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	/*
+	 *  Synchronize DMA map if needed.
+	 */
+	if (cp->dmamapped) {
+		bus_dmamap_sync(np->data_dmat, cp->dmamap,
+			(bus_dmasync_op_t)(cp->dmamapped == SYM_DMA_READ ? 
+				BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE));
+	}
+#endif
 	/*
 	 *  Set status and complete the command.
 	 */
@@ -8495,7 +8885,7 @@ static int sym_abort_scsiio(hcb_p np, union ccb *ccb, int timed_out)
 			break;
 		}
 	}
-	if (!cp)
+	if (!cp || cp->host_status == HS_WAIT)
 		return -1;
 
 	/*
@@ -8646,10 +9036,9 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 	}
 
 	/*
-	 *  Enqueue this IO in our pending queue.
+	 *  Keep track of the IO in our CCB.
 	 */
 	cp->cam_ccb = ccb;
-	sym_enqueue_cam_ccb(np, ccb);
 
 	/*
 	 *  Build the IDENTIFY message.
@@ -8730,7 +9119,7 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 	/*
 	 *  message
 	 */
-	cp->phys.smsg.addr	= cpu_to_scr(CCB_PHYS (cp, scsi_smsg));
+	cp->phys.smsg.addr	= cpu_to_scr(CCB_BA (cp, scsi_smsg));
 	cp->phys.smsg.size	= cpu_to_scr(msglen);
 
 	/*
@@ -8766,16 +9155,13 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 	 *  Build the data descriptor block 
 	 *  and start the IO.
 	 */
-	if (sym_setup_data(np, csio, cp) < 0) {
-		sym_free_ccb(np, cp);
-		sym_xpt_done(np, ccb);
-		return;
-	}
+	sym_setup_data_and_start(np, csio, cp);
 }
 
 /*
- *  How complex it gets to deal with the CDB in CAM.
- *  I bet, physical CDBs will never be used on the planet.
+ *  Setup buffers and pointers that address the CDB.
+ *  I bet, physical CDBs will never be used on the planet, 
+ *  since they can be bounced without significant overhead.
  */
 static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 {
@@ -8788,7 +9174,7 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 	/*
 	 *  CDB is 16 bytes max.
 	 */
-	if (csio->cdb_len > 16) {
+	if (csio->cdb_len > sizeof(cp->cdb_buf)) {
 		sym_set_cam_status(cp->cam_ccb, CAM_REQ_INVALID);
 		return -1;
 	}
@@ -8798,7 +9184,8 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		/* CDB is a pointer */
 		if (!(ccb_h->flags & CAM_CDB_PHYS)) {
 			/* CDB pointer is virtual */
-			cmd_ba = vtobus(csio->cdb_io.cdb_ptr);
+			bcopy(csio->cdb_io.cdb_ptr, cp->cdb_buf, cmd_len);
+			cmd_ba = CCB_BA (cp, cdb_buf[0]);
 		} else {
 			/* CDB pointer is physical */
 #if 0
@@ -8809,8 +9196,9 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 #endif
 		}
 	} else {
-		/* CDB is in the ccb (buffer) */
-		cmd_ba = vtobus(csio->cdb_io.cdb_bytes);
+		/* CDB is in the CAM ccb (buffer) */
+		bcopy(csio->cdb_io.cdb_bytes, cp->cdb_buf, cmd_len);
+		cmd_ba = CCB_BA (cp, cdb_buf[0]);
 	}
 
 	cp->phys.cmd.addr	= cpu_to_scr(cmd_ba);
@@ -8820,14 +9208,269 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 }
 
 /*
- *  How complex it gets to deal with the data in CAM.
- *  I bet physical data will never be used in our galaxy.
+ *  Set up data pointers used by SCRIPTS.
  */
-static int sym_setup_data(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
+static void __inline__ 
+sym_setup_data_pointers(hcb_p np, ccb_p cp, int dir)
+{
+	u32 lastp, goalp;
+
+	/*
+	 *  No segments means no data.
+	 */
+	if (!cp->segments)
+		dir = CAM_DIR_NONE;
+
+	/*
+	 *  Set the data pointer.
+	 */
+	switch(dir) {
+	case CAM_DIR_OUT:
+		goalp = SCRIPT_BA (np, data_out2) + 8;
+		lastp = goalp - 8 - (cp->segments * (2*4));
+		break;
+	case CAM_DIR_IN:
+		cp->host_flags |= HF_DATA_IN;
+		goalp = SCRIPT_BA (np, data_in2) + 8;
+		lastp = goalp - 8 - (cp->segments * (2*4));
+		break;
+	case CAM_DIR_NONE:
+	default:
+		lastp = goalp = SCRIPTH_BA (np, no_data);
+		break;
+	}
+
+	cp->phys.lastp = cpu_to_scr(lastp);
+	cp->phys.goalp = cpu_to_scr(goalp);
+	cp->phys.savep = cpu_to_scr(lastp);
+	cp->startp     = cp->phys.savep;
+}
+
+
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+/*
+ *  Call back routine for the DMA map service.
+ *  If bounce buffers are used (why ?), we may sleep and then 
+ *  be called there in another context.
+ */
+static void
+sym_execute_ccb(void *arg, bus_dma_segment_t *psegs, int nsegs, int error)
+{
+	ccb_p	cp;
+	hcb_p	np;
+	union	ccb *ccb;
+	int	s;
+
+	s = splcam();
+
+	cp  = (ccb_p) arg;
+	ccb = cp->cam_ccb;
+	np  = (hcb_p) cp->arg;
+
+	/*
+	 *  Deal with weird races.
+	 */
+	if (sym_get_cam_status(ccb) != CAM_REQ_INPROG)
+		goto out_abort;
+
+	/*
+	 *  Deal with weird errors.
+	 */
+	if (error) {
+		cp->dmamapped = 0;
+		sym_set_cam_status(cp->cam_ccb, CAM_REQ_ABORTED);
+		goto out_abort;
+	}
+
+	/*
+	 *  Build the data descriptor for the chip.
+	 */
+	if (nsegs) {
+		int retv;
+		/* 896 rev 1 requires to be careful about boundaries */
+		if (np->device_id == PCI_ID_SYM53C896 && np->revision_id <= 1)
+			retv = sym_scatter_sg_physical(np, cp, psegs, nsegs);
+		else
+			retv = sym_fast_scatter_sg_physical(np,cp, psegs,nsegs);
+		if (retv < 0) {
+			sym_set_cam_status(cp->cam_ccb, CAM_REQ_TOO_BIG);
+			goto out_abort;
+		}
+	}
+
+	/*
+	 *  Synchronize the DMA map only if we have 
+	 *  actually mapped the data.
+	 */
+	if (cp->dmamapped) {
+		bus_dmamap_sync(np->data_dmat, cp->dmamap,
+			(bus_dmasync_op_t)(cp->dmamapped == SYM_DMA_READ ? 
+				BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE));
+	}
+
+	/*
+	 *  Set host status to busy state.
+	 *  May have been set back to HS_WAIT to avoid a race.
+	 */
+	cp->host_status	= cp->nego_status ? HS_NEGOTIATE : HS_BUSY;
+
+	/*
+	 *  Set data pointers.
+	 */
+	sym_setup_data_pointers(np, cp,  (ccb->ccb_h.flags & CAM_DIR_MASK));
+
+	/*
+	 *  Enqueue this IO in our pending queue.
+	 */
+	sym_enqueue_cam_ccb(np, ccb);
+
+#if 0
+	switch (cp->cdb_buf[0]) {
+	case 0x0A: case 0x2A: case 0xAA:
+		panic("XXXXXXXXXXXXX WRITE NOT YET ALLOWED XXXXXXXXXXXXXX\n");
+		MDELAY(10000);
+		break;
+	default:
+		break;
+	}
+#endif
+	/*
+	 *  Activate this job.
+	 */
+	sym_put_start_queue(np, cp);
+out:
+	splx(s);
+	return;
+out_abort:
+	sym_free_ccb(np, cp);
+	sym_xpt_done(np, ccb);
+	goto out;
+}
+
+/*
+ *  How complex it gets to deal with the data in CAM.
+ *  The Bus Dma stuff makes things still more complex.
+ */
+static void 
+sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 {
 	struct ccb_hdr *ccb_h;
 	int dir, retv;
-	u32 lastp, goalp;
+	
+	ccb_h = &csio->ccb_h;
+
+	/*
+	 *  Now deal with the data.
+	 */
+	cp->data_len = csio->dxfer_len;
+	cp->arg      = np;
+
+	/*
+	 *  No direction means no data.
+	 */
+	dir = (ccb_h->flags & CAM_DIR_MASK);
+	if (dir == CAM_DIR_NONE) {
+		sym_execute_ccb(cp, NULL, 0, 0);
+		return;
+	}
+
+	if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
+		/* Single buffer */
+		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
+			/* Buffer is virtual */
+			int s;
+
+			cp->dmamapped = (dir == CAM_DIR_IN) ? 
+						SYM_DMA_READ : SYM_DMA_WRITE;
+			s = splsoftvm();
+			retv = bus_dmamap_load(np->data_dmat, cp->dmamap,
+					       csio->data_ptr, csio->dxfer_len,
+					       sym_execute_ccb, cp, 0);
+			if (retv == EINPROGRESS) {
+				cp->host_status	= HS_WAIT;
+				xpt_freeze_simq(np->sim, 1);
+				csio->ccb_h.status |= CAM_RELEASE_SIMQ;
+			}
+			splx(s);
+		} else {
+			/* Buffer is physical */
+			struct bus_dma_segment seg;
+
+			seg.ds_addr = (bus_addr_t) csio->data_ptr;
+			sym_execute_ccb(cp, &seg, 1, 0);
+		}
+	} else {
+		/* Scatter/gather list */
+		struct bus_dma_segment *segs;
+
+		if ((ccb_h->flags & CAM_SG_LIST_PHYS) != 0) {
+			/* The SG list pointer is physical */
+			sym_set_cam_status(cp->cam_ccb, CAM_REQ_INVALID);
+			goto out_abort;
+		}
+
+		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
+			/* SG buffer pointers are virtual */
+			sym_set_cam_status(cp->cam_ccb, CAM_REQ_INVALID);
+			goto out_abort;
+		}
+
+		/* SG buffer pointers are physical */
+		segs  = (struct bus_dma_segment *)csio->data_ptr;
+		sym_execute_ccb(cp, segs, csio->sglist_cnt, 0);
+	}
+	return;
+out_abort:
+	sym_free_ccb(np, cp);
+	sym_xpt_done(np, (union ccb *) csio);
+}
+
+/*
+ *  Move the scatter list to our data block.
+ */
+static int 
+sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp, 
+			     bus_dma_segment_t *psegs, int nsegs)
+{
+	struct sym_tblmove *data;
+	bus_dma_segment_t *psegs2;
+
+	if (nsegs > SYM_CONF_MAX_SG)
+		return -1;
+
+	data   = &cp->phys.data[SYM_CONF_MAX_SG-1];
+	psegs2 = &psegs[nsegs-1];
+	cp->segments = nsegs;
+
+	while (1) {
+		data->addr = cpu_to_scr(psegs2->ds_addr);
+		data->size = cpu_to_scr(psegs2->ds_len);
+		if (DEBUG_FLAGS & DEBUG_SCATTER) {
+			printf ("%s scatter: paddr=%lx len=%ld\n",
+				sym_name(np), (long) psegs2->ds_addr,
+				(long) psegs2->ds_len);
+		}
+		if (psegs2 != psegs) {
+			--data;
+			--psegs2;
+			continue;
+		}
+		break;
+	}
+	return 0;
+}
+
+#else	/* FreeBSD_Bus_Dma_Abstraction */
+
+/*
+ *  How complex it gets to deal with the data in CAM.
+ *  Variant without the Bus Dma Abstraction option.
+ */
+static void 
+sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
+{
+	struct ccb_hdr *ccb_h;
+	int dir, retv;
 	
 	ccb_h = &csio->ccb_h;
 
@@ -8857,72 +9500,41 @@ static int sym_setup_data(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 						(vm_offset_t) csio->data_ptr, 
 						(vm_size_t) csio->dxfer_len);
 		}
-		if (retv < 0)
-			goto too_big;
 	} else {
 		/* Scatter/gather list */
-		int i;
+		int nsegs;
 		struct bus_dma_segment *segs;
-		segs = (struct bus_dma_segment *)csio->data_ptr;
+		segs  = (struct bus_dma_segment *)csio->data_ptr;
+		nsegs = csio->sglist_cnt;
 
 		if ((ccb_h->flags & CAM_SG_LIST_PHYS) != 0) {
 			/* The SG list pointer is physical */
 			sym_set_cam_status(cp->cam_ccb, CAM_REQ_INVALID);
-			return -1;
+			goto out_abort;
 		}
-		retv = 0;
 		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
 			/* SG buffer pointers are virtual */
-			for (i = csio->sglist_cnt - 1 ;  i >= 0 ; --i) {
-				retv = sym_scatter_virtual(np, cp, 
-							   segs[i].ds_addr,
-							   segs[i].ds_len);
-				if (retv < 0)
-					break;
-			}
+			retv = sym_scatter_sg_virtual(np, cp, segs, nsegs); 
 		} else {
 			/* SG buffer pointers are physical */
-			for (i = csio->sglist_cnt - 1 ;  i >= 0 ; --i) {
-				retv = sym_scatter_physical(np, cp,
-							    segs[i].ds_addr,
-							    segs[i].ds_len);
-				if (retv < 0)
-					break;
-			}
+			retv = sym_scatter_sg_physical(np, cp, segs, nsegs);
 		}
-		if (retv < 0)
-			goto too_big;
+	}
+	if (retv < 0) {
+		sym_set_cam_status(cp->cam_ccb, CAM_REQ_TOO_BIG);
+		goto out_abort;
 	}
 
 end_scatter:
 	/*
-	 *  No segments means no data.
+	 *  Set data pointers.
 	 */
-	if (!cp->segments)
-		dir = CAM_DIR_NONE;
+	sym_setup_data_pointers(np, cp, dir);
 
 	/*
-	 *  Set the data pointer.
+	 *  Enqueue this IO in our pending queue.
 	 */
-	switch(dir) {
-	case CAM_DIR_OUT:
-		goalp = SCRIPT_BA (np, data_out2) + 8;
-		lastp = goalp - 8 - (cp->segments * (2*4));
-		break;
-	case CAM_DIR_IN:
-		goalp = SCRIPT_BA (np, data_in2) + 8;
-		lastp = goalp - 8 - (cp->segments * (2*4));
-		break;
-	case CAM_DIR_NONE:
-	default:
-		lastp = goalp = SCRIPTH_BA (np, no_data);
-		break;
-	}
-
-	cp->phys.lastp = cpu_to_scr(lastp);
-	cp->phys.goalp = cpu_to_scr(goalp);
-	cp->phys.savep = cpu_to_scr(lastp);
-	cp->startp     = cp->phys.savep;
+	sym_enqueue_cam_ccb(np, (union ccb *) csio);
 
 	/*
 	 *  Activate this job.
@@ -8932,10 +9544,10 @@ end_scatter:
 	/*
 	 *  Command is successfully queued.
 	 */
-	return 0;
-too_big:
-	sym_set_cam_status(cp->cam_ccb, CAM_REQ_TOO_BIG);
-	return -1;
+	return;
+out_abort:
+	sym_free_ccb(np, cp);
+	sym_xpt_done(np, (union ccb *) csio);
 }
 
 /*
@@ -8947,9 +9559,6 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 	u_long	pe, pn;
 	u_long	n, k; 
 	int s;
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-	int k0 = 0;
-#endif
 
 	cp->data_len += len;
 
@@ -8960,28 +9569,12 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 	while (n && s >= 0) {
 		pn = (pe - 1) & ~PAGE_MASK;
 		k = pe - pn;
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-		if (len < 20 && k >= 2) {
-			k = (k0&1) ? 1 : 2;
-			pn = pe - k;
-			++k0;
-			if (k0 == 1) printf("[%d]:", (int)len);
-		}
-#if 0
-		if (len > 512 && len < 515 && k > 512) {
-			k = 512;
-			pn = pe - k;
-			++k0;
-			if (k0 == 1) printf("[%d]:", (int)len);
-		}
-#endif
-#endif
 		if (k > n) {
 			k  = n;
 			pn = pe - n;
 		}
 		if (DEBUG_FLAGS & DEBUG_SCATTER) {
-			printf ("%s scatter: va=%lx pa=%lx siz=%lx\n",
+			printf ("%s scatter: va=%lx pa=%lx siz=%ld\n",
 				sym_name(np), pn, (u_long) vtobus(pn), k);
 		}
 		cp->phys.data[s].addr = cpu_to_scr(vtobus(pn));
@@ -8989,28 +9582,96 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 		pe = pn;
 		n -= k;
 		--s;
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-		if (k0)
-			printf(" %d", (int)k);
-#endif
 	}
 	cp->segments = SYM_CONF_MAX_SG - 1 - s;
 
-#ifdef	SYM_DEBUG_PM_WITH_WSR
-	if (k0)
-		printf("\n");
-#endif
 	return n ? -1 : 0;
 }
 
 /*
- *  Will stay so forever, in my opinion.
+ *  Scatter a SG list with virtual addresses into bus addressable chunks.
  */
 static int
-sym_scatter_physical(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
+sym_scatter_sg_virtual(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 {
-	return -1;
+	int i, retv = 0;
+
+	for (i = nsegs - 1 ;  i >= 0 ; --i) {
+		retv = sym_scatter_virtual(np, cp,
+					   psegs[i].ds_addr, psegs[i].ds_len);
+		if (retv < 0)
+			break;
+	}
+	return retv;
 }
+
+/*
+ *  Scatter a physical buffer into bus addressable chunks.
+ */
+static int
+sym_scatter_physical(hcb_p np, ccb_p cp, vm_offset_t paddr, vm_size_t len)
+{
+	struct bus_dma_segment seg;
+
+	seg.ds_addr = paddr;
+	seg.ds_len  = len;
+	return sym_scatter_sg_physical(np, cp, &seg, 1);
+}
+
+#endif	/* FreeBSD_Bus_Dma_Abstraction */
+
+/*
+ *  Scatter a SG list with physical addresses into bus addressable chunks.
+ *  We need to ensure 16MB boundaries not to be crossed during DMA of 
+ *  each segment, due to some chips being flawed.
+ */
+#define BOUND_MASK ((1UL<<24)-1)
+static int
+sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
+{
+	u_long	ps, pe, pn;
+	u_long	k; 
+	int s, t;
+
+#ifndef	FreeBSD_Bus_Dma_Abstraction
+	s  = SYM_CONF_MAX_SG - 1 - cp->segments;
+#else
+	s  = SYM_CONF_MAX_SG - 1;
+#endif
+	t  = nsegs - 1;
+	ps = psegs[t].ds_addr;
+	pe = ps + psegs[t].ds_len;
+
+	while (s >= 0) {
+		pn = (pe - 1) & ~BOUND_MASK;
+		if (pn <= ps)
+			pn = ps;
+		k = pe - pn;
+		if (DEBUG_FLAGS & DEBUG_SCATTER) {
+			printf ("%s scatter: paddr=%lx len=%ld\n",
+				sym_name(np), pn, k);
+		}
+		cp->phys.data[s].addr = cpu_to_scr(pn);
+		cp->phys.data[s].size = cpu_to_scr(k);
+#ifndef	FreeBSD_Bus_Dma_Abstraction
+		cp->data_len += k;
+#endif
+		--s;
+		if (pn == ps) {
+			if (--t < 0)
+				break;
+			ps = psegs[t].ds_addr;
+			pe = ps + psegs[t].ds_len;
+		}
+		else
+			pe = pn;
+	}
+
+	cp->segments = SYM_CONF_MAX_SG - 1 - s;
+
+	return t >= 0 ? -1 : 0;
+}
+#undef BOUND_MASK
 
 /*
  *  SIM action for non performance critical stuff.
@@ -9299,7 +9960,11 @@ static struct	pci_device sym_pci_driver = {
 	NULL
 }; 
 
+#if 	__FreeBSD_version >= 400000
+COMPAT_PCI_DRIVER (sym, sym_pci_driver);
+#else
 DATA_SET (pcidevice_set, sym_pci_driver);
+#endif
 
 #endif /* FreeBSD_4_Bus */
 
@@ -9474,6 +10139,15 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	struct	sym_hcb *np = 0;
 	struct	sym_nvram nvram;
 	int 	i;
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	bus_dma_tag_t	bus_dmat;
+
+	/*
+	 *  I expected to be told about a parent 
+	 *  DMA tag, but didn't find any.
+	 */
+	bus_dmat = NULL;
+#endif
 
 	/*
 	 *  Only probed devices should be attached.
@@ -9493,13 +10167,22 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  We keep track in the HCB of all the resources that 
 	 *  are to be released on error.
 	 */
-	np = sym_calloc(sizeof(*np), "HCB");
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	np = __sym_calloc_dma(bus_dmat, sizeof(*np), "HCB");
+	if (np)
+		np->bus_dmat = bus_dmat;
+	else
+		goto attach_failed;
+#else
+	np = sym_calloc_dma(sizeof(*np), "HCB");
 	if (!np)
 		goto attach_failed;
+#endif
 
 	/*
 	 *  Copy some useful infos to the HCB.
 	 */
+	np->hcb_ba	 = vtobus(np);
 	np->verbose	 = bootverbose;
 #ifdef FreeBSD_4_Bus
 	np->device	 = dev;
@@ -9522,6 +10205,19 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 */
 	snprintf(np->inst_name, sizeof(np->inst_name), "sym%d", np->unit);
 
+	/*
+	 *  Allocate a tag for the DMA of user data.
+	 */
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	if (bus_dma_tag_create(np->bus_dmat, 1, (1<<24),
+				BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+				NULL, NULL,
+				BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG,
+				(1<<24), 0, &np->data_dmat)) {
+		device_printf(dev, "failed to create DMA tag.\n");
+		goto attach_failed;
+	}
+#endif
 	/*
 	 *  Read and apply some fix-ups to the PCI COMMAND 
 	 *  register. We want the chip to be enabled for:
@@ -9714,21 +10410,22 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	/*
 	 *  Allocate the start queue.
 	 */
-	np->squeue = (u32 *) sym_calloc(sizeof(u32)*(MAX_QUEUE*2), "SQUEUE");
+	np->squeue = (u32 *) sym_calloc_dma(sizeof(u32)*(MAX_QUEUE*2),"SQUEUE");
 	if (!np->squeue)
 		goto attach_failed;
+	np->squeue_ba = vtobus(np->squeue);
 
 	/*
 	 *  Allocate the done queue.
 	 */
-	np->dqueue = (u32 *) sym_calloc(sizeof(u32)*(MAX_QUEUE*2), "DQUEUE");
+	np->dqueue = (u32 *) sym_calloc_dma(sizeof(u32)*(MAX_QUEUE*2),"DQUEUE");
 	if (!np->dqueue)
 		goto attach_failed;
 
 	/*
 	 *  Allocate the target bus address array.
 	 */
-	np->targtbl = (u32 *) sym_calloc(256, "TARGTBL");
+	np->targtbl = (u32 *) sym_calloc_dma(256, "TARGTBL");
 	if (!np->targtbl)
 		goto attach_failed;
 
@@ -9736,9 +10433,9 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  Allocate SCRIPTS areas.
 	 */
 	np->script0  = (struct sym_scr *)
-			sym_calloc(sizeof(struct sym_scr), "SCRIPT0");
+			sym_calloc_dma(sizeof(struct sym_scr), "SCRIPT0");
 	np->scripth0 = (struct sym_scrh *)
-			sym_calloc(sizeof(struct sym_scrh), "SCRIPTH0");
+			sym_calloc_dma(sizeof(struct sym_scrh), "SCRIPTH0");
 	if (!np->script0 || !np->scripth0)
 		goto attach_failed;
 
@@ -9869,7 +10566,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  A private table will be allocated for the target on the 
 	 *  first INQUIRY response received.
 	 */
-	np->badluntbl = sym_calloc(256, "BADLUNTBL");
+	np->badluntbl = sym_calloc_dma(256, "BADLUNTBL");
 	if (!np->badluntbl)
 		goto attach_failed;
 
@@ -9969,21 +10666,25 @@ static void sym_pci_free(hcb_p np)
 #endif
 
 	if (np->scripth0)
-		sym_mfree(np->scripth0, sizeof(struct sym_scrh), "SCRIPTH0");
+		sym_mfree_dma(np->scripth0, sizeof(struct sym_scrh),"SCRIPTH0");
 	if (np->script0)
-		sym_mfree(np->script0, sizeof(struct sym_scr), "SCRIPT0");
+		sym_mfree_dma(np->script0, sizeof(struct sym_scr), "SCRIPT0");
 	if (np->squeue)
-		sym_mfree(np->squeue, sizeof(u32)*(MAX_QUEUE*2), "SQUEUE");
+		sym_mfree_dma(np->squeue, sizeof(u32)*(MAX_QUEUE*2), "SQUEUE");
 	if (np->dqueue)
-		sym_mfree(np->dqueue, sizeof(u32)*(MAX_QUEUE*2), "DQUEUE");
+		sym_mfree_dma(np->dqueue, sizeof(u32)*(MAX_QUEUE*2), "DQUEUE");
 
 	while ((qp = sym_remque_head(&np->free_ccbq)) != 0) {
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
-		sym_mfree(cp, sizeof(*cp), "CCB");
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+		bus_dmamap_destroy(np->data_dmat, cp->dmamap);
+#endif
+		sym_mfree_dma(cp->sns_bbuf, SYM_SNS_BBUF_LEN, "SNS_BBUF");
+		sym_mfree_dma(cp, sizeof(*cp), "CCB");
 	}
 
 	if (np->badluntbl)
-		sym_mfree(np->badluntbl, 256,"BADLUNTBL");
+		sym_mfree_dma(np->badluntbl, 256,"BADLUNTBL");
 
 	for (target = 0; target < SYM_CONF_MAX_TARGET ; target++) {
 		tp = &np->target[target];
@@ -9992,12 +10693,12 @@ static void sym_pci_free(hcb_p np)
 			if (!lp)
 				continue;
 			if (lp->itlq_tbl)
-				sym_mfree(lp->itlq_tbl, SYM_CONF_MAX_TASK*4,
+				sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK*4,
 				       "ITLQ_TBL");
 			if (lp->cb_tags)
 				sym_mfree(lp->cb_tags, SYM_CONF_MAX_TASK,
 				       "CB_TAGS");
-			sym_mfree(lp, sizeof(*lp), "LCB");
+			sym_mfree_dma(lp, sizeof(*lp), "LCB");
 		}
 #if SYM_CONF_MAX_LUN > 1
 		if (tp->lunmp)
@@ -10005,8 +10706,13 @@ static void sym_pci_free(hcb_p np)
 			       "LUNMP");
 #endif 
 	}
-
-	sym_mfree(np, sizeof(*np), "HCB");
+	if (np->targtbl)
+		sym_mfree_dma(np->targtbl, 256, "TARGTBL");
+#ifdef	FreeBSD_Bus_Dma_Abstraction
+	if (np->data_dmat)
+		bus_dma_tag_destroy(np->data_dmat);
+#endif
+	sym_mfree_dma(np, sizeof(*np), "HCB");
 }
 
 /*
@@ -10033,6 +10739,7 @@ int sym_cam_attach(hcb_p np)
 		goto fail;
 	}
 #else
+	err = 0;
 	if (!pci_map_int (np->pci_tag, sym_intr, np, &cam_imask)) {
 		printf("%s: failed to map interrupt\n", sym_name(np));
 		goto fail;
