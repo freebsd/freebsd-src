@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.25 1996/10/24 00:15:44 adam Exp $ */
+/* $Id: main.c,v 1.26 1996/10/31 14:24:35 phk Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -140,6 +140,7 @@ int
 main(int argc, char **argv)
 {
     int c;
+    char *s;
 
     while ((c = getopt (argc, argv, "D:HINPMT:V:Lqc:f:h:o:plmnrv")) != -1) {
 	switch (c) {
@@ -204,7 +205,10 @@ main(int argc, char **argv)
     if (argv[0]) {
 	if (host || change_to_dir || file_to_get)
 	    usage();
-	parse(argv[0]);
+	s = strdup(argv[0]);
+	if (s == NULL)
+		s = argv[0];	/* optomistic, I know.. malloc just failed. */
+	parse(s);
     } else {
 	if (!host || !file_to_get)
 	    usage();
