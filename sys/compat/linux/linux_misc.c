@@ -795,13 +795,7 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 int
 linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 {
-	struct wait_args /* {
-		int pid;
-		int *status;
-		int options;
-		struct	rusage *rusage;
-	} */ tmp;
-	int error, tmpstat;
+	int error, options, tmpstat;
 
 #ifdef DEBUG
 	if (ldebug(waitpid))
@@ -809,20 +803,16 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 		    args->pid, (void *)args->status, args->options);
 #endif
 
-	tmp.pid = args->pid;
-	tmp.status = args->status;
-	tmp.options = (args->options & (WNOHANG | WUNTRACED));
+	options = (args->options & (WNOHANG | WUNTRACED));
 	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
 	if (args->options & __WCLONE)
-		tmp.options |= WLINUXCLONE;
-	tmp.rusage = NULL;
+		options |= WLINUXCLONE;
 
-	if ((error = wait4(td, &tmp)) != 0)
+	error = kern_wait(td, args->pid, &tmpstat, options, NULL);
+	if (error)
 		return error;
 
 	if (args->status) {
-		if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
-			return error;
 		tmpstat &= 0xffff;
 		if (WIFSIGNALED(tmpstat))
 			tmpstat = (tmpstat & 0xffffff80) |
@@ -840,13 +830,8 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 int
 linux_wait4(struct thread *td, struct linux_wait4_args *args)
 {
-	struct wait_args /* {
-		int pid;
-		int *status;
-		int options;
-		struct	rusage *rusage;
-	} */ tmp;
-	int error, tmpstat;
+	int error, options, tmpstat;
+	struct rusage ru;
 	struct proc *p;
 
 #ifdef DEBUG
@@ -856,15 +841,13 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 		    (void *)args->rusage);
 #endif
 
-	tmp.pid = args->pid;
-	tmp.status = args->status;
-	tmp.options = (args->options & (WNOHANG | WUNTRACED));
+	options = (args->options & (WNOHANG | WUNTRACED));
 	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
 	if (args->options & __WCLONE)
-		tmp.options |= WLINUXCLONE;
-	tmp.rusage = (struct rusage *)args->rusage;
+		options |= WLINUXCLONE;
 
-	if ((error = wait4(td, &tmp)) != 0)
+	error = kern_wait(td, args->pid, &tmpstat, options, &ru);
+	if (error)
 		return error;
 
 	p = td->td_proc;
@@ -873,8 +856,6 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	PROC_UNLOCK(p);
 
 	if (args->status) {
-		if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
-			return error;
 		tmpstat &= 0xffff;
 		if (WIFSIGNALED(tmpstat))
 			tmpstat = (tmpstat & 0xffffff80) |
@@ -882,10 +863,12 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 		else if (WIFSTOPPED(tmpstat))
 			tmpstat = (tmpstat & 0xffff00ff) |
 			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
-		return copyout(&tmpstat, args->status, sizeof(int));
+		error = copyout(&tmpstat, args->status, sizeof(int));
 	}
+	if (args->rusage != NULL && error == 0)
+		error = copyout(&ru, args->rusage, sizeof(ru));
 
-	return 0;
+	return (error);
 }
 
 int

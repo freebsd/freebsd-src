@@ -130,29 +130,12 @@ svr4_sys_wait(td, uap)
 	struct thread *td;
 	struct svr4_sys_wait_args *uap;
 {
-	struct wait_args w4;
-	int error, *retval = td->td_retval, st, sig;
-	size_t sz = sizeof(*w4.status);
+	int error, st, sig;
 
-	w4.rusage = NULL;
-	w4.options = 0;
-
-	if (uap->status == NULL) {
-		caddr_t sg = stackgap_init();
-
-		w4.status = stackgap_alloc(&sg, sz);
-	}
-	else
-		w4.status = uap->status;
-
-	w4.pid = WAIT_ANY;
-
-	if ((error = wait4(td, &w4)) != 0)
-		return error;
+	error = kern_wait(td, WAIT_ANY, &st, 0, NULL);
+	if (error)
+		return (error);
       
-	if ((error = copyin(w4.status, &st, sizeof(st))) != 0)
-		return error;
-
 	if (WIFSIGNALED(st)) {
 		sig = WTERMSIG(st);
 		if (sig >= 0 && sig < NSIG)
@@ -167,13 +150,12 @@ svr4_sys_wait(td, uap)
 	 * It looks like wait(2) on svr4/solaris/2.4 returns
 	 * the status in retval[1], and the pid on retval[0].
 	 */
-	retval[1] = st;
+	td->td_retval[1] = st;
 
 	if (uap->status)
-		if ((error = copyout(&st, uap->status, sizeof(st))) != 0)
-			return error;
+		error = copyout(&st, uap->status, sizeof(st));
 
-	return 0;
+	return (error);
 }
 
 int

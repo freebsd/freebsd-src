@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/utsname.h>
 #include <sys/vnode.h>
+#include <sys/wait.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -1376,27 +1377,23 @@ osf1_wait4(td, uap)
 	struct thread *td;
 	struct osf1_wait4_args *uap;
 {
-	int error;
-	caddr_t sg;
-	struct osf1_rusage *orusage, oru;
-	struct rusage *rusage = NULL, ru;
+	int error, status;
+	struct osf1_rusage oru;
+	struct rusage ru;
 
-	orusage = uap->rusage;
-	if (orusage) {
-		sg = stackgap_init();
-		rusage = stackgap_alloc(&sg, sizeof(struct rusage));
-		uap->rusage = (struct osf1_rusage *)rusage;
-	}
-	if ((error = wait4(td, (struct wait_args *)uap)))
-		return error;
-	if (orusage && (error = copyin(rusage, &ru, sizeof(ru)) == 0)){
+	error = kern_wait(td, uap->pid, &status, uap->options, &ru);
+	if (error)
+		return (error);
+	if (uap->status != NULL)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->rusage != NULL && error == 0) {
 		TV_CP(ru.ru_utime, oru.ru_utime);
 		TV_CP(ru.ru_stime, oru.ru_stime);
 		bcopy(&ru.ru_first, &oru.ru_first,
 		    (&(oru.ru_last) - &(oru.ru_first)));
-		copyout(&oru, orusage, sizeof (struct osf1_rusage));
+		error = copyout(&oru, uap->rusage, sizeof (struct osf1_rusage));
 	}
-	return (0);
+	return (error);
 }
 
 
