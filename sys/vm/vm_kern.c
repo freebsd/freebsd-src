@@ -96,6 +96,8 @@ vm_map_t buffer_map=0;
  *
  *	Allocate pageable memory to the kernel's address map.
  *	"map" must be kernel_map or a submap of kernel_map.
+ *
+ * MPSAFE
  */
 vm_offset_t
 kmem_alloc_pageable(map, size)
@@ -105,11 +107,9 @@ kmem_alloc_pageable(map, size)
 	vm_offset_t addr;
 	int result;
 
-	GIANT_REQUIRED;
-
 	size = round_page(size);
 	addr = vm_map_min(map);
-	result = vm_map_find(map, NULL, (vm_offset_t) 0,
+	result = vm_map_find(map, NULL, 0,
 	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (result != KERN_SUCCESS) {
 		return (0);
@@ -121,6 +121,8 @@ kmem_alloc_pageable(map, size)
  *	kmem_alloc_nofault:
  *
  *	Same as kmem_alloc_pageable, except that it create a nofault entry.
+ *
+ * MPSAFE
  */
 vm_offset_t
 kmem_alloc_nofault(map, size)
@@ -130,11 +132,9 @@ kmem_alloc_nofault(map, size)
 	vm_offset_t addr;
 	int result;
 
-	GIANT_REQUIRED;
-
 	size = round_page(size);
 	addr = vm_map_min(map);
-	result = vm_map_find(map, NULL, (vm_offset_t) 0,
+	result = vm_map_find(map, NULL, 0,
 	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	if (result != KERN_SUCCESS) {
 		return (0);
@@ -225,6 +225,8 @@ kmem_alloc(map, size)
  *	associated with that region.
  *
  *	This routine may not block on kernel maps.
+ *
+ * MPSAFE
  */
 void
 kmem_free(map, addr, size)
@@ -232,7 +234,6 @@ kmem_free(map, addr, size)
 	vm_offset_t addr;
 	vm_size_t size;
 {
-	GIANT_REQUIRED;
 
 	(void) vm_map_remove(map, trunc_page(addr), round_page(addr + size));
 }
