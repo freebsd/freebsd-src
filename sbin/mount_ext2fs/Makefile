@@ -7,7 +7,6 @@ MAN=	mount_ext2fs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
-WARNS=	0
 
 .PATH:	${MOUNT}
 
