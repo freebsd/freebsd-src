@@ -96,31 +96,32 @@ str_concat(s1, s2, flags)
 	char *result;
 
 	/* get the length of both strings */
-	len1 = strlen(s1);
-	len2 = strlen(s2);
+	len1 = s1 == NULL ? 0 : strlen(s1);
+	len2 = s2 == NULL ? 0 : strlen(s2);
 
 	/* allocate length plus separator plus EOS */
 	result = emalloc((u_int)(len1 + len2 + 2));
 
 	/* copy first string into place */
-	memcpy(result, s1, len1);
+	if (len1)
+		memcpy(result, s1, len1);
 
 	/* add separator character */
-	if (flags & STR_ADDSPACE) {
-		result[len1] = ' ';
-		++len1;
-	} else if (flags & STR_ADDSLASH) {
-		result[len1] = '/';
-		++len1;
+	if (len1 && len2) {
+		if (flags & STR_ADDSPACE)
+			result[len1++] = ' ';
+		else if (flags & STR_ADDSLASH)
+			result[len1++] = '/';
 	}
 
 	/* copy second string plus EOS into place */
-	memcpy(result + len1, s2, len2 + 1);
+	if (len2)
+		memcpy(result + len1, s2, len2 + 1);
 
 	/* free original strings */
 	if (flags & STR_DOFREE) {
-		(void)free(__DECONST(void *, s1));
-		(void)free(__DECONST(void *, s2));
+		(void)efree(__DECONST(void *, s1));
+		(void)efree(__DECONST(void *, s2));
 	}
 	return(result);
 }
