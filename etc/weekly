@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)weekly	5.14 (Berkeley) 6/23/91
-#	$Id: weekly,v 1.15 1996/05/13 22:05:10 wosch Exp $
+#	$Id: weekly,v 1.16 1996/05/18 20:30:04 nate Exp $
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin:/usr/libexec
 export PATH
@@ -65,3 +65,9 @@ echo "Cleaning up kernel database files:"
 kernel=`sysctl -n kern.bootfile`
 kernel=kvm_`basename ${kernel}`.db
 find /var/db -name "kvm_*.db" -a ! -name ${kernel} -a -atime +7 -exec rm -f -- {} \;
+
+if [ -f /etc/weekly.local ]; then
+    echo ""
+    echo "Running weekly.local:"
+    sh /etc/weekly.local
+fi
