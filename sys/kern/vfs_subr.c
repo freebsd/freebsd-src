@@ -262,7 +262,7 @@ vfs_badlock(const char *msg, const char *str, struct vnode *vp)
 	if (vfs_badlock_print)
 		printf("%s: %p %s\n", str, vp, msg);
 	if (vfs_badlock_panic)
-		Debugger("Lock violation.\n");
+		Debugger("Lock violation.");
 }
 
 void
@@ -361,7 +361,7 @@ vop_strategy_pre(void *ap)
 		if (vfs_badlock_print)
 			printf("VOP_STRATEGY: bp is not locked but should be.\n");
 		if (vfs_badlock_panic)
-			Debugger("Lock violation.\n");
+			Debugger("Lock violation.");
 	}
 }
 
