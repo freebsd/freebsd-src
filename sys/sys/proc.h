@@ -943,6 +943,7 @@ void	thread_single_end(void);
 void	thread_stash(struct thread *td);
 int	thread_suspend_check(int how);
 void	thread_suspend_one(struct thread *td);
+void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
