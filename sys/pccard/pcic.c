@@ -407,12 +407,12 @@ pcic_memory(struct slot *slt, int win)
 	int reg = mp->window * PCIC_MEMSIZE + PCIC_MEMBASE;
 
 #ifdef	PC98
-	if (sp->controller == PCIC_PC98){
-	    if (mp->flags & MDF_ACTIVE){
+	if (sp->controller == PCIC_PC98) {
+	    if (mp->flags & MDF_ACTIVE) {
 		/* slot = 0, window = 0, sys_addr = 0xda000, length = 8KB */
 		unsigned char x;
 		
-		if ((unsigned long)mp->start != 0xda000){
+		if ((unsigned long)mp->start != 0xda000) {
 		    printf("sys_addr must be 0xda000. requested address = 0x%x\n",
 			   mp->start);
 		    return(EINVAL);
@@ -427,7 +427,7 @@ pcic_memory(struct slot *slt, int win)
 		
 		outw(PCIC98_REG_PAGOFS, 0);
 		
-		if (mp->flags & MDF_ATTR){
+		if (mp->flags & MDF_ATTR) {
 		    outb(PCIC98_REG6, inb(PCIC98_REG6) | PCIC98_ATTRMEM);
 		}else{
 		    outb(PCIC98_REG6, inb(PCIC98_REG6) & (~PCIC98_ATTRMEM));
@@ -436,7 +436,7 @@ pcic_memory(struct slot *slt, int win)
 		outb(PCIC98_REG_WINSEL, PCIC98_MAPWIN);
 		
 #if 0
-		if (mp->flags & MDF_16BITS == 1){	/* 16bit */
+		if (mp->flags & MDF_16BITS == 1) {	/* 16bit */
 		    outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_8BIT));
 		}else{					/* 8bit */
 		    outb(PCIC98_REG2, inb(PCIC98_REG2) | PCIC98_8BIT);
@@ -517,17 +517,17 @@ pcic_io(struct slot *slt, int win)
 	struct pcic_slot *sp = slt->cdata;
 	struct io_desc *ip = &slt->io[win];
 #ifdef	PC98
-	if (sp->controller == PCIC_PC98){
+	if (sp->controller == PCIC_PC98) {
 	    unsigned char x;
 
 #if 0
-	    if (win =! 0){
+	    if (win =! 0) {
 		printf("pcic98:Illegal PCIC I/O window request(%d)!", win);
 		return(EINVAL);
 	    }
 #endif
 
-	    if (ip->flags & IODF_ACTIVE){
+	    if (ip->flags & IODF_ACTIVE) {
 		unsigned short base;
 
 		x = inb(PCIC98_REG2) & 0x0f;
@@ -844,10 +844,10 @@ pcic_probe(void)
 			sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 	}
 #ifdef	PC98
-	if (validslots == 0){
+	if (validslots == 0) {
 	    sp = pcic_slots;
 	    slotnum = 0;
-	    if (inb(PCIC98_REG0) != 0xff){
+	    if (inb(PCIC98_REG0) != 0xff) {
 		sp->controller = PCIC_PC98;
 		sp->revision = 0;
 		cinfo.name = "PC98 Original";
@@ -859,7 +859,7 @@ pcic_probe(void)
 		sp->slotnum = slotnum;
 
 		slt = pccard_alloc_slot(&cinfo);
-		if (slt == 0){
+		if (slt == 0) {
 		    printf("pcic98: slt == NULL\n");
 		    goto pcic98_probe_end;
 		}
@@ -867,7 +867,7 @@ pcic_probe(void)
 		sp->slt = slt;
 
 		/* Check for a card in this slot */
-		if (inb(PCIC98_REG1) & PCIC98_CARDEXIST){
+		if (inb(PCIC98_REG1) & PCIC98_CARDEXIST) {
 		    /* PCMCIA card exist */
 		    slt->laststate = slt->state = filled;
 		    pccard_event(sp->slt, card_inserted);
@@ -1028,9 +1028,9 @@ pcic_mapirq (struct slot *slt, int irq)
 {
 	struct pcic_slot *sp = slt->cdata;
 #ifdef	PC98
-	if (sp->controller == PCIC_PC98){
+	if (sp->controller == PCIC_PC98) {
 	    unsigned char x;
-	    switch (irq){
+	    switch (irq) {
 	    case 3:
 		x = PCIC98_INT0; break;
 	    case 5:
@@ -1073,7 +1073,7 @@ pcic_reset(void *chan)
 	struct pcic_slot *sp = slt->cdata;
 
 #ifdef	PC98
-	if (sp->controller == PCIC_PC98){
+	if (sp->controller == PCIC_PC98) {
 	    outb(PCIC98_REG0, 0);
 	    outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_IOMEMORY));
 	    outb(PCIC98_REG3, PCIC98_INTDISABLE);
@@ -1125,7 +1125,7 @@ pcic_disable(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 
 #ifdef	PC98
-	if (sp->controller == PCIC_PC98){
+	if (sp->controller == PCIC_PC98) {
 	    return;
 	}
 #endif
@@ -1158,16 +1158,16 @@ pcicintr(int unit)
 	struct pcic_slot *sp = pcic_slots;
 
 #ifdef	PC98
-	if (sp->controller == PCIC_PC98){
+	if (sp->controller == PCIC_PC98) {
 	    slot = 0;
 	    s = splhigh();
 	    /* Check for a card in this slot */
-	    if (inb(PCIC98_REG1) & PCIC98_CARDEXIST){
-		if (sp->slt->laststate != filled){
+	    if (inb(PCIC98_REG1) & PCIC98_CARDEXIST) {
+		if (sp->slt->laststate != filled) {
 		    pccard_event(sp->slt, card_inserted);
 		}
 	    } else {
-		if (sp->slt->laststate != empty){
+		if (sp->slt->laststate != empty) {
 		    pccard_event(sp->slt, card_removed);
 		}
 	    }
