@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.18.2.3 1997/09/16 06:57:10 charnier Exp $";
+	"$Id: mkmakefile.c,v 1.18.2.6 1998/06/08 10:55:26 thepish Exp $";
 #endif /* not lint */
 
 /*
@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include "y.tab.h"
 #include "config.h"
+#include "configvers.h"
 
 #define next_word(fp, wd) \
 	{ register char *word = get_word(fp); \
@@ -159,6 +160,7 @@ makefile()
 	struct opt *op;
 	struct users *up;
 	int warn_make_clean = 0;
+	int versreq;
 
 	read_files();
 	strcpy(line, "Makefile.");
@@ -239,7 +241,17 @@ makefile()
 			do_load(ofp);
 		else if (eq(line, "%CLEAN\n"))
 			do_clean(ofp);
-		else
+		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
+			versreq = atoi(line + sizeof("%VERSREQ=") - 1);
+			if (versreq != CONFIGVERS) {
+				fprintf(stderr, "WARNING: version of config(8) does not match kernel!\n");
+				fprintf(stderr, "config version = %d, ", CONFIGVERS);
+				fprintf(stderr, "version required = %d\n\n", versreq);
+				fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
+				fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
+				fprintf(stderr, "before trying this again.\n\n");
+			}
+		} else
 			fprintf(stderr,
 			    "Unknown %% construct in generic makefile: %s",
 			    line);
