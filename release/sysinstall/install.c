@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.112 1996/07/09 14:28:16 jkh Exp $
+ * $Id: install.c,v 1.71.2.101 1996/07/09 14:36:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -373,6 +373,12 @@ installNovice(dialogMenuItem *self)
 
     if (!mediaDevice) {
 	dialog_clear();
+	/* Try to set ourselves up as a CDROM if we can do that first */
+	if (DITEM_STATUS(mediaSetCDROM(NULL)) == DITEM_SUCCESS) {
+	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
+	    if (!mediaDevice->init(mediaDevice))
+		mediaDevice = NULL;
+	}
 	msgConfirm("Finally, you must specify an installation medium.");
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RECREATE;
@@ -711,7 +717,7 @@ installFilesystems(dialogMenuItem *self)
 	}
 	else {
 	    if (!upgrade) {
-		msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
+		msgConfirm("Warning:  Using existing root partition.  It will be assumed\n"
 			   "that you have the appropriate device entries already in /dev.");
 	    }
 	    msgNotify("Checking integrity of existing %s filesystem.", dname);
