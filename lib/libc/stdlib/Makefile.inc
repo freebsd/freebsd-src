@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib ${.CURDIR}/../libc/stdlib
 
 MISRCS+=_Exit.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
-	bsearch.c calloc.c div.c exit.c getenv.c getopt.c \
+	bsearch.c calloc.c div.c exit.c getenv.c getopt.c getopt_long.c \
 	getsubopt.c hcreate.c heapsort.c imaxabs.c imaxdiv.c \
 	labs.c ldiv.c llabs.c lldiv.c malloc.c merge.c putenv.c \
 	qsort.c qsort_r.c radixsort.c rand.c random.c reallocf.c realpath.c \
@@ -20,7 +20,7 @@ MISRCS+=_Exit.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 
 .if ${LIB} == "c"
 MAN+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
-	div.3 exit.3 getenv.3 getopt.3 getsubopt.3 hcreate.3 \
+	div.3 exit.3 getenv.3 getopt.3 getopt_long.3 getsubopt.3 hcreate.3 \
 	imaxabs.3 imaxdiv.3 labs.3 ldiv.3 llabs.3 lldiv.3 \
 	malloc.3 memory.3 qsort.3 radixsort.3 rand.3 random.3 \
 	realpath.3 strfmon.3 strtod.3 strtol.3 strtoul.3 system.3 tsearch.3
