@@ -54,7 +54,7 @@ Directory entries may contain other directories
 as well as plain files; such nested directories are referred to as
 subdirectories.
 A hierarchy of directories and files is formed in this manner
-and is called a filesystem (or referred to as a filesystem tree).
+and is called a file system (or referred to as a file system tree).
 .\" An entry in this tree,
 .\" nested or not nested,
 .\" is a pathname.
@@ -72,7 +72,7 @@ the system root directory
 has no parent and dot-dot points to itself like dot.
 .Pp
 File system nodes are ordinary directory files on which has
-been grafted a filesystem object, such as a physical disk or a
+been grafted a file system object, such as a physical disk or a
 partitioned area of such a disk.
 (See
 .Xr mount 2
@@ -152,7 +152,7 @@ struct dirent {
 .Sh BUGS
 The usage of the member d_type of struct dirent is unportable as it is
 .Fx Ns -specific .
-It also may fail on certain filesystems, for example the cd9660 filesystem.
+It also may fail on certain file systems, for example the cd9660 file system.
 .Sh HISTORY
 A
 .Nm

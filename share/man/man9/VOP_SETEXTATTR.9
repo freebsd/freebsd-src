@@ -80,7 +80,7 @@ This
 setting might be used to allow the kernel to authorize extended attribute
 changes that the active process might not be permitted to make.
 .Pp
-Extended attribute semantics may vary by filesystem implementing the call.
+Extended attribute semantics may vary by file system implementing the call.
 More information on extended attributes may be found in
 .Xr extattr 9 .
 .Sh LOCKS
@@ -93,7 +93,7 @@ Otherwise, an appropriate error code is returned.
 .It Bq Er EACCES
 The the caller does not have the appropriate privilege.
 .It Bq Er ENXIO
-The request was not valid in this filesystem for the specified vnode and
+The request was not valid in this file system for the specified vnode and
 attribute name.
 .It Bq Er ENOMEM
 Insufficient memory available to fulfill request
@@ -102,12 +102,12 @@ The uio structure refers to an invalid userspace address.
 .It Bq Er EINVAL
 The name or uio argument is invalid.
 .It Bq Er EOPNOTSUPP
-The filesystem does not support
+The file system does not support
 .Fn VOP_SETEXTATTR .
 .It Bq Er ENOSPC
-The filesystem is out of space.
+The file system is out of space.
 .It Bq Er EROFS
-The filesystem is read-only.
+The file system is read-only.
 .El
 .Sh SEE ALSO
 .Xr extattr 9 ,

@@ -40,7 +40,7 @@
 .Sh NAME
 .Nm quotaon ,
 .Nm quotaoff
-.Nd turn filesystem quotas on and off
+.Nd turn file system quotas on and off
 .Sh SYNOPSIS
 .Nm
 .Op Fl g
@@ -67,21 +67,21 @@ The
 .Nm
 utility
 announces to the system that disk quotas should be enabled on one or more
-filesystems.
+file systems.
 The
 .Nm quotaoff
 utility announces to the system that the specified
-filesystems should have any disk quotas turned off.
-The filesystems specified must have entries in
+file systems should have any disk quotas turned off.
+The file systems specified must have entries in
 .Pa /etc/fstab
 and be mounted.
 The
 .Nm
-utility expects each filesystem to have quota files named
+utility expects each file system to have quota files named
 .Pa quota.user
 and
 .Pa quota.group
-which are located at the root of the associated filesystem.
+which are located at the root of the associated file system.
 These defaults may be overridden in
 .Pa /etc/fstab .
 By default both user and group quotas are enabled.
@@ -89,9 +89,9 @@ By default both user and group quotas are enabled.
 Available options:
 .Bl -tag -width indent
 .It Fl a
-If supplied in place of any filesystem names,
+If supplied in place of any file system names,
 .Nm Ns / Ns Nm quotaoff
-will enable/disable all the filesystems indicated in
+will enable/disable all the file systems indicated in
 .Pa /etc/fstab
 to be read-write with disk quotas.
 By default only the types of quotas listed in
@@ -110,7 +110,7 @@ Cause
 .Nm
 and
 .Nm quotaoff
-to print a message for each filesystem where quotas are turned on or off.
+to print a message for each file system where quotas are turned on or off.
 .El
 .Pp
 Specifying both
@@ -121,11 +121,11 @@ is equivalent to the default.
 .Sh FILES
 .Bl -tag -width quota.group -compact
 .It Pa quota.user
-at the filesystem root with user quotas
+at the file system root with user quotas
 .It Pa quota.group
-at the filesystem root with group quotas
+at the file system root with group quotas
 .It Pa /etc/fstab
-filesystem table
+file system table
 .El
 .Sh SEE ALSO
 .Xr quota 1 ,

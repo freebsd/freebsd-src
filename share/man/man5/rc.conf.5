@@ -726,7 +726,7 @@ If set to
 will be run with the
 .Fl y
 flag if the initial preen
-of the filesystems fails.
+of the file systems fails.
 .It Va background_fsck
 .Pq Vt bool
 If set to
@@ -739,19 +739,19 @@ in the background where possible.
 If set to something other than
 .Dq Li NO
 (the default),
-this variable extends the list of filesystem types
+this variable extends the list of file system types
 for which automatic mounting at startup by
 .Xr rc 8
 should be delayed until the network is initialized.
 It should contain
-a whitespace-separated list of network filesystem descriptor pairs,
-each consisting of a filesystem type as passed to
+a whitespace-separated list of network file system descriptor pairs,
+each consisting of a file system type as passed to
 .Xr mount 8
 and a human-readable, one-word description,
 joined with a colon
 .Pq Ql \&: .
 Extending the default list in this way is only necessary
-when third party filesystem types are used.
+when third party file system types are used.
 .It Va syslogd_enable
 .Pq Vt bool
 If set to

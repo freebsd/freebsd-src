@@ -61,7 +61,7 @@ or
 .Dq low
 security level, attached to it,
 and these labels of integrity will be managed with a system cognizant
-of IPC (signals, debugging, sockets, pipes), path-based filesystem
+of IPC (signals, debugging, sockets, pipes), path-based file system
 labels, virtual memory objects, and privileged system calls.
 A process (or set of vmspace-sharing processes) will initially inherit
 the integrity level of its parent, which, at the point of
@@ -84,8 +84,8 @@ operation performed after it has been initialized.
 Pre-existing jail or chroot environments may not necessarily work
 completely.
 .Nm Ns 's
-filesystem should correctly respect the caching behavior of any of the
-system's filesystems, and so work for any
+file system should correctly respect the caching behavior of any of the
+system's file systems, and so work for any
 .Dq normal
 or
 .Dq synthetic
@@ -99,7 +99,7 @@ See
 .Pa /sys/security/lomac/policy_plm.h
 for specific information on exactly how
 .Nm
-has been compiled to control access to the filesystem.
+has been compiled to control access to the file system.
 .Sh COMPATIBILITY
 Some programs, for example
 .Xr syslogd 8 ,

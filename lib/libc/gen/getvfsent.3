@@ -11,7 +11,7 @@
 .Nm endvfsent ,
 .Nm vfsisloadable ,
 .Nm vfsload
-.Nd manage virtual filesystem modules
+.Nd manage virtual file system modules
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -31,21 +31,21 @@
 The
 .Fn getvfsent
 function provides convenient access to a list of installed virtual
-filesystem modules managed by the kernel.  It steps through the
-list of filesystems one at a time.  A null pointer is returned when
+file system modules managed by the kernel.  It steps through the
+list of file systems one at a time.  A null pointer is returned when
 no more data is available.  The fields in a
 .Dq Li struct ovfsconf
 are as follows:
 .Pp
 .Bl -tag -compact -width vfc_refcount
 .It vfc_name
-the name of the filesystem
+the name of the file system
 .It vfc_index
-the filesystem type number assigned by the kernel and used in calls to
+the file system type number assigned by the kernel and used in calls to
 .Xr mount 2
 .It vfc_refcount
-the number of references to this filesystem
-(usually the number of mounts, but one greater for filesystems which
+the number of references to this file system
+(usually the number of mounts, but one greater for file systems which
 cannot be unloaded or which are statically linked into the kernel)
 .It vfc_flags
 flag bits
@@ -72,7 +72,7 @@ The
 .Fn setvfsent
 and
 .Fn endvfsent
-functions are used to control caching of the filesystem list, which is
+functions are used to control caching of the file system list, which is
 obtained in toto from the kernel via
 .Xr sysctl 3 .
 If the
@@ -107,9 +107,9 @@ to succeed.
 .Pp
 The
 .Fn vfsload
-function attempts to load a kernel module implementing filesystem
+function attempts to load a kernel module implementing file system
 .Fa name .
-It returns zero if the filesystem module was successfully located and
+It returns zero if the file system module was successfully located and
 loaded, or non-zero otherwise.  It should only be called in the
 following circumstances:
 .Bl -enum
@@ -172,7 +172,7 @@ may be set to one of the values documented for
 .Xr mount 8
 .Sh AUTHORS
 .An -nosplit
-The loadable filesystem support was written by
+The loadable file system support was written by
 .An Garrett A. Wollman ,
 based on generic loadable kernel module support by
 .An Terry Lambert .

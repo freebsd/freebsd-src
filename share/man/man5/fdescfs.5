@@ -43,18 +43,18 @@
 .Os
 .Sh NAME
 .Nm fdescfs
-.Nd file-descriptor filesystem
+.Nd file-descriptor file system
 .Sh SYNOPSIS
 fdescfs	/dev/fd	fdescfs rw 0 0
 .Sh DESCRIPTION
-The file-descriptor filesystem, or
+The file-descriptor file system, or
 .Nm ,
 provides access to the per-process file descriptor
-namespace in the global filesystem namespace.
+namespace in the global file system namespace.
 The conventional mount point is
 .Pa /dev/fd .
 .Pp
-The filesystem's contents
+The file system's contents
 appear as a list of numbered files
 which correspond to the open files of the process reading the
 directory.
@@ -95,7 +95,7 @@ are ignored.
 .Sh HISTORY
 The
 .Nm
-filesystem first appeared in
+file system first appeared in
 .Bx 4.4 .
 The
 .Nm

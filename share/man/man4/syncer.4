@@ -29,14 +29,14 @@
 .Os
 .Sh NAME
 .Nm syncer
-.Nd filesystem synchronizer kernel process
+.Nd file system synchronizer kernel process
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
 The
 .Nm
 kernel process helps protect the integrity of disk volumes
-by flushing volatile cached filesystem data to disk.
+by flushing volatile cached file system data to disk.
 .Pp
 The kernel places all
 .Xr vnode 9 Ns 's
@@ -87,5 +87,5 @@ process first appeared in
 It is possible on some systems that a
 .Xr sync 2
 occurring simultaneously with a crash may cause
-filesystem damage.  See
+file system damage.  See
 .Xr fsck 8 .

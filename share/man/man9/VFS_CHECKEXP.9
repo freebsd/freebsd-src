@@ -29,7 +29,7 @@
 .Dt VFS_CHECKEXP 9
 .Sh NAME
 .Nm VFS_CHECKEXP
-.Nd check if a filesystem is exported to a client
+.Nd check if a file system is exported to a client
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -51,21 +51,21 @@ Return parameter for the export flags for this client.
 Return parameter for the anonymous credentials for this client.
 .El
 .Pp
-This should be called on a filesystem's mount structure to determine if it
+This should be called on a file system's mount structure to determine if it
 is exported to a client whose address is contained in
 .Fa nam .
 .Pp
 It is generally called before
 .Xr VFS_FHTOVP 9
-to validate that a client has access to the filesystem.
+to validate that a client has access to the file system.
 .Pp
-The filesystem should call
+The file system should call
 .Xr vfs_export_lookup 9
 with the address of an appropriate
 .Dv netexport
 structure and the address of the client,
 .Fa nam ,
-to verify that the client can access this filesystem.
+to verify that the client can access this file system.
 .Sh RETURN VALUES
 The export flags and anonymous credentials specific to the client (returned
 by

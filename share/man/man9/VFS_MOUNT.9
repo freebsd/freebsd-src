@@ -33,7 +33,7 @@
 .Dt VFS_MOUNT 9
 .Sh NAME
 .Nm VFS_MOUNT
-.Nd mount a filesystem
+.Nd mount a file system
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -41,44 +41,44 @@
 .Ft int
 .Fn VFS_MOUNT "struct mount *mp" "char *path" "caddr_t data" "struct nameidata *ndp" "struct thread *td"
 .Sh DESCRIPTION
-Mount a filesystem into the system's namespace.
+Mount a file system into the system's namespace.
 .Pp
 Its arguments are:
 .Bl -tag -width data
 .It Ar mp
-Structure representing the filesystem.
+Structure representing the file system.
 .It Ar path
-Pathname where the filesystem is being mounted.
+Pathname where the file system is being mounted.
 .It Ar data
-Filesystem specific data.  This should be read into the kernel using
+File system specific data.  This should be read into the kernel using
 .Xr copyin 9 .
 .It Ar ndp
 Contains the result of a
 .Xr namei 9
 call on the pathname of the mountpoint.
 .It Ar td
-Thread which is mounting the filesystem.
+Thread which is mounting the file system.
 .El
 .Pp
-This is called both to mount new filesystems and to change the
-attributes of an existing filesystem.  If the
+This is called both to mount new file systems and to change the
+attributes of an existing file system.  If the
 .Dv MNT_UPDATE
 flag is set in
 .Fa mp->mnt_flag
-then the filesystem should update its internal state from the value of
+then the file system should update its internal state from the value of
 .Fa mp->mnt_flag .
-This can be used, for instance, to convert a read-only filesystem to
+This can be used, for instance, to convert a read-only file system to
 read-write.
 It is also used by
 .Xr mountd 8
-to update the NFS export information for the filesystem.
+to update the NFS export information for the file system.
 .Pp
 If the
 .Dv MNT_UPDATE
-flag is not specified, then this is a newly mounted filesystem.  The
-filesystem code should allocate and initialize
+flag is not specified, then this is a newly mounted file system.  The
+file system code should allocate and initialize
 any private data needed to represent
-the filesystem (it can use the
+the file system (it can use the
 .Fa mp->mnt_data
 field to store this information).
 .Sh SEE ALSO

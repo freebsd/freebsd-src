@@ -87,7 +87,7 @@ Show the first LBA of the last track on the media
 and the next writeable address on the media for use with the
 .Xr mkisofs 8 Ns 's
 .Fl C
-switch when adding additional data to ISO filesystems with extra sessions.
+switch when adding additional data to ISO file systems with extra sessions.
 .It Cm blank
 Blank a CD-RW medium.
 This uses the fast blanking method, so data are not physically overwritten,
@@ -175,11 +175,11 @@ The typical usage for burning from a compressed image file on stdin:
 .Dl "gunzip -c file.iso.gz | burncd -f /dev/acd0c data - fixate"
 .Pp
 In the examples above, the files burned to data CD-Rs are assumed to
-be ISO9660 filesystems.
+be ISO9660 file systems.
 .Xr mkisofs 8 ,
 available in the
 .Fx
-Ports Collection, is commonly used to create ISO9660 filesystem images
+Ports Collection, is commonly used to create ISO9660 file system images
 from a given directory tree.
 .Sh BUGS
 Probably, please report when found.

@@ -236,7 +236,7 @@ to be instantiated between a consumer and a provider attached to
 each other and to remove it again.
 .Pp
 To understand the utility of this, imagine a provider with
-being mounted as a filesystem.
+being mounted as a file system.
 Between the DEVFS geoms consumer and its provider we insert
 a mirror module which configures itself with one mirror
 copy and consequently is transparent to the I/O requests
@@ -244,7 +244,7 @@ on the path.
 We can now configure yet a mirror copy on the mirror geom,
 request a synchronization, and finally drop the first mirror
 copy.
-We have now in essence moved a mounted filesystem from one
+We have now in essence moved a mounted file system from one
 disk to another while it was being used.
 At this point the mirror geom can be deleted from the path
 again, it has served its purpose.

@@ -30,7 +30,7 @@
 .Dt ACL 9
 .Sh NAME
 .Nm acl
-.Nd virtual filesystem access control lists
+.Nd virtual file system access control lists
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
@@ -42,10 +42,10 @@ In the kernel configuration file:
 Access control lists, or ACLs,
 allow fine-grained specification of rights
 for vnodes representing files and directories.
-However, as there are a plethora of filesystems with differing ACL semantics,
+However, as there are a plethora of file systems with differing ACL semantics,
 the vnode interface is aware only of the syntax of ACLs,
-relying on the underlying filesystem to implement the details.
-Depending on the underlying filesystem, each file or directory
+relying on the underlying file system to implement the details.
+Depending on the underlying file system, each file or directory
 may have zero or more ACLs associated with it, named using the
 .Fa type
 field of the appropriate vnode ACL calls:

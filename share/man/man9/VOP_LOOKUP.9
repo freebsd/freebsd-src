@@ -77,7 +77,7 @@ struct componentname {
 .Pp
 Convert a component of a pathname into a pointer to a locked vnode.
 This is a very central and rather complicated routine.
-If the filesystem is not maintained in a strict tree hierarchy,
+If the file system is not maintained in a strict tree hierarchy,
 this can result in a deadlock situation.
 .Pp
 The
@@ -371,7 +371,7 @@ vop_lookup(struct vnode *dvp,
 	 * infrequently since we cannot avoid this race condition without
 	 * implementing a sophisticated deadlock detection algorithm.
 	 * Note also that this simple deadlock detection scheme will not
-	 * work if the filesystem has any hard links other than ".."
+	 * work if the file system has any hard links other than ".."
 	 * that point backwards in the directory structure.
 	 */
 	if (flags & ISDOTDOT) {

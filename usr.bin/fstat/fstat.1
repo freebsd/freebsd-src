@@ -60,10 +60,10 @@ reports on all open files in the system.
 Options:
 .Bl -tag -width Ds
 .It Fl f
-Restrict examination to files open in the same filesystems as
-the named file arguments, or to the filesystem containing the
+Restrict examination to files open in the same file systems as
+the named file arguments, or to the file system containing the
 current directory if there are no additional filename arguments.
-For example, to find all files open in the filesystem where the
+For example, to find all files open in the file system where the
 directory
 .Pa /usr/src
 resides, type
@@ -79,7 +79,7 @@ Extract the name list from the specified system instead of the default
 Include memory-mapped files in the listing; normally these are excluded
 due to the extra processing required.
 .It Fl n
-Numerical format.  Print the device number (maj,min) of the filesystem
+Numerical format.  Print the device number (maj,min) of the file system
 the file resides in rather than the mount point name; for special
 files, print the
 device number that the special device refers to rather than the filename
@@ -136,7 +136,7 @@ is described later under
 If the
 .Fl n
 flag wasn't specified, this header is present and is the
-pathname that the filesystem the file resides in is mounted on.
+pathname that the file system the file resides in is mounted on.
 .It Li DEV
 If the
 .Fl n
@@ -169,7 +169,7 @@ This column describes the access mode that the file allows.
 The letter ``r'' indicates open for reading;
 the letter ``w'' indicates open for writing.
 This field is useful when trying to find the processes that are
-preventing a filesystem from being down graded to read-only.
+preventing a file system from being down graded to read-only.
 .It Li NAME
 If filename arguments are specified and the
 .Fl f

@@ -37,12 +37,12 @@
 .Os
 .Sh NAME
 .Nm hier
-.Nd layout of filesystems
+.Nd layout of file systems
 .Sh DESCRIPTION
-A sketch of the filesystem hierarchy.
+A sketch of the file system hierarchy.
 .Bl -tag -width "/stand/"
 .It Pa /
-root directory of the filesystem
+root directory of the file system
 .It Pa /bin/
 user utilities fundamental to both single-user and multi-user environments
 .It Pa /boot/
@@ -143,7 +143,7 @@ OpenSSL configuration files
 empty directory commonly used by
 system administrators as a temporary mount point
 .It Pa /proc/
-process filesystem;
+process file system;
 see
 .Xr procfs 5 ,
 .Xr mount_procfs 8
@@ -208,28 +208,28 @@ WaveLAN driver
 .It Pa fs/
 .Bl -tag -width "kerberosIV/" -compact
 .It Pa fdescfs/
-per-process file descriptors filesystem
+per-process file descriptors file system
 .It Pa fifofs/
 .St -p1003.1
-FIFOs filesystem
+FIFOs file system
 .It Pa msdosfs/
-MS-DOS filesystem
+MS-DOS file system
 .It Pa ntfs/
-NTFS filesystem
+NTFS file system
 .It Pa nullfs/
-loopback filesystem
+loopback file system
 .It Pa nwfs/
-NetWare filesystem
+NetWare file system
 .It Pa portalfs/
-portal filesystem
+portal file system
 .It Pa procfs/
-process filesystem
+process file system
 .It Pa smbfs/
-SMB/CIFS filesystem
+SMB/CIFS file system
 .It Pa umapfs/
-alternate uid/gid mappings filesystem
+alternate uid/gid mappings file system
 .It Pa unionfs
-union filesystem
+union file system
 .El
 .It Pa g++/
 GNU C++ include files
@@ -242,7 +242,7 @@ ISC utility library libisc include files
 .It Pa isofs/
 .Bl -tag -width "kerberosIV/" -compact
 .It Pa cd9660/
-iso9660 filesystem
+iso9660 file system
 .El
 .It Pa kerberosIV/
 C include files for kerberos authentication package;
@@ -327,9 +327,9 @@ system C include files (kernel data structures)
 C include files for UFS (The U-word File System)
 .Bl -tag -width "kerberosIV/" -compact
 .It Pa ffs/
-Fast filesystem
+Fast file system
 .It Pa ufs/
-UFS filesystem
+UFS file system
 .El
 .It Pa vm/
 virtual memory;
@@ -719,7 +719,7 @@ system messages database;
 see
 .Xr msgs 1
 .It Pa quotas/
-filesystem quota information files
+file system quota information files
 .It Pa run/
 system information files describing various info about
 system since it was booted
@@ -779,7 +779,7 @@ the NIS maps
 .Sh NOTES
 This manual page documents the default
 .Fx
-filesystem layout, but
+file system layout, but
 the actual hierarchy on a given system is defined at the system
 administrator's discretion.
 A well-maintained installation will include a customized version of

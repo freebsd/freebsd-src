@@ -41,12 +41,12 @@
 .Ft int
 .Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
-This writes out all unwritten data in a filesystem.
+This writes out all unwritten data in a file system.
 .Pp
 Its arguments are:
 .Bl -tag -width waitfor
 .It Ar mp
-The filesystem.
+The file system.
 .It Ar waitfor
 Whether the function should wait for I/O to complete.
 Possible values are:
@@ -56,7 +56,7 @@ synchronously wait for I/O to complete
 .It Dv MNT_NOWAIT
 start all I/O, but do not wait for it
 .It Dv MNT_LAZY
-push data not written by filesystem syncer
+push data not written by file system syncer
 .El
 .It Ar cred
 The caller's credentials.
@@ -66,7 +66,7 @@ The calling thread.
 .Pp
 This would normally call
 .Xr VOP_FSYNC 9
-for all the vnodes in the filesystem.
+for all the vnodes in the file system.
 .Sh SEE ALSO
 .Xr fsync 2 ,
 .Xr sync 2 ,

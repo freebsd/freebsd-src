@@ -46,7 +46,7 @@ This converts an inode number into a locked vnode.
 Its arguments are:
 .Bl -tag -width ".Ar flags"
 .It Ar mp
-The filesystem.
+The file system.
 .It Ar ino
 The inode representing the file.
 .It Ar flags
@@ -55,14 +55,14 @@ Additional locking flags to pass through.
 Return parameter for the vnode.
 .El
 .Pp
-This is an optional filesystem entry-point for filesystems which have a
-unique id number for every file in the filesystem.  It is used
-internally by the UFS filesystem and also by the NFSv3 server to
+This is an optional file system entry-point for file systems which have a
+unique id number for every file in the file system.  It is used
+internally by the UFS file system and also by the NFSv3 server to
 implement the
 .Dv READDIRPLUS
 nfs call.
 .Pp
-If the filesystem does not support this call, then it should return
+If the file system does not support this call, then it should return
 .Er EOPNOTSUPP .
 .Sh SEE ALSO
 .Xr VFS 9 ,

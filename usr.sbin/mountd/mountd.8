@@ -64,7 +64,7 @@ The following options are available:
 Allow the administrator to force clients to use only the
 version 2
 .Tn NFS
-protocol to mount filesystems from this server.
+protocol to mount file systems from this server.
 .It Fl d
 Output debugging information.
 .It Fl l
@@ -84,7 +84,7 @@ some diskless workstations do mount requests for
 their swapfiles and expect them to be regular files.
 Since a regular file cannot be specified in
 .Pa /etc/exports ,
-the entire filesystem in which the swapfiles resides
+the entire file system in which the swapfiles resides
 will have to be exported with the
 .Fl alldirs
 flag.
@@ -128,11 +128,11 @@ exits with an error.
 .Sh FILES
 .Bl -tag -width /var/run/mountd.pid -compact
 .It Pa /etc/exports
-the list of exported filesystems
+the list of exported file systems
 .It Pa /var/run/mountd.pid
 the pid of the currently running mountd
 .It Pa /var/db/mountdtab
-the current list of remote mounted filesystems
+the current list of remote mounted file systems
 .El
 .Sh SEE ALSO
 .Xr nfsstat 1 ,

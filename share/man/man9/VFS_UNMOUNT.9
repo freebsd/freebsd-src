@@ -33,7 +33,7 @@
 .Dt VFS_UNMOUNT 9
 .Sh NAME
 .Nm VFS_UNMOUNT
-.Nd unmount a filesystem
+.Nd unmount a file system
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -41,16 +41,16 @@
 .Ft int
 .Fn VFS_UNMOUNT "struct mount *mp" "int mntflags" "struct thread *td"
 .Sh DESCRIPTION
-Unmount a filesystem.
+Unmount a file system.
 .Pp
 Its arguments are:
 .Bl -tag -width mntflags
 .It Ar mp
-The filesystem.
+The file system.
 .It Ar mntflags
 Various flags.
 .It Ar td
-Thread which is unmounting the filesystem.
+Thread which is unmounting the file system.
 .El
 .Pp
 If the
