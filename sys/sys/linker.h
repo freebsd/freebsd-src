@@ -189,6 +189,8 @@ int linker_ddb_symbol_values(c_linker_sym_t _sym, linker_symval_t *_symval);
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
 
+#define	LINKER_HINTS_VERSION	1		/* linker.hints file version */
+
 #ifdef _KERNEL
 
 /*
