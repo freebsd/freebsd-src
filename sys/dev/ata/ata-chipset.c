@@ -185,7 +185,7 @@ ata_sata_setmode(struct ata_device *atadev, int mode)
      * if we detect that the device isn't a real SATA device we limit 
      * the transfer mode to UDMA5/ATA100.
      * this works around the problems some devices has with the 
-     * Marvell SATA->PATA converters and UDMA6/ATA133.
+     * Marvell 88SX8030 SATA->PATA converters and UDMA6/ATA133.
      */
     if (atadev->param->satacapabilities != 0x0000 &&
 	atadev->param->satacapabilities != 0xffff)
@@ -1365,7 +1365,6 @@ ata_promise_mio_allocate(device_t dev, struct ata_channel *ch)
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
     ch->flags |= ATA_USE_16BIT;
 
-    ctlr->dmainit(ch);	
     ata_generic_hw(ch);
     if (ctlr->chip->cfg2 & PRSX4X)
 	ch->hw.command = ata_promise_sx4_command;
@@ -2141,8 +2140,7 @@ ata_sii_allocate(device_t dev, struct ata_channel *ch)
     if (ctlr->chip->max_dma >= ATA_SA150)
 	ch->flags |= ATA_NO_SLAVE;
 
-    ctlr->dmainit(ch);
-    if (ctlr->chip->cfg2 & SIIBUG)
+    if ((ctlr->chip->cfg2 & SIIBUG) && ch->dma)
 	ch->dma->boundary = 8 * 1024;
 
     ata_generic_hw(ch);
