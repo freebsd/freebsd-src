@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.28 1997/02/22 09:38:57 peter Exp $
+ * $Id: imgact_gzip.c,v 1.29 1997/04/13 01:48:22 dyson Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -203,9 +203,6 @@ do_aout_hdr(struct imgact_gzip * gz)
 	 */
 	if (			/* text can't exceed maximum text size */
 	    gz->a_out.a_text > MAXTSIZ ||
-
-	/* data + bss can't exceed maximum data size */
-	    gz->a_out.a_data + gz->bss_size > MAXDSIZ ||
 
 	/* data + bss can't exceed rlimit */
 	    gz->a_out.a_data + gz->bss_size >
