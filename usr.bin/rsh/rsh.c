@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 static char rcsid[] =
-	"$Id: rsh.c,v 1.6 1996/02/03 11:49:29 markm Exp $";
+	"$Id: rsh.c,v 1.7 1996/02/11 09:14:12 markm Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -48,6 +48,7 @@ static char rcsid[] =
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
@@ -82,7 +83,7 @@ int	rfd2;
 
 char   *copyargs __P((char **));
 void	sendsig __P((int));
-void	talk __P((int, long, pid_t, int));
+void	talk __P((int, long, pid_t, int, int));
 void	usage __P((void));
 void	warning __P(());
 
@@ -98,6 +99,7 @@ main(argc, argv)
 	pid_t pid;
 	uid_t uid;
 	char *args, *host, *p, *user;
+	int timeout = 0;
 
 	argoff = asrsh = dflag = nflag = 0;
 	one = 1;
@@ -121,12 +123,12 @@ main(argc, argv)
 
 #ifdef KERBEROS
 #ifdef CRYPT
-#define	OPTIONS	"8KLde:k:l:nwx"
+#define	OPTIONS	"8KLde:k:l:nt:wx"
 #else
-#define	OPTIONS	"8KLde:k:l:nw"
+#define	OPTIONS	"8KLde:k:l:nt:w"
 #endif
 #else
-#define	OPTIONS	"8KLde:l:nw"
+#define	OPTIONS	"8KLde:l:nt:w"
 #endif
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != EOF)
 		switch(ch) {
@@ -162,6 +164,9 @@ main(argc, argv)
 			break;
 #endif
 #endif
+		case 't':
+			timeout = atoi(optarg);
+			break;
 		case '?':
 		default:
 			usage();
@@ -297,7 +302,7 @@ try_connect:
 		(void)ioctl(rem, FIONBIO, &one);
 	}
 
-	talk(nflag, omask, pid, rem);
+	talk(nflag, omask, pid, rem, timeout);
 
 	if (!nflag)
 		(void)kill(pid, SIGKILL);
@@ -305,7 +310,7 @@ try_connect:
 }
 
 void
-talk(nflag, omask, pid, rem)
+talk(nflag, omask, pid, rem, timeout)
 	int nflag;
 	long omask;
 	pid_t pid;
@@ -314,6 +319,8 @@ talk(nflag, omask, pid, rem)
 	int cc, wc;
 	fd_set readfrom, ready, rembits;
 	char *bp, buf[BUFSIZ];
+	struct timeval tvtimeout;
+	int srval;
 
 	if (!nflag && pid == 0) {
 		(void)close(rfd2);
@@ -356,17 +363,28 @@ done:
 		exit(0);
 	}
 
+	tvtimeout.tv_sec = timeout;
+	tvtimeout.tv_usec = 0;
+
 	(void)sigsetmask(omask);
 	FD_ZERO(&readfrom);
 	FD_SET(rfd2, &readfrom);
 	FD_SET(rem, &readfrom);
 	do {
 		ready = readfrom;
-		if (select(16, &ready, 0, 0, 0) < 0) {
+		if (timeout) {
+			srval = select(16, &ready, 0, 0, &tvtimeout);
+		} else {
+			srval = select(16, &ready, 0, 0, 0);
+		}
+
+		if (srval < 0) {
 			if (errno != EINTR)
 				err(1, "select");
 			continue;
 		}
+		if (srval == 0)
+			errx(1, "timeout reached (%d seconds)\n", timeout);
 		if (FD_ISSET(rfd2, &ready)) {
 			errno = 0;
 #ifdef KERBEROS
@@ -463,7 +481,7 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: rsh [-nd%s]%s[-l login] host [command]\n",
+	    "usage: rsh [-nd%s]%s[-l login] [-t timeout] host [command]\n",
 #ifdef KERBEROS
 #ifdef CRYPT
 	    "x", " [-k realm] ");
