@@ -14,7 +14,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kvm_getswapinfo.c,v 1.3 1999/01/25 04:07:07 dillon Exp $";
+	"$Id: kvm_getswapinfo.c,v 1.4 1999/01/27 11:29:15 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -127,10 +127,10 @@ kvm_getswapinfo(
 		KGET(NL_NSWDEV, nswdev);
 		KGET(NL_DMMAX, dmmax);
 
-		if (kvm_swap_nl[NL_SWAPLIST].n_value)
+		if (kvm_swap_nl[NL_SWAPLIST].n_type != N_UNDF)
 			type = 1;
 
-		if (kvm_swap_nl[NL_SWAPBLIST].n_value)
+		if (kvm_swap_nl[NL_SWAPBLIST].n_type != N_UNDF)
 			type = 2;
 
 		/*
@@ -406,6 +406,13 @@ getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
 	struct blist blcopy = { 0 };
 
 	KGET(NL_SWAPBLIST, swapblist);
+
+	if (swapblist == NULL) {
+		if (flags & SWIF_DUMP_TREE)
+			printf("radix tree: NULL - no swap in system\n");
+		return;
+	}
+
 	KGET2(swapblist, &blcopy, sizeof(blcopy), "*swapblist");
 
 	if (flags & SWIF_DUMP_TREE) {
