@@ -1363,11 +1363,9 @@ static int
 sk_detach_xmac(dev)
 	device_t		dev;
 {
-	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
 
-	sc = device_get_softc(device_get_parent(dev));
 	sc_if = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc_if->sk_softc->sk_mtx),
 	    ("sk mutex not initialized in sk_detach_xmac"));
@@ -1720,12 +1718,9 @@ static void
 sk_intr_bcom(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct sk_softc		*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
 	int			status;
-
-	sc = sc_if->sk_softc;
 	mii = device_get_softc(sc_if->sk_miibus);
 	ifp = &sc_if->arpcom.ac_if;
 
@@ -1780,10 +1775,8 @@ sk_intr_xmac(sc_if)
 {
 	struct sk_softc		*sc;
 	u_int16_t		status;
-	struct mii_data		*mii;
 
 	sc = sc_if->sk_softc;
-	mii = device_get_softc(sc_if->sk_miibus);
 	status = SK_XM_READ_2(sc_if, XM_ISR);
 
 	/*
