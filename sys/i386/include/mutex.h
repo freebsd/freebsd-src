@@ -610,55 +610,50 @@ _mtx_enter(mtx_t *mtxp, int type, const char *file, int line)
 	MPASS2(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0,
 	    STR_mtx_bad_type);
 
-	do {
-		if ((type) & MTX_SPIN) {
+	if ((type) & MTX_SPIN) {
+		/*
+		 * Easy cases of spin locks:
+		 *
+		 * 1) We already own the lock and will simply recurse on it (if
+		 *    RLIKELY)
+		 *
+		 * 2) The lock is free, we just get it
+		 */
+		if ((type) & MTX_RLIKELY) {
 			/*
-			 * Easy cases of spin locks:
-			 *
-			 * 1) We already own the lock and will simply
-			 *    recurse on it (if RLIKELY)
-			 *
-			 * 2) The lock is free, we just get it
+			 * Check for recursion, if we already have this
+			 * lock we just bump the recursion count.
 			 */
-			if ((type) & MTX_RLIKELY) {
-				/*
-				 * Check for recursion, if we already
-				 * have this lock we just bump the
-				 * recursion count.
-				 */
-				if (mpp->mtx_lock == CURTHD) {
-					mpp->mtx_recurse++;
-					break;	/* Done */
-				}
+			if (mpp->mtx_lock == CURTHD) {
+				mpp->mtx_recurse++;
+				goto done;
 			}
-
-			if (((type) & MTX_TOPHALF) == 0) {
-				/*
-				 * If an interrupt thread uses this
-				 * we must block interrupts here.
-				 */
-				if ((type) & MTX_FIRST) {
-					ASS_IEN;
-					disable_intr();
-					_getlock_norecurse(mpp, CURTHD,
-					    (type) & MTX_HARDOPTS);
-				} else {
-					_getlock_spin_block(mpp, CURTHD,
-					    (type) & MTX_HARDOPTS);
-				}
-			} else
-				_getlock_norecurse(mpp, CURTHD,
-				    (type) & MTX_HARDOPTS);
-		} else {
-			/* Sleep locks */
-			if ((type) & MTX_RLIKELY)
-				_getlock_sleep(mpp, CURTHD,
-				    (type) & MTX_HARDOPTS);
-			else
-				_getlock_norecurse(mpp, CURTHD,
-				    (type) & MTX_HARDOPTS);
 		}
-	} while (0);
+
+		if (((type) & MTX_TOPHALF) == 0) {
+			/*
+			 * If an interrupt thread uses this we must block
+			 * interrupts here.
+			 */
+			if ((type) & MTX_FIRST) {
+				ASS_IEN;
+				disable_intr();
+				_getlock_norecurse(mpp, CURTHD,
+				    (type) & MTX_HARDOPTS);
+			} else {
+				_getlock_spin_block(mpp, CURTHD,
+				    (type) & MTX_HARDOPTS);
+			}
+		} else
+			_getlock_norecurse(mpp, CURTHD, (type) & MTX_HARDOPTS);
+	} else {
+		/* Sleep locks */
+		if ((type) & MTX_RLIKELY)
+			_getlock_sleep(mpp, CURTHD, (type) & MTX_HARDOPTS);
+		else
+			_getlock_norecurse(mpp, CURTHD, (type) & MTX_HARDOPTS);
+	}
+	done:
 	WITNESS_ENTER(mpp, type, file, line);
 	CTR5(KTR_LOCK, STR_mtx_enter_fmt,
 	    mpp->mtx_description, mpp, file, line,
