@@ -172,6 +172,12 @@ acpi_acad_attach(device_t dev)
     sc->status = -1;
     sc->initializing = 0;
 
+    /*
+     * Also install a system notify handler even though this is not
+     * required by the specification.  The Casio FIVA needs this.
+     */
+    AcpiInstallNotifyHandler(handle, ACPI_SYSTEM_NOTIFY,
+			     acpi_acad_notify_handler, dev);
     AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
 			     acpi_acad_notify_handler, dev);
     AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_init_acline, dev);
