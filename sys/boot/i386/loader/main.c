@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.5 1998/09/17 23:52:15 msmith Exp $
+ *	$Id: main.c,v 1.6 1998/09/18 02:03:30 msmith Exp $
  */
 
 /*
@@ -33,10 +33,25 @@
 
 #include <stand.h>
 #include <string.h>
+#include <machine/bootinfo.h>
+#include <sys/reboot.h>
 
 #include "bootstrap.h"
 #include "libi386/libi386.h"
 #include "btxv86.h"
+
+/* Arguments passed in from the boot1/boot2 loader */
+static struct 
+{
+    u_int32_t	howto;
+    u_int32_t	bootdev;
+    u_int32_t	res0;
+    u_int32_t	res1;
+    u_int32_t	res2;
+    u_int32_t	bootinfo;
+} *kargs;
+
+struct bootinfo	*initial_bootinfo;
 
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
@@ -52,6 +67,10 @@ main(void)
     struct i386_devdesc	currdev;
     int			i;
 
+    /* Pick up arguments */
+    kargs = (void *)__args;
+    initial_bootinfo = (struct bootinfo *)PTOV(kargs->bootinfo);
+
     /* 
      * Initialise the heap as early as possible.  Once this is done, malloc() is usable.
      *
@@ -65,7 +84,10 @@ main(void)
      * can't do yet.
      *
      * We can use printf() etc. once this is done.
+     * If the previous boot stage has requested a serial console, prefer that.
      */
+    if (kargs->howto & RB_SERIAL)
+	setenv("console", "com", 1);
     cons_probe();
 
     /*
@@ -154,6 +176,7 @@ COMMAND_SET(heap, "heap", "show heap usage", command_heap);
 static int
 command_heap(int argc, char *argv[])
 {
-    printf("heap base at %p, top at %p, used %d\n", end, sbrk(0), sbrk(0) - end);
+    mallocstats();
+    printf("heap base at %p, top at %p", end, sbrk(0));
     return(CMD_OK);
 }

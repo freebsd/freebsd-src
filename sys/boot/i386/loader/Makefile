@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1998/09/19 01:35:53 msmith Exp $
+# $Id: Makefile,v 1.6 1998/09/25 17:14:16 peter Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -33,6 +33,7 @@ CFLAGS+=	-I${.CURDIR}/..
 # where to get libstand from
 LIBSTAND=	-lstand
 #LIBSTAND=	${.CURDIR}/../../../lib/libstand/libstand.a
+#CFLAGS+=	-I${.CURDIR}/../../../lib/libstand/
 
 # BTX components
 .if exists(${.OBJDIR}/../btx)
@@ -47,6 +48,10 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 
 # BTX is expecting ELF components
 CFLAGS+=	-elf
+
+# Debug me!
+#CFLAGS+=	-g
+#LDFLAGS+=	-g
 
 vers.o:
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
