@@ -159,6 +159,7 @@ distrib-dirs:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/libdata/perl/5.6.0/mach
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
+	cd ${DESTDIR}/usr/share/man/en.ISO_8859-1; ln -sf ../man* .
 	cd ${DESTDIR}/usr/share/locale; \
 	set - `cat ${.CURDIR}/locale.alias`; \
 	while [ $$# -gt 0 ] ; \
