@@ -68,6 +68,10 @@ static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #include <unistd.h>
 #include <utmp.h>
 
+#ifdef	SKEY
+#include <skey.h>
+#endif
+
 #include "pathnames.h"
 
 void	 badlogin __P((char *));
@@ -125,7 +129,6 @@ main(argc, argv)
 	char full_hostname[MAXHOSTNAMELEN];
 #ifdef	SKEY
 	int permit_passwd = 0;
-	char *skey_getpass(), *skey_crypt();
 #endif
 
 	(void)signal(SIGALRM, timedout);
@@ -259,7 +262,8 @@ main(argc, argv)
 
 #ifdef	SKEY
 		permit_passwd = skeyaccess(username, tty, 
-					   hostname ? full_hostname : NULL);
+					   hostname ? full_hostname : NULL,
+					   NULL);
 		p = skey_getpass("Password:", pwd, permit_passwd);
 		ep = skey_crypt(p, salt, pwd, permit_passwd);
 #else
