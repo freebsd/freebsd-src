@@ -88,6 +88,9 @@
 #define	MAXPARTITIONS	8
 #endif
 
+/* Size of bootblock area in sector-size neutral bytes */
+#define BBSIZE		8192
+
 #define	LABEL_PART	2		/* partition containing label */
 #define	RAW_PART	2		/* partition containing whole disk */
 #define	SWAP_PART	1		/* partition normally containing swap */
