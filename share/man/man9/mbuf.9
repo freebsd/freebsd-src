@@ -60,13 +60,13 @@
 .Fn mtod "struct mbuf *mbuf" "type"
 .Ft int
 .Fn MEXT_IS_REF "struct mbuf *mbuf"
-.Fn M_COPY_PKTHDR "struct mbuf *to" "struct mbuf *from"
 .Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
 .Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
 .Ft int
 .Fn M_LEADINGSPACE "struct mbuf *mbuf"
 .Ft int
 .Fn M_TRAILINGSPACE "struct mbuf *mbuf"
+.Fn M_MOVE_PKTHDR "struct mbuf *to" "struct mbuf *from"
 .Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
 .Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
 .Ft int
@@ -115,6 +115,10 @@
 .Fn m_cat "struct mbuf *m" "struct mbuf *n"
 .Ft u_int
 .Fn m_fixhdr "struct mbuf *mbuf"
+.Ft void
+.Fn m_dup_pkthdr "struct mbuf *to" "struct mbuf *from"
+.Ft void
+.Fn m_move_pkthdr "struct mbuf *to" "struct mbuf *from"
 .Ft u_int
 .Fn m_length "struct mbuf *mbuf" "struct mbuf **last"
 .Ft struct mbuf *
@@ -378,6 +382,40 @@ If the macro fails, the
 .Dv M_EXT
 flag won't be set in
 .Fa mbuf .
+.It Fn M_ALIGN mbuf len
+Set the pointer
+.Fa mbuf->m_data
+to place an object of the size
+.Fa len
+at the end of the internal data area of
+.Fa mbuf ,
+long word aligned.
+Applicable only if
+.Fa mbuf
+is newly allocated with
+.Fn MGET
+or
+.Fn m_get .
+.It Fn MH_ALIGN mbuf len
+Serves the same purpose as
+.Fn M_ALIGN
+does, but only for
+.Fa mbuf
+newly allocated with
+.Fn MGETHDR
+or
+.Fn m_gethdr ,
+or initialized by
+.Fn m_dup_pkthdr
+or
+.Fn m_move_pkthdr .
+.It Fn M_LEADINGSPACE mbuf
+Returns the number of bytes available before the beginning
+of data in
+.Fa mbuf .
+.It Fn M_TRAILINGSPACE mbuf
+Returns the number of bytes available after the end of data in
+.Fa mbuf .
 .It Fn M_PREPEND mbuf len how
 This macro operates on an
 .Vt mbuf chain .
@@ -392,6 +430,9 @@ pointer or
 is in
 .Fa mbuf
 after the call.
+.It Fn M_MOVE_PKTHDR to from
+Using this macro is equivalent to calling
+.Fn m_move_pkthdr to from .
 .It Fn M_WRITABLE mbuf
 This macro will evaluate true if
 .Fa mbuf
@@ -415,6 +456,12 @@ argument to the
 .Fn MEXTADD
 macro, or can be directly set in individual
 .Vt mbufs .
+.It Fn MCHTYPE mbuf type
+Change the type of
+.Fa mbuf
+to
+.Fa type .
+This is a relatively expensive operation and should be avoided.
 .El
 .Pp
 The functions are:
@@ -616,6 +663,47 @@ Return the length of the
 .Vt mbuf chain ,
 and optionally a pointer to the last
 .Vt mbuf .
+.\"
+.It Fn m_dup_pkthdr to from how
+Upon the function's completion, the
+.Vt mbuf
+.Fa to
+will contain an identical copy of
+.Fa from->m_pkthdr
+and the per-packet attributes found in the
+.Vt mbuf chain
+.Fa from .
+The
+.Vt mbuf
+.Fa from
+must have the flag
+.Dv M_PKTHDR
+initially set, and
+.Fa to
+must be empty on entry.
+.\"
+.It Fn m_move_pkthdr to from
+Move
+.Va m_pkthdr
+and the per-packet attributes from the
+.Vt mbuf chain
+.Fa from
+to the
+.Vt mbuf
+.Fa to .
+The
+.Vt mbuf
+.Fa from
+must have the flag
+.Dv M_PKTHDR
+initially set, and
+.Fa to
+must be empty on entry.
+Upon the function's completion,
+.Fa from
+will have the flag
+.Dv M_PKTHDR
+and the per-packet attributes cleared.
 .\"
 .It Fn m_fixhdr buf
 Set the packet-header length to the length of the
