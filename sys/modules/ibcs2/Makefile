@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1998/11/11 05:18:22 peter Exp $
+#	$Id: Makefile,v 1.22 1998/11/11 07:04:10 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/ibcs2
 KMOD=	ibcs2
@@ -19,6 +19,6 @@ opt_spx_hack.h:
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/ibcs2.sh ${DESTDIR}/usr/bin
+		${.CURDIR}/ibcs2.sh ${DESTDIR}/usr/bin/ibcs2
 
 .include <bsd.kmod.mk>
