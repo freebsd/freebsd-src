@@ -44,14 +44,14 @@
 /* NOTE: pcb_fpstate must be aligned on a 64 byte boundary. */
 struct	pcb {
 	struct	fpstate	pcb_fpstate;
+	u_long	pcb_cwp;
 	u_long	pcb_fp;
 	u_long	pcb_pc;
 	u_long	pcb_y;
 	caddr_t	pcb_onfault;
-	u_long	pcb_inwinop;
-	u_long	pcb_cwp;
-	u_long	pcb_ws_inuse;
-	struct	wsframe pcb_wscratch[MAXWIN];
+	u_long	pcb_nsaved;
+	u_long	pcb_rwsp[MAXWIN];
+	struct	rwindow pcb_rw[MAXWIN];
 };
 
 struct	md_coredump {
