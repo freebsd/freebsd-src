@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_portal.c	8.6 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id: mount_portal.c,v 1.9 1997/02/22 14:32:53 peter Exp $";
+	"$Id: mount_portal.c,v 1.10 1997/03/11 12:34:58 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -110,6 +110,7 @@ main(argc, argv)
 	int mntflags = 0;
 	char tag[32];
 	struct vfsconf vfc;
+	mode_t um;
 
 	qelem q;
 	int rc;
@@ -159,11 +160,13 @@ main(argc, argv)
 	if (so < 0) {
 		err(EX_OSERR, "socket");
 	}
+	um = umask(077);
 	(void) unlink(un.sun_path);
 	if (bind(so, (struct sockaddr *) &un, sizeof(un)) < 0)
 		err(1, NULL);
 
 	(void) unlink(un.sun_path);
+	(void) umask(um);
 
 	(void) listen(so, 5);
 
