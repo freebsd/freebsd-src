@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.18 1995/05/25 07:41:28 davidg Exp $
+ *	$Id: vmparam.h,v 1.19 1996/03/12 15:37:58 davidg Exp $
  */
 
 
@@ -87,24 +87,31 @@
  */
 #define	MAXSLP 		20
 
+
 /*
- * Mach derived constants
+ * Virtual addresses of things.  Derived from the page directory and
+ * page table indexes from pmap.h for precision.
+ * Because of the page that is both a PD and PT, it looks a little
+ * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-/* user/kernel map constants */
-#define	KERNBASE ((0x400-1-NKPDE)*(NBPG*NPTEPG))
+#define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE, 0)
+#define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
 
+#define	KERNBASE		VADDR(KPTDI, 0)
+
+#define KPT_MAX_ADDRESS		VADDR(PTDPTDI, APTDPTDI)
+#define KPT_MIN_ADDRESS		VADDR(PTDPTDI, KPTDI)
+
+#define UPT_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
+#define UPT_MIN_ADDRESS		VADDR(PTDPTDI, 0)
+
+#define VM_MAXUSER_ADDRESS	VADDR(KSTKPTDI, KSTKPTEOFF)
+
+#define USRSTACK		VM_MAXUSER_ADDRESS
+
+#define VM_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
-#define VM_MAXUSER_ADDRESS	((vm_offset_t)KERNBASE - (NBPG*(NPTEPG+UPAGES)))
-#define USRSTACK VM_MAXUSER_ADDRESS
-#define UPT_MIN_ADDRESS		((vm_offset_t)KERNBASE - (NBPG*NPTEPG))
-#define UPT_MAX_ADDRESS		((vm_offset_t)KERNBASE - (NBPG*(NKPDE+2)))
-#define VM_MAX_ADDRESS		UPT_MAX_ADDRESS
-#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNBASE - (NBPG*(NKPDE+2)))
-#define UPDT			VM_MIN_KERNEL_ADDRESS
-#define KPT_MIN_ADDRESS		((vm_offset_t)KERNBASE - NBPG*(NKPDE+1))
-#define KPT_MAX_ADDRESS		((vm_offset_t)KERNBASE - NBPG)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)KERNBASE + NKPDE*NBPG*NPTEPG)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #define VM_KMEM_SIZE		(32 * 1024 * 1024)
