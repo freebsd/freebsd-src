@@ -35,7 +35,7 @@ an output file in a directory which does not already exist, the
 default behavior is to attempt to create the directory.  If
 .Fl D
 is specified,
-.Nm zic
+.Nm
 will instead error out immediately.
 .It Fl d Ar directory
 Create time conversion information files in the named directory rather than
@@ -375,7 +375,7 @@ you may need to use local standard time in the
 .Em AT
 field of the earliest transition time's rule to ensure that
 the earliest transition time recorded in the compiled file is correct.
-.Sh FILE
+.Sh FILES
 .Bl -tag -width /usr/share/zoneinfo -compact
 .It /usr/share/zoneinfo
 standard directory used for created files
