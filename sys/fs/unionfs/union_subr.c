@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.4 (Berkeley) 2/17/94
- * $Id: union_subr.c,v 1.5 1994/10/10 07:55:46 phk Exp $
+ * $Id: union_subr.c,v 1.6 1995/05/30 08:07:25 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -716,7 +716,7 @@ union_vn_close(vp, fmode, cred, p)
 {
 	if (fmode & FWRITE)
 		--vp->v_writecount;
-	return (VOP_CLOSE(vp, fmode));
+	return (VOP_CLOSE(vp, fmode, cred, p));
 }
 
 void

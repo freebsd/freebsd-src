@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.30 1995/08/01 18:50:39 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.31 1995/08/11 11:31:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -2145,7 +2145,7 @@ unionread:
 		vp = union_lowervp(vp);
 		if (vp != NULLVP) {
 			VOP_LOCK(vp);
-			error = VOP_OPEN(vp, FREAD);
+			error = VOP_OPEN(vp, FREAD, fp->f_cred, p);
 			VOP_UNLOCK(vp);
 
 			if (error) {
