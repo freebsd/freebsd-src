@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.2 1996/04/21 21:34:02 wpaul Exp wpaul $
+ *	$Id: yp_extern.h,v 1.4 1996/04/28 04:38:50 wpaul Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -39,6 +39,7 @@
 #include <limits.h>
 #include <db.h>
 #include <rpc/rpc.h>
+
 
 #ifndef _PATH_YP
 #define _PATH_YP "/var/yp/"
@@ -51,6 +52,9 @@
 #ifndef MAX_CHILDREN
 #define MAX_CHILDREN 20
 #endif
+
+#define YP_SECURE 0x1
+#define YP_INTERDOMAIN 0x2
 
 /*
  * External functions and variables.
@@ -69,10 +73,15 @@ extern int	yp_first_record __P((const DB *, DBT *, DBT *, int));
 extern int	yp_next_record __P((const DB *, DBT *, DBT *, int, int));
 extern char	*yp_dnsname __P(( char * ));
 extern char	*yp_dnsaddr __P(( const char * ));
+#ifdef DB_CACHE
+extern int	yp_access __P((const char *, const char *, const struct svc_req * ));
+#else
 extern int	yp_access __P((const char *, const struct svc_req * ));
+#endif
 extern int	yp_validdomain __P((const char * ));
 extern DB	*yp_open_db __P(( const char *, const char *));
 extern DB	*yp_open_db_cache __P(( const char *, const char *, const char *, int ));
 extern void	yp_flush_all __P(( void ));
 extern void	yp_init_dbs __P(( void ));
+extern int	yp_testflag __P(( char *, char *, int ));
 extern void	load_securenets __P(( void ));
