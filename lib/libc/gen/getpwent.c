@@ -62,8 +62,8 @@ struct _pw_cache {
 	struct _namelist *namelist;
 	struct _pw_cache *next;
 };
-static int pluscnt, minuscnt;
-static struct _pw_cache *plushead =NULL, *minushead = NULL;
+static int _pluscnt, _minuscnt;
+static struct _pw_cache *_plushead = NULL, *_minushead = NULL;
 static void _createcaches(), _freecaches();
 static int _yp_enabled;			/* set true when yp enabled */
 static int _pw_stepping_yp;		/* set true when stepping thru map */
@@ -329,15 +329,20 @@ static void
 _createcaches()
 {
 	DBT key, data;
-	int i, len, rval;
+	int i;
 	char bf[UT_NAMESIZE + 2];
 	char entry[UT_NAMESIZE];
 	struct _pw_cache *p, *m;
 	struct _namelist *n, *namehead;
 	char *user, *host, *domain;
 
-	/* Assume that the database has already been initialized. */
+	/*
+	 * Assume that the database has already been initialized
+	 * but be paranoid and check that YP is in fact enabled.
+	 */
 
+	if (!_yp_enabled)
+		return;
 	/*
 	 * For the plus lists, we have to store both the linked list of
 	 * names and the +@entries from the password database so we can
@@ -347,12 +352,12 @@ _createcaches()
 	key.data = (u_char*)bf;
 	key.size = 1;
 	if (!(_pw_db->get)(_pw_db, &key, &data, 0)) {
-		pluscnt = (int)*((char *)data.data);
-		for (i = 0; i < pluscnt; i++) {
+		_pluscnt = (int)*((char *)data.data);
+		for (i = 0; i < _pluscnt; i++) {
 			bf[0] = _PW_KEYPLUSBYNUM;
 			bcopy(&i, bf + 1, sizeof(i) + 1);
 			key.size = (sizeof(i)) + 1;
-			if ((rval = __hashpw(&key))) {
+			if (__hashpw(&key)) {
 				p = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
 				setnetgrent(_pw_passwd.pw_name+2);
 				namehead = NULL;
@@ -374,8 +379,8 @@ _createcaches()
 				p->pw_entry.pw_shell = strdup(_pw_passwd.pw_shell);
 				p->pw_entry.pw_fields = _pw_passwd.pw_fields;
 				p->namelist = namehead;
-				p->next = plushead;
-				plushead = p;
+				p->next = _plushead;
+				_plushead = p;
 			}
 		}
 	}
@@ -390,12 +395,12 @@ _createcaches()
 	key.data = (u_char*)bf;
 	key.size = 1;
 	if (!(_pw_db->get)(_pw_db, &key, &data, 0)) {
-		minuscnt = (int)*((char *)data.data);
-		for (i = 0; i < minuscnt; i++) {
+		_minuscnt = (int)*((char *)data.data);
+		for (i = 0; i < _minuscnt; i++) {
 			bf[0] = _PW_KEYMINUSBYNUM;
 			bcopy(&i, bf + 1, sizeof(i) + 1);
 			key.size = (sizeof(i)) + 1;
-			if ((rval = __hashpw(&key))) {
+			if (__hashpw(&key)) {
 				m = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
 				setnetgrent(_pw_passwd.pw_name+2);
 				namehead = NULL;
@@ -406,8 +411,8 @@ _createcaches()
 					namehead = n;
 				}
 				m->namelist = namehead;
-				m->next = minushead;
-				minushead = m;
+				m->next = _minushead;
+				_minushead = m;
 			}
 		}
 	}
@@ -424,28 +429,28 @@ _freecaches()
 struct _pw_cache *p, *m;
 struct _namelist *n;
 
-	while (plushead) {
-			while(plushead->namelist) {
-				n = plushead->namelist->next;
-				free(plushead->namelist);
-				plushead->namelist = n;
+	while (_plushead) {
+			while(_plushead->namelist) {
+				n = _plushead->namelist->next;
+				free(_plushead->namelist);
+				_plushead->namelist = n;
 			}
-		p = plushead->next;
-		free(plushead);
-		plushead = p;
+		p = _plushead->next;
+		free(_plushead);
+		_plushead = p;
 	}
 
-	while(minushead) {
-			while(minushead->namelist) {
-				n = minushead->namelist->next;
-				free(minushead->namelist);
-				minushead->namelist = n;
+	while(_minushead) {
+			while(_minushead->namelist) {
+				n = _minushead->namelist->next;
+				free(_minushead->namelist);
+				_minushead->namelist = n;
 			}
-		m = minushead->next;
-		free(minushead);
-		minushead = m;
+		m = _minushead->next;
+		free(_minushead);
+		_minushead = m;
 	}
-	pluscnt = minuscnt = 0;
+	_pluscnt = _minuscnt = 0;
 }
 
 static void
@@ -568,8 +573,8 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
 	s = strsep(&result,":");
-	if (minuscnt && minushead) {
-		m = minushead;
+	if (_minuscnt && _minushead) {
+		m = _minushead;
 		while (m) {
 			n = m->namelist;
 			while (n) {
@@ -582,8 +587,8 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 			m = m->next;
 		}
 	}
-	if (pluscnt && plushead) {
-		p = plushead;
+	if (_pluscnt && _plushead) {
+		p = _plushead;
 		while (p) {
 			n = p->namelist;
 			while (n) {
@@ -656,8 +661,8 @@ unpack:
 
 		strcpy(resultbuf, result);
 		s = strsep(&result,":");
-		if (minuscnt && minushead) {
-			m = minushead;
+		if (_minuscnt && _minushead) {
+			m = _minushead;
 			while (m) {
 				n = m->namelist;
 				while (n) {
@@ -670,8 +675,8 @@ unpack:
 				m = m->next;
 			}
 		}
-		if (pluscnt && plushead) {
-			p = plushead;
+		if (_pluscnt && _plushead) {
+			p = _plushead;
 			while (p) {
 				n = p->namelist;
 				while (n) {
