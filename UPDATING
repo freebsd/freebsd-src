@@ -3,6 +3,14 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19991015:
+	PCCARD has been updated to attach pcic to the isa bus.  Therefore
+	you will need to modify kernel config files that have pcic/card
+	in them as follows:
+		controller	pcic0	at isa?
+		controller	pcic1	at isa?
+		controller	card0
+
 19990929:
 	The sigset_t datatype has been changed from an integral type
 	to a compound type and can hold 128 signals. Syscalls directly
