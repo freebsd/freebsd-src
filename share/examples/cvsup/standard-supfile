@@ -54,7 +54,9 @@
 *default release=cvs tag=.
 *default delete use-rel-suffix
 
-# If your network link is a T1 or faster, comment out the following line.
+# If you seem to be limited by CPU rather than network or disk bandwidth, try
+# commenting out the following line.  (Normally, today's CPUs are fast enough
+# that you want to run compression.)
 *default compress
 
 ## Main Source Tree.
