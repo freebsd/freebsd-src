@@ -36,6 +36,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	named as a resolving (caching) name server, you will likely
 	not have trouble.
 
+	The following files are part of the old BIND 8 installation
+	and should be removed:
+	/usr/bin/dnskeygen /usr/bin/dnsquery /usr/libexec/named-xfer
+	/usr/sbin/named.restart /usr/sbin/ndc
+
+	The following files have moved to /usr/bin, and should be
+	removed from their old locations:
+	/usr/sbin/nslookup /usr/sbin/nsupdate
+
 20040914:
 	The format of the pflogd(8) logfile "/var/log/pflog" has changed for
 	architectures that have a 64 bit long type to make it compatible to
