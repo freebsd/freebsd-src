@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.24 1997/02/22 09:39:09 peter Exp $
+ * $Id: kern_resource.c,v 1.25 1997/04/26 11:46:13 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -512,7 +512,8 @@ calcru(p, up, sp, ip)
 	if (totusec < 0) {
 #ifndef SMP	/* sigh, microtime and fork/exit madness here */
 		/* XXX no %qd in kernel.  Truncate. */
-		printf("calcru: negative time: %ld usec\n", (long)totusec);
+		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
+		       (long)totusec, p->p_pid, p->p_comm);
 #endif
 		totusec = 0;
 	}
