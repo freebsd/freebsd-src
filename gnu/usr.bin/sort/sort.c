@@ -240,21 +240,7 @@ init_collates(void)
 		}
 	}
 }
-
-static int
-collcmp (const unsigned char *p1, const unsigned char *p2, size_t n)
-{
-	int r;
-
-	if (n != 0) {
-		do {
-			if ((r = COLLDIFF (*p1++, *p2++)) != 0)
-				return r;
-		} while (--n != 0);
-	}
-	return (0);
-}
-#endif
+#endif /* __FreeBSD__ */
 
 static void
 usage (int status)
@@ -1187,7 +1173,7 @@ keycompare (const struct line *a, const struct line *b)
 	  }
       else
 #ifdef __FreeBSD__
-	diff = collcmp (texta, textb, min (lena, lenb));
+	diff = strcoll (texta, textb);
 #else
 	diff = memcmp (texta, textb, min (lena, lenb));
 #endif
@@ -1231,21 +1217,21 @@ compare (register const struct line *a, register const struct line *b)
     {
       char *ap = a->text, *bp = b->text;
 
-#ifdef __FreeBSD__
-      diff = COLLDIFF (*ap, *bp);
-#else
+#ifndef __FreeBSD__
       diff = UCHAR (*ap) - UCHAR (*bp);
-#endif
       if (diff == 0)
 	{
+#endif
 #ifdef __FreeBSD__
-	  diff = collcmp (ap, bp, mini);
+	  diff = strcoll (ap, bp);
 #else
 	  diff = memcmp (ap, bp, mini);
 #endif
 	  if (diff == 0)
 	    diff = tmpa - tmpb;
+#ifndef __FreeBSD__
 	}
+#endif
     }
 
   return reverse ? -diff : diff;
