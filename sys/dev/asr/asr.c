@@ -263,22 +263,13 @@ static dpt_sig_S ASR_sig = {
 				/* Also serves as the minimum map for	 */
 				/* the 2005S zero channel RAID product	 */
 
-/**************************************************************************
-** ASR Host Adapter structure - One Structure For Each Host Adapter That **
-**  Is Configured Into The System.  The Structure Supplies Configuration **
-**  Information, Status Info, Queue Info And An Active CCB List Pointer. **
-***************************************************************************/
-
 /* I2O register set */
-typedef struct {
-	U8	     Address[0x30];
-	volatile U32 Status;
-	volatile U32 Mask;
-#define Mask_InterruptsDisabled 0x08
-	U32	     x[2];
-	volatile U32 ToFIFO;	/* In Bound FIFO  */
-	volatile U32 FromFIFO;	/* Out Bound FIFO */
-} i2oRegs_t;
+#define	I2O_REG_STATUS		0x30
+#define	I2O_REG_MASK		0x34
+#define	I2O_REG_TOFIFO		0x40
+#define	I2O_REG_FROMFIFO	0x44
+
+#define	Mask_InterruptsDisabled	0x08
 
 /*
  * A MIX of performance and space considerations for TID lookups
@@ -308,12 +299,20 @@ union asr_ccb {
 	struct ccb_setasync csa;
 };
 
+/**************************************************************************
+** ASR Host Adapter structure - One Structure For Each Host Adapter That **
+**  Is Configured Into The System.  The Structure Supplies Configuration **
+**  Information, Status Info, Queue Info And An Active CCB List Pointer. **
+***************************************************************************/
+
 typedef struct Asr_softc {
 	u_int16_t		ha_irq;
-	void		      * ha_Base;       /* base port for each board */
-	u_int8_t     * volatile ha_blinkLED;
-	i2oRegs_t	      * ha_Virt;       /* Base address of IOP	   */
-	U8		      * ha_Fvirt;      /* Base address of Frames   */
+	u_long			ha_Base;       /* base port for each board */
+	bus_size_t		ha_blinkLED;
+	bus_space_handle_t	ha_i2o_bhandle;
+	bus_space_tag_t		ha_i2o_btag;
+	bus_space_handle_t	ha_frame_bhandle;
+	bus_space_tag_t		ha_frame_btag;
 	I2O_IOP_ENTRY		ha_SystemTable;
 	LIST_HEAD(,ccb_hdr)	ha_ccb;	       /* ccbs in use		   */
 	struct cam_path	      * ha_path[MAX_CHANNEL+1];
@@ -417,6 +416,62 @@ static struct cdevsw asr_cdevsw = {
 
 /* I2O support routines */
 
+static __inline u_int32_t
+asr_get_FromFIFO(Asr_softc_t *sc)
+{
+	return (bus_space_read_4(sc->ha_i2o_btag, sc->ha_i2o_bhandle,
+				 I2O_REG_FROMFIFO));
+}
+
+static __inline u_int32_t
+asr_get_ToFIFO(Asr_softc_t *sc)
+{
+	return (bus_space_read_4(sc->ha_i2o_btag, sc->ha_i2o_bhandle,
+				 I2O_REG_TOFIFO));
+}
+
+static __inline u_int32_t
+asr_get_intr(Asr_softc_t *sc)
+{
+	return (bus_space_read_4(sc->ha_i2o_btag, sc->ha_i2o_bhandle,
+				 I2O_REG_MASK));
+}
+
+static __inline u_int32_t
+asr_get_status(Asr_softc_t *sc)
+{
+	return (bus_space_read_4(sc->ha_i2o_btag, sc->ha_i2o_bhandle,
+				 I2O_REG_STATUS));
+}
+
+static __inline void
+asr_set_FromFIFO(Asr_softc_t *sc, u_int32_t val)
+{
+	bus_space_write_4(sc->ha_i2o_btag, sc->ha_i2o_bhandle, I2O_REG_FROMFIFO,
+			  val);
+}
+
+static __inline void
+asr_set_ToFIFO(Asr_softc_t *sc, u_int32_t val)
+{
+	bus_space_write_4(sc->ha_i2o_btag, sc->ha_i2o_bhandle, I2O_REG_TOFIFO,
+			  val);
+}
+
+static __inline void
+asr_set_intr(Asr_softc_t *sc, u_int32_t val)
+{
+	bus_space_write_4(sc->ha_i2o_btag, sc->ha_i2o_bhandle, I2O_REG_MASK,
+			  val);
+}
+
+static __inline void
+asr_set_frame(Asr_softc_t *sc, void *frame, u_int32_t offset, int len)
+{
+	bus_space_write_region_4(sc->ha_frame_btag, sc->ha_frame_bhandle,
+				 offset, (u_int32_t *)frame, len);
+}
+
 /*
  *	Fill message with default.
  */
@@ -438,19 +493,20 @@ ASR_fillMessage(void *Message, u_int16_t size)
 #define	EMPTY_QUEUE (-1L)
 
 static __inline U32
-ASR_getMessage(i2oRegs_t *virt)
+ASR_getMessage(Asr_softc_t *sc)
 {
 	U32	MessageOffset;
 
-	if ((MessageOffset = virt->ToFIFO) == EMPTY_QUEUE) {
-		MessageOffset = virt->ToFIFO;
-	}
+	MessageOffset = asr_get_ToFIFO(sc);
+	if (MessageOffset == EMPTY_QUEUE)
+		MessageOffset = asr_get_ToFIFO(sc);
+
 	return (MessageOffset);
 } /* ASR_getMessage */
 
 /* Issue a polled command */
 static U32
-ASR_initiateCp(i2oRegs_t *virt, U8 *fvirt, PI2O_MESSAGE_FRAME Message)
+ASR_initiateCp(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 {
 	U32	Mask = -1L;
 	U32	MessageOffset;
@@ -461,18 +517,19 @@ ASR_initiateCp(i2oRegs_t *virt, U8 *fvirt, PI2O_MESSAGE_FRAME Message)
 	 * be made more resiliant to adapter delays since commands like
 	 * resetIOP can cause the adapter to be deaf for a little time.
 	 */
-	while (((MessageOffset = ASR_getMessage(virt)) == EMPTY_QUEUE)
+	while (((MessageOffset = ASR_getMessage(sc)) == EMPTY_QUEUE)
 	 && (--Delay != 0)) {
 		DELAY (10000);
 	}
 	if (MessageOffset != EMPTY_QUEUE) {
-		bcopy(Message, fvirt + MessageOffset,
-		      I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
+		asr_set_frame(sc, Message, MessageOffset,
+			      I2O_MESSAGE_FRAME_getMessageSize(Message));
 		/*
 		 *	Disable the Interrupts
 		 */
-		virt->Mask = (Mask = virt->Mask) | Mask_InterruptsDisabled;
-		virt->ToFIFO = MessageOffset;
+		Mask = asr_get_intr(sc);
+		asr_set_intr(sc, Mask | Mask_InterruptsDisabled);
+		asr_set_ToFIFO(sc, MessageOffset);
 	}
 	return (Mask);
 } /* ASR_initiateCp */
@@ -481,7 +538,7 @@ ASR_initiateCp(i2oRegs_t *virt, U8 *fvirt, PI2O_MESSAGE_FRAME Message)
  *	Reset the adapter.
  */
 static U32
-ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
+ASR_resetIOP(Asr_softc_t *sc)
 {
 	struct resetMessage {
 		I2O_EXEC_IOP_RESET_MESSAGE M;
@@ -507,7 +564,7 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp(virt, fvirt,
+	if ((Old = ASR_initiateCp(sc,
 				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
 		/*
 		 * Wait for a response (Poll), timeouts are dangerous if
@@ -521,7 +578,7 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 		/*
 		 *	Re-enable the interrupts.
 		 */
-		virt->Mask = Old;
+		asr_set_intr(sc, Old);
 		KASSERT(*Reply_Ptr != 0, ("*Reply_Ptr == 0"));
 		return(*Reply_Ptr);
 	}
@@ -533,7 +590,7 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
  *	Get the curent state of the adapter
  */
 static PI2O_EXEC_STATUS_GET_REPLY
-ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
+ASR_getStatus(Asr_softc_t *sc, PI2O_EXEC_STATUS_GET_REPLY buffer)
 {
 	I2O_EXEC_STATUS_GET_MESSAGE	Message;
 	PI2O_EXEC_STATUS_GET_MESSAGE	Message_Ptr;
@@ -558,7 +615,7 @@ ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp(virt, fvirt,
+	if ((Old = ASR_initiateCp(sc,
 				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
 		/*
 		 *	Wait for a response (Poll), timeouts are dangerous if
@@ -576,7 +633,7 @@ ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
 		/*
 		 *	Re-enable the interrupts.
 		 */
-		virt->Mask = Old;
+		asr_set_intr(sc, Old);
 		return (buffer);
 	}
 	return (NULL);
@@ -652,10 +709,10 @@ ASR_queue_s(union asr_ccb *ccb, PI2O_MESSAGE_FRAME Message)
 
 	/* Prevent interrupt service */
 	s = splcam ();
-	sc->ha_Virt->Mask = (Mask = sc->ha_Virt->Mask)
-	  | Mask_InterruptsDisabled;
+	Mask = asr_get_intr(sc);
+	asr_set_intr(sc, Mask | Mask_InterruptsDisabled);
 
-	if (ASR_queue (sc, Message) == EMPTY_QUEUE) {
+	if (ASR_queue(sc, Message) == EMPTY_QUEUE) {
 		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 	}
@@ -668,7 +725,7 @@ ASR_queue_s(union asr_ccb *ccb, PI2O_MESSAGE_FRAME Message)
 	}
 
 	/* Re-enable Interrupts */
-	sc->ha_Virt->Mask = Mask;
+	asr_set_intr(sc, Mask);
 	splx(s);
 
 	return (ccb->ccb_h.status);
@@ -804,12 +861,19 @@ ASR_resetBus(Asr_softc_t *sc, int bus)
 static __inline int
 ASR_getBlinkLedCode(Asr_softc_t *sc)
 {
-	if ((sc != NULL)
-	 && (sc->ha_blinkLED != NULL)
-	 && (sc->ha_blinkLED[1] == 0xBC)) {
-		return (sc->ha_blinkLED[0]);
-	}
-	return (0);
+	U8	blink;
+
+	if (sc == NULL)
+		return (0);
+
+	blink = bus_space_read_1(sc->ha_frame_btag,
+				 sc->ha_frame_bhandle, sc->ha_blinkLED + 1);
+	if (blink != 0xBC)
+		return (0);
+
+	blink = bus_space_read_1(sc->ha_frame_btag,
+				 sc->ha_frame_bhandle, sc->ha_blinkLED);
+	return (blink);
 } /* ASR_getBlinkCode */
 
 /*
@@ -1174,7 +1238,7 @@ ASR_reset(Asr_softc_t *sc)
 	 * or HA_OFF_LINE to HA_OFF_LINE_RECOVERY.
 	 */
 	++(sc->ha_in_reset);
-	if (ASR_resetIOP (sc->ha_Virt, sc->ha_Fvirt) == 0) {
+	if (ASR_resetIOP(sc) == 0) {
 		debug_asr_printf ("ASR_resetIOP failed\n");
 		/*
 		 *	We really need to take this card off-line, easier said
@@ -1186,7 +1250,7 @@ ASR_reset(Asr_softc_t *sc)
 		 * to instead take the card off-line ...
 		 */
 		/* Wait Forever */
-		while (ASR_resetIOP (sc->ha_Virt, sc->ha_Fvirt) == 0);
+		while (ASR_resetIOP(sc) == 0);
 	}
 	retVal = ASR_init (sc);
 	splx (s);
@@ -1280,14 +1344,14 @@ ASR_queue(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 	ccb = (union asr_ccb *)(long)
 	  I2O_MESSAGE_FRAME_getInitiatorContext64(Message);
 
-	if ((MessageOffset = ASR_getMessage(sc->ha_Virt)) != EMPTY_QUEUE) {
-		bcopy(Message, sc->ha_Fvirt + MessageOffset,
-		    I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
+	if ((MessageOffset = ASR_getMessage(sc)) != EMPTY_QUEUE) {
+		asr_set_frame(sc, Message, MessageOffset,
+			      I2O_MESSAGE_FRAME_getMessageSize(Message));
 		if (ccb) {
 			ASR_ccbAdd (sc, ccb);
 		}
 		/* Post the command */
-		sc->ha_Virt->ToFIFO = MessageOffset;
+		asr_set_ToFIFO(sc, MessageOffset);
 	} else {
 		if (ASR_getBlinkLedCode(sc)) {
 			/*
@@ -1816,8 +1880,8 @@ ASR_initOutBound(Asr_softc_t *sc)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp(sc->ha_Virt, sc->ha_Fvirt,
-				 (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
+	if ((Old = ASR_initiateCp(sc,
+				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
 		u_long size, addr;
 
 		/*
@@ -1827,7 +1891,7 @@ ASR_initOutBound(Asr_softc_t *sc)
 		/*
 		 *	Re-enable the interrupts.
 		 */
-		sc->ha_Virt->Mask = Old;
+		asr_set_intr(sc, Old);
 		/*
 		 *	Populate the outbound table.
 		 */
@@ -1851,9 +1915,9 @@ ASR_initOutBound(Asr_softc_t *sc)
 
 		/* Initialize the outbound FIFO */
 		if (sc->ha_Msgs != NULL)
-		for (size = sc->ha_Msgs_Count, addr = sc->ha_Msgs_Phys;
-		  size; --size) {
-			sc->ha_Virt->FromFIFO = addr;
+		for(size = sc->ha_Msgs_Count, addr = sc->ha_Msgs_Phys;
+		    size; --size) {
+			asr_set_FromFIFO(sc, addr);
 			addr += sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME);
 		}
 		return (*Reply_Ptr);
@@ -2159,11 +2223,10 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 	if (sc->ha_mem_res == NULL) {
 		return (0);
 	}
-	sc->ha_Base = (void *)rman_get_start(sc->ha_mem_res);
-	if (sc->ha_Base == NULL) {
-		return (0);
-	}
-	sc->ha_Virt = (i2oRegs_t *) rman_get_virtual(sc->ha_mem_res);
+	sc->ha_Base = rman_get_start(sc->ha_mem_res);
+	sc->ha_i2o_bhandle = rman_get_bushandle(sc->ha_mem_res);
+	sc->ha_i2o_btag = rman_get_bustag(sc->ha_mem_res);
+
 	if (s == 0xA5111044) { /* Split BAR Raptor Daptor */
 		if ((rid += sizeof(u_int32_t)) >= PCIR_BAR(4)) {
 			return (0);
@@ -2181,12 +2244,11 @@ asr_pci_map_mem(device_t tag, Asr_softc_t *sc)
 		if (sc->ha_mes_res == NULL) {
 			return (0);
 		}
-		if ((void *)rman_get_start(sc->ha_mes_res) == NULL) {
-			return (0);
-		}
-		sc->ha_Fvirt = (U8 *) rman_get_virtual(sc->ha_mes_res);
+		sc->ha_frame_bhandle = rman_get_bushandle(sc->ha_mes_res);
+		sc->ha_frame_btag = rman_get_bustag(sc->ha_mes_res);
 	} else {
-		sc->ha_Fvirt = (U8 *)(sc->ha_Virt);
+		sc->ha_frame_bhandle = sc->ha_i2o_bhandle;
+		sc->ha_frame_btag = sc->ha_i2o_btag;
 	}
 	return (1);
 } /* asr_pci_map_mem */
@@ -2266,10 +2328,10 @@ asr_attach(device_t tag)
 		sc->ha_pciDeviceNum = (dinfo->cfg.slot << 3) | dinfo->cfg.func;
 	}
 	/* Check if the device is there? */
-	if ((ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt) == 0) ||
+	if ((ASR_resetIOP(sc) == 0) ||
 	    ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
 	    sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK)) == NULL) ||
-	    (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, status) == NULL)) {
+	    (ASR_getStatus(sc, status) == NULL)) {
 		printf ("asr%d: could not initialize hardware\n", unit);
 		return(ENODEV);	/* Get next, maybe better luck */
 	}
@@ -2280,7 +2342,7 @@ asr_attach(device_t tag)
 	sc->ha_SystemTable.MessengerType = status->MessengerType;
 	sc->ha_SystemTable.InboundMessageFrameSize = status->InboundMFrameSize;
 	sc->ha_SystemTable.MessengerInfo.InboundMessagePortAddressLow =
-	    (U32)(sc->ha_Base) + (U32)offsetof(i2oRegs_t, ToFIFO);
+	    (U32)(sc->ha_Base + I2O_REG_TOFIFO);	/* XXX 64-bit */
 
 	if (!asr_pci_map_int(tag, (void *)sc)) {
 		printf ("asr%d: could not map interrupt\n", unit);
@@ -2327,12 +2389,10 @@ asr_attach(device_t tag)
 #define FW_DEBUG_BLED_OFFSET 8
 
 		if ((Info = (PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR)
-		  ASR_getParams(sc, 0,
-		    I2O_DPT_EXEC_IOP_BUFFERS_GROUP_NO,
+		    ASR_getParams(sc, 0, I2O_DPT_EXEC_IOP_BUFFERS_GROUP_NO,
 		    &Buffer, sizeof(struct BufferInfo))) != NULL) {
-			sc->ha_blinkLED = sc->ha_Fvirt
-			  + I2O_DPT_EXEC_IOP_BUFFERS_SCALAR_getSerialOutputOffset(Info)
-			  + FW_DEBUG_BLED_OFFSET;
+			sc->ha_blinkLED = FW_DEBUG_BLED_OFFSET +
+			    I2O_DPT_EXEC_IOP_BUFFERS_SCALAR_getSerialOutputOffset(Info);
 		}
 		if (ASR_acquireLct(sc) == 0) {
 			(void)ASR_acquireHrt(sc);
@@ -2724,14 +2784,14 @@ asr_intr(Asr_softc_t *sc)
 {
 	int processed;
 
-	for(processed = 0; sc->ha_Virt->Status & Mask_InterruptsDisabled;
+	for(processed = 0; asr_get_status(sc) & Mask_InterruptsDisabled;
 	    processed = 1) {
 		union asr_ccb			   *ccb;
 		U32				    ReplyOffset;
 		PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME Reply;
 
-		if (((ReplyOffset = sc->ha_Virt->FromFIFO) == EMPTY_QUEUE)
-		 && ((ReplyOffset = sc->ha_Virt->FromFIFO) == EMPTY_QUEUE)) {
+		if (((ReplyOffset = asr_get_FromFIFO(sc)) == EMPTY_QUEUE)
+		 && ((ReplyOffset = asr_get_FromFIFO(sc)) == EMPTY_QUEUE)) {
 			break;
 		}
 		Reply = (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)(ReplyOffset
@@ -2761,9 +2821,11 @@ asr_intr(Asr_softc_t *sc)
 			 * need not concern ourselves with the (optional
 			 * byteswapping) method access.
 			 */
-			Reply->StdReplyFrame.TransactionContext
-			  = ((PI2O_SINGLE_REPLY_MESSAGE_FRAME)
-			    (sc->ha_Fvirt + MessageOffset))->TransactionContext;
+			Reply->StdReplyFrame.TransactionContext =
+			    bus_space_read_4(sc->ha_frame_btag,
+			    sc->ha_frame_bhandle, MessageOffset +
+			    offsetof(I2O_SINGLE_REPLY_MESSAGE_FRAME,
+			    TransactionContext));
 			/*
 			 *	For 64 bit machines, we need to reconstruct the
 			 * 64 bit context.
@@ -2790,12 +2852,12 @@ asr_intr(Asr_softc_t *sc)
 			/*
 			 *  Copy the packet out to the Original Message
 			 */
-			bcopy(Message_Ptr, sc->ha_Fvirt + MessageOffset,
-			      sizeof(I2O_UTIL_NOP_MESSAGE));
+			asr_set_frame(sc, Message_Ptr, MessageOffset,
+				      sizeof(I2O_UTIL_NOP_MESSAGE));
 			/*
 			 *  Issue the NOP
 			 */
-			sc->ha_Virt->ToFIFO = MessageOffset;
+			asr_set_ToFIFO(sc, MessageOffset);
 		}
 
 		/*
@@ -2808,7 +2870,7 @@ asr_intr(Asr_softc_t *sc)
 			 * Return Reply so that it can be used for the
 			 * next command
 			 */
-			sc->ha_Virt->FromFIFO = ReplyOffset;
+			asr_set_FromFIFO(sc, ReplyOffset);
 			continue;
 		}
 
@@ -2898,7 +2960,7 @@ asr_intr(Asr_softc_t *sc)
 		 * Return Reply so that it can be used for the next command
 		 * since we have no more need for it now
 		 */
-		sc->ha_Virt->FromFIFO = ReplyOffset;
+		asr_set_FromFIFO(sc, ReplyOffset);
 
 		if (ccb->ccb_h.path) {
 			xpt_done ((union ccb *)ccb);
@@ -3026,7 +3088,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	case I2O_EXEC_IOP_RESET:
 	{	U32 status;
 
-		status = ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt);
+		status = ASR_resetIOP(sc);
 		ReplySizeInBytes = sizeof(status);
 		debug_usr_cmd_printf ("resetIOP done\n");
 		return (copyout ((caddr_t)&status, (caddr_t)Reply,
@@ -3036,7 +3098,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	case I2O_EXEC_STATUS_GET:
 	{	I2O_EXEC_STATUS_GET_REPLY status;
 
-		if (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, &status) == NULL) {
+		if (ASR_getStatus(sc, &status) == NULL) {
 			debug_usr_cmd_printf ("getStatus failed\n");
 			return (ENXIO);
 		}
@@ -3471,7 +3533,7 @@ asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		bzero(&CtlrInfo, sizeof(CtlrInfo));
 		CtlrInfo.length = sizeof(CtlrInfo) - sizeof(u_int16_t);
 		CtlrInfo.drvrHBAnum = asr_unit(dev);
-		CtlrInfo.baseAddr = (u_long)sc->ha_Base;
+		CtlrInfo.baseAddr = sc->ha_Base;
 		i = ASR_getBlinkLedCode (sc);
 		if (i == -1) {
 			i = 0;
