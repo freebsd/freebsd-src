@@ -1404,9 +1404,11 @@ hint.ata.1.irq="15"
 # ATA_ENABLE_ATAPI_DMA:	enable DMA on ATAPI device, since many ATAPI devices
 #			claim to support DMA but doesn't actually work, this
 #			is not enabled as default.
+# ATA_ENABLE_TAGS	enable tagged queuing on ATA disks that supports it.
 
 options 	ATA_STATIC_ID
 options 	ATA_ENABLE_ATAPI_DMA
+options 	ATA_ENABLE_TAGS
 
 #
 # Standard floppy disk controllers and floppy tapes, supports
