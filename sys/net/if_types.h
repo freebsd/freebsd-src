@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if_types.h	8.2 (Berkeley) 4/20/94
+ *	@(#)if_types.h	8.3 (Berkeley) 4/28/95
  * $FreeBSD$
  */
 
@@ -39,7 +39,7 @@
 
 /*
  * Interface types for benefit of parsing media address headers.
- * This list is derived from the SNMP list of ifTypes, currently
+ * This list is derived from the SNMP list of ifTypes, originally
  * documented in RFC1573, now maintained as:
  *
  * 	ftp.isi.edu/in-notes/iana/assignments/smi-numbers
@@ -50,8 +50,8 @@
 #define	IFT_HDH1822	0x3		/* HDH arpanet imp */
 #define	IFT_X25DDN	0x4		/* x25 to imp */
 #define	IFT_X25		0x5		/* PDN X25 interface (RFC877) */
-#define	IFT_ETHER	0x6		/* Ethernet CSMACD */
-#define	IFT_ISO88023	0x7		/* CMSA CD */
+#define	IFT_ETHER	0x6		/* Ethernet CSMA/CD */
+#define	IFT_ISO88023	0x7		/* CMSA/CD */
 #define	IFT_ISO88024	0x8		/* Token Bus */
 #define	IFT_ISO88025	0x9		/* Token Ring */
 #define	IFT_ISO88026	0xa		/* MAN */
@@ -105,4 +105,4 @@
 #define	IFT_PVC		0xf1
 #define	IFT_FAITH	0xf2
 #define	IFT_STF		0xf3
-#endif
+#endif /* !_NET_IF_TYPES_H_ */
