@@ -325,6 +325,16 @@
 	of the &man.altq.4;, packets via a divert socket,
 	and TCP data length.</para>
 
+      <para>&man.ipfw.8; <literal>ipfw fwd</literal> rule now supports
+	the full packet destination manipulation when the kernel option
+	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal> is specified
+	in addition to <literal>options IPFIRWALL_FORWARD</literal>.
+	This kernel option disables all restrictions to ensure proper
+	behavior for locally generated packets and allows to redirect
+	packets destined to locally configured IP addresses.
+	Note that &man.ipfw.8; rules have to be carefully crafted to
+	make sure that things like PMTU discovery do not break.</para>
+
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
 	strategies.</para>
