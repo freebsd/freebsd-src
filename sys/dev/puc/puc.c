@@ -174,6 +174,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	struct puc_device *pdev;
 	struct resource *res;
 	struct resource_list_entry *rle;
+	bus_space_handle_t bh;
 
 	if (desc == NULL)
 		return (ENXIO);
@@ -322,14 +323,16 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 				return (ENOMEM);
 			}
 
-			rle->res->r_start = rman_get_start(res) +
-			    sc->sc_desc.ports[i].offset;
-			rle->res->r_end = rle->res->r_start + ressz - 1;
-			rle->res->r_bustag = rman_get_bustag(res);
-			bus_space_subregion(rle->res->r_bustag,
+			rman_set_start(rle->res, rman_get_start(res) +
+			    sc->sc_desc.ports[i].offset);
+			rman_set_end(rle->res, rman_get_start(rle->res) +
+			    ressz - 1);
+			rman_set_bustag(rle->res, rman_get_bustag(res));
+			bus_space_subregion(rman_get_bustag(rle->res),
 			    rman_get_bushandle(res),
 			    sc->sc_desc.ports[i].offset, ressz,
-			    &rle->res->r_bushandle);
+			    &bh);
+			rman_set_bushandle(rle->res, bh);
 		}
 
 		pdev->port = i + 1;
