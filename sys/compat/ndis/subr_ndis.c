@@ -1559,6 +1559,7 @@ ndis_alloc_packetpool(status, pool, descnum, protrsvdlen)
 
 	cur = (ndis_packet *)*pool;
 	cur->np_private.npp_flags = 0x1; /* mark the head of the list */
+	cur->np_private.npp_totlen = 0; /* init deletetion flag */
 	for (i = 0; i < (descnum + NDIS_POOL_EXTRA); i++) {
 		cur->np_private.npp_head = (ndis_handle)(cur + 1);
 		cur++;
@@ -1595,7 +1596,21 @@ __stdcall static void
 ndis_free_packetpool(pool)
 	ndis_handle		pool;
 {
-	free(pool, M_DEVBUF);
+	ndis_packet		*head;
+
+	head = pool;
+
+	/* Mark this pool as 'going away.' */
+
+	head->np_private.npp_totlen = 1;
+
+	/* If there are no buffers loaned out, destroy the pool. */
+
+	if (head->np_private.npp_count == 0)
+		free(pool, M_DEVBUF);
+	else
+		printf("NDIS: buggy driver deleting active packet pool!\n");
+
 	return;
 }
 
@@ -1610,6 +1625,16 @@ ndis_alloc_packet(status, packet, pool)
 	head = (ndis_packet *)pool;
 
 	if (head->np_private.npp_flags != 0x1) {
+		*status = NDIS_STATUS_FAILURE;
+		return;
+	}
+
+	/*
+	 * If this pool is marked as 'going away' don't allocate any
+	 * more packets out of it.
+	 */
+
+	if (head->np_private.npp_totlen) {
 		*status = NDIS_STATUS_FAILURE;
 		return;
 	}
@@ -1661,6 +1686,14 @@ ndis_release_packet(packet)
 	packet->np_private.npp_head = head->np_private.npp_head;
 	head->np_private.npp_head = (ndis_buffer *)packet;
 	head->np_private.npp_count--;
+
+	/*
+	 * If the pool has been marked for deletion and there are
+	 * no more packets outstanding, nuke the pool.
+	 */
+
+	if (head->np_private.npp_totlen && head->np_private.npp_count == 0)
+		free(head, M_DEVBUF);
 
 	return;
 }
@@ -1749,6 +1782,8 @@ ndis_alloc_bufpool(status, pool, descnum)
 
 	cur = (ndis_buffer *)*pool;
 	cur->nb_flags = 0x1; /* mark the head of the list */
+	cur->nb_bytecount = 0; /* init usage count */
+	cur->nb_byteoffset = 0; /* init deletetion flag */
 	for (i = 0; i < (descnum + NDIS_POOL_EXTRA); i++) {
 		cur->nb_next = cur + 1;
 		cur++;
@@ -1762,7 +1797,20 @@ __stdcall static void
 ndis_free_bufpool(pool)
 	ndis_handle		pool;
 {
-	free(pool, M_DEVBUF);
+	ndis_buffer		*head;
+
+	head = pool;
+
+	/* Mark this pool as 'going away.' */
+
+	head->nb_byteoffset = 1;
+
+	/* If there are no buffers loaned out, destroy the pool. */
+	if (head->nb_bytecount == 0)
+		free(pool, M_DEVBUF);
+	else
+		printf("NDIS: buggy driver deleting active buffer pool!\n");
+
 	return;
 }
 
@@ -1785,6 +1833,16 @@ ndis_alloc_buf(status, buffer, pool, vaddr, len)
 		return;
 	}
 
+	/*
+	 * If this pool is marked as 'going away' don't allocate any
+	 * more buffers out of it.
+	 */
+
+	if (head->nb_byteoffset) {
+		*status = NDIS_STATUS_FAILURE;
+		return;
+	}
+
 	buf = head->nb_next;
 
 	if (buf == NULL) {
@@ -1800,6 +1858,10 @@ ndis_alloc_buf(status, buffer, pool, vaddr, len)
 	MDL_INIT(buf, vaddr, len);
 
 	*buffer = buf;
+
+	/* Increment count of busy buffers. */
+
+	head->nb_bytecount++;
 
 	*status = NDIS_STATUS_SUCCESS;
 	return;
@@ -1821,6 +1883,18 @@ ndis_release_buf(buf)
 
 	buf->nb_next = head->nb_next;
 	head->nb_next = buf;
+
+	/* Decrement count of busy buffers. */
+
+	head->nb_bytecount--;
+
+	/*
+	 * If the pool has been marked for deletion and there are
+	 * no more buffers outstanding, nuke the pool.
+	 */
+
+	if (head->nb_byteoffset && head->nb_bytecount == 0)
+		free(head, M_DEVBUF);
 
 	return;
 }

@@ -1117,6 +1117,18 @@ ntoskrnl_freemdl(mdl)
         mdl->nb_next = head->nb_next;
         head->nb_next = mdl;
 
+	/* Decrement count of busy buffers. */
+
+	head->nb_bytecount--;
+
+	/*
+	 * If the pool has been marked for deletion and there are
+	 * no more buffers outstanding, nuke the pool.
+	 */
+
+	if (head->nb_byteoffset && head->nb_bytecount == 0)
+		free(head, M_DEVBUF);
+
         return;
 }
 
