@@ -126,7 +126,7 @@ vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
 #endif /* ZERO_COPY_SOCKETS */
 
 int
-uiomove(caddr_t cp, int n, struct uio *uio)
+uiomove(void *cp, int n, struct uio *uio)
 {
 	struct thread *td = curthread;
 	struct iovec *iov;
@@ -183,7 +183,7 @@ uiomove(caddr_t cp, int n, struct uio *uio)
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
 		uio->uio_offset += cnt;
-		cp += cnt;
+		cp = (char *)cp + cnt;
 		n -= cnt;
 	}
 out:
@@ -202,7 +202,7 @@ out:
  * Experimental support for zero-copy I/O
  */
 static int
-userspaceco(caddr_t cp, u_int cnt, struct uio *uio, struct vm_object *obj,
+userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
     int disposable)
 {
 	struct iovec *iov;
@@ -281,7 +281,7 @@ userspaceco(caddr_t cp, u_int cnt, struct uio *uio, struct vm_object *obj,
 }
 
 int
-uiomoveco(caddr_t cp, int n, struct uio *uio, struct vm_object *obj,
+uiomoveco(void *cp, int n, struct uio *uio, struct vm_object *obj,
     int disposable)
 {
 	struct iovec *iov;
@@ -329,7 +329,7 @@ uiomoveco(caddr_t cp, int n, struct uio *uio, struct vm_object *obj,
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
 		uio->uio_offset += cnt;
-		cp += cnt;
+		cp = (char *)cp + cnt;
 		n -= cnt;
 	}
 	return (0);
