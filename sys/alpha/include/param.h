@@ -113,11 +113,6 @@
 #define	SSIZE		1		/* initial stack size/NBPG */
 #define	SINCR		1		/* increment of stack/NBPG */
 
-/* PREEMPTION exposes scheduler bugs that need to be fixed. */
-#if 0
-#define	PREEMPTION
-#endif
-
 #ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	2		/* pages of kstack (with pcb) */
 #endif

@@ -119,11 +119,6 @@
 #define	NBPML4		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4-1)
 
-/* PREEMPTION exposes scheduler bugs that need to be fixed. */
-#if 0
-#define	PREEMPTION
-#endif
-
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef	KSTACK_PAGES

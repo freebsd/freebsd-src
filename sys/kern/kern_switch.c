@@ -88,7 +88,6 @@ reassigned to keep this true.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_full_preemption.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -109,6 +108,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #endif
 
+#ifdef FULL_PREEMPTION
+#ifndef PREEMPTION
+#error "The FULL_PREEMPTION option requires the PREEMPTION option"
+#endif
+#endif
 
 CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
 
