@@ -69,7 +69,7 @@ fi
 
 TMP=/tmp/mkdep$$
 
-trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
+trap 'rm -f $TMP ; trap 2 ; kill -2 $$' 1 2 3 13 15
 
 cc -M $* |
 sed "
