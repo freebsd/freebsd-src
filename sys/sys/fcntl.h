@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fcntl.h	8.3 (Berkeley) 1/21/94
- * $Id: fcntl.h,v 1.2 1994/08/02 07:52:57 davidg Exp $
+ * $Id: fcntl.h,v 1.3 1996/01/30 23:00:34 mpp Exp $
  */
 
 #ifndef _SYS_FCNTL_H_
@@ -94,8 +94,8 @@
 #define	FHASLOCK	0x4000		/* descriptor holds advisory lock */
 #endif
 
-/* defined by POSIX 1003.1; BSD default, so no bit required */
-#define	O_NOCTTY	0		/* don't assign controlling terminal */
+/* Defined by POSIX 1003.1; BSD default, but must be distinct from O_RDONLY. */
+#define	O_NOCTTY	0x8000		/* don't assign controlling terminal */
 
 #ifdef KERNEL
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
