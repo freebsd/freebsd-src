@@ -854,7 +854,7 @@ fill_kinfo_proc(p, kp)
 				strncpy(kp->ki_wmesg, td->td_wmesg,
 				    sizeof(kp->ki_wmesg) - 1);
 			}
-			if (td->td_state == TDS_MTX) {
+			if (TD_ON_MUTEX(td)) {
 				kp->ki_kiflag |= KI_MTXBLOCK;
 				strncpy(kp->ki_mtxname, td->td_mtxname,
 				    sizeof(kp->ki_mtxname) - 1);
@@ -862,14 +862,14 @@ fill_kinfo_proc(p, kp)
 		}
 
 		if (p->p_state == PRS_NORMAL) { /*  XXXKSE very approximate */
-			if ((td->td_state == TDS_RUNQ) ||
-			    (td->td_state == TDS_RUNNING)) {
+			if ((TD_ON_RUNQ(td)) ||
+			    (TD_IS_RUNNING(td))) {
 				kp->ki_stat = SRUN;
-			} else if (td->td_state == TDS_SLP) {
+			} else if (TD_IS_SLEEPING(td)) {
 				kp->ki_stat = SSLEEP;
 			} else if (P_SHOULDSTOP(p)) {
 				kp->ki_stat = SSTOP;
-			} else if (td->td_state == TDS_MTX) {
+			} else if (TD_ON_MUTEX(td)) {
 				kp->ki_stat = SMTX;
 			} else {
 				kp->ki_stat = SWAIT;

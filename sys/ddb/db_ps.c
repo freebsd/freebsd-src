@@ -112,7 +112,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			state = "wait";
 			break;
 		case PRS_ZOMBIE:
-			state = "zomp";
+			state = "zomb";
 			break;
 		default:
 			state = "Unkn";
@@ -123,33 +123,56 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		    p->p_ucred != NULL ? p->p_ucred->cr_ruid : 0, pp->p_pid,
 		    p->p_pgrp != NULL ? p->p_pgrp->pg_id : 0, p->p_flag,
 		    state);
-		if (p->p_flag & P_KSES) {
+		if (p->p_flag & P_KSES) 
 			db_printf("(threaded)  %s\n", p->p_comm);
-			FOREACH_THREAD_IN_PROC(p, td) {
-				db_printf( ".  .  .  .  .  .  .  "
-				           ".  thread %p   .  .  .  ", td);
-				if (td->td_wchan != NULL) {
-					db_printf("SLP %6s %8p\n", td->td_wmesg,
-					    (void *)td->td_wchan);
-				} else if (td->td_state == TDS_MTX) {
-					db_printf("MTX %6s %8p\n", td->td_mtxname,
-					    (void *)td->td_blocked);
-				} else {
-					db_printf("--not blocked--\n");
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (p->p_flag & P_KSES) 
+				db_printf( "       thread %p ", td);
+			if (TD_ON_SLEEPQ(td)) {
+				if (td->td_flags & TDF_CVWAITQ)
+					db_printf("[CVQ ");
+				else
+					db_printf("[SLPQ ");
+				db_printf(" %6s %8p]", td->td_wmesg,
+			    	    (void *)td->td_wchan);
+			}
+			switch (td->td_state) {
+			case TDS_INHIBITED:
+				if (TD_ON_MUTEX(td)) {
+					db_printf("[MTX %6s %8p]",
+					    td->td_mtxname,
+				    	    (void *)td->td_blocked);
 				}
+				if (TD_IS_SLEEPING(td)) {
+					db_printf("[SLP]");
+				}  
+				if (TD_IS_SWAPPED(td)) {
+					db_printf("[SWAP]");
+				}
+				if (TD_IS_SUSPENDED(td)) {
+					db_printf("[SUSP]");
+				}
+				if (TD_AWAITING_INTR(td)) {
+					db_printf("[IWAIT]");
+				}
+				break;
+			case TDS_CAN_RUN:
+				db_printf("[Can run]");
+				break;
+			case TDS_RUNQ:
+				db_printf("[RUNQ]");
+				break;
+			case TDS_RUNNING:
+				db_printf("[CPU %d]", td->td_kse->ke_oncpu);
+				break;
+			default:
+				panic("unknown thread state");
 			}
-		} else {
-			td = FIRST_THREAD_IN_PROC(p);
-			if (td != NULL && td->td_wchan != NULL) {
-				db_printf("  %-6s %8p", td->td_wmesg,
-				    (void *)td->td_wchan);
-			} else if (td != NULL && td->td_state == TDS_MTX) {
-				db_printf("  %6s %8p", td->td_mtxname,
-				    (void *)td->td_blocked);
-			} else {
-				db_printf("                 ");
-			}
-			db_printf(" %s\n", p->p_comm);
+			if (p->p_flag & P_KSES)
+				db_printf("\n");
+			else
+				db_printf(" %s\n", p->p_comm);
+					
 		}
 		/* PROC_UNLOCK(p); */
 

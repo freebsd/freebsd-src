@@ -2396,9 +2396,10 @@ ttyinfo(struct tty *tp)
 				stmp = "KSE" ;  /* XXXKSE */
 			} else {
 				if (td) {
-					if (td->td_state == TDS_RUNQ) {
+					if (TD_ON_RUNQ(td) ||
+					    (TD_IS_RUNNING(td))) {
 						stmp = "running";
-					} else if (td->td_state == TDS_MTX) {
+					} else if (TD_ON_MUTEX(td)) {
 						stmp = td->td_mtxname;
 					} else if (td->td_wmesg) {
 						stmp = td->td_wmesg;
@@ -2413,7 +2414,7 @@ ttyinfo(struct tty *tp)
 			calcru(pick, &utime, &stime, NULL);
 			/* XXXKSE The TDS_IWAIT  line is Dubious */
 			if (pick->p_state == PRS_NEW ||
-			    (td && (td->td_state == TDS_IWAIT)) ||
+			    (td && (TD_AWAITING_INTR(td))) ||
 			    pick->p_state == PRS_ZOMBIE) {
 				ltmp = 0;
 			} else {
@@ -2424,7 +2425,7 @@ ttyinfo(struct tty *tp)
 
 			ttyprintf(tp, " cmd: %s %d [%s%s] ", pick->p_comm,
 			    pick->p_pid,
-			    td->td_state == TDS_MTX ? "*" : "",
+			    TD_ON_MUTEX(td) ? "*" : "",
 			    stmp);
 
 			/* Print user time. */
@@ -2461,8 +2462,8 @@ do {								\
 	struct thread *td;					\
 	val = 0;						\
 	FOREACH_THREAD_IN_PROC(p, td) {				\
-		if (td->td_state == TDS_RUNQ ||			\
-		    td->td_state == TDS_RUNNING) {		\
+		if (TD_ON_RUNQ(td) ||				\
+		    TD_IS_RUNNING(td)) {			\
 			val = 1;				\
 			break;					\
 		}						\

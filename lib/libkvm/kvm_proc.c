@@ -119,7 +119,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct procsig procsig;
 	struct pstats pstats;
 	struct ucred ucred;
-	struct thread mainthread;
+	struct thread mtd;
 	struct proc proc;
 	struct proc pproc;
 	struct timeval tv;
@@ -134,7 +134,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		}
 		if (proc.p_state != PRS_ZOMBIE) {
 			if (KREAD(kd, (u_long)TAILQ_FIRST(&proc.p_threads),
-			    &mainthread)) {
+			    &mtd)) {
 				_kvm_err(kd, kd->program,
 				    "can't read thread at %x",
 				    TAILQ_FIRST(&proc.p_threads));
@@ -273,8 +273,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 nopgrp:
 			kp->ki_tdev = NODEV;
 		}
-		if ((proc.p_state != PRS_ZOMBIE) && mainthread.td_wmesg)
-			(void)kvm_read(kd, (u_long)mainthread.td_wmesg,
+		if ((proc.p_state != PRS_ZOMBIE) && mtd.td_wmesg)
+			(void)kvm_read(kd, (u_long)mtd.td_wmesg,
 			    kp->ki_wmesg, WMESGLEN);
 
 #ifdef sparc
@@ -313,11 +313,11 @@ nopgrp:
 			kp->ki_comm[MAXCOMLEN] = 0;
 		}
 		if ((proc.p_state != PRS_ZOMBIE) &&
-		    (mainthread.td_blocked != 0)) {
+		    (mtd.td_blocked != 0)) {
 			kp->ki_kiflag |= KI_MTXBLOCK;
-			if (mainthread.td_mtxname)
+			if (mtd.td_mtxname)
 				(void)kvm_read(kd,
-				    (u_long)mainthread.td_mtxname,
+				    (u_long)mtd.td_mtxname,
 				    kp->ki_mtxname, MTXNAMELEN);
 			kp->ki_mtxname[MTXNAMELEN] = 0;
 		}
@@ -335,33 +335,36 @@ nopgrp:
 			kp->ki_swtime = proc.p_swtime;
 			kp->ki_flag = proc.p_flag;
 			kp->ki_sflag = proc.p_sflag;
-			kp->ki_wchan = mainthread.td_wchan;
+			kp->ki_wchan = mtd.td_wchan;
 			kp->ki_traceflag = proc.p_traceflag;
 			if (proc.p_state == PRS_NORMAL) { 
-				if ((mainthread.td_state == TDS_RUNQ) ||
-				    (mainthread.td_state == TDS_RUNNING)) {
+				if (TD_ON_RUNQ(&mtd) ||
+				    TD_CAN_RUN(&mtd) ||
+				    TD_IS_RUNNING(&mtd)) {
 					kp->ki_stat = SRUN;
-				} else if (mainthread.td_state == TDS_SLP) {
-					kp->ki_stat = SSLEEP;
-				} else if (P_SHOULDSTOP(&proc)) {
-					kp->ki_stat = SSTOP;
-				} else if (mainthread.td_state == TDS_MTX) {
-					kp->ki_stat = SMTX;
-				} else {
-					kp->ki_stat = SWAIT;
+				} else if (mtd.td_state == TDS_INHIBITED) {
+					if (P_SHOULDSTOP(&proc)) {
+						kp->ki_stat = SSTOP;
+					} else if (TD_IS_SLEEPING(&mtd)) {
+						kp->ki_stat = SSLEEP;
+					} else if (TD_ON_MUTEX(&mtd)) {
+						kp->ki_stat = SMTX;
+					} else {
+						kp->ki_stat = SWAIT;
+					}
 				}
 			} else {
 				kp->ki_stat = SIDL;
 			}
 			kp->ki_pri.pri_class = proc.p_ksegrp.kg_pri_class;
 			kp->ki_pri.pri_user = proc.p_ksegrp.kg_user_pri;
-			kp->ki_pri.pri_level = mainthread.td_priority;
-			kp->ki_pri.pri_native = mainthread.td_base_pri;
+			kp->ki_pri.pri_level = mtd.td_priority;
+			kp->ki_pri.pri_native = mtd.td_base_pri;
 			kp->ki_nice = proc.p_ksegrp.kg_nice;
 			kp->ki_lock = proc.p_lock;
 			kp->ki_rqindex = proc.p_kse.ke_rqindex;
 			kp->ki_oncpu = proc.p_kse.ke_oncpu;
-			kp->ki_lastcpu = mainthread.td_lastcpu;
+			kp->ki_lastcpu = mtd.td_lastcpu;
 		} else {
 			kp->ki_stat = SZOMB;
 		}

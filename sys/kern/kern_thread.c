@@ -95,7 +95,7 @@ thread_ctor(void *mem, int size, void *arg)
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
-	td->td_state = TDS_NEW;
+	td->td_state = TDS_INACTIVE;
 	td->td_flags |= TDF_UNBOUND;
 	cached_threads--;	/* XXXSMP */
 	active_threads++;	/* XXXSMP */
@@ -117,8 +117,9 @@ thread_dtor(void *mem, int size, void *arg)
 #ifdef INVARIANTS
 	/* Verify that this thread is in a safe state to free. */
 	switch (td->td_state) {
-	case TDS_SLP:
-	case TDS_MTX:
+	case TDS_INHIBITED:
+	case TDS_RUNNING:
+	case TDS_CAN_RUN:
 	case TDS_RUNQ:
 		/*
 		 * We must never unlink a thread that is in one of
@@ -126,10 +127,7 @@ thread_dtor(void *mem, int size, void *arg)
 		 */
 		panic("bad state for thread unlinking");
 		/* NOTREACHED */
-	case TDS_UNQUEUED:
-	case TDS_NEW:
-	case TDS_RUNNING:
-	case TDS_SURPLUS:
+	case TDS_INACTIVE:
 		break;
 	default:
 		panic("bad thread state");
@@ -316,7 +314,7 @@ thread_exit(void)
 	KASSERT(!mtx_owned(&Giant), ("dying thread owns giant"));
 
 	if (ke->ke_tdspare != NULL) {
-		thread_free(ke->ke_tdspare);
+		thread_stash(ke->ke_tdspare);
 		ke->ke_tdspare = NULL;
 	}
 	cpu_thread_exit(td);	/* XXXSMP */
@@ -345,14 +343,11 @@ thread_exit(void)
 		 */
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount) {
-				TAILQ_REMOVE(&p->p_suspended,
-				    p->p_singlethread, td_runq);
-				setrunqueue(p->p_singlethread);
-				p->p_suspcount--;
+				thread_unsuspend_one(p->p_singlethread);
 			}
 		}
 		PROC_UNLOCK(p);
-		td->td_state	= TDS_SURPLUS;
+		td->td_state	= TDS_INACTIVE;
 		td->td_proc	= NULL;
 		td->td_ksegrp	= NULL;
 		td->td_last_kse	= NULL;
@@ -379,7 +374,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	struct proc *p;
 
 	p = kg->kg_proc;
-	td->td_state = TDS_NEW;
+	td->td_state = TDS_INACTIVE;
 	td->td_proc	= p;
 	td->td_ksegrp	= kg;
 	td->td_last_kse	= NULL;
@@ -427,6 +422,7 @@ thread_schedule_upcall(struct thread *td, struct kse *ke)
 	cpu_set_upcall(td2, ke->ke_pcb);
 	td2->td_ucred = crhold(td->td_ucred);
 	td2->td_flags = TDF_UNBOUND|TDF_UPCALLING;
+	TD_SET_CAN_RUN(td2);
 	setrunqueue(td2);
 	return (td2);
 }
@@ -607,38 +603,32 @@ thread_single(int force_exit)
 	p->p_flag |= P_STOPPED_SINGLE;
 	p->p_singlethread = td;
 	while ((p->p_numthreads - p->p_suspcount) != 1) {
+		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
-			switch(td2->td_state) {
-			case TDS_SUSPENDED:
-				if (force_exit == SINGLE_EXIT) {
-					mtx_lock_spin(&sched_lock);
-					TAILQ_REMOVE(&p->p_suspended,
-					    td, td_runq);
-					p->p_suspcount--;
-					setrunqueue(td); /* Should suicide. */
-					mtx_unlock_spin(&sched_lock);
+			if (TD_IS_INHIBITED(td2)) {
+				if (TD_IS_SUSPENDED(td2)) {
+					if (force_exit == SINGLE_EXIT) {
+						thread_unsuspend_one(td2);
+					}
 				}
-			case TDS_SLP:
-				if (td2->td_flags & TDF_CVWAITQ)
-					cv_abort(td2);
-				else
-					abortsleep(td2);
-				break;
-			/* case TDS RUNNABLE: XXXKSE maybe raise priority? */
-			default: 	/* needed to avoid an error */
-				break;
+				if ( TD_IS_SLEEPING(td2)) {
+					if (td2->td_flags & TDF_CVWAITQ)
+						cv_waitq_remove(td2);
+					else
+						unsleep(td2);
+					break;
+				}
+				if (TD_CAN_RUN(td2))
+					setrunqueue(td2);
 			}
 		}
 		/*
 		 * Wake us up when everyone else has suspended.
 		 * In the mean time we suspend as well.
 		 */
-		mtx_lock_spin(&sched_lock);
-		TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
-		td->td_state = TDS_SUSPENDED;
-		p->p_suspcount++;
+		thread_suspend_one(td);
 		mtx_unlock(&Giant);
 		PROC_UNLOCK(p);
 		mi_switch();
@@ -745,16 +735,11 @@ thread_suspend_check(int return_instead)
 			mtx_lock_spin(&sched_lock);
 		}
 		mtx_assert(&Giant, MA_NOTOWNED);
-		p->p_suspcount++;
-		td->td_state = TDS_SUSPENDED;
-		TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
+		thread_suspend_one(td);
 		PROC_UNLOCK(p);
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount) {
-				TAILQ_REMOVE(&p->p_suspended,
-				    p->p_singlethread, td_runq);
-				p->p_suspcount--;
-				setrunqueue(p->p_singlethread);
+				thread_unsuspend_one(p->p_singlethread);
 			}
 		}
 		p->p_stats->p_ru.ru_nivcsw++;
@@ -772,8 +757,15 @@ thread_suspend_one(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	p->p_suspcount++;
-	td->td_state = TDS_SUSPENDED;
+	TD_SET_SUSPENDED(td);
 	TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
+	/*
+	 * Hack: If we are suspending but are on the sleep queue
+	 * then we are in msleep or the cv equivalent. We
+	 * want to look like we have two Inhibitors.
+	 */
+	if (TD_ON_SLEEPQ(td))
+		TD_SET_SLEEPING(td);
 }
 
 void
@@ -783,16 +775,9 @@ thread_unsuspend_one(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	TAILQ_REMOVE(&p->p_suspended, td, td_runq);
+	TD_CLR_SUSPENDED(td);
 	p->p_suspcount--;
-	if (td->td_wchan != NULL) {
-		td->td_state = TDS_SLP;
-	} else {
-		if (td->td_ksegrp->kg_slptime > 1) {
-			updatepri(td->td_ksegrp);
-			td->td_ksegrp->kg_slptime = 0;
-		}
-		setrunqueue(td);
-	}
+	setrunnable(td);
 }
 
 /*
@@ -840,9 +825,7 @@ thread_single_end(void)
 	if ((p->p_numthreads != 1) && (!P_SHOULDSTOP(p))) {
 		mtx_lock_spin(&sched_lock);
 		while (( td = TAILQ_FIRST(&p->p_suspended))) {
-			TAILQ_REMOVE(&p->p_suspended, td, td_runq);
-			p->p_suspcount--;
-			setrunqueue(td);
+			thread_unsuspend_one(td);
 		}
 		mtx_unlock_spin(&sched_lock);
 	}

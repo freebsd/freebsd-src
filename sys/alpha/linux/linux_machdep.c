@@ -180,6 +180,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * Make this runnable after we are finished with it.
 	 */
 	mtx_lock_spin(&sched_lock);
+	TD_SET_CAN_RUN(td2);
 	setrunqueue(FIRST_THREAD_IN_PROC(p2));
 	mtx_unlock_spin(&sched_lock);
 

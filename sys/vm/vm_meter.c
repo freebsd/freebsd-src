@@ -88,7 +88,6 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	vm_object_t object;
 	vm_map_t map;
 	int paging;
-	struct ksegrp *kg;
 	struct thread *td;
 
 	totalp = &total;
@@ -111,42 +110,34 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		mtx_lock_spin(&sched_lock);
 		switch (p->p_state) {
 		case PRS_NEW:
-			if (p->p_sflag & PS_INMEM)
-				totalp->t_rq++;
-			else
-				totalp->t_sw++;
 			mtx_unlock_spin(&sched_lock);
 			continue;
 			break;
 		default:
 			FOREACH_THREAD_IN_PROC(p, td) {
+				/* Need new statistics  XXX */
 				switch (td->td_state) {
-				case TDS_MTX:
-				case TDS_SLP:
-					kg = td->td_ksegrp;	/* XXXKSE */
-					if (p->p_sflag & PS_INMEM) {
+				case TDS_INHIBITED:
+					if (TD_ON_MUTEX(td) ||
+					    (td->td_inhibitors ==
+					    TDI_SWAPPED)) {
+						totalp->t_sw++;
+					} else if (TD_IS_SLEEPING(td) ||
+					   TD_AWAITING_INTR(td) ||
+					   TD_IS_SUSPENDED(td)) {
 						if (td->td_priority <= PZERO)
 							totalp->t_dw++;
-						else if (kg->kg_slptime
-							< maxslp)
+						else
 							totalp->t_sl++;
-					} else if (kg->kg_slptime < maxslp)
-						totalp->t_sw++;
-					if (kg->kg_slptime >= maxslp) {
-						continue;
 					}
 					break;
 
+				case TDS_CAN_RUN:
+					totalp->t_sw++;
+					break;
 				case TDS_RUNQ:
 				case TDS_RUNNING:
-					if (p->p_sflag & PS_INMEM)
-						totalp->t_rq++;
-					else
-						totalp->t_sw++;
-					continue;
-
-				case TDS_IWAIT:
-					totalp->t_sl++;
+					totalp->t_rq++;
 					continue;
 				default:
 					break;

@@ -266,6 +266,7 @@ struct thread {
 /* Cleared during fork1() or thread_sched_upcall() */
 #define	td_startzero td_flags
 	int		td_flags;	/* (j) TDF_* flags. */
+	int		td_inhibitors;	/* (j) Why can not run */
 	struct kse	*td_last_kse;	/* Where it wants to be if possible. */
 	struct kse	*td_kse;	/* Current KSE if running. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
@@ -301,17 +302,11 @@ struct thread {
  */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
 	enum {
-		TDS_NEW = 0x20,
-		TDS_UNQUEUED,
-		TDS_SLP,
-		TDS_MTX,
+		TDS_INACTIVE = 0x20,
+		TDS_INHIBITED,
+		TDS_CAN_RUN,
 		TDS_RUNQ,
 		TDS_RUNNING,
-		TDS_SUSPENDED,		/* would have liked to have run */
-		TDS_IWAIT,
-		TDS_SURPLUS,
-		TDS_SWAPPED,
-		TDS_SUSP_SLP		/* on sleep queue AND suspend queue */
 	} td_state;
 	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
@@ -319,17 +314,68 @@ struct thread {
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* Kernel VA of kstack. */
 };
-/* flags kept in td_flags */
-#define	TDF_UNBOUND	0x000001 /* may give away the kse, uses the kg runq */
-#define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump */
-#define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
-#define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
-#define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
-#define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
-#define	TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
+/* flags kept in td_flags */ 
+#define TDF_UNBOUND	0x000001 /* may give away the kse, uses the kg runq */
+#define TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump */
+#define TDF_SINTR	0x000008 /* Sleep is interruptible. */
+#define TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
+#define TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
+#define TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
+#define TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
+#define TDF_ONSLEEPQ	0x000200 /* On the sleep queue */
 #define TDF_INMSLEEP	0x000400 /* Don't recurse in msleep() */
-#define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
-#define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
+#define TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
+#define TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
+
+#define TDI_SUSPENDED	0x01	/* on suspension queue */
+#define TDI_SLEEPING	0x02	/* Actually asleep! */ /* actually tricky */
+#define TDI_SWAPPED	0x04	/* stack not in mem.. bad juju if run */
+#define TDI_MUTEX	0x08	/* Stopped on a mutex */
+#define TDI_IWAIT	0x10	/* Awaiting interrupt */
+
+#define TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
+#define TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
+#define TD_IS_SUSPENDED(td)	((td)->td_inhibitors & TDI_SUSPENDED)
+#define TD_IS_SWAPPED(td)	((td)->td_inhibitors & TDI_SWAPPED)
+#define TD_ON_MUTEX(td)		((td)->td_inhibitors & TDI_MUTEX)
+#define TD_AWAITING_INTR(td)	((td)->td_inhibitors & TDI_IWAIT)
+#define TD_IS_RUNNING(td)	((td)->td_state == TDS_RUNNING)
+#define TD_ON_RUNQ(td)		((td)->td_state == TDS_RUNQ)
+#define TD_CAN_RUN(td)		((td)->td_state == TDS_CAN_RUN)
+#define TD_IS_INHIBITED(td)	((td)->td_state == TDS_INHIBITED)
+
+#define TD_SET_INHIB(td, inhib) do {			\
+	(td)->td_state = TDS_INHIBITED;			\
+	(td)->td_inhibitors |= inhib;			\
+} while (0)
+
+#define TD_CLR_INHIB(td, inhib) do {			\
+	if (((td)->td_inhibitors & inhib) &&		\
+	    (((td)->td_inhibitors &= ~inhib) == 0))	\
+		(td)->td_state = TDS_CAN_RUN;		\
+} while (0)
+
+#define TD_SET_SLEEPING(td)	TD_SET_INHIB((td), TDI_SLEEPING)
+#define TD_SET_SWAPPED(td)	TD_SET_INHIB((td), TDI_SWAPPED)
+#define TD_SET_MUTEX(td)	TD_SET_INHIB((td), TDI_MUTEX)
+#define TD_SET_SUSPENDED(td)	TD_SET_INHIB((td), TDI_SUSPENDED)
+#define TD_SET_IWAIT(td)	TD_SET_INHIB((td), TDI_IWAIT)
+
+#define TD_CLR_SLEEPING(td)	TD_CLR_INHIB((td), TDI_SLEEPING)
+#define TD_CLR_SWAPPED(td)	TD_CLR_INHIB((td), TDI_SWAPPED)
+#define TD_CLR_MUTEX(td)	TD_CLR_INHIB((td), TDI_MUTEX)
+#define TD_CLR_SUSPENDED(td)	TD_CLR_INHIB((td), TDI_SUSPENDED)
+#define TD_CLR_IWAIT(td)	TD_CLR_INHIB((td), TDI_IWAIT)
+
+#define TD_SET_RUNNING(td)	do {(td)->td_state = TDS_RUNNING; } while (0)
+#define TD_SET_RUNQ(td)		do {(td)->td_state = TDS_RUNQ; } while (0)
+#define TD_SET_CAN_RUN(td)	do {(td)->td_state = TDS_CAN_RUN; } while (0)
+#define TD_SET_ON_SLEEPQ(td)	do {(td)->td_flags |= TDF_ONSLEEPQ; } while (0)
+#define TD_CLR_ON_SLEEPQ(td)	do {			\
+		(td)->td_flags &= ~TDF_ONSLEEPQ;	\
+		(td)->td_wchan = NULL;			\
+} while (0)
+
 
 /*
  * Traps for young players:
@@ -372,15 +418,15 @@ struct kse {
 	enum {
 		KES_IDLE = 0x10,
 		KES_ONRUNQ,
-		KES_UNQUEUED, /* in transit */
-		KES_THREAD	/* slaved to thread state */
-	} ke_state;     /* (j) S* process status. */
+		KES_UNQUEUED,		/* in transit */
+		KES_THREAD		/* slaved to thread state */
+	} ke_state;			/* (j) S* process status. */
 	void 		*ke_mailbox;	/* the userland mailbox address */
 	struct thread	*ke_tdspare;	/* spare thread for upcalls */
 #define	ke_endzero ke_dummy
 
 #define	ke_startcopy ke_endzero
-	u_char		ke_dummy;	/*   */
+	u_char		ke_dummy;
 #define	ke_endcopy ke_mdstorage
 
 	void		*ke_upcall;
@@ -460,7 +506,7 @@ struct proc {
 	struct plimit	*p_limit;	/* (m) Process limits. */
 	struct vm_object *p_upages_obj; /* (a) Upages object. */
 	struct procsig	*p_procsig;	/* (c) Signal actions, state (CPU). */
- 
+
 	struct ksegrp	p_ksegrp;
 	struct kse	p_kse;
 
@@ -471,11 +517,11 @@ struct proc {
 	int		p_flag;		/* (c) P_* flags. */
 	int		p_sflag;	/* (j) PS_* flags. */
 	enum {
-		PRS_NEW = 0,    /* In creation */
-		PRS_NORMAL,     /* KSEs can be run */
-		PRS_WAIT,       /* Waiting on interrupt ? */
+		PRS_NEW = 0,		/* In creation */
+		PRS_NORMAL,		/* KSEs can be run */
+		PRS_WAIT,		/* Waiting on interrupt ? */
 		PRS_ZOMBIE
-	} p_state;              /* (j) S* process status. */
+	} p_state;			/* (j) S* process status. */
 	pid_t		p_pid;		/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* (g + e) List of processes in pgrp. */
@@ -735,9 +781,7 @@ sigonstack(size_t sp)
 } while (0)
 
 /* Check whether a thread is safe to be swapped out. */
-#define	thread_safetoswapout(td)		\
-		((td)->td_state == TDS_RUNQ ||	\
-		 (td)->td_state == TDS_SLP)
+#define	thread_safetoswapout(td) (TD_IS_SLEEPING(td) || TD_IS_SUSPENDED(td))
 
 /* Lock and unlock process arguments. */
 #define	PARGS_LOCK(p)		mtx_lock(&pargs_ref_lock)

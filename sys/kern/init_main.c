@@ -716,6 +716,7 @@ kick_init(const void *udata __unused)
 
 	td = FIRST_THREAD_IN_PROC(initproc);
 	mtx_lock_spin(&sched_lock);
+	TD_SET_CAN_RUN(td);
 	setrunqueue(td);	/* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 }

@@ -566,18 +566,13 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 				break;
 			}
 			switch(td2->td_state) {
-			case TDS_SLP:
-			case TDS_MTX:
+			case TDS_INHIBITED:
 				state = "S (sleeping)";
 				break;
 			case TDS_RUNQ:
 			case TDS_RUNNING:
 				state = "R (running)";
 				break;
-			case TDS_NEW:
-			case TDS_UNQUEUED:
-			case TDS_IWAIT:
-			case TDS_SURPLUS:
 			default:
 				state = "? (unknown)";
 				break;

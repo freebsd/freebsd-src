@@ -1206,10 +1206,9 @@ selwakeup(sip)
 	sip->si_thread = NULL;
 	mtx_lock_spin(&sched_lock);
 	if (td->td_wchan == &selwait) {
-		if (td->td_state == TDS_SLP)
-			setrunnable(td);
-		else
-			cv_waitq_remove(td);
+		cv_waitq_remove(td);
+		TD_CLR_SLEEPING(td);
+		setrunnable(td);
 	} else
 		td->td_flags &= ~TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
