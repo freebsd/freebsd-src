@@ -35,17 +35,23 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.10 1997/02/22 14:58:30 peter Exp $
+ *	$Id: SYS.h,v 1.11 1997/04/19 17:05:30 bde Exp $
  */
 
 #include <sys/syscall.h>
 #include "DEFS.h"
 
 #define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
-			ENTRY(x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+			ENTRY(__CONCAT(_,x)); \
+			.weak CNAME(x); \
+			.set CNAME(x),CNAME(__CONCAT(_,x)); \
+			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret
 
-#define	PSEUDO(x,y)	ENTRY(x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
+#define	PSEUDO(x,y)	ENTRY(__CONCAT(_,x)); \
+			.weak CNAME(x); \
+			.set CNAME(x),CNAME(__CONCAT(_,x)); \
+			lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 /* gas messes up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
 
