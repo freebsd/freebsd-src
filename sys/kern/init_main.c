@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.79 1997/12/14 02:10:12 dyson Exp $
+ * $Id: init_main.c,v 1.80 1998/01/22 17:29:44 dyson Exp $
  */
 
 #include "opt_devfs.h"
@@ -139,8 +139,7 @@ SYSINIT(placeholder, SI_SUB_DUMMY,SI_ORDER_ANY, NULL, NULL)
  * This allows simple addition of new kernel subsystems that require
  * boot time initialization.  It also allows substitution of subsystem
  * (for instance, a scheduler, kernel profiler, or VM system) by object
- * module.  Finally, it allows for optional "kernel threads", like an LFS
- * cleaner.
+ * module.  Finally, it allows for optional "kernel threads".
  */
 void
 main(framep)
