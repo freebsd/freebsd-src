@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1998/09/29 12:12:47 abial Exp $
+# $Id: Makefile,v 1.3 1998/10/15 21:40:01 abial Exp $
 #
 
 SRC?=/usr/src
@@ -17,5 +17,5 @@ $(KERNFILE): PICOBSD
 	(cd ${CONF}; \
 	config ${CONFFILE}; \
 	cd ${COMPILE}; \
-	make depend && make)
+	make depend all)
 

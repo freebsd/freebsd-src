@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.4 1998/10/25 15:31:20 abial Exp $
+#	$Id: PICOBSD,v 1.5 1998/11/14 20:10:23 abial Exp $
 #
 
 machine		"i386"
@@ -56,7 +56,11 @@ options		ATAPI_STATIC	#Don't do it as an LKM
 device		wcd0	#IDE CD-ROM
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa? port IO_KBD conflicts tty irq 1
+
+controller	atkbdc0	at isa? port IO_KBD tty
+device		atkbd0	at isa? tty irq 1
+device		vga0	at isa? port ? conflicts
+device		sc0	at isa? tty irq 1
 
 device		npx0	at isa? port IO_NPX irq 13
 
