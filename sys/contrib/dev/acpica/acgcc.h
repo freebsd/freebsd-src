@@ -138,7 +138,9 @@
 
 /* Single threaded */
 
+#ifndef __FreeBSD__
 #define ACPI_APPLICATION
+#endif
 
 /* Asm macros */
 
@@ -149,12 +151,6 @@
 #define acpi_enable_irqs()  __sti()
 
 /*! [Begin] no source code translation */
-
-#include <asm/pal.h>
-
-#define halt()              ia64_pal_halt_light()           /* PAL_HALT[_LIGHT] */
-#define safe_halt()         ia64_pal_halt(1)                /* PAL_HALT */
-
 
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
     do { \
