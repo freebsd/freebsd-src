@@ -24,6 +24,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth.c,v 1.43 2002/05/17 14:27:55 millert Exp $");
+RCSID("$FreeBSD$");
 
 #ifdef HAVE_LOGIN_H
 #include <login.h>
@@ -479,7 +480,7 @@ getpwnamallow(const char *user)
 	if (pw == NULL || !allowed_user(pw))
 		return (NULL);
 #ifdef HAVE_LOGIN_CAP
-	if ((lc = login_getclass(pw->pw_class)) == NULL) {
+	if ((lc = login_getpwclass(pw)) == NULL) {
 		debug("unable to get login class: %s", user);
 		return (NULL);
 	}
