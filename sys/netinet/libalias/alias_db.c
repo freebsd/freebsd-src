@@ -1046,24 +1046,28 @@ _FindLinkOut(struct in_addr src_addr,
     }
 
 /* Search for partially specified links. */
-    if (link == NULL)
+    if (link == NULL && replace_partial_links)
     {
-        if (dst_port != 0)
+        if (dst_port != 0 && dst_addr.s_addr != INADDR_ANY)
         {
             link = _FindLinkOut(src_addr, dst_addr, src_port, 0,
                                 link_type, 0);
-            if (link != NULL && replace_partial_links)
-            {
-                link = ReLink(link,
-                              src_addr, dst_addr, link->alias_addr,
-                              src_port, dst_port, link->alias_port,
-                              link_type);
-            }
+            if (link == NULL)
+                link = _FindLinkOut(src_addr, nullAddress, src_port,
+                                    dst_port, link_type, 0);
         }
-        else if (dst_addr.s_addr != 0)
+        if (link == NULL &&
+           (dst_port != 0 || dst_addr.s_addr != INADDR_ANY))
         {
             link = _FindLinkOut(src_addr, nullAddress, src_port, 0,
                                 link_type, 0);
+        }
+        if (link != NULL)
+        {
+            link = ReLink(link,
+                          src_addr, dst_addr, link->alias_addr,
+                          src_port, dst_port, link->alias_port,
+                          link_type);
         }
     }
 
@@ -1228,7 +1232,7 @@ _FindLinkIn(struct in_addr dst_addr,
     }
 }
 
-struct alias_link *
+static struct alias_link *
 FindLinkIn(struct in_addr dst_addr,
            struct in_addr alias_addr,
            u_short dst_port,
