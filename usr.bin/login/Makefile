@@ -2,9 +2,8 @@
 # $FreeBSD$
 
 PROG=	login
-MAN1=	login.1
-MAN5=	login.access.5
 SRCS=	login.c login_access.c login_fbtab.c
+MAN=	login.1 login.access.5
 
 CFLAGS+=-Wall -DLOGIN_ACCESS -DLOGALL
 

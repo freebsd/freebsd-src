@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rpcinfo
-MAN8 = rpcinfo.8
-
+MAN=	rpcinfo.8
 
 .include <bsd.prog.mk>

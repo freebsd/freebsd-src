@@ -3,7 +3,7 @@
 
 KMOD=		ng_pppoe
 SRCS= 		ng_pppoe.c
-MAN4=		ng_pppoe.4
+MAN=		ng_pppoe.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>

@@ -1,4 +1,6 @@
-MAN1 = c89.1
+# $FreeBSD$
+
+MAN=	c89.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -75,7 +75,6 @@ yppasswd_private_clnt.c: ${RPCSRC_PRIV}
 	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PRIV}
 
 BINMODE=4555
-MAN1=passwd.1
 LINKS=${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS=passwd.1 yppasswd.1
 

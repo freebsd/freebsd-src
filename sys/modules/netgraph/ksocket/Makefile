@@ -2,7 +2,7 @@
 
 KMOD=		ng_ksocket
 SRCS= 		ng_ksocket.c
-MAN4=		ng_ksocket.4
+MAN=		ng_ksocket.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>

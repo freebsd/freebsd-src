@@ -4,8 +4,7 @@
 PROG=	locate
 SRCS=	util.c locate.c
 CFLAGS+= -I${.CURDIR} -DMMAP # -DDEBUG (print time) -O2 (10% faster)
-MAN1=	locate.1
-MAN8=	locate.updatedb.8
+MAN=	locate.1 locate.updatedb.8
 SCRIPTS= updatedb mklocatedb concatdb
 MLINKS+= locate.updatedb.8 updatedb.8
 

@@ -9,7 +9,7 @@ DPADD=	${LIBTERMCAP}
 LDADD=	-ltermcap
 LINKS=	${BINDIR}/less /usr/bin/more
 MLINKS=	less.1 more.1
-CLEANFILES= ${MAN1}
+CLEANFILES= less.1
 
 .include "Makefile.common"
 .include <bsd.prog.mk>

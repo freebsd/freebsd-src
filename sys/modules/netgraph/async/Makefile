@@ -3,7 +3,7 @@
 
 KMOD=		ng_async
 SRCS= 		ng_async.c
-MAN4=		ng_async.4
+MAN=		ng_async.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>

@@ -3,7 +3,7 @@
 
 KMOD=		ng_hole
 SRCS= 		ng_hole.c
-MAN4=		ng_hole.4
+MAN=		ng_hole.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>
