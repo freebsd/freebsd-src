@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.131 1996/03/15 07:49:02 peter Exp $
+#	$Id: files.i386,v 1.132 1996/03/26 19:57:23 wollman Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -49,7 +49,6 @@ i386/i386/machdep.c		standard
 i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
 i386/i386/microtime.s		standard
-i386/i386/ns_cksum.c		optional	ns
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	standard
@@ -80,7 +79,6 @@ i386/ibcs2/ibcs2_sysvec.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aic6360.c              optional        aic     device-driver
-i386/isa/ata.c			optional	ata	device-driver
 i386/isa/b004.c			optional	bqu	device-driver
 i386/isa/bt5xx-445.c		optional	bt	device-driver
 i386/isa/clock.c		standard
@@ -104,7 +102,6 @@ i386/isa/if_el.c		optional	el	device-driver
 i386/isa/if_ep.c		optional	ep	device-driver
 i386/isa/if_fe.c		optional	fe	device-driver
 i386/isa/if_ie.c		optional	ie	device-driver
-i386/isa/if_is.c		optional	is	device-driver
 i386/isa/if_ix.c		optional	ix	device-driver
 i386/isa/if_le.c		optional	le	device-driver
 i386/isa/if_lnc.c		optional	lnc	device-driver
