@@ -28,7 +28,11 @@
  */
 
 #define SEQUENCER_C
+#ifdef PC98
+#include <pc98/pc98/sound/sound_config.h>
+#else
 #include <i386/isa/sound/sound_config.h>
+#endif
 #include <i386/isa/sound/midi_ctrl.h>
 
 extern void seq_drain_midi_queues __P((void));

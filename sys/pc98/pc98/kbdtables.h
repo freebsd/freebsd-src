@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.31 1996/01/25 16:37:20 ache Exp $
+ *	$Id: kbdtables.h,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -98,7 +98,7 @@ static keymap_t key_map = { 0x80,	/* PC98 keymap */
 /* sc=36 */ F(51), F(51), F(51), F(51), F(51), F(51), F(51), F(51), 0xFF, 0x00,
 /* sc=37 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=38 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=39 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x00, 0x00,
+/* sc=39 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,   RBT,   RBT,  0x00, 0x00,
 /* sc=3a */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
 /* sc=3b */ F(53), F(53), F(53), F(53), F(53), F(53), F(53), F(53), 0xFF, 0x00,
 /* sc=3c */ F(55), F(55), F(55), F(55), F(55), F(55), F(55), F(55), 0xFF, 0x00,

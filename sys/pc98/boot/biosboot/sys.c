@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.4 1996/09/12 11:36:09 asami Exp $
+ *	$Id: sys.c,v 1.5 1996/10/09 21:45:32 asami Exp $
  */
 
 /*
@@ -275,8 +275,9 @@ openrd(void)
 #ifdef PC98
 		dosdev_copy = unit | 0xa0;
 		disk_equips = *(unsigned char *)0x11482;
+		sdunit = unit;
 		unit = 0;
-		for (i = 0; i < unit; i++)
+		for (i = 0; i < sdunit; i++)
 			unit += ((disk_equips >> i) & 0x01);
 #else	/* IBM-PC */
 		dosdev_copy = biosdrive | 0x80;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.7 1996/10/09 21:46:11 asami Exp $
+ *	$Id: clock.c,v 1.8 1996/10/23 07:25:13 asami Exp $
  */
 
 /*
@@ -45,8 +45,7 @@
  */
 
 /*
- * modified for PC98
- *	$Id: clock.c,v 1.7 1996/10/09 21:46:11 asami Exp $
+ * modified for PC98 by Kakefuda
  */
 
 /*
@@ -482,7 +481,6 @@ DELAY(int n)
 	n -= 20;
 	/*
 	 * Calculate (n * (timer_freq / 1e6)) without using floating point
-	 * Calculate (n * (TIMER_FREQ / 1e6)) without using floating point
 	 * and without any avoidable overflows.
 	 */
 	sec = n / 1000000;

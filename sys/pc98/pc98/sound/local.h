@@ -57,7 +57,7 @@
 # define GUSMAX_MIXER
 #endif
 
-#include <sb.h>
+#include "sb.h"
 #if NSB == 0 && !defined(EXCLUDE_SB)
 #define EXCLUDE_SB
 #endif
@@ -72,7 +72,7 @@
 #define EXCLUDE_SB16MIDI
 #endif
 
-#include <pas.h>
+#include "pas.h"
 #if NPAS == 0 && !defined(EXCLUDE_PAS)
 #define EXCLUDE_PAS
 #endif

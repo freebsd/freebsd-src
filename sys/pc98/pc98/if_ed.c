@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.8 1996/10/09 21:46:18 asami Exp $
+ *	$Id: if_ed.c,v 1.9 1996/10/23 07:25:17 asami Exp $
  */
 
 /*
@@ -1941,7 +1941,7 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 #ifdef PC98
 static int ed_probe_SIC98(struct isa_device* pc98_dev)
 {
-	int i;
+	u_int i;
 	struct ed_softc *sc = &ed_softc[pc98_dev->id_unit];
 	u_char sum;
 	u_int memsize;
@@ -2030,7 +2030,7 @@ ed_probe_CNET98(isa_dev)
 
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
-	int     i;
+	u_int     i;
 	u_char  sum;
 
 	/*

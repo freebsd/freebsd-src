@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.6 1996/09/10 09:38:17 asami Exp $
+ *	$Id: npx.c,v 1.7 1996/10/09 21:46:29 asami Exp $
  */
 
 #include "npx.h"
@@ -367,7 +367,7 @@ npxattach(dvp)
 	struct isa_device *dvp;
 {
 	if (npx_ex16)
-		printf("npx%d: Exception 16 interface\n", dvp->id_unit);
+		printf("npx%d: INT 16 interface\n", dvp->id_unit);
 	else if (npx_irq13)
 		;		/* higher level has printed "irq 13" */
 #if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
