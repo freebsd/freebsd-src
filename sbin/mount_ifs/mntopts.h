@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
- *	$Id: mntopts.h,v 1.12 1997/11/13 00:28:48 julian Exp $
+ *	$Id: mntopts.h,v 1.13 1998/04/08 18:31:17 wosch Exp $
  */
 
 struct mntopt {
 	const char *m_option;	/* option name */
-	int m_inverse;		/* if a negative option, eg "dev" */
-	int m_flag;		/* bit to set, eg. MNT_RDONLY */
+	int m_inverse;		/* if a negative option, e.g. "dev" */
+	int m_flag;		/* bit to set, e.g. MNT_RDONLY */
 	int m_altloc;		/* 1 => set bit in altflags */
 };
 
