@@ -578,6 +578,22 @@ cpu_critical_exit(critical_t eflags)
 	write_eflags(eflags);
 }
 
+static __inline register_t
+intr_disable(void)
+{
+	register_t eflags;
+
+	eflags = read_eflags();
+	disable_intr();
+	return (eflags);
+}
+
+static __inline void
+intr_restore(register_t eflags)
+{
+	write_eflags(eflags);
+}
+
 #else /* !__GNUC__ */
 
 int	breakpoint(void);
