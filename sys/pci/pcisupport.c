@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.8 1995/02/02 13:12:18 davidg Exp $
+**  $Id: pcisupport.c,v 1.9 1995/02/14 03:19:27 wollman Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -41,6 +41,7 @@
 ***************************************************************************
 */
 
+#define	__PCISUPPORT_C_PATCHLEVEL__	"pl2 95/02/27"
 
 /*==========================================================
 **
@@ -289,6 +290,44 @@ void chipset_attach(pcici_t config_id, int unit)
 
 /*---------------------------------------------------------
 **
+**	Catchall driver for pci-pci bridges.
+**
+**---------------------------------------------------------
+*/
+
+static	char*	ppb_probe (pcici_t tag, pcidi_t type);
+static	void	ppb_attach(pcici_t tag, int unit);
+static	u_long	ppb_count;
+
+struct	pci_device ppb_device = {
+	"ppb",
+	ppb_probe,
+	ppb_attach,
+	&ppb_count
+};
+
+DATA_SET (pcidevice_set, ppb_device);
+
+static	char*	ppb_probe (pcici_t tag, pcidi_t type)
+{
+	int data = pci_conf_read(tag, PCI_CLASS_REG);
+
+	if ((data & (PCI_CLASS_MASK|PCI_SUBCLASS_MASK)) ==
+		(PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI))
+		return ("PCI-PCI bridge");
+	return ((char*)0);
+}
+
+static	void	ppb_attach(pcici_t tag, int unit)
+{
+	/*
+	**	XXX should read bus number from device
+	*/
+	(void) pci_map_bus (tag, 1);
+}
+
+/*---------------------------------------------------------
+**
 **	Catchall driver for VGA devices
 **
 **
@@ -335,10 +374,10 @@ static	char*	vga_probe (pcici_t tag, pcidi_t type)
 static	void	vga_attach(pcici_t tag, int unit)
 {
 /*
-**	Breaks some systems.
-**	The assigned adresses _have_ to be announced to the console driver.
+**	The assigned adresses may not be remapped,
+**	because certain values are assumed by the console driver.
 */
-#if 0
+#ifndef PCI_REMAP
 	vm_offset_t va;
 	vm_offset_t pa;
 	int reg;
