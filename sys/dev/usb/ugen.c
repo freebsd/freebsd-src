@@ -1041,11 +1041,6 @@ ugen_set_interface(struct ugen_softc *sc, int ifaceidx, int altno)
 		sce->iface = 0;
 	}
 
-#if defined(__FreeBSD__)
-	/* make the new devices */
-	ugen_make_devnodes(sc);
-#endif
-
 	/* change setting */
 	err = usbd_set_interface(iface, altno);
 	if (err)
@@ -1063,6 +1058,12 @@ ugen_set_interface(struct ugen_softc *sc, int ifaceidx, int altno)
 		sce->edesc = ed;
 		sce->iface = iface;
 	}
+
+#if defined(__FreeBSD__)
+	/* make the new devices */
+	ugen_make_devnodes(sc);
+#endif
+
 	return (0);
 }
 
