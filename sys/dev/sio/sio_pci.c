@@ -77,6 +77,13 @@ static struct pci_ids pci_ids[] = {
 	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
 	{ 0x0103115d, "Xircom Cardbus modem", 0x10 },
 	{ 0x98459710, "Netmos Nm9845 PCI Bridge with Dual UART", 0x10 },
+	{ 0x01c0135c, "Quatech SSCLP-200/300", 0x18 
+		/* 
+		 * NB: You must mount the "SPAD" jumper to correctly detect
+		 * the FIFO on the UART.  Set the options on the jumpers,
+		 * we do not support the extra registers on the Quatech.
+		 */
+	},
 	{ 0x00000000, NULL, 0 }
 };
 
