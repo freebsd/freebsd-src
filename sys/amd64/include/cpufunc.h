@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.49 1996/04/07 18:30:56 bde Exp $
+ *	$Id: cpufunc.h,v 1.50 1996/06/14 11:01:01 asami Exp $
  */
 
 /*
@@ -398,28 +398,10 @@ void	wrmsr		__P((u_int msr, quad_t newval));
 
 #endif	/* __GNUC__ */
 
-/*
- * These variables and functions in support.s are used.
- */
-extern u_int atdevbase;	/* offset in virtual memory of ISA io mem */
-
-void	bcopyb		__P((const void *from, void *to, size_t len));
-void	fillw		__P((int /*u_short*/ pat, void *base, size_t cnt));
-int	fusword		__P((void *base));
 void	load_cr0	__P((u_long cr0));
 void	load_cr3	__P((u_long cr3));
 void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_long	rcr3		__P((void));
-
-/*
- * These functions are NOT in support.s and should be declared elsewhere.
- */
-void	Debugger	__P((const char *msg));
-u_long	kvtop		__P((void *addr));
-typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp,
-				      u_int ss));
-void	setidt		__P((int idx, alias_for_inthand_t *func, int typ,
-			     int dpl, int selec));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

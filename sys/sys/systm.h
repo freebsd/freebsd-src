@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.38 1996/04/07 16:46:27 bde Exp $
+ * $Id: systm.h,v 1.39 1996/05/08 04:29:01 gpalmer Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -106,6 +106,7 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 /*
  * General function declarations.
  */
+void	Debugger __P((const char *msg));
 int	nullop __P((void));
 int	eopnotsupp __P((void));
 int	einval __P((void));
