@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sleep.c,v 1.5 1997/02/22 14:05:45 peter Exp $
  */
 
 #ifndef lint
@@ -56,7 +56,7 @@ main(argc, argv)
 {
 	int ch, secs;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:

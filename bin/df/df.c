@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.13 1997/02/22 14:02:57 peter Exp $
+ *	$Id: df.c,v 1.15 1997/03/13 17:41:37 bde Exp $
  */
 
 #ifndef lint
@@ -85,7 +85,7 @@ main(argc, argv)
 	char *mntpt, **vfslist;
 
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, "iknt:")) != EOF)
+	while ((ch = getopt(argc, argv, "iknt:")) != -1)
 		switch (ch) {
 		case 'i':
 			iflag = 1;

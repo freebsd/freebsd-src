@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cat.c,v 1.8 1997/02/22 14:01:26 peter Exp $
  */
 
 #ifndef lint
@@ -78,7 +78,7 @@ main(argc, argv)
 
 	setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "benstuv")) != EOF)
+	while ((ch = getopt(argc, argv, "benstuv")) != -1)
 		switch (ch) {
 		case 'b':
 			bflag = nflag = 1;	/* -b implies -n */

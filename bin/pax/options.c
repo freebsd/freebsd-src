@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: options.c,v 1.7 1997/02/22 14:04:33 peter Exp $
  */
 
 #ifndef lint
@@ -195,7 +195,7 @@ pax_options(argc, argv)
 	 * process option flags
 	 */
 	while ((c=getopt(argc,argv,"ab:cdf:iklno:p:rs:tuvwx:B:DE:G:HLPT:U:XYZ"))
-	    != EOF) {
+	    != -1) {
 		switch (c) {
 		case 'a':
 			/*

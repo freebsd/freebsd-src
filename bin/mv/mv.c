@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.11 1997/02/22 14:04:12 peter Exp $
+ *	$Id: mv.c,v 1.12 1997/03/08 16:05:44 guido Exp $
  */
 
 #ifndef lint
@@ -79,7 +79,7 @@ main(argc, argv)
 	int ch;
 	char path[MAXPATHLEN + 1];
 
-	while ((ch = getopt(argc, argv, "fi")) != EOF)
+	while ((ch = getopt(argc, argv, "fi")) != -1)
 		switch (ch) {
 		case 'i':
 			iflg = 1;

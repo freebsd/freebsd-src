@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: date.c,v 1.10 1997/02/22 14:02:33 peter Exp $
  */
 
 #ifndef lint
@@ -84,7 +84,7 @@ main(argc, argv)
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
 	set_timezone = 0;
-	while ((ch = getopt(argc, argv, "d:nr:ut:")) != EOF)
+	while ((ch = getopt(argc, argv, "d:nr:ut:")) != -1)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
 			tz.tz_dsttime = strtol(optarg, &endptr, 10) ? 1 : 0;
