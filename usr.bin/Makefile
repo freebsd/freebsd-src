@@ -146,6 +146,7 @@ SUBDIR=	apply \
 	su \
 	symorder \
 	systat \
+	tabs \
 	tail \
 	talk \
 	tcopy \
