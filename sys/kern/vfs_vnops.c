@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.8 1995/02/14 06:31:13 phk Exp $
+ * $Id: vfs_vnops.c,v 1.9 1995/03/19 12:08:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -131,10 +131,10 @@ vn_open(ndp, fmode, cmode)
 				goto bad;
 			}
 			error = vn_writechk(vp);
-			if(error)
+			if (error)
 				goto bad;
 		        error = VOP_ACCESS(vp, VWRITE, cred, p);
-			if(error)
+			if (error)
 				goto bad;
 		}
 	}
@@ -156,31 +156,32 @@ vn_open(ndp, fmode, cmode)
 	/*
 	 * this is here for VMIO support
 	 */
-	if( vp->v_type == VREG) {
+	if (vp->v_type == VREG) {
 		vm_object_t object;
 		vm_pager_t pager;
 retry:
-		if( (vp->v_flag & VVMIO) == 0) {
-			pager = (vm_pager_t) vnode_pager_alloc(
-							(caddr_t) vp, 0, 0, 0);
+		if ((vp->v_flag & VVMIO) == 0) {
+			pager = (vm_pager_t) vnode_pager_alloc(vp, 0, 0, 0);
 			object = (vm_object_t) vp->v_vmdata;
-			if( object->pager != pager)
+			if (object->pager != pager)
 				panic("vn_open: pager/object mismatch");
-			(void) vm_object_lookup( pager);
-			pager_cache( object, TRUE);
+			(void) vm_object_lookup(pager);
+			pager_cache(object, TRUE);
 			vp->v_flag |= VVMIO;
 		} else {
-			if( (object = (vm_object_t)vp->v_vmdata) &&
+			if ((object = (vm_object_t)vp->v_vmdata) &&
 				(object->flags & OBJ_DEAD)) {
-				tsleep( (caddr_t) object, PVM, "vodead", 0);
+				VOP_UNLOCK(vp);
+				tsleep(object, PVM, "vodead", 0);
+				VOP_LOCK(vp);
 				goto retry;
 			}
-			if( !object)
+			if (!object)
 				panic("vn_open: VMIO object missing");
 			pager = object->pager;
-			if( !pager)
+			if (!pager)
 				panic("vn_open: VMIO pager missing");
-			(void) vm_object_lookup( pager);
+			(void) vm_object_lookup(pager);
 		}
 	}
 	return (0);
