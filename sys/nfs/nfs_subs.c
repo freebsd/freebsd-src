@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.55 1998/05/24 14:41:53 peter Exp $
+ * $Id: nfs_subs.c,v 1.56 1998/05/31 17:27:50 peter Exp $
  */
 
 /*
@@ -1031,7 +1031,7 @@ int
 nfsm_strtmbuf(mb, bpos, cp, siz)
 	struct mbuf **mb;
 	char **bpos;
-	char *cp;
+	const char *cp;
 	long siz;
 {
 	register struct mbuf *m1 = 0, *m2;
