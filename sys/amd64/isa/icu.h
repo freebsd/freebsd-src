@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.11 1997/04/26 11:45:53 peter Exp $
+ *	$Id: icu.h,v 1.12 1997/04/27 21:18:58 fsmp Exp $
  */
 
 /*
@@ -46,8 +46,6 @@
 #define	_I386_ISA_ICU_H_
 
 #ifndef	LOCORE
-
-#include "opt_smp.h" /* so we dont have to change EVERY file including icu.h */
 
 /*
  * Interrupt "level" mechanism variables, masks, and macros
@@ -66,29 +64,29 @@ void write_io_apic_mask24 __P((int, u_int32_t)); /* i386/i386/mpapic.c */
 #endif /* MULTIPLE_IOAPICS */
 
 static __inline u_int32_t
-INTRGET( void )
+INTRGET(void)
 {
 	return (imen & 0x00ffffff);		/* return our global copy */
 }
 
 static __inline void
-INTRSET( unsigned s )
+INTRSET(unsigned s)
 {
-	write_io_apic_mask24( 0, s );
+	write_io_apic_mask24(0, s);
 	imen = s;
 }
 
 static __inline void
-INTREN( unsigned s )
+INTREN(unsigned s)
 {
-	write_io_apic_mask24( 0, imen & ~s );
+	write_io_apic_mask24(0, imen & ~s);
 	imen &= ~s;
 }
 
 static __inline void
-INTRDIS( unsigned s )
+INTRDIS(unsigned s)
 {
-	write_io_apic_mask24( 0, imen | s );
+	write_io_apic_mask24(0, imen | s);
 	imen |= s;
 }
 
