@@ -149,6 +149,7 @@ spigot_attach(struct isa_device *devp)
 static	int
 spigot_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
+int			error;
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 
 	if((ss->flags & ALIVE) == 0)
@@ -158,8 +159,16 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 		return EBUSY;
 
 #if !defined(SPIGOT_UNSECURE)
-	/* Since we can't map the i/o page, don't allow open unless suser */
-	if(suser(p->p_ucred, &p->p_acflag) != 0)
+	/*
+	 * Don't allow open() unless the process has sufficient privileges,
+	 * since mapping the i/o page and granting i/o privilege would
+	 * require sufficient privilege soon and nothing much can be done
+	 * without them.
+	 */
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error != 0)
+		return error;
+	if (securelevel > 0)
 		return EPERM;
 #endif
 
@@ -216,6 +225,8 @@ struct	spigot_info	*info;
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error != 0)
 			return error;
+		if (securelevel > 0)
+			return EPERM;
 #endif
 		fp=(struct trapframe *)p->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
