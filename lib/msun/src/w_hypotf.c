@@ -25,7 +25,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	float hypotf(float x, float y)	/* wrapper hypotf */
+float
+hypotf(float x, float y)	/* wrapper hypotf */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_hypotf(x,y);

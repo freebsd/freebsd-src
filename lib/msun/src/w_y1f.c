@@ -24,7 +24,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float y1f(float x)		/* wrapper y1f */
+float
+y1f(float x)		/* wrapper y1f */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_y1f(x);

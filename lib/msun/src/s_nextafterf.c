@@ -20,7 +20,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float nextafterf(float x, float y)
+float
+nextafterf(float x, float y)
 {
 	int32_t hx,hy,ix,iy;
 

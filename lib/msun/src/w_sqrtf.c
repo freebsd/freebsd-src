@@ -24,7 +24,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float sqrtf(float x)		/* wrapper sqrtf */
+float
+sqrtf(float x)		/* wrapper sqrtf */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_sqrtf(x);

@@ -25,7 +25,8 @@ static char rcsid[] = "$FreeBSD$";
 
 extern int signgam;
 
-	double __ieee754_lgamma(double x)
+double
+__ieee754_lgamma(double x)
 {
 	return __ieee754_lgamma_r(x,&signgam);
 }

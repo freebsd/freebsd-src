@@ -21,7 +21,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double jn(int n, double x)	/* wrapper jn */
+double
+jn(int n, double x)	/* wrapper jn */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_jn(n,x);

@@ -52,7 +52,8 @@ static const float aT[] = {
 one   = 1.0,
 huge   = 1.0e30;
 
-	float atanf(float x)
+float
+atanf(float x)
 {
 	float w,s1,s2,z;
 	int32_t ix,hx,id;

@@ -25,7 +25,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float acoshf(float x)		/* wrapper acoshf */
+float
+acoshf(float x)		/* wrapper acoshf */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_acoshf(x);

@@ -32,7 +32,8 @@ TWO23[2]={
  -8.3886080000e+06, /* 0xcb000000 */
 };
 
-	float rintf(float x)
+float
+rintf(float x)
 {
 	int32_t i0,j0,sx;
 	u_int32_t i,i1;

@@ -21,7 +21,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double sqrt(double x)		/* wrapper sqrt */
+double
+sqrt(double x)		/* wrapper sqrt */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_sqrt(x);

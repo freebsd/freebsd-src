@@ -35,7 +35,8 @@ Q3  =  -7.9365076090e-05, /* 0xb8a670cd */
 Q4  =   4.0082177293e-06, /* 0x36867e54 */
 Q5  =  -2.0109921195e-07; /* 0xb457edbb */
 
-	float expm1f(float x)
+float
+expm1f(float x)
 {
 	float y,hi,lo,c,t,e,hxs,hfx,r1;
 	int32_t k,xsb;

@@ -27,7 +27,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float __ieee754_gammaf_r(float x, int *signgamp)
+float
+__ieee754_gammaf_r(float x, int *signgamp)
 {
 	return __ieee754_lgammaf_r(x,signgamp);
 }

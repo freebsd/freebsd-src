@@ -29,9 +29,11 @@ static char rcsid[] = "$FreeBSD$";
 #include <errno.h>
 
 #ifdef _SCALB_INT
-	float scalbf(float x, int fn)		/* wrapper scalbf */
+float
+scalbf(float x, int fn)		/* wrapper scalbf */
 #else
-	float scalbf(float x, float fn)		/* wrapper scalbf */
+float
+scalbf(float x, float fn)		/* wrapper scalbf */
 #endif
 {
 #ifdef _IEEE_LIBM
