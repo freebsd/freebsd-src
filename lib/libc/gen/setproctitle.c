@@ -86,6 +86,7 @@ setproctitle(const char *fmt, ...)
 		obuf = malloc(SPT_BUFSIZE);
 		if (obuf == NULL)
 			return;
+		*obuf = '\0';
 	}
 
 	va_start(ap, fmt);
