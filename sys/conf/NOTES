@@ -2172,7 +2172,6 @@ options 	INIT_PATH=/sbin/init:/stand/sysinstall
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging
 options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
-options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
 
 #####################################################################
 # SYSV IPC KERNEL PARAMETERS
