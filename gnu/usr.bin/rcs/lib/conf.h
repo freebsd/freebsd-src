@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $Id: conf.h,v 1.2 1994/08/05 22:33:44 wollman Exp $ */
+	/* $Id: conf.sh,v 5.25 1995/06/16 06:19:24 eggert Exp $ */
 
 /*
  * This file is generated automatically.
@@ -10,7 +10,8 @@
  */
 
 #define exitmain(n) return n /* how to exit from main() */
-/* #define _POSIX_SOURCE */ /* Define this if Posix + strict Standard C.  */
+/* #define _POSIX_C_SOURCE 2147483647L */ /* if strict C + Posix 1003.1b-1993 or later */
+/* #define _POSIX_SOURCE */ /* if strict C + Posix 1003.1-1990 */
 
 #include <errno.h>
 #include <stdio.h>
@@ -22,48 +23,28 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <limits.h>
+/* #include <mach/mach.h> */
+/* #include <net/errno.h> */
 #include <pwd.h>
+/* #include <siginfo.h> */
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+/* #include <ucontext.h> */
 #include <unistd.h>
 #include <utime.h>
 /* #include <vfork.h> */
 
-/* Define the following symbols to be 1 or 0.  */
-#define has_sys_dir_h 1 /* Does #include <sys/dir.h> work?  */
+/* Define boolean symbols to be 0 (false, the default), or 1 (true).  */
 #define has_sys_param_h 1 /* Does #include <sys/param.h> work?  */
+/* extern int errno; */ /* Uncomment if <errno.h> doesn't declare errno.  */
 #define has_readlink 1 /* Does readlink() work?  */
+#define readlink_isreg_errno EINVAL /* errno after readlink on regular file */
 
-/* #undef NAME_MAX */ /* Uncomment this if NAME_MAX is broken.  */
-
-#if !defined(NAME_MAX) && !defined(_POSIX_NAME_MAX)
-#	if has_sys_dir_h
-#		include <sys/dir.h>
-#	endif
-#	ifndef NAME_MAX
-#		ifndef MAXNAMLEN
-#			define MAXNAMLEN 14
-#		endif
-#		define NAME_MAX MAXNAMLEN
-#	endif
-#endif
-#if !defined(PATH_MAX) && !defined(_POSIX_PATH_MAX)
-#	if has_sys_param_h
-#		include <sys/param.h>
-#		define included_sys_param_h 1
-#	endif
-#	ifndef PATH_MAX
-#		ifndef MAXPATHLEN
-#			define MAXPATHLEN 1024
-#		endif
-#		define PATH_MAX (MAXPATHLEN-1)
-#	endif
-#endif
 #if has_readlink && !defined(MAXSYMLINKS)
-#	if has_sys_param_h && !included_sys_param_h
+#	if has_sys_param_h
 #		include <sys/param.h>
 #	endif
 #	ifndef MAXSYMLINKS
@@ -71,13 +52,10 @@
 #	endif
 #endif
 
-/* Comment out the keyword definitions below if the keywords work.  */
-/* #define const */
-/* #define volatile */
-
 /* Comment out the typedefs below if the types are already declared.  */
 /* Fix any uncommented typedefs that are wrong.  */
 /* typedef int mode_t; */
+/* typedef long off_t; */
 /* typedef int pid_t; */
 /* typedef int sig_atomic_t; */
 /* typedef unsigned size_t; */
@@ -85,11 +63,44 @@
 /* typedef long time_t; */
 /* typedef int uid_t; */
 
-/* Define the following symbols to be 1 or 0.  */
+/* Comment out the keyword definitions below if the keywords work.  */
+/* #define const */
+/* #define volatile */
+
+/* Define boolean symbols to be 0 (false, the default), or 1 (true).  */
 #define has_prototypes 1 /* Do function prototypes work?  */
 #define has_stdarg 1 /* Does <stdarg.h> work?  */
-#define has_varargs 0 /* Does <varargs.h> work?  */
+/* #define has_varargs ? */ /* Does <varargs.h> work?  */
 #define va_start_args 2 /* How many args does va_start() take?  */
+
+#if O_BINARY
+	/* Text and binary i/o behave differently.  */
+	/* This is incompatible with Posix and Unix.  */
+#	define FOPEN_RB "rb"
+#	define FOPEN_R_WORK (Expand==BINARY_EXPAND ? "r" : "rb")
+#	define FOPEN_WB "wb"
+#	define FOPEN_W_WORK (Expand==BINARY_EXPAND ? "w" : "wb")
+#	define FOPEN_WPLUS_WORK (Expand==BINARY_EXPAND ? "w+" : "w+b")
+#	define OPEN_O_BINARY O_BINARY
+#else
+	/*
+	* Text and binary i/o behave the same.
+	* Omit "b", since some nonstandard hosts reject it.
+	*/
+#	define FOPEN_RB "r"
+#	define FOPEN_R_WORK "r"
+#	define FOPEN_WB "w"
+#	define FOPEN_W_WORK "w"
+#	define FOPEN_WPLUS_WORK "w+"
+#	define OPEN_O_BINARY 0
+#endif
+
+/* This may need changing on non-Unix systems (notably DOS).  */
+#define OPEN_CREAT_READONLY (S_IRUSR|S_IRGRP|S_IROTH) /* lock file mode */
+#define OPEN_O_LOCK 0 /* extra open flags for creating lock file */
+#define OPEN_O_WRONLY O_WRONLY /* main open flag for creating a lock file */
+
+/* Define or comment out the following symbols as needed.  */
 #if has_prototypes
 #	define P(params) params
 #else
@@ -113,106 +124,114 @@
 #else
 #	define vararg_start(ap,p) va_start(ap)
 #endif
-
-#define text_equals_binary_stdio 1 /* Does stdio treat text like binary?  */
-#define text_work_stdio 0 /* Text i/o for working file, binary for RCS file?  */
-#if text_equals_binary_stdio
-	/* Text and binary i/o behave the same, or binary i/o does not work.  */
-#	define FOPEN_R "r"
-#	define FOPEN_W "w"
-#	define FOPEN_WPLUS "w+"
-#else
-	/* Text and binary i/o behave differently.  */
-	/* This is incompatible with Posix and Unix.  */
-#	define FOPEN_R "rb"
-#	define FOPEN_W "wb"
-#	define FOPEN_WPLUS "w+b"
-#endif
-#if text_work_stdio
-#	define FOPEN_R_WORK "r"
-#	define FOPEN_W_WORK "w"
-#	define FOPEN_WPLUS_WORK "w+"
-#else
-#	define FOPEN_R_WORK FOPEN_R
-#	define FOPEN_W_WORK FOPEN_W
-#	define FOPEN_WPLUS_WORK FOPEN_WPLUS
-#endif
-
-/* Define or comment out the following symbols as needed.  */
-#define bad_fopen_wplus 0 /* Does fopen(f,FOPEN_WPLUS) fail to truncate f?  */
+#define bad_chmod_close 0 /* Can chmod() close file descriptors?  */
+#define bad_creat0 0 /* Do writes fail after creat(f,0)?  */
+#define bad_fopen_wplus 0 /* Does fopen(f,"w+") fail to truncate f?  */
 #define getlogin_is_secure 0 /* Is getlogin() secure?  Usually it's not.  */
+#define has_attribute_noreturn 1 /* Does __attribute__((noreturn)) work?  */
+#if has_attribute_noreturn
+#	define exiting __attribute__((noreturn))
+#else
+#	define exiting
+#endif
 #define has_dirent 1 /* Do opendir(), readdir(), closedir() work?  */
+#define void_closedir 0 /* Does closedir() yield void?  */
 #define has_fchmod 1 /* Does fchmod() work?  */
-#define has_fputs 0 /* Does fputs() work?  */
+#define has_fflush_input 0 /* Does fflush() work on input files?  */
+#define has_fputs 1 /* Does fputs() work?  */
 #define has_ftruncate 1 /* Does ftruncate() work?  */
 #define has_getuid 1 /* Does getuid() work?  */
 #define has_getpwuid 1 /* Does getpwuid() work?  */
-#define has_link 1 /* Does link() work?  */
 #define has_memcmp 1 /* Does memcmp() work?  */
 #define has_memcpy 1 /* Does memcpy() work?  */
 #define has_memmove 1 /* Does memmove() work?  */
-#define has_madvise 0 /* Does madvise() work?  */
+#define has_map_fd 0 /* Does map_fd() work?  */
 #define has_mmap 1 /* Does mmap() work on regular files?  */
+#define has_madvise 0 /* Does madvise() work?  */
+#define mmap_signal SIGBUS /* signal received if you reference nonexistent part of mmapped file */
 #define has_rename 1 /* Does rename() work?  */
 #define bad_a_rename 0 /* Does rename(A,B) fail if A is unwritable?  */
 #define bad_b_rename 0 /* Does rename(A,B) fail if B is unwritable?  */
+#define bad_NFS_rename 0 /* Can rename(A,B) falsely report success?  */
+/* typedef int void; */ /* Some ancient compilers need this.  */
 #define VOID (void) /* 'VOID e;' discards the value of an expression 'e'.  */
-#define has_seteuid 0 /* Does seteuid() work?  See README.  */
+#define has_seteuid 1 /* Does seteuid() work?  See ../INSTALL.RCS.  */
+#define has_setreuid 0 /* Does setreuid() work?  See ../INSTALL.RCS.  */
 #define has_setuid 1 /* Does setuid() exist?  */
+#define has_sigaction 1 /* Does struct sigaction work?  */
+#define has_sa_sigaction 0 /* Does struct sigaction have sa_sigaction?  */
 #define has_signal 1 /* Does signal() work?  */
-#define signal_args P((int)) /* arguments of signal handlers */
 #define signal_type void /* type returned by signal handlers */
 #define sig_zaps_handler 0 /* Must a signal handler reinvoke signal()?  */
-#define has_sigaction 1 /* Does struct sigaction work?  */
 /* #define has_sigblock ? */ /* Does sigblock() work?  */
 /* #define sigmask(s) (1 << ((s)-1)) */ /* Yield mask for signal number.  */
-#define has_sys_siglist 0 /* Does sys_siglist[] work?  */
 typedef size_t fread_type; /* type returned by fread() and fwrite() */
 typedef size_t freadarg_type; /* type of their size arguments */
 typedef void *malloc_type; /* type returned by malloc() */
 #define has_getcwd 1 /* Does getcwd() work?  */
 /* #define has_getwd ? */ /* Does getwd() work?  */
+#define needs_getabsname 0 /* Must we define getabsname?  */
 #define has_mktemp 1 /* Does mktemp() work?  */
 #define has_NFS 1 /* Might NFS be used?  */
+#define has_psiginfo 0 /* Does psiginfo() work?  */
+#define has_psignal 1 /* Does psignal() work?  */
+/* #define has_si_errno ? */ /* Does siginfo_t have si_errno?  */
+/* #define has_sys_siglist ? */ /* Does sys_siglist[] work?  */
 /* #define strchr index */ /* Use old-fashioned name for strchr()?  */
 /* #define strrchr rindex */ /* Use old-fashioned name for strrchr()?  */
 #define bad_unlink 0 /* Does unlink() fail on unwritable files?  */
 #define has_vfork 1 /* Does vfork() work?  */
 #define has_fork 1 /* Does fork() work?  */
 #define has_spawn 0 /* Does spawn*() work?  */
-#define has_wait 1 /* Does wait() work?  */
 #define has_waitpid 1 /* Does waitpid() work?  */
+#define bad_wait_if_SIGCHLD_ignored 0 /* Does ignoring SIGCHLD break wait()?  */
 #define RCS_SHELL "/bin/sh" /* shell to run RCS subprograms */
+#define has_printf_dot 1 /* Does "%.2d" print leading 0?  */
 #define has_vfprintf 1 /* Does vfprintf() work?  */
+#define has_attribute_format_printf 1 /* Does __attribute__((format(printf,N,N+1))) work?  */
+#if has_attribute_format_printf
+#	define printf_string(m, n) __attribute__((format(printf, m, n)))
+#else
+#	define printf_string(m, n)
+#endif
+#if has_attribute_format_printf && has_attribute_noreturn
+	/* Work around a bug in GCC 2.5.x.  */
+#	define printf_string_exiting(m, n) __attribute__((format(printf, m, n), noreturn))
+#else
+#	define printf_string_exiting(m, n) printf_string(m, n) exiting
+#endif
 /* #define has__doprintf ? */ /* Does _doprintf() work?  */
 /* #define has__doprnt ? */ /* Does _doprnt() work?  */
 /* #undef EXIT_FAILURE */ /* Uncomment this if EXIT_FAILURE is broken.  */
 #define large_memory 1 /* Can main memory hold entire RCS files?  */
-/* #undef ULONG_MAX */ /* Uncomment this if ULONG_MAX is broken (e.g. < 0).  */
-/* struct utimbuf { time_t actime, modtime; }; */ /* Uncomment this if needed.  */
-#define CO "/usr/bin/co" /* name of 'co' program */
+#ifndef LONG_MAX
+#define LONG_MAX 2147483647L /* long maximum */
+#endif
+/* Do struct stat s and t describe the same file?  Answer d if unknown.  */
+#define same_file(s,t,d) ((s).st_ino==(t).st_ino && (s).st_dev==(t).st_dev)
+#define has_utimbuf 1 /* Does struct utimbuf work?  */
+#define CO "/usr/local/bin/co" /* name of 'co' program */
 #define COMPAT2 0 /* Are version 2 files supported?  */
-#define DATEFORM "%.2d.%.2d.%.2d.%.2d.%.2d.%.2d" /* e.g. 01.01.01.01.01.01 */
 #define DIFF "/usr/bin/diff" /* name of 'diff' program */
 #define DIFF3 "/usr/bin/diff3" /* name of 'diff3' program */
-#define DIFF3_A 1 /* Does diff3 have an -A option?  */
 #define DIFF3_BIN 1 /* Is diff3 user-visible (not the /usr/lib auxiliary)?  */
-#define DIFF_FLAGS , "-an" /* Make diff output suitable for RCS.  */
-#define DIFF_L 1 /* Does diff -L work? */
+#define DIFFFLAGS "-an" /* Make diff output suitable for RCS.  */
+#define DIFF_L 1 /* Does diff -L work?  */
 #define DIFF_SUCCESS 0 /* DIFF status if no differences are found */
 #define DIFF_FAILURE 1 /* DIFF status if differences are found */
 #define DIFF_TROUBLE 2 /* DIFF status if trouble */
 #define ED "/bin/ed" /* name of 'ed' program (used only if !DIFF3_BIN) */
-#define MERGE "/usr/bin/merge" /* name of 'merge' program */
+#define MERGE "/usr/local/bin/merge" /* name of 'merge' program */
 #define TMPDIR "/tmp" /* default directory for temporary files */
-#define SLASH '/' /* principal pathname separator */
-#define SLASHes '/' /* `case SLASHes:' labels all pathname separators */
-#define isSLASH(c) ((c) == SLASH) /* Is arg a pathname separator?  */
+#define SLASH '/' /* principal filename separator */
+#define SLASHes '/' /* `case SLASHes:' labels all filename separators */
+#define isSLASH(c) ((c) == SLASH) /* Is arg a filename separator?  */
 #define ROOTPATH(p) isSLASH((p)[0]) /* Is p an absolute pathname?  */
 #define X_DEFAULT ",v/" /* default value for -x option */
+#define SLASHSLASH_is_SLASH 1 /* Are // and / the same directory?  */
+#define ALL_ABSOLUTE 1 /* Do all subprograms satisfy ROOTPATH?  */
 #define DIFF_ABSOLUTE 1 /* Is ROOTPATH(DIFF) true?  */
-#define ALL_ABSOLUTE 1 /* Are all subprograms absolute pathnames?  */
-#define SENDMAIL "/usr/bin/mail" /* how to send mail */
+#define SENDMAIL "/usr/sbin/sendmail" /* how to send mail */
 #define TZ_must_be_set 0 /* Must TZ be set for gmtime() to work?  */
 
 
@@ -220,40 +239,21 @@ typedef void *malloc_type; /* type returned by malloc() */
 /* Adjust the following declarations as needed.  */
 
 
-#if __GNUC__ && !__STRICT_ANSI__
-#	define exiting volatile /* GCC extension: function cannot return */
-#else
-#	define exiting
-#endif
+/* The rest is for the benefit of non-standard, traditional hosts.  */
+/* Don't bother to declare functions that in traditional hosts do not appear, */
+/* or are declared in .h files, or return int or void.  */
 
-#if has_ftruncate
-	int ftruncate P((int,off_t));
-#endif
 
-/* <sys/mman.h> */
-#if has_madvise
-	int madvise P((caddr_t,size_t,int));
-#endif
-#if has_mmap
-	caddr_t mmap P((caddr_t,size_t,int,int,int,off_t));
-	int munmap P((caddr_t,size_t));
+/* traditional BSD */
+
+#if has_sys_siglist && !defined(sys_siglist)
+	extern char const * const sys_siglist[];
 #endif
 
 
 /* Posix (ISO/IEC 9945-1: 1990 / IEEE Std 1003.1-1990) */
-/* These definitions are for the benefit of non-Posix hosts, and */
-/* Posix hosts that have Standard C compilers but traditional include files.  */
-/* Unfortunately, mixed-up hosts are all too common.  */
 
 /* <fcntl.h> */
-#ifdef F_DUPFD
-	int fcntl P((int,int,...));
-#else
-	int dup2 P((int,int));
-#endif
-#ifndef O_BINARY /* some non-Posix hosts need O_BINARY */
-#	define O_BINARY 0 /* no effect on Posix */
-#endif
 #ifdef O_CREAT
 #	define open_can_creat 1
 #else
@@ -263,43 +263,12 @@ typedef void *malloc_type; /* type returned by malloc() */
 #	define O_RDWR 2
 #	define O_CREAT 01000
 #	define O_TRUNC 02000
-	int creat P((char const*,mode_t));
 #endif
 #ifndef O_EXCL
-#	define O_EXCL 0
+#define O_EXCL 0
 #endif
-
-/* <pwd.h> */
-#if has_getpwuid
-	struct passwd *getpwuid P((uid_t));
-#endif
-
-/* <signal.h> */
-#if has_sigaction
-	int sigaction P((int,struct sigaction const*,struct sigaction*));
-	int sigaddset P((sigset_t*,int));
-	int sigemptyset P((sigset_t*));
-#else
-#if has_sigblock
-	/* BSD */
-	int sigblock P((int));
-	int sigmask P((int));
-	int sigsetmask P((int));
-#endif
-#endif
-
-/* <stdio.h> */
-FILE *fdopen P((int,char const*));
-int fileno P((FILE*));
 
 /* <sys/stat.h> */
-int chmod P((char const*,mode_t));
-int fstat P((int,struct stat*));
-int stat P((char const*,struct stat*));
-mode_t umask P((mode_t));
-#if has_fchmod
-	int fchmod P((int,mode_t));
-#endif
 #ifndef S_IRUSR
 #	ifdef S_IREAD
 #		define S_IRUSR S_IREAD
@@ -327,164 +296,100 @@ mode_t umask P((mode_t));
 #	endif
 #endif
 #ifndef S_ISREG
-#	define S_ISREG(n) (((n) & S_IFMT) == S_IFREG)
+#define S_ISREG(n) (((n) & S_IFMT) == S_IFREG)
 #endif
 
 /* <sys/wait.h> */
-#if has_wait
-	pid_t wait P((int*));
-#endif
 #ifndef WEXITSTATUS
-#	define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
-#	undef WIFEXITED /* Avoid 4.3BSD incompatibility with Posix.  */
+#define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+#undef WIFEXITED /* Avoid 4.3BSD incompatibility with Posix.  */
 #endif
 #ifndef WIFEXITED
-#	define WIFEXITED(stat_val) (!((stat_val) & 255))
+#define WIFEXITED(stat_val) (((stat_val)  &  0377) == 0)
+#endif
+#ifndef WTERMSIG
+#define WTERMSIG(stat_val) ((stat_val) & 0177)
+#undef WIFSIGNALED /* Avoid 4.3BSD incompatibility with Posix.  */
+#endif
+#ifndef WIFSIGNALED
+#define WIFSIGNALED(stat_val) ((unsigned)(stat_val) - 1  <  0377)
 #endif
 
 /* <unistd.h> */
 char *getlogin P((void));
-int close P((int));
-int isatty P((int));
-int link P((char const*,char const*));
-int open P((char const*,int,...));
-int unlink P((char const*));
-int _filbuf P((FILE*)); /* keeps lint quiet in traditional C */
-int _flsbuf P((int,FILE*)); /* keeps lint quiet in traditional C */
-long pathconf P((char const*,int));
-ssize_t write P((int,void const*,size_t));
 #ifndef STDIN_FILENO
 #	define STDIN_FILENO 0
 #	define STDOUT_FILENO 1
 #	define STDERR_FILENO 2
 #endif
-#if has_fork
-#	if !has_vfork
-#		undef vfork
-#		define vfork fork
-#	endif
-	pid_t vfork P((void)); /* vfork is nonstandard but faster */
+#if has_fork && !has_vfork
+#	undef vfork
+#	define vfork fork
 #endif
 #if has_getcwd || !has_getwd
 	char *getcwd P((char*,size_t));
 #else
 	char *getwd P((char*));
 #endif
-#if has_getuid
-	uid_t getuid P((void));
-#endif
-#if has_readlink
-/* 	ssize_t readlink P((char const*,char*,size_t));  *//* BSD; not standard yet */
-#endif
-#if has_setuid
-#	if !has_seteuid
-#		undef seteuid
-#		define seteuid setuid
-#	endif
-	int seteuid P((uid_t));
-	uid_t geteuid P((void));
+#if has_setuid && !has_seteuid
+#	undef seteuid
+#	define seteuid setuid
 #endif
 #if has_spawn
-	int spawnv P((int,char const*,char*const*));
 #	if ALL_ABSOLUTE
 #		define spawn_RCS spawnv
 #	else
 #		define spawn_RCS spawnvp
-		int spawnvp P((int,char const*,char*const*));
 #	endif
 #else
-	int execv P((char const*,char*const*));
 #	if ALL_ABSOLUTE
 #		define exec_RCS execv
 #	else
 #		define exec_RCS execvp
-		int execvp P((char const*,char*const*));
 #	endif
 #endif
 
 /* utime.h */
-int utime P((char const*,struct utimbuf const*));
+#if !has_utimbuf
+	struct utimbuf { time_t actime, modtime; };
+#endif
 
 
 /* Standard C library */
-/* These definitions are for the benefit of hosts that have */
-/* traditional C include files, possibly with Standard C compilers.  */
-/* Unfortunately, mixed-up hosts are all too common.  */
-
-/* <errno.h> */
-extern int errno;
-
-/* <limits.h> */
-#ifndef ULONG_MAX
-	/* This does not work in #ifs, but it's good enough for us.  */
-#	define ULONG_MAX ((unsigned long)-1)
-#endif
-
-/* <signal.h> */
-#if has_signal
-	signal_type (*signal P((int,signal_type(*)signal_args)))signal_args;
-#endif
 
 /* <stdio.h> */
-FILE *fopen P((char const*,char const*));
-fread_type fread P((void*,freadarg_type,freadarg_type,FILE*));
-fread_type fwrite P((void const*,freadarg_type,freadarg_type,FILE*));
-int fclose P((FILE*));
-int feof P((FILE*));
-int ferror P((FILE*));
-int fflush P((FILE*));
-int fprintf P((FILE*,char const*,...));
-int fputs P((char const*,FILE*));
-int fseek P((FILE*,long,int));
-int printf P((char const*,...));
-int rename P((char const*,char const*));
-int sprintf P((char*,char const*,...));
-/* long ftell P((FILE*)); */
-void clearerr P((FILE*));
-void perror P((char const*));
 #ifndef L_tmpnam
-#	define L_tmpnam 32 /* power of 2 > sizeof("/usr/tmp/xxxxxxxxxxxxxxx") */
+#define L_tmpnam 32 /* power of 2 > sizeof("/usr/tmp/xxxxxxxxxxxxxxx") */
 #endif
 #ifndef SEEK_SET
-#	define SEEK_SET 0
+#define SEEK_SET 0
+#endif
+#ifndef SEEK_CUR
+#define SEEK_CUR 1
 #endif
 #if has_mktemp
 	char *mktemp P((char*)); /* traditional */
 #else
 	char *tmpnam P((char*));
 #endif
-#if has_vfprintf
-	int vfprintf P((FILE*,char const*,va_list));
-#else
-#if has__doprintf
-	void _doprintf P((FILE*,char const*,va_list)); /* Minix */
-#else
-	void _doprnt P((char const*,va_list,FILE*)); /* BSD */
-#endif
-#endif
 
 /* <stdlib.h> */
 char *getenv P((char const*));
+void _exit P((int)) exiting;
+void exit P((int)) exiting;
 malloc_type malloc P((size_t));
 malloc_type realloc P((malloc_type,size_t));
-void free P((malloc_type));
 #ifndef EXIT_FAILURE
-#	define EXIT_FAILURE 1
+#define EXIT_FAILURE 1
 #endif
 #ifndef EXIT_SUCCESS
-#	define EXIT_SUCCESS 0
-#endif
-#if !has_fork && !has_spawn
-	int system P((char const*));
+#define EXIT_SUCCESS 0
 #endif
 
 /* <string.h> */
 char *strcpy P((char*,char const*));
 char *strchr P((char const*,int));
 char *strrchr P((char const*,int));
-int memcmp P((void const*,void const*,size_t));
-int strcmp P((char const*,char const*));
-size_t strlen P((char const*));
 void *memcpy P((void*,void const*,size_t));
 #if has_memmove
 	void *memmove P((void*,void const*,size_t));

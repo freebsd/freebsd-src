@@ -77,7 +77,7 @@ merge(tostdout, edarg, label, argv)
 
 	for (i=3; 0<=--i; )
 		a[i] = normalize_arg(argv[i], &b[i]);
-	
+
 	if (!edarg)
 		edarg = "-E";
 
