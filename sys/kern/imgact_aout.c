@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.33 1997/02/22 09:38:55 peter Exp $
+ *	$Id: imgact_aout.c,v 1.34 1997/04/13 01:48:21 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -127,9 +127,6 @@ exec_aout_imgact(imgp)
 	 */
 	if (/* text can't exceed maximum text size */
 	    a_out->a_text > MAXTSIZ ||
-
-	    /* data + bss can't exceed maximum data size */
-	    a_out->a_data + bss_size > MAXDSIZ ||
 
 	    /* data + bss can't exceed rlimit */
 	    a_out->a_data + bss_size >
