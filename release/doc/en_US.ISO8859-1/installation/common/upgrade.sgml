@@ -102,7 +102,6 @@
 <filename>make.conf</filename>,
 <filename>manpath.config</filename>,
 <filename>master.passwd</filename>,
-<filename>modems</filename>,
 <filename>motd</filename>,
 <filename>namedb</filename>,
 <filename>networks</filename>,
