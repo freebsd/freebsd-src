@@ -46,9 +46,36 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n",
-		"usage: apm [-ablstzZ] [-d 1|0] [-r delta]",
+		"usage: apm [-ablstzZ] [-d enable ] [ -e enable ] "
+		"[ -h enable ] [-r delta]",
 		"       zzz");
 	exit(1);
+}
+
+/*
+ * Return 1 for boolean true, and 0 for false, according to the
+ * interpretation of the string argument given.
+ */
+int
+is_true(const char *boolean) {
+	char *endp;
+	long val;
+
+	val = strtoul(boolean, &endp, 0);
+	if (*endp == '\0')
+		return (val != 0 ? 1 : 0);
+	if (strcasecmp(boolean, "true") == 0 ||
+	    strcasecmp(boolean, "yes") == 0 ||
+	    strcasecmp(boolean, "enable") == 0)
+		return (1);
+	if (strcasecmp(boolean, "false") == 0 ||
+	    strcasecmp(boolean, "no") == 0 ||
+	    strcasecmp(boolean, "disable") == 0)
+		return (0);
+	/* Well, I have no idea what the user wants, so... */
+	warnx("invalid boolean argument \"%s\"", boolean);
+	usage();
+	/* NOTREACHED */
 }
 
 int
@@ -89,31 +116,33 @@ void
 apm_suspend(int fd)
 {
 	if (ioctl(fd, APMIO_SUSPEND, NULL) == -1)
-		err(1, NULL);
+		err(1, "ioctl(APMIO_SUSPEND)");
 }
 
 void 
 apm_standby(int fd)
 {
 	if (ioctl(fd, APMIO_STANDBY, NULL) == -1)
-		err(1, NULL);
+		err(1, "ioctl(APMIO_STANDBY)");
 }
 
 void 
 apm_getinfo(int fd, apm_info_t aip)
 {
 	if (ioctl(fd, APMIO_GETINFO, aip) == -1)
-		err(1, NULL);
+		err(1, "ioctl(APMIO_GETINFO)");
 }
 
 void 
-apm_enable(int fd)
-{
-	struct apm_info info;
+apm_enable(int fd, int enable) {
 
-	apm_getinfo(fd, &info);
-	if (ioctl(fd, info.ai_status ? APMIO_DISABLE : APMIO_ENABLE) == -1)
-		err(1, NULL);
+	if (enable) {
+		if (ioctl(fd, APMIO_ENABLE) == -1)
+			err(1, "ioctl(APMIO_ENABLE)");
+	} else {
+		if (ioctl(fd, APMIO_DISABLE) == -1)
+			err(1, "ioctl(APMIO_DISABLE)");
+	}
 }
 
 void 
@@ -130,7 +159,7 @@ print_all_info(int fd, apm_info_t aip)
 	else if (aip->ai_acline > 1)
 		printf("invalid value (0x%x)", aip->ai_acline);
 	else {
-		char messages[][10] = {"off-line", "on-line"};
+		char *messages[] = { "off-line", "on-line" };
 		printf("%s", messages[aip->ai_acline]);
 	}
 	printf("\n");
@@ -140,21 +169,20 @@ print_all_info(int fd, apm_info_t aip)
 	else if (aip->ai_batt_stat > 3)
 			printf("invalid value (0x%x)", aip->ai_batt_stat);
 	else {
-		char messages[][10] = {"high", "low", "critical", "charging"};
+		char *messages[] = { "high", "low", "critical", "charging" };
 		printf("%s", messages[aip->ai_batt_stat]);
 	}
 	printf("\n");
 	printf("Remaining battery life: ");
 	if (aip->ai_batt_life == 255)
-		printf("unknown");
+		printf("unknown\n");
 	else if (aip->ai_batt_life <= 100)
-		printf("%d%%", aip->ai_batt_life);
+		printf("%d%%\n", aip->ai_batt_life);
 	else
-		printf("invalid value (0x%x)", aip->ai_batt_life);
-	printf("\n");
+		printf("invalid value (0x%x)\n", aip->ai_batt_life);
 	printf("Remaining battery time: ");
 	if (aip->ai_batt_time == -1)
-		printf("unknown");
+		printf("unknown\n");
 	else {
 		int t, h, m, s;
 
@@ -164,9 +192,8 @@ print_all_info(int fd, apm_info_t aip)
 		m = t % 60;
 		t /= 60;
 		h = t;
-		printf("%2d:%02d:%02d", h, m, s);
+		printf("%2d:%02d:%02d\n", h, m, s);
 	}
-	printf("\n");
 	if (aip->ai_infoversion >= 1) {
 		printf("Number of batteries: ");
 		if (aip->ai_batteries == (u_int) -1)
@@ -265,9 +292,20 @@ void
 apm_display(int fd, int newstate)
 {
 	if (ioctl(fd, APMIO_DISPLAY, &newstate) == -1)
-		err(1, NULL);
+		err(1, "ioctl(APMIO_DISPLAY)");
 }
 
+void
+apm_haltcpu(int fd, int enable) {
+
+	if (enable) {
+		if (ioctl(fd, APMIO_HALTCPU, NULL) == -1)
+			err(1, "ioctl(APMIO_HALTCPU)");
+	} else {
+		if (ioctl(fd, APMIO_NOTHALTCPU, NULL) == -1)
+			err(1, "ioctl(APMIO_NOTHALTCPU)");
+	}
+}
 
 void
 apm_set_timer(int fd, int delta)
@@ -302,8 +340,8 @@ main(int argc, char *argv[])
 {
 	int	c, fd;
 	int     sleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
-	int     display = 0, batt_life = 0, ac_status = 0, standby = 0;
-	int	batt_time = 0, delta = 0, enable = 0;
+	int     display = -1, batt_life = 0, ac_status = 0, standby = 0;
+	int	batt_time = 0, delta = 0, enable = -1, haltcpu = -1;
 	char	*cmdname;
 	size_t	cmos_wall_len = sizeof(cmos_wall);
 
@@ -320,7 +358,7 @@ main(int argc, char *argv[])
 		all_info = 0;
 		goto finish_option;
 	}
-	while ((c = getopt(argc, argv, "abelRr:stzd:Z")) != -1) {
+	while ((c = getopt(argc, argv, "abe:h:lRr:stzd:Z")) != -1) {
 		switch (c) {
 		case 'a':
 			ac_status = 1;
@@ -331,12 +369,7 @@ main(int argc, char *argv[])
 			all_info = 0;
 			break;
 		case 'd':
-			display = *optarg - '0';
-			if (display < 0 || display > 1) {
-				warnx("argument of option '-%c' is invalid", c);
-				usage();
-			}
-			display++;
+			display = is_true(optarg);
 			all_info = 0;
 			break;
 		case 'l':
@@ -354,7 +387,10 @@ main(int argc, char *argv[])
 			all_info = 0;
 			break;
 		case 'e':
-			enable = 1;
+			enable = is_true(optarg);
+			break;
+		case 'h':
+			haltcpu = is_true(optarg);
 			break;
 		case 't':
 			batt_time = 1;
@@ -377,12 +413,12 @@ main(int argc, char *argv[])
 	}
 finish_option:
 	fd = open(APMDEV, O_RDWR);
-	if (fd == -1) {
-		warn("can't open %s", APMDEV);
-		return 1;
-	}
-	if (enable)
-		apm_enable(fd);
+	if (fd == -1)
+		err(1, "can't open %s", APMDEV);
+	if (enable != -1)
+		apm_enable(fd, enable);
+	if (haltcpu != -1)
+		apm_haltcpu(fd, haltcpu);
 	if (delta)
 		apm_set_timer(fd, delta);
 	if (sleep)
@@ -405,9 +441,9 @@ finish_option:
 			printf("%d\n", info.ai_status);
 		if (batt_time)
 			printf("%d\n", info.ai_batt_time);
-		if (display)
-			apm_display(fd, display - 1);
+		if (display != -1)
+			apm_display(fd, display);
 	}
 	close(fd);
-	return 0;
+	exit(0);
 }
