@@ -83,3 +83,5 @@ u_int16_t	eeprom_read		(u_int32_t, int);
 int		look_for_card		(u_int32_t);
 void		ex_get_address		(u_int32_t, u_char *);
 int		ex_card_type		(u_char *);
+
+void		ex_stop			(struct ex_softc *);
