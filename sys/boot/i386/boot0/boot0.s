@@ -13,21 +13,29 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.4 1998/10/19 19:13:53 rnordier Exp $
+#	$Id: boot0.s,v 1.5 1998/11/29 14:09:00 rnordier Exp $
 
 # A 512-byte boot manager.
 
-		.set LOAD,0x7c00		# Load address
-		.set ORIGIN,0x600		# Execution address
-		.set PRT_OFF,0x1be		# Partition table
-		.set FAKE,0x810 		# Partition entry
 		.set NHRDRV,0x475		# Number of hard drives
+		.set ORIGIN,0x600		# Execution address
+		.set DSKPKT,0x800		# Disk packet
+		.set FAKE,0x810 		# Partition entry
+		.set LOAD,0x7c00		# Load address
+
+		.set PRT_OFF,0x1be		# Partition table
+
 		.set TBL0SZ,0x3 		# Table 0 size
 		.set TBL1SZ,0xa 		# Table 1 size
 
+		.set MAGIC,0xaa55		# Magic: bootable
+
+		.set KEY_ENTER,0x1c		# Enter key scan code
+		.set KEY_F1,0x3b		# F1 key scan code
+
 		.set _NXTDRV,-0x47		# Drive number
 		.set _OPT,-0x46 		# Default option
-		.set _FLAG,-0x45		# Flags
+		.set _FLAGS,-0x45		# Flags
 		.set _TICKS,-0x44		# Timeout ticks
 		.set _FAKE,0x10 		# Fake partition entry
 		.set _MNUOPT,0x1c		# Menu options
@@ -93,7 +101,7 @@ main.5: 	movwir(prompt,_si)		# Display
 		callwi(putkey)			#  key
 		xorb %ah,%ah			# BIOS: Get
 		int $0x1a			#  system time
-		movl %edx,%edi			# Save
+		movl %edx,%edi			# Save ticks
 main.6: 	movb $0x1,%ah			# BIOS: Check
 		int $0x16			#  for keypress
 		jnz main.9			# Have one
@@ -109,9 +117,9 @@ main.8: 	movb $0x7,%al			# Signal
 main.9: 	xorb %ah,%ah			# BIOS: Get
 		int $0x16			#  keypress
 		movb %ah,%al			# Scan code
-		cmpb $0x1c,%al			# Enter pressed?
+		cmpb $KEY_ENTER,%al		# Enter pressed?
 		je main.7			# No
-		subb $0x3b,%al			# Less F1 scan code
+		subb $KEY_F1,%al		# Less F1 scan code
 		cmpb $0x4,%al			# F1..F5?
 		ja main.8			# No
 main.10:	cwtl				# Option
@@ -127,7 +135,7 @@ main.10:	cwtl				# Option
 		shlb $0x4,%al			# Point to
 		addwia(partbl)			#  partition
 		xchgl %esi,%eax 		#  entry
-		tstbi1(0x40,_FLAG,_bp_) 	# No updates?
+		tstbi1(0x40,_FLAGS,_bp_)	# No updates?
 		jnz main.11			# Yes
 		movbi0(0x80,_si_)		# Flag active
 		pushl %esi			# Save
@@ -140,7 +148,7 @@ main.11:	movwir(LOAD,_bx)		# Address for read
 		movwir(0x201,_ax)		# Read sector
 		callwi(intx13)			#  from disk
 		jc main.8			# If error
-		cmpwi2(0xaa55,0x1fe,_bx_)	# Bootable?
+		cmpwi2(MAGIC,0x1fe,_bx_)	# Bootable?
 		jne main.8			# No
 		movwir(crlf,_si)		# Leave some
 		callwi(puts)			#  space
@@ -184,7 +192,7 @@ intx13: 	cli				# Disable interrupts
 		movw1r(0x2,_si_,_cx)		# Load cylinder:sector
 		o16				# Load
 		movw1r(0x8,_si_,_di)		#  offset
-		movwir(break,_si)		# Packet pointer
+		movwir(DSKPKT,_si)		# Packet pointer
 		movbi0(0x10,_si_)		# Packet size
 		movbr1(_al,0x2,_si_)		# Block count
 		movwr1(_bx,0x4,_si_)		# Transfer
@@ -192,7 +200,7 @@ intx13: 	cli				# Disable interrupts
 		o16				# LBA
 		movwr1(_di,0x8,_si_)		#  address
 		sti				# Enable interrupts
-		tstbi1(0x80,_FLAG,_bp_) 	# Try for extensions?
+		tstbi1(0x80,_FLAGS,_bp_)	# Use packet interface?
 		jz intx13.1			# No
 		orb $0x40,%ah			# Use disk packet
 		decl %eax			# Verify off
@@ -235,12 +243,10 @@ os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 		.org PRT_OFF-0xb,0x90
 
 drive:		.ascii "Drive "
-drvnum: 	.byte 0x0
+nxtdrv: 	.byte 0x0			# Next drive number
 opt:		.byte 0x0			# Option
 flags:		.byte FLAGS			# Flags
 ticks:		.word TICKS			# Delay
 
 partbl: 	.fill 0x40,0x1,0x0		# Partition table
-		.word 0xaa55			# Magic number
-
-break:						# Uninitialized data
+		.word MAGIC			# Magic number
