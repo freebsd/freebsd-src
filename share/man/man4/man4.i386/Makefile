@@ -29,6 +29,7 @@ MAN=	acpi_asus.4 \
 	mse.4 \
 	ndis.4 \
 	npx.4 \
+	oltr.4 \
 	pae.4 \
 	pcf.4 \
 	perfmon.4 \
@@ -51,6 +52,7 @@ MAN=	acpi_asus.4 \
 
 MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
 MLINKS+=ndis.4 if_ndis.4
+MLINKS+=oltr.4 if_oltr.4
 MLINKS+=pae.4 PAE.4
 MLINKS+=sbni.4 if_sbni.4
 MLINKS+=spkr.4 speaker.4
