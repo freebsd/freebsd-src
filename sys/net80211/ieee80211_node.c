@@ -403,7 +403,10 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 	if (ic->ic_opmode == IEEE80211_M_IBSS) {
 		ic->ic_flags |= IEEE80211_F_SIBSS;
 		ni->ni_capinfo |= IEEE80211_CAPINFO_IBSS;	/* XXX */
-		ni->ni_bssid[0] |= 0x02;	/* local bit for IBSS */
+		if (ic->ic_flags & IEEE80211_F_DESBSSID)
+			IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_des_bssid);
+		else
+			ni->ni_bssid[0] |= 0x02;	/* local bit for IBSS */
 	}
 	/* 
 	 * Fix the channel and related attributes.
