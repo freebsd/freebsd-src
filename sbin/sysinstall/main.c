@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.4 1994/10/20 06:48:39 phk Exp $
+ * $Id: main.c,v 1.5 1994/10/20 19:30:50 ache Exp $
  *
  */
 
@@ -20,6 +20,7 @@
 #include <dialog.h>
 
 #include <sys/ioctl.h>
+#include <sys/reboot.h>
 
 #define EXTERN /* only in main.c */
 
@@ -90,7 +91,7 @@ main(int argc, char **argv)
 	if (alloc_memory() < 0)
 		Fatal("No memory\n");
 
-	setjmp(jmp_restart);
+	setjmp(jmp_restart);  /* XXX Allow people to "restart" */
 
 	if (getenv("STAGE0") || !access("/this_is_boot_flp",R_OK)) {
 		stage0();
@@ -113,10 +114,11 @@ main(int argc, char **argv)
 		 */
 		
 		stage2();
-	} else if (getenv("STAGE3")) {
+		reboot(RB_AUTOBOOT);
+	} else if (getenv("STAGE3") || !access("/this_is_hd",R_OK)) {
 		stage3();
 	} else {
-		fprintf(stderr,"Must setenv STAGE0 or STAGE3\n");
+		Fatal("Must setenv STAGE0 or STAGE3");
 	}
 	return 0;
 }
