@@ -231,14 +231,12 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	int i, error;
 	u_int u;
 	struct g_ioctl *gio;
-#if 0
-	struct sbuf *usb, *sb;
-#endif
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
 	pp2 = cp->provider;
 	gp2 = pp2->geom;
+	gio = NULL;
 
 	error = 0;
 	DROP_GIANT();
@@ -274,21 +272,9 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		if (!error)
 			dev->si_flags |= SI_DUMPDEV;
 		break;
-#if 0
-	case GEOMGETCONF:
-		/* we bogusly pass cp to avoid getting any consumers listed */
-		sb = g_conf_specific(gp2->class, gp2, pp2, cp);
-		usb = (struct sbuf *)data;
-		if (usb->s_size - 1 < sbuf_len(sb))
-			error = ENOMEM;
-		else 
-			error = copyout(sbuf_data(sb), usb->s_buf, sbuf_len(sb) + 1);
-		if (!error)
-			usb->s_len = sbuf_len(sb);
-		break;
-#endif
+
 	default:
-		gio = g_malloc(sizeof *gio, M_WAITOK);
+		gio = g_malloc(sizeof *gio, M_WAITOK | M_ZERO);
 		gio->cmd = cmd;
 		gio->data = data;
 		gio->fflag = fflag;
@@ -298,11 +284,17 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 			error = g_io_setattr("GEOM::ioctl", cp, i, gio);
 		else
 			error = g_io_getattr("GEOM::ioctl", cp, &i, gio);
-		g_free(gio);
 		break;
 	}
 
 	PICKUP_GIANT();
+	if (error == EDIRIOCTL) {
+		KASSERT(gio != NULL, ("NULL gio but EDIRIOCTL"));
+		KASSERT(gio->func != NULL, ("NULL function but EDIRIOCTL"));
+		error = (gio->func)(gio->dev, cmd, data, fflag, td);
+	}
+	if (gio != NULL)
+		g_free(gio);
 	g_waitidle();
 	if (error == ENOIOCTL) {
 		if (g_debugflags & G_T_TOPOLOGY) {
