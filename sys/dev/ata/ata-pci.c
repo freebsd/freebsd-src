@@ -75,8 +75,7 @@ ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 	return 0;
 
     for (i = 0; i < nchildren; i++) {
-	if (pci_get_slot(dev) == pci_get_slot(children[i]) &&
-	    pci_get_devid(children[i]) == devid &&
+	if (pci_get_devid(children[i]) == devid &&
 	    pci_get_revid(children[i]) >= revid) {
 	    free(children, M_TEMP);
 	    return 1;
@@ -145,10 +144,14 @@ ata_pci_match(device_t dev)
 	return "Intel ICH3 ATA100 controller";
 
     case 0x522910b9:
-	if (pci_get_revid(dev) < 0x20)
-	    return "AcerLabs Aladdin ATA controller";
-	else
+	if (pci_get_revid(dev) >= 0xc4)
+	    return "AcerLabs Aladdin ATA100 controller";
+	else if (pci_get_revid(dev) >= 0xc2)
+	    return "AcerLabs Aladdin ATA66 controller";
+	else if (pci_get_revid(dev) >= 0x20)
 	    return "AcerLabs Aladdin ATA33 controller";
+	else
+	    return "AcerLabs Aladdin ATA controller";
 
     case 0x05711106: 
 	if (ata_find_dev(dev, 0x05861106, 0x02))
