@@ -41,10 +41,9 @@ LSUBDIRS=	cam/scsi dev/an dev/ic dev/iicbus dev/ofw dev/ppbus dev/smbus \
 	security/lomac security/mac_biba security/mac_bsdextended \
 	security/mac_mls security/mac_partition ufs/ffs ufs/ufs
 
-
-# For SHARED=symlinks, cam and netatm are symlinks, so cam/scsi and netatm/*
-# are taken care of
-LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi:Nnetatm/*:Nnetgraph/bluetooth/*}
+# For SHARED=symlinks, cam, netatm, and netgraph are symlinks, so cam/scsi,
+# netatm/*, and netgraph/* are taken care of
+LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi:Nnetatm/*:Nnetgraph/*}
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
