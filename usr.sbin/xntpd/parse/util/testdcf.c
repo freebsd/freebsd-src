@@ -451,6 +451,9 @@ main(argc, argv)
 
 	      if (rtc == CVT_OK)
 		{
+		  /* We are only supplied two digits of the year, by the
+		   * clock, so we'll just print two digits.
+		   */
 		  printf("%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s>",
 			wday[clock.wday],
 			(int)clock.hour, (int)clock.minute, (int)i, (int)clock.day, (int)clock.month,
