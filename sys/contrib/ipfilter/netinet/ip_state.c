@@ -685,11 +685,18 @@ u_int flags;
 			hv += is->is_sport;
 			hv += is->is_dport;
 		}
-		is->is_send = ntohl(tcp->th_seq) + fin->fin_dlen -
-			      (off = (tcp->th_off << 2)) +
-			      ((tcp->th_flags & TH_SYN) ? 1 : 0) +
-			      ((tcp->th_flags & TH_FIN) ? 1 : 0);
-		is->is_maxsend = is->is_send;
+		if ((flags & FI_IGNOREPKT) == 0) {
+			is->is_send = ntohl(tcp->th_seq) + fin->fin_dlen -
+				      (off = (tcp->th_off << 2)) +
+				      ((tcp->th_flags & TH_SYN) ? 1 : 0) +
+				      ((tcp->th_flags & TH_FIN) ? 1 : 0);
+			is->is_maxsend = is->is_send;
+
+			if ((tcp->th_flags & TH_SYN) &&
+			    ((tcp->th_off << 2) >= (sizeof(*tcp) + 4)))
+				is->is_swscale = fr_tcpoptions(tcp);
+		}
+
 		is->is_maxdwin = 1;
 		is->is_maxswin = ntohs(tcp->th_win);
 		if (is->is_maxswin == 0)
@@ -697,10 +704,6 @@ u_int flags;
 
 		if ((tcp->th_flags & TH_OPENING) == TH_SYN)
 			is->is_fsm = 1;
-
-		if ((tcp->th_flags & TH_SYN) &&
-		    ((tcp->th_off << 2) >= (sizeof(*tcp) + 4)))
-			is->is_swscale = fr_tcpoptions(tcp);
 
 		/*
 		 * If we're creating state for a starting connection, start the
@@ -972,7 +975,7 @@ tcphdr_t *tcp;
 		}
 	}
 	MUTEX_EXIT(&is->is_lock);
-	if ((ret == 0) && (tcp->th_flags != TH_SYN))
+	if ((ret == 0) && ((tcp->th_flags & TH_OPENING) != TH_SYN))
 		fin->fin_misc |= FM_BADSTATE;
 	return ret;
 }
@@ -1226,6 +1229,10 @@ fr_info_t *fin;
 	 */
 	bzero((char *)&src, sizeof(src));
 	bzero((char *)&dst, sizeof(dst));
+	bzero((char *)&ofin, sizeof(ofin));
+	ofin.fin_ifp = fin->fin_ifp;
+	ofin.fin_out = !fin->fin_out;
+	ofin.fin_v = 4;
 	fr = NULL;
 
 	switch (oip->ip_p)
@@ -1260,12 +1267,8 @@ fr_info_t *fin;
 
 		savelen = oip->ip_len;
 		oip->ip_len = len;
-		ofin.fin_v = 4;
 		fr_makefrip(ohlen, oip, &ofin);
 		oip->ip_len = savelen;
-		ofin.fin_ifp = fin->fin_ifp;
-		ofin.fin_out = !fin->fin_out;
-		ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
 
 		READ_ENTER(&ipf_state);
 		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext)
@@ -1314,12 +1317,8 @@ fr_info_t *fin;
 	 */
 	savelen = oip->ip_len;
 	oip->ip_len = len;
-	ofin.fin_v = 4;
 	fr_makefrip(ohlen, oip, &ofin);
 	oip->ip_len = savelen;
-	ofin.fin_ifp = fin->fin_ifp;
-	ofin.fin_out = !fin->fin_out;
-	ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
 	READ_ENTER(&ipf_state);
 	for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext) {
 		/*
@@ -1849,7 +1848,7 @@ int dir, fsm;
 		break;
 
 	case TCPS_SYN_SENT: /* 2 */
-		if (flags == TH_SYN) {
+		if ((flags & ~(TH_ECN|TH_CWR)) == TH_SYN) {
 			/*
 			 * A retransmitted SYN packet.  We do not reset the
 			 * timeout here to fr_tcptimeout because a connection
@@ -1895,6 +1894,12 @@ int dir, fsm;
 			 */
 			state[dir] = TCPS_ESTABLISHED;
 			newage = fr_tcpidletimeout;
+		} else if ((flags & ~(TH_ECN|TH_CWR)) == TH_OPENING) {
+			/*
+			 * We see an SA from 'dir' which is already in
+			 * SYN_RECEIVED state.
+			 */
+			newage = fr_tcptimeout;
 		} else if (flags & TH_FIN) {
 			/*
 			 * We see an F from 'dir' which is in SYN_RECEIVED
@@ -1989,6 +1994,8 @@ int dir, fsm;
 				 * timeout
 				 */
 				newage  = fr_tcplastack;
+			else
+				newage = *age;
 		}
 		/*
 		 * We cannot detect when we go out of LAST_ACK state to CLOSED
@@ -2096,6 +2103,15 @@ fr_info_t *fin;
 	if (fin->fin_plen < sizeof(*oip))
 		return NULL;
 
+	if ((oip->ip6_nxt != IPPROTO_TCP) && (oip->ip6_nxt != IPPROTO_UDP) &&
+	    (oip->ip6_nxt != IPPROTO_ICMPV6))
+		return NULL;
+
+	bzero((char *)&ofin, sizeof(ofin));
+	ofin.fin_out = !fin->fin_out;
+	ofin.fin_ifp = fin->fin_ifp;
+	ofin.fin_v = 6;
+
 	if (oip->ip6_nxt == IPPROTO_ICMPV6) {
 		oic = (struct icmp6_hdr *)(oip + 1);
 		/*
@@ -2121,12 +2137,8 @@ fr_info_t *fin;
 		hv %= fr_statesize;
 
 		oip->ip6_plen = ntohs(oip->ip6_plen);
-		ofin.fin_v = 6;
 		fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
 		oip->ip6_plen = htons(oip->ip6_plen);
-		ofin.fin_ifp = fin->fin_ifp;
-		ofin.fin_out = !fin->fin_out;
-		ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
 
 		READ_ENTER(&ipf_state);
 		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext)
@@ -2151,10 +2163,8 @@ fr_info_t *fin;
 		RWLOCK_EXIT(&ipf_state);
 
 		return NULL;
-	};
+	}
 
-	if ((oip->ip6_nxt != IPPROTO_TCP) && (oip->ip6_nxt != IPPROTO_UDP))
-		return NULL;
 	tcp = (tcphdr_t *)(oip + 1);
 	dport = tcp->th_dport;
 	sport = tcp->th_sport;
@@ -2185,12 +2195,8 @@ fr_info_t *fin;
 	 */
 	savelen = oip->ip6_plen;
 	oip->ip6_plen = ip->ip6_plen - sizeof(*ip) - ICMPERR_ICMPHLEN;
-	ofin.fin_v = 6;
 	fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
 	oip->ip6_plen = savelen;
-	ofin.fin_ifp = fin->fin_ifp;
-	ofin.fin_out = !fin->fin_out;
-	ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
 	READ_ENTER(&ipf_state);
 	for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext) {
 		/*
