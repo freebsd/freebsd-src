@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
-.\"	$Id$
+.\"	$Id: rm.1,v 1.7 1997/02/22 14:05:26 peter Exp $
 .\"
 .Dd December 5, 1994
 .Dt RM 1
@@ -123,20 +123,19 @@ If an error occurs,
 .Nm rm
 exits with a value >0.
 .Sh NOTE
-.Nm rm
-use 
+The
+.Nm
+command uses
 .Xr getopt 3
-parsing routine. Getopt accept a
+to parse its arguments, which allows it to accept
+the
 .Sq Li --
-argument, which stop reading options, anything after this
-is not an option.
-So 
-.Nm rm
-handle files whose names begins with a
-.Sq Li - .
-Example:
-
-``$ rm -- -filename''.
+option which will cause it to stop processing flag options at that
+point.  This will allow the removal of file names that begin
+with a dash
+.Pq Sq - .
+For example:
+.Dl rm -- -filename
 .Sh SEE ALSO
 .Xr rmdir 1 ,
 .Xr undelete 2 ,
