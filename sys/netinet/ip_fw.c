@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.96 1998/08/23 03:07:14 wollman Exp $
+ *	$Id: ip_fw.c,v 1.97 1998/10/16 03:55:01 peter Exp $
  */
 
 /*
@@ -1154,7 +1154,7 @@ ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 }
 #else
 static int
-ipfw_modevent(module_t mod, modeventtype_t type, void *unused)
+ipfw_modevent(module_t mod, int type, void *unused)
 {
 	int s;
 	
