@@ -382,13 +382,6 @@ network_pass1() {
 		;;
 	esac
 
-	case ${tcp_restrict_rst} in
-	[Yy][Ee][Ss])
-		echo -n ' restrict TCP reset=YES'
-		sysctl -w net.inet.tcp.restrict_rst=1 >/dev/null
-		;;
-	esac
-
 	case ${tcp_drop_synfin} in
 	[Yy][Ee][Ss])
 		echo -n ' drop SYN+FIN packets=YES'
