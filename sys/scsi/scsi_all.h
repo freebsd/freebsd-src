@@ -4,7 +4,7 @@
  *
  * TRW Financial Systems, in accordance with their agreement with Carnegie
  * Mellon University, makes this software available to CMU to distribute
- * or use in any manner that they see fit as long as this message is kept with 
+ * or use in any manner that they see fit as long as this message is kept with
  * the software. For this reason TFS also grants any other persons or
  * organisations permission to use or modify this software.
  *
@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.11 1995/03/04 12:36:55 bde Exp $
+ *	$Id: scsi_all.h,v 1.12 1995/04/14 15:10:29 dufault Exp $
  */
 
 /*
@@ -344,7 +344,7 @@ struct scsi_mode_header_big
  */
 #define	SCSI_OK		0x00
 #define	SCSI_CHECK		0x02
-#define	SCSI_BUSY		0x08	
+#define	SCSI_BUSY		0x08
 #define SCSI_INTERM		0x10
 #define SCSI_QUEUE_FULL		0x28
 #endif /*_SCSI_SCSI_ALL_H*/

@@ -6,8 +6,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -35,28 +35,28 @@
 /*
 #define DIAGNOSTIC
 #define DEBUG
- * 
+ *
  * TODO ----
  *
  * This driver will need bounce buffer support when dma'ing to mbufs above the
  * 16Mb mark.
- * 
+ *
  * Check all the XXX comments -- some of them are just things I've left
  * unfinished rather than "difficult" problems that were hacked around.
- * 
+ *
  * Check log settings.
- * 
+ *
  * Check how all the arpcom flags get set and used.
- * 
+ *
  * Re-inline and re-static all routines after debugging.
- * 
+ *
  * Remember to assign iobase in SHMEM probe routines.
- * 
+ *
  * Replace all occurences of LANCE-controller-card etc in prints by the name
  * strings of the appropriate type -- nifty window dressing
- * 
- * Add DEPCA support -- mostly done. 
- * 
+ *
+ * Add DEPCA support -- mostly done.
+ *
  */
 
 #include "lnc.h"
@@ -175,7 +175,7 @@ lnc_registerdev(struct isa_device *isa_dev)
 	struct kern_devconf *kdc = &sc->kdc;
 	*kdc = kdc_lnc;
 	kdc->kdc_unit = isa_dev->id_unit;
-	kdc->kdc_parentdata = isa_dev; 
+	kdc->kdc_parentdata = isa_dev;
 
 	switch(sc->nic.ic) {
 		case LANCE:
@@ -209,7 +209,7 @@ lnc_registerdev(struct isa_device *isa_dev)
 		default:
 			break;
 	}
-				
+
 	dev_attach(kdc);
 }
 
@@ -270,7 +270,7 @@ alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 		/* XXX m->m_data = m->m_ext.ext_buf;*/
 	} else {
 		MGET(m, M_DONTWAIT, MT_DATA);
-   	if (!m) 
+   	if (!m)
 			return(1);
       MCLGET(m, M_DONTWAIT);
    	if (!m->m_ext.ext_buf) {
@@ -320,7 +320,7 @@ chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 
 	m->m_next = 0;
 	return(head);
-} 
+}
 
 inline struct mbuf *
 mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
@@ -415,7 +415,7 @@ lnc_rint(int unit)
 	 * Therefore, it can be assumed that a complete packet can be found
 	 * before hitting buffers that are still owned by the LANCE, if not
 	 * then there is a bug in the driver that is causing the descriptors
-	 * to get out of sync. 
+	 * to get out of sync.
 	 */
 
 #ifdef DIAGNOSTIC
@@ -443,8 +443,8 @@ lnc_rint(int unit)
 		 * jabber packets can overrun into a second descriptor.
 	 	 * If there is no error, then the ENP flag is set in the last
 		 * descriptor of the packet. If there is an error then the ERR
-		 * flag will be set in the descriptor where the error occured. 
-		 * Therefore, to find the last buffer of a packet we search for 
+		 * flag will be set in the descriptor where the error occured.
+		 * Therefore, to find the last buffer of a packet we search for
 		 * either ERR or ENP.
 		 */
 
@@ -533,7 +533,7 @@ lnc_rint(int unit)
 
 			if (head) {
 				/*
-				 * First mbuf in packet holds the 
+				 * First mbuf in packet holds the
 				 * ethernet and packet headers
 				 */
 				head->m_pkthdr.rcvif = &sc->arpcom.ac_if;
@@ -627,7 +627,7 @@ lnc_tint(int unit)
 	 * status will be written into the descriptor that was being accessed
 	 * when the error occured and all subsequent descriptors in that
 	 * packet will have been relinquished by the LANCE.
-	 * 
+	 *
 	 * At this point we know that sc->trans_next points to the start
 	 * of a packet that the LANCE has just finished trying to transmit.
 	 * We now search for a buffer with either ENP or ERR set.
@@ -648,7 +648,7 @@ lnc_tint(int unit)
 #endif
 
 		/*
-		 * Find end of packet. 
+		 * Find end of packet.
 		 */
 
 		if (!(next->md->md1 & (ENP | MDERR))) {
@@ -717,7 +717,7 @@ lnc_tint(int unit)
 			 * set then TBUFF will have been cleared above. A
 			 * UFLO error will turn off the transmitter so we
 			 * have to reset.
-			 * 
+			 *
 			 */
 
 			if (next->md->md3 & UFLO) {
@@ -759,7 +759,7 @@ lnc_tint(int unit)
 			 * ERR would have also been set and we would have
 			 * returned from lnc_tint above. Therefore we can
 			 * assume if we arrive here that ONE is valid.
-			 * 
+			 *
 			 */
 
 			if (next->md->md1 & ONE) {
@@ -810,7 +810,7 @@ lnc_tint(int unit)
 	} while (sc->pending_transmits && !(next->md->md1 & OWN));
 
 	/*
-	 * Clear TINT since we've dealt with all 
+	 * Clear TINT since we've dealt with all
 	 * the completed transmissions.
 	 */
 
@@ -887,7 +887,7 @@ int i;
 	 * There isn't any way to determine if a NIC is a BICC. Basically, if
 	 * the lance probe succeeds using the i/o addresses of the BICC then
 	 * we assume it's a BICC.
-	 * 
+	 *
 	 */
 
 	sc->rap = isa_dev->id_iobase + BICC_RAP;
@@ -1035,14 +1035,14 @@ lnc_attach(struct isa_device * isa_dev)
 
 	/*
 	 * Allocate memory for use by the controller.
-	 * 
+	 *
 	 * XXX -- the Am7990 and Am79C960 only have 24 address lines and so can
 	 * only access the lower 16Mb of physical memory. For the moment we
 	 * assume that malloc will allocate memory within the lower 16Mb
 	 * range. This is not a very valid assumption but there's nothing
 	 * that can be done about it yet. For shared memory NICs this isn't
 	 * relevant.
-	 * 
+	 *
 	 */
 
 	lnc_mem_size = ((NDESC(sc->nrdre) + NDESC(sc->ntdre)) *
@@ -1139,7 +1139,7 @@ lnc_init(int unit)
 	 * on a word boundary),the transmit and receive ring structures (each
 	 * entry is 4 words long and must start on a quadword boundary) and
 	 * the data buffers.
-	 * 
+	 *
 	 * The alignment tests are particularly paranoid.
 	 */
 
@@ -1248,7 +1248,7 @@ lnc_init(int unit)
 	 * For the Am7990 it controls DMA operations, for the Am79C960 it
 	 * controls interrupt masks and transmitter algorithms. In either
 	 * case, none of the flags are set.
-	 * 
+	 *
 	 */
 
 	write_csr(unit, CSR3, 0);
@@ -1286,13 +1286,13 @@ lnc_init(int unit)
  * The interrupt flag (INTR) will be set and provided that the interrupt enable
  * flag (INEA) is also set, the interrupt pin will be driven low when any of
  * the following occur:
- * 
+ *
  * 1) Completion of the initialisation routine (IDON). 2) The reception of a
  * packet (RINT). 3) The transmission of a packet (TINT). 4) A transmitter
  * timeout error (BABL). 5) A missed packet (MISS). 6) A memory error (MERR).
- * 
+ *
  * The interrupt flag is cleared when all of the above conditions are cleared.
- * 
+ *
  * If the driver is reset from this routine then it first checks to see if any
  * interrupts have ocurred since the reset and handles them before returning.
  * This is because the NIC may signify a pending interrupt in CSR0 using the
@@ -1300,7 +1300,7 @@ lnc_init(int unit)
  * think it does from reading the data sheets). We may as well deal with
  * these pending interrupts now rather than get the overhead of another
  * hardware interrupt immediately upon returning from the interrupt handler.
- * 
+ *
  */
 
 void
@@ -1440,7 +1440,7 @@ lnc_start(struct ifnet *ifp)
 				no_entries_needed++;
 
 			/*
-			 * We try and avoid bcopy as much as possible 
+			 * We try and avoid bcopy as much as possible
 			 * but there are two cases when we use it.
 			 *
 			 * 1) If there are not enough free entries in the ring
@@ -1452,7 +1452,7 @@ lnc_start(struct ifnet *ifp)
 			 * packet so it's necessary to shuffle the mbuf
 			 * contents to ensure this.
 			 */
-			 
+
 
 			if (no_entries_needed > (NDESC(sc->ntdre) - sc->pending_transmits))
 				if (!(head = chain_to_cluster(head))) {
@@ -1465,9 +1465,9 @@ lnc_start(struct ifnet *ifp)
 					len = 100 - head->m_len;
 					if (M_TRAILINGSPACE(head) < len) {
 						/*
-						 * Move data to start of data 
-						 * area. We assume the first 
-						 * mbuf has a packet header 
+						 * Move data to start of data
+						 * area. We assume the first
+						 * mbuf has a packet header
 						 * and is not a cluster.
 						 */
 						bcopy((caddr_t)head->m_data, (caddr_t)head->m_pktdat, head->m_len);
@@ -1564,7 +1564,7 @@ lnc_start(struct ifnet *ifp)
 	} while (sc->pending_transmits < NDESC(sc->ntdre));
 
 	/*
-	 * Transmit ring is full so set IFF_OACTIVE 
+	 * Transmit ring is full so set IFF_OACTIVE
 	 * since we can't buffer any more packets.
 	 */
 
@@ -1633,7 +1633,7 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 			 */
 			lnc_init(ifp->if_unit);
 		}
-		sc->kdc.kdc_state = 
+		sc->kdc.kdc_state =
 			((ifp->if_flags & IFF_UP) ? DC_BUSY : DC_IDLE);
 		break;
 #ifdef notyet

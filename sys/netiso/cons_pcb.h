@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: cons_pcb.h,v 1.2 1994/08/02 07:50:03 davidg Exp $
+ * $Id: cons_pcb.h,v 1.3 1994/08/21 06:14:16 paul Exp $
  */
 
 #ifndef _NETISO_CONS_PCB_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/cons_pcb.h,v 1.2 1994/08/02 07:50:03 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/cons_pcb.h,v 1.3 1994/08/21 06:14:16 paul Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/cons_pcb.h,v $ */
 
 /*
@@ -102,13 +102,13 @@ struct cons_pcb {
 #define	co_negchanmask _co_isopcb.isop_negchanmask
 #define	co_x25crud _co_isopcb.isop_x25crud
 #define	co_x25crud_len _co_isopcb.isop_x25crud_len
-	u_short 		co_state; 
-	u_char 			co_flags; 
+	u_short 		co_state;
+	u_char 			co_flags;
 	u_short			co_ttl; /* time to live timer */
 	u_short			co_init_ttl; /* initial value of ttl  */
 	int 			co_channel; /* logical channel */
 	struct ifnet *	co_ifp; /* interface */
-	struct protosw *co_proto; 
+	struct protosw *co_proto;
 
 	struct ifqueue 	co_pending; /* queue data to send when connection
 						completes*/
@@ -118,7 +118,7 @@ struct cons_pcb {
 };
 
 /*
- * X.25 Packet types 
+ * X.25 Packet types
  */
 #define XPKT_DATA		1
 #define XPKT_INTERRUPT	2
@@ -184,7 +184,7 @@ struct cons_stat {
 
 u_char x25_error_stats[CONL_ERROR_MAX + 1];
 
-struct ifqueue consintrq; 
+struct ifqueue consintrq;
 
 /* reasons for clear are in a data mbuf chained to a clear ecn_request */
 struct e_clear_data 				{

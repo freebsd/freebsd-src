@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: muldi3.c,v 1.2 1994/08/02 07:44:13 davidg Exp $
  */
 
 #include "quad.h"
@@ -47,7 +47,7 @@
  *
  *	u = 2^n u1  *  u0	(n = number of bits in `u_long', usu. 32)
  *
- * and 
+ * and
  *
  *	v = 2^n v1  *  v0
  *

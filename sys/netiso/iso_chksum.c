@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_chksum.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: iso_chksum.c,v 1.2 1994/08/02 07:50:31 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
- * $Header: /home/ncvs/src/sys/netiso/iso_chksum.c,v 1.1.1.1 1994/05/24 10:07:12 rgrimes Exp $
+/*
+ * $Header: /home/ncvs/src/sys/netiso/iso_chksum.c,v 1.2 1994/08/02 07:50:31 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/iso_chksum.c,v $
  *
  * ISO CHECKSUM
@@ -73,7 +73,7 @@ SOFTWARE.
  * chains.
  * Furthermore, there is the possibility of wraparound in the running
  * sums after adding up 4102 octets.  In order to avoid doing a mod
- * operation after EACH add, we have restricted this implementation to 
+ * operation after EACH add, we have restricted this implementation to
  * negotiating a maximum of 4096-octets per TPDU (for the transport layer).
  * The routine iso_check_csum doesn't need to know where the checksum
  * octets are.
@@ -111,7 +111,7 @@ SOFTWARE.
  *				 a horrible thing to fiddle with anyway, it probably
  *				 isn't worth it.
  */
-int 
+int
 iso_check_csum(m, len)
 	struct mbuf *m;
 	int len;
@@ -153,7 +153,7 @@ iso_check_csum(m, len)
 	}
 	if ( ((int)c0 % 255) || ((int)c1 % 255) ) {
 		IFDEBUG(D_CHKSUM)
-			printf("BAD iso_check_csum l 0x%x cum 0x%x len 0x%x, i 0x%x", 
+			printf("BAD iso_check_csum l 0x%x cum 0x%x len 0x%x, i 0x%x",
 				l, cum, len, i);
 		ENDDEBUG
 		return ((int)c0 % 255)<<8 | ((int)c1 % 255);
@@ -165,9 +165,9 @@ iso_check_csum(m, len)
  * FUNCTION:	iso_gen_csum
  *
  * PURPOSE:		To generate the checksum of the packet in the mbuf chain (m).
- * 				The first of the 2 (logically) adjacent checksum bytes 
+ * 				The first of the 2 (logically) adjacent checksum bytes
  *				(x and y) go at offset (n).
- * 				(n) is an offset relative to the beginning of the data, 
+ * 				(n) is an offset relative to the beginning of the data,
  *				not the beginning of the mbuf.
  * 				(l) is the length of the total mbuf chain's data.
  * 				Called from tp_emit(), tp_error_emit()
@@ -235,7 +235,7 @@ iso_gen_csum(m,n,l)
 		while(i < cum) {
 			c0 = (c0 + *p);
 			c1 += c0 ;
-			i++; 
+			i++;
 			p++;
 		}
 		m = m->m_next;
@@ -265,13 +265,13 @@ iso_gen_csum(m,n,l)
  *
  * SIDE EFFECTS: none
  *
- * NOTES:		
+ * NOTES:
  */
 
 int
 m_datalen (m)
 	register struct mbuf *m;
-{ 	
+{
 	register int datalen;
 
 	for (datalen = 0; m; m = m->m_next)
@@ -301,7 +301,7 @@ m_compress(in, out)
 			printf("m_compress returning -1: B\n");
 		ENDDEBUG
 		splx(s);
-		return -1; 
+		return -1;
 	}
 	(*out)->m_len = 0;
 	(*out)->m_act = MNULL;
@@ -310,7 +310,7 @@ m_compress(in, out)
 		IFDEBUG(D_REQUEST)
 			printf("m_compress in 0x%x *out 0x%x\n", in, *out);
 			printf("m_compress in: len 0x%x, off 0x%x\n", in->m_len, in->m_data);
-			printf("m_compress *out: len 0x%x, off 0x%x\n", (*out)->m_len, 
+			printf("m_compress *out: len 0x%x, off 0x%x\n", (*out)->m_len,
 				(*out)->m_data);
 		ENDDEBUG
 		if (in->m_flags & M_EXT) {

@@ -6,14 +6,14 @@
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
- * these terms are retained. Under no circumstances is the author 
- * responsible for the proper functioning of this software, nor does 
- * the author assume any responsibility for damages incurred with its 
+ * these terms are retained. Under no circumstances is the author
+ * responsible for the proper functioning of this software, nor does
+ * the author assume any responsibility for damages incurred with its
  * use.
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.10 1994/12/16 07:31:47 phk Exp $
+ *	$Id: apm.c,v 1.11 1995/02/17 02:22:21 phk Exp $
  */
 
 #include "apm.h"
@@ -72,7 +72,7 @@ struct apm_softc {
 	int	idle_cpu, disabled, disengaged;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
-}; 
+};
 
 static struct apm_softc apm_softc[NAPM];
 static struct apm_softc *master_softc = NULL; 	/* XXX */
@@ -102,8 +102,8 @@ static void apm_timeout(void *);
 #endif /* MACH_KERNEL */
 
 /* setup APM GDT discriptors */
-static void 
-setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_limit, u_int data_limit) 
+static void
+setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_limit, u_int data_limit)
 {
 #ifdef __FreeBSD__
 	/* setup 32bit code segment */
@@ -170,20 +170,20 @@ apm_int(u_long *eax, u_long *ebx, u_long *ecx)
 		lcall	_apm_addr
 		jnc	1f
 		incl	%3
-	1:	
+	1:
 		popl	%%esi
 		popl	%%edx
 		popl	%%ebp"
 		: "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=D" (cf)
 		: "0" (*eax),  "1" (*ebx),  "2" (*ecx)
-		);		
+		);
 	apm_errno = ((*eax) >> 8) & 0xff;
 	return cf;
 }
 
 
 /* enable/disable power management */
-static int 
+static int
 apm_enable_disable_pm(struct apm_softc *sc, int enable)
 {
 	u_long eax, ebx, ecx;
@@ -217,7 +217,7 @@ apm_driver_version(void)
 	eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	ebx  = 0x0;
 	ecx  = 0x0101;
-	if(!apm_int(&eax, &ebx, &ecx)) 
+	if(!apm_int(&eax, &ebx, &ecx))
 		apm_version = eax & 0xffff;
 
 #ifdef APM_DEBUG
@@ -231,7 +231,7 @@ apm_driver_version(void)
 }
 
 /* engage/disengage power management (APM 1.1 or later) */
-static int 
+static int
 apm_engage_disengage_pm(struct apm_softc *sc, int engage)
 {
 	u_long eax, ebx, ecx, i;
@@ -244,13 +244,13 @@ apm_engage_disengage_pm(struct apm_softc *sc, int engage)
 }
 
 /* get PM event */
-static u_int 
+static u_int
 apm_getevent(struct apm_softc *sc)
 {
 	u_long eax, ebx, ecx;
 
 	eax = (APM_BIOS << 8) | APM_GETPMEVENT;
-	
+
 	ebx = 0;
 	ecx = 0;
 	if (apm_int(&eax, &ebx, &ecx))
@@ -260,11 +260,11 @@ apm_getevent(struct apm_softc *sc)
 }
 
 /* suspend entire system */
-static int 
+static int
 apm_suspend_system(struct apm_softc *sc)
 {
 	u_long eax, ebx, ecx;
-	
+
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
 	ecx = PMST_SUSPEND;
@@ -272,7 +272,7 @@ apm_suspend_system(struct apm_softc *sc)
 	__asm("cli");
 	if (apm_int(&eax, &ebx, &ecx)) {
 		__asm("sti");
-		printf("Entire system suspend failure: errcode = %ld\n", 
+		printf("Entire system suspend failure: errcode = %ld\n",
 			0xff & (eax >> 8));
 		return 1;
 	}
@@ -290,12 +290,12 @@ int
 apm_display_off(void)
 {
 	u_long eax, ebx, ecx;
-	
+
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_2NDSTORAGE0;
 	ecx = PMST_STANDBY;
 	if (apm_int(&eax, &ebx, &ecx)) {
-		printf("Display off failure: errcode = %ld\n", 
+		printf("Display off failure: errcode = %ld\n",
 			0xff & (eax >> 8));
 		return 1;
 	}
@@ -304,7 +304,7 @@ apm_display_off(void)
 }
 
 /* APM Battery low handler */
-static void 
+static void
 apm_battery_low(struct apm_softc *sc)
 {
 	printf("\007\007 * * * BATTERY IS LOW * * * \007\007");
@@ -343,7 +343,7 @@ apm_add_hook(struct apmhook **list, struct apmhook *ah)
 	return ah;
 }
 
-static void 
+static void
 apm_del_hook(struct apmhook **list, struct apmhook *ah)
 {
 	int s;
@@ -370,7 +370,7 @@ nosuchnode:
 
 
 /* APM driver calls some functions automatically */
-static void     
+static void
 apm_execute_hook(struct apmhook *list)
 {
 	struct apmhook *p;
@@ -381,8 +381,8 @@ apm_execute_hook(struct apmhook *list)
 #endif
 		if ((*(p->ah_fun))(p->ah_arg)) {
 			printf("Warning: APM hook \"%s\" failed", p->ah_name);
-		}       
-	}       
+		}
+	}
 }
 
 
@@ -410,7 +410,7 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 static struct timeval suspend_time;
 static struct timeval diff_time;
 
-static int 
+static int
 apm_default_resume(struct apm_softc *sc)
 {
 #ifdef __FreeBSD__
@@ -437,7 +437,7 @@ apm_default_resume(struct apm_softc *sc)
 	return 0;
 }
 
-static int 
+static int
 apm_default_suspend(void)
 {
 #ifdef __FreeBSD__
@@ -465,7 +465,7 @@ static void apm_processevent(struct apm_softc *);
  *
  */
 
-void 
+void
 apm_suspend(void)
 {
 	struct apm_softc *sc;
@@ -519,7 +519,7 @@ apm_get_info(struct apm_softc *sc, apm_info_t aip)
 
 
 /* inform APM BIOS that CPU is idle */
-void 
+void
 apm_cpu_idle(void)
 {
 	struct apm_softc *sc = master_softc;    /* XXX */
@@ -530,7 +530,7 @@ apm_cpu_idle(void)
 		}
 	}
 	/*
-	 * Some APM implementation halts CPU in BIOS, whenever 
+	 * Some APM implementation halts CPU in BIOS, whenever
 	 * "CPU-idle" function are invoked, but swtch() of
 	 * FreeBSD halts CPU, therefore, CPU is halted twice
 	 * in the sched loop. It makes the interrupt latency
@@ -551,7 +551,7 @@ apm_cpu_idle(void)
 }
 
 /* inform APM BIOS that CPU is busy */
-void 
+void
 apm_cpu_busy(void)
 {
 	struct apm_softc *sc = master_softc;	/* XXX */
@@ -568,7 +568,7 @@ apm_cpu_busy(void)
  * This routine is automatically called by timer once per second.
  */
 
-static void 
+static void
 apm_timeout(void *arg)
 {
 	struct apm_softc *sc = arg;
@@ -578,7 +578,7 @@ apm_timeout(void *arg)
 }
 
 /* enable APM BIOS */
-static void 
+static void
 apm_event_enable(struct apm_softc *sc)
 {
 #ifdef APM_DEBUG
@@ -591,7 +591,7 @@ apm_event_enable(struct apm_softc *sc)
 }
 
 /* disable APM BIOS */
-static void 
+static void
 apm_event_disable(struct apm_softc *sc)
 {
 #ifdef APM_DEBUG
@@ -604,7 +604,7 @@ apm_event_disable(struct apm_softc *sc)
 }
 
 /* halt CPU in scheduling loop */
-static void 
+static void
 apm_halt_cpu(struct apm_softc *sc)
 {
 	if (sc->initialized) {
@@ -616,7 +616,7 @@ apm_halt_cpu(struct apm_softc *sc)
 }
 
 /* don't halt CPU in scheduling loop */
-static void 
+static void
 apm_not_halt_cpu(struct apm_softc *sc)
 {
 	if (sc->initialized) {
@@ -654,7 +654,7 @@ struct bus_driver apmdriver = {
  * to use V86 mode in APM initialization.
  */
 
-int 
+int
 #ifdef __FreeBSD__
 	apmprobe(struct isa_device *dvp)
 #endif /* __FreeBSD__ */
@@ -700,7 +700,7 @@ apm_processevent(struct apm_softc *sc)
 #endif
 	while (1) {
 		apm_event = apm_getevent(sc);
-		if (apm_event == PMEV_NOEVENT) 
+		if (apm_event == PMEV_NOEVENT)
 			break;
 		switch (apm_event) {
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
@@ -749,7 +749,7 @@ apm_processevent(struct apm_softc *sc)
  * Initialize APM driver (APM BIOS itself has been initialized in locore.s)
  *
  * Now, unless I'm mad, (not quite ruled out yet), the APM-1.1 spec is bogus:
- * 
+ *
  * Appendix C says under the header "APM 1.0/APM 1.1 Modal BIOS Behavior"
  * that "When an APM Driver connects with an APM 1.1 BIOS, the APM 1.1 BIOS
  * will default to an APM 1.0 connection.  After an APM Driver calls the APM
@@ -761,21 +761,21 @@ apm_processevent(struct apm_softc *sc)
  * OK so I can establish a 1.0 connection, and then tell that I'm a 1.1
  * and maybe then the BIOS will tell that it too is a 1.1.
  * Fine.
- * Now how will I ever get the segment-limits for instance ?  There is no 
- * way I can see that I can get a 1.1 response back from an "APM Protected 
+ * Now how will I ever get the segment-limits for instance ?  There is no
+ * way I can see that I can get a 1.1 response back from an "APM Protected
  * Mode 32-bit Interface Connect" function ???
- * 
+ *
  * Who made this,  Intel and Microsoft ?  -- How did you guess !
  *
  * /phk
  */
 
 #ifdef __FreeBSD__
-int 
+int
 apmattach(struct isa_device *dvp)
 #endif /* __FreeBSD__ */
 #ifdef MACH_KERNEL
-void 
+void
 apmattach(struct bus_device *dvp)
 #endif /* MACH_KERNEL */
 {
@@ -811,7 +811,7 @@ apmattach(struct bus_device *dvp)
 	if (sc->idle_cpu) {
 		apm_slowstart = apm_slowstart_p = 1;
 	}
-#endif 
+#endif
 
 	/* print bootstrap messages */
 #ifdef APM_DEBUG
@@ -819,7 +819,7 @@ apmattach(struct bus_device *dvp)
 	printf("apm%d: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
 		unit, sc->cs32_base, sc->cs16_base, sc->ds_base);
 	printf("apm%d: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-		unit, sc->cs_entry, is_enabled(sc->idle_cpu), 
+		unit, sc->cs_entry, is_enabled(sc->idle_cpu),
 		is_enabled(!sc->disabled));
 	printf("apm%d: CS_limit=%x, DS_limit=%x\n",
 		unit, sc->cs_limit, sc->ds_limit);
@@ -829,7 +829,7 @@ apmattach(struct bus_device *dvp)
 	sc->ds_limit = 0xffff;
 
 	/* setup GDT */
-	setup_apm_gdt(sc->cs32_base, sc->cs16_base, sc->ds_base, 
+	setup_apm_gdt(sc->cs32_base, sc->cs16_base, sc->ds_base,
 			sc->cs_limit, sc->ds_limit);
 
 	/* setup entry point 48bit pointer */
@@ -845,7 +845,7 @@ apmattach(struct bus_device *dvp)
 	apm_driver_version();
 	sc->minorversion = ((apm_version & 0x00f0) >>  4) * 10 +
 			((apm_version & 0x000f) >> 0);
-	sc->majorversion = ((apm_version & 0xf000) >> 12) * 10 + 
+	sc->majorversion = ((apm_version & 0xf000) >> 12) * 10 +
 			((apm_version & 0x0f00) >> 8);
 
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
@@ -855,14 +855,14 @@ apmattach(struct bus_device *dvp)
 			unit, is_enabled(!sc->disengaged));
 	}
 
-	printf(" found APM BIOS version %d.%d\n", 
+	printf(" found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
 	printf("apm%d: Idling CPU %s\n", unit, is_enabled(sc->idle_cpu));
 
 	/* enable power management */
 	if (sc->disabled) {
 		if (apm_enable_disable_pm(sc, 1)) {
-			printf("Warning: APM enable function failed! [%x]\n", 
+			printf("Warning: APM enable function failed! [%x]\n",
 				apm_errno);
 		}
 	}
@@ -870,7 +870,7 @@ apmattach(struct bus_device *dvp)
 	/* engage power managment (APM 1.1 or later) */
 	if (sc->intversion >= INTVERSION(1, 1) && sc->disengaged) {
 		if (apm_engage_disengage_pm(sc, 1)) {
-			printf("Warning: APM engage function failed [%x]\n", 
+			printf("Warning: APM engage function failed [%x]\n",
 				apm_errno);
 		}
 	}
@@ -900,8 +900,8 @@ apmattach(struct bus_device *dvp)
 }
 
 #ifdef __FreeBSD__
-int 
-apmopen(dev_t dev, int flag, int fmt, struct proc *p) 
+int
+apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc[minor(dev)];
 
@@ -914,13 +914,13 @@ apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	return 0;
 }
 
-int 
+int
 apmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	return 0;
 }
 
-int 
+int
 apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc[minor(dev)];

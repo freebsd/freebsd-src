@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.2 1995/02/20 23:52:39 davidg Exp $
+ *	$Id: imgact_coff.c,v 1.3 1995/04/08 15:52:30 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -144,7 +144,7 @@ printf("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, 0x%x, FALSE)\n"
 
 	return 0;
 }
-				 
+
 int
 coff_load_file(struct proc *p, char *name)
 {
@@ -169,15 +169,15 @@ coff_load_file(struct proc *p, char *name)
 	nd.ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
   	nd.ni_segflg = UIO_SYSSPACE;
   	nd.ni_dirp = name;
-	
+
   	error = namei(&nd);
   	if (error)
     		return error;
-	
+
   	vnodep = nd.ni_vp;
   	if (vnodep == NULL)
     		return ENOEXEC;
-	
+
   	if (vnodep->v_writecount) {
     		error = ETXTBSY;
     		goto fail;
@@ -241,7 +241,7 @@ coff_load_file(struct proc *p, char *name)
       			text_address = scns[i].s_vaddr;
       			text_size = scns[i].s_size;
       			text_offset = scns[i].s_scnptr;
-    		} 
+    		}
 		else if (scns[i].s_flags & STYP_DATA) {
       			data_address = scns[i].s_vaddr;
       			data_size = scns[i].s_size;
@@ -467,7 +467,7 @@ printf("imgact: error = %d\n", error);
 			    (vm_offset_t *) &hole, PAGE_SIZE, FALSE);
 
 if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%x end = 0x%x\n", 
+printf("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%x end = 0x%x\n",
 	ctob(vmspace->vm_dsize), vmspace->vm_daddr,
 	ctob(vmspace->vm_dsize) + vmspace->vm_daddr );
 printf("%s(%d):  returning successfully!\n", __FILE__, __LINE__);

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.12 1995/03/16 18:12:42 bde Exp $
+ *	$Id: sys_process.c,v 1.13 1995/05/12 21:39:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -65,16 +65,16 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 
 	page_offset = addr - trunc_page(addr);
 	pageno = trunc_page(addr);
-  
+
 	tmap = map;
 	rv = vm_map_lookup (&tmap, pageno, VM_PROT_READ, &out_entry,
 		&object, &off, &out_prot, &wired, &single_use);
 
 	if (rv != KERN_SUCCESS)
 		return EINVAL;
-  
+
 	vm_map_lookup_done (tmap, out_entry);
-  
+
 	/* Find space in kernel_map for the page we're interested in */
 	rv = vm_map_find (kernel_map, object, off, &kva, PAGE_SIZE, 1);
 
@@ -108,12 +108,12 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	boolean_t	fix_prot = 0;
 
 	/* Map page into kernel space */
-  
+
 	map = &procp->p_vmspace->vm_map;
-  
+
 	page_offset = addr - trunc_page(addr);
 	pageno = trunc_page(addr);
-  
+
 	/*
 	 * Check the permissions for the area we're interested in.
 	 */
@@ -151,7 +151,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	 */
 
 	vm_map_lookup_done (tmap, out_entry);
-  
+
 	/*
 	 * Fault the page in...
 	 */
@@ -176,7 +176,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 		}
 		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
 	}
-  
+
 	if (fix_prot)
 		vm_map_protect (map, pageno, pageno + PAGE_SIZE,
 			VM_PROT_READ|VM_PROT_EXECUTE, 0);

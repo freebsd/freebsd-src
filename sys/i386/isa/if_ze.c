@@ -4,7 +4,7 @@
  * [2] parse tuples to find out where to map the shared memory buffer,
  *     and what to write into the configuration register
  * [3] move pcic-specific code into a separate module.
- * 
+ *
  * Device driver for IBM PCMCIA Credit Card Adapter for Ethernet,
  * if_ze.c
  *
@@ -38,16 +38,16 @@
  */
 /*
  * I doubled delay loops in this file because it is not enough for some
- * laptop machines' PCIC (especially, on my Chaplet ILFA 350 ^^;). 
+ * laptop machines' PCIC (especially, on my Chaplet ILFA 350 ^^;).
  *                        HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
- */ 
+ */
 /*
  * Very small patch for IBM Ethernet PCMCIA Card II and IBM ThinkPad230Cs.
  *			ETO, Toshihisa <eto@osl.fujitsu.co.jp>
  */
 
 /*
- * $Id: if_ze.c,v 1.15 1995/05/03 22:58:07 phk Exp $
+ * $Id: if_ze.c,v 1.16 1995/05/24 20:33:42 davidg Exp $
  */
 
 #include "ze.h"
@@ -97,7 +97,7 @@
 #if NAPM > 0
 #include <machine/apm_bios.h>
 #endif /* NAPM > 0 */
- 
+
 
 /*****************************************************************************
  *                       Driver for Ethernet Adapter                         *
@@ -109,7 +109,7 @@ struct	ze_softc {
 
 	caddr_t  maddr;
 	u_long  iobase, irq;
-	
+
 	struct	arpcom arpcom;	/* ethernet common */
 
 	char	*type_str;	/* pointer to type string */
@@ -165,7 +165,7 @@ struct isa_driver zedriver = {
 
 static unsigned char enet_addr[6];
 static unsigned char card_info[256];
- 
+
 #define CARD_INFO  "IBM Corp.~Ethernet~0933495"
 
 /*
@@ -228,7 +228,7 @@ ze_check_cis (unsigned char *scratch)
  * Probe each slot looking for an IBM Credit Card Adapter for Ethernet
  * For each card that we find, map its card information structure
  * into system memory at 'scratch' and see whether it's one of ours.
- * Return the slot number if we find a card, or -1 otherwise. 
+ * Return the slot number if we find a card, or -1 otherwise.
  *
  * Side effects:
  * + On success, leaves CIS mapped into memory at 'scratch';
@@ -277,13 +277,13 @@ ze_find_adapter (unsigned char *scratch, int reconfig)
 	pcic_power_on (slot);
 	pcic_reset (slot);
 	/*
-	 * map the card's attribute memory and examine its 
+	 * map the card's attribute memory and examine its
 	 * card information structure tuples for something
 	 * we recognize.
 	 */
 	pcic_map_memory (slot, 0, kvtop (scratch), 0L,
 			 0xFFFL, ATTRIBUTE, 1);
-	
+
 	if ((ze_check_cis (scratch)) > 0) {
 	    /* found it */
 	    if (!reconfig) {
@@ -384,7 +384,7 @@ ze_probe(isa_dev)
 	 */
 	sc->nic_addr = sc->iobase;
 	sc->smem_start = (caddr_t)sc->maddr;
- 
+
 	ze_setup(sc);
 
 	tmp = inb (sc->iobase + ZE_RESET);
@@ -407,7 +407,7 @@ ze_probe(isa_dev)
 	/* get station address */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
 		sc->arpcom.ac_enaddr[i] = enet_addr[i];
-	
+
 	isa_dev->id_msize = memsize;
 
 
@@ -498,7 +498,7 @@ re_init:
 	pcic_putb (slot, PCIC_GLO_CTRL,
 		   pcic_getb (slot, PCIC_GLO_CTRL) | PCIC_LVL_MODE);
 #endif
-	
+
 #if 0
 	pcic_print_regs (slot);
 #endif
@@ -519,8 +519,8 @@ re_init:
 	tmp = inb (sc->iobase + ZE_MISC);
 
 	/*
-	 * Some Intel-compatible PCICs of Cirrus Logic fails in 
-	 * initializing them.  This is a quick hack to fix this 
+	 * Some Intel-compatible PCICs of Cirrus Logic fails in
+	 * initializing them.  This is a quick hack to fix this
 	 * problem.
 	 *        HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 	 */
@@ -553,7 +553,7 @@ ze_resume(isa_dev)
 	return 0;
 }
 #endif /* NAPM > 0 */
- 
+
 /*
  * Install interface into kernel networking data structures
  */
@@ -591,7 +591,7 @@ ze_attach(isa_dev)
 	else {
 		sc->last_alive = 1;
 	}
- 
+
 	/*
 	 * Set interface to stopped condition (reset)
 	 */
@@ -680,7 +680,7 @@ ze_attach(isa_dev)
 
 	return 1;
 }
- 
+
 /*
  * Reset interface.
  */
@@ -700,7 +700,7 @@ ze_reset(unit)
 
 	(void) splx(s);
 }
- 
+
 /*
  * Take interface offline.
  */
@@ -710,7 +710,7 @@ ze_stop(unit)
 {
 	struct ze_softc *sc = &ze_softc[unit];
 	int n = 5000;
- 
+
 	/*
 	 * Stop everything on the interface, and select page 0 registers.
 	 */
@@ -742,15 +742,15 @@ ze_watchdog(unit)
     if(!(sc->arpcom.ac_if.if_flags & IFF_UP))
 	return;
     /* select page zero */
-    outb (sc->nic_addr + ZE_P0_CR, 
+    outb (sc->nic_addr + ZE_P0_CR,
 	  (inb (sc->nic_addr + ZE_P0_CR) & 0x3f) | ZE_CR_PAGE_0);
 
     /* read interrupt status register */
     isr = inb (sc->nic_addr + ZE_P0_ISR) & 0xff;
 
     /* select page two */
-    outb (sc->nic_addr + ZE_P0_CR, 
-	  (inb (sc->nic_addr + ZE_P0_CR) & 0x3f) | ZE_CR_PAGE_2); 
+    outb (sc->nic_addr + ZE_P0_CR,
+	  (inb (sc->nic_addr + ZE_P0_CR) & 0x3f) | ZE_CR_PAGE_2);
 
     /* read interrupt mask register */
     imr = inb (sc->nic_addr + ZE_P2_IMR) & 0xff;
@@ -767,7 +767,7 @@ ze_watchdog(unit)
 }
 
 /*
- * Initialize device. 
+ * Initialize device.
  */
 void
 ze_init(unit)
@@ -914,7 +914,7 @@ ze_init(unit)
 
 	(void) splx(s);
 }
- 
+
 /*
  * This routine actually starts the transmission on the interface
  */
@@ -949,11 +949,11 @@ ze_xmit(ifp)
 
 	sc->xmit_busy = 1;
 	sc->data_buffered = 0;
-	
+
 	/*
 	 * Switch buffers if we are doing double-buffered transmits
 	 */
-	if ((sc->txb_next == 0) && (sc->txb_cnt > 1)) 
+	if ((sc->txb_next == 0) && (sc->txb_cnt > 1))
 		sc->txb_next = 1;
 	else
 		sc->txb_next = 0;
@@ -1067,7 +1067,7 @@ outloop:
 		return;
 	}
 }
- 
+
 /*
  * Ethernet interface receiver interrupt.
  */
@@ -1222,8 +1222,8 @@ zeintr(unit)
 			 */
 			sc->arpcom.ac_if.if_timer = 0;
 		}
-				
-			
+
+
 		/*
 		 * Receiver Error. One or more of: CRC error, frame alignment error
 		 *	FIFO overrun, or missed packet.
@@ -1285,7 +1285,7 @@ zeintr(unit)
 		}
 
 		/*
-		 * Receive Completion. Go and get the packet. 
+		 * Receive Completion. Go and get the packet.
 		 *	XXX - Doing this on an error is dubious because there
 		 *	   shouldn't be any data to get (we've configured the
 		 *	   interface to not accept packets with errors).
@@ -1326,7 +1326,7 @@ zeintr(unit)
 		}
 	}
 }
- 
+
 /*
  * Process an ioctl request. This code needs some work - it looks
  *	pretty ugly.
@@ -1368,8 +1368,8 @@ ze_ioctl(ifp, command, data)
 				ina->x_host =
 					*(union ns_host *)(sc->arpcom.ac_enaddr);
 			else {
-				/* 
-				 * 
+				/*
+				 *
 				 */
 				bcopy((caddr_t)ina->x_host.c_host,
 				    (caddr_t)sc->arpcom.ac_enaddr,
@@ -1443,7 +1443,7 @@ ze_ioctl(ifp, command, data)
 	(void) splx(s);
 	return (error);
 }
- 
+
 /*
  * Macro to calculate a new address within shared memory when given an offset
  *	from an address, taking into account ring-wrap.
@@ -1509,7 +1509,7 @@ ze_get_packet(sc, buf, len)
 #if NBPFILTER > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
-	 * If so, hand off the raw packet to bpf. 
+	 * If so, hand off the raw packet to bpf.
 	 */
 	if (sc->bpf) {
 		bpf_mtap(sc->bpf, head);
@@ -1610,7 +1610,7 @@ ze_ring_to_mbuf(sc,src,dst,total_len)
 			 *	the cluster to. The mbuf that has a cluster
 			 *	extension can not be used to contain data - only
 			 *	the cluster can contain data.
-			 */ 
+			 */
 			dst = m;
 			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL)

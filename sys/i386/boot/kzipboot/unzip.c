@@ -110,7 +110,7 @@ void unzip()
 		orig_len = LG(inbuf + LOCLEN);
 	}
 
-	if (method != DEFLATED) 
+	if (method != DEFLATED)
 		error("internal error, invalid method");
 	infl.gz_input = NextByte;
 	infl.gz_output = Flush;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_timer.c,v 1.2 1994/08/02 07:49:52 davidg Exp $
+ * $Id: clnp_timer.c,v 1.3 1994/11/15 14:26:13 bde Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_timer.c,v 1.2 1994/08/02 07:49:52 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_timer.c,v 1.3 1994/11/15 14:26:13 bde Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_timer.c,v $ */
 
 #include <sys/param.h>
@@ -89,9 +89,9 @@ extern struct clnp_fragl *clnp_frags;
  *
  * RETURNS:			pointer to next fragment in list of fragments
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  *			TODO: send ER back to source
  */
 struct clnp_fragl *
@@ -136,14 +136,14 @@ register struct clnp_fragl	*cfh;	/* fragment header to delete */
 /*
  * FUNCTION:		clnp_slowtimo
  *
- * PURPOSE:			clnp timer processing; if the ttl expires on a 
+ * PURPOSE:			clnp timer processing; if the ttl expires on a
  *					packet on the reassembly queue, discard it.
  *
  * RETURNS:			none
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 clnp_slowtimo()
 {
@@ -168,9 +168,9 @@ clnp_slowtimo()
  *
  * RETURNS:			none
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  *	TODO: should send back ER
  */
 clnp_drain()

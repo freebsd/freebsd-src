@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.1 (Berkeley) 1/21/94
- * $Id$
+ * $Id: cd9660_util.c,v 1.3 1994/08/02 07:41:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,7 @@ isofncmp(unsigned char *fn,int fnlen,unsigned char *isofn,int isolen)
 {
 	int i, j;
 	unsigned char c;
-	
+
 	while (--fnlen >= 0) {
 		if (--isolen < 0)
 			return *fn;
@@ -216,14 +216,14 @@ isofntrans(unsigned char *infn,int infnlen,
 	   int original,int assoc)
 {
 	int fnidx = 0;
-	
+
 	if (assoc) {
 		*outfn++ = ASSOCCHAR;
 		fnidx++;
 	}
 	for (; fnidx < infnlen; fnidx++) {
 		char c = *infn++;
-		
+
 		if (!original && c >= 'A' && c <= 'Z')
 			*outfn++ = c + ('a' - 'A');
 		else if (!original && c == '.' && *infn == ';')

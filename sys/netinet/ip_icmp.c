@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.5 1995/02/16 00:27:43 wollman Exp $
+ * $Id: ip_icmp.c,v 1.6 1995/03/16 18:14:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -128,7 +128,7 @@ icmp_error(n, type, code, dest, destifp)
 		icp->icmp_gwaddr.s_addr = dest;
 	else {
 		icp->icmp_void = 0;
-		/* 
+		/*
 		 * The following assignments assume an overlay with the
 		 * zeroed icmp_void field.
 		 */
@@ -246,7 +246,7 @@ icmp_input(m, hlen)
 			case ICMP_UNREACH_NEEDFRAG:
 				code = PRC_MSGSIZE;
 				break;
-				
+
 			case ICMP_UNREACH_NET_UNKNOWN:
 			case ICMP_UNREACH_NET_PROHIB:
 			case ICMP_UNREACH_TOSNET:
@@ -319,7 +319,7 @@ icmp_input(m, hlen)
 		icp->icmp_rtime = iptime();
 		icp->icmp_ttime = icp->icmp_rtime;	/* bogus, do later! */
 		goto reflect;
-		
+
 	case ICMP_MASKREQ:
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 		if (icmpmaskrepl == 0)
@@ -378,7 +378,7 @@ reflect:
 		icmpdst.sin_addr = icp->icmp_gwaddr;
 #ifdef	ICMPPRINTFS
 		if (icmpprintfs)
-			printf("redirect dst %lx to %lx\n", 
+			printf("redirect dst %lx to %lx\n",
 				NTOHL(icp->icmp_ip.ip_dst.s_addr),
 				NTOHL(icp->icmp_gwaddr.s_addr));
 #endif
@@ -495,7 +495,7 @@ icmp_reflect(m)
 			    /*
 			     * Should check for overflow, but it "can't happen"
 			     */
-			    if (opt == IPOPT_RR || opt == IPOPT_TS || 
+			    if (opt == IPOPT_RR || opt == IPOPT_TS ||
 				opt == IPOPT_SECURITY) {
 				    bcopy((caddr_t)cp,
 					mtod(opts, caddr_t) + opts->m_len, len);

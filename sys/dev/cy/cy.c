@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.5 1995/03/28 07:55:25 bde Exp $
+ *	$Id: cy.c,v 1.6 1995/03/28 12:29:11 bde Exp $
  */
 
 /*
@@ -99,7 +99,7 @@
 #define	PollMode	/* use polling-based irq service routine, not the
 			 * hardware svcack lines.  Must be defined for
 			 * cyclom-16y boards.
-			 * 
+			 *
 			 * XXX cyclom-8y doesn't work without this defined
 			 * either (!)
 			 */
@@ -172,7 +172,7 @@ void		delay(int delay);
 
 /* Better get rid of this until the core people agree on kernel interfaces.
    At least it will then compile on both WhichBSDs.
- */ 
+ */
 #if 0
 extern unsigned int	delaycount;	/* calibrated 1 ms cpu-spin delay */
 #endif
@@ -546,7 +546,7 @@ service_upper_rx(int unit)
 #ifdef FastRawInput
 	    /* try to avoid calling the line discipline stuff if we can */
 	    if ((tp->t_line == 0) &&
-		    !(tp->t_iflag & (ICRNL | IMAXBEL | INLCR)) && 
+		    !(tp->t_iflag & (ICRNL | IMAXBEL | INLCR)) &&
 		    !(tp->t_lflag & (ECHO | ECHONL | ICANON | IEXTEN |
 			ISIG | PENDIN)) &&
 		    !(tp->t_state & (TS_CNTTB | TS_LNCH))) {
@@ -1321,11 +1321,11 @@ cyparam(struct tty *tp, struct termios *t)
 	if (iflag & IXOFF)
 	    opt |= 1 << 6;		/* auto XOFF output flow-control */
 #endif
-#ifndef ALWAYS_RTS_CTS	
+#ifndef ALWAYS_RTS_CTS
 	if (cflag & CCTS_OFLOW)
 #endif
 	    opt |= 1 << 1;		/* auto CTS flow-control */
-	
+
 	if (opt != infop->cor[1]) {
 	    cor_change |= 1 << 2;
 	    *(base + CD1400_COR2) = opt;
@@ -1560,7 +1560,7 @@ cyspeed(int speed, int *prescaler_io)
 static void
 cd1400_channel_cmd(cy_addr base, u_char cmd)
 {
- 	/* XXX hsu@clinet.fi: This is always more dependent on ISA bus speed, 
+ 	/* XXX hsu@clinet.fi: This is always more dependent on ISA bus speed,
 	   as the card is probed every round?  Replaced delaycount with 8k.
 	   Either delaycount has to be implemented in FreeBSD or more sensible
 	   way of doing these should be implemented.  DELAY isn't enough here.
@@ -1570,7 +1570,7 @@ cd1400_channel_cmd(cy_addr base, u_char cmd)
 	/* wait for processing of previous command to complete */
 	while (*(base + CD1400_CCR) && maxwait--)
 	  	;
-	
+
 	if (!maxwait)
 		log(LOG_ERR, "cy: channel command timeout (%d loops) - arrgh\n",
 		    5 * 8 * 1024);

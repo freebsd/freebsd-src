@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.h,v 1.7 1994/12/22 22:00:30 wollman Exp $
+ * $Id: if_ether.h,v 1.8 1995/04/02 01:26:26 wpaul Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -92,7 +92,7 @@ struct	ether_addr {
  * Ethernet Address Resolution Protocol.
  *
  * See RFC 826 for protocol description.  Structure below is adapted
- * to resolving internet addresses.  Field names used correspond to 
+ * to resolving internet addresses.  Field names used correspond to
  * RFC 826.
  */
 struct	ether_arp {
@@ -119,10 +119,10 @@ struct	arpcom {
 	u_char	ac_enaddr[6];		/* ethernet hardware address */
 	struct	in_addr ac_ipaddr;	/* copy of ip address- XXX */
 	struct	ether_multi *ac_multiaddrs; /* list of ether multicast addrs */
-	int	ac_multicnt;		/* length of ac_multiaddrs list */	
+	int	ac_multicnt;		/* length of ac_multiaddrs list */
 };
 
-struct llinfo_arp {				
+struct llinfo_arp {
 	struct	llinfo_arp *la_next;
 	struct	llinfo_arp *la_prev;
 	struct	rtentry *la_rt;

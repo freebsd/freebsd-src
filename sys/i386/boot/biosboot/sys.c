@@ -2,29 +2,29 @@
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.7 1994/12/30 07:48:07 bde Exp $
+ *	$Id: sys.c,v 1.8 1995/04/14 21:26:53 joerg Exp $
  */
 
 #include "boot.h"
@@ -40,7 +40,7 @@ char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
 
 #define BUFSIZE 8192
 #define MAPBUFSIZE BUFSIZE
-char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE]; 
+char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 
 char mapbuf[MAPBUFSIZE];
 int mapblock;

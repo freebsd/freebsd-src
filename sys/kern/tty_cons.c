@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.26 1995/04/23 12:55:54 bde Exp $
+ *	$Id: cons.c,v 1.27 1995/04/24 16:42:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -135,7 +135,7 @@ cnopen(dev, flag, mode, p)
 	}
 	return (retval);
 }
- 
+
 int
 cnclose(dev, flag, mode, p)
 	dev_t dev;
@@ -168,7 +168,7 @@ cnclose(dev, flag, mode, p)
 	}
 	return ((*cn_phys_close)(dev, flag, mode, p));
 }
- 
+
 int
 cnread(dev, uio, flag)
 	dev_t dev;
@@ -180,7 +180,7 @@ cnread(dev, uio, flag)
 	dev = cn_tab->cn_dev;
 	return ((*cdevsw[major(dev)].d_read)(dev, uio, flag));
 }
- 
+
 int
 cnwrite(dev, uio, flag)
 	dev_t dev;
@@ -195,7 +195,7 @@ cnwrite(dev, uio, flag)
 		dev = cn_tab->cn_dev;
 	return ((*cdevsw[major(dev)].d_write)(dev, uio, flag));
 }
- 
+
 int
 cnioctl(dev, cmd, data, flag, p)
 	dev_t dev;

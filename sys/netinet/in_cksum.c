@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_cksum.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: in_cksum.c,v 1.2 1994/08/02 07:48:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -76,7 +76,7 @@ in_cksum(m, len)
 			 * of a word spanning between this mbuf and the
 			 * last mbuf.
 			 *
-			 * s_util.c[0] is already saved when scanning previous 
+			 * s_util.c[0] is already saved when scanning previous
 			 * mbuf.
 			 */
 			s_util.c[1] = *(char *)w;

@@ -6,10 +6,10 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.16 1994/08/04 17:42:35 davidg Exp $
+ * $Id: if_edreg.h,v 1.17 1995/01/23 19:06:08 davidg Exp $
  */
 /*
- * National Semiconductor DS8390 NIC register definitions 
+ * National Semiconductor DS8390 NIC register definitions
  *
  *
  * Modification history
@@ -26,10 +26,10 @@
  * changed double buffering flag to multi buffering
  * made changes/additions for 3c503 multi-buffering
  * ...companion to Rev. 2.0 of 'ed' driver.
- * 
+ *
  * Revision 1.1  93/06/23  03:01:07  davidg
  * Initial revision
- * 
+ *
  */
 
 /*
@@ -378,7 +378,7 @@
  *	algorithm to allow prioritization of nodes.
  */
 #define ED_TCR_OFST	0x10
- 
+
 /*
  * bits 5, 6, and 7 are unused/reserved
  */

@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.28 1995/04/23 07:47:10 bde Exp $
+ *      $Id: scsiconf.c,v 1.29 1995/05/03 18:09:13 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -162,14 +162,14 @@ struct scsidevs {
 #define	SC_ONE_LU	0x00
 #define	SC_MORE_LUS	0x02
 
-static struct scsidevs unknowndev = 
+static struct scsidevs unknowndev =
 	{
-		T_UNKNOWN, 0, "*", "*", "*", 
+		T_UNKNOWN, 0, "*", "*", "*",
 		"uk", SC_MORE_LUS
 	};
 
 #ifdef NEW_SCSICONF
-static st_modes mode_tandberg3600 = 
+static st_modes mode_tandberg3600 =
 	{
 	    {0, 0, 0},					/* minor 0,1,2,3 */
 	    {0, ST_Q_FORCE_VAR_MODE, QIC_525},		/* minor 4,5,6,7 */
@@ -218,11 +218,11 @@ static struct scsidevs knowndevs[] =
 {
 #if NSD > 0
 	{
-		T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A", 
+		T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A",
 		"mx1", SC_ONE_LU
 	},
 	{
-		T_DIRECT, T_FIXED, "*", "*", "*", 
+		T_DIRECT, T_FIXED, "*", "*", "*",
 		"sd", SC_ONE_LU
 	},
 #endif	/* NSD */
@@ -248,20 +248,20 @@ static struct scsidevs knowndevs[] =
 		"st", SC_ONE_LU, 0, mode_wangdat1300
 	},
 	{
-		T_SEQUENTIAL, T_REMOV, "*", "*", "*", 
+		T_SEQUENTIAL, T_REMOV, "*", "*", "*",
 		"st", SC_ONE_LU, 0, mode_unktape
 	},
 #endif	/* NST */
 #if NCH > 0
 	{
-		T_CHANGER, T_REMOV, "*", "*", "*", 
+		T_CHANGER, T_REMOV, "*", "*", "*",
 		"ch", SC_ONE_LU
 	},
 #endif	/* NCH */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
-		T_READONLY, T_REMOV, "SONY", "CD-ROM CDU-8012", "3.1a", 
+		T_READONLY, T_REMOV, "SONY", "CD-ROM CDU-8012", "3.1a",
 		"cd", SC_ONE_LU
 	},
 	{
@@ -434,7 +434,7 @@ scsi_device_lookup_by_name(char *name)
 /* scsi_init: Do all the one time processing.  This initializes the
  * type drivers and initializes the configuration.
  */
-static void 
+static void
 scsi_init(void)
 {
 	static int done = 0;
@@ -462,7 +462,7 @@ scsi_init(void)
 			if (IS_SPECIFIED(scsi_cinit[i].unit) &&
 			  free_bus <= scsi_cinit[i].unit)
 				free_bus = scsi_cinit[i].unit + 1;
-	
+
 		/* Lowest free unit for each type for auto-configure is one
 		 * more than the first one not specified in the config file:
 		 */
@@ -903,7 +903,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 				sc_link->device = scsi_device_lookup(type);
 
 				(void)scsi_assign_unit(sc_link);
-				
+
 				if (scsi_alloc_unit(sc_link)) {
 
 					if (scsi_device_attach(sc_link) == 0) {
@@ -989,7 +989,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	char    version[4 + 1];
 
  	inqbuf = &sc_link->inqbuf;
- 
+
  	bzero(inqbuf, sizeof(*inqbuf));
 	/*
 	 * Ask the device what it is
@@ -1117,7 +1117,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 
 	/*
 	 * Try make as good a match as possible with
-	 * available sub drivers       
+	 * available sub drivers
 	 */
 	bestmatch = (scsi_selectdev(
 		qualifier, type, remov ? T_REMOV : T_FIXED, manu, model, version));
@@ -1159,7 +1159,7 @@ scsi_dev_lookup(d_open)
 #ifdef NEW_SCSICONF
 /*
  * Compare name with pattern, return 0 on match.
- * Short pattern matches trailing blanks in name, 
+ * Short pattern matches trailing blanks in name,
  * wildcard '*' in pattern matches rest of name
  */
 int
@@ -1183,7 +1183,7 @@ match(pattern, name)
 
 /*
  * Try make as good a match as possible with
- * available sub drivers       
+ * available sub drivers
  */
 struct scsidevs *
 scsi_selectdev(qualifier, type, remov, manu, model, rev)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.2 (Berkeley) 12/30/93
- * $Id: ufs_quota.c,v 1.3 1994/10/06 21:07:02 davidg Exp $
+ * $Id: ufs_quota.c,v 1.4 1994/10/08 06:57:27 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -450,7 +450,7 @@ quotaoff(p, mp, type)
 	register struct dquot *dq;
 	register struct inode *ip;
 	int error;
-	
+
 	if ((mp->mnt_flag & MNT_MPBUSY) == 0)
 		panic("quotaoff: not busy");
 	if ((qvp = ump->um_quotas[type]) == NULLVP)

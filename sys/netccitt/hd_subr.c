@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_subr.c,v 1.2 1994/08/02 07:47:07 davidg Exp $
+ * $Id: hd_subr.c,v 1.3 1995/02/15 06:29:45 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -98,9 +98,9 @@ struct sockaddr *addr;
 			return (ENOBUFS);
 		bzero((caddr_t)hdp, sizeof(*hdp));
 		hdp->hd_pkp =
-			(caddr_t) pk_newlink ((struct x25_ifaddr *) ifa, 
+			(caddr_t) pk_newlink ((struct x25_ifaddr *) ifa,
 					      (caddr_t) hdp);
-		((struct x25_ifaddr *)ifa)->ia_pkcb = 
+		((struct x25_ifaddr *)ifa)->ia_pkcb =
 			(struct pkcb *) hdp->hd_pkp;
 		if (hdp -> hd_pkp == 0) {
 			free(hdp, M_PCB);
@@ -115,9 +115,9 @@ struct sockaddr *addr;
 		hdcbhead = hdp;
 	} else if (hdp->hd_pkp == 0) { /* interface got reconfigured */
 		hdp->hd_pkp =
-			(caddr_t) pk_newlink ((struct x25_ifaddr *) ifa, 
+			(caddr_t) pk_newlink ((struct x25_ifaddr *) ifa,
 					      (caddr_t) hdp);
-		((struct x25_ifaddr *)ifa)->ia_pkcb = 
+		((struct x25_ifaddr *)ifa)->ia_pkcb =
 			(struct pkcb *) hdp->hd_pkp;
 		if (hdp -> hd_pkp == 0) {
 			free(hdp, M_PCB);
@@ -198,17 +198,17 @@ struct Hdlc_frame *frame;
 	else if (sframe -> hdlc_01 == 1) {
 		/* Supervisory format. */
 		switch (sframe -> s2) {
-		case 0: 
+		case 0:
 			frametype = RR;
 			hdp->hd_rrs_in++;
 			break;
 
-		case 1: 
+		case 1:
 			frametype = RNR;
 			hdp->hd_rnrs_in++;
 			break;
 
-		case 2: 
+		case 2:
 			frametype = REJ;
 			hdp->hd_rejs_in++;
 		}
@@ -216,23 +216,23 @@ struct Hdlc_frame *frame;
 	else if (uframe -> hdlc_11 == 3) {
 		/* Unnumbered format. */
 		switch (uframe -> m3) {
-		case 0: 
+		case 0:
 			frametype = DM;
 			break;
 
-		case 1: 
+		case 1:
 			frametype = SABM;
 			break;
 
-		case 2: 
+		case 2:
 			frametype = DISC;
 			break;
 
-		case 3: 
+		case 3:
 			frametype = UA;
 			break;
 
-		case 4: 
+		case 4:
 			frametype = FRMR;
 			hdp->hd_frmrs_in++;
 		}
@@ -240,9 +240,9 @@ struct Hdlc_frame *frame;
 	return (frametype);
 }
 
-/* 
+/*
  *  This routine is called when the HDLC layer internally  generates a
- *  command or  response  for  the remote machine ( eg. RR, UA etc. ). 
+ *  command or  response  for  the remote machine ( eg. RR, UA etc. ).
  *  Only supervisory or unnumbered frames are processed.
  */
 
@@ -270,27 +270,27 @@ register int frametype, pf;
 	buf -> m_act = buf -> m_next = NULL;
 
 	switch (frametype) {
-	case RR: 
+	case RR:
 		frame -> control = RR_CONTROL;
 		hdp->hd_rrs_out++;
 		break;
 
-	case RNR: 
+	case RNR:
 		frame -> control = RNR_CONTROL;
 		hdp->hd_rnrs_out++;
 		break;
 
-	case REJ: 
+	case REJ:
 		frame -> control = REJ_CONTROL;
 		hdp->hd_rejs_out++;
 		break;
 
-	case SABM: 
+	case SABM:
 		frame -> control = SABM_CONTROL;
 		frame -> address = ADDRESS_B;
 		break;
 
-	case DISC: 
+	case DISC:
 		if ((hdp->hd_ifp->if_flags & IFF_UP) == 0) {
 			hdp->hd_state = DISCONNECTED;
 			(void) m_freem (buf);
@@ -301,15 +301,15 @@ register int frametype, pf;
 		frame -> address = ADDRESS_B;
 		break;
 
-	case DM: 
+	case DM:
 		frame -> control = DM_CONTROL;
 		break;
 
-	case UA: 
+	case UA:
 		frame -> control = UA_CONTROL;
 		break;
 
-	case FRMR: 
+	case FRMR:
 		frame -> control = FRMR_CONTROL;
 		bcopy ((caddr_t)&hd_frmr, (caddr_t)frame -> info, 3);
 		buf -> m_len = 5;

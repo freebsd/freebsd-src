@@ -41,18 +41,18 @@
 	    conditions even if it is unsupported, not a complete system
 	    and/or does not contain compiled code.
 	8.  These conditions will be in force for the full life of the
-	    copyright.  
+	    copyright.
 	9.  If all the above conditions are met, modifications to other
 	    parts of this file may be freely made, although any person
 	    or persons making changes do not receive the right to add their
 	    name or names to the copyright strings and notices in this
 	    software.  Persons making changes are encouraged to insert edit
 	    history in matcd.c and to put your name and details of the
-	    change there.  
+	    change there.
 	10. You must have prior written permission from the author to
 	    deviate from these terms.
 
-	Vendors who produce product(s) containing this code are encouraged 
+	Vendors who produce product(s) containing this code are encouraged
 	(but not required) to provide copies of the finished product(s) to
 	the author and to correspond with the author about development
 	activity relating to this code.   Donations of development hardware
@@ -157,7 +157,7 @@ Edit number code marking begins here - earlier edits were during development.
 	24-Feb-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 
 <9>	Added some additional disk-related ioctl functions that didn't
-	make it into earlier versions.  
+	make it into earlier versions.
 	26-Feb-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 
 <10>	Updated some conditionals so the code will compile under
@@ -391,7 +391,7 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 } };					/*<12>*/
 #endif /*FREE2*/
 
-	
+
 /*---------------------------------------------------------------------------
 	These macros take apart the minor number and yield the
 	partition, drive on controller, and controller.
@@ -443,7 +443,7 @@ struct	isa_driver	matcddriver={matcd_probe, matcd_attach,	/*<16>*/
 
 static	void	matcd_start(struct buf *dp);
 static	void	zero_cmd(char *);
-static	void	matcd_pread(int port, int count, unsigned char * data); 
+static	void	matcd_pread(int port, int count, unsigned char * data);
 static	int	matcd_fastcmd(int port,int ldrive,int cdrive,
 			      unsigned char * cp);
 static	void	matcd_slowcmd(int port,int ldrive,int cdrive,
@@ -501,7 +501,7 @@ static	int	docmd(char * cmd, int ldrive, int cdrive,	/*<14>*/
 
 	This routine actually gets called every time anybody opens
 	any partition on a drive.  But the first call is the one that
-	does all the work.  
+	does all the work.
 
 <15>	If LOCKDRIVE is enabled, additional minor number devices allow
 <15>	the drive to be locked while being accessed.
@@ -520,7 +520,7 @@ int	matcdopen(dev_t dev)
 #ifdef DIAGPORT
 	DIAGOUT(DIAGPORT,0x10);		/*Show where we are*/
 #endif /*DIAGPORT*/
-	ldrive=matcd_ldrive(dev);	
+	ldrive=matcd_ldrive(dev);
 	cdrive=matcd_cdrive(dev);
 	partition=matcd_partition(dev);
 	controller=matcd_controller(dev);
@@ -537,7 +537,7 @@ int	matcdopen(dev_t dev)
 #endif /*DEBUGOPEN*/
 
 	if (!(cd->flags & MATCDINIT)) {	/*Did probe find this drive*/
-		return(ENXIO);	
+		return(ENXIO);
 	}
 
 	if (!(cd->flags & MATCDLABEL) &&
@@ -558,7 +558,7 @@ int	matcdopen(dev_t dev)
 #ifdef DEBUGOPEN
 	printf("matcd%d Result of NOP is %x %x\n",ldrive,i,z);	/*<16>*/
 #endif /*DEBUGOPEN*/
-	if ((z & MATCD_ST_DSKIN)==0) {	/*Is there a disc in the drive?*/ 
+	if ((z & MATCD_ST_DSKIN)==0) {	/*Is there a disc in the drive?*/
 #ifdef DEBUGOPEN
 		printf("matcd%d: No Disc in open\n",ldrive);
 #endif /*DEBUGOPEN*/
@@ -592,7 +592,7 @@ int	matcdopen(dev_t dev)
 		}
 	}
 	unlockbus(controller, ldrive);	/*Release bus lock*/
-	
+
 /*	Here we fill in the disklabel structure although most is
 	hardcoded.
 */
@@ -652,7 +652,7 @@ int	matcdopen(dev_t dev)
 
 		cd->flags |= MATCDLABEL;	/*Mark drive as having TOC*/
 	}
-	
+
 #ifdef DEBUGOPEN
 	printf("matcd%d open2: partition=%d disksize=%d blksize=%x flags=%x\n",
 	       ldrive,partition,(int)cd->disksize,cd->blksize,cd->flags);
@@ -669,7 +669,7 @@ int	matcdopen(dev_t dev)
 #endif /*LOCKDRIVE*/
 	cd->openflags |= (1<<partition);/*Mark partition open*/
 
-	if (partition==RAW_PART || 
+	if (partition==RAW_PART ||
 	    (partition < cd->dlabel.d_npartitions &&
 	     cd->dlabel.d_partitions[partition].p_fstype != FS_UNUSED)) {
 		cd->partflags[partition] |= MATCDOPEN;
@@ -715,7 +715,7 @@ int matcdclose(dev_t dev)
 #ifdef DIAGPORT
 	DIAGOUT(DIAGPORT,0x20);		/*Show where we are*/
 #endif /*DIAGPORT*/
-	if (ldrive >= TOTALDRIVES) 
+	if (ldrive >= TOTALDRIVES)
 		return(ENXIO);
 
 	partition = matcd_partition(dev);
@@ -816,7 +816,7 @@ void matcdstrategy(struct buf *bp)
 		printf("Block %d\n",(int)bp->b_pblkno);
 #ifdef FREE2
 		bp=bp->b_actf;
-#else /*FREE2*/	
+#else /*FREE2*/
 		bp=bp->av_forw;
 #endif /*FREE2*/
 	}
@@ -1054,9 +1054,9 @@ int	matcdsize(dev_t dev)
 
 	ldrive=matcd_ldrive(dev);
 	part=matcd_partition(dev);
-	if (part==RAW_PART) 
+	if (part==RAW_PART)
 		blksize=MATCDRBLK;	/*2352*/
-	else	
+	else
 		blksize=MATCDBLK;	/*2048*/
 
 	cd = &matcd_data[ldrive];
@@ -1084,10 +1084,10 @@ int	matcdsize(dev_t dev)
 
 	The probe routine can be compiled two ways.  In AUTOHUNT mode,
 	the kernel config file can say "port?" and we will check all ports
-	listed in the port_hint array (see above).  
+	listed in the port_hint array (see above).
 
 	Without AUTOHUNT set, the config file must list a specific port
-	address to check.  
+	address to check.
 
 	Note that specifying the explicit addresses makes boot-up a lot
 	faster.
@@ -1106,7 +1106,7 @@ int	matcdsize(dev_t dev)
 	software, there are probably 8 different board models called
 	Sound Blaster 16.  These include "Vibra", "Value", etc.
 
-	Please report additional part numbers and board descriptions 
+	Please report additional part numbers and board descriptions
 	and new port numbers that work to the author.
 
 ---------------------------------------------------------------------------*/
@@ -1195,7 +1195,7 @@ int matcd_probe(struct isa_device *dev)
 }
 
 /*---------------------------------------------------------------------------
-	doprobe - Common probe code that actually checks the ports we 
+	doprobe - Common probe code that actually checks the ports we
 		have decided to test.
 ---------------------------------------------------------------------------*/
 
@@ -1497,7 +1497,7 @@ void draincmd(int port,int cdrive,int ldrive)
 
 	i=inb(port+STATUS);
 	if (i==0xff) return;
-	
+
 	printf("matcd%d: in draincmd: bus not idle %x - trying to fix\n",
 	       ldrive,inb(port+STATUS));
 	if ((i & (DTEN|STEN)) == STEN) {
@@ -1563,7 +1563,7 @@ void selectdrive(int port,int drive)
 	matcd_pread - Read small blocks of control data from a drive
 ---------------------------------------------------------------------------*/
 
-void matcd_pread(int port, int count, unsigned char * data) 
+void matcd_pread(int port, int count, unsigned char * data)
 {
 	int	i;
 
@@ -1683,14 +1683,14 @@ static	int	matcd_volinfo(int ldrive)
 		       data[0],data[1],data[2], data[3],data[4],data[5]);
 		printf("status byte %x\n",z);
 #endif	/*DEBUGOPEN*/
-		if ((z & MATCD_ST_ERROR)==0)	
+		if ((z & MATCD_ST_ERROR)==0)
 			break;		/*No Error*/
 
 /*	If media change or other error, you have to read error data or
 	the drive will reject subsequent commands.
 */
 
-		if (chk_error(get_error(port, ldrive, cdrive))==ERR_FATAL) { 
+		if (chk_error(get_error(port, ldrive, cdrive))==ERR_FATAL) {
 #ifdef DEBUGOPEN
 			printf("matcd%d: command failed, status %x\n",
 			       ldrive,z);
@@ -1724,7 +1724,7 @@ static	int	matcd_volinfo(int ldrive)
 
 
 /*---------------------------------------------------------------------------
-	blk_to_msf - Convert block numbers into CD disk block ids	
+	blk_to_msf - Convert block numbers into CD disk block ids
 ---------------------------------------------------------------------------*/
 
 static void blk_to_msf(int blk, unsigned char *msf)
@@ -1749,7 +1749,7 @@ static int msf_to_blk(unsigned char * cd)
 	       +cd[1])*75		/*Blocks minus 2*/
 	       +cd[2]-150);		/*seconds*/
 }
-	
+
 
 /*---------------------------------------------------------------------------
 	matcd_blockread - Performs actual background disc I/O operations
@@ -1839,10 +1839,10 @@ nextblock:
 #endif /*DEBUGIO*/
 
 		blknum=(bp->b_blkno / (mbx->sz/DEV_BSIZE))
-		       + mbx->p_offset + mbx->skip/mbx->sz; 
+		       + mbx->p_offset + mbx->skip/mbx->sz;
 
 		blk_to_msf(blknum,rbuf.start_msf);
-			
+
 		zero_cmd(cmd);
 		cmd[0]=READ;		/*Get drive ID*/
 		cmd[1]=rbuf.start_msf[0];
@@ -1922,11 +1922,11 @@ nextblock:
 			}
 			bp->b_resid=0;
 			biodone(bp);	/*Signal transfer complete*/
-	
+
 			unlockbus(ldrive>>2, ldrive);	/*Release bus lock*/
 			matcd_start(dp);/*See if other drives have work*/
 			return;
-	
+
 /*	Here we skipped the data phase and went directly to status.
 	This indicates a hard error.
 */
@@ -2065,7 +2065,7 @@ int chk_error(int errnum)
 	case	DISC_OUT:
 	case	HARD_RESET:
 		return	(ERR_INIT);
-			
+
 /*	These errors indicate the system is confused about the drive
 	or media, and point to bugs in the driver or OS.  These errors
 	cannot be retried since you will always get the same error.
@@ -2096,7 +2096,7 @@ int chk_error(int errnum)
 	the drives on a given controller, plus it leaves the other drives
 	unaffected.
 ---------------------------------------------------------------------------*/
-	
+
 int get_stat(int port,int ldrive)
 {
 	int 	status,busstat;		/*<16>*/
@@ -2439,7 +2439,7 @@ static int matcd_read_subq(int ldrive, int cdrive, int controller,
 /*	We only support the ioctl functions we could get information
 	on, so test for the things we can do
 */
-	
+
 	if (sqp->data_format!=CD_CURRENT_POSITION ||
 	    sqp->address_format!=CD_MSF_FORMAT) {
 		return(EINVAL);
@@ -2546,7 +2546,7 @@ static int matcd_igot(struct ioc_capability * sqp)
 			      CDREADHEADER);	/*Can read TOC*/
 	return(0);
 }
-	
+
 
 #ifdef FULLDRIVER
 #include	"i386/isa/matcd/audio.c"	/*<15>ioctls related to

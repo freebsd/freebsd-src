@@ -41,18 +41,18 @@
 	    conditions even if it is unsupported, not a complete system
 	    and/or does not contain compiled code.
 	8.  These conditions will be in force for the full life of the
-	    copyright.  
+	    copyright.
 	9.  If all the above conditions are met, modifications to other
 	    parts of this file may be freely made, although any person
 	    or persons making changes do not receive the right to add their
 	    name or names to the copyright strings and notices in this
 	    software.  Persons making changes are encouraged to insert edit
 	    history in matcd.c and to put your name and details of the
-	    change there.  
+	    change there.
 	10. You must have prior written permission from the author to
 	    deviate from these terms.
 
-	Vendors who produce product(s) containing this code are encouraged 
+	Vendors who produce product(s) containing this code are encouraged
 	(but not required) to provide copies of the finished product(s) to
 	the author and to correspond with the author about development
 	activity relating to this code.   Donations of development hardware
@@ -79,7 +79,7 @@
 
 /*	AUTOHUNT	Adds extra code that allows the driver to search
 			for interface cards rather than having to hard-code
-			the locations in the kernel conf file. 
+			the locations in the kernel conf file.
 			Leaving AUTOHUNT enabled is the recommended setting.
 */
 
@@ -113,7 +113,7 @@
 			Leaving RESETONBOOT enabled is the recommended setting.
 */
 
-#define RESETONBOOT		
+#define RESETONBOOT
 
 
 /*<15>	LOCKDRIVE	If enabled, when a drive is opened using a
@@ -131,7 +131,7 @@
 
 /*<5>	FREE2		If enabled, the changes are inserted so this
 <5>			module will compile in the world of FreeBSD 2.x.
-<5>			Without this, it is known to work in 
+<5>			Without this, it is known to work in
 <14>			FreeBSD 1.1.5.1.   FREE2 should be set automatically
 <14>			by using the system version compile symbol below.
 <5>*/
@@ -172,7 +172,7 @@
 	the -1 end-of-table marker.  The values already present are
 	the ones found on standard SoundBlaster 16 and standalone cards.
 ---------------------------------------------------------------------------*/
-	
+
 #ifdef AUTOHUNT
 int	port_hints[]={
 			0x230,0x240,	/*Ports SB audio boards can use*/
@@ -205,7 +205,7 @@ int	port_hints[]={
 			loop endlessly if queues are not null terminated
 			as they should be.
 */
-		
+
 /*#define   	DEBUGQUEUE*/
 
 
@@ -261,7 +261,7 @@ int	port_hints[]={
 <10>			(0x300) is reset in our probe and open routines.
 <10>			DO NOT use DIAGPORT 0x302 if an adapter is present
 <10>			at that address.  It could ruin the EEPROM settings
-<10>			on the device. 
+<10>			on the device.
 */
 
 /*#define DIAGPORT	0x80*/

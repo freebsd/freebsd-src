@@ -223,7 +223,7 @@ static int cx_probe_chip (int base)
 	newrev = inb (GFRCR(base));
 	if (newrev != rev)
 		return (0);	/* revision changed */
-	
+
 	/* Yes, we really have CD2400 chip here. */
 	return (1);
 }
@@ -872,7 +872,7 @@ void cx_clock (long hz, long ba, int *clk, int *div)
 		}
 	}
 	/* Incorrect baud rate.  Return some meaningful values. */
-	*clk = 0; 
+	*clk = 0;
 	*div = 255;
 }
 
@@ -889,7 +889,7 @@ cx_chan_opt_t chan_opt_dflt = { /* mode-independent options */
 		0,              /* don't detect 1 to 0 on CTS */
 		1,		/* detect 1 to 0 on CD */
 		0,              /* detect 1 to 0 on DSR */
-	}, 
+	},
 	{			/* cor5 */
 		0,		/* receive flow control FIFO threshold */
 		0,
@@ -920,7 +920,7 @@ cx_opt_async_t opt_async_dflt = { /* default async options */
 		0,		/* don't ignore parity */
 		PARM_NOPAR,	/* no parity */
 		PAR_EVEN,	/* even parity */
-	}, 
+	},
 	{			/* cor2 */
 		0,              /* disable automatic DSR */
 		1,              /* enable automatic CTS */
@@ -930,7 +930,7 @@ cx_opt_async_t opt_async_dflt = { /* default async options */
 		0,              /* disable embedded cmds */
 		0,		/* disable XON/XOFF */
 		0,		/* disable XANY */
-	}, 
+	},
 	{			/* cor3 */
 		STOPB_1,	/* 1 stop bit */
 		0,
@@ -992,7 +992,7 @@ cx_opt_bisync_t opt_bisync_dflt = { /* default bisync options */
 		0,		/* don't ignore parity */
 		PARM_NOPAR,	/* no parity */
 		PAR_EVEN,	/* even parity */
-	}, 
+	},
 	{			/* cor2 */
 		3-2,            /* send three SYN chars */
 		CRC_DONT_INVERT,/* don't invert CRC (CRC-16) */
@@ -1020,7 +1020,7 @@ cx_opt_x21_t opt_x21_dflt = {   /* default x21 options */
 		0,		/* don't ignore parity */
 		PARM_NOPAR,	/* no parity */
 		PAR_EVEN,	/* even parity */
-	}, 
+	},
 	{			/* cor2 */
 		0,
 		0,		/* disable embedded transmitter cmds */

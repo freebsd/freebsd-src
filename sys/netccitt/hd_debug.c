@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_debug.c,v 1.2 1994/08/02 07:46:59 davidg Exp $
+ * $Id: hd_debug.c,v 1.3 1995/02/15 06:29:42 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -94,19 +94,19 @@ register struct Hdlc_frame *frame;
 		ns = iframe -> ns;
 
 		switch (hd_decode (hdp, frame)) {
-		case SABM: 
+		case SABM:
 			printf ("SABM   : PF=%d\n", pf);
 			break;
 
-		case DISC: 
+		case DISC:
 			printf ("DISC   : PF=%d\n", pf);
 			break;
 
-		case DM: 
+		case DM:
 			printf ("DM     : PF=%d\n", pf);
 			break;
 
-		case FRMR: 
+		case FRMR:
 			{
 			register struct Frmr_frame *f = (struct Frmr_frame *)frame;
 
@@ -120,23 +120,23 @@ register struct Hdlc_frame *frame;
 			break;
 			}
 
-		case UA: 
+		case UA:
 			printf ("UA     : PF=%d\n", pf);
 			break;
 
-		case RR: 
+		case RR:
 			printf ("RR     : N(R)=%d, PF=%d\n", nr, pf);
 			break;
 
-		case RNR: 
+		case RNR:
 			printf ("RNR    : N(R)=%d, PF=%d\n", nr, pf);
 			break;
 
-		case REJ: 
+		case REJ:
 			printf ("REJ    : N(R)=%d, PF=%d\n", nr, pf);
 			break;
 
-		case IFRAME: 
+		case IFRAME:
 			{
 			register struct mbuf *m;
 			register int len = 0;
@@ -152,7 +152,7 @@ register struct Hdlc_frame *frame;
 			break;
 			}
 
-		default: 
+		default:
 			printf ("ILLEGAL: ");
 			for (s = (char *) frame, i = 0; i < 5; ++i, ++s)
 				printf ("%x ", (int) *s & 0xff);

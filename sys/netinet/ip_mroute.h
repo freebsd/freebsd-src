@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_mroute.h,v 1.5 1994/09/14 03:10:12 wollman Exp $
+ * $Id: ip_mroute.h,v 1.6 1995/03/16 18:14:59 bde Exp $
  */
 
 #ifndef _NETINET_IP_MROUTE_H_
@@ -125,7 +125,7 @@ struct vif_req {
     u_char         v_flags;         /* VIFF_ flags defined above           */
     u_char         v_threshold;     /* min ttl required to forward on vif  */
     struct in_addr v_lcl_addr;      /* local interface address             */
-    struct in_addr v_rmt_addr; 
+    struct in_addr v_rmt_addr;
     char           v_if_name[IFNAMSIZ];  /* if name */
 };
 
@@ -170,7 +170,7 @@ struct sioc_vif_req {
     u_long icount;
     u_long ocount;
 };
-    
+
 
 #ifdef KERNEL
 
@@ -187,8 +187,8 @@ struct vif {
 };
 
 /*
- * The kernel's multicast forwarding cache entry structure 
- * (A field for the type of service (mfc_tos) is to be added 
+ * The kernel's multicast forwarding cache entry structure
+ * (A field for the type of service (mfc_tos) is to be added
  * at a future point)
  */
 struct mfc {
@@ -220,7 +220,7 @@ struct rtdetq {
 #define MAX_UPQ	4		/* max. no of pkts in upcall Q */
 
 /*
- * Token Bucket filter code 
+ * Token Bucket filter code
  */
 #define MAX_BKT_SIZE    10000             /* 10K bytes size 		*/
 #define MAXQSIZE        10                /* max # of pkts in queue 	*/
@@ -228,7 +228,7 @@ struct rtdetq {
 /*
  * queue structure at each vif
  */
-struct pkt_queue 
+struct pkt_queue
 {
     u_long pkt_len;               /* length of packet in queue 	*/
     struct mbuf *pkt_m;           /* pointer to packet mbuf	*/

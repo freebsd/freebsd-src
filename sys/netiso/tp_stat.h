@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_stat.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_stat.h,v 1.2 1994/08/02 07:51:23 davidg Exp $
+ * $Id: tp_stat.h,v 1.3 1994/08/21 06:14:28 paul Exp $
  */
 
 #ifndef _NETISO_TP_STAT_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,10 +63,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_stat.h,v 1.2 1994/08/02 07:51:23 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_stat.h,v 1.3 1994/08/21 06:14:28 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_stat.h,v $
  *
  * Here are the data structures in which the global
@@ -98,11 +98,11 @@ struct tp_stat {
 	u_long ts_dt_ooo;		/* dt tpdus received out of order */
 	u_long ts_dt_niw;		/* dt tpdus received & not in window */
 	u_long ts_xpd_niw;		/* xpd tpdus received & not in window */
-	u_long ts_xpd_dup;		
+	u_long ts_xpd_dup;
 	u_long ts_dt_dup;		/* dt tpdus received & are duplicates */
 
 	u_long ts_zfcdt;		/* # times f credit went down to 0 */
-	u_long ts_lcdt_reduced; /* 
+	u_long ts_lcdt_reduced; /*
 		# times local cdt reduced on an acknowledgement.
 		*/
 
@@ -199,30 +199,30 @@ struct tp_stat {
 #define IncPStat(Tpcb, X) if((Tpcb)->tp_perf_on) (Tpcb)->tp_p_meas->/**/X/**/++
 
 /* BEWARE OF MACROS like this ^^^ must be sure it's surrounded by {} if
- * it's used in an if-else statement. 
+ * it's used in an if-else statement.
  */
 
 
 /* for perf measurement stuff: maximum window size it can handle */
 
 struct tp_pmeas {
-		/* the first few are distributions as a fn of window size 
+		/* the first few are distributions as a fn of window size
 		 * only keep enough space for normal format plus 1 slot for
 		 * extended format, in case any windows larger than 15 are used
 		 */
 
-		/* 
-		 * tps_npdusent: for each call to tp_sbsend, we inc the 
+		/*
+		 * tps_npdusent: for each call to tp_sbsend, we inc the
 		 * element representing the number of pdus sent in this call
 		 */
-		int		tps_win_lim_by_cdt[TP_PM_MAX+1]; 
-		int		tps_win_lim_by_data[TP_PM_MAX+1]; 
-		/* 
+		int		tps_win_lim_by_cdt[TP_PM_MAX+1];
+		int		tps_win_lim_by_data[TP_PM_MAX+1];
+		/*
 		 * tps_sendtime: Each call to tp_sbsend() is timed.  For
 		 * Each window size, we keep the running average of the time
 		 * taken by tp_sbsend() for each window size.
 		 */
-		int	tps_sendtime[TP_PM_MAX+1]; 
+		int	tps_sendtime[TP_PM_MAX+1];
 		/*
 		 * n_TMsendack: # times ack sent because timer went off
 		 * n_ack_cuz_eot: # times ack sent due to EOTSDU on incoming packet
@@ -243,13 +243,13 @@ struct tp_pmeas {
 		 * only received 6 since our last credit advertisement, we'll
 		 * keep the difference, 4, in this variable.
 		 */
-		int		tps_ack_early[TP_PM_MAX+1]; 
+		int		tps_ack_early[TP_PM_MAX+1];
 		/*
 		 * when we ack, for the # pkts we actually acked w/ this ack,
 		 * how much cdt are we advertising?
 		 * [ size of window acknowledged ] [ cdt we're giving ]
 		 */
-		int		tps_cdt_acked[TP_PM_MAX+1][TP_PM_MAX+1]; 
+		int		tps_cdt_acked[TP_PM_MAX+1][TP_PM_MAX+1];
 
 		int 	tps_AK_sent;
 		int 	tps_XAK_sent;
@@ -281,4 +281,4 @@ int PStat_Junk;
 
 #endif /* TP_PERF_MEAS */
 
-#endif 
+#endif

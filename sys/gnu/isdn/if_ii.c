@@ -1,6 +1,6 @@
-static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.1 1995/02/14 15:00:27 jkh Exp $";
+static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.2 1995/02/15 06:28:26 jkh Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.1 1995/02/14 15:00:27 jkh Exp
  *
  *******************************************************************************
  * $Log: if_ii.c,v $
+ * Revision 1.2  1995/02/15  06:28:26  jkh
+ * Fix up include paths, nuke some warnings.
+ *
  * Revision 1.1  1995/02/14  15:00:27  jkh
  * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
  * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
@@ -25,9 +28,9 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.1 1995/02/14 15:00:27 jkh Exp
 /*
  * Copyright (c) 1994 Dietmar Friede (dietmar@friede.de) All rights reserved.
  * FSF/FSAG GNU Copyright applies
- * 
+ *
  * A high level ip isdn driver.
- * 
+ *
  * Uses loop driver as template. Small - and simple - is beautiful.
  */
 

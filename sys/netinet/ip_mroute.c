@@ -138,8 +138,8 @@ u_long timeout_val = 0;			/* count of outstanding upcalls */
 
 /*
  * Define the token bucket filter structures
- * tbftable -> each vif has one of these for storing info 
- * qtable   -> each interface has an associated queue of pkts 
+ * tbftable -> each vif has one of these for storing info
+ * qtable   -> each interface has an associated queue of pkts
  */
 
 struct tbf tbftable[MAXVIFS];
@@ -169,7 +169,7 @@ struct ip multicast_encap_iphdr = {
 	sizeof(struct ip),		/* total length */
 	0,				/* id */
 	0,				/* frag offset */
-	ENCAP_TTL, ENCAP_PROTO,	
+	ENCAP_TTL, ENCAP_PROTO,
 	0,				/* checksum */
 };
 
@@ -217,7 +217,7 @@ void multiencap_decap(struct mbuf *m);
 /*
  * A simple hash function: returns MFCHASHMOD of the low-order octet of
  * the argument's network or subnet number and the multicast group assoc.
- */ 
+ */
 static u_long
 nethash_fc(m,n)
     register u_long m;
@@ -269,7 +269,7 @@ struct mfc *mfchash[MFCHASHSIZ];
  */
 static struct mfc *
 mfcfind(origin, mcastgrp)
-    u_long origin; 
+    u_long origin;
     u_long mcastgrp;
 {
     register struct mbuf *mb_rt;
@@ -538,7 +538,7 @@ X_ip_mrouter_done()
      */
     last_encap_src = NULL;
     last_encap_vif = NULL;
- 
+
     ip_mrouter = NULL;
 
     splx(s);
@@ -632,12 +632,12 @@ add_vif(vifcp)
 
     if (mrtdebug)
 	log(LOG_DEBUG, "add_vif #%d, lcladdr %x, %s %x, thresh %x, rate %d\n",
-	    vifcp->vifc_vifi, 
+	    vifcp->vifc_vifi,
 	    ntohl(vifcp->vifc_lcl_addr.s_addr),
 	    (vifcp->vifc_flags & VIFF_TUNNEL) ? "rmtaddr" : "mask",
 	    ntohl(vifcp->vifc_rmt_addr.s_addr),
 	    vifcp->vifc_threshold,
-	    vifcp->vifc_rate_limit);    
+	    vifcp->vifc_rate_limit);
 
     return 0;
 }
@@ -727,16 +727,16 @@ add_mfc(mfccp)
 	return 0;
     }
 
-    /* 
+    /*
      * Find the entry for which the upcall was made and update
      */
     s = splnet();
     hash = nethash_fc(mfccp->mfcc_origin.s_addr, mfccp->mfcc_mcastgrp.s_addr);
-    for (prev_mb_rt = mb_rt = mfctable[hash], nstl = 0; 
+    for (prev_mb_rt = mb_rt = mfctable[hash], nstl = 0;
 	 mb_rt; prev_mb_rt = mb_rt, mb_rt = mb_rt->m_next) {
 
 	rt = mtod(mb_rt, struct mfc *);
-	if (((rt->mfc_origin.s_addr & mfccp->mfcc_originmask.s_addr) 
+	if (((rt->mfc_origin.s_addr & mfccp->mfcc_originmask.s_addr)
 	     == mfccp->mfcc_origin.s_addr) &&
 	    (rt->mfc_mcastgrp.s_addr == mfccp->mfcc_mcastgrp.s_addr) &&
 	    (mb_rt->m_act != NULL)) {
@@ -768,14 +768,14 @@ add_mfc(mfccp)
 	    while (mb_rt->m_act) {
 		mb_ntry = mb_rt->m_act;
 		rte = mtod(mb_ntry, struct rtdetq *);
-		ip_mdq(rte->m, rte->ifp, rte->tunnel_src, 
+		ip_mdq(rte->m, rte->ifp, rte->tunnel_src,
 		       rt1, rte->imo);
 		mb_rt->m_act = mb_ntry->m_act;
 		m_freem(rte->m);
 		m_free(mb_ntry);
 	    }
 
-	    /* 
+	    /*
 	     * If more than one entry was created for a single upcall
 	     * delete that entry
 	     */
@@ -796,12 +796,12 @@ add_mfc(mfccp)
 		ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		ntohl(mfccp->mfcc_originmask.s_addr),
 		mfccp->mfcc_parent);
-	
+
 	for (prev_mb_rt = mb_rt = mfctable[hash];
 	     mb_rt; prev_mb_rt = mb_rt, mb_rt = mb_rt->m_next) {
-	    
+
 	    rt = mtod(mb_rt, struct mfc *);
-	    if (((rt->mfc_origin.s_addr & mfccp->mfcc_originmask.s_addr) 
+	    if (((rt->mfc_origin.s_addr & mfccp->mfcc_originmask.s_addr)
 		 == mfccp->mfcc_origin.s_addr) &&
 		(rt->mfc_mcastgrp.s_addr == mfccp->mfcc_mcastgrp.s_addr)) {
 
@@ -822,9 +822,9 @@ add_mfc(mfccp)
 		splx(s);
 		return ENOBUFS;
 	    }
-	    
+
 	    rt = mtod(mb_rt, struct mfc *);
-	    
+
 	    /* insert new entry at head of hash chain */
 	    rt->mfc_origin     = mfccp->mfcc_origin;
 	    rt->mfc_originmask = mfccp->mfcc_originmask;
@@ -834,7 +834,7 @@ add_mfc(mfccp)
 		VIFM_COPY(mfccp->mfcc_ttls[i], rt->mfc_ttls[i]);
 	    /* initialize pkt counters per src-grp */
 	    rt->mfc_pkt_cnt    = 0;
-	    
+
 	    /* link into table */
 	    mb_rt->m_next  = mfctable[hash];
 	    mfctable[hash] = mb_rt;
@@ -964,7 +964,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	 *	 on intermediate routing hosts!  Therefore, we hereby
 	 *	 change the spec.
 	 */
-	
+
 	/*
 	 * Verify that the tunnel options are well-formed.
 	 */
@@ -1038,7 +1038,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	hash = nethash_fc(ip->ip_src.s_addr, ip->ip_dst.s_addr);
 	for (mb_rt = mfctable[hash]; mb_rt; mb_rt = mb_rt->m_next) {
 	    rt = mtod(mb_rt, struct mfc *);
-	    if (((ip->ip_src.s_addr & rt->mfc_originmask.s_addr) == 
+	    if (((ip->ip_src.s_addr & rt->mfc_originmask.s_addr) ==
 		 rt->mfc_origin.s_addr) &&
 		(ip->ip_dst.s_addr == rt->mfc_mcastgrp.s_addr) &&
 		(mb_rt->m_act != NULL))
@@ -1104,33 +1104,33 @@ X_ip_mforward(ip, ifp, m, imo)
 	splx(s);
 
 	if (hash == 0) {
-	    /* 
-	     * Send message to routing daemon to install 
+	    /*
+	     * Send message to routing daemon to install
 	     * a route into the kernel table
 	     */
 	    k_igmpsrc.sin_addr = ip->ip_src;
 	    k_igmpdst.sin_addr = ip->ip_dst;
-	    
+
 	    mm = m_copy(m, 0, M_COPYALL);
 	    if (mm == NULL) {
 		splx(s);
 		return ENOBUFS;
 	    }
-	    
+
 	    k_data = mtod(mm, struct ip *);
 	    k_data->ip_p = 0;
-	    
+
 	    mrtstat.mrts_upcalls++;
 
           rip_ip_input(mm, ip_mrouter, (struct sockaddr *)&k_igmpsrc);
-	    
+
 	    /* set timer to cleanup entry if upcall is lost */
 	    timeout(cleanup_cache, (caddr_t)mb_rt, 100);
 	    timeout_val++;
 	}
-	
+
 	return 0;
-    }		
+    }
 }
 
 #ifndef MROUTE_LKM
@@ -1158,8 +1158,8 @@ cleanup_cache(xmb_rt)
     hash = nethash_fc(rt->mfc_origin.s_addr, rt->mfc_mcastgrp.s_addr);
 
     if (mrtdebug)
-	log(LOG_DEBUG, "ip_mforward: cleanup ipm %d h %d s %x g %x\n", 
-	    ip_mrouter, hash, ntohl(rt->mfc_origin.s_addr), 
+	log(LOG_DEBUG, "ip_mforward: cleanup ipm %d h %d s %x g %x\n",
+	    ip_mrouter, hash, ntohl(rt->mfc_origin.s_addr),
 	    ntohl(rt->mfc_mcastgrp.s_addr));
 
     mrtstat.mrts_cache_cleanups++;
@@ -1172,7 +1172,7 @@ cleanup_cache(xmb_rt)
 	if (m0 == mb_rt)
 	    break;
 
-    /* 
+    /*
      * drop all the packets
      * free the mbuf with the pkt, if, timing info
      */
@@ -1185,14 +1185,14 @@ cleanup_cache(xmb_rt)
 	m_free(m);
     }
 
-    /* 
+    /*
      * Delete the entry from the cache
      */
     if (prev_m0 != m0) {	/* if moved past head of list */
 	MFREE(m0, prev_m0->m_next);
     } else			/* delete head of list, it is in the table */
 	mfctable[hash] = m_free(m0);
-    
+
     timeout_val--;
     splx(s);
 }
@@ -1227,7 +1227,7 @@ ip_mdq(m, ifp, tunnel_src, rt, imo)
 	/* came in the wrong interface */
 	if (mrtdebug)
 	    log(LOG_DEBUG, "wrong if: ifp %x vifi %d\n",
-		ifp, vifi); 
+		ifp, vifi);
 	++mrtstat.mrts_wrong_if;
 	return (int)tunnel_src;
     }
@@ -1250,13 +1250,13 @@ ip_mdq(m, ifp, tunnel_src, rt, imo)
                     encap_send((ip), (vifp), (m));       \
                 else                                     \
                     phyint_send((ip), (vifp), (m));      \
-                }                                  
+                }
 
-/* If no options or the imo_multicast_vif option is 0, don't do this part 
+/* If no options or the imo_multicast_vif option is 0, don't do this part
  */
-    if ((imo != NULL) && 
-       (( vifi = imo->imo_multicast_vif - 1) < numvifs) /*&& (vifi>=0)*/) 
-    {  
+    if ((imo != NULL) &&
+       (( vifi = imo->imo_multicast_vif - 1) < numvifs) /*&& (vifi>=0)*/)
+    {
         MC_SEND(ip,viftable+vifi,m);
         return (1);        /* make sure we are done: No more physical sends */
     }
@@ -1270,7 +1270,7 @@ ip_mdq(m, ifp, tunnel_src, rt, imo)
 }
 
 /* check if a vif number is legal/ok. This is used by ip_output, to export
- * numvifs there, 
+ * numvifs there,
  */
 int
 X_legal_vif_num(vif)
@@ -1394,7 +1394,7 @@ srcrt_send(ip, vifp, m)
     if (vifp->v_rate_limit <= 0)
 	tbf_send_packet(vifp, mb_opts, 0);
     else
-	tbf_control(vifp, mb_opts, 
+	tbf_control(vifp, mb_opts,
 		    mtod(mb_opts, struct ip *), ip_copy->ip_len, 0);
 }
 
@@ -1502,7 +1502,7 @@ multiencap_decap(m)
     }
     if (ip->ip_src.s_addr != last_encap_src) {
 	register struct vif *vife;
-	
+
 	vifp = viftable;
 	vife = vifp + numvifs;
 	last_encap_src = ip->ip_src.s_addr;
@@ -1564,7 +1564,7 @@ tbf_control(vifp, m, ip, p_len, imo)
 {
     tbf_update_tokens(vifp);
 
-    /* if there are enough tokens, 
+    /* if there are enough tokens,
      * and the queue is empty,
      * send this packet out
      */
@@ -1601,11 +1601,11 @@ tbf_control(vifp, m, ip, p_len, imo)
     return;
 }
 
-/* 
+/*
  * adds a packet to the queue at the interface
  */
 void
-tbf_queue(vifp, m, ip, imo) 
+tbf_queue(vifp, m, ip, imo)
 	register struct vif *vifp;
 	register struct mbuf *m;
 	register struct ip *ip;
@@ -1627,7 +1627,7 @@ tbf_queue(vifp, m, ip, imo)
 }
 
 
-/* 
+/*
  * processes the queue at the interface
  */
 void
@@ -1665,11 +1665,11 @@ tbf_process_q(vifp)
     splx(s);
 }
 
-/* 
+/*
  * removes the jth packet from the queue at the interface
  */
 void
-tbf_dequeue(vifp,j) 
+tbf_dequeue(vifp,j)
     register struct vif *vifp;
     register int j;
 {
@@ -1681,7 +1681,7 @@ tbf_dequeue(vifp,j)
 	qtable[index][i-1].pkt_len = qtable[index][i].pkt_len;
 	qtable[index][i-1].pkt_ip = qtable[index][i].pkt_ip;
 	qtable[index][i-1].pkt_imo = qtable[index][i].pkt_imo;
-    }		
+    }
     qtable[index][i-1].pkt_m = NULL;
     qtable[index][i-1].pkt_len = NULL;
     qtable[index][i-1].pkt_ip = NULL;
@@ -1698,7 +1698,7 @@ tbf_reprocess_q(xvifp)
 	void *xvifp;
 {
     register struct vif *vifp = xvifp;
-    if (ip_mrouter == NULL) 
+    if (ip_mrouter == NULL)
 	return;
 
     tbf_update_tokens(vifp);
@@ -1806,7 +1806,7 @@ priority(vifp, ip)
     /* temporary hack; will add general packet classifier some day */
 
     prio = 50;  /* default priority */
-    
+
     /* check for source route options and add option length to get dst */
     if (vifp->v_flags & VIFF_SRCRT)
 	graddr = ntohl((ip+8)->ip_dst.s_addr);
@@ -1845,7 +1845,7 @@ priority(vifp, ip)
 }
 
 /*
- * End of token bucket filter modifications 
+ * End of token bucket filter modifications
  */
 
 #ifdef MROUTE_LKM

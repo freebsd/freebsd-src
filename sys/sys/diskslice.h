@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.8 1995/05/01 00:07:17 julian Exp $
+ *	$Id: diskslice.h,v 1.9 1995/05/08 16:27:10 bde Exp $
  */
 
 #ifndef _SYS_DISKSLICE_H_
@@ -61,7 +61,7 @@ struct	slice_switch (
 	/*
 	 * etc.
 	 * each  routine is called with the address of the private data
-	 * and the minor number.. 
+	 * and the minor number..
 	 * Other arguments as needed
 	 */
 };

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.7 1995/02/02 05:42:47 jkh Exp $
+ *	$Id: devconf.h,v 1.8 1995/02/04 12:47:19 se Exp $
  */
 /*
  * devconf.h - machine-dependent device configuration table
@@ -62,7 +62,7 @@ struct machdep_devconf {
 #define MACHDEP_COPYDEV(dc, kdc) ((dc)->dc_md = (kdc)->kdc_md)
 
 #define dc_devtype dc_md.mddc_devtype
-#define dc_flags dc_md.mddc_flags	
+#define dc_flags dc_md.mddc_flags
 #define kdc_isa kdc_parentdata
 #define kdc_scsi kdc_parentdata
 

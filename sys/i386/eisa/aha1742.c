@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.32 1995/05/09 12:25:50 rgrimes Exp $
+ *      $Id: aha1742.c,v 1.33 1995/05/11 19:26:15 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -561,7 +561,7 @@ ahb_attach(dev)
  * Return some information to the caller about
  * the adapter and it's capabilities
  */
-u_int32 
+u_int32
 ahb_adapter_info(unit)
 	int     unit;
 {
@@ -590,7 +590,7 @@ ahbintr(unit)
 
 	while (inb(port + G2STAT) & G2STAT_INT_PEND) {
 		/*
-		 * First get all the information and then 
+		 * First get all the information and then
 		 * acknowlege the interrupt
 		 */
 		ahbstat = inb(port + G2INTST);
@@ -712,7 +712,7 @@ ahb_done(unit, ecb, state)
 					printf("unexpected ha_status: %x\n",
 					    stat->ha_status);
 				}
-#endif /*AHBDEBUG */ 
+#endif /*AHBDEBUG */
 			}
 		} else {
 			switch (stat->targ_status) {
@@ -741,7 +741,7 @@ done:	xs->flags |= ITSDONE;
 }
 
 /*
- * A ecb (and hence a mbx-out is put onto the 
+ * A ecb (and hence a mbx-out is put onto the
  * free list.
  */
 void
@@ -770,7 +770,7 @@ ahb_free_ecb(unit, ecb, flags)
 }
 
 /*
- * Get a free ecb 
+ * Get a free ecb
  * If there are none, see if we can allocate a
  * new one. If so, put it in the hash table too
  * otherwise either return an error or sleep
@@ -863,7 +863,7 @@ ahb_init(unit)
 #define	NO_NO 1
 #ifdef NO_NO
 	/*
-	 * reset board, If it doesn't respond, assume 
+	 * reset board, If it doesn't respond, assume
 	 * that it's not there.. good for the probe
 	 */
 	outb(port + EBCTRL, CDEN);	/* enable full card */
@@ -944,7 +944,7 @@ ahb_init(unit)
 
 #ifndef	min
 #define min(x,y) (x < y ? x : y)
-#endif	/* min */ 
+#endif	/* min */
 
 void
 ahbminphys(bp)
@@ -960,7 +960,7 @@ ahbminphys(bp)
  * the data address. Also needs the unit, target
  * and lu
  */
-int32 
+int32
 ahb_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1001,7 +1001,7 @@ ahb_scsi_cmd(xs)
 	/*
 	 * If it's a reset, we need to do an 'immediate'
 	 * command, and store it's ecb for later
-	 * if there is already an immediate waiting, 
+	 * if there is already an immediate waiting,
 	 * then WE must wait
 	 */
 	if (flags & SCSI_RESET) {
@@ -1091,8 +1091,8 @@ ahb_scsi_cmd(xs)
 				nextphys = thisphys;
 				while ((datalen) && (thisphys == nextphys)) {
 					/*
-					 * This page is contiguous (physically) with   
-					 * the the last, just extend the length             
+					 * This page is contiguous (physically) with
+					 * the the last, just extend the length
 					 */
 					/* how far to the end of the page */
 					nextphys = (thisphys & (~(PAGESIZ - 1)))
@@ -1111,7 +1111,7 @@ ahb_scsi_cmd(xs)
 						thisphys = KVTOPHYS(thiskv);
 				}
 				/*
-				 * next page isn't contiguous, finish the seg 
+				 * next page isn't contiguous, finish the seg
 				 */
 				SC_DEBUGN(xs->sc_link, SDEV_DB4,
 				    ("(0x%x)", bytes_this_seg));
@@ -1194,7 +1194,7 @@ ahb_timeout(void *arg1)
 #endif /*AHBDEBUG */
 
 	/*
-	 * If it's immediate, don't try abort it 
+	 * If it's immediate, don't try abort it
 	 */
 	if (ecb->flags & ECB_IMMED) {
 		ecb->xs->retries = 0;	/* I MEAN IT ! */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.8 1994/10/08 22:33:42 phk Exp $
+ * $Id: vfs_init.c,v 1.9 1994/10/20 00:48:28 wollman Exp $
  */
 
 
@@ -189,7 +189,7 @@ vfs_opv_init(struct vnodeopv_desc **them)
 		}
 		for (k = 0; k<vfs_opv_numops; k++)
 			if (opv_desc_vector[k] == NULL)
-				opv_desc_vector[k] = 
+				opv_desc_vector[k] =
 					opv_desc_vector[VOFFSET(vop_default)];
 	}
 }
@@ -250,7 +250,7 @@ vfsinit()
 		vfsconf[(**vfc).vfc_index] = *vfc;
 		vfc++;
 	}
-	
+
 	/*
 	 * Initialize the vnode table
 	 */
@@ -319,7 +319,7 @@ fs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		}
 		*oldlenp = where - start;
 		return 0;
-		
+
 	default:
 		if(namelen < 1) return EINVAL;
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.c	8.1 (Berkeley) 6/10/93
- * $Id: iso_snpac.c,v 1.2 1994/08/02 07:50:44 davidg Exp $
+ * $Id: iso_snpac.c,v 1.3 1994/12/13 22:33:05 wollman Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_snpac.c,v 1.2 1994/08/02 07:50:44 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso_snpac.c,v 1.3 1994/12/13 22:33:05 wollman Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso_snpac.c,v $ */
 
 #ifdef ISO
@@ -269,7 +269,7 @@ iso_setmcasts(ifp, req)
  * RETURNS:			0 if addr is resolved
  *					errno if addr is unknown
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Now that we have folded the snpa cache into the routing
  *					table, we know there is no snpa address known for this
@@ -294,7 +294,7 @@ int		*snpa_len;			/* RESULT: length of snpa */
 
 	/*
 	 *	This hack allows us to send esis packets that have the destination snpa
-	 *	addresss embedded in the destination nsap address 
+	 *	addresss embedded in the destination nsap address
 	 */
 	if (dest->siso_data[0] == AFI_SNA) {
 		/*
@@ -305,7 +305,7 @@ int		*snpa_len;			/* RESULT: length of snpa */
 		ENDDEBUG
 		addrlen = dest->siso_nlen - 1;	/* subtract size of AFI */
 		found_snpa = (caddr_t) dest->siso_data + 1;
-	/* 
+	/*
 	 * If we are an IS, we can't do much with the packet;
 	 *	Check if we know about an IS.
 	 */
@@ -317,7 +317,7 @@ int		*snpa_len;			/* RESULT: length of snpa */
 		found_snpa = LLADDR(sdl);
 		addrlen = sdl->sdl_alen;
 	} else if (ifp->if_flags & IFF_BROADCAST) {
-		/* 
+		/*
 		 *	no IS, no match. Return "all es" multicast address for this
 		 *	interface, as per Query Configuration Function (9542 sec 6.5)
 		 *
@@ -342,7 +342,7 @@ int		*snpa_len;			/* RESULT: length of snpa */
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			If there is a route entry associated with cache
  *					entry, then delete that as well
@@ -369,9 +369,9 @@ register struct llinfo_llc *lc;		/* entry to free */
  *
  * PURPOSE:			Add an entry to the snpa cache
  *
- * RETURNS:			
+ * RETURNS:
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			If entry already exists, then update holding time.
  */
@@ -481,9 +481,9 @@ snpac_fixdstandmask(nsellength)
  *
  * RETURNS:			0 on success, or unix error code
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 snpac_ioctl (so, cmd, data)
 struct socket *so;
@@ -537,9 +537,9 @@ caddr_t	data;	/* data for the cmd */
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 snpac_logdefis(sc)
 register struct rtentry *sc;
@@ -560,7 +560,7 @@ register struct rtentry *sc;
 		rtrequest(RTM_ADD, S(zsi), rt_key(sc), S(zmk),
 						RTF_DYNAMIC|RTF_GATEWAY, 0);
 	else {
-		if ((rt->rt_flags & RTF_DYNAMIC) && 
+		if ((rt->rt_flags & RTF_DYNAMIC) &&
 		    (rt->rt_flags & RTF_GATEWAY) && rt_mask(rt)->sa_len == 0)
 			rt_setgate(rt, rt_key(rt), rt_key(sc));
 	}
@@ -571,9 +571,9 @@ register struct rtentry *sc;
  *
  * PURPOSE:			Time out snpac entries
  *
- * RETURNS:			
+ * RETURNS:
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			When encountering an entry for the first time, snpac_age
  *					may delete up to SNPAC_AGE too many seconds. Ie.
@@ -613,9 +613,9 @@ snpac_age()
  *
  * RETURNS:			true or false
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			Used by interface drivers when not in eavesdrop mode 
+ * NOTES:			Used by interface drivers when not in eavesdrop mode
  *					as interm kludge until
  *					real multicast addresses can be configured
  */
@@ -636,9 +636,9 @@ u_int	len;
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 snpac_flushifp(ifp)
 struct ifnet	*ifp;
@@ -658,7 +658,7 @@ struct ifnet	*ifp;
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			In the future, this should make a request of a user
  *					level routing daemon.
@@ -679,7 +679,7 @@ struct rtentry	**ret_nrt;
 			printf("add");
 		else if (req == RTM_DELETE)
 			printf("delete");
-		else 
+		else
 			printf("unknown command");
 		printf(" dst: %s\n", clnp_iso_addrp(host));
 		printf("\tgateway: %s\n", clnp_iso_addrp(gateway));
@@ -705,7 +705,7 @@ struct rtentry	**ret_nrt;
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			If a cache entry exists for gateway, then
  *					make a routing entry (host, gateway) and associate
@@ -714,7 +714,7 @@ struct rtentry	**ret_nrt;
  *					If a route already exists and is different, first delete
  *					it.
  *
- *					This could be made more efficient by checking 
+ *					This could be made more efficient by checking
  *					the existing route before adding a new one.
  */
 snpac_addrt(ifp, host, gateway, netmask)

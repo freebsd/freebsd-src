@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdqreg.h,v 1.5 1995/03/10 17:41:55 thomas Exp $
+ * $Id: pdqreg.h,v 1.1 1995/03/14 09:16:07 davidg Exp $
  *
  * $Log: pdqreg.h,v $
+ * Revision 1.1  1995/03/14  09:16:07  davidg
+ * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
+ *
+ * Submitted by:	Matt Thomas
+ *
  * Revision 1.5  1995/03/10  17:41:55  thomas
  * Add DEFTA, DEFQA, and DEFAA
  *
@@ -1046,7 +1051,7 @@ typedef enum {
     PDQ_LINK_EVENT_ARGUMENT_REASON=0,		/* pdq_rireason_t */
     PDQ_LINK_EVENT_ARGUMENT_DATA_LINK_HEADER=1,	/* pdq_dlhdr_t */
     PDQ_LINK_EVENT_ARGUMENT_SOURCE=2,		/* pdq_lanaddr_t */
-    PDQ_LINK_EVENT_ARGUMENT_UPSTREAM_NEIGHBOR=3,/* pdq_lanaddr_t */	
+    PDQ_LINK_EVENT_ARGUMENT_UPSTREAM_NEIGHBOR=3,/* pdq_lanaddr_t */
     PDQ_LINK_EVENT_ARGUMENT_EOL=0xFF
 } pdq_link_event_argument_t;
 

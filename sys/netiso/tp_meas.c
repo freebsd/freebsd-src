@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_meas.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_meas.c,v 1.2 1994/08/02 07:51:15 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -61,9 +61,9 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/tp_meas.c,v 1.1.1.1 1994/05/24 10:06:52 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_meas.c,v 1.2 1994/08/02 07:51:15 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_meas.c,v $
- * 
+ *
  * tp_meas.c : create a performance measurement event
  * in the circular buffer tp_Meas[]
  */
@@ -90,14 +90,14 @@ struct tp_Meas tp_Meas[TPMEASN];
  *  stashes a performance-measurement event for the given reference (ref)
  *  (kind) tells which kind of event, timev is the time to be stored
  *  with this event, (seq), (win), and (size) are integers that usually
- *  refer to the sequence number, window number (on send) and 
+ *  refer to the sequence number, window number (on send) and
  *  size of tpdu or window.
  *
  * RETURNS:		Nada
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 void
 Tpmeas(ref, kind, timev, seq, win, size)
@@ -118,7 +118,7 @@ Tpmeas(ref, kind, timev, seq, win, size)
 	if(kind == TPtime_from_ll)
 		bcopy((caddr_t)timev, (caddr_t)&tpm->tpm_time, sizeof(struct timeval));
 	else
-		bcopy( (caddr_t)&time, 
+		bcopy( (caddr_t)&time,
 			(caddr_t)&tpm->tpm_time, sizeof(struct timeval) );
 	tpm->tpm_seq = seq;
 	tpm->tpm_window = win;

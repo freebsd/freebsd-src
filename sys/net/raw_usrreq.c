@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_usrreq.c,v 1.4 1994/10/08 22:38:25 phk Exp $
+ * $Id: raw_usrreq.c,v 1.5 1995/02/16 01:11:38 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -191,7 +191,7 @@ raw_usrreq(so, req, m, nam, control)
 	 * If a socket isn't bound to a single address,
 	 * the raw input routine will hand it anything
 	 * within that protocol family (assuming there's
-	 * nothing else around it should go to). 
+	 * nothing else around it should go to).
 	 */
 	case PRU_CONNECT:
 		error = EINVAL;

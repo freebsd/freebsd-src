@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 1995, HD Associates, Inc.
  * PO Box 276
  * Pepperell, MA 01463
@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.h,v 1.2 1995/03/04 20:50:52 dufault Exp $
+ * $Id: scsi_driver.h,v 1.3 1995/04/14 15:10:34 dufault Exp $
  *
  */
 #ifndef _SCSI__DRIVER_H_

@@ -1,29 +1,29 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.3 1993/11/25 01:30:10 wollman Exp $
+ *	$Id: db_run.c,v 1.4 1994/08/13 03:49:22 wollman Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ db_stop_at_pc(is_breakpoint)
 	} else if (*is_breakpoint) {
 		ddb_regs.tf_eip += 1;
 	}
-		
+
 	*is_breakpoint = FALSE;
 
 	if (db_run_mode == STEP_INVISIBLE) {
@@ -236,7 +236,7 @@ db_single_step(regs)
  *	db_getreg_val();	return the value of a user register,
  *				as indicated in the hardware instruction
  *				encoding, e.g. 8 for r8
- *			
+ *
  * next_instr_address(pc,bd)	returns the address of the first
  *				instruction following the one at "pc",
  *				which is either in the taken path of
@@ -248,7 +248,7 @@ db_single_step(regs)
  *	If one of these addresses does not already have a breakpoint,
  *	we allocate a breakpoint and save it here.
  *	These breakpoints are deleted on return.
- */			
+ */
 db_breakpoint_t	db_not_taken_bkpt = 0;
 db_breakpoint_t	db_taken_bkpt = 0;
 

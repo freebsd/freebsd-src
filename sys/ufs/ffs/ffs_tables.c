@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_tables.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: ffs_tables.c,v 1.2 1994/08/02 07:54:22 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@ int inside[9] = {
 
 /*
  * Given a block map bit pattern, the frag tables tell whether a
- * particular size fragment is available. 
+ * particular size fragment is available.
  *
  * used as:
  * if ((1 << (size - 1)) & fragtbl[fs->fs_frag][map] {

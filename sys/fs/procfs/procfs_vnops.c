@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.12 1995/05/11 19:26:33 rgrimes Exp $
+ *	$Id: procfs_vnops.c,v 1.13 1995/05/25 01:35:24 davidg Exp $
  */
 
 /*
@@ -666,7 +666,7 @@ procfs_readdir(ap)
 				break;
 
 			dt = &procent[i];
-			
+
 			dp->d_reclen = UIO_MX;
 			dp->d_fileno = PROCFS_FILENO(pfs->pfs_pid, dt->d_pfstype);
 			dp->d_type = DT_REG;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.15 1995/05/09 13:35:44 davidg Exp $
+ * $Id: if_ether.c,v 1.16 1995/05/11 00:13:16 wollman Exp $
  */
 
 /*
@@ -516,7 +516,7 @@ reply:
 			(void)memcpy(ea->arp_sha, ac->ac_enaddr, sizeof(ea->arp_sha));
 			rtfree(rt);
 #ifdef DEBUG_PROXY
-			printf("arp: proxying for %s\n", 
+			printf("arp: proxying for %s\n",
 			       inet_ntoa(itaddr));
 #endif
 #else

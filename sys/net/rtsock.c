@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.11 1995/05/11 00:13:11 wollman Exp $
+ *	$Id: rtsock.c,v 1.12 1995/05/15 22:57:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -308,7 +308,7 @@ flush:
 	if (rtm) {
 		if (error)
 			rtm->rtm_errno = error;
-		else 
+		else
 			rtm->rtm_flags |= RTF_DONE;
 	}
 	if (rt)
@@ -606,7 +606,7 @@ rt_newaddrmsg(cmd, ifa, error, rt)
 		if ((cmd == RTM_ADD && pass == 2) ||
 		    (cmd == RTM_DELETE && pass == 1)) {
 			register struct rt_msghdr *rtm;
-			
+
 			if (rt == 0)
 				continue;
 			netmask = rt_mask(rt);

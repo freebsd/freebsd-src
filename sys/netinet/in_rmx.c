@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.11 1995/02/20 15:48:44 davidg Exp $
+ * $Id: in_rmx.c,v 1.12 1995/03/19 14:29:01 davidg Exp $
  */
 
 /*
@@ -114,14 +114,14 @@ static void
 in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 {
 	struct rtentry *rt = (struct rtentry *)rn;
-	
+
 	if(!(rt->rt_flags & RTF_UP))
 		return;		/* prophylactic measures */
 
 	if((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
 		return;
 
-	if((rt->rt_flags & (RTF_WASCLONED | RTPRF_OURS)) 
+	if((rt->rt_flags & (RTF_WASCLONED | RTPRF_OURS))
 	   != RTF_WASCLONED)
 		return;
 
@@ -180,10 +180,10 @@ in_rtqkill(struct radix_node *rn, void *rock)
 				ap->killed++;
 			}
 		} else {
-			if(ap->updating 
-			   && (time.tv_sec - rt->rt_rmx.rmx_expire 
+			if(ap->updating
+			   && (time.tv_sec - rt->rt_rmx.rmx_expire
 			       > rtq_reallyold)) {
-				rt->rt_rmx.rmx_expire = time.tv_sec 
+				rt->rt_rmx.rmx_expire = time.tv_sec
 					+ rtq_reallyold;
 			}
 			ap->nextstop = lmin(ap->nextstop,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.8 1994/10/02 17:35:21 phk Exp $
+ * $Id: kern_xxx.c,v 1.9 1994/12/04 19:58:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@
 static void
 dummy_cleanup() {}
 TEXT_SET(cleanup_set, dummy_cleanup);
-        
+
 typedef void (*cleanup_func_t)(void);
 extern const struct linker_set cleanup_set;
 static const cleanup_func_t *cleanups =

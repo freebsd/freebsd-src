@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.14 1995/04/11 18:32:17 ache Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.15 1995/05/09 16:30:45 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -34,17 +34,17 @@
  */
 /*
  * Written by Paul Popelka (paulp@uts.amdahl.com)
- * 
+ *
  * You can do anything you want with this software, just don't say you wrote
  * it, and don't remove this notice.
- * 
+ *
  * This software is provided "as is".
- * 
+ *
  * The author supplies this software to be publicly redistributed on the
  * understanding that the author is not responsible for the correct
  * functioning of this software in any circumstances and is not liable for
  * any damages caused by this software.
- * 
+ *
  * October 1992
  */
 
@@ -73,7 +73,7 @@
 #include <msdosfs/fat.h>
 /*
  * Some general notes:
- * 
+ *
  * In the ufs filesystem the inodes, superblocks, and indirect blocks are
  * read/written using the vnode for the filesystem. Blocks that represent
  * the contents of a file are read/written using the vnode for the file
@@ -156,7 +156,7 @@ msdosfs_mknod(ap)
 	} */ *ap;
 {
 	int error;
-	
+
 	switch (ap->a_vap->va_type) {
 	case VDIR:
 		error = msdosfs_mkdir((struct vop_mkdir_args *)ap);
@@ -222,13 +222,13 @@ vaccess(file_mode, uid, gid, acc_mode, cred)
 	mode_t mask;
 	int i;
 	register gid_t *gp;
-	
+
 	/* User id 0 always gets access. */
 	if (cred->cr_uid == 0)
 		return 0;
-	
+
 	mask = 0;
-	
+
 	/* Otherwise, check the owner. */
 	if (cred->cr_uid == uid) {
 		if (acc_mode & VEXEC)
@@ -239,7 +239,7 @@ vaccess(file_mode, uid, gid, acc_mode, cred)
 			mask |= S_IWUSR;
 		return (file_mode & mask) == mask ? 0 : EACCES;
 	}
-	
+
 	/* Otherwise, check the groups. */
 	for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
 		if (gid == *gp) {
@@ -251,7 +251,7 @@ vaccess(file_mode, uid, gid, acc_mode, cred)
 				mask |= S_IWGRP;
 			return (file_mode & mask) == mask ? 0 : EACCES;
 		}
-	
+
 	/* Otherwise, check everyone else. */
 	if (acc_mode & VEXEC)
 		mask |= S_IXOTH;
@@ -274,11 +274,11 @@ msdosfs_access(ap)
 	mode_t dosmode;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct msdosfsmount *pmp = dep->de_pmp;
-	
+
 	dosmode = (S_IXUSR|S_IXGRP|S_IXOTH) | (S_IRUSR|S_IRGRP|S_IROTH) |
 	    ((dep->de_Attributes & ATTR_READONLY) ? 0 : (S_IWUSR|S_IWGRP|S_IWOTH));
 	dosmode &= pmp->pm_mask;
-	
+
 	return vaccess(dosmode, pmp->pm_uid, pmp->pm_gid, ap->a_mode, ap->a_cred);
 }
 
@@ -352,7 +352,7 @@ msdosfs_setattr(ap)
 	struct denode *dep = VTODE(ap->a_vp);
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
-	
+
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_setattr(): vp %08x, vap %08x, cred %08x, p %08x\n",
 	       ap->a_vp, vap, cred, ap->a_p);
@@ -396,7 +396,7 @@ msdosfs_setattr(ap)
 	if (vap->va_mtime.ts_sec != VNOVAL) {
 		if (cred->cr_uid != dep->de_pmp->pm_uid &&
 		    (error = suser(cred, &ap->a_p->p_acflag)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 || 
+		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, &ap->a_p))))
 			return error;
 		dep->de_flag |= DE_UPDATE;
@@ -574,7 +574,7 @@ msdosfs_write(ap)
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct ucred *cred = ap->a_cred;
 	struct timespec ts;
-	
+
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_write(vp %08x, uio %08x, ioflag %08x, cred %08x\n",
 	       vp, uio, ioflag, cred);
@@ -658,7 +658,7 @@ msdosfs_write(ap)
 		lastcn = dep->de_fc[FC_LASTFC].fc_frcn;
 	} else
 		lastcn = de_clcount(pmp, osize) - 1;
-	
+
 	do {
 		bn = de_blk(pmp, uio->uio_offset);
 		if (isadir) {
@@ -669,7 +669,7 @@ msdosfs_write(ap)
 			error = ENOSPC;
 			break;
 		}
-		
+
 		if ((uio->uio_offset & pmp->pm_crbomask) == 0
 		    && (de_blk(pmp, uio->uio_offset + uio->uio_resid) > de_blk(pmp, uio->uio_offset)
 			|| uio->uio_offset + uio->uio_resid >= dep->de_FileSize)) {
@@ -687,7 +687,7 @@ msdosfs_write(ap)
 			if (!isadir) {
 				if (bp->b_blkno == bp->b_lblkno) {
 					error = pcbmap(dep, bp->b_lblkno,
-							   &bp->b_blkno, 0); 
+							   &bp->b_blkno, 0);
 					if (error)
 						bp->b_blkno = -1;
 				}
@@ -802,7 +802,7 @@ msdosfs_mmap(ap)
 
 /*
  * Flush the blocks of a file to disk.
- * 
+ *
  * This function is worthless for vnodes that represent directories. Maybe we
  * could just do a sync if they try an fsync on a directory file.
  */
@@ -917,9 +917,9 @@ msdosfs_link(ap)
  * Renames on files require moving the denode to a new hash queue since the
  * denode's location is used to compute which hash queue to put the file
  * in. Unless it is a rename in place.  For example "mv a b".
- * 
+ *
  * What follows is the basic algorithm:
- * 
+ *
  * if (file move) {
  *	if (dest file exists) {
  *		remove dest file
@@ -951,13 +951,13 @@ msdosfs_link(ap)
  *		clear old directory entry for moved directory
  *	}
  * }
- * 
+ *
  * On entry:
  *	source's parent directory is unlocked
  *	source file or directory is unlocked
  *	destination's parent directory is locked
  *	destination file or directory is locked if it exists
- * 
+ *
  * On exit:
  *	all denodes should be released
  *
@@ -1646,7 +1646,7 @@ msdosfs_readdir(ap)
 				ncookies++;
 			}
 			dentp++;
-			
+
 			crnt = (struct dirent *) ((char *) crnt + sizeof(struct direntry));
 			pushout = 1;
 
@@ -1722,7 +1722,7 @@ out:	;
 			*ap->a_eofflag = 1;
 		else
 			*ap->a_eofflag = 0;
-	
+
 	return error;
 }
 

@@ -50,7 +50,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h> /* for min(), SELWAIT */
-/* #include "proc.h" /*  for pid_t */ 
+/* #include "proc.h" /*  for pid_t */
 /* #include "user.h" */
 /* #include "buf.h" */
 /* #include "kernel.h"  */
@@ -76,7 +76,7 @@ static struct kern_devconf kdc_bqu[NBQU] = { {
 	DC_CLS_MISC
 } };
 
-#define IOCTL_OUT(arg, ret)             *(int*)arg = ret 
+#define IOCTL_OUT(arg, ret)             *(int*)arg = ret
 
 #define	B004PRI	(PZERO+8)
 
@@ -85,7 +85,7 @@ static struct kern_devconf kdc_bqu[NBQU] = { {
 /*
  * Define these symbols if you want to debug the code.
  */
-#undef B004_DEBUG 
+#undef B004_DEBUG
 #undef B004_DEBUG_2
 
 #ifdef B004_DEBUG
@@ -231,7 +231,7 @@ bquanalyse( const int dev_min )
  * If the interface is still not ready, repeats as above incrementing NO.
  * Once almost one byte is read N0 is set to 1.
  * If B004_TIMEOUT != 0 and the link-interface is not ready for more than
- * B004_TIMEOUT ticks read aborts returnig with the number of bytes read 
+ * B004_TIMEOUT ticks read aborts returnig with the number of bytes read
  * or with an error if no byte was read.
  *
  * By default, B004_TIMEOUT is = 0 (read is blocking)
@@ -277,7 +277,7 @@ bquread(dev_t dev, struct uio *uio, int flag)
 	    "push %%es\n\t"
 	    "movw %%ss, %%ax\n\t" /** prepare ES, DF for transfer */
 	    "movw %%ax, %%es\n\t"
-	    "cld\n\t"			
+	    "cld\n\t"
 	    "movb $1, %%ah\n\t"
 
 	    "1:\tinb %%dx, %%al\n\t"
@@ -298,7 +298,7 @@ bquread(dev_t dev, struct uio *uio, int flag)
 		if (inb(isr)&B004_READBYTE) *p++ =(char) inb(idr);
 #endif
 	    if (last!=p) {
-		sleep_ticks = 0;  
+		sleep_ticks = 0;
 	    } else {
 		/*** no new data read, must sleep ***/
 		sleep_ticks= (sleep_ticks<20 ? sleep_ticks+1 : sleep_ticks);
@@ -371,7 +371,7 @@ bquwrite(dev_t dev, struct uio *uio, int flag)
 	    "push %%ds\n\t"
 	    "movw %%ss, %%ax\n\t" /** prepare DS, DF for transfer */
 	    "movw %%ax, %%ds\n\t"
-	    "cld\n\t"			
+	    "cld\n\t"
 	    "movb $1, %%ah\n\t"
 	    "movw $100, %%di\n\t"
 
@@ -487,7 +487,7 @@ bquselect(dev_t dev, int rw, struct proc *p)
  * - set timeout
  */
 
-int     
+int
 bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
     unsigned int dev_min = minor(dev) & 7;
@@ -509,10 +509,10 @@ bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	DEB(printf("B004 ioctl B004RESET, done\n" );)
 	    break;
 	case B004WRITEABLE:	/* can we write a byte to the C012 ? */
-	    IOCTL_OUT (addr, ((in(B004_OSR(dev_min))&B004_WRITEBYTE) != 0 )); 
+	    IOCTL_OUT (addr, ((in(B004_OSR(dev_min))&B004_WRITEBYTE) != 0 ));
 	    break;
 	case B004READABLE:	/* can we read a byte from C012 ? */
-	    IOCTL_OUT (addr, ((in(B004_ISR(dev_min)) & B004_READBYTE) != 0 )); 
+	    IOCTL_OUT (addr, ((in(B004_ISR(dev_min)) & B004_READBYTE) != 0 ));
 	    break;
 	case B004ANALYSE:	/* switch transputer to analyse mode */
 	    bquanalyse(dev_min);

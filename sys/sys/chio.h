@@ -1,11 +1,11 @@
 /*
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  *
- *	$Id: chio.h,v 1.3 1993/10/16 17:16:27 rgrimes Exp $
+ *	$Id: chio.h,v 1.4 1993/11/18 05:03:24 rgrimes Exp $
  */
 
-/* This is a "convertet" mtio.h from 386BSD 
-   Stefan Grefen grefen@goofy.zdv.uni-mainz.de 
+/* This is a "convertet" mtio.h from 386BSD
+   Stefan Grefen grefen@goofy.zdv.uni-mainz.de
  */
 
 /*
@@ -28,7 +28,7 @@ struct chop {
 	   struct {
 		int chm;		/* Transport element */
 		int to;
-	   } position; 
+	   } position;
 	   struct {
 	        short   chmo;                   /* Offset of first CHM */
 	        short   chms;                   /* No. of CHM */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.20 1995/05/09 13:35:45 davidg Exp $
+ * $Id: ip_input.c,v 1.21 1995/05/11 00:13:18 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -255,12 +255,12 @@ next:
 		goto next;
 
         /* greedy RSVP, snatches any PATH packet of the RSVP protocol and no
-         * matter if it is destined to another node, or whether it is 
+         * matter if it is destined to another node, or whether it is
          * a multicast one, RSVP wants it! and prevents it from being forwarded
          * anywhere else. Also checks if the rsvp daemon is running before
 	 * grabbing the packet.
          */
-	if (ip_rsvpd != NULL && ip->ip_p==IPPROTO_RSVP) 
+	if (ip_rsvpd != NULL && ip->ip_p==IPPROTO_RSVP)
 		goto ours;
 
 	/*
@@ -357,9 +357,9 @@ ours:
 
 		/*
 		 * If packet came to us we count it...
-		 * This way we count all incoming packets which has 
+		 * This way we count all incoming packets which has
 		 * not been forwarded...
-		 * Do not convert ip_len to host byte order when 
+		 * Do not convert ip_len to host byte order when
 		 * counting,ppl already made it for us before..
 		 */
 	if (ip_acct_cnt_ptr!=NULL)
@@ -747,7 +747,7 @@ ip_dooptions(m)
 				char buf[4*sizeof "123"];
 				strcpy(buf, inet_ntoa(ip->ip_dst));
 
-				log(LOG_WARNING, 
+				log(LOG_WARNING,
 				    "attempted source route from %s to %s\n",
 				    inet_ntoa(ip->ip_src), buf);
 				type = ICMP_UNREACH;
@@ -1207,17 +1207,17 @@ ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	case IPCTL_DEFTTL:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_defttl));
 	case IPCTL_SOURCEROUTE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
 				   &ip_dosourceroute));
 #ifdef notyet
 	case IPCTL_DEFMTU:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_mtu));
 #endif
 	case IPCTL_RTEXPIRE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
 				   &rtq_reallyold));
 	case IPCTL_RTMINEXPIRE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
 				   &rtq_minreallyold));
 	case IPCTL_RTMAXCACHE:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,

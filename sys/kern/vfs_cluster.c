@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.14 1995/03/19 13:28:54 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.15 1995/04/04 02:10:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -140,7 +140,7 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 			if ( vp->v_maxra >= (origlblkno + vp->v_ralen))
 				return 0;
 			lblkno = vp->v_maxra;
-		} 
+		}
 		bp = NULL;
 	} else {
 		/*
@@ -422,7 +422,7 @@ cluster_write(bp, filesize)
 		if (vp->v_clen != 0) {
 			/*
 			 * Next block is not sequential.
-			 * 
+			 *
 			 * If we are not writing at end of file, the process
 			 * seeked to another point in the file since its last
 			 * write, or we have reached our maximum cluster size,

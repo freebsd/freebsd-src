@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.4 1995/03/28 23:29:52 davidg Exp $
+ *	$Id: db_ps.c,v 1.5 1995/04/04 01:35:33 davidg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,7 +62,7 @@ db_ps() {
 			pp = p;
 		if (p->p_stat) {
 			db_printf("%5d %06x %06x %4d %5d %5d %06x  %d",
-			    p->p_pid, ap, p->p_addr, p->p_cred->p_ruid, pp->p_pid, 
+			    p->p_pid, ap, p->p_addr, p->p_cred->p_ruid, pp->p_pid,
 			    p->p_pgrp->pg_id, p->p_flag, p->p_stat);
 			if (p->p_wchan) {
 				db_printf("  %6s %08x %s\n", p->p_wmesg, p->p_wchan, p->p_comm);

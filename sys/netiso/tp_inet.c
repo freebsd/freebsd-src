@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_inet.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_inet.c,v 1.3 1994/11/15 14:26:16 bde Exp $
+ * $Id: tp_inet.c,v 1.4 1995/04/26 21:32:36 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,16 +60,16 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
- * $Header: /home/ncvs/src/sys/netiso/tp_inet.c,v 1.3 1994/11/15 14:26:16 bde Exp $ 
+ * $Header: /home/ncvs/src/sys/netiso/tp_inet.c,v 1.4 1995/04/26 21:32:36 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_inet.c,v $
  *
  * Here is where you find the inet-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff
  * out of the tp source, and everthing here is reached indirectly
- * through a switch table (struct nl_protosw *) tpcb->tp_nlproto 
- * (see tp_pcb.c). 
+ * through a switch table (struct nl_protosw *) tpcb->tp_nlproto
+ * (see tp_pcb.c).
  * The routines here are:
  * 	in_getsufx: gets transport suffix out of an inpcb structure.
  * 	in_putsufx: put transport suffix into an inpcb structure.
@@ -113,7 +113,7 @@ SOFTWARE.
 /*
  * NAME:			in_getsufx()
 
- * CALLED FROM: 	pr_usrreq() on PRU_BIND, 
+ * CALLED FROM: 	pr_usrreq() on PRU_BIND,
  *					PRU_CONNECT, PRU_ACCEPT, and PRU_PEERADDR
  *
  * FUNCTION, ARGUMENTS, and RETURN VALUE:
@@ -123,9 +123,9 @@ SOFTWARE.
  * RETURNS:		internet port / transport suffix
  *  			(CAST TO AN INT)
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 in_getsufx(inp, lenp, data_out, which)
 	struct inpcb *inp;
@@ -148,7 +148,7 @@ in_getsufx(inp, lenp, data_out, which)
 /*
  * NAME:		in_putsufx()
  *
- * CALLED FROM: tp_newsocket(); i.e., when a connection 
+ * CALLED FROM: tp_newsocket(); i.e., when a connection
  *		is being established by an incoming CR_TPDU.
  *
  * FUNCTION, ARGUMENTS:
@@ -157,9 +157,9 @@ in_getsufx(inp, lenp, data_out, which)
  *
  * RETURNS:		Nada
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 /*ARGSUSED*/
 void
@@ -174,19 +174,19 @@ in_putsufx(inp, sufxloc, sufxlen, which)
 }
 
 /*
- * NAME:	in_recycle_tsuffix()	
+ * NAME:	in_recycle_tsuffix()
  *
  * CALLED FROM:	tp.trans whenever we go into REFWAIT state.
  *
  * FUNCTION and ARGUMENT:
- *	 Called when a ref is frozen, to allow the suffix to be reused. 
- * 	(inp) is the net level pcb.  
+ *	 Called when a ref is frozen, to allow the suffix to be reused.
+ * 	(inp) is the net level pcb.
  *
  * RETURNS:			Nada
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:	This really shouldn't have to be done in a NET level pcb 
+ * NOTES:	This really shouldn't have to be done in a NET level pcb
  *	but... for the internet world that just the way it is done in BSD...
  * 	The alternative is to have the port unusable until the reference
  * 	timer goes off.
@@ -212,10 +212,10 @@ in_recycle_tsuffix(inp)
  *
  * RETURNS:		Nada
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
- */ 
+ * NOTES:
+ */
 void
 in_putnetaddr(inp, name, which)
 	register struct inpcb	*inp;
@@ -224,14 +224,14 @@ in_putnetaddr(inp, name, which)
 {
 	switch (which) {
 	case TP_LOCAL:
-		bcopy((caddr_t)&name->sin_addr, 
+		bcopy((caddr_t)&name->sin_addr,
 			(caddr_t)&inp->inp_laddr, sizeof(struct in_addr));
 			/* won't work if the dst address (name) is INADDR_ANY */
 
 		break;
 	case TP_FOREIGN:
 		if( name != (struct sockaddr_in *)0 ) {
-			bcopy((caddr_t)&name->sin_addr, 
+			bcopy((caddr_t)&name->sin_addr,
 				(caddr_t)&inp->inp_faddr, sizeof(struct in_addr));
 		}
 	}
@@ -251,10 +251,10 @@ in_putnetaddr(inp, name, which)
  *
  * RETURNS:		Nada
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
- */ 
+ * NOTES:
+ */
 in_cmpnetaddr(inp, name, which)
 	register struct inpcb	*inp;
 	register struct sockaddr_in	*name;
@@ -282,10 +282,10 @@ in_cmpnetaddr(inp, name, which)
  *
  * RETURNS:		Nada
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
- */ 
+ * NOTES:
+ */
 
 void
 in_getnetaddr( inp, name, which)
@@ -323,7 +323,7 @@ in_getnetaddr( inp, name, which)
  * It appears that setting a double pointer to the rtentry associated with
  * the destination, and returning the header size for the network protocol
  * suffices.
- * 
+ *
  * SIDE EFFECTS:
  * Sets tp_routep pointer in pcb.
  *
@@ -355,12 +355,12 @@ register struct tp_pcb *tpcb;
  *  of the fields.
  *  inp is the inpcb structure; datalen is the length of the data in the
  *  mbuf string m0.
- * RETURNS:			
+ * RETURNS:
  *  whatever (E*) is returned form the net layer output routine.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 
 int
@@ -384,12 +384,12 @@ tpip_output(inp, m0, datalen, nochksum)
  *  instead of a pcb.  It's used by the tp_error_emit, when we
  *  don't have an in_pcb with which to call the normal output rtn.
  *
- * RETURNS:	 ENOBUFS or  whatever (E*) is 
+ * RETURNS:	 ENOBUFS or  whatever (E*) is
  *	returned form the net layer output routine.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 
 /*ARGSUSED*/
@@ -424,7 +424,7 @@ tpip_output_dg(laddr, faddr, m0, datalen, ro, nochksum)
 
 	ip->ip_p = IPPROTO_TP;
 	m->m_pkthdr.len = ip->ip_len = sizeof(struct ip) + datalen;
-	ip->ip_ttl = MAXTTL;	
+	ip->ip_ttl = MAXTTL;
 		/* don't know why you need to set ttl;
 		 * overlay doesn't even make this available
 		 */
@@ -460,8 +460,8 @@ bad:
  * FUNCTION and ARGUMENTS:
  * Take a packet (m) from ip, strip off the ip header and give it to tp
  *
- * RETURNS:  No return value.  
- * 
+ * RETURNS:  No return value.
+ *
  * SIDE EFFECTS:
  *
  * NOTES:
@@ -490,7 +490,7 @@ tpip_input(m, iplen)
 	if((m = m_pullup(m, iplen + 1)) == MNULL)
 		goto discard;
 	CHANGE_MTYPE(m, TPMT_DATA);
-	
+
 	/*
 	 * Now pull up the whole tp header:
 	 * Unfortunately, there may be IP options to skip past so we
@@ -506,15 +506,15 @@ tpip_input(m, iplen)
 			goto discard;
 		}
 	}
-	/* 
-	 * cannot use tp_inputprep() here 'cause you don't 
+	/*
+	 * cannot use tp_inputprep() here 'cause you don't
 	 * have quite the same situation
 	 */
 
 	IFDEBUG(D_TPINPUT)
 		dump_mbuf(m, "after tpip_input both pullups");
 	ENDDEBUG
-	/* 
+	/*
 	 * m_pullup may have returned a different mbuf
 	 */
 	ip = mtod(m, struct ip *);
@@ -530,7 +530,7 @@ tpip_input(m, iplen)
 	src.sin_family  = AF_INET;
 	src.sin_len  = sizeof(src);
 	dst.sin_addr = *(struct in_addr *)&(ip->ip_dst);
-	dst.sin_family  = AF_INET; 
+	dst.sin_family  = AF_INET;
 	dst.sin_len  = sizeof(dst);
 
 	(void) tp_input(m, (struct sockaddr *)&src, (struct sockaddr *)&dst,
@@ -564,9 +564,9 @@ extern void tp_quench();
  *
  * RETURNS:	Nada
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 
 void
@@ -587,14 +587,14 @@ tpin_quench(inp)
  *	It either returns an error status to the user or
  *	causes all connections on this address to be aborted
  *	by calling the appropriate xx_notify() routine.
- *	(cmd) is the type of ICMP error.   
+ *	(cmd) is the type of ICMP error.
  * 	(sa) the address of the sender
  *
  * RETURNS:	 Nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 ProtoHook
 tpip_ctlinput(cmd, sin)
@@ -664,9 +664,9 @@ tpip_ctlinput(cmd, sin)
  *
  * RETURNS:	 Nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 
 ProtoHook

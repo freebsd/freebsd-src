@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.13 1994/12/28 06:15:07 davidg Exp $
+ * $Id: kern_exit.c,v 1.14 1995/03/16 18:12:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -184,7 +184,7 @@ exit1(p, rv)
 	p->p_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 	(void)acct_process(p);
 #ifdef KTRACE
-	/* 
+	/*
 	 * release trace file
 	 */
 	p->p_traceflag = 0;	/* don't trace the vrele() */

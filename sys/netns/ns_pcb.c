@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_pcb.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns_pcb.c,v 1.2 1994/08/02 07:51:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ ns_pcballoc(so, head)
 	so->so_pcb = (caddr_t)nsp;
 	return (0);
 }
-	
+
 ns_pcbbind(nsp, nam)
 	register struct nspcb *nsp;
 	struct mbuf *nam;
@@ -176,7 +176,7 @@ ns_pcbconnect(nsp, nam)
 		    rtalloc(ro);
 	}
 	if (ns_neteqnn(nsp->nsp_laddr.x_net, ns_zeronet)) {
-		/* 
+		/*
 		 * If route is known or can be allocated now,
 		 * our src addr is taken from the i/f, else punt.
 		 */
@@ -244,7 +244,7 @@ ns_setsockaddr(nsp, nam)
 	struct mbuf *nam;
 {
 	register struct sockaddr_ns *sns = mtod(nam, struct sockaddr_ns *);
-	
+
 	nam->m_len = sizeof (*sns);
 	sns = mtod(nam, struct sockaddr_ns *);
 	bzero((caddr_t)sns, sizeof (*sns));
@@ -258,7 +258,7 @@ ns_setpeeraddr(nsp, nam)
 	struct mbuf *nam;
 {
 	register struct sockaddr_ns *sns = mtod(nam, struct sockaddr_ns *);
-	
+
 	nam->m_len = sizeof (*sns);
 	sns = mtod(nam, struct sockaddr_ns *);
 	bzero((caddr_t)sns, sizeof (*sns));
@@ -290,7 +290,7 @@ ns_pcbnotify(dst, errno, notify, param)
 		}
 		if (nsp->nsp_socket == 0)
 			goto next;
-		if (errno) 
+		if (errno)
 			nsp->nsp_socket->so_error = errno;
 		oinp = nsp;
 		nsp = nsp->nsp_next;

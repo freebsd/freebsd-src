@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.9 1995/04/09 22:28:24 ache Exp $
+ * $Id: tty_pty.c,v 1.10 1995/04/10 01:45:43 ache Exp $
  */
 
 /*
@@ -185,7 +185,7 @@ again:
 			    p->p_flag & P_PPWAIT)
 				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTIN, 1);
-			error = ttysleep(tp, (caddr_t)&lbolt, 
+			error = ttysleep(tp, (caddr_t)&lbolt,
 			    TTIPRI | PCATCH, ttybg, 0);
 			if (error)
 				return (error);
@@ -641,7 +641,7 @@ ptyioctl(dev, cmd, data, flag, p)
 			return (0);
 
 #ifdef COMPAT_43
-		case TIOCSETP:		
+		case TIOCSETP:
 		case TIOCSETN:
 #endif
 		case TIOCSETD:
@@ -701,7 +701,7 @@ ptyioctl(dev, cmd, data, flag, p)
 			break;
 		}
 	}
-	stop = (tp->t_iflag & IXON) && CCEQ(cc[VSTOP], CTRL('s')) 
+	stop = (tp->t_iflag & IXON) && CCEQ(cc[VSTOP], CTRL('s'))
 		&& CCEQ(cc[VSTART], CTRL('q'));
 	if (pti->pt_flags & PF_NOSTOP) {
 		if (stop) {

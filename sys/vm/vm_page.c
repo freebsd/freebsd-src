@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.30 1995/04/16 11:50:45 davidg Exp $
+ *	$Id: vm_page.c,v 1.31 1995/04/16 12:56:21 davidg Exp $
  */
 
 /*
@@ -126,7 +126,7 @@ static u_short vm_page_dev_bsize_chunks[] = {
  *
  *	Sets page_shift and page_mask from cnt.v_page_size.
  */
-void 
+void
 vm_set_page_size()
 {
 
@@ -216,11 +216,11 @@ vm_page_startup(starta, enda, vaddr)
 
 	/*
 	 * Allocate (and initialize) the hash table buckets.
-	 * 
+	 *
 	 * The number of buckets MUST BE a power of 2, and the actual value is
 	 * the next power of 2 greater than the number of physical pages in
 	 * the system.
-	 * 
+	 *
 	 * Note: This computation can be tweaked if desired.
 	 */
 	vm_page_buckets = (struct pglist *) vaddr;
@@ -262,7 +262,7 @@ vm_page_startup(starta, enda, vaddr)
 	 * kmem_map which must be initialized before malloc() will work
 	 * (obviously).  Also could include pager maps which would be
 	 * allocated before kmeminit.
-	 * 
+	 *
 	 * Allow some kernel map entries... this should be plenty since people
 	 * shouldn't be cluttering up the kernel map (they should use their
 	 * own maps).
@@ -375,7 +375,7 @@ vm_page_hash(object, offset)
  *	The object and page must be locked, and must be splhigh.
  */
 
-inline void 
+inline void
 vm_page_insert(mem, object, offset)
 	register vm_page_t mem;
 	register vm_object_t object;
@@ -428,7 +428,7 @@ vm_page_insert(mem, object, offset)
  *	The object and page must be locked, and at splhigh.
  */
 
-inline void 
+inline void
 vm_page_remove(mem)
 	register vm_page_t mem;
 {
@@ -472,7 +472,7 @@ vm_page_remove(mem)
  *	The object must be locked.  No side effects.
  */
 
-vm_page_t 
+vm_page_t
 vm_page_lookup(object, offset)
 	register vm_object_t object;
 	register vm_offset_t offset;
@@ -511,7 +511,7 @@ vm_page_lookup(object, offset)
  *
  *	The object must be locked.
  */
-void 
+void
 vm_page_rename(mem, new_object, new_offset)
 	register vm_page_t mem;
 	register vm_object_t new_object;
@@ -586,7 +586,7 @@ vm_page_alloc(object, offset, page_req)
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
 		page_req = VM_ALLOC_SYSTEM;
 	};
-		
+
 	simple_lock(&vm_page_queue_free_lock);
 
 	s = splhigh();
@@ -763,7 +763,7 @@ again:
  *
  *	Object and page must be locked prior to entry.
  */
-void 
+void
 vm_page_free(mem)
 	register vm_page_t mem;
 {
@@ -836,7 +836,7 @@ vm_page_free(mem)
  *
  *	The page queues must be locked.
  */
-void 
+void
 vm_page_wire(mem)
 	register vm_page_t mem;
 {
@@ -861,7 +861,7 @@ vm_page_wire(mem)
  *
  *	The page queues must be locked.
  */
-void 
+void
 vm_page_unwire(mem)
 	register vm_page_t mem;
 {
@@ -889,7 +889,7 @@ vm_page_unwire(mem)
  *
  *	The page queues must be locked.
  */
-void 
+void
 vm_page_activate(m)
 	register vm_page_t m;
 {
@@ -937,7 +937,7 @@ vm_page_deactivate(m)
 
 	/*
 	 * Only move active pages -- ignore locked or already inactive ones.
-	 * 
+	 *
 	 * XXX: sometimes we get pages which aren't wired down or on any queue -
 	 * we need to put them on the inactive queue also, otherwise we lose
 	 * track of them. Paul Mackerras (paulus@cs.anu.edu.au) 9-Jan-93.
@@ -963,7 +963,7 @@ vm_page_deactivate(m)
  *
  * Put the specified page onto the page cache queue (if appropriate).
  */
-void 
+void
 vm_page_cache(m)
 	register vm_page_t m;
 {
@@ -1033,7 +1033,7 @@ vm_page_copy(src_m, dest_m)
  * mapping function for valid bits or for dirty bits in
  * a page
  */
-inline int 
+inline int
 vm_page_bits(int base, int size)
 {
 	u_short chunk;

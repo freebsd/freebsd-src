@@ -1,5 +1,5 @@
-/* $Header: putdriver.c,v 2.2 88/09/19 12:55:27 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/putdriver.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/putdriver.c,v 1.1.1.1 1994/05/24 10:07:46 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/putdriver.c,v $ */
 
 /*
  * This code is such a kludge that I don't want to put my name on it.
@@ -90,7 +90,7 @@ static char *strings[] = {
 	protocol,
 	"_debug;\n\textern FILE *",
 	protocol,
-	"_astringfile;\n", 
+	"_astringfile;\n",
 	(char *)0,
 	(char *)0,
 	(char *)0,
@@ -137,7 +137,7 @@ static char *strings[] = {
 	"\n_XEBEC_PG int _Xebec_action(a,e,p)\nint a;\nstruct ",
 	protocol,
 	"_event *e;\n",
-	protocol, 
+	protocol,
 	PCBNAME,
 	" *p;\n{\n",
 	"switch(a) {\n",
@@ -161,15 +161,15 @@ static char *strings[] = {
 	"\n_XEBEC_PG int\n_Xebec_index( e,p )\n",
 	"\tstruct ",
 	protocol,
-	"_event *e;\n\t", 
-	protocol, 
+	"_event *e;\n\t",
+	protocol,
 	PCBNAME,
 	" *p;\n{\nswitch( (e->ev_number<<",
 	Eventshiftstring,
 	")+(p->",
-	protocol, 
+	protocol,
 	statename,
-	") ) {\n", 
+	") ) {\n",
 	(char *)0,
 	(char *)0,
 	(char *)0,
@@ -230,11 +230,11 @@ static struct { int start; int finish; } parts[] = {
 	PART15,
 };
 
-putdriver(f, x) 
+putdriver(f, x)
 FILE *f;
 int x;
 {
-	register int i; 
+	register int i;
 
 	for( i = parts[x].start; i<= parts[x].finish; i++)
 		fprintf(f, "%s", strings[i]);

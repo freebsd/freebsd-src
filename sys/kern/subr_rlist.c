@@ -12,25 +12,25 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This software is a component of "386BSD" developed by 
+ *	This software is a component of "386BSD" developed by
 	William F. Jolitz, TeleMuse.
  * 4. Neither the name of the developer nor the name "386BSD"
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS A COMPONENT OF 386BSD DEVELOPED BY WILLIAM F. JOLITZ 
- * AND IS INTENDED FOR RESEARCH AND EDUCATIONAL PURPOSES ONLY. THIS 
- * SOFTWARE SHOULD NOT BE CONSIDERED TO BE A COMMERCIAL PRODUCT. 
- * THE DEVELOPER URGES THAT USERS WHO REQUIRE A COMMERCIAL PRODUCT 
+ * THIS SOFTWARE IS A COMPONENT OF 386BSD DEVELOPED BY WILLIAM F. JOLITZ
+ * AND IS INTENDED FOR RESEARCH AND EDUCATIONAL PURPOSES ONLY. THIS
+ * SOFTWARE SHOULD NOT BE CONSIDERED TO BE A COMMERCIAL PRODUCT.
+ * THE DEVELOPER URGES THAT USERS WHO REQUIRE A COMMERCIAL PRODUCT
  * NOT MAKE USE THIS WORK.
  *
  * FOR USERS WHO WISH TO UNDERSTAND THE 386BSD SYSTEM DEVELOPED
- * BY WILLIAM F. JOLITZ, WE RECOMMEND THE USER STUDY WRITTEN 
- * REFERENCES SUCH AS THE  "PORTING UNIX TO THE 386" SERIES 
- * (BEGINNING JANUARY 1991 "DR. DOBBS JOURNAL", USA AND BEGINNING 
- * JUNE 1991 "UNIX MAGAZIN", GERMANY) BY WILLIAM F. JOLITZ AND 
- * LYNNE GREER JOLITZ, AS WELL AS OTHER BOOKS ON UNIX AND THE 
- * ON-LINE 386BSD USER MANUAL BEFORE USE. A BOOK DISCUSSING THE INTERNALS 
+ * BY WILLIAM F. JOLITZ, WE RECOMMEND THE USER STUDY WRITTEN
+ * REFERENCES SUCH AS THE  "PORTING UNIX TO THE 386" SERIES
+ * (BEGINNING JANUARY 1991 "DR. DOBBS JOURNAL", USA AND BEGINNING
+ * JUNE 1991 "UNIX MAGAZIN", GERMANY) BY WILLIAM F. JOLITZ AND
+ * LYNNE GREER JOLITZ, AS WELL AS OTHER BOOKS ON UNIX AND THE
+ * ON-LINE 386BSD USER MANUAL BEFORE USE. A BOOK DISCUSSING THE INTERNALS
  * OF 386BSD ENTITLED "386BSD FROM THE INSIDE OUT" WILL BE AVAILABLE LATE 1992.
  *
  * THIS SOFTWARE IS PROVIDED BY THE DEVELOPER ``AS IS'' AND
@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.8 1995/01/31 06:48:53 davidg Exp $
+ *	$Id: subr_rlist.c,v 1.9 1995/03/16 18:12:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,7 @@ rlist_malloc()
 		splx(s);
 		if( !rl)
 			break;
-		
+
 		for(i=0;i<(NBPG/(sizeof *rl));i++) {
 			rl->rl_next = rlfree;
 			rlfree = rl;
@@ -98,7 +98,7 @@ rlist_malloc()
 
 	if( (rl = rlfree) == 0 )
 		panic("Cannot get an rlist entry");
-		
+
 	--rlist_count;
 	rlfree = rl->rl_next;
 	return rl;
@@ -111,7 +111,7 @@ rlist_mfree( struct rlist *rl)
 	rlfree = rl;
 	++rlist_count;
 }
-	
+
 void
 rlist_free(rlp, start, end)
 	struct rlist **rlp;

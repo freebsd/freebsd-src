@@ -1,7 +1,7 @@
 /*
  * Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_front.c,v 1.2 1995/04/20 07:34:52 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_front.c,v 1.3 1995/04/20 07:42:41 julian Exp $
  *
  */
 
@@ -52,7 +52,7 @@ int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 				child->name);
 			continue;
 		}
-		
+
 	}
 	return(0);	/* for now always succeed */
 }
@@ -201,14 +201,14 @@ int dev_mk_front(dn_p parent,devnm_p back,devnm_p *devnm_pp , struct devfsmount 
 	/*
 	 * not accounted for in the link counts..
 	 * only used to get from the front name entries
-	 * to the total length of the names 
+	 * to the total length of the names
 	 * which is stored in the parent's devnode
 	 */
  	newfp->parent = parent; /* is NULL for root */
 	/*******************************************************\
 	* Put it in the appropriate back/front list too.	*
 	\*******************************************************/
-	newfp->next_front = *back->prev_frontp; 
+	newfp->next_front = *back->prev_frontp;
 	newfp->prev_frontp = back->prev_frontp;
 	*back->prev_frontp = newfp;
 	back->prev_frontp = &(newfp->next_front);
@@ -237,7 +237,7 @@ int dev_mk_front(dn_p parent,devnm_p back,devnm_p *devnm_pp , struct devfsmount 
 
 /*
  * duplicate the backing tree into a tree of nodes hung off the
- * mount point given as the argument. Do this by 
+ * mount point given as the argument. Do this by
  * calling dev_mk_front() which recurses all the way
  * up the tree..
  */
@@ -293,7 +293,7 @@ void dev_free_front(devnm_p devfp) /*proto*/
 		{
 			dev_free_front(devfp->dnp->by.Dir.dirlist);
 		}
-		/* 
+		/*
 		 * drop the reference counts on our and our parent's
 		 * nodes for "." and ".." (root has ".." -> "." )
 		 */
@@ -319,7 +319,7 @@ void dev_free_front(devnm_p devfp) /*proto*/
 	}
 	/*
 	 * If the node has a backing pointer we need to free ourselves
-	 * from that.. 
+	 * from that..
 	 * Remember that we may not HAVE a backing node.
 	 */
 	if (back = devfp->as.front.realthing) /* yes an assign */

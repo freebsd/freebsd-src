@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_input.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_input.c,v 1.3 1995/03/16 18:15:28 bde Exp $
+ * $Id: ns_input.c,v 1.4 1995/05/11 00:13:22 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -391,7 +391,7 @@ struct mbuf *m;
 		x.l = x.s[0] + x.s[1];
 		if (x.l==0xffff) idp->idp_sum = 0; else idp->idp_sum = x.l;
 	}
-	if ((error = ns_output(m, &idp_droute, flags)) && 
+	if ((error = ns_output(m, &idp_droute, flags)) &&
 	    (mcopy!=NULL)) {
 		idp = mtod(mcopy, struct idp *);
 		type = NS_ERR_UNSPEC_T, code = 0;
@@ -431,7 +431,7 @@ idp_do_route(src, ro)
 struct ns_addr *src;
 struct route *ro;
 {
-	
+
 	struct sockaddr_ns *dst;
 
 	bzero((caddr_t)ro, sizeof (*ro));

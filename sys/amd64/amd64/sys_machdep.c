@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.7 1995/03/04 02:25:36 davidg Exp $
+ *	$Id: sys_machdep.c,v 1.8 1995/03/10 08:13:07 davidg Exp $
  *
  */
 
@@ -64,11 +64,11 @@ sysarch(p, uap, retval)
 
 	switch(uap->op) {
 #ifdef	USER_LDT
-	case I386_GET_LDT: 
+	case I386_GET_LDT:
 		error = i386_get_ldt(p, uap->parms, retval);
 		break;
 
-	case I386_SET_LDT: 
+	case I386_SET_LDT:
 		error = i386_set_ldt(p, uap->parms, retval);
 		break;
 #endif

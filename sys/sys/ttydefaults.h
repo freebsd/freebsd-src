@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
- * $Id: ttydefaults.h,v 1.7 1995/03/06 02:50:49 nate Exp $
+ * $Id: ttydefaults.h,v 1.8 1995/05/11 07:52:48 bde Exp $
  */
 
 /*
@@ -89,7 +89,7 @@
  */
 #ifdef TTYDEFCHARS
 static cc_t	ttydefchars[NCCS] = {
-	CEOF,	CEOL,	CEOL,	CERASE, CWERASE, CKILL, CREPRINT, 
+	CEOF,	CEOL,	CEOL,	CERASE, CWERASE, CKILL, CREPRINT,
 	_POSIX_VDISABLE, CINTR,	CQUIT,	CSUSP,	CDSUSP,	CSTART,	CSTOP,	CLNEXT,
 	CDISCARD, CMIN,	CTIME,  CSTATUS, _POSIX_VDISABLE
 };

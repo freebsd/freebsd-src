@@ -12,25 +12,25 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This software is a component of "386BSD" developed by 
+ *	This software is a component of "386BSD" developed by
  *	William F. Jolitz, TeleMuse.
  * 4. Neither the name of the developer nor the name "386BSD"
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS A COMPONENT OF 386BSD DEVELOPED BY WILLIAM F. JOLITZ 
- * AND IS INTENDED FOR RESEARCH AND EDUCATIONAL PURPOSES ONLY. THIS 
- * SOFTWARE SHOULD NOT BE CONSIDERED TO BE A COMMERCIAL PRODUCT. 
- * THE DEVELOPER URGES THAT USERS WHO REQUIRE A COMMERCIAL PRODUCT 
+ * THIS SOFTWARE IS A COMPONENT OF 386BSD DEVELOPED BY WILLIAM F. JOLITZ
+ * AND IS INTENDED FOR RESEARCH AND EDUCATIONAL PURPOSES ONLY. THIS
+ * SOFTWARE SHOULD NOT BE CONSIDERED TO BE A COMMERCIAL PRODUCT.
+ * THE DEVELOPER URGES THAT USERS WHO REQUIRE A COMMERCIAL PRODUCT
  * NOT MAKE USE OF THIS WORK.
  *
  * FOR USERS WHO WISH TO UNDERSTAND THE 386BSD SYSTEM DEVELOPED
- * BY WILLIAM F. JOLITZ, WE RECOMMEND THE USER STUDY WRITTEN 
- * REFERENCES SUCH AS THE  "PORTING UNIX TO THE 386" SERIES 
- * (BEGINNING JANUARY 1991 "DR. DOBBS JOURNAL", USA AND BEGINNING 
- * JUNE 1991 "UNIX MAGAZIN", GERMANY) BY WILLIAM F. JOLITZ AND 
- * LYNNE GREER JOLITZ, AS WELL AS OTHER BOOKS ON UNIX AND THE 
- * ON-LINE 386BSD USER MANUAL BEFORE USE. A BOOK DISCUSSING THE INTERNALS 
+ * BY WILLIAM F. JOLITZ, WE RECOMMEND THE USER STUDY WRITTEN
+ * REFERENCES SUCH AS THE  "PORTING UNIX TO THE 386" SERIES
+ * (BEGINNING JANUARY 1991 "DR. DOBBS JOURNAL", USA AND BEGINNING
+ * JUNE 1991 "UNIX MAGAZIN", GERMANY) BY WILLIAM F. JOLITZ AND
+ * LYNNE GREER JOLITZ, AS WELL AS OTHER BOOKS ON UNIX AND THE
+ * ON-LINE 386BSD USER MANUAL BEFORE USE. A BOOK DISCUSSING THE INTERNALS
  * OF 386BSD ENTITLED "386BSD FROM THE INSIDE OUT" WILL BE AVAILABLE LATE 1992.
  *
  * THIS SOFTWARE IS PROVIDED BY THE DEVELOPER ``AS IS'' AND
@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.28 1995/04/12 20:47:56 wollman Exp $
+ *	$Id: lpt.c,v 1.29 1995/05/09 01:33:16 phk Exp $
  */
 
 /*
@@ -93,7 +93,7 @@
  * Expect transfer-rates up to 75 kbyte/sec.
  *
  * If GCC could correctly grok
- *	register int port asm("edx") 
+ *	register int port asm("edx")
  * the code would be cleaner
  *
  * Poul-Henning Kamp <phk@login.dkuug.dk>
@@ -370,9 +370,9 @@ lptprobe(struct isa_device *dvp)
 				(*(BIOS_PORTS+next_bios_lpt) != 0) ) {
 			dvp->id_iobase = *(BIOS_PORTS+next_bios_lpt++);
 			goto end_probe;
-		} else 
+		} else
 			return (0);
-	} 
+	}
 
 	/* Port was explicitly specified */
 	/* This allows probing of ports unknown to the BIOS */
@@ -380,11 +380,11 @@ lptprobe(struct isa_device *dvp)
 	port = dvp->id_iobase + lpt_data;
 	mask = 0xff;
 	data = 0x55;				/* Alternating zeros */
-	if (!lpt_port_test(port, data, mask)) 
+	if (!lpt_port_test(port, data, mask))
 		{ status = 0 ; goto end_probe ; }
 
 	data = 0xaa;				/* Alternating ones */
-	if (!lpt_port_test(port, data, mask)) 
+	if (!lpt_port_test(port, data, mask))
 		{ status = 0 ; goto end_probe ; }
 
 	for (i = 0; i < 8; i++)	{		/* Walking zero */
@@ -395,7 +395,7 @@ lptprobe(struct isa_device *dvp)
 
 	for (i = 0; i < 8; i++)	{		/* Walking one */
 		data = (1 << i);
-		if (!lpt_port_test(port, data, mask)) 
+		if (!lpt_port_test(port, data, mask))
 			{ status = 0 ; goto end_probe ; }
 	}
 
@@ -455,7 +455,7 @@ lptopen (dev_t dev, int flag)
 		return (ENXIO);
 
 #ifdef INET
-	if (sc->sc_if.if_flags & IFF_UP) 
+	if (sc->sc_if.if_flags & IFF_UP)
 		return(EBUSY);
 #endif
 
@@ -512,7 +512,7 @@ lptopen (dev_t dev, int flag)
 			splx(s);
 			return (EBUSY);
 		}
-		
+
 		/* is printer online and ready for output */
 	} while ((inb(port+lpt_status) & (LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 		 (LPS_SEL|LPS_NBSY|LPS_NERR));
@@ -582,7 +582,7 @@ lptclose(dev_t dev, int flag)
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
 	int port = sc->sc_port;
 
-	if(sc->sc_flags & LP_BYPASS) 
+	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
 	sc->sc_state &= ~OPEN;
@@ -593,7 +593,7 @@ lptclose(dev_t dev, int flag)
 		while ((inb(port+lpt_status) & (LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
 			/* wait 1/4 second, give up if we get a signal */
-			if (tsleep ((caddr_t)sc, LPPRI|PCATCH, 
+			if (tsleep ((caddr_t)sc, LPPRI|PCATCH,
 				"lpclose", hz) != EWOULDBLOCK)
 				break;
 
@@ -615,8 +615,8 @@ end_close:
  *
  *	This code is only used when we are polling the port
  */
-static int 
-pushbytes(struct lpt_softc * sc) 
+static int
+pushbytes(struct lpt_softc * sc)
 {
 	int spin, err, tic;
 	char ch;
@@ -668,8 +668,8 @@ pushbytes(struct lpt_softc * sc)
 	return(0);
 }
 
-/* 
- * lptwrite --copy a line from user space to a local buffer, then call 
+/*
+ * lptwrite --copy a line from user space to a local buffer, then call
  * putc to get the chars moved to the output queue.
  *
  * Flagging of interrupted write added.
@@ -704,14 +704,14 @@ lptwrite(dev_t dev, struct uio * uio)
 			}
 			lprintf("W ");
 			if (sc->sc_state & OBUSY)
-				if ((err = tsleep ((caddr_t)sc, 
+				if ((err = tsleep ((caddr_t)sc,
 					 LPPRI|PCATCH, "lpwrite", 0))) {
 					sc->sc_state |= INTERRUPTED;
 					return(err);
 				}
 		}
 		/* check to see if we must do a polled write */
-		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) { 
+		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
 			lprintf("p");
 			if((err = pushbytes(sc)))
 				return(err);
@@ -747,7 +747,7 @@ lptintr(int unit)
 		if (sc->sc_xfercnt) {
 			/* send char */
 			/*lprintf("%x ", *sc->sc_cp); */
-			outb(port+lpt_data, *sc->sc_cp++) ; 
+			outb(port+lpt_data, *sc->sc_cp++) ;
 			outb(port+lpt_control, sc->sc_control|LPC_STB);
 			/* DELAY(X) */
 			outb(port+lpt_control, sc->sc_control);
@@ -786,12 +786,12 @@ lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
 	switch (cmd) {
 	case LPT_IRQ :
 		if(sc->sc_irq & LP_HAS_IRQ) {
-			/* 
-			 * NOTE: 
+			/*
+			 * NOTE:
 			 * If the IRQ status is changed,
 			 * this will only be visible on the
 			 * next open.
-			 * 
+			 *
 			 * If interrupt status changes,
 			 * this gets syslog'd.
 			 */
@@ -800,14 +800,14 @@ lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
 				sc->sc_irq &= (~LP_ENABLE_IRQ);
 			else
 				sc->sc_irq |= LP_ENABLE_IRQ;
-			if (old_sc_irq != sc->sc_irq ) 
+			if (old_sc_irq != sc->sc_irq )
 				log(LOG_NOTICE, "lpt%c switched to %s mode\n",
-					(char)unit+'0', 
+					(char)unit+'0',
 					(sc->sc_irq & LP_ENABLE_IRQ)?
 					"interrupt-driven":"polled");
 		} else /* polled port */
 			error = EOPNOTSUPP;
-		break;	
+		break;
 	default:
 		error = ENODEV;
 	}
@@ -837,7 +837,7 @@ lpattach (struct lpt_softc *sc, int unit)
 }
 /*
  * Build the translation tables for the LPIP (BSD unix) protocol.
- * We don't want to calculate these nasties in our tight loop, so we 
+ * We don't want to calculate these nasties in our tight loop, so we
  * precalculate them when we initialize.
  */
 static int
@@ -871,7 +871,7 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 {
     struct lpt_softc *sc = lpt_sc + ifp->if_unit;
     struct ifaddr *ifa = (struct ifaddr *)data;
-    struct ifreq *ifr = (struct ifreq *)data; 
+    struct ifreq *ifr = (struct ifreq *)data;
     u_char *ptr;
 
     switch (cmd) {
@@ -908,10 +908,10 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 	if (!sc->sc_ifbuf) {
 	    sc->sc_ifbuf = ptr;
 	    return ENOBUFS;
-	} 
+	}
 	if (ptr)
 	    free(ptr,M_DEVBUF);
-	sc->sc_if.if_mtu = ifr->ifr_metric; 
+	sc->sc_if.if_mtu = ifr->ifr_metric;
 	break;
 
     case SIOCGIFMTU:
@@ -1026,8 +1026,8 @@ lpoutbyte (u_char byte, int spin, int data_port, int status_port)
 	return 0;
 }
 
-static int 
-lpoutput (struct ifnet *ifp, struct mbuf *m, 
+static int
+lpoutput (struct ifnet *ifp, struct mbuf *m,
 	  struct sockaddr *dst, struct rtentry *rt)
 {
     register int lpt_data_port = lpt_sc[ifp->if_unit].sc_port + lpt_data;
@@ -1038,7 +1038,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     struct mbuf *mm;
     u_char *cp = "\0\0";
 
-    /* We need a sensible value if we abort */	
+    /* We need a sensible value if we abort */
     cp++;
     ifp->if_flags |= IFF_RUNNING;
 

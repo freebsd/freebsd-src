@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.8 1994/10/30 19:43:49 bde Exp $
+ * $Id: tty_subr.c,v 1.9 1994/11/26 19:23:50 bde Exp $
  */
 
 /*
@@ -433,7 +433,7 @@ b_to_q(src, amount, clistp)
 		 */
 		numc = min(amount, (char *)(cblockp + 1) - clistp->c_cl);
 		bcopy(src, clistp->c_cl, numc);
-		
+
 		/*
 		 * Clear quote bits. The following could probably be made into
 		 * a seperate "bitzero()" routine, but why bother?
@@ -548,7 +548,7 @@ unputc(clistp)
 		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
 
 		/*
-		 * Set quote flag if this character was quoted.	
+		 * Set quote flag if this character was quoted.
 		 */
 		if (isset(cblockp->c_quote, (u_char *)clistp->c_cl - cblockp->c_info))
 			chr |= TTY_QUOTE;

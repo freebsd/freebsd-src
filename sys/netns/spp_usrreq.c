@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: spp_usrreq.c,v 1.2 1994/08/02 07:52:00 davidg Exp $
+ * $Id: spp_usrreq.c,v 1.3 1995/03/19 14:29:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -662,7 +662,7 @@ register struct nspcb *nsp;
 	struct mbuf *firstbad, *m0;
 
 	if (cb) {
-		/* 
+		/*
 		 * The notification that we have sent
 		 * too much is bad news -- we will
 		 * have to go through queued up so far
@@ -917,7 +917,7 @@ again:
 	if (rcv_win > 0) {
 		u_short delta =  1 + cb->s_alo - cb->s_ack;
 		int adv = rcv_win - (delta * cb->s_mtu);
-		
+
 		if ((so->so_rcv.sb_cc == 0 && adv >= (2 * cb->s_mtu)) ||
 		    (100 * adv / so->so_rcv.sb_hiwat >= 35)) {
 			sppstat.spps_sndwinup++;
@@ -972,7 +972,7 @@ send:
 	if (rcv_win < 0)
 		rcv_win = 0;
 	alo = cb->s_ack - 1 + (rcv_win / ((short)cb->s_mtu));
-	if (SSEQ_LT(alo, cb->s_alo)) 
+	if (SSEQ_LT(alo, cb->s_alo))
 		alo = cb->s_alo;
 
 	if (si) {
@@ -1026,7 +1026,7 @@ send:
 		if (cb->s_force != (1 + SPPT_PERSIST) ||
 		    cb->s_timer[SPPT_PERSIST] == 0) {
 			/*
-			 * If this is a new packet and we are not currently 
+			 * If this is a new packet and we are not currently
 			 * timing anything, time this one.
 			 */
 			if (SSEQ_LT(cb->s_smax, si->si_seq)) {
@@ -1329,7 +1329,7 @@ spp_usrreq(so, req, m, nam, controlp)
 		SPPT_RANGESET(cb->s_rxtcur,
 		    ((SPPTV_SRTTBASE >> 2) + (SPPTV_SRTTDFLT << 2)) >> 1,
 		    SPPTV_MIN, SPPTV_REXMTMAX);
-		nsp->nsp_pcb = (caddr_t) cb; 
+		nsp->nsp_pcb = (caddr_t) cb;
 		break;
 
 	case PRU_DETACH:

@@ -1,9 +1,9 @@
-/* 
- * Copyright (C) Dirk Husemann, Computer Science Department IV, 
+/*
+ * Copyright (C) Dirk Husemann, Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1990, 1991, 1992
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
- * 
+ *
  * This code is derived from software contributed to Berkeley by
  * Dirk Husemann and the Computer Science Department (IV) of
  * the University of Erlangen-Nuremberg, Germany.
@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_var.h	8.1 (Berkeley) 6/10/93
- * $Id: llc_var.h,v 1.2 1994/08/02 07:47:25 davidg Exp $
+ * $Id: llc_var.h,v 1.3 1994/08/21 05:44:08 paul Exp $
  */
 
 #ifndef _NETCCITT_LLC_VAR_H_
@@ -69,9 +69,9 @@ struct npaidbentry {
 			u_short SI_window;
 			u_short SI_trace;
 			u_short SI_xchxid;
-			void (*SI_input) 
+			void (*SI_input)
 				__P((struct mbuf *));
-			caddr_t (*SI_ctlinput) 
+			caddr_t (*SI_ctlinput)
 				__P((int, struct sockaddr *, caddr_t));
 		} SI;
 	} NESIun;
@@ -126,9 +126,9 @@ extern struct bitslice llc_bitslice[];
 
 /*
  * LLC events --- These events may either be frames received from the
- *                remote LLC DSAP, request from the network layer user, 
+ *                remote LLC DSAP, request from the network layer user,
  *                timer events from llc_timer(), or diagnostic events from
- *                llc_input().  
+ *                llc_input().
  */
 
 /* LLC frame types */
@@ -159,26 +159,26 @@ extern struct bitslice llc_bitslice[];
 #define LLC_LOCAL_BUSY_CLEARED          20 * LLC_MAXCMDRSP
 
 /* Network layer user requests */
-/* 
+/*
  * NL_CONNECT_REQUEST --- The user has requested that a data link connection
  *                        be established with a remote LLC DSAP.
  */
 #define NL_CONNECT_REQUEST              21 * LLC_MAXCMDRSP
-/* 
+/*
  * NL_CONNECT_RESPONSE --- The user has accepted the data link connection.
  */
 #define NL_CONNECT_RESPONSE             22 * LLC_MAXCMDRSP
-/* 
+/*
  * NL_RESET_REQUEST --- The user has requested that the data link with the
  *                      remote LLC DSAP be reset.
  */
 #define NL_RESET_REQUEST                23 * LLC_MAXCMDRSP
-/* 
+/*
  * NL_RESET_RESPONSE --- The user has accepted the reset of the data link
  *                       connection.
  */
 #define NL_RESET_RESPONSE               24 * LLC_MAXCMDRSP
-/* 
+/*
  * NL_DISCONNECT_REQUEST --- The user has requested that the data link
  *                           connection with remote LLC DSAP be terminated.
  */
@@ -266,12 +266,12 @@ extern struct bitslice llc_bitslice[];
 
 #define INFORMATION_CONTROL	0x00
 #define SUPERVISORY_CONTROL	0x02
-#define UNUMBERED_CONTROL 	0x03 
- 
+#define UNUMBERED_CONTROL 	0x03
+
 /*
  * Other necessary definitions
  */
- 
+
 #define LLC_MAX_SEQUENCE    128
 #define LLC_MAX_WINDOW	    127
 #define LLC_WINDOW_SIZE	    7
@@ -440,7 +440,7 @@ struct sdl_hdr {
 /*
  * LLC2 macro definitions
  */
-				    
+
 
 #define LLC_START_ACK_TIMER(l) LLC_STARTTIMER((l), ACK)
 #define LLC_STOP_ACK_TIMER(l) LLC_STOPTIMER((l), ACK)
@@ -568,7 +568,7 @@ struct sdl_hdr {
 #else /* LLCDEBUG */
 #define LLC_TRACE(lp, l, msg) /* NOOP */
 #endif /* LLCDEBUG */
-				      
+
 #define LLC_N2_VALUE	  15              /* up to 15 retries */
 #define LLC_ACK_TIMER     10              /*  5 secs */
 #define LLC_P_TIMER        4              /*  2 secs */
@@ -600,16 +600,16 @@ struct ifqueue llcintrq;
 extern struct llccb_q llccb_q;
 extern char *frame_names[];
 
-/* 
+/*
  * Function prototypes
  */
 int sdl_cmp __P((struct sockaddr_dl *, struct sockaddr_dl *));
 int sdl_copy __P((struct sockaddr_dl *, struct sockaddr_dl *));
 int sdl_swapaddr __P((struct sockaddr_dl *, struct sockaddr_dl *));
 int sdl_checkaddrif __P((struct ifnet *, struct sockaddr_dl *));
-int sdl_setaddrif __P((struct ifnet *, u_char *, u_char, u_char, 
+int sdl_setaddrif __P((struct ifnet *, u_char *, u_char, u_char,
 		      struct sockaddr_dl *));
-int sdl_sethdrif __P((struct ifnet *, u_char *, u_char, u_char *, u_char, u_char, 
+int sdl_sethdrif __P((struct ifnet *, u_char *, u_char, u_char *, u_char, u_char,
 		      struct sdl_hdr *));
 struct npaidbentry *llc_setsapinfo __P((struct ifnet *, u_char, u_char,
 					struct dllconfig *));
@@ -619,9 +619,9 @@ int npaidb_destroy __P((struct rtentry *));
 short llc_seq2slot __P((struct llc_linkcb *, short));
 int llc_state_ADM __P((struct llc_linkcb *, struct llc *, int, int, int));
 int llc_state_CONN __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_RESET_WAIT __P((struct llc_linkcb *, struct llc *, 
+int llc_state_RESET_WAIT __P((struct llc_linkcb *, struct llc *,
 			      int, int, int));
-int llc_state_RESET_CHECK __P((struct llc_linkcb *, struct llc *, 
+int llc_state_RESET_CHECK __P((struct llc_linkcb *, struct llc *,
 			       int, int, int));
 int llc_state_SETUP __P((struct llc_linkcb *, struct llc *, int, int, int));
 int llc_state_RESET __P((struct llc_linkcb *, struct llc *, int, int, int));
@@ -636,7 +636,7 @@ int llc_state_AWAIT_BUSY __P((struct llc_linkcb *, struct llc *, int, int, int))
 int llc_state_AWAIT_REJECT __P((struct llc_linkcb *, struct llc *, int, int, int));
 int llc_statehandler __P((struct llc_linkcb *, struct llc *, int, int, int));
 int llc_init __P((void));
-struct llc_linkcb *llc_newlink __P((struct sockaddr_dl *, struct ifnet *, 
+struct llc_linkcb *llc_newlink __P((struct sockaddr_dl *, struct ifnet *,
 				    struct rtentry *, caddr_t, struct rtentry *));
 int llc_dellink __P((struct llc_linkcb *));
 int llc_anytimersup __P((struct llc_linkcb *));

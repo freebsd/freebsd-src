@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)esis.c	8.1 (Berkeley) 6/10/93
- * $Id: esis.c,v 1.2 1994/08/02 07:50:09 davidg Exp $
+ * $Id: esis.c,v 1.3 1994/12/13 22:33:03 wollman Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -124,9 +124,9 @@ extern char		all_es_snpa[], all_is_snpa[];
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 esis_init()
 {
@@ -156,7 +156,7 @@ esis_init()
  *
  * RETURNS:			0 or appropriate errno
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  */
 /*ARGSUSED*/
@@ -238,9 +238,9 @@ release:
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 esis_input(m0, shp)
 struct mbuf		*m0;		/* ptr to first mbuf of pkt */
@@ -294,7 +294,7 @@ bad:
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Assumes there is enough space for fixed part of header,
  *					DA, BSNPA and NET in first mbuf.
@@ -366,14 +366,14 @@ struct rtentry		*rt;			/* snpa cache info regarding next hop of
 	cp += sdl->sdl_alen;
 	len += (sdl->sdl_alen + 1);
 
-	/* 
+	/*
 	 *	If the next hop is not the destination, then it ought to be
 	 *	an IS and it should be inserted next. Else, set the
 	 *	NETL to 0
 	 */
 	/* PHASE2 use mask from ifp of outgoing interface */
 	if (!iso_addrmatch1(rd_dstnsap, rd_gwnsap)) {
-		/* this should not happen: 
+		/* this should not happen:
 		if ((nhop_sc->sc_flags & SNPA_IS) == 0) {
 			printf("esis_rdoutput: next hop is not dst and not an IS\n");
 			m_freem(m0);
@@ -392,7 +392,7 @@ struct rtentry		*rt;			/* snpa cache info regarding next hop of
 	 *	used should be the mask present in the routing entry used to
 	 *	forward the original data packet.
 	 */
-	
+
 	/*
 	 *	Copy Qos, priority, or security options present in original npdu
 	 */
@@ -411,7 +411,7 @@ struct rtentry		*rt;			/* snpa cache info regarding next hop of
 			/* assumes MLEN > optlen */
 		}
 		/* assume MLEN-len > optlen */
-		/* 
+		/*
 		 *	When copying options, copy from ptr - 2 in order to grab
 		 *	the option code and length
 		 */
@@ -426,7 +426,7 @@ struct rtentry		*rt;			/* snpa cache info regarding next hop of
 			cp += 3;
 		}
 		if (inbound_oidx->cni_securep) {
-			bcopy(mtod(inbound_m, caddr_t) + inbound_oidx->cni_securep - 2, cp, 
+			bcopy(mtod(inbound_m, caddr_t) + inbound_oidx->cni_securep - 2, cp,
 				(unsigned)(inbound_oidx->cni_secure_len + 2));
 			cp += inbound_oidx->cni_secure_len + 2;
 		}
@@ -485,7 +485,7 @@ int							nsellen;
 	    if (b > buflim) {esis_stat.es_toosmall++; goto bad;}}
 int ESHonly = 0;
 /*
- 
+
 /*
  * FUNCTION:		esis_eshinput
  *
@@ -493,9 +493,9 @@ int ESHonly = 0;
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 esis_eshinput(m, shp)
 struct mbuf		*m;	/* esh pdu */
@@ -544,7 +544,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 			if (nsellength != 0) for (buf2 = buf; buf2 < buflim;) {
 				ESIS_EXTRACT_ADDR(nsap2, buf2);
 				IFDEBUG(D_ESISINPUT)
-					printf("esis_eshinput: comparing %s ", 
+					printf("esis_eshinput: comparing %s ",
 						clnp_iso_addrp(nsap));
 					printf("and %s\n", clnp_iso_addrp(nsap2));
 				ENDDEBUG
@@ -560,7 +560,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 		}
 	}
 	IFDEBUG(D_ESISINPUT)
-		printf("esis_eshinput: nsap %s is %s\n", 
+		printf("esis_eshinput: nsap %s is %s\n",
 			clnp_iso_addrp(nsap), new_entry ? "new" : "old");
 	ENDDEBUG
 	if (new_entry && (iso_systype & SNPA_IS))
@@ -575,11 +575,11 @@ bad:
  *
  * PURPOSE:			process an incoming ISH pdu
  *
- * RETURNS:			
+ * RETURNS:
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 esis_ishinput(m, shp)
 struct mbuf		*m;	/* esh pdu */
@@ -617,7 +617,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 				esis_config();
 			}
 			break;
-		
+
 		default:
 			printf("Unknown ISH option: %x\n", *buf);
 		}
@@ -625,12 +625,12 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 	}
 	new_entry = snpac_add(shp->snh_ifp, nsap, shp->snh_shost, SNPA_IS, ht, 0);
 	IFDEBUG(D_ESISINPUT)
-		printf("esis_ishinput: nsap %s is %s\n", 
+		printf("esis_ishinput: nsap %s is %s\n",
 			clnp_iso_addrp(nsap), new_entry ? "new" : "old");
 	ENDDEBUG
 
 	if (new_entry)
-		esis_shoutput(shp->snh_ifp, 
+		esis_shoutput(shp->snh_ifp,
 			iso_systype & SNPA_ES ? ESIS_ESH : ESIS_ISH,
 			esis_holding_time, shp->snh_shost, 6, (struct iso_addr *)0);
 bad:
@@ -642,11 +642,11 @@ bad:
  *
  * PURPOSE:			Process an incoming RD pdu
  *
- * RETURNS:			
+ * RETURNS:
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 esis_rdinput(m0, shp)
 struct mbuf		*m0;	/* esh pdu */
@@ -737,9 +737,9 @@ bad: ;    /* Needed by ESIS_NEXT_OPTION */
  *
  * PURPOSE:			Report configuration
  *
- * RETURNS:			
+ * RETURNS:
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Called every esis_config_time seconds
  */
@@ -750,8 +750,8 @@ esis_config()
 
 	timeout(esis_config, (caddr_t)0, hz * esis_config_time);
 
-	/* 
-	 *	Report configuration for each interface that 
+	/*
+	 *	Report configuration for each interface that
 	 *	- is UP
 	 *	- has BROADCAST capability
 	 *	- has an ISO address
@@ -761,7 +761,7 @@ esis_config()
 	 * a method in the iso_ifaddr structure to encapsulate and
 	 * transmit it.  This could work to advantage for non-broadcast media
 	 */
-	
+
 	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
 		if ((ifp->if_flags & IFF_UP) &&
 		    (ifp->if_flags & IFF_BROADCAST)) {
@@ -770,10 +770,10 @@ esis_config()
 
 			for (ia = ifp->if_addrlist; ia; ia = ia->ifa_next) {
 				if (ia->ifa_addr->sa_family == AF_ISO) {
-					esis_shoutput(ifp, 
+					esis_shoutput(ifp,
 						iso_systype & SNPA_ES ? ESIS_ESH : ESIS_ISH,
 						esis_holding_time,
-						(caddr_t)(iso_systype & SNPA_ES ? all_is_snpa : 
+						(caddr_t)(iso_systype & SNPA_ES ? all_is_snpa :
 						all_es_snpa), 6, (struct iso_addr *)0);
 					break;
 				}
@@ -789,9 +789,9 @@ esis_config()
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 esis_shoutput(ifp, type, ht, sn_addr, sn_len, isoa)
 struct ifnet	*ifp;
@@ -811,7 +811,7 @@ struct	iso_addr *isoa;
 
 	if (type == ESIS_ESH)
 		esis_stat.es_eshsent++;
-	else if (type == ESIS_ISH) 
+	else if (type == ESIS_ISH)
 		esis_stat.es_ishsent++;
 	else {
 		printf("esis_shoutput: bad pdu type\n");
@@ -865,7 +865,7 @@ struct	iso_addr *isoa;
 		naddr = 1;
 	}
 	for (ia = iso_ifaddr; ia; ia = ia->ia_next) {
-		int nsellen = (type == ESIS_ISH ? ia->ia_addr.siso_tlen : 0); 
+		int nsellen = (type == ESIS_ISH ? ia->ia_addr.siso_tlen : 0);
 		int n = ia->ia_addr.siso_nlen;
 		register struct iso_ifaddr *ia2;
 
@@ -881,7 +881,7 @@ struct	iso_addr *isoa;
 			continue;	/* Ditto */
 		}
 		IFDEBUG(D_ESISOUTPUT)
-			printf("esis_shoutput: adding NSAP %s\n", 
+			printf("esis_shoutput: adding NSAP %s\n",
 				clnp_iso_addrp(&ia->ia_addr.siso_addr));
 		ENDDEBUG
 		if (!esis_insert_addr(&cp, &len,
@@ -931,9 +931,9 @@ struct	iso_addr *isoa;
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 isis_input(m0, shp)
 struct mbuf		*m0;		/* ptr to first mbuf of pkt */
@@ -948,7 +948,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 	IFDEBUG(D_ISISINPUT)
 		int i;
 
-		printf("isis_input: pkt on ifp x%x (%s%d): from:", ifp, 
+		printf("isis_input: pkt on ifp x%x (%s%d): from:", ifp,
 			ifp->if_name, ifp->if_unit);
 		for (i=0; i<6; i++)
 			printf("%x%c", shp->snh_shost[i]&0xff, (i<5) ? ':' : ' ');
@@ -1042,7 +1042,7 @@ release:
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Calls snpac_flush for interface specified.
  *					The loop through iso_ifaddr is stupid because

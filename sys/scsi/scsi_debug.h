@@ -2,7 +2,7 @@
 /*
  * Written by Julian Elischer (julian@tfs.com)
  *
- *	$Id: scsi_debug.h,v 1.3 93/10/10 09:26:05 julian Exp Locker: julian $
+ *	$Id: scsi_debug.h,v 1.1 1993/11/18 05:02:54 rgrimes Exp $
  */
 #ifndef	_SCSI_SCSI_DEBUG_H
 #define _SCSI_SCSI_DEBUG_H 1
@@ -12,7 +12,7 @@
  * the following DEBUG bits are defined to exist in the flags word of
  * the scsi_link structure.
  */
-#define	SDEV_DB1		0x10	/* scsi commands, errors, data	*/ 
+#define	SDEV_DB1		0x10	/* scsi commands, errors, data	*/
 #define	SDEV_DB2		0x20	/* routine flow tracking */
 #define	SDEV_DB3		0x40	/* internal to routine flows	*/
 #define	SDEV_DB4		0x80	/* level 4 debugging for this dev */
@@ -21,7 +21,7 @@
 #define	DEBUGTARG 9 /*9 = dissable*/
 #define	DEBUGLUN  0
 #define	DEBUGLEVEL  	(SDEV_DB1|SDEV_DB2)
- 
+
 /*
  * This is the usual debug macro for use with the above bits
  */

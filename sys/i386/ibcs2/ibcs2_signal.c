@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_signal.c,v 1.9 1994/10/12 19:38:03 sos Exp $
+ *	$Id: ibcs2_signal.c,v 1.1 1994/10/14 08:53:07 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -70,27 +70,27 @@
 int bsd_to_ibcs2_signal[NSIG] = {
   	0, IBCS2_SIGHUP, IBCS2_SIGINT, IBCS2_SIGQUIT,
   	IBCS2_SIGILL, IBCS2_SIGTRAP, IBCS2_SIGABRT, IBCS2_SIGEMT,
-  	IBCS2_SIGFPE, IBCS2_SIGKILL, IBCS2_SIGBUS, IBCS2_SIGSEGV, 
+  	IBCS2_SIGFPE, IBCS2_SIGKILL, IBCS2_SIGBUS, IBCS2_SIGSEGV,
   	IBCS2_SIGSYS, IBCS2_SIGPIPE, IBCS2_SIGALRM, IBCS2_SIGTERM,
-  	IBCS2_SIGURG, IBCS2_SIGSTOP, IBCS2_SIGTSTP, IBCS2_SIGCONT,  
-  	IBCS2_SIGCHLD, IBCS2_SIGTTIN, IBCS2_SIGTTOU, IBCS2_SIGIO, 
-  	IBCS2_SIGGXCPU, IBCS2_SIGGXFSZ, IBCS2_SIGVTALRM, IBCS2_SIGPROF, 
+  	IBCS2_SIGURG, IBCS2_SIGSTOP, IBCS2_SIGTSTP, IBCS2_SIGCONT,
+  	IBCS2_SIGCHLD, IBCS2_SIGTTIN, IBCS2_SIGTTOU, IBCS2_SIGIO,
+  	IBCS2_SIGGXCPU, IBCS2_SIGGXFSZ, IBCS2_SIGVTALRM, IBCS2_SIGPROF,
   	IBCS2_SIGWINCH, 0, IBCS2_SIGUSR1, IBCS2_SIGUSR2
 };
 
 int ibcs2_to_bsd_signal[IBCS2_NSIG] = {
   	0, SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGEMT,
-  	SIGFPE, SIGKILL, SIGBUS, SIGSEGV, SIGSYS, SIGPIPE, SIGALRM, SIGTERM, 
-  	SIGUSR1, SIGUSR2, SIGCHLD, 0, SIGWINCH, SIGURG, SIGIO, SIGSTOP, 
+  	SIGFPE, SIGKILL, SIGBUS, SIGSEGV, SIGSYS, SIGPIPE, SIGALRM, SIGTERM,
+  	SIGUSR1, SIGUSR2, SIGCHLD, 0, SIGWINCH, SIGURG, SIGIO, SIGSTOP,
   	SIGTSTP, SIGCONT, SIGTTIN, SIGTTOU, SIGVTALRM, SIGPROF, SIGXCPU, SIGXFSZ
 };
 
 static char ibcs2_sig_name[IBCS2_NSIG][10] = {
-  	"UNKNOWN", "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", 
+  	"UNKNOWN", "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP",
 	"SIGABRT", "SIGEMT", "SIGFPE", "SIGKILL", "SIGBUS", "SIGSEGV",
 	"SIGSYS", "SIGPIPE", "SIGALRM", "SIGTERM", "SIGUSR1", "SIGUSR2",
-	"SIGCHLD", "SIGPWR", "SIGWINCH", "SIGURG", "SIGIO", "SIGSTOP", 
-	"SIGTSTP", "SIGCONT", "SIGTTIN", "SIGTTOU", "SIGVTALRM", 
+	"SIGCHLD", "SIGPWR", "SIGWINCH", "SIGURG", "SIGIO", "SIGSTOP",
+	"SIGTSTP", "SIGCONT", "SIGTTIN", "SIGTTOU", "SIGVTALRM",
 	"SIGPROF", "SIGXCPU", "SIGXFSZ"
 };
 
@@ -100,7 +100,7 @@ int
 LEGAL_SIG(int sig)
 {
 	if ((sig & IBCS2_SIGMASK) > IBCS2_NSIG) {
-		printf("IBCS2: illegal ibcs2 signal %d(%08x)\n", 
+		printf("IBCS2: illegal ibcs2 signal %d(%08x)\n",
 			sig & IBCS2_SIGMASK, sig);
 		return 0;
 	}
@@ -196,7 +196,7 @@ ibcs2_sigset(struct proc *p, struct ibcs2_signal_args *args, int *retval)
    		setsigvec(p, sig_bsd, &tmp);
 	}
     	return 0;
-} 
+}
 
 static int
 ibcs2_sighold(struct proc *p, struct ibcs2_signal_args *args, int *retval)
@@ -208,7 +208,7 @@ ibcs2_sighold(struct proc *p, struct ibcs2_signal_args *args, int *retval)
     	p->p_sigmask |= (sigmask(sig_bsd) & ~DONTMASK);
     	(void) spl0();
     	return 0;
-} 
+}
 
 static int
 ibcs2_sigrelse(struct proc *p, struct ibcs2_signal_args *args, int *retval)
@@ -248,7 +248,7 @@ ibcs2_sigpause(struct proc *p, struct ibcs2_signal_args *args, int *retval)
 	(void) tsleep((caddr_t) ps, PPAUSE|PCATCH, "i-pause", 0);
   	*retval = -1;
     	return EINTR;
-} 
+}
 
 static int
 ibcs2_signal(struct proc *p, struct ibcs2_signal_args *args, int *retval)
@@ -268,8 +268,8 @@ int
 ibcs2_sigsys(struct proc *p, struct ibcs2_signal_args *args, int *retval)
 {
 	if (ibcs2_trace & IBCS2_TRACE_SIGNAL)
-		printf("IBCS2: 'sigsys' signo=%d(%s) ", 
-			args->signo & IBCS2_SIGMASK, 
+		printf("IBCS2: 'sigsys' signo=%d(%s) ",
+			args->signo & IBCS2_SIGMASK,
 			ibcs2_sig_to_str(args->signo & IBCS2_SIGMASK));
 
 	switch (args->signo & ~IBCS2_SIGMASK ) {
@@ -319,7 +319,7 @@ ibcs2_sigaction(struct proc *p, struct ibcs2_sigaction_args *args, int *retval)
 	int bit, error;
 
 	if (ibcs2_trace & IBCS2_TRACE_SIGNAL)
-		printf("IBCS2: 'sigaction' signo=%d(%s)\n", 
+		printf("IBCS2: 'sigaction' signo=%d(%s)\n",
 			args->signo, ibcs2_sig_to_str(args->signo));
 	sig = ibcs2_to_bsd_signal[LEGAL_SIG(args->signo)];
 	if (sig <= 0 || sig >= NSIG || sig == SIGKILL || sig == SIGSTOP) {
@@ -377,7 +377,7 @@ ibcs2_sigprocmask(struct proc *p, struct ibcs2_sigprocmask_args *args, int *retv
 	  	return error;
 	}
 	umask = ibcs2_to_bsd_sigmask(umask);
-	if (args->omask) 
+	if (args->omask)
 	  	if (error = copyout(&omask, args->omask, sizeof(args->omask))) {
 			*retval = -1;
 	    		return error;
@@ -387,7 +387,7 @@ ibcs2_sigprocmask(struct proc *p, struct ibcs2_sigprocmask_args *args, int *retv
 	case 0:	/* SIG_SETMASK */
 		p->p_sigmask = umask &~ DONTMASK;
 		break;
-	
+
 	case 1:	/* SIG_BLOCK */
 		p->p_sigmask |= (umask &~ DONTMASK);
 		break;
@@ -417,7 +417,7 @@ ibcs2_sigpending(struct proc *p, struct ibcs2_sigpending_args *args, int *retval
 {
   	int error;
   	sigset_t mask = bsd_to_ibcs2_sigmask(p->p_siglist);
-	
+
 	if (ibcs2_trace & IBCS2_TRACE_SIGNAL)
 		printf("IBCS2: 'sigpending' which=%x\n", args->sigs);
   	if (error = copyout(&mask, args->sigs, sizeof(unsigned long)))
@@ -436,7 +436,7 @@ ibcs2_sigsuspend(struct proc *p, struct ibcs2_sigsuspend_args *args, int *retval
 {
   	sigset_t mask = ibcs2_to_bsd_sigmask((sigset_t)args->mask);
 
-	if (ibcs2_trace & IBCS2_TRACE_SIGNAL) 
+	if (ibcs2_trace & IBCS2_TRACE_SIGNAL)
 		printf("IBCS2: 'sigsuspend'\n");
 	return sigsuspend(p, &mask, retval);
 }
@@ -452,11 +452,11 @@ ibcs2_kill(struct proc *p, struct kill_args *args, int *retval)
   	struct kill_args tmp;
 
 	if (ibcs2_trace & IBCS2_TRACE_SIGNAL)
-		printf("IBCS2: 'kill' pid=%d, sig=%d(%s)\n", args->pid, 
+		printf("IBCS2: 'kill' pid=%d, sig=%d(%s)\n", args->pid,
 			args->signo, ibcs2_sig_to_str(args->signo));
   	tmp.pid = args->pid;
-  	tmp.signo = (args->signo < IBCS2_NSIG) ? 
+  	tmp.signo = (args->signo < IBCS2_NSIG) ?
 			ibcs2_to_bsd_signal[args->signo] : IBCS2_NSIG;
-	return kill(p, &tmp, retval); 
+	return kill(p, &tmp, retval);
 }
 

@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /sys/miscfs/devfs/RCS/devfs_back.c,v 1.3 1995/01/07 04:20:25 root Exp root $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_back.c,v 1.2 1995/04/20 07:34:51 julian Exp $
  */
 
 #include "param.h"
@@ -25,7 +25,7 @@ int	devfs_set_up = 0;	/* note tha we HAVE set up the backing tree */
 
 /*
  * Set up the root directory node in the backing plane
- * This is happenning before the vfs system has been 
+ * This is happenning before the vfs system has been
  * set up yet, so be careful about what we reference..
  * Notice that the ops are by indirection.. as they haven't
  * been set up yet!
@@ -35,7 +35,7 @@ void  devfs_back_init() /*proto*/
 
 	devnm_p devbp;
 	dn_p dnp;
-	/* 
+	/*
 	 * This may be called several times.. only do it if it needs
 	 * to be done.
 	 */
@@ -61,7 +61,7 @@ void  devfs_back_init() /*proto*/
 		}
 		bzero(dnp,sizeof(devnode_t));
 		/*
-		 * Link the two together 
+		 * Link the two together
 		 */
 		devbp->dnp = dnp;
 		dnp->links = 1;
@@ -81,7 +81,7 @@ void  devfs_back_init() /*proto*/
 		dnp->by.Dir.dirlast =
 				&dnp->by.Dir.dirlist;
 		dnp->by.Dir.myname = devbp;
-		/* 
+		/*
 		 * set up a pointer to directory type ops
 		 */
 		dnp->ops = &devfs_vnodeop_p;
@@ -92,7 +92,7 @@ void  devfs_back_init() /*proto*/
 		TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
 		dnp->mtime = dnp->ctime;
 		dnp->atime = dnp->ctime;
-		
+
 		/*
 		 * and the list of layers
 		 */
@@ -132,8 +132,8 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 	char	*name;
 	register char *cp;
 	int	retval;
-	
-	
+
+
 	DBPRINT(("dev_finddir\n"));
 	devfs_back_init();		/* in case we are the first */
 	if(!dirnode) dirnode = dev_root->dnp;
@@ -242,7 +242,7 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 	dnp->links = 1; /* implicit from our own name-node */
 
 	/*
-	 * note the node type we are adding 
+	 * note the node type we are adding
 	 * and set the creation times to NOW
 	 * put in it's name
 	 * include the implicit link in the count of links to the devnode..
@@ -294,7 +294,7 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 		 * Make sure it has DEVICE type ops
 		 * and device specific fields are correct
 		 */
-		dnp->ops = &dev_spec_vnodeop_p; 
+		dnp->ops = &dev_spec_vnodeop_p;
 		dnp->by.Bdev.bdevsw = by->Bdev.bdevsw;
 		dnp->by.Bdev.dev = by->Bdev.dev;
 		break;
@@ -308,7 +308,7 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 		dnp->by.Cdev.dev = by->Cdev.dev;
 		break;
 	case DEV_DDEV:
-		/* 
+		/*
 		 * store the address of (the address of) the ops
 		 * and the magic cookie to use with them
 		 */
@@ -389,7 +389,7 @@ int	dev_remove(devnm_p devbp) /*proto*/
 	 */
 	devfs_dn_free(devbp->dnp);
 	free (devbp, M_DEVFSBACK);
-	return 0; 
+	return 0;
 }
 
 int	dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/
@@ -421,7 +421,7 @@ void	devfs_dn_free(dn_p dnp) /*proto*/
 int get_cdev_major_num(caddr_t addr)	/*proto*/
 {
 	int	index = 0;
-	
+
 	DBPRINT(("get_cdev_major_num\n"));
 	while (index < nchrdev)
 	{
@@ -439,7 +439,7 @@ int get_cdev_major_num(caddr_t addr)	/*proto*/
 int get_bdev_major_num(caddr_t addr)	/*proto*/
 {
 	int	index = 0;
-	
+
 	DBPRINT(("get_bdev_major_num\n"));
 	while (index < nblkdev)
 	{

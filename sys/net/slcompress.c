@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.3 1994/08/18 22:35:22 wollman Exp $
+ * $Id: slcompress.c,v 1.4 1994/10/08 22:38:27 phk Exp $
  */
 
 /*
@@ -272,7 +272,7 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 		 * with it. */
 		 goto uncompressed;
 
-	deltaS = (u_short)(ntohs(th->th_win) - ntohs(oth->th_win)); 
+	deltaS = (u_short)(ntohs(th->th_win) - ntohs(oth->th_win));
 	if (deltaS) {
 		ENCODE(deltaS);
 		changes |= NEW_W;

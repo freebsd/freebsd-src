@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.3 1995/03/25 22:40:48 bde Exp $
+ * $Id: pdq.c,v 1.4 1995/04/01 01:43:56 davidg Exp $
  *
  * $Log: pdq.c,v $
+ * Revision 1.4  1995/04/01  01:43:56  davidg
+ * Patch from Matt Thomas to fix mbuf leak in FDDI driver.
+ *
  * Revision 1.3  1995/03/25  22:40:48  bde
  * Remove wrong redeclarations of printf() and bzero().  Include the correct
  * header to declare DELAY().
@@ -78,7 +81,7 @@
 #if defined(PDQTEST) && !defined(PDQ_NOPRINTF)
 #define	PDQ_PRINTF(x)	printf x
 #else
-#define	PDQ_PRINTF(x)	
+#define	PDQ_PRINTF(x)
 #endif
 
 const char * const pdq_halt_codes[] = {
@@ -93,7 +96,7 @@ const char * const pdq_adapter_states[] = {
 };
 
 /*
- * The following are used in conjunction with 
+ * The following are used in conjunction with
  * unsolicited events
  */
 const char * const pdq_entities[] = {
@@ -177,7 +180,7 @@ const char * const pdq_pmd_types100[] = {
     "Unshielded Twisted Pair"
 };
 
-const char * const * const pdq_pmd_types[] = { 
+const char * const * const pdq_pmd_types[] = {
     pdq_pmd_types0, pdq_pmd_types100
 };
 
@@ -764,7 +767,7 @@ pdq_process_received_data(
 	     * the real length.
 	     */
 	    pdulen = datalen - 4 /* CRC */ + 1 /* FC */;
-	    segcnt = (pdulen + PDQ_RX_FC_OFFSET + PDQ_OS_DATABUF_SIZE - 1) / PDQ_OS_DATABUF_SIZE; 
+	    segcnt = (pdulen + PDQ_RX_FC_OFFSET + PDQ_OS_DATABUF_SIZE - 1) / PDQ_OS_DATABUF_SIZE;
 	    PDQ_OS_DATABUF_ALLOC(npdu);
 	    if (npdu == NULL) {
 		printf("discard: no databuf #0\n");
@@ -784,7 +787,7 @@ pdq_process_received_data(
 	    }
 	    PDQ_OS_DATABUF_NEXT_SET(lpdu, NULL);
 	    for (idx = 0; idx < PDQ_RX_SEGCNT; idx++) {
-		buffers[(producer + idx) & ring_mask] = 
+		buffers[(producer + idx) & ring_mask] =
 		    buffers[(completion + idx) & ring_mask];
 		buffers[(completion + idx) & ring_mask] = NULL;
 	    }
@@ -833,8 +836,8 @@ pdq_process_received_data(
 	    rxd->rxd_pa_hi = 0;
 	    rxd->rxd_seg_len_hi = PDQ_OS_DATABUF_SIZE / 16;
 	    rxd->rxd_pa_lo = PDQ_OS_VA_TO_PA(PDQ_OS_DATABUF_PTR(buffers[rx->rx_producer]));
-	    PDQ_ADVANCE(rx->rx_producer, 1, ring_mask);	
-	    PDQ_ADVANCE(producer, 1, ring_mask);	
+	    PDQ_ADVANCE(rx->rx_producer, 1, ring_mask);
+	    PDQ_ADVANCE(producer, 1, ring_mask);
 	    PDQ_ADVANCE(completion, 1, ring_mask);
 	}
     }
@@ -995,7 +998,7 @@ pdq_flush_transmitter(
 }
 
 /*
- * The following routine brings the PDQ from whatever state it is 
+ * The following routine brings the PDQ from whatever state it is
  * in to DMA_UNAVAILABLE (ie. like a RESET but without doing a RESET).
  */
 pdq_state_t
@@ -1125,7 +1128,7 @@ pdq_stop(
     pdq->pdq_tx_info.tx_free = PDQ_RING_MASK(pdq->pdq_dbp->pdqdb_transmits);
 
     /*
-     * Allow the DEFPA to do DMA.  Then program the physical 
+     * Allow the DEFPA to do DMA.  Then program the physical
      * addresses of the consumer and descriptor blocks.
      */
     if (pdq->pdq_type == PDQ_DEFPA) {
@@ -1169,7 +1172,7 @@ pdq_stop(
 	PDQ_OS_USEC_DELAY(1000);
     }
     PDQ_ASSERT(state == PDQS_DMA_AVAILABLE);
-    
+
     *csrs->csr_host_int_type_0 = 0xFF;
     *csrs->csr_host_int_enable = 0 /* PDQ_HOST_INT_STATE_CHANGE
 	|PDQ_HOST_INT_FATAL_ERROR|PDQ_HOST_INT_CMD_RSP_ENABLE

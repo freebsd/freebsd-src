@@ -1,8 +1,8 @@
-/* 
+/*
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.19 1995/05/03 18:09:08 dufault Exp $
+ *      $Id: ch.c,v 1.20 1995/05/11 19:26:46 rgrimes Exp $
  */
 
 #include	<sys/types.h>
@@ -95,7 +95,7 @@ struct scsi_device ch_switch =
 #define CH_OPEN		0x01
 
 static int
-ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 	       size_t len)
 {
 	return scsi_externalize(SCSI_LINK(&ch_switch, kdc->kdc_unit),
@@ -128,7 +128,7 @@ ch_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
  */
-errval 
+errval
 chattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -156,7 +156,7 @@ chattach(struct scsi_link *sc_link)
 /*
  *    open the device.
  */
-errval 
+errval
 ch_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -205,7 +205,7 @@ struct scsi_link *sc_link)
  * close the device.. only called if we are the LAST
  * occurence of an open device
  */
-errval 
+errval
 ch_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
@@ -218,7 +218,7 @@ ch_close(dev_t dev, int flag, int fmt, struct proc *p,
  * Perform special action on behalf of the user
  * Knows about the internals of this device
  */
-errval 
+errval
 ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode,
 struct proc *p, struct scsi_link *sc_link)
 {
@@ -277,7 +277,7 @@ struct proc *p, struct scsi_link *sc_link)
 	return (ret ? ESUCCESS : EIO);
 }
 
-errval 
+errval
 ch_getelem(unit, stat, type, from, data, flags)
 	u_int32 unit, from, flags;
 	int type;
@@ -317,7 +317,7 @@ ch_getelem(unit, stat, type, from, data, flags)
 	return ret;
 }
 
-errval 
+errval
 ch_move(unit, stat, chm, from, to, flags)
 	u_int32 unit, chm, from, to, flags;
 	short  *stat;
@@ -353,7 +353,7 @@ ch_move(unit, stat, chm, from, to, flags)
 	return ret;
 }
 
-errval 
+errval
 ch_position(unit, stat, chm, to, flags)
 	u_int32 unit, chm, to, flags;
 	short  *stat;
@@ -395,10 +395,10 @@ ch_position(unit, stat, chm, to, flags)
 
 /*
  * Get the scsi driver to send a full inquiry to the
- * device and use the results to fill out the global 
+ * device and use the results to fill out the global
  * parameter structure.
  */
-static errval 
+static errval
 ch_mode_sense(unit, flags)
 	u_int32 unit, flags;
 {
@@ -424,7 +424,7 @@ ch_mode_sense(unit, flags)
 		return 0;
 
 	/*
-	 * First do a mode sense 
+	 * First do a mode sense
 	 */
 	/* sc_link->flags &= ~SDEV_MEDIA_LOADED; *//*XXX */
 	bzero(&scsi_cmd, sizeof(scsi_cmd));

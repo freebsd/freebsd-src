@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.97 1995/05/07 23:00:02 ache Exp $
+ *	$Id: sio.c,v 1.98 1995/05/11 19:26:19 rgrimes Exp $
  */
 
 #include "sio.h"
@@ -630,7 +630,7 @@ sioattach(isdp)
 #ifdef DSI_SOFT_MODEM
 	if((inb(iobase+7) ^ inb(iobase+7)) & 0x80) {
 	    printf(" Digicom Systems, Inc. SoftModem");
-	    kdc_sio[unit].kdc_description = 
+	    kdc_sio[unit].kdc_description =
 	      "Serial port: Digicom Systems SoftModem";
 	goto determined_type;
 	}
@@ -1326,15 +1326,15 @@ sioioctl(dev, cmd, data, flag, p)
 
 			pi = (u_char*)(*(caddr_t*)data);
 			error = copyin(pi,&l,sizeof l);
-			if(error) 
+			if(error)
 				{return error;};
 			pi += sizeof l;
 
 			p = malloc(l,M_TEMP,M_NOWAIT);
-			if(!p) 
+			if(!p)
 				{return ENOBUFS;}
 			error = copyin(pi,p,l);
-			if(error) 
+			if(error)
 				{free(p,M_TEMP); return error;};
 			if(error = LoadSoftModem(
 			    MINOR_TO_UNIT(mynor),iobase,l,p))
@@ -2229,7 +2229,7 @@ LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
     int int_c,int_k;
     int data_0188, data_0187;
 
-    /* 
+    /*
      * First see if it is a DSI SoftModem
      */
     if(!((inb(base_io+7) ^ inb(base_io+7) & 0x80)))
@@ -2248,8 +2248,8 @@ LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
 	DSI_ERROR("dsp bus not granted");
 
     if(0x01 != (inb(base_io+7) & 0x01)) {
-	outb(base_io+7,0x18); 
-	outb(base_io+7,0x19); 
+	outb(base_io+7,0x18);
+	outb(base_io+7,0x19);
 	if(0x01 != (inb(base_io+7) & 0x01))
 	    DSI_ERROR("program mem not granted");
     }
@@ -2275,14 +2275,14 @@ LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
  	outb(base_io+7,0x19);
 	if(0x00 != (inb(base_io+7) & 0x01))
 	    DSI_ERROR("program data not granted");
-	
+
 	for(int_k = 0 ; int_k < 0x800; int_k++) {
 	    outb(base_io+1,*ptr++);
 	    outb(base_io+2,0);
 	    outb(base_io+1,*ptr++);
 	    outb(base_io+2,*ptr++);
 	}
-	
+
 	size -= 0x1800;
 
 	while(size > 0x1800) {
@@ -2299,7 +2299,7 @@ LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
 		outb(base_io+2,*ptr++);
 	    }
 	}
-	
+
     } else if (size > 0) {
 	if(int_c == 7) {
 	    outb(base_io+7,0x18);
@@ -2319,7 +2319,7 @@ LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
 		outb(base_io+2,*ptr++);
 	    }
 	}
-    }	
+    }
     outb(base_io+7,0x11);
     outb(base_io+7,3);
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.h,v 1.3 1994/08/21 06:14:27 paul Exp $
+ * $Id: tp_pcb.h,v 1.4 1995/04/26 21:32:39 pst Exp $
  */
 
 #ifndef _NETISO_TP_PCB_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,13 +63,13 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.3 1994/08/21 06:14:27 paul Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.4 1995/04/26 21:32:39 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_pcb.h,v $
  *
- * 
+ *
  * This file defines the transport protocol control block (tpcb).
  * and a bunch of #define values that are used in the tpcb.
  */
@@ -187,7 +187,7 @@ struct tp_pcb {
 	SeqNum				tp_rcvnxt;		/* next DT seq # expect to recv */
 	SeqNum	 			tp_sent_lcdt;	/* cdt according to last ack sent */
 	SeqNum	 			tp_sent_uwe;	/* uwe according to last ack sent */
-	SeqNum	 			tp_sent_rcvnxt;	/* rcvnxt according to last ack sent 
+	SeqNum	 			tp_sent_rcvnxt;	/* rcvnxt according to last ack sent
 										 * needed for perf measurements only
 										 */
 	u_short				tp_lcredit;		/* current local credit in # packets */
@@ -209,7 +209,7 @@ struct tp_pcb {
 
 
 	/* parameters per-connection controllable by user */
-	struct tp_conn_param _tp_param; 
+	struct tp_conn_param _tp_param;
 
 #define	tp_Nretrans _tp_param.p_Nretrans
 #define	tp_dr_ticks _tp_param.p_dr_ticks
@@ -263,7 +263,7 @@ struct tp_pcb {
 #define USES_PDN(t)			(((t)->tp_flags & TPF_NLQOS_PDN) != 0)
 
 
-	unsigned 
+	unsigned
 		tp_sendfcc:1,			/* shall next ack include FCC parameter? */
 		tp_trace:1,				/* is this pcb being traced? (not used yet) */
 		tp_perf_on:1,			/* 0/1 -> performance measuring on  */
@@ -356,4 +356,4 @@ extern struct tp_pcb	*tp_ftimeolist;
 #define	tpcbtoso(tp)	((struct socket *)((tp)->tp_sock))
 #define	tpcbtoref(tp)	((struct tp_ref *)((tp)->tp_ref))
 
-#endif  
+#endif

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.44 1995/05/11 19:26:29 rgrimes Exp $
+ * $Id: vfs_bio.c,v 1.45 1995/05/21 21:38:49 davidg Exp $
  */
 
 /*
@@ -399,7 +399,7 @@ brelse(struct buf * bp)
 		if (((bp->b_flags & B_VMIO) == 0) && bp->b_vp)
 			brelvp(bp);
 	}
-	
+
 	/*
 	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
 	 * constituted, so the B_INVAL flag is used to *invalidate* the buffer,
@@ -449,7 +449,7 @@ brelse(struct buf * bp)
 					vm_page_test_dirty(m);
 					if (m->dirty == 0) {
 						vm_page_set_invalid(m, foff, resid);
-						if (m->valid == 0) 
+						if (m->valid == 0)
 							vm_page_protect(m, VM_PROT_NONE);
 					}
 				}
@@ -825,7 +825,7 @@ loop:
 			bp->b_flags |= B_WANTED;
 			if (!tsleep((caddr_t) bp, PRIBIO | slpflag, "getblk", slptimeo))
 				goto loop;
-			
+
 			splx(s);
 			return (struct buf *) NULL;
 		}
@@ -861,7 +861,7 @@ loop:
 
 		/*
 		 * This code is used to make sure that a buffer is not
-		 * created while the getnewbuf routine is blocked. 
+		 * created while the getnewbuf routine is blocked.
 		 * Normally the vnode is locked so this isn't a problem.
 		 * VBLK type I/O requests, however, don't lock the vnode.
 		 * VOP_ISLOCKED would be much better but is also much
@@ -1431,7 +1431,7 @@ vfs_bio_clrbuf(struct buf *bp) {
 			}
 			bp->b_resid = 0;
 			return;
-		} 
+		}
 		for(i=0;i<bp->b_npages;i++) {
 			if( bp->b_pages[i]->valid == VM_PAGE_BITS_ALL)
 				continue;
@@ -1440,7 +1440,7 @@ vfs_bio_clrbuf(struct buf *bp) {
 			} else {
 				int j;
 				for(j=0;j<PAGE_SIZE/DEV_BSIZE;j++) {
-					if( (bp->b_pages[i]->valid & (1<<j)) == 0) 
+					if( (bp->b_pages[i]->valid & (1<<j)) == 0)
 						bzero(bp->b_data + i * PAGE_SIZE + j * DEV_BSIZE, DEV_BSIZE);
 				}
 			}

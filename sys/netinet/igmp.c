@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.9 1995/04/26 18:10:53 pst Exp $
+ * $Id: igmp.c,v 1.10 1995/05/16 01:28:29 davidg Exp $
  */
 
 /*
@@ -97,12 +97,12 @@ fill_rti(inm)
 #endif
 	while (rti) {
 		if (rti->ifp == inm->inm_ifp){ /* ? is it ok to compare */
-					       /* pointers */	
+					       /* pointers */
 			inm->inm_rti  = rti;
 #ifdef IGMP_DEBUG
 			printf("[igmp.c, _fill_rti] --> found old entry \n");
 #endif
-			if (rti->type == IGMP_OLD_ROUTER) 
+			if (rti->type == IGMP_OLD_ROUTER)
 				return IGMP_HOST_MEMBERSHIP_REPORT;
 			else
 				return IGMP_HOST_NEW_MEMBERSHIP_REPORT;
@@ -114,7 +114,7 @@ fill_rti(inm)
 	rti->type = IGMP_NEW_ROUTER;
 	rti->time = IGMP_AGE_THRESHOLD;
 	rti->next = Head;
-	Head = rti;	
+	Head = rti;
 	inm->inm_rti = rti;
 #ifdef IGMP_DEBUG
 	printf("[igmp.c, _fill_rti] --> created new entry \n");
@@ -166,7 +166,7 @@ igmp_input(m, iphlen)
 	register struct in_ifaddr *ia;
 	struct in_multistep step;
 	struct router_info *rti;
-	
+
 	int timer; /** timer value in the igmp query header **/
 
 	++igmpstat.igps_rcv_total;
@@ -237,9 +237,9 @@ igmp_input(m, iphlen)
 			 */
 			IN_FIRST_MULTI(step, inm);
 			while (inm != NULL) {
-				if (inm->inm_ifp == ifp 
+				if (inm->inm_ifp == ifp
 				    && inm->inm_timer == 0
-				    && inm->inm_addr.s_addr 
+				    && inm->inm_addr.s_addr
 				    != igmp_all_hosts_group) {
 
 					inm->inm_state = IGMP_DELAYING_MEMBER;
@@ -254,7 +254,7 @@ igmp_input(m, iphlen)
 		    /*
 		    ** New Router
 		    */
-		    
+
 		    if (ip->ip_dst.s_addr != igmp_all_hosts_group) {
 			if (!(m->m_flags & M_MCAST)) {
 			    ++igmpstat.igps_rcv_badqueries;
@@ -263,14 +263,14 @@ igmp_input(m, iphlen)
 			}
 		    }
 		    if (ip->ip_dst.s_addr == igmp_all_hosts_group) {
-			
+
 			/*
 			 * - Start the timers in all of our membership records
 			 *   for the interface on which the query arrived
 			 *   excl. those that belong to the "all-hosts" group.
 			 * - For timers already running check if they need to
 			 *   be reset.
-			 * - Use the igmp->igmp_code filed as the maximum 
+			 * - Use the igmp->igmp_code filed as the maximum
 			 *   delay possible
 			 */
 			IN_FIRST_MULTI(step, inm);
@@ -307,7 +307,7 @@ igmp_input(m, iphlen)
 		      /*
 		      ** group specific query
 		      */
-		      	
+
 		      IN_FIRST_MULTI(step, inm);
 		      while (inm != NULL) {
 			if (inm->inm_addr.s_addr == ip->ip_dst.s_addr) {
@@ -382,7 +382,7 @@ igmp_input(m, iphlen)
 		if (inm != NULL) {
 		  inm->inm_timer = 0;
 		  ++igmpstat.igps_rcv_ourreports;
-		  
+
 		  switch(inm->inm_state){
 		  case IGMP_IDLE_MEMBER:
 		  case IGMP_LAZY_MEMBER:
@@ -398,7 +398,7 @@ igmp_input(m, iphlen)
 		    break;
 		  }
 		}
-	      
+
 		break;
 
 	      case IGMP_HOST_NEW_MEMBERSHIP_REPORT:
@@ -406,17 +406,17 @@ igmp_input(m, iphlen)
 		 * an new report
 		 */
 		++igmpstat.igps_rcv_reports;
-    
+
 		if (ifp->if_flags & IFF_LOOPBACK)
 		  break;
-		
+
 		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
 		    igmp->igmp_group.s_addr != ip->ip_dst.s_addr) {
 		  ++igmpstat.igps_rcv_badreports;
 		  m_freem(m);
 		  return;
 		}
-		
+
 		/*
 		 * KLUDGE: if the IP source address of the report has an
 		 * unspecified (i.e., zero) subnet number, as is allowed for
@@ -430,7 +430,7 @@ igmp_input(m, iphlen)
 		  IFP_TO_IA(ifp, ia);
 		  if (ia) ip->ip_src.s_addr = htonl(ia->ia_subnet);
 		}
-		
+
 		/*
 		 * If we belong to the group being reported, stop
 		 * our timer for that group.
@@ -439,7 +439,7 @@ igmp_input(m, iphlen)
 		if (inm != NULL) {
 		  inm->inm_timer = 0;
 		  ++igmpstat.igps_rcv_ourreports;
-		  
+
 		  switch(inm->inm_state){
 		  case IGMP_DELAYING_MEMBER:
 		  case IGMP_IDLE_MEMBER:
@@ -558,7 +558,7 @@ igmp_slowtimo()
 		}
 		rti = rti->next;
 	}
-#ifdef IGMP_DEBUG	
+#ifdef IGMP_DEBUG
 	printf("[igmp.c,_slowtimo] -- > exiting \n");
 #endif
 	splx(s);
@@ -638,7 +638,7 @@ igmp_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 
 	switch(name[0]) {
 	case IGMPCTL_STATS:
-		return sysctl_rdstruct(oldp, oldlenp, newp, &igmpstat, 
+		return sysctl_rdstruct(oldp, oldlenp, newp, &igmpstat,
 				       sizeof igmpstat);
 	default:
 		return ENOPROTOOPT;

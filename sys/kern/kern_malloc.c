@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.10 1995/03/19 14:28:52 davidg Exp $
+ * $Id: kern_malloc.c,v 1.11 1995/04/16 11:25:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -374,7 +374,7 @@ kmeminit()
 	npg = VM_KMEM_SIZE/ NBPG;
 	if( npg > cnt.v_page_count)
 		npg = cnt.v_page_count;
-		
+
 	kmemusage = (struct kmemusage *) kmem_alloc(kernel_map,
 		(vm_size_t)(npg * sizeof(struct kmemusage)));
 	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,

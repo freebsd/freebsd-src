@@ -63,7 +63,7 @@ snpwrite(dev, uio, flag)
 	int             unit = minor(dev), len, i, error;
 	struct snoop   *snp = &snoopsw[unit];
 	struct tty     *tp;
-	char		c[SNP_INPUT_BUF];	
+	char		c[SNP_INPUT_BUF];
 
 	if (snp->snp_tty == NULL)
 		return (EIO);
@@ -71,16 +71,16 @@ snpwrite(dev, uio, flag)
 	tp = snp->snp_tty;
 
 	if ((tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
-	    (tp->t_line == OTTYDISC || tp->t_line == NTTYDISC)) 
+	    (tp->t_line == OTTYDISC || tp->t_line == NTTYDISC))
 		goto tty_input;
 
 	printf("Snoop: attempt to write to bad tty.\n");
 	return (EIO);
 
 tty_input:
-	if (!(tp->t_state & TS_ISOPEN)) 
+	if (!(tp->t_state & TS_ISOPEN))
 		return (EIO);
-	
+
 	while (uio->uio_resid > 0) {
 		len = MIN(uio->uio_resid,SNP_INPUT_BUF);
 		if ((error = uiomove(c, len, uio)) != 0)
@@ -91,7 +91,7 @@ tty_input:
 		}
 	}
 	return 0;
-	
+
 }
 
 
@@ -443,7 +443,7 @@ snpioctl(dev, cmd, data, flag)
 		s = spltty();
 		if (snp->snp_tty != NULL)
 			*(int *) data = snp->snp_len;
-		else 
+		else
 			if (snp->snp_flags & SNOOP_DOWN) {
 				if (snp->snp_flags & SNOOP_OFLOW)
 					*(int *) data = SNP_OFLOW;
@@ -473,7 +473,7 @@ snpselect(dev, rw, p)
 
 	if (rw != FREAD)
 		return 1;
-	
+
 	if (snp->snp_len > 0)
 		return 1;
 

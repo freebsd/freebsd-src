@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id: udp_usrreq.c,v 1.10 1995/05/03 07:16:53 davidg Exp $
+ * $Id: udp_usrreq.c,v 1.11 1995/05/09 13:35:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -650,7 +650,7 @@ udp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 		return (sysctl_rdstruct(oldp, oldlenp, newp, &udpstat,
 					sizeof udpstat));
 	case UDPCTL_MAXDGRAM:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
 				   (int *)&udp_sendspace)); /* XXX */
 	case UDPCTL_RECVSPACE:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,

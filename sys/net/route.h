@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.12 1995/02/08 20:01:13 wollman Exp $
+ * $Id: route.h,v 1.13 1995/03/20 21:30:21 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -39,7 +39,7 @@
 
 /*
  * Kernel resident routing tables.
- * 
+ *
  * The routing tables are initialized when interface addresses
  * are set by making entries for all directly connected interfaces.
  */

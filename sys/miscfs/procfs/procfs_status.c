@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_status.c,v 1.2 1994/08/02 07:45:20 davidg Exp $
+ *	$Id: procfs_status.c,v 1.3 1994/10/10 07:55:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -109,7 +109,7 @@ procfs_dostatus(curp, p, pfs, uio)
 			p->p_stats->p_start.tv_usec);
 	else
 		ps += sprintf(ps, " -1,-1");
-	
+
 	{
 		struct timeval ut, st;
 

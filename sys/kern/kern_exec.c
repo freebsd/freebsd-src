@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.19 1995/03/25 01:20:38 davidg Exp $
+ *	$Id: kern_exec.c,v 1.20 1995/03/25 01:34:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -123,7 +123,7 @@ interpret:
 	if (error) {
 		vm_map_remove(exec_map, (vm_offset_t)iparams->stringbase,
 		    (vm_offset_t)iparams->stringbase + ARG_MAX);
-		goto exec_fail;	
+		goto exec_fail;
 	}
 
 	iparams->vnodep = vnodep = ndp->ni_vp;
@@ -230,7 +230,7 @@ interpret:
 	len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
 	bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
 	p->p_comm[len] = 0;
-	
+
 	/*
 	 * mark as executable, wakeup any process that was vforked and tell
 	 * it that it now has it's own resources back
@@ -240,7 +240,7 @@ interpret:
 		p->p_flag &= ~P_PPWAIT;
 		wakeup((caddr_t)p->p_pptr);
 	}
-	
+
 	/* implement set userid/groupid */
 	p->p_flag &= ~P_SUGID;
 
@@ -385,7 +385,7 @@ exec_extract_strings(iparams)
 	 * extract arguments first
 	 */
 
-	argv = iparams->uap->argv; 
+	argv = iparams->uap->argv;
 
 	if (argv) {
 		while ((argp = (caddr_t) fuword(argv++))) {
@@ -407,7 +407,7 @@ exec_extract_strings(iparams)
 	 * extract environment strings
 	 */
 
-	envv = iparams->uap->envv; 
+	envv = iparams->uap->envv;
 
 	if (envv) {
 		while ((envp = (caddr_t) fuword(envv++))) {

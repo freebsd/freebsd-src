@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp.h	8.2 (Berkeley) 4/16/94
- * $Id: clnp.h,v 1.2 1994/08/02 07:49:34 davidg Exp $
+ * $Id: clnp.h,v 1.3 1994/08/21 06:14:13 paul Exp $
  */
 
 #ifndef _NETISO_CLNP_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp.h,v 1.2 1994/08/02 07:49:34 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp.h,v 1.3 1994/08/21 06:14:13 paul Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp.h,v $ */
 
 /* should be config option but cpp breaks with too many #defines */
@@ -129,9 +129,9 @@ struct clnp_segment {
 /*
  *	Clnp fragment reassembly structures:
  *
- *	All packets undergoing reassembly are linked together in 
+ *	All packets undergoing reassembly are linked together in
  *	clnp_fragl structures. Each clnp_fragl structure contains a
- *	pointer to the original clnp packet header, as well as a 
+ *	pointer to the original clnp packet header, as well as a
  *	list of packet fragments. Each packet fragment
  *	is headed by a clnp_frag structure. This structure contains the
  *	offset of the first and last byte of the fragment, as well as
@@ -142,10 +142,10 @@ struct clnp_segment {
  *	NOTE:
  *		The clnp_frag structure is stored in an mbuf immedately preceeding
  *	the fragment data. Since there are words in this struct,
- *	it must be word aligned. 
+ *	it must be word aligned.
  *
  *	NOTE:
- *		All the fragment code assumes that the entire clnp header is 
+ *		All the fragment code assumes that the entire clnp header is
  *	contained in the first mbuf.
  */
 struct clnp_frag {
@@ -237,9 +237,9 @@ struct clnp_optidx {
 #define CLNPSRCRT_CADDR(oidx, options)\
 	((caddr_t)(CLNP_OFFTOOPT(options, oidx->cni_srcrt_s) + CLNPSRCRT_OFF(oidx, options)))
 
-/* 
+/*
  *	return true if the src route has run out of routes
- *	this is true if the offset of next route is greater than the end of the rt 
+ *	this is true if the offset of next route is greater than the end of the rt
  */
 #define	CLNPSRCRT_TERM(oidx, options)\
 	(CLNPSRCRT_OFF(oidx, options) > oidx->cni_srcrt_len)
@@ -274,7 +274,7 @@ struct clnp_optidx {
 #define CLNPOVAL_COMPRT		0x01	/* complete source routing */
 
 /*
- *	Clnp flags used in a control block flags field. 
+ *	Clnp flags used in a control block flags field.
  *	NOTE: these must be out of the range of bits defined in ../net/raw_cb.h
  */
 #define	CLNP_NO_SEG		0x010	/* segmentation not permitted */
@@ -289,7 +289,7 @@ struct clnp_optidx {
 #define CLNP_VFLAGS		(CLNP_SEND_RAW|CLNP_NO_SEG|CLNP_NO_ER|CLNP_NO_CKSUM\
 	|CLNP_ECHO|CLNP_NOCACHE|CLNP_ECHOR)
 
-/* 
+/*
  *	Constants used by clnp
  */
 #define	CLNP_HDR_MIN	(sizeof (struct clnp_fixed))

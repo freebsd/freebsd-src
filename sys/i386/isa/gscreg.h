@@ -1,4 +1,4 @@
-/* gscreg.h - port and bit definitions for the Genius GS-4500 interface 
+/* gscreg.h - port and bit definitions for the Genius GS-4500 interface
  *
  *
  * Copyright (c) 1995 Gunther Schadow.  All rights reserved.

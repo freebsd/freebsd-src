@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_input.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_input.c,v 1.3 1995/02/15 06:29:43 jkh Exp $
+ * $Id: hd_input.c,v 1.4 1995/05/11 19:26:39 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -157,11 +157,11 @@ register struct mbuf *fbuf;
 		SET_TIMER (hdp);
 		break;
 
-	case SABM + DM_SENT: 
-	case SABM + WAIT_SABM: 
+	case SABM + DM_SENT:
+	case SABM + WAIT_SABM:
 		hd_writeinternal (hdp, UA, pf);
-	case UA + SABM_SENT: 
-	case UA + WAIT_UA: 
+	case UA + SABM_SENT:
+	case UA + WAIT_UA:
 		KILL_TIMER (hdp);
 		hd_initvars (hdp);
 		hdp->hd_state = ABM;
@@ -170,13 +170,13 @@ register struct mbuf *fbuf;
 		(void) pk_ctlinput (PRC_LINKUP, hdp->hd_pkp);
 		break;
 
-	case SABM + SABM_SENT: 
+	case SABM + SABM_SENT:
 		/* Got a SABM collision. Acknowledge the remote's SABM
 		   via UA but still wait for UA. */
 		hd_writeinternal (hdp, UA, pf);
 		break;
 
-	case SABM + ABM: 
+	case SABM + ABM:
 		/* Request to reset the link from the remote. */
 		KILL_TIMER (hdp);
 		hd_message (hdp, "Link reset");
@@ -190,28 +190,28 @@ register struct mbuf *fbuf;
 		hdp->hd_resets++;
 		break;
 
-	case SABM + WAIT_UA: 
+	case SABM + WAIT_UA:
 		hd_writeinternal (hdp, UA, pf);
 		break;
 
-	case DM + ABM: 
+	case DM + ABM:
 		hd_message (hdp, "DM received: link down");
 #ifdef HDLCDEBUG
 		hd_dumptrace (hdp);
 #endif
 		(void) pk_ctlinput (PRC_LINKDOWN, hdp->hd_pkp);
 		hd_flush (hdp->hd_ifp);
-	case DM + DM_SENT: 
-	case DM + WAIT_SABM: 
-	case DM + WAIT_UA: 
+	case DM + DM_SENT:
+	case DM + WAIT_SABM:
+	case DM + WAIT_UA:
 		hd_writeinternal (hdp, SABM, pf);
 		hdp->hd_state = SABM_SENT;
 		SET_TIMER (hdp);
 		break;
 
 	case DISC + INIT:
-	case DISC + DM_SENT: 
-	case DISC + SABM_SENT: 
+	case DISC + DM_SENT:
+	case DISC + SABM_SENT:
 		/* Note: This is a non-standard state change. */
 		hd_writeinternal (hdp, UA, pf);
 		hd_writeinternal (hdp, SABM, POLLOFF);
@@ -219,43 +219,43 @@ register struct mbuf *fbuf;
 		SET_TIMER (hdp);
 		break;
 
-	case DISC + WAIT_UA: 
+	case DISC + WAIT_UA:
 		hd_writeinternal (hdp, DM, pf);
 		SET_TIMER (hdp);
 		hdp->hd_state = DM_SENT;
 		break;
 
-	case DISC + ABM: 
+	case DISC + ABM:
 		hd_message (hdp, "DISC received: link down");
 		(void) pk_ctlinput (PRC_LINKDOWN, hdp->hd_pkp);
-	case DISC + WAIT_SABM: 
+	case DISC + WAIT_SABM:
 		hd_writeinternal (hdp, UA, pf);
 		hdp->hd_state = DM_SENT;
 		SET_TIMER (hdp);
 		break;
 
-	case UA + ABM: 
+	case UA + ABM:
 		hd_message (hdp, "UA received: link down");
 		(void) pk_ctlinput (PRC_LINKDOWN, hdp->hd_pkp);
-	case UA + WAIT_SABM: 
+	case UA + WAIT_SABM:
 		hd_writeinternal (hdp, DM, pf);
 		hdp->hd_state = DM_SENT;
 		SET_TIMER (hdp);
 		break;
 
-	case FRMR + DM_SENT: 
+	case FRMR + DM_SENT:
 		hd_writeinternal (hdp, SABM, pf);
 		hdp->hd_state = SABM_SENT;
 		SET_TIMER (hdp);
 		break;
 
-	case FRMR + WAIT_SABM: 
+	case FRMR + WAIT_SABM:
 		hd_writeinternal (hdp, DM, pf);
 		hdp->hd_state = DM_SENT;
 		SET_TIMER (hdp);
 		break;
 
-	case FRMR + ABM: 
+	case FRMR + ABM:
 		hd_message (hdp, "FRMR received: link down");
 		(void) pk_ctlinput (PRC_LINKDOWN, hdp->hd_pkp);
 #ifdef HDLCDEBUG
@@ -267,41 +267,41 @@ register struct mbuf *fbuf;
 		SET_TIMER (hdp);
 		break;
 
-	case RR + ABM: 
-	case RNR + ABM: 
-	case REJ + ABM: 
+	case RR + ABM:
+	case RNR + ABM:
+	case REJ + ABM:
 		process_sframe (hdp, (struct Hdlc_sframe *)frame, frametype);
 		break;
 
-	case IFRAME + ABM: 
+	case IFRAME + ABM:
 		queued = process_iframe (hdp, fbuf, (struct Hdlc_iframe *)frame);
 		break;
 
-	case IFRAME + SABM_SENT: 
-	case RR + SABM_SENT: 
-	case RNR + SABM_SENT: 
-	case REJ + SABM_SENT: 
+	case IFRAME + SABM_SENT:
+	case RR + SABM_SENT:
+	case RNR + SABM_SENT:
+	case REJ + SABM_SENT:
 		hd_writeinternal (hdp, DM, POLLON);
 		hdp->hd_state = DM_SENT;
 		SET_TIMER (hdp);
 		break;
 
-	case IFRAME + WAIT_SABM: 
-	case RR + WAIT_SABM: 
-	case RNR + WAIT_SABM: 
-	case REJ + WAIT_SABM: 
+	case IFRAME + WAIT_SABM:
+	case RR + WAIT_SABM:
+	case RNR + WAIT_SABM:
+	case REJ + WAIT_SABM:
 		hd_writeinternal (hdp, FRMR, POLLOFF);
 		SET_TIMER (hdp);
 		break;
 
-	case ILLEGAL + SABM_SENT: 
+	case ILLEGAL + SABM_SENT:
 		hdp->hd_unknown++;
 		hd_writeinternal (hdp, DM, POLLOFF);
 		hdp->hd_state = DM_SENT;
 		SET_TIMER (hdp);
 		break;
 
-	case ILLEGAL + ABM: 
+	case ILLEGAL + ABM:
 		hd_message (hdp, "Unknown frame received: link down");
 		(void) pk_ctlinput (PRC_LINKDOWN, hdp->hd_pkp);
 	case ILLEGAL + WAIT_SABM:
@@ -329,7 +329,7 @@ register struct Hdlc_iframe *frame;
 	                pf = frame -> pf;
 	register int    queued = FALSE;
 
-	/* 
+	/*
 	 *  Validate the iframe's N(R) value. It's N(R) value must be in
 	 *   sync with our V(S) value and our "last received nr".
 	 */
@@ -340,7 +340,7 @@ register struct Hdlc_iframe *frame;
 	}
 
 
-	/* 
+	/*
 	 *  This section tests the IFRAME for proper sequence. That is, it's
 	 *  sequence number N(S) MUST be equal to V(S).
 	 */
@@ -366,10 +366,10 @@ register struct Hdlc_iframe *frame;
 	}
 	hdp->hd_condition &= ~REJ_CONDITION;
 
-	/* 
+	/*
 	 *  This section finally tests the IFRAME's sequence number against
 	 *  the window size (K)  and the sequence number of the  last frame
-	 *  we have acknowledged.  If the IFRAME is completely correct then 
+	 *  we have acknowledged.  If the IFRAME is completely correct then
 	 *  it is queued for the packet level.
 	 */
 
@@ -379,7 +379,7 @@ register struct Hdlc_iframe *frame;
 			/* Must generate a RR or RNR with final bit on. */
 			hd_writeinternal (hdp, RR, POLLON);
 		} else
-			/*    
+			/*
 			 *  Hopefully we can piggyback the RR, if not we will generate
 			 *  a RR when T3 timer expires.
 			 */
@@ -396,7 +396,7 @@ register struct Hdlc_iframe *frame;
 #else
 		{
 			register struct mbuf *m;
-			
+
 			for (m = fbuf; m -> m_next; m = m -> m_next)
 				m -> m_act = (struct mbuf *) 0;
 			m -> m_act = (struct mbuf *) 1;
@@ -406,9 +406,9 @@ register struct Hdlc_iframe *frame;
 		queued = TRUE;
 		hd_start (hdp);
 	} else {
-		/* 
+		/*
 		 *  Here if the remote station has transmitted more iframes then
-		 *  the number which have been acknowledged plus K. 
+		 *  the number which have been acknowledged plus K.
 		 */
 		hdp->hd_invalid_ns++;
 		frame_reject (hdp, W, frame);
@@ -416,7 +416,7 @@ register struct Hdlc_iframe *frame;
 	return (queued);
 }
 
-/* 
+/*
  *  This routine is used to determine if a value (the middle parameter)
  *  is between two other values. The low value is  the first  parameter
  *  the high value is the last parameter. The routine checks the middle
@@ -441,7 +441,7 @@ int     rear,
 	return (result);
 }
 
-/* 
+/*
  *  This routine handles all the frame reject conditions which can
  *  arise as a result  of secondary  processing.  The frame reject
  *  condition Y (frame length error) are handled elsewhere.
@@ -466,20 +466,20 @@ struct Hdlc_iframe *frame;
 	frmr -> frmr_w = frmr -> frmr_x = frmr -> frmr_y =
 		frmr -> frmr_z = 0;
 	switch (rejectcode) {
-	case Z: 
+	case Z:
 		frmr -> frmr_z = 1;/* invalid N(R). */
 		break;
 
-	case Y: 
+	case Y:
 		frmr -> frmr_y = 1;/* iframe length error. */
 		break;
 
-	case X: 
+	case X:
 		frmr -> frmr_x = 1;/* invalid information field. */
 		frmr -> frmr_w = 1;
 		break;
 
-	case W: 
+	case W:
 		frmr -> frmr_w = 1;/* invalid N(S). */
 	}
 
@@ -489,7 +489,7 @@ struct Hdlc_iframe *frame;
 	SET_TIMER (hdp);
 }
 
-/* 
+/*
  *  This procedure is invoked when ever we receive a supervisor
  *  frame such as RR, RNR and REJ. All processing for these
  *  frames is done here.
@@ -505,16 +505,16 @@ int frametype;
 
 	if (valid_nr (hdp, nr, pf) == TRUE) {
 		switch (frametype) {
-		case RR: 
+		case RR:
 			hdp->hd_condition &= ~REMOTE_RNR_CONDITION;
 			break;
 
-		case RNR: 
+		case RNR:
 			hdp->hd_condition |= REMOTE_RNR_CONDITION;
 			hdp->hd_retxcnt = 0;
 			break;
 
-		case REJ: 
+		case REJ:
 			hdp->hd_condition &= ~REMOTE_RNR_CONDITION;
 			rej_routine (hdp, nr);
 		}
@@ -545,7 +545,7 @@ int frametype;
 		frame_reject (hdp, Z, (struct Hdlc_iframe *)frame);	/* Invalid N(R). */
 }
 
-/* 
+/*
  *  This routine tests the validity of the N(R) which we have received.
  *  If it is ok,  then all the  iframes which it acknowledges  (if any)
  *  will be freed.
@@ -561,7 +561,7 @@ register int finalbit;
 	if (hdp->hd_lastrxnr == nr)
 		return (TRUE);
 
-	/* 
+	/*
 	 *  This section validates the frame's  N(R) value.  It's N(R) value
 	 *  must be  in syncronization  with  our V(S)  value and  our "last
 	 *  received nr" variable. If it is correct then we are able to send
@@ -579,7 +579,7 @@ register int finalbit;
 		}
 	}
 
-	/* 
+	/*
 	 *  If we get to here, we do have a valid frame  but it might be out
 	 *  of sequence.  However, we should  still accept the receive state
 	 *  number N(R) since it has already passed our previous test and it
@@ -594,7 +594,7 @@ register int finalbit;
 	return (TRUE);
 }
 
-/* 
+/*
  *  This routine determines how many iframes need to be retransmitted.
  *  It then resets the Send State Variable V(S) to accomplish this.
  */
@@ -613,10 +613,10 @@ register int rejnr;
 
 	hd_flush (hdp->hd_ifp);
 
-	/* 
-	 *  Determine how many frames should be re-transmitted. In the case 
+	/*
+	 *  Determine how many frames should be re-transmitted. In the case
 	 *  of a normal REJ this  should be 1 to K.  In the case of a timer
-	 *  recovery REJ (ie. a REJ with the Final Bit on) this could be 0. 
+	 *  recovery REJ (ie. a REJ with the Final Bit on) this could be 0.
 	 */
 
 	anchor = hdp->hd_vs;
@@ -638,7 +638,7 @@ register int rejnr;
 	hd_start (hdp);
 }
 
-/* 
+/*
  *  This routine frees iframes from the retransmit queue. It is called
  *  when a previously written iframe is acknowledged.
  */
@@ -652,12 +652,12 @@ register int finalbit;
 {
 	register int    i, k;
 
-	/* 
-	 *  We  need to do the  following  because  of a  funny quirk  in  the 
-	 *  protocol.  This case  occures  when  in Timer  recovery  condition 
+	/*
+	 *  We  need to do the  following  because  of a  funny quirk  in  the
+	 *  protocol.  This case  occures  when  in Timer  recovery  condition
 	 *  we get  a  N(R)  which  acknowledges all  the outstanding  iframes
 	 *  but with  the Final Bit off. In this case we need to save the last
-	 *  iframe for possible retransmission even though it has already been 
+	 *  iframe for possible retransmission even though it has already been
 	 *  acknowledged!
 	 */
 

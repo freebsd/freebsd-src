@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.8 1995/04/24 05:13:28 dyson Exp $
+ * $Id: lfs_syscalls.c,v 1.9 1995/05/11 19:26:52 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -171,7 +171,7 @@ lfs_markv(p, uap, retval)
 
 			/* Get the vnode/inode. */
 			if (lfs_fastvget(mntp, blkp->bi_inode, v_daddr, &vp,
-			    blkp->bi_lbn == LFS_UNUSED_LBN ? 
+			    blkp->bi_lbn == LFS_UNUSED_LBN ?
 			    blkp->bi_bp : NULL)) {
 #ifdef DIAGNOSTIC
 				printf("lfs_markv: VFS_VGET failed (%ld)\n",
@@ -244,7 +244,7 @@ err2:	lfs_vunref(vp);
 		} else
 			brelse(*bpp);
 	lfs_segunlock(fs);
-err1:	
+err1:
 	free(start, M_SEGMENT);
 	return (error);
 }
@@ -320,7 +320,7 @@ lfs_bmapv(p, uap, retval)
 struct lfs_segclean_args {
 	fsid_t *fsidp;		/* file system */
 	u_long segment;		/* segment number */
-}; 
+};
 int
 lfs_segclean(p, uap, retval)
 	struct proc *p;

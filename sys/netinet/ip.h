@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.1 (Berkeley) 6/10/93
- * $Id: ip.h,v 1.3 1994/08/21 05:27:30 paul Exp $
+ * $Id: ip.h,v 1.4 1995/05/05 14:36:38 ache Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -51,11 +51,11 @@
  * against negative integers quite easily, and fail in subtle ways.
  */
 struct ip {
-#if BYTE_ORDER == LITTLE_ENDIAN 
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_char	ip_hl:4,		/* header length */
 		ip_v:4;			/* version */
 #endif
-#if BYTE_ORDER == BIG_ENDIAN 
+#if BYTE_ORDER == BIG_ENDIAN
 	u_char	ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #endif
@@ -131,11 +131,11 @@ struct	ip_timestamp {
 	u_char	ipt_code;		/* IPOPT_TS */
 	u_char	ipt_len;		/* size of structure (variable) */
 	u_char	ipt_ptr;		/* index of current entry */
-#if BYTE_ORDER == LITTLE_ENDIAN 
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_char	ipt_flg:4,		/* flags, see below */
 		ipt_oflw:4;		/* overflow counter */
 #endif
-#if BYTE_ORDER == BIG_ENDIAN 
+#if BYTE_ORDER == BIG_ENDIAN
 	u_char	ipt_oflw:4,		/* overflow counter */
 		ipt_flg:4;		/* flags, see below */
 #endif

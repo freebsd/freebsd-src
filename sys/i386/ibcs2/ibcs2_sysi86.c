@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_sysi86.c,v 1.4 1994/10/12 19:38:38 sos Exp $
+ *	$Id: ibcs2_sysi86.c,v 1.1 1994/10/14 08:53:11 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -50,7 +50,7 @@ ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args, int *retval)
 
 		if (hw_float) val = IBCS2_FP_387;	/* FPU hardware */
 		else val = IBCS2_FP_SW;			/* FPU emulator */
-			
+
 		if (error = copyout(&val, args->arg, sizeof(val)))
 			return error;
 		return 0;

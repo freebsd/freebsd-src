@@ -1,4 +1,4 @@
-/* 
+/*
  * worm: Write Once device driver
  *
  * Copyright (C) 1995, HD Associates, Inc.
@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.5 1995/05/03 23:38:20 gpalmer Exp $
+ *      $Id: worm.c,v 1.6 1995/05/03 23:53:32 dufault Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -123,7 +123,7 @@ static int worm_size(struct scsi_link *sc_link)
 	return ret;
 }
 
-errval 
+errval
 wormattach(struct scsi_link *sc_link)
 {
 	struct scsi_data *worm = sc_link->sd;
@@ -156,7 +156,7 @@ wormattach(struct scsi_link *sc_link)
  * into.  In particular, the removable media checking should be
  * handled in one place.
  */
-void 
+void
 wormstart(unit, flags)
 	u_int32	unit;
 	u_int32 flags;
@@ -248,7 +248,7 @@ badnews:
 	} /* go back and see if we can cram more work in.. */
 }
 
-void 
+void
 worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
@@ -272,10 +272,10 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 
 	opri = splbio();
 
-	/*      
+	/*
 	 * Use a bounce buffer if necessary
 	 * XXX: How can we move this up?
-	 */      
+	 */
 #ifdef BOUNCE_BUFFERS
 	if (sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
@@ -301,7 +301,7 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 /*
  * Open the device.  XXX: I'm completely guessing at this sequence.
  */
-int 
+int
 worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -347,7 +347,7 @@ struct scsi_link *sc_link)
 	return 0;
 }
 
-int 
+int
 worm_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {

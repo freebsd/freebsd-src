@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.2 1994/09/17 13:24:16 davidg Exp $ */
+/*	$Id: sysv_msg.c,v 1.3 1994/10/02 17:35:26 phk Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -341,7 +341,7 @@ msgget(p, uap, retval)
 #ifdef MSG_DEBUG_OK
 			printf("no more msqid_ds's available\n");
 #endif
-			return(ENOSPC);	
+			return(ENOSPC);
 		}
 #ifdef MSG_DEBUG_OK
 		printf("msqid %d is available\n", msqid);

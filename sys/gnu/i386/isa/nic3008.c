@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.4 1995/03/28 07:54:31 bde Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.5 1995/05/11 19:25:55 rgrimes Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.4 1995/03/28 07:54:31 bde E
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.5  1995/05/11  19:25:55  rgrimes
+ * Fix -Wformat warnings from LINT kernel.
+ *
  * Revision 1.4  1995/03/28  07:54:31  bde
  * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
  * (except in netccitt, netiso and netns) that I didn't notice when I fixed
@@ -86,7 +89,7 @@ int             nic_connect(), nic_listen(), nic_disconnect(), nic_accept();
 int             nic_output();
 extern void isdn_start_out();
 
-static void     s_intr(), reset_req(), reset_card(); 
+static void     s_intr(), reset_req(), reset_card();
 static int      cstrcmp(), discon_req(), reset_plci(), sel_b2_prot_req();
 
 static short    bsintr;

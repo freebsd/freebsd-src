@@ -1,4 +1,4 @@
-/* 
+/*
  * Contributed by HD Associates (contact: dufault@hda.com)
  * Copyright (c) 1992, 1993 HD Associates
  *
@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stdio.h	5.17 (Berkeley) 6/3/91
- *	$Id: scsi_generic.h,v 1.2 1993/10/16 17:21:05 rgrimes Exp $
+ *	$Id: scsi_generic.h,v 1.3 1995/01/08 13:38:31 dufault Exp $
  */
 
 /* generic SCSI header file.  We use the same minor number format

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: clnp_debug.c,v 1.2 1994/08/02 07:49:35 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_debug.c,v 1.1.1.1 1994/05/24 10:07:26 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_debug.c,v 1.2 1994/08/02 07:49:35 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_debug.c,v $ */
 
 #include <sys/param.h>
@@ -84,7 +84,7 @@ SOFTWARE.
 #ifdef	TESTDEBUG
 #ifdef notdef
 struct addr_37 u_37 = {
-	{0x00, 0x02, 0x00, 0x10, 0x20, 0x30, 0x35}, 
+	{0x00, 0x02, 0x00, 0x10, 0x20, 0x30, 0x35},
 	{0x01, 0x02, 0x03, 0x04, 0x50, 0x60, 0x70, 0x80, 0x90}
 };
 struct addr_osinet u_osinet = {
@@ -156,7 +156,7 @@ char	*where;		/* where to put data */
 }
 
 /*
- *	Return a ptr to a human readable form of an iso addr 
+ *	Return a ptr to a human readable form of an iso addr
  */
 static char iso_addr_b[50];
 #define	DELIM	'.';
@@ -187,7 +187,7 @@ struct iso_addr *isoa;
 			*cp++ = DELIM;
 			cp = clnp_hexp(isoa->t37_dsp, ADDR37_DSP_LEN, cp);
 			break;
-		
+
 /* 		case AFI_OSINET:*/
 		case AFI_RFC986: {
 			u_short	idi;
@@ -212,7 +212,7 @@ struct iso_addr *isoa;
 				cp = clnp_hexp(&o986->o986_vers, 1, cp);
 				*cp++ = DELIM;
 #ifdef  vax
-				sprintf(cp, "%d.%d.%d.%d.%d", 
+				sprintf(cp, "%d.%d.%d.%d.%d",
 				o986->o986_inetaddr[0] & 0xff,
 				o986->o986_inetaddr[1] & 0xff,
 				o986->o986_inetaddr[2] & 0xff,
@@ -231,7 +231,7 @@ struct iso_addr *isoa;
 				cp = clnp_hexp(&o986->o986_upid, 1, cp);
 #endif /* vax */
 			}
-			
+
 		} break;
 
 		default:
@@ -240,7 +240,7 @@ struct iso_addr *isoa;
 	}
 #endif /* notdef */
 	*cp = (char)0;
-	
+
 	return(iso_addr_b);
 }
 

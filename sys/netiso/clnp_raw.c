@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_raw.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: clnp_raw.c,v 1.2 1994/08/02 07:49:44 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_raw.c,v 1.1.1.1 1994/05/24 10:07:22 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_raw.c,v 1.2 1994/08/02 07:49:44 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_raw.c,v $ */
 
 #include <sys/param.h>
@@ -94,7 +94,7 @@ struct sockproto	rclnp_proto	= { PF_ISO, 0 };
  *
  * RETURNS:			none
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			The protocol field of rclnp_proto is set to zero indicating
  *					no protocol.
@@ -125,9 +125,9 @@ int					hdrlen; /* length (in bytes) of clnp header */
  * RETURNS:			success - 0
  *					failure - an appropriate error code
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 rclnp_output(m0, so)
 struct mbuf		*m0;		/* packet to send */
@@ -172,7 +172,7 @@ bad:
  * FUNCTION:		rclnp_ctloutput
  *
  * PURPOSE:			Raw clnp socket option processing
- *					All options are stored inside an mbuf. 
+ *					All options are stored inside an mbuf.
  *
  * RETURNS:			success - 0
  *					failure - unix error code
@@ -180,7 +180,7 @@ bad:
  * SIDE EFFECTS:	If the options mbuf does not exist, it the mbuf passed
  *					is used.
  *
- * NOTES:			
+ * NOTES:
  */
 rclnp_ctloutput(op, so, level, optname, m)
 int				op;				/* type of operation */
@@ -212,14 +212,14 @@ struct mbuf		**m;			/* ptr to ptr to option data */
 			switch (optname) {
 				case CLNPOPT_FLAGS: {
 					u_short	usr_flags;
-					/* 
-					 *	Insure that the data passed has exactly one short in it 
+					/*
+					 *	Insure that the data passed has exactly one short in it
 					 */
 					if ((*m == NULL) || ((*m)->m_len != sizeof(short))) {
 						error = EINVAL;
 						break;
 					}
-					 
+
 					/*
 					 *	Don't allow invalid flags to be set
 					 */
@@ -231,18 +231,18 @@ struct mbuf		**m;			/* ptr to ptr to option data */
 						rp->risop_flags |= usr_flags;
 
 					} break;
-			
+
 				case CLNPOPT_OPTS:
 					if (error = clnp_set_opts(&rp->risop_isop.isop_options, m))
 						break;
 					rp->risop_isop.isop_optindex = m_get(M_WAIT, MT_SOOPTS);
-					(void) clnp_opt_sanity(rp->risop_isop.isop_options, 
+					(void) clnp_opt_sanity(rp->risop_isop.isop_options,
 						mtod(rp->risop_isop.isop_options, caddr_t),
-						rp->risop_isop.isop_options->m_len, 
+						rp->risop_isop.isop_options->m_len,
 						mtod(rp->risop_isop.isop_optindex,
 							struct clnp_optidx *));
 					break;
-			} 
+			}
 			break;
 
 		case PRCO_GETOPT:
@@ -264,7 +264,7 @@ struct mbuf		**m;			/* ptr to ptr to option data */
 		m_freem(*m);
 		*m = NULL;
 	}
-	
+
 	return error;
 }
 
@@ -301,7 +301,7 @@ clnp_usrreq(so, req, m, nam, control)
 			rp->risop_rcb.rcb_laddr = 0;
 		/* free clnp cached hdr if necessary */
 		if (rp->risop_isop.isop_clnpcache != NULL) {
-			struct clnp_cache *clcp = 
+			struct clnp_cache *clcp =
 				mtod(rp->risop_isop.isop_clnpcache, struct clnp_cache *);
 			if (clcp->clc_hdr != NULL) {
 				m_free(clcp->clc_hdr);

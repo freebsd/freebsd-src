@@ -1,5 +1,5 @@
-/* $Header: main.c,v 2.4 88/09/19 12:55:13 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/main.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/main.c,v 1.1.1.1 1994/05/24 10:07:49 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/main.c,v $ */
 /*
  * TODO:
  * rewrite the command line stuff altogether - it's kludged beyond
@@ -45,7 +45,7 @@ char *synonyms[] = {
 usage(a)
 char *a;
 {
-	fprintf(stderr, 
+	fprintf(stderr,
 	"usage: %s <transition file> {-D<debug options>} <other options>\n",
 		a);
 	fprintf(stderr, "\t<other options> is any combination of:\n");
@@ -55,9 +55,9 @@ char *a;
 	fprintf(stderr, "\t\t-I<initial values file name>\n");
 	fprintf(stderr, "\t\t-X<debugging file name>\n");
 	fprintf(stderr, "\t\t-K<directory name>\n");
-	fprintf(stderr, 
+	fprintf(stderr,
 	"\tThese names do NOT include the suffices (.c, .h)\n");
-	fprintf(stderr, 
+	fprintf(stderr,
 	"\t\t-D<options> to turn on debug options for xebec itself\n");
 	fprintf(stderr, "\t-<nn> for levels of debugging output\n");
 	fprintf(stderr, "\t\t<nn> ranges from 1 to 3, 1 is default(everything)\n");
@@ -97,7 +97,7 @@ register char *proto;
 #ifdef DEBUG
 		DOIT(astringfile);
 #endif DEBUG
-		fprintf(astringfile, 
+		fprintf(astringfile,
 				"#ifndef _NFILE\n#include <stdio.h>\n#endif _NFILE\n" );
 	ENDDEBUG
 
@@ -109,7 +109,7 @@ register char *proto;
 
 	if(pgoption)
 		putdriver(actfile, 15);
-	else 
+	else
 		putdriver(actfile, 14);
 
 	FakeFilename(actfile, Transfilename, lineno);
@@ -338,7 +338,7 @@ char *argv[];
 		/*
 		putdriver(actfile, 10);
 		*/
-		if(debug['K']) { 
+		if(debug['K']) {
 			putdriver(actfile, 11);
 		} else {
 			switch(debug['X']) {
@@ -356,8 +356,8 @@ char *argv[];
 	ENDDEBUG
 	putdriver(actfile, 8);
 	(void) fclose(actfile);
-	IFDEBUG(X) 
-		/* { */ 
+	IFDEBUG(X)
+		/* { */
 		fprintf(astringfile, "};\n");
 		(void) fclose(astringfile);
 	ENDDEBUG
@@ -369,7 +369,7 @@ char *argv[];
 
 	finish = time(0);
 	fprintf(stdout, "%d seconds\n", finish - start);
-	if( print_protoerrs ) 
+	if( print_protoerrs )
 		printprotoerrs();
 }
 
@@ -386,7 +386,7 @@ Exit(n)
 	exit(n);
 }
 
-syntax() 
+syntax()
 {
 	static char *synt[] = {
 		"*PROTOCOL <string>\n",
@@ -397,7 +397,7 @@ syntax()
 		"*TRANSITIONS <string>\n",
 	};
 }
-	
+
 FakeFilename(outfile, name, l)
 FILE *outfile;
 char *name;

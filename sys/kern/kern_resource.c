@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.10 1994/12/06 22:53:37 bde Exp $
+ * $Id: kern_resource.c,v 1.11 1995/02/20 19:42:33 guido Exp $
  */
 
 #include <sys/param.h>
@@ -144,7 +144,7 @@ setpriority(curp, uap, retval)
 
 	case PRIO_PGRP: {
 		register struct pgrp *pg;
-		 
+
 		if (uap->who == 0)
 			pg = curp->p_pgrp;
 		else if ((pg = pgfind(uap->who)) == NULL)
@@ -243,7 +243,7 @@ rtprio(curp, uap, retval)
 		if (suser(pcred->pc_ucred, &curp->p_acflag)) {
 			/* can't set someone else's */
 			if (uap->pid)
-				return (EPERM); 
+				return (EPERM);
 			/* can't set realtime priority */
 			if (rtp.type == RTP_PRIO_REALTIME)
 				return (EPERM);
@@ -259,7 +259,7 @@ rtprio(curp, uap, retval)
 		default:
 			return (EINVAL);
 		}
-		
+
 	default:
 		return (EINVAL);
 	}
@@ -355,7 +355,7 @@ dosetrlimit(p, which, limp)
 	if (limp->rlim_max < 0)
 		limp->rlim_max = RLIM_INFINITY;
 
-	if (limp->rlim_cur > alimp->rlim_max || 
+	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
 		if ((error = suser(p->p_ucred, &p->p_acflag)))
 			return (error);

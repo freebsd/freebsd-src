@@ -1,6 +1,6 @@
 /*
  * Copyright (c) University of British Columbia, 1984
- * Copyright (C) Computer Science Department IV, 
+ * Copyright (C) Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1992
  * Copyright (c) 1991, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_input.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_input.c,v 1.3 1994/12/13 22:32:15 wollman Exp $
+ * $Id: pk_input.c,v 1.4 1995/05/11 00:13:14 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -143,7 +143,7 @@ register struct pkcb *pkp;
 {
 	register int i;
 	register struct protosw *pp;
-	
+
 	/*
 	 * Essentially we have the choice to
 	 * (a) go ahead and let the route be deleted and
@@ -154,7 +154,7 @@ register struct pkcb *pkp;
 	 *
 	 * For the time being we stick with (b)
 	 */
-	
+
 	for (i = 1; i < pkp -> pk_maxlcn; ++i)
 		if (pkp -> pk_chan[i])
 			pk_disconnect (pkp -> pk_chan[i]);
@@ -181,14 +181,14 @@ register struct pkcb *pkp;
 		remque (pkp);
 		if (pkp -> pk_rt -> rt_llinfo == (caddr_t) pkp)
 			pkp -> pk_rt -> rt_llinfo = (caddr_t) NULL;
-		
+
 		/*
 		 * Tell the link level that the pkcb is dissolving
 		 */
 		if (pp -> pr_ctlinput && pkp -> pk_llnext) {
 			ctlinfo.dlcti_pcb = pkp -> pk_llnext;
 			ctlinfo.dlcti_rt = pkp -> pk_rt;
-			(pp -> pr_ctlinput)(PRC_DISCONNECT_REQUEST, 
+			(pp -> pr_ctlinput)(PRC_DISCONNECT_REQUEST,
 					    pkp -> pk_xcp, &ctlinfo);
 		}
 		free ((caddr_t) pkp -> pk_chan, M_IFADDR);
@@ -237,9 +237,9 @@ register struct pkcb *pkp;
 	return 0;
 }
 
-/* 
+/*
  *  This procedure is called by the link level whenever the link
- *  becomes operational, is reset, or when the link goes down. 
+ *  becomes operational, is reset, or when the link goes down.
  */
 /*VARARGS*/
 caddr_t
@@ -250,27 +250,27 @@ pk_ctlinput (code, src, addr)
 	register struct pkcb *pkp = (struct pkcb *) addr;
 
 	switch (code) {
-	case PRC_LINKUP: 
+	case PRC_LINKUP:
 		if (pkp -> pk_state == DTE_WAITING)
 			pk_restart (pkp, X25_RESTART_NETWORK_CONGESTION);
 		break;
 
-	case PRC_LINKDOWN: 
+	case PRC_LINKDOWN:
 		pk_restart (pkp, -1);	/* Clear all active circuits */
 		pkp -> pk_state = DTE_WAITING;
 		break;
 
-	case PRC_LINKRESET: 
+	case PRC_LINKRESET:
 		pk_restart (pkp, X25_RESTART_NETWORK_CONGESTION);
 		break;
-		
+
 	case PRC_CONNECT_INDICATION: {
 		struct rtentry *llrt;
 
 		if ((llrt = rtalloc1(src, 0, 0UL)) == 0)
 			return 0;
 		else llrt -> rt_refcnt--;
-		
+
 		pkp = (((struct npaidbentry *) llrt -> rt_llinfo) -> np_rt) ?
 			(struct pkcb *)(((struct npaidbentry *) llrt -> rt_llinfo) -> np_rt -> rt_llinfo) : (struct pkcb *) 0;
 		if (pkp == (struct pkcb *) 0)
@@ -315,7 +315,7 @@ pkintr ()
 }
 struct mbuf *pk_bad_packet;
 struct mbuf_cache pk_input_cache = {0 };
-/* 
+/*
  *  X.25 PACKET INPUT
  *
  *  This procedure is called by a link level procedure whenever
@@ -355,9 +355,9 @@ register struct mbuf *m;
 	lcn = LCN(xp);
 	lcp = pkp -> pk_chan[lcn];
 
-	/* 
-	 *  If the DTE is in Restart  state, then it will ignore data, 
-	 *  interrupt, call setup and clearing, flow control and reset 
+	/*
+	 *  If the DTE is in Restart  state, then it will ignore data,
+	 *  interrupt, call setup and clearing, flow control and reset
 	 *  packets.
 	 */
 	if (lcn < 0 || lcn > pkp -> pk_maxlcn) {
@@ -400,48 +400,48 @@ register struct mbuf *m;
 	m -> m_pkthdr.rcvif = pkp -> pk_ia -> ia_ifp;
 
 	switch (ptype + lcdstate) {
-	/* 
-	 *  Incoming Call packet received. 
+	/*
+	 *  Incoming Call packet received.
 	 */
-	case CALL + LISTEN: 
+	case CALL + LISTEN:
 		pk_incoming_call (pkp, m);
 		break;
 
-	/* 	
-	 *  Call collision: Just throw this "incoming call" away since 
-	 *  the DCE will ignore it anyway. 
+	/*
+	 *  Call collision: Just throw this "incoming call" away since
+	 *  the DCE will ignore it anyway.
 	 */
-	case CALL + SENT_CALL: 
-		pk_message ((int) lcn, pkp -> pk_xcp, 
+	case CALL + SENT_CALL:
+		pk_message ((int) lcn, pkp -> pk_xcp,
 			"incoming call collision");
 		break;
 
-	/* 
+	/*
 	 *  Call confirmation packet received. This usually means our
 	 *  previous connect request is now complete.
 	 */
-	case CALL_ACCEPTED + SENT_CALL: 
+	case CALL_ACCEPTED + SENT_CALL:
 		MCHTYPE(m, MT_CONTROL);
 		pk_call_accepted (lcp, m);
 		break;
 
-	/* 
+	/*
 	 *  This condition can only happen if the previous state was
-	 *  SENT_CALL. Just ignore the packet, eventually a clear 
+	 *  SENT_CALL. Just ignore the packet, eventually a clear
 	 *  confirmation should arrive.
 	 */
-	case CALL_ACCEPTED + SENT_CLEAR: 
+	case CALL_ACCEPTED + SENT_CLEAR:
 		break;
 
-	/* 
+	/*
 	 *  Clear packet received. This requires a complete tear down
 	 *  of the virtual circuit.  Free buffers and control blocks.
 	 *  and send a clear confirmation.
 	 */
 	case CLEAR + READY:
-	case CLEAR + RECEIVED_CALL: 
-	case CLEAR + SENT_CALL: 
-	case CLEAR + DATA_TRANSFER: 
+	case CLEAR + RECEIVED_CALL:
+	case CLEAR + SENT_CALL:
+	case CLEAR + DATA_TRANSFER:
 		lcp -> lcd_state = RECEIVED_CLEAR;
 		lcp -> lcd_template = pk_template (lcp -> lcd_lcn, X25_CLEAR_CONFIRM);
 		pk_output (lcp);
@@ -454,22 +454,22 @@ register struct mbuf *m;
 		lcp = 0;
 		break;
 
-	/* 
+	/*
 	 *  Clear collision: Treat this clear packet as a confirmation.
 	 */
-	case CLEAR + SENT_CLEAR: 
+	case CLEAR + SENT_CLEAR:
 		pk_close (lcp);
 		break;
 
-	/* 
+	/*
 	 *  Clear confirmation received. This usually means the virtual
 	 *  circuit is now completely removed.
 	 */
-	case CLEAR_CONF + SENT_CLEAR: 
+	case CLEAR_CONF + SENT_CLEAR:
 		pk_close (lcp);
 		break;
 
-	/* 
+	/*
 	 *  A clear confirmation on an unassigned logical channel - just
 	 *  ignore it. Note: All other packets on an unassigned channel
 	 *  results in a clear.
@@ -478,20 +478,20 @@ register struct mbuf *m;
 	case CLEAR_CONF + LISTEN:
 		break;
 
-	/* 
+	/*
 	 *  Data packet received. Pass on to next level. Move the Q and M
 	 *  bits into the data portion for the next level.
 	 */
-	case DATA + DATA_TRANSFER: 
+	case DATA + DATA_TRANSFER:
 		if (lcp -> lcd_reset_condition) {
 			ptype = DELETE_PACKET;
 			break;
 		}
 
-		/* 
-		 *  Process the P(S) flow control information in this Data packet. 
-		 *  Check that the packets arrive in the correct sequence and that 
-		 *  they are within the "lcd_input_window". Input window rotation is 
+		/*
+		 *  Process the P(S) flow control information in this Data packet.
+		 *  Check that the packets arrive in the correct sequence and that
+		 *  they are within the "lcd_input_window". Input window rotation is
 		 *  initiated by the receive interface.
 		 */
 
@@ -559,7 +559,7 @@ register struct mbuf *m;
 		 * Discard Q-BIT packets if the application
 		 * doesn't want to be informed of M and Q bit status
 		 */
-		if (X25GBITS(xp -> bits, q_bit) 
+		if (X25GBITS(xp -> bits, q_bit)
 		    && (lcp -> lcd_flags & X25_MQBIT) == 0) {
 			m_freem (m);
 			/*
@@ -575,10 +575,10 @@ register struct mbuf *m;
 		}
 		break;
 
-	/* 
+	/*
 	 *  Interrupt packet received.
 	 */
-	case INTERRUPT + DATA_TRANSFER: 
+	case INTERRUPT + DATA_TRANSFER:
 		if (lcp -> lcd_reset_condition)
 			break;
 		lcp -> lcd_intrdata = xp -> packet_data;
@@ -597,10 +597,10 @@ register struct mbuf *m;
 		}
 		break;
 
-	/* 
+	/*
 	 *  Interrupt confirmation packet received.
 	 */
-	case INTERRUPT_CONF + DATA_TRANSFER: 
+	case INTERRUPT_CONF + DATA_TRANSFER:
 		if (lcp -> lcd_reset_condition)
 			break;
 		if (lcp -> lcd_intrconf_pending == TRUE)
@@ -609,11 +609,11 @@ register struct mbuf *m;
 			pk_procerror (RESET, lcp, "unexpected packet", 43);
 		break;
 
-	/* 
+	/*
 	 *  Receiver ready received. Rotate the output window and output
 	 *  any data packets waiting transmission.
 	 */
-	case RR + DATA_TRANSFER: 
+	case RR + DATA_TRANSFER:
 		if (lcp -> lcd_reset_condition ||
 		    pk_ack (lcp, PR(xp)) != PACKET_OK) {
 			ptype = DELETE_PACKET;
@@ -624,11 +624,11 @@ register struct mbuf *m;
 		pk_output (lcp);
 		break;
 
-	/* 
+	/*
 	 *  Receiver Not Ready received. Packets up to the P(R) can be
 	 *  be sent. Condition is cleared with a RR.
 	 */
-	case RNR + DATA_TRANSFER: 
+	case RNR + DATA_TRANSFER:
 		if (lcp -> lcd_reset_condition ||
 		    pk_ack (lcp, PR(xp)) != PACKET_OK) {
 			ptype = DELETE_PACKET;
@@ -637,12 +637,12 @@ register struct mbuf *m;
 		lcp -> lcd_rnr_condition = TRUE;
 		break;
 
-	/* 
+	/*
 	 *  Reset packet received. Set state to FLOW_OPEN.  The Input and
 	 *  Output window edges ar set to zero. Both the send and receive
 	 *  numbers are reset. A confirmation is returned.
 	 */
-	case RESET + DATA_TRANSFER: 
+	case RESET + DATA_TRANSFER:
 		if (lcp -> lcd_reset_condition)
 			/* Reset collision. Just ignore packet. */
 			break;
@@ -666,10 +666,10 @@ register struct mbuf *m;
 		sowwakeup (so);
 		break;
 
-	/* 
+	/*
 	 *  Reset confirmation received.
 	 */
-	case RESET_CONF + DATA_TRANSFER: 
+	case RESET_CONF + DATA_TRANSFER:
 		if (lcp -> lcd_reset_condition) {
 			lcp -> lcd_reset_condition = FALSE;
 			pk_output (lcp);
@@ -678,27 +678,27 @@ register struct mbuf *m;
 			pk_procerror (RESET, lcp, "unexpected packet", 32);
 		break;
 
-	case DATA + SENT_CLEAR: 
+	case DATA + SENT_CLEAR:
 		ptype = DELETE_PACKET;
-	case RR + SENT_CLEAR: 
-	case RNR + SENT_CLEAR: 
-	case INTERRUPT + SENT_CLEAR: 
-	case INTERRUPT_CONF + SENT_CLEAR: 
-	case RESET + SENT_CLEAR: 
-	case RESET_CONF + SENT_CLEAR: 
+	case RR + SENT_CLEAR:
+	case RNR + SENT_CLEAR:
+	case INTERRUPT + SENT_CLEAR:
+	case INTERRUPT_CONF + SENT_CLEAR:
+	case RESET + SENT_CLEAR:
+	case RESET_CONF + SENT_CLEAR:
 		/* Just ignore p if we have sent a CLEAR already.
 		   */
 		break;
 
-	/* 
+	/*
 	 *  Restart sets all the permanent virtual circuits to the "Data
 	 *  Transfer" stae and  all the switched virtual circuits to the
 	 *  "Ready" state.
 	 */
-	case RESTART + READY: 
+	case RESTART + READY:
 		switch (pkp -> pk_state) {
-		case DTE_SENT_RESTART: 
-			/* 
+		case DTE_SENT_RESTART:
+			/*
 			 * Restart collision.
 			 * If case the restart cause is "DTE originated" we
 			 * have a DTE-DTE situation and are trying to resolve
@@ -720,13 +720,13 @@ register struct mbuf *m;
 			pkp -> pk_dxerole &= ~DTE_PLAYDCE;
 			pk_message (0, pkp -> pk_xcp,
 				"Packet level operational");
-			pk_message (0, pkp -> pk_xcp, 
+			pk_message (0, pkp -> pk_xcp,
 				    "Assuming DTE role");
 			if (pkp -> pk_dxerole & DTE_CONNECTPENDING)
 				pk_callcomplete (pkp);
 			break;
 
-		default: 
+		default:
 			pk_restart (pkp, -1);
 			pk_restartcause (pkp, xp);
 			pkp -> pk_chan[0] -> lcd_template = pk_template (0,
@@ -737,11 +737,11 @@ register struct mbuf *m;
 				DTE_PLAYDTE;
 			if (pkp -> pk_dxerole & DTE_PLAYDTE) {
 				pkp -> pk_dxerole &= ~DTE_PLAYDCE;
-				pk_message (0, pkp -> pk_xcp, 
+				pk_message (0, pkp -> pk_xcp,
 					    "Assuming DTE role");
 			} else {
 				pkp -> pk_dxerole &= ~DTE_PLAYDTE;
-				pk_message (0, pkp -> pk_xcp, 
+				pk_message (0, pkp -> pk_xcp,
 					 "Assuming DCE role");
 			}
 			if (pkp -> pk_dxerole & DTE_CONNECTPENDING)
@@ -749,13 +749,13 @@ register struct mbuf *m;
 		}
 		break;
 
-	/* 
+	/*
 	 *  Restart confirmation received. All logical channels are set
-	 *  to READY. 
+	 *  to READY.
 	 */
-	case RESTART_CONF + READY: 
+	case RESTART_CONF + READY:
 		switch (pkp -> pk_state) {
-		case DTE_SENT_RESTART: 
+		case DTE_SENT_RESTART:
 			pkp -> pk_state = DTE_READY;
 			pkp -> pk_dxerole |= DTE_PLAYDTE;
 			pkp -> pk_dxerole &= ~DTE_PLAYDCE;
@@ -767,7 +767,7 @@ register struct mbuf *m;
 				pk_callcomplete (pkp);
 			break;
 
-		default: 
+		default:
 			/* Restart local procedure error. */
 			pk_restart (pkp, X25_RESTART_LOCAL_PROCEDURE_ERROR);
 			pkp -> pk_state = DTE_SENT_RESTART;
@@ -775,7 +775,7 @@ register struct mbuf *m;
 		}
 		break;
 
-	default: 
+	default:
 		if (lcp) {
 			pk_procerror (CLEAR, lcp, "unknown packet error", 33);
 			pk_message (lcn, pkp -> pk_xcp,
@@ -884,9 +884,9 @@ struct socket *so;
 	}
 }
 
-/* 
+/*
  * This routine handles incoming call packets. It matches the protocol
- * field on the Call User Data field (usually the first four bytes) with 
+ * field on the Call User Data field (usually the first four bytes) with
  * sockets awaiting connections.
  */
 
@@ -930,7 +930,7 @@ struct pkcb *pkp;
 	 * Now, loop through the listen sockets looking for a match on the
 	 * PID. That is the first few octets of the user data field.
 	 * This is the closest thing to a port number for X.25 packets.
-	 * It does provide a way of multiplexing services at the user level. 
+	 * It does provide a way of multiplexing services at the user level.
 	 */
 
 	for (l = pk_listenhead; l; l = l -> lcd_listen) {
@@ -961,7 +961,7 @@ struct pkcb *pkp;
 		if (l -> lcd_so) {
 			if (so = sonewconn (l -> lcd_so, SS_ISCONNECTED))
 				    lcp = (struct pklcd *) so -> so_pcb;
-		} else 
+		} else
 			lcp = pk_attach ((struct socket *) 0);
 		if (lcp == 0) {
 			/*

@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.83 1995/04/14 15:13:26 dufault Exp $
+ *	$Id: conf.c,v 1.84 1995/04/28 00:51:30 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -522,15 +522,15 @@ d_select_t	logselect;
 d_open_t	bquopen;
 d_close_t	bquclose;
 d_rdwr_t	bquread, bquwrite;
-d_select_t	bquselect; 
+d_select_t	bquselect;
 d_ioctl_t	bquioctl;
-#else 
-#define bquopen         nxopen 
+#else
+#define bquopen         nxopen
 #define bquclose        nxclose
 #define bquread         nxread
 #define bquwrite        nxwrite
 #define bquselect       nxselect
-#define bquioctl        nxioctl 
+#define bquioctl        nxioctl
 #endif
 
 #include "lpt.h"
@@ -805,8 +805,8 @@ d_ttycv_t	cxdevtotty;
 d_open_t	gpopen;
 d_close_t	gpclose;
 d_rdwr_t	gpwrite;
-d_ioctl_t	gpioctl; 
-#else   
+d_ioctl_t	gpioctl;
+#else
 #define gpopen  	nxopen
 #define gpclose 	nxclose
 #define gpwrite 	nxwrite
@@ -818,8 +818,8 @@ d_ioctl_t	gpioctl;
 d_open_t	gscopen;
 d_close_t	gscclose;
 d_rdwr_t	gscread;
-d_ioctl_t	gscioctl; 
-#else   
+d_ioctl_t	gscioctl;
+#else
 #define gscopen		nxopen
 #define gscclose	nxclose
 #define gscread		nxread
@@ -855,8 +855,8 @@ d_select_t	tunselect;
 #define tunselect       nxselect
 #endif
 
-#include "spigot.h"     
-#if     NSPIGOT > 0     
+#include "spigot.h"
+#if     NSPIGOT > 0
 d_open_t        spigot_open;
 d_close_t       spigot_close;
 d_ioctl_t       spigot_ioctl;
@@ -864,12 +864,12 @@ d_rdwr_t        spigot_read, spigot_write;
 d_select_t      spigot_select;
 d_mmap_t        spigot_mmap;
 #else
-#define spigot_open     nxopen     
-#define spigot_close    nxclose     
-#define spigot_ioctl    nxioctl     
-#define spigot_read     nxread     
-#define spigot_write    nxwrite     
-#define spigot_select   seltrue     
+#define spigot_open     nxopen
+#define spigot_close    nxclose
+#define spigot_ioctl    nxioctl
+#define spigot_read     nxread
+#define spigot_write    nxwrite
+#define spigot_select   seltrue
 #define spigot_mmap     nommap
 #endif
 
@@ -1162,7 +1162,7 @@ struct cdevsw	cdevsw[] =
 	  seltrue,	nommap,		vnstrategy },
 	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
 	  gpioctl,	nostop,		nullreset,	nodevtotty,/* GPIB */
-          seltrue,	nommap,		NULL },                 
+          seltrue,	nommap,		NULL },
 	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
 	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
 	  seltrue,	nommap,		scdstrategy },

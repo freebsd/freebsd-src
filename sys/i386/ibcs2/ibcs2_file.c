@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_file.c,v 1.1 1994/10/14 08:53:01 sos Exp $
+ *	$Id: ibcs2_file.c,v 1.2 1994/12/14 22:03:48 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -61,7 +61,7 @@ struct ibcs2_close_args {
 int
 ibcs2_close(struct proc *p, struct ibcs2_close_args *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_FILE) 
+	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("IBCS2: 'close' fd=%d\n", args->fd);
 	return close(p, args, retval);
 }
@@ -80,8 +80,8 @@ ibcs2_creat(struct proc *p, struct ibcs2_creat_args *args, int *retval)
 		int	crtmode;
 	} bsd_open_args;
 
-	if (ibcs2_trace & IBCS2_TRACE_FILE) 
-		printf("IBCS2: 'creat' name=%s, mode=%x\n", 
+	if (ibcs2_trace & IBCS2_TRACE_FILE)
+		printf("IBCS2: 'creat' name=%s, mode=%x\n",
 			args->fname, args->fmode);
 	bsd_open_args.fname = args->fname;
 	bsd_open_args.crtmode = args->fmode;
@@ -92,7 +92,7 @@ ibcs2_creat(struct proc *p, struct ibcs2_creat_args *args, int *retval)
 int
 ibcs2_dup(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_FILE) 
+	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("IBCS2: 'dup'\n");
 	return dup(p, args, retval);
 }
@@ -161,11 +161,11 @@ ibcs2_fcntl(struct proc *p, struct ibcs2_fcntl_args *args, int *retval)
   		int fd;
   		int cmd;
   		int arg;
-	} fcntl_args; 
+	} fcntl_args;
 	struct ibcs2_flock ibcs2_flock;
 	struct flock *bsd_flock = (struct flock *)UA_ALLOC();
 
-	if (ibcs2_trace & IBCS2_TRACE_FILE) 
+	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("IBCS2: 'fcntl' fd=%d, cmd=%d arg=%d\n",
 			args->fd, args->cmd, args->arg);
 
@@ -203,10 +203,10 @@ ibcs2_fcntl(struct proc *p, struct ibcs2_fcntl_args *args, int *retval)
     		if (args->arg & IBCS2_SYNC)     fcntl_args.arg |= O_FSYNC;
   		fcntl_args.cmd = F_SETFL;
 		return fcntl(p, &fcntl_args, retval);
-  	
+
 	case IBCS2_F_GETLK:
 		if ((error = copyin((caddr_t)args->arg, (caddr_t)&ibcs2_flock,
-			       sizeof(struct ibcs2_flock)))) 
+			       sizeof(struct ibcs2_flock))))
 			return error;
 		ibcs2_to_bsd_flock(&ibcs2_flock, bsd_flock);
 		fcntl_args.cmd = F_GETLK;
@@ -219,7 +219,7 @@ ibcs2_fcntl(struct proc *p, struct ibcs2_fcntl_args *args, int *retval)
 
 	case IBCS2_F_SETLK:
 		if ((error = copyin((caddr_t)args->arg, (caddr_t)&ibcs2_flock,
-			       sizeof(struct ibcs2_flock)))) 
+			       sizeof(struct ibcs2_flock))))
 			return error;
 		ibcs2_to_bsd_flock(&ibcs2_flock, bsd_flock);
 		fcntl_args.cmd = F_SETLK;
@@ -228,7 +228,7 @@ ibcs2_fcntl(struct proc *p, struct ibcs2_fcntl_args *args, int *retval)
 
 	case IBCS2_F_SETLKW:
 		if ((error = copyin((caddr_t)args->arg, (caddr_t)&ibcs2_flock,
-			       sizeof(struct ibcs2_flock)))) 
+			       sizeof(struct ibcs2_flock))))
 			return error;
 		ibcs2_to_bsd_flock(&ibcs2_flock, bsd_flock);
 		fcntl_args.cmd = F_SETLKW;
@@ -317,7 +317,7 @@ again:
 		dir.d_ino = BSD_DIRENT(inp)->d_ino;
 		dir.d_off = (ibcs2_off_t)off;
 		dir.d_reclen = IBCS2_RECLEN(inp);
-		bcopy(BSD_DIRENT(inp)->d_name, &dir.d_name, 
+		bcopy(BSD_DIRENT(inp)->d_name, &dir.d_name,
 		      BSD_DIRENT(inp)->d_namlen);
 		if (error = copyout(&dir, outp, dir.d_reclen))
 			goto out;
@@ -349,7 +349,7 @@ ibcs2_open(struct proc *p, struct ibcs2_open_args *args, int *retval)
 	int bsd_mode = 0;
 	int noctty = args->fmode & 0x8000;
 	int error;
-	
+
 	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("IBCS2: 'open' name=%s, flags=%x, mode=%x\n",
 			args->fname, args->fmode, args->crtmode);
@@ -399,7 +399,7 @@ ibcs2_read(struct proc *p, struct ibcs2_read_args *args, int *retval)
 	int buflen, error, eofflag;
 	int len, reclen, resid;
 
-	if (ibcs2_trace & IBCS2_TRACE_FILE) 
+	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("IBCS2: 'read' fd=%d, count=%d\n",
 			args->fd, args->count);
 
@@ -453,7 +453,7 @@ again:
 			outp++;
 			break;
 		}
-		/* 
+		/*
 		 * TODO: break up name if > 14 chars
 		 * put 14 chars in each dir entry wtih d_ino = 0xffff
 		 * and set the last dir entry's d_ino = inode
@@ -498,7 +498,7 @@ ibcs2_seek(struct proc *p, struct ibcs2_seek_args *args, int *retval)
 	off_t tmp_retval;
 	int error;
 
-	if (ibcs2_trace & IBCS2_TRACE_FILE) 
+	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("IBCS2: 'seek' fd=%d, offset=%d, how=%d\n",
 		       args->fdes, args->off, args->whence);
 	tmp_args.fdes = args->fdes;
@@ -518,7 +518,7 @@ struct ibcs2_write_args {
 int
 ibcs2_write(struct proc *p, struct ibcs2_write_args *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_FILE) 
+	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("IBCS2: 'write' fd=%d, count=%d\n",
 			args->fd, args->count);
 	return write(p, args, retval);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.3 1994/08/02 07:42:57 davidg Exp $
+ * $Id: tty_tty.c,v 1.4 1994/12/04 01:46:13 ache Exp $
  */
 
 /*
@@ -66,7 +66,7 @@ cttyopen(dev, flag, mode, p)
 	 * Since group is tty and mode is 620 on most terminal lines
 	 * and since sessions protect terminals from processes outside
 	 * your session, this check is probably no longer necessary.
-	 * Since it inhibits setuid root programs that later switch 
+	 * Since it inhibits setuid root programs that later switch
 	 * to another user from accessing /dev/tty, we have decided
 	 * to delete this test. (mckusick 5/93)
 	 */

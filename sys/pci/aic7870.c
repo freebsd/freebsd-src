@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.8 1995/03/31 14:08:33 gibbs Exp $
+ *	$Id: aic7870.c,v 1.9 1995/04/15 21:38:34 gibbs Exp $
  */
 
 #include <pci.h>
@@ -53,9 +53,9 @@ struct  pci_device ahc_device = {
 
 DATA_SET (pcidevice_set, ahc_device);
 
-static  char* 
+static  char*
 aic7870_probe (pcici_t tag, pcidi_t type)
-{   
+{
 	switch(type) {
 		case PCI_DEVICE_ID_ADAPTEC_2940:
 			return ("Adaptec 294X SCSI host adapter");
@@ -74,8 +74,8 @@ void
 aic7870_attach(config_id, unit)
 	pcici_t config_id;
 	int	unit;
-{       
-	u_long io_port; 
+{
+	u_long io_port;
 	unsigned opri = 0;
 	ahc_type ahc_t = AHC_NONE;
         if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
@@ -86,11 +86,11 @@ aic7870_attach(config_id, unit)
 	 * set hence we subtract 0xc01 instead of the
 	 * 0xc00 that you would expect.
 	 */
-	io_port -= 0xc01ul; 
+	io_port -= 0xc01ul;
 
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 		case PCI_DEVICE_ID_ADAPTEC_2940:
-			ahc_t = AHC_294;	
+			ahc_t = AHC_294;
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
 			ahc_t = AHC_AIC7870;
@@ -121,6 +121,6 @@ aic7870_attach(config_id, unit)
 		splx(opri);
 	}
 	return;
-}       
+}
 
 #endif /* NPCI > 0 */

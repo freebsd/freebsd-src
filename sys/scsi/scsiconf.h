@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.24 1995/04/23 22:07:51 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.25 1995/05/03 18:09:14 dufault Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -54,9 +54,9 @@ typedef	unsigned char 		u_int8;
  *
  *				-------------
  *
- * The key to all this is the scsi_link structure which associates all the 
+ * The key to all this is the scsi_link structure which associates all the
  * other structures with each other in the correct configuration.  The
- * scsi_link is the connecting information that allows each part of the 
+ * scsi_link is the connecting information that allows each part of the
  * scsi system to find the associated other parts.
  */
 
@@ -313,7 +313,7 @@ struct scsi_link
 #define	SDEV_WAITING	 	0x0002	/* a process is waiting for this */
 #define	SDEV_OPEN	 		0x0004	/* at least 1 open session */
 #define SDEV_BOUNCE			0x0008	/* XXX-HA: unit needs DMA bounce buffer */
-#define	SDEV_DBX			0x00F0	/* debugging flags (scsi_debug.h) */	
+#define	SDEV_DBX			0x00F0	/* debugging flags (scsi_debug.h) */
 #define SDEV_ONCE_ONLY		0x0100	/* unit can only be opened once */
 #define SDEV_BOOTVERBOSE	0x0200	/* be noisy during boot */
 #define SDEV_RESIDS_WORK	0x0400	/* XXX-HA: Residuals work */

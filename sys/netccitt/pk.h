@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk.h	8.1 (Berkeley) 6/10/93
- * $Id: pk.h,v 1.2 1994/08/02 07:47:27 davidg Exp $
+ * $Id: pk.h,v 1.3 1994/08/21 05:44:09 paul Exp $
  */
 
 #ifndef _NETCCITT_PK_H_
@@ -51,22 +51,22 @@
 /* Packet type identifier field defintions. */
 
 #define X25_CALL                         11
-#define X25_CALL_ACCEPTED                15   
+#define X25_CALL_ACCEPTED                15
 #define X25_CLEAR                        19
-#define X25_CLEAR_CONFIRM                23  
-#define X25_DATA                          0   
-#define X25_INTERRUPT                    35   
-#define X25_INTERRUPT_CONFIRM            39   
+#define X25_CLEAR_CONFIRM                23
+#define X25_DATA                          0
+#define X25_INTERRUPT                    35
+#define X25_INTERRUPT_CONFIRM            39
 
-#define X25_RR                            1   
-#define X25_RNR                           5   
+#define X25_RR                            1
+#define X25_RNR                           5
 #define X25_REJECT			  9
-#define X25_RESET                        27 
-#define X25_RESET_CONFIRM                31   
+#define X25_RESET                        27
+#define X25_RESET_CONFIRM                31
 #define X25_DIAGNOSTIC			241
 
-#define X25_RESTART                     251     
-#define X25_RESTART_CONFIRM		255 
+#define X25_RESTART                     251
+#define X25_RESTART_CONFIRM		255
 
 /* Restart cause field definitions. */
 
@@ -176,7 +176,7 @@ struct mbuf *pk_template ();
 /*
  *  The following definitions are used in a switch statement after
  *  determining the packet type.  These values are returned by the
- *  pk_decode procedure. 
+ *  pk_decode procedure.
  */
 
 #define CALL             0 * MAXSTATES

@@ -2,7 +2,7 @@
  *
  * A driver for Soundcards, misc configuration parameters.
  *
- * 
+ *
  * Copyright by Hannu Savolainen 1993
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sound_config.h,v 1.6 1994/10/01 02:17:11 swallace Exp $
+ * $Id: sound_config.h,v 1.9 1995/03/12 23:34:07 swallace Exp $
  */
 
 #include "local.h"
@@ -118,7 +118,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #endif
 
 #ifndef GUS16_BASE
-#define GUS16_BASE	0x530 
+#define GUS16_BASE	0x530
 #endif
 
 #ifndef GUS16_IRQ
@@ -158,7 +158,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define MSS_BASE	0x530
 #endif
 
-#ifndef MSS_IRQ	
+#ifndef MSS_IRQ
 #define MSS_IRQ		10
 #endif
 
@@ -170,7 +170,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define U6850_BASE	0x330
 #endif
 
-#ifndef U6850_IRQ	
+#ifndef U6850_IRQ
 #define U6850_IRQ	5
 #endif
 

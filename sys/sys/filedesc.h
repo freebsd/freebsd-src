@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id: filedesc.h,v 1.4 1994/10/02 17:24:44 phk Exp $
+ * $Id: filedesc.h,v 1.5 1995/03/16 18:16:16 bde Exp $
  */
 
 #ifndef _SYS_FILEDESC_H_
@@ -52,7 +52,7 @@
  * that will fit in a power-of-two sized piece of memory.
  */
 #define NDFILE		20
-#define NDEXTENT	50		/* 250 bytes in 256-byte alloc. */ 
+#define NDEXTENT	50		/* 250 bytes in 256-byte alloc. */
 
 struct filedesc {
 	struct	file **fd_ofiles;	/* file structures for open files */

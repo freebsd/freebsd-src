@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.12 1995/03/31 13:36:57 gibbs Exp $
+ *	$Id: aic7770.c,v 1.13 1995/04/12 20:47:36 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -32,16 +32,16 @@
 #include <machine/cpufunc.h>
 #include <i386/scsi/aic7xxx.h>
 
-int	aic7770probe __P((struct isa_device *dev)); 
+int	aic7770probe __P((struct isa_device *dev));
 int	aic7770_attach __P((struct isa_device *dev));
 
-/* 
+/*
  * Standard EISA Host ID regs  (Offset from slot base)
  */
 
 #define HID0		0xC80	/* 0,1: msb of ID2, 2-7: ID1      */
-#define HID1		0xC81	/* 0-4: ID3, 5-7: LSB ID2         */ 
-#define HID2		0xC82	/* product                        */ 
+#define HID1		0xC81	/* 0-4: ID3, 5-7: LSB ID2         */
+#define HID2		0xC82	/* product                        */
 #define HID3		0xC83	/* firmware revision              */
 
 #define CHAR1(B1,B2) (((B1>>2) & 0x1F) | '@')
@@ -78,11 +78,11 @@ aic7770_registerdev(struct isa_device *id)
 	kdc_aic7770[id->id_unit].kdc_unit = id->id_unit;
 	kdc_aic7770[id->id_unit].kdc_parentdata = id;
 	dev_attach(&kdc_aic7770[id->id_unit]);
-}  
+}
 
 int
 aic7770probe(struct isa_device *dev)
-{       
+{
         u_long  port;
 	int	i;
         u_char  sig_id[4];
@@ -101,7 +101,7 @@ aic7770probe(struct isa_device *dev)
                 port = 0x1000 * ahc_slot;
 		for( i = 0; i < sizeof(sig_id); i++ )
 		{
-		       /* 
+		       /*
 			* An outb is required to prime these registers on
 			* VL cards
 			*/
@@ -124,13 +124,13 @@ aic7770probe(struct isa_device *dev)
 #ifndef DEV_LKM
 					aic7770_registerdev(dev);
 #endif /* DEV_LKM */
-               			        if(ahcprobe(unit, port, 
-						  valid_ids[i].type)){ 
+               			        if(ahcprobe(unit, port,
+						  valid_ids[i].type)){
 					        /*
-					         * If it's there, put in it's 
+					         * If it's there, put in it's
 						 * interrupt vectors
 					         */
-					        dev->id_irq = (1 << 
+					        dev->id_irq = (1 <<
 							ahcdata[unit]->vect);
 					        dev->id_drq = -1; /* EISA dma */
 				        	ahc_unit++;

@@ -41,18 +41,18 @@
 	    conditions even if it is unsupported, not a complete system
 	    and/or does not contain compiled code.
 	8.  These conditions will be in force for the full life of the
-	    copyright.  
+	    copyright.
 	9.  If all the above conditions are met, modifications to other
 	    parts of this file may be freely made, although any person
 	    or persons making changes do not receive the right to add their
 	    name or names to the copyright strings and notices in this
 	    software.  Persons making changes are encouraged to insert edit
 	    history in matcd.c and to put your name and details of the
-	    change there.  
+	    change there.
 	10. You must have prior written permission from the author to
 	    deviate from these terms.
 
-	Vendors who produce product(s) containing this code are encouraged 
+	Vendors who produce product(s) containing this code are encouraged
 	(but not required) to provide copies of the finished product(s) to
 	the author and to correspond with the author about development
 	activity relating to this code.   Donations of development hardware

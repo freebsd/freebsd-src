@@ -771,7 +771,7 @@ void cxinput (cx_chan_t *c, void *buf, unsigned len)
 #if NBPFILTER > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
-	 * If so, hand off the raw packet to bpf. 
+	 * If so, hand off the raw packet to bpf.
 	 */
 	if (c->bpf)
 		bpf_tap (c->bpf, buf, len);

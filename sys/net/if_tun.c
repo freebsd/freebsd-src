@@ -196,7 +196,7 @@ tunclose(dev_t dev, int foo, int bar, struct proc *p)
 	}
 	tp->tun_pgrp = 0;
 	selwakeup(&tp->tun_rsel);
-		
+
 	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);
 	return (0);
 }
@@ -388,7 +388,7 @@ tunioctl(dev, cmd, data, flag, p)
 		s = splimp();
 		if (tp->tun_if.if_snd.ifq_head)
 			*(int *)data = tp->tun_if.if_snd.ifq_head->m_len;
-		else	
+		else
 			*(int *)data = 0;
 		splx(s);
 		break;

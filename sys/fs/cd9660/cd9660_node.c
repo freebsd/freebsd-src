@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.9 1995/02/21 18:41:30 bde Exp $
+ * $Id: cd9660_node.c,v 1.10 1995/03/16 18:12:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -117,7 +117,7 @@ iso_dmap(dev,ino,create)
 {
 	struct iso_dnode *dp;
 	union iso_dhead *dh;
-	
+
 	dh = &iso_dhead[DNOHASH(dev, ino)];
 	for (dp = dh->dh_chain[0];
 	     dp != (struct iso_dnode *)dh;
@@ -132,7 +132,7 @@ iso_dmap(dev,ino,create)
 	dp->i_dev = dev;
 	dp->i_number = ino;
 	insque(dp,dh);
-	
+
 	return dp;
 }
 
@@ -142,7 +142,7 @@ iso_dunmap(dev)
 {
 	struct iso_dnode *dp, *dq;
 	union iso_dhead *dh;
-	
+
 	for (dh = iso_dhead; dh < iso_dhead + DNOHSZ; dh++) {
 		for (dp = dh->dh_chain[0];
 		     dp != (struct iso_dnode *)dh;
@@ -184,7 +184,7 @@ iso_iget(xp, ino, relocated, ipp, isodir)
 	union iso_ihead *ih;
 	int error, result;
 	struct iso_mnt *imp;
-	
+
 	ih = &iso_ihead[INOHASH(dev, ino)];
 loop:
 	for (ip = ih->ih_chain[0];
@@ -218,7 +218,7 @@ loop:
 	ip->i_devvp = 0;
 	ip->i_diroff = 0;
 	ip->i_lockf = 0;
-	
+
 	/*
 	 * Put it onto its hash chain and lock it so that other requests for
 	 * this inode will block if they arrive while we are sleeping waiting
@@ -234,7 +234,7 @@ loop:
 	ip->i_mnt = imp;
 	ip->i_devvp = imp->im_devvp;
 	VREF(ip->i_devvp);
-	
+
 	if (relocated) {
 		/*
 		 * On relocated directories we must
@@ -252,13 +252,13 @@ loop:
 		}
 		isodir = (struct iso_directory_record *)bp->b_un.b_addr;
 	}
-	
+
 	ip->iso_extent = isonum_733(isodir->extent);
 	ip->i_size = isonum_733(isodir->size);
 	ip->iso_start = isonum_711(isodir->ext_attr_length) + ip->iso_extent;
-	
+
 	vp = ITOV(ip);
-	
+
 	/*
 	 * Setup time stamp, attribute
 	 */
@@ -280,12 +280,12 @@ loop:
 		brelse(bp2);
 	if (bp)
 		brelse(bp);
-	
+
 	/*
 	 * Initialize the associated vnode
 	 */
 	vp->v_type = IFTOVT(ip->inode.iso_mode);
-	
+
 	if ( vp->v_type == VFIFO ) {
 		vp->v_op = cd9660_fifoop_p;
 	} else if ( vp->v_type == VCHR || vp->v_type == VBLK ) {
@@ -321,10 +321,10 @@ loop:
 			ip = iq;
 		}
 	}
-	
+
 	if (ip->iso_extent == imp->root_extent)
 		vp->v_flag |= VROOT;
-	
+
 	*ipp = ip;
 	return 0;
 }
@@ -336,7 +336,7 @@ int
 iso_iput(ip)
 	register struct iso_node *ip;
 {
-	
+
 	if ((ip->i_flag & ILOCKED) == 0)
 		panic("iso_iput");
 	ISO_IUNLOCK(ip);
@@ -357,10 +357,10 @@ cd9660_inactive(ap)
 	struct vnode *vp = ap->a_vp;
 	register struct iso_node *ip = VTOI(vp);
 	int error = 0;
-	
+
 	if (prtactive && vp->v_usecount != 0)
 		vprint("cd9660_inactive: pushing active", vp);
-	
+
 	ip->i_flag = 0;
 	/*
 	 * If we are done with the inode, reclaim it
@@ -382,7 +382,7 @@ cd9660_reclaim(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct iso_node *ip = VTOI(vp);
-	
+
 	if (prtactive && vp->v_usecount != 0)
 		vprint("cd9660_reclaim: pushing active", vp);
 	/*
@@ -411,7 +411,7 @@ int
 iso_ilock(ip)
 	register struct iso_node *ip;
 {
-	
+
 	while (ip->i_flag & ILOCKED) {
 		ip->i_flag |= IWANT;
 		if (ip->i_spare0 == curproc->p_pid)
@@ -458,7 +458,7 @@ cd9660_defattr(isodir,inop,bp,ftype)
 	struct iso_mnt *imp;
 	struct iso_extended_attributes *ap = NULL;
 	int off;
-	
+
 	/* high sierra does not have timezone data, flag is one byte ahead */
 	if (isonum_711(ftype == ISO_FTYPE_HIGH_SIERRA?
 		       &isodir->date[6]: isodir->flags)&2) {
@@ -480,7 +480,7 @@ cd9660_defattr(isodir,inop,bp,ftype)
 	}
 	if (bp) {
 		ap = (struct iso_extended_attributes *)bp->b_un.b_addr;
-		
+
 		if (isonum_711(ap->version) == 1) {
 			if (!(ap->perm[0]&0x40))
 				inop->inode.iso_mode |= VEXEC >> 6;
@@ -522,7 +522,7 @@ cd9660_deftstamp(isodir,inop,bp,ftype)
 	struct iso_mnt *imp;
 	struct iso_extended_attributes *ap = NULL;
 	int off;
-	
+
 	if (!bp
 	    && ((imp = inop->i_mnt)->im_flags&ISOFSMNT_EXTATT)
 	    && (off = isonum_711(isodir->ext_attr_length))) {
@@ -531,7 +531,7 @@ cd9660_deftstamp(isodir,inop,bp,ftype)
 	}
 	if (bp) {
 		ap = (struct iso_extended_attributes *)bp->b_un.b_addr;
-		
+
 		if (ftype != ISO_FTYPE_HIGH_SIERRA
 		    && isonum_711(ap->version) == 1) {
 			if (!cd9660_tstamp_conv17(ap->ftime,&inop->inode.iso_atime))
@@ -560,7 +560,7 @@ enum ISO_FTYPE ftype;
 {
 	int crtime, days;
 	int y, m, d, hour, minute, second, tz;
-	
+
 	y = pi[0] + 1900;
 	m = pi[1];
 	d = pi[2];
@@ -572,7 +572,7 @@ enum ISO_FTYPE ftype;
 	else
 		/* original high sierra misses timezone data */
 		tz = 0;
-	
+
 	if (y < 1970) {
 		pu->ts_sec  = 0;
 		pu->ts_nsec = 0;
@@ -590,7 +590,7 @@ enum ISO_FTYPE ftype;
 		days = 367*(y-1960)-7*(y+(m+9)/12)/4-3*((y+(m+9)/12-1)/100+1)/4+275*m/9+d-239;
 #endif
 		crtime = ((((days * 24) + hour) * 60 + minute) * 60) + second;
-		
+
 		/* timezone offset is unreliable on some disks */
 		if (-48 <= tz && tz <= 52)
 			crtime -= tz * 15 * 60;
@@ -606,7 +606,7 @@ cd9660_chars2ui(begin,len)
 	int len;
 {
 	unsigned rc;
-	
+
 	for (rc = 0; --len >= 0;) {
 		rc *= 10;
 		rc += *begin++ - '0';
@@ -620,28 +620,28 @@ cd9660_tstamp_conv17(pi,pu)
 	struct timespec *pu;
 {
 	unsigned char buf[7];
-	
+
 	/* year:"0001"-"9999" -> -1900	*/
 	buf[0] = cd9660_chars2ui(pi,4) - 1900;
-	
+
 	/* month: " 1"-"12"   -> 1 - 12 */
 	buf[1] = cd9660_chars2ui(pi + 4,2);
-	
+
 	/* day:	  " 1"-"31"   -> 1 - 31 */
 	buf[2] = cd9660_chars2ui(pi + 6,2);
-	
+
 	/* hour:  " 0"-"23"   -> 0 - 23 */
 	buf[3] = cd9660_chars2ui(pi + 8,2);
-	
+
 	/* minute:" 0"-"59"   -> 0 - 59 */
 	buf[4] = cd9660_chars2ui(pi + 10,2);
-	
+
 	/* second:" 0"-"59"   -> 0 - 59 */
 	buf[5] = cd9660_chars2ui(pi + 12,2);
-	
+
 	/* difference of GMT */
 	buf[6] = pi[16];
-	
+
 	return cd9660_tstamp_conv7(buf, pu, ISO_FTYPE_DEFAULT);
 }
 

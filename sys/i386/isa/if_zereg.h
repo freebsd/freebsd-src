@@ -1,5 +1,5 @@
 /*
- * National Semiconductor DS8390 NIC register definitions 
+ * National Semiconductor DS8390 NIC register definitions
  *
  * if_edreg.h,v
  * Revision 1.1.2.1  1993/07/21  13:50:04  cgd
@@ -17,10 +17,10 @@
  * Revision 1.2  93/06/23  03:03:05  davidg
  * added some additional definitions for the 83C584 bus interface
  * chip (SMC/WD boards)
- * 
+ *
  * Revision 1.1  93/06/23  03:01:07  davidg
  * Initial revision
- * 
+ *
  */
 
 /*
@@ -369,7 +369,7 @@
  *	algorithm to allow prioritization of nodes.
  */
 #define ZE_TCR_OFST	0x10
- 
+
 /*
  * bits 5, 6, and 7 are unused/reserved
  */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_var.h,v 1.8 1995/03/16 16:25:42 wollman Exp $
+ * $Id: ip_var.h,v 1.9 1995/03/16 18:15:01 bde Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -71,11 +71,11 @@ struct ipq {
  * Note: ipf_next must be at same offset as ipq_next above
  */
 struct	ipasfrag {
-#if BYTE_ORDER == LITTLE_ENDIAN 
+#if BYTE_ORDER == LITTLE_ENDIAN
 	u_char	ip_hl:4,
 		ip_v:4;
 #endif
-#if BYTE_ORDER == BIG_ENDIAN 
+#if BYTE_ORDER == BIG_ENDIAN
 	u_char	ip_v:4,
 		ip_hl:4;
 #endif
