@@ -35,6 +35,7 @@
 .Nm device safe
 .sp
 .Cd sysctl hw.safe.debug
+.Cd sysctl hw.safe.dump
 .Cd sysctl hw.safe.rnginterval
 .Cd sysctl hw.safe.rngbufsize
 .Cd sysctl hw.safe.rngmaxalarm
@@ -63,9 +64,9 @@ On all models, the driver registers itself to provide random data to the
 .Xr random 4
 subsystem.
 Periodically the driver will poll the hardware RNG and retrieve
-data to for use by the system.
+data for use by the system.
 If the driver detects that the hardware RNG is resonating with any local
-signal it will reset the oscillators that generate random data.
+signal, it will reset the oscillators that generate random data.
 Three sysctl settings control this procedure:
 .Li hw.safe.rnginterval
 specifies the time, in seconds, between polling operations,
@@ -73,7 +74,7 @@ specifies the time, in seconds, between polling operations,
 specifies the number of 32-bit words to retrieve on each poll,
 and
 .Li hw.safe.rngmaxalarm
-specifies the threshold for reseting the oscillators.
+specifies the threshold for resetting the oscillators.
 .Pp
 When the driver is compiled with
 .Dv SAFE_DEBUG
