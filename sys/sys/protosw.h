@@ -74,8 +74,10 @@ struct sockopt;
  */
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef void	pr_input_t (struct mbuf *, int);
+typedef int	pr_input6_t (struct mbuf **, int*, int);  /* XXX FIX THIS */
 typedef void	pr_in_input_t (struct mbuf *, int, int); /* XXX FIX THIS */
 typedef int	pr_output_t (struct mbuf *, struct socket *);
+typedef int	pr_in_output_t (struct mbuf *, struct socket *, struct sockaddr *);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
 typedef	void	pr_init_t (void);
@@ -83,6 +85,8 @@ typedef	void	pr_fasttimo_t (void);
 typedef	void	pr_slowtimo_t (void);
 typedef	void	pr_drain_t (void);
 
+typedef int	pr_usrreq_t(struct socket *, int, struct mbuf *,
+			     struct mbuf *, struct mbuf *, struct proc *);
 
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -95,7 +99,7 @@ struct protosw {
 	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* user-protocol hook */
-	void	*pr_ousrreq;
+	pr_usrreq_t	*pr_ousrreq;
 /* utility hooks */
 	pr_init_t *pr_init;
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
