@@ -44,6 +44,7 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/fnv_hash.h>
 
 #include <vm/vm_zone.h>
 
@@ -69,33 +70,6 @@ nfs_nhinit()
 {
 	nfsnode_zone = zinit("NFSNODE", sizeof(struct nfsnode), 0, 0, 1);
 	nfsnodehashtbl = hashinit(desiredvnodes, M_NFSHASH, &nfsnodehash);
-}
-
-/*
- * Compute an entry in the NFS hash table structure
- *
- * Hash based on: http://www.isthe.com/chongo/tech/comp/fnv/
- * by Glenn Fowler, Phong Vo and Landon Curt Noll
- * aka the "Fowler / Noll / Vo Hash" (FNV)
- */
-#define FNV_32_PRIME ((u_int32_t) 0x01000193UL)
-#define FNV1_32_INIT ((u_int32_t) 33554467UL)
-u_long
-nfs_hash(fhp, fhsize)
-	nfsfh_t *fhp;
-	int fhsize;
-{
-	u_char *fhpp;
-	u_int32_t hval;
-	int i;
-
-	fhpp = &fhp->fh_bytes[0];
-	hval = FNV1_32_INIT;
-	for (i = 0; i < fhsize; i++) {
-		hval *= FNV_32_PRIME;
-		hval ^= (u_int32_t)*fhpp++;
-	}
-	return (hval);
 }
 
 /*
@@ -133,7 +107,7 @@ nfs_nget(mntp, fhp, fhsize, npp)
 		rsflags = 0;
 
 retry:
-	nhpp = NFSNOHASH(nfs_hash(fhp, fhsize));
+	nhpp = NFSNOHASH(fnv32_hashbuf(fhp->fh_bytes, fhsize));
 loop:
 	for (np = nhpp->lh_first; np != 0; np = np->n_hash.le_next) {
 		if (mntp != NFSTOV(np)->v_mount || np->n_fhsize != fhsize ||

@@ -55,6 +55,7 @@ typedef	unsigned int	vm_pindex_t;
 typedef	unsigned int	vm_size_t;
 
 typedef __int32_t	register_t;
+typedef __uint32_t	u_register_t;
 
 #ifdef _KERNEL
 typedef	int		intfptr_t;
