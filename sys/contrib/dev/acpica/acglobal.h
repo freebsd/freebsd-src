@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 132 $
+ *       $Revision: 137 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -232,9 +232,9 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_EventsInitialized;
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_StartupFlags;
 extern const UINT8                      AcpiGbl_DecodeTo8bit[8];
-extern const NATIVE_CHAR               *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES];
+extern const char                      *AcpiGbl_DbSleepStates[ACPI_S_STATE_COUNT];
 extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
-extern const NATIVE_CHAR               *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
+extern const char                      *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
 
 
 /*****************************************************************************
@@ -307,22 +307,7 @@ ACPI_EXTERN UINT8                       AcpiGbl_SleepTypeB;
 
 extern      ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS];
 ACPI_EXTERN ACPI_FIXED_EVENT_HANDLER    AcpiGbl_FixedEventHandlers[ACPI_NUM_FIXED_EVENTS];
-
-ACPI_EXTERN ACPI_HANDLE                 AcpiGbl_GpeObjHandle;
-ACPI_EXTERN UINT32                      AcpiGbl_GpeRegisterCount;
-ACPI_EXTERN UINT32                      AcpiGbl_GpeNumberMax;
-ACPI_EXTERN ACPI_GPE_REGISTER_INFO     *AcpiGbl_GpeRegisterInfo;
-ACPI_EXTERN ACPI_GPE_NUMBER_INFO       *AcpiGbl_GpeNumberInfo;
-ACPI_EXTERN ACPI_GPE_BLOCK_INFO         AcpiGbl_GpeBlockInfo[ACPI_MAX_GPE_BLOCKS];
-
-/*
- * GPE translation table
- * Indexed by the GPE number, returns a valid index into the global GPE tables.
- *
- * This table is needed because the GPE numbers supported by block 1 do not
- * have to be contiguous with the GPE numbers supported by block 0.
- */
-ACPI_EXTERN ACPI_GPE_INDEX_INFO        *AcpiGbl_GpeNumberToIndex;
+ACPI_EXTERN ACPI_GPE_BLOCK_INFO         *AcpiGbl_GpeBlockListHead;
 
 
 /*****************************************************************************
@@ -344,24 +329,25 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
 #ifdef ACPI_DEBUGGER
 
 extern      BOOLEAN                     AcpiGbl_MethodExecuting;
+extern      BOOLEAN                     AcpiGbl_AbortMethod;
 extern      BOOLEAN                     AcpiGbl_DbTerminateThreads;
 
 ACPI_EXTERN int                         optind;
-ACPI_EXTERN NATIVE_CHAR                *optarg;
+ACPI_EXTERN char                       *optarg;
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_tables;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_stats;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_ini_methods;
 
 
-ACPI_EXTERN NATIVE_CHAR                *AcpiGbl_DbArgs[ACPI_DEBUGGER_MAX_ARGS];
-ACPI_EXTERN NATIVE_CHAR                 AcpiGbl_DbLineBuf[80];
-ACPI_EXTERN NATIVE_CHAR                 AcpiGbl_DbParsedBuf[80];
-ACPI_EXTERN NATIVE_CHAR                 AcpiGbl_DbScopeBuf[40];
-ACPI_EXTERN NATIVE_CHAR                 AcpiGbl_DbDebugFilename[40];
+ACPI_EXTERN char                       *AcpiGbl_DbArgs[ACPI_DEBUGGER_MAX_ARGS];
+ACPI_EXTERN char                        AcpiGbl_DbLineBuf[80];
+ACPI_EXTERN char                        AcpiGbl_DbParsedBuf[80];
+ACPI_EXTERN char                        AcpiGbl_DbScopeBuf[40];
+ACPI_EXTERN char                        AcpiGbl_DbDebugFilename[40];
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOutputToFile;
-ACPI_EXTERN NATIVE_CHAR                *AcpiGbl_DbBuffer;
-ACPI_EXTERN NATIVE_CHAR                *AcpiGbl_DbFilename;
+ACPI_EXTERN char                       *AcpiGbl_DbBuffer;
+ACPI_EXTERN char                       *AcpiGbl_DbFilename;
 ACPI_EXTERN UINT32                      AcpiGbl_DbDebugLevel;
 ACPI_EXTERN UINT32                      AcpiGbl_DbConsoleDebugLevel;
 ACPI_EXTERN ACPI_TABLE_HEADER          *AcpiGbl_DbTablePtr;

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscreate - Create resource lists/tables
- *              $Revision: 61 $
+ *              $Revision: 64 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -159,7 +159,7 @@ AcpiRsCreateResourceList (
     ACPI_FUNCTION_TRACE ("RsCreateResourceList");
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ByteStreamBuffer = %p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ByteStreamBuffer = %p\n",
         ByteStreamBuffer));
 
     /*
@@ -259,7 +259,7 @@ AcpiRsCreatePciRoutingTable (
         return_ACPI_STATUS (Status);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "BufferSizeNeeded = %X\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "BufferSizeNeeded = %X\n",
         (UINT32) BufferSizeNeeded));
 
     /* Validate/Allocate/Clear caller buffer */
@@ -271,7 +271,7 @@ AcpiRsCreatePciRoutingTable (
     }
 
     /*
-     * Loop through the ACPI_INTERNAL_OBJECTS - Each object 
+     * Loop through the ACPI_INTERNAL_OBJECTS - Each object
      * should be a package that in turn contains an
      * ACPI_INTEGER Address, a UINT8 Pin, a Name and a UINT8 SourceIndex.
      */
@@ -303,7 +303,7 @@ AcpiRsCreatePciRoutingTable (
          */
         if (ACPI_GET_OBJECT_TYPE (*TopObjectList) != ACPI_TYPE_PACKAGE)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "(PRT[%X]) Need sub-package, found %s\n",
                 Index, AcpiUtGetObjectTypeName (*TopObjectList)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -313,7 +313,7 @@ AcpiRsCreatePciRoutingTable (
 
         if ((*TopObjectList)->Package.Count != 4)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "(PRT[%X]) Need package of length 4, found length %d\n",
                 Index, (*TopObjectList)->Package.Count));
             return_ACPI_STATUS (AE_AML_PACKAGE_LIMIT);
@@ -336,7 +336,7 @@ AcpiRsCreatePciRoutingTable (
         }
         else
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "(PRT[%X].Address) Need Integer, found %s\n",
                 Index, AcpiUtGetObjectTypeName (ObjDesc)));
             return_ACPI_STATUS (AE_BAD_DATA);
@@ -352,7 +352,7 @@ AcpiRsCreatePciRoutingTable (
         }
         else
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "(PRT[%X].Pin) Need Integer, found %s\n",
                 Index, AcpiUtGetObjectTypeName (ObjDesc)));
             return_ACPI_STATUS (AE_BAD_DATA);
@@ -368,7 +368,7 @@ AcpiRsCreatePciRoutingTable (
 
             if (ObjDesc->Reference.Opcode != AML_INT_NAMEPATH_OP)
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                     "(PRT[%X].Source) Need name, found reference op %X\n",
                     Index, ObjDesc->Reference.Opcode));
                 return_ACPI_STATUS (AE_BAD_DATA);
@@ -379,7 +379,7 @@ AcpiRsCreatePciRoutingTable (
             /* Use *remaining* length of the buffer as max for pathname */
 
             PathBuffer.Length = OutputBuffer->Length -
-                                (UINT32) ((UINT8 *) UserPrt->Source - 
+                                (UINT32) ((UINT8 *) UserPrt->Source -
                                 (UINT8 *) OutputBuffer->Pointer);
             PathBuffer.Pointer = UserPrt->Source;
 
@@ -393,9 +393,9 @@ AcpiRsCreatePciRoutingTable (
 
             ACPI_STRCPY (UserPrt->Source, ObjDesc->String.Pointer);
 
-            /* Add to the Length field the length of the string */
+            /* Add to the Length field the length of the string (add 1 for terminator) */
 
-            UserPrt->Length += ObjDesc->String.Length;
+            UserPrt->Length += ObjDesc->String.Length + 1;
             break;
 
 
@@ -412,7 +412,7 @@ AcpiRsCreatePciRoutingTable (
 
         default:
 
-           ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+           ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                "(PRT[%X].Source) Need Ref/String/Integer, found %s\n",
                 Index, AcpiUtGetObjectTypeName (ObjDesc)));
            return_ACPI_STATUS (AE_BAD_DATA);
@@ -432,7 +432,7 @@ AcpiRsCreatePciRoutingTable (
         }
         else
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "(PRT[%X].SourceIndex) Need Integer, found %s\n",
                 Index, AcpiUtGetObjectTypeName (ObjDesc)));
             return_ACPI_STATUS (AE_BAD_DATA);
@@ -479,7 +479,7 @@ AcpiRsCreateByteStream (
     ACPI_FUNCTION_TRACE ("RsCreateByteStream");
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "LinkedListBuffer = %p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "LinkedListBuffer = %p\n",
         LinkedListBuffer));
 
     /*

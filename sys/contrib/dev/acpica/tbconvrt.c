@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 45 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -318,9 +318,8 @@ AcpiTbConvertFadt1 (
     ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bCntBlk, LocalFadt->Pm1CntLen,  LocalFadt->V1_Pm1bCntBlk);
     ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm2CntBlk,  LocalFadt->Pm2CntLen,  LocalFadt->V1_Pm2CntBlk);
     ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPmTmrBlk,   LocalFadt->PmTmLen,    LocalFadt->V1_PmTmrBlk);
-    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe0Blk,    LocalFadt->Gpe0BlkLen, LocalFadt->V1_Gpe0Blk);
-    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe1Blk,    LocalFadt->Gpe1BlkLen, LocalFadt->V1_Gpe1Blk);
-
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe0Blk,    0,                     LocalFadt->V1_Gpe0Blk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe1Blk,    0,                     LocalFadt->V1_Gpe1Blk);
 }
 
 
@@ -402,15 +401,16 @@ AcpiTbConvertFadt2 (
     if (!(ACPI_GET_ADDRESS (LocalFadt->XGpe0Blk.Address)))
     {
         ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe0Blk,
-            LocalFadt->Gpe0BlkLen, LocalFadt->V1_Gpe0Blk);
+            0, LocalFadt->V1_Gpe0Blk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XGpe1Blk.Address)))
     {
         ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe1Blk,
-            LocalFadt->Gpe1BlkLen, LocalFadt->V1_Gpe1Blk);
+            0, LocalFadt->V1_Gpe1Blk);
     }
 }
+
 
 /*******************************************************************************
  *

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acpi.h - Master include file, Publics and external data.
- *       $Revision: 55 $
+ *       $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,7 +123,7 @@
  * in the rest of the source code again and again.
  */
 #include "acconfig.h"           /* Configuration constants */
-#include "platform/acenv.h"     /* Target environment specific items */
+#include "acenv.h"              /* Target environment specific items */
 #include "actypes.h"            /* Fundamental common data types */
 #include "acexcep.h"            /* ACPI exception codes */
 #include "acmacros.h"           /* C macros */

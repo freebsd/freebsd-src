@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 135 $
+ *              $Revision: 137 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -273,7 +273,7 @@ AcpiEvExecuteRegMethod (
     /*
      *  Execute the method, no return value
      */
-    ACPI_DEBUG_EXEC(AcpiUtDisplayInitPathname (RegionObj2->Extra.Method_REG, "  [Method]"));
+    ACPI_DEBUG_EXEC(AcpiUtDisplayInitPathname (ACPI_TYPE_METHOD, RegionObj2->Extra.Method_REG, NULL));
     Status = AcpiNsEvaluateByHandle (RegionObj2->Extra.Method_REG, Params, NULL);
 
     AcpiUtRemoveReference (Params[1]);

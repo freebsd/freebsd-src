@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 117 $
+ *              $Revision: 119 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -417,8 +417,8 @@ AcpiExResolveMultiple (
 
     /*
      * For reference objects created via the RefOf or Index operators,
-     * we need to get to the base object (as per the ACPI specification 
-     * of the ObjectType and SizeOf operators).  This means traversing 
+     * we need to get to the base object (as per the ACPI specification
+     * of the ObjectType and SizeOf operators).  This means traversing
      * the list of possibly many nested references.
      */
     while (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_LOCAL_REFERENCE)

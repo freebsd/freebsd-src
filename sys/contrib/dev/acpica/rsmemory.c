@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsmem24 - Memory resource descriptors
- *              $Revision: 20 $
+ *              $Revision: 22 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -352,7 +352,7 @@ AcpiRsMemory32RangeResource (
     /*
      *  Point to the place in the output buffer where the data portion will
      *  begin.
-     *  1. Set the RESOURCE_DATA * Data to point to it's own address, then
+     *  1. Set the RESOURCE_DATA * Data to point to its own address, then
      *  2. Set the pointer to the next address.
      *
      *  NOTE: OutputStruct->Data is cast to UINT8, otherwise, this addition adds

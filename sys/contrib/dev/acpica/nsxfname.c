@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 91 $
+ *              $Revision: 94 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -277,7 +277,7 @@ AcpiGetName (
 
     /* Validate/Allocate/Clear caller buffer */
 
-    Status = AcpiUtInitializeBuffer (Buffer, PATH_SEGMENT_LENGTH);
+    Status = AcpiUtInitializeBuffer (Buffer, ACPI_PATH_SEGMENT_LENGTH);
     if (ACPI_FAILURE (Status))
     {
         goto UnlockAndExit;
@@ -287,7 +287,7 @@ AcpiGetName (
 
     ACPI_STRNCPY (Buffer->Pointer, Node->Name.Ascii,
                 ACPI_NAME_SIZE);
-    ((NATIVE_CHAR *) Buffer->Pointer) [ACPI_NAME_SIZE] = 0;
+    ((char *) Buffer->Pointer) [ACPI_NAME_SIZE] = 0;
     Status = AE_OK;
 
 

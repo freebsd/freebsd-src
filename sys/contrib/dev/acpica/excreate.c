@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 97 $
+ *              $Revision: 99 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -161,10 +161,10 @@ AcpiExCreateAlias (
 
     if (TargetNode->Type == ACPI_TYPE_LOCAL_ALIAS)
     {
-        /* 
+        /*
          * Dereference an existing alias so that we don't create a chain
          * of aliases.  With this code, we guarantee that an alias is
-         * always exactly one level of indirection away from the 
+         * always exactly one level of indirection away from the
          * actual aliased name.
          */
         TargetNode = (ACPI_NAMESPACE_NODE *) TargetNode->Object;

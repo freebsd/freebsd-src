@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 63 $
+ *       $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -168,7 +168,7 @@ UINT32
 AcpiPsGetNextPackageLength (
     ACPI_PARSE_STATE        *ParserState);
 
-NATIVE_CHAR *
+char *
 AcpiPsGetNextNamestring (
     ACPI_PARSE_STATE        *ParserState);
 
@@ -216,7 +216,7 @@ const ACPI_OPCODE_INFO *
 AcpiPsGetOpcodeInfo (
     UINT16                  Opcode);
 
-NATIVE_CHAR *
+char *
 AcpiPsGetOpcodeName (
     UINT16                  Opcode);
 
@@ -313,7 +313,7 @@ AcpiPsAppendArg(
 ACPI_PARSE_OBJECT*
 AcpiPsFind (
     ACPI_PARSE_OBJECT       *Scope,
-    NATIVE_CHAR             *Path,
+    char                    *Path,
     UINT16                  Opcode,
     UINT32                  Create);
 
@@ -402,13 +402,13 @@ AcpiPsSetName(
 
 UINT32
 AcpiPsSprintPath (
-    NATIVE_CHAR             *BufferStart,
+    char                    *BufferStart,
     UINT32                  BufferSize,
     ACPI_PARSE_OBJECT       *Op);
 
 UINT32
 AcpiPsSprintOp (
-    NATIVE_CHAR             *BufferStart,
+    char                    *BufferStart,
     UINT32                  BufferSize,
     ACPI_PARSE_OBJECT       *Op);
 

@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 86 $
+ *              $Revision: 88 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -143,40 +143,24 @@ AcpiEvSciHandler (
     void                    *Context)
 {
     UINT32                  InterruptHandled = ACPI_INTERRUPT_NOT_HANDLED;
-    UINT32                  Value;
-    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE("EvSciHandler");
 
 
     /*
-     * Make sure that ACPI is enabled by checking SCI_EN.  Note that we are
-     * required to treat the SCI interrupt as sharable, level, active low.
+     * We are guaranteed by the ACPI CA initialization/shutdown code that
+     * if this interrupt handler is installed, ACPI is enabled.
      */
-    Status = AcpiGetRegister (ACPI_BITREG_SCI_ENABLE, &Value, ACPI_MTX_DO_NOT_LOCK);
-    if (ACPI_FAILURE (Status))
-    {
-        return (ACPI_INTERRUPT_NOT_HANDLED);
-    }
-
-    if (!Value)
-    {
-        /* ACPI is not enabled;  this interrupt cannot be for us */
-
-        return_VALUE (ACPI_INTERRUPT_NOT_HANDLED);
-    }
 
     /*
      * Fixed AcpiEvents:
-     * -------------
      * Check for and dispatch any Fixed AcpiEvents that have occurred
      */
     InterruptHandled |= AcpiEvFixedEventDetect ();
 
     /*
      * GPEs:
-     * -----
      * Check for and dispatch any GPEs that have occurred
      */
     InterruptHandled |= AcpiEvGpeDetect ();

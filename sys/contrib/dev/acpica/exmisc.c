@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 112 $
+ *              $Revision: 115 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -324,7 +324,7 @@ AcpiExDoConcatenate (
     UINT32                  i;
     ACPI_INTEGER            ThisInteger;
     ACPI_OPERAND_OBJECT     *ReturnDesc;
-    NATIVE_CHAR             *NewBuf;
+    char                    *NewBuf;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -350,14 +350,14 @@ AcpiExDoConcatenate (
             return (AE_NO_MEMORY);
         }
 
-        NewBuf = (NATIVE_CHAR *) ReturnDesc->Buffer.Pointer;
+        NewBuf = (char *) ReturnDesc->Buffer.Pointer;
 
         /* Convert the first integer */
 
         ThisInteger = ObjDesc1->Integer.Value;
         for (i = 0; i < AcpiGbl_IntegerByteWidth; i++)
         {
-            NewBuf[i] = (NATIVE_CHAR) ThisInteger;
+            NewBuf[i] = (char) ThisInteger;
             ThisInteger >>= 8;
         }
 
@@ -366,7 +366,7 @@ AcpiExDoConcatenate (
         ThisInteger = ObjDesc2->Integer.Value;
         for (; i < (ACPI_MUL_2 (AcpiGbl_IntegerByteWidth)); i++)
         {
-            NewBuf[i] = (NATIVE_CHAR) ThisInteger;
+            NewBuf[i] = (char) ThisInteger;
             ThisInteger >>= 8;
         }
 
@@ -385,8 +385,8 @@ AcpiExDoConcatenate (
 
         /* Operand0 is string  */
 
-        NewBuf = ACPI_MEM_ALLOCATE ((ACPI_SIZE) ObjDesc1->String.Length +
-                                    (ACPI_SIZE) ObjDesc2->String.Length + 1);
+        NewBuf = ACPI_MEM_CALLOCATE ((ACPI_SIZE) ObjDesc1->String.Length +
+                                     (ACPI_SIZE) ObjDesc2->String.Length + 1);
         if (!NewBuf)
         {
             ACPI_REPORT_ERROR
@@ -421,7 +421,7 @@ AcpiExDoConcatenate (
             return (AE_NO_MEMORY);
         }
 
-        NewBuf = (NATIVE_CHAR *) ReturnDesc->Buffer.Pointer;
+        NewBuf = (char *) ReturnDesc->Buffer.Pointer;
 
         /* Concatenate the buffers */
 

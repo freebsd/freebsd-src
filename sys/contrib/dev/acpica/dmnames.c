@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmnames - AML disassembler, names, namestrings, pathnames
- *              $Revision: 4 $
+ *              $Revision: 6 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -316,7 +316,7 @@ Exit:
 
 void
 AcpiDmNamestring (
-    NATIVE_CHAR             *Name)
+    char                    *Name)
 {
     UINT32                  SegCount;
 

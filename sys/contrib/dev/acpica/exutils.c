@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 106 $
+ *              $Revision: 108 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -400,7 +400,7 @@ AcpiExDigitsNeeded (
 void
 AcpiExEisaIdToString (
     UINT32                  NumericId,
-    NATIVE_CHAR             *OutString)
+    char                    *OutString)
 {
     UINT32                  EisaId;
 
@@ -437,7 +437,7 @@ AcpiExEisaIdToString (
 void
 AcpiExUnsignedIntegerToString (
     ACPI_INTEGER            Value,
-    NATIVE_CHAR             *OutString)
+    char                    *OutString)
 {
     UINT32                  Count;
     UINT32                  DigitsNeeded;
@@ -454,7 +454,7 @@ AcpiExUnsignedIntegerToString (
     for (Count = DigitsNeeded; Count > 0; Count--)
     {
         (void) AcpiUtShortDivide (&Value, 10, &Quotient, &Remainder);
-        OutString[Count-1] = (NATIVE_CHAR) ('0' + Remainder);\
+        OutString[Count-1] = (char) ('0' + Remainder);\
         Value = Quotient;
     }
 }

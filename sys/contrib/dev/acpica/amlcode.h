@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 71 $
+ *       $Revision: 73 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -284,6 +284,7 @@
  * Argument types for the AML Parser
  * Each field in the ArgTypes UINT32 is 5 bits, allowing for a maximum of 6 arguments.
  * There can be up to 31 unique argument types
+ * Zero is reserved as end-of-list indicator
  */
 
 #define ARGP_BYTEDATA               0x01
@@ -310,38 +311,47 @@
  * Each field in the ArgTypes UINT32 is 5 bits, allowing for a maximum of 6 arguments.
  * There can be up to 31 unique argument types (0 is end-of-arg-list indicator)
  *
- * Note: If and when 5 bits becomes insufficient, it would probably be best
+ * Note1: These values are completely independent from the ACPI_TYPEs
+ *        i.e., ARGI_INTEGER != ACPI_TYPE_INTEGER
+ *
+ * Note2: If and when 5 bits becomes insufficient, it would probably be best
  * to convert to a 6-byte array of argument types, allowing 8 bits per argument.
  */
 
-/* "Standard" ACPI types are 1-15 (0x0F) */
+/* Single, simple types */
 
-#define ARGI_INTEGER                ACPI_TYPE_INTEGER       /* 1 */
-#define ARGI_STRING                 ACPI_TYPE_STRING        /* 2 */
-#define ARGI_BUFFER                 ACPI_TYPE_BUFFER        /* 3 */
-#define ARGI_PACKAGE                ACPI_TYPE_PACKAGE       /* 4 */
-#define ARGI_EVENT                  ACPI_TYPE_EVENT
-#define ARGI_MUTEX                  ACPI_TYPE_MUTEX
-#define ARGI_REGION                 ACPI_TYPE_REGION
-#define ARGI_DDBHANDLE              ACPI_TYPE_DDB_HANDLE
+#define ARGI_ANYTYPE                0x01    /* Don't care */
+#define ARGI_PACKAGE                0x02
+#define ARGI_EVENT                  0x03
+#define ARGI_MUTEX                  0x04
+#define ARGI_DDBHANDLE              0x05
 
-/* Custom types are 0x10 through 0x1F */
+/* Interchangeable types (via implicit conversion) */
 
-#define ARGI_IF                     0x10
-#define ARGI_ANYOBJECT              0x11
-#define ARGI_ANYTYPE                0x12
-#define ARGI_COMPUTEDATA            0x13     /* Buffer, String, or Integer */
-#define ARGI_DATAOBJECT             0x14     /* Buffer, String, package or reference to a Node - Used only by SizeOf operator*/
-#define ARGI_COMPLEXOBJ             0x15     /* Buffer, String, or package (Used by INDEX op only) */
-#define ARGI_INTEGER_REF            0x16
-#define ARGI_OBJECT_REF             0x17
-#define ARGI_DEVICE_REF             0x18
-#define ARGI_REFERENCE              0x19
-#define ARGI_TARGETREF              0x1A     /* Target, subject to implicit conversion */
-#define ARGI_FIXED_TARGET           0x1B     /* Target, no implicit conversion */
-#define ARGI_SIMPLE_TARGET          0x1C     /* Name, Local, Arg -- no implicit conversion */
-#define ARGI_BUFFERSTRING           0x1D
-#define ARGI_REF_OR_STRING          0x1E     /* Reference or String (Used by DEREFOF op only) */
+#define ARGI_INTEGER                0x06
+#define ARGI_STRING                 0x07
+#define ARGI_BUFFER                 0x08
+#define ARGI_BUFFER_OR_STRING       0x09    /* Used by MID op only */
+#define ARGI_COMPUTEDATA            0x0A    /* Buffer, String, or Integer */
+
+/* Reference objects */
+
+#define ARGI_INTEGER_REF            0x0B
+#define ARGI_OBJECT_REF             0x0C
+#define ARGI_DEVICE_REF             0x0D
+#define ARGI_REFERENCE              0x0E
+#define ARGI_TARGETREF              0x0F    /* Target, subject to implicit conversion */
+#define ARGI_FIXED_TARGET           0x10    /* Target, no implicit conversion */
+#define ARGI_SIMPLE_TARGET          0x11    /* Name, Local, Arg -- no implicit conversion */
+
+/* Multiple/complex types */
+
+#define ARGI_DATAOBJECT             0x12    /* Buffer, String, package or reference to a Node - Used only by SizeOf operator*/
+#define ARGI_COMPLEXOBJ             0x13    /* Buffer, String, or package (Used by INDEX op only) */
+#define ARGI_REF_OR_STRING          0x14    /* Reference or String (Used by DEREFOF op only) */
+#define ARGI_REGION_OR_FIELD        0x15    /* Used by LOAD op only */
+
+/* Note: types above can expand to 0x1F maximum */
 
 #define ARGI_INVALID_OPCODE         0xFFFFFFFF
 
