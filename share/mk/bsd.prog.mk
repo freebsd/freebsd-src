@@ -163,7 +163,7 @@ _scriptsinstall: _SCRIPTSINS_${script:T}
 _SCRIPTSINS_${script:T}: ${script}
 	${INSTALL} ${COPY} -o ${SCRIPTSOWN_${.ALLSRC:T}} \
 	    -g ${SCRIPTSGRP_${.ALLSRC:T}} -m ${SCRIPTSMODE_${.ALLSRC:T}} \
-	    ${_INSTALLFLAGS} ${.ALLSRC} \
+	    ${.ALLSRC} \
 	    ${DESTDIR}${SCRIPTSDIR_${.ALLSRC:T}}/${SCRIPTSNAME_${.ALLSRC:T}}
 .endfor
 .endif
@@ -190,7 +190,7 @@ _filesinstall: _FILESINS_${file:T}
 _FILESINS_${file:T}: ${file}
 	${INSTALL} ${COPY} -o ${FILESOWN_${.ALLSRC:T}} \
 	    -g ${FILESGRP_${.ALLSRC:T}} -m ${FILESMODE_${.ALLSRC:T}} \
-	    ${_INSTALLFLAGS} ${.ALLSRC} \
+	    ${.ALLSRC} \
 	    ${DESTDIR}${FILESDIR_${.ALLSRC:T}}/${FILESNAME_${.ALLSRC:T}}
 .endfor
 .endif
