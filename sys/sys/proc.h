@@ -668,7 +668,6 @@ int	p_candebug __P((struct proc *p1, struct proc *p2));
 int	p_cansee __P((struct proc *p1, struct proc *p2));
 int	p_cansched __P((struct proc *p1, struct proc *p2));
 int	p_cansignal __P((struct proc *p1, struct proc *p2, int signum));
-int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	procinit __P((void));
 void	proc_linkup __P((struct proc *p));
 void	proc_reparent __P((struct proc *child, struct proc *newparent));
