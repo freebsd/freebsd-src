@@ -105,8 +105,8 @@ union u_spcl {
 #define DR_NEWHEADER	0x0001	/* new format tape header */
 #define DR_NEWINODEFMT	0x0002	/* new format inodes on tape */
 
-#define	DUMPOUTFMT	"%-16s %c %s"		/* for printf */
+#define	DUMPOUTFMT	"%-32s %c %s"		/* for printf */
 						/* name, level, ctime(date) */
-#define	DUMPINFMT	"%16s %c %[^\n]\n"	/* inverse for scanf */
+#define	DUMPINFMT	"%32s %c %[^\n]\n"	/* inverse for scanf */
 
 #endif /* !_DUMPRESTORE_H_ */
