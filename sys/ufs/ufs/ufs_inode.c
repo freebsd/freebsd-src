@@ -139,8 +139,8 @@ ufs_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	register struct inode *ip;
-	register struct vnode *vp = ap->a_vp;
+	struct inode *ip;
+	struct vnode *vp = ap->a_vp;
 #ifdef QUOTA
 	int i;
 #endif

@@ -63,10 +63,10 @@ READ(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp;
-	register struct inode *ip;
-	register struct uio *uio;
-	register FS *fs;
+	struct vnode *vp;
+	struct inode *ip;
+	struct uio *uio;
+	FS *fs;
 	struct buf *bp;
 	ufs_daddr_t lbn, nextlbn;
 	off_t bytesinfile;
@@ -388,10 +388,10 @@ WRITE(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp;
-	register struct uio *uio;
-	register struct inode *ip;
-	register FS *fs;
+	struct vnode *vp;
+	struct uio *uio;
+	struct inode *ip;
+	FS *fs;
 	struct buf *bp;
 	struct thread *td;
 	ufs_daddr_t lbn;

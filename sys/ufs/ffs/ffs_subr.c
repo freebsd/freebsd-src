@@ -70,7 +70,7 @@ ffs_blkatoff(vp, offset, res, bpp)
 	struct buf **bpp;
 {
 	struct inode *ip;
-	register struct fs *fs;
+	struct fs *fs;
 	struct buf *bp;
 	ufs_daddr_t lbn;
 	int bsize, error;
@@ -105,8 +105,8 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
 	int cnt;
 {
 	int inblk;
-	register int field, subfield;
-	register int siz, pos;
+	int field, subfield;
+	int siz, pos;
 
 	inblk = (int)(fragtbl[fs->fs_frag][fragmap]) << 1;
 	fragmap <<= 1;
@@ -134,8 +134,8 @@ ffs_checkoverlap(bp, ip)
 	struct buf *bp;
 	struct inode *ip;
 {
-	register struct buf *ebp, *ep;
-	register ufs_daddr_t start, last;
+	struct buf *ebp, *ep;
+	ufs_daddr_t start, last;
 	struct vnode *vp;
 
 	ebp = &buf[nbuf];
