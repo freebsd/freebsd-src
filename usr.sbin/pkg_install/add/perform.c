@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.16 1995/04/19 14:01:49 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.17 1995/04/19 14:54:25 jkh Exp $";
 #endif
 
 /*
@@ -102,11 +102,15 @@ pkg_do(char *pkg)
 	}
 	sb.st_size *= 4;
 	Home = make_playpen(PlayPen, sb.st_size);
-	if (unpack(pkg_fullname, NULL))
+	if (unpack(pkg_fullname, NULL)) {
+	    leave_playpen();
 	    return 1;
+	}
 
-	if (sanity_check(pkg_fullname))
+	if (sanity_check(pkg_fullname)) {
+	    leave_playpen();
 	    return 1;
+	}
 
 	cfile = fopen(CONTENTS_FNAME, "r");
 	if (!cfile) {
