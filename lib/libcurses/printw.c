@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1981, 1993
+ * Copyright (c) 1981, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,16 +32,16 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)printw.c	8.2 (Berkeley) 10/5/93";
+static char sccsid[] = "@(#)printw.c	8.3 (Berkeley) 5/4/94";
 #endif	/* not lint */
-
-#include <curses.h>
 
 #ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
+
+#include "curses.h"
 
 /*
  * printw and friends.

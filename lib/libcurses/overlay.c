@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1981, 1993
+ * Copyright (c) 1981, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)overlay.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)overlay.c	8.2 (Berkeley) 5/4/94";
 #endif	/* not lint */
 
 #include <ctype.h>
-#include <curses.h>
+
+#include "curses.h"
 
 /*
  * overlay --
