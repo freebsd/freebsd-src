@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.25 1998/07/26 17:06:05 imp Exp $";
+	"$Id: main.c,v 1.26 1998/09/09 14:58:30 kato Exp $";
 #endif /* not lint */
 
 /*-
@@ -434,8 +434,12 @@ main(argc, argv)
 {
 	Lst targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
-	struct stat sb, sa;
-	char *p, *p1, *path, *pathp, *pwd;
+	struct stat sa;
+	char *p, *p1, *path, *pathp;
+#ifdef WANT_ENV_PWD
+	struct stat sb;
+	char *pwd;
+#endif
 	char mdpath[MAXPATHLEN + 1];
 	char obpath[MAXPATHLEN + 1];
 	char cdpath[MAXPATHLEN + 1];
@@ -470,11 +474,13 @@ main(argc, argv)
 	if (stat(curdir, &sa) == -1)
 	    err(2, "%s", curdir);
 
+#ifdef WANT_ENV_PWD
 	if ((pwd = getenv("PWD")) != NULL) {
 	    if (stat(pwd, &sb) == 0 && sa.st_ino == sb.st_ino &&
 		sa.st_dev == sb.st_dev)
 		(void) strcpy(curdir, pwd);
 	}
+#endif
 
 #if defined(__i386__)
 	/*
@@ -558,7 +564,9 @@ main(argc, argv)
 			objdir = curdir;
 	}
 
+#ifdef WANT_ENV_PWD
 	setenv("PWD", objdir, 1);
+#endif
 
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
