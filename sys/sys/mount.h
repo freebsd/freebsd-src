@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.12 1994/10/20 00:48:21 wollman Exp $
+ *	$Id: mount.h,v 1.13 1995/03/16 18:16:20 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -203,6 +203,8 @@ struct vfsconf {
 	int vfc_flags;
 };
 
+#define	VFCF_STATIC	1	/* FS is statically compiled into kernel */
+
 /*
  * Operations supported on mounted file system.
  */
@@ -262,7 +264,7 @@ struct vfsops {
 #include <sys/lkm.h>
 
 #define VFS_SET(vfsops, fsname, index, flags) \
-	static struct vfsconf _fs_vfsops = { \
+	static struct vfsconf _fs_vfsconf = { \
 		&vfsops, \
 		#fsname, \
 		index, \
@@ -270,21 +272,21 @@ struct vfsops {
 		flags \
 	}; \
 	extern struct linker_set MODVNOPS; \
-	MOD_VFS(#fsname,index,&MODVNOPS,&_fs_vfsops); \
+	MOD_VFS(#fsname,index,&MODVNOPS,&_fs_vfsconf); \
 	int \
 	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
 		DISPATCH(lkmtp, cmd, ver, nosys, nosys, nosys); }
 #else
 
 #define VFS_SET(vfsops, fsname, index, flags) \
-	static struct vfsconf _fs_vfsops = { \
+	static struct vfsconf _fs_vfsconf = { \
 		&vfsops, \
 		#fsname, \
 		index, \
-		1, \
-		flags \
+		0, \
+		flags | VFCF_STATIC \
 	}; \
-	DATA_SET(vfs_set,_fs_vfsops)
+	DATA_SET(vfs_set,_fs_vfsconf)
 #endif /* VFS_LKM */
 				
 #endif /* KERNEL */
