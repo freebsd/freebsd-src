@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.26 1995/12/10 15:54:42 bde Exp $
+ *	$Id: cy.c,v 1.27 1995/12/10 20:34:27 bde Exp $
  */
 
 #include "cy.h"
@@ -373,7 +373,7 @@ static	d_devtotty_t	cydevtotty;
 #define CDEV_MAJOR 48
 static struct cdevsw cy_cdevsw = 
 	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
-	  cyioctl,	cystop,		nxreset,	cydevtotty,/*cyclades*/
+	  cyioctl,	cystop,		noreset,	cydevtotty,/*cyclades*/
 	  ttselect,	nommap,		NULL, "cy",	NULL,	-1 };
 
 
