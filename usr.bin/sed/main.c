@@ -48,7 +48,8 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #endif
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
@@ -101,11 +102,13 @@ int rflags = 0;
  * units, but span across input files.
  */
 const char *fname;		/* File name. */
+const char *inplace;		/* Inplace edit file extension. */
 u_long linenum;
 int lastline;			/* TRUE on the last line of the last file */
 
 static void add_compunit(enum e_cut, char *);
 static void add_file(char *);
+static int inplace_edit(char **);
 static void usage(void);
 
 int
@@ -119,7 +122,9 @@ main(argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	fflag = 0;
-	while ((c = getopt(argc, argv, "Eae:f:n")) != -1)
+	inplace = NULL;
+
+	while ((c = getopt(argc, argv, "Eae:f:i:n")) != -1)
 		switch (c) {
 		case 'E':
 			rflags = REG_EXTENDED;
@@ -138,6 +143,9 @@ main(argc, argv)
 		case 'f':
 			fflag = 1;
 			add_compunit(CU_FILE, optarg);
+			break;
+		case 'i':
+			inplace = optarg;
 			break;
 		case 'n':
 			nflag = 1;
@@ -300,9 +308,15 @@ mf_fgets(sp, spflag)
 				return (0);
 			}
 			if (files->fname == NULL) {
+				if (inplace != NULL)
+					errx(1, "-i may not be used with stdin");
 				f = stdin;
 				fname = "stdin";
 			} else {
+				if (inplace != NULL) {
+					if (inplace_edit(&files->fname) == -1)
+						continue;
+				}
 				fname = files->fname;
 				if ((f = fopen(fname, "r")) == NULL)
 					err(1, "%s", fname);
@@ -340,9 +354,15 @@ mf_fgets(sp, spflag)
 			return (1);
 		}
 		if (files->fname == NULL) {
+			if (inplace != NULL)
+				errx(1, "-i may not be used with stdin");
 			f = stdin;
 			fname = "stdin";
 		} else {
+			if (inplace != NULL) {
+				if (inplace_edit(&files->fname) == -1)
+					continue;
+			}
 			fname = files->fname;
 			if ((f = fopen(fname, "r")) == NULL)
 				err(1, "%s", fname);
@@ -386,4 +406,48 @@ add_file(s)
 	*fl_nextp = fp;
 	fp->fname = s;
 	fl_nextp = &fp->next;
+}
+
+/*
+ * Modify a pointer to a filename for inplace editing and reopen stdout
+ */
+static int
+inplace_edit(fname)
+	char **fname;
+{
+	struct stat orig;
+	int input, output;
+	char backup[MAXPATHLEN];
+	char *buffer;
+
+	if (lstat(*fname, &orig) == -1)
+		err(1, "lstat");
+	if ((orig.st_mode & S_IFREG) == 0) {
+		warnx("cannot inplace edit %s, not a regular file", fname);
+		return -1;
+	}
+
+	strlcpy(backup, *fname, MAXPATHLEN);
+	strlcat(backup, inplace, MAXPATHLEN);
+
+	input = open(*fname, O_RDONLY);
+	if (input == -1)
+		err(1, "open(%s)", fname);
+	output = open(backup, O_WRONLY|O_CREAT);
+	if (output == -1)
+		err(1, "open(%s)", backup);
+	if (fchmod(output, orig.st_mode & ~S_IFMT) == -1)
+		err(1, "chmod");
+	buffer = malloc(orig.st_size);
+	if (buffer == NULL)
+		errx(1, "malloc failed");
+	if (read(input, buffer, orig.st_size) == -1)
+		err(1, "read");
+	if (write(output, buffer, orig.st_size) == -1)
+		err(1, "write");
+	close(input);
+	close(output);
+	freopen(*fname, "w", stdout);
+	*fname = strdup(backup);
+	return 0;
 }
