@@ -60,7 +60,7 @@ sbread(struct uufsd *disk)
 
 	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {
 		if (bread(disk, superblock, disk->d_sb, SBLOCKSIZE) == -1) {
-			disk->d_error = "truncated superblock";
+			disk->d_error = "non-existent or truncated superblock";
 			DEBUG(NULL);
 			return -1;
 		}
