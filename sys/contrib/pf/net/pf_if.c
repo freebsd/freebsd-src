@@ -1,5 +1,6 @@
 /*	$FreeBSD$ */
 /*	$OpenBSD: pf_if.c,v 1.11 2004/03/15 11:38:23 cedric Exp $ */
+/* add	$OpenBSD: pf_if.c,v 1.19 2004/08/11 12:06:44 henning Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -53,6 +54,7 @@
 
 #include <net/if.h>
 #include <net/if_types.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -635,6 +637,8 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 			continue;
 		af = ia->ifa_addr->sa_family;
 		if (af != AF_INET && af != AF_INET6)
+			continue;
+		if (!(ia->ifa_flags & IFA_ROUTE))
 			continue;
 		if ((flags & PFI_AFLAG_BROADCAST) && af == AF_INET6)
 			continue;
