@@ -125,8 +125,6 @@ MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
-#define CDEV_MAJOR	165
-
 static d_open_t		netopen;
 static d_close_t	netclose;
 static d_ioctl_t	netioctl;
@@ -142,7 +140,7 @@ static struct cdevsw net_cdevsw = {
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"net",
-	/* maj */	CDEV_MAJOR,
+	/* maj */	MAJOR_AUTO,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_KQFILTER,
