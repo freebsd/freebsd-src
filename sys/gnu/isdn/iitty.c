@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.17 1995/12/08 23:19:42 phk Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.18 1995/12/10 15:54:13 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.17 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.18 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,192 +9,7 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.17 1995/12/08 23:19:42 phk Exp
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: iitty.c,v $
- * Revision 1.17  1995/12/08  23:19:42  phk
- * Julian forgot to make the *devsw structures static.
- *
- * Revision 1.16  1995/12/08  11:12:56  julian
- * Pass 3 of the great devsw changes
- * most devsw referenced functions are now static, as they are
- * in the same file as their devsw structure. I've also added DEVFS
- * support for nearly every device in the system, however
- * many of the devices have 'incorrect' names under DEVFS
- * because I couldn't quickly work out the correct naming conventions.
- * (but devfs won't be coming on line for a month or so anyhow so that doesn't
- * matter)
- *
- * If you "OWN" a device which would normally have an entry in /dev
- * then search for the devfs_add_devsw() entries and munge to make them right..
- * check out similar devices to see what I might have done in them in you
- * can't see what's going on..
- * for a laugh compare conf.c conf.h defore and after... :)
- * I have not doen DEVFS entries for any DISKSLICE devices yet as that will be
- * a much more complicated job.. (pass 5 :)
- *
- * pass 4 will be to make the devsw tables of type (cdevsw * )
- * rather than (cdevsw)
- * seems to work here..
- * complaints to the usual places.. :)
- *
- * Revision 1.15  1995/12/05  20:33:47  bde
- * Fixed ity's d_stop entry.  itystop() wasn't used.  itystop() is inadequate
- * but probably harmless.  It's hard to tell because apparently no one runs
- * ity.
- *
- * Fixed ity's d_reset entry.  `nx' entries should never be used for existing
- * devices.
- *
- * conf.c:
- * Moved a prototype to a better place.
- *
- * Removed a stale #define.
- *
- * Revision 1.14  1995/11/29  14:39:12  julian
- * If you're going to mechanically replicate something in 50 files
- * it's best to not have a (compiles cleanly) typo in it! (sigh)
- *
- * Revision 1.13  1995/11/29  10:47:09  julian
- * OK, that's it..
- * That's EVERY SINGLE driver that has an entry in conf.c..
- * my next trick will be to define cdevsw[] and bdevsw[]
- * as empty arrays and remove all those DAMNED defines as well..
- *
- * Revision 1.12  1995/11/16  10:35:29  bde
- * Fixed the type of ity_input().  A trailing arg was missing.
- *
- * Completed function declarations.
- *
- * Added prototypes.
- *
- * Removed some useless includes.
- *
- * Revision 1.11  1995/07/31  21:28:42  bde
- * Use tsleep() instead of ttysleep() to wait for carrier since a generation
- * change isn't an error.
- *
- * Revision 1.10  1995/07/31  21:01:03  bde
- * Obtained from:	partly from ancient patches of mine via 1.1.5
- *
- * Introduce TS_CONNECTED and TS_ZOMBIE states.  TS_CONNECTED is set
- * while a connection is established.  It is set while (TS_CARR_ON or
- * CLOCAL is set) and TS_ZOMBIE is clear.  TS_ZOMBIE is set for on to
- * off transitions of TS_CARR_ON that occur when CLOCAL is clear and
- * is cleared for off to on transitions of CLOCAL.  I/o can only occur
- * while TS_CONNECTED is set.  TS_ZOMBIE prevents further i/o.
- *
- * Split the input-event sleep address TSA_CARR_ON(tp) into TSA_CARR_ON(tp)
- * and TSA_HUP_OR_INPUT(tp).  The former address is now used only for
- * off to on carrier transitions and equivalent CLOCAL transitions.
- * The latter is used for all input events, all carrier transitions
- * and certain CLOCAL transitions.  There are some harmless extra
- * wakeups for rare connection- related events.  Previously there were
- * too many extra wakeups for non-rare input events.
- *
- * Drivers now call l_modem() instead of setting TS_CARR_ON directly
- * to handle even the initial off to on transition of carrier.  They
- * should always have done this.  l_modem() now handles TS_CONNECTED
- * and TS_ZOMBIE as well as TS_CARR_ON.
- *
- * gnu/isdn/iitty.c:
- * Set TS_CONNECTED for first open ourself to go with bogusly setting
- * CLOCAL.
- *
- * i386/isa/syscons.c, i386/isa/pcvt/pcvt_drv.c:
- * We fake carrier, so don't also fake CLOCAL.
- *
- * kern/tty.c:
- * Testing TS_CONNECTED instead of TS_CARR_ON fixes TIOCCONS forgetting to
- * test CLOCAL.  TS_ISOPEN was tested instead, but that broke when we disabled
- * the clearing of TS_ISOPEN for certain transitions of CLOCAL.
- *
- * Testing TS_CONNECTED fixes ttyselect() returning false success for output
- * to devices in state !TS_CARR_ON && !CLOCAL.
- *
- * Optimize the other selwakeup() call (this is not related to the other
- * changes).
- *
- * kern/tty_pty.c:
- * ptcopen() can be declared in traditional C now that dev_t isn't short.
- *
- * Revision 1.9  1995/07/22  16:44:26  bde
- * Obtained from:	partly from ancient patches of mine via 1.1.5
- *
- * Give names to the magic tty i/o sleep addresses and use them.  This makes
- * it easier to remember what the addresses are for and to keep them unique.
- *
- * Revision 1.8  1995/07/22  01:29:28  bde
- * Move the inline code for waking up writers to a new function
- * ttwwakeup().  The conditions for doing the wakeup will soon become
- * more complicated and I don't want them duplicated in all drivers.
- *
- * It's probably not worth making ttwwakeup() a macro or an inline
- * function.  The cost of the function call is relatively small when
- * there is a process to wake up.  There is usually a process to wake
- * up for large writes and the system call overhead dwarfs the function
- * call overhead for small writes.
- *
- * Revision 1.7  1995/07/21  20:52:21  bde
- * Obtained from:	partly from ancient patches by ache and me via 1.1.5
- *
- * Nuke `symbolic sleep message strings'.  Use unique literal messages so that
- * `ps l' shows unambiguously where processes are sleeping.
- *
- * Revision 1.6  1995/07/21  16:30:37  bde
- * Obtained from:	partly from an ancient patch of mine via 1.1.5
- *
- * Temporarily nuke TS_WOPEN.  It was only used for the obscure MDMBUF
- * flow control option in the kernel and for informational purposes
- * in `pstat -t'.  The latter worked properly only for ptys.  In
- * general there may be multiple processes sleeping in open() and
- * multiple processes that successfully opened the tty by opening it
- * in O_NONBLOCK mode or during a window when CLOCAL was set.  tty.c
- * doesn't have enough information to maintain the flag but always
- * cleared it in ttyopen().
- *
- * TS_WOPEN should be restored someday just so that `pstat -t' can
- * display it (MDMBUF is already fixed).  Fixing it requires counting
- * of processes sleeping in open() in too many serial drivers.
- *
- * Revision 1.5  1995/03/28  07:54:43  bde
- * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
- * (except in netccitt, netiso and netns) that I didn't notice when I fixed
- * "all" such warnings before.
- *
- * Revision 1.4  1995/02/28  00:20:30  pst
- * Incorporate bde's code-review comments.
- *
- * (a) bring back ttselect, now that we have xxxdevtotty() it isn't dangerous.
- * (b) remove all of the wrappers that have been replaced by ttselect
- * (c) fix formatting in syscons.c and definition in syscons.h
- * (d) add cxdevtotty
- *
- * NOT DONE:
- * (e) make pcvt work... it was already broken...when someone fixes pcvt to
- * 	link properly, just rename get_pccons to xxxdevtotty and we're done
- *
- * Revision 1.3  1995/02/25  20:08:52  pst
- * (a) remove the pointer to each driver's tty structure array from cdevsw
- * (b) add a function callback vector to tty drivers that will return a pointer
- *     to a valid tty structure based upon a dev_t
- * (c) make syscons structures the same size whether or not APM is enabled so
- *     utilities don't crash if NAPM changes (and make the damn kernel compile!)
- * (d) rewrite /dev/snp ioctl interface so that it is device driver and i386
- *     independant
- *
- * Revision 1.2  1995/02/15  06:28:28  jkh
- * Fix up include paths, nuke some warnings.
- *
- * Revision 1.1  1995/02/14  15:00:32  jkh
- * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
- * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
- * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
- * 	Juergen Krause <jkr@saarlink.de>
- *
- * This is only one part - the rest to follow in a couple of hours.
- * This part is a benign import, since it doesn't affect anything else.
- *
- *
- ******************************************************************************/
+ */
 
 #include "ity.h"
 #if NITY > 0
@@ -232,18 +47,17 @@ static struct cdevsw ity_cdevsw =
 	  ttselect,	nommap,		NULL,	"ity",	NULL,	-1 };
 
 
-extern int	ityparam __P((struct tty *tp, struct termios *t));
-extern void	itystart __P((struct tty *tp));
+static int	ityparam __P((struct tty *tp, struct termios *t));
+static void	itystart __P((struct tty *tp));
 
-int             nity = NITY;
-int             itydefaultrate = 64000;
-short           ity_addr[NITY];
-struct tty     ity_tty[NITY];
+static int      itydefaultrate = 64000;
+static short    ity_addr[NITY];
+static struct tty ity_tty[NITY];
 static int	applnr[NITY];
 static int	next_if= 0;
 #ifdef	DEVFS
 void		*devfs_token[NITY];
-void		*devfs_token_out[NITY];
+static void	*devfs_token_out[NITY];
 #endif
 
 #define	UNIT(x)		(minor(x)&0x3f)
@@ -379,7 +193,7 @@ ity_input(int no, int len, char *buf, int dir)
 	return(len);
 }
 
-void
+static void
 itystart(struct tty *tp)
 {
 	int             s, unit;
@@ -477,7 +291,7 @@ ityioctl(dev, cmd, data, flag,p)
 	return (0);
 }
 
-int
+static int
 ityparam(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
