@@ -67,12 +67,12 @@ struct ithd {
 	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */
 	TAILQ_HEAD(, intrhand) it_handlers; /* Interrupt handlers. */
 	struct	ithd *it_interrupted;	/* Who we interrupted. */
-	void	(*it_disable)(int);	/* Enable interrupt source. */
-	void	(*it_enable)(int);	/* Disable interrupt source. */
+	void	(*it_disable)(uintptr_t); /* Enable interrupt source. */
+	void	(*it_enable)(uintptr_t); /* Disable interrupt source. */
 	void	*it_md;			/* Hook for MD interrupt code. */
 	int	it_flags;		/* Interrupt-specific flags. */
 	int	it_need;		/* Needs service. */
-	int	it_vector;
+	uintptr_t it_vector;
 	char	it_name[MAXCOMLEN + 1];
 };
 
@@ -114,9 +114,9 @@ extern char 	intrnames[];	/* string table containing device names */
 #ifdef DDB
 void	db_dump_ithread(struct ithd *ithd, int handlers);
 #endif
-int	ithread_create(struct ithd **ithread, int vector, int flags,
-	    void (*disable)(int), void (*enable)(int), const char *fmt, ...)
-	    __printflike(6, 7);
+int	ithread_create(struct ithd **ithread, uintptr_t vector, int flags,
+	    void (*disable)(uintptr_t), void (*enable)(uintptr_t),
+	    const char *fmt, ...) __printflike(6, 7);
 int	ithread_destroy(struct ithd *ithread);
 u_char	ithread_priority(enum intr_type flags);
 int	ithread_add_handler(struct ithd *ithread, const char *name,
