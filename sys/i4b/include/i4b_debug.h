@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_debug.h - i4b debug header file
  *	-----------------------------------
  *
- *	$Id: i4b_debug.h,v 1.32 2000/07/24 12:22:08 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Oct 18 09:48:16 2000]
+ *      last edit-date: [Mon May 21 10:05:34 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -169,13 +167,12 @@ extern unsigned int i4b_l4_debug;
 #define L4_RBCHDBG	0x0020		/* rbch driver debug messages	*/
 #define L4_ISPDBG	0x0040		/* isp driver debug messages	*/
 #define L4_TELDBG	0x0080		/* tel driver debug messages	*/
-#define L4_TINADBG	0x0100		/* tina driver debug messages	*/
-#define L4_TINAMSG	0x0200		/* tina driver messages		*/
-#define L4_TINAERR	0x0400		/* tina driver error messages	*/
-#define L4_INGDBG	0x0800		/* ing driver debug messages	*/
+#define L4_INGDBG	0x0100		/* ing driver debug messages	*/
+#define L4_IAVCDBG	0x0200		/* AVM B1 driver debug messages	*/
+#define L4_CAPIDBG	0x0400		/* CAPI driver debug messages	*/
 
 #define L4_DEBUG_MAX	0x0fff		/* all messages on	*/
-#define L4_DEBUG_ERR	(L4_ERR | L4_TINADBG |  L4_TINAMSG | L4_TINAERR)
+#define L4_DEBUG_ERR	L4_ERR
 
 #ifndef L4_DEBUG_DEFAULT
 #ifdef DO_I4B_MAXDEBUG

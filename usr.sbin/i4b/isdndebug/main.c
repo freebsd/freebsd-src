@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.27 2000/07/24 12:22:08 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 26 08:50:30 2000]
+ *      last edit-date: [Mon May 21 10:09:23 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -617,19 +615,18 @@ void
 printl4(unsigned long val)
 {
 	printf("\nLayer 4: %s  =  0x%lX\n", bin_str(val, 32), val);
-	printf("                                  |||| |||| ||||\n"),
-	printf("                                  |||| |||| |||+- general error messages\n");
-	printf("                                  |||| |||| ||+-- general messages\n");
-	printf("                                  |||| |||| |+--- B-ch timeout messages\n");
-	printf("                                  |||| |||| +---- network driver dial state\n");
-	printf("                                  |||| |||+------ ipr driver debug messages\n");
-	printf("                                  |||| ||+------- rbch driver debug messages\n");
-	printf("                                  |||| |+-------- isp driver debug messages\n");
-	printf("                                  |||| +--------- tel driver debug messages\n");
-	printf("                                  |||+----------- tina driver debug messages\n");
-	printf("                                  ||+------------ tina driver messages\n");
-	printf("                                  |+------------- tina driver error messages\n");
-	printf("                                  +-------------- ing driver debug messages\n");
+	printf("                                   ||| |||| ||||\n"),
+	printf("                                   ||| |||| |||+- general error messages\n");
+	printf("                                   ||| |||| ||+-- general messages\n");
+	printf("                                   ||| |||| |+--- B-ch timeout messages\n");
+	printf("                                   ||| |||| +---- network driver dial state\n");
+	printf("                                   ||| |||+------ ipr driver debug messages\n");
+	printf("                                   ||| ||+------- rbch driver debug messages\n");
+	printf("                                   ||| |+-------- isp driver debug messages\n");
+	printf("                                   ||| +--------- tel driver debug messages\n");
+	printf("                                   ||+----------- ing driver debug messages\n");
+	printf("                                   |+------------ iavc driver debug messages\n");
+	printf("                                   +------------- capi driver debug messages\n");
 	printf("         ++++-++++-++++-++++-++++---------------- unassigned\n");
 }
 

@@ -131,7 +131,7 @@ i4b_l4_pdeact(int controller, int numactive)
 				i4b_unlink_bchandrvr(cd);
 			}
 		
-			if((cd->channelid == CHAN_B1) || (cd->channelid == CHAN_B2))
+			if((cd->channelid >= 0) & (cd->channelid < ctrl_desc[cd->controller].nbch))
 			{
 				ctrl_desc[cd->controller].bch_state[cd->channelid] = BCH_ST_FREE;
 			}
@@ -438,14 +438,14 @@ i4b_l4_disconnect_ind(call_desc_t *cd)
 		i4b_unlink_bchandrvr(cd);
 	}
 
-	if((cd->channelid == CHAN_B1) || (cd->channelid == CHAN_B2))
+	if((cd->channelid >= 0) && (cd->channelid < ctrl_desc[cd->controller].nbch))
 	{
 		ctrl_desc[cd->controller].bch_state[cd->channelid] = BCH_ST_FREE;
 	}
 	else
 	{
 		/* no error, might be hunting call for callback */
-		NDBGL4(L4_MSG, "channel free not B1/B2 but %d!", cd->channelid);
+		NDBGL4(L4_MSG, "channel free not valid but %d!", cd->channelid);
 	}
 	
 	if((m = i4b_Dgetmbuf(sizeof(msg_disconnect_ind_t))) != NULL)

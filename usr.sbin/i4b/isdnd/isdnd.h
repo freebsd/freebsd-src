@@ -502,21 +502,23 @@ typedef struct cfg_entry {
 } cfg_entry_t;
 
 /*---------------------------------------------------------------------------*
- *	this struct describes state of controller with 2 b channels
+ *	this struct describes state of controller with MAX_BCHAN b channels
  *---------------------------------------------------------------------------*/
 typedef struct isdn_ctrl_state {
 	int ctrl_type;			/* type: active/passive 	*/
 	int card_type;			/* manufacturer (CARD_XXXX) 	*/
 	int protocol;			/* ISDN D-channel protocol 	*/	
+	char* firmware;			/* loadable fimrware file name 	*/
+    
 	int state;			/* controller state		*/
 #define  CTRL_DOWN 	0		/* controller inoparable	*/
 #define  CTRL_UP	1		/* controller may be used	*/
-	int stateb1;			/* B-channel 1 			*/
-	int stateb2;			/* B-channel 2			*/
+#define  MAX_BCHAN      30
+        int stateb[MAX_BCHAN];          /* b channel state */
 #define  CHAN_IDLE	0		/* channel is free for usage	*/
 #define  CHAN_RUN	1		/* channel is occupied		*/
+        int nbch;                       /* number of b channels */
 	int freechans;			/* number of unused channels	*/
-#define  MAX_CHANCTRL	2		/* free channels per controller	*/
 	int tei;			/* tei or -1 if invalid		*/
 	int l1stat;			/* layer 1 state		*/
 	int l2stat;			/* layer 2 state		*/

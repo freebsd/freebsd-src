@@ -46,7 +46,8 @@
 #define T313VAL	(hz*4)			/* 4 seconds timeout		*/
 #define T400DEF	(hz*10)			/* 10 seconds timeout		*/
 
-#define N_CALL_DESC (MAX_CONTROLLERS*2)	/* no of call descriptors */
+#define MAX_BCHAN 30
+#define N_CALL_DESC (MAX_CONTROLLERS*MAX_BCHAN)	/* no of call descriptors */
 
 extern int nctrl;		/* number of controllers detected in system */
 
@@ -263,7 +264,8 @@ typedef struct
 #define DL_DOWN	0
 #define DL_UP	1	
 
-	int	bch_state[2];		/* states of the b channels */
+        int     nbch;                   /* number of b channels */
+	int	bch_state[MAX_BCHAN];	/* states of the b channels */
 #define BCH_ST_FREE	0	/* free to be used, idle */
 #define BCH_ST_RSVD	1	/* reserved, may become free or used */
 #define BCH_ST_USED	2	/* in use for data transfer */

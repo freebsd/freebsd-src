@@ -654,6 +654,19 @@ i4b/driver/i4b_isppp.c		count i4bisppp
 i4b/driver/i4b_ispppsubr.c	optional i4bisppp
 net/slcompress.c		optional i4bisppp
 #
+# isdn4bsd CAPI driver
+#
+i4b/capi/capi_l4if.c		count i4bcapi
+i4b/capi/capi_llif.c		optional i4bcapi
+i4b/capi/capi_msgs.c		optional i4bcapi
+#
+# isdn4bsd AVM B1/T1 CAPI driver
+#
+i4b/capi/iavc/iavc_pci.c	count iavc
+i4b/capi/iavc/iavc_isa.c	optional iavc
+i4b/capi/iavc/iavc_lli.c	optional iavc
+i4b/capi/iavc/iavc_card.c	optional iavc
+#
 # isdn4bsd support
 #
 i4b/layer2/i4b_mbuf.c		optional i4btrc

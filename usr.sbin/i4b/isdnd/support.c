@@ -230,6 +230,8 @@ find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, cha
 int
 setup_dialout(cfg_entry_t *cep)
 {
+        int i;
+    
 	/* check controller operational */
 
 	if((get_controller_state(cep->isdncontroller)) != CTRL_UP)
@@ -244,19 +246,14 @@ setup_dialout(cfg_entry_t *cep)
 
 	switch(cep->isdnchannel)
 	{
-		case CHAN_B1:
-		case CHAN_B2:
-			if((ret_channel_state(cep->isdncontroller, cep->isdnchannel)) != CHAN_IDLE)
-			{
-				DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s, channel not free", cep->name)));
-				return(ERROR);
-			}
-			cep->isdnchannelused = cep->isdnchannel;
-			break;
-
 		case CHAN_ANY:
-			if(((ret_channel_state(cep->isdncontroller, CHAN_B1)) != CHAN_IDLE) &&
-			   ((ret_channel_state(cep->isdncontroller, CHAN_B2)) != CHAN_IDLE))
+		    for (i = 0; i < isdn_ctrl_tab[cep->isdncontroller].nbch; i++)
+			{
+			if(ret_channel_state(cep->isdncontroller, i) == CHAN_IDLE)
+			break;
+		    }
+
+		    if (i == isdn_ctrl_tab[cep->isdncontroller].nbch)
 			{
 				DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s, no channel free", cep->name)));
 				return(ERROR);
@@ -265,8 +262,12 @@ setup_dialout(cfg_entry_t *cep)
 			break;
 
 		default:
-			DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s, channel undefined", cep->name)));
+			if((ret_channel_state(cep->isdncontroller, cep->isdnchannel)) != CHAN_IDLE)
+			{
+				DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s, channel not free", cep->name)));
 			return(ERROR);
+			}
+			cep->isdnchannelused = cep->isdnchannel;
 			break;
 	}
 
@@ -460,19 +461,14 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 		switch(mp->channel)
 		{
-			case CHAN_B1:
-			case CHAN_B2:
-				if((ret_channel_state(mp->controller, mp->channel)) != CHAN_IDLE)
-				{
-					log(LL_CHD, "%05d %s incoming call, channel %s not free!",
-	                	        	mp->header.cdid, cep->name, mp->channel == CHAN_B1 ? "B1" : "B2");
-					return(NULL);
-				}
-				break;
-
 			case CHAN_ANY:
-				if(((ret_channel_state(mp->controller, CHAN_B1)) != CHAN_IDLE) &&
-				   ((ret_channel_state(mp->controller, CHAN_B2)) != CHAN_IDLE))
+			    for (i = 0; i < isdn_ctrl_tab[mp->controller].nbch; i++)
+				{
+				if(ret_channel_state(mp->controller, i) == CHAN_IDLE)
+				break;
+			    }
+
+			    if (i == isdn_ctrl_tab[mp->controller].nbch)
 				{
 					log(LL_CHD, "%05d %s incoming call, no channel free!",
 	                	        	mp->header.cdid, cep->name);
@@ -487,9 +483,12 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
                 	        break;
 
 			default:
-				log(LL_CHD, "%05d %s incoming call, ERROR, channel undefined!",
-                	        	mp->header.cdid, cep->name);
+				if((ret_channel_state(mp->controller, mp->channel)) != CHAN_IDLE)
+				{
+					log(LL_CHD, "%05d %s incoming call, channel B%d not free!",
+	                	        	mp->header.cdid, cep->name, mp->channel+1);
 				return(NULL);
+				}
 				break;
 		}
 
@@ -569,7 +568,7 @@ get_cep_by_cc(int ctrlr, int chan)
 {
 	int i;
 
-	if((chan != CHAN_B1) && (chan != CHAN_B2))
+	if((chan < 0) || (chan >= isdn_ctrl_tab[ctrlr].nbch))
 		return(NULL);
 		
 	for(i=0; i < nentries; i++)
@@ -724,7 +723,7 @@ unitlen_chkupd(cfg_entry_t *cep)
 void
 close_allactive(void)
 {
-	int i, j;
+	int i, j, k;
 	cfg_entry_t *cep = NULL;
 
 	j = 0;
@@ -734,25 +733,11 @@ close_allactive(void)
 		if((get_controller_state(i)) != CTRL_UP)
 			continue;
 
-		if((ret_channel_state(i, CHAN_B1)) == CHAN_RUN)
+		for (k = 0; k < isdn_ctrl_tab[i].nbch; k++)
 		{
-			if((cep = get_cep_by_cc(i, CHAN_B1)) != NULL)
+		    if((ret_channel_state(i, k)) == CHAN_RUN)
 			{
-#ifdef USE_CURSES
-				if(do_fullscreen)
-					display_disconnect(cep);
-#endif
-#ifdef I4B_EXTERNAL_MONITOR
-				monitor_evnt_disconnect(cep);
-#endif
-				next_state(cep, EV_DRQ);
-				j++;
-			}
-		}
-
-		if((ret_channel_state(i, CHAN_B2)) == CHAN_RUN)
-		{
-			if((cep = get_cep_by_cc(i, CHAN_B2)) != NULL)
+			if((cep = get_cep_by_cc(i, k)) != NULL)
 			{
 #ifdef USE_CURSES
 				if(do_fullscreen)
@@ -764,6 +749,7 @@ close_allactive(void)
 				next_state(cep, EV_DRQ);
 				j++;				
 			}
+		    }
 		}
 	}
 
