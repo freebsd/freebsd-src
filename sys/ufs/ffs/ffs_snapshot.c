@@ -522,7 +522,7 @@ loop:
 		sn = malloc(sizeof *sn, M_UFSMNT, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&sn->sn_head);
 		lockinit(&sn->sn_lock, PVFS, "snaplk", VLKTIMEOUT,
-		    LK_CANRECURSE);
+		    LK_CANRECURSE | LK_NOSHARE);
 		VI_LOCK(vp);
 		vp->v_vnlock = &sn->sn_lock;
 		devvp->v_rdev->si_snapdata = sn;
@@ -1846,7 +1846,7 @@ ffs_snapshot_mount(mp)
 			sn = malloc(sizeof *sn, M_UFSMNT, M_WAITOK | M_ZERO);
 			TAILQ_INIT(&sn->sn_head);
 			lockinit(&sn->sn_lock, PVFS, "snaplk", VLKTIMEOUT,
-			    LK_CANRECURSE);
+			    LK_CANRECURSE | LK_NOSHARE);
 			VI_LOCK(vp);
 			vp->v_vnlock = &sn->sn_lock;
 			devvp->v_rdev->si_snapdata = sn;
