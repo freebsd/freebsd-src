@@ -186,7 +186,8 @@ struct sysentvec elf_linux_sysvec = {
 	0,
 	"Linux ELF",
 	elf_coredump,
-	exec_linux_imgact_try
+	exec_linux_imgact_try,
+	LINUX_MINSIGSTKSZ
 };
 
 static Elf64_Brandinfo linux_brand = {

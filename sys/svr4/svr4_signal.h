@@ -132,6 +132,8 @@ struct svr4_sigaltstack {
 #define SVR4_SS_DISABLE		0x00000002
 #define	SVR4_SS_ALLBITS		0x00000003
 
+#define	SVR4_MINSIGSTKSZ	8192
+
 void bsd_to_svr4_sigaltstack __P((const struct sigaltstack *, struct svr4_sigaltstack *));
 void bsd_to_svr4_sigset __P((const sigset_t *, svr4_sigset_t *));
 void svr4_to_bsd_sigaltstack __P((const struct svr4_sigaltstack *, struct sigaltstack *));

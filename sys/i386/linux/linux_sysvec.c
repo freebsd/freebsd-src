@@ -650,8 +650,7 @@ linux_rt_sigreturn(p, args)
 	ss = stackgap_alloc(&sg, sizeof(stack_t));
 	lss = &uc.uc_stack;
 	ss->ss_sp = lss->ss_sp;
-	ss->ss_size = (lss->ss_size >= LINUX_MINSIGSTKSZ &&
-	    lss->ss_size < MINSIGSTKSZ) ? MINSIGSTKSZ : lss->ss_size;
+	ss->ss_size = lss->ss_size;
 	ss->ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
 
 #ifdef DEBUG
@@ -736,7 +735,8 @@ struct sysentvec linux_sysvec = {
 	linux_prepsyscall,
 	"Linux a.out",
 	aout_coredump,
-	exec_linux_imgact_try
+	exec_linux_imgact_try,
+	LINUX_MINSIGSTKSZ
 };
 
 struct sysentvec elf_linux_sysvec = {
@@ -755,7 +755,8 @@ struct sysentvec elf_linux_sysvec = {
 	linux_prepsyscall,
 	"Linux ELF",
 	elf_coredump,
-	exec_linux_imgact_try
+	exec_linux_imgact_try,
+	LINUX_MINSIGSTKSZ
 };
 
 static Elf32_Brandinfo linux_brand = {

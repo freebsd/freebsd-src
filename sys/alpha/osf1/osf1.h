@@ -31,6 +31,7 @@ extern struct sysent osf1_sysent[];
 extern int bsd_to_osf1_sig[];
 extern int bsd_to_osf1_errno[];
 
+#define	OSF1_MINSIGSTKSZ	4096
 
 /* osf/1 ioctls */
 #define	OSF1_IOCPARM_MASK	0x1fff	/* parameter length, at most 13 bits */
