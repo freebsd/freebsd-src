@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_cond.c,v 1.15 1999/06/20 08:28:13 jb Exp $
+ * $Id: uthread_cond.c,v 1.12.2.2 1999/07/23 13:00:25 deischen Exp $
  */
 #include <stdlib.h>
 #include <errno.h>
@@ -260,6 +260,10 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 {
 	int             rval = 0;
 	int             status;
+
+	if (abstime->tv_sec < 0 || 
+		abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000)
+		return (EINVAL);
 
 	if (cond == NULL)
 		rval = EINVAL;
