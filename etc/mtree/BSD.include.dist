@@ -142,6 +142,8 @@
         ..
         mac_mls
         ..
+        mac_partition
+        ..
     ..
     sys
     ..
