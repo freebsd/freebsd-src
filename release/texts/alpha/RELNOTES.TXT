@@ -1,30 +1,23 @@
                                  RELEASE NOTES
-                            FreeBSD Release 4.0-SNAP
+                           FreeBSD Release 3.3-RELEASE
 
-This is a 4.0-CURRENT release SNAPshot of FreeBSD, an active
-development branch which is not expected to produce a release for
-some time.  This line of development branched from the 3.x line
-on January 20, 1999; that branch will see continuing releases and
-some features of 4.0 will be back-ported.
+Welcome to 3.3-RELEASE, a full follow-on to 3.2-RELEASE released
+May 1999.  In the months since 3.2 was released, many bug fixes and
+general enhancements have been made to the system.  Please see relevant
+details below.
 
 Any installation failures or crashes should be reported by using the
-send-pr command (those preferring a Web-based interface can also see
+send-pr command (those preferring a WEB based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.0-RELEASE
+For information about FreeBSD and the layout of the 3.3-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 4.0-current snapshots, you should always see:
-
-        ftp://current.freebsd.org/pub/FreeBSD
-
-If you wish to get the latest post-3.x-RELEASE technology.
-
 Table of contents:
 ------------------
-1. What's new since the 3.1/4.0 branch
+1. What's new since 3.2-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -45,24 +38,22 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since the 3.1/4.0 branch
---------------------------------------
-All changes described here are unique to the 4.0 branch unless
-specifically marked as [MERGED] features.
+1. What's new since 3.2-RELEASE
+---------------------------------
 
 1.1. KERNEL CHANGES
 -------------------
 
-The VM system's anonymous storage subsystem (the ``swap pager'') has
-been completely revamped.
+Linux mode has undergone significant bug fixes and improvements.
 
-An emulator for SVR4 binaries has been added.
+The Berkeley Packet Filter (bpf) is enabled by default.  This is to allow
+DHCP supported installs.
 
-Support has been added for direct access to NTFS filesystems.
+Alpha timecounter code has been improved.
 
-Driver support has been added for PCI gigabit ethernet adapters
-based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
-the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
+The al and rl drivers have been ported to the Alpha.
+
+The i386 bootstrap has been enhanced for some problematic systems.
 
 Driver support has been added for IEEE 802.11 PCMCIA wireless network
 adapters based on the Lucent Hermes chipset, including the Lucent
@@ -70,9 +61,22 @@ WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
 6Mbps Turbo adapters are supported. [MERGED]
 
 Driver support has been added for PCI fast ethernet cards based
-on the ADMtek Inc. AL981 Comet chipset. [MERGED]
+on the ADMtek Inc. AL981 Comet chipset.
 
-Support has been added for the Rise mP6 processor. [MERGED]
+Driver support has been added for PCI fast ethernet cards based
+on the LC82C115 'PNIC II' chipset.
+
+Driver support has been added for the Compaq Smart Raid family of
+RAID controllers.
+
+USB support has been improved.
+
+Major updates to the Vinum volume manager have been incorporated.
+
+Driver support for a number of Realtek and Avance Asound audio cards
+has been added.
+
+A number of NFS problems have been fixed.
 
 Driver support has been added for SysKonnect SK-984x PCI gigabit
 ethernet adapters.
@@ -80,55 +84,51 @@ ethernet adapters.
 Driver support has been added for Adaptec Duralink PCI ethernet adapters
 based on the Adaptec AIC-6915 fast ethernet controller.
 
-Driver support has been added for PCI fast ethernet adapters based on
-the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
+Driver support for M-systems DiskOnChip products integrated.
 
-Driver support has been added for the 3Com 3c905C-TX. [MERGED]
+Driver support has been added for the 3Com 3c905C-TX.
 
-User- and group-based IPFW firewalling has been added. [MERGED]
+APM support has been improved.
 
-Support for probabalistic rule matching has been added to IPFW. [MERGED]
+User- and group-based IPFW firewalling has been added.
+
+Support for probabalistic rule matching has been added to IPFW.
 
 IPFW logging is now dynamic. IPFW logging counts can be reset, and any
-given rule can be given an arbitrary logging limit. [MERGED]
+given rule can be given an arbitrary logging limit.
 
-The top-level category "security" has been added, and IPFW now uses
-syslog(3) to log all messages to /var/log/security.
-
-Driver support has been added for PCI fast ethernet adapters based on
-the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
-
-Driver support has been added for PCI fast ethernet adapters based on
-the Davicom DM9100 and DM9102 ethernet controllers, including the Jaton
-Corporation XpressNet.
 
 1.2. SECURITY FIXES
 -------------------
 
-A new jail(2) system call and admin command (jail(8)) have been added for
-additional flexibility in creating secure process execution environments.
-
+(none yet logged)
 
 1.3. USERLAND CHANGES
 ---------------------
 
-The base C/C++ compiler has been upgraded from GCC 2.7.2 to EGCS 1.1.2.
-This gives users full ISO C++ support.
+The support environment for Linux mode has finally been updated. The
+linux_lib and linux_devel ports are replaced by resp. linux_base and
+linux_devtools. These new ports are based on Red Hat 5.2 packages
+and include support for both glibc2 and libc5 based applications.
 
-The timezone database has been updated to catch all of the recent changes
-in Europe, the former Soviet Union, and Central and South America.
-The timezone data files now contain a magic number allowing for easy
-identification.
+Sysinstall now contains DHCP client support.
 
-The f77 emulation via f2c has been updated to a current version.
+TCP Wrapper support in inetd(8) is now controlled with command-line
+options and dgram services may be wrapped in addition to previously
+wrapped service types. Please see the manpage for details, since inetd
+run without command-line options will do no wrapping.
 
-The Internet Software Consortium's DHCP client has been added to the 
-base system.
+ISC's DHCP client has been upgraded to version 2.0.
 
-Groff/troff/eqn has been updated to version 1.11.
+Bison, the GNU parser generator, has been upgraded to version 1.28.
 
-Gdb has been updated to version 4.18 and is now part of the standard
-release for FreeBSD/alpha.
+A Gcc optimiser bug has been fixed that prevented compiling the XFree86
+client libraries on the Alpha.
+
+Advanced Power Management monitor daemon, apmd(8), has been imported.
+This allow user to select the APM events to be handled from userland
+and specify the commands for a given event, allowing APM behaviour to
+be configured flexibly.  Please see the manpage for details.
 
 
 2. Supported Configurations
@@ -211,7 +211,7 @@ The following CD-ROM type systems are supported at this time:
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(acd)   ATAPI IDE interface
+(wcd)   ATAPI IDE interface
 
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
@@ -305,20 +305,14 @@ Winbond W89C840F fast ethernet NICs including the following:
 VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
-  D-Link DFE-530TX
-
-Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
-
-Sundance Technologies ST201 PCI fast ethernet NICs including
-the following:
-  D-Link DFE-550TX
+  D-Link DFE530TX
 
 SysKonnect SK-984x PCI gigabit ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port
   SK-9842 1000baseSX multimode fiber, single port
   SK-9843 1000baseLX single mode fiber, dual port
   SK-9844 1000baseSX multimode fiber, dual port
-
+  
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
   Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
@@ -337,10 +331,6 @@ DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
-
-Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
-following:
-  Jaton Corporation XpressNet
 
 Fujitsu MB86960A/MB86965A
 
@@ -508,10 +498,10 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.0-RELEASE and 2.2.x-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 3.3-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
-        4041 Pike Lane, Suite D
+        4041 Pike Lane, Suite F
         Concord CA  94520
         1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
 
@@ -541,14 +531,40 @@ unconditional return policy.
 ----------------------------------------------
 
 If you're upgrading from a previous release of FreeBSD, most likely
-it's 3.0 and some of the following issues may affect you, depending
-of course on your chosen method of upgrading.  There are two popular
-ways of upgrading FreeBSD distributions:
+it's 2.2.x or 2.1.x (in some lesser number of cases) and some of the
+following issues may affect you, depending of course on your chosen
+method of upgrading.  There are two popular ways of upgrading
+FreeBSD distributions:
 
         o Using sources, via /usr/src
         o Using sysinstall's (binary) upgrade option.
 
-[insert other notes here]
+In the case of using sources, there are simply two targets you need to
+be aware of: The standard ``upgrade'' target, which will upgrade a 2.x
+or 3.0 system to 3.3 and the ``world'' target, which will take an
+already upgraded system and keep it in sync with whatever changes have
+happened since the initial upgrade.
+
+In the case of using the binary upgrade option, the system will go
+straight to 3.3/ELF but also populate the /<basepath>/lib/aout
+directories for backwards compatibility with older binaries.
+
+In either case, going to ELF will mean that you'll have somewhat
+smaller binaries and access to a lot more compiler goodies which have
+been already been ported to other ELF environments (our older and
+somewhat crufty a.out format being largely unsupported by most other
+software projects).  Those who wish to retain access to the older
+a.out dynamic executables should be sure and install the compat22
+distribution. Notice that the a.out libraries won't be accessible
+until the system is rebooted, which may cause trouble with certain
+a.out packages.
+
+Also, do not use install disks or sysinstall from previous versions,
+as version 3.1 introduced a new bootstrapping procedure, requiring
+new boot blocks to be installed (because of elf kernels), and version
+3.2 has further modifications to the bootstrapping procedure.
+
+[ other important upgrading notes should go here]
 
 
 5. Reporting problems, making suggestions, submitting code.
