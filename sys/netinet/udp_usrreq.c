@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.14 1995/09/22 19:56:26 wollman Exp $
+ *	$Id: udp_usrreq.c,v 1.15 1995/11/14 20:34:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -87,6 +87,8 @@ SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
 static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 
 static	void udp_detach __P((struct inpcb *));
+static	int udp_output __P((struct inpcb *, struct mbuf *, struct mbuf *,
+			    struct mbuf *));
 static	void udp_notify __P((struct inpcb *, int));
 static	struct mbuf *udp_saveopt __P((caddr_t, int, int));
 

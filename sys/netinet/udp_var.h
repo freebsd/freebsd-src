@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: udp_var.h,v 1.5 1995/04/09 01:29:31 davidg Exp $
+ * $Id: udp_var.h,v 1.6 1995/11/14 20:34:56 phk Exp $
  */
 
 #ifndef _NETINET_UDP_VAR_H_
@@ -95,8 +95,6 @@ extern struct	udpstat udpstat;
 void	 udp_ctlinput __P((int, struct sockaddr *, struct ip *));
 void	 udp_init __P((void));
 void	 udp_input __P((struct mbuf *, int));
-int	 udp_output __P((struct inpcb *,
-	    struct mbuf *, struct mbuf *, struct mbuf *));
 int	 udp_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 #endif
