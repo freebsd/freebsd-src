@@ -358,7 +358,7 @@ main(argc, argv)
 	 */
 	printheader();
 	if (nentries == 0)
-		exit(0);
+		exit(1);
 	/*
 	 * sort proc list
 	 */
