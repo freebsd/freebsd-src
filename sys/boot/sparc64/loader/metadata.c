@@ -24,8 +24,10 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/boot/i386/libi386/bootinfo.c,v 1.29
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <sys/param.h>
