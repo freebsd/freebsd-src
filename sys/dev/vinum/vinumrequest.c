@@ -806,8 +806,14 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     bp->b_flags = ubp->b_flags & (B_NOCACHE | B_ASYNC);
     bp->b_io.bio_flags = ubp->b_io.bio_flags & BIO_ORDERED;
     bp->b_iocmd = ubp->b_iocmd;
+#ifdef VINUMDEBUG
+    if (rqe->flags & XFR_BUFLOCKED)			    /* paranoia */
+	panic("build_rq_buffer: rqe already locked");	    /* XXX remove this when we're sure */
+#endif
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
+    BUF_KERNPROC(bp);
+    rqe->flags |= XFR_BUFLOCKED;
     bp->b_iodone = complete_rqe;
     /*
      * You'd think that we wouldn't need to even
@@ -942,6 +948,7 @@ sdio(struct buf *bp)
     sbp->b.b_iodone = sdio_done;			    /* come here on completion */
     BUF_LOCKINIT(&sbp->b);				    /* get a lock for the buffer */
     BUF_LOCK(&sbp->b, LK_EXCLUSIVE);			    /* and lock it */
+    BUF_KERNPROC(&sbp->b);
     sbp->bp = bp;					    /* note the address of the original header */
     sbp->sdno = sd->sdno;				    /* note for statistics */
     sbp->driveno = sd->driveno;
@@ -951,6 +958,8 @@ sdio(struct buf *bp)
 	if (sbp->b.b_bcount <= 0) {			    /* nothing to transfer */
 	    bp->b_resid = bp->b_bcount;			    /* nothing transferred */
 	    bufdone(bp);
+	    BUF_UNLOCK(&sbp->b);
+	    BUF_LOCKFREE(&sbp->b);
 	    Free(sbp);
 	    return;
 	}
