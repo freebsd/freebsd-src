@@ -144,9 +144,12 @@ makefile()
 	int versreq;
 
 	read_files();
-	strcpy(line, "Makefile.");
-	(void) strcat(line, machinename);
+	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
 	ifp = fopen(line, "r");
+	if (ifp == 0) {
+		snprintf(line, sizeof(line), "Makefile.%s", machinename);
+		ifp = fopen(line, "r");
+	}
 	if (ifp == 0)
 		err(1, "%s", line);
 	ofp = fopen(path("Makefile.new"), "w");
@@ -255,15 +258,15 @@ read_files()
 
 	ftab = 0;
 	save_dp = NULL;
+	if (ident == NULL) {
+		printf("no ident line specified\n");
+		exit(1);
+	}
 	(void) snprintf(fname, sizeof fname, "../../conf/files");
 openit:
 	fp = fopen(fname, "r");
 	if (fp == 0)
 		err(1, "%s", fname);
-	if (ident == NULL) {
-		printf("no ident line specified\n");
-		exit(1);
-	}
 next:
 	/*
 	 * filename    [ standard | mandatory | optional ] [ config-dependent ]
@@ -276,13 +279,17 @@ next:
 	if (wd == (char *)EOF) {
 		(void) fclose(fp);
 		if (first == 1) {
-			(void) snprintf(fname, sizeof fname, "files.%s", machinename);
 			first++;
+			(void) snprintf(fname, sizeof fname, "../../conf/files.%s", machinename);
+			fp = fopen(fname, "r");
+			if (fp != 0)
+				goto next;
+			(void) snprintf(fname, sizeof fname, "files.%s", machinename);
 			goto openit;
 		}
 		if (first == 2) {
-			(void) snprintf(fname, sizeof fname, "files.%s", raisestr(ident));
 			first++;
+			(void) snprintf(fname, sizeof fname, "files.%s", raisestr(ident));
 			fp = fopen(fname, "r");
 			if (fp != 0)
 				goto next;
