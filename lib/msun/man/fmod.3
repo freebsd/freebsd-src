@@ -30,27 +30,34 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)fmod.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: fmod.3,v 1.3 1993/08/14 13:42:46 mycroft Exp $
+.\"	$Id: fmod.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .Dd May 2, 1991
 .Dt FMOD 3
 .Os
 .Sh NAME
-.Nm fmod
-.Nd floating-point remainder function
+.Nm fmod ,
+.Nm fmodf
+.Nd floating-point remainder functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn fmod "double x" "double y"
+.Ft float
+.Fn fmodf "float x" "float y"
 .Sh DESCRIPTION
 The
 .Fn fmod
-function computes the floating-point remainder of
+and the
+.Fn fmodf
+functions compute the floating-point remainder of
 .Fa x Ns / Fa y .
 .Sh RETURN VALUES
 The
 .Fn fmod
-function returns the value
+and the
+.Fn fmodf
+functions return the value
 .Sm off
 .Fa x - Em i * Fa y ,
 .Sm on
@@ -66,6 +73,8 @@ If
 .Fa y
 is zero, whether a domain error occurs or the
 .Fn fmod
+and the
+.Fn fmodf
 function returns zero is implementation-defined.
 .Sh SEE ALSO
 .Xr math 3

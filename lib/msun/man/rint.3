@@ -30,23 +30,28 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)rint.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: rint.3,v 1.4 1994/03/11 01:32:11 jtc Exp $
+.\"	$Id: rint.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .Dd March 10, 1994
 .Dt RINT 3
 .Os
 .Sh NAME
-.Nm rint
+.Nm rint ,
+.Nm rintf
 .Nd round to integral value in floating-point format
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn rint "double x"
+.Ft float
+.Fn rintf "float x"
 .Sh DESCRIPTION
 The
 .Fn rint
-function returns the integral value (represented as a double precision number)
-nearest to
+and the
+.Fn rintf
+functions return the integral value (represented as a double or float 
+precision number) nearest to
 .Fa x
 according to the prevailing rounding mode.
 .Sh SEE ALSO
