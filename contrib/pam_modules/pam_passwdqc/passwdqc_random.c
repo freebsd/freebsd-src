@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000,2001 by Solar Designer. See LICENSE.
+ * Copyright (c) 2000-2002 by Solar Designer. See LICENSE.
  */
 
 #include <stdio.h>
@@ -37,7 +37,8 @@ char *_passwdqc_random(passwdqc_params_t *params)
 {
 	static char output[0x100];
 	int bits;
-	int use_separators, count, length, index;
+	int use_separators, count, i;
+	unsigned int length;
 	char *start, *end;
 	int fd;
 	unsigned char bytes[2];
@@ -49,7 +50,8 @@ char *_passwdqc_random(passwdqc_params_t *params)
 	use_separators = ((bits + 11) / 12 != count);
 
 	length = count * 7 - 1;
-	if (length >= sizeof(output) || length > params->max) return NULL;
+	if (length >= sizeof(output) || (int)length > params->max)
+		return NULL;
 
 	if ((fd = open("/dev/urandom", O_RDONLY)) < 0) return NULL;
 
@@ -60,8 +62,8 @@ char *_passwdqc_random(passwdqc_params_t *params)
 			return NULL;
 		}
 
-		index = (((int)bytes[1] & 0x0f) << 8) | (int)bytes[0];
-		start = _passwdqc_wordset_4k[index];
+		i = (((int)bytes[1] & 0x0f) << 8) | (int)bytes[0];
+		start = _passwdqc_wordset_4k[i];
 		end = memchr(start, '\0', 6);
 		if (!end) end = start + 6;
 		if (length + (end - start) >= sizeof(output) - 1) {
@@ -73,8 +75,8 @@ char *_passwdqc_random(passwdqc_params_t *params)
 		bits -= 12;
 
 		if (use_separators && bits > 3) {
-			index = ((int)bytes[1] & 0x70) >> 4;
-			output[length++] = SEPARATORS[index];
+			i = ((int)bytes[1] & 0x70) >> 4;
+			output[length++] = SEPARATORS[i];
 			bits -= 3;
 		} else
 		if (bits > 0)
