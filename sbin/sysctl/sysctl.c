@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.12 1997/02/22 16:13:58 peter Exp $";
+	"$Id: sysctl.c,v 1.13 1997/03/31 05:11:25 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -222,8 +222,8 @@ S_clockinfo(int l2, void *p)
 	struct clockinfo *ci = (struct clockinfo*)p;
 	if (l2 != sizeof *ci)
 		err(-1, "S_clockinfo %d != %d", l2, sizeof *ci);
-	printf("{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
-		ci->hz, ci->tick, ci->profhz, ci->stathz);
+	printf("{ hz = %d, tick = %d, tickadj = %d, profhz = %d, stathz = %d }",
+		ci->hz, ci->tick, ci->tickadj, ci->profhz, ci->stathz);
 	return (0);
 }
 
