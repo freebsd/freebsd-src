@@ -191,6 +191,7 @@ extern ACPI_BUFFER	*acpi_AllocBuffer(int size);
 extern ACPI_STATUS	acpi_GetIntoBuffer(ACPI_HANDLE handle, 
 					   ACPI_STATUS (*func)(ACPI_HANDLE, ACPI_BUFFER *), 
 					   ACPI_BUFFER *buf);
+extern ACPI_STATUS	acpi_GetTableIntoBuffer(ACPI_TABLE_TYPE table, UINT32 instance, ACPI_BUFFER *buf);
 extern ACPI_STATUS	acpi_EvaluateIntoBuffer(ACPI_HANDLE object, ACPI_STRING pathname,
 						ACPI_OBJECT_LIST *params, ACPI_BUFFER *buf);
 extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number);

@@ -574,14 +574,14 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid, struct re
 /*
  * Scan relevant portions of the ACPI namespace and attach child devices.
  *
- * Note that we only expect to find devices in the \_TZ_, \_SI_ and \_SB_ scopes, 
- * and \_TZ_ becomes obsolete in the ACPI 2.0 spec.
+ * Note that we only expect to find devices in the \_PR_, \_TZ_, \_SI_ and \_SB_ scopes, 
+ * and \_PR_ and \_TZ_ become obsolete in the ACPI 2.0 spec.
  */
 static void
 acpi_probe_children(device_t bus)
 {
     ACPI_HANDLE		parent;
-    static char		*scopes[] = {"\\_TZ_", "\\_SI", "\\_SB_", NULL};
+    static char		*scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI", "\\_SB_", NULL};
     int			i;
 
     FUNCTION_TRACE(__func__);
@@ -837,6 +837,27 @@ acpi_GetIntoBuffer(ACPI_HANDLE handle, ACPI_STATUS (*func)(ACPI_HANDLE, ACPI_BUF
     if ((buf->Pointer = AcpiOsCallocate(buf->Length)) == NULL)
 	return(AE_NO_MEMORY);
     return(func(handle, buf));
+}
+
+/*
+ * Perform the tedious double-get procedure required for fetching a table into
+ * an ACPI_BUFFER that has not been initialised.
+ */
+ACPI_STATUS
+acpi_GetTableIntoBuffer(ACPI_TABLE_TYPE table, UINT32 instance, ACPI_BUFFER *buf)
+{
+    ACPI_STATUS	status;
+
+    ACPI_ASSERTLOCK;
+
+    buf->Length = 0;
+    buf->Pointer = NULL;
+
+    if ((status = AcpiGetTable(table, instance, buf)) != AE_BUFFER_OVERFLOW)
+	return(status);
+    if ((buf->Pointer = AcpiOsCallocate(buf->Length)) == NULL)
+	return(AE_NO_MEMORY);
+    return(AcpiGetTable(table, instance, buf));
 }
 
 /*
