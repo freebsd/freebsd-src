@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.100 1998/02/13 05:30:18 bde Exp $
+ *	$Id: vm_machdep.c,v 1.101 1998/02/25 03:56:09 dyson Exp $
  */
 
 #include "npx.h"
@@ -915,8 +915,7 @@ grow(p, sp)
 	return (1);
 }
 
-
-int cnt_prezero;
+static int cnt_prezero;
 
 SYSCTL_INT(_machdep, OID_AUTO, cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
 
@@ -961,13 +960,14 @@ vm_page_zero_idle()
 			rel_mplock();
 #endif
 			pmap_zero_page(VM_PAGE_TO_PHYS(m));
-#ifdef 0
+#if 0
 			get_mplock();
 #endif
 			(void)splvm();
 			m->queue = PQ_ZERO + m->pc;
 			++(*vm_page_queues[m->queue].lcnt);
-			TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
+			TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m,
+			    pageq);
 			free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
 			++vm_page_zero_count;
 			++cnt_prezero;
@@ -976,7 +976,9 @@ vm_page_zero_idle()
 		disable_intr();
 #ifdef SMP
 		rel_mplock();
+#endif
 		return (1);
+#ifdef SMP
 	}
 #endif
 	return (0);
