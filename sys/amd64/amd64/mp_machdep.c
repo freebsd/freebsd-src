@@ -1994,7 +1994,6 @@ start_all_aps(u_int boot_addr)
 		/* prime data page for it to use */
 		SLIST_INSERT_HEAD(&cpuhead, gd, gd_allcpu);
 		gd->gd_cpuid = x;
-		gd->gd_cpu_lockid = x << 24;
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
