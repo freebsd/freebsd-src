@@ -1734,6 +1734,7 @@ in6_ifadd(pr, ifid)
 int
 in6_tmpifadd(ia0, forcegen)
 	const struct in6_ifaddr *ia0; /* corresponding public address */
+	int forcegen;
 {
 	struct ifnet *ifp = ia0->ia_ifa.ifa_ifp;
 	struct in6_ifaddr *newia;
@@ -1829,6 +1830,16 @@ in6_tmpifadd(ia0, forcegen)
 	}
 	newia->ia6_ndpr = ia0->ia6_ndpr;
 	newia->ia6_ndpr->ndpr_refcnt++;
+
+	/*
+	 * A newly added address might affect the status of other addresses.
+	 * XXX: when the temporary address is generated with a new public
+	 * address, the onlink check is redundant.  However, it would be safe
+	 * to do the check explicitly everywhere a new address is generated,
+	 * and, in fact, we surely need the check when we create a new
+	 * temporary address due to deprecation of an old temporary address.
+	 */
+	pfxlist_onlink_check();
 
 	return(0);
 }	    
