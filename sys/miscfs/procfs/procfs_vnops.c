@@ -187,14 +187,6 @@ procfs_close(ap)
 		if ((ap->a_fflag & FWRITE) && (pfs->pfs_flags & O_EXCL))
 			pfs->pfs_flags &= ~(FWRITE|O_EXCL);
 		/*
-		 * This rather complicated-looking code is trying to
-		 * determine if this was the last close on this particular
-		 * vnode.  While one would expect v_usecount to be 1 at
-		 * that point, it seems that (according to John Dyson)
-		 * the VM system will bump up the usecount.  So:  if the
-		 * usecount is 2, and VOBJBUF is set, then this is really
-		 * the last close.  Otherwise, if the usecount is < 2
-		 * then it is definitely the last close.
 		 * If this is the last close, then it checks to see if
 		 * the target process has PF_LINGER set in p_pfsflags,
 		 * if this is *not* the case, then the process' stop flags
