@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pci.c,v 1.72 1997/05/26 15:08:34 se Exp $
  *
  */
 
@@ -330,6 +330,24 @@ pci_readcfg(pcicfgregs *probe)
 		cfg->lattimer		= pci_cfgread(cfg, PCIR_LATTIMER, 1);
 		cfg->intpin		= pci_cfgread(cfg, PCIR_INTPIN, 1);
 		cfg->intline		= pci_cfgread(cfg, PCIR_INTLINE, 1);
+
+#ifdef APIC_IO
+		if (cfg->intline && (cfg->intline != 0xff)) {
+			u_char airq = 0xff;
+			u_char rirq = 0xff;
+
+			airq = get_pci_apic_irq(cfg->bus,
+						cfg->slot, cfg->intpin);
+
+			if (airq != 0xff) {		/* APIC IRQ exists */
+				rirq = cfg->intline;	/* 're-directed' IRQ */
+				cfg->intline = airq;	/* use APIC IRQ */
+				pci_cfgwrite(cfg, PCIR_INTLINE, airq, 1);
+				undirect_pci_irq(rirq);
+			}
+		}
+#endif  /* APIC_IO */
+
 		cfg->mingnt		= pci_cfgread(cfg, PCIR_MINGNT, 1);
 		cfg->maxlat		= pci_cfgread(cfg, PCIR_MAXLAT, 1);
 
