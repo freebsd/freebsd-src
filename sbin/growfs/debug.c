@@ -35,14 +35,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $TSHeader: src/sbin/growfs/debug.c,v 1.2 2000/11/16 18:43:49 tom Exp $
+ * $TSHeader: src/sbin/growfs/debug.c,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
  * $FreeBSD$
  *
  */
 
 #ifndef lint
 static const char rcsid[] =
-  "$TSHeader: src/sbin/growfs/debug.c,v 1.2 2000/11/16 18:43:49 tom Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /* ********************************************************** INCLUDES ***** */

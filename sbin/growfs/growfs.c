@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $TSHeader: src/sbin/growfs/growfs.c,v 1.4 2000/12/09 15:12:33 tomsoft Exp $
+ * $TSHeader: src/sbin/growfs/growfs.c,v 1.5 2000/12/12 19:31:00 tomsoft Exp $
  * $FreeBSD$
  *
  */
@@ -49,7 +49,7 @@ All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "$FreeBSD$";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /* ********************************************************** INCLUDES ***** */
@@ -57,20 +57,17 @@ static const char rcsid[] =
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <stdio.h>
 #include <paths.h>
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#include <machine/param.h>
 
 #include "debug.h"
 
@@ -132,7 +129,7 @@ static void	rdfs(daddr_t, int, char *, int);
 static void	wtfs(daddr_t, int, char *, int, int);
 static daddr_t	alloc(void);
 static int	charsperline(void);
-static void	usage(char *);
+static void	usage(void);
 static int	isblock(struct fs *, unsigned char *, int);
 static void	clrblock(struct fs *, unsigned char *, int);
 static void	setblock(struct fs *, unsigned char *, int);
@@ -151,7 +148,7 @@ static void	updrefs(int, ino_t, struct gfs_bpp *, int, int, int);
 /* ************************************************************ growfs ***** */
 /*
  * Here  we actually start growing the filesystem. We basically  read  the
- * cylinder  summary from the first cylinder group as we wan't  to  update
+ * cylinder  summary  from the first cylinder group as we want  to  update
  * this  on  the fly during our various operations. First  we  handle  the
  * changes in the former last cylinder group. Afterwards we create all new
  * cylinder  groups.  Now  we handle the  cylinder  group  containing  the
@@ -189,6 +186,9 @@ growfs(int fsi, int fso, int Nflag)
 	 * Get the cylinder summary into the memory.
 	 */
 	fscs = (struct csum *)calloc(1, (size_t)sblock.fs_cssize);
+	if(fscs == NULL) {
+		errx(1, "calloc failed");
+	}
 	for (i = 0; i < osblock.fs_cssize; i += osblock.fs_bsize) {
 		rdfs(fsbtodb(&osblock, osblock.fs_csaddr +
 		    numfrags(&osblock, i)), MIN(osblock.fs_cssize - i,
@@ -204,7 +204,9 @@ growfs(int fsi, int fso, int Nflag)
 	dbg_csp=fscs;
 	for(dbg_csc=0; dbg_csc<osblock.fs_ncg; dbg_csc++) {
 		snprintf(dbg_line, 80, "%d. old csum in old location", dbg_csc);
-		DBG_DUMP_CSUM(&osblock, dbg_line, dbg_csp++);
+		DBG_DUMP_CSUM(&osblock,
+		    dbg_line,
+		    dbg_csp++);
 	}
 }
 #endif /* FS_DEBUG */
@@ -280,7 +282,9 @@ growfs(int fsi, int fso, int Nflag)
 	dbg_csp=fscs;
 	for(dbg_csc=0; dbg_csc<sblock.fs_ncg; dbg_csc++) {
 		snprintf(dbg_line, 80, "%d. new csum in new location", dbg_csc);
-		DBG_DUMP_CSUM(&sblock, dbg_line, dbg_csp++);
+		DBG_DUMP_CSUM(&sblock,
+		    dbg_line,
+		    dbg_csp++);
 	}
 }
 #endif /* FS_DEBUG */
@@ -291,7 +295,8 @@ growfs(int fsi, int fso, int Nflag)
 	sblock.fs_time = utime;
 	wtfs((int)SBOFF / DEV_BSIZE, SBSIZE, (char *)&sblock, fso, Nflag);
 	DBG_PRINT0("sblock written\n");
-	DBG_DUMP_FS(&sblock, "new initial sblock");
+	DBG_DUMP_FS(&sblock,
+	    "new initial sblock");
 
 	/*
 	 * Clean up the dynamic fields in our superblock copies.
@@ -333,7 +338,8 @@ growfs(int fsi, int fso, int Nflag)
 		    SBSIZE, (char *)&sblock, fso, Nflag);
 	}
 	DBG_PRINT0("sblock copies written\n");
-	DBG_DUMP_FS(&sblock, "new other sblocks");
+	DBG_DUMP_FS(&sblock,
+	    "new other sblocks");
 
 	DBG_LEAVE;
 	return;
@@ -411,8 +417,7 @@ initcg(int cylno, time_t utime, int fso, int Nflag)
 		 * XXX This should never happen as we would have had that panic
 		 *     already on filesystem creation
 		 */
-		fprintf(stderr, "Panic: cylinder group too big\n");
-		exit(37);
+		errx(37, "panic: cylinder group too big");
 	}
 	acg.cg_cs.cs_nifree += sblock.fs_ipg;
 	if (cylno == 0)
@@ -506,7 +511,9 @@ initcg(int cylno, time_t utime, int fso, int Nflag)
 	*cs = acg.cg_cs;
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
 	    sblock.fs_bsize, (char *)&acg, fso, Nflag);
-	DBG_DUMP_CG(&sblock, "new cg", &acg);
+	DBG_DUMP_CG(&sblock,
+	    "new cg",
+	    &acg);
 
 	DBG_LEAVE;
 	return;
@@ -547,7 +554,9 @@ frag_adjust(daddr_t frag, int sign)
 				 * We found something in between.
 				 */
 				acg.cg_frsum[fragsize]+=sign;
-				DBG_PRINT2("frag_adjust [%d]+=%d\n", fragsize, sign);
+				DBG_PRINT2("frag_adjust [%d]+=%d\n",
+				    fragsize,
+				    sign);
 			}
 			fragsize=0;
 		}
@@ -557,9 +566,13 @@ frag_adjust(daddr_t frag, int sign)
 		 * We found something.
 		 */
 		acg.cg_frsum[fragsize]+=sign;
-		DBG_PRINT2("frag_adjust [%d]+=%d\n", fragsize, sign);
+		DBG_PRINT2("frag_adjust [%d]+=%d\n",
+		    fragsize,
+		    sign);
 	}
-	DBG_PRINT2("frag_adjust [[%d]]+=%d\n", fragsize, sign);
+	DBG_PRINT2("frag_adjust [[%d]]+=%d\n",
+	    fragsize,
+	    sign);
 
 	DBG_LEAVE;
 	return;
@@ -593,7 +606,10 @@ cond_bl_upd(ufs_daddr_t *block, struct gfs_bpp *field,
 			 */
 			*block=(f->new*sblock.fs_frag+(*block%sblock.fs_frag));
 			f->found++;
-			DBG_PRINT3("scg (%d->%d)[%d] reference updated\n", f->old, f->new, *block%sblock.fs_frag);
+			DBG_PRINT3("scg (%d->%d)[%d] reference updated\n",
+			    f->old,
+			    f->new,
+			    *block%sblock.fs_frag);
 
 			/* Write the block back to disk immediately */
 			switch (source) {
@@ -668,7 +684,9 @@ updjcg(int cylno, time_t utime, int fsi, int fso, int Nflag)
 	rdfs(fsbtodb(&osblock, cgtod(&osblock, cylno)), osblock.fs_cgsize,
 		(char *)&aocg, fsi);
 	DBG_PRINT0("jcg read\n");
-	DBG_DUMP_CG(&sblock, "old joining cg", &aocg);
+	DBG_DUMP_CG(&sblock,
+	    "old joining cg",
+	    &aocg);
 
 	memcpy((void *)&cgun1, (void *)&cgun2, sizeof(cgun2));
 
@@ -686,7 +704,9 @@ updjcg(int cylno, time_t utime, int fsi, int fso, int Nflag)
 		wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), sblock.fs_cgsize,
 		    (char *)&acg, fso, Nflag);
 		DBG_PRINT0("jcg written\n");
-		DBG_DUMP_CG(&sblock, "new joining cg", &acg);
+		DBG_DUMP_CG(&sblock,
+		    "new joining cg",
+		    &acg);
 
 		DBG_LEAVE;
 		return;
@@ -722,7 +742,11 @@ updjcg(int cylno, time_t utime, int fsi, int fso, int Nflag)
 	} else {
 		acg.cg_ncyl = sblock.fs_cpg;
 	}
-	DBG_PRINT4("jcg dbg: %d %u %d %u\n", cylno, sblock.fs_ncg, acg.cg_ncyl, sblock.fs_cpg);
+	DBG_PRINT4("jcg dbg: %d %u %d %u\n",
+	    cylno,
+	    sblock.fs_ncg,
+	    acg.cg_ncyl,
+	    sblock.fs_cpg);
 	acg.cg_ndblk = dmax - cbase;
 	sblock.fs_dsize += acg.cg_ndblk-aocg.cg_ndblk;
 	if (sblock.fs_contigsumsize > 0) {
@@ -870,7 +894,9 @@ updjcg(int cylno, time_t utime, int fsi, int fso, int Nflag)
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), sblock.fs_cgsize,
 	    (char *)&acg, fso, Nflag);
 	DBG_PRINT0("jcg written\n");
-	DBG_DUMP_CG(&sblock, "new joining cg", &acg);
+	DBG_DUMP_CG(&sblock,
+	    "new joining cg",
+	    &acg);
 
 	DBG_LEAVE;
 	return;
@@ -929,7 +955,9 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 	rdfs(fsbtodb(&osblock, cgtod(&osblock, ocscg)), osblock.fs_cgsize,
 	    (char *)&aocg, fsi);
 	DBG_PRINT0("oscg read\n");
-	DBG_DUMP_CG(&sblock, "old summary cg", &aocg);
+	DBG_DUMP_CG(&sblock,
+	    "old summary cg",
+	    &aocg);
 
 	memcpy((void *)&cgun1, (void *)&cgun2, sizeof(cgun2));
 
@@ -967,8 +995,7 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		 */
 		DBG_TRC;
 		if(sblock.fs_ncg-osblock.fs_ncg < 2) {
-			fprintf(stderr, "growfs: panic, not enough space\n");
-			exit(2);
+			errx(2, "panic: not enough space");
 		}
 
 		/*
@@ -997,7 +1024,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		 */
 		d--;
 
-		DBG_PRINT1("d=%d\n",d);
+		DBG_PRINT1("d=%d\n",
+		    d);
 		if((d+1)%sblock.fs_frag) {
 			/*
 			 * The end of the cylinder summary is not a complete
@@ -1006,7 +1034,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 			DBG_TRC;
 			frag_adjust(d%sblock.fs_fpg, -1);
 			for(; (d+1)%sblock.fs_frag; d--) {
-				DBG_PRINT1("d=%d\n",d);
+				DBG_PRINT1("d=%d\n",
+				    d);
 				setbit(cg_blksfree(&acg), d%sblock.fs_fpg);
 				acg.cg_cs.cs_nffree++;
 				sblock.fs_cstotal.cs_nffree++;
@@ -1020,7 +1049,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 
 			if(isblock(&sblock, cg_blksfree(&acg),
 			    (d%sblock.fs_fpg)/sblock.fs_frag)) {
-				DBG_PRINT1("d=%d\n",d);
+				DBG_PRINT1("d=%d\n",
+				    d);
 				acg.cg_cs.cs_nffree-=sblock.fs_frag;
 				acg.cg_cs.cs_nbfree++;
 				sblock.fs_cstotal.cs_nffree-=sblock.fs_frag;
@@ -1050,11 +1080,13 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 			d--;
 		}
 
-		DBG_PRINT1("d=%d\n",d);
+		DBG_PRINT1("d=%d\n",
+		    d);
 		for(d=rounddown(d, sblock.fs_frag); d >= osblock.fs_csaddr;
 		    d-=sblock.fs_frag) {
 			DBG_TRC;
-			DBG_PRINT1("d=%d\n",d);
+			DBG_PRINT1("d=%d\n",
+			    d);
 			setblock(&sblock, cg_blksfree(&acg),
 			    (d%sblock.fs_fpg)/sblock.fs_frag);
 			acg.cg_cs.cs_nbfree++;
@@ -1087,7 +1119,9 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		wtfs(fsbtodb(&sblock, cgtod(&sblock, ocscg)), sblock.fs_cgsize,
 		    (char *)&acg, fso, Nflag);
 		DBG_PRINT0("oscg written\n");
-		DBG_DUMP_CG(&sblock, "old summary cg", &acg);
+		DBG_DUMP_CG(&sblock,
+		    "old summary cg",
+		    &acg);
 
 		/*
 		 * Find the beginning of the new cylinder group containing the
@@ -1104,7 +1138,9 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		rdfs(fsbtodb(&sblock, cgtod(&sblock, ncscg)),
 		    sblock.fs_cgsize, (char *)&aocg, fsi);
 		DBG_PRINT0("nscg read\n");
-		DBG_DUMP_CG(&sblock, "new summary cg", &aocg);
+		DBG_DUMP_CG(&sblock,
+		    "new summary cg",
+		    &aocg);
 
 		memcpy((void *)&cgun1, (void *)&cgun2, sizeof(cgun2));
 
@@ -1178,7 +1214,9 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		wtfs(fsbtodb(&sblock, cgtod(&sblock, ncscg)), sblock.fs_cgsize,
 		    (char *)&acg, fso, Nflag);
 		DBG_PRINT0("nscg written\n");
-		DBG_DUMP_CG(&sblock, "new summary cg", &acg);
+		DBG_DUMP_CG(&sblock,
+		    "new summary cg",
+		    &acg);
 
 		DBG_LEAVE;
 		return;
@@ -1203,6 +1241,9 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 	 */
  	bp=(struct gfs_bpp *)malloc(((dupper-odupper)/sblock.fs_frag+2)*
 	    sizeof(struct gfs_bpp));
+	if(bp == NULL) {
+		errx(1, "malloc failed");
+	}
 	memset((char *)bp, 0, sizeof(struct gfs_bpp));
 
 	/*
@@ -1216,7 +1257,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 	ind=0;
 	frag_adjust(odupper, -1);
 	for(d=odupper; ((d<dupper)&&(d%sblock.fs_frag)); d++) {
-		DBG_PRINT1("scg first frag check loop d=%d\n", d);
+		DBG_PRINT1("scg first frag check loop d=%d\n",
+		    d);
 		if(isclr(cg_blksfree(&acg), d)) {
 			if (!ind) {
 				bp[ind].old=d/sblock.fs_frag;
@@ -1245,7 +1287,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 	 * Handle all needed complete blocks here.
 	 */
 	for(; d+sblock.fs_frag<=dupper; d+=sblock.fs_frag) {
-		DBG_PRINT1("scg block check loop d=%d\n", d);
+		DBG_PRINT1("scg block check loop d=%d\n",
+		    d);
 		if(!isblock(&sblock, cg_blksfree(&acg), d/sblock.fs_frag)) {
 			for(f=d; f<d+sblock.fs_frag; f++) {
 				if(isset(cg_blksfree(&aocg), f)) {
@@ -1319,7 +1362,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		}
 
 		for(; d<dupper; d++) {
-			DBG_PRINT1("scg second frag check loop d=%d\n", d);
+			DBG_PRINT1("scg second frag check loop d=%d\n",
+			    d);
 			if(isclr(cg_blksfree(&acg), d)) {
 				bp[ind].old=d/sblock.fs_frag;
 				bp[ind].flags|=GFS_FL_LAST;
@@ -1428,9 +1472,13 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 			    sblock.fs_bsize, (char *)&ablk, fsi);
 			wtfs(fsbtodb(&sblock, bp[i].new*sblock.fs_frag),
 			    sblock.fs_bsize, (char *)&ablk, fso, Nflag);
-			DBG_DUMP_HEX(&sblock, "copied full block", (unsigned char *)&ablk);
+			DBG_DUMP_HEX(&sblock,
+			    "copied full block",
+			    (unsigned char *)&ablk);
 
-			DBG_PRINT2("scg (%d->%d) block relocated\n", bp[i].old, bp[i].new);
+			DBG_PRINT2("scg (%d->%d) block relocated\n",
+			    bp[i].old,
+			    bp[i].new);
 		}
 
 		/*
@@ -1440,7 +1488,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		 * inodes.
 		 */
 		for(cylno=0; cylno<osblock.fs_ncg; cylno++) {
-			DBG_PRINT1("scg doing cg (%d)\n", cylno);
+			DBG_PRINT1("scg doing cg (%d)\n",
+			    cylno);
 			for(inc=osblock.fs_ipg-1 ; inc>=0 ; inc--) {
 				updrefs(cylno, (ino_t)inc, bp, fsi, fso, Nflag);
 			}
@@ -1452,8 +1501,7 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 		 */
 		for(i=0; i<ind; i++) {
 			if(!bp[i].found || (bp[i].found>sblock.fs_frag)) {
-				fprintf(stderr,
-				    "error: %d refs found for block %d.\n",
+				warnx("error: %d refs found for block %d.",
 				    bp[i].found, bp[i].old);
 			}
 
@@ -1478,7 +1526,9 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, ocscg)), sblock.fs_cgsize,
 	    (char *)&acg, fso, Nflag);
 	DBG_PRINT0("scg written\n");
-	DBG_DUMP_CG(&sblock, "new summary cg", &acg);
+	DBG_DUMP_CG(&sblock,
+	    "new summary cg",
+	    &acg);
 
 	DBG_LEAVE;
 	return;
@@ -1497,13 +1547,11 @@ rdfs(daddr_t bno, int size, char *bf, int fsi)
 	DBG_ENTER;
 
 	if (lseek(fsi, (off_t)bno * DEV_BSIZE, 0) < 0) {
-		fprintf(stderr, "seek error: %ld\n", (long)bno);
-		err(33, "rdfs");
+		err(33, "rdfs: seek error: %ld", (long)bno);
 	}
 	n = read(fsi, bf, (size_t)size);
 	if (n != size) {
-		fprintf(stderr, "read error: %ld\n", (long)bno);
-		err(34, "rdfs");
+		err(34, "rdfs: read error: %ld", (long)bno);
 	}
 
 	DBG_LEAVE;
@@ -1527,13 +1575,11 @@ wtfs(daddr_t bno, int size, char *bf, int fso, int Nflag)
 		return;
 	}
 	if (lseek(fso, (off_t)bno * DEV_BSIZE, SEEK_SET) < 0) {
-		fprintf(stderr, "seek error: %ld\n", (long)bno);
-		err(35, "wtfs");
+		err(35, "wtfs: seek error: %ld", (long)bno);
 	}
 	n = write(fso, bf, (size_t)size);
 	if (n != size) {
-		fprintf(stderr, "write error: %ld\n", (long)bno);
-		err(36, "wtfs");
+		err(36, "wtfs: write error: %ld", (long)bno);
 	}
 
 	DBG_LEAVE;
@@ -1559,12 +1605,12 @@ alloc(void)
 	DBG_ENTER;
 
 	if (acg.cg_magic != CG_MAGIC) {
-		fprintf(stderr, "acg: bad magic number\n");
+		warnx("acg: bad magic number");
 		DBG_LEAVE;
 		return (0);
 	}
 	if (acg.cg_cs.cs_nbfree == 0) {
-		fprintf(stderr, "error: cylinder group ran out of space\n");
+		warnx("error: cylinder group ran out of space");
 		DBG_LEAVE;
 		return (0);
 	}
@@ -1584,8 +1630,13 @@ alloc(void)
 	dmax-=cgbase(&sblock, acg.cg_cgx); /* retransform into cg */
 	csmin=sblock.fs_csaddr-cgbase(&sblock, acg.cg_cgx);
 	csmax=csmin+howmany(sblock.fs_cssize, sblock.fs_fsize);
-	DBG_PRINT3("seek range: dl=%d, du=%d, dm=%d\n", dlower, dupper, dmax);
-	DBG_PRINT2("range cont: csmin=%d, csmax=%d\n", csmin, csmax);
+	DBG_PRINT3("seek range: dl=%d, du=%d, dm=%d\n",
+	    dlower,
+	    dupper,
+	    dmax);
+	DBG_PRINT2("range cont: csmin=%d, csmax=%d\n",
+	    csmin,
+	    csmax);
 
 	for(d=0; (d<dlower && blkno==-1); d+=sblock.fs_frag) {
 		if(d>=csmin && d<=csmax) {
@@ -1608,8 +1659,7 @@ alloc(void)
 		}
 	}
 	if(blkno==-1) {
-		fprintf(stderr,
-		    "internal error: couldn't find promised block in cg\n");
+		warnx("internal error: couldn't find promised block in cg");
 		DBG_LEAVE;
 		return (0);
 	}
@@ -1627,7 +1677,7 @@ alloc(void)
 		clrbit(cg_clustersfree(&acg), blkno);
 		/*
 		 * We  possibly have split a cluster here, so we have  to  do
-		 * recalculate the sizes of the remaining cluster halfes now,
+		 * recalculate the sizes of the remaining cluster halves now,
 		 * and use them for updating the cluster summary information.
 		 *
 		 * Lets start with the blocks before our allocated block ...
@@ -1736,7 +1786,7 @@ clrblock(struct fs *fs, unsigned char *cp, int h)
 		cp[h >> 3] &= ~(0x01 << (h & 0x7));
 		break;
 	default:
-		fprintf(stderr, "clrblock bad fs_frag %d\n", fs->fs_frag);
+		warnx("clrblock bad fs_frag %d", fs->fs_frag);
 		break;
 	}
 
@@ -1771,7 +1821,7 @@ setblock(struct fs *fs, unsigned char *cp, int h)
 		cp[h >> 3] |= (0x01 << (h & 0x7));
 		break;
 	default:
-		fprintf(stderr, "setblock bad fs_frag %d\n", fs->fs_frag);
+		warnx("setblock bad fs_frag %d", fs->fs_frag);
 		break;
 	}
 
@@ -1784,7 +1834,7 @@ setblock(struct fs *fs, unsigned char *cp, int h)
  * This function provides access to an individual inode. We find out in which
  * block  the  requested inode is located, read it from disk if  needed,  and
  * return  the pointer into that block. We maintain a cache of one  block  to
- * not  read  the same block again and again if we iterate lineary  over  all
+ * not  read the same block again and again if we iterate linearly  over  all
  * inodes.
  */
 static struct dinode *
@@ -1859,21 +1909,21 @@ charsperline(void)
  * We still have to provide support for snapshots. Therefore we first have to
  * understand  what data structures are always replicated in the snapshot  on
  * creation,  for all other blocks we touch during our procedure, we have  to
- * keep the old blocks unchanged somewere available for the snapshots. If  we
+ * keep the old blocks unchanged somewhere available for the snapshots. If we
  * are lucky, then we only have to handle our blocks to be relocated in  that
  * way.
  * Also  we  have to consider in what order we actually update  the  critical
- * data structures of the filesystem to make sure, that in case of a desaster
+ * data structures of the filesystem to make sure, that in case of a disaster
  * fsck(8) is still able to restore any lost data.
- * The  forseen  last step then will be to provide for growing  even  mounted
- * file  systems. There we have to extend the mount() systemcall  to  provide
+ * The  foreseen last step then will be to provide for growing  even  mounted
+ * file  systems. There we have to extend the mount() system call to  provide
  * userland access to the file system locking facility.
  */
 int
 main(int argc, char **argv)
 {
 	DBG_FUNC("main")
-	char	*a0, *device, *special, *cp;
+	char	*device, *special, *cp;
 	char	ch;
 	unsigned long	size=0;
 	size_t	len;
@@ -1890,7 +1940,6 @@ main(int argc, char **argv)
 
 	DBG_ENTER;
 
-	a0=*argv;	/* save argv[0] for usage() */
 	while((ch=getopt(argc, argv, "Ns:vy")) != -1) {
 		switch(ch) {
 		case 'N':
@@ -1899,7 +1948,7 @@ main(int argc, char **argv)
 		case 's':
 			size=(size_t)atol(optarg);
 			if(size<1) {
-				usage(a0);
+				usage();
 			}
 			break;
 		case 'v': /* for compatibility to newfs */
@@ -1910,14 +1959,14 @@ main(int argc, char **argv)
 		case '?':
 			/* FALLTHROUGH */
 		default:
-			usage(a0);
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if(argc != 1) {
-		usage(a0);
+		usage();
 	}
 	device=*argv;
 
@@ -1937,6 +1986,9 @@ main(int argc, char **argv)
 		 */
 		len=strlen(device)+strlen(_PATH_DEV)+2+strlen("vinum/");
 		special=(char *)malloc(len);
+		if(special == NULL) {
+			errx(1, "malloc failed");
+		}
 		snprintf(special, len, "%sr%s", _PATH_DEV, device);
 		if (stat(special, &st) == -1) {
 			snprintf(special, len, "%s%s", _PATH_DEV, device);
@@ -1961,8 +2013,7 @@ main(int argc, char **argv)
 	} else {
 		fso = open(device, O_WRONLY);
 		if (fso < 0) {
-			fprintf(stderr, "%s: %s\n", device, strerror(errno));
-			exit(-1);
+			err(1, "%s", device);
 		}
 	}
 
@@ -1971,8 +2022,7 @@ main(int argc, char **argv)
 	 */
 	fsi = open(device, O_RDONLY);
 	if (fsi < 0) {
-		fprintf(stderr, "%s: %s\n", device, strerror(errno));
-		exit(-1);
+		err(1, "%s", device);
 	}
 
 	/*
@@ -1989,20 +2039,17 @@ main(int argc, char **argv)
 	} else if (*cp>='a' && *cp<='h') {
 		pp = &lp->d_partitions[*cp - 'a'];
 	} else {
-		fprintf(stderr, "unknown device\n");
-		exit(-1);
+		errx(1, "unknown device");
 	}
 
 	/*
 	 * Check if that partition looks suited for growing a file system.
 	 */
 	if (pp->p_size < 1) {
-		fprintf(stderr, "partition is unavailable\n");
-		exit(-1);
+		errx(1, "partition is unavailable");
 	}
 	if (pp->p_fstype != FS_BSDFFS) {
-		fprintf(stderr, "partition not 4.2BSD\n");
-		exit(-1);
+		errx(1, "partition not 4.2BSD");
 	}
 
 	/*
@@ -2010,13 +2057,13 @@ main(int argc, char **argv)
 	 */
 	rdfs((daddr_t)(SBOFF/DEV_BSIZE), SBSIZE, (char *)&(osblock), fsi);
 	if (osblock.fs_magic != FS_MAGIC) {
-		fprintf(stderr, "superblock not recognized\n");
-		exit(-1);
+		errx(1, "superblock not recognized");
 	}
 	memcpy((void *)&fsun1, (void *)&fsun2, sizeof(fsun2));
 
 	DBG_OPEN("/tmp/growfs.debug"); /* already here we need a superblock */
-	DBG_DUMP_FS(&sblock, "old sblock");
+	DBG_DUMP_FS(&sblock,
+	    "old sblock");
 
 	/*
 	 * Determine size to grow to. Default to the full size specified in
@@ -2025,10 +2072,8 @@ main(int argc, char **argv)
 	sblock.fs_size = dbtofsb(&osblock, pp->p_size);
 	if (size != 0) {
 		if (size > pp->p_size){
-			fprintf(stderr,
-			    "There is not enough space (%d < %ld)\n",
+			errx(1, "There is not enough space (%d < %ld)",
 			    pp->p_size, size);
-			exit(-1);
 		}
 		sblock.fs_size = dbtofsb(&osblock, size);	
 	}
@@ -2037,9 +2082,8 @@ main(int argc, char **argv)
 	 * Are we really growing ?
 	 */
 	if(osblock.fs_size >= sblock.fs_size) {
-		fprintf(stderr, "we are not growing (%d->%d)\n",
-		    osblock.fs_size, sblock.fs_size);
-		exit(-1);
+		errx(1, "we are not growing (%d->%d)", osblock.fs_size,
+		    sblock.fs_size);
 	}
 
 
@@ -2050,11 +2094,9 @@ main(int argc, char **argv)
 	if(ExpertFlag == 0) {
 		for(j=0; j<FSMAXSNAP; j++) {
 			if(sblock.fs_snapinum[j]) {
-				fprintf(stderr,
-				    "active snapshot found in filesystem\n"
+				errx(1, "active snapshot found in filesystem\n"
 				    "	please remove all snapshots before "
 				    "using growfs\n");
-				exit(-1);
 			}
 			if(!sblock.fs_snapinum[j]) { /* list is dense */
 				break;
@@ -2138,8 +2180,7 @@ main(int argc, char **argv)
 	    fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
 	
 	if(osblock.fs_size >= sblock.fs_size) {
-		fprintf(stderr, "not enough new space\n");
-		exit(-1);
+		errx(1, "not enough new space");
 	}
 
 	DBG_PRINT0("sblock calculated\n");
@@ -2199,8 +2240,7 @@ return_disklabel(int fd, struct disklabel *lp, int Nflag)
 		lp->d_checksum=sum;
 
 		if (ioctl(fd, DIOCWDINFO, (char *)lp) < 0) {
-			fprintf(stderr, "DIOCWDINFO failed\n");
-			exit(-1);
+			errx(1, "DIOCWDINFO failed");
 		}
 	}
 	free(lp);
@@ -2223,12 +2263,10 @@ get_disklabel(int fd)
 
 	lab=(struct disklabel *)malloc(sizeof(struct disklabel));
 	if (!lab) {
-		fprintf(stderr, "malloc failed\n");
-		exit(-1);
+		errx(1, "malloc failed");
 	}
 	if (ioctl(fd, DIOCGDINFO, (char *)lab) < 0) {
-		fprintf(stderr, "DIOCGDINFO failed\n");
-		exit(-1);
+		errx(1, "DIOCGDINFO failed");
 	}
 
 	DBG_LEAVE;
@@ -2241,22 +2279,16 @@ get_disklabel(int fd)
  * Dump a line of usage.
  */
 static void
-usage(char *name)
+usage(void)
 {	
 	DBG_FUNC("usage")
-	char	*basename;
 
 	DBG_ENTER;
 
-	basename=strrchr(name, '/');
-	if(!basename) {
-		basename=name;
-	} else {
-		basename++;
-	}
-	fprintf(stderr, "usage: %s [-Ny] [-s size] special_file\n", basename);
+	fprintf(stderr, "usage: growfs [-Ny] [-s size] special\n");
+
 	DBG_LEAVE;
-	exit(-1);
+	exit(1);
 }
 
 /* *********************************************************** updclst ***** */
@@ -2344,7 +2376,9 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, int Nflag)
 		DBG_LEAVE;
 		return;	/* skip empty swiss cheesy file or old fastlink */
 	}
-	DBG_PRINT2("scg checking inode (%d in %d)\n", in, cg);
+	DBG_PRINT2("scg checking inode (%d in %d)\n",
+	    in,
+	    cg);
 
 	/*
 	 * Start checking all direct blocks.

@@ -34,7 +34,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $TSHeader: src/sbin/growfs/growfs.8,v 1.2 2000/12/09 15:12:33 tomsoft Exp $
+.\" $TSHeader: src/sbin/growfs/growfs.8,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
 .\" $FreeBSD$
 .\"
 .Dd September 8, 2000
@@ -49,7 +49,7 @@
 .Op Fl s Ar size
 .Ar special
 .Sh DESCRIPTION
-.Nm Growfs
+.Nm
 extends the 
 .Xr newfs 8
 program.
@@ -59,38 +59,43 @@ the disk must be labeled to a bigger size using
 .Xr disklabel 8 .
 If you are using volumes you must grow them using 
 .Xr vinum 8 .
-.Nm Growfs
+.Nm
 extends the size of the file system on the specified special file.
 Currently
 .Nm 
-can only grow unmounted file systems. Do not try growing an mounted file system,
-your system may panic and you will not be able to use the file system any longer.
+can only grow unmounted file systems.
+Do not try growing a mounted file system, your system may panic and you will
+not be able to use the file system any longer.
 Most of the options you have used with
 .Xr newfs 8
-once can not be changed. In fact you can only increase the size of the file
-system. Use 
+once can not be changed.
+In fact you can only increase the size of the file system.
+Use 
 .Xr tunefs 8
 for other changes.
-Typically the defaults are reasonable, however
-.Nm
-has some options to allow the defaults to be overridden.
+.Pp
+The following options are available:
 .\".Pp
 .Bl -tag -width indent
 .It Fl N
-Cause the new file system parameters to be printed out
-without realy growing the file system.
+Cause the new file system parameters to be printed out without actually growing
+the file system.
 .It Fl y
 .Dq Expert mode
 Normally 
 .Nm 
-will ask you, if you took a backup of your data before und will do some tests
+will ask you, if you took a backup of your data before and will do some tests
 if 
 .Ar special 
 is currently mounted or if there are any active snapshots on the filesystem
-specified. This will be supressed. So use this option with care!
+specified.
+This will be supressed.
+So use this option with great care!
 .It Fl s Ar size
-The size of the file system after growing in sectors.  This value defaults
-to the size of the raw partition specified in
+The
+.Ar size
+of the file system after growing in sectors.
+This value defaults to the size of the raw partition specified in
 .Ar special 
 (in other words,
 .Nm
@@ -100,8 +105,10 @@ will grow the file system to the size of the entire partition).
 .Pp
 .Dl growfs -s 4194304 /dev/vinum/testvol
 .Pp
-will grow /dev/vinum/testvol up to 2GB if there is enough space in 
-/dev/vinum/testvol .
+will grow
+.Pa /dev/vinum/testvol
+up to 2GB if there is enough space in 
+.Pa /dev/vinum/testvol .
 .Sh BUGS
 In some cases on
 .Bx Free
@@ -110,27 +117,31 @@ In some cases on
 did not recognize exactly, if the file system is mounted or not and 
 exits with an error message, then use 
 .Nm
--y if you are sure, that the file system is not mounted.
+.Fl y
+if you are sure, that the file system is not mounted.
 It is also recommended to always use
-.Nm fsck
+.Xr fsck 8
 after growing just to be on the safe side.
 .Pp
 Pay attention, as in certain cases we have to change the location of an file
-system internal structure which had never been moved before. Almost everything
-works perfect with this relocated structure except the
-.Nm fsck(8)
-utility. There is a patch available for
-.Nm fsck(8) .
+system internal structure which had never been moved before.
+Almost everything works perfect with this relocated structure except the
+.Xr fsck 8
+utility.
+There is a patch available for
+.Xr fsck 8 ) .
 For growing above certain limits it is essential to have some free blocks
-available in the first cylinder group. To avoid the relocation of that
-structure it is currently recommended to use
-.Nm ffsinfo -c 0
+available in the first cylinder group.
+To avoid the relocation of that structure it is currently recommended to use
+.Nm
+.Fl c Ar 0
 on the first cylinder group and check that
-.Nm nbfree
+.Em nbfree
 in the CYLINDER SUMMARY (internal cs) of the CYLINDER GROUP
-.Nm cgr0
-has enough blocks. As a rule of thumb for default filesystem parameters a block
-is needed for every 2 GB of total filesystem size.
+.Em cgr0
+has enough blocks.
+As a rule of thumb for default filesystem parameters a block is needed for
+every 2 GB of total filesystem size.
 .Pp
 .Sh SEE ALSO
 .Xr vinum 8 ,
