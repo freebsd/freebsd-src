@@ -67,28 +67,27 @@ main(int argc, char *argv[])
 	FTSENT *p;
 	mode_t *set;
 	long val;
-	int oct, omode;
-	int Hflag, Lflag, Pflag, Rflag, ch, fflag, fts_options, hflag, rval;
+	int oct;
+	int Hflag, Lflag, Rflag, ch, fflag, fts_options, hflag, rval;
 	int vflag;
 	char *ep, *mode;
-	int newmode;
+	mode_t newmode, omode;
 	int (*change_mode)(const char *, mode_t);
 
 	set = NULL;
 	omode = 0;
-	Hflag = Lflag = Pflag = Rflag = fflag = hflag = vflag = 0;
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRXfghorstuvwx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
-			Lflag = Pflag = 0;
+			Lflag = 0;
 			break;
 		case 'L':
 			Lflag = 1;
-			Hflag = Pflag = 0;
+			Hflag = 0;
 			break;
 		case 'P':
-			Pflag = 1;
 			Hflag = Lflag = 0;
 			break;
 		case 'R':
@@ -157,13 +156,13 @@ done:	argv += optind;
 	if (*mode >= '0' && *mode <= '7') {
 		errno = 0;
 		val = strtol(mode, &ep, 8);
-		if (val > INT_MAX || val < 0)
+		if (val > USHRT_MAX || val < 0)
 			errno = ERANGE;
 		if (errno)
 			err(1, "invalid file mode: %s", mode);
 		if (*ep)
 			errx(1, "invalid file mode: %s", mode);
-		omode = val;
+		omode = (mode_t)val;
 		oct = 1;
 	} else {
 		if ((set = setmode(mode)) == NULL)
