@@ -508,6 +508,7 @@ ntfs_unmount(
 
 	vinvalbuf(ntmp->ntm_devvp, V_SAVE, NOCRED, td, 0, 0);
 
+	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	error = VOP_CLOSE(ntmp->ntm_devvp, ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, td);
 
