@@ -1027,17 +1027,37 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 			return (EISDIR);
 	}
 
-	/* If writing isn't allowed */
-	if (req->newptr && (!(oid->oid_kind & CTLFLAG_WR) ||
-	    ((oid->oid_kind & CTLFLAG_SECURE) && securelevel > 0)))
+	/* Is this sysctl writable? */
+	if (req->newptr && !(oid->oid_kind & CTLFLAG_WR))
 		return (EPERM);
 
-	/* Most likely only root can write */
-	if (!(oid->oid_kind & CTLFLAG_ANYBODY) &&
-	    req->newptr && req->p &&
-	    (error = suser_xxx(0, req->p, 
-	    (oid->oid_kind & CTLFLAG_PRISON) ? PRISON_ROOT : 0)))
-		return (error);
+	/* Is this sysctl sensitive to securelevels? */
+	if (req->newptr && (oid->oid_kind & CTLFLAG_SECURE)) {
+		if (req->p == NULL) {
+			error = securelevel_gt(NULL, 0);	/* XXX */
+			if (error)
+				return (error);
+		} else {
+			error = securelevel_gt(req->p->p_ucred, 0);
+			if (error)
+				return (error);
+		}
+	}
+
+	/* Is this sysctl writable by only privileged users? */
+	if (req->newptr && !(oid->oid_kind & CTLFLAG_ANYBODY)) {
+		if (req->p != NULL) {
+			int flags;
+
+			if (oid->oid_kind & CTLFLAG_PRISON)
+				flags = PRISON_ROOT;
+			else
+				flags = 0;
+			error = suser_xxx(NULL, req->p, flags);
+			if (error)
+				return (error);
+		}
+	}
 
 	if (!oid->oid_handler)
 		return EINVAL;
