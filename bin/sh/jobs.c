@@ -362,7 +362,7 @@ showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 			else
 #endif
 				i = WTERMSIG(ps->status);
-			if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
+			if ((i & 0x7F) < sys_nsig && sys_siglist[i & 0x7F])
 				scopy(sys_siglist[i & 0x7F], s);
 			else
 				fmtstr(s, 64, "Signal %d", i & 0x7F);
@@ -985,7 +985,7 @@ dowait(int block, struct job *job)
 			if (!mflag ||
 			    (thisjob->foreground && !WIFSTOPPED(status))) {
 				i = WTERMSIG(status);
-				if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
+				if ((i & 0x7F) < sys_nsig && sys_siglist[i & 0x7F])
 					out1str(sys_siglist[i & 0x7F]);
 				else
 					out1fmt("Signal %d", i & 0x7F);
