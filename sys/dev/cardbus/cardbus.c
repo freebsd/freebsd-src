@@ -471,10 +471,10 @@ cardbus_attach_card(device_t cbdev)
 			}
 			cardbus_pickup_maps(cbdev, child);
 			cardbus_alloc_resources(cbdev, child);
-			pci_cfg_save(child, &dinfo->pci, 0);
-			pci_cfg_restore(child, &dinfo->pci);
 			pci_print_verbose(&dinfo->pci);
-			if (device_probe_and_attach(child) == 0)
+			if (device_probe_and_attach(child) != 0)
+				cardbus_release_all_resources(cbdev, dinfo);
+			else
 				cardattached++;
 		}
 	}
@@ -545,8 +545,12 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 			continue;
 		dinfo = device_get_ivars(dev);
 		pci_print_verbose(&dinfo->pci);
-		pci_cfg_restore(dev, &dinfo->pci);
-		device_probe_and_attach(dev);
+		resource_list_init(&dinfo->pci.resources);
+		cardbus_do_cis(cbdev, dev);
+		cardbus_pickup_maps(cbdev, child);
+		cardbus_alloc_resources(cbdev, child);
+		if (device_probe_and_attach(dev) != 0)
+			cardbus_release_all_resources(cbdev, dinfo);
 	}
 	free(devlist, M_TEMP);
 }
