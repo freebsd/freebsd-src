@@ -39,6 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_apic.h"
 #include "opt_compat.h"
 #include "opt_kstack_pages.h"
 
@@ -70,8 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <nfs/rpcv2.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
-#ifdef SMP
-#include <machine/apic.h>
+#ifdef DEV_APIC
+#include <machine/apicreg.h>
 #endif
 #include <machine/cpu.h>
 #include <machine/sigframe.h>
@@ -178,6 +179,7 @@ ASSYM(UC_GS, offsetof(ucontext_t, uc_mcontext.mc_gs));
 ASSYM(ENOENT, ENOENT);
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
+ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXPATHLEN, MAXPATHLEN);
 ASSYM(BOOTINFO_SIZE, sizeof(struct bootinfo));
 ASSYM(BI_VERSION, offsetof(struct bootinfo, bi_version));
@@ -192,10 +194,6 @@ ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 ASSYM(PC_PRVSPACE, offsetof(struct pcpu, pc_prvspace));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
-ASSYM(PC_INT_PENDING, offsetof(struct pcpu, pc_int_pending));
-ASSYM(PC_IPENDING, offsetof(struct pcpu, pc_ipending));
-ASSYM(PC_FPENDING, offsetof(struct pcpu, pc_fpending));
-ASSYM(PC_SPENDING, offsetof(struct pcpu, pc_spending));
 ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_IDLETHREAD, offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
@@ -206,13 +204,14 @@ ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 
-#ifdef SMP
+#ifdef DEV_APIC
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
 ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
 ASSYM(LA_EOI, offsetof(struct LAPIC, eoi));
 ASSYM(LA_SVR, offsetof(struct LAPIC, svr));
 ASSYM(LA_ICR_LO, offsetof(struct LAPIC, icr_lo));
 ASSYM(LA_ICR_HI, offsetof(struct LAPIC, icr_hi));
+ASSYM(LA_ISR, offsetof(struct LAPIC, isr0));
 #endif
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
