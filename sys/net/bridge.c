@@ -236,7 +236,7 @@ bdg_promisc_on()
 	if (BDG_MUTED(ifp)) {
 	    printf(">> unmuting %s%d\n", ifp->if_name, ifp->if_unit);
 	    BDG_UNMUTE(ifp) ;
-       }
+	}
     }
 }
 
@@ -399,7 +399,7 @@ SY(_net_link_ether, bdg_fw_count, "Cycle counter count");
 #endif
 
 SYSCTL_STRUCT(_net_link_ether, PF_BDG, bdgstats,
-        CTLFLAG_RD, &bdg_stats , bdg_stats, "bridge statistics");
+	CTLFLAG_RD, &bdg_stats , bdg_stats, "bridge statistics");
 
 static int bdg_loops ;
 
@@ -413,7 +413,7 @@ flush_table()
 
     s = splimp();
     for (i=0; i< HASH_SIZE; i++)
-        bdg_table[i].name= NULL; /* clear table */
+	bdg_table[i].name= NULL; /* clear table */
     splx(s);
 }
 
@@ -572,10 +572,10 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
     if ( old ) { /* the entry is valid. */
 	IFP_CHK(old, printf("bridge_in-- reading table\n") );
 
-        if (!BDG_MATCH( eh->ether_shost, bdg_table[index].etheraddr) ) {
+	if (!BDG_MATCH( eh->ether_shost, bdg_table[index].etheraddr) ) {
 	    bdg_ipfw_colls++ ;
 	    bdg_table[index].name = NULL ;
-        } else if (old != ifp) {
+	} else if (old != ifp) {
 	    /*
 	     * Found a loop. Either a machine has moved, or there
 	     * is a misconfiguration/reconfiguration of the network.
@@ -595,7 +595,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 		if (++bdg_loops > 10)
 		    BDG_MUTE(old) ;
 	    }
-        }
+	}
     }
 
     /*
