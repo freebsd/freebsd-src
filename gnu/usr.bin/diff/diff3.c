@@ -163,7 +163,9 @@ static int simple_only;
 /* If nonzero, do not output information for non-overlapping diffs.  */
 static int overlap_only;
 
-/* If nonzero, show information for DIFF_2ND diffs.  */
+/* If nonzero, show information for 3_way and DIFF_2ND diffs.  
+   1= show 2nd only when 1st and 3rd differ
+   2= show 2nd when DIFF_2ND (1 and 3 have same change relative to 2) */
 static int show_2nd;
 
 /* If nonzero, include `:wq' at the end of the script
@@ -204,6 +206,7 @@ static struct option const longopts[] =
 {
   {"text", 0, 0, 'a'},
   {"show-all", 0, 0, 'A'},
+  {"show-bogus-conflicts", 0, 0, 'B'},
   {"ed", 0, 0, 'e'},
   {"show-overlap", 0, 0, 'E'},
   {"label", 1, 0, 'L'},
@@ -242,15 +245,18 @@ main (argc, argv)
 
   argv0 = argv[0];
 
-  while ((c = getopt_long (argc, argv, "aeimvx3AEL:TX", longopts, 0)) != EOF)
+  while ((c = getopt_long (argc, argv, "aeimvx3ABEL:TX", longopts, 0)) != EOF)
     {
       switch (c)
 	{
 	case 'a':
 	  always_text = 1;
 	  break;
+	case 'B':
+	  ++show_2nd;
+	  /* Falls through */
 	case 'A':
-	  show_2nd = 1;
+	  ++show_2nd;
 	  flagging = 1;
 	  incompat++;
 	  break;
@@ -401,11 +407,12 @@ usage (status)
   printf ("\
 Usage: %s [options] my-file older-file your-file\n\
 Options:\n\
-	[-exAEX3aTv] [-i|-m] [-L label1 [-L label2 [-L label3]]]\n\
+	[-exABEX3aTv] [-i|-m] [-L label1 [-L label2 [-L label3]]]\n\
 	[--easy-only] [--ed] [--help] [--initial-tab]\n\
 	[--label=label1 [--label=label2 [--label=label3]]] [--merge]\n\
-	[--overlap-only] [--show-all] [--show-overlap] [--text] [--version]\n\
-	Only one of [exAEX3] is allowed\n", argv0);
+	[--overlap-only] [--show-all] [ --show-bogus-conflicts ]\n\
+	[--show-overlap] [--text] [--version]\n\
+	Only one of [exABEX3] is allowed\n", argv0);
   exit (status);
 }
 
@@ -1423,7 +1430,7 @@ output_diff3_edscript (outputfile, diff, mapping, rev_mapping,
       switch (type)
 	{
 	default: continue;
-	case DIFF_2ND: if (!show_2nd) continue; conflict = 1; break;
+	case DIFF_2ND: if (show_2nd < 2) continue; conflict = 1; break;
 	case DIFF_3RD: if (overlap_only) continue; conflict = 0; break;
 	case DIFF_ALL: if (simple_only) continue; conflict = flagging; break;
 	}
@@ -1552,7 +1559,7 @@ output_diff3_merge (infile, outputfile, diff, mapping, rev_mapping,
       switch (type)
 	{
 	default: continue;
-	case DIFF_2ND: if (!show_2nd) continue; conflict = 1; break;
+	case DIFF_2ND: if (show_2nd < 2) continue; conflict = 1; break;
 	case DIFF_3RD: if (overlap_only) continue; conflict = 0; break;
 	case DIFF_ALL: if (simple_only) continue; conflict = flagging;
 	  format_2nd = "||||||| %s\n";
