@@ -257,11 +257,10 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 					 */
 					_thread_queue_enq(&(*mutex)->m_queue, _thread_run);
 
-					/* Unlock the mutex structure: */
-					_SPINUNLOCK(&(*mutex)->lock);
-
-					/* Block signals: */
-					_thread_kern_sched_state(PS_MUTEX_WAIT, __FILE__, __LINE__);
+					/* Wait for the mutex: */
+					_thread_kern_sched_state_unlock(
+					    PS_MUTEX_WAIT, &(*mutex)->lock,
+					    __FILE__, __LINE__);
 
 					/* Lock the mutex again: */
 					_SPINLOCK(&(*mutex)->lock);
@@ -290,11 +289,10 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 					 */
 					_thread_queue_enq(&(*mutex)->m_queue, _thread_run);
 
-					/* Unlock the mutex structure: */
-					_SPINUNLOCK(&(*mutex)->lock);
-
-					/* Block signals: */
-					_thread_kern_sched_state(PS_MUTEX_WAIT, __FILE__, __LINE__);
+					/* Wait for the mutex: */
+					_thread_kern_sched_state_unlock(
+					    PS_MUTEX_WAIT, &(*mutex)->lock,
+					    __FILE__, __LINE__);
 
 					/* Lock the mutex again: */
 					_SPINLOCK(&(*mutex)->lock);
