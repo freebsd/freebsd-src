@@ -2,7 +2,7 @@
 #	$FreeBSD$
 
 LIB=	util
-SHLIB_MAJOR= 3
+SHLIB_MAJOR= 4
 SHLIBDIR?= /lib
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../libc/gen/
 CFLAGS+=-DINET6
