@@ -43,7 +43,6 @@
 
 #include <machine/resource.h>
 #include <isa/isavar.h>
-#include <i386/isa/isa_compat.h>
 #include <i386/isa/isa_device.h>
 
 struct isa_compat_resources {
@@ -52,14 +51,6 @@ struct isa_compat_resources {
     struct resource *drq;
     struct resource *irq;
 };
-
-int
-isa_compat_nextid(void)
-{
-	static int id = 2;	/* id_id of -1, 0 and 1 are "used" */
-
-	return id++;
-}
 
 static void
 isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
@@ -145,7 +136,6 @@ isa_compat_probe(device_t dev)
 {
 	struct isa_device *dvp = device_get_softc(dev);
 	struct isa_compat_resources res;
-	struct old_isa_driver *op;
 	u_long start, count;
 
 	/* No pnp support */
@@ -156,9 +146,7 @@ isa_compat_probe(device_t dev)
 	/*
 	 * Fill in the isa_device fields.
 	 */
-	op = device_get_driver(dev)->priv;
-	dvp->id_id = isa_compat_nextid();
-	dvp->id_driver = op->driver;
+	dvp->id_driver = device_get_driver(dev)->priv;
 	if (bus_get_resource(dev, SYS_RES_IOPORT, 0,
 			     &start, &count) == 0)
 		dvp->id_iobase = start;
@@ -246,12 +234,10 @@ isa_compat_attach(device_t dev)
 	if (dvp->id_driver->attach)
 		dvp->id_driver->attach(dvp);
 	if (res.irq && dvp->id_irq && dvp->id_intr) {
-		struct old_isa_driver *op;
 		void *ih;
 
-		op = device_get_driver(dev)->priv;
 		error = BUS_SETUP_INTR(device_get_parent(dev), dev,
-				       res.irq, op->type,
+				       res.irq, dvp->id_driver->intrflags,
 				       dvp->id_intr,
 				       (void *)(uintptr_t)dvp->id_unit,
 				       &ih);
@@ -274,25 +260,32 @@ static device_method_t isa_compat_methods[] = {
 /*
  * Create a new style driver around each old isa driver.
  */
-void
-isa_wrap_old_drivers(void)
+int
+compat_isa_handler(module_t mod, int type, void *data)
 {
-	int i;
-	struct old_isa_driver *op;
+	struct isa_driver *id = (struct isa_driver *)data;
+	driver_t *driver;
 	devclass_t isa_devclass = devclass_find("isa");
 
-	for (i = 0, op = &old_drivers[0]; i < old_drivers_count; i++, op++) {
-		driver_t *driver;
+	switch (type) {
+	case MOD_LOAD:
 		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT);
 		if (!driver)
-			continue;
+			return ENOMEM;
 		bzero(driver, sizeof(driver_t));
-		driver->name = op->driver->name;
+		driver->name = id->name;
 		driver->methods = isa_compat_methods;
 		driver->size = sizeof(struct isa_device);
-		driver->priv = op;
-		if (op->driver->sensitive_hw)
-			resource_set_int(op->driver->name, -1, "sensitive", 1);
+		driver->priv = id;
+		if (id->sensitive_hw)
+			resource_set_int(id->name, -1, "sensitive", 1);
 		devclass_add_driver(isa_devclass, driver);
+		break;
+	case MOD_UNLOAD:
+		printf("%s: module unload not supported!\n", id->name);
+		return EOPNOTSUPP;
+	default:
+		break;
 	}
+	return 0;
 }
