@@ -358,7 +358,12 @@ distribworld:
 # be set to cross-build, we have to make sure MACHINE is set
 # properly.
 
+.if !defined(KERNCONF) && defined(KERNEL)
+KERNCONF=	${KERNEL}
+KERNWARN=	yes
+.else
 KERNCONF?=	GENERIC
+.endif
 INSTKERNNAME?=	kernel
 
 # The only exotic MACHINE_ARCH/MACHINE combination valid at this
@@ -392,6 +397,12 @@ buildkernel:
 .if empty(BUILDKERNELS)
 	@echo ">>> ERROR: Missing kernel configuration file(s) (${KERNCONF})."
 	@false
+.endif
+.if defined(KERNWARN)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> WARNING: KERNEL= setting should be changed to KERNCONF="
+	@echo "--------------------------------------------------------------"
+	@sleep 3
 .endif
 	@echo
 .for _kernel in ${BUILDKERNELS}
