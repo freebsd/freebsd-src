@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: which.pl,v 1.7 1996/08/27 20:04:32 wosch Exp $
+# $Id: which.pl,v 1.8 1996/10/27 15:50:40 wosch Exp $
 
 $all = $silent = $found = 0;
 @path = split(/:/, $ENV{'PATH'});
@@ -34,7 +34,7 @@ if ($ARGV[0] eq "-a") {
 } elsif ($ARGV[0] eq "-s") {
     $silent = 1; shift @ARGV;
 } elsif ($ARGV[0] =~ /^-(h|help|\?)$/) {
-    die "usage:\n\twhich [-a] [-s] program ...\n";
+    die "usage: which [-a] [-s] program ...\n";
 }
 
 foreach $prog (@ARGV) {
