@@ -139,11 +139,11 @@ provides a signal number to be delivered to the traced process as it
 resumes execution, or 0 if no signal is to be sent.
 .It Dv PT_STEP
 The traced process is single stepped one instruction.
-The
 .Fa addr
-and
+should be passed
+.Po Vt caddr_t Pc Ns 1 .
 .Fa data
-fields are not used.
+is not used.
 .It Dv PT_KILL
 The traced process terminates, as if
 .Dv PT_CONTINUE
