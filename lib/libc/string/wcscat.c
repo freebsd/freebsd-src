@@ -41,17 +41,13 @@ wcscat(s1, s2)
 	wchar_t * __restrict s1;
 	const wchar_t * __restrict s2;
 {
-	wchar_t *p;
-	wchar_t *q;
-	const wchar_t *r;
+	wchar_t *cp;
 
-	p = s1;
-	while (*p)
-		p++;
-	q = p;
-	r = s2;
-	while (*r)
-		*q++ = *r++;
-	*q = '\0';
-	return s1;
+	cp = s1;
+	while (*cp != L'\0')
+		cp++;
+	while ((*cp++ = *s2++) != L'\0')
+		;
+
+	return (s1);
 }
