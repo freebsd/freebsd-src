@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.87 1996/08/31 14:47:08 bde Exp $
+#	$Id: Makefile.i386,v 1.88 1996/09/27 16:34:16 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -26,16 +26,6 @@ S=	../..
 .endif
 I386=	${S}/i386
 
-CWARNFLAGS?=	-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
-		-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
-		-Winline -Wunused -Wpointer-arith
-#
-# The following flags are next up for working on:
-#	-Wall
-#
-# When working on removing warnings from code, the `-Werror' flag should be
-# of material assistance.
-#
 COPTFLAGS?=-O
 INCLUDES= -nostdinc -I- -I. -I$S
 # This hack is to allow kernel compiles to succeed on machines w/out srcdist
@@ -185,6 +175,8 @@ vnode_if.c: $S/kern/vnode_if.sh $S/kern/vnode_if.src
 	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
 vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
 	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
+
+.include <bsd.kern.mk>
 
 %RULES
 
