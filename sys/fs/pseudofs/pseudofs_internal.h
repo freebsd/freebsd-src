@@ -58,8 +58,6 @@ int	 pfs_vncache_free	(struct vnode *);
 /*
  * File number bitmap
  */
-void	 pfs_fileno_load	(void);
-void	 pfs_fileno_unload	(void);
 void	 pfs_fileno_init	(struct pfs_info *);
 void	 pfs_fileno_uninit	(struct pfs_info *);
 void	 pfs_fileno_alloc	(struct pfs_info *, struct pfs_node *);
