@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.3 1998/10/09 23:55:31 peter Exp $
+ *	$Id: link_elf.c,v 1.4 1998/10/12 09:13:47 peter Exp $
  */
 
 #include <sys/param.h>
@@ -110,6 +110,8 @@ typedef struct elf_file {
     long		ddbsymcnt;	/* Number of symbols */
     caddr_t		ddbstrtab;	/* String table */
     long		ddbstrcnt;	/* number of bytes in string table */
+    caddr_t		symbase;	/* malloc'ed symbold base */
+    caddr_t		strbase;	/* malloc'ed string base */
 } *elf_file_t;
 
 static int		parse_dynamic(linker_file_t lf);
@@ -196,6 +198,8 @@ parse_module_symbols(linker_file_t lf)
     Elf_Sym*	symtab;
     int		symcnt;
 
+    if (ef->modptr == NULL)
+	return 0;
     pointer = preload_search_info(ef->modptr, MODINFO_METADATA|MODINFOMD_SSYM);
     if (pointer == NULL)
 	return 0;
@@ -354,6 +358,7 @@ link_elf_load_module(const char *filename, linker_file_t *result)
     ef = malloc(sizeof(struct elf_file), M_LINKER, M_WAITOK);
     if (ef == NULL)
 	return (ENOMEM);
+    ef->modptr = modptr;
     ef->address = *(caddr_t *)baseptr;
 #ifdef SPARSE_MAPPING
     ef->object = 0;
@@ -425,6 +430,14 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     elf_file_t ef;
     linker_file_t lf;
     char *pathname;
+    Elf_Shdr *shdr;
+    int symtabindex;
+    int symstrindex;
+    int symcnt;
+    int strcnt;
+
+    shdr = NULL;
+    lf = NULL;
 
     pathname = linker_search_path(filename);
     if (pathname == NULL)
@@ -610,24 +623,74 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     lf->size = mapsize;
 
     error = parse_dynamic(lf);
-    if (error) {
-	linker_file_unload(lf);
+    if (error)
 	goto out;
-    }
     error = load_dependancies(lf);
-    if (error) {
-	linker_file_unload(lf);
+    if (error)
 	goto out;
-    }
     error = relocate_file(lf);
-    if (error) {
-	linker_file_unload(lf);
+    if (error)
+	goto out;
+
+    /* Try and load the symbol table if it's present.  (you can strip it!) */
+    nbytes = u.hdr.e_shnum * u.hdr.e_shentsize;
+    if (nbytes == 0 || u.hdr.e_shoff == 0)
+	goto nosyms;
+    shdr = malloc(nbytes, M_LINKER, M_WAITOK);
+    if (shdr == NULL) {
+	error = ENOMEM;
 	goto out;
     }
+    error = vn_rdwr(UIO_READ, nd.ni_vp,
+		    (caddr_t)shdr, nbytes, u.hdr.e_shoff,
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+    if (error)
+	goto out;
+    symtabindex = -1;
+    symstrindex = -1;
+    for (i = 0; i < u.hdr.e_shnum; i++) {
+	if (shdr[i].sh_type == SHT_SYMTAB) {
+	    symtabindex = i;
+	    symstrindex = shdr[i].sh_link;
+	}
+    }
+    if (symtabindex < 0 || symstrindex < 0)
+	goto nosyms;
+
+    symcnt = shdr[symtabindex].sh_size;
+    ef->symbase = malloc(symcnt, M_LINKER, M_WAITOK);
+    strcnt = shdr[symstrindex].sh_size;
+    ef->strbase = malloc(strcnt, M_LINKER, M_WAITOK);
+
+    if (ef->symbase == NULL || ef->strbase == NULL) {
+	error = ENOMEM;
+	goto out;
+    }
+    error = vn_rdwr(UIO_READ, nd.ni_vp,
+		    ef->symbase, symcnt, shdr[symtabindex].sh_offset,
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+    if (error)
+	goto out;
+    error = vn_rdwr(UIO_READ, nd.ni_vp,
+		    ef->strbase, strcnt, shdr[symstrindex].sh_offset,
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+    if (error)
+	goto out;
+
+    ef->ddbsymcnt = symcnt / sizeof(Elf_Sym);
+    ef->ddbsymtab = (const Elf_Sym *)ef->symbase;
+    ef->ddbstrcnt = strcnt;
+    ef->ddbstrtab = ef->strbase;
+
+nosyms:
 
     *result = lf;
 
 out:
+    if (error && lf)
+	linker_file_unload(lf);
+    if (shdr)
+	free(shdr, M_LINKER);
     VOP_UNLOCK(nd.ni_vp, 0, p);
     vn_close(nd.ni_vp, FREAD, p->p_ucred, p);
 
@@ -648,8 +711,13 @@ link_elf_unload_file(linker_file_t file)
 	    vm_object_deallocate(ef->object);
 	}
 #else
-	free(ef->address, M_LINKER);
+	if (ef->address)
+	    free(ef->address, M_LINKER);
 #endif
+	if (ef->symbase)
+	    free(ef->symbase, M_LINKER);
+	if (ef->strbase)
+	    free(ef->strbase, M_LINKER);
 	free(ef, M_LINKER);
     }
 }
