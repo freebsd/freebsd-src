@@ -147,7 +147,7 @@ botch(s)
 #endif
 
 /* Debugging stuff */
-extern void xprintf(const char *, ...);
+static void xprintf(const char *, ...);
 #define TRACE()	xprintf("TRACE %s:%d\n", __FILE__, __LINE__)
 
 void *
@@ -482,4 +482,19 @@ int	n;
 	close(fd);
 #endif
 	return n;
+}
+
+/*
+ * Non-mallocing printf, for use by malloc itself.
+ */
+static void
+xprintf(const char *fmt, ...)
+{
+    char buf[256];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    (void)write(STDOUT_FILENO, buf, strlen(buf));
+    va_end(ap);
 }

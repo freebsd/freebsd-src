@@ -39,7 +39,7 @@
 #include "rtld_machdep.h"
 
 #ifndef STANDARD_LIBRARY_PATH
-#define STANDARD_LIBRARY_PATH	"/usr/lib/elf:/usr/lib"
+#define STANDARD_LIBRARY_PATH	"/usr/lib"
 #endif
 
 #define NEW(type)	((type *) xmalloc(sizeof(type)))
