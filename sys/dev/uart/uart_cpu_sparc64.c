@@ -58,6 +58,20 @@ uart_cpu_channel(char *dev)
 	return (alias[len - 1] - 'a');
 }
 
+bus_addr_t
+uart_cpu_busaddr(struct uart_bas *bas)
+{
+
+	return (bas->bsh);
+}
+
+int
+uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
+{
+
+	return ((b1->bsh == b2->bsh) ? 1 : 0);
+}
+
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
@@ -146,11 +160,4 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->parity = (par == 'n') ? UART_PARITY_NONE :
 	    (par == 'o') ? UART_PARITY_ODD : UART_PARITY_EVEN;
 	return (0);
-}
-
-int
-uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
-{
-
-	return ((b1->bsh == b2->bsh) ? 1 : 0);
 }
