@@ -134,7 +134,7 @@ ptp	123	PTP		# Performance Transparency Protocol
 isis	124	ISIS		# ISIS over IPv4
 fire	125	FIRE
 crtp	126	CRTP		# Combat Radio Transport Protocol
-crdup	127	CRUDP		# Combat Radio User Datagram
+crudp	127	CRUDP		# Combat Radio User Datagram
 sscopmce	128	SSCOPMCE
 iplt	129	IPLT
 sps	130	SPS		# Secure Packet Shield
