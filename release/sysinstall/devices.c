@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.49.2.5 1996/12/12 11:18:13 jkh Exp $
+ * $Id: devices.c,v 1.49.2.6 1996/12/13 07:55:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
