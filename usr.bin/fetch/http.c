@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: http.c,v 1.1 1997/01/30 21:43:41 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -67,13 +67,22 @@ struct http_state {
 	char *http_hostname;
 	char *http_remote_request;
 	char *http_decoded_file;
+	char *http_host_header;
+	char *http_authentication;
+	char *http_proxy_authentication;
 	unsigned http_port;
+	int http_redirected;
 };
 
 /* We are only concerned with headers we might receive. */
 enum http_header { 
-	ht_content_length, ht_last_modified, ht_content_md5, ht_content_type,
-	ht_transfer_encoding, ht_content_range, ht_warning,
+	ht_accept_ranges, ht_age, ht_allow, ht_cache_control, ht_connection,
+	ht_content_base, ht_content_encoding, ht_content_language,
+	ht_content_length, ht_content_location, ht_content_md5, 
+	ht_content_range, ht_content_type, ht_date, ht_etag, ht_expires,
+	ht_last_modified, ht_location, ht_pragma, ht_proxy_authenticate,
+	ht_public, ht_retry_after, ht_server, ht_transfer_encoding,
+	ht_upgrade, ht_vary, ht_via, ht_www_authenticate, ht_warning,
 	/* unusual cases */
 	ht_syntax_error, ht_unknown, ht_end_of_header
 };
@@ -90,7 +99,7 @@ static int
 http_parse(struct fetch_state *fs, const char *uri)
 {
 	const char *p, *colon, *slash, *ques, *q;
-	char *hostname;
+	char *hostname, *hosthdr, *trimmed_name;
 	unsigned port;
 	struct http_state *https;
 
@@ -148,14 +157,20 @@ http_parse(struct fetch_state *fs, const char *uri)
 	 */
 	https->http_hostname = safe_strdup(hostname);
 	https->http_port = port;
+	hosthdr = alloca(sizeof("Host: :\r\n") + 5 + strlen(hostname));
+	sprintf(hosthdr, "Host: %s:%d\r\n", hostname, port);
+	https->http_host_header = safe_strdup(hosthdr);
 
+	https->http_remote_request = safe_strdup(p);
 	ques = strpbrk(p, "?#");
 	if (ques) {
-		https->http_remote_request = safe_strndup(p, ques - p);
+		trimmed_name = safe_strndup(p, ques - p);
 	} else {
-		https->http_remote_request = safe_strdup(p);
+		trimmed_name = safe_strdup(p);
 	}
-	p = https->http_decoded_file = percent_decode(p);
+	https->http_decoded_file = percent_decode(trimmed_name);
+	free(trimmed_name);
+	p = https->http_decoded_file;
 	/* now p is the decoded version, so we can extract the basename */
 
 	if (fs->fs_outputfile == 0) {
@@ -165,6 +180,7 @@ http_parse(struct fetch_state *fs, const char *uri)
 		else
 			fs->fs_outputfile = p;
 	}
+	https->http_redirected = 0;
 
 	fs->fs_proto = https;
 	fs->fs_close = http_close;
@@ -199,6 +215,7 @@ out:
 	}
 
 	if (strncmp(uri, "http://", 7) == 0) {
+		char *hosthdr;
 		slash = strchr(uri + 7, '/');
 		if (slash == 0) {
 			warnx("`%s': malformed `http' URL", uri);
@@ -211,6 +228,11 @@ out:
 			file = safe_strdup(slash);
 		else
 			file = safe_strndup(slash, ques - slash);
+		hosthdr = alloca(sizeof("Host: \r\n") + slash - uri - 7);
+		strcpy(hosthdr, "Host: ");
+		strncat(hosthdr, uri + 7, slash - uri - 7);
+		strcat(hosthdr, "\r\n");
+		https->http_host_header = safe_strdup(hosthdr);
 	} else {
 		slash = uri;
 		while (*slash && *slash != ':')
@@ -223,8 +245,10 @@ out:
 				slash++;
 		}
 		file = safe_strdup(slash);
+		https->http_host_header = safe_strdup("");
 	}
 	https->http_decoded_file = percent_decode(file);
+	https->http_redirected = 0;
 	free(file);
 	if (fs->fs_outputfile == 0) {
 		slash = strrchr(https->http_decoded_file, '/');
@@ -247,9 +271,55 @@ http_close(struct fetch_state *fs)
 	free(https->http_hostname);
 	free(https->http_remote_request);
 	free(https->http_decoded_file);
+	free(https->http_host_header);
 	free(https);
 	fs->fs_outputfile = 0;
 	return 0;
+}
+
+static int
+nullclose(struct fetch_state *fs)
+{
+	return 0;
+}
+
+/*
+ * Process a redirection.  This has a small memory leak.
+ */
+static int
+http_redirect(struct fetch_state *fs, char *new, int permanent)
+{
+	struct http_state *https = fs->fs_proto;
+	int num_redirects = https->http_redirected + 1;
+	char *out = safe_strdup(fs->fs_outputfile);
+	int rv;
+
+	if (num_redirects > 5) {
+		warnx("%s: HTTP redirection limit exceeded");
+		return EX_PROTOCOL;
+	}
+
+	free(https->http_hostname);
+	free(https->http_remote_request);
+	free(https->http_decoded_file);
+	free(https);
+	warnx("%s: resource has moved %s to `%s'", out,
+	      permanent ? "permanently" : "temporarily", new);
+	rv = http_parse(fs, new);
+	if (rv != 0) {
+		fs->fs_close = nullclose; /* XXX rethink interface? */
+		return rv;
+	}
+	https = fs->fs_proto;
+	https->http_redirected = num_redirects;
+	/*
+	 * This ensures that the output file name doesn't suddenly change
+	 * under the user's feet.  Unfortunately, this results in a small
+	 * memory leak.  I wish C had garbage collection...
+	 */
+	fs->fs_outputfile = out;
+	rv = http_retrieve(fs);
+	return rv;
 }
 
 /*
@@ -269,22 +339,30 @@ http_retrieve(struct fetch_state *fs)
 	int s;
 	struct sockaddr_in sin;
 	struct msghdr msg;
-	struct iovec iov[16];	/* XXX count precisely */
+#define NIOV	16	/* max is currently 12 */
+	struct iovec iov[NIOV];
 	int n, status;
 	const char *env;
 	int timo;
-	char *line;
+	char *line, *new_location;
 	size_t linelen, readresult, writeresult;
 	off_t total_length, restart_from;
-	time_t last_modified;
+	time_t last_modified, when_to_retry;
 	char *base64ofmd5;
 	static char buf[BUFFER_SIZE];
-	int to_stdout;
+	int to_stdout, restarting, redirection, retrying;
 	char rangebuf[sizeof("Range: bytes=18446744073709551616-\r\n")];
 
 	https = fs->fs_proto;
 	to_stdout = (strcmp(fs->fs_outputfile, "-") == 0);
+	restarting = fs->fs_restart;
+	redirection = 0;
+	retrying = 0;
 
+	/*
+	 * Figure out the timeout.  Prefer the -T command-line value,
+	 * otherwise the HTTP_TIMEOUT envar, or else don't time out at all.
+	 */
 	if (fs->fs_timeout) {
 		timo = fs->fs_timeout;
 	} else if ((env = getenv("HTTP_TIMEOUT")) != 0) {
@@ -339,10 +417,22 @@ http_retrieve(struct fetch_state *fs)
 retry:
 	addstr(iov, n, "GET /");
 	addstr(iov, n, https->http_remote_request);
-	addstr(iov, n, " HTTP/1.0\r\n");
+	addstr(iov, n, " HTTP/1.1\r\n");
+	/*
+	 * The choice of HTTP/1.1 may be a bit controversial.  The 
+	 * specification says that implementations which are not at
+	 * least conditionally compliant MUST NOT call themselves
+	 * HTTP/1.1.  We choose not to comply with that requirement.
+	 * (Eventually we will support the full HTTP/1.1, at which
+	 * time this comment will not apply.  But it's amusing how
+	 * specifications attempt to define behavior for implementations
+	 * which aren't obeying the spec in the first place...)
+	 */
 	addstr(iov, n, format_http_user_agent());
 	/* do content negotiation here */
 	addstr(iov, n, "Accept: */*\r\n");
+	addstr(iov, n, https->http_host_header);
+	addstr(iov, n, "Connection: close\r\n");
 	if (fs->fs_mirror) {
 		struct stat stab;
 
@@ -358,7 +448,7 @@ retry:
 			     fs->fs_outputfile);
 		}
 	}
-	if (fs->fs_restart) {
+	if (restarting) {
 		struct stat stab;
 		
 		errno = 0;
@@ -374,12 +464,19 @@ retry:
 		} else if (errno != 0) {
 			warn("%s: cannot restart; will retrieve anew",
 			     fs->fs_outputfile);
+			restarting = 0;
+		} else {
+			warnx("%s: cannot restart; will retrieve anew",
+			      fs->fs_outputfile);
+			restarting = 0;
 		}
 	}
-	addstr(iov, n, "Connection: close\r\n");
 	addstr(iov, n, "\r\n");
 	msg.msg_iovlen = n;
-	
+
+	if (n >= NIOV)
+		err(EX_SOFTWARE, "request vector length exceeded: %d", n);
+
 	s = socket(PF_INET, SOCK_STREAM, 0);
 	if (s < 0) {
 		warn("socket");
@@ -401,6 +498,7 @@ retry:
 		return EX_OSERR;
 	}
 
+got100reply:
 	alarm(timo);
 	line = fgetln(remote, &linelen);
 	alarm(0);
@@ -475,18 +573,47 @@ retry:
 
 	/* In the future, we might handle redirection and other responses. */
 	switch(status) {
+	case 100:		/* Continue */
+		goto got100reply;
 	case 200:		/* Here come results */
-	case 206:		/* Here come partial results */
+	case 203:		/* Non-Authoritative Information */
+		restarting = 0;
 		break;
-
+	case 206:		/* Here come partial results */
+		/* can only happen when restarting */
+		break;
+	case 301:		/* Resource has moved permanently */
+		if (!fs->fs_auto_retry)
+			goto spewerror;
+		redirection = 301;
+		break;
+	case 302:		/* Resource has moved temporarily */
+		/*
+		 * We don't test fs->fs_auto_retry here so that this
+		 * sort of redirection is transparent to the user.
+		 */
+		redirection = 302;
+		break;
 	case 304:		/* Object is unmodified */
 		if (fs->fs_mirror) {
 			fclose(remote);
 			unsetup_sigalrm();
 			return 0;
 		}
-		/* otherwise, fall through */
+		goto spewerror;
+	case 401:		/* Unauthorized */
+	case 407:		/* Proxy Authentication Required */
+		/* XXX implement authentication */
+
+	case 503:		/* Service Unavailable */
+		if (!fs->fs_auto_retry)
+			goto spewerror;
+
+		retrying = 503;
+		break;
+
 	default:
+spewerror:
 		warnx("%s: %s: HTTP server returned error code %d", 
 		      fs->fs_outputfile, https->http_hostname, status);
 		if (fs->fs_verbose > 1) {
@@ -501,8 +628,9 @@ retry:
 	}
 
 	total_length = -1;	/* -1 means ``don't know'' */
-	last_modified = -1;
+	last_modified = when_to_retry = -1;
 	base64ofmd5 = 0;
+	new_location = 0;
 	restart_from = 0;
 
 	while((line = fgetln(remote, &linelen)) != 0) {
@@ -520,9 +648,9 @@ retry:
 		case ht_content_length:
 			errno = 0;
 			ul = strtoul(value, &ep, 10);
-			if (errno != 0 || *ep != '\r')
+			if (errno != 0 || *ep)
 				warnx("invalid Content-Length: `%s'", value);
-			if (!fs->fs_restart)
+			if (!restarting)
 				total_length = ul;
 			break;
 
@@ -537,6 +665,9 @@ retry:
 			break;
 
 		case ht_content_range:
+			if (!restarting) /* XXX protocol error */
+				break;
+
 			/* NB: we might have to restart from farther back
 			   than we asked. */
 			status = parse_http_content_range(value, &restart_from,
@@ -544,22 +675,92 @@ retry:
 			/* If we couldn't understand the reply, get the whole
 			   thing. */
 			if (status) {
-				fs->fs_restart = 0;
-/*doretry:*/
+				restarting = 0;
+doretry:
 				fclose(remote);
 				if (base64ofmd5)
 					free(base64ofmd5);
+				if (new_location)
+					free(new_location);
 				restart_from = 0;
 				n = 0;
 				goto retry;
 			}
 			break;
 
+		case ht_location:
+			if (redirection) {
+				char *s = value;
+				while (*s && !isspace(*s))
+					s++;
+				new_location = safe_strndup(value, s - value);
+			}
+			break;
+
+		case ht_transfer_encoding:
+			warnx("%s: %s specified a Transfer-Encoding: %s",
+			      fs->fs_outputfile, https->http_hostname,
+			      value);
+			warnx("%s: output file may be uninterpretable",
+			      fs->fs_outputfile);
+			break;
+
+		case ht_retry_after:
+			if (!retrying)
+				break;
+
+			errno = 0;
+			ul = strtoul(value, &ep, 10);
+			if (errno != 0 || (*ep && !isspace(*ep))) {
+				time_t when;
+				when = parse_http_date(value);
+				if (when == -1)
+					break;
+				when_to_retry = when;
+			} else {
+				when_to_retry = time(0) + ul;
+			}
+			break;
+				
 		default:
 			break;
 		}
 	}
 
+	if (retrying) {
+		int howlong;
+
+		if (when_to_retry == -1) {
+			/* This assignment is OK because all we do is print. */
+			line = (char *)"HTTP/1.1 503 Service Unavailable";
+			goto spewerror;
+		}
+		howlong = when_to_retry - time(0);
+		if (howlong < 30)
+			howlong = 30;
+
+		warnx("%s: service unavailable; retrying in %d seconds",
+		      https->http_hostname, howlong);
+		sleep(howlong);
+		goto doretry;
+	}
+		
+	if (redirection && new_location) {
+		fclose(remote);
+		if (base64ofmd5)
+			free(base64ofmd5);
+		status = http_redirect(fs, new_location, redirection == 301);
+		free(new_location);
+		return status;
+	} else if (redirection) {
+		warnx("%s: redirection but no new location", 
+		      fs->fs_outputfile);
+		fclose(remote);
+		if (base64ofmd5)
+			free(base64ofmd5);
+		return EX_PROTOCOL;
+	}
+		
 	/*
 	 * OK, if we got here, then we have finished parsing the header
 	 * and have read the `\r\n' line which denotes the end of same.
@@ -595,7 +796,7 @@ retry:
 			break;
 		display(fs, total_length, readresult);
 
-		writeresult = fwrite(buf, 1, sizeof buf, local);
+		writeresult = fwrite(buf, 1, readresult, local);
 	} while (writeresult == readresult);
 
 	status = errno;		/* save errno for warn(), below, if needed */
@@ -691,16 +892,42 @@ http_parse_header(char *line, char **valuep)
 	for (value = colon + 1; *value && isspace(*value); value++)
 		;		/* do nothing */
 
-	/* XXX - strip comments? */
+	/* Trim trailing whitespace (including \r). */
 	*valuep = value;
+	value += strlen(value) - 1;
+	while (value > *valuep && isspace(*value))
+		value--;
+	*++value = '\0';
 
 #define cmp(name, num) do { if (!strcasecmp(line, name)) return num; } while(0)
+	cmp("Accept-Ranges", ht_accept_ranges);
+	cmp("Age", ht_age);
+	cmp("Allow", ht_allow);
+	cmp("Cache-Control", ht_cache_control);
+	cmp("Connection", ht_connection);
+	cmp("Content-Base", ht_content_base);
+	cmp("Content-Encoding", ht_content_encoding);
+	cmp("Content-Language", ht_content_language);
 	cmp("Content-Length", ht_content_length);
-	cmp("Last-Modified", ht_last_modified);
+	cmp("Content-Location", ht_content_location);
 	cmp("Content-MD5", ht_content_md5);
 	cmp("Content-Range", ht_content_range);
 	cmp("Content-Type", ht_content_type);
+	cmp("Date", ht_date);
+	cmp("ETag", ht_etag);
+	cmp("Expires", ht_expires);
+	cmp("Last-Modified", ht_last_modified);
+	cmp("Location", ht_location);
+	cmp("Pragma", ht_pragma);
+	cmp("Proxy-Authenticate", ht_proxy_authenticate);
+	cmp("Public", ht_public);
+	cmp("Retry-After", ht_retry_after);
+	cmp("Server", ht_server);
 	cmp("Transfer-Encoding", ht_transfer_encoding);
+	cmp("Upgrade", ht_upgrade);
+	cmp("Vary", ht_vary);
+	cmp("Via", ht_via);
+	cmp("WWW-Authenticate", ht_www_authenticate);
 	cmp("Warning", ht_warning);
 #undef cmp
 	return ht_unknown;
