@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm_symbol.c#3 $
  *
  * $FreeBSD$
  */
