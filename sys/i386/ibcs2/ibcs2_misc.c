@@ -101,7 +101,6 @@
 #include <i386/ibcs2/ibcs2_utsname.h>
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_utime.h>
-#include <i386/ibcs2/ibcs2_poll.h>
 #include <i386/ibcs2/ibcs2_proto.h>
 #include <i386/ibcs2/ibcs2_xenix.h>
 
@@ -756,24 +755,6 @@ ibcs2_alarm(p, uap, retval)
                 oitp->it_value.tv_sec++;
         *retval = oitp->it_value.tv_sec;
         return 0;
-}
-
-int
-ibcs2_getmsg(p, uap, retval)
-	struct proc *p;
-	struct ibcs2_getmsg_args *uap;
-	int *retval;
-{
-	return 0;
-}
-
-int
-ibcs2_putmsg(p, uap, retval)
-	struct proc *p;
-	struct ibcs2_putmsg_args *uap;
-	int *retval;
-{
-	return 0;
 }
 
 int
