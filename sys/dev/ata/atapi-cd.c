@@ -76,6 +76,7 @@ static void lba2msf(u_int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static u_int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
 static int acd_done(struct atapi_request *);
 static void acd_read_toc(struct acd_softc *);
+static int acd_play(struct acd_softc *, int, int);
 static int acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
 static int acd_open_track(struct acd_softc *, struct cdr_track *);
@@ -787,40 +788,31 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
     case CDIOCPLAYMSF:
 	{
 	    struct ioc_play_msf *args = (struct ioc_play_msf *)addr;
-	    int8_t ccb[16] = { ATAPI_PLAY_MSF, 0, 0,
-			       args->start_m, args->start_s, args->start_f,
-			       args->end_m, args->end_s, args->end_f,
-			       0, 0, 0, 0, 0, 0, 0 };
 
-	    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+	    error = 
+		acd_play(cdp, 
+			 msf2lba(args->start_m, args->start_s, args->start_f),
+			 msf2lba(args->end_m, args->end_s, args->end_f));
 	    break;
 	}
 
     case CDIOCPLAYBLOCKS:
 	{
 	    struct ioc_play_blocks *args = (struct ioc_play_blocks *)addr;
-	    int8_t ccb[16]  = { ATAPI_PLAY_BIG, 0,
-				args->blk>>24, args->blk>>16, args->blk>>8,
-				args->blk, args->len>>24, args->len>>16,
-				args->len>>8, args->len,
-				0, 0, 0, 0, 0, 0 };
 
-	    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+	    error = acd_play(cdp, args->blk, args->blk + args->len);
 	    break;
 	}
 
     case CDIOCPLAYTRACKS:
 	{
 	    struct ioc_play_track *args = (struct ioc_play_track *)addr;
-	    u_int start, len;
 	    int t1, t2;
-	    int8_t ccb[16];
 
 	    if (!cdp->toc.hdr.ending_track) {
 		error = EIO;
 		break;
 	    }
-
 	    if (args->end_track < cdp->toc.hdr.ending_track + 1)
 		++args->end_track;
 	    if (args->end_track > cdp->toc.hdr.ending_track + 1)
@@ -831,21 +823,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		error = EINVAL;
 		break;
 	    }
-	    start = ntohl(cdp->toc.tab[t1].addr.lba);
-	    len = ntohl(cdp->toc.tab[t2].addr.lba) - start;
-
-	    bzero(ccb, sizeof(ccb));
-	    ccb[0] = ATAPI_PLAY_BIG;
-	    ccb[2] = start>>24;
-	    ccb[3] = start>>16;
-	    ccb[4] = start>>8;
-	    ccb[5] = start;
-	    ccb[6] = len>>24;
-	    ccb[7] = len>>16;
-	    ccb[8] = len>>8;
-	    ccb[9] = len;
-
-	    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+	    error = acd_play(cdp, ntohl(cdp->toc.tab[t1].addr.lba),
+			     ntohl(cdp->toc.tab[t2].addr.lba));
 	    break;
 	}
 
@@ -1338,6 +1317,30 @@ acd_read_toc(struct acd_softc *cdp)
 		   cdp->disk_size / 75 / 60, cdp->disk_size / 75 % 60);
     }
 #endif
+}
+
+static int
+acd_play(struct acd_softc *cdp, int start, int end)
+{
+    int8_t ccb[16];
+
+    bzero(ccb, sizeof(ccb));
+#if 1
+    ccb[0] = ATAPI_PLAY_MSF;
+    lba2msf(start, &ccb[3], &ccb[4], &ccb[5]);
+    lba2msf(end, &ccb[6], &ccb[7], &ccb[8]);
+#else
+    ccb[0] = ATAPI_PLAY_12;
+    ccb[2] = start>>24;
+    ccb[3] = start>>16;
+    ccb[4] = start>>8;
+    ccb[5] = start;
+    ccb[6] = (end - start)>>24;
+    ccb[7] = (end - start)>>16;
+    ccb[8] = (end - start)>>8;
+    ccb[9] = (end - start);
+#endif
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
 }
 
 static int 
