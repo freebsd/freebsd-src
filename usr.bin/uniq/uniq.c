@@ -45,11 +45,12 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uniq.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: uniq.c,v 1.3 1997/08/21 06:51:10 charnier Exp $";
+	"$Id: uniq.c,v 1.4 1997/09/07 15:09:22 joerg Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
 #include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,6 +77,8 @@ main (argc, argv)
 	int ch;
 	char *prevline, *thisline, *p;
 	int iflag = 0, comp;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	obsolete(argv);
 	while ((ch = getopt(argc, argv, "-cdif:s:u")) != -1)
@@ -198,7 +201,7 @@ skip(str)
 	register int infield, nchars, nfields;
 
 	for (nfields = numfields, infield = 0; nfields && *str; ++str)
-		if (isspace(*str)) {
+		if (isspace((unsigned char)*str)) {
 			if (infield) {
 				infield = 0;
 				--nfields;
@@ -234,7 +237,7 @@ obsolete(argv)
 				return;
 		} else if (ap[1] == '-')
 			return;
-		if (!isdigit(ap[1]))
+		if (!isdigit((unsigned char)ap[1]))
 			continue;
 		/*
 		 * Digit signifies an old-style option.  Malloc space for dash,
