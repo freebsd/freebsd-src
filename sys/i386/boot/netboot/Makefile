@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1994/10/28 22:13:22 phk Exp $
+#	$Id: Makefile,v 1.3 1994/11/17 12:16:01 jkh Exp $
 #
 # Makefile for NETBOOT
 #
@@ -23,8 +23,8 @@ SRCS=	start2.S main.c misc.c ether.c bootmenu.c rpc.c
 BINDIR=		/usr/mdec
 BINMODE=	555
 CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR}
-#CFLAGS+=	-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
-#CFLAGS+=	-DINCLUDE_NE -DNE_BASE=0x320
+CFLAGS+=	-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
+CFLAGS+=	-DINCLUDE_NE -DNE_BASE=0x320
 CFLAGS+=	-DINCLUDE_3COM -D_3COM_BASE=0x300
 CLEANFILES+=	netboot.com.nohdr netboot.com.strip
 CLEANFILES+=	netboot.rom.nohdr netboot.rom.strip netboot.rom

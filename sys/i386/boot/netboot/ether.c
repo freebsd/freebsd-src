@@ -15,6 +15,7 @@ Author: Martin Renters
   responsibility for damages incurred with its use.
 
 3c503 support added by Bill Paul (wpaul@ctr.columbia.edu) on 11/15/94
+SMC8416 support added by Bill Paul (wpaul@ctr.columbia.edu) on 12/25/94
 
 **************************************************************************/
 
@@ -87,6 +88,13 @@ eth_probe()
 			 ((inb(eth_asic_base + WD_MSR) & 0x3F) << 13));
 		} else
 			eth_bmem = (char *)WD_DEFAULT_MEM;
+		if (brd->id == TYPE_SMC8216T || brd->id == TYPE_SMC8216C) {
+			(unsigned int) *(eth_bmem + 8192) = (unsigned int)0;
+			if ((unsigned int) *(eth_bmem + 8192)) {
+				brd += 2;
+				eth_memsize = brd->memsize;
+			}
+		}
 		outb(eth_asic_base + WD_MSR, 0x80);	/* Reset */
 		printf("\r\n%s base 0x%x, memory 0x%X, addr ",
 			brd->name, eth_asic_base, eth_bmem);
