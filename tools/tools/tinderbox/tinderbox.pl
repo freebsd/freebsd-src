@@ -422,7 +422,7 @@ MAIN:{
 	    print(SUPFILE "\n");
 	    close(SUPFILE);
 	    my @cvsupargs = (
-	        "-1",
+		"-1",
 		"-g",
 		"-L", ($verbose ? 2 : 1),
 		"$sandbox/supfile"
