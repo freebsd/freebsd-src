@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
+#include <sys/timepps.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -2877,6 +2878,102 @@ nottystop(struct tty *tp, int rw)
 
 	return;
 }
+
+int
+ttyopen(struct cdev *dev, int flag, int mode, struct thread *td)
+{
+	int		error;
+	int		s;
+	struct tty	*tp;
+
+	tp = dev->si_tty;
+	s = spltty();
+	/*
+	 * We jump to this label after all non-interrupted sleeps to pick
+	 * up any changes of the device state.
+	 */
+open_top:
+	if (tp->t_state & TS_GONE)
+		return (ENXIO);
+	error = ttydtrwaitsleep(tp);
+	if (error)
+		goto out;
+	if (tp->t_state & TS_ISOPEN) {
+		/*
+		 * The device is open, so everything has been initialized.
+		 * Handle conflicts.
+		 */
+		if (ISCALLOUT(dev) && !tp->t_actout)
+			return (EBUSY);
+		if (tp->t_actout && !ISCALLOUT(dev)) {
+			if (flag & O_NONBLOCK)
+				return (EBUSY);
+			error =	tsleep(&tp->t_actout,
+				       TTIPRI | PCATCH, "siobi", 0);
+			if (error != 0 || (tp->t_flags & TS_GONE))
+				goto out;
+			goto open_top;
+		}
+		if (tp->t_state & TS_XCLUDE && suser(td))
+			return (EBUSY);
+	} else {
+		/*
+		 * The device isn't open, so there are no conflicts.
+		 * Initialize it.  Initialization is done twice in many
+		 * cases: to preempt sleeping callin opens if we are
+		 * callout, and to complete a callin open after DCD rises.
+		 */
+		tp->t_termios = ISCALLOUT(dev) ? tp->t_init_out : tp->t_init_in;
+		tp->t_modem(tp, SER_DTR | SER_RTS, 0);
+		++tp->t_wopeners;
+		error = tp->t_param(tp, &tp->t_termios);
+		--tp->t_wopeners;
+		if (error == 0 && tp->t_open != NULL)
+			error = tp->t_open(tp, dev);
+		if (error != 0)
+			goto out;
+		if (ISCALLOUT(dev) || (tp->t_modem(tp, 0, 0) & SER_DCD))
+			ttyld_modem(tp, 1);
+	}
+	/*
+	 * Wait for DCD if necessary.
+	 */
+	if (!(tp->t_state & TS_CARR_ON) && !ISCALLOUT(dev)
+	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
+		++tp->t_wopeners;
+		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "ttydcd", 0);
+		--tp->t_wopeners;
+		if (error != 0 || (tp->t_state & TS_GONE))
+			goto out;
+		goto open_top;
+	}
+	error =	ttyld_open(tp, dev);
+	ttyldoptim(tp);
+	if (tp->t_state & TS_ISOPEN && ISCALLOUT(dev))
+		tp->t_actout = TRUE;
+out:
+	splx(s);
+	if (!(tp->t_state & TS_ISOPEN) && tp->t_wopeners == 0)
+		tp->t_close(tp);
+	return (error);
+}
+
+int
+ttyclose(struct cdev *dev, int flag, int mode, struct thread *td)
+{
+	struct tty *tp;
+
+	tp = dev->si_tty;
+	ttyld_close(tp, flag);
+	ttyldoptim(tp);
+	tp->t_close(tp);
+	tty_close(tp);
+	tp->t_do_timestamp = 0;
+	if (tp->t_pps != NULL)
+		tp->t_pps->ppsparam.mode = 0;
+	return (0);
+}
+
 
 int
 ttyread(struct cdev *dev, struct uio *uio, int flag)
