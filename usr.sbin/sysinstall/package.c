@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.26 1995/11/12 11:02:43 jkh Exp $
+ * $Id: package.c,v 1.27 1995/11/12 20:47:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,6 +74,7 @@ package_extract(Device *dev, char *name)
     if (!file_readable("/var/run/ld.so.hints"))
 	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
 
+    msgNotify("Checking for existence of %s package", name);
     /* Check to make sure it's not already there */
     if (!vsystem("pkg_info -e %s", name)) {
 	msgDebug("package %s marked as already installed - return SUCCESS.\n", name);
