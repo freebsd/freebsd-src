@@ -1,25 +1,28 @@
 /* Low level interface to I386 running mach 3.0.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1996, 2000, 2001
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "inferior.h"
 #include "floatformat.h"
+#include "regcache.h"
 
 #include <stdio.h>
 
@@ -34,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <target.h>
 
 /* This mess is duplicated in bfd/i386mach3.h
- *
+
  * This is an ugly way to hack around the incorrect
  * definition of UPAGES in i386/machparam.h.
  *
@@ -49,7 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #elif UPAGES == 2
 #define UAREA_SIZE (NBPG*UPAGES)
 #else
-FIXME!! UPAGES is neither 2 nor 16
+FIXME ! !UPAGES is neither 2 nor 16
 #endif
 
 /* @@@ Should move print_387_status() to i387-tdep.c */
@@ -57,8 +60,8 @@ extern void print_387_control_word ();		/* i387-tdep.h */
 extern void print_387_status_word ();
 
 #define private static
-
 
+
 /* Find offsets to thread states at compile time.
  * If your compiler does not grok this, calculate offsets
  * offsets yourself and use them (or get a compatible compiler :-)
@@ -70,12 +73,12 @@ extern void print_387_status_word ();
  * location where the gdb registers[i] is stored.
  */
 
-static int reg_offset[] = 
+static int reg_offset[] =
 {
-  REG_OFFSET(eax),  REG_OFFSET(ecx), REG_OFFSET(edx), REG_OFFSET(ebx),
-  REG_OFFSET(uesp), REG_OFFSET(ebp), REG_OFFSET(esi), REG_OFFSET(edi),
-  REG_OFFSET(eip),  REG_OFFSET(efl), REG_OFFSET(cs),  REG_OFFSET(ss),
-  REG_OFFSET(ds),   REG_OFFSET(es),  REG_OFFSET(fs),  REG_OFFSET(gs)
+  REG_OFFSET (eax), REG_OFFSET (ecx), REG_OFFSET (edx), REG_OFFSET (ebx),
+  REG_OFFSET (uesp), REG_OFFSET (ebp), REG_OFFSET (esi), REG_OFFSET (edi),
+  REG_OFFSET (eip), REG_OFFSET (efl), REG_OFFSET (cs), REG_OFFSET (ss),
+  REG_OFFSET (ds), REG_OFFSET (es), REG_OFFSET (fs), REG_OFFSET (gs)
 };
 
 #define REG_ADDRESS(state,regnum) ((char *)(state)+reg_offset[regnum])
@@ -100,15 +103,14 @@ static int reg_offset[] =
  */
 
 void
-fetch_inferior_registers (regno)
-     int regno;
+fetch_inferior_registers (int regno)
 {
   kern_return_t ret;
   thread_state_data_t state;
   unsigned int stateCnt = i386_THREAD_STATE_COUNT;
   int index;
-  
-  if (! MACH_PORT_VALID (current_thread))
+
+  if (!MACH_PORT_VALID (current_thread))
     error ("fetch inferior registers: Invalid thread");
 
   if (must_suspend_thread)
@@ -127,12 +129,12 @@ fetch_inferior_registers (regno)
    * since we fetched them all anyway
    */
   else if (regno != -1)
-    supply_register (regno, (char *)state+reg_offset[regno]);
+    supply_register (regno, (char *) state + reg_offset[regno]);
 #endif
   else
     {
-      for (index = 0; index < NUM_REGS; index++) 
-	supply_register (index, (char *)state+reg_offset[index]);
+      for (index = 0; index < NUM_REGS; index++)
+	supply_register (index, (char *) state + reg_offset[index]);
     }
 
   if (must_suspend_thread)
@@ -146,15 +148,14 @@ fetch_inferior_registers (regno)
  * On mach3 all registers are always saved in one call.
  */
 void
-store_inferior_registers (regno)
-     int regno;
+store_inferior_registers (int regno)
 {
   kern_return_t ret;
   thread_state_data_t state;
   unsigned int stateCnt = i386_THREAD_STATE_COUNT;
   register int index;
 
-  if (! MACH_PORT_VALID (current_thread))
+  if (!MACH_PORT_VALID (current_thread))
     error ("store inferior registers: Invalid thread");
 
   if (must_suspend_thread)
@@ -166,7 +167,7 @@ store_inferior_registers (regno)
 			  state,
 			  &stateCnt);
 
-   if (ret != KERN_SUCCESS) 
+  if (ret != KERN_SUCCESS)
     {
       warning ("store_inferior_registers (get): %s",
 	       mach_error_string (ret));
@@ -176,7 +177,7 @@ store_inferior_registers (regno)
     }
 
   /* move gdb's registers to thread's state
-   *
+
    * Since we save all registers anyway, save the ones
    * that gdb thinks are valid (e.g. ignore the regno
    * parameter)
@@ -187,17 +188,17 @@ store_inferior_registers (regno)
   else
 #endif
     {
-      for (index = 0; index < NUM_REGS; index++) 
+      for (index = 0; index < NUM_REGS; index++)
 	STORE_REGS (state, index, 1);
     }
-  
+
   /* Write gdb's current view of register to the thread
    */
   ret = thread_set_state (current_thread,
 			  i386_THREAD_STATE,
 			  state,
 			  i386_THREAD_STATE_COUNT);
-  
+
   if (ret != KERN_SUCCESS)
     warning ("store_inferior_registers (set): %s",
 	     mach_error_string (ret));
@@ -205,8 +206,8 @@ store_inferior_registers (regno)
   if (must_suspend_thread)
     setup_thread (current_thread, 0);
 }
-
 
+
 
 /* Return the address in the core dump or inferior of register REGNO.
  * BLOCKEND should be the address of the end of the UPAGES area read
@@ -220,9 +221,7 @@ store_inferior_registers (regno)
  */
 
 CORE_ADDR
-register_addr (regno, blockend)
-     int regno;
-     CORE_ADDR blockend;
+register_addr (int regno, CORE_ADDR blockend)
 {
   CORE_ADDR addr;
 
@@ -230,7 +229,7 @@ register_addr (regno, blockend)
     error ("Invalid register number %d.", regno);
 
   /* UAREA_SIZE == 8 kB in i386 */
-  addr = (unsigned int)REG_ADDRESS (UAREA_SIZE - sizeof(struct i386_thread_state), regno);
+  addr = (unsigned int) REG_ADDRESS (UAREA_SIZE - sizeof (struct i386_thread_state), regno);
 
   return addr;
 }
@@ -240,7 +239,7 @@ register_addr (regno, blockend)
  *
  * i387 status dumper. See also i387-tdep.c
  */
-struct env387 
+struct env387
 {
   unsigned short control;
   unsigned short r0;
@@ -260,101 +259,108 @@ struct env387
  * Should move it to i387-tdep.c but you need to export struct env387
  */
 private
-print_387_status (status, ep)
-     unsigned short status;
-     struct env387 *ep;
+print_387_status (unsigned short status, struct env387 *ep)
 {
   int i;
   int bothstatus;
   int top;
   int fpreg;
   unsigned char *p;
-  
+
   bothstatus = ((status != 0) && (ep->status != 0));
-  if (status != 0) 
+  if (status != 0)
     {
       if (bothstatus)
 	printf_unfiltered ("u: ");
       print_387_status_word (status);
     }
-  
-  if (ep->status != 0) 
+
+  if (ep->status != 0)
     {
       if (bothstatus)
 	printf_unfiltered ("e: ");
       print_387_status_word (ep->status);
     }
-  
+
   print_387_control_word (ep->control);
   printf_unfiltered ("last exception: ");
-  printf_unfiltered ("opcode %s; ", local_hex_string(ep->opcode));
-  printf_unfiltered ("pc %s:", local_hex_string(ep->code_seg));
-  printf_unfiltered ("%s; ", local_hex_string(ep->eip));
-  printf_unfiltered ("operand %s", local_hex_string(ep->operand_seg));
-  printf_unfiltered (":%s\n", local_hex_string(ep->operand));
-  
+  printf_unfiltered ("opcode %s; ", local_hex_string (ep->opcode));
+  printf_unfiltered ("pc %s:", local_hex_string (ep->code_seg));
+  printf_unfiltered ("%s; ", local_hex_string (ep->eip));
+  printf_unfiltered ("operand %s", local_hex_string (ep->operand_seg));
+  printf_unfiltered (":%s\n", local_hex_string (ep->operand));
+
   top = (ep->status >> 11) & 7;
-  
+
   printf_unfiltered ("regno  tag  msb              lsb  value\n");
-  for (fpreg = 7; fpreg >= 0; fpreg--) 
+  for (fpreg = 7; fpreg >= 0; fpreg--)
     {
       double val;
-      
+
       printf_unfiltered ("%s %d: ", fpreg == top ? "=>" : "  ", fpreg);
-      
-      switch ((ep->tag >> (fpreg * 2)) & 3) 
+
+      switch ((ep->tag >> (fpreg * 2)) & 3)
 	{
-	case 0: printf_unfiltered ("valid "); break;
-	case 1: printf_unfiltered ("zero  "); break;
-	case 2: printf_unfiltered ("trap  "); break;
-	case 3: printf_unfiltered ("empty "); break;
+	case 0:
+	  printf_unfiltered ("valid ");
+	  break;
+	case 1:
+	  printf_unfiltered ("zero  ");
+	  break;
+	case 2:
+	  printf_unfiltered ("trap  ");
+	  break;
+	case 3:
+	  printf_unfiltered ("empty ");
+	  break;
 	}
       for (i = 9; i >= 0; i--)
 	printf_unfiltered ("%02x", ep->regs[fpreg][i]);
-      
-      floatformat_to_double (&floatformat_i387_ext, (char *)ep->regs[fpreg],
-			       &val);
+
+      floatformat_to_double (&floatformat_i387_ext, (char *) ep->regs[fpreg],
+			     &val);
       printf_unfiltered ("  %g\n", val);
     }
   if (ep->r0)
-    printf_unfiltered ("warning: reserved0 is %s\n", local_hex_string(ep->r0));
+    printf_unfiltered ("warning: reserved0 is %s\n", local_hex_string (ep->r0));
   if (ep->r1)
-    printf_unfiltered ("warning: reserved1 is %s\n", local_hex_string(ep->r1));
+    printf_unfiltered ("warning: reserved1 is %s\n", local_hex_string (ep->r1));
   if (ep->r2)
-    printf_unfiltered ("warning: reserved2 is %s\n", local_hex_string(ep->r2));
+    printf_unfiltered ("warning: reserved2 is %s\n", local_hex_string (ep->r2));
   if (ep->r3)
-    printf_unfiltered ("warning: reserved3 is %s\n", local_hex_string(ep->r3));
+    printf_unfiltered ("warning: reserved3 is %s\n", local_hex_string (ep->r3));
 }
-	
+
 /*
  * values that go into fp_kind (from <i386/fpreg.h>)
  */
-#define FP_NO   0       /* no fp chip, no emulator (no fp support)      */
-#define FP_SW   1       /* no fp chip, using software emulator          */
-#define FP_HW   2       /* chip present bit                             */
-#define FP_287  2       /* 80287 chip present                           */
-#define FP_387  3       /* 80387 chip present                           */
+#define FP_NO   0		/* no fp chip, no emulator (no fp support)      */
+#define FP_SW   1		/* no fp chip, using software emulator          */
+#define FP_HW   2		/* chip present bit                             */
+#define FP_287  2		/* 80287 chip present                           */
+#define FP_387  3		/* 80387 chip present                           */
 
-typedef struct fpstate {
+typedef struct fpstate
+{
 #if 1
-  unsigned char	state[FP_STATE_BYTES]; /* "hardware" state */
+  unsigned char state[FP_STATE_BYTES];	/* "hardware" state */
 #else
-  struct env387	state;	/* Actually this */
+  struct env387 state;		/* Actually this */
 #endif
-  int status;		/* Duplicate status */
-} *fpstate_t;
+  int status;			/* Duplicate status */
+}
+ *fpstate_t;
 
 /* Mach 3 specific routines.
  */
 private boolean_t
-get_i387_state (fstate)
-     struct fpstate *fstate;
+get_i387_state (struct fpstate *fstate)
 {
   kern_return_t ret;
   thread_state_data_t state;
   unsigned int fsCnt = i386_FLOAT_STATE_COUNT;
   struct i386_float_state *fsp;
-  
+
   ret = thread_get_state (current_thread,
 			  i386_FLOAT_STATE,
 			  state,
@@ -367,7 +373,7 @@ get_i387_state (fstate)
       return FALSE;
     }
 
-  fsp = (struct i386_float_state *)state;
+  fsp = (struct i386_float_state *) state;
   /* The 387 chip (also 486 counts) or a software emulator? */
   if (!fsp->initialized || (fsp->fpkind != FP_387 && fsp->fpkind != FP_SW))
     return FALSE;
@@ -379,14 +385,13 @@ get_i387_state (fstate)
 
   fstate->status = fsp->exc_status;
 
-  memcpy (fstate->state, (char *)&fsp->hw_state, FP_STATE_BYTES);
+  memcpy (fstate->state, (char *) &fsp->hw_state, FP_STATE_BYTES);
 
   return TRUE;
 }
 
 private boolean_t
-get_i387_core_state (fstate)
-     struct fpstate *fstate;
+get_i387_core_state (struct fpstate *fstate)
 {
   /* Not implemented yet. Core files do not contain float state. */
   return FALSE;
@@ -396,26 +401,26 @@ get_i387_core_state (fstate)
  * This is called by "info float" command
  */
 void
-i386_mach3_float_info()
+i386_mach3_float_info (void)
 {
-  char buf [sizeof (struct fpstate) + 2 * sizeof (int)];
+  char buf[sizeof (struct fpstate) + 2 * sizeof (int)];
   boolean_t valid = FALSE;
   fpstate_t fps;
-  
+
   if (target_has_execution)
     valid = get_i387_state (buf);
-#if 0  
-  else if (WE HAVE CORE FILE)  /* @@@@ Core files not supported */
+#if 0
+  else if (WE HAVE CORE FILE)	/* @@@@ Core files not supported */
     valid = get_i387_core_state (buf);
-#endif    
+#endif
 
-  if (!valid) 
+  if (!valid)
     {
       warning ("no floating point status saved");
       return;
     }
-  
+
   fps = (fpstate_t) buf;
 
-  print_387_status (fps->status, (struct env387 *)fps->state);
+  print_387_status (fps->status, (struct env387 *) fps->state);
 }

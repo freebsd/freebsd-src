@@ -1,5 +1,5 @@
 /* YACC parser for Java expressions, for GDB.
-   Copyright (C) 1997, 1998, 1999.
+   Copyright 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -99,21 +99,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define	YYDEBUG	0		/* Default to no yydebug support */
 #endif
 
-int
-yyparse PARAMS ((void));
+int yyparse (void);
 
-static int
-yylex PARAMS ((void));
+static int yylex (void);
 
-void
-yyerror PARAMS ((char *));
+void yyerror (char *);
 
-static struct type * java_type_from_name PARAMS ((struct stoken));
-static void push_expression_name PARAMS ((struct stoken));
-static void push_fieldnames PARAMS ((struct stoken));
+static struct type *java_type_from_name (struct stoken);
+static void push_expression_name (struct stoken);
+static void push_fieldnames (struct stoken);
 
-static struct expression *copy_exp PARAMS ((struct expression *, int));
-static void insert_exp PARAMS ((int, struct expression *));
+static struct expression *copy_exp (struct expression *, int);
+static void insert_exp (int, struct expression *);
 
 %}
 
@@ -145,8 +142,7 @@ static void insert_exp PARAMS ((int, struct expression *));
 
 %{
 /* YYSTYPE gets defined by %union */
-static int
-parse_number PARAMS ((char *, int, int, YYSTYPE *));
+static int parse_number (char *, int, int, YYSTYPE *);
 %}
 
 %type <lval> rcurly Dims Dims_opt
@@ -768,13 +764,13 @@ parse_number (p, len, parsed_float, putithere)
       }
 
   c = p[len-1];
+  /* A paranoid calculation of (1<<64)-1. */
   limit = (ULONGEST)0xffffffff;
+  limit = ((limit << 16) << 16) | limit;
   if (c == 'l' || c == 'L')
     {
       type = java_long_type;
       len--;
-      /* A paranoid calculation of (1<<64)-1. */
-      limit = ((limit << 16) << 16) | limit;
     }
   else
     {
@@ -801,9 +797,18 @@ parse_number (p, len, parsed_float, putithere)
       n += c;
 	}
 
-   putithere->typed_val_int.val = n;
-   putithere->typed_val_int.type = type;
-   return INTEGER_LITERAL;
+  /* If the type is bigger than a 32-bit signed integer can be, implicitly
+     promote to long.  Java does not do this, so mark it as builtin_type_uint64
+     rather than java_long_type.  0x80000000 will become -0x80000000 instead
+     of 0x80000000L, because we don't know the sign at this point.
+  */
+  if (type == java_int_type && n > (ULONGEST)0x80000000)
+    type = builtin_type_uint64;
+
+  putithere->typed_val_int.val = n;
+  putithere->typed_val_int.type = type;
+
+  return INTEGER_LITERAL;
 }
 
 struct token
@@ -899,7 +904,7 @@ yylex ()
 	error ("Empty character constant.");
 
       yylval.typed_val_int.val = c;
-      yylval.typed_val_int.type = builtin_type_char;
+      yylval.typed_val_int.type = java_char_type;
 
       c = *lexptr++;
       if (c != '\'')

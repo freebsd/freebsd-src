@@ -3,8 +3,8 @@
 
 #ifndef TAGSH
 #define TAGSH
-/*	Copyright (C) 1995 Free Software Foundation, Inc.
- * 
+/*      Copyright 1995, 1999 Free Software Foundation, Inc.
+
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
@@ -48,34 +48,34 @@
 /** This file defines the format of SCM values and cons pairs.  
  ** It is here that tag bits are assigned for various purposes.
  **/
-
 
+
 /* Three Bit Tags
- *
+
  * 000 -- a non-immediate value.  Points into the pair heap.  
  *
  * 001 -- a gloc (i.e., a resolved global variable in a CAR in a code graph)
- *	  or the CAR of an object handle (i.e., the tagged pointer to the
- *	  vtable part of a user-defined object).
+ *        or the CAR of an object handle (i.e., the tagged pointer to the
+ *        vtable part of a user-defined object).
  *
  *        If X has this tag, the value at CDAR(X - 1) distinguishes
- *	  glocs from object handles.  The distinction only needs
- *	  to be made in a few places.  Only a few parts of the code know
- *	  about glocs.  In most cases, when a value in the CAR of a pair
- *	  has the tag 001, it means that the pair is an object handle.
+ *        glocs from object handles.  The distinction only needs
+ *        to be made in a few places.  Only a few parts of the code know
+ *        about glocs.  In most cases, when a value in the CAR of a pair
+ *        has the tag 001, it means that the pair is an object handle.
  *
  * 010 -- the tag for immediate, exact integers. 
  *
  * 011 -- in the CAR of a pair, this tag indicates that the pair is a closure.
- *	  The remaining bits of the CAR are a pointer into the pair heap
- * 	  to the code graph for the closure.
+ *        The remaining bits of the CAR are a pointer into the pair heap
+ *        to the code graph for the closure.
  *
  * 1xy -- an extension tag which means that there is a five or six bit
- *	  tag to the left of the low three bits.  See the nice diagrams
- *	  in ../doc/code.doc if you want to know what the bits mean.
+ *        tag to the left of the low three bits.  See the nice diagrams
+ *        in ../doc/code.doc if you want to know what the bits mean.
  */
-
 
+
 
 
 
@@ -173,8 +173,8 @@
 #define scm_tcs_symbols scm_tc7_ssymbol:case scm_tc7_msymbol
 
 #define scm_tcs_bignums tc16_bigpos:case tc16_bigneg
-
 
+
 
 /* References to objects are of type SCM.  Values may be non-immediate
  * (pointers) or immediate (encoded, immutable, scalar values that fit
@@ -191,34 +191,34 @@ typedef long SCM;
  * to scm_vector elts, functions, &c are not munged.
  */
 #ifdef _UNICOS
-# define SCM2PTR(x) ((int)(x) >> 3)
-# define PTR2SCM(x) (((SCM)(x)) << 3)
-# define SCM_POINTERS_MUNGED
+#define SCM2PTR(x) ((int)(x) >> 3)
+#define PTR2SCM(x) (((SCM)(x)) << 3)
+#define SCM_POINTERS_MUNGED
 #else
-# define SCM2PTR(x) (x)
-# define PTR2SCM(x) ((SCM)(x))
+#define SCM2PTR(x) (x)
+#define PTR2SCM(x) ((SCM)(x))
 #endif /* def _UNICOS */
-
 
+
 
 /* Immediate? Predicates 
  */
 #define SCM_IMP(x) 	(6 & (int)(x))
 #define SCM_NIMP(x) 	(!SCM_IMP(x))
-
 
 
+
 enum scm_tags
-{
-  scm_tc8_char = 0xf4
-};
+  {
+    scm_tc8_char = 0xf4
+  };
 
 #define SCM_ITAG8(X)		((int)(X) & 0xff)
 #define SCM_MAKE_ITAG8(X, TAG)	(((X)<<8) + TAG)
 #define SCM_ITAG8_DATA(X)	((X)>>8)
-
-
 
+
+
 /* Local Environment Structure
  */
 #define SCM_ILOCP(n)		((0xff & (int)(n))==0xfc)
@@ -230,8 +230,8 @@ enum scm_tags
 #define SCM_IFRAME(n) 		((int)((SCM_ICDR-SCM_IFRINC)>>8) & ((int)(n)>>8))
 #define SCM_IDIST(n) 		(((unsigned long)(n))>>20)
 #define SCM_ICDRP(n) 		(SCM_ICDR & (n))
-
 
+
 /* Immediate Symbols, Special Symbols, Flags (various constants).
  */
 
@@ -287,8 +287,8 @@ enum scm_tags
 #endif
 
 #define SCM_UNSPECIFIED		SCM_MAKIFLAG(SCM_NUM_ISYMS+5)
-
 
+
 
 /* Heap Pairs and the Empty List Predicates
  */
@@ -296,12 +296,12 @@ enum scm_tags
 #define SCM_NNULLP(x) 	(SCM_EOL != (x))
 #define SCM_CELLP(x) 	(!SCM_NCELLP(x))
 #define SCM_NCELLP(x) 	((sizeof(scm_cell)-1) & (int)(x))
-
-
 
+
+
 #define SCM_UNBNDP(x) 	(SCM_UNDEFINED==(x))
-
 
+
 
 /* Testing and Changing GC Marks in Various Standard Positions
  */
@@ -311,8 +311,8 @@ enum scm_tags
 #define SCM_CLRGCMARK(x) 	(SCM_CDR(x) &= ~1L)
 #define SCM_SETGC8MARK(x) 	(SCM_CAR(x) |= 0x80)
 #define SCM_CLRGC8MARK(x) 	(SCM_CAR(x) &= ~0x80L)
-
 
+
 /* Extracting Tag Bits, With or Without GC Safety and Optional Bits
  */
 #define SCM_TYP3(x) 		(7 & (int)SCM_CAR(x))
@@ -321,27 +321,27 @@ enum scm_tags
 #define SCM_TYP16(x) 		(0xffff & (int)SCM_CAR(x))
 #define SCM_TYP16S(x) 		(0xfeff & (int)SCM_CAR(x))
 #define SCM_GCTYP16(x) 		(0xff7f & (int)SCM_CAR(x))
-
 
+
 /* Two slightly extensible types: smobs and ptobs.
- *
+
  */
 #define SCM_SMOBNUM(x) (0x0ff & (CAR(x)>>8));
 #define SCM_PTOBNUM(x) (0x0ff & (CAR(x)>>8));
-
-
 
+
+
 
 #define SCM_DIRP(x) (SCM_NIMP(x) && (TYP16(x)==(scm_tc16_dir)))
 #define SCM_OPDIRP(x) (SCM_NIMP(x) && (CAR(x)==(scm_tc16_dir | OPN)))
-
 
+
 
 /* Lvectors 
  */
 #define SCM_LVECTORP(x) (TYP7(x)==tc7_lvector)
-
 
+
 #if 0
 
 /* Sockets 
@@ -349,14 +349,14 @@ enum scm_tags
 #define tc_socket (tc7_port | OPN)
 #define SCM_SOCKP(x) (((0x7f | OPN | RDNG | WRTNG) & CAR(x))==(tc_socket))
 #define SCM_SOCKTYP(x) (CAR(x)>>24)
-
 
+
 
 extern int scm_tc16_key_vector;
 #define SCM_KEYVECP(X)   (scm_tc16_key_vector == TYP16 (X))
 #define SCM_KEYVECLEN(OBJ) (((unsigned long)CAR (obj)) >> 16)
-
 
+
 #define SCM_MALLOCDATA(obj) ((char *)CDR(obj))
 #define SCM_MALLOCLEN(obj) (((unsigned long)CAR (obj)) >> 16)
 #define SCM_WORDDATA(obj)  (CDR (obj))
@@ -368,18 +368,12 @@ extern int scm_tc16_key_vector;
 #define SCM_BYTECODE_NAME(X) (VELTS(X)[3])
 #define SCM_BYTECODE_BCODE(X) (VELTS(X)[4])
 #define SCM_BYTECODE_ELTS 5
-
 
+
 #define SCM_FREEP(x) (CAR(x)==tc_free_cell)
 #define SCM_NFREEP(x) (!FREEP(x))
 
-#endif /* 0*/
+#endif /* 0 */
 
-#ifdef __STDC__
 
-#else /* STDC */
-
-#endif /* STDC */
-
-
-#endif  /* TAGSH */
+#endif /* TAGSH */

@@ -1,5 +1,6 @@
 /* YACC grammar for Modula-2 expressions, for GDB.
-   Copyright (C) 1986, 1989, 1990, 1991, 1993, 1994, 1995
+   Copyright 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1999,
+   2000
    Free Software Foundation, Inc.
    Generated from expread.y (now c-exp.y) and contributed by the Department
    of Computer Science at the State University of New York at Buffalo, 1991.
@@ -100,22 +101,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define	YYDEBUG	0		/* Default to no yydebug support */
 #endif
 
-int
-yyparse PARAMS ((void));
+int yyparse (void);
 
-static int
-yylex PARAMS ((void));
+static int yylex (void);
 
-void
-yyerror PARAMS ((char *));
+void yyerror (char *);
 
 #if 0
-static char *
-make_qualname PARAMS ((char *, char *));
+static char *make_qualname (char *, char *);
 #endif
 
-static int
-parse_number PARAMS ((int));
+static int parse_number (int);
 
 /* The sign of the number being parsed. */
 static int number_sign = 1;
@@ -1050,6 +1046,10 @@ yylex ()
        case LOC_LABEL:
        case LOC_UNRESOLVED:
 	  error("internal:  Unforseen case in m2lex()");
+
+       default:
+	  error ("unhandled token in m2lex()");
+	  break;
        }
     }
     else

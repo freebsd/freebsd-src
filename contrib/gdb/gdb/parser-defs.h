@@ -1,33 +1,38 @@
 /* Parser definitions for GDB.
-   Copyright (C) 1986, 1989, 1990, 1991 Free Software Foundation, Inc.
+   Copyright 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+   1998, 1999, 2000 Free Software Foundation, Inc.
    Modified from expread.y by the Department of Computer Science at the
    State University of New York at Buffalo.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #if !defined (PARSER_DEFS_H)
 #define PARSER_DEFS_H 1
 
-struct std_regs {
-	char *name;
-	int regnum;
-};
+#include "doublest.h"
 
-extern struct std_regs std_regs[];
+struct std_regs
+  {
+    char *name;
+    int regnum;
+  };
+
+extern struct std_regs *std_regs;
 extern unsigned num_std_regs;
 
 extern struct expression *expout;
@@ -78,69 +83,74 @@ struct symtoken
 /* For parsing of complicated types.
    An array should be preceded in the list by the size of the array.  */
 enum type_pieces
-  {tp_end = -1, tp_pointer, tp_reference, tp_array, tp_function};
+  {
+    tp_end = -1, 
+    tp_pointer, 
+    tp_reference, 
+    tp_array, 
+    tp_function, 
+    tp_const, 
+    tp_volatile, 
+    tp_space_identifier
+  };
 /* The stack can contain either an enum type_pieces or an int.  */
-union type_stack_elt {
-  enum type_pieces piece;
-  int int_val;
-};
+union type_stack_elt
+  {
+    enum type_pieces piece;
+    int int_val;
+  };
 extern union type_stack_elt *type_stack;
 extern int type_stack_depth, type_stack_size;
 
-extern void write_exp_elt PARAMS ((union exp_element));
+extern void write_exp_elt (union exp_element);
 
-extern void write_exp_elt_opcode PARAMS ((enum exp_opcode));
+extern void write_exp_elt_opcode (enum exp_opcode);
 
-extern void write_exp_elt_sym PARAMS ((struct symbol *));
+extern void write_exp_elt_sym (struct symbol *);
 
-extern void write_exp_elt_longcst PARAMS ((LONGEST));
+extern void write_exp_elt_longcst (LONGEST);
 
-extern void write_exp_elt_dblcst PARAMS ((DOUBLEST));
+extern void write_exp_elt_dblcst (DOUBLEST);
 
-extern void write_exp_elt_type PARAMS ((struct type *));
+extern void write_exp_elt_type (struct type *);
 
-extern void write_exp_elt_intern PARAMS ((struct internalvar *));
+extern void write_exp_elt_intern (struct internalvar *);
 
-extern void write_exp_string PARAMS ((struct stoken));
+extern void write_exp_string (struct stoken);
 
-extern void write_exp_bitstring PARAMS ((struct stoken));
+extern void write_exp_bitstring (struct stoken);
 
-extern void write_exp_elt_block PARAMS ((struct block *));
+extern void write_exp_elt_block (struct block *);
 
-extern void write_exp_msymbol PARAMS ((struct minimal_symbol *,
-				       struct type *, struct type *));
+extern void write_exp_msymbol (struct minimal_symbol *,
+			       struct type *, struct type *);
 
-extern void write_dollar_variable PARAMS ((struct stoken str));
+extern void write_dollar_variable (struct stoken str);
 
-extern struct symbol * parse_nested_classes_for_hpacc PARAMS ((char *, int, char **, int *, char **));
+extern struct symbol *parse_nested_classes_for_hpacc (char *, int, char **,
+						      int *, char **);
 
-extern char * find_template_name_end PARAMS ((char *));
+extern char *find_template_name_end (char *);
 
-extern void
-start_arglist PARAMS ((void));
+extern void start_arglist (void);
 
-extern int
-end_arglist PARAMS ((void));
+extern int end_arglist (void);
 
-extern char *
-copy_name PARAMS ((struct stoken));
+extern char *copy_name (struct stoken);
 
-extern void 
-push_type PARAMS ((enum type_pieces));
+extern void push_type (enum type_pieces);
 
-extern void
-push_type_int PARAMS ((int));
+extern void push_type_int (int);
 
-extern enum type_pieces 
-pop_type PARAMS ((void));
+extern void push_type_address_space (char *);
 
-extern int
-pop_type_int PARAMS ((void));
+extern enum type_pieces pop_type (void);
 
-extern int
-length_of_subexp PARAMS ((struct expression *, int));
+extern int pop_type_int (void);
 
-extern struct type *follow_types PARAMS ((struct type *));
+extern int length_of_subexp (struct expression *, int);
+
+extern struct type *follow_types (struct type *);
 
 /* During parsing of a C expression, the pointer to the next character
    is in this variable.  */
@@ -175,24 +185,32 @@ extern int comma_terminates;
    they are used as the "surrounding precedence" to force
    various kinds of things to be parenthesized.  */
 enum precedence
-{ PREC_NULL, PREC_COMMA, PREC_ABOVE_COMMA, PREC_ASSIGN, PREC_LOGICAL_OR,
-  PREC_LOGICAL_AND, PREC_BITWISE_IOR, PREC_BITWISE_AND, PREC_BITWISE_XOR,
-  PREC_EQUAL, PREC_ORDER, PREC_SHIFT, PREC_ADD, PREC_MUL, PREC_REPEAT,
-  PREC_HYPER, PREC_PREFIX, PREC_SUFFIX, PREC_BUILTIN_FUNCTION };
+  {
+    PREC_NULL, PREC_COMMA, PREC_ABOVE_COMMA, PREC_ASSIGN, PREC_LOGICAL_OR,
+    PREC_LOGICAL_AND, PREC_BITWISE_IOR, PREC_BITWISE_AND, PREC_BITWISE_XOR,
+    PREC_EQUAL, PREC_ORDER, PREC_SHIFT, PREC_ADD, PREC_MUL, PREC_REPEAT,
+    PREC_HYPER, PREC_PREFIX, PREC_SUFFIX, PREC_BUILTIN_FUNCTION
+  };
 
 /* Table mapping opcodes into strings for printing operators
    and precedences of the operators.  */
 
 struct op_print
-{
-  char *string;
-  enum exp_opcode opcode;
-  /* Precedence of operator.  These values are used only by comparisons.  */
-  enum precedence precedence;
+  {
+    char *string;
+    enum exp_opcode opcode;
+    /* Precedence of operator.  These values are used only by comparisons.  */
+    enum precedence precedence;
 
-  /* For a binary operator:  1 iff right associate.
-     For a unary operator:  1 iff postfix. */
-  int right_assoc;
-};
+    /* For a binary operator:  1 iff right associate.
+       For a unary operator:  1 iff postfix. */
+    int right_assoc;
+  };
 
-#endif	/* PARSER_DEFS_H */
+/* The generic method for targets to specify how their registers are
+   named.  The mapping can be derived from three sources:
+   REGISTER_NAME; std_regs; or a target specific alias hook. */
+
+extern int target_map_name_to_register (char *, int);
+
+#endif /* PARSER_DEFS_H */

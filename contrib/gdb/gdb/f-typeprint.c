@@ -1,23 +1,26 @@
 /* Support for printing Fortran types for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991, 1993, 1994 Free Software Foundation, Inc.
+   Copyright 1986, 1988, 1989, 1991, 1993, 1994, 1995, 1996, 1998, 2000,
+   2001, 2002
+   Free Software Foundation, Inc.
    Contributed by Motorola.  Adapted from the C version by Farooq Butt
    (fmbutt@engage.sps.mot.com).
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "obstack.h"
@@ -28,42 +31,32 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "value.h"
 #include "gdbcore.h"
 #include "target.h"
-#include "command.h"
-#include "gdbcmd.h"
-#include "language.h"
-#include "demangle.h"
 #include "f-lang.h"
-#include "typeprint.h"
-#include "frame.h"  /* ??? */
 
 #include "gdb_string.h"
 #include <errno.h>
 
-#if 0	/* Currently unused */
-static void f_type_print_args PARAMS ((struct type *, GDB_FILE *));
+#if 0				/* Currently unused */
+static void f_type_print_args (struct type *, struct ui_file *);
 #endif
 
-static void print_equivalent_f77_float_type PARAMS ((struct type *,
-						     GDB_FILE *));
+static void print_equivalent_f77_float_type (struct type *,
+					     struct ui_file *);
 
-static void f_type_print_varspec_suffix PARAMS ((struct type *, GDB_FILE *,
-						 int, int, int));
+static void f_type_print_varspec_suffix (struct type *, struct ui_file *,
+					 int, int, int);
 
-void f_type_print_varspec_prefix PARAMS ((struct type *, GDB_FILE *,
-					  int, int));
+void f_type_print_varspec_prefix (struct type *, struct ui_file *,
+				  int, int);
 
-void f_type_print_base PARAMS ((struct type *, GDB_FILE *, int, int));
-
+void f_type_print_base (struct type *, struct ui_file *, int, int);
 
+
 /* LEVEL is the depth to indent lines by.  */
 
 void
-f_print_type (type, varstring, stream, show, level)
-     struct type *type;
-     char *varstring;
-     GDB_FILE *stream;
-     int show;
-     int level;
+f_print_type (struct type *type, char *varstring, struct ui_file *stream,
+	      int show, int level)
 {
   register enum type_code code;
   int demangled_args;
@@ -72,8 +65,8 @@ f_print_type (type, varstring, stream, show, level)
   code = TYPE_CODE (type);
   if ((varstring != NULL && *varstring != '\0')
       ||
-      /* Need a space if going to print stars or brackets;
-	 but not if we will print just a type name.  */
+  /* Need a space if going to print stars or brackets;
+     but not if we will print just a type name.  */
       ((show > 0 || TYPE_NAME (type) == 0)
        &&
        (code == TYPE_CODE_PTR || code == TYPE_CODE_FUNC
@@ -89,7 +82,7 @@ f_print_type (type, varstring, stream, show, level)
   /* For demangled function names, we have the arglist as part of the name,
      so don't print an additional pair of ()'s */
 
-  demangled_args = varstring[strlen(varstring) - 1] == ')';
+  demangled_args = varstring[strlen (varstring) - 1] == ')';
   f_type_print_varspec_suffix (type, stream, show, 0, demangled_args);
 }
 
@@ -102,11 +95,8 @@ f_print_type (type, varstring, stream, show, level)
    SHOW is always zero on recursive calls.  */
 
 void
-f_type_print_varspec_prefix (type, stream, show, passed_a_ptr)
-     struct type *type;
-     GDB_FILE *stream;
-     int show;
-     int passed_a_ptr;
+f_type_print_varspec_prefix (struct type *type, struct ui_file *stream,
+			     int show, int passed_a_ptr)
 {
   if (type == 0)
     return;
@@ -152,60 +142,18 @@ f_type_print_varspec_prefix (type, stream, show, passed_a_ptr)
     case TYPE_CODE_COMPLEX:
     case TYPE_CODE_TYPEDEF:
       /* These types need no prefix.  They are listed here so that
-	 gcc -Wall will reveal any types that haven't been handled.  */
+         gcc -Wall will reveal any types that haven't been handled.  */
       break;
     }
 }
-
-#if 0	/* Currently unused */
-
-static void
-f_type_print_args (type, stream)
-     struct type *type;
-     GDB_FILE *stream;
-{
-  int i;
-  struct type **args;
-
-  fprintf_filtered (stream, "(");
-  args = TYPE_ARG_TYPES (type);
-  if (args != NULL)
-    {
-      if (args[1] == NULL)
-	{
-	  fprintf_filtered (stream, "...");
-	}
-      else
-	{
-	  for (i = 1; args[i] != NULL && args[i]->code != TYPE_CODE_VOID; i++)
-	    {
-	      f_print_type (args[i], "", stream, -1, 0);
-	      if (args[i+1] == NULL)
-		fprintf_filtered (stream, "...");
-	      else if (args[i+1]->code != TYPE_CODE_VOID)
-		{
-		  fprintf_filtered (stream, ",");
-		  wrap_here ("    ");
-		}
-	    }
-	}
-    }
-  fprintf_filtered (stream, ")");
-}
-
-#endif	/* 0 */
 
 /* Print any array sizes, function arguments or close parentheses
    needed after the variable name (to describe its type).
    Args work like c_type_print_varspec_prefix.  */
 
 static void
-f_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
-     struct type *type;
-     GDB_FILE *stream;
-     int show;
-     int passed_a_ptr;
-     int demangled_args;
+f_type_print_varspec_suffix (struct type *type, struct ui_file *stream,
+			     int show, int passed_a_ptr, int demangled_args)
 {
   int upper_bound, lower_bound;
   int lower_bound_was_default = 0;
@@ -226,61 +174,60 @@ f_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
       arrayprint_recurse_level++;
 
       if (arrayprint_recurse_level == 1)
-	fprintf_filtered(stream,"(");
+	fprintf_filtered (stream, "(");
 
       if (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_ARRAY)
 	f_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 0, 0);
 
-      retcode = f77_get_dynamic_lowerbound (type,&lower_bound);
+      retcode = f77_get_dynamic_lowerbound (type, &lower_bound);
 
       lower_bound_was_default = 0;
 
       if (retcode == BOUND_FETCH_ERROR)
-	fprintf_filtered (stream,"???");
+	fprintf_filtered (stream, "???");
+      else if (lower_bound == 1)	/* The default */
+	lower_bound_was_default = 1;
       else
-	if (lower_bound == 1) /* The default */
-	  lower_bound_was_default = 1;
-	else
-	  fprintf_filtered (stream,"%d",lower_bound);
+	fprintf_filtered (stream, "%d", lower_bound);
 
       if (lower_bound_was_default)
 	lower_bound_was_default = 0;
       else
-	fprintf_filtered(stream,":");
+	fprintf_filtered (stream, ":");
 
       /* Make sure that, if we have an assumed size array, we
-	 print out a warning and print the upperbound as '*' */
+         print out a warning and print the upperbound as '*' */
 
-      if (TYPE_ARRAY_UPPER_BOUND_TYPE(type) == BOUND_CANNOT_BE_DETERMINED)
+      if (TYPE_ARRAY_UPPER_BOUND_TYPE (type) == BOUND_CANNOT_BE_DETERMINED)
 	fprintf_filtered (stream, "*");
-       else
-	 {
-	   retcode = f77_get_dynamic_upperbound(type,&upper_bound);
+      else
+	{
+	  retcode = f77_get_dynamic_upperbound (type, &upper_bound);
 
-	   if (retcode == BOUND_FETCH_ERROR)
-	     fprintf_filtered(stream,"???");
-	   else
-	     fprintf_filtered(stream,"%d",upper_bound);
-	 }
+	  if (retcode == BOUND_FETCH_ERROR)
+	    fprintf_filtered (stream, "???");
+	  else
+	    fprintf_filtered (stream, "%d", upper_bound);
+	}
 
       if (TYPE_CODE (TYPE_TARGET_TYPE (type)) != TYPE_CODE_ARRAY)
 	f_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 0, 0);
       if (arrayprint_recurse_level == 1)
 	fprintf_filtered (stream, ")");
       else
-	fprintf_filtered(stream,",");
+	fprintf_filtered (stream, ",");
       arrayprint_recurse_level--;
       break;
 
     case TYPE_CODE_PTR:
     case TYPE_CODE_REF:
       f_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 1, 0);
-      fprintf_filtered(stream,")");
+      fprintf_filtered (stream, ")");
       break;
 
     case TYPE_CODE_FUNC:
       f_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0,
-				 passed_a_ptr, 0);
+				   passed_a_ptr, 0);
       if (passed_a_ptr)
 	fprintf_filtered (stream, ")");
 
@@ -306,15 +253,13 @@ f_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
     case TYPE_CODE_COMPLEX:
     case TYPE_CODE_TYPEDEF:
       /* These types do not need a suffix.  They are listed so that
-	 gcc -Wall will report types that may not have been considered.  */
+         gcc -Wall will report types that may not have been considered.  */
       break;
     }
 }
 
 static void
-print_equivalent_f77_float_type (type, stream)
-     struct type *type;
-     GDB_FILE *stream;
+print_equivalent_f77_float_type (struct type *type, struct ui_file *stream)
 {
   /* Override type name "float" and make it the
      appropriate real. XLC stupidly outputs -12 as a type
@@ -337,11 +282,8 @@ print_equivalent_f77_float_type (type, stream)
    We increase it for some recursive calls.  */
 
 void
-f_type_print_base (type, stream, show, level)
-     struct type *type;
-     GDB_FILE *stream;
-     int show;
-     int level;
+f_type_print_base (struct type *type, struct ui_file *stream, int show,
+		   int level)
 {
   int retcode;
   int upper_bound;
@@ -381,7 +323,7 @@ f_type_print_base (type, stream, show, level)
       f_type_print_base (TYPE_TARGET_TYPE (type), stream, show, level);
       break;
 
-   case TYPE_CODE_PTR:
+    case TYPE_CODE_PTR:
       fprintf_filtered (stream, "PTR TO -> ( ");
       f_type_print_base (TYPE_TARGET_TYPE (type), stream, 0, level);
       break;
@@ -446,9 +388,9 @@ f_type_print_base (type, stream, show, level)
     default_case:
     default:
       /* Handle types not explicitly handled by the other cases,
-	 such as fundamental types.  For these, just print whatever
-	 the type name is, as recorded in the type itself.  If there
-	 is no type name, then complain. */
+         such as fundamental types.  For these, just print whatever
+         the type name is, as recorded in the type itself.  If there
+         is no type name, then complain. */
       if (TYPE_NAME (type) != NULL)
 	fputs_filtered (TYPE_NAME (type), stream);
       else

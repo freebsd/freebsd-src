@@ -1,5 +1,8 @@
 /* Remote debugging interface for Array Tech RAID controller..
-   Copyright 90, 91, 92, 93, 94, 1995, 1998  Free Software Foundation, Inc.
+
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+
    Contributed by Cygnus Support. Written by Rob Savoye for Cygnus.
 
    This module talks to a debug monitor called 'MONITOR', which
@@ -7,92 +10,69 @@
    (or possibly TELNET) stream to a terminal multiplexor,
    which in turn talks to the target board.
 
-  This file is part of GDB.
+   This file is part of GDB.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "gdbcore.h"
 #include "target.h"
-#include "wait.h"
-#ifdef ANSI_PROTOTYPES
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <ctype.h>
-#include <signal.h>
 #include <sys/types.h>
 #include "gdb_string.h"
 #include "command.h"
 #include "serial.h"
 #include "monitor.h"
 #include "remote-utils.h"
+#include "inferior.h"
+#include "version.h"
+#include "regcache.h"
 
 extern int baud_rate;
 
 #define ARRAY_PROMPT ">> "
 
-#define SWAP_TARGET_AND_HOST(buffer,len) 				\
-  do									\
-    {									\
-      if (TARGET_BYTE_ORDER != HOST_BYTE_ORDER)				\
-	{								\
-	  char tmp;							\
-	  char *p = (char *)(buffer);					\
-	  char *q = ((char *)(buffer)) + len - 1;		   	\
-	  for (; p < q; p++, q--)				 	\
-	    {								\
-	      tmp = *q;							\
-	      *q = *p;							\
-	      *p = tmp;							\
-	    }								\
-	}								\
-    }									\
-  while (0)
-
-static void debuglogs PARAMS((int, char *, ...));
-static void array_open();
-static void array_close();
-static void array_detach();
-static void array_attach();
-static void array_resume();
-static void array_fetch_register();
-static void array_store_register();
-static void array_fetch_registers();
-static void array_store_registers();
-static void array_prepare_to_store();
-static void array_files_info();
-static void array_kill();
-static void array_create_inferior();
-static void array_mourn_inferior();
-static void make_gdb_packet();
-static int array_xfer_memory();
-static int array_wait();
-static int array_insert_breakpoint();
-static int array_remove_breakpoint();
-static int tohex();
-static int to_hex();
-static int from_hex();
-static int array_send_packet();
-static int array_get_packet();
-static unsigned long ascii2hexword();
-static void hexword2ascii();
-
-extern char *version;
+static void debuglogs (int, char *, ...);
+static void array_open ();
+static void array_close ();
+static void array_detach ();
+static void array_attach ();
+static void array_resume (ptid_t ptid, int step, enum target_signal sig);
+static void array_fetch_register ();
+static void array_store_register ();
+static void array_fetch_registers ();
+static void array_store_registers ();
+static void array_prepare_to_store ();
+static void array_files_info ();
+static void array_kill ();
+static void array_create_inferior ();
+static void array_mourn_inferior ();
+static void make_gdb_packet ();
+static int array_xfer_memory ();
+static ptid_t array_wait (ptid_t ptid,
+                                 struct target_waitstatus *status);
+static int array_insert_breakpoint ();
+static int array_remove_breakpoint ();
+static int tohex ();
+static int to_hex ();
+static int from_hex ();
+static int array_send_packet ();
+static int array_get_packet ();
+static unsigned long ascii2hexword ();
+static void hexword2ascii ();
 
 #define LOG_FILE "monitor.log"
 #if defined (LOG_FILE)
@@ -111,7 +91,7 @@ static int timeout = 30;
  * Descriptor for I/O to remote machine.  Initialize it to NULL so that
  * array_open knows that we don't have a file open when the program starts.
  */
-serial_t array_desc = NULL;
+struct serial *array_desc = NULL;
 
 /*
  * this array of registers need to match the indexes used by GDB. The
@@ -120,142 +100,123 @@ serial_t array_desc = NULL;
  * registers either. So, typing "info reg sp" becomes a "r30".
  */
 extern char *tmp_mips_processor_type;
-extern int mips_set_processor_type();
+extern int mips_set_processor_type ();
 
-static struct target_ops array_ops ;
+static struct target_ops array_ops;
 
-static void 
-init_array_ops(void)
+static void
+init_array_ops (void)
 {
-  array_ops.to_shortname =   "array";	
-  array_ops.to_longname = 		
+  array_ops.to_shortname = "array";
+  array_ops.to_longname =
     "Debug using the standard GDB remote protocol for the Array Tech target.",
-    array_ops.to_doc = 			
+    array_ops.to_doc =
     "Debug using the standard GDB remote protocol for the Array Tech target.\n\
-Specify the serial device it is connected to (e.g. /dev/ttya)." ;
-  array_ops.to_open =   array_open;	
-  array_ops.to_close =   array_close;	
-  array_ops.to_attach =   NULL;
-  array_ops.to_post_attach = NULL;		
+Specify the serial device it is connected to (e.g. /dev/ttya).";
+  array_ops.to_open = array_open;
+  array_ops.to_close = array_close;
+  array_ops.to_attach = NULL;
+  array_ops.to_post_attach = NULL;
   array_ops.to_require_attach = NULL;
-  array_ops.to_detach =   array_detach;	
+  array_ops.to_detach = array_detach;
   array_ops.to_require_detach = NULL;
-  array_ops.to_resume =   array_resume;	
-  array_ops.to_wait  =   array_wait;	
+  array_ops.to_resume = array_resume;
+  array_ops.to_wait = array_wait;
   array_ops.to_post_wait = NULL;
-  array_ops.to_fetch_registers  =   array_fetch_registers;
-  array_ops.to_store_registers  =   array_store_registers;
-  array_ops.to_prepare_to_store =   array_prepare_to_store;
-  array_ops.to_xfer_memory  =   array_xfer_memory;		
-  array_ops.to_files_info  =   array_files_info;		
-  array_ops.to_insert_breakpoint =   array_insert_breakpoint;	
-  array_ops.to_remove_breakpoint =   array_remove_breakpoint;	
-  array_ops.to_terminal_init  =   0;				
-  array_ops.to_terminal_inferior =   0;				
-  array_ops.to_terminal_ours_for_output =   0;			
-  array_ops.to_terminal_ours  =   0;				
-  array_ops.to_terminal_info  =   0;				
-  array_ops.to_kill  =   array_kill;		
-  array_ops.to_load  =   0;			
-  array_ops.to_lookup_symbol =   0;		
-  array_ops.to_create_inferior =   array_create_inferior;	
+  array_ops.to_fetch_registers = array_fetch_registers;
+  array_ops.to_store_registers = array_store_registers;
+  array_ops.to_prepare_to_store = array_prepare_to_store;
+  array_ops.to_xfer_memory = array_xfer_memory;
+  array_ops.to_files_info = array_files_info;
+  array_ops.to_insert_breakpoint = array_insert_breakpoint;
+  array_ops.to_remove_breakpoint = array_remove_breakpoint;
+  array_ops.to_terminal_init = 0;
+  array_ops.to_terminal_inferior = 0;
+  array_ops.to_terminal_ours_for_output = 0;
+  array_ops.to_terminal_ours = 0;
+  array_ops.to_terminal_info = 0;
+  array_ops.to_kill = array_kill;
+  array_ops.to_load = 0;
+  array_ops.to_lookup_symbol = 0;
+  array_ops.to_create_inferior = array_create_inferior;
   array_ops.to_post_startup_inferior = NULL;
   array_ops.to_acknowledge_created_inferior = NULL;
-  array_ops.to_clone_and_follow_inferior = NULL;          
-  array_ops.to_post_follow_inferior_by_clone = NULL;  
+  array_ops.to_clone_and_follow_inferior = NULL;
+  array_ops.to_post_follow_inferior_by_clone = NULL;
   array_ops.to_insert_fork_catchpoint = NULL;
   array_ops.to_remove_fork_catchpoint = NULL;
   array_ops.to_insert_vfork_catchpoint = NULL;
-  array_ops.to_remove_vfork_catchpoint = NULL;                      
+  array_ops.to_remove_vfork_catchpoint = NULL;
   array_ops.to_has_forked = NULL;
-  array_ops.to_has_vforked = NULL;            
-  array_ops.to_can_follow_vfork_prior_to_exec = NULL;            
+  array_ops.to_has_vforked = NULL;
+  array_ops.to_can_follow_vfork_prior_to_exec = NULL;
   array_ops.to_post_follow_vfork = NULL;
   array_ops.to_insert_exec_catchpoint = NULL;
   array_ops.to_remove_exec_catchpoint = NULL;
   array_ops.to_has_execd = NULL;
   array_ops.to_reported_exec_events_per_exec_call = NULL;
   array_ops.to_has_exited = NULL;
-  array_ops.to_mourn_inferior =   array_mourn_inferior;		
-  array_ops.to_can_run  =   0;		
-  array_ops.to_notice_signals =   0; 	
-  array_ops.to_thread_alive  =   0;	
-  array_ops.to_stop  =   0;
+  array_ops.to_mourn_inferior = array_mourn_inferior;
+  array_ops.to_can_run = 0;
+  array_ops.to_notice_signals = 0;
+  array_ops.to_thread_alive = 0;
+  array_ops.to_stop = 0;
   array_ops.to_pid_to_exec_file = NULL;
-  array_ops.to_core_file_to_sym_file = NULL;         
-  array_ops.to_stratum =   process_stratum;	
-  array_ops.DONT_USE =   0;			
-  array_ops.to_has_all_memory =   1;		
-  array_ops.to_has_memory =   1;		
-  array_ops.to_has_stack =   1;			
-  array_ops.to_has_registers =   1;		
-  array_ops.to_has_execution =   1;		
-  array_ops.to_sections =   0;			
-  array_ops.to_sections_end =   0;		
-  array_ops.to_magic =   OPS_MAGIC;		
+  array_ops.to_stratum = process_stratum;
+  array_ops.DONT_USE = 0;
+  array_ops.to_has_all_memory = 1;
+  array_ops.to_has_memory = 1;
+  array_ops.to_has_stack = 1;
+  array_ops.to_has_registers = 1;
+  array_ops.to_has_execution = 1;
+  array_ops.to_sections = 0;
+  array_ops.to_sections_end = 0;
+  array_ops.to_magic = OPS_MAGIC;
 };
 
 /*
  * printf_monitor -- send data to monitor.  Works just like printf.
  */
 static void
-#ifdef ANSI_PROTOTYPES
-printf_monitor(char *pattern, ...)
-#else
-printf_monitor(va_alist)
-     va_dcl
-#endif
+printf_monitor (char *pattern,...)
 {
   va_list args;
   char buf[PBUFSIZ];
   int i;
 
-#ifdef ANSI_PROTOTYPES
-  va_start(args, pattern);
-#else
-  char *pattern;
-  va_start(args);
-  pattern = va_arg(args, char *);
-#endif
+  va_start (args, pattern);
 
-  vsprintf(buf, pattern, args);
+  vsprintf (buf, pattern, args);
 
   debuglogs (1, "printf_monitor(), Sending: \"%s\".", buf);
 
-  if (strlen(buf) > PBUFSIZ)
+  if (strlen (buf) > PBUFSIZ)
     error ("printf_monitor(): string too long");
-  if (SERIAL_WRITE(array_desc, buf, strlen(buf)))
-    fprintf(stderr, "SERIAL_WRITE failed: %s\n", safe_strerror(errno));
+  if (serial_write (array_desc, buf, strlen (buf)))
+    fprintf (stderr, "serial_write failed: %s\n", safe_strerror (errno));
 }
 /*
  * write_monitor -- send raw data to monitor.
  */
 static void
-write_monitor(data, len)
-     char data[];
-     int len;
+write_monitor (char data[], int len)
 {
-  if (SERIAL_WRITE(array_desc, data, len))
-    fprintf(stderr, "SERIAL_WRITE failed: %s\n", safe_strerror(errno));
- 
-  *(data + len+1) = '\0';
+  if (serial_write (array_desc, data, len))
+    fprintf (stderr, "serial_write failed: %s\n", safe_strerror (errno));
+
+  *(data + len + 1) = '\0';
   debuglogs (1, "write_monitor(), Sending: \"%s\".", data);
 
 }
 
 /*
  * debuglogs -- deal with debugging info to multiple sources. This takes
- *	two real args, the first one is the level to be compared against 
- *	the sr_get_debug() value, the second arg is a printf buffer and args
- *	to be formatted and printed. A CR is added after each string is printed.
+ *      two real args, the first one is the level to be compared against 
+ *      the sr_get_debug() value, the second arg is a printf buffer and args
+ *      to be formatted and printed. A CR is added after each string is printed.
  */
 static void
-#ifdef ANSI_PROTOTYPES
-debuglogs(int level, char *pattern, ...)
-#else
-debuglogs(va_alist)
-     va_dcl
-#endif
+debuglogs (int level, char *pattern,...)
 {
   va_list args;
   char *p;
@@ -263,122 +224,119 @@ debuglogs(va_alist)
   char newbuf[PBUFSIZ];
   int i;
 
-#ifdef ANSI_PROTOTYPES
-  va_start(args, pattern);
-#else
-  char *pattern;
-  int level;
-  va_start(args);
-  level = va_arg(args, int);			/* get the debug level */
-  pattern = va_arg(args, char *);		/* get the printf style pattern */
-#endif
+  va_start (args, pattern);
 
-  if ((level <0) || (level > 100)) {
-    error ("Bad argument passed to debuglogs(), needs debug level");
-    return;
-  }
-      
-  vsprintf(buf, pattern, args);			/* format the string */
-  
+  if ((level < 0) || (level > 100))
+    {
+      error ("Bad argument passed to debuglogs(), needs debug level");
+      return;
+    }
+
+  vsprintf (buf, pattern, args);	/* format the string */
+
   /* convert some characters so it'll look right in the log */
   p = newbuf;
-  for (i = 0 ; buf[i] != '\0'; i++) {
-    if (i > PBUFSIZ)
-      error ("Debug message too long");
-    switch (buf[i]) {
-    case '\n':					/* newlines */
-      *p++ = '\\';
-      *p++ = 'n';
-      continue;
-    case '\r':					/* carriage returns */
-      *p++ = '\\';
-      *p++ = 'r';
-      continue;
-    case '\033':				/* escape */
-      *p++ = '\\';
-      *p++ = 'e';
-      continue;
-    case '\t':					/* tab */
-      *p++ = '\\';
-      *p++ = 't';
-      continue;
-    case '\b':					/* backspace */
-      *p++ = '\\';
-      *p++ = 'b';
-      continue;
-    default:					/* no change */
-      *p++ = buf[i];
-    }
+  for (i = 0; buf[i] != '\0'; i++)
+    {
+      if (i > PBUFSIZ)
+	error ("Debug message too long");
+      switch (buf[i])
+	{
+	case '\n':		/* newlines */
+	  *p++ = '\\';
+	  *p++ = 'n';
+	  continue;
+	case '\r':		/* carriage returns */
+	  *p++ = '\\';
+	  *p++ = 'r';
+	  continue;
+	case '\033':		/* escape */
+	  *p++ = '\\';
+	  *p++ = 'e';
+	  continue;
+	case '\t':		/* tab */
+	  *p++ = '\\';
+	  *p++ = 't';
+	  continue;
+	case '\b':		/* backspace */
+	  *p++ = '\\';
+	  *p++ = 'b';
+	  continue;
+	default:		/* no change */
+	  *p++ = buf[i];
+	}
 
-    if (buf[i] < 26) {				/* modify control characters */
-      *p++ = '^';
-      *p++ = buf[i] + 'A';
-      continue;
+      if (buf[i] < 26)
+	{			/* modify control characters */
+	  *p++ = '^';
+	  *p++ = buf[i] + 'A';
+	  continue;
+	}
+      if (buf[i] >= 128)
+	{			/* modify control characters */
+	  *p++ = '!';
+	  *p++ = buf[i] + 'A';
+	  continue;
+	}
     }
-     if (buf[i] >= 128) {			/* modify control characters */
-      *p++ = '!';
-      *p++ = buf[i] + 'A';
-      continue;
-    }
- }
-  *p = '\0';					/* terminate the string */
+  *p = '\0';			/* terminate the string */
 
-  if (sr_get_debug() > level)
+  if (sr_get_debug () > level)
     printf_unfiltered ("%s\n", newbuf);
 
-#ifdef LOG_FILE					/* write to the monitor log */
-  if (log_file != 0x0) {
-    fputs (newbuf, log_file);
-    fputc ('\n', log_file);
-    fflush (log_file);
-  }
+#ifdef LOG_FILE			/* write to the monitor log */
+  if (log_file != 0x0)
+    {
+      fputs (newbuf, log_file);
+      fputc ('\n', log_file);
+      fflush (log_file);
+    }
 #endif
 }
 
 /* readchar -- read a character from the remote system, doing all the fancy
- *	timeout stuff.
+ *    timeout stuff.
  */
 static int
-readchar(timeout)
-     int timeout;
+readchar (int timeout)
 {
   int c;
 
-  c = SERIAL_READCHAR(array_desc, abs(timeout));
+  c = serial_readchar (array_desc, abs (timeout));
 
-  if (sr_get_debug() > 5) {
-    putchar(c & 0x7f);
-    debuglogs (5, "readchar: timeout = %d\n", timeout);
-  }
+  if (sr_get_debug () > 5)
+    {
+      putchar (c & 0x7f);
+      debuglogs (5, "readchar: timeout = %d\n", timeout);
+    }
 
 #ifdef LOG_FILE
   if (isascii (c))
-    putc(c & 0x7f, log_file);
+    putc (c & 0x7f, log_file);
 #endif
 
   if (c >= 0)
     return c & 0x7f;
 
-  if (c == SERIAL_TIMEOUT) {
-    if (timeout <= 0)
-      return c;		/* Polls shouldn't generate timeout errors */
-    error("Timeout reading from remote system.");
+  if (c == SERIAL_TIMEOUT)
+    {
+      if (timeout <= 0)
+	return c;		/* Polls shouldn't generate timeout errors */
+      error ("Timeout reading from remote system.");
 #ifdef LOG_FILE
       fputs ("ERROR: Timeout reading from remote system", log_file);
 #endif
-  }
-  perror_with_name("readchar");
+    }
+  perror_with_name ("readchar");
 }
 
 /* 
  * expect --  scan input from the remote system, until STRING is found.
- *	If DISCARD is non-zero, then discard non-matching input, else print
- *	it out. Let the user break out immediately.
+ *      If DISCARD is non-zero, then discard non-matching input, else print
+ *      it out. Let the user break out immediately.
  */
 static void
-expect (string, discard)
-     char *string;
-     int discard;
+expect (char *string, int discard)
 {
   char *p = string;
   int c;
@@ -386,24 +344,30 @@ expect (string, discard)
 
   debuglogs (1, "Expecting \"%s\".", string);
 
-  immediate_quit = 1;
-  while (1) {
-    c = readchar(timeout);
-    if (!isascii (c))
-      continue;
-    if (c == *p++) {
-      if (*p == '\0') {
-	immediate_quit = 0;
-	debuglogs (4, "Matched");
-	return;
-      }
-    } else {
-      if (!discard) {
-	fputc_unfiltered (c, gdb_stdout);
-      }
-      p = string;
+  immediate_quit++;
+  while (1)
+    {
+      c = readchar (timeout);
+      if (!isascii (c))
+	continue;
+      if (c == *p++)
+	{
+	  if (*p == '\0')
+	    {
+	      immediate_quit--;
+	      debuglogs (4, "Matched");
+	      return;
+	    }
+	}
+      else
+	{
+	  if (!discard)
+	    {
+	      fputc_unfiltered (c, gdb_stdout);
+	    }
+	  p = string;
+	}
     }
-  }
 }
 
 /* Keep discarding input until we see the MONITOR array_cmds->prompt.
@@ -421,8 +385,7 @@ expect (string, discard)
    necessary to prevent getting into states from which we can't
    recover.  */
 static void
-expect_prompt(discard)
-     int discard;
+expect_prompt (int discard)
 {
   expect (ARRAY_PROMPT, discard);
 }
@@ -431,112 +394,107 @@ expect_prompt(discard)
  * junk -- ignore junk characters. Returns a 1 if junk, 0 otherwise
  */
 static int
-junk(ch)
-     char ch;
+junk (char ch)
 {
-  switch (ch) {
-  case '\0':
-  case ' ':
-  case '-':
-  case '\t':
-  case '\r':
-  case '\n':
-    if (sr_get_debug() > 5)
-      debuglogs (5, "Ignoring \'%c\'.", ch);
-    return 1;
-  default:
-    if (sr_get_debug() > 5)
-      debuglogs (5, "Accepting \'%c\'.", ch);
-    return 0;
-  }
+  switch (ch)
+    {
+    case '\0':
+    case ' ':
+    case '-':
+    case '\t':
+    case '\r':
+    case '\n':
+      if (sr_get_debug () > 5)
+	debuglogs (5, "Ignoring \'%c\'.", ch);
+      return 1;
+    default:
+      if (sr_get_debug () > 5)
+	debuglogs (5, "Accepting \'%c\'.", ch);
+      return 0;
+    }
 }
 
 /* 
  *  get_hex_digit -- Get a hex digit from the remote system & return its value.
- *		If ignore is nonzero, ignore spaces, newline & tabs.
+ *              If ignore is nonzero, ignore spaces, newline & tabs.
  */
 static int
-get_hex_digit(ignore)
-     int ignore;
+get_hex_digit (int ignore)
 {
   static int ch;
-  while (1) {
-    ch = readchar(timeout);
-    if (junk(ch))
-      continue;
-    if (sr_get_debug() > 4) {
-      debuglogs (4, "get_hex_digit() got a 0x%x(%c)", ch, ch);
-    } else {
-#ifdef LOG_FILE					/* write to the monitor log */
-      if (log_file != 0x0) {
-	fputs ("get_hex_digit() got a 0x", log_file);
-	fputc (ch, log_file);
-	fputc ('\n', log_file);
-	fflush (log_file);
-      }
+  while (1)
+    {
+      ch = readchar (timeout);
+      if (junk (ch))
+	continue;
+      if (sr_get_debug () > 4)
+	{
+	  debuglogs (4, "get_hex_digit() got a 0x%x(%c)", ch, ch);
+	}
+      else
+	{
+#ifdef LOG_FILE			/* write to the monitor log */
+	  if (log_file != 0x0)
+	    {
+	      fputs ("get_hex_digit() got a 0x", log_file);
+	      fputc (ch, log_file);
+	      fputc ('\n', log_file);
+	      fflush (log_file);
+	    }
 #endif
-    }
+	}
 
-    if (ch >= '0' && ch <= '9')
-      return ch - '0';
-    else if (ch >= 'A' && ch <= 'F')
-      return ch - 'A' + 10;
-    else if (ch >= 'a' && ch <= 'f')
-      return ch - 'a' + 10;
-    else if (ch == ' ' && ignore)
-      ;
-    else {
-     expect_prompt(1);
-      debuglogs (4, "Invalid hex digit from remote system. (0x%x)", ch);
-      error("Invalid hex digit from remote system. (0x%x)", ch);
+      if (ch >= '0' && ch <= '9')
+	return ch - '0';
+      else if (ch >= 'A' && ch <= 'F')
+	return ch - 'A' + 10;
+      else if (ch >= 'a' && ch <= 'f')
+	return ch - 'a' + 10;
+      else if (ch == ' ' && ignore)
+	;
+      else
+	{
+	  expect_prompt (1);
+	  debuglogs (4, "Invalid hex digit from remote system. (0x%x)", ch);
+	  error ("Invalid hex digit from remote system. (0x%x)", ch);
+	}
     }
-  }
 }
 
 /* get_hex_byte -- Get a byte from monitor and put it in *BYT. 
- *	Accept any number leading spaces.
+ *    Accept any number leading spaces.
  */
 static void
-get_hex_byte (byt)
-     char *byt;
+get_hex_byte (char *byt)
 {
   int val;
 
   val = get_hex_digit (1) << 4;
   debuglogs (4, "get_hex_byte() -- Read first nibble 0x%x", val);
- 
+
   val |= get_hex_digit (0);
   debuglogs (4, "get_hex_byte() -- Read second nibble 0x%x", val);
   *byt = val;
-  
+
   debuglogs (4, "get_hex_byte() -- Read a 0x%x", val);
 }
 
 /* 
  * get_hex_word --  Get N 32-bit words from remote, each preceded by a space,
- *	and put them in registers starting at REGNO.
+ *      and put them in registers starting at REGNO.
  */
 static int
-get_hex_word ()
+get_hex_word (void)
 {
   long val, newval;
   int i;
 
   val = 0;
 
-#if 0
-  if (HOST_BYTE_ORDER == BIG_ENDIAN) {
-#endif
-    for (i = 0; i < 8; i++)
-      val = (val << 4) + get_hex_digit (i == 0);
-#if 0
-  } else {
-    for (i = 7; i >= 0; i--)
-      val = (val << 4) + get_hex_digit (i == 0);
-  }
-#endif
+  for (i = 0; i < 8; i++)
+    val = (val << 4) + get_hex_digit (i == 0);
 
-  debuglogs (4, "get_hex_word() got a 0x%x for a %s host.", val, (HOST_BYTE_ORDER == BIG_ENDIAN) ? "big endian" : "little endian");
+  debuglogs (4, "get_hex_word() got a 0x%x.", val);
 
   return val;
 }
@@ -544,18 +502,15 @@ get_hex_word ()
 /* This is called not only when we first attach, but also when the
    user types "run" after having attached.  */
 static void
-array_create_inferior (execfile, args, env)
-     char *execfile;
-     char *args;
-     char **env;
+array_create_inferior (char *execfile, char *args, char **env)
 {
   int entry_pt;
 
   if (args && *args)
-    error("Can't pass arguments to remote MONITOR process");
+    error ("Can't pass arguments to remote MONITOR process");
 
   if (execfile == 0 || exec_bfd == 0)
-    error("No executable file specified");
+    error ("No executable file specified");
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
 
@@ -577,21 +532,18 @@ array_create_inferior (execfile, args, env)
   /* insert_step_breakpoint ();  FIXME, do we need this?  */
 
   /* Let 'er rip... */
-  proceed ((CORE_ADDR)entry_pt, TARGET_SIGNAL_DEFAULT, 0);
+  proceed ((CORE_ADDR) entry_pt, TARGET_SIGNAL_DEFAULT, 0);
 }
 
 /*
  * array_open -- open a connection to a remote debugger.
- *	NAME is the filename used for communication.
+ *      NAME is the filename used for communication.
  */
 static int baudrate = 9600;
 static char dev_name[100];
 
 static void
-array_open(args, name, from_tty)
-     char *args;
-     char *name;
-     int from_tty;
+array_open (char *args, char *name, int from_tty)
 {
   char packet[PBUFSIZ];
 
@@ -600,7 +552,7 @@ array_open(args, name, from_tty)
 `target %s HOST-NAME:PORT-NUMBER' to use a network connection.", name, name);
 
 /*  if (is_open) */
-    array_close(0);
+  array_close (0);
 
   target_preopen (from_tty);
   unpush_target (&array_ops);
@@ -608,26 +560,28 @@ array_open(args, name, from_tty)
   tmp_mips_processor_type = "lsi33k";	/* change the default from r3051 */
   mips_set_processor_type_command ("lsi33k", 0);
 
-  strcpy(dev_name, args);
-  array_desc = SERIAL_OPEN(dev_name);
+  strcpy (dev_name, args);
+  array_desc = serial_open (dev_name);
 
   if (array_desc == NULL)
-    perror_with_name(dev_name);
+    perror_with_name (dev_name);
 
-  if (baud_rate != -1) {
-    if (SERIAL_SETBAUDRATE (array_desc, baud_rate)) {
-      SERIAL_CLOSE (array_desc);
-      perror_with_name (name);
+  if (baud_rate != -1)
+    {
+      if (serial_setbaudrate (array_desc, baud_rate))
+	{
+	  serial_close (array_desc);
+	  perror_with_name (name);
+	}
     }
-  }
-  
-  SERIAL_RAW(array_desc);
+
+  serial_raw (array_desc);
 
 #if defined (LOG_FILE)
   log_file = fopen (LOG_FILE, "w");
   if (log_file == NULL)
     perror_with_name (LOG_FILE);
-  fprintf (log_file, "GDB %s (%s", version);
+  fprintf (log_file, "GDB %s (%s", version, host_name);
   fprintf (log_file, " --target %s)\n", array_ops.to_shortname);
   fprintf (log_file, "Remote target %s connected to %s\n\n", array_ops.to_shortname, dev_name);
 #endif
@@ -636,62 +590,61 @@ array_open(args, name, from_tty)
      expect_prompt to print a few times. For the GDB remote protocol, the application
      being debugged is sitting at a breakpoint and waiting for GDB to initialize
      the connection. We force it to give us an empty packet to see if it's alive.
-     */
-    debuglogs (3, "Trying to ACK the target's debug stub");
-    /* unless your are on the new hardware, the old board won't initialize
-       because the '@' doesn't flush output like it does on the new ROMS.
-     */
-    printf_monitor ("@");	/* ask for the last signal */
-    expect_prompt(1);		/* See if we get a expect_prompt */
+   */
+  debuglogs (3, "Trying to ACK the target's debug stub");
+  /* unless your are on the new hardware, the old board won't initialize
+     because the '@' doesn't flush output like it does on the new ROMS.
+   */
+  printf_monitor ("@");		/* ask for the last signal */
+  expect_prompt (1);		/* See if we get a expect_prompt */
 #ifdef TEST_ARRAY		/* skip packet for testing */
-    make_gdb_packet (packet, "?");	/* ask for a bogus packet */
-    if (array_send_packet (packet) == 0)
-      error ("Couldn't transmit packet\n");
-    printf_monitor ("@\n");	/* force it to flush stdout */
-   expect_prompt(1);		/* See if we get a expect_prompt */
+  make_gdb_packet (packet, "?");	/* ask for a bogus packet */
+  if (array_send_packet (packet) == 0)
+    error ("Couldn't transmit packet\n");
+  printf_monitor ("@\n");	/* force it to flush stdout */
+  expect_prompt (1);		/* See if we get a expect_prompt */
 #endif
   push_target (&array_ops);
   if (from_tty)
-    printf("Remote target %s connected to %s\n", array_ops.to_shortname, dev_name);
+    printf ("Remote target %s connected to %s\n", array_ops.to_shortname, dev_name);
 }
 
 /*
  * array_close -- Close out all files and local state before this
- *	target loses control.
+ *      target loses control.
  */
 
 static void
-array_close (quitting)
-     int quitting;
+array_close (int quitting)
 {
-  SERIAL_CLOSE(array_desc);
+  serial_close (array_desc);
   array_desc = NULL;
 
   debuglogs (1, "array_close (quitting=%d)", quitting);
 
 #if defined (LOG_FILE)
-  if (log_file) {
-    if (ferror(log_file))
-      printf_filtered ("Error writing log file.\n");
-    if (fclose(log_file) != 0)
-      printf_filtered ("Error closing log file.\n");
-  }
+  if (log_file)
+    {
+      if (ferror (log_file))
+	printf_filtered ("Error writing log file.\n");
+      if (fclose (log_file) != 0)
+	printf_filtered ("Error closing log file.\n");
+    }
 #endif
 }
 
 /* 
  * array_detach -- terminate the open connection to the remote
- *	debugger. Use this when you want to detach and do something
- *	else with your gdb.
+ *      debugger. Use this when you want to detach and do something
+ *      else with your gdb.
  */
 static void
-array_detach (from_tty)
-     int from_tty;
+array_detach (int from_tty)
 {
 
   debuglogs (1, "array_detach ()");
 
-  pop_target();		/* calls array_close to do the real work */
+  pop_target ();		/* calls array_close to do the real work */
   if (from_tty)
     printf ("Ending remote %s debugging\n", target_shortname);
 }
@@ -700,35 +653,34 @@ array_detach (from_tty)
  * array_attach -- attach GDB to the target.
  */
 static void
-array_attach (args, from_tty)
-     char *args;
-     int from_tty;
+array_attach (char *args, int from_tty)
 {
   if (from_tty)
     printf ("Starting remote %s debugging\n", target_shortname);
- 
+
   debuglogs (1, "array_attach (args=%s)", args);
-  
+
   printf_monitor ("go %x\n");
   /* swallow the echo.  */
   expect ("go %x\n", 1);
 }
-  
+
 /*
  * array_resume -- Tell the remote machine to resume.
  */
 static void
-array_resume (pid, step, sig)
-     int pid, step;
-     enum target_signal sig;
+array_resume (ptid_t ptid, int step, enum target_signal sig)
 {
   debuglogs (1, "array_resume (step=%d, sig=%d)", step, sig);
 
-  if (step) {
-    printf_monitor ("s\n");
-  } else {
-    printf_monitor ("go\n");
-  }
+  if (step)
+    {
+      printf_monitor ("s\n");
+    }
+  else
+    {
+      printf_monitor ("go\n");
+    }
 }
 
 #define TMPBUFSIZ 5
@@ -737,60 +689,65 @@ array_resume (pid, step, sig)
  * array_wait -- Wait until the remote machine stops, then return,
  *          storing status in status just as `wait' would.
  */
-static int
-array_wait (pid, status)
-     int pid;
-     struct target_waitstatus *status;
+static ptid_t
+array_wait (ptid_t ptid, struct target_waitstatus *status)
 {
   int old_timeout = timeout;
   int result, i;
   char c;
-  serial_t tty_desc;
+  struct serial *tty_desc;
   serial_ttystate ttystate;
 
-  debuglogs(1, "array_wait (), printing extraneous text.");
-  
+  debuglogs (1, "array_wait (), printing extraneous text.");
+
   status->kind = TARGET_WAITKIND_EXITED;
   status->value.integer = 0;
 
-  timeout = 0;		/* Don't time out -- user program is running. */
- 
+  timeout = 0;			/* Don't time out -- user program is running. */
+
 #if !defined(__GO32__) && !defined(__MSDOS__) && !defined(_WIN32)
-  tty_desc = SERIAL_FDOPEN (0);
-  ttystate = SERIAL_GET_TTY_STATE (tty_desc);
-  SERIAL_RAW (tty_desc);
+  tty_desc = serial_fdopen (0);
+  ttystate = serial_get_tty_state (tty_desc);
+  serial_raw (tty_desc);
 
   i = 0;
   /* poll on the serial port and the keyboard. */
-  while (1) {
-    c = readchar(timeout);
-    if (c > 0) {
-      if (c == *(ARRAY_PROMPT + i)) {
-	if (++i >= strlen (ARRAY_PROMPT)) { /* matched the prompt */
-	  debuglogs (4, "array_wait(), got the expect_prompt.");
-	  break;
+  while (1)
+    {
+      c = readchar (timeout);
+      if (c > 0)
+	{
+	  if (c == *(ARRAY_PROMPT + i))
+	    {
+	      if (++i >= strlen (ARRAY_PROMPT))
+		{		/* matched the prompt */
+		  debuglogs (4, "array_wait(), got the expect_prompt.");
+		  break;
+		}
+	    }
+	  else
+	    {			/* not the prompt */
+	      i = 0;
+	    }
+	  fputc_unfiltered (c, gdb_stdout);
+	  gdb_flush (gdb_stdout);
 	}
-      } else {		/* not the prompt */
-	i = 0;
-      }
-      fputc_unfiltered (c, gdb_stdout);
-      gdb_flush (gdb_stdout);
-    }
-    c = SERIAL_READCHAR(tty_desc, timeout);
-    if (c > 0) {
-      SERIAL_WRITE(array_desc, &c, 1);
-      /* do this so it looks like there's keyboard echo */
-      if (c == 3)		/* exit on Control-C */
-	break;
+      c = serial_readchar (tty_desc, timeout);
+      if (c > 0)
+	{
+	  serial_write (array_desc, &c, 1);
+	  /* do this so it looks like there's keyboard echo */
+	  if (c == 3)		/* exit on Control-C */
+	    break;
 #if 0
-      fputc_unfiltered (c, gdb_stdout);
-      gdb_flush (gdb_stdout);
+	  fputc_unfiltered (c, gdb_stdout);
+	  gdb_flush (gdb_stdout);
 #endif
+	}
     }
-  }
-  SERIAL_SET_TTY_STATE (tty_desc, ttystate);
+  serial_set_tty_state (tty_desc, ttystate);
 #else
-  expect_prompt(1);
+  expect_prompt (1);
   debuglogs (4, "array_wait(), got the expect_prompt.");
 #endif
 
@@ -799,42 +756,40 @@ array_wait (pid, status)
 
   timeout = old_timeout;
 
-  return 0;
+  return inferior_ptid;
 }
 
 /*
  * array_fetch_registers -- read the remote registers into the
- *	block regs.
+ *      block regs.
  */
 static void
-array_fetch_registers (ignored)
-     int ignored;
+array_fetch_registers (int ignored)
 {
-  int regno, i;
+  char *reg = alloca (MAX_REGISTER_RAW_SIZE);
+  int regno;
   char *p;
-  unsigned char packet[PBUFSIZ];
-  char regs[REGISTER_BYTES];
+  char *packet = alloca (PBUFSIZ);
 
   debuglogs (1, "array_fetch_registers (ignored=%d)\n", ignored);
 
   memset (packet, 0, PBUFSIZ);
-  /* Unimplemented registers read as all bits zero.  */
-  memset (regs, 0, REGISTER_BYTES);
   make_gdb_packet (packet, "g");
   if (array_send_packet (packet) == 0)
     error ("Couldn't transmit packet\n");
   if (array_get_packet (packet) == 0)
-    error ("Couldn't receive packet\n");  
+    error ("Couldn't receive packet\n");
   /* FIXME: read bytes from packet */
   debuglogs (4, "array_fetch_registers: Got a \"%s\" back\n", packet);
-  for (regno = 0; regno <= PC_REGNUM+4; regno++) {
-    /* supply register stores in target byte order, so swap here */
-    /* FIXME: convert from ASCII hex to raw bytes */
-    i = ascii2hexword (packet + (regno * 8));
-    debuglogs (5, "Adding register %d = %x\n", regno, i);
-    SWAP_TARGET_AND_HOST (&i, 4);
-    supply_register (regno, (char *)&i);
-  }
+  for (regno = 0; regno <= PC_REGNUM + 4; regno++)
+    {
+      /* supply register stores in target byte order, so swap here */
+      /* FIXME: convert from ASCII hex to raw bytes */
+      LONGEST i = ascii2hexword (packet + (regno * 8));
+      debuglogs (5, "Adding register %d = %x\n", regno, i);
+      store_unsigned_integer (&reg, REGISTER_RAW_SIZE (regno), i);
+      supply_register (regno, (char *) &reg);
+    }
 }
 
 /* 
@@ -842,25 +797,23 @@ array_fetch_registers (ignored)
  * protocol based on GDB's remote protocol.
  */
 static void
-array_fetch_register (ignored)
-     int ignored;
+array_fetch_register (int ignored)
 {
-  array_fetch_registers ();
+  array_fetch_registers (0 /* ignored */);
 }
 
 /*
  * Get all the registers from the targets. They come back in a large array.
  */
 static void
-array_store_registers (ignored)
-     int ignored;
+array_store_registers (int ignored)
 {
   int regno;
   unsigned long i;
   char packet[PBUFSIZ];
   char buf[PBUFSIZ];
   char num[9];
-  
+
   debuglogs (1, "array_store_registers()");
 
   memset (packet, 0, PBUFSIZ);
@@ -869,20 +822,21 @@ array_store_registers (ignored)
 
   /* Unimplemented registers read as all bits zero.  */
   /* FIXME: read bytes from packet */
-  for (regno = 0; regno < 41; regno++) { /* FIXME */
-    /* supply register stores in target byte order, so swap here */
-    /* FIXME: convert from ASCII hex to raw bytes */
-    i = (unsigned long)read_register (regno);
-    hexword2ascii (num, i);
-    strcpy (buf+(regno * 8)+1, num);
-  }
+  for (regno = 0; regno < 41; regno++)
+    {				/* FIXME */
+      /* supply register stores in target byte order, so swap here */
+      /* FIXME: convert from ASCII hex to raw bytes */
+      i = (unsigned long) read_register (regno);
+      hexword2ascii (num, i);
+      strcpy (buf + (regno * 8) + 1, num);
+    }
   *(buf + (regno * 8) + 2) = 0;
   make_gdb_packet (packet, buf);
   if (array_send_packet (packet) == 0)
     error ("Couldn't transmit packet\n");
   if (array_get_packet (packet) == 0)
-    error ("Couldn't receive packet\n");  
-  
+    error ("Couldn't receive packet\n");
+
   registers_changed ();
 }
 
@@ -891,10 +845,9 @@ array_store_registers (ignored)
  * protocol based on GDB's remote protocol.
  */
 static void
-array_store_register (ignored)
-     int ignored;
+array_store_register (int ignored)
 {
-  array_store_registers ();
+  array_store_registers (0 /* ignored */);
 }
 
 /* Get ready to modify the registers array.  On machines which store
@@ -904,13 +857,13 @@ array_store_register (ignored)
    debugged.  */
 
 static void
-array_prepare_to_store ()
+array_prepare_to_store (void)
 {
   /* Do nothing, since we can store individual regs */
 }
 
 static void
-array_files_info ()
+array_files_info (void)
 {
   printf ("\tAttached to %s at %d baud.\n",
 	  dev_name, baudrate);
@@ -918,13 +871,10 @@ array_files_info ()
 
 /*
  * array_write_inferior_memory -- Copy LEN bytes of data from debugger
- *	memory at MYADDR to inferior's memory at MEMADDR.  Returns length moved.
+ *      memory at MYADDR to inferior's memory at MEMADDR.  Returns length moved.
  */
 static int
-array_write_inferior_memory (memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     unsigned char *myaddr;
-     int len;
+array_write_inferior_memory (CORE_ADDR memaddr, unsigned char *myaddr, int len)
 {
   unsigned long i;
   int j;
@@ -932,46 +882,44 @@ array_write_inferior_memory (memaddr, myaddr, len)
   char buf[PBUFSIZ];
   char num[9];
   char *p;
-  
+
   debuglogs (1, "array_write_inferior_memory (memaddr=0x%x, myaddr=0x%x, len=%d)", memaddr, myaddr, len);
-  memset (buf, '\0', PBUFSIZ);		/* this also sets the string terminator */
+  memset (buf, '\0', PBUFSIZ);	/* this also sets the string terminator */
   p = buf;
 
-  *p++ = 'M';				/* The command to write memory */
+  *p++ = 'M';			/* The command to write memory */
   hexword2ascii (num, memaddr);	/* convert the address */
-  strcpy (p, num);			/* copy the address */
+  strcpy (p, num);		/* copy the address */
   p += 8;
-  *p++ = ',';				/* add comma delimeter */
-  hexword2ascii (num, len);		/* Get the length as a 4 digit number */
+  *p++ = ',';			/* add comma delimeter */
+  hexword2ascii (num, len);	/* Get the length as a 4 digit number */
   *p++ = num[4];
   *p++ = num[5];
   *p++ = num[6];
   *p++ = num[7];
-  *p++ = ':';				/* add the colon delimeter */
-  for (j = 0; j < len; j++) {		/* copy the data in after converting it */
-    *p++ = tohex ((myaddr[j] >> 4) & 0xf);
-    *p++ = tohex  (myaddr[j] & 0xf);
-  }
-  
+  *p++ = ':';			/* add the colon delimeter */
+  for (j = 0; j < len; j++)
+    {				/* copy the data in after converting it */
+      *p++ = tohex ((myaddr[j] >> 4) & 0xf);
+      *p++ = tohex (myaddr[j] & 0xf);
+    }
+
   make_gdb_packet (packet, buf);
   if (array_send_packet (packet) == 0)
     error ("Couldn't transmit packet\n");
   if (array_get_packet (packet) == 0)
-    error ("Couldn't receive packet\n");  
+    error ("Couldn't receive packet\n");
 
   return len;
 }
 
 /*
  * array_read_inferior_memory -- read LEN bytes from inferior memory
- *	at MEMADDR.  Put the result at debugger address MYADDR.  Returns
- *	length moved.
+ *      at MEMADDR.  Put the result at debugger address MYADDR.  Returns
+ *      length moved.
  */
 static int
-array_read_inferior_memory(memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
+array_read_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len)
 {
   int j;
   char buf[20];
@@ -991,11 +939,12 @@ array_read_inferior_memory(memaddr, myaddr, len)
      array_read_bytes (CORE_ADDR_MAX - 3, foo, 4)
      doesn't need to work.  Detect it and give up if there's an attempt
      to do that.  */
-  if (((memaddr - 1) + len) < memaddr) {
-    errno = EIO;
-    return 0;
-  }
-  
+  if (((memaddr - 1) + len) < memaddr)
+    {
+      errno = EIO;
+      return 0;
+    }
+
   for (count = 0, startaddr = memaddr; count < len; startaddr += len_this_pass)
     {
       /* Try to align to 16 byte boundry (why?) */
@@ -1012,7 +961,7 @@ array_read_inferior_memory(memaddr, myaddr, len)
       /* Fetch the bytes */
       debuglogs (3, "read %d bytes from inferior address %x", len_this_pass,
 		 startaddr);
-      sprintf (buf, "m%08x,%04x", startaddr, len_this_pass);
+      sprintf (buf, "m%08lx,%04x", startaddr, len_this_pass);
       make_gdb_packet (packet, buf);
       if (array_send_packet (packet) == 0)
 	{
@@ -1020,7 +969,7 @@ array_read_inferior_memory(memaddr, myaddr, len)
 	}
       if (array_get_packet (packet) == 0)
 	{
-	  error ("Couldn't receive packet\n");  
+	  error ("Couldn't receive packet\n");
 	}
       if (*packet == 0)
 	{
@@ -1028,24 +977,25 @@ array_read_inferior_memory(memaddr, myaddr, len)
 	}
       /* Pick packet apart and xfer bytes to myaddr */
       debuglogs (4, "array_read_inferior_memory: Got a \"%s\" back\n", packet);
-      for (j = 0; j < len_this_pass ; j++)
+      for (j = 0; j < len_this_pass; j++)
 	{
 	  /* extract the byte values */
-	  myaddr[count++] = from_hex (*(packet+(j*2))) * 16 + from_hex (*(packet+(j*2)+1));
-	  debuglogs (5, "myaddr[%d] set to %x\n", count-1, myaddr[count-1]);
+	  myaddr[count++] = from_hex (*(packet + (j * 2))) * 16 + from_hex (*(packet + (j * 2) + 1));
+	  debuglogs (5, "myaddr[%d] set to %x\n", count - 1, myaddr[count - 1]);
 	}
     }
   return (count);
 }
 
-/* FIXME-someday!  merge these two.  */
+/* Transfer LEN bytes between GDB address MYADDR and target address
+   MEMADDR.  If WRITE is non-zero, transfer them to the target,
+   otherwise transfer them from the target.  TARGET is unused.
+
+   Returns the number of bytes transferred. */
+
 static int
-array_xfer_memory (memaddr, myaddr, len, write, target)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
-     int write;
-     struct target_ops *target;		/* ignored */
+array_xfer_memory (CORE_ADDR memaddr, char *myaddr, int len, int write,
+		   struct mem_attrib *attrib, struct target_ops *target)
 {
   if (write)
     return array_write_inferior_memory (memaddr, myaddr, len);
@@ -1054,11 +1004,9 @@ array_xfer_memory (memaddr, myaddr, len, write, target)
 }
 
 static void
-array_kill (args, from_tty)
-     char *args;
-     int from_tty;
+array_kill (char *args, int from_tty)
 {
-  return;		/* ignore attempts to kill target system */
+  return;			/* ignore attempts to kill target system */
 }
 
 /* Clean up when a program exits.
@@ -1067,7 +1015,7 @@ array_kill (args, from_tty)
    instructions.  */
 
 static void
-array_mourn_inferior ()
+array_mourn_inferior (void)
 {
   remove_breakpoints ();
   generic_mourn_inferior ();	/* Do all the proper things now */
@@ -1075,15 +1023,14 @@ array_mourn_inferior ()
 
 #define MAX_ARRAY_BREAKPOINTS 16
 
-static CORE_ADDR breakaddr[MAX_ARRAY_BREAKPOINTS] = {0};
+static CORE_ADDR breakaddr[MAX_ARRAY_BREAKPOINTS] =
+{0};
 
 /*
  * array_insert_breakpoint -- add a breakpoint
  */
 static int
-array_insert_breakpoint (addr, shadow)
-     CORE_ADDR addr;
-     char *shadow;
+array_insert_breakpoint (CORE_ADDR addr, char *shadow)
 {
   int i;
   int bp_size = 0;
@@ -1092,19 +1039,21 @@ array_insert_breakpoint (addr, shadow)
   debuglogs (1, "array_insert_breakpoint() addr = 0x%x", addr);
   BREAKPOINT_FROM_PC (&bp_addr, &bp_size);
 
-  for (i = 0; i <= MAX_ARRAY_BREAKPOINTS; i++) {
-    if (breakaddr[i] == 0) {
-      breakaddr[i] = addr;
-      if (sr_get_debug() > 4)
-	printf ("Breakpoint at %x\n", addr);
-      array_read_inferior_memory (bp_addr, shadow, bp_size);
-      printf_monitor("b 0x%x\n", addr);
-      expect_prompt(1);
-      return 0;
+  for (i = 0; i <= MAX_ARRAY_BREAKPOINTS; i++)
+    {
+      if (breakaddr[i] == 0)
+	{
+	  breakaddr[i] = addr;
+	  if (sr_get_debug () > 4)
+	    printf ("Breakpoint at %s\n", paddr_nz (addr));
+	  array_read_inferior_memory (bp_addr, shadow, bp_size);
+	  printf_monitor ("b 0x%x\n", addr);
+	  expect_prompt (1);
+	  return 0;
+	}
     }
-  }
 
-  fprintf(stderr, "Too many breakpoints (> 16) for monitor\n");
+  fprintf (stderr, "Too many breakpoints (> 16) for monitor\n");
   return 1;
 }
 
@@ -1112,63 +1061,62 @@ array_insert_breakpoint (addr, shadow)
  * _remove_breakpoint -- Tell the monitor to remove a breakpoint
  */
 static int
-array_remove_breakpoint (addr, shadow)
-     CORE_ADDR addr;
-     char *shadow;
+array_remove_breakpoint (CORE_ADDR addr, char *shadow)
 {
   int i;
 
   debuglogs (1, "array_remove_breakpoint() addr = 0x%x", addr);
 
-  for (i = 0; i < MAX_ARRAY_BREAKPOINTS; i++) {
-    if (breakaddr[i] == addr) {
-      breakaddr[i] = 0;
-      /* some monitors remove breakpoints based on the address */
-      printf_monitor("bd %x\n", i);
-      expect_prompt(1);
-      return 0;
+  for (i = 0; i < MAX_ARRAY_BREAKPOINTS; i++)
+    {
+      if (breakaddr[i] == addr)
+	{
+	  breakaddr[i] = 0;
+	  /* some monitors remove breakpoints based on the address */
+	  printf_monitor ("bd %x\n", i);
+	  expect_prompt (1);
+	  return 0;
+	}
     }
-  }
-  fprintf(stderr, "Can't find breakpoint associated with 0x%x\n", addr);
+  fprintf (stderr, "Can't find breakpoint associated with 0x%s\n",
+	   paddr_nz (addr));
   return 1;
 }
 
 static void
-array_stop ()
+array_stop (void)
 {
   debuglogs (1, "array_stop()");
-  printf_monitor("\003");
- expect_prompt(1);
+  printf_monitor ("\003");
+  expect_prompt (1);
 }
 
 /* 
  * array_command -- put a command string, in args, out to MONITOR.
- *	Output from MONITOR is placed on the users terminal until the
- *	expect_prompt is seen. FIXME
+ *      Output from MONITOR is placed on the users terminal until the
+ *      expect_prompt is seen. FIXME
  */
 static void
-monitor_command (args, fromtty)
-     char	*args;
-     int	fromtty;
+monitor_command (char *args, int fromtty)
 {
   debuglogs (1, "monitor_command (args=%s)", args);
 
   if (array_desc == NULL)
-    error("monitor target not open.");
+    error ("monitor target not open.");
 
   if (!args)
-    error("Missing command.");
-	
+    error ("Missing command.");
+
   printf_monitor ("%s\n", args);
-  expect_prompt(0);
+  expect_prompt (0);
 }
 
 /*
  * make_gdb_packet -- make a GDB packet. The data is always ASCII.
- *	 A debug packet whose contents are <data>
- *	 is encapsulated for transmission in the form:
+ *       A debug packet whose contents are <data>
+ *       is encapsulated for transmission in the form:
  *
- *		$ <data> # CSUM1 CSUM2
+ *              $ <data> # CSUM1 CSUM2
  *
  *       <data> must be ASCII alphanumeric and cannot include characters
  *       '$' or '#'.  If <data> starts with two characters followed by
@@ -1180,8 +1128,7 @@ monitor_command (args, fromtty)
  *
  */
 static void
-make_gdb_packet (buf, data)
-     char *buf, *data;
+make_gdb_packet (char *buf, char *data)
 {
   int i;
   unsigned char csum = 0;
@@ -1189,7 +1136,7 @@ make_gdb_packet (buf, data)
   char *p;
 
   debuglogs (3, "make_gdb_packet(%s)\n", data);
-  cnt  = strlen (data);
+  cnt = strlen (data);
   if (cnt > PBUFSIZ)
     error ("make_gdb_packet(): to much data\n");
 
@@ -1198,29 +1145,29 @@ make_gdb_packet (buf, data)
   *p++ = '$';
 
   /* calculate the checksum */
-  for (i = 0; i < cnt; i++) {
-    csum += data[i];
-    *p++ = data[i];
-  }
+  for (i = 0; i < cnt; i++)
+    {
+      csum += data[i];
+      *p++ = data[i];
+    }
 
   /* terminate the data with a '#' */
   *p++ = '#';
-  
+
   /* add the checksum as two ascii digits */
   *p++ = tohex ((csum >> 4) & 0xf);
   *p++ = tohex (csum & 0xf);
-  *p  = 0x0;			/* Null terminator on string */
+  *p = 0x0;			/* Null terminator on string */
 }
 
 /*
  * array_send_packet -- send a GDB packet to the target with error handling. We
- *		get a '+' (ACK) back if the packet is received and the checksum
- *		matches. Otherwise a '-' (NAK) is returned. It returns a 1 for a
- *		successful transmition, or a 0 for a failure.
+ *              get a '+' (ACK) back if the packet is received and the checksum
+ *              matches. Otherwise a '-' (NAK) is returned. It returns a 1 for a
+ *              successful transmition, or a 0 for a failure.
  */
 static int
-array_send_packet (packet)
-     char *packet;
+array_send_packet (char *packet)
 {
   int c, retries, i;
   char junk[PBUFSIZ];
@@ -1232,87 +1179,93 @@ array_send_packet (packet)
      this may sound silly, but sometimes a garbled packet will hang
      the target board. We scan the whole thing, then print the error
      message.
-     */
-  for (i = 0; i < strlen(packet); i++) {
-    debuglogs (5, "array_send_packet(): Scanning \'%c\'\n", packet[i]);
-    /* legit hex numbers or command */
-    if ((isxdigit(packet[i])) || (isalpha(packet[i])))
-      continue;
-    switch (packet[i]) {
-    case '+':			/* ACK */
-    case '-':			/* NAK */
-    case '#':			/* end of packet */
-    case '$':			/* start of packet */
-      continue;
-    default:			/* bogus character */
-      retries++;
-      debuglogs (4, "array_send_packet(): Found a non-ascii digit \'%c\' in the packet.\n", packet[i]);
+   */
+  for (i = 0; i < strlen (packet); i++)
+    {
+      debuglogs (5, "array_send_packet(): Scanning \'%c\'\n", packet[i]);
+      /* legit hex numbers or command */
+      if ((isxdigit (packet[i])) || (isalpha (packet[i])))
+	continue;
+      switch (packet[i])
+	{
+	case '+':		/* ACK */
+	case '-':		/* NAK */
+	case '#':		/* end of packet */
+	case '$':		/* start of packet */
+	  continue;
+	default:		/* bogus character */
+	  retries++;
+	  debuglogs (4, "array_send_packet(): Found a non-ascii digit \'%c\' in the packet.\n", packet[i]);
+	}
     }
-  }
-#endif  
+#endif
 
   if (retries > 0)
     error ("Can't send packet, found %d non-ascii characters", retries);
 
   /* ok, try to send the packet */
   retries = 0;
-  while (retries++ <= 10) {
-    printf_monitor ("%s", packet);
-    
-    /* read until either a timeout occurs (-2) or '+' is read */
-    while (retries <= 10) {
-      c = readchar (-timeout);
-      debuglogs (3, "Reading a GDB protocol packet... Got a '%c'\n", c);
-      switch (c) {
-      case '+':
-	debuglogs (3, "Got Ack\n");
-	return 1;
-      case SERIAL_TIMEOUT:
-	debuglogs (3, "Timed out reading serial port\n");
-	printf_monitor("@");		/* resync with the monitor */
-       expect_prompt(1);		/* See if we get a expect_prompt */   
-	break;            /* Retransmit buffer */
-      case '-':
-	debuglogs (3, "Got NAK\n");
-	printf_monitor("@");		/* resync with the monitor */
-       expect_prompt(1);		/* See if we get a expect_prompt */   
-	break;
-      case '$':
-	/* it's probably an old response, or the echo of our command.
-	 * just gobble up the packet and ignore it.
-	 */
-	debuglogs (3, "Got a junk packet\n");
-	i = 0;
-	do {
-	  c = readchar (timeout);
-	  junk[i++] = c;
-	} while (c != '#');
-	c = readchar (timeout);
-	junk[i++] = c;
-	c = readchar (timeout);
-	junk[i++] = c;
-	junk[i++] = '\0';
-	debuglogs (3, "Reading a junk packet, got a \"%s\"\n", junk);
-	continue;               /* Now, go look for next packet */
-      default:
-	continue;
-      }
-      retries++;
-      debuglogs (3, "Retransmitting packet \"%s\"\n", packet);
-      break;                /* Here to retransmit */
-    }
-  } /* outer while */
+  while (retries++ <= 10)
+    {
+      printf_monitor ("%s", packet);
+
+      /* read until either a timeout occurs (-2) or '+' is read */
+      while (retries <= 10)
+	{
+	  c = readchar (-timeout);
+	  debuglogs (3, "Reading a GDB protocol packet... Got a '%c'\n", c);
+	  switch (c)
+	    {
+	    case '+':
+	      debuglogs (3, "Got Ack\n");
+	      return 1;
+	    case SERIAL_TIMEOUT:
+	      debuglogs (3, "Timed out reading serial port\n");
+	      printf_monitor ("@");	/* resync with the monitor */
+	      expect_prompt (1);	/* See if we get a expect_prompt */
+	      break;		/* Retransmit buffer */
+	    case '-':
+	      debuglogs (3, "Got NAK\n");
+	      printf_monitor ("@");	/* resync with the monitor */
+	      expect_prompt (1);	/* See if we get a expect_prompt */
+	      break;
+	    case '$':
+	      /* it's probably an old response, or the echo of our command.
+	       * just gobble up the packet and ignore it.
+	       */
+	      debuglogs (3, "Got a junk packet\n");
+	      i = 0;
+	      do
+		{
+		  c = readchar (timeout);
+		  junk[i++] = c;
+		}
+	      while (c != '#');
+	      c = readchar (timeout);
+	      junk[i++] = c;
+	      c = readchar (timeout);
+	      junk[i++] = c;
+	      junk[i++] = '\0';
+	      debuglogs (3, "Reading a junk packet, got a \"%s\"\n", junk);
+	      continue;		/* Now, go look for next packet */
+	    default:
+	      continue;
+	    }
+	  retries++;
+	  debuglogs (3, "Retransmitting packet \"%s\"\n", packet);
+	  break;		/* Here to retransmit */
+	}
+    }				/* outer while */
   return 0;
 }
 
 /*
  * array_get_packet -- get a GDB packet from the target. Basically we read till we
- *		see a '#', then check the checksum. It returns a 1 if it's gotten a
- *		packet, or a 0 it the packet wasn't transmitted correctly.
+ *              see a '#', then check the checksum. It returns a 1 if it's gotten a
+ *              packet, or a 0 it the packet wasn't transmitted correctly.
  */
 static int
-array_get_packet (packet)
-     char *packet;
+array_get_packet (char *packet)
 {
   int c;
   int retries;
@@ -1325,96 +1278,105 @@ array_get_packet (packet)
 
   memset (packet, 1, PBUFSIZ);
   retries = 0;
-  while (retries <= 10) {
-    do {
-      c = readchar (timeout);
-      if (c == SERIAL_TIMEOUT) {
-	debuglogs (3, "array_get_packet: got time out from serial port.\n");
-      }
-      debuglogs (3, "Waiting for a '$', got a %c\n", c);
-    } while (c != '$');
-    
-    retries = 0;
-    while (retries <= 10) {
-      c = readchar (timeout);
-      debuglogs (3, "array_get_packet: got a '%c'\n", c);
-      switch (c) {
-      case SERIAL_TIMEOUT:
-	debuglogs (3, "Timeout in mid-packet, retrying\n");
-	return 0;
-      case '$':
-	debuglogs (3, "Saw new packet start in middle of old one\n");
-	return 0;             /* Start a new packet, count retries */
-      case '#':	
-	*bp = '\0';
-	pktcsum = from_hex (readchar (timeout)) << 4;
-	pktcsum |= from_hex (readchar (timeout));
-	if (csum == 0)
-	  debuglogs (3, "\nGDB packet checksum zero, must be a bogus packet\n");
-	if (csum == pktcsum) {
-	  debuglogs (3, "\nGDB packet checksum correct, packet data is \"%s\",\n", packet);
-	  printf_monitor ("@");
-	 expect_prompt (1);
-	  return 1;
+  while (retries <= 10)
+    {
+      do
+	{
+	  c = readchar (timeout);
+	  if (c == SERIAL_TIMEOUT)
+	    {
+	      debuglogs (3, "array_get_packet: got time out from serial port.\n");
+	    }
+	  debuglogs (3, "Waiting for a '$', got a %c\n", c);
 	}
-	debuglogs (3, "Bad checksum, sentsum=0x%x, csum=0x%x\n", pktcsum, csum);
-	return 0;
-      case '*':               /* Run length encoding */
-	debuglogs (5, "Run length encoding in packet\n");
-	csum += c;
-	c = readchar (timeout);
-	csum += c;
-	c = c - ' ' + 3;      /* Compute repeat count */
-	
-	if (c > 0 && c < 255 && bp + c - 1 < packet + PBUFSIZ - 1) {
-	  memset (bp, *(bp - 1), c);
-	  bp += c;
-	  continue;
+      while (c != '$');
+
+      retries = 0;
+      while (retries <= 10)
+	{
+	  c = readchar (timeout);
+	  debuglogs (3, "array_get_packet: got a '%c'\n", c);
+	  switch (c)
+	    {
+	    case SERIAL_TIMEOUT:
+	      debuglogs (3, "Timeout in mid-packet, retrying\n");
+	      return 0;
+	    case '$':
+	      debuglogs (3, "Saw new packet start in middle of old one\n");
+	      return 0;		/* Start a new packet, count retries */
+	    case '#':
+	      *bp = '\0';
+	      pktcsum = from_hex (readchar (timeout)) << 4;
+	      pktcsum |= from_hex (readchar (timeout));
+	      if (csum == 0)
+		debuglogs (3, "\nGDB packet checksum zero, must be a bogus packet\n");
+	      if (csum == pktcsum)
+		{
+		  debuglogs (3, "\nGDB packet checksum correct, packet data is \"%s\",\n", packet);
+		  printf_monitor ("@");
+		  expect_prompt (1);
+		  return 1;
+		}
+	      debuglogs (3, "Bad checksum, sentsum=0x%x, csum=0x%x\n", pktcsum, csum);
+	      return 0;
+	    case '*':		/* Run length encoding */
+	      debuglogs (5, "Run length encoding in packet\n");
+	      csum += c;
+	      c = readchar (timeout);
+	      csum += c;
+	      c = c - ' ' + 3;	/* Compute repeat count */
+
+	      if (c > 0 && c < 255 && bp + c - 1 < packet + PBUFSIZ - 1)
+		{
+		  memset (bp, *(bp - 1), c);
+		  bp += c;
+		  continue;
+		}
+	      *bp = '\0';
+	      printf_filtered ("Repeat count %d too large for buffer.\n", c);
+	      return 0;
+
+	    default:
+	      if ((!isxdigit (c)) && (!ispunct (c)))
+		debuglogs (4, "Got a non-ascii digit \'%c\'.\\n", c);
+	      if (bp < packet + PBUFSIZ - 1)
+		{
+		  *bp++ = c;
+		  csum += c;
+		  continue;
+		}
+
+	      *bp = '\0';
+	      puts_filtered ("Remote packet too long.\n");
+	      return 0;
+	    }
 	}
-	*bp = '\0';
-	printf_filtered ("Repeat count %d too large for buffer.\n", c);
-	return 0;
-	
-      default:
-	if ((!isxdigit(c)) && (!ispunct(c)))
-	  debuglogs (4, "Got a non-ascii digit \'%c\'.\\n", c);
-	if (bp < packet + PBUFSIZ - 1) {
-	  *bp++ = c;
-	  csum += c;
-	  continue;
-	}
-	
-	*bp = '\0';
-	puts_filtered ("Remote packet too long.\n");
-	return 0;
-      }
     }
-  }
-  return 0; /* exceeded retries */
+  return 0;			/* exceeded retries */
 }
 
 /*
  * ascii2hexword -- convert an ascii number represented by 8 digits to a hex value.
  */
 static unsigned long
-ascii2hexword (mem)
-     unsigned char *mem;
+ascii2hexword (unsigned char *mem)
 {
   unsigned long val;
   int i;
   char buf[9];
 
   val = 0;
-  for (i = 0; i < 8; i++) {
-    val <<= 4;
-    if (mem[i] >= 'A' && mem[i] <= 'F')
-      val = val + mem[i] - 'A' + 10;      
-    if (mem[i] >= 'a' && mem[i] <= 'f')
-      val = val + mem[i] - 'a' + 10;
-    if (mem[i] >= '0' && mem[i] <= '9')
-      val = val + mem[i] - '0';
-    buf[i] = mem[i];
-  }
+  for (i = 0; i < 8; i++)
+    {
+      val <<= 4;
+      if (mem[i] >= 'A' && mem[i] <= 'F')
+	val = val + mem[i] - 'A' + 10;
+      if (mem[i] >= 'a' && mem[i] <= 'f')
+	val = val + mem[i] - 'a' + 10;
+      if (mem[i] >= '0' && mem[i] <= '9')
+	val = val + mem[i] - '0';
+      buf[i] = mem[i];
+    }
   buf[8] = '\0';
   debuglogs (4, "ascii2hexword() got a 0x%x from %s(%x).\n", val, buf, mem);
   return val;
@@ -1422,67 +1384,65 @@ ascii2hexword (mem)
 
 /*
  * ascii2hexword -- convert a hex value to an ascii number represented by 8
- *	digits.
+ *      digits.
  */
 static void
-hexword2ascii (mem, num)
-     unsigned char *mem;
-     unsigned long num;
+hexword2ascii (unsigned char *mem, unsigned long num)
 {
   int i;
   unsigned char ch;
-  
+
   debuglogs (4, "hexword2ascii() converting %x ", num);
-  for (i = 7; i >= 0; i--) {    
-    mem[i] = tohex ((num >> 4) & 0xf);
-    mem[i] = tohex (num & 0xf);
-    num = num >> 4;
-  }
+  for (i = 7; i >= 0; i--)
+    {
+      mem[i] = tohex ((num >> 4) & 0xf);
+      mem[i] = tohex (num & 0xf);
+      num = num >> 4;
+    }
   mem[8] = '\0';
   debuglogs (4, "\tto a %s", mem);
 }
 
 /* Convert hex digit A to a number.  */
 static int
-from_hex (a)
-     int a;
-{  
+from_hex (int a)
+{
   if (a == 0)
     return 0;
 
-  debuglogs (4, "from_hex got a 0x%x(%c)\n",a,a);
+  debuglogs (4, "from_hex got a 0x%x(%c)\n", a, a);
   if (a >= '0' && a <= '9')
     return a - '0';
   if (a >= 'a' && a <= 'f')
     return a - 'a' + 10;
   if (a >= 'A' && a <= 'F')
     return a - 'A' + 10;
-  else {
-    error ("Reply contains invalid hex digit 0x%x", a);
-  }
+  else
+    {
+      error ("Reply contains invalid hex digit 0x%x", a);
+    }
 }
 
 /* Convert number NIB to a hex digit.  */
 static int
-tohex (nib)
-     int nib;
+tohex (int nib)
 {
   if (nib < 10)
-    return '0'+nib;
+    return '0' + nib;
   else
-    return 'a'+nib-10;
+    return 'a' + nib - 10;
 }
 
 /*
  * _initialize_remote_monitors -- setup a few addtitional commands that
- *		are usually only used by monitors.
+ *              are usually only used by monitors.
  */
 void
-_initialize_remote_monitors ()
+_initialize_remote_monitors (void)
 {
   /* generic monitor command */
   add_com ("monitor", class_obscure, monitor_command,
-	   "Send a command to the debug monitor."); 
+	   "Send a command to the debug monitor.");
 
 }
 
@@ -1490,8 +1450,8 @@ _initialize_remote_monitors ()
  * _initialize_array -- do any special init stuff for the target.
  */
 void
-_initialize_array ()
+_initialize_array (void)
 {
-  init_array_ops() ;
+  init_array_ops ();
   add_target (&array_ops);
 }

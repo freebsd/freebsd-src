@@ -1,27 +1,31 @@
 /* Target machine definitions for GDB on a Sequent Symmetry under dynix 3.0,
    with Weitek 1167 and i387 support.
-   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994
+   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1995
    Free Software Foundation, Inc.
    Symmetry version by Jay Vosburgh (fubar@sequent.com).
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef TM_SYMMETRY_H
 #define TM_SYMMETRY_H 1
+
+#include "regcache.h"
+#include "doublest.h"
 
 /* I don't know if this will work for cross-debugging, even if you do get
    a copy of the right include file.  */
@@ -40,7 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #if 0
 /* --- this code can't be used unless we know we are running native,
-       since it uses host specific ptrace calls. */
+   since it uses host specific ptrace calls. */
 /* code for 80387 fpu.  Functions are from i386-dep.c, copied into
  * symm-dep.c.
  */
@@ -62,7 +66,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    break mysteriously for no apparent reason.  Also note that the st(0)...
    st(7) 387 registers are represented as st0...st7.  */
 
-#undef  REGISTER_NAMES
+#undef REGISTER_NAME
 #define REGISTER_NAMES {     "eax",  "edx",  "ecx",   "st0",  "st1", \
 			     "ebx",  "esi",  "edi",   "st2",  "st3", \
 			     "st4",  "st5",  "st6",   "st7",  "esp", \
@@ -101,16 +105,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Get %fp2 - %fp31 by addition, since they are contiguous */
 
 #undef  SP_REGNUM
-#define SP_REGNUM 14	/* (usp) Contains address of top of stack */
+#define SP_REGNUM 14		/* (usp) Contains address of top of stack */
 #define ESP_REGNUM 14
 #undef  FP_REGNUM
-#define FP_REGNUM 15	/* (ebp) Contains address of executing stack frame */
+#define FP_REGNUM 15		/* (ebp) Contains address of executing stack frame */
 #define EBP_REGNUM 15
 #undef  PC_REGNUM
-#define PC_REGNUM 16	/* (eip) Contains program counter */
+#define PC_REGNUM 16		/* (eip) Contains program counter */
 #define EIP_REGNUM 16
 #undef  PS_REGNUM
-#define PS_REGNUM 17	/* (ps)  Contains processor status */
+#define PS_REGNUM 17		/* (ps)  Contains processor status */
 #define EFLAGS_REGNUM 17
 
 /*
@@ -264,8 +268,8 @@ switch (regno) { \
 #undef REGISTER_CONVERT_TO_VIRTUAL
 #define REGISTER_CONVERT_TO_VIRTUAL(REGNUM,TYPE,FROM,TO) \
 { \
-  double val; \
-  floatformat_to_double (&floatformat_i387_ext, (FROM), &val); \
+  DOUBLEST val; \
+  floatformat_to_doublest (&floatformat_i387_ext, (FROM), &val); \
   store_floating ((TO), TYPE_LENGTH (TYPE), val); \
 }
 
@@ -275,8 +279,8 @@ switch (regno) { \
 #undef REGISTER_CONVERT_TO_RAW
 #define REGISTER_CONVERT_TO_RAW(TYPE,REGNUM,FROM,TO) \
 { \
-  double val = extract_floating ((FROM), TYPE_LENGTH (TYPE)); \
-  floatformat_from_double (&floatformat_i387_ext, &val, (TO)); \
+  DOUBLEST val = extract_floating ((FROM), TYPE_LENGTH (TYPE)); \
+  floatformat_from_doublest (&floatformat_i387_ext, &val, (TO)); \
 }
 
 /* Return the GDB type object for the "standard" data type
@@ -296,6 +300,7 @@ switch (regno) { \
    passes it on the stack.  gcc should be fixed in future versions to
    adopt native cc conventions.  */
 
+#undef  PUSH_ARGUMENTS
 #undef  STORE_STRUCT_RETURN
 #define STORE_STRUCT_RETURN(ADDR, SP) write_register(0, (ADDR))
 
@@ -317,5 +322,4 @@ switch (regno) { \
 /* Offset to saved PC in sigcontext, from <signal.h>.  */
 #define SIGCONTEXT_PC_OFFSET 16
 
-#endif	/* ifndef TM_SYMMETRY_H */
-
+#endif /* ifndef TM_SYMMETRY_H */

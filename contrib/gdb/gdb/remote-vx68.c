@@ -1,40 +1,40 @@
 /* 68k-dependent portions of the RPC protocol
    used with a VxWorks target 
 
-Contributed by Wind River Systems.
+   Contributed by Wind River Systems.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include "defs.h"
 
-#include "vx-share/regPacket.h"  
+#include "vx-share/regPacket.h"
 #include "frame.h"
 #include "inferior.h"
-#include "wait.h"
 #include "target.h"
 #include "gdbcore.h"
 #include "command.h"
 #include "symtab.h"
 #include "symfile.h"		/* for struct complaint */
+#include "regcache.h"
 
 #include "gdb_string.h"
 #include <errno.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -76,8 +76,7 @@ extern void net_write_registers ();
    it is ignored.  FIXME look at regno to improve efficiency.  */
 
 void
-vx_read_register (regno)
-     int regno;
+vx_read_register (int regno)
 {
   char mc68k_greg_packet[MC68K_GREG_PLEN];
   char mc68k_fpreg_packet[MC68K_FPREG_PLEN];
@@ -125,8 +124,7 @@ vx_read_register (regno)
    it is ignored.  FIXME look at regno to improve efficiency.  */
 
 void
-vx_write_register (regno)
-     int regno;
+vx_write_register (int regno)
 {
   char mc68k_greg_packet[MC68K_GREG_PLEN];
   char mc68k_fpreg_packet[MC68K_FPREG_PLEN];

@@ -1,5 +1,8 @@
 /* Remote debugging interface for Tandem ST2000 phone switch, for GDB.
-   Copyright 1990, 1991, 1992 Free Software Foundation, Inc.
+
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000,
+   2001, 2002 Free Software Foundation, Inc.
+
    Contributed by Cygnus Support.  Written by Jim Kingdon for Cygnus.
 
    This file is part of GDB.
@@ -38,11 +41,10 @@
 #include "defs.h"
 #include "gdbcore.h"
 #include "target.h"
-#include "gdb_wait.h"
-#include <signal.h>
 #include "gdb_string.h"
 #include <sys/types.h>
 #include "serial.h"
+#include "regcache.h"
 
 extern struct target_ops st2000_ops;	/* Forward declaration */
 
@@ -61,7 +63,7 @@ static int timeout = 24;
    st2000_open knows that we don't have a file open when the program
    starts.  */
 
-static serial_t st2000_desc;
+static struct serial *st2000_desc;
 
 /* Send data to stdebug.  Works just like printf. */
 
@@ -76,20 +78,19 @@ printf_stdebug (char *pattern,...)
   vsprintf (buf, pattern, args);
   va_end (args);
 
-  if (SERIAL_WRITE (st2000_desc, buf, strlen (buf)))
-    fprintf (stderr, "SERIAL_WRITE failed: %s\n", safe_strerror (errno));
+  if (serial_write (st2000_desc, buf, strlen (buf)))
+    fprintf (stderr, "serial_write failed: %s\n", safe_strerror (errno));
 }
 
 /* Read a character from the remote system, doing all the fancy timeout
    stuff.  */
 
 static int
-readchar (timeout)
-     int timeout;
+readchar (int timeout)
 {
   int c;
 
-  c = SERIAL_READCHAR (st2000_desc, timeout);
+  c = serial_readchar (st2000_desc, timeout);
 
 #ifdef LOG_FILE
   putc (c & 0x7f, log_file);
@@ -113,14 +114,12 @@ readchar (timeout)
    non-zero, then discard non-matching input, else print it out.
    Let the user break out immediately.  */
 static void
-expect (string, discard)
-     char *string;
-     int discard;
+expect (char *string, int discard)
 {
   char *p = string;
   int c;
 
-  immediate_quit = 1;
+  immediate_quit++;
   while (1)
     {
       c = readchar (timeout);
@@ -128,7 +127,7 @@ expect (string, discard)
 	{
 	  if (*p == '\0')
 	    {
-	      immediate_quit = 0;
+	      immediate_quit--;
 	      return;
 	    }
 	}
@@ -160,8 +159,7 @@ expect (string, discard)
    necessary to prevent getting into states from which we can't
    recover.  */
 static void
-expect_prompt (discard)
-     int discard;
+expect_prompt (int discard)
 {
 #if defined (LOG_FILE)
   /* This is a convenient place to do this.  The idea is to do it often
@@ -174,8 +172,7 @@ expect_prompt (discard)
 /* Get a hex digit from the remote system & return its value.
    If ignore_space is nonzero, ignore spaces (not newline, tab, etc).  */
 static int
-get_hex_digit (ignore_space)
-     int ignore_space;
+get_hex_digit (int ignore_space)
 {
   int ch;
   while (1)
@@ -200,8 +197,7 @@ get_hex_digit (ignore_space)
 /* Get a byte from stdebug and put it in *BYT.  Accept any number
    leading spaces.  */
 static void
-get_hex_byte (byt)
-     char *byt;
+get_hex_byte (char *byt)
 {
   int val;
 
@@ -213,9 +209,7 @@ get_hex_byte (byt)
 /* Get N 32-bit words from remote, each preceded by a space,
    and put them in registers starting at REGNO.  */
 static void
-get_hex_regs (n, regno)
-     int n;
-     int regno;
+get_hex_regs (int n, int regno)
 {
   long val;
   int i;
@@ -234,10 +228,7 @@ get_hex_regs (n, regno)
 /* This is called not only when we first attach, but also when the
    user types "run" after having attached.  */
 static void
-st2000_create_inferior (execfile, args, env)
-     char *execfile;
-     char *args;
-     char **env;
+st2000_create_inferior (char *execfile, char *args, char **env)
 {
   int entry_pt;
 
@@ -276,9 +267,7 @@ static int baudrate = 9600;
 static char dev_name[100];
 
 static void
-st2000_open (args, from_tty)
-     char *args;
-     int from_tty;
+st2000_open (char *args, int from_tty)
 {
   int n;
   char junk[100];
@@ -293,14 +282,18 @@ or target st2000 <host> <port>\n");
 
   st2000_close (0);
 
-  st2000_desc = SERIAL_OPEN (dev_name);
+  st2000_desc = serial_open (dev_name);
 
   if (!st2000_desc)
     perror_with_name (dev_name);
 
-  SERIAL_SETBAUDRATE (st2000_desc, baudrate);
+  if (serial_setbaudrate (st2000_desc, baudrate))
+    {
+      serial_close (dev_name);
+      perror_with_name (dev_name);
+    }
 
-  SERIAL_RAW (st2000_desc);
+  serial_raw (st2000_desc);
 
   push_target (&st2000_ops);
 
@@ -323,10 +316,9 @@ or target st2000 <host> <port>\n");
 /* Close out all files and local state before this target loses control. */
 
 static void
-st2000_close (quitting)
-     int quitting;
+st2000_close (int quitting)
 {
-  SERIAL_CLOSE (st2000_desc);
+  serial_close (st2000_desc);
 
 #if defined (LOG_FILE)
   if (log_file)
@@ -343,8 +335,7 @@ st2000_close (quitting)
    Use this when you want to detach and do something else
    with your gdb.  */
 static void
-st2000_detach (from_tty)
-     int from_tty;
+st2000_detach (int from_tty)
 {
   pop_target ();		/* calls st2000_close to do the real work */
   if (from_tty)
@@ -354,9 +345,7 @@ st2000_detach (from_tty)
 /* Tell the remote machine to resume.  */
 
 static void
-st2000_resume (pid, step, sig)
-     int pid, step;
-     enum target_signal sig;
+st2000_resume (ptid_t ptid, int step, enum target_signal sig)
 {
   if (step)
     {
@@ -375,9 +364,8 @@ st2000_resume (pid, step, sig)
 /* Wait until the remote machine stops, then return,
    storing status in STATUS just as `wait' would.  */
 
-static int
-st2000_wait (status)
-     struct target_waitstatus *status;
+static ptid_t
+st2000_wait (ptid_t ptid, struct target_waitstatus *status)
 {
   int old_timeout = timeout;
 
@@ -393,7 +381,7 @@ st2000_wait (status)
 
   timeout = old_timeout;
 
-  return 0;
+  return inferior_ptid;
 }
 
 /* Return the name of register number REGNO in the form input and output by
@@ -401,8 +389,7 @@ st2000_wait (status)
    STDEBUG wants.  Lets take advantage of that just as long as possible! */
 
 static char *
-get_reg_name (regno)
-     int regno;
+get_reg_name (int regno)
 {
   static char buf[50];
   const char *p;
@@ -420,7 +407,7 @@ get_reg_name (regno)
 /* Read the remote registers into the block REGS.  */
 
 static void
-st2000_fetch_registers ()
+st2000_fetch_registers (void)
 {
   int regno;
 
@@ -434,8 +421,7 @@ st2000_fetch_registers ()
 /* Fetch register REGNO, or all registers if REGNO is -1.
    Returns errno value.  */
 static void
-st2000_fetch_register (regno)
-     int regno;
+st2000_fetch_register (int regno)
 {
   if (regno == -1)
     st2000_fetch_registers ();
@@ -454,7 +440,7 @@ st2000_fetch_register (regno)
 /* Store the remote registers from the contents of the block REGS.  */
 
 static void
-st2000_store_registers ()
+st2000_store_registers (void)
 {
   int regno;
 
@@ -467,8 +453,7 @@ st2000_store_registers ()
 /* Store register REGNO, or all if REGNO == 0.
    Return errno value.  */
 static void
-st2000_store_register (regno)
-     int regno;
+st2000_store_register (int regno)
 {
   if (regno == -1)
     st2000_store_registers ();
@@ -488,13 +473,13 @@ st2000_store_register (regno)
    debugged.  */
 
 static void
-st2000_prepare_to_store ()
+st2000_prepare_to_store (void)
 {
   /* Do nothing, since we can store individual regs */
 }
 
 static void
-st2000_files_info ()
+st2000_files_info (void)
 {
   printf ("\tAttached to %s at %d baud.\n",
 	  dev_name, baudrate);
@@ -503,10 +488,7 @@ st2000_files_info ()
 /* Copy LEN bytes of data from debugger memory at MYADDR
    to inferior's memory at MEMADDR.  Returns length moved.  */
 static int
-st2000_write_inferior_memory (memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     unsigned char *myaddr;
-     int len;
+st2000_write_inferior_memory (CORE_ADDR memaddr, unsigned char *myaddr, int len)
 {
   int i;
 
@@ -521,10 +503,7 @@ st2000_write_inferior_memory (memaddr, myaddr, len)
 /* Read LEN bytes from inferior memory at MEMADDR.  Put the result
    at debugger address MYADDR.  Returns length moved.  */
 static int
-st2000_read_inferior_memory (memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
+st2000_read_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len)
 {
   int i;
 
@@ -575,14 +554,16 @@ st2000_read_inferior_memory (memaddr, myaddr, len)
   return len;
 }
 
-/* FIXME-someday!  Merge these two.  */
+/* Transfer LEN bytes between GDB address MYADDR and target address
+   MEMADDR.  If WRITE is non-zero, transfer them to the target,
+   otherwise transfer them from the target.  TARGET is unused.
+
+   Returns the number of bytes transferred. */
+
 static int
-st2000_xfer_inferior_memory (memaddr, myaddr, len, write, target)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
-     int write;
-     struct target_ops *target;	/* ignored */
+st2000_xfer_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len,
+			     int write, struct mem_attrib *attrib,
+			     struct target_ops *target)
 {
   if (write)
     return st2000_write_inferior_memory (memaddr, myaddr, len);
@@ -591,9 +572,7 @@ st2000_xfer_inferior_memory (memaddr, myaddr, len, write, target)
 }
 
 static void
-st2000_kill (args, from_tty)
-     char *args;
-     int from_tty;
+st2000_kill (char *args, int from_tty)
 {
   return;			/* Ignore attempts to kill target system */
 }
@@ -605,7 +584,7 @@ st2000_kill (args, from_tty)
    instructions.  */
 
 static void
-st2000_mourn_inferior ()
+st2000_mourn_inferior (void)
 {
   remove_breakpoints ();
   unpush_target (&st2000_ops);
@@ -618,9 +597,7 @@ static CORE_ADDR breakaddr[MAX_STDEBUG_BREAKPOINTS] =
 {0};
 
 static int
-st2000_insert_breakpoint (addr, shadow)
-     CORE_ADDR addr;
-     char *shadow;
+st2000_insert_breakpoint (CORE_ADDR addr, char *shadow)
 {
   int i;
   CORE_ADDR bp_addr = addr;
@@ -644,9 +621,7 @@ st2000_insert_breakpoint (addr, shadow)
 }
 
 static int
-st2000_remove_breakpoint (addr, shadow)
-     CORE_ADDR addr;
-     char *shadow;
+st2000_remove_breakpoint (CORE_ADDR addr, char *shadow)
 {
   int i;
 
@@ -669,9 +644,7 @@ st2000_remove_breakpoint (addr, shadow)
    on the users terminal until the prompt is seen. */
 
 static void
-st2000_command (args, fromtty)
-     char *args;
-     int fromtty;
+st2000_command (char *args, int fromtty)
 {
   if (!st2000_desc)
     error ("st2000 target not open.");
@@ -689,19 +662,17 @@ st2000_command (args, fromtty)
 /*static struct ttystate ttystate; */
 
 static void
-cleanup_tty ()
+cleanup_tty (void)
 {
   printf ("\r\n[Exiting connect mode]\r\n");
-/*  SERIAL_RESTORE(0, &ttystate); */
+/*  serial_restore(0, &ttystate); */
 }
 
 #if 0
 /* This all should now be in serial.c */
 
 static void
-connect_command (args, fromtty)
-     char *args;
-     int fromtty;
+connect_command (char *args, int fromtty)
 {
   fd_set readfds;
   int numfds;
@@ -729,7 +700,7 @@ connect_command (args, fromtty)
       do
 	{
 	  FD_SET (0, &readfds);
-	  FD_SET (DEPRECATED_SERIAL_FD (st2000_desc), &readfds);
+	  FD_SET (deprecated_serial_fd (st2000_desc), &readfds);
 	  numfds = select (sizeof (readfds) * 8, &readfds, 0, 0, 0);
 	}
       while (numfds == 0);
@@ -764,7 +735,7 @@ connect_command (args, fromtty)
 	    }
 	}
 
-      if (FD_ISSET (DEPRECATED_SERIAL_FD (st2000_desc), &readfds))
+      if (FD_ISSET (deprecated_serial_fd (st2000_desc), &readfds))
 	{
 	  while (1)
 	    {
@@ -841,7 +812,6 @@ the speed to connect at in bits per second.";
   st2000_ops.to_thread_alive = 0;	/* thread alive */
   st2000_ops.to_stop = 0;	/* to_stop */
   st2000_ops.to_pid_to_exec_file = NULL;
-  st2000_run_ops.to_core_file_to_sym_file = NULL;
   st2000_ops.to_stratum = process_stratum;
   st2000_ops.DONT_USE = 0;	/* next */
   st2000_ops.to_has_all_memory = 1;
@@ -855,7 +825,7 @@ the speed to connect at in bits per second.";
 };
 
 void
-_initialize_remote_st2000 ()
+_initialize_remote_st2000 (void)
 {
   init_st2000_ops ();
   add_target (&st2000_ops);

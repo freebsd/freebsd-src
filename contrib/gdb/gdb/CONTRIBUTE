@@ -21,7 +21,7 @@ package. We welcome all of the above and feel free to ask on the GDB
 mailing lists if you are looking for feedback or for people to review
 a work in progress.
 
-Ref: http://sourceware.cygnus.com/gdb
+Ref: http://www.gnu.org/software/gdb/
 
 Finally, there are certain legal requirements and style issues which
 all contributors need to be aware of.
@@ -29,58 +29,29 @@ all contributors need to be aware of.
 o	Coding Standards
 
 	All contributions must conform to the GNU Coding Standard.
-	http://www.gnu.ai.mit.edu/prep/standards_toc.html
 	Submissions which do not conform to the standards will be
 	returned with a request to reformat the changes.
 
-	For GDB, that standard is more tightly defined. GDB's
-	coding standard is determined by the output of
-	gnu-indent.
+	GDB has certain additional coding requirements.  Those
+	requirements are explained in the GDB internals documentation
+	in the gdb/doc directory.
 
-	This situation came about because, by the start of '99,
-	GDB's coding style was so bad an inconsistent that it was
-	decided to restart things from scratch.
+	Ref: http://www.gnu.org/prep/standards_toc.html
 
 
 o	Copyright Assignment
 
-	There are certain legal requirements 
-
 	Before we can accept code contributions from you, we need a
-	copyright assignment form filled out.
+	copyright assignment form filled out and filed with the FSF.
 
-	If you've developed some addition or patch to GDB that you
-	would like to contribute, you should fill out a copyright
-	assignment form and send it in to the FSF. We are unable to
-	use code from you until this is on-file at the FSF, so get
-	that paperwork in!  This form covers one batch of changes.
-	Ref: http://gcc.gnu.org/fsf-forms/assignment-instructions.html
+	See some documentation by the FSF for details and contact us
+	(either via the GDB mailing list or the GDB maintainer that is
+	taking care of your contributions) to obtain the relevant
+	forms.
 
-	If you think you're going to be doing continuing work on GDB, it
-	would be easier to use a different form, which arranges to
-	assign the copyright for all your future changes to GDB. It is
-	called assign.future. Please note that if you switch
-	employers, the new employer will need to fill out the
-	disclaim.future form; there is no need to fill out the
-	assign.future form again.
-	Ref: http://gcc.gnu.org/fsf-forms/assign.future
-	Ref: http://gcc.gnu.org/fsf-forms/disclaim.future
+	Small changes can be accepted without a copyright assignment form on file.
 
-	There are several other forms you can fill out for different
-	circumstances (e.g. to contribute an entirely new program, to
-	contribute significant changes to a manual, etc.)
-	Ref: http://gcc.gnu.org/fsf-forms/copyrights.html
-
-	Small changes can be accepted without a copyright assignment
-	form on file.
-
-	This is pretty confusing! If you are unsure of what is
-	necessary, just ask the GDB mailing list and we'll figure out
-	what is best for you.
-
-	Note: Many of these forms have a place for "name of
-	program". Insert the name of one program in that place -- in
-	this case, "GDB".
+	Ref: http://www.gnu.org/prep/maintain.html#SEC6
 
 
 o	Submitting Patches
@@ -98,18 +69,17 @@ o	Submitting Patches
 	unlike some other projects, we do require ChangeLogs also for
 	documentation (i.e., .texi files).
 
-	The patch itself. If you are accessing the CVS repository at:
-	Cygnus, use "cvs update; cvs diff -c3p"; else, use "diff -c3p
-	OLD NEW" or "diff -up OLD NEW". If your version of diff does
-	not support these options, then get the latest version of GNU
-	diff.
+	The patch itself. If you are accessing the CVS repository use
+	"cvs update; cvs diff -cp"; else, use "diff -cp OLD NEW" or
+	"diff -up OLD NEW". If your version of diff does not support
+	these options, then get the latest version of GNU diff.
 
 	We accept patches as plain text (preferred for the compilers
 	themselves), MIME attachments (preferred for the web pages),
 	or as uuencoded gzipped text.
 
 	When you have all these pieces, bundle them up in a mail
-	message and send it to gdb-patches@sourceware.cygnus.com. All
+	message and send it to gdb-patches@sources.redhat.com. All
 	patches and related discussion should be sent to the
 	gdb-patches mailinglist. For further information on the GDB
 	CVS repository, see the Anonymous read-only CVS access and
@@ -151,3 +121,23 @@ o	If ``gdb/configure.in'' is modified then you don't
 
 	The maintainer will re-generate those files
 	using autoconf (2.13 as of 2000-02-29).
+
+
+o	If ``gdb/gdbarch.sh'' is modified, you don't
+	need to include patches to the generated files
+	``gdbarch.h'' and ``gdbarch.c''.
+
+	See ``gdb/configure.in'' above.
+
+
+o	When submitting a patch that fixes a bug
+	in GDB's bug database a brief reference
+	to the bug can be included in the ChangeLog
+	vis
+
+	* CONTRIBUTE: Mention PR convention.
+	Fix PR gdb/4705.
+
+	The text ``PR gdb/4705'' should also be included
+	in the CVS commit message.  That causes the
+	patch to automatically be archived with the PR.

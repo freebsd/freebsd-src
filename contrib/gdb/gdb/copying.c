@@ -5,17 +5,15 @@
 #include "command.h"
 #include "gdbcmd.h"
 
-static void show_copying_command PARAMS ((char *, int));
+static void show_copying_command (char *, int);
 
-static void show_warranty_command PARAMS ((char *, int));
+static void show_warranty_command (char *, int);
 
-void _initialize_copying PARAMS ((void));
+void _initialize_copying (void);
 
 extern int immediate_quit;
 static void
-show_copying_command (ignore, from_tty)
-     char *ignore;
-     int from_tty;
+show_copying_command (char *ignore, int from_tty)
 {
   immediate_quit++;
   printf_filtered ("		    GNU GENERAL PUBLIC LICENSE\n");
@@ -279,9 +277,7 @@ show_copying_command (ignore, from_tty)
 }
 
 static void
-show_warranty_command (ignore, from_tty)
-     char *ignore;
-     int from_tty;
+show_warranty_command (char *ignore, int from_tty)
 {
   immediate_quit++;
   printf_filtered ("			    NO WARRANTY\n");
@@ -310,7 +306,7 @@ show_warranty_command (ignore, from_tty)
 }
 
 void
-_initialize_copying ()
+_initialize_copying (void)
 {
   add_cmd ("copying", no_class, show_copying_command,
 	   "Conditions for redistributing copies of GDB.",
