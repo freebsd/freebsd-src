@@ -48,17 +48,18 @@
 	 | (PNP_HEXTONUM(s[5]) << 28))
 
 typedef int pnp_scan_cb(device_t dev, u_char tag, u_char *res, int len,
-			struct isa_config *config, int ldn);
+    struct isa_config *config, int ldn);
 
-char *pnp_eisaformat(u_int32_t id);
-void pnp_printf(u_int32_t id, char *fmt, ...);
+char *pnp_eisaformat(uint32_t id);
+void pnp_printf(uint32_t id, char *fmt, ...);
 void pnp_parse_resources(device_t dev, u_char *resources, int len, int ldn);
 u_char *pnp_parse_dependant(device_t dev, u_char *resources, int len,
-			    struct isa_config *config, int ldn);
+    struct isa_config *config, int ldn);
 u_char *pnp_scan_resources(device_t dev, u_char *resources, int len,
-			   struct isa_config *config, int ldn, pnp_scan_cb *cb);
+    struct isa_config *config, int ldn, pnp_scan_cb *cb);
 
-void pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn, struct isa_config *config);
+void pnp_check_quirks(uint32_t vendor_id, uint32_t logical_id, int ldn,
+    struct isa_config *config);
 
 #endif /* _KERNEL */
 

@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 typedef struct _pnp_id {
-	u_int32_t vendor_id;
-	u_int32_t serial;
+	uint32_t vendor_id;
+	uint32_t serial;
 	u_char checksum;
 } pnp_id;
 
@@ -52,8 +52,8 @@ struct pnp_set_config_arg {
 };
 
 struct pnp_quirk {
-	u_int32_t vendor_id;	/* Vendor of the card */
-	u_int32_t logical_id;	/* ID of the device with quirk */
+	uint32_t vendor_id;	/* Vendor of the card */
+	uint32_t logical_id;	/* ID of the device with quirk */
 	int	type;
 #define PNP_QUIRK_WRITE_REG	1 /* Need to write a pnp register  */
 #define PNP_QUIRK_EXTRA_IO	2 /* Has extra io ports  */
@@ -112,9 +112,9 @@ static int    pnp_get_serial(pnp_id *p);
 static int    pnp_isolation_protocol(device_t parent);
 
 char *
-pnp_eisaformat(u_int32_t id)
+pnp_eisaformat(uint32_t id)
 {
-	u_int8_t *data = (u_int8_t *) &id;
+	uint8_t *data = (uint8_t *) &id;
 	static char idbuf[8];
 	const char  hextoascii[] = "0123456789abcdef";
 
@@ -179,17 +179,15 @@ pnp_get_serial(pnp_id *p)
 		DELAY(250);	/* Delay 250 usec */
 
 		valid = valid || bit;
-
 		if (i < 64)
 			sum = (sum >> 1) |
-				(((sum ^ (sum >> 1) ^ bit) << 7) & 0xff);
-
+			  (((sum ^ (sum >> 1) ^ bit) << 7) & 0xff);
 		data[i / 8] = (data[i / 8] >> 1) | (bit ? 0x80 : 0);
 	}
 
 	valid = valid && (data[8] == sum);
 
-	return valid;
+	return (valid);
 }
 
 /*
@@ -212,7 +210,7 @@ pnp_get_resource_info(u_char *buffer, int len)
 		}
 		if (j == 100) {
 			printf("PnP device failed to report resource data\n");
-			return count;
+			return (count);
 		}
 		outb(_PNP_ADDRESS, PNP_RESOURCE_DATA);
 		temp = inb((pnp_rd_port << 2) | 0x3);
@@ -220,7 +218,7 @@ pnp_get_resource_info(u_char *buffer, int len)
 			buffer[i] = temp;
 		count++;
 	}
-	return count;
+	return (count);
 }
 
 /*
@@ -250,28 +248,32 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 	 * Constrain the number of resources we will try to program
 	 */
 	if (config->ic_nmem > ISA_PNP_NMEM) {
-	    printf("too many ISA memory ranges (%d > %d)\n", config->ic_nmem, ISA_PNP_NMEM);
-	    config->ic_nmem = ISA_PNP_NMEM;
+		printf("too many ISA memory ranges (%d > %d)\n",
+		    config->ic_nmem, ISA_PNP_NMEM);
+		config->ic_nmem = ISA_PNP_NMEM;
 	}
 	if (config->ic_nport > ISA_PNP_NPORT) {
-	    printf("too many ISA I/O ranges (%d > %d)\n", config->ic_nport, ISA_PNP_NPORT);
-	    config->ic_nport = ISA_PNP_NPORT;
+		printf("too many ISA I/O ranges (%d > %d)\n", config->ic_nport,
+		    ISA_PNP_NPORT);
+		config->ic_nport = ISA_PNP_NPORT;
 	}
 	if (config->ic_nirq > ISA_PNP_NIRQ) {
-	    printf("too many ISA IRQs (%d > %d)\n", config->ic_nirq, ISA_PNP_NIRQ);
-	    config->ic_nirq = ISA_PNP_NIRQ;
+		printf("too many ISA IRQs (%d > %d)\n", config->ic_nirq,
+		    ISA_PNP_NIRQ);
+		config->ic_nirq = ISA_PNP_NIRQ;
 	}
 	if (config->ic_ndrq > ISA_PNP_NDRQ) {
-	    printf("too many ISA DRQs (%d > %d)\n", config->ic_ndrq, ISA_PNP_NDRQ);
-	    config->ic_ndrq = ISA_PNP_NDRQ;
+		printf("too many ISA DRQs (%d > %d)\n", config->ic_ndrq,
+		    ISA_PNP_NDRQ);
+		config->ic_ndrq = ISA_PNP_NDRQ;
 	}
 
 	/*
 	 * Now program the resources.
 	 */
 	for (i = 0; i < config->ic_nmem; i++) {
-		u_int32_t start;
-		u_int32_t size;
+		uint32_t start;
+		uint32_t size;
 
 		/* XXX: should handle memory control register, 32 bit memory */
 		if (config->ic_mem[i].ir_size == 0) {
@@ -298,7 +300,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 	}
 
 	for (i = 0; i < config->ic_nport; i++) {
-		u_int32_t start;
+		uint32_t start;
 
 		if (config->ic_port[i].ir_size == 0) {
 			pnp_write(PNP_IO_BASE_HIGH(i), 0);
@@ -366,14 +368,14 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
  * Process quirks for a logical device.. The card must be in Config state.
  */
 void
-pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn, struct isa_config *config)
+pnp_check_quirks(uint32_t vendor_id, uint32_t logical_id, int ldn,
+    struct isa_config *config)
 {
 	struct pnp_quirk *qp;
 
 	for (qp = &pnp_quirks[0]; qp->vendor_id; qp++) {
 		if (qp->vendor_id == vendor_id
-		    && (qp->logical_id == 0
-			|| qp->logical_id == logical_id)) {
+		    && (qp->logical_id == 0 || qp->logical_id == logical_id)) {
 			switch (qp->type) {
 			case PNP_QUIRK_WRITE_REG:
 				pnp_write(PNP_SET_LDN, ldn);
@@ -409,11 +411,11 @@ pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn, struct isa_
  */
 static int
 pnp_create_devices(device_t parent, pnp_id *p, int csn,
-		   u_char *resources, int len)
+    u_char *resources, int len)
 {
 	u_char tag, *resp, *resinfo, *startres = 0;
 	int large_len, scanning = len, retval = FALSE;
-	u_int32_t logical_id;
+	uint32_t logical_id;
 	device_t dev = 0;
 	int ldn = 0;
 	struct pnp_set_config_arg *csnldn;
@@ -485,8 +487,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			 */
 			if (startres) {
 				pnp_parse_resources(dev, startres,
-						    resinfo - startres - 1,
-						    ldn);
+				    resinfo - startres - 1, ldn);
 				dev = 0;
 				startres = 0;
 			}
@@ -502,37 +503,34 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 				device_set_desc_copy(dev, desc);
 			else
 				device_set_desc_copy(dev,
-						     pnp_eisaformat(logical_id));
+				    pnp_eisaformat(logical_id));
 			isa_set_vendorid(dev, p->vendor_id);
 			isa_set_serial(dev, p->serial);
 			isa_set_logicalid(dev, logical_id);
 			isa_set_configattr(dev,
-					   ISACFGATTR_CANDISABLE |
-					   ISACFGATTR_DYNAMIC);
+			    ISACFGATTR_CANDISABLE | ISACFGATTR_DYNAMIC);
 			csnldn = malloc(sizeof *csnldn, M_DEVBUF, M_NOWAIT);
 			if (!csnldn) {
-				device_printf(parent,
-					      "out of memory\n");
+				device_printf(parent, "out of memory\n");
 				scanning = 0;
 				break;
 			}
 			csnldn->csn = csn;
 			csnldn->ldn = ldn;
-			ISA_SET_CONFIG_CALLBACK(parent, dev,
-						pnp_set_config, csnldn);
+			ISA_SET_CONFIG_CALLBACK(parent, dev, pnp_set_config,
+			    csnldn);
 			ldn++;
 			startres = resp;
 			break;
 		    
 		case PNP_TAG_END:
 			if (!startres) {
-				device_printf(parent,
-					      "malformed resources\n");
+				device_printf(parent, "malformed resources\n");
 				scanning = 0;
 				break;
 			}
 			pnp_parse_resources(dev, startres,
-					    resinfo - startres - 1, ldn);
+			    resinfo - startres - 1, ldn);
 			dev = 0;
 			startres = 0;
 			scanning = 0;
@@ -544,7 +542,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 		}
 	}
 
-	return retval;
+	return (retval);
 }
 
 /*
@@ -571,7 +569,7 @@ pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
 		space = 1024;
 		resources = malloc(space, M_TEMP, M_NOWAIT);
 		if (!resources)
-			return ENOMEM;
+			return (ENOMEM);
 	}
 	
 	if (len + amount > space) {
@@ -581,7 +579,7 @@ pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
 		newres = malloc(space + extra, M_TEMP, M_NOWAIT);
 		if (!newres) {
 			/* XXX: free resources */
-			return ENOMEM;
+			return (ENOMEM);
 		}
 		bcopy(resources, newres, len);
 		free(resources, M_TEMP);
@@ -590,14 +588,14 @@ pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
 	}
 
 	if (pnp_get_resource_info(resources + len, amount) != amount)
-		return EINVAL;
+		return (EINVAL);
 	len += amount;
 
 	*resourcesp = resources;
 	*spacep = space;
 	*lenp = len;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -628,7 +626,7 @@ pnp_read_resources(u_char **resourcesp, int *spacep, int *lenp)
 			 * Small resource, read contents.
 			 */
 			error = pnp_read_bytes(PNP_SRES_LEN(tag),
-					       &resources, &space, &len);
+			    &resources, &space, &len);
 			if (error)
 				goto out;
 			if (PNP_SRES_NUM(tag) == PNP_TAG_END)
@@ -641,8 +639,8 @@ pnp_read_resources(u_char **resourcesp, int *spacep, int *lenp)
 			if (error)
 				goto out;
 			error = pnp_read_bytes(resources[len-2]
-					       + (resources[len-1] << 8),
-					       &resources, &space, &len);
+			    + (resources[len-1] << 8), &resources, &space,
+			    &len);
 			if (error)
 				goto out;
 		}
@@ -652,7 +650,7 @@ pnp_read_resources(u_char **resourcesp, int *spacep, int *lenp)
 	*resourcesp = resources;
 	*spacep = space;
 	*lenp = len;
-	return error;
+	return (error);
 }
 
 /*
@@ -731,26 +729,23 @@ pnp_isolation_protocol(device_t parent)
 			}
 			if (necpnp) {
 				if (bootverbose)
-					printf("It seems to NEC-PnP card (%s).\n",
-					       pnp_eisaformat(id.vendor_id));
+					printf("An NEC-PnP card (%s).\n",
+					    pnp_eisaformat(id.vendor_id));
 				/*  Read dummy 9 bytes serial area. */
 				pnp_get_resource_info(buffer, 9);
 			} else {
 				if (bootverbose)
-					printf("It seems to Normal-ISA-PnP card (%s).\n",
-					       pnp_eisaformat(id.vendor_id));
+					printf("A Normal-ISA-PnP card (%s).\n",
+					    pnp_eisaformat(id.vendor_id));
 			}
 			if (bootverbose)
 				printf("Reading PnP configuration for %s.\n",
-				       pnp_eisaformat(id.vendor_id));
+				    pnp_eisaformat(id.vendor_id));
 #endif
-			error = pnp_read_resources(&resources,
-						   &space,
-						   &len);
+			error = pnp_read_resources(&resources, &space, &len);
 			if (error)
 				break;
-			pnp_create_devices(parent, &id, csn,
-					   resources, len);
+			pnp_create_devices(parent, &id, csn, resources, len);
 			found++;
 		} else
 			break;
@@ -776,7 +771,7 @@ pnp_isolation_protocol(device_t parent)
 	if (resources)
 		free(resources, M_TEMP);
 
-	return found;
+	return (found);
 }
 
 
@@ -798,7 +793,8 @@ pnp_identify(driver_t *driver, device_t parent)
 	/* Try various READ_DATA ports from 0x203-0x3ff */
 	for (pnp_rd_port = 0x80; (pnp_rd_port < 0xff); pnp_rd_port += 0x10) {
 		if (bootverbose)
-			printf("Trying Read_Port at %x\n", (pnp_rd_port << 2) | 0x3);
+			printf("Trying Read_Port at %x\n",
+			    (pnp_rd_port << 2) | 0x3);
 
 		num_pnp_devs = pnp_isolation_protocol(parent);
 		if (num_pnp_devs)
