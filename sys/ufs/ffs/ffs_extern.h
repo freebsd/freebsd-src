@@ -81,6 +81,7 @@ void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
 vfs_statfs_t ffs_statfs;
 vfs_sync_t ffs_sync;
+int	ffs_syncvnode(struct vnode *vp, int waitfor);
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 vfs_unmount_t ffs_unmount;
 int	ffs_update(struct vnode *, int);
@@ -118,7 +119,7 @@ void	softdep_setup_allocindir_meta(struct buf *, struct inode *,
 void	softdep_setup_allocindir_page(struct inode *, ufs_lbn_t,
 	    struct buf *, int, ufs2_daddr_t, ufs2_daddr_t, struct buf *);
 void	softdep_fsync_mountdev(struct vnode *);
-int	softdep_sync_metadata(struct vop_fsync_args *);
+int	softdep_sync_metadata(struct vnode *);
 int	softdep_disk_prewrite(struct buf *bp);
 /* XXX incorrectly moved to mount.h - should be indirect function */
 #if 0

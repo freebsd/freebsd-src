@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ffs/ffs_extern.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -150,7 +151,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		if (bo->bo_dirty.bv_cnt > 0) {
 			splx(spl);
 			VI_UNLOCK(vp);
-			if ((error = VOP_FSYNC(vp, MNT_WAIT, td)) != 0) {
+			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0) {
 				if (upgraded != 0)
 					VOP_LOCK(vp, LK_DOWNGRADE, td);
 				return (error);
