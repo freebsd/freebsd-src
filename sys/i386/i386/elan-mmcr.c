@@ -329,7 +329,7 @@ init_AMD_Elan_sc520(void)
 	
 	new = 1189161;
 	i = kernel_sysctlbyname(&thread0, "machdep.i8254_freq", 
-	    NULL, 0, &new, sizeof new, NULL);
+	    NULL, 0, &new, sizeof new, NULL, 0);
 	if (bootverbose || 1)
 		printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
 
