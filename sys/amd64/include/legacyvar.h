@@ -40,4 +40,15 @@ LEGACY_ACCESSOR(pcibus,			PCIBUS,		u_int32_t)
 
 #undef LEGACY_ACCESSOR
 
+int	legacy_pcib_attach(device_t dev);
+int	legacy_pcib_maxslots(device_t dev);
+u_int32_t legacy_pcib_read_config(device_t dev, int bus, int slot, int func,
+    int reg, int bytes);
+int	legacy_pcib_read_ivar(device_t dev, device_t child, int which,
+    uintptr_t *result);
+void	legacy_pcib_write_config(device_t dev, int bus, int slot, int func,
+    int reg, u_int32_t data, int bytes);
+int	legacy_pcib_write_ivar(device_t dev, device_t child, int which,
+    uintptr_t value);
+
 #endif /* !_MACHINE_LEGACYVAR_H_ */
