@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36.2.2 1998/01/30 19:45:24 brian Exp $
+#	$Id: Makefile,v 1.36.2.3 1998/02/02 19:31:59 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c deflate.c \
@@ -41,3 +41,5 @@ chap_ms.o alias_cmd.o loadalias.o:
 .endif
 
 .include <bsd.prog.mk>
+
+STRIP=

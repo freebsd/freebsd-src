@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.7 1998/02/06 02:22:17 brian Exp $
+ * $Id: main.c,v 1.121.2.8 1998/02/06 02:22:45 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -186,8 +186,7 @@ Cleanup(int excode)
   DropClient(1);
   ServerClose();
   bundle_InterfaceDown(CleanupBundle);
-  link_Close(physical2link(pppVars.physical), 1); /* XXX gotta get a handle on
-                                                   * the logical link */
+  link_Close(physical2link(CleanupBundle->physical), 1);
   nointr_sleep(1);
   DeleteIfRoutes(CleanupBundle, 1);
   ID0unlink(pid_filename);
@@ -202,7 +201,7 @@ Cleanup(int excode)
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
   TtyOldMode();
-  link_Destroy(physical2link(pppVars.physical));
+  link_Destroy(physical2link(CleanupBundle->physical));
   LogClose();
 
   exit(excode);
@@ -372,12 +371,6 @@ main(int argc, char **argv)
   name = strrchr(argv[0], '/');
   LogOpen(name ? name + 1 : argv[0]);
 
-  pppVars.physical = modem_Create("modem");
-  if (pppVars.physical == NULL) {
-    LogPrintf(LogERROR, "Cannot create modem device: %s\n", strerror(errno));
-    return 1;
-  }
-
   tcgetattr(STDIN_FILENO, &oldtio);	/* Save original tty mode */
 
   argc--;
@@ -413,11 +406,6 @@ main(int argc, char **argv)
     return 1;
   }
 
-  if (!GetShortHost())
-    return 1;
-  IsInteractive(1);
-  IpcpDefAddress();
-
   if (mode & MODE_INTER)
     VarLocalAuth = LOCAL_AUTH;
 
@@ -425,6 +413,11 @@ main(int argc, char **argv)
     LogPrintf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }
+
+  if (!GetShortHost())
+    return 1;
+  IsInteractive(1);
+  IpcpDefAddress();
 
   CleanupBundle = bundle;
 
@@ -581,13 +574,13 @@ main(int argc, char **argv)
 void
 PacketMode(struct bundle *bundle, int delay)
 {
-  if (modem_Raw(pppVars.physical) < 0) {
+  if (modem_Raw(bundle->physical) < 0) {
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
     return;
   }
-  LcpInit(bundle, pppVars.physical);
-  IpcpInit(bundle, physical2link(pppVars.physical));
-  CcpInit(bundle, physical2link(pppVars.physical));
+  LcpInit(bundle, bundle->physical);
+  IpcpInit(bundle, physical2link(bundle->physical));
+  CcpInit(bundle, physical2link(bundle->physical));
   LcpUp();
 
   LcpOpen(delay);
@@ -653,7 +646,7 @@ ReadTty(struct bundle *bundle)
 	ttystate++;
       else
 	/* XXX missing return value check */
-	Physical_Write(pppVars.physical, &ch, n);
+	Physical_Write(bundle->physical, &ch, n);
       break;
     case 1:
       switch (ch) {
@@ -684,7 +677,7 @@ ReadTty(struct bundle *bundle)
 	  break;
 	}
       default:
-	if (Physical_Write(pppVars.physical, &ch, n) < 0)
+	if (Physical_Write(bundle->physical, &ch, n) < 0)
 	  LogPrintf(LogERROR, "error writing to modem.\n");
 	break;
       }
@@ -779,13 +772,13 @@ DoLoop(struct bundle *bundle)
 
   if (mode & MODE_DIRECT) {
     LogPrintf(LogDEBUG, "Opening modem\n");
-    if (modem_Open(pppVars.physical, bundle) < 0)
+    if (modem_Open(bundle->physical, bundle) < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
     PacketMode(bundle, VarOpenMode);
   } else if (mode & MODE_DEDICATED) {
-    if (!link_IsActive(physical2link(pppVars.physical)))
-      while (modem_Open(pppVars.physical, bundle) < 0)
+    if (!link_IsActive(physical2link(bundle->physical)))
+      while (modem_Open(bundle->physical, bundle) < 0)
 	nointr_sleep(VarReconnectTimer);
   }
   fflush(VarTerm);
@@ -840,8 +833,8 @@ DoLoop(struct bundle *bundle)
      */
     if (dial_up && RedialTimer.state != TIMER_RUNNING) {
       LogPrintf(LogDEBUG, "going to dial: modem = %d\n",
-		Physical_GetFD(pppVars.physical));
-      if (modem_Open(pppVars.physical, bundle) < 0) {
+		Physical_GetFD(bundle->physical));
+      if (modem_Open(bundle->physical, bundle) < 0) {
 	tries++;
 	if (!(mode & MODE_DDIAL) && VarDialTries)
 	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
@@ -866,7 +859,7 @@ DoLoop(struct bundle *bundle)
 	else
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
-	if ((res = modem_Dial(pppVars.physical, bundle)) == EX_DONE) {
+	if ((res = modem_Dial(bundle->physical, bundle)) == EX_DONE) {
 	  PacketMode(bundle, VarOpenMode);
 	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
@@ -896,20 +889,20 @@ DoLoop(struct bundle *bundle)
       }
     }
 
-    qlen = link_QueueLen(physical2link(pppVars.physical));
+    qlen = link_QueueLen(physical2link(bundle->physical));
     if (qlen == 0) {
-      IpStartOutput(physical2link(pppVars.physical));
-      qlen = link_QueueLen(physical2link(pppVars.physical));
+      IpStartOutput(physical2link(bundle->physical));
+      qlen = link_QueueLen(physical2link(bundle->physical));
     }
 
-    if (link_IsActive(physical2link(pppVars.physical))) {
+    if (link_IsActive(physical2link(bundle->physical))) {
       /* XXX-ML this should probably be abstracted */
-      if (Physical_GetFD(pppVars.physical) + 1 > nfds)
-	nfds = Physical_GetFD(pppVars.physical) + 1;
-      Physical_FD_SET(pppVars.physical, &rfds);
-      Physical_FD_SET(pppVars.physical, &efds);
+      if (Physical_GetFD(bundle->physical) + 1 > nfds)
+	nfds = Physical_GetFD(bundle->physical) + 1;
+      Physical_FD_SET(bundle->physical, &rfds);
+      Physical_FD_SET(bundle->physical, &efds);
       if (qlen > 0) {
-	Physical_FD_SET(pppVars.physical, &wfds);
+	Physical_FD_SET(bundle->physical, &wfds);
       }
     }
     if (server >= 0) {
@@ -976,7 +969,7 @@ DoLoop(struct bundle *bundle)
       break;
     }
     if ((netfd >= 0 && FD_ISSET(netfd, &efds)) ||
-	(Physical_FD_ISSET(pppVars.physical, &efds))) {
+	(Physical_FD_ISSET(bundle->physical, &efds))) {
       LogPrintf(LogALERT, "Exception detected.\n");
       break;
     }
@@ -1020,17 +1013,17 @@ DoLoop(struct bundle *bundle)
     if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
       ReadTty(bundle);
-    if (Physical_FD_ISSET(pppVars.physical, &wfds)) {
+    if (Physical_FD_ISSET(bundle->physical, &wfds)) {
       /* ready to write into modem */
-      link_StartOutput(physical2link(pppVars.physical));
-      if (!link_IsActive(physical2link(pppVars.physical)))
+      link_StartOutput(physical2link(bundle->physical));
+      if (!link_IsActive(physical2link(bundle->physical)))
         dial_up = 1;
     }
-    if (Physical_FD_ISSET(pppVars.physical, &rfds)) {
+    if (Physical_FD_ISSET(bundle->physical, &rfds)) {
       /* something to read from modem */
       if (LcpInfo.fsm.state <= ST_CLOSED)
 	nointr_usleep(10000);
-      n = Physical_Read(pppVars.physical, rbuff, sizeof rbuff);
+      n = Physical_Read(bundle->physical, rbuff, sizeof rbuff);
       if ((mode & MODE_DIRECT) && n <= 0) {
 	LcpDown();
       } else
@@ -1041,15 +1034,15 @@ DoLoop(struct bundle *bundle)
 	 * In dedicated mode, we just discard input until LCP is started.
 	 */
 	if (!(mode & MODE_DEDICATED)) {
-	  cp = HdlcDetect(pppVars.physical, rbuff, n);
+	  cp = HdlcDetect(bundle->physical, rbuff, n);
 	  if (cp) {
 	    /*
 	     * LCP packet is detected. Turn ourselves into packet mode.
 	     */
 	    if (cp != rbuff) {
 	      /* XXX missing return value checks */
-	      Physical_Write(pppVars.physical, rbuff, cp - rbuff);
-	      Physical_Write(pppVars.physical, "\r\n", 2);
+	      Physical_Write(bundle->physical, rbuff, cp - rbuff);
+	      Physical_Write(bundle->physical, "\r\n", 2);
 	    }
 	    PacketMode(bundle, 0);
 	  } else
@@ -1057,7 +1050,7 @@ DoLoop(struct bundle *bundle)
 	}
       } else {
 	if (n > 0)
-	  async_Input(bundle, rbuff, n, pppVars.physical);
+	  async_Input(bundle, rbuff, n, bundle->physical);
       }
     }
     if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {

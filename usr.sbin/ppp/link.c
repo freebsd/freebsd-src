@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.1 1998/01/30 19:45:49 brian Exp $
+ *  $Id: link.c,v 1.1.2.2 1998/02/06 02:22:43 brian Exp $
  *
  */
 
@@ -84,10 +84,8 @@ link_Dequeue(struct link *l)
   for (bp = (struct mbuf *)0, pri = LINK_QUEUES - 1; pri >= 0; pri--)
     if (l->Queue[pri].qlen) {
       bp = Dequeue(l->Queue + pri);
-      if (pri > PRI_NORMAL)
-        LogPrintf(LogDEBUG, "link_Dequeue: Output from queue %d,"
-                  " containing %d packets\n", pri, l->Queue[pri].qlen);
-      LogPrintf(LogDEBUG, "link_Dequeue: Dequeued from %d\n", pri);
+      LogPrintf(LogDEBUG, "link_Dequeue: Dequeued from queue %d,"
+                " containing %d more packets\n", pri, l->Queue[pri].qlen);
       break;
     }
 

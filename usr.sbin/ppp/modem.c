@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.5 1998/02/06 02:22:21 brian Exp $
+ * $Id: modem.c,v 1.77.2.6 1998/02/06 02:22:48 brian Exp $
  *
  *  TODO:
  */
@@ -60,6 +60,7 @@
 #include "chat.h"
 #include "throughput.h"
 #include "async.h"
+#include "bundle.h"
 
 #undef mode
 
@@ -472,6 +473,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
     struct cmdargs arg;
     arg.cmd = NULL;
     arg.data = (const void *)VAR_DEVICE;
+    arg.bundle = bundle;
     if (isatty(STDIN_FILENO)) {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is a tty\n");
       cp = ttyname(STDIN_FILENO);
@@ -824,15 +826,12 @@ modem_StartOutput(struct link *l)
 
   if (modem->out) {
     nb = modem->out->cnt;
-/* Eh ?  Removed 980130
-    if (nb > 1600)
-      nb = 1600;
-*/
     nw = write(modem->fd, MBUF_CTOP(modem->out), nb);
-    LogPrintf(LogDEBUG, "modem_StartOutput: wrote: %d(%d)\n", nw, nb);
-    LogDumpBuff(LogDEBUG, "modem_StartOutput: modem write",
-		MBUF_CTOP(modem->out), nb);
+    LogPrintf(LogDEBUG, "modem_StartOutput: wrote: %d(%d) to %d\n",
+              nw, nb, modem->fd);
     if (nw > 0) {
+      LogDumpBuff(LogDEBUG, "modem_StartOutput: modem write",
+		  MBUF_CTOP(modem->out), nw);
       modem->out->cnt -= nw;
       modem->out->offset += nw;
       if (modem->out->cnt == 0) {
@@ -843,7 +842,7 @@ modem_StartOutput(struct link *l)
       if (errno != EAGAIN) {
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
-	reconnect(RECON_TRUE);
+        reconnect(RECON_TRUE);
 	LcpDown();
       }
     }
@@ -874,7 +873,7 @@ modem_Dial(struct physical *modem, struct bundle *bundle)
       VarAltPhone = NULL;
       if (VarTerm)
 	fprintf(VarTerm, "login OK!\n");
-      to.modem = pppVars.physical;
+      to.modem = modem;
       to.bundle = bundle;
       modem_Timeout(&to);
       return EX_DONE;
@@ -899,7 +898,7 @@ int
 modem_ShowStatus(struct cmdargs const *arg)
 {
   const char *dev;
-  struct physical *modem = pppVars.physical;
+  struct physical *modem = arg->bundle->physical;
 #ifdef TIOCOUTQ
   int nb;
 #endif

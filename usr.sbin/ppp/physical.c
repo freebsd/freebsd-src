@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.3 1998/02/02 19:33:39 brian Exp $
+ *  $Id: physical.c,v 1.1.2.4 1998/02/06 02:22:27 brian Exp $
  *
  */
 
@@ -52,6 +52,7 @@
 #include "physical.h"
 
 #include "vars.h"
+#include "bundle.h"
 
 /* External calls - should possibly be moved inline */
 extern int IntToSpeed(int);
@@ -170,6 +171,6 @@ Physical_Write(struct physical *phys, const void *buf, size_t nbytes) {
 int
 Physical_ReportProtocolStatus(struct cmdargs const *arg)
 {
-  link_ReportProtocolStatus(&pppVars.physical->link);
+  link_ReportProtocolStatus(&arg->bundle->physical->link);
   return 0;
 }

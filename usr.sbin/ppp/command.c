@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.7 1998/02/02 19:33:34 brian Exp $
+ * $Id: command.c,v 1.131.2.8 1998/02/06 02:22:10 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -195,12 +195,12 @@ DialCommand(struct cmdargs const *arg)
     }
     if (VarTerm)
       fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
-    if (modem_Open(pppVars.physical, arg->bundle) < 0) {
+    if (modem_Open(arg->bundle->physical, arg->bundle) < 0) {
       if (VarTerm)
 	fprintf(VarTerm, "Failed to open modem.\n");
       break;
     }
-    if ((res = modem_Dial(pppVars.physical, arg->bundle)) == EX_DONE) {
+    if ((res = modem_Dial(arg->bundle->physical, arg->bundle)) == EX_DONE) {
       PacketMode(arg->bundle, VarOpenMode);
       break;
     } else if (res == EX_SIG)
@@ -847,7 +847,7 @@ TerminalCommand(struct cmdargs const *arg)
   }
   if (!IsInteractive(1))
     return (1);
-  if (modem_Open(pppVars.physical, arg->bundle) < 0) {
+  if (modem_Open(arg->bundle->physical, arg->bundle) < 0) {
     if (VarTerm)
       fprintf(VarTerm, "Failed to open modem.\n");
     return (1);
@@ -901,7 +901,7 @@ SetModemSpeed(struct cmdargs const *arg)
       return -1;
     }
     if (strcasecmp(*arg->argv, "sync") == 0) {
-      Physical_SetSync(pppVars.physical);
+      Physical_SetSync(arg->bundle->physical);
       return 0;
     }
     end = NULL;
@@ -910,7 +910,7 @@ SetModemSpeed(struct cmdargs const *arg)
       LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"", *arg->argv);
       return -1;
     }
-    if (Physical_SetSpeed(pppVars.physical, speed))
+    if (Physical_SetSpeed(arg->bundle->physical, speed))
       return 0;
     LogPrintf(LogWARN, "%s: Invalid speed\n", *arg->argv);
   } else
@@ -1092,7 +1092,7 @@ SetServer(struct cmdargs const *arg)
 static int
 SetModemParity(struct cmdargs const *arg)
 {
-  return arg->argc > 0 ? modem_SetParity(pppVars.physical, *arg->argv) : -1;
+  return arg->argc > 0 ? modem_SetParity(arg->bundle->physical, *arg->argv) : -1;
 }
 
 static int
@@ -1374,13 +1374,13 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_DEVICE:
     if (mode & MODE_INTER)
-      link_Close(physical2link(pppVars.physical), 0);
-    if (link_IsActive(physical2link(pppVars.physical)))
+      link_Close(physical2link(arg->bundle->physical), 0);
+    if (link_IsActive(physical2link(arg->bundle->physical)))
       LogPrintf(LogWARN,
 		"Cannot change device to \"%s\" when \"%s\" is open\n",
-                argp, Physical_GetDevice(pppVars.physical));
+                argp, Physical_GetDevice(arg->bundle->physical));
     else {
-      Physical_SetDevice(pppVars.physical, argp);
+      Physical_SetDevice(arg->bundle->physical, argp);
     }
     break;
   case VAR_ACCMAP:
@@ -1418,9 +1418,9 @@ SetCtsRts(struct cmdargs const *arg)
 	}
 
     if (strcmp(*arg->argv, "on") == 0)
-      Physical_SetRtsCts(pppVars.physical, 1);
+      Physical_SetRtsCts(arg->bundle->physical, 1);
     else if (strcmp(*arg->argv, "off") == 0)
-      Physical_SetRtsCts(pppVars.physical, 0);
+      Physical_SetRtsCts(arg->bundle->physical, 0);
     else
       return -1;
     return 0;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13 1998/01/21 02:15:21 brian Exp $
+ * $Id: mbuf.c,v 1.13.2.1 1998/01/30 19:45:54 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -179,7 +179,7 @@ Dequeue(struct mqueue *q)
 {
   struct mbuf *bp;
   
-  LogPrintf(LogDEBUG, "Dequeue: len = %d\n", q->qlen);
+  LogPrintf(LogDEBUG, "Dequeue: queue len = %d\n", q->qlen);
   bp = q->top;
   if (bp) {
     q->top = q->top->pnext;

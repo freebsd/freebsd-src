@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.1 1998/02/02 19:32:01 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.2 1998/02/02 19:33:00 brian Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,7 @@
 #include "route.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "modem.h"
 
 static int
 bundle_SetIpDevice(struct bundle *bundle, struct in_addr myaddr,
@@ -429,6 +430,12 @@ bundle_Create(const char *prefix)
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
+
+  bundle.physical = modem_Create("default");
+  if (bundle.physical == NULL) {
+    LogPrintf(LogERROR, "Cannot create modem device: %s\n", strerror(errno));
+    return NULL;
+  }
 
   return &bundle;
 }
