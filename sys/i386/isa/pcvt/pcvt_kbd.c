@@ -94,7 +94,7 @@ static void	setlockkeys ( int snc );
 #ifndef _I386_ISA_KBDIO_H_
 static int	kbc_8042cmd ( int val );
 #else
-static int 	set_keyboard( int command, int data );
+static int 	set_keyboard_param( int command, int data );
 #endif /* !_I386_ISA_KBDIO_H_ */
 static int	getokeydef ( unsigned key, struct kbd_ovlkey *thisdef );
 static int 	getckeydef ( unsigned key, struct kbd_ovlkey *thisdef );
@@ -301,7 +301,7 @@ update_led(void)
 		} else {
 			ledstate = LEDSTATE_UPDATE_PENDING;
 			splx(opri);
-			if (set_keyboard(KBDC_SET_LEDS, new_ledstate) == 0) 
+			if (set_keyboard_param(KBDC_SET_LEDS, new_ledstate) == 0) 
 				ledstate = new_ledstate;
 		}
 
@@ -338,7 +338,7 @@ settpmrate(int rate)
 		printf("Keyboard TYPEMATIC data timeout\n");
 #else
 	tpmrate = rate & 0x7f;
-	if (set_keyboard(KBDC_SET_TYPEMATIC, tpmrate) != 0)
+	if (set_keyboard_param(KBDC_SET_TYPEMATIC, tpmrate) != 0)
 		printf("pcvt: failed to set keyboard TYPEMATIC.\n");
 #endif /* !_I386_ISA_KBDIO_H_ */
 }
@@ -407,7 +407,7 @@ kbd_response(void)
 }
 #else
 static int
-set_keyboard(int command, int data)
+set_keyboard_param(int command, int data)
 {
     int s;
     int c;
@@ -421,11 +421,12 @@ set_keyboard(int command, int data)
 
     /* disable the keyboard and mouse interrupt */
     s = spltty();
+#if 0
     c = get_controller_command_byte(kbdc);
     if ((c == -1) 
 	|| !set_controller_command_byte(kbdc, 
             kbdc_get_device_mask(kbdc),
-            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+            KBD_DISBLE_KBD_PORT | KBD_DISABLE_KBD_INT
                 | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	/* CONTROLLER ERROR */
         kbdc_lock(kbdc, FALSE);
@@ -440,15 +441,21 @@ set_keyboard(int command, int data)
      * by the lock flag set via `kbdc_lock()'
      */
     splx(s);
+#endif
 
-    send_kbd_command_and_data(kbdc, command, data);
+    if (send_kbd_command_and_data(kbdc, command, data) != KBD_ACK)
+        send_kbd_command(kbdc, KBDC_ENABLE_KBD);
 
+#if 0
     /* restore the interrupts */
     if (!set_controller_command_byte(kbdc,
             kbdc_get_device_mask(kbdc),
 	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) { 
 	/* CONTROLLER ERROR */
     }
+#else
+    splx(s);
+#endif
     kbdc_lock(kbdc, FALSE);
 
     return 0;
@@ -716,11 +723,8 @@ r_entry:
 
 	/* disable the keyboard interrupt and the aux port and interrupt */
         if (!set_controller_command_byte(kbdc,
-                KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS 
-		    | KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK,
-                KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-                    | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT
-		    | KBDINITCMD)) {
+                KBD_KBD_CONTROL_BITS | KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK,
+                KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT | KBDINITCMD)) {
     		/* CONTROLLER ERROR: there is very little we can do... */
 		kbdc_set_device_mask(kbdc, m);
 		kbdc_lock(kbdc, FALSE);
@@ -794,9 +798,8 @@ r_entry:
 
 	/* enable the keyboard port and intr. */
 	if (!set_controller_command_byte(kbdc, 
-        	KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS, 
-    	    	(c & KBD_AUX_CONTROL_BITS) 
-    	            | KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
+        	KBD_KBD_CONTROL_BITS, 
+    	        KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
     		/* CONTROLLER ERROR 
     		 * This is serious; we are left with the disabled 
 		 * keyboard intr. 
