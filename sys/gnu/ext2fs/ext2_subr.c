@@ -51,9 +51,7 @@
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
 
-#include "opt_ddb.h"
-
-#ifdef DDB
+#ifdef KDB
 void	ext2_checkoverlap(struct buf *, struct inode *);
 #endif
 
@@ -91,7 +89,7 @@ ext2_blkatoff(vp, offset, res, bpp)
 	return (0);
 }
 
-#ifdef DDB
+#ifdef KDB
 void
 ext2_checkoverlap(bp, ip)
 	struct buf *bp;
@@ -120,4 +118,4 @@ ext2_checkoverlap(bp, ip)
 		panic("Disk buffer overlap");
 	}
 }
-#endif /* DDB */
+#endif /* KDB */
