@@ -1,0 +1,148 @@
+
+Installation of GLOBAL 2.0
+
+						3-Jul-1997 Shigio Yamaguchi
+---------------------------------------------------------------------------
+Guide line (C style)
+---------------------------------------------------------------------------
+
+if (Your system == FreeBSD) {
+	You are lucky!
+	You need not to do procedure "1. Preparation for generic UNIX".
+
+	switch (version) {
+	case 2.0.5R:
+	case 2.1.0R:
+	case 2.1.5R:
+		There is no problem.
+		break;
+	case 2.1.6R:
+	case 2.1.7R:
+		I don't know. But it seems same with 2.1.5R.
+		break;
+	case 2.2.1R:
+		It is OK. But your native nvi is version 1.71.
+		Use 1.79 nvi available on the Internet.
+		break;
+	case 2.2.2R:
+		Your system inlucdes GLOBAL 1.9. You can overwrite it
+		with this 2.0 package.
+		But skip procedure "3. Extended vi (OPTIONAL)", because
+		your /usr/bin/nvi is already extended nvi for GLOBAL.
+		break;
+	default:
+		I don't know. But it semms to be little problem.
+	}
+} else {
+	You may some error message to make GLOBAL.
+	But it seems not so difficult to clear it. If you make a patch for it,
+	please let me know. I would like to include your patch into new
+	version of GLOBAL.
+
+	Thank you in advance.
+}
+
+----------------------------------------------------------------------------
+Install procedure
+----------------------------------------------------------------------------
+
+0. Extracting
+
+	% tar xzvf global-2.0.tar.gz
+	% cd global-2.0
+
+1. Preparation for generic UNIX
+
+   If you are a FreeBSD (all version) user, nothing to do here.
+   Please go to "2. GLOBAL basic".
+
+   Otherwise, you must install following items before you install GLOBAL.
+
+   a) Generic makefile
+
+      This package includes generic makefile. Please do the followings.
+
+	% make -f Makefile.generic gen
+	% vi Makefile		<- check install directories (BINDIR, MANDIR)
+
+   b) BSD db library version 1.85
+
+      If you don't have it, you can fetch it from this site.
+
+	http://mongoose.bostic.com/db/packages/db.1.85.tar.gz
+
+   c) PERL version 4 or later
+
+      If you don't have it, you can fetch it from this site.
+
+	ftp://ftp.cis.ufl.edu/pub/perl/CPAN/src/5.0/latest.tar.gz
+
+      If you install perl into other than /usr/bin, please rewrite the header
+      of following commnads.
+ 
+	gtags/gtags.pl global/global.pl htags/htags.pl
+
+2. GLOBAL basic (NEEDED)
+
+   	% make
+   	# make install
+
+3. Extended vi (OPTIONAL)
+
+   GLOBAL supports two version of nvi. There is a little defference between
+   them when a number of functions located. (please see 'README' file.)
+   Version 1.34 nvi is included by FreeBSD 2.0.5R, 2.1.0R and 2.1.5R.
+   Version 1.79 nvi is available on
+
+	ftp://ftp.cs.berkeley.edu/ucb/4bsd/nvi-1.79.tar.gz.
+
+   If you don't have nvi-1.34, use nvi-1.79.
+
+   If you use version 1.34 nvi which is a native command in FreeBSD 2.0.5R,
+   2.1.0R or 2.1.5R then
+
+	% cp -r /usr/src/usr.bin/vi vi		<- version 1.34 of nex/nvi
+	% cd vi
+	% patch -p < ../nvi-1.34.diff
+	% make
+	# make install
+
+   else if you use version 1.79 nvi which is the latest version then
+   fetch from ftp://ftp.cs.berkeley.edu/ucb/4bsd/nvi-1.79.tar.gz and
+
+	% tar xzvf nvi-1.79.tar.gz
+	% cd nvi-1.79
+	% patch -p < ../nvi-1.79.diff
+	% cd build
+	% ./configure
+	% make
+	# make install
+
+        Caution: If you use FreeBSD 2.2.2R or later, your nvi is already
+		extended vi. Don't patch with nvi-1.79.diff.
+
+   else we have no patch for it.
+
+4. Extended emacs (OPTIONAL)
+
+   The version of Emacs supported by GLOBAL is GNU Emacs 19.28, 19.34 or
+   Mule 2.3 (= Emacs 19.28). Other emacs version seems to work well,
+   but I don't confirm it.
+
+   You can get it from 
+
+	Emacs 19.34b:
+		prep.ai.mit.edu/pub/gnu/emacs-19.34b.tar.gz
+	Mule 2.3:
+		ftp://ftp.cs.buffalo.edu/pub/mule/mule-2.3.tar.gz
+
+   If you are a FreeBSD user, install it from package.
+
+   If you have installed it, to use extended emacs, copy gtags.el
+   in this package to the emacs lisp library directory or place the file
+   in a directory (for example "~/lisp") and write $HOME/.emacs like this.
+
+	+-----------------------------------------------
+	|(setq load-path (cons "~/lisp" load-path))
+
+Good luck!
