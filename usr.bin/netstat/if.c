@@ -36,18 +36,20 @@
 static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 */
 static const char rcsid[] =
-	"$Id: if.c,v 1.24 1998/07/06 21:01:23 bde Exp $";
+	"$Id: if.c,v 1.25 1999/04/20 22:04:31 billf Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/bridge.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -75,6 +77,39 @@ static const char rcsid[] =
 
 static void sidewaysintpr __P((u_int, u_long));
 static void catchalarm __P((int));
+
+void
+bdg_stats(u_long dummy, char *name) /* print bridge statistics */
+{
+    int i, slen ;
+    struct bdg_stats s ;
+    int mib[4] ;
+
+    slen = sizeof(s);
+
+    mib[0] = CTL_NET ;
+    mib[1] = PF_LINK ;
+    mib[2] = IFT_ETHER ;
+    mib[3] = PF_BDG ;
+    if (sysctl(mib,4, &s,&slen,NULL,0)==-1)
+	return ; /* no bridging */
+    printf("-- Bridging statistics (%s) --\n", name) ;
+    printf(
+"Name          In      Out  Forward     Drop    Bcast    Mcast    Local  Unknown\n");
+    for (i = 0 ; i < 16 ; i++) {
+	if (s.s[i].name[0])
+	printf("%-6s %9d%9d%9d%9d%9d%9d%9d%9d\n",
+	  s.s[i].name,
+	  s.s[i].p_in[(int)BDG_IN],
+	  s.s[i].p_in[(int)BDG_OUT],
+	  s.s[i].p_in[(int)BDG_FORWARD],
+	  s.s[i].p_in[(int)BDG_DROP],
+	  s.s[i].p_in[(int)BDG_BCAST],
+	  s.s[i].p_in[(int)BDG_MCAST],
+	  s.s[i].p_in[(int)BDG_LOCAL],
+	  s.s[i].p_in[(int)BDG_UNKNOWN] );
+    }
+}
 
 /*
  * Print a description of the network interfaces.
