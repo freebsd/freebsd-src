@@ -118,7 +118,6 @@ exit1(p, rv)
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
 	struct exitlist *ep;
-	struct timeval new_switchtime;
 
 	if (p->p_pid == 1) {
 		printf("init died (signal %d, exit %d)\n",
@@ -327,10 +326,9 @@ exit1(p, rv)
 	 * counted somewhere if possible.
 	 */
 	mtx_lock_spin(&sched_lock);
-	microuptime(&new_switchtime);
-	PCPU_SET(switchtime, new_switchtime);
-	mtx_unlock_spin(&sched_lock);
+	microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * notify interested parties of our demise.
