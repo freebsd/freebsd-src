@@ -420,9 +420,9 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 		{""},
 	};
 #endif
-	static char *kernels[] = {
-#ifdef _PATH_UNIX
-		_PATH_UNIX,
+	char *kernels[] = {
+#if __FreeBSD__ > 2
+		(char *)getbootfile(),
 #endif
 		"/vmunix",
 		"/unix",

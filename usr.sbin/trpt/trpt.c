@@ -164,7 +164,7 @@ main(argc, argv)
 		setgid(getgid());
 	}
 	else
-		system = _PATH_UNIX;
+		system = (char *)getbootfile();
 
 	if (nlist(system, nl) < 0 || !nl[0].n_value) {
 		fprintf(stderr, "trpt: %s: no namelist\n", system);

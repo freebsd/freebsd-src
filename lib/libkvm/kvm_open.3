@@ -70,9 +70,8 @@ This file must contain a symbol table.
 If this argument is
 .Dv NULL ,
 the currently running system is assumed,
-which is indicated by
-.Dv _PATH_UNIX
-in <paths.h>.
+as determined from
+.Xr getbootfile 3 .
 .Pp
 .Fa corefile 
 is the kernel memory device file.  It can be either /dev/mem

@@ -121,7 +121,7 @@ int	 get_crashtime __P((void));
 void	 kmem_setup __P((void));
 void	 log __P((int, char *, ...));
 void	 Lseek __P((int, off_t, int));
-int	 Open __P((char *, int rw));
+int	 Open __P((const char *, int rw));
 int	 Read __P((int, void *, int));
 char	*rawname __P((char *s));
 void	 save_core __P((void));
@@ -202,7 +202,7 @@ kmem_setup()
 {
 	FILE *fp;
 	int kmem, i;
-	char *dump_sys;
+	const char *dump_sys;
 	
 	/*
 	 * Some names we need for the currently running system, others for
@@ -212,16 +212,17 @@ kmem_setup()
 	 * presumed to be the same (since the disk partitions are probably
 	 * the same!)
 	 */
-	if ((nlist(_PATH_UNIX, current_nl)) == -1)
-		syslog(LOG_ERR, "%s: nlist: %s", _PATH_UNIX, strerror(errno));
+	if ((nlist(getbootfile(), current_nl)) == -1)
+		syslog(LOG_ERR, "%s: nlist: %s", getbootfile(), 
+		       strerror(errno));
 	for (i = 0; cursyms[i] != -1; i++)
 		if (current_nl[cursyms[i]].n_value == 0) {
 			syslog(LOG_ERR, "%s: %s not in namelist",
-			    _PATH_UNIX, current_nl[cursyms[i]].n_name);
+			    getbootfile(), current_nl[cursyms[i]].n_name);
 			exit(1);
 		}
 
-	dump_sys = kernel ? kernel : _PATH_UNIX;
+	dump_sys = kernel ? kernel : getbootfile();
 	if ((nlist(dump_sys, dump_nl)) == -1)
 		syslog(LOG_ERR, "%s: nlist: %s", dump_sys, strerror(errno));
 	for (i = 0; dumpsyms[i] != -1; i++)
@@ -278,7 +279,7 @@ check_kmem()
 	if (strcmp(vers, core_vers) && kernel == 0)
 		syslog(LOG_WARNING,
 		    "warning: %s version mismatch:\n\t%s\nand\t%s\n",
-		    _PATH_UNIX, vers, core_vers);
+		    getbootfile(), vers, core_vers);
 	(void)fseek(fp,
 	    (off_t)(dumplo + ok(dump_nl[X_PANICSTR].n_value)), L_SET);
 	(void)fread(&panicstr, sizeof(panicstr), 1, fp);
@@ -413,7 +414,7 @@ err2:			syslog(LOG_WARNING,
 		(void)close(ofd);
 
 	/* Copy the kernel. */
-	ifd = Open(kernel ? kernel : _PATH_UNIX, O_RDONLY);
+	ifd = Open(kernel ? kernel : getbootfile(), O_RDONLY);
 	(void)snprintf(path, sizeof(path), "%s/kernel.%d%s",
 	    dirname, bounds, compress ? ".Z" : "");
 	if (compress) {
@@ -440,7 +441,7 @@ err2:			syslog(LOG_WARNING,
 	}
 	if (nr < 0) {
 		syslog(LOG_ERR, "%s: %s",
-		    kernel ? kernel : _PATH_UNIX, strerror(errno));
+		    kernel ? kernel : getbootfile(), strerror(errno));
 		syslog(LOG_WARNING,
 		    "WARNING: kernel may be incomplete");
 		exit(1);
@@ -532,13 +533,13 @@ int
 check_space()
 {
 	register FILE *fp;
-	char *tkernel;
+	const char *tkernel;
 	off_t minfree, spacefree, kernelsize, needed;
 	struct stat st;
 	struct statfs fsbuf;
 	char buf[100], path[MAXPATHLEN];
 
-	tkernel = kernel ? kernel : _PATH_UNIX;
+	tkernel = kernel ? kernel : getbootfile();
 	if (stat(tkernel, &st) < 0) {
 		syslog(LOG_ERR, "%s: %m", tkernel);
 		exit(1);
@@ -575,7 +576,7 @@ check_space()
 
 int
 Open(name, rw)
-	char *name;
+	const char *name;
 	int rw;
 {
 	int fd;

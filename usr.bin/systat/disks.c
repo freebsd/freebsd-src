@@ -110,7 +110,7 @@ dkinit()
 	}
 	NREAD(X_DK_NDRIVE, &dk_ndrive, LONG);
 	if (dk_ndrive <= 0) {
-		error("dk_ndrive=%d according to %s", dk_ndrive, _PATH_UNIX);
+		error("dk_ndrive=%d according to %s", dk_ndrive, getbootfile());
 		return(0);
 	}
 	dk_mspw = (float *)calloc(dk_ndrive, sizeof (float));
