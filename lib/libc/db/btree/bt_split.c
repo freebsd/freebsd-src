@@ -726,7 +726,7 @@ bt_psplit(t, h, l, r, pskip, ilen)
 	 * the right page.
 	 */
 	if (skip <= off) {
-		skip = 0;
+		skip = MAX_PAGE_OFFSET;
 		rval = l;
 	} else {
 		rval = r;
@@ -736,7 +736,7 @@ bt_psplit(t, h, l, r, pskip, ilen)
 	for (off = 0; nxt < top; ++off) {
 		if (skip == nxt) {
 			++off;
-			skip = 0;
+			skip = MAX_PAGE_OFFSET;
 		}
 		switch (h->flags & P_TYPE) {
 		case P_BINTERNAL:
