@@ -568,6 +568,13 @@ options 	IPSTEALTH		#support for stealth forwarding
 options 	PFIL_HOOKS
 options 	TCPDEBUG
 
+# MBUF_FRAG_TEST option allows you to tell the IP stack to
+# fragment all outgoing packets into mbuf fragments of size
+# net.inet.ip.mbuf_frag_size (bytes).  It is used for testing
+# if network drivers can properly handle long chains of mbufs.
+# The sysctl is '0' (no fragmentation) by default.
+options		MBUF_FRAG_TEST
+
 # RANDOM_IP_ID causes the ID field in IP packets to be randomized
 # instead of incremented by 1 with each packet generated.  This
 # option closes a minor information leak which allows remote
