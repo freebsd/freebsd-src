@@ -142,8 +142,6 @@ GNode          *VAR_CMD;      /* variables defined on the command-line */
 #define	OPEN_BRACE		'{'
 #define	CLOSE_BRACE		'}'
 
-static int VarPrintVar(void *, void *);
-
 /*
  * Create a Var object.
  *
@@ -2098,16 +2096,6 @@ Var_Init(void)
     VAR_CMD = Targ_NewGN("Command");
 }
 
-/****************** PRINT DEBUGGING INFO *****************/
-static int
-VarPrintVar(void *vp, void *dummy __unused)
-{
-    Var    *v = (Var *) vp;
-
-    printf("%-16s = %s\n", v->name, (char *)Buf_GetAll(v->val, (size_t *)NULL));
-    return (0);
-}
-
 /*-
  *-----------------------------------------------------------------------
  * Var_Dump --
@@ -2115,8 +2103,14 @@ VarPrintVar(void *vp, void *dummy __unused)
  *-----------------------------------------------------------------------
  */
 void
-Var_Dump(GNode *ctxt)
+Var_Dump(const GNode *ctxt)
 {
+	const LstNode	*ln;
+	const Var	*v;
 
-    Lst_ForEach(&ctxt->context, VarPrintVar, (void *)NULL);
+	LST_FOREACH(ln, &ctxt->context) {
+		v = Lst_Datum(ln);
+		printf("%-16s = %s\n", v->name,
+		    (const char *)Buf_GetAll(v->val, NULL));
+	}
 }
