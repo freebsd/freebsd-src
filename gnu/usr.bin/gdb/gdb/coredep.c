@@ -29,7 +29,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* These are needed on various systems to expand REGISTER_U_ADDR.  */
 #ifndef USG
-#include <sys/dir.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/user.h>

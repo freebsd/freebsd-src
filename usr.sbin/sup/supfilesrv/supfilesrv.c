@@ -42,6 +42,21 @@
  *	across the network to save BandWidth
  *
  * $Log: supfilesrv.c,v $
+ * Revision 1.5  1996/09/06 15:40:08  peter
+ * Rewrite part of the compression support so that it does not leave
+ * files in /var/tmp.  Sup needs to send the file size, so that
+ * prevents running gzip in a pipeline (sigh).
+ *
+ * It now opens a temporary file, and immediately unlinks it.  It sends
+ * gzip's output to the temp file, and when gzip is done, it rewinds the
+ * file and sends it. When the last fd is closed, the file storage is
+ * reclaimed.  With luck, this will stop those 15MB
+ * gzip < emacs-19.30.tgz > /var/tmp/tmp.xxxx files from being left behind
+ * and blowing out /var on freefall.
+ *
+ * While I have the platform, let me quote a fortune entry which sup reminds
+ * me of:  "It is a crock of sh!t, and it stinks!"
+ *
  * Revision 1.4  1996/02/06  19:03:58  pst
  * make setproctitle display smaller
  *
@@ -268,7 +283,6 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/file.h>
-#include <sys/dir.h>
 #if	MACH
 #include <sys/ioctl.h>
 #endif
