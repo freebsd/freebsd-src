@@ -69,6 +69,7 @@ static const char rcsid[] =
 #define	MNICHOST	"whois.ra.net"
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	SNICHOST	"whois.6bone.net"
+#define	BNICHOST	"whois.registro.br"
 #define	DEFAULT_PORT	"whois"
 #define	WHOIS_SERVER_ID	"Whois Server: "
 
@@ -77,7 +78,7 @@ static const char rcsid[] =
 
 #define ishost(h) (isalnum((unsigned char)h) || h == '.' || h == '-')
 
-const char *ip_whois[] = { RNICHOST, PNICHOST, NULL };
+const char *ip_whois[] = { RNICHOST, PNICHOST, BNICHOST, NULL };
 const char *port = DEFAULT_PORT;
 
 static char *choose_server(char *);
