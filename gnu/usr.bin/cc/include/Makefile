@@ -12,5 +12,4 @@ INCS=	ia64intrin.h
 
 .include <bsd.init.mk>
 .include <bsd.incs.mk>
-.include <bsd.dep.mk>
 .include <bsd.obj.mk>
