@@ -69,7 +69,6 @@ int	pfx;			/* Current leading blank count */
 int	lineno;			/* Current input line */
 int	mark;			/* Last place we saw a head line */
 
-char	*malloc();		/* for lint . . . */
 char	*headnames[] = {"To", "Subject", "Cc", 0};
 
 /*
