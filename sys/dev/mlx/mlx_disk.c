@@ -53,31 +53,7 @@ static int mlxd_probe(device_t dev);
 static int mlxd_attach(device_t dev);
 static int mlxd_detach(device_t dev);
 
-static	d_open_t	mlxd_open;
-static	d_close_t	mlxd_close;
-static	d_strategy_t	mlxd_strategy;
-static	d_ioctl_t	mlxd_ioctl;
-
-#define MLXD_CDEV_MAJOR	131
-
-static struct cdevsw mlxd_cdevsw = {
-		/* open */	mlxd_open,
-		/* close */	mlxd_close,
-		/* read */	physread,
-		/* write */	physwrite,
-		/* ioctl */	mlxd_ioctl,
-		/* poll */	nopoll,
-		/* mmap */	nommap,
-		/* strategy */	mlxd_strategy,
-		/* name */ 	"mlxd",
-		/* maj */	MLXD_CDEV_MAJOR,
-		/* dump */	nodump,
-		/* psize */ 	nopsize,
-		/* flags */	D_DISK,
-};
-
 devclass_t		mlxd_devclass;
-static struct cdevsw	mlxddisk_cdevsw;
 
 static device_method_t mlxd_methods[] = {
     DEVMETHOD(device_probe,	mlxd_probe),
@@ -95,9 +71,9 @@ static driver_t mlxd_driver = {
 DRIVER_MODULE(mlxd, mlx, mlxd_driver, mlxd_devclass, 0, 0);
 
 static int
-mlxd_open(dev_t dev, int flags, int fmt, struct thread *td)
+mlxd_open(struct disk *dp)
 {
-    struct mlxd_softc	*sc = (struct mlxd_softc *)dev->si_drv1;
+    struct mlxd_softc	*sc = (struct mlxd_softc *)dp->d_drv1;
 
     debug_called(1);
 	
@@ -108,19 +84,14 @@ mlxd_open(dev_t dev, int flags, int fmt, struct thread *td)
     if (sc->mlxd_controller->mlx_state & MLX_STATE_SHUTDOWN)
 	return(ENXIO);
 
-    sc->mlxd_disk.d_sectorsize = MLX_BLKSIZE;
-    sc->mlxd_disk.d_mediasize = MLX_BLKSIZE * (off_t)sc->mlxd_drive->ms_size;
-    sc->mlxd_disk.d_fwsectors = sc->mlxd_drive->ms_sectors;
-    sc->mlxd_disk.d_fwheads = sc->mlxd_drive->ms_heads;
-
     sc->mlxd_flags |= MLXD_OPEN;
     return (0);
 }
 
 static int
-mlxd_close(dev_t dev, int flags, int fmt, struct thread *td)
+mlxd_close(struct disk *dp)
 {
-    struct mlxd_softc	*sc = (struct mlxd_softc *)dev->si_drv1;
+    struct mlxd_softc	*sc = (struct mlxd_softc *)dp->d_drv1;
 
     debug_called(1);
 	
@@ -131,9 +102,9 @@ mlxd_close(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-mlxd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+mlxd_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 {
-    struct mlxd_softc	*sc = (struct mlxd_softc *)dev->si_drv1;
+    struct mlxd_softc	*sc = (struct mlxd_softc *)dp->d_drv1;
     int error;
 
     debug_called(1);
@@ -218,7 +189,6 @@ mlxd_attach(device_t dev)
     struct mlxd_softc	*sc = (struct mlxd_softc *)device_get_softc(dev);
     device_t		parent;
     char		*state;
-    dev_t		dsk;
     int			s1, s2;
     
     debug_called(1);
@@ -252,9 +222,16 @@ mlxd_attach(device_t dev)
 		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
 		      DEVSTAT_PRIORITY_ARRAY);
 
-    dsk = disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, &mlxd_cdevsw, &mlxddisk_cdevsw);
-    dsk->si_drv1 = sc;
-    sc->mlxd_dev_t = dsk;
+    sc->mlxd_disk.d_open = mlxd_open;
+    sc->mlxd_disk.d_close = mlxd_close;
+    sc->mlxd_disk.d_ioctl = mlxd_ioctl;
+    sc->mlxd_disk.d_strategy = mlxd_strategy;
+    sc->mlxd_disk.d_name = "mxld";
+    sc->mlxd_disk.d_drv1 = sc;
+    sc->mlxd_disk.d_sectorsize = MLX_BLKSIZE;
+    sc->mlxd_disk.d_mediasize = MLX_BLKSIZE * (off_t)sc->mlxd_drive->ms_size;
+    sc->mlxd_disk.d_fwsectors = sc->mlxd_drive->ms_sectors;
+    sc->mlxd_disk.d_fwheads = sc->mlxd_drive->ms_heads;
 
     /* 
      * Set maximum I/O size to the lesser of the recommended maximum and the practical
@@ -262,7 +239,9 @@ mlxd_attach(device_t dev)
      */
     s1 = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
     s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * PAGE_SIZE;
-    dsk->si_iosize_max = imin(s1, s2);
+    sc->mlxd_disk.d_maxsize = imin(s1, s2);
+
+    disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, NULL, NULL);
 
     return (0);
 }
