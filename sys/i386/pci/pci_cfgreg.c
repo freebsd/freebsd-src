@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
@@ -77,6 +78,17 @@ static struct PIR_table *pci_route_table;
 static int pci_route_count;
 
 static struct mtx pcicfg_mtx;
+
+/* sysctl vars */
+SYSCTL_DECL(_hw_pci);
+
+static uint32_t pci_irq_override_mask = 0xdef4;
+TUNABLE_INT("hw.pci.irq_override_mask", &pci_irq_override_mask);
+SYSCTL_INT(_hw_pci, OID_AUTO, irq_override_mask, CTLFLAG_RD,
+    &pci_irq_override_mask, 0xdef4,
+    "Mask of allowed irqs to try to route when it has no good clue about\n"
+    "which irqs it should use.");
+
 
 /*
  * Some BIOS writers seem to want to ignore the spec and put
@@ -515,6 +527,8 @@ pci_cfgintr_virgin(struct PIR_entry *pe, int pin)
 	/* life is tough, so just pick an interrupt */
 	for (irq = 0; irq < 16; irq++) {
 		ibit = (1 << irq);
+		if ((ibit & pci_irq_override_mask) == 0)
+			continue;
 		if (pe->pe_intpin[pin - 1].irqs & ibit) {
 			PRVERB(("pci_cfgintr_virgin: using routable interrupt %d\n", irq));
 			return(irq);
