@@ -567,6 +567,11 @@ and do not install
 Use of this flag is not recommended and the alternative advice in
 .Pa /etc/mail/README
 should be followed instead if at all possible.
+.It Va SENDMAIL_MAP_PERMS
+.Pq Vt str
+Mode to use when generating alias and map database files using
+.Pa /etc/mail/Makefile .
+The default value is 0640.
 .It Va WANT_FORCE_OPTIMIZATION_DOWNGRADE
 .Pq Vt int
 Causes the system compiler to be built such that it forces high optimization
