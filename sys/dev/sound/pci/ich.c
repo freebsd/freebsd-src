@@ -444,45 +444,82 @@ ich_initsys(struct sc_info* sc)
 static
 unsigned int ich_calibrate(struct sc_info *sc)
 {
-	/* Grab audio from input for fixed interval and compare how
+	struct sc_chinfo *ch = &sc->ch[1];
+	struct timeval t1, t2;
+	u_int8_t ociv, nciv;
+	u_int32_t wait_us, actual_48k_rate, bytes;
+
+	/*
+	 * Grab audio from input for fixed interval and compare how
 	 * much we actually get with what we expect.  Interval needs
 	 * to be sufficiently short that no interrupts are
-	 * generated. */
-	struct sc_chinfo *ch = &sc->ch[1];
-	u_int16_t target_picb, actual_picb;
-	u_int32_t wait_us, actual_48k_rate;
-       
+	 * generated.
+	 */
+
 	KASSERT(ch->regbase == ICH_REG_PI_BASE, ("wrong direction"));
-       
-	ichchan_setspeed(0, ch, 48000);
-	ichchan_setblocksize(0, ch, ICH_DEFAULT_BUFSZ);
 
-	target_picb = ch->dtbl[0].length / 2;   /* half interrupt interval */
-	wait_us = target_picb * 1000 / (2 * 48); /* (2 == stereo -> mono) */
+	bytes = sndbuf_getsize(ch->buffer) / 2;
+	ichchan_setblocksize(0, ch, bytes);
 
-	if (bootverbose)
-		device_printf(sc->dev, "Calibration interval %d us\n", 
-			      wait_us);
+	/*
+	 * our data format is stereo, 16 bit so each sample is 4 bytes.
+	 * assuming we get 48000 samples per second, we get 192000 bytes/sec.
+	 * we're going to start recording with interrupts disabled and measure
+	 * the time taken for one block to complete.  we know the block size,
+	 * we know the time in microseconds, we calculate the sample rate:
+	 *
+	 * actual_rate [bps] = bytes / (time [s] * 4)
+	 * actual_rate [bps] = (bytes * 1000000) / (time [us] * 4)
+	 * actual_rate [Hz] = (bytes * 250000) / time [us]
+	 */
 
-	ichchan_trigger(0, ch, PCMTRIG_START);
-	DELAY(wait_us);
-	actual_picb = ich_rd(sc, ch->regbase + ICH_REG_X_PICB, 2);
-	ichchan_trigger(0, ch, PCMTRIG_ABORT);
+	/* prepare */
+	ociv = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1);
+	nciv = ociv;
+	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)vtophys(ch->dtbl), 4);
 
-	actual_48k_rate = 48000 * (2 * target_picb - actual_picb) / 
-		(target_picb);
+	/* start */
+	microtime(&t1);
+	ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RPBM, 1);
 
-	if (actual_48k_rate > 48500 || actual_48k_rate < 47500) {
+	/* wait */
+	while (nciv == ociv) {
+		microtime(&t2);
+		if (t2.tv_sec - t1.tv_sec > 1)
+			break;
+		nciv = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1);
+	}
+	microtime(&t2);
+
+	/* stop */
+	ich_wr(sc, ch->regbase + ICH_REG_X_CR, 0, 1);
+
+	/* reset */
+	DELAY(100);
+	ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RR, 1);
+
+	/* turn time delta into us */
+	wait_us = ((t2.tv_sec - t1.tv_sec) * 1000000) + t2.tv_usec - t1.tv_usec;
+
+	if (nciv == ociv) {
+		device_printf(sc->dev, "ac97 link rate calibration timed out after %d us\n", wait_us);
+		return 0;
+	}
+
+	actual_48k_rate = (bytes * 250000) / wait_us;
+
+	if (actual_48k_rate < 47500 || actual_48k_rate > 48500) {
 		sc->ac97rate = actual_48k_rate;
 	} else {
 		sc->ac97rate = 48000;
 	}
 
-	if (bootverbose)
-		device_printf(sc->dev, 
-			      "Estimated AC97 link rate %d, using %d\n", 
-			      actual_48k_rate, sc->ac97rate);
-
+	if (bootverbose || sc->ac97rate != 48000) {
+		device_printf(sc->dev, "measured ac97 link rate at %d Hz", actual_48k_rate);
+		if (sc->ac97rate != actual_48k_rate)
+			printf(", will use %d Hz", sc->ac97rate);
+	 	printf("\n");
+	}
 	return sc->ac97rate;
 }
 
@@ -596,6 +633,13 @@ ich_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	sc->irqid = 0;
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ich_intr, sc, &sc->ih)) {
+		device_printf(dev, "unable to map interrupt\n");
+		goto bad;
+	}
+
 	if (ich_init(sc)) {
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
@@ -611,13 +655,6 @@ ich_pci_attach(device_t dev)
 	sc->hasvra = extcaps & AC97_EXTCAP_VRA;
 	sc->hasvrm = extcaps & AC97_EXTCAP_VRM;
 	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
-
-	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ich_intr, sc, &sc->ih)) {
-		device_printf(dev, "unable to map interrupt\n");
-		goto bad;
-	}
 
 	if (pcm_register(dev, sc, 1, 2))
 		goto bad;
