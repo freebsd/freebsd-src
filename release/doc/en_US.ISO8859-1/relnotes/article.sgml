@@ -128,6 +128,15 @@
       been removed.  Users running this class of CPU should use &os;
       5.<replaceable>X</replaceable> or earlier.</para>
 
+    <para>The kernel debugger &man.ddb.4; now supports
+      <command>show alllocks</command> command, which dumps a list of processes
+      and threads currently holding sleep mutexes (and spin mutexes for
+      curthread).  &merged;</para>
+
+    <para>A bug that the last line of configuration files such as &man.hosts.5;,
+      &man.services.5;, and so on which does not end in a newline character,
+      has been fixed.</para>
+
     <para arch="alpha,amd64,i386">The loader tunable <varname>debug.mpsafevm</varname>
       has been enabled by default.  &merged;</para>
 
@@ -411,7 +420,7 @@
 	<varname>debug.mpsafenet</varname>=<literal>1</literal>
 	(this tunable is <literal>1</literal> by default)
 	when the <literal>gid</literal>, <literal>jail</literal>,
-	and/or <literal>uid</literal> rule options are used.</para>
+	and/or <literal>uid</literal> rule options are used.  &merged;</para>
 
       <para>&man.ipfw.8; now supports classification and tagging
 	of &man.altq.4; packets via a divert socket,
@@ -445,6 +454,23 @@
       <para>A bug in TCP that sometimes caused RST packets to
 	be ignored if the receive window was zero bytes has been
 	fixed. &merged;</para>
+
+      <para>The <literal>RST</literal>
+	handling of the &os; TCP stack has been improved
+	to make reset attacks as difficult as possible while
+	maintaining compatibility with the widest range of TCP stacks.
+	The algorithm is as follows.  For connections in the
+	<literal>ESTABLISHED</literal>
+	state, only resets with sequence numbers exactly matching
+	<varname>last_ack_sent</varname> will cause a reset,
+	all other segments will
+	be silently dropped. For connections in all other states,
+	a reset anywhere in the window will cause the connection
+	to be reset.  All other segments will be silently dropped.
+	Note that this breaks the RFC 793 specification and you
+	can still disable this and use the conventional behavior
+	by setting a new sysctl <varname>net.inet.tcp.insecure_rst</varname>
+	to <literal>1</literal>.  &merged;</para>
 
       <para>Several bugs in the TCP SACK implementation have been
 	fixed. &merged;</para>
@@ -610,6 +636,14 @@
       must be recompiled or use &man.libmap.conf.5;.
       Note that the &os; base system has no such binaries.</para>
 
+    <para>The &man.lpd.8; program now checks to make sure the data
+      file has been completely transfered before starting to
+      print it when a data file received from some other host.
+      Some implementations of &man.lpr.1; send the control file
+      for a print job before sending the matching data files,
+      and that can cause problems if the receiving host is
+      a busy print-server.  &merged;</para>
+
     <para>A number of new functions have been implemented in the
       &man.math.3; library.  These include &man.ceill.3;,
       &man.floorl.3;, &man.ilogbl.3;, &man.fma.3; and variants,
@@ -738,6 +772,11 @@
       programs from locking when the domain sockets
       run out of buffer space due to a
       local denial-of-service attack. &merged;</para>
+
+    <para>The &man.syslogd.8; utility now allows
+      <literal>:</literal> and <literal>%</literal>
+      characters in the hostname specifications.
+      These characters are used in IPv6 addresses and scope IDs.</para>
 
     <para>The &man.systat.1; <option>-netstat</option> display is now
       IPv6-aware. &merged;</para>
