@@ -1,5 +1,5 @@
 #	@(#)Makefile	7.9 (Berkeley) 6/1/93
-# $Id: Makefile,v 1.10 1995/10/05 14:46:07 phk Exp $
+# $Id: Makefile,v 1.11 1995/11/08 08:40:09 phk Exp $
 
 .undef NOPROFILE
 
@@ -7,17 +7,16 @@ LIB=	kern
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/.. -DKERNEL
 
 # Stuff we call from the kernel
-SRCS+=	mcount.c
-SRCS+=  qsort.c
-SRCS+=	strcpy.c strcmp.c strncpy.c strncmp.c strcat.c
-SRCS+=	skpc.c scanc.c random.c inet_ntoa.c
+SRCS+=	inet_ntoa.c mcount.c qsort.c
+SRCS+=	random.c scanc.c skpc.c
+SRCS+=	strcat.c strcmp.c strcpy.c strlen.c strncmp.c strncpy.c
 
 # Stuff GCC generates
 SRCS+=	divdi3.c udivdi3.c moddi3.c umoddi3.c 
 SRCS+=	qdivrem.c
 
 # Stuff which isn't currently used, if at all..
-# SRCS+=	bcmp.c ffs.c locc.c rindex.c strlen.c
+# SRCS+=	bcmp.c ffs.c locc.c rindex.c
 
 # Stuff GCC may need....
 # SRCS+=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c 
