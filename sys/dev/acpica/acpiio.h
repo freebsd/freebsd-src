@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Takanori Watanabe <takawata@shidahara1.planet.sci.kobe-u.ac.jp>
+ * Copyright (c) 1999 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 1999 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
  * All rights reserved.
  *
