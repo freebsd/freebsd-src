@@ -224,10 +224,6 @@ sysconf(name)
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_SEMAPHORES;
 		goto yesno;
-	case _SC_FSYNC:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_FSYNC;
-		goto yesno;
 	case _SC_SHARED_MEMORY_OBJECTS:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_SHARED_MEMORY_OBJECTS;
@@ -286,6 +282,9 @@ sysconf(name)
 		mib[1] = CTL_P1003_1B_TIMER_MAX;
 		goto yesno;
 #endif /* _P1003_1B_VISIBLE */
+
+	case _SC_FSYNC:
+		return (_POSIX_FSYNC);
 
 #if defined(_SC_NPROCESSORS_CONF) && defined(_SC_NPROCESSORS_ONLN)
 	case _SC_NPROCESSORS_CONF:
