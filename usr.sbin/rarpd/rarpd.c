@@ -26,7 +26,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: rarpd.c,v 1.22 96/06/14 20:40:14 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.8 1996/11/18 22:07:41 wpaul Exp $ (LBL)";
 #endif
 
 /*
@@ -774,7 +774,7 @@ update_arptab(ep, ipaddr)
 	}
 
 	ar = &sin_inarp;
-	ar->sin_addr.s_addr = ipaddr;
+	ar->sin_addr.s_addr = htonl(ipaddr);
 	ll = &sin_dl;
 	bcopy(ep, LLADDR(ll), 6);
 
@@ -857,7 +857,7 @@ update_arptab(ep, ipaddr)
 	request.arp_flags = 0;
 	sin = (struct sockaddr_in *)&request.arp_pa;
 	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = ipaddr;
+	sin->sin_addr.s_addr = htonl(ipaddr);
 	request.arp_ha.sa_family = AF_UNSPEC;
 	bcopy((char *)ep, (char *)request.arp_ha.sa_data, 6);
 
