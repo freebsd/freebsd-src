@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.7 1996/09/03 10:22:30 asami Exp $
+ * $Id: random.h,v 1.8 1996/09/21 14:58:20 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -83,6 +83,7 @@ u_int read_random_unlimited(char *buf, u_int size);
 #ifdef notused
 u_int write_random(const char *buf, u_int nbytes);
 #endif
+int random_select(dev_t dev, int rw, struct proc *p);
 
 #endif /* KERNEL */
 
