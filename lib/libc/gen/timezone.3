@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)timezone.3	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
 .\"
 .Dd April 19, 1994
 .Dt TIMEZONE 3
@@ -37,6 +38,8 @@
 .Sh NAME
 .Nm timezone
 .Nd return the timezone abbreviation
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Ft char *
 .Fn timezone "int zone" "int dst"

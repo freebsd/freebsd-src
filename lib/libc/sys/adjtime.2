@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)adjtime.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt ADJTIME 2
@@ -37,6 +38,8 @@
 .Sh NAME
 .Nm adjtime
 .Nd "correct the time to allow synchronization of the system clock"
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Fd #include <sys/time.h>
 .Ft int

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fsync.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt FSYNC 2
@@ -37,6 +38,8 @@
 .Sh NAME
 .Nm fsync
 .Nd "synchronize a file's in-core state with that on disk"
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft int

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
 .\"
 .Dd June 9, 1993
 .Dt MPROTECT 2
@@ -37,6 +38,8 @@
 .Sh NAME
 .Nm mprotect
 .Nd control the protection of pages
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/mman.h>

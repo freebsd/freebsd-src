@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getnetgrent.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt GETNETGRENT 3
@@ -40,6 +41,8 @@
 .Nm setnetgrent ,
 .Nm endnetgrent
 .Nd netgroup database operations
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Ft int
 .Fn getnetgrent "char **host" "char **user" "char **domain"

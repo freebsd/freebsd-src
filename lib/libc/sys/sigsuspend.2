@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sigsuspend.2	8.2 (Berkeley) 5/16/95
+.\" $FreeBSD$
 .\"
 .Dd May 16, 1995
 .Dt SIGSUSPEND 2
@@ -37,6 +38,8 @@
 .Sh NAME
 .Nm sigsuspend
 .Nd atomically release blocked signals and wait for interrupt
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Fd #include <signal.h>
 .Ft int
