@@ -380,7 +380,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i] [-v] source target",
-		      "       mv [-f | -i] [-v] source ... directory");
+		      "usage: mv [-f | -i | -n] [-v] source target",
+		      "       mv [-f | -i | -n] [-v] source ... directory");
 	exit(EX_USAGE);
 }
