@@ -4,7 +4,7 @@
 .PATH:	${.CURDIR}/../../../dev/aic7xxx
 KMOD=	ahd
 
-GENSRCS= aic79xx_{seq,reg}.h
+GENSRCS= aic79xx_seq.h aic79xx_reg.h
 REG_PRINT_OPT=
 AHD_REG_PRETTY_PRINT=1
 .ifdef AHD_REG_PRETTY_PRINT
