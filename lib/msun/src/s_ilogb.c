@@ -23,7 +23,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	int __generic_ilogb(double x)
+	int ilogb(double x)
 {
 	int32_t hx,lx,ix;
 

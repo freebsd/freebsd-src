@@ -83,7 +83,7 @@ Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
 static const double zero   =  0.0;
 
 double
-__generic___ieee754_log(double x)
+__ieee754_log(double x)
 {
 	double hfsq,f,s,z,R,w,t1,t2,dk;
 	int32_t k,hx,i,j;

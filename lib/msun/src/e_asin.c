@@ -67,7 +67,7 @@ qS3 = -6.88283971605453293030e-01, /* 0xBFE6066C, 0x1B8D0159 */
 qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
 
 double
-__generic___ieee754_asin(double x)
+__ieee754_asin(double x)
 {
 	double t=0.0,w,p,q,c,r,s;
 	int32_t hx,ix;
