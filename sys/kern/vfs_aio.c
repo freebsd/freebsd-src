@@ -381,9 +381,10 @@ aio_free_entry(struct aiocblist *aiocbe)
 		TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
 		zfree(aiolio_zone, lj);
 	}
-	TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 	aiocbe->jobstate = JOBST_NULL;
 	untimeout(process_signal, aiocbe, aiocbe->timeouthandle);
+	fdrop(aiocbe->fd_file, curproc);
+	TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 	return 0;
 }
 #endif /* VFS_AIO */
@@ -402,7 +403,6 @@ aio_proc_rundown(struct proc *p)
 	struct aio_liojob *lj, *ljn;
 	struct aiocblist *aiocbe, *aiocbn;
 	struct file *fp;
-	struct filedesc *fdp;
 	struct socket *so;
 
 	ki = p->p_aioinfo;
@@ -421,24 +421,12 @@ aio_proc_rundown(struct proc *p)
 	 * Move any aio ops that are waiting on socket I/O to the normal job
 	 * queues so they are cleaned up with any others.
 	 */
-	fdp = p->p_fd;
-
 	s = splnet();
 	for (aiocbe = TAILQ_FIRST(&ki->kaio_sockqueue); aiocbe; aiocbe =
 	    aiocbn) {
 		aiocbn = TAILQ_NEXT(aiocbe, plist);
-		fp = fdp->fd_ofiles[aiocbe->uaiocb.aio_fildes];
-		
-		/*
-		 * Under some circumstances, the aio_fildes and the file
-		 * structure don't match.  This would leave aiocbe's in the
-		 * TAILQ associated with the socket and cause a panic later.
-		 * 
-		 * Detect and fix.
-		 */
-		if ((fp == NULL) || (fp != aiocbe->fd_file))
-			fp = aiocbe->fd_file;
-		if (fp) {
+		fp = aiocbe->fd_file;
+		if (fp != NULL) {
 			so = (struct socket *)fp->f_data;
 			TAILQ_REMOVE(&so->so_aiojobq, aiocbe, list);
 			if (TAILQ_EMPTY(&so->so_aiojobq)) {
@@ -562,31 +550,19 @@ aio_selectjob(struct aioproclist *aiop)
 static void
 aio_process(struct aiocblist *aiocbe)
 {
-	struct filedesc *fdp;
 	struct proc *mycp;
 	struct aiocb *cb;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
-	unsigned int fd;
 	int cnt;
 	int error;
 	int oublock_st, oublock_end;
 	int inblock_st, inblock_end;
 
-	cb = &aiocbe->uaiocb;
-
 	mycp = curproc;
-
-	fdp = mycp->p_fd;
-	fd = cb->aio_fildes;
-	fp = fdp->fd_ofiles[fd];
-
-	if ((fp == NULL) || (fp != aiocbe->fd_file)) {
-		cb->_aiocb_private.error = EBADF;
-		cb->_aiocb_private.status = -1;
-		return;
-	}
+	cb = &aiocbe->uaiocb;
+	fp = aiocbe->fd_file;
 
 	aiov.iov_base = (void *)(uintptr_t)cb->aio_buf;
 	aiov.iov_len = cb->aio_nbytes;
@@ -602,10 +578,9 @@ aio_process(struct aiocblist *aiocbe)
 	inblock_st = mycp->p_stats->p_ru.ru_inblock;
 	oublock_st = mycp->p_stats->p_ru.ru_oublock;
 	/*
-	 * Temporarily bump the ref count while reading to avoid the
-	 * descriptor being ripped out from under us.
+	 * _aio_aqueue() acquires a reference to the file that is
+	 * released in aio_free_entry().
 	 */
-	fhold(fp);
 	if (cb->aio_lio_opcode == LIO_READ) {
 		auio.uio_rw = UIO_READ;
 		error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, mycp);
@@ -613,7 +588,6 @@ aio_process(struct aiocblist *aiocbe)
 		auio.uio_rw = UIO_WRITE;
 		error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, mycp);
 	}
-	fdrop(fp, mycp);
 	inblock_end = mycp->p_stats->p_ru.ru_inblock;
 	oublock_end = mycp->p_stats->p_ru.ru_oublock;
 
@@ -764,17 +738,6 @@ aio_daemon(void *uproc)
 				if (tmpvm != myvm) {
 					vmspace_free(tmpvm);
 				}
-				
-				/*
-				 * Disassociate from previous clients file
-				 * descriptors, and associate to the new clients
-				 * descriptors.  Note that the daemon doesn't
-				 * need to worry about its orginal descriptors,
-				 * because they were originally freed.
-				 */
-				if (mycp->p_fd)
-					fdfree(mycp);
-				mycp->p_fd = fdshare(userp);
 				curcp = userp;
 			}
 
@@ -857,14 +820,7 @@ aio_daemon(void *uproc)
 #endif
 			/* Remove our vmspace reference. */
 			vmspace_free(tmpvm);
-			
-			/*
-			 * Disassociate from the user process's file
-			 * descriptors.
-			 */
-			if (mycp->p_fd)
-				fdfree(mycp);
-			mycp->p_fd = NULL;
+
 			curcp = mycp;
 		}
 
@@ -953,16 +909,12 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	struct buf *bp;
 	struct vnode *vp;
 	struct kaioinfo *ki;
-	struct filedesc *fdp;
 	struct aio_liojob *lj;
-	int fd;
 	int s;
 	int notify;
 
 	cb = &aiocbe->uaiocb;
-	fdp = p->p_fd;
-	fd = cb->aio_fildes;
-	fp = fdp->fd_ofiles[fd];
+	fp = aiocbe->fd_file;
 
 	if (fp->f_type != DTYPE_VNODE) 
 		return (-1);
@@ -1259,22 +1211,17 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 			suword(&job->_aiocb_private.error, EBADF);
 		return EBADF;
 	}
+	fhold(fp);
 
 	if (aiocbe->uaiocb.aio_offset == -1LL) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
-		if (type == 0)
-			suword(&job->_aiocb_private.error, EINVAL);
-		return EINVAL;
+		error = EINVAL;
+		goto aqueue_fail;
 	}
-
 	error = suword(&job->_aiocb_private.kernelinfo, jobrefid);
 	if (error) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
-		if (type == 0)
-			suword(&job->_aiocb_private.error, EINVAL);
-		return error;
+		error = EINVAL;
+		goto aqueue_fail;
 	}
-
 	aiocbe->uaiocb._aiocb_private.kernelinfo = (void *)(intptr_t)jobrefid;
 	if (jobrefid == LONG_MAX)
 		jobrefid = 1;
@@ -1282,6 +1229,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		jobrefid++;
 	
 	if (opcode == LIO_NOP) {
+		fdrop(fp, p);
 		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 		if (type == 0) {
 			suword(&job->_aiocb_private.error, 0);
@@ -1290,17 +1238,12 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		}
 		return 0;
 	}
-
 	if ((opcode != LIO_READ) && (opcode != LIO_WRITE)) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
-		if (type == 0) {
+		if (type == 0)
 			suword(&job->_aiocb_private.status, 0);
-			suword(&job->_aiocb_private.error, EINVAL);
-		}
-		return EINVAL;
+		error = EINVAL;
+		goto aqueue_fail;
 	}
-
-	fhold(fp);
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_KEVENT) {
 		kev.ident = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
@@ -1336,6 +1279,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	error = kqueue_register(kq, &kev, p);
 aqueue_fail:
 	if (error) {
+		fdrop(fp, p);
 		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, error);
@@ -1431,7 +1375,6 @@ retryproc:
 	}
 	splx(s);
 done:
-	fdrop(fp, p);
 	return error;
 }
 
