@@ -1,4 +1,4 @@
-/* BT848 1.42 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.52 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -297,6 +297,13 @@
                            Removed Hauppauge EEPROM 0x10 detection as I think
 			   0x10 should be a PAL tuner, not NTSC.
 			   Reinstated some Tuner Guesswork code from 1.27
+
+1.52           3 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Submitted patch by Vsevolod Lobko <seva@alex-ua.com>
+                           to correct SECAM B-Delay and add XUSSR channel set.
+
+
+
 */
 
 #define DDB(x) x
@@ -548,7 +555,7 @@ static struct format_params format_params[] = {
 /* # define BT848_IFORM_F_PALN             (0x5) */
   { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },
 /* # define BT848_IFORM_F_SECAM            (0x6) */
-  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },  
+  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0xa0, BT848_IFORM_X_XT1 },  
 /* # define BT848_IFORM_F_RSVD             (0x7) - ???? */
   { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT0 },
 };
@@ -4986,6 +4993,30 @@ static int jpncable[] = {
 #undef IF_FREQ
 #undef OFFSET
 
+/*
+ * xUSSR Broadcast Channels:
+ *
+ *  1:  49.75MHz -  2:  59.25MHz
+ *  3:  77.25MHz -  5:  93.25MHz
+ *  6: 175.25MHz - 12: 223.25MHz
+ * 13-20 - not exist
+ * 21: 471.25MHz - 34: 575.25MHz
+ * 35: 583.25MHz - 60: 775.25MHz
+ *
+ * IF freq: 38.90 MHz
+ */
+#define IF_FREQ 38.90
+static int xussr[] = {
+       60,     (int)(IF_FREQ * FREQFACTOR),    0,
+       35,     (int)(583.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR), 
+       21,     (int)(471.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),
+        6,     (int)(175.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),  
+        3,     (int)( 77.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),  
+        1,     (int)( 49.75 * FREQFACTOR),     (int)(9.50 * FREQFACTOR),
+        0
+};
+#undef IF_FREQ
+
 static int* freqTable[] = {
 	NULL,
 	nabcst,
@@ -4993,7 +5024,8 @@ static int* freqTable[] = {
 	hrccable,
 	weurope,
 	jpnbcst,
-	jpncable
+	jpncable,
+	xussr
 	
 };
 
