@@ -498,7 +498,7 @@ product EPSON 1200		0x0104	Perfection 1200U / 1200Photo scanner
 product EPSON 1240		0x010b	Perfection 1240U / 1240Photo scanner
 product EPSON 1600		0x0107	Expression 1600 scanner
 product EPSON 1640		0x010a	Perfection 1640SU scanner / GT-8700(F)
-product EPSON 1240		0x010b	Perfection 1240U / 1240Photo scanner
+product EPSON 1240		0x010b	Perfection 1240U / 1240Photo scanner / GT 7700
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial port
