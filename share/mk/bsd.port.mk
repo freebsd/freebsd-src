@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.294 1998/10/30 08:28:02 asami Exp $
+#	$Id: bsd.port.mk,v 1.295 1998/11/08 10:29:52 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -36,6 +36,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  makefile is being used on.  Automatically set to
 #				  "FreeBSD," "NetBSD," or "OpenBSD" as appropriate.
 # OSREL			- The release version (numeric) of the operating system.
+# OSVERSION		- The value of __FreeBSD_version.
 # PORTOBJFORMAT	- The object format ("aout" or "elf").
 #
 # These variables are used to identify your port.
@@ -393,6 +394,9 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  a different checksum and you intend to verify if
 #				  the port still works with it.
 
+# Start of pre-makefile section.
+.if !defined(AFTERPORTMK)
+
 # Get the architecture
 ARCH!=	uname -m
 
@@ -401,14 +405,12 @@ OPSYS!=	uname -s
 
 # Get the operating system revision
 OSREL!=	uname -r | sed -e 's/[-(].*//'
-PLIST_SUB+=	OSREL=${OSREL}
+
+# Get __FreeBSD_version
+OSVERSION!=	sysctl -n kern.osreldate
 
 # Get the object format.
 PORTOBJFORMAT!=	test -x /usr/bin/objformat && /usr/bin/objformat || echo aout
-CONFIGURE_ENV+=	PORTOBJFORMAT=${PORTOBJFORMAT}
-SCRIPTS_ENV+=	PORTOBJFORMAT=${PORTOBJFORMAT}
-MAKE_ENV+=		PORTOBJFORMAT=${PORTOBJFORMAT}
-PLIST_SUB+=		PORTOBJFORMAT=${PORTOBJFORMAT}
 
 # If they exist, include Makefile.inc, then architecture/operating
 # system specific Makefiles, then local Makefile.local.
@@ -443,16 +445,6 @@ DISTDIR?=		${PORTSDIR}/distfiles
 _DISTDIR?=		${DISTDIR}/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
 TEMPLATES?=		${PORTSDIR}/templates
-.if !defined(NO_WRKDIR)
-WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}/work
-.else
-WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}
-.endif
-.if defined(NO_WRKSUBDIR)
-WRKSRC?=		${WRKDIR}
-.else
-WRKSRC?=		${WRKDIR}/${DISTNAME}
-.endif
 
 .if exists(${.CURDIR}/patches.${ARCH}-${OPSYS})
 PATCHDIR?=		${.CURDIR}/patches.${ARCH}-${OPSYS}
@@ -494,6 +486,42 @@ PKGDIR?=		${.CURDIR}/pkg.${ARCH}
 PKGDIR?=		${.CURDIR}/pkg
 .endif
 
+.if defined(USE_IMAKE)
+USE_X_PREFIX=	yes
+.endif
+.if defined(USE_X_PREFIX)
+USE_XLIB=		yes
+.endif
+.if defined(USE_X_PREFIX)
+PREFIX?=		${X11BASE}
+.else
+PREFIX?=		${LOCALBASE}
+.endif
+
+.endif
+# End of pre-makefile section.
+
+# Start of post-makefile section.
+.if !defined(BEFOREPORTMK)
+
+.if !defined(NO_WRKDIR)
+WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}/work
+.else
+WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}
+.endif
+.if defined(NO_WRKSUBDIR)
+WRKSRC?=		${WRKDIR}
+.else
+WRKSRC?=		${WRKDIR}/${DISTNAME}
+.endif
+
+PLIST_SUB+=	OSREL=${OSREL}
+
+CONFIGURE_ENV+=	PORTOBJFORMAT=${PORTOBJFORMAT}
+SCRIPTS_ENV+=	PORTOBJFORMAT=${PORTOBJFORMAT}
+MAKE_ENV+=		PORTOBJFORMAT=${PORTOBJFORMAT}
+PLIST_SUB+=		PORTOBJFORMAT=${PORTOBJFORMAT}
+
 .if defined(MANCOMPRESSED)
 .if ${MANCOMPRESSED} != yes && ${MANCOMPRESSED} != no && \
 	${MANCOMPRESSED} != maybe
@@ -507,18 +535,6 @@ PKGDIR?=		${.CURDIR}/pkg
 MANCOMPRESSED?=	yes
 .else
 MANCOMPRESSED?=	no
-.endif
-
-.if defined(USE_IMAKE)
-USE_X_PREFIX=	yes
-.endif
-.if defined(USE_X_PREFIX)
-USE_XLIB=		yes
-.endif
-.if defined(USE_X_PREFIX)
-PREFIX?=		${X11BASE}
-.else
-PREFIX?=		${LOCALBASE}
 .endif
 
 .if defined(USE_GMAKE)
@@ -1793,7 +1809,12 @@ pre-repackage:
 
 .if !target(package-noinstall)
 package-noinstall:
+.if !defined(NO_WRKDIR)
+	@${MKDIR} ${WRKDIR}
+.endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} PACKAGE_NOINSTALL=yes real-package
+	@${RM} ${TMPPLIST}
+	-@${RMDIR} ${WRKDIR}
 .endif
 
 # Loop through several options for package building
@@ -2189,3 +2210,6 @@ depend:
 .if !target(tags)
 tags:
 .endif
+
+.endif
+# End of post-makefile section.
