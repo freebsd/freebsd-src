@@ -75,9 +75,10 @@ ENTRY(cpu_switch)
 	lwz	%r4,PC_CURTHREAD(%r3)	/* Get the current thread */
 	lwz	%r3,TD_PCB(%r4)		/* Get a pointer to the PCB */
 
-	stmw	%r14,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
-	mr	%r14,%r3		/* Copy the curthread pointer */
-	mr	%r15,%r4		/* ... and the current pcb pointer */
+	mr	%r12,%r2
+	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
+	mr	%r14,%r3		/* Copy the current pcb pointer */
+	mr	%r15,%r4		/* ... and the curthread pointer */
 	mfcr	%r16			/* Save the condition register */
 	stw	%r16,PCB_CR(%r3)
 	mflr	%r16			/* Save the link register */
@@ -106,9 +107,9 @@ ENTRY(cpu_switch)
 
 	mfsprg	%r4,0			/* Get the pcpu pointer */
 	stw	%r16,PC_CURTHREAD(%r4)	/* Store new current thread */
-	lwz	%r16,TD_PCB(%r16)	/* Grab the new PCB */
+	mr	%r3,%r16		/*   and save in r3 */
+	lwz	%r16,TD_PCB(%r16)	/* Store new current PCB */
 	stw	%r16,PC_CURPCB(%r4)
-	mr	%r4,%r16
 
 #if 0
 	lwz	%r29, PCB_FLAGS(%r4)	/* Restore FPU regs if needed */
@@ -118,13 +119,16 @@ ENTRY(cpu_switch)
 	bl	enable_fpu
 #endif
 
+	/* thread to restore is in r3 */
 .L2:
-	lmw	%r14,PCB_CONTEXT(%r4)	/* Load the non-volatile GP regs */
-	lwz	%r5,PCB_CR(%r4)		/* Load the condition register */
+	lwz	%r3, TD_PCB(%r3)
+	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
+	mr	%r2,%r12
+	lwz	%r5,PCB_CR(%r3)		/* Load the condition register */
 	mtcr	%r5
-	lwz	%r5,PCB_LR(%r4)		/* Load the link register */
+	lwz	%r5,PCB_LR(%r3)		/* Load the link register */
 	mtlr	%r5
-	lwz	%r1,PCB_SP(%r4)		/* Load the stack pointer */
+	lwz	%r1,PCB_SP(%r3)		/* Load the stack pointer */
 	blr
 
 /*
@@ -132,7 +136,8 @@ ENTRY(cpu_switch)
  * Update pcb, saving current processor state
  */
 ENTRY(savectx)
-	stmw	%r14,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
+	mr	%r12,%r2
+	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
 	mfcr	%r4			/* Save the condition register */
 	stw	%r4,PCB_CONTEXT(%r3)
 	blr
