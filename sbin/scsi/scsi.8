@@ -4,8 +4,8 @@
 .\" Permission is granted to use or redistribute this file in any way as long
 .\" as this notice remains. Julian Elischer does not guarantee that this file 
 .\" is totally correct for any given task and users of this file must 
-.\" accept responsibility for any damage that occurs from the application of this
-.\" file.
+.\" accept responsibility for any damage that occurs from the application
+.\" of this file.
 .\" 
 .\" (julian@tfs.com julian@dialix.oz.au)
 .\" User SCSI hooks added by Peter Dufault:
@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.16 1998/01/03 10:11:38 brian Exp $
+.\"	$Id: scsi.8,v 1.17 1998/06/03 03:59:00 jkoshy Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -292,7 +292,7 @@ variable determines the editor to use for the mode editor.
 .Xr ssc 4
 .Sh BUGS
 .Pp
-Some devices respond to an inquiry for all LUNS.  This will cause them
+Some devices respond to an inquiry for all LUNs.  This will cause them
 to come on line to 8 times during reprobe to different logical units.
 .Pp
 The
@@ -302,7 +302,7 @@ option to do an inquiry went away in
 The new facilities
 provided by
 .Fl c
-supercede that.
+supersede that.
 .Pp
 Check your permissions carefully.
 .Ql scsi -f /dev/rsd0c -c "4 0 0 0 0 0
