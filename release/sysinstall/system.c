@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.22 1995/05/20 13:24:35 jkh Exp $
+ * $Id: system.c,v 1.23 1995/05/20 19:12:13 phk Exp $
  *
  * Jordan Hubbard
  *
@@ -276,6 +276,8 @@ systemChangeScreenmap(const u_char newmap[])
 	dialog_clear();
     }
 }
+
+#if 0
 /* Execute a command that is crunched into the same binary */
 int
 vsystem(char *fmt, ...)
@@ -328,10 +330,10 @@ vsystem(char *fmt, ...)
     free(cmd);
     return i;
 }
-
+#else
 /* Execute a system command, with varargs */
 int
-ssystem(char *fmt, ...)
+vsystem(char *fmt, ...)
 {
     va_list args;
     union wait pstat;
@@ -376,3 +378,4 @@ ssystem(char *fmt, ...)
     free(cmd);
     return i;
 }
+#endif
