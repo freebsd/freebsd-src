@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .Dd December 2, 1994
 .Dt CXCONFIG 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm cxconfig
 .Nd channel options management utility for Cronyx-Sigma adapter
@@ -57,10 +57,14 @@ implementation is used (see RFC-1548, RFC-1549).
 .It cisco
 Set the link-level protocol: Cisco/HDLC (see RFC-1547).
 This protocol is intended for compatibility with old models of Cisco routers,
-and with early versions of BSD/386 drivers.
+and with early versions of
+.Tn BSD/386
+drivers.
 The extensive usage of this protocol is not recommended.
 .It ext
-Use the external link-level protocol suite (for BSD/386 only).
+Use the external link-level protocol suite (for
+.Tn BSD/386
+only).
 .It "+keepalive, -keepalive"
 Enable the automatic line state control sub-protocol.
 This setting is not significant when the external link-level protocol is used.
@@ -297,7 +301,8 @@ cxconfig cx0 hdlc 256000 cisco +keepalive -extclock
 ifconfig cx0 200.1.1.1 200.1.1.2 up
 .Ed
 .Pp
-Set up the channel 1 of the adapter Sigma-840 under BSD/386.
+Set up the channel 1 of the adapter Sigma-840 under
+.Tn BSD/386 .
 Synchronous 64 kbit/sec leased line, external clock source.
 Synchronous mode, interface V.35, external protocol suite:
 .Bd -literal

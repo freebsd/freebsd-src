@@ -34,7 +34,7 @@
 .\"
 .Dd June 5, 1993
 .Dt DMESG 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm dmesg
 .Nd "display the system message buffer"
@@ -46,6 +46,17 @@
 .Sh DESCRIPTION
 .Nm Dmesg
 displays the contents of the system message buffer.
+If neither the
+.Fl N
+nor the
+.Fl M
+option is specified, the buffer is read from the currently running kernel
+via the
+.Xr sysctl 3
+interface.
+Otherwise, the buffer is read from the specified core file (or from the
+default one), using the name list from the specified kernel image (or from
+the default image).
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -59,24 +70,19 @@ Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
 .It Fl N
-Extract the name list from the specified system instead of the default
-.Pa /kernel .
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
 .El
 .Sh FILES
-.Bl -tag -width /var/run/dmesg.boot -compact
+.Bl -tag -width ".Pa /var/run/dmesg.boot" -compact
 .It Pa /var/run/dmesg.boot
 usually a snapshot of the buffer contents
 taken soon after filesystems are mounted
 at startup time
 .El
 .Sh SEE ALSO
+.Xr sysctl 3 ,
 .Xr syslogd 8
-.Sh FILES
-.Bl -tag -width /etc/kmem -compact
-.It Pa /dev/mem
-.It Pa /dev/kmem
-.It Pa /kernel
-.El
 .Sh HISTORY
 The
 .Nm

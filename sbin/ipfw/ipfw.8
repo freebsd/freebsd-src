@@ -3,7 +3,7 @@
 .\"
 .Dd February 16, 2000
 .Dt IPFW 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ipfw
 .Nd IP firewall and traffic shaper control program
@@ -167,17 +167,13 @@ While
 or
 .Cm flush Ns ing ,
 be quiet about actions
-.Po
-implies
-.Fl f
-.Pc .
+(implies
+.Fl f ) .
 This is useful for adjusting rules by executing multiple
 .Nm
 commands in a script
-.Po
-e.g.,
-.Ql sh\ /etc/rc.firewall
-.Pc ,
+(e.g.,
+.Ql sh\ /etc/rc.firewall ) ,
 or by processing a file of many
 .Nm
 rules,
@@ -294,10 +290,8 @@ A match is only declared with the specified probability
 (floating point number between 0 and 1).
 This can be useful for a number of applications such as
 random packet drop or
-.Po
-in conjunction with
-.Xr dummynet 4
-.Pc
+(in conjunction with
+.Xr dummynet 4 )
 to simulate the effect of multiple paths leading to out-of-order
 packet delivery.
 .It Ar action :
@@ -317,7 +311,7 @@ The search terminates.
 is an alias for
 .Cm deny .
 .It Cm reject
-.Pq Deprecated .
+(Deprecated).
 Discard packets that match this rule, and try to send an ICMP
 host unreachable notice.
 The search terminates.
@@ -364,11 +358,9 @@ Send a copy of packets matching this rule to the
 socket bound to port
 .Ar port .
 The search terminates and the original packet is accepted
-.Po
-but see section
+(but see section
 .Sx BUGS
-below
-.Pc .
+below).
 .It Cm fwd Ar ipaddr Ns Xo
 .Op , Ns Ar port
 .Xc
@@ -1045,11 +1037,9 @@ The
 .Nm
 filter list may not be modified if the system security level
 is set to 3 or higher
-.Po
-see
+(see
 .Xr init 8
-for information on system security levels
-.Pc .
+for information on system security levels).
 .El
 .Sh PACKET DIVERSION
 A
@@ -1094,7 +1084,7 @@ resize it on the fly you will probably have to
 and reload the ruleset.
 .It Em net.inet.ip.fw.dyn_count : No 3
 Current number of dynamic rules
-.Pq read-only .
+(read-only).
 .It Em net.inet.ip.fw.dyn_max : No 1000
 Maximum number of dynamic rules.
 When you hit this limit, no more dynamic rules can be

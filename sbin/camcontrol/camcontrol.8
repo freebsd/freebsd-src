@@ -703,7 +703,9 @@ utility and
 .Xr scsi 3
 library, written by Julian Elischer and Peter Dufault.  The
 .Xr scsi 8
-program first appeared in 386BSD 0.1.2.4, and first appeared in
+program first appeared in
+.Bx 386 0.1.2.4 ,
+and first appeared in
 .Fx
 in
 .Fx 2.0.5 .
@@ -724,7 +726,7 @@ call in
 .Nm
 bails out when it sees the second argument to
 .Fl c
-.Pq 0x00 ,
+(0x00),
 above.  Fixing this behavior would take some gross code, or changes to the
 .Xr getopt 3
 interface.  The best way to circumvent this problem is to always make sure
