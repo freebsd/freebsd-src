@@ -59,6 +59,7 @@ SECTIONS
     *(.rela.got)
     *(.rela.stab)
     *(.rela.ctors)
+    *(.relaset_*)
   }
   . = ALIGN(4096);
   .reloc         : { *(.reloc) }
