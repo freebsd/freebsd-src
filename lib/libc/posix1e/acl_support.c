@@ -90,7 +90,7 @@ _posix1e_acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
 
 /*
  * _posix1e_acl_sort -- sort ACL entries in POSIX.1e-formatted ACLs
- * Give the opportunity to fail, althouh we don't currently have a way
+ * Give the opportunity to fail, although we don't currently have a way
  * to fail.
  */
 int
@@ -268,7 +268,7 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 
 	case ACL_GROUP:
 		g = getgrgid(id);
-		if (!g) 
+		if (g == NULL) 
 			i = snprintf(buf, buf_len, "%d", id);
 		else
 			i = snprintf(buf, buf_len, "%s", g->gr_name);
