@@ -76,7 +76,7 @@ printheader(void)
 
 	allempty = 1;
 	for (vent = vhead; vent; vent = vent->next)
-		if (*vent->var->header != '\0') {
+		if (*vent->header != '\0') {
 			allempty = 0;
 			break;
 		}
@@ -86,11 +86,11 @@ printheader(void)
 		v = vent->var;
 		if (v->flag & LJUST) {
 			if (vent->next == NULL)	/* last one */
-				(void)printf("%s", v->header);
+				(void)printf("%s", vent->header);
 			else
-				(void)printf("%-*s", v->width, v->header);
+				(void)printf("%-*s", v->width, vent->header);
 		} else
-			(void)printf("%*s", v->width, v->header);
+			(void)printf("%*s", v->width, vent->header);
 		if (vent->next != NULL)
 			(void)putchar(' ');
 	}

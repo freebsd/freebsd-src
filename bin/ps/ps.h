@@ -46,6 +46,7 @@ typedef struct kinfo {
 
 /* Variables. */
 typedef struct varent {
+	const char *header;
 	struct varent *next;
 	struct var *var;
 } VARENT;
