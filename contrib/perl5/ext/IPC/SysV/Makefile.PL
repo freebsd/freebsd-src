@@ -1,5 +1,5 @@
 # This -*- perl -*- script makes the Makefile
-# $Id: Makefile.PL,v 1.1.1.2 1999/05/02 14:20:37 markm Exp $
+# $FreeBSD$
 
 require 5.002;
 use ExtUtils::MakeMaker;
@@ -31,7 +31,7 @@ WriteMakefile(
  
 	'clean'   	=> {FILES => join(" ",
 					map { "$_ */$_ */*/$_" }
-					qw(*% *.html *.b[ac]k *.old *.orig))
+					qw(*% *.html *.b[ac]k *.old))
 			   },
 	'macro'		=> { INSTALLDIRS => 'perl' },
 );

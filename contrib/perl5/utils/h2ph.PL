@@ -37,13 +37,16 @@ $Config{startperl}
 
 print OUT <<'!NO!SUBS!';
 
+use strict;
+
 use Config;
 use File::Path qw(mkpath);
 use Getopt::Std;
 
 getopts('Dd:rlhaQ');
+use vars qw($opt_D $opt_d $opt_r $opt_l $opt_h $opt_a $opt_Q);
 die "-r and -a options are mutually exclusive\n" if ($opt_r and $opt_a);
-@inc_dirs = inc_dirs() if $opt_a;
+my @inc_dirs = inc_dirs() if $opt_a;
 
 my $Exit = 0;
 
@@ -51,7 +54,7 @@ my $Dest_dir = $opt_d || $Config{installarchlib};
 die "Destination directory $Dest_dir doesn't exist or isn't a directory\n"
     unless -d $Dest_dir;
 
-@isatype = split(' ',<<END);
+my @isatype = split(' ',<<END);
 	char	uchar	u_char
 	short	ushort	u_short
 	int	uint	u_int
@@ -59,14 +62,18 @@ die "Destination directory $Dest_dir doesn't exist or isn't a directory\n"
 	FILE	key_t	caddr_t
 END
 
+my %isatype;
 @isatype{@isatype} = (1) x @isatype;
-$inif = 0;
+my $inif = 0;
+my %Is_converted;
 
 @ARGV = ('-') unless @ARGV;
 
 build_preamble_if_necessary();
 
-while (defined ($file = next_file())) {
+my ($t, $tab, %curargs, $new, $eval_index, $dir, $name, $args, $outfile);
+my ($incl, $next);
+while (defined (my $file = next_file())) {
     if (-l $file and -d $file) {
         link_if_possible($file) if ($opt_l);
         next;
@@ -130,7 +137,7 @@ while (defined ($file = next_file())) {
     	    	    my $proto = '() ';
 		    if ($args ne '') {
     	    	    	$proto = '';
-			foreach $arg (split(/,\s*/,$args)) {
+			foreach my $arg (split(/,\s*/,$args)) {
 			    $arg =~ s/^\s*([^\s].*[^\s])\s*$/$1/;
 			    $curargs{$arg} = 1;
 			}
@@ -258,11 +265,11 @@ while (defined ($file = next_file())) {
 	    s@/\*.*?\*/@@g;
 	    s/\s+/ /g;
 	    /^\s?(typedef\s?)?enum\s?([a-zA-Z_]\w*)?\s?\{(.*)\}\s?([a-zA-Z_]\w*)?\s?;/;
-	    ($enum_subs = $3) =~ s/\s//g;
-	    @enum_subs = split(/,/, $enum_subs);
-	    $enum_val = -1;
-	    for $enum (@enum_subs) {
-		($enum_name, $enum_value) = $enum =~ /^([a-zA-Z_]\w*)(=.+)?$/;
+	    (my $enum_subs = $3) =~ s/\s//g;
+	    my @enum_subs = split(/,/, $enum_subs);
+	    my $enum_val = -1;
+	    foreach my $enum (@enum_subs) {
+		my ($enum_name, $enum_value) = $enum =~ /^([a-zA-Z_]\w*)(=.+)?$/;
 		$enum_value =~ s/^=//;
 		$enum_val = (length($enum_value) ? $enum_value : $enum_val + 1);
 		if ($opt_h) {
@@ -281,11 +288,12 @@ while (defined ($file = next_file())) {
     }
     print OUT "1;\n";
 
-    $is_converted{$file} = 1;
+    $Is_converted{$file} = 1;
     queue_includes_from($file) if ($opt_a);
 }
 
 exit $Exit;
+
 
 sub reindent($) {
     my($text) = shift;
@@ -294,9 +302,11 @@ sub reindent($) {
     $text;
 }
 
+
 sub expr {
+    my $joined_args;
     if(keys(%curargs)) {
-	my($joined_args) = join('|', keys(%curargs));
+	$joined_args = join('|', keys(%curargs));
     }
     while ($_ ne '') {
 	s/^\&\&// && do { $new .= " &&"; next;}; # handle && operator
@@ -348,7 +358,7 @@ sub expr {
 	};
 	# struct/union member, including arrays:
 	s/^([_A-Z]\w*(\[[^\]]+\])?((\.|->)[_A-Z]\w*(\[[^\]]+\])?)+)//i && do {
-	    $id = $1;
+	    my $id = $1;
 	    $id =~ s/(\.|(->))([^\.\-]*)/->\{$3\}/g;
 	    $id =~ s/\b([^\$])($joined_args)/$1\$$2/g if length($joined_args);
 	    while($id =~ /\[\s*([^\$\&\d\]]+)\]/) {
@@ -364,7 +374,7 @@ sub expr {
 	    $new .= " (\$$id)";
 	};
 	s/^([_a-zA-Z]\w*)//	&& do {
-	    $id = $1;
+	    my $id = $1;
 	    if ($id eq 'struct') {
 		s/^\s+(\w+)//;
 		$id .= ' ' . $1;
@@ -506,7 +516,7 @@ sub queue_includes_from
             }
 
             if ($line =~ /^#\s*include\s+<(.*?)>/) {
-                push(@ARGV, $1) unless $is_converted{$1};
+                push(@ARGV, $1) unless $Is_converted{$1};
             }
         }
     close HEADER;
@@ -576,7 +586,8 @@ sub build_preamble_if_necessary
 sub _extract_cc_defines
 {
     my %define;
-    my $allsymbols = join " ", @Config{ccsymbols, cppsymbols, cppccsymbols};
+    my $allsymbols  = join " ",
+        @Config{'ccsymbols', 'cppsymbols', 'cppccsymbols'};
 
     # Split compiler pre-definitions into `key=value' pairs:
     foreach (split /\s+/, $allsymbols) {
@@ -708,8 +719,6 @@ that it can translate.
 
 It's only intended as a rough tool.
 You may need to dicker with the files produced.
-
-Doesn't run with C<use strict>
 
 You have to run this program by hand; it's not run as part of the Perl
 installation.

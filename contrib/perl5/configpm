@@ -129,41 +129,84 @@ sub FETCH {
 
     # Search for it in the big string 
     my($value, $start, $marker, $quote_type);
-    $marker = "$_[1]=";
+
     $quote_type = "'";
-    # return undef unless (($value) = $config_sh =~ m/^$_[1]='(.*)'\s*$/m);
-    # Check for the common case, ' delimeted
-    $start = index($config_sh, "\n$marker$quote_type");
-    # If that failed, check for " delimited
-    if ($start == -1) {
-      $quote_type = '"';
-      $start = index($config_sh, "\n$marker$quote_type");
+    # Virtual entries.
+    if ($_[1] eq 'byteorder') {
+	# byteorder does exist on its own but we overlay a virtual
+	# dynamically recomputed value. 
+        my $t = $Config{ivtype};
+        my $s = $Config{ivsize};
+        my $f = $t eq 'long' ? 'L!' : $s == 8 ? 'Q': 'I';
+        if ($s == 4 || $s == 8) {
+	    my $i = 0;
+    	    foreach my $c (reverse(2..$s)) { $i |= ord($c); $i <<= 8 }
+	    $i |= ord(1);
+            $value = join('', unpack('a'x$s, pack($f, $i)));
+        } else {
+            $value = '?'x$s;
+        }
+    } elsif ($_[1] =~ /^((?:cc|ld)flags|libs(?:wanted)?)_nolargefiles/) {
+	# These are purely virtual, they do not exist, but need to
+	# be computed on demand for largefile-incapable extensions.
+	my $key = "${1}_uselargefiles";
+	$value = $Config{$1};
+	my $withlargefiles = $Config{$key};
+	if ($key =~ /^(?:cc|ld)flags_/) {
+	    $value =~ s/\Q$withlargefiles\E\b//;
+	} elsif ($key =~ /^libs/) {
+	    my @lflibswanted = split(' ', $Config{libswanted_uselargefiles});
+	    if (@lflibswanted) {
+		my %lflibswanted;
+		@lflibswanted{@lflibswanted} = ();
+		if ($key =~ /^libs_/) {
+		    my @libs = grep { /^-l(.+)/ &&
+                                      not exists $lflibswanted{$1} }
+		                    split(' ', $Config{libs});
+		    $Config{libs} = join(' ', @libs);
+		} elsif ($key =~ /^libswanted_/) {
+		    my @libswanted = grep { not exists $lflibswanted{$_} }
+		                          split(' ', $Config{libswanted});
+		    $Config{libswanted} = join(' ', @libswanted);
+		}
+	    }
+	}
+    } else {
+	$marker = "$_[1]=";
+	# return undef unless (($value) = $config_sh =~ m/^$_[1]='(.*)'\s*$/m);
+	# Check for the common case, ' delimeted
+	$start = index($config_sh, "\n$marker$quote_type");
+	# If that failed, check for " delimited
+	if ($start == -1) {
+	    $quote_type = '"';
+	    $start = index($config_sh, "\n$marker$quote_type");
+	}
+	return undef if ( ($start == -1) &&  # in case it's first 
+			  (substr($config_sh, 0, length($marker)) ne $marker) );
+	if ($start == -1) { 
+	    # It's the very first thing we found. Skip $start forward
+	    # and figure out the quote mark after the =.
+	    $start = length($marker) + 1;
+	    $quote_type = substr($config_sh, $start - 1, 1);
+	} 
+	else { 
+	    $start += length($marker) + 2;
+	}
+	$value = substr($config_sh, $start, 
+			index($config_sh, "$quote_type\n", $start) - $start);
     }
-    return undef if ( ($start == -1) &&  # in case it's first 
-        (substr($config_sh, 0, length($marker)) ne $marker) );
-    if ($start == -1) { 
-      # It's the very first thing we found. Skip $start forward
-      # and figure out the quote mark after the =.
-      $start = length($marker) + 1;
-      $quote_type = substr($config_sh, $start - 1, 1);
-    } 
-    else { 
-      $start += length($marker) + 2;
-    }
-    $value = substr($config_sh, $start, 
-        index($config_sh, "$quote_type\n", $start) - $start);
- 
     # If we had a double-quote, we'd better eval it so escape
     # sequences and such can be interpolated. Since the incoming
     # value is supposed to follow shell rules and not perl rules,
     # we escape any perl variable markers
     if ($quote_type eq '"') {
-      $value =~ s/\$/\\\$/g;
-      $value =~ s/\@/\\\@/g;
-      eval "\$value = \"$value\"";
+	$value =~ s/\$/\\\$/g;
+	$value =~ s/\@/\\\@/g;
+	eval "\$value = \"$value\"";
     }
     #$value = sprintf($value) if $quote_type eq '"';
-    $value = undef if $value eq 'undef'; # So we can say "if $Config{'foo'}".
+    # So we can say "if $Config{'foo'}".
+    $value = undef if $value eq 'undef';
     $_[0]->{$_[1]} = $value; # cache it
     return $value;
 }
@@ -192,7 +235,8 @@ sub EXISTS {
     index($config_sh, "\n$_[1]='") != -1 or
     substr($config_sh, 0, length($_[1])+2) eq "$_[1]='" or
     index($config_sh, "\n$_[1]=\"") != -1 or
-    substr($config_sh, 0, length($_[1])+2) eq "$_[1]=\"";
+    substr($config_sh, 0, length($_[1])+2) eq "$_[1]=\"" or
+    $_[1] =~ /^(?:(?:cc|ld)flags|libs(?:wanted)?)_nolargefiles$/;
 }
 
 sub STORE  { die "\%Config::Config is read-only\n" }
