@@ -100,7 +100,11 @@ acpi_lid_attach(device_t dev)
     sc->lid_dev = dev;
     sc->lid_handle = acpi_get_handle(dev);
 
-    /* Install notification handler */
+    /*
+     * If a system does not get lid events, it may make sense to change
+     * the type to ACPI_ALL_NOTIFY.  Some systems generate both a wake and
+     * runtime notify in that case though.
+     */
     AcpiInstallNotifyHandler(sc->lid_handle, ACPI_DEVICE_NOTIFY,
 			     acpi_lid_notify_handler, sc);
     acpi_device_enable_wake_capability(sc->lid_handle, 1);
@@ -167,16 +171,18 @@ acpi_lid_notify_status_changed(void *arg)
 static void 
 acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
-    struct acpi_lid_softc	*sc = (struct acpi_lid_softc *)context;
+    struct acpi_lid_softc	*sc;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
 
+    sc = (struct acpi_lid_softc *)context;
     switch (notify) {
     case ACPI_NOTIFY_STATUS_CHANGED:
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
 				acpi_lid_notify_status_changed, sc);
 	break;
     default:
+	device_printf(sc->lid_dev, "unknown notify %#x\n", notify);
 	break;
     }
 

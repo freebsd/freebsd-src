@@ -323,7 +323,7 @@ EcUnlock(struct acpi_ec_softc *sc)
     mtx_unlock(&sc->ec_mtx);
 }
 
-static void		EcGpeHandler(void *Context);
+static uint32_t		EcGpeHandler(void *Context);
 static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, 
 				void *Context, void **return_Context);
 static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
@@ -540,7 +540,6 @@ acpi_ec_attach(device_t dev)
     struct acpi_ec_softc	*sc;
     struct acpi_ec_params	*params;
     ACPI_STATUS			Status;
-    int				errval = 0;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -565,8 +564,7 @@ acpi_ec_attach(device_t dev)
 			&sc->ec_data_rid, RF_ACTIVE);
     if (sc->ec_data_res == NULL) {
 	device_printf(dev, "can't allocate data port\n");
-	errval = ENXIO;
-	goto out;
+	goto error;
     }
     sc->ec_data_tag = rman_get_bustag(sc->ec_data_res);
     sc->ec_data_handle = rman_get_bushandle(sc->ec_data_res);
@@ -576,8 +574,7 @@ acpi_ec_attach(device_t dev)
 			&sc->ec_csr_rid, RF_ACTIVE);
     if (sc->ec_csr_res == NULL) {
 	device_printf(dev, "can't allocate command/status port\n");
-	errval = ENXIO;
-	goto out;
+	goto error;
     }
     sc->ec_csr_tag = rman_get_bustag(sc->ec_csr_res);
     sc->ec_csr_handle = rman_get_bushandle(sc->ec_csr_res);
@@ -592,8 +589,7 @@ acpi_ec_attach(device_t dev)
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
-	errval = ENXIO;
-	goto out;
+	goto error;
     }
 
     /* 
@@ -605,18 +601,31 @@ acpi_ec_attach(device_t dev)
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
-	Status = AcpiRemoveGpeHandler(sc->ec_gpehandle, sc->ec_gpebit,
-				      &EcGpeHandler);
-	if (ACPI_FAILURE(Status))
-	    panic("Added GPE handler but can't remove it");
-	errval = ENXIO;
-	goto out;
+	goto error;
+    }
+
+    /* Enable runtime GPEs for the handler. */
+    Status = AcpiSetGpeType(sc->ec_gpehandle, sc->ec_gpebit,
+			    ACPI_GPE_TYPE_RUNTIME);
+    if (ACPI_FAILURE(Status)) {
+	device_printf(dev, "AcpiSetGpeType failed: %s\n",
+		      AcpiFormatException(Status));
+	goto error;
+    }
+    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    if (ACPI_FAILURE(Status)) {
+	device_printf(dev, "AcpiEnableGpe failed: %s\n",
+		      AcpiFormatException(Status));
+	goto error;
     }
 
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "acpi_ec_attach complete\n"));
     return (0);
 
- out:
+error:
+    AcpiRemoveGpeHandler(sc->ec_gpehandle, sc->ec_gpebit, &EcGpeHandler);
+    AcpiRemoveAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC,
+	EcSpaceHandler);
     if (sc->ec_csr_res)
 	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_csr_rid, 
 			     sc->ec_csr_res);
@@ -624,7 +633,7 @@ acpi_ec_attach(device_t dev)
 	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
 			     sc->ec_data_res);
     mtx_destroy(&sc->ec_mtx);
-    return (errval);
+    return (ENXIO);
 }
 
 static void
@@ -689,7 +698,7 @@ EcGpeQueryHandler(void *Context)
 
 re_enable:
     /* Re-enable the GPE event so we'll get future requests. */
-    Status = AcpiEnableGpe(NULL, sc->ec_gpebit, ACPI_NOT_ISR);
+    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
     if (ACPI_FAILURE(Status))
 	printf("EcGpeQueryHandler: AcpiEnableEvent failed\n");
 }
@@ -699,7 +708,7 @@ re_enable:
  * be handled by polling in EcWaitEvent().  This is because some ECs
  * treat events as level when they should be edge-triggered.
  */
-static void
+static uint32_t
 EcGpeHandler(void *Context)
 {
     struct acpi_ec_softc *sc = Context;
@@ -708,17 +717,19 @@ EcGpeHandler(void *Context)
     KASSERT(Context != NULL, ("EcGpeHandler called with NULL"));
 
     /* Disable further GPEs while we handle this one. */
-    AcpiDisableGpe(NULL, sc->ec_gpebit, ACPI_ISR);
+    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
 
     /* Schedule the GPE query handler. */
     Status = AcpiOsQueueForExecution(OSD_PRIORITY_GPE, EcGpeQueryHandler,
 		Context);
     if (ACPI_FAILURE(Status)) {
 	printf("Queuing GPE query handler failed.\n");
-	Status = AcpiEnableGpe(NULL, sc->ec_gpebit, ACPI_ISR);
+	Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
 	if (ACPI_FAILURE(Status))
 	    printf("EcGpeHandler: AcpiEnableEvent failed\n");
     }
+
+    return (0);
 }
 
 static ACPI_STATUS
