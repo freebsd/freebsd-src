@@ -305,6 +305,7 @@ struct umass_softc {
 #	define PROTO_SCSI	0x0100		/* command protocol */
 #	define PROTO_ATAPI	0x0200
 #	define PROTO_UFI	0x0400
+#	define PROTO_RBC	0x0800
 #	define PROTO_COMMAND	0xff00		/* command protocol mask */
 
 	usbd_interface_handle	iface;		/* Mass Storage interface */
@@ -525,6 +526,10 @@ Static int umass_atapi_transform	(struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
 		     		unsigned char **rcmd, int *rcmdlen);
 
+/* RBC specific functions */
+Static int umass_rbc_transform	__P((struct umass_softc *sc,
+				unsigned char *cmd, int cmdlen,
+		     		unsigned char **rcmd, int *rcmdlen));
 
 #ifdef UMASS_DEBUG
 /* General debugging functions */
@@ -624,7 +629,20 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	id = usbd_get_interface_descriptor(iface);
 	if (id == NULL || id->bInterfaceClass != UCLASS_MASS)
 		return(UMATCH_NONE);
-
+	
+	if (UGETW(dd->idVendor) == USB_VENDOR_SONY
+		&& id->bInterfaceSubClass==0xff) {
+		
+		/* Sony DSC devices set the sub class to 0xff
+		 * instead of 1 (RBC). Fix that here.
+		 */
+		id->bInterfaceSubClass = 1;
+		
+		/* They also should be able to do higher speed.
+		 */
+		sc->transfer_speed = 500;
+	}
+	
 	switch (id->bInterfaceSubClass) {
 	case USUBCLASS_SCSI:
 		sc->proto |= PROTO_SCSI;
@@ -632,6 +650,9 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	case USUBCLASS_UFI:
 		sc->transfer_speed = UMASS_FLOPPY_TRANSFER_SPEED;
 		sc->proto |= PROTO_UFI;
+		break;
+	case USUBCLASS_RBC:
+		sc->proto |= PROTO_RBC;
 		break;
 	case USUBCLASS_SFF8020I:
 	case USUBCLASS_SFF8070I:
@@ -722,6 +743,9 @@ USB_ATTACH(umass)
 		break;
 	case PROTO_UFI:
 		printf("UFI");
+		break;
+	case PROTO_RBC:
+		printf("RBC");
 		break;
 	default:
 		printf("(unknown 0x%02x)", sc->proto&PROTO_COMMAND);
@@ -878,6 +902,8 @@ USB_ATTACH(umass)
 		sc->transform = umass_ufi_transform;
 	else if (sc->proto & PROTO_ATAPI)
 		sc->transform = umass_atapi_transform;
+	else if (sc->proto & PROTO_RBC)
+		sc->transform = umass_rbc_transform;
 #ifdef UMASS_DEBUG
 	else
 		panic("No transformation defined for command proto 0x%02x\n",
@@ -898,7 +924,8 @@ USB_ATTACH(umass)
 
 	if ((sc->proto & PROTO_SCSI) ||
 	    (sc->proto & PROTO_ATAPI) ||
-	    (sc->proto & PROTO_UFI)) {
+	    (sc->proto & PROTO_UFI) ||
+	    (sc->proto & PROTO_RBC)) {
 		/* Prepare the SCSI command block */
 		sc->cam_scsi_sense.opcode = REQUEST_SENSE;
 
@@ -940,7 +967,8 @@ USB_DETACH(umass)
 
 	if ((sc->proto & PROTO_SCSI) ||
 	    (sc->proto & PROTO_ATAPI) ||
-	    (sc->proto & PROTO_UFI))
+	    (sc->proto & PROTO_UFI) ||
+	    (sc->proto & PROTO_RBC))
 		/* detach the device from the SCSI host controller (SIM) */
 		err = umass_cam_detach(sc);
 
@@ -2576,6 +2604,40 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	}
 
 	return 1;		/* success */
+}
+/* RBC specific functions */
+Static int
+umass_rbc_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
+		     unsigned char **rcmd, int *rcmdlen)
+{
+	switch (cmd[0]) {
+	/* these commands are defined in RBC: */
+	case READ_10:
+	case READ_CAPACITY:
+	case START_STOP_UNIT:
+	case SYNCHRONIZE_CACHE:
+	case WRITE_10:
+	case 0x2f: /* VERIFY_10 is absent from scsi_all.h??? */
+	case INQUIRY:
+	case MODE_SELECT_10:
+	case MODE_SENSE_10:
+	case TEST_UNIT_READY:
+	case WRITE_BUFFER:
+	 /* The following commands are not listed in my copy of the RBC specs.
+	  * CAM however seems to want those, and at least the Sony DSC device
+	  * appears to support those as well */
+	case REQUEST_SENSE:
+	case PREVENT_ALLOW:
+		*rcmd = cmd;		/* We don't need to copy it */
+		*rcmdlen = cmdlen;
+		return 1;		/* success */
+	/* All other commands are not legal in RBC */
+	default:
+		printf("%s: Unsupported RBC command 0x%02x",
+			USBDEVNAME(sc->sc_dev), cmd[0]);
+		printf("\n");
+		return 0;	/* failure */
+	}
 }
 
 /*
