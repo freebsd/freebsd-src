@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.56 1995/09/16 21:31:55 pst Exp $
+ *	$Id: locore.s,v 1.57 1995/12/24 08:10:39 davidg Exp $
  */
 
 /*
@@ -366,7 +366,7 @@ got_common_bi_size:
 	andw	$0x08d5,%cx
 	cmpw	%ax,%cx
 
-	jnz	2f			# if flags changed, Intel chip
+	jnz	3f			# if flags changed, Intel chip
 
 	movl	$CPU_486DLC,_cpu-KERNBASE # set CPU value for Cyrix
 	movl	$0x69727943,_cpu_vendor-KERNBASE	# store vendor string
@@ -428,7 +428,7 @@ got_common_bi_size:
 	movl	%eax,%cr0
 	invd
 #endif /* CYRIX_CACHE_WORKS */
-	jmp	2f
+	jmp	3f
 
 1:	/* Use the `cpuid' instruction. */
 	xorl	%eax,%eax
