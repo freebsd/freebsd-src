@@ -289,8 +289,12 @@ ipsec_getpolicybysock(m, dir, inp, error)
 
 	/* set spidx in pcb */
 	if (inp->inp_vflag & INP_IPV6PROTO) {
+#ifdef INET6
 		*error = ipsec6_setspidx_in6pcb(m, inp);
 		pcbsp = inp->in6p_sp;
+#else
+		*error = EINVAL;		/* should not happen */
+#endif
 	} else {
 		*error = ipsec4_setspidx_inpcb(m, inp);
 		pcbsp = inp->inp_sp;
