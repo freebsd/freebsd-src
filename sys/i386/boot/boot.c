@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.15 1994/08/21 17:47:25 paul Exp $
+ *	$Id: boot.c,v 1.16 1994/10/06 09:41:03 rgrimes Exp $
  */
 
 
@@ -277,6 +277,8 @@ getbootdev(howto)
 						*howto |= RB_DFLTROOT; continue;
 					      case 'a':
 						*howto |= RB_ASKNAME; continue;
+					      case 'c':
+						*howto |= RB_CONFIG; continue;
 					      case 's':
 						*howto |= RB_SINGLE; continue;
 					      case 'd':
