@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
-.\"	$Id$
+.\"	$Id: chmod.1,v 1.7 1997/02/22 14:01:29 peter Exp $
 .\"
 .Dd March 31, 1994
 .Dt CHMOD 1
@@ -110,10 +110,14 @@ the following values:
 .Bl -tag -width 6n -compact -offset indent
 .It Li 4000
 set-user-ID-on-execution
+( see 
+.Xr chmod 2
+for directories )
 .It Li 2000
 set-group-ID-on-execution
 .It Li 1000
-sticky bit, see chmod(2)
+sticky bit, see
+.Xr chmod 2
 .It Li 0400
 read by owner
 .It Li 0200

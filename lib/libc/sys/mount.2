@@ -89,6 +89,8 @@ Do not honor setuid or setgid bits on files when executing them.
 Disable update of file access times.
 .It Dv MNT_NODEV
 Do not interpret special files on the filesystem.
+.It Dv MNT_SUIDDIR
+Directories with the SUID bit set chown new files to their own owner.
 .It Dv MNT_SYNCHRONOUS
 All I/O to the filesystem should be done synchronously.
 .It Dv MNT_ASYNC
@@ -153,6 +155,16 @@ even if files are still active.
 Active special devices continue to work,
 but any further accesses to any other active files result in errors
 even if the filesystem is later remounted.
+.Pp
+The
+.Dv MNT_SUIDDIR
+option requires the SUIDDIR option to have been compiled into the kernel
+to have any effect.
+See the
+.Xr mount 8 
+and
+.Xr chmod 2
+pages for more information.
 .Sh RETURN VALUES
 The
 .Fn mount
