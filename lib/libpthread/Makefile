@@ -11,7 +11,6 @@ SHLIB_MINOR= 0
 CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS
 CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE -I${.CURDIR}/uthread
 AINC=	-I${.CURDIR}/../libc/${MACHINE} -I${.CURDIR}/uthread
-CLEANFILES+=tags
 PRECIOUSLIB=	yes
 
 .include "${.CURDIR}/db/Makefile.inc"
@@ -37,14 +36,5 @@ CFLAGS+= -DYP
 .include "${.CURDIR}/yp/Makefile.inc"
 .endif
 .include "${.CURDIR}/${MACHINE}/sys/Makefile.inc"
-
-beforeinstall: tags
-	${INSTALL} ${COPY} -o bin -g bin -m 444 tags /var/db/libc_r.tags
-
-tags: ${SRCS}
-	ctags ${.ALLSRC:M*.c}
-	egrep -o "^ENTRY(.*)|^FUNC(.*)|^SYSCALL(.*)" ${.ALLSRC:M*.s} | \
-	    sed "s;\([^:]*\):\([^(]*\)(\([^, )]*\)\(.*\);\3 \1 /^\2(\3\4$$/;" \
-	    >> tags; sort -o tags tags
 
 .include <bsd.lib.mk>
