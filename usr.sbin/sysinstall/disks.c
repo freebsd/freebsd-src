@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 
+#ifdef WITH_SLICES
 enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_SIZE };
 
 #ifdef PC98
@@ -261,6 +262,7 @@ getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
     *bootCodeSize = 0;
 }
 #endif
+#endif /* WITH_SLICES */
 
 int
 diskGetSelectCount(Device ***devs)
@@ -281,6 +283,7 @@ diskGetSelectCount(Device ***devs)
     return enabled;
 }
 
+#ifdef WITH_SLICES
 void
 diskPartition(Device *dev)
 {
@@ -371,7 +374,7 @@ diskPartition(Device *dev)
 
 	case 'A':
 	case 'F':	/* Undocumented magic Dangerously Dedicated mode */
-#if defined(__alpha__) || defined(__sparc64__)
+#ifndef __i386__
 	    rv = 1;
 #else	    /* The rest is only relevant on x86 */
 	    cp = variable_get(VAR_DEDICATE_DISK);
@@ -448,11 +451,6 @@ diskPartition(Device *dev)
 			    partitiontype = efi;
 			else
 			    partitiontype = unknown;
-#if defined(__alpha__) || defined(__sparc64__)
-			if (partitiontype == freebsd && size == chunk_info[current_chunk]->size)
-			    All_FreeBSD(d, 1);
-			else
-#endif
 			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN), name);
 			variable_set2(DISK_PARTITIONED, "yes", 0);
@@ -709,6 +707,7 @@ diskPartition(Device *dev)
     }
     restorescr(w);
 }
+#endif /* WITH_SLICES */
 
 static u_char *
 bootalloc(char *name, size_t *size)
@@ -742,7 +741,8 @@ bootalloc(char *name, size_t *size)
 	msgDebug("bootalloc: can't stat %s\n", buf);
     return NULL;
 }
-	
+
+#ifdef WITH_SLICES 
 static int
 partitionHook(dialogMenuItem *selected)
 {
@@ -831,6 +831,7 @@ diskPartitionEditor(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
+#endif /* WITH_SLICES */
 
 int
 diskPartitionWrite(dialogMenuItem *self)
@@ -878,6 +879,7 @@ diskPartitionWrite(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
+#ifdef WITH_SLICES
 /* Partition a disk based wholly on which variables are set */
 static void
 diskPartitionNonInteractive(Device *dev)
@@ -985,4 +987,4 @@ diskPartitionNonInteractive(Device *dev)
 	variable_set2(DISK_PARTITIONED, "yes", 0);
     }
 }
-
+#endif /* WITH_SLICES */
