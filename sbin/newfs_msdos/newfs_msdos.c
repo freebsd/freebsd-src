@@ -31,10 +31,11 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/diskslice.h>
 #include <sys/disklabel.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -44,6 +45,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #define MAXU16	  0xffff	/* maximum unsigned 16-bit quantity */
@@ -337,8 +339,6 @@ main(int argc, char *argv[])
     fname = *argv++;
     if (!strchr(fname, '/')) {
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-	if (stat(buf, &sb))
-	    snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
 	if (!(fname = strdup(buf)))
 	    err(1, NULL);
     }
