@@ -608,7 +608,7 @@ ntfs_fhtovp(
 	/* XXX as unlink/rmdir/mkdir/creat are not currently possible
 	 * with NTFS, we don't need to check anything else for now */
 	*vpp = nvp;
-
+	vnode_create_vobject(nvp, VTOF(nvp)->f_size, curthread);
 	return (0);
 }
 
