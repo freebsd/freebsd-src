@@ -181,6 +181,13 @@
     <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
       it to just print out the dump size estimates and exit.</para>
 
+    <para>&man.finger.1; now has support for a
+      <filename>.pubkey</filename> file.</para>
+
+    <para>&man.finger.1; now supports a <option>-g</option> flag to
+      restrict the printing of GECOS information to the user's full
+      name only.</para>
+
     <para>&man.fold.1; now supports a <option>-b</option> flag to
       break at byte positions and a <option>-s</option> flag to break at
       word boundaries.</para>
