@@ -436,7 +436,8 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 
 /*
  * External function: lookup an entry in the hostcache and return the
- * discovered path mtu.  Returns null if no entry found or value not is set.
+ * discovered path mtu.  Returns null if no entry is found or value is not
+ * set.
  */
 u_long
 tcp_hc_getmtu(struct in_conninfo *inc)
