@@ -48,6 +48,7 @@ static const char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +63,8 @@ int	sflag;
 void	c_cut __P((FILE *, char *));
 void	f_cut __P((FILE *, char *));
 void	get_list __P((char *));
-static void	usage __P((void));
+int	main __P((int, char **));
+static 	void usage __P((void));
 
 int
 main(argc, argv)
@@ -73,10 +75,16 @@ main(argc, argv)
 	void (*fcn) __P((FILE *, char *)) = NULL;
 	int ch;
 
+	fcn = NULL;
+	setlocale (LC_ALL, "");
+
 	dchar = '\t';			/* default delimiter is \t */
 
-	while ((ch = getopt(argc, argv, "c:d:f:s")) != -1)
+	/* Since we don't support multi-byte characters, the -c and -b 
+	   options are equivalent, and the -n option is meaningless. */
+	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != -1)
 		switch(ch) {
+		case 'b':
 		case 'c':
 			fcn = c_cut;
 			get_list(optarg);
@@ -93,6 +101,8 @@ main(argc, argv)
 			break;
 		case 's':
 			sflag = 1;
+			break;
+		case 'n':
 			break;
 		case '?':
 		default:
@@ -127,8 +137,8 @@ void
 get_list(list)
 	char *list;
 {
-	register int setautostart, start, stop;
-	register char *pos;
+	int setautostart, start, stop;
+	char *pos;
 	char *p;
 
 	/*
@@ -139,19 +149,19 @@ get_list(list)
 	 * overlapping lists.  We also handle "-3-5" although there's no
 	 * real reason too.
 	 */
-	for (; (p = strtok(list, ", \t")); list = NULL) {
+	for (; (p = strsep(&list, ", \t")) != NULL;) {
 		setautostart = start = stop = 0;
 		if (*p == '-') {
 			++p;
 			setautostart = 1;
 		}
-		if (isdigit(*p)) {
+		if (isdigit((unsigned char)*p)) {
 			start = stop = strtol(p, &p, 10);
 			if (setautostart && start > autostart)
 				autostart = start;
 		}
 		if (*p == '-') {
-			if (isdigit(p[1]))
+			if (isdigit((unsigned char)p[1]))
 				stop = strtol(p + 1, &p, 10);
 			if (*p == '-') {
 				++p;
@@ -186,9 +196,10 @@ c_cut(fp, fname)
 	FILE *fp;
 	char *fname;
 {
-	register int ch = 0, col;
-	register char *pos;
+	int ch, col;
+	char *pos;
 
+	ch = 0;
 	for (;;) {
 		pos = positions + 1;
 		for (col = maxval; col; --col) {
@@ -199,12 +210,13 @@ c_cut(fp, fname)
 			if (*pos++)
 				(void)putchar(ch);
 		}
-		if (ch != '\n')
+		if (ch != '\n') {
 			if (autostop)
 				while ((ch = getc(fp)) != EOF && ch != '\n')
 					(void)putchar(ch);
 			else
 				while ((ch = getc(fp)) != EOF && ch != '\n');
+		}
 		(void)putchar('\n');
 	}
 }
@@ -214,8 +226,8 @@ f_cut(fp, fname)
 	FILE *fp;
 	char *fname;
 {
-	register int ch, field, isdelim;
-	register char *pos, *p, sep;
+	int ch, field, isdelim;
+	char *pos, *p, sep;
 	int output;
 	char lbuf[_POSIX2_LINE_MAX + 1];
 
@@ -223,7 +235,7 @@ f_cut(fp, fname)
 		output = 0;
 		for (isdelim = 0, p = lbuf;; ++p) {
 			if (!(ch = *p))
-				errx(1, "%s: line too long", fname);
+				errx(1, "%s: line too long.", fname);
 			/* this should work if newline is delimiter */
 			if (ch == sep)
 				isdelim = 1;
@@ -243,12 +255,14 @@ f_cut(fp, fname)
 					(void)putchar(sep);
 				while ((ch = *p++) != '\n' && ch != sep)
 					(void)putchar(ch);
-			} else
-				while ((ch = *p++) != '\n' && ch != sep);
+			} else {
+				while ((ch = *p++) != '\n' && ch != sep)
+					continue;
+			}
 			if (ch == '\n')
 				break;
 		}
-		if (ch != '\n')
+		if (ch != '\n') {
 			if (autostop) {
 				if (output)
 					(void)putchar(sep);
@@ -256,6 +270,7 @@ f_cut(fp, fname)
 					(void)putchar(ch);
 			} else
 				for (; (ch = *p) != '\n'; ++p);
+		}
 		(void)putchar('\n');
 	}
 }
@@ -263,8 +278,9 @@ f_cut(fp, fname)
 static void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: cut -c list [file1 ...]",
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+		"usage: cut -b list [-n] [file ...]",
+		"       cut -c list [file ...]",
 		"       cut -f list [-s] [-d delim] [file ...]");
 	exit(1);
 }
