@@ -1170,7 +1170,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	setidt(0, &IDTVEC(div),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(1, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(2, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 0);
- 	setidt(3, &IDTVEC(bpt),  SDT_SYSIGT, SEL_KPL, 0);
+ 	setidt(3, &IDTVEC(bpt),  SDT_SYSIGT, SEL_UPL, 0);
 	setidt(4, &IDTVEC(ofl),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(5, &IDTVEC(bnd),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(6, &IDTVEC(ill),  SDT_SYSIGT, SEL_KPL, 0);
