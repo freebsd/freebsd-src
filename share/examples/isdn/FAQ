@@ -910,8 +910,8 @@ for ppp and i4b sample configurations to get things up and running.
 More information to ppp setup can be found at
 
 	http://www.Awfulhak.org/ppp.html
-	http://www.freebsd.org/handbook/ppp-and-slip.html
-	http://www.freebsd.org/FAQ/userppp.html
+	http://www.freebsd.org/doc/handbook/ppp-and-slip.html
+	http://www.freebsd.org/doc/faq/ppp.html
 
 and in the directory "user-ppp" of the isdn4bsd distribution.
 
