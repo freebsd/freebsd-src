@@ -62,7 +62,7 @@ options 	SMP
 options 	DDB			#Enable the kernel debugger
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			#Enable mutex checks to detects deadlocks and cycles
+#options 	WITNESS			#Enable checks to detects deadlocks and cycles
 
 # Standard busses
 device		isa

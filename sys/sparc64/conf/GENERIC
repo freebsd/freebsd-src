@@ -61,7 +61,7 @@ options 	DDB			#Enable the kernel debugger
 options 	BREAK_TO_DEBUGGER	#a BREAK on a comconsole drops to DDB
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			#Enable mutex checks to detects deadlocks and cycles
+#options 	WITNESS			#Enable checks to detects deadlocks and cycles
 
 # To make an SMP kernel, the next line is needed
 options 	SMP			# Symmetric MultiProcessor Kernel
