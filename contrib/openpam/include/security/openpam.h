@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam.h#14 $
+ * $P4: //depot/projects/openpam/include/security/openpam.h#15 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -46,12 +46,26 @@
 extern "C" {
 #endif
 
+struct passwd;
+
 /*
  * API extensions
  */
+int
+openpam_borrow_cred(pam_handle_t *_pamh,
+	const struct passwd *_pwd);
+
+void
+openpam_free_data(pam_handle_t *_pamh,
+	void *_data,
+	int _status);
+
 const char *
 openpam_get_option(pam_handle_t *_pamh,
 	const char *_option);
+
+int
+openpam_restore_cred(pam_handle_t *_pamh);
 
 int
 openpam_set_option(pam_handle_t *_pamh,
