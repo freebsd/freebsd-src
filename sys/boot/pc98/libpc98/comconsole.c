@@ -29,27 +29,8 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <bootstrap.h>
 #include <machine/cpufunc.h>
+#include <dev/ic/ns16550.h>
 #include "libi386.h"
-
-/* selected defines from ns16550.h */
-#define	com_data	0	/* data register (R/W) */
-#define	com_dlbl	0	/* divisor latch low (W) */
-#define	com_dlbh	1	/* divisor latch high (W) */
-#define	com_ier		1	/* interrupt enable (W) */
-#define	com_iir		2	/* interrupt identification (R) */
-#define	com_fifo	2	/* FIFO control (W) */
-#define	com_lctl	3	/* line control register (R/W) */
-#define	com_cfcr	3	/* line control register (R/W) */
-#define	com_mcr		4	/* modem control register (R/W) */
-#define	com_lsr		5	/* line status register (R/W) */
-#define	com_msr		6	/* modem status register (R/W) */
-
-/* selected defines from sioreg.h */
-#define	CFCR_DLAB	0x80
-#define	MCR_RTS		0x02
-#define	MCR_DTR		0x01
-#define	LSR_TXRDY	0x20
-#define	LSR_RXRDY	0x01
 
 #define COMC_FMT	0x3		/* 8N1 */
 #define COMC_TXWAIT	0x40000		/* transmit timeout */
