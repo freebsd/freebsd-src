@@ -1553,7 +1553,7 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
+    0, sizeof(u_int), sysctl_machdep_i8254_freq, "IU", "");
 
 static int
 sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
@@ -1573,7 +1573,7 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
+    0, sizeof(u_int), sysctl_machdep_tsc_freq, "IU", "");
 
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
