@@ -38,31 +38,20 @@
 
 char *
 rindex(p, ch)
-	char *p;
-	int ch;
-{
-	char *save;
-
-	for (save = NULL;; ++p) {
-		if (*p == ch)
-			save = p;
-		if (!*p)
-			return(save);
-	}
-	/* NOTREACHED */
-}
-
-const char *
-c_rindex(p, ch)
 	const char *p;
 	int ch;
 {
-	const char *save;
+	union {
+		const char *cp;
+		char *p;
+	} u;
+	char *save;
 
-	for (save = NULL;; ++p) {
-		if (*p == ch)
-			save = p;
-		if (!*p)
+	u.cp = p;
+	for (save = NULL;; ++u.p) {
+		if (*u.p == ch)
+			save = u.p;
+		if (!*u.p)
 			return(save);
 	}
 	/* NOTREACHED */
