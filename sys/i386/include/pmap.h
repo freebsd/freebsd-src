@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.4 1993/10/15 10:07:44 rgrimes Exp $
+ * 	$Id: pmap.h,v 1.5 1993/11/07 17:43:02 wollman Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -118,11 +118,11 @@ typedef struct pde	pd_entry_t;	/* page directory entry */
 typedef struct pte	pt_entry_t;	/* Mach page table entry */
 
 /*
- * NKPDE controls the virtual space of the kernel, what ever is left is
- * given to the user (NUPDE)
+ * NKPDE controls the virtual space of the kernel, what ever is left, minus
+ * the alternate page table area is given to the user (NUPDE)
  */
 #define	NKPDE		7		/* number of kernel pde's */
-#define	NUPDE		(NPTEPG-NKPDE)	/* number of user pde's */
+#define	NUPDE		(NPTEPG-NKPDE-1)/* number of user pde's */
 /*
  * The *PTDI values control the layout of virtual memory
  *
@@ -132,7 +132,11 @@ typedef struct pte	pt_entry_t;	/* Mach page table entry */
 #define	APTDPTDI	(NPTEPG-1)	/* alt ptd entry that points to APTD */
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
-#define	UPTDI		(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
+#define	KSTKPTDI	(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
+#define KSTKPTEOFF	(NBPG/sizeof(struct pde)-UPAGES) /* pte entry for kernel stack */
+
+#define PDESIZE		sizeof(struct pde) /* for assembly files */
+#define PTESIZE		sizeof(struct pte) /* for assembly files */
 
 /*
  * Address of current and alternate address space page table maps
