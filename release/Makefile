@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.179 1995/05/25 06:14:10 phk Exp $
+#	$Id: Makefile,v 1.180 1995/05/25 18:48:06 jkh Exp $
 #
 # How to roll a release:
 #
@@ -336,7 +336,7 @@ release.9:
 		DIR=${RD}/rootfd/stand ZIP=false
 	cd ${RD}/trees/bin ; ls ${ROOT1} | cpio -dump ${RD}/rootfd/stand
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
-	cd ${RD}/rootfd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
+	cd ${RD}/rootfd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
 
