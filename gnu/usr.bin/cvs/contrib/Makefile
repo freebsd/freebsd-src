@@ -16,12 +16,11 @@ SCRIPTS= clmerge cln_hist commit_prep cvs2vendor cvs_acls cvscheck \
 FILES=	 README cvscheck.man cvshelp.man descend.man intro.doc
 
 EXAMPDIR=	/usr/share/examples/cvs
+SCRIPTSDIR=	${EXAMPDIR}/contrib
 PERLPATH=	/usr/bin/perl
 CLEANFILES+=	$(SCRIPTS)
 
 .SUFFIXES: .sh .csh .pl
-
-all:	${SCRIPTS}
 
 .sh:
 	cp $< $@
@@ -34,10 +33,6 @@ all:	${SCRIPTS}
 
 
 beforeinstall:
-.for file in ${SCRIPTS}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${file} ${DESTDIR}${EXAMPDIR}/contrib
-.endfor
 .for file in ${FILES}
 	cd ${.CURDIR} ; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
