@@ -27,11 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: memchr.S,v 1.2 1994/10/27 11:36:11 bde Exp $
+ *	$Id: memchr.S,v 1.3 1994/11/25 04:11:19 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-        .asciz "$Id: memchr.S,v 1.2 1994/10/27 11:36:11 bde Exp $"
+        .asciz "$Id: memchr.S,v 1.3 1994/11/25 04:11:19 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -49,8 +49,7 @@ ENTRY(memchr)
 	movl	8(%esp),%edi		/* string address */
 	movl	12(%esp),%eax		/* set character to search for */
 	movl	16(%esp),%ecx		/* set length of search */
-	testl	%ecx,%ecx		/* return NULL if len == 0 */
-	jz	L1
+	testl	%esp,%esp		/* clear Z flag, for len == 0 */
 	cld				/* set search forward */
 	repne				/* search! */
 	scasb
