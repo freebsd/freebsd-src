@@ -2249,22 +2249,70 @@
     driver)
       <itemizedlist>
         <listitem>
-	  <para>Avlab Technology, PCI IO 2S</para>
+	  <para>Actiontech 56K PCI</para>
 	</listitem>
         <listitem>
-	  <para>Moxa Industio CP-114</para>
+	  <para>Avlab Technology, PCI IO 2S and PCI IO 4S</para>
 	</listitem>
         <listitem>
-	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
+	  <para>Comtrol RocketPort 550</para>
+	</listitem>
+	<listitem>
+	  <para>Decision Computers PCCOM 4-port serial and dual port RS232/422/485</para>
+	</listitem>
+	<listitem>
+	  <para>Dolphin Peripherals 4025/4035/4036</para>
+	</listitem>
+	<listitem>
+	  <para>IC Book Labs Dreadnought 16x Lite and Pro</para>
+	</listitem>
+	<listitem>
+	  <para>Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
+	</listitem>
+	<listitem>
+	  <para>Middle Digital, Weasle serial port</para>
+	</listitem>
+	<listitem>
+	  <para>Moxa Industio CP-114 and C168H/PCI</para>
+	</listitem>
+	<listitem>
+	  <para>NEC PK-UG-X001 and PK-UG-X008</para>
 	</listitem>
         <listitem>
 	  <para>Netmos NM9835 PCI-2S-550</para>
 	</listitem>
         <listitem>
-	  <para>PCCOM dual port RS232/422/485</para>
+	  <para>Oxford Semiconductor OX16PCI954 PCI UART</para>
 	</listitem>
 	<listitem>
-	  <para>SIIG Cyber Serial Dual PCI 16C550</para>
+	  <para>Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber Serial (Single and Dual) PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
+	</listitem>
+	<listitem>
+	  <para>Titan PCI-200H and PCI-800H</para>
+	</listitem>
+	<listitem>
+	  <para>US Robotics (3Com) 3CP5609 modem</para>
+	</listitem>
+	<listitem>
+	  <para>VScom PCI-400 and PCI-800</para>
 	</listitem>
       </itemizedlist>
     </para>
