@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.55 1998/03/13 02:31:21 alex Exp $
+ * $Id: ipfw.c,v 1.56 1998/04/22 06:20:20 phk Exp $
  *
  */
 
@@ -1152,7 +1152,7 @@ zero (ac, av)
 						 "IP_FW_ZERO");
 					failed = EX_UNAVAILABLE;
 				}
-				else
+				else if (!do_quiet)
 					printf("Entry %d cleared\n",
 					    rule.fw_number);
 			} else
