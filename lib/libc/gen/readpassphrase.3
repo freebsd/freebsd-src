@@ -1,5 +1,4 @@
 .\"	$OpenBSD: readpassphrase.3,v 1.3 2001/08/06 10:42:25 mpech Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 2000 Todd C. Miller <Todd.Miller@courtesan.com>
 .\" All rights reserved.
@@ -26,6 +25,8 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd November 20, 2000
 .Dt READPASSPHRASE 3
 .Os
@@ -33,8 +34,8 @@
 .Nm readpassphrase
 .Nd get a passphrase from the user
 .Sh SYNOPSIS
-.Fd #include <readpassphrase.h>
-.Ft char *
+.In readpassphrase.h
+.Ft "char *"
 .Fn readpassphrase "const char *prompt" "char *buf" "size_t bufsiz" "int flags"
 .Sh DESCRIPTION
 The
@@ -52,7 +53,9 @@ In this case it is generally not possible to turn off echo.
 .Pp
 Up to
 .Fa bufsiz
-- 1 characters (one is for the NUL) are read into the provided buffer
+\- 1 characters (one is for the
+.Dv NUL )
+are read into the provided buffer
 .Fa buf .
 Any additional
 characters and the terminating newline (or return) character are discarded.
@@ -61,14 +64,20 @@ characters and the terminating newline (or return) character are discarded.
 takes the following optional
 .Fa flags :
 .Pp
-.Bd -literal -offset indent -compact
-RPP_ECHO_OFF		turn off echo (default behavior)
-RPP_ECHO_ON		leave echo on
-RPP_REQUIRE_TTY		fail if there is no tty
-RPP_FORCELOWER		force input to lower case
-RPP_FORCEUPPER		force input to upper case
-RPP_SEVENBIT		strip the high bit from input
-.Ed
+.Bl -tag -width ".Dv RPP_REQUIRE_TTY" -compact
+.It Dv RPP_ECHO_OFF
+turn off echo (default behavior)
+.It Dv RPP_ECHO_ON
+leave echo on
+.It Dv RPP_REQUIRE_TTY
+fail if there is no tty
+.It Dv RPP_FORCELOWER
+force input to lower case
+.It Dv RPP_FORCEUPPER
+force input to upper case
+.It Dv RPP_SEVENBIT
+strip the high bit from input
+.El
 .Pp
 The calling process should zero the passphrase as soon as possible to
 avoid leaving the cleartext passphrase visible in the process's address
@@ -83,12 +92,14 @@ flag is set and
 .Pa /dev/tty
 is inaccessible,
 .Fn readpassphrase
-returns a null pointer.
+returns a
+.Dv NULL
+pointer.
 .Sh EXAMPLES
 The following code fragment will read a passphrase from
 .Pa /dev/tty
 into the buffer
-.Fa passbuf.
+.Fa passbuf .
 .Bd -literal -offset indent
 char passbuf[1024];
 
@@ -106,7 +117,7 @@ if (compare(transform(passbuf), epass) != 0)
 memset(passbuf, 0, sizeof(passbuf));
 .Ed
 .Sh FILES
-.Bl -tag -width /dev/tty -compact
+.Bl -tag -width ".Pa /dev/tty" -compact
 .It Pa /dev/tty
 .El
 .Sh SEE ALSO
