@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.59 1998/06/05 08:31:01 kato Exp $
+ *	$Id: sio.c,v 1.60 1998/06/08 08:55:45 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2457,14 +2457,11 @@ repeat:
 		com = com_addr(unit);
 		if (com == NULL)
 			continue;
-		if (com->gone)
-			continue;
 		tp = com->tp;
-		if (tp == NULL) {
+		if (tp == NULL || com->gone) {
 			/*
-			 * XXX forget any events related to closed devices
-			 * (actually never opened devices) so that we don't
-			 * loop.
+			 * Discard any events related to never-opened or
+			 * going-away devices.
 			 */
 			disable_intr();
 			incc = com->iptr - com->ibuf;
@@ -2475,10 +2472,6 @@ repeat:
 			}
 			com_events -= incc;
 			enable_intr();
-			if (incc != 0)
-				log(LOG_DEBUG,
-				    "sio%d: %d events for device with no tp\n",
-				    unit, incc);
 			continue;
 		}
 
