@@ -100,8 +100,8 @@ int	extravnodes = EXTRAVNODES;		/* spare vnodes to allocate */
 #endif
 int	nmbclusters = NMBCLUSTERS;
 
-/* allocate same amount of virtual address space for mbufs XXX */
-int	nmbufs = NMBCLUSTERS * (MCLBYTES / MSIZE);
+/* allocate 1/4th amount of virtual address space for mbufs XXX */
+int	nmbufs = NMBCLUSTERS * 4;
 
 int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */
 

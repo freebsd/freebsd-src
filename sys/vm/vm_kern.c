@@ -98,8 +98,6 @@ vm_map_t u_map=0;
 vm_map_t buffer_map=0;
 vm_map_t mb_map=0;
 int mb_map_full=0;
-vm_map_t mcl_map=0;
-int mcl_map_full=0;
 vm_map_t io_map=0;
 vm_map_t phys_map=0;
 
@@ -289,8 +287,8 @@ kmem_malloc(map, size, waitflag)
 	vm_offset_t addr;
 	vm_page_t m;
 
-	if (map != kmem_map && map != mb_map && map != mcl_map)
-		panic("kmem_malloc: map != {kmem,mb,mcl}_map");
+	if (map != kmem_map && map != mb_map)
+		panic("kmem_malloc: map != {kmem,mb}_map");
 
 	size = round_page(size);
 	addr = vm_map_min(map);
@@ -305,13 +303,7 @@ kmem_malloc(map, size, waitflag)
 		vm_map_unlock(map);
 		if (map == mb_map) {
 			mb_map_full = TRUE;
-			log(LOG_ERR, "Out of mbufs - increase maxusers!\n");
-			return (0);
-		}
-		if (map == mcl_map) {
-			mcl_map_full = TRUE;
-			log(LOG_ERR, 
-			    "Out of mbuf clusters - increase maxusers!\n");
+			log(LOG_ERR, "Out of mbuf clusters - increase maxusers!\n");
 			return (0);
 		}
 		if (waitflag == M_WAITOK)

@@ -73,8 +73,6 @@ extern vm_map_t kernel_map;
 extern vm_map_t kmem_map;
 extern vm_map_t mb_map;
 extern int mb_map_full;
-extern vm_map_t mcl_map;
-extern int mcl_map_full;
 extern vm_map_t io_map;
 extern vm_map_t clean_map;
 extern vm_map_t phys_map;
