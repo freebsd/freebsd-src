@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.27 1994/10/01 02:56:14 davidg Exp $
+ *	$Id: isa.c,v 1.28 1994/10/17 21:16:38 phk Exp $
  */
 
 /*
@@ -317,7 +317,9 @@ isa_configure() {
  * during spltty.
  */
 #include "sl.h"
-#if NSL > 0
+#include "ppp.h"
+
+#if (NSL > 0) || (NPPP > 0)
 	net_imask |= tty_imask;
 	tty_imask = net_imask;
 #endif
@@ -491,6 +493,69 @@ config_isadev_c(isdp, mp, reconfig)
 			}
 		}
 	}
+}
+
+/*
+ * Provide ISA-specific device information to user programs using the
+ * hw.devconf interface.
+ */
+int
+isa_externalize(struct isa_device *id, void *userp, size_t *maxlen)
+{
+	if(*maxlen < sizeof *id) {
+		return ENOMEM;
+	}
+
+	*maxlen -= sizeof *id;
+	return copyout(id, userp, sizeof *id);
+}
+
+/*
+ * Do the same thing for EISA information.  EISA information is currently
+ * the same as ISA information plus a slot number, but could be extended in
+ * the future.
+ */
+int
+eisa_externalize(struct isa_device *id, int slot, void *userp, size_t *maxlen)
+{
+	int rv;
+
+	if(*maxlen < (sizeof *id) + (sizeof slot)) {
+		return ENOMEM;
+	}
+	*maxlen -= (sizeof *id) + (sizeof slot);
+
+	rv = copyout(id, userp, sizeof *id);
+	if(rv) return rv;
+
+	return copyout(&slot, (char *)userp + sizeof *id, sizeof slot);
+}
+
+/*
+ * This is used to forcibly reconfigure an ISA device.  It currently just
+ * returns an error 'cos you can't do that yet.  It is here to demonstrate
+ * what the `internalize' routine is supposed to do.
+ */
+int
+isa_internalize(struct isa_device *id, void **userpp, size_t *len)
+{
+	struct isa_device myid;
+	char *userp = *userpp;
+	int rv;
+
+	if(*len < sizeof *id) {
+		return EINVAL;
+	}
+
+	rv = copyin(userp, &myid, sizeof myid);
+	if(rv) return rv;
+	*userpp = userp + sizeof myid;
+	*len -= sizeof myid;
+
+	rv = EOPNOTSUPP;
+	/* code would go here to validate the configuration request */
+	/* code would go here to actually perform the reconfiguration */
+	return rv;
 }
 
 /*
