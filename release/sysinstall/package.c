@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.6 1995/10/20 21:57:23 jkh Exp $
+ * $Id: package.c,v 1.7 1995/10/20 22:36:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -103,7 +103,7 @@ package_extract(Device *dev, char *name)
 		close(fd);
 	    }
 	    if (chdir(where) == -1)
-		msgFatal("Unable to get back to where I was before, Jojo!\n(That was: %s)\n", where);
+		msgFatal("Unable to get back to where I was before, Jojo! (That was: %s)", where);
 	    vsystem("rm -rf %s", pen);
 	    if (isDebug())
 		msgDebug("Nuked pen: %s\n", pen);
