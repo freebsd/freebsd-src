@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.50 1996/01/21 17:28:46 bde Exp $
+#	$Id: BSD.usr.dist,v 1.51 1996/01/29 12:34:43 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -31,6 +31,8 @@
     ..
     share
         calendar
+		de_DE.ISO_8859-1
+		..
         ..
         dict
         ..
