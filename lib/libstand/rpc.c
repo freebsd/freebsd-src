@@ -39,6 +39,9 @@
  * @(#) Header: rpc.c,v 1.12 93/09/28 08:31:56 leres Exp  (LBL)
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * RPC functions used by NFS and bootparams.
  * Note that bootparams requires the ability to find out the
