@@ -85,13 +85,13 @@ static struct ndis_pccard_type ndis_devs[] = {
 
 static int ndis_probe_pccard	(device_t);
 static int ndis_attach_pccard	(device_t);
+static struct resource_list *ndis_get_resource_list
+				(device_t, device_t);
 extern int ndis_attach		(device_t);
 extern int ndis_shutdown	(device_t);
 extern int ndis_detach		(device_t);
 extern int ndis_suspend		(device_t);
 extern int ndis_resume		(device_t);
-
-static int my_strcasecmp	(const char *, const char *, int);
 
 extern struct mtx_pool *ndis_mtxpool;
 
@@ -103,6 +103,15 @@ static device_method_t ndis_methods[] = {
 	DEVMETHOD(device_shutdown,	ndis_shutdown),
 	DEVMETHOD(device_suspend,	ndis_suspend),
 	DEVMETHOD(device_resume,	ndis_resume),
+
+	/* Bus interface. */
+
+	/*
+	 * This is an awful kludge, but we need it becase pccard
+	 * does not implement a bus_get_resource_list() method.
+	 */
+
+	DEVMETHOD(bus_get_resource_list, ndis_get_resource_list),
 
 	{ 0, 0 }
 };
@@ -127,22 +136,6 @@ NDIS_MODNAME_OVERRIDE_PCMCIA(NDIS_MODNAME);
 DRIVER_MODULE(ndis, pccard, ndis_driver, ndis_devclass, 0, 0);
 #endif
 
-static int my_strcasecmp(s1, s2, len)
-	const char		*s1;
-	const char		*s2;
-	int			len;
-{
-	int			i;
-
-	for (i = 0; i < len; i++) {
-		if (toupper(s1[i]) != toupper(s2[i]))
-			return(0);
-	}
-
-	return(1);
-}
-
-
 /*
  * Probe for an NDIS device. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
@@ -165,8 +158,8 @@ ndis_probe_pccard(dev)
 		return(error);
 
 	while(t->ndis_name != NULL) {
-		if (my_strcasecmp(vendstr, t->ndis_vid, strlen(vendstr)) &&
-		    my_strcasecmp(prodstr, t->ndis_did, strlen(prodstr))) {
+		if (ndis_strcasecmp(vendstr, t->ndis_vid) == 0 &&
+		    ndis_strcasecmp(prodstr, t->ndis_did) == 0) {
 			device_set_desc(dev, t->ndis_name);
 			return(0);
 		}
@@ -193,6 +186,7 @@ ndis_attach_pccard(dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	sc->ndis_dev = dev;
+	resource_list_init(&sc->ndis_rl);
 
 	sc->ndis_io_rid = 0;
 	sc->ndis_res_io = bus_alloc_resource(dev,
@@ -205,6 +199,9 @@ ndis_attach_pccard(dev)
 		goto fail;
 	}
 	sc->ndis_rescnt++;
+	resource_list_add(&sc->ndis_rl, SYS_RES_IOPORT, rid,
+	    rman_get_start(sc->ndis_res_io), rman_get_end(sc->ndis_res_io),
+	    rman_get_size(sc->ndis_res_io));
 
 	rid = 0;
 	sc->ndis_irq = bus_alloc_resource(dev,
@@ -217,6 +214,8 @@ ndis_attach_pccard(dev)
 		goto fail;
 	}
 	sc->ndis_rescnt++;
+	resource_list_add(&sc->ndis_rl, SYS_RES_IRQ, rid,
+	    rman_get_start(sc->ndis_irq), rman_get_start(sc->ndis_irq), 1);
 
 	sc->ndis_iftype = PCMCIABus;
 
@@ -232,8 +231,8 @@ ndis_attach_pccard(dev)
 		return(error);
 
 	while(t->ndis_name != NULL) {
-		if (my_strcasecmp(vendstr, t->ndis_vid, strlen(vendstr)) &&
-		    my_strcasecmp(prodstr, t->ndis_did, strlen(prodstr)))
+		if (ndis_strcasecmp(vendstr, t->ndis_vid) == 0 &&
+		    ndis_strcasecmp(prodstr, t->ndis_did) == 0)
 			break;
 		t++;
 		devidx++;
@@ -245,6 +244,17 @@ ndis_attach_pccard(dev)
 
 fail:
 	return(error);
+}
+
+static struct resource_list *
+ndis_get_resource_list(dev, child)
+	device_t		dev;
+	device_t		child;
+{
+	struct ndis_softc	*sc;
+
+	sc = device_get_softc(dev);
+	return (&sc->ndis_rl);
 }
 
 #endif /* NDIS_PCI_DEV_TABLE */
@@ -271,6 +281,10 @@ ndis_alloc_amem(arg)
 		    "failed to allocate attribute memory\n");
 		return(ENXIO);
 	}
+	sc->ndis_rescnt++;
+	resource_list_add(&sc->ndis_rl, SYS_RES_MEMORY, rid,
+	    rman_get_start(sc->ndis_res_am), rman_get_end(sc->ndis_res_am),
+	    rman_get_size(sc->ndis_res_am));
 
 	error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->ndis_dev),
 	    sc->ndis_dev, rid, 0, NULL);
@@ -290,5 +304,26 @@ ndis_alloc_amem(arg)
 		return(error);
 	}
 
+	sc->ndis_am_rid = rid;
+
 	return(0);
+}
+
+void
+ndis_free_amem(arg)
+	void			*arg;
+{
+	struct ndis_softc	*sc;
+
+	if (arg == NULL)
+		return;
+
+	sc = arg;
+
+	if (sc->ndis_res_am != NULL)
+		bus_release_resource(sc->ndis_dev, SYS_RES_MEMORY,
+		    sc->ndis_am_rid, sc->ndis_res_am);
+	resource_list_free(&sc->ndis_rl);
+
+	return;
 }

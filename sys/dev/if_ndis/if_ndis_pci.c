@@ -84,6 +84,8 @@ static struct ndis_pci_type ndis_devs[] = {
 
 static int ndis_probe_pci	(device_t);
 static int ndis_attach_pci	(device_t);
+static struct resource_list *ndis_get_resource_list
+				(device_t, device_t);
 extern int ndis_attach		(device_t);
 extern int ndis_shutdown	(device_t);
 extern int ndis_detach		(device_t);
@@ -100,6 +102,9 @@ static device_method_t ndis_methods[] = {
 	DEVMETHOD(device_shutdown,	ndis_shutdown),
 	DEVMETHOD(device_suspend,	ndis_suspend),
 	DEVMETHOD(device_resume,	ndis_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_get_resource_list, ndis_get_resource_list),
 
 	{ 0, 0 }
 };
@@ -319,6 +324,17 @@ ndis_attach_pci(dev)
 
 fail:
 	return(error);
+}
+
+static struct resource_list *
+ndis_get_resource_list(dev, child)
+	device_t		dev;
+	device_t		child;
+{
+	struct ndis_softc	*sc;
+
+	sc = device_get_softc(dev);
+	return (BUS_GET_RESOURCE_LIST(device_get_parent(sc->ndis_dev), dev));
 }
 
 #endif /* NDIS_PCI_DEV_TABLE */
