@@ -75,7 +75,7 @@
 	bus_space_write_4((ahb)->tag, (ahb)->bsh, port, value)
 
 static const char		*ahbmatch(eisa_id_t type);
-static struct ahb_softc		*ahballoc(u_long unit, u_int iobase);
+static struct ahb_softc		*ahballoc(u_long unit, struct resource *res);
 static void			 ahbfree(struct ahb_softc *ahb);
 static int			 ahbreset(struct ahb_softc *ahb);
 static void			 ahbmapecbs(void *arg, bus_dma_segment_t *segs,
@@ -277,7 +277,7 @@ ahbattach(device_t dev)
 		return ENOMEM;
 	}
 
-	if ((ahb = ahballoc(device_get_unit(dev), rman_get_start(io))) == NULL) {
+	if ((ahb = ahballoc(device_get_unit(dev), io)) == NULL) {
 		goto error_exit2;
 	}
 
@@ -391,7 +391,7 @@ error_exit2:
 }
 
 static struct ahb_softc *
-ahballoc(u_long unit,  u_int iobase)
+ahballoc(u_long unit, struct resource *res)
 {
 	struct	ahb_softc *ahb;
 
@@ -407,8 +407,8 @@ ahballoc(u_long unit,  u_int iobase)
 	SLIST_INIT(&ahb->free_ecbs);
 	LIST_INIT(&ahb->pending_ccbs);
 	ahb->unit = unit;
-	ahb->tag = I386_BUS_SPACE_IO;
-	ahb->bsh = iobase;
+	ahb->tag = rman_get_bustag(res);
+	ahb->bsh = rman_get_bushandle(res);
 	ahb->disc_permitted = ~0;
 	ahb->tags_permitted = ~0;
 
