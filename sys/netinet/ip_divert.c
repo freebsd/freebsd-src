@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.9 1998/06/12 03:02:08 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.10 1998/07/01 01:38:34 julian Exp $
  */
 
 #include "opt_ipfw.h"
@@ -156,19 +156,19 @@ div_input(struct mbuf *m, int hlen)
 	}
 	ip = mtod(m, struct ip *);
 
-	/* Record divert port */
-#ifndef IPFW_DIVERT_RESTART
-	divsrc.sin_port = htons(ip_divert_port);
-#else
+	/* Record divert cookie */
 	divsrc.sin_port = ip_divert_cookie;
-#endif /* IPFW_DIVERT_RESTART */
+	ip_divert_cookie = 0;
 
 	/* Restore packet header fields */
 	ip->ip_len += hlen;
 	HTONS(ip->ip_len);
 	HTONS(ip->ip_off);
 
-	/* Record receive interface address, if any */
+	/*
+	 * Record receive interface address, if any 
+	 * But only for incoming packets.
+	 */
 	divsrc.sin_addr.s_addr = 0;
 	if (hlen) {
 		struct ifaddr *ifa;
@@ -194,6 +194,9 @@ div_input(struct mbuf *m, int hlen)
 			break;
 		}
 	}
+	/*
+	 * Record the incoming interface name whenever we have one.
+	 */
 	if (m->m_pkthdr.rcvif) {
 		char	name[32];
 		
@@ -226,6 +229,7 @@ div_input(struct mbuf *m, int hlen)
 		if (inp->inp_lport == htons(ip_divert_port))
 			sa = inp->inp_socket;
 	}
+	ip_divert_port = 0;
 	if (sa) {
 		if (sbappendaddr(&sa->so_rcv, (struct sockaddr *)&divsrc,
 				m, (struct mbuf *)0) == 0)
@@ -267,11 +271,7 @@ div_output(so, m, addr, control)
 
 	/* Loopback avoidance */
 	if (sin) {
-#ifndef IPFW_DIVERT_RESTART
-		ip_divert_cookie = ntohs(sin->sin_port);
-#else
 		ip_divert_cookie = sin->sin_port;
-#endif /* IPFW_DIVERT_RESTART */
 	} else {
 		ip_divert_cookie = 0;
 	}
