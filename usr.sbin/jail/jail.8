@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2003
+.Dd February 27, 2005
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -119,7 +119,6 @@ D=/here/is/the/jail
 cd /usr/src
 mkdir -p $D
 make world DESTDIR=$D
-cd etc
 make distribution DESTDIR=$D
 mount_devfs devfs $D/dev
 cd $D
