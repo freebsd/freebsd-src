@@ -6,7 +6,7 @@ GPROFDIR=	${.CURDIR}/../../../contrib/gperf
 
 SUBDIR=	doc
 
-PROG_GCC=	gperf
+PROG_GXX=	gperf
 SRCS=	bool-array.cc gen-perf.cc hash-table.cc iterator.cc key-list.cc \
 	list-node.cc main.cc new.cc options.cc read-line.cc trace.cc \
 	vectors.cc version.cc
