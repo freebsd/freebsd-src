@@ -1532,8 +1532,8 @@ p_cansignal(struct thread *td, struct proc *p, int signum)
 	 * pretty safe to do since the only way to create two processes
 	 * with the same p_leader is via rfork(2).
 	 */
-	if (signum >= SIGTHR && td->td_proc->p_leader != NULL &&
-	    td->td_proc->p_leader == p->p_leader)
+	if (td->td_proc->p_leader != NULL && signum >= SIGTHR &&
+	    signum < SIGTHR + 4 && td->td_proc->p_leader == p->p_leader)
 		return (0);
 
 	return (cr_cansignal(td->td_ucred, p, signum));
