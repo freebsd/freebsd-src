@@ -81,7 +81,6 @@
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
 
-
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netkey/key.h>
@@ -439,7 +438,7 @@ iphack:
 		}
 #endif /* PFIL_HOOKS */
 
-	if (fw_enable && ip_fw_chk_ptr) {
+	if (fw_enable && IPFW_LOADED) {
 #ifdef IPFIREWALL_FORWARD
 		/*
 		 * If we've been forwarded from the output side, then
@@ -452,7 +451,7 @@ iphack:
 		 * See the comment in ip_output for the return values
 		 * produced by the firewall.
 		 */
-		i = (*ip_fw_chk_ptr)(&ip,
+		i = ip_fw_chk_ptr(&ip,
 		    hlen, NULL, &divert_cookie, &m, &rule, &ip_fw_fwd_addr);
 		if (i & IP_FW_PORT_DENY_FLAG) { /* XXX new interface-denied */
 		    if (m)
@@ -469,7 +468,7 @@ iphack:
 		}
 		if (i == 0 && ip_fw_fwd_addr == NULL)	/* common case */
 			goto pass;
-                if (ip_dn_io_ptr != NULL && (i & IP_FW_PORT_DYNT_FLAG) != 0) {
+                if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG) != 0) {
                         /* Send packet to the appropriate pipe */
                         ip_dn_io_ptr(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule,
 				    0);
@@ -541,7 +540,7 @@ pass:
 	 * is not locally generated and the packet is not subject to
 	 * 'ipfw fwd'.
 	 *
-         * XXX - Checking also should be disabled if the destination
+	 * XXX - Checking also should be disabled if the destination
 	 * address is ipnat'ed to a different interface.
 	 *
 	 * XXX - Checking is incompatible with IP aliases added

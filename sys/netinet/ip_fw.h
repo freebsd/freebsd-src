@@ -327,6 +327,7 @@ extern ip_fw_ctl_t *ip_fw_ctl_ptr;
 extern int fw_one_pass;
 extern int fw_enable;
 extern struct ipfw_flow_id last_pkt;
+#define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
 #endif /* _KERNEL */
 
 #endif /* _IP_FW_H */
