@@ -122,6 +122,9 @@ usage ()
  * If so, add that directory to the path.  Example:  user has
  * $HOME/bin in his path and the directory $HOME/bin/man exists -- the
  * directory $HOME/bin/man will be added to the manpath.
+ *
+ * Also search for a `man' directory next to the directory on the path.
+ * Example: $HOME/bin will look for $HOME/man
  */
 char *
 manpath (perrs)
@@ -520,6 +523,14 @@ has_subdirs (p)
 
   if (is_directory (t) == 1)
     return t;
+
+  /* If the path ends in `bin' then replace with `man' and see if that works. */
+  if (len > 3 && strncmp(t+len-4, "/bin", 4) == 0) {
+    strcpy(t+len-4, "/man");
+
+    if (is_directory(t) == 1) 
+       return t;
+  }
 
   return NULL;
 }
