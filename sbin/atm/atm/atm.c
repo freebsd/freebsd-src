@@ -81,6 +81,7 @@ __RCSID("@(#) $FreeBSD$");
 \n\
 VC management subcommands:\n\
     add pvc <intf> <vpi> <vci> <aal> <encaps> <owner> ...\n\
+                   [UBR <pcr> | CBR <pcr> | VBR <pcr> <scr> <mbs>]\n\
     delete pvc <intf> <vpi> <vci>\n\
     delete svc <intf> <vpi> <vci>\n\
     show stats vcc [<intf> [vpi [vci]]]\n\
@@ -538,7 +539,8 @@ detach(argc, argv, cmdp)
  * 
  * Command format: 
  *	atm add PVC <interface_name> <vpi> <vci> <aal> <encaps>
- *		<owner_name> [ubr <PCR> | cbr <PCR> | vbr <PCR> <SCR> <MBS>]
+ *		<owner_name> ...owner info...
+ *		[ubr <PCR> | cbr <PCR> | vbr <PCR> <SCR> <MBS>]
  *
  * Arguments:
  *	argc	number of arguments to command
