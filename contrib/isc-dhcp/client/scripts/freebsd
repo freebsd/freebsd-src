@@ -158,7 +158,7 @@ if [ x$reason = xTIMEOUT ]; then
   sleep 1
   if [ "$new_routers" != "" ]; then
     set $new_routers
-    if ping -q -c 1 -w 1 $1; then
+    if ping -q -c 1 $1; then
       if [ x$new_ip_address != x$alias_ip_address ] && \
 			[ x$alias_ip_address != x ]; then
 	ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg

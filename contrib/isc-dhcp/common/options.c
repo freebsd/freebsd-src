@@ -42,11 +42,12 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: options.c,v 1.26.2.7 1999/03/30 02:57:47 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: options.c,v 1.26.2.10 1999/05/06 21:54:34 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #define DHCP_OPTION_DATA
 #include "dhcpd.h"
+#include <ctype.h>
 
 /* Parse all available options out of the specified packet. */
 
@@ -439,7 +440,7 @@ char *pretty_print_option (code, data, len, emit_commas, emit_quotes)
 	int numhunk = -1;
 	int numelem = 0;
 	char fmtbuf [32];
-	int i, j;
+	int i, j, k;
 	char *op = optbuf;
 	unsigned char *dp = data;
 	struct in_addr foo;
@@ -471,11 +472,21 @@ char *pretty_print_option (code, data, len, emit_commas, emit_quotes)
 			numhunk = 0;
 			break;
 		      case 'X':
-			fmtbuf [i] = 'x';
+			for (k = 0; k < len; k++) {
+				if (!isascii (data [k]) ||
+				    !isprint (data [k]))
+					break;
+			}
+			if (k == len) {
+				fmtbuf [i] = 't';
+				numhunk = -2;
+			} else {
+				fmtbuf [i] = 'x';
+				hunksize++;
+				comma = ':';
+				numhunk = 0;
+			}
 			fmtbuf [i + 1] = 0;
-			hunksize++;
-			numhunk = 0;
-			comma = ':';
 			break;
 		      case 't':
 			fmtbuf [i] = 't';

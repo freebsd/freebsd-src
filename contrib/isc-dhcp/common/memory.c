@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: memory.c,v 1.35.2.3 1998/11/24 22:32:43 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: memory.c,v 1.35.2.4 1999/05/27 17:47:43 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -527,7 +527,6 @@ int supersede_lease (comp, lease, commit)
 
 		/* Copy the data files, but not the linkages. */
 		comp -> starts = lease -> starts;
-		comp -> timestamp = lease -> timestamp;
 		if (lease -> uid) {
 			if (lease -> uid_len < sizeof (lease -> uid_buf)) {
 				memcpy (comp -> uid_buf,
