@@ -253,10 +253,15 @@ andor() {
 
 STATIC union node *
 pipeline() {
-	union node *n1, *pipenode;
+	union node *n1, *n2, *pipenode;
 	struct nodelist *lp, *prev;
+	int negate;
 
+	negate = 0;
 	TRACE(("pipeline: entered\n"));
+	while (readtoken() == TNOT)
+		negate = !negate;
+	tokpushback++;
 	n1 = command();
 	if (readtoken() == TPIPE) {
 		pipenode = (union node *)stalloc(sizeof (struct npipe));
@@ -275,7 +280,13 @@ pipeline() {
 		n1 = pipenode;
 	}
 	tokpushback++;
-	return n1;
+	if (negate) {
+		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2->type = NNOT;
+		n2->nnot.com = n1;
+		return n2;
+	} else
+		return n1;
 }
 
 
