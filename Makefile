@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.199 1998/06/06 04:39:41 jkoshy Exp $
+#	$Id: Makefile,v 1.200 1998/06/07 10:50:28 sos Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -257,14 +257,15 @@ buildworld:
 	)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Making mtools"
+	@echo " Making mtree"
 	@echo "--------------------------------------------------------------"
+	mkdir -p ${WORLDTMP}/usr/sbin ${WORLDTMP}/mtree
 	( \
 	cd ${.CURDIR}/usr.sbin/mtree; \
 		MAKEOBJDIRPREFIX=""; unset MAKEOBJDIRPREFIX; \
-		${MAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all; \
-		${MAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install; \
-		${MAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
+		export MAKEOBJDIR=${WORLDTMP}/mtree; \
+		${BMAKE} ${MK_FLAGS} all; \
+		${BMAKE} ${MK_FLAGS} -B install clean \
 	)
 .endif
 	@echo
