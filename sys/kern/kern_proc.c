@@ -85,13 +85,14 @@ struct mtx pargs_ref_lock;
 uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
 
+CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
+
 /*
  * Initialize global process hashing structures.
  */
 void
 procinit()
 {
-	int i, j;
 
 	sx_init(&allproc_lock, "allproc");
 	sx_init(&proctree_lock, "proctree");
@@ -104,21 +105,6 @@ procinit()
 	proc_zone = uma_zcreate("PROC", sizeof (struct proc), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uihashinit();
-	/*
-	 * This should really be a compile time warning, but I do
-	 * not know of any way to do that...
-	 */
-	if (sizeof(struct kinfo_proc) != KINFO_PROC_SIZE) {
-		printf("This message will repeat for the next 20 seconds\n");
-		for (i = 0; i < 20; i++) {
-			printf("WARNING: size of kinfo_proc (%ld) should be %d!!!\n",
-			    (long)sizeof(struct kinfo_proc), KINFO_PROC_SIZE);
-			printf("The kinfo_proc structure was changed ");
-			printf("incorrectly in <sys/user.h>\n");
-			for (j = 0; j < 0x7ffffff; j++);
-		}
-
-	}
 }
 
 /*
