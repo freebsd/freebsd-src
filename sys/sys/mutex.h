@@ -278,8 +278,8 @@ extern int mtx_pool_valid;
 /*
  * Global locks.
  */
-extern struct mtx	sched_lock;
-extern struct mtx	Giant;
+extern struct mtx sched_lock;
+extern struct mtx Giant;
 
 /*
  * Giant lock sysctl variables used by other modules
