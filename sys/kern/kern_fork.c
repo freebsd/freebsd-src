@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.12 1995/05/30 08:05:27 rgrimes Exp $
+ * $Id: kern_fork.c,v 1.13 1995/10/08 00:06:05 swallace Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -55,9 +56,11 @@
 
 static int fork1(struct proc *, int, int *);
 
+#ifndef _SYS_SYSPROTO_H_
 struct fork_args {
         int     dummy;
 };
+#endif
 
 /* ARGSUSED */
 int

@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.11 1995/05/30 08:05:40 rgrimes Exp $
+ * $Id: kern_sig.c,v 1.12 1995/10/19 19:15:23 swallace Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
 #include <sys/param.h>
+#include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/namei.h>
@@ -77,11 +78,13 @@ void stop	__P((struct proc *));
 	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid || \
 	    ((signum) == SIGCONT && (q)->p_session == (p)->p_session))
 
+#ifndef _SYS_SYSPROTO_H_
 struct sigaction_args {
 	int	signum;
 	struct	sigaction *nsa;
 	struct	sigaction *osa;
 };
+#endif
 /* ARGSUSED */
 int
 sigaction(p, uap, retval)
@@ -245,10 +248,12 @@ execsigs(p)
  * and return old mask as return value;
  * the library stub does the rest.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct sigprocmask_args {
 	int	how;
 	sigset_t mask;
 };
+#endif
 int
 sigprocmask(p, uap, retval)
 	register struct proc *p;
@@ -281,9 +286,11 @@ sigprocmask(p, uap, retval)
 	return (error);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct sigpending_args {
 	int	dummy;
 };
+#endif
 /* ARGSUSED */
 int
 sigpending(p, uap, retval)
@@ -300,11 +307,13 @@ sigpending(p, uap, retval)
 /*
  * Generalized interface signal handler, 4.3-compatible.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct osigvec_args {
 	int	signum;
 	struct	sigvec *nsv;
 	struct	sigvec *osv;
 };
+#endif
 /* ARGSUSED */
 int
 osigvec(p, uap, retval)
@@ -360,9 +369,11 @@ osigvec(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct osigblock_args {
 	int	mask;
 };
+#endif
 int
 osigblock(p, uap, retval)
 	register struct proc *p;
@@ -377,9 +388,11 @@ osigblock(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct osigsetmask_args {
 	int	mask;
 };
+#endif
 int
 osigsetmask(p, uap, retval)
 	struct proc *p;
@@ -400,9 +413,11 @@ osigsetmask(p, uap, retval)
  * in the meantime.  Note nonstandard calling convention:
  * libc stub passes mask, not pointer, to save a copyin.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct sigsuspend_args {
 	sigset_t mask;
 };
+#endif
 /* ARGSUSED */
 int
 sigsuspend(p, uap, retval)
@@ -429,10 +444,12 @@ sigsuspend(p, uap, retval)
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#ifndef _SYS_SYSPROTO_H_
 struct osigstack_args {
 	struct	sigstack *nss;
 	struct	sigstack *oss;
 };
+#endif
 /* ARGSUSED */
 int
 osigstack(p, uap, retval)
@@ -461,10 +478,12 @@ osigstack(p, uap, retval)
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
+#ifndef _SYS_SYSPROTO_H_
 struct sigaltstack_args {
 	struct	sigaltstack *nss;
 	struct	sigaltstack *oss;
 };
+#endif
 /* ARGSUSED */
 int
 sigaltstack(p, uap, retval)
@@ -550,10 +569,12 @@ killpg1(cp, signum, pgid, all)
 	return (nfound ? 0 : ESRCH);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct kill_args {
 	int	pid;
 	int	signum;
 };
+#endif
 /* ARGSUSED */
 int
 kill(cp, uap, retval)
@@ -588,10 +609,12 @@ kill(cp, uap, retval)
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#ifndef _SYS_SYSPROTO_H_
 struct okillpg_args {
 	int	pgid;
 	int	signum;
 };
+#endif
 /* ARGSUSED */
 int
 okillpg(p, uap, retval)
@@ -1221,9 +1244,11 @@ out:
  * Nonexistent system call-- signal process (may want to handle it).
  * Flag error in case process won't see signal immediately (blocked or ignored).
  */
+#ifndef _SYS_SYSPROTO_H_
 struct nosys_args {
 	int	dummy;
 };
+#endif
 /* ARGSUSED */
 int
 nosys(p, args, retval)

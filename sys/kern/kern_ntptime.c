@@ -45,6 +45,7 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/timex.h>
@@ -168,9 +169,11 @@ ntp_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 /*
  * ntp_adjtime() - NTP daemon application interface
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ntp_adjtime_args {
   struct timex *tp;
 };
+#endif
 
 int
 ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap, int *retval)

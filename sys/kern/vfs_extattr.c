@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.36 1995/11/04 10:35:26 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.37 1995/11/05 21:01:01 dyson Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/namei.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
@@ -69,12 +70,14 @@ static int change_dir	__P((struct nameidata *ndp, struct proc *p));
 /*
  * Mount a file system.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct mount_args {
 	int	type;
 	char	*path;
 	int	flags;
 	caddr_t	data;
 };
+#endif
 /* ARGSUSED */
 int
 mount(p, uap, retval)
@@ -211,10 +214,12 @@ update:
  * Note: unmount takes a path to the vnode mounted on as argument,
  * not special file (as before).
  */
+#ifndef _SYS_SYSPROTO_H_
 struct unmount_args {
 	char	*path;
 	int	flags;
 };
+#endif
 /* ARGSUSED */
 int
 unmount(p, uap, retval)
@@ -314,9 +319,11 @@ int syncprt = 0;
 struct ctldebug debug0 = { "syncprt", &syncprt };
 #endif
 
+#ifndef _SYS_SYSPROTO_H_
 struct sync_args {
         int     dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -350,12 +357,14 @@ sync(p, uap, retval)
 /*
  * Change filesystem quotas.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct quotactl_args {
 	char *path;
 	int cmd;
 	int uid;
 	caddr_t arg;
 };
+#endif
 /* ARGSUSED */
 int
 quotactl(p, uap, retval)
@@ -379,10 +388,12 @@ quotactl(p, uap, retval)
 /*
  * Get filesystem statistics.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct statfs_args {
 	char *path;
 	struct statfs *buf;
 };
+#endif
 /* ARGSUSED */
 int
 statfs(p, uap, retval)
@@ -412,10 +423,12 @@ statfs(p, uap, retval)
 /*
  * Get filesystem statistics.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fstatfs_args {
 	int fd;
 	struct statfs *buf;
 };
+#endif
 /* ARGSUSED */
 int
 fstatfs(p, uap, retval)
@@ -443,11 +456,13 @@ fstatfs(p, uap, retval)
 /*
  * Get statistics on all filesystems.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct getfsstat_args {
 	struct statfs *buf;
 	long bufsize;
 	int flags;
 };
+#endif
 int
 getfsstat(p, uap, retval)
 	struct proc *p;
@@ -493,9 +508,11 @@ getfsstat(p, uap, retval)
 /*
  * Change current working directory to a given file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fchdir_args {
 	int	fd;
 };
+#endif
 /* ARGSUSED */
 int
 fchdir(p, uap, retval)
@@ -529,9 +546,11 @@ fchdir(p, uap, retval)
 /*
  * Change current working directory (``.'').
  */
+#ifndef _SYS_SYSPROTO_H_
 struct chdir_args {
 	char	*path;
 };
+#endif
 /* ARGSUSED */
 int
 chdir(p, uap, retval)
@@ -555,9 +574,11 @@ chdir(p, uap, retval)
 /*
  * Change notion of root (``/'') directory.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct chroot_args {
 	char	*path;
 };
+#endif
 /* ARGSUSED */
 int
 chroot(p, uap, retval)
@@ -611,11 +632,13 @@ change_dir(ndp, p)
  * Check permissions, allocate an open file structure,
  * and call the device open routine if any.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct open_args {
 	char	*path;
 	int	flags;
 	int	mode;
 };
+#endif
 int
 open(p, uap, retval)
 	struct proc *p;
@@ -691,10 +714,12 @@ open(p, uap, retval)
 /*
  * Create a file.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ocreat_args {
 	char	*path;
 	int	mode;
 };
+#endif
 int
 ocreat(p, uap, retval)
 	struct proc *p;
@@ -713,11 +738,13 @@ ocreat(p, uap, retval)
 /*
  * Create a special file.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct mknod_args {
 	char	*path;
 	int	mode;
 	int	dev;
 };
+#endif
 /* ARGSUSED */
 int
 mknod(p, uap, retval)
@@ -778,10 +805,12 @@ mknod(p, uap, retval)
 /*
  * Create named pipe.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct mkfifo_args {
 	char	*path;
 	int	mode;
 };
+#endif
 /* ARGSUSED */
 int
 mkfifo(p, uap, retval)
@@ -816,10 +845,12 @@ mkfifo(p, uap, retval)
 /*
  * Make a hard file link.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct link_args {
 	char	*path;
 	char	*link;
 };
+#endif
 /* ARGSUSED */
 int
 link(p, uap, retval)
@@ -868,10 +899,12 @@ link(p, uap, retval)
 /*
  * Make a symbolic link.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct symlink_args {
 	char	*path;
 	char	*link;
 };
+#endif
 /* ARGSUSED */
 int
 symlink(p, uap, retval)
@@ -914,9 +947,11 @@ out:
 /*
  * Delete a name from the filesystem.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct unlink_args {
 	char	*path;
 };
+#endif
 /* ARGSUSED */
 int
 unlink(p, uap, retval)
@@ -964,12 +999,14 @@ unlink(p, uap, retval)
 /*
  * Reposition read/write file offset.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct lseek_args {
 	int	fd;
 	int	pad;
 	off_t	offset;
 	int	whence;
 };
+#endif
 int
 lseek(p, uap, retval)
 	struct proc *p;
@@ -1011,11 +1048,13 @@ lseek(p, uap, retval)
 /*
  * Reposition read/write file offset.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct olseek_args {
 	int	fd;
 	long	offset;
 	int	whence;
 };
+#endif
 int
 olseek(p, uap, retval)
 	struct proc *p;
@@ -1038,10 +1077,12 @@ olseek(p, uap, retval)
 /*
  * Check access permissions.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct access_args {
 	char	*path;
 	int	flags;
 };
+#endif
 int
 access(p, uap, retval)
 	struct proc *p;
@@ -1086,10 +1127,12 @@ out1:
 /*
  * Get file status; this version follows links.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ostat_args {
 	char	*path;
 	struct ostat *ub;
 };
+#endif
 /* ARGSUSED */
 int
 ostat(p, uap, retval)
@@ -1118,10 +1161,12 @@ ostat(p, uap, retval)
 /*
  * Get file status; this version does not follow links.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct olstat_args {
 	char	*path;
 	struct ostat *ub;
 };
+#endif
 /* ARGSUSED */
 int
 olstat(p, uap, retval)
@@ -1210,10 +1255,12 @@ cvtstat(st, ost)
 /*
  * Get file status; this version follows links.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct stat_args {
 	char	*path;
 	struct stat *ub;
 };
+#endif
 /* ARGSUSED */
 int
 stat(p, uap, retval)
@@ -1240,10 +1287,12 @@ stat(p, uap, retval)
 /*
  * Get file status; this version does not follow links.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct lstat_args {
 	char	*path;
 	struct stat *ub;
 };
+#endif
 /* ARGSUSED */
 int
 lstat(p, uap, retval)
@@ -1300,10 +1349,12 @@ lstat(p, uap, retval)
 /*
  * Get configurable pathname variables.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct pathconf_args {
 	char	*path;
 	int	name;
 };
+#endif
 /* ARGSUSED */
 int
 pathconf(p, uap, retval)
@@ -1326,11 +1377,13 @@ pathconf(p, uap, retval)
 /*
  * Return target name of a symbolic link.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct readlink_args {
 	char	*path;
 	char	*buf;
 	int	count;
 };
+#endif
 /* ARGSUSED */
 int
 readlink(p, uap, retval)
@@ -1371,10 +1424,12 @@ readlink(p, uap, retval)
 /*
  * Change flags of a file given a path name.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct chflags_args {
 	char	*path;
 	int	flags;
 };
+#endif
 /* ARGSUSED */
 int
 chflags(p, uap, retval)
@@ -1404,10 +1459,12 @@ chflags(p, uap, retval)
 /*
  * Change flags of a file given a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fchflags_args {
 	int	fd;
 	int	flags;
 };
+#endif
 /* ARGSUSED */
 int
 fchflags(p, uap, retval)
@@ -1436,10 +1493,12 @@ fchflags(p, uap, retval)
 /*
  * Change mode of a file given path name.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct chmod_args {
 	char	*path;
 	int	mode;
 };
+#endif
 /* ARGSUSED */
 int
 chmod(p, uap, retval)
@@ -1469,10 +1528,12 @@ chmod(p, uap, retval)
 /*
  * Change mode of a file given a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fchmod_args {
 	int	fd;
 	int	mode;
 };
+#endif
 /* ARGSUSED */
 int
 fchmod(p, uap, retval)
@@ -1501,11 +1562,13 @@ fchmod(p, uap, retval)
 /*
  * Set ownership given a path name.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct chown_args {
 	char	*path;
 	int	uid;
 	int	gid;
 };
+#endif
 /* ARGSUSED */
 int
 chown(p, uap, retval)
@@ -1536,11 +1599,13 @@ chown(p, uap, retval)
 /*
  * Set ownership given a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fchown_args {
 	int	fd;
 	int	uid;
 	int	gid;
 };
+#endif
 /* ARGSUSED */
 int
 fchown(p, uap, retval)
@@ -1570,10 +1635,12 @@ fchown(p, uap, retval)
 /*
  * Set the access and modification times of a file.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct utimes_args {
 	char	*path;
 	struct	timeval *tptr;
 };
+#endif
 /* ARGSUSED */
 int
 utimes(p, uap, retval)
@@ -1616,11 +1683,13 @@ utimes(p, uap, retval)
 /*
  * Truncate a file given its path name.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct truncate_args {
 	char	*path;
 	int	pad;
 	off_t	length;
 };
+#endif
 /* ARGSUSED */
 int
 truncate(p, uap, retval)
@@ -1657,11 +1726,13 @@ truncate(p, uap, retval)
 /*
  * Truncate a file given a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ftruncate_args {
 	int	fd;
 	int	pad;
 	off_t	length;
 };
+#endif
 /* ARGSUSED */
 int
 ftruncate(p, uap, retval)
@@ -1699,10 +1770,12 @@ ftruncate(p, uap, retval)
 /*
  * Truncate a file given its path name.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct otruncate_args {
 	char	*path;
 	long	length;
 };
+#endif
 /* ARGSUSED */
 int
 otruncate(p, uap, retval)
@@ -1720,10 +1793,12 @@ otruncate(p, uap, retval)
 /*
  * Truncate a file given a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct oftruncate_args {
 	int	fd;
 	long	length;
 };
+#endif
 /* ARGSUSED */
 int
 oftruncate(p, uap, retval)
@@ -1742,9 +1817,11 @@ oftruncate(p, uap, retval)
 /*
  * Sync an open file.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fsync_args {
 	int	fd;
 };
+#endif
 /* ARGSUSED */
 int
 fsync(p, uap, retval)
@@ -1774,10 +1851,12 @@ fsync(p, uap, retval)
  * Rename files.  Source and destination must either both be directories,
  * or both not be directories.  If target is a directory, it must be empty.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct rename_args {
 	char	*from;
 	char	*to;
 };
+#endif
 /* ARGSUSED */
 int
 rename(p, uap, retval)
@@ -1867,10 +1946,12 @@ out1:
 /*
  * Make a directory file.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct mkdir_args {
 	char	*path;
 	int	mode;
 };
+#endif
 /* ARGSUSED */
 int
 mkdir(p, uap, retval)
@@ -1911,9 +1992,11 @@ mkdir(p, uap, retval)
 /*
  * Remove a directory file.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct rmdir_args {
 	char	*path;
 };
+#endif
 /* ARGSUSED */
 int
 rmdir(p, uap, retval)
@@ -1966,12 +2049,14 @@ out:
 /*
  * Read a block of directory entries in a file system independent format.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ogetdirentries_args {
 	int	fd;
 	char	*buf;
 	u_int	count;
 	long	*basep;
 };
+#endif
 int
 ogetdirentries(p, uap, retval)
 	struct proc *p;
@@ -2066,12 +2151,14 @@ ogetdirentries(p, uap, retval)
 /*
  * Read a block of directory entries in a file system independent format.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct getdirentries_args {
 	int	fd;
 	char	*buf;
 	u_int	count;
 	long	*basep;
 };
+#endif
 int
 getdirentries(p, uap, retval)
 	struct proc *p;
@@ -2157,9 +2244,11 @@ unionread:
 /*
  * Set the mode mask for creation of filesystem nodes.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct umask_args {
 	int	newmask;
 };
+#endif
 mode_t				/* XXX */
 umask(p, uap, retval)
 	struct proc *p;
@@ -2178,9 +2267,11 @@ umask(p, uap, retval)
  * Void all references to file by ripping underlying filesystem
  * away from vnode.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct revoke_args {
 	char	*path;
 };
+#endif
 /* ARGSUSED */
 int
 revoke(p, uap, retval)
