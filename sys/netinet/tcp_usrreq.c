@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.23 1996/07/11 16:32:38 wollman Exp $
+ *	$Id: tcp_usrreq.c,v 1.24 1996/07/12 17:28:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -891,7 +891,7 @@ tcp_connect(tp, nam)
 	soisconnecting(so);
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
-	tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
+	tp->t_timer[TCPT_KEEP] = tcp_keepinit;
 	tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
 	tcp_sendseqinit(tp);
 
