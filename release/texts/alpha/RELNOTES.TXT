@@ -71,6 +71,7 @@ to a SCSI card driven by 'isp' has been fixed.
 A bug in FFS that could cause superblock corruption on very large
 filesystems has been corrected.
 
+The API UP1100 mainboard has been verified to work correctly.
 
 1.2. SECURITY FIXES
 -------------------
