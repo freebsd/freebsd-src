@@ -172,11 +172,3 @@ toupper(c)
 {
         return (__toupper(c));
 }
-
-#undef digittoint
-int
-digittoint(c)
-	int c;
-{
-	return (__maskrune((c), 0xFF));
-}
