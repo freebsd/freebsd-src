@@ -2113,9 +2113,13 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 		if (i != bucket->ub_cnt) {
 			int j;
 
-			for (j = i; j < bucket->ub_cnt; j++)
+			for (j = i; j < bucket->ub_cnt; j++) {
 				uma_zfree_internal(zone, bucket->ub_bucket[j],
 				    NULL, SKIP_FINI);
+#ifdef INVARIANTS
+				bucket->ub_bucket[j] = NULL;
+#endif
+			}
 			bucket->ub_cnt = i;
 		}
 		ZONE_LOCK(zone);
