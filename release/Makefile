@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.53 1994/11/20 14:49:43 jkh Exp $
+#	$Id: Makefile,v 1.54 1994/11/20 22:56:27 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -148,7 +148,7 @@ bar:
 			DESTDIR=${RELEASEDIR}/filesys \
 			SHARED=copies )
 
-EXTRADISTRIBUTIONS=	des games manpages proflibs dict
+EXTRADISTRIBUTIONS=	des games manpages proflibs dict krb
 DISTRIBUTIONS=	bindist ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 
