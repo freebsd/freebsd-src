@@ -174,6 +174,7 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 	entry->ktr_parm3 = arg3;
 	entry->ktr_parm4 = arg4;
 	entry->ktr_parm5 = arg5;
+	entry->ktr_parm6 = arg6;
 #endif
 }
 
