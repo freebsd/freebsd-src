@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # ISO 3166 country codes
-# Ths includes many places that are not legally independent countries,
+# This includes many places that are not legally independent countries,
 # but which is it convenient to refer to separately from their
 # parent lands.
 #
@@ -10,11 +10,10 @@
 # The file format used by RIPE was not suitable, so it has been
 # rearranged to put the two-letter country code first.  The country
 # names were capitalized, and most parenthetical designations have
-# been deleted unless necessary to distinguish two counties.
+# been deleted unless necessary to distinguish two countries.
 #
 # The ISO3166 Maintenance Agency can be found at:
-#
-#     http://www.din.de/gremien/nas/nabd/iso3166ma/
+#	http://www.iso.ch/iso/en/prods-services/iso3166ma/index.html
 #
 # two	three	number	name
 AF	AFG	004	Afghanistan
@@ -78,7 +77,7 @@ DK	DNK	208	Denmark
 DJ	DJI	262	Djibouti
 DM	DMA	212	Dominica
 DO	DOM	214	Dominican Republic
-TP	TMP	626	East Timor
+TL	TLS	626	East Timor
 EC	ECU	218	Ecuador
 EG	EGY	818	Egypt
 SV	SLV	222	El Salvador
@@ -141,7 +140,7 @@ LY	LBY	434	Libyan Arab Jamahiriya
 LI	LIE	438	Liechtenstein
 LT	LTU	440	Lithuania
 LU	LUX	442	Luxembourg
-MO	MAC	446	Macau
+MO	MAC	446	Macao
 MK	MKD	807	Macedonia (The Former Yugoslav Republic of)
 MG	MDG	450	Madagascar
 MW	MWI	454	Malawi
@@ -468,3 +467,15 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter V-3 2002-02-01
 #  ROMANIA (RO) changed alpha-3 code from ROM to ROU.  Numeric remains 642.
 #
+# Newsletter V-4 2002-05-20
+#  KAZAKSTAN (KZ) changed short name to KAZAKHSTAN (no change in this file,
+#  which already had the `h' spelling).  MACAU (MO) changed short name to
+#  MACAO (again).  Numeric, alpha-2, and alpha-3 codes remain unchanged.
+#  AFGHANISTAN (AF), AZERBAIJAN (AZ), BAHRAIN (BH), BOSNIA AND HERZEGOVINA
+#  (BA), FIJI (FJ), HONG KONG (HK), KIRIBATI (KI), NIUE (NU), SOMALIA (SO),
+#  and VENEZUELA (VE) all changed official names, which are not included in
+#  this file.
+#
+# Newsletter V-5 2002-05-20
+#  EAST TIMOR changed alpha-2 code from TP to TL and alpha-3 from TMP to TLS.
+#  Numeric remains 626.
