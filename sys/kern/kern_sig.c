@@ -97,17 +97,6 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
     &kern_logsigexit, 0, 
     "Log processes quitting on abnormal signals to syslog(3)");
 
-/*
- * Policy -- Can ucred cr1 send SIGIO to process cr2?
- * XXX: should use suser(), p_cansignal().
- */
-#define CANSIGIO(cr1, cr2) \
-	((cr1)->cr_uid == 0 || \
-	    (cr1)->cr_ruid == (cr2)->cr_ruid || \
-	    (cr1)->cr_uid == (cr2)->cr_ruid || \
-	    (cr1)->cr_ruid == (cr2)->cr_uid || \
-	    (cr1)->cr_uid == (cr2)->cr_uid)
-
 int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
     &sugid_coredump, 0, "Enable coredumping set user/group ID processes");
@@ -2075,7 +2064,8 @@ pgsigio(sigio, sig, checkctty)
 		
 	if (sigio->sio_pgid > 0) {
 		PROC_LOCK(sigio->sio_proc);
-		if (CANSIGIO(sigio->sio_ucred, sigio->sio_proc->p_ucred))
+		if (cr_cansignal(sigio->sio_ucred, sigio->sio_proc, sig)
+		    == 0)
 			psignal(sigio->sio_proc, sig);
 		PROC_UNLOCK(sigio->sio_proc);
 	} else if (sigio->sio_pgid < 0) {
@@ -2083,7 +2073,7 @@ pgsigio(sigio, sig, checkctty)
 
 		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (CANSIGIO(sigio->sio_ucred, p->p_ucred) &&
+			if ((cr_cansignal(sigio->sio_ucred, p, sig) == 0) &&
 			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
 				psignal(p, sig);
 			PROC_UNLOCK(p);
