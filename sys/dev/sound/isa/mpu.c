@@ -385,7 +385,7 @@ mpu_attach(device_t dev)
 
 	/* Now we can handle the interrupts. */
 	if (scp->irq != NULL)
-		bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, mpu_intr, scp,
+		bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, mpu_intr, scp,
 			       &scp->ih);
 
 	DEB(printf("mpu: attached.\n"));
