@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.17 1998/03/07 15:47:58 kato Exp $
+#	$Id: Makefile,v 1.18 1998/05/28 13:46:04 kato Exp $
 #
 
 PROG=	boot
@@ -40,17 +40,13 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 # Details: this only applies if BOOT_HD_BIAS > 0.  If the BIOS drive number
 # for the boot drive is >= BOOT_HD_BIAS, then the boot drive is assumed to
 # be SCSI and have unit number (BIOS_drive_number - BOOT_HD_BIAS).  E.g.,
-# BOOT_HD_BIAS=1 makes BIOS drive 1 correspond to 1:sd(0,a) instead of
-# 1:wd(1,a).  If `sd' is given explicitly, then the drive is assumed to be
-# SCSI and have BIOS drive number (sd_unit_number + BOOT_HD_BIAS).  E.g.,
-# BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
+# BOOT_HD_BIAS=1 makes BIOS drive 1 correspond to 1:da(0,a) instead of
+# 1:wd(1,a).  If `da' is given explicitly, then the drive is assumed to be
+# SCSI and have BIOS drive number (da_unit_number + BOOT_HD_BIAS).  E.g.,
+# BOOT_HD_BIAS=1 makes da(0,a) correspond to 1:da(0,a) instead of 0:da(0,a).
 
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
 LDFLAGS+=	-N -T 0 -nostdlib
-#LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
-#		${BINDIR}/sdboot ${BINDIR}/fdboot\
-#		${BINDIR}/bootsd ${BINDIR}/bootwd\
-#		${BINDIR}/bootsd ${BINDIR}/bootfd
 NOSHARED=	YES
 NOMAN=
 STRIP=
@@ -94,7 +90,7 @@ install:
 		boot1 ${DESTDIR}${BINDIR}/boot1
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		boot2 ${DESTDIR}${BINDIR}/boot2
-	for i in sd fd wd od vn wfd ; do \
+	for i in da fd wd od vn wfd ; do \
 		( cd ${DESTDIR}${BINDIR} ; \
 		rm -f boot$${i} $${i}boot ; \
 		ln -s boot1 $${i}boot ; \
