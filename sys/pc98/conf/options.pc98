@@ -194,5 +194,4 @@ FPU_ERROR_BROKEN	opt_npx.h
 PC98			opt_global.h
 EPSON_BOUNCEDMA		opt_pc98.h
 EPSON_MEMWIN		opt_pc98.h
-COMPAT_ATDISK		opt_pc98.h
 LINE30			opt_syscons.h
