@@ -1284,8 +1284,10 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	 * or read prefetching could be initiated by the
 	 * CPU or host bridge.  Our device does not support
 	 * either, so look for data corruption and/or flagged
-	 * PCI errors.
+	 * PCI errors.  First pause without causing another
+	 * chip reset.
 	 */
+	hcntrl &= ~CHIPRST;
 	ahc_outb(ahc, HCNTRL, hcntrl|PAUSE);
 	while (ahc_is_paused(ahc) == 0)
 		;
