@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.63 1995/01/05 00:00:37 ache Exp $
+ *	$Id: sio.c,v 1.64 1995/01/06 15:03:41 bde Exp $
  */
 
 #include "sio.h"
@@ -44,6 +44,7 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/reboot.h>
 #include <sys/ioctl.h>
 #define	TTYDEFCHARS		/* XXX TK2.0 */
 #include <sys/tty.h>
@@ -298,10 +299,12 @@ struct isa_driver	siodriver = {
 };
 
 #ifdef COMCONSOLE
-static	int	comconsole = COMCONSOLE;
+#define COMCONSOLE 1
 #else
-static	int	comconsole = -1;
+#define COMCONSOLE 0
 #endif
+
+static	int	comconsole = CONUNIT;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
@@ -609,7 +612,7 @@ sioattach(isdp)
 	com->it_in.c_oflag = 0;
 	com->it_in.c_cflag = TTYDEF_CFLAG;
 	com->it_in.c_lflag = 0;
-	if (unit == comconsole) {
+	if (unit == comconsole && ((boothowto & RB_SERIAL) || COMCONSOLE)) {
 		com->it_in.c_iflag = TTYDEF_IFLAG;
 		com->it_in.c_oflag = TTYDEF_OFLAG;
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
@@ -692,7 +695,8 @@ determined_type: ;
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
-		if (unit == comconsole)
+		if (unit == comconsole && ((boothowto & RB_SERIAL)
+						|| COMCONSOLE))
 			kgdb_dev = -1;	/* can't debug over console port */
 		else {
 			int	divisor;
@@ -1003,7 +1007,8 @@ siowrite(dev, uio, flag)
 	 * is not the console.  In that situation we don't need/want the X
 	 * server taking over the console.
 	 */
-	if (constty && unit == comconsole)
+	if (constty && unit == comconsole && ((boothowto & RB_SERIAL)
+						|| COMCONSOLE))
 		constty = NULL;
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
@@ -2039,11 +2044,12 @@ siocnprobe(cp)
 
 	/* initialize required fields */
 	cp->cn_dev = makedev(commajor, unit);
-#ifdef	COMCONSOLE
-	cp->cn_pri = CN_REMOTE;		/* Force a serial port console */
-#else
-	cp->cn_pri = CN_NORMAL;
-#endif
+
+	if (boothowto & RB_SERIAL || COMCONSOLE)
+		cp->cn_pri = CN_REMOTE;	/* Force a serial port console */
+	else
+		cp->cn_pri = CN_NORMAL;
+
 }
 
 void
