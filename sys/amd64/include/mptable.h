@@ -237,6 +237,9 @@ typedef struct BASETABLE_ENTRY {
 
 #define MP_ANNOUNCE_POST	0x19
 
+static int need_hyperthreading_fixup;
+static u_int logical_cpus;
+
 /* used to hold the AP's until we are ready to release them */
 static struct mtx ap_boot_mtx;
 
@@ -312,6 +315,7 @@ static mpfps_t	mpfps;
 static int	search_for_sig(u_int32_t target, int count);
 static void	mp_enable(u_int boot_addr);
 
+static void	mptable_hyperthread_fixup(u_int id_mask);
 static void	mptable_pass1(void);
 static int	mptable_pass2(void);
 static void	default_mp_table(int type);
@@ -782,6 +786,7 @@ mptable_pass1(void)
 	void*	position;
 	int	count;
 	int	type;
+	u_int	id_mask;
 
 	POSTCODE(MPTABLE_PASS1_POST);
 
@@ -795,6 +800,7 @@ mptable_pass1(void)
 	mp_nbusses = 0;
 	mp_napics = 0;
 	nintrs = 0;
+	id_mask = 0;
 
 	/* check for use of 'default' configuration */
 	if (MPFPS_MPFB1 != 0) {
@@ -829,6 +835,8 @@ mptable_pass1(void)
 				    & PROCENTRY_FLAG_EN) {
 					++mp_naps;
 					mp_maxid++;
+					id_mask |= 1 <<
+					    ((proc_entry_ptr)position)->apic_id;
 				}
 				break;
 			case 1: /* bus_entry */
@@ -863,6 +871,9 @@ mptable_pass1(void)
 		mp_naps = MAXCPU;
 	}
 
+	/* See if we need to fixup HT logical CPUs. */
+	mptable_hyperthread_fixup(id_mask);
+	
 	/*
 	 * Count the BSP.
 	 * This is also used as a counter while starting the APs.
@@ -887,6 +898,7 @@ mptable_pass1(void)
 static int
 mptable_pass2(void)
 {
+	struct PROCENTRY proc;
 	int     x;
 	mpcth_t cth;
 	int     totalSize;
@@ -898,6 +910,11 @@ mptable_pass2(void)
 	int	pgeflag;
 
 	POSTCODE(MPTABLE_PASS2_POST);
+
+	/* Initialize fake proc entry for use with HT fixup. */
+	bzero(&proc, sizeof(proc));
+	proc.type = 0;
+	proc.cpu_flags = PROCENTRY_FLAG_EN;
 
 	pgeflag = 0;		/* XXX - Not used under SMP yet.  */
 
@@ -976,6 +993,20 @@ mptable_pass2(void)
 		case 0:
 			if (processor_entry(position, cpu))
 				++cpu;
+
+			if (need_hyperthreading_fixup) {
+				/*
+				 * Create fake mptable processor entries
+				 * and feed them to processor_entry() to
+				 * enumerate the logical CPUs.
+				 */
+				proc.apic_id = ((proc_entry_ptr)position)->apic_id;
+				for (i = 1; i < logical_cpus; i++) {
+					proc.apic_id++;
+					(void)processor_entry(&proc, cpu);
+					cpu++;
+				}
+			}
 			break;
 		case 1:
 			if (bus_entry(position, bus))
@@ -1008,6 +1039,55 @@ mptable_pass2(void)
 	return 0;
 }
 
+/*
+ * Check if we should perform a hyperthreading "fix-up" to
+ * enumerate any logical CPU's that aren't already listed
+ * in the table.
+ *
+ * XXX: We assume that all of the physical CPUs in the
+ * system have the same number of logical CPUs.
+ *
+ * XXX: We assume that APIC ID's are allocated such that
+ * the APIC ID's for a physical processor are aligned
+ * with the number of logical CPU's in the processor.
+ */
+static void
+mptable_hyperthread_fixup(u_int id_mask)
+{
+	u_int i, id;
+
+	/* Nothing to do if there is no HTT support. */
+	if ((cpu_feature & CPUID_HTT) == 0)
+		return;
+	logical_cpus = (cpuid_cpuinfo & CPUID_HTT_CORES) >> 16;
+	if (logical_cpus <= 1)
+		return;
+
+	/*
+	 * For each APIC ID of a CPU that is set in the mask,
+	 * scan the other candidate APIC ID's for this
+	 * physical processor.  If any of those ID's are
+	 * already in the table, then kill the fixup.
+	 */
+	for (id = 0; id <= MAXCPU; id++) {
+		if ((id_mask & 1 << id) == 0)
+			continue;
+		/* First, make sure we are on a logical_cpus boundary. */
+		if (id % logical_cpus != 0)
+			return;
+		for (i = id + 1; i < id + logical_cpus; i++)
+			if ((id_mask & 1 << i) != 0)
+				return;
+	}
+
+	/*
+	 * Ok, the ID's checked out, so enable the fixup.  We have to fixup
+	 * mp_naps and mp_maxid right now.
+	 */
+	need_hyperthreading_fixup = 1;
+	mp_maxid *= logical_cpus;
+	mp_naps *= logical_cpus;
+}
 
 void
 assign_apic_irq(int apic, int intpin, int irq)
