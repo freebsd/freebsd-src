@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.14 1998/12/21 22:14:02 mjacob Exp $
+ * $Id: mtio.h,v 1.17 1999/02/05 07:57:26 mjacob Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -88,6 +88,25 @@ struct mtop {
 #define MT_COMP_ENABLE		0xffffffff
 #define MT_COMP_DISABLED	0xfffffffe
 #define MT_COMP_UNSUPP		0xfffffffd
+
+/*
+ * Values in mt_dsreg that say what the device is doing
+ */
+#define	MTIO_DSREG_NIL	0	/* Unknown */
+#define	MTIO_DSREG_REST	1	/* Doing Nothing */
+#define	MTIO_DSREG_RBSY	2	/* Communicating with tape (but no motion) */
+#define	MTIO_DSREG_WR	20	/* Writing */
+#define	MTIO_DSREG_FMK	21	/* Writing Filemarks */
+#define	MTIO_DSREG_ZER	22	/* Erasing */
+#define	MTIO_DSREG_RD	30	/* Reading */
+#define	MTIO_DSREG_FWD	40	/* Spacing Forward */
+#define	MTIO_DSREG_REV	41	/* Spacing Reverse */
+#define	MTIO_DSREG_POS	42	/* Hardware Positioning (direction unknown) */
+#define	MTIO_DSREG_REW	43	/* Rewinding */
+#define	MTIO_DSREG_TEN	44	/* Retensioning */
+#define	MTIO_DSREG_UNL	45	/* Unloading */
+#define	MTIO_DSREG_LD	46	/* Unloading */
+
 #endif	/* __FreeBSD__ */
 
 /* structure for MTIOCGET - mag tape get status command */
@@ -116,10 +135,10 @@ struct mtget {
 	u_int32_t mt_comp1;	/* compression type for mode 1 */
 	u_int32_t mt_comp2;	/* compression type for mode 2 */
 	u_int32_t mt_comp3;	/* compression type for mode 3 */
-#endif
-	daddr_t	mt_fileno;	/* file number of current position */
-	daddr_t	mt_blkno;	/* block number of current position */
 /* end not yet implemented */
+#endif
+	daddr_t	mt_fileno;	/* relative file number of current position */
+	daddr_t	mt_blkno;	/* relative block number of current position */
 };
 
 /* structure for MTIOCERRSTAT - tape get error status command */
@@ -147,7 +166,7 @@ struct scsi_tape_errors {
 		u_int32_t processed;	/* total # corrections succssful */
 		u_int32_t failures;	/* total # corrections/retries failed */
 		u_int64_t nbytes;	/* total # bytes processed */
-	} werr, rderr;
+	} wterr, rderr;
 };
 	
 union mterrstat {
