@@ -1122,8 +1122,11 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		} else if (ifp->if_pcount == 0) {
 			ifp->if_flags &= ~IFF_PROMISC;
 		}
-		if (ifp->if_ioctl)
+		if (ifp->if_ioctl) {
+			IFF_LOCKGIANT(ifp);
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
+			IFF_UNLOCKGIANT(ifp);
+		}
 		getmicrotime(&ifp->if_lastchange);
 		break;
 
@@ -1135,7 +1138,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (EOPNOTSUPP);
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
 			return (EINVAL);
+		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		IFF_UNLOCKGIANT(ifp);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
@@ -1207,7 +1212,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
+		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		IFF_UNLOCKGIANT(ifp);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
@@ -1223,7 +1230,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (EINVAL);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
+		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		IFF_UNLOCKGIANT(ifp);
 		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
 			rt_ifmsg(ifp);
@@ -1276,7 +1285,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
+		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		IFF_UNLOCKGIANT(ifp);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
@@ -1292,7 +1303,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGIFGENERIC:
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
+		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		IFF_UNLOCKGIANT(ifp);
 		break;
 
 	case SIOCSIFLLADDR:
@@ -1459,7 +1472,9 @@ ifpromisc(struct ifnet *ifp, int pswitch)
 	}
 	ifr.ifr_flags = ifp->if_flags & 0xffff;
 	ifr.ifr_flagshigh = ifp->if_flags >> 16;
+	IFF_LOCKGIANT(ifp);
 	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+	IFF_UNLOCKGIANT(ifp);
 	if (error == 0) {
 		log(LOG_INFO, "%s: promiscuous mode %s\n",
 		    ifp->if_xname,
@@ -1585,7 +1600,9 @@ if_allmulti(struct ifnet *ifp, int onswitch)
 			ifp->if_flags |= IFF_ALLMULTI;
 			ifr.ifr_flags = ifp->if_flags & 0xffff;
 			ifr.ifr_flagshigh = ifp->if_flags >> 16;
+			IFF_LOCKGIANT(ifp);
 			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+			IFF_UNLOCKGIANT(ifp);
 		}
 	} else {
 		if (ifp->if_amcount > 1) {
@@ -1595,7 +1612,9 @@ if_allmulti(struct ifnet *ifp, int onswitch)
 			ifp->if_flags &= ~IFF_ALLMULTI;
 			ifr.ifr_flags = ifp->if_flags & 0xffff;;
 			ifr.ifr_flagshigh = ifp->if_flags >> 16;
+			IFF_LOCKGIANT(ifp);
 			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+			IFF_UNLOCKGIANT(ifp);
 		}
 	}
 	splx(s);
@@ -1690,7 +1709,9 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 	 * interface to let them know about it.
 	 */
 	s = splimp();
+	IFF_LOCKGIANT(ifp);
 	ifp->if_ioctl(ifp, SIOCADDMULTI, 0);
+	IFF_UNLOCKGIANT(ifp);
 	splx(s);
 
 	return 0;
@@ -1725,8 +1746,11 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	 * Make sure the interface driver is notified
 	 * in the case of a link layer mcast group being left.
 	 */
-	if (ifma->ifma_addr->sa_family == AF_LINK && sa == 0)
+	if (ifma->ifma_addr->sa_family == AF_LINK && sa == 0) {
+		IFF_LOCKGIANT(ifp);
 		ifp->if_ioctl(ifp, SIOCDELMULTI, 0);
+		IFF_UNLOCKGIANT(ifp);
+	}
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(ifma, M_IFMADDR);
@@ -1757,7 +1781,9 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 
 	s = splimp();
 	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+	IFF_LOCKGIANT(ifp);
 	ifp->if_ioctl(ifp, SIOCDELMULTI, 0);
+	IFF_UNLOCKGIANT(ifp);
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(sa, M_IFMADDR);
@@ -1812,6 +1838,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	 * address filter.
 	 */
 	if ((ifp->if_flags & IFF_UP) != 0) {
+		IFF_LOCKGIANT(ifp);
 		ifp->if_flags &= ~IFF_UP;
 		ifr.ifr_flags = ifp->if_flags & 0xffff;
 		ifr.ifr_flagshigh = ifp->if_flags >> 16;
@@ -1820,6 +1847,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		ifr.ifr_flags = ifp->if_flags & 0xffff;
 		ifr.ifr_flagshigh = ifp->if_flags >> 16;
 		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+		IFF_UNLOCKGIANT(ifp);
 #ifdef INET
 		/*
 		 * Also send gratuitous ARPs to notify other nodes about
