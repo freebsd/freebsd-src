@@ -104,32 +104,6 @@ struct filedesc0 {
  */
 #define OFILESIZE (sizeof(struct file *) + sizeof(char))
 
-/*
- * This structure holds the information needed to send a SIGIO or
- * a SIGURG signal to a process or process group when new data arrives
- * on a device or socket.  The structure is placed on an SLIST belonging
- * to the proc or pgrp so that the entire list may be revoked when the
- * process exits or the process group disappears.
- *
- * (c)	const
- * (pg)	locked by either the process or process group lock
- */
-struct sigio {
-	union {
-		struct	proc *siu_proc; /* (c)	process to receive SIGIO/SIGURG */
-		struct	pgrp *siu_pgrp; /* (c)	process group to receive ... */
-	} sio_u;
-	SLIST_ENTRY(sigio) sio_pgsigio;	/* (pg)	sigio's for process or group */
-	struct	sigio **sio_myref;	/* (c)	location of the pointer that holds
-					 * 	the reference to this structure */
-	struct	ucred *sio_ucred;	/* (c)	current credentials */
-	pid_t	sio_pgid;		/* (c)	pgid for signals */
-};
-#define	sio_proc	sio_u.siu_proc
-#define	sio_pgrp	sio_u.siu_pgrp
-
-SLIST_HEAD(sigiolst, sigio);
-
 #ifdef _KERNEL
 
 #define FILEDESC_LOCK_DESC	"filedesc structure"
@@ -154,10 +128,6 @@ struct	filedesc *fdinit(struct filedesc *fdp);
 struct	filedesc *fdshare(struct filedesc *fdp);
 void	ffree(struct file *fp);
 static __inline struct file *	fget_locked(struct filedesc *fdp, int fd);
-pid_t	fgetown(struct sigio **sigiop);
-int	fsetown(pid_t pgid, struct sigio **sigiop);
-void	funsetown(struct sigio **sigiop);
-void	funsetownlst(struct sigiolst *sigiolst);
 int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
 void	setugidsafety(struct thread *td);
 

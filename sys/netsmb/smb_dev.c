@@ -40,6 +40,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
+#include <sys/filedesc.h>
 #include <sys/mbuf.h>
 #include <sys/poll.h>
 #include <sys/proc.h>

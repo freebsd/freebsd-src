@@ -149,6 +149,7 @@
 #include <sys/stat.h>
 #include <sys/ioccom.h>
 #include <sys/filio.h>
+#include <sys/filedesc.h>
 #include <sys/fcntl.h>
 #include <sys/systm.h>
 #include <sys/namei.h>

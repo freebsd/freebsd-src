@@ -39,8 +39,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/mac.h>
 #include <sys/protosw.h>
+#include <sys/sigio.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/filio.h>			/* XXX */
