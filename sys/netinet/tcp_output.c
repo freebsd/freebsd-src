@@ -951,7 +951,7 @@ send:
 				tp->t_flags |= TF_SENTFIN;
 			}
 		}
-		if (tp->sack_enable && sack_rxmit && (p->rxmit != tp->snd_nxt))
+		if (tp->sack_enable && sack_rxmit)
 			goto timer;
 		tp->snd_nxt += len;
 		if (SEQ_GT(tp->snd_nxt, tp->snd_max)) {
