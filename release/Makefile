@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.457 1999/01/13 21:56:58 abial Exp $
+#	$Id: Makefile,v 1.458 1999/01/14 15:36:53 abial Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -72,7 +72,7 @@ MNT=			/mnt
 # Various floppy image parameters.
 #
 BOOTSIZE=		1440
-BOOTMFSSIZE=		2880
+BOOTMFSSIZE=		1440
 FIXITSIZE=		1440
 BOOTINODE=		80000
 MFSINODE=		8000
