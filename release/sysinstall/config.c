@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.9 1995/06/01 09:42:27 jkh Exp $
+ * $Id: config.c,v 1.15.2.10 1995/06/01 22:58:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -151,7 +151,7 @@ configFstab(void)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && (c2->subtype == FS_SWAP || c2->private)
+		    if (c2->type == part && (c2->subtype == FS_SWAP || c2->private))
 			chunk_list[nchunks++] = c2;
 		}
 	    }
