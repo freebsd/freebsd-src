@@ -140,7 +140,8 @@ network_start()
 	done
 
 	if [ ! -z "${dhcp_interfaces}" ]; then
-		${dhcp_program:-/sbin/dhclient} ${dhcp_flags} ${dhcp_interfaces}	fi
+		${dhcp_program:-/sbin/dhclient} ${dhcp_flags} ${dhcp_interfaces}
+	fi
 
 	for ifn in ${network_interfaces}; do
 		# Check to see if aliases need to be added
@@ -274,7 +275,6 @@ network_start()
 	# XXX this must die
 	if [ -s /etc/netstart.local ]; then
 		sh /etc/netstart.local start
-	fi
 	fi
 	echo '.'
 
