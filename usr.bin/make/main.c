@@ -558,7 +558,7 @@ main(int argc, char **argv)
 	 */
 	if (!machine) {
 #ifndef MACHINE
-	    struct utsname utsname;
+	    static struct utsname utsname;
 
 	    if (uname(&utsname) == -1)
 		    err(2, "uname");
