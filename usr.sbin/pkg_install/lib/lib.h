@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.13 1995/04/19 14:02:01 jkh Exp $ */
+/* $Id: lib.h,v 1.14 1995/04/22 07:41:01 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -109,6 +109,7 @@ void		cleanup(int);
 char		*make_playpen(char *, size_t);
 void		leave_playpen(void);
 char		*where_playpen(void);
+long		min_free(char *);
 
 /* String */
 char 		*get_dash_string(char **);
@@ -125,6 +126,7 @@ Boolean		isempty(char *);
 char		*get_file_contents(char *);
 void		write_file(char *, char *);
 void		copy_file(char *, char *, char *);
+void		move_file(char *, char *, char *);
 void		copy_hierarchy(char *, char *, Boolean);
 int		delete_hierarchy(char *, Boolean, Boolean);
 int		unpack(char *, char *);
