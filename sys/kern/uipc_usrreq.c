@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.33 1998/04/17 22:36:50 des Exp $
+ *	$Id: uipc_usrreq.c,v 1.34 1998/05/07 04:58:21 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/malloc.h>		/* XXX must be before <sys/file.h> */
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -51,7 +52,16 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
+#include <sys/unpcb.h>
 #include <sys/vnode.h>
+
+#include <vm/vm_zone.h>
+
+struct	vm_zone *unp_zone;
+static	unp_gen_t unp_gencnt;
+static	u_int unp_count;
+
+static	struct unp_head unp_shead, unp_dhead;
 
 /*
  * Unix communications domain.
@@ -60,6 +70,7 @@
  *	SEQPACKET, RDM
  *	rethink name space problems
  *	need a proper out-of-band
+ *	lock pushdown
  */
 static struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
 static ino_t	unp_ino;		/* prototype for fake inode numbers */
@@ -468,12 +479,17 @@ unp_attach(so)
 		if (error)
 			return (error);
 	}
-	MALLOC(unp, struct unpcb *, sizeof *unp, M_PCB, M_NOWAIT);
+	unp = zalloc(unp_zone);
 	if (unp == NULL)
 		return (ENOBUFS);
 	bzero(unp, sizeof *unp);
-	so->so_pcb = (caddr_t)unp;
+	unp->unp_gencnt = ++unp_gencnt;
+	unp_count++;
+	LIST_INIT(&unp->unp_refs);
 	unp->unp_socket = so;
+	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
+			 : &unp_shead, unp, unp_link);
+	so->so_pcb = (caddr_t)unp;
 	return (0);
 }
 
@@ -481,6 +497,9 @@ static void
 unp_detach(unp)
 	register struct unpcb *unp;
 {
+	LIST_REMOVE(unp, unp_link);
+	unp->unp_gencnt = ++unp_gencnt;
+	--unp_count;
 	if (unp->unp_vnode) {
 		unp->unp_vnode->v_socket = 0;
 		vrele(unp->unp_vnode);
@@ -488,8 +507,8 @@ unp_detach(unp)
 	}
 	if (unp->unp_conn)
 		unp_disconnect(unp);
-	while (unp->unp_refs)
-		unp_drop(unp->unp_refs, ECONNRESET);
+	while (unp->unp_refs.lh_first)
+		unp_drop(unp->unp_refs.lh_first, ECONNRESET);
 	soisdisconnected(unp->unp_socket);
 	unp->unp_socket->so_pcb = 0;
 	if (unp_rights) {
@@ -505,7 +524,7 @@ unp_detach(unp)
 	}
 	if (unp->unp_addr)
 		FREE(unp->unp_addr, M_SONAME);
-	FREE(unp, M_PCB);
+	zfree(unp_zone, unp);
 }
 
 static int
@@ -637,8 +656,7 @@ unp_connect2(so, so2)
 	switch (so->so_type) {
 
 	case SOCK_DGRAM:
-		unp->unp_nextref = unp2->unp_refs;
-		unp2->unp_refs = unp;
+		LIST_INSERT_HEAD(&unp2->unp_refs, unp, unp_reflink);
 		soisconnected(so);
 		break;
 
@@ -666,20 +684,7 @@ unp_disconnect(unp)
 	switch (unp->unp_socket->so_type) {
 
 	case SOCK_DGRAM:
-		if (unp2->unp_refs == unp)
-			unp2->unp_refs = unp->unp_nextref;
-		else {
-			unp2 = unp2->unp_refs;
-			for (;;) {
-				if (unp2 == 0)
-					panic("unp_disconnect");
-				if (unp2->unp_nextref == unp)
-					break;
-				unp2 = unp2->unp_nextref;
-			}
-			unp2->unp_nextref = unp->unp_nextref;
-		}
-		unp->unp_nextref = 0;
+		LIST_REMOVE(unp, unp_reflink);
 		unp->unp_socket->so_state &= ~SS_ISCONNECTED;
 		break;
 
@@ -700,6 +705,103 @@ unp_abort(unp)
 	unp_detach(unp);
 }
 #endif
+
+static int
+unp_pcblist SYSCTL_HANDLER_ARGS
+{
+	int error, i, n, s;
+	struct unpcb *unp, **unp_list;
+	unp_gen_t gencnt;
+	struct xunpgen xug;
+	struct unp_head *head;
+
+	head = ((long)arg1 == SOCK_DGRAM ? &unp_dhead : &unp_shead);
+
+	/*
+	 * The process of preparing the PCB list is too time-consuming and
+	 * resource-intensive to repeat twice on every request.
+	 */
+	if (req->oldptr == 0) {
+		n = unp_count;
+		req->oldidx = 2 * (sizeof xug)
+			+ (n + n/8) * sizeof(struct xunpcb);
+		return 0;
+	}
+
+	if (req->newptr != 0)
+		return EPERM;
+
+	/*
+	 * OK, now we're committed to doing something.
+	 */
+	gencnt = unp_gencnt;
+	n = unp_count;
+
+	xug.xug_len = sizeof xug;
+	xug.xug_count = n;
+	xug.xug_gen = gencnt;
+	xug.xug_sogen = so_gencnt;
+	error = SYSCTL_OUT(req, &xug, sizeof xug);
+	if (error)
+		return error;
+
+	unp_list = malloc(n * sizeof *unp_list, M_TEMP, M_WAITOK);
+	if (unp_list == 0)
+		return ENOMEM;
+	
+	for (unp = head->lh_first, i = 0; unp && i < n;
+	     unp = unp->unp_link.le_next) {
+		if (unp->unp_gencnt <= gencnt)
+			unp_list[i++] = unp;
+	}
+	n = i;			/* in case we lost some during malloc */
+
+	error = 0;
+	for (i = 0; i < n; i++) {
+		unp = unp_list[i];
+		if (unp->unp_gencnt <= gencnt) {
+			struct xunpcb xu;
+			xu.xu_len = sizeof xu;
+			xu.xu_unpp = unp;
+			/*
+			 * XXX - need more locking here to protect against
+			 * connect/disconnect races for SMP.
+			 */
+			if (unp->unp_addr)
+				bcopy(unp->unp_addr, &xu.xu_addr, 
+				      unp->unp_addr->sun_len);
+			if (unp->unp_conn && unp->unp_conn->unp_addr)
+				bcopy(unp->unp_conn->unp_addr,
+				      &xu.xu_caddr,
+				      unp->unp_conn->unp_addr->sun_len);
+			bcopy(unp, &xu.xu_unp, sizeof *unp);
+			sotoxsocket(unp->unp_socket, &xu.xu_socket);
+			error = SYSCTL_OUT(req, &xu, sizeof xu);
+		}
+	}
+	if (!error) {
+		/*
+		 * Give the user an updated idea of our state.
+		 * If the generation differs from what we told
+		 * her before, she knows that something happened
+		 * while we were processing this request, and it
+		 * might be necessary to retry.
+		 */
+		xug.xug_gen = unp_gencnt;
+		xug.xug_sogen = so_gencnt;
+		xug.xug_count = unp_count;
+		error = SYSCTL_OUT(req, &xug, sizeof xug);
+	}
+	free(unp_list, M_TEMP);
+	return error;
+}
+
+SYSCTL_PROC(_net_local_dgram, OID_AUTO, pcblist, CTLFLAG_RD, 
+	    (caddr_t)(long)SOCK_DGRAM, 0, unp_pcblist, "S,xunpcb",
+	    "List of active local datagram sockets");
+SYSCTL_PROC(_net_local_stream, OID_AUTO, pcblist, CTLFLAG_RD, 
+	    (caddr_t)(long)SOCK_STREAM, 0, unp_pcblist, "S,xunpcb",
+	    "List of active local stream sockets");
 
 static void
 unp_shutdown(unp)
@@ -722,10 +824,13 @@ unp_drop(unp, errno)
 	so->so_error = errno;
 	unp_disconnect(unp);
 	if (so->so_head) {
+		LIST_REMOVE(unp, unp_link);
+		unp->unp_gencnt = ++unp_gencnt;
+		unp_count--;
 		so->so_pcb = (caddr_t) 0;
 		if (unp->unp_addr)
 			FREE(unp->unp_addr, M_SONAME);
-		FREE(unp, M_PCB);
+		zfree(unp_zone, unp);
 		sofree(so);
 	}
 }
@@ -777,6 +882,16 @@ unp_externalize(rights)
 		*(int *)rp++ = f;
 	}
 	return (0);
+}
+
+void
+unp_init(void)
+{
+	unp_zone = zinit("unpcb", sizeof(struct unpcb), nmbclusters, 0, 0);
+	if (unp_zone == 0)
+		panic("unp_init");
+	LIST_INIT(&unp_dhead);
+	LIST_INIT(&unp_shead);
 }
 
 #ifndef MIN

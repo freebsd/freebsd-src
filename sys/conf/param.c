@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.25 1997/06/14 11:38:46 bde Exp $
+ * $Id: param.c,v 1.26 1998/02/27 19:58:29 guido Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -84,6 +84,13 @@ int	ncallout = 16 + NPROC + MAXFILES;	/* maximum # of timer events */
 #define	NMBCLUSTERS (512 + MAXUSERS * 16)
 #endif
 int	nmbclusters = NMBCLUSTERS;
+
+#if MAXFILES > NMBCLUSTERS
+#define	MAXSOCKETS MAXFILES
+#else
+#define	MAXSOCKETS NMBCLUSTERS
+#endif
+int	maxsockets = MAXSOCKETS;
 
 /* allocate 1/4th amount of virtual address space for mbufs XXX */
 int	nmbufs = NMBCLUSTERS * 4;

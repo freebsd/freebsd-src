@@ -31,15 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.3 (Berkeley) 2/19/95
- * $Id: un.h,v 1.12 1997/04/27 20:01:29 wollman Exp $
+ * $Id: un.h,v 1.13 1997/08/16 19:16:15 wollman Exp $
  */
 
 #ifndef _SYS_UN_H_
 #define _SYS_UN_H_
-
-#ifdef KERNEL
-#include <sys/unpcb.h>
-#endif /* KERNEL */
 
 /*
  * Definitions for UNIX IPC domain.
@@ -59,6 +55,7 @@ int	uipc_usrreq __P((struct socket *so, int req, struct mbuf *m,
 int	unp_connect2 __P((struct socket *so, struct socket *so2));
 void	unp_dispose __P((struct mbuf *m));
 int	unp_externalize __P((struct mbuf *rights));
+void	unp_init __P((void));
 extern	struct pr_usrreqs uipc_usrreqs;
 #else /* !KERNEL */
 

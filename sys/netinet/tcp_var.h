@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.42 1998/04/06 06:52:47 phk Exp $
+ * 	$Id: tcp_var.h,v 1.43 1998/04/24 09:25:39 dg Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -287,6 +287,21 @@ struct	tcpstat {
 };
 
 /*
+ * TCB structure exported to user-land via sysctl(3).
+ * Evil hack: declare only if in_pcb.h has been included.
+ * Not all of our clients do.
+ */
+#ifdef _NETINET_IN_PCB_H_
+struct	xtcpcb {
+	size_t	xt_len;
+	struct	inpcb	xt_inp;
+	struct	tcpcb	xt_tp;
+	struct	xsocket	xt_socket;
+	u_quad_t	xt_alignment_hack;
+};
+#endif
+
+/*
  * Names for TCP sysctl objects
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
@@ -299,7 +314,8 @@ struct	tcpstat {
 #define	TCPCTL_SENDSPACE	8	/* send buffer space */
 #define	TCPCTL_RECVSPACE	9	/* receive buffer space */
 #define	TCPCTL_KEEPINIT		10	/* receive buffer space */
-#define TCPCTL_MAXID		11
+#define	TCPCTL_PCBLIST		11	/* list of all outstanding PCBs */
+#define TCPCTL_MAXID		12
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -313,6 +329,7 @@ struct	tcpstat {
 	{ "sendspace", CTLTYPE_INT }, \
 	{ "recvspace", CTLTYPE_INT }, \
 	{ "keepinit", CTLTYPE_INT }, \
+	{ "pcblist", CTLTYPE_STRUCT }, \
 }
 
 #ifdef KERNEL

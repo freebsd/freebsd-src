@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.24 1998/03/24 18:06:11 wollman Exp $
+ * $Id: in_pcb.h,v 1.25 1998/03/28 10:18:22 bde Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -48,6 +48,7 @@
  */
 LIST_HEAD(inpcbhead, inpcb);
 LIST_HEAD(inpcbporthead, inpcbport);
+typedef	u_quad_t	inp_gen_t;
 
 /*
  * NB: the zone allocator is type-stable EXCEPT FOR THE FIRST TWO LONGS
@@ -75,7 +76,7 @@ struct inpcb {
 	struct	ip_moptions *inp_moptions; /* IP multicast options */
 	LIST_ENTRY(inpcb) inp_portlist;	/* list for this PCB's local port */
 	struct	inpcbport *inp_phd;	/* head of this list */
-	u_quad_t inp_gencnt;		/* generation count of this instance */
+	inp_gen_t inp_gencnt;		/* generation count of this instance */
 };
 /*
  * The range of the generation count, as used in this implementation,
@@ -83,6 +84,26 @@ struct inpcb {
  * second for this number to roll over in a year.  This seems sufficiently
  * unlikely that we simply don't concern ourselves with that possibility.
  */
+
+/*
+ * Interface exported to userland by various protocols which use
+ * inpcbs.  Hack alert -- only define if struct xsocket is in scope.
+ */
+#ifdef _SYS_SOCKETVAR_H_
+struct	xinpcb {
+	size_t	xi_len;		/* length of this structure */
+	struct	inpcb xi_inp;
+	struct	xsocket xi_socket;
+	u_quad_t	xi_alignment_hack;
+};
+
+struct	xinpgen {
+	size_t	xig_len;	/* length of this structure */
+	u_int	xig_count;	/* number of PCBs at this time */
+	inp_gen_t xig_gen;	/* generation count at this time */
+	so_gen_t xig_sogen;	/* socket generation count at this time */
+};
+#endif /* _SYS_SOCKETVAR_H_ */
 
 struct inpcbport {
 	LIST_ENTRY(inpcbport) phd_hash;
