@@ -11,6 +11,7 @@
  *	$NetBSD: uhci.c,v 1.168 2003/02/08 03:32:51 ichiro Exp $
  *	$NetBSD: uhci.c,v 1.169 2003/02/16 23:15:28 augustss Exp $
  *	$NetBSD: uhci.c,v 1.170 2003/02/19 01:35:04 augustss Exp $
+ *	$NetBSD: uhci.c,v 1.172 2003/02/23 04:19:26 simonb Exp $
  */
 
 
@@ -564,7 +565,6 @@ uhci_activate(device_ptr_t self, enum devact act)
 	switch (act) {
 	case DVACT_ACTIVATE:
 		return (EOPNOTSUPP);
-		break;
 
 	case DVACT_DEACTIVATE:
 		if (sc->sc_child != NULL)
