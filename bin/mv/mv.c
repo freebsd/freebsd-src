@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: mv.c,v 1.19 1998/05/25 22:44:16 steve Exp $";
+	"$Id: mv.c,v 1.20 1998/06/09 03:39:38 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -272,8 +272,8 @@ err:		if (unlink(to))
 
 	oldmode = sbp->st_mode & ALLPERMS;
 	if (fchown(to_fd, sbp->st_uid, sbp->st_gid)) {
-		warn("%s: set owner/group (was: %u/%u)", to, sbp->st_uid,
-		    sbp->st_gid);
+		warn("%s: set owner/group (was: %lu/%lu)", to,
+		    (u_long)sbp->st_uid, (u_long)sbp->st_gid);
 		if (oldmode & (S_ISUID | S_ISGID)) {
 			warnx(
 "%s: owner/group changed; clearing suid/sgid (mode was 0%03o)",
