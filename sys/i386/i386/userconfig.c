@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.51 1996/10/03 01:22:22 jkh Exp $
+ **      $Id: userconfig.c,v 1.52 1996/10/03 07:51:40 jkh Exp $
  **/
 
 /**
@@ -121,8 +121,32 @@
 
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
-#define putchar(x)	cnputc(x)
+
+#ifdef USERCONFIG_BOOT
+char userconfig_from_boot[512] = "";
+char *next = userconfig_from_boot;
+int
+getchar(x)
+{
+    if (next == userconfig_from_boot) {
+	if (strncmp(next, "USERCONFIG\n", 11)) {
+	    next++;
+	    strcpy(next, "quit\n");
+	} else {
+	    next += 11;
+	}
+    } 
+    if (*next) {
+	return (*next++);
+    } else {
+	return cngetc();
+    }
+}
+#else /* !USERCONFIG_BOOT */
 #define getchar()	cngetc()
+#endif /* USERCONFIG_BOOT */
+
+#define putchar(x)	cnputc(x)
 
 #ifdef VISUAL_USERCONFIG
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
@@ -2187,7 +2211,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.51 1996/10/03 01:22:22 jkh Exp $
+ *      $Id: userconfig.c,v 1.52 1996/10/03 07:51:40 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2241,6 +2265,7 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
+static int introfunc(CmdParm *);
 
 static int lineno;
 
@@ -2269,6 +2294,7 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
+    { "intro", 	introfunc, 		NULL },		/* intro screen	*/
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
     { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
@@ -2292,7 +2318,7 @@ userconfig(void)
     int rval;
     Cmd *cmd;
 
-    printf("\nFreeBSD Kernel Configuration Utility - Version 1.0\n"
+    printf("\nFreeBSD Kernel Configuration Utility - Version 1.1\n"
 	   " Type \"help\" for help" 
 #ifdef VISUAL_USERCONFIG
 	   " or \"visual\" to go to the visual\n"
@@ -2524,6 +2550,41 @@ helpfunc(CmdParm *parms)
 #endif
     printf("help\t\t\tThis message\n\n");
     printf("Commands may be abbreviated to a unique prefix\n");
+    return 0;
+}
+
+static void
+center(int y, char *str)
+{
+    putxy((80 - strlen(str)) / 2, y, str);
+}
+
+static int
+introfunc(CmdParm *parms)
+{
+    int y = 3;
+
+    clear();
+    center(y, "!iKernel Configuration Editor!n");
+    y += 2;
+    putxy(2, y++, "In this next screen, you will be shown a full list of all the device");
+    putxy(2, y++, "drivers which are available in this copy of the OS kernel.  This is");
+    putxy(2, y++, "!inot!n a list of devices which you necessarily have, simply those");
+    putxy(2, y++, "which this kernel is capable of supporting.");
+    ++y;
+    putxy(2, y++, "You should go through each device category and delete all entries");
+    putxy(2, y++, "(using the DELETE key) for devices that you do not have.  This is an");
+    putxy(2, y++, "important step since it minimizes the chance of conflicts and also");
+    putxy(2, y++, "makes the kernel boot faster since there's no time wasted in trying to");
+    putxy(2, y++, "detect non-existant hardware.  If you see an entry for a device which you");
+    putxy(2, y++, "you !ido!n have and it's not a PCI device (which will be auto-configured),");
+    putxy(2, y++, "be sure that its configuration parameters match your actual hardware.");
+    putxy(2, y++, "To edit a device's configuration, simply press ENTER while over it.");
+    putxy(2, y++, "Once you are satisfied with your device configuration, press Q to");
+    putxy(2, y++, "proceed with the booting process.");
+    ++y;
+    center(y, "!iPress a key to continue!n");
+    cngetc();
     return 0;
 }
 

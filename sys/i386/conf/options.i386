@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.19 1996/10/01 03:00:36 pst Exp $
+#	$Id: options.i386,v 1.20 1996/10/02 03:48:09 pst Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -41,3 +41,4 @@ ATAPI_STATIC		opt_atapi.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
+USERCONFIG_BOOT		opt_userconfig.h

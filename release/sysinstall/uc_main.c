@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.5 1996/10/05 02:12:35 jkh Exp $
+ * $Id: uc_main.c,v 1.6 1996/10/05 05:51:12 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -43,10 +43,7 @@
 extern int	isDebug(void);
 extern void	msgDebug(char *fmt, ...);
 
-#ifdef KERN_NO_SYMBOLS
-#include "kern-nlist.h"
-#else
-static struct nlist nl[] = {
+static struct nlist _nl[] = {
     {"_isa_devtab_bio"},
     {"_isa_devtab_tty"},
     {"_isa_devtab_net"},
@@ -63,7 +60,6 @@ static struct nlist nl[] = {
     {"_scsi_tinit"},
     {""},
 };
-#endif
 
 struct kernel *
 uc_open(char *name){
@@ -71,12 +67,13 @@ uc_open(char *name){
     struct kernel *kern;
     struct stat sb;
     char kname[80];
-    int i = 0;
-    
+    int size, i = 0;
+    struct nlist *nl = _nl;
+
     if (strcmp(name, "-incore") == 0)
 	incore = 1;
     else
-	incore=0;
+	incore = 0;
     
     if (incore || (strcmp(name,"-bootfile") == 0))
 	strncpy(kname, getbootfile(), 79);
@@ -86,11 +83,42 @@ uc_open(char *name){
     if (isDebug())
 	msgDebug("uc_open: kernel name is %s, incore = %d\n", kname, incore);
     
-    kern=(struct kernel *)malloc(sizeof(struct kernel));
-    
+    kern = (struct kernel *)malloc(sizeof(struct kernel));
+
 #ifdef KERN_NO_SYMBOLS
     if (incore) {
-	kern->nl = nl;
+	FILE *fp;
+
+	fp = fopen("/stand/symbols", "r");
+	if (!fp) {
+	    msgDebug("Couldn't open /stand/symbols file!  Punting.\n");
+	    free(kern);
+	    return NULL;
+	}
+	if (fscanf(fp, "%d\n", &size) != 1) {
+	    msgDebug("Unable to get # of name list entries from symbol file.\n");
+	    free(kern);
+	    return NULL;
+	}
+	nl = (struct nlist *)malloc((size + 1) * sizeof(struct nlist));
+	for (i = 0; i < size; i++) {
+	    char name[255];
+
+	    if (fgets(name, 255, fp) == NULL) {
+		msgDebug("Unable to read symbol name from symbol file.\n");
+		free(kern);
+		return NULL;
+	    }
+	    nl[i].n_name = strdup(name);
+	    if (fscanf(fp, "%d %d %d %ld\n",
+		       &(nl[i].n_type), &(nl[i].n_other), &(nl[i].n_desc), &(nl[i].n_value)) != 4) {
+		msgDebug("Unable to read symbol detail fields from symbol file, entry = %d\n", i);
+		free(kern);
+		return NULL;
+	    }
+	}
+	fclose(fp);
+    	kern->nl = nl;
 	i = 0;
     }
     else
@@ -98,8 +126,8 @@ uc_open(char *name){
 	i = nlist(kname, nl);
     if (i == -1) {
 	msgDebug("uc_open: kernel %s does not contain symbols.\n", kname);
-	kern = (struct kernel *)-5;
-	return kern;
+	free(kern);
+	return NULL;
     }
 #ifdef KERN_NO_SYMBOLS
     if (!incore) {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.72 1996/05/27 06:51:46 phk Exp $
+ *	$Id: locore.s,v 1.73 1996/07/12 06:48:55 bde Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -45,6 +45,7 @@
 
 #include "apm.h"
 #include "opt_ddb.h"
+#include "opt_userconfig.h"
 
 #include <sys/errno.h>
 #include <sys/syscall.h>
@@ -519,6 +520,15 @@ olddiskboot:
 	movl	%eax,R(_boothowto)
 	movl	12(%ebp),%eax
 	movl	%eax,R(_bootdev)
+
+#if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
+	movl	$0x10200, %esi
+	movl	$R(_userconfig_from_boot),%edi
+	movl	$512,%ecx
+	cld
+	rep
+	movsb
+#endif /* USERCONFIG_BOOT */
 
 	ret
 
