@@ -12,8 +12,8 @@ __FBSDID("$FreeBSD$");
 static const int map[] = {
 	1,	/* round to nearest */
 	0,	/* round to zero */
-	3,	/* round to negative infinity */
-	2	/* round to positive infinity */
+	2,	/* round to positive infinity */
+	3	/* round to negative infinity */
 };
 
 int
