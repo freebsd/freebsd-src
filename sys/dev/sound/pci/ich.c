@@ -652,6 +652,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "AMD-768");
 		return 0;
 
+	case 0x746d1022:
+		device_set_desc(dev, "AMD-8111");
+		return 0;
+
 	default:
 		return ENXIO;
 	}
