@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.53 1998/05/04 07:47:24 kato Exp $
+ *	$Id: clock.c,v 1.54 1998/05/20 13:38:42 kato Exp $
  */
 
 /*
@@ -1407,7 +1407,7 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
 
-static u_int
+static unsigned
 i8254_get_timecount(void)
 {
 	u_int count;
@@ -1436,7 +1436,7 @@ i8254_get_timecount(void)
 	return (count);
 }
 
-static u_int
+static unsigned
 tsc_get_timecount(void)
 {
 	return (rdtsc());
