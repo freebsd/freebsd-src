@@ -47,6 +47,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <libutil.h>
+#include <libgeom.h>
 #include <sys/errno.h>
 #include <sys/disk.h>
 #include <sys/stat.h>
@@ -219,58 +220,46 @@ encrypt_sector(void *d, int len, int klen, void *key)
 static void
 cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 {
-	int gfd, i, ffd;
-	struct geomconfiggeom gcg;
-	u_char buf[256 + 16];
+	int ffd;
+	u_char buf[16];
+	struct gctl_req *r;
+	const char *errstr;
 
-	gfd = open("/dev/geom.ctl", O_RDWR);
-	if (gfd < 0)
-		err(1, "/dev/geom.ctl");
-	memset(&gcg, 0, sizeof gcg);
-	gcg.class.u.name = "BDE";
-	gcg.class.len = strlen(gcg.class.u.name);
-	gcg.provider.u.name = dest;
-	gcg.provider.len = strlen(gcg.provider.u.name);
-	gcg.flag = GCFG_CREATE;
-	gcg.len = sizeof buf;
-	gcg.ptr = buf;
-	
+	r = gctl_get_handle(GCTL_CREATE_GEOM);
+	gctl_ro_param(r, "class", -1, "BDE");
+	gctl_ro_param(r, "provider", -1, dest);
+	gctl_ro_param(r, "pass", SHA512_DIGEST_LENGTH, sc->sha2);
 	if (lfile != NULL) {
 		ffd = open(lfile, O_RDONLY, 0);
 		if (ffd < 0)
 			err(1, "%s", lfile);
-		read(ffd, buf + sizeof(sc->sha2), 16);
+		read(ffd, buf, 16);
+		gctl_ro_param(r, "key", 16, buf);
 		close(ffd);
-	} else {
-		memset(buf + sizeof(sc->sha2), 0, 16);
 	}
-	memcpy(buf, sc->sha2, sizeof(sc->sha2));
+	/* gctl_dump(r, stdout); */
+	errstr = gctl_issue(r);
+	if (errstr != NULL)
+		errx(1, "Attach to %s failed: %s\n", dest, errstr);
 
-	i = ioctl(gfd, GEOMCONFIGGEOM, &gcg);
-	if (i != 0)
-		err(1, "ioctl(GEOMCONFIGGEOM)");
 	exit (0);
 }
 
 static void
 cmd_detach(const char *dest)
 {
-	int i, gfd;
-	struct geomconfiggeom gcg;
+	struct gctl_req *r;
+	const char *errstr;
+	char buf[BUFSIZ];
 
-	gfd = open("/dev/geom.ctl", O_RDWR);
-	if (gfd < 0)
-		err(1, "/dev/geom.ctl");
-	memset(&gcg, 0, sizeof gcg);
-	gcg.class.u.name = "BDE";
-	gcg.class.len = strlen(gcg.class.u.name);
-	gcg.provider.u.name = dest;
-	gcg.provider.len = strlen(gcg.provider.u.name);
-	gcg.flag = GCFG_DISMANTLE;
-	
-	i = ioctl(gfd, GEOMCONFIGGEOM, &gcg);
-	if (i != 0)
-		err(1, "ioctl(GEOMCONFIGGEOM)");
+	r = gctl_get_handle(GCTL_DESTROY_GEOM);
+	gctl_ro_param(r, "class", -1, "BDE");
+	sprintf(buf, "%s.bde", dest);
+	gctl_ro_param(r, "geom", -1, buf);
+	/* gctl_dump(r, stdout); */
+	errstr = gctl_issue(r);
+	if (errstr != NULL)
+		errx(1, "Detach of %s failed: %s\n", dest, errstr);
 	exit (0);
 }
 
