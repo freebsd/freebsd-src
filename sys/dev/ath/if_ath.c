@@ -2002,7 +2002,6 @@ ath_beacon_free(struct ath_softc *sc)
 static void
 ath_beacon_config(struct ath_softc *sc)
 {
-#define	MS_TO_TU(x)	(((x) * 1000) / 1024)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = ic->ic_bss;
@@ -2010,7 +2009,7 @@ ath_beacon_config(struct ath_softc *sc)
 
 	nexttbtt = (LE_READ_4(ni->ni_tstamp.data + 4) << 22) |
 	    (LE_READ_4(ni->ni_tstamp.data) >> 10);
-	intval = MS_TO_TU(ni->ni_intval) & HAL_BEACON_PERIOD;
+	intval = ni->ni_intval & HAL_BEACON_PERIOD;
 	if (nexttbtt == 0)		/* e.g. for ap mode */
 		nexttbtt = intval;
 	else if (intval)		/* NB: can be 0 for monitor mode */
@@ -2019,7 +2018,6 @@ ath_beacon_config(struct ath_softc *sc)
 		__func__, nexttbtt, intval, ni->ni_intval);
 	if (ic->ic_opmode == IEEE80211_M_STA) {
 		HAL_BEACON_STATE bs;
-		u_int32_t bmisstime;
 
 		/* NB: no PCF support right now */
 		memset(&bs, 0, sizeof(bs));
@@ -2042,8 +2040,7 @@ ath_beacon_config(struct ath_softc *sc)
 		 * TU's and then calculate based on the beacon interval.
 		 * Note that we clamp the result to at most 10 beacons.
 		 */
-		bmisstime = MS_TO_TU(ic->ic_bmisstimeout);
-		bs.bs_bmissthreshold = howmany(bmisstime, intval);
+		bs.bs_bmissthreshold = howmany(ic->ic_bmisstimeout, intval);
 		if (bs.bs_bmissthreshold > 10)
 			bs.bs_bmissthreshold = 10;
 		else if (bs.bs_bmissthreshold <= 0)
@@ -2058,7 +2055,8 @@ ath_beacon_config(struct ath_softc *sc)
 		 *
 		 * XXX fixed at 100ms
 		 */
-		bs.bs_sleepduration = roundup(MS_TO_TU(100), bs.bs_intval);
+		bs.bs_sleepduration =
+			roundup(IEEE80211_MS_TO_TU(100), bs.bs_intval);
 		if (bs.bs_sleepduration > bs.bs_dtimperiod)
 			bs.bs_sleepduration = roundup(bs.bs_sleepduration, bs.bs_dtimperiod);
 
@@ -2113,7 +2111,6 @@ ath_beacon_config(struct ath_softc *sc)
 		if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol)
 			ath_beacon_proc(sc, 0);
 	}
-#undef MS_TO_TU
 }
 
 static void
