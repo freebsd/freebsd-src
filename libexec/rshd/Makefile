@@ -7,10 +7,15 @@ MAN=	rshd.8
 
 #CFLAGS+= -DCRYPT
 
-# For login_cap handling
-CFLAGS+=-DLOGIN_CAP -Wall
+CFLAGS+= -Wall
 DPADD+=	${LIBUTIL}
 LDADD+= -lutil
+
+.if !defined(NOPAM)
+CFLAGS+= -DUSE_PAM
+DPADD+=	${LIBPAM}
+LDADD+=	${MINUSLPAM}
+.endif
 
 # IPv6 support
 CFLAGS+= -DINET6
