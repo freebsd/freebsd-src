@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.18 1999/12/30 09:31:22 grog Exp grog $
+ * $Id: vinumparser.c,v 1.19 2000/02/19 06:53:09 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -95,6 +95,7 @@
 /* Normal keywords.  These are all the words that vinum knows. */
 struct _keywords keywords[] =
 {keypair(drive),
+    keypair(partition),
     keypair(sd),
     keypair(subdisk),
     keypair(plex),
@@ -109,6 +110,7 @@ struct _keywords keywords[] =
     keypair(raw),
     keypair(device),
     keypair(concat),
+    keypair(raid4),
     keypair(raid5),
     keypair(striped),
     keypair(plexoffset),
