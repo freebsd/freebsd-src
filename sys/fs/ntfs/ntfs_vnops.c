@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_vnops.c,v 1.2 1999/05/06 15:43:20 christos Exp $	*/
+
 /*
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -33,14 +35,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vnops.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
+ *	$Id: ntfs_vnops.c,v 1.4 1999/05/11 19:54:52 phk Exp $
  *
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -58,8 +59,12 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
+#if defined(__FreeBSD__)
 #include <vm/vnode_pager.h>
+#endif
 #include <vm/vm_extern.h>
+
+#include <sys/sysctl.h>
 
 
 /*#define NTFS_DEBUG 1*/
@@ -77,7 +82,7 @@ static int	ntfs_inactive __P((struct vop_inactive_args *ap));
 static int	ntfs_print __P((struct vop_print_args *ap));
 static int	ntfs_reclaim __P((struct vop_reclaim_args *ap));
 static int	ntfs_strategy __P((struct vop_strategy_args *ap));
-#if __FreeBSD_version < 300000
+#if defined(__NetBSD__)
 static int	ntfs_islocked __P((struct vop_islocked_args *ap));
 static int	ntfs_unlock __P((struct vop_unlock_args *ap));
 static int	ntfs_lock __P((struct vop_lock_args *ap));
@@ -88,12 +93,15 @@ static int	ntfs_close __P((struct vop_close_args *ap));
 static int	ntfs_readdir __P((struct vop_readdir_args *ap));
 static int	ntfs_lookup __P((struct vop_lookup_args *ap));
 static int	ntfs_bmap __P((struct vop_bmap_args *ap));
+#if defined(__FreeBSD__)
 static int	ntfs_getpages __P((struct vop_getpages_args *ap));
 static int	ntfs_putpages __P((struct vop_putpages_args *));
+#endif
 static int	ntfs_fsync __P((struct vop_fsync_args *ap));
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
 
+#if defined(__FreeBSD__)
 int
 ntfs_getpages(ap)
 	struct vop_getpages_args *ap;
@@ -109,6 +117,7 @@ ntfs_putpages(ap)
 	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
 		ap->a_sync, ap->a_rtvals);
 }
+#endif
 
 /*
  * This is a noop, simply returning what one has been given.
@@ -131,8 +140,10 @@ ntfs_bmap(ap)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
+#if !defined(__NetBSD__)
 	if (ap->a_runb != NULL)
 		*ap->a_runb = 0;
+#endif
 	return (0);
 }
 
@@ -256,28 +267,16 @@ ntfs_inactive(ap)
 
 	error = 0;
 
-#if __FreeBSD_version >= 300000
-	VOP_UNLOCK(vp,0,ap->a_p);
-#else
-#ifdef DIAGNOSTIC
-	if (VOP_ISLOCKED(vp))
-		panic("ntfs_inactive: locked vnode");
-	if (curproc)
-		ip->i_lockholder = curproc->p_pid;
-	else
-		ip->i_lockholder = -1;
-#endif
-	ip->i_flag |= IN_LOCKED;
-	VOP_UNLOCK(vp);
-#endif
+	VOP__UNLOCK(vp,0,ap->a_p);
+
 	/*
 	 * If we are done with the ntnode, reclaim it
 	 * so that it can be reused immediately.
 	 */
 	if (vp->v_usecount == 0 && ip->i_mode == 0)
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__)
 		vrecycle(vp, (struct simplelock *)0, ap->a_p);
-#else
+#else /* defined(__NetBSD__) */
 		vgone(vp);
 #endif
 	return (error);
@@ -303,8 +302,8 @@ ntfs_reclaim(ap)
 	if (error)
 		return (error);
 
-#if __FreeBSD_version >= 300000
-	VOP_UNLOCK(vp,0,ap->a_p);
+#if defined(__FreeBSD__)
+	VOP__UNLOCK(vp,0,ap->a_p);
 #endif
 
 	/* Purge old data structures associated with the inode. */
@@ -467,7 +466,7 @@ ntfs_write(ap)
 	return (0);
 }
 
-#if __FreeBSD_version < 300000
+#if defined(__NetBSD__)
 /*
  * Check for a locked ntnode.
  */
@@ -497,7 +496,9 @@ ntfs_unlock(ap)
 	} */ *ap;
 {
 	register struct ntnode *ip = VTONT(ap->a_vp);
+#ifdef DIAGNOSTIC
 	struct proc *p = curproc;
+#endif
 
 	dprintf(("ntfs_unlock %d\n",ip->i_number));
 
@@ -729,10 +730,6 @@ ntfs_close(ap)
 	return (0);
 }
 
-/*
-#undef dprintf
-#define dprintf(a) printf a
-*/
 int
 ntfs_readdir(ap)
 	struct vop_readdir_args /* {
@@ -835,24 +832,25 @@ ntfs_readdir(ap)
 	if (!error && ap->a_ncookies != NULL) {
 		struct dirent* dpStart;
 		struct dirent* dp;
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__)
 		u_long *cookies;
 		u_long *cookiep;
-#else
-		u_int *cookies;
-		u_int *cookiep;
+#else /* defined(__NetBSD__) */
+		off_t *cookies;
+		off_t *cookiep;
 #endif
 
 		printf("ntfs_readdir: %d cookies\n",ncookies);
 		if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
 			panic("ntfs_readdir: unexpected uio from NFS server");
 		dpStart = (struct dirent *)
-		     (uio->uio_iov->iov_base - (uio->uio_offset - off));
-#if __FreeBSD_version >= 300000
+		     ((caddr_t)uio->uio_iov->iov_base -
+			 (uio->uio_offset - off));
+#if defined(__FreeBSD__)
 		MALLOC(cookies, u_long *, ncookies * sizeof(u_long),
 		       M_TEMP, M_WAITOK);
-#else
-		MALLOC(cookies, u_int *, ncookies * sizeof(u_int),
+#else /* defined(__NetBSD__) */
+		MALLOC(cookies, off_t *, ncookies * sizeof(off_t),
 		       M_TEMP, M_WAITOK);
 #endif
 		for (dp = dpStart, cookiep = cookies, i=0;
@@ -870,10 +868,6 @@ ntfs_readdir(ap)
 */
 	return (error);
 }
-/*
-#undef dprintf
-#define dprintf(a) 
-*/
 
 int
 ntfs_lookup(ap)
@@ -921,11 +915,7 @@ ntfs_lookup(ap)
 		if(error)
 			return (error);
 
-#if __FreeBSD_version >= 300000
-		VOP_UNLOCK(dvp,0,cnp->cn_proc);
-#else
-		VOP_UNLOCK(dvp);
-#endif
+		VOP__UNLOCK(dvp,0,cnp->cn_proc);
 
 		dprintf(("ntfs_lookup: parentdir: %d\n",
 			 vap->va_a_name->n_pnumber));
@@ -933,20 +923,12 @@ ntfs_lookup(ap)
 				 vap->va_a_name->n_pnumber,ap->a_vpp); 
 		ntfs_ntvattrrele(vap);
 		if(error) {
-#if __FreeBSD_version >= 300000
-			VOP_LOCK(dvp, 0, cnp->cn_proc);
-#else
-			VOP_LOCK(dvp);
-#endif
+			VOP__LOCK(dvp, 0, cnp->cn_proc);
 			return(error);
 		}
 
 		if( lockparent && (cnp->cn_flags & ISLASTCN) && 
-#if __FreeBSD_version >= 300000
-		    (error = VOP_LOCK(dvp, 0, cnp->cn_proc)) ) {
-#else
-		    (error = VOP_LOCK(dvp)) ) {
-#endif
+		    (error = VOP__LOCK(dvp, 0, cnp->cn_proc)) ) {
 			vput( *(ap->a_vpp) );
 			return (error);
 		}
@@ -960,11 +942,7 @@ ntfs_lookup(ap)
 			VTONT(*ap->a_vpp)->i_number));
 
 		if(!lockparent || !(cnp->cn_flags & ISLASTCN))
-#if __FreeBSD_version >= 300000
-			VOP_UNLOCK(dvp, 0, cnp->cn_proc);
-#else
-			VOP_UNLOCK(dvp);
-#endif
+			VOP__UNLOCK(dvp, 0, cnp->cn_proc);
 		if (cnp->cn_flags & MAKEENTRY)
 			cache_enter(dvp, *ap->a_vpp, cnp);
 
@@ -994,7 +972,10 @@ ntfs_fsync(ap)
  * Global vfs data structures
  */
 vop_t **ntfs_vnodeop_p;
-static struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
+#if defined(__FreeBSD__)
+static
+#endif
+struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)ntfs_bypass },
 
 	{ &vop_getattr_desc, (vop_t *)ntfs_getattr },
@@ -1002,7 +983,7 @@ static struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_reclaim_desc, (vop_t *)ntfs_reclaim },
 	{ &vop_print_desc, (vop_t *)ntfs_print },
 
-#if __FreeBSD_version >= 30000
+#if defined(__FreeBSD__)
 	{ &vop_islocked_desc, (vop_t *)vop_stdislocked },
 	{ &vop_unlock_desc, (vop_t *)vop_stdunlock },
 	{ &vop_lock_desc, (vop_t *)vop_stdlock },
@@ -1022,18 +1003,28 @@ static struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_fsync_desc, (vop_t *)ntfs_fsync },
 
 	{ &vop_bmap_desc, (vop_t *)ntfs_bmap },
-	{ &vop_getpages_desc, (vop_t *)ntfs_getpages },
+#if defined(__FreeBSD__)
+	{ &vop_getpages_desc, (vop_t *) ntfs_getpages },
 	{ &vop_putpages_desc, (vop_t *) ntfs_putpages },
-
+#endif
 	{ &vop_strategy_desc, (vop_t *)ntfs_strategy },
+#if defined(__FreeBSD__)
 	{ &vop_bwrite_desc, (vop_t *)vop_stdbwrite },
+#else /* defined(__NetBSD__) */
+	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },
+#endif
 	{ &vop_read_desc, (vop_t *)ntfs_read },
 	{ &vop_write_desc, (vop_t *)ntfs_write },
 
 	{ NULL, NULL }
 };
 
-static struct vnodeopv_desc ntfs_vnodeop_opv_desc =
+#if defined(__FreeBSD__)
+static
+#endif
+struct vnodeopv_desc ntfs_vnodeop_opv_desc =
 	{ &ntfs_vnodeop_p, ntfs_vnodeop_entries };
 
+#if defined(__FreeBSD__)
 VNODEOP_SET(ntfs_vnodeop_opv_desc);
+#endif

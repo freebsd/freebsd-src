@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_subr.c,v 1.2 1999/05/06 15:43:19 christos Exp $	*/
+
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko (semenu@FreeBSD.org)
  * All rights reserved.
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_subr.c,v 1.9 1999/02/02 01:54:54 semen Exp $
+ *	$Id: ntfs_subr.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
  */
 
 #include <sys/param.h>
@@ -37,7 +39,9 @@
 #include <sys/buf.h>
 #include <sys/file.h>
 #include <sys/malloc.h>
+#if defined(__FreeBSD__)
 #include <machine/clock.h>
+#endif
 
 #include <miscfs/specfs/specdev.h>
 
@@ -51,7 +55,7 @@
 #include <ntfs/ntfs_compr.h>
 #include <ntfs/ntfs_ihash.h>
 
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__)
 MALLOC_DEFINE(M_NTFSNTVATTR, "NTFS vattr", "NTFS file attribute information");
 MALLOC_DEFINE(M_NTFSRDATA, "NTFS res data", "NTFS resident data");
 MALLOC_DEFINE(M_NTFSRUN, "NTFS vrun", "NTFS vrun storage");
@@ -684,9 +688,9 @@ ntfs_uustricmp(
 int
 ntfs_uastricmp(
 	       struct ntfsmount * ntmp,
-	       wchar * str1,
+	       const wchar *str1,
 	       int str1len,
-	       char *str2,
+	       const char *str2,
 	       int str2len)
 {
 	int             i;
@@ -706,10 +710,10 @@ ntfs_uastricmp(
  */
 int
 ntfs_uastrcmp(
-	      struct ntfsmount * ntmp,
-	      wchar * str1,
+	      struct ntfsmount *ntmp,
+	      const wchar *str1,
 	      int str1len,
-	      char *str2,
+	      const char *str2,
 	      int str2len)
 {
 	int             i;
@@ -810,13 +814,13 @@ ntfs_frele(
 int
 ntfs_ntlookupattr(
 		struct ntfsmount * ntmp,
-		char * name,
+		const char * name,
 		int namelen,
 		int *attrtype,
 		char **attrname)
 {
-	char *sys;
-	int syslen,i;
+	const char *sys;
+	size_t syslen, i;
 	struct ntvattrdef *adp;
 
 	if (namelen == 0)
@@ -882,7 +886,7 @@ ntfs_ntlookupfile(
 	u_int32_t       rdsize;	/* Length of data to read from current block */
 	struct attr_indexentry *iep;
 	int             error, res, anamelen, fnamelen;
-	char	       *fname,*aname;
+	const char     *fname,*aname;
 	u_int32_t       aoff;
 
 	error = ntfs_ntget(ip);

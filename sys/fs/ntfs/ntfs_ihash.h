@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_ihash.h,v 1.2 1999/05/06 15:43:19 christos Exp $	*/
+
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
  * All rights reserved.
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs.h,v 1.9 1999/02/02 01:54:54 semen Exp $
+ *	$Id: ntfs_ihash.h,v 1.2 1999/04/20 21:06:43 semenu Exp $
  */
 
 void ntfs_nthashinit __P((void));
