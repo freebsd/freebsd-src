@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sbuf.h>
+#include <sys/timetc.h>
 
 #include "cpufreq_if.h"
 
@@ -171,13 +172,32 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 {
 	struct cpufreq_softc *sc;
 	const struct cf_setting *set;
-	int error, i;
+	struct pcpu *pc;
+	int cpu_id, error, i;
 
 	sc = device_get_softc(dev);
+
+	/*
+	 * Check that the TSC isn't being used as a timecounter.
+	 * If it is, then return EBUSY and refuse to change the
+	 * clock speed.
+	 */
+	if (strcmp(timecounter->tc_name, "TSC") == 0)
+		return (EBUSY);
 
 	/* If already at this level, just return. */
 	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq))
 		return (0);
+
+	/* If the setting is for a different CPU, switch to it. */
+	cpu_id = PCPU_GET(cpuid);
+	pc = cpu_get_pcpu(dev);
+	KASSERT(pc, ("NULL pcpu for dev %p", dev));
+	if (cpu_id != pc->pc_cpuid) {
+		mtx_lock_spin(&sched_lock);
+		sched_bind(curthread, pc->pc_cpuid);
+		mtx_unlock_spin(&sched_lock);
+	}
 
 	/* First, set the absolute frequency via its driver. */
 	set = &level->abs_set;
@@ -212,6 +232,12 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	error = 0;
 
 out:
+	/* If we switched to another CPU, switch back before exiting. */
+	if (cpu_id != pc->pc_cpuid) {
+		mtx_lock_spin(&sched_lock);
+		sched_unbind(curthread);
+		mtx_unlock_spin(&sched_lock);
+	}
 	if (error)
 		device_printf(set->dev, "set freq failed, err %d\n", error);
 	return (error);
@@ -329,7 +355,7 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 		if (error || set_count == 0)
 			continue;
 
-		switch (type) {
+		switch (type & CPUFREQ_TYPE_MASK) {
 		case CPUFREQ_TYPE_ABSOLUTE:
 			error = cpufreq_insert_abs(sc, sets, set_count);
 			break;
@@ -567,11 +593,12 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct cpufreq_softc *sc;
 	struct cf_level *levels;
-	int count, error, freq, i;
+	int count, devcount, error, freq, i, n;
+	device_t *devs;
 
+	devs = NULL;
 	sc = oidp->oid_arg1;
-	count = CF_MAX_LEVELS;
-	levels = malloc(count * sizeof(*levels), M_TEMP, M_NOWAIT);
+	levels = malloc(CF_MAX_LEVELS * sizeof(*levels), M_TEMP, M_NOWAIT);
 	if (levels == NULL)
 		return (ENOMEM);
 
@@ -583,20 +610,35 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
-	error = CPUFREQ_LEVELS(sc->dev, levels, &count);
+	/*
+	 * While we only call cpufreq_get() on one device (assuming all
+	 * CPUs have equal levels), we call cpufreq_set() on all CPUs.
+	 * This is needed for some MP systems.
+	 */
+	error = devclass_get_devices(cpufreq_dc, &devs, &devcount);
 	if (error)
 		goto out;
-	for (i = 0; i < count; i++) {
-		if (CPUFREQ_CMP(levels[i].total_set.freq, freq)) {
-			error = CPUFREQ_SET(sc->dev, &levels[i],
-			    CPUFREQ_PRIO_USER);
+	for (n = 0; n < devcount; n++) {
+		count = CF_MAX_LEVELS;
+		error = CPUFREQ_LEVELS(devs[n], levels, &count);
+		if (error)
+			break;
+		for (i = 0; i < count; i++) {
+			if (CPUFREQ_CMP(levels[i].total_set.freq, freq)) {
+				error = CPUFREQ_SET(devs[n], &levels[i],
+				    CPUFREQ_PRIO_USER);
+				break;
+			}
+		}
+		if (i == count) {
+			error = EINVAL;
 			break;
 		}
 	}
-	if (i == count)
-		error = EINVAL;
 
 out:
+	if (devs)
+		free(devs, M_TEMP);
 	if (levels)
 		free(levels, M_TEMP);
 	return (error);
@@ -645,17 +687,16 @@ cpufreq_register(device_t dev)
 	device_t cf_dev, cpu_dev;
 
 	/*
-	 * Only add one cpufreq device (on cpu0) for all control.  Once
-	 * independent multi-cpu control appears, we can assign one cpufreq
-	 * device per cpu.
+	 * Add only one cpufreq device to each CPU.  Currently, all CPUs
+	 * must offer the same levels and be switched at the same time.
 	 */
-	cf_dev = devclass_get_device(cpufreq_dc, 0);
-	if (cf_dev)
+	cpu_dev = device_get_parent(dev);
+	KASSERT(cpu_dev != NULL, ("no parent for %p", dev));
+	if (device_find_child(cpu_dev, "cpufreq", -1))
 		return (0);
 
-	/* Add the child device and sysctls. */
-	cpu_dev = devclass_get_device(devclass_find("cpu"), 0);
-	cf_dev = BUS_ADD_CHILD(cpu_dev, 0, "cpufreq", 0);
+	/* Add the child device and possibly sysctls. */
+	cf_dev = BUS_ADD_CHILD(cpu_dev, 0, "cpufreq", -1);
 	if (cf_dev == NULL)
 		return (ENOMEM);
 	device_quiet(cf_dev);
@@ -688,9 +729,8 @@ cpufreq_unregister(device_t dev)
 		if (CPUFREQ_DRV_SETTINGS(devs[i], &set, &count, &type) == 0)
 			cfcount++;
 	}
-	if (cfcount <= 1) {
+	if (cfcount <= 1)
 		device_delete_child(device_get_parent(cf_dev), cf_dev);
-	}
 	free(devs, M_TEMP);
 
 	return (0);
