@@ -752,7 +752,6 @@ void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int) __dead2;
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
-int	trace_req(struct proc *);
 void	cpu_wait(struct proc *);
 int	cpu_coredump(struct thread *, struct vnode *, struct ucred *);
 struct thread *thread_get(struct proc *);
