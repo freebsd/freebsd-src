@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.500 1998/11/06 09:37:38 obrien Exp $
+#	$Id: LINT,v 1.501 1998/11/06 20:32:22 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
