@@ -612,6 +612,8 @@ struct trapframe;
 #define LINUX_SOUND_MIXER_WRITE_LINE3	0x4d10
 #define LINUX_SOUND_MIXER_READ_DEVMASK	0x4dfe
 
+#define LINUX_OSS_GETVERSION		0x4d76
+
 /* Socket system defines */
 #define LINUX_FIOSETOWN			0x8901
 #define LINUX_SIOCSPGRP			0x8902
