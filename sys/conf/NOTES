@@ -136,10 +136,10 @@ options 	APIC_IO			# Symmetric (APIC) I/O
 
 # SMP Debugging Options:
 #
-# SMP_DEBUG enables various extra assertions in the mutex code.
+# MUTEX_DEBUG enables various extra assertions in the mutex code.
 # WITNESS enables the mutex witness code which detects deadlocks and cycles
 #         during locking operations.
-options 	SMP_DEBUG
+options 	MUTEX_DEBUG
 options 	WITNESS
 
 
