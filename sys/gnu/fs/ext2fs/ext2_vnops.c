@@ -831,7 +831,7 @@ ext2_mkdir(ap)
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
 		ucp = cnp->cn_cred;
-#endif			I
+#endif
 		/*
 		 * if we are hacking owners here, (only do this where told to)
 		 * and we are not giving it TOO root, (would subvert quotas)
@@ -859,7 +859,7 @@ ext2_mkdir(ap)
 				ucred.cr_groups[0] = dp->i_gid;
 				ucp = &ucred;
 			}
-#endif			I
+#endif
 		} else {
 			ip->i_uid = cnp->cn_cred->cr_uid;
 		}
@@ -1096,7 +1096,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
 		ucp = cnp->cn_cred;
-#endif			I
+#endif
 		/*
 		 * if we are
 		 * not the owner of the directory,
@@ -1123,7 +1123,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 			ucred.cr_ngroups = 1;
 			ucred.cr_groups[0] = pdir->i_gid;
 			ucp = &ucred;
-#endif			I
+#endif
 		} else {
 			ip->i_uid = cnp->cn_cred->cr_uid;
 		}
