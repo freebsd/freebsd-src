@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.164 1997/04/26 11:46:06 peter Exp $
+ *	$Id: sio.c,v 1.165 1997/05/18 20:53:52 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -120,6 +120,7 @@
 #define	COM_LOSESOUTINTS(dev)	((dev)->id_flags & 0x08)
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
+#define	COM_NOTST3(dev)		((dev)->id_flags & 0x1000)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
@@ -659,7 +660,7 @@ sioprobe(dev)
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
 	DELAY(10000);		/* Some internal modems need this time */
-	if (idev->id_irq != 0)
+	if (idev->id_irq != 0 && !COM_NOTST3(idev))
 		failures[3] = isa_irq_pending(idev) ? 0 : 1;
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
 	DELAY(1000);		/* XXX */
