@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.22 2003/05/07 03:31:45 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.23 2003/05/23 01:02:22 grog Exp $
  * $FreeBSD$
  */
 
@@ -721,6 +721,8 @@ detachobject(struct vinum_ioctl_msg *msg)
 		set_plex_state(plex->plexno,
 		    plex_down,
 		    setstate_force | setstate_configuring);
+	    if (plex->volno >= 0)			    /* plex attached to volume, */
+		update_volume_config(plex->volno);
 	    save_config();
 	    reply->error = 0;
 	}
@@ -783,7 +785,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 		bcopy("ex-", plex->name, 3);
 		plex->name[MAXPLEXNAME - 1] = '\0';
 	    }
-	    update_volume_config(volno, 0);
+	    update_volume_config(volno);
 	    save_config();
 	    reply->error = 0;
 	} else {
@@ -856,7 +858,7 @@ renameobject(struct vinum_rename_msg *msg)
 	vol = validvol(msg->index, reply);
 	if (vol) {
 	    bcopy(msg->newname, vol->name, MAXVOLNAME);
-	    update_volume_config(msg->index, 0);
+	    update_volume_config(msg->index);
 	    save_config();
 	    reply->error = 0;
 	}
