@@ -16,6 +16,15 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20010813:	p12
+	procfs permission tightening.
+
+20010810:	p11
+	Check filehandle size when mounting nfs filesystems.
+
+20010805:	p10
+	Prevent DoS attack from bogus fragmented packets.
+
 20010723:	p9	FreeBSD-SA-01:49 (part 2)
 	Fix a different overflow with output_data and netflush in
 	telnetd.  Make sure that you have both this update and the
