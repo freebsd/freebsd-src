@@ -3407,7 +3407,7 @@ sc_bell(scr_stat *scp, int pitch, int duration)
 	if (scp != scp->sc->cur_scp)
 	    scp->sc->blink_in_progress += 2;
 	blink_screen(scp->sc->cur_scp);
-    } else {
+    } else if (duration != 0 && pitch != 0) {
 	if (scp != scp->sc->cur_scp)
 	    pitch *= 2;
 	sysbeep(pitch, duration);
