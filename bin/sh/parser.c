@@ -392,7 +392,8 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		if (lasttoken != TWORD || ! equal(wordtext, "in"))
 			synerror("expecting \"in\"");
 		cpp = &n1->ncase.cases;
-		while (checkkwd = 2, readtoken() == TWORD) {
+		checkkwd = 2, readtoken();
+		do {
 			*cpp = cp = (union node *)stalloc(sizeof (struct nclist));
 			cp->type = NCLIST;
 			app = &cp->nclist.pattern;
@@ -401,25 +402,26 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 				ap->type = NARG;
 				ap->narg.text = wordtext;
 				ap->narg.backquote = backquotelist;
-				if (readtoken() != TPIPE)
+				if (checkkwd = 2, readtoken() != TPIPE)
 					break;
 				app = &ap->narg.next;
-				if (readtoken() != TWORD)
-					synexpect(TWORD);
+				readtoken();
 			}
 			ap->narg.next = NULL;
 			if (lasttoken != TRP)
 				synexpect(TRP);
 			cp->nclist.body = list(0);
-			if ((t = readtoken()) == TESAC)
-				tokpushback++;
-			else if (t != TENDCASE)
-				synexpect(TENDCASE);
+
+			checkkwd = 2;
+			if ((t = readtoken()) != TESAC) {
+				if (t != TENDCASE)
+					synexpect(TENDCASE);
+				else
+					checkkwd = 2, readtoken();
+			}
 			cpp = &cp->nclist.next;
-		}
+		} while(lasttoken != TESAC);
 		*cpp = NULL;
-		if (lasttoken != TESAC)
-			synexpect(TESAC);
 		checkkwd = 1;
 		break;
 	case TLP:
