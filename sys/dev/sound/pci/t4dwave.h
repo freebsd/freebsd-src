@@ -81,11 +81,13 @@
 
 #define	TR_REG_STARTA	0x80
 #define TR_REG_STOPA	0x84
+#define	TR_REG_CSPF_A	0x90
 #define TR_REG_ADDRINTA	0x98
 #define TR_REG_INTENA	0xa4
 
 #define	TR_REG_STARTB	0xb4
 #define TR_REG_STOPB	0xb8
+#define	TR_REG_CSPF_B	0xbc
 #define TR_REG_ADDRINTB	0xd8
 #define TR_REG_INTENB	0xdc
 
