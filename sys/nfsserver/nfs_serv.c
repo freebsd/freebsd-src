@@ -3876,10 +3876,10 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		pref = NFS_MAXDGRAMDATA;
 	else
 		pref = NFS_MAXDATA;
-	sip->fs_rtmax = txdr_unsigned(NFS_MAXDATA);
+	sip->fs_rtmax = txdr_unsigned(pref);
 	sip->fs_rtpref = txdr_unsigned(pref);
 	sip->fs_rtmult = txdr_unsigned(NFS_FABLKSIZE);
-	sip->fs_wtmax = txdr_unsigned(NFS_MAXDATA);
+	sip->fs_wtmax = txdr_unsigned(pref);
 	sip->fs_wtpref = txdr_unsigned(pref);
 	sip->fs_wtmult = txdr_unsigned(NFS_FABLKSIZE);
 	sip->fs_dtpref = txdr_unsigned(pref);
