@@ -1122,7 +1122,7 @@ umodem_set_line_coding(sc, state)
 		 USBDEVNAME(sc->sc_dev), UGETDW(state->dwDTERate),
 		 state->bCharFormat, state->bParityType, state->bDataBits));
 
-	if (memcmp(state, &sc->sc_line_state, UCDC_LINE_STATE_LENGTH) == 0) {
+	if (bcmp(state, &sc->sc_line_state, UCDC_LINE_STATE_LENGTH) == 0) {
 		DPRINTF(("%s: umodem_set_line_coding: already set\n",
 			USBDEVNAME(sc->sc_dev)));
 		return (USBD_NORMAL_COMPLETION);
