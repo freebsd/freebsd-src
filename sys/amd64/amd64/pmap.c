@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.60 1995/07/28 11:21:06 davidg Exp $
+ *	$Id: pmap.c,v 1.61 1995/09/15 08:31:19 davidg Exp $
  */
 
 /*
@@ -851,8 +851,7 @@ pmap_remove(pmap, sva, eva)
 
 		if (pmap_is_managed(pa)) {
 			if ((int) oldpte & PG_M) {
-				if ((sva < USRSTACK || sva >= KERNBASE) ||
-				    (sva >= USRSTACK && sva < USRSTACK + (UPAGES * NBPG))) {
+				if (sva < USRSTACK + (UPAGES * NBPG) || sva >= KERNBASE) {
 					if (sva < clean_sva || sva >= clean_eva) {
 						PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
 					}
@@ -932,8 +931,7 @@ pmap_remove(pmap, sva, eva)
 			continue;
 		}
 		if ((int) oldpte & PG_M) {
-			if ((va < USRSTACK || va >= KERNBASE) ||
-			    (va >= USRSTACK && va < USRSTACK + (UPAGES * NBPG))) {
+			if (va < USRSTACK + (UPAGES * NBPG) || va >= KERNBASE) {
 				if (va < clean_sva || va >= clean_eva) {
 					PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
 				}
@@ -1001,8 +999,7 @@ pmap_remove_all(pa)
 			 * Update the vm_page_t clean and reference bits.
 			 */
 			if ((int) *pte & PG_M) {
-				if ((va < USRSTACK || va >= KERNBASE) ||
-				    (va >= USRSTACK && va < USRSTACK + (UPAGES * NBPG))) {
+				if (va < USRSTACK + (UPAGES * NBPG) || va >= KERNBASE) {
 					if (va < clean_sva || va >= clean_eva) {
 						PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
 					}
