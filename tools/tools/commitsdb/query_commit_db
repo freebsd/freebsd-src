@@ -57,6 +57,10 @@ while (<DB>) {
 }
 close DB;
 
+# May as well show the log message if we're producing a patch
+print `cvs log -r$revision $file` if $genpatch;
+
+# Show the commits that match, and their patches if required.
 foreach my $r (sort @results) {
 	print "$r\n";
 	next unless $genpatch;
