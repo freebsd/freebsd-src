@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.207 97/08/17 13:53:29 leres Exp $ (LBL)
+# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.219 1999/12/22 15:44:09 itojun Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -43,7 +43,7 @@ CC = @CC@
 PROG = tcpdump
 CCOPT = @V_CCOPT@
 INCLS = -I. @V_INCLS@
-DEFS = @DEFS@ -DHAVE_FDDI
+DEFS = @DEFS@
 
 # Standard CFLAGS
 CFLAGS = $(CCOPT) $(DEFS) $(INCLS)
@@ -72,9 +72,14 @@ CSRC =	tcpdump.c \
 	print-pim.c print-ppp.c print-raw.c print-rip.c print-sl.c \
 	print-snmp.c print-sunrpc.c print-tcp.c print-tftp.c print-udp.c \
 	print-wb.c addrtoname.c bpf_dump.c gmt2local.c machdep.c \
-	parsenfsfh.c util.c savestr.c setsignal.c
-LOCALSRC =
+	parsenfsfh.c util.c savestr.c setsignal.c \
+	print-esp.c print-ah.c print-vjc.c print-isakmp.c print-chdlc.c \
+	print-ipcomp.c print-mobile.c print-l2tp.c print-bgp.c print-rx.c \
+	print-lane.c print-cip.c print-pppoe.c print-lcp.c \
+	print-smb.c smbutil.c print-ascii.c print-telnet.c
+LOCALSRC = @LOCALSRC@
 GENSRC = version.c
+LIBOBJS = @LIBOBJS@
 
 SRC =	$(CSRC) $(GENSRC) $(LOCALSRC)
 
@@ -82,9 +87,11 @@ SRC =	$(CSRC) $(GENSRC) $(LOCALSRC)
 # hack the extra indirection
 OBJ =	$(CSRC:.c=.o) $(GENSRC:.c=.o) $(LOCALSRC:.c=.o) @LIBOBJS@
 HDR =   addrtoname.h appletalk.h bootp.h decnet.h \
-	ethertype.h extract.h fddi.h gmt2local.h interface.h igrp.h \
+	ethertype.h extract.h fddi.h gmt2local.h igrp.h interface.h \
 	ipx.h llc.h machdep.h mib.h nfsfh.h nfsv2.h ntp.h ospf.h \
-	savestr.c setsignal.h
+	savestr.c setsignal.h \
+	gnuc.h ipsec_doi.h isakmp.h l2tp.h netbios.h oakley.h ospf6.h ppp.h \
+	route6d.h
 
 TAGHDR = \
 	/usr/include/arpa/tftp.h \
@@ -107,16 +114,31 @@ $(PROG): $(OBJ) @V_PCAPDEP@
 	@rm -f $@
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
+getnameinfo.o: $(srcdir)/missing/getnameinfo.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/getnameinfo.c
+getaddrinfo.o: $(srcdir)/missing/getaddrinfo.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/getaddrinfo.c
+inet_pton.o: $(srcdir)/missing/inet_pton.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_pton.c
+inet_ntop.o: $(srcdir)/missing/inet_ntop.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_ntop.c
+inet_aton.o: $(srcdir)/missing/inet_aton.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_aton.c
+
 version.o: version.c
+	$(CC) $(CFLAGS) -c version.c
+
 version.c: $(srcdir)/VERSION
 	@rm -f $@
 	sed -e 's/.*/char version[] = "&";/' $(srcdir)/VERSION > $@
 
 install: force
+	[ -d $(DESTDIR)$(BINDEST) ] || mkdir -p $(DESTDIR)$(BINDEST)
 	$(INSTALL) -m 550 -o bin -g @V_GROUP@ $(PROG) \
 	    $(DESTDIR)$(BINDEST)/$(PROG)
 
 install-man: force
+	[ -d $(DESTDIR)$(MANDEST)/man1 ] || mkdir -p $(DESTDIR)$(MANDEST)/man1
 	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/$(PROG).1 \
 	    $(DESTDIR)$(MANDEST)/man1/$(PROG).1
 
@@ -130,7 +152,7 @@ clean:
 
 distclean:
 	rm -f $(CLEANFILES) Makefile config.cache config.log config.status \
-	    gnuc.h os-proto.h
+	    config.h gnuc.h os-proto.h
 
 tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)

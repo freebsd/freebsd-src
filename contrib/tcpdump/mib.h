@@ -1217,6 +1217,202 @@ _snmp_obj = {
 	"snmp", 11, 0,
 	&_snmpEnableAuthTraps_obj, &_transmission_obj
 },
+_usmMIBCompliances_obj = {
+	"usmMIBCompliances", 1, 0,
+	NULL, NULL
+},
+_usmMIBGroups_obj = {
+	"usmMIBGroups", 2, 0,
+	NULL, &_usmMIBCompliances_obj
+},
+_usmUserEngineID_obj = {
+	"usmUserEngineID", 1, 0,
+	NULL, NULL
+},
+_usmUserName_obj = {
+	"usmUserName", 2, 0,
+	NULL, &_usmUserEngineID_obj
+},
+_usmUserSecurityName_obj = {
+	"usmUserSecurityName", 3, 0,
+	NULL, &_usmUserName_obj
+},
+_usmUserCloneFrom_obj = {
+	"usmUserCloneFrom", 4, 0,
+	NULL, &_usmUserSecurityName_obj
+},
+_usmUserAuthProtocol_obj = {
+	"usmUserAuthProtocol", 5, 0,
+	NULL, &_usmUserCloneFrom_obj
+},
+_usmUserAuthKeyChange_obj = {
+	"usmUserAuthKeyChange", 6, 0,
+	NULL, &_usmUserAuthProtocol_obj
+},
+_usmUserOwnAuthKeyChange_obj = {
+	"usmUserOwnAuthKeyChange", 7, 0,
+	NULL, &_usmUserAuthKeyChange_obj
+},
+_usmUserPrivProtocol_obj = {
+	"usmUserPrivProtocol", 8, 0,
+	NULL, &_usmUserOwnAuthKeyChange_obj
+},
+_usmUserPrivKeyChange_obj = {
+	"usmUserPrivKeyChange", 9, 0,
+	NULL, &_usmUserPrivProtocol_obj
+},
+_usmUserOwnPrivKeyChange_obj = {
+	"usmUserOwnPrivKeyChange", 10, 0,
+	NULL, &_usmUserPrivKeyChange_obj
+},
+_usmUserPublic_obj = {
+	"usmUserPublic", 11, 0,
+	NULL, &_usmUserOwnPrivKeyChange_obj
+},
+_usmUserStorageType_obj = {
+	"usmUserStorageType", 12, 0,
+	NULL, &_usmUserPublic_obj
+},
+_usmUserStatus_obj = {
+	"usmUserStatus", 13, 0,
+	NULL, &_usmUserStorageType_obj
+},
+_usmUserEntry_obj = {
+	"usmUserEntry", 1, 0,
+	&_usmUserStatus_obj, NULL
+},
+_usmUserSpinLock_obj = {
+	"usmUserSpinLock", 1, 0,
+	NULL, NULL
+},
+_usmUserTable_obj = {
+	"usmUserTable", 2, 0,
+	&_usmUserEntry_obj, &_usmUserSpinLock_obj
+},
+_usmStatsUnsupportedSecLevels_obj = {
+	"usmStatsUnsupportedSecLevels", 1, 0,
+	NULL, NULL
+},
+_usmStatsNotInTimeWindows_obj = {
+	"usmStatsNotInTimeWindows", 2, 0,
+	NULL, &_usmStatsUnsupportedSecLevels_obj
+},
+_usmStatsUnknownUserNames_obj = {
+	"usmStatsUnknownUserNames", 3, 0,
+	NULL, &_usmStatsNotInTimeWindows_obj
+},
+_usmStatsUnknownEngineIDs_obj = {
+	"usmStatsUnknownEngineIDs", 4, 0,
+	NULL, &_usmStatsUnknownUserNames_obj
+},
+_usmStatsWrongDigests_obj = {
+	"usmStatsWrongDigests", 5, 0,
+	NULL, &_usmStatsUnknownEngineIDs_obj
+},
+_usmStatsDecryptionErrors_obj = {
+	"usmStatsDecryptionErrors", 6, 0,
+	NULL, &_usmStatsWrongDigests_obj
+},
+_usmStats_obj = {
+	"usmStats", 1, 0,
+	&_usmStatsDecryptionErrors_obj, NULL
+},
+_usmUser_obj = {
+	"usmUser", 2, 0,
+	&_usmUserTable_obj, &_usmStats_obj
+},
+_usmMIBObjects_obj = {
+	"usmMIBObjects", 1, 0,
+	&_usmUser_obj, NULL
+},
+_usmMIBConformance_obj = {
+	"usmMIBConformance", 2, 0,
+	&_usmMIBGroups_obj, &_usmMIBObjects_obj
+},
+_snmpMPDMIBCompliances_obj = {
+	"snmpMPDMIBCompliances", 1, 0,
+	NULL, NULL
+},
+_snmpMPDMIBGroups_obj = {
+	"snmpMPDMIBGroups", 2, 0,
+	NULL, &_snmpMPDMIBCompliances_obj
+},
+_snmpUnknownSecurityModels_obj = {
+	"snmpUnknownSecurityModels", 1, 0,
+	NULL, NULL
+},
+_snmpInvalidMsgs_obj = {
+	"snmpInvalidMsgs", 2, 0,
+	NULL, &_snmpUnknownSecurityModels_obj
+},
+_snmpUnknownPDUHandlers_obj = {
+	"snmpUnknownPDUHandlers", 3, 0,
+	NULL, &_snmpInvalidMsgs_obj
+},
+_snmpMPDStats_obj = {
+	"snmpMPDStats", 1, 0,
+	&_snmpUnknownPDUHandlers_obj, NULL
+},
+_snmpMPDAdmin_obj = {
+	"snmpMPDAdmin", 1, 0,
+	NULL, NULL
+},
+_snmpMPDMIBObjects_obj = {
+	"snmpMPDMIBObjects", 2, 0,
+	&_snmpMPDStats_obj, &_snmpMPDAdmin_obj
+},
+_snmpMPDMIBConformance_obj = {
+	"snmpMPDMIBConformance", 3, 0,
+	&_snmpMPDMIBGroups_obj, &_snmpMPDMIBObjects_obj
+},
+_snmpEngineID_obj = {
+	"snmpEngineID", 1, 0,
+	NULL, NULL
+},
+_snmpEngineBoots_obj = {
+	"snmpEngineBoots", 2, 0,
+	NULL, &_snmpEngineID_obj
+},
+_snmpEngineTime_obj = {
+	"snmpEngineTime", 3, 0,
+	NULL, &_snmpEngineBoots_obj
+},
+_snmpEngineMaxMessageSize_obj = {
+	"snmpEngineMaxMessageSize", 4, 0,
+	NULL, &_snmpEngineTime_obj
+},
+_snmpEngine_obj = {
+	"snmpEngine", 1, 0,
+	&_snmpEngineMaxMessageSize_obj, NULL
+},
+_snmpFrameworkAdmin_obj = {
+	"snmpFrameworkAdmin", 1, 0,
+	NULL, NULL
+},
+_snmpFrameworkMIBObjects_obj = {
+	"snmpFrameworkMIBObjects", 2, 0,
+	&_snmpEngine_obj, &_snmpFrameworkAdmin_obj
+},
+_snmpFrameworkMIBConformance_obj = {
+	"snmpFrameworkMIBConformance", 3, 0,
+	NULL, &_snmpFrameworkMIBObjects_obj
+},
+_snmpFrameworkMIB_obj = {
+	"snmpFrameworkMIB", 10, 0,
+	&_snmpFrameworkMIBConformance_obj, NULL
+},
+_snmpMPDMIB_obj = {
+	"snmpMPDMIB", 11, 0,
+	&_snmpMPDMIBConformance_obj, &_snmpFrameworkMIB_obj
+},
+_snmpUsmMIB_obj = {
+	"snmpUsmMIB", 15, 0,
+	&_usmMIBConformance_obj, &_snmpMPDMIB_obj
+},
+_snmpModules_obj = {
+	"snmpModules", 3, 0,
+	&_snmpUsmMIB_obj, NULL
+},
 _mib_obj = {
 	"mib", 1, 0,
 	&_snmp_obj, NULL
@@ -1237,9 +1433,17 @@ _private_obj = {
 	"private", 4, 0,
 	&_enterprises_obj, &_experimental_obj
 },
+_security_obj = {
+	"security", 5, 0,
+	NULL, &_private_obj
+},
+_snmpV2_obj = {
+	"snmpV2", 6, 0,
+	&_snmpModules_obj, &_security_obj
+},
 _internet_obj = {
 	"internet", 1, 0,
-	&_private_obj, NULL
+	&_snmpV2_obj, NULL
 },
 _dod_obj = {
 	"dod", 6, 0,
