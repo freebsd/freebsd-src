@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.1 1995/04/29 07:21:14 phk Exp $
+ * $Id: write_disk.c,v 1.2 1995/04/30 06:09:29 phk Exp $
  *
  */
 
@@ -109,7 +109,7 @@ Write_Disk(struct disk *d1)
 	struct chunk *c1;
 	int ret = 0;
 	char device[64];
-	void *mbr;
+	u_char *mbr;
 	struct dos_partition *dp;
 	int s[4];
 
@@ -141,28 +141,38 @@ Write_Disk(struct disk *d1)
 		dp[j].dp_size = c1->size;
 
 		i = c1->offset;
-		if (i >= 1024*d1->bios_sect*d1->bios_hd)
-			i = 1024*d1->bios_sect*d1->bios_hd - 1;
-		dp[j].dp_ssect = i % d1->bios_sect;
-		i -= dp[j].dp_ssect;
-		i /= d1->bios_sect;	
-		dp[j].dp_ssect++;
-		dp[j].dp_shd =  i % d1->bios_hd;
-		i -= dp[j].dp_shd;
-		i /= d1->bios_hd;
-		dp[j].dp_scyl = i;
+		if (i >= 1024*d1->bios_sect*d1->bios_hd) {
+			dp[j].dp_ssect = 0xff;
+			dp[j].dp_shd = 0xff;
+			dp[j].dp_scyl = 0xff;
+			
+		} else {
+			dp[j].dp_ssect = i % d1->bios_sect;
+			i -= dp[j].dp_ssect;
+			i /= d1->bios_sect;	
+			dp[j].dp_ssect++;
+			dp[j].dp_shd =  i % d1->bios_hd;
+			i -= dp[j].dp_shd;
+			i /= d1->bios_hd;
+			dp[j].dp_scyl = i;
+		}
 
 		i = c1->end;
-		if (i >= 1024*d1->bios_sect*d1->bios_hd)
-			i = 1024*d1->bios_sect*d1->bios_hd - 1;
-		dp[j].dp_esect = i % d1->bios_sect;
-		i -= dp[j].dp_esect;
-		i /= d1->bios_sect;	
-		dp[j].dp_esect++;
-		dp[j].dp_ehd =  i % d1->bios_hd;
-		i -= dp[j].dp_ehd;
-		i /= d1->bios_hd;
-		dp[j].dp_ecyl = i;
+		if (i >= 1024*d1->bios_sect*d1->bios_hd) {
+			dp[j].dp_esect = 0xff;
+			dp[j].dp_ehd = 0xff;
+			dp[j].dp_ecyl = 0xff;
+		} else {
+			dp[j].dp_esect = i % d1->bios_sect;
+			i -= dp[j].dp_esect;
+			i /= d1->bios_sect;	
+			dp[j].dp_esect++;
+			dp[j].dp_ehd =  i % d1->bios_hd;
+			i -= dp[j].dp_ehd;
+			i /= d1->bios_hd;
+			dp[j].dp_ecyl = i;
+		}
+
 		switch (c1->type) {
 			case freebsd:
 				dp[j].dp_typ = 0xa5;
@@ -182,6 +192,8 @@ Write_Disk(struct disk *d1)
 		if (!s[i])
 			memset(dp+i,0,sizeof *dp);
 	
+	mbr[512-2] = 0x55;
+	mbr[512-1] = 0xaa;
 	write_block(fd,WHERE(0,d1),mbr);
 
 	close(fd);
