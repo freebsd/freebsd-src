@@ -33,6 +33,8 @@
         cd9660
         ..
     ..
+    libmilter
+    ..
     machine
     ..
     msdosfs
