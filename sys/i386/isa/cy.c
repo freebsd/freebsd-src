@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.54 1997/09/14 03:19:08 peter Exp $
+ *	$Id: cy.c,v 1.55 1997/09/21 21:40:57 gibbs Exp $
  */
 
 #include "cy.h"
@@ -410,7 +410,7 @@ static	u_int	cy_timeouts;
 #endif
 
 static	int	cy_chip_offset[] = {
-	0x0000, 0x0200, 0x0400, 0x0600, 0x0100, 0x0300, 0x0500, 0x0700,
+	0x0000, 0x0400, 0x0800, 0x0c00, 0x0200, 0x0600, 0x0a00, 0x0e00,
 };
 static	int	cy_nr_cd1400s[NCY];
 static	int	cy_total_devices;
