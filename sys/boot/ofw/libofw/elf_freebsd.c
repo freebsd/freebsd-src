@@ -52,11 +52,6 @@ ofw_elf_loadfile(char *filename, vm_offset_t dest,
 	if (r != 0)
 		return (r);
 
-	addr = OF_claim((void *)(*result)->f_addr, (*result)->f_size, 0);
-
-	if (addr == (void *)-1 || addr != (void *)(*result)->f_addr)
-		return (ENOMEM);
-
 	return (0);
 }
 
