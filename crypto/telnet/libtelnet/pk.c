@@ -117,6 +117,7 @@ void getseed(seed, seedsize)
         char *seed;
         int seedsize;
 {
+#if 0
         int i,f;
         int rseed;
         struct timeval tv;
@@ -140,6 +141,12 @@ void getseed(seed, seedsize)
         for (i = 0; i < seedsize; i++) {
                 seed[i] = (lrand48() & 0xff);
         }
+#else
+	srandomdev();
+	for (i = 0; i < seedsize; i++) {
+		seed[i] = random() & 0xff;
+	}
+#endif
 }
 
 
