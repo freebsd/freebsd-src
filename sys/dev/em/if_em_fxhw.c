@@ -344,7 +344,7 @@ void em_mta_set(struct adapter *Adapter, u32 HashValue)
 
         MtaRegisterValue |= (1 << HashBit);
 
-        if ((Adapter->MacType == MAC_CORDOVA) && ((HashReg & 0x0E) == 1)) {
+        if ((Adapter->MacType == MAC_CORDOVA) && ((HashReg & 0x1) == 1)) {
                 Temp = E1000_READ_REG(Mta[HashReg - 1]);
                 E1000_WRITE_REG(Mta[HashReg], HashValue);
                 E1000_WRITE_REG(Mta[HashReg - 1], Temp);
@@ -375,7 +375,7 @@ void em_write_vfta(struct adapter *Adapter, u32 Offset, u32 Value)
  {
         u32 Temp;
 
-        if ((Adapter->MacType == MAC_CORDOVA) && ((Offset & 0x0E) == 1)) {
+        if ((Adapter->MacType == MAC_CORDOVA) && ((Offset & 0x1) == 1)) {
                 Temp = E1000_READ_REG(Vfta[Offset - 1]);
                 E1000_WRITE_REG(Vfta[Offset], Value);
                 E1000_WRITE_REG(Vfta[Offset - 1], Temp);
