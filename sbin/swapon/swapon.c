@@ -29,27 +29,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)swapon.c	8.1 (Berkeley) 6/5/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <fstab.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <err.h>
+#include <errno.h>
+#include <fstab.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 static void usage __P((void));
 int	add __P((char *name, int ignoreebusy));
@@ -57,8 +58,6 @@ int	add __P((char *name, int ignoreebusy));
 int
 main(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind;
 	register struct fstab *fsp;
 	register int stat;
 	int ch, doall;
