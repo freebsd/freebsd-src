@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.17 2003/12/03 10:01:19 hbb Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.18 2004/04/13 14:58:46 novo Exp $
  *
  * Implementation of the standard interfaces and ip MIB.
  */
@@ -466,7 +466,7 @@ get_physaddr(struct mibif *ifp, struct sockaddr_dl *sdl, u_char *ptr)
 
 	if (sdl->sdl_alen == 0) {
 		/* no address */
-		if (ifp->physaddrlen != NULL) {
+		if (ifp->physaddrlen != 0) {
 			if ((rcv = mib_find_rcvaddr(ifp->index, ifp->physaddr,
 			    ifp->physaddrlen)) != NULL)
 				mib_rcvaddr_delete(rcv);

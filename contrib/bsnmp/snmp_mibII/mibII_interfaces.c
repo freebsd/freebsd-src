@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.10 2003/12/03 10:01:19 hbb Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.12 2004/04/13 15:19:59 novo Exp $
  *
  * Interfaces group.
  */
@@ -130,6 +130,9 @@ ifchange_func(struct snmp_context *ctx __unused, struct snmp_dependency *dep,
 		}
 		if (ifc->rb & IFRB_TRAPS)
 			ifp->trap_enable = ifc->rb_traps;
+		return (SNMP_ERR_NOERROR);
+
+	  case SNMP_DEPOP_FINISH:
 		return (SNMP_ERR_NOERROR);
 
 	}
@@ -470,7 +473,7 @@ op_ifxtable(struct snmp_context *ctx, struct snmp_value *value,
 	  case LEAF_ifHCOutOctets:
 		if (!(ifp->flags & MIBIF_HIGHSPEED))
 			goto again;
-		value->v.counter64 = ifp->hc_inoctets;
+		value->v.counter64 = ifp->hc_outoctets;
 		break;
 
 	  case LEAF_ifHCOutUcastPkts:

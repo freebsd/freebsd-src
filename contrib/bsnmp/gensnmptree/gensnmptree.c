@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.36 2003/12/03 09:56:57 hbb Exp $
+ * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.37 2004/04/13 15:18:15 novo Exp $
  *
  * Generate OID table from table description.
  *
@@ -522,7 +522,7 @@ gen_node(struct node *np, struct asn_oid *oid, u_int idx, const char *func)
 	fprintf(fp, "0");
 	if (np->flags & FL_SET)
 		fprintf(fp, "|SNMP_NODE_CANSET");
-	fprintf(fp, ", %#x, NULL },\n", idx);
+	fprintf(fp, ", %#x, NULL, NULL },\n", idx);
 	oid->len--;
 	return;
 }
