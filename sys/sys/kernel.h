@@ -153,7 +153,7 @@ enum sysinit_sub_id {
 	SI_SUB_INT_CONFIG_HOOKS	= 0xa800000,	/* Interrupts enabled config */
 	SI_SUB_ROOT_CONF	= 0xb000000,	/* Find root devices */
 	SI_SUB_DUMP_CONF	= 0xb200000,	/* Find dump devices */
-	SI_SUB_RAID		= 0xb380000,	/* Configure RAIDframe or Vinum */
+	SI_SUB_RAID		= 0xb380000,	/* Configure GEOM classes */
 	SI_SUB_MOUNT_ROOT	= 0xb400000,	/* root mount*/
 	SI_SUB_SWAP		= 0xc000000,	/* swap */
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
