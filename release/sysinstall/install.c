@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.210 1998/08/31 17:47:52 jkh Exp $
+ * $Id: install.c,v 1.211 1998/09/29 05:12:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -794,14 +794,19 @@ installFixup(dialogMenuItem *self)
 		}
 	    }
 	}
-	/* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
 
+	/* Do all the last ugly work-arounds here */
 	msgNotify("Fixing permissions..");
-	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
+	/* BOGON #1:  XFree86 requires various specialized fixups */
 	if (directory_exists("/usr/X11R6")) {
 	    vsystem("chmod -R a+r /usr/X11R6");
 	    vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
+
+	    /* Also do bogus minimal package registration so ports don't whine */
+	    if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz"))
+		vsystem("tar xpzf -C / /usr/X11R6/lib/X11/pkgreg.tar.gz && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
 	}
+
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
 
