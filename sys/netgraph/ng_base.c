@@ -55,6 +55,7 @@
 #include <sys/queue.h>
 #include <sys/mbuf.h>
 #include <sys/socketvar.h>
+#include <machine/limits.h>
 
 #include <net/netisr.h>
 
@@ -410,37 +411,20 @@ ng_findname(node_p this, const char *name)
 static ng_ID_t
 ng_decodeidname(const char *name)
 {
-	ng_ID_t val;
-	int k, len;
+	const int len = strlen(name);
+	const char *eptr;
+	u_long val;
 
-	/* Basic checks */
-	for (len = 0; name[len] != '\0'; len++) {
-		const char ch = name[len];
+	/* Check for proper length, brackets, no leading junk */
+	if (len < 3 || name[0] != '[' || name[len - 1] != ']'
+	    || !isxdigit(name[1]) || name[1] == '0')	/* "[0]" is not valid */
+		return (0);
 
-		if (len == 0) {
-			if (ch != '[')
-				return (NULL);
-		} else if (name[len + 1] == '\0') {
-			if (ch != ']')
-				return (NULL);
-		} else if (!((ch >= '0' && ch <= '9')
-		    || (ch >= 'a' && ch <= 'f')
-		    || (ch >= 'A' && ch <= 'F')))
-			return (NULL);
-	}
-	if (len < 3 || len > (sizeof(val) * 2) + 2 || name[1] == '0')
-		return (NULL);
-
-	/* Convert number to binary */
-	for (val = 0, k = 1; k < len - 1; k++) {
-		const char ch = name[k];
-
-		if (ch <= '9')
-			val = (val << 4) | ((ch - '0') & 0xf);
-		else
-			val = (val << 4) | (((ch & 0xdf) - 'A' + 10) & 0xf);
-	}
-	return (val);
+	/* Decode number */
+	val = strtoul(name + 1, &eptr, 16);
+	if (eptr - name != len - 1 || val == ULONG_MAX)
+		return (0);
+	return (ng_ID_t)val;
 }
 
 /*
