@@ -155,12 +155,24 @@ are placed in
 and should be used to
 inform the users about when the system will be back up
 and why it is going down (or anything else).
+.Pp
+A scheduled shutdown can be canceled by killing the
+.Nm
+process (a
+.Dv SIGTERM
+should suffice).
+The
+.Pa /var/run/nologin
+file that
+.Nm
+created will be removed automatically.
 .Sh FILES
 .Bl -tag -width /var/run/nologin -compact
 .It Pa /var/run/nologin
 tells login not to let anyone log in
 .El
 .Sh SEE ALSO
+.Xr kill 1 ,
 .Xr login 1 ,
 .Xr wall 1 ,
 .Xr nologin 5 ,
