@@ -183,6 +183,49 @@ pfs_getattr(struct vop_getattr_args *va)
 }
 
 /*
+ * Perform an ioctl
+ */
+static int
+pfs_ioctl(struct vop_ioctl_args *va)
+{
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+	struct proc *proc = NULL;
+	int error;
+
+	PFS_TRACE(("%s: %d", pn->pn_name, va->a_com));
+	
+	if (vn->v_type != VREG)
+		PFS_RETURN (EINVAL);
+
+	if (pn->pn_ioctl == NULL)
+		PFS_RETURN (ENOTTY);
+	
+	/*
+	 * This is necessary because either process' privileges may
+	 * have changed since the open() call.
+	 */
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (EIO);
+	
+	/* XXX duplicates bits of pfs_visible() */
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+			PFS_RETURN (EIO);
+		_PHOLD(proc);
+		PROC_UNLOCK(proc);
+	}
+	
+	error = (pn->pn_ioctl)(curthread, proc, pn, va->a_command, va->a_data);
+
+	if (proc != NULL)
+		PRELE(proc);
+	
+	PFS_RETURN (error);
+}
+
+/*
  * Look up a file or directory
  */
 static int
@@ -343,7 +386,7 @@ pfs_read(struct vop_read_args *va)
 		PFS_RETURN (EBADF);
 
 	if (pn->pn_func == NULL)
-		error = EIO;
+		PFS_RETURN (EIO);
 	
 	/*
 	 * This is necessary because either process' privileges may
@@ -545,7 +588,7 @@ pfs_readlink(struct vop_readlink_args *va)
 		PFS_RETURN (EINVAL);
 
 	if (pn->pn_func == NULL)
-		error = EIO;
+		PFS_RETURN (EIO);
 	
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
@@ -625,7 +668,7 @@ pfs_write(struct vop_read_args *va)
 		PFS_RETURN (EBADF);
 
 	if (pn->pn_func == NULL)
-		error = EIO;
+		PFS_RETURN (EIO);
 	
 	/*
 	 * This is necessary because either process' privileges may
@@ -680,6 +723,7 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_close_desc,		(vop_t *)pfs_close	},
 	{ &vop_create_desc,		(vop_t *)pfs_badop	},
 	{ &vop_getattr_desc,		(vop_t *)pfs_getattr	},
+	{ &vop_ioctl_desc,		(vop_t *)pfs_ioctl	},
 	{ &vop_link_desc,		(vop_t *)pfs_badop	},
 	{ &vop_lookup_desc,		(vop_t *)pfs_lookup	},
 	{ &vop_mkdir_desc,		(vop_t *)pfs_badop	},
