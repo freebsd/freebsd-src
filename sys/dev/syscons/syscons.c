@@ -1407,7 +1407,7 @@ sccnattach(void)
     sc_console_unit = unit;
     sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
     consdev.cn_dev = makedev(CDEV_MAJOR, 0);
-    cn_tab = &consdev;
+    cnadd(&consdev);
 }
 
 #endif /* __alpha__ */

@@ -231,8 +231,8 @@ zs_cnattach(vm_offset_t base, vm_offset_t offset)
 
 	zs_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
 	zs_consdev.cn_pri = CN_NORMAL;
-	cn_tab = &zs_consdev;
 	make_dev(&zs_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "zs0");
+	cnadd(&zs_consdev);
 	return (0);
 }
 

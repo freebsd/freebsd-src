@@ -266,10 +266,10 @@ CONS_DRIVER(prom, NULL, NULL, NULL, promcngetc, promcncheckc, promcnputc, NULL);
 void
 promcnattach(int alpha_console)
 {
-	cn_tab = &prom_consdev;
 	prom_consdev.cn_pri = CN_NORMAL;
 	prom_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
 	make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
+	cnadd(&prom_consdev);
 }
 
 /*
