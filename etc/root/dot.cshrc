@@ -11,7 +11,7 @@ alias la	ls -a
 alias lf	ls -FA
 alias ll	ls -lA
 
-# A rightous umask
+# A righteous umask
 umask 22
 
 set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/sbin /usr/local/bin /usr/X11R6/bin $HOME/bin)
