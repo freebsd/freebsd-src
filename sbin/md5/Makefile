@@ -3,7 +3,16 @@
 
 PROG=	md5
 
-LDADD+=	-lmd
-DPADD+= ${LIBMD}
+LINKS=	${BINDIR}/md5 ${BINDIR}/rmd160 \
+	${BINDIR}/md5 ${BINDIR}/sha1
+
+MLINKS=	md5.1 rmd160.1 \
+	md5.1 sha1.1
+
+WARNS?=	2
+WFORMAT?=	1
+
+DPADD=	${LIBMD}
+LDADD=	-lmd
 
 .include <bsd.prog.mk>
