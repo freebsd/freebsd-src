@@ -78,7 +78,6 @@ static __inline wint_t
 __fgetwc_nbf(FILE *fp)
 {
 	char buf[MB_LEN_MAX];
-	mbstate_t mbs;
 	size_t n, nconv;
 	int c;
 	wchar_t wc;
@@ -91,8 +90,7 @@ __fgetwc_nbf(FILE *fp)
 			break;
 		}
 		buf[n++] = (char)c;
-		memset(&mbs, 0, sizeof(mbs));
-		nconv = mbrtowc(&wc, buf, n, &mbs);
+		nconv = mbrtowc(&wc, buf, n, NULL);
 		if (nconv == n)
 			return (wc);
 		else if (nconv == 0)
