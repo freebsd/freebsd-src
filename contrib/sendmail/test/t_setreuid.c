@@ -1,10 +1,20 @@
 /*
+ * Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
+ *
+ * By using this file, you agree to the terms and conditions set
+ * forth in the LICENSE file which can be found at the top level of
+ * the sendmail distribution.
+ *
+ */
+
+/*
 **  This program checks to see if your version of setreuid works.
-**  Compile it, make it setuid root, and run it as yourself (NOT as
+**  Compile it, make it set-user-ID root, and run it as yourself (NOT as
 **  root).  If it won't compile or outputs any MAYDAY messages, don't
 **  define HASSETREUID in conf.h.
 **
-**  Compilation is trivial -- just "cc t_setreuid.c".  Make it setuid,
+**  Compilation is trivial -- just "cc t_setreuid.c".  Make it set-user-ID,
 **  root and then execute it as a non-root user.
 */
 
@@ -13,7 +23,7 @@
 #include <stdio.h>
 
 #ifndef lint
-static char id[] = "@(#)$Id: t_setreuid.c,v 8.4 1999/08/28 00:25:28 gshapiro Exp $";
+static char id[] = "@(#)$Id: t_setreuid.c,v 8.9 2001/10/12 03:04:46 gshapiro Exp $";
 #endif /* ! lint */
 
 #ifdef __hpux
@@ -23,10 +33,10 @@ static char id[] = "@(#)$Id: t_setreuid.c,v 8.4 1999/08/28 00:25:28 gshapiro Exp
 static void
 printuids(str, r, e)
 	char *str;
-	int r, e;
+	uid_t r, e;
 {
-	printf("%s (should be %d/%d): r/euid=%d/%d\n", str, r, e,
-		getuid(), geteuid());
+	printf("%s (should be %d/%d): r/euid=%d/%d\n", str, (int) r, (int) e,
+	       (int) getuid(), (int) geteuid());
 }
 
 int
@@ -41,7 +51,7 @@ main(argc, argv)
 
 	if (geteuid() != 0)
 	{
-		printf("SETUP ERROR: re-run setuid root\n");
+		printf("SETUP ERROR: re-run set-user-ID root\n");
 		exit(1);
 	}
 
@@ -57,6 +67,12 @@ main(argc, argv)
 		printf("setreuid(0, 1) failure\n");
 	}
 	printuids("after setreuid(0, 1)", 0, 1);
+
+	if (getuid() != 0)
+	{
+		fail++;
+		printf("MAYDAY!  Wrong real uid\n");
+	}
 
 	if (geteuid() != 1)
 	{
@@ -75,7 +91,7 @@ main(argc, argv)
 	if (setreuid(realuid, 0) < 0)
 	{
 		fail++;
-		printf("setreuid(%d, 0) failure\n", realuid);
+		printf("setreuid(%d, 0) failure\n", (int) realuid);
 	}
 	printuids("after setreuid(realuid, 0)", realuid, 0);
 
@@ -104,6 +120,12 @@ main(argc, argv)
 		printf("MAYDAY!  Wrong effective uid\n");
 	}
 
+	if (getuid() != 0)
+	{
+		fail++;
+		printf("MAYDAY!  Wrong real uid\n");
+	}
+
 	/* do activity here */
 
 	if (setreuid(-1, 0) < 0)
@@ -115,7 +137,7 @@ main(argc, argv)
 	if (setreuid(realuid, 0) < 0)
 	{
 		fail++;
-		printf("setreuid(%d, 0) failure\n", realuid);
+		printf("setreuid(%d, 0) failure\n", (int) realuid);
 	}
 	printuids("after setreuid(realuid, 0)", realuid, 0);
 

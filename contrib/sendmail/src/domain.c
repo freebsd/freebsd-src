@@ -13,18 +13,16 @@
 
 #include <sendmail.h>
 
-#ifndef lint
-# if NAMED_BIND
-static char id[] = "@(#)$Id: domain.c,v 8.114.6.1.2.8 2001/02/12 21:40:19 gshapiro Exp $ (with name server)";
-# else /* NAMED_BIND */
-static char id[] = "@(#)$Id: domain.c,v 8.114.6.1.2.8 2001/02/12 21:40:19 gshapiro Exp $ (without name server)";
-# endif /* NAMED_BIND */
-#endif /* ! lint */
-
+#if NAMED_BIND
+SM_RCSID("@(#)$Id: domain.c,v 8.177 2001/12/12 01:16:15 ca Exp $ (with name server)")
+#else /* NAMED_BIND */
+SM_RCSID("@(#)$Id: domain.c,v 8.177 2001/12/12 01:16:15 ca Exp $ (without name server)")
+#endif /* NAMED_BIND */
 
 #if NAMED_BIND
 
 # include <arpa/inet.h>
+
 
 /*
 **  The standard udp packet size PACKETSZ (512) is not sufficient for some
@@ -41,8 +39,8 @@ static char id[] = "@(#)$Id: domain.c,v 8.114.6.1.2.8 2001/02/12 21:40:19 gshapi
 
 typedef union
 {
-	HEADER	qb1;
-	u_char	qb2[MAXPACKET];
+	HEADER		qb1;
+	unsigned char	qb2[MAXPACKET];
 } querybuf;
 
 # ifndef MXHOSTBUFSIZE
@@ -50,6 +48,9 @@ typedef union
 # endif /* ! MXHOSTBUFSIZE */
 
 static char	MXHostBuf[MXHOSTBUFSIZE];
+#if (MXHOSTBUFSIZE < 2) || (MXHOSTBUFSIZE >= INT_MAX/2)
+	ERROR: _MXHOSTBUFSIZE is out of range
+#endif /* (MXHOSTBUFSIZE < 2) || (MXHOSTBUFSIZE >= INT_MAX/2) */
 
 # ifndef MAXDNSRCH
 #  define MAXDNSRCH	6	/* number of possible domains to search */
@@ -58,10 +59,6 @@ static char	MXHostBuf[MXHOSTBUFSIZE];
 # ifndef RES_DNSRCH_VARIABLE
 #  define RES_DNSRCH_VARIABLE	_res.dnsrch
 # endif /* ! RES_DNSRCH_VARIABLE */
-
-# ifndef MAX
-#  define MAX(a, b)	((a) > (b) ? (a) : (b))
-# endif /* ! MAX */
 
 # ifndef NO_DATA
 #  define NO_DATA	NO_ADDRESS
@@ -76,13 +73,108 @@ static char	MXHostBuf[MXHOSTBUFSIZE];
 # if defined(__RES) && (__RES >= 19940415)
 #  define RES_UNC_T	char *
 # else /* defined(__RES) && (__RES >= 19940415) */
-#  define RES_UNC_T	u_char *
+#  define RES_UNC_T	unsigned char *
 # endif /* defined(__RES) && (__RES >= 19940415) */
 
 static char	*gethostalias __P((char *));
 static int	mxrand __P((char *));
+static int	fallbackmxrr __P((int, unsigned short *, char **));
 
-/*
+/*
+**  GETFALLBACKMXRR -- get MX resource records for fallback MX host.
+**
+**	We have to initialize this once before doing anything else.
+**	Moreover, we have to repeat this from time to time to avoid
+**	stale data, e.g., in persistent queue runners.
+**	This should be done in a parent process so the child
+**	processes have the right data.
+**
+**	Parameters:
+**		host -- the name of the fallback MX host.
+**
+**	Returns:
+**		number of MX records.
+**
+**	Side Effects:
+**		Populates NumFallBackMXHosts and fbhosts.
+**		Sets renewal time (based on TTL).
+*/
+
+int NumFallBackMXHosts = 0;	/* Number of fallback MX hosts (after MX expansion) */
+static char *fbhosts[MAXMXHOSTS + 1];
+
+int
+getfallbackmxrr(host)
+	char *host;
+{
+	int i, rcode;
+	int ttl;
+	static time_t renew = 0;
+
+#if 0
+	/* This is currently done before this function is called. */
+	if (host == NULL || *host == '\0')
+		return 0;
+#endif /* 0 */
+	if (NumFallBackMXHosts > 0 && renew > curtime())
+		return NumFallBackMXHosts;
+	if (host[0] == '[')
+	{
+		fbhosts[0] = host;
+		NumFallBackMXHosts = 1;
+	}
+	else
+	{
+		/* free old data */
+		for (i = 0; i < NumFallBackMXHosts; i++)
+			sm_free(fbhosts[i]);
+
+		/* get new data */
+		NumFallBackMXHosts = getmxrr(host, fbhosts, NULL, false,
+					     &rcode, false, &ttl);
+		renew = curtime() + ttl;
+		for (i = 0; i < NumFallBackMXHosts; i++)
+			fbhosts[i] = newstr(fbhosts[i]);
+	}
+	return NumFallBackMXHosts;
+}
+
+/*
+**  FALLBACKMXRR -- add MX resource records for fallback MX host to list.
+**
+**	Parameters:
+**		nmx -- current number of MX records.
+**		prefs -- array of preferences.
+**		mxhosts -- array of MX hosts (maximum size: MAXMXHOSTS)
+**
+**	Returns:
+**		new number of MX records.
+**
+**	Side Effects:
+**		If FallBackMX was set, it appends the MX records for
+**		that host to mxhosts (and modifies prefs accordingly).
+*/
+
+static int
+fallbackmxrr(nmx, prefs, mxhosts)
+	int nmx;
+	unsigned short *prefs;
+	char **mxhosts;
+{
+	int i;
+
+	for (i = 0; i < NumFallBackMXHosts && nmx < MAXMXHOSTS; i++)
+	{
+		if (nmx > 0)
+			prefs[nmx] = prefs[nmx - 1] + 1;
+		else
+			prefs[nmx] = 0;
+		mxhosts[nmx++] = fbhosts[i];
+	}
+	return nmx;
+}
+
+/*
 **  GETMXRR -- get MX resource records for a domain
 **
 **	Parameters:
@@ -90,50 +182,60 @@ static int	mxrand __P((char *));
 **		mxhosts -- a pointer to a return buffer of MX records.
 **		mxprefs -- a pointer to a return buffer of MX preferences.
 **			If NULL, don't try to populate.
-**		droplocalhost -- If TRUE, all MX records less preferred
+**		droplocalhost -- If true, all MX records less preferred
 **			than the local host (as determined by $=w) will
 **			be discarded.
 **		rcode -- a pointer to an EX_ status code.
+**		tryfallback -- add also fallback MX host?
+**		pttl -- pointer to return TTL (can be NULL).
 **
 **	Returns:
 **		The number of MX records found.
 **		-1 if there is an internal failure.
 **		If no MX records are found, mxhosts[0] is set to host
 **			and 1 is returned.
+**
+**	Side Effects:
+**		The entries made for mxhosts point to a static array
+**		MXHostBuf[MXHOSTBUFSIZE], so the data needs to be copied,
+**		if it must be preserved across calls to this function.
 */
 
 int
-getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
+getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode, tryfallback, pttl)
 	char *host;
 	char **mxhosts;
-	u_short *mxprefs;
+	unsigned short *mxprefs;
 	bool droplocalhost;
 	int *rcode;
+	bool tryfallback;
+	int *pttl;
 {
-	register u_char *eom, *cp;
+	register unsigned char *eom, *cp;
 	register int i, j, n;
 	int nmx = 0;
 	register char *bp;
 	HEADER *hp;
 	querybuf answer;
 	int ancount, qdcount, buflen;
-	bool seenlocal = FALSE;
-	u_short pref, type;
-	u_short localpref = 256;
+	bool seenlocal = false;
+	unsigned short pref, type;
+	unsigned short localpref = 256;
 	char *fallbackMX = FallBackMX;
-	bool trycanon = FALSE;
-	u_short *prefs;
+	bool trycanon = false;
+	unsigned short *prefs;
 	int (*resfunc)();
-	u_short prefer[MAXMXHOSTS];
+	unsigned short prefer[MAXMXHOSTS];
 	int weight[MAXMXHOSTS];
+	int ttl = 0;
 	extern int res_query(), res_search();
 
 	if (tTd(8, 2))
-		dprintf("getmxrr(%s, droplocalhost=%d)\n",
-			host, droplocalhost);
+		sm_dprintf("getmxrr(%s, droplocalhost=%d)\n",
+			   host, droplocalhost);
 
-	if (fallbackMX != NULL && droplocalhost &&
-	    wordinclass(fallbackMX, 'w'))
+	if ((fallbackMX != NULL && droplocalhost &&
+	     wordinclass(fallbackMX, 'w')) || !tryfallback)
 	{
 		/* don't use fallback for this pass */
 		fallbackMX = NULL;
@@ -145,7 +247,6 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 		prefs = mxprefs;
 	else
 		prefs = prefer;
-
 
 	/* efficiency hack -- numeric or non-MX lookups */
 	if (host[0] == '[')
@@ -167,16 +268,17 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 		resfunc = res_search;
 
 	errno = 0;
-	n = (*resfunc)(host, C_IN, T_MX, (u_char *) &answer, sizeof(answer));
+	n = (*resfunc)(host, C_IN, T_MX, (unsigned char *) &answer,
+		       sizeof(answer));
 	if (n < 0)
 	{
 		if (tTd(8, 1))
-			dprintf("getmxrr: res_search(%s) failed (errno=%d, h_errno=%d)\n",
-			    (host == NULL) ? "<NULL>" : host, errno, h_errno);
+			sm_dprintf("getmxrr: res_search(%s) failed (errno=%d, h_errno=%d)\n",
+				host == NULL ? "<NULL>" : host, errno, h_errno);
 		switch (h_errno)
 		{
 		  case NO_DATA:
-			trycanon = TRUE;
+			trycanon = true;
 			/* FALLTHROUGH */
 
 		  case NO_RECOVERY:
@@ -188,7 +290,7 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 		  case 0:	/* Ultrix resolver retns failure w/ h_errno=0 */
 # endif /* BROKEN_RES_SEARCH */
 			/* host doesn't exist in DNS; might be in /etc/hosts */
-			trycanon = TRUE;
+			trycanon = true;
 			*rcode = EX_NOHOST;
 			goto punt;
 
@@ -198,19 +300,14 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 			if (fallbackMX != NULL)
 			{
 				/* name server is hosed -- push to fallback */
-				if (nmx > 0)
-					prefs[nmx] = prefs[nmx - 1] + 1;
-				else
-					prefs[nmx] = 0;
-				mxhosts[nmx++] = fallbackMX;
-				return nmx;
+				return fallbackmxrr(nmx, prefs, mxhosts);
 			}
 			/* it might come up later; better queue it up */
 			*rcode = EX_TEMPFAIL;
 			break;
 
 		  default:
-			syserr("getmxrr: res_search (%s) failed with impossible h_errno (%d)\n",
+			syserr("getmxrr: res_search (%s) failed with impossible h_errno (%d)",
 				host, h_errno);
 			*rcode = EX_OSERR;
 			break;
@@ -226,50 +323,69 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 
 	/* find first satisfactory answer */
 	hp = (HEADER *)&answer;
-	cp = (u_char *)&answer + HFIXEDSZ;
-	eom = (u_char *)&answer + n;
-	for (qdcount = ntohs((u_short)hp->qdcount);
+	cp = (unsigned char *)&answer + HFIXEDSZ;
+	eom = (unsigned char *)&answer + n;
+	for (qdcount = ntohs((unsigned short) hp->qdcount);
 	     qdcount--;
 	     cp += n + QFIXEDSZ)
 	{
 		if ((n = dn_skipname(cp, eom)) < 0)
 			goto punt;
 	}
+
+	/* NOTE: see definition of MXHostBuf! */
 	buflen = sizeof(MXHostBuf) - 1;
+	SM_ASSERT(buflen > 0);
 	bp = MXHostBuf;
-	ancount = ntohs((u_short)hp->ancount);
+	ancount = ntohs((unsigned short) hp->ancount);
+
+	/* See RFC 1035 for layout of RRs. */
+	/* XXX leave room for FallBackMX ? */
 	while (--ancount >= 0 && cp < eom && nmx < MAXMXHOSTS - 1)
 	{
-		if ((n = dn_expand((u_char *)&answer,
-		    eom, cp, (RES_UNC_T) bp, buflen)) < 0)
+		if ((n = dn_expand((unsigned char *)&answer, eom, cp,
+				   (RES_UNC_T) bp, buflen)) < 0)
 			break;
 		cp += n;
 		GETSHORT(type, cp);
-		cp += INT16SZ + INT32SZ;
-		GETSHORT(n, cp);
+		cp += INT16SZ;		/* skip over class */
+		GETLONG(ttl, cp);
+		GETSHORT(n, cp);	/* rdlength */
 		if (type != T_MX)
 		{
 			if (tTd(8, 8) || _res.options & RES_DEBUG)
-				dprintf("unexpected answer type %d, size %d\n",
+				sm_dprintf("unexpected answer type %d, size %d\n",
 					type, n);
 			cp += n;
 			continue;
 		}
 		GETSHORT(pref, cp);
-		if ((n = dn_expand((u_char *)&answer, eom, cp,
+		if ((n = dn_expand((unsigned char *)&answer, eom, cp,
 				   (RES_UNC_T) bp, buflen)) < 0)
 			break;
 		cp += n;
+		n = strlen(bp);
+# if 0
+		/* Can this happen? */
+		if (n == 0)
+		{
+			if (LogLevel > 4)
+				sm_syslog(LOG_ERR, NOQID,
+					  "MX records for %s contain empty string",
+					  host);
+			continue;
+		}
+# endif /* 0 */
 		if (wordinclass(bp, 'w'))
 		{
 			if (tTd(8, 3))
-				dprintf("found localhost (%s) in MX list, pref=%d\n",
+				sm_dprintf("found localhost (%s) in MX list, pref=%d\n",
 					bp, pref);
 			if (droplocalhost)
 			{
 				if (!seenlocal || pref < localpref)
 					localpref = pref;
-				seenlocal = TRUE;
+				seenlocal = true;
 				continue;
 			}
 			weight[nmx] = 0;
@@ -278,7 +394,6 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 			weight[nmx] = mxrand(bp);
 		prefs[nmx] = pref;
 		mxhosts[nmx++] = bp;
-		n = strlen(bp);
 		bp += n;
 		if (bp[-1] != '.')
 		{
@@ -286,8 +401,17 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 			n++;
 		}
 		*bp++ = '\0';
+		if (buflen < n + 1)
+		{
+			/* don't want to wrap buflen */
+			break;
+		}
 		buflen -= n + 1;
 	}
+
+	/* return only one TTL entry, that should be sufficient */
+	if (ttl > 0 && pttl != NULL)
+		*pttl = ttl;
 
 	/* sort the records */
 	for (i = 0; i < nmx; i++)
@@ -321,7 +445,7 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode)
 	/* delete duplicates from list (yes, some bozos have duplicates) */
 	for (i = 0; i < nmx - 1; )
 	{
-		if (strcasecmp(mxhosts[i], mxhosts[i + 1]) != 0)
+		if (sm_strcasecmp(mxhosts[i], mxhosts[i + 1]) != 0)
 			i++;
 		else
 		{
@@ -393,19 +517,19 @@ punt:
 				       host, MyHostName);
 				return -1;
 			}
-# if _FFR_FREEHOSTENT && NETINET6
+# if NETINET6
 			freehostent(h);
 			hp = NULL;
-# endif /* _FFR_FREEHOSTENT && NETINET6 */
+# endif /* NETINET6 */
 		}
-		if (strlen(host) >= (SIZE_T) sizeof MXHostBuf)
+		if (strlen(host) >= sizeof MXHostBuf)
 		{
 			*rcode = EX_CONFIG;
 			syserr("Host name %s too long",
 			       shortenstring(host, MAXSHORTSTR));
 			return -1;
 		}
-		snprintf(MXHostBuf, sizeof MXHostBuf, "%s", host);
+		(void) sm_strlcpy(MXHostBuf, host, sizeof MXHostBuf);
 		mxhosts[0] = MXHostBuf;
 		prefs[0] = 0;
 		if (host[0] == '[')
@@ -427,8 +551,8 @@ punt:
 					*p = ']';
 				}
 # if NETINET6
-				else if (inet_pton(AF_INET6, &MXHostBuf[1],
-						   &tmp6.sin6_addr) == 1)
+				else if (anynet_pton(AF_INET6, &MXHostBuf[1],
+						     &tmp6.sin6_addr) == 1)
 				{
 					nmx++;
 					*p = ']';
@@ -436,14 +560,15 @@ punt:
 # endif /* NETINET6 */
 				else
 				{
-					trycanon = TRUE;
+					trycanon = true;
 					mxhosts[0]++;
 				}
 			}
 		}
 		if (trycanon &&
-		    getcanonname(mxhosts[0], sizeof MXHostBuf - 2, FALSE))
+		    getcanonname(mxhosts[0], sizeof MXHostBuf - 2, false, pttl))
 		{
+			/* XXX MXHostBuf == "" ?  is that possible? */
 			bp = &MXHostBuf[strlen(MXHostBuf)];
 			if (bp[-1] != '.')
 			{
@@ -457,16 +582,11 @@ punt:
 	/* if we have a default lowest preference, include that */
 	if (fallbackMX != NULL && !seenlocal)
 	{
-		if (nmx > 0)
-			prefs[nmx] = prefs[nmx - 1] + 1;
-		else
-			prefs[nmx] = 0;
-		mxhosts[nmx++] = fallbackMX;
+		nmx = fallbackmxrr(nmx, prefs, mxhosts);
 	}
-
 	return nmx;
 }
-/*
+/*
 **  MXRAND -- create a randomizer for equal MX preferences
 **
 **	If two MX hosts have equal preferences we want to randomize
@@ -479,9 +599,6 @@ punt:
 **
 **	Returns:
 **		A random but repeatable value based on the host name.
-**
-**	Side Effects:
-**		none.
 */
 
 static int
@@ -499,7 +616,7 @@ mxrand(host)
 	}
 
 	if (tTd(17, 9))
-		dprintf("mxrand(%s)", host);
+		sm_dprintf("mxrand(%s)", host);
 
 	hfunc = seed;
 	while (*host != '\0')
@@ -515,10 +632,10 @@ mxrand(host)
 	hfunc++;
 
 	if (tTd(17, 9))
-		dprintf(" = %d\n", hfunc);
+		sm_dprintf(" = %d\n", hfunc);
 	return hfunc;
 }
-/*
+/*
 **  BESTMX -- find the best MX for a name
 **
 **	This is really a hack, but I don't see any obvious way
@@ -535,13 +652,19 @@ bestmx_map_lookup(map, name, av, statp)
 {
 	int nmx;
 	int saveopts = _res.options;
-	int i, len = 0;
-	char *p;
+	int i;
+	ssize_t len = 0;
+	char *result;
 	char *mxhosts[MAXMXHOSTS + 1];
+#if _FFR_BESTMX_BETTER_TRUNCATION
+	char *buf;
+#else /* _FFR_BESTMX_BETTER_TRUNCATION */
+	char *p;
 	char buf[PSBUFSIZE / 2];
+#endif /* _FFR_BESTMX_BETTER_TRUNCATION */
 
 	_res.options &= ~(RES_DNSRCH|RES_DEFNAMES);
-	nmx = getmxrr(name, mxhosts, NULL, FALSE, statp);
+	nmx = getmxrr(name, mxhosts, NULL, false, statp, true, NULL);
 	_res.options = saveopts;
 	if (nmx <= 0)
 		return NULL;
@@ -554,10 +677,49 @@ bestmx_map_lookup(map, name, av, statp)
 	**  We were given a -z flag (return all MXs) and there are multiple
 	**  ones.  We need to build them all into a list.
 	*/
+
+#if _FFR_BESTMX_BETTER_TRUNCATION
+	for (i = 0; i < nmx; i++)
+	{
+		if (strchr(mxhosts[i], map->map_coldelim) != NULL)
+		{
+			syserr("bestmx_map_lookup: MX host %.64s includes map delimiter character 0x%02X",
+			       mxhosts[i], map->map_coldelim);
+			return NULL;
+		}
+		len += strlen(mxhosts[i]) + 1;
+		if (len < 0)
+		{
+			len -= strlen(mxhosts[i]) + 1;
+			break;
+		}
+	}
+	buf = (char *) sm_malloc(len);
+	if (buf == NULL)
+	{
+		*statp = EX_UNAVAILABLE;
+		return NULL;
+	}
+	*buf = '\0';
+	for (i = 0; i < nmx; i++)
+	{
+		int end;
+
+		end = sm_strlcat(buf, mxhosts[i], len);
+		if (i != nmx && end + 1 < len)
+		{
+			buf[end] = map->map_coldelim;
+			buf[end + 1] = '\0';
+		}
+	}
+
+	/* Cleanly truncate for rulesets */
+	truncate_at_delim(buf, PSBUFSIZE / 2, map->map_coldelim);
+#else /* _FFR_BESTMX_BETTER_TRUNCATION */
 	p = buf;
 	for (i = 0; i < nmx; i++)
 	{
-		int slen;
+		size_t slen;
 
 		if (strchr(mxhosts[i], map->map_coldelim) != NULL)
 		{
@@ -573,13 +735,19 @@ bestmx_map_lookup(map, name, av, statp)
 			*p++ = map->map_coldelim;
 			len++;
 		}
-		(void) strlcpy(p, mxhosts[i], sizeof buf - len);
+		(void) sm_strlcpy(p, mxhosts[i], sizeof buf - len);
 		p += slen;
 		len += slen;
 	}
-	return map_rewrite(map, buf, len, av);
+#endif /* _FFR_BESTMX_BETTER_TRUNCATION */
+
+	result = map_rewrite(map, buf, len, av);
+#if _FFR_BESTMX_BETTER_TRUNCATION
+	sm_free(buf);
+#endif /* _FFR_BESTMX_BETTER_TRUNCATION */
+	return result;
 }
-/*
+/*
 **  DNS_GETCANONNAME -- get the canonical name for named host using DNS
 **
 **	This algorithm tries to be smart about wildcard MX records.
@@ -603,20 +771,28 @@ bestmx_map_lookup(map, name, av, statp)
 **		hbsize -- the size of the host buffer.
 **		trymx -- if set, try MX records as well as A and CNAME.
 **		statp -- pointer to place to store status.
+**		pttl -- pointer to return TTL (can be NULL).
 **
 **	Returns:
-**		TRUE -- if the host matched.
-**		FALSE -- otherwise.
+**		true -- if the host matched.
+**		false -- otherwise.
 */
 
+# if NETINET6
+#  define SM_T_INITIAL	T_AAAA
+# else /* NETINET6 */
+#  define SM_T_INITIAL	T_A
+# endif /* NETINET6 */
+
 bool
-dns_getcanonname(host, hbsize, trymx, statp)
+dns_getcanonname(host, hbsize, trymx, statp, pttl)
 	char *host;
 	int hbsize;
 	bool trymx;
 	int *statp;
+	int *pttl;
 {
-	register u_char *eom, *ap;
+	register unsigned char *eom, *ap;
 	register char *cp;
 	register int n;
 	HEADER *hp;
@@ -625,23 +801,24 @@ dns_getcanonname(host, hbsize, trymx, statp)
 	int ret;
 	char **domain;
 	int type;
+	int ttl = 0;
 	char **dp;
 	char *mxmatch;
 	bool amatch;
-	bool gotmx = FALSE;
+	bool gotmx = false;
 	int qtype;
 	int loopcnt;
 	char *xp;
-	char nbuf[MAX(MAXPACKET, MAXDNAME*2+2)];
+	char nbuf[SM_MAX(MAXPACKET, MAXDNAME*2+2)];
 	char *searchlist[MAXDNSRCH+2];
 
 	if (tTd(8, 2))
-		dprintf("dns_getcanonname(%s, trymx=%d)\n", host, trymx);
+		sm_dprintf("dns_getcanonname(%s, trymx=%d)\n", host, trymx);
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
 	{
 		*statp = EX_UNAVAILABLE;
-		return FALSE;
+		return false;
 	}
 
 	*statp = EX_OK;
@@ -669,6 +846,7 @@ cnameloop:
 	**  If this is a simple name, determine whether it matches an
 	**  alias in the file defined by the environment variable HOSTALIASES.
 	*/
+
 	if (n == 0 && (xp = gethostalias(host)) != NULL)
 	{
 		if (loopcnt++ > MAXCNAMEDEPTH)
@@ -677,7 +855,7 @@ cnameloop:
 		}
 		else
 		{
-			(void) strlcpy(host, xp, hbsize);
+			(void) sm_strlcpy(host, xp, hbsize);
 			goto cnameloop;
 		}
 	}
@@ -720,16 +898,15 @@ cnameloop:
 	*/
 
 	mxmatch = NULL;
-	qtype = T_ANY;
+	qtype = SM_T_INITIAL;
 
 	for (dp = searchlist; *dp != NULL; )
 	{
-		if (qtype == T_ANY)
-			gotmx = FALSE;
+		if (qtype == SM_T_INITIAL)
+			gotmx = false;
 		if (tTd(8, 5))
-			dprintf("dns_getcanonname: trying %s.%s (%s)\n",
+			sm_dprintf("dns_getcanonname: trying %s.%s (%s)\n",
 				host, *dp,
-				qtype == T_ANY ? "ANY" :
 # if NETINET6
 				qtype == T_AAAA ? "AAAA" :
 # endif /* NETINET6 */
@@ -741,34 +918,21 @@ cnameloop:
 				      answer.qb2, sizeof(answer.qb2));
 		if (ret <= 0)
 		{
-			if (tTd(8, 7))
-				dprintf("\tNO: errno=%d, h_errno=%d\n",
-					errno, h_errno);
+			int save_errno = errno;
 
-			if (errno == ECONNREFUSED || h_errno == TRY_AGAIN)
+			if (tTd(8, 7))
+				sm_dprintf("\tNO: errno=%d, h_errno=%d\n",
+					   save_errno, h_errno);
+
+			if (save_errno == ECONNREFUSED || h_errno == TRY_AGAIN)
 			{
 				/*
-				**  the name server seems to be down or
-				**  broken.
+				**  the name server seems to be down or broken.
 				*/
 
 				SM_SET_H_ERRNO(TRY_AGAIN);
 				*statp = EX_TEMPFAIL;
 
-				/*
-				**  If the ANY query is larger than the
-				**  UDP packet size, the resolver will
-				**  fall back to TCP.  However, some
-				**  misconfigured firewalls block 53/TCP
-				**  so the ANY lookup fails whereas an MX
-				**  or A record might work.  Therefore,
-				**  don't fail on ANY queries.
-				**
-				**  The ANY query is really meant to prime
-				**  the cache so this isn't dangerous.
-				*/
-
-#if _FFR_WORKAROUND_BROKEN_NAMESERVERS
 				if (WorkAroundBrokenAAAA)
 				{
 					/*
@@ -781,37 +945,26 @@ cnameloop:
 					**  didn't give an answer).
 					*/
 
-					if (qtype != T_ANY &&
-					    errno != ETIMEDOUT)
-						return FALSE;
+					if (save_errno != ETIMEDOUT)
+						return false;
 				}
-#else /* _FFR_WORKAROUND_BROKEN_NAMESERVERS */
-				if (qtype != T_ANY)
-					return FALSE;
-#endif /* _FFR_WORKAROUND_BROKEN_NAMESERVERS */
+				else
+					return false;
 			}
 
 			if (h_errno != HOST_NOT_FOUND)
 			{
 				/* might have another type of interest */
-				if (qtype == T_ANY)
-				{
 # if NETINET6
-					qtype = T_AAAA;
-# else /* NETINET6 */
-					qtype = T_A;
-# endif /* NETINET6 */
-					continue;
-				}
-# if NETINET6
-				else if (qtype == T_AAAA)
+				if (qtype == T_AAAA)
 				{
 					qtype = T_A;
 					continue;
 				}
+				else
 # endif /* NETINET6 */
-				else if (qtype == T_A && !gotmx &&
-					 (trymx || **dp == '\0'))
+				if (qtype == T_A && !gotmx &&
+				    (trymx || **dp == '\0'))
 				{
 					qtype = T_MX;
 					continue;
@@ -820,15 +973,20 @@ cnameloop:
 
 			/* definite no -- try the next domain */
 			dp++;
-			qtype = T_ANY;
+			qtype = SM_T_INITIAL;
 			continue;
 		}
 		else if (tTd(8, 7))
-			dprintf("\tYES\n");
+			sm_dprintf("\tYES\n");
 
 		/* avoid problems after truncation in tcp packets */
 		if (ret > sizeof(answer))
 			ret = sizeof(answer);
+		if (ret < 0)
+		{
+			*statp = EX_SOFTWARE;
+			return false;
+		}
 
 		/*
 		**  Appear to have a match.  Confirm it by searching for A or
@@ -837,41 +995,42 @@ cnameloop:
 		*/
 
 		hp = (HEADER *) &answer;
-		ap = (u_char *) &answer + HFIXEDSZ;
-		eom = (u_char *) &answer + ret;
+		ap = (unsigned char *) &answer + HFIXEDSZ;
+		eom = (unsigned char *) &answer + ret;
 
 		/* skip question part of response -- we know what we asked */
-		for (qdcount = ntohs((u_short)hp->qdcount);
+		for (qdcount = ntohs((unsigned short) hp->qdcount);
 		     qdcount--;
 		     ap += ret + QFIXEDSZ)
 		{
 			if ((ret = dn_skipname(ap, eom)) < 0)
 			{
 				if (tTd(8, 20))
-					dprintf("qdcount failure (%d)\n",
-						ntohs((u_short)hp->qdcount));
+					sm_dprintf("qdcount failure (%d)\n",
+						ntohs((unsigned short) hp->qdcount));
 				*statp = EX_SOFTWARE;
-				return FALSE;		/* ???XXX??? */
+				return false;		/* ???XXX??? */
 			}
 		}
 
-		amatch = FALSE;
-		for (ancount = ntohs((u_short)hp->ancount);
+		amatch = false;
+		for (ancount = ntohs((unsigned short) hp->ancount);
 		     --ancount >= 0 && ap < eom;
 		     ap += n)
 		{
-			n = dn_expand((u_char *) &answer, eom, ap,
+			n = dn_expand((unsigned char *) &answer, eom, ap,
 				      (RES_UNC_T) nbuf, sizeof nbuf);
 			if (n < 0)
 				break;
 			ap += n;
 			GETSHORT(type, ap);
-			ap += INT16SZ + INT32SZ;
-			GETSHORT(n, ap);
+			ap += INT16SZ;		/* skip over class */
+			GETLONG(ttl, ap);
+			GETSHORT(n, ap);	/* rdlength */
 			switch (type)
 			{
 			  case T_MX:
-				gotmx = TRUE;
+				gotmx = true;
 				if (**dp != '\0' && HasWildcardMX)
 				{
 					/*
@@ -900,7 +1059,7 @@ cnameloop:
 # if NETINET6
 			  case T_AAAA:
 				/* Flag that a good match was found */
-				amatch = TRUE;
+				amatch = true;
 
 				/* continue in case a CNAME also exists */
 				continue;
@@ -908,7 +1067,7 @@ cnameloop:
 
 			  case T_A:
 				/* Flag that a good match was found */
-				amatch = TRUE;
+				amatch = true;
 
 				/* continue in case a CNAME also exists */
 				continue;
@@ -917,7 +1076,7 @@ cnameloop:
 				if (DontExpandCnames)
 				{
 					/* got CNAME -- guaranteed canonical */
-					amatch = TRUE;
+					amatch = true;
 					break;
 				}
 
@@ -930,21 +1089,25 @@ cnameloop:
 					{
 						char ebuf[MAXLINE];
 
-						snprintf(ebuf, sizeof ebuf,
+						(void) sm_snprintf(ebuf,
+							sizeof ebuf,
 							"Deferred: DNS failure: CNAME loop for %.100s",
 							host);
-						CurEnv->e_message = newstr(ebuf);
+						CurEnv->e_message =
+						    sm_rpool_strdup_x(
+							CurEnv->e_rpool, ebuf);
 					}
 					SM_SET_H_ERRNO(NO_RECOVERY);
 					*statp = EX_CONFIG;
-					return FALSE;
+					return false;
 				}
 
 				/* value points at name */
-				if ((ret = dn_expand((u_char *)&answer,
-				    eom, ap, (RES_UNC_T) nbuf, sizeof(nbuf))) < 0)
+				if ((ret = dn_expand((unsigned char *)&answer,
+						     eom, ap, (RES_UNC_T) nbuf,
+						     sizeof(nbuf))) < 0)
 					break;
-				(void)strlcpy(host, nbuf, hbsize);
+				(void) sm_strlcpy(host, nbuf, hbsize);
 
 				/*
 				**  RFC 1034 section 3.6 specifies that CNAME
@@ -973,32 +1136,21 @@ cnameloop:
 
 		/*
 		**  Nothing definitive yet.
-		**	If this was a T_ANY query, we don't really know what
-		**		was returned -- it might have been a T_NS,
-		**		for example.  Try T_A to be more specific
-		**		during the next pass.
 		**	If this was a T_A query and we haven't yet found a MX
 		**		match, try T_MX if allowed to do so.
 		**	Otherwise, try the next domain.
 		*/
 
-		if (qtype == T_ANY)
-		{
 # if NETINET6
-			qtype = T_AAAA;
-# else /* NETINET6 */
+		if (qtype == T_AAAA)
 			qtype = T_A;
+		else
 # endif /* NETINET6 */
-		}
-# if NETINET6
-		else if (qtype == T_AAAA)
-			qtype = T_A;
-# endif /* NETINET6 */
-		else if (qtype == T_A && !gotmx && (trymx || **dp == '\0'))
+		if (qtype == T_A && !gotmx && (trymx || **dp == '\0'))
 			qtype = T_MX;
 		else
 		{
-			qtype = T_ANY;
+			qtype = SM_T_INITIAL;
 			dp++;
 		}
 	}
@@ -1008,7 +1160,7 @@ cnameloop:
 	{
 		if (*statp == EX_OK)
 			*statp = EX_NOHOST;
-		return FALSE;
+		return false;
 	}
 
 	/*
@@ -1017,14 +1169,18 @@ cnameloop:
 	**  Otherwise append the saved domain name.
 	*/
 
-	(void) snprintf(nbuf, sizeof nbuf, "%.*s%s%.*s", MAXDNAME, host,
-			*mxmatch == '\0' ? "" : ".",
-			MAXDNAME, mxmatch);
-	(void) strlcpy(host, nbuf, hbsize);
+	(void) sm_snprintf(nbuf, sizeof nbuf, "%.*s%s%.*s", MAXDNAME, host,
+			   *mxmatch == '\0' ? "" : ".",
+			   MAXDNAME, mxmatch);
+	(void) sm_strlcpy(host, nbuf, hbsize);
 	if (tTd(8, 5))
-		dprintf("dns_getcanonname: %s\n", host);
+		sm_dprintf("dns_getcanonname: %s\n", host);
 	*statp = EX_OK;
-	return TRUE;
+
+	/* return only one TTL entry, that should be sufficient */
+	if (ttl > 0 && pttl != NULL)
+		*pttl = ttl;
+	return true;
 }
 
 static char *
@@ -1032,19 +1188,21 @@ gethostalias(host)
 	char *host;
 {
 	char *fname;
-	FILE *fp;
+	SM_FILE_T *fp;
 	register char *p = NULL;
 	long sff = SFF_REGONLY;
 	char buf[MAXLINE];
 	static char hbuf[MAXDNAME];
 
+	if (ResNoAliases)
+		return NULL;
 	if (DontLockReadFiles)
 		sff |= SFF_NOLOCK;
 	fname = getenv("HOSTALIASES");
 	if (fname == NULL ||
 	    (fp = safefopen(fname, O_RDONLY, 0, sff)) == NULL)
 		return NULL;
-	while (fgets(buf, sizeof buf, fp) != NULL)
+	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof buf) != NULL)
 	{
 		for (p = buf; p != '\0' && !(isascii(*p) && isspace(*p)); p++)
 			continue;
@@ -1054,17 +1212,17 @@ gethostalias(host)
 			continue;
 		}
 		*p++ = '\0';
-		if (strcasecmp(buf, host) == 0)
+		if (sm_strcasecmp(buf, host) == 0)
 			break;
 	}
 
-	if (feof(fp))
+	if (sm_io_eof(fp))
 	{
 		/* no match */
-		(void) fclose(fp);
+		(void) sm_io_close(fp, SM_TIME_DEFAULT);
 		return NULL;
 	}
-	(void) fclose(fp);
+	(void) sm_io_close(fp, SM_TIME_DEFAULT);
 
 	/* got a match; extract the equivalent name */
 	while (*p != '\0' && isascii(*p) && isspace(*p))
@@ -1073,7 +1231,7 @@ gethostalias(host)
 	while (*p != '\0' && !(isascii(*p) && isspace(*p)))
 		p++;
 	*p = '\0';
-	(void) strlcpy(hbuf, host, sizeof hbuf);
+	(void) sm_strlcpy(hbuf, host, sizeof hbuf);
 	return hbuf;
 }
 #endif /* NAMED_BIND */

@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -7,9 +7,8 @@
 ** the sendmail distribution.
 */
 
-#ifndef lint
-static char id[] = "@(#)$Id: smdb.c,v 8.37.4.2 2000/08/24 17:08:00 gshapiro Exp $";
-#endif /* ! lint */
+#include <sm/gen.h>
+SM_RCSID("@(#)$Id: smdb.c,v 8.53 2001/11/19 19:31:14 gshapiro Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -19,7 +18,7 @@ static char id[] = "@(#)$Id: smdb.c,v 8.37.4.2 2000/08/24 17:08:00 gshapiro Exp 
 #include <sendmail/sendmail.h>
 #include <libsmdb/smdb.h>
 
-/*
+/*
 ** SMDB_MALLOC_DATABASE -- Allocates a database structure.
 **
 **	Parameters:
@@ -38,13 +37,13 @@ smdb_malloc_database()
 	db = (SMDB_DATABASE *) malloc(sizeof(SMDB_DATABASE));
 
 	if (db != NULL)
-		memset(db, '\0', sizeof(SMDB_DATABASE));
+		(void) memset(db, '\0', sizeof(SMDB_DATABASE));
 
 	return db;
 }
 
 
-/*
+/*
 ** SMDB_FREE_DATABASE -- Unallocates a database structure.
 **
 **	Parameters:
@@ -61,8 +60,7 @@ smdb_free_database(database)
 	if (database != NULL)
 		free(database);
 }
-
-/*
+/*
 **  SMDB_LOCKFILE -- lock a file using flock or (shudder) fcntl locking
 **
 **	Parameters:
@@ -72,8 +70,8 @@ smdb_free_database(database)
 **			LOCK_NB -- non-blocking.
 **
 **	Returns:
-**		TRUE if the lock was acquired.
-**		FALSE otherwise.
+**		true if the lock was acquired.
+**		false otherwise.
 */
 
 static bool
@@ -87,7 +85,7 @@ smdb_lockfile(fd, type)
 	int action;
 	struct flock lfd;
 
-	memset(&lfd, '\0', sizeof lfd);
+	(void) memset(&lfd, '\0', sizeof lfd);
 	if (bitset(LOCK_UN, type))
 		lfd.l_type = F_UNLCK;
 	else if (bitset(LOCK_EX, type))
@@ -103,9 +101,7 @@ smdb_lockfile(fd, type)
 	while ((i = fcntl(fd, action, &lfd)) < 0 && errno == EINTR)
 		continue;
 	if (i >= 0)
-	{
-		return TRUE;
-	}
+		return true;
 	save_errno = errno;
 
 	/*
@@ -118,9 +114,7 @@ smdb_lockfile(fd, type)
 	*/
 
 	if (save_errno == EINVAL)
-	{
-		return TRUE;
-	}
+		return true;
 
 	if (!bitset(LOCK_NB, type) ||
 	    (save_errno != EACCES && save_errno != EAGAIN))
@@ -132,18 +126,16 @@ smdb_lockfile(fd, type)
 # endif /* F_GETFL */
 # if 0
 		syslog(LOG_ERR, "cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
-			filename, ext, fd, type, omode, geteuid());
+		       filename, ext, fd, type, omode, (int) geteuid());
 # endif /* 0 */
-		return FALSE;
+		return false;
 	}
 #else /* !HASFLOCK */
 
 	while ((i = flock(fd, type)) < 0 && errno == EINTR)
 		continue;
 	if (i >= 0)
-	{
-		return TRUE;
-	}
+		return true;
 	save_errno = errno;
 
 	if (!bitset(LOCK_NB, type) || save_errno != EWOULDBLOCK)
@@ -155,16 +147,15 @@ smdb_lockfile(fd, type)
 # endif /* F_GETFL */
 # if 0
 		syslog(LOG_ERR, "cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
-			filename, ext, fd, type, omode, geteuid());
+		       filename, ext, fd, type, omode, (int) geteuid());
 # endif /* 0 */
-		return FALSE;
+		return false;
 	}
 #endif /* !HASFLOCK */
 	errno = save_errno;
-	return FALSE;
+	return false;
 }
-
-/*
+/*
 ** SMDB_OPEN_DATABASE -- Opens a database.
 **
 **	This opens a database. If type is SMDB_DEFAULT it tries to
@@ -207,12 +198,11 @@ smdb_open_database(database, db_name, mode, mode_mask, sff, type, user_info,
 	SMDB_USER_INFO *user_info;
 	SMDB_DBPARAMS *params;
 {
-	int result;
-	bool type_was_default = FALSE;
+	bool type_was_default = false;
 
 	if (type == SMDB_TYPE_DEFAULT)
 	{
-		type_was_default = TRUE;
+		type_was_default = true;
 #ifdef NEWDB
 		type = SMDB_TYPE_HASH;
 #else /* NEWDB */
@@ -229,6 +219,8 @@ smdb_open_database(database, db_name, mode, mode_mask, sff, type, user_info,
 	    (strncmp(type, SMDB_TYPE_BTREE, SMDB_TYPE_BTREE_LEN) == 0))
 	{
 #ifdef NEWDB
+		int result;
+
 		result = smdb_db_open(database, db_name, mode, mode_mask, sff,
 				      type, user_info, params);
 # ifdef NDBM
@@ -245,6 +237,8 @@ smdb_open_database(database, db_name, mode, mode_mask, sff, type, user_info,
 	if (strncmp(type, SMDB_TYPE_NDBM, SMDB_TYPE_NDBM_LEN) == 0)
 	{
 #ifdef NDBM
+		int result;
+
 		result = smdb_ndbm_open(database, db_name, mode, mode_mask,
 					sff, type, user_info, params);
 		return result;
@@ -255,8 +249,7 @@ smdb_open_database(database, db_name, mode, mode_mask, sff, type, user_info,
 
 	return SMDBE_UNKNOWN_DB_TYPE;
 }
-
-/*
+/*
 ** SMDB_ADD_EXTENSION -- Adds an extension to a file name.
 **
 **	Just adds a . followed by a string to a db_name if there
@@ -296,15 +289,14 @@ smdb_add_extension(full_name, max_full_name_len, db_name, extension)
 	if (db_name_len < extension_len + 1 ||
 	    db_name[db_name_len - extension_len - 1] != '.' ||
 	    strcmp(&db_name[db_name_len - extension_len], extension) != 0)
-		snprintf(full_name, max_full_name_len, "%s.%s", db_name,
-			 extension);
+		(void) sm_snprintf(full_name, max_full_name_len, "%s.%s",
+				   db_name, extension);
 	else
-		(void) strlcpy(full_name, db_name, max_full_name_len);
+		(void) sm_strlcpy(full_name, db_name, max_full_name_len);
 
 	return SMDBE_OK;
 }
-
-/*
+/*
 **  SMDB_LOCK_FILE -- Locks the database file.
 **
 **	Locks the actual database file.
@@ -342,8 +334,7 @@ smdb_lock_file(lock_fd, db_name, mode, sff, extension)
 
 	return SMDBE_OK;
 }
-
-/*
+/*
 **  SMDB_UNLOCK_FILE -- Unlocks a file
 **
 **	Unlocks a file.
@@ -367,8 +358,7 @@ smdb_unlock_file(lock_fd)
 
 	return SMDBE_OK;
 }
-
-/*
+/*
 **  SMDB_LOCK_MAP -- Locks a database.
 **
 **	Parameters:
@@ -395,8 +385,7 @@ smdb_lock_map(database, type)
 		return SMDBE_LOCK_NOT_GRANTED;
 	return SMDBE_OK;
 }
-
-/*
+/*
 **  SMDB_UNLOCK_MAP -- Unlocks a database
 **
 **	Parameters:
@@ -419,9 +408,7 @@ smdb_unlock_map(database)
 		return SMDBE_LOCK_NOT_HELD;
 	return SMDBE_OK;
 }
-
-
-/*
+/*
 **  SMDB_SETUP_FILE -- Gets db file ready for use.
 **
 **	Makes sure permissions on file are safe and creates it if it
@@ -465,8 +452,7 @@ smdb_setup_file(db_name, extension, mode_mask, sff, user_info, stat_info)
 
 	return SMDBE_OK;
 }
-
-/*
+/*
 **  SMDB_FILECHANGED -- Checks to see if a file changed.
 **
 **	Compares the passed in stat_info with a current stat on
@@ -496,12 +482,9 @@ smdb_filechanged(db_name, extension, db_fd, stat_info)
 				    extension);
 	if (result != SMDBE_OK)
 		return result;
-
-	result = filechanged(db_file_name, db_fd, stat_info);
-
-	return result;
+	return filechanged(db_file_name, db_fd, stat_info);
 }
-/*
+/*
 ** SMDB_PRINT_AVAILABLE_TYPES -- Prints the names of the available types.
 **
 **	Parameters:
@@ -522,7 +505,7 @@ smdb_print_available_types()
 	printf("btree\n");
 #endif /* NEWDB */
 }
-/*
+/*
 ** SMDB_DB_DEFINITION -- Given a database type, return database definition
 **
 **	Reads though a structure making an association with the database
