@@ -603,6 +603,13 @@ network_pass3() {
 		;;
 	esac
 
+	case ${sshd_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' sshd';
+		${sshd_program:-/usr/sbin/sshd} ${sshd_flags}
+		;;
+	esac
+
 	echo '.'
 	network_pass3_done=YES
 }
