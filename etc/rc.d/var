@@ -3,9 +3,10 @@
 # REQUIRE: initdiskless mountcritlocal
 	if [ -n "$4" ]; then
 		bpi="-i $4"
-
-if [ -f /etc/rc.conf ]; then
-        . /etc/rc.conf
+if [ -f /etc/defaults/rc.conf ]; then
+	/sbin/mdconfig -a -t malloc -s $1 -u $3
+elif [ -f /etc/rc.conf ]; then
+	/sbin/mount /dev/md$3c $2
 }
 
 mount_mfs -s ${var_run_sectors:=2048} -T qp120at dummy /var/run
