@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 	struct sockaddr_rfcomm   sock_addr;
 	char			*label = NULL, *unit = NULL, *ep = NULL;
 	bdaddr_t		 addr;
-	int			 s, channel, detach, server, service;
+	int			 s, channel, detach, server, service, regsp;
 	pid_t			 pid;
 
 	memcpy(&addr, NG_HCI_BDADDR_ANY, sizeof(addr));
@@ -70,9 +70,10 @@ main(int argc, char *argv[])
 	detach = 1;
 	server = 0;
 	service = 0;
+	regsp = 0;
 
 	/* Parse command line arguments */
-	while ((s = getopt(argc, argv, "a:cC:dhl:su:")) != -1) {
+	while ((s = getopt(argc, argv, "a:cC:dhl:sSu:")) != -1) {
 		switch (s) {
 		case 'a': /* BDADDR */
 			if (!bt_aton(optarg, &addr)) {
@@ -115,6 +116,10 @@ main(int argc, char *argv[])
 
 		case 's': /* server */
 			server = 1;
+			break;
+
+		case 'S': /* Register SP service as well as LAN service */
+			regsp = 1;
 			break;
 
 		case 'u': /* PPP -unit option */
@@ -258,6 +263,42 @@ main(int argc, char *argv[])
 				strerror(sdp_error(ss)), sdp_error(ss));
 			exit(1);
 		}
+
+		/*
+		 * Register SP (Serial Port) service on the same RFCOMM channel
+		 * if requested. It appears that some cell phones are using so
+		 * called "callback mechanism". In this scenario user is trying
+		 * to connect his cell phone to the Internet, and, user's host
+		 * computer is acting as the gateway server. It seems that it
+		 * is not possible to tell the phone to just connect and start
+		 * using the LAN service. Instead the user's host computer must
+		 * "jump start" the phone by connecting to the phone's SP
+		 * service. What happens next is the phone kills the existing
+		 * connection and opens another connection back to the user's
+		 * host computer. The phone really wants to use LAN service,
+		 * but for whatever reason it looks for SP service on the
+		 * user's host computer. This brain damaged behavior was
+		 * reported for Nokia 6600 and Sony/Ericsson P900. Both phones
+		 * are Symbian-based phones. Perhaps this is a Symbian problem?
+		 */
+
+		if (regsp) {
+			sdp_sp_profile_t	sp;
+
+			memset(&sp, 0, sizeof(sp));
+			sp.server_channel = channel;
+
+			if (sdp_register_service(ss,
+					SDP_SERVICE_CLASS_SERIAL_PORT,
+					&addr, (void *) &sp, sizeof(sp),
+					NULL) != 0) {
+				syslog(LOG_ERR, "Unable to register SP " \
+					"service with local SDP daemon. " \
+					"%s (%d)", strerror(sdp_error(ss)),
+					sdp_error(ss));
+				exit(1);
+			}
+		}
 		
 		for (done = 0; !done; ) {
 			int	len = sizeof(sock_addr);
@@ -399,6 +440,7 @@ usage(void)
 "\t-d           Run in foreground\n" \
 "\t-l label     Use PPP label (required)\n" \
 "\t-s           Act as a server\n" \
+"\t-S           Register Serial Port service (server mode only)\n" \
 "\t-u N         Tell PPP to operate on /dev/tunN (client mode only)\n" \
 "\t-h           Display this message\n", RFCOMM_PPPD);
 
