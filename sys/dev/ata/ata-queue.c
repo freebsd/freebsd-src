@@ -483,9 +483,6 @@ ata_fail_requests(struct ata_channel *ch, struct ata_device *device)
     /* if we have a request "in flight" fail it as well */
     if ((request = ch->running) && (!device || request->device == device)) {
 	untimeout((timeout_t *)ata_timeout, request, request->timeout_handle);
-	ATA_UNLOCK_CH(request->device->channel);
-	request->device->channel->locking(request->device->channel,
-					  ATA_LF_UNLOCK);
 	request->result = ENXIO;
 	if (request->callback)
 	    (request->callback)(request);
