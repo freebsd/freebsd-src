@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
-SRCS+=		sparc-dis.c sparc-opc.c
-CFLAGS+=	-DARCH_sparc
+SRCS+=	sparc-dis.c sparc-opc.c
+CFLAGS+= -DARCH_sparc
