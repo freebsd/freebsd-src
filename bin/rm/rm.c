@@ -61,6 +61,8 @@ void	rm_file __P((char **));
 void	rm_overwrite __P((char *, struct stat *));
 void	rm_tree __P((char **));
 void	usage __P((void));
+char   *user_from_uid __P((uid_t, int));
+char   *group_from_gid __P((gid_t, int));
 
 /*
  * rm --
@@ -202,7 +204,7 @@ rm_tree(argv)
 		} else {
 			if (Pflag)
 				rm_overwrite(p->fts_accpath, NULL);
-			if (!unlink(p->fts_accpath) || fflag && errno == ENOENT)
+			if (!unlink(p->fts_accpath) || (fflag && errno == ENOENT))
 				continue;
 		}
 		warn("%s", p->fts_path);
@@ -344,7 +346,7 @@ check(path, name, sp)
 	return (first == 'y');
 }
 
-#define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || (a)[1] == '.' && !(a)[2]))
+#define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
 void
 checkdot(argv)
 	char **argv;
