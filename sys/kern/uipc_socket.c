@@ -777,7 +777,8 @@ dontblock:
 		uio->uio_td->td_proc->p_stats->p_ru.ru_msgrcv++;
 	nextrecord = m->m_nextpkt;
 	if (pr->pr_flags & PR_ADDR) {
-		KASSERT(m->m_type == MT_SONAME, ("receive 1a"));
+		KASSERT(m->m_type == MT_SONAME,
+		    ("m->m_type == %d", m->m_type));
 		orig_resid = 0;
 		if (psa)
 			*psa = dup_sockaddr(mtod(m, struct sockaddr *),
@@ -832,7 +833,7 @@ dontblock:
 			break;
 		else
 		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
-			("receive 3"));
+			("m->m_type == %d", m->m_type));
 		so->so_state &= ~SS_RCVATMARK;
 		len = uio->uio_resid;
 		if (so->so_oobmark && len > so->so_oobmark - offset)
