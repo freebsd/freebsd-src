@@ -1,0 +1,392 @@
+#!/bin/sh
+# install1.fs disk 'install'
+# Simplified, interactive NetBSD installation script.
+# D.E. Silvia (dsilvia@net.com)
+#
+# (once again hacked on by rgrimes 1993/07/29,
+#  disabled old disktab.preinstall,
+#  added questions for what blocking factor to use in the file system,
+#  added (heads) to clarify what disk tracks means)
+#
+# (heavily hacked by cgd)
+# (and again by rwgrimes, for bad144 support and some error checking)
+#
+# Provides for variable swap and multiple partitions.
+#
+# Installs first minimal part of basic NetBSD system.
+#
+# Does not appear to work properly IF not using whole disk _AND_ there is
+# no DOS partition (kernel bug?  Tries to chroot to partition 'd' :-{ )
+#
+# Currently, no method for checking to see if the designated disk type is
+# already in /etc/disktab.  You can edit it out of the file after installation.
+#
+
+echo    "Welcome to the NetBSD."
+echo    ""
+echo    "This program is designed to help you put NetBSD on your hard disk,"
+echo    "in a simple and rational way.  You'll be asked several questions,"
+echo    "and it would probably be useful to have your disk's hardware"
+echo	"manual, the installation notes, and a calculator handy."
+echo    ""
+echo	"In particular, you will need to know some reasonably detailed"
+echo	"information about your disk's geometry, because there is currently"
+echo	"no way this this program can figure that information out."
+echo    ""
+echo	"As with anything which modifies your hard drive's contents, this"
+echo	"program can cause SIGNIFICANT data loss, and you are advised"
+echo	"to make sure your hard drive is backed up before beginning the"
+echo	"installation process."
+echo    ""
+echo -n "Proceed with installation? [n] "
+read resp
+case $resp in
+	y*|Y*)
+		echo    "Cool!  Let's get to it..."
+		;;
+	*)
+		echo    ""
+		echo    "OK, then.  enter 'halt' to halt the machine."
+		echo    "Once the machine has halted, remove the floppy,"
+		echo    "and press any key to reboot."
+		exit
+		;;
+esac
+echo    ""
+echo    "Drive types can be ESDI, SCSI, ST506, or IDE."
+echo -n "Drive type? "
+read type
+case "$type" in
+	esdi|ESDI|st506|ST506)
+		drivename=wd0
+		drivetype=wd
+		echo -n "Does it support _automatic_ sector remapping? [y] "
+		read remap
+		case "$remap" in
+			n*|N*)
+				sect_fwd="sf:"
+				;;
+			*)
+				sect_fwd=""
+				;;
+		esac
+		;;
+	ide|IDE)
+		drivename=wd0
+		drivetype=wd
+		sect_fwd=""
+		type=ST506
+		;;
+	scsi|SCSI)
+		drivename=sd0
+		drivetype=sd
+		sect_fwd=""
+		type=SCSI
+		;;
+esac
+echo    ""
+echo    "Disk is of type $drivetype"
+echo    "going to install on $drivename..."
+echo    ""
+echo -n "Label name (what kind of disk is it, one word please)? "
+read name
+echo	""
+echo -n "Number of bytes per disk sector? [512] "
+read bytes_per_sect
+if [ "$bytes_per_sect" = "" ]; then
+	bytes_per_sect=512
+fi
+echo	""
+echo -n "Number of disk cylinders? "
+read cyls_per_disk
+echo	""
+echo -n "Number of disk tracks (heads) per disk cylinder? "
+read tracks_per_cyl
+echo	""
+echo -n "Number of disk sectors per disk track? "
+read sects_per_track
+echo	""
+cylindersize=`expr $sects_per_track \* $tracks_per_cyl`
+disksize=`expr $cylindersize \* $cyls_per_disk`
+echo    "Disk has a total of $disksize $bytes_per_sect byte sectors"
+echo    "For greater efficiency, partitions should begin and end on cylinder"
+echo    "boundaries.  Cylinder size (in $bytes_per_sect byte sectors) on this"
+echo    "disk is $cylindersize.  Choose multiples of this value."
+echo	""
+echo -n "Size of NetBSD portion of disk (in $bytes_per_sect byte sized sectors)? "
+read partition
+part_offset=0
+if [ $partition -lt $disksize ]; then
+	echo -n "Offset of NetBSD portion of disk (in $bytes_per_sect byte sized sectors) "
+	read part_offset
+fi
+badspacesec=0
+if [ "$sect_fwd" = "sf:" ]; then
+	badspacecyl=`expr $sects_per_track + 126`
+	badspacecyl=`expr $badspacecyl + $cylindersize - 1`
+	badspacecyl=`expr $badspacecyl / $cylindersize`
+	badspacesec=`expr $badspacecyl \* $cylindersize`
+	echo ""
+	echo -n "Using $badspacesec sectors ($badspacecyl cylinders) for the "
+	echo "bad144 bad block table"
+fi
+whats_left=`expr $partition - $badspacesec`
+cyl_left=`expr $whats_left / $cylindersize`
+echo	""
+echo	"There are $whats_left sectors ($cyl_left cylinders) left to allocate"
+echo	""
+root=0
+while [ $root -eq 0 ]; do
+	echo -n "Root partition size (in $bytes_per_sect byte sized sectors)? "
+	read root
+	case $root in
+		[1-9]*)
+			total=$root
+			if [ $total -gt $whats_left ]; then
+				echo Total is greater than remaining free space
+				root=0
+			else
+				part_used=`expr $root + $badspacesec`
+			fi
+			;;
+		*)
+			root=0
+			;;
+	esac
+done
+root_offset=$part_offset
+whats_left=`expr $partition - $part_used`
+echo	""
+swap=0
+while [ $swap -eq 0 ]; do
+	echo    "$whats_left sectors remaining in NetBSD portion of disk"
+	echo -n "Swap partition size (in $bytes_per_sect byte sized sectors)? "
+	read swap 
+	case $swap in
+		[1-9]*)
+			if [ $swap -gt $whats_left ]; then
+				echo Swap size is greater than remaining free space
+				swap=0
+			fi
+			;;
+		*)
+			swap=0
+			;;
+	esac
+done
+echo ""
+echo -n "What blocking factor should be used for the filesystem? [1] "
+read blocking_factor
+if [ "$blocking_factor" = "" ]; then
+	blocking_factor=1
+fi
+swap_offset=`expr $root_offset + $root`
+part_used=`expr $part_used + $swap`
+fragsize=`expr $bytes_per_sect \* $blocking_factor`
+blocksize=`expr $bytes_per_sect \* $blocking_factor \* 8`
+mount -u /dev/fd0a /
+echo    "" >/etc/disktab
+echo    "$name|NetBSD installation generated:\\" >>/etc/disktab
+echo    "	:dt=${type}:ty=winchester:\\" >>/etc/disktab
+echo -n "	:nc#${cyls_per_disk}:ns#${sects_per_track}" >>/etc/disktab
+echo    ":nt#${tracks_per_cyl}:\\" >>/etc/disktab
+echo    "	:se#${bytes_per_sect}:${sect_fwd}\\" >>/etc/disktab
+echo -n "	:pa#${root}:oa#${root_offset}" >>/etc/disktab
+echo    ":ta=4.2BSD:ba#${blocksize}:fa#${fragsize}:\\" >>/etc/disktab
+echo    "	:pb#${swap}:ob#${swap_offset}:tb=swap:\\" >>/etc/disktab
+echo    "	:pc#${partition}:oc#${part_offset}:\\" >>/etc/disktab
+ename="";fname="";gname="";hname=""
+
+echo    ""
+echo	"You will now have to enter information about any other partitions"
+echo	"to be created in the NetBSD portion of the disk.  This process will"
+echo	"be complete when you've filled up all remaining space in the NetBSD"
+echo	"portion of the disk."
+
+while [ $part_used -lt $partition ]; do
+	part_size=0
+	whats_left=`expr $partition - $part_used`
+	while [ $part_size -eq 0 ]; do
+		echo	""
+		echo    "$whats_left sectors remaining in NetBSD portion of disk"
+		echo -n "Next partition size (in $bytes_per_sect byte sized sectors)? "
+		read part_size
+		case $part_size in
+			[1-9]*)
+				total=`expr $part_used + $part_size`
+				if [ $total -gt $partition ]; then
+					echo Total is greater than partition size
+					part_size=0
+				else
+					part_used=$total
+					part_name=""
+					while [ "$part_name" = "" ]; do
+						echo -n "Mount point? "
+						read part_name
+					done
+				fi
+				;;
+			*)
+				part_size=0
+				;;
+		esac
+	done
+	if [ "$ename" = "" ]; then	
+		ename=$part_name
+		offset=`expr $part_offset + $root + $swap`
+		echo -n "	:pe#${part_size}:oe#${offset}" >>/etc/disktab
+		echo ":te=4.2BSD:be#${blocksize}:fe#${fragsize}:\\" >>/etc/disktab
+		offset=`expr $offset + $part_size`
+	elif [ "$fname" = "" ]; then
+		fname=$part_name
+		echo -n "	:pf#${part_size}:of#${offset}" >>/etc/disktab
+		echo ":tf=4.2BSD:bf#${blocksize}:ff#${fragsize}:\\" >>/etc/disktab
+		offset=`expr $offset + $part_size`
+	elif [ "$gname" = "" ]; then
+		gname=$part_name
+		echo -n "	:pg#${part_size}:og#${offset}" >>/etc/disktab
+		echo ":tg=4.2BSD:bg#${blocksize}:fg#${fragsize}:\\" >>/etc/disktab
+		offset=`expr $offset + $part_size`
+	elif [ "$hname" = "" ]; then
+		hname=$part_name
+		echo -n "	:ph#${part_size}:oh#${offset}" >>/etc/disktab
+		echo ":th=4.2BSD:bh#${blocksize}:fh#${fragsize}:\\" >>/etc/disktab
+		part_used=partition
+	fi
+done
+
+echo    "	:pd#${disksize}:od#0:" >>/etc/disktab
+cat /etc/disktab
+#No longer provide a disktab.preinstall on the floppy!
+#cat /etc/disktab.preinstall >> /etc/disktab
+sync
+
+echo    ""
+echo    "OK!  THIS IS YOUR LAST CHANCE!!!"
+echo -n "Are you sure you want this stuff installed on your hard drive? (yes/no) "
+answer=""
+while [ "$answer" = "" ]; do
+	read answer
+	case $answer in
+		yes|YES)
+			echo    ""
+			echo    "OK!  Here we go..."
+			;;
+		no|NO)
+			echo    ""
+			echo    "OK, then.  enter 'halt' to halt the machine."
+			echo    "Once the machine has halted, remove the floppy,"
+			echo    "and press any key to reboot."
+			exit
+			;;
+		*)
+			echo -n "I want a yes or no answer...  well? "
+			answer=
+			;;
+	esac
+done
+
+echo    ""
+echo -n "Labelling disk..."
+disklabel -w -r $drivename $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype}
+echo    " done."
+
+if [ "$sect_fwd" = "sf:" ]; then
+	echo -n "Initializing bad144 badblock table..."
+	bad144 $drivename 0
+	echo " done."
+fi
+
+echo    "Initializing root filesystem, and mounting..."
+newfs /dev/r${drivename}a $name
+mount -v /dev/${drivename}a /mnt
+if [ "$ename" != "" ]; then
+	echo    ""
+	echo    "Initializing $ename filesystem, and mounting..."
+	newfs /dev/r${drivename}e $name
+	mkdir -p /mnt/$ename
+	mount -v /dev/${drivename}e /mnt/$ename
+fi
+if [ "$fname" != "" ]; then
+	echo    ""
+	echo    "Initializing $fname filesystem, and mounting..."
+	newfs /dev/r${drivename}f $name
+	mkdir -p /mnt/$fname
+	mount -v /dev/${drivename}f /mnt/$fname
+fi
+if [ "$gname" != "" ]; then
+	echo    ""
+	echo    "Initializing $gname filesystem, and mounting..."
+	newfs /dev/r${drivename}g $name
+	mkdir -p /mnt/$gname
+	mount -v /dev/${drivename}g /mnt/$gname
+fi
+if [ "$hname" != "" ]; then
+	echo    ""
+	echo    "Initializing $hname filesystem, and mounting..."
+	newfs /dev/r${drivename}h $name
+	mkdir -p /mnt/$hname
+	mount -v /dev/${drivename}h /mnt/$hname
+fi
+
+echo    ""
+echo -n "Verbose installation? [n] "
+read resp
+
+echo Copying to disk...
+cd /
+case $resp in
+	y*)
+		tarverbose=v
+		;;
+	*)
+		tarverbose=
+		;;
+esac
+
+tar cfp - `cat /dirlist` | (cd /mnt ; tar xfp${tarverbose} - )
+mkdir /mnt/mnt
+
+cd /mnt
+
+echo /dev/${drivename}a / ufs rw 1 1 >etc/fstab
+echo "kernfs /kern kernfs rw 1 1" >>etc/fstab
+if [ "$ename" != "" ]; then
+	echo /dev/${drivename}e /$ename ufs rw 1 2 >>etc/fstab
+fi
+if [ "$fname" != "" ]; then
+	echo /dev/${drivename}f /$fname ufs rw 1 3 >>etc/fstab
+fi
+if [ "$gname" != "" ]; then
+	echo /dev/${drivename}g /$gname ufs rw 1 4 >>etc/fstab
+fi
+if [ "$hname" != "" ]; then
+	echo /dev/${drivename}h /$hname ufs rw 1 5 >>etc/fstab
+fi
+
+cat << EOF >.profile
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:.:
+export PATH
+HOME=/root
+export HOME
+TERM=pc3
+export TERM
+echo    ""
+echo    "Insert second installation floppy in drive and"
+echo -n "enter that drive's number (e.g. 0 or 1): "
+read driveno
+mount -o ro /dev/fd\${driveno}a /mnt
+cd /mnt
+install
+EOF
+
+sync
+
+echo    "The next step:  reboot from the kernel copy disk, copy a"
+echo    "kernel to your hard disk (to partition ${drivename}a), then reboot"
+echo    "from the hard disk."
+echo    ""
+echo    "Enter 'halt' to halt the machine."
+echo    "Once the machine has halted, replace the floppy in the disk drive"
+echo    "with the kernel-copy disk that you originally booted from."
+echo    "Once you have done that, press any key to reboot."
