@@ -45,8 +45,8 @@
 .Fn arc4random "void"
 .Pp
 .In sys/random.h
-.Ft u_int
-.Fn read_random "void *buffer" "u_int count"
+.Ft int
+.Fn read_random "void *buffer" "int count"
 .Sh DESCRIPTION
 The
 .Fn random
