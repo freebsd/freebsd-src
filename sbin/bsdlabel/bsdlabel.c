@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.22 1998/10/17 09:56:32 bde Exp $";
+	"$Id: disklabel.c,v 1.23 1998/10/23 18:57:39 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -595,25 +595,13 @@ makebootarea(boot, dp, f)
 		*np++ = '\0';
 
 		if (!xxboot) {
-			(void)sprintf(np, "%s/%sboot",
-				      _PATH_BOOTDIR, dkbasename);
-			if (access(np, F_OK) < 0 && dkbasename[0] == 'r')
-				dkbasename++;
-			xxboot = np;
-			(void)sprintf(xxboot, "%s/%sboot",
-				      _PATH_BOOTDIR, dkbasename);
-			np += strlen(xxboot) + 1;
+			(void)sprintf(boot0, "%s/boot1", _PATH_BOOTDIR);
+			xxboot = boot0;
 		}
 #if NUMBOOT > 1
 		if (!bootxx) {
-			(void)sprintf(np, "%s/boot%s",
-				      _PATH_BOOTDIR, dkbasename);
-			if (access(np, F_OK) < 0 && dkbasename[0] == 'r')
-				dkbasename++;
-			bootxx = np;
-			(void)sprintf(bootxx, "%s/boot%s",
-				      _PATH_BOOTDIR, dkbasename);
-			np += strlen(bootxx) + 1;
+			(void)sprintf(boot1, "%s/boot2", _PATH_BOOTDIR);
+			bootxx = boot1;
 		}
 #endif
 	}
