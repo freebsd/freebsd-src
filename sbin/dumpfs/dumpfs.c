@@ -67,15 +67,12 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <fstab.h>
+#include <libufs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-union {
-	struct fs fs;
-	char pad[MAXBSIZE];
-} fsun;
-#define	afs	fsun.fs
+#define	afs	disk.d_fs
 
 union {
 	struct cg cg;
@@ -83,12 +80,7 @@ union {
 } cgun;
 #define	acg	cgun.cg
 
-long	dev_bsize = 1;
-
-/*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
+struct uufsd disk;
 
 int	dumpfs(const char *);
 int	dumpcg(const char *, int, int);
@@ -127,28 +119,11 @@ dumpfs(const char *name)
 	ssize_t n;
 	time_t time;
 	int64_t fssize;
-	int fd, c, i, j, k, size;
+	int c, i, j, k, size;
 
-	if ((fd = open(name, O_RDONLY, 0)) < 0)
-		goto err;
-	for (i = 0; sblock_try[i] != -1; i++) {
-		if (lseek(fd, (off_t)sblock_try[i], SEEK_SET) == (off_t)-1)
+	if (ufs_disk_fillout(&disk, name) == -1)
 			goto err;
-		if ((n = read(fd, &afs, SBLOCKSIZE)) == -1)
-			goto err;
-		if ((afs.fs_magic == FS_UFS1_MAGIC ||
-		     (afs.fs_magic == FS_UFS2_MAGIC &&
-		      afs.fs_sblockloc == numfrags(&afs, sblock_try[i]))) &&
-		    afs.fs_bsize <= MAXBSIZE &&
-		    afs.fs_bsize >= sizeof(struct fs))
-			break;
-	}
-	if (sblock_try[i] == -1) {
-		fprintf(stderr, "Cannot find filesystem superblock\n");
-		return (1);
-	}
 
-	dev_bsize = afs.fs_fsize / fsbtodb(&afs, 1);
 	if (afs.fs_magic == FS_UFS2_MAGIC) {
 		fssize = afs.fs_size;
 		time = afs.fs_time;
@@ -234,11 +209,11 @@ dumpfs(const char *name)
 	putchar('\n');
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
 	afs.fs_csp = calloc(1, afs.fs_cssize);
-	if (lseek(fd,
-	    (off_t)(fsbtodb(&afs, afs.fs_csaddr)) * (off_t)dev_bsize,
+	if (lseek(disk.d_fd,
+	    (off_t)(fsbtodb(&afs, afs.fs_csaddr)) * (off_t)disk.d_bsize,
 	    SEEK_SET) == (off_t)-1)
 		goto err;
-	if (read(fd, (char *)afs.fs_csp, afs.fs_cssize) != afs.fs_cssize)
+	if (read(disk.d_fd, (char *)afs.fs_csp, afs.fs_cssize) != afs.fs_cssize)
 		goto err;
 	for (i = 0; i < afs.fs_ncg; i++) {
 		struct csum *cs = &afs.fs_cs(&afs, i);
@@ -257,13 +232,12 @@ dumpfs(const char *name)
 		    (fssize % afs.fs_fpg) / afs.fs_frag);
 	}
 	for (i = 0; i < afs.fs_ncg; i++)
-		if (dumpcg(name, fd, i))
+		if (dumpcg(name, disk.d_fd, i))
 			goto err;
-	(void)close(fd);
+	ufs_disk_close(&disk);
 	return (0);
 
-err:	if (fd != -1)
-		(void)close(fd);
+err:	ufs_disk_close(&disk);
 	warn("%s", name);
 	return (1);
 };
@@ -277,9 +251,9 @@ dumpcg(const char *name, int fd, int c)
 
 	printf("\ncg %d:\n", c);
 	if ((cur = lseek(fd, (off_t)(fsbtodb(&afs, cgtod(&afs, c))) *
-	    (off_t)dev_bsize, SEEK_SET)) == (off_t)-1)
+	    (off_t)disk.d_bsize, SEEK_SET)) == (off_t)-1)
 		return (1);
-	if (read(fd, &acg, afs.fs_bsize) != afs.fs_bsize) {
+	if (read(disk.d_fd, &acg, afs.fs_bsize) != afs.fs_bsize) {
 		warnx("%s: error reading cg", name);
 		return (1);
 	}
