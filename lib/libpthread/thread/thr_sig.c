@@ -243,8 +243,10 @@ _thread_signal(pthread_t pthread, int sig)
 	sigaddset(&pthread->sigpend,sig);
 
 	/* Check if system calls are not restarted: */
-	if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) == 0) {
+	if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) != 0) {
 		/*
+		 * System calls are flagged for restart.
+		 *
 		 * Process according to thread state:
 		 */
 		switch (pthread->state) {
@@ -293,8 +295,6 @@ _thread_signal(pthread_t pthread, int sig)
 		}
 	} else {
 		/*
-		 * System calls are flagged for restart.
-		 *
 		 * Process according to thread state:
 		 */
 		switch (pthread->state) {
