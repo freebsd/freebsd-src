@@ -9,7 +9,7 @@ MAN1=	lint.1
 CFLAGS+=-I${.CURDIR}/../lint1
 
 realinstall:
-	install ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${PROG} ${DESTDIR}${BINDIR}/lint
 
 

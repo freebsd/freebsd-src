@@ -5,7 +5,7 @@ LIBS=	llib-lposix.ln llib-lstdc.ln
 all:	${LIBS}
 
 install:
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NONBINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NONBINMODE} \
 	    ${LIBS} ${DESTDIR}${LINTLIBDIR}
 
 clean cleanall:
