@@ -159,6 +159,20 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
 	x509/x509_vfy.h x509v3/x509v3.h
 
+MAN3=	des_crypt.3
+
+MLINKS= des_crypt.3 des_read_password.3 \
+	des_crypt.3 des_read_2password.3 des_crypt.3 des_string_to_key.3 \
+	des_crypt.3 des_string_to_2key.3 des_crypt.3 des_read_pw_string.3 \
+	des_crypt.3 des_random_key.3 des_crypt.3 des_set_key.3 \
+	des_crypt.3 des_key_sched.3 des_crypt.3 des_ecb_encrypt.3 \
+	des_crypt.3 des_3ecb_encrypt.3 des_crypt.3 des_cbc_encrypt.3 \
+	des_crypt.3 des_3cbc_encrypt.3 des_crypt.3 des_pcbc_encrypt.3 \
+	des_crypt.3 des_cfb_encrypt.3 des_crypt.3 des_ofb_encrypt.3 \
+	des_crypt.3 des_cbc_cksum.3 des_crypt.3 des_quad_cksum.3 \
+	des_crypt.3 des_enc_read.3 des_crypt.3 des_enc_write.3 \
+	des_crypt.3 des_set_odd_parity.3 des_crypt.3 des_is_weak_key.3
+
 beforedepend: ${.OBJDIR}/obj_dat.h ${.OBJDIR}/buildinf.h \
 	${.OBJDIR}/openssl/opensslconf.h headers
 
