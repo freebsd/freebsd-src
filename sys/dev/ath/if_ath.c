@@ -1640,18 +1640,6 @@ ath_mode_init(struct ath_softc *sc)
 		__func__, rfilt, mfilt[0], mfilt[1]);
 }
 
-static void
-ath_mbuf_load_cb(void *arg, bus_dma_segment_t *seg, int nseg, bus_size_t mapsize, int error)
-{
-	struct ath_buf *bf = arg;
-
-	KASSERT(nseg <= ATH_MAX_SCATTER, ("too many DMA segments %u", nseg));
-	KASSERT(error == 0, ("error %u on bus_dma callback", error));
-	bf->bf_mapsize = mapsize;
-	bf->bf_nseg = nseg;
-	bcopy(seg, bf->bf_segs, nseg * sizeof (seg[0]));
-}
-
 /*
  * Set the slot time based on the current setting.
  */
@@ -1740,8 +1728,8 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 		sc->sc_stats.ast_be_nombuf++;
 		return ENOMEM;
 	}
-	error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m,
-				     ath_mbuf_load_cb, bf,
+	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
+				     bf->bf_segs, &bf->bf_nseg,
 				     BUS_DMA_NOWAIT);
 	if (error == 0) {
 		bf->bf_m = m;
@@ -1886,12 +1874,12 @@ ath_beacon_proc(void *arg, int pending)
 	if (ieee80211_beacon_update(ic, bf->bf_node, &sc->sc_boff, m, ncabq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m,
-					     ath_mbuf_load_cb, bf,
+		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
+					     bf->bf_segs, &bf->bf_nseg,
 					     BUS_DMA_NOWAIT);
 		if (error != 0) {
 			if_printf(ic->ic_ifp,
-			    "%s: bus_dmamap_load_mbuf failed, error %u\n",
+			    "%s: bus_dmamap_load_mbuf_sg failed, error %u\n",
 			    __func__, error);
 			return;
 		}
@@ -2386,14 +2374,14 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 		bf->bf_m = m;
 		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
-		error = bus_dmamap_load_mbuf(sc->sc_dmat,
+		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat,
 					     bf->bf_dmamap, m,
-					     ath_mbuf_load_cb, bf,
+					     bf->bf_segs, &bf->bf_nseg,
 					     BUS_DMA_NOWAIT);
 		if (error != 0) {
 			DPRINTF(sc, ATH_DEBUG_ANY,
-				"%s: bus_dmamap_load_mbuf failed; error %d\n",
-				__func__, error);
+			    "%s: bus_dmamap_load_mbuf_sg failed; error %d\n",
+			    __func__, error);
 			sc->sc_stats.ast_rx_busdma++;
 			return error;
 		}
@@ -3007,8 +2995,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * Load the DMA map so any coalescing is done.  This
 	 * also calculates the number of descriptors we need.
 	 */
-	error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m0,
-				     ath_mbuf_load_cb, bf,
+	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
+				     bf->bf_segs, &bf->bf_nseg,
 				     BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		/* XXX packet requires too many descriptors */
@@ -3031,8 +3019,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			m_freem(m0);
 			return ENOMEM;
 		}
-		error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m0,
-					     ath_mbuf_load_cb, bf,
+		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
+					     bf->bf_segs, &bf->bf_nseg,
 					     BUS_DMA_NOWAIT);
 		if (error != 0) {
 			sc->sc_stats.ast_tx_busdma++;
