@@ -34,4 +34,4 @@
  */
 #include <paths.h>
 
-#define _PATH_LOCTMP	"/tmp/local.XXXXXX"
+#define _PATH_LOCTMP   "/var/tmp/local.XXXXXX"

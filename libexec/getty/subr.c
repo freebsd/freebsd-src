@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)from: subr.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: subr.c,v 1.6.2.5 1997/12/15 07:10:53 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -78,7 +78,7 @@ gettable(name, buf)
 	long n;
 	int l;
 	char *p;
-	const char *msg = NULL;
+	char *msg = NULL;
 	const char *dba[2];
 
 	static int firsttime = 1;
