@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
+.\"	$Id$
 .\"
 .Dd "April 19, 1994"
 .Dt DISKLABEL 8
@@ -330,8 +331,8 @@ installed both in-core and on-disk.
 The bootstrap code comes from the file
 .Pa /usr/mdec/newboot .
 .Sh SEE ALSO
-.Xr disktab 5 ,
-.Xr disklabel 5
+.Xr disklabel 5 ,
+.Xr disktab 5
 .Sh DIAGNOSTICS
 The kernel device drivers will not allow the size of a disk partition
 to be decreased or the offset of a partition to be changed while it is open.
