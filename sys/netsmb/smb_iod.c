@@ -87,7 +87,7 @@ smb_iod_invrq(struct smbiod *iod)
 	struct smb_rq *rqp;
 
 	/*
-         * Invalidate all outstanding requests for this connection
+	 * Invalidate all outstanding requests for this connection
 	 */
 	SMB_IOD_RQLOCK(iod);
 	TAILQ_FOREACH(rqp, &iod->iod_rqlist, sr_link) {
@@ -689,8 +689,8 @@ int
 smb_iod_destroy(struct smbiod *iod)
 {
 	smb_iod_request(iod, SMBIOD_EV_SHUTDOWN | SMBIOD_EV_SYNC, NULL);
-	mtx_destroy(&iod->iod_rqlock);
-	mtx_destroy(&iod->iod_evlock);
+	smb_sl_destroy(&iod->iod_rqlock);
+	smb_sl_destroy(&iod->iod_evlock);
 	free(iod, M_SMBIOD);
 	return 0;
 }
