@@ -163,8 +163,7 @@ static __inline struct file *
 fget_locked(struct filedesc *fdp, int fd)
 {
 
-	/* u_int cast checks for negative descriptors. */
-	return ((u_int)fd >= (u_int)fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
+	return (fd < 0 || fd >= fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
 }
 
 extern struct mtx fdesc_mtx;
