@@ -25,7 +25,7 @@ bail_out() {
 	reboot_it
 }
 
-echo    enter '"copy"' at the prompt to copy the kernel on this
+echo    Enter '"copy"' at the prompt to copy the kernel on this
 echo    floppy to your hard disk.  enter anything else to reboot,
 echo	but wait for the machine to restart to remove the floppy.
 echo    ""
@@ -35,23 +35,23 @@ read todo
 
 if [ X"$todo" = Xcopy ]; then
 	echo    ""
-	echo    "what disk partition should the kernel be installed on?"
-	echo    "(e.g. "wd0a", "sd0a", etc.)"
+	echo    "What disk partition should the kernel be installed on?"
+	echo    "(e.g., "wd0a", "sd0a", etc.)"
 	echo    ""
 	echo -n "copy kernel to> "
 	while :; do
 		read diskpart junk
 		[ -c /dev/r$diskpart ] && break
-		echo "$diskpart: invalid partition"
+		echo "${diskpart}: invalid partition"
 		echo
 		echo -n "copy kernel to> "
 	done
 	echo    ""
-	echo    "checking the filesystem on $diskpart..."
+	echo    "Checking the filesystem on $diskpart..."
 	fsck -y /dev/r$diskpart
 	if [ $? -ne 0 ]; then
 		echo ""
-		echo "fsck failed...  sorry, can't copy kernel..."
+		echo "fsck failed...  Sorry, can't copy kernel..."
 		bail_out
 	fi
 	echo    ""
@@ -59,15 +59,15 @@ if [ X"$todo" = Xcopy ]; then
 	mount /dev/$diskpart /mnt
 	if [ $? -ne 0 ]; then
 		echo ""
-		echo "mount failed...  sorry, can't copy kernel..."
+		echo "mount failed...  Sorry, can't copy kernel..."
 		bail_out
 	fi
 	echo    ""
-	echo    "copying kernel..."
+	echo    "Please wait.  Copying kernel..."
 	cp /386bsd /mnt/386bsd
 	if [ $? -ne 0 ]; then
 		echo ""
-		echo "copy failed...  (?!?!?!)"
+		echo "Copy failed...  (?!?!?!)"
 		bail_out
 	fi
 	echo    ""
@@ -75,7 +75,7 @@ if [ X"$todo" = Xcopy ]; then
 	umount /mnt > /dev/null 2>&1
 	if [ $? -ne 0 ]; then
 		echo ""
-		echo "unmount failed...  shouldn't be a problem..."
+		echo "unmount failed...  Shouldn't be a problem..."
 	fi
 	bail_out
 fi
