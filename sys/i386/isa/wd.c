@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.170 1998/07/04 22:30:18 julian Exp $
+ *	$Id: wd.c,v 1.171 1998/07/11 07:45:35 bde Exp $
  */
 
 /* TODO:
@@ -598,7 +598,6 @@ wdattach(struct isa_device *dvp)
 					du,
 					&du->limit,
 		 			&du->slice,
-					NULL,
 					namebuf);
 				/* Allow full probing */
 				du->slice->probeinfo.typespecific = NULL;
@@ -706,10 +705,9 @@ wds_init(void *arg)
 		}
 	}
 #endif
-	if ((tp = slice_probeall(du->slice)) != NULL) {
-		(*tp->constructor)(du->slice);
-	}
+	slice_start_probe(du->slice);
 	config_intrhook_disestablish(&du->ich);
+	DELAY(2000000); /* XXX */
 #if 0
 	wdsclose(du, 0, 0, curproc);
 #else

@@ -23,9 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: disklabel.c,v 1.5 1998/05/06 23:32:47 julian Exp $
+ *	$Id: disklabel.c,v 1.6 1998/06/07 19:40:31 dfr Exp $
  */
 #define BAD144
+#undef BAD144
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -65,7 +66,6 @@ struct private_data {
 #endif
 };
 
-static sl_h_constructor_t dkl_constructor;	/* constructor (from device) */
 static sl_h_IO_req_t dkl_IOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t dkl_ioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t dkl_open;	/* downwards travelling open */
@@ -75,13 +75,14 @@ static sl_h_revoke_t dkl_revoke;/* upwards travelling revokation */
 static sl_h_verify_t dkl_verify;/* things changed, are we stil valid? */
 static sl_h_upconfig_t dkl_upconfig;/* config requests from below */
 static sl_h_dump_t dkl_dump;	/* core dump req downward */
+static sl_h_done_t dkl_done;	/* callback after async request */
 
 static struct slice_handler slicetype = {
 	"disklabel",
 	0,
 	NULL,
 	0,
-	&dkl_constructor,	/* constructor */
+	&dkl_done,
 	&dkl_IOreq,
 	&dkl_ioctl,
 	&dkl_open,
@@ -101,146 +102,387 @@ sd_drvinit(void *unused)
 
 SYSINIT(sddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sd_drvinit, NULL);
 
-/*-
- * Given a slice, extract out our table of information
- */
-/*-
- * Attempt to read a disk label from a slice.
- * The label must be partly set up before this: secpercyl, secsize
- * and anything required in the strategy routine (e.g., dummy bounds for the
- * partition containing the label) must be filled in before calling us.
- * Returns NULL on success and an error string on failure.
+/*
+ * Allocate and the private data.
  */
 static int
-dkl_extract_table(sl_p slice, struct disklabel * lp)
+dklallocprivate(sl_p slice)
 {
-	int             error = EINVAL;
-	struct buf     *bp;
-	struct disklabel *dlp;
-	struct partition *dp;
-	int             part;
-	int		slice_offset; /* XXX */
+	register struct private_data *pd;
+	
+	pd = malloc(sizeof(*pd), M_DEVBUF, M_NOWAIT);
+	if (pd == NULL) {
+		printf("dkl: failed malloc\n");
+		return (ENOMEM);
+	}
+	bzero(pd, sizeof(*pd));
+	pd->slice_down = slice;
+	slice->refs++;
+	slice->handler_up = &slicetype;
+	slice->private_up = pd;
+	slicetype.refs++;
+	return (0);
+}
 
-	RR;
-	/* start off with a known result */
-	bzero(lp, sizeof(*lp));
-	if (error = slice_readblock(slice, LABELSECTOR, &bp))
-		return (error);
+static int
+dkl_claim(sl_p slice)
+{
+	int	error = 0;
+	/*
+	 * Don't even BOTHER if it's not 512 byte sectors
+	 */
+	if (slice->limits.blksize != 512)
+		return (EINVAL);
+	if (slice->private_up == NULL) {
+		if ((error = dklallocprivate(slice))) {
+			return (error);
+		}
+	}
+	slice->flags |= SLF_PROBING;
+	if ((error = slice_request_block(slice, LABELSECTOR))) {
+		slice->flags &= ~SLF_PROBING;
+		dkl_revoke(slice->private_up); 
+	}
+	return (error);
+}
+
+static int
+dkl_verify(sl_p slice)
+{
+	int	error = 0;
+	/*
+	 * Don't even BOTHER if it's not 512 byte sectors
+	 */
+	if (slice->limits.blksize != 512)
+		return (EINVAL);
+	if ((error = slice_request_block(slice, LABELSECTOR))) {
+		dkl_revoke(slice->private_up); 
+	}
+	return (error);
+}
+
+/* 
+ * called with an argument of a bp when it is completed
+ */
+static int
+dkl_done(sl_p slice, struct buf *bp)
+{
+	register struct private_data *pd;
+	struct disklabel  label;
+	struct disklabel *lp, *dlp, *dl;
+	struct partition *dp0, *dp, *dp2;
+	int             part;
+	int		found = 0;
+	int             i;
+	char            name[64];
+	int		slice_offset;
+	int		error = 0;
+
+
+RR;
+	/*
+	 * Discover whether the IO was successful.
+	 */
+	pd = slice->private_up;	
+	if ( bp->b_flags & B_ERROR ) {
+		error = bp->b_error;
+		goto nope;
+		
+	}
+
 	/*
 	 * Step through the block looking for the label.
 	 * It may not be at the front (Though I have never seen this).
 	 * When found, copy it to the destination supplied.
 	 */
-	error = EINVAL;
 	for (dlp = (struct disklabel *) bp->b_data;
 	    dlp <= (struct disklabel *) ((char *) bp->b_data
 					+ slice->limits.blksize
 					- sizeof(*dlp));
-	    dlp = (struct disklabel *) ((char *) dlp + sizeof(long))) {
-		if ((dlp->d_magic != DISKMAGIC) ||
-		    (dlp->d_magic2 != DISKMAGIC) ||
-		    (dlp->d_npartitions > MAXPARTITIONS) ||
-		    dkcksum(dlp))
-			continue;
-		error = 0;
-		bcopy(dlp, lp, sizeof(*lp));
-		/*
-		 * disklabels are done relative to the base of the disk,
-		 * rather than the local partition, (DUH!)
-		 * so use partition 2 (c) to get the base,
-		 * and subtract it from all non-0 offsets.
-		 */
-		dp = lp->d_partitions;
-		slice_offset = dp[2].p_offset;
-		for (part = 0; part < MAXPARTITIONS; part++, dp++) {
-			/*
-			 * We could be reloading, in which case skip
-			 * entries already set up.
-			 */
-			if (dp->p_size == 0)
-				continue;
-			if( dp->p_offset < slice_offset ) {
-				printf("slice before 'c'\n");
-				dp->p_size = 0;
-				continue;
-			}
-			dp->p_offset -= slice_offset;
+	    dlp = (struct disklabel *) (((char *) dlp) + sizeof(long))) {
+		if ((dlp->d_magic == DISKMAGIC) &&
+		    (dlp->d_magic2 == DISKMAGIC) &&
+		    (dlp->d_npartitions <= MAXPARTITIONS) &&
+		    (dkcksum(dlp) == 0))  {
+			found = 1;
+			break;
 		}
-		break;
+	}
+	if (! found) {
+		goto nope;
 	}
 
-done:
+	/* copy the table out of the buf and release it. */
+	bcopy(dlp, &label, sizeof(label));
 	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
-	return (error);
-}
-/*
- * given a table, write it to disk.
- */
-static int
-dkl_insert_table(sl_p slice, struct disklabel * lp)
-{
-	int             error = EINVAL;
-	struct buf     *bp;
-	struct disklabel *dlp;
-	struct partition *dp;
-	int             part;
-	int		slice_offset; /* XXX */
 
-	RR;
-	/* start off with a known result */
-	if (error = slice_readblock(slice, LABELSECTOR, &bp))
-		return (error);
 	/*
-	 * Step through the block looking for the label.
-	 * It may not be at the front (Though I have never seen this).
-	 * When found, replace it witht he new one. 
-	 */
-	error = EINVAL;
-	for (dlp = (struct disklabel *) bp->b_data;
-	    dlp <= (struct disklabel *) ((char *) bp->b_data
-					+ slice->limits.blksize
-					- sizeof(*dlp));
-	    dlp = (struct disklabel *) ((char *) dlp + sizeof(long))) {
-		if ((dlp->d_magic != DISKMAGIC) ||
-		    (dlp->d_magic2 != DISKMAGIC) ||
-		    (dlp->d_npartitions > MAXPARTITIONS) ||
-		    dkcksum(dlp))
-			continue;
-		error = 0;
-	}
-	if (error) {
-		/*
-		 * We didn't find one..
-		 * so clear the block and place the new disklabel
-		 * at the start.
-		 */
-		bzero(bp->b_data, slice->limits.blksize);
-		dlp = (struct disklabel *) bp->b_data;
-	}
-	/*
-	 * old disklabels are done relative to the base of the disk,
+	 * Disklabels are done relative to the base of the disk,
 	 * rather than the local partition, (DUH!)
 	 * so use partition 2 (c) to get the base,
 	 * and subtract it from all non-0 offsets.
 	 */
-	dp = dlp->d_partitions;
+	dp = label.d_partitions;
 	slice_offset = dp[2].p_offset;
-	bcopy(lp, dlp, sizeof(*lp));
-	slice_offset -= dp[2].p_offset; /* size we adjust by? */
 	for (part = 0; part < MAXPARTITIONS; part++, dp++) {
+		/*
+		 * We could be reloading, in which case skip
+		 * entries already set up.
+		 */
 		if (dp->p_size == 0)
 			continue;
-		dp->p_offset += slice_offset;
+		if ( dp->p_offset < slice_offset ) {
+		printf("slice before 'c'\n");
+			dp->p_size = 0;
+			continue;
+		}
+		dp->p_offset -= slice_offset;
 	}
-	error = slice_writeblock(slice, LABELSECTOR, bp);
-quit:
-	bp->b_flags |= B_INVAL | B_AGE;
-	brelse(bp);
+
+
+	/*-
+	 * Handle the case when we are being asked to reevaluate
+	 * an already loaded disklabel.
+	 * We've already handled the case when it's completely vanished.
+	 *
+	 * Look at a slice that USED to be ours.
+	 * Decide if any sub-slices need to be revoked.
+	 * For each existing subslice, check that the basic size
+	 * and position has not changed. Also check the TYPE.
+	 * If not then at least ask them to verify themselves.
+	 * It is possible we should allow a slice to grow.
+	 */
+	dl = &(pd->disklabel);
+	dp = dl->d_partitions;
+	dp2 = label.d_partitions;
+	for (part = 0; part < MAXPARTITIONS; part++, dp++, dp2++) {
+		if (pd->subdevs[part].slice) {
+			if ((dp2->p_offset != dp->p_offset)
+			    || (dp2->p_size != dp->p_size)) {
+				sl_rmslice(pd->subdevs[part].slice);
+				pd->subdevs[part].slice = NULL;
+			} else if (pd->subdevs[part].slice->handler_up) {
+				(*pd->subdevs[part].slice->handler_up->verify)
+					(pd->subdevs[part].slice);
+			}
+		}
+	}
+	/*- having got rid of changing slices, replace
+	 * the old table with the new one, and
+	 * handle any new slices by calling the constructor.
+	 */
+	bcopy(&label, dl, sizeof(label));
+
+#ifdef BAD144
+#if 0
+ /* place holder:
+	remember to add some state machine to handle bad144 loading */
+
+		if (pd->disklabel.d_flags & D_BADSECT) {
+			if ((error = dkl_readbad144(pd))) {
+				free(pd, M_DEVBUF);
+				return (error);
+			}
+		}
+#endif
+#endif
+	dp0 = dl->d_partitions;
+
+	/*-
+	 * Handle each of the partitions.
+	 * We should check that each makes sence and is legal.
+	 * 1/ it should not already have a slice.
+	 * 2/ should not be 0 length.
+	 * 3/ should not go past end of our slice.
+	 * 4/ should not overlap other slices.
+	 *  It can include sector 0 (unfortunatly)
+	 */
+	dp = dp0;
+	for (part = 0; part < MAXPARTITIONS; part++, dp++) {
+		int             i;
+		if ( part == 2 )
+			continue; /* XXX skip the 'c' partition */
+		/*
+		 * We could be reloading, in which case skip
+		 * entries already set up.
+		 */
+		if (pd->subdevs[part].slice != NULL)
+breakout:		continue;
+		/*
+		 * also skip partitions not present
+		 */
+		if (dp->p_size == 0)
+			continue;
+printf(" part %c, start=%d, size=%d\n", part + 'a', dp->p_offset, dp->p_size);
+
+		if ((dp->p_offset + dp->p_size) >
+		    (slice->limits.slicesize / slice->limits.blksize)) {
+			printf("dkl: slice %d too big ", part);
+			printf("(%x > %x:%x )\n",
+			    (dp->p_offset + dp->p_size),
+			    (slice->limits.slicesize / slice->limits.blksize) );
+			continue;
+		}
+		/* check for overlaps with existing slices */
+		for (i = 0; i < MAXPARTITIONS; i++) {
+ 			/* skip empty slots (including this one) */
+			if (pd->subdevs[i].slice == NULL)
+				continue;
+			if ((dp0[i].p_offset < (dp->p_offset + dp->p_size))
+			&& ((dp0[i].p_offset + dp0[i].p_size) > dp->p_offset))
+			{
+				printf("dkl: slice %d overlaps slice %d\n",
+				       part, i);
+				goto breakout;
+			}
+		}
+		/*-
+		 * the slice seems to make sense. Use it.
+		 */
+		pd->subdevs[part].part = part;
+		pd->subdevs[part].pd = pd;
+		pd->subdevs[part].offset = dp->p_offset;
+		pd->subdevs[part].limit.blksize
+			= slice->limits.blksize;
+		pd->subdevs[part].limit.slicesize
+			= (slice->limits.blksize * (u_int64_t)dp->p_size);
+
+		sprintf(name, "%s%c", slice->name, (char )('a' + part));
+		sl_make_slice(&slicetype,
+			      &pd->subdevs[part],
+			      &pd->subdevs[part].limit,
+			      &pd->subdevs[part].slice,
+			      name);
+		pd->subdevs[part].slice->probeinfo.typespecific = &dp->p_fstype;
+		switch (dp->p_fstype) {
+		case	FS_UNUSED:
+			/* allow unuseed to be further split */
+			pd->subdevs[part].slice->probeinfo.type = NULL;
+			break;
+		case	FS_V6:
+		case	FS_V7:
+		case	FS_SYSV:
+		case	FS_V71K:
+		case	FS_V8:
+		case	FS_MSDOS:
+		case	FS_BSDLFS:
+		case	FS_OTHER:
+		case	FS_HPFS:
+		case	FS_ISO9660:
+		case	FS_BOOT	:
+#if 0
+			printf("%s: type %d. Leaving\n",
+				pd->subdevs[part].slice->name,
+				(u_int)dp->p_fstype);
+#endif
+		case	FS_SWAP:
+		case	FS_BSDFFS:
+			pd->subdevs[part].slice->probeinfo.type = NO_SUBPART;
+			break;
+		default:
+			pd->subdevs[part].slice->probeinfo.type = NULL;
+		}
+		/* 
+		 * Dont allow further breakup of slices that
+		 * cover our disklabel (that would recurse forever)
+		 */
+		if (dp->p_offset < 16) {
+#if 0
+			printf("%s: covers disklabel. Leaving\n",
+				pd->subdevs[part].slice->name);
+#endif
+			pd->subdevs[part].slice->probeinfo.type = NO_SUBPART;
+		}
+		slice_start_probe(pd->subdevs[part].slice);
+	}
+	slice->flags &= ~SLF_PROBING;
+	return (0);
+nope:
+printf("   .. nope\n");
+	dkl_revoke(pd);
 	return (error);
 }
 
+#if 0
+/*-
+ * This is a special HACK function for the IDE driver.
+ * It is here because everything it need is in scope here,
+ * but it is not really part of the SLICE code.
+ * Because old ESDI drives could not tell their geometry, They need
+ * to get it from the MBR or the disklabel. This is the disklabel bit.
+ */
+int
+dkl_geom_hack(struct slice * slice, struct ide_geom *geom)
+{
+	struct disklabel disklabel;
+	struct disklabel *dl, *dl0;
+	int	error;
+	RR;
+
+	/* first check it's a disklabel*/
+	if ((error = dkl_claim (slice)))
+		return (error);
+	/*-
+ 	 * Try load a valid disklabel table.
+	 * This is wasteful but never called on new (< 5 YO ) drives.
+	 */
+	if ((error = dkl_extract_table(slice, &disklabel)) != 0) {
+		return (error);
+	}
+	geom->secpertrack = disklabel. d_nsectors;
+	geom->trackpercyl = disklabel.d_ntracks;
+	geom->cyls = disklabel.d_ncylinders;
+	return (0);
+}
+#endif
+
+/*-
+ * Invalidate all subslices, and free resources for this handler instance.
+ */
+static int
+dkl_revoke(void *private)
+{
+	register struct private_data *pd;
+	register struct slice *slice;
+	int             part;
+
+	RR;
+	pd = private;
+	slice = pd->slice_down;
+	for (part = 0; part < MAXPARTITIONS; part++) {
+		if (pd->subdevs[part].slice) {
+			sl_rmslice(pd->subdevs[part].slice);
+		}
+	}
+	/*-
+	 * remove ourself as a handler
+	 */
+	slice->handler_up = NULL;
+	slice->private_up = NULL;
+	slicetype.refs--;
 #ifdef BAD144
+	if (pd->bad)
+		free(pd->bad, M_DEVBUF);
+#endif
+	free(pd, M_DEVBUF);
+	sl_unref(slice);
+	return (0);
+}
+
+#ifdef BAD144
+#if 0
+	bucket= blknum >> 4;		/* set 16 blocks to the same bucket */
+	bucket ^= (bucket>>16);		/* combine bytes 1+3, 2+4 */
+	bucket ^= (bucket>>8);		/* combine bytes 1+3+2+4 */
+	bucket &= 0x7F;			/* AND 128 entries */
+#endif
+/*
+ * Given a bad144 table, load the  values into ram.
+ * eventually we should hash them so we can do forwards lookups.
+ * Probably should hash on (blknum >> 4) to minimise
+ * lookups for a clustered IO. (see above)
+ */ 
 static int
 dkl_internbad144(struct private_data *pd, struct dkbad *btp, int flag)
 {
@@ -275,6 +517,11 @@ dkl_internbad144(struct private_data *pd, struct dkbad *btp, int flag)
 	return (0);
 }
 
+/*
+ * Hunt in the last cylinder for the  bad144 table
+ * this needs to be turned around to be made into a state operation
+ * driven by IO completion of the read.
+ */
 static int
 dkl_readbad144(struct private_data *pd)
 {
@@ -312,349 +559,6 @@ dkl_transbad144(struct private_data *pd, daddr_t blkno)
 	return transbad144(pd->bad, blkno);
 }
 #endif
-
-/*-
- * look at a slice and figure out if we should be interested in it. (Is it
- * ours?)
- */
-static int
-dkl_claim(struct slice * slice, struct slice * lower, void *ID)
-{
-	struct disklabel disklabel;
-	struct disklabel *dl, *dl0;
-	int	error;
-	RR;
-
-	/*-
- 	 * Try load a valid disklabel table.
-	 * This is 90% of what we need to check.
-	 */
-	if ((error = dkl_extract_table(slice, &disklabel)) != 0) {
-		return (error);
-	}
-	/*-
-	 * If there is no geometry info, extract it from the label
-	 * as some drivers need this.
-	 */
-	/* XXX */
-
-	/*-
-	 * well, it looks like one of ours.
-	 */
-	return (0);
-}
-
-/*-
- * This is a special HACK function for the IDE driver.
- * It is here because everything it need is in scope here,
- * but it is not really part of the SLICE code.
- * Because old ESDI drives could not tell their geometry, They need
- * to get it from the MBR or the disklabel. This is the disklabel bit.
- */
-int
-dkl_geom_hack(struct slice * slice, struct ide_geom *geom)
-{
-	struct disklabel disklabel;
-	struct disklabel *dl, *dl0;
-	int	error;
-	RR;
-
-	/* first check it's a disklabel*/
-	if ((error = dkl_claim (slice, NULL, 0)))
-		return (error);
-	/*-
- 	 * Try load a valid disklabel table.
-	 * This is wasteful but never called on new (< 5 YO ) drives.
-	 */
-	if ((error = dkl_extract_table(slice, &disklabel)) != 0) {
-		return (error);
-	}
-	geom->secpertrack = disklabel. d_nsectors;
-	geom->trackpercyl = disklabel.d_ntracks;
-	geom->cyls = disklabel.d_ncylinders;
-	return (0);
-}
-
-/*-
- * look at a slice we know to be ours and decide what the #$%^ to do with it.
- */
-static int
-dkl_constructor(sl_p slice)
-{
-	int             i;
-	u_int64_t       disksize = slice->limits.slicesize;
-	struct private_data *pd;
-	struct partition *dp, *dp0;
-	struct disklabel *dl;
-	sh_p		tp;
-	char            name[64];
-
-	int             part;
-	int             error = 0;
-	u_long          dkl_offset;
-
-	RR;
-	/*-
-	 * If we are being called to re-load a slice,
-	 * then don't reallocate resources.
-	 */
-	if ((pd = slice->private_up) == NULL) {
-		if (slice->name == NULL) {
-			printf("name is NULL\n");
-			return (EINVAL);
-		}
-		if (strlen(slice->name) > 58) {
-			printf("slice: name %s too long\n", slice->name);
-			return (ENAMETOOLONG);
-		}
-		pd = malloc(sizeof(*pd), M_DEVBUF, M_NOWAIT);
-		if (pd == NULL) {
-			printf("fdisk: failed malloc\n");
-			return (ENOMEM);
-		}
-		bzero(pd, sizeof(*pd));
-		pd->slice_down = slice;
-		if ((error = dkl_extract_table(slice, &pd->disklabel)) != 0) {
-			struct partinfo data;
-			/* 
-			 * If it's just that there is no disklabel there,
-			 * Then we fake one up and write it. if this were
-			 * not ok, then we would have not been called.
-			 * (as probe will have failed). If it's 
-			 * a physical error, then that's reason to fail.
-			 */
-			if (error != EINVAL) {
-				free(pd, M_DEVBUF);
-				return (error);
-			}
-			dkl_dummy_ioctl(slice, DIOCGPART,
-					(caddr_t) &data, 0, NULL);
-			bcopy(data.disklab, &pd->disklabel,
-					sizeof(pd->disklabel));
-			if ((error = dkl_insert_table(slice, &pd->disklabel))) {
-				free(pd, M_DEVBUF);
-				return (error);
-			}
-		}
-#ifdef BAD144
-		if (pd->disklabel.d_flags & D_BADSECT) {
-			if ((error = dkl_readbad144(pd))) {
-				free(pd, M_DEVBUF);
-				return (error);
-			}
-		}
-#endif
-		slice->refs++;
-		slice->handler_up = &slicetype;
-		slice->private_up = pd;
-		slicetype.refs++;
-	}
-	dl = &pd->disklabel;
-	dp0 = dl->d_partitions;
-
-	/*-
-	 * Handle each of the partitions.
-	 * We should check that each makes sence and is legal.
-	 * 1/ it should not already have a slice.
-	 * 2/ should not be 0 length.
-	 * 3/ should not go past end of our slice.
-	 * 4/ should not overlap other slices.
-	 *  It can include sector 0 (unfortunatly)
-	 */
-	dp = dp0;
-	for (part = 0; part < MAXPARTITIONS; part++, dp++) {
-		int             i;
-		if ( part == 2 )
-			continue; /* XXX skip the 'c' partition */
-		/*
-		 * We could be reloading, in which case skip
-		 * entries already set up.
-		 */
-		if (pd->subdevs[part].slice != NULL)
-	breakout:	continue;
-		/*
-		 * also skip partitions not present
-		 */
-		if (dp->p_size == 0)
-			continue;
-printf(" part %d, start=%d, size=%d\n", part, dp->p_offset, dp->p_size);
-
-		if ((dp->p_offset + dp->p_size) >
-		    (slice->limits.slicesize / slice->limits.blksize)) {
-			printf("dkl: slice %d too big ", part);
-			printf("(%x > %x:%x )\n",
-			    (dp->p_offset + dp->p_size),
-			    (slice->limits.slicesize / slice->limits.blksize) );
-			continue;
-		}
-		/* check for overlaps with existing slices */
-		for (i = 0; i < MAXPARTITIONS; i++) {
-			/*
-			 * Don't bother if that slice was not made.
-			 * This handles the (i == part) case.
-			 */
-			if (pd->subdevs[i].slice == NULL)
-				continue;
-			if ((dp0[i].p_offset < (dp->p_offset + dp->p_size))
-			    && ((dp0[i].p_offset + dp0[i].p_size) > dp->p_offset)) {
-				printf("dkl: slice %d overlaps slice %d\n",
-				       part, i);
-				goto breakout;
-			}
-		}
-		/*-
-		 * the slice seems to make sense. Use it.
-		 */
-		pd->subdevs[part].part = part;
-		pd->subdevs[part].pd = pd;
-		pd->subdevs[part].offset = dp->p_offset;
-		pd->subdevs[part].limit.blksize
-			= slice->limits.blksize;
-		pd->subdevs[part].limit.slicesize
-			= (slice->limits.blksize * (u_int64_t)dp->p_size);
-
-		sprintf(name, "%s%c", slice->name, (char )('a' + part));
-		sl_make_slice(&slicetype,
-			      &pd->subdevs[part],
-			      &pd->subdevs[part].limit,
-			      &pd->subdevs[part].slice,
-			      NULL,
-			      name);
-		pd->subdevs[part].slice->probeinfo.typespecific = &dp->p_fstype;
-		switch (dp->p_fstype) {
-		case	FS_UNUSED:
-			/* allow unuseed to be further split */
-			pd->subdevs[part].slice->probeinfo.type = NULL;
-			break;
-		case	FS_V6:
-		case	FS_V7:
-		case	FS_SYSV:
-		case	FS_V71K:
-		case	FS_V8:
-		case	FS_MSDOS:
-		case	FS_BSDLFS:
-		case	FS_OTHER:
-		case	FS_HPFS:
-		case	FS_ISO9660:
-		case	FS_BOOT	:
-#if 0
-			printf("%s: type %d. Leaving\n",
-				pd->subdevs[part].slice->name,
-				(u_int)dp->p_fstype);
-#endif
-		case	FS_SWAP:
-		case	FS_BSDFFS:
-			pd->subdevs[part].slice->probeinfo.type = NO_SUBPART;
-			break;
-		default:
-			pd->subdevs[part].slice->probeinfo.type = NULL;
-		}
-		/* 
-		 * Dont allow further breakup of slices that
-		 * cover our disklabel
-		 */
-		if (dp->p_offset < 16) {
-#if 0
-			printf("%s: covers disklabel. Leaving\n",
-				pd->subdevs[part].slice->name);
-#endif
-			pd->subdevs[part].slice->probeinfo.type = NO_SUBPART;
-		}
-		if ((tp = slice_probeall(pd->subdevs[part].slice)) != NULL) {
-			(*tp->constructor)(pd->subdevs[part].slice);
-		}
-	}
-	return (error);
-}
-
-/*-
- * look at a slice that USED to be ours.
- * decide if any sub-slices need to be revoked.
- * If not then at least ask them to verify themselves.
- */
-static int
-dkl_verify(sl_p slice)
-{
-	register struct private_data *pd;
-	struct disklabel label;
-	struct partition *dp, *dp2;
-	struct disklabel *dl;
-	int             part;
-	int             error;
-	/* register struct slice *slice; */
-
-	RR;
-	pd = slice->private_up;
-	/* slice = pd->slice_down; */
-	bzero(&label, sizeof(label));
-	/*
-	 * Try load a valid disklabel. This is 90% of what we need to check.
-	 */
-	if (((error = dkl_extract_table(slice, &label)) != 0)
-	    || (slice->limits.blksize != 512)) {
-		/*-
-		 * Oh oh, we need to invalidate all the subslices.
-		 * and relinquish this slice.
-		 */
-		return (dkl_revoke(pd));
-	}
-	dl = &(pd->disklabel);
-	dp = dl->d_partitions;
-	dp2 = label.d_partitions;
-	for (part = 0; part < MAXPARTITIONS; part++, dp++, dp2++) {
-		if (pd->subdevs[part].slice) {
-			if ((dp2->p_offset != dp->p_offset)
-			    || (dp2->p_size != dp->p_size)) {
-				sl_rmslice(pd->subdevs[part].slice);
-				pd->subdevs[part].slice = NULL;
-			} else if (pd->subdevs[part].slice->handler_up) {
-				(*pd->subdevs[part].slice->handler_up->verify)
-					(pd->subdevs[part].slice);
-			}
-		}
-	}
-	/*- having got rid of changing slices, replace
-	 * the old table with the new one, and
-	 * handle any new slices by calling the constructor.
-	 */
-	bcopy(&label, dl, sizeof(label));
-	error = dkl_constructor(slice);
-done:
-	return (error);
-}
-
-/*-
- * Invalidate all subslices, and free resources for this handler instance.
- */
-static int
-dkl_revoke(void *private)
-{
-	register struct private_data *pd;
-	register struct slice *slice;
-	int             part;
-
-	RR;
-	pd = private;
-	slice = pd->slice_down;
-	for (part = 0; part < MAXPARTITIONS; part++) {
-		if (pd->subdevs[part].slice) {
-			sl_rmslice(pd->subdevs[part].slice);
-		}
-	}
-	/*-
-	 * remove ourself as a handler
-	 */
-	slice->handler_up = NULL;
-	slice->private_up = NULL;
-	slicetype.refs--;
-#ifdef BAD144
-	if (pd->bad)
-		free(pd->bad, M_DEVBUF);
-#endif
-	free(pd, M_DEVBUF);
-	sl_unref(slice);
-	return (0);
-}
 
 /*-
  * shift the appropriate IO by the offset for that slice.
@@ -730,52 +634,6 @@ RR;
 	pd->savedoflags = newoflags;
 	return (0);
 }
-
-#if 0
-static  void
-dkl_close(void *private, int flags, int mode, struct proc * p)
-{
-	register struct private_data *pd;
-	struct subdev		*sdp;
-	register struct slice	*slice;
-	u_int8_t		 newrflags = 0;
-	u_int8_t		 newwflags = 0;
-	int			 newoflags;
-	int			 part;
-	u_int8_t		 partbit;
-
-RR;
-	sdp = private;
-	part = sdp->part;
-	partbit = (1 << part);
-	pd = sdp->pd;
-	slice = pd->slice_down;
-
-	if ((pd->rflags == 0) && (pd->wflags == 0))
-		return;
-
-	/* work out what our stored flags will be if this succeeds */
-	newwflags &= ~ (partbit);
-	newrflags &= ~ (partbit);
-	newwflags |= (flags & FWRITE) ? (partbit) : 0;
-	newrflags |= (flags & FREAD) ? (partbit) : 0;
-
-	/* work out what we want to pass down this time */
-	newoflags = newwflags ? FWRITE : 0;
-	newoflags |= newrflags ? FREAD : 0;
-
-	/*                                                                      
-	 * If this was the last open slice above, then release our own open     
-	 */                   
-	if ((pd->rflags == 0) && (pd->wflags == 0)) {
-		sliceclose(slice, newoflags, mode, p, SLW_ABOVE);
-	}
-	pd->rflags = newrflags;
-	pd->wflags = newwflags;
-	pd->savedoflags = newoflags;
-	return ;
-}
-#endif	/* 0 */
 
 static int
 dkl_ioctl(void *private, u_long cmd, caddr_t addr, int flag, struct proc * p)
@@ -920,6 +778,10 @@ dkcksum(lp)
 }
 #endif /* 0 */
 
+/* 
+ * pass down a dump request.
+ * make sure it's offset by the right amount.
+ */
 static int
 dkl_dump(void *private, int32_t blkoff, int32_t blkcnt)
 {
@@ -932,7 +794,7 @@ RR;
 	pd = sdp->pd;
 	slice = pd->slice_down;
 	blkoff += sdp->offset;
-	if(slice->handler_down->dump) {
+	if (slice->handler_down->dump) {
 		return (*slice->handler_down->dump)(slice->private_down,
 				blkoff, blkcnt);
 	}
