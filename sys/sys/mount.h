@@ -564,6 +564,7 @@ int	dounmount(struct mount *, int, struct thread *);
 int	kernel_mount(struct iovec *, u_int, int);
 int	kernel_vmount(int flags, ...);
 struct vfsconf *vfs_byname(const char *);
+struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
