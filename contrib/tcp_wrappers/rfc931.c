@@ -26,6 +26,10 @@ static char sccsid[] = "@(#) rfc931.c 1.10 95/01/02 16:11:34";
 #include <signal.h>
 #include <string.h>
 
+#ifndef SEEK_SET
+#define SEEK_SET 0
+#endif
+
 /* Local stuff. */
 
 #include "tcpd.h"
@@ -115,13 +119,11 @@ char   *dest;
 #endif
 
     /*
-     * Use one unbuffered stdio stream for writing to and for reading from
-     * the RFC931 etc. server. This is done because of a bug in the SunOS
-     * 4.1.x stdio library. The bug may live in other stdio implementations,
-     * too. When we use a single, buffered, bidirectional stdio stream ("r+"
-     * or "w+" mode) we read our own output. Such behaviour would make sense
+     * If we use a single, buffered, bidirectional stdio stream ("r+" or
+     * "w+" mode) we may read our own output. Such behaviour would make sense
      * with resources that support random-access operations, but not with
-     * sockets.
+     * sockets. ANSI C suggests several functions which can be called when
+     * you want to change IO direction, fseek seems the most portable.
      */
 
 #ifdef INET6
@@ -129,8 +131,6 @@ char   *dest;
 #else
     if ((fp = fsocket(AF_INET, SOCK_STREAM, 0)) != 0) {
 #endif
-	setbuf(fp, (char *) 0);
-
 	/*
 	 * Set up a timer so we won't get stuck while waiting for the server.
 	 */
@@ -193,6 +193,7 @@ char   *dest;
 			ntohs(our_sin->sin_port));
 #endif
 		fflush(fp);
+		fseek(fp, 0, SEEK_SET);
 
 		/*
 		 * Read response from server. Use fgets()/sscanf() so we can
