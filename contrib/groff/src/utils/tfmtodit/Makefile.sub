@@ -1,6 +1,0 @@
-PROG=tfmtodit
-MAN1=tfmtodit.n
-XLIBS=$(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=tfmtodit.o
-CCSRCS=$(srcdir)/tfmtodit.cc
