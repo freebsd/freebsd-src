@@ -8,14 +8,24 @@ The format for files accepted by ipnat is described by the following grammar:
 ipmap :: = mapblock | redir | map .
 
 map ::= mapit ifname ipmask "->" ipmask [ mapport ] .
+map ::= mapit ifname fromto "->" ipmask [ mapport ] .
 mapblock ::= "map-block" ifname ipmask "->" ipmask [ ports ] .
-redir ::= "rdr" ifname [ fromspec ] ipmask "->" ip [ ports ] [ tcpudp ] .
+redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] [ ports ] options .
+
+dport ::= "port" portnum [ "-" portnum ] .
 ports ::= "ports" numports | "auto" .
 mapit ::= "map" | "bimap" .
+fromto ::= "from" object "to" object .
 ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
 mapport ::= "portmap" tcpudp portnumber ":" portnumber .
+options ::= [ tcpudp ] [ rr ] .
 
-fromspec ::= "from" ip "/" ipmask .
+object  = addr [ port-comp | port-range ] .
+addr    = "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
+port-comp = "port" compare port-num .
+port-range = "port" port-num range port-num .
+
+rr ::= "round-robin" .
 tcpudp ::= "tcp" | "udp" | "tcp/udp" .
 portnumber ::= number { numbers } | "auto" .
 ifname ::= 'A' - 'Z' { 'A' - 'Z' } numbers .
@@ -40,7 +50,7 @@ When remapping TCP and UDP packets, it is also possible to change the source
 port number.  Either TCP or UDP or both can be selected by each rule, with a
 range of port numbers to remap into given as \fBport-number:port-number\fP.
 .SH COMMANDS
-There are found commands recognised by IP Filter's NAT code:
+There are four commands recognised by IP Filter's NAT code:
 .TP
 .B map
 that is used for mapping one address or network to another in an unregulated
@@ -60,10 +70,26 @@ squeeze the addresses to be translated into the destination range.
 .SH MATCHING
 .PP
 For basic NAT and redirection of packets, the address subject to change is used
-along with its protocol to check if a packet should be altered.  In the case
-of redirects, it is also possible to select packets on a source address basis
-using the \fBfrom\fP keyword, as well as the manditory destination port.  The
-packet \fImatching\fP part of the rule is to the left of the "->" in each rule.
+along with its protocol to check if a packet should be altered.  The packet
+\fImatching\fP part of the rule is to the left of the "->" in each rule.
+.PP
+Matching of packets has now been extended to allow more complex compares.
+In place of the address which is to be translated, an IP address and port
+number comparison can be made using the same expressions available with
+\fBipf\fP.  A simple NAT rule could be written as:
+.LP
+.nf
+map de0 10.1.0.0/16 -> 201.2.3.4/32
+.fi
+.LP
+or as
+.LP
+.nf
+map de0 from 10.1.0.0/16 to any -> 201.2.3.4/32
+.fi
+.LP
+Only IP address and port numbers can be compared against.  This is available
+with all NAT rules.
 .SH TRANSLATION
 .PP
 To the right of the "->" is the address and port specificaton which will be
@@ -93,6 +119,30 @@ True transparent proxying should be performed using the redirect (\fBrdr\fP)
 rules directing ports to localhost (127.0.0.1) with the proxy program doing
 a lookup through \fB/dev/ipnat\fP to determine the real source and address
 of the connection.
+.SH LOAD-BALANCING
+.PP
+Two options for use with \fBrdr\fP are available to support primitive,
+\fIround-robin\fP based load balancing.  The first option allows for a
+\fBrdr\fP to specify a second destination, as follows:
+.LP
+.nf
+rdr le0 203.1.2.3/32 port 80 -> 203.1.2.3,203.1.2.4 port 80 tcp
+.fi
+.LP
+This would send alternate connections to either 203.1.2.3 or 203.1.2.4.
+In scenarios where the load is being spread amongst a larger set of
+servers, you can use:
+.LP
+.nf
+rdr le0 203.1.2.3/32 port 80 -> 203.1.2.3,203.1.2.4 port 80 tcp round-robin
+rdr le0 203.1.2.3/32 port 80 -> 203.1.2.5 port 80 tcp round-robin
+.fi
+.LP
+In this case, a connection will be redirected to 203.1.2.3, then 203.1.2.4
+and then 203.1.2.5 before going back to 203.1.2.3.  In accomplishing this,
+the rule is removed from the top of the list and added to the end,
+automatically, as required.  This will not effect the display of rules
+using "ipnat -l", only the internal application order.
 .SH EXAMPLES
 .PP
 This section deals with the \fBmap\fP command and it's variations.

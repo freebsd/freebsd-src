@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -19,7 +19,7 @@
 #include "facpri.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: facpri.c,v 1.2 1999/08/01 11:10:45 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: facpri.c,v 1.3 2000/03/13 22:10:18 darrenr Exp $";
 #endif
 
 typedef	struct	table	{

@@ -6,7 +6,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: iplang_l.l,v 2.1 1999/08/04 17:30:53 darrenr Exp $
+ * $Id: iplang_l.l,v 2.2 2000/02/18 00:18:05 darrenr Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -31,7 +31,7 @@
 
 extern int opts;
 
-int lineNum = 0, proto = 0, oldproto = 0, next = -1, laststate = 0;
+int lineNum = 0, ipproto = 0, oldipproto = 0, next = -1, laststate = 0;
 int *prstack = NULL, numpr = 0, state = 0, token = 0;
 
 void    yyerror __P((char *));
@@ -197,14 +197,14 @@ void push_proto()
 		prstack = (int *)malloc(sizeof(int));
 	else
 		prstack = (int *)realloc((char *)prstack, numpr * sizeof(int));
-	prstack[numpr - 1] = oldproto;
+	prstack[numpr - 1] = oldipproto;
 }
 
 
 void pop_proto()
 {
 	numpr--;
-	proto = prstack[numpr];
+	ipproto = prstack[numpr];
 	if (!numpr) {
 		free(prstack);
 		prstack = NULL;
@@ -262,45 +262,45 @@ int nstate, fornext;
 	case IL_DATA :
 	case IL_INTERFACE :
 	case IL_ARP :
-		oldproto = proto;
-		proto = nstate;
+		oldipproto = ipproto;
+		ipproto = nstate;
 		break;
 	case IL_SUM :
-		if (proto == IL_IPV4)
+		if (ipproto == IL_IPV4)
 			nstate = IL_V4SUM;
-		else if (proto == IL_TCP)
+		else if (ipproto == IL_TCP)
 			nstate = IL_TCPSUM;
-		else if (proto == IL_UDP)
+		else if (ipproto == IL_UDP)
 			nstate = IL_UDPSUM;
 		break;
 	case IL_OPT :
-		if (proto == IL_IPV4)
+		if (ipproto == IL_IPV4)
 			nstate = IL_V4OPT;
-		else if (proto == IL_TCP)
+		else if (ipproto == IL_TCP)
 			nstate = IL_TCPOPT;
 		break;
 	case IL_IPO_NOP :
-		if (proto == IL_TCP)
+		if (ipproto == IL_TCP)
 			nstate = IL_TCPO_NOP;
 		break;
 	case IL_IPO_EOL :
-		if (proto == IL_TCP)
+		if (ipproto == IL_TCP)
 			nstate = IL_TCPO_EOL;
 		break;
 	case IL_IPO_TS :
-		if (proto == IL_TCP)
+		if (ipproto == IL_TCP)
 			nstate = IL_TCPO_TS;
 		break;
 	case IL_OFF :
-		if (proto == IL_IPV4)
+		if (ipproto == IL_IPV4)
 			nstate = IL_V4OFF;
-		else if (proto == IL_TCP)
+		else if (ipproto == IL_TCP)
 			nstate = IL_TCPOFF;
 		break;
 	case IL_LEN :
-		if (proto == IL_IPV4)
+		if (ipproto == IL_IPV4)
 			nstate = IL_V4LEN;
-		else if (proto == IL_UDP)
+		else if (ipproto == IL_UDP)
 			nstate = IL_UDPLEN;
 		break;
 	}
