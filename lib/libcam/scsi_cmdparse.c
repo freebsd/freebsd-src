@@ -32,8 +32,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * From: scsi.c,v 1.8 1997/02/22 15:07:54 peter Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
