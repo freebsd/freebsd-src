@@ -1011,20 +1011,21 @@ err:            bzero (&t->toc, sizeof (t->toc));
 	    len >> 8, len & 0xff, 0, (char*)&t->toc, len) & 0xff)
 		goto err;
 
-	t->toc.hdr.len = ntohs (t->toc.hdr.len);
-
-	/* make fake leadout entry */
-	t->toc.tab[ntracks].control = t->toc.tab[ntracks-1].control;
-	t->toc.tab[ntracks].addr_type = t->toc.tab[ntracks-1].addr_type;
-	t->toc.tab[ntracks].track = 170; /* magic */
-	t->toc.tab[ntracks].addr.lba = htonl(t->toc.hdr.len);
+	NTOHS(t->toc.hdr.len);
 
 	/* Read disc capacity. */
 	if (wcd_request_wait (t, ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0,
 	    0, sizeof(t->info), 0, (char*)&t->info, sizeof(t->info)) != 0)
 		bzero (&t->info, sizeof (t->info));
-	t->info.volsize = ntohl (t->info.volsize);
-	t->info.blksize = ntohl (t->info.blksize);
+
+	/* make fake leadout entry */
+	t->toc.tab[ntracks].control = t->toc.tab[ntracks-1].control;
+	t->toc.tab[ntracks].addr_type = t->toc.tab[ntracks-1].addr_type;
+	t->toc.tab[ntracks].track = 170; /* magic */
+	t->toc.tab[ntracks].addr.lba = t->info.volsize;
+
+	NTOHL(t->info.volsize);
+	NTOHL(t->info.blksize);
 
 	/* Print the disc description string on every disc change.
 	 * It would help to track the history of disc changes. */
