@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 #ifdef WIN32
 #define _POSIX_
 #endif
@@ -3619,7 +3620,9 @@ strftime(fmt, sec, min, hour, mday, mon, year, wday = -1, yday = -1, isdst = -1)
 	    char tmpbuf[128];
 	    struct tm mytm;
 	    int len;
+#ifndef __FreeBSD__
 	    init_tm(&mytm);	/* XXX workaround - see init_tm() above */
+#endif
 	    mytm.tm_sec = sec;
 	    mytm.tm_min = min;
 	    mytm.tm_hour = hour;
@@ -3629,7 +3632,12 @@ strftime(fmt, sec, min, hour, mday, mon, year, wday = -1, yday = -1, isdst = -1)
 	    mytm.tm_wday = wday;
 	    mytm.tm_yday = yday;
 	    mytm.tm_isdst = isdst;
+#ifdef __FreeBSD__
+	    mytm.tm_gmtoff = 0;
+	    mytm.tm_zone = "???";
+#else
 	    (void) mktime(&mytm);
+#endif
 	    len = strftime(tmpbuf, sizeof tmpbuf, fmt, &mytm);
 	    /*
 	    ** The following is needed to handle to the situation where 
