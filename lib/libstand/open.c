@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: open.c,v 1.16 1997/01/28 09:41:03 pk Exp $	*/
 
 /*-
@@ -79,6 +80,13 @@ o_gethandle(void)
     return(-1);
 }
 
+static void
+o_rainit(struct open_file *f)
+{
+    f->f_rabuf = malloc(SOPEN_RASIZE);
+    f->f_ralen = 0;
+    f->f_raoffset = 0;
+}
 
 int
 open(const char *fname, int mode)
@@ -118,6 +126,7 @@ open(const char *fname, int mode)
 	if (error == 0) {
 	    
 	    f->f_ops = file_system[i];
+	    o_rainit(f);
 	    return (fd);
 	}
 	if (error != EINVAL)

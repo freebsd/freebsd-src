@@ -159,7 +159,11 @@ struct open_file {
     void		*f_devdata;	/* device specific data */
     struct fs_ops	*f_ops;		/* pointer to file system operations */
     void		*f_fsdata;	/* file system specific data */
-    off_t		f_offset;	/* current file offset (F_RAW) */
+    off_t		f_offset;	/* current file offset */
+    char		*f_rabuf;	/* readahead buffer pointer */
+    size_t		f_ralen;	/* valid data in readahead buffer */
+    off_t		f_raoffset;	/* consumer offset in readahead buffer */
+#define SOPEN_RASIZE	512
 };
 
 #define	SOPEN_MAX	8
