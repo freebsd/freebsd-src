@@ -32,9 +32,9 @@
 
 #ifndef _SYS_SOUNDCARD_H_
 #define _SYS_SOUNDCARD_H_
- /* 
+ /*
   * If you make modifications to this file, please contact me before
-  * distributing the modified version. There is already enough 
+  * distributing the modified version. There is already enough
   * diversity in the world.
   *
   * Regards,
@@ -42,7 +42,7 @@
   * hannu@voxware.pp.fi
   *
   **********************************************************************
-  * PS.	The Hacker's Guide to VoxWare available from 
+  * PS.	The Hacker's Guide to VoxWare available from
   *     nic.funet.fi:pub/OS/Linux/ALPHA/sound. The file is
   *	snd-sdk-doc-0.1.ps.gz (gzipped postscript). It contains
   *	some useful information about programming with VoxWare.
@@ -120,7 +120,7 @@
  * select will return true when one byte can be exchanged. For audio
  * devices, character mode makes select almost useless since one byte
  * will always be ready by the next sample time (which is often only a
- * handful of microseconds away). 
+ * handful of microseconds away).
  * Use a size of 0 or 1 to return to character mode.
  */
 #define	AIONWRITE   _IOR('A', 10, int)   /* get # bytes to write */
@@ -151,6 +151,14 @@ struct snd_size {
 #   define AFMT_U16_LE		0x00000080	/* Little endian U16 */
 #   define AFMT_U16_BE		0x00000100	/* Big endian U16 */
 #   define AFMT_MPEG		0x00000200	/* MPEG (2) audio */
+#   define AFMT_AC3		0x00000400	/* Dolby Digital AC3 */
+/*
+ * may not have all bits significant:
+ */
+#   define AFMT_S32_LE		0x00001000	/* Little endian signed 32 */
+#   define AFMT_S32_BE		0x00002000	/* big endian signed 32 */
+#   define AFMT_U32_LE		0x00004000	/* Little endian unsigned 32 */
+#   define AFMT_U32_BE		0x00008000	/* big endian unsigned 32 */
 
 #   define AFMT_STEREO		0x10000000	/* can do/want stereo	*/
 
@@ -337,7 +345,7 @@ struct patch_info {
 	long len;	/* Size of the wave data in bytes */
 	long loop_start, loop_end; /* Byte offsets from the beginning */
 
-/* 
+/*
  * The base_freq and base_note fields are used when computing the
  * playback speed for a note. The base_note defines the tone frequency
  * which is heard if the sample is played using the base_freq as the
@@ -366,7 +374,7 @@ struct patch_info {
 	u_char	env_rate[ 6 ];	 /* GUS HW ramping rate */
 	u_char	env_offset[ 6 ]; /* 255 == 100% */
 
-	/* 
+	/*
 	 * The tremolo, vibrato and scale info are not supported yet.
 	 * Enable by setting the mode bits WAVE_TREMOLO, WAVE_VIBRATO or
 	 * WAVE_SCALE
@@ -382,7 +390,7 @@ struct patch_info {
 
 	int		scale_frequency;
 	u_int	scale_factor;		/* from 0 to 2048 or 0 to 2 */
-	
+
 	int		volume;
 	int		spare[4];
 	char data[1];	/* The waveform data starts here */
@@ -419,7 +427,7 @@ struct sysex_info {
  * This structure is also used with ioctl(SNDCTL_PGMR_IFACE) which allows
  * a patch manager daemon to read and write device parameters. This
  * ioctl available through /dev/sequencer also. Avoid using it since it's
- * extremely hardware dependent. In addition access trough /dev/sequencer 
+ * extremely hardware dependent. In addition access trough /dev/sequencer
  * may confuse the patch manager daemon.
  */
 
@@ -433,8 +441,8 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
 	  int device;
 	  int command;
 
-/* 
- * Commands 0x000 to 0xfff reserved for patch manager programs 
+/*
+ * Commands 0x000 to 0xfff reserved for patch manager programs
  */
 #define PM_GET_DEVTYPE	1	/* Returns type of the patch mgr interface of dev */
 #define		PMTYPE_FM2	1	/* 2 OP fm */
@@ -454,7 +462,7 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
  */
 #define _PM_LOAD_PATCH	0x100
 
-/* 
+/*
  * Commands above 0xffff reserved for device specific use
  */
 
@@ -485,7 +493,7 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
  * /dev/sequencer input events.
  *
  * The data written to the /dev/sequencer is a stream of events. Events
- * are records of 4 or 8 bytes. The first byte defines the size. 
+ * are records of 4 or 8 bytes. The first byte defines the size.
  * Any number of events can be written with a write call. There
  * is a set of macros for sending these events. Use these macros if you
  * want to maximize portability of your program.
@@ -618,12 +626,12 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
  * of the associated synthesizer device. There is no limit to the size
  * of the extended events. These events are not queued but executed
  * immediately when the write() is called (execution can take several
- * seconds of time). 
+ * seconds of time).
  *
  * When a SEQ_FULLSIZE message is written to the device, it must
  * be written using exactly one write() call. Other events cannot
  * be mixed to the same write.
- * 
+ *
  * For FM synths (YM3812/OPL3) use struct sbi_instrument and write
  * it to the /dev/sequencer. Don't write other data together with
  * the instrument structure Set the key field of the structure to
@@ -672,7 +680,7 @@ struct synth_info {	/* Read only */
 	int	nr_voices;
 	int	nr_drums;	/* Obsolete field */
 	int	instr_bank_size;
-	u_long	capabilities;	
+	u_long	capabilities;
 #define SYNTH_CAP_PERCMODE	0x00000001 /* No longer used */
 #define SYNTH_CAP_OPL3		0x00000002 /* Set if OPL3 supported */
 #define SYNTH_CAP_INPUT		0x00000004 /* Input (MIDI) device */
@@ -726,6 +734,7 @@ typedef struct {
  * from SNDCTL_DSP_STEREO
  */
 #define SOUND_PCM_WRITE_CHANNELS	_IOWR('P', 6, int)
+#define SNDCTL_DSP_CHANNELS	SOUND_PCM_WRITE_CHANNELS
 #define SOUND_PCM_WRITE_FILTER	_IOWR('P', 7, int)
 #define SNDCTL_DSP_POST		_IO  ('P', 8)
 
@@ -802,6 +811,7 @@ typedef struct buffmem_desc {
 #define SNDCTL_DSP_MAPINBUF	_IOR ('P', 19, buffmem_desc)
 #define SNDCTL_DSP_MAPOUTBUF	_IOR ('P', 20, buffmem_desc)
 #define SNDCTL_DSP_SETSYNCRO	_IO  ('P', 21)
+#define SNDCTL_DSP_SETDUPLEX	_IO  ('P', 22)
 #define SNDCTL_DSP_GETODELAY	_IOR ('P', 23, int)
 
 /*
@@ -834,7 +844,7 @@ typedef struct copr_debug_buf {
 	int command;	/* Used internally. Set to 0 */
 	int parm1;
 	int parm2;
-	int flags;	
+	int flags;
 	int len;	/* Length of data in bytes */
 } copr_debug_buf;
 
@@ -857,12 +867,12 @@ typedef struct copr_msg {
 /*
  * IOCTL commands for /dev/mixer
  */
-	
-/* 
+
+/*
  * Mixer devices
  *
  * There can be up to 20 different analog mixer channels. The
- * SOUND_MIXER_NRDEVICES gives the currently supported maximum. 
+ * SOUND_MIXER_NRDEVICES gives the currently supported maximum.
  * The SOUND_MIXER_READ_DEVMASK returns a bitmask which tells
  * the devices supported by the particular mixer.
  */
@@ -882,7 +892,7 @@ typedef struct copr_msg {
 #define SOUND_MIXER_RECLEV	11	/* Recording level */
 #define SOUND_MIXER_IGAIN	12	/* Input gain */
 #define SOUND_MIXER_OGAIN	13	/* Output gain */
-/* 
+/*
  * The AD1848 codec and compatibles have three line level inputs
  * (line, aux1 and aux2). Since each card manufacturer have assigned
  * different meanings to these inputs, it's inpractical to assign
@@ -1031,7 +1041,7 @@ typedef struct copr_msg {
 
 /*
  * The 4 most significant bits of byte 0 specify the class of
- * the event: 
+ * the event:
  *
  *	0x8X = system level events,
  *	0x9X = device/port specific events, event[1] = device/port,
@@ -1091,7 +1101,7 @@ typedef struct copr_msg {
  */
 #define LOCL_STARTAUDIO		1
 
-#if (!defined(_KERNEL) && !defined(INKERNEL)) || defined(USE_SEQ_MACROS) 
+#if (!defined(_KERNEL) && !defined(INKERNEL)) || defined(USE_SEQ_MACROS)
 /*
  *	Some convenience macros to simplify programming of the
  *	/dev/sequencer interface
@@ -1137,16 +1147,16 @@ void seqbuf_dump __P((void));	/* This function must be provided by programs */
 /*
  * This variation of the sequencer macros is used just to format one event
  * using fixed buffer.
- * 
+ *
  * The program using the macro library must define the following macros before
  * using this library.
  *
- * #define _seqbuf 		 name of the buffer (u_char[]) 
+ * #define _seqbuf 		 name of the buffer (u_char[])
  * #define _SEQ_ADVBUF(len)	 If the applic needs to know the exact
  *				 size of the event, this macro can be used.
  *				 Otherwise this must be defined as empty.
  * #define _seqbufptr		 Define the name of index variable or 0 if
- *				 not required. 
+ *				 not required.
  */
 #define _SEQ_NEEDBUF(len)	/* empty */
 #endif
@@ -1218,7 +1228,7 @@ void seqbuf_dump __P((void));	/* This function must be provided by programs */
  * sending any MIDI bytes but it's absolutely not possible. Trying to do
  * so _will_ cause problems with MPU401 intelligent mode).
  *
- * Sysex messages are sent in blocks of 1 to 6 bytes. Longer messages must be 
+ * Sysex messages are sent in blocks of 1 to 6 bytes. Longer messages must be
  * sent by calling SEQ_SYSEX() several times (there must be no other events
  * between them). First sysex fragment must have 0xf0 in the first byte
  * and the last byte (buf[len-1] of the last fragment must be 0xf7. No byte
