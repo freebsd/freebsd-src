@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.19 1997/08/29 14:50:36 kato Exp $
+ **      $Id: userconfig.c,v 1.63.2.20 1997/09/04 09:01:39 jkh Exp $
  **/
 
 /**
@@ -117,6 +117,8 @@
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
+#include <i386/isa/pnp.h> /* XXX */
+#include "pnp.h"     
 
 #include <pci/pcivar.h>
 
@@ -2358,7 +2360,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.19 1997/08/29 14:50:36 kato Exp $
+ *      $Id: userconfig.c,v 1.63.2.20 1997/09/04 09:01:39 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2368,6 +2370,7 @@ visuserconfig(void)
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
 #define PARM_ADDR	0x3
+#define PARM_STRING	0x4
 
 typedef struct _cmdparm {
     int type;
@@ -2416,6 +2419,11 @@ static int helpfunc(CmdParm *);
 static int introfunc(CmdParm *);
 #endif
 
+#if NPNP > 0
+static int lspnp(void);
+static int set_pnp_parms(CmdParm *);
+#endif
+
 static int lineno;
 
 #include "eisa.h"
@@ -2445,6 +2453,13 @@ static CmdParm dev_parms[] = {
     { -1, {} },
 };
 
+static CmdParm string_arg[] = {
+    { PARM_STRING, {} },
+    { -1, {} },
+};  
+
+
+
 #if NEISA > 0
 static CmdParm int_arg[] = {
     { PARM_INT, {} },
@@ -2470,6 +2485,9 @@ static Cmd CmdList[] = {
     { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
     { "l",	list_devices,		NULL },		/* ls, list	*/
+#if NPNP > 0
+    { "pn",    set_pnp_parms,          string_arg },   /* pnp ... */
+#endif
     { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
     { "res",	(CmdFunc)cpu_reset,	NULL },		/* reset CPU	*/
     { "q", 	quitfunc, 		NULL },		/* quit		*/
@@ -2597,6 +2615,10 @@ parse_args(char *cmd, CmdParm *parms)
 	    ++parms;
 	    continue;
 	}
+        if (parms->type == PARM_STRING) {
+            parms->parm.aparm = (void *)cmd ;
+            return 0;
+        }
     }
     return 0;
 }
@@ -2609,6 +2631,9 @@ list_devices(CmdParm *parms)
     if (lsdevtab(&isa_devtab_tty[0])) return 0;
     if (lsdevtab(&isa_devtab_net[0])) return 0;
     if (lsdevtab(&isa_devtab_null[0])) return 0;
+#if NPNP > 0
+    if (lspnp()) return 0;
+#endif
 #if NEISA > 0
     printf("\nNumber of EISA slots to probe: %d\n", num_eisa_slots);
 #endif /* NEISA > 0 */
@@ -2697,6 +2722,94 @@ set_device_disable(CmdParm *parms)
     return 0;
 }
 
+#if NPNP > 0 
+/*  
+ * this function sets the kernel table to override bios PnP
+ * configuration.
+ */
+static int
+set_pnp_parms(CmdParm *parms)
+{   
+    u_long idx, val, ldn, csn;
+    int i;     
+    char *q, *p=parms[0].parm.aparm;
+    struct pnp_cinfo d;
+
+    csn=strtoul(p,&q, 0);
+    ldn=strtoul(q,&q, 0);
+    for (p=q; *p && (*p==' ' || *p=='\t'); p++) ;      
+    if (csn < 1 || csn > MAX_PNP_CARDS || ldn >= MAX_PNP_LDN) {
+       printf("bad csn/ldn %d:%d\n", csn, ldn);
+       return 0;
+    }  
+    for (i=0; i < MAX_PNP_LDN; i++) {
+       if (pnp_ldn_overrides[i].csn == csn &&
+           pnp_ldn_overrides[i].ldn == ldn)
+              break;
+    }
+    if (i==MAX_PNP_LDN) {
+       for (i=0; i < MAX_PNP_LDN; i++) {
+           if (pnp_ldn_overrides[i].csn <1 ||
+                pnp_ldn_overrides[i].csn > MAX_PNP_CARDS)
+                break;
+       }
+    }
+    if (i==MAX_PNP_LDN) { 
+       printf("sorry, no PnP entries available, try delete one\n");
+       return 0 ;
+    }
+    d = pnp_ldn_overrides[i] ;
+    d.csn = csn;
+    d.ldn = ldn ;
+    while (*p) {
+       idx = 0;
+       val = 0;
+       if (!strncmp(p,"irq",3)) {
+           idx=strtoul(p+3,&q, 0);
+           val=strtoul(q,&q, 0);
+           if (idx >=0 && idx < 2) d.irq[idx] = val;
+       } else if (!strncmp(p,"flags",5)) {
+           idx=strtoul(p+5,&q, 0);
+           d.flags = idx;
+       } else if (!strncmp(p,"drq",3)) {
+           idx=strtoul(p+3,&q, 0);
+           val=strtoul(q,&q, 0);
+           if (idx >=0 && idx < 2) d.drq[idx] = val;
+       } else if (!strncmp(p,"port",4)) {
+           idx=strtoul(p+4,&q, 0);
+           val=strtoul(q,&q, 0);
+           if (idx >=0 && idx < 8) d.port[idx] = val;
+       } else if (!strncmp(p,"mem",3)) {
+           idx=strtoul(p+3,&q, 0);
+           val=strtoul(q,&q, 0);
+           if (idx >=0 && idx < 4) d.mem[idx].base = val;
+       } else if (!strncmp(p,"bios",4)) {
+           q = p+ 4;
+           d.override = 0 ;
+       } else if (!strncmp(p,"os",2)) {
+           q = p+2 ;
+           d.override = 1 ;
+       } else if (!strncmp(p,"disable",7)) {
+           q = p+7 ;
+           d.enable = 0 ;
+       } else if (!strncmp(p,"enable",6)) {
+           q = p+6;
+           d.enable = 1 ;
+       } else if (!strncmp(p,"delete",6)) {
+           bzero(&pnp_ldn_overrides[i], sizeof (pnp_ldn_overrides[i]));
+           if (i==0) pnp_ldn_overrides[i].csn = 255;/* not reinit */
+           return 0;
+       } else {
+           printf("unknown command <%s>\n", p);
+           break;
+       }
+       for (p=q; *p && (*p==' ' || *p=='\t'); p++) ;
+    }
+    pnp_ldn_overrides[i] = d ;
+    return 0;
+}
+#endif /* NPNP */
+
 #if NEISA > 0
 static int
 set_num_eisa_slots(CmdParm *parms)
@@ -2729,6 +2842,16 @@ helpfunc(CmdParm *parms)
     printf("flags <devname> <mask>\tSet device flags\n");
     printf("enable <devname>\tEnable device\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
+#if NPNP > 0
+    printf(
+    "pnp <csn> <ldn> [enable|disable]\tenable/disable device\n"
+    "pnp <csn> <ldn> [os|bios]\tset parameters using FreeBSD or BIOS\n"
+    "pnp <csn> <ldn> [portX <addr>]\tset addr for port X (0..7)\n"
+    "pnp <csn> <ldn> [memX <maddr>]\tset addr for memory range X (0..3)\n"
+    "pnp <csn> <ldn> [irqX <number>]\tset irq X (0..1) to number, 0=unused\n"
+    "pnp <csn> <ldn> [drqX <number>]\tset drq X (0..1) to number, 4=unused\n"
+    "pnp <csn> <ldn> [flags <number>]\tset pnp flags (driver-specific)\n");
+#endif
 #if NEISA > 0
     printf("eisa <number>\t\tSet the number of EISA slots to probe\n");
 #endif /* NEISA > 0 */
@@ -2854,6 +2977,67 @@ introfunc(CmdParm *parms)
 #endif
 }
 #endif
+
+#if NPNP > 0   
+static int     
+lspnp ()       
+{                  
+    struct pnp_cinfo *c;
+    int i, first = 1;
+               
+    for (i=0; i< MAX_PNP_LDN; i++) {
+       c = &pnp_ldn_overrides[i];
+       if (c->csn >0 && c->csn != 255) {
+           int pmax, mmax;
+           static char pfmt[] =
+               "port 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x ";
+           static char mfmt[] =
+               "mem 0x%x 0x%x 0x%x 0x%x";
+           char buf[256];
+           if (lineno >= 23) {
+                   printf("<More> ");
+                   if (getchar() == 'q') {
+                           printf("quit\n");
+                           return (1);
+                   }
+                   printf("\n");
+                   lineno = 0;
+           }
+           if (lineno == 0 || first)
+               printf("CSN LDN conf en irqs  drqs others (PnP devices)\n");
+           first = 0 ;
+           printf("%3d %3d %4s %2s %2d %-2d %2d %-2d ",
+               c->csn, c->ldn,
+               c->override ? "OS  ":"BIOS",
+               c->enable ? "Y":"N",
+               c->irq[0], c->irq[1], c->drq[0], c->drq[1]);
+           if (c->flags)
+               printf("flags 0x%08lx ",c->flags);
+           for (pmax = 7; pmax >=0 ; pmax--)
+               if (c->port[pmax]!=0) break;
+           for (mmax = 3; mmax >=0 ; mmax--)
+               if (c->mem[mmax].base!=0) break;
+           if (pmax>=0) {
+               strcpy(buf, pfmt);
+               buf[10 + 5*pmax]='\0';
+               printf(buf,
+                   c->port[0], c->port[1], c->port[2], c->port[3],
+                   c->port[4], c->port[5], c->port[6], c->port[7]);
+           }
+           if (mmax>=0) {
+               strcpy(buf, mfmt);
+               buf[8 + 5*mmax]='\0';
+               printf(buf,
+                   c->mem[0].base, c->mem[1].base,
+                   c->mem[2].base, c->mem[3].base);
+           }
+           printf("\n");
+       }
+    }
+    return 0 ;
+}
+#endif /* NPNP */
+
 
 static int
 lsdevtab(struct isa_device *dt)
