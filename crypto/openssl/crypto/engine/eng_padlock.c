@@ -65,7 +65,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #ifdef _MSC_VER
 # define alloca   _alloca
 # define snprintf _snprintf
