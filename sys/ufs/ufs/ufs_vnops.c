@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.49 1997/03/31 12:02:53 peter Exp $
+ * $Id: ufs_vnops.c,v 1.50 1997/05/17 18:32:53 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -376,12 +376,14 @@ ufs_setattr(ap)
 		    (error = suser(cred, &p->p_acflag)))
 			return (error);
 		if (cred->cr_uid == 0) {
-			if ((ip->i_flags & (SF_IMMUTABLE | SF_APPEND)) &&
+			if ((ip->i_flags
+			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) &&
 			    securelevel > 0)
 				return (EPERM);
 			ip->i_flags = vap->va_flags;
 		} else {
-			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND) ||
+			if (ip->i_flags
+			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
 			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
 				return (EPERM);
 			ip->i_flags &= SF_SETTABLE;
@@ -674,7 +676,7 @@ ufs_remove(ap)
 	int error;
 
 	ip = VTOI(vp);
-	if ((ip->i_flags & (IMMUTABLE | APPEND)) ||
+	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 	    (VTOI(dvp)->i_flags & APPEND)) {
 		error = EPERM;
 		goto out;
@@ -904,7 +906,7 @@ abortit:
 		return (error);
 	}
 
-	if (tvp && ((VTOI(tvp)->i_flags & (IMMUTABLE | APPEND)) ||
+	if (tvp && ((VTOI(tvp)->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 	    (VTOI(tdvp)->i_flags & APPEND))) {
 		error = EPERM;
 		goto abortit;
@@ -965,7 +967,8 @@ abortit:
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
-	if ((ip->i_flags & (IMMUTABLE | APPEND)) || (dp->i_flags & APPEND)) {
+	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
+	    || (dp->i_flags & APPEND)) {
 		VOP_UNLOCK(fvp, 0, p);
 		error = EPERM;
 		goto abortit;
@@ -1504,7 +1507,8 @@ ufs_rmdir(ap)
 		error = ENOTEMPTY;
 		goto out;
 	}
-	if ((dp->i_flags & APPEND) || (ip->i_flags & (IMMUTABLE | APPEND))) {
+	if ((dp->i_flags & APPEND)
+	    || (ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
 		error = EPERM;
 		goto out;
 	}
