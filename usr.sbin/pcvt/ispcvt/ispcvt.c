@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <err.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <machine/pcvt_ioctl.h>
 
 #define DEFAULTFD 0
@@ -47,10 +48,6 @@ main(argc,argv)
 int argc;
 char *argv[];
 {
-	extern int optind;
-	extern int opterr;
-	extern char *optarg;
-
 	struct pcvtid pcvtid;
 	struct pcvtinfo pcvtinfo;
 	int c;
