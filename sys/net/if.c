@@ -1016,8 +1016,9 @@ ifpromisc(ifp, pswitch)
 {
 	struct ifreq ifr;
 	int error;
-	int oldflags;
+	int oldflags, oldpcount;
 
+	oldpcount = ifp->if_pcount;
 	oldflags = ifp->if_flags;
 	if (pswitch) {
 		/*
@@ -1029,21 +1030,22 @@ ifpromisc(ifp, pswitch)
 		if (ifp->if_pcount++ != 0)
 			return (0);
 		ifp->if_flags |= IFF_PROMISC;
-		log(LOG_INFO, "%s%d: promiscuous mode enabled\n",
-		    ifp->if_name, ifp->if_unit);
 	} else {
 		if (--ifp->if_pcount > 0)
 			return (0);
 		ifp->if_flags &= ~IFF_PROMISC;
-		log(LOG_INFO, "%s%d: promiscuous mode disabled\n",
-		    ifp->if_name, ifp->if_unit);
 	}
 	ifr.ifr_flags = ifp->if_flags;
 	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-	if (error == 0)
+	if (error == 0) {
+		log(LOG_INFO, "%s%d: promiscuous mode %s\n",
+		    ifp->if_name, ifp->if_unit,
+		    (ifp->if_flags & IFF_PROMISC) ? "enabled" : "disabled");
 		rt_ifmsg(ifp);
-	else
+	} else {
+		ifp->if_pcount = oldpcount;
 		ifp->if_flags = oldflags;
+	}
 	return error;
 }
 
