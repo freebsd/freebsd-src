@@ -378,7 +378,7 @@ again:
 	 */
 	SLIST_INIT(&callfree);
 	for (i = 0; i < ncallout; i++) {
-		callout_init(&callout[i]);
+		callout_init(&callout[i], 0);
 		callout[i].c_flags = CALLOUT_LOCAL_ALLOC;
 		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
 	}
