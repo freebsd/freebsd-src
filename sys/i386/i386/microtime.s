@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id$
+ *	$Id: microtime.s,v 1.2 1993/10/16 14:15:08 rgrimes Exp $
  */
 
-#include "asm.h"
+#include "machine/asmacros.h"
 #include "../isa/isa.h"
 #include "../isa/timerreg.h"
 
@@ -99,16 +99,20 @@ ENTRY(microtime)
 	#
 	cmpl	$11890,%ebx
 	jle	2f
+#if 0 /* rest of kernel guarantees to keep IRR selected */
 	movl	$0x0a,%eax	# tell ICU we want IRR
 	outb	%al,$IO_ICU1
+#endif
 
 	inb	$IO_ICU1,%al	# read IRR in ICU
 	testb	$1,%al		# is a timer interrupt pending?
 	je	1f
 	addl	$-11932,%ebx	# yes, subtract one clock period
 1:
+#if 0 /* rest of kernel doesn't expect ISR */
 	movl	$0x0b,%eax	# tell ICU we want ISR 
 	outb	%al,$IO_ICU1	#   (rest of kernel expects this)
+#endif
 2:
 	sti			# enable interrupts
 

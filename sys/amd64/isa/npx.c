@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.5 1993/11/03 23:32:35 paul Exp $
+ *	$Id: npx.c,v 1.6 1994/01/03 07:55:43 davidg Exp $
  */
 
 #include "npx.h"
@@ -114,7 +114,7 @@ struct	isa_driver npxdriver = {
 	npxprobe, npxattach, "npx",
 };
 
-u_int	npx0mask;
+u_int	npx0_imask;
 struct proc	*npxproc;
 
 static	bool_t			npx_ex16;
@@ -292,7 +292,7 @@ npxprobe1(dvp)
 				 * Bad, we are stuck with IRQ13.
 				 */
 				npx_irq13 = 1;
-				npx0mask = dvp->id_irq;	/* npxattach too late */
+				npx0_imask = dvp->id_irq;	/* npxattach too late */
 				return (IO_NPXSIZE);
 			}
 			/*
@@ -528,8 +528,8 @@ npxsave(addr)
 	old_icu1_mask = inb(IO_ICU1 + 1);
 	old_icu2_mask = inb(IO_ICU2 + 1);
 	save_idt_npxintr = idt[npx_intrno];
-	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0mask));
-	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0mask >> 8));
+	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
+	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0_imask >> 8));
 	idt[npx_intrno] = npx_idt_probeintr;
 	enable_intr();
 	stop_emulating();
@@ -541,10 +541,10 @@ npxsave(addr)
 	icu1_mask = inb(IO_ICU1 + 1);	/* masks may have changed */
 	icu2_mask = inb(IO_ICU2 + 1);
 	outb(IO_ICU1 + 1,
-	     (icu1_mask & ~npx0mask) | (old_icu1_mask & npx0mask));
+	     (icu1_mask & ~npx0_imask) | (old_icu1_mask & npx0_imask));
 	outb(IO_ICU2 + 1,
-	     (icu2_mask & ~(npx0mask >> 8))
-	     | (old_icu2_mask & (npx0mask >> 8)));
+	     (icu2_mask & ~(npx0_imask >> 8))
+	     | (old_icu2_mask & (npx0_imask >> 8)));
 	idt[npx_intrno] = save_idt_npxintr;
 	enable_intr();		/* back to usual state */
 }

@@ -2,7 +2,7 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id: cpufunc.h,v 1.8 1994/01/31 04:18:45 davidg Exp $
+ *	$Id: cpufunc.h,v 1.9 1994/01/31 23:48:23 davidg Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -10,6 +10,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
+#include "machine/spl.h"
 
 #ifdef	__GNUC__
 

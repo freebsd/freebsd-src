@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.13 1994/01/17 05:49:20 rgrimes Exp $
+ *	$Id: isa.c,v 1.14 1994/01/22 21:52:04 rgrimes Exp $
  */
 
 /*
@@ -213,38 +213,45 @@ isa_configure() {
 	printf("Probing for devices on the ISA bus:\n");
 	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&ttymask);
+			config_isadev(dvp,&tty_imask);
 	}
 	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&biomask);
+			config_isadev(dvp,&bio_imask);
 	}
 	for (dvp = isa_devtab_net; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&netmask);
+			config_isadev(dvp,&net_imask);
 	}
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++) {
 		if (!haveseen_isadev(dvp))
 			config_isadev(dvp,(u_int *) NULL);
 	}
+	bio_imask |= SWI_CLOCK_MASK;
+	net_imask |= SWI_NET_MASK;
+	tty_imask |= SWI_TTY_MASK;
+
 /*
- * XXX We should really add the tty device to netmask when the line is
+ * XXX we should really add the tty device to net_imask when the line is
  * switched to SLIPDISC, and then remove it when it is switched away from
- * SLIPDISC.  No need to block out ALL ttys during a splnet when only one
+ * SLIPDISC.  No need to block out ALL ttys during a splimp when only one
  * of them is running slip.
+ *
+ * XXX actually, blocking all ttys during a splimp doesn't matter so much 
+ * with sio because the serial interrupt layer doesn't use tty_imask.  Only
+ * non-serial ttys suffer.  It's more stupid that ALL 'net's are blocked
+ * during spltty.
  */
 #include "sl.h"
 #if NSL > 0
-	netmask |= ttymask;
-	ttymask |= netmask;
+	net_imask |= tty_imask;
+	tty_imask = net_imask;
 #endif
-	/* if netmask == 0, then the loopback code can do some really
-	 * bad things.
-	 */
-	if (netmask == 0)
-		netmask = 0x10000;
-	/* biomask |= ttymask ;  can some tty devices use buffers? */
-	printf("biomask %x ttymask %x netmask %x\n", biomask, ttymask, netmask);
+	/* bio_imask |= tty_imask ;  can some tty devices use buffers? */
+#ifdef DIAGNOSTIC
+	printf("bio_imask %x tty_imask %x net_imask %x\n",
+	       bio_imask, tty_imask, net_imask);
+#endif
 	splnone();
 }
 
@@ -337,14 +344,11 @@ extern inthand_t
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
 
-static inthand_func_t defvec[16] = {
+static inthand_func_t defvec[ICU_LEN] = {
 	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
 	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
 	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
 	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15) };
-
-/* out of range default interrupt vector gate entry */
-extern inthand_t IDTVEC(intrdefault);
 
 /*
  * Fill in default interrupt table (in case of spuruious interrupt
@@ -356,12 +360,8 @@ isa_defaultirq()
 	int i;
 
 	/* icu vectors */
-	for (i = NRSVIDT ; i < NRSVIDT+ICU_LEN ; i++)
-		setidt(i, defvec[i],  SDT_SYS386IGT, SEL_KPL);
-  
-	/* out of range vectors */
-	for (i = NRSVIDT; i < NIDT; i++)
-		setidt(i, &IDTVEC(intrdefault), SDT_SYS386IGT, SEL_KPL);
+	for (i = 0; i < ICU_LEN; i++)
+		setidt(ICU_OFFSET + i, defvec[i], SDT_SYS386IGT, SEL_KPL);
 
 	/* initialize 8259's */
 	outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
