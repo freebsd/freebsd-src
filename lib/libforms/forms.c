@@ -54,7 +54,7 @@ initfrm(struct form *form)
 
 	while (field->type != F_END) {
 		if (field->type == F_INPUT) {
-			field->field.input->input = malloc(field->width);
+			field->field.input->input = malloc(field->field.input->limit);
 			if (!field->field.input->input){
 				print_status("Couldn't allocate memory, closing form");
 				endfrm(form);
@@ -103,6 +103,9 @@ update_form(struct form *form)
 
 	show_form(form);
 
+	if (form->current_field == -1)
+		return (F_CANCEL);
+
 	switch (form->field[form->current_field].type) {
 		case F_MENU:
 			field_menu(form);
@@ -115,6 +118,8 @@ update_form(struct form *form)
 			break;
 		case F_TEXT:
 		default:
+			print_status("Error, current field is invalid");
+			return (F_CANCEL);
 	}
 
 	return (done);
@@ -158,7 +163,7 @@ disp_text(struct form *form, int index)
 	wattron(form->window, field->attr);
 
 	if (print_string(form->window, field->y, field->x,
-	             field->disp_width, field->field.text->text) == ERR)
+	             field->width, field->field.text->text) == ERR)
 		print_status("Illegal scroll in print_string");
 }
 
@@ -172,11 +177,11 @@ disp_input(struct form *form, int index)
 
 	if (field->field.input->lbl_flag) {
 		if (print_string(form->window, field->y, field->x,
-						 field->disp_width, field->field.input->label) == ERR)
+						 field->width, field->field.input->label) == ERR)
 			print_status("Illegal scroll in print_string");
 	} else 
 		if (print_string(form->window, field->y, field->x,
-						 field->disp_width, field->field.input->input) == ERR)
+						 field->width, field->field.input->input) == ERR)
 			print_status("Illegal scroll in print_string");
 		
 }
@@ -189,7 +194,7 @@ disp_menu(struct form *form, int index)
 	wattron(form->window, field->attr);
 
 	if (print_string(form->window, field->y, field->x,
-			field->disp_width,
+			field->width,
 			field->field.menu->options[field->field.menu->selected]) == ERR)
 		print_status("Illegal scroll in print_string");
 }
@@ -203,7 +208,7 @@ disp_action(struct form *form, int index)
 	wattron(form->window, field->attr);
 
 	if (print_string(form->window, field->y, field->x,
-				field->disp_width,
+				field->width,
 				field->field.action->text) == ERR)
 		print_status("Illegal scroll in print_string");
 
@@ -303,7 +308,7 @@ next_field(struct form *form, int ch)
 
 static int
 print_string(WINDOW *window, int y, int x,
-             int disp_width, char *string)
+             int width, char *string)
 {
 	int len;
 
@@ -314,7 +319,7 @@ print_string(WINDOW *window, int y, int x,
 
 	if (wmove(window, y, x) == ERR)
 		return (ERR);
-	while (disp_width--) {
+	while (width--) {
 		if (len-- > 0) {
 			if (waddch(window, *string++) == ERR)
 				return (ERR);
@@ -354,8 +359,8 @@ field_input(struct form *form)
 	int ch;
 	int disp_off=0, abspos=0, cursor = 0;
 
-#define DISPOFF ((len < field->disp_width) ? 0 : len - field->disp_width)
-#define CURSPOS ((len < field->disp_width) ? len : field->disp_width)
+#define DISPOFF ((len < field->width) ? 0 : len - field->width)
+#define CURSPOS ((len < field->width) ? len : field->width)
 
 	len = strlen(field->field.input->input);
 	wattron(form->window, F_SELATTR);
@@ -372,7 +377,7 @@ field_input(struct form *form)
 		ch = wgetch(form->window);
 		if (next_field(form, ch)) {
 			print_string(form->window, field->y, field->x,
-						field->disp_width,
+						field->width,
 						field->field.input->input+DISPOFF);
 			return;
 		}
@@ -418,17 +423,17 @@ field_input(struct form *form)
 				beep();
 			else {
 				++abspos;
-				if (cursor++ == field->disp_width) {
+				if (cursor++ == field->width) {
 					++disp_off;
 					--cursor;
 				}
 			}
-		} else if ((isprint(ch)) && (len < field->width)){ 
+		} else if ((isprint(ch)) && (len < field->field.input->limit)){ 
 			bcopy(field->field.input->input+abspos,
 					 field->field.input->input+abspos+1, len-abspos+1);
 			field->field.input->input[abspos++] = ch;
 			len++;
-			if (++cursor > field->disp_width) {
+			if (++cursor > field->width) {
 				++disp_off;
 				--cursor;
 			}
@@ -436,7 +441,7 @@ field_input(struct form *form)
 				beep();
 		}
 		print_string(form->window, field->y, field->x,
-					 field->disp_width, field->field.input->input+disp_off);
+					 field->width, field->field.input->input+disp_off);
 	}
 	/* Not Reached */
 }
