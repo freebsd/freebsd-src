@@ -517,6 +517,7 @@ ADMtek Inc. AN986-based USB ethernet NICs including the following:
 CATC USB-EL1210A-based USB ethernet NICs including the following:
   CATC Netmate
   CATC Netmate II
+  Belkin F5U011
   Belkin F5U111
 
 Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
@@ -646,6 +647,8 @@ NEC uPD 9210.
 
 OPTi 82C861 (FireLink).
 
+SiS 5571.
+
 VIA 83C572 USB.
 
 and any other UHCI or OHCI compliant motherboard chipset (no exceptions
@@ -706,6 +709,8 @@ Microsoft keyboard.
 NEC hub.
 
 Trust Ami Mouse (3 buttons).
+
+Y-E Data floppy drive (720/1.44/2.88Mb)
 
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
