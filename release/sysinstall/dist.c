@@ -84,7 +84,7 @@ static Distribution DistTable[] = {
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "local",	"/",			&Dists,		DIST_LOCAL,		NULL		},
-{ "XF86335",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF86336",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
 
@@ -92,7 +92,7 @@ static Distribution DistTable[] = {
 static Distribution DESDistTable[] = {
 { "des",        "/",                    &DESDists,	DIST_DES_DES,		NULL		},
 #if __FreeBSD__ > 3
-  { "krb4",	"/",			&DESDists,	DIST_DES_KERBEROS4,	NULL		},
+{ "krb4",	"/",			&DESDists,	DIST_DES_KERBEROS4,	NULL		},
 #else
 { "krb",	"/",			&DESDists,	DIST_DES_KERBEROS,	NULL		},
 #endif
@@ -124,8 +124,8 @@ static Distribution SrcDistTable[] = {
 
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
-{ "XF86335",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
-{ "XF86335",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF86336",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "XF86336",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { "Xbin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
 { "Xcfg",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_CFG,		NULL		},
 { "Xdoc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},

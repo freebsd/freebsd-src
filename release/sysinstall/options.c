@@ -216,7 +216,7 @@ optionsEditor(dialogMenuItem *self)
     static int currOpt = 0;
     WINDOW *w = savescr();
     
-    dialog_clear_norefresh();
+    dialog_clear();
     clear();
 
     while (1) {
