@@ -54,7 +54,9 @@
 #include "DEFS.h"
 #include "SYS.h"
 
-ENTRY(setjmp)
+ENTRY(__setjmp)
+.weak setjmp;
+.set setjmp, __setjmp;
 	movl	4(%esp),%ecx
 	PIC_PROLOGUE
 	leal	28(%ecx), %eax
@@ -80,7 +82,9 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
-ENTRY(longjmp)
+ENTRY(__longjmp)
+.weak longjmp;
+.set longjmp, __longjmp;
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
 	pushl	$0			/* (sigset_t*)oset */
