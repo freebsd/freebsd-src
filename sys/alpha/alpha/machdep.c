@@ -1570,9 +1570,6 @@ sigreturn(struct proc *p,
 	struct pcb *pcb;
 	unsigned long val;
 
-	if (((struct osigcontext*)uap->sigcntxp)->sc_regs[R_ZERO] == 0xACEDBADE)
-		return osigreturn(p, (struct osigreturn_args *)uap);
-
 	ucp = uap->sigcntxp;
 	pcb = &p->p_addr->u_pcb;
 
@@ -1583,9 +1580,19 @@ sigreturn(struct proc *p,
 
 	/*
 	 * Fetch the entire context structure at once for speed.
+	 * Note that struct osigcontext is smaller than a ucontext_t,
+	 * so even if copyin() faults, we may have actually gotten a complete
+	 * struct osigcontext.
 	 */
-	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
-		return (EFAULT);
+	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t))) {
+		if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
+			return osigreturn(p, (struct osigreturn_args *)uap);
+		else
+			return (EFAULT);
+	}
+
+	if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
+		return osigreturn(p, (struct osigreturn_args *)uap);
 
 	/*
 	 * Restore the user-supplied information
