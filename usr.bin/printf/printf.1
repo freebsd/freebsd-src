@@ -62,7 +62,8 @@ The
 .Ar arguments
 after the first are treated as strings if the corresponding format is
 either
-.Cm c
+.Cm c ,
+.Cm b
 or
 .Cm s ;
 otherwise it is evaluated as a C constant, with the following extensions:
@@ -71,8 +72,8 @@ otherwise it is evaluated as a C constant, with the following extensions:
 .It
 A leading plus or minus sign is allowed.
 .It
-If the leading character is a single or double quote, or not a digit,
-plus, or minus sign, the value is the ASCII code of the next character.
+If the leading character is a single or double quote the value is the ASCII
+code of the next character.
 .El
 .Pp
 The format string is reused as often as necessary to satisfy the
@@ -81,7 +82,8 @@ Any extra format specifications are evaluated with zero or the null
 string.
 .Pp
 Character escape sequences are in backslash notation as defined in the
-.St -ansiC .
+.St -ansiC ,
+with extensions.
 The characters and their meanings
 are as follows:
 .Pp
@@ -90,6 +92,8 @@ are as follows:
 Write a <bell> character.
 .It Cm \eb
 Write a <backspace> character.
+.It Cm \ec
+Ignore remaining characters in this string.
 .It Cm \ef
 Write a <form-feed> character.
 .It Cm \en
@@ -105,6 +109,7 @@ Write a <single quote> character.
 .It Cm \e\e
 Write a backslash character.
 .It Cm \e Ns Ar num
+.It Cm \e0 Ns Ar num
 Write an 8-bit character whose
 .Tn ASCII
 value is the 1-, 2-, or 3-digit
@@ -187,7 +192,7 @@ from a string; if the digit string is missing, the precision is treated
 as zero;
 .It Format:
 A character which indicates the type of format to use (one of
-.Cm diouxXfwEgGcs ) .
+.Cm diouxXfwEgGcsb ) .
 .El
 .Pp
 A field width or precision may be
@@ -244,6 +249,11 @@ Characters from the string
 are printed until the end is reached or until the number of characters
 indicated by the precision specification is reached; however if the
 precision is 0 or missing, all characters in the string are printed.
+.It Cm b
+As for
+.Cm s ,
+but interpret character escapes in backslash notation in the string
+.Ar argument .
 .It Cm \&%
 Print a `%'; no argument is used.
 .El
@@ -257,8 +267,20 @@ a field; padding takes place only if the specified field width exceeds
 the actual width.
 .Sh DIAGNOSTICS
 .Ex -std
+.Sh COMPATIBILITY
+The traditional
+.Bx
+behavior of converting arguments of numeric formats not beginning
+with a digit to the ASCII code of the first characer is not supported.
 .Sh SEE ALSO
+.Xr echo 1 ,
 .Xr printf 3
+.Sh STANDARDS
+The
+.Nm
+command is expected to be compatible with the
+.St -p1003.2
+specification.
 .Sh HISTORY
 The
 .Nm
