@@ -51,6 +51,9 @@ struct sipcp {
 #define IPV6CP_MYIFID_DYN 8	/* my ifid is dynamically assigned */
 #endif
 #define IPV6CP_MYIFID_SEEN 0x10	/* have seen his ifid already */
+#define IPCP_VJ		0x20	/* can use VJ compression */
+	int	max_state;	/* VJ: Max-Slot-Id */
+	int	compress_cid;	/* VJ: Comp-Slot-Id */
 };
 
 #define AUTHNAMELEN	32
@@ -99,6 +102,7 @@ struct sppp {
 	u_char  confid[IDX_COUNT];	/* id of last configuration request */
 	int	rst_counter[IDX_COUNT];	/* restart counter */
 	int	fail_counter[IDX_COUNT]; /* negotiation failure counter */
+	int	enable_vj;	/* VJ header compression enabled */
 	struct callout_handle ch[IDX_COUNT]; /* per-proto and if callouts */
 	struct callout_handle pap_my_to_ch; /* PAP needs one more... */
 	struct slcp lcp;		/* LCP params */
@@ -106,6 +110,7 @@ struct sppp {
 	struct sipcp ipv6cp;		/* IPv6CP params */
 	struct sauth myauth;		/* auth params, i'm peer */
 	struct sauth hisauth;		/* auth params, i'm authenticator */
+	struct slcompress pp_comp;	/* for VJ compression */
 	/*
 	 * These functions are filled in by sppp_attach(), and are
 	 * expected to be used by the lower layer (hardware) drivers
