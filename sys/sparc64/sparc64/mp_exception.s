@@ -145,21 +145,6 @@ ENTRY(tl_ipi_level)
 	retry
 END(tl_ipi_level)
 
-ENTRY(tl_ipi_test)
-#if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "ipi_test: cpuid=%d mid=%d d1=%#lx d2=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	lduw	[PCPU(CPUID)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	lduw	[PCPU(MID)], %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	stx	%g4, [%g1 + KTR_PARM3]
-	stx	%g5, [%g1 + KTR_PARM4]
-9:
-#endif
-	retry
-END(tl_ipi_test)
-
 /*
  * Demap a page from the dtlb and/or itlb.
  */
