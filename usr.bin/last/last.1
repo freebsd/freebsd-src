@@ -32,7 +32,7 @@
 .\"     @(#)last.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2002
+.Dd July 27, 2003
 .Dt LAST 1
 .Os
 .Sh NAME
@@ -40,7 +40,6 @@
 .Nd indicate last logins of users and ttys
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ns Ar n
 .Op Fl y
 .Oo
 .Fl d
@@ -53,6 +52,7 @@
 .Oc
 .Op Fl f Ar file
 .Op Fl h Ar host
+.Op Fl n Ar maxrec
 .Op Fl s
 .Op Fl t Ar tty
 .Op Fl w
@@ -78,10 +78,6 @@ will so indicate.
 .Pp
 The following options are available:
 .Bl -tag -width indent-two
-.It Fl Ar n
-Limit the report to
-.Ar n
-lines.
 .It Fl d Ar date
 Specify the snapshot date and time.
 All users logged in at the snapshot date and time will
@@ -94,7 +90,7 @@ files.
 When this argument is provided, all other options except for
 .Fl f
 and
-.Fl Ar n
+.Fl n
 are ignored.
 The argument should be in the form
 .Sm off
@@ -151,6 +147,10 @@ instead of the default,
 .It Fl h Ar host
 .Ar Host
 names may be names or internet numbers.
+.It Fl n Ar maxrec
+Limit the report to
+.Ar maxrec
+lines.
 .It Fl s
 Report the duration of the login session in seconds, instead of the
 default days, hours and minutes.
