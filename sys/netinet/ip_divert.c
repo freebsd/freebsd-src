@@ -393,7 +393,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 		INP_INFO_WUNLOCK(&divcbinfo);
 		return error;
 	}
-	error = in_pcballoc(so, &divcbinfo, td);
+	error = in_pcballoc(so, &divcbinfo, td, "divinp");
 	if (error) {
 		INP_INFO_WUNLOCK(&divcbinfo);
 		return error;
