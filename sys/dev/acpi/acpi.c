@@ -36,12 +36,17 @@
 #include <sys/conf.h>
 #include <sys/sysctl.h>
 
+
+#include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <sys/eventhandler.h>		/* for EVENTHANDLER_REGISTER */
 #include <sys/reboot.h>			/* for RB_POWEROFF */
 #include <machine/clock.h>		/* for DELAY */
+#include <sys/unistd.h>                 /* for RFSTOPPED*/
+#include <sys/kthread.h>                /* for kthread stuff*/
+#include <sys/ctype.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -161,6 +166,10 @@ static int  acpi_send_pm_event(acpi_softc_t *sc, u_int8_t state);
 static void acpi_identify(driver_t *driver, device_t parent);
 static int  acpi_probe(device_t dev);
 static int  acpi_attach(device_t dev);
+
+/*Thread stuff*/
+static void acpi_event_thread(void *);
+static void acpi_start_threads(void *);
 
 /* for debugging */
 #ifdef ACPI_DEBUG
@@ -888,12 +897,17 @@ static void
 acpi_soft_off(void *data, int howto)
 {
 	acpi_softc_t	*sc;
-
+	u_int32_t vala=0;
 	if (!(howto & RB_POWEROFF)) {
 		return;
 	}
 	sc = (acpi_softc_t *) data;
 	acpi_execute_pts(sc, ACPI_S_STATE_S5);
+
+	/*XXX Disable GPE intrrupt,or power on again in some machine*/
+	acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &vala);
+	acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT, &vala);
+
 	acpi_trans_sleeping_state(sc, ACPI_S_STATE_S5);
 }
 
@@ -1005,11 +1019,23 @@ acpi_process_event(acpi_softc_t *sc, u_int32_t status_a, u_int32_t status_b,
     u_int32_t status_0, u_int32_t status_1)
 {
 
+	int i;
+	
 	if (status_a & ACPI_PM1_PWRBTN_EN || status_b & ACPI_PM1_PWRBTN_EN) {
 		if (sc->ignore_events & ACPI_PM1_PWRBTN_EN) {
 			ACPI_DEBUGPRINT("PWRBTN event ingnored\n");
 		} else {
+#if 1
 			acpi_set_sleeping_state(sc, ACPI_S_STATE_S5);
+#else
+			/*If there is ACPI userland daemon,
+			  this event should be
+			  passed to it,so that user can determine power policy
+			  and process some on userland (Not yet)*/
+			acpi_queue_event(ACPI_EVENT_TYPE_FIXEDREG, 0);
+#endif
+
+
 		}
 	}
 
@@ -1017,9 +1043,21 @@ acpi_process_event(acpi_softc_t *sc, u_int32_t status_a, u_int32_t status_b,
 		if (sc->ignore_events & ACPI_PM1_SLPBTN_EN) {
 			ACPI_DEBUGPRINT("SLPBTN event ingnored\n");
 		} else {
+#if 1
 			acpi_set_sleeping_state(sc, ACPI_S_STATE_S1);
+#else
+			acpi_queue_event(ACPI_EVENT_TYPE_FIXEDREG, 1);
+#endif
 		}
 	}
+	for(i = 0; i < sc->facp_body->gpe0_len * 4; i++)
+		if((status_0 & (1 << i)) && (sc->gpe0_mask & (1 << i)))
+			acpi_queue_event(ACPI_EVENT_TYPE_GPEREG, i);
+	for(i = 0; i < sc->facp_body->gpe1_len * 4 ; i++)
+		if((status_1 & (1 << i)) && (sc->gpe1_mask & (1 << i)))
+				acpi_queue_event(ACPI_EVENT_TYPE_GPEREG,
+				    i + sc->facp_body->gpe1_base);
+
 }
 
 static void
@@ -1085,7 +1123,7 @@ acpi_intr(void *data)
 		val_a = 0x0;
 #endif
 		acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &val_a);
-
+#if 0
 		/* Clear interrupt status */
 		val_a = enable_0;	/* XXX */
 		acpi_io_gpe0_status(sc, ACPI_REGISTERS_OUTPUT, &val_a);
@@ -1094,6 +1132,7 @@ acpi_intr(void *data)
 		acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &enable_0);
 
 		acpi_debug = 0;		/* Shut up again */
+#endif
 	}
 
 	/* General-Purpose Events 1 Status Registers */
@@ -1132,6 +1171,27 @@ acpi_intr(void *data)
 
 	acpi_debug = debug;	/* Restore debug level */
 }
+static int acpi_set_gpe_bits(struct aml_name *name,va_list ap)
+{
+	struct acpi_softc *sc=va_arg(ap, struct acpi_softc *);
+	int *gpemask0 = va_arg(ap, int *);
+	int *gpemask1 = va_arg(ap, int *);
+	int gpenum;
+#define XDIGITTONUM(c) ((isdigit(c)) ? ((c) - '0') : ('A' <= (c)&& (c) <= 'F') ? ((c) - 'A' + 10) : 0)
+	if(isxdigit(name->name[2]) && isxdigit(name->name[3])){
+ 		gpenum = XDIGITTONUM(name->name[2]) * 16 + 
+		  XDIGITTONUM(name->name[3]);
+		ACPI_DEVPRINTF("GPENUM %d %d \n", gpenum, 
+			       sc->facp_body->gpe0_len * 4);
+		if(gpenum < (sc->facp_body->gpe0_len * 4)){
+			*gpemask0 |= (1 << gpenum);
+		}else{
+			*gpemask1 |= (1 << (gpenum - sc->facp_body->gpe1_base));
+		}
+	}
+	ACPI_DEVPRINTF("GPEMASK %x %x\n", *gpemask0, *gpemask1);
+	return 0;
+}
 
 static void
 acpi_enable_events(acpi_softc_t *sc)
@@ -1155,16 +1215,21 @@ acpi_enable_events(acpi_softc_t *sc)
 	}
 	acpi_io_pm1_enable(sc, ACPI_REGISTERS_OUTPUT, &status_a, &status_b);
 
-#if 0
+#if 1
 	/*
 	 * XXX
 	 * This should be done based on level event handlers in
 	 * \_GPE scope (4.7.2.2.1.2).
 	 */
 
-	/* try to enable all bits */
-	status_a = 0xffff;
+	status_a = status_b = 0;
+	aml_apply_foreach_found_objects(NULL, "\\_GPE._L", acpi_set_gpe_bits,
+					sc, &status_a, &status_b);
+	sc->gpe0_mask = status_a;
+	sc->gpe1_mask = status_b;
+
 	acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &status_a);
+	acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT, &status_b);
 #endif
 
 	/* print all event status for debugging */
@@ -1352,7 +1417,8 @@ acpi_attach(device_t dev)
 	if (acpi_handle_rsdt(sc) != 0) {
 		return (ENXIO);
 	}
-
+	
+	STAILQ_INIT(&sc->event);
 	/* Allocate the port range and interrupt */
 	port = sc->facp_body->smi_cmd;
 	rid_port = 0;
@@ -1437,3 +1503,100 @@ static driver_t acpi_driver = {
 };
 
 DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, 0, 0);
+/*
+ *KTHREAD 
+ *This part is mostly stolen from NEWCARD pcic code.
+ */
+
+void acpi_queue_event(int type,int arg)
+{
+	struct acpi_event *ae;
+	int s;
+	acpi_softc_t *sc = devclass_get_softc(acpi_devclass, 0);
+	ae = malloc(sizeof(*ae), M_TEMP, M_NOWAIT);
+	if(ae == NULL)
+		panic("acpi_queue_event; can't allocate event");
+	
+	ae->ae_type = type;
+	ae->ae_arg = arg;
+	s = splhigh();
+	STAILQ_INSERT_TAIL(&sc->event, ae, ae_q);
+	splx(s);
+	wakeup(&sc->event);
+}
+
+void acpi_event_thread(void *arg)
+{
+	acpi_softc_t *sc = arg;
+	int s,gpe1_base = sc->facp_body->gpe1_base;
+	u_int32_t status,bit;
+	struct acpi_event *ae;
+	const char numconv[] = {'0','1','2','3','4','5','6','7','8','9',
+			     'A','B','C','D','E','F',-1};
+	char gpemethod[] = "\\_GPE._LXX";
+	union aml_object argv;/* Dummy*/
+	while(1){
+		s = splhigh();
+		if((ae = STAILQ_FIRST(&sc->event)) == NULL){
+			splx(s);
+			tsleep(&sc->event, PWAIT, "acpiev",0);
+			continue;
+		} else {
+			splx(s);
+		}
+		s = splhigh();
+		STAILQ_REMOVE_HEAD_UNTIL(&sc->event, ae, ae_q);
+		splx(s);
+		switch(ae->ae_type){
+		case ACPI_EVENT_TYPE_GPEREG:
+			sprintf(gpemethod, "\\_GPE._L%c%c",
+			    numconv[(ae->ae_arg/0x10)&0xf],
+			    numconv[ae->ae_arg&0xf]);
+			aml_invoke_method_by_name(gpemethod, 0, &argv);
+			sprintf(gpemethod, "\\_GPE._E%c%c",
+			    numconv[(ae->ae_arg/0x10)&0xf],
+			    numconv[ae->ae_arg&0xf]);
+			aml_invoke_method_by_name(gpemethod, 0, &argv);
+			s=splhigh();
+			if((ae->ae_arg < gpe1_base) || (gpe1_base == 0)){
+				bit = 1 << ae->ae_arg;
+				ACPI_DEVPRINTF("GPE0%x\n", bit);
+				acpi_io_gpe0_status(sc, ACPI_REGISTERS_OUTPUT,
+				    &bit);
+				acpi_io_gpe0_enable(sc, ACPI_REGISTERS_INPUT,
+				    &status);
+				ACPI_DEVPRINTF("GPE0%x\n", status);
+				status |= bit;
+				acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT,
+				    &status);
+			}else{
+				bit = 1 << (ae->ae_arg - 
+					    sc->facp_body->gpe1_base);
+				acpi_io_gpe1_status(sc, ACPI_REGISTERS_OUTPUT,
+				    &bit);
+				acpi_io_gpe1_enable(sc, ACPI_REGISTERS_INPUT,
+				    &status);
+				status |= bit;
+				acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT,
+				    &status);
+			}
+			splx(s);
+			break;
+		}
+		free(ae, M_TEMP);
+	}
+	ACPI_DEVPRINTF("????\n");
+}
+void acpi_start_threads(void *arg)
+{
+	acpi_softc_t *sc = devclass_get_softc(acpi_devclass, 0);
+	device_t dev = devclass_get_device(acpi_devclass, 0);
+	ACPI_DEVPRINTF("START Thread\n");
+	if(kthread_create(acpi_event_thread, sc, &sc->acpi_thread, 0, "acpi")){
+		ACPI_DEVPRINTF("CANNOT CREATE THREAD\n");
+	}
+}
+SYSINIT(acpi, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, acpi_start_threads, 0);
+
+
+
