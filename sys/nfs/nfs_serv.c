@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.17 1995/06/28 07:06:50 davidg Exp $
+ * $Id: nfs_serv.c,v 1.18 1995/06/28 12:01:03 davidg Exp $
  */
 
 /*
@@ -2026,7 +2026,7 @@ out:
 	if (!error) {
 		nqsrv_getl(vp, ND_WRITE);
 		nqsrv_getl(xp, ND_WRITE);
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 		error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 #else
 		error = VOP_LINK(vp, nd.ni_dvp, &nd.ni_cnd);
