@@ -24,6 +24,8 @@ PROG=		testmain
 .else
 LIB=		ficl
 INTERNALLIB=	yes
+INTERNALSTATICLIB= yes
+NOPROFILE=	yes
 .include <bsd.lib.mk>
 .endif
 
