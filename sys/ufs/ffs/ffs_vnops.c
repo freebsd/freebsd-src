@@ -76,7 +76,11 @@
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
+#include "opt_directio.h"
 
+#ifdef DIRECTIO
+extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
+#endif
 static int	ffs_fsync(struct vop_fsync_args *);
 static int	ffs_getpages(struct vop_getpages_args *);
 static int	ffs_read(struct vop_read_args *);
@@ -348,6 +352,15 @@ ffs_read(ap)
 		return (ffs_extread(vp, uio, ioflag));
 #else
 		panic("ffs_read+IO_EXT");
+#endif
+#ifdef DIRECTIO
+	if ((ioflag & IO_DIRECT) != 0) {
+		int workdone;
+
+		error = ffs_rawread(vp, uio, &workdone);
+		if (error != 0 || workdone != 0)
+			return error;
+	}
 #endif
 
 	GIANT_REQUIRED;

@@ -52,6 +52,8 @@
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include "opt_directio.h"
+#include "opt_swap.h"
 
 static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
@@ -246,6 +248,9 @@ const char *buf_wmesg = BUF_WMESG;
 #define VFS_BIO_NEED_FREE	0x04	/* wait for free bufs, hi hysteresis */
 #define VFS_BIO_NEED_BUFSPACE	0x08	/* wait for buf space, lo hysteresis */
 
+#ifdef DIRECTIO
+extern void ffs_rawread_setup(void);
+#endif /* DIRECTIO */
 /*
  *	numdirtywakeup:
  *
@@ -463,6 +468,13 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	 * We have no less then 16 and no more then 256.
 	 */
 	nswbuf = max(min(nbuf/4, 256), 16);
+#ifdef NSWBUF_MIN
+	if (nswbuf < NSWBUF_MIN)
+		nswbuf = NSWBUF_MIN;
+#endif
+#ifdef DIRECTIO
+	ffs_rawread_setup();
+#endif
 
 	/*
 	 * Reserve space for the buffer cache buffers
