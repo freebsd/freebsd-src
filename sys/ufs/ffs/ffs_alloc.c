@@ -1314,7 +1314,7 @@ ffs_blkfree(ip, bno, size)
 	register struct fs *fs;
 	register struct cg *cgp;
 	struct buf *bp;
-	ufs_daddr_t blkno;
+	ufs_daddr_t fragno, cgbno;
 	int i, error, cg, blk, frags, bbase;
 	u_int8_t *blksfree;
 #ifdef DIAGNOSTIC
@@ -1358,25 +1358,25 @@ ffs_blkfree(ip, bno, size)
 	}
 	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_time = time_second;
-	bno = dtogd(fs, bno);
+	cgbno = dtogd(fs, bno);
 	blksfree = cg_blksfree(cgp);
 	if (size == fs->fs_bsize) {
-		blkno = fragstoblks(fs, bno);
-		if (!ffs_isfreeblock(fs, blksfree, blkno)) {
+		fragno = fragstoblks(fs, cgbno);
+		if (!ffs_isfreeblock(fs, blksfree, fragno)) {
 			printf("dev = %s, block = %ld, fs = %s\n",
 			    devtoname(ip->i_dev), (long)bno, fs->fs_fsmnt);
 			panic("ffs_blkfree: freeing free block");
 		}
-		ffs_setblock(fs, blksfree, blkno);
-		ffs_clusteracct(fs, cgp, blkno, 1);
+		ffs_setblock(fs, blksfree, fragno);
+		ffs_clusteracct(fs, cgp, fragno, 1);
 		cgp->cg_cs.cs_nbfree++;
 		fs->fs_cstotal.cs_nbfree++;
 		fs->fs_cs(fs, cg).cs_nbfree++;
-		i = cbtocylno(fs, bno);
-		cg_blks(fs, cgp, i)[cbtorpos(fs, bno)]++;
+		i = cbtocylno(fs, cgbno);
+		cg_blks(fs, cgp, i)[cbtorpos(fs, cgbno)]++;
 		cg_blktot(cgp)[i]++;
 	} else {
-		bbase = bno - fragnum(fs, bno);
+		bbase = cgbno - fragnum(fs, cgbno);
 		/*
 		 * decrement the counts associated with the old frags
 		 */
@@ -1387,13 +1387,13 @@ ffs_blkfree(ip, bno, size)
 		 */
 		frags = numfrags(fs, size);
 		for (i = 0; i < frags; i++) {
-			if (isset(blksfree, bno + i)) {
+			if (isset(blksfree, cgbno + i)) {
 				printf("dev = %s, block = %ld, fs = %s\n",
 				    devtoname(ip->i_dev), (long)(bno + i),
 				    fs->fs_fsmnt);
 				panic("ffs_blkfree: freeing free frag");
 			}
-			setbit(blksfree, bno + i);
+			setbit(blksfree, cgbno + i);
 		}
 		cgp->cg_cs.cs_nffree += i;
 		fs->fs_cstotal.cs_nffree += i;
@@ -1406,12 +1406,12 @@ ffs_blkfree(ip, bno, size)
 		/*
 		 * if a complete block has been reassembled, account for it
 		 */
-		blkno = fragstoblks(fs, bbase);
-		if (ffs_isblock(fs, blksfree, blkno)) {
+		fragno = fragstoblks(fs, bbase);
+		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree -= fs->fs_frag;
 			fs->fs_cstotal.cs_nffree -= fs->fs_frag;
 			fs->fs_cs(fs, cg).cs_nffree -= fs->fs_frag;
-			ffs_clusteracct(fs, cgp, blkno, 1);
+			ffs_clusteracct(fs, cgp, fragno, 1);
 			cgp->cg_cs.cs_nbfree++;
 			fs->fs_cstotal.cs_nbfree++;
 			fs->fs_cs(fs, cg).cs_nbfree++;
