@@ -1257,46 +1257,46 @@ struct scripth {
 */
 
 #ifdef _KERNEL
-static	nccb_p	ncr_alloc_nccb	(ncb_p np, u_long target, u_long lun);
-static	void	ncr_complete	(ncb_p np, nccb_p cp);
-static	int	ncr_delta	(int * from, int * to);
-static	void	ncr_exception	(ncb_p np);
-static	void	ncr_free_nccb	(ncb_p np, nccb_p cp);
-static	void	ncr_freeze_devq (ncb_p np, struct cam_path *path);
-static	void	ncr_selectclock	(ncb_p np, u_char scntl3);
-static	void	ncr_getclock	(ncb_p np, u_char multiplier);
-static	nccb_p	ncr_get_nccb	(ncb_p np, u_long t,u_long l);
+static	nccb_p	ncr_alloc_nccb(ncb_p np, u_long target, u_long lun);
+static	void	ncr_complete(ncb_p np, nccb_p cp);
+static	int	ncr_delta(int * from, int * to);
+static	void	ncr_exception(ncb_p np);
+static	void	ncr_free_nccb(ncb_p np, nccb_p cp);
+static	void	ncr_freeze_devq(ncb_p np, struct cam_path *path);
+static	void	ncr_selectclock(ncb_p np, u_char scntl3);
+static	void	ncr_getclock(ncb_p np, u_char multiplier);
+static	nccb_p	ncr_get_nccb(ncb_p np, u_long t,u_long l);
 #if 0
-static  u_int32_t ncr_info	(int unit);
+static  u_int32_t ncr_info(int unit);
 #endif
-static	void	ncr_init	(ncb_p np, char * msg, u_long code);
-static	void	ncr_intr	(void *vnp);
-static	void	ncr_int_ma	(ncb_p np, u_char dstat);
-static	void	ncr_int_sir	(ncb_p np);
-static  void    ncr_int_sto     (ncb_p np);
+static	void	ncr_init(ncb_p np, char * msg, u_long code);
+static	void	ncr_intr(void *vnp);
+static	void	ncr_int_ma(ncb_p np, u_char dstat);
+static	void	ncr_int_sir(ncb_p np);
+static  void    ncr_int_sto(ncb_p np);
 #if 0
-static	void	ncr_min_phys	(struct buf *bp);
+static	void	ncr_min_phys(struct buf *bp);
 #endif
-static	void	ncr_poll	(struct cam_sim *sim);
-static	void	ncb_profile	(ncb_p np, nccb_p cp);
-static	void	ncr_script_copy_and_bind
-				(ncb_p np, ncrcmd *src, ncrcmd *dst, int len);
-static  void    ncr_script_fill (struct script * scr, struct scripth *scrh);
-static	int	ncr_scatter	(struct dsb* phys, vm_offset_t vaddr,
-				 vm_size_t datalen);
-static	void	ncr_getsync	(ncb_p np, u_char sfac, u_char *fakp,
-				 u_char *scntl3p);
-static	void	ncr_setsync	(ncb_p np, nccb_p cp,u_char scntl3,u_char sxfer,
-				 u_char period);
-static	void	ncr_setwide	(ncb_p np, nccb_p cp, u_char wide, u_char ack);
-static	int	ncr_show_msg	(u_char * msg);
-static	int	ncr_snooptest	(ncb_p np);
-static	void	ncr_action	(struct cam_sim *sim, union ccb *ccb);
-static	void	ncr_timeout	(void *arg);
-static  void    ncr_wakeup	(ncb_p np, u_long code);
+static	void	ncr_poll(struct cam_sim *sim);
+static	void	ncb_profile(ncb_p np, nccb_p cp);
+static	void	ncr_script_copy_and_bind(cb_p np, ncrcmd *src, ncrcmd *dst,
+		    int len);
+static  void    ncr_script_fill(struct script * scr, struct scripth *scrh);
+static	int	ncr_scatter(struct dsb* phys, vm_offset_t vaddr,
+		    vm_size_t datalen);
+static	void	ncr_getsync(ncb_p np, u_char sfac, u_char *fakp,
+		    u_char *scntl3p);
+static	void	ncr_setsync(ncb_p np, nccb_p cp,u_char scntl3,u_char sxfer,
+		    u_char period);
+static	void	ncr_setwide(ncb_p np, nccb_p cp, u_char wide, u_char ack);
+static	int	ncr_show_msg(u_char * msg);
+static	int	ncr_snooptest(ncb_p np);
+static	void	ncr_action(struct cam_sim *sim, union ccb *ccb);
+static	void	ncr_timeout(void *arg);
+static  void    ncr_wakeup(ncb_p np, u_long code);
 
-static  int	ncr_probe	(device_t dev);
-static	int	ncr_attach	(device_t dev);
+static  int	ncr_probe(device_t dev);
+static	int	ncr_attach(device_t dev);
 
 #endif /* _KERNEL */
 

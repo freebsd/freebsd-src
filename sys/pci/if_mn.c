@@ -165,8 +165,8 @@ struct mn_softc;
 struct sockaddr;
 struct rtentry;
 
-static	int	mn_probe  (device_t self);
-static	int	mn_attach (device_t self);
+static	int	mn_probe(device_t self);
+static	int	mn_attach(device_t self);
 static	void	mn_create_channel(struct mn_softc *sc, int chan);
 static	int	mn_reset(struct mn_softc *sc);
 static	struct trxd * mn_alloc_desc(void);
