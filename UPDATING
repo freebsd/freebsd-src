@@ -11,13 +11,17 @@ the common items quick how-tos, followed by entries for versions of
 
 This is for the 4.5 release branch.  All entries since 4.5 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.5-RELEASE-p8.
+By this count, we're at 4.5-RELEASE-p10.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020730:	p10	FreeBSD-SA-02:23.stdio.v1.2
+	A bug in the previous patch for the vulnerability described
+	in FreeBSD-SA-02:23.stdio was found and corrected.
 
 20020715:	p9
 	Upgrade to BIND 8.3.3.
