@@ -76,7 +76,7 @@ static struct {
 	{ RTM_IFANNOUNCE, sizeof(struct if_announcemsghdr),
 	  rtsock_input_ifannounce },
 #endif
-	{ 0, NULL },
+	{ 0, 0, NULL },
 };
 
 int
