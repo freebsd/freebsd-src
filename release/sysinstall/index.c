@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.67 1999/05/15 14:34:21 jkh Exp $
+ * $Id: index.c,v 1.68 1999/05/27 10:32:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,9 @@ static char *descrs[] = {
     "german", "Ported software for Germanic countries.",
     "graphics", "Graphics libraries and utilities.",
     "gnome", "Components of the Gnome Desktop environment.",
+    "irc", "Internet Relay Chat utilities.",
     "japanese", "Ported software for the Japanese market.",
+    "java", "Java language support.",
     "kde", "Software for the K Desktop Environment.",
     "korean", "Ported software for the Korean market.",
     "lang", "Computer languages.",
@@ -145,6 +147,7 @@ static char *descrs[] = {
     "x11-clocks", "X Window System based clocks.",
     "x11-fm", "X Window System based file managers.",
     "x11-fonts", "X Window System fonts and font utilities.",
+    "x11-servers", "X Window System servers.",
     "x11-toolkits", "X Window System based development toolkits.",
     "x11-wm", "X Window System window managers.",
     NULL, NULL,
