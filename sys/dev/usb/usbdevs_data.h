@@ -2608,6 +2608,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "SpeedStream USB",
 	},
 	{
+	    USB_VENDOR_SIGMATEL, USB_PRODUCT_SIGMATEL_I_BEAD100,
+	    0,
+	    "Sigmatel",
+	    "i-Bead 100 MP3 Player",
+	},
+	{
 	    USB_VENDOR_SIIG, USB_PRODUCT_SIIG_DIGIFILMREADER,
 	    0,
 	    "SIIG",

@@ -1074,6 +1074,9 @@
 /* Siemens products */
 #define	USB_PRODUCT_SIEMENS_SPEEDSTREAM	0x1001		/* SpeedStream USB */
 
+/* Sigmatel products */
+#define	USB_PRODUCT_SIGMATEL_I_BEAD100	0x8008		/* i-Bead 100 MP3 Player */
+
 /* SIIG products */
 #define	USB_PRODUCT_SIIG_DIGIFILMREADER	0x0004		/* DigiFilm-Combo Reader */
 
