@@ -4,13 +4,15 @@
 
 PROG=	a2p
 CFLAGS+=-I${PERL5SRC}/x2p -I${.OBJDIR} -I${.OBJDIR}/temp
-SRCS=	a2p.c hash.c str.c util.c walk.c
+LDFLAGS+=-lperl
+SRCS=	a2p.c hash.c str.c util.c walk.c config.h
 
-beforedepend all: ${.OBJDIR}/config.h temp
+beforedepend all: config.h temp
 
 .include <bsd.prog.mk>
 
 .PATH: ${PERL5SRC}/x2p
+.PATH: ${PERL5SRC}
 
 .SUFFIXES:
 .SUFFIXES: .c .h .o
@@ -18,16 +20,15 @@ beforedepend all: ${.OBJDIR}/config.h temp
 temp:
 	@mkdir temp
 
-CLEANFILES+= ${.OBJDIR}/config.h ${.OBJDIR}/config_h.sh ${.OBJDIR}/config.sh \
-		${PROG}.1
+CLEANFILES+= config.h config_h.sh config.sh ${PROG}.1
 
-${.OBJDIR}/config.h: ${.OBJDIR}/config_h.sh ${.OBJDIR}/config.sh
+config.h: config_h.sh config.sh
 	sh config_h.sh
 
-${.OBJDIR}/config.sh: ${.CURDIR}/../../libperl/config.SH
+config.sh: ${.CURDIR}/../../libperl/config.SH-${OBJFORMAT}
 	@ln -sf ${.OODATE} ${.TARGET}
 
-${.OBJDIR}/config_h.sh: ${PERL5SRC}/config_h.SH
+config_h.sh: ${PERL5SRC}/config_h.SH
 	@ln -sf ${.OODATE} ${.TARGET}
 
 ${PROG}.1: ${PROG}.pod
