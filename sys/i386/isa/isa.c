@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.121 1999/04/24 06:47:24 peter Exp $
+ *	$Id: isa.c,v 1.122 1999/04/24 18:24:43 kato Exp $
  */
 
 /*
@@ -100,8 +100,10 @@ isa_add_device(device_t dev, const char *name, int unit)
 	int		sensitive, t;
 	static	device_t last_sensitive;
 
+	/* device-specific flag overrides any wildcard */
+	sensitive = 0;
 	if (resource_int_value(name, unit, "sensitive", &sensitive) != 0)
-		sensitive = 0;
+		resource_int_value(name, -1, "sensitive", &sensitive);
 
 	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
 	if (!idev)
