@@ -35,8 +35,8 @@
 Generic WD100x/IDE diskcontroller driver
 .Sh SYNOPSIS
 .Cd "device wdc0 at isa? port" IO_WD1 irq 14 Op flags Ar flags
-.Cd "disk wd0 at wdc0 drive 0"
-.Cd "disk wd1 at wdc0 drive 1" Op flags Ar flags
+.Cd "device wd0 at wdc0 drive 0"
+.Cd "device wd1 at wdc0 drive 1" Op flags Ar flags
 .Pp
 For the CMD640b IDE controller:
 .Cd "options"  CMD640
