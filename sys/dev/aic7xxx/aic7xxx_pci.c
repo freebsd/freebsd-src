@@ -39,7 +39,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#50 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#52 $
  *
  * $FreeBSD$
  */
@@ -660,6 +660,14 @@ const u_int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
 #define		CACHESIZE	0x0000003ful	/* only 5 bits */
 #define		LATTIME		0x0000ff00ul
 
+/* PCI STATUS definitions */
+#define	DPE	0x80
+#define SSE	0x40
+#define	RMA	0x20
+#define	RTA	0x10
+#define STA	0x08
+#define DPR	0x01
+
 static int ahc_9005_subdevinfo_valid(uint16_t vendor, uint16_t device,
 				     uint16_t subvendor, uint16_t subdevice);
 static int ahc_ext_scbram_present(struct ahc_softc *ahc);
@@ -1185,6 +1193,55 @@ done:
 		       large ? 64 : 32);
 	}
 	ahc_scbram_config(ahc, enable, pcheck, fast, large);
+}
+
+/*
+ * Perform some simple tests that should catch situations where
+ * our registers are invalidly mapped.
+ */
+int
+ahc_pci_test_register_access(struct ahc_softc *ahc)
+{
+	int   i;
+	u_int status1;
+
+	/*
+	 * First a simple test to see if any
+	 * registers can be read.  Reading
+	 * HCNTRL has no side effects and has
+	 * at least one bit that is guaranteed to
+	 * be zero so it is a good register to
+	 * use for this test.
+	 */
+	if (ahc_inb(ahc, HCNTRL) == 0xFF)
+		return (EIO);
+
+	/*
+	 * Next create a situation where write combining
+	 * or read prefetching could be initiated by the
+	 * CPU or host bridge.  Our device does not support
+	 * either, so look for data corruption and/or flagged
+	 * PCI errors.
+	 */
+	for (i = 0; i < 16; i++)
+		ahc_outb(ahc, SRAM_BASE + i, i);
+
+	for (i = 0; i < 16; i++)
+		if (ahc_inb(ahc, SRAM_BASE + i) != i)
+			return (EIO);
+
+	status1 = ahc_pci_read_config(ahc->dev_softc,
+				      PCIR_STATUS + 1, /*bytes*/1);
+	if ((status1 & STA) != 0) {
+
+		/* Silently clear any latched errors. */
+		ahc_pci_write_config(ahc->dev_softc, PCIR_STATUS + 1,
+				     status1, /*bytes*/1);
+		ahc_outb(ahc, CLRINT, CLRPARERR);
+		return (EIO);
+	}
+
+	return (0);
 }
 
 /*
@@ -1851,13 +1908,6 @@ read_brdctl(ahc)
 	ahc_outb(ahc, BRDCTL, 0);
 	return (value);
 }
-
-#define	DPE	0x80
-#define SSE	0x40
-#define	RMA	0x20
-#define	RTA	0x10
-#define STA	0x08
-#define DPR	0x01
 
 void
 ahc_pci_intr(struct ahc_softc *ahc)
