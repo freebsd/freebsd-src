@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.22 1997/10/12 20:26:04 phk Exp $
+ * $Id: socket.h,v 1.23 1997/12/21 16:35:11 bde Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -227,6 +227,7 @@ struct sockproto {
 	{ "pip", CTLTYPE_NODE }, \
 	{ "isdn", CTLTYPE_NODE }, \
 	{ "key", CTLTYPE_NODE }, \
+	{ "inet6", CTLTYPE_NODE }, \
 	{ "natm", CTLTYPE_NODE }, \
 }
 
