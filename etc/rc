@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.75 1995/10/29 12:43:47 ache Exp $
+#	$Id: rc,v 1.76 1995/11/01 00:22:45 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -285,7 +285,6 @@ if [ -x /sbin/ldconfig ]; then
 	if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
 	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
 	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
-	if [ -d /usr/gnu/lib ]; then _LDC="${_LDC} /usr/gnu/lib" ; fi
 	echo 'setting ldconfig path:' ${_LDC}
 	ldconfig ${_LDC}
 fi
