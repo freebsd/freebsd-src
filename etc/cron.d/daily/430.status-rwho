@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $Id$
+#
+
+if [ -d /var/rwho -a -x /usr/bin/rwho ] ; then
+    echo ""
+    echo "Local network system status:"
+    ruptime
+fi
