@@ -318,6 +318,7 @@ vendor AGILENT		0x0957	Agilent Technologies
 vendor PORTSMITH	0x095a	Portsmith
 vendor ADIRONDACK	0x0976	Adirondack Wire & Cable
 vendor BECKHOFF		0x0978	Beckhoff
+vendor INTERSIL		0x09aa	Intersil
 vendor ALTIUS		0x09b3	Altius Solutions
 vendor ARRIS		0x09c1	Arris Interactive
 vendor ACTIVCARD	0x09c3	ACTIVCARD
@@ -738,6 +739,9 @@ product INSYSTEM USBCABLE	0x081a	USB cable
 /* Intel products */
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
+
+/* Intersil products */
+product INTERSIL PRISM_2X	0x3642	Prism2.x or Atmel WLAN
 
 /* I/O DATA products */
 product IODATA USBETT		0x0901	USB ETT
