@@ -52,13 +52,15 @@
 #define	NWFS_MOUNT_GET_SYSENT	0x0040	/* special case, look to vfsops :) */
 #define	NWFS_MOUNT_HAVE_NLS	0x0080
 
+#define	NWFS_VOLNAME_LEN	48
+
 
 /* Layout of the mount control block for a netware file system. */
 struct nwfs_args {
 	int		connRef;		/* connection reference */
 	char		mount_point[MAXPATHLEN];
 	u_int		flags;
-	u_char		mounted_vol[NCP_VOLNAME_LEN + 1];
+	u_char		mounted_vol[NWFS_VOLNAME_LEN + 1];
 	u_char		root_path[512+1];
 	int		version;
 	uid_t		uid;
