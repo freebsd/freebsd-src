@@ -357,7 +357,7 @@ carp_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_hdrlen = 0;
 	if_attach(ifp);
 	LIST_INSERT_HEAD(&carpif_list, sc, sc_next);
-	bpfattach(&sc->sc_if, DLT_LOOP, sizeof(u_int32_t));
+	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int32_t));
 	return (0);
 }
 
@@ -595,24 +595,13 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 	sc->sc_if.if_ibytes += m->m_pkthdr.len;
 
 	if (sc->sc_if.if_bpf) {
-		/*
-		 * We need to prepend the address family as
-		 * a four byte field.  Cons up a dummy header
-		 * to pacify bpf.  This is safe because bpf
-		 * will only read from the mbuf (i.e., it won't
-		 * try to free it or keep a pointer to it).
-		 */
-		struct mbuf m0;
 		struct ip *ip = mtod(m, struct ip *);
-		u_int32_t maf = htonl(af);
+		uint32_t af1 = af;
 
-		m0.m_next = m;
-		m0.m_len = sizeof(maf);
-		m0.m_data = (char *)&maf;
 		/* BPF wants net byte order */
-		ip->ip_len = htonl(ip->ip_len);
-		ip->ip_off = htonl(ip->ip_off);
-		BPF_MTAP(&sc->sc_if, &m0);
+		ip->ip_len = htons(ip->ip_len + (ip->ip_hl << 2));
+		ip->ip_off = htons(ip->ip_off);
+		bpf_mtap2(sc->sc_if.if_bpf, &af1, sizeof(af1), m);
 	}
 
 	/* verify the CARP version. */
