@@ -360,7 +360,7 @@ pipe_create(cpipep)
 	/* so pipespace()->pipe_free_kmem() doesn't follow junk pointer */
 	cpipe->pipe_buffer.object = NULL;
 #ifndef PIPE_NODIRECT
-	cpipe->pipe_map.kva = NULL;
+	cpipe->pipe_map.kva = 0;
 #endif
 	/*
 	 * protect so pipeclose() doesn't follow a junk pointer
@@ -1344,7 +1344,7 @@ pipe_free_kmem(cpipe)
 		cpipe->pipe_buffer.buffer = NULL;
 	}
 #ifndef PIPE_NODIRECT
-	if (cpipe->pipe_map.kva != NULL) {
+	if (cpipe->pipe_map.kva != 0) {
 		amountpipekva -= cpipe->pipe_buffer.size + PAGE_SIZE;
 		kmem_free(kernel_map,
 			cpipe->pipe_map.kva,

@@ -51,7 +51,7 @@ sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
 	vtb->vtb_cols = cols;
 	vtb->vtb_rows = rows;
 	vtb->vtb_size = cols*rows;
-	vtb->vtb_buffer = NULL;
+	vtb->vtb_buffer = 0;
 	vtb->vtb_tail = 0;
 
 	switch (type) {
@@ -62,7 +62,7 @@ sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
 				(vm_offset_t)malloc(cols*rows*sizeof(u_int16_t),
 						    M_DEVBUF, 
 						    (wait) ? M_WAITOK : M_NOWAIT);
-			if (vtb->vtb_buffer != NULL) {
+			if (vtb->vtb_buffer != 0) {
 				bzero((void *)sc_vtb_pointer(vtb, 0),
 				      cols*rows*sizeof(u_int16_t));
 				vtb->vtb_flags |= VTB_ALLOCED;
@@ -92,11 +92,11 @@ sc_vtb_destroy(sc_vtb_t *vtb)
 	vtb->vtb_tail = 0;
 
 	p = vtb->vtb_buffer;
-	vtb->vtb_buffer = NULL;
+	vtb->vtb_buffer = 0;
 	switch (vtb->vtb_type) {
 	case VTB_MEMORY:
 	case VTB_RINGBUFFER:
-		if ((vtb->vtb_flags & VTB_ALLOCED) && (p != NULL))
+		if ((vtb->vtb_flags & VTB_ALLOCED) && (p != 0))
 			free((void *)p, M_DEVBUF);
 		break;
 	default:

@@ -571,7 +571,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 							 dmat->lowaddr,
 							 PAGE_SIZE,
 							 0);
-		if (bpage->vaddr == NULL) {
+		if (bpage->vaddr == 0) {
 			free(bpage, M_DEVBUF);
 			break;
 		}
