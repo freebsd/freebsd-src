@@ -45,17 +45,65 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rlist.c,v 1.3 1993/11/25 01:33:18 wollman Exp $
+ *	$Id$
  */
 
 #include "param.h"
 #include "systm.h"
+#include "cdefs.h"
 #include "malloc.h"
 #include "rlist.h"
+#include "vm/vm.h"
+#include "vm/vm_map.h"
+
+extern vm_map_t kernel_map;
 
 /*
  * Resource lists.
  */
+
+#define RLIST_MIN 128
+static int rlist_count=0;
+static struct rlist *rlfree;
+int rlist_active;
+
+static struct rlist *
+rlist_malloc()
+{
+	struct rlist *rl;
+	int i;
+	while( rlist_count < RLIST_MIN) {
+		extern vm_map_t kmem_map;
+		int s = splhigh();
+		rl = (struct rlist *)kmem_malloc(kmem_map, NBPG, 0);
+		splx(s);
+		if( !rl)
+			break;
+		
+		for(i=0;i<(NBPG/(sizeof *rl));i++) {
+			rl->rl_next = rlfree;
+			rlfree = rl;
+			rlist_count++;
+			rl++;
+		}
+	}
+
+	if( (rl = rlfree) == 0 )
+		panic("Cannot get an rlist entry");
+		
+	--rlist_count;
+	rlfree = rl->rl_next;
+	return rl;
+}
+
+inline static void
+rlist_mfree( struct rlist *rl)
+{
+	rl->rl_next = rlfree;
+	rlfree = rl;
+	++rlist_count;
+}
+	
 
 /*
  * Add space to a resource list. Used to either
@@ -67,16 +115,26 @@ rlist_free (rlp, start, end)
 	unsigned start, end;
 {
 	struct rlist *head;
+	register struct rlist *olp = 0;
+	int s;
+
+	s = splhigh();
+	while( rlist_active)
+		tsleep((caddr_t)&rlist_active, PSWP, "rlistf", 0);
+	rlist_active = 1;
+	splx(s);
 
 	head = *rlp;
 
 loop:
 	/* if nothing here, insert (tail of list) */
 	if (*rlp == 0) {
-		*rlp = (struct rlist *)malloc(sizeof(**rlp), M_TEMP, M_NOWAIT);
+		*rlp = rlist_malloc();
 		(*rlp)->rl_start = start;
 		(*rlp)->rl_end = end;
 		(*rlp)->rl_next = 0;
+		rlist_active = 0;
+		wakeup((caddr_t)&rlist_active);
 		return;
 	}
 
@@ -103,11 +161,21 @@ loop:
 	if (end < (*rlp)->rl_start) {
 		register struct rlist *nlp;
 
-		nlp = (struct rlist *)malloc(sizeof(*nlp), M_TEMP, M_NOWAIT);
+		nlp = rlist_malloc();
 		nlp->rl_start = start;
 		nlp->rl_end = end;
 		nlp->rl_next = *rlp;
-		*rlp = nlp;
+		/*
+		 * If the new element is in front of the list,
+		 * adjust *rlp, else don't.
+		 */
+		if( olp) {
+			olp->rl_next = nlp;
+		} else {
+			*rlp = nlp;
+		}
+		rlist_active = 0;
+		wakeup((caddr_t)&rlist_active);
 		return;
 	}
 
@@ -120,6 +188,7 @@ loop:
 
 	/* are we after this element */
 	if (start  > (*rlp)->rl_end) {
+		olp = *rlp;
 		rlp = &((*rlp)->rl_next);
 		goto loop;
 	} else
@@ -137,11 +206,13 @@ scan:
 			if (lp->rl_end + 1 == lpn->rl_start) {
 				lp->rl_end = lpn->rl_end;
 				lp->rl_next = lpn->rl_next;
-				free(lpn, M_TEMP);
+				rlist_mfree(lpn);
 			} else
 				lp = lp->rl_next;
 		}
 	}
+	rlist_active = 0;
+	wakeup((caddr_t)&rlist_active);
 }
 
 /*
@@ -151,9 +222,18 @@ scan:
  * "*loc". (Note: loc can be zero if we don't wish the value)
  */
 int rlist_alloc (rlp, size, loc)
-struct rlist **rlp; unsigned size, *loc; {
+	struct rlist **rlp;
+	unsigned size, *loc;
+{
 	register struct rlist *lp;
+	int s;
+	register struct rlist *olp = 0;
 
+	s = splhigh();
+	while( rlist_active)
+		tsleep((caddr_t)&rlist_active, PSWP, "rlista", 0);
+	rlist_active = 1;
+	splx(s);
 
 	/* walk list, allocating first thing that's big enough (first fit) */
 	for (; *rlp; rlp = &((*rlp)->rl_next))
@@ -166,13 +246,27 @@ struct rlist **rlp; unsigned size, *loc; {
 			/* did we eat this element entirely? */
 			if ((*rlp)->rl_start > (*rlp)->rl_end) {
 				lp = (*rlp)->rl_next;
-				free (*rlp, M_TEMP);
-				*rlp = lp;
+				rlist_mfree(*rlp);
+				/*
+				 * if the deleted element was in fromt
+				 * of the list, adjust *rlp, else don't.
+				 */
+				if (olp) {
+					olp->rl_next = lp;
+				} else {
+					*rlp = lp;
+				}
 			}
 
+			rlist_active = 0;
+			wakeup((caddr_t)&rlist_active);
 			return (1);
+		} else {
+			olp = *rlp;
 		}
 
+	rlist_active = 0;
+	wakeup((caddr_t)&rlist_active);
 	/* nothing in list that's big enough */
 	return (0);
 }
@@ -191,6 +285,6 @@ rlist_destroy (rlp)
 	*rlp = 0;
 	for (; lp; lp = nlp) {
 		nlp = lp->rl_next;
-		free (lp, M_TEMP);
+		rlist_mfree(lp);
 	}
 }
