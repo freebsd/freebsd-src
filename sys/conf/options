@@ -1,6 +1,12 @@
 DDB
+FDESC		opt_staticfs.h
+KERNFS		opt_staticfs.h
 KTRACE
-PROCFS
+NULLFS		opt_staticfs.h
+PORTAL		opt_staticfs.h
+PROCFS		opt_staticfs.h
 SYSVSHM		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVMSG		opt_sysvipc.h
+UMAPFS		opt_staticfs.h
+UNION		opt_staticfs.h
