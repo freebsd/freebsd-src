@@ -1929,7 +1929,7 @@ static int
 tcp_signature_apply(void *fstate, void *data, u_int len)
 {
 
-	MD5Update((MD5_CTX *)fstate, (unsigned char *)data, (unsigned int)len);
+	MD5Update(fstate, (u_char *)data, len);
 	return (0);
 }
 
