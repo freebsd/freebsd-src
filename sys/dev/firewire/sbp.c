@@ -1169,7 +1169,9 @@ SBP_DEBUG(1)
 END_DEBUG
 
 	if ((sdev->flags & ORB_POINTER_ACTIVE) != 0) {
+SBP_DEBUG(0)
 		printf("%s: orb pointer active\n", __FUNCTION__);
+END_DEBUG
 		sdev->flags |= ORB_POINTER_NEED;
 		return;
 	}
