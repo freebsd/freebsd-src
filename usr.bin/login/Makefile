@@ -8,8 +8,8 @@ SRCS=	login.c login_access.c login_fbtab.c
 
 CFLAGS+=-Wall -DLOGIN_ACCESS -DLOGALL
 
-DPADD=	${LIBUTIL} ${LIBCRYPT}
-LDADD=	-lutil -lcrypt
+DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBMD}
+LDADD=	-lutil -lcrypt -lmd
 
 .if defined(NOPAM)
 CFLAGS+= -DNO_PAM

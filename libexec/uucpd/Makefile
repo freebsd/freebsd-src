@@ -3,6 +3,6 @@
 
 PROG=	uucpd
 MAN8=	uucpd.8
-LDADD=  -lcrypt -lutil
-DPADD=  ${LIBCRYPT} ${LIBUTIL}
+LDADD=  -lcrypt -lutil -lmd
+DPADD=  ${LIBCRYPT} ${LIBUTIL} ${LIBMD}
 .include <bsd.prog.mk>
