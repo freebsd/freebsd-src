@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.63 1996/05/16 13:39:08 jkh Exp $
+ * $Id: menus.c,v 1.42.2.51 1996/05/24 06:08:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,34 +122,37 @@ clearX11Fonts(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
+#define IS_DEVELOPER(dist, extra) (((dist) == (_DIST_DEVELOPER | (extra))) || ((dist) == (_DIST_DEVELOPER | DIST_DES | (extra))))
+#define IS_USER(dist, extra) (((dist) == (_DIST_USER | (extra))) || ((dist) == (_DIST_USER | DIST_DES | (extra))))
+
 static int
 checkDistDeveloper(dialogMenuItem *self)
 {
-    return (Dists == _DIST_DEVELOPER && SrcDists == DIST_SRC_ALL);
+    return (IS_DEVELOPER(Dists, 0) && SrcDists == DIST_SRC_ALL);
 }
 
 static int
 checkDistXDeveloper(dialogMenuItem *self)
 {
-    return (Dists == (_DIST_DEVELOPER | DIST_XF86) && SrcDists == DIST_SRC_ALL);
+    return (IS_DEVELOPER(Dists, DIST_XF86) && SrcDists == DIST_SRC_ALL);
 }
 
 static int
 checkDistKernDeveloper(dialogMenuItem *self)
 {
-    return (Dists == _DIST_DEVELOPER && SrcDists == DIST_SRC_SYS);
+    return (IS_DEVELOPER(Dists, 0) && SrcDists == DIST_SRC_SYS);
 }
 
 static int
 checkDistUser(dialogMenuItem *self)
 {
-    return (Dists == _DIST_USER);
+    return (IS_USER(Dists, 0));
 }
 
 static int
 checkDistXUser(dialogMenuItem *self)
 {
-    return (Dists == (_DIST_USER | DIST_XF86));
+    return (IS_USER(Dists, DIST_XF86));
 }
 
 static int
@@ -382,6 +385,8 @@ guaranteed to carry the full range of possible distributions.",
     VAR_FTP_PATH "=ftp://ftp.ca.freebsd.org/pub/FreeBSD/" },
   { "Czech Republic",	"sunsite.mff.cuni.cz", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://sunsite.mff.cuni.cz/OS/FreeBSD/" },
+  { "Estonia",		"ftp.ee.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.ee.freebsd.org/pub/FreeBSD/" },
   { "Finland",		"nic.funet.fi", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://nic.funet.fi/pub/unix/FreeBSD/" },
   { "France",		"ftp.ibp.fr", NULL, dmenuSetVariable, NULL,
@@ -400,6 +405,8 @@ guaranteed to carry the full range of possible distributions.",
     VAR_FTP_PATH "=ftp://ftp6.de.freebsd.org/pub/FreeBSD/" },
   { "Germany #7",	"ftp7.de.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp7.de.freebsd.org/pub/FreeBSD/" },
+  { "Holland",	 	"ftp.nl.freebsd.ort", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.nl.freebsd.org/pub/os/FreeBSD/cdrom/" },
   { "Hong Kong",	"ftp.hk.super.net", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.hk.super.net/pub/FreeBSD/" },
   { "Ireland",		"ftp.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -486,15 +493,14 @@ select one of the following tape devices detected on your system.",
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "If you are using PPP over a serial device (cuaa0 or cuaa1) as opposed\n\
-to a direct ethernet connection, then you may first need to dial your\n\
-service provider using the ppp utility we provide for that purpose.\n\
-You can also install over a parallel port using a special \"laplink\"\n\
-cable, though this only works if you have another FreeBSD machine running\n\
-a fairly recent (2.0R or later) release to talk to.\n\n\
-To use PPP, select one of the serial devices, otherwise select lp0 for\n\
-the parallel port or one of the ethernet controllers (if you have one)\n\
-for an ethernet installation.",
+    "If you are using PPP over a serial device as opposed\n"
+    "to a direct ethernet connection, then you may first need to dial your\n"
+    "service provider using the ppp utility we provide for that purpose.\n"
+    "If you're using SLIP over a serial device then it's expected that you\n"
+    "have a hardwired connection.\n\n"
+    "You can also install over a parallel port using a special \"laplink\"\n"
+    "cable to another machine running a fairly recent (2.0R or later) version\n"
+    "of FreeBSD.",
     "Press F1 to read network configuration manual",
     "network_device",
     { { NULL } },
@@ -945,11 +951,11 @@ aspects of your system's network configuration.",
 { { "Interfaces",	"Configure additional network interfaces",
     NULL, tcpMenuSelect },
   { "NFS client",	"This machine will be an NFS client",
-    dmenuVarCheck, dmenuSetVariable, NULL, "nfs_client=YES" },
+    dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client=YES" },
   { "NFS server",	"This machine will be an NFS server",
     dmenuVarCheck, configNFSServer, NULL, "nfs_server" },
   { "Gateway",		"This machine will route packets between interfaces",
-    dmenuVarCheck, dmenuSetVariable, NULL, "gateway=YES" },
+    dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
   { "Gated",		"This machine wants to run gated instead of routed",
     dmenuVarCheck, configGated, NULL, "gated" },
   { "Ntpdate",		"Select a clock-syncronization server",
@@ -957,7 +963,7 @@ aspects of your system's network configuration.",
   { "Routed",		"Set flags for routed (default: -q)",
     dmenuVarCheck, configRoutedFlags, NULL, "routed" },
   { "Rwhod",		"This machine wants to run the rwho daemon",
-    dmenuVarCheck, dmenuSetVariable, NULL, "rwhod=YES" },
+    dmenuVarCheck, dmenuToggleVariable, NULL, "rwhod=YES" },
   { "Anon FTP",		"This machine wishes to allow anonymous FTP.",
     dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
   { "WEB Server",	"This machine wishes to be a WWW server.",

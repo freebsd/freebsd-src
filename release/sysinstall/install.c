@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.90 1996/05/24 06:08:41 jkh Exp $
+ * $Id: install.c,v 1.71.2.91 1996/05/29 04:37:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -388,11 +388,12 @@ installNovice(dialogMenuItem *self)
 		   "may do so by typing: /stand/sysinstall.");
 
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Would you like to configure this machine's network interfaces?")) {
+	if (!msgYesNo("Does this system have a network interface card?")) {
 	    Device *save = mediaDevice;
 
 	    /* This will also set the media device, which we don't want */
 	    tcpDeviceSelect();
+	    /* so we restore our saved value below */
 	    mediaDevice = save;
 	    dialog_clear();
 	}
@@ -786,7 +787,15 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_RELNAME,			RELEASE_NAME);
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
-    variable_set2(VAR_EDITOR,			RunningAsInit ? "/stand/ee" : "/usr/bin/ee");
+    if (RunningAsInit)
+    	variable_set2(VAR_EDITOR,		"/usr/bin/ee");
+    else {
+	char *cp = getenv("EDITOR");
+
+	if (!cp)
+	    cp = "/usr/bin/ee";
+    	variable_set2(VAR_EDITOR,		cp);
+    }
     variable_set2(VAR_FTP_USER,			"ftp");
     variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.4fm");
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
@@ -794,6 +803,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_FTP_ONERROR,		"abort");
     variable_set2(VAR_FTP_RETRIES,		MAX_FTP_RETRIES);
+    variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update");
     else
