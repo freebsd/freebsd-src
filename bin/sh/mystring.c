@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mystring.c,v 1.2 1994/09/24 02:57:59 davidg Exp $
+ *	$Id: mystring.c,v 1.3 1996/09/01 10:21:03 peter Exp $
  */
 
 #ifndef lint
@@ -117,7 +117,7 @@ number(s)
 	{
 
 	if (! is_number(s))
-		error2("Illegal number", (char *)s);
+		error("Illegal number: %s", (char *)s);
 	return atoi(s);
 }
 

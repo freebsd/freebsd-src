@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- *	$Id: error.h,v 1.2 1994/09/24 02:57:28 davidg Exp $
+ *	$Id: error.h,v 1.3 1996/09/01 10:19:55 peter Exp $
  */
 
 /*
@@ -90,7 +90,6 @@ extern char *commandname;	/* name of command--printed on error */
 
 void exraise __P((int));
 void onint __P((void));
-void error2 __P((char *, char *));
 void error __P((char *, ...));
 char *errmsg __P((int, int));
 
