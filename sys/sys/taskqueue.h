@@ -56,10 +56,10 @@ typedef void (*taskqueue_enqueue_fn)(void *context);
 
 struct task {
 	STAILQ_ENTRY(task) ta_link;	/* link for queue */
-	int		ta_pending;	/* count times queued */
-	int		ta_priority;	/* priority of task in queue */
-	task_fn_t	*ta_func;	/* task handler */
-	void		*ta_context;	/* argument for handler */
+	int	ta_pending;		/* count times queued */
+	int	ta_priority;		/* priority of task in queue */
+	task_fn_t *ta_func;		/* task handler */
+	void	*ta_context;		/* argument for handler */
 };
 
 struct taskqueue *taskqueue_create(const char *name, int mflags,
