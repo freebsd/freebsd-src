@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.25 1994/01/31 19:07:59 ache Exp $
+ *	$Id: sio.c,v 1.27 1994/02/06 11:59:35 ache Exp $
  */
 
 #include "sio.h"
@@ -239,9 +239,7 @@ static	int	sioattach	__P((struct isa_device *dev));
 static	void	comflush	__P((struct com_s *com));
 static	void	comhardclose	__P((struct com_s *com));
 static	void	cominit		__P((int unit, int rate));
-#ifdef COM_MULTIPORT
 static	void	comintr1	__P((struct com_s *com));
-#endif /* COM_MULTIPORT */
 static	void	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	int	sioprobe	__P((struct isa_device *dev));
@@ -851,18 +849,14 @@ siointr(unit)
 	int	unit;
 {
 	struct com_s	*com;
-#ifndef COM_MULTIPORT
-	u_char		line_status;
-	u_char		modem_status;
-	u_char		*ioptr;
-	u_char		recv_data;
 
+#ifndef COM_MULTIPORT
 	com = com_addr(unit);
+	if (com != NULL)
+		comintr1(com);
 #else /* COM_MULTIPORT */
 	bool_t		possibly_more_intrs;
 
-	com = com_addr(unit);
-	comintr1(com);
 	/*
 	 * Loop until there is no activity on any port.  This is necessary
 	 * to get an interrupt edge more than to avoid another interrupt.
@@ -886,7 +880,7 @@ siointr(unit)
 			}
 		}
 	} while (possibly_more_intrs);
-	return;
+#endif  /* COM_MULTIPORT */
 }
 
 static void
@@ -897,7 +891,6 @@ comintr1(com)
 	u_char		modem_status;
 	u_char		*ioptr;
 	u_char		recv_data;
-#endif /* COM_MULTIPORT */
 
 	while (TRUE) {
 		line_status = inb(com->line_status_port);
@@ -1486,7 +1479,7 @@ retry:
 	 * case.
 	 */
 	if (com->state >= (CS_BUSY | CS_TTGO))
-		siointr(unit);
+		comintr1(com);
 
 	enable_intr();
 	splx(s);
@@ -1532,7 +1525,7 @@ comstart(tp)
 	}
 	if (com->ocount != 0) {
 		disable_intr();
-		siointr(unit);
+		comintr1(com);
 		enable_intr();
 	} else if (RB_LEN(&tp->t_out) != 0) {
 		tp->t_state |= TS_BUSY;
@@ -1541,7 +1534,7 @@ comstart(tp)
 		com->obufend = (com->optr = (u_char *) tp->t_out.rb_hd)
 			      + com->ocount;
 		com->state |= CS_BUSY;
-		siointr(unit);	/* fake interrupt to start output */
+		comintr1(com);  /* fake interrupt to start output */
 		enable_intr();
 	}
 out:
@@ -1624,7 +1617,7 @@ comwakeup(chan, ticks)
 		com = com_addr(unit);
 		if (com != NULL && com->state >= (CS_BUSY | CS_TTGO)) {
 			disable_intr();
-			siointr(unit);
+			comintr1(com);
 			enable_intr();
 		}
 	}
