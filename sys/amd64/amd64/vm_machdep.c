@@ -246,6 +246,13 @@ cpu_exit(p)
 #ifdef USER_LDT
 	user_ldt_free(pcb);
 #endif
+        if (pcb->pcb_flags & PCB_DBREGS) {
+                /*
+                 * disable all hardware breakpoints
+                 */
+                reset_dbregs();
+                pcb->pcb_flags &= ~PCB_DBREGS;
+        }
 	cnt.v_swtch++;
 	cpu_switch(p);
 	panic("cpu_exit");
