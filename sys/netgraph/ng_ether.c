@@ -628,7 +628,8 @@ ng_ether_disconnect(hook_p hook)
 
 	if (hook == priv->upper) {
 		priv->upper = NULL;
-		priv->ifp->if_hwassist = priv->hwassist;  /* restore h/w csum */
+		if (priv->ifp != NULL)		/* restore h/w csum */
+			priv->ifp->if_hwassist = priv->hwassist;
 	} else if (hook == priv->lower) {
 		priv->lower = NULL;
 		priv->lowerOrphan = 0;
